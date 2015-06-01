@@ -2,6 +2,8 @@
 *.o
 *.a
 *.so
+.DS_Store
+Thumbs.db
 
 # Folders
 _obj
@@ -22,3 +24,21 @@ _testmain.go
 *.exe
 *.test
 *.prof
+
+bin/
+.vagrant/
+website/build/
+website/npm-debug.log
+*.old
+*.attr
+
+ui/.sass-cache
+ui/static/base.css
+
+ui/static/application.min.js
+ui/dist/
+
+*.swp
+
+website/.bundle
+website/vendor
