@@ -23,6 +23,10 @@ type Config struct {
 	// DataDir is the directory to store our state in
 	DataDir string
 
+	// DevMode is used for development purposes only and limits the
+	// use of persistence or state.
+	DevMode bool
+
 	// LogOutput is the location to write logs to. If this is not set,
 	// logs will go to stderr.
 	LogOutput io.Writer

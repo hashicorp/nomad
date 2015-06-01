@@ -17,7 +17,6 @@ import (
 type nomadFSM struct {
 	logOutput io.Writer
 	logger    *log.Logger
-	path      string
 	state     *StateStore
 }
 
@@ -29,7 +28,7 @@ type nomadSnapshot struct {
 }
 
 // NewFSMPath is used to construct a new FSM with a blank state
-func NewFSM(path string, logOutput io.Writer) (*nomadFSM, error) {
+func NewFSM(logOutput io.Writer) (*nomadFSM, error) {
 	// Create a state store
 	state, err := NewStateStore(logOutput)
 	if err != nil {
@@ -39,7 +38,6 @@ func NewFSM(path string, logOutput io.Writer) (*nomadFSM, error) {
 	fsm := &nomadFSM{
 		logOutput: logOutput,
 		logger:    log.New(logOutput, "", log.LstdFlags),
-		path:      path,
 		state:     state,
 	}
 	return fsm, nil
