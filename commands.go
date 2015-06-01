@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/hashicorp/vault/command"
+	"github.com/hashicorp/nomad/command"
 	"github.com/mitchellh/cli"
 )
 

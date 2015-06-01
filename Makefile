@@ -20,7 +20,6 @@ updatedeps: deps
 	@go get -d -f -u ./... $(DEPS)
 
 test: deps
-	@./scripts/verify_no_uuid.sh
 	@./scripts/test.sh
 	@$(MAKE) vet
 
@@ -28,7 +27,6 @@ integ:
 	go list ./... | INTEG_TESTS=yes xargs -n1 go test
 
 cover: deps
-	./scripts/verify_no_uuid.sh
 	go list ./... | xargs -n1 go test --cover
 
 format: deps
