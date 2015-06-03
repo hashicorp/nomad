@@ -4,8 +4,17 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 
+	"github.com/hashicorp/memberlist"
 	"github.com/hashicorp/raft"
+	"github.com/hashicorp/serf/serf"
+)
+
+const (
+	DefaultRegion   = "region1"
+	DefaultDC       = "dc1"
+	DefaultSerfPort = 4647
 )
 
 // These are the protocol versions that Nomad can understand
@@ -13,6 +22,17 @@ const (
 	ProtocolVersionMin uint8 = 1
 	ProtocolVersionMax       = 1
 )
+
+// ProtocolVersionMap is the mapping of Nomad protocol versions
+// to Serf protocol versions. We mask the Serf protocols using
+// our own protocol version.
+var protocolVersionMap map[uint8]uint8
+
+func init() {
+	protocolVersionMap = map[uint8]uint8{
+		1: 5,
+	}
+}
 
 var (
 	DefaultRPCAddr = &net.TCPAddr{IP: net.ParseIP("0.0.0.0"), Port: 4646}
@@ -24,6 +44,11 @@ type Config struct {
 	// It is required so that it can elect a leader without any
 	// other nodes being present
 	Bootstrap bool
+
+	// BootstrapExpect mode is used to automatically bring up a collection of
+	// Consul servers. This can be used to automatically bring up a collection
+	// of nodes.
+	BootstrapExpect int
 
 	// DataDir is the directory to store our state in
 	DataDir string
@@ -55,6 +80,22 @@ type Config struct {
 
 	// RequireTLS ensures that all RPC traffic is protected with TLS
 	RequireTLS bool
+
+	// SerfConfig is the configuration for the serf cluster
+	SerfConfig *serf.Config
+
+	// Node name is the name we use to advertise. Defaults to hostname.
+	NodeName string
+
+	// Region is the region this Nomad server belongs to.
+	Region string
+
+	// Datacenter is the datacenter this Nomad server belongs to.
+	Datacenter string
+
+	// Build is a string that is gossiped around, and can be used to help
+	// operators track which versions are actively deployed
+	Build string
 }
 
 // CheckVersion is used to check if the ProtocolVersion is valid
@@ -71,10 +112,27 @@ func (c *Config) CheckVersion() error {
 
 // DefaultConfig returns the default configuration
 func DefaultConfig() *Config {
+	hostname, err := os.Hostname()
+	if err != nil {
+		panic(err)
+	}
+
 	c := &Config{
+		Region:          DefaultRegion,
+		Datacenter:      DefaultDC,
+		NodeName:        hostname,
 		ProtocolVersion: ProtocolVersionMax,
 		RaftConfig:      raft.DefaultConfig(),
 		RPCAddr:         DefaultRPCAddr,
+		SerfConfig:      serf.DefaultConfig(),
 	}
+
+	// Serf should use the WAN timing, since we are using it
+	// to communicate between DC's
+	c.SerfConfig.MemberlistConfig = memberlist.DefaultWANConfig()
+	c.SerfConfig.MemberlistConfig.BindPort = DefaultSerfPort
+
+	// Disable shutdown on removal
+	c.RaftConfig.ShutdownOnRemove = false
 	return c
 }

@@ -17,10 +17,12 @@ import (
 	"github.com/hashicorp/consul/tlsutil"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/raft-boltdb"
+	"github.com/hashicorp/serf/serf"
 )
 
 const (
 	raftState         = "raft/"
+	serfSnapshot      = "serf/snapshot"
 	snapshotsRetained = 2
 
 	// raftLogCacheSize is the maximum number of logs to cache in-memory.
@@ -50,11 +52,20 @@ type Server struct {
 	fsm *nomadFSM
 
 	// rpcListener is used to listen for incoming connections
-	rpcListener net.Listener
-	rpcServer   *rpc.Server
+	rpcListener  net.Listener
+	rpcServer    *rpc.Server
+	rpcAdvertise net.Addr
 
 	// rpcTLS is the TLS config for incoming TLS requests
 	rpcTLS *tls.Config
+
+	// serf is the Serf cluster containing only Nomad
+	// servers. This is used for multi-region federation
+	// and automatic clustering within regions.
+	serf *serf.Serf
+
+	// eventCh is used to receive events from the serf cluster
+	eventCh chan serf.Event
 
 	shutdown     bool
 	shutdownCh   chan struct{}
@@ -86,6 +97,8 @@ func NewServer(config *Config) (*Server, error) {
 	s := &Server{
 		config:     config,
 		logger:     logger,
+		rpcServer:  rpc.NewServer(),
+		eventCh:    make(chan serf.Event, 256),
 		shutdownCh: make(chan struct{}),
 	}
 
@@ -101,6 +114,15 @@ func NewServer(config *Config) (*Server, error) {
 		s.Shutdown()
 		return nil, fmt.Errorf("Failed to start Raft: %v", err)
 	}
+
+	// Initialize the wan Serf
+	var err error
+	s.serf, err = s.setupSerf(config.SerfConfig, s.eventCh, serfSnapshot)
+	if err != nil {
+		s.Shutdown()
+		return nil, fmt.Errorf("Failed to start serf: %v", err)
+	}
+	go s.serfEventHandler()
 
 	// Start the RPC listeners
 	go s.listen()
@@ -160,15 +182,14 @@ func (s *Server) setupRPC(tlsWrap tlsutil.DCWrapper) error {
 	}
 	s.rpcListener = list
 
-	var advertise net.Addr
 	if s.config.RPCAdvertise != nil {
-		advertise = s.config.RPCAdvertise
+		s.rpcAdvertise = s.config.RPCAdvertise
 	} else {
-		advertise = s.rpcListener.Addr()
+		s.rpcAdvertise = s.rpcListener.Addr()
 	}
 
 	// Verify that we have a usable advertise address
-	addr, ok := advertise.(*net.TCPAddr)
+	addr, ok := s.rpcAdvertise.(*net.TCPAddr)
 	if !ok {
 		list.Close()
 		return fmt.Errorf("RPC advertise address is not a TCP Address: %v", addr)
@@ -182,7 +203,7 @@ func (s *Server) setupRPC(tlsWrap tlsutil.DCWrapper) error {
 	// ever done in the same datacenter, so we can provide it as a constant.
 	// wrapper := tlsutil.SpecificDC(s.config.Datacenter, tlsWrap)
 	// TODO: TLS...
-	s.raftLayer = NewRaftLayer(advertise, nil)
+	s.raftLayer = NewRaftLayer(s.rpcAdvertise, nil)
 	return nil
 }
 
@@ -287,6 +308,42 @@ func (s *Server) setupRaft() error {
 	// Start monitoring leadership
 	go s.monitorLeadership()
 	return nil
+}
+
+// setupSerf is used to setup and initialize a Serf
+func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string) (*serf.Serf, error) {
+	conf.Init()
+	conf.NodeName = fmt.Sprintf("%s.%s", s.config.NodeName, s.config.Region)
+	conf.Tags["role"] = "nomad"
+	conf.Tags["region"] = s.config.Region
+	conf.Tags["dc"] = s.config.Datacenter
+	conf.Tags["vsn"] = fmt.Sprintf("%d", s.config.ProtocolVersion)
+	conf.Tags["vsn_min"] = fmt.Sprintf("%d", ProtocolVersionMin)
+	conf.Tags["vsn_max"] = fmt.Sprintf("%d", ProtocolVersionMax)
+	conf.Tags["build"] = s.config.Build
+	conf.Tags["addr"] = fmt.Sprintf("%s", s.rpcAdvertise.String())
+	if s.config.Bootstrap {
+		conf.Tags["bootstrap"] = "1"
+	}
+	if s.config.BootstrapExpect != 0 {
+		conf.Tags["expect"] = fmt.Sprintf("%d", s.config.BootstrapExpect)
+	}
+	conf.MemberlistConfig.LogOutput = s.config.LogOutput
+	conf.LogOutput = s.config.LogOutput
+	conf.EventCh = ch
+	conf.SnapshotPath = filepath.Join(s.config.DataDir, path)
+	conf.ProtocolVersion = protocolVersionMap[s.config.ProtocolVersion]
+	conf.RejoinAfterLeave = true
+	conf.Merge = &serfMergeDelegate{}
+
+	// Until Nomad supports this fully, we disable automatic resolution.
+	// When enabled, the Serf gossip may just turn off if we are the minority
+	// node which is rather unexpected.
+	conf.EnableNameConflictResolution = false
+	if err := ensurePath(conf.SnapshotPath, false); err != nil {
+		return nil, err
+	}
+	return serf.Create(conf)
 }
 
 // IsLeader checks if this server is the cluster leader
