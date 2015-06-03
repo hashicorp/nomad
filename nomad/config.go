@@ -3,6 +3,7 @@ package nomad
 import (
 	"fmt"
 	"io"
+	"net"
 
 	"github.com/hashicorp/raft"
 )
@@ -11,6 +12,10 @@ import (
 const (
 	ProtocolVersionMin uint8 = 1
 	ProtocolVersionMax       = 1
+)
+
+var (
+	DefaultRPCAddr = &net.TCPAddr{IP: net.ParseIP("0.0.0.0"), Port: 4646}
 )
 
 // Config is used to parameterize the server
@@ -35,8 +40,21 @@ type Config struct {
 	// ProtocolVersionMin and ProtocolVersionMax.
 	ProtocolVersion uint8
 
+	// RPCAddr is the RPC address used by Nomad. This should be reachable
+	// by the other servers and clients
+	RPCAddr *net.TCPAddr
+
+	// RPCAdvertise is the address that is advertised to other nodes for
+	// the RPC endpoint. This can differ from the RPC address, if for example
+	// the RPCAddr is unspecified "0.0.0.0:4646", but this address must be
+	// reachable
+	RPCAdvertise *net.TCPAddr
+
 	// RaftConfig is the configuration used for Raft in the local DC
 	RaftConfig *raft.Config
+
+	// RequireTLS ensures that all RPC traffic is protected with TLS
+	RequireTLS bool
 }
 
 // CheckVersion is used to check if the ProtocolVersion is valid
@@ -56,6 +74,7 @@ func DefaultConfig() *Config {
 	c := &Config{
 		ProtocolVersion: ProtocolVersionMax,
 		RaftConfig:      raft.DefaultConfig(),
+		RPCAddr:         DefaultRPCAddr,
 	}
 	return c
 }

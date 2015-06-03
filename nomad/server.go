@@ -1,13 +1,20 @@
 package nomad
 
 import (
+	"crypto/tls"
+	"errors"
 	"fmt"
 	"log"
+	"net"
+	"net/rpc"
 	"os"
 	"path/filepath"
+	"reflect"
+	"strconv"
 	"sync"
 	"time"
 
+	"github.com/hashicorp/consul/tlsutil"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/raft-boltdb"
 )
@@ -27,6 +34,9 @@ type Server struct {
 	config *Config
 	logger *log.Logger
 
+	// Endpoints holds our RPC endpoints
+	endpoints endpoints
+
 	// The raft instance is used among Consul nodes within the
 	// DC to protect operations that require strong consistency
 	raft          *raft.Raft
@@ -39,9 +49,21 @@ type Server struct {
 	// fsm is the state machine used with Raft
 	fsm *nomadFSM
 
+	// rpcListener is used to listen for incoming connections
+	rpcListener net.Listener
+	rpcServer   *rpc.Server
+
+	// rpcTLS is the TLS config for incoming TLS requests
+	rpcTLS *tls.Config
+
 	shutdown     bool
 	shutdownCh   chan struct{}
 	shutdownLock sync.Mutex
+}
+
+// Holds the RPC endpoints
+type endpoints struct {
+	Status *Status
 }
 
 // NewServer is used to construct a new Nomad server from the
@@ -67,11 +89,21 @@ func NewServer(config *Config) (*Server, error) {
 		shutdownCh: make(chan struct{}),
 	}
 
+	// Initialize the RPC layer
+	// TODO: TLS...
+	if err := s.setupRPC(nil); err != nil {
+		s.Shutdown()
+		return nil, fmt.Errorf("Failed to start RPC layer: %v", err)
+	}
+
 	// Initialize the Raft server
 	if err := s.setupRaft(); err != nil {
 		s.Shutdown()
 		return nil, fmt.Errorf("Failed to start Raft: %v", err)
 	}
+
+	// Start the RPC listeners
+	go s.listen()
 
 	// Done
 	return s, nil
@@ -102,10 +134,55 @@ func (s *Server) Shutdown() error {
 		}
 	}
 
+	// Shutdown the RPC listener
+	if s.rpcListener != nil {
+		s.rpcListener.Close()
+	}
+
 	// Close the fsm
 	if s.fsm != nil {
 		s.fsm.Close()
 	}
+	return nil
+}
+
+// setupRPC is used to setup the RPC listener
+func (s *Server) setupRPC(tlsWrap tlsutil.DCWrapper) error {
+	// Create endpoints
+	s.endpoints.Status = &Status{s}
+
+	// Register the handlers
+	s.rpcServer.Register(s.endpoints.Status)
+
+	list, err := net.ListenTCP("tcp", s.config.RPCAddr)
+	if err != nil {
+		return err
+	}
+	s.rpcListener = list
+
+	var advertise net.Addr
+	if s.config.RPCAdvertise != nil {
+		advertise = s.config.RPCAdvertise
+	} else {
+		advertise = s.rpcListener.Addr()
+	}
+
+	// Verify that we have a usable advertise address
+	addr, ok := advertise.(*net.TCPAddr)
+	if !ok {
+		list.Close()
+		return fmt.Errorf("RPC advertise address is not a TCP Address: %v", addr)
+	}
+	if addr.IP.IsUnspecified() {
+		list.Close()
+		return fmt.Errorf("RPC advertise address is not advertisable: %v", addr)
+	}
+
+	// Provide a DC specific wrapper. Raft replication is only
+	// ever done in the same datacenter, so we can provide it as a constant.
+	// wrapper := tlsutil.SpecificDC(s.config.Datacenter, tlsWrap)
+	// TODO: TLS...
+	s.raftLayer = NewRaftLayer(advertise, nil)
 	return nil
 }
 
@@ -210,4 +287,76 @@ func (s *Server) setupRaft() error {
 	// Start monitoring leadership
 	go s.monitorLeadership()
 	return nil
+}
+
+// IsLeader checks if this server is the cluster leader
+func (s *Server) IsLeader() bool {
+	return s.raft.State() == raft.Leader
+}
+
+// inmemCodec is used to do an RPC call without going over a network
+type inmemCodec struct {
+	method string
+	args   interface{}
+	reply  interface{}
+	err    error
+}
+
+func (i *inmemCodec) ReadRequestHeader(req *rpc.Request) error {
+	req.ServiceMethod = i.method
+	return nil
+}
+
+func (i *inmemCodec) ReadRequestBody(args interface{}) error {
+	sourceValue := reflect.Indirect(reflect.Indirect(reflect.ValueOf(i.args)))
+	dst := reflect.Indirect(reflect.Indirect(reflect.ValueOf(args)))
+	dst.Set(sourceValue)
+	return nil
+}
+
+func (i *inmemCodec) WriteResponse(resp *rpc.Response, reply interface{}) error {
+	if resp.Error != "" {
+		i.err = errors.New(resp.Error)
+		return nil
+	}
+	sourceValue := reflect.Indirect(reflect.Indirect(reflect.ValueOf(reply)))
+	dst := reflect.Indirect(reflect.Indirect(reflect.ValueOf(i.reply)))
+	dst.Set(sourceValue)
+	return nil
+}
+
+func (i *inmemCodec) Close() error {
+	return nil
+}
+
+// RPC is used to make a local RPC call
+func (s *Server) RPC(method string, args interface{}, reply interface{}) error {
+	codec := &inmemCodec{
+		method: method,
+		args:   args,
+		reply:  reply,
+	}
+	if err := s.rpcServer.ServeRequest(codec); err != nil {
+		return err
+	}
+	return codec.err
+}
+
+// Stats is used to return statistics for debugging and insight
+// for various sub-systems
+func (s *Server) Stats() map[string]map[string]string {
+	toString := func(v uint64) string {
+		return strconv.FormatUint(v, 10)
+	}
+	stats := map[string]map[string]string{
+		"nomad": map[string]string{
+			"server":        "true",
+			"leader":        fmt.Sprintf("%v", s.IsLeader()),
+			"bootstrap":     fmt.Sprintf("%v", s.config.Bootstrap),
+			"known_regions": toString(uint64(0)),
+		},
+		"raft":    s.raft.Stats(),
+		"runtime": runtimeStats(),
+	}
+	return stats
 }
