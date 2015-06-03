@@ -385,7 +385,7 @@ func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string) (
 	conf.Tags["vsn_min"] = fmt.Sprintf("%d", ProtocolVersionMin)
 	conf.Tags["vsn_max"] = fmt.Sprintf("%d", ProtocolVersionMax)
 	conf.Tags["build"] = s.config.Build
-	conf.Tags["addr"] = fmt.Sprintf("%s", s.rpcAdvertise.String())
+	conf.Tags["port"] = fmt.Sprintf("%d", s.rpcAdvertise.(*net.TCPAddr).Port)
 	if s.config.Bootstrap {
 		conf.Tags["bootstrap"] = "1"
 	}
