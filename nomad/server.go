@@ -97,14 +97,15 @@ func (s *Server) Shutdown() error {
 		if err := future.Error(); err != nil {
 			s.logger.Printf("[WARN] nomad: Error shutting down raft: %s", err)
 		}
-		s.raftStore.Close()
+		if s.raftStore != nil {
+			s.raftStore.Close()
+		}
 	}
 
 	// Close the fsm
 	if s.fsm != nil {
 		s.fsm.Close()
 	}
-
 	return nil
 }
 

@@ -19,7 +19,7 @@ type StateStore struct {
 
 // StateSnapshot is used to provide a point-in-time snapshot
 type StateSnapshot struct {
-	store *StateStore
+	StateStore
 }
 
 // Close is used to abort the transaction and allow for cleanup
@@ -46,7 +46,7 @@ func (s *StateStore) Close() error {
 // pointer to the root, and we are done.
 func (s *StateStore) Snapshot() (*StateSnapshot, error) {
 	snap := &StateSnapshot{
-		store: &StateStore{
+		StateStore: StateStore{
 			logger: s.logger,
 			root:   s.root,
 		},
