@@ -3,6 +3,8 @@ package nomad
 import (
 	"io"
 	"log"
+
+	"github.com/hashicorp/go-immutable-radix"
 )
 
 // The StateStore is responsible for maintaining all the Consul
@@ -12,6 +14,7 @@ import (
 // to provide write availability in the face of reads.
 type StateStore struct {
 	logger *log.Logger
+	root   *iradix.Tree
 }
 
 // StateSnapshot is used to provide a point-in-time snapshot
@@ -28,6 +31,7 @@ func (s *StateSnapshot) Close() error {
 func NewStateStore(logOutput io.Writer) (*StateStore, error) {
 	s := &StateStore{
 		logger: log.New(logOutput, "", log.LstdFlags),
+		root:   iradix.New(),
 	}
 	return s, nil
 }
@@ -37,7 +41,15 @@ func (s *StateStore) Close() error {
 	return nil
 }
 
-// Snapshot is used to create a point in time snapshot
+// Snapshot is used to create a point in time snapshot. Because
+// we use an immutable radix tree, we just need to preserve the
+// pointer to the root, and we are done.
 func (s *StateStore) Snapshot() (*StateSnapshot, error) {
-	return nil, nil
+	snap := &StateSnapshot{
+		store: &StateStore{
+			logger: s.logger,
+			root:   s.root,
+		},
+	}
+	return snap, nil
 }

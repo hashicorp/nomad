@@ -77,10 +77,6 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 	}
 }
 func (n *nomadFSM) Snapshot() (raft.FSMSnapshot, error) {
-	defer func(start time.Time) {
-		n.logger.Printf("[INFO] nomad.fsm: snapshot created in %v", time.Now().Sub(start))
-	}(time.Now())
-
 	// Create a new snapshot
 	snap, err := n.state.Snapshot()
 	if err != nil {
