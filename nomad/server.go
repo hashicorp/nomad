@@ -413,6 +413,7 @@ func (s *Server) Stats() map[string]map[string]string {
 			"known_regions": toString(uint64(0)),
 		},
 		"raft":    s.raft.Stats(),
+		"serf":    s.serf.Stats(),
 		"runtime": runtimeStats(),
 	}
 	return stats
