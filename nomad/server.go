@@ -73,6 +73,11 @@ type Server struct {
 	// and automatic clustering within regions.
 	serf *serf.Serf
 
+	// reconcileCh is used to pass events from the serf handler
+	// into the leader manager. Mostly used to handle when servers
+	// join/leave from the region.
+	reconcileCh chan serf.Member
+
 	// eventCh is used to receive events from the serf cluster
 	eventCh chan serf.Event
 
@@ -105,12 +110,13 @@ func NewServer(config *Config) (*Server, error) {
 
 	// Create the server
 	s := &Server{
-		config:     config,
-		logger:     logger,
-		rpcServer:  rpc.NewServer(),
-		peers:      make(map[string][]*serverParts),
-		eventCh:    make(chan serf.Event, 256),
-		shutdownCh: make(chan struct{}),
+		config:      config,
+		logger:      logger,
+		rpcServer:   rpc.NewServer(),
+		peers:       make(map[string][]*serverParts),
+		reconcileCh: make(chan serf.Member, 32),
+		eventCh:     make(chan serf.Event, 256),
+		shutdownCh:  make(chan struct{}),
 	}
 
 	// Initialize the RPC layer

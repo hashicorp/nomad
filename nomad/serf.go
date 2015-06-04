@@ -2,6 +2,12 @@ package nomad
 
 import "github.com/hashicorp/serf/serf"
 
+const (
+	// StatusReap is used to update the status of a node if we
+	// are handling a EventMemberReap
+	StatusReap = serf.MemberStatus(-1)
+)
+
 // serfEventHandler is used to handle events from the serf cluster
 func (s *Server) serfEventHandler() {
 	for {
@@ -10,8 +16,10 @@ func (s *Server) serfEventHandler() {
 			switch e.EventType() {
 			case serf.EventMemberJoin:
 				s.nodeJoin(e.(serf.MemberEvent))
+				s.localMemberEvent(e.(serf.MemberEvent))
 			case serf.EventMemberLeave, serf.EventMemberFailed:
 				s.nodeFailed(e.(serf.MemberEvent))
+				s.localMemberEvent(e.(serf.MemberEvent))
 			case serf.EventMemberUpdate, serf.EventMemberReap,
 				serf.EventUser, serf.EventQuery: // Ignore
 			default:
@@ -51,8 +59,6 @@ func (s *Server) nodeJoin(me serf.MemberEvent) {
 			s.peers[parts.Region] = append(existing, parts)
 		}
 		s.peerLock.Unlock()
-
-		// TODO: Add as Raft peer
 
 		// If we still expecting to bootstrap, may need to handle this
 		if s.config.BootstrapExpect != 0 {
@@ -152,4 +158,28 @@ func (s *Server) nodeFailed(me serf.MemberEvent) {
 	//        s.localLock.Unlock()
 	//    }
 	//}
+}
+
+// localMemberEvent is used to reconcile Serf events with the
+// consistent store if we are the current leader.
+func (s *Server) localMemberEvent(me serf.MemberEvent) {
+	// Do nothing if we are not the leader
+	if !s.IsLeader() {
+		return
+	}
+
+	// Check if this is a reap event
+	isReap := me.EventType() == serf.EventMemberReap
+
+	// Queue the members for reconciliation
+	for _, m := range me.Members {
+		// Change the status if this is a reap event
+		if isReap {
+			m.Status = StatusReap
+		}
+		select {
+		case s.reconcileCh <- m:
+		default:
+		}
+	}
 }
