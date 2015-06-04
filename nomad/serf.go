@@ -26,46 +26,39 @@ func (s *Server) serfEventHandler() {
 
 // nodeJoin is used to handle join events on the serf cluster
 func (s *Server) nodeJoin(me serf.MemberEvent) {
-	//for _, m := range me.Members {
-	//    ok, parts := isConsulServer(m)
-	//    if !ok {
-	//        if wan {
-	//            s.logger.Printf("[WARN] consul: non-server in WAN pool: %s", m.Name)
-	//        }
-	//        continue
-	//    }
-	//    s.logger.Printf("[INFO] consul: adding server %s", parts)
+	for _, m := range me.Members {
+		ok, parts := isNomadServer(m)
+		if !ok {
+			s.logger.Printf("[WARN] nomad: non-server in gossip pool: %s", m.Name)
+			continue
+		}
+		s.logger.Printf("[INFO] nomad: adding server %s", parts)
 
-	//    // Check if this server is known
-	//    found := false
-	//    s.remoteLock.Lock()
-	//    existing := s.remoteConsuls[parts.Datacenter]
-	//    for idx, e := range existing {
-	//        if e.Name == parts.Name {
-	//            existing[idx] = parts
-	//            found = true
-	//            break
-	//        }
-	//    }
+		// Check if this server is known
+		found := false
+		s.peerLock.Lock()
+		existing := s.peers[parts.Region]
+		for idx, e := range existing {
+			if e.Name == parts.Name {
+				existing[idx] = parts
+				found = true
+				break
+			}
+		}
 
-	//    // Add ot the list if not known
-	//    if !found {
-	//        s.remoteConsuls[parts.Datacenter] = append(existing, parts)
-	//    }
-	//    s.remoteLock.Unlock()
+		// Add ot the list if not known
+		if !found {
+			s.peers[parts.Region] = append(existing, parts)
+		}
+		s.peerLock.Unlock()
 
-	//    // Add to the local list as well
-	//    if !wan && parts.Datacenter == s.config.Datacenter {
-	//        s.localLock.Lock()
-	//        s.localConsuls[parts.Addr.String()] = parts
-	//        s.localLock.Unlock()
-	//    }
+		// TODO: Add as Raft peer
 
-	//    // If we still expecting to bootstrap, may need to handle this
-	//    if s.config.BootstrapExpect != 0 {
-	//        s.maybeBootstrap()
-	//    }
-	//}
+		// If we still expecting to bootstrap, may need to handle this
+		if s.config.BootstrapExpect != 0 {
+			s.maybeBootstrap()
+		}
+	}
 }
 
 // maybeBootsrap is used to handle bootstrapping when a new consul server joins

@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"fmt"
 	"net"
 	"os"
 	"path/filepath"
@@ -40,6 +41,11 @@ type serverParts struct {
 	Expect     int
 	Version    int
 	Addr       net.Addr
+}
+
+func (s *serverParts) String() string {
+	return fmt.Sprintf("%s (Addr: %s) (DC: %s)",
+		s.Name, s.Addr, s.Datacenter)
 }
 
 // Returns if a member is a Nomad server. Returns a boolean,

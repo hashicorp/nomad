@@ -63,6 +63,11 @@ type Server struct {
 	// rpcTLS is the TLS config for incoming TLS requests
 	rpcTLS *tls.Config
 
+	// peers is used to track the known Nomad servers. This is
+	// used for region forwarding and clustering.
+	peers    map[string][]*serverParts
+	peerLock sync.RWMutex
+
 	// serf is the Serf cluster containing only Nomad
 	// servers. This is used for multi-region federation
 	// and automatic clustering within regions.
@@ -103,6 +108,7 @@ func NewServer(config *Config) (*Server, error) {
 		config:     config,
 		logger:     logger,
 		rpcServer:  rpc.NewServer(),
+		peers:      make(map[string][]*serverParts),
 		eventCh:    make(chan serf.Event, 256),
 		shutdownCh: make(chan struct{}),
 	}
@@ -395,7 +401,12 @@ func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string) (
 	conf.MemberlistConfig.LogOutput = s.config.LogOutput
 	conf.LogOutput = s.config.LogOutput
 	conf.EventCh = ch
-	conf.SnapshotPath = filepath.Join(s.config.DataDir, path)
+	if !s.config.DevMode {
+		conf.SnapshotPath = filepath.Join(s.config.DataDir, path)
+		if err := ensurePath(conf.SnapshotPath, false); err != nil {
+			return nil, err
+		}
+	}
 	conf.ProtocolVersion = protocolVersionMap[s.config.ProtocolVersion]
 	conf.RejoinAfterLeave = true
 	conf.Merge = &serfMergeDelegate{}
@@ -404,9 +415,6 @@ func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string) (
 	// When enabled, the Serf gossip may just turn off if we are the minority
 	// node which is rather unexpected.
 	conf.EnableNameConflictResolution = false
-	if err := ensurePath(conf.SnapshotPath, false); err != nil {
-		return nil, err
-	}
 	return serf.Create(conf)
 }
 
