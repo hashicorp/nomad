@@ -123,41 +123,34 @@ func (s *Server) maybeBootstrap() {
 
 // nodeFailed is used to handle fail events on the serf cluster
 func (s *Server) nodeFailed(me serf.MemberEvent) {
-	//for _, m := range me.Members {
-	//    ok, parts := isConsulServer(m)
-	//    if !ok {
-	//        continue
-	//    }
-	//    s.logger.Printf("[INFO] consul: removing server %s", parts)
+	for _, m := range me.Members {
+		ok, parts := isNomadServer(m)
+		if !ok {
+			continue
+		}
+		s.logger.Printf("[INFO] nomad: removing server %s", parts)
 
-	//    // Remove the server if known
-	//    s.remoteLock.Lock()
-	//    existing := s.remoteConsuls[parts.Datacenter]
-	//    n := len(existing)
-	//    for i := 0; i < n; i++ {
-	//        if existing[i].Name == parts.Name {
-	//            existing[i], existing[n-1] = existing[n-1], nil
-	//            existing = existing[:n-1]
-	//            n--
-	//            break
-	//        }
-	//    }
+		// Remove the server if known
+		s.peerLock.Lock()
+		existing := s.peers[parts.Region]
+		n := len(existing)
+		for i := 0; i < n; i++ {
+			if existing[i].Name == parts.Name {
+				existing[i], existing[n-1] = existing[n-1], nil
+				existing = existing[:n-1]
+				n--
+				break
+			}
+		}
 
-	//    // Trim the list if all known consuls are dead
-	//    if n == 0 {
-	//        delete(s.remoteConsuls, parts.Datacenter)
-	//    } else {
-	//        s.remoteConsuls[parts.Datacenter] = existing
-	//    }
-	//    s.remoteLock.Unlock()
-
-	//    // Remove from the local list as well
-	//    if !wan {
-	//        s.localLock.Lock()
-	//        delete(s.localConsuls, parts.Addr.String())
-	//        s.localLock.Unlock()
-	//    }
-	//}
+		// Trim the list there are no known servers in a region
+		if n == 0 {
+			delete(s.peers, parts.Region)
+		} else {
+			s.peers[parts.Region] = existing
+		}
+		s.peerLock.Unlock()
+	}
 }
 
 // localMemberEvent is used to reconcile Serf events with the

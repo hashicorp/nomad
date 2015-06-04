@@ -28,6 +28,7 @@ func testServer(t *testing.T, cb func(*Config)) *Server {
 	config.SerfConfig.MemberlistConfig.BindAddr = "127.0.0.1"
 	config.SerfConfig.MemberlistConfig.BindPort = getPort()
 	config.SerfConfig.MemberlistConfig.SuspicionMult = 2
+	config.SerfConfig.MemberlistConfig.RetransmitMult = 2
 	config.SerfConfig.MemberlistConfig.ProbeTimeout = 50 * time.Millisecond
 	config.SerfConfig.MemberlistConfig.ProbeInterval = 100 * time.Millisecond
 	config.SerfConfig.MemberlistConfig.GossipInterval = 100 * time.Millisecond

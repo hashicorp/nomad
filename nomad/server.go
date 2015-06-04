@@ -314,6 +314,7 @@ func (s *Server) setupRaft() error {
 		log = store
 		snap = raft.NewDiscardSnapshotStore()
 		peers = &raft.StaticPeers{}
+		s.raftPeers = peers
 
 	} else {
 		// Create the base raft path
