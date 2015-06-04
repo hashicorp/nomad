@@ -2,6 +2,7 @@ package nomad
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net"
 	"sync/atomic"
 	"testing"
@@ -12,6 +13,14 @@ var nextPort uint32 = 15000
 
 func getPort() int {
 	return int(atomic.AddUint32(&nextPort, 1))
+}
+
+func tmpDir(t *testing.T) string {
+	dir, err := ioutil.TempDir("", "nomad")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	return dir
 }
 
 func testServer(t *testing.T, cb func(*Config)) *Server {

@@ -2,6 +2,8 @@ package nomad
 
 import (
 	"fmt"
+	"os"
+	"path"
 	"testing"
 
 	"github.com/hashicorp/nomad/testutil"
@@ -88,6 +90,53 @@ func TestNomad_RemovePeer(t *testing.T) {
 		}
 		if len(s2.peers) != 1 {
 			return false, fmt.Errorf("bad: %#v", s2.peers)
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+}
+
+func TestNomad_BootstrapExpect(t *testing.T) {
+	dir := tmpDir(t)
+	defer os.RemoveAll(dir)
+
+	s1 := testServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
+		c.DevMode = false
+		c.DataDir = path.Join(dir, "node1")
+	})
+	defer s1.Shutdown()
+	s2 := testServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
+		c.DevMode = false
+		c.DataDir = path.Join(dir, "node2")
+	})
+	defer s2.Shutdown()
+	s2Addr := fmt.Sprintf("127.0.0.1:%d", s2.config.SerfConfig.MemberlistConfig.BindPort)
+
+	num, err := s1.Join([]string{s2Addr})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if num != 1 {
+		t.Fatalf("bad: %d", num)
+	}
+
+	testutil.WaitForResult(func() (bool, error) {
+		peers, err := s1.numOtherPeers()
+		if err != nil {
+			return false, err
+		}
+		if peers != 1 {
+			return false, fmt.Errorf("bad: %#v", peers)
+		}
+		peers, err = s2.numOtherPeers()
+		if err != nil {
+			return false, err
+		}
+		if peers != 1 {
+			return false, fmt.Errorf("bad: %#v", peers)
 		}
 		return true, nil
 	}, func(err error) {
