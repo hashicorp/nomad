@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"time"
 
 	"github.com/hashicorp/memberlist"
 	"github.com/hashicorp/raft"
@@ -57,6 +58,10 @@ type Config struct {
 	// use of persistence or state.
 	DevMode bool
 
+	// DevDisableBootstrap is used to disable bootstrap mode while
+	// in DevMode. This is largely used for testing.
+	DevDisableBootstrap bool
+
 	// LogOutput is the location to write logs to. If this is not set,
 	// logs will go to stderr.
 	LogOutput io.Writer
@@ -96,6 +101,12 @@ type Config struct {
 	// Build is a string that is gossiped around, and can be used to help
 	// operators track which versions are actively deployed
 	Build string
+
+	// ReconcileInterval controls how often we reconcile the strongly
+	// consistent store with the Serf info. This is used to handle nodes
+	// that are force removed, as well as intermittent unavailability during
+	// leader election.
+	ReconcileInterval time.Duration
 }
 
 // CheckVersion is used to check if the ProtocolVersion is valid
@@ -118,13 +129,14 @@ func DefaultConfig() *Config {
 	}
 
 	c := &Config{
-		Region:          DefaultRegion,
-		Datacenter:      DefaultDC,
-		NodeName:        hostname,
-		ProtocolVersion: ProtocolVersionMax,
-		RaftConfig:      raft.DefaultConfig(),
-		RPCAddr:         DefaultRPCAddr,
-		SerfConfig:      serf.DefaultConfig(),
+		Region:            DefaultRegion,
+		Datacenter:        DefaultDC,
+		NodeName:          hostname,
+		ProtocolVersion:   ProtocolVersionMax,
+		RaftConfig:        raft.DefaultConfig(),
+		RPCAddr:           DefaultRPCAddr,
+		SerfConfig:        serf.DefaultConfig(),
+		ReconcileInterval: 60 * time.Second,
 	}
 
 	// Serf should use the WAN timing, since we are using it

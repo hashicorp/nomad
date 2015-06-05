@@ -161,6 +161,10 @@ func (s *Server) Shutdown() error {
 	s.shutdown = true
 	close(s.shutdownCh)
 
+	if s.serf != nil {
+		s.serf.Shutdown()
+	}
+
 	if s.raft != nil {
 		s.raftTransport.Close()
 		s.raftLayer.Close()
@@ -286,7 +290,7 @@ func (s *Server) setupRPC(tlsWrap tlsutil.DCWrapper) error {
 // setupRaft is used to setup and initialize Raft
 func (s *Server) setupRaft() error {
 	// If we are in bootstrap mode, enable a single node cluster
-	if s.config.Bootstrap || s.config.DevMode {
+	if s.config.Bootstrap || (s.config.DevMode && !s.config.DevDisableBootstrap) {
 		s.config.RaftConfig.EnableSingleNode = true
 	}
 

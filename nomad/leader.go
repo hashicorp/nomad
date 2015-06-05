@@ -36,6 +36,32 @@ func (s *Server) monitorLeadership() {
 // leaderLoop runs as long as we are the leader to run various
 // maintence activities
 func (s *Server) leaderLoop(stopCh chan struct{}) {
+	var reconcileCh chan serf.Member
+RECONCILE:
+	// Setup a reconciliation timer
+	reconcileCh = nil
+	interval := time.After(s.config.ReconcileInterval)
+
+	// Apply a raft barrier to ensure our FSM is caught up
+	start := time.Now()
+	barrier := s.raft.Barrier(0)
+	if err := barrier.Error(); err != nil {
+		s.logger.Printf("[ERR] nomad: failed to wait for barrier: %v", err)
+		goto WAIT
+	}
+	metrics.MeasureSince([]string{"nomad", "leader", "barrier"}, start)
+
+	// Reconcile any missing data
+	if err := s.reconcile(); err != nil {
+		s.logger.Printf("[ERR] nomad: failed to reconcile: %v", err)
+		goto WAIT
+	}
+
+	// Initial reconcile worked, now we can process the channel
+	// updates
+	reconcileCh = s.reconcileCh
+
+WAIT:
 	// Wait until leadership is lost
 	for {
 		select {
@@ -43,10 +69,25 @@ func (s *Server) leaderLoop(stopCh chan struct{}) {
 			return
 		case <-s.shutdownCh:
 			return
-		case member := <-s.reconcileCh:
+		case <-interval:
+			goto RECONCILE
+		case member := <-reconcileCh:
 			s.reconcileMember(member)
 		}
 	}
+}
+
+// reconcile is used to reconcile the differences between Serf
+// membership and what is reflected in our strongly consistent store.
+func (s *Server) reconcile() error {
+	defer metrics.MeasureSince([]string{"nomad", "leader", "reconcile"}, time.Now())
+	members := s.serf.Members()
+	for _, member := range members {
+		if err := s.reconcileMember(member); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // reconcileMember is used to do an async reconcile of a single serf member
@@ -97,6 +138,8 @@ func (s *Server) addRaftPeer(m serf.Member, parts *serverParts) error {
 	if err := future.Error(); err != nil && err != raft.ErrKnownPeer {
 		s.logger.Printf("[ERR] nomad: failed to add raft peer: %v", err)
 		return err
+	} else if err == nil {
+		s.logger.Printf("[INFO] nomad: added raft peer: %v", parts)
 	}
 	return nil
 }
