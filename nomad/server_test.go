@@ -59,3 +59,13 @@ func testServer(t *testing.T, cb func(*Config)) *Server {
 	}
 	return server
 }
+
+func TestServer_RPC(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+
+	var out struct{}
+	if err := s1.RPC("Status.Ping", struct{}{}, &out); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+}

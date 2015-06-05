@@ -143,3 +143,50 @@ func TestNomad_BootstrapExpect(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	})
 }
+
+func TestNomad_BadExpect(t *testing.T) {
+	s1 := testServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
+		c.DevDisableBootstrap = true
+	})
+	defer s1.Shutdown()
+	s2 := testServer(t, func(c *Config) {
+		c.BootstrapExpect = 3
+		c.DevDisableBootstrap = true
+	})
+	defer s2.Shutdown()
+	servers := []*Server{s1, s2}
+
+	// Try to join
+	addr := fmt.Sprintf("127.0.0.1:%d",
+		s1.config.SerfConfig.MemberlistConfig.BindPort)
+	if _, err := s2.Join([]string{addr}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Serf members should update
+	testutil.WaitForResult(func() (bool, error) {
+		for _, s := range servers {
+			members := s.Members()
+			if len(members) != 2 {
+				return false, fmt.Errorf("%d", len(members))
+			}
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("should have 2 peers: %v", err)
+	})
+
+	// should still have no peers (because s2 is in expect=2 mode)
+	testutil.WaitForResult(func() (bool, error) {
+		for _, s := range servers {
+			p, _ := s.raftPeers.Peers()
+			if len(p) != 0 {
+				return false, fmt.Errorf("%d", len(p))
+			}
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("should have 0 peers: %v", err)
+	})
+}

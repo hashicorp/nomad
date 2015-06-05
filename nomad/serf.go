@@ -69,7 +69,15 @@ func (s *Server) nodeJoin(me serf.MemberEvent) {
 
 // maybeBootsrap is used to handle bootstrapping when a new consul server joins
 func (s *Server) maybeBootstrap() {
-	index, err := s.raftStore.LastIndex()
+	var index uint64
+	var err error
+	if s.raftStore != nil {
+		index, err = s.raftStore.LastIndex()
+	} else if s.raftInmem != nil {
+		index, err = s.raftInmem.LastIndex()
+	} else {
+		panic("neither raftInmem or raftStore is initialized")
+	}
 	if err != nil {
 		s.logger.Printf("[ERR] nomad: failed to read last raft index: %v", err)
 		return
