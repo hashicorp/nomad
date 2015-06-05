@@ -139,6 +139,9 @@ func DefaultConfig() *Config {
 		ReconcileInterval: 60 * time.Second,
 	}
 
+	// Increase our reap interval to 3 days instead of 24h.
+	c.SerfConfig.ReconnectTimeout = 3 * 24 * time.Hour
+
 	// Serf should use the WAN timing, since we are using it
 	// to communicate between DC's
 	c.SerfConfig.MemberlistConfig = memberlist.DefaultWANConfig()
