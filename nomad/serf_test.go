@@ -16,15 +16,7 @@ func TestNomad_JoinPeer(t *testing.T) {
 		c.Region = "region2"
 	})
 	defer s2.Shutdown()
-	s2Addr := fmt.Sprintf("127.0.0.1:%d", s2.config.SerfConfig.MemberlistConfig.BindPort)
-
-	num, err := s1.Join([]string{s2Addr})
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if num != 1 {
-		t.Fatalf("bad: %d", num)
-	}
+	testJoin(t, s1, s2)
 
 	testutil.WaitForResult(func() (bool, error) {
 		if members := s1.Members(); len(members) != 2 {
@@ -64,15 +56,7 @@ func TestNomad_RemovePeer(t *testing.T) {
 		c.Region = "region2"
 	})
 	defer s2.Shutdown()
-	s2Addr := fmt.Sprintf("127.0.0.1:%d", s2.config.SerfConfig.MemberlistConfig.BindPort)
-
-	num, err := s1.Join([]string{s2Addr})
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if num != 1 {
-		t.Fatalf("bad: %d", num)
-	}
+	testJoin(t, s1, s2)
 
 	testutil.WaitForResult(func() (bool, error) {
 		if members := s1.Members(); len(members) != 2 {
@@ -119,15 +103,7 @@ func TestNomad_BootstrapExpect(t *testing.T) {
 		c.DataDir = path.Join(dir, "node2")
 	})
 	defer s2.Shutdown()
-	s2Addr := fmt.Sprintf("127.0.0.1:%d", s2.config.SerfConfig.MemberlistConfig.BindPort)
-
-	num, err := s1.Join([]string{s2Addr})
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if num != 1 {
-		t.Fatalf("bad: %d", num)
-	}
+	testJoin(t, s1, s2)
 
 	testutil.WaitForResult(func() (bool, error) {
 		peers, err := s1.numOtherPeers()
@@ -168,13 +144,7 @@ func TestNomad_BadExpect(t *testing.T) {
 	})
 	defer s2.Shutdown()
 	servers := []*Server{s1, s2}
-
-	// Try to join
-	addr := fmt.Sprintf("127.0.0.1:%d",
-		s1.config.SerfConfig.MemberlistConfig.BindPort)
-	if _, err := s2.Join([]string{addr}); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	testJoin(t, s1, s2)
 
 	// Serf members should update
 	testutil.WaitForResult(func() (bool, error) {

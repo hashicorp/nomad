@@ -22,16 +22,7 @@ func TestLeader_LeftServer(t *testing.T) {
 	})
 	defer s3.Shutdown()
 	servers := []*Server{s1, s2, s3}
-
-	// Try to join
-	addr := fmt.Sprintf("127.0.0.1:%d",
-		s1.config.SerfConfig.MemberlistConfig.BindPort)
-	if _, err := s2.Join([]string{addr}); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if _, err := s3.Join([]string{addr}); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	testJoin(t, s1, s2, s3)
 
 	for _, s := range servers {
 		testutil.WaitForResult(func() (bool, error) {
@@ -78,16 +69,7 @@ func TestLeader_LeftLeader(t *testing.T) {
 	})
 	defer s3.Shutdown()
 	servers := []*Server{s1, s2, s3}
-
-	// Try to join
-	addr := fmt.Sprintf("127.0.0.1:%d",
-		s1.config.SerfConfig.MemberlistConfig.BindPort)
-	if _, err := s2.Join([]string{addr}); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if _, err := s3.Join([]string{addr}); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	testJoin(t, s1, s2, s3)
 
 	for _, s := range servers {
 		testutil.WaitForResult(func() (bool, error) {
@@ -132,13 +114,7 @@ func TestLeader_MultiBootstrap(t *testing.T) {
 	s2 := testServer(t, nil)
 	defer s2.Shutdown()
 	servers := []*Server{s1, s2}
-
-	// Try to join
-	addr := fmt.Sprintf("127.0.0.1:%d",
-		s1.config.SerfConfig.MemberlistConfig.BindPort)
-	if _, err := s2.Join([]string{addr}); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	testJoin(t, s1, s2)
 
 	for _, s := range servers {
 		testutil.WaitForResult(func() (bool, error) {

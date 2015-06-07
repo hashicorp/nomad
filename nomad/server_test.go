@@ -60,6 +60,18 @@ func testServer(t *testing.T, cb func(*Config)) *Server {
 	return server
 }
 
+func testJoin(t *testing.T, s1 *Server, other ...*Server) {
+	addr := fmt.Sprintf("127.0.0.1:%d",
+		s1.config.SerfConfig.MemberlistConfig.BindPort)
+	for _, s2 := range other {
+		if num, err := s2.Join([]string{addr}); err != nil {
+			t.Fatalf("err: %v", err)
+		} else if num != 1 {
+			t.Fatalf("bad: %d", num)
+		}
+	}
+}
+
 func TestServer_RPC(t *testing.T) {
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
