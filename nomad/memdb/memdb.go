@@ -30,6 +30,9 @@ func NewMemDB(schema *DBSchema) (*MemDB, error) {
 		schema: schema,
 		root:   iradix.New(),
 	}
+	if err := db.initialize(); err != nil {
+		return nil, err
+	}
 	return db, nil
 }
 
@@ -45,4 +48,17 @@ func (db *MemDB) Txn(write bool) *Txn {
 		rootTxn: db.root.Txn(),
 	}
 	return txn
+}
+
+// initialize is used to setup the DB for use after creation
+func (db *MemDB) initialize() error {
+	for _, tableSchema := range db.schema.Tables {
+		table := iradix.New()
+		for _, indexSchema := range tableSchema.Indexes {
+			index := iradix.New()
+			table, _, _ = table.Insert([]byte(indexSchema.Name), index)
+		}
+		db.root, _, _ = db.root.Insert([]byte(tableSchema.Name), table)
+	}
+	return nil
 }
