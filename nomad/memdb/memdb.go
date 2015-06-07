@@ -36,13 +36,13 @@ func NewMemDB(schema *DBSchema) (*MemDB, error) {
 // Txn is used to start a new transaction, in either read or write mode.
 // There can only be a single concurrent writer, but any number of readers.
 func (db *MemDB) Txn(write bool) *Txn {
-	txn := &Txn{
-		db:    db,
-		write: write,
-		root:  db.root,
-	}
 	if write {
-		txn.rootTxn = txn.root.Txn()
+		db.writer.Lock()
+	}
+	txn := &Txn{
+		db:      db,
+		write:   write,
+		rootTxn: db.root.Txn(),
 	}
 	return txn
 }

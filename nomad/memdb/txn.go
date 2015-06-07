@@ -10,7 +10,6 @@ import (
 type Txn struct {
 	db      *MemDB
 	write   bool
-	root    *iradix.Tree
 	rootTxn *iradix.Txn
 }
 
@@ -22,14 +21,15 @@ func (txn *Txn) Abort() {
 	}
 
 	// Check if already aborted or committed
-	if txn.root == nil {
+	if txn.rootTxn == nil {
 		return
 	}
 
+	// Clear the txn
+	txn.rootTxn = nil
+
 	// Release the writer lock since this is invalid
 	txn.db.writer.Unlock()
-	txn.root = nil
-	txn.rootTxn = nil
 }
 
 // Commit is used to finalize this transaction. This is a noop for read transactions.
@@ -40,7 +40,7 @@ func (txn *Txn) Commit() {
 	}
 
 	// Check if already aborted or committed
-	if txn.root == nil {
+	if txn.rootTxn == nil {
 		return
 	}
 
@@ -48,7 +48,6 @@ func (txn *Txn) Commit() {
 	txn.db.root = txn.rootTxn.Commit()
 
 	// Clear the txn
-	txn.root = nil
 	txn.rootTxn = nil
 
 	// Release the writer lock since this is invalid
