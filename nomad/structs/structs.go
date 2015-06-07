@@ -117,6 +117,9 @@ type RegisterRequest struct {
 	// Datacenter for this node
 	Datacenter string
 
+	// Node name
+	Node string
+
 	// Status of this node
 	Status string
 
