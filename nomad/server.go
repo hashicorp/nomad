@@ -25,6 +25,12 @@ const (
 	serfSnapshot      = "serf/snapshot"
 	snapshotsRetained = 2
 
+	// serverRPCCache controls how long we keep an idle connection open to a server
+	serverRPCCache = 2 * time.Minute
+
+	// serverMaxStreams controsl how many idle streams we keep open to a server
+	serverMaxStreams = 64
+
 	// raftLogCacheSize is the maximum number of logs to cache in-memory.
 	// This is used to reduce disk I/O for the recently commited entries.
 	raftLogCacheSize = 512
@@ -39,6 +45,9 @@ const (
 type Server struct {
 	config *Config
 	logger *log.Logger
+
+	// Connection pool to other Nomad servers
+	connPool *ConnPool
 
 	// Endpoints holds our RPC endpoints
 	endpoints endpoints
@@ -112,6 +121,7 @@ func NewServer(config *Config) (*Server, error) {
 	// Create the server
 	s := &Server{
 		config:      config,
+		connPool:    NewPool(config.LogOutput, serverRPCCache, serverMaxStreams, nil),
 		logger:      logger,
 		rpcServer:   rpc.NewServer(),
 		peers:       make(map[string][]*serverParts),
@@ -183,6 +193,9 @@ func (s *Server) Shutdown() error {
 	if s.rpcListener != nil {
 		s.rpcListener.Close()
 	}
+
+	// Close the connection pool
+	s.connPool.Shutdown()
 
 	// Close the fsm
 	if s.fsm != nil {
