@@ -58,6 +58,11 @@ func (s *Server) nodeJoin(me serf.MemberEvent) {
 		if !found {
 			s.peers[parts.Region] = append(existing, parts)
 		}
+
+		// Check if a local peer
+		if parts.Region == s.config.Region {
+			s.localPeers[parts.Addr.String()] = parts
+		}
 		s.peerLock.Unlock()
 
 		// If we still expecting to bootstrap, may need to handle this
@@ -154,6 +159,11 @@ func (s *Server) nodeFailed(me serf.MemberEvent) {
 			delete(s.peers, parts.Region)
 		} else {
 			s.peers[parts.Region] = existing
+		}
+
+		// Check if local peer
+		if parts.Region == s.config.Region {
+			delete(s.localPeers, parts.Addr.String())
 		}
 		s.peerLock.Unlock()
 	}

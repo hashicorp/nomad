@@ -45,6 +45,12 @@ func TestNomad_JoinPeer(t *testing.T) {
 		if len(s2.peers) != 2 {
 			return false, fmt.Errorf("bad: %#v", s2.peers)
 		}
+		if len(s1.localPeers) != 1 {
+			return false, fmt.Errorf("bad: %#v", s1.localPeers)
+		}
+		if len(s2.localPeers) != 1 {
+			return false, fmt.Errorf("bad: %#v", s2.localPeers)
+		}
 		return true, nil
 	}, func(err error) {
 		t.Fatalf("err: %v", err)
@@ -137,6 +143,12 @@ func TestNomad_BootstrapExpect(t *testing.T) {
 		}
 		if peers != 1 {
 			return false, fmt.Errorf("bad: %#v", peers)
+		}
+		if len(s1.localPeers) != 2 {
+			return false, fmt.Errorf("bad: %#v", s1.localPeers)
+		}
+		if len(s2.localPeers) != 2 {
+			return false, fmt.Errorf("bad: %#v", s2.localPeers)
 		}
 		return true, nil
 	}, func(err error) {
