@@ -65,8 +65,9 @@ type Server struct {
 
 	// peers is used to track the known Nomad servers. This is
 	// used for region forwarding and clustering.
-	peers    map[string][]*serverParts
-	peerLock sync.RWMutex
+	peers      map[string][]*serverParts
+	localPeers map[string]*serverParts
+	peerLock   sync.RWMutex
 
 	// serf is the Serf cluster containing only Nomad
 	// servers. This is used for multi-region federation
@@ -114,6 +115,7 @@ func NewServer(config *Config) (*Server, error) {
 		logger:      logger,
 		rpcServer:   rpc.NewServer(),
 		peers:       make(map[string][]*serverParts),
+		localPeers:  make(map[string]*serverParts),
 		reconcileCh: make(chan serf.Member, 32),
 		eventCh:     make(chan serf.Event, 256),
 		shutdownCh:  make(chan struct{}),
