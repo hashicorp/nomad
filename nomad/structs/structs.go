@@ -170,6 +170,10 @@ type NetworkResource struct {
 	MBitsReserved int
 }
 
+// RegisterResponse is used to respond to a register request
+type RegisterResponse struct {
+}
+
 // msgpackHandle is a shared handle for encoding/decoding of structs
 var msgpackHandle = &codec.MsgpackHandle{}
 
