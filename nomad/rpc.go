@@ -171,7 +171,7 @@ func (s *Server) forward(method string, info structs.RPCInfo, args interface{}, 
 	// Handle region forwarding
 	region := info.RequestRegion()
 	if region != s.config.Region {
-		err := s.forwardRegion(method, region, args, reply)
+		err := s.forwardRegion(region, method, args, reply)
 		return true, err
 	}
 
@@ -209,7 +209,7 @@ func (s *Server) forwardLeader(method string, args interface{}, reply interface{
 }
 
 // forwardRegion is used to forward an RPC call to a remote region, or fail if no servers
-func (s *Server) forwardRegion(method, region string, args interface{}, reply interface{}) error {
+func (s *Server) forwardRegion(region, method string, args interface{}, reply interface{}) error {
 	// Bail if we can't find any servers
 	s.peerLock.RLock()
 	servers := s.peers[region]
