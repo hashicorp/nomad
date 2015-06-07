@@ -3,6 +3,7 @@ package memdb
 import "testing"
 
 type TestObject struct {
+	ID    string
 	Foo   string
 	Bar   int
 	Baz   string
@@ -11,6 +12,7 @@ type TestObject struct {
 
 func testObj() *TestObject {
 	obj := &TestObject{
+		ID:  "my-cool-obj",
 		Foo: "Testing",
 		Bar: 42,
 		Baz: "yep",
