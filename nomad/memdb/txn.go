@@ -128,10 +128,39 @@ func (txn *Txn) Insert(table string, obj interface{}) error {
 		return fmt.Errorf("invalid table '%s'", table)
 	}
 
-	// Lookup the object by ID first
-	// TODO: Handle delete if existing (update)
+	// Get the primary ID of the object
+	idSchema := tableSchema.Indexes["id"]
+	ok, val, err := idSchema.Indexer.FromObject(obj)
+	if err != nil {
+		return fmt.Errorf("failed to build primary index: %v", err)
+	}
+	if !ok {
+		return fmt.Errorf("object missing primary index")
+	}
 
+	// Lookup the object by ID first, to see if this is an update
+	idTxn := txn.writableIndex(table, "id")
+	existing, update := idTxn.Get(val)
+
+	// On an update, there is an existing object with the given
+	// primary ID. We do the update by deleting the current object
+	// and inserting the new object.
 	for name, indexSchema := range tableSchema.Indexes {
+		indexTxn := txn.writableIndex(table, name)
+
+		// Handle the update by deleting from the index first
+		if update {
+			ok, val, err := indexSchema.Indexer.FromObject(existing)
+			if err != nil {
+				return fmt.Errorf("failed to build index '%s': %v", name, err)
+			}
+			if ok {
+				// TODO: Handle non-unique index
+				indexTxn.Delete(val)
+			}
+		}
+
+		// Handle the insert after the update
 		ok, val, err := indexSchema.Indexer.FromObject(obj)
 		if err != nil {
 			return fmt.Errorf("failed to build index '%s': %v", name, err)
@@ -145,7 +174,6 @@ func (txn *Txn) Insert(table string, obj interface{}) error {
 		}
 
 		// TODO: Handle non-unique index
-		indexTxn := txn.writableIndex(table, name)
 		indexTxn.Insert(val, obj)
 	}
 	return nil

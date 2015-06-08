@@ -56,3 +56,45 @@ func TestTxn_Insert_First(t *testing.T) {
 		t.Fatalf("bad: %#v %#v", raw, obj)
 	}
 }
+
+func TestTxn_InsertUpdate_First(t *testing.T) {
+	db := testDB(t)
+	txn := db.Txn(true)
+
+	obj := &TestObject{
+		ID:  "my-object",
+		Foo: "abc",
+	}
+	err := txn.Insert("main", obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	raw, err := txn.First("main", "id", obj.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if raw != obj {
+		t.Fatalf("bad: %#v %#v", raw, obj)
+	}
+
+	// Update the object
+	obj2 := &TestObject{
+		ID:  "my-object",
+		Foo: "xyz",
+	}
+	err = txn.Insert("main", obj2)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	raw, err = txn.First("main", "id", obj.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if raw != obj2 {
+		t.Fatalf("bad: %#v %#v", raw, obj)
+	}
+}
