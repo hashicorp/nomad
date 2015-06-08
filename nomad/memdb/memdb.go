@@ -52,13 +52,17 @@ func (db *MemDB) Txn(write bool) *Txn {
 
 // initialize is used to setup the DB for use after creation
 func (db *MemDB) initialize() error {
-	for _, tableSchema := range db.schema.Tables {
-		table := iradix.New()
-		for _, indexSchema := range tableSchema.Indexes {
+	for tName, tableSchema := range db.schema.Tables {
+		for iName, _ := range tableSchema.Indexes {
 			index := iradix.New()
-			table, _, _ = table.Insert([]byte(indexSchema.Name), index)
+			path := indexPath(tName, iName)
+			db.root, _, _ = db.root.Insert(path, index)
 		}
-		db.root, _, _ = db.root.Insert([]byte(tableSchema.Name), table)
 	}
 	return nil
+}
+
+// indexPath returns the path from the root to the given table index
+func indexPath(table, index string) []byte {
+	return []byte(table + "." + index)
 }

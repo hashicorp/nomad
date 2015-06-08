@@ -36,3 +36,23 @@ func TestTxn_Write_AbortCommit(t *testing.T) {
 	txn.Abort()
 	txn.Abort()
 }
+
+func TestTxn_Insert_First(t *testing.T) {
+	db := testDB(t)
+	txn := db.Txn(true)
+
+	obj := testObj()
+	err := txn.Insert("main", obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	raw, err := txn.First("main", "id", obj.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if raw != obj {
+		t.Fatalf("bad: %#v %#v", raw, obj)
+	}
+}

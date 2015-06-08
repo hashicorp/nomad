@@ -40,6 +40,12 @@ func (s *TableSchema) Validate() error {
 	if len(s.Indexes) == 0 {
 		return fmt.Errorf("missing table schemas for '%s'", s.Name)
 	}
+	if _, ok := s.Indexes["id"]; !ok {
+		return fmt.Errorf("must have id index")
+	}
+	if !s.Indexes["id"].Unique {
+		return fmt.Errorf("id index must be unique")
+	}
 	for name, index := range s.Indexes {
 		if name != index.Name {
 			return fmt.Errorf("index name mis-match for '%s'", name)
@@ -51,16 +57,23 @@ func (s *TableSchema) Validate() error {
 	return nil
 }
 
-// IndexerFunc is used to extract an index value from an
-// object or to indicate that the index value is missing.
-type IndexerFunc func(interface{}) (bool, []byte, error)
+// Indexer is an interface used for defining indexes
+type Indexer interface {
+	// FromObject is used to extract an index value from an
+	// object or to indicate that the index value is missing.
+	FromObject(raw interface{}) (bool, []byte, error)
+
+	// ExactFromArgs is used to build an exact index lookup
+	// based on arguments
+	FromArgs(args ...interface{}) ([]byte, error)
+}
 
 // IndexSchema contains the schema for an index
 type IndexSchema struct {
 	Name         string
 	AllowMissing bool
 	Unique       bool
-	Indexer      IndexerFunc
+	Indexer      Indexer
 }
 
 func (s *IndexSchema) Validate() error {

@@ -8,25 +8,42 @@ import (
 
 // StringFieldIndex is used to extract a field from an object
 // using reflection and builds an index on that field.
-func StringFieldIndex(field string, lowercase bool) IndexerFunc {
-	return func(obj interface{}) (bool, []byte, error) {
-		v := reflect.ValueOf(obj)
-		v = reflect.Indirect(v) // Derefence the pointer if any
+type StringFieldIndex struct {
+	Field     string
+	Lowercase bool
+}
 
-		fv := v.FieldByName(field)
-		if !fv.IsValid() {
-			return false, nil,
-				fmt.Errorf("field '%s' for %#v is invalid", field, obj)
-		}
+func (s *StringFieldIndex) FromObject(obj interface{}) (bool, []byte, error) {
+	v := reflect.ValueOf(obj)
+	v = reflect.Indirect(v) // Derefence the pointer if any
 
-		val := fv.String()
-		if val == "" {
-			return false, nil, nil
-		}
-
-		if lowercase {
-			val = strings.ToLower(val)
-		}
-		return true, []byte(val), nil
+	fv := v.FieldByName(s.Field)
+	if !fv.IsValid() {
+		return false, nil,
+			fmt.Errorf("field '%s' for %#v is invalid", s.Field, obj)
 	}
+
+	val := fv.String()
+	if val == "" {
+		return false, nil, nil
+	}
+
+	if s.Lowercase {
+		val = strings.ToLower(val)
+	}
+	return true, []byte(val), nil
+}
+
+func (s *StringFieldIndex) FromArgs(args ...interface{}) ([]byte, error) {
+	if len(args) != 1 {
+		return nil, fmt.Errorf("must provide only a single argument")
+	}
+	arg, ok := args[0].(string)
+	if !ok {
+		return nil, fmt.Errorf("argument must be a string: %#v", args[0])
+	}
+	if s.Lowercase {
+		arg = strings.ToLower(arg)
+	}
+	return []byte(arg), nil
 }

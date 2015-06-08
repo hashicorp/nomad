@@ -10,7 +10,8 @@ func testValidSchema() *DBSchema {
 				Indexes: map[string]*IndexSchema{
 					"id": &IndexSchema{
 						Name:    "id",
-						Indexer: StringFieldIndex("ID", false),
+						Unique:  true,
+						Indexer: &StringFieldIndex{Field: "ID"},
 					},
 				},
 			},
@@ -60,7 +61,8 @@ func TestTableSchema_Validate(t *testing.T) {
 		Indexes: map[string]*IndexSchema{
 			"id": &IndexSchema{
 				Name:    "id",
-				Indexer: StringFieldIndex("ID", true),
+				Unique:  true,
+				Indexer: &StringFieldIndex{Field: "ID", Lowercase: true},
 			},
 		},
 	}
@@ -83,7 +85,7 @@ func TestIndexSchema_Validate(t *testing.T) {
 		t.Fatalf("should not validate, no indexer")
 	}
 
-	s.Indexer = StringFieldIndex("Foo", false)
+	s.Indexer = &StringFieldIndex{Field: "Foo", Lowercase: false}
 	err = s.Validate()
 	if err != nil {
 		t.Fatalf("should validate: %v", err)
