@@ -38,8 +38,7 @@ func (txn *Txn) readableIndex(table, index string) *iradix.Txn {
 	// Create a read transaction
 	path := indexPath(table, index)
 	raw, _ := txn.rootTxn.Get(path)
-	indexRoot := toTree(raw)
-	indexTxn := indexRoot.Txn()
+	indexTxn := raw.(*iradix.Tree).Txn()
 	return indexTxn
 }
 
@@ -60,8 +59,7 @@ func (txn *Txn) writableIndex(table, index string) *iradix.Txn {
 	// Start a new transaction
 	path := indexPath(table, index)
 	raw, _ := txn.rootTxn.Get(path)
-	indexRoot := toTree(raw)
-	indexTxn := indexRoot.Txn()
+	indexTxn := raw.(*iradix.Tree).Txn()
 
 	// Keep this open for the duration of the txn
 	txn.modified[key] = indexTxn
