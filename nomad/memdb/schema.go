@@ -57,17 +57,6 @@ func (s *TableSchema) Validate() error {
 	return nil
 }
 
-// Indexer is an interface used for defining indexes
-type Indexer interface {
-	// FromObject is used to extract an index value from an
-	// object or to indicate that the index value is missing.
-	FromObject(raw interface{}) (bool, []byte, error)
-
-	// ExactFromArgs is used to build an exact index lookup
-	// based on arguments
-	FromArgs(args ...interface{}) ([]byte, error)
-}
-
 // IndexSchema contains the schema for an index
 type IndexSchema struct {
 	Name         string

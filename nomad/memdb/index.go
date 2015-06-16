@@ -7,6 +7,26 @@ import (
 	"strings"
 )
 
+// Indexer is an interface used for defining indexes
+type Indexer interface {
+	// FromObject is used to extract an index value from an
+	// object or to indicate that the index value is missing.
+	FromObject(raw interface{}) (bool, []byte, error)
+
+	// ExactFromArgs is used to build an exact index lookup
+	// based on arguments
+	FromArgs(args ...interface{}) ([]byte, error)
+}
+
+// PrefixIndexer can optionally be implemented for any
+// indexes that support prefix based iteration. This may
+// not apply to all indexes.
+type PrefixIndexer interface {
+	// PrefixFromArgs returns a prefix that should be used
+	// for scanning based on the arguments
+	PrefixFromArgs(args ...interface{}) ([]byte, error)
+}
+
 // StringFieldIndex is used to extract a field from an object
 // using reflection and builds an index on that field.
 type StringFieldIndex struct {
@@ -32,6 +52,9 @@ func (s *StringFieldIndex) FromObject(obj interface{}) (bool, []byte, error) {
 	if s.Lowercase {
 		val = strings.ToLower(val)
 	}
+
+	// Add the null character as a terminator
+	val += "\x00"
 	return true, []byte(val), nil
 }
 
@@ -46,7 +69,23 @@ func (s *StringFieldIndex) FromArgs(args ...interface{}) ([]byte, error) {
 	if s.Lowercase {
 		arg = strings.ToLower(arg)
 	}
+	// Add the null character as a terminator
+	arg += "\x00"
 	return []byte(arg), nil
+}
+
+func (s *StringFieldIndex) PrefixFromArgs(args ...interface{}) ([]byte, error) {
+	val, err := s.FromArgs(args...)
+	if err != nil {
+		return nil, err
+	}
+
+	// Strip the null terminator, the rest is a prefix
+	n := len(val)
+	if n > 0 {
+		return val[:n-1], nil
+	}
+	return val, nil
 }
 
 // UUIDFieldIndex is used to extract a field from an object

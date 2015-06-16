@@ -33,7 +33,7 @@ func TestStringFieldIndex_FromObject(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if string(val) != "Testing" {
+	if string(val) != "Testing\x00" {
 		t.Fatalf("bad: %s", val)
 	}
 	if !ok {
@@ -45,7 +45,7 @@ func TestStringFieldIndex_FromObject(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if string(val) != "testing" {
+	if string(val) != "testing\x00" {
 		t.Fatalf("bad: %s", val)
 	}
 	if !ok {
@@ -84,12 +84,42 @@ func TestStringFieldIndex_FromArgs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if string(val) != "foo" {
+	if string(val) != "foo\x00" {
 		t.Fatalf("foo")
 	}
 
 	lower := StringFieldIndex{"Foo", true}
 	val, err = lower.FromArgs("Foo")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if string(val) != "foo\x00" {
+		t.Fatalf("foo")
+	}
+}
+
+func TestStringFieldIndex_PrefixFromArgs(t *testing.T) {
+	indexer := StringFieldIndex{"Foo", false}
+	_, err := indexer.FromArgs()
+	if err == nil {
+		t.Fatalf("should get err")
+	}
+
+	_, err = indexer.PrefixFromArgs(42)
+	if err == nil {
+		t.Fatalf("should get err")
+	}
+
+	val, err := indexer.PrefixFromArgs("foo")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if string(val) != "foo" {
+		t.Fatalf("foo")
+	}
+
+	lower := StringFieldIndex{"Foo", true}
+	val, err = lower.PrefixFromArgs("Foo")
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
