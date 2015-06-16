@@ -130,7 +130,7 @@ func (txn *Txn) Insert(table string, obj interface{}) error {
 
 	// Get the primary ID of the object
 	idSchema := tableSchema.Indexes["id"]
-	ok, val, err := idSchema.Indexer.FromObject(obj)
+	ok, idVal, err := idSchema.Indexer.FromObject(obj)
 	if err != nil {
 		return fmt.Errorf("failed to build primary index: %v", err)
 	}
@@ -140,7 +140,7 @@ func (txn *Txn) Insert(table string, obj interface{}) error {
 
 	// Lookup the object by ID first, to see if this is an update
 	idTxn := txn.writableIndex(table, "id")
-	existing, update := idTxn.Get(val)
+	existing, update := idTxn.Get(idVal)
 
 	// On an update, there is an existing object with the given
 	// primary ID. We do the update by deleting the current object
@@ -155,7 +155,12 @@ func (txn *Txn) Insert(table string, obj interface{}) error {
 				return fmt.Errorf("failed to build index '%s': %v", name, err)
 			}
 			if ok {
-				// TODO: Handle non-unique index
+				// Handle non-unique index by computing a unique index.
+				// This is done by appending the primary key which must
+				// be unique anyways.
+				if !indexSchema.Unique {
+					val = append(val, idVal...)
+				}
 				indexTxn.Delete(val)
 			}
 		}
@@ -173,7 +178,12 @@ func (txn *Txn) Insert(table string, obj interface{}) error {
 			}
 		}
 
-		// TODO: Handle non-unique index
+		// Handle non-unique index by computing a unique index.
+		// This is done by appending the primary key which must
+		// be unique anyways.
+		if !indexSchema.Unique {
+			val = append(val, idVal...)
+		}
 		indexTxn.Insert(val, obj)
 	}
 	return nil
@@ -209,13 +219,24 @@ func (txn *Txn) First(table, index string, args ...interface{}) (interface{}, er
 	indexTxn := txn.readableIndex(table, index)
 
 	// Do an exact lookup
-	obj, ok := indexTxn.Get(val)
-	if !ok {
-		return nil, nil
+	if indexSchema.Unique {
+		obj, ok := indexTxn.Get(val)
+		if !ok {
+			return nil, nil
+		}
+		return obj, nil
 	}
 
-	// TODO: handle non-unique index
-	return obj, nil
+	// Handle non-unique index by doing a prefix walk
+	// and getting the first value
+	// TODO: Optimize this
+	var firstVal interface{}
+	indexRoot := indexTxn.Root()
+	indexRoot.WalkPrefix(val, func(key []byte, val interface{}) bool {
+		firstVal = val
+		return true
+	})
+	return firstVal, nil
 }
 
 type ResultIterator interface {

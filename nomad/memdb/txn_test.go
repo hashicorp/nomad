@@ -98,3 +98,105 @@ func TestTxn_InsertUpdate_First(t *testing.T) {
 		t.Fatalf("bad: %#v %#v", raw, obj)
 	}
 }
+
+func TestTxn_InsertUpdate_First_NonUnique(t *testing.T) {
+	db := testDB(t)
+	txn := db.Txn(true)
+
+	obj := &TestObject{
+		ID:  "my-object",
+		Foo: "abc",
+	}
+	err := txn.Insert("main", obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	raw, err := txn.First("main", "foo", obj.Foo)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if raw != obj {
+		t.Fatalf("bad: %#v %#v", raw, obj)
+	}
+
+	// Update the object
+	obj2 := &TestObject{
+		ID:  "my-object",
+		Foo: "xyz",
+	}
+	err = txn.Insert("main", obj2)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	raw, err = txn.First("main", "foo", obj2.Foo)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if raw != obj2 {
+		t.Fatalf("bad: %#v %#v", raw, obj2)
+	}
+
+	// Lookup of the old value should fail
+	raw, err = txn.First("main", "foo", obj.Foo)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if raw != nil {
+		t.Fatalf("bad: %#v", raw)
+	}
+}
+
+func TestTxn_First_NonUnique_Multiple(t *testing.T) {
+	db := testDB(t)
+	txn := db.Txn(true)
+
+	obj := &TestObject{
+		ID:  "my-object",
+		Foo: "abc",
+	}
+	obj2 := &TestObject{
+		ID:  "my-cool-thing",
+		Foo: "xyz",
+	}
+	obj3 := &TestObject{
+		ID:  "my-other-cool-thing",
+		Foo: "xyz",
+	}
+
+	err := txn.Insert("main", obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	err = txn.Insert("main", obj2)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	err = txn.Insert("main", obj3)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// The first object has a unique secondary value
+	raw, err := txn.First("main", "foo", obj.Foo)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if raw != obj {
+		t.Fatalf("bad: %#v %#v", raw, obj)
+	}
+
+	// Second and third object share secondary value,
+	// but the primary ID of obj2 should be first
+	raw, err = txn.First("main", "foo", obj2.Foo)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if raw != obj2 {
+		t.Fatalf("bad: %#v %#v", raw, obj2)
+	}
+}
