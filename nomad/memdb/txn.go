@@ -305,13 +305,62 @@ type ResultIterator interface {
 // Get is used to construct a ResultIterator over all the
 // rows that match the given constraints of an index.
 func (txn *Txn) Get(table, index string, args ...interface{}) (ResultIterator, error) {
-	return nil, nil
+	// Get the table schema
+	tableSchema, ok := txn.db.schema.Tables[table]
+	if !ok {
+		return nil, fmt.Errorf("invalid table '%s'", table)
+	}
+
+	// Get the index schema
+	indexSchema, ok := tableSchema.Indexes[index]
+	if !ok {
+		return nil, fmt.Errorf("invalid index '%s'", index)
+	}
+
+	// Get the exact match index if any arguments given
+	var val []byte
+	if len(args) > 0 {
+		var err error
+		val, err = indexSchema.Indexer.FromArgs(args...)
+		if err != nil {
+			return nil, fmt.Errorf("index error: %v", err)
+		}
+	}
+
+	// Get the index itself
+	indexTxn := txn.readableIndex(table, index)
+	indexRoot := indexTxn.Root()
+
+	// Collect all the objects by walking the prefix. This should obviously
+	// be optimized by using an iterator over the radix tree, but that is
+	// a lot more work so its a TODO for now.
+	var results []interface{}
+	indexRoot.WalkPrefix(val, func(key []byte, val interface{}) bool {
+		results = append(results, val)
+		return false
+	})
+
+	// Create a crappy iterator
+	iter := &sliceIterator{
+		nextIndex: 0,
+		results:   results,
+	}
+	return iter, nil
 }
 
-// toTree is used to do a fast assertion of type in cases
-// where it is known to avoid the overhead of reflection
-func toTree(raw interface{}) *iradix.Tree {
-	return raw.(*iradix.Tree)
-	// TODO: Fix this
-	//return (*iradix.Tree)(raw.(unsafe.Pointer))
+// Slice iterator is used to iterate over a slice of results.
+// This is not very efficient as it means the results have already
+// been materialized under the iterator.
+type sliceIterator struct {
+	nextIndex int
+	results   []interface{}
+}
+
+func (s *sliceIterator) Next() interface{} {
+	if s.nextIndex >= len(s.results) {
+		return nil
+	}
+	result := s.results[s.nextIndex]
+	s.nextIndex++
+	return result
 }
