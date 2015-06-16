@@ -224,3 +224,113 @@ func generateUUID() ([]byte, string) {
 		buf[10:16])
 	return buf, uuid
 }
+
+func TestCompoundIndex_FromObject(t *testing.T) {
+	obj := testObj()
+	indexer := &CompoundIndex{
+		Indexes: []Indexer{
+			&StringFieldIndex{"ID", false},
+			&StringFieldIndex{"Foo", false},
+			&StringFieldIndex{"Baz", false},
+		},
+		AllowMissing: false,
+	}
+
+	ok, val, err := indexer.FromObject(obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if string(val) != "my-cool-obj\x00Testing\x00yep\x00" {
+		t.Fatalf("bad: %s", val)
+	}
+	if !ok {
+		t.Fatalf("should be ok")
+	}
+
+	missing := &CompoundIndex{
+		Indexes: []Indexer{
+			&StringFieldIndex{"ID", false},
+			&StringFieldIndex{"Foo", true},
+			&StringFieldIndex{"Empty", false},
+		},
+		AllowMissing: true,
+	}
+	ok, val, err = missing.FromObject(obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if string(val) != "my-cool-obj\x00testing\x00" {
+		t.Fatalf("bad: %s", val)
+	}
+	if !ok {
+		t.Fatalf("should be ok")
+	}
+
+	// Test when missing not allowed
+	missing.AllowMissing = false
+	ok, _, err = missing.FromObject(obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if ok {
+		t.Fatalf("should not be okay")
+	}
+}
+
+func TestCompoundIndex_FromArgs(t *testing.T) {
+	indexer := &CompoundIndex{
+		Indexes: []Indexer{
+			&StringFieldIndex{"ID", false},
+			&StringFieldIndex{"Foo", false},
+			&StringFieldIndex{"Baz", false},
+		},
+		AllowMissing: false,
+	}
+	_, err := indexer.FromArgs()
+	if err == nil {
+		t.Fatalf("should get err")
+	}
+
+	_, err = indexer.FromArgs(42, 42, 42)
+	if err == nil {
+		t.Fatalf("should get err")
+	}
+
+	val, err := indexer.FromArgs("foo", "bar", "baz")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if string(val) != "foo\x00bar\x00baz\x00" {
+		t.Fatalf("bad: %s", val)
+	}
+}
+
+func TestCompoundIndex_PrefixFromArgs(t *testing.T) {
+	indexer := &CompoundIndex{
+		Indexes: []Indexer{
+			&UUIDFieldIndex{"ID"},
+			&StringFieldIndex{"Foo", false},
+			&StringFieldIndex{"Baz", false},
+		},
+		AllowMissing: false,
+	}
+	val, err := indexer.PrefixFromArgs()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if len(val) != 0 {
+		t.Fatalf("bad: %s", val)
+	}
+
+	uuidBuf, uuid := generateUUID()
+	val, err = indexer.PrefixFromArgs(uuid, "foo")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if !bytes.Equal(val[:16], uuidBuf) {
+		t.Fatalf("bad prefix")
+	}
+	if string(val[16:]) != "foo\x00" {
+		t.Fatalf("bad: %s", val)
+	}
+}

@@ -174,3 +174,55 @@ func (u *UUIDFieldIndex) parseString(s string) ([]byte, error) {
 	copy(buf[10:16], part5)
 	return buf, nil
 }
+
+// CompoundIndex is used to build an index using multiple sub-indexes
+// Prefix based iteration is supported as long as the appropriate prefix
+// of indexers support it. All sub-indexers are only assumed to expect
+// a single argument.
+type CompoundIndex struct {
+	Indexes []Indexer
+
+	// AllowMissing results in an index based on only the indexers
+	// that return data. If true, you may end up with 2/3 columns
+	// indexed which might be useful for an index scan. Otherwise,
+	// the CompoundIndex requires all indexers to be satisfied.
+	AllowMissing bool
+}
+
+func (c *CompoundIndex) FromObject(raw interface{}) (bool, []byte, error) {
+	var out []byte
+	for i, idx := range c.Indexes {
+		ok, val, err := idx.FromObject(raw)
+		if err != nil {
+			return false, nil, fmt.Errorf("sub-index %d error: %v", i, err)
+		}
+		if !ok {
+			if c.AllowMissing {
+				break
+			} else {
+				return false, nil, nil
+			}
+		}
+		out = append(out, val...)
+	}
+	return true, out, nil
+}
+
+func (c *CompoundIndex) FromArgs(args ...interface{}) ([]byte, error) {
+	if len(args) != len(c.Indexes) {
+		return nil, fmt.Errorf("less arguments than index fields")
+	}
+	return c.PrefixFromArgs(args...)
+}
+
+func (c *CompoundIndex) PrefixFromArgs(args ...interface{}) ([]byte, error) {
+	var out []byte
+	for i, arg := range args {
+		val, err := c.Indexes[i].FromArgs(arg)
+		if err != nil {
+			return nil, fmt.Errorf("sub-index %d error: %v", i, err)
+		}
+		out = append(out, val...)
+	}
+	return out, nil
+}
