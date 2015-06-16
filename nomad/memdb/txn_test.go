@@ -200,3 +200,78 @@ func TestTxn_First_NonUnique_Multiple(t *testing.T) {
 		t.Fatalf("bad: %#v %#v", raw, obj2)
 	}
 }
+
+func TestTxn_InsertDelete_Simple(t *testing.T) {
+	db := testDB(t)
+	txn := db.Txn(true)
+
+	obj1 := &TestObject{
+		ID:  "my-cool-thing",
+		Foo: "xyz",
+	}
+	obj2 := &TestObject{
+		ID:  "my-other-cool-thing",
+		Foo: "xyz",
+	}
+
+	err := txn.Insert("main", obj1)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	err = txn.Insert("main", obj2)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Check the shared secondary value,
+	// but the primary ID of obj2 should be first
+	raw, err := txn.First("main", "foo", obj2.Foo)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if raw != obj1 {
+		t.Fatalf("bad: %#v %#v", raw, obj1)
+	}
+
+	// Commit and start a new transaction
+	txn.Commit()
+	txn = db.Txn(true)
+
+	// Delete obj1
+	err = txn.Delete("main", obj1)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Lookup of the primary obj1 should fail
+	raw, err = txn.First("main", "id", obj1.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if raw != nil {
+		t.Fatalf("bad: %#v %#v", raw, obj1)
+	}
+
+	// Commit and start a new read transaction
+	txn.Commit()
+	txn = db.Txn(false)
+
+	// Lookup of the primary obj1 should fail
+	raw, err = txn.First("main", "id", obj1.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if raw != nil {
+		t.Fatalf("bad: %#v %#v", raw, obj1)
+	}
+
+	// Check the shared secondary value,
+	// but the primary ID of obj2 should be first
+	raw, err = txn.First("main", "foo", obj2.Foo)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if raw != obj2 {
+		t.Fatalf("bad: %#v %#v", raw, obj2)
+	}
+}

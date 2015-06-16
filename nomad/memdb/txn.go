@@ -12,7 +12,8 @@ type tableIndex struct {
 	Index string
 }
 
-// Txn is a transaction against a MemDB. This can be a read or write transaction.
+// Txn is a transaction against a MemDB.
+// This can be a read or write transaction.
 type Txn struct {
 	db      *MemDB
 	write   bool
@@ -67,7 +68,8 @@ func (txn *Txn) writableIndex(table, index string) *iradix.Txn {
 	return indexTxn
 }
 
-// Abort is used to cancel this transaction. This is a noop for read transactions.
+// Abort is used to cancel this transaction.
+// This is a noop for read transactions.
 func (txn *Txn) Abort() {
 	// Noop for a read transaction
 	if !txn.write {
@@ -87,7 +89,8 @@ func (txn *Txn) Abort() {
 	txn.db.writer.Unlock()
 }
 
-// Commit is used to finalize this transaction. This is a noop for read transactions.
+// Commit is used to finalize this transaction.
+// This is a noop for read transactions.
 func (txn *Txn) Commit() {
 	// Noop for a read transaction
 	if !txn.write {
@@ -189,13 +192,69 @@ func (txn *Txn) Insert(table string, obj interface{}) error {
 	return nil
 }
 
-func (txn *Txn) Delete(table, index string, args ...interface{}) error {
+// Delete is used to delete a single object from the given table
+// This object must already exist in the table
+func (txn *Txn) Delete(table string, obj interface{}) error {
+	if !txn.write {
+		return fmt.Errorf("cannot delete in read-only transaction")
+	}
+
+	// Get the table schema
+	tableSchema, ok := txn.db.schema.Tables[table]
+	if !ok {
+		return fmt.Errorf("invalid table '%s'", table)
+	}
+
+	// Get the primary ID of the object
+	idSchema := tableSchema.Indexes["id"]
+	ok, idVal, err := idSchema.Indexer.FromObject(obj)
+	if err != nil {
+		return fmt.Errorf("failed to build primary index: %v", err)
+	}
+	if !ok {
+		return fmt.Errorf("object missing primary index")
+	}
+
+	// Lookup the object by ID first, check fi we should continue
+	idTxn := txn.writableIndex(table, "id")
+	existing, ok := idTxn.Get(idVal)
+	if !ok {
+		return fmt.Errorf("not found")
+	}
+
+	// Remove the object from all the indexes
+	for name, indexSchema := range tableSchema.Indexes {
+		indexTxn := txn.writableIndex(table, name)
+
+		// Handle the update by deleting from the index first
+		ok, val, err := indexSchema.Indexer.FromObject(existing)
+		if err != nil {
+			return fmt.Errorf("failed to build index '%s': %v", name, err)
+		}
+		if ok {
+			// Handle non-unique index by computing a unique index.
+			// This is done by appending the primary key which must
+			// be unique anyways.
+			if !indexSchema.Unique {
+				val = append(val, idVal...)
+			}
+			indexTxn.Delete(val)
+		}
+	}
+	return nil
+}
+
+// DeleteAll is used to delete all the objects in a given table
+// matching the constraints on the index
+func (txn *Txn) DeleteAll(table, index string, args ...interface{}) error {
 	if !txn.write {
 		return fmt.Errorf("cannot delete in read-only transaction")
 	}
 	return nil
 }
 
+// First is used to return the first matching object for
+// the given constraints on the index
 func (txn *Txn) First(table, index string, args ...interface{}) (interface{}, error) {
 	// Get the table schema
 	tableSchema, ok := txn.db.schema.Tables[table]
@@ -239,10 +298,14 @@ func (txn *Txn) First(table, index string, args ...interface{}) (interface{}, er
 	return firstVal, nil
 }
 
+// ResultIterator is used to iterate over a list of results
+// from a Get query on a table.
 type ResultIterator interface {
 	Next() interface{}
 }
 
+// Get is used to construct a ResultIterator over all the
+// rows that match the given constraints of an index.
 func (txn *Txn) Get(table, index string, args ...interface{}) (ResultIterator, error) {
 	return nil, nil
 }
