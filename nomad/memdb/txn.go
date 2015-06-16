@@ -104,7 +104,8 @@ func (txn *Txn) Commit() {
 	// Commit each sub-transaction scoped to (table, index)
 	for key, subTxn := range txn.modified {
 		path := indexPath(key.Table, key.Index)
-		txn.rootTxn.Insert(path, subTxn.Commit())
+		final := subTxn.Commit()
+		txn.rootTxn.Insert(path, final)
 	}
 
 	// Update the root of the DB
@@ -289,7 +290,7 @@ func (txn *Txn) First(table, index string, args ...interface{}) (interface{}, er
 	indexTxn := txn.readableIndex(table, indexSchema.Name)
 
 	// Do an exact lookup
-	if indexSchema.Unique {
+	if indexSchema.Unique && val != nil && indexSchema.Name == index {
 		obj, ok := indexTxn.Get(val)
 		if !ok {
 			return nil, nil
