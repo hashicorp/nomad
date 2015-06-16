@@ -298,57 +298,132 @@ func TestTxn_InsertGet_Simple(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	// Attempt a row scan on the ID
-	result, err := txn.Get("main", "id")
-	if err != nil {
-		t.Fatalf("err: %v", err)
+	checkResult := func(txn *Txn) {
+		// Attempt a row scan on the ID
+		result, err := txn.Get("main", "id")
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		if raw := result.Next(); raw != obj1 {
+			t.Fatalf("bad: %#v %#v", raw, obj1)
+		}
+
+		if raw := result.Next(); raw != obj2 {
+			t.Fatalf("bad: %#v %#v", raw, obj2)
+		}
+
+		if raw := result.Next(); raw != nil {
+			t.Fatalf("bad: %#v %#v", raw, nil)
+		}
+
+		// Attempt a row scan on the ID with specific ID
+		result, err = txn.Get("main", "id", obj1.ID)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		if raw := result.Next(); raw != obj1 {
+			t.Fatalf("bad: %#v %#v", raw, obj1)
+		}
+
+		if raw := result.Next(); raw != nil {
+			t.Fatalf("bad: %#v %#v", raw, nil)
+		}
+
+		// Attempt a row scan secondary index
+		result, err = txn.Get("main", "foo", obj1.Foo)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		if raw := result.Next(); raw != obj1 {
+			t.Fatalf("bad: %#v %#v", raw, obj1)
+		}
+
+		if raw := result.Next(); raw != obj2 {
+			t.Fatalf("bad: %#v %#v", raw, obj2)
+		}
+
+		if raw := result.Next(); raw != nil {
+			t.Fatalf("bad: %#v %#v", raw, nil)
+		}
 	}
 
-	if raw := result.Next(); raw != obj1 {
-		t.Fatalf("bad: %#v %#v", raw, obj1)
-	}
-
-	if raw := result.Next(); raw != obj2 {
-		t.Fatalf("bad: %#v %#v", raw, obj2)
-	}
-
-	if raw := result.Next(); raw != nil {
-		t.Fatalf("bad: %#v %#v", raw, nil)
-	}
-
-	// Attempt a row scan on the ID with specific ID
-	result, err = txn.Get("main", "id", obj1.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if raw := result.Next(); raw != obj1 {
-		t.Fatalf("bad: %#v %#v", raw, obj1)
-	}
-
-	if raw := result.Next(); raw != nil {
-		t.Fatalf("bad: %#v %#v", raw, nil)
-	}
-
-	// Attempt a row scan secondary index
-	result, err = txn.Get("main", "foo", obj1.Foo)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if raw := result.Next(); raw != obj1 {
-		t.Fatalf("bad: %#v %#v", raw, obj1)
-	}
-
-	if raw := result.Next(); raw != obj2 {
-		t.Fatalf("bad: %#v %#v", raw, obj2)
-	}
-
-	if raw := result.Next(); raw != nil {
-		t.Fatalf("bad: %#v %#v", raw, nil)
-	}
+	// Check the results within the txn
+	checkResult(txn)
 
 	// Commit and start a new read transaction
 	txn.Commit()
 	txn = db.Txn(false)
+
+	// Check the results in a new txn
+	checkResult(txn)
+}
+
+func TestTxn_DeleteAll_Simple(t *testing.T) {
+	db := testDB(t)
+	txn := db.Txn(true)
+
+	obj1 := &TestObject{
+		ID:  "my-object",
+		Foo: "abc",
+	}
+	obj2 := &TestObject{
+		ID:  "my-cool-thing",
+		Foo: "xyz",
+	}
+	obj3 := &TestObject{
+		ID:  "my-other-cool-thing",
+		Foo: "xyz",
+	}
+
+	err := txn.Insert("main", obj1)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	err = txn.Insert("main", obj2)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	err = txn.Insert("main", obj3)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Delete a specific ID
+	num, err := txn.DeleteAll("main", "id", obj1.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if num != 1 {
+		t.Fatalf("Bad: %d", num)
+	}
+
+	// Ensure we cannot lookup
+	raw, err := txn.First("main", "id", obj1.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if raw != nil {
+		t.Fatalf("bad: %#v", raw)
+	}
+
+	// Delete an entire secondary range
+	num, err = txn.DeleteAll("main", "foo", obj2.Foo)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if num != 2 {
+		t.Fatalf("Bad: %d", num)
+	}
+
+	// Ensure we cannot lookup
+	raw, err = txn.First("main", "foo", obj2.Foo)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if raw != nil {
+		t.Fatalf("bad: %#v", raw)
+	}
 }

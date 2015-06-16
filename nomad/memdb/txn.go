@@ -244,11 +244,35 @@ func (txn *Txn) Delete(table string, obj interface{}) error {
 
 // DeleteAll is used to delete all the objects in a given table
 // matching the constraints on the index
-func (txn *Txn) DeleteAll(table, index string, args ...interface{}) error {
+func (txn *Txn) DeleteAll(table, index string, args ...interface{}) (int, error) {
 	if !txn.write {
-		return fmt.Errorf("cannot delete in read-only transaction")
+		return 0, fmt.Errorf("cannot delete in read-only transaction")
 	}
-	return nil
+
+	// TODO: Currently we use Get to just every object and then
+	// iterate and delete them all. This works because sliceIterator
+	// has the full result set, but we may need to handle the iteraction
+	// between the iterator and delete in the future.
+
+	// Get all the objects
+	iter, err := txn.Get(table, index, args...)
+	if err != nil {
+		return 0, err
+	}
+
+	// Delete all
+	var num int
+	for {
+		obj := iter.Next()
+		if obj == nil {
+			break
+		}
+		if err := txn.Delete(table, obj); err != nil {
+			return num, err
+		}
+		num++
+	}
+	return num, nil
 }
 
 // First is used to return the first matching object for
