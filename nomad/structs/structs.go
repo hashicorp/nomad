@@ -37,15 +37,15 @@ type RPCInfo interface {
 
 // QueryOptions is used to specify various flags for read queries
 type QueryOptions struct {
+	// The target region for this query
+	Region string
+
 	// If set, wait until query exceeds given index. Must be provided
 	// with MaxQueryTime.
 	MinQueryIndex uint64
 
 	// Provided with MinQueryIndex to wait for change.
 	MaxQueryTime time.Duration
-
-	// The target region for this query
-	Region string
 
 	// If set, any follower can service the request. Results
 	// may be arbitrarily stale.
@@ -66,6 +66,7 @@ func (q QueryOptions) AllowStaleRead() bool {
 }
 
 type WriteRequest struct {
+	// The target region for this write
 	Region string
 }
 
@@ -98,11 +99,12 @@ type QueryMeta struct {
 	KnownLeader bool
 }
 
-const (
-	// CoreCapability is used to convey the client core
-	// version. This is a special reserved capability.
-	CoreCapability = "core"
-)
+// WriteMeta allows a write response to includ e potentially
+// useful metadata about the write
+type WriteMeta struct {
+	// This is the index associated with the write
+	Index uint64
+}
 
 const (
 	StatusInit  = "initializing"
@@ -114,22 +116,32 @@ const (
 // RegisterRequest is used for Client.Register endpoint
 // to register a node as being a schedulable entity.
 type RegisterRequest struct {
+	Node *Node
+	WriteRequest
+}
+
+// RegisterResponse is used to respond to a register request
+type RegisterResponse struct {
+	WriteMeta
+}
+
+// Node is a representation of a schedulable client node
+type Node struct {
+	// ID is a unique identifier for the node. It can be constructed
+	// by doing a concatenation of the Name and Datacenter as a simple
+	// approach. Alternatively a UUID may be used.
+	ID string
+
 	// Datacenter for this node
 	Datacenter string
 
 	// Node name
-	Node string
-
-	// Status of this node
-	Status string
-
-	// Scheduling capabilities are used by drivers.
-	// e.g. core = 2, docker = 1, java = 2, etc
-	Capabilities map[string]int
+	Name string
 
 	// Attributes is an arbitrary set of key/value
 	// data that can be used for constraints. Examples
-	// include "os=linux", "arch=386", "docker.runtime=1.8.3"
+	// include "os=linux", "arch=386", "driver.docker=1",
+	// "docker.runtime=1.8.3"
 	Attributes map[string]interface{}
 
 	// Resources is the available resources on the client.
@@ -145,7 +157,8 @@ type RegisterRequest struct {
 	// client. This is opaque to Nomad.
 	Meta map[string]string
 
-	WriteRequest
+	// Status of this node
+	Status string
 }
 
 // Resources is used to define the resources available
@@ -171,10 +184,6 @@ type NetworkResource struct {
 	ReservedPorts []int  // Reserved ports
 	MBits         int    // Throughput
 	MBitsReserved int
-}
-
-// RegisterResponse is used to respond to a register request
-type RegisterResponse struct {
 }
 
 // msgpackHandle is a shared handle for encoding/decoding of structs
