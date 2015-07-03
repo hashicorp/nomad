@@ -1,10 +1,11 @@
 package nomad
 
 import (
+	"fmt"
 	"io"
 	"log"
 
-	"github.com/hashicorp/go-immutable-radix"
+	"github.com/hashicorp/go-memdb"
 )
 
 // The StateStore is responsible for maintaining all the Consul
@@ -14,7 +15,7 @@ import (
 // to provide write availability in the face of reads.
 type StateStore struct {
 	logger *log.Logger
-	root   *iradix.Tree
+	db     *memdb.MemDB
 }
 
 // StateSnapshot is used to provide a point-in-time snapshot
@@ -22,33 +23,30 @@ type StateSnapshot struct {
 	StateStore
 }
 
-// Close is used to abort the transaction and allow for cleanup
-func (s *StateSnapshot) Close() error {
-	return nil
-}
-
 // NewStateStore is used to create a new state store
 func NewStateStore(logOutput io.Writer) (*StateStore, error) {
+	// Create the MemDB
+	db, err := memdb.NewMemDB(stateStoreSchema())
+	if err != nil {
+		return nil, fmt.Errorf("state store setup failed: %v", err)
+	}
+
+	// Create the state store
 	s := &StateStore{
 		logger: log.New(logOutput, "", log.LstdFlags),
-		root:   iradix.New(),
+		db:     db,
 	}
 	return s, nil
 }
 
-// Close is used to safely shutdown the state store
-func (s *StateStore) Close() error {
-	return nil
-}
-
 // Snapshot is used to create a point in time snapshot. Because
-// we use an immutable radix tree, we just need to preserve the
-// pointer to the root, and we are done.
+// we use MemDB, we just need to snapshot the state of the underlying
+// database.
 func (s *StateStore) Snapshot() (*StateSnapshot, error) {
 	snap := &StateSnapshot{
 		StateStore: StateStore{
 			logger: s.logger,
-			root:   s.root,
+			db:     s.db.Snapshot(),
 		},
 	}
 	return snap, nil

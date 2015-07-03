@@ -45,7 +45,7 @@ func NewFSM(logOutput io.Writer) (*nomadFSM, error) {
 
 // Close is used to cleanup resources associated with the FSM
 func (n *nomadFSM) Close() error {
-	return n.state.Close()
+	return nil
 }
 
 // State is used to return a handle to the current state
@@ -96,5 +96,5 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 }
 
 func (s *nomadSnapshot) Release() {
-	s.state.Close()
+	return
 }
