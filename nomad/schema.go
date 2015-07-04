@@ -181,7 +181,7 @@ func allocTableSchema() *memdb.TableSchema {
 		Indexes: map[string]*memdb.IndexSchema{
 			// Primary index is a UUID
 			"id": &memdb.IndexSchema{
-				Name:         "ID",
+				Name:         "id",
 				AllowMissing: false,
 				Unique:       true,
 				Indexer: &memdb.UUIDFieldIndex{
