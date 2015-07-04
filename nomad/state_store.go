@@ -6,13 +6,16 @@ import (
 	"log"
 
 	"github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 // The StateStore is responsible for maintaining all the Nomad
 // state. It is manipulated by the FSM which maintains consistency
 // through the use of Raft. The goals of the StateStore are to provide
 // high concurrency for read operations without blocking writes, and
-// to provide write availability in the face of reads.
+// to provide write availability in the face of reads. EVERY object
+// returned as a result of a read against the state store should be
+// considered a constant and NEVER modified in place.
 type StateStore struct {
 	logger *log.Logger
 	db     *memdb.MemDB
@@ -50,4 +53,107 @@ func (s *StateStore) Snapshot() (*StateSnapshot, error) {
 		},
 	}
 	return snap, nil
+}
+
+// RegisterNode is used to register a node or update a node definition
+func (s *StateStore) RegisterNode(index uint64, node *structs.Node) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	// Check if the node already exists
+	existing, err := txn.First("nodes", "id", node.ID)
+	if err != nil {
+		return fmt.Errorf("node lookup failed: %v", err)
+	}
+
+	// Setup the indexes correctly
+	if existing != nil {
+		node.CreateIndex = existing.(*structs.Node).CreateIndex
+		node.ModifyIndex = index
+	} else {
+		node.CreateIndex = index
+		node.ModifyIndex = index
+	}
+
+	// Insert the node
+	if err := txn.Insert("nodes", node); err != nil {
+		return fmt.Errorf("node insert failed: %v", err)
+	}
+
+	txn.Commit()
+	return nil
+}
+
+// DeregisterNode is used to deregister a node
+func (s *StateStore) DeregisterNode(index uint64, nodeID string) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	// Lookup the node
+	existing, err := txn.First("nodes", "id", nodeID)
+	if err != nil {
+		return fmt.Errorf("node lookup failed: %v", err)
+	}
+	if existing == nil {
+		return fmt.Errorf("node not found")
+	}
+
+	// Delete the node
+	if err := txn.Delete("nodes", existing); err != nil {
+		return fmt.Errorf("node delete failed: %v", err)
+	}
+
+	// TODO: Handle the existing allocations, probably need
+	// to change their states back to pending and kick the scheduler
+	// to force it to move things around
+
+	txn.Commit()
+	return nil
+}
+
+// UpdateNodeStatus is used to update the status of a node
+func (s *StateStore) UpdateNodeStatus(index uint64, nodeID string, status string) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	// Lookup the node
+	existing, err := txn.First("nodes", "id", nodeID)
+	if err != nil {
+		return fmt.Errorf("node lookup failed: %v", err)
+	}
+	if existing == nil {
+		return fmt.Errorf("node not found")
+	}
+
+	// Copy the existing node
+	existingNode := existing.(*structs.Node)
+	copyNode := new(structs.Node)
+	*copyNode = *existingNode
+
+	// Update the status in the copy
+	copyNode.Status = status
+	copyNode.ModifyIndex = index
+
+	// Insert the node
+	if err := txn.Insert("nodes", copyNode); err != nil {
+		return fmt.Errorf("node update failed: %v", err)
+	}
+
+	txn.Commit()
+	return nil
+}
+
+// GetNodeByID is used to lookup a node by ID
+func (s *StateStore) GetNodeByID(nodeID string) (*structs.Node, error) {
+	txn := s.db.Txn(false)
+
+	existing, err := txn.First("nodes", "id", nodeID)
+	if err != nil {
+		return nil, fmt.Errorf("node lookup failed: %v", err)
+	}
+
+	if existing != nil {
+		return existing.(*structs.Node), nil
+	}
+	return nil, nil
 }
