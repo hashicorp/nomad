@@ -114,7 +114,7 @@ func jobTableSchema() *memdb.TableSchema {
 // This table is used to store all the task groups belonging to a job.
 func taskGroupTableSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
-		Name: "taskGroups",
+		Name: "groups",
 		Indexes: map[string]*memdb.IndexSchema{
 			// Primary index is compount of {Job, Name}
 			"id": &memdb.IndexSchema{

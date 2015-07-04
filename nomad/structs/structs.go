@@ -169,6 +169,10 @@ type Node struct {
 	// client. This is opaque to Nomad.
 	Meta map[string]string
 
+	// NodeClass is an opaque identifier used to group nodes
+	// together for the purpose of determining scheduling pressure.
+	NodeClass string
+
 	// Status of this node
 	Status string
 }
@@ -346,8 +350,48 @@ type Allocation struct {
 	// of this allocation of the task group.
 	Resources *Resources
 
+	// Metrics associated with this allocation
+	Metrics *AllocMetric
+
 	// Status of the allocation
 	Status string
+}
+
+// AllocMetric is used to track various metrics while attempting
+// to make an allocation. These are used to debug a job, or to better
+// understand the pressure within the system.
+type AllocMetric struct {
+	// NodesEvaluated is the number of nodes that were evaluated
+	NodesEvaluated int
+
+	// NodesFiltered is the number of nodes filtered due to
+	// a hard constraint
+	NodesFiltered int
+
+	// ClassFiltered is the number of nodes filtered by class
+	ClassFiltered map[string]int
+
+	// ConstraintFiltered is the number of failures caused by constraint
+	ConstraintFiltered map[string]int
+
+	// NodesExhausted is the nubmer of nodes skipped due to being
+	// exhausted of at least one resource
+	NodesExhausted int
+
+	// ClassExhausted is the number of nodes exhausted by class
+	ClassExhausted map[string]int
+
+	// Preemptions is the number of preemptions considered.
+	// This indicates a relatively busy fleet if high.
+	Preemptions int
+
+	// Scores is the scores of the final few nodes remaining
+	// for placement. The top score is typically selected.
+	Scores map[string]int
+
+	// AllocationTime is a measure of how long the allocation
+	// attempt took. This can affect performance and SLAs.
+	AllocationTime time.Duration
 }
 
 // msgpackHandle is a shared handle for encoding/decoding of structs
