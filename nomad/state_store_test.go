@@ -3,6 +3,7 @@ package nomad
 import (
 	"os"
 	"reflect"
+	"sort"
 	"testing"
 
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -129,4 +130,81 @@ func TestStateStore_UpdateNode_GetNode(t *testing.T) {
 	if out.ModifyIndex != 1001 {
 		t.Fatalf("bad: %#v", out)
 	}
+}
+
+func TestStateStore_Nodes(t *testing.T) {
+	state := testStateStore(t)
+	var nodes []*structs.Node
+
+	for i := 0; i < 10; i++ {
+		node := mockNode()
+		nodes = append(nodes, node)
+
+		err := state.RegisterNode(1000+uint64(i), node)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	}
+
+	iter, err := state.Nodes()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	var out []*structs.Node
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		out = append(out, raw.(*structs.Node))
+	}
+
+	sort.Sort(NodeIDSort(nodes))
+	sort.Sort(NodeIDSort(out))
+
+	if !reflect.DeepEqual(nodes, out) {
+		t.Fatalf("bad: %#v %#v", nodes, out)
+	}
+}
+
+func TestStateStore_RestoreNode(t *testing.T) {
+	state := testStateStore(t)
+
+	restore, err := state.Restore()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	node := mockNode()
+	err = restore.NodeRestore(node)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	restore.Commit()
+
+	out, err := state.GetNodeByID(node.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !reflect.DeepEqual(out, node) {
+		t.Fatalf("Bad: %#v %#v", out, node)
+	}
+}
+
+// NodeIDSort is used to sort nodes by ID
+type NodeIDSort []*structs.Node
+
+func (n NodeIDSort) Len() int {
+	return len(n)
+}
+
+func (n NodeIDSort) Less(i, j int) bool {
+	return n[i].ID < n[j].ID
+}
+
+func (n NodeIDSort) Swap(i, j int) {
+	n[i], n[j] = n[j], n[i]
 }

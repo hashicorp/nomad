@@ -26,6 +26,23 @@ type StateSnapshot struct {
 	StateStore
 }
 
+// StateRestore is used to optimize the performance when
+// restoring state by only using a single large transaction
+// instead of thousands of sub transactions
+type StateRestore struct {
+	txn *memdb.Txn
+}
+
+// Abort is used to abort the restore operation
+func (s *StateRestore) Abort() {
+	s.txn.Abort()
+}
+
+// Commit is used to commit the restore operation
+func (s *StateRestore) Commit() {
+	s.txn.Commit()
+}
+
 // NewStateStore is used to create a new state store
 func NewStateStore(logOutput io.Writer) (*StateStore, error) {
 	// Create the MemDB
@@ -53,6 +70,14 @@ func (s *StateStore) Snapshot() (*StateSnapshot, error) {
 		},
 	}
 	return snap, nil
+}
+
+// Restore is used to optimize the efficiency of rebuilding
+// state by minimizing the number of transactions and checking
+// overhead.
+func (s *StateStore) Restore() (*StateRestore, error) {
+	txn := s.db.Txn(true)
+	return &StateRestore{txn}, nil
 }
 
 // RegisterNode is used to register a node or update a node definition
@@ -156,4 +181,24 @@ func (s *StateStore) GetNodeByID(nodeID string) (*structs.Node, error) {
 		return existing.(*structs.Node), nil
 	}
 	return nil, nil
+}
+
+// Nodes returns an iterator over all the nodes
+func (s *StateStore) Nodes() (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	// Walk the entire nodes table
+	iter, err := txn.Get("nodes", "id")
+	if err != nil {
+		return nil, err
+	}
+	return iter, nil
+}
+
+// NodeRestore is used to restore a node
+func (r *StateRestore) NodeRestore(node *structs.Node) error {
+	if err := r.txn.Insert("nodes", node); err != nil {
+		return fmt.Errorf("node insert failed: %v", err)
+	}
+	return nil
 }
