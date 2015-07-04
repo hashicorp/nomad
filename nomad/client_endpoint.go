@@ -24,19 +24,22 @@ func (c *Client) Register(args *structs.RegisterRequest, reply *structs.Register
 	if args.Region == "" {
 		return fmt.Errorf("missing region for client registration")
 	}
-	if args.Datacenter == "" {
+	if args.Node == nil {
+		return fmt.Errorf("missing node for client registration")
+	}
+	if args.Node.ID == "" {
+		return fmt.Errorf("missing node ID for client registration")
+	}
+	if args.Node.Datacenter == "" {
 		return fmt.Errorf("missing datacenter for client registration")
 	}
-	if args.Node == "" {
+	if args.Node.Name == "" {
 		return fmt.Errorf("missing node name for client registration")
-	}
-	if _, ok := args.Capabilities[structs.CoreCapability]; !ok {
-		return fmt.Errorf("missing core capability for client registration")
 	}
 
 	// Default the status if none is given
-	if args.Status == "" {
-		args.Status = structs.StatusInit
+	if args.Node.Status == "" {
+		args.Node.Status = structs.NodeStatusInit
 	}
 
 	// Commit this update via Raft
