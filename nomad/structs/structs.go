@@ -175,6 +175,10 @@ type Node struct {
 
 	// Status of this node
 	Status string
+
+	// Raft Indexes
+	CreateIndex uint64
+	ModifyIndex uint64
 }
 
 // Resources is used to define the resources available
@@ -247,6 +251,10 @@ type Job struct {
 
 	// Job status
 	Status string
+
+	// Raft Indexes
+	CreateIndex uint64
+	ModifyIndex uint64
 }
 
 // TaskGroup is an atomic unit of placement. Each task group belongs to
@@ -276,6 +284,10 @@ type TaskGroup struct {
 
 	// Task group status
 	Status string
+
+	// Raft Indexes
+	CreateIndex uint64
+	ModifyIndex uint64
 }
 
 // Task is a single process typically that is executed as part of a task group.
@@ -305,6 +317,10 @@ type Task struct {
 	// Meta is used to associate arbitrary metadata with this
 	// task. This is opaque to Nomad.
 	Meta map[string]string
+
+	// Raft Indexes
+	CreateIndex uint64
+	ModifyIndex uint64
 }
 
 // Constraints are used to restrict placement options in the case of
@@ -355,6 +371,10 @@ type Allocation struct {
 
 	// Status of the allocation
 	Status string
+
+	// Raft Indexes
+	CreateIndex uint64
+	ModifyIndex uint64
 }
 
 // AllocMetric is used to track various metrics while attempting

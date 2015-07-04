@@ -8,7 +8,7 @@ import (
 	"github.com/hashicorp/go-memdb"
 )
 
-// The StateStore is responsible for maintaining all the Consul
+// The StateStore is responsible for maintaining all the Nomad
 // state. It is manipulated by the FSM which maintains consistency
 // through the use of Raft. The goals of the StateStore are to provide
 // high concurrency for read operations without blocking writes, and
