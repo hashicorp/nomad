@@ -250,7 +250,7 @@ type Job struct {
 // in many replicas using the same configuration..
 type TaskGroup struct {
 	// Name of the parent job
-	Job string
+	JobName string
 
 	// Name of the task group
 	Name string
@@ -277,10 +277,10 @@ type TaskGroup struct {
 // Task is a single process typically that is executed as part of a task group.
 type Task struct {
 	// Name of the parent job
-	Job string
+	JobName string
 
 	// Name of the partent task group
-	TaskGroup string
+	TaskGroupName string
 
 	// Name of the task
 	Name string
@@ -312,6 +312,42 @@ type Constraint struct {
 	RTarget string // Right-hand target
 	Operand string // Constraint operand (<=, <, =, !=, >, >=), contains, near
 	Weight  int    // Soft constraints can vary the weight
+}
+
+const (
+	AllocStatusPending  = "pending"
+	AllocStatusInit     = "initializing"
+	AllocStatusRunning  = "running"
+	AllocStatusComplete = "complete"
+	AllocStatusDead     = "dead"
+)
+
+// Allocation is used to allocate the placement of a task group to a node.
+type Allocation struct {
+	// ID of the allocation (UUID)
+	ID string
+
+	// NodeID is the node this is being placed on
+	NodeID string
+
+	// Job is the parent job of the task group being allocated.
+	// This is copied at allocation time to avoid issues if the job
+	// definition is updated.
+	JobName string
+	Job     *Job
+
+	// TaskGroup is the task being allocated to the node
+	// This is copied at allocation time to avoid issues if the job
+	// definition is updated.
+	TaskGroupName string
+	TaskGroup     *TaskGroup
+
+	// Resources is the set of resources allocated as part
+	// of this allocation of the task group.
+	Resources *Resources
+
+	// Status of the allocation
+	Status string
 }
 
 // msgpackHandle is a shared handle for encoding/decoding of structs

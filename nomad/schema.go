@@ -19,6 +19,7 @@ func stateStoreSchema() *memdb.DBSchema {
 		jobTableSchema,
 		taskGroupTableSchema,
 		taskTableSchema,
+		allocTableSchema,
 	}
 
 	// Add each of the tables
@@ -124,7 +125,7 @@ func taskGroupTableSchema() *memdb.TableSchema {
 					AllowMissing: false,
 					Indexes: []memdb.Indexer{
 						&memdb.StringFieldIndex{
-							Field:     "Job",
+							Field:     "JobName",
 							Lowercase: true,
 						},
 						&memdb.StringFieldIndex{
@@ -153,11 +154,11 @@ func taskTableSchema() *memdb.TableSchema {
 					AllowMissing: false,
 					Indexes: []memdb.Indexer{
 						&memdb.StringFieldIndex{
-							Field:     "Job",
+							Field:     "JobName",
 							Lowercase: true,
 						},
 						&memdb.StringFieldIndex{
-							Field:     "TaskGroup",
+							Field:     "TaskGroupName",
 							Lowercase: true,
 						},
 						&memdb.StringFieldIndex{
@@ -165,6 +166,58 @@ func taskTableSchema() *memdb.TableSchema {
 							Lowercase: true,
 						},
 					},
+				},
+			},
+		},
+	}
+}
+
+// allocTableSchema returns the MemDB schema for the allocation table.
+// This table is used to store all the task allocations between task groups
+// and nodes.
+func allocTableSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: "allocs",
+		Indexes: map[string]*memdb.IndexSchema{
+			// Primary index is a UUID
+			"id": &memdb.IndexSchema{
+				Name:         "ID",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.UUIDFieldIndex{
+					Field: "ID",
+				},
+			},
+
+			// Job index is used to lookup allocations by job.
+			// It is a compound index on {JobName, TaskGroupName}
+			"job": &memdb.IndexSchema{
+				Name:         "job",
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.CompoundIndex{
+					AllowMissing: false,
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{
+							Field:     "JobName",
+							Lowercase: true,
+						},
+						&memdb.StringFieldIndex{
+							Field:     "TaskGroupName",
+							Lowercase: true,
+						},
+					},
+				},
+			},
+
+			// Node index is used to lookup allocations by node
+			"node": &memdb.IndexSchema{
+				Name:         "node",
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.StringFieldIndex{
+					Field:     "NodeID",
+					Lowercase: true,
 				},
 			},
 		},
