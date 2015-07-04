@@ -67,6 +67,12 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 	}
 
 	switch msgType {
+	case structs.RegisterRequestType:
+		return n.decodeRegister(buf[1:], log.Index)
+	case structs.DeregisterRequestType:
+		return n.applyDeregister(buf[1:], log.Index)
+	case structs.NodeUpdateStatusRequestType:
+		return n.applyStatusUpdate(buf[1:], log.Index)
 	default:
 		if ignoreUnknown {
 			n.logger.Printf("[WARN] nomad.fsm: ignoring unknown message type (%d), upgrade to newer version", msgType)
@@ -76,6 +82,52 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		}
 	}
 }
+
+func (n *nomadFSM) decodeRegister(buf []byte, index uint64) interface{} {
+	var req structs.RegisterRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+	return n.applyRegister(&req, index)
+}
+
+func (n *nomadFSM) applyRegister(req *structs.RegisterRequest, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "register"}, time.Now())
+	if err := n.state.RegisterNode(index, req.Node); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: RegisterNode failed: %v", err)
+		return err
+	}
+	return nil
+}
+
+func (n *nomadFSM) applyDeregister(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "deregister"}, time.Now())
+	var req structs.DeregisterRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.DeregisterNode(index, req.NodeID); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: DeregisterNode failed: %v", err)
+		return err
+	}
+	return nil
+}
+
+func (n *nomadFSM) applyStatusUpdate(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "node_status_update"}, time.Now())
+	var req structs.UpdateStatusRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.UpdateNodeStatus(index, req.NodeID, req.Status); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: UpdateNodeStatus failed: %v", err)
+		return err
+	}
+	return nil
+}
+
 func (n *nomadFSM) Snapshot() (raft.FSMSnapshot, error) {
 	// Create a new snapshot
 	snap, err := n.state.Snapshot()

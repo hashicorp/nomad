@@ -17,6 +17,8 @@ type MessageType uint8
 
 const (
 	RegisterRequestType MessageType = iota
+	DeregisterRequestType
+	NodeUpdateStatusRequestType
 )
 
 const (
@@ -113,8 +115,24 @@ type RegisterRequest struct {
 	WriteRequest
 }
 
-// RegisterResponse is used to respond to a register request
-type RegisterResponse struct {
+// DeregisterRequest is used for Client.Deregister endpoint
+// to deregister a node as being a schedulable entity.
+type DeregisterRequest struct {
+	NodeID string
+	WriteRequest
+}
+
+// UpdateStatusRequest is used for Client.UpdateStatus endpoint
+// to update the status of a node.
+type UpdateStatusRequest struct {
+	NodeID string
+	Status string
+	WriteRequest
+}
+
+// GenericResponse is used to respond to a request where no
+// specific response information is needed.
+type GenericResponse struct {
 	WriteMeta
 }
 

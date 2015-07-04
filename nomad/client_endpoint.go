@@ -14,7 +14,7 @@ type Client struct {
 }
 
 // Register is used to upsert a client that is available for scheduling
-func (c *Client) Register(args *structs.RegisterRequest, reply *structs.RegisterResponse) error {
+func (c *Client) Register(args *structs.RegisterRequest, reply *structs.GenericResponse) error {
 	if done, err := c.srv.forward("Client.Register", args, args, reply); done {
 		return err
 	}
