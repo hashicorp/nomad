@@ -51,6 +51,27 @@ func (c *Client) Register(args *structs.RegisterRequest, reply *structs.GenericR
 	return nil
 }
 
+// Deregister is used to remove a client from the client. If a client should
+// just be made unavailable for scheduling, a status update is prefered.
 func (c *Client) Deregister(args *structs.DeregisterRequest, reply *structs.GenericResponse) error {
+	if done, err := c.srv.forward("Client.Deregister", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "client", "deregister"}, time.Now())
+
+	// Verify the arguments
+	if args.NodeID == "" {
+		return fmt.Errorf("missing node ID for client deregistration")
+	}
+
+	// Commit this update via Raft
+	_, index, err := c.srv.raftApply(structs.DeregisterRequestType, args)
+	if err != nil {
+		c.srv.logger.Printf("[ERR] nomad.client: Deregister failed: %v", err)
+		return err
+	}
+
+	// Set the reply index
+	reply.Index = index
 	return nil
 }
