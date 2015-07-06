@@ -40,10 +40,17 @@ func (c *Client) Register(args *structs.RegisterRequest, reply *structs.GenericR
 	}
 
 	// Commit this update via Raft
-	_, err := c.srv.raftApply(structs.RegisterRequestType, args)
+	_, index, err := c.srv.raftApply(structs.RegisterRequestType, args)
 	if err != nil {
 		c.srv.logger.Printf("[ERR] nomad.client: Register failed: %v", err)
 		return err
 	}
+
+	// Set the reply index
+	reply.Index = index
+	return nil
+}
+
+func (c *Client) Deregister(args *structs.DeregisterRequest, reply *structs.GenericResponse) error {
 	return nil
 }

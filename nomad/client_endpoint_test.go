@@ -26,6 +26,9 @@ func TestClientEndpoint_Register(t *testing.T) {
 	if err := msgpackrpc.CallWithCodec(codec, "Client.Register", req, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
+	if resp.Index == 0 {
+		t.Fatalf("bad index: %d", resp.Index)
+	}
 
 	// Check for the node in the FSM
 	state := s1.fsm.State()
@@ -35,5 +38,8 @@ func TestClientEndpoint_Register(t *testing.T) {
 	}
 	if out == nil {
 		t.Fatalf("expected node")
+	}
+	if out.CreateIndex != resp.Index {
+		t.Fatalf("index mis-match")
 	}
 }

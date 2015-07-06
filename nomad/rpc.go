@@ -236,10 +236,10 @@ func (s *Server) forwardRegion(region, method string, args interface{}, reply in
 
 // raftApply is used to encode a message, run it through raft, and return
 // the FSM response along with any errors
-func (s *Server) raftApply(t structs.MessageType, msg interface{}) (interface{}, error) {
+func (s *Server) raftApply(t structs.MessageType, msg interface{}) (interface{}, uint64, error) {
 	buf, err := structs.Encode(t, msg)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to encode request: %v", err)
+		return nil, 0, fmt.Errorf("Failed to encode request: %v", err)
 	}
 
 	// Warn if the command is very large
@@ -249,8 +249,8 @@ func (s *Server) raftApply(t structs.MessageType, msg interface{}) (interface{},
 
 	future := s.raft.Apply(buf, enqueueLimit)
 	if err := future.Error(); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	return future.Response(), nil
+	return future.Response(), future.Index(), nil
 }
