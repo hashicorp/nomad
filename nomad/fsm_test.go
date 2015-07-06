@@ -204,3 +204,23 @@ func TestFSM_SnapshotRestore_Nodes(t *testing.T) {
 		t.Fatalf("bad: \n%#v\n%#v", out2, node2)
 	}
 }
+
+func TestFSM_SnapshotRestore_Indexes(t *testing.T) {
+	// Add some state
+	fsm := testFSM(t)
+	state := fsm.State()
+	node1 := mockNode()
+	state.RegisterNode(1000, node1)
+
+	// Verify the contents
+	fsm2 := testSnapshotRestore(t, fsm)
+	state2 := fsm2.State()
+
+	index, err := state2.GetIndex("nodes")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if index != 1000 {
+		t.Fatalf("bad: %d", index)
+	}
+}

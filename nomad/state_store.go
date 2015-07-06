@@ -245,3 +245,10 @@ func (r *StateRestore) NodeRestore(node *structs.Node) error {
 	}
 	return nil
 }
+
+func (r *StateRestore) IndexRestore(idx *IndexEntry) error {
+	if err := r.txn.Insert("index", idx); err != nil {
+		return fmt.Errorf("index insert failed: %v", err)
+	}
+	return nil
+}
