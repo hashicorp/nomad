@@ -168,8 +168,12 @@ func (s *Server) handleNomadConn(conn net.Conn) {
 // forward is used to forward to a remote region or to forward to the local leader
 // Returns a bool of if forwarding was performed, as well as any error
 func (s *Server) forward(method string, info structs.RPCInfo, args interface{}, reply interface{}) (bool, error) {
-	// Handle region forwarding
 	region := info.RequestRegion()
+	if region == "" {
+		return true, fmt.Errorf("missing target RPC")
+	}
+
+	// Handle region forwarding
 	if region != s.config.Region {
 		err := s.forwardRegion(region, method, args, reply)
 		return true, err

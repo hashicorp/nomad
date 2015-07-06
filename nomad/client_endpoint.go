@@ -21,9 +21,6 @@ func (c *Client) Register(args *structs.RegisterRequest, reply *structs.GenericR
 	defer metrics.MeasureSince([]string{"nomad", "client", "register"}, time.Now())
 
 	// Validate the arguments
-	if args.Region == "" {
-		return fmt.Errorf("missing region for client registration")
-	}
 	if args.Node == nil {
 		return fmt.Errorf("missing node for client registration")
 	}
