@@ -254,3 +254,14 @@ func (s *Server) raftApply(t structs.MessageType, msg interface{}) (interface{},
 
 	return future.Response(), future.Index(), nil
 }
+
+// setQueryMeta is used to populate the QueryMeta data for an RPC call
+func (s *Server) setQueryMeta(m *structs.QueryMeta) {
+	if s.IsLeader() {
+		m.LastContact = 0
+		m.KnownLeader = true
+	} else {
+		m.LastContact = time.Now().Sub(s.raft.LastContact())
+		m.KnownLeader = (s.raft.Leader() != "")
+	}
+}

@@ -105,3 +105,37 @@ func (c *Client) UpdateStatus(args *structs.UpdateStatusRequest, reply *structs.
 	reply.Index = index
 	return nil
 }
+
+// GetNode is used to request information about a specific ndoe
+func (c *Client) GetNode(args *structs.NodeSpecificRequest,
+	reply *structs.SingleNodeResponse) error {
+	if done, err := c.srv.forward("Client.GetNode", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "client", "get_node"}, time.Now())
+
+	// Verify the arguments
+	if args.NodeID == "" {
+		return fmt.Errorf("missing node ID")
+	}
+
+	// Look for the node
+	state := c.srv.fsm.State()
+	out, err := state.GetNodeByID(args.NodeID)
+	if err != nil {
+		return err
+	}
+
+	// Setup the output
+	if out != nil {
+		reply.Node = out
+		reply.Index = out.ModifyIndex
+	} else {
+		// TODO: Fix table index
+		reply.Index = 0
+	}
+
+	// Set the query response
+	c.srv.setQueryMeta(&reply.QueryMeta)
+	return nil
+}

@@ -130,10 +130,22 @@ type UpdateStatusRequest struct {
 	WriteRequest
 }
 
+// NodeSpecificRequest is used when we just need to specify a target node
+type NodeSpecificRequest struct {
+	NodeID string
+	WriteRequest
+}
+
 // GenericResponse is used to respond to a request where no
 // specific response information is needed.
 type GenericResponse struct {
 	WriteMeta
+}
+
+// SingleNodeResponse is used to return a single node
+type SingleNodeResponse struct {
+	Node *Node
+	QueryMeta
 }
 
 const (
