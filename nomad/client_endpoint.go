@@ -75,3 +75,33 @@ func (c *Client) Deregister(args *structs.DeregisterRequest, reply *structs.Gene
 	reply.Index = index
 	return nil
 }
+
+// UpdateStatus is used to update the status of a client node
+func (c *Client) UpdateStatus(args *structs.UpdateStatusRequest, reply *structs.GenericResponse) error {
+	if done, err := c.srv.forward("Client.UpdateStatus", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "client", "update_status"}, time.Now())
+
+	// Verify the arguments
+	if args.NodeID == "" {
+		return fmt.Errorf("missing node ID for client deregistration")
+	}
+	switch args.Status {
+	case structs.NodeStatusInit, structs.NodeStatusReady,
+		structs.NodeStatusMaint, structs.NodeStatusDown:
+	default:
+		return fmt.Errorf("invalid status for node")
+	}
+
+	// Commit this update via Raft
+	_, index, err := c.srv.raftApply(structs.NodeUpdateStatusRequestType, args)
+	if err != nil {
+		c.srv.logger.Printf("[ERR] nomad.client: status update failed: %v", err)
+		return err
+	}
+
+	// Set the reply index
+	reply.Index = index
+	return nil
+}
