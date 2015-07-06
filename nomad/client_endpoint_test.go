@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/hashicorp/net-rpc-msgpackrpc"
@@ -131,5 +132,56 @@ func TestClientEndpoint_UpdateStatus(t *testing.T) {
 	}
 	if out.ModifyIndex != resp2.Index {
 		t.Fatalf("index mis-match")
+	}
+}
+
+func TestClientEndpoint_GetNode(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	node := mockNode()
+	reg := &structs.RegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "region1"},
+	}
+
+	// Fetch the response
+	var resp structs.GenericResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Client.Register", reg, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	node.CreateIndex = resp.Index
+	node.ModifyIndex = resp.Index
+
+	// Lookup the node
+	get := &structs.NodeSpecificRequest{
+		NodeID:       node.ID,
+		WriteRequest: structs.WriteRequest{Region: "region1"},
+	}
+	var resp2 structs.SingleNodeResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Client.GetNode", get, &resp2); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp2.Index != resp.Index {
+		t.Fatalf("Bad index: %d %d", resp2.Index, resp.Index)
+	}
+
+	if !reflect.DeepEqual(node, resp2.Node) {
+		t.Fatalf("bad: %#v %#v", node, resp2.Node)
+	}
+
+	// Lookup non-existing node
+	get.NodeID = "foobarbaz"
+	if err := msgpackrpc.CallWithCodec(codec, "Client.GetNode", get, &resp2); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp2.Index != resp.Index {
+		t.Fatalf("Bad index: %d %d", resp2.Index, resp.Index)
+	}
+	if resp2.Node != nil {
+		t.Fatalf("unexpected node")
 	}
 }

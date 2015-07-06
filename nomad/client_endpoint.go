@@ -120,8 +120,11 @@ func (c *Client) GetNode(args *structs.NodeSpecificRequest,
 	}
 
 	// Look for the node
-	state := c.srv.fsm.State()
-	out, err := state.GetNodeByID(args.NodeID)
+	snap, err := c.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+	out, err := snap.GetNodeByID(args.NodeID)
 	if err != nil {
 		return err
 	}
@@ -131,8 +134,12 @@ func (c *Client) GetNode(args *structs.NodeSpecificRequest,
 		reply.Node = out
 		reply.Index = out.ModifyIndex
 	} else {
-		// TODO: Fix table index
-		reply.Index = 0
+		// Use the last index that affected the nodes table
+		index, err := snap.GetIndex("nodes")
+		if err != nil {
+			return err
+		}
+		reply.Index = index
 	}
 
 	// Set the query response
