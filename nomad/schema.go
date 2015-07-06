@@ -15,6 +15,7 @@ func stateStoreSchema() *memdb.DBSchema {
 
 	// Collect all the schemas that are needed
 	schemas := []func() *memdb.TableSchema{
+		indexTableSchema,
 		nodeTableSchema,
 		jobTableSchema,
 		taskGroupTableSchema,
@@ -31,6 +32,24 @@ func stateStoreSchema() *memdb.DBSchema {
 		db.Tables[schema.Name] = schema
 	}
 	return db
+}
+
+// indexTableSchema is used for
+func indexTableSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: "index",
+		Indexes: map[string]*memdb.IndexSchema{
+			"id": &memdb.IndexSchema{
+				Name:         "id",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.StringFieldIndex{
+					Field:     "Key",
+					Lowercase: true,
+				},
+			},
+		},
+	}
 }
 
 // nodeTableSchema returns the MemDB schema for the nodes table.

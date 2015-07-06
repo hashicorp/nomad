@@ -79,6 +79,14 @@ func TestStateStore_RegisterNode_GetNode(t *testing.T) {
 	if !reflect.DeepEqual(node, out) {
 		t.Fatalf("bad: %#v %#v", node, out)
 	}
+
+	index, err := state.GetIndex("nodes")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if index != 1000 {
+		t.Fatalf("bad: %d", index)
+	}
 }
 
 func TestStateStore_DeregisterNode_GetNode(t *testing.T) {
@@ -102,6 +110,14 @@ func TestStateStore_DeregisterNode_GetNode(t *testing.T) {
 
 	if out != nil {
 		t.Fatalf("bad: %#v %#v", node, out)
+	}
+
+	index, err := state.GetIndex("nodes")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if index != 1001 {
+		t.Fatalf("bad: %d", index)
 	}
 }
 
@@ -129,6 +145,14 @@ func TestStateStore_UpdateNode_GetNode(t *testing.T) {
 	}
 	if out.ModifyIndex != 1001 {
 		t.Fatalf("bad: %#v", out)
+	}
+
+	index, err := state.GetIndex("nodes")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if index != 1001 {
+		t.Fatalf("bad: %d", index)
 	}
 }
 
@@ -165,6 +189,38 @@ func TestStateStore_Nodes(t *testing.T) {
 
 	if !reflect.DeepEqual(nodes, out) {
 		t.Fatalf("bad: %#v %#v", nodes, out)
+	}
+}
+
+func TestStateStore_Indexes(t *testing.T) {
+	state := testStateStore(t)
+	node := mockNode()
+
+	err := state.RegisterNode(1000, node)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	iter, err := state.Indexes()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	var out []*IndexEntry
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		out = append(out, raw.(*IndexEntry))
+	}
+
+	expect := []*IndexEntry{
+		&IndexEntry{"nodes", 1000},
+	}
+
+	if !reflect.DeepEqual(expect, out) {
+		t.Fatalf("bad: %#v %#v", expect, out)
 	}
 }
 

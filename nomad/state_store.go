@@ -43,6 +43,13 @@ func (s *StateRestore) Commit() {
 	s.txn.Commit()
 }
 
+// IndexEntry is used with the "index" table
+// for managing the latest Raft index affecting a table.
+type IndexEntry struct {
+	Key   string
+	Value uint64
+}
+
 // NewStateStore is used to create a new state store
 func NewStateStore(logOutput io.Writer) (*StateStore, error) {
 	// Create the MemDB
@@ -104,6 +111,9 @@ func (s *StateStore) RegisterNode(index uint64, node *structs.Node) error {
 	if err := txn.Insert("nodes", node); err != nil {
 		return fmt.Errorf("node insert failed: %v", err)
 	}
+	if err := txn.Insert("index", &IndexEntry{"nodes", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
 
 	txn.Commit()
 	return nil
@@ -126,6 +136,9 @@ func (s *StateStore) DeregisterNode(index uint64, nodeID string) error {
 	// Delete the node
 	if err := txn.Delete("nodes", existing); err != nil {
 		return fmt.Errorf("node delete failed: %v", err)
+	}
+	if err := txn.Insert("index", &IndexEntry{"nodes", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
 	}
 
 	// TODO: Handle the existing allocations, probably need
@@ -163,6 +176,9 @@ func (s *StateStore) UpdateNodeStatus(index uint64, nodeID string, status string
 	if err := txn.Insert("nodes", copyNode); err != nil {
 		return fmt.Errorf("node update failed: %v", err)
 	}
+	if err := txn.Insert("index", &IndexEntry{"nodes", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
 
 	txn.Commit()
 	return nil
@@ -189,6 +205,33 @@ func (s *StateStore) Nodes() (memdb.ResultIterator, error) {
 
 	// Walk the entire nodes table
 	iter, err := txn.Get("nodes", "id")
+	if err != nil {
+		return nil, err
+	}
+	return iter, nil
+}
+
+// GetIndex finds the matching index value
+func (s *StateStore) GetIndex(name string) (uint64, error) {
+	txn := s.db.Txn(false)
+
+	// Lookup the first matching index
+	out, err := txn.First("index", "id", name)
+	if err != nil {
+		return 0, err
+	}
+	if out == nil {
+		return 0, nil
+	}
+	return out.(*IndexEntry).Value, nil
+}
+
+// Indexes returns an iterator over all the indexes
+func (s *StateStore) Indexes() (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	// Walk the entire nodes table
+	iter, err := txn.Get("index", "id")
 	if err != nil {
 		return nil, err
 	}
