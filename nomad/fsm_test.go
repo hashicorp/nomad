@@ -1,12 +1,32 @@
 package nomad
 
 import (
+	"bytes"
 	"os"
+	"reflect"
 	"testing"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
 )
+
+type MockSink struct {
+	*bytes.Buffer
+	cancel bool
+}
+
+func (m *MockSink) ID() string {
+	return "Mock"
+}
+
+func (m *MockSink) Cancel() error {
+	m.cancel = true
+	return nil
+}
+
+func (m *MockSink) Close() error {
+	return nil
+}
 
 func testFSM(t *testing.T) *nomadFSM {
 	fsm, err := NewFSM(os.Stderr)
@@ -135,5 +155,52 @@ func TestFSM_UpdateNodeStatus(t *testing.T) {
 	}
 	if node.Status != structs.NodeStatusReady {
 		t.Fatalf("bad node: %#v", node)
+	}
+}
+
+func testSnapshotRestore(t *testing.T, fsm *nomadFSM) *nomadFSM {
+	// Snapshot
+	snap, err := fsm.Snapshot()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	defer snap.Release()
+
+	// Persist
+	buf := bytes.NewBuffer(nil)
+	sink := &MockSink{buf, false}
+	if err := snap.Persist(sink); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Try to restore on a new FSM
+	fsm2 := testFSM(t)
+
+	// Do a restore
+	if err := fsm2.Restore(sink); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	return fsm2
+}
+
+func TestFSM_SnapshotRestore_Nodes(t *testing.T) {
+	// Add some state
+	fsm := testFSM(t)
+	state := fsm.State()
+	node1 := mockNode()
+	state.RegisterNode(1000, node1)
+	node2 := mockNode()
+	state.RegisterNode(1001, node2)
+
+	// Verify the contents
+	fsm2 := testSnapshotRestore(t, fsm)
+	state2 := fsm2.State()
+	out1, _ := state2.GetNodeByID(node1.ID)
+	out2, _ := state2.GetNodeByID(node2.ID)
+	if !reflect.DeepEqual(node1, out1) {
+		t.Fatalf("bad: \n%#v\n%#v", out1, node1)
+	}
+	if !reflect.DeepEqual(node2, out2) {
+		t.Fatalf("bad: \n%#v\n%#v", out2, node2)
 	}
 }

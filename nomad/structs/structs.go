@@ -160,11 +160,11 @@ type Node struct {
 	// data that can be used for constraints. Examples
 	// include "os=linux", "arch=386", "driver.docker=1",
 	// "docker.runtime=1.8.3"
-	Attributes map[string]interface{}
+	Attributes map[string]string
 
 	// Resources is the available resources on the client.
 	// For example 'cpu=2' 'memory=2048'
-	Resouces *Resources
+	Resources *Resources
 
 	// Reserved is the set of resources that are reserved,
 	// and should be subtracted from the total resources for
@@ -181,7 +181,7 @@ type Node struct {
 	// Links are used to 'link' this client to external
 	// systems. For example 'consul=foo.dc1' 'aws=i-83212'
 	// 'ami=ami-123'
-	Links map[string]interface{}
+	Links map[string]string
 
 	// Meta is used to associate arbitrary metadata with this
 	// client. This is opaque to Nomad.

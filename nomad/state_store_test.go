@@ -25,13 +25,13 @@ func mockNode() *structs.Node {
 		ID:         generateUUID(),
 		Datacenter: "dc1",
 		Name:       "foobar",
-		Attributes: map[string]interface{}{
+		Attributes: map[string]string{
 			"os":            "linux",
 			"arch":          "x86",
 			"version":       "0.1.0",
-			"driver.docker": 1,
+			"driver.docker": "1.0.0",
 		},
-		Resouces: &structs.Resources{
+		Resources: &structs.Resources{
 			CPU:      4.0,
 			MemoryMB: 8192,
 			DiskMB:   100 * 1024,
@@ -50,7 +50,7 @@ func mockNode() *structs.Node {
 			MemoryMB: 256,
 			DiskMB:   4 * 1024,
 		},
-		Links: map[string]interface{}{
+		Links: map[string]string{
 			"consul": "foobar.dc1",
 		},
 		Meta: map[string]string{
