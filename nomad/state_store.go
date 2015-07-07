@@ -211,6 +211,99 @@ func (s *StateStore) Nodes() (memdb.ResultIterator, error) {
 	return iter, nil
 }
 
+// RegisterJob is used to register a job or update a job definition
+func (s *StateStore) RegisterJob(index uint64, job *structs.Job) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	// Check if the job already exists
+	existing, err := txn.First("jobs", "id", job.Name)
+	if err != nil {
+		return fmt.Errorf("job lookup failed: %v", err)
+	}
+
+	// Setup the indexes correctly
+	if existing != nil {
+		job.CreateIndex = existing.(*structs.Job).CreateIndex
+		job.ModifyIndex = index
+	} else {
+		job.CreateIndex = index
+		job.ModifyIndex = index
+	}
+
+	// Insert the job
+	if err := txn.Insert("jobs", job); err != nil {
+		return fmt.Errorf("job insert failed: %v", err)
+	}
+	if err := txn.Insert("index", &IndexEntry{"jobs", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	// TODO: Handle the existing allocations, probably need
+	// to change their states back to pending and kick the scheduler
+	// to force it to move things around
+
+	txn.Commit()
+	return nil
+}
+
+// DeregisterJob is used to deregister a job
+func (s *StateStore) DeregisterJob(index uint64, jobName string) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	// Lookup the node
+	existing, err := txn.First("jobs", "id", jobName)
+	if err != nil {
+		return fmt.Errorf("joblookup failed: %v", err)
+	}
+	if existing == nil {
+		return fmt.Errorf("job not found")
+	}
+
+	// Delete the node
+	if err := txn.Delete("jobs", existing); err != nil {
+		return fmt.Errorf("job delete failed: %v", err)
+	}
+	if err := txn.Insert("index", &IndexEntry{"jobs", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	// TODO: Handle the existing allocations, probably need
+	// to change their states back to pending and kick the scheduler
+	// to force it to move things around
+
+	txn.Commit()
+	return nil
+}
+
+// GetJobByName is used to lookup a job by its name
+func (s *StateStore) GetJobByName(name string) (*structs.Job, error) {
+	txn := s.db.Txn(false)
+
+	existing, err := txn.First("jobs", "id", name)
+	if err != nil {
+		return nil, fmt.Errorf("job lookup failed: %v", err)
+	}
+
+	if existing != nil {
+		return existing.(*structs.Job), nil
+	}
+	return nil, nil
+}
+
+// Jobs returns an iterator over all the jobs
+func (s *StateStore) Jobs() (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	// Walk the entire jobs table
+	iter, err := txn.Get("jobs", "id")
+	if err != nil {
+		return nil, err
+	}
+	return iter, nil
+}
+
 // GetIndex finds the matching index value
 func (s *StateStore) GetIndex(name string) (uint64, error) {
 	txn := s.db.Txn(false)
@@ -242,6 +335,14 @@ func (s *StateStore) Indexes() (memdb.ResultIterator, error) {
 func (r *StateRestore) NodeRestore(node *structs.Node) error {
 	if err := r.txn.Insert("nodes", node); err != nil {
 		return fmt.Errorf("node insert failed: %v", err)
+	}
+	return nil
+}
+
+// JobRestore is used to restore a job
+func (r *StateRestore) JobRestore(job *structs.Job) error {
+	if err := r.txn.Insert("jobs", job); err != nil {
+		return fmt.Errorf("jobinsert failed: %v", err)
 	}
 	return nil
 }
