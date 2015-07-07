@@ -14,7 +14,7 @@ type Client struct {
 }
 
 // Register is used to upsert a client that is available for scheduling
-func (c *Client) Register(args *structs.RegisterRequest, reply *structs.GenericResponse) error {
+func (c *Client) Register(args *structs.NodeRegisterRequest, reply *structs.GenericResponse) error {
 	if done, err := c.srv.forward("Client.Register", args, args, reply); done {
 		return err
 	}
@@ -40,7 +40,7 @@ func (c *Client) Register(args *structs.RegisterRequest, reply *structs.GenericR
 	}
 
 	// Commit this update via Raft
-	_, index, err := c.srv.raftApply(structs.RegisterRequestType, args)
+	_, index, err := c.srv.raftApply(structs.NodeRegisterRequestType, args)
 	if err != nil {
 		c.srv.logger.Printf("[ERR] nomad.client: Register failed: %v", err)
 		return err
@@ -53,7 +53,7 @@ func (c *Client) Register(args *structs.RegisterRequest, reply *structs.GenericR
 
 // Deregister is used to remove a client from the client. If a client should
 // just be made unavailable for scheduling, a status update is prefered.
-func (c *Client) Deregister(args *structs.DeregisterRequest, reply *structs.GenericResponse) error {
+func (c *Client) Deregister(args *structs.NodeDeregisterRequest, reply *structs.GenericResponse) error {
 	if done, err := c.srv.forward("Client.Deregister", args, args, reply); done {
 		return err
 	}
@@ -65,7 +65,7 @@ func (c *Client) Deregister(args *structs.DeregisterRequest, reply *structs.Gene
 	}
 
 	// Commit this update via Raft
-	_, index, err := c.srv.raftApply(structs.DeregisterRequestType, args)
+	_, index, err := c.srv.raftApply(structs.NodeDeregisterRequestType, args)
 	if err != nil {
 		c.srv.logger.Printf("[ERR] nomad.client: Deregister failed: %v", err)
 		return err
@@ -77,7 +77,7 @@ func (c *Client) Deregister(args *structs.DeregisterRequest, reply *structs.Gene
 }
 
 // UpdateStatus is used to update the status of a client node
-func (c *Client) UpdateStatus(args *structs.UpdateStatusRequest, reply *structs.GenericResponse) error {
+func (c *Client) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *structs.GenericResponse) error {
 	if done, err := c.srv.forward("Client.UpdateStatus", args, args, reply); done {
 		return err
 	}

@@ -17,7 +17,7 @@ func TestClientEndpoint_Register(t *testing.T) {
 
 	// Create the register request
 	node := mockNode()
-	req := &structs.RegisterRequest{
+	req := &structs.NodeRegisterRequest{
 		Node:         node,
 		WriteRequest: structs.WriteRequest{Region: "region1"},
 	}
@@ -53,7 +53,7 @@ func TestClientEndpoint_Deregister(t *testing.T) {
 
 	// Create the register request
 	node := mockNode()
-	reg := &structs.RegisterRequest{
+	reg := &structs.NodeRegisterRequest{
 		Node:         node,
 		WriteRequest: structs.WriteRequest{Region: "region1"},
 	}
@@ -65,7 +65,7 @@ func TestClientEndpoint_Deregister(t *testing.T) {
 	}
 
 	// Deregister
-	dereg := &structs.DeregisterRequest{
+	dereg := &structs.NodeDeregisterRequest{
 		NodeID:       node.ID,
 		WriteRequest: structs.WriteRequest{Region: "region1"},
 	}
@@ -96,7 +96,7 @@ func TestClientEndpoint_UpdateStatus(t *testing.T) {
 
 	// Create the register request
 	node := mockNode()
-	reg := &structs.RegisterRequest{
+	reg := &structs.NodeRegisterRequest{
 		Node:         node,
 		WriteRequest: structs.WriteRequest{Region: "region1"},
 	}
@@ -108,7 +108,7 @@ func TestClientEndpoint_UpdateStatus(t *testing.T) {
 	}
 
 	// Update the status
-	dereg := &structs.UpdateStatusRequest{
+	dereg := &structs.NodeUpdateStatusRequest{
 		NodeID:       node.ID,
 		Status:       structs.NodeStatusReady,
 		WriteRequest: structs.WriteRequest{Region: "region1"},
@@ -143,7 +143,7 @@ func TestClientEndpoint_GetNode(t *testing.T) {
 
 	// Create the register request
 	node := mockNode()
-	reg := &structs.RegisterRequest{
+	reg := &structs.NodeRegisterRequest{
 		Node:         node,
 		WriteRequest: structs.WriteRequest{Region: "region1"},
 	}

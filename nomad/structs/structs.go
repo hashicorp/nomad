@@ -16,9 +16,11 @@ var (
 type MessageType uint8
 
 const (
-	RegisterRequestType MessageType = iota
-	DeregisterRequestType
+	NodeRegisterRequestType MessageType = iota
+	NodeDeregisterRequestType
 	NodeUpdateStatusRequestType
+	JobRegisterRequestType
+	JobDeregisterRequestType
 )
 
 const (
@@ -108,23 +110,23 @@ type WriteMeta struct {
 	Index uint64
 }
 
-// RegisterRequest is used for Client.Register endpoint
+// NodeRegisterRequest is used for Client.Register endpoint
 // to register a node as being a schedulable entity.
-type RegisterRequest struct {
+type NodeRegisterRequest struct {
 	Node *Node
 	WriteRequest
 }
 
-// DeregisterRequest is used for Client.Deregister endpoint
+// NodeDeregisterRequest is used for Client.Deregister endpoint
 // to deregister a node as being a schedulable entity.
-type DeregisterRequest struct {
+type NodeDeregisterRequest struct {
 	NodeID string
 	WriteRequest
 }
 
 // UpdateStatusRequest is used for Client.UpdateStatus endpoint
 // to update the status of a node.
-type UpdateStatusRequest struct {
+type NodeUpdateStatusRequest struct {
 	NodeID string
 	Status string
 	WriteRequest
@@ -133,6 +135,20 @@ type UpdateStatusRequest struct {
 // NodeSpecificRequest is used when we just need to specify a target node
 type NodeSpecificRequest struct {
 	NodeID string
+	WriteRequest
+}
+
+// JobRegisterRequest is used for Job.Register endpoint
+// to register a job as being a schedulable entity.
+type JobRegisterRequest struct {
+	Job *Job
+	WriteRequest
+}
+
+// JobDeregisterRequest is used for Job.Deregister endpoint
+// to deregister a job as being a schedulable entity.
+type JobDeregisterRequest struct {
+	JobName string
 	WriteRequest
 }
 

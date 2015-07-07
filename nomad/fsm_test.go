@@ -51,10 +51,10 @@ func makeLog(buf []byte) *raft.Log {
 func TestFSM_RegisterNode(t *testing.T) {
 	fsm := testFSM(t)
 
-	req := structs.RegisterRequest{
+	req := structs.NodeRegisterRequest{
 		Node: mockNode(),
 	}
-	buf, err := structs.Encode(structs.RegisterRequestType, req)
+	buf, err := structs.Encode(structs.NodeRegisterRequestType, req)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -81,10 +81,10 @@ func TestFSM_DeregisterNode(t *testing.T) {
 	fsm := testFSM(t)
 
 	node := mockNode()
-	req := structs.RegisterRequest{
+	req := structs.NodeRegisterRequest{
 		Node: node,
 	}
-	buf, err := structs.Encode(structs.RegisterRequestType, req)
+	buf, err := structs.Encode(structs.NodeRegisterRequestType, req)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -94,10 +94,10 @@ func TestFSM_DeregisterNode(t *testing.T) {
 		t.Fatalf("resp: %v", resp)
 	}
 
-	req2 := structs.DeregisterRequest{
+	req2 := structs.NodeDeregisterRequest{
 		NodeID: node.ID,
 	}
-	buf, err = structs.Encode(structs.DeregisterRequestType, req2)
+	buf, err = structs.Encode(structs.NodeDeregisterRequestType, req2)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -121,10 +121,10 @@ func TestFSM_UpdateNodeStatus(t *testing.T) {
 	fsm := testFSM(t)
 
 	node := mockNode()
-	req := structs.RegisterRequest{
+	req := structs.NodeRegisterRequest{
 		Node: node,
 	}
-	buf, err := structs.Encode(structs.RegisterRequestType, req)
+	buf, err := structs.Encode(structs.NodeRegisterRequestType, req)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -134,7 +134,7 @@ func TestFSM_UpdateNodeStatus(t *testing.T) {
 		t.Fatalf("resp: %v", resp)
 	}
 
-	req2 := structs.UpdateStatusRequest{
+	req2 := structs.NodeUpdateStatusRequest{
 		NodeID: node.ID,
 		Status: structs.NodeStatusReady,
 	}
