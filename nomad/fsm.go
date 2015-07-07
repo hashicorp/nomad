@@ -25,6 +25,7 @@ type SnapshotType byte
 
 const (
 	NodeSnapshot SnapshotType = iota
+	JobSnapshot
 	IndexSnapshot
 )
 
@@ -235,6 +236,15 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 				return err
 			}
 
+		case JobSnapshot:
+			job := new(structs.Job)
+			if err := dec.Decode(job); err != nil {
+				return err
+			}
+			if err := restore.JobRestore(job); err != nil {
+				return err
+			}
+
 		case IndexSnapshot:
 			idx := new(IndexEntry)
 			if err := dec.Decode(idx); err != nil {
@@ -272,6 +282,10 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 		return err
 	}
 	if err := s.persistNodes(sink, encoder); err != nil {
+		sink.Cancel()
+		return err
+	}
+	if err := s.persistJobs(sink, encoder); err != nil {
 		sink.Cancel()
 		return err
 	}
@@ -326,6 +340,33 @@ func (s *nomadSnapshot) persistNodes(sink raft.SnapshotSink,
 		// Write out a node registration
 		sink.Write([]byte{byte(NodeSnapshot)})
 		if err := encoder.Encode(node); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *nomadSnapshot) persistJobs(sink raft.SnapshotSink,
+	encoder *codec.Encoder) error {
+	// Get all the jobs
+	jobs, err := s.snap.Jobs()
+	if err != nil {
+		return err
+	}
+
+	for {
+		// Get the next item
+		raw := jobs.Next()
+		if raw == nil {
+			break
+		}
+
+		// Prepare the request struct
+		job := raw.(*structs.Job)
+
+		// Write out a job registration
+		sink.Write([]byte{byte(JobSnapshot)})
+		if err := encoder.Encode(job); err != nil {
 			return err
 		}
 	}

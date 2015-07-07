@@ -158,6 +158,75 @@ func TestFSM_UpdateNodeStatus(t *testing.T) {
 	}
 }
 
+func TestFSM_RegisterJob(t *testing.T) {
+	fsm := testFSM(t)
+
+	req := structs.JobRegisterRequest{
+		Job: mockJob(),
+	}
+	buf, err := structs.Encode(structs.JobRegisterRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp := fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	// Verify we are registered
+	job, err := fsm.State().GetJobByName(req.Job.Name)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if job == nil {
+		t.Fatalf("not found!")
+	}
+	if job.CreateIndex != 1 {
+		t.Fatalf("bad index: %d", job.CreateIndex)
+	}
+}
+
+func TestFSM_DeregisterJob(t *testing.T) {
+	fsm := testFSM(t)
+
+	job := mockJob()
+	req := structs.JobRegisterRequest{
+		Job: job,
+	}
+	buf, err := structs.Encode(structs.JobRegisterRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp := fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	req2 := structs.JobDeregisterRequest{
+		JobName: job.Name,
+	}
+	buf, err = structs.Encode(structs.JobDeregisterRequestType, req2)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp = fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	// Verify we are NOT registered
+	job, err = fsm.State().GetJobByName(req.Job.Name)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if job != nil {
+		t.Fatalf("job found!")
+	}
+}
+
 func testSnapshotRestore(t *testing.T, fsm *nomadFSM) *nomadFSM {
 	// Snapshot
 	snap, err := fsm.Snapshot()
@@ -202,6 +271,28 @@ func TestFSM_SnapshotRestore_Nodes(t *testing.T) {
 	}
 	if !reflect.DeepEqual(node2, out2) {
 		t.Fatalf("bad: \n%#v\n%#v", out2, node2)
+	}
+}
+
+func TestFSM_SnapshotRestore_Jobs(t *testing.T) {
+	// Add some state
+	fsm := testFSM(t)
+	state := fsm.State()
+	job1 := mockJob()
+	state.RegisterJob(1000, job1)
+	job2 := mockJob()
+	state.RegisterJob(1001, job2)
+
+	// Verify the contents
+	fsm2 := testSnapshotRestore(t, fsm)
+	state2 := fsm2.State()
+	out1, _ := state2.GetJobByName(job1.Name)
+	out2, _ := state2.GetJobByName(job2.Name)
+	if !reflect.DeepEqual(job1, out1) {
+		t.Fatalf("bad: \n%#v\n%#v", out1, job1)
+	}
+	if !reflect.DeepEqual(job2, out2) {
+		t.Fatalf("bad: \n%#v\n%#v", out2, job2)
 	}
 }
 
