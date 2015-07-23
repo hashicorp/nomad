@@ -110,6 +110,14 @@ func mockJob() *structs.Job {
 	return job
 }
 
+func mockEval() *structs.Evaluation {
+	eval := &structs.Evaluation{
+		ID:     generateUUID(),
+		Status: structs.EvalStatusPending,
+	}
+	return eval
+}
+
 func TestStateStore_RegisterNode_GetNode(t *testing.T) {
 	state := testStateStore(t)
 	node := mockNode()
@@ -486,6 +494,168 @@ func TestStateStore_RestoreIndex(t *testing.T) {
 	}
 }
 
+func TestStateStore_UpsertEval_GetEval(t *testing.T) {
+	state := testStateStore(t)
+	eval := mockEval()
+
+	err := state.UpsertEval(1000, eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	out, err := state.GetEvalByID(eval.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !reflect.DeepEqual(eval, out) {
+		t.Fatalf("bad: %#v %#v", eval, out)
+	}
+
+	index, err := state.GetIndex("evals")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if index != 1000 {
+		t.Fatalf("bad: %d", index)
+	}
+}
+
+func TestStateStore_Update_UpsertEval_GetEval(t *testing.T) {
+	state := testStateStore(t)
+	eval := mockEval()
+
+	err := state.UpsertEval(1000, eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	eval2 := mockEval()
+	eval2.ID = eval.ID
+	err = state.UpsertEval(1001, eval2)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	out, err := state.GetEvalByID(eval.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !reflect.DeepEqual(eval2, out) {
+		t.Fatalf("bad: %#v %#v", eval2, out)
+	}
+
+	if out.CreateIndex != 1000 {
+		t.Fatalf("bad: %#v", out)
+	}
+	if out.ModifyIndex != 1001 {
+		t.Fatalf("bad: %#v", out)
+	}
+
+	index, err := state.GetIndex("evals")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if index != 1001 {
+		t.Fatalf("bad: %d", index)
+	}
+}
+
+func TestStateStore_DeleteEval_GetEval(t *testing.T) {
+	state := testStateStore(t)
+	job := mockEval()
+
+	err := state.UpsertEval(1000, job)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	err = state.DeleteEval(1001, job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	out, err := state.GetEvalByID(job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if out != nil {
+		t.Fatalf("bad: %#v %#v", job, out)
+	}
+
+	index, err := state.GetIndex("evals")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if index != 1001 {
+		t.Fatalf("bad: %d", index)
+	}
+}
+
+func TestStateStore_Evals(t *testing.T) {
+	state := testStateStore(t)
+	var evals []*structs.Evaluation
+
+	for i := 0; i < 10; i++ {
+		eval := mockEval()
+		evals = append(evals, eval)
+
+		err := state.UpsertEval(1000+uint64(i), eval)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	}
+
+	iter, err := state.Evals()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	var out []*structs.Evaluation
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		out = append(out, raw.(*structs.Evaluation))
+	}
+
+	sort.Sort(EvalIDSort(evals))
+	sort.Sort(EvalIDSort(out))
+
+	if !reflect.DeepEqual(evals, out) {
+		t.Fatalf("bad: %#v %#v", evals, out)
+	}
+}
+
+func TestStateStore_RestoreEval(t *testing.T) {
+	state := testStateStore(t)
+
+	restore, err := state.Restore()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	job := mockEval()
+	err = restore.EvalRestore(job)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	restore.Commit()
+
+	out, err := state.GetEvalByID(job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !reflect.DeepEqual(out, job) {
+		t.Fatalf("Bad: %#v %#v", out, job)
+	}
+}
+
 // NodeIDSort is used to sort nodes by ID
 type NodeIDSort []*structs.Node
 
@@ -513,5 +683,20 @@ func (n JobIDSort) Less(i, j int) bool {
 }
 
 func (n JobIDSort) Swap(i, j int) {
+	n[i], n[j] = n[j], n[i]
+}
+
+// EvalIDis used to sort evals by id
+type EvalIDSort []*structs.Evaluation
+
+func (n EvalIDSort) Len() int {
+	return len(n)
+}
+
+func (n EvalIDSort) Less(i, j int) bool {
+	return n[i].ID < n[j].ID
+}
+
+func (n EvalIDSort) Swap(i, j int) {
 	n[i], n[j] = n[j], n[i]
 }

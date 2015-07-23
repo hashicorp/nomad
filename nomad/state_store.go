@@ -304,6 +304,100 @@ func (s *StateStore) Jobs() (memdb.ResultIterator, error) {
 	return iter, nil
 }
 
+// UpsertEvaluation is used to upsert an evaluation
+func (s *StateStore) UpsertEval(index uint64, eval *structs.Evaluation) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	// Do a nested upsert
+	if err := s.nestedUpsertEval(txn, index, eval); err != nil {
+		return err
+	}
+
+	txn.Commit()
+	return nil
+}
+
+// nestedUpsertEvaluation is used to nest an evaluation upsert within a transaction
+func (s *StateStore) nestedUpsertEval(txn *memdb.Txn, index uint64, eval *structs.Evaluation) error {
+	// Lookup the evaluation
+	existing, err := txn.First("evals", "id", eval.ID)
+	if err != nil {
+		return fmt.Errorf("eval lookup failed: %v", err)
+	}
+
+	// Update the indexes
+	if existing != nil {
+		eval.CreateIndex = existing.(*structs.Evaluation).CreateIndex
+		eval.ModifyIndex = index
+	} else {
+		eval.CreateIndex = index
+		eval.ModifyIndex = index
+	}
+
+	// Insert the eval
+	if err := txn.Insert("evals", eval); err != nil {
+		return fmt.Errorf("eval insert failed: %v", err)
+	}
+	if err := txn.Insert("index", &IndexEntry{"evals", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+	return nil
+}
+
+// DeleteEval is used to delete an evaluation
+func (s *StateStore) DeleteEval(index uint64, evalID string) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	// Lookup the node
+	existing, err := txn.First("evals", "id", evalID)
+	if err != nil {
+		return fmt.Errorf("eval lookup failed: %v", err)
+	}
+	if existing == nil {
+		return fmt.Errorf("eval not found")
+	}
+
+	// Delete the node
+	if err := txn.Delete("evals", existing); err != nil {
+		return fmt.Errorf("eval delete failed: %v", err)
+	}
+	if err := txn.Insert("index", &IndexEntry{"evals", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	txn.Commit()
+	return nil
+}
+
+// GetEvalByID is used to lookup an eval by its ID
+func (s *StateStore) GetEvalByID(id string) (*structs.Evaluation, error) {
+	txn := s.db.Txn(false)
+
+	existing, err := txn.First("evals", "id", id)
+	if err != nil {
+		return nil, fmt.Errorf("eval lookup failed: %v", err)
+	}
+
+	if existing != nil {
+		return existing.(*structs.Evaluation), nil
+	}
+	return nil, nil
+}
+
+// Evals returns an iterator over all the evaluations
+func (s *StateStore) Evals() (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	// Walk the entire table
+	iter, err := txn.Get("evals", "id")
+	if err != nil {
+		return nil, err
+	}
+	return iter, nil
+}
+
 // GetIndex finds the matching index value
 func (s *StateStore) GetIndex(name string) (uint64, error) {
 	txn := s.db.Txn(false)
@@ -347,6 +441,15 @@ func (r *StateRestore) JobRestore(job *structs.Job) error {
 	return nil
 }
 
+// EvalRestore is used to restore an evaluation
+func (r *StateRestore) EvalRestore(eval *structs.Evaluation) error {
+	if err := r.txn.Insert("evals", eval); err != nil {
+		return fmt.Errorf("eval insert failed: %v", err)
+	}
+	return nil
+}
+
+// IndexRestore is used to restore an index
 func (r *StateRestore) IndexRestore(idx *IndexEntry) error {
 	if err := r.txn.Insert("index", idx); err != nil {
 		return fmt.Errorf("index insert failed: %v", err)
