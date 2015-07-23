@@ -21,6 +21,8 @@ const (
 	NodeUpdateStatusRequestType
 	JobRegisterRequestType
 	JobDeregisterRequestType
+	EvalUpdateRequestType
+	EvalDeleteRequestType
 )
 
 const (
@@ -155,6 +157,19 @@ type JobDeregisterRequest struct {
 // JobSpecificRequest is used when we just need to specify a target job
 type JobSpecificRequest struct {
 	JobID string
+	WriteRequest
+}
+
+// EvalUpdateRequest is used for updating the status
+// of an evaluation.
+type EvalUpdateRequest struct {
+	Eval *Evaluation
+	WriteRequest
+}
+
+// EvalDeleteRequest is used for deleting an evaluation.
+type EvalDeleteRequest struct {
+	EvalID string
 	WriteRequest
 }
 

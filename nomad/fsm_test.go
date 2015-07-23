@@ -227,6 +227,75 @@ func TestFSM_DeregisterJob(t *testing.T) {
 	}
 }
 
+func TestFSM_UpdateEval(t *testing.T) {
+	fsm := testFSM(t)
+
+	req := structs.EvalUpdateRequest{
+		Eval: mockEval(),
+	}
+	buf, err := structs.Encode(structs.EvalUpdateRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp := fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	// Verify we are registered
+	eval, err := fsm.State().GetEvalByID(req.Eval.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if eval == nil {
+		t.Fatalf("not found!")
+	}
+	if eval.CreateIndex != 1 {
+		t.Fatalf("bad index: %d", eval.CreateIndex)
+	}
+}
+
+func TestFSM_DeleteEval(t *testing.T) {
+	fsm := testFSM(t)
+
+	eval := mockEval()
+	req := structs.EvalUpdateRequest{
+		Eval: eval,
+	}
+	buf, err := structs.Encode(structs.EvalUpdateRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp := fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	req2 := structs.EvalDeleteRequest{
+		EvalID: eval.ID,
+	}
+	buf, err = structs.Encode(structs.EvalDeleteRequestType, req2)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp = fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	// Verify we are NOT registered
+	eval, err = fsm.State().GetEvalByID(req.Eval.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if eval != nil {
+		t.Fatalf("eval found!")
+	}
+}
+
 func testSnapshotRestore(t *testing.T, fsm *nomadFSM) *nomadFSM {
 	// Snapshot
 	snap, err := fsm.Snapshot()
@@ -293,6 +362,28 @@ func TestFSM_SnapshotRestore_Jobs(t *testing.T) {
 	}
 	if !reflect.DeepEqual(job2, out2) {
 		t.Fatalf("bad: \n%#v\n%#v", out2, job2)
+	}
+}
+
+func TestFSM_SnapshotRestore_Evals(t *testing.T) {
+	// Add some state
+	fsm := testFSM(t)
+	state := fsm.State()
+	eval1 := mockEval()
+	state.UpsertEval(1000, eval1)
+	eval2 := mockEval()
+	state.UpsertEval(1001, eval2)
+
+	// Verify the contents
+	fsm2 := testSnapshotRestore(t, fsm)
+	state2 := fsm2.State()
+	out1, _ := state2.GetEvalByID(eval1.ID)
+	out2, _ := state2.GetEvalByID(eval2.ID)
+	if !reflect.DeepEqual(eval1, out1) {
+		t.Fatalf("bad: \n%#v\n%#v", out1, eval1)
+	}
+	if !reflect.DeepEqual(eval2, out2) {
+		t.Fatalf("bad: \n%#v\n%#v", out2, eval2)
 	}
 }
 

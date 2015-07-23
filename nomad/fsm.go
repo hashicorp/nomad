@@ -27,6 +27,7 @@ const (
 	NodeSnapshot SnapshotType = iota
 	JobSnapshot
 	IndexSnapshot
+	EvalSnapshot
 )
 
 // nomadFSM implements a finite state machine that is used
@@ -99,6 +100,10 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyRegisterJob(buf[1:], log.Index)
 	case structs.JobDeregisterRequestType:
 		return n.applyDeregisterJob(buf[1:], log.Index)
+	case structs.EvalUpdateRequestType:
+		return n.applyUpdateEval(buf[1:], log.Index)
+	case structs.EvalDeleteRequestType:
+		return n.applyDeleteEval(buf[1:], log.Index)
 	default:
 		if ignoreUnknown {
 			n.logger.Printf("[WARN] nomad.fsm: ignoring unknown message type (%d), upgrade to newer version", msgType)
@@ -179,6 +184,34 @@ func (n *nomadFSM) applyDeregisterJob(buf []byte, index uint64) interface{} {
 	return nil
 }
 
+func (n *nomadFSM) applyUpdateEval(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "update_eval"}, time.Now())
+	var req structs.EvalUpdateRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.UpsertEval(index, req.Eval); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: UpsertEval failed: %v", err)
+		return err
+	}
+	return nil
+}
+
+func (n *nomadFSM) applyDeleteEval(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "delete_eval"}, time.Now())
+	var req structs.EvalDeleteRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.DeleteEval(index, req.EvalID); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: DeleteEval failed: %v", err)
+		return err
+	}
+	return nil
+}
+
 func (n *nomadFSM) Snapshot() (raft.FSMSnapshot, error) {
 	// Create a new snapshot
 	snap, err := n.state.Snapshot()
@@ -245,6 +278,15 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 				return err
 			}
 
+		case EvalSnapshot:
+			eval := new(structs.Evaluation)
+			if err := dec.Decode(eval); err != nil {
+				return err
+			}
+			if err := restore.EvalRestore(eval); err != nil {
+				return err
+			}
+
 		case IndexSnapshot:
 			idx := new(IndexEntry)
 			if err := dec.Decode(idx); err != nil {
@@ -286,6 +328,10 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 		return err
 	}
 	if err := s.persistJobs(sink, encoder); err != nil {
+		sink.Cancel()
+		return err
+	}
+	if err := s.persistEvals(sink, encoder); err != nil {
 		sink.Cancel()
 		return err
 	}
@@ -367,6 +413,33 @@ func (s *nomadSnapshot) persistJobs(sink raft.SnapshotSink,
 		// Write out a job registration
 		sink.Write([]byte{byte(JobSnapshot)})
 		if err := encoder.Encode(job); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *nomadSnapshot) persistEvals(sink raft.SnapshotSink,
+	encoder *codec.Encoder) error {
+	// Get all the evaluations
+	evals, err := s.snap.Evals()
+	if err != nil {
+		return err
+	}
+
+	for {
+		// Get the next item
+		raw := evals.Next()
+		if raw == nil {
+			break
+		}
+
+		// Prepare the request struct
+		eval := raw.(*structs.Evaluation)
+
+		// Write out the evaluation
+		sink.Write([]byte{byte(EvalSnapshot)})
+		if err := encoder.Encode(eval); err != nil {
 			return err
 		}
 	}
