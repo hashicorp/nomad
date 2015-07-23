@@ -110,7 +110,7 @@ func jobTableSchema() *memdb.TableSchema {
 				AllowMissing: false,
 				Unique:       true,
 				Indexer: &memdb.StringFieldIndex{
-					Field:     "Name",
+					Field:     "ID",
 					Lowercase: true,
 				},
 			},

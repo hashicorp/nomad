@@ -148,13 +148,13 @@ type JobRegisterRequest struct {
 // JobDeregisterRequest is used for Job.Deregister endpoint
 // to deregister a job as being a schedulable entity.
 type JobDeregisterRequest struct {
-	JobName string
+	JobID string
 	WriteRequest
 }
 
 // JobSpecificRequest is used when we just need to specify a target job
 type JobSpecificRequest struct {
-	JobName string
+	JobID string
 	WriteRequest
 }
 
@@ -276,6 +276,10 @@ const (
 // is further composed of tasks. A task group (TG) is the unit of scheduling
 // however.
 type Job struct {
+	// ID is a unique identifier for the job. It can be the same as
+	// the job name, or alternatively a UUID may be used.
+	ID string
+
 	// Name is the logical name of the job used to refer to it. This is unique
 	// per region, but not unique globally.
 	Name string
@@ -320,7 +324,7 @@ type Job struct {
 // in many replicas using the same configuration..
 type TaskGroup struct {
 	// Name of the parent job
-	JobName string
+	JobID string
 
 	// Name of the task group
 	Name string
@@ -351,7 +355,7 @@ type TaskGroup struct {
 // Task is a single process typically that is executed as part of a task group.
 type Task struct {
 	// Name of the parent job
-	JobName string
+	JobID string
 
 	// Name of the partent task group
 	TaskGroupName string
@@ -411,8 +415,8 @@ type Allocation struct {
 	// Job is the parent job of the task group being allocated.
 	// This is copied at allocation time to avoid issues if the job
 	// definition is updated.
-	JobName string
-	Job     *Job
+	JobID string
+	Job   *Job
 
 	// TaskGroup is the task being allocated to the node
 	// This is copied at allocation time to avoid issues if the job

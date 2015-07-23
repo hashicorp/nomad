@@ -33,7 +33,7 @@ func TestJobEndpoint_Register(t *testing.T) {
 
 	// Check for the node in the FSM
 	state := s1.fsm.State()
-	out, err := state.GetJobByName(job.Name)
+	out, err := state.GetJobByID(job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -70,7 +70,7 @@ func TestJobEndpoint_Register_Existing(t *testing.T) {
 	// Update the job definition
 	job2 := mockJob()
 	job2.Priority = 100
-	job2.Name = job.Name
+	job2.ID = job.ID
 	req.Job = job2
 
 	// Attempt update
@@ -83,7 +83,7 @@ func TestJobEndpoint_Register_Existing(t *testing.T) {
 
 	// Check for the node in the FSM
 	state := s1.fsm.State()
-	out, err := state.GetJobByName(job.Name)
+	out, err := state.GetJobByID(job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -119,7 +119,7 @@ func TestJobEndpoint_Deregister(t *testing.T) {
 
 	// Deregister
 	dereg := &structs.JobDeregisterRequest{
-		JobName:      job.Name,
+		JobID:        job.ID,
 		WriteRequest: structs.WriteRequest{Region: "region1"},
 	}
 	var resp2 structs.GenericResponse
@@ -132,7 +132,7 @@ func TestJobEndpoint_Deregister(t *testing.T) {
 
 	// Check for the node in the FSM
 	state := s1.fsm.State()
-	out, err := state.GetJobByName(job.Name)
+	out, err := state.GetJobByID(job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -164,7 +164,7 @@ func TestJobEndpoint_GetJob(t *testing.T) {
 
 	// Lookup the job
 	get := &structs.JobSpecificRequest{
-		JobName:      job.Name,
+		JobID:        job.ID,
 		WriteRequest: structs.WriteRequest{Region: "region1"},
 	}
 	var resp2 structs.SingleJobResponse
@@ -180,7 +180,7 @@ func TestJobEndpoint_GetJob(t *testing.T) {
 	}
 
 	// Lookup non-existing job
-	get.JobName = "foobarbaz"
+	get.JobID = "foobarbaz"
 	if err := msgpackrpc.CallWithCodec(codec, "Job.GetJob", get, &resp2); err != nil {
 		t.Fatalf("err: %v", err)
 	}

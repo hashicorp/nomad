@@ -217,7 +217,7 @@ func (s *StateStore) RegisterJob(index uint64, job *structs.Job) error {
 	defer txn.Abort()
 
 	// Check if the job already exists
-	existing, err := txn.First("jobs", "id", job.Name)
+	existing, err := txn.First("jobs", "id", job.ID)
 	if err != nil {
 		return fmt.Errorf("job lookup failed: %v", err)
 	}
@@ -248,14 +248,14 @@ func (s *StateStore) RegisterJob(index uint64, job *structs.Job) error {
 }
 
 // DeregisterJob is used to deregister a job
-func (s *StateStore) DeregisterJob(index uint64, jobName string) error {
+func (s *StateStore) DeregisterJob(index uint64, jobID string) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
 	// Lookup the node
-	existing, err := txn.First("jobs", "id", jobName)
+	existing, err := txn.First("jobs", "id", jobID)
 	if err != nil {
-		return fmt.Errorf("joblookup failed: %v", err)
+		return fmt.Errorf("job lookup failed: %v", err)
 	}
 	if existing == nil {
 		return fmt.Errorf("job not found")
@@ -277,11 +277,11 @@ func (s *StateStore) DeregisterJob(index uint64, jobName string) error {
 	return nil
 }
 
-// GetJobByName is used to lookup a job by its name
-func (s *StateStore) GetJobByName(name string) (*structs.Job, error) {
+// GetJobByID is used to lookup a job by its ID
+func (s *StateStore) GetJobByID(id string) (*structs.Job, error) {
 	txn := s.db.Txn(false)
 
-	existing, err := txn.First("jobs", "id", name)
+	existing, err := txn.First("jobs", "id", id)
 	if err != nil {
 		return nil, fmt.Errorf("job lookup failed: %v", err)
 	}
@@ -342,7 +342,7 @@ func (r *StateRestore) NodeRestore(node *structs.Node) error {
 // JobRestore is used to restore a job
 func (r *StateRestore) JobRestore(job *structs.Job) error {
 	if err := r.txn.Insert("jobs", job); err != nil {
-		return fmt.Errorf("jobinsert failed: %v", err)
+		return fmt.Errorf("job insert failed: %v", err)
 	}
 	return nil
 }

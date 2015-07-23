@@ -172,7 +172,7 @@ func (n *nomadFSM) applyDeregisterJob(buf []byte, index uint64) interface{} {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.DeregisterJob(index, req.JobName); err != nil {
+	if err := n.state.DeregisterJob(index, req.JobID); err != nil {
 		n.logger.Printf("[ERR] nomad.fsm: DeregisterJob failed: %v", err)
 		return err
 	}

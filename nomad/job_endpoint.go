@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/armon/go-metrics"
@@ -18,6 +19,17 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.GenericR
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "job", "register"}, time.Now())
+
+	// Validate the arguments
+	if args.Job == nil {
+		return fmt.Errorf("missing job for registration")
+	}
+	if args.Job.ID == "" {
+		return fmt.Errorf("missing job ID for registration")
+	}
+	if args.Job.Name == "" {
+		return fmt.Errorf("missing job name for registration")
+	}
 
 	// Commit this update via Raft
 	_, index, err := j.srv.raftApply(structs.JobRegisterRequestType, args)
@@ -63,7 +75,7 @@ func (j *Job) GetJob(args *structs.JobSpecificRequest,
 	if err != nil {
 		return err
 	}
-	out, err := snap.GetJobByName(args.JobName)
+	out, err := snap.GetJobByID(args.JobID)
 	if err != nil {
 		return err
 	}

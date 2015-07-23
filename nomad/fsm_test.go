@@ -175,7 +175,7 @@ func TestFSM_RegisterJob(t *testing.T) {
 	}
 
 	// Verify we are registered
-	job, err := fsm.State().GetJobByName(req.Job.Name)
+	job, err := fsm.State().GetJobByID(req.Job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -205,7 +205,7 @@ func TestFSM_DeregisterJob(t *testing.T) {
 	}
 
 	req2 := structs.JobDeregisterRequest{
-		JobName: job.Name,
+		JobID: job.ID,
 	}
 	buf, err = structs.Encode(structs.JobDeregisterRequestType, req2)
 	if err != nil {
@@ -218,7 +218,7 @@ func TestFSM_DeregisterJob(t *testing.T) {
 	}
 
 	// Verify we are NOT registered
-	job, err = fsm.State().GetJobByName(req.Job.Name)
+	job, err = fsm.State().GetJobByID(req.Job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -286,8 +286,8 @@ func TestFSM_SnapshotRestore_Jobs(t *testing.T) {
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)
 	state2 := fsm2.State()
-	out1, _ := state2.GetJobByName(job1.Name)
-	out2, _ := state2.GetJobByName(job2.Name)
+	out1, _ := state2.GetJobByID(job1.ID)
+	out2, _ := state2.GetJobByID(job2.ID)
 	if !reflect.DeepEqual(job1, out1) {
 		t.Fatalf("bad: \n%#v\n%#v", out1, job1)
 	}

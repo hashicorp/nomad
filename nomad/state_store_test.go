@@ -64,7 +64,8 @@ func mockNode() *structs.Node {
 
 func mockJob() *structs.Job {
 	job := &structs.Job{
-		Name:      generateUUID(),
+		ID:        generateUUID(),
+		Name:      "my-job",
 		Type:      structs.JobTypeService,
 		Priority:  50,
 		AllAtOnce: false,
@@ -275,7 +276,7 @@ func TestStateStore_RegisterJob_GetJob(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	out, err := state.GetJobByName(job.Name)
+	out, err := state.GetJobByID(job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -303,13 +304,13 @@ func TestStateStore_UpdateRegisterJob_GetJob(t *testing.T) {
 	}
 
 	job2 := mockJob()
-	job2.Name = job.Name
+	job2.ID = job.ID
 	err = state.RegisterJob(1001, job2)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	out, err := state.GetJobByName(job.Name)
+	out, err := state.GetJobByID(job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -343,12 +344,12 @@ func TestStateStore_DeregisterJob_GetJob(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	err = state.DeregisterJob(1001, job.Name)
+	err = state.DeregisterJob(1001, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	out, err := state.GetJobByName(job.Name)
+	out, err := state.GetJobByID(job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -394,8 +395,8 @@ func TestStateStore_Jobs(t *testing.T) {
 		out = append(out, raw.(*structs.Job))
 	}
 
-	sort.Sort(JobNameSort(jobs))
-	sort.Sort(JobNameSort(out))
+	sort.Sort(JobIDSort(jobs))
+	sort.Sort(JobIDSort(out))
 
 	if !reflect.DeepEqual(jobs, out) {
 		t.Fatalf("bad: %#v %#v", jobs, out)
@@ -418,7 +419,7 @@ func TestStateStore_RestoreJob(t *testing.T) {
 
 	restore.Commit()
 
-	out, err := state.GetJobByName(job.Name)
+	out, err := state.GetJobByID(job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -501,17 +502,17 @@ func (n NodeIDSort) Swap(i, j int) {
 	n[i], n[j] = n[j], n[i]
 }
 
-// JobNameSort is used to sort jobs by name
-type JobNameSort []*structs.Job
+// JobIDis used to sort jobs by id
+type JobIDSort []*structs.Job
 
-func (n JobNameSort) Len() int {
+func (n JobIDSort) Len() int {
 	return len(n)
 }
 
-func (n JobNameSort) Less(i, j int) bool {
-	return n[i].Name < n[j].Name
+func (n JobIDSort) Less(i, j int) bool {
+	return n[i].ID < n[j].ID
 }
 
-func (n JobNameSort) Swap(i, j int) {
+func (n JobIDSort) Swap(i, j int) {
 	n[i], n[j] = n[j], n[i]
 }
