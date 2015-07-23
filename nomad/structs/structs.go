@@ -173,6 +173,12 @@ type EvalDeleteRequest struct {
 	WriteRequest
 }
 
+// EvalSpecificRequest is used when we just need to specify a target evaluation
+type EvalSpecificRequest struct {
+	EvalID string
+	WriteRequest
+}
+
 // GenericResponse is used to respond to a request where no
 // specific response information is needed.
 type GenericResponse struct {
@@ -188,6 +194,12 @@ type SingleNodeResponse struct {
 // SingleJobResponse is used to return a single job
 type SingleJobResponse struct {
 	Job *Job
+	QueryMeta
+}
+
+// SingleEvalResponse is used to return a single evaluation
+type SingleEvalResponse struct {
+	Eval *Evaluation
 	QueryMeta
 }
 

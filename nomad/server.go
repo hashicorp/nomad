@@ -102,6 +102,7 @@ type endpoints struct {
 	Status *Status
 	Client *Client
 	Job    *Job
+	Eval   *Eval
 }
 
 // NewServer is used to construct a new Nomad server from the
@@ -271,11 +272,13 @@ func (s *Server) setupRPC(tlsWrap tlsutil.DCWrapper) error {
 	s.endpoints.Status = &Status{s}
 	s.endpoints.Client = &Client{s}
 	s.endpoints.Job = &Job{s}
+	s.endpoints.Eval = &Eval{s}
 
 	// Register the handlers
 	s.rpcServer.Register(s.endpoints.Status)
 	s.rpcServer.Register(s.endpoints.Client)
 	s.rpcServer.Register(s.endpoints.Job)
+	s.rpcServer.Register(s.endpoints.Eval)
 
 	list, err := net.ListenTCP("tcp", s.config.RPCAddr)
 	if err != nil {
