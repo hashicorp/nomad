@@ -152,6 +152,12 @@ type JobDeregisterRequest struct {
 	WriteRequest
 }
 
+// JobSpecificRequest is used when we just need to specify a target job
+type JobSpecificRequest struct {
+	JobName string
+	WriteRequest
+}
+
 // GenericResponse is used to respond to a request where no
 // specific response information is needed.
 type GenericResponse struct {
@@ -161,6 +167,12 @@ type GenericResponse struct {
 // SingleNodeResponse is used to return a single node
 type SingleNodeResponse struct {
 	Node *Node
+	QueryMeta
+}
+
+// SingleJobResponse is used to return a single job
+type SingleJobResponse struct {
+	Job *Job
 	QueryMeta
 }
 
