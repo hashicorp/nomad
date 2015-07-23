@@ -323,9 +323,6 @@ type Job struct {
 // a job and may contain any number of tasks. A task group support running
 // in many replicas using the same configuration..
 type TaskGroup struct {
-	// Name of the parent job
-	JobID string
-
 	// Name of the task group
 	Name string
 
@@ -343,23 +340,10 @@ type TaskGroup struct {
 	// Meta is used to associate arbitrary metadata with this
 	// task group. This is opaque to Nomad.
 	Meta map[string]string
-
-	// Task group status
-	Status string
-
-	// Raft Indexes
-	CreateIndex uint64
-	ModifyIndex uint64
 }
 
 // Task is a single process typically that is executed as part of a task group.
 type Task struct {
-	// Name of the parent job
-	JobID string
-
-	// Name of the partent task group
-	TaskGroupName string
-
 	// Name of the task
 	Name string
 
@@ -379,10 +363,6 @@ type Task struct {
 	// Meta is used to associate arbitrary metadata with this
 	// task. This is opaque to Nomad.
 	Meta map[string]string
-
-	// Raft Indexes
-	CreateIndex uint64
-	ModifyIndex uint64
 }
 
 // Constraints are used to restrict placement options in the case of
@@ -474,6 +454,30 @@ type AllocMetric struct {
 	// AllocationTime is a measure of how long the allocation
 	// attempt took. This can affect performance and SLAs.
 	AllocationTime time.Duration
+}
+
+const (
+	EvalStatusPending  = "pending"
+	EvalStatusComplete = "complete"
+	EvalStatusCanceled = "canceled"
+)
+
+// Evaluation is used anytime we need to apply business logic as a result
+// of a change to our desired state (job specification) or the emergent state
+// (registered nodes). When the inputs change, we need to "evaluate" them,
+// potentially taking action (allocation of work) or doing nothing if the state
+// of the world does not require it.
+type Evaluation struct {
+	// ID is a randonly generated UUID used for this evaluation. This
+	// is assigned upon the creation of the evaluation.
+	ID string
+
+	// Status of the evaluation
+	Status string
+
+	// Raft Indexes
+	CreateIndex uint64
+	ModifyIndex uint64
 }
 
 // msgpackHandle is a shared handle for encoding/decoding of structs

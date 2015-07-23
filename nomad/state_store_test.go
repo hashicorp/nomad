@@ -100,7 +100,6 @@ func mockJob() *structs.Job {
 					"elb_check_interval": "30s",
 					"elb_check_min":      "3",
 				},
-				Status: structs.JobStatusPending,
 			},
 		},
 		Meta: map[string]string{

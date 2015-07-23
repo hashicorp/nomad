@@ -18,8 +18,7 @@ func stateStoreSchema() *memdb.DBSchema {
 		indexTableSchema,
 		nodeTableSchema,
 		jobTableSchema,
-		taskGroupTableSchema,
-		taskTableSchema,
+		evalTableSchema,
 		allocTableSchema,
 	}
 
@@ -129,62 +128,31 @@ func jobTableSchema() *memdb.TableSchema {
 	}
 }
 
-// taskGroupTableSchema returns the MemDB schema for the task group table.
-// This table is used to store all the task groups belonging to a job.
-func taskGroupTableSchema() *memdb.TableSchema {
+// evalTableSchema returns the MemDB schema for the eval table.
+// This table is used to store all the evaluations that are pending
+// or recently completed.
+func evalTableSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
-		Name: "groups",
+		Name: "evals",
 		Indexes: map[string]*memdb.IndexSchema{
-			// Primary index is compount of {Job, Name}
+			// Primary index is used for direct lookup.
 			"id": &memdb.IndexSchema{
 				Name:         "id",
 				AllowMissing: false,
 				Unique:       true,
-				Indexer: &memdb.CompoundIndex{
-					AllowMissing: false,
-					Indexes: []memdb.Indexer{
-						&memdb.StringFieldIndex{
-							Field:     "JobName",
-							Lowercase: true,
-						},
-						&memdb.StringFieldIndex{
-							Field:     "Name",
-							Lowercase: true,
-						},
-					},
+				Indexer: &memdb.UUIDFieldIndex{
+					Field: "ID",
 				},
 			},
-		},
-	}
-}
 
-// taskTableSchema returns the MemDB schema for the tasks table.
-// This table is used to store all the task groups belonging to a job.
-func taskTableSchema() *memdb.TableSchema {
-	return &memdb.TableSchema{
-		Name: "tasks",
-		Indexes: map[string]*memdb.IndexSchema{
-			// Primary index is compount of {Job, TaskGroup, Name}
-			"id": &memdb.IndexSchema{
-				Name:         "id",
+			// Status is used to scan for evaluations that are in need
+			// of scheduling attention.
+			"status": &memdb.IndexSchema{
+				Name:         "status",
 				AllowMissing: false,
-				Unique:       true,
-				Indexer: &memdb.CompoundIndex{
-					AllowMissing: false,
-					Indexes: []memdb.Indexer{
-						&memdb.StringFieldIndex{
-							Field:     "JobName",
-							Lowercase: true,
-						},
-						&memdb.StringFieldIndex{
-							Field:     "TaskGroupName",
-							Lowercase: true,
-						},
-						&memdb.StringFieldIndex{
-							Field:     "Name",
-							Lowercase: true,
-						},
-					},
+				Unique:       false,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "Status",
 				},
 			},
 		},
