@@ -229,6 +229,27 @@ func TestEvalBroker_Dequeue_Priority(t *testing.T) {
 	}
 }
 
+// Ensure FIFO at fixed priority
+func TestEvalBroker_Dequeue_FIFO(t *testing.T) {
+	b := testBroker(t, 0)
+	b.SetEnabled(true)
+	NUM := 100
+
+	for i := 0; i < NUM; i++ {
+		eval1 := mockEval()
+		eval1.CreateIndex = uint64(i)
+		eval1.ModifyIndex = uint64(i)
+		b.Enqueue(eval1)
+	}
+
+	for i := 0; i < NUM; i++ {
+		out1, _ := b.Dequeue(defaultSched, time.Second)
+		if out1.CreateIndex != uint64(i) {
+			t.Fatalf("bad: %d %#v", i, out1)
+		}
+	}
+}
+
 // Ensure fairness between schedulers
 func TestEvalBroker_Dequeue_Fairness(t *testing.T) {
 	b := testBroker(t, 0)

@@ -424,7 +424,10 @@ func (p PendingEvaluations) Len() int {
 // so that the "min" in the min-heap is the element with the
 // highest priority
 func (p PendingEvaluations) Less(i, j int) bool {
-	return !(p[i].Priority < p[j].Priority)
+	if p[i].Priority != p[j].Priority {
+		return !(p[i].Priority < p[j].Priority)
+	}
+	return p[i].CreateIndex < p[j].CreateIndex
 }
 
 // Swap is for the sorting interface
