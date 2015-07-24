@@ -10,14 +10,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-const (
-	// DefaultNackTimeout is the default amount of time between when
-	// a message is dequeued and no Ack/Nack is received before it is
-	// assumed failed and Nack'd automatically. This is used to recover
-	// from the failure of a sub-scheduler.
-	DefaultNackTimeout = 60 * time.Second
-)
-
 // EvalBroker is used to manage brokering of evaluations. When an evaluation is
 // created, due to a change in a job specification or a node, we put it into the
 // broker. The broker sorts by evaluations by priority and scheduler type. This

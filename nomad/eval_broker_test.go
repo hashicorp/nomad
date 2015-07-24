@@ -16,7 +16,7 @@ var (
 
 func testBroker(t *testing.T, timeout time.Duration) *EvalBroker {
 	if timeout == 0 {
-		timeout = DefaultNackTimeout
+		timeout = 5 * time.Second
 	}
 	b, err := NewEvalBroker(timeout)
 	if err != nil {
@@ -246,9 +246,9 @@ func TestEvalBroker_Dequeue_Fairness(t *testing.T) {
 			counter -= 1
 		}
 
-		// The odds are less than 1/1024 that
+		// The odds are less than 1/65536 that
 		// we see the same sequence 10 times in a row
-		if counter >= 10 || counter <= -10 {
+		if counter >= 16 || counter <= -16 {
 			t.Fatalf("unlikely sequence: %d", counter)
 		}
 	}

@@ -107,6 +107,13 @@ type Config struct {
 	// that are force removed, as well as intermittent unavailability during
 	// leader election.
 	ReconcileInterval time.Duration
+
+	// EvalNackTimeout controls how long we allow a sub-scheduler to
+	// work on an evaluation before we consider it failed and Nack it.
+	// This allows that evaluation to be handed to another sub-scheduler
+	// to work on. Defaults to 60 seconds. This should be long enough that
+	// no evaluation hits it unless the sub-scheduler has failed.
+	EvalNackTimeout time.Duration
 }
 
 // CheckVersion is used to check if the ProtocolVersion is valid
@@ -137,6 +144,7 @@ func DefaultConfig() *Config {
 		RPCAddr:           DefaultRPCAddr,
 		SerfConfig:        serf.DefaultConfig(),
 		ReconcileInterval: 60 * time.Second,
+		EvalNackTimeout:   60 * time.Second,
 	}
 
 	// Increase our reap interval to 3 days instead of 24h.

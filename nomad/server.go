@@ -91,6 +91,10 @@ type Server struct {
 	// eventCh is used to receive events from the serf cluster
 	eventCh chan serf.Event
 
+	// evalBroker is used to manage the in-progress evaluations
+	// that are waiting to be brokered to a sub-scheduler
+	evalBroker *EvalBroker
+
 	left         bool
 	shutdown     bool
 	shutdownCh   chan struct{}
@@ -121,6 +125,12 @@ func NewServer(config *Config) (*Server, error) {
 	// Create a logger
 	logger := log.New(config.LogOutput, "", log.LstdFlags)
 
+	// Create an eval broker
+	evalBroker, err := NewEvalBroker(config.EvalNackTimeout)
+	if err != nil {
+		return nil, err
+	}
+
 	// Create the server
 	s := &Server{
 		config:      config,
@@ -131,6 +141,7 @@ func NewServer(config *Config) (*Server, error) {
 		localPeers:  make(map[string]*serverParts),
 		reconcileCh: make(chan serf.Member, 32),
 		eventCh:     make(chan serf.Event, 256),
+		evalBroker:  evalBroker,
 		shutdownCh:  make(chan struct{}),
 	}
 
@@ -148,7 +159,6 @@ func NewServer(config *Config) (*Server, error) {
 	}
 
 	// Initialize the wan Serf
-	var err error
 	s.serf, err = s.setupSerf(config.SerfConfig, s.eventCh, serfSnapshot)
 	if err != nil {
 		s.Shutdown()
