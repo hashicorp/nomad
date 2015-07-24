@@ -34,9 +34,10 @@ const (
 // along with Raft to provide strong consistency. We implement
 // this outside the Server to avoid exposing this outside the package.
 type nomadFSM struct {
-	logOutput io.Writer
-	logger    *log.Logger
-	state     *StateStore
+	evalBroker *EvalBroker
+	logOutput  io.Writer
+	logger     *log.Logger
+	state      *StateStore
 }
 
 // nomadSnapshot is used to provide a snapshot of the current
@@ -51,17 +52,18 @@ type snapshotHeader struct {
 }
 
 // NewFSMPath is used to construct a new FSM with a blank state
-func NewFSM(logOutput io.Writer) (*nomadFSM, error) {
+func NewFSM(evalBroker *EvalBroker, logOutput io.Writer) (*nomadFSM, error) {
 	// Create a state store
-	state, err := NewStateStore(logOutput)
+	state, err := NewStateStore(evalBroker, logOutput)
 	if err != nil {
 		return nil, err
 	}
 
 	fsm := &nomadFSM{
-		logOutput: logOutput,
-		logger:    log.New(logOutput, "", log.LstdFlags),
-		state:     state,
+		evalBroker: evalBroker,
+		logOutput:  logOutput,
+		logger:     log.New(logOutput, "", log.LstdFlags),
+		state:      state,
 	}
 	return fsm, nil
 }
@@ -225,7 +227,7 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 	defer old.Close()
 
 	// Create a new state store
-	state, err := NewStateStore(n.logOutput)
+	state, err := NewStateStore(n.evalBroker, n.logOutput)
 	if err != nil {
 		return err
 	}

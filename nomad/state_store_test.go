@@ -10,7 +10,8 @@ import (
 )
 
 func testStateStore(t *testing.T) *StateStore {
-	state, err := NewStateStore(os.Stderr)
+	b := testBroker(t, 0)
+	state, err := NewStateStore(b, os.Stderr)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

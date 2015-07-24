@@ -29,7 +29,7 @@ func (m *MockSink) Close() error {
 }
 
 func testFSM(t *testing.T) *nomadFSM {
-	fsm, err := NewFSM(os.Stderr)
+	fsm, err := NewFSM(testBroker(t, 0), os.Stderr)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

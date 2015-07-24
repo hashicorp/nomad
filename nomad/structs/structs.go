@@ -514,6 +514,10 @@ type Evaluation struct {
 	// this evaluation.
 	Type string
 
+	// TriggeredBy is used to give some insight into why this Eval
+	// was created. (Job change, node failure, alloc failure, etc).
+	TriggeredBy string
+
 	// Status of the evaluation
 	Status string
 
