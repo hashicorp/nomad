@@ -60,6 +60,7 @@ func (e *Eval) Dequeue(args *structs.EvalDequeueRequest,
 	if done, err := e.srv.forward("Eval.GetEval", args, args, reply); done {
 		return err
 	}
+	defer metrics.MeasureSince([]string{"nomad", "eval", "dequeue"}, time.Now())
 
 	// Ensure there is at least one scheduler
 	if len(args.Schedulers) == 0 {
@@ -84,5 +85,35 @@ func (e *Eval) Dequeue(args *structs.EvalDequeueRequest,
 
 	// Set the query response
 	e.srv.setQueryMeta(&reply.QueryMeta)
+	return nil
+}
+
+// Ack is used to acknowledge completion of a dequeued evaluation
+func (e *Eval) Ack(args *structs.EvalSpecificRequest,
+	reply *structs.GenericResponse) error {
+	if done, err := e.srv.forward("Eval.Ack", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "eval", "ack"}, time.Now())
+
+	// Ack the EvalID
+	if err := e.srv.evalBroker.Ack(args.EvalID); err != nil {
+		return err
+	}
+	return nil
+}
+
+// NAck is used to negative acknowledge completion of a dequeued evaluation
+func (e *Eval) Nack(args *structs.EvalSpecificRequest,
+	reply *structs.GenericResponse) error {
+	if done, err := e.srv.forward("Eval.Nack", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "eval", "nack"}, time.Now())
+
+	// Nack the EvalID
+	if err := e.srv.evalBroker.Nack(args.EvalID); err != nil {
+		return err
+	}
 	return nil
 }
