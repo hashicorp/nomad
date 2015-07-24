@@ -499,6 +499,14 @@ type Evaluation struct {
 	// is assigned upon the creation of the evaluation.
 	ID string
 
+	// Priority is used to control scheduling importance and if this job
+	// can preempt other jobs.
+	Priority int
+
+	// Type is used to control which schedulers are available to handle
+	// this evaluation.
+	Type string
+
 	// Status of the evaluation
 	Status string
 
