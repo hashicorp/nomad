@@ -117,3 +117,11 @@ func generateUUID() string {
 func randomStagger(intv time.Duration) time.Duration {
 	return time.Duration(uint64(rand.Int63()) % uint64(intv))
 }
+
+// shuffleStrings randomly shuffles the list of strings
+func shuffleStrings(list []string) {
+	for i := range list {
+		j := rand.Intn(i + 1)
+		list[i], list[j] = list[j], list[i]
+	}
+}

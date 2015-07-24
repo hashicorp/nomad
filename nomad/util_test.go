@@ -2,6 +2,7 @@ package nomad
 
 import (
 	"net"
+	"reflect"
 	"regexp"
 	"testing"
 	"time"
@@ -79,5 +80,25 @@ func TestRandomStagger(t *testing.T) {
 		if stagger < 0 || stagger >= intv {
 			t.Fatalf("Bad: %v", stagger)
 		}
+	}
+}
+
+func TestShuffleStrings(t *testing.T) {
+	// Generate input
+	inp := make([]string, 10)
+	for idx := range inp {
+		inp[idx] = generateUUID()
+	}
+
+	// Copy the input
+	orig := make([]string, len(inp))
+	copy(orig, inp)
+
+	// Shuffle
+	shuffleStrings(inp)
+
+	// Ensure order is not the same
+	if reflect.DeepEqual(inp, orig) {
+		t.Fatalf("shuffle failed")
 	}
 }
