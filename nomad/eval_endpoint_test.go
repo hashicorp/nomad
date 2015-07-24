@@ -48,3 +48,33 @@ func TestEvalEndpoint_GetEval(t *testing.T) {
 		t.Fatalf("unexpected eval")
 	}
 }
+
+func TestEvalEndpoint_Dequeue(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	eval1 := mockEval()
+	s1.evalBroker.Enqueue(eval1)
+
+	// Dequeue the eval
+	get := &structs.EvalDequeueRequest{
+		Schedulers:   defaultSched,
+		WriteRequest: structs.WriteRequest{Region: "region1"},
+	}
+	var resp structs.SingleEvalResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Eval.Dequeue", get, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !reflect.DeepEqual(eval1, resp.Eval) {
+		t.Fatalf("bad: %#v %#v", eval1, resp.Eval)
+	}
+
+	// Ensure outstanding
+	if !s1.evalBroker.Outstanding(eval1.ID) {
+		t.Fatalf("should be outstanding")
+	}
+}

@@ -179,6 +179,13 @@ type EvalSpecificRequest struct {
 	WriteRequest
 }
 
+// EvalDequeueRequest is used when we want to dequeue an evaluation
+type EvalDequeueRequest struct {
+	Schedulers []string
+	Timeout    time.Duration
+	WriteRequest
+}
+
 // GenericResponse is used to respond to a request where no
 // specific response information is needed.
 type GenericResponse struct {
