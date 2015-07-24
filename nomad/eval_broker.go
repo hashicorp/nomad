@@ -281,6 +281,14 @@ func (b *EvalBroker) waitForSchedulers(schedulers []string, timeoutCh <-chan tim
 	}
 }
 
+// Outstanding checks if an EvalID has been delivered but not acknowledged
+func (b *EvalBroker) Outstanding(evalID string) bool {
+	b.l.RLock()
+	defer b.l.RUnlock()
+	_, ok := b.unack[evalID]
+	return ok
+}
+
 // Ack is used to positively acknowledge handling an evaluation
 func (b *EvalBroker) Ack(evalID string) error {
 	b.l.Lock()

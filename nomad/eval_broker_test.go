@@ -66,6 +66,10 @@ func TestEvalBroker_Enqueue_Dequeue_Nack_Ack(t *testing.T) {
 		t.Fatalf("bad : %#v", out)
 	}
 
+	if !b.Outstanding(out.ID) {
+		t.Fatalf("should be outstanding")
+	}
+
 	// Check the stats
 	stats = b.Stats()
 	if stats.TotalReady != 0 {
@@ -85,6 +89,10 @@ func TestEvalBroker_Enqueue_Dequeue_Nack_Ack(t *testing.T) {
 	err = b.Nack(eval.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
+	}
+
+	if b.Outstanding(out.ID) {
+		t.Fatalf("should not be outstanding")
 	}
 
 	// Check the stats
@@ -111,10 +119,18 @@ func TestEvalBroker_Enqueue_Dequeue_Nack_Ack(t *testing.T) {
 		t.Fatalf("bad : %#v", out2)
 	}
 
+	if !b.Outstanding(out.ID) {
+		t.Fatalf("should be outstanding")
+	}
+
 	// Ack finally
 	err = b.Ack(eval.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
+	}
+
+	if b.Outstanding(out.ID) {
+		t.Fatalf("should not be outstanding")
 	}
 
 	// Check the stats
