@@ -10,6 +10,14 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+const (
+	// DefaultNackTimeout is the default amount of time between when
+	// a message is dequeued and no Ack/Nack is received before it is
+	// assumed failed and Nack'd automatically. This is used to recover
+	// from the failure of a sub-scheduler.
+	DefaultNackTimeout = 60 * time.Second
+)
+
 // EvalBroker is used to manage brokering of evaluations. When an evaluation is
 // created, due to a change in a job specification or a node, we put it into the
 // broker. The broker sorts by evaluations by priority and scheduler type. This
@@ -91,15 +99,15 @@ func (b *EvalBroker) enqueueLocked(eval *structs.Evaluation) error {
 	// Find the pending by scheduler class
 	pending, ok := b.ready[eval.Type]
 	if !ok {
-		pending = make([]*structs.Evaluation, 16)
-		b.ready[eval.Type] = pending
+		pending = make([]*structs.Evaluation, 0, 16)
 		if _, ok := b.waiting[eval.Type]; !ok {
 			b.waiting[eval.Type] = make(chan struct{}, 1)
 		}
 	}
 
 	// Push onto the heap
-	heap.Push(pending, eval)
+	heap.Push(&pending, eval)
+	b.ready[eval.Type] = pending
 
 	// Update the stats
 	b.stats.TotalReady += 1
@@ -205,7 +213,7 @@ func (b *EvalBroker) scanForSchedulers(schedulers []string) (*structs.Evaluation
 	default:
 		// Multiple tasks. We pick a random task so that we fairly
 		// distribute work.
-		offset := rand.Intn(n)
+		offset := rand.Int63() % int64(n)
 		return b.dequeueForSched(eligibleSched[offset])
 	}
 }
@@ -215,7 +223,8 @@ func (b *EvalBroker) scanForSchedulers(schedulers []string) (*structs.Evaluation
 func (b *EvalBroker) dequeueForSched(sched string) (*structs.Evaluation, error) {
 	// Get the pending queue
 	pending := b.ready[sched]
-	raw := heap.Pop(pending)
+	raw := heap.Pop(&pending)
+	b.ready[sched] = pending
 	eval := raw.(*structs.Evaluation)
 
 	// Setup Nack timer
@@ -408,16 +417,16 @@ func (p PendingEvaluations) Swap(i, j int) {
 }
 
 // Push is used to add a new evalution to the slice
-func (p PendingEvaluations) Push(e interface{}) {
-	p = append(p, e.(*structs.Evaluation))
+func (p *PendingEvaluations) Push(e interface{}) {
+	*p = append(*p, e.(*structs.Evaluation))
 }
 
 // Pop is used to remove an evaluation from the slice
-func (p PendingEvaluations) Pop() interface{} {
-	n := len(p)
-	e := p[n-1]
-	p[n] = nil
-	p = p[:n-1]
+func (p *PendingEvaluations) Pop() interface{} {
+	n := len(*p)
+	e := (*p)[n-1]
+	(*p)[n-1] = nil
+	*p = (*p)[:n-1]
 	return e
 }
 

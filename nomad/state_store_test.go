@@ -112,8 +112,10 @@ func mockJob() *structs.Job {
 
 func mockEval() *structs.Evaluation {
 	eval := &structs.Evaluation{
-		ID:     generateUUID(),
-		Status: structs.EvalStatusPending,
+		ID:       generateUUID(),
+		Priority: 50,
+		Type:     structs.JobTypeService,
+		Status:   structs.EvalStatusPending,
 	}
 	return eval
 }
