@@ -169,6 +169,9 @@ func NewServer(config *Config) (*Server, error) {
 	// Start the RPC listeners
 	go s.listen()
 
+	// Emit metrics for the Eval broker
+	go evalBroker.EmitStats(time.Second)
+
 	// Done
 	return s, nil
 }

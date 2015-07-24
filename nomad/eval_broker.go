@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/armon/go-metrics"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -384,6 +385,21 @@ func (b *EvalBroker) Stats() *BrokerStats {
 		stats.ByScheduler[sched] = subStatCopy
 	}
 	return stats
+}
+
+// EmitStats is used to export metrics about the broker while enabled
+func (b *EvalBroker) EmitStats(period time.Duration) {
+	for {
+		<-time.After(period)
+
+		stats := b.Stats()
+		metrics.SetGauge([]string{"nomad", "broker", "total_ready"}, float32(stats.TotalReady))
+		metrics.SetGauge([]string{"nomad", "broker", "total_unacked"}, float32(stats.TotalUnacked))
+		for sched, schedStats := range stats.ByScheduler {
+			metrics.SetGauge([]string{"nomad", "broker", sched, "ready"}, float32(schedStats.Ready))
+			metrics.SetGauge([]string{"nomad", "broker", sched, "unacked"}, float32(schedStats.Unacked))
+		}
+	}
 }
 
 // BrokerStats returns all the stats about the broker
