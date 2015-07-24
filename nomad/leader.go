@@ -36,7 +36,12 @@ func (s *Server) monitorLeadership() {
 // leaderLoop runs as long as we are the leader to run various
 // maintence activities
 func (s *Server) leaderLoop(stopCh chan struct{}) {
+	// Ensure we revoke leadership on stepdown
+	defer s.revokeLeadership()
+
 	var reconcileCh chan serf.Member
+	establishedLeader := false
+
 RECONCILE:
 	// Setup a reconciliation timer
 	reconcileCh = nil
@@ -50,6 +55,16 @@ RECONCILE:
 		goto WAIT
 	}
 	metrics.MeasureSince([]string{"nomad", "leader", "barrier"}, start)
+
+	// Check if we need to handle initial leadership actions
+	if !establishedLeader {
+		if err := s.establishLeadership(); err != nil {
+			s.logger.Printf("[ERR] nomad: failed to establish leadership: %v",
+				err)
+			goto WAIT
+		}
+		establishedLeader = true
+	}
 
 	// Reconcile any missing data
 	if err := s.reconcile(); err != nil {
@@ -75,6 +90,26 @@ WAIT:
 			s.reconcileMember(member)
 		}
 	}
+}
+
+// establishLeadership is invoked once we become leader and are able
+// to invoke an initial barrier. The barrier is used to ensure any
+// previously inflight transactions have been commited and that our
+// state is up-to-date.
+func (s *Server) establishLeadership() error {
+	// Enable the eval broker, since we are now the leader
+	s.evalBroker.SetEnabled(true)
+
+	// TODO: Restore the eval broker state
+	return nil
+}
+
+// revokeLeadership is invoked once we step down as leader.
+// This is used to cleanup any state that may be specific to a leader.
+func (s *Server) revokeLeadership() error {
+	// Disable the eval broker, since it is only useful as a leader
+	s.evalBroker.SetEnabled(false)
+	return nil
 }
 
 // reconcile is used to reconcile the differences between Serf
