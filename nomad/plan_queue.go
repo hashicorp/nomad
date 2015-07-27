@@ -135,17 +135,18 @@ SCAN:
 	q.l.Unlock()
 
 	// Setup the timeout timer
-	var timer *time.Timer
-	if timer == nil && timeout > 0 {
-		timer = time.NewTimer(timeout)
+	var timerCh <-chan time.Time
+	if timerCh == nil && timeout > 0 {
+		timer := time.NewTimer(timeout)
 		defer timer.Stop()
+		timerCh = timer.C
 	}
 
 	// Wait for timeout or new work
 	select {
 	case <-q.waitCh:
 		goto SCAN
-	case <-timer.C:
+	case <-timerCh:
 		return nil, nil
 	}
 }
