@@ -186,6 +186,12 @@ type EvalDequeueRequest struct {
 	WriteRequest
 }
 
+// PlanRequest is used to submit an allocation plan to the leader
+type PlanRequest struct {
+	Plan *Plan
+	WriteRequest
+}
+
 // GenericResponse is used to respond to a request where no
 // specific response information is needed.
 type GenericResponse struct {
@@ -208,6 +214,12 @@ type SingleJobResponse struct {
 type SingleEvalResponse struct {
 	Eval *Evaluation
 	QueryMeta
+}
+
+// PlanResponse is used to return from a PlanRequest
+type PlanResponse struct {
+	Result *PlanResult
+	WriteMeta
 }
 
 const (
@@ -538,7 +550,9 @@ type Plan struct {
 	EvalCreateIndex uint64
 }
 
+// PlanResult is the result of a plan submitted to the leader.
 type PlanResult struct {
+	AllocIndex uint64
 }
 
 // msgpackHandle is a shared handle for encoding/decoding of structs
