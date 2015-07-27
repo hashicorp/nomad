@@ -95,6 +95,10 @@ type Server struct {
 	// that are waiting to be brokered to a sub-scheduler
 	evalBroker *EvalBroker
 
+	// planQueue is used to manage the submitted allocation
+	// plans that are waiting to be assessed by the leader
+	planQueue *PlanQueue
+
 	left         bool
 	shutdown     bool
 	shutdownCh   chan struct{}
@@ -131,6 +135,12 @@ func NewServer(config *Config) (*Server, error) {
 		return nil, err
 	}
 
+	// Create a plan queue
+	planQueue, err := NewPlanQueue()
+	if err != nil {
+		return nil, err
+	}
+
 	// Create the server
 	s := &Server{
 		config:      config,
@@ -142,6 +152,7 @@ func NewServer(config *Config) (*Server, error) {
 		reconcileCh: make(chan serf.Member, 32),
 		eventCh:     make(chan serf.Event, 256),
 		evalBroker:  evalBroker,
+		planQueue:   planQueue,
 		shutdownCh:  make(chan struct{}),
 	}
 
@@ -169,8 +180,11 @@ func NewServer(config *Config) (*Server, error) {
 	// Start the RPC listeners
 	go s.listen()
 
-	// Emit metrics for the Eval broker
+	// Emit metrics for the eval broker
 	go evalBroker.EmitStats(time.Second)
+
+	// Emit metrics for the plan queue
+	go planQueue.EmitStats(time.Second)
 
 	// Done
 	return s, nil

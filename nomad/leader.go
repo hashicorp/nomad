@@ -97,16 +97,25 @@ WAIT:
 // previously inflight transactions have been commited and that our
 // state is up-to-date.
 func (s *Server) establishLeadership() error {
+	// Enable the plan queue, since we are now the leader
+	s.planQueue.SetEnabled(true)
+
+	// TODO: Start the plan evaluator
+
 	// Enable the eval broker, since we are now the leader
 	s.evalBroker.SetEnabled(true)
 
 	// TODO: Restore the eval broker state
+
 	return nil
 }
 
 // revokeLeadership is invoked once we step down as leader.
 // This is used to cleanup any state that may be specific to a leader.
 func (s *Server) revokeLeadership() error {
+	// Disable the plan queue, since we are no longer leader
+	s.planQueue.SetEnabled(false)
+
 	// Disable the eval broker, since it is only useful as a leader
 	s.evalBroker.SetEnabled(false)
 	return nil
