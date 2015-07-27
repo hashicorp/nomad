@@ -100,7 +100,8 @@ func (s *Server) establishLeadership() error {
 	// Enable the plan queue, since we are now the leader
 	s.planQueue.SetEnabled(true)
 
-	// TODO: Start the plan evaluator
+	// Start the plan evaluator
+	go s.planApply()
 
 	// Enable the eval broker, since we are now the leader
 	s.evalBroker.SetEnabled(true)
