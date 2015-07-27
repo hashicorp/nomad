@@ -526,6 +526,21 @@ type Evaluation struct {
 	ModifyIndex uint64
 }
 
+// Plan is used to submit a commit plan for task allocations. These
+// are submitted to the leader which verifies that resources have
+// not been overcommitted before admiting the plan.
+type Plan struct {
+	// Priority is the priority of the upstream job
+	Priority int
+
+	// EvalCreateIndex is the create index of the evaluation.
+	// This is used to provide FIFO ordering
+	EvalCreateIndex uint64
+}
+
+type PlanResult struct {
+}
+
 // msgpackHandle is a shared handle for encoding/decoding of structs
 var msgpackHandle = &codec.MsgpackHandle{}
 
