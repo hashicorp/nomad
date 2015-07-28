@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/memberlist"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/scheduler"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
 )
@@ -159,10 +159,10 @@ func DefaultConfig() *Config {
 		EvalNackTimeout:   60 * time.Second,
 	}
 
-	// TODO: Enable all known schedulers by default
-	c.EnabledSchedulers = []string{
-		structs.JobTypeService,
-		structs.JobTypeBatch,
+	// Enable all known schedulers by default
+	c.EnabledSchedulers = make([]string, 0, len(scheduler.BuiltinSchedulers))
+	for name := range scheduler.BuiltinSchedulers {
+		c.EnabledSchedulers = append(c.EnabledSchedulers, name)
 	}
 
 	// Increase our reap interval to 3 days instead of 24h.
