@@ -3,6 +3,7 @@ package scheduler
 import (
 	"fmt"
 
+	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -49,14 +50,7 @@ type Scheduler interface {
 type State interface {
 	// Nodes returns an iterator over all the nodes.
 	// The type of each result is *structs.Node
-	Nodes() (ResultIterator, error)
-}
-
-// ResultIterator is used to iterate over a list of results
-// from a query. The type of the response depends on the query,
-// and perfectly represents when generics would be useful.
-type ResultIterator interface {
-	Next() interface{}
+	Nodes() (memdb.ResultIterator, error)
 }
 
 // Planner interface is used to submit a task allocation plan.
