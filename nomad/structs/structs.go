@@ -545,6 +545,9 @@ type Plan struct {
 	// Priority is the priority of the upstream job
 	Priority int
 
+	// EvalID is the evaluation ID this plan is associated with
+	EvalID string
+
 	// EvalCreateIndex is the create index of the evaluation.
 	// This is used to provide FIFO ordering
 	EvalCreateIndex uint64
@@ -552,6 +555,8 @@ type Plan struct {
 
 // PlanResult is the result of a plan submitted to the leader.
 type PlanResult struct {
+	RefreshIndex uint64
+
 	AllocIndex uint64
 }
 

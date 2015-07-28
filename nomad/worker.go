@@ -96,7 +96,9 @@ func (w *Worker) dequeueEvaluation() (*structs.Evaluation, bool) {
 
 REQ:
 	// Make a blocking RPC
+	start := time.Now()
 	err := w.srv.RPC("Eval.Dequeue", &req, &resp)
+	metrics.MeasureSince([]string{"nomad", "worker", "dequeue_eval"}, start)
 	if err != nil {
 		w.logger.Printf("[ERR] worker: failed to dequeue evaluation: %v", err)
 		if w.backoffErr() {
@@ -108,6 +110,7 @@ REQ:
 
 	// Check if we got a response
 	if resp.Eval != nil {
+		w.logger.Printf("[DEBUG] worker: dequeued evaluation %s", resp.Eval.ID)
 		return resp.Eval, false
 	}
 
@@ -121,6 +124,7 @@ REQ:
 // sendAck makes a best effort to ack or nack the evaluation.
 // Any errors are logged but swallowed.
 func (w *Worker) sendAck(evalID string, ack bool) {
+	defer metrics.MeasureSince([]string{"nomad", "worker", "send_ack"}, time.Now())
 	// Setup the request
 	req := structs.EvalSpecificRequest{
 		EvalID: evalID,
@@ -143,6 +147,8 @@ func (w *Worker) sendAck(evalID string, ack bool) {
 	if err != nil {
 		w.logger.Printf("[ERR] worker: failed to %s evaluation '%s': %v",
 			verb, evalID, err)
+	} else {
+		w.logger.Printf("[DEBUG] worker: %s for evaluation %s", verb, evalID)
 	}
 }
 
@@ -153,7 +159,7 @@ func (w *Worker) sendAck(evalID string, ack bool) {
 // to sync our state again and do the planning with more recent data.
 func (w *Worker) waitForIndex(index uint64, timeout time.Duration) error {
 	start := time.Now()
-	defer metrics.MeasureSince([]string{"nomad", "worker", "wait_for_index"}, time.Now())
+	defer metrics.MeasureSince([]string{"nomad", "worker", "wait_for_index"}, start)
 CHECK:
 	// We only need the FSM state to be as recent as the given index
 	appliedIndex := w.srv.raft.AppliedIndex()
@@ -176,6 +182,7 @@ CHECK:
 
 // invokeScheduler is used to invoke the business logic of the scheduler
 func (w *Worker) invokeScheduler(eval *structs.Evaluation) error {
+	defer metrics.MeasureSince([]string{"nomad", "worker", "invoke_scheduler"}, time.Now())
 	// Snapshot the current state
 	snap, err := w.srv.fsm.State().Snapshot()
 	if err != nil {
@@ -198,9 +205,53 @@ func (w *Worker) invokeScheduler(eval *structs.Evaluation) error {
 
 // SubmitPlan is used to submit a plan for consideration. This allows
 // the worker to act as the planner for the scheduler.
-func (w *Worker) SubmitPlan(*structs.Plan) (*structs.PlanResult, scheduler.State, error) {
-	// TODO
-	return nil, nil, nil
+func (w *Worker) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, scheduler.State, error) {
+	defer metrics.MeasureSince([]string{"nomad", "worker", "submit_plan"}, time.Now())
+	// Setup the request
+	req := structs.PlanRequest{
+		Plan: plan,
+		WriteRequest: structs.WriteRequest{
+			Region: w.srv.config.Region,
+		},
+	}
+	var resp structs.PlanResponse
+
+	// Make the RPC call
+	if err := w.srv.RPC("Plan.Submit", &req, &resp); err != nil {
+		w.logger.Printf("[ERR] worker: failed to submit plan for evaluation %s: %v",
+			plan.EvalID, err)
+		return nil, nil, err
+	} else {
+		w.logger.Printf("[DEBUG] worker: submitted plan for evaluation %s", plan.EvalID)
+	}
+
+	// Look for a result
+	result := resp.Result
+	if result == nil {
+		return nil, nil, fmt.Errorf("missing result")
+	}
+
+	// Check if a state update is required. This could be required if we
+	// planning based on stale data, which is causing issues. For example, a
+	// node failure since the time we've started planning or conflicting task
+	// allocations.
+	var state scheduler.State
+	if result.RefreshIndex != 0 {
+		// Wait for the the raft log to catchup to the evaluation
+		if err := w.waitForIndex(result.RefreshIndex, raftSyncLimit); err != nil {
+			return nil, nil, err
+		}
+
+		// Snapshot the current state
+		snap, err := w.srv.fsm.State().Snapshot()
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to snapshot state: %v", err)
+		}
+		state = snap
+	}
+
+	// Return the result and potential state update
+	return result, state, nil
 }
 
 // backoffErr is used to do an exponential back off on error. This is
