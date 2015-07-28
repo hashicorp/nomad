@@ -57,7 +57,7 @@ func (e *Eval) GetEval(args *structs.EvalSpecificRequest,
 // Dequeue is used to dequeue a pending evaluation
 func (e *Eval) Dequeue(args *structs.EvalDequeueRequest,
 	reply *structs.SingleEvalResponse) error {
-	if done, err := e.srv.forward("Eval.GetEval", args, args, reply); done {
+	if done, err := e.srv.forward("Eval.Dequeue", args, args, reply); done {
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "eval", "dequeue"}, time.Now())
