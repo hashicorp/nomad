@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/memberlist"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
 )
@@ -102,6 +103,16 @@ type Config struct {
 	// operators track which versions are actively deployed
 	Build string
 
+	// NumSchedulers is the number of scheduler thread that are run.
+	// This can be as many as one per core, or zero to disable this server
+	// from doing any scheduling work.
+	NumSchedulers int
+
+	// EnabledSchedulers controls the set of sub-schedulers that are
+	// enabled for this server to handle. This will restrict the evaluations
+	// that the workers dequeue for processing.
+	EnabledSchedulers []string
+
 	// ReconcileInterval controls how often we reconcile the strongly
 	// consistent store with the Serf info. This is used to handle nodes
 	// that are force removed, as well as intermittent unavailability during
@@ -143,8 +154,15 @@ func DefaultConfig() *Config {
 		RaftConfig:        raft.DefaultConfig(),
 		RPCAddr:           DefaultRPCAddr,
 		SerfConfig:        serf.DefaultConfig(),
+		NumSchedulers:     1,
 		ReconcileInterval: 60 * time.Second,
 		EvalNackTimeout:   60 * time.Second,
+	}
+
+	// TODO: Enable all known schedulers by default
+	c.EnabledSchedulers = []string{
+		structs.JobTypeService,
+		structs.JobTypeBatch,
 	}
 
 	// Increase our reap interval to 3 days instead of 24h.

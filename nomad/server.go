@@ -178,6 +178,12 @@ func NewServer(config *Config) (*Server, error) {
 	}
 	go s.serfEventHandler()
 
+	// Intialize the scheduling workers
+	if err := s.setupWorkers(); err != nil {
+		s.Shutdown()
+		return nil, fmt.Errorf("Failed to start workers: %v", err)
+	}
+
 	// Start the RPC listeners
 	go s.listen()
 
@@ -233,6 +239,16 @@ func (s *Server) Shutdown() error {
 		s.fsm.Close()
 	}
 	return nil
+}
+
+// IsShutdown checks if the server is shutdown
+func (s *Server) IsShutdown() bool {
+	select {
+	case <-s.shutdownCh:
+		return true
+	default:
+		return false
+	}
 }
 
 // Leave is used to prepare for a graceful shutdown of the server
@@ -481,6 +497,25 @@ func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string) (
 	// node which is rather unexpected.
 	conf.EnableNameConflictResolution = false
 	return serf.Create(conf)
+}
+
+// setupWorkers is used to start the scheduling workers
+func (s *Server) setupWorkers() error {
+	// Check if all the schedulers are disabled
+	if len(s.config.EnabledSchedulers) == 0 || s.config.NumSchedulers == 0 {
+		s.logger.Printf("[WARN] nomad: no enabled schedulers")
+		return nil
+	}
+
+	// Start the workers
+	for i := 0; i < s.config.NumSchedulers; i++ {
+		if _, err := NewWorker(s); err != nil {
+			return err
+		}
+	}
+	s.logger.Printf("[INFO] nomad: starting %d scheduling worker(s) for %v",
+		s.config.NumSchedulers, s.config.EnabledSchedulers)
+	return nil
 }
 
 // numOtherPeers is used to check on the number of known peers
