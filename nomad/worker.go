@@ -206,7 +206,12 @@ func (w *Worker) invokeScheduler(eval *structs.Evaluation) error {
 // SubmitPlan is used to submit a plan for consideration. This allows
 // the worker to act as the planner for the scheduler.
 func (w *Worker) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, scheduler.State, error) {
+	// Check for a shutdown before plan submission
+	if w.srv.IsShutdown() {
+		return nil, nil, fmt.Errorf("shutdown while planning")
+	}
 	defer metrics.MeasureSince([]string{"nomad", "worker", "submit_plan"}, time.Now())
+
 	// Setup the request
 	req := structs.PlanRequest{
 		Plan: plan,
