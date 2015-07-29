@@ -170,7 +170,7 @@ CHECK:
 
 	// Check if we've reached our limit
 	if time.Now().Sub(start) > timeout {
-		return fmt.Errorf("sync wait limit reached")
+		return fmt.Errorf("sync wait timeout reached")
 	}
 
 	// Exponential back off if we haven't yet reached it

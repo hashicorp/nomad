@@ -2,6 +2,7 @@ package nomad
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -107,5 +108,36 @@ func TestWorker_sendAck(t *testing.T) {
 	stats = s1.evalBroker.Stats()
 	if stats.TotalReady != 0 && stats.TotalUnacked != 0 {
 		t.Fatalf("bad: %#v", stats)
+	}
+}
+
+func TestWorker_waitForIndex(t *testing.T) {
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+		c.EnabledSchedulers = []string{structs.JobTypeService}
+	})
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Get the current index
+	index := s1.raft.AppliedIndex()
+
+	// Cause an increment
+	go func() {
+		time.Sleep(10 * time.Millisecond)
+		s1.raft.Barrier(0)
+	}()
+
+	// Wait for a future index
+	w := &Worker{srv: s1, logger: s1.logger}
+	err := w.waitForIndex(index+1, time.Second)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Cause a timeout
+	err = w.waitForIndex(index+100, 10*time.Millisecond)
+	if err == nil || !strings.Contains(err.Error(), "timeout") {
+		t.Fatalf("err: %v", err)
 	}
 }
