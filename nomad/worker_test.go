@@ -7,8 +7,37 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/scheduler"
 	"github.com/hashicorp/nomad/testutil"
 )
+
+type NoopScheduler struct {
+	state   scheduler.State
+	planner scheduler.Planner
+	eval    *structs.Evaluation
+	err     error
+}
+
+func (n *NoopScheduler) Process(eval *structs.Evaluation) error {
+	if n.state == nil {
+		panic("missing state")
+	}
+	if n.planner == nil {
+		panic("missing planner")
+	}
+	n.eval = eval
+	return n.err
+}
+
+func init() {
+	scheduler.BuiltinSchedulers["noop"] = func(s scheduler.State, p scheduler.Planner) scheduler.Scheduler {
+		n := &NoopScheduler{
+			state:   s,
+			planner: p,
+		}
+		return n
+	}
+}
 
 func TestWorker_dequeueEvaluation(t *testing.T) {
 	s1 := testServer(t, func(c *Config) {
@@ -140,4 +169,32 @@ func TestWorker_waitForIndex(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "timeout") {
 		t.Fatalf("err: %v", err)
 	}
+}
+
+func TestWorker_invokeScheduler(t *testing.T) {
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+		c.EnabledSchedulers = []string{structs.JobTypeService}
+	})
+	defer s1.Shutdown()
+
+	w := &Worker{srv: s1, logger: s1.logger}
+	eval := mockEval()
+	eval.Type = "noop"
+
+	err := w.invokeScheduler(eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+}
+
+func TestWorker_SubmitPlan(t *testing.T) {
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+		c.EnabledSchedulers = []string{structs.JobTypeService}
+	})
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// TODO: This requires the plan apply to work
 }
