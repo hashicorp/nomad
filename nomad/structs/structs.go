@@ -542,21 +542,51 @@ type Evaluation struct {
 // are submitted to the leader which verifies that resources have
 // not been overcommitted before admiting the plan.
 type Plan struct {
-	// Priority is the priority of the upstream job
-	Priority int
-
 	// EvalID is the evaluation ID this plan is associated with
 	EvalID string
 
-	// EvalCreateIndex is the create index of the evaluation.
-	// This is used to provide FIFO ordering
-	EvalCreateIndex uint64
+	// Priority is the priority of the upstream job
+	Priority int
+
+	// AllAtOnce is used to control if incremental scheduling of task groups
+	// is allowed or if we must do a gang scheduling of the entire job.
+	// If this is false, a plan may be partially applied. Otherwise, the
+	// entire plan must be able to make progress.
+	AllAtOnce bool
+
+	// NodeEvict contains all the evictions for each node. For each node,
+	// this is a list of the allocation IDs to evict.
+	NodeEvict map[string][]string
+
+	// NodeAllocation contains all the allocations for each node.
+	// The evicts must be considered prior to the allocations.
+	NodeAllocation map[string]*Allocation
+
+	// AckEval will acknowledge the EvalID as complete if we are
+	// able to do a full commit of the plan. This is an optimization
+	// that allows the worker to skip doing the Ack.
+	AckEval bool
 }
 
 // PlanResult is the result of a plan submitted to the leader.
 type PlanResult struct {
+	// NodeEvict contains all the evictions that were committed.
+	NodeEvict map[string][]string
+
+	// NodeAllocation contains all the allocations that were committed.
+	NodeAllocation map[string]*Allocation
+
+	// AckEval indicates if the planner performed an Ack of the evaluation
+	AckEval bool
+
+	// RefreshIndex is the index the worker should refresh state up to.
+	// This allows all evictions and allocations to be materialized.
+	// If any allocations were rejected due to stale data (node state,
+	// over committed) this can be used to force a worker refresh.
 	RefreshIndex uint64
 
+	// AllocIndex is the Raft index in which the evictions and
+	// allocations took place. This is used for the write index.
 	AllocIndex uint64
 }
 
