@@ -53,7 +53,7 @@ func NewWorker(srv *Server) (*Worker, error) {
 func (w *Worker) run() {
 	for {
 		// Dequeue a pending evaluation
-		eval, shutdown := w.dequeueEvaluation()
+		eval, shutdown := w.dequeueEvaluation(dequeueTimeout)
 		if shutdown {
 			return
 		}
@@ -83,11 +83,11 @@ func (w *Worker) run() {
 
 // dequeueEvaluation is used to fetch the next ready evaluation.
 // This blocks until an evaluation is available or a timeout is reached.
-func (w *Worker) dequeueEvaluation() (*structs.Evaluation, bool) {
+func (w *Worker) dequeueEvaluation(timeout time.Duration) (*structs.Evaluation, bool) {
 	// Setup the request
 	req := structs.EvalDequeueRequest{
 		Schedulers: w.srv.config.EnabledSchedulers,
-		Timeout:    dequeueTimeout,
+		Timeout:    timeout,
 		WriteRequest: structs.WriteRequest{
 			Region: w.srv.config.Region,
 		},
