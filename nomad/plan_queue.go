@@ -50,9 +50,10 @@ func NewPlanQueue() (*PlanQueue, error) {
 // pendingPlan is used to wrap a plan that is enqueued
 // so that we can re-use it as a future.
 type pendingPlan struct {
-	plan   *structs.Plan
-	result *structs.PlanResult
-	errCh  chan error
+	plan        *structs.Plan
+	enqueueTime time.Time
+	result      *structs.PlanResult
+	errCh       chan error
 }
 
 // Wait is used to block for the plan result or potential error
@@ -95,8 +96,9 @@ func (q *PlanQueue) Enqueue(plan *structs.Plan) (PlanFuture, error) {
 
 	// Wrap the pending plan
 	pending := &pendingPlan{
-		plan:  plan,
-		errCh: make(chan error, 1),
+		plan:        plan,
+		enqueueTime: time.Now(),
+		errCh:       make(chan error, 1),
 	}
 
 	// Push onto the heap
@@ -207,13 +209,13 @@ func (p PendingPlans) Len() int {
 
 // Less is for the sorting interface. We flip the check
 // so that the "min" in the min-heap is the element with the
-// highest priority. For the same priority, we use the create
-// index of the evaluation to give a FIFO ordering.
+// highest priority. For the same priority, we use the enqueue
+// time of the evaluation to give a FIFO ordering.
 func (p PendingPlans) Less(i, j int) bool {
 	if p[i].plan.Priority != p[j].plan.Priority {
 		return !(p[i].plan.Priority < p[j].plan.Priority)
 	}
-	return p[i].plan.EvalCreateIndex < p[j].plan.EvalCreateIndex
+	return p[i].enqueueTime.Before(p[j].enqueueTime)
 }
 
 // Swap is for the sorting interface

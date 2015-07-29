@@ -17,8 +17,7 @@ func testPlanQueue(t *testing.T) *PlanQueue {
 
 func mockPlan() *structs.Plan {
 	return &structs.Plan{
-		Priority:        50,
-		EvalCreateIndex: 1000,
+		Priority: 50,
 	}
 }
 
@@ -166,15 +165,16 @@ func TestPlanQueue_Dequeue_FIFO(t *testing.T) {
 	pq.SetEnabled(true)
 	NUM := 100
 
+	plans := make([]*structs.Plan, NUM)
 	for i := 0; i < NUM; i++ {
 		plan := mockPlan()
-		plan.EvalCreateIndex = uint64(i)
 		pq.Enqueue(plan)
+		plans[i] = plan
 	}
 
 	for i := 0; i < NUM; i++ {
 		out1, _ := pq.Dequeue(time.Second)
-		if out1.plan.EvalCreateIndex != uint64(i) {
+		if out1.plan != plans[i] {
 			t.Fatalf("bad: %d %#v", i, out1)
 		}
 	}
