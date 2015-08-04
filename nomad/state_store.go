@@ -401,6 +401,81 @@ func (s *StateStore) Evals() (memdb.ResultIterator, error) {
 	return iter, nil
 }
 
+// UpdateAllocations is used to evict a set of allocations
+// and allocate new ones at the same time.
+func (s *StateStore) UpdateAllocations(index uint64, evicts []string,
+	allocs []*structs.Allocation) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	// Handle evictions first
+	for _, evict := range evicts {
+		existing, err := txn.First("allocs", "id", evict)
+		if err != nil {
+			return fmt.Errorf("alloc lookup failed: %v", err)
+		}
+		if existing == nil {
+			continue
+		}
+		if err := txn.Delete("allocs", existing); err != nil {
+			return fmt.Errorf("alloc delete failed: %v", err)
+		}
+	}
+
+	// Handle the allocations
+	for _, alloc := range allocs {
+		existing, err := txn.First("allocs", "id", alloc.ID)
+		if err != nil {
+			return fmt.Errorf("alloc lookup failed: %v", err)
+		}
+		if existing == nil {
+			alloc.CreateIndex = index
+			alloc.ModifyIndex = index
+		} else {
+			alloc.CreateIndex = existing.(*structs.Allocation).CreateIndex
+			alloc.ModifyIndex = index
+		}
+		if err := txn.Insert("allocs", alloc); err != nil {
+			return fmt.Errorf("alloc insert failed: %v", err)
+		}
+	}
+
+	// Update the indexes
+	if err := txn.Insert("index", &IndexEntry{"allocs", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	txn.Commit()
+	return nil
+}
+
+// GetAllocByID is used to lookup an allocation by its ID
+func (s *StateStore) GetAllocByID(id string) (*structs.Allocation, error) {
+	txn := s.db.Txn(false)
+
+	existing, err := txn.First("allocs", "id", id)
+	if err != nil {
+		return nil, fmt.Errorf("alloc lookup failed: %v", err)
+	}
+
+	if existing != nil {
+		return existing.(*structs.Allocation), nil
+	}
+	return nil, nil
+}
+
+// Allocs returns an iterator over all the evaluations
+func (s *StateStore) Allocs() (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	// Walk the entire table
+	iter, err := txn.Get("allocs", "id")
+	if err != nil {
+		return nil, err
+	}
+	return iter, nil
+}
+
 // GetIndex finds the matching index value
 func (s *StateStore) GetIndex(name string) (uint64, error) {
 	txn := s.db.Txn(false)
@@ -448,6 +523,14 @@ func (r *StateRestore) JobRestore(job *structs.Job) error {
 func (r *StateRestore) EvalRestore(eval *structs.Evaluation) error {
 	if err := r.txn.Insert("evals", eval); err != nil {
 		return fmt.Errorf("eval insert failed: %v", err)
+	}
+	return nil
+}
+
+// AllocRestore is used to restore an allocation
+func (r *StateRestore) AllocRestore(alloc *structs.Allocation) error {
+	if err := r.txn.Insert("allocs", alloc); err != nil {
+		return fmt.Errorf("alloc insert failed: %v", err)
 	}
 	return nil
 }

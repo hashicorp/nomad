@@ -121,6 +121,14 @@ func mockEval() *structs.Evaluation {
 	return eval
 }
 
+func mockAlloc() *structs.Allocation {
+	alloc := &structs.Allocation{
+		ID:     generateUUID(),
+		NodeID: "foo",
+	}
+	return alloc
+}
+
 func TestStateStore_RegisterNode_GetNode(t *testing.T) {
 	state := testStateStore(t)
 	node := mockNode()
@@ -659,6 +667,172 @@ func TestStateStore_RestoreEval(t *testing.T) {
 	}
 }
 
+func TestStateStore_UpsertAlloc_GetAlloc(t *testing.T) {
+	state := testStateStore(t)
+
+	alloc := mockAlloc()
+	err := state.UpdateAllocations(1000, nil,
+		[]*structs.Allocation{alloc})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	out, err := state.GetAllocByID(alloc.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !reflect.DeepEqual(alloc, out) {
+		t.Fatalf("bad: %#v %#v", alloc, out)
+	}
+
+	index, err := state.GetIndex("allocs")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if index != 1000 {
+		t.Fatalf("bad: %d", index)
+	}
+}
+
+func TestStateStore_UpdateAlloc_GetAlloc(t *testing.T) {
+	state := testStateStore(t)
+	alloc := mockAlloc()
+
+	err := state.UpdateAllocations(1000, nil,
+		[]*structs.Allocation{alloc})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	alloc2 := mockAlloc()
+	alloc2.ID = alloc.ID
+	alloc2.NodeID = alloc.NodeID + ".new"
+	err = state.UpdateAllocations(1001, nil,
+		[]*structs.Allocation{alloc2})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	out, err := state.GetAllocByID(alloc.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !reflect.DeepEqual(alloc2, out) {
+		t.Fatalf("bad: %#v %#v", alloc2, out)
+	}
+
+	if out.CreateIndex != 1000 {
+		t.Fatalf("bad: %#v", out)
+	}
+	if out.ModifyIndex != 1001 {
+		t.Fatalf("bad: %#v", out)
+	}
+
+	index, err := state.GetIndex("allocs")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if index != 1001 {
+		t.Fatalf("bad: %d", index)
+	}
+}
+
+func TestStateStore_EvictAlloc_GetAlloc(t *testing.T) {
+	state := testStateStore(t)
+	alloc := mockAlloc()
+
+	err := state.UpdateAllocations(1001, nil, []*structs.Allocation{alloc})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	err = state.UpdateAllocations(1001, []string{alloc.ID}, nil)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	out, err := state.GetAllocByID(alloc.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if out != nil {
+		t.Fatalf("bad: %#v %#v", alloc, out)
+	}
+
+	index, err := state.GetIndex("allocs")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if index != 1001 {
+		t.Fatalf("bad: %d", index)
+	}
+}
+
+func TestStateStore_Allocs(t *testing.T) {
+	state := testStateStore(t)
+	var allocs []*structs.Allocation
+
+	for i := 0; i < 10; i++ {
+		alloc := mockAlloc()
+		allocs = append(allocs, alloc)
+	}
+
+	err := state.UpdateAllocations(1000, nil, allocs)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	iter, err := state.Allocs()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	var out []*structs.Allocation
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		out = append(out, raw.(*structs.Allocation))
+	}
+
+	sort.Sort(AllocIDSort(allocs))
+	sort.Sort(AllocIDSort(out))
+
+	if !reflect.DeepEqual(allocs, out) {
+		t.Fatalf("bad: %#v %#v", allocs, out)
+	}
+}
+
+func TestStateStore_RestoreAlloc(t *testing.T) {
+	state := testStateStore(t)
+
+	restore, err := state.Restore()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	alloc := mockAlloc()
+	err = restore.AllocRestore(alloc)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	restore.Commit()
+
+	out, err := state.GetAllocByID(alloc.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !reflect.DeepEqual(out, alloc) {
+		t.Fatalf("Bad: %#v %#v", out, alloc)
+	}
+}
+
 // NodeIDSort is used to sort nodes by ID
 type NodeIDSort []*structs.Node
 
@@ -701,5 +875,20 @@ func (n EvalIDSort) Less(i, j int) bool {
 }
 
 func (n EvalIDSort) Swap(i, j int) {
+	n[i], n[j] = n[j], n[i]
+}
+
+// AllocIDsort used to sort allocations by id
+type AllocIDSort []*structs.Allocation
+
+func (n AllocIDSort) Len() int {
+	return len(n)
+}
+
+func (n AllocIDSort) Less(i, j int) bool {
+	return n[i].ID < n[j].ID
+}
+
+func (n AllocIDSort) Swap(i, j int) {
 	n[i], n[j] = n[j], n[i]
 }

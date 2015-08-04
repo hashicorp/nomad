@@ -176,27 +176,6 @@ func allocTableSchema() *memdb.TableSchema {
 				},
 			},
 
-			// Job index is used to lookup allocations by job.
-			// It is a compound index on {JobName, TaskGroupName}
-			"job": &memdb.IndexSchema{
-				Name:         "job",
-				AllowMissing: false,
-				Unique:       false,
-				Indexer: &memdb.CompoundIndex{
-					AllowMissing: false,
-					Indexes: []memdb.Indexer{
-						&memdb.StringFieldIndex{
-							Field:     "JobName",
-							Lowercase: true,
-						},
-						&memdb.StringFieldIndex{
-							Field:     "TaskGroupName",
-							Lowercase: true,
-						},
-					},
-				},
-			},
-
 			// Node index is used to lookup allocations by node
 			"node": &memdb.IndexSchema{
 				Name:         "node",
