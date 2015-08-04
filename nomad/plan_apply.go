@@ -2,7 +2,9 @@ package nomad
 
 import (
 	"fmt"
+	"time"
 
+	"github.com/armon/go-metrics"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -45,6 +47,7 @@ func (s *Server) planApply() {
 // can be applied if any. Returns if there should be a plan application
 // which may be partial or if there was an error
 func (s *Server) evaluatePlan(plan *structs.Plan) (*structs.PlanResult, error) {
+	defer metrics.MeasureSince([]string{"nomad", "plan", "evaluate"}, time.Now())
 	// Snapshot the state so that we have a consistent view of the world
 	snap, err := s.fsm.State().Snapshot()
 	if err != nil {
@@ -117,6 +120,7 @@ func (s *Server) evaluatePlan(plan *structs.Plan) (*structs.PlanResult, error) {
 
 // applyPlan is used to apply the plan result and to return the alloc index
 func (s *Server) applyPlan(result *structs.PlanResult) (uint64, error) {
+	defer metrics.MeasureSince([]string{"nomad", "plan", "apply"}, time.Now())
 	req := structs.AllocUpdateRequest{}
 	for _, evictList := range result.NodeEvict {
 		req.Evict = append(req.Evict, evictList...)
