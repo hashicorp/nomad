@@ -305,7 +305,6 @@ type Resources struct {
 	DiskMB   int
 	IOPS     int
 	Networks []*NetworkResource
-	Other    map[string]interface{}
 }
 
 // NetworkResource is used to represesent available network
@@ -572,12 +571,7 @@ type Plan struct {
 
 	// NodeAllocation contains all the allocations for each node.
 	// The evicts must be considered prior to the allocations.
-	NodeAllocation map[string]*Allocation
-
-	// AckEval will acknowledge the EvalID as complete if we are
-	// able to do a full commit of the plan. This is an optimization
-	// that allows the worker to skip doing the Ack.
-	AckEval bool
+	NodeAllocation map[string][]*Allocation
 }
 
 // PlanResult is the result of a plan submitted to the leader.
@@ -586,10 +580,7 @@ type PlanResult struct {
 	NodeEvict map[string][]string
 
 	// NodeAllocation contains all the allocations that were committed.
-	NodeAllocation map[string]*Allocation
-
-	// AckEval indicates if the planner performed an Ack of the evaluation
-	AckEval bool
+	NodeAllocation map[string][]*Allocation
 
 	// RefreshIndex is the index the worker should refresh state up to.
 	// This allows all evictions and allocations to be materialized.
