@@ -23,6 +23,7 @@ const (
 	JobDeregisterRequestType
 	EvalUpdateRequestType
 	EvalDeleteRequestType
+	AllocUpdateRequestType
 )
 
 const (
@@ -190,6 +191,17 @@ type EvalDequeueRequest struct {
 type PlanRequest struct {
 	Plan *Plan
 	WriteRequest
+}
+
+// AllocUpdateRequest is used to submit changes to allocations, either
+// to cause evictions or to assign new allocaitons. Both can be done
+// within a single transaction
+type AllocUpdateRequest struct {
+	// Evict is the list of allocation IDs to evict
+	Evict []string
+
+	// Alloc is the list of new allocations to assign
+	Alloc []*Allocation
 }
 
 // GenericResponse is used to respond to a request where no
