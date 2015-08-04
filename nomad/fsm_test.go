@@ -296,6 +296,58 @@ func TestFSM_DeleteEval(t *testing.T) {
 	}
 }
 
+func TestFSM_UpdateAllocations(t *testing.T) {
+	fsm := testFSM(t)
+
+	alloc := mockAlloc()
+	req := structs.AllocUpdateRequest{
+		Evict: nil,
+		Alloc: []*structs.Allocation{alloc},
+	}
+	buf, err := structs.Encode(structs.AllocUpdateRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp := fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	// Verify we are registered
+	out, err := fsm.State().GetAllocByID(alloc.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	alloc.CreateIndex = out.CreateIndex
+	alloc.ModifyIndex = out.ModifyIndex
+	if !reflect.DeepEqual(alloc, out) {
+		t.Fatalf("bad: %#v %#v", alloc, out)
+	}
+
+	req2 := structs.AllocUpdateRequest{
+		Evict: []string{alloc.ID},
+	}
+	buf, err = structs.Encode(structs.AllocUpdateRequestType, req2)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp = fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	// Verify we are NOT registered
+	out, err = fsm.State().GetAllocByID(alloc.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out != nil {
+		t.Fatalf("alloc found!")
+	}
+}
+
 func testSnapshotRestore(t *testing.T, fsm *nomadFSM) *nomadFSM {
 	// Snapshot
 	snap, err := fsm.Snapshot()
@@ -384,6 +436,28 @@ func TestFSM_SnapshotRestore_Evals(t *testing.T) {
 	}
 	if !reflect.DeepEqual(eval2, out2) {
 		t.Fatalf("bad: \n%#v\n%#v", out2, eval2)
+	}
+}
+
+func TestFSM_SnapshotRestore_Allocs(t *testing.T) {
+	// Add some state
+	fsm := testFSM(t)
+	state := fsm.State()
+	alloc1 := mockAlloc()
+	state.UpdateAllocations(1000, nil, []*structs.Allocation{alloc1})
+	alloc2 := mockAlloc()
+	state.UpdateAllocations(1001, nil, []*structs.Allocation{alloc2})
+
+	// Verify the contents
+	fsm2 := testSnapshotRestore(t, fsm)
+	state2 := fsm2.State()
+	out1, _ := state2.GetAllocByID(alloc1.ID)
+	out2, _ := state2.GetAllocByID(alloc2.ID)
+	if !reflect.DeepEqual(alloc1, out1) {
+		t.Fatalf("bad: \n%#v\n%#v", out1, alloc1)
+	}
+	if !reflect.DeepEqual(alloc2, out2) {
+		t.Fatalf("bad: \n%#v\n%#v", out2, alloc2)
 	}
 }
 

@@ -28,6 +28,7 @@ const (
 	JobSnapshot
 	IndexSnapshot
 	EvalSnapshot
+	AllocSnapshot
 )
 
 // nomadFSM implements a finite state machine that is used
@@ -106,6 +107,8 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyUpdateEval(buf[1:], log.Index)
 	case structs.EvalDeleteRequestType:
 		return n.applyDeleteEval(buf[1:], log.Index)
+	case structs.AllocUpdateRequestType:
+		return n.applyAllocUpdate(buf[1:], log.Index)
 	default:
 		if ignoreUnknown {
 			n.logger.Printf("[WARN] nomad.fsm: ignoring unknown message type (%d), upgrade to newer version", msgType)
@@ -214,6 +217,20 @@ func (n *nomadFSM) applyDeleteEval(buf []byte, index uint64) interface{} {
 	return nil
 }
 
+func (n *nomadFSM) applyAllocUpdate(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "alloc_update"}, time.Now())
+	var req structs.AllocUpdateRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.UpdateAllocations(index, req.Evict, req.Alloc); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: UpdateAllocations failed: %v", err)
+		return err
+	}
+	return nil
+}
+
 func (n *nomadFSM) Snapshot() (raft.FSMSnapshot, error) {
 	// Create a new snapshot
 	snap, err := n.state.Snapshot()
@@ -289,6 +306,15 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 				return err
 			}
 
+		case AllocSnapshot:
+			alloc := new(structs.Allocation)
+			if err := dec.Decode(alloc); err != nil {
+				return err
+			}
+			if err := restore.AllocRestore(alloc); err != nil {
+				return err
+			}
+
 		case IndexSnapshot:
 			idx := new(IndexEntry)
 			if err := dec.Decode(idx); err != nil {
@@ -334,6 +360,10 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 		return err
 	}
 	if err := s.persistEvals(sink, encoder); err != nil {
+		sink.Cancel()
+		return err
+	}
+	if err := s.persistAllocs(sink, encoder); err != nil {
 		sink.Cancel()
 		return err
 	}
@@ -442,6 +472,33 @@ func (s *nomadSnapshot) persistEvals(sink raft.SnapshotSink,
 		// Write out the evaluation
 		sink.Write([]byte{byte(EvalSnapshot)})
 		if err := encoder.Encode(eval); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *nomadSnapshot) persistAllocs(sink raft.SnapshotSink,
+	encoder *codec.Encoder) error {
+	// Get all the allocations
+	allocs, err := s.snap.Allocs()
+	if err != nil {
+		return err
+	}
+
+	for {
+		// Get the next item
+		raw := allocs.Next()
+		if raw == nil {
+			break
+		}
+
+		// Prepare the request struct
+		alloc := raw.(*structs.Allocation)
+
+		// Write out the evaluation
+		sink.Write([]byte{byte(AllocSnapshot)})
+		if err := encoder.Encode(alloc); err != nil {
 			return err
 		}
 	}
