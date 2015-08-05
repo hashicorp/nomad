@@ -196,5 +196,89 @@ func TestWorker_SubmitPlan(t *testing.T) {
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	// TODO: This requires the plan apply to work
+	// Register node
+	node := mockNode()
+	testRegisterNode(t, s1, node)
+
+	// Create an allocation plan
+	alloc := mockAlloc()
+	plan := &structs.Plan{
+		NodeAllocation: map[string][]*structs.Allocation{
+			node.ID: []*structs.Allocation{alloc},
+		},
+	}
+
+	// Attempt to submit a plan
+	w := &Worker{srv: s1, logger: s1.logger}
+	result, state, err := w.SubmitPlan(plan)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Should have no update
+	if state != nil {
+		t.Fatalf("unexpected state update")
+	}
+
+	// Result should have allocated
+	if result == nil {
+		t.Fatalf("missing result")
+	}
+
+	if result.AllocIndex == 0 {
+		t.Fatalf("Bad: %#v", result)
+	}
+	if len(result.NodeAllocation) != 1 {
+		t.Fatalf("Bad: %#v", result)
+	}
+}
+
+func TestWorker_SubmitPlan_MissingNodeRefresh(t *testing.T) {
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+		c.EnabledSchedulers = []string{structs.JobTypeService}
+	})
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Register node
+	node := mockNode()
+	testRegisterNode(t, s1, node)
+
+	// Create an allocation plan, with unregistered node
+	node2 := mockNode()
+	alloc := mockAlloc()
+	plan := &structs.Plan{
+		NodeAllocation: map[string][]*structs.Allocation{
+			node2.ID: []*structs.Allocation{alloc},
+		},
+	}
+
+	// Attempt to submit a plan
+	w := &Worker{srv: s1, logger: s1.logger}
+	result, state, err := w.SubmitPlan(plan)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Result should have allocated
+	if result == nil {
+		t.Fatalf("missing result")
+	}
+
+	// Expect no allocation and forced refresh
+	if result.AllocIndex != 0 {
+		t.Fatalf("Bad: %#v", result)
+	}
+	if result.RefreshIndex == 0 {
+		t.Fatalf("Bad: %#v", result)
+	}
+	if len(result.NodeAllocation) != 0 {
+		t.Fatalf("Bad: %#v", result)
+	}
+
+	// Should have an update
+	if state == nil {
+		t.Fatalf("expected state update")
+	}
 }
