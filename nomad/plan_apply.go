@@ -173,7 +173,7 @@ func addResources(base, delta *structs.Resources) {
 	base.DiskMB += delta.DiskMB
 	base.IOPS += delta.IOPS
 	for _, net := range delta.Networks {
-		if idx := networkIndexByCidr(base.Networks, net.CIDR); idx >= 0 {
+		if idx := base.NetIndexByCIDR(net.CIDR); idx >= 0 {
 			base.Networks[idx].ReservedPorts = append(base.Networks[idx].ReservedPorts,
 				net.ReservedPorts...)
 			base.Networks[idx].MBits += net.MBits
@@ -196,7 +196,7 @@ func resourceSubset(super, sub *structs.Resources) bool {
 		return false
 	}
 	for _, net := range super.Networks {
-		idx := networkIndexByCidr(sub.Networks, net.CIDR)
+		idx := sub.NetIndexByCIDR(net.CIDR)
 		if idx >= 0 {
 			if net.MBits < sub.Networks[idx].MBits {
 				return false
@@ -218,15 +218,4 @@ func portsOvercommited(r *structs.Resources) bool {
 		}
 	}
 	return false
-}
-
-// networkIndexByCidr finds the index in a list of network resources
-// that matches a given CIDR
-func networkIndexByCidr(list []*structs.NetworkResource, cidr string) int {
-	for idx, net := range list {
-		if net.CIDR == cidr {
-			return idx
-		}
-	}
-	return -1
 }

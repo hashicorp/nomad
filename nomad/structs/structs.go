@@ -307,6 +307,18 @@ type Resources struct {
 	Networks []*NetworkResource
 }
 
+// NetIndexByCIDR scans the list of networks for a matching
+// CIDR, returning the index. This currently ONLY handles
+// an exact match and not a subset CIDR.
+func (r *Resources) NetIndexByCIDR(cidr string) int {
+	for idx, net := range r.Networks {
+		if net.CIDR == cidr {
+			return idx
+		}
+	}
+	return -1
+}
+
 // NetworkResource is used to represesent available network
 // resources
 type NetworkResource struct {
