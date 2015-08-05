@@ -132,33 +132,3 @@ func (s *Server) applyPlan(result *structs.PlanResult) (uint64, error) {
 	_, index, err := s.raftApply(structs.AllocUpdateRequestType, &req)
 	return index, err
 }
-
-// AllocationsFit checks if a given set of allocations will fit on a node
-func AllocationsFit(node *structs.Node, allocs []*structs.Allocation) bool {
-	// Start with no resource utilization
-	resourcesUsed := new(structs.Resources)
-
-	// Add the reserved resources of the node
-	if node.Reserved != nil {
-		addResources(resourcesUsed, node.Reserved)
-	}
-
-	// For each allocaiton, add the resources
-	for _, alloc := range allocs {
-		addResources(resourcesUsed, alloc.Resources)
-	}
-
-	// Check that the node resources are a super set of those
-	// that are being allocated
-	if !node.Resources.Superset(resourcesUsed) {
-		return false
-	}
-
-	// Ensure ports are not over commited
-	if structs.PortsOvercommited(resourcesUsed) {
-		return false
-	}
-
-	// Everything is in order!
-	return true
-}

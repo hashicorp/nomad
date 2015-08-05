@@ -40,3 +40,67 @@ func TestPortsOvercommitted(t *testing.T) {
 		t.Fatalf("bad")
 	}
 }
+
+func TestAllocsFit(t *testing.T) {
+	n := &Node{
+		Resources: &Resources{
+			CPU:      2.0,
+			MemoryMB: 2048,
+			DiskMB:   10000,
+			IOPS:     100,
+			Networks: []*NetworkResource{
+				&NetworkResource{
+					CIDR:  "10.0.0.0/8",
+					MBits: 100,
+				},
+			},
+		},
+		Reserved: &Resources{
+			CPU:      1.0,
+			MemoryMB: 1024,
+			DiskMB:   5000,
+			IOPS:     50,
+			Networks: []*NetworkResource{
+				&NetworkResource{
+					CIDR:          "10.0.0.0/8",
+					MBits:         50,
+					ReservedPorts: []int{80},
+				},
+			},
+		},
+	}
+
+	a1 := &Allocation{
+		Resources: &Resources{
+			CPU:      1.0,
+			MemoryMB: 1024,
+			DiskMB:   5000,
+			IOPS:     50,
+			Networks: []*NetworkResource{
+				&NetworkResource{
+					CIDR:          "10.0.0.0/8",
+					MBits:         50,
+					ReservedPorts: []int{8000},
+				},
+			},
+		},
+	}
+
+	// Should fit one allocation
+	fit, err := AllocsFit(n, []*Allocation{a1})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if !fit {
+		t.Fatalf("Bad")
+	}
+
+	// Should not fit second allocation
+	fit, err = AllocsFit(n, []*Allocation{a1, a1})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if fit {
+		t.Fatalf("Bad")
+	}
+}
