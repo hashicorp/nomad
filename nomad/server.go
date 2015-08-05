@@ -188,10 +188,10 @@ func NewServer(config *Config) (*Server, error) {
 	go s.listen()
 
 	// Emit metrics for the eval broker
-	go evalBroker.EmitStats(time.Second)
+	go evalBroker.EmitStats(time.Second, s.shutdownCh)
 
 	// Emit metrics for the plan queue
-	go planQueue.EmitStats(time.Second)
+	go planQueue.EmitStats(time.Second, s.shutdownCh)
 
 	// Done
 	return s, nil

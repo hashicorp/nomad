@@ -395,16 +395,20 @@ func (b *EvalBroker) Stats() *BrokerStats {
 }
 
 // EmitStats is used to export metrics about the broker while enabled
-func (b *EvalBroker) EmitStats(period time.Duration) {
+func (b *EvalBroker) EmitStats(period time.Duration, stopCh chan struct{}) {
 	for {
-		<-time.After(period)
+		select {
+		case <-time.After(period):
+			stats := b.Stats()
+			metrics.SetGauge([]string{"nomad", "broker", "total_ready"}, float32(stats.TotalReady))
+			metrics.SetGauge([]string{"nomad", "broker", "total_unacked"}, float32(stats.TotalUnacked))
+			for sched, schedStats := range stats.ByScheduler {
+				metrics.SetGauge([]string{"nomad", "broker", sched, "ready"}, float32(schedStats.Ready))
+				metrics.SetGauge([]string{"nomad", "broker", sched, "unacked"}, float32(schedStats.Unacked))
+			}
 
-		stats := b.Stats()
-		metrics.SetGauge([]string{"nomad", "broker", "total_ready"}, float32(stats.TotalReady))
-		metrics.SetGauge([]string{"nomad", "broker", "total_unacked"}, float32(stats.TotalUnacked))
-		for sched, schedStats := range stats.ByScheduler {
-			metrics.SetGauge([]string{"nomad", "broker", sched, "ready"}, float32(schedStats.Ready))
-			metrics.SetGauge([]string{"nomad", "broker", sched, "unacked"}, float32(schedStats.Unacked))
+		case <-stopCh:
+			return
 		}
 	}
 }

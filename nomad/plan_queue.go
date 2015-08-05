@@ -195,12 +195,16 @@ func (q *PlanQueue) Stats() *QueueStats {
 }
 
 // EmitStats is used to export metrics about the broker while enabled
-func (q *PlanQueue) EmitStats(period time.Duration) {
+func (q *PlanQueue) EmitStats(period time.Duration, stopCh chan struct{}) {
 	for {
-		<-time.After(period)
+		select {
+		case <-time.After(period):
+			stats := q.Stats()
+			metrics.SetGauge([]string{"nomad", "plan", "queue_depth"}, float32(stats.Depth))
 
-		stats := q.Stats()
-		metrics.SetGauge([]string{"nomad", "plan", "queue_depth"}, float32(stats.Depth))
+		case <-stopCh:
+			return
+		}
 	}
 }
 
