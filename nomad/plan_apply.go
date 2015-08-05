@@ -92,7 +92,7 @@ func evaluatePlan(snap *StateSnapshot, plan *structs.Plan) (*structs.PlanResult,
 			if err != nil {
 				return nil, err
 			}
-			nodeIndex, err := snap.GetIndex("node")
+			nodeIndex, err := snap.GetIndex("nodes")
 			if err != nil {
 				return nil, err
 			}
