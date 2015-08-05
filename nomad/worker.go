@@ -3,6 +3,7 @@ package nomad
 import (
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/armon/go-metrics"
@@ -221,13 +222,18 @@ func (w *Worker) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, scheduler.
 	}
 	var resp structs.PlanResponse
 
+SUBMIT:
 	// Make the RPC call
 	if err := w.srv.RPC("Plan.Submit", &req, &resp); err != nil {
 		w.logger.Printf("[ERR] worker: failed to submit plan for evaluation %s: %v",
 			plan.EvalID, err)
+		if w.shouldResubmit(err) && !w.backoffErr() {
+			goto SUBMIT
+		}
 		return nil, nil, err
 	} else {
 		w.logger.Printf("[DEBUG] worker: submitted plan for evaluation %s", plan.EvalID)
+		w.backoffReset()
 	}
 
 	// Look for a result
@@ -243,6 +249,7 @@ func (w *Worker) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, scheduler.
 	var state scheduler.State
 	if result.RefreshIndex != 0 {
 		// Wait for the the raft log to catchup to the evaluation
+		w.logger.Printf("[DEBUG] worker: refreshing state to index %d", result.RefreshIndex)
 		if err := w.waitForIndex(result.RefreshIndex, raftSyncLimit); err != nil {
 			return nil, nil, err
 		}
@@ -257,6 +264,21 @@ func (w *Worker) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, scheduler.
 
 	// Return the result and potential state update
 	return result, state, nil
+}
+
+// shouldResubmit checks if a given error should be swallowed and the plan
+// resubmitted after a backoff. Usually these are transient errors that
+// the cluster should heal from quickly.
+func (w *Worker) shouldResubmit(err error) bool {
+	s := err.Error()
+	switch {
+	case strings.Contains(s, "No cluster leader"):
+		return true
+	case strings.Contains(s, "plan queue is disabled"):
+		return true
+	default:
+		return false
+	}
 }
 
 // backoffErr is used to do an exponential back off on error. This is
