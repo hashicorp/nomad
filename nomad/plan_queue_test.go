@@ -27,7 +27,13 @@ func mockPlanResult() *structs.PlanResult {
 
 func TestPlanQueue_Enqueue_Dequeue(t *testing.T) {
 	pq := testPlanQueue(t)
+	if pq.Enabled() {
+		t.Fatalf("should not be enabled")
+	}
 	pq.SetEnabled(true)
+	if !pq.Enabled() {
+		t.Fatalf("should be enabled")
+	}
 
 	plan := mockPlan()
 	future, err := pq.Enqueue(plan)

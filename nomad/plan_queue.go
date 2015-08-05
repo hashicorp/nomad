@@ -73,6 +73,13 @@ func (p *pendingPlan) respond(result *structs.PlanResult, err error) {
 // priority queue
 type PendingPlans []*pendingPlan
 
+// Enabled is used to check if the queue is enabled.
+func (q *PlanQueue) Enabled() bool {
+	q.l.RLock()
+	defer q.l.RUnlock()
+	return q.enabled
+}
+
 // SetEnabled is used to control if the queue is enabled. The queue
 // should only be enabled on the active leader.
 func (q *PlanQueue) SetEnabled(enabled bool) {
