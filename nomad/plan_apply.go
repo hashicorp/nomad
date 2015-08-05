@@ -95,7 +95,7 @@ func (s *Server) evaluatePlan(plan *structs.Plan) (*structs.PlanResult, error) {
 			if err != nil {
 				return nil, err
 			}
-			result.RefreshIndex = max(nodeIndex, allocIndex)
+			result.RefreshIndex = maxUint64(nodeIndex, allocIndex)
 
 			// If we require all-at-once scheduling, there is no point
 			// to continue the evaluation, as we've already failed.
@@ -131,14 +131,6 @@ func (s *Server) applyPlan(result *structs.PlanResult) (uint64, error) {
 
 	_, index, err := s.raftApply(structs.AllocUpdateRequestType, &req)
 	return index, err
-}
-
-// max returns the maximum value
-func max(a, b uint64) uint64 {
-	if a >= b {
-		return a
-	}
-	return b
 }
 
 // AllocationsFit checks if a given set of allocations will fit on a node

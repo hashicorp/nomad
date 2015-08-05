@@ -102,3 +102,15 @@ func TestShuffleStrings(t *testing.T) {
 		t.Fatalf("shuffle failed")
 	}
 }
+
+func TestMaxUint64(t *testing.T) {
+	if maxUint64(1, 2) != 2 {
+		t.Fatalf("bad")
+	}
+	if maxUint64(2, 2) != 2 {
+		t.Fatalf("bad")
+	}
+	if maxUint64(2, 1) != 2 {
+		t.Fatalf("bad")
+	}
+}
