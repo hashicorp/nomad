@@ -319,6 +319,39 @@ func (r *Resources) NetIndexByCIDR(cidr string) int {
 	return -1
 }
 
+// Superset checks if one set of resources is a superset
+// of another.
+func (r *Resources) Superset(other *Resources) bool {
+	if r.CPU < other.CPU {
+		return false
+	}
+	if r.MemoryMB < other.MemoryMB {
+		return false
+	}
+	if r.DiskMB < other.DiskMB {
+		return false
+	}
+	if r.IOPS < other.IOPS {
+		return false
+	}
+	for _, net := range r.Networks {
+		idx := other.NetIndexByCIDR(net.CIDR)
+		if idx >= 0 {
+			if net.MBits < other.Networks[idx].MBits {
+				return false
+			}
+		}
+	}
+	// Check that other does not have a network we are missing
+	for _, net := range other.Networks {
+		idx := r.NetIndexByCIDR(net.CIDR)
+		if idx == -1 {
+			return false
+		}
+	}
+	return true
+}
+
 // NetworkResource is used to represesent available network
 // resources
 type NetworkResource struct {

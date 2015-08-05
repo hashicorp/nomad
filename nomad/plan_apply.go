@@ -180,28 +180,3 @@ func addResources(base, delta *structs.Resources) {
 		}
 	}
 }
-
-// resourceSubset checks if a resource utilization is a subset of another set
-func resourceSubset(super, sub *structs.Resources) bool {
-	if super.CPU < sub.CPU {
-		return false
-	}
-	if super.MemoryMB < sub.MemoryMB {
-		return false
-	}
-	if super.DiskMB < sub.DiskMB {
-		return false
-	}
-	if super.IOPS < sub.IOPS {
-		return false
-	}
-	for _, net := range super.Networks {
-		idx := sub.NetIndexByCIDR(net.CIDR)
-		if idx >= 0 {
-			if net.MBits < sub.Networks[idx].MBits {
-				return false
-			}
-		}
-	}
-	return true
-}
