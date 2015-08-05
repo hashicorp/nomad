@@ -18,3 +18,25 @@ func TestRemoveAllocs(t *testing.T) {
 		t.Fatalf("bad: %#v", out)
 	}
 }
+
+func TestPortsOvercommitted(t *testing.T) {
+	r := &Resources{
+		Networks: []*NetworkResource{
+			&NetworkResource{
+				ReservedPorts: []int{22, 80},
+			},
+			&NetworkResource{
+				ReservedPorts: []int{22, 80},
+			},
+		},
+	}
+	if PortsOvercommited(r) {
+		t.Fatalf("bad")
+	}
+
+	// Overcommit 22
+	r.Networks[1].ReservedPorts[1] = 22
+	if !PortsOvercommited(r) {
+		t.Fatalf("bad")
+	}
+}

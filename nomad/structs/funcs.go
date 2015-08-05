@@ -21,3 +21,19 @@ func RemoveAllocs(alloc []*Allocation, remove []string) []*Allocation {
 	alloc = alloc[:n]
 	return alloc
 }
+
+// PortsOvercommited checks if any ports are over-committed.
+// This does not handle CIDR subsets, and computes for the entire
+// CIDR block currently.
+func PortsOvercommited(r *Resources) bool {
+	for _, net := range r.Networks {
+		ports := make(map[int]struct{})
+		for _, port := range net.ReservedPorts {
+			if _, ok := ports[port]; ok {
+				return true
+			}
+			ports[port] = struct{}{}
+		}
+	}
+	return false
+}

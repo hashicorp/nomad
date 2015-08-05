@@ -154,8 +154,8 @@ func AllocationsFit(node *structs.Node, allocs []*structs.Allocation) bool {
 		return false
 	}
 
-	// portsOvercommited
-	if portsOvercommited(resourcesUsed) {
+	// Ensure ports are not over commited
+	if structs.PortsOvercommited(resourcesUsed) {
 		return false
 	}
 
@@ -204,18 +204,4 @@ func resourceSubset(super, sub *structs.Resources) bool {
 		}
 	}
 	return true
-}
-
-// portsOvercommited checks if any of the port resources are over-committed
-func portsOvercommited(r *structs.Resources) bool {
-	for _, net := range r.Networks {
-		ports := make(map[int]struct{})
-		for _, port := range net.ReservedPorts {
-			if _, ok := ports[port]; ok {
-				return true
-			}
-			ports[port] = struct{}{}
-		}
-	}
-	return false
 }
