@@ -58,7 +58,7 @@ func mockNode() *structs.Node {
 			"pci-dss": "true",
 		},
 		NodeClass: "linux-medium-pci",
-		Status:    structs.NodeStatusInit,
+		Status:    structs.NodeStatusReady,
 	}
 	return node
 }
@@ -125,6 +125,20 @@ func mockAlloc() *structs.Allocation {
 	alloc := &structs.Allocation{
 		ID:     generateUUID(),
 		NodeID: "foo",
+		Resources: &structs.Resources{
+			CPU:      1.0,
+			MemoryMB: 1024,
+			DiskMB:   1024,
+			IOPS:     10,
+			Networks: []*structs.NetworkResource{
+				&structs.NetworkResource{
+					Public:        true,
+					CIDR:          "192.168.0.100/32",
+					ReservedPorts: []int{12345},
+					MBits:         100,
+				},
+			},
+		},
 	}
 	return alloc
 }
