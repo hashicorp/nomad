@@ -41,11 +41,19 @@ func TestEvalBroker_Enqueue_Dequeue_Nack_Ack(t *testing.T) {
 		t.Fatalf("bad: %#v", stats)
 	}
 
+	if b.Enabled() {
+		t.Fatalf("should not be enabled")
+	}
+
 	// Enable the broker, and enqueue
 	b.SetEnabled(true)
 	err = b.Enqueue(eval)
 	if err != nil {
 		t.Fatalf("err: %v", err)
+	}
+
+	if !b.Enabled() {
+		t.Fatalf("should be enabled")
 	}
 
 	// Verify enqueue is done

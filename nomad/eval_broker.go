@@ -64,6 +64,13 @@ func NewEvalBroker(timeout time.Duration) (*EvalBroker, error) {
 	return b, nil
 }
 
+// Enabled is used to check if the broker is enabled.
+func (b *EvalBroker) Enabled() bool {
+	b.l.RLock()
+	defer b.l.RUnlock()
+	return b.enabled
+}
+
 // SetEnabled is used to control if the broker is enabled. The broker
 // should only be enabled on the active leader.
 func (b *EvalBroker) SetEnabled(enabled bool) {
