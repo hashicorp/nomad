@@ -86,7 +86,12 @@ func TestEvalEndpoint_Ack(t *testing.T) {
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
-	testutil.WaitForLeader(t, s1.RPC)
+
+	testutil.WaitForResult(func() (bool, error) {
+		return s1.evalBroker.Enabled(), nil
+	}, func(err error) {
+		t.Fatalf("should enable eval broker")
+	})
 
 	// Create the register request
 	eval1 := mockEval()
@@ -119,7 +124,12 @@ func TestEvalEndpoint_Nack(t *testing.T) {
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
-	testutil.WaitForLeader(t, s1.RPC)
+
+	testutil.WaitForResult(func() (bool, error) {
+		return s1.evalBroker.Enabled(), nil
+	}, func(err error) {
+		t.Fatalf("should enable eval broker")
+	})
 
 	// Create the register request
 	eval1 := mockEval()
