@@ -19,8 +19,16 @@ func (s *Server) planApply() {
 			return
 		}
 
+		// Snapshot the state so that we have a consistent view of the world
+		snap, err := s.fsm.State().Snapshot()
+		if err != nil {
+			s.logger.Printf("[ERR] nomad: failed to snapshot state: %v", err)
+			pending.respond(nil, err)
+			continue
+		}
+
 		// Evaluate the plan
-		result, err := s.evaluatePlan(pending.plan)
+		result, err := evaluatePlan(snap, pending.plan)
 		if err != nil {
 			s.logger.Printf("[ERR] nomad: failed to evaluate plan: %v", err)
 			pending.respond(nil, err)
@@ -43,17 +51,26 @@ func (s *Server) planApply() {
 	}
 }
 
+// applyPlan is used to apply the plan result and to return the alloc index
+func (s *Server) applyPlan(result *structs.PlanResult) (uint64, error) {
+	defer metrics.MeasureSince([]string{"nomad", "plan", "apply"}, time.Now())
+	req := structs.AllocUpdateRequest{}
+	for _, evictList := range result.NodeEvict {
+		req.Evict = append(req.Evict, evictList...)
+	}
+	for _, allocList := range result.NodeAllocation {
+		req.Alloc = append(req.Alloc, allocList...)
+	}
+
+	_, index, err := s.raftApply(structs.AllocUpdateRequestType, &req)
+	return index, err
+}
+
 // evaluatePlan is used to determine what portions of a plan
 // can be applied if any. Returns if there should be a plan application
 // which may be partial or if there was an error
-func (s *Server) evaluatePlan(plan *structs.Plan) (*structs.PlanResult, error) {
+func evaluatePlan(snap *StateSnapshot, plan *structs.Plan) (*structs.PlanResult, error) {
 	defer metrics.MeasureSince([]string{"nomad", "plan", "evaluate"}, time.Now())
-
-	// Snapshot the state so that we have a consistent view of the world
-	snap, err := s.fsm.State().Snapshot()
-	if err != nil {
-		return nil, fmt.Errorf("failed to snapshot state: %v", err)
-	}
 
 	// Create a result holder for the plan
 	result := &structs.PlanResult{
@@ -84,6 +101,8 @@ func (s *Server) evaluatePlan(plan *structs.Plan) (*structs.PlanResult, error) {
 			// If we require all-at-once scheduling, there is no point
 			// to continue the evaluation, as we've already failed.
 			if plan.AllAtOnce {
+				result.NodeEvict = nil
+				result.NodeAllocation = nil
 				return result, nil
 			}
 
@@ -96,21 +115,6 @@ func (s *Server) evaluatePlan(plan *structs.Plan) (*structs.PlanResult, error) {
 		result.NodeAllocation[nodeID] = plan.NodeAllocation[nodeID]
 	}
 	return result, nil
-}
-
-// applyPlan is used to apply the plan result and to return the alloc index
-func (s *Server) applyPlan(result *structs.PlanResult) (uint64, error) {
-	defer metrics.MeasureSince([]string{"nomad", "plan", "apply"}, time.Now())
-	req := structs.AllocUpdateRequest{}
-	for _, evictList := range result.NodeEvict {
-		req.Evict = append(req.Evict, evictList...)
-	}
-	for _, allocList := range result.NodeAllocation {
-		req.Alloc = append(req.Alloc, allocList...)
-	}
-
-	_, index, err := s.raftApply(structs.AllocUpdateRequestType, &req)
-	return index, err
 }
 
 // evaluateNodePlan is used to evalute the plan for a single node,

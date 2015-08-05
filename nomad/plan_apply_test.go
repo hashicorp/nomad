@@ -101,6 +101,94 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	}
 }
 
+func TestPlanApply_EvalPlan_Simple(t *testing.T) {
+	state := testStateStore(t)
+	node := mockNode()
+	state.RegisterNode(1000, node)
+	snap, _ := state.Snapshot()
+
+	alloc := mockAlloc()
+	plan := &structs.Plan{
+		NodeAllocation: map[string][]*structs.Allocation{
+			node.ID: []*structs.Allocation{alloc},
+		},
+	}
+
+	result, err := evaluatePlan(snap, plan)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if result == nil {
+		t.Fatalf("missing result")
+	}
+}
+
+func TestPlanApply_EvalPlan_Partial(t *testing.T) {
+	state := testStateStore(t)
+	node := mockNode()
+	state.RegisterNode(1000, node)
+	node2 := mockNode()
+	state.RegisterNode(1001, node2)
+	snap, _ := state.Snapshot()
+
+	alloc := mockAlloc()
+	alloc2 := mockAlloc() // Ensure alloc2 does not fit
+	alloc2.Resources = node2.Resources
+	plan := &structs.Plan{
+		NodeAllocation: map[string][]*structs.Allocation{
+			node.ID:  []*structs.Allocation{alloc},
+			node2.ID: []*structs.Allocation{alloc2},
+		},
+	}
+
+	result, err := evaluatePlan(snap, plan)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if result == nil {
+		t.Fatalf("missing result")
+	}
+
+	if _, ok := result.NodeAllocation[node.ID]; !ok {
+		t.Fatalf("should allow alloc")
+	}
+	if _, ok := result.NodeAllocation[node2.ID]; ok {
+		t.Fatalf("should not allow alloc2")
+	}
+}
+
+func TestPlanApply_EvalPlan_Partial_AllAtOnce(t *testing.T) {
+	state := testStateStore(t)
+	node := mockNode()
+	state.RegisterNode(1000, node)
+	node2 := mockNode()
+	state.RegisterNode(1001, node2)
+	snap, _ := state.Snapshot()
+
+	alloc := mockAlloc()
+	alloc2 := mockAlloc() // Ensure alloc2 does not fit
+	alloc2.Resources = node2.Resources
+	plan := &structs.Plan{
+		AllAtOnce: true, // Require all to make progress
+		NodeAllocation: map[string][]*structs.Allocation{
+			node.ID:  []*structs.Allocation{alloc},
+			node2.ID: []*structs.Allocation{alloc2},
+		},
+	}
+
+	result, err := evaluatePlan(snap, plan)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if result == nil {
+		t.Fatalf("missing result")
+	}
+
+	if len(result.NodeAllocation) != 0 {
+		t.Fatalf("should not alloc: %v", result.NodeAllocation)
+	}
+}
+
 func TestPlanApply_EvalNodePlan_Simple(t *testing.T) {
 	state := testStateStore(t)
 	node := mockNode()
