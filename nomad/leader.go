@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/armon/go-metrics"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
 )
@@ -106,8 +107,42 @@ func (s *Server) establishLeadership() error {
 	// Enable the eval broker, since we are now the leader
 	s.evalBroker.SetEnabled(true)
 
-	// TODO: Restore the eval broker state
+	// Restore the eval broker state
+	if err := s.restoreEvalBroker(); err != nil {
+		return err
+	}
+	return nil
+}
 
+// restoreEvalBroker is used to restore all pending evaluations
+// into the eval broker. The broker is maintained only by the leader,
+// so it must be restored anytime a leadership transition takes place.
+func (s *Server) restoreEvalBroker() error {
+	// Get an iterator over every evaluation
+	iter, err := s.fsm.State().Evals()
+	if err != nil {
+		return fmt.Errorf("failed to get evaluations: %v", err)
+	}
+
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		eval := raw.(*structs.Evaluation)
+
+		switch eval.Status {
+		case structs.EvalStatusPending:
+			if err := s.evalBroker.Enqueue(eval); err != nil {
+				return fmt.Errorf("failed to enqueue evaluation %s: %v", eval.ID, err)
+			}
+		case structs.EvalStatusComplete, structs.EvalStatusCanceled:
+			// Nothing to do
+		default:
+			s.logger.Printf("[ERR] nomad: unhandled evaluation (%s) status %s",
+				eval.ID, eval.Status)
+		}
+	}
 	return nil
 }
 

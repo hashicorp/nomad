@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 )
 
@@ -175,6 +176,12 @@ func TestLeader_PlanQueue_Reset(t *testing.T) {
 		t.Fatalf("should enable plan queue")
 	}
 
+	for _, s := range servers {
+		if !s.IsLeader() && s.planQueue.Enabled() {
+			t.Fatalf("plan queue should not be enabled")
+		}
+	}
+
 	// Kill the leader
 	leader.Shutdown()
 	time.Sleep(100 * time.Millisecond)
@@ -198,5 +205,81 @@ func TestLeader_PlanQueue_Reset(t *testing.T) {
 		return leader.planQueue.Enabled(), nil
 	}, func(err error) {
 		t.Fatalf("should enable plan queue")
+	})
+}
+
+func TestLeader_EvalBroker_Reset(t *testing.T) {
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+	})
+	defer s1.Shutdown()
+
+	s2 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+		c.DevDisableBootstrap = true
+	})
+	defer s2.Shutdown()
+
+	s3 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+		c.DevDisableBootstrap = true
+	})
+	defer s3.Shutdown()
+	servers := []*Server{s1, s2, s3}
+	testJoin(t, s1, s2, s3)
+
+	for _, s := range servers {
+		testutil.WaitForResult(func() (bool, error) {
+			peers, _ := s.raftPeers.Peers()
+			return len(peers) == 3, nil
+		}, func(err error) {
+			t.Fatalf("should have 3 peers")
+		})
+	}
+
+	var leader *Server
+	for _, s := range servers {
+		if s.IsLeader() {
+			leader = s
+			break
+		}
+	}
+	if leader == nil {
+		t.Fatalf("Should have a leader")
+	}
+
+	// Inject a pending eval
+	req := structs.EvalUpdateRequest{
+		Eval: mockEval(),
+	}
+	_, _, err := leader.raftApply(structs.EvalUpdateRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Kill the leader
+	leader.Shutdown()
+	time.Sleep(100 * time.Millisecond)
+
+	// Wait for a new leader
+	leader = nil
+	testutil.WaitForResult(func() (bool, error) {
+		for _, s := range servers {
+			if s.IsLeader() {
+				leader = s
+				return true, nil
+			}
+		}
+		return false, nil
+	}, func(err error) {
+		t.Fatalf("should have leader")
+	})
+
+	// Check that the new leader has a pending evaluation
+	testutil.WaitForResult(func() (bool, error) {
+		stats := leader.evalBroker.Stats()
+		return stats.TotalReady == 1, nil
+	}, func(err error) {
+		t.Fatalf("should have pending evaluation")
 	})
 }
