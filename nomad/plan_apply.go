@@ -150,7 +150,7 @@ func AllocationsFit(node *structs.Node, allocs []*structs.Allocation) bool {
 
 	// Check that the node resources are a super set of those
 	// that are being allocated
-	if !resourceSubset(node.Resources, resourcesUsed) {
+	if !node.Resources.Superset(resourcesUsed) {
 		return false
 	}
 
@@ -161,22 +161,4 @@ func AllocationsFit(node *structs.Node, allocs []*structs.Allocation) bool {
 
 	// Everything is in order!
 	return true
-}
-
-// addResources adds the resources of the delta to the base
-func addResources(base, delta *structs.Resources) {
-	if base == nil || delta == nil {
-		return
-	}
-	base.CPU += delta.CPU
-	base.MemoryMB += delta.MemoryMB
-	base.DiskMB += delta.DiskMB
-	base.IOPS += delta.IOPS
-	for _, net := range delta.Networks {
-		if idx := base.NetIndexByCIDR(net.CIDR); idx >= 0 {
-			base.Networks[idx].ReservedPorts = append(base.Networks[idx].ReservedPorts,
-				net.ReservedPorts...)
-			base.Networks[idx].MBits += net.MBits
-		}
-	}
 }

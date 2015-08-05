@@ -352,6 +352,27 @@ func (r *Resources) Superset(other *Resources) bool {
 	return true
 }
 
+// Add adds the resources of the delta to this, potentially
+// returning an error if not possible.
+func (r *Resources) Add(delta *Resources) error {
+	if delta == nil {
+		return nil
+	}
+	r.CPU += delta.CPU
+	r.MemoryMB += delta.MemoryMB
+	r.DiskMB += delta.DiskMB
+	r.IOPS += delta.IOPS
+
+	for _, net := range delta.Networks {
+		idx := r.NetIndexByCIDR(net.CIDR)
+		if idx == -1 {
+			return fmt.Errorf("missing network for CIDR %s", net.CIDR)
+		}
+		r.Networks[idx].Add(net)
+	}
+	return nil
+}
+
 // NetworkResource is used to represesent available network
 // resources
 type NetworkResource struct {
@@ -359,6 +380,15 @@ type NetworkResource struct {
 	CIDR          string // CIDR block of addresses
 	ReservedPorts []int  // Reserved ports
 	MBits         int    // Throughput
+}
+
+// Add adds the resources of the delta to this, potentially
+// returning an error if not possible.
+func (n *NetworkResource) Add(delta *NetworkResource) {
+	if len(delta.ReservedPorts) > 0 {
+		n.ReservedPorts = append(n.ReservedPorts, delta.ReservedPorts...)
+	}
+	n.MBits += delta.MBits
 }
 
 const (

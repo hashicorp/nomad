@@ -63,6 +63,58 @@ func TestResource_Superset(t *testing.T) {
 	}
 }
 
+func TestResource_Add(t *testing.T) {
+	r1 := &Resources{
+		CPU:      2.0,
+		MemoryMB: 2048,
+		DiskMB:   10000,
+		IOPS:     100,
+		Networks: []*NetworkResource{
+			&NetworkResource{
+				CIDR:          "10.0.0.0/8",
+				MBits:         100,
+				ReservedPorts: []int{22},
+			},
+		},
+	}
+	r2 := &Resources{
+		CPU:      1.0,
+		MemoryMB: 1024,
+		DiskMB:   5000,
+		IOPS:     50,
+		Networks: []*NetworkResource{
+			&NetworkResource{
+				CIDR:          "10.0.0.0/8",
+				MBits:         50,
+				ReservedPorts: []int{80},
+			},
+		},
+	}
+
+	err := r1.Add(r2)
+	if err != nil {
+		t.Fatalf("Err: %v", err)
+	}
+
+	expect := &Resources{
+		CPU:      3.0,
+		MemoryMB: 3072,
+		DiskMB:   15000,
+		IOPS:     150,
+		Networks: []*NetworkResource{
+			&NetworkResource{
+				CIDR:          "10.0.0.0/8",
+				MBits:         150,
+				ReservedPorts: []int{22, 80},
+			},
+		},
+	}
+
+	if !reflect.DeepEqual(expect.Networks, r1.Networks) {
+		t.Fatalf("bad: %#v %#v", expect, r1)
+	}
+}
+
 func TestEncodeDecode(t *testing.T) {
 	type FooRequest struct {
 		Foo string
