@@ -283,9 +283,9 @@ func TestEvalBroker_Dequeue_Fairness(t *testing.T) {
 			counter -= 1
 		}
 
-		// The odds are less than 1/65536 that
-		// we see the same sequence 10 times in a row
-		if counter >= 16 || counter <= -16 {
+		// This will fail randomly at times. It is very hard to
+		// test deterministically that its acting randomly.
+		if counter >= 20 || counter <= -20 {
 			t.Fatalf("unlikely sequence: %d", counter)
 		}
 	}

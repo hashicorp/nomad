@@ -24,9 +24,6 @@ func TestPlanEndpoint_Submit(t *testing.T) {
 	if err := msgpackrpc.CallWithCodec(codec, "Plan.Submit", req, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if resp.Index == 0 {
-		t.Fatalf("Bad index: %d", resp.Index)
-	}
 	if resp.Result == nil {
 		t.Fatalf("missing result")
 	}
