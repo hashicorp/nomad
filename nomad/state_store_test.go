@@ -785,6 +785,34 @@ func TestStateStore_EvictAlloc_GetAlloc(t *testing.T) {
 	}
 }
 
+func TestStateStore_AllocsByNode(t *testing.T) {
+	state := testStateStore(t)
+	var allocs []*structs.Allocation
+
+	for i := 0; i < 10; i++ {
+		alloc := mockAlloc()
+		alloc.NodeID = "foo"
+		allocs = append(allocs, alloc)
+	}
+
+	err := state.UpdateAllocations(1000, nil, allocs)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	out, err := state.AllocsByNode("foo")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	sort.Sort(AllocIDSort(allocs))
+	sort.Sort(AllocIDSort(out))
+
+	if !reflect.DeepEqual(allocs, out) {
+		t.Fatalf("bad: %#v %#v", allocs, out)
+	}
+}
+
 func TestStateStore_Allocs(t *testing.T) {
 	state := testStateStore(t)
 	var allocs []*structs.Allocation
