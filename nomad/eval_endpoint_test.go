@@ -91,7 +91,10 @@ func TestEvalEndpoint_Ack(t *testing.T) {
 	// Create the register request
 	eval1 := mockEval()
 	s1.evalBroker.Enqueue(eval1)
-	out, _ := s1.evalBroker.Dequeue(defaultSched, time.Second)
+	out, err := s1.evalBroker.Dequeue(defaultSched, time.Second)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
 	if out == nil {
 		t.Fatalf("missing eval")
 	}
