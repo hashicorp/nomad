@@ -4,7 +4,102 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/testutil"
 )
+
+func testRegisterNode(t *testing.T, s *Server, n *structs.Node) {
+	// Create the register request
+	req := &structs.NodeRegisterRequest{
+		Node:         n,
+		WriteRequest: structs.WriteRequest{Region: "region1"},
+	}
+
+	// Fetch the response
+	var resp structs.GenericResponse
+	if err := s.RPC("Client.Register", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp.Index == 0 {
+		t.Fatalf("bad index: %d", resp.Index)
+	}
+}
+
+func TestPlanApply_applyPlan(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Register ndoe
+	node := mockNode()
+	testRegisterNode(t, s1, node)
+
+	// Register alloc
+	alloc := mockAlloc()
+	plan := &structs.PlanResult{
+		NodeEvict: map[string][]string{
+			node.ID: []string{},
+		},
+		NodeAllocation: map[string][]*structs.Allocation{
+			node.ID: []*structs.Allocation{alloc},
+		},
+	}
+
+	// Apply the plan
+	index, err := s1.applyPlan(plan)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if index == 0 {
+		t.Fatalf("bad: %d", index)
+	}
+
+	// Lookup the allocation
+	out, err := s1.fsm.State().GetAllocByID(alloc.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out == nil {
+		t.Fatalf("missing alloc")
+	}
+
+	// Evict alloc, Register alloc2
+	alloc2 := mockAlloc()
+	plan = &structs.PlanResult{
+		NodeEvict: map[string][]string{
+			node.ID: []string{alloc.ID},
+		},
+		NodeAllocation: map[string][]*structs.Allocation{
+			node.ID: []*structs.Allocation{alloc2},
+		},
+	}
+
+	// Apply the plan
+	index, err = s1.applyPlan(plan)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if index == 0 {
+		t.Fatalf("bad: %d", index)
+	}
+
+	// Lookup the allocation
+	out, err = s1.fsm.State().GetAllocByID(alloc.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out != nil {
+		t.Fatalf("should be missing alloc")
+	}
+
+	// Lookup the allocation
+	out, err = s1.fsm.State().GetAllocByID(alloc2.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out == nil {
+		t.Fatalf("missing alloc")
+	}
+}
 
 func TestPlanApply_EvalNodePlan_Simple(t *testing.T) {
 	state := testStateStore(t)
