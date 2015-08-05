@@ -79,7 +79,7 @@ func (s *Server) evaluatePlan(plan *structs.Plan) (*structs.PlanResult, error) {
 		proposed := existingAlloc
 		evictions := plan.NodeEvict[nodeID]
 		if len(evictions) > 0 {
-			proposed = trimAllocations(existingAlloc, evictions)
+			proposed = structs.RemoveAllocs(existingAlloc, evictions)
 		}
 		proposed = append(proposed, allocList...)
 
@@ -229,26 +229,4 @@ func networkIndexByCidr(list []*structs.NetworkResource, cidr string) int {
 		}
 	}
 	return -1
-}
-
-// trimAllocations is used to remove any allocaitons with the given ID
-// from the list of allocations
-func trimAllocations(alloc []*structs.Allocation, remove []string) []*structs.Allocation {
-	// Convert remove into a set
-	removeSet := make(map[string]struct{})
-	for _, removeID := range remove {
-		removeSet[removeID] = struct{}{}
-	}
-
-	n := len(alloc)
-	for i := 0; i < n; i++ {
-		if _, ok := removeSet[alloc[i].ID]; ok {
-			alloc[i], alloc[n-1] = alloc[n-1], nil
-			i--
-			n--
-		}
-	}
-
-	alloc = alloc[:n]
-	return alloc
 }
