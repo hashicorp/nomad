@@ -14,7 +14,7 @@ type Client struct {
 }
 
 // Register is used to upsert a client that is available for scheduling
-func (c *Client) Register(args *structs.NodeRegisterRequest, reply *structs.GenericResponse) error {
+func (c *Client) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUpdateResponse) error {
 	if done, err := c.srv.forward("Client.Register", args, args, reply); done {
 		return err
 	}
@@ -38,12 +38,27 @@ func (c *Client) Register(args *structs.NodeRegisterRequest, reply *structs.Gene
 	if args.Node.Status == "" {
 		args.Node.Status = structs.NodeStatusInit
 	}
+	if !structs.ValidNodeStatus(args.Node.Status) {
+		return fmt.Errorf("invalid status for node")
+	}
 
 	// Commit this update via Raft
 	_, index, err := c.srv.raftApply(structs.NodeRegisterRequestType, args)
 	if err != nil {
 		c.srv.logger.Printf("[ERR] nomad.client: Register failed: %v", err)
 		return err
+	}
+	reply.NodeModifyIndex = index
+
+	// Check if we should trigger evaluations
+	if structs.ShouldEvaluateNode(args.Node.Status) {
+		evalIDs, evalIndex, err := c.createNodeEvals(args.Node.ID, index)
+		if err != nil {
+			c.srv.logger.Printf("[ERR] nomad.client: eval creation failed: %v", err)
+			return err
+		}
+		reply.EvalIDs = evalIDs
+		reply.EvalCreateIndex = evalIndex
 	}
 
 	// Set the reply index
@@ -53,7 +68,7 @@ func (c *Client) Register(args *structs.NodeRegisterRequest, reply *structs.Gene
 
 // Deregister is used to remove a client from the client. If a client should
 // just be made unavailable for scheduling, a status update is prefered.
-func (c *Client) Deregister(args *structs.NodeDeregisterRequest, reply *structs.GenericResponse) error {
+func (c *Client) Deregister(args *structs.NodeDeregisterRequest, reply *structs.NodeUpdateResponse) error {
 	if done, err := c.srv.forward("Client.Deregister", args, args, reply); done {
 		return err
 	}
@@ -71,13 +86,23 @@ func (c *Client) Deregister(args *structs.NodeDeregisterRequest, reply *structs.
 		return err
 	}
 
-	// Set the reply index
+	// Create the evaluations for this node
+	evalIDs, evalIndex, err := c.createNodeEvals(args.NodeID, index)
+	if err != nil {
+		c.srv.logger.Printf("[ERR] nomad.client: eval creation failed: %v", err)
+		return err
+	}
+
+	// Setup the reply
+	reply.EvalIDs = evalIDs
+	reply.EvalCreateIndex = evalIndex
+	reply.NodeModifyIndex = index
 	reply.Index = index
 	return nil
 }
 
 // UpdateStatus is used to update the status of a client node
-func (c *Client) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *structs.GenericResponse) error {
+func (c *Client) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *structs.NodeUpdateResponse) error {
 	if done, err := c.srv.forward("Client.UpdateStatus", args, args, reply); done {
 		return err
 	}
@@ -87,10 +112,7 @@ func (c *Client) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *stru
 	if args.NodeID == "" {
 		return fmt.Errorf("missing node ID for client deregistration")
 	}
-	switch args.Status {
-	case structs.NodeStatusInit, structs.NodeStatusReady,
-		structs.NodeStatusMaint, structs.NodeStatusDown:
-	default:
+	if !structs.ValidNodeStatus(args.Status) {
 		return fmt.Errorf("invalid status for node")
 	}
 
@@ -99,6 +121,18 @@ func (c *Client) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *stru
 	if err != nil {
 		c.srv.logger.Printf("[ERR] nomad.client: status update failed: %v", err)
 		return err
+	}
+	reply.NodeModifyIndex = index
+
+	// Check if we should trigger evaluations
+	if structs.ShouldEvaluateNode(args.Status) {
+		evalIDs, evalIndex, err := c.createNodeEvals(args.NodeID, index)
+		if err != nil {
+			c.srv.logger.Printf("[ERR] nomad.client: eval creation failed: %v", err)
+			return err
+		}
+		reply.EvalIDs = evalIDs
+		reply.EvalCreateIndex = evalIndex
 	}
 
 	// Set the reply index
@@ -145,4 +179,65 @@ func (c *Client) GetNode(args *structs.NodeSpecificRequest,
 	// Set the query response
 	c.srv.setQueryMeta(&reply.QueryMeta)
 	return nil
+}
+
+// createNodeEvals is used to create evaluations for each alloc on a node.
+// Each Eval is scoped to a job, so we need to potentially trigger many evals.
+func (c *Client) createNodeEvals(nodeID string, nodeIndex uint64) ([]string, uint64, error) {
+	// Snapshot the state
+	snap, err := c.srv.fsm.State().Snapshot()
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to snapshot state: %v", err)
+	}
+
+	// Find all the allocations for this node
+	allocs, err := snap.AllocsByNode(nodeID)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to find allocs for '%s': %v", nodeID, err)
+	}
+
+	// Fast-path if nothing to do
+	if len(allocs) == 0 {
+		return nil, 0, nil
+	}
+
+	// Create an eval for each JobID affected
+	var evals []*structs.Evaluation
+	var evalIDs []string
+	jobIDs := make(map[string]struct{})
+
+	for _, alloc := range allocs {
+		// Deduplicate on JobID
+		if _, ok := jobIDs[alloc.JobID]; ok {
+			continue
+		}
+		jobIDs[alloc.JobID] = struct{}{}
+
+		// Create a new eval
+		eval := &structs.Evaluation{
+			ID:              generateUUID(),
+			Priority:        alloc.Job.Priority,
+			Type:            alloc.Job.Type,
+			TriggeredBy:     structs.EvalTriggerNodeUpdate,
+			JobID:           alloc.JobID,
+			NodeID:          nodeID,
+			NodeModifyIndex: nodeIndex,
+			Status:          structs.EvalStatusPending,
+		}
+		evals = append(evals, eval)
+		evalIDs = append(evalIDs, eval.ID)
+	}
+
+	// Create the Raft transaction
+	update := &structs.EvalUpdateRequest{
+		Evals:        evals,
+		WriteRequest: structs.WriteRequest{Region: c.srv.config.Region},
+	}
+
+	// Commit this evaluation via Raft
+	_, evalIndex, err := c.srv.raftApply(structs.EvalUpdateRequestType, update)
+	if err != nil {
+		return nil, 0, err
+	}
+	return evalIDs, evalIndex, nil
 }

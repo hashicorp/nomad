@@ -225,6 +225,14 @@ type JobDeregisterResponse struct {
 	QueryMeta
 }
 
+// NodeUpdateResponse is used to respond to a node update
+type NodeUpdateResponse struct {
+	EvalIDs         []string
+	EvalCreateIndex uint64
+	NodeModifyIndex uint64
+	QueryMeta
+}
+
 // SingleNodeResponse is used to return a single node
 type SingleNodeResponse struct {
 	Node *Node
@@ -253,8 +261,33 @@ const (
 	NodeStatusInit  = "initializing"
 	NodeStatusReady = "ready"
 	NodeStatusMaint = "maintenance"
+	NodeStatusDrain = "drain"
 	NodeStatusDown  = "down"
 )
+
+// ShouldEvaluateNode checks if a given node status should trigger an
+// evaluation. Some states don't require any further action.
+func ShouldEvaluateNode(status string) bool {
+	switch status {
+	case NodeStatusInit, NodeStatusReady, NodeStatusMaint:
+		return false
+	case NodeStatusDrain, NodeStatusDown:
+		return true
+	default:
+		panic(fmt.Sprintf("unhandled node status %s", status))
+	}
+}
+
+// ValidNodeStatus is used to check if a node status is valid
+func ValidNodeStatus(status string) bool {
+	switch status {
+	case NodeStatusInit, NodeStatusReady,
+		NodeStatusMaint, NodeStatusDrain, NodeStatusDown:
+		return true
+	default:
+		return false
+	}
+}
 
 // Node is a representation of a schedulable client node
 type Node struct {
@@ -624,6 +657,7 @@ const (
 const (
 	EvalTriggerJobRegister   = "job-register"
 	EvalTriggerJobDeregister = "job-deregister"
+	EvalTriggerNodeUpdate    = "node-update"
 )
 
 // Evaluation is used anytime we need to apply business logic as a result
@@ -655,6 +689,13 @@ type Evaluation struct {
 	// JobModifyIndex is the modify index of the job at the time
 	// the evaluation was created
 	JobModifyIndex uint64
+
+	// NodeID is the node that was affected triggering the evaluation.
+	NodeID string
+
+	// NodeModifyIndex is the modify index of the node at the time
+	// the evaluation was created
+	NodeModifyIndex uint64
 
 	// Status of the evaluation
 	Status string

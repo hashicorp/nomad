@@ -139,7 +139,9 @@ func mockAlloc() *structs.Allocation {
 				},
 			},
 		},
+		Job: mockJob(),
 	}
+	alloc.JobID = alloc.Job.ID
 	return alloc
 }
 

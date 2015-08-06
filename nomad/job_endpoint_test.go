@@ -71,6 +71,9 @@ func TestJobEndpoint_Register(t *testing.T) {
 	if eval.JobModifyIndex != resp.JobModifyIndex {
 		t.Fatalf("bad: %#v", eval)
 	}
+	if eval.Status != structs.EvalStatusPending {
+		t.Fatalf("bad: %#v", eval)
+	}
 }
 
 func TestJobEndpoint_Register_Existing(t *testing.T) {
@@ -152,6 +155,9 @@ func TestJobEndpoint_Register_Existing(t *testing.T) {
 	if eval.JobModifyIndex != resp.JobModifyIndex {
 		t.Fatalf("bad: %#v", eval)
 	}
+	if eval.Status != structs.EvalStatusPending {
+		t.Fatalf("bad: %#v", eval)
+	}
 }
 
 func TestJobEndpoint_Deregister(t *testing.T) {
@@ -221,6 +227,9 @@ func TestJobEndpoint_Deregister(t *testing.T) {
 		t.Fatalf("bad: %#v", eval)
 	}
 	if eval.JobModifyIndex != resp2.JobModifyIndex {
+		t.Fatalf("bad: %#v", eval)
+	}
+	if eval.Status != structs.EvalStatusPending {
 		t.Fatalf("bad: %#v", eval)
 	}
 }
