@@ -210,6 +210,14 @@ type GenericResponse struct {
 	WriteMeta
 }
 
+// JobRegisterResponse is used to respond to a job registration
+type JobRegisterResponse struct {
+	EvalID          string
+	EvalCreateIndex uint64
+	JobModifyIndex  uint64
+	QueryMeta
+}
+
 // SingleNodeResponse is used to return a single node
 type SingleNodeResponse struct {
 	Node *Node
@@ -403,6 +411,18 @@ const (
 	JobStatusDead     = "dead"     // Dead means there was abnormal termination
 )
 
+const (
+	// JobMinPriority is the minimum allowed priority
+	JobMinPriority = 1
+
+	// JobDefaultPriority is the default priority if not
+	// not specified.
+	JobDefaultPriority = 50
+
+	// JobMaxPriority is the maximum allowed priority
+	JobMaxPriority = 100
+)
+
 // Job is the scope of a scheduling request to Nomad. It is the largest
 // scoped object, and is a named collection of task groups. Each task group
 // is further composed of tasks. A task group (TG) is the unit of scheduling
@@ -594,6 +614,10 @@ const (
 	EvalStatusCanceled = "canceled"
 )
 
+const (
+	EvalTriggerJobRegister = "job-register"
+)
+
 // Evaluation is used anytime we need to apply business logic as a result
 // of a change to our desired state (job specification) or the emergent state
 // (registered nodes). When the inputs change, we need to "evaluate" them,
@@ -619,6 +643,10 @@ type Evaluation struct {
 	// JobID is the job this evaluation is scoped to. Evalutions cannot
 	// be run in parallel for a given JobID, so we serialize on this.
 	JobID string
+
+	// JobModifyIndex is the modify index of the job at the time
+	// the evaluation was created
+	JobModifyIndex uint64
 
 	// Status of the evaluation
 	Status string

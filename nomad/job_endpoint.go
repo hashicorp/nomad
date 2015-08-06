@@ -14,7 +14,7 @@ type Job struct {
 }
 
 // Register is used to upsert a job for scheduling
-func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.GenericResponse) error {
+func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegisterResponse) error {
 	if done, err := j.srv.forward("Job.Register", args, args, reply); done {
 		return err
 	}
@@ -30,6 +30,16 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.GenericR
 	if args.Job.Name == "" {
 		return fmt.Errorf("missing job name for registration")
 	}
+	if args.Job.Type == "" {
+		return fmt.Errorf("missing job type for registration")
+	}
+
+	// Ensure priorities are bounded
+	if args.Job.Priority < structs.JobMinPriority {
+		args.Job.Priority = structs.JobMinPriority
+	} else if args.Job.Priority > structs.JobMaxPriority {
+		args.Job.Priority = structs.JobMaxPriority
+	}
 
 	// Commit this update via Raft
 	_, index, err := j.srv.raftApply(structs.JobRegisterRequestType, args)
@@ -38,8 +48,33 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.GenericR
 		return err
 	}
 
-	// Set the reply index
-	reply.Index = index
+	// Create a new evaluation
+	eval := &structs.Evaluation{
+		ID:             generateUUID(),
+		Priority:       args.Job.Priority,
+		Type:           args.Job.Type,
+		TriggeredBy:    structs.EvalTriggerJobRegister,
+		JobID:          args.Job.ID,
+		JobModifyIndex: index,
+		Status:         structs.EvalStatusPending,
+	}
+	update := &structs.EvalUpdateRequest{
+		Eval:         eval,
+		WriteRequest: structs.WriteRequest{Region: args.Region},
+	}
+
+	// Commit this evaluation via Raft
+	_, evalIndex, err := j.srv.raftApply(structs.EvalUpdateRequestType, update)
+	if err != nil {
+		j.srv.logger.Printf("[ERR] nomad.job: Eval create failed: %v", err)
+		return err
+	}
+
+	// Setup the reply
+	reply.EvalID = eval.ID
+	reply.EvalCreateIndex = evalIndex
+	reply.JobModifyIndex = index
+	reply.Index = evalIndex
 	return nil
 }
 
