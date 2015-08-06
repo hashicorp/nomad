@@ -116,6 +116,7 @@ func mockEval() *structs.Evaluation {
 		ID:       generateUUID(),
 		Priority: 50,
 		Type:     structs.JobTypeService,
+		JobID:    generateUUID(),
 		Status:   structs.EvalStatusPending,
 	}
 	return eval

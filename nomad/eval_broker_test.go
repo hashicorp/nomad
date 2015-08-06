@@ -163,6 +163,158 @@ func TestEvalBroker_Enqueue_Dequeue_Nack_Ack(t *testing.T) {
 	}
 }
 
+func TestEvalBroker_Serialize_DuplicateJobID(t *testing.T) {
+	b := testBroker(t, 0)
+	b.SetEnabled(true)
+
+	eval := mockEval()
+	err := b.Enqueue(eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	eval2 := mockEval()
+	eval2.JobID = eval.JobID
+	eval2.CreateIndex = eval.CreateIndex + 1
+	err = b.Enqueue(eval2)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	eval3 := mockEval()
+	eval3.JobID = eval.JobID
+	eval3.CreateIndex = eval.CreateIndex + 2
+	err = b.Enqueue(eval3)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	stats := b.Stats()
+	if stats.TotalReady != 1 {
+		t.Fatalf("bad: %#v", stats)
+	}
+	if stats.TotalBlocked != 2 {
+		t.Fatalf("bad: %#v", stats)
+	}
+
+	// Dequeue should work
+	out, err := b.Dequeue(defaultSched, time.Second)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out != eval {
+		t.Fatalf("bad : %#v", out)
+	}
+
+	// Check the stats
+	stats = b.Stats()
+	if stats.TotalReady != 0 {
+		t.Fatalf("bad: %#v", stats)
+	}
+	if stats.TotalUnacked != 1 {
+		t.Fatalf("bad: %#v", stats)
+	}
+	if stats.TotalBlocked != 2 {
+		t.Fatalf("bad: %#v", stats)
+	}
+
+	// Ack out
+	err = b.Ack(eval.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Check the stats
+	stats = b.Stats()
+	if stats.TotalReady != 1 {
+		t.Fatalf("bad: %#v", stats)
+	}
+	if stats.TotalUnacked != 0 {
+		t.Fatalf("bad: %#v", stats)
+	}
+	if stats.TotalBlocked != 1 {
+		t.Fatalf("bad: %#v", stats)
+	}
+
+	// Dequeue should work
+	out, err = b.Dequeue(defaultSched, time.Second)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out != eval2 {
+		t.Fatalf("bad : %#v", out)
+	}
+
+	// Check the stats
+	stats = b.Stats()
+	if stats.TotalReady != 0 {
+		t.Fatalf("bad: %#v", stats)
+	}
+	if stats.TotalUnacked != 1 {
+		t.Fatalf("bad: %#v", stats)
+	}
+	if stats.TotalBlocked != 1 {
+		t.Fatalf("bad: %#v", stats)
+	}
+
+	// Ack out
+	err = b.Ack(eval2.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Check the stats
+	stats = b.Stats()
+	if stats.TotalReady != 1 {
+		t.Fatalf("bad: %#v", stats)
+	}
+	if stats.TotalUnacked != 0 {
+		t.Fatalf("bad: %#v", stats)
+	}
+	if stats.TotalBlocked != 0 {
+		t.Fatalf("bad: %#v", stats)
+	}
+
+	// Dequeue should work
+	out, err = b.Dequeue(defaultSched, time.Second)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out != eval3 {
+		t.Fatalf("bad : %#v", out)
+	}
+
+	// Check the stats
+	stats = b.Stats()
+	if stats.TotalReady != 0 {
+		t.Fatalf("bad: %#v", stats)
+	}
+	if stats.TotalUnacked != 1 {
+		t.Fatalf("bad: %#v", stats)
+	}
+	if stats.TotalBlocked != 0 {
+		t.Fatalf("bad: %#v", stats)
+	}
+
+	// Ack out
+	err = b.Ack(eval3.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Check the stats
+	stats = b.Stats()
+	if stats.TotalReady != 0 {
+		t.Fatalf("bad: %#v", stats)
+	}
+	if stats.TotalUnacked != 0 {
+		t.Fatalf("bad: %#v", stats)
+	}
+	if stats.TotalBlocked != 0 {
+		t.Fatalf("bad: %#v", stats)
+	}
+}
+
 func TestEvalBroker_Enqueue_Disable(t *testing.T) {
 	b := testBroker(t, 0)
 
@@ -299,7 +451,7 @@ func TestEvalBroker_Dequeue_Fairness(t *testing.T) {
 
 		// This will fail randomly at times. It is very hard to
 		// test deterministically that its acting randomly.
-		if counter >= 20 || counter <= -20 {
+		if counter >= 25 || counter <= -25 {
 			t.Fatalf("unlikely sequence: %d", counter)
 		}
 	}

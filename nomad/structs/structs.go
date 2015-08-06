@@ -616,6 +616,10 @@ type Evaluation struct {
 	// was created. (Job change, node failure, alloc failure, etc).
 	TriggeredBy string
 
+	// JobID is the job this evaluation is scoped to. Evalutions cannot
+	// be run in parallel for a given JobID, so we serialize on this.
+	JobID string
+
 	// Status of the evaluation
 	Status string
 
