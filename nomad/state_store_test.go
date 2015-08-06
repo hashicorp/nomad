@@ -519,11 +519,11 @@ func TestStateStore_RestoreIndex(t *testing.T) {
 	}
 }
 
-func TestStateStore_UpsertEval_GetEval(t *testing.T) {
+func TestStateStore_UpsertEvals_GetEval(t *testing.T) {
 	state := testStateStore(t)
 	eval := mockEval()
 
-	err := state.UpsertEval(1000, eval)
+	err := state.UpsertEvals(1000, []*structs.Evaluation{eval})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -546,18 +546,18 @@ func TestStateStore_UpsertEval_GetEval(t *testing.T) {
 	}
 }
 
-func TestStateStore_Update_UpsertEval_GetEval(t *testing.T) {
+func TestStateStore_Update_UpsertEvals_GetEval(t *testing.T) {
 	state := testStateStore(t)
 	eval := mockEval()
 
-	err := state.UpsertEval(1000, eval)
+	err := state.UpsertEvals(1000, []*structs.Evaluation{eval})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	eval2 := mockEval()
 	eval2.ID = eval.ID
-	err = state.UpsertEval(1001, eval2)
+	err = state.UpsertEvals(1001, []*structs.Evaluation{eval2})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -589,25 +589,25 @@ func TestStateStore_Update_UpsertEval_GetEval(t *testing.T) {
 
 func TestStateStore_DeleteEval_GetEval(t *testing.T) {
 	state := testStateStore(t)
-	job := mockEval()
+	eval := mockEval()
 
-	err := state.UpsertEval(1000, job)
+	err := state.UpsertEvals(1000, []*structs.Evaluation{eval})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	err = state.DeleteEval(1001, job.ID)
+	err = state.DeleteEval(1001, eval.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	out, err := state.GetEvalByID(job.ID)
+	out, err := state.GetEvalByID(eval.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	if out != nil {
-		t.Fatalf("bad: %#v %#v", job, out)
+		t.Fatalf("bad: %#v %#v", eval, out)
 	}
 
 	index, err := state.GetIndex("evals")
@@ -627,7 +627,7 @@ func TestStateStore_Evals(t *testing.T) {
 		eval := mockEval()
 		evals = append(evals, eval)
 
-		err := state.UpsertEval(1000+uint64(i), eval)
+		err := state.UpsertEvals(1000+uint64(i), []*structs.Evaluation{eval})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}

@@ -18,7 +18,7 @@ func TestEvalEndpoint_GetEval(t *testing.T) {
 
 	// Create the register request
 	eval1 := mockEval()
-	s1.fsm.State().UpsertEval(1000, eval1)
+	s1.fsm.State().UpsertEvals(1000, []*structs.Evaluation{eval1})
 
 	// Lookup the eval
 	get := &structs.EvalSpecificRequest{

@@ -293,13 +293,15 @@ func (s *StateStore) Jobs() (memdb.ResultIterator, error) {
 }
 
 // UpsertEvaluation is used to upsert an evaluation
-func (s *StateStore) UpsertEval(index uint64, eval *structs.Evaluation) error {
+func (s *StateStore) UpsertEvals(index uint64, evals []*structs.Evaluation) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
 	// Do a nested upsert
-	if err := s.nestedUpsertEval(txn, index, eval); err != nil {
-		return err
+	for _, eval := range evals {
+		if err := s.nestedUpsertEval(txn, index, eval); err != nil {
+			return err
+		}
 	}
 
 	txn.Commit()

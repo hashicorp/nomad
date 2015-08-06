@@ -232,7 +232,7 @@ func TestFSM_UpdateEval(t *testing.T) {
 	fsm.evalBroker.SetEnabled(true)
 
 	req := structs.EvalUpdateRequest{
-		Eval: mockEval(),
+		Evals: []*structs.Evaluation{mockEval()},
 	}
 	buf, err := structs.Encode(structs.EvalUpdateRequestType, req)
 	if err != nil {
@@ -245,7 +245,7 @@ func TestFSM_UpdateEval(t *testing.T) {
 	}
 
 	// Verify we are registered
-	eval, err := fsm.State().GetEvalByID(req.Eval.ID)
+	eval, err := fsm.State().GetEvalByID(req.Evals[0].ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -268,7 +268,7 @@ func TestFSM_DeleteEval(t *testing.T) {
 
 	eval := mockEval()
 	req := structs.EvalUpdateRequest{
-		Eval: eval,
+		Evals: []*structs.Evaluation{eval},
 	}
 	buf, err := structs.Encode(structs.EvalUpdateRequestType, req)
 	if err != nil {
@@ -294,7 +294,7 @@ func TestFSM_DeleteEval(t *testing.T) {
 	}
 
 	// Verify we are NOT registered
-	eval, err = fsm.State().GetEvalByID(req.Eval.ID)
+	eval, err = fsm.State().GetEvalByID(req.Evals[0].ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -429,9 +429,9 @@ func TestFSM_SnapshotRestore_Evals(t *testing.T) {
 	fsm := testFSM(t)
 	state := fsm.State()
 	eval1 := mockEval()
-	state.UpsertEval(1000, eval1)
+	state.UpsertEvals(1000, []*structs.Evaluation{eval1})
 	eval2 := mockEval()
-	state.UpsertEval(1001, eval2)
+	state.UpsertEvals(1001, []*structs.Evaluation{eval2})
 
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)

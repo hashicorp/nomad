@@ -250,7 +250,7 @@ func TestLeader_EvalBroker_Reset(t *testing.T) {
 
 	// Inject a pending eval
 	req := structs.EvalUpdateRequest{
-		Eval: mockEval(),
+		Evals: []*structs.Evaluation{mockEval()},
 	}
 	_, _, err := leader.raftApply(structs.EvalUpdateRequestType, req)
 	if err != nil {

@@ -161,10 +161,9 @@ type JobSpecificRequest struct {
 	WriteRequest
 }
 
-// EvalUpdateRequest is used for updating the status
-// of an evaluation.
+// EvalUpdateRequest is used for upserting evaluations.
 type EvalUpdateRequest struct {
-	Eval *Evaluation
+	Evals []*Evaluation
 	WriteRequest
 }
 

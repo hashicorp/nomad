@@ -196,15 +196,17 @@ func (n *nomadFSM) applyUpdateEval(buf []byte, index uint64) interface{} {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.UpsertEval(index, req.Eval); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: UpsertEval failed: %v", err)
+	if err := n.state.UpsertEvals(index, req.Evals); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: UpsertEvals failed: %v", err)
 		return err
 	}
 
-	if req.Eval.ShouldEnqueue() {
-		if err := n.evalBroker.Enqueue(req.Eval); err != nil {
-			n.logger.Printf("[ERR] nomad.fsm: failed to enqueue evaluation %s: %v", req.Eval.ID, err)
-			return err
+	for _, eval := range req.Evals {
+		if eval.ShouldEnqueue() {
+			if err := n.evalBroker.Enqueue(eval); err != nil {
+				n.logger.Printf("[ERR] nomad.fsm: failed to enqueue evaluation %s: %v", eval.ID, err)
+				return err
+			}
 		}
 	}
 	return nil

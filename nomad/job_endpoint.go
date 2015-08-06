@@ -59,7 +59,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		Status:         structs.EvalStatusPending,
 	}
 	update := &structs.EvalUpdateRequest{
-		Eval:         eval,
+		Evals:        []*structs.Evaluation{eval},
 		WriteRequest: structs.WriteRequest{Region: args.Region},
 	}
 
@@ -106,7 +106,7 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 		Status:         structs.EvalStatusPending,
 	}
 	update := &structs.EvalUpdateRequest{
-		Eval:         eval,
+		Evals:        []*structs.Evaluation{eval},
 		WriteRequest: structs.WriteRequest{Region: args.Region},
 	}
 
