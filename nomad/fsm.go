@@ -200,6 +200,13 @@ func (n *nomadFSM) applyUpdateEval(buf []byte, index uint64) interface{} {
 		n.logger.Printf("[ERR] nomad.fsm: UpsertEval failed: %v", err)
 		return err
 	}
+
+	if req.Eval.ShouldEnqueue() {
+		if err := n.evalBroker.Enqueue(req.Eval); err != nil {
+			n.logger.Printf("[ERR] nomad.fsm: failed to enqueue evaluation %s: %v", req.Eval.ID, err)
+			return err
+		}
+	}
 	return nil
 }
 

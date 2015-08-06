@@ -229,6 +229,7 @@ func TestFSM_DeregisterJob(t *testing.T) {
 
 func TestFSM_UpdateEval(t *testing.T) {
 	fsm := testFSM(t)
+	fsm.evalBroker.SetEnabled(true)
 
 	req := structs.EvalUpdateRequest{
 		Eval: mockEval(),
@@ -253,6 +254,12 @@ func TestFSM_UpdateEval(t *testing.T) {
 	}
 	if eval.CreateIndex != 1 {
 		t.Fatalf("bad index: %d", eval.CreateIndex)
+	}
+
+	// Verify enqueued
+	stats := fsm.evalBroker.Stats()
+	if stats.TotalReady != 1 {
+		t.Fatalf("bad: %#v %#v", stats, eval)
 	}
 }
 
