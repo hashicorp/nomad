@@ -52,6 +52,12 @@ func TestEvalBroker_Enqueue_Dequeue_Nack_Ack(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
+	// Double enqueue is a no-op
+	err = b.Enqueue(eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
 	if !b.Enabled() {
 		t.Fatalf("should be enabled")
 	}
