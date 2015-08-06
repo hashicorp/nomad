@@ -131,16 +131,12 @@ func (s *Server) restoreEvalBroker() error {
 		}
 		eval := raw.(*structs.Evaluation)
 
-		switch eval.Status {
-		case structs.EvalStatusPending:
-			if err := s.evalBroker.Enqueue(eval); err != nil {
-				return fmt.Errorf("failed to enqueue evaluation %s: %v", eval.ID, err)
-			}
-		case structs.EvalStatusComplete, structs.EvalStatusCanceled:
-			// Nothing to do
-		default:
-			s.logger.Printf("[ERR] nomad: unhandled evaluation (%s) status %s",
-				eval.ID, eval.Status)
+		if !eval.ShouldEnqueue() {
+			continue
+		}
+
+		if err := s.evalBroker.Enqueue(eval); err != nil {
+			return fmt.Errorf("failed to enqueue evaluation %s: %v", eval.ID, err)
 		}
 	}
 	return nil

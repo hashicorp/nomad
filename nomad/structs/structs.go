@@ -628,6 +628,18 @@ type Evaluation struct {
 	ModifyIndex uint64
 }
 
+// ShouldEnqueue checks if a given evaluation should be enqueued
+func (e *Evaluation) ShouldEnqueue() bool {
+	switch e.Status {
+	case EvalStatusPending:
+		return true
+	case EvalStatusComplete, EvalStatusCanceled:
+		return false
+	default:
+		panic(fmt.Sprintf("unhandled evaluation (%s) status %s", e.ID, e.Status))
+	}
+}
+
 // Plan is used to submit a commit plan for task allocations. These
 // are submitted to the leader which verifies that resources have
 // not been overcommitted before admiting the plan.
