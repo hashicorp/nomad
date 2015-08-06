@@ -178,7 +178,7 @@ func TestJobEndpoint_Deregister(t *testing.T) {
 		JobID:        job.ID,
 		WriteRequest: structs.WriteRequest{Region: "region1"},
 	}
-	var resp2 structs.GenericResponse
+	var resp2 structs.JobDeregisterResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Job.Deregister", dereg, &resp2); err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -194,6 +194,34 @@ func TestJobEndpoint_Deregister(t *testing.T) {
 	}
 	if out != nil {
 		t.Fatalf("unexpected job")
+	}
+
+	// Lookup the evaluation
+	eval, err := state.GetEvalByID(resp2.EvalID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if eval == nil {
+		t.Fatalf("expected eval")
+	}
+	if eval.CreateIndex != resp2.EvalCreateIndex {
+		t.Fatalf("index mis-match")
+	}
+
+	if eval.Priority != structs.JobDefaultPriority {
+		t.Fatalf("bad: %#v", eval)
+	}
+	if eval.Type != structs.JobTypeService {
+		t.Fatalf("bad: %#v", eval)
+	}
+	if eval.TriggeredBy != structs.EvalTriggerJobDeregister {
+		t.Fatalf("bad: %#v", eval)
+	}
+	if eval.JobID != job.ID {
+		t.Fatalf("bad: %#v", eval)
+	}
+	if eval.JobModifyIndex != resp2.JobModifyIndex {
+		t.Fatalf("bad: %#v", eval)
 	}
 }
 

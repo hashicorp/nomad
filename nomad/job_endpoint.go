@@ -79,7 +79,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 }
 
 // Deregister is used to remove a job the cluster.
-func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.GenericResponse) error {
+func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobDeregisterResponse) error {
 	if done, err := j.srv.forward("Job.Deregister", args, args, reply); done {
 		return err
 	}
@@ -92,8 +92,36 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.Gene
 		return err
 	}
 
-	// Set the reply index
-	reply.Index = index
+	// Create a new evaluation
+	// XXX: The job priority / type is strange for this, since it's not a high
+	// priority even if the job was. The scheduler itself also doesn't matter,
+	// since all should be able to handle deregistration in the same way.
+	eval := &structs.Evaluation{
+		ID:             generateUUID(),
+		Priority:       structs.JobDefaultPriority,
+		Type:           structs.JobTypeService,
+		TriggeredBy:    structs.EvalTriggerJobDeregister,
+		JobID:          args.JobID,
+		JobModifyIndex: index,
+		Status:         structs.EvalStatusPending,
+	}
+	update := &structs.EvalUpdateRequest{
+		Eval:         eval,
+		WriteRequest: structs.WriteRequest{Region: args.Region},
+	}
+
+	// Commit this evaluation via Raft
+	_, evalIndex, err := j.srv.raftApply(structs.EvalUpdateRequestType, update)
+	if err != nil {
+		j.srv.logger.Printf("[ERR] nomad.job: Eval create failed: %v", err)
+		return err
+	}
+
+	// Setup the reply
+	reply.EvalID = eval.ID
+	reply.EvalCreateIndex = evalIndex
+	reply.JobModifyIndex = index
+	reply.Index = evalIndex
 	return nil
 }
 

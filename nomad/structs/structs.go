@@ -218,6 +218,14 @@ type JobRegisterResponse struct {
 	QueryMeta
 }
 
+// JobDeregisterResponse is used to respond to a job deregistration
+type JobDeregisterResponse struct {
+	EvalID          string
+	EvalCreateIndex uint64
+	JobModifyIndex  uint64
+	QueryMeta
+}
+
 // SingleNodeResponse is used to return a single node
 type SingleNodeResponse struct {
 	Node *Node
@@ -615,7 +623,8 @@ const (
 )
 
 const (
-	EvalTriggerJobRegister = "job-register"
+	EvalTriggerJobRegister   = "job-register"
+	EvalTriggerJobDeregister = "job-deregister"
 )
 
 // Evaluation is used anytime we need to apply business logic as a result
