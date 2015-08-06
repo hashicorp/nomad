@@ -17,9 +17,8 @@ import (
 // returned as a result of a read against the state store should be
 // considered a constant and NEVER modified in place.
 type StateStore struct {
-	logger     *log.Logger
-	evalBroker *EvalBroker
-	db         *memdb.MemDB
+	logger *log.Logger
+	db     *memdb.MemDB
 }
 
 // StateSnapshot is used to provide a point-in-time snapshot
@@ -52,7 +51,7 @@ type IndexEntry struct {
 }
 
 // NewStateStore is used to create a new state store
-func NewStateStore(evalBroker *EvalBroker, logOutput io.Writer) (*StateStore, error) {
+func NewStateStore(logOutput io.Writer) (*StateStore, error) {
 	// Create the MemDB
 	db, err := memdb.NewMemDB(stateStoreSchema())
 	if err != nil {
@@ -61,9 +60,8 @@ func NewStateStore(evalBroker *EvalBroker, logOutput io.Writer) (*StateStore, er
 
 	// Create the state store
 	s := &StateStore{
-		logger:     log.New(logOutput, "", log.LstdFlags),
-		evalBroker: evalBroker,
-		db:         db,
+		logger: log.New(logOutput, "", log.LstdFlags),
+		db:     db,
 	}
 	return s, nil
 }
@@ -74,9 +72,8 @@ func NewStateStore(evalBroker *EvalBroker, logOutput io.Writer) (*StateStore, er
 func (s *StateStore) Snapshot() (*StateSnapshot, error) {
 	snap := &StateSnapshot{
 		StateStore: StateStore{
-			logger:     s.logger,
-			evalBroker: s.evalBroker,
-			db:         s.db.Snapshot(),
+			logger: s.logger,
+			db:     s.db.Snapshot(),
 		},
 	}
 	return snap, nil
@@ -143,10 +140,6 @@ func (s *StateStore) DeregisterNode(index uint64, nodeID string) error {
 	if err := txn.Insert("index", &IndexEntry{"nodes", index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
 	}
-
-	// TODO: Handle the existing allocations, probably need
-	// to change their states back to pending and kick the scheduler
-	// to force it to move things around
 
 	txn.Commit()
 	return nil
@@ -242,10 +235,6 @@ func (s *StateStore) RegisterJob(index uint64, job *structs.Job) error {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	// TODO: Handle the existing allocations, probably need
-	// to change their states back to pending and kick the scheduler
-	// to force it to move things around
-
 	txn.Commit()
 	return nil
 }
@@ -271,10 +260,6 @@ func (s *StateStore) DeregisterJob(index uint64, jobID string) error {
 	if err := txn.Insert("index", &IndexEntry{"jobs", index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
 	}
-
-	// TODO: Handle the existing allocations, probably need
-	// to change their states back to pending and kick the scheduler
-	// to force it to move things around
 
 	txn.Commit()
 	return nil

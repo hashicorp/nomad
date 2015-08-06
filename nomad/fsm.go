@@ -55,7 +55,7 @@ type snapshotHeader struct {
 // NewFSMPath is used to construct a new FSM with a blank state
 func NewFSM(evalBroker *EvalBroker, logOutput io.Writer) (*nomadFSM, error) {
 	// Create a state store
-	state, err := NewStateStore(evalBroker, logOutput)
+	state, err := NewStateStore(logOutput)
 	if err != nil {
 		return nil, err
 	}
@@ -244,7 +244,7 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 	defer old.Close()
 
 	// Create a new state store
-	state, err := NewStateStore(n.evalBroker, n.logOutput)
+	state, err := NewStateStore(n.logOutput)
 	if err != nil {
 		return err
 	}
