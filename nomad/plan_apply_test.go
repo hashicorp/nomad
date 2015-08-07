@@ -312,3 +312,31 @@ func TestPlanApply_EvalNodePlan_NodeFull_Evict(t *testing.T) {
 		t.Fatalf("bad")
 	}
 }
+
+func TestPlanApply_EvalNodePlan_NodeMaint_EvictOnly(t *testing.T) {
+	alloc := mockAlloc()
+	state := testStateStore(t)
+	node := mockNode()
+	alloc.NodeID = node.ID
+	node.Resources = alloc.Resources
+	node.Reserved = nil
+	node.Status = structs.NodeStatusMaint
+	state.RegisterNode(1000, node)
+	state.UpdateAllocations(1001, nil,
+		[]*structs.Allocation{alloc})
+	snap, _ := state.Snapshot()
+
+	plan := &structs.Plan{
+		NodeEvict: map[string][]string{
+			node.ID: []string{alloc.ID},
+		},
+	}
+
+	fit, err := evaluateNodePlan(snap, plan, node.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if !fit {
+		t.Fatalf("bad")
+	}
+}

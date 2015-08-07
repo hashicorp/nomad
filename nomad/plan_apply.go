@@ -111,8 +111,12 @@ func evaluatePlan(snap *StateSnapshot, plan *structs.Plan) (*structs.PlanResult,
 		}
 
 		// Add this to the plan result
-		result.NodeEvict[nodeID] = plan.NodeEvict[nodeID]
-		result.NodeAllocation[nodeID] = plan.NodeAllocation[nodeID]
+		if nodeEvict := plan.NodeEvict[nodeID]; len(nodeEvict) > 0 {
+			result.NodeEvict[nodeID] = nodeEvict
+		}
+		if nodeAlloc := plan.NodeAllocation[nodeID]; len(nodeAlloc) > 0 {
+			result.NodeAllocation[nodeID] = nodeAlloc
+		}
 	}
 	return result, nil
 }
@@ -120,6 +124,11 @@ func evaluatePlan(snap *StateSnapshot, plan *structs.Plan) (*structs.PlanResult,
 // evaluateNodePlan is used to evalute the plan for a single node,
 // returning if the plan is valid or if an error is encountered
 func evaluateNodePlan(snap *StateSnapshot, plan *structs.Plan, nodeID string) (bool, error) {
+	// If this is an evict-only plan, it always 'fits' since we are removing things.
+	if len(plan.NodeAllocation[nodeID]) == 0 {
+		return true, nil
+	}
+
 	// Get the node itself
 	node, err := snap.GetNodeByID(nodeID)
 	if err != nil {
