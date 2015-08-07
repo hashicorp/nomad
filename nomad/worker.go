@@ -195,7 +195,7 @@ func (w *Worker) invokeScheduler(eval *structs.Evaluation) error {
 	if eval.Type == structs.JobTypeSystem {
 		sched = NewSystemScheduler(w.srv, snap)
 	} else {
-		sched, err = scheduler.NewScheduler(eval.Type, snap, w)
+		sched, err = scheduler.NewScheduler(eval.Type, w.logger, snap, w)
 		if err != nil {
 			return fmt.Errorf("failed to instantiate scheduler: %v", err)
 		}
