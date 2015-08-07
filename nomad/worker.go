@@ -183,7 +183,7 @@ CHECK:
 
 // invokeScheduler is used to invoke the business logic of the scheduler
 func (w *Worker) invokeScheduler(eval *structs.Evaluation) error {
-	defer metrics.MeasureSince([]string{"nomad", "worker", "invoke_scheduler"}, time.Now())
+	defer metrics.MeasureSince([]string{"nomad", "worker", "invoke_scheduler", eval.Type}, time.Now())
 	// Snapshot the current state
 	snap, err := w.srv.fsm.State().Snapshot()
 	if err != nil {
