@@ -186,6 +186,17 @@ func allocTableSchema() *memdb.TableSchema {
 					Lowercase: true,
 				},
 			},
+
+			// Job index is used to lookup allocations by job
+			"job": &memdb.IndexSchema{
+				Name:         "job",
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.StringFieldIndex{
+					Field:     "JobID",
+					Lowercase: true,
+				},
+			},
 		},
 	}
 }
