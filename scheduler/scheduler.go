@@ -54,6 +54,9 @@ type State interface {
 	// Nodes returns an iterator over all the nodes.
 	// The type of each result is *structs.Node
 	Nodes() (memdb.ResultIterator, error)
+
+	// AllocsByJob returns the allocations by JobID
+	AllocsByJob(jobID string) ([]*structs.Allocation, error)
 }
 
 // Planner interface is used to submit a task allocation plan.
