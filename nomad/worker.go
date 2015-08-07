@@ -193,7 +193,7 @@ func (w *Worker) invokeScheduler(eval *structs.Evaluation) error {
 	// Create the scheduler, or use the special system scheduler
 	var sched scheduler.Scheduler
 	if eval.Type == structs.JobTypeSystem {
-		sched = w.srv.systemSched
+		sched = NewSystemScheduler(w.srv, snap)
 	} else {
 		sched, err = scheduler.NewScheduler(eval.Type, snap, w)
 		if err != nil {

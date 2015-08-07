@@ -99,10 +99,6 @@ type Server struct {
 	// plans that are waiting to be assessed by the leader
 	planQueue *PlanQueue
 
-	// systemSched is the special system scheduler used for
-	// various maintanence and book keeping.
-	systemSched *SystemScheduler
-
 	left         bool
 	shutdown     bool
 	shutdownCh   chan struct{}
@@ -160,9 +156,6 @@ func NewServer(config *Config) (*Server, error) {
 		planQueue:   planQueue,
 		shutdownCh:  make(chan struct{}),
 	}
-
-	// Create the system scheduler
-	s.systemSched = &SystemScheduler{srv: s}
 
 	// Initialize the RPC layer
 	// TODO: TLS...
