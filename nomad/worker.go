@@ -190,10 +190,15 @@ func (w *Worker) invokeScheduler(eval *structs.Evaluation) error {
 		return fmt.Errorf("failed to snapshot state: %v", err)
 	}
 
-	// Create the scheduler
-	sched, err := scheduler.NewScheduler(eval.Type, snap, w)
-	if err != nil {
-		return fmt.Errorf("failed to instantiate scheduler: %v", err)
+	// Create the scheduler, or use the special system scheduler
+	var sched scheduler.Scheduler
+	if eval.Type == structs.JobTypeSystem {
+		sched = w.srv.systemSched
+	} else {
+		sched, err = scheduler.NewScheduler(eval.Type, snap, w)
+		if err != nil {
+			return fmt.Errorf("failed to instantiate scheduler: %v", err)
+		}
 	}
 
 	// Process the evaluation

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/memberlist"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
@@ -164,6 +165,7 @@ func DefaultConfig() *Config {
 	for name := range scheduler.BuiltinSchedulers {
 		c.EnabledSchedulers = append(c.EnabledSchedulers, name)
 	}
+	c.EnabledSchedulers = append(c.EnabledSchedulers, structs.JobTypeSystem)
 
 	// Increase our reap interval to 3 days instead of 24h.
 	c.SerfConfig.ReconnectTimeout = 3 * 24 * time.Hour
