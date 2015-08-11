@@ -1,4 +1,4 @@
-package nomad
+package state
 
 import (
 	"testing"

@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
 	"github.com/hashicorp/nomad/testutil"
@@ -49,7 +50,7 @@ func TestWorker_dequeueEvaluation(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the evaluation
-	eval1 := mockEval()
+	eval1 := mock.Eval()
 	s1.evalBroker.Enqueue(eval1)
 
 	// Create a worker
@@ -104,7 +105,7 @@ func TestWorker_sendAck(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the evaluation
-	eval1 := mockEval()
+	eval1 := mock.Eval()
 	s1.evalBroker.Enqueue(eval1)
 
 	// Create a worker
@@ -180,7 +181,7 @@ func TestWorker_invokeScheduler(t *testing.T) {
 	defer s1.Shutdown()
 
 	w := &Worker{srv: s1, logger: s1.logger}
-	eval := mockEval()
+	eval := mock.Eval()
 	eval.Type = "noop"
 
 	err := w.invokeScheduler(eval)
@@ -198,11 +199,11 @@ func TestWorker_SubmitPlan(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Register node
-	node := mockNode()
+	node := mock.Node()
 	testRegisterNode(t, s1, node)
 
 	// Create an allocation plan
-	alloc := mockAlloc()
+	alloc := mock.Alloc()
 	plan := &structs.Plan{
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: []*structs.Allocation{alloc},
@@ -243,12 +244,12 @@ func TestWorker_SubmitPlan_MissingNodeRefresh(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Register node
-	node := mockNode()
+	node := mock.Node()
 	testRegisterNode(t, s1, node)
 
 	// Create an allocation plan, with unregistered node
-	node2 := mockNode()
-	alloc := mockAlloc()
+	node2 := mock.Node()
+	alloc := mock.Alloc()
 	plan := &structs.Plan{
 		NodeAllocation: map[string][]*structs.Allocation{
 			node2.ID: []*structs.Allocation{alloc},

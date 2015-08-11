@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
 )
@@ -26,6 +28,17 @@ func (m *MockSink) Cancel() error {
 
 func (m *MockSink) Close() error {
 	return nil
+}
+
+func testStateStore(t *testing.T) *state.StateStore {
+	state, err := state.NewStateStore(os.Stderr)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if state == nil {
+		t.Fatalf("missing state")
+	}
+	return state
 }
 
 func testFSM(t *testing.T) *nomadFSM {
@@ -52,7 +65,7 @@ func TestFSM_RegisterNode(t *testing.T) {
 	fsm := testFSM(t)
 
 	req := structs.NodeRegisterRequest{
-		Node: mockNode(),
+		Node: mock.Node(),
 	}
 	buf, err := structs.Encode(structs.NodeRegisterRequestType, req)
 	if err != nil {
@@ -80,7 +93,7 @@ func TestFSM_RegisterNode(t *testing.T) {
 func TestFSM_DeregisterNode(t *testing.T) {
 	fsm := testFSM(t)
 
-	node := mockNode()
+	node := mock.Node()
 	req := structs.NodeRegisterRequest{
 		Node: node,
 	}
@@ -120,7 +133,7 @@ func TestFSM_DeregisterNode(t *testing.T) {
 func TestFSM_UpdateNodeStatus(t *testing.T) {
 	fsm := testFSM(t)
 
-	node := mockNode()
+	node := mock.Node()
 	req := structs.NodeRegisterRequest{
 		Node: node,
 	}
@@ -162,7 +175,7 @@ func TestFSM_RegisterJob(t *testing.T) {
 	fsm := testFSM(t)
 
 	req := structs.JobRegisterRequest{
-		Job: mockJob(),
+		Job: mock.Job(),
 	}
 	buf, err := structs.Encode(structs.JobRegisterRequestType, req)
 	if err != nil {
@@ -190,7 +203,7 @@ func TestFSM_RegisterJob(t *testing.T) {
 func TestFSM_DeregisterJob(t *testing.T) {
 	fsm := testFSM(t)
 
-	job := mockJob()
+	job := mock.Job()
 	req := structs.JobRegisterRequest{
 		Job: job,
 	}
@@ -232,7 +245,7 @@ func TestFSM_UpdateEval(t *testing.T) {
 	fsm.evalBroker.SetEnabled(true)
 
 	req := structs.EvalUpdateRequest{
-		Evals: []*structs.Evaluation{mockEval()},
+		Evals: []*structs.Evaluation{mock.Eval()},
 	}
 	buf, err := structs.Encode(structs.EvalUpdateRequestType, req)
 	if err != nil {
@@ -266,7 +279,7 @@ func TestFSM_UpdateEval(t *testing.T) {
 func TestFSM_DeleteEval(t *testing.T) {
 	fsm := testFSM(t)
 
-	eval := mockEval()
+	eval := mock.Eval()
 	req := structs.EvalUpdateRequest{
 		Evals: []*structs.Evaluation{eval},
 	}
@@ -306,7 +319,7 @@ func TestFSM_DeleteEval(t *testing.T) {
 func TestFSM_UpdateAllocations(t *testing.T) {
 	fsm := testFSM(t)
 
-	alloc := mockAlloc()
+	alloc := mock.Alloc()
 	req := structs.AllocUpdateRequest{
 		Evict: nil,
 		Alloc: []*structs.Allocation{alloc},
@@ -384,9 +397,9 @@ func TestFSM_SnapshotRestore_Nodes(t *testing.T) {
 	// Add some state
 	fsm := testFSM(t)
 	state := fsm.State()
-	node1 := mockNode()
+	node1 := mock.Node()
 	state.RegisterNode(1000, node1)
-	node2 := mockNode()
+	node2 := mock.Node()
 	state.RegisterNode(1001, node2)
 
 	// Verify the contents
@@ -406,9 +419,9 @@ func TestFSM_SnapshotRestore_Jobs(t *testing.T) {
 	// Add some state
 	fsm := testFSM(t)
 	state := fsm.State()
-	job1 := mockJob()
+	job1 := mock.Job()
 	state.RegisterJob(1000, job1)
-	job2 := mockJob()
+	job2 := mock.Job()
 	state.RegisterJob(1001, job2)
 
 	// Verify the contents
@@ -428,9 +441,9 @@ func TestFSM_SnapshotRestore_Evals(t *testing.T) {
 	// Add some state
 	fsm := testFSM(t)
 	state := fsm.State()
-	eval1 := mockEval()
+	eval1 := mock.Eval()
 	state.UpsertEvals(1000, []*structs.Evaluation{eval1})
-	eval2 := mockEval()
+	eval2 := mock.Eval()
 	state.UpsertEvals(1001, []*structs.Evaluation{eval2})
 
 	// Verify the contents
@@ -450,9 +463,9 @@ func TestFSM_SnapshotRestore_Allocs(t *testing.T) {
 	// Add some state
 	fsm := testFSM(t)
 	state := fsm.State()
-	alloc1 := mockAlloc()
+	alloc1 := mock.Alloc()
 	state.UpdateAllocations(1000, nil, []*structs.Allocation{alloc1})
-	alloc2 := mockAlloc()
+	alloc2 := mock.Alloc()
 	state.UpdateAllocations(1001, nil, []*structs.Allocation{alloc2})
 
 	// Verify the contents
@@ -472,7 +485,7 @@ func TestFSM_SnapshotRestore_Indexes(t *testing.T) {
 	// Add some state
 	fsm := testFSM(t)
 	state := fsm.State()
-	node1 := mockNode()
+	node1 := mock.Node()
 	state.RegisterNode(1000, node1)
 
 	// Verify the contents

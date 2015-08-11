@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 )
@@ -15,7 +16,7 @@ func TestPlanEndpoint_Submit(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Submit a plan
-	plan := mockPlan()
+	plan := mock.Plan()
 	req := &structs.PlanRequest{
 		Plan:         plan,
 		WriteRequest: structs.WriteRequest{Region: "region1"},

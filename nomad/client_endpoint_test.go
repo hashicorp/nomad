@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 )
@@ -16,7 +17,7 @@ func TestClientEndpoint_Register(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the register request
-	node := mockNode()
+	node := mock.Node()
 	req := &structs.NodeRegisterRequest{
 		Node:         node,
 		WriteRequest: structs.WriteRequest{Region: "region1"},
@@ -52,7 +53,7 @@ func TestClientEndpoint_Deregister(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the register request
-	node := mockNode()
+	node := mock.Node()
 	reg := &structs.NodeRegisterRequest{
 		Node:         node,
 		WriteRequest: structs.WriteRequest{Region: "region1"},
@@ -95,7 +96,7 @@ func TestClientEndpoint_UpdateStatus(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the register request
-	node := mockNode()
+	node := mock.Node()
 	reg := &structs.NodeRegisterRequest{
 		Node:         node,
 		WriteRequest: structs.WriteRequest{Region: "region1"},
@@ -142,7 +143,7 @@ func TestClientEndpoint_GetNode(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the register request
-	node := mockNode()
+	node := mock.Node()
 	reg := &structs.NodeRegisterRequest{
 		Node:         node,
 		WriteRequest: structs.WriteRequest{Region: "region1"},
@@ -192,7 +193,7 @@ func TestClientEndpoint_CreateNodeEvals(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Inject fake evaluations
-	alloc := mockAlloc()
+	alloc := mock.Alloc()
 	state := s1.fsm.State()
 	err := state.UpdateAllocations(1, nil, []*structs.Allocation{alloc})
 	if err != nil {

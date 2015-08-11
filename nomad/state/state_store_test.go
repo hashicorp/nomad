@@ -1,4 +1,4 @@
-package nomad
+package state
 
 import (
 	"os"
@@ -6,6 +6,7 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -20,134 +21,9 @@ func testStateStore(t *testing.T) *StateStore {
 	return state
 }
 
-func mockNode() *structs.Node {
-	node := &structs.Node{
-		ID:         generateUUID(),
-		Datacenter: "dc1",
-		Name:       "foobar",
-		Attributes: map[string]string{
-			"os":            "linux",
-			"arch":          "x86",
-			"version":       "0.1.0",
-			"driver.docker": "1.0.0",
-		},
-		Resources: &structs.Resources{
-			CPU:      4.0,
-			MemoryMB: 8192,
-			DiskMB:   100 * 1024,
-			IOPS:     150,
-			Networks: []*structs.NetworkResource{
-				&structs.NetworkResource{
-					Public:        true,
-					CIDR:          "192.168.0.100/32",
-					ReservedPorts: []int{22},
-					MBits:         1000,
-				},
-			},
-		},
-		Reserved: &structs.Resources{
-			CPU:      0.1,
-			MemoryMB: 256,
-			DiskMB:   4 * 1024,
-		},
-		Links: map[string]string{
-			"consul": "foobar.dc1",
-		},
-		Meta: map[string]string{
-			"pci-dss": "true",
-		},
-		NodeClass: "linux-medium-pci",
-		Status:    structs.NodeStatusReady,
-	}
-	return node
-}
-
-func mockJob() *structs.Job {
-	job := &structs.Job{
-		ID:        generateUUID(),
-		Name:      "my-job",
-		Type:      structs.JobTypeService,
-		Priority:  50,
-		AllAtOnce: false,
-		Constraints: []*structs.Constraint{
-			&structs.Constraint{
-				Hard:    true,
-				LTarget: "attr.os",
-				RTarget: "linux",
-				Operand: "=",
-			},
-		},
-		TaskGroups: []*structs.TaskGroup{
-			&structs.TaskGroup{
-				Name:  "web",
-				Count: 10,
-				Tasks: []*structs.Task{
-					&structs.Task{
-						Name:   "web",
-						Driver: "docker",
-						Config: map[string]string{
-							"image":   "hashicorp/web",
-							"version": "v1.2.3",
-						},
-						Resources: &structs.Resources{
-							CPU:      0.5,
-							MemoryMB: 256,
-						},
-					},
-				},
-				Meta: map[string]string{
-					"elb_check_type":     "http",
-					"elb_check_interval": "30s",
-					"elb_check_min":      "3",
-				},
-			},
-		},
-		Meta: map[string]string{
-			"owner": "armon",
-		},
-		Status: structs.JobStatusPending,
-	}
-	return job
-}
-
-func mockEval() *structs.Evaluation {
-	eval := &structs.Evaluation{
-		ID:       generateUUID(),
-		Priority: 50,
-		Type:     structs.JobTypeService,
-		JobID:    generateUUID(),
-		Status:   structs.EvalStatusPending,
-	}
-	return eval
-}
-
-func mockAlloc() *structs.Allocation {
-	alloc := &structs.Allocation{
-		ID:     generateUUID(),
-		NodeID: "foo",
-		Resources: &structs.Resources{
-			CPU:      1.0,
-			MemoryMB: 1024,
-			DiskMB:   1024,
-			IOPS:     10,
-			Networks: []*structs.NetworkResource{
-				&structs.NetworkResource{
-					Public:        true,
-					CIDR:          "192.168.0.100/32",
-					ReservedPorts: []int{12345},
-					MBits:         100,
-				},
-			},
-		},
-		Job: mockJob(),
-	}
-	alloc.JobID = alloc.Job.ID
-	return alloc
-}
-
 func TestStateStore_RegisterNode_GetNode(t *testing.T) {
 	state := testStateStore(t)
-	node := mockNode()
+	node := mock.Node()
 
 	err := state.RegisterNode(1000, node)
 	if err != nil {
@@ -174,7 +50,7 @@ func TestStateStore_RegisterNode_GetNode(t *testing.T) {
 
 func TestStateStore_DeregisterNode_GetNode(t *testing.T) {
 	state := testStateStore(t)
-	node := mockNode()
+	node := mock.Node()
 
 	err := state.RegisterNode(1000, node)
 	if err != nil {
@@ -206,7 +82,7 @@ func TestStateStore_DeregisterNode_GetNode(t *testing.T) {
 
 func TestStateStore_UpdateNode_GetNode(t *testing.T) {
 	state := testStateStore(t)
-	node := mockNode()
+	node := mock.Node()
 
 	err := state.RegisterNode(1000, node)
 	if err != nil {
@@ -244,7 +120,7 @@ func TestStateStore_Nodes(t *testing.T) {
 	var nodes []*structs.Node
 
 	for i := 0; i < 10; i++ {
-		node := mockNode()
+		node := mock.Node()
 		nodes = append(nodes, node)
 
 		err := state.RegisterNode(1000+uint64(i), node)
@@ -283,7 +159,7 @@ func TestStateStore_RestoreNode(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	node := mockNode()
+	node := mock.Node()
 	err = restore.NodeRestore(node)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -303,7 +179,7 @@ func TestStateStore_RestoreNode(t *testing.T) {
 
 func TestStateStore_RegisterJob_GetJob(t *testing.T) {
 	state := testStateStore(t)
-	job := mockJob()
+	job := mock.Job()
 
 	err := state.RegisterJob(1000, job)
 	if err != nil {
@@ -330,14 +206,14 @@ func TestStateStore_RegisterJob_GetJob(t *testing.T) {
 
 func TestStateStore_UpdateRegisterJob_GetJob(t *testing.T) {
 	state := testStateStore(t)
-	job := mockJob()
+	job := mock.Job()
 
 	err := state.RegisterJob(1000, job)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	job2 := mockJob()
+	job2 := mock.Job()
 	job2.ID = job.ID
 	err = state.RegisterJob(1001, job2)
 	if err != nil {
@@ -371,7 +247,7 @@ func TestStateStore_UpdateRegisterJob_GetJob(t *testing.T) {
 
 func TestStateStore_DeregisterJob_GetJob(t *testing.T) {
 	state := testStateStore(t)
-	job := mockJob()
+	job := mock.Job()
 
 	err := state.RegisterJob(1000, job)
 	if err != nil {
@@ -406,7 +282,7 @@ func TestStateStore_Jobs(t *testing.T) {
 	var jobs []*structs.Job
 
 	for i := 0; i < 10; i++ {
-		job := mockJob()
+		job := mock.Job()
 		jobs = append(jobs, job)
 
 		err := state.RegisterJob(1000+uint64(i), job)
@@ -445,7 +321,7 @@ func TestStateStore_RestoreJob(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	job := mockJob()
+	job := mock.Job()
 	err = restore.JobRestore(job)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -465,7 +341,7 @@ func TestStateStore_RestoreJob(t *testing.T) {
 
 func TestStateStore_Indexes(t *testing.T) {
 	state := testStateStore(t)
-	node := mockNode()
+	node := mock.Node()
 
 	err := state.RegisterNode(1000, node)
 	if err != nil {
@@ -523,7 +399,7 @@ func TestStateStore_RestoreIndex(t *testing.T) {
 
 func TestStateStore_UpsertEvals_GetEval(t *testing.T) {
 	state := testStateStore(t)
-	eval := mockEval()
+	eval := mock.Eval()
 
 	err := state.UpsertEvals(1000, []*structs.Evaluation{eval})
 	if err != nil {
@@ -550,14 +426,14 @@ func TestStateStore_UpsertEvals_GetEval(t *testing.T) {
 
 func TestStateStore_Update_UpsertEvals_GetEval(t *testing.T) {
 	state := testStateStore(t)
-	eval := mockEval()
+	eval := mock.Eval()
 
 	err := state.UpsertEvals(1000, []*structs.Evaluation{eval})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	eval2 := mockEval()
+	eval2 := mock.Eval()
 	eval2.ID = eval.ID
 	err = state.UpsertEvals(1001, []*structs.Evaluation{eval2})
 	if err != nil {
@@ -591,7 +467,7 @@ func TestStateStore_Update_UpsertEvals_GetEval(t *testing.T) {
 
 func TestStateStore_DeleteEval_GetEval(t *testing.T) {
 	state := testStateStore(t)
-	eval := mockEval()
+	eval := mock.Eval()
 
 	err := state.UpsertEvals(1000, []*structs.Evaluation{eval})
 	if err != nil {
@@ -626,7 +502,7 @@ func TestStateStore_Evals(t *testing.T) {
 	var evals []*structs.Evaluation
 
 	for i := 0; i < 10; i++ {
-		eval := mockEval()
+		eval := mock.Eval()
 		evals = append(evals, eval)
 
 		err := state.UpsertEvals(1000+uint64(i), []*structs.Evaluation{eval})
@@ -665,7 +541,7 @@ func TestStateStore_RestoreEval(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	job := mockEval()
+	job := mock.Eval()
 	err = restore.EvalRestore(job)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -686,7 +562,7 @@ func TestStateStore_RestoreEval(t *testing.T) {
 func TestStateStore_UpsertAlloc_GetAlloc(t *testing.T) {
 	state := testStateStore(t)
 
-	alloc := mockAlloc()
+	alloc := mock.Alloc()
 	err := state.UpdateAllocations(1000, nil,
 		[]*structs.Allocation{alloc})
 	if err != nil {
@@ -713,7 +589,7 @@ func TestStateStore_UpsertAlloc_GetAlloc(t *testing.T) {
 
 func TestStateStore_UpdateAlloc_GetAlloc(t *testing.T) {
 	state := testStateStore(t)
-	alloc := mockAlloc()
+	alloc := mock.Alloc()
 
 	err := state.UpdateAllocations(1000, nil,
 		[]*structs.Allocation{alloc})
@@ -721,7 +597,7 @@ func TestStateStore_UpdateAlloc_GetAlloc(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	alloc2 := mockAlloc()
+	alloc2 := mock.Alloc()
 	alloc2.ID = alloc.ID
 	alloc2.NodeID = alloc.NodeID + ".new"
 	err = state.UpdateAllocations(1001, nil,
@@ -757,7 +633,7 @@ func TestStateStore_UpdateAlloc_GetAlloc(t *testing.T) {
 
 func TestStateStore_EvictAlloc_GetAlloc(t *testing.T) {
 	state := testStateStore(t)
-	alloc := mockAlloc()
+	alloc := mock.Alloc()
 
 	err := state.UpdateAllocations(1001, nil, []*structs.Allocation{alloc})
 	if err != nil {
@@ -792,7 +668,7 @@ func TestStateStore_AllocsByNode(t *testing.T) {
 	var allocs []*structs.Allocation
 
 	for i := 0; i < 10; i++ {
-		alloc := mockAlloc()
+		alloc := mock.Alloc()
 		alloc.NodeID = "foo"
 		allocs = append(allocs, alloc)
 	}
@@ -820,7 +696,7 @@ func TestStateStore_AllocsByJob(t *testing.T) {
 	var allocs []*structs.Allocation
 
 	for i := 0; i < 10; i++ {
-		alloc := mockAlloc()
+		alloc := mock.Alloc()
 		alloc.JobID = "foo"
 		allocs = append(allocs, alloc)
 	}
@@ -848,7 +724,7 @@ func TestStateStore_Allocs(t *testing.T) {
 	var allocs []*structs.Allocation
 
 	for i := 0; i < 10; i++ {
-		alloc := mockAlloc()
+		alloc := mock.Alloc()
 		allocs = append(allocs, alloc)
 	}
 
@@ -887,7 +763,7 @@ func TestStateStore_RestoreAlloc(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	alloc := mockAlloc()
+	alloc := mock.Alloc()
 	err = restore.AllocRestore(alloc)
 	if err != nil {
 		t.Fatalf("err: %v", err)

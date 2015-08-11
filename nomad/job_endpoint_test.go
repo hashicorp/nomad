@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 )
@@ -16,7 +17,7 @@ func TestJobEndpoint_Register(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the register request
-	job := mockJob()
+	job := mock.Job()
 	req := &structs.JobRegisterRequest{
 		Job:          job,
 		WriteRequest: structs.WriteRequest{Region: "region1"},
@@ -83,7 +84,7 @@ func TestJobEndpoint_Register_Existing(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the register request
-	job := mockJob()
+	job := mock.Job()
 	req := &structs.JobRegisterRequest{
 		Job:          job,
 		WriteRequest: structs.WriteRequest{Region: "region1"},
@@ -99,7 +100,7 @@ func TestJobEndpoint_Register_Existing(t *testing.T) {
 	}
 
 	// Update the job definition
-	job2 := mockJob()
+	job2 := mock.Job()
 	job2.Priority = 100
 	job2.ID = job.ID
 	req.Job = job2
@@ -167,7 +168,7 @@ func TestJobEndpoint_Deregister(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the register request
-	job := mockJob()
+	job := mock.Job()
 	reg := &structs.JobRegisterRequest{
 		Job:          job,
 		WriteRequest: structs.WriteRequest{Region: "region1"},
@@ -241,7 +242,7 @@ func TestJobEndpoint_GetJob(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the register request
-	job := mockJob()
+	job := mock.Job()
 	reg := &structs.JobRegisterRequest{
 		Job:          job,
 		WriteRequest: structs.WriteRequest{Region: "region1"},

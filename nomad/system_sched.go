@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
 )
@@ -10,11 +11,11 @@ import (
 // across the cluster.
 type SystemScheduler struct {
 	srv  *Server
-	snap *StateSnapshot
+	snap *state.StateSnapshot
 }
 
 // NewSystemScheduler is used to return a new system scheduler instance
-func NewSystemScheduler(srv *Server, snap *StateSnapshot) scheduler.Scheduler {
+func NewSystemScheduler(srv *Server, snap *state.StateSnapshot) scheduler.Scheduler {
 	s := &SystemScheduler{
 		srv:  srv,
 		snap: snap,

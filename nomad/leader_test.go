@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 )
@@ -250,7 +251,7 @@ func TestLeader_EvalBroker_Reset(t *testing.T) {
 
 	// Inject a pending eval
 	req := structs.EvalUpdateRequest{
-		Evals: []*structs.Evaluation{mockEval()},
+		Evals: []*structs.Evaluation{mock.Eval()},
 	}
 	_, _, err := leader.raftApply(structs.EvalUpdateRequestType, req)
 	if err != nil {

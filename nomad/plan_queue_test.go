@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -13,16 +14,6 @@ func testPlanQueue(t *testing.T) *PlanQueue {
 		t.Fatalf("err: %v", err)
 	}
 	return pq
-}
-
-func mockPlan() *structs.Plan {
-	return &structs.Plan{
-		Priority: 50,
-	}
-}
-
-func mockPlanResult() *structs.PlanResult {
-	return &structs.PlanResult{}
 }
 
 func TestPlanQueue_Enqueue_Dequeue(t *testing.T) {
@@ -35,7 +26,7 @@ func TestPlanQueue_Enqueue_Dequeue(t *testing.T) {
 		t.Fatalf("should be enabled")
 	}
 
-	plan := mockPlan()
+	plan := mock.Plan()
 	future, err := pq.Enqueue(plan)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -69,7 +60,7 @@ func TestPlanQueue_Enqueue_Dequeue(t *testing.T) {
 		t.Fatalf("bad: %#v", pending)
 	}
 
-	result := mockPlanResult()
+	result := mock.PlanResult()
 	pending.respond(result, nil)
 
 	select {
@@ -86,7 +77,7 @@ func TestPlanQueue_Enqueue_Disable(t *testing.T) {
 	pq := testPlanQueue(t)
 
 	// Enqueue
-	plan := mockPlan()
+	plan := mock.Plan()
 	pq.SetEnabled(true)
 	future, err := pq.Enqueue(plan)
 	if err != nil {
@@ -137,15 +128,15 @@ func TestPlanQueue_Dequeue_Priority(t *testing.T) {
 	pq := testPlanQueue(t)
 	pq.SetEnabled(true)
 
-	plan1 := mockPlan()
+	plan1 := mock.Plan()
 	plan1.Priority = 10
 	pq.Enqueue(plan1)
 
-	plan2 := mockPlan()
+	plan2 := mock.Plan()
 	plan2.Priority = 30
 	pq.Enqueue(plan2)
 
-	plan3 := mockPlan()
+	plan3 := mock.Plan()
 	plan3.Priority = 20
 	pq.Enqueue(plan3)
 
@@ -173,7 +164,7 @@ func TestPlanQueue_Dequeue_FIFO(t *testing.T) {
 
 	plans := make([]*structs.Plan, NUM)
 	for i := 0; i < NUM; i++ {
-		plan := mockPlan()
+		plan := mock.Plan()
 		pq.Enqueue(plan)
 		plans[i] = plan
 	}

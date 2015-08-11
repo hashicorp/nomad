@@ -3,6 +3,7 @@ package nomad
 import (
 	"testing"
 
+	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 )
@@ -30,11 +31,11 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Register ndoe
-	node := mockNode()
+	node := mock.Node()
 	testRegisterNode(t, s1, node)
 
 	// Register alloc
-	alloc := mockAlloc()
+	alloc := mock.Alloc()
 	plan := &structs.PlanResult{
 		NodeEvict: map[string][]string{
 			node.ID: []string{},
@@ -63,7 +64,7 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	}
 
 	// Evict alloc, Register alloc2
-	alloc2 := mockAlloc()
+	alloc2 := mock.Alloc()
 	plan = &structs.PlanResult{
 		NodeEvict: map[string][]string{
 			node.ID: []string{alloc.ID},
@@ -103,11 +104,11 @@ func TestPlanApply_applyPlan(t *testing.T) {
 
 func TestPlanApply_EvalPlan_Simple(t *testing.T) {
 	state := testStateStore(t)
-	node := mockNode()
+	node := mock.Node()
 	state.RegisterNode(1000, node)
 	snap, _ := state.Snapshot()
 
-	alloc := mockAlloc()
+	alloc := mock.Alloc()
 	plan := &structs.Plan{
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: []*structs.Allocation{alloc},
@@ -125,14 +126,14 @@ func TestPlanApply_EvalPlan_Simple(t *testing.T) {
 
 func TestPlanApply_EvalPlan_Partial(t *testing.T) {
 	state := testStateStore(t)
-	node := mockNode()
+	node := mock.Node()
 	state.RegisterNode(1000, node)
-	node2 := mockNode()
+	node2 := mock.Node()
 	state.RegisterNode(1001, node2)
 	snap, _ := state.Snapshot()
 
-	alloc := mockAlloc()
-	alloc2 := mockAlloc() // Ensure alloc2 does not fit
+	alloc := mock.Alloc()
+	alloc2 := mock.Alloc() // Ensure alloc2 does not fit
 	alloc2.Resources = node2.Resources
 	plan := &structs.Plan{
 		NodeAllocation: map[string][]*structs.Allocation{
@@ -159,14 +160,14 @@ func TestPlanApply_EvalPlan_Partial(t *testing.T) {
 
 func TestPlanApply_EvalPlan_Partial_AllAtOnce(t *testing.T) {
 	state := testStateStore(t)
-	node := mockNode()
+	node := mock.Node()
 	state.RegisterNode(1000, node)
-	node2 := mockNode()
+	node2 := mock.Node()
 	state.RegisterNode(1001, node2)
 	snap, _ := state.Snapshot()
 
-	alloc := mockAlloc()
-	alloc2 := mockAlloc() // Ensure alloc2 does not fit
+	alloc := mock.Alloc()
+	alloc2 := mock.Alloc() // Ensure alloc2 does not fit
 	alloc2.Resources = node2.Resources
 	plan := &structs.Plan{
 		AllAtOnce: true, // Require all to make progress
@@ -191,11 +192,11 @@ func TestPlanApply_EvalPlan_Partial_AllAtOnce(t *testing.T) {
 
 func TestPlanApply_EvalNodePlan_Simple(t *testing.T) {
 	state := testStateStore(t)
-	node := mockNode()
+	node := mock.Node()
 	state.RegisterNode(1000, node)
 	snap, _ := state.Snapshot()
 
-	alloc := mockAlloc()
+	alloc := mock.Alloc()
 	plan := &structs.Plan{
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: []*structs.Allocation{alloc},
@@ -213,12 +214,12 @@ func TestPlanApply_EvalNodePlan_Simple(t *testing.T) {
 
 func TestPlanApply_EvalNodePlan_NodeNotReady(t *testing.T) {
 	state := testStateStore(t)
-	node := mockNode()
+	node := mock.Node()
 	node.Status = structs.NodeStatusInit
 	state.RegisterNode(1000, node)
 	snap, _ := state.Snapshot()
 
-	alloc := mockAlloc()
+	alloc := mock.Alloc()
 	plan := &structs.Plan{
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: []*structs.Allocation{alloc},
@@ -239,7 +240,7 @@ func TestPlanApply_EvalNodePlan_NodeNotExist(t *testing.T) {
 	snap, _ := state.Snapshot()
 
 	nodeID := "foo"
-	alloc := mockAlloc()
+	alloc := mock.Alloc()
 	plan := &structs.Plan{
 		NodeAllocation: map[string][]*structs.Allocation{
 			nodeID: []*structs.Allocation{alloc},
@@ -256,9 +257,9 @@ func TestPlanApply_EvalNodePlan_NodeNotExist(t *testing.T) {
 }
 
 func TestPlanApply_EvalNodePlan_NodeFull(t *testing.T) {
-	alloc := mockAlloc()
+	alloc := mock.Alloc()
 	state := testStateStore(t)
-	node := mockNode()
+	node := mock.Node()
 	alloc.NodeID = node.ID
 	node.Resources = alloc.Resources
 	node.Reserved = nil
@@ -283,9 +284,9 @@ func TestPlanApply_EvalNodePlan_NodeFull(t *testing.T) {
 }
 
 func TestPlanApply_EvalNodePlan_NodeFull_Evict(t *testing.T) {
-	alloc := mockAlloc()
+	alloc := mock.Alloc()
 	state := testStateStore(t)
-	node := mockNode()
+	node := mock.Node()
 	alloc.NodeID = node.ID
 	node.Resources = alloc.Resources
 	node.Reserved = nil
@@ -294,7 +295,7 @@ func TestPlanApply_EvalNodePlan_NodeFull_Evict(t *testing.T) {
 		[]*structs.Allocation{alloc})
 	snap, _ := state.Snapshot()
 
-	alloc2 := mockAlloc()
+	alloc2 := mock.Alloc()
 	plan := &structs.Plan{
 		NodeEvict: map[string][]string{
 			node.ID: []string{alloc.ID},
@@ -314,9 +315,9 @@ func TestPlanApply_EvalNodePlan_NodeFull_Evict(t *testing.T) {
 }
 
 func TestPlanApply_EvalNodePlan_NodeMaint_EvictOnly(t *testing.T) {
-	alloc := mockAlloc()
+	alloc := mock.Alloc()
 	state := testStateStore(t)
-	node := mockNode()
+	node := mock.Node()
 	alloc.NodeID = node.ID
 	node.Resources = alloc.Resources
 	node.Reserved = nil

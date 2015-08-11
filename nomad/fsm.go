@@ -8,6 +8,7 @@ import (
 
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
 )
@@ -38,14 +39,14 @@ type nomadFSM struct {
 	evalBroker *EvalBroker
 	logOutput  io.Writer
 	logger     *log.Logger
-	state      *StateStore
+	state      *state.StateStore
 }
 
 // nomadSnapshot is used to provide a snapshot of the current
 // state in a way that can be accessed concurrently with operations
 // that may modify the live state.
 type nomadSnapshot struct {
-	snap *StateSnapshot
+	snap *state.StateSnapshot
 }
 
 // snapshotHeader is the first entry in our snapshot
@@ -55,7 +56,7 @@ type snapshotHeader struct {
 // NewFSMPath is used to construct a new FSM with a blank state
 func NewFSM(evalBroker *EvalBroker, logOutput io.Writer) (*nomadFSM, error) {
 	// Create a state store
-	state, err := NewStateStore(logOutput)
+	state, err := state.NewStateStore(logOutput)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +76,7 @@ func (n *nomadFSM) Close() error {
 }
 
 // State is used to return a handle to the current state
-func (n *nomadFSM) State() *StateStore {
+func (n *nomadFSM) State() *state.StateStore {
 	return n.state
 }
 
@@ -253,14 +254,14 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 	defer old.Close()
 
 	// Create a new state store
-	state, err := NewStateStore(n.logOutput)
+	newState, err := state.NewStateStore(n.logOutput)
 	if err != nil {
 		return err
 	}
-	n.state = state
+	n.state = newState
 
 	// Start the state restore
-	restore, err := state.Restore()
+	restore, err := newState.Restore()
 	if err != nil {
 		return err
 	}
@@ -325,7 +326,7 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 			}
 
 		case IndexSnapshot:
-			idx := new(IndexEntry)
+			idx := new(state.IndexEntry)
 			if err := dec.Decode(idx); err != nil {
 				return err
 			}
@@ -395,7 +396,7 @@ func (s *nomadSnapshot) persistIndexes(sink raft.SnapshotSink,
 		}
 
 		// Prepare the request struct
-		idx := raw.(*IndexEntry)
+		idx := raw.(*state.IndexEntry)
 
 		// Write out a node registration
 		sink.Write([]byte{byte(IndexSnapshot)})

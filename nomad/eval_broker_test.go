@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -29,7 +30,7 @@ func TestEvalBroker_Enqueue_Dequeue_Nack_Ack(t *testing.T) {
 	b := testBroker(t, 0)
 
 	// Enqueue, but broker is disabled!
-	eval := mockEval()
+	eval := mock.Eval()
 	err := b.Enqueue(eval)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -167,13 +168,13 @@ func TestEvalBroker_Serialize_DuplicateJobID(t *testing.T) {
 	b := testBroker(t, 0)
 	b.SetEnabled(true)
 
-	eval := mockEval()
+	eval := mock.Eval()
 	err := b.Enqueue(eval)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	eval2 := mockEval()
+	eval2 := mock.Eval()
 	eval2.JobID = eval.JobID
 	eval2.CreateIndex = eval.CreateIndex + 1
 	err = b.Enqueue(eval2)
@@ -181,7 +182,7 @@ func TestEvalBroker_Serialize_DuplicateJobID(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	eval3 := mockEval()
+	eval3 := mock.Eval()
 	eval3.JobID = eval.JobID
 	eval3.CreateIndex = eval.CreateIndex + 2
 	err = b.Enqueue(eval3)
@@ -319,7 +320,7 @@ func TestEvalBroker_Enqueue_Disable(t *testing.T) {
 	b := testBroker(t, 0)
 
 	// Enqueue
-	eval := mockEval()
+	eval := mock.Eval()
 	b.SetEnabled(true)
 	err := b.Enqueue(eval)
 	if err != nil {
@@ -367,15 +368,15 @@ func TestEvalBroker_Dequeue_Priority(t *testing.T) {
 	b := testBroker(t, 0)
 	b.SetEnabled(true)
 
-	eval1 := mockEval()
+	eval1 := mock.Eval()
 	eval1.Priority = 10
 	b.Enqueue(eval1)
 
-	eval2 := mockEval()
+	eval2 := mock.Eval()
 	eval2.Priority = 30
 	b.Enqueue(eval2)
 
-	eval3 := mockEval()
+	eval3 := mock.Eval()
 	eval3.Priority = 20
 	b.Enqueue(eval3)
 
@@ -402,7 +403,7 @@ func TestEvalBroker_Dequeue_FIFO(t *testing.T) {
 	NUM := 100
 
 	for i := 0; i < NUM; i++ {
-		eval1 := mockEval()
+		eval1 := mock.Eval()
 		eval1.CreateIndex = uint64(i)
 		eval1.ModifyIndex = uint64(i)
 		b.Enqueue(eval1)
@@ -423,7 +424,7 @@ func TestEvalBroker_Dequeue_Fairness(t *testing.T) {
 	NUM := 100
 
 	for i := 0; i < NUM; i++ {
-		eval1 := mockEval()
+		eval1 := mock.Eval()
 		if i < (NUM / 2) {
 			eval1.Type = structs.JobTypeService
 		} else {
@@ -481,7 +482,7 @@ func TestEvalBroker_Dequeue_Blocked(t *testing.T) {
 	time.Sleep(5 * time.Millisecond)
 
 	// Enqueue
-	eval := mockEval()
+	eval := mock.Eval()
 	err := b.Enqueue(eval)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -504,7 +505,7 @@ func TestEvalBroker_Nack_Timeout(t *testing.T) {
 	b.SetEnabled(true)
 
 	// Enqueue
-	eval := mockEval()
+	eval := mock.Eval()
 	err := b.Enqueue(eval)
 	if err != nil {
 		t.Fatalf("err: %v", err)

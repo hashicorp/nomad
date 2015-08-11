@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/armon/go-metrics"
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -69,7 +70,7 @@ func (s *Server) applyPlan(result *structs.PlanResult) (uint64, error) {
 // evaluatePlan is used to determine what portions of a plan
 // can be applied if any. Returns if there should be a plan application
 // which may be partial or if there was an error
-func evaluatePlan(snap *StateSnapshot, plan *structs.Plan) (*structs.PlanResult, error) {
+func evaluatePlan(snap *state.StateSnapshot, plan *structs.Plan) (*structs.PlanResult, error) {
 	defer metrics.MeasureSince([]string{"nomad", "plan", "evaluate"}, time.Now())
 
 	// Create a result holder for the plan
@@ -123,7 +124,7 @@ func evaluatePlan(snap *StateSnapshot, plan *structs.Plan) (*structs.PlanResult,
 
 // evaluateNodePlan is used to evalute the plan for a single node,
 // returning if the plan is valid or if an error is encountered
-func evaluateNodePlan(snap *StateSnapshot, plan *structs.Plan, nodeID string) (bool, error) {
+func evaluateNodePlan(snap *state.StateSnapshot, plan *structs.Plan, nodeID string) (bool, error) {
 	// If this is an evict-only plan, it always 'fits' since we are removing things.
 	if len(plan.NodeAllocation[nodeID]) == 0 {
 		return true, nil

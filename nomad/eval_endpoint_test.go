@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 )
@@ -17,7 +18,7 @@ func TestEvalEndpoint_GetEval(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the register request
-	eval1 := mockEval()
+	eval1 := mock.Eval()
 	s1.fsm.State().UpsertEvals(1000, []*structs.Evaluation{eval1})
 
 	// Lookup the eval
@@ -59,7 +60,7 @@ func TestEvalEndpoint_Dequeue(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the register request
-	eval1 := mockEval()
+	eval1 := mock.Eval()
 	s1.evalBroker.Enqueue(eval1)
 
 	// Dequeue the eval
@@ -94,7 +95,7 @@ func TestEvalEndpoint_Ack(t *testing.T) {
 	})
 
 	// Create the register request
-	eval1 := mockEval()
+	eval1 := mock.Eval()
 	s1.evalBroker.Enqueue(eval1)
 	out, err := s1.evalBroker.Dequeue(defaultSched, time.Second)
 	if err != nil {
@@ -132,7 +133,7 @@ func TestEvalEndpoint_Nack(t *testing.T) {
 	})
 
 	// Create the register request
-	eval1 := mockEval()
+	eval1 := mock.Eval()
 	s1.evalBroker.Enqueue(eval1)
 	out, _ := s1.evalBroker.Dequeue(defaultSched, time.Second)
 	if out == nil {
