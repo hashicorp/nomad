@@ -57,6 +57,9 @@ type State interface {
 
 	// AllocsByJob returns the allocations by JobID
 	AllocsByJob(jobID string) ([]*structs.Allocation, error)
+
+	// GetNodeByID is used to lookup a node by ID
+	GetNodeByID(nodeID string) (*structs.Node, error)
 }
 
 // Planner interface is used to submit a task allocation plan.

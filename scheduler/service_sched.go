@@ -52,6 +52,23 @@ func (s *ServiceScheduler) handleJobRegister(eval *structs.Evaluation) error {
 // handleJobDeregister is used to handle a job being deregistered
 func (s *ServiceScheduler) handleJobDeregister(eval *structs.Evaluation) error {
 START:
+	// Lookup the node ID
+	node, err := s.state.GetNodeByID(eval.NodeID)
+	if err != nil {
+		return fmt.Errorf("failed to get node '%s': %v",
+			eval.NodeID, err)
+	}
+
+	// Could be a potential race, and the node is actually fine
+	if node != nil {
+		switch node.Status {
+		case structs.NodeStatusInit, structs.NodeStatusReady, structs.NodeStatusMaint:
+			s.logger.Printf("[DEBUG] sched: (eval %s) not evicting node %s allocs, status %s",
+				eval.ID, eval.NodeID, node.Status)
+			return nil
+		}
+	}
+
 	// Lookup the allocations by JobID
 	allocs, err := s.state.AllocsByJob(eval.JobID)
 	if err != nil {
