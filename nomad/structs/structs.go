@@ -584,6 +584,9 @@ type Allocation struct {
 	// ID of the allocation (UUID)
 	ID string
 
+	// Name is a logical name of the allocation.
+	Name string
+
 	// NodeID is the node this is being placed on
 	NodeID string
 
@@ -718,6 +721,19 @@ func (e *Evaluation) ShouldEnqueue() bool {
 	default:
 		panic(fmt.Sprintf("unhandled evaluation (%s) status %s", e.ID, e.Status))
 	}
+}
+
+// MakePlan is used to make a plan from the given evaluation
+// for a given Job
+func (e *Evaluation) MakePlan(j *Job) *Plan {
+	p := &Plan{
+		EvalID:         e.ID,
+		Priority:       j.Priority,
+		AllAtOnce:      j.AllAtOnce,
+		NodeEvict:      make(map[string][]string),
+		NodeAllocation: make(map[string][]*Allocation),
+	}
+	return p
 }
 
 // Plan is used to submit a commit plan for task allocations. These
