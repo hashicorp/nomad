@@ -100,3 +100,40 @@ func (iter *ConstraintIterator) meetsConstraints(option *structs.Node) bool {
 	// TODO:
 	return true
 }
+
+// DriverIterator is a FeasibleIterator which returns nodes that
+// have the drivers necessary to scheduler a task group.
+type DriverIterator struct {
+	ctx     Context
+	source  FeasibleIterator
+	drivers map[string]struct{}
+}
+
+// NewDriverIterator creates a DriverIterator from a source and set of drivers
+func NewDriverIterator(ctx Context, source FeasibleIterator, drivers map[string]struct{}) *DriverIterator {
+	iter := &DriverIterator{
+		ctx:     ctx,
+		source:  source,
+		drivers: drivers,
+	}
+	return iter
+}
+
+func (iter *DriverIterator) Next() *structs.Node {
+	for {
+		// Get the next option from the source
+		option := iter.source.Next()
+		if option == nil {
+			return nil
+		}
+
+		// Use this node if possible
+		if iter.hasDrivers(option) {
+			return option
+		}
+	}
+}
+
+func (iter *DriverIterator) hasDrivers(option *structs.Node) bool {
+	return true
+}
