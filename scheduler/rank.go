@@ -20,6 +20,7 @@ type RankIterator interface {
 // FeasibleRankIterator is used to consume from a FeasibleIterator
 // and return an unranked node with base ranking.
 type FeasibleRankIterator struct {
+	ctx    Context
 	source FeasibleIterator
 }
 
@@ -27,6 +28,7 @@ type FeasibleRankIterator struct {
 // from a FeasibleIterator source.
 func NewFeasibleRankIterator(ctx Context, source FeasibleIterator) *FeasibleRankIterator {
 	iter := &FeasibleRankIterator{
+		ctx:    ctx,
 		source: source,
 	}
 	return iter
@@ -38,6 +40,26 @@ func (iter *FeasibleRankIterator) Next() *RankedNode {
 		Node: option,
 	}
 	return ranked
+}
+
+// StaticRankIterator is a RankIterator that returns a static set of results.
+// This is largely only useful for testing.
+type StaticRankIterator struct {
+	ctx    Context
+	nodes  []*RankedNode
+	offset int
+}
+
+func (iter *StaticRankIterator) Next() *RankedNode {
+	// Check if exhausted
+	if iter.offset == len(iter.nodes) {
+		return nil
+	}
+
+	// Return the next offset
+	offset := iter.offset
+	iter.offset += 1
+	return iter.nodes[offset]
 }
 
 // BinPackIterator is a RankIterator that scores potential options
