@@ -757,6 +757,13 @@ type Plan struct {
 	// EvalID is the evaluation ID this plan is associated with
 	EvalID string
 
+	// EvalToken is used to prevent a split-brain processing of
+	// an evaluation. There should only be a single scheduler running
+	// an Eval at a time, but this could be violated after a leadership
+	// transition. This unique token is used to reject plans that are
+	// being submitted from a different leader.
+	EvalToken string
+
 	// Priority is the priority of the upstream job
 	Priority int
 

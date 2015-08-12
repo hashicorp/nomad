@@ -187,7 +187,7 @@ func TestWorker_invokeScheduler(t *testing.T) {
 	eval := mock.Eval()
 	eval.Type = "noop"
 
-	err := w.invokeScheduler(eval)
+	err := w.invokeScheduler(eval, generateUUID())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -205,16 +205,33 @@ func TestWorker_SubmitPlan(t *testing.T) {
 	node := mock.Node()
 	testRegisterNode(t, s1, node)
 
+	// Create the register request
+	eval1 := mock.Eval()
+	testutil.WaitForResult(func() (bool, error) {
+		err := s1.evalBroker.Enqueue(eval1)
+		return err == nil, err
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+	evalOut, token, err := s1.evalBroker.Dequeue([]string{eval1.Type}, time.Second)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if evalOut != eval1 {
+		t.Fatalf("Bad eval")
+	}
+
 	// Create an allocation plan
 	alloc := mock.Alloc()
 	plan := &structs.Plan{
+		EvalID: eval1.ID,
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: []*structs.Allocation{alloc},
 		},
 	}
 
 	// Attempt to submit a plan
-	w := &Worker{srv: s1, logger: s1.logger}
+	w := &Worker{srv: s1, logger: s1.logger, evalToken: token}
 	result, state, err := w.SubmitPlan(plan)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -250,17 +267,34 @@ func TestWorker_SubmitPlan_MissingNodeRefresh(t *testing.T) {
 	node := mock.Node()
 	testRegisterNode(t, s1, node)
 
+	// Create the register request
+	eval1 := mock.Eval()
+	testutil.WaitForResult(func() (bool, error) {
+		err := s1.evalBroker.Enqueue(eval1)
+		return err == nil, err
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+	evalOut, token, err := s1.evalBroker.Dequeue([]string{eval1.Type}, time.Second)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if evalOut != eval1 {
+		t.Fatalf("Bad eval")
+	}
+
 	// Create an allocation plan, with unregistered node
 	node2 := mock.Node()
 	alloc := mock.Alloc()
 	plan := &structs.Plan{
+		EvalID: eval1.ID,
 		NodeAllocation: map[string][]*structs.Allocation{
 			node2.ID: []*structs.Allocation{alloc},
 		},
 	}
 
 	// Attempt to submit a plan
-	w := &Worker{srv: s1, logger: s1.logger}
+	w := &Worker{srv: s1, logger: s1.logger, evalToken: token}
 	result, state, err := w.SubmitPlan(plan)
 	if err != nil {
 		t.Fatalf("err: %v", err)

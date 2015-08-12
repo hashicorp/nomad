@@ -38,6 +38,8 @@ type Worker struct {
 	logger *log.Logger
 
 	failures uint
+
+	evalToken string
 }
 
 // NewWorker starts a new worker associated with the given server
@@ -72,7 +74,7 @@ func (w *Worker) run() {
 		}
 
 		// Invoke the scheduler to determine placements
-		if err := w.invokeScheduler(eval); err != nil {
+		if err := w.invokeScheduler(eval, token); err != nil {
 			w.sendAck(eval.ID, token, false)
 			continue
 		}
@@ -183,8 +185,11 @@ CHECK:
 }
 
 // invokeScheduler is used to invoke the business logic of the scheduler
-func (w *Worker) invokeScheduler(eval *structs.Evaluation) error {
+func (w *Worker) invokeScheduler(eval *structs.Evaluation, token string) error {
 	defer metrics.MeasureSince([]string{"nomad", "worker", "invoke_scheduler", eval.Type}, time.Now())
+	// Store the evaluation token
+	w.evalToken = token
+
 	// Snapshot the current state
 	snap, err := w.srv.fsm.State().Snapshot()
 	if err != nil {
@@ -218,6 +223,9 @@ func (w *Worker) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, scheduler.
 		return nil, nil, fmt.Errorf("shutdown while planning")
 	}
 	defer metrics.MeasureSince([]string{"nomad", "worker", "submit_plan"}, time.Now())
+
+	// Add the evaluation token to the plan
+	plan.EvalToken = w.evalToken
 
 	// Setup the request
 	req := structs.PlanRequest{
