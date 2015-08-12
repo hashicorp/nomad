@@ -56,7 +56,7 @@ func (e *Eval) GetEval(args *structs.EvalSpecificRequest,
 
 // Dequeue is used to dequeue a pending evaluation
 func (e *Eval) Dequeue(args *structs.EvalDequeueRequest,
-	reply *structs.SingleEvalResponse) error {
+	reply *structs.EvalDequeueResponse) error {
 	if done, err := e.srv.forward("Eval.Dequeue", args, args, reply); done {
 		return err
 	}
@@ -73,7 +73,7 @@ func (e *Eval) Dequeue(args *structs.EvalDequeueRequest,
 	}
 
 	// Attempt the dequeue
-	eval, err := e.srv.evalBroker.Dequeue(args.Schedulers, args.Timeout)
+	eval, token, err := e.srv.evalBroker.Dequeue(args.Schedulers, args.Timeout)
 	if err != nil {
 		return err
 	}
@@ -81,6 +81,7 @@ func (e *Eval) Dequeue(args *structs.EvalDequeueRequest,
 	// Provide the output if any
 	if eval != nil {
 		reply.Eval = eval
+		reply.Token = token
 	}
 
 	// Set the query response
@@ -89,7 +90,7 @@ func (e *Eval) Dequeue(args *structs.EvalDequeueRequest,
 }
 
 // Ack is used to acknowledge completion of a dequeued evaluation
-func (e *Eval) Ack(args *structs.EvalSpecificRequest,
+func (e *Eval) Ack(args *structs.EvalAckRequest,
 	reply *structs.GenericResponse) error {
 	if done, err := e.srv.forward("Eval.Ack", args, args, reply); done {
 		return err
@@ -97,14 +98,14 @@ func (e *Eval) Ack(args *structs.EvalSpecificRequest,
 	defer metrics.MeasureSince([]string{"nomad", "eval", "ack"}, time.Now())
 
 	// Ack the EvalID
-	if err := e.srv.evalBroker.Ack(args.EvalID); err != nil {
+	if err := e.srv.evalBroker.Ack(args.EvalID, args.Token); err != nil {
 		return err
 	}
 	return nil
 }
 
 // NAck is used to negative acknowledge completion of a dequeued evaluation
-func (e *Eval) Nack(args *structs.EvalSpecificRequest,
+func (e *Eval) Nack(args *structs.EvalAckRequest,
 	reply *structs.GenericResponse) error {
 	if done, err := e.srv.forward("Eval.Nack", args, args, reply); done {
 		return err
@@ -112,7 +113,7 @@ func (e *Eval) Nack(args *structs.EvalSpecificRequest,
 	defer metrics.MeasureSince([]string{"nomad", "eval", "nack"}, time.Now())
 
 	// Nack the EvalID
-	if err := e.srv.evalBroker.Nack(args.EvalID); err != nil {
+	if err := e.srv.evalBroker.Nack(args.EvalID, args.Token); err != nil {
 		return err
 	}
 	return nil

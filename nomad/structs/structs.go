@@ -179,6 +179,13 @@ type EvalSpecificRequest struct {
 	WriteRequest
 }
 
+// EvalAckRequest is used to Ack/Nack a specific evaluation
+type EvalAckRequest struct {
+	EvalID string
+	Token  string
+	WriteRequest
+}
+
 // EvalDequeueRequest is used when we want to dequeue an evaluation
 type EvalDequeueRequest struct {
 	Schedulers []string
@@ -248,6 +255,13 @@ type SingleJobResponse struct {
 // SingleEvalResponse is used to return a single evaluation
 type SingleEvalResponse struct {
 	Eval *Evaluation
+	QueryMeta
+}
+
+// EvalDequeueResponse is used to return from a dequeue
+type EvalDequeueResponse struct {
+	Eval  *Evaluation
+	Token string
 	QueryMeta
 }
 

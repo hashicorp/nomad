@@ -73,7 +73,7 @@ func TestEvalBroker_Enqueue_Dequeue_Nack_Ack(t *testing.T) {
 	}
 
 	// Dequeue should work
-	out, err := b.Dequeue(defaultSched, time.Second)
+	out, token, err := b.Dequeue(defaultSched, time.Second)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -81,8 +81,12 @@ func TestEvalBroker_Enqueue_Dequeue_Nack_Ack(t *testing.T) {
 		t.Fatalf("bad : %#v", out)
 	}
 
-	if !b.Outstanding(out.ID) {
+	tokenOut, ok := b.Outstanding(out.ID)
+	if !ok {
 		t.Fatalf("should be outstanding")
+	}
+	if tokenOut != token {
+		t.Fatalf("Bad: %#v %#v", token, tokenOut)
 	}
 
 	// Check the stats
@@ -100,13 +104,19 @@ func TestEvalBroker_Enqueue_Dequeue_Nack_Ack(t *testing.T) {
 		t.Fatalf("bad: %#v", stats)
 	}
 
+	// Nack with wrong token should fail
+	err = b.Nack(eval.ID, "foobarbaz")
+	if err == nil {
+		t.Fatalf("should fail to nack")
+	}
+
 	// Nack back into the queue
-	err = b.Nack(eval.ID)
+	err = b.Nack(eval.ID, token)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	if b.Outstanding(out.ID) {
+	if _, ok := b.Outstanding(out.ID); ok {
 		t.Fatalf("should not be outstanding")
 	}
 
@@ -126,25 +136,38 @@ func TestEvalBroker_Enqueue_Dequeue_Nack_Ack(t *testing.T) {
 	}
 
 	// Dequeue should work again
-	out2, err := b.Dequeue(defaultSched, time.Second)
+	out2, token2, err := b.Dequeue(defaultSched, time.Second)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if out2 != eval {
 		t.Fatalf("bad : %#v", out2)
 	}
+	if token2 == token {
+		t.Fatalf("should get a new token")
+	}
 
-	if !b.Outstanding(out.ID) {
+	tokenOut2, ok := b.Outstanding(out.ID)
+	if !ok {
 		t.Fatalf("should be outstanding")
+	}
+	if tokenOut2 != token2 {
+		t.Fatalf("Bad: %#v %#v", token2, tokenOut2)
+	}
+
+	// Ack with wrong token
+	err = b.Ack(eval.ID, "zip")
+	if err == nil {
+		t.Fatalf("should fail to ack")
 	}
 
 	// Ack finally
-	err = b.Ack(eval.ID)
+	err = b.Ack(eval.ID, token2)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	if b.Outstanding(out.ID) {
+	if _, ok := b.Outstanding(out.ID); ok {
 		t.Fatalf("should not be outstanding")
 	}
 
@@ -199,7 +222,7 @@ func TestEvalBroker_Serialize_DuplicateJobID(t *testing.T) {
 	}
 
 	// Dequeue should work
-	out, err := b.Dequeue(defaultSched, time.Second)
+	out, token, err := b.Dequeue(defaultSched, time.Second)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -220,7 +243,7 @@ func TestEvalBroker_Serialize_DuplicateJobID(t *testing.T) {
 	}
 
 	// Ack out
-	err = b.Ack(eval.ID)
+	err = b.Ack(eval.ID, token)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -238,7 +261,7 @@ func TestEvalBroker_Serialize_DuplicateJobID(t *testing.T) {
 	}
 
 	// Dequeue should work
-	out, err = b.Dequeue(defaultSched, time.Second)
+	out, token, err = b.Dequeue(defaultSched, time.Second)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -259,7 +282,7 @@ func TestEvalBroker_Serialize_DuplicateJobID(t *testing.T) {
 	}
 
 	// Ack out
-	err = b.Ack(eval2.ID)
+	err = b.Ack(eval2.ID, token)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -277,7 +300,7 @@ func TestEvalBroker_Serialize_DuplicateJobID(t *testing.T) {
 	}
 
 	// Dequeue should work
-	out, err = b.Dequeue(defaultSched, time.Second)
+	out, token, err = b.Dequeue(defaultSched, time.Second)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -298,7 +321,7 @@ func TestEvalBroker_Serialize_DuplicateJobID(t *testing.T) {
 	}
 
 	// Ack out
-	err = b.Ack(eval3.ID)
+	err = b.Ack(eval3.ID, token)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -348,7 +371,7 @@ func TestEvalBroker_Dequeue_Timeout(t *testing.T) {
 	b.SetEnabled(true)
 
 	start := time.Now()
-	out, err := b.Dequeue(defaultSched, 5*time.Millisecond)
+	out, _, err := b.Dequeue(defaultSched, 5*time.Millisecond)
 	end := time.Now()
 
 	if err != nil {
@@ -380,17 +403,17 @@ func TestEvalBroker_Dequeue_Priority(t *testing.T) {
 	eval3.Priority = 20
 	b.Enqueue(eval3)
 
-	out1, _ := b.Dequeue(defaultSched, time.Second)
+	out1, _, _ := b.Dequeue(defaultSched, time.Second)
 	if out1 != eval2 {
 		t.Fatalf("bad: %#v", out1)
 	}
 
-	out2, _ := b.Dequeue(defaultSched, time.Second)
+	out2, _, _ := b.Dequeue(defaultSched, time.Second)
 	if out2 != eval3 {
 		t.Fatalf("bad: %#v", out2)
 	}
 
-	out3, _ := b.Dequeue(defaultSched, time.Second)
+	out3, _, _ := b.Dequeue(defaultSched, time.Second)
 	if out3 != eval1 {
 		t.Fatalf("bad: %#v", out3)
 	}
@@ -410,7 +433,7 @@ func TestEvalBroker_Dequeue_FIFO(t *testing.T) {
 	}
 
 	for i := 0; i < NUM; i++ {
-		out1, _ := b.Dequeue(defaultSched, time.Second)
+		out1, _, _ := b.Dequeue(defaultSched, time.Second)
 		if out1.CreateIndex != uint64(i) {
 			t.Fatalf("bad: %d %#v", i, out1)
 		}
@@ -435,7 +458,7 @@ func TestEvalBroker_Dequeue_Fairness(t *testing.T) {
 
 	counter := 0
 	for i := 0; i < NUM; i++ {
-		out1, _ := b.Dequeue(defaultSched, time.Second)
+		out1, _, _ := b.Dequeue(defaultSched, time.Second)
 
 		switch out1.Type {
 		case structs.JobTypeService:
@@ -467,7 +490,7 @@ func TestEvalBroker_Dequeue_Blocked(t *testing.T) {
 	outCh := make(chan *structs.Evaluation, 1)
 	go func() {
 		start := time.Now()
-		out, err := b.Dequeue(defaultSched, time.Second)
+		out, _, err := b.Dequeue(defaultSched, time.Second)
 		end := time.Now()
 		outCh <- out
 		if err != nil {
@@ -512,7 +535,7 @@ func TestEvalBroker_Nack_Timeout(t *testing.T) {
 	}
 
 	// Dequeue
-	out, err := b.Dequeue(defaultSched, time.Second)
+	out, _, err := b.Dequeue(defaultSched, time.Second)
 	start := time.Now()
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -522,7 +545,7 @@ func TestEvalBroker_Nack_Timeout(t *testing.T) {
 	}
 
 	// Dequeue, should block on Nack timer
-	out, err = b.Dequeue(defaultSched, time.Second)
+	out, _, err = b.Dequeue(defaultSched, time.Second)
 	end := time.Now()
 	if err != nil {
 		t.Fatalf("err: %v", err)

@@ -51,6 +51,7 @@ type EvalBroker struct {
 // unackEval tracks an unacknowledged evaluation along with the Nack timer
 type unackEval struct {
 	Eval      *structs.Evaluation
+	Token     string
 	NackTimer *time.Timer
 }
 
@@ -164,16 +165,16 @@ func (b *EvalBroker) enqueueLocked(eval *structs.Evaluation) error {
 }
 
 // Dequeue is used to perform a blocking dequeue
-func (b *EvalBroker) Dequeue(schedulers []string, timeout time.Duration) (*structs.Evaluation, error) {
+func (b *EvalBroker) Dequeue(schedulers []string, timeout time.Duration) (*structs.Evaluation, string, error) {
 	var timeoutTimer *time.Timer
 SCAN:
 	// Scan for work
-	eval, err := b.scanForSchedulers(schedulers)
+	eval, token, err := b.scanForSchedulers(schedulers)
 	if err != nil {
 		if timeoutTimer != nil {
 			timeoutTimer.Stop()
 		}
-		return nil, err
+		return nil, "", err
 	}
 
 	// Check if we have something
@@ -181,7 +182,7 @@ SCAN:
 		if timeoutTimer != nil {
 			timeoutTimer.Stop()
 		}
-		return eval, nil
+		return eval, token, nil
 	}
 
 	// Setup the timeout channel the first time around
@@ -194,18 +195,18 @@ SCAN:
 	if scan {
 		goto SCAN
 	}
-	return nil, nil
+	return nil, "", nil
 }
 
 // scanForSchedulers scans for work on any of the schedulers. The highest priority work
 // is dequeued first. This may return nothing if there is no work waiting.
-func (b *EvalBroker) scanForSchedulers(schedulers []string) (*structs.Evaluation, error) {
+func (b *EvalBroker) scanForSchedulers(schedulers []string) (*structs.Evaluation, string, error) {
 	b.l.Lock()
 	defer b.l.Unlock()
 
 	// Do nothing if not enabled
 	if !b.enabled {
-		return nil, fmt.Errorf("eval broker disabled")
+		return nil, "", fmt.Errorf("eval broker disabled")
 	}
 
 	// Scan for eligible work
@@ -241,7 +242,7 @@ func (b *EvalBroker) scanForSchedulers(schedulers []string) (*structs.Evaluation
 	switch n := len(eligibleSched); n {
 	case 0:
 		// No work to do!
-		return nil, nil
+		return nil, "", nil
 
 	case 1:
 		// Only a single task, dequeue
@@ -257,21 +258,25 @@ func (b *EvalBroker) scanForSchedulers(schedulers []string) (*structs.Evaluation
 
 // dequeueForSched is used to dequeue the next work item for a given scheduler.
 // This assumes locks are held and that this scheduler has work
-func (b *EvalBroker) dequeueForSched(sched string) (*structs.Evaluation, error) {
+func (b *EvalBroker) dequeueForSched(sched string) (*structs.Evaluation, string, error) {
 	// Get the pending queue
 	pending := b.ready[sched]
 	raw := heap.Pop(&pending)
 	b.ready[sched] = pending
 	eval := raw.(*structs.Evaluation)
 
+	// Generate a UUID for the token
+	token := generateUUID()
+
 	// Setup Nack timer
 	nackTimer := time.AfterFunc(b.nackTimeout, func() {
-		b.Nack(eval.ID)
+		b.Nack(eval.ID, token)
 	})
 
 	// Add to the unack queue
 	b.unack[eval.ID] = &unackEval{
 		Eval:      eval,
+		Token:     token,
 		NackTimer: nackTimer,
 	}
 
@@ -282,7 +287,7 @@ func (b *EvalBroker) dequeueForSched(sched string) (*structs.Evaluation, error) 
 	bySched.Ready -= 1
 	bySched.Unacked += 1
 
-	return eval, nil
+	return eval, token, nil
 }
 
 // waitForSchedulers is used to wait for work on any of the scheduler or until a timeout.
@@ -327,15 +332,19 @@ func (b *EvalBroker) waitForSchedulers(schedulers []string, timeoutCh <-chan tim
 }
 
 // Outstanding checks if an EvalID has been delivered but not acknowledged
-func (b *EvalBroker) Outstanding(evalID string) bool {
+// and returns the associated token for the evaluation.
+func (b *EvalBroker) Outstanding(evalID string) (string, bool) {
 	b.l.RLock()
 	defer b.l.RUnlock()
-	_, ok := b.unack[evalID]
-	return ok
+	unack, ok := b.unack[evalID]
+	if !ok {
+		return "", false
+	}
+	return unack.Token, true
 }
 
 // Ack is used to positively acknowledge handling an evaluation
-func (b *EvalBroker) Ack(evalID string) error {
+func (b *EvalBroker) Ack(evalID, token string) error {
 	b.l.Lock()
 	defer b.l.Unlock()
 
@@ -343,6 +352,9 @@ func (b *EvalBroker) Ack(evalID string) error {
 	unack, ok := b.unack[evalID]
 	if !ok {
 		return fmt.Errorf("Evaluation ID not found")
+	}
+	if unack.Token != token {
+		return fmt.Errorf("Token does not match for Evaluation ID")
 	}
 	jobID := unack.Eval.JobID
 
@@ -377,7 +389,7 @@ func (b *EvalBroker) Ack(evalID string) error {
 }
 
 // Nack is used to negatively acknowledge handling an evaluation
-func (b *EvalBroker) Nack(evalID string) error {
+func (b *EvalBroker) Nack(evalID, token string) error {
 	b.l.Lock()
 	defer b.l.Unlock()
 
@@ -385,6 +397,9 @@ func (b *EvalBroker) Nack(evalID string) error {
 	unack, ok := b.unack[evalID]
 	if !ok {
 		return fmt.Errorf("Evaluation ID not found")
+	}
+	if unack.Token != token {
+		return fmt.Errorf("Token does not match for Evaluation ID")
 	}
 
 	// Stop the timer, doesn't matter if we've missed it

@@ -54,37 +54,37 @@ func NewWorker(srv *Server) (*Worker, error) {
 func (w *Worker) run() {
 	for {
 		// Dequeue a pending evaluation
-		eval, shutdown := w.dequeueEvaluation(dequeueTimeout)
+		eval, token, shutdown := w.dequeueEvaluation(dequeueTimeout)
 		if shutdown {
 			return
 		}
 
 		// Check for a shutdown
 		if w.srv.IsShutdown() {
-			w.sendAck(eval.ID, false)
+			w.sendAck(eval.ID, token, false)
 			return
 		}
 
 		// Wait for the the raft log to catchup to the evaluation
 		if err := w.waitForIndex(eval.ModifyIndex, raftSyncLimit); err != nil {
-			w.sendAck(eval.ID, false)
+			w.sendAck(eval.ID, token, false)
 			continue
 		}
 
 		// Invoke the scheduler to determine placements
 		if err := w.invokeScheduler(eval); err != nil {
-			w.sendAck(eval.ID, false)
+			w.sendAck(eval.ID, token, false)
 			continue
 		}
 
 		// Complete the evaluation
-		w.sendAck(eval.ID, true)
+		w.sendAck(eval.ID, token, true)
 	}
 }
 
 // dequeueEvaluation is used to fetch the next ready evaluation.
 // This blocks until an evaluation is available or a timeout is reached.
-func (w *Worker) dequeueEvaluation(timeout time.Duration) (*structs.Evaluation, bool) {
+func (w *Worker) dequeueEvaluation(timeout time.Duration) (*structs.Evaluation, string, bool) {
 	// Setup the request
 	req := structs.EvalDequeueRequest{
 		Schedulers: w.srv.config.EnabledSchedulers,
@@ -93,7 +93,7 @@ func (w *Worker) dequeueEvaluation(timeout time.Duration) (*structs.Evaluation, 
 			Region: w.srv.config.Region,
 		},
 	}
-	var resp structs.SingleEvalResponse
+	var resp structs.EvalDequeueResponse
 
 REQ:
 	// Make a blocking RPC
@@ -103,7 +103,7 @@ REQ:
 	if err != nil {
 		w.logger.Printf("[ERR] worker: failed to dequeue evaluation: %v", err)
 		if w.backoffErr() {
-			return nil, true
+			return nil, "", true
 		}
 		goto REQ
 	}
@@ -112,23 +112,24 @@ REQ:
 	// Check if we got a response
 	if resp.Eval != nil {
 		w.logger.Printf("[DEBUG] worker: dequeued evaluation %s", resp.Eval.ID)
-		return resp.Eval, false
+		return resp.Eval, resp.Token, false
 	}
 
 	// Check for potential shutdown
 	if w.srv.IsShutdown() {
-		return nil, true
+		return nil, "", true
 	}
 	goto REQ
 }
 
 // sendAck makes a best effort to ack or nack the evaluation.
 // Any errors are logged but swallowed.
-func (w *Worker) sendAck(evalID string, ack bool) {
+func (w *Worker) sendAck(evalID, token string, ack bool) {
 	defer metrics.MeasureSince([]string{"nomad", "worker", "send_ack"}, time.Now())
 	// Setup the request
-	req := structs.EvalSpecificRequest{
+	req := structs.EvalAckRequest{
 		EvalID: evalID,
+		Token:  token,
 		WriteRequest: structs.WriteRequest{
 			Region: w.srv.config.Region,
 		},

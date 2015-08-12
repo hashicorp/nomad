@@ -68,7 +68,7 @@ func TestEvalEndpoint_Dequeue(t *testing.T) {
 		Schedulers:   defaultSched,
 		WriteRequest: structs.WriteRequest{Region: "region1"},
 	}
-	var resp structs.SingleEvalResponse
+	var resp structs.EvalDequeueResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Eval.Dequeue", get, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -78,8 +78,12 @@ func TestEvalEndpoint_Dequeue(t *testing.T) {
 	}
 
 	// Ensure outstanding
-	if !s1.evalBroker.Outstanding(eval1.ID) {
+	token, ok := s1.evalBroker.Outstanding(eval1.ID)
+	if !ok {
 		t.Fatalf("should be outstanding")
+	}
+	if token != resp.Token {
+		t.Fatalf("bad token: %#v %#v", token, resp.Token)
 	}
 }
 
@@ -97,7 +101,7 @@ func TestEvalEndpoint_Ack(t *testing.T) {
 	// Create the register request
 	eval1 := mock.Eval()
 	s1.evalBroker.Enqueue(eval1)
-	out, err := s1.evalBroker.Dequeue(defaultSched, time.Second)
+	out, token, err := s1.evalBroker.Dequeue(defaultSched, time.Second)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -106,8 +110,9 @@ func TestEvalEndpoint_Ack(t *testing.T) {
 	}
 
 	// Ack the eval
-	get := &structs.EvalSpecificRequest{
+	get := &structs.EvalAckRequest{
 		EvalID:       out.ID,
+		Token:        token,
 		WriteRequest: structs.WriteRequest{Region: "region1"},
 	}
 	var resp structs.GenericResponse
@@ -116,7 +121,7 @@ func TestEvalEndpoint_Ack(t *testing.T) {
 	}
 
 	// Ensure outstanding
-	if s1.evalBroker.Outstanding(eval1.ID) {
+	if _, ok := s1.evalBroker.Outstanding(eval1.ID); ok {
 		t.Fatalf("should not be outstanding")
 	}
 }
@@ -135,14 +140,15 @@ func TestEvalEndpoint_Nack(t *testing.T) {
 	// Create the register request
 	eval1 := mock.Eval()
 	s1.evalBroker.Enqueue(eval1)
-	out, _ := s1.evalBroker.Dequeue(defaultSched, time.Second)
+	out, token, _ := s1.evalBroker.Dequeue(defaultSched, time.Second)
 	if out == nil {
 		t.Fatalf("missing eval")
 	}
 
-	// Ack the eval
-	get := &structs.EvalSpecificRequest{
+	// Nack the eval
+	get := &structs.EvalAckRequest{
 		EvalID:       out.ID,
+		Token:        token,
 		WriteRequest: structs.WriteRequest{Region: "region1"},
 	}
 	var resp structs.GenericResponse
@@ -151,12 +157,12 @@ func TestEvalEndpoint_Nack(t *testing.T) {
 	}
 
 	// Ensure outstanding
-	if s1.evalBroker.Outstanding(eval1.ID) {
+	if _, ok := s1.evalBroker.Outstanding(eval1.ID); ok {
 		t.Fatalf("should not be outstanding")
 	}
 
 	// Should get it back
-	out2, _ := s1.evalBroker.Dequeue(defaultSched, time.Second)
+	out2, _, _ := s1.evalBroker.Dequeue(defaultSched, time.Second)
 	if out2 != out {
 		t.Fatalf("nack failed")
 	}

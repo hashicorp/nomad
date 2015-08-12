@@ -57,9 +57,12 @@ func TestWorker_dequeueEvaluation(t *testing.T) {
 	w := &Worker{srv: s1, logger: s1.logger}
 
 	// Attempt dequeue
-	eval, shutdown := w.dequeueEvaluation(10 * time.Millisecond)
+	eval, token, shutdown := w.dequeueEvaluation(10 * time.Millisecond)
 	if shutdown {
 		t.Fatalf("should not shutdown")
+	}
+	if token == "" {
+		t.Fatalf("should get token")
 	}
 
 	// Ensure we get a sane eval
@@ -85,7 +88,7 @@ func TestWorker_dequeueEvaluation_shutdown(t *testing.T) {
 	}()
 
 	// Attempt dequeue
-	eval, shutdown := w.dequeueEvaluation(10 * time.Millisecond)
+	eval, _, shutdown := w.dequeueEvaluation(10 * time.Millisecond)
 	if !shutdown {
 		t.Fatalf("should not shutdown")
 	}
@@ -112,7 +115,7 @@ func TestWorker_sendAck(t *testing.T) {
 	w := &Worker{srv: s1, logger: s1.logger}
 
 	// Attempt dequeue
-	eval, _ := w.dequeueEvaluation(10 * time.Millisecond)
+	eval, token, _ := w.dequeueEvaluation(10 * time.Millisecond)
 
 	// Check the depth is 0, 1 unacked
 	stats := s1.evalBroker.Stats()
@@ -121,7 +124,7 @@ func TestWorker_sendAck(t *testing.T) {
 	}
 
 	// Send the Nack
-	w.sendAck(eval.ID, false)
+	w.sendAck(eval.ID, token, false)
 
 	// Check the depth is 1, nothing unacked
 	stats = s1.evalBroker.Stats()
@@ -130,10 +133,10 @@ func TestWorker_sendAck(t *testing.T) {
 	}
 
 	// Attempt dequeue
-	eval, _ = w.dequeueEvaluation(10 * time.Millisecond)
+	eval, token, _ = w.dequeueEvaluation(10 * time.Millisecond)
 
 	// Send the Ack
-	w.sendAck(eval.ID, true)
+	w.sendAck(eval.ID, token, true)
 
 	// Check the depth is 0
 	stats = s1.evalBroker.Stats()
