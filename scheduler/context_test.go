@@ -1,10 +1,12 @@
 package scheduler
 
 import (
+	"log"
 	"os"
 	"testing"
 
 	"github.com/hashicorp/nomad/nomad/state"
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 func testContext(t *testing.T) (*state.StateStore, *EvalContext) {
@@ -12,7 +14,10 @@ func testContext(t *testing.T) (*state.StateStore, *EvalContext) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
+	plan := new(structs.Plan)
 
-	ctx := NewEvalContext(state)
+	logger := log.New(os.Stderr, "", log.LstdFlags)
+
+	ctx := NewEvalContext(state, plan, logger)
 	return state, ctx
 }

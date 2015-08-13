@@ -87,7 +87,7 @@ func TestAllocsFit(t *testing.T) {
 	}
 
 	// Should fit one allocation
-	fit, err := AllocsFit(n, []*Allocation{a1})
+	fit, used, err := AllocsFit(n, []*Allocation{a1})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -95,12 +95,71 @@ func TestAllocsFit(t *testing.T) {
 		t.Fatalf("Bad")
 	}
 
+	// Sanity check the used resources
+	if used.CPU != 2.0 {
+		t.Fatalf("bad: %#v", used)
+	}
+	if used.MemoryMB != 2048 {
+		t.Fatalf("bad: %#v", used)
+	}
+
 	// Should not fit second allocation
-	fit, err = AllocsFit(n, []*Allocation{a1, a1})
+	fit, used, err = AllocsFit(n, []*Allocation{a1, a1})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if fit {
 		t.Fatalf("Bad")
+	}
+
+	// Sanity check the used resources
+	if used.CPU != 3.0 {
+		t.Fatalf("bad: %#v", used)
+	}
+	if used.MemoryMB != 3072 {
+		t.Fatalf("bad: %#v", used)
+	}
+
+}
+
+func TestScoreFit(t *testing.T) {
+	node := &Node{}
+	node.Resources = &Resources{
+		CPU:      4096,
+		MemoryMB: 8192,
+	}
+	node.Reserved = &Resources{
+		CPU:      2048,
+		MemoryMB: 4096,
+	}
+
+	// Test a perfect fit
+	util := &Resources{
+		CPU:      2048,
+		MemoryMB: 4096,
+	}
+	score := ScoreFit(node, util)
+	if score != 18.0 {
+		t.Fatalf("bad: %v", score)
+	}
+
+	// Test the worst fit
+	util = &Resources{
+		CPU:      0,
+		MemoryMB: 0,
+	}
+	score = ScoreFit(node, util)
+	if score != 0.0 {
+		t.Fatalf("bad: %v", score)
+	}
+
+	// Test a mid-case scenario
+	util = &Resources{
+		CPU:      1024,
+		MemoryMB: 2048,
+	}
+	score = ScoreFit(node, util)
+	if score < 10.0 || score > 16.0 {
+		t.Fatalf("bad: %v", score)
 	}
 }
