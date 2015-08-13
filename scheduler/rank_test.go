@@ -23,7 +23,7 @@ func TestFeasibleRankIterator(t *testing.T) {
 	}
 }
 
-func TestBinPackIterator_Simple_NoExistingAlloc(t *testing.T) {
+func TestBinPackIterator_NoExistingAlloc(t *testing.T) {
 	_, ctx := testContext(t)
 	nodes := []*RankedNode{
 		&RankedNode{
@@ -87,6 +87,209 @@ func TestBinPackIterator_Simple_NoExistingAlloc(t *testing.T) {
 	}
 	if out[1].Score < 10 || out[1].Score > 16 {
 		t.Fatalf("Bad: %v", out[1])
+	}
+}
+
+func TestBinPackIterator_PlannedAlloc(t *testing.T) {
+	_, ctx := testContext(t)
+	nodes := []*RankedNode{
+		&RankedNode{
+			Node: &structs.Node{
+				// Perfect fit
+				ID: mock.GenerateUUID(),
+				Resources: &structs.Resources{
+					CPU:      2048,
+					MemoryMB: 2048,
+				},
+			},
+		},
+		&RankedNode{
+			Node: &structs.Node{
+				// Perfect fit
+				ID: mock.GenerateUUID(),
+				Resources: &structs.Resources{
+					CPU:      2048,
+					MemoryMB: 2048,
+				},
+			},
+		},
+	}
+	static := NewStaticRankIterator(ctx, nodes)
+
+	// Add a planned alloc to node1 that fills it
+	plan := ctx.Plan()
+	plan.NodeAllocation[nodes[0].Node.ID] = []*structs.Allocation{
+		&structs.Allocation{
+			Resources: &structs.Resources{
+				CPU:      2048,
+				MemoryMB: 2048,
+			},
+		},
+	}
+
+	// Add a planned alloc to node2 that half fills it
+	plan.NodeAllocation[nodes[1].Node.ID] = []*structs.Allocation{
+		&structs.Allocation{
+			Resources: &structs.Resources{
+				CPU:      1024,
+				MemoryMB: 1024,
+			},
+		},
+	}
+
+	resources := &structs.Resources{
+		CPU:      1024,
+		MemoryMB: 1024,
+	}
+	binp := NewBinPackIterator(ctx, static, resources, false, 0)
+
+	out := collectRanked(binp)
+	if len(out) != 1 {
+		t.Fatalf("Bad: %#v", out)
+	}
+	if out[0] != nodes[1] {
+		t.Fatalf("Bad: %v", out)
+	}
+
+	if out[0].Score != 18 {
+		t.Fatalf("Bad: %v", out[0])
+	}
+}
+
+func TestBinPackIterator_ExistingAlloc(t *testing.T) {
+	state, ctx := testContext(t)
+	nodes := []*RankedNode{
+		&RankedNode{
+			Node: &structs.Node{
+				// Perfect fit
+				ID: mock.GenerateUUID(),
+				Resources: &structs.Resources{
+					CPU:      2048,
+					MemoryMB: 2048,
+				},
+			},
+		},
+		&RankedNode{
+			Node: &structs.Node{
+				// Perfect fit
+				ID: mock.GenerateUUID(),
+				Resources: &structs.Resources{
+					CPU:      2048,
+					MemoryMB: 2048,
+				},
+			},
+		},
+	}
+	static := NewStaticRankIterator(ctx, nodes)
+
+	// Add existing allocations
+	alloc1 := &structs.Allocation{
+		ID:     mock.GenerateUUID(),
+		NodeID: nodes[0].Node.ID,
+		JobID:  mock.GenerateUUID(),
+		Resources: &structs.Resources{
+			CPU:      2048,
+			MemoryMB: 2048,
+		},
+	}
+	alloc2 := &structs.Allocation{
+		ID:     mock.GenerateUUID(),
+		NodeID: nodes[1].Node.ID,
+		JobID:  mock.GenerateUUID(),
+		Resources: &structs.Resources{
+			CPU:      1024,
+			MemoryMB: 1024,
+		},
+	}
+	noErr(t, state.UpdateAllocations(1000, nil, []*structs.Allocation{alloc1, alloc2}))
+
+	resources := &structs.Resources{
+		CPU:      1024,
+		MemoryMB: 1024,
+	}
+	binp := NewBinPackIterator(ctx, static, resources, false, 0)
+
+	out := collectRanked(binp)
+	if len(out) != 1 {
+		t.Fatalf("Bad: %#v", out)
+	}
+	if out[0] != nodes[1] {
+		t.Fatalf("Bad: %v", out)
+	}
+	if out[0].Score != 18 {
+		t.Fatalf("Bad: %v", out[0])
+	}
+}
+
+func TestBinPackIterator_ExistingAlloc_PlannedEvict(t *testing.T) {
+	state, ctx := testContext(t)
+	nodes := []*RankedNode{
+		&RankedNode{
+			Node: &structs.Node{
+				// Perfect fit
+				ID: mock.GenerateUUID(),
+				Resources: &structs.Resources{
+					CPU:      2048,
+					MemoryMB: 2048,
+				},
+			},
+		},
+		&RankedNode{
+			Node: &structs.Node{
+				// Perfect fit
+				ID: mock.GenerateUUID(),
+				Resources: &structs.Resources{
+					CPU:      2048,
+					MemoryMB: 2048,
+				},
+			},
+		},
+	}
+	static := NewStaticRankIterator(ctx, nodes)
+
+	// Add existing allocations
+	alloc1 := &structs.Allocation{
+		ID:     mock.GenerateUUID(),
+		NodeID: nodes[0].Node.ID,
+		JobID:  mock.GenerateUUID(),
+		Resources: &structs.Resources{
+			CPU:      2048,
+			MemoryMB: 2048,
+		},
+	}
+	alloc2 := &structs.Allocation{
+		ID:     mock.GenerateUUID(),
+		NodeID: nodes[1].Node.ID,
+		JobID:  mock.GenerateUUID(),
+		Resources: &structs.Resources{
+			CPU:      1024,
+			MemoryMB: 1024,
+		},
+	}
+	noErr(t, state.UpdateAllocations(1000, nil, []*structs.Allocation{alloc1, alloc2}))
+
+	// Add a planned eviction to alloc1
+	plan := ctx.Plan()
+	plan.NodeEvict[nodes[0].Node.ID] = []string{alloc1.ID}
+
+	resources := &structs.Resources{
+		CPU:      1024,
+		MemoryMB: 1024,
+	}
+	binp := NewBinPackIterator(ctx, static, resources, false, 0)
+
+	out := collectRanked(binp)
+	if len(out) != 2 {
+		t.Fatalf("Bad: %#v", out)
+	}
+	if out[0] != nodes[0] || out[1] != nodes[1] {
+		t.Fatalf("Bad: %v", out)
+	}
+	if out[0].Score < 10 || out[0].Score > 16 {
+		t.Fatalf("Bad: %v", out[0])
+	}
+	if out[1].Score != 18 {
+		t.Fatalf("Bad: %v", out[0])
 	}
 }
 

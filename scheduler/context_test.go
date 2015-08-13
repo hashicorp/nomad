@@ -14,7 +14,10 @@ func testContext(t *testing.T) (*state.StateStore, *EvalContext) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	plan := new(structs.Plan)
+	plan := &structs.Plan{
+		NodeEvict:      make(map[string][]string),
+		NodeAllocation: make(map[string][]*structs.Allocation),
+	}
 
 	logger := log.New(os.Stderr, "", log.LstdFlags)
 

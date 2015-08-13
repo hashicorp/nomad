@@ -1,6 +1,10 @@
 package scheduler
 
-import "github.com/hashicorp/nomad/nomad/structs"
+import (
+	"fmt"
+
+	"github.com/hashicorp/nomad/nomad/structs"
+)
 
 // Rank is used to provide a score and various ranking metadata
 // along with a node when iterating. This state can be modified as
@@ -8,6 +12,10 @@ import "github.com/hashicorp/nomad/nomad/structs"
 type RankedNode struct {
 	Node  *structs.Node
 	Score float64
+}
+
+func (r *RankedNode) GoString() string {
+	return fmt.Sprintf("<Node: %s Score: %0.3f>", r.Node.ID, r.Score)
 }
 
 // RankFeasibleIterator is used to iteratively yield nodes along
