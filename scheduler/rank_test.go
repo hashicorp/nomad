@@ -23,28 +23,70 @@ func TestFeasibleRankIterator(t *testing.T) {
 	}
 }
 
-func TestBinPackIterator(t *testing.T) {
+func TestBinPackIterator_Simple_NoExistingAlloc(t *testing.T) {
 	_, ctx := testContext(t)
 	nodes := []*RankedNode{
 		&RankedNode{
-			Node: mock.Node(),
+			Node: &structs.Node{
+				// Perfect fit
+				Resources: &structs.Resources{
+					CPU:      2048,
+					MemoryMB: 2048,
+				},
+				Reserved: &structs.Resources{
+					CPU:      1024,
+					MemoryMB: 1024,
+				},
+			},
 		},
 		&RankedNode{
-			Node: mock.Node(),
+			Node: &structs.Node{
+				// Overloaded
+				Resources: &structs.Resources{
+					CPU:      1024,
+					MemoryMB: 1024,
+				},
+				Reserved: &structs.Resources{
+					CPU:      512,
+					MemoryMB: 512,
+				},
+			},
 		},
 		&RankedNode{
-			Node: mock.Node(),
+			Node: &structs.Node{
+				// 50% fit
+				Resources: &structs.Resources{
+					CPU:      4096,
+					MemoryMB: 4096,
+				},
+				Reserved: &structs.Resources{
+					CPU:      1024,
+					MemoryMB: 1024,
+				},
+			},
 		},
 	}
 	static := NewStaticRankIterator(ctx, nodes)
 
-	alloc := mock.Alloc()
-	resources := alloc.Resources
+	resources := &structs.Resources{
+		CPU:      1024,
+		MemoryMB: 1024,
+	}
 	binp := NewBinPackIterator(ctx, static, resources, false, 0)
 
 	out := collectRanked(binp)
-	if len(out) != 3 {
+	if len(out) != 2 {
 		t.Fatalf("Bad: %v", out)
+	}
+	if out[0] != nodes[0] || out[1] != nodes[2] {
+		t.Fatalf("Bad: %v", out)
+	}
+
+	if out[0].Score != 18 {
+		t.Fatalf("Bad: %v", out[0])
+	}
+	if out[1].Score < 10 || out[1].Score > 16 {
+		t.Fatalf("Bad: %v", out[1])
 	}
 }
 
