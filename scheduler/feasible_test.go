@@ -19,15 +19,7 @@ func TestRandomIterator(t *testing.T) {
 	copy(nc, nodes)
 	rand := NewRandomIterator(ctx, nc)
 
-	var out []*structs.Node
-	for {
-		next := rand.Next()
-		if next == nil {
-			break
-		}
-		out = append(out, next)
-	}
-
+	out := collectFeasible(rand)
 	if len(out) != len(nodes) {
 		t.Fatalf("missing nodes")
 	}
@@ -54,15 +46,7 @@ func TestDriverIterator(t *testing.T) {
 	}
 	driver := NewDriverIterator(ctx, static, drivers)
 
-	var out []*structs.Node
-	for {
-		next := driver.Next()
-		if next == nil {
-			break
-		}
-		out = append(out, next)
-	}
-
+	out := collectFeasible(driver)
 	if len(out) != 2 {
 		t.Fatalf("missing nodes")
 	}
@@ -99,15 +83,7 @@ func TestConstraintIterator(t *testing.T) {
 	}
 	constr := NewConstraintIterator(ctx, static, constraints)
 
-	var out []*structs.Node
-	for {
-		next := constr.Next()
-		if next == nil {
-			break
-		}
-		out = append(out, next)
-	}
-
+	out := collectFeasible(constr)
 	if len(out) != 1 {
 		t.Fatalf("missing nodes")
 	}
@@ -227,4 +203,15 @@ func TestCheckConstraint(t *testing.T) {
 			t.Fatalf("TC: %#v, Result: %v", tc, res)
 		}
 	}
+}
+
+func collectFeasible(iter FeasibleIterator) (out []*structs.Node) {
+	for {
+		next := iter.Next()
+		if next == nil {
+			break
+		}
+		out = append(out, next)
+	}
+	return
 }

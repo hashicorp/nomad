@@ -128,13 +128,16 @@ func (iter *BinPackIterator) Next() *RankedNode {
 		// Add the resources we are trying to fit
 		proposed = append(proposed, &structs.Allocation{Resources: iter.resources})
 
-		// Check if these allocations fit, use a negative score
-		// to indicate an impossible choice
+		// Check if these allocations fit, if they do not, simply skip this node
 		fit, util, _ := structs.AllocsFit(option.Node, proposed)
 		if !fit {
-			option.Score = -1
-			return option
+			continue
 		}
+
+		// XXX: For now we completely ignore evictions. We should use that flag
+		// to determine if its possible to evict other lower priority allocations
+		// to make room. This explodes the search space, so it must be done
+		// carefully.
 
 		// Score the fit normally otherwise
 		option.Score = structs.ScoreFit(option.Node, util)

@@ -26,15 +26,7 @@ func TestLimitIterator(t *testing.T) {
 
 	limit := NewLimitIterator(ctx, static, 2)
 
-	var out []*RankedNode
-	for {
-		next := limit.Next()
-		if next == nil {
-			break
-		}
-		out = append(out, next)
-	}
-
+	out := collectRanked(limit)
 	if len(out) != 2 {
 		t.Fatalf("bad: %v", out)
 	}
@@ -63,15 +55,7 @@ func TestMaxScoreIterator(t *testing.T) {
 
 	max := NewMaxScoreIterator(ctx, static)
 
-	var out []*RankedNode
-	for {
-		next := max.Next()
-		if next == nil {
-			break
-		}
-		out = append(out, next)
-	}
-
+	out := collectRanked(max)
 	if len(out) != 1 {
 		t.Fatalf("bad: %v", out)
 	}
