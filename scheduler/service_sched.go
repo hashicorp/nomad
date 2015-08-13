@@ -90,6 +90,8 @@ START:
 			eval.JobID, err)
 	}
 
+	// TODO: Lookup the nodes the Allocs are on, potentially evict
+
 	// Index the existing allocations
 	indexed := indexAllocs(allocs)
 
