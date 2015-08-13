@@ -105,6 +105,10 @@ func NewBinPackIterator(ctx Context, source RankIterator, resources *structs.Res
 	return iter
 }
 
+func (iter *BinPackIterator) SetResources(r *structs.Resources) {
+	iter.resources = r
+}
+
 func (iter *BinPackIterator) Next() *RankedNode {
 	ctx := iter.ctx
 	state := ctx.State()

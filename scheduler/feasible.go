@@ -80,6 +80,10 @@ func NewDriverIterator(ctx Context, source FeasibleIterator, drivers map[string]
 	return iter
 }
 
+func (iter *DriverIterator) SetDrivers(d map[string]struct{}) {
+	iter.drivers = d
+}
+
 func (iter *DriverIterator) Next() *structs.Node {
 	for {
 		// Get the next option from the source
@@ -126,6 +130,10 @@ func NewConstraintIterator(ctx Context, source FeasibleIterator, constraints []*
 		constraints: constraints,
 	}
 	return iter
+}
+
+func (iter *ConstraintIterator) SetConstraints(c []*structs.Constraint) {
+	iter.constraints = c
 }
 
 func (iter *ConstraintIterator) Next() *structs.Node {
