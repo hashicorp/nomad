@@ -508,6 +508,9 @@ type Job struct {
 	// can slow down larger jobs if resources are not available.
 	AllAtOnce bool
 
+	// Datacenters contains all the datacenters this job is allowed to span
+	Datacenters []string
+
 	// Constraints can be specified at a job level and apply to
 	// all the task groups and tasks.
 	Constraints []*Constraint
@@ -609,12 +612,6 @@ type Allocation struct {
 	// definition is updated.
 	JobID string
 	Job   *Job
-
-	// TaskGroup is the task being allocated to the node
-	// This is copied at allocation time to avoid issues if the job
-	// definition is updated.
-	TaskGroupName string
-	TaskGroup     *TaskGroup
 
 	// Resources is the set of resources allocated as part
 	// of this allocation of the task group.
@@ -780,6 +777,18 @@ type Plan struct {
 	// NodeAllocation contains all the allocations for each node.
 	// The evicts must be considered prior to the allocations.
 	NodeAllocation map[string][]*Allocation
+}
+
+func (p *Plan) AppendEvict(alloc *Allocation) {
+	node := alloc.NodeID
+	existing := p.NodeEvict[node]
+	p.NodeEvict[node] = append(existing, alloc.ID)
+}
+
+func (p *Plan) AppendAlloc(alloc *Allocation) {
+	node := alloc.NodeID
+	existing := p.NodeAllocation[node]
+	p.NodeAllocation[node] = append(existing, alloc)
 }
 
 // PlanResult is the result of a plan submitted to the leader.
