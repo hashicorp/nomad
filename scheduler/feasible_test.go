@@ -9,7 +9,7 @@ import (
 )
 
 func TestRandomIterator(t *testing.T) {
-	ctx := NewEvalContext()
+	_, ctx := testContext(t)
 	var nodes []*structs.Node
 	for i := 0; i < 10; i++ {
 		nodes = append(nodes, mock.Node())
@@ -37,7 +37,7 @@ func TestRandomIterator(t *testing.T) {
 }
 
 func TestDriverIterator(t *testing.T) {
-	ctx := NewEvalContext()
+	_, ctx := testContext(t)
 	nodes := []*structs.Node{
 		mock.Node(),
 		mock.Node(),
@@ -72,7 +72,7 @@ func TestDriverIterator(t *testing.T) {
 }
 
 func TestConstraintIterator(t *testing.T) {
-	ctx := NewEvalContext()
+	_, ctx := testContext(t)
 	nodes := []*structs.Node{
 		mock.Node(),
 		mock.Node(),

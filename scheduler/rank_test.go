@@ -8,7 +8,7 @@ import (
 )
 
 func TestFeasibleRankIterator(t *testing.T) {
-	ctx := NewEvalContext()
+	_, ctx := testContext(t)
 	var nodes []*structs.Node
 	for i := 0; i < 10; i++ {
 		nodes = append(nodes, mock.Node())
@@ -29,6 +29,9 @@ func TestFeasibleRankIterator(t *testing.T) {
 	if len(out) != len(nodes) {
 		t.Fatalf("bad: %v", out)
 	}
+}
+
+func TestBinPackIterator(t *testing.T) {
 }
 
 func TestScoreFit(t *testing.T) {
