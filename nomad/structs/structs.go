@@ -739,10 +739,12 @@ func (e *Evaluation) ShouldEnqueue() bool {
 func (e *Evaluation) MakePlan(j *Job) *Plan {
 	p := &Plan{
 		EvalID:         e.ID,
-		Priority:       j.Priority,
-		AllAtOnce:      j.AllAtOnce,
+		Priority:       e.Priority,
 		NodeEvict:      make(map[string][]string),
 		NodeAllocation: make(map[string][]*Allocation),
+	}
+	if j != nil {
+		p.AllAtOnce = j.AllAtOnce
 	}
 	return p
 }

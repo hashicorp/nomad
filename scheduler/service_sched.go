@@ -317,11 +317,7 @@ START:
 	}
 
 	// Create a plan to evict these
-	plan := &structs.Plan{
-		EvalID:    eval.ID,
-		Priority:  eval.Priority,
-		NodeEvict: make(map[string][]string),
-	}
+	plan := eval.MakePlan(nil)
 
 	// Add each alloc to be evicted
 	for _, alloc := range allocs {
