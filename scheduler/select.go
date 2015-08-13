@@ -42,21 +42,30 @@ type MaxScoreIterator struct {
 	max    *RankedNode
 }
 
+// MaxScoreIterator returns a MaxScoreIterator over the given source
+func NewMaxScoreIterator(ctx Context, source RankIterator) *MaxScoreIterator {
+	iter := &MaxScoreIterator{
+		ctx:    ctx,
+		source: source,
+	}
+	return iter
+}
+
 func (iter *MaxScoreIterator) Next() *RankedNode {
+	// Check if we've found the max, return nil
+	if iter.max != nil {
+		return nil
+	}
+
+	// Consume and determine the max
 	for {
 		option := iter.source.Next()
 		if option == nil {
-			break
+			return iter.max
 		}
 
-		if iter.max == nil {
-			iter.max = option
-			continue
-		}
-
-		if option.Score > iter.max.Score {
+		if iter.max == nil || option.Score > iter.max.Score {
 			iter.max = option
 		}
 	}
-	return iter.max
 }

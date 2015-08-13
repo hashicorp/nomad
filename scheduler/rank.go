@@ -50,6 +50,15 @@ type StaticRankIterator struct {
 	offset int
 }
 
+// NewStaticRankIterator returns a new static rank iterator over the given nodes
+func NewStaticRankIterator(ctx Context, nodes []*RankedNode) *StaticRankIterator {
+	iter := &StaticRankIterator{
+		ctx:   ctx,
+		nodes: nodes,
+	}
+	return iter
+}
+
 func (iter *StaticRankIterator) Next() *RankedNode {
 	// Check if exhausted
 	if iter.offset == len(iter.nodes) {
