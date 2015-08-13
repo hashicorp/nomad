@@ -36,6 +36,9 @@ func NewFeasibleRankIterator(ctx Context, source FeasibleIterator) *FeasibleRank
 
 func (iter *FeasibleRankIterator) Next() *RankedNode {
 	option := iter.source.Next()
+	if option == nil {
+		return nil
+	}
 	ranked := &RankedNode{
 		Node: option,
 	}

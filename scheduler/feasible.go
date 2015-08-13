@@ -6,10 +6,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// Context is used to track contextual information used for placement
-type Context interface {
-}
-
 // FeasibleIterator is used to iteratively yield nodes that
 // match feasibility constraints. The iterators may manage
 // some state for performance optimizations.
@@ -49,7 +45,8 @@ func (iter *StaticIterator) Next() *structs.Node {
 }
 
 // NewRandomIterator constructs a static iterator from a list of nodes
-// after applying the Fisher-Yates algorithm for a random shuffle
+// after applying the Fisher-Yates algorithm for a random shuffle. This
+// is applied in-place
 func NewRandomIterator(ctx Context, nodes []*structs.Node) *StaticIterator {
 	// shuffle with the Fisher-Yates algorithm
 	n := len(nodes)
