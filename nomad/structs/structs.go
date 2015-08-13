@@ -279,9 +279,9 @@ const (
 	NodeStatusDown  = "down"
 )
 
-// ShouldEvaluateNode checks if a given node status should trigger an
+// ShouldDrainNode checks if a given node status should trigger an
 // evaluation. Some states don't require any further action.
-func ShouldEvaluateNode(status string) bool {
+func ShouldDrainNode(status string) bool {
 	switch status {
 	case NodeStatusInit, NodeStatusReady, NodeStatusMaint:
 		return false

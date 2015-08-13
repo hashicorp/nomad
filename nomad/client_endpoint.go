@@ -51,7 +51,7 @@ func (c *Client) Register(args *structs.NodeRegisterRequest, reply *structs.Node
 	reply.NodeModifyIndex = index
 
 	// Check if we should trigger evaluations
-	if structs.ShouldEvaluateNode(args.Node.Status) {
+	if structs.ShouldDrainNode(args.Node.Status) {
 		evalIDs, evalIndex, err := c.createNodeEvals(args.Node.ID, index)
 		if err != nil {
 			c.srv.logger.Printf("[ERR] nomad.client: eval creation failed: %v", err)
@@ -125,7 +125,7 @@ func (c *Client) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *stru
 	reply.NodeModifyIndex = index
 
 	// Check if we should trigger evaluations
-	if structs.ShouldEvaluateNode(args.Status) {
+	if structs.ShouldDrainNode(args.Status) {
 		evalIDs, evalIndex, err := c.createNodeEvals(args.NodeID, index)
 		if err != nil {
 			c.srv.logger.Printf("[ERR] nomad.client: eval creation failed: %v", err)
