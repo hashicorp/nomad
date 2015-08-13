@@ -54,6 +54,11 @@ func TestDiffAllocs(t *testing.T) {
 	*oldJob = *job
 	oldJob.ModifyIndex -= 1
 
+	tainted := map[string]bool{
+		"dead": true,
+		"zip":  false,
+	}
+
 	allocs := []*structs.Allocation{
 		// Update the 1st
 		&structs.Allocation{
@@ -77,10 +82,17 @@ func TestDiffAllocs(t *testing.T) {
 			NodeID: "zip",
 			Name:   "my-job.web[10]",
 		},
+
+		// Migrate the 3rd
+		&structs.Allocation{
+			ID:     mock.GenerateUUID(),
+			NodeID: "dead",
+			Name:   "my-job.web[2]",
+		},
 	}
 	existing := indexAllocs(allocs)
 
-	place, update, evict, ignore := diffAllocs(job, required, existing)
+	place, update, migrate, evict, ignore := diffAllocs(job, tainted, required, existing)
 
 	// We should update the first alloc
 	if len(update) != 1 || update[0].ID != allocs[0].ID {
@@ -97,8 +109,13 @@ func TestDiffAllocs(t *testing.T) {
 		t.Fatalf("bad: %#v", evict)
 	}
 
-	// We should place 8
-	if len(place) != 8 {
+	// We should migrate the 4rd alloc
+	if len(migrate) != 1 || migrate[0].ID != allocs[3].ID {
+		t.Fatalf("bad: %#v", migrate)
+	}
+
+	// We should place 7
+	if len(place) != 7 {
 		t.Fatalf("bad: %#v", place)
 	}
 }
