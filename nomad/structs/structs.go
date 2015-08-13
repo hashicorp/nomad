@@ -810,6 +810,20 @@ type PlanResult struct {
 	AllocIndex uint64
 }
 
+// FullCommit is used to check if all the allocations in a plan
+// were committed as part of the result. Returns if there was
+// a match, and the number of expected and actual allocations.
+func (p *PlanResult) FullCommit(plan *Plan) (bool, int, int) {
+	expected := 0
+	actual := 0
+	for name, allocList := range plan.NodeAllocation {
+		didAlloc, _ := p.NodeAllocation[name]
+		expected += len(allocList)
+		actual += len(didAlloc)
+	}
+	return actual == expected, expected, actual
+}
+
 // msgpackHandle is a shared handle for encoding/decoding of structs
 var msgpackHandle = &codec.MsgpackHandle{}
 

@@ -9,6 +9,12 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+const (
+	// maxScheduleAttempts is used to limit the number of times
+	// we will attempt to schedule if we continue to hit conflicts.
+	maxScheduleAttempts = 5
+)
+
 // ServiceScheduler is used for 'service' type jobs. This scheduler is
 // designed for long-lived services, and as such spends more time attemping
 // to make a high quality placement. This is the primary scheduler for
@@ -47,6 +53,14 @@ func (s *ServiceScheduler) Process(eval *structs.Evaluation) error {
 
 // handleJobRegister is used to handle a job being registered or updated
 func (s *ServiceScheduler) handleJobRegister(eval *structs.Evaluation) error {
+	attempts := 0
+START:
+	// Check the attempt count
+	if attempts == maxScheduleAttempts {
+		return fmt.Errorf("maximum schedule attempts reached (%d)", attempts)
+	}
+	attempts += 1
+
 	// Lookup the Job by ID
 	job, err := s.state.GetJobByID(eval.JobID)
 	if err != nil {
@@ -100,13 +114,45 @@ func (s *ServiceScheduler) handleJobRegister(eval *structs.Evaluation) error {
 	addEvictsToPlan(plan, update, indexed)
 	place = append(place, update...)
 
-	// Attempt to place all the allocations
-	s.planAllocations(job, plan, place, groups)
+	// Get the iteration stack
+	stack, err := s.iterStack(job, plan)
+	if err != nil {
+		return fmt.Errorf("failed to create iter stack: %v", err)
+	}
 
-	// TODO
+	// Attempt to place all the allocations
+	if err := s.planAllocations(stack, job, plan, place, groups); err != nil {
+		return fmt.Errorf("failed to plan allocations: %v", err)
+	}
+
+	// Submit the plan
+	planResult, newState, err := s.planner.SubmitPlan(plan)
+	if err != nil {
+		return err
+	}
+
+	// If we got a state refresh, try again to ensure we
+	// are not missing any allocations
+	if newState != nil {
+		s.state = newState
+		stack.Context.SetState(newState)
+		goto START
+	}
+
+	// Try again if the plan was not fully committed
+	fullCommit, expected, actual := planResult.FullCommit(plan)
+	if !fullCommit {
+		s.logger.Printf("[DEBUG] sched: eval %s job %s attempted %d placements, %d placed",
+			eval.ID, eval.JobID, expected, actual)
+		goto START
+	}
 	return nil
 }
 
+// IteratorStack is used to hold pointers to each of the
+// iterators which are chained together to do selection.
+// Half of the stack is used for feasibility checking, while
+// the second half of the stack is used for ranking and selection.
 type IteratorStack struct {
 	Context             *EvalContext
 	BaseNodes           []*structs.Node
@@ -120,6 +166,8 @@ type IteratorStack struct {
 	MaxScore            *MaxScoreIterator
 }
 
+// iterStack is used to get a set of base nodes and to
+// initialize the entire stack of iterators.
 func (s *ServiceScheduler) iterStack(job *structs.Job,
 	plan *structs.Plan) (*IteratorStack, error) {
 	// Create a new stack
@@ -193,13 +241,8 @@ func (s *ServiceScheduler) baseNodes(job *structs.Job) ([]*structs.Node, error) 
 	return out, nil
 }
 
-func (s *ServiceScheduler) planAllocations(job *structs.Job, plan *structs.Plan,
+func (s *ServiceScheduler) planAllocations(stack *IteratorStack, job *structs.Job, plan *structs.Plan,
 	place []allocNameID, groups map[string]*structs.TaskGroup) error {
-	// Get the iteration stack
-	stack, err := s.iterStack(job, plan)
-	if err != nil {
-		return err
-	}
 
 	// Attempt to place each missing allocation
 	for _, missing := range place {
@@ -217,10 +260,8 @@ func (s *ServiceScheduler) planAllocations(job *structs.Job, plan *structs.Plan,
 			size.Add(task.Resources)
 		}
 
-		// Reset the iterator stack
-		// stack.MaxScore.Reset()
-
-		// Update the parameters of the sub-iterators
+		// Update the parameters of iterators
+		stack.MaxScore.Reset()
 		stack.TaskGroupDrivers.SetDrivers(drivers)
 		stack.TaskGroupConstraint.SetConstraints(constr)
 		stack.BinPack.SetResources(size)
