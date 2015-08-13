@@ -33,6 +33,11 @@ func (iter *LimitIterator) Next() *RankedNode {
 	return option
 }
 
+func (iter *LimitIterator) Reset() {
+	iter.source.Reset()
+	iter.seen = 0
+}
+
 // MaxScoreIterator is a RankIterator used to return only a single result
 // of the item with the highest score. This iterator will consume all of the
 // possible inputs and only returns the highest ranking result.
@@ -68,4 +73,9 @@ func (iter *MaxScoreIterator) Next() *RankedNode {
 			iter.max = option
 		}
 	}
+}
+
+func (iter *MaxScoreIterator) Reset() {
+	iter.source.Reset()
+	iter.max = nil
 }

@@ -22,7 +22,12 @@ func (r *RankedNode) GoString() string {
 // with ranking metadata. The iterators may manage some state for
 // performance optimizations.
 type RankIterator interface {
+	// Next yields a ranked option or nil if exhausted
 	Next() *RankedNode
+
+	// Reset is invoked when an allocation has been placed
+	// to reset any stale state.
+	Reset()
 }
 
 // FeasibleRankIterator is used to consume from a FeasibleIterator
@@ -53,12 +58,17 @@ func (iter *FeasibleRankIterator) Next() *RankedNode {
 	return ranked
 }
 
+func (iter *FeasibleRankIterator) Reset() {
+	iter.source.Reset()
+}
+
 // StaticRankIterator is a RankIterator that returns a static set of results.
 // This is largely only useful for testing.
 type StaticRankIterator struct {
 	ctx    Context
 	nodes  []*RankedNode
 	offset int
+	seen   int
 }
 
 // NewStaticRankIterator returns a new static rank iterator over the given nodes
@@ -72,14 +82,24 @@ func NewStaticRankIterator(ctx Context, nodes []*RankedNode) *StaticRankIterator
 
 func (iter *StaticRankIterator) Next() *RankedNode {
 	// Check if exhausted
-	if iter.offset == len(iter.nodes) {
-		return nil
+	n := len(iter.nodes)
+	if iter.offset == n || iter.seen == n {
+		if iter.seen != n {
+			iter.offset = 0
+		} else {
+			return nil
+		}
 	}
 
 	// Return the next offset
 	offset := iter.offset
 	iter.offset += 1
+	iter.seen += 1
 	return iter.nodes[offset]
+}
+
+func (iter *StaticRankIterator) Reset() {
+	iter.seen = 0
 }
 
 // BinPackIterator is a RankIterator that scores potential options
@@ -155,4 +175,8 @@ func (iter *BinPackIterator) Next() *RankedNode {
 		option.Score = structs.ScoreFit(option.Node, util)
 		return option
 	}
+}
+
+func (iter *BinPackIterator) Reset() {
+	iter.source.Reset()
 }

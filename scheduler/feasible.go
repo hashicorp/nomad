@@ -15,6 +15,10 @@ import (
 type FeasibleIterator interface {
 	// Next yields a feasible node or nil if exhausted
 	Next() *structs.Node
+
+	// Reset is invoked when an allocation has been placed
+	// to reset any stale state.
+	Reset()
 }
 
 // StaticIterator is a FeasibleIterator which returns nodes
@@ -24,6 +28,7 @@ type StaticIterator struct {
 	ctx    Context
 	nodes  []*structs.Node
 	offset int
+	seen   int
 }
 
 // NewStaticIterator constructs a random iterator from a list of nodes
@@ -37,14 +42,24 @@ func NewStaticIterator(ctx Context, nodes []*structs.Node) *StaticIterator {
 
 func (iter *StaticIterator) Next() *structs.Node {
 	// Check if exhausted
-	if iter.offset == len(iter.nodes) {
-		return nil
+	n := len(iter.nodes)
+	if iter.offset == n || iter.seen == n {
+		if iter.seen != n {
+			iter.offset = 0
+		} else {
+			return nil
+		}
 	}
 
 	// Return the next offset
 	offset := iter.offset
 	iter.offset += 1
+	iter.seen += 1
 	return iter.nodes[offset]
+}
+
+func (iter *StaticIterator) Reset() {
+	iter.seen = 0
 }
 
 // NewRandomIterator constructs a static iterator from a list of nodes
@@ -99,6 +114,10 @@ func (iter *DriverIterator) Next() *structs.Node {
 	}
 }
 
+func (iter *DriverIterator) Reset() {
+	iter.source.Reset()
+}
+
 // hasDrivers is used to check if the node has all the appropriate
 // drivers for this task group. Drivers are registered as node attribute
 // like "driver.docker=1" with their corresponding version.
@@ -149,6 +168,10 @@ func (iter *ConstraintIterator) Next() *structs.Node {
 			return option
 		}
 	}
+}
+
+func (iter *ConstraintIterator) Reset() {
+	iter.source.Reset()
 }
 
 func (iter *ConstraintIterator) meetsConstraints(option *structs.Node) bool {

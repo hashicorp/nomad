@@ -8,6 +8,37 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+func TestStaticIterator_Reset(t *testing.T) {
+	_, ctx := testContext(t)
+	var nodes []*structs.Node
+	for i := 0; i < 3; i++ {
+		nodes = append(nodes, mock.Node())
+	}
+	static := NewStaticIterator(ctx, nodes)
+
+	for i := 0; i < 6; i++ {
+		static.Reset()
+		for j := 0; j < i; j++ {
+			static.Next()
+		}
+		static.Reset()
+
+		out := collectFeasible(static)
+		if len(out) != len(nodes) {
+			t.Fatalf("out: %#v", out)
+			t.Fatalf("missing nodes %d %#v", i, static)
+		}
+
+		ids := make(map[string]struct{})
+		for _, o := range out {
+			if _, ok := ids[o.ID]; ok {
+				t.Fatalf("duplicate")
+			}
+			ids[o.ID] = struct{}{}
+		}
+	}
+}
+
 func TestRandomIterator(t *testing.T) {
 	_, ctx := testContext(t)
 	var nodes []*structs.Node
