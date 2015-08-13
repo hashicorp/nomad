@@ -106,7 +106,9 @@ func Job() *structs.Job {
 		Meta: map[string]string{
 			"owner": "armon",
 		},
-		Status: structs.JobStatusPending,
+		Status:      structs.JobStatusPending,
+		CreateIndex: 42,
+		ModifyIndex: 99,
 	}
 	return job
 }
