@@ -3,6 +3,8 @@ package scheduler
 import (
 	"fmt"
 	"math/rand"
+	"reflect"
+	"strings"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -142,6 +144,81 @@ func (iter *ConstraintIterator) Next() *structs.Node {
 }
 
 func (iter *ConstraintIterator) meetsConstraints(option *structs.Node) bool {
-	// TODO:
+	for _, constraint := range iter.constraints {
+		if !iter.meetsConstraint(constraint, option) {
+			return false
+		}
+	}
 	return true
+}
+
+func (iter *ConstraintIterator) meetsConstraint(constraint *structs.Constraint, option *structs.Node) bool {
+	// Only enforce hard constraints, soft constraints are used for ranking
+	if !constraint.Hard {
+		return true
+	}
+
+	// Resolve the targets
+	lVal, ok := resolveConstraintTarget(constraint.LTarget, option)
+	if !ok {
+		return false
+	}
+	rVal, ok := resolveConstraintTarget(constraint.RTarget, option)
+	if !ok {
+		return false
+	}
+
+	// Check if satisfied
+	return checkConstraint(constraint.Operand, lVal, rVal)
+}
+
+// resolveConstraintTarget is used to resolve the LTarget and RTarget of a Constraint
+func resolveConstraintTarget(target string, node *structs.Node) (interface{}, bool) {
+	// If no prefix, this must be a literal value
+	if !strings.HasPrefix(target, "$") {
+		return target, true
+	}
+
+	// Handle the interpolations
+	switch {
+	case "$node.id" == target:
+		return node.ID, true
+
+	case "$node.datacenter" == target:
+		return node.Datacenter, true
+
+	case "$node.name" == target:
+		return node.Name, true
+
+	case strings.HasPrefix(target, "$attr."):
+		attr := strings.TrimPrefix(target, "$attr.")
+		val, ok := node.Attributes[attr]
+		return val, ok
+
+	case strings.HasPrefix(target, "$meta."):
+		meta := strings.TrimPrefix(target, "$meta.")
+		val, ok := node.Meta[meta]
+		return val, ok
+
+	default:
+		return nil, false
+	}
+}
+
+// checkConstraint checks if a constraint is satisfied
+func checkConstraint(operand string, lVal, rVal interface{}) bool {
+	switch operand {
+	case "=", "==", "is":
+		return reflect.DeepEqual(lVal, rVal)
+	case "!=", "not":
+		return !reflect.DeepEqual(lVal, rVal)
+	case "<", "<=", ">", ">=":
+		// TODO: Implement
+		return false
+	case "contains":
+		// TODO: Implement
+		return false
+	default:
+		return false
+	}
 }

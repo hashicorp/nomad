@@ -70,3 +70,161 @@ func TestDriverIterator(t *testing.T) {
 		t.Fatalf("bad: %#v", out)
 	}
 }
+
+func TestConstraintIterator(t *testing.T) {
+	ctx := NewEvalContext()
+	nodes := []*structs.Node{
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+	}
+	static := NewStaticIterator(ctx, nodes)
+
+	nodes[0].Attributes["os"] = "freebsd"
+	nodes[1].Datacenter = "dc2"
+
+	constraints := []*structs.Constraint{
+		&structs.Constraint{
+			Hard:    true,
+			Operand: "=",
+			LTarget: "$node.datacenter",
+			RTarget: "dc1",
+		},
+		&structs.Constraint{
+			Hard:    true,
+			Operand: "is",
+			LTarget: "$attr.os",
+			RTarget: "linux",
+		},
+	}
+	constr := NewConstraintIterator(ctx, static, constraints)
+
+	var out []*structs.Node
+	for {
+		next := constr.Next()
+		if next == nil {
+			break
+		}
+		out = append(out, next)
+	}
+
+	if len(out) != 1 {
+		t.Fatalf("missing nodes")
+	}
+	if out[0] != nodes[2] {
+		t.Fatalf("bad: %#v", out)
+	}
+}
+
+func TestResolveConstraintTarget(t *testing.T) {
+	type tcase struct {
+		target string
+		node   *structs.Node
+		val    interface{}
+		result bool
+	}
+	node := mock.Node()
+	cases := []tcase{
+		{
+			target: "$node.id",
+			node:   node,
+			val:    node.ID,
+			result: true,
+		},
+		{
+			target: "$node.datacenter",
+			node:   node,
+			val:    node.Datacenter,
+			result: true,
+		},
+		{
+			target: "$node.name",
+			node:   node,
+			val:    node.Name,
+			result: true,
+		},
+		{
+			target: "$node.foo",
+			node:   node,
+			result: false,
+		},
+		{
+			target: "$attr.os",
+			node:   node,
+			val:    node.Attributes["os"],
+			result: true,
+		},
+		{
+			target: "$attr.rand",
+			node:   node,
+			result: false,
+		},
+		{
+			target: "$meta.pci-dss",
+			node:   node,
+			val:    node.Meta["pci-dss"],
+			result: true,
+		},
+		{
+			target: "$meta.rand",
+			node:   node,
+			result: false,
+		},
+	}
+
+	for _, tc := range cases {
+		res, ok := resolveConstraintTarget(tc.target, tc.node)
+		if ok != tc.result {
+			t.Fatalf("TC: %#v, Result: %v %v", tc, res, ok)
+		}
+		if ok && !reflect.DeepEqual(res, tc.val) {
+			t.Fatalf("TC: %#v, Result: %v %v", tc, res, ok)
+		}
+	}
+}
+
+func TestCheckConstraint(t *testing.T) {
+	type tcase struct {
+		op         string
+		lVal, rVal interface{}
+		result     bool
+	}
+	cases := []tcase{
+		{
+			op:   "=",
+			lVal: "foo", rVal: "foo",
+			result: true,
+		},
+		{
+			op:   "is",
+			lVal: "foo", rVal: "foo",
+			result: true,
+		},
+		{
+			op:   "==",
+			lVal: "foo", rVal: "foo",
+			result: true,
+		},
+		{
+			op:   "!=",
+			lVal: "foo", rVal: "foo",
+			result: false,
+		},
+		{
+			op:   "!=",
+			lVal: "foo", rVal: "bar",
+			result: true,
+		},
+		{
+			op:   "not",
+			lVal: "foo", rVal: "bar",
+			result: true,
+		},
+	}
+
+	for _, tc := range cases {
+		if res := checkConstraint(tc.op, tc.lVal, tc.rVal); res != tc.result {
+			t.Fatalf("TC: %#v, Result: %v", tc, res)
+		}
+	}
+}
