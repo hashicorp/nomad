@@ -3,7 +3,6 @@ package scheduler
 import (
 	"fmt"
 	"log"
-	"math"
 
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -157,11 +156,17 @@ func (s *ServiceScheduler) computeJobAllocs() error {
 	addEvictsToPlan(s.plan, update, indexed)
 	place = append(place, update...)
 
-	// Get the iteration stack
-	stack, err := s.iterStack()
+	// Create an evaluation context
+	ctx := NewEvalContext(s.state, s.plan, s.logger)
+
+	// Get the base nodes
+	nodes, err := readyNodesInDCs(s.state, s.job.Datacenters)
 	if err != nil {
-		return fmt.Errorf("failed to create iter stack: %v", err)
+		return err
 	}
+
+	// Construct the placement stack
+	stack := NewServiceStack(ctx, nodes)
 
 	for _, missing := range place {
 		stack.SetTaskGroup(groups[missing.Name])
@@ -205,58 +210,6 @@ func (s *ServiceScheduler) taintedNodes(allocs []*structs.Allocation) (map[strin
 		out[alloc.NodeID] = structs.ShouldDrainNode(node.Status)
 	}
 	return out, nil
-}
-
-// makeStack is used to setup the ServiceStack used for node placement
-func (s *ServiceScheduler) iterStack() (*ServiceStack, error) {
-	// Create a new stack
-	stack := new(ServiceStack)
-
-	// Create an evaluation context
-	stack.Context = NewEvalContext(s.state, s.plan, s.logger)
-
-	// Get the base nodes
-	nodes, err := readyNodesInDCs(s.state, s.job.Datacenters)
-	if err != nil {
-		return nil, err
-	}
-	stack.BaseNodes = nodes
-
-	// Create the source iterator. We randomize the order we visit nodes
-	// to reduce collisions between schedulers and to do a basic load
-	// balancing across eligible nodes.
-	stack.Source = NewRandomIterator(stack.Context, stack.BaseNodes)
-
-	// Attach the job constraints.
-	stack.JobConstraint = NewConstraintIterator(stack.Context, stack.Source, s.job.Constraints)
-
-	// Create the task group filters, this must be filled in later
-	stack.TaskGroupDrivers = NewDriverIterator(stack.Context, stack.JobConstraint, nil)
-	stack.TaskGroupConstraint = NewConstraintIterator(stack.Context, stack.TaskGroupDrivers, nil)
-
-	// Upgrade from feasible to rank iterator
-	stack.RankSource = NewFeasibleRankIterator(stack.Context, stack.TaskGroupConstraint)
-
-	// Apply the bin packing, this depends on the resources needed by
-	// a particular task group.
-	stack.BinPack = NewBinPackIterator(stack.Context, stack.RankSource, nil, true, s.job.Priority)
-
-	// Apply a limit function. This is to avoid scanning *every* possible node.
-	// Instead we need to visit "enough". Using a log of the total number of
-	// nodes is a good restriction, with at least 2 as the floor
-	limit := 2
-	if n := len(nodes); n > 0 {
-		logLimit := int(math.Ceil(math.Log2(float64(n))))
-		if logLimit > limit {
-			limit = logLimit
-		}
-	}
-	stack.Limit = NewLimitIterator(stack.Context, stack.BinPack, limit)
-
-	// Select the node with the maximum score for placement
-	stack.MaxScore = NewMaxScoreIterator(stack.Context, stack.Limit)
-
-	return stack, nil
 }
 
 // evictJobAllocs is used to evict all job allocations
