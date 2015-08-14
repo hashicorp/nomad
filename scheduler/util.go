@@ -26,16 +26,6 @@ func materializeTaskGroups(job *structs.Job) map[string]*structs.TaskGroup {
 	return out
 }
 
-// indexAllocs is used to index a list of allocations by name
-func indexAllocs(allocs []*structs.Allocation) map[string][]*structs.Allocation {
-	out := make(map[string][]*structs.Allocation)
-	for _, alloc := range allocs {
-		name := alloc.Name
-		out[name] = append(out[name], alloc)
-	}
-	return out
-}
-
 // diffAllocs is used to do a set difference between the target allocations
 // and the existing allocations. This returns 5 sets of results, the list of
 // named task groups that need to be placed (no existing allocation), the
@@ -46,55 +36,56 @@ func diffAllocs(job *structs.Job,
 	taintedNodes map[string]bool,
 	required map[string]*structs.TaskGroup,
 	allocs []*structs.Allocation) (place, update, migrate, evict, ignore []allocTuple) {
-	// Index the existing allocations
-	existing := indexAllocs(allocs)
 
 	// Scan the existing updates
-	for name, existList := range existing {
-		for _, exist := range existList {
-			// Check for the definition in the required set
-			tg, ok := required[name]
+	existing := make(map[string]struct{})
+	for _, exist := range allocs {
+		// Index the existing node
+		name := exist.Name
+		existing[name] = struct{}{}
 
-			// If not required, we evict
-			if !ok {
-				evict = append(evict, allocTuple{
-					Name:      name,
-					TaskGroup: tg,
-					Alloc:     exist,
-				})
-				continue
-			}
+		// Check for the definition in the required set
+		tg, ok := required[name]
 
-			// If we are on a tainted node, we must migrate
-			if taintedNodes[exist.NodeID] {
-				migrate = append(migrate, allocTuple{
-					Name:      name,
-					TaskGroup: tg,
-					Alloc:     exist,
-				})
-				continue
-			}
-
-			// If the definition is updated we need to update
-			// XXX: This is an extremely conservative approach. We can check
-			// if the job definition has changed in a way that affects
-			// this allocation and potentially ignore it.
-			if job.ModifyIndex != exist.Job.ModifyIndex {
-				update = append(update, allocTuple{
-					Name:      name,
-					TaskGroup: tg,
-					Alloc:     exist,
-				})
-				continue
-			}
-
-			// Everything is up-to-date
-			ignore = append(ignore, allocTuple{
+		// If not required, we evict
+		if !ok {
+			evict = append(evict, allocTuple{
 				Name:      name,
 				TaskGroup: tg,
 				Alloc:     exist,
 			})
+			continue
 		}
+
+		// If we are on a tainted node, we must migrate
+		if taintedNodes[exist.NodeID] {
+			migrate = append(migrate, allocTuple{
+				Name:      name,
+				TaskGroup: tg,
+				Alloc:     exist,
+			})
+			continue
+		}
+
+		// If the definition is updated we need to update
+		// XXX: This is an extremely conservative approach. We can check
+		// if the job definition has changed in a way that affects
+		// this allocation and potentially ignore it.
+		if job.ModifyIndex != exist.Job.ModifyIndex {
+			update = append(update, allocTuple{
+				Name:      name,
+				TaskGroup: tg,
+				Alloc:     exist,
+			})
+			continue
+		}
+
+		// Everything is up-to-date
+		ignore = append(ignore, allocTuple{
+			Name:      name,
+			TaskGroup: tg,
+			Alloc:     exist,
+		})
 	}
 
 	// Scan the required groups

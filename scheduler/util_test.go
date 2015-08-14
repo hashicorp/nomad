@@ -29,24 +29,6 @@ func TestMaterializeTaskGroups(t *testing.T) {
 	}
 }
 
-func TestIndexAllocs(t *testing.T) {
-	allocs := []*structs.Allocation{
-		&structs.Allocation{Name: "foo"},
-		&structs.Allocation{Name: "foo"},
-		&structs.Allocation{Name: "bar"},
-	}
-	index := indexAllocs(allocs)
-	if len(index) != 2 {
-		t.Fatalf("bad: %#v", index)
-	}
-	if len(index["foo"]) != 2 {
-		t.Fatalf("bad: %#v", index)
-	}
-	if len(index["bar"]) != 1 {
-		t.Fatalf("bad: %#v", index)
-	}
-}
-
 func TestDiffAllocs(t *testing.T) {
 	job := mock.Job()
 	required := materializeTaskGroups(job)
