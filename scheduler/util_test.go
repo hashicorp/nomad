@@ -2,9 +2,11 @@ package scheduler
 
 import (
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -155,5 +157,35 @@ func TestAddEvictsToPlan(t *testing.T) {
 	}
 	if nodeEvict[0] != allocs[0].ID || nodeEvict[1] != allocs[2].ID {
 		t.Fatalf("bad: %v", nodeEvict)
+	}
+}
+
+func TestReadyNodesInDCs(t *testing.T) {
+	state, err := state.NewStateStore(os.Stderr)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	node1 := mock.Node()
+	node2 := mock.Node()
+	node2.Datacenter = "dc2"
+	node3 := mock.Node()
+	node3.Datacenter = "dc2"
+	node3.Status = structs.NodeStatusDown
+
+	noErr(t, state.RegisterNode(1000, node1))
+	noErr(t, state.RegisterNode(1001, node2))
+	noErr(t, state.RegisterNode(1002, node3))
+
+	nodes, err := readyNodesInDCs(state, []string{"dc1", "dc2"})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if len(nodes) != 2 {
+		t.Fatalf("err: %v")
+	}
+	if nodes[0].ID == node3.ID || nodes[1].ID == node3.ID {
+		t.Fatalf("Bad: %#v", nodes)
 	}
 }

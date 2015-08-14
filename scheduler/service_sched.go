@@ -223,7 +223,7 @@ func (s *ServiceScheduler) iterStack() (*IteratorStack, error) {
 	stack.Context = NewEvalContext(s.state, s.plan, s.logger)
 
 	// Get the base nodes
-	nodes, err := s.baseNodes(s.job)
+	nodes, err := readyNodesInDCs(s.state, s.job.Datacenters)
 	if err != nil {
 		return nil, err
 	}
@@ -264,26 +264,6 @@ func (s *ServiceScheduler) iterStack() (*IteratorStack, error) {
 	stack.MaxScore = NewMaxScoreIterator(stack.Context, stack.Limit)
 
 	return stack, nil
-}
-
-// baseNodes returns all the ready nodes in a datacenter that this
-// job has specified is usable.
-func (s *ServiceScheduler) baseNodes(job *structs.Job) ([]*structs.Node, error) {
-	var out []*structs.Node
-	for _, dc := range job.Datacenters {
-		iter, err := s.state.NodesByDatacenterStatus(dc, structs.NodeStatusReady)
-		if err != nil {
-			return nil, err
-		}
-		for {
-			raw := iter.Next()
-			if raw == nil {
-				break
-			}
-			out = append(out, raw.(*structs.Node))
-		}
-	}
-	return out, nil
 }
 
 func (s *ServiceScheduler) planAllocations(stack *IteratorStack,

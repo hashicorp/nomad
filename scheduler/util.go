@@ -104,3 +104,22 @@ func addEvictsToPlan(plan *structs.Plan,
 		}
 	}
 }
+
+// readyNodesInDCs returns all the ready nodes in the given datacenters
+func readyNodesInDCs(state State, dcs []string) ([]*structs.Node, error) {
+	var out []*structs.Node
+	for _, dc := range dcs {
+		iter, err := state.NodesByDatacenterStatus(dc, structs.NodeStatusReady)
+		if err != nil {
+			return nil, err
+		}
+		for {
+			raw := iter.Next()
+			if raw == nil {
+				break
+			}
+			out = append(out, raw.(*structs.Node))
+		}
+	}
+	return out, nil
+}
