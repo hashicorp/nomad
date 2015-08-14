@@ -43,6 +43,11 @@ func TestServiceStack_Select_Size(t *testing.T) {
 	if size.CPU != 0.5 || size.MemoryMB != 256 {
 		t.Fatalf("bad: %#v", size)
 	}
+
+	met := ctx.Metrics()
+	if met.AllocationTime == 0 {
+		t.Fatalf("missing time")
+	}
 }
 
 func TestServiceStack_Select_MetricsReset(t *testing.T) {
@@ -129,6 +134,12 @@ func TestServiceStack_Select_ConstraintFilter(t *testing.T) {
 	}
 
 	met := ctx.Metrics()
+	if met.NodesFiltered != 1 {
+		t.Fatalf("bad: %#v", met)
+	}
+	if met.ClassFiltered["linux-medium-pci"] != 1 {
+		t.Fatalf("bad: %#v", met)
+	}
 	if met.ConstraintFiltered["$attr.os = freebsd"] != 1 {
 		t.Fatalf("bad: %#v", met)
 	}
@@ -160,6 +171,12 @@ func TestServiceStack_Select_BinPack_Overflow(t *testing.T) {
 
 	met := ctx.Metrics()
 	if met.NodesExhausted != 1 {
+		t.Fatalf("bad: %#v", met)
+	}
+	if met.ClassExhausted["linux-medium-pci"] != 1 {
+		t.Fatalf("bad: %#v", met)
+	}
+	if len(met.Scores) != 1 {
 		t.Fatalf("bad: %#v", met)
 	}
 }
