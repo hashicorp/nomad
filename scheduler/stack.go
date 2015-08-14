@@ -15,6 +15,10 @@ type Stack interface {
 	// This must be called in between calls to Select.
 	SetTaskGroup(tg *structs.TaskGroup)
 
+	// TaskGroupSize returns the size of the task group.
+	// This is only valid after calling SetTaskGroup
+	TaskGroupSize() *structs.Resources
+
 	// Select is used to select a node for the task group
 	Select() *RankedNode
 }
@@ -34,6 +38,8 @@ type ServiceStack struct {
 	BinPack             *BinPackIterator
 	Limit               *LimitIterator
 	MaxScore            *MaxScoreIterator
+
+	size *structs.Resources
 }
 
 // NewServiceStack constructs a stack used for selecting service placements
@@ -99,6 +105,9 @@ func (s *ServiceStack) SetTaskGroup(tg *structs.TaskGroup) {
 		size.Add(task.Resources)
 	}
 
+	// Store the size
+	s.size = size
+
 	// Update the parameters of iterators
 	s.TaskGroupDrivers.SetDrivers(drivers)
 	s.TaskGroupConstraint.SetConstraints(constr)
@@ -106,6 +115,10 @@ func (s *ServiceStack) SetTaskGroup(tg *structs.TaskGroup) {
 
 	// Reset the max selector
 	s.MaxScore.Reset()
+}
+
+func (s *ServiceStack) TaskGroupSize() *structs.Resources {
+	return s.size
 }
 
 func (s *ServiceStack) Select() *RankedNode {

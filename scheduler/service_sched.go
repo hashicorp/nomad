@@ -189,7 +189,7 @@ func (s *ServiceScheduler) computePlacements(job *structs.Job, place []allocTupl
 			NodeID:    option.Node.ID,
 			JobID:     job.ID,
 			Job:       job,
-			Resources: nil, // TODO: size
+			Resources: stack.TaskGroupSize(),
 			Metrics:   ctx.Metrics(),
 			Status:    structs.AllocStatusPending,
 		}
