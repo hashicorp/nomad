@@ -333,11 +333,6 @@ type Node struct {
 	// consuming resources.
 	Reserved *Resources
 
-	// Allocated is the set of resources that have been allocated
-	// as part of scheduling. They should also be excluded for the
-	// purposes of additional scheduling allocations.
-	Allocated *Resources
-
 	// Links are used to 'link' this client to external
 	// systems. For example 'consul=foo.dc1' 'aws=i-83212'
 	// 'ami=ami-123'
