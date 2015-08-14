@@ -26,16 +26,25 @@ func materializeTaskGroups(job *structs.Job) map[string]*structs.TaskGroup {
 	return out
 }
 
+// diffResult is used to return the sets that result from the diff
+type diffResult struct {
+	place, update, migrate, evict, ignore []allocTuple
+}
+
+func (d *diffResult) GoString() string {
+	return fmt.Sprintf("allocs: (place %d) (update %d) (migrate %d) (evict %d) (ignore %d)",
+		len(d.place), len(d.update), len(d.migrate), len(d.evict), len(d.ignore))
+}
+
 // diffAllocs is used to do a set difference between the target allocations
 // and the existing allocations. This returns 5 sets of results, the list of
 // named task groups that need to be placed (no existing allocation), the
 // allocations that need to be updated (job definition is newer), allocs that
 // need to be migrated (node is draining), the allocs that need to be evicted
 // (no longer required), and those that should be ignored.
-func diffAllocs(job *structs.Job,
-	taintedNodes map[string]bool,
-	required map[string]*structs.TaskGroup,
-	allocs []*structs.Allocation) (place, update, migrate, evict, ignore []allocTuple) {
+func diffAllocs(job *structs.Job, taintedNodes map[string]bool,
+	required map[string]*structs.TaskGroup, allocs []*structs.Allocation) *diffResult {
+	result := &diffResult{}
 
 	// Scan the existing updates
 	existing := make(map[string]struct{})
@@ -49,7 +58,7 @@ func diffAllocs(job *structs.Job,
 
 		// If not required, we evict
 		if !ok {
-			evict = append(evict, allocTuple{
+			result.evict = append(result.evict, allocTuple{
 				Name:      name,
 				TaskGroup: tg,
 				Alloc:     exist,
@@ -59,7 +68,7 @@ func diffAllocs(job *structs.Job,
 
 		// If we are on a tainted node, we must migrate
 		if taintedNodes[exist.NodeID] {
-			migrate = append(migrate, allocTuple{
+			result.migrate = append(result.migrate, allocTuple{
 				Name:      name,
 				TaskGroup: tg,
 				Alloc:     exist,
@@ -72,7 +81,7 @@ func diffAllocs(job *structs.Job,
 		// if the job definition has changed in a way that affects
 		// this allocation and potentially ignore it.
 		if job.ModifyIndex != exist.Job.ModifyIndex {
-			update = append(update, allocTuple{
+			result.update = append(result.update, allocTuple{
 				Name:      name,
 				TaskGroup: tg,
 				Alloc:     exist,
@@ -81,7 +90,7 @@ func diffAllocs(job *structs.Job,
 		}
 
 		// Everything is up-to-date
-		ignore = append(ignore, allocTuple{
+		result.ignore = append(result.ignore, allocTuple{
 			Name:      name,
 			TaskGroup: tg,
 			Alloc:     exist,
@@ -97,13 +106,13 @@ func diffAllocs(job *structs.Job,
 		// is an existing allocation, we would have checked for a potential
 		// update or ignore above.
 		if !ok {
-			place = append(place, allocTuple{
+			result.place = append(result.place, allocTuple{
 				Name:      name,
 				TaskGroup: tg,
 			})
 		}
 	}
-	return
+	return result
 }
 
 // readyNodesInDCs returns all the ready nodes in the given datacenters

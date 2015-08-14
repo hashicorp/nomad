@@ -128,36 +128,35 @@ func (s *ServiceScheduler) computeJobAllocs(job *structs.Job) error {
 	}
 
 	// Diff the required and existing allocations
-	place, update, migrate, evict, ignore := diffAllocs(job, tainted, groups, allocs)
-	s.logger.Printf("[DEBUG] sched: %#v: need %d placements, %d updates, %d migrations, %d evictions, %d ignored allocs",
-		s.eval, len(place), len(update), len(migrate), len(evict), len(ignore))
+	diff := diffAllocs(job, tainted, groups, allocs)
+	s.logger.Printf("[DEBUG] sched: %#v: %#v", s.eval, diff)
 
 	// Add all the evicts
-	for _, e := range evict {
+	for _, e := range diff.evict {
 		s.plan.AppendEvict(e.Alloc)
 	}
 
 	// For simplicity, we treat all migrates as an evict + place.
 	// XXX: This could probably be done more intelligently?
-	for _, e := range migrate {
+	for _, e := range diff.migrate {
 		s.plan.AppendEvict(e.Alloc)
 	}
-	place = append(place, migrate...)
+	diff.place = append(diff.place, diff.migrate...)
 
 	// For simplicity, we treat all updates as an evict + place.
 	// XXX: This should be done with rolling in-place updates instead.
-	for _, e := range update {
+	for _, e := range diff.update {
 		s.plan.AppendEvict(e.Alloc)
 	}
-	place = append(place, update...)
+	diff.place = append(diff.place, diff.update...)
 
 	// Nothing remaining to do if placement is not required
-	if len(place) == 0 {
+	if len(diff.place) == 0 {
 		return nil
 	}
 
 	// Compute the placements
-	return s.computePlacements(job, place)
+	return s.computePlacements(job, diff.place)
 }
 
 func (s *ServiceScheduler) computePlacements(job *structs.Job, place []allocTuple) error {

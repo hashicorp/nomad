@@ -75,7 +75,12 @@ func TestDiffAllocs(t *testing.T) {
 		},
 	}
 
-	place, update, migrate, evict, ignore := diffAllocs(job, tainted, required, allocs)
+	diff := diffAllocs(job, tainted, required, allocs)
+	place := diff.place
+	update := diff.update
+	migrate := diff.migrate
+	evict := diff.evict
+	ignore := diff.ignore
 
 	// We should update the first alloc
 	if len(update) != 1 || update[0].Alloc != allocs[0] {
