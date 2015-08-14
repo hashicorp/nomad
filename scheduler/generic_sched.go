@@ -9,9 +9,13 @@ import (
 )
 
 const (
-	// maxScheduleAttempts is used to limit the number of times
-	// we will attempt to schedule if we continue to hit conflicts.
-	maxScheduleAttempts = 5
+	// maxServiceScheduleAttempts is used to limit the number of times
+	// we will attempt to schedule if we continue to hit conflicts for services.
+	maxServiceScheduleAttempts = 5
+
+	// maxBatchScheduleAttempts is used to limit the number of times
+	// we will attempt to schedule if we continue to hit conflicts for batch.
+	maxBatchScheduleAttempts = 2
 )
 
 // GenericScheduler is used for 'service' and 'batch' type jobs. This scheduler is
@@ -66,7 +70,11 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 	s.eval = eval
 
 	// Retry up to the maxScheduleAttempts
-	return retryMax(maxScheduleAttempts, s.process)
+	limit := maxServiceScheduleAttempts
+	if s.batch {
+		limit = maxBatchScheduleAttempts
+	}
+	return retryMax(limit, s.process)
 }
 
 // process is wrapped in retryMax to iteratively run the handler until we have no
@@ -184,7 +192,7 @@ func (s *GenericScheduler) computePlacements(job *structs.Job, place []allocTupl
 	}
 
 	// Construct the placement stack
-	stack := NewServiceStack(ctx, nodes)
+	stack := NewGenericStack(s.batch, ctx, nodes)
 
 	for _, missing := range place {
 		option, size := stack.Select(missing.TaskGroup)

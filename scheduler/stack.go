@@ -18,9 +18,10 @@ type Stack interface {
 	Select(tg *structs.TaskGroup) (*RankedNode, *structs.Resources)
 }
 
-// ServiceStack is the Stack used for the Service scheduler. It is
+// GenericStack is the Stack used for the Generic scheduler. It is
 // designed to make better placement decisions at the cost of performance.
-type ServiceStack struct {
+type GenericStack struct {
+	batch               bool
 	ctx                 Context
 	jobConstraint       *ConstraintIterator
 	taskGroupDrivers    *DriverIterator
@@ -29,11 +30,12 @@ type ServiceStack struct {
 	maxScore            *MaxScoreIterator
 }
 
-// NewServiceStack constructs a stack used for selecting service placements
-func NewServiceStack(ctx Context, baseNodes []*structs.Node) *ServiceStack {
+// NewGenericStack constructs a stack used for selecting service placements
+func NewGenericStack(batch bool, ctx Context, baseNodes []*structs.Node) *GenericStack {
 	// Create a new stack
-	stack := &ServiceStack{
-		ctx: ctx,
+	stack := &GenericStack{
+		batch: batch,
+		ctx:   ctx,
 	}
 
 	// Create the source iterator. We randomize the order we visit nodes
@@ -53,14 +55,19 @@ func NewServiceStack(ctx Context, baseNodes []*structs.Node) *ServiceStack {
 	// Upgrade from feasible to rank iterator
 	rankSource := NewFeasibleRankIterator(ctx, stack.taskGroupConstraint)
 
-	// Apply the bin packing, this depends on the resources needed by a particular task group.
-	stack.binPack = NewBinPackIterator(ctx, rankSource, nil, true, 0)
+	// Apply the bin packing, this depends on the resources needed
+	// by a particular task group. Only enable eviction for the service
+	// scheduler as that logic is expensive.
+	evict := !batch
+	stack.binPack = NewBinPackIterator(ctx, rankSource, nil, evict, 0)
 
 	// Apply a limit function. This is to avoid scanning *every* possible node.
-	// Instead we need to visit "enough". Using a log of the total number of
-	// nodes is a good restriction, with at least 2 as the floor
+	// For batch jobs we only need to evaluate 2 options and depend on the
+	// powwer of two choices. For services jobs we need to visit "enough".
+	// Using a log of the total number of nodes is a good restriction, with
+	// at least 2 as the floor
 	limit := 2
-	if n := len(baseNodes); n > 0 {
+	if n := len(baseNodes); !batch && n > 0 {
 		logLimit := int(math.Ceil(math.Log2(float64(n))))
 		if logLimit > limit {
 			limit = logLimit
@@ -73,12 +80,12 @@ func NewServiceStack(ctx Context, baseNodes []*structs.Node) *ServiceStack {
 	return stack
 }
 
-func (s *ServiceStack) SetJob(job *structs.Job) {
+func (s *GenericStack) SetJob(job *structs.Job) {
 	s.jobConstraint.SetConstraints(job.Constraints)
 	s.binPack.SetPriority(job.Priority)
 }
 
-func (s *ServiceStack) Select(tg *structs.TaskGroup) (*RankedNode, *structs.Resources) {
+func (s *GenericStack) Select(tg *structs.TaskGroup) (*RankedNode, *structs.Resources) {
 	// Reset the max selector and context
 	s.maxScore.Reset()
 	s.ctx.Reset()

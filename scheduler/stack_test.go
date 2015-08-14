@@ -10,7 +10,7 @@ import (
 
 func TestServiceStack_SetJob(t *testing.T) {
 	_, ctx := testContext(t)
-	stack := NewServiceStack(ctx, nil)
+	stack := NewGenericStack(false, ctx, nil)
 
 	job := mock.Job()
 	stack.SetJob(job)
@@ -28,7 +28,7 @@ func TestServiceStack_Select_Size(t *testing.T) {
 	nodes := []*structs.Node{
 		mock.Node(),
 	}
-	stack := NewServiceStack(ctx, nodes)
+	stack := NewGenericStack(false, ctx, nodes)
 
 	job := mock.Job()
 	stack.SetJob(job)
@@ -58,7 +58,7 @@ func TestServiceStack_Select_MetricsReset(t *testing.T) {
 		mock.Node(),
 		mock.Node(),
 	}
-	stack := NewServiceStack(ctx, nodes)
+	stack := NewGenericStack(false, ctx, nodes)
 
 	job := mock.Job()
 	stack.SetJob(job)
@@ -93,7 +93,7 @@ func TestServiceStack_Select_DriverFilter(t *testing.T) {
 	zero := nodes[0]
 	zero.Attributes["driver.foo"] = "1"
 
-	stack := NewServiceStack(ctx, nodes)
+	stack := NewGenericStack(false, ctx, nodes)
 
 	job := mock.Job()
 	job.TaskGroups[0].Tasks[0].Driver = "foo"
@@ -118,7 +118,7 @@ func TestServiceStack_Select_ConstraintFilter(t *testing.T) {
 	zero := nodes[0]
 	zero.Attributes["os"] = "freebsd"
 
-	stack := NewServiceStack(ctx, nodes)
+	stack := NewGenericStack(false, ctx, nodes)
 
 	job := mock.Job()
 	job.Constraints[0].RTarget = "freebsd"
@@ -155,7 +155,7 @@ func TestServiceStack_Select_BinPack_Overflow(t *testing.T) {
 	one := nodes[1]
 	one.Reserved = one.Resources
 
-	stack := NewServiceStack(ctx, nodes)
+	stack := NewGenericStack(false, ctx, nodes)
 
 	job := mock.Job()
 	stack.SetJob(job)
