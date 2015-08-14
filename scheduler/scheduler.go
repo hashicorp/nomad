@@ -12,6 +12,7 @@ import (
 // which are available
 var BuiltinSchedulers = map[string]Factory{
 	"service": NewServiceScheduler,
+	"batch":   NewBatchScheduler,
 }
 
 // NewScheduler is used to instantiate and return a new scheduler

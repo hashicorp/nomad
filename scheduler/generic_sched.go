@@ -14,14 +14,16 @@ const (
 	maxScheduleAttempts = 5
 )
 
-// ServiceScheduler is used for 'service' type jobs. This scheduler is
+// GenericScheduler is used for 'service' and 'batch' type jobs. This scheduler is
 // designed for long-lived services, and as such spends more time attemping
 // to make a high quality placement. This is the primary scheduler for
-// most workloads.
-type ServiceScheduler struct {
+// most workloads. It also supports a 'batch' mode to optimize for fast decision
+// making at the cost of quality.
+type GenericScheduler struct {
 	logger  *log.Logger
 	state   State
 	planner Planner
+	batch   bool
 
 	eval *structs.Evaluation
 	plan *structs.Plan
@@ -29,16 +31,28 @@ type ServiceScheduler struct {
 
 // NewServiceScheduler is a factory function to instantiate a new service scheduler
 func NewServiceScheduler(logger *log.Logger, state State, planner Planner) Scheduler {
-	s := &ServiceScheduler{
+	s := &GenericScheduler{
 		logger:  logger,
 		state:   state,
 		planner: planner,
+		batch:   false,
+	}
+	return s
+}
+
+// NewBatchScheduler is a factory function to instantiate a new batch scheduler
+func NewBatchScheduler(logger *log.Logger, state State, planner Planner) Scheduler {
+	s := &GenericScheduler{
+		logger:  logger,
+		state:   state,
+		planner: planner,
+		batch:   true,
 	}
 	return s
 }
 
 // Process is used to handle a single evaluation
-func (s *ServiceScheduler) Process(eval *structs.Evaluation) error {
+func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 	// Verify the evaluation trigger reason is understood
 	switch eval.TriggeredBy {
 	case structs.EvalTriggerJobRegister, structs.EvalTriggerNodeUpdate,
@@ -57,7 +71,7 @@ func (s *ServiceScheduler) Process(eval *structs.Evaluation) error {
 
 // process is wrapped in retryMax to iteratively run the handler until we have no
 // further work or we've made the maximum number of attempts.
-func (s *ServiceScheduler) process() (bool, error) {
+func (s *GenericScheduler) process() (bool, error) {
 	// Lookup the Job by ID
 	job, err := s.state.GetJobByID(s.eval.JobID)
 	if err != nil {
@@ -106,7 +120,7 @@ func (s *ServiceScheduler) process() (bool, error) {
 
 // computeJobAllocs is used to reconcile differences between the job,
 // existing allocations and node status to update the allocations.
-func (s *ServiceScheduler) computeJobAllocs(job *structs.Job) error {
+func (s *GenericScheduler) computeJobAllocs(job *structs.Job) error {
 	// Materialize all the task groups, job could be missing if deregistered
 	var groups map[string]*structs.TaskGroup
 	if job != nil {
@@ -159,7 +173,7 @@ func (s *ServiceScheduler) computeJobAllocs(job *structs.Job) error {
 	return s.computePlacements(job, diff.place)
 }
 
-func (s *ServiceScheduler) computePlacements(job *structs.Job, place []allocTuple) error {
+func (s *GenericScheduler) computePlacements(job *structs.Job, place []allocTuple) error {
 	// Create an evaluation context
 	ctx := NewEvalContext(s.state, s.plan, s.logger)
 
