@@ -175,8 +175,8 @@ func (s *ServiceScheduler) computePlacements(job *structs.Job, place []allocTupl
 	for _, missing := range place {
 		option, size := stack.Select(missing.TaskGroup)
 		if option == nil {
-			s.logger.Printf("[DEBUG] sched: %#v: failed to place alloc %s",
-				s.eval, missing)
+			s.logger.Printf("[DEBUG] sched: %#v: failed to place alloc %s: %#v",
+				s.eval, missing.Name, ctx.Metrics())
 			continue
 		}
 

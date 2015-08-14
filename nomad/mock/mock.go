@@ -65,11 +65,12 @@ func Node() *structs.Node {
 
 func Job() *structs.Job {
 	job := &structs.Job{
-		ID:        GenerateUUID(),
-		Name:      "my-job",
-		Type:      structs.JobTypeService,
-		Priority:  50,
-		AllAtOnce: false,
+		ID:          GenerateUUID(),
+		Name:        "my-job",
+		Type:        structs.JobTypeService,
+		Priority:    50,
+		AllAtOnce:   false,
+		Datacenters: []string{"dc1"},
 		Constraints: []*structs.Constraint{
 			&structs.Constraint{
 				Hard:    true,
