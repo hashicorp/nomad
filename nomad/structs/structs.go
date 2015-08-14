@@ -797,6 +797,11 @@ func (p *Plan) AppendAlloc(alloc *Allocation) {
 	p.NodeAllocation[node] = append(existing, alloc)
 }
 
+// IsNoOp checks if this plan would do nothing
+func (p *Plan) IsNoOp() bool {
+	return len(p.NodeEvict) == 0 && len(p.NodeAllocation) == 0
+}
+
 // PlanResult is the result of a plan submitted to the leader.
 type PlanResult struct {
 	// NodeEvict contains all the evictions that were committed.

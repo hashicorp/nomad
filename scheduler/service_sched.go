@@ -74,6 +74,11 @@ func (s *ServiceScheduler) process() (bool, error) {
 		return false, err
 	}
 
+	// If the plan is a no-op, we can bail
+	if s.plan.IsNoOp() {
+		return true, nil
+	}
+
 	// Submit the plan
 	result, newState, err := s.planner.SubmitPlan(s.plan)
 	if err != nil {
@@ -130,22 +135,23 @@ func (s *ServiceScheduler) computeJobAllocs(job *structs.Job) error {
 	s.logger.Printf("[DEBUG] sched: %#v: need %d placements, %d updates, %d migrations, %d evictions, %d ignored allocs",
 		s.eval, len(place), len(update), len(migrate), len(evict), len(ignore))
 
-	// Fast-pass if nothing to do
-	if len(place) == 0 && len(update) == 0 && len(evict) == 0 && len(migrate) == 0 {
-		return nil
-	}
-
 	// Add all the evicts
-	addEvictsToPlan(s.plan, evict, indexed)
+	for _, e := range evict {
+		s.plan.AppendEvict(e.Alloc)
+	}
 
 	// For simplicity, we treat all migrates as an evict + place.
 	// XXX: This could probably be done more intelligently?
-	addEvictsToPlan(s.plan, migrate, indexed)
+	for _, e := range migrate {
+		s.plan.AppendEvict(e.Alloc)
+	}
 	place = append(place, migrate...)
 
 	// For simplicity, we treat all updates as an evict + place.
 	// XXX: This should be done with rolling in-place updates instead.
-	addEvictsToPlan(s.plan, update, indexed)
+	for _, e := range update {
+		s.plan.AppendEvict(e.Alloc)
+	}
 	place = append(place, update...)
 
 	// Nothing remaining to do if placement is not required
@@ -153,6 +159,11 @@ func (s *ServiceScheduler) computeJobAllocs(job *structs.Job) error {
 		return nil
 	}
 
+	// Compute the placements
+	return s.computePlacements(job, place)
+}
+
+func (s *ServiceScheduler) computePlacements(job *structs.Job, place []allocTuple) error {
 	// Create an evaluation context
 	ctx := NewEvalContext(s.state, s.plan, s.logger)
 
@@ -166,7 +177,7 @@ func (s *ServiceScheduler) computeJobAllocs(job *structs.Job) error {
 	stack := NewServiceStack(ctx, nodes)
 
 	for _, missing := range place {
-		stack.SetTaskGroup(groups[missing.Name])
+		stack.SetTaskGroup(missing.TaskGroup)
 		option := stack.Select()
 		if option == nil {
 			s.logger.Printf("[DEBUG] sched: %#v: failed to place alloc %s",

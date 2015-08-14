@@ -97,66 +97,28 @@ func TestDiffAllocs(t *testing.T) {
 	place, update, migrate, evict, ignore := diffAllocs(job, tainted, required, existing)
 
 	// We should update the first alloc
-	if len(update) != 1 || update[0].ID != allocs[0].ID {
+	if len(update) != 1 || update[0].Alloc != allocs[0] {
 		t.Fatalf("bad: %#v", update)
 	}
 
 	// We should ignore the second alloc
-	if len(ignore) != 1 || ignore[0].ID != allocs[1].ID {
+	if len(ignore) != 1 || ignore[0].Alloc != allocs[1] {
 		t.Fatalf("bad: %#v", ignore)
 	}
 
 	// We should evict the 3rd alloc
-	if len(evict) != 1 || evict[0].ID != allocs[2].ID {
+	if len(evict) != 1 || evict[0].Alloc != allocs[2] {
 		t.Fatalf("bad: %#v", evict)
 	}
 
 	// We should migrate the 4rd alloc
-	if len(migrate) != 1 || migrate[0].ID != allocs[3].ID {
+	if len(migrate) != 1 || migrate[0].Alloc != allocs[3] {
 		t.Fatalf("bad: %#v", migrate)
 	}
 
 	// We should place 7
 	if len(place) != 7 {
 		t.Fatalf("bad: %#v", place)
-	}
-}
-
-func TestAddEvictsToPlan(t *testing.T) {
-	allocs := []*structs.Allocation{
-		&structs.Allocation{
-			ID:     mock.GenerateUUID(),
-			NodeID: "zip",
-			Name:   "foo",
-		},
-		&structs.Allocation{
-			ID:     mock.GenerateUUID(),
-			NodeID: "zip",
-			Name:   "foo",
-		},
-		&structs.Allocation{
-			ID:     mock.GenerateUUID(),
-			NodeID: "zip",
-			Name:   "bar",
-		},
-	}
-	plan := &structs.Plan{
-		NodeEvict: make(map[string][]string),
-	}
-	index := indexAllocs(allocs)
-
-	evict := []allocNameID{
-		allocNameID{Name: "foo", ID: allocs[0].ID},
-		allocNameID{Name: "bar", ID: allocs[2].ID},
-	}
-	addEvictsToPlan(plan, evict, index)
-
-	nodeEvict := plan.NodeEvict["zip"]
-	if len(nodeEvict) != 2 {
-		t.Fatalf("bad: %#v %v", plan, nodeEvict)
-	}
-	if nodeEvict[0] != allocs[0].ID || nodeEvict[1] != allocs[2].ID {
-		t.Fatalf("bad: %v", nodeEvict)
 	}
 }
 

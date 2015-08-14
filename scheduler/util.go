@@ -6,10 +6,11 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// allocNameID is a tuple of the allocation name and potential alloc ID
-type allocNameID struct {
-	Name string
-	ID   string
+// allocTuple is a tuple of the allocation name and potential alloc ID
+type allocTuple struct {
+	Name      string
+	TaskGroup *structs.TaskGroup
+	Alloc     *structs.Allocation
 }
 
 // materializeTaskGroups is used to materialize all the task groups
@@ -44,22 +45,30 @@ func indexAllocs(allocs []*structs.Allocation) map[string][]*structs.Allocation 
 func diffAllocs(job *structs.Job,
 	taintedNodes map[string]bool,
 	required map[string]*structs.TaskGroup,
-	existing map[string][]*structs.Allocation) (place, update, migrate, evict, ignore []allocNameID) {
+	existing map[string][]*structs.Allocation) (place, update, migrate, evict, ignore []allocTuple) {
 	// Scan the existing updates
 	for name, existList := range existing {
 		for _, exist := range existList {
 			// Check for the definition in the required set
-			_, ok := required[name]
+			tg, ok := required[name]
 
 			// If not required, we evict
 			if !ok {
-				evict = append(evict, allocNameID{name, exist.ID})
+				evict = append(evict, allocTuple{
+					Name:      name,
+					TaskGroup: tg,
+					Alloc:     exist,
+				})
 				continue
 			}
 
 			// If we are on a tainted node, we must migrate
 			if taintedNodes[exist.NodeID] {
-				migrate = append(migrate, allocNameID{name, exist.ID})
+				migrate = append(migrate, allocTuple{
+					Name:      name,
+					TaskGroup: tg,
+					Alloc:     exist,
+				})
 				continue
 			}
 
@@ -68,17 +77,25 @@ func diffAllocs(job *structs.Job,
 			// if the job definition has changed in a way that affects
 			// this allocation and potentially ignore it.
 			if job.ModifyIndex != exist.Job.ModifyIndex {
-				update = append(update, allocNameID{name, exist.ID})
+				update = append(update, allocTuple{
+					Name:      name,
+					TaskGroup: tg,
+					Alloc:     exist,
+				})
 				continue
 			}
 
 			// Everything is up-to-date
-			ignore = append(ignore, allocNameID{name, exist.ID})
+			ignore = append(ignore, allocTuple{
+				Name:      name,
+				TaskGroup: tg,
+				Alloc:     exist,
+			})
 		}
 	}
 
 	// Scan the required groups
-	for name := range required {
+	for name, tg := range required {
 		// Check for an existing allocation
 		_, ok := existing[name]
 
@@ -86,23 +103,13 @@ func diffAllocs(job *structs.Job,
 		// is an existing allocation, we would have checked for a potential
 		// update or ignore above.
 		if !ok {
-			place = append(place, allocNameID{name, ""})
+			place = append(place, allocTuple{
+				Name:      name,
+				TaskGroup: tg,
+			})
 		}
 	}
 	return
-}
-
-// addEvictsToPlan is used to add all the evictions to the plan
-func addEvictsToPlan(plan *structs.Plan,
-	evicts []allocNameID, indexed map[string][]*structs.Allocation) {
-	for _, evict := range evicts {
-		list := indexed[evict.Name]
-		for _, alloc := range list {
-			if alloc.ID == evict.ID {
-				plan.AppendEvict(alloc)
-			}
-		}
-	}
 }
 
 // readyNodesInDCs returns all the ready nodes in the given datacenters
