@@ -12,7 +12,6 @@ func TestServiceSched_JobDeregister(t *testing.T) {
 
 	// Generate a fake job with allocations
 	job := mock.Job()
-	noErr(t, h.State.RegisterJob(h.NextIndex(), job))
 
 	var allocs []*structs.Allocation
 	for i := 0; i < 10; i++ {

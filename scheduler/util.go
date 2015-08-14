@@ -123,3 +123,20 @@ func readyNodesInDCs(state State, dcs []string) ([]*structs.Node, error) {
 	}
 	return out, nil
 }
+
+// retryMax is used to retry a callback until it returns success or
+// a maximum number of attempts is reached
+func retryMax(max int, cb func() (bool, error)) error {
+	attempts := 0
+	for attempts < max {
+		done, err := cb()
+		if err != nil {
+			return err
+		}
+		if done {
+			return nil
+		}
+		attempts += 1
+	}
+	return fmt.Errorf("maximum attempts reached (%d)", max)
+}

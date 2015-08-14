@@ -189,3 +189,31 @@ func TestReadyNodesInDCs(t *testing.T) {
 		t.Fatalf("Bad: %#v", nodes)
 	}
 }
+
+func TestRetryMax(t *testing.T) {
+	calls := 0
+	bad := func() (bool, error) {
+		calls += 1
+		return false, nil
+	}
+	err := retryMax(3, bad)
+	if err == nil {
+		t.Fatalf("should fail")
+	}
+	if calls != 3 {
+		t.Fatalf("mis match")
+	}
+
+	calls = 0
+	good := func() (bool, error) {
+		calls += 1
+		return true, nil
+	}
+	err = retryMax(3, good)
+	if err != nil {
+		t.Fatalf("err: %v")
+	}
+	if calls != 1 {
+		t.Fatalf("mis match")
+	}
+}
