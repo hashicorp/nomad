@@ -588,6 +588,10 @@ type Constraint struct {
 	Weight  int    // Soft constraints can vary the weight
 }
 
+func (c *Constraint) String() string {
+	return fmt.Sprintf("%s %s %s", c.LTarget, c.Operand, c.RTarget)
+}
+
 const (
 	AllocStatusPending  = "pending"
 	AllocStatusInit     = "initializing"
@@ -652,17 +656,50 @@ type AllocMetric struct {
 	// ClassExhausted is the number of nodes exhausted by class
 	ClassExhausted map[string]int
 
-	// Preemptions is the number of preemptions considered.
-	// This indicates a relatively busy fleet if high.
-	Preemptions int
-
 	// Scores is the scores of the final few nodes remaining
 	// for placement. The top score is typically selected.
-	Scores map[string]int
+	Scores map[string]float64
 
 	// AllocationTime is a measure of how long the allocation
 	// attempt took. This can affect performance and SLAs.
 	AllocationTime time.Duration
+}
+
+func (a *AllocMetric) EvaluateNode() {
+	a.NodesEvaluated += 1
+}
+
+func (a *AllocMetric) FilterNode(node *Node, constraint string) {
+	a.NodesFiltered += 1
+	if node != nil && node.NodeClass != "" {
+		if a.ClassFiltered == nil {
+			a.ClassFiltered = make(map[string]int)
+		}
+		a.ClassFiltered[node.NodeClass] += 1
+	}
+	if constraint != "" {
+		if a.ConstraintFiltered == nil {
+			a.ConstraintFiltered = make(map[string]int)
+		}
+		a.ConstraintFiltered[constraint] += 1
+	}
+}
+
+func (a *AllocMetric) ExhaustedNode(node *Node) {
+	a.NodesExhausted += 1
+	if node != nil && node.NodeClass != "" {
+		if a.ClassExhausted == nil {
+			a.ClassExhausted = make(map[string]int)
+		}
+		a.ClassExhausted[node.NodeClass] += 1
+	}
+}
+
+func (a *AllocMetric) ScoreNode(node *Node, score float64) {
+	if a.Scores == nil {
+		a.Scores = make(map[string]float64)
+	}
+	a.Scores[node.ID] = score
 }
 
 const (

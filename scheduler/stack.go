@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"math"
+	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -81,6 +82,7 @@ func (s *ServiceStack) Select(tg *structs.TaskGroup) (*RankedNode, *structs.Reso
 	// Reset the max selector and context
 	s.maxScore.Reset()
 	s.ctx.Reset()
+	start := time.Now()
 
 	// Collect the constraints, drivers and resources required by each
 	// sub-task to aggregate the TaskGroup totals
@@ -99,6 +101,10 @@ func (s *ServiceStack) Select(tg *structs.TaskGroup) (*RankedNode, *structs.Reso
 	s.taskGroupConstraint.SetConstraints(constr)
 	s.binPack.SetResources(size)
 
-	// Return the node with the max score
-	return s.maxScore.Next(), size
+	// Find the node with the max score
+	option := s.maxScore.Next()
+
+	// Store the compute time
+	s.ctx.Metrics().AllocationTime = time.Since(start)
+	return option, size
 }

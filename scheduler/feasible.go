@@ -55,6 +55,7 @@ func (iter *StaticIterator) Next() *structs.Node {
 	offset := iter.offset
 	iter.offset += 1
 	iter.seen += 1
+	iter.ctx.Metrics().EvaluateNode()
 	return iter.nodes[offset]
 }
 
@@ -111,6 +112,7 @@ func (iter *DriverIterator) Next() *structs.Node {
 		if iter.hasDrivers(option) {
 			return option
 		}
+		iter.ctx.Metrics().FilterNode(option, "missing drivers")
 	}
 }
 
@@ -177,6 +179,7 @@ func (iter *ConstraintIterator) Reset() {
 func (iter *ConstraintIterator) meetsConstraints(option *structs.Node) bool {
 	for _, constraint := range iter.constraints {
 		if !iter.meetsConstraint(constraint, option) {
+			iter.ctx.Metrics().FilterNode(option, constraint.String())
 			return false
 		}
 	}

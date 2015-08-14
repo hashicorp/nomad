@@ -167,6 +167,7 @@ func (iter *BinPackIterator) Next() *RankedNode {
 		// Check if these allocations fit, if they do not, simply skip this node
 		fit, util, _ := structs.AllocsFit(option.Node, proposed)
 		if !fit {
+			iter.ctx.Metrics().ExhaustedNode(option.Node)
 			continue
 		}
 
@@ -177,6 +178,7 @@ func (iter *BinPackIterator) Next() *RankedNode {
 
 		// Score the fit normally otherwise
 		option.Score = structs.ScoreFit(option.Node, util)
+		iter.ctx.Metrics().ScoreNode(option.Node, option.Score)
 		return option
 	}
 }
