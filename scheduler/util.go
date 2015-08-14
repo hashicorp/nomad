@@ -140,3 +140,22 @@ func retryMax(max int, cb func() (bool, error)) error {
 	}
 	return fmt.Errorf("maximum attempts reached (%d)", max)
 }
+
+// taintedNodes is used to scan the allocations and then check if the
+// underlying nodes are tainted, and should force a migration of the allocation.
+func taintedNodes(state State, allocs []*structs.Allocation) (map[string]bool, error) {
+	out := make(map[string]bool)
+	for _, alloc := range allocs {
+		if _, ok := out[alloc.NodeID]; ok {
+			continue
+		}
+
+		node, err := state.GetNodeByID(alloc.NodeID)
+		if err != nil {
+			return nil, err
+		}
+
+		out[alloc.NodeID] = structs.ShouldDrainNode(node.Status)
+	}
+	return out, nil
+}

@@ -217,3 +217,40 @@ func TestRetryMax(t *testing.T) {
 		t.Fatalf("mis match")
 	}
 }
+
+func TestTaintedNodes(t *testing.T) {
+	state, err := state.NewStateStore(os.Stderr)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	node1 := mock.Node()
+	node2 := mock.Node()
+	node2.Datacenter = "dc2"
+	node3 := mock.Node()
+	node3.Datacenter = "dc2"
+	node3.Status = structs.NodeStatusDown
+	noErr(t, state.RegisterNode(1000, node1))
+	noErr(t, state.RegisterNode(1001, node2))
+	noErr(t, state.RegisterNode(1002, node3))
+
+	allocs := []*structs.Allocation{
+		&structs.Allocation{NodeID: node1.ID},
+		&structs.Allocation{NodeID: node2.ID},
+		&structs.Allocation{NodeID: node3.ID},
+	}
+	tainted, err := taintedNodes(state, allocs)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if len(tainted) != 3 {
+		t.Fatalf("err: %v")
+	}
+	if tainted[node1.ID] || tainted[node2.ID] {
+		t.Fatalf("Bad: %v", tainted)
+	}
+	if !tainted[node3.ID] {
+		t.Fatalf("Bad: %v", tainted)
+	}
+}

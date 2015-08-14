@@ -124,7 +124,7 @@ func (s *ServiceScheduler) computeJobAllocs() error {
 	}
 
 	// Determine the tainted nodes containing job allocs
-	tainted, err := s.taintedNodes(allocs)
+	tainted, err := taintedNodes(s.state, allocs)
 	if err != nil {
 		return fmt.Errorf("failed to get tainted nodes for job '%s': %v",
 			s.eval.JobID, err)
@@ -191,25 +191,6 @@ func (s *ServiceScheduler) computeJobAllocs() error {
 		s.plan.AppendAlloc(alloc)
 	}
 	return nil
-}
-
-// taintedNodes is used to scan the allocations and then check if the
-// underlying nodes are tainted, and should force a migration of the allocation.
-func (s *ServiceScheduler) taintedNodes(allocs []*structs.Allocation) (map[string]bool, error) {
-	out := make(map[string]bool)
-	for _, alloc := range allocs {
-		if _, ok := out[alloc.NodeID]; ok {
-			continue
-		}
-
-		node, err := s.state.GetNodeByID(alloc.NodeID)
-		if err != nil {
-			return nil, err
-		}
-
-		out[alloc.NodeID] = structs.ShouldDrainNode(node.Status)
-	}
-	return out, nil
 }
 
 // evictJobAllocs is used to evict all job allocations
