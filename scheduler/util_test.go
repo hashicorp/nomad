@@ -92,9 +92,8 @@ func TestDiffAllocs(t *testing.T) {
 			Name:   "my-job.web[2]",
 		},
 	}
-	existing := indexAllocs(allocs)
 
-	place, update, migrate, evict, ignore := diffAllocs(job, tainted, required, existing)
+	place, update, migrate, evict, ignore := diffAllocs(job, tainted, required, allocs)
 
 	// We should update the first alloc
 	if len(update) != 1 || update[0].Alloc != allocs[0] {

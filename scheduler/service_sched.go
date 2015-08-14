@@ -127,11 +127,8 @@ func (s *ServiceScheduler) computeJobAllocs(job *structs.Job) error {
 			s.eval.JobID, err)
 	}
 
-	// Index the existing allocations
-	indexed := indexAllocs(allocs)
-
 	// Diff the required and existing allocations
-	place, update, migrate, evict, ignore := diffAllocs(job, tainted, groups, indexed)
+	place, update, migrate, evict, ignore := diffAllocs(job, tainted, groups, allocs)
 	s.logger.Printf("[DEBUG] sched: %#v: need %d placements, %d updates, %d migrations, %d evictions, %d ignored allocs",
 		s.eval, len(place), len(update), len(migrate), len(evict), len(ignore))
 

@@ -45,7 +45,10 @@ func indexAllocs(allocs []*structs.Allocation) map[string][]*structs.Allocation 
 func diffAllocs(job *structs.Job,
 	taintedNodes map[string]bool,
 	required map[string]*structs.TaskGroup,
-	existing map[string][]*structs.Allocation) (place, update, migrate, evict, ignore []allocTuple) {
+	allocs []*structs.Allocation) (place, update, migrate, evict, ignore []allocTuple) {
+	// Index the existing allocations
+	existing := indexAllocs(allocs)
+
 	// Scan the existing updates
 	for name, existList := range existing {
 		for _, exist := range existList {
