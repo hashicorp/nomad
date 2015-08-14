@@ -173,9 +173,7 @@ func (s *ServiceScheduler) computePlacements(job *structs.Job, place []allocTupl
 	stack := NewServiceStack(ctx, nodes)
 
 	for _, missing := range place {
-		ctx.Reset()
-		stack.SetTaskGroup(missing.TaskGroup)
-		option := stack.Select()
+		option, size := stack.Select(missing.TaskGroup)
 		if option == nil {
 			s.logger.Printf("[DEBUG] sched: %#v: failed to place alloc %s",
 				s.eval, missing)
@@ -189,7 +187,7 @@ func (s *ServiceScheduler) computePlacements(job *structs.Job, place []allocTupl
 			NodeID:    option.Node.ID,
 			JobID:     job.ID,
 			Job:       job,
-			Resources: stack.TaskGroupSize(),
+			Resources: size,
 			Metrics:   ctx.Metrics(),
 			Status:    structs.AllocStatusPending,
 		}
