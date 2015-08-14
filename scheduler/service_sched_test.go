@@ -60,7 +60,81 @@ func TestServiceSched_JobRegister(t *testing.T) {
 }
 
 func TestServiceSched_JobModify(t *testing.T) {
-	// TODO
+	h := NewHarness(t)
+
+	// Create some nodes
+	var nodes []*structs.Node
+	for i := 0; i < 10; i++ {
+		node := mock.Node()
+		nodes = append(nodes, node)
+		noErr(t, h.State.RegisterNode(h.NextIndex(), node))
+	}
+
+	// Generate a fake job with allocations
+	job := mock.Job()
+	noErr(t, h.State.RegisterJob(h.NextIndex(), job))
+
+	var allocs []*structs.Allocation
+	for i := 0; i < 10; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = nodes[i].ID
+		allocs = append(allocs, alloc)
+	}
+	noErr(t, h.State.UpdateAllocations(h.NextIndex(), nil, allocs))
+
+	// Update the job
+	job2 := mock.Job()
+	job2.ID = job.ID
+	noErr(t, h.State.RegisterJob(h.NextIndex(), job2))
+
+	// Create a mock evaluation to deal with drain
+	eval := &structs.Evaluation{
+		ID:          mock.GenerateUUID(),
+		Priority:    50,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+	}
+
+	// Process the evaluation
+	err := h.Process(NewServiceScheduler, eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure a single plan
+	if len(h.Plans) != 1 {
+		t.Fatalf("bad: %#v", h.Plans)
+	}
+	plan := h.Plans[0]
+
+	// Ensure the plan evicted all allocs
+	var evict []string
+	for _, evictList := range plan.NodeEvict {
+		evict = append(evict, evictList...)
+	}
+	if len(evict) != len(allocs) {
+		t.Fatalf("bad: %#v", plan)
+	}
+
+	// Ensure the plan allocated
+	var planned []*structs.Allocation
+	for _, allocList := range plan.NodeAllocation {
+		planned = append(planned, allocList...)
+	}
+	if len(planned) != 10 {
+		t.Fatalf("bad: %#v", plan)
+	}
+
+	// Lookup the allocations by JobID
+	out, err := h.State.AllocsByJob(job.ID)
+	noErr(t, err)
+
+	// Ensure all allocations placed
+	if len(out) != 10 {
+		t.Fatalf("bad: %#v", out)
+	}
 }
 
 func TestServiceSched_JobDeregister(t *testing.T) {
