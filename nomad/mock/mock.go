@@ -73,7 +73,7 @@ func Job() *structs.Job {
 		Constraints: []*structs.Constraint{
 			&structs.Constraint{
 				Hard:    true,
-				LTarget: "attr.os",
+				LTarget: "$attr.os",
 				RTarget: "linux",
 				Operand: "=",
 			},

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 func TestServiceStack_SetJob(t *testing.T) {
@@ -23,21 +24,142 @@ func TestServiceStack_SetJob(t *testing.T) {
 }
 
 func TestServiceStack_Select_Size(t *testing.T) {
-	// TODO
+	_, ctx := testContext(t)
+	nodes := []*structs.Node{
+		mock.Node(),
+	}
+	stack := NewServiceStack(ctx, nodes)
+
+	job := mock.Job()
+	stack.SetJob(job)
+	node, size := stack.Select(job.TaskGroups[0])
+	if node == nil {
+		t.Fatalf("missing node %#v", ctx.Metrics())
+	}
+	if size == nil {
+		t.Fatalf("missing size")
+	}
+
+	if size.CPU != 0.5 || size.MemoryMB != 256 {
+		t.Fatalf("bad: %#v", size)
+	}
 }
 
 func TestServiceStack_Select_MetricsReset(t *testing.T) {
-	// TODO
+	_, ctx := testContext(t)
+	nodes := []*structs.Node{
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+	}
+	stack := NewServiceStack(ctx, nodes)
+
+	job := mock.Job()
+	stack.SetJob(job)
+	n1, _ := stack.Select(job.TaskGroups[0])
+	m1 := ctx.Metrics()
+	if n1 == nil {
+		t.Fatalf("missing node %#v", m1)
+	}
+
+	if m1.NodesEvaluated != 2 {
+		t.Fatalf("should only be 2")
+	}
+
+	n2, _ := stack.Select(job.TaskGroups[0])
+	m2 := ctx.Metrics()
+	if n2 == nil {
+		t.Fatalf("missing node %#v", m2)
+	}
+
+	// If we don't reset, this would be 4
+	if m2.NodesEvaluated != 2 {
+		t.Fatalf("should only be 2")
+	}
 }
 
 func TestServiceStack_Select_DriverFilter(t *testing.T) {
-	// TODO
+	_, ctx := testContext(t)
+	nodes := []*structs.Node{
+		mock.Node(),
+		mock.Node(),
+	}
+	zero := nodes[0]
+	zero.Attributes["driver.foo"] = "1"
+
+	stack := NewServiceStack(ctx, nodes)
+
+	job := mock.Job()
+	job.TaskGroups[0].Tasks[0].Driver = "foo"
+	stack.SetJob(job)
+
+	node, _ := stack.Select(job.TaskGroups[0])
+	if node == nil {
+		t.Fatalf("missing node %#v", ctx.Metrics())
+	}
+
+	if node.Node != zero {
+		t.Fatalf("bad")
+	}
 }
 
 func TestServiceStack_Select_ConstraintFilter(t *testing.T) {
-	// TODO
+	_, ctx := testContext(t)
+	nodes := []*structs.Node{
+		mock.Node(),
+		mock.Node(),
+	}
+	zero := nodes[0]
+	zero.Attributes["os"] = "freebsd"
+
+	stack := NewServiceStack(ctx, nodes)
+
+	job := mock.Job()
+	job.Constraints[0].RTarget = "freebsd"
+	stack.SetJob(job)
+
+	node, _ := stack.Select(job.TaskGroups[0])
+	if node == nil {
+		t.Fatalf("missing node %#v", ctx.Metrics())
+	}
+
+	if node.Node != zero {
+		t.Fatalf("bad")
+	}
+
+	met := ctx.Metrics()
+	if met.ConstraintFiltered["$attr.os = freebsd"] != 1 {
+		t.Fatalf("bad: %#v", met)
+	}
 }
 
 func TestServiceStack_Select_BinPack_Overflow(t *testing.T) {
-	// TODO
+	_, ctx := testContext(t)
+	nodes := []*structs.Node{
+		mock.Node(),
+		mock.Node(),
+	}
+	zero := nodes[0]
+	one := nodes[1]
+	one.Reserved = one.Resources
+
+	stack := NewServiceStack(ctx, nodes)
+
+	job := mock.Job()
+	stack.SetJob(job)
+
+	node, _ := stack.Select(job.TaskGroups[0])
+	if node == nil {
+		t.Fatalf("missing node %#v", ctx.Metrics())
+	}
+
+	if node.Node != zero {
+		t.Fatalf("bad")
+	}
+
+	met := ctx.Metrics()
+	if met.NodesExhausted != 1 {
+		t.Fatalf("bad: %#v", met)
+	}
 }
