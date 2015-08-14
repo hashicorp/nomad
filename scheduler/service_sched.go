@@ -23,10 +23,8 @@ type ServiceScheduler struct {
 	state   State
 	planner Planner
 
-	attempts int
-	eval     *structs.Evaluation
-	job      *structs.Job
-	plan     *structs.Plan
+	eval *structs.Evaluation
+	plan *structs.Plan
 }
 
 // NewServiceScheduler is a factory function to instantiate a new service scheduler
@@ -41,9 +39,6 @@ func NewServiceScheduler(logger *log.Logger, state State, planner Planner) Sched
 
 // Process is used to handle a single evaluation
 func (s *ServiceScheduler) Process(eval *structs.Evaluation) error {
-	// Store the evaluation
-	s.eval = eval
-
 	// Verify the evaluation trigger reason is understood
 	switch eval.TriggeredBy {
 	case structs.EvalTriggerJobRegister, structs.EvalTriggerNodeUpdate,
@@ -52,6 +47,9 @@ func (s *ServiceScheduler) Process(eval *structs.Evaluation) error {
 		return fmt.Errorf("service scheduler cannot handle '%s' evaluation reason",
 			eval.TriggeredBy)
 	}
+
+	// Store the evaluation
+	s.eval = eval
 
 	// Retry up to the maxScheduleAttempts
 	return retryMax(maxScheduleAttempts, s.process)
@@ -66,13 +64,12 @@ func (s *ServiceScheduler) process() (bool, error) {
 		return false, fmt.Errorf("failed to get job '%s': %v",
 			s.eval.JobID, err)
 	}
-	s.job = job
 
 	// Create a plan
 	s.plan = s.eval.MakePlan(job)
 
 	// Compute the target job allocations
-	if err := s.computeJobAllocs(); err != nil {
+	if err := s.computeJobAllocs(job); err != nil {
 		s.logger.Printf("[ERR] sched: %#v: %v", s.eval, err)
 		return false, err
 	}
@@ -104,16 +101,11 @@ func (s *ServiceScheduler) process() (bool, error) {
 
 // computeJobAllocs is used to reconcile differences between the job,
 // existing allocations and node status to update the allocations.
-func (s *ServiceScheduler) computeJobAllocs() error {
+func (s *ServiceScheduler) computeJobAllocs(job *structs.Job) error {
 	// Materialize all the task groups, job could be missing if deregistered
 	var groups map[string]*structs.TaskGroup
-	if s.job != nil {
-		groups = materializeTaskGroups(s.job)
-	}
-
-	// If there is nothing required for this job, treat like a deregister
-	if len(groups) == 0 {
-		return s.evictJobAllocs()
+	if job != nil {
+		groups = materializeTaskGroups(job)
 	}
 
 	// Lookup the allocations by JobID
@@ -134,7 +126,7 @@ func (s *ServiceScheduler) computeJobAllocs() error {
 	indexed := indexAllocs(allocs)
 
 	// Diff the required and existing allocations
-	place, update, migrate, evict, ignore := diffAllocs(s.job, tainted, groups, indexed)
+	place, update, migrate, evict, ignore := diffAllocs(job, tainted, groups, indexed)
 	s.logger.Printf("[DEBUG] sched: %#v: need %d placements, %d updates, %d migrations, %d evictions, %d ignored allocs",
 		s.eval, len(place), len(update), len(migrate), len(evict), len(ignore))
 
@@ -156,11 +148,16 @@ func (s *ServiceScheduler) computeJobAllocs() error {
 	addEvictsToPlan(s.plan, update, indexed)
 	place = append(place, update...)
 
+	// Nothing remaining to do if placement is not required
+	if len(place) == 0 {
+		return nil
+	}
+
 	// Create an evaluation context
 	ctx := NewEvalContext(s.state, s.plan, s.logger)
 
 	// Get the base nodes
-	nodes, err := readyNodesInDCs(s.state, s.job.Datacenters)
+	nodes, err := readyNodesInDCs(s.state, job.Datacenters)
 	if err != nil {
 		return err
 	}
@@ -182,31 +179,13 @@ func (s *ServiceScheduler) computeJobAllocs() error {
 			ID:        mock.GenerateUUID(),
 			Name:      missing.Name,
 			NodeID:    option.Node.ID,
-			JobID:     s.job.ID,
-			Job:       s.job,
+			JobID:     job.ID,
+			Job:       job,
 			Resources: nil, // TODO: size
 			Metrics:   nil,
 			Status:    structs.AllocStatusPending,
 		}
 		s.plan.AppendAlloc(alloc)
-	}
-	return nil
-}
-
-// evictJobAllocs is used to evict all job allocations
-func (s *ServiceScheduler) evictJobAllocs() error {
-	// Lookup the allocations by JobID
-	allocs, err := s.state.AllocsByJob(s.eval.JobID)
-	if err != nil {
-		return fmt.Errorf("failed to get allocs for job '%s': %v",
-			s.eval.JobID, err)
-	}
-	s.logger.Printf("[DEBUG] sched: %#v: %d evictions needed",
-		s.eval, len(allocs))
-
-	// Add each alloc to be evicted
-	for _, alloc := range allocs {
-		s.plan.AppendEvict(alloc)
 	}
 	return nil
 }

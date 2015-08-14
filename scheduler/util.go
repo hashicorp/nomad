@@ -155,6 +155,12 @@ func taintedNodes(state State, allocs []*structs.Allocation) (map[string]bool, e
 			return nil, err
 		}
 
+		// If the node does not exist, we should migrate
+		if node == nil {
+			out[alloc.NodeID] = true
+			continue
+		}
+
 		out[alloc.NodeID] = structs.ShouldDrainNode(node.Status)
 	}
 	return out, nil
