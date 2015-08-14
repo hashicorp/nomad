@@ -7,6 +7,14 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+func TestServiceSched_JobRegister(t *testing.T) {
+	// TODO
+}
+
+func TestServiceSched_JobModify(t *testing.T) {
+	// TODO
+}
+
 func TestServiceSched_JobDeregister(t *testing.T) {
 	h := NewHarness(t)
 
@@ -55,4 +63,8 @@ func TestServiceSched_JobDeregister(t *testing.T) {
 	if len(out) != 0 {
 		t.Fatalf("bad: %#v", out)
 	}
+}
+
+func TestServiceSched_NodeDrain(t *testing.T) {
+	// TODO
 }
