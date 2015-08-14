@@ -23,6 +23,11 @@ type ServiceScheduler struct {
 	logger  *log.Logger
 	state   State
 	planner Planner
+
+	attempts int
+	eval     *structs.Evaluation
+	job      *structs.Job
+	plan     *structs.Plan
 }
 
 // NewServiceScheduler is a factory function to instantiate a new service scheduler
@@ -37,120 +42,137 @@ func NewServiceScheduler(logger *log.Logger, state State, planner Planner) Sched
 
 // Process is used to handle a single evaluation
 func (s *ServiceScheduler) Process(eval *structs.Evaluation) error {
+	// Store the evaluation
+	s.eval = eval
+
 	// Use the evaluation trigger reason to determine what we need to do
 	switch eval.TriggeredBy {
 	case structs.EvalTriggerJobRegister, structs.EvalTriggerNodeUpdate:
-		return s.computeJobAllocs(eval)
+		return s.process(s.computeJobAllocs)
 	case structs.EvalTriggerJobDeregister:
-		return s.evictJobAllocs(eval)
+		return s.process(s.evictJobAllocs)
 	default:
 		return fmt.Errorf("service scheduler cannot handle '%s' evaluation reason",
 			eval.TriggeredBy)
 	}
 }
 
-// computeJobAllocs is used to reconcile differences between the job,
-// existing allocations and node status to update the allocations.
-func (s *ServiceScheduler) computeJobAllocs(eval *structs.Evaluation) error {
-	attempts := 0
+// process is used to iteratively run the handler until we have no
+// further work or we've made the maximum number of attempts.
+func (s *ServiceScheduler) process(handler func() error) error {
 START:
 	// Check the attempt count
-	if attempts == maxScheduleAttempts {
-		return fmt.Errorf("maximum schedule attempts reached (%d)", attempts)
+	if s.attempts == maxScheduleAttempts {
+		return fmt.Errorf("maximum schedule attempts reached (%d)", s.attempts)
 	}
-	attempts += 1
+	s.attempts += 1
 
 	// Lookup the Job by ID
-	job, err := s.state.GetJobByID(eval.JobID)
+	job, err := s.state.GetJobByID(s.eval.JobID)
 	if err != nil {
 		return fmt.Errorf("failed to get job '%s': %v",
-			eval.JobID, err)
+			s.eval.JobID, err)
+	}
+	s.job = job
+
+	// Create a plan
+	s.plan = s.eval.MakePlan(job)
+
+	// Invoke the handler to setup the plan
+	if err := handler(); err != nil {
+		s.logger.Printf("[ERR] sched: %#v: %v", s.eval, err)
+		return err
 	}
 
+	// Submit the plan
+	result, newState, err := s.planner.SubmitPlan(s.plan)
+	if err != nil {
+		return err
+	}
+
+	// If we got a state refresh, try again since we have stale data
+	if newState != nil {
+		s.logger.Printf("[DEBUG] sched: %#v: refresh forced", s.eval)
+		s.state = newState
+		goto START
+	}
+
+	// Try again if the plan was not fully committed, potential conflict
+	fullCommit, expected, actual := result.FullCommit(s.plan)
+	if !fullCommit {
+		s.logger.Printf("[DEBUG] sched: %#v: attempted %d placements, %d placed",
+			s.eval, expected, actual)
+		goto START
+	}
+	return nil
+}
+
+// computeJobAllocs is used to reconcile differences between the job,
+// existing allocations and node status to update the allocations.
+func (s *ServiceScheduler) computeJobAllocs() error {
 	// If the job is missing, maybe a concurrent deregister
-	if job == nil {
-		s.logger.Printf("[DEBUG] sched: skipping eval %s, job %s not found",
-			eval.ID, eval.JobID)
+	if s.job == nil {
+		s.logger.Printf("[DEBUG] sched: %#v: job not found, skipping", s.eval)
 		return nil
 	}
 
 	// Materialize all the task groups
-	groups := materializeTaskGroups(job)
+	groups := materializeTaskGroups(s.job)
 
 	// If there is nothing required for this job, treat like a deregister
 	if len(groups) == 0 {
-		return s.evictJobAllocs(eval)
+		return s.evictJobAllocs()
 	}
 
 	// Lookup the allocations by JobID
-	allocs, err := s.state.AllocsByJob(eval.JobID)
+	allocs, err := s.state.AllocsByJob(s.eval.JobID)
 	if err != nil {
 		return fmt.Errorf("failed to get allocs for job '%s': %v",
-			eval.JobID, err)
+			s.eval.JobID, err)
 	}
 
 	// Determine the tainted nodes containing job allocs
 	tainted, err := s.taintedNodes(allocs)
 	if err != nil {
 		return fmt.Errorf("failed to get tainted nodes for job '%s': %v",
-			eval.JobID, err)
+			s.eval.JobID, err)
 	}
 
 	// Index the existing allocations
 	indexed := indexAllocs(allocs)
 
 	// Diff the required and existing allocations
-	place, update, migrate, evict, ignore := diffAllocs(job, tainted, groups, indexed)
-	s.logger.Printf("[DEBUG] sched: eval %s job %s needs %d placements, %d updates, %d migrations, %d evictions, %d ignored allocs",
-		eval.ID, eval.JobID, len(place), len(update), len(migrate), len(evict), len(ignore))
+	place, update, migrate, evict, ignore := diffAllocs(s.job, tainted, groups, indexed)
+	s.logger.Printf("[DEBUG] sched: %#v: need %d placements, %d updates, %d migrations, %d evictions, %d ignored allocs",
+		s.eval, len(place), len(update), len(migrate), len(evict), len(ignore))
 
 	// Fast-pass if nothing to do
 	if len(place) == 0 && len(update) == 0 && len(evict) == 0 && len(migrate) == 0 {
 		return nil
 	}
 
-	// Start a plan for this evaluation
-	plan := eval.MakePlan(job)
-
 	// Add all the evicts
-	addEvictsToPlan(plan, evict, indexed)
+	addEvictsToPlan(s.plan, evict, indexed)
+
+	// For simplicity, we treat all migrates as an evict + place.
+	// XXX: This could probably be done more intelligently?
+	addEvictsToPlan(s.plan, migrate, indexed)
+	place = append(place, migrate...)
 
 	// For simplicity, we treat all updates as an evict + place.
 	// XXX: This should be done with rolling in-place updates instead.
-	addEvictsToPlan(plan, update, indexed)
+	addEvictsToPlan(s.plan, update, indexed)
 	place = append(place, update...)
 
 	// Get the iteration stack
-	stack, err := s.iterStack(job, plan)
+	stack, err := s.iterStack()
 	if err != nil {
 		return fmt.Errorf("failed to create iter stack: %v", err)
 	}
 
 	// Attempt to place all the allocations
-	if err := s.planAllocations(stack, job, plan, place, groups); err != nil {
+	if err := s.planAllocations(stack, place, groups); err != nil {
 		return fmt.Errorf("failed to plan allocations: %v", err)
-	}
-
-	// Submit the plan
-	planResult, newState, err := s.planner.SubmitPlan(plan)
-	if err != nil {
-		return err
-	}
-
-	// If we got a state refresh, try again to ensure we
-	// are not missing any allocations
-	if newState != nil {
-		s.state = newState
-		stack.Context.SetState(newState)
-		goto START
-	}
-
-	// Try again if the plan was not fully committed
-	fullCommit, expected, actual := planResult.FullCommit(plan)
-	if !fullCommit {
-		s.logger.Printf("[DEBUG] sched: eval %s job %s attempted %d placements, %d placed",
-			eval.ID, eval.JobID, expected, actual)
-		goto START
 	}
 	return nil
 }
@@ -193,16 +215,15 @@ type IteratorStack struct {
 
 // iterStack is used to get a set of base nodes and to
 // initialize the entire stack of iterators.
-func (s *ServiceScheduler) iterStack(job *structs.Job,
-	plan *structs.Plan) (*IteratorStack, error) {
+func (s *ServiceScheduler) iterStack() (*IteratorStack, error) {
 	// Create a new stack
 	stack := new(IteratorStack)
 
 	// Create an evaluation context
-	stack.Context = NewEvalContext(s.state, plan, s.logger)
+	stack.Context = NewEvalContext(s.state, s.plan, s.logger)
 
 	// Get the base nodes
-	nodes, err := s.baseNodes(job)
+	nodes, err := s.baseNodes(s.job)
 	if err != nil {
 		return nil, err
 	}
@@ -214,7 +235,7 @@ func (s *ServiceScheduler) iterStack(job *structs.Job,
 	stack.Source = NewRandomIterator(stack.Context, stack.BaseNodes)
 
 	// Attach the job constraints.
-	stack.JobConstraint = NewConstraintIterator(stack.Context, stack.Source, job.Constraints)
+	stack.JobConstraint = NewConstraintIterator(stack.Context, stack.Source, s.job.Constraints)
 
 	// Create the task group filters, this must be filled in later
 	stack.TaskGroupDrivers = NewDriverIterator(stack.Context, stack.JobConstraint, nil)
@@ -225,7 +246,7 @@ func (s *ServiceScheduler) iterStack(job *structs.Job,
 
 	// Apply the bin packing, this depends on the resources needed by
 	// a particular task group.
-	stack.BinPack = NewBinPackIterator(stack.Context, stack.RankSource, nil, true, job.Priority)
+	stack.BinPack = NewBinPackIterator(stack.Context, stack.RankSource, nil, true, s.job.Priority)
 
 	// Apply a limit function. This is to avoid scanning *every* possible node.
 	// Instead we need to visit "enough". Using a log of the total number of
@@ -265,7 +286,7 @@ func (s *ServiceScheduler) baseNodes(job *structs.Job) ([]*structs.Node, error) 
 	return out, nil
 }
 
-func (s *ServiceScheduler) planAllocations(stack *IteratorStack, job *structs.Job, plan *structs.Plan,
+func (s *ServiceScheduler) planAllocations(stack *IteratorStack,
 	place []allocNameID, groups map[string]*structs.TaskGroup) error {
 
 	// Attempt to place each missing allocation
@@ -293,8 +314,8 @@ func (s *ServiceScheduler) planAllocations(stack *IteratorStack, job *structs.Jo
 		// Select the best fit
 		option := stack.MaxScore.Next()
 		if option == nil {
-			s.logger.Printf("[DEBUG] sched: failed to place alloc %s for job %s",
-				missing, job.ID)
+			s.logger.Printf("[DEBUG] sched: %#v: failed to place alloc %s",
+				s.eval, missing)
 			continue
 		}
 
@@ -303,53 +324,31 @@ func (s *ServiceScheduler) planAllocations(stack *IteratorStack, job *structs.Jo
 			ID:        mock.GenerateUUID(),
 			Name:      missing.Name,
 			NodeID:    option.Node.ID,
-			JobID:     job.ID,
-			Job:       job,
+			JobID:     s.job.ID,
+			Job:       s.job,
 			Resources: size,
 			Metrics:   nil,
 			Status:    structs.AllocStatusPending,
 		}
-		plan.AppendAlloc(alloc)
+		s.plan.AppendAlloc(alloc)
 	}
 	return nil
 }
 
 // evictJobAllocs is used to evict all job allocations
-func (s *ServiceScheduler) evictJobAllocs(eval *structs.Evaluation) error {
-START:
+func (s *ServiceScheduler) evictJobAllocs() error {
 	// Lookup the allocations by JobID
-	allocs, err := s.state.AllocsByJob(eval.JobID)
+	allocs, err := s.state.AllocsByJob(s.eval.JobID)
 	if err != nil {
 		return fmt.Errorf("failed to get allocs for job '%s': %v",
-			eval.JobID, err)
+			s.eval.JobID, err)
 	}
-
-	// Nothing to do if there is no evictsion
-	s.logger.Printf("[DEBUG] sched: eval %s job %s needs %d evictions",
-		eval.ID, eval.JobID, len(allocs))
-	if len(allocs) == 0 {
-		return nil
-	}
-
-	// Create a plan to evict these
-	plan := eval.MakePlan(nil)
+	s.logger.Printf("[DEBUG] sched: %#v: %d evictions needed",
+		s.eval, len(allocs))
 
 	// Add each alloc to be evicted
 	for _, alloc := range allocs {
-		plan.AppendEvict(alloc)
-	}
-
-	// Submit the plan
-	_, newState, err := s.planner.SubmitPlan(plan)
-	if err != nil {
-		return err
-	}
-
-	// If we got a state refresh, try again to ensure we
-	// are not missing any allocations
-	if newState != nil {
-		s.state = newState
-		goto START
+		s.plan.AppendEvict(alloc)
 	}
 	return nil
 }

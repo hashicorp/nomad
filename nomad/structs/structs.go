@@ -722,6 +722,10 @@ type Evaluation struct {
 	ModifyIndex uint64
 }
 
+func (e *Evaluation) GoString() string {
+	return fmt.Sprintf("<Eval '%s' JobID: '%s'>", e.ID, e.JobID)
+}
+
 // ShouldEnqueue checks if a given evaluation should be enqueued
 func (e *Evaluation) ShouldEnqueue() bool {
 	switch e.Status {
