@@ -38,6 +38,17 @@ const (
 	// raftRemoveGracePeriod is how long we wait to allow a RemovePeer
 	// to replicate to gracefully leave the cluster.
 	raftRemoveGracePeriod = 5 * time.Second
+
+	// apiMajorVersion is returned as part of the Status.Version request.
+	// It should be incremented anytime the APIs are changed in a way that
+	// would break clients for sane client versioning.
+	apiMajorVersion = 1
+
+	// apiMinorVersion is returned as part of the Status.Version request.
+	// It should be incremented anytime the APIs are changed to allow
+	// for sane client versioning. Minor changes should be compatible
+	// within the major version.
+	apiMinorVersion = 1
 )
 
 // Server is Nomad server which manages the job queues,

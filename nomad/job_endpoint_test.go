@@ -259,7 +259,7 @@ func TestJobEndpoint_GetJob(t *testing.T) {
 	// Lookup the job
 	get := &structs.JobSpecificRequest{
 		JobID:        job.ID,
-		WriteRequest: structs.WriteRequest{Region: "region1"},
+		QueryOptions: structs.QueryOptions{Region: "region1"},
 	}
 	var resp2 structs.SingleJobResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Job.GetJob", get, &resp2); err != nil {

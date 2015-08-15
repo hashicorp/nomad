@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 )
 
@@ -19,6 +20,36 @@ func rpcClient(t *testing.T, s *Server) rpc.ClientCodec {
 	// Write the Consul RPC byte to set the mode
 	conn.Write([]byte{byte(rpcNomad)})
 	return msgpackrpc.NewClientCodec(conn)
+}
+
+func TestStatusVersion(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+
+	arg := &structs.GenericRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:     "region1",
+			AllowStale: true,
+		},
+	}
+	var out structs.VersionResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Status.Version", arg, &out); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if out.Build == "" {
+		t.Fatalf("bad: %#v", out)
+	}
+	if out.Versions[structs.ProtocolVersion] != ProtocolVersionMax {
+		t.Fatalf("bad: %#v", out)
+	}
+	if out.Versions[structs.APIMajorVersion] != apiMajorVersion {
+		t.Fatalf("bad: %#v", out)
+	}
+	if out.Versions[structs.APIMinorVersion] != apiMinorVersion {
+		t.Fatalf("bad: %#v", out)
+	}
 }
 
 func TestStatusPing(t *testing.T) {
@@ -37,11 +68,7 @@ func TestStatusLeader(t *testing.T) {
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
-
-	rpcFn := func(method string, arg, resp interface{}) error {
-		return msgpackrpc.CallWithCodec(codec, method, arg, resp)
-	}
-	testutil.WaitForLeader(t, rpcFn)
+	testutil.WaitForLeader(t, s1.RPC)
 
 	arg := struct{}{}
 	var leader string

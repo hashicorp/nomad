@@ -158,7 +158,7 @@ type JobDeregisterRequest struct {
 // JobSpecificRequest is used when we just need to specify a target job
 type JobSpecificRequest struct {
 	JobID string
-	WriteRequest
+	QueryOptions
 }
 
 // EvalUpdateRequest is used for upserting evaluations.
@@ -210,10 +210,33 @@ type AllocUpdateRequest struct {
 	Alloc []*Allocation
 }
 
+// GenericRequest is used to request where no
+// specific information is needed.
+type GenericRequest struct {
+	QueryOptions
+}
+
 // GenericResponse is used to respond to a request where no
 // specific response information is needed.
 type GenericResponse struct {
 	WriteMeta
+}
+
+const (
+	ProtocolVersion = "protocol"
+	APIMajorVersion = "api.major"
+	APIMinorVersion = "api.minor"
+)
+
+// VersionResponse is used for the Status.Version reseponse
+type VersionResponse struct {
+	Build           string
+	Versions        map[string]int
+	ProtocolVersion int
+	APIMajorVersion int
+	APIMinorVersion int
+	Flags           map[string]int
+	QueryMeta
 }
 
 // JobRegisterResponse is used to respond to a job registration

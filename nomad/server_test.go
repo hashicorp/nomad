@@ -26,6 +26,7 @@ func tmpDir(t *testing.T) string {
 func testServer(t *testing.T, cb func(*Config)) *Server {
 	// Setup the default settings
 	config := DefaultConfig()
+	config.Build = "unittest"
 	config.DevMode = true
 	config.RPCAddr = &net.TCPAddr{
 		IP:   []byte{127, 0, 0, 1},
