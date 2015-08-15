@@ -118,3 +118,37 @@ func (e *Eval) Nack(args *structs.EvalAckRequest,
 	}
 	return nil
 }
+
+// Update is used to perform an update of an Eval if it is outstanding.
+func (e *Eval) Update(args *structs.EvalUpdateRequest,
+	reply *structs.GenericResponse) error {
+	if done, err := e.srv.forward("Eval.Update", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "eval", "update"}, time.Now())
+
+	// Ensure there is only a single update with token
+	if len(args.Evals) != 1 {
+		return fmt.Errorf("only a single eval can be updated")
+	}
+	eval := args.Evals[0]
+
+	// Verify the evaluation is outstanding, and that the tokens match.
+	token, ok := e.srv.evalBroker.Outstanding(eval.ID)
+	if !ok {
+		return fmt.Errorf("evaluation is not outstanding")
+	}
+	if args.Token != token {
+		return fmt.Errorf("evaluation token does not match")
+	}
+
+	// Update via Raft
+	_, index, err := e.srv.raftApply(structs.EvalUpdateRequestType, args)
+	if err != nil {
+		return err
+	}
+
+	// Update the index
+	reply.Index = index
+	return nil
+}

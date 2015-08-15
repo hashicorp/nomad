@@ -164,6 +164,7 @@ type JobSpecificRequest struct {
 // EvalUpdateRequest is used for upserting evaluations.
 type EvalUpdateRequest struct {
 	Evals []*Evaluation
+	Token string
 	WriteRequest
 }
 
@@ -733,7 +734,7 @@ func (a *AllocMetric) ScoreNode(node *Node, score float64) {
 const (
 	EvalStatusPending  = "pending"
 	EvalStatusComplete = "complete"
-	EvalStatusCanceled = "canceled"
+	EvalStatusFailed   = "failed"
 )
 
 const (
@@ -794,12 +795,18 @@ func (e *Evaluation) GoString() string {
 	return fmt.Sprintf("<Eval '%s' JobID: '%s'>", e.ID, e.JobID)
 }
 
+func (e *Evaluation) Copy() *Evaluation {
+	ne := new(Evaluation)
+	*ne = *e
+	return ne
+}
+
 // ShouldEnqueue checks if a given evaluation should be enqueued
 func (e *Evaluation) ShouldEnqueue() bool {
 	switch e.Status {
 	case EvalStatusPending:
 		return true
-	case EvalStatusComplete, EvalStatusCanceled:
+	case EvalStatusComplete, EvalStatusFailed:
 		return false
 	default:
 		panic(fmt.Sprintf("unhandled evaluation (%s) status %s", e.ID, e.Status))

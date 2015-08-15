@@ -167,3 +167,49 @@ func TestEvalEndpoint_Nack(t *testing.T) {
 		t.Fatalf("nack failed")
 	}
 }
+
+func TestEvalEndpoint_Update(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+
+	testutil.WaitForResult(func() (bool, error) {
+		return s1.evalBroker.Enabled(), nil
+	}, func(err error) {
+		t.Fatalf("should enable eval broker")
+	})
+
+	// Create the register request
+	eval1 := mock.Eval()
+	s1.evalBroker.Enqueue(eval1)
+	out, token, err := s1.evalBroker.Dequeue(defaultSched, time.Second)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out == nil {
+		t.Fatalf("missing eval")
+	}
+
+	// Update the eval
+	eval2 := eval1.Copy()
+	eval2.Status = structs.EvalStatusComplete
+
+	get := &structs.EvalUpdateRequest{
+		Evals:        []*structs.Evaluation{eval2},
+		Token:        token,
+		WriteRequest: structs.WriteRequest{Region: "region1"},
+	}
+	var resp structs.GenericResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Eval.Update", get, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure updated
+	outE, err := s1.fsm.State().GetEvalByID(eval2.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if outE.Status != structs.EvalStatusComplete {
+		t.Fatalf("Bad: %#v", out)
+	}
+}
