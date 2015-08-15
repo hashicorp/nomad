@@ -20,6 +20,7 @@ type Harness struct {
 	planLock sync.Mutex
 
 	Plans []*structs.Plan
+	Evals []*structs.Evaluation
 
 	nextIndex     uint64
 	nextIndexLock sync.Mutex
@@ -76,6 +77,11 @@ func (h *Harness) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State, er
 	// Apply the full plan
 	err := h.State.UpdateAllocations(index, evicts, allocs)
 	return result, nil, err
+}
+
+func (h *Harness) UpdateEval(eval *structs.Evaluation) error {
+	h.Evals = append(h.Evals, eval)
+	return nil
 }
 
 // NextIndex returns the next index

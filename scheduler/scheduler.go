@@ -75,4 +75,8 @@ type Planner interface {
 	// This will return a PlanResult or an error. It is possible
 	// that this will result in a state refresh as well.
 	SubmitPlan(*structs.Plan) (*structs.PlanResult, State, error)
+
+	// UpdateEval is used to update an evaluation. This should update
+	// a copy of the input evaluation since that should be immutable.
+	UpdateEval(*structs.Evaluation) error
 }
