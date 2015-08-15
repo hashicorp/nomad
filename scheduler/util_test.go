@@ -131,7 +131,7 @@ func TestReadyNodesInDCs(t *testing.T) {
 	}
 
 	if len(nodes) != 2 {
-		t.Fatalf("err: %v")
+		t.Fatalf("bad: %v", nodes)
 	}
 	if nodes[0].ID == node3.ID || nodes[1].ID == node3.ID {
 		t.Fatalf("Bad: %#v", nodes)
@@ -159,7 +159,7 @@ func TestRetryMax(t *testing.T) {
 	}
 	err = retryMax(3, good)
 	if err != nil {
-		t.Fatalf("err: %v")
+		t.Fatalf("err: %v", err)
 	}
 	if calls != 1 {
 		t.Fatalf("mis match")
@@ -194,7 +194,7 @@ func TestTaintedNodes(t *testing.T) {
 	}
 
 	if len(tainted) != 4 {
-		t.Fatalf("err: %v")
+		t.Fatalf("bad: %v", tainted)
 	}
 	if tainted[node1.ID] || tainted[node2.ID] {
 		t.Fatalf("Bad: %v", tainted)
