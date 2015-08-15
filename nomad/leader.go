@@ -153,16 +153,16 @@ func (s *Server) schedulePeriodic(stopCh chan struct{}) {
 	for {
 		select {
 		case <-evalGC.C:
-			s.dispatchCoreJob(structs.CoreJobEvalGC)
+			s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobEvalGC))
 		case <-stopCh:
 			return
 		}
 	}
 }
 
-// dispatchCoreJob is used to create an evaluation for a core job
-func (s *Server) dispatchCoreJob(job string) {
-	eval := &structs.Evaluation{
+// coreJobEval returns an evaluation for a core job
+func (s *Server) coreJobEval(job string) *structs.Evaluation {
+	return &structs.Evaluation{
 		ID:          generateUUID(),
 		Priority:    structs.CoreJobPriority,
 		Type:        structs.JobTypeCore,
@@ -171,7 +171,6 @@ func (s *Server) dispatchCoreJob(job string) {
 		Status:      structs.EvalStatusPending,
 		ModifyIndex: s.raft.AppliedIndex(),
 	}
-	s.evalBroker.Enqueue(eval)
 }
 
 // revokeLeadership is invoked once we step down as leader.
