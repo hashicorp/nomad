@@ -230,12 +230,8 @@ const (
 
 // VersionResponse is used for the Status.Version reseponse
 type VersionResponse struct {
-	Build           string
-	Versions        map[string]int
-	ProtocolVersion int
-	APIMajorVersion int
-	APIMinorVersion int
-	Flags           map[string]int
+	Build    string
+	Versions map[string]int
 	QueryMeta
 }
 
@@ -371,6 +367,9 @@ type Node struct {
 
 	// Status of this node
 	Status string
+
+	// StatusDescription is meant to provide more human useful information
+	StatusDescription string
 
 	// Raft Indexes
 	CreateIndex uint64
@@ -545,6 +544,9 @@ type Job struct {
 	// Job status
 	Status string
 
+	// StatusDescription is meant to provide more human useful information
+	StatusDescription string
+
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
@@ -624,6 +626,9 @@ type Allocation struct {
 	// ID of the allocation (UUID)
 	ID string
 
+	// ID of the evaluation that generated this allocation
+	EvalID string
+
 	// Name is a logical name of the allocation.
 	Name string
 
@@ -645,6 +650,9 @@ type Allocation struct {
 
 	// Status of the allocation
 	Status string
+
+	// StatusDescription is meant to provide more human useful information
+	StatusDescription string
 
 	// Raft Indexes
 	CreateIndex uint64
@@ -772,6 +780,9 @@ type Evaluation struct {
 
 	// Status of the evaluation
 	Status string
+
+	// StatusDescription is meant to provide more human useful information
+	StatusDescription string
 
 	// Raft Indexes
 	CreateIndex uint64

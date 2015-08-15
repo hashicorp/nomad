@@ -205,6 +205,7 @@ func (s *GenericScheduler) computePlacements(job *structs.Job, place []allocTupl
 		// Create an allocation for this
 		alloc := &structs.Allocation{
 			ID:        mock.GenerateUUID(),
+			EvalID:    s.eval.ID,
 			Name:      missing.Name,
 			NodeID:    option.Node.ID,
 			JobID:     job.ID,
