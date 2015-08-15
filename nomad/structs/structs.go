@@ -170,7 +170,8 @@ type EvalUpdateRequest struct {
 
 // EvalDeleteRequest is used for deleting an evaluation.
 type EvalDeleteRequest struct {
-	EvalID string
+	Evals  []string
+	Allocs []string
 	WriteRequest
 }
 
@@ -666,6 +667,17 @@ type Allocation struct {
 	ModifyIndex uint64
 }
 
+// TerminalStatus returns if the current status is terminal and
+// will no longer transition.
+func (a *Allocation) TerminalStatus() bool {
+	switch a.Status {
+	case AllocStatusComplete, AllocStatusDead, AllocStatusFailed:
+		return true
+	default:
+		return false
+	}
+}
+
 // AllocMetric is used to track various metrics while attempting
 // to make an allocation. These are used to debug a job, or to better
 // understand the pressure within the system.
@@ -799,6 +811,17 @@ type Evaluation struct {
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
+}
+
+// TerminalStatus returns if the current status is terminal and
+// will no longer transition.
+func (e *Evaluation) TerminalStatus() bool {
+	switch e.Status {
+	case EvalStatusComplete, EvalStatusFailed:
+		return true
+	default:
+		return false
+	}
 }
 
 func (e *Evaluation) GoString() string {
