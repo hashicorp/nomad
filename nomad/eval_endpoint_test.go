@@ -213,3 +213,36 @@ func TestEvalEndpoint_Update(t *testing.T) {
 		t.Fatalf("Bad: %#v", out)
 	}
 }
+
+func TestEvalEndpoint_Reap(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	eval1 := mock.Eval()
+	s1.fsm.State().UpsertEvals(1000, []*structs.Evaluation{eval1})
+
+	// Reap the eval
+	get := &structs.EvalDeleteRequest{
+		Evals:        []string{eval1.ID},
+		WriteRequest: structs.WriteRequest{Region: "region1"},
+	}
+	var resp structs.GenericResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Eval.Reap", get, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp.Index == 0 {
+		t.Fatalf("Bad index: %d", resp.Index)
+	}
+
+	// Ensure deleted
+	outE, err := s1.fsm.State().GetEvalByID(eval1.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if outE != nil {
+		t.Fatalf("Bad: %#v", outE)
+	}
+}

@@ -152,3 +152,22 @@ func (e *Eval) Update(args *structs.EvalUpdateRequest,
 	reply.Index = index
 	return nil
 }
+
+// Reap is used to cleanup dead evaluations and allocations
+func (e *Eval) Reap(args *structs.EvalDeleteRequest,
+	reply *structs.GenericResponse) error {
+	if done, err := e.srv.forward("Eval.Reap", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "eval", "reap"}, time.Now())
+
+	// Update via Raft
+	_, index, err := e.srv.raftApply(structs.EvalDeleteRequestType, args)
+	if err != nil {
+		return err
+	}
+
+	// Update the index
+	reply.Index = index
+	return nil
+}
