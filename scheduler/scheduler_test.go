@@ -71,6 +71,7 @@ func (h *Harness) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State, er
 	for _, allocList := range plan.NodeAllocation {
 		allocs = append(allocs, allocList...)
 	}
+	allocs = append(allocs, plan.FailedAllocs...)
 
 	// Apply the full plan
 	err := h.State.UpdateAllocations(index, evicts, allocs)

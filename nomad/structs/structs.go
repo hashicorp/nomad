@@ -870,9 +870,13 @@ func (p *Plan) AppendAlloc(alloc *Allocation) {
 	p.NodeAllocation[node] = append(existing, alloc)
 }
 
+func (p *Plan) AppendFailed(alloc *Allocation) {
+	p.FailedAllocs = append(p.FailedAllocs, alloc)
+}
+
 // IsNoOp checks if this plan would do nothing
 func (p *Plan) IsNoOp() bool {
-	return len(p.NodeEvict) == 0 && len(p.NodeAllocation) == 0
+	return len(p.NodeEvict) == 0 && len(p.NodeAllocation) == 0 && len(p.FailedAllocs) == 0
 }
 
 // PlanResult is the result of a plan submitted to the leader.

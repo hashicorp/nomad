@@ -59,6 +59,49 @@ func TestServiceSched_JobRegister(t *testing.T) {
 	}
 }
 
+func TestServiceSched_JobRegister_AllocFail(t *testing.T) {
+	h := NewHarness(t)
+
+	// Create NO nodes
+	// Create a job
+	job := mock.Job()
+	noErr(t, h.State.RegisterJob(h.NextIndex(), job))
+
+	// Create a mock evaluation to deregister the job
+	eval := &structs.Evaluation{
+		ID:          mock.GenerateUUID(),
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+	}
+
+	// Process the evaluation
+	err := h.Process(NewServiceScheduler, eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure a single plan
+	if len(h.Plans) != 1 {
+		t.Fatalf("bad: %#v", h.Plans)
+	}
+	plan := h.Plans[0]
+
+	// Ensure the plan failed to alloc
+	if len(plan.FailedAllocs) != 10 {
+		t.Fatalf("bad: %#v", plan)
+	}
+
+	// Lookup the allocations by JobID
+	out, err := h.State.AllocsByJob(job.ID)
+	noErr(t, err)
+
+	// Ensure all allocations placed
+	if len(out) != 10 {
+		t.Fatalf("bad: %#v", out)
+	}
+}
+
 func TestServiceSched_JobModify(t *testing.T) {
 	h := NewHarness(t)
 

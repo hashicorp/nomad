@@ -196,25 +196,33 @@ func (s *GenericScheduler) computePlacements(job *structs.Job, place []allocTupl
 
 	for _, missing := range place {
 		option, size := stack.Select(missing.TaskGroup)
+		var nodeID, status, desc string
 		if option == nil {
-			s.logger.Printf("[DEBUG] sched: %#v: failed to place alloc %s: %#v",
-				s.eval, missing.Name, ctx.Metrics())
-			continue
+			status = structs.AllocStatusFailed
+			desc = "failed to find a node for placement"
+		} else {
+			nodeID = option.Node.ID
+			status = structs.AllocStatusPending
 		}
 
 		// Create an allocation for this
 		alloc := &structs.Allocation{
-			ID:        mock.GenerateUUID(),
-			EvalID:    s.eval.ID,
-			Name:      missing.Name,
-			NodeID:    option.Node.ID,
-			JobID:     job.ID,
-			Job:       job,
-			Resources: size,
-			Metrics:   ctx.Metrics(),
-			Status:    structs.AllocStatusPending,
+			ID:                mock.GenerateUUID(),
+			EvalID:            s.eval.ID,
+			Name:              missing.Name,
+			NodeID:            nodeID,
+			JobID:             job.ID,
+			Job:               job,
+			Resources:         size,
+			Metrics:           ctx.Metrics(),
+			Status:            status,
+			StatusDescription: desc,
 		}
-		s.plan.AppendAlloc(alloc)
+		if nodeID != "" {
+			s.plan.AppendAlloc(alloc)
+		} else {
+			s.plan.AppendFailed(alloc)
+		}
 	}
 	return nil
 }
