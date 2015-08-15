@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -36,6 +37,7 @@ func TestPlanApply_applyPlan(t *testing.T) {
 
 	// Register alloc
 	alloc := mock.Alloc()
+	allocFail := mock.Alloc()
 	plan := &structs.PlanResult{
 		NodeEvict: map[string][]string{
 			node.ID: []string{},
@@ -43,6 +45,7 @@ func TestPlanApply_applyPlan(t *testing.T) {
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: []*structs.Allocation{alloc},
 		},
+		FailedAllocs: []*structs.Allocation{allocFail},
 	}
 
 	// Apply the plan
@@ -56,6 +59,15 @@ func TestPlanApply_applyPlan(t *testing.T) {
 
 	// Lookup the allocation
 	out, err := s1.fsm.State().GetAllocByID(alloc.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out == nil {
+		t.Fatalf("missing alloc")
+	}
+
+	// Lookup the allocation
+	out, err = s1.fsm.State().GetAllocByID(allocFail.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -109,10 +121,12 @@ func TestPlanApply_EvalPlan_Simple(t *testing.T) {
 	snap, _ := state.Snapshot()
 
 	alloc := mock.Alloc()
+	allocFail := mock.Alloc()
 	plan := &structs.Plan{
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: []*structs.Allocation{alloc},
 		},
+		FailedAllocs: []*structs.Allocation{allocFail},
 	}
 
 	result, err := evaluatePlan(snap, plan)
@@ -121,6 +135,9 @@ func TestPlanApply_EvalPlan_Simple(t *testing.T) {
 	}
 	if result == nil {
 		t.Fatalf("missing result")
+	}
+	if !reflect.DeepEqual(result.FailedAllocs, plan.FailedAllocs) {
+		t.Fatalf("missing failed allocs")
 	}
 }
 

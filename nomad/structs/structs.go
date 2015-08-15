@@ -883,6 +883,11 @@ type PlanResult struct {
 	// NodeAllocation contains all the allocations that were committed.
 	NodeAllocation map[string][]*Allocation
 
+	// FailedAllocs are allocations that could not be made,
+	// but are persisted so that the user can use the feedback
+	// to determine the cause.
+	FailedAllocs []*Allocation
+
 	// RefreshIndex is the index the worker should refresh state up to.
 	// This allows all evictions and allocations to be materialized.
 	// If any allocations were rejected due to stale data (node state,

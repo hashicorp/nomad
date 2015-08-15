@@ -52,7 +52,7 @@ func (s *Server) planApply() {
 		}
 
 		// Apply the plan if there is anything to do
-		if len(result.NodeEvict) != 0 || len(result.NodeAllocation) != 0 {
+		if len(result.NodeEvict) != 0 || len(result.NodeAllocation) != 0 || len(result.FailedAllocs) != 0 {
 			allocIndex, err := s.applyPlan(result)
 			if err != nil {
 				s.logger.Printf("[ERR] nomad: failed to apply plan: %v", err)
@@ -77,6 +77,7 @@ func (s *Server) applyPlan(result *structs.PlanResult) (uint64, error) {
 	for _, allocList := range result.NodeAllocation {
 		req.Alloc = append(req.Alloc, allocList...)
 	}
+	req.Alloc = append(req.Alloc, result.FailedAllocs...)
 
 	_, index, err := s.raftApply(structs.AllocUpdateRequestType, &req)
 	return index, err
@@ -92,6 +93,7 @@ func evaluatePlan(snap *state.StateSnapshot, plan *structs.Plan) (*structs.PlanR
 	result := &structs.PlanResult{
 		NodeEvict:      make(map[string][]string),
 		NodeAllocation: make(map[string][]*structs.Allocation),
+		FailedAllocs:   plan.FailedAllocs,
 	}
 
 	// Check each allocation to see if it should be allowed
