@@ -117,19 +117,33 @@ func diffAllocs(job *structs.Job, taintedNodes map[string]bool,
 
 // readyNodesInDCs returns all the ready nodes in the given datacenters
 func readyNodesInDCs(state State, dcs []string) ([]*structs.Node, error) {
-	var out []*structs.Node
+	// Index the DCs
+	dcMap := make(map[string]struct{}, len(dcs))
 	for _, dc := range dcs {
-		iter, err := state.NodesByDatacenterStatus(dc, structs.NodeStatusReady)
-		if err != nil {
-			return nil, err
+		dcMap[dc] = struct{}{}
+	}
+
+	// Scan the nodes
+	var out []*structs.Node
+	iter, err := state.Nodes()
+	if err != nil {
+		return nil, err
+	}
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
 		}
-		for {
-			raw := iter.Next()
-			if raw == nil {
-				break
-			}
-			out = append(out, raw.(*structs.Node))
+
+		// Filter on datacenter and status
+		node := raw.(*structs.Node)
+		if node.Status != structs.NodeStatusReady {
+			continue
 		}
+		if _, ok := dcMap[node.Datacenter]; !ok {
+			continue
+		}
+		out = append(out, node)
 	}
 	return out, nil
 }

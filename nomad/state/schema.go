@@ -69,28 +69,6 @@ func nodeTableSchema() *memdb.TableSchema {
 					Lowercase: true,
 				},
 			},
-
-			// DC status is a compound index on both the
-			// datacenter and the node status. This allows
-			// us to filter to a set of eligible nodes more
-			// quickly for selection.
-			"dc-status": &memdb.IndexSchema{
-				Name:         "dc-status",
-				AllowMissing: false,
-				Unique:       false,
-				Indexer: &memdb.CompoundIndex{
-					AllowMissing: false,
-					Indexes: []memdb.Indexer{
-						&memdb.StringFieldIndex{
-							Field:     "Datacenter",
-							Lowercase: true,
-						},
-						&memdb.StringFieldIndex{
-							Field: "Status",
-						},
-					},
-				},
-			},
 		},
 	}
 }

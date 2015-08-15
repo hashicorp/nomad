@@ -207,18 +207,6 @@ func (s *StateStore) Nodes() (memdb.ResultIterator, error) {
 	return iter, nil
 }
 
-// Nodes returns an iterator over all the nodes in a DC with a given status
-func (s *StateStore) NodesByDatacenterStatus(dc, status string) (memdb.ResultIterator, error) {
-	txn := s.db.Txn(false)
-
-	// Walk the nodes table, filtering on DC and Status
-	iter, err := txn.Get("nodes", "dc-status", dc, status)
-	if err != nil {
-		return nil, err
-	}
-	return iter, nil
-}
-
 // RegisterJob is used to register a job or update a job definition
 func (s *StateStore) RegisterJob(index uint64, job *structs.Job) error {
 	txn := s.db.Txn(true)

@@ -56,9 +56,6 @@ type State interface {
 	// The type of each result is *structs.Node
 	Nodes() (memdb.ResultIterator, error)
 
-	// Nodes returns an iterator over all the nodes in a DC with a given status
-	NodesByDatacenterStatus(dc, status string) (memdb.ResultIterator, error)
-
 	// AllocsByJob returns the allocations by JobID
 	AllocsByJob(jobID string) ([]*structs.Allocation, error)
 

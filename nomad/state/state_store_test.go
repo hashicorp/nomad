@@ -151,69 +151,6 @@ func TestStateStore_Nodes(t *testing.T) {
 	}
 }
 
-func TestStateStore_NodesByDatacenterStatus(t *testing.T) {
-	state := testStateStore(t)
-	var dc1 []*structs.Node
-	var dc2 []*structs.Node
-
-	for i := 0; i < 10; i++ {
-		node := mock.Node()
-		if i%2 == 0 {
-			node.Datacenter = "dc2"
-			dc2 = append(dc2, node)
-		} else {
-			dc1 = append(dc1, node)
-		}
-
-		err := state.RegisterNode(1000+uint64(i), node)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
-	}
-
-	iter, err := state.NodesByDatacenterStatus("dc1", structs.NodeStatusReady)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	var out []*structs.Node
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-		out = append(out, raw.(*structs.Node))
-	}
-
-	sort.Sort(NodeIDSort(dc1))
-	sort.Sort(NodeIDSort(out))
-
-	if !reflect.DeepEqual(dc1, out) {
-		t.Fatalf("bad: %#v %#v", dc1, out)
-	}
-
-	iter, err = state.NodesByDatacenterStatus("dc2", structs.NodeStatusReady)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	out = out[:0]
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-		out = append(out, raw.(*structs.Node))
-	}
-
-	sort.Sort(NodeIDSort(dc2))
-	sort.Sort(NodeIDSort(out))
-
-	if !reflect.DeepEqual(dc2, out) {
-		t.Fatalf("bad: %#v %#v", dc2, out)
-	}
-}
-
 func TestStateStore_RestoreNode(t *testing.T) {
 	state := testStateStore(t)
 
