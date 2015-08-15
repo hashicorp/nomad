@@ -74,7 +74,7 @@ func TestEvalEndpoint_Dequeue(t *testing.T) {
 	}
 
 	if !reflect.DeepEqual(eval1, resp.Eval) {
-		t.Fatalf("bad: %#v %#v", eval1, resp.Eval)
+		t.Fatalf("bad: %v %v", eval1, resp.Eval)
 	}
 
 	// Ensure outstanding
