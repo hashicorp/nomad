@@ -138,7 +138,7 @@ func (e *Eval) Update(args *structs.EvalUpdateRequest,
 	if !ok {
 		return fmt.Errorf("evaluation is not outstanding")
 	}
-	if args.Token != token {
+	if args.EvalToken != token {
 		return fmt.Errorf("evaluation token does not match")
 	}
 

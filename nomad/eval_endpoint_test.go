@@ -196,7 +196,7 @@ func TestEvalEndpoint_Update(t *testing.T) {
 
 	get := &structs.EvalUpdateRequest{
 		Evals:        []*structs.Evaluation{eval2},
-		Token:        token,
+		EvalToken:    token,
 		WriteRequest: structs.WriteRequest{Region: "region1"},
 	}
 	var resp structs.GenericResponse

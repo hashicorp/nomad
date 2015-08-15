@@ -163,8 +163,8 @@ type JobSpecificRequest struct {
 
 // EvalUpdateRequest is used for upserting evaluations.
 type EvalUpdateRequest struct {
-	Evals []*Evaluation
-	Token string
+	Evals     []*Evaluation
+	EvalToken string
 	WriteRequest
 }
 
