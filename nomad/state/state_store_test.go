@@ -468,13 +468,22 @@ func TestStateStore_Update_UpsertEvals_GetEval(t *testing.T) {
 func TestStateStore_DeleteEval_GetEval(t *testing.T) {
 	state := testStateStore(t)
 	eval := mock.Eval()
+	eval2 := mock.Eval()
+	alloc := mock.Alloc()
+	alloc2 := mock.Alloc()
 
-	err := state.UpsertEvals(1000, []*structs.Evaluation{eval})
+	err := state.UpsertEvals(1000, []*structs.Evaluation{eval, eval2})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	err = state.DeleteEval(1001, eval.ID)
+	err = state.UpdateAllocations(1001, nil,
+		[]*structs.Allocation{alloc, alloc2})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	err = state.DeleteEval(1002, []string{eval.ID, eval2.ID}, []string{alloc.ID, alloc2.ID})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -488,11 +497,46 @@ func TestStateStore_DeleteEval_GetEval(t *testing.T) {
 		t.Fatalf("bad: %#v %#v", eval, out)
 	}
 
+	out, err = state.GetEvalByID(eval2.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if out != nil {
+		t.Fatalf("bad: %#v %#v", eval, out)
+	}
+
+	outA, err := state.GetAllocByID(alloc.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if out != nil {
+		t.Fatalf("bad: %#v %#v", alloc, outA)
+	}
+
+	outA, err = state.GetAllocByID(alloc2.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if out != nil {
+		t.Fatalf("bad: %#v %#v", alloc, outA)
+	}
+
 	index, err := state.GetIndex("evals")
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if index != 1001 {
+	if index != 1002 {
+		t.Fatalf("bad: %d", index)
+	}
+
+	index, err = state.GetIndex("allocs")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if index != 1002 {
 		t.Fatalf("bad: %d", index)
 	}
 }

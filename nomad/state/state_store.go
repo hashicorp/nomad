@@ -336,24 +336,41 @@ func (s *StateStore) nestedUpsertEval(txn *memdb.Txn, index uint64, eval *struct
 }
 
 // DeleteEval is used to delete an evaluation
-func (s *StateStore) DeleteEval(index uint64, evalID string) error {
+func (s *StateStore) DeleteEval(index uint64, evals []string, allocs []string) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
-	// Lookup the node
-	existing, err := txn.First("evals", "id", evalID)
-	if err != nil {
-		return fmt.Errorf("eval lookup failed: %v", err)
-	}
-	if existing == nil {
-		return fmt.Errorf("eval not found")
+	for _, eval := range evals {
+		existing, err := txn.First("evals", "id", eval)
+		if err != nil {
+			return fmt.Errorf("eval lookup failed: %v", err)
+		}
+		if existing == nil {
+			continue
+		}
+		if err := txn.Delete("evals", existing); err != nil {
+			return fmt.Errorf("eval delete failed: %v", err)
+		}
 	}
 
-	// Delete the node
-	if err := txn.Delete("evals", existing); err != nil {
-		return fmt.Errorf("eval delete failed: %v", err)
+	for _, alloc := range allocs {
+		existing, err := txn.First("allocs", "id", alloc)
+		if err != nil {
+			return fmt.Errorf("alloc lookup failed: %v", err)
+		}
+		if existing == nil {
+			continue
+		}
+		if err := txn.Delete("allocs", existing); err != nil {
+			return fmt.Errorf("alloc delete failed: %v", err)
+		}
 	}
+
+	// Update the indexes
 	if err := txn.Insert("index", &IndexEntry{"evals", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+	if err := txn.Insert("index", &IndexEntry{"allocs", index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
@@ -478,6 +495,27 @@ func (s *StateStore) AllocsByJob(jobID string) ([]*structs.Allocation, error) {
 
 	// Get an iterator over the node allocations
 	iter, err := txn.Get("allocs", "job", jobID)
+	if err != nil {
+		return nil, err
+	}
+
+	var out []*structs.Allocation
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		out = append(out, raw.(*structs.Allocation))
+	}
+	return out, nil
+}
+
+// AllocsByEval returns all the allocations by eval id
+func (s *StateStore) AllocsByEval(evalID string) ([]*structs.Allocation, error) {
+	txn := s.db.Txn(false)
+
+	// Get an iterator over the eval allocations
+	iter, err := txn.Get("allocs", "eval", evalID)
 	if err != nil {
 		return nil, err
 	}

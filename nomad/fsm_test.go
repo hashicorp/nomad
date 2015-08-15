@@ -294,7 +294,7 @@ func TestFSM_DeleteEval(t *testing.T) {
 	}
 
 	req2 := structs.EvalDeleteRequest{
-		EvalID: eval.ID,
+		Evals: []string{eval.ID},
 	}
 	buf, err = structs.Encode(structs.EvalDeleteRequestType, req2)
 	if err != nil {
