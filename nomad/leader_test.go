@@ -284,3 +284,23 @@ func TestLeader_EvalBroker_Reset(t *testing.T) {
 		t.Fatalf("should have pending evaluation")
 	})
 }
+
+func TestLeader_PeriodicDispatch(t *testing.T) {
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+		c.EvalGCInterval = 5 * time.Millisecond
+	})
+	defer s1.Shutdown()
+
+	// Wait for a periodic dispatch
+	testutil.WaitForResult(func() (bool, error) {
+		stats := s1.evalBroker.Stats()
+		bySched, ok := stats.ByScheduler[structs.JobTypeCore]
+		if !ok {
+			return false, nil
+		}
+		return bySched.Ready > 0, nil
+	}, func(err error) {
+		t.Fatalf("should pending job")
+	})
+}

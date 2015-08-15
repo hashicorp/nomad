@@ -120,6 +120,13 @@ type Config struct {
 	// leader election.
 	ReconcileInterval time.Duration
 
+	// EvalGCInterval is how often we dispatch a job to GC evaluations
+	EvalGCInterval time.Duration
+
+	// EvalGCThreshold is how "old" an evaluation must be to be eligible
+	// for GC. This gives users some time to debug a failed evaluation.
+	EvalGCThreshold time.Duration
+
 	// EvalNackTimeout controls how long we allow a sub-scheduler to
 	// work on an evaluation before we consider it failed and Nack it.
 	// This allows that evaluation to be handed to another sub-scheduler
@@ -157,6 +164,8 @@ func DefaultConfig() *Config {
 		SerfConfig:        serf.DefaultConfig(),
 		NumSchedulers:     1,
 		ReconcileInterval: 60 * time.Second,
+		EvalGCInterval:    60 * time.Second,
+		EvalGCThreshold:   1 * time.Hour,
 		EvalNackTimeout:   60 * time.Second,
 	}
 

@@ -497,6 +497,11 @@ const (
 
 	// JobMaxPriority is the maximum allowed priority
 	JobMaxPriority = 100
+
+	// Ensure CoreJobPriority is higher than any user
+	// specified job so that it gets priority. This is important
+	// for the system to remain healthy.
+	CoreJobPriority = JobMaxPriority * 2
 )
 
 // Job is the scope of a scheduling request to Nomad. It is the largest
@@ -741,6 +746,11 @@ const (
 	EvalTriggerJobRegister   = "job-register"
 	EvalTriggerJobDeregister = "job-deregister"
 	EvalTriggerNodeUpdate    = "node-update"
+	EvalTriggerScheduled     = "scheduled"
+)
+
+const (
+	CoreJobEvalGC = "eval-gc"
 )
 
 // Evaluation is used anytime we need to apply business logic as a result

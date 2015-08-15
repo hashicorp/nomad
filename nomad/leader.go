@@ -59,7 +59,7 @@ RECONCILE:
 
 	// Check if we need to handle initial leadership actions
 	if !establishedLeader {
-		if err := s.establishLeadership(); err != nil {
+		if err := s.establishLeadership(stopCh); err != nil {
 			s.logger.Printf("[ERR] nomad: failed to establish leadership: %v",
 				err)
 			goto WAIT
@@ -97,7 +97,7 @@ WAIT:
 // to invoke an initial barrier. The barrier is used to ensure any
 // previously inflight transactions have been commited and that our
 // state is up-to-date.
-func (s *Server) establishLeadership() error {
+func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	// Enable the plan queue, since we are now the leader
 	s.planQueue.SetEnabled(true)
 
@@ -111,6 +111,9 @@ func (s *Server) establishLeadership() error {
 	if err := s.restoreEvalBroker(); err != nil {
 		return err
 	}
+
+	// Scheduler periodic jobs
+	go s.schedulePeriodic(stopCh)
 	return nil
 }
 
@@ -140,6 +143,35 @@ func (s *Server) restoreEvalBroker() error {
 		}
 	}
 	return nil
+}
+
+// schedulePeriodic is used to do periodic job dispatch while we are leader
+func (s *Server) schedulePeriodic(stopCh chan struct{}) {
+	evalGC := time.NewTicker(s.config.EvalGCInterval)
+	defer evalGC.Stop()
+
+	for {
+		select {
+		case <-evalGC.C:
+			s.dispatchCoreJob(structs.CoreJobEvalGC)
+		case <-stopCh:
+			return
+		}
+	}
+}
+
+// dispatchCoreJob is used to create an evaluation for a core job
+func (s *Server) dispatchCoreJob(job string) {
+	eval := &structs.Evaluation{
+		ID:          generateUUID(),
+		Priority:    structs.CoreJobPriority,
+		Type:        structs.JobTypeCore,
+		TriggeredBy: structs.EvalTriggerScheduled,
+		JobID:       job,
+		Status:      structs.EvalStatusPending,
+		ModifyIndex: s.raft.AppliedIndex(),
+	}
+	s.evalBroker.Enqueue(eval)
 }
 
 // revokeLeadership is invoked once we step down as leader.
