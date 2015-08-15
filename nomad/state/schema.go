@@ -123,6 +123,17 @@ func evalTableSchema() *memdb.TableSchema {
 				},
 			},
 
+			// Job index is used to lookup allocations by job
+			"job": &memdb.IndexSchema{
+				Name:         "job",
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.StringFieldIndex{
+					Field:     "JobID",
+					Lowercase: true,
+				},
+			},
+
 			// Status is used to scan for evaluations that are in need
 			// of scheduling attention.
 			"status": &memdb.IndexSchema{
@@ -157,7 +168,7 @@ func allocTableSchema() *memdb.TableSchema {
 			// Node index is used to lookup allocations by node
 			"node": &memdb.IndexSchema{
 				Name:         "node",
-				AllowMissing: false,
+				AllowMissing: true, // Missing is allow for failed allocations
 				Unique:       false,
 				Indexer: &memdb.StringFieldIndex{
 					Field:     "NodeID",
@@ -173,6 +184,26 @@ func allocTableSchema() *memdb.TableSchema {
 				Indexer: &memdb.StringFieldIndex{
 					Field:     "JobID",
 					Lowercase: true,
+				},
+			},
+
+			// Eval index is used to lookup allocations by eval
+			"eval": &memdb.IndexSchema{
+				Name:         "eval",
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.UUIDFieldIndex{
+					Field: "EvalID",
+				},
+			},
+
+			// Status is used to lookup allocs by status
+			"status": &memdb.IndexSchema{
+				Name:         "status",
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "Status",
 				},
 			},
 		},

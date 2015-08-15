@@ -619,6 +619,7 @@ const (
 	AllocStatusRunning  = "running"
 	AllocStatusComplete = "complete"
 	AllocStatusDead     = "dead"
+	AllocStatusFailed   = "failed"
 )
 
 // Allocation is used to allocate the placement of a task group to a node.
@@ -850,6 +851,11 @@ type Plan struct {
 	// NodeAllocation contains all the allocations for each node.
 	// The evicts must be considered prior to the allocations.
 	NodeAllocation map[string][]*Allocation
+
+	// FailedAllocs are allocations that could not be made,
+	// but are persisted so that the user can use the feedback
+	// to determine the cause.
+	FailedAllocs []*Allocation
 }
 
 func (p *Plan) AppendEvict(alloc *Allocation) {

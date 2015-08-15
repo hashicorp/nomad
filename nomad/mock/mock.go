@@ -128,6 +128,7 @@ func Eval() *structs.Evaluation {
 func Alloc() *structs.Allocation {
 	alloc := &structs.Allocation{
 		ID:     GenerateUUID(),
+		EvalID: GenerateUUID(),
 		NodeID: "foo",
 		Resources: &structs.Resources{
 			CPU:      1.0,
@@ -143,7 +144,8 @@ func Alloc() *structs.Allocation {
 				},
 			},
 		},
-		Job: Job(),
+		Job:    Job(),
+		Status: structs.AllocStatusPending,
 	}
 	alloc.JobID = alloc.Job.ID
 	return alloc

@@ -185,21 +185,25 @@ func TestBinPackIterator_ExistingAlloc(t *testing.T) {
 	// Add existing allocations
 	alloc1 := &structs.Allocation{
 		ID:     mock.GenerateUUID(),
+		EvalID: mock.GenerateUUID(),
 		NodeID: nodes[0].Node.ID,
 		JobID:  mock.GenerateUUID(),
 		Resources: &structs.Resources{
 			CPU:      2048,
 			MemoryMB: 2048,
 		},
+		Status: structs.AllocStatusPending,
 	}
 	alloc2 := &structs.Allocation{
 		ID:     mock.GenerateUUID(),
+		EvalID: mock.GenerateUUID(),
 		NodeID: nodes[1].Node.ID,
 		JobID:  mock.GenerateUUID(),
 		Resources: &structs.Resources{
 			CPU:      1024,
 			MemoryMB: 1024,
 		},
+		Status: structs.AllocStatusPending,
 	}
 	noErr(t, state.UpdateAllocations(1000, nil, []*structs.Allocation{alloc1, alloc2}))
 
@@ -250,21 +254,25 @@ func TestBinPackIterator_ExistingAlloc_PlannedEvict(t *testing.T) {
 	// Add existing allocations
 	alloc1 := &structs.Allocation{
 		ID:     mock.GenerateUUID(),
+		EvalID: mock.GenerateUUID(),
 		NodeID: nodes[0].Node.ID,
 		JobID:  mock.GenerateUUID(),
 		Resources: &structs.Resources{
 			CPU:      2048,
 			MemoryMB: 2048,
 		},
+		Status: structs.AllocStatusPending,
 	}
 	alloc2 := &structs.Allocation{
 		ID:     mock.GenerateUUID(),
+		EvalID: mock.GenerateUUID(),
 		NodeID: nodes[1].Node.ID,
 		JobID:  mock.GenerateUUID(),
 		Resources: &structs.Resources{
 			CPU:      1024,
 			MemoryMB: 1024,
 		},
+		Status: structs.AllocStatusPending,
 	}
 	noErr(t, state.UpdateAllocations(1000, nil, []*structs.Allocation{alloc1, alloc2}))
 
