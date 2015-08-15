@@ -165,7 +165,7 @@ func DefaultConfig() *Config {
 	for name := range scheduler.BuiltinSchedulers {
 		c.EnabledSchedulers = append(c.EnabledSchedulers, name)
 	}
-	c.EnabledSchedulers = append(c.EnabledSchedulers, structs.JobTypeSystem)
+	c.EnabledSchedulers = append(c.EnabledSchedulers, structs.JobTypeCore)
 
 	// Increase our reap interval to 3 days instead of 24h.
 	c.SerfConfig.ReconnectTimeout = 3 * 24 * time.Hour

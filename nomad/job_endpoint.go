@@ -33,8 +33,8 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	if args.Job.Type == "" {
 		return fmt.Errorf("missing job type for registration")
 	}
-	if args.Job.Type == structs.JobTypeSystem {
-		return fmt.Errorf("job type cannot be system")
+	if args.Job.Type == structs.JobTypeCore {
+		return fmt.Errorf("job type cannot be core")
 	}
 
 	// Ensure priorities are bounded

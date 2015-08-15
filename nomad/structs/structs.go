@@ -449,8 +449,9 @@ func (n *NetworkResource) Add(delta *NetworkResource) {
 }
 
 const (
-	// JobTypeSystem is reserved for internal system tasks and is
-	// always handled by the SystemScheduler.
+	// JobTypeNomad is reserved for internal system tasks and is
+	// always handled by the CoreScheduler.
+	JobTypeCore    = "_core"
 	JobTypeSystem  = "system"
 	JobTypeService = "service"
 	JobTypeBatch   = "batch"
