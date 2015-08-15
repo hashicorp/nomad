@@ -10,6 +10,21 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+// RejectPlan is used to always reject the entire plan and force a state refresh
+type RejectPlan struct {
+	Harness *Harness
+}
+
+func (r *RejectPlan) SubmitPlan(*structs.Plan) (*structs.PlanResult, State, error) {
+	result := new(structs.PlanResult)
+	result.RefreshIndex = r.Harness.NextIndex()
+	return result, r.Harness.State, nil
+}
+
+func (r *RejectPlan) UpdateEval(eval *structs.Evaluation) error {
+	return nil
+}
+
 // Harness is a lightweight testing harness for schedulers.
 // It manages a state store copy and provides the planner
 // interface. It can be extended for various testing uses.
@@ -80,7 +95,17 @@ func (h *Harness) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State, er
 }
 
 func (h *Harness) UpdateEval(eval *structs.Evaluation) error {
+	// Ensure sequential plan application
+	h.planLock.Lock()
+	defer h.planLock.Unlock()
+
+	// Store the eval
 	h.Evals = append(h.Evals, eval)
+
+	// Check for custom planner
+	if h.Planner != nil {
+		return h.Planner.UpdateEval(eval)
+	}
 	return nil
 }
 
@@ -111,6 +136,17 @@ func (h *Harness) Scheduler(factory Factory) Scheduler {
 func (h *Harness) Process(factory Factory, eval *structs.Evaluation) error {
 	sched := h.Scheduler(factory)
 	return sched.Process(eval)
+}
+
+func (h *Harness) AssertEvalStatus(t *testing.T, state string) {
+	if len(h.Evals) != 1 {
+		t.Fatalf("bad: %#v", h.Evals)
+	}
+	update := h.Evals[0]
+
+	if update.Status != state {
+		t.Fatalf("bad: %#v", update)
+	}
 }
 
 // noErr is used to assert there are no errors

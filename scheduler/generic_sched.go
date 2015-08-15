@@ -18,6 +18,16 @@ const (
 	maxBatchScheduleAttempts = 2
 )
 
+// SetStatusError is used to set the status of the evaluation to the given error
+type SetStatusError struct {
+	Err        error
+	EvalStatus string
+}
+
+func (s *SetStatusError) Error() string {
+	return s.Err.Error()
+}
+
 // GenericScheduler is used for 'service' and 'batch' type jobs. This scheduler is
 // designed for long-lived services, and as such spends more time attemping
 // to make a high quality placement. This is the primary scheduler for
@@ -55,6 +65,15 @@ func NewBatchScheduler(logger *log.Logger, state State, planner Planner) Schedul
 	return s
 }
 
+// setStatus is used to update the status of the evaluation
+func (s *GenericScheduler) setStatus(status, desc string) error {
+	s.logger.Printf("[DEBUG] sched: %#v: setting status to %s (%s)", s.eval, status, desc)
+	newEval := s.eval.Copy()
+	newEval.Status = status
+	newEval.StatusDescription = desc
+	return s.planner.UpdateEval(newEval)
+}
+
 // Process is used to handle a single evaluation
 func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 	// Verify the evaluation trigger reason is understood
@@ -62,8 +81,9 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 	case structs.EvalTriggerJobRegister, structs.EvalTriggerNodeUpdate,
 		structs.EvalTriggerJobDeregister:
 	default:
-		return fmt.Errorf("service scheduler cannot handle '%s' evaluation reason",
+		desc := fmt.Sprintf("scheduler cannot handle '%s' evaluation reason",
 			eval.TriggeredBy)
+		return s.setStatus(structs.EvalStatusFailed, desc)
 	}
 
 	// Store the evaluation
@@ -74,7 +94,15 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 	if s.batch {
 		limit = maxBatchScheduleAttempts
 	}
-	return retryMax(limit, s.process)
+	if err := retryMax(limit, s.process); err != nil {
+		if statusErr, ok := err.(*SetStatusError); ok {
+			return s.setStatus(statusErr.EvalStatus, err.Error())
+		}
+		return err
+	}
+
+	// Update the status to complete
+	return s.setStatus(structs.EvalStatusComplete, "")
 }
 
 // process is wrapped in retryMax to iteratively run the handler until we have no

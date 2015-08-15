@@ -57,6 +57,8 @@ func TestServiceSched_JobRegister(t *testing.T) {
 	if len(out) != 10 {
 		t.Fatalf("bad: %#v", out)
 	}
+
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
 
 func TestServiceSched_JobRegister_AllocFail(t *testing.T) {
@@ -100,6 +102,8 @@ func TestServiceSched_JobRegister_AllocFail(t *testing.T) {
 	if len(out) != 10 {
 		t.Fatalf("bad: %#v", out)
 	}
+
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
 
 func TestServiceSched_JobModify(t *testing.T) {
@@ -178,6 +182,8 @@ func TestServiceSched_JobModify(t *testing.T) {
 	if len(out) != 10 {
 		t.Fatalf("bad: %#v", out)
 	}
+
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
 
 func TestServiceSched_JobDeregister(t *testing.T) {
@@ -228,6 +234,8 @@ func TestServiceSched_JobDeregister(t *testing.T) {
 	if len(out) != 0 {
 		t.Fatalf("bad: %#v", out)
 	}
+
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
 
 func TestServiceSched_NodeDrain(t *testing.T) {
@@ -301,4 +309,52 @@ func TestServiceSched_NodeDrain(t *testing.T) {
 	if len(out) != 10 {
 		t.Fatalf("bad: %#v", out)
 	}
+
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+}
+
+func TestServiceSched_RetryLimit(t *testing.T) {
+	h := NewHarness(t)
+	h.Planner = &RejectPlan{h}
+
+	// Create some nodes
+	for i := 0; i < 10; i++ {
+		node := mock.Node()
+		noErr(t, h.State.RegisterNode(h.NextIndex(), node))
+	}
+
+	// Create a job
+	job := mock.Job()
+	noErr(t, h.State.RegisterJob(h.NextIndex(), job))
+
+	// Create a mock evaluation to deregister the job
+	eval := &structs.Evaluation{
+		ID:          mock.GenerateUUID(),
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+	}
+
+	// Process the evaluation
+	err := h.Process(NewServiceScheduler, eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure multiple plans
+	if len(h.Plans) == 0 {
+		t.Fatalf("bad: %#v", h.Plans)
+	}
+
+	// Lookup the allocations by JobID
+	out, err := h.State.AllocsByJob(job.ID)
+	noErr(t, err)
+
+	// Ensure no allocations placed
+	if len(out) != 0 {
+		t.Fatalf("bad: %#v", out)
+	}
+
+	// Should hit the retry limit
+	h.AssertEvalStatus(t, structs.EvalStatusFailed)
 }

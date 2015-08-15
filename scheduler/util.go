@@ -162,7 +162,10 @@ func retryMax(max int, cb func() (bool, error)) error {
 		}
 		attempts += 1
 	}
-	return fmt.Errorf("maximum attempts reached (%d)", max)
+	return &SetStatusError{
+		Err:        fmt.Errorf("maximum attempts reached (%d)", max),
+		EvalStatus: structs.EvalStatusFailed,
+	}
 }
 
 // taintedNodes is used to scan the allocations and then check if the
