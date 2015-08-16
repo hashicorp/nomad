@@ -115,3 +115,32 @@ func TestTimeTable_SerializeDeserialize(t *testing.T) {
 		t.Fatalf("bad: %#v %#v", tt, tt2)
 	}
 }
+
+func TestTimeTable_Overflow(t *testing.T) {
+	tt := NewTimeTable(time.Second, 3*time.Second)
+
+	// Witness some data
+	start := time.Now()
+	plusOne := start.Add(time.Second)
+	plusTwo := start.Add(2 * time.Second)
+	plusThree := start.Add(3 * time.Second)
+
+	tt.Witness(10, start)
+	tt.Witness(20, plusOne)
+	tt.Witness(30, plusTwo)
+	tt.Witness(40, plusThree)
+
+	if len(tt.table) != 3 {
+		t.Fatalf("bad")
+	}
+
+	index := tt.NearestIndex(start)
+	if index != 0 {
+		t.Fatalf("bad: %v %v", index, 0)
+	}
+
+	when := tt.NearestTime(15)
+	if !when.IsZero() {
+		t.Fatalf("bad: %v", when)
+	}
+}
