@@ -140,6 +140,45 @@ func (c *Client) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *stru
 	return nil
 }
 
+// Evaluate is used to force a re-evaluation of the node
+func (c *Client) Evaluate(args *structs.NodeEvaluateRequest, reply *structs.NodeUpdateResponse) error {
+	if done, err := c.srv.forward("Client.Evaluate", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "client", "evaluate"}, time.Now())
+
+	// Verify the arguments
+	if args.NodeID == "" {
+		return fmt.Errorf("missing node ID for evaluation")
+	}
+
+	// Look for the node
+	snap, err := c.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+	node, err := snap.GetNodeByID(args.NodeID)
+	if err != nil {
+		return err
+	}
+	if node == nil {
+		return fmt.Errorf("node not found")
+	}
+
+	// Create the evaluation
+	evalIDs, evalIndex, err := c.createNodeEvals(args.NodeID, node.ModifyIndex)
+	if err != nil {
+		c.srv.logger.Printf("[ERR] nomad.client: eval creation failed: %v", err)
+		return err
+	}
+	reply.EvalIDs = evalIDs
+	reply.EvalCreateIndex = evalIndex
+
+	// Set the reply index
+	reply.Index = evalIndex
+	return nil
+}
+
 // GetNode is used to request information about a specific ndoe
 func (c *Client) GetNode(args *structs.NodeSpecificRequest,
 	reply *structs.SingleNodeResponse) error {

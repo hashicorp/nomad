@@ -24,7 +24,7 @@ func TestEvalEndpoint_GetEval(t *testing.T) {
 	// Lookup the eval
 	get := &structs.EvalSpecificRequest{
 		EvalID:       eval1.ID,
-		WriteRequest: structs.WriteRequest{Region: "region1"},
+		QueryOptions: structs.QueryOptions{Region: "region1"},
 	}
 	var resp structs.SingleEvalResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Eval.GetEval", get, &resp); err != nil {

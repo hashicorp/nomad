@@ -135,10 +135,16 @@ type NodeUpdateStatusRequest struct {
 	WriteRequest
 }
 
+// NodeEvaluateRequest is used to re-evaluate the ndoe
+type NodeEvaluateRequest struct {
+	NodeID string
+	WriteRequest
+}
+
 // NodeSpecificRequest is used when we just need to specify a target node
 type NodeSpecificRequest struct {
 	NodeID string
-	WriteRequest
+	QueryOptions
 }
 
 // JobRegisterRequest is used for Job.Register endpoint
@@ -184,7 +190,7 @@ type EvalDeleteRequest struct {
 // EvalSpecificRequest is used when we just need to specify a target evaluation
 type EvalSpecificRequest struct {
 	EvalID string
-	WriteRequest
+	QueryOptions
 }
 
 // EvalAckRequest is used to Ack/Nack a specific evaluation
