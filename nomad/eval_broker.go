@@ -11,6 +11,13 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+const (
+	// failedQueue is the queue we add Evaluations to once
+	// they've reached the deliveryLimit. This allows the leader to
+	// set the status to failed.
+	failedQueue = "_failed"
+)
+
 // EvalBroker is used to manage brokering of evaluations. When an evaluation is
 // created, due to a change in a job specification or a node, we put it into the
 // broker. The broker sorts by evaluations by priority and scheduler type. This
@@ -22,13 +29,16 @@ import (
 // Ack/Nack messages to handle this. If a delivery is not Ack'd in a sufficient time
 // span, it will be assumed Nack'd.
 type EvalBroker struct {
-	nackTimeout time.Duration
+	nackTimeout   time.Duration
+	deliveryLimit int
 
 	enabled bool
 	stats   *BrokerStats
 
-	// evals tracks queued evaluations by ID to de-duplicate enqueue
-	evals map[string]struct{}
+	// evals tracks queued evaluations by ID to de-duplicate enqueue.
+	// The counter is the number of times we've attempted delivery,
+	// and is used to eventually fail an evaluation.
+	evals map[string]int
 
 	// jobEvals tracks queued evaluations by JobID to serialize them
 	jobEvals map[string]string
@@ -62,21 +72,23 @@ type PendingEvaluations []*structs.Evaluation
 
 // NewEvalBroker creates a new evaluation broker. This is parameterized
 // with the timeout used for messages that are not acknowledged before we
-// assume a Nack and attempt to redeliver.
-func NewEvalBroker(timeout time.Duration) (*EvalBroker, error) {
+// assume a Nack and attempt to redeliver as well as the deliveryLimit
+// which prevents a failing eval from being endlessly delivered.
+func NewEvalBroker(timeout time.Duration, deliveryLimit int) (*EvalBroker, error) {
 	if timeout < 0 {
 		return nil, fmt.Errorf("timeout cannot be negative")
 	}
 	b := &EvalBroker{
-		nackTimeout: timeout,
-		enabled:     false,
-		stats:       new(BrokerStats),
-		evals:       make(map[string]struct{}),
-		jobEvals:    make(map[string]string),
-		blocked:     make(map[string]PendingEvaluations),
-		ready:       make(map[string]PendingEvaluations),
-		unack:       make(map[string]*unackEval),
-		waiting:     make(map[string]chan struct{}),
+		nackTimeout:   timeout,
+		deliveryLimit: deliveryLimit,
+		enabled:       false,
+		stats:         new(BrokerStats),
+		evals:         make(map[string]int),
+		jobEvals:      make(map[string]string),
+		blocked:       make(map[string]PendingEvaluations),
+		ready:         make(map[string]PendingEvaluations),
+		unack:         make(map[string]*unackEval),
+		waiting:       make(map[string]chan struct{}),
 	}
 	b.stats.ByScheduler = make(map[string]*SchedulerStats)
 	return b, nil
@@ -109,14 +121,14 @@ func (b *EvalBroker) Enqueue(eval *structs.Evaluation) error {
 	if _, ok := b.evals[eval.ID]; ok {
 		return nil
 	} else if b.enabled {
-		b.evals[eval.ID] = struct{}{}
+		b.evals[eval.ID] = 0
 	}
 
-	return b.enqueueLocked(eval)
+	return b.enqueueLocked(eval, eval.Type)
 }
 
 // enqueueLocked is used to enqueue with the lock held
-func (b *EvalBroker) enqueueLocked(eval *structs.Evaluation) error {
+func (b *EvalBroker) enqueueLocked(eval *structs.Evaluation, queue string) error {
 	// Do nothing if not enabled
 	if !b.enabled {
 		return nil
@@ -135,30 +147,30 @@ func (b *EvalBroker) enqueueLocked(eval *structs.Evaluation) error {
 	}
 
 	// Find the pending by scheduler class
-	pending, ok := b.ready[eval.Type]
+	pending, ok := b.ready[queue]
 	if !ok {
 		pending = make([]*structs.Evaluation, 0, 16)
-		if _, ok := b.waiting[eval.Type]; !ok {
-			b.waiting[eval.Type] = make(chan struct{}, 1)
+		if _, ok := b.waiting[queue]; !ok {
+			b.waiting[queue] = make(chan struct{}, 1)
 		}
 	}
 
 	// Push onto the heap
 	heap.Push(&pending, eval)
-	b.ready[eval.Type] = pending
+	b.ready[queue] = pending
 
 	// Update the stats
 	b.stats.TotalReady += 1
-	bySched, ok := b.stats.ByScheduler[eval.Type]
+	bySched, ok := b.stats.ByScheduler[queue]
 	if !ok {
 		bySched = &SchedulerStats{}
-		b.stats.ByScheduler[eval.Type] = bySched
+		b.stats.ByScheduler[queue] = bySched
 	}
 	bySched.Ready += 1
 
 	// Unblock any blocked dequeues
 	select {
-	case b.waiting[eval.Type] <- struct{}{}:
+	case b.waiting[queue] <- struct{}{}:
 	default:
 	}
 	return nil
@@ -280,10 +292,13 @@ func (b *EvalBroker) dequeueForSched(sched string) (*structs.Evaluation, string,
 		NackTimer: nackTimer,
 	}
 
+	// Increment the dequeue count
+	b.evals[eval.ID] += 1
+
 	// Update the stats
 	b.stats.TotalReady -= 1
 	b.stats.TotalUnacked += 1
-	bySched := b.stats.ByScheduler[eval.Type]
+	bySched := b.stats.ByScheduler[sched]
 	bySched.Ready -= 1
 	bySched.Unacked += 1
 
@@ -363,15 +378,19 @@ func (b *EvalBroker) Ack(evalID, token string) error {
 		return fmt.Errorf("Evaluation ID Ack'd after Nack timer expiration")
 	}
 
+	// Update the stats
+	b.stats.TotalUnacked -= 1
+	queue := unack.Eval.Type
+	if b.evals[evalID] >= b.deliveryLimit {
+		queue = failedQueue
+	}
+	bySched := b.stats.ByScheduler[queue]
+	bySched.Unacked -= 1
+
 	// Cleanup
 	delete(b.unack, evalID)
 	delete(b.evals, evalID)
 	delete(b.jobEvals, jobID)
-
-	// Update the stats
-	b.stats.TotalUnacked -= 1
-	bySched := b.stats.ByScheduler[unack.Eval.Type]
-	bySched.Unacked -= 1
 
 	// Check if there are any blocked evaluations
 	if blocked := b.blocked[jobID]; len(blocked) != 0 {
@@ -383,7 +402,7 @@ func (b *EvalBroker) Ack(evalID, token string) error {
 		}
 		eval := raw.(*structs.Evaluation)
 		b.stats.TotalBlocked -= 1
-		return b.enqueueLocked(eval)
+		return b.enqueueLocked(eval, eval.Type)
 	}
 	return nil
 }
@@ -413,9 +432,13 @@ func (b *EvalBroker) Nack(evalID, token string) error {
 	bySched := b.stats.ByScheduler[unack.Eval.Type]
 	bySched.Unacked -= 1
 
-	// Re-enqueue the work
-	// XXX: Re-enqueue at higher priority to avoid starvation.
-	return b.enqueueLocked(unack.Eval)
+	// Check if we've hit the delivery limit, and re-enqueue
+	// in the failedQueue
+	if b.evals[evalID] >= b.deliveryLimit {
+		return b.enqueueLocked(unack.Eval, failedQueue)
+	} else {
+		return b.enqueueLocked(unack.Eval, unack.Eval.Type)
+	}
 }
 
 // Flush is used to clear the state of the broker
@@ -439,7 +462,7 @@ func (b *EvalBroker) Flush() {
 	b.stats.TotalUnacked = 0
 	b.stats.TotalBlocked = 0
 	b.stats.ByScheduler = make(map[string]*SchedulerStats)
-	b.evals = make(map[string]struct{})
+	b.evals = make(map[string]int)
 	b.jobEvals = make(map[string]string)
 	b.blocked = make(map[string]PendingEvaluations)
 	b.ready = make(map[string]PendingEvaluations)

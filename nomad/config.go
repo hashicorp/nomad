@@ -133,6 +133,11 @@ type Config struct {
 	// to work on. Defaults to 60 seconds. This should be long enough that
 	// no evaluation hits it unless the sub-scheduler has failed.
 	EvalNackTimeout time.Duration
+
+	// EvalDeliveryLimit is the limit of attempts we make to deliver and
+	// process an evaluation. This is used so that an eval that will never
+	// complete eventually fails out of the system.
+	EvalDeliveryLimit int
 }
 
 // CheckVersion is used to check if the ProtocolVersion is valid
@@ -167,6 +172,7 @@ func DefaultConfig() *Config {
 		EvalGCInterval:    60 * time.Second,
 		EvalGCThreshold:   1 * time.Hour,
 		EvalNackTimeout:   60 * time.Second,
+		EvalDeliveryLimit: 3,
 	}
 
 	// Enable all known schedulers by default

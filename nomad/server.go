@@ -142,7 +142,7 @@ func NewServer(config *Config) (*Server, error) {
 	logger := log.New(config.LogOutput, "", log.LstdFlags)
 
 	// Create an eval broker
-	evalBroker, err := NewEvalBroker(config.EvalNackTimeout)
+	evalBroker, err := NewEvalBroker(config.EvalNackTimeout, config.EvalDeliveryLimit)
 	if err != nil {
 		return nil, err
 	}

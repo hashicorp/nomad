@@ -19,7 +19,7 @@ func testBroker(t *testing.T, timeout time.Duration) *EvalBroker {
 	if timeout == 0 {
 		timeout = 5 * time.Second
 	}
-	b, err := NewEvalBroker(timeout)
+	b, err := NewEvalBroker(timeout, 3)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -557,5 +557,97 @@ func TestEvalBroker_Nack_Timeout(t *testing.T) {
 	// Check the nack timer
 	if diff := end.Sub(start); diff < 5*time.Millisecond {
 		t.Fatalf("bad: %#v", diff)
+	}
+}
+
+func TestEvalBroker_DeliveryLimit(t *testing.T) {
+	b := testBroker(t, 0)
+	b.SetEnabled(true)
+
+	eval := mock.Eval()
+	err := b.Enqueue(eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	for i := 0; i < 3; i++ {
+		// Dequeue should work
+		out, token, err := b.Dequeue(defaultSched, time.Second)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		if out != eval {
+			t.Fatalf("bad : %#v", out)
+		}
+
+		// Nack with wrong token should fail
+		err = b.Nack(eval.ID, token)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	}
+
+	// Check the stats
+	stats := b.Stats()
+	if stats.TotalReady != 1 {
+		t.Fatalf("bad: %#v", stats)
+	}
+	if stats.TotalUnacked != 0 {
+		t.Fatalf("bad: %#v", stats)
+	}
+	if stats.ByScheduler[failedQueue].Ready != 1 {
+		t.Fatalf("bad: %#v", stats)
+	}
+	if stats.ByScheduler[failedQueue].Unacked != 0 {
+		t.Fatalf("bad: %#v", stats)
+	}
+
+	// Dequeue from failed queue
+	out, token, err := b.Dequeue([]string{failedQueue}, time.Second)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out != eval {
+		t.Fatalf("bad : %#v", out)
+	}
+
+	// Check the stats
+	stats = b.Stats()
+	if stats.TotalReady != 0 {
+		t.Fatalf("bad: %#v", stats)
+	}
+	if stats.TotalUnacked != 1 {
+		t.Fatalf("bad: %#v", stats)
+	}
+	if stats.ByScheduler[failedQueue].Ready != 0 {
+		t.Fatalf("bad: %#v", stats)
+	}
+	if stats.ByScheduler[failedQueue].Unacked != 1 {
+		t.Fatalf("bad: %#v", stats)
+	}
+
+	// Ack finally
+	err = b.Ack(out.ID, token)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if _, ok := b.Outstanding(out.ID); ok {
+		t.Fatalf("should not be outstanding")
+	}
+
+	// Check the stats
+	stats = b.Stats()
+	if stats.TotalReady != 0 {
+		t.Fatalf("bad: %#v", stats)
+	}
+	if stats.TotalUnacked != 0 {
+		t.Fatalf("bad: %#v", stats)
+	}
+	if stats.ByScheduler[failedQueue].Ready != 0 {
+		t.Fatalf("bad: %#v", stats.ByScheduler[failedQueue])
+	}
+	if stats.ByScheduler[failedQueue].Unacked != 0 {
+		t.Fatalf("bad: %#v", stats.ByScheduler[failedQueue])
 	}
 }
