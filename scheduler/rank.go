@@ -187,3 +187,74 @@ func (iter *BinPackIterator) Next() *RankedNode {
 func (iter *BinPackIterator) Reset() {
 	iter.source.Reset()
 }
+
+// JobAntiAffinityIterator is used to apply an anti-affinity to allocating
+// along side other allocations from this job. This is used to help distribute
+// load across the cluster.
+type JobAntiAffinityIterator struct {
+	ctx     Context
+	source  RankIterator
+	penalty float64
+	jobID   string
+}
+
+// NewJobAntiAffinityIterator is used to create a JobAntiAffinityIterator that
+// applies the given penalty for co-placement with allocs from this job.
+func NewJobAntiAffinityIterator(ctx Context, source RankIterator, penalty float64, jobID string) *JobAntiAffinityIterator {
+	iter := &JobAntiAffinityIterator{
+		ctx:     ctx,
+		source:  source,
+		penalty: penalty,
+		jobID:   jobID,
+	}
+	return iter
+}
+
+func (iter *JobAntiAffinityIterator) SetJob(jobID string) {
+	iter.jobID = jobID
+}
+
+func (iter *JobAntiAffinityIterator) Next() *RankedNode {
+	for {
+		option := iter.source.Next()
+		if option == nil {
+			return nil
+		}
+		nodeID := option.Node.ID
+
+		// Get the proposed allocations
+		var proposed []*structs.Allocation
+		if option.Proposed != nil {
+			proposed = option.Proposed
+		} else {
+			p, err := iter.ctx.ProposedAllocs(nodeID)
+			if err != nil {
+				iter.ctx.Logger().Printf("[ERR] sched.job-anti-affinity: failed to get proposed allocations for '%s': %v",
+					nodeID, err)
+				continue
+			}
+			proposed = p
+			option.Proposed = p
+		}
+
+		// Determine the number of collisions
+		collisions := 0
+		for _, alloc := range proposed {
+			if alloc.JobID == iter.jobID {
+				collisions += 1
+			}
+		}
+
+		// Apply a penalty if there are collisions
+		if collisions > 0 {
+			scorePenalty := float64(collisions) * iter.penalty
+			option.Score -= scorePenalty
+			iter.ctx.Metrics().ScoreNode(option.Node, "job-anti-affinity", scorePenalty)
+		}
+		return option
+	}
+}
+
+func (iter *JobAntiAffinityIterator) Reset() {
+	iter.source.Reset()
+}

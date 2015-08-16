@@ -301,6 +301,61 @@ func TestBinPackIterator_ExistingAlloc_PlannedEvict(t *testing.T) {
 	}
 }
 
+func TestJobAntiAffinity_PlannedAlloc(t *testing.T) {
+	_, ctx := testContext(t)
+	nodes := []*RankedNode{
+		&RankedNode{
+			Node: &structs.Node{
+				ID: mock.GenerateUUID(),
+			},
+		},
+		&RankedNode{
+			Node: &structs.Node{
+				ID: mock.GenerateUUID(),
+			},
+		},
+	}
+	static := NewStaticRankIterator(ctx, nodes)
+
+	// Add a planned alloc to node1 that fills it
+	plan := ctx.Plan()
+	plan.NodeAllocation[nodes[0].Node.ID] = []*structs.Allocation{
+		&structs.Allocation{
+			JobID: "foo",
+		},
+		&structs.Allocation{
+			JobID: "foo",
+		},
+	}
+
+	// Add a planned alloc to node2 that half fills it
+	plan.NodeAllocation[nodes[1].Node.ID] = []*structs.Allocation{
+		&structs.Allocation{
+			JobID: "bar",
+		},
+	}
+
+	binp := NewJobAntiAffinityIterator(ctx, static, 5.0, "foo")
+
+	out := collectRanked(binp)
+	if len(out) != 2 {
+		t.Fatalf("Bad: %#v", out)
+	}
+	if out[0] != nodes[0] {
+		t.Fatalf("Bad: %v", out)
+	}
+	if out[0].Score != -10.0 {
+		t.Fatalf("Bad: %v", out[0])
+	}
+
+	if out[1] != nodes[1] {
+		t.Fatalf("Bad: %v", out)
+	}
+	if out[1].Score != 0.0 {
+		t.Fatalf("Bad: %v", out[1])
+	}
+}
+
 func collectRanked(iter RankIterator) (out []*RankedNode) {
 	for {
 		next := iter.Next()
