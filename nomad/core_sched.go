@@ -2,6 +2,7 @@ package nomad
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -43,10 +44,14 @@ func (c *CoreScheduler) evalGC(eval *structs.Evaluation) error {
 		return err
 	}
 
-	// TODO: compute the old threshold limit for GC.
-	// This is a rough mapping of a time duration to the
+	// Compute the old threshold limit for GC using the FSM
+	// time table.  This is a rough mapping of a time to the
 	// Raft index it belongs to.
-	var oldThreshold uint64 = eval.ModifyIndex
+	tt := c.srv.fsm.TimeTable()
+	cutoff := time.Now().UTC().Add(-1 * c.srv.config.EvalGCThreshold)
+	oldThreshold := tt.NearestIndex(cutoff)
+	c.srv.logger.Printf("[DEBUG] sched.core: eval GC: scanning before index %d (%v)",
+		oldThreshold, c.srv.config.EvalGCThreshold)
 
 	// Collect the allocations and evaluations to GC
 	var gcAlloc, gcEval []string
