@@ -83,6 +83,61 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	return nil
 }
 
+// Evaluate is used to force a job for re-evaluation
+func (j *Job) Evaluate(args *structs.JobEvaluateRequest, reply *structs.JobRegisterResponse) error {
+	if done, err := j.srv.forward("Job.Evaluate", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "job", "evaluate"}, time.Now())
+
+	// Validate the arguments
+	if args.JobID == "" {
+		return fmt.Errorf("missing job ID for evaluation")
+	}
+
+	// Lookup the job
+	snap, err := j.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+	job, err := snap.GetJobByID(args.JobID)
+	if err != nil {
+		return err
+	}
+	if job == nil {
+		return fmt.Errorf("job not found")
+	}
+
+	// Create a new evaluation
+	eval := &structs.Evaluation{
+		ID:             generateUUID(),
+		Priority:       job.Priority,
+		Type:           job.Type,
+		TriggeredBy:    structs.EvalTriggerJobRegister,
+		JobID:          job.ID,
+		JobModifyIndex: job.ModifyIndex,
+		Status:         structs.EvalStatusPending,
+	}
+	update := &structs.EvalUpdateRequest{
+		Evals:        []*structs.Evaluation{eval},
+		WriteRequest: structs.WriteRequest{Region: args.Region},
+	}
+
+	// Commit this evaluation via Raft
+	_, evalIndex, err := j.srv.raftApply(structs.EvalUpdateRequestType, update)
+	if err != nil {
+		j.srv.logger.Printf("[ERR] nomad.job: Eval create failed: %v", err)
+		return err
+	}
+
+	// Setup the reply
+	reply.EvalID = eval.ID
+	reply.EvalCreateIndex = evalIndex
+	reply.JobModifyIndex = job.ModifyIndex
+	reply.Index = evalIndex
+	return nil
+}
+
 // Deregister is used to remove a job the cluster.
 func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobDeregisterResponse) error {
 	if done, err := j.srv.forward("Job.Deregister", args, args, reply); done {

@@ -161,6 +161,75 @@ func TestJobEndpoint_Register_Existing(t *testing.T) {
 	}
 }
 
+func TestJobEndpoint_Evaluate(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	job := mock.Job()
+	req := &structs.JobRegisterRequest{
+		Job:          job,
+		WriteRequest: structs.WriteRequest{Region: "region1"},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp.Index == 0 {
+		t.Fatalf("bad index: %d", resp.Index)
+	}
+
+	// Force a re-evaluation
+	reEval := &structs.JobEvaluateRequest{
+		JobID:        job.ID,
+		WriteRequest: structs.WriteRequest{Region: "region1"},
+	}
+
+	// Fetch the response
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Evaluate", reEval, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp.Index == 0 {
+		t.Fatalf("bad index: %d", resp.Index)
+	}
+
+	// Lookup the evaluation
+	state := s1.fsm.State()
+	eval, err := state.GetEvalByID(resp.EvalID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if eval == nil {
+		t.Fatalf("expected eval")
+	}
+	if eval.CreateIndex != resp.EvalCreateIndex {
+		t.Fatalf("index mis-match")
+	}
+
+	if eval.Priority != job.Priority {
+		t.Fatalf("bad: %#v", eval)
+	}
+	if eval.Type != job.Type {
+		t.Fatalf("bad: %#v", eval)
+	}
+	if eval.TriggeredBy != structs.EvalTriggerJobRegister {
+		t.Fatalf("bad: %#v", eval)
+	}
+	if eval.JobID != job.ID {
+		t.Fatalf("bad: %#v", eval)
+	}
+	if eval.JobModifyIndex != resp.JobModifyIndex {
+		t.Fatalf("bad: %#v", eval)
+	}
+	if eval.Status != structs.EvalStatusPending {
+		t.Fatalf("bad: %#v", eval)
+	}
+}
+
 func TestJobEndpoint_Deregister(t *testing.T) {
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()

@@ -155,6 +155,12 @@ type JobDeregisterRequest struct {
 	WriteRequest
 }
 
+// JobEvaluateRequest is used when we just need to re-evaluate a target job
+type JobEvaluateRequest struct {
+	JobID string
+	WriteRequest
+}
+
 // JobSpecificRequest is used when we just need to specify a target job
 type JobSpecificRequest struct {
 	JobID string
