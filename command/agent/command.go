@@ -3,13 +3,22 @@ package agent
 import (
 	"flag"
 	"fmt"
+	"io"
+	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/armon/go-metrics"
+	"github.com/hashicorp/go-syslog"
+	"github.com/hashicorp/logutils"
 	"github.com/hashicorp/vault/helper/flag-slice"
 	"github.com/mitchellh/cli"
 )
+
+// gracefulTimeout controls how long we wait before forcefully terminating
+const gracefulTimeout = 5 * time.Second
 
 // Command is a Command implementation that runs a Consul agent.
 // The command will not end unless a shutdown message is sent on the
@@ -22,7 +31,10 @@ type Command struct {
 	Ui                cli.Ui
 	ShutdownCh        <-chan struct{}
 
-	args []string
+	args      []string
+	agent     *Agent
+	logFilter *logutils.LevelFilter
+	logOutput io.Writer
 }
 
 func (c *Command) readConfig() *Config {
@@ -42,6 +54,8 @@ func (c *Command) readConfig() *Config {
 	var config *Config
 	if dev {
 		config = DevConfig()
+	} else {
+		config = DefaultConfig()
 	}
 	for _, path := range configPath {
 		current, err := LoadConfig(path)
@@ -61,6 +75,48 @@ func (c *Command) readConfig() *Config {
 	return config
 }
 
+// setupLoggers is used to setup the logGate, logWriter, and our logOutput
+func (c *Command) setupLoggers(config *Config) (*GatedWriter, *logWriter, io.Writer) {
+	// Setup logging. First create the gated log writer, which will
+	// store logs until we're ready to show them. Then create the level
+	// filter, filtering logs of the specified level.
+	logGate := &GatedWriter{
+		Writer: &cli.UiWriter{Ui: c.Ui},
+	}
+
+	c.logFilter = LevelFilter()
+	c.logFilter.MinLevel = logutils.LogLevel(strings.ToUpper(config.LogLevel))
+	c.logFilter.Writer = logGate
+	if !ValidateLevelFilter(c.logFilter.MinLevel, c.logFilter) {
+		c.Ui.Error(fmt.Sprintf(
+			"Invalid log level: %s. Valid log levels are: %v",
+			c.logFilter.MinLevel, c.logFilter.Levels))
+		return nil, nil, nil
+	}
+
+	// Check if syslog is enabled
+	var syslog io.Writer
+	if config.EnableSyslog {
+		l, err := gsyslog.NewLogger(gsyslog.LOG_NOTICE, config.SyslogFacility, "consul")
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Syslog setup failed: %v", err))
+			return nil, nil, nil
+		}
+		syslog = &SyslogWrapper{l, c.logFilter}
+	}
+
+	// Create a log writer, and wrap a logOutput around it
+	logWriter := NewLogWriter(512)
+	var logOutput io.Writer
+	if syslog != nil {
+		logOutput = io.MultiWriter(c.logFilter, logWriter, syslog)
+	} else {
+		logOutput = io.MultiWriter(c.logFilter, logWriter)
+	}
+	c.logOutput = logOutput
+	return logGate, logWriter, logOutput
+}
+
 func (c *Command) Run(args []string) int {
 	c.Ui = &cli.PrefixedUi{
 		OutputPrefix: "==> ",
@@ -76,13 +132,111 @@ func (c *Command) Run(args []string) int {
 		return 1
 	}
 
+	// Setup the log outputs
+	logGate, _, _ := c.setupLoggers(config)
+	if logGate == nil {
+		return 1
+	}
+
 	// Initialize the telemetry
 	if err := c.setupTelementry(config); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error initializing telemetry: %s", err))
 		return 1
 	}
 
-	return 0
+	// Let the user know things are running
+	c.Ui.Output("Nomad agent running!")
+
+	// Enable log streaming
+	c.Ui.Info("")
+	c.Ui.Output("Log data will now stream in as it occurs:\n")
+	logGate.Flush()
+
+	// Wait for exit
+	return c.handleSignals(config)
+}
+
+// handleSignals blocks until we get an exit-causing signal
+func (c *Command) handleSignals(config *Config) int {
+	signalCh := make(chan os.Signal, 4)
+	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
+
+	// Wait for a signal
+WAIT:
+	var sig os.Signal
+	select {
+	case s := <-signalCh:
+		sig = s
+	case <-c.ShutdownCh:
+		sig = os.Interrupt
+	}
+	c.Ui.Output(fmt.Sprintf("Caught signal: %v", sig))
+
+	// Check if this is a SIGHUP
+	if sig == syscall.SIGHUP {
+		if conf := c.handleReload(config); conf != nil {
+			config = conf
+		}
+		goto WAIT
+	}
+
+	// Check if we should do a graceful leave
+	graceful := false
+	if sig == os.Interrupt && !config.LeaveOnInt {
+		graceful = true
+	} else if sig == syscall.SIGTERM && config.LeaveOnTerm {
+		graceful = true
+	}
+
+	// Bail fast if not doing a graceful leave
+	if !graceful {
+		return 1
+	}
+
+	// Attempt a graceful leave
+	gracefulCh := make(chan struct{})
+	c.Ui.Output("Gracefully shutting down agent...")
+	go func() {
+		if err := c.agent.Leave(); err != nil {
+			c.Ui.Error(fmt.Sprintf("Error: %s", err))
+			return
+		}
+		close(gracefulCh)
+	}()
+
+	// Wait for leave or another signal
+	select {
+	case <-signalCh:
+		return 1
+	case <-time.After(gracefulTimeout):
+		return 1
+	case <-gracefulCh:
+		return 0
+	}
+}
+
+// handleReload is invoked when we should reload our configs, e.g. SIGHUP
+func (c *Command) handleReload(config *Config) *Config {
+	c.Ui.Output("Reloading configuration...")
+	newConf := c.readConfig()
+	if newConf == nil {
+		c.Ui.Error(fmt.Sprintf("Failed to reload configs"))
+		return config
+	}
+
+	// Change the log level
+	minLevel := logutils.LogLevel(strings.ToUpper(newConf.LogLevel))
+	if ValidateLevelFilter(minLevel, c.logFilter) {
+		c.logFilter.SetMinLevel(minLevel)
+	} else {
+		c.Ui.Error(fmt.Sprintf(
+			"Invalid log level: %s. Valid log levels are: %v",
+			minLevel, c.logFilter.Levels))
+
+		// Keep the current log level
+		newConf.LogLevel = config.LogLevel
+	}
+	return newConf
 }
 
 // setupTelementry is used ot setup the telemetry sub-systems
@@ -101,7 +255,7 @@ func (c *Command) setupTelementry(config *Config) error {
 		telConfig = config.Telemetry
 	}
 
-	metricsConf := metrics.DefaultConfig("vault")
+	metricsConf := metrics.DefaultConfig("nomad")
 	metricsConf.EnableHostname = !telConfig.DisableHostname
 
 	// Configure the statsite sink

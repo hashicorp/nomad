@@ -36,6 +36,11 @@ type Config struct {
 	Server *ServerConfig `hcl:"server"`
 
 	Telemetry *Telemetry `hcl:"telemetry"`
+
+	LeaveOnInt     bool
+	LeaveOnTerm    bool
+	EnableSyslog   bool
+	SyslogFacility string
 }
 
 type ClientConfig struct {
@@ -79,7 +84,16 @@ type Telemetry struct {
 
 // DevConfig is a Config that is used for dev mode of Nomad.
 func DevConfig() *Config {
-	return &Config{}
+	return &Config{
+		LogLevel: "DEBUG",
+	}
+}
+
+// DefaultConfig is a the baseline configuration for Nomad
+func DefaultConfig() *Config {
+	return &Config{
+		LogLevel: "INFO",
+	}
 }
 
 // Merge merges two configurations.
