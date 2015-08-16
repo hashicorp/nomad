@@ -15,19 +15,17 @@ import (
 // Config is the configuration for the Nomad agent.
 type Config struct {
 	// Region is the region this agent is in. Defaults to region1.
-	Region string ``
+	Region string `hcl:"region"`
 
 	// DataDir is the directory to store our state in
-	DataDir string `mapstructure:"data_dir"`
+	DataDir string `hcl:"data_dir"`
 
 	// LogLevel is the level of the logs to putout
-	LogLevel string `mapstructure:"log_level"`
+	LogLevel string `hcl:"log_level"`
 
-	// BindAddr is used to control the address we bind to.
-	// If not specified, the first private IP we find is used.
-	// This controls the address we use for cluster facing
-	// services (Gossip, Server RPC)
-	BindAddr string `mapstructure:"bind_addr"`
+	// HttpAddr is used to control the address and port we bind to.
+	// If not specified, 127.0.0.1:4646 is used.
+	HttpAddr string `hcl:"http_addr"`
 
 	// Client has our client related settings
 	Client *ClientConfig `hcl:"client"`
@@ -45,6 +43,7 @@ type Config struct {
 	DisableUpdateCheck        bool
 	DisableAnonymousSignature bool
 
+	Revision          string
 	Version           string
 	VersionPrerelease string
 }
@@ -79,6 +78,12 @@ type ServerConfig struct {
 	// AdvertiseAddr is the address we use for advertising our Serf,
 	// and Consul RPC IP. If not specified, bind address is used.
 	AdvertiseAddr string `mapstructure:"advertise_addr"`
+
+	// BindAddr is used to control the address we bind to.
+	// If not specified, the first private IP we find is used.
+	// This controls the address we use for cluster facing
+	// services (Gossip, Server RPC)
+	BindAddr string `hcl:"bind_addr"`
 }
 
 // Telemetry is the telemetry configuration for the server

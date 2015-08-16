@@ -82,6 +82,12 @@ func (c *Command) readConfig() *Config {
 	if config.Server == nil {
 		config.Server = &ServerConfig{}
 	}
+
+	// Set the version info
+	config.Revision = c.Revision
+	config.Version = c.Version
+	config.VersionPrerelease = c.VersionPrerelease
+
 	return config
 }
 

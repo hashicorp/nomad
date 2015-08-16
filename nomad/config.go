@@ -17,7 +17,7 @@ import (
 const (
 	DefaultRegion   = "region1"
 	DefaultDC       = "dc1"
-	DefaultSerfPort = 4647
+	DefaultSerfPort = 4648
 )
 
 // These are the protocol versions that Nomad can understand
@@ -38,7 +38,7 @@ func init() {
 }
 
 var (
-	DefaultRPCAddr = &net.TCPAddr{IP: net.ParseIP("0.0.0.0"), Port: 4646}
+	DefaultRPCAddr = &net.TCPAddr{IP: net.ParseIP("0.0.0.0"), Port: 4647}
 )
 
 // Config is used to parameterize the server
