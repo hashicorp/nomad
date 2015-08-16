@@ -67,6 +67,8 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	}
 
 	// Commit this evaluation via Raft
+	// XXX: There is a risk of partial failure where the JobRegister succeeds
+	// but that the EvalUpdate does not.
 	_, evalIndex, err := j.srv.raftApply(structs.EvalUpdateRequestType, update)
 	if err != nil {
 		j.srv.logger.Printf("[ERR] nomad.job: Eval create failed: %v", err)

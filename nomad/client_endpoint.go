@@ -235,6 +235,8 @@ func (c *Client) createNodeEvals(nodeID string, nodeIndex uint64) ([]string, uin
 	}
 
 	// Commit this evaluation via Raft
+	// XXX: There is a risk of partial failure where the node update succeeds
+	// but that the EvalUpdate does not.
 	_, evalIndex, err := c.srv.raftApply(structs.EvalUpdateRequestType, update)
 	if err != nil {
 		return nil, 0, err
