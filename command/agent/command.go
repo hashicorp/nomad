@@ -1,8 +1,13 @@
 package agent
 
 import (
+	"flag"
+	"fmt"
 	"strings"
+	"time"
 
+	"github.com/armon/go-metrics"
+	"github.com/hashicorp/vault/helper/flag-slice"
 	"github.com/mitchellh/cli"
 )
 
@@ -16,6 +21,44 @@ type Command struct {
 	VersionPrerelease string
 	Ui                cli.Ui
 	ShutdownCh        <-chan struct{}
+
+	args []string
+}
+
+func (c *Command) readConfig() *Config {
+	var dev bool
+	var configPath []string
+	var logLevel string
+	flags := flag.NewFlagSet("agent", flag.ContinueOnError)
+	flags.BoolVar(&dev, "dev", false, "")
+	flags.StringVar(&logLevel, "log-level", "info", "")
+	flags.Usage = func() { c.Ui.Error(c.Help()) }
+	flags.Var((*sliceflag.StringFlag)(&configPath), "config", "config")
+	if err := flags.Parse(c.args); err != nil {
+		return nil
+	}
+
+	// Load the configuration
+	var config *Config
+	if dev {
+		config = DevConfig()
+	}
+	for _, path := range configPath {
+		current, err := LoadConfig(path)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf(
+				"Error loading configuration from %s: %s", path, err))
+			return nil
+		}
+
+		if config == nil {
+			config = current
+		} else {
+			config = config.Merge(current)
+		}
+	}
+
+	return config
 }
 
 func (c *Command) Run(args []string) int {
@@ -25,7 +68,70 @@ func (c *Command) Run(args []string) int {
 		ErrorPrefix:  "==> ",
 		Ui:           c.Ui,
 	}
+
+	// Parse our configs
+	c.args = args
+	config := c.readConfig()
+	if config == nil {
+		return 1
+	}
+
+	// Initialize the telemetry
+	if err := c.setupTelementry(config); err != nil {
+		c.Ui.Error(fmt.Sprintf("Error initializing telemetry: %s", err))
+		return 1
+	}
+
 	return 0
+}
+
+// setupTelementry is used ot setup the telemetry sub-systems
+func (c *Command) setupTelementry(config *Config) error {
+	/* Setup telemetry
+	Aggregate on 10 second intervals for 1 minute. Expose the
+	metrics over stderr when there is a SIGUSR1 received.
+	*/
+	inm := metrics.NewInmemSink(10*time.Second, time.Minute)
+	metrics.DefaultInmemSignal(inm)
+
+	var telConfig *Telemetry
+	if config.Telemetry == nil {
+		telConfig = &Telemetry{}
+	} else {
+		telConfig = config.Telemetry
+	}
+
+	metricsConf := metrics.DefaultConfig("vault")
+	metricsConf.EnableHostname = !telConfig.DisableHostname
+
+	// Configure the statsite sink
+	var fanout metrics.FanoutSink
+	if telConfig.StatsiteAddr != "" {
+		sink, err := metrics.NewStatsiteSink(telConfig.StatsiteAddr)
+		if err != nil {
+			return err
+		}
+		fanout = append(fanout, sink)
+	}
+
+	// Configure the statsd sink
+	if telConfig.StatsdAddr != "" {
+		sink, err := metrics.NewStatsdSink(telConfig.StatsdAddr)
+		if err != nil {
+			return err
+		}
+		fanout = append(fanout, sink)
+	}
+
+	// Initialize the global sink
+	if len(fanout) > 0 {
+		fanout = append(fanout, inm)
+		metrics.NewGlobal(metricsConf, fanout)
+	} else {
+		metricsConf.EnableHostname = false
+		metrics.NewGlobal(metricsConf, inm)
+	}
+	return nil
 }
 
 func (c *Command) Synopsis() string {
