@@ -114,6 +114,9 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 
 	// Scheduler periodic jobs
 	go s.schedulePeriodic(stopCh)
+
+	// Reap any failed evaluations
+	go s.reapFailedEvaluations(stopCh)
 	return nil
 }
 
@@ -170,6 +173,44 @@ func (s *Server) coreJobEval(job string) *structs.Evaluation {
 		JobID:       job,
 		Status:      structs.EvalStatusPending,
 		ModifyIndex: s.raft.AppliedIndex(),
+	}
+}
+
+// reapFailedEvaluations is used to reap evaluations that
+// have reached their delivery limit and should be failed
+func (s *Server) reapFailedEvaluations(stopCh chan struct{}) {
+	for {
+		select {
+		case <-stopCh:
+			return
+		default:
+			// Scan for a failed evaluation
+			eval, token, err := s.evalBroker.Dequeue([]string{failedQueue}, time.Second)
+			if err != nil {
+				return
+			}
+			if eval == nil {
+				continue
+			}
+
+			// Update the status to failed
+			newEval := eval.Copy()
+			newEval.Status = structs.EvalStatusFailed
+			newEval.StatusDescription = fmt.Sprintf("evaluation reached delivery limit (%d)", s.config.EvalDeliveryLimit)
+			s.logger.Printf("[WARN] nomad: eval %#v reached delivery limit, marking as failed", newEval)
+
+			// Update via Raft
+			req := structs.EvalUpdateRequest{
+				Evals: []*structs.Evaluation{newEval},
+			}
+			if _, _, err := s.raftApply(structs.EvalUpdateRequestType, &req); err != nil {
+				s.logger.Printf("[ERR] nomad: failed to update failed eval %#v: %v", newEval, err)
+				continue
+			}
+
+			// Ack completion
+			s.evalBroker.Ack(eval.ID, token)
+		}
 	}
 }
 

@@ -304,3 +304,40 @@ func TestLeader_PeriodicDispatch(t *testing.T) {
 		t.Fatalf("should pending job")
 	})
 }
+
+func TestLeader_ReapFailedEval(t *testing.T) {
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+		c.EvalDeliveryLimit = 1
+	})
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Wait for a periodic dispatch
+	eval := mock.Eval()
+	testutil.WaitForResult(func() (bool, error) {
+		err := s1.evalBroker.Enqueue(eval)
+		return err == nil, err
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	// Dequeue and Nack
+	out, token, err := s1.evalBroker.Dequeue(defaultSched, time.Second)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	s1.evalBroker.Nack(out.ID, token)
+
+	// Wait updated evaluation
+	state := s1.fsm.State()
+	testutil.WaitForResult(func() (bool, error) {
+		out, err := state.GetEvalByID(eval.ID)
+		if err != nil {
+			return false, err
+		}
+		return out != nil && out.Status == structs.EvalStatusFailed, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+}
