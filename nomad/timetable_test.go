@@ -1,9 +1,12 @@
 package nomad
 
 import (
+	"bytes"
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/hashicorp/go-msgpack/codec"
 )
 
 func TestTimeTable(t *testing.T) {
@@ -100,13 +103,18 @@ func TestTimeTable_SerializeDeserialize(t *testing.T) {
 	tt.Witness(40, plusThirty)
 	tt.Witness(50, plusHour)
 
-	buf, err := tt.Serialize()
+	var buf bytes.Buffer
+	enc := codec.NewEncoder(&buf, msgpackHandle)
+
+	err := tt.Serialize(enc)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
+	dec := codec.NewDecoder(&buf, msgpackHandle)
+
 	tt2 := NewTimeTable(time.Second, time.Minute)
-	err = tt2.Deserialize(buf)
+	err = tt2.Deserialize(dec)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

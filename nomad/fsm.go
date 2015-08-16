@@ -20,6 +20,14 @@ var (
 	}
 )
 
+const (
+	// timeTableGranularity is the granularity of index to time tracking
+	timeTableGranularity = 5 * time.Minute
+
+	// timeTableLimit is the maximum limit of our tracking
+	timeTableLimit = 24 * time.Hour
+)
+
 // SnapshotType is prefixed to a record in the FSM snapshot
 // so that we can determine the type for restore
 type SnapshotType byte
@@ -30,6 +38,7 @@ const (
 	IndexSnapshot
 	EvalSnapshot
 	AllocSnapshot
+	TimeTableSnapshot
 )
 
 // nomadFSM implements a finite state machine that is used
@@ -40,13 +49,15 @@ type nomadFSM struct {
 	logOutput  io.Writer
 	logger     *log.Logger
 	state      *state.StateStore
+	timetable  *TimeTable
 }
 
 // nomadSnapshot is used to provide a snapshot of the current
 // state in a way that can be accessed concurrently with operations
 // that may modify the live state.
 type nomadSnapshot struct {
-	snap *state.StateSnapshot
+	snap      *state.StateSnapshot
+	timetable *TimeTable
 }
 
 // snapshotHeader is the first entry in our snapshot
@@ -66,6 +77,7 @@ func NewFSM(evalBroker *EvalBroker, logOutput io.Writer) (*nomadFSM, error) {
 		logOutput:  logOutput,
 		logger:     log.New(logOutput, "", log.LstdFlags),
 		state:      state,
+		timetable:  NewTimeTable(timeTableGranularity, timeTableLimit),
 	}
 	return fsm, nil
 }
@@ -80,9 +92,17 @@ func (n *nomadFSM) State() *state.StateStore {
 	return n.state
 }
 
+// TimeTable returns the time table of transactions
+func (n *nomadFSM) TimeTable() *TimeTable {
+	return n.timetable
+}
+
 func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 	buf := log.Data
 	msgType := structs.MessageType(buf[0])
+
+	// Witness this write
+	n.timetable.Witness(log.Index, time.Now().UTC())
 
 	// Check if this message type should be ignored when unknown. This is
 	// used so that new commands can be added with developer control if older
@@ -247,7 +267,12 @@ func (n *nomadFSM) Snapshot() (raft.FSMSnapshot, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &nomadSnapshot{snap}, nil
+
+	ns := &nomadSnapshot{
+		snap:      snap,
+		timetable: n.timetable,
+	}
+	return ns, nil
 }
 
 func (n *nomadFSM) Restore(old io.ReadCloser) error {
@@ -289,6 +314,11 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 
 		// Decode
 		switch SnapshotType(msgType[0]) {
+		case TimeTableSnapshot:
+			if err := n.timetable.Deserialize(dec); err != nil {
+				return fmt.Errorf("time table deserialize failed: %v", err)
+			}
+
 		case NodeSnapshot:
 			node := new(structs.Node)
 			if err := dec.Decode(node); err != nil {
@@ -352,6 +382,13 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 	// Write the header
 	header := snapshotHeader{}
 	if err := encoder.Encode(&header); err != nil {
+		sink.Cancel()
+		return err
+	}
+
+	// Write the time table
+	sink.Write([]byte{byte(TimeTableSnapshot)})
+	if err := s.timetable.Serialize(encoder); err != nil {
 		sink.Cancel()
 		return err
 	}

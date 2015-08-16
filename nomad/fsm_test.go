@@ -5,6 +5,7 @@ import (
 	"os"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -87,6 +88,12 @@ func TestFSM_RegisterNode(t *testing.T) {
 	}
 	if node.CreateIndex != 1 {
 		t.Fatalf("bad index: %d", node.CreateIndex)
+	}
+
+	tt := fsm.TimeTable()
+	index := tt.NearestIndex(time.Now().UTC())
+	if index != 1 {
+		t.Fatalf("bad: %d", index)
 	}
 }
 
@@ -498,5 +505,26 @@ func TestFSM_SnapshotRestore_Indexes(t *testing.T) {
 	}
 	if index != 1000 {
 		t.Fatalf("bad: %d", index)
+	}
+}
+
+func TestFSM_SnapshotRestore_TimeTable(t *testing.T) {
+	// Add some state
+	fsm := testFSM(t)
+
+	tt := fsm.TimeTable()
+	start := time.Now().UTC()
+	tt.Witness(1000, start)
+	tt.Witness(2000, start.Add(10*time.Minute))
+
+	// Verify the contents
+	fsm2 := testSnapshotRestore(t, fsm)
+
+	tt2 := fsm2.TimeTable()
+	if tt2.NearestTime(1500) != start {
+		t.Fatalf("bad")
+	}
+	if tt2.NearestIndex(start.Add(15*time.Minute)) != 2000 {
+		t.Fatalf("bad")
 	}
 }

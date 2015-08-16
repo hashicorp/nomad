@@ -1,7 +1,6 @@
 package nomad
 
 import (
-	"bytes"
 	"sort"
 	"sync"
 	"time"
@@ -42,23 +41,16 @@ func NewTimeTable(granularity time.Duration, limit time.Duration) *TimeTable {
 }
 
 // Serialize is used to serialize the time table
-func (t *TimeTable) Serialize() ([]byte, error) {
+func (t *TimeTable) Serialize(enc *codec.Encoder) error {
 	t.l.RLock()
 	defer t.l.RUnlock()
-
-	var buf bytes.Buffer
-	encoder := codec.NewEncoder(&buf, msgpackHandle)
-	if err := encoder.Encode(t.table); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
+	return enc.Encode(t.table)
 }
 
 // Deserialize is used to deserialize the time table
 // and restore the state
-func (t *TimeTable) Deserialize(buf []byte) error {
+func (t *TimeTable) Deserialize(dec *codec.Decoder) error {
 	// Decode the table
-	dec := codec.NewDecoder(bytes.NewReader(buf), msgpackHandle)
 	var table []TimeTableEntry
 	if err := dec.Decode(&table); err != nil {
 		return err
