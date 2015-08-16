@@ -22,6 +22,11 @@ type Context interface {
 
 	// Reset is invoked after making a placement
 	Reset()
+
+	// ProposedAllocs returns the proposed allocations for a node
+	// which is the existing allocations, removing evictions, and
+	// adding any planned placements.
+	ProposedAllocs(nodeID string) ([]*structs.Allocation, error)
 }
 
 // EvalContext is a Context used during an Evaluation
@@ -65,4 +70,26 @@ func (e *EvalContext) SetState(s State) {
 
 func (e *EvalContext) Reset() {
 	e.metrics = new(structs.AllocMetric)
+}
+
+func (e *EvalContext) ProposedAllocs(nodeID string) ([]*structs.Allocation, error) {
+	// Get the existing allocations
+	existingAlloc, err := e.state.AllocsByNode(nodeID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Determine the proposed allocation by first removing allocations
+	// that are planned evictions and adding the new allocations.
+	proposed := existingAlloc
+	if evict := e.plan.NodeEvict[nodeID]; len(evict) > 0 {
+		proposed = structs.RemoveAllocs(existingAlloc, evict)
+	}
+	proposed = append(proposed, e.plan.NodeAllocation[nodeID]...)
+
+	// Ensure the return is not nil
+	if proposed == nil {
+		proposed = make([]*structs.Allocation, 0)
+	}
+	return proposed, nil
 }

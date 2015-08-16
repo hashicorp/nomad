@@ -12,6 +12,10 @@ import (
 type RankedNode struct {
 	Node  *structs.Node
 	Score float64
+
+	// Allocs is used to cache the proposed allocations on the
+	// node. This can be shared between iterators that require it.
+	Proposed []*structs.Allocation
 }
 
 func (r *RankedNode) GoString() string {
@@ -134,9 +138,6 @@ func (iter *BinPackIterator) SetPriority(p int) {
 }
 
 func (iter *BinPackIterator) Next() *RankedNode {
-	ctx := iter.ctx
-	state := ctx.State()
-	plan := ctx.Plan()
 	for {
 		// Get the next potential option
 		option := iter.source.Next()
@@ -145,21 +146,20 @@ func (iter *BinPackIterator) Next() *RankedNode {
 		}
 		nodeID := option.Node.ID
 
-		// Get the existing allocations
-		existingAlloc, err := state.AllocsByNode(nodeID)
-		if err != nil {
-			iter.ctx.Logger().Printf("[ERR] sched.binpack: failed to get allocations for '%s': %v",
-				nodeID, err)
-			continue
+		// Get the proposed allocations
+		var proposed []*structs.Allocation
+		if option.Proposed != nil {
+			proposed = option.Proposed
+		} else {
+			p, err := iter.ctx.ProposedAllocs(nodeID)
+			if err != nil {
+				iter.ctx.Logger().Printf("[ERR] sched.binpack: failed to get proposed allocations for '%s': %v",
+					nodeID, err)
+				continue
+			}
+			proposed = p
+			option.Proposed = p
 		}
-
-		// Determine the proposed allocation by first removing allocations
-		// that are planned evictions and adding the new allocations.
-		proposed := existingAlloc
-		if evict := plan.NodeEvict[nodeID]; len(evict) > 0 {
-			proposed = structs.RemoveAllocs(existingAlloc, evict)
-		}
-		proposed = append(proposed, plan.NodeAllocation[nodeID]...)
 
 		// Add the resources we are trying to fit
 		proposed = append(proposed, &structs.Allocation{Resources: iter.resources})
@@ -177,8 +177,9 @@ func (iter *BinPackIterator) Next() *RankedNode {
 		// carefully.
 
 		// Score the fit normally otherwise
-		option.Score = structs.ScoreFit(option.Node, util)
-		iter.ctx.Metrics().ScoreNode(option.Node, "binpack", option.Score)
+		fitness := structs.ScoreFit(option.Node, util)
+		option.Score += fitness
+		iter.ctx.Metrics().ScoreNode(option.Node, "binpack", fitness)
 		return option
 	}
 }
