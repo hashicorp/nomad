@@ -7,6 +7,17 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+const (
+	// serviceJobAntiAffinityPenalty is the penalty applied
+	// to the score for placing an alloc on a node that
+	// already has an alloc for this job.
+	serviceJobAntiAffinityPenalty = 10.0
+
+	// batchJobAntiAffinityPenalty is the same as the
+	// serviceJobAntiAffinityPenalty but for batch type jobs.
+	batchJobAntiAffinityPenalty = 5.0
+)
+
 // Stack is a chained collection of iterators. The stack is used to
 // make placement decisions. Different schedulers may customize the
 // stack they use to vary the way placements are made.
@@ -27,6 +38,7 @@ type GenericStack struct {
 	taskGroupDrivers    *DriverIterator
 	taskGroupConstraint *ConstraintIterator
 	binPack             *BinPackIterator
+	jobAntiAff          *JobAntiAffinityIterator
 	maxScore            *MaxScoreIterator
 }
 
@@ -61,6 +73,15 @@ func NewGenericStack(batch bool, ctx Context, baseNodes []*structs.Node) *Generi
 	evict := !batch
 	stack.binPack = NewBinPackIterator(ctx, rankSource, nil, evict, 0)
 
+	// Apply the job anti-affinity iterator. This is to avoid placing
+	// multiple allocations on the same node for this job. The penalty
+	// is less for batch jobs as it matters less.
+	penalty := serviceJobAntiAffinityPenalty
+	if batch {
+		penalty = batchJobAntiAffinityPenalty
+	}
+	stack.jobAntiAff = NewJobAntiAffinityIterator(ctx, stack.binPack, penalty, "")
+
 	// Apply a limit function. This is to avoid scanning *every* possible node.
 	// For batch jobs we only need to evaluate 2 options and depend on the
 	// powwer of two choices. For services jobs we need to visit "enough".
@@ -83,6 +104,7 @@ func NewGenericStack(batch bool, ctx Context, baseNodes []*structs.Node) *Generi
 func (s *GenericStack) SetJob(job *structs.Job) {
 	s.jobConstraint.SetConstraints(job.Constraints)
 	s.binPack.SetPriority(job.Priority)
+	s.jobAntiAff.SetJob(job.ID)
 }
 
 func (s *GenericStack) Select(tg *structs.TaskGroup) (*RankedNode, *structs.Resources) {
