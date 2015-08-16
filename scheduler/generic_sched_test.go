@@ -90,7 +90,7 @@ func TestServiceSched_JobRegister_AllocFail(t *testing.T) {
 	plan := h.Plans[0]
 
 	// Ensure the plan failed to alloc
-	if len(plan.FailedAllocs) != 10 {
+	if len(plan.FailedAllocs) != 1 {
 		t.Fatalf("bad: %#v", plan)
 	}
 
@@ -99,8 +99,13 @@ func TestServiceSched_JobRegister_AllocFail(t *testing.T) {
 	noErr(t, err)
 
 	// Ensure all allocations placed
-	if len(out) != 10 {
+	if len(out) != 1 {
 		t.Fatalf("bad: %#v", out)
+	}
+
+	// Check the coalesced failures
+	if out[0].Metrics.CoalescedFailures != 9 {
+		t.Fatalf("bad: %#v", out[0].Metrics)
 	}
 
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)

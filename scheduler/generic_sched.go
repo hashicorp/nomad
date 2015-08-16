@@ -222,8 +222,21 @@ func (s *GenericScheduler) computePlacements(job *structs.Job, place []allocTupl
 	// Construct the placement stack
 	stack := NewGenericStack(s.batch, ctx, nodes)
 
+	// Track the failed task groups so that we can coalesce
+	// the failures together to avoid creating many failed allocs.
+	failedTG := make(map[*structs.TaskGroup]*structs.Allocation)
+
 	for _, missing := range place {
+		// Check if this task group has already failed
+		if alloc, ok := failedTG[missing.TaskGroup]; ok {
+			alloc.Metrics.CoalescedFailures += 1
+			continue
+		}
+
+		// Attempt to match the task group
 		option, size := stack.Select(missing.TaskGroup)
+
+		// Handle a placement failure
 		var nodeID, status, desc string
 		if option == nil {
 			status = structs.AllocStatusFailed
@@ -250,6 +263,7 @@ func (s *GenericScheduler) computePlacements(job *structs.Job, place []allocTupl
 			s.plan.AppendAlloc(alloc)
 		} else {
 			s.plan.AppendFailed(alloc)
+			failedTG[missing.TaskGroup] = alloc
 		}
 	}
 	return nil

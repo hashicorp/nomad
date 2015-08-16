@@ -721,6 +721,12 @@ type AllocMetric struct {
 	// AllocationTime is a measure of how long the allocation
 	// attempt took. This can affect performance and SLAs.
 	AllocationTime time.Duration
+
+	// CoalescedFailures indicates the number of other
+	// allocations that were coalesced into this failed allocation.
+	// This is to prevent creating many failed allocations for a
+	// single task group.
+	CoalescedFailures int
 }
 
 func (a *AllocMetric) EvaluateNode() {
