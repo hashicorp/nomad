@@ -4,6 +4,7 @@ import (
 	"os"
 
 	"github.com/hashicorp/nomad/command"
+	"github.com/hashicorp/nomad/command/agent"
 	"github.com/mitchellh/cli"
 )
 
@@ -23,6 +24,16 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 	}
 
 	return map[string]cli.CommandFactory{
+		"agent": func() (cli.Command, error) {
+			return &agent.Command{
+				Revision:          GitCommit,
+				Version:           Version,
+				VersionPrerelease: VersionPrerelease,
+				Ui:                meta.Ui,
+				ShutdownCh:        make(chan struct{}),
+			}, nil
+		},
+
 		"version": func() (cli.Command, error) {
 			ver := Version
 			rel := VersionPrerelease
