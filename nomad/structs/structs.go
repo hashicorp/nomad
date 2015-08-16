@@ -753,11 +753,12 @@ func (a *AllocMetric) ExhaustedNode(node *Node) {
 	}
 }
 
-func (a *AllocMetric) ScoreNode(node *Node, score float64) {
+func (a *AllocMetric) ScoreNode(node *Node, name string, score float64) {
 	if a.Scores == nil {
 		a.Scores = make(map[string]float64)
 	}
-	a.Scores[node.ID] = score
+	key := fmt.Sprintf("%s.%s", node.ID, name)
+	a.Scores[key] = score
 }
 
 const (

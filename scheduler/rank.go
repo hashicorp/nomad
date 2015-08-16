@@ -178,7 +178,7 @@ func (iter *BinPackIterator) Next() *RankedNode {
 
 		// Score the fit normally otherwise
 		option.Score = structs.ScoreFit(option.Node, util)
-		iter.ctx.Metrics().ScoreNode(option.Node, option.Score)
+		iter.ctx.Metrics().ScoreNode(option.Node, "binpack", option.Score)
 		return option
 	}
 }
