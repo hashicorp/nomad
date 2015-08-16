@@ -6,21 +6,24 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/armon/go-metrics"
+	"github.com/hashicorp/go-checkpoint"
 	"github.com/hashicorp/go-syslog"
 	"github.com/hashicorp/logutils"
-	"github.com/hashicorp/vault/helper/flag-slice"
 	"github.com/mitchellh/cli"
 )
 
 // gracefulTimeout controls how long we wait before forcefully terminating
 const gracefulTimeout = 5 * time.Second
 
-// Command is a Command implementation that runs a Consul agent.
+// Command is a Command implementation that runs a Nomad agent.
 // The command will not end unless a shutdown message is sent on the
 // ShutdownCh. If two messages are sent on the ShutdownCh it will forcibly
 // exit.
@@ -45,7 +48,7 @@ func (c *Command) readConfig() *Config {
 	flags.BoolVar(&dev, "dev", false, "")
 	flags.StringVar(&logLevel, "log-level", "info", "")
 	flags.Usage = func() { c.Ui.Error(c.Help()) }
-	flags.Var((*sliceflag.StringFlag)(&configPath), "config", "config")
+	flags.Var((*AppendSliceValue)(&configPath), "config", "config")
 	if err := flags.Parse(c.args); err != nil {
 		return nil
 	}
@@ -72,6 +75,13 @@ func (c *Command) readConfig() *Config {
 		}
 	}
 
+	// Ensure the sub-structs at least exist
+	if config.Client == nil {
+		config.Client = &ClientConfig{}
+	}
+	if config.Server == nil {
+		config.Server = &ServerConfig{}
+	}
 	return config
 }
 
@@ -97,7 +107,7 @@ func (c *Command) setupLoggers(config *Config) (*GatedWriter, *logWriter, io.Wri
 	// Check if syslog is enabled
 	var syslog io.Writer
 	if config.EnableSyslog {
-		l, err := gsyslog.NewLogger(gsyslog.LOG_NOTICE, config.SyslogFacility, "consul")
+		l, err := gsyslog.NewLogger(gsyslog.LOG_NOTICE, config.SyslogFacility, "nomad")
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Syslog setup failed: %v", err))
 			return nil, nil, nil
@@ -117,6 +127,61 @@ func (c *Command) setupLoggers(config *Config) (*GatedWriter, *logWriter, io.Wri
 	return logGate, logWriter, logOutput
 }
 
+// setupAgent is used to start the agent and various interfaces
+func (c *Command) setupAgent(config *Config, logOutput io.Writer) error {
+	c.Ui.Output("Starting Nomad agent...")
+	agent, err := NewAgent(config, logOutput)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error starting agent: %s", err))
+		return err
+	}
+	c.agent = agent
+
+	// Setup update checking
+	if !config.DisableUpdateCheck {
+		version := config.Version
+		if config.VersionPrerelease != "" {
+			version += fmt.Sprintf("-%s", config.VersionPrerelease)
+		}
+		updateParams := &checkpoint.CheckParams{
+			Product: "nomad",
+			Version: version,
+		}
+		if !config.DisableAnonymousSignature {
+			updateParams.SignatureFile = filepath.Join(config.DataDir, "checkpoint-signature")
+		}
+
+		// Schedule a periodic check with expected interval of 24 hours
+		checkpoint.CheckInterval(updateParams, 24*time.Hour, c.checkpointResults)
+
+		// Do an immediate check within the next 30 seconds
+		go func() {
+			time.Sleep(randomStagger(30 * time.Second))
+			c.checkpointResults(checkpoint.Check(updateParams))
+		}()
+	}
+	return nil
+}
+
+// checkpointResults is used to handler periodic results from our update checker
+func (c *Command) checkpointResults(results *checkpoint.CheckResponse, err error) {
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Failed to check for updates: %v", err))
+		return
+	}
+	if results.Outdated {
+		c.Ui.Error(fmt.Sprintf("Newer Nomad version available: %s", results.CurrentVersion))
+	}
+	for _, alert := range results.Alerts {
+		switch alert.Level {
+		case "info":
+			c.Ui.Info(fmt.Sprintf("Bulletin [%s]: %s (%s)", alert.Level, alert.Message, alert.URL))
+		default:
+			c.Ui.Error(fmt.Sprintf("Bulletin [%s]: %s (%s)", alert.Level, alert.Message, alert.URL))
+		}
+	}
+}
+
 func (c *Command) Run(args []string) int {
 	c.Ui = &cli.PrefixedUi{
 		OutputPrefix: "==> ",
@@ -133,7 +198,7 @@ func (c *Command) Run(args []string) int {
 	}
 
 	// Setup the log outputs
-	logGate, _, _ := c.setupLoggers(config)
+	logGate, _, logOutput := c.setupLoggers(config)
 	if logGate == nil {
 		return 1
 	}
@@ -144,12 +209,41 @@ func (c *Command) Run(args []string) int {
 		return 1
 	}
 
-	// Let the user know things are running
-	c.Ui.Output("Nomad agent running!")
+	// Create the agent
+	if err := c.setupAgent(config, logOutput); err != nil {
+		return 1
+	}
+	defer c.agent.Shutdown()
+
+	// Compile agent information for output later
+	info := make(map[string]string)
+	info["client"] = strconv.FormatBool(config.Client.Enabled)
+	info["log level"] = config.LogLevel
+	info["server"] = strconv.FormatBool(config.Server.Enabled)
+
+	// Sort the keys for output
+	infoKeys := make([]string, 0, len(info))
+	for key := range info {
+		infoKeys = append(infoKeys, key)
+	}
+	sort.Strings(infoKeys)
+
+	// Agent configuration output
+	padding := 18
+	c.Ui.Output("Nomad agent configuration:\n")
+	for _, k := range infoKeys {
+		c.Ui.Info(fmt.Sprintf(
+			"%s%s: %s",
+			strings.Repeat(" ", padding-len(k)),
+			strings.Title(k),
+			info[k]))
+	}
+	c.Ui.Output("")
+
+	// Output the header that the server has started
+	c.Ui.Output("Nomad agent started! Log data will stream in below:\n")
 
 	// Enable log streaming
-	c.Ui.Info("")
-	c.Ui.Output("Log data will now stream in as it occurs:\n")
 	logGate.Flush()
 
 	// Wait for exit

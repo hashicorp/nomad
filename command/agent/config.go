@@ -41,6 +41,12 @@ type Config struct {
 	LeaveOnTerm    bool
 	EnableSyslog   bool
 	SyslogFacility string
+
+	DisableUpdateCheck        bool
+	DisableAnonymousSignature bool
+
+	Version           string
+	VersionPrerelease string
 }
 
 type ClientConfig struct {
