@@ -8,13 +8,13 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// Client endpoint is used for client interactions
-type Client struct {
+// ClientEndpoint endpoint is used for client interactions
+type ClientEndpoint struct {
 	srv *Server
 }
 
 // Register is used to upsert a client that is available for scheduling
-func (c *Client) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUpdateResponse) error {
+func (c *ClientEndpoint) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUpdateResponse) error {
 	if done, err := c.srv.forward("Client.Register", args, args, reply); done {
 		return err
 	}
@@ -68,7 +68,7 @@ func (c *Client) Register(args *structs.NodeRegisterRequest, reply *structs.Node
 
 // Deregister is used to remove a client from the client. If a client should
 // just be made unavailable for scheduling, a status update is prefered.
-func (c *Client) Deregister(args *structs.NodeDeregisterRequest, reply *structs.NodeUpdateResponse) error {
+func (c *ClientEndpoint) Deregister(args *structs.NodeDeregisterRequest, reply *structs.NodeUpdateResponse) error {
 	if done, err := c.srv.forward("Client.Deregister", args, args, reply); done {
 		return err
 	}
@@ -102,7 +102,7 @@ func (c *Client) Deregister(args *structs.NodeDeregisterRequest, reply *structs.
 }
 
 // UpdateStatus is used to update the status of a client node
-func (c *Client) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *structs.NodeUpdateResponse) error {
+func (c *ClientEndpoint) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *structs.NodeUpdateResponse) error {
 	if done, err := c.srv.forward("Client.UpdateStatus", args, args, reply); done {
 		return err
 	}
@@ -141,7 +141,7 @@ func (c *Client) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *stru
 }
 
 // Evaluate is used to force a re-evaluation of the node
-func (c *Client) Evaluate(args *structs.NodeEvaluateRequest, reply *structs.NodeUpdateResponse) error {
+func (c *ClientEndpoint) Evaluate(args *structs.NodeEvaluateRequest, reply *structs.NodeUpdateResponse) error {
 	if done, err := c.srv.forward("Client.Evaluate", args, args, reply); done {
 		return err
 	}
@@ -180,7 +180,7 @@ func (c *Client) Evaluate(args *structs.NodeEvaluateRequest, reply *structs.Node
 }
 
 // GetNode is used to request information about a specific ndoe
-func (c *Client) GetNode(args *structs.NodeSpecificRequest,
+func (c *ClientEndpoint) GetNode(args *structs.NodeSpecificRequest,
 	reply *structs.SingleNodeResponse) error {
 	if done, err := c.srv.forward("Client.GetNode", args, args, reply); done {
 		return err
@@ -222,7 +222,7 @@ func (c *Client) GetNode(args *structs.NodeSpecificRequest,
 
 // createNodeEvals is used to create evaluations for each alloc on a node.
 // Each Eval is scoped to a job, so we need to potentially trigger many evals.
-func (c *Client) createNodeEvals(nodeID string, nodeIndex uint64) ([]string, uint64, error) {
+func (c *ClientEndpoint) createNodeEvals(nodeID string, nodeIndex uint64) ([]string, uint64, error) {
 	// Snapshot the state
 	snap, err := c.srv.fsm.State().Snapshot()
 	if err != nil {

@@ -119,7 +119,7 @@ type Server struct {
 // Holds the RPC endpoints
 type endpoints struct {
 	Status *Status
-	Client *Client
+	Client *ClientEndpoint
 	Job    *Job
 	Eval   *Eval
 	Plan   *Plan
@@ -325,14 +325,14 @@ func (s *Server) Leave() error {
 func (s *Server) setupRPC(tlsWrap tlsutil.DCWrapper) error {
 	// Create endpoints
 	s.endpoints.Status = &Status{s}
-	s.endpoints.Client = &Client{s}
+	s.endpoints.Client = &ClientEndpoint{s}
 	s.endpoints.Job = &Job{s}
 	s.endpoints.Eval = &Eval{s}
 	s.endpoints.Plan = &Plan{s}
 
 	// Register the handlers
 	s.rpcServer.Register(s.endpoints.Status)
-	s.rpcServer.Register(s.endpoints.Client)
+	s.rpcServer.RegisterName("Client", s.endpoints.Client)
 	s.rpcServer.Register(s.endpoints.Job)
 	s.rpcServer.Register(s.endpoints.Eval)
 	s.rpcServer.Register(s.endpoints.Plan)
@@ -636,7 +636,7 @@ func (s *Server) Stats() map[string]map[string]string {
 			"server":        "true",
 			"leader":        fmt.Sprintf("%v", s.IsLeader()),
 			"bootstrap":     fmt.Sprintf("%v", s.config.Bootstrap),
-			"known_regions": toString(uint64(0)),
+			"known_regions": toString(uint64(len(s.peers))),
 		},
 		"raft":    s.raft.Stats(),
 		"serf":    s.serf.Stats(),
