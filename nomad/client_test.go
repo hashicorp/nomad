@@ -3,6 +3,8 @@ package nomad
 import (
 	"fmt"
 	"testing"
+
+	"github.com/hashicorp/nomad/testutil"
 )
 
 func testClient(t *testing.T, cb func(c *Config)) *Client {
@@ -30,4 +32,23 @@ func TestClient_StartStop(t *testing.T) {
 	if err := client.Shutdown(); err != nil {
 		t.Fatalf("err: %v", err)
 	}
+}
+
+func TestClient_RPC(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+
+	c1 := testClient(t, func(c *Config) {
+		c.ServerAddress = []string{s1.config.RPCAddr.String()}
+	})
+	defer c1.Shutdown()
+
+	// RPC should succeed
+	testutil.WaitForResult(func() (bool, error) {
+		var out struct{}
+		err := c1.RPC("Status.Ping", struct{}{}, &out)
+		return err == nil, err
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
 }
