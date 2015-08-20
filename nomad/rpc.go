@@ -25,16 +25,6 @@ const (
 )
 
 const (
-	// rpcHTTPSMagic is used to detect an incoming HTTPS
-	// request. TLS starts with the 0x16 magic byte.
-	rpcHTTPSMagic = 0x16
-
-	// rpcHTTPMagic is used to detect an incoming HTTP
-	// request. The request starts with 'HTTP'
-	rpcHTTPMagic = 0x48
-)
-
-const (
 	// maxQueryTime is used to bound the limit of a blocking query
 	maxQueryTime = 300 * time.Second
 
