@@ -10,7 +10,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/nomad"
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 const (
@@ -44,6 +46,9 @@ type Config struct {
 	// RPCHandler can be provided to avoid network traffic if the
 	// server is running locally.
 	RPCHandler RPCHandler
+
+	// Node provides the base node
+	Node *structs.Node
 }
 
 // DefaultConfig returns the default configuration
@@ -77,11 +82,22 @@ func NewClient(config *Config) (*Client, error) {
 	// Create a logger
 	logger := log.New(config.LogOutput, "", log.LstdFlags)
 
+	// Create the client
 	c := &Client{
 		config:     config,
 		connPool:   nomad.NewPool(config.LogOutput, clientRPCCache, clientMaxStreams, nil),
 		logger:     logger,
 		shutdownCh: make(chan struct{}),
+	}
+
+	// Setup the node
+	if err := c.setupNode(); err != nil {
+		return nil, fmt.Errorf("node setup failed: %v", err)
+	}
+
+	// Fingerprint the node
+	if err := c.fingerprint(); err != nil {
+		return nil, fmt.Errorf("fingerprinting failed: %v", err)
 	}
 	return c, nil
 }
@@ -178,4 +194,48 @@ func (c *Client) Stats() map[string]map[string]string {
 		"runtime": nomad.RuntimeStats(),
 	}
 	return stats
+}
+
+// Node returns the locally registered node
+func (c *Client) Node() *structs.Node {
+	return c.config.Node
+}
+
+// setupNode is used to setup the initial node
+func (c *Client) setupNode() error {
+	node := c.config.Node
+	if node == nil {
+		node = &structs.Node{}
+		c.config.Node = node
+	}
+	if node.Attributes == nil {
+		node.Attributes = make(map[string]string)
+	}
+	if node.Links == nil {
+		node.Links = make(map[string]string)
+	}
+	if node.Meta == nil {
+		node.Meta = make(map[string]string)
+	}
+	return nil
+}
+
+// fingerprint is used to fingerprint the client and setup the node
+func (c *Client) fingerprint() error {
+	var applied []string
+	for name := range fingerprint.BuiltinFingerprints {
+		f, err := fingerprint.NewFingerprint(name, c.logger)
+		if err != nil {
+			return err
+		}
+		applies, err := f.Fingerprint(c.config.Node)
+		if err != nil {
+			return err
+		}
+		if applies {
+			applied = append(applied, name)
+		}
+	}
+	c.logger.Printf("[DEBUG] client: applied fingerprints %v", applied)
+	return nil
 }

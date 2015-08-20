@@ -112,3 +112,17 @@ func TestClient_RPC_Passthrough(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	})
 }
+
+func TestClient_Fingerprint(t *testing.T) {
+	c := testClient(t, nil)
+	defer c.Shutdown()
+
+	// Ensure os and arch are always present
+	node := c.Node()
+	if node.Attributes["os"] == "" {
+		t.Fatalf("missing OS")
+	}
+	if node.Attributes["arch"] == "" {
+		t.Fatalf("missing arch")
+	}
+}
