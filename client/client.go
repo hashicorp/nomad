@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -98,6 +99,11 @@ func NewClient(config *Config) (*Client, error) {
 	// Fingerprint the node
 	if err := c.fingerprint(); err != nil {
 		return nil, fmt.Errorf("fingerprinting failed: %v", err)
+	}
+
+	// Scan for drivers
+	if err := c.setupDrivers(); err != nil {
+		return nil, fmt.Errorf("driver setup failed: %v", err)
 	}
 	return c, nil
 }
@@ -237,5 +243,25 @@ func (c *Client) fingerprint() error {
 		}
 	}
 	c.logger.Printf("[DEBUG] client: applied fingerprints %v", applied)
+	return nil
+}
+
+// setupDrivers is used to find the available drivers
+func (c *Client) setupDrivers() error {
+	var avail []string
+	for name := range driver.BuiltinDrivers {
+		d, err := driver.NewDriver(name, c.logger)
+		if err != nil {
+			return err
+		}
+		applies, err := d.Fingerprint(c.config.Node)
+		if err != nil {
+			return err
+		}
+		if applies {
+			avail = append(avail, name)
+		}
+	}
+	c.logger.Printf("[DEBUG] client: available drivers %v", avail)
 	return nil
 }

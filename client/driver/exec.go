@@ -21,7 +21,8 @@ func NewExecDriver(logger *log.Logger) Driver {
 	return d
 }
 
-func (d *ExecDriver) Fingerprint(*structs.Node) (bool, error) {
+func (d *ExecDriver) Fingerprint(node *structs.Node) (bool, error) {
 	// We can always do a fork/exec
+	node.Attributes["driver.exec"] = "1"
 	return true, nil
 }

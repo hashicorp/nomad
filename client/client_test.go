@@ -126,3 +126,14 @@ func TestClient_Fingerprint(t *testing.T) {
 		t.Fatalf("missing arch")
 	}
 }
+
+func TestClient_Drivers(t *testing.T) {
+	c := testClient(t, nil)
+	defer c.Shutdown()
+
+	// Ensure os and arch are always present
+	node := c.Node()
+	if node.Attributes["driver.exec"] == "" {
+		t.Fatalf("missing exec driver")
+	}
+}
