@@ -93,3 +93,22 @@ func TestClient_RPC(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	})
 }
+
+func TestClient_RPC_Passthrough(t *testing.T) {
+	s1, _ := testServer(t, nil)
+	defer s1.Shutdown()
+
+	c1 := testClient(t, func(c *Config) {
+		c.RPCHandler = s1
+	})
+	defer c1.Shutdown()
+
+	// RPC should succeed
+	testutil.WaitForResult(func() (bool, error) {
+		var out struct{}
+		err := c1.RPC("Status.Ping", struct{}{}, &out)
+		return err == nil, err
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+}
