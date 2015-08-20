@@ -1,0 +1,24 @@
+package fingerprint
+
+import (
+	"log"
+	"runtime"
+
+	"github.com/hashicorp/nomad/nomad/structs"
+)
+
+// OSFingerprint is used to fingerprint the operating system
+type OSFingerprint struct {
+	logger *log.Logger
+}
+
+// NewOSFingerprint is used to create an OS fingerprint
+func NewOSFingerprint(logger *log.Logger) Fingerprint {
+	f := &OSFingerprint{logger}
+	return f
+}
+
+func (o *OSFingerprint) Fingerprint(node *structs.Node) (bool, error) {
+	node.Attributes["os"] = runtime.GOOS
+	return true, nil
+}
