@@ -22,8 +22,8 @@ func ensurePath(path string, dir bool) error {
 	return os.MkdirAll(path, 0755)
 }
 
-// runtimeStats is used to return various runtime information
-func runtimeStats() map[string]string {
+// RuntimeStats is used to return various runtime information
+func RuntimeStats() map[string]string {
 	return map[string]string{
 		"os":         runtime.GOOS,
 		"arch":       runtime.GOARCH,

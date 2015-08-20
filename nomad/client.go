@@ -145,7 +145,7 @@ func (c *Client) Stats() map[string]map[string]string {
 			"server":        "false",
 			"known_servers": toString(uint64(len(c.config.ServerAddress))),
 		},
-		"runtime": runtimeStats(),
+		"runtime": RuntimeStats(),
 	}
 	return stats
 }
