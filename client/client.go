@@ -24,6 +24,10 @@ const (
 	// clientMaxStreams controsl how many idle streams we keep
 	// open to a server
 	clientMaxStreams = 2
+
+	// registerRetryIntv is minimum interval on which we retry
+	// registration. We pick a value between this and 2x this.
+	registerRetryIntv = 30 * time.Second
 )
 
 // RPCHandler can be provided to the Client if there is a local server
@@ -56,6 +60,7 @@ type Config struct {
 func DefaultConfig() *Config {
 	return &Config{
 		LogOutput: os.Stderr,
+		Region:    "region1",
 	}
 }
 
@@ -105,6 +110,9 @@ func NewClient(config *Config) (*Client, error) {
 	if err := c.setupDrivers(); err != nil {
 		return nil, fmt.Errorf("driver setup failed: %v", err)
 	}
+
+	// Start the client!
+	go c.run()
 	return c, nil
 }
 
@@ -119,6 +127,7 @@ func (c *Client) Shutdown() error {
 	}
 	c.shutdown = true
 	close(c.shutdownCh)
+	c.connPool.Shutdown()
 	return nil
 }
 
@@ -223,6 +232,22 @@ func (c *Client) setupNode() error {
 	if node.Meta == nil {
 		node.Meta = make(map[string]string)
 	}
+	if node.Resources == nil {
+		node.Resources = &structs.Resources{}
+	}
+	if node.ID == "" {
+		node.ID = generateUUID()
+	}
+	if node.Datacenter == "" {
+		node.Datacenter = "dc1"
+	}
+	if node.Name == "" {
+		node.Name, _ = os.Hostname()
+	}
+	if node.Name == "" {
+		node.Name = node.ID
+	}
+	node.Status = structs.NodeStatusInit
 	return nil
 }
 
@@ -263,5 +288,48 @@ func (c *Client) setupDrivers() error {
 		}
 	}
 	c.logger.Printf("[DEBUG] client: available drivers %v", avail)
+	return nil
+}
+
+// run is a long lived goroutine used to run the client
+func (c *Client) run() {
+	// Register the client
+	for {
+		if err := c.registerNode(); err == nil {
+			break
+		}
+		select {
+		case <-time.After(registerRetryIntv + randomStagger(registerRetryIntv)):
+		case <-c.shutdownCh:
+			return
+		}
+	}
+
+	// TODO: Heartbeat periodically
+
+	// TODO: Watch for changes in allocations
+	select {
+	case <-c.shutdownCh:
+		return
+	}
+}
+
+// registerNode is used to register the node or update the registration
+func (c *Client) registerNode() error {
+	node := c.Node()
+	req := structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: c.config.Region},
+	}
+	var resp structs.NodeUpdateResponse
+	err := c.RPC("Client.Register", &req, &resp)
+	if err != nil {
+		c.logger.Printf("[ERR] client: failed to register node: %v", err)
+		return err
+	}
+	c.logger.Printf("[DEBUG] client: node registration complete")
+	if len(resp.EvalIDs) != 0 {
+		c.logger.Printf("[DEBUG] client: %d evaluations triggered by node registration", len(resp.EvalIDs))
+	}
 	return nil
 }

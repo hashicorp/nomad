@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/nomad"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 )
 
@@ -136,4 +137,35 @@ func TestClient_Drivers(t *testing.T) {
 	if node.Attributes["driver.exec"] == "" {
 		t.Fatalf("missing exec driver")
 	}
+}
+
+func TestClient_Register(t *testing.T) {
+	s1, _ := testServer(t, nil)
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	c1 := testClient(t, func(c *Config) {
+		c.RPCHandler = s1
+	})
+	defer c1.Shutdown()
+
+	req := structs.NodeSpecificRequest{
+		NodeID:       c1.Node().ID,
+		QueryOptions: structs.QueryOptions{Region: "region1"},
+	}
+	var out structs.SingleNodeResponse
+
+	// Register should succeed
+	testutil.WaitForResult(func() (bool, error) {
+		err := s1.RPC("Client.GetNode", &req, &out)
+		if err != nil {
+			return false, err
+		}
+		if out.Node == nil {
+			return false, fmt.Errorf("missing reg")
+		}
+		return out.Node.ID == req.NodeID, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
 }
