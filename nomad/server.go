@@ -115,6 +115,9 @@ type Server struct {
 	heartbeatTimers     map[string]*time.Timer
 	heartbeatTimersLock sync.Mutex
 
+	// Worker used for processing
+	workers []*Worker
+
 	left         bool
 	shutdown     bool
 	shutdownCh   chan struct{}
@@ -528,8 +531,10 @@ func (s *Server) setupWorkers() error {
 
 	// Start the workers
 	for i := 0; i < s.config.NumSchedulers; i++ {
-		if _, err := NewWorker(s); err != nil {
+		if w, err := NewWorker(s); err != nil {
 			return err
+		} else {
+			s.workers = append(s.workers, w)
 		}
 	}
 	s.logger.Printf("[INFO] nomad: starting %d scheduling worker(s) for %v",
