@@ -421,8 +421,13 @@ func (s *StateStore) UpdateAllocations(index uint64, evicts []string,
 		if existing == nil {
 			continue
 		}
-		if err := txn.Delete("allocs", existing); err != nil {
-			return fmt.Errorf("alloc delete failed: %v", err)
+		newAlloc := new(structs.Allocation)
+		*newAlloc = *existing.(*structs.Allocation)
+		newAlloc.Status = structs.AllocStatusEvict
+		newAlloc.StatusDescription = ""
+
+		if err := txn.Insert("allocs", newAlloc); err != nil {
+			return fmt.Errorf("alloc insert failed: %v", err)
 		}
 	}
 

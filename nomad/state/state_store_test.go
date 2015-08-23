@@ -694,7 +694,7 @@ func TestStateStore_EvictAlloc_GetAlloc(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if out != nil {
+	if out.Status != structs.AllocStatusEvict {
 		t.Fatalf("bad: %#v %#v", alloc, out)
 	}
 

@@ -365,12 +365,12 @@ func TestFSM_UpdateAllocations(t *testing.T) {
 		t.Fatalf("resp: %v", resp)
 	}
 
-	// Verify we are NOT registered
+	// Verify we are evicted
 	out, err = fsm.State().GetAllocByID(alloc.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if out != nil {
+	if out.Status != structs.AllocStatusEvict {
 		t.Fatalf("alloc found!")
 	}
 }

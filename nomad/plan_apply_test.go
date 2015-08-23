@@ -100,8 +100,8 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if out != nil {
-		t.Fatalf("should be missing alloc")
+	if out.Status != structs.AllocStatusEvict {
+		t.Fatalf("should be evicted alloc")
 	}
 
 	// Lookup the allocation
@@ -317,6 +317,35 @@ func TestPlanApply_EvalNodePlan_NodeFull_Evict(t *testing.T) {
 		NodeEvict: map[string][]string{
 			node.ID: []string{alloc.ID},
 		},
+		NodeAllocation: map[string][]*structs.Allocation{
+			node.ID: []*structs.Allocation{alloc2},
+		},
+	}
+
+	fit, err := evaluateNodePlan(snap, plan, node.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if !fit {
+		t.Fatalf("bad")
+	}
+}
+
+func TestPlanApply_EvalNodePlan_NodeFull_AllocEvict(t *testing.T) {
+	alloc := mock.Alloc()
+	state := testStateStore(t)
+	node := mock.Node()
+	alloc.NodeID = node.ID
+	alloc.Status = structs.AllocStatusEvict
+	node.Resources = alloc.Resources
+	node.Reserved = nil
+	state.RegisterNode(1000, node)
+	state.UpdateAllocations(1001, nil,
+		[]*structs.Allocation{alloc})
+	snap, _ := state.Snapshot()
+
+	alloc2 := mock.Alloc()
+	plan := &structs.Plan{
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: []*structs.Allocation{alloc2},
 		},
