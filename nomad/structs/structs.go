@@ -267,6 +267,7 @@ type JobDeregisterResponse struct {
 
 // NodeUpdateResponse is used to respond to a node update
 type NodeUpdateResponse struct {
+	HeartbeatTTL    time.Duration
 	EvalIDs         []string
 	EvalCreateIndex uint64
 	NodeModifyIndex uint64

@@ -61,6 +61,16 @@ func (c *ClientEndpoint) Register(args *structs.NodeRegisterRequest, reply *stru
 		reply.EvalCreateIndex = evalIndex
 	}
 
+	// Check if we need to setup a heartbeat
+	if !args.Node.TerminalStatus() {
+		ttl, err := c.srv.resetHeartbeatTimer(args.Node.ID)
+		if err != nil {
+			c.srv.logger.Printf("[ERR] nomad.client: heartbeat reset failed: %v", err)
+			return err
+		}
+		reply.HeartbeatTTL = ttl
+	}
+
 	// Set the reply index
 	reply.Index = index
 	return nil
@@ -85,6 +95,9 @@ func (c *ClientEndpoint) Deregister(args *structs.NodeDeregisterRequest, reply *
 		c.srv.logger.Printf("[ERR] nomad.client: Deregister failed: %v", err)
 		return err
 	}
+
+	// Clear the heartbeat timer if any
+	c.srv.clearHeartbeatTimer(args.NodeID)
 
 	// Create the evaluations for this node
 	evalIDs, evalIndex, err := c.createNodeEvals(args.NodeID, index)

@@ -11,7 +11,7 @@ const (
 	// defaultHeartbeatTTL is the TTL value used for heartbeats
 	// when they are first initialized. This should be longer than
 	// the usual TTL since clients are switching to a new leader.
-	defaultHeartbeatTTL = 120 * time.Second
+	defaultHeartbeatTTL = 300 * time.Second
 
 	// minHeartbeatTTL is the minimum heartbeat interval.
 	minHeartbeatTTL = 15 * time.Second
