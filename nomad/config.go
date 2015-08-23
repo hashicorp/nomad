@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"runtime"
 	"time"
 
 	"github.com/hashicorp/memberlist"
@@ -186,6 +187,9 @@ func DefaultConfig() *Config {
 		c.EnabledSchedulers = append(c.EnabledSchedulers, name)
 	}
 	c.EnabledSchedulers = append(c.EnabledSchedulers, structs.JobTypeCore)
+
+	// Default the number of schedulers to match the coores
+	c.NumSchedulers = runtime.NumCPU()
 
 	// Increase our reap interval to 3 days instead of 24h.
 	c.SerfConfig.ReconnectTimeout = 3 * 24 * time.Hour
