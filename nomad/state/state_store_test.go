@@ -483,6 +483,9 @@ func TestStateStore_DeleteEval_GetEval(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
+	notify1 := make(chan struct{}, 1)
+	state.WatchAllocs(alloc.NodeID, notify1)
+
 	err = state.DeleteEval(1002, []string{eval.ID, eval2.ID}, []string{alloc.ID, alloc2.ID})
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -538,6 +541,12 @@ func TestStateStore_DeleteEval_GetEval(t *testing.T) {
 	}
 	if index != 1002 {
 		t.Fatalf("bad: %d", index)
+	}
+
+	select {
+	case <-notify1:
+	default:
+		t.Fatalf("should be notified")
 	}
 }
 
@@ -628,6 +637,36 @@ func TestStateStore_UpsertAlloc_GetAlloc(t *testing.T) {
 	}
 	if index != 1000 {
 		t.Fatalf("bad: %d", index)
+	}
+}
+
+func TestStateStore_WatchAllocs(t *testing.T) {
+	state := testStateStore(t)
+
+	notify1 := make(chan struct{}, 1)
+	notify2 := make(chan struct{}, 1)
+	state.WatchAllocs("foo", notify1)
+	state.WatchAllocs("foo", notify2)
+	state.StopWatchAllocs("foo", notify2)
+
+	alloc := mock.Alloc()
+	alloc.NodeID = "foo"
+	err := state.UpdateAllocations(1000, nil,
+		[]*structs.Allocation{alloc})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	select {
+	case <-notify1:
+	default:
+		t.Fatalf("should be notified")
+	}
+
+	select {
+	case <-notify2:
+		t.Fatalf("should not be notified")
+	default:
 	}
 }
 
