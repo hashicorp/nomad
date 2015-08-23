@@ -254,6 +254,7 @@ func (s *GenericScheduler) computePlacements(job *structs.Job, place []allocTupl
 			NodeID:            nodeID,
 			JobID:             job.ID,
 			Job:               job,
+			TaskGroup:         missing.TaskGroup.Name,
 			Resources:         size,
 			Metrics:           ctx.Metrics(),
 			Status:            status,

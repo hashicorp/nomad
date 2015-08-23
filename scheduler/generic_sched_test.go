@@ -184,8 +184,9 @@ func TestServiceSched_JobModify(t *testing.T) {
 	noErr(t, err)
 
 	// Ensure all allocations placed
+	out = structs.FilterTerminalAllocs(out)
 	if len(out) != 10 {
-		t.Fatalf("bad: %#v", out)
+		t.Fatalf("bad: %d %#v", out)
 	}
 
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
@@ -236,6 +237,7 @@ func TestServiceSched_JobDeregister(t *testing.T) {
 	noErr(t, err)
 
 	// Ensure no remaining allocations
+	out = structs.FilterTerminalAllocs(out)
 	if len(out) != 0 {
 		t.Fatalf("bad: %#v", out)
 	}
@@ -311,6 +313,7 @@ func TestServiceSched_NodeDrain(t *testing.T) {
 	noErr(t, err)
 
 	// Ensure all allocations placed
+	out = structs.FilterTerminalAllocs(out)
 	if len(out) != 10 {
 		t.Fatalf("bad: %#v", out)
 	}

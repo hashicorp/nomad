@@ -680,6 +680,9 @@ type Allocation struct {
 	JobID string
 	Job   *Job
 
+	// TaskGroup is the name of the task group that should be run
+	TaskGroup string
+
 	// Resources is the set of resources allocated as part
 	// of this allocation of the task group.
 	Resources *Resources
