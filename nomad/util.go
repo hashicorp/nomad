@@ -133,3 +133,13 @@ func maxUint64(a, b uint64) uint64 {
 	}
 	return b
 }
+
+// rateScaledInterval is used to choose an interval to perform an action in order
+// to target an aggregate number of actions per second across the whole cluster.
+func rateScaledInterval(rate float64, min time.Duration, n int) time.Duration {
+	interval := time.Duration(float64(time.Second) * float64(n) / rate)
+	if interval < min {
+		return min
+	}
+	return interval
+}
