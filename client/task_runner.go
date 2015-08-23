@@ -34,16 +34,16 @@ func NewTaskRunner(ctx *AllocRunner, task *structs.Task) *TaskRunner {
 }
 
 // Run is a long running routine used to manage the task
-func (t *TaskRunner) Run() {
-	t.logger.Printf("[DEBUG] client: starting task context for '%s' (alloc '%s')", t.task.Name, t.ctx.Alloc().ID)
+func (r *TaskRunner) Run() {
+	r.logger.Printf("[DEBUG] client: starting task context for '%s' (alloc '%s')", r.task.Name, r.ctx.Alloc().ID)
 
 	// TODO: Start
 	for {
 		select {
-		case update := <-t.updateCh:
+		case update := <-r.updateCh:
 			// TODO: Update
-			t.task = update
-		case <-t.destroyCh:
+			r.task = update
+		case <-r.destroyCh:
 			// TODO: Destroy
 			return
 		}
@@ -51,22 +51,22 @@ func (t *TaskRunner) Run() {
 }
 
 // Update is used to update the task of the context
-func (t *TaskRunner) Update(update *structs.Task) {
+func (r *TaskRunner) Update(update *structs.Task) {
 	select {
-	case t.updateCh <- update:
+	case r.updateCh <- update:
 	default:
-		t.logger.Printf("[ERR] client: dropping task update '%s' (alloc '%s')", update.Name, t.ctx.Alloc().ID)
+		r.logger.Printf("[ERR] client: dropping task update '%s' (alloc '%s')", update.Name, r.ctx.Alloc().ID)
 	}
 }
 
 // Destroy is used to indicate that the task context should be destroyed
-func (t *TaskRunner) Destroy() {
-	t.destroyLock.Lock()
-	defer t.destroyLock.Unlock()
+func (r *TaskRunner) Destroy() {
+	r.destroyLock.Lock()
+	defer r.destroyLock.Unlock()
 
-	if t.destroy {
+	if r.destroy {
 		return
 	}
-	t.destroy = true
-	close(t.destroyCh)
+	r.destroy = true
+	close(r.destroyCh)
 }

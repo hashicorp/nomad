@@ -34,21 +34,21 @@ func NewAllocRunner(client *Client, alloc *structs.Allocation) *AllocRunner {
 }
 
 // Alloc returns the associated allocation
-func (c *AllocRunner) Alloc() *structs.Allocation {
-	return c.alloc
+func (r *AllocRunner) Alloc() *structs.Allocation {
+	return r.alloc
 }
 
 // Run is a long running goroutine used to manage an allocation
-func (c *AllocRunner) Run() {
-	c.logger.Printf("[DEBUG] client: starting context for alloc '%s'", c.alloc.ID)
+func (r *AllocRunner) Run() {
+	r.logger.Printf("[DEBUG] client: starting context for alloc '%s'", r.alloc.ID)
 
 	// TODO: Start
 	for {
 		select {
-		case update := <-c.updateCh:
+		case update := <-r.updateCh:
 			// TODO: Update
-			c.alloc = update
-		case <-c.destroyCh:
+			r.alloc = update
+		case <-r.destroyCh:
 			// TODO: Destroy
 			return
 		}
@@ -56,22 +56,22 @@ func (c *AllocRunner) Run() {
 }
 
 // Update is used to update the allocation of the context
-func (c *AllocRunner) Update(update *structs.Allocation) {
+func (r *AllocRunner) Update(update *structs.Allocation) {
 	select {
-	case c.updateCh <- update:
+	case r.updateCh <- update:
 	default:
-		c.logger.Printf("[ERR] client: dropping update to alloc '%s'", update.ID)
+		r.logger.Printf("[ERR] client: dropping update to alloc '%s'", update.ID)
 	}
 }
 
 // Destroy is used to indicate that the allocation context should be destroyed
-func (c *AllocRunner) Destroy() {
-	c.destroyLock.Lock()
-	defer c.destroyLock.Unlock()
+func (r *AllocRunner) Destroy() {
+	r.destroyLock.Lock()
+	defer r.destroyLock.Unlock()
 
-	if c.destroy {
+	if r.destroy {
 		return
 	}
-	c.destroy = true
-	close(c.destroyCh)
+	r.destroy = true
+	close(r.destroyCh)
 }

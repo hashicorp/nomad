@@ -3,6 +3,7 @@ package driver
 import (
 	"fmt"
 	"log"
+	"sync"
 
 	"github.com/hashicorp/nomad/client/fingerprint"
 )
@@ -36,4 +37,15 @@ type Factory func(*log.Logger) Driver
 type Driver interface {
 	// Drivers must support the fingerprint interface for detection
 	fingerprint.Fingerprint
+}
+
+// ExecContext is shared between drivers within an allocation
+type ExecContext struct {
+	sync.Mutex
+}
+
+// NewExecContext is used to create a new execution context
+func NewExecContext() *ExecContext {
+	ctx := &ExecContext{}
+	return ctx
 }
