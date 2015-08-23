@@ -11,6 +11,7 @@ import (
 
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/yamux"
 )
@@ -254,4 +255,75 @@ func (s *Server) setQueryMeta(m *structs.QueryMeta) {
 		m.LastContact = time.Now().Sub(s.raft.LastContact())
 		m.KnownLeader = (s.raft.Leader() != "")
 	}
+}
+
+// blockingOptions is used to parameterize blockingRPC
+type blockingOptions struct {
+	queryOpts  *structs.QueryOptions
+	queryMeta  *structs.QueryMeta
+	allocWatch string
+	run        func() error
+}
+
+// blockingRPC is used for queries that need to wait for a
+// minimum index. This is used to block and wait for changes.
+func (s *Server) blockingRPC(opts *blockingOptions) error {
+	var timeout *time.Timer
+	var notifyCh chan struct{}
+	var state *state.StateStore
+
+	// Fast path non-blocking
+	if opts.queryOpts.MinQueryIndex == 0 {
+		goto RUN_QUERY
+	}
+
+	// Restrict the max query time, and ensure there is always one
+	if opts.queryOpts.MaxQueryTime > maxQueryTime {
+		opts.queryOpts.MaxQueryTime = maxQueryTime
+	} else if opts.queryOpts.MaxQueryTime <= 0 {
+		opts.queryOpts.MaxQueryTime = defaultQueryTime
+	}
+
+	// Apply a small amount of jitter to the request
+	opts.queryOpts.MaxQueryTime += randomStagger(opts.queryOpts.MaxQueryTime / jitterFraction)
+
+	// Setup a query timeout
+	timeout = time.NewTimer(opts.queryOpts.MaxQueryTime)
+
+	// Setup the notify channel
+	notifyCh = make(chan struct{}, 1)
+
+	// Ensure we tear down any watchers on return
+	state = s.fsm.State()
+	defer func() {
+		timeout.Stop()
+		if opts.allocWatch != "" {
+			state.StopWatchAllocs(opts.allocWatch, notifyCh)
+		}
+	}()
+
+REGISTER_NOTIFY:
+	// Register the notification channel. This may be done
+	// multiple times if we have not reached the target wait index.
+	if opts.allocWatch != "" {
+		state.WatchAllocs(opts.allocWatch, notifyCh)
+	}
+
+RUN_QUERY:
+	// Update the query meta data
+	s.setQueryMeta(opts.queryMeta)
+
+	// Run the query function
+	metrics.IncrCounter([]string{"nomad", "rpc", "query"}, 1)
+	err := opts.run()
+
+	// Check for minimum query time
+	if err == nil && opts.queryMeta.Index > 0 && opts.queryMeta.Index <= opts.queryOpts.MinQueryIndex {
+		select {
+		case <-notifyCh:
+			goto REGISTER_NOTIFY
+		case <-timeout.C:
+		}
+	}
+	return err
 }

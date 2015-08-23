@@ -3,6 +3,7 @@ package nomad
 import (
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -242,6 +243,128 @@ func TestClientEndpoint_GetNode(t *testing.T) {
 	}
 	if resp2.Node != nil {
 		t.Fatalf("unexpected node")
+	}
+}
+
+func TestClientEndpoint_GetAllocs(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	node := mock.Node()
+	reg := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "region1"},
+	}
+
+	// Fetch the response
+	var resp structs.GenericResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Client.Register", reg, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	node.CreateIndex = resp.Index
+	node.ModifyIndex = resp.Index
+
+	// Inject fake evaluations
+	alloc := mock.Alloc()
+	alloc.NodeID = node.ID
+	state := s1.fsm.State()
+	err := state.UpdateAllocations(100, nil, []*structs.Allocation{alloc})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Lookup the allocs
+	get := &structs.NodeSpecificRequest{
+		NodeID:       node.ID,
+		QueryOptions: structs.QueryOptions{Region: "region1"},
+	}
+	var resp2 structs.NodeAllocsResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Client.GetAllocs", get, &resp2); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp2.Index != 100 {
+		t.Fatalf("Bad index: %d %d", resp2.Index, 100)
+	}
+
+	if len(resp2.Allocs) != 1 || resp2.Allocs[0].ID != alloc.ID {
+		t.Fatalf("bad: %#v", resp2.Allocs)
+	}
+
+	// Lookup non-existing node
+	get.NodeID = "foobarbaz"
+	if err := msgpackrpc.CallWithCodec(codec, "Client.GetAllocs", get, &resp2); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp2.Index != 100 {
+		t.Fatalf("Bad index: %d %d", resp2.Index, 100)
+	}
+	if len(resp2.Allocs) != 0 {
+		t.Fatalf("unexpected node")
+	}
+}
+
+func TestClientEndpoint_GetAllocs_Blocking(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	node := mock.Node()
+	reg := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "region1"},
+	}
+
+	// Fetch the response
+	var resp structs.GenericResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Client.Register", reg, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	node.CreateIndex = resp.Index
+	node.ModifyIndex = resp.Index
+
+	// Inject fake evaluations async
+	alloc := mock.Alloc()
+	alloc.NodeID = node.ID
+	state := s1.fsm.State()
+	start := time.Now()
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		err := state.UpdateAllocations(100, nil, []*structs.Allocation{alloc})
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	}()
+
+	// Lookup the allocs in a blocking query
+	get := &structs.NodeSpecificRequest{
+		NodeID: node.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:        "region1",
+			MinQueryIndex: 50,
+			MaxQueryTime:  time.Second,
+		},
+	}
+	var resp2 structs.NodeAllocsResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Client.GetAllocs", get, &resp2); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Should block at least 100ms
+	if time.Since(start) < 100*time.Millisecond {
+		t.Fatalf("too fast")
+	}
+
+	if resp2.Index != 100 {
+		t.Fatalf("Bad index: %d %d", resp2.Index, 100)
+	}
+
+	if len(resp2.Allocs) != 1 || resp2.Allocs[0].ID != alloc.ID {
+		t.Fatalf("bad: %#v", resp2.Allocs)
 	}
 }
 

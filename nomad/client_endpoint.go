@@ -259,6 +259,63 @@ func (c *ClientEndpoint) GetNode(args *structs.NodeSpecificRequest,
 	return nil
 }
 
+// GetAllocs is used to request allocations for a specific ndoe
+func (c *ClientEndpoint) GetAllocs(args *structs.NodeSpecificRequest,
+	reply *structs.NodeAllocsResponse) error {
+	if done, err := c.srv.forward("Client.GetAllocs", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "client", "get_allocs"}, time.Now())
+
+	// Verify the arguments
+	if args.NodeID == "" {
+		return fmt.Errorf("missing node ID")
+	}
+
+	// Setup the blocking query
+	opts := blockingOptions{
+		queryOpts:  &args.QueryOptions,
+		queryMeta:  &reply.QueryMeta,
+		allocWatch: args.NodeID,
+		run: func() error {
+			// Look for the node
+			snap, err := c.srv.fsm.State().Snapshot()
+			if err != nil {
+				return err
+			}
+			allocs, err := snap.AllocsByNode(args.NodeID)
+			if err != nil {
+				return err
+			}
+
+			// Setup the output
+			if len(allocs) != 0 {
+				reply.Allocs = allocs
+				for _, alloc := range allocs {
+					reply.Index = maxUint64(reply.Index, alloc.ModifyIndex)
+				}
+			} else {
+				reply.Allocs = nil
+
+				// Use the last index that affected the nodes table
+				index, err := snap.GetIndex("allocs")
+				if err != nil {
+					return err
+				}
+
+				// Must provide non-zero index to prevent blocking
+				// Index 1 is impossible anyways (due to Raft internals)
+				if index == 0 {
+					reply.Index = 1
+				} else {
+					reply.Index = index
+				}
+			}
+			return nil
+		}}
+	return c.srv.blockingRPC(&opts)
+}
+
 // createNodeEvals is used to create evaluations for each alloc on a node.
 // Each Eval is scoped to a job, so we need to potentially trigger many evals.
 func (c *ClientEndpoint) createNodeEvals(nodeID string, nodeIndex uint64) ([]string, uint64, error) {

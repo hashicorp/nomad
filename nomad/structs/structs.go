@@ -274,6 +274,12 @@ type NodeUpdateResponse struct {
 	QueryMeta
 }
 
+// NodeAllocsResponse is used to return allocs for a single node
+type NodeAllocsResponse struct {
+	Allocs []*Allocation
+	QueryMeta
+}
+
 // SingleNodeResponse is used to return a single node
 type SingleNodeResponse struct {
 	Node *Node
