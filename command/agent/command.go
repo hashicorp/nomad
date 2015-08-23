@@ -17,6 +17,8 @@ import (
 	"github.com/hashicorp/go-checkpoint"
 	"github.com/hashicorp/go-syslog"
 	"github.com/hashicorp/logutils"
+	"github.com/hashicorp/nomad/helper/flag-slice"
+	"github.com/hashicorp/nomad/helper/gated-writer"
 	"github.com/mitchellh/cli"
 )
 
@@ -48,7 +50,7 @@ func (c *Command) readConfig() *Config {
 	flags.BoolVar(&dev, "dev", false, "")
 	flags.StringVar(&logLevel, "log-level", "info", "")
 	flags.Usage = func() { c.Ui.Error(c.Help()) }
-	flags.Var((*AppendSliceValue)(&configPath), "config", "config")
+	flags.Var((*sliceflag.StringFlag)(&configPath), "config", "config")
 	if err := flags.Parse(c.args); err != nil {
 		return nil
 	}
@@ -92,11 +94,11 @@ func (c *Command) readConfig() *Config {
 }
 
 // setupLoggers is used to setup the logGate, logWriter, and our logOutput
-func (c *Command) setupLoggers(config *Config) (*GatedWriter, *logWriter, io.Writer) {
+func (c *Command) setupLoggers(config *Config) (*gatedwriter.Writer, *logWriter, io.Writer) {
 	// Setup logging. First create the gated log writer, which will
 	// store logs until we're ready to show them. Then create the level
 	// filter, filtering logs of the specified level.
-	logGate := &GatedWriter{
+	logGate := &gatedwriter.Writer{
 		Writer: &cli.UiWriter{Ui: c.Ui},
 	}
 

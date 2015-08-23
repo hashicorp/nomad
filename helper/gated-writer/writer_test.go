@@ -1,4 +1,4 @@
-package agent
+package gatedwriter
 
 import (
 	"bytes"
@@ -6,13 +6,13 @@ import (
 	"testing"
 )
 
-func TestGatedWriter_impl(t *testing.T) {
-	var _ io.Writer = new(GatedWriter)
+func TestWriter_impl(t *testing.T) {
+	var _ io.Writer = new(Writer)
 }
 
-func TestGatedWriter(t *testing.T) {
+func TestWriter(t *testing.T) {
 	buf := new(bytes.Buffer)
-	w := &GatedWriter{Writer: buf}
+	w := &Writer{Writer: buf}
 	w.Write([]byte("foo\n"))
 	w.Write([]byte("bar\n"))
 

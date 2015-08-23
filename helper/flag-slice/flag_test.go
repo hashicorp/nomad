@@ -1,4 +1,4 @@
-package agent
+package sliceflag
 
 import (
 	"flag"
@@ -6,16 +6,16 @@ import (
 	"testing"
 )
 
-func TestAppendSliceValue_implements(t *testing.T) {
+func TestStringFlag_implements(t *testing.T) {
 	var raw interface{}
-	raw = new(AppendSliceValue)
+	raw = new(StringFlag)
 	if _, ok := raw.(flag.Value); !ok {
-		t.Fatalf("AppendSliceValue should be a Value")
+		t.Fatalf("StringFlag should be a Value")
 	}
 }
 
-func TestAppendSliceValueSet(t *testing.T) {
-	sv := new(AppendSliceValue)
+func TestStringFlagSet(t *testing.T) {
+	sv := new(StringFlag)
 	err := sv.Set("foo")
 	if err != nil {
 		t.Fatalf("err: %s", err)

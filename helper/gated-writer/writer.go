@@ -1,13 +1,13 @@
-package agent
+package gatedwriter
 
 import (
 	"io"
 	"sync"
 )
 
-// GatedWriter is an io.Writer implementation that buffers all of its
+// Writer is an io.Writer implementation that buffers all of its
 // data into an internal buffer until it is told to let data through.
-type GatedWriter struct {
+type Writer struct {
 	Writer io.Writer
 
 	buf   [][]byte
@@ -15,9 +15,9 @@ type GatedWriter struct {
 	lock  sync.RWMutex
 }
 
-// Flush tells the GatedWriter to flush any buffered data and to stop
+// Flush tells the Writer to flush any buffered data and to stop
 // buffering.
-func (w *GatedWriter) Flush() {
+func (w *Writer) Flush() {
 	w.lock.Lock()
 	w.flush = true
 	w.lock.Unlock()
@@ -28,7 +28,7 @@ func (w *GatedWriter) Flush() {
 	w.buf = nil
 }
 
-func (w *GatedWriter) Write(p []byte) (n int, err error) {
+func (w *Writer) Write(p []byte) (n int, err error) {
 	w.lock.RLock()
 	defer w.lock.RUnlock()
 
