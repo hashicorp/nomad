@@ -43,6 +43,13 @@ type RPCHandler interface {
 
 // Config is used to parameterize and configure the behavior of the client
 type Config struct {
+	// DevMode controls if we are in a development mode which
+	// avoids persistent storage.
+	DevMode bool
+
+	// DataDir is where we store our state
+	DataDir string
+
 	// LogOutput is the destination for logs
 	LogOutput io.Writer
 
@@ -101,6 +108,11 @@ func NewClient(config *Config) (*Client, error) {
 		connPool:   nomad.NewPool(config.LogOutput, clientRPCCache, clientMaxStreams, nil),
 		logger:     logger,
 		shutdownCh: make(chan struct{}),
+	}
+
+	// Restore the state
+	if err := c.restoreState(); err != nil {
+		return nil, fmt.Errorf("failed to restore state: %v", err)
 	}
 
 	// Setup the node
@@ -221,6 +233,26 @@ func (c *Client) Stats() map[string]map[string]string {
 // Node returns the locally registered node
 func (c *Client) Node() *structs.Node {
 	return c.config.Node
+}
+
+// restoreState is used to restore our state from the data dir
+func (c *Client) restoreState() error {
+	if c.config.DevMode {
+		return nil
+	}
+
+	// TODO
+	return nil
+}
+
+// saveState is used to snapshot our state into the data dir
+func (c *Client) saveState() error {
+	if c.config.DevMode {
+		return nil
+	}
+
+	// TODO
+	return nil
 }
 
 // setupNode is used to setup the initial node
