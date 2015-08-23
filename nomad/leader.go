@@ -98,6 +98,12 @@ WAIT:
 // previously inflight transactions have been commited and that our
 // state is up-to-date.
 func (s *Server) establishLeadership(stopCh chan struct{}) error {
+	// If we have multiple workers, disable one to free processing
+	// for the plan queue and evaluation broker
+	if len(s.workers) > 1 {
+		s.workers[0].SetPause(true)
+	}
+
 	// Enable the plan queue, since we are now the leader
 	s.planQueue.SetEnabled(true)
 
@@ -242,6 +248,11 @@ func (s *Server) revokeLeadership() error {
 	if err := s.clearAllHeartbeatTimers(); err != nil {
 		s.logger.Printf("[ERR] nomad: clearing heartbeat timers failed: %v", err)
 		return err
+	}
+
+	// Unpause our worker if we paused previously
+	if len(s.workers) > 1 {
+		s.workers[0].SetPause(false)
 	}
 	return nil
 }
