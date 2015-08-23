@@ -92,6 +92,9 @@ type Client struct {
 	lastHeartbeat time.Time
 	heartbeatTTL  time.Duration
 
+	// allocs is the current set of allocations
+	allocs map[string]*structs.Allocation
+
 	shutdown     bool
 	shutdownCh   chan struct{}
 	shutdownLock sync.Mutex
@@ -107,6 +110,7 @@ func NewClient(config *Config) (*Client, error) {
 		config:     config,
 		connPool:   nomad.NewPool(config.LogOutput, clientRPCCache, clientMaxStreams, nil),
 		logger:     logger,
+		allocs:     make(map[string]*structs.Allocation),
 		shutdownCh: make(chan struct{}),
 	}
 
@@ -466,6 +470,67 @@ func (c *Client) watchAllocations(allocUpdates chan []*structs.Allocation) {
 }
 
 // runAllocs is invoked when we get an updated set of allocations
-func (c *Client) runAllocs([]*structs.Allocation) {
+func (c *Client) runAllocs(updated []*structs.Allocation) {
+	// Get the existing allocs
+	exist := make([]*structs.Allocation, len(c.allocs))
+	for _, alloc := range c.allocs {
+		exist = append(exist, alloc)
+	}
+
+	// Diff the existing and updated allocations
+	diff := diffAllocs(exist, updated)
+	c.logger.Printf("[DEBUG] client: %#v", diff)
+
+	// Remove the old allocations
+	for _, remove := range diff.removed {
+		if err := c.removeAlloc(remove); err != nil {
+			c.logger.Printf("[ERR] client: failed to remove alloc '%s': %v",
+				remove.ID, err)
+		} else {
+			delete(c.allocs, remove.ID)
+		}
+	}
+
+	// Update the existing allocations
+	for _, update := range diff.updated {
+		if err := c.updateAlloc(update.exist, update.updated); err != nil {
+			c.logger.Printf("[ERR] client: failed to update alloc '%s': %v",
+				update.exist.ID, err)
+		} else {
+			c.allocs[update.exist.ID] = update.updated
+		}
+	}
+
+	// Start the new allocations
+	for _, add := range diff.added {
+		if err := c.addAlloc(add); err != nil {
+			c.logger.Printf("[ERR] client: failed to add alloc '%s': %v",
+				add.ID, err)
+		} else {
+			c.allocs[add.ID] = add
+		}
+	}
+
+	// Persist our state
+	if err := c.saveState(); err != nil {
+		c.logger.Printf("[ERR] client: failed to save state: %v", err)
+	}
+}
+
+// removeAlloc is invoked when we should remove an allocation
+func (c *Client) removeAlloc(alloc *structs.Allocation) error {
 	// TODO
+	return nil
+}
+
+// updateAlloc is invoked when we should update an allocation
+func (c *Client) updateAlloc(exist, update *structs.Allocation) error {
+	// TODO
+	return nil
+}
+
+// addAlloc is invoked when we should add an allocation
+func (c *Client) addAlloc(alloc *structs.Allocation) error {
+	// TODO
+	return nil
 }

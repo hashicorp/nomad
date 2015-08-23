@@ -3,12 +3,11 @@ package client
 import (
 	crand "crypto/rand"
 	"fmt"
+	"math/rand"
 	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 )
-
-import "math/rand"
 
 type allocTuple struct {
 	exist, updated *structs.Allocation
