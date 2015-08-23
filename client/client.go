@@ -47,8 +47,11 @@ type Config struct {
 	// avoids persistent storage.
 	DevMode bool
 
-	// DataDir is where we store our state
-	DataDir string
+	// StateDir is where we store our state
+	StateDir string
+
+	// AllocDir is where we store data for allocations
+	AllocDir string
 
 	// LogOutput is the destination for logs
 	LogOutput io.Writer
@@ -93,7 +96,8 @@ type Client struct {
 	heartbeatTTL  time.Duration
 
 	// allocs is the current set of allocations
-	allocs map[string]*structs.Allocation
+	allocs    map[string]*AllocContext
+	allocLock sync.RWMutex
 
 	shutdown     bool
 	shutdownCh   chan struct{}
@@ -110,7 +114,7 @@ func NewClient(config *Config) (*Client, error) {
 		config:     config,
 		connPool:   nomad.NewPool(config.LogOutput, clientRPCCache, clientMaxStreams, nil),
 		logger:     logger,
-		allocs:     make(map[string]*structs.Allocation),
+		allocs:     make(map[string]*AllocContext),
 		shutdownCh: make(chan struct{}),
 	}
 
@@ -472,10 +476,12 @@ func (c *Client) watchAllocations(allocUpdates chan []*structs.Allocation) {
 // runAllocs is invoked when we get an updated set of allocations
 func (c *Client) runAllocs(updated []*structs.Allocation) {
 	// Get the existing allocs
+	c.allocLock.RLock()
 	exist := make([]*structs.Allocation, len(c.allocs))
-	for _, alloc := range c.allocs {
-		exist = append(exist, alloc)
+	for _, ctx := range c.allocs {
+		exist = append(exist, ctx.Alloc())
 	}
+	c.allocLock.RUnlock()
 
 	// Diff the existing and updated allocations
 	diff := diffAllocs(exist, updated)
@@ -486,8 +492,6 @@ func (c *Client) runAllocs(updated []*structs.Allocation) {
 		if err := c.removeAlloc(remove); err != nil {
 			c.logger.Printf("[ERR] client: failed to remove alloc '%s': %v",
 				remove.ID, err)
-		} else {
-			delete(c.allocs, remove.ID)
 		}
 	}
 
@@ -496,8 +500,6 @@ func (c *Client) runAllocs(updated []*structs.Allocation) {
 		if err := c.updateAlloc(update.exist, update.updated); err != nil {
 			c.logger.Printf("[ERR] client: failed to update alloc '%s': %v",
 				update.exist.ID, err)
-		} else {
-			c.allocs[update.exist.ID] = update.updated
 		}
 	}
 
@@ -506,8 +508,6 @@ func (c *Client) runAllocs(updated []*structs.Allocation) {
 		if err := c.addAlloc(add); err != nil {
 			c.logger.Printf("[ERR] client: failed to add alloc '%s': %v",
 				add.ID, err)
-		} else {
-			c.allocs[add.ID] = add
 		}
 	}
 
@@ -519,18 +519,36 @@ func (c *Client) runAllocs(updated []*structs.Allocation) {
 
 // removeAlloc is invoked when we should remove an allocation
 func (c *Client) removeAlloc(alloc *structs.Allocation) error {
-	// TODO
+	c.allocLock.RLock()
+	defer c.allocLock.RUnlock()
+	ctx, ok := c.allocs[alloc.ID]
+	if !ok {
+		c.logger.Printf("[WARN] client: missing context for alloc '%s'", alloc.ID)
+		return nil
+	}
+	ctx.Destroy()
 	return nil
 }
 
 // updateAlloc is invoked when we should update an allocation
 func (c *Client) updateAlloc(exist, update *structs.Allocation) error {
-	// TODO
+	c.allocLock.RLock()
+	defer c.allocLock.RUnlock()
+	ctx, ok := c.allocs[exist.ID]
+	if !ok {
+		c.logger.Printf("[WARN] client: missing context for alloc '%s'", exist.ID)
+		return nil
+	}
+	ctx.Update(update)
 	return nil
 }
 
 // addAlloc is invoked when we should add an allocation
 func (c *Client) addAlloc(alloc *structs.Allocation) error {
-	// TODO
+	c.allocLock.Lock()
+	defer c.allocLock.Unlock()
+	ctx := NewAllocContext(c, alloc)
+	c.allocs[alloc.ID] = ctx
+	go ctx.Run()
 	return nil
 }
