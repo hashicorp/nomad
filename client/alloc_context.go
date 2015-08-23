@@ -24,10 +24,11 @@ type AllocContext struct {
 // NewAllocContext is used to create a new allocation context
 func NewAllocContext(client *Client, alloc *structs.Allocation) *AllocContext {
 	ctx := &AllocContext{
-		client:   client,
-		logger:   client.logger,
-		alloc:    alloc,
-		updateCh: make(chan *structs.Allocation, 8),
+		client:    client,
+		logger:    client.logger,
+		alloc:     alloc,
+		updateCh:  make(chan *structs.Allocation, 8),
+		destroyCh: make(chan struct{}),
 	}
 	return ctx
 }
