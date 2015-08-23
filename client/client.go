@@ -96,7 +96,7 @@ type Client struct {
 	heartbeatTTL  time.Duration
 
 	// allocs is the current set of allocations
-	allocs    map[string]*AllocContext
+	allocs    map[string]*AllocRunner
 	allocLock sync.RWMutex
 
 	shutdown     bool
@@ -114,7 +114,7 @@ func NewClient(config *Config) (*Client, error) {
 		config:     config,
 		connPool:   nomad.NewPool(config.LogOutput, clientRPCCache, clientMaxStreams, nil),
 		logger:     logger,
-		allocs:     make(map[string]*AllocContext),
+		allocs:     make(map[string]*AllocRunner),
 		shutdownCh: make(chan struct{}),
 	}
 
@@ -547,7 +547,7 @@ func (c *Client) updateAlloc(exist, update *structs.Allocation) error {
 func (c *Client) addAlloc(alloc *structs.Allocation) error {
 	c.allocLock.Lock()
 	defer c.allocLock.Unlock()
-	ctx := NewAllocContext(c, alloc)
+	ctx := NewAllocRunner(c, alloc)
 	c.allocs[alloc.ID] = ctx
 	go ctx.Run()
 	return nil

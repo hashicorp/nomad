@@ -7,8 +7,8 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// AllocContext is used to wrap an allocation and provide the execution context.
-type AllocContext struct {
+// AllocRunner is used to wrap an allocation and provide the execution context.
+type AllocRunner struct {
 	client *Client
 	logger *log.Logger
 
@@ -21,9 +21,9 @@ type AllocContext struct {
 	destroyLock sync.Mutex
 }
 
-// NewAllocContext is used to create a new allocation context
-func NewAllocContext(client *Client, alloc *structs.Allocation) *AllocContext {
-	ctx := &AllocContext{
+// NewAllocRunner is used to create a new allocation context
+func NewAllocRunner(client *Client, alloc *structs.Allocation) *AllocRunner {
+	ctx := &AllocRunner{
 		client:    client,
 		logger:    client.logger,
 		alloc:     alloc,
@@ -34,12 +34,12 @@ func NewAllocContext(client *Client, alloc *structs.Allocation) *AllocContext {
 }
 
 // Alloc returns the associated allocation
-func (c *AllocContext) Alloc() *structs.Allocation {
+func (c *AllocRunner) Alloc() *structs.Allocation {
 	return c.alloc
 }
 
 // Run is a long running goroutine used to manage an allocation
-func (c *AllocContext) Run() {
+func (c *AllocRunner) Run() {
 	c.logger.Printf("[DEBUG] client: starting context for alloc '%s'", c.alloc.ID)
 
 	// TODO: Start
@@ -56,7 +56,7 @@ func (c *AllocContext) Run() {
 }
 
 // Update is used to update the allocation of the context
-func (c *AllocContext) Update(update *structs.Allocation) {
+func (c *AllocRunner) Update(update *structs.Allocation) {
 	select {
 	case c.updateCh <- update:
 	default:
@@ -65,7 +65,7 @@ func (c *AllocContext) Update(update *structs.Allocation) {
 }
 
 // Destroy is used to indicate that the allocation context should be destroyed
-func (c *AllocContext) Destroy() {
+func (c *AllocRunner) Destroy() {
 	c.destroyLock.Lock()
 	defer c.destroyLock.Unlock()
 

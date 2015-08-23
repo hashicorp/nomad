@@ -7,9 +7,9 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// TaskContext is used to wrap a task within an allocation and provide the execution context.
-type TaskContext struct {
-	ctx    *AllocContext
+// TaskRunner is used to wrap a task within an allocation and provide the execution context.
+type TaskRunner struct {
+	ctx    *AllocRunner
 	logger *log.Logger
 
 	task *structs.Task
@@ -21,9 +21,9 @@ type TaskContext struct {
 	destroyLock sync.Mutex
 }
 
-// NewTaskContext is used to create a new task context
-func NewTaskContext(ctx *AllocContext, task *structs.Task) *TaskContext {
-	tc := &TaskContext{
+// NewTaskRunner is used to create a new task context
+func NewTaskRunner(ctx *AllocRunner, task *structs.Task) *TaskRunner {
+	tc := &TaskRunner{
 		ctx:       ctx,
 		logger:    ctx.logger,
 		task:      task,
@@ -34,7 +34,7 @@ func NewTaskContext(ctx *AllocContext, task *structs.Task) *TaskContext {
 }
 
 // Run is a long running routine used to manage the task
-func (t *TaskContext) Run() {
+func (t *TaskRunner) Run() {
 	t.logger.Printf("[DEBUG] client: starting task context for '%s' (alloc '%s')", t.task.Name, t.ctx.Alloc().ID)
 
 	// TODO: Start
@@ -51,7 +51,7 @@ func (t *TaskContext) Run() {
 }
 
 // Update is used to update the task of the context
-func (t *TaskContext) Update(update *structs.Task) {
+func (t *TaskRunner) Update(update *structs.Task) {
 	select {
 	case t.updateCh <- update:
 	default:
@@ -60,7 +60,7 @@ func (t *TaskContext) Update(update *structs.Task) {
 }
 
 // Destroy is used to indicate that the task context should be destroyed
-func (t *TaskContext) Destroy() {
+func (t *TaskRunner) Destroy() {
 	t.destroyLock.Lock()
 	defer t.destroyLock.Unlock()
 
