@@ -4,6 +4,7 @@ import (
 	"log"
 	"sync"
 
+	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -13,6 +14,9 @@ type AllocRunner struct {
 	logger *log.Logger
 
 	alloc *structs.Allocation
+
+	ctx   *driver.ExecContext
+	tasks map[string]*TaskRunner
 
 	updateCh chan *structs.Allocation
 
@@ -27,6 +31,7 @@ func NewAllocRunner(client *Client, alloc *structs.Allocation) *AllocRunner {
 		client:    client,
 		logger:    client.logger,
 		alloc:     alloc,
+		tasks:     make(map[string]*TaskRunner),
 		updateCh:  make(chan *structs.Allocation, 8),
 		destroyCh: make(chan struct{}),
 	}
@@ -42,7 +47,26 @@ func (r *AllocRunner) Alloc() *structs.Allocation {
 func (r *AllocRunner) Run() {
 	r.logger.Printf("[DEBUG] client: starting context for alloc '%s'", r.alloc.ID)
 
-	// TODO: Start
+	// Find our task group in the allocation
+	alloc := r.alloc
+	tg := alloc.Job.LookingTaskGroup(alloc.TaskGroup)
+	if tg == nil {
+		r.logger.Printf("[ERR] client: alloc '%s' for missing task group '%s'", alloc.ID, alloc.TaskGroup)
+		// TODO: Err out
+		return
+	}
+
+	// Create the execution context
+	r.ctx = driver.NewExecContext()
+
+	// Start the task runners
+	for _, task := range tg.Tasks {
+		tr := NewTaskRunner(r, r.ctx, task)
+		r.tasks[task.Name] = tr
+		go tr.Run()
+	}
+
+	// Wait for updates
 	for {
 		select {
 		case update := <-r.updateCh:

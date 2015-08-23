@@ -13,6 +13,11 @@ type ExecDriver struct {
 	logger *log.Logger
 }
 
+// execHandle is returned from Start/Open as a handle to the PID
+type execHandle struct {
+	waitCh chan error
+}
+
 // NewExecDriver is used to create a new exec driver
 func NewExecDriver(logger *log.Logger) Driver {
 	d := &ExecDriver{
@@ -25,4 +30,26 @@ func (d *ExecDriver) Fingerprint(node *structs.Node) (bool, error) {
 	// We can always do a fork/exec
 	node.Attributes["driver.exec"] = "1"
 	return true, nil
+}
+
+func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
+	// TODO
+	return nil, nil
+}
+
+func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {
+	// TODO
+	return nil, nil
+}
+
+func (h *execHandle) ID() string {
+	return "test"
+}
+
+func (h *execHandle) WaitCh() chan error {
+	return h.waitCh
+}
+
+func (h *execHandle) Kill() error {
+	return nil
 }

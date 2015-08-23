@@ -589,6 +589,16 @@ type Job struct {
 	ModifyIndex uint64
 }
 
+// LookupTaskGroup finds a task group by name
+func (j *Job) LookingTaskGroup(name string) *TaskGroup {
+	for _, tg := range j.TaskGroups {
+		if tg.Name == name {
+			return tg
+		}
+	}
+	return nil
+}
+
 // TaskGroup is an atomic unit of placement. Each task group belongs to
 // a job and may contain any number of tasks. A task group support running
 // in many replicas using the same configuration..

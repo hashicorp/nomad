@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/hashicorp/nomad/client/fingerprint"
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 // BuiltinDrivers contains the built in registered drivers
@@ -37,6 +38,25 @@ type Factory func(*log.Logger) Driver
 type Driver interface {
 	// Drivers must support the fingerprint interface for detection
 	fingerprint.Fingerprint
+
+	// Start is used to being task execution
+	Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error)
+
+	// Open is used to re-open a handle to a task
+	Open(ctx *ExecContext, handleID string) (DriverHandle, error)
+}
+
+// DriverHandle is an opaque handle into a driver used for task
+// manipulation
+type DriverHandle interface {
+	// Returns an opaque handle that can be used to re-open the handle
+	ID() string
+
+	// WaitCh is used to return a channel used wait for task completion
+	WaitCh() chan error
+
+	// Kill is used to stop the task
+	Kill() error
 }
 
 // ExecContext is shared between drivers within an allocation
