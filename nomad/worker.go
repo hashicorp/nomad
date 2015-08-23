@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/armon/go-metrics"
@@ -37,6 +38,10 @@ type Worker struct {
 	srv    *Server
 	logger *log.Logger
 
+	paused    bool
+	pauseLock sync.Mutex
+	pauseCond *sync.Cond
+
 	failures uint
 
 	evalToken string
@@ -48,8 +53,28 @@ func NewWorker(srv *Server) (*Worker, error) {
 		srv:    srv,
 		logger: srv.logger,
 	}
+	w.pauseCond = sync.NewCond(&w.pauseLock)
 	go w.run()
 	return w, nil
+}
+
+// SetPause is used to pause or unpause a worker
+func (w *Worker) SetPause(p bool) {
+	w.pauseLock.Lock()
+	w.paused = p
+	w.pauseLock.Unlock()
+	if !p {
+		w.pauseCond.Broadcast()
+	}
+}
+
+// checkPaused is used to park the worker when paused
+func (w *Worker) checkPaused() {
+	w.pauseLock.Lock()
+	for w.paused {
+		w.pauseCond.Wait()
+	}
+	w.pauseLock.Unlock()
 }
 
 // run is the long-lived goroutine which is used to run the worker
@@ -98,6 +123,9 @@ func (w *Worker) dequeueEvaluation(timeout time.Duration) (*structs.Evaluation, 
 	var resp structs.EvalDequeueResponse
 
 REQ:
+	// Check if we are paused
+	w.checkPaused()
+
 	// Make a blocking RPC
 	start := time.Now()
 	err := w.srv.RPC("Eval.Dequeue", &req, &resp)

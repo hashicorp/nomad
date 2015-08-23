@@ -4,6 +4,7 @@ import (
 	"log"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -58,6 +59,49 @@ func TestWorker_dequeueEvaluation(t *testing.T) {
 
 	// Attempt dequeue
 	eval, token, shutdown := w.dequeueEvaluation(10 * time.Millisecond)
+	if shutdown {
+		t.Fatalf("should not shutdown")
+	}
+	if token == "" {
+		t.Fatalf("should get token")
+	}
+
+	// Ensure we get a sane eval
+	if !reflect.DeepEqual(eval, eval1) {
+		t.Fatalf("bad: %#v %#v", eval, eval1)
+	}
+}
+
+func TestWorker_dequeueEvaluation_paused(t *testing.T) {
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+		c.EnabledSchedulers = []string{structs.JobTypeService}
+	})
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the evaluation
+	eval1 := mock.Eval()
+	s1.evalBroker.Enqueue(eval1)
+
+	// Create a worker
+	w := &Worker{srv: s1, logger: s1.logger}
+	w.pauseCond = sync.NewCond(&w.pauseLock)
+
+	// PAUSE the worker
+	w.SetPause(true)
+
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		w.SetPause(false)
+	}()
+
+	// Attempt dequeue
+	start := time.Now()
+	eval, token, shutdown := w.dequeueEvaluation(10 * time.Millisecond)
+	if diff := time.Since(start); diff < 100*time.Millisecond {
+		t.Fatalf("should have paused: %v", diff)
+	}
 	if shutdown {
 		t.Fatalf("should not shutdown")
 	}
