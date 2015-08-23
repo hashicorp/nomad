@@ -78,6 +78,9 @@ type Client struct {
 
 	connPool *nomad.ConnPool
 
+	lastHeartbeat time.Time
+	heartbeatTTL  time.Duration
+
 	shutdown     bool
 	shutdownCh   chan struct{}
 	shutdownLock sync.Mutex
@@ -305,10 +308,19 @@ func (c *Client) run() {
 		}
 	}
 
-	// TODO: Heartbeat periodically
+	// Setup the heartbeat timer
+	heartbeat := time.After(c.heartbeatTTL)
 
-	// TODO: Watch for changes in allocations
+	// TODO Watch for changes in allocations
+
+	// Periodically update our status and wait for termination
 	select {
+	case <-heartbeat:
+		if err := c.updateNodeStatus(); err != nil {
+			heartbeat = time.After(registerRetryIntv)
+		} else {
+			heartbeat = time.After(c.heartbeatTTL)
+		}
 	case <-c.shutdownCh:
 		return
 	}
@@ -331,5 +343,32 @@ func (c *Client) registerNode() error {
 	if len(resp.EvalIDs) != 0 {
 		c.logger.Printf("[DEBUG] client: %d evaluations triggered by node registration", len(resp.EvalIDs))
 	}
+	c.lastHeartbeat = time.Now()
+	c.heartbeatTTL = resp.HeartbeatTTL
+	return nil
+}
+
+// updateNodeStatus is used to heartbeat and update the status of the node
+func (c *Client) updateNodeStatus() error {
+	node := c.Node()
+	req := structs.NodeUpdateStatusRequest{
+		NodeID:       node.ID,
+		Status:       structs.NodeStatusReady,
+		WriteRequest: structs.WriteRequest{Region: c.config.Region},
+	}
+	var resp structs.NodeUpdateResponse
+	err := c.RPC("Client.UpdateStatus", &req, &resp)
+	if err != nil {
+		c.logger.Printf("[ERR] client: failed to update status: %v", err)
+		return err
+	}
+	if len(resp.EvalIDs) != 0 {
+		c.logger.Printf("[DEBUG] client: %d evaluations triggered by node update", len(resp.EvalIDs))
+	}
+	if resp.Index != 0 {
+		c.logger.Printf("[DEBUG] client: client state updated")
+	}
+	c.lastHeartbeat = time.Now()
+	c.heartbeatTTL = resp.HeartbeatTTL
 	return nil
 }

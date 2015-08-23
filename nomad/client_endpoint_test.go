@@ -109,8 +109,9 @@ func TestClientEndpoint_UpdateStatus(t *testing.T) {
 	}
 
 	// Check for heartbeat interval
-	if resp.HeartbeatTTL != minHeartbeatTTL {
-		t.Fatalf("bad ttl: %v", resp.HeartbeatTTL)
+	ttl := resp.HeartbeatTTL
+	if ttl < minHeartbeatTTL || ttl > 2*minHeartbeatTTL {
+		t.Fatalf("bad: %#v", ttl)
 	}
 
 	// Update the status
@@ -128,8 +129,9 @@ func TestClientEndpoint_UpdateStatus(t *testing.T) {
 	}
 
 	// Check for heartbeat interval
-	if resp2.HeartbeatTTL != minHeartbeatTTL {
-		t.Fatalf("bad ttl: %v", resp2.HeartbeatTTL)
+	ttl = resp2.HeartbeatTTL
+	if ttl < minHeartbeatTTL || ttl > 2*minHeartbeatTTL {
+		t.Fatalf("bad: %#v", ttl)
 	}
 
 	// Check for the node in the FSM
@@ -166,8 +168,9 @@ func TestClientEndpoint_UpdateStatus_HeartbeatOnly(t *testing.T) {
 	}
 
 	// Check for heartbeat interval
-	if resp.HeartbeatTTL != minHeartbeatTTL {
-		t.Fatalf("bad ttl: %v", resp.HeartbeatTTL)
+	ttl := resp.HeartbeatTTL
+	if ttl < minHeartbeatTTL || ttl > 2*minHeartbeatTTL {
+		t.Fatalf("bad: %#v", ttl)
 	}
 
 	// Update the status, static state
@@ -185,8 +188,9 @@ func TestClientEndpoint_UpdateStatus_HeartbeatOnly(t *testing.T) {
 	}
 
 	// Check for heartbeat interval
-	if resp2.HeartbeatTTL != minHeartbeatTTL {
-		t.Fatalf("bad ttl: %v", resp2.HeartbeatTTL)
+	ttl = resp2.HeartbeatTTL
+	if ttl < minHeartbeatTTL || ttl > 2*minHeartbeatTTL {
+		t.Fatalf("bad: %#v", ttl)
 	}
 }
 

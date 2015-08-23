@@ -14,12 +14,16 @@ const (
 	defaultHeartbeatTTL = 300 * time.Second
 
 	// minHeartbeatTTL is the minimum heartbeat interval.
-	minHeartbeatTTL = 15 * time.Second
+	minHeartbeatTTL = 10 * time.Second
 
 	// maxHeartbeatsPerSecond is the targeted maximum rate of heartbeats.
 	// As the cluster size grows, we simply increase the heartbeat TTL
 	// to approach this value.
 	maxHeartbeatsPerSecond = 50.0
+
+	// heartbeatGrace is the additional time given to the TTL period
+	// as a grace. This is to account for various network and processing delays.
+	heartbeatGrace = 10 * time.Second
 )
 
 // initializeHeartbeatTimers is used when a leader is newly elected to create
@@ -65,9 +69,10 @@ func (s *Server) resetHeartbeatTimer(id string) (time.Duration, error) {
 	// Compute the target TTL value
 	n := len(s.heartbeatTimers)
 	ttl := rateScaledInterval(maxHeartbeatsPerSecond, minHeartbeatTTL, n)
+	ttl += randomStagger(ttl)
 
 	// Reset the TTL
-	s.resetHeartbeatTimerLocked(id, ttl)
+	s.resetHeartbeatTimerLocked(id, ttl+heartbeatGrace)
 	return ttl, nil
 }
 
@@ -78,12 +83,6 @@ func (s *Server) resetHeartbeatTimerLocked(id string, ttl time.Duration) {
 	if s.heartbeatTimers == nil {
 		s.heartbeatTimers = make(map[string]*time.Timer)
 	}
-
-	// Adjust the given TTL by adding an additional 10% grace period.
-	// This is to compensate for network and processing delays.
-	// The contract is that a heartbeat is not expired  before the TTL,
-	// but there is no explicit promise about the upper bound so this is allowable.
-	ttl = ttl + (ttl / 10)
 
 	// Renew the heartbeat timer if it exists
 	if timer, ok := s.heartbeatTimers[id]; ok {
