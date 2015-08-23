@@ -129,13 +129,29 @@ func (c *ClientEndpoint) UpdateStatus(args *structs.NodeUpdateStatusRequest, rep
 		return fmt.Errorf("invalid status for node")
 	}
 
-	// Commit this update via Raft
-	_, index, err := c.srv.raftApply(structs.NodeUpdateStatusRequestType, args)
+	// Look for the node
+	snap, err := c.srv.fsm.State().Snapshot()
 	if err != nil {
-		c.srv.logger.Printf("[ERR] nomad.client: status update failed: %v", err)
 		return err
 	}
-	reply.NodeModifyIndex = index
+	node, err := snap.GetNodeByID(args.NodeID)
+	if err != nil {
+		return err
+	}
+	if node == nil {
+		return fmt.Errorf("node not found")
+	}
+
+	// Commit this update via Raft
+	var index uint64
+	if node.Status != args.Status {
+		_, index, err = c.srv.raftApply(structs.NodeUpdateStatusRequestType, args)
+		if err != nil {
+			c.srv.logger.Printf("[ERR] nomad.client: status update failed: %v", err)
+			return err
+		}
+		reply.NodeModifyIndex = index
+	}
 
 	// Check if we should trigger evaluations
 	if structs.ShouldDrainNode(args.Status) {
@@ -146,6 +162,16 @@ func (c *ClientEndpoint) UpdateStatus(args *structs.NodeUpdateStatusRequest, rep
 		}
 		reply.EvalIDs = evalIDs
 		reply.EvalCreateIndex = evalIndex
+	}
+
+	// Check if we need to setup a heartbeat
+	if args.Status != structs.NodeStatusDown {
+		ttl, err := c.srv.resetHeartbeatTimer(args.NodeID)
+		if err != nil {
+			c.srv.logger.Printf("[ERR] nomad.client: heartbeat reset failed: %v", err)
+			return err
+		}
+		reply.HeartbeatTTL = ttl
 	}
 
 	// Set the reply index

@@ -103,23 +103,33 @@ func TestClientEndpoint_UpdateStatus(t *testing.T) {
 	}
 
 	// Fetch the response
-	var resp structs.GenericResponse
+	var resp structs.NodeUpdateResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Client.Register", reg, &resp); err != nil {
 		t.Fatalf("err: %v", err)
+	}
+
+	// Check for heartbeat interval
+	if resp.HeartbeatTTL != minHeartbeatTTL {
+		t.Fatalf("bad ttl: %v", resp.HeartbeatTTL)
 	}
 
 	// Update the status
 	dereg := &structs.NodeUpdateStatusRequest{
 		NodeID:       node.ID,
-		Status:       structs.NodeStatusReady,
+		Status:       structs.NodeStatusMaint,
 		WriteRequest: structs.WriteRequest{Region: "region1"},
 	}
-	var resp2 structs.GenericResponse
+	var resp2 structs.NodeUpdateResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Client.UpdateStatus", dereg, &resp2); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if resp2.Index == 0 {
 		t.Fatalf("bad index: %d", resp2.Index)
+	}
+
+	// Check for heartbeat interval
+	if resp2.HeartbeatTTL != minHeartbeatTTL {
+		t.Fatalf("bad ttl: %v", resp2.HeartbeatTTL)
 	}
 
 	// Check for the node in the FSM
@@ -133,6 +143,50 @@ func TestClientEndpoint_UpdateStatus(t *testing.T) {
 	}
 	if out.ModifyIndex != resp2.Index {
 		t.Fatalf("index mis-match")
+	}
+}
+
+func TestClientEndpoint_UpdateStatus_HeartbeatOnly(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	node := mock.Node()
+	reg := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "region1"},
+	}
+
+	// Fetch the response
+	var resp structs.NodeUpdateResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Client.Register", reg, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Check for heartbeat interval
+	if resp.HeartbeatTTL != minHeartbeatTTL {
+		t.Fatalf("bad ttl: %v", resp.HeartbeatTTL)
+	}
+
+	// Update the status, static state
+	dereg := &structs.NodeUpdateStatusRequest{
+		NodeID:       node.ID,
+		Status:       node.Status,
+		WriteRequest: structs.WriteRequest{Region: "region1"},
+	}
+	var resp2 structs.NodeUpdateResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Client.UpdateStatus", dereg, &resp2); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp2.Index != 0 {
+		t.Fatalf("bad index: %d", resp2.Index)
+	}
+
+	// Check for heartbeat interval
+	if resp2.HeartbeatTTL != minHeartbeatTTL {
+		t.Fatalf("bad ttl: %v", resp2.HeartbeatTTL)
 	}
 }
 
