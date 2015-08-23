@@ -28,6 +28,10 @@ const (
 	// registerRetryIntv is minimum interval on which we retry
 	// registration. We pick a value between this and 2x this.
 	registerRetryIntv = 30 * time.Second
+
+	// getAllocRetryIntv is minimum interval on which we retry
+	// to fetch allocations. We pick a value between this and 2x this.
+	getAllocRetryIntv = 30 * time.Second
 )
 
 // RPCHandler can be provided to the Client if there is a local server
@@ -311,16 +315,22 @@ func (c *Client) run() {
 	// Setup the heartbeat timer
 	heartbeat := time.After(c.heartbeatTTL)
 
-	// TODO Watch for changes in allocations
+	// Watch for changes in allocations
+	allocUpdates := make(chan []*structs.Allocation, 1)
+	go c.watchAllocations(allocUpdates)
 
 	// Periodically update our status and wait for termination
 	select {
+	case allocs := <-allocUpdates:
+		c.runAllocs(allocs)
+
 	case <-heartbeat:
 		if err := c.updateNodeStatus(); err != nil {
-			heartbeat = time.After(registerRetryIntv)
+			heartbeat = time.After(registerRetryIntv + randomStagger(registerRetryIntv))
 		} else {
 			heartbeat = time.After(c.heartbeatTTL)
 		}
+
 	case <-c.shutdownCh:
 		return
 	}
@@ -371,4 +381,59 @@ func (c *Client) updateNodeStatus() error {
 	c.lastHeartbeat = time.Now()
 	c.heartbeatTTL = resp.HeartbeatTTL
 	return nil
+}
+
+// watchAllocations is used to scan for updates to allocations
+func (c *Client) watchAllocations(allocUpdates chan []*structs.Allocation) {
+	var lastIndex uint64
+	req := structs.NodeSpecificRequest{
+		NodeID: c.Node().ID,
+		QueryOptions: structs.QueryOptions{
+			Region:        c.config.Region,
+			MinQueryIndex: lastIndex,
+			AllowStale:    true,
+		},
+	}
+	var resp structs.NodeAllocsResponse
+
+	for {
+		// Get the allocations, blocking for updates
+		err := c.RPC("Client.GetAllocs", &req, &resp)
+		if err != nil {
+			c.logger.Printf("[ERR] client: failed to query for node allocations: %v", err)
+			retry := getAllocRetryIntv + randomStagger(getAllocRetryIntv)
+			select {
+			case <-time.After(retry):
+				continue
+			case <-c.shutdownCh:
+				return
+			}
+		}
+
+		// Check for shutdown
+		select {
+		case <-c.shutdownCh:
+			return
+		default:
+		}
+
+		// Check for updates
+		if resp.Index == lastIndex {
+			continue
+		}
+		lastIndex = resp.Index
+		c.logger.Printf("[DEBUG] client: updated allocations at index %d (%d allocs)", lastIndex, len(resp.Allocs))
+
+		// Push the updates
+		select {
+		case allocUpdates <- resp.Allocs:
+		case <-c.shutdownCh:
+			return
+		}
+	}
+}
+
+// runAllocs is invoked when we get an updated set of allocations
+func (c *Client) runAllocs([]*structs.Allocation) {
+	// TODO
 }
