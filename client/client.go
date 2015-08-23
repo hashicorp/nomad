@@ -143,6 +143,12 @@ func NewClient(config *Config) (*Client, error) {
 	return c, nil
 }
 
+// Leave is used to prepare the client to leave the cluster
+func (c *Client) Leave() error {
+	// TODO
+	return nil
+}
+
 // Shutdown is used to tear down the client
 func (c *Client) Shutdown() error {
 	c.logger.Printf("[INFO] client: shutting down")

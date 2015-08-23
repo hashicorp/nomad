@@ -6,6 +6,7 @@ import (
 	"os"
 	"sync"
 
+	"github.com/hashicorp/nomad/client"
 	"github.com/hashicorp/nomad/nomad"
 )
 
@@ -20,7 +21,7 @@ type Agent struct {
 	logOutput io.Writer
 
 	server *nomad.Server
-	client *nomad.Server // TODO
+	client *client.Client
 
 	shutdown     bool
 	shutdownCh   chan struct{}
@@ -46,6 +47,16 @@ func NewAgent(config *Config, logOutput io.Writer) (*Agent, error) {
 // Leave is used gracefully exit. Clients will inform servers
 // of their departure so that allocations can be rescheduled.
 func (a *Agent) Leave() error {
+	if a.client != nil {
+		if err := a.client.Leave(); err != nil {
+			a.logger.Printf("[ERR] agent: client leave failed: %v", err)
+		}
+	}
+	if a.server != nil {
+		if err := a.server.Leave(); err != nil {
+			a.logger.Printf("[ERR] agent: server leave failed: %v", err)
+		}
+	}
 	return nil
 }
 
@@ -59,17 +70,21 @@ func (a *Agent) Shutdown() error {
 	}
 
 	a.logger.Println("[INFO] agent: requesting shutdown")
-	var err error
+	if a.client != nil {
+		if err := a.client.Shutdown(); err != nil {
+			a.logger.Printf("[ERR] agent: client shutdown failed: %v", err)
+		}
+	}
 	if a.server != nil {
-		err = a.server.Shutdown()
-	} else {
-		err = a.client.Shutdown()
+		if err := a.server.Shutdown(); err != nil {
+			a.logger.Printf("[ERR] agent: server shutdown failed: %v", err)
+		}
 	}
 
 	a.logger.Println("[INFO] agent: shutdown complete")
 	a.shutdown = true
 	close(a.shutdownCh)
-	return err
+	return nil
 }
 
 // RPC is used to make an RPC call to the Nomad servers
