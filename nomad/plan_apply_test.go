@@ -285,6 +285,35 @@ func TestPlanApply_EvalNodePlan_NodeFull(t *testing.T) {
 		[]*structs.Allocation{alloc})
 	snap, _ := state.Snapshot()
 
+	alloc2 := mock.Alloc()
+	alloc2.NodeID = node.ID
+	plan := &structs.Plan{
+		NodeAllocation: map[string][]*structs.Allocation{
+			node.ID: []*structs.Allocation{alloc2},
+		},
+	}
+
+	fit, err := evaluateNodePlan(snap, plan, node.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if fit {
+		t.Fatalf("bad")
+	}
+}
+
+func TestPlanApply_EvalNodePlan_UpdateExisting(t *testing.T) {
+	alloc := mock.Alloc()
+	state := testStateStore(t)
+	node := mock.Node()
+	alloc.NodeID = node.ID
+	node.Resources = alloc.Resources
+	node.Reserved = nil
+	state.RegisterNode(1000, node)
+	state.UpdateAllocations(1001, nil,
+		[]*structs.Allocation{alloc})
+	snap, _ := state.Snapshot()
+
 	plan := &structs.Plan{
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: []*structs.Allocation{alloc},
@@ -295,7 +324,7 @@ func TestPlanApply_EvalNodePlan_NodeFull(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if fit {
+	if !fit {
 		t.Fatalf("bad")
 	}
 }
