@@ -651,6 +651,7 @@ const (
 	AllocStatusComplete = "complete"
 	AllocStatusDead     = "dead"
 	AllocStatusFailed   = "failed"
+	AllocStatusEvict    = "evict"
 )
 
 // Allocation is used to allocate the placement of a task group to a node.
@@ -695,7 +696,7 @@ type Allocation struct {
 // will no longer transition.
 func (a *Allocation) TerminalStatus() bool {
 	switch a.Status {
-	case AllocStatusComplete, AllocStatusDead, AllocStatusFailed:
+	case AllocStatusComplete, AllocStatusDead, AllocStatusFailed, AllocStatusEvict:
 		return true
 	default:
 		return false

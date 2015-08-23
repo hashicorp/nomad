@@ -24,6 +24,19 @@ func RemoveAllocs(alloc []*Allocation, remove []string) []*Allocation {
 	return alloc
 }
 
+// FilterTerminalAllocs filters out all allocations in a terminal state
+func FilterTerminalAllocs(allocs []*Allocation) []*Allocation {
+	n := len(allocs)
+	for i := 0; i < n; i++ {
+		if allocs[i].TerminalStatus() {
+			allocs[i], allocs[n-1] = allocs[n-1], nil
+			i--
+			n--
+		}
+	}
+	return allocs[:n]
+}
+
 // PortsOvercommited checks if any ports are over-committed.
 // This does not handle CIDR subsets, and computes for the entire
 // CIDR block currently.

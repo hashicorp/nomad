@@ -19,6 +19,23 @@ func TestRemoveAllocs(t *testing.T) {
 	}
 }
 
+func TestFilterTerminalALlocs(t *testing.T) {
+	l := []*Allocation{
+		&Allocation{ID: "foo", Status: AllocStatusPending},
+		&Allocation{ID: "bar", Status: AllocStatusEvict},
+		&Allocation{ID: "baz", Status: AllocStatusComplete},
+		&Allocation{ID: "zip", Status: AllocStatusPending},
+	}
+
+	out := FilterTerminalAllocs(l)
+	if len(out) != 2 {
+		t.Fatalf("bad: %#v", out)
+	}
+	if out[0].ID != "foo" && out[1].ID != "zip" {
+		t.Fatalf("bad: %#v", out)
+	}
+}
+
 func TestPortsOvercommitted(t *testing.T) {
 	r := &Resources{
 		Networks: []*NetworkResource{
