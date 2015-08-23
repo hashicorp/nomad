@@ -390,6 +390,17 @@ type Node struct {
 	ModifyIndex uint64
 }
 
+// TerminalStatus returns if the current status is terminal and
+// will no longer transition.
+func (n *Node) TerminalStatus() bool {
+	switch n.Status {
+	case NodeStatusDown:
+		return true
+	default:
+		return false
+	}
+}
+
 // Resources is used to define the resources available
 // on a client
 type Resources struct {

@@ -117,6 +117,20 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 
 	// Reap any failed evaluations
 	go s.reapFailedEvaluations(stopCh)
+
+	// Setup the heartbeat timers. This is done both when starting up or when
+	// a leader fail over happens. Since the timers are maintained by the leader
+	// node, effectively this means all the timers are renewed at the time of failover.
+	// The TTL contract is that the session will not be expired before the TTL,
+	// so expiring it later is allowable.
+	//
+	// This MUST be done after the initial barrier to ensure the latest Nodes
+	// are available to be initialized. Otherwise initialization may use stale
+	// data.
+	if err := s.initializeHeartbeatTimers(); err != nil {
+		s.logger.Printf("[ERR] nomad: heartbeat timer setup failed: %v", err)
+		return err
+	}
 	return nil
 }
 
@@ -222,6 +236,13 @@ func (s *Server) revokeLeadership() error {
 
 	// Disable the eval broker, since it is only useful as a leader
 	s.evalBroker.SetEnabled(false)
+
+	// Clear the heartbeat timers on either shutdown or step down,
+	// since we are no longer responsible for TTL expirations.
+	if err := s.clearAllHeartbeatTimers(); err != nil {
+		s.logger.Printf("[ERR] nomad: clearing heartbeat timers failed: %v", err)
+		return err
+	}
 	return nil
 }
 

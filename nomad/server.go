@@ -110,6 +110,11 @@ type Server struct {
 	// plans that are waiting to be assessed by the leader
 	planQueue *PlanQueue
 
+	// heartbeatTimers track the expiration time of each heartbeat that has
+	// a TTL. On expiration, the node status is updated to be 'down'.
+	heartbeatTimers     map[string]*time.Timer
+	heartbeatTimersLock sync.Mutex
+
 	left         bool
 	shutdown     bool
 	shutdownCh   chan struct{}
@@ -203,6 +208,9 @@ func NewServer(config *Config) (*Server, error) {
 
 	// Emit metrics for the plan queue
 	go planQueue.EmitStats(time.Second, s.shutdownCh)
+
+	// Emit metrics
+	go s.heartbeatStats()
 
 	// Done
 	return s, nil
