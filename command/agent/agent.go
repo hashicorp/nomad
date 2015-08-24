@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -41,7 +42,62 @@ func NewAgent(config *Config, logOutput io.Writer) (*Agent, error) {
 		logOutput:  logOutput,
 		shutdownCh: make(chan struct{}),
 	}
+
+	if err := a.setupServer(); err != nil {
+		return nil, err
+	}
+	if err := a.setupClient(); err != nil {
+		return nil, err
+	}
+	if a.client == nil && a.server == nil {
+		return nil, fmt.Errorf("must have at least client or server mode enabled")
+	}
 	return a, nil
+}
+
+// setupServer is used to setup the server if enabled
+func (a *Agent) setupServer() error {
+	if !a.config.Server.Enabled {
+		return nil
+	}
+
+	// Setup the configuration
+	conf := nomad.DefaultConfig()
+	conf.LogOutput = a.logOutput
+	conf.DevMode = a.config.DevMode
+
+	// TODO: Merge configuration
+
+	server, err := nomad.NewServer(conf)
+	if err != nil {
+		return fmt.Errorf("server setup failed: %v", err)
+	}
+	a.server = server
+	return nil
+}
+
+// setupClient is used to setup the client if enabled
+func (a *Agent) setupClient() error {
+	if !a.config.Client.Enabled {
+		return nil
+	}
+
+	// Setup the configuration
+	conf := client.DefaultConfig()
+	if a.server != nil {
+		conf.RPCHandler = a.server
+	}
+	conf.LogOutput = a.logOutput
+	conf.DevMode = a.config.DevMode
+
+	// TODO: Merge configuration
+
+	client, err := client.NewClient(conf)
+	if err != nil {
+		return fmt.Errorf("client setup failed: %v", err)
+	}
+	a.client = client
+	return nil
 }
 
 // Leave is used gracefully exit. Clients will inform servers
@@ -93,4 +149,14 @@ func (a *Agent) RPC(method string, args interface{}, reply interface{}) error {
 		return a.server.RPC(method, args, reply)
 	}
 	return a.client.RPC(method, args, reply)
+}
+
+// Client returns the configured client or nil
+func (a *Agent) Client() *client.Client {
+	return a.client
+}
+
+// Server returns the configured server or nil
+func (a *Agent) Server() *nomad.Server {
+	return a.server
 }

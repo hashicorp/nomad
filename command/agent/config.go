@@ -46,6 +46,8 @@ type Config struct {
 	Revision          string
 	Version           string
 	VersionPrerelease string
+
+	DevMode bool `hcl:"-"`
 }
 
 type ClientConfig struct {
@@ -97,6 +99,13 @@ type Telemetry struct {
 func DevConfig() *Config {
 	return &Config{
 		LogLevel: "DEBUG",
+		Client: &ClientConfig{
+			Enabled: true,
+		},
+		Server: &ServerConfig{
+			Enabled: true,
+		},
+		DevMode: true,
 	}
 }
 
