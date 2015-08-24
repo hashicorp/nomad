@@ -39,7 +39,7 @@ func init() {
 }
 
 var (
-	DefaultRPCAddr = &net.TCPAddr{IP: net.ParseIP("0.0.0.0"), Port: 4647}
+	DefaultRPCAddr = &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 4647}
 )
 
 // Config is used to parameterize the server
