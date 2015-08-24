@@ -27,6 +27,9 @@ type Config struct {
 	// If not specified, 127.0.0.1:4646 is used.
 	HttpAddr string `hcl:"http_addr"`
 
+	// EnableDebug is used to enable debugging HTTP endpoints
+	EnableDebug bool `hcl:"enable_debug"`
+
 	// Client has our client related settings
 	Client *ClientConfig `hcl:"client"`
 
@@ -105,7 +108,9 @@ func DevConfig() *Config {
 		Server: &ServerConfig{
 			Enabled: true,
 		},
-		DevMode: true,
+		DevMode:                   true,
+		EnableDebug:               true,
+		DisableAnonymousSignature: true,
 	}
 }
 

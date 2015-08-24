@@ -36,10 +36,11 @@ type Command struct {
 	Ui                cli.Ui
 	ShutdownCh        <-chan struct{}
 
-	args      []string
-	agent     *Agent
-	logFilter *logutils.LevelFilter
-	logOutput io.Writer
+	args       []string
+	agent      *Agent
+	httpServer *HTTPServer
+	logFilter  *logutils.LevelFilter
+	logOutput  io.Writer
 }
 
 func (c *Command) readConfig() *Config {
@@ -144,6 +145,14 @@ func (c *Command) setupAgent(config *Config, logOutput io.Writer) error {
 		return err
 	}
 	c.agent = agent
+
+	http, err := NewHTTPServer(agent, config, logOutput)
+	if err != nil {
+		agent.Shutdown()
+		c.Ui.Error(fmt.Sprintf("Error starting http server: %s", err))
+		return err
+	}
+	c.httpServer = http
 
 	// Setup update checking
 	if !config.DisableUpdateCheck {
