@@ -477,31 +477,10 @@ func (s *StateStore) Evals() (memdb.ResultIterator, error) {
 
 // UpdateAllocations is used to evict a set of allocations
 // and allocate new ones at the same time.
-func (s *StateStore) UpdateAllocations(index uint64, evicts []string,
-	allocs []*structs.Allocation) error {
+func (s *StateStore) UpdateAllocations(index uint64, allocs []*structs.Allocation) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 	nodes := make(map[string]struct{})
-
-	// Handle evictions first
-	for _, evict := range evicts {
-		existing, err := txn.First("allocs", "id", evict)
-		if err != nil {
-			return fmt.Errorf("alloc lookup failed: %v", err)
-		}
-		if existing == nil {
-			continue
-		}
-		newAlloc := new(structs.Allocation)
-		*newAlloc = *existing.(*structs.Allocation)
-		newAlloc.Status = structs.AllocStatusEvict
-		newAlloc.StatusDescription = ""
-		nodes[newAlloc.NodeID] = struct{}{}
-
-		if err := txn.Insert("allocs", newAlloc); err != nil {
-			return fmt.Errorf("alloc insert failed: %v", err)
-		}
-	}
 
 	// Handle the allocations
 	for _, alloc := range allocs {
@@ -509,12 +488,16 @@ func (s *StateStore) UpdateAllocations(index uint64, evicts []string,
 		if err != nil {
 			return fmt.Errorf("alloc lookup failed: %v", err)
 		}
+
 		if existing == nil {
 			alloc.CreateIndex = index
 			alloc.ModifyIndex = index
 		} else {
-			alloc.CreateIndex = existing.(*structs.Allocation).CreateIndex
+			exist := existing.(*structs.Allocation)
+			alloc.CreateIndex = exist.CreateIndex
 			alloc.ModifyIndex = index
+			alloc.ClientStatus = exist.ClientStatus
+			alloc.ClientDescription = exist.ClientDescription
 		}
 		nodes[alloc.NodeID] = struct{}{}
 		if err := txn.Insert("allocs", alloc); err != nil {

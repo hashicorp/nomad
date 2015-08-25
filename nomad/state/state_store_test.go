@@ -477,8 +477,7 @@ func TestStateStore_DeleteEval_GetEval(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	err = state.UpdateAllocations(1001, nil,
-		[]*structs.Allocation{alloc, alloc2})
+	err = state.UpdateAllocations(1001, []*structs.Allocation{alloc, alloc2})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -616,8 +615,7 @@ func TestStateStore_UpsertAlloc_GetAlloc(t *testing.T) {
 	state := testStateStore(t)
 
 	alloc := mock.Alloc()
-	err := state.UpdateAllocations(1000, nil,
-		[]*structs.Allocation{alloc})
+	err := state.UpdateAllocations(1000, []*structs.Allocation{alloc})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -651,8 +649,7 @@ func TestStateStore_WatchAllocs(t *testing.T) {
 
 	alloc := mock.Alloc()
 	alloc.NodeID = "foo"
-	err := state.UpdateAllocations(1000, nil,
-		[]*structs.Allocation{alloc})
+	err := state.UpdateAllocations(1000, []*structs.Allocation{alloc})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -674,8 +671,7 @@ func TestStateStore_UpdateAlloc_GetAlloc(t *testing.T) {
 	state := testStateStore(t)
 	alloc := mock.Alloc()
 
-	err := state.UpdateAllocations(1000, nil,
-		[]*structs.Allocation{alloc})
+	err := state.UpdateAllocations(1000, []*structs.Allocation{alloc})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -683,8 +679,7 @@ func TestStateStore_UpdateAlloc_GetAlloc(t *testing.T) {
 	alloc2 := mock.Alloc()
 	alloc2.ID = alloc.ID
 	alloc2.NodeID = alloc.NodeID + ".new"
-	err = state.UpdateAllocations(1001, nil,
-		[]*structs.Allocation{alloc2})
+	err = state.UpdateAllocations(1001, []*structs.Allocation{alloc2})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -718,12 +713,15 @@ func TestStateStore_EvictAlloc_GetAlloc(t *testing.T) {
 	state := testStateStore(t)
 	alloc := mock.Alloc()
 
-	err := state.UpdateAllocations(1001, nil, []*structs.Allocation{alloc})
+	err := state.UpdateAllocations(1000, []*structs.Allocation{alloc})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	err = state.UpdateAllocations(1001, []string{alloc.ID}, nil)
+	alloc2 := new(structs.Allocation)
+	*alloc2 = *alloc
+	alloc2.DesiredStatus = structs.AllocDesiredStatusEvict
+	err = state.UpdateAllocations(1001, []*structs.Allocation{alloc2})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -733,7 +731,7 @@ func TestStateStore_EvictAlloc_GetAlloc(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if out.Status != structs.AllocStatusEvict {
+	if out.DesiredStatus != structs.AllocDesiredStatusEvict {
 		t.Fatalf("bad: %#v %#v", alloc, out)
 	}
 
@@ -756,7 +754,7 @@ func TestStateStore_AllocsByNode(t *testing.T) {
 		allocs = append(allocs, alloc)
 	}
 
-	err := state.UpdateAllocations(1000, nil, allocs)
+	err := state.UpdateAllocations(1000, allocs)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -784,7 +782,7 @@ func TestStateStore_AllocsByJob(t *testing.T) {
 		allocs = append(allocs, alloc)
 	}
 
-	err := state.UpdateAllocations(1000, nil, allocs)
+	err := state.UpdateAllocations(1000, allocs)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -811,7 +809,7 @@ func TestStateStore_Allocs(t *testing.T) {
 		allocs = append(allocs, alloc)
 	}
 
-	err := state.UpdateAllocations(1000, nil, allocs)
+	err := state.UpdateAllocations(1000, allocs)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

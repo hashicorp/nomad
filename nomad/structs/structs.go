@@ -713,7 +713,7 @@ type Allocation struct {
 	ClientStatus string
 
 	// ClientStatusDescription is meant to provide more human useful information
-	StatusDescription string
+	ClientDescription string
 
 	// Raft Indexes
 	CreateIndex uint64
