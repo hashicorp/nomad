@@ -144,8 +144,9 @@ func Alloc() *structs.Allocation {
 				},
 			},
 		},
-		Job:    Job(),
-		Status: structs.AllocStatusPending,
+		Job:           Job(),
+		DesiredStatus: structs.AllocDesiredStatusRun,
+		ClientStatus:  structs.AllocClientStatusPending,
 	}
 	alloc.JobID = alloc.Job.ID
 	return alloc
