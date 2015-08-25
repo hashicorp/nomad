@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -56,7 +57,7 @@ func testServer(t *testing.T, cb func(*nomad.Config)) (*nomad.Server, string) {
 	return server, config.RPCAddr.String()
 }
 
-func testClient(t *testing.T, cb func(c *Config)) *Client {
+func testClient(t *testing.T, cb func(c *config.Config)) *Client {
 	conf := DefaultConfig()
 	if cb != nil {
 		cb(conf)
@@ -80,7 +81,7 @@ func TestClient_RPC(t *testing.T) {
 	s1, addr := testServer(t, nil)
 	defer s1.Shutdown()
 
-	c1 := testClient(t, func(c *Config) {
+	c1 := testClient(t, func(c *config.Config) {
 		c.Servers = []string{addr}
 	})
 	defer c1.Shutdown()
@@ -99,7 +100,7 @@ func TestClient_RPC_Passthrough(t *testing.T) {
 	s1, _ := testServer(t, nil)
 	defer s1.Shutdown()
 
-	c1 := testClient(t, func(c *Config) {
+	c1 := testClient(t, func(c *config.Config) {
 		c.RPCHandler = s1
 	})
 	defer c1.Shutdown()
@@ -144,7 +145,7 @@ func TestClient_Register(t *testing.T) {
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c1 := testClient(t, func(c *Config) {
+	c1 := testClient(t, func(c *config.Config) {
 		c.RPCHandler = s1
 	})
 	defer c1.Shutdown()

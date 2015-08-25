@@ -2,7 +2,6 @@ package client
 
 import (
 	"fmt"
-	"io"
 	"log"
 	"net"
 	"os"
@@ -10,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/nomad"
@@ -37,45 +37,9 @@ const (
 	devModeRetryIntv = time.Second
 )
 
-// RPCHandler can be provided to the Client if there is a local server
-// to avoid going over the network. If not provided, the Client will
-// maintain a connection pool to the servers
-type RPCHandler interface {
-	RPC(method string, args interface{}, reply interface{}) error
-}
-
-// Config is used to parameterize and configure the behavior of the client
-type Config struct {
-	// DevMode controls if we are in a development mode which
-	// avoids persistent storage.
-	DevMode bool
-
-	// StateDir is where we store our state
-	StateDir string
-
-	// AllocDir is where we store data for allocations
-	AllocDir string
-
-	// LogOutput is the destination for logs
-	LogOutput io.Writer
-
-	// Region is the clients region
-	Region string
-
-	// Servers is a list of known server addresses. These are as "host:port"
-	Servers []string
-
-	// RPCHandler can be provided to avoid network traffic if the
-	// server is running locally.
-	RPCHandler RPCHandler
-
-	// Node provides the base node
-	Node *structs.Node
-}
-
 // DefaultConfig returns the default configuration
-func DefaultConfig() *Config {
-	return &Config{
+func DefaultConfig() *config.Config {
+	return &config.Config{
 		LogOutput: os.Stderr,
 		Region:    "region1",
 	}
@@ -85,7 +49,7 @@ func DefaultConfig() *Config {
 // are expected to register as a schedulable node to the servers, and to
 // run allocations as determined by the servers.
 type Client struct {
-	config *Config
+	config *config.Config
 
 	logger *log.Logger
 
@@ -108,14 +72,14 @@ type Client struct {
 }
 
 // NewClient is used to create a new client from the given configuration
-func NewClient(config *Config) (*Client, error) {
+func NewClient(cfg *config.Config) (*Client, error) {
 	// Create a logger
-	logger := log.New(config.LogOutput, "", log.LstdFlags)
+	logger := log.New(cfg.LogOutput, "", log.LstdFlags)
 
 	// Create the client
 	c := &Client{
-		config:     config,
-		connPool:   nomad.NewPool(config.LogOutput, clientRPCCache, clientMaxStreams, nil),
+		config:     cfg,
+		connPool:   nomad.NewPool(cfg.LogOutput, clientRPCCache, clientMaxStreams, nil),
 		logger:     logger,
 		allocs:     make(map[string]*AllocRunner),
 		shutdownCh: make(chan struct{}),
@@ -315,7 +279,7 @@ func (c *Client) fingerprint() error {
 		if err != nil {
 			return err
 		}
-		applies, err := f.Fingerprint(c.config.Node)
+		applies, err := f.Fingerprint(c.config, c.config.Node)
 		if err != nil {
 			return err
 		}
@@ -335,7 +299,7 @@ func (c *Client) setupDrivers() error {
 		if err != nil {
 			return err
 		}
-		applies, err := d.Fingerprint(c.config.Node)
+		applies, err := d.Fingerprint(c.config, c.config.Node)
 		if err != nil {
 			return err
 		}

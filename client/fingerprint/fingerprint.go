@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -38,5 +39,5 @@ type Factory func(*log.Logger) Fingerprint
 type Fingerprint interface {
 	// Fingerprint is used to update properties of the Node,
 	// and returns if the fingerprint was applicable and a potential error.
-	Fingerprint(*structs.Node) (bool, error)
+	Fingerprint(*config.Config, *structs.Node) (bool, error)
 }
