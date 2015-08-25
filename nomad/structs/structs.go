@@ -661,13 +661,16 @@ func (c *Constraint) String() string {
 }
 
 const (
-	AllocStatusPending  = "pending"
-	AllocStatusInit     = "initializing"
-	AllocStatusRunning  = "running"
-	AllocStatusComplete = "complete"
-	AllocStatusDead     = "dead"
-	AllocStatusFailed   = "failed"
-	AllocStatusEvict    = "evict"
+	AllocDesiredStatusRun   = "run"   // Allocation should run
+	AllocDesiredStatusStop  = "stop"  // Allocation should stop
+	AllocDesiredStatusEvict = "evict" // Allocation should stop, and was evicted
+)
+
+const (
+	AllocClientStatusPending = "pending"
+	AllocClientStatusRunning = "running"
+	AllocClientStatusDead    = "dead"
+	AllocClientStatusFailed  = "failed"
 )
 
 // Allocation is used to allocate the placement of a task group to a node.
@@ -700,10 +703,16 @@ type Allocation struct {
 	// Metrics associated with this allocation
 	Metrics *AllocMetric
 
-	// Status of the allocation
-	Status string
+	// Desired Status of the allocation on the client
+	DesiredStatus string
 
-	// StatusDescription is meant to provide more human useful information
+	// DesiredStatusDescription is meant to provide more human useful information
+	DesiredDescription string
+
+	// Status of the allocation on the client
+	ClientStatus string
+
+	// ClientStatusDescription is meant to provide more human useful information
 	StatusDescription string
 
 	// Raft Indexes
@@ -711,11 +720,11 @@ type Allocation struct {
 	ModifyIndex uint64
 }
 
-// TerminalStatus returns if the current status is terminal and
-// will no longer transition.
+// TerminalStatus returns if the desired status is terminal and
+// will no longer transition. This is not based on the current client status.
 func (a *Allocation) TerminalStatus() bool {
-	switch a.Status {
-	case AllocStatusComplete, AllocStatusDead, AllocStatusFailed, AllocStatusEvict:
+	switch a.DesiredStatus {
+	case AllocDesiredStatusStop, AllocDesiredStatusEvict:
 		return true
 	default:
 		return false

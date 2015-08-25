@@ -21,10 +21,10 @@ func TestRemoveAllocs(t *testing.T) {
 
 func TestFilterTerminalALlocs(t *testing.T) {
 	l := []*Allocation{
-		&Allocation{ID: "foo", Status: AllocStatusPending},
-		&Allocation{ID: "bar", Status: AllocStatusEvict},
-		&Allocation{ID: "baz", Status: AllocStatusComplete},
-		&Allocation{ID: "zip", Status: AllocStatusPending},
+		&Allocation{ID: "foo", DesiredStatus: AllocDesiredStatusRun},
+		&Allocation{ID: "bar", DesiredStatus: AllocDesiredStatusEvict},
+		&Allocation{ID: "baz", DesiredStatus: AllocDesiredStatusStop},
+		&Allocation{ID: "zip", DesiredStatus: AllocDesiredStatusRun},
 	}
 
 	out := FilterTerminalAllocs(l)
