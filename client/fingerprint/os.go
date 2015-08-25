@@ -4,6 +4,7 @@ import (
 	"log"
 	"runtime"
 
+	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -18,7 +19,7 @@ func NewOSFingerprint(logger *log.Logger) Fingerprint {
 	return f
 }
 
-func (f *OSFingerprint) Fingerprint(node *structs.Node) (bool, error) {
+func (f *OSFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
 	node.Attributes["os"] = runtime.GOOS
 	f.logger.Printf("[DEBUG] fingerprint.os: detected '%s'", runtime.GOOS)
 	return true, nil

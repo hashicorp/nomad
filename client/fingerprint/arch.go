@@ -4,6 +4,7 @@ import (
 	"log"
 	"runtime"
 
+	client "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -18,7 +19,7 @@ func NewArchFingerprint(logger *log.Logger) Fingerprint {
 	return f
 }
 
-func (f *ArchFingerprint) Fingerprint(node *structs.Node) (bool, error) {
+func (f *ArchFingerprint) Fingerprint(config *client.Config, node *structs.Node) (bool, error) {
 	node.Attributes["arch"] = runtime.GOARCH
 	f.logger.Printf("[DEBUG] fingerprint.arch: detected '%s'", runtime.GOARCH)
 	return true, nil
