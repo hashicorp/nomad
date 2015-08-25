@@ -10,7 +10,7 @@ func TestRemoveAllocs(t *testing.T) {
 		&Allocation{ID: "zip"},
 	}
 
-	out := RemoveAllocs(l, []string{"bar", "zip"})
+	out := RemoveAllocs(l, []*Allocation{l[1], l[3]})
 	if len(out) != 2 {
 		t.Fatalf("bad: %#v", out)
 	}
