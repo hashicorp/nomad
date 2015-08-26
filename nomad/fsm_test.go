@@ -328,7 +328,6 @@ func TestFSM_UpdateAllocations(t *testing.T) {
 
 	alloc := mock.Alloc()
 	req := structs.AllocUpdateRequest{
-		Evict: nil,
 		Alloc: []*structs.Allocation{alloc},
 	}
 	buf, err := structs.Encode(structs.AllocUpdateRequestType, req)
@@ -352,8 +351,11 @@ func TestFSM_UpdateAllocations(t *testing.T) {
 		t.Fatalf("bad: %#v %#v", alloc, out)
 	}
 
+	evictAlloc := new(structs.Allocation)
+	*evictAlloc = *alloc
+	evictAlloc.DesiredStatus = structs.AllocDesiredStatusEvict
 	req2 := structs.AllocUpdateRequest{
-		Evict: []string{alloc.ID},
+		Alloc: []*structs.Allocation{evictAlloc},
 	}
 	buf, err = structs.Encode(structs.AllocUpdateRequestType, req2)
 	if err != nil {
@@ -370,7 +372,7 @@ func TestFSM_UpdateAllocations(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if out.Status != structs.AllocStatusEvict {
+	if out.DesiredStatus != structs.AllocDesiredStatusEvict {
 		t.Fatalf("alloc found!")
 	}
 }
@@ -471,9 +473,9 @@ func TestFSM_SnapshotRestore_Allocs(t *testing.T) {
 	fsm := testFSM(t)
 	state := fsm.State()
 	alloc1 := mock.Alloc()
-	state.UpdateAllocations(1000, nil, []*structs.Allocation{alloc1})
+	state.UpdateAllocations(1000, []*structs.Allocation{alloc1})
 	alloc2 := mock.Alloc()
-	state.UpdateAllocations(1001, nil, []*structs.Allocation{alloc2})
+	state.UpdateAllocations(1001, []*structs.Allocation{alloc2})
 
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)

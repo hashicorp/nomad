@@ -254,7 +254,7 @@ func (n *nomadFSM) applyAllocUpdate(buf []byte, index uint64) interface{} {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.UpdateAllocations(index, req.Evict, req.Alloc); err != nil {
+	if err := n.state.UpdateAllocations(index, req.Alloc); err != nil {
 		n.logger.Printf("[ERR] nomad.fsm: UpdateAllocations failed: %v", err)
 		return err
 	}

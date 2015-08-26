@@ -394,7 +394,7 @@ func (s *Server) setupRaft() error {
 	}
 
 	// Create a transport layer
-	trans := raft.NewNetworkTransport(s.raftLayer, 3, 10*time.Second,
+	trans := raft.NewNetworkTransport(s.raftLayer, 3, s.config.RaftTimeout,
 		s.config.LogOutput)
 	s.raftTransport = trans
 

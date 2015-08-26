@@ -217,9 +217,6 @@ type PlanRequest struct {
 // to cause evictions or to assign new allocaitons. Both can be done
 // within a single transaction
 type AllocUpdateRequest struct {
-	// Evict is the list of allocation IDs to evict
-	Evict []string
-
 	// Alloc is the list of new allocations to assign
 	Alloc []*Allocation
 }
@@ -725,7 +722,7 @@ type Allocation struct {
 // will no longer transition. This is not based on the current client status.
 func (a *Allocation) TerminalStatus() bool {
 	switch a.DesiredStatus {
-	case AllocDesiredStatusStop, AllocDesiredStatusEvict:
+	case AllocDesiredStatusStop, AllocDesiredStatusEvict, AllocDesiredStatusFailed:
 		return true
 	default:
 		return false
@@ -1006,6 +1003,11 @@ type PlanResult struct {
 	// AllocIndex is the Raft index in which the evictions and
 	// allocations took place. This is used for the write index.
 	AllocIndex uint64
+}
+
+// IsNoOp checks if this plan result would do nothing
+func (p *PlanResult) IsNoOp() bool {
+	return len(p.NodeUpdate) == 0 && len(p.NodeAllocation) == 0 && len(p.FailedAllocs) == 0
 }
 
 // FullCommit is used to check if all the allocations in a plan

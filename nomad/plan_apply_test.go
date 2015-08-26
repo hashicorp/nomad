@@ -39,9 +39,6 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	alloc := mock.Alloc()
 	allocFail := mock.Alloc()
 	plan := &structs.PlanResult{
-		NodeEvict: map[string][]string{
-			node.ID: []string{},
-		},
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: []*structs.Allocation{alloc},
 		},
@@ -76,10 +73,13 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	}
 
 	// Evict alloc, Register alloc2
+	allocEvict := new(structs.Allocation)
+	*allocEvict = *alloc
+	allocEvict.DesiredStatus = structs.AllocDesiredStatusEvict
 	alloc2 := mock.Alloc()
 	plan = &structs.PlanResult{
-		NodeEvict: map[string][]string{
-			node.ID: []string{alloc.ID},
+		NodeUpdate: map[string][]*structs.Allocation{
+			node.ID: []*structs.Allocation{allocEvict},
 		},
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: []*structs.Allocation{alloc2},
@@ -100,8 +100,8 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if out.Status != structs.AllocStatusEvict {
-		t.Fatalf("should be evicted alloc")
+	if out.DesiredStatus != structs.AllocDesiredStatusEvict {
+		t.Fatalf("should be evicted alloc: %#v", out)
 	}
 
 	// Lookup the allocation
@@ -281,8 +281,7 @@ func TestPlanApply_EvalNodePlan_NodeFull(t *testing.T) {
 	node.Resources = alloc.Resources
 	node.Reserved = nil
 	state.RegisterNode(1000, node)
-	state.UpdateAllocations(1001, nil,
-		[]*structs.Allocation{alloc})
+	state.UpdateAllocations(1001, []*structs.Allocation{alloc})
 	snap, _ := state.Snapshot()
 
 	alloc2 := mock.Alloc()
@@ -310,8 +309,7 @@ func TestPlanApply_EvalNodePlan_UpdateExisting(t *testing.T) {
 	node.Resources = alloc.Resources
 	node.Reserved = nil
 	state.RegisterNode(1000, node)
-	state.UpdateAllocations(1001, nil,
-		[]*structs.Allocation{alloc})
+	state.UpdateAllocations(1001, []*structs.Allocation{alloc})
 	snap, _ := state.Snapshot()
 
 	plan := &structs.Plan{
@@ -337,14 +335,16 @@ func TestPlanApply_EvalNodePlan_NodeFull_Evict(t *testing.T) {
 	node.Resources = alloc.Resources
 	node.Reserved = nil
 	state.RegisterNode(1000, node)
-	state.UpdateAllocations(1001, nil,
-		[]*structs.Allocation{alloc})
+	state.UpdateAllocations(1001, []*structs.Allocation{alloc})
 	snap, _ := state.Snapshot()
 
+	allocEvict := new(structs.Allocation)
+	*allocEvict = *alloc
+	allocEvict.DesiredStatus = structs.AllocDesiredStatusEvict
 	alloc2 := mock.Alloc()
 	plan := &structs.Plan{
-		NodeEvict: map[string][]string{
-			node.ID: []string{alloc.ID},
+		NodeUpdate: map[string][]*structs.Allocation{
+			node.ID: []*structs.Allocation{allocEvict},
 		},
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: []*structs.Allocation{alloc2},
@@ -365,12 +365,11 @@ func TestPlanApply_EvalNodePlan_NodeFull_AllocEvict(t *testing.T) {
 	state := testStateStore(t)
 	node := mock.Node()
 	alloc.NodeID = node.ID
-	alloc.Status = structs.AllocStatusEvict
+	alloc.DesiredStatus = structs.AllocDesiredStatusEvict
 	node.Resources = alloc.Resources
 	node.Reserved = nil
 	state.RegisterNode(1000, node)
-	state.UpdateAllocations(1001, nil,
-		[]*structs.Allocation{alloc})
+	state.UpdateAllocations(1001, []*structs.Allocation{alloc})
 	snap, _ := state.Snapshot()
 
 	alloc2 := mock.Alloc()
@@ -398,13 +397,15 @@ func TestPlanApply_EvalNodePlan_NodeMaint_EvictOnly(t *testing.T) {
 	node.Reserved = nil
 	node.Status = structs.NodeStatusMaint
 	state.RegisterNode(1000, node)
-	state.UpdateAllocations(1001, nil,
-		[]*structs.Allocation{alloc})
+	state.UpdateAllocations(1001, []*structs.Allocation{alloc})
 	snap, _ := state.Snapshot()
 
+	allocEvict := new(structs.Allocation)
+	*allocEvict = *alloc
+	allocEvict.DesiredStatus = structs.AllocDesiredStatusEvict
 	plan := &structs.Plan{
-		NodeEvict: map[string][]string{
-			node.ID: []string{alloc.ID},
+		NodeUpdate: map[string][]*structs.Allocation{
+			node.ID: []*structs.Allocation{allocEvict},
 		},
 	}
 

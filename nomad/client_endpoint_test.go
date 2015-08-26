@@ -271,7 +271,7 @@ func TestClientEndpoint_GetAllocs(t *testing.T) {
 	alloc := mock.Alloc()
 	alloc.NodeID = node.ID
 	state := s1.fsm.State()
-	err := state.UpdateAllocations(100, nil, []*structs.Allocation{alloc})
+	err := state.UpdateAllocations(100, []*structs.Allocation{alloc})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -334,7 +334,7 @@ func TestClientEndpoint_GetAllocs_Blocking(t *testing.T) {
 	start := time.Now()
 	go func() {
 		time.Sleep(100 * time.Millisecond)
-		err := state.UpdateAllocations(100, nil, []*structs.Allocation{alloc})
+		err := state.UpdateAllocations(100, []*structs.Allocation{alloc})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -376,7 +376,7 @@ func TestClientEndpoint_CreateNodeEvals(t *testing.T) {
 	// Inject fake evaluations
 	alloc := mock.Alloc()
 	state := s1.fsm.State()
-	err := state.UpdateAllocations(1, nil, []*structs.Allocation{alloc})
+	err := state.UpdateAllocations(1, []*structs.Allocation{alloc})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -443,7 +443,7 @@ func TestClientEndpoint_Evaluate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	err = state.UpdateAllocations(2, nil, []*structs.Allocation{alloc})
+	err = state.UpdateAllocations(2, []*structs.Allocation{alloc})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
