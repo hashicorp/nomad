@@ -28,4 +28,10 @@ func TestOSFingerprint(t *testing.T) {
 	if node.Attributes["os"] == "" {
 		t.Fatalf("missing OS")
 	}
+	if node.Attributes["cpu.numcores"] == "" {
+		t.Fatalf("Missing Num Cores")
+	}
+	if node.Attributes["cpu.modelname"] == "" {
+		t.Fatalf("Missing Model Name")
+	}
 }
