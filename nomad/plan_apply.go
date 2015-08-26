@@ -52,7 +52,7 @@ func (s *Server) planApply() {
 		}
 
 		// Apply the plan if there is anything to do
-		if len(result.NodeEvict) != 0 || len(result.NodeAllocation) != 0 || len(result.FailedAllocs) != 0 {
+		if !result.IsNoOp() {
 			allocIndex, err := s.applyPlan(result)
 			if err != nil {
 				s.logger.Printf("[ERR] nomad: failed to apply plan: %v", err)
@@ -71,8 +71,8 @@ func (s *Server) planApply() {
 func (s *Server) applyPlan(result *structs.PlanResult) (uint64, error) {
 	defer metrics.MeasureSince([]string{"nomad", "plan", "apply"}, time.Now())
 	req := structs.AllocUpdateRequest{}
-	for _, evictList := range result.NodeEvict {
-		req.Evict = append(req.Evict, evictList...)
+	for _, updateList := range result.NodeUpdate {
+		req.Alloc = append(req.Alloc, updateList...)
 	}
 	for _, allocList := range result.NodeAllocation {
 		req.Alloc = append(req.Alloc, allocList...)
@@ -91,13 +91,22 @@ func evaluatePlan(snap *state.StateSnapshot, plan *structs.Plan) (*structs.PlanR
 
 	// Create a result holder for the plan
 	result := &structs.PlanResult{
-		NodeEvict:      make(map[string][]string),
+		NodeUpdate:     make(map[string][]*structs.Allocation),
 		NodeAllocation: make(map[string][]*structs.Allocation),
 		FailedAllocs:   plan.FailedAllocs,
 	}
 
-	// Check each allocation to see if it should be allowed
+	// Collect all the nodeIDs
+	nodeIDs := make(map[string]struct{})
+	for nodeID := range plan.NodeUpdate {
+		nodeIDs[nodeID] = struct{}{}
+	}
 	for nodeID := range plan.NodeAllocation {
+		nodeIDs[nodeID] = struct{}{}
+	}
+
+	// Check each allocation to see if it should be allowed
+	for nodeID := range nodeIDs {
 		// Evaluate the plan for this node
 		fit, err := evaluateNodePlan(snap, plan, nodeID)
 		if err != nil {
@@ -119,7 +128,7 @@ func evaluatePlan(snap *state.StateSnapshot, plan *structs.Plan) (*structs.PlanR
 			// If we require all-at-once scheduling, there is no point
 			// to continue the evaluation, as we've already failed.
 			if plan.AllAtOnce {
-				result.NodeEvict = nil
+				result.NodeUpdate = nil
 				result.NodeAllocation = nil
 				return result, nil
 			}
@@ -129,8 +138,8 @@ func evaluatePlan(snap *state.StateSnapshot, plan *structs.Plan) (*structs.PlanR
 		}
 
 		// Add this to the plan result
-		if nodeEvict := plan.NodeEvict[nodeID]; len(nodeEvict) > 0 {
-			result.NodeEvict[nodeID] = nodeEvict
+		if nodeUpdate := plan.NodeUpdate[nodeID]; len(nodeUpdate) > 0 {
+			result.NodeUpdate[nodeID] = nodeUpdate
 		}
 		if nodeAlloc := plan.NodeAllocation[nodeID]; len(nodeAlloc) > 0 {
 			result.NodeAllocation[nodeID] = nodeAlloc
@@ -172,13 +181,13 @@ func evaluateNodePlan(snap *state.StateSnapshot, plan *structs.Plan, nodeID stri
 	// Determine the proposed allocation by first removing allocations
 	// that are planned evictions and adding the new allocations.
 	proposed := existingAlloc
-	var remove []string
-	if evict := plan.NodeEvict[nodeID]; len(evict) > 0 {
-		remove = append(remove, evict...)
+	var remove []*structs.Allocation
+	if update := plan.NodeUpdate[nodeID]; len(update) > 0 {
+		remove = append(remove, update...)
 	}
 	if updated := plan.NodeAllocation[nodeID]; len(updated) > 0 {
 		for _, alloc := range updated {
-			remove = append(remove, alloc.ID)
+			remove = append(remove, alloc)
 		}
 	}
 	proposed = structs.RemoveAllocs(existingAlloc, remove)

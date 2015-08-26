@@ -15,6 +15,7 @@ func TestRPC_forwardLeader(t *testing.T) {
 	defer s2.Shutdown()
 	testJoin(t, s1, s2)
 	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForLeader(t, s2.RPC)
 
 	var out struct{}
 	err := s1.forwardLeader("Status.Ping", struct{}{}, &out)

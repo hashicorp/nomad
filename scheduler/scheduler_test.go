@@ -74,15 +74,14 @@ func (h *Harness) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State, er
 
 	// Prepare the result
 	result := new(structs.PlanResult)
-	result.NodeEvict = plan.NodeEvict
+	result.NodeUpdate = plan.NodeUpdate
 	result.NodeAllocation = plan.NodeAllocation
 	result.AllocIndex = index
 
 	// Flatten evicts and allocs
-	var evicts []string
 	var allocs []*structs.Allocation
-	for _, evictList := range plan.NodeEvict {
-		evicts = append(evicts, evictList...)
+	for _, updateList := range plan.NodeUpdate {
+		allocs = append(allocs, updateList...)
 	}
 	for _, allocList := range plan.NodeAllocation {
 		allocs = append(allocs, allocList...)
@@ -90,7 +89,7 @@ func (h *Harness) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State, er
 	allocs = append(allocs, plan.FailedAllocs...)
 
 	// Apply the full plan
-	err := h.State.UpdateAllocations(index, evicts, allocs)
+	err := h.State.UpdateAllocations(index, allocs)
 	return result, nil, err
 }
 

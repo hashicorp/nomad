@@ -26,8 +26,8 @@ func TestCoreScheduler_EvalGC(t *testing.T) {
 	// Insert "dead" alloc
 	alloc := mock.Alloc()
 	alloc.EvalID = eval.ID
-	alloc.Status = structs.AllocStatusFailed
-	err = state.UpdateAllocations(1001, nil, []*structs.Allocation{alloc})
+	alloc.DesiredStatus = structs.AllocDesiredStatusFailed
+	err = state.UpdateAllocations(1001, []*structs.Allocation{alloc})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

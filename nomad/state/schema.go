@@ -196,16 +196,6 @@ func allocTableSchema() *memdb.TableSchema {
 					Field: "EvalID",
 				},
 			},
-
-			// Status is used to lookup allocs by status
-			"status": &memdb.IndexSchema{
-				Name:         "status",
-				AllowMissing: false,
-				Unique:       false,
-				Indexer: &memdb.StringFieldIndex{
-					Field: "Status",
-				},
-			},
 		},
 	}
 }

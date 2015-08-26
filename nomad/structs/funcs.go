@@ -4,11 +4,11 @@ import "math"
 
 // RemoveAllocs is used to remove any allocs with the given IDs
 // from the list of allocations
-func RemoveAllocs(alloc []*Allocation, remove []string) []*Allocation {
+func RemoveAllocs(alloc []*Allocation, remove []*Allocation) []*Allocation {
 	// Convert remove into a set
 	removeSet := make(map[string]struct{})
-	for _, removeID := range remove {
-		removeSet[removeID] = struct{}{}
+	for _, remove := range remove {
+		removeSet[remove.ID] = struct{}{}
 	}
 
 	n := len(alloc)

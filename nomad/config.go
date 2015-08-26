@@ -86,6 +86,9 @@ type Config struct {
 	// RaftConfig is the configuration used for Raft in the local DC
 	RaftConfig *raft.Config
 
+	// RaftTimeout is applied to any network traffic for raft. Defaults to 10s.
+	RaftTimeout time.Duration
+
 	// RequireTLS ensures that all RPC traffic is protected with TLS
 	RequireTLS bool
 
@@ -170,6 +173,7 @@ func DefaultConfig() *Config {
 		NodeName:          hostname,
 		ProtocolVersion:   ProtocolVersionMax,
 		RaftConfig:        raft.DefaultConfig(),
+		RaftTimeout:       10 * time.Second,
 		RPCAddr:           DefaultRPCAddr,
 		SerfConfig:        serf.DefaultConfig(),
 		NumSchedulers:     1,

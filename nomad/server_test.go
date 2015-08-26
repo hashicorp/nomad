@@ -47,6 +47,7 @@ func testServer(t *testing.T, cb func(*Config)) *Server {
 	config.RaftConfig.LeaderLeaseTimeout = 20 * time.Millisecond
 	config.RaftConfig.HeartbeatTimeout = 40 * time.Millisecond
 	config.RaftConfig.ElectionTimeout = 40 * time.Millisecond
+	config.RaftTimeout = 500 * time.Millisecond
 
 	// Invoke the callback if any
 	if cb != nil {

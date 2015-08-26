@@ -217,9 +217,6 @@ type PlanRequest struct {
 // to cause evictions or to assign new allocaitons. Both can be done
 // within a single transaction
 type AllocUpdateRequest struct {
-	// Evict is the list of allocation IDs to evict
-	Evict []string
-
 	// Alloc is the list of new allocations to assign
 	Alloc []*Allocation
 }
@@ -661,13 +658,17 @@ func (c *Constraint) String() string {
 }
 
 const (
-	AllocStatusPending  = "pending"
-	AllocStatusInit     = "initializing"
-	AllocStatusRunning  = "running"
-	AllocStatusComplete = "complete"
-	AllocStatusDead     = "dead"
-	AllocStatusFailed   = "failed"
-	AllocStatusEvict    = "evict"
+	AllocDesiredStatusRun    = "run"    // Allocation should run
+	AllocDesiredStatusStop   = "stop"   // Allocation should stop
+	AllocDesiredStatusEvict  = "evict"  // Allocation should stop, and was evicted
+	AllocDesiredStatusFailed = "failed" // Allocation failed to be done
+)
+
+const (
+	AllocClientStatusPending = "pending"
+	AllocClientStatusRunning = "running"
+	AllocClientStatusDead    = "dead"
+	AllocClientStatusFailed  = "failed"
 )
 
 // Allocation is used to allocate the placement of a task group to a node.
@@ -700,22 +701,28 @@ type Allocation struct {
 	// Metrics associated with this allocation
 	Metrics *AllocMetric
 
-	// Status of the allocation
-	Status string
+	// Desired Status of the allocation on the client
+	DesiredStatus string
 
-	// StatusDescription is meant to provide more human useful information
-	StatusDescription string
+	// DesiredStatusDescription is meant to provide more human useful information
+	DesiredDescription string
+
+	// Status of the allocation on the client
+	ClientStatus string
+
+	// ClientStatusDescription is meant to provide more human useful information
+	ClientDescription string
 
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
 }
 
-// TerminalStatus returns if the current status is terminal and
-// will no longer transition.
+// TerminalStatus returns if the desired status is terminal and
+// will no longer transition. This is not based on the current client status.
 func (a *Allocation) TerminalStatus() bool {
-	switch a.Status {
-	case AllocStatusComplete, AllocStatusDead, AllocStatusFailed, AllocStatusEvict:
+	switch a.DesiredStatus {
+	case AllocDesiredStatusStop, AllocDesiredStatusEvict, AllocDesiredStatusFailed:
 		return true
 	default:
 		return false
@@ -903,7 +910,7 @@ func (e *Evaluation) MakePlan(j *Job) *Plan {
 	p := &Plan{
 		EvalID:         e.ID,
 		Priority:       e.Priority,
-		NodeEvict:      make(map[string][]string),
+		NodeUpdate:     make(map[string][]*Allocation),
 		NodeAllocation: make(map[string][]*Allocation),
 	}
 	if j != nil {
@@ -935,9 +942,9 @@ type Plan struct {
 	// entire plan must be able to make progress.
 	AllAtOnce bool
 
-	// NodeEvict contains all the evictions for each node. For each node,
-	// this is a list of the allocation IDs to evict.
-	NodeEvict map[string][]string
+	// NodeUpdate contains all the allocations for each node. For each node,
+	// this is a list of the allocations to update to either stop or evict.
+	NodeUpdate map[string][]*Allocation
 
 	// NodeAllocation contains all the allocations for each node.
 	// The evicts must be considered prior to the allocations.
@@ -949,10 +956,14 @@ type Plan struct {
 	FailedAllocs []*Allocation
 }
 
-func (p *Plan) AppendEvict(alloc *Allocation) {
+func (p *Plan) AppendUpdate(alloc *Allocation, status, desc string) {
+	newAlloc := new(Allocation)
+	*newAlloc = *alloc
+	newAlloc.DesiredStatus = status
+	newAlloc.DesiredDescription = desc
 	node := alloc.NodeID
-	existing := p.NodeEvict[node]
-	p.NodeEvict[node] = append(existing, alloc.ID)
+	existing := p.NodeUpdate[node]
+	p.NodeUpdate[node] = append(existing, newAlloc)
 }
 
 func (p *Plan) AppendAlloc(alloc *Allocation) {
@@ -967,13 +978,13 @@ func (p *Plan) AppendFailed(alloc *Allocation) {
 
 // IsNoOp checks if this plan would do nothing
 func (p *Plan) IsNoOp() bool {
-	return len(p.NodeEvict) == 0 && len(p.NodeAllocation) == 0 && len(p.FailedAllocs) == 0
+	return len(p.NodeUpdate) == 0 && len(p.NodeAllocation) == 0 && len(p.FailedAllocs) == 0
 }
 
 // PlanResult is the result of a plan submitted to the leader.
 type PlanResult struct {
-	// NodeEvict contains all the evictions that were committed.
-	NodeEvict map[string][]string
+	// NodeUpdate contains all the updates that were committed.
+	NodeUpdate map[string][]*Allocation
 
 	// NodeAllocation contains all the allocations that were committed.
 	NodeAllocation map[string][]*Allocation
@@ -992,6 +1003,11 @@ type PlanResult struct {
 	// AllocIndex is the Raft index in which the evictions and
 	// allocations took place. This is used for the write index.
 	AllocIndex uint64
+}
+
+// IsNoOp checks if this plan result would do nothing
+func (p *PlanResult) IsNoOp() bool {
+	return len(p.NodeUpdate) == 0 && len(p.NodeAllocation) == 0 && len(p.FailedAllocs) == 0
 }
 
 // FullCommit is used to check if all the allocations in a plan
