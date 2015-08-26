@@ -7,8 +7,8 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-func TestOSFingerprint(t *testing.T) {
-	f := NewOSFingerprint(testLogger())
+func TestCPUFingerprint(t *testing.T) {
+	f := NewCPUFingerprint(testLogger())
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
@@ -20,9 +20,12 @@ func TestOSFingerprint(t *testing.T) {
 		t.Fatalf("should apply")
 	}
 
-	// OS info
-	if node.Attributes["os"] == "" {
-		t.Fatalf("missing OS")
+	// CPU info
+	if node.Attributes["cpu.numcores"] == "" {
+		t.Fatalf("Missing Num Cores")
+	}
+	if node.Attributes["cpu.modelname"] == "" {
+		t.Fatalf("Missing Model Name")
 	}
 
 }

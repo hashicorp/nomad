@@ -7,8 +7,8 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-func TestOSFingerprint(t *testing.T) {
-	f := NewOSFingerprint(testLogger())
+func TestHostFingerprint(t *testing.T) {
+	f := NewHostFingerprint(testLogger())
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
@@ -20,9 +20,10 @@ func TestOSFingerprint(t *testing.T) {
 		t.Fatalf("should apply")
 	}
 
-	// OS info
-	if node.Attributes["os"] == "" {
-		t.Fatalf("missing OS")
+	// Host info
+	for _, key := range []string{"os.name", "os.version", "hostname", "kernel.name"} {
+		if node.Attributes[key] == "" {
+			t.Fatalf("Missing (%s) in Host Info attribute check", key)
+		}
 	}
-
 }

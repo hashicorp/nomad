@@ -11,8 +11,10 @@ import (
 // BuiltinFingerprints contains the built in registered fingerprints
 // which are available
 var BuiltinFingerprints = map[string]Factory{
-	"os":   NewOSFingerprint,
 	"arch": NewArchFingerprint,
+	"cpu":  NewCPUFingerprint,
+	"host": NewHostFingerprint,
+	"os":   NewOSFingerprint,
 }
 
 // NewFingerprint is used to instantiate and return a new fingerprint
