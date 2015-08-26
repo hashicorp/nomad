@@ -377,6 +377,42 @@ func TestFSM_UpdateAllocations(t *testing.T) {
 	}
 }
 
+func TestFSM_UpdateAllocFromClient(t *testing.T) {
+	fsm := testFSM(t)
+	state := fsm.State()
+
+	alloc := mock.Alloc()
+	state.UpdateAllocations(1, []*structs.Allocation{alloc})
+
+	clientAlloc := new(structs.Allocation)
+	*clientAlloc = *alloc
+	clientAlloc.ClientStatus = structs.AllocClientStatusFailed
+
+	req := structs.AllocUpdateRequest{
+		Alloc: []*structs.Allocation{clientAlloc},
+	}
+	buf, err := structs.Encode(structs.AllocClientUpdateRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp := fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	// Verify we are registered
+	out, err := fsm.State().GetAllocByID(alloc.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	clientAlloc.CreateIndex = out.CreateIndex
+	clientAlloc.ModifyIndex = out.ModifyIndex
+	if !reflect.DeepEqual(clientAlloc, out) {
+		t.Fatalf("bad: %#v %#v", clientAlloc, out)
+	}
+}
+
 func testSnapshotRestore(t *testing.T, fsm *nomadFSM) *nomadFSM {
 	// Snapshot
 	snap, err := fsm.Snapshot()

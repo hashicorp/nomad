@@ -130,6 +130,8 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyDeleteEval(buf[1:], log.Index)
 	case structs.AllocUpdateRequestType:
 		return n.applyAllocUpdate(buf[1:], log.Index)
+	case structs.AllocClientUpdateRequestType:
+		return n.applyAllocClientUpdate(buf[1:], log.Index)
 	default:
 		if ignoreUnknown {
 			n.logger.Printf("[WARN] nomad.fsm: ignoring unknown message type (%d), upgrade to newer version", msgType)
@@ -256,6 +258,23 @@ func (n *nomadFSM) applyAllocUpdate(buf []byte, index uint64) interface{} {
 
 	if err := n.state.UpdateAllocations(index, req.Alloc); err != nil {
 		n.logger.Printf("[ERR] nomad.fsm: UpdateAllocations failed: %v", err)
+		return err
+	}
+	return nil
+}
+
+func (n *nomadFSM) applyAllocClientUpdate(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "alloc_client_update"}, time.Now())
+	var req structs.AllocUpdateRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+	if len(req.Alloc) == 0 {
+		return nil
+	}
+
+	if err := n.state.UpdateAllocFromClient(index, req.Alloc[0]); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: UpdateAllocFromClient failed: %v", err)
 		return err
 	}
 	return nil

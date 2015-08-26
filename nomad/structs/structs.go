@@ -24,6 +24,7 @@ const (
 	EvalUpdateRequestType
 	EvalDeleteRequestType
 	AllocUpdateRequestType
+	AllocClientUpdateRequestType
 )
 
 const (
