@@ -22,5 +22,6 @@ func NewOSFingerprint(logger *log.Logger) Fingerprint {
 func (f *OSFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
 	node.Attributes["os"] = runtime.GOOS
 	f.logger.Printf("[DEBUG] fingerprint.os: detected '%s'", runtime.GOOS)
+
 	return true, nil
 }
