@@ -16,7 +16,7 @@ func testContext(t *testing.T) (*state.StateStore, *EvalContext) {
 		t.Fatalf("err: %v", err)
 	}
 	plan := &structs.Plan{
-		NodeEvict:      make(map[string][]string),
+		NodeUpdate:     make(map[string][]*structs.Allocation),
 		NodeAllocation: make(map[string][]*structs.Allocation),
 	}
 
@@ -61,7 +61,7 @@ func TestEvalContext_ProposedAlloc(t *testing.T) {
 			CPU:      2048,
 			MemoryMB: 2048,
 		},
-		Status: structs.AllocStatusPending,
+		DesiredStatus: structs.AllocDesiredStatusRun,
 	}
 	alloc2 := &structs.Allocation{
 		ID:     mock.GenerateUUID(),
@@ -72,13 +72,13 @@ func TestEvalContext_ProposedAlloc(t *testing.T) {
 			CPU:      1024,
 			MemoryMB: 1024,
 		},
-		Status: structs.AllocStatusPending,
+		DesiredStatus: structs.AllocDesiredStatusRun,
 	}
-	noErr(t, state.UpdateAllocations(1000, nil, []*structs.Allocation{alloc1, alloc2}))
+	noErr(t, state.UpdateAllocations(1000, []*structs.Allocation{alloc1, alloc2}))
 
 	// Add a planned eviction to alloc1
 	plan := ctx.Plan()
-	plan.NodeEvict[nodes[0].Node.ID] = []string{alloc1.ID}
+	plan.NodeUpdate[nodes[0].Node.ID] = []*structs.Allocation{alloc1}
 
 	// Add a planned placement to node1
 	plan.NodeAllocation[nodes[1].Node.ID] = []*structs.Allocation{

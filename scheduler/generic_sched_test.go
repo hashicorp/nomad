@@ -134,7 +134,7 @@ func TestServiceSched_JobModify(t *testing.T) {
 		alloc.NodeID = nodes[i].ID
 		allocs = append(allocs, alloc)
 	}
-	noErr(t, h.State.UpdateAllocations(h.NextIndex(), nil, allocs))
+	noErr(t, h.State.UpdateAllocations(h.NextIndex(), allocs))
 
 	// Update the job
 	job2 := mock.Job()
@@ -162,11 +162,11 @@ func TestServiceSched_JobModify(t *testing.T) {
 	plan := h.Plans[0]
 
 	// Ensure the plan evicted all allocs
-	var evict []string
-	for _, evictList := range plan.NodeEvict {
-		evict = append(evict, evictList...)
+	var update []*structs.Allocation
+	for _, updateList := range plan.NodeUpdate {
+		update = append(update, updateList...)
 	}
-	if len(evict) != len(allocs) {
+	if len(update) != len(allocs) {
 		t.Fatalf("bad: %#v", plan)
 	}
 
@@ -186,7 +186,7 @@ func TestServiceSched_JobModify(t *testing.T) {
 	// Ensure all allocations placed
 	out = structs.FilterTerminalAllocs(out)
 	if len(out) != 10 {
-		t.Fatalf("bad: %d %#v", out)
+		t.Fatalf("bad: %#v", out)
 	}
 
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
@@ -205,7 +205,7 @@ func TestServiceSched_JobDeregister(t *testing.T) {
 		alloc.JobID = job.ID
 		allocs = append(allocs, alloc)
 	}
-	noErr(t, h.State.UpdateAllocations(h.NextIndex(), nil, allocs))
+	noErr(t, h.State.UpdateAllocations(h.NextIndex(), allocs))
 
 	// Create a mock evaluation to deregister the job
 	eval := &structs.Evaluation{
@@ -228,7 +228,7 @@ func TestServiceSched_JobDeregister(t *testing.T) {
 	plan := h.Plans[0]
 
 	// Ensure the plan evicted all nodes
-	if len(plan.NodeEvict["foo"]) != len(allocs) {
+	if len(plan.NodeUpdate["foo"]) != len(allocs) {
 		t.Fatalf("bad: %#v", plan)
 	}
 
@@ -271,7 +271,7 @@ func TestServiceSched_NodeDrain(t *testing.T) {
 		alloc.NodeID = node.ID
 		allocs = append(allocs, alloc)
 	}
-	noErr(t, h.State.UpdateAllocations(h.NextIndex(), nil, allocs))
+	noErr(t, h.State.UpdateAllocations(h.NextIndex(), allocs))
 
 	// Create a mock evaluation to deal with drain
 	eval := &structs.Evaluation{
@@ -295,7 +295,7 @@ func TestServiceSched_NodeDrain(t *testing.T) {
 	plan := h.Plans[0]
 
 	// Ensure the plan evicted all allocs
-	if len(plan.NodeEvict[node.ID]) != len(allocs) {
+	if len(plan.NodeUpdate[node.ID]) != len(allocs) {
 		t.Fatalf("bad: %#v", plan)
 	}
 

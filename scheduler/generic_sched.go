@@ -16,6 +16,15 @@ const (
 	// maxBatchScheduleAttempts is used to limit the number of times
 	// we will attempt to schedule if we continue to hit conflicts for batch.
 	maxBatchScheduleAttempts = 2
+
+	// allocNotNeeded is the status used when a job no longer requires an allocation
+	allocNotNeeded = "alloc not needed due to job update"
+
+	// allocMigrating is the status used when we must migrate an allocation
+	allocMigrating = "alloc is being migrated"
+
+	// allocUpdating is the status used when a job requires an update
+	allocUpdating = "alloc is being updated due to job update"
 )
 
 // SetStatusError is used to set the status of the evaluation to the given error
@@ -181,22 +190,22 @@ func (s *GenericScheduler) computeJobAllocs(job *structs.Job) error {
 	diff := diffAllocs(job, tainted, groups, allocs)
 	s.logger.Printf("[DEBUG] sched: %#v: %#v", s.eval, diff)
 
-	// Add all the evicts
-	for _, e := range diff.evict {
-		s.plan.AppendEvict(e.Alloc)
+	// Add all the allocs to stop
+	for _, e := range diff.stop {
+		s.plan.AppendUpdate(e.Alloc, structs.AllocDesiredStatusStop, allocNotNeeded)
 	}
 
 	// For simplicity, we treat all migrates as an evict + place.
 	// XXX: This could probably be done more intelligently?
 	for _, e := range diff.migrate {
-		s.plan.AppendEvict(e.Alloc)
+		s.plan.AppendUpdate(e.Alloc, structs.AllocDesiredStatusStop, allocMigrating)
 	}
 	diff.place = append(diff.place, diff.migrate...)
 
 	// For simplicity, we treat all updates as an evict + place.
 	// XXX: This should be done with rolling in-place updates instead.
 	for _, e := range diff.update {
-		s.plan.AppendEvict(e.Alloc)
+		s.plan.AppendUpdate(e.Alloc, structs.AllocDesiredStatusStop, allocUpdating)
 	}
 	diff.place = append(diff.place, diff.update...)
 
@@ -237,28 +246,31 @@ func (s *GenericScheduler) computePlacements(job *structs.Job, place []allocTupl
 		option, size := stack.Select(missing.TaskGroup)
 
 		// Handle a placement failure
-		var nodeID, status, desc string
+		var nodeID, status, desc, clientStatus string
 		if option == nil {
-			status = structs.AllocStatusFailed
+			status = structs.AllocDesiredStatusFailed
 			desc = "failed to find a node for placement"
+			clientStatus = structs.AllocClientStatusFailed
 		} else {
 			nodeID = option.Node.ID
-			status = structs.AllocStatusPending
+			status = structs.AllocDesiredStatusRun
+			clientStatus = structs.AllocClientStatusPending
 		}
 
 		// Create an allocation for this
 		alloc := &structs.Allocation{
-			ID:                mock.GenerateUUID(),
-			EvalID:            s.eval.ID,
-			Name:              missing.Name,
-			NodeID:            nodeID,
-			JobID:             job.ID,
-			Job:               job,
-			TaskGroup:         missing.TaskGroup.Name,
-			Resources:         size,
-			Metrics:           ctx.Metrics(),
-			Status:            status,
-			StatusDescription: desc,
+			ID:                 mock.GenerateUUID(),
+			EvalID:             s.eval.ID,
+			Name:               missing.Name,
+			NodeID:             nodeID,
+			JobID:              job.ID,
+			Job:                job,
+			TaskGroup:          missing.TaskGroup.Name,
+			Resources:          size,
+			Metrics:            ctx.Metrics(),
+			DesiredStatus:      status,
+			DesiredDescription: desc,
+			ClientStatus:       clientStatus,
 		}
 		if nodeID != "" {
 			s.plan.AppendAlloc(alloc)

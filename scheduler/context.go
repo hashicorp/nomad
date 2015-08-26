@@ -85,8 +85,8 @@ func (e *EvalContext) ProposedAllocs(nodeID string) ([]*structs.Allocation, erro
 	// Determine the proposed allocation by first removing allocations
 	// that are planned evictions and adding the new allocations.
 	proposed := existingAlloc
-	if evict := e.plan.NodeEvict[nodeID]; len(evict) > 0 {
-		proposed = structs.RemoveAllocs(existingAlloc, evict)
+	if update := e.plan.NodeUpdate[nodeID]; len(update) > 0 {
+		proposed = structs.RemoveAllocs(existingAlloc, update)
 	}
 	proposed = append(proposed, e.plan.NodeAllocation[nodeID]...)
 

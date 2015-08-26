@@ -79,7 +79,7 @@ func TestDiffAllocs(t *testing.T) {
 	place := diff.place
 	update := diff.update
 	migrate := diff.migrate
-	evict := diff.evict
+	stop := diff.stop
 	ignore := diff.ignore
 
 	// We should update the first alloc
@@ -92,9 +92,9 @@ func TestDiffAllocs(t *testing.T) {
 		t.Fatalf("bad: %#v", ignore)
 	}
 
-	// We should evict the 3rd alloc
-	if len(evict) != 1 || evict[0].Alloc != allocs[2] {
-		t.Fatalf("bad: %#v", evict)
+	// We should stop the 3rd alloc
+	if len(stop) != 1 || stop[0].Alloc != allocs[2] {
+		t.Fatalf("bad: %#v", stop)
 	}
 
 	// We should migrate the 4rd alloc

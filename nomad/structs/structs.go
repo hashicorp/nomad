@@ -959,10 +959,14 @@ type Plan struct {
 	FailedAllocs []*Allocation
 }
 
-func (p *Plan) AppendEvict(alloc *Allocation) {
+func (p *Plan) AppendUpdate(alloc *Allocation, status, desc string) {
+	newAlloc := new(Allocation)
+	*newAlloc = *alloc
+	newAlloc.DesiredStatus = status
+	newAlloc.DesiredDescription = desc
 	node := alloc.NodeID
 	existing := p.NodeUpdate[node]
-	p.NodeUpdate[node] = append(existing, alloc)
+	p.NodeUpdate[node] = append(existing, newAlloc)
 }
 
 func (p *Plan) AppendAlloc(alloc *Allocation) {

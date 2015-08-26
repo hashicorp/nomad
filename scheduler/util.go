@@ -28,12 +28,12 @@ func materializeTaskGroups(job *structs.Job) map[string]*structs.TaskGroup {
 
 // diffResult is used to return the sets that result from the diff
 type diffResult struct {
-	place, update, migrate, evict, ignore []allocTuple
+	place, update, migrate, stop, ignore []allocTuple
 }
 
 func (d *diffResult) GoString() string {
-	return fmt.Sprintf("allocs: (place %d) (update %d) (migrate %d) (evict %d) (ignore %d)",
-		len(d.place), len(d.update), len(d.migrate), len(d.evict), len(d.ignore))
+	return fmt.Sprintf("allocs: (place %d) (update %d) (stop %d) (evict %d) (ignore %d)",
+		len(d.place), len(d.update), len(d.migrate), len(d.stop), len(d.ignore))
 }
 
 // diffAllocs is used to do a set difference between the target allocations
@@ -56,9 +56,9 @@ func diffAllocs(job *structs.Job, taintedNodes map[string]bool,
 		// Check for the definition in the required set
 		tg, ok := required[name]
 
-		// If not required, we evict
+		// If not required, we stop the alloc
 		if !ok {
-			result.evict = append(result.evict, allocTuple{
+			result.stop = append(result.stop, allocTuple{
 				Name:      name,
 				TaskGroup: tg,
 				Alloc:     exist,
