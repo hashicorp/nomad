@@ -611,6 +611,43 @@ func TestStateStore_RestoreEval(t *testing.T) {
 	}
 }
 
+func TestStateStore_UpdateAllocFromClient(t *testing.T) {
+	state := testStateStore(t)
+
+	alloc := mock.Alloc()
+	err := state.UpdateAllocations(1000, []*structs.Allocation{alloc})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	update := new(structs.Allocation)
+	*update = *alloc
+	update.ClientStatus = structs.AllocClientStatusFailed
+
+	err = state.UpdateAllocFromClient(1001, update)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	out, err := state.GetAllocByID(alloc.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	update.ModifyIndex = 1001
+	if !reflect.DeepEqual(update, out) {
+		t.Fatalf("bad: %#v %#v", update, out)
+	}
+
+	index, err := state.GetIndex("allocs")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if index != 1001 {
+		t.Fatalf("bad: %d", index)
+	}
+}
+
 func TestStateStore_UpsertAlloc_GetAlloc(t *testing.T) {
 	state := testStateStore(t)
 
