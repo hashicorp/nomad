@@ -316,6 +316,30 @@ func (c *ClientEndpoint) GetAllocs(args *structs.NodeSpecificRequest,
 	return c.srv.blockingRPC(&opts)
 }
 
+// UpdateAlloc is used to update the client status of an allocation
+func (c *ClientEndpoint) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.GenericResponse) error {
+	if done, err := c.srv.forward("Client.UpdateAlloc", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "client", "update_alloc"}, time.Now())
+
+	// Ensure only a single alloc
+	if len(args.Alloc) != 1 {
+		return fmt.Errorf("must update a single allocation")
+	}
+
+	// Commit this update via Raft
+	_, index, err := c.srv.raftApply(structs.AllocClientUpdateRequestType, args)
+	if err != nil {
+		c.srv.logger.Printf("[ERR] nomad.client: alloc update failed: %v", err)
+		return err
+	}
+
+	// Setup the response
+	reply.Index = index
+	return nil
+}
+
 // createNodeEvals is used to create evaluations for each alloc on a node.
 // Each Eval is scoped to a job, so we need to potentially trigger many evals.
 func (c *ClientEndpoint) createNodeEvals(nodeID string, nodeIndex uint64) ([]string, uint64, error) {

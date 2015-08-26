@@ -220,6 +220,7 @@ type PlanRequest struct {
 type AllocUpdateRequest struct {
 	// Alloc is the list of new allocations to assign
 	Alloc []*Allocation
+	WriteRequest
 }
 
 // GenericRequest is used to request where no

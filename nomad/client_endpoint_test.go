@@ -368,6 +368,62 @@ func TestClientEndpoint_GetAllocs_Blocking(t *testing.T) {
 	}
 }
 
+func TestClientEndpoint_UpdateAlloc(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	node := mock.Node()
+	reg := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "region1"},
+	}
+
+	// Fetch the response
+	var resp structs.GenericResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Client.Register", reg, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Inject fake evaluations
+	alloc := mock.Alloc()
+	alloc.NodeID = node.ID
+	state := s1.fsm.State()
+	err := state.UpdateAllocations(100, []*structs.Allocation{alloc})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Attempt update
+	clientAlloc := new(structs.Allocation)
+	*clientAlloc = *alloc
+	clientAlloc.ClientStatus = structs.AllocClientStatusFailed
+
+	// Update the alloc
+	update := &structs.AllocUpdateRequest{
+		Alloc:        []*structs.Allocation{clientAlloc},
+		WriteRequest: structs.WriteRequest{Region: "region1"},
+	}
+	var resp2 structs.NodeAllocsResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Client.UpdateAlloc", update, &resp2); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp2.Index == 0 {
+		t.Fatalf("Bad index: %d", resp2.Index)
+	}
+
+	// Lookup the alloc
+	out, err := state.GetAllocByID(alloc.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out.ClientStatus != structs.AllocClientStatusFailed {
+		t.Fatalf("Bad: %#v", out)
+	}
+}
+
 func TestClientEndpoint_CreateNodeEvals(t *testing.T) {
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
