@@ -25,13 +25,24 @@ func TestOSFingerprint(t *testing.T) {
 	if !ok {
 		t.Fatalf("should apply")
 	}
+
+	// OS info
 	if node.Attributes["os"] == "" {
 		t.Fatalf("missing OS")
 	}
+
+	// CPU info
 	if node.Attributes["cpu.numcores"] == "" {
 		t.Fatalf("Missing Num Cores")
 	}
 	if node.Attributes["cpu.modelname"] == "" {
 		t.Fatalf("Missing Model Name")
+	}
+
+	// Host info
+	for _, key := range []string{"os.name", "os.version", "hostname", "kernel.name"} {
+		if node.Attributes[key] == "" {
+			t.Fatalf("Missing (%s) in Host Info attribute check", key)
+		}
 	}
 }
