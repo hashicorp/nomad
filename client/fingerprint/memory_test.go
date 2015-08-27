@@ -20,8 +20,10 @@ func TestMemoryFingerprint(t *testing.T) {
 		t.Fatalf("should apply")
 	}
 
-	if node.Attributes["memory.totalbytes"] == "" {
-		t.Fatalf("Missing memory.totalbyes")
+	assertNodeAttributeContains(t, node, "memory.totalbytes")
+
+	if node.Resources == nil {
+		t.Fatalf("Node Resources was nil")
 	}
 
 }

@@ -35,7 +35,7 @@ func (f *MemoryFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 		if node.Resources == nil {
 			node.Resources = &structs.Resources{}
 		}
-		node.Resources.MemoryMB = int(memInfo.Total)
+		node.Resources.MemoryMB = int(memInfo.Total / 1024 / 1024)
 	}
 
 	return true, nil
