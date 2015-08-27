@@ -16,7 +16,7 @@ type CPUFingerprint struct {
 
 // NewCPUFingerprint is used to create a CPU fingerprint
 func NewCPUFingerprint(logger *log.Logger) Fingerprint {
-	f := &CPUFingerprint{logger}
+	f := &CPUFingerprint{logger: logger}
 	return f
 }
 
@@ -52,7 +52,14 @@ func (f *CPUFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bo
 	}
 
 	if mhz > 0 && numCores > 0 {
-		node.Attributes["cpu.totalcompute"] = fmt.Sprintf("%.6f", float64(numCores)*mhz)
+		tc := float64(numCores) * mhz
+		node.Attributes["cpu.totalcompute"] = fmt.Sprintf("%.6f", tc)
+
+		if node.Resources == nil {
+			node.Resources = &structs.Resources{}
+		}
+
+		node.Resources.CPU = tc
 	}
 
 	if modelName != "" {

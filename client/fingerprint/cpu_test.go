@@ -35,4 +35,8 @@ func TestCPUFingerprint(t *testing.T) {
 		t.Fatalf("Missing CPU Total Compute")
 	}
 
+	if node.Resources == nil {
+		t.Fatalf("Expected resources on node, but got nil")
+	}
+
 }

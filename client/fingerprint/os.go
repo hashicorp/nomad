@@ -15,7 +15,7 @@ type OSFingerprint struct {
 
 // NewOSFingerprint is used to create an OS fingerprint
 func NewOSFingerprint(logger *log.Logger) Fingerprint {
-	f := &OSFingerprint{logger}
+	f := &OSFingerprint{logger: logger}
 	return f
 }
 

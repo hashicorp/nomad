@@ -15,7 +15,7 @@ type ArchFingerprint struct {
 
 // NewArchFingerprint is used to create an OS fingerprint
 func NewArchFingerprint(logger *log.Logger) Fingerprint {
-	f := &ArchFingerprint{logger}
+	f := &ArchFingerprint{logger: logger}
 	return f
 }
 
