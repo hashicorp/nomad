@@ -10,13 +10,21 @@ import (
 
 // OSFingerprint is used to fingerprint the operating system
 type OSFingerprint struct {
+	id     string
 	logger *log.Logger
 }
 
 // NewOSFingerprint is used to create an OS fingerprint
 func NewOSFingerprint(logger *log.Logger) Fingerprint {
-	f := &OSFingerprint{logger}
+	f := &OSFingerprint{
+		id:     "fingerprint.os",
+		logger: logger,
+	}
 	return f
+}
+
+func (f *OSFingerprint) ID() string {
+	return f.id
 }
 
 func (f *OSFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
