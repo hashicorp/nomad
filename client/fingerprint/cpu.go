@@ -42,6 +42,8 @@ func (f *CPUFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bo
 		}
 		modelName = c.ModelName
 	}
+	// Get average CPU frequency
+	mhz /= float64(len(cpuInfo))
 
 	if mhz > 0 {
 		node.Attributes["cpu.frequency"] = fmt.Sprintf("%.6f", mhz)
