@@ -14,7 +14,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// StorageFingerprint is used to measure the amount of storage available for
+// StorageFingerprint is used to measure the amount of storage free for
 // applications that the Nomad agent will run on this machine.
 type StorageFingerprint struct {
 	logger *log.Logger
@@ -35,7 +35,10 @@ func (f *StorageFingerprint) Fingerprint(cfg *config.Config, node *structs.Node)
 	// Initialize these to empty defaults
 	node.Attributes["storage.volume"] = ""
 	node.Attributes["storage.bytestotal"] = ""
-	node.Attributes["storage.bytesavailable"] = ""
+	node.Attributes["storage.bytesfree"] = ""
+	if node.Resources == nil {
+		node.Resources = &structs.Resources{}
+	}
 
 	if runtime.GOOS == "windows" {
 		path, err := filepath.Abs(cfg.AllocDir)
@@ -48,26 +51,31 @@ func (f *StorageFingerprint) Fingerprint(cfg *config.Config, node *structs.Node)
 		if err != nil {
 			return false, fmt.Errorf("Failed to inspect free space from volume %s: %s", volume, err)
 		}
-
 		outstring := string(out)
 
 		totalMatches := reWindowsTotalSpace.FindStringSubmatch(outstring)
 		if len(totalMatches) == 2 {
 			node.Attributes["storage.bytestotal"] = totalMatches[1]
-		} else {
-			return false, fmt.Errorf("Failed to determine storage.bytestotal")
-		}
-		freeMatches := reWindowsFreeSpace.FindStringSubmatch(outstring)
-		if len(freeMatches) == 2 {
-			node.Attributes["storage.bytesavailable"] = freeMatches[1]
-			available, err := strconv.ParseInt(freeMatches[1], 10, 64)
+			total, err := strconv.ParseInt(totalMatches[1], 10, 64)
 			if err != nil {
-				return false, fmt.Errorf("Failed to parse storage.bytesavailable in bytes: %s", err)
+				return false, fmt.Errorf("Failed to parse storage.bytestotal in bytes: %s", err)
 			}
 			// Convert from bytes to to MB
-			node.Resources.DiskMB = int(available / 1024 / 1024)
+			node.Resources.DiskMB = int(total / 1024 / 1024)
 		} else {
-			return false, fmt.Errorf("Failed to determine storage.bytesavailable")
+			return false, fmt.Errorf("Failed to parse output from fsutil")
+		}
+
+		freeMatches := reWindowsFreeSpace.FindStringSubmatch(outstring)
+		if len(freeMatches) == 2 {
+			node.Attributes["storage.bytesfree"] = freeMatches[1]
+			_, err := strconv.ParseInt(freeMatches[1], 10, 64)
+			if err != nil {
+				return false, fmt.Errorf("Failed to parse storage.bytesfree in bytes: %s", err)
+			}
+
+		} else {
+			return false, fmt.Errorf("Failed to parse output from fsutil")
 		}
 	} else {
 		path, err := filepath.Abs(cfg.AllocDir)
@@ -83,9 +91,8 @@ func (f *StorageFingerprint) Fingerprint(cfg *config.Config, node *structs.Node)
 		// Output looks something like:
 		//	Filesystem 1024-blocks      Used Available Capacity   iused    ifree %iused  Mounted on
 		//	/dev/disk1   487385240 423722532  63406708    87% 105994631 15851677   87%   /
-		//	[0] volume [1] capacity [2] SKIP  [3] available
+		//	[0] volume [1] capacity [2] SKIP  [3] free
 		fields := strings.Fields(strings.Split(string(mountOutput), "\n")[1])
-
 		node.Attributes["storage.volume"] = fields[0]
 
 		total, err := strconv.ParseInt(fields[1], 10, 64)
@@ -94,14 +101,14 @@ func (f *StorageFingerprint) Fingerprint(cfg *config.Config, node *structs.Node)
 		}
 		node.Attributes["storage.bytestotal"] = strconv.FormatInt(total*1024, 10)
 
-		available, err := strconv.ParseInt(fields[3], 10, 64)
+		free, err := strconv.ParseInt(fields[3], 10, 64)
 		if err != nil {
-			return false, fmt.Errorf("Failed to parse storage.bytesavailable size in kilobytes")
+			return false, fmt.Errorf("Failed to parse storage.bytesfree size in kilobytes")
 		}
 		// Convert from KB to MB
-		node.Resources.DiskMB = int(available / 1024)
+		node.Resources.DiskMB = int(free / 1024)
 		// Convert from KB to bytes
-		node.Attributes["storage.bytesavailable"] = strconv.FormatInt(available*1024, 10)
+		node.Attributes["storage.bytesfree"] = strconv.FormatInt(free*1024, 10)
 	}
 
 	return true, nil

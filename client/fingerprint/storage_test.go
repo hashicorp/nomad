@@ -13,7 +13,6 @@ func TestStorageFingerprint(t *testing.T) {
 	fp := NewStorageFingerprint(testLogger())
 	node := &structs.Node{
 		Attributes: make(map[string]string),
-		Resources:  &structs.Resources{},
 	}
 
 	cwd, err := os.Getwd()
@@ -34,19 +33,19 @@ func TestStorageFingerprint(t *testing.T) {
 
 	assertNodeAttributeContains(t, node, "storage.volume")
 	assertNodeAttributeContains(t, node, "storage.bytestotal")
-	assertNodeAttributeContains(t, node, "storage.bytesavailable")
+	assertNodeAttributeContains(t, node, "storage.bytesfree")
 
 	total, err := strconv.ParseInt(node.Attributes["storage.bytestotal"], 10, 64)
 	if err != nil {
 		t.Fatalf("Failed to parse storage.bytestotal: %s", err)
 	}
-	available, err := strconv.ParseInt(node.Attributes["storage.bytesavailable"], 10, 64)
+	free, err := strconv.ParseInt(node.Attributes["storage.bytesfree"], 10, 64)
 	if err != nil {
-		t.Fatalf("Failed to parse storage.bytesavailable: %s", err)
+		t.Fatalf("Failed to parse storage.bytesfree: %s", err)
 	}
 
-	if available > total {
-		t.Errorf("storage.bytesavailable %d is larger than storage.bytestotal %d", available, total)
+	if free > total {
+		t.Errorf("storage.bytesfree %d is larger than storage.bytestotal %d", free, total)
 	}
 
 	if node.Resources.DiskMB == 0 {
