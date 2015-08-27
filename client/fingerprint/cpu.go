@@ -16,7 +16,7 @@ type CPUFingerprint struct {
 
 // NewCPUFingerprint is used to create a CPU fingerprint
 func NewCPUFingerprint(logger *log.Logger) Fingerprint {
-	f := &CPUFingerprint{logger}
+	f := &CPUFingerprint{logger: logger}
 	return f
 }
 

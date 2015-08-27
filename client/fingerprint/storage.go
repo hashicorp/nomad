@@ -17,7 +17,6 @@ import (
 // StorageFingerprint is used to measure the amount of storage available for
 // applications that the Nomad agent will run on this machine.
 type StorageFingerprint struct {
-	id     string
 	logger *log.Logger
 }
 
@@ -27,16 +26,8 @@ var (
 )
 
 func NewStorageFingerprint(logger *log.Logger) Fingerprint {
-	fp := &StorageFingerprint{
-		id:     "fingerprint.storage",
-		logger: logger,
-	}
-	fp.logger.SetPrefix(fmt.Sprintf("%s ", fp.id))
+	fp := &StorageFingerprint{logger: logger}
 	return fp
-}
-
-func (f *StorageFingerprint) ID() string {
-	return f.id
 }
 
 func (f *StorageFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
@@ -49,13 +40,13 @@ func (f *StorageFingerprint) Fingerprint(cfg *config.Config, node *structs.Node)
 	if runtime.GOOS == "windows" {
 		path, err := filepath.Abs(cfg.AllocDir)
 		if err != nil {
-			f.logger.Printf("[ERROR] Failed to detect volume for storage directory %s: %s", cfg.AllocDir, err)
+			return false, fmt.Errorf("Failed to detect volume for storage directory %s: %s", cfg.AllocDir, err)
 		}
 		volume := filepath.VolumeName(path)
 		node.Attributes["storage.volume"] = volume
 		out, err := exec.Command("fsutil", "volume", "diskfree", volume).Output()
 		if err != nil {
-			f.logger.Printf("[ERROR] Failed to inspect free space from volume %s: %s", volume, err)
+			return false, fmt.Errorf("Failed to inspect free space from volume %s: %s", volume, err)
 		}
 
 		outstring := string(out)
@@ -64,24 +55,30 @@ func (f *StorageFingerprint) Fingerprint(cfg *config.Config, node *structs.Node)
 		if len(totalMatches) == 2 {
 			node.Attributes["storage.bytestotal"] = totalMatches[1]
 		} else {
-			f.logger.Printf("[WARN] Failed to determine storage.bytestotal")
+			return false, fmt.Errorf("Failed to determine storage.bytestotal")
 		}
 		freeMatches := reWindowsFreeSpace.FindStringSubmatch(outstring)
 		if len(freeMatches) == 2 {
 			node.Attributes["storage.bytesavailable"] = freeMatches[1]
+			available, err := strconv.ParseInt(freeMatches[1], 10, 64)
+			if err != nil {
+				return false, fmt.Errorf("Failed to parse storage.bytesavailable in bytes: %s", err)
+			}
+			// Convert from bytes to to MB
+			node.Resources.DiskMB = int(available / 1024 / 1024)
 		} else {
-			f.logger.Printf("[WARN] Failed to determine storage.bytesavailable")
+			return false, fmt.Errorf("Failed to determine storage.bytesavailable")
 		}
 	} else {
 		path, err := filepath.Abs(cfg.AllocDir)
 		if err != nil {
-			f.logger.Printf("[ERROR] Failed to determine absolute path for %s", cfg.AllocDir)
+			return false, fmt.Errorf("Failed to determine absolute path for %s", cfg.AllocDir)
 		}
 
 		// Use -k to standardize the output values between darwin and linux
 		mountOutput, err := exec.Command("df", "-k", path).Output()
 		if err != nil {
-			f.logger.Printf("[ERROR] Failed to determine mount point for %s", path)
+			return false, fmt.Errorf("Failed to determine mount point for %s", path)
 		}
 		// Output looks something like:
 		//	Filesystem 1024-blocks      Used Available Capacity   iused    ifree %iused  Mounted on
@@ -93,14 +90,17 @@ func (f *StorageFingerprint) Fingerprint(cfg *config.Config, node *structs.Node)
 
 		total, err := strconv.ParseInt(fields[1], 10, 64)
 		if err != nil {
-			f.logger.Printf("[WARN] Failed to parse storage.bytestotal size in kilobytes")
+			return false, fmt.Errorf("Failed to parse storage.bytestotal size in kilobytes")
 		}
 		node.Attributes["storage.bytestotal"] = strconv.FormatInt(total*1024, 10)
 
 		available, err := strconv.ParseInt(fields[3], 10, 64)
 		if err != nil {
-			f.logger.Printf("[WARN] Failed to parse storage.bytesavailable size in kilobytes")
+			return false, fmt.Errorf("Failed to parse storage.bytesavailable size in kilobytes")
 		}
+		// Convert from KB to MB
+		node.Resources.DiskMB = int(available / 1024)
+		// Convert from KB to bytes
 		node.Attributes["storage.bytesavailable"] = strconv.FormatInt(available*1024, 10)
 	}
 

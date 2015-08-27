@@ -22,8 +22,6 @@ func TestHostFingerprint(t *testing.T) {
 
 	// Host info
 	for _, key := range []string{"os.name", "os.version", "hostname", "kernel.name"} {
-		if node.Attributes[key] == "" {
-			t.Fatalf("Missing (%s) in Host Info attribute check", key)
-		}
+		assertNodeAttributeContains(t, node, key)
 	}
 }

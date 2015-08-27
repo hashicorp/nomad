@@ -41,6 +41,5 @@ type Factory func(*log.Logger) Fingerprint
 type Fingerprint interface {
 	// Fingerprint is used to update properties of the Node,
 	// and returns if the fingerprint was applicable and a potential error.
-	ID() string
 	Fingerprint(*config.Config, *structs.Node) (bool, error)
 }

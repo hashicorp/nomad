@@ -11,7 +11,6 @@ import (
 // fork/execs tasks. It should probably not be used for most things,
 // but is useful for testing purposes or for very simple tasks.
 type ExecDriver struct {
-	id     string
 	logger *log.Logger
 }
 
@@ -23,14 +22,9 @@ type execHandle struct {
 // NewExecDriver is used to create a new exec driver
 func NewExecDriver(logger *log.Logger) Driver {
 	d := &ExecDriver{
-		id:     "driver.exec",
 		logger: logger,
 	}
 	return d
-}
-
-func (d *ExecDriver) ID() string {
-	return d.id
 }
 
 func (d *ExecDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
