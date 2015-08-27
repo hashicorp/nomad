@@ -28,4 +28,11 @@ func TestCPUFingerprint(t *testing.T) {
 		t.Fatalf("Missing Model Name")
 	}
 
+	if node.Attributes["cpu.frequency"] == "" {
+		t.Fatalf("Missing CPU Frequency")
+	}
+	if node.Attributes["cpu.totalcompute"] == "" {
+		t.Fatalf("Missing CPU Total Compute")
+	}
+
 }
