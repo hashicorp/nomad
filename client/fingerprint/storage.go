@@ -92,7 +92,14 @@ func (f *StorageFingerprint) Fingerprint(cfg *config.Config, node *structs.Node)
 		//	Filesystem 1024-blocks      Used Available Capacity   iused    ifree %iused  Mounted on
 		//	/dev/disk1   487385240 423722532  63406708    87% 105994631 15851677   87%   /
 		//	[0] volume [1] capacity [2] SKIP  [3] free
-		fields := strings.Fields(strings.Split(string(mountOutput), "\n")[1])
+		lines := strings.Split(string(mountOutput), "\n")
+		if len(lines) < 2 {
+			return false, fmt.Errorf("Failed to parse `df` output; expected 2 lines")
+		}
+		fields := strings.Fields(lines[1])
+		if len(fields) != 9 {
+			return false, fmt.Errorf("Failed to parse `df` output; expected 9 columns")
+		}
 		node.Attributes["storage.volume"] = fields[0]
 
 		total, err := strconv.ParseInt(fields[1], 10, 64)
