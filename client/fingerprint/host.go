@@ -15,7 +15,7 @@ type HostFingerprint struct {
 
 // NewHostFingerprint is used to create a Host fingerprint
 func NewHostFingerprint(logger *log.Logger) Fingerprint {
-	f := &HostFingerprint{logger}
+	f := &HostFingerprint{logger: logger}
 	return f
 }
 

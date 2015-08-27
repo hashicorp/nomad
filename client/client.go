@@ -188,7 +188,7 @@ func (c *Client) pickServer() (net.Addr, error) {
 			c.lastRPCTime = time.Now()
 			return addr, nil
 		}
-		c.logger.Printf("[WARN] client: failed to resolve '%s': %v", err)
+		c.logger.Printf("[WARN] client: failed to resolve '%s': %s", servers[i], err)
 	}
 
 	// Bail if we reach this point
