@@ -1,8 +1,8 @@
 package fingerprint
 
 import (
+	"fmt"
 	"log"
-	"strconv"
 
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -28,21 +28,33 @@ func (f *CPUFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bo
 	}
 
 	var numCores int32
-	numCores = 0
+	var mhz float64
 	var modelName string
+
 	// Assume all CPUs found have same Model. Log if not.
 	// If CPUInfo() returns nil above, this loop is still safe
-	for i, c := range cpuInfo {
-		f.logger.Printf("(%d) Vendor: %s", i, c.VendorID)
+	for _, c := range cpuInfo {
 		numCores += c.Cores
+		mhz += c.Mhz
+
 		if modelName != "" && modelName != c.ModelName {
 			f.logger.Println("[WARN] Found different model names in the same CPU information. Recording last found")
 		}
 		modelName = c.ModelName
 	}
-	if numCores > 0 {
-		node.Attributes["cpu.numcores"] = strconv.FormatInt(int64(numCores), 10)
+
+	if mhz > 0 {
+		node.Attributes["cpu.frequency"] = fmt.Sprintf("%.6f", mhz)
 	}
+
+	if numCores > 0 {
+		node.Attributes["cpu.numcores"] = fmt.Sprintf("%d", numCores)
+	}
+
+	if mhz > 0 && numCores > 0 {
+		node.Attributes["cpu.totalcompute"] = fmt.Sprintf("%.6f", float64(numCores)*mhz)
+	}
+
 	if modelName != "" {
 		node.Attributes["cpu.modelname"] = modelName
 	}
