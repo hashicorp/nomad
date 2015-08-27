@@ -1,11 +1,9 @@
 package fingerprint
 
 import (
-	"os"
 	"strconv"
 	"testing"
 
-	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -15,21 +13,7 @@ func TestStorageFingerprint(t *testing.T) {
 		Attributes: make(map[string]string),
 	}
 
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Failed to get test working directory: %s", err)
-	}
-	cfg := &config.Config{
-		AllocDir: cwd,
-	}
-
-	ok, err := fp.Fingerprint(cfg, node)
-	if err != nil {
-		t.Fatalf("Failed to fingerprint: `%s`", err)
-	}
-	if !ok {
-		t.Fatal("Failed to apply node attributes")
-	}
+	assertFingerprintOK(t, fp, node)
 
 	assertNodeAttributeContains(t, node, "storage.volume")
 	assertNodeAttributeContains(t, node, "storage.bytestotal")
