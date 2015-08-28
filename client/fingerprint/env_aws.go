@@ -1,7 +1,6 @@
 package fingerprint
 
 import (
-	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -30,7 +29,6 @@ func (f *EnvAWSFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 	if metadataURL == "" {
 		metadataURL = "http://169.254.169.254/latest/meta-data/"
 	}
-	fmt.Println("meta: ", metadataURL)
 
 	// assume 2 seconds is enough time for inside AWS network
 	client := &http.Client{

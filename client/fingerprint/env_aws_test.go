@@ -37,7 +37,7 @@ func TestEnvAWSFingerprint_aws(t *testing.T) {
 	// configure mock server with fixture routes, data
 	routes := routes{}
 	if err := json.Unmarshal([]byte(aws_routes), &routes); err != nil {
-		panic(err)
+		t.Fatalf("Failed to unmarshal JSON in AWS ENV test: %s", err)
 	}
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		for _, e := range routes.Endpoints {
@@ -55,7 +55,6 @@ func TestEnvAWSFingerprint_aws(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	fmt.Println("")
 	if !ok {
 		t.Fatalf("Expected AWS attributes and Links")
 	}
