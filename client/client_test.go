@@ -119,10 +119,10 @@ func TestClient_Fingerprint(t *testing.T) {
 	c := testClient(t, nil)
 	defer c.Shutdown()
 
-	// Ensure os and arch are always present
+	// Ensure kernel and arch are always present
 	node := c.Node()
-	if node.Attributes["os"] == "" {
-		t.Fatalf("missing OS")
+	if node.Attributes["kernel.name"] == "" {
+		t.Fatalf("missing kernel.name")
 	}
 	if node.Attributes["arch"] == "" {
 		t.Fatalf("missing arch")
@@ -133,7 +133,6 @@ func TestClient_Drivers(t *testing.T) {
 	c := testClient(t, nil)
 	defer c.Shutdown()
 
-	// Ensure os and arch are always present
 	node := c.Node()
 	if node.Attributes["driver.exec"] == "" {
 		t.Fatalf("missing exec driver")

@@ -357,7 +357,7 @@ type Node struct {
 
 	// Attributes is an arbitrary set of key/value
 	// data that can be used for constraints. Examples
-	// include "os=linux", "arch=386", "driver.docker=1",
+	// include "kernel.name=linux", "arch=386", "driver.docker=1",
 	// "docker.runtime=1.8.3"
 	Attributes map[string]string
 

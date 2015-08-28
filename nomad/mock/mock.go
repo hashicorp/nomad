@@ -27,7 +27,7 @@ func Node() *structs.Node {
 		Datacenter: "dc1",
 		Name:       "foobar",
 		Attributes: map[string]string{
-			"os":            "linux",
+			"kernel.name":   "linux",
 			"arch":          "x86",
 			"version":       "0.1.0",
 			"driver.docker": "1.0.0",
@@ -74,7 +74,7 @@ func Job() *structs.Job {
 		Constraints: []*structs.Constraint{
 			&structs.Constraint{
 				Hard:    true,
-				LTarget: "$attr.os",
+				LTarget: "$attr.kernel.name",
 				RTarget: "linux",
 				Operand: "=",
 			},
