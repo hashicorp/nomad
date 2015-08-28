@@ -19,6 +19,11 @@ func TestConsulFingerprint(t *testing.T) {
 	assertNodeAttributeContains(t, node, "consul.revision")
 	assertNodeAttributeContains(t, node, "consul.name")
 	assertNodeAttributeContains(t, node, "consul.datacenter")
+
+	expectedLink := "consul2.vagrant"
+	if node.Links["consul"] != expectedLink {
+		t.Errorf("Expected consul link: %s", expectedLink)
+	}
 }
 
 // Taken from tryconsul using consul release 0.5.2
