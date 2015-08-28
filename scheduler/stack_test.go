@@ -116,7 +116,7 @@ func TestServiceStack_Select_ConstraintFilter(t *testing.T) {
 		mock.Node(),
 	}
 	zero := nodes[0]
-	zero.Attributes["os"] = "freebsd"
+	zero.Attributes["kernel.name"] = "freebsd"
 
 	stack := NewGenericStack(false, ctx, nodes)
 
@@ -140,7 +140,7 @@ func TestServiceStack_Select_ConstraintFilter(t *testing.T) {
 	if met.ClassFiltered["linux-medium-pci"] != 1 {
 		t.Fatalf("bad: %#v", met)
 	}
-	if met.ConstraintFiltered["$attr.os = freebsd"] != 1 {
+	if met.ConstraintFiltered["$attr.kernel.name = freebsd"] != 1 {
 		t.Fatalf("bad: %#v", met)
 	}
 }

@@ -95,7 +95,7 @@ func TestConstraintIterator(t *testing.T) {
 	}
 	static := NewStaticIterator(ctx, nodes)
 
-	nodes[0].Attributes["os"] = "freebsd"
+	nodes[0].Attributes["kernel.name"] = "freebsd"
 	nodes[1].Datacenter = "dc2"
 
 	constraints := []*structs.Constraint{
@@ -108,7 +108,7 @@ func TestConstraintIterator(t *testing.T) {
 		&structs.Constraint{
 			Hard:    true,
 			Operand: "is",
-			LTarget: "$attr.os",
+			LTarget: "$attr.kernel.name",
 			RTarget: "linux",
 		},
 	}
@@ -156,9 +156,9 @@ func TestResolveConstraintTarget(t *testing.T) {
 			result: false,
 		},
 		{
-			target: "$attr.os",
+			target: "$attr.kernel.name",
 			node:   node,
-			val:    node.Attributes["os"],
+			val:    node.Attributes["kernel.name"],
 			result: true,
 		},
 		{
