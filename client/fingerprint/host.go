@@ -1,7 +1,10 @@
 package fingerprint
 
 import (
+	"fmt"
 	"log"
+	"os/exec"
+	"runtime"
 
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -28,8 +31,19 @@ func (f *HostFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (b
 
 	node.Attributes["os.name"] = hostInfo.Platform
 	node.Attributes["os.version"] = hostInfo.PlatformVersion
+
+	node.Attributes["kernel.name"] = runtime.GOOS
+	node.Attributes["kernel.version"] = ""
+
+	if runtime.GOOS != "windows" {
+		out, err := exec.Command("uname", "-r").Output()
+		if err != nil {
+			return false, fmt.Errorf("Failed to run uname: %s", err)
+		}
+		node.Attributes["kernel.version"] = string(out)
+	}
+
 	node.Attributes["hostname"] = hostInfo.Hostname
-	node.Attributes["kernel.name"] = hostInfo.OS
 
 	return true, nil
 }

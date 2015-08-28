@@ -14,7 +14,6 @@ var BuiltinFingerprints = map[string]Factory{
 	"arch":    NewArchFingerprint,
 	"cpu":     NewCPUFingerprint,
 	"host":    NewHostFingerprint,
-	"os":      NewOSFingerprint,
 	"memory":  NewMemoryFingerprint,
 	"storage": NewStorageFingerprint,
 }

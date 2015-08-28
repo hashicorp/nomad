@@ -3,6 +3,7 @@ package fingerprint
 import (
 	"fmt"
 	"log"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -40,10 +41,20 @@ func (f *StorageFingerprint) Fingerprint(cfg *config.Config, node *structs.Node)
 		node.Resources = &structs.Resources{}
 	}
 
-	if runtime.GOOS == "windows" {
-		path, err := filepath.Abs(cfg.AllocDir)
+	// Guard against unset AllocDir
+	storageDir := cfg.AllocDir
+	if storageDir == "" {
+		var err error
+		storageDir, err = os.Getwd()
 		if err != nil {
-			return false, fmt.Errorf("Failed to detect volume for storage directory %s: %s", cfg.AllocDir, err)
+			return false, fmt.Errorf("Unable to get CWD from filesystem: %s", err)
+		}
+	}
+
+	if runtime.GOOS == "windows" {
+		path, err := filepath.Abs(storageDir)
+		if err != nil {
+			return false, fmt.Errorf("Failed to detect volume for storage directory %s: %s", storageDir, err)
 		}
 		volume := filepath.VolumeName(path)
 		node.Attributes["storage.volume"] = volume
@@ -78,9 +89,9 @@ func (f *StorageFingerprint) Fingerprint(cfg *config.Config, node *structs.Node)
 			return false, fmt.Errorf("Failed to parse output from fsutil")
 		}
 	} else {
-		path, err := filepath.Abs(cfg.AllocDir)
+		path, err := filepath.Abs(storageDir)
 		if err != nil {
-			return false, fmt.Errorf("Failed to determine absolute path for %s", cfg.AllocDir)
+			return false, fmt.Errorf("Failed to determine absolute path for %s", storageDir)
 		}
 
 		// Use -k to standardize the output values between darwin and linux
