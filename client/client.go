@@ -406,6 +406,21 @@ func (c *Client) updateNodeStatus() error {
 	return nil
 }
 
+// updateAllocStatus is used to update the status of an allocation
+func (c *Client) updateAllocStatus(alloc *structs.Allocation) error {
+	args := structs.AllocUpdateRequest{
+		Alloc:        []*structs.Allocation{alloc},
+		WriteRequest: structs.WriteRequest{Region: c.config.Region},
+	}
+	var resp structs.GenericResponse
+	err := c.RPC("Client.UpdateAlloc", &args, &resp)
+	if err != nil {
+		c.logger.Printf("[ERR] client: failed to update allocation: %v", err)
+		return err
+	}
+	return nil
+}
+
 // watchAllocations is used to scan for updates to allocations
 func (c *Client) watchAllocations(allocUpdates chan []*structs.Allocation) {
 	req := structs.NodeSpecificRequest{

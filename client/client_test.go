@@ -9,6 +9,7 @@ import (
 
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad"
+	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 )
@@ -201,4 +202,39 @@ func TestClient_Heartbeat(t *testing.T) {
 	}, func(err error) {
 		t.Fatalf("err: %v", err)
 	})
+}
+
+func TestClient_UpdateAllocStatus(t *testing.T) {
+	s1, _ := testServer(t, nil)
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	c1 := testClient(t, func(c *config.Config) {
+		c.RPCHandler = s1
+	})
+	defer c1.Shutdown()
+
+	alloc := mock.Alloc()
+	alloc.NodeID = c1.Node().ID
+
+	state := s1.State()
+	state.UpdateAllocations(100, []*structs.Allocation{alloc})
+
+	newAlloc := new(structs.Allocation)
+	*newAlloc = *alloc
+	newAlloc.ClientStatus = structs.AllocClientStatusRunning
+
+	err := c1.updateAllocStatus(newAlloc)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	out, err := state.GetAllocByID(alloc.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if out == nil || out.ClientStatus != structs.AllocClientStatusRunning {
+		t.Fatalf("bad: %#v", out)
+	}
 }

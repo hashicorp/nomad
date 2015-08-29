@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/tlsutil"
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/raft-boltdb"
 	"github.com/hashicorp/serf/serf"
@@ -588,6 +589,12 @@ func (s *Server) KeyManager() *serf.KeyManager {
 // Encrypted determines if gossip is encrypted
 func (s *Server) Encrypted() bool {
 	return s.serf.EncryptionEnabled()
+}
+
+// State returns the underlying state store. This should *not*
+// be used to modify state directly.
+func (s *Server) State() *state.StateStore {
+	return s.fsm.State()
 }
 
 // inmemCodec is used to do an RPC call without going over a network
