@@ -473,7 +473,7 @@ func (c *Client) watchAllocations(allocUpdates chan []*structs.Allocation) {
 func (c *Client) runAllocs(updated []*structs.Allocation) {
 	// Get the existing allocs
 	c.allocLock.RLock()
-	exist := make([]*structs.Allocation, len(c.allocs))
+	exist := make([]*structs.Allocation, 0, len(c.allocs))
 	for _, ctx := range c.allocs {
 		exist = append(exist, ctx.Alloc())
 	}
@@ -515,14 +515,15 @@ func (c *Client) runAllocs(updated []*structs.Allocation) {
 
 // removeAlloc is invoked when we should remove an allocation
 func (c *Client) removeAlloc(alloc *structs.Allocation) error {
-	c.allocLock.RLock()
-	defer c.allocLock.RUnlock()
+	c.allocLock.Lock()
+	defer c.allocLock.Unlock()
 	ctx, ok := c.allocs[alloc.ID]
 	if !ok {
 		c.logger.Printf("[WARN] client: missing context for alloc '%s'", alloc.ID)
 		return nil
 	}
 	ctx.Destroy()
+	delete(c.allocs, alloc.ID)
 	return nil
 }
 

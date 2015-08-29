@@ -238,3 +238,71 @@ func TestClient_UpdateAllocStatus(t *testing.T) {
 		t.Fatalf("bad: %#v", out)
 	}
 }
+
+func TestClient_WatchAllocs(t *testing.T) {
+	s1, _ := testServer(t, nil)
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	c1 := testClient(t, func(c *config.Config) {
+		c.RPCHandler = s1
+	})
+	defer c1.Shutdown()
+
+	// Create mock allocations
+	alloc1 := mock.Alloc()
+	alloc1.NodeID = c1.Node().ID
+	alloc2 := mock.Alloc()
+	alloc2.NodeID = c1.Node().ID
+
+	state := s1.State()
+	err := state.UpdateAllocations(100,
+		[]*structs.Allocation{alloc1, alloc2})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Both allocations should get registered
+	testutil.WaitForResult(func() (bool, error) {
+		c1.allocLock.RLock()
+		num := len(c1.allocs)
+		c1.allocLock.RUnlock()
+		return num == 2, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	// Delete one allocation
+	err = state.DeleteEval(101, nil, []string{alloc1.ID})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Update the other allocation
+	alloc2.DesiredStatus = structs.AllocDesiredStatusStop
+	err = state.UpdateAllocations(102,
+		[]*structs.Allocation{alloc2})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// One allocations should get de-registered
+	testutil.WaitForResult(func() (bool, error) {
+		c1.allocLock.RLock()
+		num := len(c1.allocs)
+		c1.allocLock.RUnlock()
+		return num == 1, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	// One allocations should get updated
+	testutil.WaitForResult(func() (bool, error) {
+		c1.allocLock.RLock()
+		ar := c1.allocs[alloc2.ID]
+		c1.allocLock.RUnlock()
+		return ar.Alloc().DesiredStatus == structs.AllocDesiredStatusStop, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+}
