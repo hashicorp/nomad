@@ -86,10 +86,10 @@ func Job() *structs.Job {
 				Tasks: []*structs.Task{
 					&structs.Task{
 						Name:   "web",
-						Driver: "docker",
+						Driver: "exec",
 						Config: map[string]string{
-							"image":   "hashicorp/web",
-							"version": "v1.2.3",
+							"command": "/bin/date",
+							"args":    "+%s",
 						},
 						Resources: &structs.Resources{
 							CPU:      0.5,
@@ -127,9 +127,10 @@ func Eval() *structs.Evaluation {
 
 func Alloc() *structs.Allocation {
 	alloc := &structs.Allocation{
-		ID:     GenerateUUID(),
-		EvalID: GenerateUUID(),
-		NodeID: "foo",
+		ID:        GenerateUUID(),
+		EvalID:    GenerateUUID(),
+		NodeID:    "foo",
+		TaskGroup: "web",
 		Resources: &structs.Resources{
 			CPU:      1.0,
 			MemoryMB: 1024,
