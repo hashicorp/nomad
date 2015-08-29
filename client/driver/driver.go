@@ -55,6 +55,9 @@ type DriverHandle interface {
 	// WaitCh is used to return a channel used wait for task completion
 	WaitCh() chan error
 
+	// Update is used to update the task if possible
+	Update(task *structs.Task) error
+
 	// Kill is used to stop the task
 	Kill() error
 }
