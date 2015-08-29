@@ -7,25 +7,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-const (
-	// defaultHeartbeatTTL is the TTL value used for heartbeats
-	// when they are first initialized. This should be longer than
-	// the usual TTL since clients are switching to a new leader.
-	defaultHeartbeatTTL = 300 * time.Second
-
-	// minHeartbeatTTL is the minimum heartbeat interval.
-	minHeartbeatTTL = 10 * time.Second
-
-	// maxHeartbeatsPerSecond is the targeted maximum rate of heartbeats.
-	// As the cluster size grows, we simply increase the heartbeat TTL
-	// to approach this value.
-	maxHeartbeatsPerSecond = 50.0
-
-	// heartbeatGrace is the additional time given to the TTL period
-	// as a grace. This is to account for various network and processing delays.
-	heartbeatGrace = 10 * time.Second
-)
-
 // initializeHeartbeatTimers is used when a leader is newly elected to create
 // a new map to track heartbeat expiration and to reset all the timers from
 // the previously known set of timers.
@@ -55,7 +36,7 @@ func (s *Server) initializeHeartbeatTimers() error {
 		if node.TerminalStatus() {
 			continue
 		}
-		s.resetHeartbeatTimerLocked(node.ID, defaultHeartbeatTTL)
+		s.resetHeartbeatTimerLocked(node.ID, s.config.FailoverHeartbeatTTL)
 	}
 	return nil
 }
@@ -68,11 +49,12 @@ func (s *Server) resetHeartbeatTimer(id string) (time.Duration, error) {
 
 	// Compute the target TTL value
 	n := len(s.heartbeatTimers)
-	ttl := rateScaledInterval(maxHeartbeatsPerSecond, minHeartbeatTTL, n)
+	ttl := rateScaledInterval(s.config.MaxHeartbeatsPerSecond,
+		s.config.MinHeartbeatTTL, n)
 	ttl += randomStagger(ttl)
 
 	// Reset the TTL
-	s.resetHeartbeatTimerLocked(id, ttl+heartbeatGrace)
+	s.resetHeartbeatTimerLocked(id, ttl+s.config.HeartbeatGrace)
 	return ttl, nil
 }
 

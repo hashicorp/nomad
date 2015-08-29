@@ -146,6 +146,25 @@ type Config struct {
 	// process an evaluation. This is used so that an eval that will never
 	// complete eventually fails out of the system.
 	EvalDeliveryLimit int
+
+	// MinHeartbeatTTL is the minimum time between heartbeats.
+	// This is used as a floor to prevent excessive updates.
+	MinHeartbeatTTL time.Duration
+
+	// MaxHeartbeatsPerSecond is the maximum target rate of heartbeats
+	// being processed per second. This allows the TTL to be increased
+	// to meet the target rate.
+	MaxHeartbeatsPerSecond float64
+
+	// HeartbeatGrace is the additional time given as a grace period
+	// beyond the TTL to account for network and processing delays
+	// as well as clock skew.
+	HeartbeatGrace time.Duration
+
+	// FailoverHeartbeatTTL is the TTL applied to heartbeats after
+	// a new leader is elected, since we no longer know the status
+	// of all the heartbeats.
+	FailoverHeartbeatTTL time.Duration
 }
 
 // CheckVersion is used to check if the ProtocolVersion is valid
@@ -168,21 +187,25 @@ func DefaultConfig() *Config {
 	}
 
 	c := &Config{
-		Region:            DefaultRegion,
-		Datacenter:        DefaultDC,
-		NodeName:          hostname,
-		ProtocolVersion:   ProtocolVersionMax,
-		RaftConfig:        raft.DefaultConfig(),
-		RaftTimeout:       10 * time.Second,
-		RPCAddr:           DefaultRPCAddr,
-		SerfConfig:        serf.DefaultConfig(),
-		NumSchedulers:     1,
-		ServerAddress:     []string{"nomad.service.consul:4647"},
-		ReconcileInterval: 60 * time.Second,
-		EvalGCInterval:    60 * time.Second,
-		EvalGCThreshold:   1 * time.Hour,
-		EvalNackTimeout:   60 * time.Second,
-		EvalDeliveryLimit: 3,
+		Region:                 DefaultRegion,
+		Datacenter:             DefaultDC,
+		NodeName:               hostname,
+		ProtocolVersion:        ProtocolVersionMax,
+		RaftConfig:             raft.DefaultConfig(),
+		RaftTimeout:            10 * time.Second,
+		RPCAddr:                DefaultRPCAddr,
+		SerfConfig:             serf.DefaultConfig(),
+		NumSchedulers:          1,
+		ServerAddress:          []string{"nomad.service.consul:4647"},
+		ReconcileInterval:      60 * time.Second,
+		EvalGCInterval:         60 * time.Second,
+		EvalGCThreshold:        1 * time.Hour,
+		EvalNackTimeout:        60 * time.Second,
+		EvalDeliveryLimit:      3,
+		MinHeartbeatTTL:        10 * time.Second,
+		MaxHeartbeatsPerSecond: 50.0,
+		HeartbeatGrace:         10 * time.Second,
+		FailoverHeartbeatTTL:   300 * time.Second,
 	}
 
 	// Enable all known schedulers by default
