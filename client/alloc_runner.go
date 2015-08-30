@@ -27,11 +27,14 @@ type taskStatus struct {
 	Description string
 }
 
+// AllocStateUpdater is used to update the status of an allocation
+type AllocStateUpdater func(alloc *structs.Allocation) error
+
 // AllocRunner is used to wrap an allocation and provide the execution context.
 type AllocRunner struct {
-	config *config.Config
-	client *Client
-	logger *log.Logger
+	config  *config.Config
+	updater AllocStateUpdater
+	logger  *log.Logger
 
 	alloc *structs.Allocation
 
@@ -59,11 +62,11 @@ type allocRunnerState struct {
 }
 
 // NewAllocRunner is used to create a new allocation context
-func NewAllocRunner(config *config.Config, client *Client, alloc *structs.Allocation) *AllocRunner {
+func NewAllocRunner(logger *log.Logger, config *config.Config, updater AllocStateUpdater, alloc *structs.Allocation) *AllocRunner {
 	ar := &AllocRunner{
 		config:     config,
-		client:     client,
-		logger:     client.logger,
+		updater:    updater,
+		logger:     logger,
 		alloc:      alloc,
 		dirtyCh:    make(chan struct{}, 1),
 		tasks:      make(map[string]*TaskRunner),
@@ -197,7 +200,7 @@ func (r *AllocRunner) syncStatus() {
 		}
 
 		// Attempt to update the status
-		if err := r.client.updateAllocStatus(r.alloc); err != nil {
+		if err := r.updater(r.alloc); err != nil {
 			r.logger.Printf("[ERR] client: failed to update alloc '%s' status to %s: %s",
 				r.alloc.ID, r.alloc.ClientStatus, err)
 			retryCh = time.After(allocSyncRetryIntv + randomStagger(allocSyncRetryIntv))

@@ -236,7 +236,7 @@ func (c *Client) restoreState() error {
 	for _, entry := range list {
 		id := entry.Name()
 		alloc := &structs.Allocation{ID: id}
-		ar := NewAllocRunner(c.config, c, alloc)
+		ar := NewAllocRunner(c.logger, c.config, c.updateAllocStatus, alloc)
 		c.allocs[id] = ar
 		if err := ar.RestoreState(); err != nil {
 			c.logger.Printf("[ERR] client: failed to restore state for alloc %s: %v",
@@ -576,7 +576,7 @@ func (c *Client) updateAlloc(exist, update *structs.Allocation) error {
 func (c *Client) addAlloc(alloc *structs.Allocation) error {
 	c.allocLock.Lock()
 	defer c.allocLock.Unlock()
-	ar := NewAllocRunner(c.config, c, alloc)
+	ar := NewAllocRunner(c.logger, c.config, c.updateAllocStatus, alloc)
 	c.allocs[alloc.ID] = ar
 	go ar.Run()
 	return nil
