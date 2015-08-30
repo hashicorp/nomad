@@ -1,6 +1,7 @@
 package client
 
 import (
+	"os"
 	"reflect"
 	"regexp"
 	"testing"
@@ -92,5 +93,34 @@ func TestShuffleStrings(t *testing.T) {
 	// Ensure order is not the same
 	if reflect.DeepEqual(inp, orig) {
 		t.Fatalf("shuffle failed")
+	}
+}
+
+func TestPersistRestoreState(t *testing.T) {
+	type stateTest struct {
+		Foo int
+		Bar string
+		Baz bool
+	}
+	state := stateTest{
+		Foo: 42,
+		Bar: "the quick brown fox",
+		Baz: true,
+	}
+	defer os.Remove("test-persist")
+
+	err := persistState("test-persist", &state)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	var out stateTest
+	err = restoreState("test-persist", &out)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !reflect.DeepEqual(state, out) {
+		t.Fatalf("bad: %#v %#v", state, out)
 	}
 }

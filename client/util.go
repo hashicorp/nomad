@@ -2,8 +2,12 @@ package client
 
 import (
 	crand "crypto/rand"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"math/rand"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -97,4 +101,31 @@ func shuffleStrings(list []string) {
 		j := rand.Intn(i + 1)
 		list[i], list[j] = list[j], list[i]
 	}
+}
+
+// persistState is used to help with saving state
+func persistState(path string, data interface{}) error {
+	buf, err := json.Marshal(data)
+	if err != nil {
+		return fmt.Errorf("failed to encode state: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+		return fmt.Errorf("failed to make dirs for %s: %v", path, err)
+	}
+	if err := ioutil.WriteFile(path, buf, 0600); err != nil {
+		return fmt.Errorf("failed to save state: %v", err)
+	}
+	return nil
+}
+
+// restoreState is used to read back in the persisted state
+func restoreState(path string, data interface{}) error {
+	buf, err := ioutil.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("failed to read state: %v", err)
+	}
+	if err := json.Unmarshal(buf, data); err != nil {
+		return fmt.Errorf("failed to decode state: %v", err)
+	}
+	return nil
 }
