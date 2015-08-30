@@ -96,7 +96,7 @@ func (r *AllocRunner) RestoreState() error {
 	var mErr multierror.Error
 	for name := range r.taskStatus {
 		task := &structs.Task{Name: name}
-		tr := NewTaskRunner(r.config, r, r.ctx, task)
+		tr := NewTaskRunner(r.logger, r.config, r.setTaskStatus, r.ctx, r.alloc.ID, task)
 		r.tasks[name] = tr
 		if err := tr.RestoreState(); err != nil {
 			r.logger.Printf("[ERR] client: failed to restore state for alloc %s task '%s': %v", r.alloc.ID, name, err)
@@ -262,7 +262,7 @@ func (r *AllocRunner) Run() {
 		if _, ok := r.tasks[task.Name]; ok {
 			continue
 		}
-		tr := NewTaskRunner(r.config, r, r.ctx, task)
+		tr := NewTaskRunner(r.logger, r.config, r.setTaskStatus, r.ctx, r.alloc.ID, task)
 		r.tasks[task.Name] = tr
 		go tr.Run()
 	}

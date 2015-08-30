@@ -16,22 +16,20 @@ import (
 
 // TaskRunner is used to wrap a task within an allocation and provide the execution context.
 type TaskRunner struct {
-	config      *config.Config
-	allocRunner *AllocRunner
-	logger      *log.Logger
-	ctx         *driver.ExecContext
-
+	config  *config.Config
+	updater TaskStateUpdater
+	logger  *log.Logger
+	ctx     *driver.ExecContext
 	allocID string
-	task    *structs.Task
-	handle  driver.DriverHandle
 
+	task     *structs.Task
 	updateCh chan *structs.Task
+	handle   driver.DriverHandle
 
 	destroy     bool
 	destroyCh   chan struct{}
 	destroyLock sync.Mutex
-
-	waitCh chan struct{}
+	waitCh      chan struct{}
 }
 
 // taskRunnerState is used to snapshot the state of the task runner
@@ -40,18 +38,23 @@ type taskRunnerState struct {
 	HandleID string
 }
 
+// TaskStateUpdater is used to update the status of a task
+type TaskStateUpdater func(taskName, status, desc string)
+
 // NewTaskRunner is used to create a new task context
-func NewTaskRunner(config *config.Config, allocRunner *AllocRunner, ctx *driver.ExecContext, task *structs.Task) *TaskRunner {
+func NewTaskRunner(logger *log.Logger, config *config.Config,
+	updater TaskStateUpdater, ctx *driver.ExecContext,
+	allocID string, task *structs.Task) *TaskRunner {
 	tc := &TaskRunner{
-		config:      config,
-		allocRunner: allocRunner,
-		logger:      allocRunner.logger,
-		ctx:         ctx,
-		allocID:     allocRunner.Alloc().ID,
-		task:        task,
-		updateCh:    make(chan *structs.Task, 8),
-		destroyCh:   make(chan struct{}),
-		waitCh:      make(chan struct{}),
+		config:    config,
+		updater:   updater,
+		logger:    logger,
+		ctx:       ctx,
+		allocID:   allocID,
+		task:      task,
+		updateCh:  make(chan *structs.Task, 8),
+		destroyCh: make(chan struct{}),
+		waitCh:    make(chan struct{}),
 	}
 	return tc
 }
@@ -121,7 +124,7 @@ func (r *TaskRunner) DestroyState() error {
 
 // setStatus is used to update the status of the task runner
 func (r *TaskRunner) setStatus(status, desc string) {
-	r.allocRunner.setTaskStatus(r.task.Name, status, desc)
+	r.updater(r.task.Name, status, desc)
 }
 
 // createDriver makes a driver for the task
