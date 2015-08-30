@@ -1,16 +1,22 @@
 package client
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 	"sync"
 
+	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 // TaskRunner is used to wrap a task within an allocation and provide the execution context.
 type TaskRunner struct {
+	config      *config.Config
 	allocRunner *AllocRunner
 	logger      *log.Logger
 	ctx         *driver.ExecContext
@@ -27,9 +33,15 @@ type TaskRunner struct {
 	waitCh chan struct{}
 }
 
+// taskRunnerState is used to snapshot the state of the task runner
+type taskRunnerState struct {
+	Task *structs.Task
+}
+
 // NewTaskRunner is used to create a new task context
-func NewTaskRunner(allocRunner *AllocRunner, ctx *driver.ExecContext, task *structs.Task) *TaskRunner {
+func NewTaskRunner(config *config.Config, allocRunner *AllocRunner, ctx *driver.ExecContext, task *structs.Task) *TaskRunner {
 	tc := &TaskRunner{
+		config:      config,
 		allocRunner: allocRunner,
 		logger:      allocRunner.logger,
 		ctx:         ctx,
@@ -45,6 +57,47 @@ func NewTaskRunner(allocRunner *AllocRunner, ctx *driver.ExecContext, task *stru
 // WaitCh returns a channel to wait for termination
 func (r *TaskRunner) WaitCh() <-chan struct{} {
 	return r.waitCh
+}
+
+// stateFilePath returns the path to our state file
+func (r *TaskRunner) stateFilePath() string {
+	// Get the MD5 of the task name
+	hashVal := md5.Sum([]byte(r.task.Name))
+	hashHex := hex.EncodeToString(hashVal[:])
+	dirName := fmt.Sprintf("task-%s", hashHex)
+
+	// Generate the path
+	path := filepath.Join(r.config.StateDir, "alloc", r.allocID,
+		dirName, "state.json")
+	return path
+}
+
+// RestoreState is used to restore our state
+func (r *TaskRunner) RestoreState() error {
+	// Load the snapshot
+	var snap taskRunnerState
+	if err := restoreState(r.stateFilePath(), &snap); err != nil {
+		return err
+	}
+
+	// Restore fields
+	r.task = snap.Task
+
+	// TODO: Restore the driver
+	return nil
+}
+
+// SaveState is used to snapshot our state
+func (r *TaskRunner) SaveState() error {
+	snap := taskRunnerState{
+		Task: r.task,
+	}
+	return persistState(r.stateFilePath(), &snap)
+}
+
+// DestroyState is used to cleanup after ourselves
+func (r *TaskRunner) DestroyState() error {
+	return os.RemoveAll(r.stateFilePath())
 }
 
 // setStatus is used to update the status of the task runner
@@ -79,6 +132,7 @@ func (r *TaskRunner) Run() {
 	}
 	r.setStatus(structs.AllocClientStatusRunning, "task started")
 
+OUTER:
 	// Wait for updates
 	for {
 		select {
@@ -94,7 +148,7 @@ func (r *TaskRunner) Run() {
 				r.setStatus(structs.AllocClientStatusDead,
 					"task completed")
 			}
-			return
+			break OUTER
 
 		case update := <-r.updateCh:
 			// Update
@@ -111,6 +165,11 @@ func (r *TaskRunner) Run() {
 					r.task.Name, r.allocID, err)
 			}
 		}
+	}
+
+	// Check if we should destroy our state
+	if r.destroy {
+		r.DestroyState()
 	}
 }
 

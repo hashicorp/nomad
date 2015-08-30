@@ -4,9 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
+	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -25,6 +29,7 @@ type taskStatus struct {
 
 // AllocRunner is used to wrap an allocation and provide the execution context.
 type AllocRunner struct {
+	config *config.Config
 	client *Client
 	logger *log.Logger
 
@@ -32,8 +37,9 @@ type AllocRunner struct {
 
 	dirtyCh chan struct{}
 
-	ctx   *driver.ExecContext
-	tasks map[string]*TaskRunner
+	ctx      *driver.ExecContext
+	tasks    map[string]*TaskRunner
+	taskLock sync.RWMutex
 
 	taskStatus     map[string]taskStatus
 	taskStatusLock sync.RWMutex
@@ -45,9 +51,16 @@ type AllocRunner struct {
 	destroyLock sync.Mutex
 }
 
+// allocRunnerState is used to snapshot the state of the alloc runner
+type allocRunnerState struct {
+	Alloc      *structs.Allocation
+	TaskStatus map[string]taskStatus
+}
+
 // NewAllocRunner is used to create a new allocation context
-func NewAllocRunner(client *Client, alloc *structs.Allocation) *AllocRunner {
+func NewAllocRunner(config *config.Config, client *Client, alloc *structs.Allocation) *AllocRunner {
 	ctx := &AllocRunner{
+		config:     config,
 		client:     client,
 		logger:     client.logger,
 		alloc:      alloc,
@@ -58,6 +71,71 @@ func NewAllocRunner(client *Client, alloc *structs.Allocation) *AllocRunner {
 		destroyCh:  make(chan struct{}),
 	}
 	return ctx
+}
+
+// stateFilePath returns the path to our state file
+func (r *AllocRunner) stateFilePath() string {
+	return filepath.Join(r.config.StateDir, "alloc", r.alloc.ID, "state.json")
+}
+
+// RestoreState is used to restore the state of the alloc runner
+func (r *AllocRunner) RestoreState() error {
+	// Load the snapshot
+	var snap allocRunnerState
+	if err := restoreState(r.stateFilePath(), &snap); err != nil {
+		return err
+	}
+
+	// Restore fields
+	r.alloc = snap.Alloc
+	r.taskStatus = snap.TaskStatus
+
+	// Restore the task runners
+	var mErr multierror.Error
+	for name := range r.taskStatus {
+		task := &structs.Task{Name: name}
+		tr := NewTaskRunner(r.config, r, r.ctx, task)
+		r.tasks[name] = tr
+		if err := tr.RestoreState(); err != nil {
+			r.logger.Printf("[ERR] client: failed to restore state for alloc %s task '%s': %v", r.alloc.ID, name, err)
+			mErr.Errors = append(mErr.Errors, err)
+		} else {
+			go tr.Run()
+		}
+	}
+	return mErr.ErrorOrNil()
+}
+
+// SaveState is used to snapshot our state
+func (r *AllocRunner) SaveState() error {
+	r.taskStatusLock.RLock()
+	snap := allocRunnerState{
+		Alloc:      r.alloc,
+		TaskStatus: r.taskStatus,
+	}
+	err := persistState(r.stateFilePath(), &snap)
+	r.taskStatusLock.RUnlock()
+	if err != nil {
+		return err
+	}
+
+	// Save state for each task
+	r.taskLock.RLock()
+	defer r.taskLock.RUnlock()
+	var mErr multierror.Error
+	for name, tr := range r.tasks {
+		if err := tr.SaveState(); err != nil {
+			r.logger.Printf("[ERR] client: failed to save state for alloc %s task '%s': %v",
+				r.alloc.ID, name, err)
+			mErr.Errors = append(mErr.Errors, err)
+		}
+	}
+	return mErr.ErrorOrNil()
+}
+
+// DestroyState is used to cleanup after ourselves
+func (r *AllocRunner) DestroyState() error {
+	return os.RemoveAll(filepath.Dir(r.stateFilePath()))
 }
 
 // Alloc returns the associated allocation
@@ -173,11 +251,13 @@ func (r *AllocRunner) Run() {
 	r.ctx = driver.NewExecContext()
 
 	// Start the task runners
+	r.taskLock.Lock()
 	for _, task := range tg.Tasks {
-		tr := NewTaskRunner(r, r.ctx, task)
+		tr := NewTaskRunner(r.config, r, r.ctx, task)
 		r.tasks[task.Name] = tr
 		go tr.Run()
 	}
+	r.taskLock.Unlock()
 
 OUTER:
 	// Wait for updates
@@ -191,10 +271,12 @@ OUTER:
 			}
 
 			// Update the task groups
+			r.taskLock.RLock()
 			for _, task := range tg.Tasks {
 				tr := r.tasks[task.Name]
 				tr.Update(task)
 			}
+			r.taskLock.RUnlock()
 
 		case <-r.destroyCh:
 			break OUTER
@@ -202,6 +284,8 @@ OUTER:
 	}
 
 	// Destroy each sub-task
+	r.taskLock.RLock()
+	defer r.taskLock.RUnlock()
 	for _, tr := range r.tasks {
 		tr.Destroy()
 	}
@@ -209,6 +293,11 @@ OUTER:
 	// Wait for termination of the task runners
 	for _, tr := range r.tasks {
 		<-tr.WaitCh()
+	}
+
+	// Check if we should destroy our state
+	if r.destroy {
+		r.DestroyState()
 	}
 	r.logger.Printf("[DEBUG] client: terminating runner for alloc '%s'", r.alloc.ID)
 }

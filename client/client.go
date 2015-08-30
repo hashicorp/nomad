@@ -2,13 +2,16 @@ package client
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net"
 	"os"
+	"path/filepath"
 	"strconv"
 	"sync"
 	"time"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/client/fingerprint"
@@ -128,7 +131,7 @@ func (c *Client) Shutdown() error {
 	c.shutdown = true
 	close(c.shutdownCh)
 	c.connPool.Shutdown()
-	return nil
+	return c.saveState()
 }
 
 // RPC is used to forward an RPC call to a nomad server, or fail if no servers
@@ -222,8 +225,28 @@ func (c *Client) restoreState() error {
 		return nil
 	}
 
-	// TODO
-	return nil
+	// Scan the directory
+	list, err := ioutil.ReadDir(filepath.Join(c.config.StateDir, "alloc"))
+	if err != nil {
+		return fmt.Errorf("failed to list alloc state: %v", err)
+	}
+
+	// Load each alloc back
+	var mErr multierror.Error
+	for _, entry := range list {
+		id := entry.Name()
+		alloc := &structs.Allocation{ID: id}
+		ar := NewAllocRunner(c.config, c, alloc)
+		c.allocs[id] = ar
+		if err := ar.RestoreState(); err != nil {
+			c.logger.Printf("[ERR] client: failed to restore state for alloc %s: %v",
+				id, err)
+			mErr.Errors = append(mErr.Errors, err)
+		} else {
+			go ar.Run()
+		}
+	}
+	return mErr.ErrorOrNil()
 }
 
 // saveState is used to snapshot our state into the data dir
@@ -232,8 +255,17 @@ func (c *Client) saveState() error {
 		return nil
 	}
 
-	// TODO
-	return nil
+	var mErr multierror.Error
+	c.allocLock.RLock()
+	defer c.allocLock.RUnlock()
+	for id, ar := range c.allocs {
+		if err := ar.SaveState(); err != nil {
+			c.logger.Printf("[ERR] client: failed to save state for alloc %s: %v",
+				id, err)
+			mErr.Errors = append(mErr.Errors, err)
+		}
+	}
+	return mErr.ErrorOrNil()
 }
 
 // setupNode is used to setup the initial node
@@ -474,8 +506,8 @@ func (c *Client) runAllocs(updated []*structs.Allocation) {
 	// Get the existing allocs
 	c.allocLock.RLock()
 	exist := make([]*structs.Allocation, 0, len(c.allocs))
-	for _, ctx := range c.allocs {
-		exist = append(exist, ctx.Alloc())
+	for _, ar := range c.allocs {
+		exist = append(exist, ar.Alloc())
 	}
 	c.allocLock.RUnlock()
 
@@ -517,12 +549,12 @@ func (c *Client) runAllocs(updated []*structs.Allocation) {
 func (c *Client) removeAlloc(alloc *structs.Allocation) error {
 	c.allocLock.Lock()
 	defer c.allocLock.Unlock()
-	ctx, ok := c.allocs[alloc.ID]
+	ar, ok := c.allocs[alloc.ID]
 	if !ok {
 		c.logger.Printf("[WARN] client: missing context for alloc '%s'", alloc.ID)
 		return nil
 	}
-	ctx.Destroy()
+	ar.Destroy()
 	delete(c.allocs, alloc.ID)
 	return nil
 }
@@ -531,12 +563,12 @@ func (c *Client) removeAlloc(alloc *structs.Allocation) error {
 func (c *Client) updateAlloc(exist, update *structs.Allocation) error {
 	c.allocLock.RLock()
 	defer c.allocLock.RUnlock()
-	ctx, ok := c.allocs[exist.ID]
+	ar, ok := c.allocs[exist.ID]
 	if !ok {
 		c.logger.Printf("[WARN] client: missing context for alloc '%s'", exist.ID)
 		return nil
 	}
-	ctx.Update(update)
+	ar.Update(update)
 	return nil
 }
 
@@ -544,8 +576,8 @@ func (c *Client) updateAlloc(exist, update *structs.Allocation) error {
 func (c *Client) addAlloc(alloc *structs.Allocation) error {
 	c.allocLock.Lock()
 	defer c.allocLock.Unlock()
-	ctx := NewAllocRunner(c, alloc)
-	c.allocs[alloc.ID] = ctx
-	go ctx.Run()
+	ar := NewAllocRunner(c.config, c, alloc)
+	c.allocs[alloc.ID] = ar
+	go ar.Run()
 	return nil
 }
