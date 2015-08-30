@@ -63,6 +63,7 @@ func testClient(t *testing.T, cb func(c *config.Config)) *Client {
 	if cb != nil {
 		cb(conf)
 	}
+	conf.DevMode = true
 
 	client, err := NewClient(conf)
 	if err != nil {

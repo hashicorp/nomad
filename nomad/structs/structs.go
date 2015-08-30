@@ -589,7 +589,7 @@ type Job struct {
 }
 
 // LookupTaskGroup finds a task group by name
-func (j *Job) LookingTaskGroup(name string) *TaskGroup {
+func (j *Job) LookupTaskGroup(name string) *TaskGroup {
 	for _, tg := range j.TaskGroups {
 		if tg.Name == name {
 			return tg

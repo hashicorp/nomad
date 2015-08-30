@@ -55,11 +55,12 @@ type AllocRunner struct {
 type allocRunnerState struct {
 	Alloc      *structs.Allocation
 	TaskStatus map[string]taskStatus
+	Context    *driver.ExecContext
 }
 
 // NewAllocRunner is used to create a new allocation context
 func NewAllocRunner(config *config.Config, client *Client, alloc *structs.Allocation) *AllocRunner {
-	ctx := &AllocRunner{
+	ar := &AllocRunner{
 		config:     config,
 		client:     client,
 		logger:     client.logger,
@@ -70,7 +71,7 @@ func NewAllocRunner(config *config.Config, client *Client, alloc *structs.Alloca
 		updateCh:   make(chan *structs.Allocation, 8),
 		destroyCh:  make(chan struct{}),
 	}
-	return ctx
+	return ar
 }
 
 // stateFilePath returns the path to our state file
@@ -89,6 +90,7 @@ func (r *AllocRunner) RestoreState() error {
 	// Restore fields
 	r.alloc = snap.Alloc
 	r.taskStatus = snap.TaskStatus
+	r.ctx = snap.Context
 
 	// Restore the task runners
 	var mErr multierror.Error
@@ -112,6 +114,7 @@ func (r *AllocRunner) SaveState() error {
 	snap := allocRunnerState{
 		Alloc:      r.alloc,
 		TaskStatus: r.taskStatus,
+		Context:    r.ctx,
 	}
 	err := persistState(r.stateFilePath(), &snap)
 	r.taskStatusLock.RUnlock()
@@ -240,7 +243,7 @@ func (r *AllocRunner) Run() {
 	r.logger.Printf("[DEBUG] client: starting runner for alloc '%s'", r.alloc.ID)
 
 	// Find the task group to run in the allocation
-	tg := alloc.Job.LookingTaskGroup(alloc.TaskGroup)
+	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 	if tg == nil {
 		r.logger.Printf("[ERR] client: alloc '%s' for missing task group '%s'", alloc.ID, alloc.TaskGroup)
 		r.setStatus(structs.AllocClientStatusFailed, fmt.Sprintf("missing task group '%s'", alloc.TaskGroup))
@@ -248,11 +251,17 @@ func (r *AllocRunner) Run() {
 	}
 
 	// Create the execution context
-	r.ctx = driver.NewExecContext()
+	if r.ctx == nil {
+		r.ctx = driver.NewExecContext()
+	}
 
 	// Start the task runners
 	r.taskLock.Lock()
 	for _, task := range tg.Tasks {
+		// Skip tasks that were restored
+		if _, ok := r.tasks[task.Name]; ok {
+			continue
+		}
 		tr := NewTaskRunner(r.config, r, r.ctx, task)
 		r.tasks[task.Name] = tr
 		go tr.Run()

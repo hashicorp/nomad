@@ -23,6 +23,7 @@ type TaskRunner struct {
 
 	allocID string
 	task    *structs.Task
+	handle  driver.DriverHandle
 
 	updateCh chan *structs.Task
 
@@ -35,7 +36,8 @@ type TaskRunner struct {
 
 // taskRunnerState is used to snapshot the state of the task runner
 type taskRunnerState struct {
-	Task *structs.Task
+	Task     *structs.Task
+	HandleID string
 }
 
 // NewTaskRunner is used to create a new task context
@@ -83,7 +85,21 @@ func (r *TaskRunner) RestoreState() error {
 	// Restore fields
 	r.task = snap.Task
 
-	// TODO: Restore the driver
+	// Restore the driver
+	if snap.HandleID != "" {
+		driver, err := r.createDriver()
+		if err != nil {
+			return err
+		}
+
+		handle, err := driver.Open(r.ctx, snap.HandleID)
+		if err != nil {
+			r.logger.Printf("[ERR] client: failed to open handle to task '%s' for alloc '%s': %v",
+				r.task.Name, r.allocID, err)
+			return err
+		}
+		r.handle = handle
+	}
 	return nil
 }
 
@@ -91,6 +107,9 @@ func (r *TaskRunner) RestoreState() error {
 func (r *TaskRunner) SaveState() error {
 	snap := taskRunnerState{
 		Task: r.task,
+	}
+	if r.handle != nil {
+		snap.HandleID = r.handle.ID()
 	}
 	return persistState(r.stateFilePath(), &snap)
 }
@@ -105,20 +124,24 @@ func (r *TaskRunner) setStatus(status, desc string) {
 	r.allocRunner.setTaskStatus(r.task.Name, status, desc)
 }
 
-// Run is a long running routine used to manage the task
-func (r *TaskRunner) Run() {
-	defer close(r.waitCh)
-	r.logger.Printf("[DEBUG] client: starting task context for '%s' (alloc '%s')",
-		r.task.Name, r.allocID)
-
-	// Create the driver
+// createDriver makes a driver for the task
+func (r *TaskRunner) createDriver() (driver.Driver, error) {
 	driver, err := driver.NewDriver(r.task.Driver, r.logger)
 	if err != nil {
-		r.logger.Printf("[ERR] client: failed to create driver '%s' for alloc '%s'",
-			r.task.Driver, r.allocID)
-		r.setStatus(structs.AllocClientStatusFailed,
-			fmt.Sprintf("failed to create driver '%s'", r.task.Driver))
-		return
+		err = fmt.Errorf("failed to create driver '%s' for alloc %s: %v",
+			r.task.Driver, r.allocID, err)
+		r.logger.Printf("[ERR] client: %s", err)
+	}
+	return driver, err
+}
+
+// startTask is used to start the task if there is no handle
+func (r *TaskRunner) startTask() error {
+	// Create a driver
+	driver, err := r.createDriver()
+	if err != nil {
+		r.setStatus(structs.AllocClientStatusFailed, err.Error())
+		return err
 	}
 
 	// Start the job
@@ -128,15 +151,31 @@ func (r *TaskRunner) Run() {
 			r.task.Name, r.allocID, err)
 		r.setStatus(structs.AllocClientStatusFailed,
 			fmt.Sprintf("failed to start: %v", err))
-		return
+		return err
 	}
+	r.handle = handle
 	r.setStatus(structs.AllocClientStatusRunning, "task started")
+	return nil
+}
+
+// Run is a long running routine used to manage the task
+func (r *TaskRunner) Run() {
+	defer close(r.waitCh)
+	r.logger.Printf("[DEBUG] client: starting task context for '%s' (alloc '%s')",
+		r.task.Name, r.allocID)
+
+	// Start the task if not yet started
+	if r.handle == nil {
+		if err := r.startTask(); err != nil {
+			return
+		}
+	}
 
 OUTER:
 	// Wait for updates
 	for {
 		select {
-		case err := <-handle.WaitCh():
+		case err := <-r.handle.WaitCh():
 			if err != nil {
 				r.logger.Printf("[ERR] client: failed to complete task '%s' for alloc '%s': %v",
 					r.task.Name, r.allocID, err)
@@ -153,24 +192,22 @@ OUTER:
 		case update := <-r.updateCh:
 			// Update
 			r.task = update
-			if err := handle.Update(update); err != nil {
+			if err := r.handle.Update(update); err != nil {
 				r.logger.Printf("[ERR] client: failed to update task '%s' for alloc '%s': %v",
 					r.task.Name, r.allocID, err)
 			}
 
 		case <-r.destroyCh:
 			// Send the kill signal, and use the WaitCh to block until complete
-			if err := handle.Kill(); err != nil {
+			if err := r.handle.Kill(); err != nil {
 				r.logger.Printf("[ERR] client: failed to kill task '%s' for alloc '%s': %v",
 					r.task.Name, r.allocID, err)
 			}
 		}
 	}
 
-	// Check if we should destroy our state
-	if r.destroy {
-		r.DestroyState()
-	}
+	// Cleanup after ourselves
+	r.DestroyState()
 }
 
 // Update is used to update the task of the context
