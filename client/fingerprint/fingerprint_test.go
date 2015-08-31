@@ -28,21 +28,32 @@ func assertFingerprintOK(t *testing.T, fp Fingerprint, node *structs.Node) {
 func assertNodeAttributeContains(t *testing.T, node *structs.Node, attribute string) {
 	actual, found := node.Attributes[attribute]
 	if !found {
-		t.Errorf("Expected to find `%s`\n\n[DEBUG] %#v", attribute, node)
+		t.Errorf("Expected to find Attribute `%s`\n\n[DEBUG] %#v", attribute, node)
 		return
 	}
 	if actual == "" {
-		t.Errorf("Expected non-empty value for `%s`\n\n[DEBUG] %#v", attribute, node)
+		t.Errorf("Expected non-empty Attribute value for `%s`\n\n[DEBUG] %#v", attribute, node)
 	}
 }
 
 func assertNodeAttributeEquals(t *testing.T, node *structs.Node, attribute string, expected string) {
 	actual, found := node.Attributes[attribute]
 	if !found {
-		t.Errorf("Expected to find `%s`; unable to check value\n\n[DEBUG] %#v", attribute, node)
+		t.Errorf("Expected to find Attribute `%s`; unable to check value\n\n[DEBUG] %#v", attribute, node)
 		return
 	}
 	if expected != actual {
-		t.Errorf("Expected `%s` to be `%s`, found `%s`\n\n[DEBUG] %#v", attribute, expected, actual, node)
+		t.Errorf("Expected `%s` Attribute to be `%s`, found `%s`\n\n[DEBUG] %#v", attribute, expected, actual, node)
+	}
+}
+
+func assertNodeLinksContains(t *testing.T, node *structs.Node, link string) {
+	actual, found := node.Links[link]
+	if !found {
+		t.Errorf("Expected to find Link `%s`\n\n[DEBUG] %#v", link, node)
+		return
+	}
+	if actual == "" {
+		t.Errorf("Expected non-empty Link value for `%s`\n\n[DEBUG] %#v", link, node)
 	}
 }
