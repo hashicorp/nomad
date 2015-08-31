@@ -228,3 +228,22 @@ func (a *Agent) Client() *client.Client {
 func (a *Agent) Server() *nomad.Server {
 	return a.server
 }
+
+// Stats is used to return statistics for debugging and insight
+// for various sub-systems
+func (a *Agent) Stats() map[string]map[string]string {
+	stats := make(map[string]map[string]string)
+	if a.server != nil {
+		subStat := a.server.Stats()
+		for k, v := range subStat {
+			stats[k] = v
+		}
+	}
+	if a.client != nil {
+		subStat := a.client.Stats()
+		for k, v := range subStat {
+			stats[k] = v
+		}
+	}
+	return stats
+}
