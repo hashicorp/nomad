@@ -72,9 +72,7 @@ func (f *EnvAWSFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 	}
 
 	// populate links
-	for _, k := range []string{"instance-id", "ami-id"} {
-		node.Links[k] = node.Attributes["platform.aws."+k]
-	}
+	node.Links["aws.ec2"] = node.Attributes["platform.aws.placement.availability-zone"] + "." + node.Attributes["platform.aws.instance-id"]
 
 	return true, nil
 }

@@ -80,7 +80,7 @@ func TestEnvAWSFingerprint_aws(t *testing.T) {
 	}
 
 	// confirm we have at least instance-id and ami-id
-	for _, k := range []string{"instance-id", "ami-id"} {
+	for _, k := range []string{"aws.ec2"} {
 		assertNodeLinksContains(t, node, k)
 	}
 }
