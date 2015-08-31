@@ -4,11 +4,14 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"os"
+	"path/filepath"
 	"sync"
 
 	"github.com/hashicorp/nomad/client"
 	"github.com/hashicorp/nomad/nomad"
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 // Agent is a long running daemon that is used to run both
@@ -65,9 +68,47 @@ func (a *Agent) setupServer() error {
 	conf := nomad.DefaultConfig()
 	conf.LogOutput = a.logOutput
 	conf.DevMode = a.config.DevMode
+	conf.Region = a.config.Region
+	conf.Datacenter = a.config.Datacenter
+	conf.NodeName = a.config.NodeName
+	conf.Build = fmt.Sprintf("%s%s", a.config.Version, a.config.VersionPrerelease)
+	if a.config.Server.Bootstrap {
+		conf.Bootstrap = a.config.Server.Bootstrap
+	}
+	if a.config.Server.BootstrapExpect > 0 {
+		conf.BootstrapExpect = a.config.Server.BootstrapExpect
+	}
+	if a.config.DataDir != "" {
+		conf.DataDir = filepath.Join(a.config.DataDir, "server")
+	}
+	if a.config.Server.DataDir != "" {
+		conf.DataDir = a.config.Server.DataDir
+	}
+	if a.config.Server.ProtocolVersion != 0 {
+		conf.ProtocolVersion = uint8(a.config.Server.ProtocolVersion)
+	}
+	if a.config.Server.NumSchedulers != 0 {
+		conf.NumSchedulers = a.config.Server.NumSchedulers
+	}
+	if len(a.config.Server.EnabledSchedulers) != 0 {
+		conf.EnabledSchedulers = a.config.Server.EnabledSchedulers
+	}
+	if addr := a.config.Server.AdvertiseAddr; addr != "" {
+		tcpAddr, err := net.ResolveTCPAddr("tcp", addr)
+		if err != nil {
+			return fmt.Errorf("failed to resolve advertise address: %v", err)
+		}
+		conf.RPCAdvertise = tcpAddr
+	}
+	if addr := a.config.Server.BindAddr; addr != "" {
+		tcpAddr, err := net.ResolveTCPAddr("tcp", addr)
+		if err != nil {
+			return fmt.Errorf("failed to resolve bind address: %v", err)
+		}
+		conf.RPCAddr = tcpAddr
+	}
 
-	// TODO: Merge configuration
-
+	// Create the server
 	server, err := nomad.NewServer(conf)
 	if err != nil {
 		return fmt.Errorf("server setup failed: %v", err)
@@ -89,9 +130,20 @@ func (a *Agent) setupClient() error {
 	}
 	conf.LogOutput = a.logOutput
 	conf.DevMode = a.config.DevMode
+	conf.Region = a.config.Region
+	conf.StateDir = a.config.Client.StateDir
+	conf.AllocDir = a.config.Client.AllocDir
+	conf.Servers = a.config.Client.Servers
 
-	// TODO: Merge configuration
+	// Setup the node
+	conf.Node = new(structs.Node)
+	conf.Node.Datacenter = a.config.Datacenter
+	conf.Node.Name = a.config.NodeName
+	conf.Node.ID = a.config.Client.NodeID
+	conf.Node.Meta = a.config.Client.Meta
+	conf.Node.NodeClass = a.config.Client.NodeClass
 
+	// Create the client
 	client, err := client.NewClient(conf)
 	if err != nil {
 		return fmt.Errorf("client setup failed: %v", err)

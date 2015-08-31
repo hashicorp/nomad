@@ -17,6 +17,12 @@ type Config struct {
 	// Region is the region this agent is in. Defaults to region1.
 	Region string `hcl:"region"`
 
+	// Datacenter is the datacenter this agent is in. Defaults to dc1
+	Datacenter string `hcl:"datacenter"`
+
+	// NodeName is the name we register as. Defaults to hostname.
+	NodeName string `hcl:"name"`
+
 	// DataDir is the directory to store our state in
 	DataDir string `hcl:"data_dir"`
 
@@ -57,15 +63,24 @@ type ClientConfig struct {
 	// Enabled controls if we are a client
 	Enabled bool `hcl:"enabled"`
 
-	// Datacenter is the datacenter this agent is in. Defaults to dc1
-	Datacenter string `hcl:"datacenter"`
+	// StateDir is the state directory
+	StateDir string `hcl:"state_dir"`
 
-	// Name is the name we register as. Defaults to hostname.
-	Name string `hcl:"name"`
+	// AllocDir is the directory for storing allocation data
+	AllocDir string `hcl:"alloc_dir"`
+
+	// Servers is a list of known server addresses. These are as "host:port"
+	Servers []string `hcl:"servers"`
 
 	// NodeID is the unique node identifier to use. A UUID is used
 	// if not provided, and stored in the data directory
 	NodeID string `hcl:"node_id"`
+
+	// NodeClass is used to group the node by class
+	NodeClass string `hcl:"node_class"`
+
+	// Metadata associated with the node
+	Meta map[string]string `hcl:"meta"`
 }
 
 type ServerConfig struct {
@@ -80,6 +95,13 @@ type ServerConfig struct {
 	// by witholding peers until enough servers join.
 	BootstrapExpect int `hcl:"bootstrap_expect"`
 
+	// DataDir is the directory to store our state in
+	DataDir string `hcl:"data_dir"`
+
+	// ProtocolVersion is the protocol version to speak. This must be between
+	// ProtocolVersionMin and ProtocolVersionMax.
+	ProtocolVersion int `hcl:"protocol_version"`
+
 	// AdvertiseAddr is the address we use for advertising our Serf,
 	// and Consul RPC IP. If not specified, bind address is used.
 	AdvertiseAddr string `mapstructure:"advertise_addr"`
@@ -89,6 +111,16 @@ type ServerConfig struct {
 	// This controls the address we use for cluster facing
 	// services (Gossip, Server RPC)
 	BindAddr string `hcl:"bind_addr"`
+
+	// NumSchedulers is the number of scheduler thread that are run.
+	// This can be as many as one per core, or zero to disable this server
+	// from doing any scheduling work.
+	NumSchedulers int `hcl:"num_schedulers"`
+
+	// EnabledSchedulers controls the set of sub-schedulers that are
+	// enabled for this server to handle. This will restrict the evaluations
+	// that the workers dequeue for processing.
+	EnabledSchedulers []string `hcl:"enabled_schedulers"`
 }
 
 // Telemetry is the telemetry configuration for the server
