@@ -118,10 +118,6 @@ type Config struct {
 	// that the workers dequeue for processing.
 	EnabledSchedulers []string
 
-	// ServerAddress is used by clients to connect to the servers.
-	// Defaults to "nomad.service.consul:4647"
-	ServerAddress []string
-
 	// ReconcileInterval controls how often we reconcile the strongly
 	// consistent store with the Serf info. This is used to handle nodes
 	// that are force removed, as well as intermittent unavailability during
@@ -196,7 +192,6 @@ func DefaultConfig() *Config {
 		RPCAddr:                DefaultRPCAddr,
 		SerfConfig:             serf.DefaultConfig(),
 		NumSchedulers:          1,
-		ServerAddress:          []string{"nomad.service.consul:4647"},
 		ReconcileInterval:      60 * time.Second,
 		EvalGCInterval:         60 * time.Second,
 		EvalGCThreshold:        1 * time.Hour,

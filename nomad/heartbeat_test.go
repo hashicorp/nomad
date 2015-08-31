@@ -46,7 +46,7 @@ func TestResetHeartbeatTimer(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if ttl < minHeartbeatTTL || ttl > 2*minHeartbeatTTL {
+	if ttl < s1.config.MinHeartbeatTTL || ttl > 2*s1.config.MinHeartbeatTTL {
 		t.Fatalf("bad: %#v", ttl)
 	}
 

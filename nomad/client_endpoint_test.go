@@ -111,7 +111,7 @@ func TestClientEndpoint_UpdateStatus(t *testing.T) {
 
 	// Check for heartbeat interval
 	ttl := resp.HeartbeatTTL
-	if ttl < minHeartbeatTTL || ttl > 2*minHeartbeatTTL {
+	if ttl < s1.config.MinHeartbeatTTL || ttl > 2*s1.config.MinHeartbeatTTL {
 		t.Fatalf("bad: %#v", ttl)
 	}
 
@@ -131,7 +131,7 @@ func TestClientEndpoint_UpdateStatus(t *testing.T) {
 
 	// Check for heartbeat interval
 	ttl = resp2.HeartbeatTTL
-	if ttl < minHeartbeatTTL || ttl > 2*minHeartbeatTTL {
+	if ttl < s1.config.MinHeartbeatTTL || ttl > 2*s1.config.MinHeartbeatTTL {
 		t.Fatalf("bad: %#v", ttl)
 	}
 
@@ -170,7 +170,7 @@ func TestClientEndpoint_UpdateStatus_HeartbeatOnly(t *testing.T) {
 
 	// Check for heartbeat interval
 	ttl := resp.HeartbeatTTL
-	if ttl < minHeartbeatTTL || ttl > 2*minHeartbeatTTL {
+	if ttl < s1.config.MinHeartbeatTTL || ttl > 2*s1.config.MinHeartbeatTTL {
 		t.Fatalf("bad: %#v", ttl)
 	}
 
@@ -190,7 +190,7 @@ func TestClientEndpoint_UpdateStatus_HeartbeatOnly(t *testing.T) {
 
 	// Check for heartbeat interval
 	ttl = resp2.HeartbeatTTL
-	if ttl < minHeartbeatTTL || ttl > 2*minHeartbeatTTL {
+	if ttl < s1.config.MinHeartbeatTTL || ttl > 2*s1.config.MinHeartbeatTTL {
 		t.Fatalf("bad: %#v", ttl)
 	}
 }
