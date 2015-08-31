@@ -65,6 +65,10 @@ type DriverHandle interface {
 // ExecContext is shared between drivers within an allocation
 type ExecContext struct {
 	sync.Mutex
+
+	// AllocDir is the directory used for storing any state
+	// of this allocation. It will be purged on alloc destroy.
+	AllocDir string
 }
 
 // NewExecContext is used to create a new execution context

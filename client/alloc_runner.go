@@ -144,6 +144,11 @@ func (r *AllocRunner) DestroyState() error {
 	return os.RemoveAll(filepath.Dir(r.stateFilePath()))
 }
 
+// DestroyContext is used to destroy the context
+func (r *AllocRunner) DestroyContext() error {
+	return os.RemoveAll(r.ctx.AllocDir)
+}
+
 // Alloc returns the associated allocation
 func (r *AllocRunner) Alloc() *structs.Allocation {
 	return r.alloc
@@ -273,6 +278,7 @@ func (r *AllocRunner) Run() {
 	// Create the execution context
 	if r.ctx == nil {
 		r.ctx = driver.NewExecContext()
+		r.ctx.AllocDir = filepath.Join(r.config.AllocDir, r.alloc.ID)
 	}
 
 	// Start the task runners
@@ -329,7 +335,14 @@ OUTER:
 
 	// Check if we should destroy our state
 	if r.destroy {
-		r.DestroyState()
+		if err := r.DestroyContext(); err != nil {
+			r.logger.Printf("[ERR] client: failed to destroy context for alloc '%s': %v",
+				r.alloc.ID, err)
+		}
+		if err := r.DestroyState(); err != nil {
+			r.logger.Printf("[ERR] client: failed to destroy state for alloc '%s': %v",
+				r.alloc.ID, err)
+		}
 	}
 	r.logger.Printf("[DEBUG] client: terminating runner for alloc '%s'", r.alloc.ID)
 }
