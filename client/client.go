@@ -38,6 +38,9 @@ const (
 
 	// devModeRetryIntv is the retry interval used for development
 	devModeRetryIntv = time.Second
+
+	// stateSnapshotIntv is how often the client snapshots state
+	stateSnapshotIntv = 60 * time.Second
 )
 
 // DefaultConfig returns the default configuration
@@ -372,9 +375,18 @@ func (c *Client) run() {
 	allocUpdates := make(chan []*structs.Allocation, 1)
 	go c.watchAllocations(allocUpdates)
 
+	// Create a snapshot timer
+	snapshot := time.After(stateSnapshotIntv)
+
 	// Periodically update our status and wait for termination
 	for {
 		select {
+		case <-snapshot:
+			snapshot = time.After(stateSnapshotIntv)
+			if err := c.saveState(); err != nil {
+				c.logger.Printf("[ERR] client: failed to save state: %v", err)
+			}
+
 		case allocs := <-allocUpdates:
 			c.runAllocs(allocs)
 

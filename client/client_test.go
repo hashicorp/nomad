@@ -307,3 +307,59 @@ func TestClient_WatchAllocs(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	})
 }
+
+func TestClient_SaveRestoreState(t *testing.T) {
+	s1, _ := testServer(t, nil)
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	c1 := testClient(t, func(c *config.Config) {
+		c.RPCHandler = s1
+	})
+	defer c1.Shutdown()
+
+	// Create mock allocations
+	alloc1 := mock.Alloc()
+	alloc1.NodeID = c1.Node().ID
+	task := alloc1.Job.TaskGroups[0].Tasks[0]
+	task.Config["command"] = "/bin/sleep"
+	task.Config["args"] = "10"
+
+	state := s1.State()
+	err := state.UpdateAllocations(100,
+		[]*structs.Allocation{alloc1})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Allocations should get registered
+	testutil.WaitForResult(func() (bool, error) {
+		c1.allocLock.RLock()
+		num := len(c1.allocs)
+		c1.allocLock.RUnlock()
+		return num == 1, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	// Shutdown the client, saves state
+	err = c1.Shutdown()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Create a new client
+	c2, err := NewClient(c1.config)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	defer c2.Shutdown()
+
+	// Ensure the allocation is running
+	c2.allocLock.RLock()
+	ar := c1.allocs[alloc1.ID]
+	c2.allocLock.RUnlock()
+	if ar.Alloc().ClientStatus != structs.AllocClientStatusRunning {
+		t.Fatalf("bad: %#v", ar.Alloc())
+	}
+}
