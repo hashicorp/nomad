@@ -25,6 +25,9 @@ func NewEnvAWSFingerprint(logger *log.Logger) Fingerprint {
 }
 
 func (f *EnvAWSFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
+	if node.Links == nil {
+		node.Links = make(map[string]string)
+	}
 	metadataURL := os.Getenv("AWS_ENV_URL")
 	if metadataURL == "" {
 		metadataURL = "http://169.254.169.254/latest/meta-data/"
@@ -65,7 +68,12 @@ func (f *EnvAWSFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 
 		// assume we want blank entries
 		key := strings.Replace(k, "/", ".", -1)
-		node.Attributes["env.aws."+key] = strings.Trim(string(resp), "\n")
+		node.Attributes["platform.aws."+key] = strings.Trim(string(resp), "\n")
+	}
+
+	// populate links
+	for _, k := range []string{"instance-id", "ami-id"} {
+		node.Links[k] = node.Attributes["platform.aws."+k]
 	}
 
 	return true, nil

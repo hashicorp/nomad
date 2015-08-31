@@ -60,19 +60,28 @@ func TestEnvAWSFingerprint_aws(t *testing.T) {
 	}
 
 	keys := []string{
-		"env.aws.ami-id",
-		"env.aws.hostname",
-		"env.aws.instance-id",
-		"env.aws.instance-type",
-		"env.aws.local-hostname",
-		"env.aws.local-ipv4",
-		"env.aws.public-hostname",
-		"env.aws.public-ipv4",
-		"env.aws.placement.availability-zone",
+		"platform.aws.ami-id",
+		"platform.aws.hostname",
+		"platform.aws.instance-id",
+		"platform.aws.instance-type",
+		"platform.aws.local-hostname",
+		"platform.aws.local-ipv4",
+		"platform.aws.public-hostname",
+		"platform.aws.public-ipv4",
+		"platform.aws.placement.availability-zone",
 	}
 
 	for _, k := range keys {
 		assertNodeAttributeContains(t, node, k)
+	}
+
+	if len(node.Links) == 0 {
+		t.Fatalf("Empty links for Node in AWS Fingerprint test")
+	}
+
+	// confirm we have at least instance-id and ami-id
+	for _, k := range []string{"instance-id", "ami-id"} {
+		assertNodeLinksContains(t, node, k)
 	}
 }
 
