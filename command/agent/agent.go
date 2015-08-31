@@ -68,10 +68,16 @@ func (a *Agent) setupServer() error {
 	conf := nomad.DefaultConfig()
 	conf.LogOutput = a.logOutput
 	conf.DevMode = a.config.DevMode
-	conf.Region = a.config.Region
-	conf.Datacenter = a.config.Datacenter
-	conf.NodeName = a.config.NodeName
 	conf.Build = fmt.Sprintf("%s%s", a.config.Version, a.config.VersionPrerelease)
+	if a.config.Region != "" {
+		conf.Region = a.config.Region
+	}
+	if a.config.Datacenter != "" {
+		conf.Datacenter = a.config.Datacenter
+	}
+	if a.config.NodeName != "" {
+		conf.NodeName = a.config.NodeName
+	}
 	if a.config.Server.Bootstrap {
 		conf.Bootstrap = a.config.Server.Bootstrap
 	}
@@ -130,9 +136,19 @@ func (a *Agent) setupClient() error {
 	}
 	conf.LogOutput = a.logOutput
 	conf.DevMode = a.config.DevMode
-	conf.Region = a.config.Region
-	conf.StateDir = a.config.Client.StateDir
-	conf.AllocDir = a.config.Client.AllocDir
+	if a.config.Region != "" {
+		conf.Region = a.config.Region
+	}
+	if a.config.DataDir != "" {
+		conf.StateDir = filepath.Join(a.config.DataDir, "client")
+		conf.AllocDir = filepath.Join(a.config.DataDir, "alloc")
+	}
+	if a.config.Client.StateDir != "" {
+		conf.StateDir = a.config.Client.StateDir
+	}
+	if a.config.Client.AllocDir != "" {
+		conf.AllocDir = a.config.Client.AllocDir
+	}
 	conf.Servers = a.config.Client.Servers
 
 	// Setup the node
