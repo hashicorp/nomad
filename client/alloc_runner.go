@@ -159,54 +159,71 @@ func (r *AllocRunner) setAlloc(alloc *structs.Allocation) {
 	r.alloc = alloc
 }
 
-// syncStatus is used to run and sync the status when it changes
-func (r *AllocRunner) syncStatus() {
-	var retryCh <-chan time.Time
+// dirtySyncState is used to watch for state being marked dirty to sync
+func (r *AllocRunner) dirtySyncState() {
 	for {
 		select {
-		case <-retryCh:
 		case <-r.dirtyCh:
+			r.retrySyncState(r.destroyCh)
 		case <-r.destroyCh:
 			return
 		}
-
-		// Scan the task status to termine the status of the alloc
-		var pending, running, dead, failed bool
-		r.taskStatusLock.RLock()
-		pending = len(r.taskStatus) < len(r.tasks)
-		for _, status := range r.taskStatus {
-			switch status.Status {
-			case structs.AllocClientStatusRunning:
-				running = true
-			case structs.AllocClientStatusDead:
-				dead = true
-			case structs.AllocClientStatusFailed:
-				failed = true
-			}
-		}
-		if len(r.taskStatus) > 0 {
-			taskDesc, _ := json.Marshal(r.taskStatus)
-			r.alloc.ClientDescription = string(taskDesc)
-		}
-		r.taskStatusLock.RUnlock()
-
-		// Determine the alloc status
-		if failed {
-			r.alloc.ClientStatus = structs.AllocClientStatusFailed
-		} else if running {
-			r.alloc.ClientStatus = structs.AllocClientStatusRunning
-		} else if dead && !pending {
-			r.alloc.ClientStatus = structs.AllocClientStatusDead
-		}
-
-		// Attempt to update the status
-		if err := r.updater(r.alloc); err != nil {
-			r.logger.Printf("[ERR] client: failed to update alloc '%s' status to %s: %s",
-				r.alloc.ID, r.alloc.ClientStatus, err)
-			retryCh = time.After(allocSyncRetryIntv + randomStagger(allocSyncRetryIntv))
-		}
-		retryCh = nil
 	}
+}
+
+// retrySyncState is used to retry the state sync until success
+func (r *AllocRunner) retrySyncState(stopCh chan struct{}) {
+	for {
+		err := r.syncStatus()
+		if err == nil {
+			return
+		}
+		select {
+		case <-time.After(allocSyncRetryIntv + randomStagger(allocSyncRetryIntv)):
+		case <-stopCh:
+			return
+		}
+	}
+}
+
+// syncStatus is used to run and sync the status when it changes
+func (r *AllocRunner) syncStatus() error {
+	// Scan the task status to termine the status of the alloc
+	var pending, running, dead, failed bool
+	r.taskStatusLock.RLock()
+	pending = len(r.taskStatus) < len(r.tasks)
+	for _, status := range r.taskStatus {
+		switch status.Status {
+		case structs.AllocClientStatusRunning:
+			running = true
+		case structs.AllocClientStatusDead:
+			dead = true
+		case structs.AllocClientStatusFailed:
+			failed = true
+		}
+	}
+	if len(r.taskStatus) > 0 {
+		taskDesc, _ := json.Marshal(r.taskStatus)
+		r.alloc.ClientDescription = string(taskDesc)
+	}
+	r.taskStatusLock.RUnlock()
+
+	// Determine the alloc status
+	if failed {
+		r.alloc.ClientStatus = structs.AllocClientStatusFailed
+	} else if running {
+		r.alloc.ClientStatus = structs.AllocClientStatusRunning
+	} else if dead && !pending {
+		r.alloc.ClientStatus = structs.AllocClientStatusDead
+	}
+
+	// Attempt to update the status
+	if err := r.updater(r.alloc); err != nil {
+		r.logger.Printf("[ERR] client: failed to update alloc '%s' status to %s: %s",
+			r.alloc.ID, r.alloc.ClientStatus, err)
+		return err
+	}
+	return nil
 }
 
 // setStatus is used to update the allocation status
@@ -222,11 +239,11 @@ func (r *AllocRunner) setStatus(status, desc string) {
 // setTaskStatus is used to set the status of a task
 func (r *AllocRunner) setTaskStatus(taskName, status, desc string) {
 	r.taskStatusLock.Lock()
-	defer r.taskStatusLock.Unlock()
 	r.taskStatus[taskName] = taskStatus{
 		Status:      status,
 		Description: desc,
 	}
+	r.taskStatusLock.Unlock()
 	select {
 	case r.dirtyCh <- struct{}{}:
 	default:
@@ -235,7 +252,7 @@ func (r *AllocRunner) setTaskStatus(taskName, status, desc string) {
 
 // Run is a long running goroutine used to manage an allocation
 func (r *AllocRunner) Run() {
-	go r.syncStatus()
+	go r.dirtySyncState()
 
 	// Check if the allocation is in a terminal status
 	alloc := r.alloc
@@ -306,6 +323,9 @@ OUTER:
 	for _, tr := range r.tasks {
 		<-tr.WaitCh()
 	}
+
+	// Final state sync
+	r.retrySyncState(nil)
 
 	// Check if we should destroy our state
 	if r.destroy {
