@@ -29,17 +29,14 @@ func (f *ConsulFingerprint) Fingerprint(config *client.Config, node *structs.Nod
 		node.Links = map[string]string{}
 	}
 
-	// We'll try to automatically defect consul by making a query to
-	//	http://127.0.0.1:8500/v1/agent/self
-	// If we can't hit this URL consul is probably not running on this machine.
-	// Also since this is local and should be basically instant we'll set a very
-	// short timeout so we don't block Nomad from starting up for too long.
-
-	// TODO make this configurable
-	timeout, _ := time.ParseDuration("100ms")
+	address := config.ReadDefault("consul.address", "127.0.0.1:8500")
+	timeout, err := time.ParseDuration(config.ReadDefault("consul.timeout", "10ms"))
+	if err != nil {
+		return false, fmt.Errorf("Unable to parse consul.timeout: %s", err)
+	}
 
 	consulConfig := consul.DefaultConfig()
-	consulConfig.Address = "172.16.59.133:8500"
+	consulConfig.Address = address
 	consulConfig.HttpClient.Timeout = timeout
 
 	consulClient, err := consul.NewClient(consulConfig)
@@ -47,6 +44,8 @@ func (f *ConsulFingerprint) Fingerprint(config *client.Config, node *structs.Nod
 		return false, fmt.Errorf("Failed to initialize consul client: %s", err)
 	}
 
+	// We'll try to detect consul by making a query to to the agent's self API.
+	// If we can't hit this URL consul is probably not running on this machine.
 	info, err := consulClient.Agent().Self()
 	if err != nil {
 		return false, fmt.Errorf("Failed to query consul for agent status: %s", err)
@@ -59,8 +58,8 @@ func (f *ConsulFingerprint) Fingerprint(config *client.Config, node *structs.Nod
 	node.Attributes["consul.datacenter"] = info["Config"]["Datacenter"].(string)
 
 	node.Links["consul"] = fmt.Sprintf("%s.%s",
-		node.Attributes["consul.name"],
-		node.Attributes["consul.datacenter"])
+		node.Attributes["consul.datacenter"],
+		node.Attributes["consul.name"])
 
 	return true, nil
 }
