@@ -56,11 +56,21 @@ func NewConfig() Config {
 	return config
 }
 
-// GetOpt returns the specified configuration value or "".
+// Read returns the specified configuration value or "".
 func (c *Config) Read(id string) string {
 	val, ok := c.Options[id]
 	if !ok {
 		return ""
 	}
 	return val
+}
+
+// ReadDefault returns the specified configuration value, or the specified
+// default value if none is set.
+func (c *Config) ReadDefault(id string, defaultValue string) string {
+	val := c.Read(id)
+	if val != "" {
+		return val
+	}
+	return defaultValue
 }
