@@ -1,18 +1,12 @@
 package driver
 
 import (
-	"log"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
-
-func testLogger() *log.Logger {
-	return log.New(os.Stderr, "", log.LstdFlags)
-}
 
 func TestExecDriver_Fingerprint(t *testing.T) {
 	d := NewExecDriver(testLogger())
