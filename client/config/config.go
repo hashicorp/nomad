@@ -48,14 +48,6 @@ type Config struct {
 	Options map[string]string
 }
 
-func NewConfig() Config {
-	config := Config{
-		Node:    &structs.Node{},
-		Options: map[string]string{},
-	}
-	return config
-}
-
 // Read returns the specified configuration value or "".
 func (c *Config) Read(id string) string {
 	val, ok := c.Options[id]
