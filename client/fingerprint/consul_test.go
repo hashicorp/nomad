@@ -1,8 +1,12 @@
 package fingerprint
 
 import (
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -12,7 +16,26 @@ func TestConsulFingerprint(t *testing.T) {
 		Attributes: make(map[string]string),
 	}
 
-	assertFingerprintOK(t, fp, node)
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintln(w, mockConsulResponse)
+	}))
+	defer ts.Close()
+
+	consulConfig := &config.Config{
+		Options: map[string]string{
+			// Split off "http://"
+			"consul.address": ts.URL[7:],
+		},
+	}
+
+	ok, err := fp.Fingerprint(consulConfig, node)
+	if err != nil {
+		t.Fatalf("Failed to fingerprint: %s", err)
+	}
+	if !ok {
+		t.Fatalf("Failed to apply node attributes")
+	}
 
 	assertNodeAttributeContains(t, node, "consul.server")
 	assertNodeAttributeContains(t, node, "consul.version")
@@ -20,14 +43,14 @@ func TestConsulFingerprint(t *testing.T) {
 	assertNodeAttributeContains(t, node, "consul.name")
 	assertNodeAttributeContains(t, node, "consul.datacenter")
 
-	expectedLink := "consul2.vagrant"
+	expectedLink := "vagrant.consul2"
 	if node.Links["consul"] != expectedLink {
-		t.Errorf("Expected consul link: %s", expectedLink)
+		t.Errorf("Expected consul link: %s\nFound links: %#v", expectedLink, node.Links)
 	}
 }
 
 // Taken from tryconsul using consul release 0.5.2
-const mockPayload = `
+const mockConsulResponse = `
 {
   "Config": {
     "Bootstrap": false,
