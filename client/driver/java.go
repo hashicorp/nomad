@@ -1,6 +1,7 @@
 package driver
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"log"
@@ -38,8 +39,48 @@ func NewJavaDriver(logger *log.Logger) Driver {
 }
 
 func (d *JavaDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
-	// We can always do a fork/exec
+	// Find java version
+	var out bytes.Buffer
+	var erOut bytes.Buffer
+	cmd := exec.Command("java", "-version")
+	cmd.Stdout = &out
+	cmd.Stderr = &erOut
+	err := cmd.Run()
+	if err != nil {
+		// assume Java wasn't found
+		return false, fmt.Errorf("Error detecting Java version: %s", err)
+	}
+
+	// 'java -version' returns output on Stderr typically.
+	// Check stdout, but it's probably empty
+	var infoString string
+	if out.String() != "" {
+		infoString = out.String()
+	}
+
+	if erOut.String() != "" {
+		infoString = erOut.String()
+	}
+
+	if infoString == "" {
+		return false, fmt.Errorf("Error parsing Java version information")
+	}
+
+	// Assume 'java -version' returns 3 lines:
+	//    java version "1.6.0_36"
+	//    OpenJDK Runtime Environment (IcedTea6 1.13.8) (6b36-1.13.8-0ubuntu1~12.04)
+	//    OpenJDK 64-Bit Server VM (build 23.25-b01, mixed mode)
+	// Each line is terminated by \n
+
+	info := strings.Split(infoString, "\n")
+	versionString := info[0]
+	versionString = strings.TrimPrefix(versionString, "java version ")
+	versionString = strings.Trim(versionString, "\"")
 	node.Attributes["driver.java"] = "1"
+	node.Attributes["driver.java.version"] = versionString
+	node.Attributes["driver.java.runtime"] = info[1]
+	node.Attributes["driver.java.vm"] = info[2]
+
 	return true, nil
 }
 

@@ -21,8 +21,13 @@ func TestJavaDriver_Fingerprint(t *testing.T) {
 	if !apply {
 		t.Fatalf("should apply")
 	}
-	if node.Attributes["driver.exec"] == "" {
+	if node.Attributes["driver.java"] != "1" {
 		t.Fatalf("missing driver")
+	}
+	for _, key := range []string{"driver.java.version", "driver.java.runtime", "driver.java.vm"} {
+		if node.Attributes[key] == "" {
+			t.Fatalf("missing driver key (%s)", key)
+		}
 	}
 }
 
