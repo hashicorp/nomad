@@ -98,6 +98,12 @@ func TestJavaDriver_Start_Wait(t *testing.T) {
 		// expect the timeout b/c it's a long lived process
 		break
 	}
+
+	// need to kill long lived process
+	err = handle.Kill()
+	if err != nil {
+		t.Fatalf("Error: %s", err)
+	}
 }
 
 func TestJavaDriver_Start_Kill_Wait(t *testing.T) {
@@ -136,6 +142,12 @@ func TestJavaDriver_Start_Kill_Wait(t *testing.T) {
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatalf("timeout")
+	}
+
+	// need to kill long lived process
+	err = handle.Kill()
+	if err != nil {
+		t.Fatalf("Error: %s", err)
 	}
 }
 
