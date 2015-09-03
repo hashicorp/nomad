@@ -48,7 +48,7 @@ func (d *JavaDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, 
 	err := cmd.Run()
 	if err != nil {
 		// assume Java wasn't found
-		return false, fmt.Errorf("Error detecting Java version: %s", err)
+		return false, nil
 	}
 
 	// 'java -version' returns output on Stderr typically.
@@ -63,7 +63,8 @@ func (d *JavaDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, 
 	}
 
 	if infoString == "" {
-		return false, fmt.Errorf("Error parsing Java version information")
+		d.logger.Println("[WARN] Error parsing Java version information, aborting")
+		return false, nil
 	}
 
 	// Assume 'java -version' returns 3 lines:
