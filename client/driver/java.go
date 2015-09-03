@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -100,8 +101,8 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		return nil, fmt.Errorf("Error downloading source for Java driver: %s", err)
 	}
 
-	base := path.Base(source)
-	f, err := os.OpenFile(ctx.AllocDir+base, os.O_CREATE|os.O_WRONLY, 0666)
+	fPath := filepath.Join(ctx.AllocDir, path.Base(source))
+	f, err := os.OpenFile(fPath, os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {
 		return nil, fmt.Errorf("Error opening file to download too: %s", err)
 	}
