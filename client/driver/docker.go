@@ -214,14 +214,12 @@ func (h *dockerHandle) Kill() error {
 }
 
 func (h *dockerHandle) run() {
-	log.Printf("[CBEDNARSKI] waiting")
 	// Wait for it...
 	waitBytes, err := exec.Command("docker", "wait", h.containerID).Output()
 	if err != nil {
 		h.logger.Printf("[ERROR] driver.docker unable to wait for %s; container already terminated", h.containerID)
 	}
 	wait := strings.TrimSpace(string(waitBytes))
-	log.Printf("[CBEDNARSKI] wait %s", wait)
 
 	// If the container failed, try to get the last 10 lines of logs for our
 	// error message.
@@ -234,11 +232,8 @@ func (h *dockerHandle) run() {
 		}
 	}
 
-	log.Printf("[CBEDNARSKI] wait terminating")
-
 	close(h.doneCh)
 	if err != nil {
-		log.Printf("[CBEDNARSKI] wait err %s", err)
 		h.waitCh <- err
 	}
 	close(h.waitCh)
