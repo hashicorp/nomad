@@ -132,14 +132,16 @@ type Telemetry struct {
 
 // DevConfig is a Config that is used for dev mode of Nomad.
 func DevConfig() *Config {
+	conf := DefaultConfig()
+	conf.LogLevel = "DEBUG"
+	conf.Client.Enabled = true
+	conf.Server.Enabled = true
+	conf.DevMode = true
+	conf.EnableDebug = true
+	conf.DisableAnonymousSignature = true
+	return conf
 	return &Config{
-		LogLevel: "DEBUG",
-		Client: &ClientConfig{
-			Enabled: true,
-		},
-		Server: &ServerConfig{
-			Enabled: true,
-		},
+		LogLevel:                  "DEBUG",
 		DevMode:                   true,
 		EnableDebug:               true,
 		DisableAnonymousSignature: true,
@@ -149,7 +151,15 @@ func DevConfig() *Config {
 // DefaultConfig is a the baseline configuration for Nomad
 func DefaultConfig() *Config {
 	return &Config{
-		LogLevel: "INFO",
+		LogLevel:   "INFO",
+		Region:     "region1",
+		Datacenter: "dc1",
+		Client: &ClientConfig{
+			Enabled: false,
+		},
+		Server: &ServerConfig{
+			Enabled: false,
+		},
 	}
 }
 
