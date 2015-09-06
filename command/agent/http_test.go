@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/testutil"
 )
 
 type TestServer struct {
@@ -299,4 +300,11 @@ func getIndex(t *testing.T, resp *httptest.ResponseRecorder) uint64 {
 		t.Fatalf("Bad: %v", header)
 	}
 	return uint64(val)
+}
+
+func httpTest(t *testing.T, cb func(c *Config), f func(srv *TestServer)) {
+	s := makeHTTPServer(t, cb)
+	defer s.Cleanup()
+	testutil.WaitForLeader(t, s.Agent.RPC)
+	f(s)
 }

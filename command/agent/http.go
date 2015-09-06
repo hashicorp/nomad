@@ -15,6 +15,11 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
+const (
+	// ErrInvalidMethod is used if the HTTP method is not supported
+	ErrInvalidMethod = "Invalid method"
+)
+
 // HTTPServer is used to wrap an Agent and expose it over an HTTP interface
 type HTTPServer struct {
 	agent    *Agent
@@ -58,7 +63,7 @@ func (s *HTTPServer) Shutdown() {
 
 // registerHandlers is used to attach our handlers to the mux
 func (s *HTTPServer) registerHandlers(enableDebug bool) {
-	s.mux.HandleFunc("/v1/jobs", s.wrap(s.JobsList))
+	s.mux.HandleFunc("/v1/jobs", s.wrap(s.JobsRequest))
 	s.mux.HandleFunc("/v1/job/", s.wrap(s.JobSpecificRequest))
 
 	if enableDebug {
