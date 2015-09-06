@@ -373,7 +373,7 @@ func TestHTTP_JobAllocations(t *testing.T) {
 		}
 
 		// Check the response
-		allocs := obj.([]*structs.Allocation)
+		allocs := obj.([]*structs.AllocListStub)
 		if len(allocs) != 1 && allocs[0].ID != alloc1.ID {
 			t.Fatalf("bad: %v", allocs)
 		}
