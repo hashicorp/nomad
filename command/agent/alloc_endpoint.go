@@ -28,24 +28,25 @@ func (s *HTTPServer) AllocsRequest(resp http.ResponseWriter, req *http.Request) 
 
 func (s *HTTPServer) AllocSpecificRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	allocID := strings.TrimPrefix(req.URL.Path, "/v1/allocation/")
-	switch req.Method {
-	case "GET":
-		return s.allocQuery(resp, req, allocID)
-	case "DELETE":
-		return s.allocDelete(resp, req, allocID)
-	default:
+	if req.Method != "GET" {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
-}
 
-func (s *HTTPServer) allocQuery(resp http.ResponseWriter, req *http.Request,
-	allocID string) (interface{}, error) {
-	// TODO
-	return nil, nil
-}
+	args := structs.AllocSpecificRequest{
+		AllocID: allocID,
+	}
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
 
-func (s *HTTPServer) allocDelete(resp http.ResponseWriter, req *http.Request,
-	allocID string) (interface{}, error) {
-	// TODO
-	return nil, nil
+	var out structs.SingleAllocResponse
+	if err := s.agent.RPC("Alloc.GetAlloc", &args, &out); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &out.QueryMeta)
+	if out.Alloc == nil {
+		return nil, CodedError(404, "alloc not found")
+	}
+	return out.Alloc, nil
 }
