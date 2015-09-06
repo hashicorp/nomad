@@ -354,3 +354,107 @@ func TestJobEndpoint_GetJob(t *testing.T) {
 		t.Fatalf("unexpected job")
 	}
 }
+
+func TestJobEndpoint_ListJobs(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	job := mock.Job()
+	state := s1.fsm.State()
+	err := state.RegisterJob(1000, job)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Lookup the jobs
+	get := &structs.JobListRequest{
+		QueryOptions: structs.QueryOptions{Region: "region1"},
+	}
+	var resp2 structs.JobListResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.List", get, &resp2); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp2.Index != 1000 {
+		t.Fatalf("Bad index: %d %d", resp2.Index, 1000)
+	}
+
+	if len(resp2.Jobs) != 1 {
+		t.Fatalf("bad: %#v", resp2.Jobs)
+	}
+	if resp2.Jobs[0].ID != job.ID {
+		t.Fatalf("bad: %#v", resp2.Jobs[0])
+	}
+}
+
+func TestJobEndpoint_Allocations(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	alloc1 := mock.Alloc()
+	alloc2 := mock.Alloc()
+	alloc2.JobID = alloc1.JobID
+	state := s1.fsm.State()
+	err := state.UpdateAllocations(1000,
+		[]*structs.Allocation{alloc1, alloc2})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Lookup the jobs
+	get := &structs.JobSpecificRequest{
+		JobID:        alloc1.JobID,
+		QueryOptions: structs.QueryOptions{Region: "region1"},
+	}
+	var resp2 structs.JobAllocationsResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Allocations", get, &resp2); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp2.Index != 1000 {
+		t.Fatalf("Bad index: %d %d", resp2.Index, 1000)
+	}
+
+	if len(resp2.Allocations) != 2 {
+		t.Fatalf("bad: %#v", resp2.Allocations)
+	}
+}
+
+func TestJobEndpoint_Evaluations(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	eval1 := mock.Eval()
+	eval2 := mock.Eval()
+	eval2.JobID = eval1.JobID
+	state := s1.fsm.State()
+	err := state.UpsertEvals(1000,
+		[]*structs.Evaluation{eval1, eval2})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Lookup the jobs
+	get := &structs.JobSpecificRequest{
+		JobID:        eval1.JobID,
+		QueryOptions: structs.QueryOptions{Region: "region1"},
+	}
+	var resp2 structs.JobEvaluationsResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Evaluations", get, &resp2); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp2.Index != 1000 {
+		t.Fatalf("Bad index: %d %d", resp2.Index, 1000)
+	}
+
+	if len(resp2.Evaluations) != 2 {
+		t.Fatalf("bad: %#v", resp2.Evaluations)
+	}
+}

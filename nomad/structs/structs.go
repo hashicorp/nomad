@@ -174,6 +174,11 @@ type JobSpecificRequest struct {
 	QueryOptions
 }
 
+// JobListRequest is used to parameterize a list request
+type JobListRequest struct {
+	QueryOptions
+}
+
 // EvalUpdateRequest is used for upserting evaluations.
 type EvalUpdateRequest struct {
 	Evals     []*Evaluation
@@ -288,6 +293,37 @@ type SingleNodeResponse struct {
 // SingleJobResponse is used to return a single job
 type SingleJobResponse struct {
 	Job *Job
+	QueryMeta
+}
+
+// JobListStub is used to return a subset of job information
+// for the job list
+type JobListStub struct {
+	ID                string
+	Name              string
+	Type              string
+	Priority          int
+	Status            string
+	StatusDescription string
+	CreateIndex       uint64
+	ModifyIndex       uint64
+}
+
+// JobListResponse is used for a list request
+type JobListResponse struct {
+	Jobs []*JobListStub
+	QueryMeta
+}
+
+// JobAllocationsResponse is used to return the allocations for a job
+type JobAllocationsResponse struct {
+	Allocations []*Allocation
+	QueryMeta
+}
+
+// JobEvaluationsResponse is used to return the evaluations for a job
+type JobEvaluationsResponse struct {
+	Evaluations []*Evaluation
 	QueryMeta
 }
 
