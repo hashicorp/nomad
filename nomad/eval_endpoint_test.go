@@ -251,3 +251,31 @@ func TestEvalEndpoint_Reap(t *testing.T) {
 		t.Fatalf("Bad: %#v", outE)
 	}
 }
+
+func TestEvalEndpoint_List(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	eval1 := mock.Eval()
+	eval2 := mock.Eval()
+	s1.fsm.State().UpsertEvals(1000, []*structs.Evaluation{eval1, eval2})
+
+	// Lookup the eval
+	get := &structs.EvalListRequest{
+		QueryOptions: structs.QueryOptions{Region: "region1"},
+	}
+	var resp structs.EvalListResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Eval.List", get, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp.Index != 1000 {
+		t.Fatalf("Bad index: %d %d", resp.Index, 1000)
+	}
+
+	if len(resp.Evaluations) != 2 {
+		t.Fatalf("bad: %#v", resp.Evaluations)
+	}
+}

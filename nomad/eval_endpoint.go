@@ -171,3 +171,42 @@ func (e *Eval) Reap(args *structs.EvalDeleteRequest,
 	reply.Index = index
 	return nil
 }
+
+// List is used to get a list of the evaluations in the system
+func (e *Eval) List(args *structs.EvalListRequest,
+	reply *structs.EvalListResponse) error {
+	if done, err := e.srv.forward("Eval.List", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "eval", "list"}, time.Now())
+
+	// Scan all the evaluations
+	snap, err := e.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+	iter, err := snap.Evals()
+	if err != nil {
+		return err
+	}
+
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		eval := raw.(*structs.Evaluation)
+		reply.Evaluations = append(reply.Evaluations, eval)
+	}
+
+	// Use the last index that affected the jobs table
+	index, err := snap.GetIndex("evals")
+	if err != nil {
+		return err
+	}
+	reply.Index = index
+
+	// Set the query response
+	e.srv.setQueryMeta(&reply.QueryMeta)
+	return nil
+}

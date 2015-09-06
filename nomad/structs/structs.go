@@ -218,6 +218,11 @@ type EvalDequeueRequest struct {
 	WriteRequest
 }
 
+// EvalListRequest is used to list the evaluations
+type EvalListRequest struct {
+	QueryOptions
+}
+
 // PlanRequest is used to submit an allocation plan to the leader
 type PlanRequest struct {
 	Plan *Plan
@@ -364,6 +369,12 @@ type PlanResponse struct {
 // AllocListResponse is used for a list request
 type AllocListResponse struct {
 	Allocations []*AllocListStub
+	QueryMeta
+}
+
+// EvalListResponse is used for a list request
+type EvalListResponse struct {
+	Evaluations []*Evaluation
 	QueryMeta
 }
 
