@@ -3,6 +3,8 @@ package agent
 import (
 	"net/http"
 	"strings"
+
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 func (s *HTTPServer) JobsRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
@@ -91,5 +93,14 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 
 func (s *HTTPServer) jobDelete(resp http.ResponseWriter, req *http.Request,
 	jobName string) (interface{}, error) {
-	return nil, nil
+	args := structs.JobDeregisterRequest{
+		JobID: jobName,
+	}
+	s.parseRegion(req, &args.Region)
+
+	var out structs.JobDeregisterResponse
+	if err := s.agent.RPC("Job.Deregister", &args, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
