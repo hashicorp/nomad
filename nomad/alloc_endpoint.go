@@ -49,3 +49,39 @@ func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListRes
 	a.srv.setQueryMeta(&reply.QueryMeta)
 	return nil
 }
+
+// GetAlloc is used to lookup a particular allocation
+func (a *Alloc) GetAlloc(args *structs.AllocSpecificRequest,
+	reply *structs.SingleAllocResponse) error {
+	if done, err := a.srv.forward("Alloc.GetAlloc", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "alloc", "get_alloc"}, time.Now())
+
+	// Lookup the allocation
+	snap, err := a.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+	out, err := snap.GetAllocByID(args.AllocID)
+	if err != nil {
+		return err
+	}
+
+	// Setup the output
+	if out != nil {
+		reply.Alloc = out
+		reply.Index = out.ModifyIndex
+	} else {
+		// Use the last index that affected the nodes table
+		index, err := snap.GetIndex("allocs")
+		if err != nil {
+			return err
+		}
+		reply.Index = index
+	}
+
+	// Set the query response
+	a.srv.setQueryMeta(&reply.QueryMeta)
+	return nil
+}

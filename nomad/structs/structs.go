@@ -238,6 +238,12 @@ type AllocListRequest struct {
 	QueryOptions
 }
 
+// AllocSpecificRequest is used to query a specific allocation
+type AllocSpecificRequest struct {
+	AllocID string
+	QueryOptions
+}
+
 // GenericRequest is used to request where no
 // specific information is needed.
 type GenericRequest struct {
@@ -315,6 +321,12 @@ type SingleJobResponse struct {
 // JobListResponse is used for a list request
 type JobListResponse struct {
 	Jobs []*JobListStub
+	QueryMeta
+}
+
+// SingleAllocResponse is used to return a single allocation
+type SingleAllocResponse struct {
+	Alloc *Allocation
 	QueryMeta
 }
 
