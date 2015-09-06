@@ -12,17 +12,13 @@ func (s *HTTPServer) JobsRequest(resp http.ResponseWriter, req *http.Request) (i
 	case "GET":
 		return s.jobListRequest(resp, req)
 	case "PUT", "POST":
-		return s.jobRegisterRequest(resp, req)
+		return s.jobUpdate(resp, req, "")
 	default:
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 }
 
 func (s *HTTPServer) jobListRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	return nil, nil
-}
-
-func (s *HTTPServer) jobRegisterRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	return nil, nil
 }
 
@@ -108,7 +104,7 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 	if err := decodeBody(req, &args, nil); err != nil {
 		return nil, CodedError(400, err.Error())
 	}
-	if args.Job.ID != jobName {
+	if jobName != "" && args.Job.ID != jobName {
 		return nil, CodedError(400, "Job ID does not match")
 	}
 	s.parseRegion(req, &args.Region)
