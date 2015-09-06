@@ -10,6 +10,8 @@ import (
 
 	"github.com/hashicorp/hcl"
 	hclobj "github.com/hashicorp/hcl/hcl"
+	client "github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/nomad"
 )
 
 // Config is the configuration for the Nomad agent.
@@ -57,6 +59,14 @@ type Config struct {
 	VersionPrerelease string
 
 	DevMode bool `hcl:"-"`
+
+	// NomadConfig is used to override the default config.
+	// This is largly used for testing purposes.
+	NomadConfig *nomad.Config `hcl:"-" json:"-"`
+
+	// ClientConfig is used to override the default config.
+	// This is largly used for testing purposes.
+	ClientConfig *client.Config `hcl:"-" json:"-"`
 }
 
 type ClientConfig struct {
