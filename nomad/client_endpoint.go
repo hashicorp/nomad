@@ -364,18 +364,7 @@ func (c *ClientEndpoint) List(args *structs.NodeListRequest,
 			break
 		}
 		node := raw.(*structs.Node)
-
-		stub := &structs.NodeListStub{
-			ID:                node.ID,
-			Datacenter:        node.Datacenter,
-			Name:              node.Name,
-			NodeClass:         node.NodeClass,
-			Status:            node.Status,
-			StatusDescription: node.StatusDescription,
-			CreateIndex:       node.CreateIndex,
-			ModifyIndex:       node.ModifyIndex,
-		}
-		reply.Nodes = append(reply.Nodes, stub)
+		reply.Nodes = append(reply.Nodes, node.Stub())
 	}
 
 	// Use the last index that affected the jobs table

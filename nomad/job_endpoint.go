@@ -245,18 +245,7 @@ func (j *Job) List(args *structs.JobListRequest,
 			break
 		}
 		job := raw.(*structs.Job)
-
-		stub := &structs.JobListStub{
-			ID:                job.ID,
-			Name:              job.Name,
-			Type:              job.Type,
-			Priority:          job.Priority,
-			Status:            job.Status,
-			StatusDescription: job.StatusDescription,
-			CreateIndex:       job.CreateIndex,
-			ModifyIndex:       job.ModifyIndex,
-		}
-		reply.Jobs = append(reply.Jobs, stub)
+		reply.Jobs = append(reply.Jobs, job.Stub())
 	}
 
 	// Use the last index that affected the jobs table

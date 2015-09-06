@@ -233,6 +233,11 @@ type AllocUpdateRequest struct {
 	WriteRequest
 }
 
+// AllocListRequest is used to request a list of allocations
+type AllocListRequest struct {
+	QueryOptions
+}
+
 // GenericRequest is used to request where no
 // specific information is needed.
 type GenericRequest struct {
@@ -295,19 +300,6 @@ type SingleNodeResponse struct {
 	QueryMeta
 }
 
-// NodeListStub is used to return a subset of job information
-// for the job list
-type NodeListStub struct {
-	ID                string
-	Datacenter        string
-	Name              string
-	NodeClass         string
-	Status            string
-	StatusDescription string
-	CreateIndex       uint64
-	ModifyIndex       uint64
-}
-
 // JobListResponse is used for a list request
 type NodeListResponse struct {
 	Nodes []*NodeListStub
@@ -318,19 +310,6 @@ type NodeListResponse struct {
 type SingleJobResponse struct {
 	Job *Job
 	QueryMeta
-}
-
-// JobListStub is used to return a subset of job information
-// for the job list
-type JobListStub struct {
-	ID                string
-	Name              string
-	Type              string
-	Priority          int
-	Status            string
-	StatusDescription string
-	CreateIndex       uint64
-	ModifyIndex       uint64
 }
 
 // JobListResponse is used for a list request
@@ -368,6 +347,12 @@ type EvalDequeueResponse struct {
 type PlanResponse struct {
 	Result *PlanResult
 	WriteMeta
+}
+
+// AllocListResponse is used for a list request
+type AllocListResponse struct {
+	Allocations []*AllocListStub
+	QueryMeta
 }
 
 const (
@@ -465,6 +450,33 @@ func (n *Node) TerminalStatus() bool {
 	default:
 		return false
 	}
+}
+
+// Stub returns a summarized version of the node
+func (n *Node) Stub() *NodeListStub {
+	return &NodeListStub{
+		ID:                n.ID,
+		Datacenter:        n.Datacenter,
+		Name:              n.Name,
+		NodeClass:         n.NodeClass,
+		Status:            n.Status,
+		StatusDescription: n.StatusDescription,
+		CreateIndex:       n.CreateIndex,
+		ModifyIndex:       n.ModifyIndex,
+	}
+}
+
+// NodeListStub is used to return a subset of job information
+// for the job list
+type NodeListStub struct {
+	ID                string
+	Datacenter        string
+	Name              string
+	NodeClass         string
+	Status            string
+	StatusDescription string
+	CreateIndex       uint64
+	ModifyIndex       uint64
 }
 
 // Resources is used to define the resources available
@@ -658,6 +670,33 @@ func (j *Job) LookupTaskGroup(name string) *TaskGroup {
 	return nil
 }
 
+// Stub is used to return a summary of the job
+func (j *Job) Stub() *JobListStub {
+	return &JobListStub{
+		ID:                j.ID,
+		Name:              j.Name,
+		Type:              j.Type,
+		Priority:          j.Priority,
+		Status:            j.Status,
+		StatusDescription: j.StatusDescription,
+		CreateIndex:       j.CreateIndex,
+		ModifyIndex:       j.ModifyIndex,
+	}
+}
+
+// JobListStub is used to return a subset of job information
+// for the job list
+type JobListStub struct {
+	ID                string
+	Name              string
+	Type              string
+	Priority          int
+	Status            string
+	StatusDescription string
+	CreateIndex       uint64
+	ModifyIndex       uint64
+}
+
 // TaskGroup is an atomic unit of placement. Each task group belongs to
 // a job and may contain any number of tasks. A task group support running
 // in many replicas using the same configuration..
@@ -789,6 +828,40 @@ func (a *Allocation) TerminalStatus() bool {
 	default:
 		return false
 	}
+}
+
+// Stub returns a list stub for the allocation
+func (a *Allocation) Stub() *AllocListStub {
+	return &AllocListStub{
+		ID:                 a.ID,
+		EvalID:             a.EvalID,
+		Name:               a.Name,
+		NodeID:             a.NodeID,
+		JobID:              a.JobID,
+		TaskGroup:          a.TaskGroup,
+		DesiredStatus:      a.DesiredStatus,
+		DesiredDescription: a.DesiredDescription,
+		ClientStatus:       a.ClientStatus,
+		ClientDescription:  a.ClientDescription,
+		CreateIndex:        a.CreateIndex,
+		ModifyIndex:        a.ModifyIndex,
+	}
+}
+
+// AllocListStub is used to return a subset of alloc information
+type AllocListStub struct {
+	ID                 string
+	EvalID             string
+	Name               string
+	NodeID             string
+	JobID              string
+	TaskGroup          string
+	DesiredStatus      string
+	DesiredDescription string
+	ClientStatus       string
+	ClientDescription  string
+	CreateIndex        uint64
+	ModifyIndex        uint64
 }
 
 // AllocMetric is used to track various metrics while attempting
