@@ -337,7 +337,7 @@ type SingleAllocResponse struct {
 
 // JobAllocationsResponse is used to return the allocations for a job
 type JobAllocationsResponse struct {
-	Allocations []*Allocation
+	Allocations []*AllocListStub
 	QueryMeta
 }
 
@@ -375,6 +375,12 @@ type AllocListResponse struct {
 // EvalListResponse is used for a list request
 type EvalListResponse struct {
 	Evaluations []*Evaluation
+	QueryMeta
+}
+
+// EvalAllocationsResponse is used to return the allocations for an evaluation
+type EvalAllocationsResponse struct {
+	Allocations []*AllocListStub
 	QueryMeta
 }
 

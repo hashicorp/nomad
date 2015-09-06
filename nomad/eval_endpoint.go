@@ -210,3 +210,41 @@ func (e *Eval) List(args *structs.EvalListRequest,
 	e.srv.setQueryMeta(&reply.QueryMeta)
 	return nil
 }
+
+// Allocations is used to list the allocations for an evaluation
+func (e *Eval) Allocations(args *structs.EvalSpecificRequest,
+	reply *structs.EvalAllocationsResponse) error {
+	if done, err := e.srv.forward("Eval.Allocations", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "eval", "allocations"}, time.Now())
+
+	// Capture the allocations
+	snap, err := e.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+	allocs, err := snap.AllocsByEval(args.EvalID)
+	if err != nil {
+		return err
+	}
+
+	// Convert to a stub
+	if len(allocs) > 0 {
+		reply.Allocations = make([]*structs.AllocListStub, 0, len(allocs))
+		for _, alloc := range allocs {
+			reply.Allocations = append(reply.Allocations, alloc.Stub())
+		}
+	}
+
+	// Use the last index that affected the allocs table
+	index, err := snap.GetIndex("allocs")
+	if err != nil {
+		return err
+	}
+	reply.Index = index
+
+	// Set the query response
+	e.srv.setQueryMeta(&reply.QueryMeta)
+	return nil
+}

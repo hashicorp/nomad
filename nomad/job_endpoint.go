@@ -273,9 +273,17 @@ func (j *Job) Allocations(args *structs.JobSpecificRequest,
 	if err != nil {
 		return err
 	}
-	reply.Allocations, err = snap.AllocsByJob(args.JobID)
+	allocs, err := snap.AllocsByJob(args.JobID)
 	if err != nil {
 		return err
+	}
+
+	// Convert to stubs
+	if len(allocs) > 0 {
+		reply.Allocations = make([]*structs.AllocListStub, 0, len(allocs))
+		for _, alloc := range allocs {
+			reply.Allocations = append(reply.Allocations, alloc.Stub())
+		}
 	}
 
 	// Use the last index that affected the allocs table
