@@ -463,6 +463,27 @@ func (s *StateStore) GetEvalByID(id string) (*structs.Evaluation, error) {
 	return nil, nil
 }
 
+// EvalsByJob returns all the evaluations by job id
+func (s *StateStore) EvalsByJob(jobID string) ([]*structs.Evaluation, error) {
+	txn := s.db.Txn(false)
+
+	// Get an iterator over the node allocations
+	iter, err := txn.Get("evals", "job", jobID)
+	if err != nil {
+		return nil, err
+	}
+
+	var out []*structs.Evaluation
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		out = append(out, raw.(*structs.Evaluation))
+	}
+	return out, nil
+}
+
 // Evals returns an iterator over all the evaluations
 func (s *StateStore) Evals() (memdb.ResultIterator, error) {
 	txn := s.db.Txn(false)
