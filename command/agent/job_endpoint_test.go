@@ -54,6 +54,56 @@ func TestHTTP_JobQuery(t *testing.T) {
 	})
 }
 
+func TestHTTP_JobUpdate(t *testing.T) {
+	httpTest(t, nil, func(s *TestServer) {
+		// Create the job
+		job := mock.Job()
+		args := structs.JobRegisterRequest{
+			Job:          job,
+			WriteRequest: structs.WriteRequest{Region: "region1"},
+		}
+		buf := encodeReq(args)
+
+		// Make the HTTP request
+		req, err := http.NewRequest("PUT", "/v1/job/"+job.ID, buf)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		respW := httptest.NewRecorder()
+
+		// Make the request
+		obj, err := s.Server.JobSpecificRequest(respW, req)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Check the response
+		dereg := obj.(structs.JobRegisterResponse)
+		if dereg.EvalID == "" {
+			t.Fatalf("bad: %v", dereg)
+		}
+
+		// Check for the index
+		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+			t.Fatalf("missing index")
+		}
+
+		// Check the job is registered
+		getReq := structs.JobSpecificRequest{
+			JobID:        job.ID,
+			QueryOptions: structs.QueryOptions{Region: "region1"},
+		}
+		var getResp structs.SingleJobResponse
+		if err := s.Agent.RPC("Job.GetJob", &getReq, &getResp); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		if getResp.Job == nil {
+			t.Fatalf("job does not exist")
+		}
+	})
+}
+
 func TestHTTP_JobDelete(t *testing.T) {
 	httpTest(t, nil, func(s *TestServer) {
 		// Create the job
@@ -99,6 +149,9 @@ func TestHTTP_JobDelete(t *testing.T) {
 		var getResp structs.SingleJobResponse
 		if err := s.Agent.RPC("Job.GetJob", &getReq, &getResp); err != nil {
 			t.Fatalf("err: %v", err)
+		}
+		if getResp.Job != nil {
+			t.Fatalf("job still exists")
 		}
 	})
 }

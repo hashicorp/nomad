@@ -104,7 +104,21 @@ func (s *HTTPServer) jobQuery(resp http.ResponseWriter, req *http.Request,
 
 func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 	jobName string) (interface{}, error) {
-	return nil, nil
+	var args structs.JobRegisterRequest
+	if err := decodeBody(req, &args, nil); err != nil {
+		return nil, CodedError(400, err.Error())
+	}
+	if args.Job.ID != jobName {
+		return nil, CodedError(400, "Job ID does not match")
+	}
+	s.parseRegion(req, &args.Region)
+
+	var out structs.JobRegisterResponse
+	if err := s.agent.RPC("Job.Register", &args, &out); err != nil {
+		return nil, err
+	}
+	setIndex(resp, out.Index)
+	return out, nil
 }
 
 func (s *HTTPServer) jobDelete(resp http.ResponseWriter, req *http.Request,

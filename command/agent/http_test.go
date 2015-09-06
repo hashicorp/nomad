@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -307,4 +308,11 @@ func httpTest(t *testing.T, cb func(c *Config), f func(srv *TestServer)) {
 	defer s.Cleanup()
 	testutil.WaitForLeader(t, s.Agent.RPC)
 	f(s)
+}
+
+func encodeReq(obj interface{}) io.ReadCloser {
+	buf := bytes.NewBuffer(nil)
+	enc := json.NewEncoder(buf)
+	enc.Encode(obj)
+	return ioutil.NopCloser(buf)
 }
