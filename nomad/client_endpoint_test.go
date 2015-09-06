@@ -559,3 +559,44 @@ func TestClientEndpoint_Evaluate(t *testing.T) {
 		t.Fatalf("bad: %#v", eval)
 	}
 }
+
+func TestClientEndpoint_ListNodes(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	node := mock.Node()
+	reg := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "region1"},
+	}
+
+	// Fetch the response
+	var resp structs.GenericResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Client.Register", reg, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	node.CreateIndex = resp.Index
+	node.ModifyIndex = resp.Index
+
+	// Lookup the node
+	get := &structs.NodeListRequest{
+		QueryOptions: structs.QueryOptions{Region: "region1"},
+	}
+	var resp2 structs.NodeListResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Client.List", get, &resp2); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp2.Index != resp.Index {
+		t.Fatalf("Bad index: %d %d", resp2.Index, resp.Index)
+	}
+
+	if len(resp2.Nodes) != 1 {
+		t.Fatalf("bad: %#v", resp2.Nodes)
+	}
+	if resp2.Nodes[0].ID != node.ID {
+		t.Fatalf("bad: %#v", resp2.Nodes[0])
+	}
+}

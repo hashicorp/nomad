@@ -340,6 +340,56 @@ func (c *ClientEndpoint) UpdateAlloc(args *structs.AllocUpdateRequest, reply *st
 	return nil
 }
 
+// List is used to list the available nodes
+func (c *ClientEndpoint) List(args *structs.NodeListRequest,
+	reply *structs.NodeListResponse) error {
+	if done, err := c.srv.forward("Client.List", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "client", "list"}, time.Now())
+
+	// Capture all the nodes
+	snap, err := c.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+	iter, err := snap.Nodes()
+	if err != nil {
+		return err
+	}
+
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		node := raw.(*structs.Node)
+
+		stub := &structs.NodeListStub{
+			ID:                node.ID,
+			Datacenter:        node.Datacenter,
+			Name:              node.Name,
+			NodeClass:         node.NodeClass,
+			Status:            node.Status,
+			StatusDescription: node.StatusDescription,
+			CreateIndex:       node.CreateIndex,
+			ModifyIndex:       node.ModifyIndex,
+		}
+		reply.Nodes = append(reply.Nodes, stub)
+	}
+
+	// Use the last index that affected the jobs table
+	index, err := snap.GetIndex("nodes")
+	if err != nil {
+		return err
+	}
+	reply.Index = index
+
+	// Set the query response
+	c.srv.setQueryMeta(&reply.QueryMeta)
+	return nil
+}
+
 // createNodeEvals is used to create evaluations for each alloc on a node.
 // Each Eval is scoped to a job, so we need to potentially trigger many evals.
 func (c *ClientEndpoint) createNodeEvals(nodeID string, nodeIndex uint64) ([]string, uint64, error) {
