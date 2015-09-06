@@ -12,8 +12,18 @@ func (s *HTTPServer) NodesRequest(resp http.ResponseWriter, req *http.Request) (
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
-	// TODO NODE LIST
-	return nil, nil
+	args := structs.NodeListRequest{}
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
+
+	var out structs.NodeListResponse
+	if err := s.agent.RPC("Client.List", &args, &out); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &out.QueryMeta)
+	return out.Nodes, nil
 }
 
 func (s *HTTPServer) NodeSpecificRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
