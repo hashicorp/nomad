@@ -292,7 +292,7 @@ func TestHTTP_JobForceEvaluate(t *testing.T) {
 	})
 }
 
-func TestHTTP_JobAllocations(t *testing.T) {
+func TestHTTP_JobEvaluations(t *testing.T) {
 	httpTest(t, nil, func(s *TestServer) {
 		// Create the job
 		job := mock.Job()
@@ -337,7 +337,7 @@ func TestHTTP_JobAllocations(t *testing.T) {
 	})
 }
 
-func TestHTTP_JobEvaluations(t *testing.T) {
+func TestHTTP_JobAllocations(t *testing.T) {
 	httpTest(t, nil, func(s *TestServer) {
 		// Create the job
 		job := mock.Job()
