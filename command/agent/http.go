@@ -69,6 +69,9 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/nodes", s.wrap(s.NodesRequest))
 	s.mux.HandleFunc("/v1/node/", s.wrap(s.NodeSpecificRequest))
 
+	s.mux.HandleFunc("/v1/allocations", s.wrap(s.AllocsRequest))
+	s.mux.HandleFunc("/v1/allocation/", s.wrap(s.AllocSpecificRequest))
+
 	if enableDebug {
 		s.mux.HandleFunc("/debug/pprof/", pprof.Index)
 		s.mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
