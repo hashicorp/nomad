@@ -164,6 +164,7 @@ func DefaultConfig() *Config {
 		LogLevel:   "INFO",
 		Region:     "region1",
 		Datacenter: "dc1",
+		HttpAddr:   "127.0.0.1:4646",
 		Client: &ClientConfig{
 			Enabled: false,
 		},
