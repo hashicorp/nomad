@@ -265,6 +265,9 @@ func (j *Job) List(args *structs.JobListRequest,
 		return err
 	}
 	reply.Index = index
+
+	// Set the query response
+	j.srv.setQueryMeta(&reply.QueryMeta)
 	return nil
 }
 
@@ -292,6 +295,9 @@ func (j *Job) Allocations(args *structs.JobSpecificRequest,
 		return err
 	}
 	reply.Index = index
+
+	// Set the query response
+	j.srv.setQueryMeta(&reply.QueryMeta)
 	return nil
 }
 
@@ -319,5 +325,8 @@ func (j *Job) Evaluations(args *structs.JobSpecificRequest,
 		return err
 	}
 	reply.Index = index
+
+	// Set the query response
+	j.srv.setQueryMeta(&reply.QueryMeta)
 	return nil
 }
