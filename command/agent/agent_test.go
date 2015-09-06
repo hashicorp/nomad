@@ -36,3 +36,14 @@ func makeAgent(t *testing.T, cb func(*Config)) (string, *Agent) {
 	}
 	return dir, agent
 }
+
+func TestAgent_RPCPing(t *testing.T) {
+	dir, agent := makeAgent(t, nil)
+	defer os.RemoveAll(dir)
+	defer agent.Shutdown()
+
+	var out struct{}
+	if err := agent.RPC("Status.Ping", struct{}{}, &out); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+}
