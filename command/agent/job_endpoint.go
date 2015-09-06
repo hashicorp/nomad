@@ -83,7 +83,23 @@ func (s *HTTPServer) jobCRUD(resp http.ResponseWriter, req *http.Request,
 
 func (s *HTTPServer) jobQuery(resp http.ResponseWriter, req *http.Request,
 	jobName string) (interface{}, error) {
-	return nil, nil
+	args := structs.JobSpecificRequest{
+		JobID: jobName,
+	}
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
+
+	var out structs.SingleJobResponse
+	if err := s.agent.RPC("Job.GetJob", &args, &out); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &out.QueryMeta)
+	if out.Job == nil {
+		return nil, CodedError(404, "job not found")
+	}
+	return out.Job, nil
 }
 
 func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
@@ -102,5 +118,6 @@ func (s *HTTPServer) jobDelete(resp http.ResponseWriter, req *http.Request,
 	if err := s.agent.RPC("Job.Deregister", &args, &out); err != nil {
 		return nil, err
 	}
+	setIndex(resp, out.Index)
 	return out, nil
 }
