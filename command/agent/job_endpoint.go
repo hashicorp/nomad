@@ -19,7 +19,18 @@ func (s *HTTPServer) JobsRequest(resp http.ResponseWriter, req *http.Request) (i
 }
 
 func (s *HTTPServer) jobListRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	return nil, nil
+	args := structs.JobListRequest{}
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
+
+	var out structs.JobListResponse
+	if err := s.agent.RPC("Job.List", &args, &out); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &out.QueryMeta)
+	return out.Jobs, nil
 }
 
 func (s *HTTPServer) JobSpecificRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
@@ -62,7 +73,20 @@ func (s *HTTPServer) jobAllocations(resp http.ResponseWriter, req *http.Request,
 	if req.Method != "GET" {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
-	return nil, nil
+	args := structs.JobSpecificRequest{
+		JobID: jobName,
+	}
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
+
+	var out structs.JobAllocationsResponse
+	if err := s.agent.RPC("Job.Allocations", &args, &out); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &out.QueryMeta)
+	return out.Allocations, nil
 }
 
 func (s *HTTPServer) jobEvaluations(resp http.ResponseWriter, req *http.Request,
@@ -70,7 +94,20 @@ func (s *HTTPServer) jobEvaluations(resp http.ResponseWriter, req *http.Request,
 	if req.Method != "GET" {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
-	return nil, nil
+	args := structs.JobSpecificRequest{
+		JobID: jobName,
+	}
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
+
+	var out structs.JobEvaluationsResponse
+	if err := s.agent.RPC("Job.Evaluations", &args, &out); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &out.QueryMeta)
+	return out.Evaluations, nil
 }
 
 func (s *HTTPServer) jobCRUD(resp http.ResponseWriter, req *http.Request,

@@ -9,6 +9,53 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+func TestHTTP_JobsList(t *testing.T) {
+	httpTest(t, nil, func(s *TestServer) {
+		for i := 0; i < 3; i++ {
+			// Create the job
+			job := mock.Job()
+			args := structs.JobRegisterRequest{
+				Job:          job,
+				WriteRequest: structs.WriteRequest{Region: "region1"},
+			}
+			var resp structs.JobRegisterResponse
+			if err := s.Agent.RPC("Job.Register", &args, &resp); err != nil {
+				t.Fatalf("err: %v", err)
+			}
+		}
+
+		// Make the HTTP request
+		req, err := http.NewRequest("GET", "/v1/jobs", nil)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		respW := httptest.NewRecorder()
+
+		// Make the request
+		obj, err := s.Server.JobsRequest(respW, req)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Check for the index
+		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+			t.Fatalf("missing index")
+		}
+		if respW.HeaderMap.Get("X-Nomad-KnownLeader") != "true" {
+			t.Fatalf("missing known leader")
+		}
+		if respW.HeaderMap.Get("X-Nomad-LastContact") == "" {
+			t.Fatalf("missing last contact")
+		}
+
+		// Check the job
+		j := obj.([]*structs.JobListStub)
+		if len(j) != 3 {
+			t.Fatalf("bad: %#v", j)
+		}
+	})
+}
+
 func TestHTTP_JobsRegister(t *testing.T) {
 	httpTest(t, nil, func(s *TestServer) {
 		// Create the job
@@ -241,6 +288,105 @@ func TestHTTP_JobForceEvaluate(t *testing.T) {
 		// Check for the index
 		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
+		}
+	})
+}
+
+func TestHTTP_JobAllocations(t *testing.T) {
+	httpTest(t, nil, func(s *TestServer) {
+		// Create the job
+		job := mock.Job()
+		args := structs.JobRegisterRequest{
+			Job:          job,
+			WriteRequest: structs.WriteRequest{Region: "region1"},
+		}
+		var resp structs.JobRegisterResponse
+		if err := s.Agent.RPC("Job.Register", &args, &resp); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Make the HTTP request
+		req, err := http.NewRequest("GET", "/v1/job/"+job.ID+"/evaluations", nil)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		respW := httptest.NewRecorder()
+
+		// Make the request
+		obj, err := s.Server.JobSpecificRequest(respW, req)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Check the response
+		evals := obj.([]*structs.Evaluation)
+		if len(evals) != 1 || evals[0].ID != resp.EvalID {
+			t.Fatalf("bad: %v", evals)
+		}
+
+		// Check for the index
+		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+			t.Fatalf("missing index")
+		}
+		if respW.HeaderMap.Get("X-Nomad-KnownLeader") != "true" {
+			t.Fatalf("missing known leader")
+		}
+		if respW.HeaderMap.Get("X-Nomad-LastContact") == "" {
+			t.Fatalf("missing last contact")
+		}
+	})
+}
+
+func TestHTTP_JobEvaluations(t *testing.T) {
+	httpTest(t, nil, func(s *TestServer) {
+		// Create the job
+		job := mock.Job()
+		args := structs.JobRegisterRequest{
+			Job:          job,
+			WriteRequest: structs.WriteRequest{Region: "region1"},
+		}
+		var resp structs.JobRegisterResponse
+		if err := s.Agent.RPC("Job.Register", &args, &resp); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Directly manipulate the state
+		state := s.Agent.server.State()
+		alloc1 := mock.Alloc()
+		alloc1.JobID = job.ID
+		err := state.UpdateAllocations(1000, []*structs.Allocation{alloc1})
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Make the HTTP request
+		req, err := http.NewRequest("GET", "/v1/job/"+job.ID+"/allocations", nil)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		respW := httptest.NewRecorder()
+
+		// Make the request
+		obj, err := s.Server.JobSpecificRequest(respW, req)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Check the response
+		allocs := obj.([]*structs.Allocation)
+		if len(allocs) != 1 && allocs[0].ID != alloc1.ID {
+			t.Fatalf("bad: %v", allocs)
+		}
+
+		// Check for the index
+		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+			t.Fatalf("missing index")
+		}
+		if respW.HeaderMap.Get("X-Nomad-KnownLeader") != "true" {
+			t.Fatalf("missing known leader")
+		}
+		if respW.HeaderMap.Get("X-Nomad-LastContact") == "" {
+			t.Fatalf("missing last contact")
 		}
 	})
 }
