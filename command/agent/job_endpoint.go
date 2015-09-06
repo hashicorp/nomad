@@ -44,7 +44,17 @@ func (s *HTTPServer) jobForceEvaluate(resp http.ResponseWriter, req *http.Reques
 	if req.Method != "PUT" && req.Method != "POST" {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
-	return nil, nil
+	args := structs.JobEvaluateRequest{
+		JobID: jobName,
+	}
+	s.parseRegion(req, &args.Region)
+
+	var out structs.JobRegisterResponse
+	if err := s.agent.RPC("Job.Evaluate", &args, &out); err != nil {
+		return nil, err
+	}
+	setIndex(resp, out.Index)
+	return out, nil
 }
 
 func (s *HTTPServer) jobAllocations(resp http.ResponseWriter, req *http.Request,

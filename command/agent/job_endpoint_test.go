@@ -205,3 +205,42 @@ func TestHTTP_JobDelete(t *testing.T) {
 		}
 	})
 }
+
+func TestHTTP_JobForceEvaluate(t *testing.T) {
+	httpTest(t, nil, func(s *TestServer) {
+		// Create the job
+		job := mock.Job()
+		args := structs.JobRegisterRequest{
+			Job:          job,
+			WriteRequest: structs.WriteRequest{Region: "region1"},
+		}
+		var resp structs.JobRegisterResponse
+		if err := s.Agent.RPC("Job.Register", &args, &resp); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Make the HTTP request
+		req, err := http.NewRequest("POST", "/v1/job/"+job.ID+"/evaluate", nil)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		respW := httptest.NewRecorder()
+
+		// Make the request
+		obj, err := s.Server.JobSpecificRequest(respW, req)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Check the response
+		reg := obj.(structs.JobRegisterResponse)
+		if reg.EvalID == "" {
+			t.Fatalf("bad: %v", reg)
+		}
+
+		// Check for the index
+		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+			t.Fatalf("missing index")
+		}
+	})
+}
