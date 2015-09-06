@@ -10,6 +10,8 @@ import (
 
 	"github.com/hashicorp/hcl"
 	hclobj "github.com/hashicorp/hcl/hcl"
+	client "github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/nomad"
 )
 
 // Config is the configuration for the Nomad agent.
@@ -57,6 +59,14 @@ type Config struct {
 	VersionPrerelease string
 
 	DevMode bool `hcl:"-"`
+
+	// NomadConfig is used to override the default config.
+	// This is largly used for testing purposes.
+	NomadConfig *nomad.Config `hcl:"-" json:"-"`
+
+	// ClientConfig is used to override the default config.
+	// This is largly used for testing purposes.
+	ClientConfig *client.Config `hcl:"-" json:"-"`
 }
 
 type ClientConfig struct {
@@ -132,14 +142,16 @@ type Telemetry struct {
 
 // DevConfig is a Config that is used for dev mode of Nomad.
 func DevConfig() *Config {
+	conf := DefaultConfig()
+	conf.LogLevel = "DEBUG"
+	conf.Client.Enabled = true
+	conf.Server.Enabled = true
+	conf.DevMode = true
+	conf.EnableDebug = true
+	conf.DisableAnonymousSignature = true
+	return conf
 	return &Config{
-		LogLevel: "DEBUG",
-		Client: &ClientConfig{
-			Enabled: true,
-		},
-		Server: &ServerConfig{
-			Enabled: true,
-		},
+		LogLevel:                  "DEBUG",
 		DevMode:                   true,
 		EnableDebug:               true,
 		DisableAnonymousSignature: true,
@@ -149,7 +161,15 @@ func DevConfig() *Config {
 // DefaultConfig is a the baseline configuration for Nomad
 func DefaultConfig() *Config {
 	return &Config{
-		LogLevel: "INFO",
+		LogLevel:   "INFO",
+		Region:     "region1",
+		Datacenter: "dc1",
+		Client: &ClientConfig{
+			Enabled: false,
+		},
+		Server: &ServerConfig{
+			Enabled: false,
+		},
 	}
 }
 

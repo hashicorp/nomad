@@ -549,6 +549,37 @@ func TestStateStore_DeleteEval_GetEval(t *testing.T) {
 	}
 }
 
+func TestStateStore_EvalsByJob(t *testing.T) {
+	state := testStateStore(t)
+
+	eval1 := mock.Eval()
+	eval2 := mock.Eval()
+	eval2.JobID = eval1.JobID
+	eval3 := mock.Eval()
+	evals := []*structs.Evaluation{eval1, eval2}
+
+	err := state.UpsertEvals(1000, evals)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	err = state.UpsertEvals(1001, []*structs.Evaluation{eval3})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	out, err := state.EvalsByJob(eval1.JobID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	sort.Sort(EvalIDSort(evals))
+	sort.Sort(EvalIDSort(out))
+
+	if !reflect.DeepEqual(evals, out) {
+		t.Fatalf("bad: %#v %#v", evals, out)
+	}
+}
+
 func TestStateStore_Evals(t *testing.T) {
 	state := testStateStore(t)
 	var evals []*structs.Evaluation

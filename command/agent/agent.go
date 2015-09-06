@@ -65,7 +65,10 @@ func (a *Agent) setupServer() error {
 	}
 
 	// Setup the configuration
-	conf := nomad.DefaultConfig()
+	conf := a.config.NomadConfig
+	if conf == nil {
+		conf = nomad.DefaultConfig()
+	}
 	conf.LogOutput = a.logOutput
 	conf.DevMode = a.config.DevMode
 	conf.Build = fmt.Sprintf("%s%s", a.config.Version, a.config.VersionPrerelease)
@@ -130,7 +133,10 @@ func (a *Agent) setupClient() error {
 	}
 
 	// Setup the configuration
-	conf := client.DefaultConfig()
+	conf := a.config.ClientConfig
+	if conf == nil {
+		conf = client.DefaultConfig()
+	}
 	if a.server != nil {
 		conf.RPCHandler = a.server
 	}
