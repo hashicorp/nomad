@@ -133,6 +133,7 @@ func TestServiceSched_JobModify(t *testing.T) {
 		alloc.Job = job
 		alloc.JobID = job.ID
 		alloc.NodeID = nodes[i].ID
+		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
 		allocs = append(allocs, alloc)
 	}
 	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
@@ -140,6 +141,9 @@ func TestServiceSched_JobModify(t *testing.T) {
 	// Update the job
 	job2 := mock.Job()
 	job2.ID = job.ID
+
+	// Update the task, such that it cannot be done in-place
+	job2.TaskGroups[0].Tasks[0].Config["command"] = "/bin/other"
 	noErr(t, h.State.UpsertJob(h.NextIndex(), job2))
 
 	// Create a mock evaluation to deal with drain
@@ -190,6 +194,91 @@ func TestServiceSched_JobModify(t *testing.T) {
 		t.Fatalf("bad: %#v", out)
 	}
 
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+}
+
+func TestServiceSched_JobModify_InPlace(t *testing.T) {
+	h := NewHarness(t)
+
+	// Create some nodes
+	var nodes []*structs.Node
+	for i := 0; i < 10; i++ {
+		node := mock.Node()
+		nodes = append(nodes, node)
+		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+	}
+
+	// Generate a fake job with allocations
+	job := mock.Job()
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	var allocs []*structs.Allocation
+	for i := 0; i < 10; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = nodes[i].ID
+		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
+		allocs = append(allocs, alloc)
+	}
+	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+
+	// Update the job
+	job2 := mock.Job()
+	job2.ID = job.ID
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job2))
+
+	// Create a mock evaluation to deal with drain
+	eval := &structs.Evaluation{
+		ID:          mock.GenerateUUID(),
+		Priority:    50,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+	}
+
+	// Process the evaluation
+	err := h.Process(NewServiceScheduler, eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure a single plan
+	if len(h.Plans) != 1 {
+		t.Fatalf("bad: %#v", h.Plans)
+	}
+	plan := h.Plans[0]
+
+	// Ensure the plan did not evict any allocs
+	var update []*structs.Allocation
+	for _, updateList := range plan.NodeUpdate {
+		update = append(update, updateList...)
+	}
+	if len(update) != 0 {
+		t.Fatalf("bad: %#v", plan)
+	}
+
+	// Ensure the plan updated the existing allocs
+	var planned []*structs.Allocation
+	for _, allocList := range plan.NodeAllocation {
+		planned = append(planned, allocList...)
+	}
+	if len(planned) != 10 {
+		t.Fatalf("bad: %#v", plan)
+	}
+	for _, p := range planned {
+		if p.Job != job2 {
+			t.Fatalf("should update job")
+		}
+	}
+
+	// Lookup the allocations by JobID
+	out, err := h.State.AllocsByJob(job.ID)
+	noErr(t, err)
+
+	// Ensure all allocations placed
+	if len(out) != 10 {
+		t.Fatalf("bad: %#v", out)
+	}
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
 
