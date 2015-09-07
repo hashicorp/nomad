@@ -30,6 +30,9 @@ func (s *HTTPServer) jobListRequest(resp http.ResponseWriter, req *http.Request)
 	}
 
 	setMeta(resp, &out.QueryMeta)
+	if out.Jobs == nil {
+		out.Jobs = make([]*structs.JobListStub, 0)
+	}
 	return out.Jobs, nil
 }
 
@@ -86,6 +89,9 @@ func (s *HTTPServer) jobAllocations(resp http.ResponseWriter, req *http.Request,
 	}
 
 	setMeta(resp, &out.QueryMeta)
+	if out.Allocations == nil {
+		out.Allocations = make([]*structs.AllocListStub, 0)
+	}
 	return out.Allocations, nil
 }
 
@@ -107,6 +113,9 @@ func (s *HTTPServer) jobEvaluations(resp http.ResponseWriter, req *http.Request,
 	}
 
 	setMeta(resp, &out.QueryMeta)
+	if out.Evaluations == nil {
+		out.Evaluations = make([]*structs.Evaluation, 0)
+	}
 	return out.Evaluations, nil
 }
 

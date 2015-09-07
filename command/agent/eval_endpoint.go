@@ -23,6 +23,9 @@ func (s *HTTPServer) EvalsRequest(resp http.ResponseWriter, req *http.Request) (
 	}
 
 	setMeta(resp, &out.QueryMeta)
+	if out.Evaluations == nil {
+		out.Evaluations = make([]*structs.Evaluation, 0)
+	}
 	return out.Evaluations, nil
 }
 
@@ -55,6 +58,9 @@ func (s *HTTPServer) evalAllocations(resp http.ResponseWriter, req *http.Request
 	}
 
 	setMeta(resp, &out.QueryMeta)
+	if out.Allocations == nil {
+		out.Allocations = make([]*structs.AllocListStub, 0)
+	}
 	return out.Allocations, nil
 }
 

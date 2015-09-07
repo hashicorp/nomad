@@ -23,6 +23,9 @@ func (s *HTTPServer) AllocsRequest(resp http.ResponseWriter, req *http.Request) 
 	}
 
 	setMeta(resp, &out.QueryMeta)
+	if out.Allocations == nil {
+		out.Allocations = make([]*structs.AllocListStub, 0)
+	}
 	return out.Allocations, nil
 }
 

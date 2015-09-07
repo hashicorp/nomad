@@ -24,6 +24,9 @@ func (s *HTTPServer) NodesRequest(resp http.ResponseWriter, req *http.Request) (
 	}
 
 	setMeta(resp, &out.QueryMeta)
+	if out.Nodes == nil {
+		out.Nodes = make([]*structs.NodeListStub, 0)
+	}
 	return out.Nodes, nil
 }
 
@@ -80,6 +83,9 @@ func (s *HTTPServer) nodeAllocations(resp http.ResponseWriter, req *http.Request
 	}
 
 	setMeta(resp, &out.QueryMeta)
+	if out.Allocs == nil {
+		out.Allocs = make([]*structs.Allocation, 0)
+	}
 	return out.Allocs, nil
 }
 
