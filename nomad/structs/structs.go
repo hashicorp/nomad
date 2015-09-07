@@ -769,6 +769,16 @@ type TaskGroup struct {
 	Meta map[string]string
 }
 
+// LookupTask finds a task by name
+func (tg *TaskGroup) LookupTask(name string) *Task {
+	for _, t := range tg.Tasks {
+		if t.Name == name {
+			return t
+		}
+	}
+	return nil
+}
+
 // Task is a single process typically that is executed as part of a task group.
 type Task struct {
 	// Name of the task
