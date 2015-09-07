@@ -48,8 +48,10 @@ type GenericScheduler struct {
 	planner Planner
 	batch   bool
 
-	eval *structs.Evaluation
-	plan *structs.Plan
+	eval  *structs.Evaluation
+	plan  *structs.Plan
+	ctx   *EvalContext
+	stack *GenericStack
 }
 
 // NewServiceScheduler is a factory function to instantiate a new service scheduler
@@ -126,6 +128,12 @@ func (s *GenericScheduler) process() (bool, error) {
 
 	// Create a plan
 	s.plan = s.eval.MakePlan(job)
+
+	// Create an evaluation context
+	s.ctx = NewEvalContext(s.state, s.plan, s.logger)
+
+	// Construct the placement stack
+	s.stack = NewGenericStack(s.batch, s.ctx, nil)
 
 	// Compute the target job allocations
 	if err := s.computeJobAllocs(job); err != nil {
@@ -228,8 +236,8 @@ func (s *GenericScheduler) computePlacements(job *structs.Job, place []allocTupl
 		return err
 	}
 
-	// Construct the placement stack
-	stack := NewGenericStack(s.batch, ctx, nodes)
+	// Update the set of placement ndoes
+	s.stack.SetNodes(nodes)
 
 	// Track the failed task groups so that we can coalesce
 	// the failures together to avoid creating many failed allocs.
@@ -243,7 +251,7 @@ func (s *GenericScheduler) computePlacements(job *structs.Job, place []allocTupl
 		}
 
 		// Attempt to match the task group
-		option, size := stack.Select(missing.TaskGroup)
+		option, size := s.stack.Select(missing.TaskGroup)
 
 		// Handle a placement failure
 		var nodeID, status, desc, clientStatus string
@@ -267,7 +275,7 @@ func (s *GenericScheduler) computePlacements(job *structs.Job, place []allocTupl
 			Job:                job,
 			TaskGroup:          missing.TaskGroup.Name,
 			Resources:          size,
-			Metrics:            ctx.Metrics(),
+			Metrics:            s.ctx.Metrics(),
 			DesiredStatus:      status,
 			DesiredDescription: desc,
 			ClientStatus:       clientStatus,
