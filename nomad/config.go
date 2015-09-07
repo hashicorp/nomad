@@ -131,6 +131,13 @@ type Config struct {
 	// for GC. This gives users some time to debug a failed evaluation.
 	EvalGCThreshold time.Duration
 
+	// NodeGCInterval is how often we dispatch a job to GC failed nodes.
+	NodeGCInterval time.Duration
+
+	// NodeGCThreshold is how "old" a nodemust be to be eligible
+	// for GC. This gives users some time to view and debug a failed nodes.
+	NodeGCThreshold time.Duration
+
 	// EvalNackTimeout controls how long we allow a sub-scheduler to
 	// work on an evaluation before we consider it failed and Nack it.
 	// This allows that evaluation to be handed to another sub-scheduler
@@ -193,8 +200,10 @@ func DefaultConfig() *Config {
 		SerfConfig:             serf.DefaultConfig(),
 		NumSchedulers:          1,
 		ReconcileInterval:      60 * time.Second,
-		EvalGCInterval:         60 * time.Second,
+		EvalGCInterval:         5 * time.Minute,
 		EvalGCThreshold:        1 * time.Hour,
+		NodeGCInterval:         5 * time.Minute,
+		NodeGCThreshold:        24 * time.Hour,
 		EvalNackTimeout:        60 * time.Second,
 		EvalDeliveryLimit:      3,
 		MinHeartbeatTTL:        10 * time.Second,

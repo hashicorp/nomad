@@ -25,7 +25,7 @@ const (
 	timeTableGranularity = 5 * time.Minute
 
 	// timeTableLimit is the maximum limit of our tracking
-	timeTableLimit = 24 * time.Hour
+	timeTableLimit = 72 * time.Hour
 )
 
 // SnapshotType is prefixed to a record in the FSM snapshot

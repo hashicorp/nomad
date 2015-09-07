@@ -1004,7 +1004,16 @@ const (
 )
 
 const (
+	// CoreJobEvalGC is used for the garbage collection of evaluations
+	// and allocations. We periodically scan evalutations in a terminal state,
+	// in which all the corresponding allocations are also terminal. We
+	// delete these out of the system to bound the state.
 	CoreJobEvalGC = "eval-gc"
+
+	// CoreJobNodeGC is used for the garbage collection of failed nodes.
+	// We periodically scan nodes in a terminal state, and if they have no
+	// corresponding allocations we delete these out of the system.
+	CoreJobNodeGC = "node-gc"
 )
 
 // Evaluation is used anytime we need to apply business logic as a result

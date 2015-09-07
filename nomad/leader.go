@@ -171,11 +171,15 @@ func (s *Server) restoreEvalBroker() error {
 func (s *Server) schedulePeriodic(stopCh chan struct{}) {
 	evalGC := time.NewTicker(s.config.EvalGCInterval)
 	defer evalGC.Stop()
+	nodeGC := time.NewTicker(s.config.NodeGCInterval)
+	defer nodeGC.Stop()
 
 	for {
 		select {
 		case <-evalGC.C:
 			s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobEvalGC))
+		case <-nodeGC.C:
+			s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobNodeGC))
 		case <-stopCh:
 			return
 		}

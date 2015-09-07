@@ -31,6 +31,8 @@ func (s *CoreScheduler) Process(eval *structs.Evaluation) error {
 	switch eval.JobID {
 	case structs.CoreJobEvalGC:
 		return s.evalGC(eval)
+	case structs.CoreJobNodeGC:
+		return s.nodeGC(eval)
 	default:
 		return fmt.Errorf("core scheduler cannot handle job '%s'", eval.JobID)
 	}
@@ -95,7 +97,7 @@ OUTER:
 	if len(gcEval) == 0 && len(gcAlloc) == 0 {
 		return nil
 	}
-	c.srv.logger.Printf("[DEBUG] sched.core: eval GC: %d evaluations, %d allocs",
+	c.srv.logger.Printf("[DEBUG] sched.core: eval GC: %d evaluations, %d allocs eligible",
 		len(gcEval), len(gcAlloc))
 
 	// Call to the leader to issue the reap
@@ -110,6 +112,77 @@ OUTER:
 	if err := c.srv.RPC("Eval.Reap", &req, &resp); err != nil {
 		c.srv.logger.Printf("[ERR] sched.core: eval reap failed: %v", err)
 		return err
+	}
+	return nil
+}
+
+// nodeGC is used to garbage collect old nodes
+func (c *CoreScheduler) nodeGC(eval *structs.Evaluation) error {
+	// Iterate over the evaluations
+	iter, err := c.snap.Nodes()
+	if err != nil {
+		return err
+	}
+
+	// Compute the old threshold limit for GC using the FSM
+	// time table.  This is a rough mapping of a time to the
+	// Raft index it belongs to.
+	tt := c.srv.fsm.TimeTable()
+	cutoff := time.Now().UTC().Add(-1 * c.srv.config.NodeGCThreshold)
+	oldThreshold := tt.NearestIndex(cutoff)
+	c.srv.logger.Printf("[DEBUG] sched.core: node GC: scanning before index %d (%v)",
+		oldThreshold, c.srv.config.NodeGCThreshold)
+
+	// Collect the nodes to GC
+	var gcNode []string
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		node := raw.(*structs.Node)
+
+		// Ignore non-terminal and new nodes
+		if !node.TerminalStatus() || node.ModifyIndex > oldThreshold {
+			continue
+		}
+
+		// Get the allocations by node
+		allocs, err := c.snap.AllocsByNode(node.ID)
+		if err != nil {
+			c.srv.logger.Printf("[ERR] sched.core: failed to get allocs for node %s: %v",
+				eval.ID, err)
+			continue
+		}
+
+		// If there are any allocations, skip the node
+		if len(allocs) > 0 {
+			continue
+		}
+
+		// Node is eligible for garbage collection
+		gcNode = append(gcNode, node.ID)
+	}
+
+	// Fast-path the nothing case
+	if len(gcNode) == 0 {
+		return nil
+	}
+	c.srv.logger.Printf("[DEBUG] sched.core: node GC: %d nodes eligible", len(gcNode))
+
+	// Call to the leader to issue the reap
+	for _, nodeID := range gcNode {
+		req := structs.NodeDeregisterRequest{
+			NodeID: nodeID,
+			WriteRequest: structs.WriteRequest{
+				Region: c.srv.config.Region,
+			},
+		}
+		var resp structs.NodeUpdateResponse
+		if err := c.srv.RPC("Node.Deregister", &req, &resp); err != nil {
+			c.srv.logger.Printf("[ERR] sched.core: node '%s' reap failed: %v", nodeID, err)
+			return err
+		}
 	}
 	return nil
 }
