@@ -62,6 +62,12 @@ func (iter *StaticIterator) Reset() {
 	iter.seen = 0
 }
 
+func (iter *StaticIterator) SetNodes(nodes []*structs.Node) {
+	iter.nodes = nodes
+	iter.offset = 0
+	iter.seen = 0
+}
+
 // NewRandomIterator constructs a static iterator from a list of nodes
 // after applying the Fisher-Yates algorithm for a random shuffle. This
 // is applied in-place
