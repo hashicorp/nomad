@@ -80,7 +80,7 @@ func TestStateStore_DeregisterNode_GetNode(t *testing.T) {
 	}
 }
 
-func TestStateStore_UpdateNode_GetNode(t *testing.T) {
+func TestStateStore_UpdateNodeStatus_GetNode(t *testing.T) {
 	state := testStateStore(t)
 	node := mock.Node()
 
@@ -100,6 +100,41 @@ func TestStateStore_UpdateNode_GetNode(t *testing.T) {
 	}
 
 	if out.Status != structs.NodeStatusReady {
+		t.Fatalf("bad: %#v", out)
+	}
+	if out.ModifyIndex != 1001 {
+		t.Fatalf("bad: %#v", out)
+	}
+
+	index, err := state.GetIndex("nodes")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if index != 1001 {
+		t.Fatalf("bad: %d", index)
+	}
+}
+
+func TestStateStore_UpdateNodeDrain_GetNode(t *testing.T) {
+	state := testStateStore(t)
+	node := mock.Node()
+
+	err := state.RegisterNode(1000, node)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	err = state.UpdateNodeDrain(1001, node.ID, true)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	out, err := state.GetNodeByID(node.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !out.Drain {
 		t.Fatalf("bad: %#v", out)
 	}
 	if out.ModifyIndex != 1001 {

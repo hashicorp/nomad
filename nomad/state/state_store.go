@@ -156,6 +156,8 @@ func (w *stateWatch) notifyAllocs(nodes map[string]struct{}) {
 }
 
 // RegisterNode is used to register a node or update a node definition
+// This is assumed to be triggered by the client, so we retain the value
+// of drain which is set by the scheduler.
 func (s *StateStore) RegisterNode(index uint64, node *structs.Node) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
@@ -168,8 +170,10 @@ func (s *StateStore) RegisterNode(index uint64, node *structs.Node) error {
 
 	// Setup the indexes correctly
 	if existing != nil {
-		node.CreateIndex = existing.(*structs.Node).CreateIndex
+		exist := existing.(*structs.Node)
+		node.CreateIndex = exist.CreateIndex
 		node.ModifyIndex = index
+		node.Drain = exist.Drain // Retain the drain mode
 	} else {
 		node.CreateIndex = index
 		node.ModifyIndex = index
@@ -214,7 +218,7 @@ func (s *StateStore) DeregisterNode(index uint64, nodeID string) error {
 }
 
 // UpdateNodeStatus is used to update the status of a node
-func (s *StateStore) UpdateNodeStatus(index uint64, nodeID string, status string) error {
+func (s *StateStore) UpdateNodeStatus(index uint64, nodeID, status string) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
@@ -234,6 +238,41 @@ func (s *StateStore) UpdateNodeStatus(index uint64, nodeID string, status string
 
 	// Update the status in the copy
 	copyNode.Status = status
+	copyNode.ModifyIndex = index
+
+	// Insert the node
+	if err := txn.Insert("nodes", copyNode); err != nil {
+		return fmt.Errorf("node update failed: %v", err)
+	}
+	if err := txn.Insert("index", &IndexEntry{"nodes", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	txn.Commit()
+	return nil
+}
+
+// UpdateNodeDrain is used to update the drain of a node
+func (s *StateStore) UpdateNodeDrain(index uint64, nodeID string, drain bool) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	// Lookup the node
+	existing, err := txn.First("nodes", "id", nodeID)
+	if err != nil {
+		return fmt.Errorf("node lookup failed: %v", err)
+	}
+	if existing == nil {
+		return fmt.Errorf("node not found")
+	}
+
+	// Copy the existing node
+	existingNode := existing.(*structs.Node)
+	copyNode := new(structs.Node)
+	*copyNode = *existingNode
+
+	// Update the drain in the copy
+	copyNode.Drain = drain
 	copyNode.ModifyIndex = index
 
 	// Insert the node
