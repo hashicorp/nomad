@@ -21,11 +21,11 @@ func testStateStore(t *testing.T) *StateStore {
 	return state
 }
 
-func TestStateStore_RegisterNode_GetNode(t *testing.T) {
+func TestStateStore_UpsertNode_GetNode(t *testing.T) {
 	state := testStateStore(t)
 	node := mock.Node()
 
-	err := state.RegisterNode(1000, node)
+	err := state.UpsertNode(1000, node)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -48,16 +48,16 @@ func TestStateStore_RegisterNode_GetNode(t *testing.T) {
 	}
 }
 
-func TestStateStore_DeregisterNode_GetNode(t *testing.T) {
+func TestStateStore_DeleteNode_GetNode(t *testing.T) {
 	state := testStateStore(t)
 	node := mock.Node()
 
-	err := state.RegisterNode(1000, node)
+	err := state.UpsertNode(1000, node)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	err = state.DeregisterNode(1001, node.ID)
+	err = state.DeleteNode(1001, node.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -84,7 +84,7 @@ func TestStateStore_UpdateNodeStatus_GetNode(t *testing.T) {
 	state := testStateStore(t)
 	node := mock.Node()
 
-	err := state.RegisterNode(1000, node)
+	err := state.UpsertNode(1000, node)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -119,7 +119,7 @@ func TestStateStore_UpdateNodeDrain_GetNode(t *testing.T) {
 	state := testStateStore(t)
 	node := mock.Node()
 
-	err := state.RegisterNode(1000, node)
+	err := state.UpsertNode(1000, node)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -158,7 +158,7 @@ func TestStateStore_Nodes(t *testing.T) {
 		node := mock.Node()
 		nodes = append(nodes, node)
 
-		err := state.RegisterNode(1000+uint64(i), node)
+		err := state.UpsertNode(1000+uint64(i), node)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -212,11 +212,11 @@ func TestStateStore_RestoreNode(t *testing.T) {
 	}
 }
 
-func TestStateStore_RegisterJob_GetJob(t *testing.T) {
+func TestStateStore_UpsertJob_GetJob(t *testing.T) {
 	state := testStateStore(t)
 	job := mock.Job()
 
-	err := state.RegisterJob(1000, job)
+	err := state.UpsertJob(1000, job)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -239,18 +239,18 @@ func TestStateStore_RegisterJob_GetJob(t *testing.T) {
 	}
 }
 
-func TestStateStore_UpdateRegisterJob_GetJob(t *testing.T) {
+func TestStateStore_UpdateUpsertJob_GetJob(t *testing.T) {
 	state := testStateStore(t)
 	job := mock.Job()
 
-	err := state.RegisterJob(1000, job)
+	err := state.UpsertJob(1000, job)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	job2 := mock.Job()
 	job2.ID = job.ID
-	err = state.RegisterJob(1001, job2)
+	err = state.UpsertJob(1001, job2)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -280,16 +280,16 @@ func TestStateStore_UpdateRegisterJob_GetJob(t *testing.T) {
 	}
 }
 
-func TestStateStore_DeregisterJob_GetJob(t *testing.T) {
+func TestStateStore_DeleteJob_GetJob(t *testing.T) {
 	state := testStateStore(t)
 	job := mock.Job()
 
-	err := state.RegisterJob(1000, job)
+	err := state.UpsertJob(1000, job)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	err = state.DeregisterJob(1001, job.ID)
+	err = state.DeleteJob(1001, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -320,7 +320,7 @@ func TestStateStore_Jobs(t *testing.T) {
 		job := mock.Job()
 		jobs = append(jobs, job)
 
-		err := state.RegisterJob(1000+uint64(i), job)
+		err := state.UpsertJob(1000+uint64(i), job)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -378,7 +378,7 @@ func TestStateStore_Indexes(t *testing.T) {
 	state := testStateStore(t)
 	node := mock.Node()
 
-	err := state.RegisterNode(1000, node)
+	err := state.UpsertNode(1000, node)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -512,7 +512,7 @@ func TestStateStore_DeleteEval_GetEval(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	err = state.UpdateAllocations(1001, []*structs.Allocation{alloc, alloc2})
+	err = state.UpsertAllocs(1001, []*structs.Allocation{alloc, alloc2})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -681,7 +681,7 @@ func TestStateStore_UpdateAllocFromClient(t *testing.T) {
 	state := testStateStore(t)
 
 	alloc := mock.Alloc()
-	err := state.UpdateAllocations(1000, []*structs.Allocation{alloc})
+	err := state.UpsertAllocs(1000, []*structs.Allocation{alloc})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -718,7 +718,7 @@ func TestStateStore_UpsertAlloc_GetAlloc(t *testing.T) {
 	state := testStateStore(t)
 
 	alloc := mock.Alloc()
-	err := state.UpdateAllocations(1000, []*structs.Allocation{alloc})
+	err := state.UpsertAllocs(1000, []*structs.Allocation{alloc})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -752,7 +752,7 @@ func TestStateStore_WatchAllocs(t *testing.T) {
 
 	alloc := mock.Alloc()
 	alloc.NodeID = "foo"
-	err := state.UpdateAllocations(1000, []*structs.Allocation{alloc})
+	err := state.UpsertAllocs(1000, []*structs.Allocation{alloc})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -774,7 +774,7 @@ func TestStateStore_UpdateAlloc_GetAlloc(t *testing.T) {
 	state := testStateStore(t)
 	alloc := mock.Alloc()
 
-	err := state.UpdateAllocations(1000, []*structs.Allocation{alloc})
+	err := state.UpsertAllocs(1000, []*structs.Allocation{alloc})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -782,7 +782,7 @@ func TestStateStore_UpdateAlloc_GetAlloc(t *testing.T) {
 	alloc2 := mock.Alloc()
 	alloc2.ID = alloc.ID
 	alloc2.NodeID = alloc.NodeID + ".new"
-	err = state.UpdateAllocations(1001, []*structs.Allocation{alloc2})
+	err = state.UpsertAllocs(1001, []*structs.Allocation{alloc2})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -816,7 +816,7 @@ func TestStateStore_EvictAlloc_GetAlloc(t *testing.T) {
 	state := testStateStore(t)
 	alloc := mock.Alloc()
 
-	err := state.UpdateAllocations(1000, []*structs.Allocation{alloc})
+	err := state.UpsertAllocs(1000, []*structs.Allocation{alloc})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -824,7 +824,7 @@ func TestStateStore_EvictAlloc_GetAlloc(t *testing.T) {
 	alloc2 := new(structs.Allocation)
 	*alloc2 = *alloc
 	alloc2.DesiredStatus = structs.AllocDesiredStatusEvict
-	err = state.UpdateAllocations(1001, []*structs.Allocation{alloc2})
+	err = state.UpsertAllocs(1001, []*structs.Allocation{alloc2})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -857,7 +857,7 @@ func TestStateStore_AllocsByNode(t *testing.T) {
 		allocs = append(allocs, alloc)
 	}
 
-	err := state.UpdateAllocations(1000, allocs)
+	err := state.UpsertAllocs(1000, allocs)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -885,7 +885,7 @@ func TestStateStore_AllocsByJob(t *testing.T) {
 		allocs = append(allocs, alloc)
 	}
 
-	err := state.UpdateAllocations(1000, allocs)
+	err := state.UpsertAllocs(1000, allocs)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -912,7 +912,7 @@ func TestStateStore_Allocs(t *testing.T) {
 		allocs = append(allocs, alloc)
 	}
 
-	err := state.UpdateAllocations(1000, allocs)
+	err := state.UpsertAllocs(1000, allocs)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

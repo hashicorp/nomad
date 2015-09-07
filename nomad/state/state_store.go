@@ -155,10 +155,10 @@ func (w *stateWatch) notifyAllocs(nodes map[string]struct{}) {
 	}
 }
 
-// RegisterNode is used to register a node or update a node definition
+// UpsertNode is used to register a node or update a node definition
 // This is assumed to be triggered by the client, so we retain the value
 // of drain which is set by the scheduler.
-func (s *StateStore) RegisterNode(index uint64, node *structs.Node) error {
+func (s *StateStore) UpsertNode(index uint64, node *structs.Node) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
@@ -191,8 +191,8 @@ func (s *StateStore) RegisterNode(index uint64, node *structs.Node) error {
 	return nil
 }
 
-// DeregisterNode is used to deregister a node
-func (s *StateStore) DeregisterNode(index uint64, nodeID string) error {
+// DeleteNode is used to deregister a node
+func (s *StateStore) DeleteNode(index uint64, nodeID string) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
@@ -314,8 +314,8 @@ func (s *StateStore) Nodes() (memdb.ResultIterator, error) {
 	return iter, nil
 }
 
-// RegisterJob is used to register a job or update a job definition
-func (s *StateStore) RegisterJob(index uint64, job *structs.Job) error {
+// UpsertJob is used to register a job or update a job definition
+func (s *StateStore) UpsertJob(index uint64, job *structs.Job) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
@@ -346,8 +346,8 @@ func (s *StateStore) RegisterJob(index uint64, job *structs.Job) error {
 	return nil
 }
 
-// DeregisterJob is used to deregister a job
-func (s *StateStore) DeregisterJob(index uint64, jobID string) error {
+// DeleteJob is used to deregister a job
+func (s *StateStore) DeleteJob(index uint64, jobID string) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
@@ -583,9 +583,9 @@ func (s *StateStore) UpdateAllocFromClient(index uint64, alloc *structs.Allocati
 	return nil
 }
 
-// UpdateAllocations is used to evict a set of allocations
+// UpsertAllocs is used to evict a set of allocations
 // and allocate new ones at the same time.
-func (s *StateStore) UpdateAllocations(index uint64, allocs []*structs.Allocation) error {
+func (s *StateStore) UpsertAllocs(index uint64, allocs []*structs.Allocation) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 	nodes := make(map[string]struct{})
