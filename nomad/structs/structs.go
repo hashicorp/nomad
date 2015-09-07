@@ -1164,7 +1164,11 @@ func (p *Plan) PopUpdate(alloc *Allocation) {
 	n := len(existing)
 	if n > 0 && existing[n-1].ID == alloc.ID {
 		existing = existing[:n-1]
-		p.NodeUpdate[alloc.NodeID] = existing
+		if len(existing) > 0 {
+			p.NodeUpdate[alloc.NodeID] = existing
+		} else {
+			delete(p.NodeUpdate, alloc.NodeID)
+		}
 	}
 }
 
