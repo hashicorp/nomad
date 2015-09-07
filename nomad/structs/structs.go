@@ -307,6 +307,14 @@ type NodeUpdateResponse struct {
 	QueryMeta
 }
 
+// NodeDrainUpdateResponse is used to respond to a node drain update
+type NodeDrainUpdateResponse struct {
+	EvalIDs         []string
+	EvalCreateIndex uint64
+	NodeModifyIndex uint64
+	QueryMeta
+}
+
 // NodeAllocsResponse is used to return allocs for a single node
 type NodeAllocsResponse struct {
 	Allocs []*Allocation

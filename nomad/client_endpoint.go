@@ -179,6 +179,59 @@ func (c *ClientEndpoint) UpdateStatus(args *structs.NodeUpdateStatusRequest, rep
 	return nil
 }
 
+// UpdateDrain is used to update the drain mode of a client node
+func (c *ClientEndpoint) UpdateDrain(args *structs.NodeUpdateDrainRequest,
+	reply *structs.NodeDrainUpdateResponse) error {
+	if done, err := c.srv.forward("Client.UpdateDrain", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "client", "update_drain"}, time.Now())
+
+	// Verify the arguments
+	if args.NodeID == "" {
+		return fmt.Errorf("missing node ID for drain update")
+	}
+
+	// Look for the node
+	snap, err := c.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+	node, err := snap.GetNodeByID(args.NodeID)
+	if err != nil {
+		return err
+	}
+	if node == nil {
+		return fmt.Errorf("node not found")
+	}
+
+	// Commit this update via Raft
+	var index uint64
+	if node.Drain != args.Drain {
+		_, index, err = c.srv.raftApply(structs.NodeUpdateDrainRequestType, args)
+		if err != nil {
+			c.srv.logger.Printf("[ERR] nomad.client: drain update failed: %v", err)
+			return err
+		}
+		reply.NodeModifyIndex = index
+	}
+
+	// Check if we should trigger evaluations
+	if args.Drain {
+		evalIDs, evalIndex, err := c.createNodeEvals(args.NodeID, index)
+		if err != nil {
+			c.srv.logger.Printf("[ERR] nomad.client: eval creation failed: %v", err)
+			return err
+		}
+		reply.EvalIDs = evalIDs
+		reply.EvalCreateIndex = evalIndex
+	}
+
+	// Set the reply index
+	reply.Index = index
+	return nil
+}
+
 // Evaluate is used to force a re-evaluation of the node
 func (c *ClientEndpoint) Evaluate(args *structs.NodeEvaluateRequest, reply *structs.NodeUpdateResponse) error {
 	if done, err := c.srv.forward("Client.Evaluate", args, args, reply); done {
