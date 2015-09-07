@@ -14,11 +14,10 @@ import (
 // as the leader in the Raft cluster. There is some work the leader is
 // expected to do, so we must react to changes
 func (s *Server) monitorLeadership() {
-	leaderCh := s.raft.LeaderCh()
 	var stopCh chan struct{}
 	for {
 		select {
-		case isLeader := <-leaderCh:
+		case isLeader := <-s.leaderCh:
 			if isLeader {
 				stopCh = make(chan struct{})
 				go s.leaderLoop(stopCh)

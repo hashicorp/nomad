@@ -54,6 +54,9 @@ func testServer(t *testing.T, cb func(*Config)) *Server {
 		cb(config)
 	}
 
+	// Enable raft as leader if we have bootstrap on
+	config.RaftConfig.StartAsLeader = !config.DevDisableBootstrap
+
 	// Create server
 	server, err := NewServer(config)
 	if err != nil {
