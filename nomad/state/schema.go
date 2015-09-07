@@ -91,17 +91,6 @@ func jobTableSchema() *memdb.TableSchema {
 					Lowercase: true,
 				},
 			},
-
-			// Status is used to scan for jobs that are in need
-			// of scheduling attention.
-			"status": &memdb.IndexSchema{
-				Name:         "status",
-				AllowMissing: false,
-				Unique:       false,
-				Indexer: &memdb.StringFieldIndex{
-					Field: "Status",
-				},
-			},
 		},
 	}
 }
@@ -131,17 +120,6 @@ func evalTableSchema() *memdb.TableSchema {
 				Indexer: &memdb.StringFieldIndex{
 					Field:     "JobID",
 					Lowercase: true,
-				},
-			},
-
-			// Status is used to scan for evaluations that are in need
-			// of scheduling attention.
-			"status": &memdb.IndexSchema{
-				Name:         "status",
-				AllowMissing: false,
-				Unique:       false,
-				Indexer: &memdb.StringFieldIndex{
-					Field: "Status",
 				},
 			},
 		},
