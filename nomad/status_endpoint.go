@@ -30,7 +30,14 @@ func (s *Status) Ping(args struct{}, reply *struct{}) error {
 }
 
 // Leader is used to get the address of the leader
-func (s *Status) Leader(args struct{}, reply *string) error {
+func (s *Status) Leader(args *structs.GenericRequest, reply *string) error {
+	if args.Region == "" {
+		args.Region = s.srv.config.Region
+	}
+	if done, err := s.srv.forward("Status.Leader", args, args, reply); done {
+		return err
+	}
+
 	leader := s.srv.raft.Leader()
 	if leader != "" {
 		*reply = leader
@@ -41,7 +48,11 @@ func (s *Status) Leader(args struct{}, reply *string) error {
 }
 
 // Peers is used to get all the Raft peers
-func (s *Status) Peers(args struct{}, reply *[]string) error {
+func (s *Status) Peers(args *structs.GenericRequest, reply *[]string) error {
+	if done, err := s.srv.forward("Status.Peers", args, args, reply); done {
+		return err
+	}
+
 	peers, err := s.srv.raftPeers.Peers()
 	if err != nil {
 		return err

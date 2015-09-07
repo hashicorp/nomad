@@ -70,7 +70,12 @@ func TestStatusLeader(t *testing.T) {
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
-	arg := struct{}{}
+	arg := &structs.GenericRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:     "region1",
+			AllowStale: true,
+		},
+	}
 	var leader string
 	if err := msgpackrpc.CallWithCodec(codec, "Status.Leader", arg, &leader); err != nil {
 		t.Fatalf("err: %v", err)
@@ -85,7 +90,12 @@ func TestStatusPeers(t *testing.T) {
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 
-	arg := struct{}{}
+	arg := &structs.GenericRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:     "region1",
+			AllowStale: true,
+		},
+	}
 	var peers []string
 	if err := msgpackrpc.CallWithCodec(codec, "Status.Peers", arg, &peers); err != nil {
 		t.Fatalf("err: %v", err)

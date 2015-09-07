@@ -3,6 +3,8 @@ package testutil
 import (
 	"testing"
 	"time"
+
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 type testFn func() (bool, error)
@@ -30,7 +32,7 @@ type rpcFn func(string, interface{}, interface{}) error
 
 func WaitForLeader(t *testing.T, rpc rpcFn) {
 	WaitForResult(func() (bool, error) {
-		args := struct{}{}
+		args := &structs.GenericRequest{}
 		var leader string
 		err := rpc("Status.Leader", args, &leader)
 		return leader != "", err
