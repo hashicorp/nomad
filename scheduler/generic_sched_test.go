@@ -3,6 +3,7 @@ package scheduler
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -195,6 +196,107 @@ func TestServiceSched_JobModify(t *testing.T) {
 	}
 
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+}
+
+func TestServiceSched_JobModify_Rolling(t *testing.T) {
+	h := NewHarness(t)
+
+	// Create some nodes
+	var nodes []*structs.Node
+	for i := 0; i < 10; i++ {
+		node := mock.Node()
+		nodes = append(nodes, node)
+		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+	}
+
+	// Generate a fake job with allocations
+	job := mock.Job()
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	var allocs []*structs.Allocation
+	for i := 0; i < 10; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = nodes[i].ID
+		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
+		allocs = append(allocs, alloc)
+	}
+	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+
+	// Update the job
+	job2 := mock.Job()
+	job2.ID = job.ID
+	job2.Update = structs.UpdateStrategy{
+		Stagger:     30 * time.Second,
+		MaxParallel: 5,
+	}
+
+	// Update the task, such that it cannot be done in-place
+	job2.TaskGroups[0].Tasks[0].Config["command"] = "/bin/other"
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job2))
+
+	// Create a mock evaluation to deal with drain
+	eval := &structs.Evaluation{
+		ID:          mock.GenerateUUID(),
+		Priority:    50,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+	}
+
+	// Process the evaluation
+	err := h.Process(NewServiceScheduler, eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure a single plan
+	if len(h.Plans) != 1 {
+		t.Fatalf("bad: %#v", h.Plans)
+	}
+	plan := h.Plans[0]
+
+	// Ensure the plan evicted only MaxParallel
+	var update []*structs.Allocation
+	for _, updateList := range plan.NodeUpdate {
+		update = append(update, updateList...)
+	}
+	if len(update) != job2.Update.MaxParallel {
+		t.Fatalf("bad: %#v", plan)
+	}
+
+	// Ensure the plan allocated
+	var planned []*structs.Allocation
+	for _, allocList := range plan.NodeAllocation {
+		planned = append(planned, allocList...)
+	}
+	if len(planned) != job2.Update.MaxParallel {
+		t.Fatalf("bad: %#v", plan)
+	}
+
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+
+	// Ensure a follow up eval was created
+	eval = h.Evals[0]
+	if eval.NextEval == "" {
+		t.Fatalf("missing next eval")
+	}
+
+	// Check for create
+	if len(h.CreateEvals) == 0 {
+		t.Fatalf("missing created eval")
+	}
+	create := h.CreateEvals[0]
+	if eval.NextEval != create.ID {
+		t.Fatalf("ID mismatch")
+	}
+	if create.PreviousEval != eval.ID {
+		t.Fatalf("missing previous eval")
+	}
+
+	if create.TriggeredBy != structs.EvalTriggerRollingUpdate {
+		t.Fatalf("bad: %#v", create)
+	}
 }
 
 func TestServiceSched_JobModify_InPlace(t *testing.T) {

@@ -56,6 +56,9 @@ type GenericScheduler struct {
 	plan  *structs.Plan
 	ctx   *EvalContext
 	stack *GenericStack
+
+	limitReached bool
+	nextEval     *structs.Evaluation
 }
 
 // NewServiceScheduler is a factory function to instantiate a new service scheduler
@@ -86,6 +89,9 @@ func (s *GenericScheduler) setStatus(status, desc string) error {
 	newEval := s.eval.Copy()
 	newEval.Status = status
 	newEval.StatusDescription = desc
+	if s.nextEval != nil {
+		newEval.NextEval = s.nextEval.ID
+	}
 	return s.planner.UpdateEval(newEval)
 }
 
@@ -154,6 +160,17 @@ func (s *GenericScheduler) process() (bool, error) {
 		return true, nil
 	}
 
+	// If the limit of placements was reached we need to create an evaluation
+	// to pickup from here after the stagger period.
+	if s.limitReached && s.nextEval == nil {
+		s.nextEval = s.eval.NextRollingEval(s.job.Update.Stagger)
+		if err := s.planner.CreateEval(s.nextEval); err != nil {
+			s.logger.Printf("[ERR] sched: %#v failed to make next eval for rolling update: %v", err)
+			return false, err
+		}
+		s.logger.Printf("[DEBUG] sched: %#v: rolling update limit reached, next eval '%s' created", s.eval, s.nextEval.ID)
+	}
+
 	// Submit the plan
 	result, newState, err := s.planner.SubmitPlan(s.plan)
 	if err != nil {
@@ -214,19 +231,17 @@ func (s *GenericScheduler) computeJobAllocs() error {
 	// Attempt to do the upgrades in place
 	diff.update = s.inplaceUpdate(diff.update)
 
-	// Any updates not possible inplace we treat all as an evict + place.
-	// XXX: This should be done with rolling in-place updates instead.
-	for _, e := range diff.update {
-		s.plan.AppendUpdate(e.Alloc, structs.AllocDesiredStatusStop, allocUpdating)
+	// Check if a rolling upgrade strategy is being used
+	limit := len(diff.update) + len(diff.migrate)
+	if s.job != nil && s.job.Update.Rolling() {
+		limit = s.job.Update.MaxParallel
 	}
-	diff.place = append(diff.place, diff.update...)
 
-	// For simplicity, we treat all migrates as an evict + place.
-	// XXX: This could probably be done more intelligently?
-	for _, e := range diff.migrate {
-		s.plan.AppendUpdate(e.Alloc, structs.AllocDesiredStatusStop, allocMigrating)
-	}
-	diff.place = append(diff.place, diff.migrate...)
+	// Treat migrations as an eviction and a new placement.
+	s.evictAndPlace(diff, diff.migrate, allocMigrating, &limit)
+
+	// Treat non in-place updates as an eviction and new placement.
+	s.evictAndPlace(diff, diff.update, allocUpdating, &limit)
 
 	// Nothing remaining to do if placement is not required
 	if len(diff.place) == 0 {
@@ -235,6 +250,22 @@ func (s *GenericScheduler) computeJobAllocs() error {
 
 	// Compute the placements
 	return s.computePlacements(diff.place)
+}
+
+// evictAndPlace is used to mark allocations for evicts and add them to the placement queue
+func (s *GenericScheduler) evictAndPlace(diff *diffResult, allocs []allocTuple, desc string, limit *int) {
+	n := len(allocs)
+	for i := 0; i < n && i < *limit; i++ {
+		a := allocs[i]
+		s.plan.AppendUpdate(a.Alloc, structs.AllocDesiredStatusStop, desc)
+		diff.place = append(diff.place, a)
+	}
+	if n <= *limit {
+		*limit -= n
+	} else {
+		*limit = 0
+		s.limitReached = true
+	}
 }
 
 // inplaceUpdate attempts to update allocations in-place where possible.
