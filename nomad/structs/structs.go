@@ -1069,6 +1069,18 @@ type Evaluation struct {
 	// StatusDescription is meant to provide more human useful information
 	StatusDescription string
 
+	// Wait is a minimum wait time for running the eval. This is used to
+	// support a rolling upgrade.
+	Wait time.Duration
+
+	// NextEval is the evaluation ID for the eval created to do a followup.
+	// This is used to support rolling upgrades, where we need a chain of evaluations.
+	NextEval string
+
+	// PreviousEval is the evaluation ID for the eval creating this one to do a followup.
+	// This is used to support rolling upgrades, where we need a chain of evaluations.
+	PreviousEval string
+
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
