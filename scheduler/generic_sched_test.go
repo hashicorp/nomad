@@ -14,12 +14,12 @@ func TestServiceSched_JobRegister(t *testing.T) {
 	// Create some nodes
 	for i := 0; i < 10; i++ {
 		node := mock.Node()
-		noErr(t, h.State.RegisterNode(h.NextIndex(), node))
+		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
 	}
 
 	// Create a job
 	job := mock.Job()
-	noErr(t, h.State.RegisterJob(h.NextIndex(), job))
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	// Create a mock evaluation to deregister the job
 	eval := &structs.Evaluation{
@@ -68,7 +68,7 @@ func TestServiceSched_JobRegister_AllocFail(t *testing.T) {
 	// Create NO nodes
 	// Create a job
 	job := mock.Job()
-	noErr(t, h.State.RegisterJob(h.NextIndex(), job))
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	// Create a mock evaluation to deregister the job
 	eval := &structs.Evaluation{
@@ -120,12 +120,12 @@ func TestServiceSched_JobModify(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		node := mock.Node()
 		nodes = append(nodes, node)
-		noErr(t, h.State.RegisterNode(h.NextIndex(), node))
+		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
 	}
 
 	// Generate a fake job with allocations
 	job := mock.Job()
-	noErr(t, h.State.RegisterJob(h.NextIndex(), job))
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	var allocs []*structs.Allocation
 	for i := 0; i < 10; i++ {
@@ -135,12 +135,12 @@ func TestServiceSched_JobModify(t *testing.T) {
 		alloc.NodeID = nodes[i].ID
 		allocs = append(allocs, alloc)
 	}
-	noErr(t, h.State.UpdateAllocations(h.NextIndex(), allocs))
+	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
 
 	// Update the job
 	job2 := mock.Job()
 	job2.ID = job.ID
-	noErr(t, h.State.RegisterJob(h.NextIndex(), job2))
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job2))
 
 	// Create a mock evaluation to deal with drain
 	eval := &structs.Evaluation{
@@ -206,7 +206,7 @@ func TestServiceSched_JobDeregister(t *testing.T) {
 		alloc.JobID = job.ID
 		allocs = append(allocs, alloc)
 	}
-	noErr(t, h.State.UpdateAllocations(h.NextIndex(), allocs))
+	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
 
 	// Create a mock evaluation to deregister the job
 	eval := &structs.Evaluation{
@@ -252,17 +252,17 @@ func TestServiceSched_NodeDrain(t *testing.T) {
 	// Register a draining node
 	node := mock.Node()
 	node.Drain = true
-	noErr(t, h.State.RegisterNode(h.NextIndex(), node))
+	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
 
 	// Create some nodes
 	for i := 0; i < 10; i++ {
 		node := mock.Node()
-		noErr(t, h.State.RegisterNode(h.NextIndex(), node))
+		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
 	}
 
 	// Generate a fake job with allocations
 	job := mock.Job()
-	noErr(t, h.State.RegisterJob(h.NextIndex(), job))
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	var allocs []*structs.Allocation
 	for i := 0; i < 10; i++ {
@@ -273,7 +273,7 @@ func TestServiceSched_NodeDrain(t *testing.T) {
 		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
 		allocs = append(allocs, alloc)
 	}
-	noErr(t, h.State.UpdateAllocations(h.NextIndex(), allocs))
+	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
 
 	// Create a mock evaluation to deal with drain
 	eval := &structs.Evaluation{
@@ -330,12 +330,12 @@ func TestServiceSched_RetryLimit(t *testing.T) {
 	// Create some nodes
 	for i := 0; i < 10; i++ {
 		node := mock.Node()
-		noErr(t, h.State.RegisterNode(h.NextIndex(), node))
+		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
 	}
 
 	// Create a job
 	job := mock.Job()
-	noErr(t, h.State.RegisterJob(h.NextIndex(), job))
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	// Create a mock evaluation to deregister the job
 	eval := &structs.Evaluation{

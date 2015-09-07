@@ -354,7 +354,7 @@ func TestHTTP_JobAllocations(t *testing.T) {
 		state := s.Agent.server.State()
 		alloc1 := mock.Alloc()
 		alloc1.JobID = job.ID
-		err := state.UpdateAllocations(1000, []*structs.Allocation{alloc1})
+		err := state.UpsertAllocs(1000, []*structs.Allocation{alloc1})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}

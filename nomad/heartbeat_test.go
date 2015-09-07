@@ -18,7 +18,7 @@ func TestInitializeHeartbeatTimers(t *testing.T) {
 
 	node := mock.Node()
 	state := s1.fsm.State()
-	err := state.RegisterNode(1, node)
+	err := state.UpsertNode(1, node)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -123,7 +123,7 @@ func TestInvalidateHeartbeat(t *testing.T) {
 	// Create a node
 	node := mock.Node()
 	state := s1.fsm.State()
-	err := state.RegisterNode(1, node)
+	err := state.UpsertNode(1, node)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

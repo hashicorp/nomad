@@ -60,7 +60,7 @@ func TestHTTP_EvalAllocations(t *testing.T) {
 		alloc1 := mock.Alloc()
 		alloc2 := mock.Alloc()
 		alloc2.EvalID = alloc1.EvalID
-		err := state.UpdateAllocations(1000,
+		err := state.UpsertAllocs(1000,
 			[]*structs.Allocation{alloc1, alloc2})
 		if err != nil {
 			t.Fatalf("err: %v", err)

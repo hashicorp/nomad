@@ -364,7 +364,7 @@ func TestJobEndpoint_ListJobs(t *testing.T) {
 	// Create the register request
 	job := mock.Job()
 	state := s1.fsm.State()
-	err := state.RegisterJob(1000, job)
+	err := state.UpsertJob(1000, job)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -400,7 +400,7 @@ func TestJobEndpoint_Allocations(t *testing.T) {
 	alloc2 := mock.Alloc()
 	alloc2.JobID = alloc1.JobID
 	state := s1.fsm.State()
-	err := state.UpdateAllocations(1000,
+	err := state.UpsertAllocs(1000,
 		[]*structs.Allocation{alloc1, alloc2})
 	if err != nil {
 		t.Fatalf("err: %v", err)

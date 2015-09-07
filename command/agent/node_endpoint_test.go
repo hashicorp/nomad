@@ -73,7 +73,7 @@ func TestHTTP_NodeForceEval(t *testing.T) {
 		state := s.Agent.server.State()
 		alloc1 := mock.Alloc()
 		alloc1.NodeID = node.ID
-		err := state.UpdateAllocations(1000, []*structs.Allocation{alloc1})
+		err := state.UpsertAllocs(1000, []*structs.Allocation{alloc1})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -121,7 +121,7 @@ func TestHTTP_NodeAllocations(t *testing.T) {
 		state := s.Agent.server.State()
 		alloc1 := mock.Alloc()
 		alloc1.NodeID = node.ID
-		err := state.UpdateAllocations(1000, []*structs.Allocation{alloc1})
+		err := state.UpsertAllocs(1000, []*structs.Allocation{alloc1})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -175,7 +175,7 @@ func TestHTTP_NodeDrain(t *testing.T) {
 		state := s.Agent.server.State()
 		alloc1 := mock.Alloc()
 		alloc1.NodeID = node.ID
-		err := state.UpdateAllocations(1000, []*structs.Allocation{alloc1})
+		err := state.UpsertAllocs(1000, []*structs.Allocation{alloc1})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}

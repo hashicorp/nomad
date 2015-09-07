@@ -123,10 +123,10 @@ func TestReadyNodesInDCs(t *testing.T) {
 	node4 := mock.Node()
 	node4.Drain = true
 
-	noErr(t, state.RegisterNode(1000, node1))
-	noErr(t, state.RegisterNode(1001, node2))
-	noErr(t, state.RegisterNode(1002, node3))
-	noErr(t, state.RegisterNode(1003, node4))
+	noErr(t, state.UpsertNode(1000, node1))
+	noErr(t, state.UpsertNode(1001, node2))
+	noErr(t, state.UpsertNode(1002, node3))
+	noErr(t, state.UpsertNode(1003, node4))
 
 	nodes, err := readyNodesInDCs(state, []string{"dc1", "dc2"})
 	if err != nil {
@@ -183,10 +183,10 @@ func TestTaintedNodes(t *testing.T) {
 	node3.Status = structs.NodeStatusDown
 	node4 := mock.Node()
 	node4.Drain = true
-	noErr(t, state.RegisterNode(1000, node1))
-	noErr(t, state.RegisterNode(1001, node2))
-	noErr(t, state.RegisterNode(1002, node3))
-	noErr(t, state.RegisterNode(1003, node4))
+	noErr(t, state.UpsertNode(1000, node1))
+	noErr(t, state.UpsertNode(1001, node2))
+	noErr(t, state.UpsertNode(1002, node3))
+	noErr(t, state.UpsertNode(1003, node4))
 
 	allocs := []*structs.Allocation{
 		&structs.Allocation{NodeID: node1.ID},

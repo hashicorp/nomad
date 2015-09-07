@@ -19,7 +19,7 @@ func TestAllocEndpoint_List(t *testing.T) {
 	// Create the register request
 	alloc := mock.Alloc()
 	state := s1.fsm.State()
-	err := state.UpdateAllocations(1000, []*structs.Allocation{alloc})
+	err := state.UpsertAllocs(1000, []*structs.Allocation{alloc})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -53,7 +53,7 @@ func TestAllocEndpoint_GetAlloc(t *testing.T) {
 	// Create the register request
 	alloc := mock.Alloc()
 	state := s1.fsm.State()
-	err := state.UpdateAllocations(1000, []*structs.Allocation{alloc})
+	err := state.UpsertAllocs(1000, []*structs.Allocation{alloc})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

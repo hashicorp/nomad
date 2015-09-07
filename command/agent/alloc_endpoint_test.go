@@ -15,7 +15,7 @@ func TestHTTP_AllocsList(t *testing.T) {
 		state := s.Agent.server.State()
 		alloc1 := mock.Alloc()
 		alloc2 := mock.Alloc()
-		err := state.UpdateAllocations(1000,
+		err := state.UpsertAllocs(1000,
 			[]*structs.Allocation{alloc1, alloc2})
 		if err != nil {
 			t.Fatalf("err: %v", err)
@@ -58,7 +58,7 @@ func TestHTTP_AllocQuery(t *testing.T) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
 		alloc := mock.Alloc()
-		err := state.UpdateAllocations(1000,
+		err := state.UpsertAllocs(1000,
 			[]*structs.Allocation{alloc})
 		if err != nil {
 			t.Fatalf("err: %v", err)

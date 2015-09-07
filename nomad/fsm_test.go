@@ -62,7 +62,7 @@ func makeLog(buf []byte) *raft.Log {
 	}
 }
 
-func TestFSM_RegisterNode(t *testing.T) {
+func TestFSM_UpsertNode(t *testing.T) {
 	fsm := testFSM(t)
 
 	req := structs.NodeRegisterRequest{
@@ -364,7 +364,7 @@ func TestFSM_DeleteEval(t *testing.T) {
 	}
 }
 
-func TestFSM_UpdateAllocations(t *testing.T) {
+func TestFSM_UpsertAllocs(t *testing.T) {
 	fsm := testFSM(t)
 
 	alloc := mock.Alloc()
@@ -423,7 +423,7 @@ func TestFSM_UpdateAllocFromClient(t *testing.T) {
 	state := fsm.State()
 
 	alloc := mock.Alloc()
-	state.UpdateAllocations(1, []*structs.Allocation{alloc})
+	state.UpsertAllocs(1, []*structs.Allocation{alloc})
 
 	clientAlloc := new(structs.Allocation)
 	*clientAlloc = *alloc
@@ -484,9 +484,9 @@ func TestFSM_SnapshotRestore_Nodes(t *testing.T) {
 	fsm := testFSM(t)
 	state := fsm.State()
 	node1 := mock.Node()
-	state.RegisterNode(1000, node1)
+	state.UpsertNode(1000, node1)
 	node2 := mock.Node()
-	state.RegisterNode(1001, node2)
+	state.UpsertNode(1001, node2)
 
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)
@@ -506,9 +506,9 @@ func TestFSM_SnapshotRestore_Jobs(t *testing.T) {
 	fsm := testFSM(t)
 	state := fsm.State()
 	job1 := mock.Job()
-	state.RegisterJob(1000, job1)
+	state.UpsertJob(1000, job1)
 	job2 := mock.Job()
-	state.RegisterJob(1001, job2)
+	state.UpsertJob(1001, job2)
 
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)
@@ -550,9 +550,9 @@ func TestFSM_SnapshotRestore_Allocs(t *testing.T) {
 	fsm := testFSM(t)
 	state := fsm.State()
 	alloc1 := mock.Alloc()
-	state.UpdateAllocations(1000, []*structs.Allocation{alloc1})
+	state.UpsertAllocs(1000, []*structs.Allocation{alloc1})
 	alloc2 := mock.Alloc()
-	state.UpdateAllocations(1001, []*structs.Allocation{alloc2})
+	state.UpsertAllocs(1001, []*structs.Allocation{alloc2})
 
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)
@@ -572,7 +572,7 @@ func TestFSM_SnapshotRestore_Indexes(t *testing.T) {
 	fsm := testFSM(t)
 	state := fsm.State()
 	node1 := mock.Node()
-	state.RegisterNode(1000, node1)
+	state.UpsertNode(1000, node1)
 
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)

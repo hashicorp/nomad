@@ -89,7 +89,7 @@ func (h *Harness) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State, er
 	allocs = append(allocs, plan.FailedAllocs...)
 
 	// Apply the full plan
-	err := h.State.UpdateAllocations(index, allocs)
+	err := h.State.UpsertAllocs(index, allocs)
 	return result, nil, err
 }
 

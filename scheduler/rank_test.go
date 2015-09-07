@@ -205,7 +205,7 @@ func TestBinPackIterator_ExistingAlloc(t *testing.T) {
 		},
 		DesiredStatus: structs.AllocDesiredStatusRun,
 	}
-	noErr(t, state.UpdateAllocations(1000, []*structs.Allocation{alloc1, alloc2}))
+	noErr(t, state.UpsertAllocs(1000, []*structs.Allocation{alloc1, alloc2}))
 
 	resources := &structs.Resources{
 		CPU:      1024,
@@ -274,7 +274,7 @@ func TestBinPackIterator_ExistingAlloc_PlannedEvict(t *testing.T) {
 		},
 		DesiredStatus: structs.AllocDesiredStatusRun,
 	}
-	noErr(t, state.UpdateAllocations(1000, []*structs.Allocation{alloc1, alloc2}))
+	noErr(t, state.UpsertAllocs(1000, []*structs.Allocation{alloc1, alloc2}))
 
 	// Add a planned eviction to alloc1
 	plan := ctx.Plan()
