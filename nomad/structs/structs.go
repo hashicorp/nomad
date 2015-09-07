@@ -694,6 +694,9 @@ type Job struct {
 	// to run. Each task group is an atomic unit of scheduling and placement.
 	TaskGroups []*TaskGroup
 
+	// Update is used to control the update strategy
+	Update UpdateStrategy
+
 	// Meta is used to associate arbitrary metadata with this
 	// job. This is opaque to Nomad.
 	Meta map[string]string
@@ -744,6 +747,20 @@ type JobListStub struct {
 	StatusDescription string
 	CreateIndex       uint64
 	ModifyIndex       uint64
+}
+
+// UpdateStrategy is used to modify how updates are done
+type UpdateStrategy struct {
+	// Stagger is the amount of time between the updates
+	Stagger time.Duration
+
+	// MaxParallel is how many updates can be done in parallel
+	MaxParallel int
+}
+
+// Rolling returns if a rolling strategy should be used
+func (u *UpdateStrategy) Rolling() bool {
+	return u.Stagger > 0 && u.MaxParallel > 0
 }
 
 // TaskGroup is an atomic unit of placement. Each task group belongs to
@@ -1011,6 +1028,7 @@ const (
 	EvalTriggerJobDeregister = "job-deregister"
 	EvalTriggerNodeUpdate    = "node-update"
 	EvalTriggerScheduled     = "scheduled"
+	EvalTriggerRollingUpdate = "rolling-update"
 )
 
 const (
@@ -1132,6 +1150,21 @@ func (e *Evaluation) MakePlan(j *Job) *Plan {
 		p.AllAtOnce = j.AllAtOnce
 	}
 	return p
+}
+
+// NextRollingEval creates an evaluation to followup this eval for rolling updates
+func (e *Evaluation) NextRollingEval(wait time.Duration) *Evaluation {
+	return &Evaluation{
+		ID:             GenerateUUID(),
+		Priority:       e.Priority,
+		Type:           e.Type,
+		TriggeredBy:    EvalTriggerRollingUpdate,
+		JobID:          e.JobID,
+		JobModifyIndex: e.JobModifyIndex,
+		Status:         EvalStatusPending,
+		Wait:           wait,
+		PreviousEval:   e.ID,
+	}
 }
 
 // Plan is used to submit a commit plan for task allocations. These
