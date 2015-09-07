@@ -227,3 +227,36 @@ func TestShuffleNodes(t *testing.T) {
 		t.Fatalf("shoudl not match")
 	}
 }
+
+func TestTasksUpdated(t *testing.T) {
+	j1 := mock.Job()
+	j2 := mock.Job()
+
+	if tasksUpdated(j1.TaskGroups[0], j2.TaskGroups[0]) {
+		t.Fatalf("bad")
+	}
+
+	j2.TaskGroups[0].Tasks[0].Config["command"] = "/bin/other"
+	if !tasksUpdated(j1.TaskGroups[0], j2.TaskGroups[0]) {
+		t.Fatalf("bad")
+	}
+
+	j3 := mock.Job()
+	j3.TaskGroups[0].Tasks[0].Name = "foo"
+	if !tasksUpdated(j1.TaskGroups[0], j3.TaskGroups[0]) {
+		t.Fatalf("bad")
+	}
+
+	j4 := mock.Job()
+	j4.TaskGroups[0].Tasks[0].Driver = "foo"
+	if !tasksUpdated(j1.TaskGroups[0], j4.TaskGroups[0]) {
+		t.Fatalf("bad")
+	}
+
+	j5 := mock.Job()
+	j5.TaskGroups[0].Tasks = append(j5.TaskGroups[0].Tasks,
+		j5.TaskGroups[0].Tasks[0])
+	if !tasksUpdated(j1.TaskGroups[0], j5.TaskGroups[0]) {
+		t.Fatalf("bad")
+	}
+}

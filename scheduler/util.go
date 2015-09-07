@@ -3,6 +3,7 @@ package scheduler
 import (
 	"fmt"
 	"math/rand"
+	"reflect"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -204,4 +205,28 @@ func shuffleNodes(nodes []*structs.Node) {
 		j := rand.Intn(i + 1)
 		nodes[i], nodes[j] = nodes[j], nodes[i]
 	}
+}
+
+// tasksUpdated does a diff between task groups to see if the
+// tasks, their drivers or config have updated.
+func tasksUpdated(a, b *structs.TaskGroup) bool {
+	// If the number of tasks do not match, clearly there is an update
+	if len(a.Tasks) != len(b.Tasks) {
+		return true
+	}
+
+	// Check each task
+	for _, at := range a.Tasks {
+		bt := b.LookupTask(at.Name)
+		if bt == nil {
+			return true
+		}
+		if at.Driver != bt.Driver {
+			return true
+		}
+		if !reflect.DeepEqual(at.Config, bt.Config) {
+			return true
+		}
+	}
+	return false
 }
