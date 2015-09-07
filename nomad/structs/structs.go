@@ -1159,6 +1159,15 @@ func (p *Plan) AppendUpdate(alloc *Allocation, status, desc string) {
 	p.NodeUpdate[node] = append(existing, newAlloc)
 }
 
+func (p *Plan) PopUpdate(alloc *Allocation) {
+	existing := p.NodeUpdate[alloc.NodeID]
+	n := len(existing)
+	if n > 0 && existing[n-1].ID == alloc.ID {
+		existing = existing[:n-1]
+		p.NodeUpdate[alloc.NodeID] = existing
+	}
+}
+
 func (p *Plan) AppendAlloc(alloc *Allocation) {
 	node := alloc.NodeID
 	existing := p.NodeAllocation[node]
