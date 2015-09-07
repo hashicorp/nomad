@@ -2,6 +2,7 @@ package agent
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -86,6 +87,16 @@ func (s *HTTPServer) nodeToggleDrain(resp http.ResponseWriter, req *http.Request
 	jobName string) (interface{}, error) {
 	if req.Method != "PUT" && req.Method != "POST" {
 		return nil, CodedError(405, ErrInvalidMethod)
+	}
+
+	// Get the enable value
+	enableRaw := req.URL.Query().Get("enable")
+	if enableRaw == "" {
+		return nil, CodedError(400, "missing enable value")
+	}
+	enable, err := strconv.ParseBool(enableRaw)
+	if err != nil {
+		return nil, CodedError(400, "invalid enable value")
 	}
 
 	// TODO
