@@ -167,6 +167,15 @@ func (e *Eval) Create(args *structs.EvalUpdateRequest,
 	}
 	eval := args.Evals[0]
 
+	// Verify the parent evaluation is outstanding, and that the tokens match.
+	token, ok := e.srv.evalBroker.Outstanding(eval.PreviousEval)
+	if !ok {
+		return fmt.Errorf("previous evaluation is not outstanding")
+	}
+	if args.EvalToken != token {
+		return fmt.Errorf("previous evaluation token does not match")
+	}
+
 	// Look for the eval
 	snap, err := e.srv.fsm.State().Snapshot()
 	if err != nil {

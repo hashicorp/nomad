@@ -224,10 +224,29 @@ func TestEvalEndpoint_Create(t *testing.T) {
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 
+	testutil.WaitForResult(func() (bool, error) {
+		return s1.evalBroker.Enabled(), nil
+	}, func(err error) {
+		t.Fatalf("should enable eval broker")
+	})
+
+	// Create the register request
+	prev := mock.Eval()
+	s1.evalBroker.Enqueue(prev)
+	out, token, err := s1.evalBroker.Dequeue(defaultSched, time.Second)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out == nil {
+		t.Fatalf("missing eval")
+	}
+
 	// Create the register request
 	eval1 := mock.Eval()
+	eval1.PreviousEval = prev.ID
 	get := &structs.EvalUpdateRequest{
 		Evals:        []*structs.Evaluation{eval1},
+		EvalToken:    token,
 		WriteRequest: structs.WriteRequest{Region: "region1"},
 	}
 	var resp structs.GenericResponse
