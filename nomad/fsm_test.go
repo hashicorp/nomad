@@ -178,6 +178,47 @@ func TestFSM_UpdateNodeStatus(t *testing.T) {
 	}
 }
 
+func TestFSM_UpdateNodeDrain(t *testing.T) {
+	fsm := testFSM(t)
+
+	node := mock.Node()
+	req := structs.NodeRegisterRequest{
+		Node: node,
+	}
+	buf, err := structs.Encode(structs.NodeRegisterRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp := fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	req2 := structs.NodeUpdateDrainRequest{
+		NodeID: node.ID,
+		Drain:  true,
+	}
+	buf, err = structs.Encode(structs.NodeUpdateDrainRequestType, req2)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp = fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	// Verify we are NOT registered
+	node, err = fsm.State().GetNodeByID(req.Node.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if !node.Drain {
+		t.Fatalf("bad node: %#v", node)
+	}
+}
+
 func TestFSM_RegisterJob(t *testing.T) {
 	fsm := testFSM(t)
 

@@ -19,6 +19,7 @@ const (
 	NodeRegisterRequestType MessageType = iota
 	NodeDeregisterRequestType
 	NodeUpdateStatusRequestType
+	NodeUpdateDrainRequestType
 	JobRegisterRequestType
 	JobDeregisterRequestType
 	EvalUpdateRequestType
@@ -128,11 +129,18 @@ type NodeDeregisterRequest struct {
 	WriteRequest
 }
 
-// UpdateStatusRequest is used for Client.UpdateStatus endpoint
+// NodeUpdateStatusRequest is used for Client.UpdateStatus endpoint
 // to update the status of a node.
 type NodeUpdateStatusRequest struct {
 	NodeID string
 	Status string
+	WriteRequest
+}
+
+// NodeUpdateDrainRequest is used for updatin the drain status
+type NodeUpdateDrainRequest struct {
+	NodeID string
+	Drain  bool
 	WriteRequest
 }
 
