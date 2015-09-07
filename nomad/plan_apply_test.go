@@ -18,7 +18,7 @@ func testRegisterNode(t *testing.T, s *Server, n *structs.Node) {
 
 	// Fetch the response
 	var resp structs.NodeUpdateResponse
-	if err := s.RPC("Client.Register", req, &resp); err != nil {
+	if err := s.RPC("Node.Register", req, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if resp.Index == 0 {

@@ -230,7 +230,7 @@ func TestServer_HeartbeatTTL_Failover(t *testing.T) {
 
 	// Fetch the response
 	var resp structs.GenericResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Client.Register", req, &resp); err != nil {
+	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", req, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 

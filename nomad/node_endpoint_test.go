@@ -26,7 +26,7 @@ func TestClientEndpoint_Register(t *testing.T) {
 
 	// Fetch the response
 	var resp structs.GenericResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Client.Register", req, &resp); err != nil {
+	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", req, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if resp.Index == 0 {
@@ -62,7 +62,7 @@ func TestClientEndpoint_Deregister(t *testing.T) {
 
 	// Fetch the response
 	var resp structs.GenericResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Client.Register", reg, &resp); err != nil {
+	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -72,7 +72,7 @@ func TestClientEndpoint_Deregister(t *testing.T) {
 		WriteRequest: structs.WriteRequest{Region: "region1"},
 	}
 	var resp2 structs.GenericResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Client.Deregister", dereg, &resp2); err != nil {
+	if err := msgpackrpc.CallWithCodec(codec, "Node.Deregister", dereg, &resp2); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if resp2.Index == 0 {
@@ -105,7 +105,7 @@ func TestClientEndpoint_UpdateStatus(t *testing.T) {
 
 	// Fetch the response
 	var resp structs.NodeUpdateResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Client.Register", reg, &resp); err != nil {
+	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -122,7 +122,7 @@ func TestClientEndpoint_UpdateStatus(t *testing.T) {
 		WriteRequest: structs.WriteRequest{Region: "region1"},
 	}
 	var resp2 structs.NodeUpdateResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Client.UpdateStatus", dereg, &resp2); err != nil {
+	if err := msgpackrpc.CallWithCodec(codec, "Node.UpdateStatus", dereg, &resp2); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if resp2.Index == 0 {
@@ -164,7 +164,7 @@ func TestClientEndpoint_UpdateStatus_HeartbeatOnly(t *testing.T) {
 
 	// Fetch the response
 	var resp structs.NodeUpdateResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Client.Register", reg, &resp); err != nil {
+	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -181,7 +181,7 @@ func TestClientEndpoint_UpdateStatus_HeartbeatOnly(t *testing.T) {
 		WriteRequest: structs.WriteRequest{Region: "region1"},
 	}
 	var resp2 structs.NodeUpdateResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Client.UpdateStatus", dereg, &resp2); err != nil {
+	if err := msgpackrpc.CallWithCodec(codec, "Node.UpdateStatus", dereg, &resp2); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if resp2.Index != 0 {
@@ -210,7 +210,7 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 
 	// Fetch the response
 	var resp structs.NodeUpdateResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Client.Register", reg, &resp); err != nil {
+	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -221,7 +221,7 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 		WriteRequest: structs.WriteRequest{Region: "region1"},
 	}
 	var resp2 structs.NodeDrainUpdateResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Client.UpdateDrain", dereg, &resp2); err != nil {
+	if err := msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp2); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if resp2.Index == 0 {
@@ -254,7 +254,7 @@ func TestClientEndpoint_GetNode(t *testing.T) {
 
 	// Fetch the response
 	var resp structs.GenericResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Client.Register", reg, &resp); err != nil {
+	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	node.CreateIndex = resp.Index
@@ -266,7 +266,7 @@ func TestClientEndpoint_GetNode(t *testing.T) {
 		QueryOptions: structs.QueryOptions{Region: "region1"},
 	}
 	var resp2 structs.SingleNodeResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Client.GetNode", get, &resp2); err != nil {
+	if err := msgpackrpc.CallWithCodec(codec, "Node.GetNode", get, &resp2); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if resp2.Index != resp.Index {
@@ -279,7 +279,7 @@ func TestClientEndpoint_GetNode(t *testing.T) {
 
 	// Lookup non-existing node
 	get.NodeID = "foobarbaz"
-	if err := msgpackrpc.CallWithCodec(codec, "Client.GetNode", get, &resp2); err != nil {
+	if err := msgpackrpc.CallWithCodec(codec, "Node.GetNode", get, &resp2); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if resp2.Index != resp.Index {
@@ -305,7 +305,7 @@ func TestClientEndpoint_GetAllocs(t *testing.T) {
 
 	// Fetch the response
 	var resp structs.GenericResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Client.Register", reg, &resp); err != nil {
+	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	node.CreateIndex = resp.Index
@@ -326,7 +326,7 @@ func TestClientEndpoint_GetAllocs(t *testing.T) {
 		QueryOptions: structs.QueryOptions{Region: "region1"},
 	}
 	var resp2 structs.NodeAllocsResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Client.GetAllocs", get, &resp2); err != nil {
+	if err := msgpackrpc.CallWithCodec(codec, "Node.GetAllocs", get, &resp2); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if resp2.Index != 100 {
@@ -339,7 +339,7 @@ func TestClientEndpoint_GetAllocs(t *testing.T) {
 
 	// Lookup non-existing node
 	get.NodeID = "foobarbaz"
-	if err := msgpackrpc.CallWithCodec(codec, "Client.GetAllocs", get, &resp2); err != nil {
+	if err := msgpackrpc.CallWithCodec(codec, "Node.GetAllocs", get, &resp2); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if resp2.Index != 100 {
@@ -365,7 +365,7 @@ func TestClientEndpoint_GetAllocs_Blocking(t *testing.T) {
 
 	// Fetch the response
 	var resp structs.GenericResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Client.Register", reg, &resp); err != nil {
+	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	node.CreateIndex = resp.Index
@@ -394,7 +394,7 @@ func TestClientEndpoint_GetAllocs_Blocking(t *testing.T) {
 		},
 	}
 	var resp2 structs.NodeAllocsResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Client.GetAllocs", get, &resp2); err != nil {
+	if err := msgpackrpc.CallWithCodec(codec, "Node.GetAllocs", get, &resp2); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -427,7 +427,7 @@ func TestClientEndpoint_UpdateAlloc(t *testing.T) {
 
 	// Fetch the response
 	var resp structs.GenericResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Client.Register", reg, &resp); err != nil {
+	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -451,7 +451,7 @@ func TestClientEndpoint_UpdateAlloc(t *testing.T) {
 		WriteRequest: structs.WriteRequest{Region: "region1"},
 	}
 	var resp2 structs.NodeAllocsResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Client.UpdateAlloc", update, &resp2); err != nil {
+	if err := msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", update, &resp2); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if resp2.Index == 0 {
@@ -482,7 +482,7 @@ func TestClientEndpoint_CreateNodeEvals(t *testing.T) {
 	}
 
 	// Create some evaluations
-	ids, index, err := s1.endpoints.Client.createNodeEvals(alloc.NodeID, 1)
+	ids, index, err := s1.endpoints.Node.createNodeEvals(alloc.NodeID, 1)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -556,7 +556,7 @@ func TestClientEndpoint_Evaluate(t *testing.T) {
 
 	// Fetch the response
 	var resp structs.NodeUpdateResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Client.Evaluate", req, &resp); err != nil {
+	if err := msgpackrpc.CallWithCodec(codec, "Node.Evaluate", req, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if resp.Index == 0 {
@@ -619,7 +619,7 @@ func TestClientEndpoint_ListNodes(t *testing.T) {
 
 	// Fetch the response
 	var resp structs.GenericResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Client.Register", reg, &resp); err != nil {
+	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	node.CreateIndex = resp.Index
@@ -630,7 +630,7 @@ func TestClientEndpoint_ListNodes(t *testing.T) {
 		QueryOptions: structs.QueryOptions{Region: "region1"},
 	}
 	var resp2 structs.NodeListResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Client.List", get, &resp2); err != nil {
+	if err := msgpackrpc.CallWithCodec(codec, "Node.List", get, &resp2); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if resp2.Index != resp.Index {

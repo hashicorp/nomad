@@ -19,7 +19,7 @@ func TestHTTP_NodesList(t *testing.T) {
 				WriteRequest: structs.WriteRequest{Region: "region1"},
 			}
 			var resp structs.NodeUpdateResponse
-			if err := s.Agent.RPC("Client.Register", &args, &resp); err != nil {
+			if err := s.Agent.RPC("Node.Register", &args, &resp); err != nil {
 				t.Fatalf("err: %v", err)
 			}
 		}
@@ -65,7 +65,7 @@ func TestHTTP_NodeForceEval(t *testing.T) {
 			WriteRequest: structs.WriteRequest{Region: "region1"},
 		}
 		var resp structs.NodeUpdateResponse
-		if err := s.Agent.RPC("Client.Register", &args, &resp); err != nil {
+		if err := s.Agent.RPC("Node.Register", &args, &resp); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 
@@ -113,7 +113,7 @@ func TestHTTP_NodeAllocations(t *testing.T) {
 			WriteRequest: structs.WriteRequest{Region: "region1"},
 		}
 		var resp structs.NodeUpdateResponse
-		if err := s.Agent.RPC("Client.Register", &args, &resp); err != nil {
+		if err := s.Agent.RPC("Node.Register", &args, &resp); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 
@@ -167,7 +167,7 @@ func TestHTTP_NodeDrain(t *testing.T) {
 			WriteRequest: structs.WriteRequest{Region: "region1"},
 		}
 		var resp structs.NodeUpdateResponse
-		if err := s.Agent.RPC("Client.Register", &args, &resp); err != nil {
+		if err := s.Agent.RPC("Node.Register", &args, &resp); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 
@@ -215,7 +215,7 @@ func TestHTTP_NodeQuery(t *testing.T) {
 			WriteRequest: structs.WriteRequest{Region: "region1"},
 		}
 		var resp structs.NodeUpdateResponse
-		if err := s.Agent.RPC("Client.Register", &args, &resp); err != nil {
+		if err := s.Agent.RPC("Node.Register", &args, &resp); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 

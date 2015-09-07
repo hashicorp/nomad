@@ -128,7 +128,7 @@ type Server struct {
 // Holds the RPC endpoints
 type endpoints struct {
 	Status *Status
-	Client *ClientEndpoint
+	Node   *Node
 	Job    *Job
 	Eval   *Eval
 	Plan   *Plan
@@ -338,7 +338,7 @@ func (s *Server) Leave() error {
 func (s *Server) setupRPC(tlsWrap tlsutil.DCWrapper) error {
 	// Create endpoints
 	s.endpoints.Status = &Status{s}
-	s.endpoints.Client = &ClientEndpoint{s}
+	s.endpoints.Node = &Node{s}
 	s.endpoints.Job = &Job{s}
 	s.endpoints.Eval = &Eval{s}
 	s.endpoints.Plan = &Plan{s}
@@ -346,7 +346,7 @@ func (s *Server) setupRPC(tlsWrap tlsutil.DCWrapper) error {
 
 	// Register the handlers
 	s.rpcServer.Register(s.endpoints.Status)
-	s.rpcServer.RegisterName("Client", s.endpoints.Client)
+	s.rpcServer.Register(s.endpoints.Node)
 	s.rpcServer.Register(s.endpoints.Job)
 	s.rpcServer.Register(s.endpoints.Eval)
 	s.rpcServer.Register(s.endpoints.Plan)

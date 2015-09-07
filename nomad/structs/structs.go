@@ -115,21 +115,21 @@ type WriteMeta struct {
 	Index uint64
 }
 
-// NodeRegisterRequest is used for Client.Register endpoint
+// NodeRegisterRequest is used for Node.Register endpoint
 // to register a node as being a schedulable entity.
 type NodeRegisterRequest struct {
 	Node *Node
 	WriteRequest
 }
 
-// NodeDeregisterRequest is used for Client.Deregister endpoint
+// NodeDeregisterRequest is used for Node.Deregister endpoint
 // to deregister a node as being a schedulable entity.
 type NodeDeregisterRequest struct {
 	NodeID string
 	WriteRequest
 }
 
-// NodeUpdateStatusRequest is used for Client.UpdateStatus endpoint
+// NodeUpdateStatusRequest is used for Node.UpdateStatus endpoint
 // to update the status of a node.
 type NodeUpdateStatusRequest struct {
 	NodeID string

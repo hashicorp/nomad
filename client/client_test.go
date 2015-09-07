@@ -159,7 +159,7 @@ func TestClient_Register(t *testing.T) {
 
 	// Register should succeed
 	testutil.WaitForResult(func() (bool, error) {
-		err := s1.RPC("Client.GetNode", &req, &out)
+		err := s1.RPC("Node.GetNode", &req, &out)
 		if err != nil {
 			return false, err
 		}
@@ -192,7 +192,7 @@ func TestClient_Heartbeat(t *testing.T) {
 
 	// Register should succeed
 	testutil.WaitForResult(func() (bool, error) {
-		err := s1.RPC("Client.GetNode", &req, &out)
+		err := s1.RPC("Node.GetNode", &req, &out)
 		if err != nil {
 			return false, err
 		}

@@ -19,7 +19,7 @@ func (s *HTTPServer) NodesRequest(resp http.ResponseWriter, req *http.Request) (
 	}
 
 	var out structs.NodeListResponse
-	if err := s.agent.RPC("Client.List", &args, &out); err != nil {
+	if err := s.agent.RPC("Node.List", &args, &out); err != nil {
 		return nil, err
 	}
 
@@ -55,7 +55,7 @@ func (s *HTTPServer) nodeForceEvaluate(resp http.ResponseWriter, req *http.Reque
 	s.parseRegion(req, &args.Region)
 
 	var out structs.NodeUpdateResponse
-	if err := s.agent.RPC("Client.Evaluate", &args, &out); err != nil {
+	if err := s.agent.RPC("Node.Evaluate", &args, &out); err != nil {
 		return nil, err
 	}
 	setIndex(resp, out.Index)
@@ -75,7 +75,7 @@ func (s *HTTPServer) nodeAllocations(resp http.ResponseWriter, req *http.Request
 	}
 
 	var out structs.NodeAllocsResponse
-	if err := s.agent.RPC("Client.GetAllocs", &args, &out); err != nil {
+	if err := s.agent.RPC("Node.GetAllocs", &args, &out); err != nil {
 		return nil, err
 	}
 
@@ -106,7 +106,7 @@ func (s *HTTPServer) nodeToggleDrain(resp http.ResponseWriter, req *http.Request
 	s.parseRegion(req, &args.Region)
 
 	var out structs.NodeDrainUpdateResponse
-	if err := s.agent.RPC("Client.UpdateDrain", &args, &out); err != nil {
+	if err := s.agent.RPC("Node.UpdateDrain", &args, &out); err != nil {
 		return nil, err
 	}
 	setIndex(resp, out.Index)
@@ -126,7 +126,7 @@ func (s *HTTPServer) nodeQuery(resp http.ResponseWriter, req *http.Request,
 	}
 
 	var out structs.SingleNodeResponse
-	if err := s.agent.RPC("Client.GetNode", &args, &out); err != nil {
+	if err := s.agent.RPC("Node.GetNode", &args, &out); err != nil {
 		return nil, err
 	}
 

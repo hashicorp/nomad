@@ -424,7 +424,7 @@ func (c *Client) registerNode() error {
 		WriteRequest: structs.WriteRequest{Region: c.config.Region},
 	}
 	var resp structs.NodeUpdateResponse
-	err := c.RPC("Client.Register", &req, &resp)
+	err := c.RPC("Node.Register", &req, &resp)
 	if err != nil {
 		if time.Since(c.start) > registerErrGrace {
 			c.logger.Printf("[ERR] client: failed to register node: %v", err)
@@ -449,7 +449,7 @@ func (c *Client) updateNodeStatus() error {
 		WriteRequest: structs.WriteRequest{Region: c.config.Region},
 	}
 	var resp structs.NodeUpdateResponse
-	err := c.RPC("Client.UpdateStatus", &req, &resp)
+	err := c.RPC("Node.UpdateStatus", &req, &resp)
 	if err != nil {
 		c.logger.Printf("[ERR] client: failed to update status: %v", err)
 		return err
@@ -472,7 +472,7 @@ func (c *Client) updateAllocStatus(alloc *structs.Allocation) error {
 		WriteRequest: structs.WriteRequest{Region: c.config.Region},
 	}
 	var resp structs.GenericResponse
-	err := c.RPC("Client.UpdateAlloc", &args, &resp)
+	err := c.RPC("Node.UpdateAlloc", &args, &resp)
 	if err != nil {
 		c.logger.Printf("[ERR] client: failed to update allocation: %v", err)
 		return err
@@ -493,7 +493,7 @@ func (c *Client) watchAllocations(allocUpdates chan []*structs.Allocation) {
 
 	for {
 		// Get the allocations, blocking for updates
-		err := c.RPC("Client.GetAllocs", &req, &resp)
+		err := c.RPC("Node.GetAllocs", &req, &resp)
 		if err != nil {
 			c.logger.Printf("[ERR] client: failed to query for node allocations: %v", err)
 			retry := c.retryIntv(getAllocRetryIntv)
