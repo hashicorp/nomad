@@ -100,7 +100,7 @@ func (j *Job) Evaluate(args *structs.JobEvaluateRequest, reply *structs.JobRegis
 	if err != nil {
 		return err
 	}
-	job, err := snap.GetJobByID(args.JobID)
+	job, err := snap.JobByID(args.JobID)
 	if err != nil {
 		return err
 	}
@@ -198,7 +198,7 @@ func (j *Job) GetJob(args *structs.JobSpecificRequest,
 	if err != nil {
 		return err
 	}
-	out, err := snap.GetJobByID(args.JobID)
+	out, err := snap.JobByID(args.JobID)
 	if err != nil {
 		return err
 	}
@@ -209,7 +209,7 @@ func (j *Job) GetJob(args *structs.JobSpecificRequest,
 		reply.Index = out.ModifyIndex
 	} else {
 		// Use the last index that affected the nodes table
-		index, err := snap.GetIndex("jobs")
+		index, err := snap.Index("jobs")
 		if err != nil {
 			return err
 		}
@@ -249,7 +249,7 @@ func (j *Job) List(args *structs.JobListRequest,
 	}
 
 	// Use the last index that affected the jobs table
-	index, err := snap.GetIndex("jobs")
+	index, err := snap.Index("jobs")
 	if err != nil {
 		return err
 	}
@@ -287,7 +287,7 @@ func (j *Job) Allocations(args *structs.JobSpecificRequest,
 	}
 
 	// Use the last index that affected the allocs table
-	index, err := snap.GetIndex("allocs")
+	index, err := snap.Index("allocs")
 	if err != nil {
 		return err
 	}
@@ -317,7 +317,7 @@ func (j *Job) Evaluations(args *structs.JobSpecificRequest,
 	}
 
 	// Use the last index that affected the evals table
-	index, err := snap.GetIndex("evals")
+	index, err := snap.Index("evals")
 	if err != nil {
 		return err
 	}

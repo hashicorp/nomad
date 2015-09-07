@@ -332,7 +332,7 @@ func TestLeader_ReapFailedEval(t *testing.T) {
 	// Wait updated evaluation
 	state := s1.fsm.State()
 	testutil.WaitForResult(func() (bool, error) {
-		out, err := state.GetEvalByID(eval.ID)
+		out, err := state.EvalByID(eval.ID)
 		if err != nil {
 			return false, err
 		}

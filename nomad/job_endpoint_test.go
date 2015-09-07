@@ -34,7 +34,7 @@ func TestJobEndpoint_Register(t *testing.T) {
 
 	// Check for the node in the FSM
 	state := s1.fsm.State()
-	out, err := state.GetJobByID(job.ID)
+	out, err := state.JobByID(job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -46,7 +46,7 @@ func TestJobEndpoint_Register(t *testing.T) {
 	}
 
 	// Lookup the evaluation
-	eval, err := state.GetEvalByID(resp.EvalID)
+	eval, err := state.EvalByID(resp.EvalID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -115,7 +115,7 @@ func TestJobEndpoint_Register_Existing(t *testing.T) {
 
 	// Check for the node in the FSM
 	state := s1.fsm.State()
-	out, err := state.GetJobByID(job.ID)
+	out, err := state.JobByID(job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -130,7 +130,7 @@ func TestJobEndpoint_Register_Existing(t *testing.T) {
 	}
 
 	// Lookup the evaluation
-	eval, err := state.GetEvalByID(resp.EvalID)
+	eval, err := state.EvalByID(resp.EvalID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -199,7 +199,7 @@ func TestJobEndpoint_Evaluate(t *testing.T) {
 
 	// Lookup the evaluation
 	state := s1.fsm.State()
-	eval, err := state.GetEvalByID(resp.EvalID)
+	eval, err := state.EvalByID(resp.EvalID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -264,7 +264,7 @@ func TestJobEndpoint_Deregister(t *testing.T) {
 
 	// Check for the node in the FSM
 	state := s1.fsm.State()
-	out, err := state.GetJobByID(job.ID)
+	out, err := state.JobByID(job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -273,7 +273,7 @@ func TestJobEndpoint_Deregister(t *testing.T) {
 	}
 
 	// Lookup the evaluation
-	eval, err := state.GetEvalByID(resp2.EvalID)
+	eval, err := state.EvalByID(resp2.EvalID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

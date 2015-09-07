@@ -210,7 +210,7 @@ func TestEvalEndpoint_Update(t *testing.T) {
 	}
 
 	// Ensure updated
-	outE, err := s1.fsm.State().GetEvalByID(eval2.ID)
+	outE, err := s1.fsm.State().EvalByID(eval2.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -243,7 +243,7 @@ func TestEvalEndpoint_Reap(t *testing.T) {
 	}
 
 	// Ensure deleted
-	outE, err := s1.fsm.State().GetEvalByID(eval1.ID)
+	outE, err := s1.fsm.State().EvalByID(eval1.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

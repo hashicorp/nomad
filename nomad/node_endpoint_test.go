@@ -35,7 +35,7 @@ func TestClientEndpoint_Register(t *testing.T) {
 
 	// Check for the node in the FSM
 	state := s1.fsm.State()
-	out, err := state.GetNodeByID(node.ID)
+	out, err := state.NodeByID(node.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -81,7 +81,7 @@ func TestClientEndpoint_Deregister(t *testing.T) {
 
 	// Check for the node in the FSM
 	state := s1.fsm.State()
-	out, err := state.GetNodeByID(node.ID)
+	out, err := state.NodeByID(node.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -137,7 +137,7 @@ func TestClientEndpoint_UpdateStatus(t *testing.T) {
 
 	// Check for the node in the FSM
 	state := s1.fsm.State()
-	out, err := state.GetNodeByID(node.ID)
+	out, err := state.NodeByID(node.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -230,7 +230,7 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 
 	// Check for the node in the FSM
 	state := s1.fsm.State()
-	out, err := state.GetNodeByID(node.ID)
+	out, err := state.NodeByID(node.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -459,7 +459,7 @@ func TestClientEndpoint_UpdateAlloc(t *testing.T) {
 	}
 
 	// Lookup the alloc
-	out, err := state.GetAllocByID(alloc.ID)
+	out, err := state.AllocByID(alloc.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -494,7 +494,7 @@ func TestClientEndpoint_CreateNodeEvals(t *testing.T) {
 	}
 
 	// Lookup the evaluation
-	eval, err := state.GetEvalByID(ids[0])
+	eval, err := state.EvalByID(ids[0])
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -570,7 +570,7 @@ func TestClientEndpoint_Evaluate(t *testing.T) {
 	}
 
 	// Lookup the evaluation
-	eval, err := state.GetEvalByID(ids[0])
+	eval, err := state.EvalByID(ids[0])
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

@@ -134,7 +134,7 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 	if err != nil {
 		return err
 	}
-	node, err := snap.GetNodeByID(args.NodeID)
+	node, err := snap.NodeByID(args.NodeID)
 	if err != nil {
 		return err
 	}
@@ -197,7 +197,7 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 	if err != nil {
 		return err
 	}
-	node, err := snap.GetNodeByID(args.NodeID)
+	node, err := snap.NodeByID(args.NodeID)
 	if err != nil {
 		return err
 	}
@@ -249,7 +249,7 @@ func (n *Node) Evaluate(args *structs.NodeEvaluateRequest, reply *structs.NodeUp
 	if err != nil {
 		return err
 	}
-	node, err := snap.GetNodeByID(args.NodeID)
+	node, err := snap.NodeByID(args.NodeID)
 	if err != nil {
 		return err
 	}
@@ -289,7 +289,7 @@ func (n *Node) GetNode(args *structs.NodeSpecificRequest,
 	if err != nil {
 		return err
 	}
-	out, err := snap.GetNodeByID(args.NodeID)
+	out, err := snap.NodeByID(args.NodeID)
 	if err != nil {
 		return err
 	}
@@ -300,7 +300,7 @@ func (n *Node) GetNode(args *structs.NodeSpecificRequest,
 		reply.Index = out.ModifyIndex
 	} else {
 		// Use the last index that affected the nodes table
-		index, err := snap.GetIndex("nodes")
+		index, err := snap.Index("nodes")
 		if err != nil {
 			return err
 		}
@@ -351,7 +351,7 @@ func (n *Node) GetAllocs(args *structs.NodeSpecificRequest,
 				reply.Allocs = nil
 
 				// Use the last index that affected the nodes table
-				index, err := snap.GetIndex("allocs")
+				index, err := snap.Index("allocs")
 				if err != nil {
 					return err
 				}
@@ -421,7 +421,7 @@ func (n *Node) List(args *structs.NodeListRequest,
 	}
 
 	// Use the last index that affected the jobs table
-	index, err := snap.GetIndex("nodes")
+	index, err := snap.Index("nodes")
 	if err != nil {
 		return err
 	}

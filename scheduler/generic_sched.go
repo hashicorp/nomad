@@ -118,7 +118,7 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 // further work or we've made the maximum number of attempts.
 func (s *GenericScheduler) process() (bool, error) {
 	// Lookup the Job by ID
-	job, err := s.state.GetJobByID(s.eval.JobID)
+	job, err := s.state.JobByID(s.eval.JobID)
 	if err != nil {
 		return false, fmt.Errorf("failed to get job '%s': %v",
 			s.eval.JobID, err)

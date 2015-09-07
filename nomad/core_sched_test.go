@@ -52,7 +52,7 @@ func TestCoreScheduler_EvalGC(t *testing.T) {
 	}
 
 	// Should be gone
-	out, err := state.GetEvalByID(eval.ID)
+	out, err := state.EvalByID(eval.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -60,7 +60,7 @@ func TestCoreScheduler_EvalGC(t *testing.T) {
 		t.Fatalf("bad: %v", out)
 	}
 
-	outA, err := state.GetAllocByID(alloc.ID)
+	outA, err := state.AllocByID(alloc.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

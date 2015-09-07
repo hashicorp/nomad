@@ -55,7 +55,7 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	}
 
 	// Lookup the allocation
-	out, err := s1.fsm.State().GetAllocByID(alloc.ID)
+	out, err := s1.fsm.State().AllocByID(alloc.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -64,7 +64,7 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	}
 
 	// Lookup the allocation
-	out, err = s1.fsm.State().GetAllocByID(allocFail.ID)
+	out, err = s1.fsm.State().AllocByID(allocFail.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -96,7 +96,7 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	}
 
 	// Lookup the allocation
-	out, err = s1.fsm.State().GetAllocByID(alloc.ID)
+	out, err = s1.fsm.State().AllocByID(alloc.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -105,7 +105,7 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	}
 
 	// Lookup the allocation
-	out, err = s1.fsm.State().GetAllocByID(alloc2.ID)
+	out, err = s1.fsm.State().AllocByID(alloc2.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

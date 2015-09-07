@@ -79,7 +79,7 @@ func TestFSM_UpsertNode(t *testing.T) {
 	}
 
 	// Verify we are registered
-	node, err := fsm.State().GetNodeByID(req.Node.ID)
+	node, err := fsm.State().NodeByID(req.Node.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -128,7 +128,7 @@ func TestFSM_DeregisterNode(t *testing.T) {
 	}
 
 	// Verify we are NOT registered
-	node, err = fsm.State().GetNodeByID(req.Node.ID)
+	node, err = fsm.State().NodeByID(req.Node.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -169,7 +169,7 @@ func TestFSM_UpdateNodeStatus(t *testing.T) {
 	}
 
 	// Verify we are NOT registered
-	node, err = fsm.State().GetNodeByID(req.Node.ID)
+	node, err = fsm.State().NodeByID(req.Node.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -210,7 +210,7 @@ func TestFSM_UpdateNodeDrain(t *testing.T) {
 	}
 
 	// Verify we are NOT registered
-	node, err = fsm.State().GetNodeByID(req.Node.ID)
+	node, err = fsm.State().NodeByID(req.Node.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -236,7 +236,7 @@ func TestFSM_RegisterJob(t *testing.T) {
 	}
 
 	// Verify we are registered
-	job, err := fsm.State().GetJobByID(req.Job.ID)
+	job, err := fsm.State().JobByID(req.Job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -279,7 +279,7 @@ func TestFSM_DeregisterJob(t *testing.T) {
 	}
 
 	// Verify we are NOT registered
-	job, err = fsm.State().GetJobByID(req.Job.ID)
+	job, err = fsm.State().JobByID(req.Job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -306,7 +306,7 @@ func TestFSM_UpdateEval(t *testing.T) {
 	}
 
 	// Verify we are registered
-	eval, err := fsm.State().GetEvalByID(req.Evals[0].ID)
+	eval, err := fsm.State().EvalByID(req.Evals[0].ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -355,7 +355,7 @@ func TestFSM_DeleteEval(t *testing.T) {
 	}
 
 	// Verify we are NOT registered
-	eval, err = fsm.State().GetEvalByID(req.Evals[0].ID)
+	eval, err = fsm.State().EvalByID(req.Evals[0].ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -382,7 +382,7 @@ func TestFSM_UpsertAllocs(t *testing.T) {
 	}
 
 	// Verify we are registered
-	out, err := fsm.State().GetAllocByID(alloc.ID)
+	out, err := fsm.State().AllocByID(alloc.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -409,7 +409,7 @@ func TestFSM_UpsertAllocs(t *testing.T) {
 	}
 
 	// Verify we are evicted
-	out, err = fsm.State().GetAllocByID(alloc.ID)
+	out, err = fsm.State().AllocByID(alloc.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -443,7 +443,7 @@ func TestFSM_UpdateAllocFromClient(t *testing.T) {
 	}
 
 	// Verify we are registered
-	out, err := fsm.State().GetAllocByID(alloc.ID)
+	out, err := fsm.State().AllocByID(alloc.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -491,8 +491,8 @@ func TestFSM_SnapshotRestore_Nodes(t *testing.T) {
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)
 	state2 := fsm2.State()
-	out1, _ := state2.GetNodeByID(node1.ID)
-	out2, _ := state2.GetNodeByID(node2.ID)
+	out1, _ := state2.NodeByID(node1.ID)
+	out2, _ := state2.NodeByID(node2.ID)
 	if !reflect.DeepEqual(node1, out1) {
 		t.Fatalf("bad: \n%#v\n%#v", out1, node1)
 	}
@@ -513,8 +513,8 @@ func TestFSM_SnapshotRestore_Jobs(t *testing.T) {
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)
 	state2 := fsm2.State()
-	out1, _ := state2.GetJobByID(job1.ID)
-	out2, _ := state2.GetJobByID(job2.ID)
+	out1, _ := state2.JobByID(job1.ID)
+	out2, _ := state2.JobByID(job2.ID)
 	if !reflect.DeepEqual(job1, out1) {
 		t.Fatalf("bad: \n%#v\n%#v", out1, job1)
 	}
@@ -535,8 +535,8 @@ func TestFSM_SnapshotRestore_Evals(t *testing.T) {
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)
 	state2 := fsm2.State()
-	out1, _ := state2.GetEvalByID(eval1.ID)
-	out2, _ := state2.GetEvalByID(eval2.ID)
+	out1, _ := state2.EvalByID(eval1.ID)
+	out2, _ := state2.EvalByID(eval2.ID)
 	if !reflect.DeepEqual(eval1, out1) {
 		t.Fatalf("bad: \n%#v\n%#v", out1, eval1)
 	}
@@ -557,8 +557,8 @@ func TestFSM_SnapshotRestore_Allocs(t *testing.T) {
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)
 	state2 := fsm2.State()
-	out1, _ := state2.GetAllocByID(alloc1.ID)
-	out2, _ := state2.GetAllocByID(alloc2.ID)
+	out1, _ := state2.AllocByID(alloc1.ID)
+	out2, _ := state2.AllocByID(alloc2.ID)
 	if !reflect.DeepEqual(alloc1, out1) {
 		t.Fatalf("bad: \n%#v\n%#v", out1, alloc1)
 	}
@@ -578,7 +578,7 @@ func TestFSM_SnapshotRestore_Indexes(t *testing.T) {
 	fsm2 := testSnapshotRestore(t, fsm)
 	state2 := fsm2.State()
 
-	index, err := state2.GetIndex("nodes")
+	index, err := state2.Index("nodes")
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

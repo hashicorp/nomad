@@ -404,7 +404,7 @@ func TestWorker_UpdateEval(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	out, err := s1.fsm.State().GetEvalByID(eval2.ID)
+	out, err := s1.fsm.State().EvalByID(eval2.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

@@ -132,7 +132,7 @@ func TestInvalidateHeartbeat(t *testing.T) {
 	s1.invalidateHeartbeat(node.ID)
 
 	// Check it is updated
-	out, err := state.GetNodeByID(node.ID)
+	out, err := state.NodeByID(node.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

@@ -31,7 +31,7 @@ func (e *Eval) GetEval(args *structs.EvalSpecificRequest,
 	if err != nil {
 		return err
 	}
-	out, err := snap.GetEvalByID(args.EvalID)
+	out, err := snap.EvalByID(args.EvalID)
 	if err != nil {
 		return err
 	}
@@ -42,7 +42,7 @@ func (e *Eval) GetEval(args *structs.EvalSpecificRequest,
 		reply.Index = out.ModifyIndex
 	} else {
 		// Use the last index that affected the nodes table
-		index, err := snap.GetIndex("evals")
+		index, err := snap.Index("evals")
 		if err != nil {
 			return err
 		}
@@ -200,7 +200,7 @@ func (e *Eval) List(args *structs.EvalListRequest,
 	}
 
 	// Use the last index that affected the jobs table
-	index, err := snap.GetIndex("evals")
+	index, err := snap.Index("evals")
 	if err != nil {
 		return err
 	}
@@ -238,7 +238,7 @@ func (e *Eval) Allocations(args *structs.EvalSpecificRequest,
 	}
 
 	// Use the last index that affected the allocs table
-	index, err := snap.GetIndex("allocs")
+	index, err := snap.Index("allocs")
 	if err != nil {
 		return err
 	}

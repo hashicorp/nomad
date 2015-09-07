@@ -230,7 +230,7 @@ func TestClient_UpdateAllocStatus(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	out, err := state.GetAllocByID(alloc.ID)
+	out, err := state.AllocByID(alloc.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

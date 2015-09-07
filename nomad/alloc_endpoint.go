@@ -39,7 +39,7 @@ func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListRes
 	}
 
 	// Use the last index that affected the jobs table
-	index, err := snap.GetIndex("allocs")
+	index, err := snap.Index("allocs")
 	if err != nil {
 		return err
 	}
@@ -63,7 +63,7 @@ func (a *Alloc) GetAlloc(args *structs.AllocSpecificRequest,
 	if err != nil {
 		return err
 	}
-	out, err := snap.GetAllocByID(args.AllocID)
+	out, err := snap.AllocByID(args.AllocID)
 	if err != nil {
 		return err
 	}
@@ -74,7 +74,7 @@ func (a *Alloc) GetAlloc(args *structs.AllocSpecificRequest,
 		reply.Index = out.ModifyIndex
 	} else {
 		// Use the last index that affected the nodes table
-		index, err := snap.GetIndex("allocs")
+		index, err := snap.Index("allocs")
 		if err != nil {
 			return err
 		}

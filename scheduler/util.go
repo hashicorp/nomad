@@ -180,7 +180,7 @@ func taintedNodes(state State, allocs []*structs.Allocation) (map[string]bool, e
 			continue
 		}
 
-		node, err := state.GetNodeByID(alloc.NodeID)
+		node, err := state.NodeByID(alloc.NodeID)
 		if err != nil {
 			return nil, err
 		}
