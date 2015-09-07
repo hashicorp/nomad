@@ -41,6 +41,11 @@ const (
 
 	// stateSnapshotIntv is how often the client snapshots state
 	stateSnapshotIntv = 60 * time.Second
+
+	// registerErrGrace is the grace period where we don't log about
+	// register errors after start. This is to improve the user experience
+	// in dev mode where the leader isn't elected for a few seconds.
+	registerErrGrace = 10 * time.Second
 )
 
 // DefaultConfig returns the default configuration
@@ -56,6 +61,7 @@ func DefaultConfig() *config.Config {
 // run allocations as determined by the servers.
 type Client struct {
 	config *config.Config
+	start  time.Time
 
 	logger *log.Logger
 
@@ -85,6 +91,7 @@ func NewClient(cfg *config.Config) (*Client, error) {
 	// Create the client
 	c := &Client{
 		config:     cfg,
+		start:      time.Now(),
 		connPool:   nomad.NewPool(cfg.LogOutput, clientRPCCache, clientMaxStreams, nil),
 		logger:     logger,
 		allocs:     make(map[string]*AllocRunner),
@@ -419,7 +426,9 @@ func (c *Client) registerNode() error {
 	var resp structs.NodeUpdateResponse
 	err := c.RPC("Client.Register", &req, &resp)
 	if err != nil {
-		c.logger.Printf("[ERR] client: failed to register node: %v", err)
+		if time.Since(c.start) > registerErrGrace {
+			c.logger.Printf("[ERR] client: failed to register node: %v", err)
+		}
 		return err
 	}
 	c.logger.Printf("[DEBUG] client: node registration complete")

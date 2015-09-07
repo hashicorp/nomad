@@ -35,6 +35,11 @@ const (
 	// to catch up to the evaluation. This is used to fast Nack and
 	// allow another scheduler to pick it up.
 	raftSyncLimit = 5 * time.Second
+
+	// dequeueErrGrace is the grace period where we don't log about
+	// dequeue errors after start. This is to improve the user experience
+	// in dev mode where the leader isn't elected for a few seconds.
+	dequeueErrGrace = 10 * time.Second
 )
 
 // Worker is a single threaded scheduling worker. There may be multiple
@@ -45,6 +50,7 @@ const (
 type Worker struct {
 	srv    *Server
 	logger *log.Logger
+	start  time.Time
 
 	paused    bool
 	pauseLock sync.Mutex
@@ -60,6 +66,7 @@ func NewWorker(srv *Server) (*Worker, error) {
 	w := &Worker{
 		srv:    srv,
 		logger: srv.logger,
+		start:  time.Now(),
 	}
 	w.pauseCond = sync.NewCond(&w.pauseLock)
 	go w.run()
@@ -139,7 +146,9 @@ REQ:
 	err := w.srv.RPC("Eval.Dequeue", &req, &resp)
 	metrics.MeasureSince([]string{"nomad", "worker", "dequeue_eval"}, start)
 	if err != nil {
-		w.logger.Printf("[ERR] worker: failed to dequeue evaluation: %v", err)
+		if time.Since(w.start) > dequeueErrGrace && !w.srv.IsShutdown() {
+			w.logger.Printf("[ERR] worker: failed to dequeue evaluation: %v", err)
+		}
 		if w.backoffErr(backoffBaselineSlow, backoffLimitSlow) {
 			return nil, "", true
 		}
