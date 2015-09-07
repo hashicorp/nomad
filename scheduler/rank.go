@@ -22,6 +22,19 @@ func (r *RankedNode) GoString() string {
 	return fmt.Sprintf("<Node: %s Score: %0.3f>", r.Node.ID, r.Score)
 }
 
+func (r *RankedNode) ProposedAllocs(ctx Context) ([]*structs.Allocation, error) {
+	if r.Proposed != nil {
+		return r.Proposed, nil
+	}
+
+	p, err := ctx.ProposedAllocs(r.Node.ID)
+	if err != nil {
+		return nil, err
+	}
+	r.Proposed = p
+	return p, nil
+}
+
 // RankFeasibleIterator is used to iteratively yield nodes along
 // with ranking metadata. The iterators may manage some state for
 // performance optimizations.
@@ -144,21 +157,14 @@ func (iter *BinPackIterator) Next() *RankedNode {
 		if option == nil {
 			return nil
 		}
-		nodeID := option.Node.ID
 
 		// Get the proposed allocations
-		var proposed []*structs.Allocation
-		if option.Proposed != nil {
-			proposed = option.Proposed
-		} else {
-			p, err := iter.ctx.ProposedAllocs(nodeID)
-			if err != nil {
-				iter.ctx.Logger().Printf("[ERR] sched.binpack: failed to get proposed allocations for '%s': %v",
-					nodeID, err)
-				continue
-			}
-			proposed = p
-			option.Proposed = p
+		proposed, err := option.ProposedAllocs(iter.ctx)
+		if err != nil {
+			iter.ctx.Logger().Printf(
+				"[ERR] sched.binpack: failed to get proposed allocations: %v",
+				err)
+			continue
 		}
 
 		// Add the resources we are trying to fit
@@ -220,21 +226,14 @@ func (iter *JobAntiAffinityIterator) Next() *RankedNode {
 		if option == nil {
 			return nil
 		}
-		nodeID := option.Node.ID
 
 		// Get the proposed allocations
-		var proposed []*structs.Allocation
-		if option.Proposed != nil {
-			proposed = option.Proposed
-		} else {
-			p, err := iter.ctx.ProposedAllocs(nodeID)
-			if err != nil {
-				iter.ctx.Logger().Printf("[ERR] sched.job-anti-affinity: failed to get proposed allocations for '%s': %v",
-					nodeID, err)
-				continue
-			}
-			proposed = p
-			option.Proposed = p
+		proposed, err := option.ProposedAllocs(iter.ctx)
+		if err != nil {
+			iter.ctx.Logger().Printf(
+				"[ERR] sched.job-anti-aff: failed to get proposed allocations: %v",
+				err)
+			continue
 		}
 
 		// Determine the number of collisions
