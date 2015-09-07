@@ -120,10 +120,13 @@ func TestReadyNodesInDCs(t *testing.T) {
 	node3 := mock.Node()
 	node3.Datacenter = "dc2"
 	node3.Status = structs.NodeStatusDown
+	node4 := mock.Node()
+	node4.Drain = true
 
 	noErr(t, state.RegisterNode(1000, node1))
 	noErr(t, state.RegisterNode(1001, node2))
 	noErr(t, state.RegisterNode(1002, node3))
+	noErr(t, state.RegisterNode(1003, node4))
 
 	nodes, err := readyNodesInDCs(state, []string{"dc1", "dc2"})
 	if err != nil {
@@ -178,14 +181,18 @@ func TestTaintedNodes(t *testing.T) {
 	node3 := mock.Node()
 	node3.Datacenter = "dc2"
 	node3.Status = structs.NodeStatusDown
+	node4 := mock.Node()
+	node4.Drain = true
 	noErr(t, state.RegisterNode(1000, node1))
 	noErr(t, state.RegisterNode(1001, node2))
 	noErr(t, state.RegisterNode(1002, node3))
+	noErr(t, state.RegisterNode(1003, node4))
 
 	allocs := []*structs.Allocation{
 		&structs.Allocation{NodeID: node1.ID},
 		&structs.Allocation{NodeID: node2.ID},
 		&structs.Allocation{NodeID: node3.ID},
+		&structs.Allocation{NodeID: node4.ID},
 		&structs.Allocation{NodeID: "blah"},
 	}
 	tainted, err := taintedNodes(state, allocs)
@@ -193,13 +200,13 @@ func TestTaintedNodes(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if len(tainted) != 4 {
+	if len(tainted) != 5 {
 		t.Fatalf("bad: %v", tainted)
 	}
 	if tainted[node1.ID] || tainted[node2.ID] {
 		t.Fatalf("Bad: %v", tainted)
 	}
-	if !tainted[node3.ID] || !tainted["blah"] {
+	if !tainted[node3.ID] || !tainted[node4.ID] || !tainted["blah"] {
 		t.Fatalf("Bad: %v", tainted)
 	}
 }

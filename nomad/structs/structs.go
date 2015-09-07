@@ -387,8 +387,6 @@ type EvalAllocationsResponse struct {
 const (
 	NodeStatusInit  = "initializing"
 	NodeStatusReady = "ready"
-	NodeStatusMaint = "maintenance"
-	NodeStatusDrain = "drain"
 	NodeStatusDown  = "down"
 )
 
@@ -396,9 +394,9 @@ const (
 // evaluation. Some states don't require any further action.
 func ShouldDrainNode(status string) bool {
 	switch status {
-	case NodeStatusInit, NodeStatusReady, NodeStatusMaint:
+	case NodeStatusInit, NodeStatusReady:
 		return false
-	case NodeStatusDrain, NodeStatusDown:
+	case NodeStatusDown:
 		return true
 	default:
 		panic(fmt.Sprintf("unhandled node status %s", status))
@@ -408,8 +406,7 @@ func ShouldDrainNode(status string) bool {
 // ValidNodeStatus is used to check if a node status is valid
 func ValidNodeStatus(status string) bool {
 	switch status {
-	case NodeStatusInit, NodeStatusReady,
-		NodeStatusMaint, NodeStatusDrain, NodeStatusDown:
+	case NodeStatusInit, NodeStatusReady, NodeStatusDown:
 		return true
 	default:
 		return false
@@ -459,6 +456,11 @@ type Node struct {
 	// together for the purpose of determining scheduling pressure.
 	NodeClass string
 
+	// Drain is controlled by the servers, and not the client.
+	// If true, no jobs will be scheduled to this node, and existing
+	// allocations will be drained.
+	Drain bool
+
 	// Status of this node
 	Status string
 
@@ -488,6 +490,7 @@ func (n *Node) Stub() *NodeListStub {
 		Datacenter:        n.Datacenter,
 		Name:              n.Name,
 		NodeClass:         n.NodeClass,
+		Drain:             n.Drain,
 		Status:            n.Status,
 		StatusDescription: n.StatusDescription,
 		CreateIndex:       n.CreateIndex,
@@ -502,6 +505,7 @@ type NodeListStub struct {
 	Datacenter        string
 	Name              string
 	NodeClass         string
+	Drain             bool
 	Status            string
 	StatusDescription string
 	CreateIndex       uint64

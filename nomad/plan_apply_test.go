@@ -252,6 +252,29 @@ func TestPlanApply_EvalNodePlan_NodeNotReady(t *testing.T) {
 	}
 }
 
+func TestPlanApply_EvalNodePlan_NodeDrain(t *testing.T) {
+	state := testStateStore(t)
+	node := mock.Node()
+	node.Drain = true
+	state.RegisterNode(1000, node)
+	snap, _ := state.Snapshot()
+
+	alloc := mock.Alloc()
+	plan := &structs.Plan{
+		NodeAllocation: map[string][]*structs.Allocation{
+			node.ID: []*structs.Allocation{alloc},
+		},
+	}
+
+	fit, err := evaluateNodePlan(snap, plan, node.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if fit {
+		t.Fatalf("bad")
+	}
+}
+
 func TestPlanApply_EvalNodePlan_NodeNotExist(t *testing.T) {
 	state := testStateStore(t)
 	snap, _ := state.Snapshot()
@@ -388,14 +411,14 @@ func TestPlanApply_EvalNodePlan_NodeFull_AllocEvict(t *testing.T) {
 	}
 }
 
-func TestPlanApply_EvalNodePlan_NodeMaint_EvictOnly(t *testing.T) {
+func TestPlanApply_EvalNodePlan_NodeDown_EvictOnly(t *testing.T) {
 	alloc := mock.Alloc()
 	state := testStateStore(t)
 	node := mock.Node()
 	alloc.NodeID = node.ID
 	node.Resources = alloc.Resources
 	node.Reserved = nil
-	node.Status = structs.NodeStatusMaint
+	node.Status = structs.NodeStatusDown
 	state.RegisterNode(1000, node)
 	state.UpdateAllocations(1001, []*structs.Allocation{alloc})
 	snap, _ := state.Snapshot()

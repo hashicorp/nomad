@@ -118,7 +118,7 @@ func TestClientEndpoint_UpdateStatus(t *testing.T) {
 	// Update the status
 	dereg := &structs.NodeUpdateStatusRequest{
 		NodeID:       node.ID,
-		Status:       structs.NodeStatusMaint,
+		Status:       structs.NodeStatusInit,
 		WriteRequest: structs.WriteRequest{Region: "region1"},
 	}
 	var resp2 structs.NodeUpdateResponse

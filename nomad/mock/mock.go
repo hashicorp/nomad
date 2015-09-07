@@ -27,10 +27,10 @@ func Node() *structs.Node {
 		Datacenter: "dc1",
 		Name:       "foobar",
 		Attributes: map[string]string{
-			"kernel.name":   "linux",
-			"arch":          "x86",
-			"version":       "0.1.0",
-			"driver.docker": "1.0.0",
+			"kernel.name": "linux",
+			"arch":        "x86",
+			"version":     "0.1.0",
+			"driver.exec": "1",
 		},
 		Resources: &structs.Resources{
 			CPU:      4.0,

@@ -72,8 +72,8 @@ func TestDriverIterator(t *testing.T) {
 	nodes[2].Attributes["driver.foo"] = "2"
 
 	drivers := map[string]struct{}{
-		"docker": struct{}{},
-		"foo":    struct{}{},
+		"exec": struct{}{},
+		"foo":  struct{}{},
 	}
 	driver := NewDriverIterator(ctx, static, drivers)
 

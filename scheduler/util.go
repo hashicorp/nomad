@@ -32,7 +32,7 @@ type diffResult struct {
 }
 
 func (d *diffResult) GoString() string {
-	return fmt.Sprintf("allocs: (place %d) (update %d) (stop %d) (evict %d) (ignore %d)",
+	return fmt.Sprintf("allocs: (place %d) (update %d) (migrate %d) (stop %d) (ignore %d)",
 		len(d.place), len(d.update), len(d.migrate), len(d.stop), len(d.ignore))
 }
 
@@ -140,6 +140,9 @@ func readyNodesInDCs(state State, dcs []string) ([]*structs.Node, error) {
 		if node.Status != structs.NodeStatusReady {
 			continue
 		}
+		if node.Drain {
+			continue
+		}
 		if _, ok := dcMap[node.Datacenter]; !ok {
 			continue
 		}
@@ -188,7 +191,7 @@ func taintedNodes(state State, allocs []*structs.Allocation) (map[string]bool, e
 			continue
 		}
 
-		out[alloc.NodeID] = structs.ShouldDrainNode(node.Status)
+		out[alloc.NodeID] = structs.ShouldDrainNode(node.Status) || node.Drain
 	}
 	return out, nil
 }

@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -250,7 +251,7 @@ func TestServiceSched_NodeDrain(t *testing.T) {
 
 	// Register a draining node
 	node := mock.Node()
-	node.Status = structs.NodeStatusDrain
+	node.Drain = true
 	noErr(t, h.State.RegisterNode(h.NextIndex(), node))
 
 	// Create some nodes
@@ -269,6 +270,7 @@ func TestServiceSched_NodeDrain(t *testing.T) {
 		alloc.Job = job
 		alloc.JobID = job.ID
 		alloc.NodeID = node.ID
+		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
 		allocs = append(allocs, alloc)
 	}
 	noErr(t, h.State.UpdateAllocations(h.NextIndex(), allocs))
