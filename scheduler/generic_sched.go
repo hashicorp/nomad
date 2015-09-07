@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -376,7 +375,7 @@ func (s *GenericScheduler) computePlacements(place []allocTuple) error {
 
 		// Create an allocation for this
 		alloc := &structs.Allocation{
-			ID:                 mock.GenerateUUID(),
+			ID:                 structs.GenerateUUID(),
 			EvalID:             s.eval.ID,
 			Name:               missing.Name,
 			NodeID:             nodeID,

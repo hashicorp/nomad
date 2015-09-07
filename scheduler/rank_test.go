@@ -96,7 +96,7 @@ func TestBinPackIterator_PlannedAlloc(t *testing.T) {
 		&RankedNode{
 			Node: &structs.Node{
 				// Perfect fit
-				ID: mock.GenerateUUID(),
+				ID: structs.GenerateUUID(),
 				Resources: &structs.Resources{
 					CPU:      2048,
 					MemoryMB: 2048,
@@ -106,7 +106,7 @@ func TestBinPackIterator_PlannedAlloc(t *testing.T) {
 		&RankedNode{
 			Node: &structs.Node{
 				// Perfect fit
-				ID: mock.GenerateUUID(),
+				ID: structs.GenerateUUID(),
 				Resources: &structs.Resources{
 					CPU:      2048,
 					MemoryMB: 2048,
@@ -162,7 +162,7 @@ func TestBinPackIterator_ExistingAlloc(t *testing.T) {
 		&RankedNode{
 			Node: &structs.Node{
 				// Perfect fit
-				ID: mock.GenerateUUID(),
+				ID: structs.GenerateUUID(),
 				Resources: &structs.Resources{
 					CPU:      2048,
 					MemoryMB: 2048,
@@ -172,7 +172,7 @@ func TestBinPackIterator_ExistingAlloc(t *testing.T) {
 		&RankedNode{
 			Node: &structs.Node{
 				// Perfect fit
-				ID: mock.GenerateUUID(),
+				ID: structs.GenerateUUID(),
 				Resources: &structs.Resources{
 					CPU:      2048,
 					MemoryMB: 2048,
@@ -184,10 +184,10 @@ func TestBinPackIterator_ExistingAlloc(t *testing.T) {
 
 	// Add existing allocations
 	alloc1 := &structs.Allocation{
-		ID:     mock.GenerateUUID(),
-		EvalID: mock.GenerateUUID(),
+		ID:     structs.GenerateUUID(),
+		EvalID: structs.GenerateUUID(),
 		NodeID: nodes[0].Node.ID,
-		JobID:  mock.GenerateUUID(),
+		JobID:  structs.GenerateUUID(),
 		Resources: &structs.Resources{
 			CPU:      2048,
 			MemoryMB: 2048,
@@ -195,10 +195,10 @@ func TestBinPackIterator_ExistingAlloc(t *testing.T) {
 		DesiredStatus: structs.AllocDesiredStatusRun,
 	}
 	alloc2 := &structs.Allocation{
-		ID:     mock.GenerateUUID(),
-		EvalID: mock.GenerateUUID(),
+		ID:     structs.GenerateUUID(),
+		EvalID: structs.GenerateUUID(),
 		NodeID: nodes[1].Node.ID,
-		JobID:  mock.GenerateUUID(),
+		JobID:  structs.GenerateUUID(),
 		Resources: &structs.Resources{
 			CPU:      1024,
 			MemoryMB: 1024,
@@ -231,7 +231,7 @@ func TestBinPackIterator_ExistingAlloc_PlannedEvict(t *testing.T) {
 		&RankedNode{
 			Node: &structs.Node{
 				// Perfect fit
-				ID: mock.GenerateUUID(),
+				ID: structs.GenerateUUID(),
 				Resources: &structs.Resources{
 					CPU:      2048,
 					MemoryMB: 2048,
@@ -241,7 +241,7 @@ func TestBinPackIterator_ExistingAlloc_PlannedEvict(t *testing.T) {
 		&RankedNode{
 			Node: &structs.Node{
 				// Perfect fit
-				ID: mock.GenerateUUID(),
+				ID: structs.GenerateUUID(),
 				Resources: &structs.Resources{
 					CPU:      2048,
 					MemoryMB: 2048,
@@ -253,10 +253,10 @@ func TestBinPackIterator_ExistingAlloc_PlannedEvict(t *testing.T) {
 
 	// Add existing allocations
 	alloc1 := &structs.Allocation{
-		ID:     mock.GenerateUUID(),
-		EvalID: mock.GenerateUUID(),
+		ID:     structs.GenerateUUID(),
+		EvalID: structs.GenerateUUID(),
 		NodeID: nodes[0].Node.ID,
-		JobID:  mock.GenerateUUID(),
+		JobID:  structs.GenerateUUID(),
 		Resources: &structs.Resources{
 			CPU:      2048,
 			MemoryMB: 2048,
@@ -264,10 +264,10 @@ func TestBinPackIterator_ExistingAlloc_PlannedEvict(t *testing.T) {
 		DesiredStatus: structs.AllocDesiredStatusRun,
 	}
 	alloc2 := &structs.Allocation{
-		ID:     mock.GenerateUUID(),
-		EvalID: mock.GenerateUUID(),
+		ID:     structs.GenerateUUID(),
+		EvalID: structs.GenerateUUID(),
 		NodeID: nodes[1].Node.ID,
-		JobID:  mock.GenerateUUID(),
+		JobID:  structs.GenerateUUID(),
 		Resources: &structs.Resources{
 			CPU:      1024,
 			MemoryMB: 1024,
@@ -306,12 +306,12 @@ func TestJobAntiAffinity_PlannedAlloc(t *testing.T) {
 	nodes := []*RankedNode{
 		&RankedNode{
 			Node: &structs.Node{
-				ID: mock.GenerateUUID(),
+				ID: structs.GenerateUUID(),
 			},
 		},
 		&RankedNode{
 			Node: &structs.Node{
-				ID: mock.GenerateUUID(),
+				ID: structs.GenerateUUID(),
 			},
 		},
 	}

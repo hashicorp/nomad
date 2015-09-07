@@ -53,7 +53,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 
 	// Create a new evaluation
 	eval := &structs.Evaluation{
-		ID:             generateUUID(),
+		ID:             structs.GenerateUUID(),
 		Priority:       args.Job.Priority,
 		Type:           args.Job.Type,
 		TriggeredBy:    structs.EvalTriggerJobRegister,
@@ -110,7 +110,7 @@ func (j *Job) Evaluate(args *structs.JobEvaluateRequest, reply *structs.JobRegis
 
 	// Create a new evaluation
 	eval := &structs.Evaluation{
-		ID:             generateUUID(),
+		ID:             structs.GenerateUUID(),
 		Priority:       job.Priority,
 		Type:           job.Type,
 		TriggeredBy:    structs.EvalTriggerJobRegister,
@@ -157,7 +157,7 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 	// priority even if the job was. The scheduler itself also doesn't matter,
 	// since all should be able to handle deregistration in the same way.
 	eval := &structs.Evaluation{
-		ID:             generateUUID(),
+		ID:             structs.GenerateUUID(),
 		Priority:       structs.JobDefaultPriority,
 		Type:           structs.JobTypeService,
 		TriggeredBy:    structs.EvalTriggerJobDeregister,

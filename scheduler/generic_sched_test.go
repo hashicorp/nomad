@@ -24,7 +24,7 @@ func TestServiceSched_JobRegister(t *testing.T) {
 
 	// Create a mock evaluation to deregister the job
 	eval := &structs.Evaluation{
-		ID:          mock.GenerateUUID(),
+		ID:          structs.GenerateUUID(),
 		Priority:    job.Priority,
 		TriggeredBy: structs.EvalTriggerJobRegister,
 		JobID:       job.ID,
@@ -73,7 +73,7 @@ func TestServiceSched_JobRegister_AllocFail(t *testing.T) {
 
 	// Create a mock evaluation to deregister the job
 	eval := &structs.Evaluation{
-		ID:          mock.GenerateUUID(),
+		ID:          structs.GenerateUUID(),
 		Priority:    job.Priority,
 		TriggeredBy: structs.EvalTriggerJobRegister,
 		JobID:       job.ID,
@@ -149,7 +149,7 @@ func TestServiceSched_JobModify(t *testing.T) {
 
 	// Create a mock evaluation to deal with drain
 	eval := &structs.Evaluation{
-		ID:          mock.GenerateUUID(),
+		ID:          structs.GenerateUUID(),
 		Priority:    50,
 		TriggeredBy: structs.EvalTriggerJobRegister,
 		JobID:       job.ID,
@@ -238,7 +238,7 @@ func TestServiceSched_JobModify_Rolling(t *testing.T) {
 
 	// Create a mock evaluation to deal with drain
 	eval := &structs.Evaluation{
-		ID:          mock.GenerateUUID(),
+		ID:          structs.GenerateUUID(),
 		Priority:    50,
 		TriggeredBy: structs.EvalTriggerJobRegister,
 		JobID:       job.ID,
@@ -332,7 +332,7 @@ func TestServiceSched_JobModify_InPlace(t *testing.T) {
 
 	// Create a mock evaluation to deal with drain
 	eval := &structs.Evaluation{
-		ID:          mock.GenerateUUID(),
+		ID:          structs.GenerateUUID(),
 		Priority:    50,
 		TriggeredBy: structs.EvalTriggerJobRegister,
 		JobID:       job.ID,
@@ -401,7 +401,7 @@ func TestServiceSched_JobDeregister(t *testing.T) {
 
 	// Create a mock evaluation to deregister the job
 	eval := &structs.Evaluation{
-		ID:          mock.GenerateUUID(),
+		ID:          structs.GenerateUUID(),
 		Priority:    50,
 		TriggeredBy: structs.EvalTriggerJobDeregister,
 		JobID:       job.ID,
@@ -468,7 +468,7 @@ func TestServiceSched_NodeDrain(t *testing.T) {
 
 	// Create a mock evaluation to deal with drain
 	eval := &structs.Evaluation{
-		ID:          mock.GenerateUUID(),
+		ID:          structs.GenerateUUID(),
 		Priority:    50,
 		TriggeredBy: structs.EvalTriggerNodeUpdate,
 		JobID:       job.ID,
@@ -530,7 +530,7 @@ func TestServiceSched_RetryLimit(t *testing.T) {
 
 	// Create a mock evaluation to deregister the job
 	eval := &structs.Evaluation{
-		ID:          mock.GenerateUUID(),
+		ID:          structs.GenerateUUID(),
 		Priority:    job.Priority,
 		TriggeredBy: structs.EvalTriggerJobRegister,
 		JobID:       job.ID,

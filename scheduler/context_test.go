@@ -5,7 +5,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -32,7 +31,7 @@ func TestEvalContext_ProposedAlloc(t *testing.T) {
 		&RankedNode{
 			Node: &structs.Node{
 				// Perfect fit
-				ID: mock.GenerateUUID(),
+				ID: structs.GenerateUUID(),
 				Resources: &structs.Resources{
 					CPU:      2048,
 					MemoryMB: 2048,
@@ -42,7 +41,7 @@ func TestEvalContext_ProposedAlloc(t *testing.T) {
 		&RankedNode{
 			Node: &structs.Node{
 				// Perfect fit
-				ID: mock.GenerateUUID(),
+				ID: structs.GenerateUUID(),
 				Resources: &structs.Resources{
 					CPU:      2048,
 					MemoryMB: 2048,
@@ -53,10 +52,10 @@ func TestEvalContext_ProposedAlloc(t *testing.T) {
 
 	// Add existing allocations
 	alloc1 := &structs.Allocation{
-		ID:     mock.GenerateUUID(),
-		EvalID: mock.GenerateUUID(),
+		ID:     structs.GenerateUUID(),
+		EvalID: structs.GenerateUUID(),
 		NodeID: nodes[0].Node.ID,
-		JobID:  mock.GenerateUUID(),
+		JobID:  structs.GenerateUUID(),
 		Resources: &structs.Resources{
 			CPU:      2048,
 			MemoryMB: 2048,
@@ -64,10 +63,10 @@ func TestEvalContext_ProposedAlloc(t *testing.T) {
 		DesiredStatus: structs.AllocDesiredStatusRun,
 	}
 	alloc2 := &structs.Allocation{
-		ID:     mock.GenerateUUID(),
-		EvalID: mock.GenerateUUID(),
+		ID:     structs.GenerateUUID(),
+		EvalID: structs.GenerateUUID(),
 		NodeID: nodes[1].Node.ID,
-		JobID:  mock.GenerateUUID(),
+		JobID:  structs.GenerateUUID(),
 		Resources: &structs.Resources{
 			CPU:      1024,
 			MemoryMB: 1024,

@@ -304,7 +304,7 @@ func (c *Client) setupNode() error {
 		node.Resources = &structs.Resources{}
 	}
 	if node.ID == "" {
-		node.ID = generateUUID()
+		node.ID = structs.GenerateUUID()
 	}
 	if node.Datacenter == "" {
 		node.Datacenter = "dc1"

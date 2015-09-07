@@ -231,7 +231,7 @@ func TestWorker_invokeScheduler(t *testing.T) {
 	eval := mock.Eval()
 	eval.Type = "noop"
 
-	err := w.invokeScheduler(eval, generateUUID())
+	err := w.invokeScheduler(eval, structs.GenerateUUID())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

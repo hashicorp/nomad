@@ -301,7 +301,7 @@ func (b *EvalBroker) dequeueForSched(sched string) (*structs.Evaluation, string,
 	eval := raw.(*structs.Evaluation)
 
 	// Generate a UUID for the token
-	token := generateUUID()
+	token := structs.GenerateUUID()
 
 	// Setup Nack timer
 	nackTimer := time.AfterFunc(b.nackTimeout, func() {

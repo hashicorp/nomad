@@ -466,7 +466,7 @@ func (n *Node) createNodeEvals(nodeID string, nodeIndex uint64) ([]string, uint6
 
 		// Create a new eval
 		eval := &structs.Evaluation{
-			ID:              generateUUID(),
+			ID:              structs.GenerateUUID(),
 			Priority:        alloc.Job.Priority,
 			Type:            alloc.Job.Type,
 			TriggeredBy:     structs.EvalTriggerNodeUpdate,

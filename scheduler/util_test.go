@@ -47,7 +47,7 @@ func TestDiffAllocs(t *testing.T) {
 	allocs := []*structs.Allocation{
 		// Update the 1st
 		&structs.Allocation{
-			ID:     mock.GenerateUUID(),
+			ID:     structs.GenerateUUID(),
 			NodeID: "zip",
 			Name:   "my-job.web[0]",
 			Job:    oldJob,
@@ -55,7 +55,7 @@ func TestDiffAllocs(t *testing.T) {
 
 		// Ignore the 2rd
 		&structs.Allocation{
-			ID:     mock.GenerateUUID(),
+			ID:     structs.GenerateUUID(),
 			NodeID: "zip",
 			Name:   "my-job.web[1]",
 			Job:    job,
@@ -63,14 +63,14 @@ func TestDiffAllocs(t *testing.T) {
 
 		// Evict 11th
 		&structs.Allocation{
-			ID:     mock.GenerateUUID(),
+			ID:     structs.GenerateUUID(),
 			NodeID: "zip",
 			Name:   "my-job.web[10]",
 		},
 
 		// Migrate the 3rd
 		&structs.Allocation{
-			ID:     mock.GenerateUUID(),
+			ID:     structs.GenerateUUID(),
 			NodeID: "dead",
 			Name:   "my-job.web[2]",
 		},

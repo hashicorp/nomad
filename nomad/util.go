@@ -1,7 +1,6 @@
 package nomad
 
 import (
-	crand "crypto/rand"
 	"fmt"
 	"math/rand"
 	"net"
@@ -96,21 +95,6 @@ func isNomadServer(m serf.Member) (bool, *serverParts) {
 		Version:    vsn,
 	}
 	return true, parts
-}
-
-// generateUUID is used to generate a random UUID
-func generateUUID() string {
-	buf := make([]byte, 16)
-	if _, err := crand.Read(buf); err != nil {
-		panic(fmt.Errorf("failed to read random bytes: %v", err))
-	}
-
-	return fmt.Sprintf("%08x-%04x-%04x-%04x-%12x",
-		buf[0:4],
-		buf[4:6],
-		buf[6:8],
-		buf[8:10],
-		buf[10:16])
 }
 
 // Returns a random stagger interval between 0 and the duration

@@ -39,7 +39,7 @@ func TestEvalEndpoint_GetEval(t *testing.T) {
 	}
 
 	// Lookup non-existing node
-	get.EvalID = generateUUID()
+	get.EvalID = structs.GenerateUUID()
 	if err := msgpackrpc.CallWithCodec(codec, "Eval.GetEval", get, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}

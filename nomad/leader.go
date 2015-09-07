@@ -189,7 +189,7 @@ func (s *Server) schedulePeriodic(stopCh chan struct{}) {
 // coreJobEval returns an evaluation for a core job
 func (s *Server) coreJobEval(job string) *structs.Evaluation {
 	return &structs.Evaluation{
-		ID:          generateUUID(),
+		ID:          structs.GenerateUUID(),
 		Priority:    structs.CoreJobPriority,
 		Type:        structs.JobTypeCore,
 		TriggeredBy: structs.EvalTriggerScheduled,

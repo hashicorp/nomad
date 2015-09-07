@@ -1,29 +1,10 @@
 package mock
 
-import (
-	crand "crypto/rand"
-	"fmt"
-
-	"github.com/hashicorp/nomad/nomad/structs"
-)
-
-func GenerateUUID() string {
-	buf := make([]byte, 16)
-	if _, err := crand.Read(buf); err != nil {
-		panic(fmt.Errorf("failed to read random bytes: %v", err))
-	}
-
-	return fmt.Sprintf("%08x-%04x-%04x-%04x-%12x",
-		buf[0:4],
-		buf[4:6],
-		buf[6:8],
-		buf[8:10],
-		buf[10:16])
-}
+import "github.com/hashicorp/nomad/nomad/structs"
 
 func Node() *structs.Node {
 	node := &structs.Node{
-		ID:         GenerateUUID(),
+		ID:         structs.GenerateUUID(),
 		Datacenter: "dc1",
 		Name:       "foobar",
 		Attributes: map[string]string{
@@ -65,7 +46,7 @@ func Node() *structs.Node {
 
 func Job() *structs.Job {
 	job := &structs.Job{
-		ID:          GenerateUUID(),
+		ID:          structs.GenerateUUID(),
 		Name:        "my-job",
 		Type:        structs.JobTypeService,
 		Priority:    50,
@@ -116,10 +97,10 @@ func Job() *structs.Job {
 
 func Eval() *structs.Evaluation {
 	eval := &structs.Evaluation{
-		ID:       GenerateUUID(),
+		ID:       structs.GenerateUUID(),
 		Priority: 50,
 		Type:     structs.JobTypeService,
-		JobID:    GenerateUUID(),
+		JobID:    structs.GenerateUUID(),
 		Status:   structs.EvalStatusPending,
 	}
 	return eval
@@ -127,8 +108,8 @@ func Eval() *structs.Evaluation {
 
 func Alloc() *structs.Allocation {
 	alloc := &structs.Allocation{
-		ID:        GenerateUUID(),
-		EvalID:    GenerateUUID(),
+		ID:        structs.GenerateUUID(),
+		EvalID:    structs.GenerateUUID(),
 		NodeID:    "foo",
 		TaskGroup: "web",
 		Resources: &structs.Resources{
