@@ -75,6 +75,11 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/evaluations", s.wrap(s.EvalsRequest))
 	s.mux.HandleFunc("/v1/evaluation/", s.wrap(s.EvalSpecificRequest))
 
+	s.mux.HandleFunc("/v1/agent/self", s.wrap(s.AgentSelfRequest))
+	s.mux.HandleFunc("/v1/agent/join", s.wrap(s.AgentJoinRequest))
+	s.mux.HandleFunc("/v1/agent/members", s.wrap(s.AgentMembersRequest))
+	s.mux.HandleFunc("/v1/agent/force-leave", s.wrap(s.AgentForceLeaveRequest))
+
 	s.mux.HandleFunc("/v1/status/leader", s.wrap(s.StatusLeaderRequest))
 	s.mux.HandleFunc("/v1/status/peers", s.wrap(s.StatusPeersRequest))
 
