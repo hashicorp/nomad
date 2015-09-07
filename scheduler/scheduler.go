@@ -79,4 +79,8 @@ type Planner interface {
 	// UpdateEval is used to update an evaluation. This should update
 	// a copy of the input evaluation since that should be immutable.
 	UpdateEval(*structs.Evaluation) error
+
+	// CreateEval is used to create an evaluation. This should set the
+	// PreviousEval to that of the current evaluation.
+	CreateEval(*structs.Evaluation) error
 }
