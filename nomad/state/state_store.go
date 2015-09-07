@@ -287,8 +287,8 @@ func (s *StateStore) UpdateNodeDrain(index uint64, nodeID string, drain bool) er
 	return nil
 }
 
-// GetNodeByID is used to lookup a node by ID
-func (s *StateStore) GetNodeByID(nodeID string) (*structs.Node, error) {
+// NodeByID is used to lookup a node by ID
+func (s *StateStore) NodeByID(nodeID string) (*structs.Node, error) {
 	txn := s.db.Txn(false)
 
 	existing, err := txn.First("nodes", "id", nodeID)
@@ -372,8 +372,8 @@ func (s *StateStore) DeleteJob(index uint64, jobID string) error {
 	return nil
 }
 
-// GetJobByID is used to lookup a job by its ID
-func (s *StateStore) GetJobByID(id string) (*structs.Job, error) {
+// JobByID is used to lookup a job by its ID
+func (s *StateStore) JobByID(id string) (*structs.Job, error) {
 	txn := s.db.Txn(false)
 
 	existing, err := txn.First("jobs", "id", id)
@@ -487,8 +487,8 @@ func (s *StateStore) DeleteEval(index uint64, evals []string, allocs []string) e
 	return nil
 }
 
-// GetEvalByID is used to lookup an eval by its ID
-func (s *StateStore) GetEvalByID(id string) (*structs.Evaluation, error) {
+// EvalByID is used to lookup an eval by its ID
+func (s *StateStore) EvalByID(id string) (*structs.Evaluation, error) {
 	txn := s.db.Txn(false)
 
 	existing, err := txn.First("evals", "id", id)
@@ -623,8 +623,8 @@ func (s *StateStore) UpsertAllocs(index uint64, allocs []*structs.Allocation) er
 	return nil
 }
 
-// GetAllocByID is used to lookup an allocation by its ID
-func (s *StateStore) GetAllocByID(id string) (*structs.Allocation, error) {
+// AllocByID is used to lookup an allocation by its ID
+func (s *StateStore) AllocByID(id string) (*structs.Allocation, error) {
 	txn := s.db.Txn(false)
 
 	existing, err := txn.First("allocs", "id", id)
@@ -713,8 +713,8 @@ func (s *StateStore) Allocs() (memdb.ResultIterator, error) {
 	return iter, nil
 }
 
-// GetIndex finds the matching index value
-func (s *StateStore) GetIndex(name string) (uint64, error) {
+// Index finds the matching index value
+func (s *StateStore) Index(name string) (uint64, error) {
 	txn := s.db.Txn(false)
 
 	// Lookup the first matching index
