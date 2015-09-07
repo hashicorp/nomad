@@ -360,6 +360,41 @@ SUBMIT:
 	return nil
 }
 
+// CreateEval is used to create a new evaluation. This allows
+// the worker to act as the planner for the scheduler.
+func (w *Worker) CreateEval(eval *structs.Evaluation) error {
+	// Check for a shutdown before plan submission
+	if w.srv.IsShutdown() {
+		return fmt.Errorf("shutdown while planning")
+	}
+	defer metrics.MeasureSince([]string{"nomad", "worker", "create_eval"}, time.Now())
+
+	// Setup the request
+	req := structs.EvalUpdateRequest{
+		Evals:     []*structs.Evaluation{eval},
+		EvalToken: w.evalToken,
+		WriteRequest: structs.WriteRequest{
+			Region: w.srv.config.Region,
+		},
+	}
+	var resp structs.GenericResponse
+
+SUBMIT:
+	// Make the RPC call
+	if err := w.srv.RPC("Eval.Create", &req, &resp); err != nil {
+		w.logger.Printf("[ERR] worker: failed to create evaluation %#v: %v",
+			eval, err)
+		if w.shouldResubmit(err) && !w.backoffErr(backoffBaselineSlow, backoffLimitSlow) {
+			goto SUBMIT
+		}
+		return err
+	} else {
+		w.logger.Printf("[DEBUG] worker: created evaluation %#v", eval)
+		w.backoffReset()
+	}
+	return nil
+}
+
 // shouldResubmit checks if a given error should be swallowed and the plan
 // resubmitted after a backoff. Usually these are transient errors that
 // the cluster should heal from quickly.
