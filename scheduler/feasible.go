@@ -2,7 +2,6 @@ package scheduler
 
 import (
 	"fmt"
-	"math/rand"
 	"reflect"
 	"strings"
 
@@ -68,11 +67,7 @@ func (iter *StaticIterator) Reset() {
 // is applied in-place
 func NewRandomIterator(ctx Context, nodes []*structs.Node) *StaticIterator {
 	// shuffle with the Fisher-Yates algorithm
-	n := len(nodes)
-	for i := n - 1; i > 0; i-- {
-		j := rand.Intn(i + 1)
-		nodes[i], nodes[j] = nodes[j], nodes[i]
-	}
+	shuffleNodes(nodes)
 
 	// Create a static iterator
 	return NewStaticIterator(ctx, nodes)

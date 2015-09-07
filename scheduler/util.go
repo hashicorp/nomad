@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"fmt"
+	"math/rand"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -194,4 +195,13 @@ func taintedNodes(state State, allocs []*structs.Allocation) (map[string]bool, e
 		out[alloc.NodeID] = structs.ShouldDrainNode(node.Status) || node.Drain
 	}
 	return out, nil
+}
+
+// shuffleNodes randomizes the slice order with the Fisher-Yates algorithm
+func shuffleNodes(nodes []*structs.Node) {
+	n := len(nodes)
+	for i := n - 1; i > 0; i-- {
+		j := rand.Intn(i + 1)
+		nodes[i], nodes[j] = nodes[j], nodes[i]
+	}
 }

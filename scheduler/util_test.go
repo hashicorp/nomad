@@ -3,6 +3,7 @@ package scheduler
 import (
 	"fmt"
 	"os"
+	"reflect"
 	"testing"
 
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -208,5 +209,21 @@ func TestTaintedNodes(t *testing.T) {
 	}
 	if !tainted[node3.ID] || !tainted[node4.ID] || !tainted["blah"] {
 		t.Fatalf("Bad: %v", tainted)
+	}
+}
+
+func TestShuffleNodes(t *testing.T) {
+	nodes := []*structs.Node{
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+	}
+	orig := make([]*structs.Node, len(nodes))
+	copy(orig, nodes)
+	shuffleNodes(nodes)
+	if reflect.DeepEqual(nodes, orig) {
+		t.Fatalf("shoudl not match")
 	}
 }
