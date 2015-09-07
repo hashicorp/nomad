@@ -153,6 +153,44 @@ func (e *Eval) Update(args *structs.EvalUpdateRequest,
 	return nil
 }
 
+// Create is used to make a new evaluation
+func (e *Eval) Create(args *structs.EvalUpdateRequest,
+	reply *structs.GenericResponse) error {
+	if done, err := e.srv.forward("Eval.Create", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "eval", "create"}, time.Now())
+
+	// Ensure there is only a single update with token
+	if len(args.Evals) != 1 {
+		return fmt.Errorf("only a single eval can be created")
+	}
+	eval := args.Evals[0]
+
+	// Look for the eval
+	snap, err := e.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+	out, err := snap.EvalByID(eval.ID)
+	if err != nil {
+		return err
+	}
+	if out != nil {
+		return fmt.Errorf("evaluation already exists")
+	}
+
+	// Update via Raft
+	_, index, err := e.srv.raftApply(structs.EvalUpdateRequestType, args)
+	if err != nil {
+		return err
+	}
+
+	// Update the index
+	reply.Index = index
+	return nil
+}
+
 // Reap is used to cleanup dead evaluations and allocations
 func (e *Eval) Reap(args *structs.EvalDeleteRequest,
 	reply *structs.GenericResponse) error {

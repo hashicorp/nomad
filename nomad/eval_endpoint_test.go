@@ -219,6 +219,35 @@ func TestEvalEndpoint_Update(t *testing.T) {
 	}
 }
 
+func TestEvalEndpoint_Create(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+
+	// Create the register request
+	eval1 := mock.Eval()
+	get := &structs.EvalUpdateRequest{
+		Evals:        []*structs.Evaluation{eval1},
+		WriteRequest: structs.WriteRequest{Region: "region1"},
+	}
+	var resp structs.GenericResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Eval.Create", get, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure created
+	outE, err := s1.fsm.State().EvalByID(eval1.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	eval1.CreateIndex = resp.Index
+	eval1.ModifyIndex = resp.Index
+	if !reflect.DeepEqual(eval1, outE) {
+		t.Fatalf("Bad: %#v %#v", outE, eval1)
+	}
+}
+
 func TestEvalEndpoint_Reap(t *testing.T) {
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
