@@ -84,7 +84,7 @@ func (s *HTTPServer) nodeAllocations(resp http.ResponseWriter, req *http.Request
 }
 
 func (s *HTTPServer) nodeToggleDrain(resp http.ResponseWriter, req *http.Request,
-	jobName string) (interface{}, error) {
+	nodeID string) (interface{}, error) {
 	if req.Method != "PUT" && req.Method != "POST" {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
@@ -99,8 +99,18 @@ func (s *HTTPServer) nodeToggleDrain(resp http.ResponseWriter, req *http.Request
 		return nil, CodedError(400, "invalid enable value")
 	}
 
-	// TODO
-	return nil, nil
+	args := structs.NodeUpdateDrainRequest{
+		NodeID: nodeID,
+		Drain:  enable,
+	}
+	s.parseRegion(req, &args.Region)
+
+	var out structs.NodeDrainUpdateResponse
+	if err := s.agent.RPC("Client.UpdateDrain", &args, &out); err != nil {
+		return nil, err
+	}
+	setIndex(resp, out.Index)
+	return out, nil
 }
 
 func (s *HTTPServer) nodeQuery(resp http.ResponseWriter, req *http.Request,
