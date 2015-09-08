@@ -116,9 +116,42 @@ func (a *Agent) Join(addrs ...string) error {
 	return nil
 }
 
+// Members is used to query all of the known server members
+func (a *Agent) Members() ([]*AgentMember, error) {
+	var resp []*AgentMember
+
+	// Query the known members
+	_, err := a.client.query("/v1/agent/members", &resp, nil)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+// ForceLeave is used to eject an existing node from the cluster.
+func (a *Agent) ForceLeave(node string) error {
+	_, err := a.client.write("/v1/agent/force-leave?node="+node, nil, nil, nil)
+	return err
+}
+
 // joinResponse is used to decode the response we get while
 // sending a member join request.
 type joinResponse struct {
 	NumNodes int    `json:"num_nodes"`
 	Error    string `json:"error"`
+}
+
+// AgentMember represents a cluster member known to the agent
+type AgentMember struct {
+	Name        string
+	Addr        string
+	Port        uint16
+	Tags        map[string]string
+	Status      int
+	ProtocolMin uint8
+	ProtocolMax uint8
+	ProtocolCur uint8
+	DelegateMin uint8
+	DelegateMax uint8
+	DelegateCur uint8
 }

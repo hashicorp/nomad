@@ -76,3 +76,36 @@ func TestAgent_Join(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 }
+
+func TestAgent_Members(t *testing.T) {
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	a := c.Agent()
+
+	// Query nomad for all the known members
+	mem, err := a.Members()
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	// Check that we got the expected result
+	if n := len(mem); n != 1 {
+		t.Fatalf("expected 1 member, got: %d", n)
+	}
+	if m := mem[0]; m.Name == "" || m.Addr == "" || m.Port == 0 {
+		t.Fatalf("bad member: %#v", m)
+	}
+}
+
+func TestAgent_ForceLeave(t *testing.T) {
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	a := c.Agent()
+
+	// Force-leave on a non-existent node does not error
+	if err := a.ForceLeave("nope"); err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	// TODO: test force-leave on an existing node
+}
