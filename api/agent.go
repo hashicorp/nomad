@@ -10,7 +10,8 @@ type Agent struct {
 	client *Client
 
 	// Cache static agent info
-	nodeName string
+	nodeName   string
+	datacenter string
 }
 
 // Agent returns a new agent which can be used to query
@@ -45,8 +46,25 @@ func (a *Agent) NodeName() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if name, ok := info["member"]["Name"]; ok {
-		a.nodeName = name.(string)
-	}
+	a.nodeName, _ = info["member"]["Name"].(string)
 	return a.nodeName, nil
+}
+
+// Datacenter is used to return the name of the datacenter which
+// the agent is a member of.
+func (a *Agent) Datacenter() (string, error) {
+	// Return from cache if we have it
+	if a.datacenter != "" {
+		return a.datacenter, nil
+	}
+
+	// Query the agent for the DC
+	info, err := a.Self()
+	if err != nil {
+		return "", err
+	}
+	if tags, ok := info["member"]["Tags"].(map[string]interface{}); ok {
+		a.datacenter, _ = tags["dc"].(string)
+	}
+	return a.datacenter, nil
 }

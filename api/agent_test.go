@@ -44,3 +44,25 @@ func TestAgent_NodeName(t *testing.T) {
 		t.Fatalf("should have cached node name")
 	}
 }
+
+func TestAgent_Datacenter(t *testing.T) {
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	a := c.Agent()
+
+	// Query the agent for the datacenter
+	dc, err := a.Datacenter()
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	// Check that we got the DC name back
+	if dc != "dc1" {
+		t.Fatalf("expected dc1, got: %q", dc)
+	}
+
+	// Check that the datacenter name was cached
+	if a.datacenter == "" {
+		t.Fatalf("should have cached datacenter")
+	}
+}
