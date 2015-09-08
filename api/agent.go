@@ -8,7 +8,9 @@ import (
 // agent endpoints for a specific node.
 type Agent struct {
 	client *Client
-	node   string
+
+	// Cache static agent info
+	nodeName string
 }
 
 // Agent returns a new agent which can be used to query
@@ -29,4 +31,22 @@ func (a *Agent) Self() (map[string]map[string]interface{}, error) {
 	}
 
 	return out, nil
+}
+
+// NodeName is used to query the Nomad agent for its node name.
+func (a *Agent) NodeName() (string, error) {
+	// Return from cache if we have it
+	if a.nodeName != "" {
+		return a.nodeName, nil
+	}
+
+	// Query the node name
+	info, err := a.Self()
+	if err != nil {
+		return "", err
+	}
+	if name, ok := info["member"]["Name"]; ok {
+		a.nodeName = name.(string)
+	}
+	return a.nodeName, nil
 }
