@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"net/url"
 )
 
 // Agent encapsulates an API client which talks to Nomad's
@@ -90,4 +91,34 @@ func (a *Agent) Region() (string, error) {
 	// Query the agent for the region
 	_, err := a.Self()
 	return a.region, err
+}
+
+// Join is used to instruct a server node to join another server
+// via the gossip protocol. Multiple addresses may be specified.
+// We attempt to join all of the hosts in the list. If one or
+// more nodes have a successful result, no error is returned.
+func (a *Agent) Join(addrs ...string) error {
+	// Accumulate the addresses
+	v := url.Values{}
+	for _, addr := range addrs {
+		v.Add("address", addr)
+	}
+
+	// Send the join request
+	var resp joinResponse
+	_, err := a.client.write("/v1/agent/join?"+v.Encode(), nil, &resp, nil)
+	if err != nil {
+		return fmt.Errorf("failed joining: %s", err)
+	}
+	if resp.Error != "" {
+		return fmt.Errorf("failed joining: %s", resp.Error)
+	}
+	return nil
+}
+
+// joinResponse is used to decode the response we get while
+// sending a member join request.
+type joinResponse struct {
+	NumNodes int    `json:"num_nodes"`
+	Error    string `json:"error"`
 }

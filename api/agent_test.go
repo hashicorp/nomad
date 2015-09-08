@@ -57,3 +57,22 @@ func TestAgent_Datacenter(t *testing.T) {
 		t.Fatalf("expected dc1, got: %q", dc)
 	}
 }
+
+func TestAgent_Join(t *testing.T) {
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	a := c.Agent()
+
+	// Attempting to join a non-existent host returns error
+	if err := a.Join("nope"); err == nil {
+		t.Fatalf("expected error, got nothing")
+	}
+
+	// TODO(ryanuber): This is pretty much a worthless test,
+	// since we are just joining ourselves. Once the agent
+	// respects config options, change this to actually make
+	// two nodes and join them.
+	if err := a.Join("127.0.0.1"); err != nil {
+		t.Fatalf("err: %s", err)
+	}
+}
