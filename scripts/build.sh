@@ -46,7 +46,7 @@ go get \
 # Build!
 echo "--> Building..."
 go build \
-    -ldflags "${CGO_LDFLAGS} -X main.GitCommit ${GIT_COMMIT}${GIT_DIRTY} -X main.GitDescribe ${GIT_DESCRIBE}" \
+    -ldflags "${CGO_LDFLAGS} -X main.GitCommit=${GIT_COMMIT}${GIT_DIRTY} -X main.GitDescribe=${GIT_DESCRIBE}" \
     -v \
     -o bin/nomad${EXTENSION}
 cp bin/nomad${EXTENSION} ${GOPATHSINGLE}/bin
