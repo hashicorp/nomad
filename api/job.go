@@ -24,13 +24,13 @@ func (j *Jobs) Register(job *Job, q *WriteOptions) (string, *WriteMeta, error) {
 }
 
 // List is used to list all of the existing jobs.
-func (j *Jobs) List() ([]*Job, error) {
+func (j *Jobs) List() ([]*Job, *QueryMeta, error) {
 	var resp []*Job
-	_, err := j.client.query("/v1/jobs", &resp, nil)
+	qm, err := j.client.query("/v1/jobs", &resp, nil)
 	if err != nil {
-		return nil, err
+		return nil, qm, err
 	}
-	return resp, nil
+	return resp, qm, nil
 }
 
 // Job is used to serialize a job.

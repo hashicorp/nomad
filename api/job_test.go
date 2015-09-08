@@ -11,9 +11,12 @@ func TestJobs_Register(t *testing.T) {
 	jobs := c.Jobs()
 
 	// Listing jobs before registering returns nothing
-	resp, err := jobs.List()
+	resp, qm, err := jobs.List()
 	if err != nil {
 		t.Fatalf("err: %s", err)
+	}
+	if qm.LastIndex != 0 {
+		t.Fatalf("bad index: %d", qm.LastIndex)
 	}
 	if n := len(resp); n != 0 {
 		t.Fatalf("expected 0 jobs, got: %d", n)
@@ -26,18 +29,24 @@ func TestJobs_Register(t *testing.T) {
 		Type:     "service",
 		Priority: 1,
 	}
-	eval, _, err := jobs.Register(job, nil)
+	eval, wm, err := jobs.Register(job, nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
 	if eval == "" {
 		t.Fatalf("missing eval id")
 	}
+	if wm.LastIndex == 0 {
+		t.Fatalf("bad index: %d", wm.LastIndex)
+	}
 
 	// Query the jobs back out again
-	resp, err = jobs.List()
+	resp, qm, err = jobs.List()
 	if err != nil {
 		t.Fatalf("err: %s", err)
+	}
+	if qm.LastIndex == 0 {
+		t.Fatalf("bad index: %d", qm.LastIndex)
 	}
 
 	// Check that we got the expected response

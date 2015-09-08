@@ -11,13 +11,13 @@ func (c *Client) Allocs() *Allocs {
 }
 
 // List returns a list of all of the allocations.
-func (a *Allocs) List() ([]*Alloc, error) {
+func (a *Allocs) List() ([]*Alloc, *QueryMeta, error) {
 	var resp []*Alloc
-	_, err := a.client.query("/v1/allocations", &resp, nil)
+	qm, err := a.client.query("/v1/allocations", &resp, nil)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return resp, nil
+	return resp, qm, nil
 }
 
 // Alloc is used for serialization of allocations.
@@ -32,6 +32,4 @@ type Alloc struct {
 	DesiredDescription string
 	ClientStatus       string
 	ClientDescription  string
-	CreateIndex        uint64
-	ModifyIndex        uint64
 }

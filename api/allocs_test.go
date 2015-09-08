@@ -10,9 +10,12 @@ func TestAllocs_List(t *testing.T) {
 	a := c.Allocs()
 
 	// Querying when no allocs exist returns nothing
-	allocs, err := a.List()
+	allocs, qm, err := a.List()
 	if err != nil {
 		t.Fatalf("err: %s", err)
+	}
+	if qm.LastIndex != 0 {
+		t.Fatalf("bad index: %d", qm.LastIndex)
 	}
 	if n := len(allocs); n != 0 {
 		t.Fatalf("expected 0 allocs, got: %d", n)
