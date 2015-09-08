@@ -195,13 +195,14 @@ func (r *request) toHTTP() (*http.Request, error) {
 // newRequest is used to create a new request
 func (c *Client) newRequest(method, path string) *request {
 	base, _ := url.Parse(c.config.URL)
+	u, _ := url.Parse(path)
 	r := &request{
 		config: &c.config,
 		method: method,
 		url: &url.URL{
 			Scheme: base.Scheme,
 			Host:   base.Host,
-			Path:   path,
+			Path:   u.Path,
 		},
 		params: make(map[string][]string),
 	}
@@ -211,6 +212,14 @@ func (c *Client) newRequest(method, path string) *request {
 	if c.config.WaitTime != 0 {
 		r.params.Set("wait", durToMsec(r.config.WaitTime))
 	}
+
+	// Add in the query parameters, if any
+	for key, values := range u.Query() {
+		for _, value := range values {
+			r.params.Add(key, value)
+		}
+	}
+
 	return r
 }
 
