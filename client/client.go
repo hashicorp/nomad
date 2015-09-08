@@ -343,7 +343,7 @@ func (c *Client) fingerprint() error {
 func (c *Client) setupDrivers() error {
 	var avail []string
 	for name := range driver.BuiltinDrivers {
-		d, err := driver.NewDriver(name, c.logger)
+		d, err := driver.NewDriver(name, c.logger, c.config)
 		if err != nil {
 			return err
 		}

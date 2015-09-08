@@ -18,6 +18,7 @@ import (
 // but is useful for testing purposes or for very simple tasks.
 type ExecDriver struct {
 	logger *log.Logger
+	config *config.Config
 }
 
 // execHandle is returned from Start/Open as a handle to the PID
@@ -28,9 +29,10 @@ type execHandle struct {
 }
 
 // NewExecDriver is used to create a new exec driver
-func NewExecDriver(logger *log.Logger) Driver {
+func NewExecDriver(logger *log.Logger, config *config.Config) Driver {
 	d := &ExecDriver{
 		logger: logger,
+		config: config,
 	}
 	return d
 }

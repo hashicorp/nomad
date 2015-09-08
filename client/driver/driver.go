@@ -5,6 +5,7 @@ import (
 	"log"
 	"sync"
 
+	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -12,13 +13,14 @@ import (
 // BuiltinDrivers contains the built in registered drivers
 // which are available for allocation handling
 var BuiltinDrivers = map[string]Factory{
-	"exec": NewExecDriver,
-	"java": NewJavaDriver,
+	"exec":   NewExecDriver,
+	"java":   NewJavaDriver,
+	"docker": NewDockerDriver,
 }
 
 // NewDriver is used to instantiate and return a new driver
 // given the name and a logger
-func NewDriver(name string, logger *log.Logger) (Driver, error) {
+func NewDriver(name string, logger *log.Logger, config *config.Config) (Driver, error) {
 	// Lookup the factory function
 	factory, ok := BuiltinDrivers[name]
 	if !ok {
@@ -26,12 +28,12 @@ func NewDriver(name string, logger *log.Logger) (Driver, error) {
 	}
 
 	// Instantiate the driver
-	f := factory(logger)
+	f := factory(logger, config)
 	return f, nil
 }
 
 // Factory is used to instantiate a new Driver
-type Factory func(*log.Logger) Driver
+type Factory func(*log.Logger, *config.Config) Driver
 
 // Driver is used for execution of tasks. This allows Nomad
 // to support many pluggable implementations of task drivers.

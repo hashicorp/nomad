@@ -22,6 +22,7 @@ import (
 // It literally just fork/execs tasks with the java command.
 type JavaDriver struct {
 	logger *log.Logger
+	config *config.Config
 }
 
 // javaHandle is returned from Start/Open as a handle to the PID
@@ -32,9 +33,10 @@ type javaHandle struct {
 }
 
 // NewJavaDriver is used to create a new exec driver
-func NewJavaDriver(logger *log.Logger) Driver {
+func NewJavaDriver(logger *log.Logger, config *config.Config) Driver {
 	d := &JavaDriver{
 		logger: logger,
+		config: config,
 	}
 	return d
 }

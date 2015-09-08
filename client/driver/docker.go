@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"strings"
 
+	docker "github.com/fsouza/go-dockerclient"
+
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -19,6 +21,7 @@ var (
 
 type DockerDriver struct {
 	logger *log.Logger
+	config *config.Config
 }
 
 type dockerPID struct {
@@ -34,9 +37,10 @@ type dockerHandle struct {
 	doneCh      chan struct{}
 }
 
-func NewDockerDriver(logger *log.Logger) Driver {
+func NewDockerDriver(logger *log.Logger, config *config.Config) Driver {
 	d := &DockerDriver{
 		logger: logger,
+		config: config,
 	}
 	return d
 }
@@ -111,6 +115,10 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	// nomad process is restarted. Also, you will need to parse the containerID
 	// out of the run command output since run combines pull, create and start
 	// into a single command.
+
+	client, err := docker.NewClient(d.config.ReadDefault("docker.endpoint", "unix:///var/run/docker.sock"))
+	client.ListImages(docker.ListImagesOptions{All: false})
+
 	startBytes, err := exec.Command("docker", "start", containerID).CombinedOutput()
 	if err != nil {
 		d.logger.Printf("[ERROR] driver.docker %s", strings.TrimSpace(string(startBytes)))
