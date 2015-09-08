@@ -22,7 +22,7 @@ func makeClient(t *testing.T, cb1 configCallback,
 
 	// Create server
 	server := testutil.NewTestServer(t, cb2)
-	conf.URL = server.HTTPAddr
+	conf.URL = "http://" + server.HTTPAddr
 
 	// Create client
 	client, err := NewClient(conf)
