@@ -115,11 +115,11 @@ func evaluatePlan(snap *state.StateSnapshot, plan *structs.Plan) (*structs.PlanR
 		if !fit {
 			// Scheduler must have stale data, RefreshIndex should force
 			// the latest view of allocations and nodes
-			allocIndex, err := snap.GetIndex("allocs")
+			allocIndex, err := snap.Index("allocs")
 			if err != nil {
 				return nil, err
 			}
-			nodeIndex, err := snap.GetIndex("nodes")
+			nodeIndex, err := snap.Index("nodes")
 			if err != nil {
 				return nil, err
 			}
@@ -157,7 +157,7 @@ func evaluateNodePlan(snap *state.StateSnapshot, plan *structs.Plan, nodeID stri
 	}
 
 	// Get the node itself
-	node, err := snap.GetNodeByID(nodeID)
+	node, err := snap.NodeByID(nodeID)
 	if err != nil {
 		return false, fmt.Errorf("failed to get node '%s': %v", node, err)
 	}
@@ -165,7 +165,7 @@ func evaluateNodePlan(snap *state.StateSnapshot, plan *structs.Plan, nodeID stri
 	// If the node does not exist or is not ready for schduling it is not fit
 	// XXX: There is a potential race between when we do this check and when
 	// the Raft commit happens.
-	if node == nil || node.Status != structs.NodeStatusReady {
+	if node == nil || node.Status != structs.NodeStatusReady || node.Drain {
 		return false, nil
 	}
 

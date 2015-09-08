@@ -651,3 +651,47 @@ func TestEvalBroker_DeliveryLimit(t *testing.T) {
 		t.Fatalf("bad: %#v", stats.ByScheduler[failedQueue])
 	}
 }
+
+// Ensure fairness between schedulers
+func TestEvalBroker_Wait(t *testing.T) {
+	b := testBroker(t, 0)
+	b.SetEnabled(true)
+
+	// Create an eval that should wait
+	eval := mock.Eval()
+	eval.Wait = 10 * time.Millisecond
+	err := b.Enqueue(eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Verify waiting
+	stats := b.Stats()
+	if stats.TotalReady != 0 {
+		t.Fatalf("bad: %#v", stats)
+	}
+	if stats.TotalWaiting != 1 {
+		t.Fatalf("bad: %#v", stats)
+	}
+
+	// Let the wait elapse
+	time.Sleep(15 * time.Millisecond)
+
+	// Verify ready
+	stats = b.Stats()
+	if stats.TotalReady != 1 {
+		t.Fatalf("bad: %#v", stats)
+	}
+	if stats.TotalWaiting != 0 {
+		t.Fatalf("bad: %#v", stats)
+	}
+
+	// Dequeue should work
+	out, _, err := b.Dequeue(defaultSched, time.Second)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out != eval {
+		t.Fatalf("bad : %#v", out)
+	}
+}

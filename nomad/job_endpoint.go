@@ -53,7 +53,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 
 	// Create a new evaluation
 	eval := &structs.Evaluation{
-		ID:             generateUUID(),
+		ID:             structs.GenerateUUID(),
 		Priority:       args.Job.Priority,
 		Type:           args.Job.Type,
 		TriggeredBy:    structs.EvalTriggerJobRegister,
@@ -100,7 +100,7 @@ func (j *Job) Evaluate(args *structs.JobEvaluateRequest, reply *structs.JobRegis
 	if err != nil {
 		return err
 	}
-	job, err := snap.GetJobByID(args.JobID)
+	job, err := snap.JobByID(args.JobID)
 	if err != nil {
 		return err
 	}
@@ -110,7 +110,7 @@ func (j *Job) Evaluate(args *structs.JobEvaluateRequest, reply *structs.JobRegis
 
 	// Create a new evaluation
 	eval := &structs.Evaluation{
-		ID:             generateUUID(),
+		ID:             structs.GenerateUUID(),
 		Priority:       job.Priority,
 		Type:           job.Type,
 		TriggeredBy:    structs.EvalTriggerJobRegister,
@@ -157,7 +157,7 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 	// priority even if the job was. The scheduler itself also doesn't matter,
 	// since all should be able to handle deregistration in the same way.
 	eval := &structs.Evaluation{
-		ID:             generateUUID(),
+		ID:             structs.GenerateUUID(),
 		Priority:       structs.JobDefaultPriority,
 		Type:           structs.JobTypeService,
 		TriggeredBy:    structs.EvalTriggerJobDeregister,
@@ -198,7 +198,7 @@ func (j *Job) GetJob(args *structs.JobSpecificRequest,
 	if err != nil {
 		return err
 	}
-	out, err := snap.GetJobByID(args.JobID)
+	out, err := snap.JobByID(args.JobID)
 	if err != nil {
 		return err
 	}
@@ -209,12 +209,119 @@ func (j *Job) GetJob(args *structs.JobSpecificRequest,
 		reply.Index = out.ModifyIndex
 	} else {
 		// Use the last index that affected the nodes table
-		index, err := snap.GetIndex("jobs")
+		index, err := snap.Index("jobs")
 		if err != nil {
 			return err
 		}
 		reply.Index = index
 	}
+
+	// Set the query response
+	j.srv.setQueryMeta(&reply.QueryMeta)
+	return nil
+}
+
+// List is used to list the jobs registered in the system
+func (j *Job) List(args *structs.JobListRequest,
+	reply *structs.JobListResponse) error {
+	if done, err := j.srv.forward("Job.List", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "job", "list"}, time.Now())
+
+	// Capture all the jobs
+	snap, err := j.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+	iter, err := snap.Jobs()
+	if err != nil {
+		return err
+	}
+
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		job := raw.(*structs.Job)
+		reply.Jobs = append(reply.Jobs, job.Stub())
+	}
+
+	// Use the last index that affected the jobs table
+	index, err := snap.Index("jobs")
+	if err != nil {
+		return err
+	}
+	reply.Index = index
+
+	// Set the query response
+	j.srv.setQueryMeta(&reply.QueryMeta)
+	return nil
+}
+
+// Allocations is used to list the allocations for a job
+func (j *Job) Allocations(args *structs.JobSpecificRequest,
+	reply *structs.JobAllocationsResponse) error {
+	if done, err := j.srv.forward("Job.Allocations", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "job", "allocations"}, time.Now())
+
+	// Capture the allocations
+	snap, err := j.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+	allocs, err := snap.AllocsByJob(args.JobID)
+	if err != nil {
+		return err
+	}
+
+	// Convert to stubs
+	if len(allocs) > 0 {
+		reply.Allocations = make([]*structs.AllocListStub, 0, len(allocs))
+		for _, alloc := range allocs {
+			reply.Allocations = append(reply.Allocations, alloc.Stub())
+		}
+	}
+
+	// Use the last index that affected the allocs table
+	index, err := snap.Index("allocs")
+	if err != nil {
+		return err
+	}
+	reply.Index = index
+
+	// Set the query response
+	j.srv.setQueryMeta(&reply.QueryMeta)
+	return nil
+}
+
+// Evaluations is used to list the evaluations for a job
+func (j *Job) Evaluations(args *structs.JobSpecificRequest,
+	reply *structs.JobEvaluationsResponse) error {
+	if done, err := j.srv.forward("Job.Evaluations", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "job", "evaluations"}, time.Now())
+
+	// Capture the evaluations
+	snap, err := j.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+	reply.Evaluations, err = snap.EvalsByJob(args.JobID)
+	if err != nil {
+		return err
+	}
+
+	// Use the last index that affected the evals table
+	index, err := snap.Index("evals")
+	if err != nil {
+		return err
+	}
+	reply.Index = index
 
 	// Set the query response
 	j.srv.setQueryMeta(&reply.QueryMeta)

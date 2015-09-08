@@ -25,6 +25,10 @@ func (r *RejectPlan) UpdateEval(eval *structs.Evaluation) error {
 	return nil
 }
 
+func (r *RejectPlan) CreateEval(*structs.Evaluation) error {
+	return nil
+}
+
 // Harness is a lightweight testing harness for schedulers.
 // It manages a state store copy and provides the planner
 // interface. It can be extended for various testing uses.
@@ -34,8 +38,9 @@ type Harness struct {
 	Planner  Planner
 	planLock sync.Mutex
 
-	Plans []*structs.Plan
-	Evals []*structs.Evaluation
+	Plans       []*structs.Plan
+	Evals       []*structs.Evaluation
+	CreateEvals []*structs.Evaluation
 
 	nextIndex     uint64
 	nextIndexLock sync.Mutex
@@ -89,7 +94,7 @@ func (h *Harness) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State, er
 	allocs = append(allocs, plan.FailedAllocs...)
 
 	// Apply the full plan
-	err := h.State.UpdateAllocations(index, allocs)
+	err := h.State.UpsertAllocs(index, allocs)
 	return result, nil, err
 }
 
@@ -104,6 +109,21 @@ func (h *Harness) UpdateEval(eval *structs.Evaluation) error {
 	// Check for custom planner
 	if h.Planner != nil {
 		return h.Planner.UpdateEval(eval)
+	}
+	return nil
+}
+
+func (h *Harness) CreateEval(eval *structs.Evaluation) error {
+	// Ensure sequential plan application
+	h.planLock.Lock()
+	defer h.planLock.Unlock()
+
+	// Store the eval
+	h.CreateEvals = append(h.CreateEvals, eval)
+
+	// Check for custom planner
+	if h.Planner != nil {
+		return h.Planner.CreateEval(eval)
 	}
 	return nil
 }

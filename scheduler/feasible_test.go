@@ -39,6 +39,23 @@ func TestStaticIterator_Reset(t *testing.T) {
 	}
 }
 
+func TestStaticIterator_SetNodes(t *testing.T) {
+	_, ctx := testContext(t)
+	var nodes []*structs.Node
+	for i := 0; i < 3; i++ {
+		nodes = append(nodes, mock.Node())
+	}
+	static := NewStaticIterator(ctx, nodes)
+
+	newNodes := []*structs.Node{mock.Node()}
+	static.SetNodes(newNodes)
+
+	out := collectFeasible(static)
+	if !reflect.DeepEqual(out, newNodes) {
+		t.Fatalf("bad: %#v", out)
+	}
+}
+
 func TestRandomIterator(t *testing.T) {
 	_, ctx := testContext(t)
 	var nodes []*structs.Node
@@ -72,8 +89,8 @@ func TestDriverIterator(t *testing.T) {
 	nodes[2].Attributes["driver.foo"] = "2"
 
 	drivers := map[string]struct{}{
-		"docker": struct{}{},
-		"foo":    struct{}{},
+		"exec": struct{}{},
+		"foo":  struct{}{},
 	}
 	driver := NewDriverIterator(ctx, static, drivers)
 

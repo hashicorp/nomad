@@ -25,7 +25,7 @@ const (
 	timeTableGranularity = 5 * time.Minute
 
 	// timeTableLimit is the maximum limit of our tracking
-	timeTableLimit = 24 * time.Hour
+	timeTableLimit = 72 * time.Hour
 )
 
 // SnapshotType is prefixed to a record in the FSM snapshot
@@ -115,13 +115,15 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 
 	switch msgType {
 	case structs.NodeRegisterRequestType:
-		return n.applyRegisterNode(buf[1:], log.Index)
+		return n.applyUpsertNode(buf[1:], log.Index)
 	case structs.NodeDeregisterRequestType:
 		return n.applyDeregisterNode(buf[1:], log.Index)
 	case structs.NodeUpdateStatusRequestType:
 		return n.applyStatusUpdate(buf[1:], log.Index)
+	case structs.NodeUpdateDrainRequestType:
+		return n.applyDrainUpdate(buf[1:], log.Index)
 	case structs.JobRegisterRequestType:
-		return n.applyRegisterJob(buf[1:], log.Index)
+		return n.applyUpsertJob(buf[1:], log.Index)
 	case structs.JobDeregisterRequestType:
 		return n.applyDeregisterJob(buf[1:], log.Index)
 	case structs.EvalUpdateRequestType:
@@ -142,15 +144,15 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 	}
 }
 
-func (n *nomadFSM) applyRegisterNode(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyUpsertNode(buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "register_node"}, time.Now())
 	var req structs.NodeRegisterRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.RegisterNode(index, req.Node); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: RegisterNode failed: %v", err)
+	if err := n.state.UpsertNode(index, req.Node); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: UpsertNode failed: %v", err)
 		return err
 	}
 	return nil
@@ -163,8 +165,8 @@ func (n *nomadFSM) applyDeregisterNode(buf []byte, index uint64) interface{} {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.DeregisterNode(index, req.NodeID); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: DeregisterNode failed: %v", err)
+	if err := n.state.DeleteNode(index, req.NodeID); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: DeleteNode failed: %v", err)
 		return err
 	}
 	return nil
@@ -184,15 +186,29 @@ func (n *nomadFSM) applyStatusUpdate(buf []byte, index uint64) interface{} {
 	return nil
 }
 
-func (n *nomadFSM) applyRegisterJob(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyDrainUpdate(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "node_drain_update"}, time.Now())
+	var req structs.NodeUpdateDrainRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.UpdateNodeDrain(index, req.NodeID, req.Drain); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: UpdateNodeDrain failed: %v", err)
+		return err
+	}
+	return nil
+}
+
+func (n *nomadFSM) applyUpsertJob(buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "register_job"}, time.Now())
 	var req structs.JobRegisterRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.RegisterJob(index, req.Job); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: RegisterJob failed: %v", err)
+	if err := n.state.UpsertJob(index, req.Job); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: UpsertJob failed: %v", err)
 		return err
 	}
 	return nil
@@ -205,8 +221,8 @@ func (n *nomadFSM) applyDeregisterJob(buf []byte, index uint64) interface{} {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.DeregisterJob(index, req.JobID); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: DeregisterJob failed: %v", err)
+	if err := n.state.DeleteJob(index, req.JobID); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: DeleteJob failed: %v", err)
 		return err
 	}
 	return nil
@@ -256,8 +272,8 @@ func (n *nomadFSM) applyAllocUpdate(buf []byte, index uint64) interface{} {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.UpdateAllocations(index, req.Alloc); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: UpdateAllocations failed: %v", err)
+	if err := n.state.UpsertAllocs(index, req.Alloc); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: UpsertAllocs failed: %v", err)
 		return err
 	}
 	return nil

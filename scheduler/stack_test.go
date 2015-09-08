@@ -8,6 +8,21 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+func TestServiceStack_SetNodes(t *testing.T) {
+	_, ctx := testContext(t)
+	stack := NewGenericStack(false, ctx, nil)
+
+	nodes := []*structs.Node{
+		mock.Node(),
+	}
+	stack.SetNodes(nodes)
+
+	out := collectFeasible(stack.source)
+	if !reflect.DeepEqual(out, nodes) {
+		t.Fatalf("bad: %#v", out)
+	}
+}
+
 func TestServiceStack_SetJob(t *testing.T) {
 	_, ctx := testContext(t)
 	stack := NewGenericStack(false, ctx, nil)

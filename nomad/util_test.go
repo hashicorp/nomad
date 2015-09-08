@@ -3,10 +3,10 @@ package nomad
 import (
 	"net"
 	"reflect"
-	"regexp"
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/serf/serf"
 )
 
@@ -57,22 +57,6 @@ func TestIsNomadServer(t *testing.T) {
 	}
 }
 
-func TestGenerateUUID(t *testing.T) {
-	prev := generateUUID()
-	for i := 0; i < 100; i++ {
-		id := generateUUID()
-		if prev == id {
-			t.Fatalf("Should get a new ID!")
-		}
-
-		matched, err := regexp.MatchString(
-			"[\\da-f]{8}-[\\da-f]{4}-[\\da-f]{4}-[\\da-f]{4}-[\\da-f]{12}", id)
-		if !matched || err != nil {
-			t.Fatalf("expected match %s %v %s", id, matched, err)
-		}
-	}
-}
-
 func TestRandomStagger(t *testing.T) {
 	intv := time.Minute
 	for i := 0; i < 10; i++ {
@@ -87,7 +71,7 @@ func TestShuffleStrings(t *testing.T) {
 	// Generate input
 	inp := make([]string, 10)
 	for idx := range inp {
-		inp[idx] = generateUUID()
+		inp[idx] = structs.GenerateUUID()
 	}
 
 	// Copy the input

@@ -19,6 +19,7 @@ const (
 	NodeRegisterRequestType MessageType = iota
 	NodeDeregisterRequestType
 	NodeUpdateStatusRequestType
+	NodeUpdateDrainRequestType
 	JobRegisterRequestType
 	JobDeregisterRequestType
 	EvalUpdateRequestType
@@ -114,25 +115,32 @@ type WriteMeta struct {
 	Index uint64
 }
 
-// NodeRegisterRequest is used for Client.Register endpoint
+// NodeRegisterRequest is used for Node.Register endpoint
 // to register a node as being a schedulable entity.
 type NodeRegisterRequest struct {
 	Node *Node
 	WriteRequest
 }
 
-// NodeDeregisterRequest is used for Client.Deregister endpoint
+// NodeDeregisterRequest is used for Node.Deregister endpoint
 // to deregister a node as being a schedulable entity.
 type NodeDeregisterRequest struct {
 	NodeID string
 	WriteRequest
 }
 
-// UpdateStatusRequest is used for Client.UpdateStatus endpoint
+// NodeUpdateStatusRequest is used for Node.UpdateStatus endpoint
 // to update the status of a node.
 type NodeUpdateStatusRequest struct {
 	NodeID string
 	Status string
+	WriteRequest
+}
+
+// NodeUpdateDrainRequest is used for updatin the drain status
+type NodeUpdateDrainRequest struct {
+	NodeID string
+	Drain  bool
 	WriteRequest
 }
 
@@ -174,6 +182,16 @@ type JobSpecificRequest struct {
 	QueryOptions
 }
 
+// JobListRequest is used to parameterize a list request
+type JobListRequest struct {
+	QueryOptions
+}
+
+// NodeListRequest is used to parameterize a list request
+type NodeListRequest struct {
+	QueryOptions
+}
+
 // EvalUpdateRequest is used for upserting evaluations.
 type EvalUpdateRequest struct {
 	Evals     []*Evaluation
@@ -208,6 +226,11 @@ type EvalDequeueRequest struct {
 	WriteRequest
 }
 
+// EvalListRequest is used to list the evaluations
+type EvalListRequest struct {
+	QueryOptions
+}
+
 // PlanRequest is used to submit an allocation plan to the leader
 type PlanRequest struct {
 	Plan *Plan
@@ -221,6 +244,17 @@ type AllocUpdateRequest struct {
 	// Alloc is the list of new allocations to assign
 	Alloc []*Allocation
 	WriteRequest
+}
+
+// AllocListRequest is used to request a list of allocations
+type AllocListRequest struct {
+	QueryOptions
+}
+
+// AllocSpecificRequest is used to query a specific allocation
+type AllocSpecificRequest struct {
+	AllocID string
+	QueryOptions
 }
 
 // GenericRequest is used to request where no
@@ -273,6 +307,14 @@ type NodeUpdateResponse struct {
 	QueryMeta
 }
 
+// NodeDrainUpdateResponse is used to respond to a node drain update
+type NodeDrainUpdateResponse struct {
+	EvalIDs         []string
+	EvalCreateIndex uint64
+	NodeModifyIndex uint64
+	QueryMeta
+}
+
 // NodeAllocsResponse is used to return allocs for a single node
 type NodeAllocsResponse struct {
 	Allocs []*Allocation
@@ -285,9 +327,39 @@ type SingleNodeResponse struct {
 	QueryMeta
 }
 
+// JobListResponse is used for a list request
+type NodeListResponse struct {
+	Nodes []*NodeListStub
+	QueryMeta
+}
+
 // SingleJobResponse is used to return a single job
 type SingleJobResponse struct {
 	Job *Job
+	QueryMeta
+}
+
+// JobListResponse is used for a list request
+type JobListResponse struct {
+	Jobs []*JobListStub
+	QueryMeta
+}
+
+// SingleAllocResponse is used to return a single allocation
+type SingleAllocResponse struct {
+	Alloc *Allocation
+	QueryMeta
+}
+
+// JobAllocationsResponse is used to return the allocations for a job
+type JobAllocationsResponse struct {
+	Allocations []*AllocListStub
+	QueryMeta
+}
+
+// JobEvaluationsResponse is used to return the evaluations for a job
+type JobEvaluationsResponse struct {
+	Evaluations []*Evaluation
 	QueryMeta
 }
 
@@ -310,11 +382,27 @@ type PlanResponse struct {
 	WriteMeta
 }
 
+// AllocListResponse is used for a list request
+type AllocListResponse struct {
+	Allocations []*AllocListStub
+	QueryMeta
+}
+
+// EvalListResponse is used for a list request
+type EvalListResponse struct {
+	Evaluations []*Evaluation
+	QueryMeta
+}
+
+// EvalAllocationsResponse is used to return the allocations for an evaluation
+type EvalAllocationsResponse struct {
+	Allocations []*AllocListStub
+	QueryMeta
+}
+
 const (
 	NodeStatusInit  = "initializing"
 	NodeStatusReady = "ready"
-	NodeStatusMaint = "maintenance"
-	NodeStatusDrain = "drain"
 	NodeStatusDown  = "down"
 )
 
@@ -322,9 +410,9 @@ const (
 // evaluation. Some states don't require any further action.
 func ShouldDrainNode(status string) bool {
 	switch status {
-	case NodeStatusInit, NodeStatusReady, NodeStatusMaint:
+	case NodeStatusInit, NodeStatusReady:
 		return false
-	case NodeStatusDrain, NodeStatusDown:
+	case NodeStatusDown:
 		return true
 	default:
 		panic(fmt.Sprintf("unhandled node status %s", status))
@@ -334,8 +422,7 @@ func ShouldDrainNode(status string) bool {
 // ValidNodeStatus is used to check if a node status is valid
 func ValidNodeStatus(status string) bool {
 	switch status {
-	case NodeStatusInit, NodeStatusReady,
-		NodeStatusMaint, NodeStatusDrain, NodeStatusDown:
+	case NodeStatusInit, NodeStatusReady, NodeStatusDown:
 		return true
 	default:
 		return false
@@ -385,6 +472,11 @@ type Node struct {
 	// together for the purpose of determining scheduling pressure.
 	NodeClass string
 
+	// Drain is controlled by the servers, and not the client.
+	// If true, no jobs will be scheduled to this node, and existing
+	// allocations will be drained.
+	Drain bool
+
 	// Status of this node
 	Status string
 
@@ -405,6 +497,35 @@ func (n *Node) TerminalStatus() bool {
 	default:
 		return false
 	}
+}
+
+// Stub returns a summarized version of the node
+func (n *Node) Stub() *NodeListStub {
+	return &NodeListStub{
+		ID:                n.ID,
+		Datacenter:        n.Datacenter,
+		Name:              n.Name,
+		NodeClass:         n.NodeClass,
+		Drain:             n.Drain,
+		Status:            n.Status,
+		StatusDescription: n.StatusDescription,
+		CreateIndex:       n.CreateIndex,
+		ModifyIndex:       n.ModifyIndex,
+	}
+}
+
+// NodeListStub is used to return a subset of job information
+// for the job list
+type NodeListStub struct {
+	ID                string
+	Datacenter        string
+	Name              string
+	NodeClass         string
+	Drain             bool
+	Status            string
+	StatusDescription string
+	CreateIndex       uint64
+	ModifyIndex       uint64
 }
 
 // Resources is used to define the resources available
@@ -573,6 +694,9 @@ type Job struct {
 	// to run. Each task group is an atomic unit of scheduling and placement.
 	TaskGroups []*TaskGroup
 
+	// Update is used to control the update strategy
+	Update UpdateStrategy
+
 	// Meta is used to associate arbitrary metadata with this
 	// job. This is opaque to Nomad.
 	Meta map[string]string
@@ -598,6 +722,47 @@ func (j *Job) LookupTaskGroup(name string) *TaskGroup {
 	return nil
 }
 
+// Stub is used to return a summary of the job
+func (j *Job) Stub() *JobListStub {
+	return &JobListStub{
+		ID:                j.ID,
+		Name:              j.Name,
+		Type:              j.Type,
+		Priority:          j.Priority,
+		Status:            j.Status,
+		StatusDescription: j.StatusDescription,
+		CreateIndex:       j.CreateIndex,
+		ModifyIndex:       j.ModifyIndex,
+	}
+}
+
+// JobListStub is used to return a subset of job information
+// for the job list
+type JobListStub struct {
+	ID                string
+	Name              string
+	Type              string
+	Priority          int
+	Status            string
+	StatusDescription string
+	CreateIndex       uint64
+	ModifyIndex       uint64
+}
+
+// UpdateStrategy is used to modify how updates are done
+type UpdateStrategy struct {
+	// Stagger is the amount of time between the updates
+	Stagger time.Duration
+
+	// MaxParallel is how many updates can be done in parallel
+	MaxParallel int
+}
+
+// Rolling returns if a rolling strategy should be used
+func (u *UpdateStrategy) Rolling() bool {
+	return u.Stagger > 0 && u.MaxParallel > 0
+}
+
 // TaskGroup is an atomic unit of placement. Each task group belongs to
 // a job and may contain any number of tasks. A task group support running
 // in many replicas using the same configuration..
@@ -619,6 +784,16 @@ type TaskGroup struct {
 	// Meta is used to associate arbitrary metadata with this
 	// task group. This is opaque to Nomad.
 	Meta map[string]string
+}
+
+// LookupTask finds a task by name
+func (tg *TaskGroup) LookupTask(name string) *Task {
+	for _, t := range tg.Tasks {
+		if t.Name == name {
+			return t
+		}
+	}
+	return nil
 }
 
 // Task is a single process typically that is executed as part of a task group.
@@ -731,6 +906,40 @@ func (a *Allocation) TerminalStatus() bool {
 	}
 }
 
+// Stub returns a list stub for the allocation
+func (a *Allocation) Stub() *AllocListStub {
+	return &AllocListStub{
+		ID:                 a.ID,
+		EvalID:             a.EvalID,
+		Name:               a.Name,
+		NodeID:             a.NodeID,
+		JobID:              a.JobID,
+		TaskGroup:          a.TaskGroup,
+		DesiredStatus:      a.DesiredStatus,
+		DesiredDescription: a.DesiredDescription,
+		ClientStatus:       a.ClientStatus,
+		ClientDescription:  a.ClientDescription,
+		CreateIndex:        a.CreateIndex,
+		ModifyIndex:        a.ModifyIndex,
+	}
+}
+
+// AllocListStub is used to return a subset of alloc information
+type AllocListStub struct {
+	ID                 string
+	EvalID             string
+	Name               string
+	NodeID             string
+	JobID              string
+	TaskGroup          string
+	DesiredStatus      string
+	DesiredDescription string
+	ClientStatus       string
+	ClientDescription  string
+	CreateIndex        uint64
+	ModifyIndex        uint64
+}
+
 // AllocMetric is used to track various metrics while attempting
 // to make an allocation. These are used to debug a job, or to better
 // understand the pressure within the system.
@@ -819,10 +1028,20 @@ const (
 	EvalTriggerJobDeregister = "job-deregister"
 	EvalTriggerNodeUpdate    = "node-update"
 	EvalTriggerScheduled     = "scheduled"
+	EvalTriggerRollingUpdate = "rolling-update"
 )
 
 const (
+	// CoreJobEvalGC is used for the garbage collection of evaluations
+	// and allocations. We periodically scan evalutations in a terminal state,
+	// in which all the corresponding allocations are also terminal. We
+	// delete these out of the system to bound the state.
 	CoreJobEvalGC = "eval-gc"
+
+	// CoreJobNodeGC is used for the garbage collection of failed nodes.
+	// We periodically scan nodes in a terminal state, and if they have no
+	// corresponding allocations we delete these out of the system.
+	CoreJobNodeGC = "node-gc"
 )
 
 // Evaluation is used anytime we need to apply business logic as a result
@@ -867,6 +1086,18 @@ type Evaluation struct {
 
 	// StatusDescription is meant to provide more human useful information
 	StatusDescription string
+
+	// Wait is a minimum wait time for running the eval. This is used to
+	// support a rolling upgrade.
+	Wait time.Duration
+
+	// NextEval is the evaluation ID for the eval created to do a followup.
+	// This is used to support rolling upgrades, where we need a chain of evaluations.
+	NextEval string
+
+	// PreviousEval is the evaluation ID for the eval creating this one to do a followup.
+	// This is used to support rolling upgrades, where we need a chain of evaluations.
+	PreviousEval string
 
 	// Raft Indexes
 	CreateIndex uint64
@@ -921,6 +1152,21 @@ func (e *Evaluation) MakePlan(j *Job) *Plan {
 	return p
 }
 
+// NextRollingEval creates an evaluation to followup this eval for rolling updates
+func (e *Evaluation) NextRollingEval(wait time.Duration) *Evaluation {
+	return &Evaluation{
+		ID:             GenerateUUID(),
+		Priority:       e.Priority,
+		Type:           e.Type,
+		TriggeredBy:    EvalTriggerRollingUpdate,
+		JobID:          e.JobID,
+		JobModifyIndex: e.JobModifyIndex,
+		Status:         EvalStatusPending,
+		Wait:           wait,
+		PreviousEval:   e.ID,
+	}
+}
+
 // Plan is used to submit a commit plan for task allocations. These
 // are submitted to the leader which verifies that resources have
 // not been overcommitted before admiting the plan.
@@ -966,6 +1212,19 @@ func (p *Plan) AppendUpdate(alloc *Allocation, status, desc string) {
 	node := alloc.NodeID
 	existing := p.NodeUpdate[node]
 	p.NodeUpdate[node] = append(existing, newAlloc)
+}
+
+func (p *Plan) PopUpdate(alloc *Allocation) {
+	existing := p.NodeUpdate[alloc.NodeID]
+	n := len(existing)
+	if n > 0 && existing[n-1].ID == alloc.ID {
+		existing = existing[:n-1]
+		if len(existing) > 0 {
+			p.NodeUpdate[alloc.NodeID] = existing
+		} else {
+			delete(p.NodeUpdate, alloc.NodeID)
+		}
+	}
 }
 
 func (p *Plan) AppendAlloc(alloc *Allocation) {

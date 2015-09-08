@@ -14,11 +14,10 @@ import (
 // as the leader in the Raft cluster. There is some work the leader is
 // expected to do, so we must react to changes
 func (s *Server) monitorLeadership() {
-	leaderCh := s.raft.LeaderCh()
 	var stopCh chan struct{}
 	for {
 		select {
-		case isLeader := <-leaderCh:
+		case isLeader := <-s.leaderCh:
 			if isLeader {
 				stopCh = make(chan struct{})
 				go s.leaderLoop(stopCh)
@@ -172,11 +171,15 @@ func (s *Server) restoreEvalBroker() error {
 func (s *Server) schedulePeriodic(stopCh chan struct{}) {
 	evalGC := time.NewTicker(s.config.EvalGCInterval)
 	defer evalGC.Stop()
+	nodeGC := time.NewTicker(s.config.NodeGCInterval)
+	defer nodeGC.Stop()
 
 	for {
 		select {
 		case <-evalGC.C:
 			s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobEvalGC))
+		case <-nodeGC.C:
+			s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobNodeGC))
 		case <-stopCh:
 			return
 		}
@@ -186,7 +189,7 @@ func (s *Server) schedulePeriodic(stopCh chan struct{}) {
 // coreJobEval returns an evaluation for a core job
 func (s *Server) coreJobEval(job string) *structs.Evaluation {
 	return &structs.Evaluation{
-		ID:          generateUUID(),
+		ID:          structs.GenerateUUID(),
 		Priority:    structs.CoreJobPriority,
 		Type:        structs.JobTypeCore,
 		TriggeredBy: structs.EvalTriggerScheduled,

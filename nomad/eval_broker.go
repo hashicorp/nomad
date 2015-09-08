@@ -55,6 +55,9 @@ type EvalBroker struct {
 	// waiting is used to notify on a per-scheduler basis of ready work
 	waiting map[string]chan struct{}
 
+	// timeWait has evaluations that are waiting for time to elapse
+	timeWait map[string]*time.Timer
+
 	l sync.RWMutex
 }
 
@@ -89,6 +92,7 @@ func NewEvalBroker(timeout time.Duration, deliveryLimit int) (*EvalBroker, error
 		ready:         make(map[string]PendingEvaluations),
 		unack:         make(map[string]*unackEval),
 		waiting:       make(map[string]chan struct{}),
+		timeWait:      make(map[string]*time.Timer),
 	}
 	b.stats.ByScheduler = make(map[string]*SchedulerStats)
 	return b, nil
@@ -124,14 +128,34 @@ func (b *EvalBroker) Enqueue(eval *structs.Evaluation) error {
 		b.evals[eval.ID] = 0
 	}
 
-	return b.enqueueLocked(eval, eval.Type)
+	// Check if we need to enforce a wait
+	if eval.Wait > 0 {
+		timer := time.AfterFunc(eval.Wait, func() {
+			b.enqueueWaiting(eval)
+		})
+		b.timeWait[eval.ID] = timer
+		b.stats.TotalWaiting += 1
+		return nil
+	}
+
+	b.enqueueLocked(eval, eval.Type)
+	return nil
+}
+
+// enqueueWaiting is used to enqueue a waiting evaluation
+func (b *EvalBroker) enqueueWaiting(eval *structs.Evaluation) {
+	b.l.Lock()
+	defer b.l.Unlock()
+	delete(b.timeWait, eval.ID)
+	b.stats.TotalWaiting -= 1
+	b.enqueueLocked(eval, eval.Type)
 }
 
 // enqueueLocked is used to enqueue with the lock held
-func (b *EvalBroker) enqueueLocked(eval *structs.Evaluation, queue string) error {
+func (b *EvalBroker) enqueueLocked(eval *structs.Evaluation, queue string) {
 	// Do nothing if not enabled
 	if !b.enabled {
-		return nil
+		return
 	}
 
 	// Check if there is an evaluation for this JobID pending
@@ -143,7 +167,7 @@ func (b *EvalBroker) enqueueLocked(eval *structs.Evaluation, queue string) error
 		heap.Push(&blocked, eval)
 		b.blocked[eval.JobID] = blocked
 		b.stats.TotalBlocked += 1
-		return nil
+		return
 	}
 
 	// Find the pending by scheduler class
@@ -173,7 +197,6 @@ func (b *EvalBroker) enqueueLocked(eval *structs.Evaluation, queue string) error
 	case b.waiting[queue] <- struct{}{}:
 	default:
 	}
-	return nil
 }
 
 // Dequeue is used to perform a blocking dequeue
@@ -278,7 +301,7 @@ func (b *EvalBroker) dequeueForSched(sched string) (*structs.Evaluation, string,
 	eval := raw.(*structs.Evaluation)
 
 	// Generate a UUID for the token
-	token := generateUUID()
+	token := structs.GenerateUUID()
 
 	// Setup Nack timer
 	nackTimer := time.AfterFunc(b.nackTimeout, func() {
@@ -402,7 +425,8 @@ func (b *EvalBroker) Ack(evalID, token string) error {
 		}
 		eval := raw.(*structs.Evaluation)
 		b.stats.TotalBlocked -= 1
-		return b.enqueueLocked(eval, eval.Type)
+		b.enqueueLocked(eval, eval.Type)
+		return nil
 	}
 	return nil
 }
@@ -435,10 +459,11 @@ func (b *EvalBroker) Nack(evalID, token string) error {
 	// Check if we've hit the delivery limit, and re-enqueue
 	// in the failedQueue
 	if b.evals[evalID] >= b.deliveryLimit {
-		return b.enqueueLocked(unack.Eval, failedQueue)
+		b.enqueueLocked(unack.Eval, failedQueue)
 	} else {
-		return b.enqueueLocked(unack.Eval, unack.Eval.Type)
+		b.enqueueLocked(unack.Eval, unack.Eval.Type)
 	}
+	return nil
 }
 
 // Flush is used to clear the state of the broker
@@ -457,16 +482,23 @@ func (b *EvalBroker) Flush() {
 		unack.NackTimer.Stop()
 	}
 
+	// Cancel any time wait evals
+	for _, wait := range b.timeWait {
+		wait.Stop()
+	}
+
 	// Reset the broker
 	b.stats.TotalReady = 0
 	b.stats.TotalUnacked = 0
 	b.stats.TotalBlocked = 0
+	b.stats.TotalWaiting = 0
 	b.stats.ByScheduler = make(map[string]*SchedulerStats)
 	b.evals = make(map[string]int)
 	b.jobEvals = make(map[string]string)
 	b.blocked = make(map[string]PendingEvaluations)
 	b.ready = make(map[string]PendingEvaluations)
 	b.unack = make(map[string]*unackEval)
+	b.timeWait = make(map[string]*time.Timer)
 }
 
 // Stats is used to query the state of the broker
@@ -482,6 +514,7 @@ func (b *EvalBroker) Stats() *BrokerStats {
 	stats.TotalReady = b.stats.TotalReady
 	stats.TotalUnacked = b.stats.TotalUnacked
 	stats.TotalBlocked = b.stats.TotalBlocked
+	stats.TotalWaiting = b.stats.TotalWaiting
 	for sched, subStat := range b.stats.ByScheduler {
 		subStatCopy := new(SchedulerStats)
 		*subStatCopy = *subStat
@@ -499,6 +532,7 @@ func (b *EvalBroker) EmitStats(period time.Duration, stopCh chan struct{}) {
 			metrics.SetGauge([]string{"nomad", "broker", "total_ready"}, float32(stats.TotalReady))
 			metrics.SetGauge([]string{"nomad", "broker", "total_unacked"}, float32(stats.TotalUnacked))
 			metrics.SetGauge([]string{"nomad", "broker", "total_blocked"}, float32(stats.TotalBlocked))
+			metrics.SetGauge([]string{"nomad", "broker", "total_waiting"}, float32(stats.TotalWaiting))
 			for sched, schedStats := range stats.ByScheduler {
 				metrics.SetGauge([]string{"nomad", "broker", sched, "ready"}, float32(schedStats.Ready))
 				metrics.SetGauge([]string{"nomad", "broker", sched, "unacked"}, float32(schedStats.Unacked))
@@ -515,6 +549,7 @@ type BrokerStats struct {
 	TotalReady   int
 	TotalUnacked int
 	TotalBlocked int
+	TotalWaiting int
 	ByScheduler  map[string]*SchedulerStats
 }
 

@@ -44,6 +44,8 @@ func testServer(t *testing.T, cb func(*nomad.Config)) (*nomad.Server, string) {
 	config.RaftConfig.LeaderLeaseTimeout = 20 * time.Millisecond
 	config.RaftConfig.HeartbeatTimeout = 40 * time.Millisecond
 	config.RaftConfig.ElectionTimeout = 40 * time.Millisecond
+	config.RaftConfig.StartAsLeader = true
+	config.RaftTimeout = 500 * time.Millisecond
 
 	// Invoke the callback if any
 	if cb != nil {
@@ -159,7 +161,7 @@ func TestClient_Register(t *testing.T) {
 
 	// Register should succeed
 	testutil.WaitForResult(func() (bool, error) {
-		err := s1.RPC("Client.GetNode", &req, &out)
+		err := s1.RPC("Node.GetNode", &req, &out)
 		if err != nil {
 			return false, err
 		}
@@ -192,7 +194,7 @@ func TestClient_Heartbeat(t *testing.T) {
 
 	// Register should succeed
 	testutil.WaitForResult(func() (bool, error) {
-		err := s1.RPC("Client.GetNode", &req, &out)
+		err := s1.RPC("Node.GetNode", &req, &out)
 		if err != nil {
 			return false, err
 		}
@@ -219,7 +221,7 @@ func TestClient_UpdateAllocStatus(t *testing.T) {
 	alloc.NodeID = c1.Node().ID
 
 	state := s1.State()
-	state.UpdateAllocations(100, []*structs.Allocation{alloc})
+	state.UpsertAllocs(100, []*structs.Allocation{alloc})
 
 	newAlloc := new(structs.Allocation)
 	*newAlloc = *alloc
@@ -230,7 +232,7 @@ func TestClient_UpdateAllocStatus(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	out, err := state.GetAllocByID(alloc.ID)
+	out, err := state.AllocByID(alloc.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -257,7 +259,7 @@ func TestClient_WatchAllocs(t *testing.T) {
 	alloc2.NodeID = c1.Node().ID
 
 	state := s1.State()
-	err := state.UpdateAllocations(100,
+	err := state.UpsertAllocs(100,
 		[]*structs.Allocation{alloc1, alloc2})
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -281,7 +283,7 @@ func TestClient_WatchAllocs(t *testing.T) {
 
 	// Update the other allocation
 	alloc2.DesiredStatus = structs.AllocDesiredStatusStop
-	err = state.UpdateAllocations(102,
+	err = state.UpsertAllocs(102,
 		[]*structs.Allocation{alloc2})
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -326,7 +328,7 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	task.Config["args"] = "10"
 
 	state := s1.State()
-	err := state.UpdateAllocations(100,
+	err := state.UpsertAllocs(100,
 		[]*structs.Allocation{alloc1})
 	if err != nil {
 		t.Fatalf("err: %v", err)

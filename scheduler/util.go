@@ -2,6 +2,8 @@ package scheduler
 
 import (
 	"fmt"
+	"math/rand"
+	"reflect"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -32,7 +34,7 @@ type diffResult struct {
 }
 
 func (d *diffResult) GoString() string {
-	return fmt.Sprintf("allocs: (place %d) (update %d) (stop %d) (evict %d) (ignore %d)",
+	return fmt.Sprintf("allocs: (place %d) (update %d) (migrate %d) (stop %d) (ignore %d)",
 		len(d.place), len(d.update), len(d.migrate), len(d.stop), len(d.ignore))
 }
 
@@ -140,6 +142,9 @@ func readyNodesInDCs(state State, dcs []string) ([]*structs.Node, error) {
 		if node.Status != structs.NodeStatusReady {
 			continue
 		}
+		if node.Drain {
+			continue
+		}
 		if _, ok := dcMap[node.Datacenter]; !ok {
 			continue
 		}
@@ -177,7 +182,7 @@ func taintedNodes(state State, allocs []*structs.Allocation) (map[string]bool, e
 			continue
 		}
 
-		node, err := state.GetNodeByID(alloc.NodeID)
+		node, err := state.NodeByID(alloc.NodeID)
 		if err != nil {
 			return nil, err
 		}
@@ -188,7 +193,40 @@ func taintedNodes(state State, allocs []*structs.Allocation) (map[string]bool, e
 			continue
 		}
 
-		out[alloc.NodeID] = structs.ShouldDrainNode(node.Status)
+		out[alloc.NodeID] = structs.ShouldDrainNode(node.Status) || node.Drain
 	}
 	return out, nil
+}
+
+// shuffleNodes randomizes the slice order with the Fisher-Yates algorithm
+func shuffleNodes(nodes []*structs.Node) {
+	n := len(nodes)
+	for i := n - 1; i > 0; i-- {
+		j := rand.Intn(i + 1)
+		nodes[i], nodes[j] = nodes[j], nodes[i]
+	}
+}
+
+// tasksUpdated does a diff between task groups to see if the
+// tasks, their drivers or config have updated.
+func tasksUpdated(a, b *structs.TaskGroup) bool {
+	// If the number of tasks do not match, clearly there is an update
+	if len(a.Tasks) != len(b.Tasks) {
+		return true
+	}
+
+	// Check each task
+	for _, at := range a.Tasks {
+		bt := b.LookupTask(at.Name)
+		if bt == nil {
+			return true
+		}
+		if at.Driver != bt.Driver {
+			return true
+		}
+		if !reflect.DeepEqual(at.Config, bt.Config) {
+			return true
+		}
+	}
+	return false
 }

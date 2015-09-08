@@ -21,6 +21,5 @@ func NewArchFingerprint(logger *log.Logger) Fingerprint {
 
 func (f *ArchFingerprint) Fingerprint(config *client.Config, node *structs.Node) (bool, error) {
 	node.Attributes["arch"] = runtime.GOARCH
-	f.logger.Printf("[DEBUG] fingerprint.arch: detected '%s'", runtime.GOARCH)
 	return true, nil
 }

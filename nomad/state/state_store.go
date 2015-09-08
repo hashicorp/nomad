@@ -155,8 +155,10 @@ func (w *stateWatch) notifyAllocs(nodes map[string]struct{}) {
 	}
 }
 
-// RegisterNode is used to register a node or update a node definition
-func (s *StateStore) RegisterNode(index uint64, node *structs.Node) error {
+// UpsertNode is used to register a node or update a node definition
+// This is assumed to be triggered by the client, so we retain the value
+// of drain which is set by the scheduler.
+func (s *StateStore) UpsertNode(index uint64, node *structs.Node) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
@@ -168,8 +170,10 @@ func (s *StateStore) RegisterNode(index uint64, node *structs.Node) error {
 
 	// Setup the indexes correctly
 	if existing != nil {
-		node.CreateIndex = existing.(*structs.Node).CreateIndex
+		exist := existing.(*structs.Node)
+		node.CreateIndex = exist.CreateIndex
 		node.ModifyIndex = index
+		node.Drain = exist.Drain // Retain the drain mode
 	} else {
 		node.CreateIndex = index
 		node.ModifyIndex = index
@@ -187,8 +191,8 @@ func (s *StateStore) RegisterNode(index uint64, node *structs.Node) error {
 	return nil
 }
 
-// DeregisterNode is used to deregister a node
-func (s *StateStore) DeregisterNode(index uint64, nodeID string) error {
+// DeleteNode is used to deregister a node
+func (s *StateStore) DeleteNode(index uint64, nodeID string) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
@@ -214,7 +218,7 @@ func (s *StateStore) DeregisterNode(index uint64, nodeID string) error {
 }
 
 // UpdateNodeStatus is used to update the status of a node
-func (s *StateStore) UpdateNodeStatus(index uint64, nodeID string, status string) error {
+func (s *StateStore) UpdateNodeStatus(index uint64, nodeID, status string) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
@@ -248,8 +252,43 @@ func (s *StateStore) UpdateNodeStatus(index uint64, nodeID string, status string
 	return nil
 }
 
-// GetNodeByID is used to lookup a node by ID
-func (s *StateStore) GetNodeByID(nodeID string) (*structs.Node, error) {
+// UpdateNodeDrain is used to update the drain of a node
+func (s *StateStore) UpdateNodeDrain(index uint64, nodeID string, drain bool) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	// Lookup the node
+	existing, err := txn.First("nodes", "id", nodeID)
+	if err != nil {
+		return fmt.Errorf("node lookup failed: %v", err)
+	}
+	if existing == nil {
+		return fmt.Errorf("node not found")
+	}
+
+	// Copy the existing node
+	existingNode := existing.(*structs.Node)
+	copyNode := new(structs.Node)
+	*copyNode = *existingNode
+
+	// Update the drain in the copy
+	copyNode.Drain = drain
+	copyNode.ModifyIndex = index
+
+	// Insert the node
+	if err := txn.Insert("nodes", copyNode); err != nil {
+		return fmt.Errorf("node update failed: %v", err)
+	}
+	if err := txn.Insert("index", &IndexEntry{"nodes", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	txn.Commit()
+	return nil
+}
+
+// NodeByID is used to lookup a node by ID
+func (s *StateStore) NodeByID(nodeID string) (*structs.Node, error) {
 	txn := s.db.Txn(false)
 
 	existing, err := txn.First("nodes", "id", nodeID)
@@ -275,8 +314,8 @@ func (s *StateStore) Nodes() (memdb.ResultIterator, error) {
 	return iter, nil
 }
 
-// RegisterJob is used to register a job or update a job definition
-func (s *StateStore) RegisterJob(index uint64, job *structs.Job) error {
+// UpsertJob is used to register a job or update a job definition
+func (s *StateStore) UpsertJob(index uint64, job *structs.Job) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
@@ -307,8 +346,8 @@ func (s *StateStore) RegisterJob(index uint64, job *structs.Job) error {
 	return nil
 }
 
-// DeregisterJob is used to deregister a job
-func (s *StateStore) DeregisterJob(index uint64, jobID string) error {
+// DeleteJob is used to deregister a job
+func (s *StateStore) DeleteJob(index uint64, jobID string) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
@@ -333,8 +372,8 @@ func (s *StateStore) DeregisterJob(index uint64, jobID string) error {
 	return nil
 }
 
-// GetJobByID is used to lookup a job by its ID
-func (s *StateStore) GetJobByID(id string) (*structs.Job, error) {
+// JobByID is used to lookup a job by its ID
+func (s *StateStore) JobByID(id string) (*structs.Job, error) {
 	txn := s.db.Txn(false)
 
 	existing, err := txn.First("jobs", "id", id)
@@ -448,8 +487,8 @@ func (s *StateStore) DeleteEval(index uint64, evals []string, allocs []string) e
 	return nil
 }
 
-// GetEvalByID is used to lookup an eval by its ID
-func (s *StateStore) GetEvalByID(id string) (*structs.Evaluation, error) {
+// EvalByID is used to lookup an eval by its ID
+func (s *StateStore) EvalByID(id string) (*structs.Evaluation, error) {
 	txn := s.db.Txn(false)
 
 	existing, err := txn.First("evals", "id", id)
@@ -461,6 +500,27 @@ func (s *StateStore) GetEvalByID(id string) (*structs.Evaluation, error) {
 		return existing.(*structs.Evaluation), nil
 	}
 	return nil, nil
+}
+
+// EvalsByJob returns all the evaluations by job id
+func (s *StateStore) EvalsByJob(jobID string) ([]*structs.Evaluation, error) {
+	txn := s.db.Txn(false)
+
+	// Get an iterator over the node allocations
+	iter, err := txn.Get("evals", "job", jobID)
+	if err != nil {
+		return nil, err
+	}
+
+	var out []*structs.Evaluation
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		out = append(out, raw.(*structs.Evaluation))
+	}
+	return out, nil
 }
 
 // Evals returns an iterator over all the evaluations
@@ -523,9 +583,9 @@ func (s *StateStore) UpdateAllocFromClient(index uint64, alloc *structs.Allocati
 	return nil
 }
 
-// UpdateAllocations is used to evict a set of allocations
+// UpsertAllocs is used to evict a set of allocations
 // and allocate new ones at the same time.
-func (s *StateStore) UpdateAllocations(index uint64, allocs []*structs.Allocation) error {
+func (s *StateStore) UpsertAllocs(index uint64, allocs []*structs.Allocation) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 	nodes := make(map[string]struct{})
@@ -563,8 +623,8 @@ func (s *StateStore) UpdateAllocations(index uint64, allocs []*structs.Allocatio
 	return nil
 }
 
-// GetAllocByID is used to lookup an allocation by its ID
-func (s *StateStore) GetAllocByID(id string) (*structs.Allocation, error) {
+// AllocByID is used to lookup an allocation by its ID
+func (s *StateStore) AllocByID(id string) (*structs.Allocation, error) {
 	txn := s.db.Txn(false)
 
 	existing, err := txn.First("allocs", "id", id)
@@ -653,8 +713,8 @@ func (s *StateStore) Allocs() (memdb.ResultIterator, error) {
 	return iter, nil
 }
 
-// GetIndex finds the matching index value
-func (s *StateStore) GetIndex(name string) (uint64, error) {
+// Index finds the matching index value
+func (s *StateStore) Index(name string) (uint64, error) {
 	txn := s.db.Txn(false)
 
 	// Lookup the first matching index

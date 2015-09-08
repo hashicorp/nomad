@@ -62,7 +62,7 @@ func makeLog(buf []byte) *raft.Log {
 	}
 }
 
-func TestFSM_RegisterNode(t *testing.T) {
+func TestFSM_UpsertNode(t *testing.T) {
 	fsm := testFSM(t)
 
 	req := structs.NodeRegisterRequest{
@@ -79,7 +79,7 @@ func TestFSM_RegisterNode(t *testing.T) {
 	}
 
 	// Verify we are registered
-	node, err := fsm.State().GetNodeByID(req.Node.ID)
+	node, err := fsm.State().NodeByID(req.Node.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -128,7 +128,7 @@ func TestFSM_DeregisterNode(t *testing.T) {
 	}
 
 	// Verify we are NOT registered
-	node, err = fsm.State().GetNodeByID(req.Node.ID)
+	node, err = fsm.State().NodeByID(req.Node.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -169,11 +169,52 @@ func TestFSM_UpdateNodeStatus(t *testing.T) {
 	}
 
 	// Verify we are NOT registered
-	node, err = fsm.State().GetNodeByID(req.Node.ID)
+	node, err = fsm.State().NodeByID(req.Node.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if node.Status != structs.NodeStatusReady {
+		t.Fatalf("bad node: %#v", node)
+	}
+}
+
+func TestFSM_UpdateNodeDrain(t *testing.T) {
+	fsm := testFSM(t)
+
+	node := mock.Node()
+	req := structs.NodeRegisterRequest{
+		Node: node,
+	}
+	buf, err := structs.Encode(structs.NodeRegisterRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp := fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	req2 := structs.NodeUpdateDrainRequest{
+		NodeID: node.ID,
+		Drain:  true,
+	}
+	buf, err = structs.Encode(structs.NodeUpdateDrainRequestType, req2)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp = fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	// Verify we are NOT registered
+	node, err = fsm.State().NodeByID(req.Node.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if !node.Drain {
 		t.Fatalf("bad node: %#v", node)
 	}
 }
@@ -195,7 +236,7 @@ func TestFSM_RegisterJob(t *testing.T) {
 	}
 
 	// Verify we are registered
-	job, err := fsm.State().GetJobByID(req.Job.ID)
+	job, err := fsm.State().JobByID(req.Job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -238,7 +279,7 @@ func TestFSM_DeregisterJob(t *testing.T) {
 	}
 
 	// Verify we are NOT registered
-	job, err = fsm.State().GetJobByID(req.Job.ID)
+	job, err = fsm.State().JobByID(req.Job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -265,7 +306,7 @@ func TestFSM_UpdateEval(t *testing.T) {
 	}
 
 	// Verify we are registered
-	eval, err := fsm.State().GetEvalByID(req.Evals[0].ID)
+	eval, err := fsm.State().EvalByID(req.Evals[0].ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -314,7 +355,7 @@ func TestFSM_DeleteEval(t *testing.T) {
 	}
 
 	// Verify we are NOT registered
-	eval, err = fsm.State().GetEvalByID(req.Evals[0].ID)
+	eval, err = fsm.State().EvalByID(req.Evals[0].ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -323,7 +364,7 @@ func TestFSM_DeleteEval(t *testing.T) {
 	}
 }
 
-func TestFSM_UpdateAllocations(t *testing.T) {
+func TestFSM_UpsertAllocs(t *testing.T) {
 	fsm := testFSM(t)
 
 	alloc := mock.Alloc()
@@ -341,7 +382,7 @@ func TestFSM_UpdateAllocations(t *testing.T) {
 	}
 
 	// Verify we are registered
-	out, err := fsm.State().GetAllocByID(alloc.ID)
+	out, err := fsm.State().AllocByID(alloc.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -368,7 +409,7 @@ func TestFSM_UpdateAllocations(t *testing.T) {
 	}
 
 	// Verify we are evicted
-	out, err = fsm.State().GetAllocByID(alloc.ID)
+	out, err = fsm.State().AllocByID(alloc.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -382,7 +423,7 @@ func TestFSM_UpdateAllocFromClient(t *testing.T) {
 	state := fsm.State()
 
 	alloc := mock.Alloc()
-	state.UpdateAllocations(1, []*structs.Allocation{alloc})
+	state.UpsertAllocs(1, []*structs.Allocation{alloc})
 
 	clientAlloc := new(structs.Allocation)
 	*clientAlloc = *alloc
@@ -402,7 +443,7 @@ func TestFSM_UpdateAllocFromClient(t *testing.T) {
 	}
 
 	// Verify we are registered
-	out, err := fsm.State().GetAllocByID(alloc.ID)
+	out, err := fsm.State().AllocByID(alloc.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -443,15 +484,15 @@ func TestFSM_SnapshotRestore_Nodes(t *testing.T) {
 	fsm := testFSM(t)
 	state := fsm.State()
 	node1 := mock.Node()
-	state.RegisterNode(1000, node1)
+	state.UpsertNode(1000, node1)
 	node2 := mock.Node()
-	state.RegisterNode(1001, node2)
+	state.UpsertNode(1001, node2)
 
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)
 	state2 := fsm2.State()
-	out1, _ := state2.GetNodeByID(node1.ID)
-	out2, _ := state2.GetNodeByID(node2.ID)
+	out1, _ := state2.NodeByID(node1.ID)
+	out2, _ := state2.NodeByID(node2.ID)
 	if !reflect.DeepEqual(node1, out1) {
 		t.Fatalf("bad: \n%#v\n%#v", out1, node1)
 	}
@@ -465,15 +506,15 @@ func TestFSM_SnapshotRestore_Jobs(t *testing.T) {
 	fsm := testFSM(t)
 	state := fsm.State()
 	job1 := mock.Job()
-	state.RegisterJob(1000, job1)
+	state.UpsertJob(1000, job1)
 	job2 := mock.Job()
-	state.RegisterJob(1001, job2)
+	state.UpsertJob(1001, job2)
 
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)
 	state2 := fsm2.State()
-	out1, _ := state2.GetJobByID(job1.ID)
-	out2, _ := state2.GetJobByID(job2.ID)
+	out1, _ := state2.JobByID(job1.ID)
+	out2, _ := state2.JobByID(job2.ID)
 	if !reflect.DeepEqual(job1, out1) {
 		t.Fatalf("bad: \n%#v\n%#v", out1, job1)
 	}
@@ -494,8 +535,8 @@ func TestFSM_SnapshotRestore_Evals(t *testing.T) {
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)
 	state2 := fsm2.State()
-	out1, _ := state2.GetEvalByID(eval1.ID)
-	out2, _ := state2.GetEvalByID(eval2.ID)
+	out1, _ := state2.EvalByID(eval1.ID)
+	out2, _ := state2.EvalByID(eval2.ID)
 	if !reflect.DeepEqual(eval1, out1) {
 		t.Fatalf("bad: \n%#v\n%#v", out1, eval1)
 	}
@@ -509,15 +550,15 @@ func TestFSM_SnapshotRestore_Allocs(t *testing.T) {
 	fsm := testFSM(t)
 	state := fsm.State()
 	alloc1 := mock.Alloc()
-	state.UpdateAllocations(1000, []*structs.Allocation{alloc1})
+	state.UpsertAllocs(1000, []*structs.Allocation{alloc1})
 	alloc2 := mock.Alloc()
-	state.UpdateAllocations(1001, []*structs.Allocation{alloc2})
+	state.UpsertAllocs(1001, []*structs.Allocation{alloc2})
 
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)
 	state2 := fsm2.State()
-	out1, _ := state2.GetAllocByID(alloc1.ID)
-	out2, _ := state2.GetAllocByID(alloc2.ID)
+	out1, _ := state2.AllocByID(alloc1.ID)
+	out2, _ := state2.AllocByID(alloc2.ID)
 	if !reflect.DeepEqual(alloc1, out1) {
 		t.Fatalf("bad: \n%#v\n%#v", out1, alloc1)
 	}
@@ -531,13 +572,13 @@ func TestFSM_SnapshotRestore_Indexes(t *testing.T) {
 	fsm := testFSM(t)
 	state := fsm.State()
 	node1 := mock.Node()
-	state.RegisterNode(1000, node1)
+	state.UpsertNode(1000, node1)
 
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)
 	state2 := fsm2.State()
 
-	index, err := state2.GetIndex("nodes")
+	index, err := state2.Index("nodes")
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

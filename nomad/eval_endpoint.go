@@ -31,7 +31,7 @@ func (e *Eval) GetEval(args *structs.EvalSpecificRequest,
 	if err != nil {
 		return err
 	}
-	out, err := snap.GetEvalByID(args.EvalID)
+	out, err := snap.EvalByID(args.EvalID)
 	if err != nil {
 		return err
 	}
@@ -42,7 +42,7 @@ func (e *Eval) GetEval(args *structs.EvalSpecificRequest,
 		reply.Index = out.ModifyIndex
 	} else {
 		// Use the last index that affected the nodes table
-		index, err := snap.GetIndex("evals")
+		index, err := snap.Index("evals")
 		if err != nil {
 			return err
 		}
@@ -153,6 +153,53 @@ func (e *Eval) Update(args *structs.EvalUpdateRequest,
 	return nil
 }
 
+// Create is used to make a new evaluation
+func (e *Eval) Create(args *structs.EvalUpdateRequest,
+	reply *structs.GenericResponse) error {
+	if done, err := e.srv.forward("Eval.Create", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "eval", "create"}, time.Now())
+
+	// Ensure there is only a single update with token
+	if len(args.Evals) != 1 {
+		return fmt.Errorf("only a single eval can be created")
+	}
+	eval := args.Evals[0]
+
+	// Verify the parent evaluation is outstanding, and that the tokens match.
+	token, ok := e.srv.evalBroker.Outstanding(eval.PreviousEval)
+	if !ok {
+		return fmt.Errorf("previous evaluation is not outstanding")
+	}
+	if args.EvalToken != token {
+		return fmt.Errorf("previous evaluation token does not match")
+	}
+
+	// Look for the eval
+	snap, err := e.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+	out, err := snap.EvalByID(eval.ID)
+	if err != nil {
+		return err
+	}
+	if out != nil {
+		return fmt.Errorf("evaluation already exists")
+	}
+
+	// Update via Raft
+	_, index, err := e.srv.raftApply(structs.EvalUpdateRequestType, args)
+	if err != nil {
+		return err
+	}
+
+	// Update the index
+	reply.Index = index
+	return nil
+}
+
 // Reap is used to cleanup dead evaluations and allocations
 func (e *Eval) Reap(args *structs.EvalDeleteRequest,
 	reply *structs.GenericResponse) error {
@@ -169,5 +216,82 @@ func (e *Eval) Reap(args *structs.EvalDeleteRequest,
 
 	// Update the index
 	reply.Index = index
+	return nil
+}
+
+// List is used to get a list of the evaluations in the system
+func (e *Eval) List(args *structs.EvalListRequest,
+	reply *structs.EvalListResponse) error {
+	if done, err := e.srv.forward("Eval.List", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "eval", "list"}, time.Now())
+
+	// Scan all the evaluations
+	snap, err := e.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+	iter, err := snap.Evals()
+	if err != nil {
+		return err
+	}
+
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		eval := raw.(*structs.Evaluation)
+		reply.Evaluations = append(reply.Evaluations, eval)
+	}
+
+	// Use the last index that affected the jobs table
+	index, err := snap.Index("evals")
+	if err != nil {
+		return err
+	}
+	reply.Index = index
+
+	// Set the query response
+	e.srv.setQueryMeta(&reply.QueryMeta)
+	return nil
+}
+
+// Allocations is used to list the allocations for an evaluation
+func (e *Eval) Allocations(args *structs.EvalSpecificRequest,
+	reply *structs.EvalAllocationsResponse) error {
+	if done, err := e.srv.forward("Eval.Allocations", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "eval", "allocations"}, time.Now())
+
+	// Capture the allocations
+	snap, err := e.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+	allocs, err := snap.AllocsByEval(args.EvalID)
+	if err != nil {
+		return err
+	}
+
+	// Convert to a stub
+	if len(allocs) > 0 {
+		reply.Allocations = make([]*structs.AllocListStub, 0, len(allocs))
+		for _, alloc := range allocs {
+			reply.Allocations = append(reply.Allocations, alloc.Stub())
+		}
+	}
+
+	// Use the last index that affected the allocs table
+	index, err := snap.Index("allocs")
+	if err != nil {
+		return err
+	}
+	reply.Index = index
+
+	// Set the query response
+	e.srv.setQueryMeta(&reply.QueryMeta)
 	return nil
 }

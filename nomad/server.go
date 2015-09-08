@@ -66,6 +66,7 @@ type Server struct {
 
 	// The raft instance is used among Nomad nodes within the
 	// region to protect operations that require strong consistency
+	leaderCh      <-chan bool
 	raft          *raft.Raft
 	raftLayer     *RaftLayer
 	raftPeers     raft.PeerStore
@@ -128,10 +129,11 @@ type Server struct {
 // Holds the RPC endpoints
 type endpoints struct {
 	Status *Status
-	Client *ClientEndpoint
+	Node   *Node
 	Job    *Job
 	Eval   *Eval
 	Plan   *Plan
+	Alloc  *Alloc
 }
 
 // NewServer is used to construct a new Nomad server from the
@@ -196,13 +198,18 @@ func NewServer(config *Config) (*Server, error) {
 		s.Shutdown()
 		return nil, fmt.Errorf("Failed to start serf: %v", err)
 	}
-	go s.serfEventHandler()
 
 	// Intialize the scheduling workers
 	if err := s.setupWorkers(); err != nil {
 		s.Shutdown()
 		return nil, fmt.Errorf("Failed to start workers: %v", err)
 	}
+
+	// Monitor leadership changes
+	go s.monitorLeadership()
+
+	// Start ingesting events for Serf
+	go s.serfEventHandler()
 
 	// Start the RPC listeners
 	go s.listen()
@@ -337,17 +344,19 @@ func (s *Server) Leave() error {
 func (s *Server) setupRPC(tlsWrap tlsutil.DCWrapper) error {
 	// Create endpoints
 	s.endpoints.Status = &Status{s}
-	s.endpoints.Client = &ClientEndpoint{s}
+	s.endpoints.Node = &Node{s}
 	s.endpoints.Job = &Job{s}
 	s.endpoints.Eval = &Eval{s}
 	s.endpoints.Plan = &Plan{s}
+	s.endpoints.Alloc = &Alloc{s}
 
 	// Register the handlers
 	s.rpcServer.Register(s.endpoints.Status)
-	s.rpcServer.RegisterName("Client", s.endpoints.Client)
+	s.rpcServer.Register(s.endpoints.Node)
 	s.rpcServer.Register(s.endpoints.Job)
 	s.rpcServer.Register(s.endpoints.Eval)
 	s.rpcServer.Register(s.endpoints.Plan)
+	s.rpcServer.Register(s.endpoints.Alloc)
 
 	list, err := net.ListenTCP("tcp", s.config.RPCAddr)
 	if err != nil {
@@ -468,6 +477,11 @@ func (s *Server) setupRaft() error {
 	// Make sure we set the LogOutput
 	s.config.RaftConfig.LogOutput = s.config.LogOutput
 
+	// Setup the leader channel
+	leaderCh := make(chan bool, 1)
+	s.config.RaftConfig.NotifyCh = leaderCh
+	s.leaderCh = leaderCh
+
 	// Setup the Raft store
 	s.raft, err = raft.NewRaft(s.config.RaftConfig, s.fsm, log, stable,
 		snap, peers, trans)
@@ -478,9 +492,6 @@ func (s *Server) setupRaft() error {
 		trans.Close()
 		return err
 	}
-
-	// Start monitoring leadership
-	go s.monitorLeadership()
 	return nil
 }
 
@@ -496,7 +507,7 @@ func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string) (
 	conf.Tags["vsn_max"] = fmt.Sprintf("%d", ProtocolVersionMax)
 	conf.Tags["build"] = s.config.Build
 	conf.Tags["port"] = fmt.Sprintf("%d", s.rpcAdvertise.(*net.TCPAddr).Port)
-	if s.config.Bootstrap {
+	if s.config.Bootstrap || (s.config.DevMode && !s.config.DevDisableBootstrap) {
 		conf.Tags["bootstrap"] = "1"
 	}
 	if s.config.BootstrapExpect != 0 {

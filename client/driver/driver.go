@@ -13,6 +13,7 @@ import (
 // which are available for allocation handling
 var BuiltinDrivers = map[string]Factory{
 	"exec": NewExecDriver,
+	"java": NewJavaDriver,
 }
 
 // NewDriver is used to instantiate and return a new driver

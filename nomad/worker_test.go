@@ -231,7 +231,7 @@ func TestWorker_invokeScheduler(t *testing.T) {
 	eval := mock.Eval()
 	eval.Type = "noop"
 
-	err := w.invokeScheduler(eval, generateUUID())
+	err := w.invokeScheduler(eval, structs.GenerateUUID())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -404,11 +404,58 @@ func TestWorker_UpdateEval(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	out, err := s1.fsm.State().GetEvalByID(eval2.ID)
+	out, err := s1.fsm.State().EvalByID(eval2.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if out.Status != structs.EvalStatusComplete {
+		t.Fatalf("bad: %v", out)
+	}
+}
+
+func TestWorker_CreateEval(t *testing.T) {
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+		c.EnabledSchedulers = []string{structs.JobTypeService}
+	})
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Register node
+	node := mock.Node()
+	testRegisterNode(t, s1, node)
+
+	// Create the register request
+	eval1 := mock.Eval()
+	testutil.WaitForResult(func() (bool, error) {
+		err := s1.evalBroker.Enqueue(eval1)
+		return err == nil, err
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+	evalOut, token, err := s1.evalBroker.Dequeue([]string{eval1.Type}, time.Second)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if evalOut != eval1 {
+		t.Fatalf("Bad eval")
+	}
+
+	eval2 := mock.Eval()
+	eval2.PreviousEval = eval1.ID
+
+	// Attempt to create eval
+	w := &Worker{srv: s1, logger: s1.logger, evalToken: token}
+	err = w.CreateEval(eval2)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	out, err := s1.fsm.State().EvalByID(eval2.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out.PreviousEval != eval1.ID {
 		t.Fatalf("bad: %v", out)
 	}
 }

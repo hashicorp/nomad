@@ -18,7 +18,7 @@ func testRegisterNode(t *testing.T, s *Server, n *structs.Node) {
 
 	// Fetch the response
 	var resp structs.NodeUpdateResponse
-	if err := s.RPC("Client.Register", req, &resp); err != nil {
+	if err := s.RPC("Node.Register", req, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if resp.Index == 0 {
@@ -55,7 +55,7 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	}
 
 	// Lookup the allocation
-	out, err := s1.fsm.State().GetAllocByID(alloc.ID)
+	out, err := s1.fsm.State().AllocByID(alloc.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -64,7 +64,7 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	}
 
 	// Lookup the allocation
-	out, err = s1.fsm.State().GetAllocByID(allocFail.ID)
+	out, err = s1.fsm.State().AllocByID(allocFail.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -96,7 +96,7 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	}
 
 	// Lookup the allocation
-	out, err = s1.fsm.State().GetAllocByID(alloc.ID)
+	out, err = s1.fsm.State().AllocByID(alloc.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -105,7 +105,7 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	}
 
 	// Lookup the allocation
-	out, err = s1.fsm.State().GetAllocByID(alloc2.ID)
+	out, err = s1.fsm.State().AllocByID(alloc2.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -117,7 +117,7 @@ func TestPlanApply_applyPlan(t *testing.T) {
 func TestPlanApply_EvalPlan_Simple(t *testing.T) {
 	state := testStateStore(t)
 	node := mock.Node()
-	state.RegisterNode(1000, node)
+	state.UpsertNode(1000, node)
 	snap, _ := state.Snapshot()
 
 	alloc := mock.Alloc()
@@ -144,9 +144,9 @@ func TestPlanApply_EvalPlan_Simple(t *testing.T) {
 func TestPlanApply_EvalPlan_Partial(t *testing.T) {
 	state := testStateStore(t)
 	node := mock.Node()
-	state.RegisterNode(1000, node)
+	state.UpsertNode(1000, node)
 	node2 := mock.Node()
-	state.RegisterNode(1001, node2)
+	state.UpsertNode(1001, node2)
 	snap, _ := state.Snapshot()
 
 	alloc := mock.Alloc()
@@ -178,9 +178,9 @@ func TestPlanApply_EvalPlan_Partial(t *testing.T) {
 func TestPlanApply_EvalPlan_Partial_AllAtOnce(t *testing.T) {
 	state := testStateStore(t)
 	node := mock.Node()
-	state.RegisterNode(1000, node)
+	state.UpsertNode(1000, node)
 	node2 := mock.Node()
-	state.RegisterNode(1001, node2)
+	state.UpsertNode(1001, node2)
 	snap, _ := state.Snapshot()
 
 	alloc := mock.Alloc()
@@ -210,7 +210,7 @@ func TestPlanApply_EvalPlan_Partial_AllAtOnce(t *testing.T) {
 func TestPlanApply_EvalNodePlan_Simple(t *testing.T) {
 	state := testStateStore(t)
 	node := mock.Node()
-	state.RegisterNode(1000, node)
+	state.UpsertNode(1000, node)
 	snap, _ := state.Snapshot()
 
 	alloc := mock.Alloc()
@@ -233,7 +233,30 @@ func TestPlanApply_EvalNodePlan_NodeNotReady(t *testing.T) {
 	state := testStateStore(t)
 	node := mock.Node()
 	node.Status = structs.NodeStatusInit
-	state.RegisterNode(1000, node)
+	state.UpsertNode(1000, node)
+	snap, _ := state.Snapshot()
+
+	alloc := mock.Alloc()
+	plan := &structs.Plan{
+		NodeAllocation: map[string][]*structs.Allocation{
+			node.ID: []*structs.Allocation{alloc},
+		},
+	}
+
+	fit, err := evaluateNodePlan(snap, plan, node.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if fit {
+		t.Fatalf("bad")
+	}
+}
+
+func TestPlanApply_EvalNodePlan_NodeDrain(t *testing.T) {
+	state := testStateStore(t)
+	node := mock.Node()
+	node.Drain = true
+	state.UpsertNode(1000, node)
 	snap, _ := state.Snapshot()
 
 	alloc := mock.Alloc()
@@ -280,8 +303,8 @@ func TestPlanApply_EvalNodePlan_NodeFull(t *testing.T) {
 	alloc.NodeID = node.ID
 	node.Resources = alloc.Resources
 	node.Reserved = nil
-	state.RegisterNode(1000, node)
-	state.UpdateAllocations(1001, []*structs.Allocation{alloc})
+	state.UpsertNode(1000, node)
+	state.UpsertAllocs(1001, []*structs.Allocation{alloc})
 	snap, _ := state.Snapshot()
 
 	alloc2 := mock.Alloc()
@@ -308,8 +331,8 @@ func TestPlanApply_EvalNodePlan_UpdateExisting(t *testing.T) {
 	alloc.NodeID = node.ID
 	node.Resources = alloc.Resources
 	node.Reserved = nil
-	state.RegisterNode(1000, node)
-	state.UpdateAllocations(1001, []*structs.Allocation{alloc})
+	state.UpsertNode(1000, node)
+	state.UpsertAllocs(1001, []*structs.Allocation{alloc})
 	snap, _ := state.Snapshot()
 
 	plan := &structs.Plan{
@@ -334,8 +357,8 @@ func TestPlanApply_EvalNodePlan_NodeFull_Evict(t *testing.T) {
 	alloc.NodeID = node.ID
 	node.Resources = alloc.Resources
 	node.Reserved = nil
-	state.RegisterNode(1000, node)
-	state.UpdateAllocations(1001, []*structs.Allocation{alloc})
+	state.UpsertNode(1000, node)
+	state.UpsertAllocs(1001, []*structs.Allocation{alloc})
 	snap, _ := state.Snapshot()
 
 	allocEvict := new(structs.Allocation)
@@ -368,8 +391,8 @@ func TestPlanApply_EvalNodePlan_NodeFull_AllocEvict(t *testing.T) {
 	alloc.DesiredStatus = structs.AllocDesiredStatusEvict
 	node.Resources = alloc.Resources
 	node.Reserved = nil
-	state.RegisterNode(1000, node)
-	state.UpdateAllocations(1001, []*structs.Allocation{alloc})
+	state.UpsertNode(1000, node)
+	state.UpsertAllocs(1001, []*structs.Allocation{alloc})
 	snap, _ := state.Snapshot()
 
 	alloc2 := mock.Alloc()
@@ -388,16 +411,16 @@ func TestPlanApply_EvalNodePlan_NodeFull_AllocEvict(t *testing.T) {
 	}
 }
 
-func TestPlanApply_EvalNodePlan_NodeMaint_EvictOnly(t *testing.T) {
+func TestPlanApply_EvalNodePlan_NodeDown_EvictOnly(t *testing.T) {
 	alloc := mock.Alloc()
 	state := testStateStore(t)
 	node := mock.Node()
 	alloc.NodeID = node.ID
 	node.Resources = alloc.Resources
 	node.Reserved = nil
-	node.Status = structs.NodeStatusMaint
-	state.RegisterNode(1000, node)
-	state.UpdateAllocations(1001, []*structs.Allocation{alloc})
+	node.Status = structs.NodeStatusDown
+	state.UpsertNode(1000, node)
+	state.UpsertAllocs(1001, []*structs.Allocation{alloc})
 	snap, _ := state.Snapshot()
 
 	allocEvict := new(structs.Allocation)

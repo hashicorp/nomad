@@ -22,6 +22,9 @@ const (
 // make placement decisions. Different schedulers may customize the
 // stack they use to vary the way placements are made.
 type Stack interface {
+	// SetNodes is used to set the base set of potential nodes
+	SetNodes([]*structs.Node)
+
 	// SetTaskGroup is used to set the job for selection
 	SetJob(job *structs.Job)
 
@@ -34,6 +37,7 @@ type Stack interface {
 type GenericStack struct {
 	batch               bool
 	ctx                 Context
+	source              *StaticIterator
 	jobConstraint       *ConstraintIterator
 	taskGroupDrivers    *DriverIterator
 	taskGroupConstraint *ConstraintIterator
@@ -53,10 +57,10 @@ func NewGenericStack(batch bool, ctx Context, baseNodes []*structs.Node) *Generi
 	// Create the source iterator. We randomize the order we visit nodes
 	// to reduce collisions between schedulers and to do a basic load
 	// balancing across eligible nodes.
-	source := NewRandomIterator(ctx, baseNodes)
+	stack.source = NewRandomIterator(ctx, baseNodes)
 
 	// Attach the job constraints. The job is filled in later.
-	stack.jobConstraint = NewConstraintIterator(ctx, source, nil)
+	stack.jobConstraint = NewConstraintIterator(ctx, stack.source, nil)
 
 	// Filter on task group drivers first as they are faster
 	stack.taskGroupDrivers = NewDriverIterator(ctx, stack.jobConstraint, nil)
@@ -99,6 +103,14 @@ func NewGenericStack(batch bool, ctx Context, baseNodes []*structs.Node) *Generi
 	// Select the node with the maximum score for placement
 	stack.maxScore = NewMaxScoreIterator(ctx, limitIter)
 	return stack
+}
+
+func (s *GenericStack) SetNodes(baseNodes []*structs.Node) {
+	// Shuffle base nodes
+	shuffleNodes(baseNodes)
+
+	// Update the set of base nodes
+	s.source.SetNodes(baseNodes)
 }
 
 func (s *GenericStack) SetJob(job *structs.Job) {
