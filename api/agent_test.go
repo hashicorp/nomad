@@ -21,6 +21,11 @@ func TestAgent_Self(t *testing.T) {
 	if name, ok := res["member"]["Name"]; !ok || name == "" {
 		t.Fatalf("bad member name in response: %#v", res)
 	}
+
+	// Local cache was populated
+	if a.nodeName == "" || a.datacenter == "" || a.region == "" {
+		t.Fatalf("cache should be populated, got: %#v", a)
+	}
 }
 
 func TestAgent_NodeName(t *testing.T) {
@@ -33,15 +38,8 @@ func TestAgent_NodeName(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-
-	// Ensure we got a node name back
 	if res == "" {
 		t.Fatalf("expected node name, got nothing")
-	}
-
-	// Check that we cached the node name
-	if a.nodeName == "" {
-		t.Fatalf("should have cached node name")
 	}
 }
 
@@ -55,14 +53,7 @@ func TestAgent_Datacenter(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-
-	// Check that we got the DC name back
 	if dc != "dc1" {
 		t.Fatalf("expected dc1, got: %q", dc)
-	}
-
-	// Check that the datacenter name was cached
-	if a.datacenter == "" {
-		t.Fatalf("should have cached datacenter")
 	}
 }
