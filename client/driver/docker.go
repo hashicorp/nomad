@@ -63,7 +63,7 @@ func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool
 	return true, nil
 }
 
-// containerOptionsForTask initializes a strcut needed to call
+// containerOptionsForTask initializes a struct needed to call
 // docker.client.CreateContainer()
 func containerOptionsForTask(task *structs.Task, logger *log.Logger) docker.CreateContainerOptions {
 	if task.Resources == nil {
@@ -106,8 +106,8 @@ func containerOptionsForTask(task *structs.Task, logger *log.Logger) docker.Crea
 		CPUShares: int64(task.Resources.CPU),
 	}
 
-	log.Printf("[DEBUG] driver.docker using %d bytes memory for %s", containerConfig.Memory, task.Config["image"])
-	log.Printf("[DEBUG] driver.docker using %d cpu shares for %s", containerConfig.CPUShares, task.Config["image"])
+	logger.Printf("[DEBUG] driver.docker: using %d bytes memory for %s", containerConfig.Memory, task.Config["image"])
+	logger.Printf("[DEBUG] driver.docker: using %d cpu shares for %s", containerConfig.CPUShares, task.Config["image"])
 
 	return docker.CreateContainerOptions{
 		Config: &docker.Config{
@@ -126,6 +126,12 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	if task.Resources == nil {
 		return nil, fmt.Errorf("Resources are not specified")
 	}
+	if task.Resources.MemoryMB == 0 {
+		return nil, fmt.Errorf("Memory limit cannot be zero")
+	}
+	if task.Resources.CPU == 0 {
+		return nil.fmt.Errorf("CPU limit cannot be zero")
+	}
 
 	// Initialize docker API client
 	dockerEndpoint := d.config.ReadDefault("docker.endpoint", "unix:///var/run/docker.sock")
@@ -137,46 +143,47 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	// Download the image
 	pull, err := exec.Command("docker", "pull", image).CombinedOutput()
 	if err != nil {
-		d.logger.Printf("[ERROR] driver.docker pulling container %s", pull)
+		d.logger.Printf("[ERROR] driver.docker: pulling container %s", pull)
 		return nil, fmt.Errorf("Failed to pull `%s`: %s", image, err)
 	}
-	d.logger.Printf("[DEBUG] driver.docker docker pull %s:\n%s", image, pull)
+	d.logger.Printf("[DEBUG] driver.docker: docker pull %s:\n%s", image, pull)
 
 	// Get the image ID (sha256). We need to keep track of this in case another
 	// process pulls down a newer version of the image.
 	imageIDBytes, err := exec.Command("docker", "images", "-q", "--no-trunc", image).CombinedOutput()
 	imageID := strings.TrimSpace(string(imageIDBytes))
 	if err != nil || imageID == "" {
-		d.logger.Printf("[ERROR] driver.docker getting image id %s", imageID)
+		d.logger.Printf("[ERROR] driver.docker: getting image id %s", imageID)
 		return nil, fmt.Errorf("Failed to determine image id for `%s`: %s", image, err)
 	}
 	if !reDockerSha.MatchString(imageID) {
 		return nil, fmt.Errorf("Image id not in expected format (sha256); found %s", imageID)
 	}
-	d.logger.Printf("[DEBUG] driver.docker using image %s", imageID)
-	d.logger.Printf("[INFO] driver.docker downloaded image %s as %s", image, imageID)
+	d.logger.Printf("[DEBUG] driver.docker: using image %s", imageID)
+	d.logger.Printf("[INFO] driver.docker: downloaded image %s as %s", image, imageID)
 
 	// Create a container
 	container, err := client.CreateContainer(containerOptionsForTask(task, d.logger))
 	if err != nil {
-		d.logger.Printf("[ERROR] driver.docker %s", err)
+		d.logger.Printf("[ERROR] driver.docker: %s", err)
 		return nil, fmt.Errorf("Failed to create container from image %s", image)
 	}
 	if !reDockerSha.MatchString(container.ID) {
 		return nil, fmt.Errorf("Container id not in expected format (sha256); found %s", container.ID)
 	}
-	d.logger.Printf("[INFO] driver.docker created container %s", container.ID)
+	d.logger.Printf("[INFO] driver.docker: created container %s", container.ID)
 
 	// Start the container
 	startBytes, err := exec.Command("docker", "start", container.ID).CombinedOutput()
 	if err != nil {
-		d.logger.Printf("[ERROR] driver.docker starting container %s", strings.TrimSpace(string(startBytes)))
+		d.logger.Printf("[ERROR] driver.docker: starting container %s", strings.TrimSpace(string(startBytes)))
 		return nil, fmt.Errorf("Failed to start container %s", container.ID)
 	}
-	d.logger.Printf("[INFO] driver.docker started container %s", container.ID)
+	d.logger.Printf("[INFO] driver.docker: started container %s", container.ID)
 
 	// Return a driver handle
 	h := &dockerHandle{
+		logger:      d.logger,
 		imageID:     imageID,
 		containerID: container.ID,
 		doneCh:      make(chan struct{}),
@@ -194,7 +201,7 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 	if err != nil {
 		return nil, fmt.Errorf("Failed to parse handle '%s': %v", handleID, err)
 	}
-	log.Printf("[INFO] driver.docker re-attaching to docker process: %s", handleID)
+	d.logger.Printf("[INFO] driver.docker: re-attaching to docker process: %s", handleID)
 
 	// Look for a running container with this ID
 	// docker ps does not return an exit code if there are no matching processes
@@ -227,7 +234,7 @@ func (h *dockerHandle) ID() string {
 	}
 	data, err := json.Marshal(pid)
 	if err != nil {
-		log.Printf("[ERROR] failed to marshal docker PID to JSON: %s", err)
+		d.logger.Printf("[ERROR] driver.docker: failed to marshal docker PID to JSON: %s", err)
 	}
 	return fmt.Sprintf("DOCKER:%s", string(data))
 }
@@ -246,26 +253,26 @@ func (h *dockerHandle) Kill() error {
 	// Stop the container
 	stop, err := exec.Command("docker", "stop", "-t", "5", h.containerID).CombinedOutput()
 	if err != nil {
-		log.Printf("[ERROR] driver.docker stopping container %s", stop)
+		log.Printf("[ERROR] driver.docker: stopping container %s", stop)
 		return fmt.Errorf("Failed to stop container %s: %s", h.containerID, err)
 	}
-	log.Printf("[INFO] driver.docker stopped container %s", h.containerID)
+	log.Printf("[INFO] driver.docker: stopped container %s", h.containerID)
 
 	// Cleanup container
 	rmContainer, err := exec.Command("docker", "rm", h.containerID).CombinedOutput()
 	if err != nil {
-		log.Printf("[ERROR] driver.docker removing container %s", rmContainer)
+		log.Printf("[ERROR] driver.docker: removing container %s", rmContainer)
 		return fmt.Errorf("Failed to remove container %s: %s", h.containerID, err)
 	}
-	log.Printf("[INFO] driver.docker removed container %s", h.containerID)
+	log.Printf("[INFO] driver.docker: removed container %s", h.containerID)
 
 	// Cleanup image. This operation may fail if the image is in use by another
 	// job. That is OK. Will we log a message but continue.
 	_, err = exec.Command("docker", "rmi", h.imageID).CombinedOutput()
 	if err != nil {
-		log.Printf("[WARN] driver.docker failed to remove image %s; it may still be in use", h.imageID)
+		log.Printf("[WARN] driver.docker: failed to remove image %s; it may still be in use", h.imageID)
 	} else {
-		log.Printf("[INFO] driver.docker removed image %s", h.imageID)
+		log.Printf("[INFO] driver.docker: removed image %s", h.imageID)
 	}
 	return nil
 }
@@ -274,7 +281,7 @@ func (h *dockerHandle) run() {
 	// Wait for it...
 	waitBytes, err := exec.Command("docker", "wait", h.containerID).Output()
 	if err != nil {
-		h.logger.Printf("[ERROR] driver.docker unable to wait for %s; container already terminated", h.containerID)
+		h.logger.Printf("[ERROR] driver.docker: unable to wait for %s; container already terminated", h.containerID)
 	}
 	wait := strings.TrimSpace(string(waitBytes))
 
