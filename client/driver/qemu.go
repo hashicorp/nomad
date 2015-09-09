@@ -81,6 +81,12 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		return nil, fmt.Errorf("Missing source image Qemu driver")
 	}
 
+	// Qemu defaults to 128M of RAM for a given VM. Instead, we force users to
+	// supply a memory size in the tasks resources
+	if task.Resources == nil || task.Resources.MemoryMB == 0 {
+		return nil, fmt.Errorf("Missing required Task Resource: Memory")
+	}
+
 	// Attempt to download the thing
 	// Should be extracted to some kind of Http Fetcher
 	// Right now, assume publicly accessible HTTP url
