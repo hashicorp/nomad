@@ -54,6 +54,26 @@ func (j *Jobs) Allocations(jobID string) ([]*Allocation, *QueryMeta, error) {
 	return resp, qm, nil
 }
 
+// Evaluations is used to query the evaluations associated with
+// the given job ID.
+func (j *Jobs) Evaluations(jobID string) ([]*Evaluation, *QueryMeta, error) {
+	var resp []*Evaluation
+	qm, err := j.client.query("/v1/job/"+jobID+"/evaluations", &resp, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	return resp, qm, nil
+}
+
+// Delete is used to remove an existing job.
+func (j *Jobs) Delete(jobID string, q *WriteOptions) (*WriteMeta, error) {
+	wm, err := j.client.delete("/v1/job/"+jobID, nil, q)
+	if err != nil {
+		return nil, err
+	}
+	return wm, nil
+}
+
 // Job is used to serialize a job.
 type Job struct {
 	ID                string

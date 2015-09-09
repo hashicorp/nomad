@@ -24,12 +24,7 @@ func TestJobs_Register(t *testing.T) {
 	}
 
 	// Create a job and attempt to register it
-	job := &Job{
-		ID:       "job1",
-		Name:     "Job #1",
-		Type:     "service",
-		Priority: 1,
-	}
+	job := testJob()
 	eval, wm, err := jobs.Register(job, nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -37,18 +32,14 @@ func TestJobs_Register(t *testing.T) {
 	if eval == "" {
 		t.Fatalf("missing eval id")
 	}
-	if wm.LastIndex == 0 {
-		t.Fatalf("bad index: %d", wm.LastIndex)
-	}
+	assertWriteMeta(t, wm)
 
 	// Query the jobs back out again
 	resp, qm, err = jobs.List()
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	if qm.LastIndex == 0 {
-		t.Fatalf("bad index: %d", qm.LastIndex)
-	}
+	assertQueryMeta(t, qm)
 
 	// Check that we got the expected response
 	expect := []*Job{job}
@@ -70,24 +61,21 @@ func TestJobs_Info(t *testing.T) {
 	}
 
 	// Register the job
-	job := &Job{
-		ID:       "job1",
-		Name:     "Job #1",
-		Type:     "service",
-		Priority: 1,
-	}
-	if _, _, err := jobs.Register(job, nil); err != nil {
+	job := testJob()
+	_, wm, err := jobs.Register(job, nil)
+	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
+	assertWriteMeta(t, wm)
 
 	// Query the job again and ensure it exists
 	result, qm, err := jobs.Info("job1")
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	if qm.LastIndex == 0 {
-		t.Fatalf("bad index: %d", qm.LastIndex)
-	}
+	assertQueryMeta(t, qm)
+
+	// Check that the result is what we expect
 	if !reflect.DeepEqual(result, job) {
 		t.Fatalf("expect: %#v, got: %#v", job, result)
 	}
@@ -104,7 +92,7 @@ func TestJobs_Allocations(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 	if qm.LastIndex != 0 {
-		t.Fatalf("expected 0, got: %d", qm.LastIndex)
+		t.Fatalf("bad index: %d", qm.LastIndex)
 	}
 	if n := len(allocs); n != 0 {
 		t.Fatalf("expected 0 allocs, got: %d", n)
@@ -112,4 +100,81 @@ func TestJobs_Allocations(t *testing.T) {
 
 	// TODO: do something here to create some allocations for
 	// an existing job, lookup again.
+}
+
+func TestJobs_Evaluations(t *testing.T) {
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	jobs := c.Jobs()
+
+	// Looking up by a non-existent job ID returns nothing
+	evals, qm, err := jobs.Evaluations("job1")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	if qm.LastIndex != 0 {
+		t.Fatalf("bad index: %d", qm.LastIndex)
+	}
+	if n := len(evals); n != 0 {
+		t.Fatalf("expected 0 evals, got: %d", n)
+	}
+
+	// Insert a job. This also creates an evaluation so we should
+	// be able to query that out after.
+	job := testJob()
+	evalID, wm, err := jobs.Register(job, nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	assertWriteMeta(t, wm)
+
+	// Look up the evaluations again.
+	evals, qm, err = jobs.Evaluations("job1")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	assertQueryMeta(t, qm)
+
+	// Check that we got the evals back
+	if n := len(evals); n == 0 || evals[0].ID != evalID {
+		t.Fatalf("expected 1 eval (%s), got: %#v", evalID, evals)
+	}
+}
+
+func TestJobs_Delete(t *testing.T) {
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	jobs := c.Jobs()
+
+	// Register a new job
+	job := testJob()
+	_, wm, err := jobs.Register(job, nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	assertWriteMeta(t, wm)
+
+	// Attempting delete on non-existing job does not error
+	wm2, err := jobs.Delete("nope", nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	assertWriteMeta(t, wm2)
+
+	// Deleting an existing job works
+	wm3, err := jobs.Delete("job1", nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	assertWriteMeta(t, wm3)
+
+	// Check that the job is really gone
+	result, qm, err := jobs.List()
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	assertQueryMeta(t, qm)
+	if n := len(result); n != 0 {
+		t.Fatalf("expected 0 jobs, got: %d", n)
+	}
 }
