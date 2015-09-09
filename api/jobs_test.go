@@ -208,3 +208,52 @@ func TestJobs_Constraints(t *testing.T) {
 		}
 	}
 }
+
+func TestJobs_Compose(t *testing.T) {
+	// Compose a task
+	task := NewTask("mytask", "docker").
+		Require(&Resources{CPU: 1.25, MemoryMB: 1024}).
+		Require(&Resources{DiskMB: 2048}).
+		Configure("foo", "bar").
+		Configure("baz", "zip")
+
+	// Compose a task group
+	grp := NewTaskGroup("mytask", 2).
+		Constrain(HardConstraint("kernel.name", "=", "linux")).
+		Constrain(SoftConstraint("memory.totalbytes", ">=", "128000000", 1)).
+		AddMeta("foo", "bar").
+		AddMeta("baz", "zip").
+		AddTask(task)
+
+	// Check that the composed result looks correct
+	expect := &TaskGroup{
+		Name:  "mytask",
+		Count: 2,
+		Constraints: []*Constraint{
+			HardConstraint("kernel.name", "=", "linux"),
+			SoftConstraint("memory.totalbytes", ">=", "128000000", 1),
+		},
+		Tasks: []*Task{
+			&Task{
+				Name:   "mytask",
+				Driver: "docker",
+				Resources: &Resources{
+					CPU:      1.25,
+					MemoryMB: 1024,
+					DiskMB:   2048,
+				},
+				Config: map[string]string{
+					"foo": "bar",
+					"baz": "zip",
+				},
+			},
+		},
+		Meta: map[string]string{
+			"foo": "bar",
+			"baz": "zip",
+		},
+	}
+	if !reflect.DeepEqual(grp, expect) {
+		t.Fatalf("expect: %#v, got: %#v", expect, grp)
+	}
+}
