@@ -2,6 +2,7 @@ package api
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -53,5 +54,41 @@ func TestJobs_Register(t *testing.T) {
 	expect := []*Job{job}
 	if !reflect.DeepEqual(resp, expect) {
 		t.Fatalf("bad: %#v", resp[0])
+	}
+}
+
+func TestJobs_GetByID(t *testing.T) {
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	jobs := c.Jobs()
+
+	// Trying to retrieve a job by ID before it exists
+	// returns an error
+	_, _, err := jobs.GetByID("job1")
+	if err == nil || !strings.Contains(err.Error(), "not found") {
+		t.Fatalf("expected not found error, got: %#v", err)
+	}
+
+	// Register the job
+	job := &Job{
+		ID:       "job1",
+		Name:     "Job #1",
+		Type:     "service",
+		Priority: 1,
+	}
+	if _, _, err := jobs.Register(job, nil); err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	// Query the job again and ensure it exists
+	result, qm, err := jobs.GetByID("job1")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	if qm.LastIndex == 0 {
+		t.Fatalf("bad index: %d", qm.LastIndex)
+	}
+	if !reflect.DeepEqual(result, job) {
+		t.Fatalf("expect: %#v, got: %#v", job, result)
 	}
 }

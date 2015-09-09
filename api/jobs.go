@@ -33,6 +33,17 @@ func (j *Jobs) List() ([]*Job, *QueryMeta, error) {
 	return resp, qm, nil
 }
 
+// GetByID is used to retrieve information about a particular
+// job given its unique ID.
+func (j *Jobs) GetByID(id string) (*Job, *QueryMeta, error) {
+	var resp Job
+	qm, err := j.client.query("/v1/job/"+id, &resp, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, qm, nil
+}
+
 // Job is used to serialize a job.
 type Job struct {
 	ID                string
