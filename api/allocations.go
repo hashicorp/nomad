@@ -1,18 +1,18 @@
 package api
 
-// Allocs is used to query the alloc-related endpoints.
-type Allocs struct {
+// Allocations is used to query the alloc-related endpoints.
+type Allocations struct {
 	client *Client
 }
 
-// Allocs returns a handle on the allocs endpoints.
-func (c *Client) Allocs() *Allocs {
-	return &Allocs{client: c}
+// Allocations returns a handle on the allocs endpoints.
+func (c *Client) Allocations() *Allocations {
+	return &Allocations{client: c}
 }
 
 // List returns a list of all of the allocations.
-func (a *Allocs) List() ([]*Alloc, *QueryMeta, error) {
-	var resp []*Alloc
+func (a *Allocations) List() ([]*Allocation, *QueryMeta, error) {
+	var resp []*Allocation
 	qm, err := a.client.query("/v1/allocations", &resp, nil)
 	if err != nil {
 		return nil, nil, err
@@ -20,8 +20,8 @@ func (a *Allocs) List() ([]*Alloc, *QueryMeta, error) {
 	return resp, qm, nil
 }
 
-// Alloc is used for serialization of allocations.
-type Alloc struct {
+// Allocation is used for serialization of allocations.
+type Allocation struct {
 	ID                 string
 	EvalID             string
 	Name               string

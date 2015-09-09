@@ -33,15 +33,25 @@ func (j *Jobs) List() ([]*Job, *QueryMeta, error) {
 	return resp, qm, nil
 }
 
-// GetByID is used to retrieve information about a particular
+// Info is used to retrieve information about a particular
 // job given its unique ID.
-func (j *Jobs) GetByID(id string) (*Job, *QueryMeta, error) {
+func (j *Jobs) Info(jobID string) (*Job, *QueryMeta, error) {
 	var resp Job
-	qm, err := j.client.query("/v1/job/"+id, &resp, nil)
+	qm, err := j.client.query("/v1/job/"+jobID, &resp, nil)
 	if err != nil {
 		return nil, nil, err
 	}
 	return &resp, qm, nil
+}
+
+// Allocations is used to return the allocs for a given job ID.
+func (j *Jobs) Allocations(jobID string) ([]*Allocation, *QueryMeta, error) {
+	var resp []*Allocation
+	qm, err := j.client.query("/v1/job/"+jobID+"/allocations", &resp, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	return resp, qm, nil
 }
 
 // Job is used to serialize a job.

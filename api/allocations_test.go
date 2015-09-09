@@ -4,10 +4,10 @@ import (
 	"testing"
 )
 
-func TestAllocs_List(t *testing.T) {
+func TestAllocations_List(t *testing.T) {
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
-	a := c.Allocs()
+	a := c.Allocations()
 
 	// Querying when no allocs exist returns nothing
 	allocs, qm, err := a.List()

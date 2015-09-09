@@ -57,14 +57,14 @@ func TestJobs_Register(t *testing.T) {
 	}
 }
 
-func TestJobs_GetByID(t *testing.T) {
+func TestJobs_Info(t *testing.T) {
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
 
 	// Trying to retrieve a job by ID before it exists
 	// returns an error
-	_, _, err := jobs.GetByID("job1")
+	_, _, err := jobs.Info("job1")
 	if err == nil || !strings.Contains(err.Error(), "not found") {
 		t.Fatalf("expected not found error, got: %#v", err)
 	}
@@ -81,7 +81,7 @@ func TestJobs_GetByID(t *testing.T) {
 	}
 
 	// Query the job again and ensure it exists
-	result, qm, err := jobs.GetByID("job1")
+	result, qm, err := jobs.Info("job1")
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -91,4 +91,25 @@ func TestJobs_GetByID(t *testing.T) {
 	if !reflect.DeepEqual(result, job) {
 		t.Fatalf("expect: %#v, got: %#v", job, result)
 	}
+}
+
+func TestJobs_Allocations(t *testing.T) {
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	jobs := c.Jobs()
+
+	// Looking up by a non-existent job returns nothing
+	allocs, qm, err := jobs.Allocations("job1")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	if qm.LastIndex != 0 {
+		t.Fatalf("expected 0, got: %d", qm.LastIndex)
+	}
+	if n := len(allocs); n != 0 {
+		t.Fatalf("expected 0 allocs, got: %d", n)
+	}
+
+	// TODO: do something here to create some allocations for
+	// an existing job, lookup again.
 }
