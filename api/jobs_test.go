@@ -12,7 +12,7 @@ func TestJobs_Register(t *testing.T) {
 	jobs := c.Jobs()
 
 	// Listing jobs before registering returns nothing
-	resp, qm, err := jobs.List()
+	resp, qm, err := jobs.List(nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -35,7 +35,7 @@ func TestJobs_Register(t *testing.T) {
 	assertWriteMeta(t, wm)
 
 	// Query the jobs back out again
-	resp, qm, err = jobs.List()
+	resp, qm, err = jobs.List(nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -55,7 +55,7 @@ func TestJobs_Info(t *testing.T) {
 
 	// Trying to retrieve a job by ID before it exists
 	// returns an error
-	_, _, err := jobs.Info("job1")
+	_, _, err := jobs.Info("job1", nil)
 	if err == nil || !strings.Contains(err.Error(), "not found") {
 		t.Fatalf("expected not found error, got: %#v", err)
 	}
@@ -69,7 +69,7 @@ func TestJobs_Info(t *testing.T) {
 	assertWriteMeta(t, wm)
 
 	// Query the job again and ensure it exists
-	result, qm, err := jobs.Info("job1")
+	result, qm, err := jobs.Info("job1", nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -87,7 +87,7 @@ func TestJobs_Allocations(t *testing.T) {
 	jobs := c.Jobs()
 
 	// Looking up by a non-existent job returns nothing
-	allocs, qm, err := jobs.Allocations("job1")
+	allocs, qm, err := jobs.Allocations("job1", nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -108,7 +108,7 @@ func TestJobs_Evaluations(t *testing.T) {
 	jobs := c.Jobs()
 
 	// Looking up by a non-existent job ID returns nothing
-	evals, qm, err := jobs.Evaluations("job1")
+	evals, qm, err := jobs.Evaluations("job1", nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -129,7 +129,7 @@ func TestJobs_Evaluations(t *testing.T) {
 	assertWriteMeta(t, wm)
 
 	// Look up the evaluations again.
-	evals, qm, err = jobs.Evaluations("job1")
+	evals, qm, err = jobs.Evaluations("job1", nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -169,7 +169,7 @@ func TestJobs_Delete(t *testing.T) {
 	assertWriteMeta(t, wm3)
 
 	// Check that the job is really gone
-	result, qm, err := jobs.List()
+	result, qm, err := jobs.List(nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}

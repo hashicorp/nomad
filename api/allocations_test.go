@@ -10,7 +10,7 @@ func TestAllocations_List(t *testing.T) {
 	a := c.Allocations()
 
 	// Querying when no allocs exist returns nothing
-	allocs, qm, err := a.List()
+	allocs, qm, err := a.List(nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -36,7 +36,7 @@ func TestAllocations_List(t *testing.T) {
 	}
 
 	// List the allocations again
-	allocs, qm, err = a.List()
+	allocs, qm, err = a.List(nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}

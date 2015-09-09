@@ -24,9 +24,9 @@ func (j *Jobs) Register(job *Job, q *WriteOptions) (string, *WriteMeta, error) {
 }
 
 // List is used to list all of the existing jobs.
-func (j *Jobs) List() ([]*Job, *QueryMeta, error) {
+func (j *Jobs) List(q *QueryOptions) ([]*Job, *QueryMeta, error) {
 	var resp []*Job
-	qm, err := j.client.query("/v1/jobs", &resp, nil)
+	qm, err := j.client.query("/v1/jobs", &resp, q)
 	if err != nil {
 		return nil, qm, err
 	}
@@ -35,9 +35,9 @@ func (j *Jobs) List() ([]*Job, *QueryMeta, error) {
 
 // Info is used to retrieve information about a particular
 // job given its unique ID.
-func (j *Jobs) Info(jobID string) (*Job, *QueryMeta, error) {
+func (j *Jobs) Info(jobID string, q *QueryOptions) (*Job, *QueryMeta, error) {
 	var resp Job
-	qm, err := j.client.query("/v1/job/"+jobID, &resp, nil)
+	qm, err := j.client.query("/v1/job/"+jobID, &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -45,9 +45,9 @@ func (j *Jobs) Info(jobID string) (*Job, *QueryMeta, error) {
 }
 
 // Allocations is used to return the allocs for a given job ID.
-func (j *Jobs) Allocations(jobID string) ([]*Allocation, *QueryMeta, error) {
+func (j *Jobs) Allocations(jobID string, q *QueryOptions) ([]*Allocation, *QueryMeta, error) {
 	var resp []*Allocation
-	qm, err := j.client.query("/v1/job/"+jobID+"/allocations", &resp, nil)
+	qm, err := j.client.query("/v1/job/"+jobID+"/allocations", &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -56,9 +56,9 @@ func (j *Jobs) Allocations(jobID string) ([]*Allocation, *QueryMeta, error) {
 
 // Evaluations is used to query the evaluations associated with
 // the given job ID.
-func (j *Jobs) Evaluations(jobID string) ([]*Evaluation, *QueryMeta, error) {
+func (j *Jobs) Evaluations(jobID string, q *QueryOptions) ([]*Evaluation, *QueryMeta, error) {
 	var resp []*Evaluation
-	qm, err := j.client.query("/v1/job/"+jobID+"/evaluations", &resp, nil)
+	qm, err := j.client.query("/v1/job/"+jobID+"/evaluations", &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
