@@ -101,15 +101,17 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	fPath := filepath.Join(ctx.AllocDir, vmID)
 	vmPath, err := os.OpenFile(fPath, os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {
-		return nil, fmt.Errorf("Error opening file to download too: %s", err)
+		return nil, fmt.Errorf("Error opening file to download to: %s", err)
 	}
+
 	defer vmPath.Close()
+	defer resp.Body.Close()
 
 	// Copy remote file to local AllocDir for execution
 	// TODO: a retry of sort if io.Copy fails, for large binaries
 	_, ioErr := io.Copy(vmPath, resp.Body)
 	if ioErr != nil {
-		return nil, fmt.Errorf("Error copying jar from source: %s", ioErr)
+		return nil, fmt.Errorf("Error copying Qemu image from source: %s", ioErr)
 	}
 
 	// compute and check checksum
@@ -121,6 +123,7 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 			return nil, fmt.Errorf("Failed to open file for checksum")
 		}
 
+		defer file.Close()
 		io.Copy(hasher, file)
 
 		sum := hex.EncodeToString(hasher.Sum(nil))
