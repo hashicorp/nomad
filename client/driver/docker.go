@@ -217,6 +217,7 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 
 	// Return a driver handle
 	h := &dockerHandle{
+		logger:      d.logger,
 		imageID:     pid.ImageID,
 		containerID: pid.ContainerID,
 		doneCh:      make(chan struct{}),
