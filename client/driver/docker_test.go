@@ -55,6 +55,10 @@ func TestDockerDriver_StartOpen_Wait(t *testing.T) {
 		Config: map[string]string{
 			"image": "cbednarski/python-demo",
 		},
+		Resources: &structs.Resources{
+			MemoryMB: 1024,
+			CPU:      512,
+		},
 	}
 	handle, err := d.Start(ctx, task)
 	if err != nil {
@@ -85,6 +89,10 @@ func TestDockerDriver_Start_Wait(t *testing.T) {
 	task := &structs.Task{
 		Config: map[string]string{
 			"image": "cbednarski/python-demo",
+		},
+		Resources: &structs.Resources{
+			MemoryMB: 1024,
+			CPU:      512,
 		},
 	}
 	handle, err := d.Start(ctx, task)
@@ -122,6 +130,10 @@ func TestDockerDriver_Start_Kill_Wait(t *testing.T) {
 	task := &structs.Task{
 		Config: map[string]string{
 			"image": "cbednarski/python-demo",
+		},
+		Resources: &structs.Resources{
+			MemoryMB: 1024,
+			CPU:      512,
 		},
 	}
 	handle, err := d.Start(ctx, task)

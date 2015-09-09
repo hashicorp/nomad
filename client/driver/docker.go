@@ -63,17 +63,81 @@ func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool
 	return true, nil
 }
 
+// containerOptionsForTask initializes a strcut needed to call
+// docker.client.CreateContainer()
+func containerOptionsForTask(task *structs.Task, logger *log.Logger) docker.CreateContainerOptions {
+	if task.Resources == nil {
+		panic("boom")
+	}
+
+	containerConfig := &docker.HostConfig{
+		// Convert MB to bytes. This is an absolute value.
+		//
+		// This value represents the total amount of memory a process can use.
+		// Swap is added to total memory and is managed by the OS, not docker.
+		// Since this may cause other processes to swap and cause system
+		// instability, we will simply not use swap.
+		//
+		// See: https://www.kernel.org/doc/Documentation/cgroups/memory.txt
+		Memory:     int64(task.Resources.MemoryMB) * 1024 * 1024,
+		MemorySwap: -1,
+		// Convert Mhz to shares. This is a relative value.
+		//
+		// There are two types of CPU limiters available: Shares and Quotas. A
+		// Share allows a particular process to have a proportion of CPU time
+		// relative to other processes; 1024 by default. A CPU Quota is enforced
+		// over a Period of time and is a HARD limit on the amount of CPU time a
+		// process can use. Processes with quotas cannot burst, while processes
+		// with shares can, so we'll use shares.
+		//
+		// The simplest scale is 1 share to 1 MHz so 1024 = 1GHz. This means any
+		// given process will have at least that amount of resources, but likely
+		// more since it is (probably) rare that the machine will run at 100%
+		// CPU. This scale will cease to work if a node is overprovisioned.
+		//
+		// See:
+		//  - https://www.kernel.org/doc/Documentation/scheduler/sched-bwc.txt
+		//  - https://www.kernel.org/doc/Documentation/scheduler/sched-design-CFS.txt
+		//
+		// TODO push CPU share up to the task group level. We can retain the
+		// docker-specific implementation for very fine-grained control but the
+		// usage semantics will change once we have this capability in task
+		// groups.
+		CPUShares: int64(task.Resources.CPU),
+	}
+
+	log.Printf("[DEBUG] driver.docker using %d bytes memory for %s", containerConfig.Memory, task.Config["image"])
+	log.Printf("[DEBUG] driver.docker using %d cpu shares for %s", containerConfig.CPUShares, task.Config["image"])
+
+	return docker.CreateContainerOptions{
+		Config: &docker.Config{
+			Image: task.Config["image"],
+		},
+		HostConfig: containerConfig,
+	}
+}
+
 func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
 	// Get the image from config
 	image, ok := task.Config["image"]
 	if !ok || image == "" {
 		return nil, fmt.Errorf("Image not specified")
 	}
+	if task.Resources == nil {
+		return nil, fmt.Errorf("Resources are not specified")
+	}
+
+	// Initialize docker API client
+	dockerEndpoint := d.config.ReadDefault("docker.endpoint", "unix:///var/run/docker.sock")
+	client, err := docker.NewClient(dockerEndpoint)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to connect to docker.endpoint (%s): %s", dockerEndpoint, err)
+	}
 
 	// Download the image
 	pull, err := exec.Command("docker", "pull", image).CombinedOutput()
 	if err != nil {
-		d.logger.Printf("[ERROR] driver.docker %s", pull)
+		d.logger.Printf("[ERROR] driver.docker pulling container %s", pull)
 		return nil, fmt.Errorf("Failed to pull `%s`: %s", image, err)
 	}
 	d.logger.Printf("[DEBUG] driver.docker docker pull %s:\n%s", image, pull)
@@ -83,7 +147,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	imageIDBytes, err := exec.Command("docker", "images", "-q", "--no-trunc", image).CombinedOutput()
 	imageID := strings.TrimSpace(string(imageIDBytes))
 	if err != nil || imageID == "" {
-		d.logger.Printf("[ERROR] driver.docker %s", imageID)
+		d.logger.Printf("[ERROR] driver.docker getting image id %s", imageID)
 		return nil, fmt.Errorf("Failed to determine image id for `%s`: %s", image, err)
 	}
 	if !reDockerSha.MatchString(imageID) {
@@ -93,43 +157,28 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	d.logger.Printf("[INFO] driver.docker downloaded image %s as %s", image, imageID)
 
 	// Create a container
-	containerIDBytes, err := exec.Command("docker", "create", imageID).CombinedOutput()
-	containerID := strings.TrimSpace(string(containerIDBytes))
+	container, err := client.CreateContainer(containerOptionsForTask(task, d.logger))
 	if err != nil {
-		d.logger.Printf("[ERROR] driver.docker %s", containerID)
+		d.logger.Printf("[ERROR] driver.docker %s", err)
 		return nil, fmt.Errorf("Failed to create container from image %s", image)
 	}
-	if !reDockerSha.MatchString(containerID) {
-		return nil, fmt.Errorf("Container id not in expected format (sha256); found %s", containerID)
+	if !reDockerSha.MatchString(container.ID) {
+		return nil, fmt.Errorf("Container id not in expected format (sha256); found %s", container.ID)
 	}
-	d.logger.Printf("[INFO] driver.docker created container %s", containerID)
+	d.logger.Printf("[INFO] driver.docker created container %s", container.ID)
 
-	// Start the container. The output is containerID again so don't need to
-	// validate it. Also, the docker daemon is responsible for running this so
-	// start will return immediately. We'll use the containerID with the docker
-	// watch command to track its status.
-	//
-	// Note: at some point we will want to use docker run instead, to set extra
-	// options and such. You should use docker run -d and still use wait to
-	// check whether the process is available so we are able to re-wait if the
-	// nomad process is restarted. Also, you will need to parse the containerID
-	// out of the run command output since run combines pull, create and start
-	// into a single command.
-
-	client, err := docker.NewClient(d.config.ReadDefault("docker.endpoint", "unix:///var/run/docker.sock"))
-	client.ListImages(docker.ListImagesOptions{All: false})
-
-	startBytes, err := exec.Command("docker", "start", containerID).CombinedOutput()
+	// Start the container
+	startBytes, err := exec.Command("docker", "start", container.ID).CombinedOutput()
 	if err != nil {
-		d.logger.Printf("[ERROR] driver.docker %s", strings.TrimSpace(string(startBytes)))
-		return nil, fmt.Errorf("Failed to start container %s", containerID)
+		d.logger.Printf("[ERROR] driver.docker starting container %s", strings.TrimSpace(string(startBytes)))
+		return nil, fmt.Errorf("Failed to start container %s", container.ID)
 	}
-	d.logger.Printf("[INFO] driver.docker started container %s", containerID)
+	d.logger.Printf("[INFO] driver.docker started container %s", container.ID)
 
 	// Return a driver handle
 	h := &dockerHandle{
 		imageID:     imageID,
-		containerID: containerID,
+		containerID: container.ID,
 		doneCh:      make(chan struct{}),
 		waitCh:      make(chan error, 1),
 	}
@@ -145,7 +194,7 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 	if err != nil {
 		return nil, fmt.Errorf("Failed to parse handle '%s': %v", handleID, err)
 	}
-	log.Printf("[INFO] driver.docker Re-attaching to docker process: %s", handleID)
+	log.Printf("[INFO] driver.docker re-attaching to docker process: %s", handleID)
 
 	// Look for a running container with this ID
 	// docker ps does not return an exit code if there are no matching processes
@@ -197,7 +246,7 @@ func (h *dockerHandle) Kill() error {
 	// Stop the container
 	stop, err := exec.Command("docker", "stop", "-t", "5", h.containerID).CombinedOutput()
 	if err != nil {
-		log.Printf("[ERROR] driver.docker %s", stop)
+		log.Printf("[ERROR] driver.docker stopping container %s", stop)
 		return fmt.Errorf("Failed to stop container %s: %s", h.containerID, err)
 	}
 	log.Printf("[INFO] driver.docker stopped container %s", h.containerID)
@@ -205,7 +254,7 @@ func (h *dockerHandle) Kill() error {
 	// Cleanup container
 	rmContainer, err := exec.Command("docker", "rm", h.containerID).CombinedOutput()
 	if err != nil {
-		log.Printf("[ERROR] driver.docker %s", rmContainer)
+		log.Printf("[ERROR] driver.docker removing container %s", rmContainer)
 		return fmt.Errorf("Failed to remove container %s: %s", h.containerID, err)
 	}
 	log.Printf("[INFO] driver.docker removed container %s", h.containerID)
