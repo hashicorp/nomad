@@ -13,6 +13,8 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/sys/unix"
+
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -100,9 +102,11 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	fPath := filepath.Join(ctx.AllocDir, path.Base(source))
 	f, err := os.OpenFile(fPath, os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {
-		return nil, fmt.Errorf("Error opening file to download too: %s", err)
+		return nil, fmt.Errorf("Error opening file to download to: %s", err)
 	}
+
 	defer f.Close()
+	defer resp.Body.Close()
 
 	// Copy remote file to local AllocDir for execution
 	// TODO: a retry of sort if io.Copy fails, for large binaries
@@ -184,7 +188,7 @@ func (h *javaHandle) Update(task *structs.Task) error {
 // Kill is used to terminate the task. We send an Interrupt
 // and then provide a 5 second grace period before doing a Kill.
 func (h *javaHandle) Kill() error {
-	h.proc.Signal(os.Interrupt)
+	h.proc.Signal(unix.SIGTERM)
 	select {
 	case <-h.doneCh:
 		return nil

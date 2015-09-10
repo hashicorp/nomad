@@ -13,9 +13,10 @@ import (
 // BuiltinDrivers contains the built in registered drivers
 // which are available for allocation handling
 var BuiltinDrivers = map[string]Factory{
+	"docker": NewDockerDriver,
 	"exec":   NewExecDriver,
 	"java":   NewJavaDriver,
-	"docker": NewDockerDriver,
+	"qemu":   NewQemuDriver,
 }
 
 // NewDriver is used to instantiate and return a new driver
