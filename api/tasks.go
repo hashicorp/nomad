@@ -10,16 +10,11 @@ type TaskGroup struct {
 }
 
 // NewTaskGroup creates a new TaskGroup.
-func NewTaskGroup(name string) *TaskGroup {
+func NewTaskGroup(name string, count int) *TaskGroup {
 	return &TaskGroup{
 		Name:  name,
-		Count: 1,
+		Count: count,
 	}
-}
-
-func (g *TaskGroup) SetCount(count int) *TaskGroup {
-	g.Count = count
-	return g
 }
 
 // Constrain is used to add a constraint to a task group.

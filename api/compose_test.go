@@ -7,8 +7,9 @@ import (
 
 func TestCompose(t *testing.T) {
 	// Compose a task
-	task := NewTask("mytask", "docker").
+	task := NewTask("task1", "exec").
 		SetConfig("foo", "bar").
+		SetMeta("foo", "bar").
 		Constrain(HardConstraint("kernel.name", "=", "linux")).
 		Require(&Resources{
 		CPU:      1.25,
@@ -25,8 +26,7 @@ func TestCompose(t *testing.T) {
 	})
 
 	// Compose a task group
-	grp := NewTaskGroup("mygroup").
-		SetCount(2).
+	grp := NewTaskGroup("grp1", 2).
 		Constrain(HardConstraint("kernel.name", "=", "linux")).
 		SetMeta("foo", "bar").
 		AddTask(task)
@@ -40,11 +40,16 @@ func TestCompose(t *testing.T) {
 
 	// Check that the composed result looks correct
 	expect := &Job{
-		ID:          "job1",
-		Name:        "myjob",
-		Type:        JobTypeService,
-		Priority:    2,
-		Datacenters: []string{"dc1"},
+		ID:       "job1",
+		Name:     "myjob",
+		Type:     JobTypeService,
+		Priority: 2,
+		Datacenters: []string{
+			"dc1",
+		},
+		Meta: map[string]string{
+			"foo": "bar",
+		},
 		Constraints: []*Constraint{
 			&Constraint{
 				Hard:    true,
@@ -56,7 +61,7 @@ func TestCompose(t *testing.T) {
 		},
 		TaskGroups: []*TaskGroup{
 			&TaskGroup{
-				Name:  "mygroup",
+				Name:  "grp1",
 				Count: 2,
 				Constraints: []*Constraint{
 					&Constraint{
@@ -69,8 +74,8 @@ func TestCompose(t *testing.T) {
 				},
 				Tasks: []*Task{
 					&Task{
-						Name:   "mytask",
-						Driver: "docker",
+						Name:   "task1",
+						Driver: "exec",
 						Resources: &Resources{
 							CPU:      1.25,
 							MemoryMB: 1024,
@@ -78,9 +83,12 @@ func TestCompose(t *testing.T) {
 							IOPS:     1024,
 							Networks: []*NetworkResource{
 								&NetworkResource{
-									CIDR:          "0.0.0.0/0",
-									MBits:         100,
-									ReservedPorts: []int{80, 443},
+									CIDR:  "0.0.0.0/0",
+									MBits: 100,
+									ReservedPorts: []int{
+										80,
+										443,
+									},
 								},
 							},
 						},
@@ -95,13 +103,14 @@ func TestCompose(t *testing.T) {
 						},
 						Config: map[string]string{
 							"foo": "bar",
-							"baz": "zip",
+						},
+						Meta: map[string]string{
+							"foo": "bar",
 						},
 					},
 				},
 				Meta: map[string]string{
 					"foo": "bar",
-					"baz": "zip",
 				},
 			},
 		},
