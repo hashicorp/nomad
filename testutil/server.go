@@ -111,8 +111,7 @@ func NewTestServer(t *testing.T, cb ServerConfigCallback) *TestServer {
 	}
 
 	// Start the server
-	// TODO: Use "-config", configFile.Name()
-	cmd := exec.Command("nomad", "agent", "-dev")
+	cmd := exec.Command("nomad", "agent", "-dev", "-config", configFile.Name())
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 	if err := cmd.Start(); err != nil {
@@ -127,7 +126,7 @@ func NewTestServer(t *testing.T, cb ServerConfigCallback) *TestServer {
 		PID:    cmd.Process.Pid,
 		t:      t,
 
-		HTTPAddr:   "127.0.0.1:4646", // TODO nomadConfig.HTTPAddr,
+		HTTPAddr:   nomadConfig.HTTPAddr,
 		HttpClient: client,
 	}
 
