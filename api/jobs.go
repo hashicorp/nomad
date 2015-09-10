@@ -82,6 +82,16 @@ func (j *Jobs) Delete(jobID string, q *WriteOptions) (*WriteMeta, error) {
 	return wm, nil
 }
 
+// ForceEvaluate is used to force-evaluate an existing job.
+func (j *Jobs) ForceEvaluate(jobID string, q *WriteOptions) (string, *WriteMeta, error) {
+	var resp registerJobResponse
+	wm, err := j.client.write("/v1/job/"+jobID+"/evaluate", nil, &resp, q)
+	if err != nil {
+		return "", nil, err
+	}
+	return resp.EvalID, wm, nil
+}
+
 // Job is used to serialize a job.
 type Job struct {
 	ID                string

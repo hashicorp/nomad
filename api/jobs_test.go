@@ -179,6 +179,45 @@ func TestJobs_Delete(t *testing.T) {
 	}
 }
 
+func TestJobs_ForceEvaluate(t *testing.T) {
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	jobs := c.Jobs()
+
+	// Force-eval on a non-existent job fails
+	_, _, err := jobs.ForceEvaluate("job1", nil)
+	if err == nil || !strings.Contains(err.Error(), "not found") {
+		t.Fatalf("expected not found error, got: %#v", err)
+	}
+
+	// Create a new job
+	_, wm, err := jobs.Register(testJob(), nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	assertWriteMeta(t, wm)
+
+	// Try force-eval again
+	evalID, wm, err := jobs.ForceEvaluate("job1", nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	assertWriteMeta(t, wm)
+
+	// Retrieve the evals and see if we get a matching one
+	evals, qm, err := jobs.Evaluations("job1", nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	assertQueryMeta(t, qm)
+	for _, eval := range evals {
+		if eval.ID == evalID {
+			return
+		}
+	}
+	t.Fatalf("evaluation %q missing", evalID)
+}
+
 func TestJobs_NewBatchJob(t *testing.T) {
 	job := NewBatchJob("job1", "myjob", 5)
 	expect := &Job{
