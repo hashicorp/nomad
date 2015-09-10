@@ -26,7 +26,7 @@ func TestDockerDriver_Handle(t *testing.T) {
 }
 
 func TestDockerDriver_Fingerprint(t *testing.T) {
-	d := NewDockerDriver(testLogger())
+	d := NewDockerDriver(testDriverContext())
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
@@ -49,7 +49,7 @@ func TestDockerDriver_StartOpen_Wait(t *testing.T) {
 		t.SkipNow()
 	}
 	ctx := NewExecContext()
-	d := NewDockerDriver(testLogger())
+	d := NewDockerDriver(testDriverContext())
 
 	task := &structs.Task{
 		Config: map[string]string{
@@ -80,7 +80,7 @@ func TestDockerDriver_Start_Wait(t *testing.T) {
 		t.SkipNow()
 	}
 	ctx := NewExecContext()
-	d := NewDockerDriver(testLogger())
+	d := NewDockerDriver(testDriverContext())
 
 	task := &structs.Task{
 		Config: map[string]string{
@@ -117,7 +117,7 @@ func TestDockerDriver_Start_Kill_Wait(t *testing.T) {
 		t.SkipNow()
 	}
 	ctx := NewExecContext()
-	d := NewDockerDriver(testLogger())
+	d := NewDockerDriver(testDriverContext())
 
 	task := &structs.Task{
 		Config: map[string]string{

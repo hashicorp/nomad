@@ -2,7 +2,6 @@ package driver
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"strconv"
@@ -19,7 +18,7 @@ import (
 // fork/execs tasks. It should probably not be used for most things,
 // but is useful for testing purposes or for very simple tasks.
 type ExecDriver struct {
-	logger *log.Logger
+	DriverContext
 }
 
 // execHandle is returned from Start/Open as a handle to the PID
@@ -30,11 +29,8 @@ type execHandle struct {
 }
 
 // NewExecDriver is used to create a new exec driver
-func NewExecDriver(logger *log.Logger) Driver {
-	d := &ExecDriver{
-		logger: logger,
-	}
-	return d
+func NewExecDriver(ctx *DriverContext) Driver {
+	return &ExecDriver{*ctx}
 }
 
 func (d *ExecDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {

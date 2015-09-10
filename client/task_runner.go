@@ -129,7 +129,8 @@ func (r *TaskRunner) setStatus(status, desc string) {
 
 // createDriver makes a driver for the task
 func (r *TaskRunner) createDriver() (driver.Driver, error) {
-	driver, err := driver.NewDriver(r.task.Driver, r.logger)
+	driverCtx := driver.NewDriverContext(r.config, r.config.Node, r.logger)
+	driver, err := driver.NewDriver(r.task.Driver, driverCtx)
 	if err != nil {
 		err = fmt.Errorf("failed to create driver '%s' for alloc %s: %v",
 			r.task.Driver, r.allocID, err)

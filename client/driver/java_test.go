@@ -10,7 +10,7 @@ import (
 )
 
 func TestJavaDriver_Fingerprint(t *testing.T) {
-	d := NewJavaDriver(testLogger())
+	d := NewJavaDriver(testDriverContext())
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
@@ -34,7 +34,7 @@ func TestJavaDriver_Fingerprint(t *testing.T) {
 func TestJavaDriver_StartOpen_Wait(t *testing.T) {
 	ctx := NewExecContext()
 	ctx.AllocDir = os.TempDir()
-	d := NewJavaDriver(testLogger())
+	d := NewJavaDriver(testDriverContext())
 
 	task := &structs.Task{
 		Config: map[string]string{
@@ -71,7 +71,7 @@ func TestJavaDriver_StartOpen_Wait(t *testing.T) {
 func TestJavaDriver_Start_Wait(t *testing.T) {
 	ctx := NewExecContext()
 	ctx.AllocDir = os.TempDir()
-	d := NewJavaDriver(testLogger())
+	d := NewJavaDriver(testDriverContext())
 
 	task := &structs.Task{
 		Config: map[string]string{
@@ -109,7 +109,7 @@ func TestJavaDriver_Start_Wait(t *testing.T) {
 func TestJavaDriver_Start_Kill_Wait(t *testing.T) {
 	ctx := NewExecContext()
 	ctx.AllocDir = os.TempDir()
-	d := NewJavaDriver(testLogger())
+	d := NewJavaDriver(testDriverContext())
 
 	task := &structs.Task{
 		Config: map[string]string{
