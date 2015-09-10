@@ -199,18 +199,6 @@ func (a *Config) Merge(b *Config) *Config {
 	if b.EnableDebug {
 		result.EnableDebug = true
 	}
-	// TODO: merge client config
-	if b.Client != nil {
-		result.Client = b.Client
-	}
-	// TODO: merge server config
-	if b.Server != nil {
-		result.Server = b.Server
-	}
-	// TODO: merge telemetry config
-	if b.Telemetry != nil {
-		result.Telemetry = b.Telemetry
-	}
 	if b.LeaveOnInt {
 		result.LeaveOnInt = true
 	}
@@ -228,6 +216,116 @@ func (a *Config) Merge(b *Config) *Config {
 	}
 	if b.DisableAnonymousSignature {
 		result.DisableAnonymousSignature = true
+	}
+
+	// Apply the telemetry config
+	if result.Telemetry == nil && b.Telemetry != nil {
+		telemetry := *b.Telemetry
+		result.Telemetry = &telemetry
+	} else if b.Telemetry != nil {
+		result.Telemetry = result.Telemetry.Merge(b.Telemetry)
+	}
+
+	// Apply the client config
+	if result.Client == nil && b.Client != nil {
+		client := *b.Client
+		result.Client = &client
+	} else if b.Client != nil {
+		result.Client = result.Client.Merge(b.Client)
+	}
+
+	// Apply the server config
+	if result.Server == nil && b.Server != nil {
+		server := *b.Server
+		result.Server = &server
+	} else if b.Server != nil {
+		result.Server = result.Server.Merge(b.Server)
+	}
+
+	return &result
+}
+
+// Merge is used to merge two server configs together
+func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
+	var result ServerConfig = *a
+
+	if b.Enabled {
+		result.Enabled = true
+	}
+	if b.Bootstrap {
+		result.Bootstrap = true
+	}
+	if b.BootstrapExpect > 0 {
+		result.BootstrapExpect = b.BootstrapExpect
+	}
+	if b.DataDir != "" {
+		result.DataDir = b.DataDir
+	}
+	if b.ProtocolVersion != 0 {
+		result.ProtocolVersion = b.ProtocolVersion
+	}
+	if b.AdvertiseAddr != "" {
+		result.AdvertiseAddr = b.AdvertiseAddr
+	}
+	if b.BindAddr != "" {
+		result.BindAddr = b.BindAddr
+	}
+	if b.NumSchedulers != 0 {
+		result.NumSchedulers = b.NumSchedulers
+	}
+
+	// Add the schedulers
+	result.EnabledSchedulers = append(result.EnabledSchedulers, b.EnabledSchedulers...)
+
+	return &result
+}
+
+// Merge is used to merge two client configs together
+func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
+	var result ClientConfig = *a
+
+	if b.Enabled {
+		result.Enabled = true
+	}
+	if b.StateDir != "" {
+		result.StateDir = b.StateDir
+	}
+	if b.AllocDir != "" {
+		result.AllocDir = b.AllocDir
+	}
+	if b.NodeID != "" {
+		result.NodeID = b.NodeID
+	}
+	if b.NodeClass != "" {
+		result.NodeClass = b.NodeClass
+	}
+
+	// Add the servers
+	result.Servers = append(result.Servers, b.Servers...)
+
+	// Add the meta map values
+	if result.Meta == nil {
+		result.Meta = make(map[string]string)
+	}
+	for k, v := range b.Meta {
+		result.Meta[k] = v
+	}
+
+	return &result
+}
+
+// Merge is used to merge two telemetry configs together
+func (a *Telemetry) Merge(b *Telemetry) *Telemetry {
+	var result Telemetry = *a
+
+	if b.StatsiteAddr != "" {
+		result.StatsiteAddr = b.StatsiteAddr
+	}
+	if b.StatsdAddr != "" {
+		result.StatsdAddr = b.StatsdAddr
+	}
+	if b.DisableHostname {
+		result.DisableHostname = true
 	}
 	return &result
 }

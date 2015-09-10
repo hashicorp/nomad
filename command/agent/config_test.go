@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 func TestConfig_Merge(t *testing.T) {
@@ -23,6 +25,28 @@ func TestConfig_Merge(t *testing.T) {
 		SyslogFacility:            "local0.info",
 		DisableUpdateCheck:        false,
 		DisableAnonymousSignature: false,
+		Telemetry: &Telemetry{
+			StatsiteAddr:    "127.0.0.1:8125",
+			StatsdAddr:      "127.0.0.1:8125",
+			DisableHostname: false,
+		},
+		Client: &ClientConfig{
+			Enabled:   false,
+			StateDir:  "/tmp/state1",
+			AllocDir:  "/tmp/alloc1",
+			NodeID:    "node1",
+			NodeClass: "class1",
+		},
+		Server: &ServerConfig{
+			Enabled:         false,
+			Bootstrap:       false,
+			BootstrapExpect: 1,
+			DataDir:         "/tmp/data1",
+			ProtocolVersion: 1,
+			AdvertiseAddr:   "127.0.0.1:4647",
+			BindAddr:        "127.0.0.1",
+			NumSchedulers:   1,
+		},
 	}
 
 	c2 := &Config{
@@ -39,11 +63,36 @@ func TestConfig_Merge(t *testing.T) {
 		SyslogFacility:            "local0.debug",
 		DisableUpdateCheck:        true,
 		DisableAnonymousSignature: true,
+		Telemetry: &Telemetry{
+			StatsiteAddr:    "127.0.0.2:8125",
+			StatsdAddr:      "127.0.0.2:8125",
+			DisableHostname: true,
+		},
+		Client: &ClientConfig{
+			Enabled:   true,
+			StateDir:  "/tmp/state2",
+			AllocDir:  "/tmp/alloc2",
+			NodeID:    "node2",
+			NodeClass: "class2",
+			Servers:   []string{"server2"},
+			Meta:      map[string]string{"baz": "zip"},
+		},
+		Server: &ServerConfig{
+			Enabled:           true,
+			Bootstrap:         true,
+			BootstrapExpect:   2,
+			DataDir:           "/tmp/data2",
+			ProtocolVersion:   2,
+			AdvertiseAddr:     "127.0.0.2:4647",
+			BindAddr:          "127.0.0.2",
+			NumSchedulers:     2,
+			EnabledSchedulers: []string{structs.JobTypeBatch},
+		},
 	}
 
 	result := c1.Merge(c2)
 	if !reflect.DeepEqual(result, c2) {
-		t.Fatalf("bad: %#v", result)
+		t.Fatalf("bad:\n%#v\n%#v", result.Server, c2.Server)
 	}
 }
 
