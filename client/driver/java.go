@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -21,8 +20,7 @@ import (
 // JavaDriver is a simple driver to execute applications packaged in Jars.
 // It literally just fork/execs tasks with the java command.
 type JavaDriver struct {
-	logger *log.Logger
-	config *config.Config
+	DriverContext
 }
 
 // javaHandle is returned from Start/Open as a handle to the PID
@@ -33,12 +31,8 @@ type javaHandle struct {
 }
 
 // NewJavaDriver is used to create a new exec driver
-func NewJavaDriver(logger *log.Logger, config *config.Config) Driver {
-	d := &JavaDriver{
-		logger: logger,
-		config: config,
-	}
-	return d
+func NewJavaDriver(ctx *DriverContext) Driver {
+	return &JavaDriver{*ctx}
 }
 
 func (d *JavaDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
