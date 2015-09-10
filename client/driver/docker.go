@@ -20,8 +20,7 @@ var (
 )
 
 type DockerDriver struct {
-	logger *log.Logger
-	config *config.Config
+	DriverContext
 }
 
 type dockerPID struct {
@@ -37,12 +36,8 @@ type dockerHandle struct {
 	doneCh      chan struct{}
 }
 
-func NewDockerDriver(logger *log.Logger, config *config.Config) Driver {
-	d := &DockerDriver{
-		logger: logger,
-		config: config,
-	}
-	return d
+func NewDockerDriver(ctx *DriverContext) Driver {
+	return &DockerDriver{*ctx}
 }
 
 func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {

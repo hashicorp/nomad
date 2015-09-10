@@ -342,8 +342,9 @@ func (c *Client) fingerprint() error {
 // setupDrivers is used to find the available drivers
 func (c *Client) setupDrivers() error {
 	var avail []string
+	driverCtx := driver.NewDriverContext(c.config, c.config.Node, c.logger)
 	for name := range driver.BuiltinDrivers {
-		d, err := driver.NewDriver(name, c.logger, c.config)
+		d, err := driver.NewDriver(name, driverCtx)
 		if err != nil {
 			return err
 		}

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -14,6 +13,8 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/sys/unix"
+
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -21,8 +22,7 @@ import (
 // JavaDriver is a simple driver to execute applications packaged in Jars.
 // It literally just fork/execs tasks with the java command.
 type JavaDriver struct {
-	logger *log.Logger
-	config *config.Config
+	DriverContext
 }
 
 // javaHandle is returned from Start/Open as a handle to the PID
@@ -33,12 +33,8 @@ type javaHandle struct {
 }
 
 // NewJavaDriver is used to create a new exec driver
-func NewJavaDriver(logger *log.Logger, config *config.Config) Driver {
-	d := &JavaDriver{
-		logger: logger,
-		config: config,
-	}
-	return d
+func NewJavaDriver(ctx *DriverContext) Driver {
+	return &JavaDriver{*ctx}
 }
 
 func (d *JavaDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
@@ -106,9 +102,11 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	fPath := filepath.Join(ctx.AllocDir, path.Base(source))
 	f, err := os.OpenFile(fPath, os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {
-		return nil, fmt.Errorf("Error opening file to download too: %s", err)
+		return nil, fmt.Errorf("Error opening file to download to: %s", err)
 	}
+
 	defer f.Close()
+	defer resp.Body.Close()
 
 	// Copy remote file to local AllocDir for execution
 	// TODO: a retry of sort if io.Copy fails, for large binaries
@@ -190,7 +188,7 @@ func (h *javaHandle) Update(task *structs.Task) error {
 // Kill is used to terminate the task. We send an Interrupt
 // and then provide a 5 second grace period before doing a Kill.
 func (h *javaHandle) Kill() error {
-	h.proc.Signal(os.Interrupt)
+	h.proc.Signal(unix.SIGTERM)
 	select {
 	case <-h.doneCh:
 		return nil
