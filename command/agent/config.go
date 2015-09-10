@@ -175,14 +175,61 @@ func DefaultConfig() *Config {
 }
 
 // Merge merges two configurations.
-func (c *Config) Merge(c2 *Config) *Config {
-	result := new(Config)
+func (a *Config) Merge(b *Config) *Config {
+	var result Config = *a
 
-	result.Telemetry = c.Telemetry
-	if c2.Telemetry != nil {
-		result.Telemetry = c2.Telemetry
+	if b.Region != "" {
+		result.Region = b.Region
 	}
-	return result
+	if b.Datacenter != "" {
+		result.Datacenter = b.Datacenter
+	}
+	if b.NodeName != "" {
+		result.NodeName = b.NodeName
+	}
+	if b.DataDir != "" {
+		result.DataDir = b.DataDir
+	}
+	if b.LogLevel != "" {
+		result.LogLevel = b.LogLevel
+	}
+	if b.HttpAddr != "" {
+		result.HttpAddr = b.HttpAddr
+	}
+	if b.EnableDebug {
+		result.EnableDebug = true
+	}
+	// TODO: merge client config
+	if b.Client != nil {
+		result.Client = b.Client
+	}
+	// TODO: merge server config
+	if b.Server != nil {
+		result.Server = b.Server
+	}
+	// TODO: merge telemetry config
+	if b.Telemetry != nil {
+		result.Telemetry = b.Telemetry
+	}
+	if b.LeaveOnInt {
+		result.LeaveOnInt = true
+	}
+	if b.LeaveOnTerm {
+		result.LeaveOnTerm = true
+	}
+	if b.EnableSyslog {
+		result.EnableSyslog = true
+	}
+	if b.SyslogFacility != "" {
+		result.SyslogFacility = b.SyslogFacility
+	}
+	if b.DisableUpdateCheck {
+		result.DisableUpdateCheck = true
+	}
+	if b.DisableAnonymousSignature {
+		result.DisableAnonymousSignature = true
+	}
+	return &result
 }
 
 // LoadConfig loads the configuration at the given path, regardless if
