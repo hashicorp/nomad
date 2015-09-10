@@ -62,7 +62,7 @@ func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool
 // docker.client.CreateContainer()
 func containerOptionsForTask(task *structs.Task, logger *log.Logger) docker.CreateContainerOptions {
 	if task.Resources == nil {
-		panic("boom")
+		panic("task.Resources is nil and we can't constrain resource usage. We shouldn't have been able to schedule this in the first place.")
 	}
 
 	containerConfig := &docker.HostConfig{
