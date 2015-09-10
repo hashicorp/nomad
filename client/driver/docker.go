@@ -125,7 +125,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 		return nil, fmt.Errorf("Memory limit cannot be zero")
 	}
 	if task.Resources.CPU == 0 {
-		return nil.fmt.Errorf("CPU limit cannot be zero")
+		return nil, fmt.Errorf("CPU limit cannot be zero")
 	}
 
 	// Initialize docker API client
@@ -230,7 +230,7 @@ func (h *dockerHandle) ID() string {
 	}
 	data, err := json.Marshal(pid)
 	if err != nil {
-		d.logger.Printf("[ERROR] driver.docker: failed to marshal docker PID to JSON: %s", err)
+		h.logger.Printf("[ERROR] driver.docker: failed to marshal docker PID to JSON: %s", err)
 	}
 	return fmt.Sprintf("DOCKER:%s", string(data))
 }
