@@ -28,7 +28,7 @@ func TestAllocations_List(t *testing.T) {
 	job := &Job{
 		ID:   "job1",
 		Name: "Job #1",
-		Type: "service",
+		Type: JobTypeService,
 	}
 	eval, _, err := c.Jobs().Register(job, nil)
 	if err != nil {

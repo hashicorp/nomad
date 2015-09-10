@@ -29,7 +29,7 @@ func testJob() *Job {
 	return &Job{
 		ID:       "job1",
 		Name:     "redis",
-		Type:     "service",
+		Type:     JobTypeService,
 		Priority: 1,
 	}
 }

@@ -178,3 +178,88 @@ func TestJobs_Delete(t *testing.T) {
 		t.Fatalf("expected 0 jobs, got: %d", n)
 	}
 }
+
+func TestJobs_NewBatchJob(t *testing.T) {
+	job := NewBatchJob("job1", "myjob", 5)
+	expect := &Job{
+		ID:       "job1",
+		Name:     "myjob",
+		Type:     JobTypeBatch,
+		Priority: 5,
+	}
+	if !reflect.DeepEqual(job, expect) {
+		t.Fatalf("expect: %#v, got: %#v", expect, job)
+	}
+}
+
+func TestJobs_NewServiceJob(t *testing.T) {
+	job := NewServiceJob("job1", "myjob", 5)
+	expect := &Job{
+		ID:       "job1",
+		Name:     "myjob",
+		Type:     JobTypeService,
+		Priority: 5,
+	}
+	if !reflect.DeepEqual(job, expect) {
+		t.Fatalf("expect: %#v, got: %#v", expect, job)
+	}
+}
+
+func TestJobs_SetMeta(t *testing.T) {
+	job := &Job{Meta: nil}
+
+	// Initializes a nil map
+	out := job.SetMeta("foo", "bar")
+	if job.Meta == nil {
+		t.Fatalf("should initialize metadata")
+	}
+
+	// Check that the job was returned
+	if job != out {
+		t.Fatalf("expect: %#v, got: %#v", job, out)
+	}
+
+	// Setting another pair is additive
+	job.SetMeta("baz", "zip")
+	expect := map[string]string{"foo": "bar", "baz": "zip"}
+	if !reflect.DeepEqual(job.Meta, expect) {
+		t.Fatalf("expect: %#v, got: %#v", expect, job.Meta)
+	}
+}
+
+func TestJobs_Constrain(t *testing.T) {
+	job := &Job{Constraints: nil}
+
+	// Create and add a constraint
+	out := job.Constrain(HardConstraint("kernel.name", "=", "darwin"))
+	if n := len(job.Constraints); n != 1 {
+		t.Fatalf("expected 1 constraint, got: %d", n)
+	}
+
+	// Check that the job was returned
+	if job != out {
+		t.Fatalf("expect: %#v, got: %#v", job, out)
+	}
+
+	// Adding another constraint preserves the original
+	job.Constrain(SoftConstraint("memory.totalbytes", ">=", "128000000", 2))
+	expect := []*Constraint{
+		&Constraint{
+			Hard:    true,
+			LTarget: "kernel.name",
+			RTarget: "darwin",
+			Operand: "=",
+			Weight:  0,
+		},
+		&Constraint{
+			Hard:    false,
+			LTarget: "memory.totalbytes",
+			RTarget: "128000000",
+			Operand: ">=",
+			Weight:  2,
+		},
+	}
+	if !reflect.DeepEqual(job.Constraints, expect) {
+		t.Fatalf("expect: %#v, got: %#v", expect, job.Constraints)
+	}
+}

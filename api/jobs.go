@@ -1,5 +1,13 @@
 package api
 
+const (
+	// JobTypeService indicates a long-running processes
+	JobTypeService = "service"
+
+	// JobTypeBatch indicates a short-lived process
+	JobTypeBatch = "batch"
+)
+
 // Jobs is used to access the job-specific endpoints.
 type Jobs struct {
 	client *Client
@@ -83,9 +91,61 @@ type Job struct {
 	AllAtOnce         bool
 	Datacenters       []string
 	Constraints       []*Constraint
+	TaskGroups        []*TaskGroup
 	Meta              map[string]string
 	Status            string
 	StatusDescription string
+}
+
+// NewServiceJob creates and returns a new service-style job
+// for long-lived processes using the provided name, ID, and
+// relative job priority.
+func NewServiceJob(id, name string, pri int) *Job {
+	return newJob(id, name, JobTypeService, pri)
+}
+
+// NewBatchJob creates and returns a new batch-style job for
+// short-lived processes using the provided name and ID along
+// with the relative job priority.
+func NewBatchJob(id, name string, pri int) *Job {
+	return newJob(id, name, JobTypeBatch, pri)
+}
+
+// newJob is used to create a new Job struct.
+func newJob(jobID, jobName, jobType string, pri int) *Job {
+	return &Job{
+		ID:       jobID,
+		Name:     jobName,
+		Type:     jobType,
+		Priority: pri,
+	}
+}
+
+// SetMeta is used to set arbitrary k/v pairs of metadata on a job.
+func (j *Job) SetMeta(key, val string) *Job {
+	if j.Meta == nil {
+		j.Meta = make(map[string]string)
+	}
+	j.Meta[key] = val
+	return j
+}
+
+// AddDatacenter is used to add a datacenter to a job.
+func (j *Job) AddDatacenter(dc string) *Job {
+	j.Datacenters = append(j.Datacenters, dc)
+	return j
+}
+
+// Constrain is used to add a constraint to a job.
+func (j *Job) Constrain(c *Constraint) *Job {
+	j.Constraints = append(j.Constraints, c)
+	return j
+}
+
+// AddTaskGroup adds a task group to an existing job.
+func (j *Job) AddTaskGroup(grp *TaskGroup) *Job {
+	j.TaskGroups = append(j.TaskGroups, grp)
+	return j
 }
 
 // registerJobRequest is used to serialize a job registration

@@ -10,11 +10,16 @@ type TaskGroup struct {
 }
 
 // NewTaskGroup creates a new TaskGroup.
-func NewTaskGroup(name string, count int) *TaskGroup {
+func NewTaskGroup(name string) *TaskGroup {
 	return &TaskGroup{
 		Name:  name,
-		Count: count,
+		Count: 1,
 	}
+}
+
+func (g *TaskGroup) SetCount(count int) *TaskGroup {
+	g.Count = count
+	return g
 }
 
 // Constrain is used to add a constraint to a task group.
@@ -78,5 +83,11 @@ func (t *Task) SetMeta(key, val string) *Task {
 // Require is used to add resource requirements to a task.
 func (t *Task) Require(r *Resources) *Task {
 	t.Resources = r
+	return t
+}
+
+// Constraint adds a new constraints to a single task.
+func (t *Task) Constrain(c *Constraint) *Task {
+	t.Constraints = append(t.Constraints, c)
 	return t
 }
