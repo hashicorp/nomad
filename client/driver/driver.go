@@ -14,6 +14,7 @@ import (
 var BuiltinDrivers = map[string]Factory{
 	"exec": NewExecDriver,
 	"java": NewJavaDriver,
+	"qemu": NewQemuDriver,
 }
 
 // NewDriver is used to instantiate and return a new driver
