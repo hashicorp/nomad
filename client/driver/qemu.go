@@ -28,7 +28,7 @@ var (
 // We attempt to chose sane defaults for now, with more configuration available
 // planned in the future
 type QemuDriver struct {
-	logger *log.Logger
+	DriverContext
 }
 
 // qemuHandle is returned from Start/Open as a handle to the PID
@@ -47,11 +47,8 @@ type qemuPID struct {
 }
 
 // NewQemuDriver is used to create a new exec driver
-func NewQemuDriver(logger *log.Logger) Driver {
-	d := &QemuDriver{
-		logger: logger,
-	}
-	return d
+func NewQemuDriver(ctx *DriverContext) Driver {
+	return &QemuDriver{*ctx}
 }
 
 func (d *QemuDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {

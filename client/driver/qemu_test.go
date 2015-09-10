@@ -25,7 +25,7 @@ func TestQemuDriver_Handle(t *testing.T) {
 }
 
 func TestQemuDriver_Fingerprint(t *testing.T) {
-	d := NewQemuDriver(testLogger())
+	d := NewQemuDriver(testDriverContext())
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
@@ -47,7 +47,7 @@ func TestQemuDriver_Fingerprint(t *testing.T) {
 func TestQemuDriver_Start(t *testing.T) {
 	ctx := NewExecContext()
 	ctx.AllocDir = os.TempDir()
-	d := NewQemuDriver(testLogger())
+	d := NewQemuDriver(testDriverContext())
 
 	// TODO: use test server to load from a fixture
 	task := &structs.Task{
@@ -92,7 +92,7 @@ func TestQemuDriver_Start(t *testing.T) {
 func TestQemuDriver_RequiresMemory(t *testing.T) {
 	ctx := NewExecContext()
 	ctx.AllocDir = os.TempDir()
-	d := NewQemuDriver(testLogger())
+	d := NewQemuDriver(testDriverContext())
 
 	// TODO: use test server to load from a fixture
 	task := &structs.Task{

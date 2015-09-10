@@ -14,3 +14,9 @@ func testLogger() *log.Logger {
 func testConfig() *config.Config {
 	return &config.Config{}
 }
+
+func testDriverContext() *DriverContext {
+	cfg := testConfig()
+	ctx := NewDriverContext(cfg, cfg.Node, testLogger())
+	return ctx
+}

@@ -9,7 +9,7 @@ import (
 )
 
 func TestExecDriver_Fingerprint(t *testing.T) {
-	d := NewExecDriver(testLogger(), testConfig())
+	d := NewExecDriver(testDriverContext())
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
@@ -27,7 +27,7 @@ func TestExecDriver_Fingerprint(t *testing.T) {
 
 func TestExecDriver_StartOpen_Wait(t *testing.T) {
 	ctx := NewExecContext()
-	d := NewExecDriver(testLogger(), testConfig())
+	d := NewExecDriver(testDriverContext())
 
 	task := &structs.Task{
 		Config: map[string]string{
@@ -55,7 +55,7 @@ func TestExecDriver_StartOpen_Wait(t *testing.T) {
 
 func TestExecDriver_Start_Wait(t *testing.T) {
 	ctx := NewExecContext()
-	d := NewExecDriver(testLogger(), testConfig())
+	d := NewExecDriver(testDriverContext())
 
 	task := &structs.Task{
 		Config: map[string]string{
@@ -90,7 +90,7 @@ func TestExecDriver_Start_Wait(t *testing.T) {
 
 func TestExecDriver_Start_Kill_Wait(t *testing.T) {
 	ctx := NewExecContext()
-	d := NewExecDriver(testLogger(), testConfig())
+	d := NewExecDriver(testDriverContext())
 
 	task := &structs.Task{
 		Config: map[string]string{
