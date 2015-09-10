@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/sys/unix"
+
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -188,7 +190,7 @@ func (h *javaHandle) Update(task *structs.Task) error {
 // Kill is used to terminate the task. We send an Interrupt
 // and then provide a 5 second grace period before doing a Kill.
 func (h *javaHandle) Kill() error {
-	h.proc.Signal(os.Interrupt)
+	h.proc.Signal(unix.SIGTERM)
 	select {
 	case <-h.doneCh:
 		return nil
