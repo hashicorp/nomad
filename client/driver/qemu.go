@@ -21,7 +21,7 @@ import (
 )
 
 var (
-	reQemuVersion = regexp.MustCompile("QEMU emulator version ([\\d\\.]+),.+")
+	reQemuVersion = regexp.MustCompile("QEMU emulator version ([\\d\\.]+).+")
 )
 
 // QemuDriver is a driver for running images via Qemu
