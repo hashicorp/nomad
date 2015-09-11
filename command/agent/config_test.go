@@ -255,3 +255,44 @@ func TestConfig_LoadConfig(t *testing.T) {
 		t.Fatalf("bad: %#v", config)
 	}
 }
+
+func TestConfig_Listener(t *testing.T) {
+	config := DefaultConfig()
+
+	// Fails on invalid input
+	if _, err := config.Listener("tcp", "nope", 8080); err == nil {
+		t.Fatalf("expected addr error")
+	}
+	if _, err := config.Listener("nope", "127.0.0.1", 8080); err == nil {
+		t.Fatalf("expected protocol err")
+	}
+	if _, err := config.Listener("tcp", "127.0.0.1", -1); err == nil {
+		t.Fatalf("expected port error")
+	}
+
+	// Works with valid inputs
+	ln, err := config.Listener("tcp", "127.0.0.1", 24000)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	ln.Close()
+
+	if net := ln.Addr().Network(); net != "tcp" {
+		t.Fatalf("expected tcp, got: %q", net)
+	}
+	if addr := ln.Addr().String(); addr != "127.0.0.1:24000" {
+		t.Fatalf("expected 127.0.0.1:4646, got: %q", addr)
+	}
+
+	// Falls back to default bind address if non provided
+	config.BindAddr = "0.0.0.0"
+	ln, err = config.Listener("tcp4", "", 24000)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	ln.Close()
+
+	if addr := ln.Addr().String(); addr != "0.0.0.0:24000" {
+		t.Fatalf("expected 0.0.0.0:24000, got: %q", addr)
+	}
+}

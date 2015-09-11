@@ -123,7 +123,6 @@ func NewTestServer(t *testing.T, cb ServerConfigCallback) *TestServer {
 	}
 
 	configContent, err := json.Marshal(nomadConfig)
-	println(string(configContent))
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
