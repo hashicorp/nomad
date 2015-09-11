@@ -18,9 +18,9 @@ const (
 	DefaultHttpAddr = "http://127.0.0.1:4646"
 )
 
-// HttpAddrFlag is used to add the -http-addr flag to a flag
+// httpAddrFlag is used to add the -http-addr flag to a flag
 // set. Allows setting the value from an environment variable.
-func HttpAddrFlag(f *flag.FlagSet) *string {
+func httpAddrFlag(f *flag.FlagSet) *string {
 	defaultAddr := os.Getenv(HttpEnvVar)
 	if defaultAddr == "" {
 		defaultAddr = DefaultHttpAddr
@@ -29,9 +29,9 @@ func HttpAddrFlag(f *flag.FlagSet) *string {
 		"HTTP address of the Nomad agent")
 }
 
-// HttpClient is used to get a new Nomad client using the
+// httpClient is used to get a new Nomad client using the
 // given address.
-func HttpClient(addr string) (*api.Client, error) {
+func httpClient(addr string) (*api.Client, error) {
 	conf := api.DefaultConfig()
 	conf.URL = addr
 	return api.NewClient(conf)

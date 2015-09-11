@@ -11,7 +11,7 @@ func TestHelpers_HttpAddrFlag(t *testing.T) {
 
 	// Returns the default
 	flags := flag.NewFlagSet("test", flag.ContinueOnError)
-	addr = HttpAddrFlag(flags)
+	addr = httpAddrFlag(flags)
 	if err := flags.Parse([]string{}); err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -24,7 +24,7 @@ func TestHelpers_HttpAddrFlag(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 	flags = flag.NewFlagSet("test", flag.ContinueOnError)
-	addr = HttpAddrFlag(flags)
+	addr = httpAddrFlag(flags)
 	if err := flags.Parse([]string{}); err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -34,7 +34,7 @@ func TestHelpers_HttpAddrFlag(t *testing.T) {
 
 	// Returns from flag
 	flags = flag.NewFlagSet("test", flag.ContinueOnError)
-	addr = HttpAddrFlag(flags)
+	addr = httpAddrFlag(flags)
 	if err := flags.Parse([]string{"-http-addr", "http://127.0.0.1:2222"}); err != nil {
 		t.Fatalf("err: %s", err)
 	}

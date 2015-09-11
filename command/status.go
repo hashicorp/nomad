@@ -42,7 +42,7 @@ func (c *StatusCommand) Run(args []string) int {
 
 	flags := flag.NewFlagSet("status", flag.ContinueOnError)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	httpAddr = HttpAddrFlag(flags)
+	httpAddr = httpAddrFlag(flags)
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -55,7 +55,7 @@ func (c *StatusCommand) Run(args []string) int {
 	}
 
 	// Get the HTTP client
-	client, err := HttpClient(*httpAddr)
+	client, err := httpClient(*httpAddr)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed initializing Nomad client: %s", err))
 		return 1
