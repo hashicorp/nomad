@@ -46,6 +46,12 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 			}, nil
 		},
 
+		"agent-join": func() (cli.Command, error) {
+			return &command.AgentJoinCommand{
+				Ui: meta.Ui,
+			}, nil
+		},
+
 		"agent-members": func() (cli.Command, error) {
 			return &command.AgentMembersCommand{
 				Ui: meta.Ui,
