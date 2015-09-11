@@ -34,6 +34,12 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 			}, nil
 		},
 
+		"status": func() (cli.Command, error) {
+			return &command.StatusCommand{
+				Ui: meta.Ui,
+			}, nil
+		},
+
 		"version": func() (cli.Command, error) {
 			ver := Version
 			rel := VersionPrerelease
