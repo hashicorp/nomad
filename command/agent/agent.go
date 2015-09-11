@@ -58,13 +58,9 @@ func NewAgent(config *Config, logOutput io.Writer) (*Agent, error) {
 	return a, nil
 }
 
-// setupServer is used to setup the server if enabled
-func (a *Agent) setupServer() error {
-	if !a.config.Server.Enabled {
-		return nil
-	}
-
-	// Setup the configuration
+// serverConfig is used to generate a new server configuration struct
+// for initializing a nomad server.
+func (a *Agent) serverConfig() (*nomad.Config, error) {
 	conf := a.config.NomadConfig
 	if conf == nil {
 		conf = nomad.DefaultConfig()
@@ -107,7 +103,7 @@ func (a *Agent) setupServer() error {
 	if addr := a.config.AdvertiseAddrs.Serf; addr != "" {
 		serfAddr, err := net.ResolveTCPAddr("tcp", addr)
 		if err != nil {
-			return fmt.Errorf("Failed resolving Serf advertise address: %s", err)
+			return nil, fmt.Errorf("error resolving serf advertise address: %s", err)
 		}
 		conf.SerfConfig.MemberlistConfig.AdvertiseAddr = serfAddr.IP.String()
 		conf.SerfConfig.MemberlistConfig.AdvertisePort = serfAddr.Port
@@ -115,7 +111,7 @@ func (a *Agent) setupServer() error {
 	if addr := a.config.AdvertiseAddrs.RPC; addr != "" {
 		rpcAddr, err := net.ResolveTCPAddr("tcp", addr)
 		if err != nil {
-			return fmt.Errorf("Failed resolving RPC advertise address: %s", err)
+			return nil, fmt.Errorf("error resolving rpc advertise address: %s", err)
 		}
 		conf.RPCAdvertise = rpcAddr
 	}
@@ -140,11 +136,27 @@ func (a *Agent) setupServer() error {
 		conf.SerfConfig.MemberlistConfig.BindPort = port
 	}
 
+	return conf, nil
+}
+
+// setupServer is used to setup the server if enabled
+func (a *Agent) setupServer() error {
+	if !a.config.Server.Enabled {
+		return nil
+	}
+
+	// Setup the configuration
+	conf, err := a.serverConfig()
+	if err != nil {
+		return fmt.Errorf("server config setup failed: %s", err)
+	}
+
 	// Create the server
 	server, err := nomad.NewServer(conf)
 	if err != nil {
 		return fmt.Errorf("server setup failed: %v", err)
 	}
+
 	a.server = server
 	return nil
 }
