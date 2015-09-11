@@ -34,7 +34,7 @@ var protocolVersionMap map[uint8]uint8
 
 func init() {
 	protocolVersionMap = map[uint8]uint8{
-		1: 5,
+		1: 4, // TODO change this back to 5 when serf is ready
 	}
 }
 
