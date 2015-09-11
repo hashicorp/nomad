@@ -181,27 +181,35 @@ func NewServer(config *Config) (*Server, error) {
 
 	// Initialize the RPC layer
 	// TODO: TLS...
+	logger.Printf("[INFO] nomad: starting RPC layer")
 	if err := s.setupRPC(nil); err != nil {
 		s.Shutdown()
+		logger.Printf("[ERR] nomad: failed to start RPC layer: %s", err)
 		return nil, fmt.Errorf("Failed to start RPC layer: %v", err)
 	}
 
 	// Initialize the Raft server
+	logger.Printf("[INFO] nomad: starting Raft")
 	if err := s.setupRaft(); err != nil {
 		s.Shutdown()
+		logger.Printf("[ERR] nomad: failed to start Raft: %s", err)
 		return nil, fmt.Errorf("Failed to start Raft: %v", err)
 	}
 
 	// Initialize the wan Serf
+	logger.Printf("[INFO] nomad: starting serf WAN")
 	s.serf, err = s.setupSerf(config.SerfConfig, s.eventCh, serfSnapshot)
 	if err != nil {
 		s.Shutdown()
+		logger.Printf("[ERR] nomad: failed to start serf WAN: %s", err)
 		return nil, fmt.Errorf("Failed to start serf: %v", err)
 	}
 
 	// Intialize the scheduling workers
+	logger.Printf("[INFO] nomad: starting workers")
 	if err := s.setupWorkers(); err != nil {
 		s.Shutdown()
+		logger.Printf("[ERR] nomad: failed to start workers: %s", err)
 		return nil, fmt.Errorf("Failed to start workers: %v", err)
 	}
 
