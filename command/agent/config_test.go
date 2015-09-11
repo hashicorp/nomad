@@ -17,7 +17,6 @@ func TestConfig_Merge(t *testing.T) {
 		NodeName:                  "node1",
 		DataDir:                   "/tmp/dir1",
 		LogLevel:                  "INFO",
-		HttpAddr:                  "127.0.0.1:4646",
 		EnableDebug:               false,
 		LeaveOnInt:                false,
 		LeaveOnTerm:               false,
@@ -25,6 +24,7 @@ func TestConfig_Merge(t *testing.T) {
 		SyslogFacility:            "local0.info",
 		DisableUpdateCheck:        false,
 		DisableAnonymousSignature: false,
+		BindAddr:                  "127.0.0.1",
 		Telemetry: &Telemetry{
 			StatsiteAddr:    "127.0.0.1:8125",
 			StatsdAddr:      "127.0.0.1:8125",
@@ -43,9 +43,21 @@ func TestConfig_Merge(t *testing.T) {
 			BootstrapExpect: 1,
 			DataDir:         "/tmp/data1",
 			ProtocolVersion: 1,
-			AdvertiseAddr:   "127.0.0.1:4647",
-			BindAddr:        "127.0.0.1",
 			NumSchedulers:   1,
+		},
+		Ports: &Ports{
+			HTTP: 4646,
+			RPC:  4647,
+			Serf: 4648,
+		},
+		Addresses: &Addresses{
+			HTTP: "127.0.0.1",
+			RPC:  "127.0.0.1",
+			Serf: "127.0.0.1",
+		},
+		AdvertiseAddrs: &AdvertiseAddrs{
+			RPC:  "127.0.0.1",
+			Serf: "127.0.0.1",
 		},
 	}
 
@@ -55,7 +67,6 @@ func TestConfig_Merge(t *testing.T) {
 		NodeName:                  "node2",
 		DataDir:                   "/tmp/dir2",
 		LogLevel:                  "DEBUG",
-		HttpAddr:                  "0.0.0.0:80",
 		EnableDebug:               true,
 		LeaveOnInt:                true,
 		LeaveOnTerm:               true,
@@ -63,6 +74,7 @@ func TestConfig_Merge(t *testing.T) {
 		SyslogFacility:            "local0.debug",
 		DisableUpdateCheck:        true,
 		DisableAnonymousSignature: true,
+		BindAddr:                  "127.0.0.2",
 		Telemetry: &Telemetry{
 			StatsiteAddr:    "127.0.0.2:8125",
 			StatsdAddr:      "127.0.0.2:8125",
@@ -83,10 +95,22 @@ func TestConfig_Merge(t *testing.T) {
 			BootstrapExpect:   2,
 			DataDir:           "/tmp/data2",
 			ProtocolVersion:   2,
-			AdvertiseAddr:     "127.0.0.2:4647",
-			BindAddr:          "127.0.0.2",
 			NumSchedulers:     2,
 			EnabledSchedulers: []string{structs.JobTypeBatch},
+		},
+		Ports: &Ports{
+			HTTP: 20000,
+			RPC:  21000,
+			Serf: 22000,
+		},
+		Addresses: &Addresses{
+			HTTP: "127.0.0.2",
+			RPC:  "127.0.0.2",
+			Serf: "127.0.0.2",
+		},
+		AdvertiseAddrs: &AdvertiseAddrs{
+			RPC:  "127.0.0.2",
+			Serf: "127.0.0.2",
 		},
 	}
 
