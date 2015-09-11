@@ -185,10 +185,15 @@ func DevConfig() *Config {
 // DefaultConfig is a the baseline configuration for Nomad
 func DefaultConfig() *Config {
 	return &Config{
-		LogLevel:       "INFO",
-		Region:         "region1",
-		Datacenter:     "dc1",
-		Ports:          &Ports{},
+		LogLevel:   "INFO",
+		Region:     "region1",
+		Datacenter: "dc1",
+		BindAddr:   "127.0.0.1",
+		Ports: &Ports{
+			HTTP: 4646,
+			RPC:  4647,
+			Serf: 4648,
+		},
 		Addresses:      &Addresses{},
 		AdvertiseAddrs: &AdvertiseAddrs{},
 		Client: &ClientConfig{
