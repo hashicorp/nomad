@@ -34,6 +34,12 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 			}, nil
 		},
 
+		"agent-force-leave": func() (cli.Command, error) {
+			return &command.AgentForceLeaveCommand{
+				Ui: meta.Ui,
+			}, nil
+		},
+
 		"agent-info": func() (cli.Command, error) {
 			return &command.AgentInfoCommand{
 				Ui: meta.Ui,
