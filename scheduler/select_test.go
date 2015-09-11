@@ -24,7 +24,8 @@ func TestLimitIterator(t *testing.T) {
 	}
 	static := NewStaticRankIterator(ctx, nodes)
 
-	limit := NewLimitIterator(ctx, static, 2)
+	limit := NewLimitIterator(ctx, static, 1)
+	limit.SetLimit(2)
 
 	out := collectRanked(limit)
 	if len(out) != 2 {
