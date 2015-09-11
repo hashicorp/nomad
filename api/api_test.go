@@ -22,7 +22,7 @@ func makeClient(t *testing.T, cb1 configCallback,
 
 	// Create server
 	server := testutil.NewTestServer(t, cb2)
-	conf.URL = server.HTTPAddr
+	conf.URL = "http://" + server.HTTPAddr
 
 	// Create client
 	client, err := NewClient(conf)
@@ -153,5 +153,24 @@ func TestParseWriteMeta(t *testing.T) {
 
 	if wm.LastIndex != 12345 {
 		t.Fatalf("Bad: %v", wm)
+	}
+}
+
+func TestQueryString(t *testing.T) {
+	// TODO t.Parallel()
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+
+	r := c.newRequest("PUT", "/v1/abc?foo=bar&baz=zip")
+	q := &WriteOptions{Region: "foo"}
+	r.setWriteOptions(q)
+
+	req, err := r.toHTTP()
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	if uri := req.URL.RequestURI(); uri != "/v1/abc?baz=zip&foo=bar&region=foo" {
+		t.Fatalf("bad uri: %q", uri)
 	}
 }
