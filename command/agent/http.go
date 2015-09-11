@@ -31,9 +31,9 @@ type HTTPServer struct {
 // NewHTTPServer starts new HTTP server over the agent
 func NewHTTPServer(agent *Agent, config *Config, logOutput io.Writer) (*HTTPServer, error) {
 	// Start the listener
-	ln, err := net.Listen("tcp", config.HttpAddr)
+	ln, err := config.Listener("tcp", config.HttpAddr, config.HttpPort)
 	if err != nil {
-		return nil, fmt.Errorf("failed to start HTTP listener on %s: %v", config.HttpAddr, err)
+		return nil, fmt.Errorf("failed to start HTTP listener: %v", err)
 	}
 
 	// Create the mux

@@ -103,19 +103,19 @@ func (a *Agent) setupServer() error {
 		conf.EnabledSchedulers = a.config.Server.EnabledSchedulers
 	}
 	if addr := a.config.Server.AdvertiseAddr; addr != "" {
-		tcpAddr, err := net.ResolveTCPAddr("tcp", addr)
-		if err != nil {
-			return fmt.Errorf("failed to resolve advertise address: %v", err)
+		conf.RPCAdvertise = &net.TCPAddr{
+			IP:   net.ParseIP(addr),
+			Port: a.config.Server.RPCPort,
 		}
-		conf.RPCAdvertise = tcpAddr
+		conf.SerfConfig.MemberlistConfig.AdvertiseAddr = addr
 	}
-	if addr := a.config.Server.BindAddr; addr != "" {
-		tcpAddr, err := net.ResolveTCPAddr("tcp", addr)
-		if err != nil {
-			return fmt.Errorf("failed to resolve bind address: %v", err)
+	if addr := a.config.BindAddr; addr != "" {
+		conf.RPCAddr = &net.TCPAddr{
+			IP: net.ParseIP(addr),
 		}
-		conf.RPCAddr = tcpAddr
+		conf.SerfConfig.MemberlistConfig.BindAddr = addr
 	}
+	conf.RPCAddr.Port = a.config.Server.RPCPort
 
 	// Create the server
 	server, err := nomad.NewServer(conf)

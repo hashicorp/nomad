@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -31,9 +32,16 @@ type Config struct {
 	// LogLevel is the level of the logs to putout
 	LogLevel string `hcl:"log_level"`
 
-	// HttpAddr is used to control the address and port we bind to.
-	// If not specified, 127.0.0.1:4646 is used.
+	// BindAddr is the address on which all of nomad's services will
+	// be bound. If not specified, this defaults to 127.0.0.1.
+	BindAddr string `hcl:"bind_addr"`
+
+	// HttpAddr is used to control the address we bind the HTTP API
+	// interface to. If unspecified, the default BindAddr is used.
 	HttpAddr string `hcl:"http_addr"`
+
+	// HttpPort is used to control the port for the HTTP interface
+	HttpPort int `hcl:"http_port"`
 
 	// EnableDebug is used to enable debugging HTTP endpoints
 	EnableDebug bool `hcl:"enable_debug"`
@@ -113,14 +121,25 @@ type ServerConfig struct {
 	ProtocolVersion int `hcl:"protocol_version"`
 
 	// AdvertiseAddr is the address we use for advertising our Serf,
-	// and Consul RPC IP. If not specified, bind address is used.
+	// and Consul RPC IP. If not specified, BindAddr is used.
 	AdvertiseAddr string `mapstructure:"advertise_addr"`
 
-	// BindAddr is used to control the address we bind to.
-	// If not specified, the first private IP we find is used.
-	// This controls the address we use for cluster facing
-	// services (Gossip, Server RPC)
-	BindAddr string `hcl:"bind_addr"`
+	// RPCAddr is used to control the address we bind the RPC interface to. If
+	// it is left blank, this will fall through and use the BindAddr.
+	RPCAddr string `hcl:"rpc_addr"`
+
+	// RPCPort is used to control the port used for the Raft layer's
+	// associated RPC calls.
+	RPCPort int `hcl:"rpc_port"`
+
+	// SerfAddr controls the address we bind the gossip layer to. If this is
+	// left empty then the default BindAddr will be used.
+	SerfAddr string `hcl:"serf_addr"`
+
+	// SerfPort is the port we bind to for the gossip layer. The bind address
+	// will be the same as the BindAddr setting, this option just allows
+	// changing the port on that address Serf is bound to.
+	SerfPort int `hcl:"serf_port"`
 
 	// NumSchedulers is the number of scheduler thread that are run.
 	// This can be as many as one per core, or zero to disable this server
@@ -164,7 +183,7 @@ func DefaultConfig() *Config {
 		LogLevel:   "INFO",
 		Region:     "region1",
 		Datacenter: "dc1",
-		HttpAddr:   "127.0.0.1:4646",
+		HttpPort:   4646,
 		Client: &ClientConfig{
 			Enabled: false,
 		},
@@ -172,6 +191,15 @@ func DefaultConfig() *Config {
 			Enabled: false,
 		},
 	}
+}
+
+// GetListener can be used to get a new listener using a custom bind address.
+// If the bind provided address is empty, the BindAddr is used instead.
+func (c *Config) Listener(proto, addr string, port int) (net.Listener, error) {
+	if addr == "" {
+		addr = c.BindAddr
+	}
+	return net.Listen(proto, fmt.Sprintf("%s:%d", addr, port))
 }
 
 // Merge merges two configurations.
@@ -193,8 +221,14 @@ func (a *Config) Merge(b *Config) *Config {
 	if b.LogLevel != "" {
 		result.LogLevel = b.LogLevel
 	}
+	if b.BindAddr != "" {
+		result.BindAddr = b.BindAddr
+	}
 	if b.HttpAddr != "" {
 		result.HttpAddr = b.HttpAddr
+	}
+	if b.HttpPort != 0 {
+		result.HttpPort = b.HttpPort
 	}
 	if b.EnableDebug {
 		result.EnableDebug = true
@@ -267,11 +301,20 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	if b.AdvertiseAddr != "" {
 		result.AdvertiseAddr = b.AdvertiseAddr
 	}
-	if b.BindAddr != "" {
-		result.BindAddr = b.BindAddr
-	}
 	if b.NumSchedulers != 0 {
 		result.NumSchedulers = b.NumSchedulers
+	}
+	if b.RPCAddr != "" {
+		result.RPCAddr = b.RPCAddr
+	}
+	if b.RPCPort != 0 {
+		result.RPCPort = b.RPCPort
+	}
+	if b.SerfAddr != "" {
+		result.SerfAddr = b.SerfAddr
+	}
+	if b.SerfPort != 0 {
+		result.SerfPort = b.SerfPort
 	}
 
 	// Add the schedulers
