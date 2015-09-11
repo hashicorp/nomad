@@ -15,10 +15,10 @@ type StatusCommand struct {
 
 func (c *StatusCommand) Help() string {
 	helpText := `
-Usage: nomad status [options] <job>
+Usage: nomad status [options] [job]
 
-  Displays information about the given job. If no job ID
-  is given, this command will dump a list of all jobs.
+  Displays information about the given job. If no job ID is given,
+  a list of all known jobs will be dumped.
 
 Options:
 
@@ -26,7 +26,8 @@ Options:
     Display this message
 
   -http-addr
-    Address of the Nomad API to connect.
+    Address of the Nomad API to connect. Can also be specified
+    using the environment variable NOMAD_HTTP_ADDR.
     Default = http://127.0.0.1:4646
 `
 	return strings.TrimSpace(helpText)
@@ -66,6 +67,11 @@ func (c *StatusCommand) Run(args []string) int {
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Failed querying jobs: %s", err))
 			return 1
+		}
+
+		// No output if we have no jobs
+		if len(jobs) == 0 {
+			return 0
 		}
 
 		out := []string{"ID|Type|Priority|AllAtOnce|Status"}
