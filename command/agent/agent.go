@@ -102,20 +102,37 @@ func (a *Agent) setupServer() error {
 	if len(a.config.Server.EnabledSchedulers) != 0 {
 		conf.EnabledSchedulers = a.config.Server.EnabledSchedulers
 	}
-	if addr := a.config.Server.AdvertiseAddr; addr != "" {
-		conf.RPCAdvertise = &net.TCPAddr{
-			IP:   net.ParseIP(addr),
-			Port: a.config.Server.RPCPort,
-		}
+
+	// Set up the advertise addrs
+	if addr := a.config.AdvertiseAddrs.Serf; addr != "" {
 		conf.SerfConfig.MemberlistConfig.AdvertiseAddr = addr
 	}
-	if addr := a.config.BindAddr; addr != "" {
-		conf.RPCAddr = &net.TCPAddr{
-			IP: net.ParseIP(addr),
+	if addr := a.config.AdvertiseAddrs.RPC; addr != "" {
+		conf.RPCAdvertise = &net.TCPAddr{
+			IP:   net.ParseIP(addr),
+			Port: a.config.Ports.RPC,
 		}
+	}
+
+	// Set up the bind addresses
+	if addr := a.config.BindAddr; addr != "" {
+		conf.RPCAddr.IP = net.ParseIP(addr)
 		conf.SerfConfig.MemberlistConfig.BindAddr = addr
 	}
-	conf.RPCAddr.Port = a.config.Server.RPCPort
+	if addr := a.config.Addresses.RPC; addr != "" {
+		conf.RPCAddr.IP = net.ParseIP(addr)
+	}
+	if addr := a.config.Addresses.Serf; addr != "" {
+		conf.SerfConfig.MemberlistConfig.BindAddr = addr
+	}
+
+	// Set up the ports
+	if port := a.config.Ports.RPC; port != 0 {
+		conf.RPCAddr.Port = port
+	}
+	if port := a.config.Ports.Serf; port != 0 {
+		conf.SerfConfig.MemberlistConfig.BindPort = port
+	}
 
 	// Create the server
 	server, err := nomad.NewServer(conf)

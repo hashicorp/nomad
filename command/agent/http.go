@@ -31,7 +31,7 @@ type HTTPServer struct {
 // NewHTTPServer starts new HTTP server over the agent
 func NewHTTPServer(agent *Agent, config *Config, logOutput io.Writer) (*HTTPServer, error) {
 	// Start the listener
-	ln, err := config.Listener("tcp", config.HttpAddr, config.HttpPort)
+	ln, err := config.Listener("tcp", config.Addresses.HTTP, config.Ports.HTTP)
 	if err != nil {
 		return nil, fmt.Errorf("failed to start HTTP listener: %v", err)
 	}

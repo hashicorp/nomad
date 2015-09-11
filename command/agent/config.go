@@ -36,15 +36,17 @@ type Config struct {
 	// be bound. If not specified, this defaults to 127.0.0.1.
 	BindAddr string `hcl:"bind_addr"`
 
-	// HttpAddr is used to control the address we bind the HTTP API
-	// interface to. If unspecified, the default BindAddr is used.
-	HttpAddr string `hcl:"http_addr"`
-
-	// HttpPort is used to control the port for the HTTP interface
-	HttpPort int `hcl:"http_port"`
-
 	// EnableDebug is used to enable debugging HTTP endpoints
 	EnableDebug bool `hcl:"enable_debug"`
+
+	// Ports is used to control the network ports we bind to.
+	Ports *Ports `hcl:"ports"`
+
+	// Addresses is used to override the network addresses we bind to.
+	Addresses *Addresses `hcl:"addresses"`
+
+	// AdvertiseAddrs is used to control the addresses we advertise.
+	AdvertiseAddrs *AdvertiseAddrs `hcl:"advertise"`
 
 	// Client has our client related settings
 	Client *ClientConfig `hcl:"client"`
@@ -120,27 +122,6 @@ type ServerConfig struct {
 	// ProtocolVersionMin and ProtocolVersionMax.
 	ProtocolVersion int `hcl:"protocol_version"`
 
-	// AdvertiseAddr is the address we use for advertising our Serf,
-	// and Consul RPC IP. If not specified, BindAddr is used.
-	AdvertiseAddr string `mapstructure:"advertise_addr"`
-
-	// RPCAddr is used to control the address we bind the RPC interface to. If
-	// it is left blank, this will fall through and use the BindAddr.
-	RPCAddr string `hcl:"rpc_addr"`
-
-	// RPCPort is used to control the port used for the Raft layer's
-	// associated RPC calls.
-	RPCPort int `hcl:"rpc_port"`
-
-	// SerfAddr controls the address we bind the gossip layer to. If this is
-	// left empty then the default BindAddr will be used.
-	SerfAddr string `hcl:"serf_addr"`
-
-	// SerfPort is the port we bind to for the gossip layer. The bind address
-	// will be the same as the BindAddr setting, this option just allows
-	// changing the port on that address Serf is bound to.
-	SerfPort int `hcl:"serf_port"`
-
 	// NumSchedulers is the number of scheduler thread that are run.
 	// This can be as many as one per core, or zero to disable this server
 	// from doing any scheduling work.
@@ -157,6 +138,30 @@ type Telemetry struct {
 	StatsiteAddr    string `hcl:"statsite_address"`
 	StatsdAddr      string `hcl:"statsd_address"`
 	DisableHostname bool   `hcl:"disable_hostname"`
+}
+
+// Ports is used to encapsulate the various ports we bind to for network
+// services. If any are not specified then the defaults are used instead.
+type Ports struct {
+	HTTP int `hcl:"http"`
+	RPC  int `hcl:"rpc"`
+	Serf int `hcl:"serf"`
+}
+
+// Addresses encapsulates all of the addresses we bind to for various
+// network services. Everything is optional and defaults to BindAddr.
+type Addresses struct {
+	HTTP string `hcl:"http"`
+	RPC  string `hcl:"rpc"`
+	Serf string `hcl:"serf"`
+}
+
+// AdvertiseAddrs is used to control the addresses we advertise out for
+// different network services. Not all network services support an
+// advertise address. All are optional and default to BindAddr.
+type AdvertiseAddrs struct {
+	RPC  string `hcl:"rpc"`
+	Serf string `hcl:"serf"`
 }
 
 // DevConfig is a Config that is used for dev mode of Nomad.
@@ -180,10 +185,12 @@ func DevConfig() *Config {
 // DefaultConfig is a the baseline configuration for Nomad
 func DefaultConfig() *Config {
 	return &Config{
-		LogLevel:   "INFO",
-		Region:     "region1",
-		Datacenter: "dc1",
-		HttpPort:   4646,
+		LogLevel:       "INFO",
+		Region:         "region1",
+		Datacenter:     "dc1",
+		Ports:          &Ports{},
+		Addresses:      &Addresses{},
+		AdvertiseAddrs: &AdvertiseAddrs{},
 		Client: &ClientConfig{
 			Enabled: false,
 		},
@@ -223,12 +230,6 @@ func (a *Config) Merge(b *Config) *Config {
 	}
 	if b.BindAddr != "" {
 		result.BindAddr = b.BindAddr
-	}
-	if b.HttpAddr != "" {
-		result.HttpAddr = b.HttpAddr
-	}
-	if b.HttpPort != 0 {
-		result.HttpPort = b.HttpPort
 	}
 	if b.EnableDebug {
 		result.EnableDebug = true
@@ -276,6 +277,30 @@ func (a *Config) Merge(b *Config) *Config {
 		result.Server = result.Server.Merge(b.Server)
 	}
 
+	// Apply the ports config
+	if result.Ports == nil && b.Ports != nil {
+		ports := *b.Ports
+		result.Ports = &ports
+	} else if b.Ports != nil {
+		result.Ports = result.Ports.Merge(b.Ports)
+	}
+
+	// Apply the address config
+	if result.Addresses == nil && b.Addresses != nil {
+		addrs := *b.Addresses
+		result.Addresses = &addrs
+	} else if b.Addresses != nil {
+		result.Addresses = result.Addresses.Merge(b.Addresses)
+	}
+
+	// Apply the advertise addrs config
+	if result.AdvertiseAddrs == nil && b.AdvertiseAddrs != nil {
+		advertise := *b.AdvertiseAddrs
+		result.AdvertiseAddrs = &advertise
+	} else if b.AdvertiseAddrs != nil {
+		result.AdvertiseAddrs = result.AdvertiseAddrs.Merge(b.AdvertiseAddrs)
+	}
+
 	return &result
 }
 
@@ -298,23 +323,8 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	if b.ProtocolVersion != 0 {
 		result.ProtocolVersion = b.ProtocolVersion
 	}
-	if b.AdvertiseAddr != "" {
-		result.AdvertiseAddr = b.AdvertiseAddr
-	}
 	if b.NumSchedulers != 0 {
 		result.NumSchedulers = b.NumSchedulers
-	}
-	if b.RPCAddr != "" {
-		result.RPCAddr = b.RPCAddr
-	}
-	if b.RPCPort != 0 {
-		result.RPCPort = b.RPCPort
-	}
-	if b.SerfAddr != "" {
-		result.SerfAddr = b.SerfAddr
-	}
-	if b.SerfPort != 0 {
-		result.SerfPort = b.SerfPort
 	}
 
 	// Add the schedulers
@@ -369,6 +379,51 @@ func (a *Telemetry) Merge(b *Telemetry) *Telemetry {
 	}
 	if b.DisableHostname {
 		result.DisableHostname = true
+	}
+	return &result
+}
+
+// Merge is used to merge two port configurations.
+func (a *Ports) Merge(b *Ports) *Ports {
+	var result Ports = *a
+
+	if b.HTTP != 0 {
+		result.HTTP = b.HTTP
+	}
+	if b.RPC != 0 {
+		result.RPC = b.RPC
+	}
+	if b.Serf != 0 {
+		result.Serf = b.Serf
+	}
+	return &result
+}
+
+// Merge is used to merge two address configs together.
+func (a *Addresses) Merge(b *Addresses) *Addresses {
+	var result Addresses = *a
+
+	if b.HTTP != "" {
+		result.HTTP = b.HTTP
+	}
+	if b.RPC != "" {
+		result.RPC = b.RPC
+	}
+	if b.Serf != "" {
+		result.Serf = b.Serf
+	}
+	return &result
+}
+
+// Merge merges two advertise addrs configs together.
+func (a *AdvertiseAddrs) Merge(b *AdvertiseAddrs) *AdvertiseAddrs {
+	var result AdvertiseAddrs = *a
+
+	if b.RPC != "" {
+		result.RPC = b.RPC
+	}
+	if b.Serf != "" {
+		result.Serf = b.Serf
 	}
 	return &result
 }
