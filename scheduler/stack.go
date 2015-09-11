@@ -43,13 +43,14 @@ type GenericStack struct {
 	taskGroupConstraint *ConstraintIterator
 	binPack             *BinPackIterator
 	jobAntiAff          *JobAntiAffinityIterator
+	limit               *LimitIterator
 	maxScore            *MaxScoreIterator
 }
 
 // NewGenericStack constructs a stack used for selecting service placements
 func NewGenericStack(batch bool, ctx Context, baseNodes []*structs.Node) *GenericStack {
 	// Create a new stack
-	stack := &GenericStack{
+	s := &GenericStack{
 		batch: batch,
 		ctx:   ctx,
 	}
@@ -57,25 +58,25 @@ func NewGenericStack(batch bool, ctx Context, baseNodes []*structs.Node) *Generi
 	// Create the source iterator. We randomize the order we visit nodes
 	// to reduce collisions between schedulers and to do a basic load
 	// balancing across eligible nodes.
-	stack.source = NewRandomIterator(ctx, baseNodes)
+	s.source = NewRandomIterator(ctx, baseNodes)
 
 	// Attach the job constraints. The job is filled in later.
-	stack.jobConstraint = NewConstraintIterator(ctx, stack.source, nil)
+	s.jobConstraint = NewConstraintIterator(ctx, s.source, nil)
 
 	// Filter on task group drivers first as they are faster
-	stack.taskGroupDrivers = NewDriverIterator(ctx, stack.jobConstraint, nil)
+	s.taskGroupDrivers = NewDriverIterator(ctx, s.jobConstraint, nil)
 
 	// Filter on task group constraints second
-	stack.taskGroupConstraint = NewConstraintIterator(ctx, stack.taskGroupDrivers, nil)
+	s.taskGroupConstraint = NewConstraintIterator(ctx, s.taskGroupDrivers, nil)
 
 	// Upgrade from feasible to rank iterator
-	rankSource := NewFeasibleRankIterator(ctx, stack.taskGroupConstraint)
+	rankSource := NewFeasibleRankIterator(ctx, s.taskGroupConstraint)
 
 	// Apply the bin packing, this depends on the resources needed
 	// by a particular task group. Only enable eviction for the service
 	// scheduler as that logic is expensive.
 	evict := !batch
-	stack.binPack = NewBinPackIterator(ctx, rankSource, nil, evict, 0)
+	s.binPack = NewBinPackIterator(ctx, rankSource, nil, evict, 0)
 
 	// Apply the job anti-affinity iterator. This is to avoid placing
 	// multiple allocations on the same node for this job. The penalty
@@ -84,25 +85,19 @@ func NewGenericStack(batch bool, ctx Context, baseNodes []*structs.Node) *Generi
 	if batch {
 		penalty = batchJobAntiAffinityPenalty
 	}
-	stack.jobAntiAff = NewJobAntiAffinityIterator(ctx, stack.binPack, penalty, "")
+	s.jobAntiAff = NewJobAntiAffinityIterator(ctx, s.binPack, penalty, "")
 
 	// Apply a limit function. This is to avoid scanning *every* possible node.
-	// For batch jobs we only need to evaluate 2 options and depend on the
-	// powwer of two choices. For services jobs we need to visit "enough".
-	// Using a log of the total number of nodes is a good restriction, with
-	// at least 2 as the floor
-	limit := 2
-	if n := len(baseNodes); !batch && n > 0 {
-		logLimit := int(math.Ceil(math.Log2(float64(n))))
-		if logLimit > limit {
-			limit = logLimit
-		}
-	}
-	limitIter := NewLimitIterator(ctx, stack.binPack, limit)
+	s.limit = NewLimitIterator(ctx, s.binPack, 2)
 
 	// Select the node with the maximum score for placement
-	stack.maxScore = NewMaxScoreIterator(ctx, limitIter)
-	return stack
+	s.maxScore = NewMaxScoreIterator(ctx, s.limit)
+
+	// Set the nodes if given
+	if len(baseNodes) != 0 {
+		s.SetNodes(baseNodes)
+	}
+	return s
 }
 
 func (s *GenericStack) SetNodes(baseNodes []*structs.Node) {
@@ -111,6 +106,20 @@ func (s *GenericStack) SetNodes(baseNodes []*structs.Node) {
 
 	// Update the set of base nodes
 	s.source.SetNodes(baseNodes)
+
+	// Apply a limit function. This is to avoid scanning *every* possible node.
+	// For batch jobs we only need to evaluate 2 options and depend on the
+	// powwer of two choices. For services jobs we need to visit "enough".
+	// Using a log of the total number of nodes is a good restriction, with
+	// at least 2 as the floor
+	limit := 2
+	if n := len(baseNodes); !s.batch && n > 0 {
+		logLimit := int(math.Ceil(math.Log2(float64(n))))
+		if logLimit > limit {
+			limit = logLimit
+		}
+	}
+	s.limit.SetLimit(limit)
 }
 
 func (s *GenericStack) SetJob(job *structs.Job) {

@@ -14,8 +14,20 @@ func TestServiceStack_SetNodes(t *testing.T) {
 
 	nodes := []*structs.Node{
 		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
 	}
 	stack.SetNodes(nodes)
+
+	// Check that our scan limit is updated
+	if stack.limit.limit != 3 {
+		t.Fatalf("bad limit %d", stack.limit.limit)
+	}
 
 	out := collectFeasible(stack.source)
 	if !reflect.DeepEqual(out, nodes) {
