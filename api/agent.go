@@ -95,9 +95,10 @@ func (a *Agent) Region() (string, error) {
 
 // Join is used to instruct a server node to join another server
 // via the gossip protocol. Multiple addresses may be specified.
-// We attempt to join all of the hosts in the list. If one or
+// We attempt to join all of the hosts in the list. Returns the
+// number of nodes successfully joined and any error. If one or
 // more nodes have a successful result, no error is returned.
-func (a *Agent) Join(addrs ...string) error {
+func (a *Agent) Join(addrs ...string) (int, error) {
 	// Accumulate the addresses
 	v := url.Values{}
 	for _, addr := range addrs {
@@ -108,12 +109,12 @@ func (a *Agent) Join(addrs ...string) error {
 	var resp joinResponse
 	_, err := a.client.write("/v1/agent/join?"+v.Encode(), nil, &resp, nil)
 	if err != nil {
-		return fmt.Errorf("failed joining: %s", err)
+		return 0, fmt.Errorf("failed joining: %s", err)
 	}
 	if resp.Error != "" {
-		return fmt.Errorf("failed joining: %s", resp.Error)
+		return 0, fmt.Errorf("failed joining: %s", resp.Error)
 	}
-	return nil
+	return resp.NumNodes, nil
 }
 
 // Members is used to query all of the known server members
