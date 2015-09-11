@@ -105,13 +105,19 @@ func (a *Agent) setupServer() error {
 
 	// Set up the advertise addrs
 	if addr := a.config.AdvertiseAddrs.Serf; addr != "" {
-		conf.SerfConfig.MemberlistConfig.AdvertiseAddr = addr
+		serfAddr, err := net.ResolveTCPAddr("tcp", addr)
+		if err != nil {
+			return fmt.Errorf("Failed resolving Serf advertise address: %s", err)
+		}
+		conf.SerfConfig.MemberlistConfig.AdvertiseAddr = serfAddr.IP.String()
+		conf.SerfConfig.MemberlistConfig.AdvertisePort = serfAddr.Port
 	}
 	if addr := a.config.AdvertiseAddrs.RPC; addr != "" {
-		conf.RPCAdvertise = &net.TCPAddr{
-			IP:   net.ParseIP(addr),
-			Port: a.config.Ports.RPC,
+		rpcAddr, err := net.ResolveTCPAddr("tcp", addr)
+		if err != nil {
+			return fmt.Errorf("Failed resolving RPC advertise address: %s", err)
 		}
+		conf.RPCAdvertise = rpcAddr
 	}
 
 	// Set up the bind addresses
