@@ -184,7 +184,7 @@ func NewServer(config *Config) (*Server, error) {
 	logger.Printf("[INFO] nomad: starting RPC layer")
 	if err := s.setupRPC(nil); err != nil {
 		s.Shutdown()
-		logger.Printf("[ERROR] nomad: failed to start RPC layer: %s", err)
+		logger.Printf("[ERR] nomad: failed to start RPC layer: %s", err)
 		return nil, fmt.Errorf("Failed to start RPC layer: %v", err)
 	}
 
@@ -192,7 +192,7 @@ func NewServer(config *Config) (*Server, error) {
 	logger.Printf("[INFO] nomad: starting Raft")
 	if err := s.setupRaft(); err != nil {
 		s.Shutdown()
-		logger.Printf("[ERROR] nomad: failed to start Raft: %s", err)
+		logger.Printf("[ERR] nomad: failed to start Raft: %s", err)
 		return nil, fmt.Errorf("Failed to start Raft: %v", err)
 	}
 
@@ -201,7 +201,7 @@ func NewServer(config *Config) (*Server, error) {
 	s.serf, err = s.setupSerf(config.SerfConfig, s.eventCh, serfSnapshot)
 	if err != nil {
 		s.Shutdown()
-		logger.Printf("[ERROR] nomad: failed to start serf WAN: %s", err)
+		logger.Printf("[ERR] nomad: failed to start serf WAN: %s", err)
 		return nil, fmt.Errorf("Failed to start serf: %v", err)
 	}
 
@@ -209,7 +209,7 @@ func NewServer(config *Config) (*Server, error) {
 	logger.Printf("[INFO] nomad: starting workers")
 	if err := s.setupWorkers(); err != nil {
 		s.Shutdown()
-		logger.Printf("[ERROR] nomad: failed to start workers: %s", err)
+		logger.Printf("[ERR] nomad: failed to start workers: %s", err)
 		return nil, fmt.Errorf("Failed to start workers: %v", err)
 	}
 

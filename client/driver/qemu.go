@@ -235,7 +235,7 @@ func (h *qemuHandle) ID() string {
 	}
 	data, err := json.Marshal(pid)
 	if err != nil {
-		log.Printf("[ERROR] failed to marshal Qemu PID to JSON: %s", err)
+		log.Printf("[ERR] failed to marshal Qemu PID to JSON: %s", err)
 	}
 	return fmt.Sprintf("QEMU:%s", string(data))
 }
