@@ -93,7 +93,7 @@ func standardOutput(mem []*api.AgentMember) []string {
 	members := make([]string, len(mem)+1)
 	members[0] = "Name|Addr|Port|Status|Proto|Build|DC|Region"
 	for i, member := range mem {
-		line := fmt.Sprintf("%s|%s|%d|%d|%d|%s|%s|%s",
+		line := fmt.Sprintf("%s|%s|%d|%s|%d|%s|%s|%s",
 			member.Name,
 			member.Addr,
 			member.Port,
