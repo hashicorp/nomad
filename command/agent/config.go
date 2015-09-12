@@ -174,12 +174,6 @@ func DevConfig() *Config {
 	conf.EnableDebug = true
 	conf.DisableAnonymousSignature = true
 	return conf
-	return &Config{
-		LogLevel:                  "DEBUG",
-		DevMode:                   true,
-		EnableDebug:               true,
-		DisableAnonymousSignature: true,
-	}
 }
 
 // DefaultConfig is a the baseline configuration for Nomad
