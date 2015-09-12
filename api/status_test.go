@@ -30,12 +30,9 @@ func TestStatus_Leader_NoLeader(t *testing.T) {
 	defer s.Stop()
 	status := c.Status()
 
-	// Query for leader status should return nothing.
-	out, err := status.Leader()
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if out != "" {
-		t.Fatalf("expected no leader, got: %q", out)
+	// Query for leader status should return error.
+	_, err := status.Leader()
+	if err == nil {
+		t.Fatalf("expected error due to no leader")
 	}
 }
