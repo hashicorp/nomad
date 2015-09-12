@@ -595,18 +595,33 @@ func (r *Resources) Superset(other *Resources) bool {
 	if r.IOPS < other.IOPS {
 		return false
 	}
-	for _, net := range r.Networks {
-		idx := other.NetIndexByCIDR(net.CIDR)
-		if idx >= 0 {
-			if net.MBits < other.Networks[idx].MBits {
-				return false
-			}
-		}
+
+	// Compute the MBits available by index
+	mbitsByIdx := make(map[int]int)
+	for idx, n := range r.Networks {
+		mbitsByIdx[idx] = n.MBits
 	}
-	// Check that other does not have a network we are missing
-	for _, net := range other.Networks {
-		idx := r.NetIndexByCIDR(net.CIDR)
+
+	// Ensure all networks exist and do not exhaust bandwidth
+	for _, n := range other.Networks {
+		// Find the matching interface by IP or CIDR
+		var idx int
+		if n.IP != "" {
+			idx = r.NetIndexByIP(n.IP)
+		} else if n.CIDR != "" {
+			idx = r.NetIndexByCIDR(n.CIDR)
+		} else {
+			return false
+		}
 		if idx == -1 {
+			return false
+		}
+
+		// Deduct the allocation
+		mbitsByIdx[idx] -= n.MBits
+
+		// Check if we've exhaused our allocation
+		if mbitsByIdx[idx] < 0 {
 			return false
 		}
 	}
