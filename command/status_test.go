@@ -13,16 +13,15 @@ func TestStatusCommand_Implements(t *testing.T) {
 }
 
 func TestStatusCommand_Run(t *testing.T) {
-	agent, http, client, url := testAgent(t)
-	defer agent.Shutdown()
-	defer http.Shutdown()
+	srv, client, url := testServer(t)
+	defer srv.Stop()
 
 	ui := new(cli.MockUi)
 	cmd := &StatusCommand{Ui: ui}
 
 	// Should return blank for no jobs
 	if code := cmd.Run([]string{"-http-addr=" + url}); code != 0 {
-		t.Fatalf("expected exit 0, got: %d %s", code)
+		t.Fatalf("expected exit 0, got: %d", code)
 	}
 
 	// Check for this awkward nil string, since a nil bytes.Buffer

@@ -12,9 +12,8 @@ func TestAgentMembersCommand_Implements(t *testing.T) {
 }
 
 func TestAgentMembersCommand_Run(t *testing.T) {
-	agent, http, client, url := testAgent(t)
-	defer agent.Shutdown()
-	defer http.Shutdown()
+	srv, client, url := testServer(t)
+	defer srv.Stop()
 
 	ui := new(cli.MockUi)
 	cmd := &AgentMembersCommand{Ui: ui}

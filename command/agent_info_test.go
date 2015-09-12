@@ -12,9 +12,8 @@ func TestAgentInfoCommand_Implements(t *testing.T) {
 }
 
 func TestAgentInfoCommand_Run(t *testing.T) {
-	agent, http, _, url := testAgent(t)
-	defer agent.Shutdown()
-	defer http.Shutdown()
+	srv, _, url := testServer(t)
+	defer srv.Stop()
 
 	ui := new(cli.MockUi)
 	cmd := &AgentInfoCommand{Ui: ui}
