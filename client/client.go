@@ -131,6 +131,10 @@ func NewClient(cfg *config.Config) (*Client, error) {
 // init is used to initialize the client and perform any setup
 // needed before we begin starting its various components.
 func (c *Client) init() error {
+	if c.config.DevMode {
+		return nil
+	}
+
 	// Ensure the alloc dir exists
 	if err := os.MkdirAll(c.config.AllocDir, 0700); err != nil {
 		return fmt.Errorf("failed creating alloc dir: %s", err)
