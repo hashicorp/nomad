@@ -2,8 +2,6 @@ package api
 
 import (
 	"testing"
-
-	"github.com/hashicorp/nomad/testutil"
 )
 
 func TestStatus_Leader(t *testing.T) {
@@ -18,21 +16,5 @@ func TestStatus_Leader(t *testing.T) {
 	}
 	if out == "" {
 		t.Fatalf("expected leader, got: %q", out)
-	}
-}
-
-func TestStatus_Leader_NoLeader(t *testing.T) {
-	// Start a server without bootstrap mode. This prevents
-	// the leadership from being acquired.
-	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
-		c.Server.Bootstrap = false
-	})
-	defer s.Stop()
-	status := c.Status()
-
-	// Query for leader status should return error.
-	_, err := status.Leader()
-	if err == nil {
-		t.Fatalf("expected error due to no leader")
 	}
 }
