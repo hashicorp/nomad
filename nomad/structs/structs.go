@@ -3,6 +3,7 @@ package structs
 import (
 	"bytes"
 	"fmt"
+	"net"
 	"time"
 
 	"github.com/hashicorp/go-msgpack/codec"
@@ -550,6 +551,35 @@ func (r *Resources) NetIndexByCIDR(cidr string) int {
 	return -1
 }
 
+// NetIndexByIP scans the list of networks for a matching
+// CIDR by IP, returning the index.
+func (r *Resources) NetIndexByIP(ip string) int {
+	// Parse the IP
+	parsed := net.ParseIP(ip)
+	if parsed == nil {
+		return -1
+	}
+
+	for idx, n := range r.Networks {
+		// Look for exact IP match
+		if n.IP == ip {
+			return idx
+		}
+
+		// Check for CIDR subset
+		if n.CIDR == "" {
+			continue
+		}
+
+		// Check if the CIDR contains the IP
+		_, cidr, _ := net.ParseCIDR(n.CIDR)
+		if cidr != nil && cidr.Contains(parsed) {
+			return idx
+		}
+	}
+	return -1
+}
+
 // Superset checks if one set of resources is a superset
 // of another.
 func (r *Resources) Superset(other *Resources) bool {
@@ -609,8 +639,10 @@ func (r *Resources) Add(delta *Resources) error {
 type NetworkResource struct {
 	Public        bool   // Is this a public address?
 	CIDR          string // CIDR block of addresses
+	IP            string // IP address of the network.
 	ReservedPorts []int  // Reserved ports
 	MBits         int    // Throughput
+	DynamicPorts  int    // Dynamically assigned ports
 }
 
 // Add adds the resources of the delta to this, potentially

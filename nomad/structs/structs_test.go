@@ -23,6 +23,24 @@ func TestResource_NetIndexByCIDR(t *testing.T) {
 	}
 }
 
+func TestResource_NetIndexByIP(t *testing.T) {
+	r := &Resources{
+		Networks: []*NetworkResource{
+			&NetworkResource{CIDR: "10.0.0.0/8"},
+			&NetworkResource{CIDR: "127.0.0.0/24"},
+		},
+	}
+	if idx := r.NetIndexByIP("10.1.2.3"); idx != 0 {
+		t.Fatalf("Bad: %d", idx)
+	}
+	if idx := r.NetIndexByIP("127.0.0.1"); idx != 1 {
+		t.Fatalf("Bad: %d", idx)
+	}
+	if idx := r.NetIndexByIP("11.2.3.4"); idx != -1 {
+		t.Fatalf("Bad: %d", idx)
+	}
+}
+
 func TestResource_Superset(t *testing.T) {
 	r1 := &Resources{
 		CPU:      2.0,
