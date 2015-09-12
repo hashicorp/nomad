@@ -37,6 +37,7 @@ type TestServerConfig struct {
 	Ports             *PortsConfig  `json:"ports,omitempty"`
 	Server            *ServerConfig `json:"server,omitempty"`
 	Client            *ClientConfig `json:"client,omitempty"`
+	DevMode           bool          `json:"-"`
 	Stdout, Stderr    io.Writer     `json:"-"`
 }
 
@@ -142,8 +143,13 @@ func NewTestServer(t *testing.T, cb ServerConfigCallback) *TestServer {
 		stderr = nomadConfig.Stderr
 	}
 
+	args := []string{"agent", "-config", configFile.Name()}
+	if nomadConfig.DevMode {
+		args = append(args, "-dev")
+	}
+
 	// Start the server
-	cmd := exec.Command("nomad", "agent", "-dev", "-config", configFile.Name())
+	cmd := exec.Command("nomad", args...)
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 	if err := cmd.Start(); err != nil {
