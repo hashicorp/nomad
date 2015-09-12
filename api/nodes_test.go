@@ -9,7 +9,9 @@ import (
 )
 
 func TestNodes_List(t *testing.T) {
-	c, s := makeClient(t, nil, nil)
+	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
+		c.DevMode = true
+	})
 	defer s.Stop()
 	nodes := c.Nodes()
 
@@ -35,7 +37,9 @@ func TestNodes_List(t *testing.T) {
 }
 
 func TestNodes_Info(t *testing.T) {
-	c, s := makeClient(t, nil, nil)
+	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
+		c.DevMode = true
+	})
 	defer s.Stop()
 	nodes := c.Nodes()
 
@@ -78,7 +82,9 @@ func TestNodes_Info(t *testing.T) {
 }
 
 func TestNodes_ToggleDrain(t *testing.T) {
-	c, s := makeClient(t, nil, nil)
+	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
+		c.DevMode = true
+	})
 	defer s.Stop()
 	nodes := c.Nodes()
 
@@ -159,7 +165,9 @@ func TestNodes_Allocations(t *testing.T) {
 }
 
 func TestNodes_ForceEvaluate(t *testing.T) {
-	c, s := makeClient(t, nil, nil)
+	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
+		c.DevMode = true
+	})
 	defer s.Stop()
 	nodes := c.Nodes()
 
