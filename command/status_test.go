@@ -72,6 +72,7 @@ func TestStatusCommand_Fails(t *testing.T) {
 	if out := ui.ErrorWriter.String(); !strings.Contains(out, cmd.Help()) {
 		t.Fatalf("expected help output, got: %s", out)
 	}
+	ui.ErrorWriter.Reset()
 
 	// Fails on connection failure
 	if code := cmd.Run([]string{"-http-addr=nope"}); code != 1 {

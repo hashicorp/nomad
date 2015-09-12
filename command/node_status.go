@@ -71,7 +71,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		// Query the node info
 		nodes, _, err := client.Nodes().List(nil)
 		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Failed querying node info: %s", err))
+			c.Ui.Error(fmt.Sprintf("Failed querying node status: %s", err))
 			return 1
 		}
 
