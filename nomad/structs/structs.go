@@ -658,7 +658,6 @@ const (
 	// JobTypeNomad is reserved for internal system tasks and is
 	// always handled by the CoreScheduler.
 	JobTypeCore    = "_core"
-	JobTypeSystem  = "system"
 	JobTypeService = "service"
 	JobTypeBatch   = "batch"
 )
