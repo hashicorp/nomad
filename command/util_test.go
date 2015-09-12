@@ -1,6 +1,8 @@
 package command
 
 import (
+	"fmt"
+	"os"
 	"sync/atomic"
 	"testing"
 
@@ -27,11 +29,16 @@ func nextConfig() *agent.Config {
 	return conf
 }
 
-func testAgent(t *testing.T) *agent.Agent {
+func testAgent(t *testing.T) (*agent.Agent, *agent.HTTPServer) {
 	conf := nextConfig()
-	agent, err := agent.Create(conf)
+	a, err := agent.NewAgent(conf, os.Stderr)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	return agent
+	http, err := agent.NewHTTPServer(a, conf, os.Stderr)
+	if err != nil {
+		a.Shutdown()
+		t.Fatalf("err: %s", err)
+	}
+	return a, http
 }
