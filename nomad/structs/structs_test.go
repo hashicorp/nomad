@@ -147,7 +147,7 @@ func TestResource_Add(t *testing.T) {
 		IOPS:     50,
 		Networks: []*NetworkResource{
 			&NetworkResource{
-				CIDR:          "10.0.0.0/8",
+				IP:            "10.0.0.1",
 				MBits:         50,
 				ReservedPorts: []int{80},
 			},

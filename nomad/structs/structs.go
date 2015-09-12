@@ -639,12 +639,21 @@ func (r *Resources) Add(delta *Resources) error {
 	r.DiskMB += delta.DiskMB
 	r.IOPS += delta.IOPS
 
-	for _, net := range delta.Networks {
-		idx := r.NetIndexByCIDR(net.CIDR)
-		if idx == -1 {
-			return fmt.Errorf("missing network for CIDR %s", net.CIDR)
+	for _, n := range delta.Networks {
+		// Find the matching interface by IP or CIDR
+		var idx int
+		if n.IP != "" {
+			idx = r.NetIndexByIP(n.IP)
+		} else if n.CIDR != "" {
+			idx = r.NetIndexByCIDR(n.CIDR)
+		} else {
+			idx = -1
 		}
-		r.Networks[idx].Add(net)
+		if idx == -1 {
+			r.Networks = append(r.Networks, n)
+		} else {
+			r.Networks[idx].Add(n)
+		}
 	}
 	return nil
 }
