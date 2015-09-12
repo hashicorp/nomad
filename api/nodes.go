@@ -1,5 +1,9 @@
 package api
 
+import (
+	"strconv"
+)
+
 // Nodes is used to query node-related API endpoints
 type Nodes struct {
 	client *Client
@@ -32,15 +36,7 @@ func (n *Nodes) Info(nodeID string, q *QueryOptions) (*Node, *QueryMeta, error) 
 
 // ToggleDrain is used to toggle drain mode on/off for a given node.
 func (n *Nodes) ToggleDrain(nodeID string, drain bool, q *WriteOptions) (*WriteMeta, error) {
-	// Conver the bool to a string
-	var drainArg string
-	if drain {
-		drainArg = "true"
-	} else {
-		drainArg = "false"
-	}
-
-	// Send the query
+	drainArg := strconv.FormatBool(drain)
 	wm, err := n.client.write("/v1/node/"+nodeID+"/drain?enable="+drainArg, nil, nil, q)
 	if err != nil {
 		return nil, err
