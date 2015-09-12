@@ -902,9 +902,13 @@ type Allocation struct {
 	// TaskGroup is the name of the task group that should be run
 	TaskGroup string
 
-	// Resources is the set of resources allocated as part
+	// Resources is the total set of resources allocated as part
 	// of this allocation of the task group.
 	Resources *Resources
+
+	// TaskResources is the set of resources allocated to each
+	// task. These should sum to the total Resources.
+	TaskResources map[string]*Resources
 
 	// Metrics associated with this allocation
 	Metrics *AllocMetric
