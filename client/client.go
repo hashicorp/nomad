@@ -243,7 +243,7 @@ func (c *Client) restoreState() error {
 
 	// Scan the directory
 	list, err := ioutil.ReadDir(filepath.Join(c.config.StateDir, "alloc"))
-	if err != nil {
+	if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("failed to list alloc state: %v", err)
 	}
 

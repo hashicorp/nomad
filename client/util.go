@@ -106,6 +106,9 @@ func persistState(path string, data interface{}) error {
 func restoreState(path string, data interface{}) error {
 	buf, err := ioutil.ReadFile(path)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
 		return fmt.Errorf("failed to read state: %v", err)
 	}
 	if err := json.Unmarshal(buf, data); err != nil {

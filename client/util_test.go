@@ -1,7 +1,9 @@
 package client
 
 import (
+	"io/ioutil"
 	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 	"time"
@@ -80,6 +82,16 @@ func TestShuffleStrings(t *testing.T) {
 }
 
 func TestPersistRestoreState(t *testing.T) {
+	dir, err := ioutil.TempDir("", "nomad")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	defer os.RemoveAll(dir)
+
+	// Use a state path inside a non-existent directory. This
+	// verifies that the directory is created properly.
+	statePath := filepath.Join(dir, "subdir", "test-persist")
+
 	type stateTest struct {
 		Foo int
 		Bar string
@@ -90,15 +102,14 @@ func TestPersistRestoreState(t *testing.T) {
 		Bar: "the quick brown fox",
 		Baz: true,
 	}
-	defer os.Remove("test-persist")
 
-	err := persistState("test-persist", &state)
+	err = persistState(statePath, &state)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	var out stateTest
-	err = restoreState("test-persist", &out)
+	err = restoreState(statePath, &out)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
