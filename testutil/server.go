@@ -143,7 +143,7 @@ func NewTestServer(t *testing.T, cb ServerConfigCallback) *TestServer {
 	}
 
 	// Start the server
-	cmd := exec.Command("nomad", "agent", "-config", configFile.Name())
+	cmd := exec.Command("nomad", "agent", "-dev", "-config", configFile.Name())
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 	if err := cmd.Start(); err != nil {
