@@ -1,17 +1,34 @@
-package scheduler
+package structs
 
 import (
 	"net"
 	"reflect"
 	"testing"
-
-	"github.com/hashicorp/nomad/nomad/mock"
-	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 func TestNetworkIndex_SetNode(t *testing.T) {
 	idx := NewNetworkIndex()
-	n := mock.Node()
+	n := &Node{
+		Resources: &Resources{
+			Networks: []*NetworkResource{
+				&NetworkResource{
+					Device: "eth0",
+					CIDR:   "192.168.0.100/32",
+					MBits:  1000,
+				},
+			},
+		},
+		Reserved: &Resources{
+			Networks: []*NetworkResource{
+				&NetworkResource{
+					Device:        "eth0",
+					IP:            "192.168.0.100",
+					ReservedPorts: []int{22},
+					MBits:         1,
+				},
+			},
+		},
+	}
 	idx.SetNode(n)
 
 	if len(idx.AvailNetworks) != 1 {
@@ -30,12 +47,12 @@ func TestNetworkIndex_SetNode(t *testing.T) {
 
 func TestNetworkIndex_AddAllocs(t *testing.T) {
 	idx := NewNetworkIndex()
-	allocs := []*structs.Allocation{
-		&structs.Allocation{
-			TaskResources: map[string]*structs.Resources{
-				"web": &structs.Resources{
-					Networks: []*structs.NetworkResource{
-						&structs.NetworkResource{
+	allocs := []*Allocation{
+		&Allocation{
+			TaskResources: map[string]*Resources{
+				"web": &Resources{
+					Networks: []*NetworkResource{
+						&NetworkResource{
 							Device:        "eth0",
 							IP:            "192.168.0.100",
 							MBits:         20,
@@ -45,11 +62,11 @@ func TestNetworkIndex_AddAllocs(t *testing.T) {
 				},
 			},
 		},
-		&structs.Allocation{
-			TaskResources: map[string]*structs.Resources{
-				"api": &structs.Resources{
-					Networks: []*structs.NetworkResource{
-						&structs.NetworkResource{
+		&Allocation{
+			TaskResources: map[string]*Resources{
+				"api": &Resources{
+					Networks: []*NetworkResource{
+						&NetworkResource{
 							Device:        "eth0",
 							IP:            "192.168.0.100",
 							MBits:         50,
@@ -79,7 +96,7 @@ func TestNetworkIndex_AddAllocs(t *testing.T) {
 func TestNetworkIndex_AddReserved(t *testing.T) {
 	idx := NewNetworkIndex()
 
-	reserved := &structs.NetworkResource{
+	reserved := &NetworkResource{
 		Device:        "eth0",
 		IP:            "192.168.0.100",
 		MBits:         20,
@@ -100,12 +117,31 @@ func TestNetworkIndex_AddReserved(t *testing.T) {
 
 func TestNetworkIndex_yieldIP(t *testing.T) {
 	idx := NewNetworkIndex()
-	n := mock.Node()
-	n.Resources.Networks[0].CIDR = "192.168.0.100/30"
+	n := &Node{
+		Resources: &Resources{
+			Networks: []*NetworkResource{
+				&NetworkResource{
+					Device: "eth0",
+					CIDR:   "192.168.0.100/30",
+					MBits:  1000,
+				},
+			},
+		},
+		Reserved: &Resources{
+			Networks: []*NetworkResource{
+				&NetworkResource{
+					Device:        "eth0",
+					IP:            "192.168.0.100",
+					ReservedPorts: []int{22},
+					MBits:         1,
+				},
+			},
+		},
+	}
 	idx.SetNode(n)
 
 	var out []string
-	idx.yieldIP(func(n *structs.NetworkResource, ip net.IP) (stop bool) {
+	idx.yieldIP(func(n *NetworkResource, ip net.IP) (stop bool) {
 		out = append(out, ip.String())
 		return
 	})
@@ -119,16 +155,35 @@ func TestNetworkIndex_yieldIP(t *testing.T) {
 
 func TestNetworkIndex_AssignNetwork(t *testing.T) {
 	idx := NewNetworkIndex()
-	n := mock.Node()
-	n.Resources.Networks[0].CIDR = "192.168.0.100/30"
+	n := &Node{
+		Resources: &Resources{
+			Networks: []*NetworkResource{
+				&NetworkResource{
+					Device: "eth0",
+					CIDR:   "192.168.0.100/30",
+					MBits:  1000,
+				},
+			},
+		},
+		Reserved: &Resources{
+			Networks: []*NetworkResource{
+				&NetworkResource{
+					Device:        "eth0",
+					IP:            "192.168.0.100",
+					ReservedPorts: []int{22},
+					MBits:         1,
+				},
+			},
+		},
+	}
 	idx.SetNode(n)
 
-	allocs := []*structs.Allocation{
-		&structs.Allocation{
-			TaskResources: map[string]*structs.Resources{
-				"web": &structs.Resources{
-					Networks: []*structs.NetworkResource{
-						&structs.NetworkResource{
+	allocs := []*Allocation{
+		&Allocation{
+			TaskResources: map[string]*Resources{
+				"web": &Resources{
+					Networks: []*NetworkResource{
+						&NetworkResource{
 							Device:        "eth0",
 							IP:            "192.168.0.100",
 							MBits:         20,
@@ -138,11 +193,11 @@ func TestNetworkIndex_AssignNetwork(t *testing.T) {
 				},
 			},
 		},
-		&structs.Allocation{
-			TaskResources: map[string]*structs.Resources{
-				"api": &structs.Resources{
-					Networks: []*structs.NetworkResource{
-						&structs.NetworkResource{
+		&Allocation{
+			TaskResources: map[string]*Resources{
+				"api": &Resources{
+					Networks: []*NetworkResource{
+						&NetworkResource{
 							Device:        "eth0",
 							IP:            "192.168.0.100",
 							MBits:         50,
@@ -156,7 +211,7 @@ func TestNetworkIndex_AssignNetwork(t *testing.T) {
 	idx.AddAllocs(allocs)
 
 	// Ask for a reserved port
-	ask := &structs.NetworkResource{
+	ask := &NetworkResource{
 		ReservedPorts: []int{8000},
 	}
 	offer := idx.AssignNetwork(ask)
@@ -171,7 +226,7 @@ func TestNetworkIndex_AssignNetwork(t *testing.T) {
 	}
 
 	// Ask for dynamic ports
-	ask = &structs.NetworkResource{
+	ask = &NetworkResource{
 		DynamicPorts: 3,
 	}
 	offer = idx.AssignNetwork(ask)
@@ -186,7 +241,7 @@ func TestNetworkIndex_AssignNetwork(t *testing.T) {
 	}
 
 	// Ask for reserved + dynamic ports
-	ask = &structs.NetworkResource{
+	ask = &NetworkResource{
 		ReservedPorts: []int{12345},
 		DynamicPorts:  3,
 	}
@@ -202,7 +257,7 @@ func TestNetworkIndex_AssignNetwork(t *testing.T) {
 	}
 
 	// Ask for too much bandwidth
-	ask = &structs.NetworkResource{
+	ask = &NetworkResource{
 		MBits: 1000,
 	}
 	offer = idx.AssignNetwork(ask)

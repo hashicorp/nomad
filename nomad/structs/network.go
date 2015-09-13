@@ -1,10 +1,8 @@
-package scheduler
+package structs
 
 import (
 	"math/rand"
 	"net"
-
-	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 const (
@@ -22,7 +20,7 @@ const (
 // NetworkIndex is used to index the available network resources
 // and the used network resources on a machine given allocations
 type NetworkIndex struct {
-	AvailNetworks  []*structs.NetworkResource  // List of available networks
+	AvailNetworks  []*NetworkResource          // List of available networks
 	AvailBandwidth map[string]int              // Bandwidth by device
 	UsedPorts      map[string]map[int]struct{} // Ports by IP
 	UsedBandwidth  map[string]int              // Bandwidth by device
@@ -38,7 +36,7 @@ func NewNetworkIndex() *NetworkIndex {
 }
 
 // SetNode is used to setup the available network resources
-func (idx *NetworkIndex) SetNode(node *structs.Node) {
+func (idx *NetworkIndex) SetNode(node *Node) {
 	// Add the available CIDR blocks
 	for _, n := range node.Resources.Networks {
 		if n.CIDR != "" {
@@ -56,7 +54,7 @@ func (idx *NetworkIndex) SetNode(node *structs.Node) {
 }
 
 // AddAllocs is used to add the used network resources
-func (idx *NetworkIndex) AddAllocs(allocs []*structs.Allocation) {
+func (idx *NetworkIndex) AddAllocs(allocs []*Allocation) {
 	for _, alloc := range allocs {
 		for _, task := range alloc.TaskResources {
 			if len(task.Networks) == 0 {
@@ -69,7 +67,7 @@ func (idx *NetworkIndex) AddAllocs(allocs []*structs.Allocation) {
 }
 
 // AddReserved is used to add a reserved network usage
-func (idx *NetworkIndex) AddReserved(n *structs.NetworkResource) {
+func (idx *NetworkIndex) AddReserved(n *NetworkResource) {
 	// Add the port usage
 	used := idx.UsedPorts[n.IP]
 	if used == nil {
@@ -86,7 +84,7 @@ func (idx *NetworkIndex) AddReserved(n *structs.NetworkResource) {
 
 // yieldIP is used to iteratively invoke the callback with
 // an available IP
-func (idx *NetworkIndex) yieldIP(cb func(net *structs.NetworkResource, ip net.IP) bool) {
+func (idx *NetworkIndex) yieldIP(cb func(net *NetworkResource, ip net.IP) bool) {
 	inc := func(ip net.IP) {
 		for j := len(ip) - 1; j >= 0; j-- {
 			ip[j]++
@@ -110,8 +108,8 @@ func (idx *NetworkIndex) yieldIP(cb func(net *structs.NetworkResource, ip net.IP
 }
 
 // AssignNetwork is used to assign network resources given an ask
-func (idx *NetworkIndex) AssignNetwork(ask *structs.NetworkResource) (out *structs.NetworkResource) {
-	idx.yieldIP(func(n *structs.NetworkResource, ip net.IP) (stop bool) {
+func (idx *NetworkIndex) AssignNetwork(ask *NetworkResource) (out *NetworkResource) {
+	idx.yieldIP(func(n *NetworkResource, ip net.IP) (stop bool) {
 		// Convert the IP to a string
 		ipStr := ip.String()
 
@@ -130,7 +128,7 @@ func (idx *NetworkIndex) AssignNetwork(ask *structs.NetworkResource) (out *struc
 		}
 
 		// Create the offer
-		offer := &structs.NetworkResource{
+		offer := &NetworkResource{
 			Device:        n.Device,
 			IP:            ipStr,
 			ReservedPorts: ask.ReservedPorts,
