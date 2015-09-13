@@ -194,6 +194,6 @@ func evaluateNodePlan(snap *state.StateSnapshot, plan *structs.Plan, nodeID stri
 	proposed = append(proposed, plan.NodeAllocation[nodeID]...)
 
 	// Check if these allocations fit
-	fit, _, err := structs.AllocsFit(node, proposed)
+	fit, _, err := structs.AllocsFit(node, proposed, nil)
 	return fit, err
 }
