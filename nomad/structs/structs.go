@@ -656,6 +656,7 @@ func (r *Resources) Add(delta *Resources) error {
 // NetworkResource is used to represesent available network
 // resources
 type NetworkResource struct {
+	Device        string // Name of the device
 	CIDR          string // CIDR block of addresses
 	IP            string // IP address
 	ReservedPorts []int  // Reserved ports

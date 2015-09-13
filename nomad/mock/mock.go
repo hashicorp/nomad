@@ -20,7 +20,7 @@ func Node() *structs.Node {
 			IOPS:     150,
 			Networks: []*structs.NetworkResource{
 				&structs.NetworkResource{
-					Public:        true,
+					Device:        "eth0",
 					CIDR:          "192.168.0.100/32",
 					ReservedPorts: []int{22},
 					MBits:         1000,
@@ -119,7 +119,7 @@ func Alloc() *structs.Allocation {
 			IOPS:     10,
 			Networks: []*structs.NetworkResource{
 				&structs.NetworkResource{
-					Public:        true,
+					Device:        "eth0",
 					CIDR:          "192.168.0.100/32",
 					ReservedPorts: []int{12345},
 					MBits:         100,
