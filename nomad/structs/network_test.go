@@ -271,7 +271,10 @@ func TestNetworkIndex_AssignNetwork(t *testing.T) {
 	ask := &NetworkResource{
 		ReservedPorts: []int{8000},
 	}
-	offer := idx.AssignNetwork(ask)
+	offer, err := idx.AssignNetwork(ask)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
 	if offer == nil {
 		t.Fatalf("bad")
 	}
@@ -286,7 +289,10 @@ func TestNetworkIndex_AssignNetwork(t *testing.T) {
 	ask = &NetworkResource{
 		DynamicPorts: 3,
 	}
-	offer = idx.AssignNetwork(ask)
+	offer, err = idx.AssignNetwork(ask)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
 	if offer == nil {
 		t.Fatalf("bad")
 	}
@@ -302,7 +308,10 @@ func TestNetworkIndex_AssignNetwork(t *testing.T) {
 		ReservedPorts: []int{12345},
 		DynamicPorts:  3,
 	}
-	offer = idx.AssignNetwork(ask)
+	offer, err = idx.AssignNetwork(ask)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
 	if offer == nil {
 		t.Fatalf("bad")
 	}
@@ -317,7 +326,10 @@ func TestNetworkIndex_AssignNetwork(t *testing.T) {
 	ask = &NetworkResource{
 		MBits: 1000,
 	}
-	offer = idx.AssignNetwork(ask)
+	offer, err = idx.AssignNetwork(ask)
+	if err.Error() != "bandwidth exceeded" {
+		t.Fatalf("err: %v", err)
+	}
 	if offer != nil {
 		t.Fatalf("bad")
 	}

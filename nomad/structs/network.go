@@ -1,6 +1,7 @@
 package structs
 
 import (
+	"fmt"
 	"math/rand"
 	"net"
 )
@@ -134,7 +135,7 @@ func (idx *NetworkIndex) yieldIP(cb func(net *NetworkResource, ip net.IP) bool) 
 
 // AssignNetwork is used to assign network resources given an ask.
 // If the ask cannot be satisfied, returns nil
-func (idx *NetworkIndex) AssignNetwork(ask *NetworkResource) (out *NetworkResource) {
+func (idx *NetworkIndex) AssignNetwork(ask *NetworkResource) (out *NetworkResource, err error) {
 	idx.yieldIP(func(n *NetworkResource, ip net.IP) (stop bool) {
 		// Convert the IP to a string
 		ipStr := ip.String()
@@ -143,13 +144,15 @@ func (idx *NetworkIndex) AssignNetwork(ask *NetworkResource) (out *NetworkResour
 		availBandwidth := idx.AvailBandwidth[n.Device]
 		usedBandwidth := idx.UsedBandwidth[n.Device]
 		if usedBandwidth+ask.MBits > availBandwidth {
+			err = fmt.Errorf("bandwidth exceeded")
 			return
 		}
 
 		// Check if any of the reserved ports are in use
 		for _, port := range ask.ReservedPorts {
 			if _, ok := idx.UsedPorts[ipStr][port]; ok {
-				return false
+				err = fmt.Errorf("reserved port collision")
+				return
 			}
 		}
 
@@ -166,6 +169,7 @@ func (idx *NetworkIndex) AssignNetwork(ask *NetworkResource) (out *NetworkResour
 		PICK:
 			attempts++
 			if attempts > maxRandPortAttempts {
+				err = fmt.Errorf("dynamic port selection failed")
 				return
 			}
 
@@ -181,6 +185,7 @@ func (idx *NetworkIndex) AssignNetwork(ask *NetworkResource) (out *NetworkResour
 
 		// Stop, we have an offer!
 		out = offer
+		err = nil
 		return true
 	})
 	return

@@ -594,7 +594,7 @@ func (r *Resources) Add(delta *Resources) error {
 		// Find the matching interface by IP or CIDR
 		idx := r.NetIndex(n)
 		if idx == -1 {
-			r.Networks = append(r.Networks, n)
+			r.Networks = append(r.Networks, n.Copy())
 		} else {
 			r.Networks[idx].Add(n)
 		}
