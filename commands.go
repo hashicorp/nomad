@@ -58,6 +58,12 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 			}, nil
 		},
 
+		"node-drain": func() (cli.Command, error) {
+			return &command.NodeDrainCommand{
+				Ui: meta.Ui,
+			}, nil
+		},
+
 		"node-status": func() (cli.Command, error) {
 			return &command.NodeStatusCommand{
 				Ui: meta.Ui,
