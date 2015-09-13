@@ -82,6 +82,12 @@ func Job() *structs.Job {
 						Resources: &structs.Resources{
 							CPU:      0.5,
 							MemoryMB: 256,
+							Networks: []*structs.NetworkResource{
+								&structs.NetworkResource{
+									MBits:        50,
+									DynamicPorts: 1,
+								},
+							},
 						},
 					},
 				},
