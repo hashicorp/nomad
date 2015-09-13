@@ -191,8 +191,8 @@ OUTER:
 				ask := taskResources.Networks[0]
 				offer, err := netIdx.AssignNetwork(ask)
 				if offer == nil {
-					iter.ctx.Metrics().FilterNode(option.Node,
-						fmt.Sprintf("failed network offer: %s", err))
+					iter.ctx.Metrics().ExhaustedNode(option.Node,
+						fmt.Sprintf("network: %s", err))
 					continue OUTER
 				}
 
@@ -216,7 +216,7 @@ OUTER:
 		// Check if these allocations fit, if they do not, simply skip this node
 		fit, util, _ := structs.AllocsFit(option.Node, proposed, netIdx)
 		if !fit {
-			iter.ctx.Metrics().ExhaustedNode(option.Node)
+			iter.ctx.Metrics().ExhaustedNode(option.Node, "resources")
 			continue
 		}
 
