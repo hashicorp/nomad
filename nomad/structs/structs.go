@@ -3,7 +3,6 @@ package structs
 import (
 	"bytes"
 	"fmt"
-	"net"
 	"time"
 
 	"github.com/hashicorp/go-msgpack/codec"
@@ -551,50 +550,10 @@ func (r *Resources) Copy() *Resources {
 	return newR
 }
 
-// NetIndex finds the matching net index either using IP or
-// CIDR block lookup
+// NetIndex finds the matching net index using device name
 func (r *Resources) NetIndex(n *NetworkResource) int {
-	if n.IP != "" {
-		return r.NetIndexByIP(n.IP)
-	}
-	return r.NetIndexByCIDR(n.CIDR)
-}
-
-// NetIndexByCIDR scans the list of networks for a matching
-// CIDR, returning the index. This currently ONLY handles
-// an exact match and not a subset CIDR.
-func (r *Resources) NetIndexByCIDR(cidr string) int {
 	for idx, net := range r.Networks {
-		if net.CIDR == cidr {
-			return idx
-		}
-	}
-	return -1
-}
-
-// NetIndexByIP scans the list of networks for a matching
-// CIDR by IP, returning the index.
-func (r *Resources) NetIndexByIP(ip string) int {
-	// Parse the IP
-	parsed := net.ParseIP(ip)
-	if parsed == nil {
-		return -1
-	}
-
-	for idx, n := range r.Networks {
-		// Look for exact IP match
-		if n.IP == ip {
-			return idx
-		}
-
-		// Check for CIDR subset
-		if n.CIDR == "" {
-			continue
-		}
-
-		// Check if the CIDR contains the IP
-		_, cidr, _ := net.ParseCIDR(n.CIDR)
-		if cidr != nil && cidr.Contains(parsed) {
+		if net.Device == n.Device {
 			return idx
 		}
 	}

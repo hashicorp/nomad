@@ -5,38 +5,21 @@ import (
 	"testing"
 )
 
-func TestResource_NetIndexByCIDR(t *testing.T) {
+func TestResource_NetIndex(t *testing.T) {
 	r := &Resources{
 		Networks: []*NetworkResource{
-			&NetworkResource{CIDR: "10.0.0.0/8"},
-			&NetworkResource{CIDR: "127.0.0.0/24"},
+			&NetworkResource{Device: "eth0"},
+			&NetworkResource{Device: "lo0"},
+			&NetworkResource{Device: ""},
 		},
 	}
-	if idx := r.NetIndexByCIDR("10.0.0.0/8"); idx != 0 {
+	if idx := r.NetIndex(&NetworkResource{Device: "eth0"}); idx != 0 {
 		t.Fatalf("Bad: %d", idx)
 	}
-	if idx := r.NetIndexByCIDR("127.0.0.0/24"); idx != 1 {
+	if idx := r.NetIndex(&NetworkResource{Device: "lo0"}); idx != 1 {
 		t.Fatalf("Bad: %d", idx)
 	}
-	if idx := r.NetIndexByCIDR("10.0.0.0/16"); idx != -1 {
-		t.Fatalf("Bad: %d", idx)
-	}
-}
-
-func TestResource_NetIndexByIP(t *testing.T) {
-	r := &Resources{
-		Networks: []*NetworkResource{
-			&NetworkResource{CIDR: "10.0.0.0/8"},
-			&NetworkResource{CIDR: "127.0.0.0/24"},
-		},
-	}
-	if idx := r.NetIndexByIP("10.1.2.3"); idx != 0 {
-		t.Fatalf("Bad: %d", idx)
-	}
-	if idx := r.NetIndexByIP("127.0.0.1"); idx != 1 {
-		t.Fatalf("Bad: %d", idx)
-	}
-	if idx := r.NetIndexByIP("11.2.3.4"); idx != -1 {
+	if idx := r.NetIndex(&NetworkResource{Device: "eth1"}); idx != -1 {
 		t.Fatalf("Bad: %d", idx)
 	}
 }
