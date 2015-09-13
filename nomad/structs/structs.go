@@ -539,6 +539,15 @@ type Resources struct {
 	Networks []*NetworkResource
 }
 
+// NetIndex finds the matching net index either using IP or
+// CIDR block lookup
+func (r *Resources) NetIndex(n *NetworkResource) int {
+	if n.IP != "" {
+		return r.NetIndexByIP(n.IP)
+	}
+	return r.NetIndexByCIDR(n.CIDR)
+}
+
 // NetIndexByCIDR scans the list of networks for a matching
 // CIDR, returning the index. This currently ONLY handles
 // an exact match and not a subset CIDR.
@@ -605,14 +614,7 @@ func (r *Resources) Superset(other *Resources) bool {
 	// Ensure all networks exist and do not exhaust bandwidth
 	for _, n := range other.Networks {
 		// Find the matching interface by IP or CIDR
-		var idx int
-		if n.IP != "" {
-			idx = r.NetIndexByIP(n.IP)
-		} else if n.CIDR != "" {
-			idx = r.NetIndexByCIDR(n.CIDR)
-		} else {
-			return false
-		}
+		idx := r.NetIndex(n)
 		if idx == -1 {
 			return false
 		}
@@ -641,14 +643,7 @@ func (r *Resources) Add(delta *Resources) error {
 
 	for _, n := range delta.Networks {
 		// Find the matching interface by IP or CIDR
-		var idx int
-		if n.IP != "" {
-			idx = r.NetIndexByIP(n.IP)
-		} else if n.CIDR != "" {
-			idx = r.NetIndexByCIDR(n.CIDR)
-		} else {
-			idx = -1
-		}
+		idx := r.NetIndex(n)
 		if idx == -1 {
 			r.Networks = append(r.Networks, n)
 		} else {
@@ -676,6 +671,7 @@ func (n *NetworkResource) Add(delta *NetworkResource) {
 		n.ReservedPorts = append(n.ReservedPorts, delta.ReservedPorts...)
 	}
 	n.MBits += delta.MBits
+	n.DynamicPorts += delta.DynamicPorts
 }
 
 const (

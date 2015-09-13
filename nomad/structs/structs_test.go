@@ -178,6 +178,48 @@ func TestResource_Add(t *testing.T) {
 	}
 }
 
+func TestResource_Add_Network(t *testing.T) {
+	r1 := &Resources{}
+	r2 := &Resources{
+		Networks: []*NetworkResource{
+			&NetworkResource{
+				MBits:        50,
+				DynamicPorts: 2,
+			},
+		},
+	}
+	r3 := &Resources{
+		Networks: []*NetworkResource{
+			&NetworkResource{
+				MBits:        25,
+				DynamicPorts: 1,
+			},
+		},
+	}
+
+	err := r1.Add(r2)
+	if err != nil {
+		t.Fatalf("Err: %v", err)
+	}
+	err = r1.Add(r3)
+	if err != nil {
+		t.Fatalf("Err: %v", err)
+	}
+
+	expect := &Resources{
+		Networks: []*NetworkResource{
+			&NetworkResource{
+				MBits:        75,
+				DynamicPorts: 3,
+			},
+		},
+	}
+
+	if !reflect.DeepEqual(expect.Networks, r1.Networks) {
+		t.Fatalf("bad: %#v %#v", expect, r1)
+	}
+}
+
 func TestEncodeDecode(t *testing.T) {
 	type FooRequest struct {
 		Foo string
