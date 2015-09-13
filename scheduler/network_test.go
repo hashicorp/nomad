@@ -76,6 +76,28 @@ func TestNetworkIndex_AddAllocs(t *testing.T) {
 	}
 }
 
+func TestNetworkIndex_AddReserved(t *testing.T) {
+	idx := NewNetworkIndex()
+
+	reserved := &structs.NetworkResource{
+		Device:        "eth0",
+		IP:            "192.168.0.100",
+		MBits:         20,
+		ReservedPorts: []int{8000, 9000},
+	}
+	idx.AddReserved(reserved)
+
+	if idx.UsedBandwidth["eth0"] != 20 {
+		t.Fatalf("Bad")
+	}
+	if _, ok := idx.UsedPorts["192.168.0.100"][8000]; !ok {
+		t.Fatalf("Bad")
+	}
+	if _, ok := idx.UsedPorts["192.168.0.100"][9000]; !ok {
+		t.Fatalf("Bad")
+	}
+}
+
 func TestNetworkIndex_yieldIP(t *testing.T) {
 	idx := NewNetworkIndex()
 	n := mock.Node()

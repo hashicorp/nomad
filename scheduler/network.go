@@ -50,7 +50,7 @@ func (idx *NetworkIndex) SetNode(node *structs.Node) {
 	// Add the reserved resources
 	if r := node.Reserved; r != nil {
 		for _, n := range r.Networks {
-			idx.addReserved(n)
+			idx.AddReserved(n)
 		}
 	}
 }
@@ -63,13 +63,13 @@ func (idx *NetworkIndex) AddAllocs(allocs []*structs.Allocation) {
 				continue
 			}
 			n := task.Networks[0]
-			idx.addReserved(n)
+			idx.AddReserved(n)
 		}
 	}
 }
 
-// addReserved is used to add a reserved network usage
-func (idx *NetworkIndex) addReserved(n *structs.NetworkResource) {
+// AddReserved is used to add a reserved network usage
+func (idx *NetworkIndex) AddReserved(n *structs.NetworkResource) {
 	// Add the port usage
 	used := idx.UsedPorts[n.IP]
 	if used == nil {
