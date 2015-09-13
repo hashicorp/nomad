@@ -41,24 +41,11 @@ func FilterTerminalAllocs(allocs []*Allocation) []*Allocation {
 	return allocs[:n]
 }
 
-// PortsOvercommited checks if any ports are over-committed.
-// This does not handle CIDR subsets, and computes for the entire
-// CIDR block currently.
-func PortsOvercommited(r *Resources) bool {
-	for _, net := range r.Networks {
-		ports := make(map[int]struct{})
-		for _, port := range net.ReservedPorts {
-			if _, ok := ports[port]; ok {
-				return true
-			}
-			ports[port] = struct{}{}
-		}
-	}
-	return false
-}
-
-// AllocsFit checks if a given set of allocations will fit on a node
-func AllocsFit(node *Node, allocs []*Allocation) (bool, *Resources, error) {
+// AllocsFit checks if a given set of allocations will fit on a node.
+// The netIdx can optionally be provided if its already been computed.
+// If the netIdx is provided, it is assumed that the client has already
+// ensured there are no collisions.
+func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex) (bool, *Resources, error) {
 	// Compute the utilization from zero
 	used := new(Resources)
 
@@ -82,8 +69,16 @@ func AllocsFit(node *Node, allocs []*Allocation) (bool, *Resources, error) {
 		return false, used, nil
 	}
 
-	// Ensure ports are not over commited
-	if PortsOvercommited(used) {
+	// Create the network index if missing
+	if netIdx == nil {
+		netIdx = NewNetworkIndex()
+		if netIdx.SetNode(node) || netIdx.AddAllocs(allocs) {
+			return false, used, nil
+		}
+	}
+
+	// Check if the network is overcommitted
+	if netIdx.Overcommitted() {
 		return false, used, nil
 	}
 

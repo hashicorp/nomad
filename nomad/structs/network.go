@@ -35,8 +35,20 @@ func NewNetworkIndex() *NetworkIndex {
 	}
 }
 
-// SetNode is used to setup the available network resources
-func (idx *NetworkIndex) SetNode(node *Node) {
+// Overcommitted checks if the network is overcommitted
+func (idx *NetworkIndex) Overcommitted() bool {
+	for device, used := range idx.UsedBandwidth {
+		avail := idx.AvailBandwidth[device]
+		if used > avail {
+			return true
+		}
+	}
+	return false
+}
+
+// SetNode is used to setup the available network resources. Returns
+// true if there is a collision
+func (idx *NetworkIndex) SetNode(node *Node) (collide bool) {
 	// Add the available CIDR blocks
 	for _, n := range node.Resources.Networks {
 		if n.CIDR != "" {
@@ -48,26 +60,34 @@ func (idx *NetworkIndex) SetNode(node *Node) {
 	// Add the reserved resources
 	if r := node.Reserved; r != nil {
 		for _, n := range r.Networks {
-			idx.AddReserved(n)
+			if idx.AddReserved(n) {
+				collide = true
+			}
 		}
 	}
+	return
 }
 
-// AddAllocs is used to add the used network resources
-func (idx *NetworkIndex) AddAllocs(allocs []*Allocation) {
+// AddAllocs is used to add the used network resources. Returns
+// true if there is a collision
+func (idx *NetworkIndex) AddAllocs(allocs []*Allocation) (collide bool) {
 	for _, alloc := range allocs {
 		for _, task := range alloc.TaskResources {
 			if len(task.Networks) == 0 {
 				continue
 			}
 			n := task.Networks[0]
-			idx.AddReserved(n)
+			if idx.AddReserved(n) {
+				collide = true
+			}
 		}
 	}
+	return
 }
 
-// AddReserved is used to add a reserved network usage
-func (idx *NetworkIndex) AddReserved(n *NetworkResource) {
+// AddReserved is used to add a reserved network usage, returns true
+// if there is a port collision
+func (idx *NetworkIndex) AddReserved(n *NetworkResource) (collide bool) {
 	// Add the port usage
 	used := idx.UsedPorts[n.IP]
 	if used == nil {
@@ -75,11 +95,16 @@ func (idx *NetworkIndex) AddReserved(n *NetworkResource) {
 		idx.UsedPorts[n.IP] = used
 	}
 	for _, port := range n.ReservedPorts {
-		used[port] = struct{}{}
+		if _, ok := used[port]; ok {
+			collide = true
+		} else {
+			used[port] = struct{}{}
+		}
 	}
 
 	// Add the bandwidth
 	idx.UsedBandwidth[n.Device] += n.MBits
+	return
 }
 
 // yieldIP is used to iteratively invoke the callback with
@@ -107,7 +132,8 @@ func (idx *NetworkIndex) yieldIP(cb func(net *NetworkResource, ip net.IP) bool) 
 	}
 }
 
-// AssignNetwork is used to assign network resources given an ask
+// AssignNetwork is used to assign network resources given an ask.
+// If the ask cannot be satisfied, returns nil
 func (idx *NetworkIndex) AssignNetwork(ask *NetworkResource) (out *NetworkResource) {
 	idx.yieldIP(func(n *NetworkResource, ip net.IP) (stop bool) {
 		// Convert the IP to a string

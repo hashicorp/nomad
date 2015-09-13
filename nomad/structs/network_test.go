@@ -6,6 +6,48 @@ import (
 	"testing"
 )
 
+func TestNetworkIndex_Overcommitted(t *testing.T) {
+	idx := NewNetworkIndex()
+
+	// Consume some network
+	reserved := &NetworkResource{
+		Device:        "eth0",
+		IP:            "192.168.0.100",
+		MBits:         505,
+		ReservedPorts: []int{8000, 9000},
+	}
+	collide := idx.AddReserved(reserved)
+	if collide {
+		t.Fatalf("bad")
+	}
+	if !idx.Overcommitted() {
+		t.Fatalf("have no resources")
+	}
+
+	// Add resources
+	n := &Node{
+		Resources: &Resources{
+			Networks: []*NetworkResource{
+				&NetworkResource{
+					Device: "eth0",
+					CIDR:   "192.168.0.100/32",
+					MBits:  1000,
+				},
+			},
+		},
+	}
+	idx.SetNode(n)
+	if idx.Overcommitted() {
+		t.Fatalf("have resources")
+	}
+
+	// Double up our ussage
+	idx.AddReserved(reserved)
+	if !idx.Overcommitted() {
+		t.Fatalf("should be overcommitted")
+	}
+}
+
 func TestNetworkIndex_SetNode(t *testing.T) {
 	idx := NewNetworkIndex()
 	n := &Node{
@@ -29,7 +71,10 @@ func TestNetworkIndex_SetNode(t *testing.T) {
 			},
 		},
 	}
-	idx.SetNode(n)
+	collide := idx.SetNode(n)
+	if collide {
+		t.Fatalf("bad")
+	}
 
 	if len(idx.AvailNetworks) != 1 {
 		t.Fatalf("Bad")
@@ -77,7 +122,10 @@ func TestNetworkIndex_AddAllocs(t *testing.T) {
 			},
 		},
 	}
-	idx.AddAllocs(allocs)
+	collide := idx.AddAllocs(allocs)
+	if collide {
+		t.Fatalf("bad")
+	}
 
 	if idx.UsedBandwidth["eth0"] != 70 {
 		t.Fatalf("Bad")
@@ -102,7 +150,10 @@ func TestNetworkIndex_AddReserved(t *testing.T) {
 		MBits:         20,
 		ReservedPorts: []int{8000, 9000},
 	}
-	idx.AddReserved(reserved)
+	collide := idx.AddReserved(reserved)
+	if collide {
+		t.Fatalf("bad")
+	}
 
 	if idx.UsedBandwidth["eth0"] != 20 {
 		t.Fatalf("Bad")
@@ -112,6 +163,12 @@ func TestNetworkIndex_AddReserved(t *testing.T) {
 	}
 	if _, ok := idx.UsedPorts["192.168.0.100"][9000]; !ok {
 		t.Fatalf("Bad")
+	}
+
+	// Try to reserve the same network
+	collide = idx.AddReserved(reserved)
+	if !collide {
+		t.Fatalf("bad")
 	}
 }
 
