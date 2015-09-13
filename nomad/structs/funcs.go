@@ -61,12 +61,6 @@ func PortsOvercommited(r *Resources) bool {
 func AllocsFit(node *Node, allocs []*Allocation) (bool, *Resources, error) {
 	// Compute the utilization from zero
 	used := new(Resources)
-	for _, net := range node.Resources.Networks {
-		used.Networks = append(used.Networks, &NetworkResource{
-			Public: net.Public,
-			CIDR:   net.CIDR,
-		})
-	}
 
 	// Add the reserved resources of the node
 	if node.Reserved != nil {

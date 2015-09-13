@@ -656,9 +656,8 @@ func (r *Resources) Add(delta *Resources) error {
 // NetworkResource is used to represesent available network
 // resources
 type NetworkResource struct {
-	Public        bool   // Is this a public address?
 	CIDR          string // CIDR block of addresses
-	IP            string // IP address of the network.
+	IP            string // IP address
 	ReservedPorts []int  // Reserved ports
 	MBits         int    // Throughput
 	DynamicPorts  int    // Dynamically assigned ports
