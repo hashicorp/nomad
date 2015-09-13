@@ -47,24 +47,12 @@ func TestResource_Superset(t *testing.T) {
 		MemoryMB: 2048,
 		DiskMB:   10000,
 		IOPS:     100,
-		Networks: []*NetworkResource{
-			&NetworkResource{
-				CIDR:  "10.0.0.0/8",
-				MBits: 100,
-			},
-		},
 	}
 	r2 := &Resources{
 		CPU:      1.0,
 		MemoryMB: 1024,
 		DiskMB:   5000,
 		IOPS:     50,
-		Networks: []*NetworkResource{
-			&NetworkResource{
-				CIDR:  "10.0.0.0/8",
-				MBits: 50,
-			},
-		},
 	}
 
 	if !r1.Superset(r1) {
@@ -77,51 +65,6 @@ func TestResource_Superset(t *testing.T) {
 		t.Fatalf("bad")
 	}
 	if !r2.Superset(r2) {
-		t.Fatalf("bad")
-	}
-}
-
-func TestResource_Superset_IPCIDR(t *testing.T) {
-	r1 := &Resources{
-		CPU:      2.0,
-		MemoryMB: 2048,
-		DiskMB:   10000,
-		IOPS:     100,
-		Networks: []*NetworkResource{
-			&NetworkResource{
-				CIDR:  "10.0.0.0/8",
-				MBits: 100,
-			},
-		},
-	}
-	r2 := &Resources{
-		CPU:      1.0,
-		MemoryMB: 1024,
-		DiskMB:   5000,
-		IOPS:     50,
-		Networks: []*NetworkResource{
-			&NetworkResource{
-				IP:    "10.0.0.5",
-				MBits: 50,
-			},
-			&NetworkResource{
-				IP:    "10.0.0.6",
-				MBits: 50,
-			},
-		},
-	}
-
-	if !r1.Superset(r2) {
-		t.Fatalf("bad")
-	}
-
-	// Use more network
-	r2.Networks = append(r2.Networks, &NetworkResource{
-		IP:    "10.0.0.7",
-		MBits: 50,
-	})
-
-	if r1.Superset(r2) {
 		t.Fatalf("bad")
 	}
 }

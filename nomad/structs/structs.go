@@ -602,7 +602,8 @@ func (r *Resources) NetIndexByIP(ip string) int {
 }
 
 // Superset checks if one set of resources is a superset
-// of another.
+// of another. This ignores network resources, and the NetworkIndex
+// should be used for that.
 func (r *Resources) Superset(other *Resources) bool {
 	if r.CPU < other.CPU {
 		return false
@@ -615,29 +616,6 @@ func (r *Resources) Superset(other *Resources) bool {
 	}
 	if r.IOPS < other.IOPS {
 		return false
-	}
-
-	// Compute the MBits available by index
-	mbitsByIdx := make(map[int]int)
-	for idx, n := range r.Networks {
-		mbitsByIdx[idx] = n.MBits
-	}
-
-	// Ensure all networks exist and do not exhaust bandwidth
-	for _, n := range other.Networks {
-		// Find the matching interface by IP or CIDR
-		idx := r.NetIndex(n)
-		if idx == -1 {
-			return false
-		}
-
-		// Deduct the allocation
-		mbitsByIdx[idx] -= n.MBits
-
-		// Check if we've exhaused our allocation
-		if mbitsByIdx[idx] < 0 {
-			return false
-		}
 	}
 	return true
 }
