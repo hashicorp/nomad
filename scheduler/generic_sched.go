@@ -319,6 +319,7 @@ func (s *GenericScheduler) inplaceUpdate(updates []allocTuple) []allocTuple {
 		newAlloc.EvalID = s.eval.ID
 		newAlloc.Job = s.job
 		newAlloc.Resources = size
+		newAlloc.TaskResources = option.TaskResources
 		newAlloc.Metrics = s.ctx.Metrics()
 		newAlloc.DesiredStatus = structs.AllocDesiredStatusRun
 		newAlloc.ClientStatus = structs.AllocClientStatusPending
@@ -361,36 +362,29 @@ func (s *GenericScheduler) computePlacements(place []allocTuple) error {
 		// Attempt to match the task group
 		option, size := s.stack.Select(missing.TaskGroup)
 
-		// Handle a placement failure
-		var nodeID, status, desc, clientStatus string
-		if option == nil {
-			status = structs.AllocDesiredStatusFailed
-			desc = "failed to find a node for placement"
-			clientStatus = structs.AllocClientStatusFailed
-		} else {
-			nodeID = option.Node.ID
-			status = structs.AllocDesiredStatusRun
-			clientStatus = structs.AllocClientStatusPending
-		}
-
 		// Create an allocation for this
 		alloc := &structs.Allocation{
-			ID:                 structs.GenerateUUID(),
-			EvalID:             s.eval.ID,
-			Name:               missing.Name,
-			NodeID:             nodeID,
-			JobID:              s.job.ID,
-			Job:                s.job,
-			TaskGroup:          missing.TaskGroup.Name,
-			Resources:          size,
-			Metrics:            s.ctx.Metrics(),
-			DesiredStatus:      status,
-			DesiredDescription: desc,
-			ClientStatus:       clientStatus,
+			ID:        structs.GenerateUUID(),
+			EvalID:    s.eval.ID,
+			Name:      missing.Name,
+			JobID:     s.job.ID,
+			Job:       s.job,
+			TaskGroup: missing.TaskGroup.Name,
+			Resources: size,
+			Metrics:   s.ctx.Metrics(),
 		}
-		if nodeID != "" {
+
+		// Set fields based on if we found an allocation option
+		if option != nil {
+			alloc.NodeID = option.Node.ID
+			alloc.TaskResources = option.TaskResources
+			alloc.DesiredStatus = structs.AllocDesiredStatusRun
+			alloc.ClientStatus = structs.AllocClientStatusPending
 			s.plan.AppendAlloc(alloc)
 		} else {
+			alloc.DesiredStatus = structs.AllocDesiredStatusFailed
+			alloc.DesiredDescription = "failed to find a node for placement"
+			alloc.ClientStatus = structs.AllocClientStatusFailed
 			s.plan.AppendFailed(alloc)
 			failedTG[missing.TaskGroup] = alloc
 		}

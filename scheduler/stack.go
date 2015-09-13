@@ -154,6 +154,13 @@ func (s *GenericStack) Select(tg *structs.TaskGroup) (*RankedNode, *structs.Reso
 	// Find the node with the max score
 	option := s.maxScore.Next()
 
+	// Ensure that the task resources were specified
+	if option != nil && len(option.TaskResources) != len(tg.Tasks) {
+		for _, task := range tg.Tasks {
+			option.SetTaskResources(task, task.Resources)
+		}
+	}
+
 	// Store the compute time
 	s.ctx.Metrics().AllocationTime = time.Since(start)
 	return option, size
