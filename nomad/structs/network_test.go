@@ -268,13 +268,13 @@ func TestNetworkIndex_AssignNetwork(t *testing.T) {
 
 func TestIntContains(t *testing.T) {
 	l := []int{1, 2, 10, 20}
-	if intContains(l, 50) {
+	if IntContains(l, 50) {
 		t.Fatalf("bad")
 	}
-	if !intContains(l, 20) {
+	if !IntContains(l, 20) {
 		t.Fatalf("bad")
 	}
-	if !intContains(l, 1) {
+	if !IntContains(l, 1) {
 		t.Fatalf("bad")
 	}
 }

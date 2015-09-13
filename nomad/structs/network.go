@@ -147,7 +147,7 @@ func (idx *NetworkIndex) AssignNetwork(ask *NetworkResource) (out *NetworkResour
 			if _, ok := idx.UsedPorts[ipStr][randPort]; ok {
 				goto PICK
 			}
-			if intContains(offer.ReservedPorts, randPort) {
+			if IntContains(offer.ReservedPorts, randPort) {
 				goto PICK
 			}
 			offer.ReservedPorts = append(offer.ReservedPorts, randPort)
@@ -160,8 +160,8 @@ func (idx *NetworkIndex) AssignNetwork(ask *NetworkResource) (out *NetworkResour
 	return
 }
 
-// intContains scans an integer slice for a value
-func intContains(haystack []int, needle int) bool {
+// IntContains scans an integer slice for a value
+func IntContains(haystack []int, needle int) bool {
 	for _, item := range haystack {
 		if item == needle {
 			return true
