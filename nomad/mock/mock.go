@@ -20,10 +20,9 @@ func Node() *structs.Node {
 			IOPS:     150,
 			Networks: []*structs.NetworkResource{
 				&structs.NetworkResource{
-					Device:        "eth0",
-					CIDR:          "192.168.0.100/32",
-					ReservedPorts: []int{22},
-					MBits:         1000,
+					Device: "eth0",
+					CIDR:   "192.168.0.100/32",
+					MBits:  1000,
 				},
 			},
 		},
@@ -31,6 +30,14 @@ func Node() *structs.Node {
 			CPU:      0.1,
 			MemoryMB: 256,
 			DiskMB:   4 * 1024,
+			Networks: []*structs.NetworkResource{
+				&structs.NetworkResource{
+					Device:        "eth0",
+					IP:            "192.168.0.100",
+					ReservedPorts: []int{22},
+					MBits:         1,
+				},
+			},
 		},
 		Links: map[string]string{
 			"consul": "foobar.dc1",
