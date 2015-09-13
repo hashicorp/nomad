@@ -539,6 +539,18 @@ type Resources struct {
 	Networks []*NetworkResource
 }
 
+// Copy returns a deep copy of the resources
+func (r *Resources) Copy() *Resources {
+	newR := new(Resources)
+	*newR = *r
+	n := len(r.Networks)
+	newR.Networks = make([]*NetworkResource, n)
+	for i := 0; i < n; i++ {
+		newR.Networks[i] = r.Networks[i].Copy()
+	}
+	return newR
+}
+
 // NetIndex finds the matching net index either using IP or
 // CIDR block lookup
 func (r *Resources) NetIndex(n *NetworkResource) int {
@@ -662,6 +674,15 @@ type NetworkResource struct {
 	ReservedPorts []int  // Reserved ports
 	MBits         int    // Throughput
 	DynamicPorts  int    // Dynamically assigned ports
+}
+
+// Copy returns a deep copy of the network resource
+func (n *NetworkResource) Copy() *NetworkResource {
+	newR := new(NetworkResource)
+	*newR = *n
+	newR.ReservedPorts = make([]int, len(n.ReservedPorts))
+	copy(newR.ReservedPorts, n.ReservedPorts)
+	return newR
 }
 
 // Add adds the resources of the delta to this, potentially
