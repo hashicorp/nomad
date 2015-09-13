@@ -189,10 +189,10 @@ OUTER:
 			// Check if we need a network resource
 			if len(taskResources.Networks) > 0 {
 				ask := taskResources.Networks[0]
-				offer := netIdx.AssignNetwork(ask)
+				offer, err := netIdx.AssignNetwork(ask)
 				if offer == nil {
 					iter.ctx.Metrics().FilterNode(option.Node,
-						"failed network offer")
+						fmt.Sprintf("failed network offer: %s", err))
 					continue OUTER
 				}
 
