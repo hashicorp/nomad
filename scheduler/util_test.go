@@ -259,4 +259,10 @@ func TestTasksUpdated(t *testing.T) {
 	if !tasksUpdated(j1.TaskGroups[0], j5.TaskGroups[0]) {
 		t.Fatalf("bad")
 	}
+
+	j6 := mock.Job()
+	j6.TaskGroups[0].Tasks[0].Resources.Networks[0].DynamicPorts = 3
+	if !tasksUpdated(j1.TaskGroups[0], j6.TaskGroups[0]) {
+		t.Fatalf("bad")
+	}
 }
