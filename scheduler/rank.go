@@ -177,7 +177,7 @@ OUTER:
 		}
 
 		// Index the existing network usage
-		netIdx := NewNetworkIndex()
+		netIdx := structs.NewNetworkIndex()
 		netIdx.SetNode(option.Node)
 		netIdx.AddAllocs(proposed)
 
