@@ -17,8 +17,8 @@ func (c *NodeStatusCommand) Help() string {
 	helpText := `
 Usage: nomad node-status [options] [node]
 
-  Displays status information about a given node. The list of nodes
-  returned includes only nodes jobs may be scheduled to, and
+  Display status information about a given node. The list of nodes
+  returned includes only nodes which jobs may be scheduled to, and
   includes status and other high-level information.
 
   If a node ID is passed, information for that specific node will
@@ -39,7 +39,7 @@ Options:
 }
 
 func (c *NodeStatusCommand) Synopsis() string {
-	return "Display information about nodes"
+	return "Display status information about nodes"
 }
 
 func (c *NodeStatusCommand) Run(args []string) int {

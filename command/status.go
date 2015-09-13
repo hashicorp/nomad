@@ -17,7 +17,7 @@ func (c *StatusCommand) Help() string {
 	helpText := `
 Usage: nomad status [options] [job]
 
-  Displays information about the given job. If no job ID is given,
+  Display status information about jobs. If no job ID is given,
   a list of all known jobs will be dumped.
 
 Options:
@@ -34,7 +34,7 @@ Options:
 }
 
 func (c *StatusCommand) Synopsis() string {
-	return "Displays information about jobs"
+	return "Display status information about jobs"
 }
 
 func (c *StatusCommand) Run(args []string) int {
@@ -74,14 +74,15 @@ func (c *StatusCommand) Run(args []string) int {
 			return 0
 		}
 
-		out := []string{"ID|Type|Priority|AllAtOnce|Status"}
-		for _, job := range jobs {
-			out = append(out, fmt.Sprintf("%s|%s|%d|%v|%s",
+		out := make([]string, len(jobs)+1)
+		out[0] = "ID|Type|Priority|AllAtOnce|Status"
+		for i, job := range jobs {
+			out[i+1] = fmt.Sprintf("%s|%s|%d|%v|%s",
 				job.ID,
 				job.Type,
 				job.Priority,
 				job.AllAtOnce,
-				job.Status))
+				job.Status)
 		}
 		c.Ui.Output(columnize.SimpleFormat(out))
 		return 0

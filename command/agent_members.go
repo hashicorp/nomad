@@ -18,7 +18,7 @@ func (c *AgentMembersCommand) Help() string {
 	helpText := `
 Usage: nomad agent-members [options]
 
-  Displays a list of the known members and their status.
+  Display a list of the known members and their status.
 
 Options:
 
@@ -39,7 +39,7 @@ Options:
 }
 
 func (c *AgentMembersCommand) Synopsis() string {
-	return "Displays a list of known members and their status"
+	return "Display a list of known members and their status"
 }
 
 func (c *AgentMembersCommand) Run(args []string) int {
@@ -93,7 +93,7 @@ func standardOutput(mem []*api.AgentMember) []string {
 	members := make([]string, len(mem)+1)
 	members[0] = "Name|Addr|Port|Status|Proto|Build|DC|Region"
 	for i, member := range mem {
-		line := fmt.Sprintf("%s|%s|%d|%s|%d|%s|%s|%s",
+		members[i+1] = fmt.Sprintf("%s|%s|%d|%s|%d|%s|%s|%s",
 			member.Name,
 			member.Addr,
 			member.Port,
@@ -101,9 +101,7 @@ func standardOutput(mem []*api.AgentMember) []string {
 			member.ProtocolCur,
 			member.Tags["build"],
 			member.Tags["dc"],
-			member.Tags["region"],
-		)
-		members[i+1] = line
+			member.Tags["region"])
 	}
 	return members
 }
@@ -120,13 +118,11 @@ func detailedOutput(mem []*api.AgentMember) []string {
 		}
 		tags := strings.Join(tagPairs, ",")
 
-		line := fmt.Sprintf("%s|%s|%d|%s",
+		members[i+1] = fmt.Sprintf("%s|%s|%d|%s",
 			member.Name,
 			member.Addr,
 			member.Port,
-			tags,
-		)
-		members[i+1] = line
+			tags)
 	}
 	return members
 }

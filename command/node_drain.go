@@ -39,7 +39,7 @@ Options:
 }
 
 func (c *NodeDrainCommand) Synopsis() string {
-	return "Display information about nodes"
+	return "Toggle drain mode on a given node"
 }
 
 func (c *NodeDrainCommand) Run(args []string) int {

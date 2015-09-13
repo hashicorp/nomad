@@ -8,6 +8,9 @@ import (
 )
 
 func testServer(t *testing.T) (*testutil.TestServer, *api.Client, string) {
+	// Always run these tests in parallel.
+	t.Parallel()
+
 	// Make a new test server
 	srv := testutil.NewTestServer(t, nil)
 

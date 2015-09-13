@@ -16,7 +16,7 @@ func (c *AgentInfoCommand) Help() string {
 	helpText := `
 Usage: nomad agent-info [options]
 
-  Displays status information about the local agent.
+  Display status information about the local agent.
 
 Options:
 
@@ -32,7 +32,7 @@ Options:
 }
 
 func (c *AgentInfoCommand) Synopsis() string {
-	return "Displays local agent information and status"
+	return "Display local agent information and status"
 }
 
 func (c *AgentInfoCommand) Run(args []string) int {
