@@ -31,13 +31,15 @@ import (
 // Rather, you would implement a cgroups executor that the Java driver will use.
 type Executor interface {
 	// Limit must be called before Start and restricts the amount of resources
-	// the process can use
-	Limit(structs.Resources)
+	// the process can use. Note that an error may be returned ONLY IF the
+	// executor implements resource limiting. Otherwise Limit is ignored.
+	Limit(structs.Resources) error
 
 	// RunAs sets the user we should use to run this command. This may be set as
 	// a username, uid, or other identifier. The implementation will decide what
-	// to do with it, if anything.
-	RunAs(string)
+	// to do with it, if anything. Note that an error may be returned ONLY IF
+	// the executor implements user lookups. Otherwise RunAs is ignored.
+	RunAs(string) error
 
 	// Start the process. This may wrap the actual process in another command,
 	// depending on the capabilities in this environment. Errors that arise from
@@ -101,6 +103,9 @@ func OpenPid(int) Executor {
 // AutoselectExecutor uses capability testing to give you the best available
 // executor based on your platform and execution environment. If you need a
 // specific executor, call it directly.
+//
+// This is a simplistic strategy pattern. We can potentially improve this by
+// using a decorator pattern instead.
 func AutoselectExecutor() Executor {
 	// TODO platform switching
 	return &UniversalExecutor{}
@@ -112,12 +117,14 @@ type UniversalExecutor struct {
 	cmd
 }
 
-func (e *UniversalExecutor) Limit(resources structs.Resources) {
+func (e *UniversalExecutor) Limit(resources structs.Resources) error {
 	// No-op
+	return nil
 }
 
-func (e *UniversalExecutor) RunAs(userid string) {
+func (e *UniversalExecutor) RunAs(userid string) error {
 	// No-op
+	return nil
 }
 
 func (e *UniversalExecutor) Start() error {
