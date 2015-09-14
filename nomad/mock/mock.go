@@ -126,16 +126,30 @@ func Alloc() *structs.Allocation {
 		NodeID:    "foo",
 		TaskGroup: "web",
 		Resources: &structs.Resources{
-			CPU:      1.0,
-			MemoryMB: 1024,
-			DiskMB:   1024,
-			IOPS:     10,
+			CPU:      0.5,
+			MemoryMB: 256,
 			Networks: []*structs.NetworkResource{
 				&structs.NetworkResource{
 					Device:        "eth0",
-					CIDR:          "192.168.0.100/32",
+					IP:            "192.168.0.100",
 					ReservedPorts: []int{12345},
 					MBits:         100,
+					DynamicPorts:  1,
+				},
+			},
+		},
+		TaskResources: map[string]*structs.Resources{
+			"web": &structs.Resources{
+				CPU:      0.5,
+				MemoryMB: 256,
+				Networks: []*structs.NetworkResource{
+					&structs.NetworkResource{
+						Device:        "eth0",
+						IP:            "192.168.0.100",
+						ReservedPorts: []int{5000},
+						MBits:         50,
+						DynamicPorts:  1,
+					},
 				},
 			},
 		},

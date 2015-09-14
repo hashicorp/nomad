@@ -382,6 +382,15 @@ func TestServiceSched_JobModify_InPlace(t *testing.T) {
 		t.Fatalf("bad: %#v", out)
 	}
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+
+	// Verify the network did not change
+	for _, alloc := range out {
+		for _, resources := range alloc.TaskResources {
+			if resources.Networks[0].ReservedPorts[0] != 5000 {
+				t.Fatalf("bad: %#v", alloc)
+			}
+		}
+	}
 }
 
 func TestServiceSched_JobDeregister(t *testing.T) {

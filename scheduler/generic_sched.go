@@ -311,6 +311,15 @@ func (s *GenericScheduler) inplaceUpdate(updates []allocTuple) []allocTuple {
 			continue
 		}
 
+		// Restore the network offers from the existing allocation.
+		// We do not allow network resources (reserved/dynamic ports)
+		// to be updated. This is guarded in taskUpdated, so we can
+		// safely restore those here.
+		for task, resources := range option.TaskResources {
+			existing := update.Alloc.TaskResources[task]
+			resources.Networks = existing.Networks
+		}
+
 		// Create a shallow copy
 		newAlloc := new(structs.Allocation)
 		*newAlloc = *update.Alloc
