@@ -288,6 +288,10 @@ func (r *AllocRunner) Run() {
 		if _, ok := r.tasks[task.Name]; ok {
 			continue
 		}
+
+		// Merge in the task resources
+		task.Resources = alloc.TaskResources[task.Name]
+
 		tr := NewTaskRunner(r.logger, r.config, r.setTaskStatus, r.ctx, r.alloc.ID, task)
 		r.tasks[task.Name] = tr
 		go tr.Run()
@@ -309,6 +313,9 @@ OUTER:
 			r.taskLock.RLock()
 			for _, task := range tg.Tasks {
 				tr := r.tasks[task.Name]
+
+				// Merge in the task resources
+				task.Resources = update.TaskResources[task.Name]
 				tr.Update(task)
 			}
 			r.taskLock.RUnlock()
