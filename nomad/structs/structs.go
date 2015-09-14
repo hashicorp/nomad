@@ -563,20 +563,20 @@ func (r *Resources) NetIndex(n *NetworkResource) int {
 // Superset checks if one set of resources is a superset
 // of another. This ignores network resources, and the NetworkIndex
 // should be used for that.
-func (r *Resources) Superset(other *Resources) bool {
+func (r *Resources) Superset(other *Resources) (bool, string) {
 	if r.CPU < other.CPU {
-		return false
+		return false, "cpu exhausted"
 	}
 	if r.MemoryMB < other.MemoryMB {
-		return false
+		return false, "memory exhausted"
 	}
 	if r.DiskMB < other.DiskMB {
-		return false
+		return false, "disk exhausted"
 	}
 	if r.IOPS < other.IOPS {
-		return false
+		return false, "iops exhausted"
 	}
-	return true
+	return true, ""
 }
 
 // Add adds the resources of the delta to this, potentially
@@ -617,8 +617,10 @@ type NetworkResource struct {
 func (n *NetworkResource) Copy() *NetworkResource {
 	newR := new(NetworkResource)
 	*newR = *n
-	newR.ReservedPorts = make([]int, len(n.ReservedPorts))
-	copy(newR.ReservedPorts, n.ReservedPorts)
+	if n.ReservedPorts != nil {
+		newR.ReservedPorts = make([]int, len(n.ReservedPorts))
+		copy(newR.ReservedPorts, n.ReservedPorts)
+	}
 	return newR
 }
 

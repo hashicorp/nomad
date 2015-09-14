@@ -45,45 +45,45 @@ func FilterTerminalAllocs(allocs []*Allocation) []*Allocation {
 // The netIdx can optionally be provided if its already been computed.
 // If the netIdx is provided, it is assumed that the client has already
 // ensured there are no collisions.
-func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex) (bool, *Resources, error) {
+func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex) (bool, string, *Resources, error) {
 	// Compute the utilization from zero
 	used := new(Resources)
 
 	// Add the reserved resources of the node
 	if node.Reserved != nil {
 		if err := used.Add(node.Reserved); err != nil {
-			return false, nil, err
+			return false, "", nil, err
 		}
 	}
 
 	// For each alloc, add the resources
 	for _, alloc := range allocs {
 		if err := used.Add(alloc.Resources); err != nil {
-			return false, nil, err
+			return false, "", nil, err
 		}
 	}
 
 	// Check that the node resources are a super set of those
 	// that are being allocated
-	if !node.Resources.Superset(used) {
-		return false, used, nil
+	if superset, dimension := node.Resources.Superset(used); !superset {
+		return false, dimension, used, nil
 	}
 
 	// Create the network index if missing
 	if netIdx == nil {
 		netIdx = NewNetworkIndex()
 		if netIdx.SetNode(node) || netIdx.AddAllocs(allocs) {
-			return false, used, nil
+			return false, "reserved port collision", used, nil
 		}
 	}
 
 	// Check if the network is overcommitted
 	if netIdx.Overcommitted() {
-		return false, used, nil
+		return false, "bandwidth exceeded", used, nil
 	}
 
 	// Allocations fit!
-	return true, used, nil
+	return true, "", used, nil
 }
 
 // ScoreFit is used to score the fit based on the Google work published here:

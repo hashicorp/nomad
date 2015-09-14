@@ -66,7 +66,7 @@ func TestAllocsFit_PortsOvercommitted(t *testing.T) {
 	}
 
 	// Should fit one allocation
-	fit, _, err := AllocsFit(n, []*Allocation{a1}, nil)
+	fit, _, _, err := AllocsFit(n, []*Allocation{a1}, nil)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -75,7 +75,7 @@ func TestAllocsFit_PortsOvercommitted(t *testing.T) {
 	}
 
 	// Should not fit second allocation
-	fit, _, err = AllocsFit(n, []*Allocation{a1, a1}, nil)
+	fit, _, _, err = AllocsFit(n, []*Allocation{a1, a1}, nil)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -130,7 +130,7 @@ func TestAllocsFit(t *testing.T) {
 	}
 
 	// Should fit one allocation
-	fit, used, err := AllocsFit(n, []*Allocation{a1}, nil)
+	fit, _, used, err := AllocsFit(n, []*Allocation{a1}, nil)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -147,7 +147,7 @@ func TestAllocsFit(t *testing.T) {
 	}
 
 	// Should not fit second allocation
-	fit, used, err = AllocsFit(n, []*Allocation{a1, a1}, nil)
+	fit, _, used, err = AllocsFit(n, []*Allocation{a1, a1}, nil)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

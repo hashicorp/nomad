@@ -38,16 +38,16 @@ func TestResource_Superset(t *testing.T) {
 		IOPS:     50,
 	}
 
-	if !r1.Superset(r1) {
+	if s, _ := r1.Superset(r1); !s {
 		t.Fatalf("bad")
 	}
-	if !r1.Superset(r2) {
+	if s, _ := r1.Superset(r2); !s {
 		t.Fatalf("bad")
 	}
-	if r2.Superset(r1) {
+	if s, _ := r2.Superset(r1); s {
 		t.Fatalf("bad")
 	}
-	if !r2.Superset(r2) {
+	if s, _ := r2.Superset(r2); !s {
 		t.Fatalf("bad")
 	}
 }
@@ -142,7 +142,7 @@ func TestResource_Add_Network(t *testing.T) {
 	}
 
 	if !reflect.DeepEqual(expect.Networks, r1.Networks) {
-		t.Fatalf("bad: %#v %#v", expect, r1)
+		t.Fatalf("bad: %#v %#v", expect.Networks[0], r1.Networks[0])
 	}
 }
 
