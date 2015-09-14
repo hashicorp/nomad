@@ -114,7 +114,7 @@ func (a *Agent) Join(addrs ...string) (int, error) {
 	if resp.Error != "" {
 		return 0, fmt.Errorf("failed joining: %s", resp.Error)
 	}
-	return resp.NumNodes, nil
+	return resp.NumJoined, nil
 }
 
 // Members is used to query all of the known server members
@@ -138,8 +138,8 @@ func (a *Agent) ForceLeave(node string) error {
 // joinResponse is used to decode the response we get while
 // sending a member join request.
 type joinResponse struct {
-	NumNodes int    `json:"num_nodes"`
-	Error    string `json:"error"`
+	NumJoined int    `json:"num_joined"`
+	Error     string `json:"error"`
 }
 
 // AgentMember represents a cluster member known to the agent

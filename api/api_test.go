@@ -11,10 +11,21 @@ import (
 
 type configCallback func(c *Config)
 
+// seen is used to track which tests we have already marked as parallel
+var seen map[*testing.T]struct{}
+
+func init() {
+	seen = make(map[*testing.T]struct{})
+}
+
 func makeClient(t *testing.T, cb1 configCallback,
 	cb2 testutil.ServerConfigCallback) (*Client, *testutil.TestServer) {
-	// Always run these tests in parallel
-	t.Parallel()
+	// Always run these tests in parallel. Check if we have already
+	// marked the current test, as more than 1 call causes panics.
+	if _, ok := seen[t]; !ok {
+		seen[t] = struct{}{}
+		t.Parallel()
+	}
 
 	// Make client config
 	conf := DefaultConfig()
