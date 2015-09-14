@@ -15,8 +15,8 @@ func (c *Client) Nodes() *Nodes {
 }
 
 // List is used to list out all of the nodes
-func (n *Nodes) List(q *QueryOptions) ([]*Node, *QueryMeta, error) {
-	var resp []*Node
+func (n *Nodes) List(q *QueryOptions) ([]*NodeListStub, *QueryMeta, error) {
+	var resp []*NodeListStub
 	qm, err := n.client.query("/v1/nodes", &resp, q)
 	if err != nil {
 		return nil, nil, err
@@ -45,8 +45,8 @@ func (n *Nodes) ToggleDrain(nodeID string, drain bool, q *WriteOptions) (*WriteM
 }
 
 // Allocations is used to return the allocations associated with a node.
-func (n *Nodes) Allocations(nodeID string, q *QueryOptions) ([]*Allocation, *QueryMeta, error) {
-	var resp []*Allocation
+func (n *Nodes) Allocations(nodeID string, q *QueryOptions) ([]*AllocationListStub, *QueryMeta, error) {
+	var resp []*AllocationListStub
 	qm, err := n.client.query("/v1/node/"+nodeID+"/allocations", &resp, q)
 	if err != nil {
 		return nil, nil, err
@@ -66,6 +66,24 @@ func (n *Nodes) ForceEvaluate(nodeID string, q *WriteOptions) (string, *WriteMet
 
 // Node is used to deserialize a node entry.
 type Node struct {
+	ID                string
+	Datacenter        string
+	Name              string
+	Attributes        map[string]string
+	Resources         *Resources
+	Reserved          *Resources
+	Links             map[string]string
+	NodeClass         string
+	Drain             bool
+	Status            string
+	StatusDescription string
+	CreateIndex       uint64
+	ModifyIndex       uint64
+}
+
+// NodeListStub is a subset of information returned during
+// node list operations.
+type NodeListStub struct {
 	ID                string
 	Datacenter        string
 	Name              string
