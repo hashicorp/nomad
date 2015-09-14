@@ -7,9 +7,18 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 )
 
+var seen map[*testing.T]struct{}
+
+func init() {
+	seen = make(map[*testing.T]struct{})
+}
+
 func testServer(t *testing.T) (*testutil.TestServer, *api.Client, string) {
 	// Always run these tests in parallel.
-	t.Parallel()
+	if _, ok := seen[t]; !ok {
+		seen[t] = struct{}{}
+		t.Parallel()
+	}
 
 	// Make a new test server
 	srv := testutil.NewTestServer(t, nil)
