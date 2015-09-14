@@ -227,6 +227,11 @@ func tasksUpdated(a, b *structs.TaskGroup) bool {
 		if !reflect.DeepEqual(at.Config, bt.Config) {
 			return true
 		}
+
+		// Inspect the network to see if the resource ask is different
+		if !reflect.DeepEqual(at.Resources.Networks, bt.Resources.Networks) {
+			return true
+		}
 	}
 	return false
 }

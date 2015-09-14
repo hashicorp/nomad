@@ -5,20 +5,21 @@ import (
 	"testing"
 )
 
-func TestResource_NetIndexByCIDR(t *testing.T) {
+func TestResource_NetIndex(t *testing.T) {
 	r := &Resources{
 		Networks: []*NetworkResource{
-			&NetworkResource{CIDR: "10.0.0.0/8"},
-			&NetworkResource{CIDR: "127.0.0.0/24"},
+			&NetworkResource{Device: "eth0"},
+			&NetworkResource{Device: "lo0"},
+			&NetworkResource{Device: ""},
 		},
 	}
-	if idx := r.NetIndexByCIDR("10.0.0.0/8"); idx != 0 {
+	if idx := r.NetIndex(&NetworkResource{Device: "eth0"}); idx != 0 {
 		t.Fatalf("Bad: %d", idx)
 	}
-	if idx := r.NetIndexByCIDR("127.0.0.0/24"); idx != 1 {
+	if idx := r.NetIndex(&NetworkResource{Device: "lo0"}); idx != 1 {
 		t.Fatalf("Bad: %d", idx)
 	}
-	if idx := r.NetIndexByCIDR("10.0.0.0/16"); idx != -1 {
+	if idx := r.NetIndex(&NetworkResource{Device: "eth1"}); idx != -1 {
 		t.Fatalf("Bad: %d", idx)
 	}
 }
@@ -29,24 +30,12 @@ func TestResource_Superset(t *testing.T) {
 		MemoryMB: 2048,
 		DiskMB:   10000,
 		IOPS:     100,
-		Networks: []*NetworkResource{
-			&NetworkResource{
-				CIDR:  "10.0.0.0/8",
-				MBits: 100,
-			},
-		},
 	}
 	r2 := &Resources{
 		CPU:      1.0,
 		MemoryMB: 1024,
 		DiskMB:   5000,
 		IOPS:     50,
-		Networks: []*NetworkResource{
-			&NetworkResource{
-				CIDR:  "10.0.0.0/8",
-				MBits: 50,
-			},
-		},
 	}
 
 	if !r1.Superset(r1) {
@@ -84,7 +73,7 @@ func TestResource_Add(t *testing.T) {
 		IOPS:     50,
 		Networks: []*NetworkResource{
 			&NetworkResource{
-				CIDR:          "10.0.0.0/8",
+				IP:            "10.0.0.1",
 				MBits:         50,
 				ReservedPorts: []int{80},
 			},
@@ -106,6 +95,48 @@ func TestResource_Add(t *testing.T) {
 				CIDR:          "10.0.0.0/8",
 				MBits:         150,
 				ReservedPorts: []int{22, 80},
+			},
+		},
+	}
+
+	if !reflect.DeepEqual(expect.Networks, r1.Networks) {
+		t.Fatalf("bad: %#v %#v", expect, r1)
+	}
+}
+
+func TestResource_Add_Network(t *testing.T) {
+	r1 := &Resources{}
+	r2 := &Resources{
+		Networks: []*NetworkResource{
+			&NetworkResource{
+				MBits:        50,
+				DynamicPorts: 2,
+			},
+		},
+	}
+	r3 := &Resources{
+		Networks: []*NetworkResource{
+			&NetworkResource{
+				MBits:        25,
+				DynamicPorts: 1,
+			},
+		},
+	}
+
+	err := r1.Add(r2)
+	if err != nil {
+		t.Fatalf("Err: %v", err)
+	}
+	err = r1.Add(r3)
+	if err != nil {
+		t.Fatalf("Err: %v", err)
+	}
+
+	expect := &Resources{
+		Networks: []*NetworkResource{
+			&NetworkResource{
+				MBits:        75,
+				DynamicPorts: 3,
 			},
 		},
 	}

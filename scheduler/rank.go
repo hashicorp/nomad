@@ -10,8 +10,9 @@ import (
 // along with a node when iterating. This state can be modified as
 // various rank methods are applied.
 type RankedNode struct {
-	Node  *structs.Node
-	Score float64
+	Node          *structs.Node
+	Score         float64
+	TaskResources map[string]*structs.Resources
 
 	// Allocs is used to cache the proposed allocations on the
 	// node. This can be shared between iterators that require it.
@@ -33,6 +34,14 @@ func (r *RankedNode) ProposedAllocs(ctx Context) ([]*structs.Allocation, error) 
 	}
 	r.Proposed = p
 	return p, nil
+}
+
+func (r *RankedNode) SetTaskResources(task *structs.Task,
+	resource *structs.Resources) {
+	if r.TaskResources == nil {
+		r.TaskResources = make(map[string]*structs.Resources)
+	}
+	r.TaskResources[task.Name] = resource
 }
 
 // RankFeasibleIterator is used to iteratively yield nodes along
@@ -122,35 +131,35 @@ func (iter *StaticRankIterator) Reset() {
 // BinPackIterator is a RankIterator that scores potential options
 // based on a bin-packing algorithm.
 type BinPackIterator struct {
-	ctx       Context
-	source    RankIterator
-	resources *structs.Resources
-	evict     bool
-	priority  int
+	ctx      Context
+	source   RankIterator
+	evict    bool
+	priority int
+	tasks    []*structs.Task
 }
 
-// NewBinPackIterator returns a BinPackIterator which tries to fit the given
-// resources, potentially evicting other tasks based on a given priority.
-func NewBinPackIterator(ctx Context, source RankIterator, resources *structs.Resources, evict bool, priority int) *BinPackIterator {
+// NewBinPackIterator returns a BinPackIterator which tries to fit tasks
+// potentially evicting other tasks based on a given priority.
+func NewBinPackIterator(ctx Context, source RankIterator, evict bool, priority int) *BinPackIterator {
 	iter := &BinPackIterator{
-		ctx:       ctx,
-		source:    source,
-		resources: resources,
-		evict:     evict,
-		priority:  priority,
+		ctx:      ctx,
+		source:   source,
+		evict:    evict,
+		priority: priority,
 	}
 	return iter
-}
-
-func (iter *BinPackIterator) SetResources(r *structs.Resources) {
-	iter.resources = r
 }
 
 func (iter *BinPackIterator) SetPriority(p int) {
 	iter.priority = p
 }
 
+func (iter *BinPackIterator) SetTasks(tasks []*structs.Task) {
+	iter.tasks = tasks
+}
+
 func (iter *BinPackIterator) Next() *RankedNode {
+OUTER:
 	for {
 		// Get the next potential option
 		option := iter.source.Next()
@@ -167,13 +176,47 @@ func (iter *BinPackIterator) Next() *RankedNode {
 			continue
 		}
 
+		// Index the existing network usage
+		netIdx := structs.NewNetworkIndex()
+		netIdx.SetNode(option.Node)
+		netIdx.AddAllocs(proposed)
+
+		// Assign the resources for each task
+		total := new(structs.Resources)
+		for _, task := range iter.tasks {
+			taskResources := task.Resources.Copy()
+
+			// Check if we need a network resource
+			if len(taskResources.Networks) > 0 {
+				ask := taskResources.Networks[0]
+				offer, err := netIdx.AssignNetwork(ask)
+				if offer == nil {
+					iter.ctx.Metrics().ExhaustedNode(option.Node,
+						fmt.Sprintf("network: %s", err))
+					continue OUTER
+				}
+
+				// Reserve this to prevent another task from colliding
+				netIdx.AddReserved(offer)
+
+				// Update the network ask to the offer
+				taskResources.Networks = []*structs.NetworkResource{offer}
+			}
+
+			// Store the task resource
+			option.SetTaskResources(task, taskResources)
+
+			// Accumulate the total resource requirement
+			total.Add(taskResources)
+		}
+
 		// Add the resources we are trying to fit
-		proposed = append(proposed, &structs.Allocation{Resources: iter.resources})
+		proposed = append(proposed, &structs.Allocation{Resources: total})
 
 		// Check if these allocations fit, if they do not, simply skip this node
-		fit, util, _ := structs.AllocsFit(option.Node, proposed)
+		fit, util, _ := structs.AllocsFit(option.Node, proposed, netIdx)
 		if !fit {
-			iter.ctx.Metrics().ExhaustedNode(option.Node)
+			iter.ctx.Metrics().ExhaustedNode(option.Node, "resources")
 			continue
 		}
 
