@@ -19,6 +19,7 @@ import (
 	"github.com/hashicorp/logutils"
 	"github.com/hashicorp/nomad/helper/flag-slice"
 	"github.com/hashicorp/nomad/helper/gated-writer"
+	scada "github.com/hashicorp/scada-client"
 	"github.com/mitchellh/cli"
 )
 
@@ -41,6 +42,9 @@ type Command struct {
 	httpServer *HTTPServer
 	logFilter  *logutils.LevelFilter
 	logOutput  io.Writer
+
+	scadaProvider *scada.Provider
+	scadaHttp     *HTTPServer
 }
 
 func (c *Command) readConfig() *Config {
@@ -146,6 +150,14 @@ func (c *Command) setupAgent(config *Config, logOutput io.Writer) error {
 	}
 	c.agent = agent
 
+	// Enable the SCADA integration
+	if err := c.setupSCADA(config); err != nil {
+		agent.Shutdown()
+		c.Ui.Error(fmt.Sprintf("Error starting SCADA: %s", err))
+		return err
+	}
+
+	// Setup the HTTP server
 	http, err := NewHTTPServer(agent, config, logOutput)
 	if err != nil {
 		agent.Shutdown()
@@ -231,6 +243,19 @@ func (c *Command) Run(args []string) int {
 		return 1
 	}
 	defer c.agent.Shutdown()
+
+	// Check and shut down the SCADA listeners at the end
+	defer func() {
+		if c.httpServer != nil {
+			c.httpServer.Shutdown()
+		}
+		if c.scadaHttp != nil {
+			c.scadaHttp.Shutdown()
+		}
+		if c.scadaProvider != nil {
+			c.scadaProvider.Shutdown()
+		}
+	}()
 
 	// Compile agent information for output later
 	info := make(map[string]string)
@@ -396,6 +421,33 @@ func (c *Command) setupTelementry(config *Config) error {
 		metricsConf.EnableHostname = false
 		metrics.NewGlobal(metricsConf, inm)
 	}
+	return nil
+}
+
+// setupSCADA is used to start a new SCADA provider and listener,
+// replacing any existing listeners.
+func (c *Command) setupSCADA(config *Config) error {
+	// Shut down existing SCADA listeners
+	if c.scadaProvider != nil {
+		c.scadaProvider.Shutdown()
+	}
+	if c.scadaHttp != nil {
+		c.scadaHttp.Shutdown()
+	}
+
+	// No-op if we don't have an infrastructure
+	if config.Atlas == nil || config.Atlas.Infrastructure == "" {
+		return nil
+	}
+
+	// Create the new provider and listener
+	c.Ui.Output("Connecting to Atlas: " + config.Atlas.Infrastructure)
+	provider, list, err := NewProvider(config, c.logOutput)
+	if err != nil {
+		return err
+	}
+	c.scadaProvider = provider
+	c.scadaHttp = newScadaHttp(c.agent, list)
 	return nil
 }
 

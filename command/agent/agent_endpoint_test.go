@@ -27,9 +27,6 @@ func TestHTTP_AgentSelf(t *testing.T) {
 		if self.Config == nil {
 			t.Fatalf("bad: %#v", self)
 		}
-		if self.Member == nil {
-			t.Fatalf("bad: %#v", self)
-		}
 		if len(self.Stats) == 0 {
 			t.Fatalf("bad: %#v", self)
 		}

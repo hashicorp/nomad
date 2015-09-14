@@ -70,6 +70,9 @@ type Config struct {
 
 	DevMode bool `hcl:"-"`
 
+	// AtlasConfig is used to configure Atlas
+	Atlas *AtlasConfig `hcl:"atlas"`
+
 	// NomadConfig is used to override the default config.
 	// This is largly used for testing purposes.
 	NomadConfig *nomad.Config `hcl:"-" json:"-"`
@@ -77,6 +80,23 @@ type Config struct {
 	// ClientConfig is used to override the default config.
 	// This is largly used for testing purposes.
 	ClientConfig *client.Config `hcl:"-" json:"-"`
+}
+
+// AtlasConfig is used to enable an parameterize the Atlas integration
+type AtlasConfig struct {
+	// Infrastructure is the name of the infrastructure we belong to. e.g. hashicorp/stage
+	Infrastructure string `hcl:"infrastructure"`
+
+	// Token is our authentication token from Atlas
+	Token string `hcl:"token" json:"-"`
+
+	// Join controls if Atlas will attempt to auto-join the node
+	// to it's cluster. Requires Atlas integration.
+	Join bool `hcl:"join"`
+
+	// Endpoint is the SCADA endpoint used for Atlas integration. If
+	// empty, the defaults from the provider are used.
+	Endpoint string `hcl:"endpoint"`
 }
 
 type ClientConfig struct {
