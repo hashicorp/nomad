@@ -29,7 +29,7 @@ var offset uint64
 
 // TestServerConfig is the main server configuration struct.
 type TestServerConfig struct {
-	Bootstrap         bool          `json:"bootstrap,omitempty"`
+	NodeName          string        `json:"name,omitempty"`
 	DataDir           string        `json:"data_dir,omitempty"`
 	Region            string        `json:"region,omitempty"`
 	DisableCheckpoint bool          `json:"disable_update_check"`
@@ -69,8 +69,8 @@ func defaultServerConfig() *TestServerConfig {
 	idx := int(atomic.AddUint64(&offset, 1))
 
 	return &TestServerConfig{
+		NodeName:          fmt.Sprintf("node%d", idx),
 		DisableCheckpoint: true,
-		Bootstrap:         true,
 		LogLevel:          "DEBUG",
 		Ports: &PortsConfig{
 			HTTP: 20000 + idx,
@@ -170,7 +170,7 @@ func NewTestServer(t *testing.T, cb ServerConfigCallback) *TestServer {
 	}
 
 	// Wait for the server to be ready
-	if nomadConfig.Bootstrap {
+	if nomadConfig.Server.Enabled && nomadConfig.Server.Bootstrap {
 		server.waitForLeader()
 	} else {
 		server.waitForAPI()
@@ -194,7 +194,7 @@ func (s *TestServer) Stop() {
 // but will likely return before a leader is elected.
 func (s *TestServer) waitForAPI() {
 	WaitForResult(func() (bool, error) {
-		resp, err := s.HttpClient.Get(s.url("/v1/jobs?stale"))
+		resp, err := s.HttpClient.Get(s.url("/v1/agent/self"))
 		if err != nil {
 			return false, err
 		}
@@ -226,7 +226,6 @@ func (s *TestServer) waitForLeader() {
 
 		// Ensure we have a leader and a node registeration
 		if leader := resp.Header.Get("X-Nomad-KnownLeader"); leader != "true" {
-			fmt.Println(leader)
 			return false, fmt.Errorf("Nomad leader status: %#v", leader)
 		}
 		return true, nil

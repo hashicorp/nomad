@@ -5,8 +5,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-
-	"github.com/hashicorp/serf/serf"
 )
 
 func TestHTTP_AgentSelf(t *testing.T) {
@@ -85,7 +83,7 @@ func TestHTTP_AgentMembers(t *testing.T) {
 		}
 
 		// Check the job
-		members := obj.([]serf.Member)
+		members := obj.([]Member)
 		if len(members) != 1 {
 			t.Fatalf("bad: %#v", members)
 		}

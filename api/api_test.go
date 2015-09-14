@@ -11,10 +11,21 @@ import (
 
 type configCallback func(c *Config)
 
+// seen is used to track which tests we have already marked as parallel
+var seen map[*testing.T]struct{}
+
+func init() {
+	seen = make(map[*testing.T]struct{})
+}
+
 func makeClient(t *testing.T, cb1 configCallback,
 	cb2 testutil.ServerConfigCallback) (*Client, *testutil.TestServer) {
-	// Always run these tests in parallel
-	t.Parallel()
+	// Always run these tests in parallel. Check if we have already
+	// marked the current test, as more than 1 call causes panics.
+	if _, ok := seen[t]; !ok {
+		seen[t] = struct{}{}
+		t.Parallel()
+	}
 
 	// Make client config
 	conf := DefaultConfig()
@@ -24,7 +35,7 @@ func makeClient(t *testing.T, cb1 configCallback,
 
 	// Create server
 	server := testutil.NewTestServer(t, cb2)
-	conf.URL = "http://" + server.HTTPAddr
+	conf.Address = "http://" + server.HTTPAddr
 
 	// Create client
 	client, err := NewClient(conf)
@@ -39,13 +50,13 @@ func TestDefaultConfig_env(t *testing.T) {
 	t.Parallel()
 	url := "http://1.2.3.4:5678"
 
-	os.Setenv("NOMAD_HTTP_URL", url)
-	defer os.Setenv("NOMAD_HTTP_URL", "")
+	os.Setenv("NOMAD_ADDR", url)
+	defer os.Setenv("NOMAD_ADDR", "")
 
 	config := DefaultConfig()
 
-	if config.URL != url {
-		t.Errorf("expected %q to be %q", config.URL, url)
+	if config.Address != url {
+		t.Errorf("expected %q to be %q", config.Address, url)
 	}
 }
 

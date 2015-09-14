@@ -67,8 +67,8 @@ type WriteMeta struct {
 
 // Config is used to configure the creation of a client
 type Config struct {
-	// URL is the address of the Nomad agent
-	URL string
+	// Address is the address of the Nomad agent
+	Address string
 
 	// Region to use. If not provided, the default agent region is used.
 	Region string
@@ -85,11 +85,11 @@ type Config struct {
 // DefaultConfig returns a default configuration for the client
 func DefaultConfig() *Config {
 	config := &Config{
-		URL:        "http://127.0.0.1:4646",
+		Address:    "http://127.0.0.1:4646",
 		HttpClient: http.DefaultClient,
 	}
-	if url := os.Getenv("NOMAD_HTTP_URL"); url != "" {
-		config.URL = url
+	if addr := os.Getenv("NOMAD_ADDR"); addr != "" {
+		config.Address = addr
 	}
 	return config
 }
@@ -104,10 +104,10 @@ func NewClient(config *Config) (*Client, error) {
 	// bootstrap the config
 	defConfig := DefaultConfig()
 
-	if config.URL == "" {
-		config.URL = defConfig.URL
-	} else if _, err := url.Parse(config.URL); err != nil {
-		return nil, fmt.Errorf("invalid url '%s': %v", config.URL, err)
+	if config.Address == "" {
+		config.Address = defConfig.Address
+	} else if _, err := url.Parse(config.Address); err != nil {
+		return nil, fmt.Errorf("invalid address '%s': %v", config.Address, err)
 	}
 
 	if config.HttpClient == nil {
@@ -194,7 +194,7 @@ func (r *request) toHTTP() (*http.Request, error) {
 
 // newRequest is used to create a new request
 func (c *Client) newRequest(method, path string) *request {
-	base, _ := url.Parse(c.config.URL)
+	base, _ := url.Parse(c.config.Address)
 	u, _ := url.Parse(path)
 	r := &request{
 		config: &c.config,

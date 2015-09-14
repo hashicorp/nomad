@@ -4,8 +4,17 @@ import (
 	"bufio"
 	"flag"
 	"io"
+	"os"
+	"strings"
 
+	"github.com/hashicorp/nomad/api"
 	"github.com/mitchellh/cli"
+)
+
+const (
+	// Names of environment variables used to supply various
+	// config options to the Nomad CLI.
+	EnvNomadAddress = "NOMAD_ADDR"
 )
 
 // FlagSetFlags is an enum to define what flags are present in the
@@ -14,8 +23,8 @@ type FlagSetFlags uint
 
 const (
 	FlagSetNone    FlagSetFlags = 0
-	FlagSetServer  FlagSetFlags = 1 << iota
-	FlagSetDefault              = FlagSetServer
+	FlagSetClient  FlagSetFlags = 1 << iota
+	FlagSetDefault              = FlagSetClient
 )
 
 // Meta contains the meta-options and functionality that nearly every
@@ -34,9 +43,9 @@ type Meta struct {
 func (m *Meta) FlagSet(n string, fs FlagSetFlags) *flag.FlagSet {
 	f := flag.NewFlagSet(n, flag.ContinueOnError)
 
-	// FlagSetServer tells us to enable the settings for selecting
-	// the server information.
-	if fs&FlagSetServer != 0 {
+	// FlagSetClient is used to enable the settings for specifying
+	// client connectivity options.
+	if fs&FlagSetClient != 0 {
 		f.StringVar(&m.flagAddress, "address", "", "")
 	}
 
@@ -54,4 +63,28 @@ func (m *Meta) FlagSet(n string, fs FlagSetFlags) *flag.FlagSet {
 	f.SetOutput(errW)
 
 	return f
+}
+
+// Client is used to initialize and return a new API client using
+// the default command line arguments and env vars.
+func (m *Meta) Client() (*api.Client, error) {
+	config := api.DefaultConfig()
+	if v := os.Getenv(EnvNomadAddress); v != "" {
+		config.Address = v
+	}
+	if m.flagAddress != "" {
+		config.Address = m.flagAddress
+	}
+	return api.NewClient(config)
+}
+
+// generalOptionsUsage returns the help string for the global options.
+func generalOptionsUsage() string {
+	helpText := `
+  -address=<addr>
+    The address of the Nomad server.
+    Overrides the NOMAD_ADDR environment variable if set.
+    Default = http://127.0.0.1:4646
+`
+	return strings.TrimSpace(helpText)
 }
