@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	DefaultRegion   = "region1"
+	DefaultRegion   = "global"
 	DefaultDC       = "dc1"
 	DefaultSerfPort = 4648
 )

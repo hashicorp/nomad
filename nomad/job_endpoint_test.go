@@ -20,7 +20,7 @@ func TestJobEndpoint_Register(t *testing.T) {
 	job := mock.Job()
 	req := &structs.JobRegisterRequest{
 		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "region1"},
+		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 
 	// Fetch the response
@@ -87,7 +87,7 @@ func TestJobEndpoint_Register_Existing(t *testing.T) {
 	job := mock.Job()
 	req := &structs.JobRegisterRequest{
 		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "region1"},
+		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 
 	// Fetch the response
@@ -171,7 +171,7 @@ func TestJobEndpoint_Evaluate(t *testing.T) {
 	job := mock.Job()
 	req := &structs.JobRegisterRequest{
 		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "region1"},
+		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 
 	// Fetch the response
@@ -186,7 +186,7 @@ func TestJobEndpoint_Evaluate(t *testing.T) {
 	// Force a re-evaluation
 	reEval := &structs.JobEvaluateRequest{
 		JobID:        job.ID,
-		WriteRequest: structs.WriteRequest{Region: "region1"},
+		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 
 	// Fetch the response
@@ -240,7 +240,7 @@ func TestJobEndpoint_Deregister(t *testing.T) {
 	job := mock.Job()
 	reg := &structs.JobRegisterRequest{
 		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "region1"},
+		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 
 	// Fetch the response
@@ -252,7 +252,7 @@ func TestJobEndpoint_Deregister(t *testing.T) {
 	// Deregister
 	dereg := &structs.JobDeregisterRequest{
 		JobID:        job.ID,
-		WriteRequest: structs.WriteRequest{Region: "region1"},
+		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 	var resp2 structs.JobDeregisterResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Job.Deregister", dereg, &resp2); err != nil {
@@ -314,7 +314,7 @@ func TestJobEndpoint_GetJob(t *testing.T) {
 	job := mock.Job()
 	reg := &structs.JobRegisterRequest{
 		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "region1"},
+		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 
 	// Fetch the response
@@ -328,7 +328,7 @@ func TestJobEndpoint_GetJob(t *testing.T) {
 	// Lookup the job
 	get := &structs.JobSpecificRequest{
 		JobID:        job.ID,
-		QueryOptions: structs.QueryOptions{Region: "region1"},
+		QueryOptions: structs.QueryOptions{Region: "global"},
 	}
 	var resp2 structs.SingleJobResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Job.GetJob", get, &resp2); err != nil {
@@ -371,7 +371,7 @@ func TestJobEndpoint_ListJobs(t *testing.T) {
 
 	// Lookup the jobs
 	get := &structs.JobListRequest{
-		QueryOptions: structs.QueryOptions{Region: "region1"},
+		QueryOptions: structs.QueryOptions{Region: "global"},
 	}
 	var resp2 structs.JobListResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Job.List", get, &resp2); err != nil {
@@ -409,7 +409,7 @@ func TestJobEndpoint_Allocations(t *testing.T) {
 	// Lookup the jobs
 	get := &structs.JobSpecificRequest{
 		JobID:        alloc1.JobID,
-		QueryOptions: structs.QueryOptions{Region: "region1"},
+		QueryOptions: structs.QueryOptions{Region: "global"},
 	}
 	var resp2 structs.JobAllocationsResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Job.Allocations", get, &resp2); err != nil {
@@ -444,7 +444,7 @@ func TestJobEndpoint_Evaluations(t *testing.T) {
 	// Lookup the jobs
 	get := &structs.JobSpecificRequest{
 		JobID:        eval1.JobID,
-		QueryOptions: structs.QueryOptions{Region: "region1"},
+		QueryOptions: structs.QueryOptions{Region: "global"},
 	}
 	var resp2 structs.JobEvaluationsResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Job.Evaluations", get, &resp2); err != nil {

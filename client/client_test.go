@@ -158,7 +158,7 @@ func TestClient_Register(t *testing.T) {
 
 	req := structs.NodeSpecificRequest{
 		NodeID:       c1.Node().ID,
-		QueryOptions: structs.QueryOptions{Region: "region1"},
+		QueryOptions: structs.QueryOptions{Region: "global"},
 	}
 	var out structs.SingleNodeResponse
 
@@ -191,7 +191,7 @@ func TestClient_Heartbeat(t *testing.T) {
 
 	req := structs.NodeSpecificRequest{
 		NodeID:       c1.Node().ID,
-		QueryOptions: structs.QueryOptions{Region: "region1"},
+		QueryOptions: structs.QueryOptions{Region: "global"},
 	}
 	var out structs.SingleNodeResponse
 

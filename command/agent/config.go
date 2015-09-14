@@ -17,7 +17,7 @@ import (
 
 // Config is the configuration for the Nomad agent.
 type Config struct {
-	// Region is the region this agent is in. Defaults to region1.
+	// Region is the region this agent is in. Defaults to global.
 	Region string `hcl:"region"`
 
 	// Datacenter is the datacenter this agent is in. Defaults to dc1
@@ -180,7 +180,7 @@ func DevConfig() *Config {
 func DefaultConfig() *Config {
 	return &Config{
 		LogLevel:   "INFO",
-		Region:     "region1",
+		Region:     "global",
 		Datacenter: "dc1",
 		BindAddr:   "127.0.0.1",
 		Ports: &Ports{

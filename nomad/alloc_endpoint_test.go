@@ -26,7 +26,7 @@ func TestAllocEndpoint_List(t *testing.T) {
 
 	// Lookup the jobs
 	get := &structs.AllocListRequest{
-		QueryOptions: structs.QueryOptions{Region: "region1"},
+		QueryOptions: structs.QueryOptions{Region: "global"},
 	}
 	var resp structs.AllocListResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Alloc.List", get, &resp); err != nil {
@@ -61,7 +61,7 @@ func TestAllocEndpoint_GetAlloc(t *testing.T) {
 	// Lookup the jobs
 	get := &structs.AllocSpecificRequest{
 		AllocID:      alloc.ID,
-		QueryOptions: structs.QueryOptions{Region: "region1"},
+		QueryOptions: structs.QueryOptions{Region: "global"},
 	}
 	var resp structs.SingleAllocResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Alloc.GetAlloc", get, &resp); err != nil {

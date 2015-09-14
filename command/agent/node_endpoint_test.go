@@ -16,7 +16,7 @@ func TestHTTP_NodesList(t *testing.T) {
 			node := mock.Node()
 			args := structs.NodeRegisterRequest{
 				Node:         node,
-				WriteRequest: structs.WriteRequest{Region: "region1"},
+				WriteRequest: structs.WriteRequest{Region: "global"},
 			}
 			var resp structs.NodeUpdateResponse
 			if err := s.Agent.RPC("Node.Register", &args, &resp); err != nil {
@@ -62,7 +62,7 @@ func TestHTTP_NodeForceEval(t *testing.T) {
 		node := mock.Node()
 		args := structs.NodeRegisterRequest{
 			Node:         node,
-			WriteRequest: structs.WriteRequest{Region: "region1"},
+			WriteRequest: structs.WriteRequest{Region: "global"},
 		}
 		var resp structs.NodeUpdateResponse
 		if err := s.Agent.RPC("Node.Register", &args, &resp); err != nil {
@@ -110,7 +110,7 @@ func TestHTTP_NodeAllocations(t *testing.T) {
 		node := mock.Node()
 		args := structs.NodeRegisterRequest{
 			Node:         node,
-			WriteRequest: structs.WriteRequest{Region: "region1"},
+			WriteRequest: structs.WriteRequest{Region: "global"},
 		}
 		var resp structs.NodeUpdateResponse
 		if err := s.Agent.RPC("Node.Register", &args, &resp); err != nil {
@@ -164,7 +164,7 @@ func TestHTTP_NodeDrain(t *testing.T) {
 		node := mock.Node()
 		args := structs.NodeRegisterRequest{
 			Node:         node,
-			WriteRequest: structs.WriteRequest{Region: "region1"},
+			WriteRequest: structs.WriteRequest{Region: "global"},
 		}
 		var resp structs.NodeUpdateResponse
 		if err := s.Agent.RPC("Node.Register", &args, &resp); err != nil {
@@ -212,7 +212,7 @@ func TestHTTP_NodeQuery(t *testing.T) {
 		node := mock.Node()
 		args := structs.NodeRegisterRequest{
 			Node:         node,
-			WriteRequest: structs.WriteRequest{Region: "region1"},
+			WriteRequest: structs.WriteRequest{Region: "global"},
 		}
 		var resp structs.NodeUpdateResponse
 		if err := s.Agent.RPC("Node.Register", &args, &resp); err != nil {

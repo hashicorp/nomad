@@ -52,7 +52,7 @@ const (
 func DefaultConfig() *config.Config {
 	return &config.Config{
 		LogOutput: os.Stderr,
-		Region:    "region1",
+		Region:    "global",
 	}
 }
 

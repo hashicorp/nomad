@@ -44,7 +44,7 @@ func TestRPC_forwardRegion(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	err = s2.forwardRegion("region1", "Status.Ping", struct{}{}, &out)
+	err = s2.forwardRegion("global", "Status.Ping", struct{}{}, &out)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

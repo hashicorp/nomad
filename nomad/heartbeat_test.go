@@ -225,7 +225,7 @@ func TestServer_HeartbeatTTL_Failover(t *testing.T) {
 	node := mock.Node()
 	req := &structs.NodeRegisterRequest{
 		Node:         node,
-		WriteRequest: structs.WriteRequest{Region: "region1"},
+		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 
 	// Fetch the response

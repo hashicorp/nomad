@@ -12,7 +12,7 @@ import (
 
 func TestConfig_Merge(t *testing.T) {
 	c1 := &Config{
-		Region:                    "region1",
+		Region:                    "global",
 		Datacenter:                "dc1",
 		NodeName:                  "node1",
 		DataDir:                   "/tmp/dir1",
