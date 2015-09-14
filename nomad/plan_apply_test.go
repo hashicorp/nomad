@@ -13,7 +13,7 @@ func testRegisterNode(t *testing.T, s *Server, n *structs.Node) {
 	// Create the register request
 	req := &structs.NodeRegisterRequest{
 		Node:         n,
-		WriteRequest: structs.WriteRequest{Region: "region1"},
+		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 
 	// Fetch the response

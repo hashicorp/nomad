@@ -13,6 +13,8 @@ type configCallback func(c *Config)
 
 func makeClient(t *testing.T, cb1 configCallback,
 	cb2 testutil.ServerConfigCallback) (*Client, *testutil.TestServer) {
+	// Always run these tests in parallel
+	t.Parallel()
 
 	// Make client config
 	conf := DefaultConfig()
@@ -48,7 +50,6 @@ func TestDefaultConfig_env(t *testing.T) {
 }
 
 func TestSetQueryOptions(t *testing.T) {
-	// TODO t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 
@@ -76,7 +77,6 @@ func TestSetQueryOptions(t *testing.T) {
 }
 
 func TestSetWriteOptions(t *testing.T) {
-	// TODO t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 
@@ -92,7 +92,6 @@ func TestSetWriteOptions(t *testing.T) {
 }
 
 func TestRequestToHTTP(t *testing.T) {
-	// TODO t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 
@@ -157,7 +156,6 @@ func TestParseWriteMeta(t *testing.T) {
 }
 
 func TestQueryString(t *testing.T) {
-	// TODO t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 

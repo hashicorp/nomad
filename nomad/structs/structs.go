@@ -538,12 +538,22 @@ type Resources struct {
 	Networks []*NetworkResource
 }
 
-// NetIndexByCIDR scans the list of networks for a matching
-// CIDR, returning the index. This currently ONLY handles
-// an exact match and not a subset CIDR.
-func (r *Resources) NetIndexByCIDR(cidr string) int {
+// Copy returns a deep copy of the resources
+func (r *Resources) Copy() *Resources {
+	newR := new(Resources)
+	*newR = *r
+	n := len(r.Networks)
+	newR.Networks = make([]*NetworkResource, n)
+	for i := 0; i < n; i++ {
+		newR.Networks[i] = r.Networks[i].Copy()
+	}
+	return newR
+}
+
+// NetIndex finds the matching net index using device name
+func (r *Resources) NetIndex(n *NetworkResource) int {
 	for idx, net := range r.Networks {
-		if net.CIDR == cidr {
+		if net.Device == n.Device {
 			return idx
 		}
 	}
@@ -551,36 +561,22 @@ func (r *Resources) NetIndexByCIDR(cidr string) int {
 }
 
 // Superset checks if one set of resources is a superset
-// of another.
-func (r *Resources) Superset(other *Resources) bool {
+// of another. This ignores network resources, and the NetworkIndex
+// should be used for that.
+func (r *Resources) Superset(other *Resources) (bool, string) {
 	if r.CPU < other.CPU {
-		return false
+		return false, "cpu exhausted"
 	}
 	if r.MemoryMB < other.MemoryMB {
-		return false
+		return false, "memory exhausted"
 	}
 	if r.DiskMB < other.DiskMB {
-		return false
+		return false, "disk exhausted"
 	}
 	if r.IOPS < other.IOPS {
-		return false
+		return false, "iops exhausted"
 	}
-	for _, net := range r.Networks {
-		idx := other.NetIndexByCIDR(net.CIDR)
-		if idx >= 0 {
-			if net.MBits < other.Networks[idx].MBits {
-				return false
-			}
-		}
-	}
-	// Check that other does not have a network we are missing
-	for _, net := range other.Networks {
-		idx := r.NetIndexByCIDR(net.CIDR)
-		if idx == -1 {
-			return false
-		}
-	}
-	return true
+	return true, ""
 }
 
 // Add adds the resources of the delta to this, potentially
@@ -594,12 +590,14 @@ func (r *Resources) Add(delta *Resources) error {
 	r.DiskMB += delta.DiskMB
 	r.IOPS += delta.IOPS
 
-	for _, net := range delta.Networks {
-		idx := r.NetIndexByCIDR(net.CIDR)
+	for _, n := range delta.Networks {
+		// Find the matching interface by IP or CIDR
+		idx := r.NetIndex(n)
 		if idx == -1 {
-			return fmt.Errorf("missing network for CIDR %s", net.CIDR)
+			r.Networks = append(r.Networks, n.Copy())
+		} else {
+			r.Networks[idx].Add(n)
 		}
-		r.Networks[idx].Add(net)
 	}
 	return nil
 }
@@ -607,10 +605,23 @@ func (r *Resources) Add(delta *Resources) error {
 // NetworkResource is used to represesent available network
 // resources
 type NetworkResource struct {
-	Public        bool   // Is this a public address?
+	Device        string // Name of the device
 	CIDR          string // CIDR block of addresses
+	IP            string // IP address
 	ReservedPorts []int  // Reserved ports
 	MBits         int    // Throughput
+	DynamicPorts  int    // Dynamically assigned ports
+}
+
+// Copy returns a deep copy of the network resource
+func (n *NetworkResource) Copy() *NetworkResource {
+	newR := new(NetworkResource)
+	*newR = *n
+	if n.ReservedPorts != nil {
+		newR.ReservedPorts = make([]int, len(n.ReservedPorts))
+		copy(newR.ReservedPorts, n.ReservedPorts)
+	}
+	return newR
 }
 
 // Add adds the resources of the delta to this, potentially
@@ -620,13 +631,13 @@ func (n *NetworkResource) Add(delta *NetworkResource) {
 		n.ReservedPorts = append(n.ReservedPorts, delta.ReservedPorts...)
 	}
 	n.MBits += delta.MBits
+	n.DynamicPorts += delta.DynamicPorts
 }
 
 const (
 	// JobTypeNomad is reserved for internal system tasks and is
 	// always handled by the CoreScheduler.
 	JobTypeCore    = "_core"
-	JobTypeSystem  = "system"
 	JobTypeService = "service"
 	JobTypeBatch   = "batch"
 )
@@ -871,9 +882,13 @@ type Allocation struct {
 	// TaskGroup is the name of the task group that should be run
 	TaskGroup string
 
-	// Resources is the set of resources allocated as part
+	// Resources is the total set of resources allocated as part
 	// of this allocation of the task group.
 	Resources *Resources
+
+	// TaskResources is the set of resources allocated to each
+	// task. These should sum to the total Resources.
+	TaskResources map[string]*Resources
 
 	// Metrics associated with this allocation
 	Metrics *AllocMetric
@@ -964,6 +979,9 @@ type AllocMetric struct {
 	// ClassExhausted is the number of nodes exhausted by class
 	ClassExhausted map[string]int
 
+	// DimensionExhaused provides the count by dimension or reason
+	DimensionExhaused map[string]int
+
 	// Scores is the scores of the final few nodes remaining
 	// for placement. The top score is typically selected.
 	Scores map[string]float64
@@ -999,13 +1017,19 @@ func (a *AllocMetric) FilterNode(node *Node, constraint string) {
 	}
 }
 
-func (a *AllocMetric) ExhaustedNode(node *Node) {
+func (a *AllocMetric) ExhaustedNode(node *Node, dimension string) {
 	a.NodesExhausted += 1
 	if node != nil && node.NodeClass != "" {
 		if a.ClassExhausted == nil {
 			a.ClassExhausted = make(map[string]int)
 		}
 		a.ClassExhausted[node.NodeClass] += 1
+	}
+	if dimension != "" {
+		if a.DimensionExhaused == nil {
+			a.DimensionExhaused = make(map[string]int)
+		}
+		a.DimensionExhaused[dimension] += 1
 	}
 }
 

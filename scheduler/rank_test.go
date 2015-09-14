@@ -68,11 +68,16 @@ func TestBinPackIterator_NoExistingAlloc(t *testing.T) {
 	}
 	static := NewStaticRankIterator(ctx, nodes)
 
-	resources := &structs.Resources{
-		CPU:      1024,
-		MemoryMB: 1024,
+	task := &structs.Task{
+		Name: "web",
+		Resources: &structs.Resources{
+			CPU:      1024,
+			MemoryMB: 1024,
+		},
 	}
-	binp := NewBinPackIterator(ctx, static, resources, false, 0)
+
+	binp := NewBinPackIterator(ctx, static, false, 0)
+	binp.SetTasks([]*structs.Task{task})
 
 	out := collectRanked(binp)
 	if len(out) != 2 {
@@ -137,11 +142,16 @@ func TestBinPackIterator_PlannedAlloc(t *testing.T) {
 		},
 	}
 
-	resources := &structs.Resources{
-		CPU:      1024,
-		MemoryMB: 1024,
+	task := &structs.Task{
+		Name: "web",
+		Resources: &structs.Resources{
+			CPU:      1024,
+			MemoryMB: 1024,
+		},
 	}
-	binp := NewBinPackIterator(ctx, static, resources, false, 0)
+
+	binp := NewBinPackIterator(ctx, static, false, 0)
+	binp.SetTasks([]*structs.Task{task})
 
 	out := collectRanked(binp)
 	if len(out) != 1 {
@@ -207,11 +217,16 @@ func TestBinPackIterator_ExistingAlloc(t *testing.T) {
 	}
 	noErr(t, state.UpsertAllocs(1000, []*structs.Allocation{alloc1, alloc2}))
 
-	resources := &structs.Resources{
-		CPU:      1024,
-		MemoryMB: 1024,
+	task := &structs.Task{
+		Name: "web",
+		Resources: &structs.Resources{
+			CPU:      1024,
+			MemoryMB: 1024,
+		},
 	}
-	binp := NewBinPackIterator(ctx, static, resources, false, 0)
+
+	binp := NewBinPackIterator(ctx, static, false, 0)
+	binp.SetTasks([]*structs.Task{task})
 
 	out := collectRanked(binp)
 	if len(out) != 1 {
@@ -280,11 +295,16 @@ func TestBinPackIterator_ExistingAlloc_PlannedEvict(t *testing.T) {
 	plan := ctx.Plan()
 	plan.NodeUpdate[nodes[0].Node.ID] = []*structs.Allocation{alloc1}
 
-	resources := &structs.Resources{
-		CPU:      1024,
-		MemoryMB: 1024,
+	task := &structs.Task{
+		Name: "web",
+		Resources: &structs.Resources{
+			CPU:      1024,
+			MemoryMB: 1024,
+		},
 	}
-	binp := NewBinPackIterator(ctx, static, resources, false, 0)
+
+	binp := NewBinPackIterator(ctx, static, false, 0)
+	binp.SetTasks([]*structs.Task{task})
 
 	out := collectRanked(binp)
 	if len(out) != 2 {

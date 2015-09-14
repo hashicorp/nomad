@@ -40,7 +40,7 @@ func TestPlanEndpoint_Submit(t *testing.T) {
 	plan.EvalToken = token
 	req := &structs.PlanRequest{
 		Plan:         plan,
-		WriteRequest: structs.WriteRequest{Region: "region1"},
+		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 	var resp structs.PlanResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Plan.Submit", req, &resp); err != nil {

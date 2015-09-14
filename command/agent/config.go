@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,7 +17,7 @@ import (
 
 // Config is the configuration for the Nomad agent.
 type Config struct {
-	// Region is the region this agent is in. Defaults to region1.
+	// Region is the region this agent is in. Defaults to global.
 	Region string `hcl:"region"`
 
 	// Datacenter is the datacenter this agent is in. Defaults to dc1
@@ -31,12 +32,21 @@ type Config struct {
 	// LogLevel is the level of the logs to putout
 	LogLevel string `hcl:"log_level"`
 
-	// HttpAddr is used to control the address and port we bind to.
-	// If not specified, 127.0.0.1:4646 is used.
-	HttpAddr string `hcl:"http_addr"`
+	// BindAddr is the address on which all of nomad's services will
+	// be bound. If not specified, this defaults to 127.0.0.1.
+	BindAddr string `hcl:"bind_addr"`
 
 	// EnableDebug is used to enable debugging HTTP endpoints
 	EnableDebug bool `hcl:"enable_debug"`
+
+	// Ports is used to control the network ports we bind to.
+	Ports *Ports `hcl:"ports"`
+
+	// Addresses is used to override the network addresses we bind to.
+	Addresses *Addresses `hcl:"addresses"`
+
+	// AdvertiseAddrs is used to control the addresses we advertise.
+	AdvertiseAddrs *AdvertiseAddrs `hcl:"advertise"`
 
 	// Client has our client related settings
 	Client *ClientConfig `hcl:"client"`
@@ -112,16 +122,6 @@ type ServerConfig struct {
 	// ProtocolVersionMin and ProtocolVersionMax.
 	ProtocolVersion int `hcl:"protocol_version"`
 
-	// AdvertiseAddr is the address we use for advertising our Serf,
-	// and Consul RPC IP. If not specified, bind address is used.
-	AdvertiseAddr string `mapstructure:"advertise_addr"`
-
-	// BindAddr is used to control the address we bind to.
-	// If not specified, the first private IP we find is used.
-	// This controls the address we use for cluster facing
-	// services (Gossip, Server RPC)
-	BindAddr string `hcl:"bind_addr"`
-
 	// NumSchedulers is the number of scheduler thread that are run.
 	// This can be as many as one per core, or zero to disable this server
 	// from doing any scheduling work.
@@ -140,6 +140,30 @@ type Telemetry struct {
 	DisableHostname bool   `hcl:"disable_hostname"`
 }
 
+// Ports is used to encapsulate the various ports we bind to for network
+// services. If any are not specified then the defaults are used instead.
+type Ports struct {
+	HTTP int `hcl:"http"`
+	RPC  int `hcl:"rpc"`
+	Serf int `hcl:"serf"`
+}
+
+// Addresses encapsulates all of the addresses we bind to for various
+// network services. Everything is optional and defaults to BindAddr.
+type Addresses struct {
+	HTTP string `hcl:"http"`
+	RPC  string `hcl:"rpc"`
+	Serf string `hcl:"serf"`
+}
+
+// AdvertiseAddrs is used to control the addresses we advertise out for
+// different network services. Not all network services support an
+// advertise address. All are optional and default to BindAddr.
+type AdvertiseAddrs struct {
+	RPC  string `hcl:"rpc"`
+	Serf string `hcl:"serf"`
+}
+
 // DevConfig is a Config that is used for dev mode of Nomad.
 func DevConfig() *Config {
 	conf := DefaultConfig()
@@ -150,21 +174,22 @@ func DevConfig() *Config {
 	conf.EnableDebug = true
 	conf.DisableAnonymousSignature = true
 	return conf
-	return &Config{
-		LogLevel:                  "DEBUG",
-		DevMode:                   true,
-		EnableDebug:               true,
-		DisableAnonymousSignature: true,
-	}
 }
 
 // DefaultConfig is a the baseline configuration for Nomad
 func DefaultConfig() *Config {
 	return &Config{
 		LogLevel:   "INFO",
-		Region:     "region1",
+		Region:     "global",
 		Datacenter: "dc1",
-		HttpAddr:   "127.0.0.1:4646",
+		BindAddr:   "127.0.0.1",
+		Ports: &Ports{
+			HTTP: 4646,
+			RPC:  4647,
+			Serf: 4648,
+		},
+		Addresses:      &Addresses{},
+		AdvertiseAddrs: &AdvertiseAddrs{},
 		Client: &ClientConfig{
 			Enabled: false,
 		},
@@ -172,6 +197,15 @@ func DefaultConfig() *Config {
 			Enabled: false,
 		},
 	}
+}
+
+// GetListener can be used to get a new listener using a custom bind address.
+// If the bind provided address is empty, the BindAddr is used instead.
+func (c *Config) Listener(proto, addr string, port int) (net.Listener, error) {
+	if addr == "" {
+		addr = c.BindAddr
+	}
+	return net.Listen(proto, fmt.Sprintf("%s:%d", addr, port))
 }
 
 // Merge merges two configurations.
@@ -193,8 +227,8 @@ func (a *Config) Merge(b *Config) *Config {
 	if b.LogLevel != "" {
 		result.LogLevel = b.LogLevel
 	}
-	if b.HttpAddr != "" {
-		result.HttpAddr = b.HttpAddr
+	if b.BindAddr != "" {
+		result.BindAddr = b.BindAddr
 	}
 	if b.EnableDebug {
 		result.EnableDebug = true
@@ -242,6 +276,30 @@ func (a *Config) Merge(b *Config) *Config {
 		result.Server = result.Server.Merge(b.Server)
 	}
 
+	// Apply the ports config
+	if result.Ports == nil && b.Ports != nil {
+		ports := *b.Ports
+		result.Ports = &ports
+	} else if b.Ports != nil {
+		result.Ports = result.Ports.Merge(b.Ports)
+	}
+
+	// Apply the address config
+	if result.Addresses == nil && b.Addresses != nil {
+		addrs := *b.Addresses
+		result.Addresses = &addrs
+	} else if b.Addresses != nil {
+		result.Addresses = result.Addresses.Merge(b.Addresses)
+	}
+
+	// Apply the advertise addrs config
+	if result.AdvertiseAddrs == nil && b.AdvertiseAddrs != nil {
+		advertise := *b.AdvertiseAddrs
+		result.AdvertiseAddrs = &advertise
+	} else if b.AdvertiseAddrs != nil {
+		result.AdvertiseAddrs = result.AdvertiseAddrs.Merge(b.AdvertiseAddrs)
+	}
+
 	return &result
 }
 
@@ -263,12 +321,6 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	}
 	if b.ProtocolVersion != 0 {
 		result.ProtocolVersion = b.ProtocolVersion
-	}
-	if b.AdvertiseAddr != "" {
-		result.AdvertiseAddr = b.AdvertiseAddr
-	}
-	if b.BindAddr != "" {
-		result.BindAddr = b.BindAddr
 	}
 	if b.NumSchedulers != 0 {
 		result.NumSchedulers = b.NumSchedulers
@@ -326,6 +378,51 @@ func (a *Telemetry) Merge(b *Telemetry) *Telemetry {
 	}
 	if b.DisableHostname {
 		result.DisableHostname = true
+	}
+	return &result
+}
+
+// Merge is used to merge two port configurations.
+func (a *Ports) Merge(b *Ports) *Ports {
+	var result Ports = *a
+
+	if b.HTTP != 0 {
+		result.HTTP = b.HTTP
+	}
+	if b.RPC != 0 {
+		result.RPC = b.RPC
+	}
+	if b.Serf != 0 {
+		result.Serf = b.Serf
+	}
+	return &result
+}
+
+// Merge is used to merge two address configs together.
+func (a *Addresses) Merge(b *Addresses) *Addresses {
+	var result Addresses = *a
+
+	if b.HTTP != "" {
+		result.HTTP = b.HTTP
+	}
+	if b.RPC != "" {
+		result.RPC = b.RPC
+	}
+	if b.Serf != "" {
+		result.Serf = b.Serf
+	}
+	return &result
+}
+
+// Merge merges two advertise addrs configs together.
+func (a *AdvertiseAddrs) Merge(b *AdvertiseAddrs) *AdvertiseAddrs {
+	var result AdvertiseAddrs = *a
+
+	if b.RPC != "" {
+		result.RPC = b.RPC
+	}
+	if b.Serf != "" {
+		result.Serf = b.Serf
 	}
 	return &result
 }

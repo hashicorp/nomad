@@ -76,7 +76,7 @@ func NewGenericStack(batch bool, ctx Context, baseNodes []*structs.Node) *Generi
 	// by a particular task group. Only enable eviction for the service
 	// scheduler as that logic is expensive.
 	evict := !batch
-	s.binPack = NewBinPackIterator(ctx, rankSource, nil, evict, 0)
+	s.binPack = NewBinPackIterator(ctx, rankSource, evict, 0)
 
 	// Apply the job anti-affinity iterator. This is to avoid placing
 	// multiple allocations on the same node for this job. The penalty
@@ -149,10 +149,17 @@ func (s *GenericStack) Select(tg *structs.TaskGroup) (*RankedNode, *structs.Reso
 	// Update the parameters of iterators
 	s.taskGroupDrivers.SetDrivers(drivers)
 	s.taskGroupConstraint.SetConstraints(constr)
-	s.binPack.SetResources(size)
+	s.binPack.SetTasks(tg.Tasks)
 
 	// Find the node with the max score
 	option := s.maxScore.Next()
+
+	// Ensure that the task resources were specified
+	if option != nil && len(option.TaskResources) != len(tg.Tasks) {
+		for _, task := range tg.Tasks {
+			option.SetTaskResources(task, task.Resources)
+		}
+	}
 
 	// Store the compute time
 	s.ctx.Metrics().AllocationTime = time.Since(start)

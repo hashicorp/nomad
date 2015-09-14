@@ -52,7 +52,7 @@ const (
 func DefaultConfig() *config.Config {
 	return &config.Config{
 		LogOutput: os.Stderr,
-		Region:    "region1",
+		Region:    "global",
 	}
 }
 
@@ -98,6 +98,11 @@ func NewClient(cfg *config.Config) (*Client, error) {
 		shutdownCh: make(chan struct{}),
 	}
 
+	// Initialize the client
+	if err := c.init(); err != nil {
+		return nil, fmt.Errorf("failed intializing client: %v", err)
+	}
+
 	// Restore the state
 	if err := c.restoreState(); err != nil {
 		return nil, fmt.Errorf("failed to restore state: %v", err)
@@ -121,6 +126,18 @@ func NewClient(cfg *config.Config) (*Client, error) {
 	// Start the client!
 	go c.run()
 	return c, nil
+}
+
+// init is used to initialize the client and perform any setup
+// needed before we begin starting its various components.
+func (c *Client) init() error {
+	// Ensure the alloc dir exists if we have one
+	if c.config.AllocDir != "" {
+		if err := os.MkdirAll(c.config.AllocDir, 0700); err != nil {
+			return fmt.Errorf("failed creating alloc dir: %s", err)
+		}
+	}
+	return nil
 }
 
 // Leave is used to prepare the client to leave the cluster

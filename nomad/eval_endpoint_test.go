@@ -24,7 +24,7 @@ func TestEvalEndpoint_GetEval(t *testing.T) {
 	// Lookup the eval
 	get := &structs.EvalSpecificRequest{
 		EvalID:       eval1.ID,
-		QueryOptions: structs.QueryOptions{Region: "region1"},
+		QueryOptions: structs.QueryOptions{Region: "global"},
 	}
 	var resp structs.SingleEvalResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Eval.GetEval", get, &resp); err != nil {
@@ -71,7 +71,7 @@ func TestEvalEndpoint_Dequeue(t *testing.T) {
 	// Dequeue the eval
 	get := &structs.EvalDequeueRequest{
 		Schedulers:   defaultSched,
-		WriteRequest: structs.WriteRequest{Region: "region1"},
+		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 	var resp structs.EvalDequeueResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Eval.Dequeue", get, &resp); err != nil {
@@ -118,7 +118,7 @@ func TestEvalEndpoint_Ack(t *testing.T) {
 	get := &structs.EvalAckRequest{
 		EvalID:       out.ID,
 		Token:        token,
-		WriteRequest: structs.WriteRequest{Region: "region1"},
+		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 	var resp structs.GenericResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Eval.Ack", get, &resp); err != nil {
@@ -154,7 +154,7 @@ func TestEvalEndpoint_Nack(t *testing.T) {
 	get := &structs.EvalAckRequest{
 		EvalID:       out.ID,
 		Token:        token,
-		WriteRequest: structs.WriteRequest{Region: "region1"},
+		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 	var resp structs.GenericResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Eval.Nack", get, &resp); err != nil {
@@ -202,7 +202,7 @@ func TestEvalEndpoint_Update(t *testing.T) {
 	get := &structs.EvalUpdateRequest{
 		Evals:        []*structs.Evaluation{eval2},
 		EvalToken:    token,
-		WriteRequest: structs.WriteRequest{Region: "region1"},
+		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 	var resp structs.GenericResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Eval.Update", get, &resp); err != nil {
@@ -247,7 +247,7 @@ func TestEvalEndpoint_Create(t *testing.T) {
 	get := &structs.EvalUpdateRequest{
 		Evals:        []*structs.Evaluation{eval1},
 		EvalToken:    token,
-		WriteRequest: structs.WriteRequest{Region: "region1"},
+		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 	var resp structs.GenericResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Eval.Create", get, &resp); err != nil {
@@ -280,7 +280,7 @@ func TestEvalEndpoint_Reap(t *testing.T) {
 	// Reap the eval
 	get := &structs.EvalDeleteRequest{
 		Evals:        []string{eval1.ID},
-		WriteRequest: structs.WriteRequest{Region: "region1"},
+		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 	var resp structs.GenericResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Eval.Reap", get, &resp); err != nil {
@@ -313,7 +313,7 @@ func TestEvalEndpoint_List(t *testing.T) {
 
 	// Lookup the eval
 	get := &structs.EvalListRequest{
-		QueryOptions: structs.QueryOptions{Region: "region1"},
+		QueryOptions: structs.QueryOptions{Region: "global"},
 	}
 	var resp structs.EvalListResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Eval.List", get, &resp); err != nil {
@@ -348,7 +348,7 @@ func TestEvalEndpoint_Allocations(t *testing.T) {
 	// Lookup the eval
 	get := &structs.EvalSpecificRequest{
 		EvalID:       alloc1.EvalID,
-		QueryOptions: structs.QueryOptions{Region: "region1"},
+		QueryOptions: structs.QueryOptions{Region: "global"},
 	}
 	var resp structs.EvalAllocationsResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Eval.Allocations", get, &resp); err != nil {

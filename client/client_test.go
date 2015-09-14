@@ -2,7 +2,10 @@ package client
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net"
+	"os"
+	"path/filepath"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -155,7 +158,7 @@ func TestClient_Register(t *testing.T) {
 
 	req := structs.NodeSpecificRequest{
 		NodeID:       c1.Node().ID,
-		QueryOptions: structs.QueryOptions{Region: "region1"},
+		QueryOptions: structs.QueryOptions{Region: "global"},
 	}
 	var out structs.SingleNodeResponse
 
@@ -188,7 +191,7 @@ func TestClient_Heartbeat(t *testing.T) {
 
 	req := structs.NodeSpecificRequest{
 		NodeID:       c1.Node().ID,
-		QueryOptions: structs.QueryOptions{Region: "region1"},
+		QueryOptions: structs.QueryOptions{Region: "global"},
 	}
 	var out structs.SingleNodeResponse
 
@@ -363,5 +366,27 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	c2.allocLock.RUnlock()
 	if ar.Alloc().ClientStatus != structs.AllocClientStatusRunning {
 		t.Fatalf("bad: %#v", ar.Alloc())
+	}
+}
+
+func TestClient_Init(t *testing.T) {
+	dir, err := ioutil.TempDir("", "nomad")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	defer os.RemoveAll(dir)
+	allocDir := filepath.Join(dir, "alloc")
+
+	client := &Client{
+		config: &config.Config{
+			AllocDir: allocDir,
+		},
+	}
+	if err := client.init(); err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	if _, err := os.Stat(allocDir); err != nil {
+		t.Fatalf("err: %s", err)
 	}
 }
