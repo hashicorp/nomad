@@ -52,7 +52,7 @@ func (idx *NetworkIndex) Overcommitted() bool {
 func (idx *NetworkIndex) SetNode(node *Node) (collide bool) {
 	// Add the available CIDR blocks
 	for _, n := range node.Resources.Networks {
-		if n.CIDR != "" {
+		if n.Device != "" {
 			idx.AvailNetworks = append(idx.AvailNetworks, n)
 			idx.AvailBandwidth[n.Device] = n.MBits
 		}
