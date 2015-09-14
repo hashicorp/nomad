@@ -2,6 +2,12 @@ DEPS = $(shell go list -f '{{range .TestImports}}{{.}} {{end}}' ./...)
 PACKAGES = $(shell go list ./...)
 VETARGS?=-asmdecl -atomic -bool -buildtags -copylocks -methods \
          -nilfunc -printf -rangeloops -shift -structtags -unsafeptr
+EXTERNAL_TOOLS=\
+	github.com/tools/godep \
+	github.com/mitchellh/gox \
+	golang.org/x/tools/cmd/cover \
+	golang.org/x/tools/cmd/vet
+
 
 all: deps format
 	@mkdir -p bin/
@@ -49,5 +55,12 @@ web:
 
 web-push:
 	./scripts/website_push.sh
+
+# bootstrap the build by downloading additional tools
+bootstrap:
+	@for tool in  $(EXTERNAL_TOOLS) ; do \
+		echo "Installing $$tool" ; \
+    go get $$tool; \
+	done
 
 .PHONY: all cov deps integ test vet web web-push test-nodep
