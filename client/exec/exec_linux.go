@@ -94,11 +94,19 @@ func (e *LinuxExecutor) Start() error {
 
 func (e *LinuxExecutor) Open(pid int) error {
 	process, err := os.FindProcess(pid)
+	// FindProcess doesn't do any checking against the process table so it's
+	// unlikely we'll ever see this error.
 	if err != nil {
 		return fmt.Errorf("Failed to reopen pid %d: %s", pid, err)
 	}
-	// TODO signal the process with signal 0 to see if it's alive. Error if it
-	// is not.
+
+	// On linux FindProcess() will return a pid but doesn't actually check to
+	// see whether that process is running. We'll send signal 0 to see if the
+	// process is alive.
+	err := process.Signal(syscall.Signal(0))
+	if err != nil {
+		return fmt.Errorf("Unable to signal pid %d: %s", err)
+	}
 	e.Process = process
 	return nil
 }
