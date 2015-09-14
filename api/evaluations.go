@@ -36,8 +36,8 @@ func (e *Evaluations) Info(evalID string, q *QueryOptions) (*Evaluation, *QueryM
 
 // Allocations is used to retrieve a set of allocations given
 // an evaluation ID.
-func (e *Evaluations) Allocations(evalID string, q *QueryOptions) ([]*Allocation, *QueryMeta, error) {
-	var resp []*Allocation
+func (e *Evaluations) Allocations(evalID string, q *QueryOptions) ([]*AllocationListStub, *QueryMeta, error) {
+	var resp []*AllocationListStub
 	qm, err := e.client.query("/v1/evaluation/"+evalID+"/allocations", &resp, q)
 	if err != nil {
 		return nil, nil, err

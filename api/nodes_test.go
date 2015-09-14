@@ -16,7 +16,7 @@ func TestNodes_List(t *testing.T) {
 	nodes := c.Nodes()
 
 	var qm *QueryMeta
-	var out []*Node
+	var out []*NodeListStub
 	var err error
 
 	testutil.WaitForResult(func() (bool, error) {

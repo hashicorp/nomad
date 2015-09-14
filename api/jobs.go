@@ -32,8 +32,8 @@ func (j *Jobs) Register(job *Job, q *WriteOptions) (string, *WriteMeta, error) {
 }
 
 // List is used to list all of the existing jobs.
-func (j *Jobs) List(q *QueryOptions) ([]*Job, *QueryMeta, error) {
-	var resp []*Job
+func (j *Jobs) List(q *QueryOptions) ([]*JobListStub, *QueryMeta, error) {
+	var resp []*JobListStub
 	qm, err := j.client.query("/v1/jobs", &resp, q)
 	if err != nil {
 		return nil, qm, err
@@ -53,8 +53,8 @@ func (j *Jobs) Info(jobID string, q *QueryOptions) (*Job, *QueryMeta, error) {
 }
 
 // Allocations is used to return the allocs for a given job ID.
-func (j *Jobs) Allocations(jobID string, q *QueryOptions) ([]*Allocation, *QueryMeta, error) {
-	var resp []*Allocation
+func (j *Jobs) Allocations(jobID string, q *QueryOptions) ([]*AllocationListStub, *QueryMeta, error) {
+	var resp []*AllocationListStub
 	qm, err := j.client.query("/v1/job/"+jobID+"/allocations", &resp, q)
 	if err != nil {
 		return nil, nil, err
@@ -105,6 +105,21 @@ type Job struct {
 	Meta              map[string]string
 	Status            string
 	StatusDescription string
+	CreateIndex       uint64
+	ModifyIndex       uint64
+}
+
+// JobListStub is used to return a subset of information about
+// jobs during list operations.
+type JobListStub struct {
+	ID                string
+	Name              string
+	Type              string
+	Priority          int
+	Status            string
+	StatusDescription string
+	CreateIndex       uint64
+	ModifyIndex       uint64
 }
 
 // NewServiceJob creates and returns a new service-style job

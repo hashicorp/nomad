@@ -42,8 +42,7 @@ func TestJobs_Register(t *testing.T) {
 	assertQueryMeta(t, qm)
 
 	// Check that we got the expected response
-	expect := []*Job{job}
-	if !reflect.DeepEqual(resp, expect) {
+	if len(resp) != 1 || resp[0].ID != job.ID {
 		t.Fatalf("bad: %#v", resp[0])
 	}
 }
@@ -76,7 +75,7 @@ func TestJobs_Info(t *testing.T) {
 	assertQueryMeta(t, qm)
 
 	// Check that the result is what we expect
-	if !reflect.DeepEqual(result, job) {
+	if result == nil || result.ID != job.ID {
 		t.Fatalf("expect: %#v, got: %#v", job, result)
 	}
 }
