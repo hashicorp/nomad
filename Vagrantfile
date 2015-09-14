@@ -17,10 +17,6 @@ SRCPATH="/opt/gopath"
 # Get the ARCH
 ARCH=`uname -m | sed 's|i686|386|' | sed 's|x86_64|amd64|'`
 
-# Install Prereq Packages
-sudo apt-get update
-sudo apt-get install -y build-essential curl git-core libpcre3-dev mercurial pkg-config zip
-
 # Install Go
 cd /tmp
 wget -q https://storage.googleapis.com/golang/go1.4.2.linux-${ARCH}.tar.gz
@@ -47,6 +43,9 @@ source /etc/profile.d/gopath.sh
 
 # Install Docker
 sudo curl -sSL https://get.docker.com/ | sh
+
+# Setup Nomad for development
+#TODO: cd to synced Nomad path once go-memdb is public, and do `make updatedeps`
 SCRIPT
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
