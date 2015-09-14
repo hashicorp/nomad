@@ -7,6 +7,8 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 )
 
+// seen is used to track which tests we have already
+// marked as parallel. Marking twice causes panic.
 var seen map[*testing.T]struct{}
 
 func init() {
