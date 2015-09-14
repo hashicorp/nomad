@@ -22,7 +22,8 @@ To view a list of the available commands at any time, just run Nomad
 with no arguments. To get help for any specific subcommand, run the subcommand
 with the `-h` argument.
 
-The help output is very comprehensive, so we defer you to that for documentation.
+Each command has been conveniently documented on this website. Links to each
+command can be found on the left.
 
 ### Command Contexts
 
