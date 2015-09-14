@@ -2,6 +2,8 @@ package api
 
 import (
 	"testing"
+
+	"github.com/hashicorp/nomad/testutil"
 )
 
 func TestAgent_Self(t *testing.T) {
@@ -61,9 +63,9 @@ func TestAgent_Datacenter(t *testing.T) {
 func TestAgent_Join(t *testing.T) {
 	c1, s1 := makeClient(t, nil, nil)
 	defer s1.Stop()
-	a1 := c.Agent()
+	a1 := c1.Agent()
 
-	c2, s2 := makeClient(t, nil, func(c *testutil.TestServerConfig) {
+	_, s2 := makeClient(t, nil, func(c *testutil.TestServerConfig) {
 		c.Server.Bootstrap = false
 	})
 	defer s2.Stop()
