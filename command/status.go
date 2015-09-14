@@ -75,13 +75,12 @@ func (c *StatusCommand) Run(args []string) int {
 		}
 
 		out := make([]string, len(jobs)+1)
-		out[0] = "ID|Type|Priority|AllAtOnce|Status"
+		out[0] = "ID|Type|Priority|Status"
 		for i, job := range jobs {
-			out[i+1] = fmt.Sprintf("%s|%s|%d|%v|%s",
+			out[i+1] = fmt.Sprintf("%s|%s|%d|%s",
 				job.ID,
 				job.Type,
 				job.Priority,
-				job.AllAtOnce,
 				job.Status)
 		}
 		c.Ui.Output(columnize.SimpleFormat(out))
@@ -102,7 +101,6 @@ func (c *StatusCommand) Run(args []string) int {
 		fmt.Sprintf("Name | %s", job.Name),
 		fmt.Sprintf("Type | %s", job.Type),
 		fmt.Sprintf("Priority | %d", job.Priority),
-		fmt.Sprintf("AllAtOnce | %v", job.AllAtOnce),
 		fmt.Sprintf("Datacenters | %s", strings.Join(job.Datacenters, ",")),
 		fmt.Sprintf("Status | %s", job.Status),
 		fmt.Sprintf("StatusDescription | %s", job.StatusDescription),
