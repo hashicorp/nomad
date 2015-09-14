@@ -2,25 +2,37 @@
 layout: "docs"
 page_title: "Commands (CLI)"
 sidebar_current: "docs-commands"
-description: |-
-  Vault can be controlled via a command-line interface. This page documents all the commands Vault accepts.
+description: >
+  Nomad can be controlled via a command-line interface. This page documents all
+  the commands Nomad accepts.
 ---
 
-# Vault Commands (CLI)
+# Nomad Commands (CLI)
 
-Vault is controlled via a very easy to use command-line interface (CLI).
-Vault is only a single command-line application: `vault`. This application
-then takes a subcommand such as "read" or "write". The complete list of
+Nomad is controlled via a very easy to use command-line interface (CLI).
+Nomad is only a single command-line application: `nomad`. This application
+then takes a subcommand such as "agent" or "status". The complete list of
 subcommands is in the navigation to the left.
 
-The Vault CLI is a well-behaved command line application. In erroneous cases,
+The Nomad CLI is a well-behaved command line application. In erroneous cases,
 a non-zero exit status will be returned. It also responds to `-h` and `--help`
 as you'd most likely expect.
 
-To view a list of the available commands at any time, just run Vault
+To view a list of the available commands at any time, just run Nomad
 with no arguments. To get help for any specific subcommand, run the subcommand
 with the `-h` argument.
 
 The help output is very comprehensive, so we defer you to that for documentation.
-We've included some guides to the left of common interactions with the
-CLI.
+
+### Command Contexts
+
+Nomad's CLI commands have implied contexts in their naming convention. Because
+the CLI is most commonly used to manipulate or query jobs, you can assume that
+any given command is working in that context unless the command name implies
+otherwise.
+
+For example, the `nomad run` command is used to run a new job, the `nomad
+status` command queries information about existing jobs, etc. Conversely,
+commands with a prefix in their name likely operate in a different context.
+Examples include the `nomad agent-status` or `nomad node-drain` commands,
+which operate in the agent or node contexts respectively.
