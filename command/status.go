@@ -1,16 +1,14 @@
 package command
 
 import (
-	"flag"
 	"fmt"
 	"strings"
 
-	"github.com/mitchellh/cli"
 	"github.com/ryanuber/columnize"
 )
 
 type StatusCommand struct {
-	Ui cli.Ui
+	Meta
 }
 
 func (c *StatusCommand) Help() string {
@@ -20,16 +18,9 @@ Usage: nomad status [options] [job]
   Display status information about jobs. If no job ID is given,
   a list of all known jobs will be dumped.
 
-Options:
+General Options:
 
-  -help
-    Display this message
-
-  -http-addr
-    Address of the Nomad API to connect. Can also be specified
-    using the environment variable NOMAD_HTTP_ADDR.
-    Default = http://127.0.0.1:4646
-`
+  ` + generalOptionsUsage()
 	return strings.TrimSpace(helpText)
 }
 
@@ -38,34 +29,31 @@ func (c *StatusCommand) Synopsis() string {
 }
 
 func (c *StatusCommand) Run(args []string) int {
-	var httpAddr *string
-
-	flags := flag.NewFlagSet("status", flag.ContinueOnError)
+	flags := c.Meta.FlagSet("status", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	httpAddr = httpAddrFlag(flags)
-
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
 
 	// Check that we either got no jobs or exactly one.
-	if len(flags.Args()) > 1 {
+	args = flags.Args()
+	if len(args) > 1 {
 		c.Ui.Error(c.Help())
 		return 1
 	}
 
 	// Get the HTTP client
-	client, err := httpClient(*httpAddr)
+	client, err := c.Meta.Client()
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Failed initializing Nomad client: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
 		return 1
 	}
 
 	// Invoke list mode if no job ID.
-	if len(flags.Args()) == 0 {
+	if len(args) == 0 {
 		jobs, _, err := client.Jobs().List(nil)
 		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Failed querying jobs: %s", err))
+			c.Ui.Error(fmt.Sprintf("Error querying jobs: %s", err))
 			return 1
 		}
 
@@ -88,10 +76,10 @@ func (c *StatusCommand) Run(args []string) int {
 	}
 
 	// Try querying the job
-	jobID := flags.Args()[0]
+	jobID := args[0]
 	job, _, err := client.Jobs().Info(jobID, nil)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Failed querying job: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error querying job: %s", err))
 		return 1
 	}
 

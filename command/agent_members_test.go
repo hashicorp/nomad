@@ -16,7 +16,7 @@ func TestAgentMembersCommand_Run(t *testing.T) {
 	defer srv.Stop()
 
 	ui := new(cli.MockUi)
-	cmd := &AgentMembersCommand{Ui: ui}
+	cmd := &AgentMembersCommand{Meta: Meta{Ui: ui}}
 
 	// Get our own node name
 	name, err := client.Agent().NodeName()
@@ -25,7 +25,7 @@ func TestAgentMembersCommand_Run(t *testing.T) {
 	}
 
 	// Query the members
-	if code := cmd.Run([]string{"-http-addr=" + url}); code != 0 {
+	if code := cmd.Run([]string{"-address=" + url}); code != 0 {
 		t.Fatalf("expected exit 0, got: %d", code)
 	}
 	if out := ui.OutputWriter.String(); !strings.Contains(out, name) {
@@ -34,7 +34,7 @@ func TestAgentMembersCommand_Run(t *testing.T) {
 	ui.OutputWriter.Reset()
 
 	// Query members with detailed output
-	if code := cmd.Run([]string{"-http-addr=" + url, "-detailed"}); code != 0 {
+	if code := cmd.Run([]string{"-address=" + url, "-detailed"}); code != 0 {
 		t.Fatalf("expected exit 0, got: %d", code)
 	}
 	if out := ui.OutputWriter.String(); !strings.Contains(out, "Tags") {
@@ -44,7 +44,7 @@ func TestAgentMembersCommand_Run(t *testing.T) {
 
 func TestMembersCommand_Fails(t *testing.T) {
 	ui := new(cli.MockUi)
-	cmd := &AgentMembersCommand{Ui: ui}
+	cmd := &AgentMembersCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
 	if code := cmd.Run([]string{"some", "bad", "args"}); code != 1 {
@@ -56,10 +56,10 @@ func TestMembersCommand_Fails(t *testing.T) {
 	ui.ErrorWriter.Reset()
 
 	// Fails on connection failure
-	if code := cmd.Run([]string{"-http-addr=nope"}); code != 1 {
+	if code := cmd.Run([]string{"-address=nope"}); code != 1 {
 		t.Fatalf("expected exit code 1, got: %d", code)
 	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Failed querying members") {
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error querying members") {
 		t.Fatalf("expected failed query error, got: %s", out)
 	}
 }

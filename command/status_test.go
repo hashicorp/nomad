@@ -17,10 +17,10 @@ func TestStatusCommand_Run(t *testing.T) {
 	defer srv.Stop()
 
 	ui := new(cli.MockUi)
-	cmd := &StatusCommand{Ui: ui}
+	cmd := &StatusCommand{Meta: Meta{Ui: ui}}
 
 	// Should return blank for no jobs
-	if code := cmd.Run([]string{"-http-addr=" + url}); code != 0 {
+	if code := cmd.Run([]string{"-address=" + url}); code != 0 {
 		t.Fatalf("expected exit 0, got: %d", code)
 	}
 
@@ -42,7 +42,7 @@ func TestStatusCommand_Run(t *testing.T) {
 	}
 
 	// Query again and check the result
-	if code := cmd.Run([]string{"-http-addr=" + url}); code != 0 {
+	if code := cmd.Run([]string{"-address=" + url}); code != 0 {
 		t.Fatalf("expected exit 0, got: %d", code)
 	}
 	out := ui.OutputWriter.String()
@@ -52,7 +52,7 @@ func TestStatusCommand_Run(t *testing.T) {
 	ui.OutputWriter.Reset()
 
 	// Query a single job
-	if code := cmd.Run([]string{"-http-addr=" + url, "job2"}); code != 0 {
+	if code := cmd.Run([]string{"-address=" + url, "job2"}); code != 0 {
 		t.Fatalf("expected exit 0, got: %d", code)
 	}
 	out = ui.OutputWriter.String()
@@ -63,7 +63,7 @@ func TestStatusCommand_Run(t *testing.T) {
 
 func TestStatusCommand_Fails(t *testing.T) {
 	ui := new(cli.MockUi)
-	cmd := &StatusCommand{Ui: ui}
+	cmd := &StatusCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
 	if code := cmd.Run([]string{"some", "bad", "args"}); code != 1 {
@@ -75,10 +75,10 @@ func TestStatusCommand_Fails(t *testing.T) {
 	ui.ErrorWriter.Reset()
 
 	// Fails on connection failure
-	if code := cmd.Run([]string{"-http-addr=nope"}); code != 1 {
+	if code := cmd.Run([]string{"-address=nope"}); code != 1 {
 		t.Fatalf("expected exit code 1, got: %d", code)
 	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Failed querying jobs") {
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error querying jobs") {
 		t.Fatalf("expected failed query error, got: %s", out)
 	}
 }

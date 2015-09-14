@@ -36,43 +36,43 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 
 		"agent-force-leave": func() (cli.Command, error) {
 			return &command.AgentForceLeaveCommand{
-				Ui: meta.Ui,
+				Meta: meta,
 			}, nil
 		},
 
 		"agent-info": func() (cli.Command, error) {
 			return &command.AgentInfoCommand{
-				Ui: meta.Ui,
+				Meta: meta,
 			}, nil
 		},
 
 		"agent-join": func() (cli.Command, error) {
 			return &command.AgentJoinCommand{
-				Ui: meta.Ui,
+				Meta: meta,
 			}, nil
 		},
 
 		"agent-members": func() (cli.Command, error) {
 			return &command.AgentMembersCommand{
-				Ui: meta.Ui,
+				Meta: meta,
 			}, nil
 		},
 
 		"node-drain": func() (cli.Command, error) {
 			return &command.NodeDrainCommand{
-				Ui: meta.Ui,
+				Meta: meta,
 			}, nil
 		},
 
 		"node-status": func() (cli.Command, error) {
 			return &command.NodeStatusCommand{
-				Ui: meta.Ui,
+				Meta: meta,
 			}, nil
 		},
 
 		"status": func() (cli.Command, error) {
 			return &command.StatusCommand{
-				Ui: meta.Ui,
+				Meta: meta,
 			}, nil
 		},
 

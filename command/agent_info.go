@@ -1,15 +1,12 @@
 package command
 
 import (
-	"flag"
 	"fmt"
 	"strings"
-
-	"github.com/mitchellh/cli"
 )
 
 type AgentInfoCommand struct {
-	Ui cli.Ui
+	Meta
 }
 
 func (c *AgentInfoCommand) Help() string {
@@ -18,51 +15,41 @@ Usage: nomad agent-info [options]
 
   Display status information about the local agent.
 
-Options:
+General Options:
 
-  -help
-    Display this message
-
-  -http-addr
-    Address of the Nomad API to connect. Can also be specified
-    using the environment variable NOMAD_HTTP_ADDR.
-    Default = http://127.0.0.1:4646
-`
+  ` + generalOptionsUsage()
 	return strings.TrimSpace(helpText)
 }
 
 func (c *AgentInfoCommand) Synopsis() string {
-	return "Display local agent information and status"
+	return "Display status information about the local agent"
 }
 
 func (c *AgentInfoCommand) Run(args []string) int {
-	var httpAddr *string
-
-	flags := flag.NewFlagSet("agent-info", flag.ContinueOnError)
+	flags := c.Meta.FlagSet("agent-info", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	httpAddr = httpAddrFlag(flags)
-
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
 
 	// Check that we either got no jobs or exactly one.
-	if len(flags.Args()) > 0 {
+	args = flags.Args()
+	if len(args) > 0 {
 		c.Ui.Error(c.Help())
 		return 1
 	}
 
 	// Get the HTTP client
-	client, err := httpClient(*httpAddr)
+	client, err := c.Meta.Client()
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Failed initializing Nomad client: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
 		return 1
 	}
 
 	// Query the agent info
 	info, err := client.Agent().Self()
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Failed querying agent info: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error querying agent info: %s", err))
 		return 1
 	}
 

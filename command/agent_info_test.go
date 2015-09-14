@@ -16,9 +16,9 @@ func TestAgentInfoCommand_Run(t *testing.T) {
 	defer srv.Stop()
 
 	ui := new(cli.MockUi)
-	cmd := &AgentInfoCommand{Ui: ui}
+	cmd := &AgentInfoCommand{Meta: Meta{Ui: ui}}
 
-	code := cmd.Run([]string{"-http-addr=" + url})
+	code := cmd.Run([]string{"-address=" + url})
 	if code != 0 {
 		t.Fatalf("expected exit 0, got: %d %s", code)
 	}
@@ -26,7 +26,7 @@ func TestAgentInfoCommand_Run(t *testing.T) {
 
 func TestAgentInfoCommand_Fails(t *testing.T) {
 	ui := new(cli.MockUi)
-	cmd := &AgentInfoCommand{Ui: ui}
+	cmd := &AgentInfoCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
 	if code := cmd.Run([]string{"some", "bad", "args"}); code != 1 {
@@ -38,10 +38,10 @@ func TestAgentInfoCommand_Fails(t *testing.T) {
 	ui.ErrorWriter.Reset()
 
 	// Fails on connection failure
-	if code := cmd.Run([]string{"-http-addr=nope"}); code != 1 {
+	if code := cmd.Run([]string{"-address=nope"}); code != 1 {
 		t.Fatalf("expected exit code 1, got: %d", code)
 	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Failed querying agent info") {
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error querying agent info") {
 		t.Fatalf("expected failed query error, got: %s", out)
 	}
 }

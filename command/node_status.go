@@ -1,16 +1,14 @@
 package command
 
 import (
-	"flag"
 	"fmt"
 	"strings"
 
-	"github.com/mitchellh/cli"
 	"github.com/ryanuber/columnize"
 )
 
 type NodeStatusCommand struct {
-	Ui cli.Ui
+	Meta
 }
 
 func (c *NodeStatusCommand) Help() string {
@@ -25,16 +23,9 @@ Usage: nomad node-status [options] [node]
   be displayed. If no node ID's are passed, then a short-hand
   list of all nodes will be displayed.
 
-Options:
+General Options:
 
-  -help
-    Display this message
-
-  -http-addr
-    Address of the Nomad API to connect. Can also be specified
-    using the environment variable NOMAD_HTTP_ADDR.
-    Default = http://127.0.0.1:4646
-`
+  ` + generalOptionsUsage()
 	return strings.TrimSpace(helpText)
 }
 
@@ -43,35 +34,32 @@ func (c *NodeStatusCommand) Synopsis() string {
 }
 
 func (c *NodeStatusCommand) Run(args []string) int {
-	var httpAddr *string
-
-	flags := flag.NewFlagSet("node-status", flag.ContinueOnError)
+	flags := c.Meta.FlagSet("node-status", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	httpAddr = httpAddrFlag(flags)
-
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
 
 	// Check that we got either a single node or none
-	if len(flags.Args()) > 1 {
+	args = flags.Args()
+	if len(args) > 1 {
 		c.Ui.Error(c.Help())
 		return 1
 	}
 
 	// Get the HTTP client
-	client, err := httpClient(*httpAddr)
+	client, err := c.Meta.Client()
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Failed initializing Nomad client: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
 		return 1
 	}
 
 	// Use list mode if no node name was provided
-	if len(flags.Args()) == 0 {
+	if len(args) == 0 {
 		// Query the node info
 		nodes, _, err := client.Nodes().List(nil)
 		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Failed querying node status: %s", err))
+			c.Ui.Error(fmt.Sprintf("Error querying node status: %s", err))
 			return 1
 		}
 
@@ -99,10 +87,10 @@ func (c *NodeStatusCommand) Run(args []string) int {
 	}
 
 	// Query the specific node
-	nodeID := flags.Args()[0]
+	nodeID := args[0]
 	node, _, err := client.Nodes().Info(nodeID, nil)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Failed querying node info: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error querying node info: %s", err))
 		return 1
 	}
 

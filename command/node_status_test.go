@@ -16,10 +16,10 @@ func TestNodeStatusCommand_Run(t *testing.T) {
 	defer srv.Stop()
 
 	ui := new(cli.MockUi)
-	cmd := &NodeStatusCommand{Ui: ui}
+	cmd := &NodeStatusCommand{Meta: Meta{Ui: ui}}
 
 	// Query all node statuses
-	if code := cmd.Run([]string{"-http-addr=" + url}); code != 0 {
+	if code := cmd.Run([]string{"-address=" + url}); code != 0 {
 		t.Fatalf("expected exit 0, got: %d", code)
 	}
 
@@ -34,7 +34,7 @@ func TestNodeStatusCommand_Fails(t *testing.T) {
 	defer srv.Stop()
 
 	ui := new(cli.MockUi)
-	cmd := &NodeStatusCommand{Ui: ui}
+	cmd := &NodeStatusCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
 	if code := cmd.Run([]string{"some", "bad", "args"}); code != 1 {
@@ -46,15 +46,15 @@ func TestNodeStatusCommand_Fails(t *testing.T) {
 	ui.ErrorWriter.Reset()
 
 	// Fails on connection failure
-	if code := cmd.Run([]string{"-http-addr=nope"}); code != 1 {
+	if code := cmd.Run([]string{"-address=nope"}); code != 1 {
 		t.Fatalf("expected exit code 1, got: %d", code)
 	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Failed querying node status") {
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error querying node status") {
 		t.Fatalf("expected failed query error, got: %s", out)
 	}
 
 	// Fails on non-existent node
-	if code := cmd.Run([]string{"-http-addr=" + url, "nope"}); code != 1 {
+	if code := cmd.Run([]string{"-address=" + url, "nope"}); code != 1 {
 		t.Fatalf("expected exit 1, got: %d", code)
 	}
 	if out := ui.ErrorWriter.String(); !strings.Contains(out, "not found") {

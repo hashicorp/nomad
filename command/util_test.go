@@ -16,10 +16,10 @@ func testServer(t *testing.T) (*testutil.TestServer, *api.Client, string) {
 
 	// Make a client
 	clientConf := api.DefaultConfig()
-	clientConf.URL = "http://" + srv.HTTPAddr
+	clientConf.Address = "http://" + srv.HTTPAddr
 	client, err := api.NewClient(clientConf)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	return srv, client, clientConf.URL
+	return srv, client, clientConf.Address
 }

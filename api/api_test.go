@@ -24,7 +24,7 @@ func makeClient(t *testing.T, cb1 configCallback,
 
 	// Create server
 	server := testutil.NewTestServer(t, cb2)
-	conf.URL = "http://" + server.HTTPAddr
+	conf.Address = "http://" + server.HTTPAddr
 
 	// Create client
 	client, err := NewClient(conf)
@@ -39,13 +39,13 @@ func TestDefaultConfig_env(t *testing.T) {
 	t.Parallel()
 	url := "http://1.2.3.4:5678"
 
-	os.Setenv("NOMAD_HTTP_URL", url)
-	defer os.Setenv("NOMAD_HTTP_URL", "")
+	os.Setenv("NOMAD_ADDR", url)
+	defer os.Setenv("NOMAD_ADDR", "")
 
 	config := DefaultConfig()
 
-	if config.URL != url {
-		t.Errorf("expected %q to be %q", config.URL, url)
+	if config.Address != url {
+		t.Errorf("expected %q to be %q", config.Address, url)
 	}
 }
 
