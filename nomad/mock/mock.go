@@ -53,6 +53,7 @@ func Node() *structs.Node {
 
 func Job() *structs.Job {
 	job := &structs.Job{
+		Region:      "global",
 		ID:          structs.GenerateUUID(),
 		Name:        "my-job",
 		Type:        structs.JobTypeService,

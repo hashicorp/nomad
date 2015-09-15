@@ -44,8 +44,9 @@ func TestAllocsFit_PortsOvercommitted(t *testing.T) {
 		Resources: &Resources{
 			Networks: []*NetworkResource{
 				&NetworkResource{
-					CIDR:  "10.0.0.0/8",
-					MBits: 100,
+					Device: "eth0",
+					CIDR:   "10.0.0.0/8",
+					MBits:  100,
 				},
 			},
 		},
@@ -56,6 +57,7 @@ func TestAllocsFit_PortsOvercommitted(t *testing.T) {
 			"web": &Resources{
 				Networks: []*NetworkResource{
 					&NetworkResource{
+						Device:        "eth0",
 						IP:            "10.0.0.1",
 						MBits:         50,
 						ReservedPorts: []int{8000},
@@ -66,12 +68,12 @@ func TestAllocsFit_PortsOvercommitted(t *testing.T) {
 	}
 
 	// Should fit one allocation
-	fit, _, _, err := AllocsFit(n, []*Allocation{a1}, nil)
+	fit, dim, _, err := AllocsFit(n, []*Allocation{a1}, nil)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if !fit {
-		t.Fatalf("Bad")
+		t.Fatalf("Bad: %s", dim)
 	}
 
 	// Should not fit second allocation
@@ -93,8 +95,9 @@ func TestAllocsFit(t *testing.T) {
 			IOPS:     100,
 			Networks: []*NetworkResource{
 				&NetworkResource{
-					CIDR:  "10.0.0.0/8",
-					MBits: 100,
+					Device: "eth0",
+					CIDR:   "10.0.0.0/8",
+					MBits:  100,
 				},
 			},
 		},
@@ -105,6 +108,7 @@ func TestAllocsFit(t *testing.T) {
 			IOPS:     50,
 			Networks: []*NetworkResource{
 				&NetworkResource{
+					Device:        "eth0",
 					IP:            "10.0.0.1",
 					MBits:         50,
 					ReservedPorts: []int{80},
@@ -121,6 +125,7 @@ func TestAllocsFit(t *testing.T) {
 			IOPS:     50,
 			Networks: []*NetworkResource{
 				&NetworkResource{
+					Device:        "eth0",
 					IP:            "10.0.0.1",
 					MBits:         50,
 					ReservedPorts: []int{8000},
