@@ -3,8 +3,6 @@ package command
 import (
 	"fmt"
 	"strings"
-
-	"github.com/ryanuber/columnize"
 )
 
 type NodeStatusCommand struct {
@@ -25,7 +23,14 @@ Usage: nomad node-status [options] [node]
 
 General Options:
 
-  ` + generalOptionsUsage()
+  ` + generalOptionsUsage() + `
+
+Node Status Options:
+
+  -short
+    Display short output. Used only when a single node is being
+    queried, and drops verbose output about node allocations.
+`
 	return strings.TrimSpace(helpText)
 }
 
@@ -34,8 +39,12 @@ func (c *NodeStatusCommand) Synopsis() string {
 }
 
 func (c *NodeStatusCommand) Run(args []string) int {
+	var short bool
+
 	flags := c.Meta.FlagSet("node-status", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
+	flags.BoolVar(&short, "short", false, "")
+
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
@@ -82,7 +91,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		}
 
 		// Dump the output
-		c.Ui.Output(columnize.SimpleFormat(out))
+		c.Ui.Output(formatList(out))
 		return 0
 	}
 
@@ -95,20 +104,44 @@ func (c *NodeStatusCommand) Run(args []string) int {
 	}
 
 	// Format the output
-	out := []string{
-		fmt.Sprintf("ID | %s", node.ID),
-		fmt.Sprintf("Name | %s", node.Name),
-		fmt.Sprintf("Class | %s", node.NodeClass),
-		fmt.Sprintf("Datacenter | %s", node.Datacenter),
-		fmt.Sprintf("Drain | %v", node.Drain),
-		fmt.Sprintf("Status | %s", node.Status),
+	basic := []string{
+		fmt.Sprintf("ID|%s", node.ID),
+		fmt.Sprintf("Name|%s", node.Name),
+		fmt.Sprintf("Class|%s", node.NodeClass),
+		fmt.Sprintf("Datacenter|%s", node.Datacenter),
+		fmt.Sprintf("Drain|%v", node.Drain),
+		fmt.Sprintf("Status|%s", node.Status),
 	}
 
-	// Make the column config so we can dump k = v pairs
-	columnConf := columnize.DefaultConfig()
-	columnConf.Glue = " = "
+	var allocs []string
+	if !short {
+		// Query the node allocations
+		nodeAllocs, _, err := client.Nodes().Allocations(nodeID, nil)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error querying node allocations: %s", err))
+			return 1
+		}
+
+		// Format the allocations
+		allocs = make([]string, len(nodeAllocs)+1)
+		allocs[0] = "ID|EvalID|JobID|TaskGroup|DesiredStatus|ClientStatus"
+		for i, alloc := range nodeAllocs {
+			allocs[i+1] = fmt.Sprintf("%s|%s|%s|%s|%s|%s",
+				alloc.ID,
+				alloc.EvalID,
+				alloc.JobID,
+				alloc.NodeID,
+				alloc.TaskGroup,
+				alloc.DesiredStatus,
+				alloc.ClientStatus)
+		}
+	}
 
 	// Dump the output
-	c.Ui.Output(columnize.Format(out, columnConf))
+	c.Ui.Output(formatKV(basic))
+	if !short {
+		c.Ui.Output("\n### Allocations")
+		c.Ui.Output(formatList(allocs))
+	}
 	return 0
 }

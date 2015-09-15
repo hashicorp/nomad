@@ -3,8 +3,6 @@ package command
 import (
 	"fmt"
 	"strings"
-
-	"github.com/ryanuber/columnize"
 )
 
 type StatusCommand struct {
@@ -20,7 +18,15 @@ Usage: nomad status [options] [job]
 
 General Options:
 
-  ` + generalOptionsUsage()
+  ` + generalOptionsUsage() + `
+
+Status Options:
+
+  -short
+    Display short output. Used only when a single job is being
+    queried, and drops verbose information about allocations
+    and evaluations.
+`
 	return strings.TrimSpace(helpText)
 }
 
@@ -29,8 +35,12 @@ func (c *StatusCommand) Synopsis() string {
 }
 
 func (c *StatusCommand) Run(args []string) int {
+	var short bool
+
 	flags := c.Meta.FlagSet("status", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
+	flags.BoolVar(&short, "short", false, "")
+
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
@@ -71,7 +81,7 @@ func (c *StatusCommand) Run(args []string) int {
 				job.Priority,
 				job.Status)
 		}
-		c.Ui.Output(columnize.SimpleFormat(out))
+		c.Ui.Output(formatList(out))
 		return 0
 	}
 
@@ -85,20 +95,64 @@ func (c *StatusCommand) Run(args []string) int {
 
 	// Format the job info
 	basic := []string{
-		fmt.Sprintf("ID | %s", job.ID),
-		fmt.Sprintf("Name | %s", job.Name),
-		fmt.Sprintf("Type | %s", job.Type),
-		fmt.Sprintf("Priority | %d", job.Priority),
-		fmt.Sprintf("Datacenters | %s", strings.Join(job.Datacenters, ",")),
-		fmt.Sprintf("Status | %s", job.Status),
-		fmt.Sprintf("StatusDescription | %s", job.StatusDescription),
+		fmt.Sprintf("ID|%s", job.ID),
+		fmt.Sprintf("Name|%s", job.Name),
+		fmt.Sprintf("Type|%s", job.Type),
+		fmt.Sprintf("Priority|%d", job.Priority),
+		fmt.Sprintf("Datacenters|%s", strings.Join(job.Datacenters, ",")),
+		fmt.Sprintf("Status|%s", job.Status),
 	}
 
-	// Make the column config so we can dump k = v pairs
-	columnConf := columnize.DefaultConfig()
-	columnConf.Glue = " = "
+	var evals, allocs []string
+	if !short {
+		// Query the evaluations
+		jobEvals, _, err := client.Jobs().Evaluations(jobID, nil)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error querying job evaluations: %s", err))
+			return 1
+		}
+
+		// Query the allocations
+		jobAllocs, _, err := client.Jobs().Allocations(jobID, nil)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error querying job allocations: %s", err))
+			return 1
+		}
+
+		// Format the evals
+		evals = make([]string, len(jobEvals)+1)
+		evals[0] = "ID|Priority|Type|TriggeredBy|NodeID|Status"
+		for i, eval := range jobEvals {
+			evals[i+1] = fmt.Sprintf("%s|%d|%s|%s|%s|%s",
+				eval.ID,
+				eval.Priority,
+				eval.Type,
+				eval.TriggeredBy,
+				eval.NodeID,
+				eval.Status)
+		}
+
+		// Format the allocs
+		allocs = make([]string, len(jobAllocs)+1)
+		allocs[0] = "ID|EvalID|NodeID|TaskGroup|DesiredStatus|ClientStatus"
+		for i, alloc := range jobAllocs {
+			allocs[i+1] = fmt.Sprintf("%s|%s|%s|%s|%s|%s",
+				alloc.ID,
+				alloc.EvalID,
+				alloc.NodeID,
+				alloc.TaskGroup,
+				alloc.DesiredStatus,
+				alloc.ClientStatus)
+		}
+	}
 
 	// Dump the output
-	c.Ui.Output(columnize.Format(basic, columnConf))
+	c.Ui.Output(formatKV(basic))
+	if !short {
+		c.Ui.Output("\n### Evaluations")
+		c.Ui.Output(formatList(evals))
+		c.Ui.Output("\n### Allocations")
+		c.Ui.Output(formatList(allocs))
+	}
 	return 0
 }
