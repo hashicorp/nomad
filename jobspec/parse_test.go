@@ -90,6 +90,13 @@ func TestParse(t *testing.T) {
 									CPU:      500,
 									MemoryMB: 128,
 								},
+								Constraints: []*structs.Constraint{
+									&structs.Constraint{
+										LTarget: "kernel.arch",
+										RTarget: "amd64",
+										Operand: "=",
+									},
+								},
 							},
 						},
 					},

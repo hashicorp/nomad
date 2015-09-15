@@ -46,6 +46,10 @@ job "binstore-storagelocker" {
                 cpu = 500
                 memory = 128
             }
+            constraint {
+                attribute = "kernel.arch"
+                value = "amd64"
+            }
         }
 
         constraint {

@@ -257,6 +257,7 @@ func parseTasks(result *[]*structs.Task, obj *hclobj.Object) error {
 			return err
 		}
 		delete(m, "config")
+		delete(m, "constraint")
 		delete(m, "meta")
 		delete(m, "resources")
 
@@ -277,6 +278,13 @@ func parseTasks(result *[]*structs.Task, obj *hclobj.Object) error {
 				if err := mapstructure.WeakDecode(m, &t.Config); err != nil {
 					return err
 				}
+			}
+		}
+
+		// Parse constraints
+		if o := o.Get("constraint", false); o != nil {
+			if err := parseConstraints(&t.Constraints, o); err != nil {
+				return err
 			}
 		}
 
