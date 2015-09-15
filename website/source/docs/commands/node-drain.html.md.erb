@@ -9,7 +9,8 @@ description: >
 # Command: node-drain
 
 The `node-drain` command is used to toggle drain mode on a given node. Drain
-mode is used to move work away from a specific node.
+mode prevents any new tasks from being allocated to the node, and begins
+migrating all existing allocations away.
 
 The [node-status](/docs/commands/node-status.html) command compliments this
 nicely by providing the current drain status of a given node.
