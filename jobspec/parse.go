@@ -306,7 +306,7 @@ func parseTasks(result *[]*structs.Task, obj *hclobj.Object) error {
 		if o := o.Get("resources", false); o != nil {
 			var r structs.Resources
 			if err := parseResources(&r, o); err != nil {
-				return err
+				return fmt.Errorf("task '%s': %s", t.Name, err)
 			}
 
 			t.Resources = &r
@@ -319,6 +319,10 @@ func parseTasks(result *[]*structs.Task, obj *hclobj.Object) error {
 }
 
 func parseResources(result *structs.Resources, obj *hclobj.Object) error {
+	if obj.Len() > 1 {
+		return fmt.Errorf("only one 'resource' block allowed per task")
+	}
+
 	for _, o := range obj.Elem(false) {
 		var m map[string]interface{}
 		if err := hcl.DecodeObject(&m, o); err != nil {
@@ -332,6 +336,10 @@ func parseResources(result *structs.Resources, obj *hclobj.Object) error {
 
 		// Parse the network resources
 		if o := o.Get("network", false); o != nil {
+			if o.Len() > 1 {
+				return fmt.Errorf("only one 'network' resource allowed")
+			}
+
 			var r structs.NetworkResource
 			var m map[string]interface{}
 			if err := hcl.DecodeObject(&m, o); err != nil {

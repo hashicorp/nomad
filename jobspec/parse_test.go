@@ -112,6 +112,18 @@ func TestParse(t *testing.T) {
 			},
 			false,
 		},
+
+		{
+			"multi-network.hcl",
+			nil,
+			true,
+		},
+
+		{
+			"multi-resource.hcl",
+			nil,
+			true,
+		},
 	}
 
 	for _, tc := range cases {
