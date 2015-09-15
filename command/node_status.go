@@ -105,12 +105,12 @@ func (c *NodeStatusCommand) Run(args []string) int {
 
 	// Format the output
 	basic := []string{
-		fmt.Sprintf("ID | %s", node.ID),
-		fmt.Sprintf("Name | %s", node.Name),
-		fmt.Sprintf("Class | %s", node.NodeClass),
-		fmt.Sprintf("Datacenter | %s", node.Datacenter),
-		fmt.Sprintf("Drain | %v", node.Drain),
-		fmt.Sprintf("Status | %s", node.Status),
+		fmt.Sprintf("ID|%s", node.ID),
+		fmt.Sprintf("Name|%s", node.Name),
+		fmt.Sprintf("Class|%s", node.NodeClass),
+		fmt.Sprintf("Datacenter|%s", node.Datacenter),
+		fmt.Sprintf("Drain|%v", node.Drain),
+		fmt.Sprintf("Status|%s", node.Status),
 	}
 
 	var allocs []string
@@ -140,7 +140,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 	// Dump the output
 	c.Ui.Output(formatKV(basic))
 	if !short {
-		c.Ui.Output("\nAllocations")
+		c.Ui.Output("\n### Allocations")
 		c.Ui.Output(formatList(allocs))
 	}
 	return 0

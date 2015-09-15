@@ -149,9 +149,9 @@ func (c *StatusCommand) Run(args []string) int {
 	// Dump the output
 	c.Ui.Output(formatKV(basic))
 	if !short {
-		c.Ui.Output("\nEvaluations")
+		c.Ui.Output("\n### Evaluations")
 		c.Ui.Output(formatList(evals))
-		c.Ui.Output("\nAllocations")
+		c.Ui.Output("\n### Allocations")
 		c.Ui.Output(formatList(allocs))
 	}
 	return 0
