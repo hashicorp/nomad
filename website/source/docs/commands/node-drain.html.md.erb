@@ -26,13 +26,17 @@ disable drain mode for. It is also required to pass one of `-enable` or
 
 ## General Options
 
-* `-address`: The address of the Nomad server. Overrides the `NOMAD_ADDR`
-  environment variable if set. Defaults to `http://127.0.0.1:4646`.
+<%= general_options_usage %>
+
+## Node Drain Options
+
+* `-enable`: Enable node drain mode.
+* `-disable`: Disable node drain mode.
 
 ## Examples
 
 Enable drain mode on node1:
 
 ```
-$ nomad node-drain node1
+$ nomad node-drain -enable node1
 ```
