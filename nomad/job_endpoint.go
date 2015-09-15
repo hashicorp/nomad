@@ -24,24 +24,11 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	if args.Job == nil {
 		return fmt.Errorf("missing job for registration")
 	}
-	if args.Job.ID == "" {
-		return fmt.Errorf("missing job ID for registration")
-	}
-	if args.Job.Name == "" {
-		return fmt.Errorf("missing job name for registration")
-	}
-	if args.Job.Type == "" {
-		return fmt.Errorf("missing job type for registration")
+	if err := args.Job.Validate(); err != nil {
+		return err
 	}
 	if args.Job.Type == structs.JobTypeCore {
 		return fmt.Errorf("job type cannot be core")
-	}
-
-	// Ensure priorities are bounded
-	if args.Job.Priority < structs.JobMinPriority {
-		args.Job.Priority = structs.JobMinPriority
-	} else if args.Job.Priority > structs.JobMaxPriority {
-		args.Job.Priority = structs.JobMaxPriority
 	}
 
 	// Commit this update via Raft
