@@ -34,7 +34,7 @@ nomad agent-members [options]
 Default view:
 
 ```
-$ nomad members
+$ nomad agent-members
 Name          Addr      Port  Status  Proto  Build     DC   Region
 node1.global  10.0.0.8  4648  alive   2      0.1.0dev  dc1  global
 node2.global  10.0.0.9  4648  alive   2      0.1.0dev  dc1  global
@@ -43,7 +43,7 @@ node2.global  10.0.0.9  4648  alive   2      0.1.0dev  dc1  global
 Detailed view:
 
 ```
-$ nomad members -detailed
+$ nomad agent-members -detailed
 Name   Addr      Port  Tags
 node1  10.0.0.8  4648  bootstrap=1,build=0.1.0dev,vsn=1,vsn_max=1,dc=dc1,port=4647,region=global,role=nomad,vsn_min=1
 node2  10.0.0.9  4648  bootstrap=0,build=0.1.0dev,vsn=1,vsn_max=1,dc=dc1,port=4647,region=global,role=nomad,vsn_min=1
