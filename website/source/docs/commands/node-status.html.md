@@ -29,6 +29,11 @@ displayed.
 * `-address`: The address of the Nomad server. Overrides the `NOMAD_ADDR`
   environment variable if set. Defaults to `http://127.0.0.1:4646`.
 
+## Node Status Options
+
+* `-short`: Display short output. Used only when querying a single node. Drops
+  verbose information about node allocations.
+
 ## Examples
 
 List view:
@@ -40,7 +45,19 @@ a72dfba2-c01f-49de-5ac6-e3391de2c50c  dc1  node1  false  ready
 1f3f03ea-a420-b64b-c73b-51290ed7f481  dc1  node2  false  ready
 ```
 
-Single-node view:
+Single-node view in short mode:
+
+```
+$ nomad node-status -short 1f3f03ea-a420-b64b-c73b-51290ed7f481
+ID         = 1f3f03ea-a420-b64b-c73b-51290ed7f481
+Name       = node2
+Class      = 
+Datacenter = dc1
+Drain      = false
+Status     = ready
+```
+
+Full output for a single node:
 
 ```
 $ nomad node-status 1f3f03ea-a420-b64b-c73b-51290ed7f481
@@ -50,4 +67,8 @@ Class      =
 Datacenter = dc1
 Drain      = false
 Status     = ready
+
+Allocations
+ID                                    EvalID                                JobID  TaskGroup  DesiredStatus  ClientStatus
+678c51dc-6c55-0ac8-d92d-675a1e8ea6b0  193229c4-aa02-bbe6-f996-fd7d6974a309  job8   grp8       failed         failed
 ```

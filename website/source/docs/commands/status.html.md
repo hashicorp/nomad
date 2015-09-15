@@ -26,9 +26,14 @@ useful status fields for each.
 * `-address`: The address of the Nomad server. Overrides the `NOMAD_ADDR`
   environment variable if set. Defaults to `http://127.0.0.1:4646`.
 
+## Status Options
+
+* `-short`: Display short output. Used only when a single node is being queried.
+  Drops verbose node allocation data from the output.
+
 ## Examples
 
-Short list of all jobs:
+List of all jobs:
 
 ```
 $ nomad status
@@ -39,7 +44,19 @@ job3   service  2         pending
 job4   service  1         complete
 ```
 
-Detailed information of a single job:
+Short view of a specific job:
+
+```
+$ nomad status -short job1
+ID          = job1
+Name        = Test Job
+Type        = service
+Priority    = 3
+Datacenters = dc1,dc2,dc3
+Status      = pending
+```
+
+Full status information of a job:
 
 ```
 $ nomad status job1
@@ -49,4 +66,12 @@ Type        = service
 Priority    = 3
 Datacenters = dc1,dc2,dc3
 Status      = pending
+
+Evaluations
+ID                                    Priority  Type     TriggeredBy   NodeID  Status
+193229c4-aa02-bbe6-f996-fd7d6974a309  3         service  job-register  node2   complete
+
+Allocations
+ID                                    EvalID                                NodeID  TaskGroup  DesiredStatus  ClientStatus
+678c51dc-6c55-0ac8-d92d-675a1e8ea6b0  193229c4-aa02-bbe6-f996-fd7d6974a309  node2   grp8       failed         failed
 ```
