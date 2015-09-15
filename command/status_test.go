@@ -59,6 +59,28 @@ func TestStatusCommand_Run(t *testing.T) {
 	if strings.Contains(out, "job1") || !strings.Contains(out, "job2") {
 		t.Fatalf("expected only job2, got: %s", out)
 	}
+	if !strings.Contains(out, "Evaluations") {
+		t.Fatalf("should dump evaluations")
+	}
+	if !strings.Contains(out, "Allocations") {
+		t.Fatalf("should dump allocations")
+	}
+	ui.OutputWriter.Reset()
+
+	// Query in short view mode
+	if code := cmd.Run([]string{"-address=" + url, "-short", "job2"}); code != 0 {
+		t.Fatalf("expected exit 0, got: %d", code)
+	}
+	out = ui.OutputWriter.String()
+	if !strings.Contains(out, "job2") {
+		t.Fatalf("expected job2, got: %s", out)
+	}
+	if strings.Contains(out, "Evaluations") {
+		t.Fatalf("should not dump evaluations")
+	}
+	if strings.Contains(out, "Allocations") {
+		t.Fatalf("should not dump allocations")
+	}
 }
 
 func TestStatusCommand_Fails(t *testing.T) {
