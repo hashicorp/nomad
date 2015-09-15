@@ -3,8 +3,6 @@ package command
 import (
 	"fmt"
 	"strings"
-
-	"github.com/ryanuber/columnize"
 )
 
 type NodeStatusCommand struct {
@@ -93,7 +91,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		}
 
 		// Dump the output
-		c.Ui.Output(columnize.SimpleFormat(out))
+		c.Ui.Output(formatList(out))
 		return 0
 	}
 
@@ -104,10 +102,6 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("Error querying node info: %s", err))
 		return 1
 	}
-
-	// Make the column config so we can dump k = v pairs
-	columnConf := columnize.DefaultConfig()
-	columnConf.Glue = " = "
 
 	// Format the output
 	basic := []string{
@@ -144,10 +138,10 @@ func (c *NodeStatusCommand) Run(args []string) int {
 	}
 
 	// Dump the output
-	c.Ui.Output(columnize.Format(basic, columnConf))
+	c.Ui.Output(formatKV(basic))
 	if !short {
 		c.Ui.Output("\nAllocations")
-		c.Ui.Output(columnize.SimpleFormat(allocs))
+		c.Ui.Output(formatList(allocs))
 	}
 	return 0
 }

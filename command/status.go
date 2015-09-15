@@ -3,8 +3,6 @@ package command
 import (
 	"fmt"
 	"strings"
-
-	"github.com/ryanuber/columnize"
 )
 
 type StatusCommand struct {
@@ -83,7 +81,7 @@ func (c *StatusCommand) Run(args []string) int {
 				job.Priority,
 				job.Status)
 		}
-		c.Ui.Output(columnize.SimpleFormat(out))
+		c.Ui.Output(formatList(out))
 		return 0
 	}
 
@@ -95,18 +93,14 @@ func (c *StatusCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Make the column config so we can dump k = v pairs
-	columnConf := columnize.DefaultConfig()
-	columnConf.Glue = " = "
-
 	// Format the job info
 	basic := []string{
-		fmt.Sprintf("ID | %s", job.ID),
-		fmt.Sprintf("Name | %s", job.Name),
-		fmt.Sprintf("Type | %s", job.Type),
-		fmt.Sprintf("Priority | %d", job.Priority),
-		fmt.Sprintf("Datacenters | %s", strings.Join(job.Datacenters, ",")),
-		fmt.Sprintf("Status | %s", job.Status),
+		fmt.Sprintf("ID|%s", job.ID),
+		fmt.Sprintf("Name|%s", job.Name),
+		fmt.Sprintf("Type|%s", job.Type),
+		fmt.Sprintf("Priority|%d", job.Priority),
+		fmt.Sprintf("Datacenters|%s", strings.Join(job.Datacenters, ",")),
+		fmt.Sprintf("Status|%s", job.Status),
 	}
 
 	var evals, allocs []string
@@ -153,12 +147,12 @@ func (c *StatusCommand) Run(args []string) int {
 	}
 
 	// Dump the output
-	c.Ui.Output(columnize.Format(basic, columnConf))
+	c.Ui.Output(formatKV(basic))
 	if !short {
 		c.Ui.Output("\nEvaluations")
-		c.Ui.Output(columnize.SimpleFormat(evals))
+		c.Ui.Output(formatList(evals))
 		c.Ui.Output("\nAllocations")
-		c.Ui.Output(columnize.SimpleFormat(allocs))
+		c.Ui.Output(formatList(allocs))
 	}
 	return 0
 }
