@@ -13,7 +13,7 @@ func TestStatusCommand_Implements(t *testing.T) {
 }
 
 func TestStatusCommand_Run(t *testing.T) {
-	srv, client, url := testServer(t)
+	srv, client, url := testServer(t, nil)
 	defer srv.Stop()
 
 	ui := new(cli.MockUi)

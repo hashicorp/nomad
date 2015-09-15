@@ -15,7 +15,10 @@ func init() {
 	seen = make(map[*testing.T]struct{})
 }
 
-func testServer(t *testing.T) (*testutil.TestServer, *api.Client, string) {
+func testServer(
+	t *testing.T,
+	cb testutil.ServerConfigCallback) (*testutil.TestServer, *api.Client, string) {
+
 	// Always run these tests in parallel.
 	if _, ok := seen[t]; !ok {
 		seen[t] = struct{}{}
@@ -23,7 +26,7 @@ func testServer(t *testing.T) (*testutil.TestServer, *api.Client, string) {
 	}
 
 	// Make a new test server
-	srv := testutil.NewTestServer(t, nil)
+	srv := testutil.NewTestServer(t, cb)
 
 	// Make a client
 	clientConf := api.DefaultConfig()

@@ -12,7 +12,7 @@ func TestAgentInfoCommand_Implements(t *testing.T) {
 }
 
 func TestAgentInfoCommand_Run(t *testing.T) {
-	srv, _, url := testServer(t)
+	srv, _, url := testServer(t, nil)
 	defer srv.Stop()
 
 	ui := new(cli.MockUi)

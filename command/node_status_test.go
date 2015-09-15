@@ -1,9 +1,11 @@
 package command
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 )
 
@@ -12,25 +14,70 @@ func TestNodeStatusCommand_Implements(t *testing.T) {
 }
 
 func TestNodeStatusCommand_Run(t *testing.T) {
-	srv, _, url := testServer(t)
+	// Start in dev mode so we get a node registration
+	srv, client, url := testServer(t, func(c *testutil.TestServerConfig) {
+		c.DevMode = true
+		c.NodeName = "mynode"
+	})
 	defer srv.Stop()
 
 	ui := new(cli.MockUi)
 	cmd := &NodeStatusCommand{Meta: Meta{Ui: ui}}
 
+	// Wait for a node to appear
+	var nodeID string
+	testutil.WaitForResult(func() (bool, error) {
+		nodes, _, err := client.Nodes().List(nil)
+		if err != nil {
+			return false, err
+		}
+		if len(nodes) == 0 {
+			return false, fmt.Errorf("missing node")
+		}
+		nodeID = nodes[0].ID
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %s", err)
+	})
+
 	// Query all node statuses
 	if code := cmd.Run([]string{"-address=" + url}); code != 0 {
 		t.Fatalf("expected exit 0, got: %d", code)
 	}
+	out := ui.OutputWriter.String()
+	if !strings.Contains(out, "mynode") {
+		t.Fatalf("expect to find mynode, got: %s", out)
+	}
+	ui.OutputWriter.Reset()
 
-	// Expect empty output since we have no nodes
-	if out := ui.OutputWriter.String(); out != "<nil>" {
-		t.Fatalf("expected empty output, got: %s", out)
+	// Query a single node
+	if code := cmd.Run([]string{"-address=" + url, nodeID}); code != 0 {
+		t.Fatalf("expected exit 0, got: %d", code)
+	}
+	out = ui.OutputWriter.String()
+	if !strings.Contains(out, "mynode") {
+		t.Fatalf("expect to find mynode, got: %s", out)
+	}
+	if !strings.Contains(out, "Allocations") {
+		t.Fatalf("expected allocations, got: %s", out)
+	}
+	ui.OutputWriter.Reset()
+
+	// Query single node in short view
+	if code := cmd.Run([]string{"-address=" + url, "-short", nodeID}); code != 0 {
+		t.Fatalf("expected exit 0, got: %d", code)
+	}
+	out = ui.OutputWriter.String()
+	if !strings.Contains(out, "mynode") {
+		t.Fatalf("expect to find mynode, got: %s", out)
+	}
+	if strings.Contains(out, "Allocations") {
+		t.Fatalf("should not dump allocations")
 	}
 }
 
 func TestNodeStatusCommand_Fails(t *testing.T) {
-	srv, _, url := testServer(t)
+	srv, _, url := testServer(t, nil)
 	defer srv.Stop()
 
 	ui := new(cli.MockUi)

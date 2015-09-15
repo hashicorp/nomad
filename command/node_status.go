@@ -25,7 +25,14 @@ Usage: nomad node-status [options] [node]
 
 General Options:
 
-  ` + generalOptionsUsage()
+  ` + generalOptionsUsage() + `
+
+Node Status Options:
+
+  -short
+    Display short output. Used only when a single node is being
+    queried, and drops verbose output about node allocations.
+`
 	return strings.TrimSpace(helpText)
 }
 
@@ -34,8 +41,12 @@ func (c *NodeStatusCommand) Synopsis() string {
 }
 
 func (c *NodeStatusCommand) Run(args []string) int {
+	var short bool
+
 	flags := c.Meta.FlagSet("node-status", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
+	flags.BoolVar(&short, "short", false, "")
+
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
@@ -94,8 +105,12 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		return 1
 	}
 
+	// Make the column config so we can dump k = v pairs
+	columnConf := columnize.DefaultConfig()
+	columnConf.Glue = " = "
+
 	// Format the output
-	out := []string{
+	basic := []string{
 		fmt.Sprintf("ID | %s", node.ID),
 		fmt.Sprintf("Name | %s", node.Name),
 		fmt.Sprintf("Class | %s", node.NodeClass),
@@ -104,11 +119,34 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		fmt.Sprintf("Status | %s", node.Status),
 	}
 
-	// Make the column config so we can dump k = v pairs
-	columnConf := columnize.DefaultConfig()
-	columnConf.Glue = " = "
+	var allocs []string
+	if !short {
+		// Query the node allocations
+		nodeAllocs, _, err := client.Nodes().Allocations(nodeID, nil)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error querying node allocations: %s", err))
+			return 1
+		}
+
+		// Format the allocations
+		allocs = make([]string, len(nodeAllocs)+1)
+		allocs[0] = "ID|EvalID|JobID|TaskGroup|DesiredStatus|ClientStatus"
+		for i, alloc := range nodeAllocs {
+			allocs[i+1] = fmt.Sprintf("%s|%s|%s|%s|%s|%s",
+				alloc.ID,
+				alloc.EvalID,
+				alloc.JobID,
+				alloc.TaskGroup,
+				alloc.DesiredStatus,
+				alloc.ClientStatus)
+		}
+	}
 
 	// Dump the output
-	c.Ui.Output(columnize.Format(out, columnConf))
+	c.Ui.Output(columnize.Format(basic, columnConf))
+	if !short {
+		c.Ui.Output("\nAllocations")
+		c.Ui.Output(columnize.SimpleFormat(allocs))
+	}
 	return 0
 }
