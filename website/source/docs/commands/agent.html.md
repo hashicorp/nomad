@@ -1,7 +1,7 @@
 ---
 layout: "docs"
-page_title: "Commands: Agent"
-sidebar_current: "docs-commands-agent"
+page_title: "Commands: agent"
+sidebar_current: "docs-commands-_agent" # Use "_" to break prefix match
 description: >
   The agent command is the main entrypoint to running a Nomad client
   or server.
