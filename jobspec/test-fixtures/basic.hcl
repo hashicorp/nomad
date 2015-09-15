@@ -5,6 +5,10 @@ job "binstore-storagelocker" {
     all_at_once = true
     datacenters = ["us2", "eu1"]
 
+    meta {
+        foo = "bar"
+    }
+
     task "outside" {
         driver = "java"
         config {

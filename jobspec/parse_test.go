@@ -23,6 +23,10 @@ func TestParse(t *testing.T) {
 				AllAtOnce:   true,
 				Datacenters: []string{"us2", "eu1"},
 
+				Meta: map[string]string{
+					"foo": "bar",
+				},
+
 				TaskGroups: []*structs.TaskGroup{
 					&structs.TaskGroup{
 						Name:  "outside",

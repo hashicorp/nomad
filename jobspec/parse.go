@@ -74,6 +74,7 @@ func parseJob(result *structs.Job, obj *hclobj.Object) error {
 	if err := hcl.DecodeObject(&m, obj); err != nil {
 		return err
 	}
+	delete(m, "meta")
 
 	// Set the name to the object key
 	result.Name = obj.Key
@@ -81,6 +82,20 @@ func parseJob(result *structs.Job, obj *hclobj.Object) error {
 	// Decode the rest
 	if err := mapstructure.WeakDecode(m, result); err != nil {
 		return err
+	}
+
+	// Parse out meta fields. These are in HCL as a list so we need
+	// to iterate over them and merge them.
+	if metaO := obj.Get("meta", false); metaO != nil {
+		for _, o := range metaO.Elem(false) {
+			var m map[string]interface{}
+			if err := hcl.DecodeObject(&m, o); err != nil {
+				return err
+			}
+			if err := mapstructure.WeakDecode(m, &result.Meta); err != nil {
+				return err
+			}
+		}
 	}
 
 	// If we have tasks outside, do those
