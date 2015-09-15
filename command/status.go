@@ -93,7 +93,12 @@ func (c *StatusCommand) Run(args []string) int {
 		fmt.Sprintf("Status | %s", job.Status),
 		fmt.Sprintf("StatusDescription | %s", job.StatusDescription),
 	}
-	c.Ui.Output(columnize.SimpleFormat(basic))
 
+	// Make the column config so we can dump k = v pairs
+	columnConf := columnize.DefaultConfig()
+	columnConf.Glue = " = "
+
+	// Dump the output
+	c.Ui.Output(columnize.Format(basic, columnConf))
 	return 0
 }

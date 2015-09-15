@@ -104,7 +104,11 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		fmt.Sprintf("Status | %s", node.Status),
 	}
 
+	// Make the column config so we can dump k = v pairs
+	columnConf := columnize.DefaultConfig()
+	columnConf.Glue = " = "
+
 	// Dump the output
-	c.Ui.Output(columnize.SimpleFormat(out))
+	c.Ui.Output(columnize.Format(out, columnConf))
 	return 0
 }
