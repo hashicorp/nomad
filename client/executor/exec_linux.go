@@ -8,6 +8,9 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/nomad/structs"
+
+	cgroupFs "github.com/opencontainers/runc/libcontainer/cgroups/fs"
+	cgroupConfig "github.com/opencontainers/runc/libcontainer/configs"
 )
 
 func NewExecutor() Executor {
@@ -17,11 +20,51 @@ func NewExecutor() Executor {
 // Linux executor is designed to run on linux kernel 2.8+.
 type LinuxExecutor struct {
 	cmd
-	user *user.User
+	user    *user.User
+	manager *cgroupFs.Manager
 }
 
 func (e *LinuxExecutor) Limit(resources *structs.Resources) error {
+	if resources == nil {
+		return nil
+	}
+	pid, err := e.Pid()
+	if err != nil {
+		return fmt.Errorf("Error getting pid: %s", err)
+	}
 	// TODO limit some things
+	if e.manager == nil {
+		// accept default paths, cgroups
+		e.manager = &cgroupFs.Manager{}
+	}
+
+	groups := cgroupConfig.Cgroup{}
+	// TODO: verify this is needed for things like network access
+	groups.AllowAllDevices = true
+	if resources.MemoryMB > 0 {
+		// Total amount of memory allowed to consume
+		groups.Memory = int64(resources.MemoryMB * 1024 * 1024)
+		// Disable swap to avoid issues on the machine
+		groups.MemorySwap = int64(-1)
+	}
+
+	if resources.CPU > 0.0 {
+		// Set the relative CPU shares for this cgroup.
+		// The simplest scale is 1 share to 1 MHz so 1024 = 1GHz. This means any
+		// given process will have at least that amount of resources, but likely
+		// more since it is (probably) rare that the machine will run at 100%
+		// CPU. This scale will cease to work if a node is overprovisioned.
+		groups.CpuShares = int64(resources.CPU)
+	}
+
+	if resources.IOPS > 0 {
+		groups.BlkioThrottleReadIOpsDevice = strconv.FormatInt(int64(resources.IOPS), 10)
+		groups.BlkioThrottleWriteIOpsDevice = strconv.FormatInt(int64(resources.IOPS), 10)
+	}
+
+	e.manager.Cgroups = &groups
+	e.manager.Apply(pid)
+
 	return nil
 }
 
