@@ -80,6 +80,11 @@ func parseJob(result *structs.Job, obj *hclobj.Object) error {
 	// Set the name to the object key
 	result.Name = obj.Key
 
+	// Defaults
+	result.Priority = 50
+	result.Region = "global"
+	result.Type = "service"
+
 	// Decode the rest
 	if err := mapstructure.WeakDecode(m, result); err != nil {
 		return err

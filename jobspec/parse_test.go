@@ -124,6 +124,17 @@ func TestParse(t *testing.T) {
 			nil,
 			true,
 		},
+
+		{
+			"default-job.hcl",
+			&structs.Job{
+				Name:     "foo",
+				Priority: 50,
+				Region:   "global",
+				Type:     "service",
+			},
+			false,
+		},
 	}
 
 	for _, tc := range cases {
