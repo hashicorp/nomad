@@ -82,6 +82,12 @@ func (e *LinuxExecutor) RunAs(userid string) error {
 }
 
 func (e *LinuxExecutor) Start() error {
+	if e.user == nil {
+		// If no user has been specified, try to run as "nobody" user so we
+		// don't leak root privilege to the spawned process.
+		e.RunAs("nobody")
+	}
+
 	// Set the user and group this process should run as
 	if e.user != nil {
 		SetUID(&e.cmd, e.user.Uid)
