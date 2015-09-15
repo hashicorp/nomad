@@ -55,7 +55,7 @@ func (e *LinuxExecutor) Available() bool {
 	return runtime.GOOS == "linux"
 }
 
-func (e *LinuxExecutor) Limit(resources structs.Resources) error {
+func (e *LinuxExecutor) Limit(resources *structs.Resources) error {
 	// TODO limit some things
 	return nil
 }
@@ -120,6 +120,19 @@ func (e *LinuxExecutor) Open(pid int) error {
 	}
 	e.Process = process
 	return nil
+}
+
+func (e *LinuxExecutor) Wait() error {
+	// We don't want to call ourself. We want to call Start on our embedded Cmd
+	return e.cmd.Wait()
+}
+
+func (e *LinuxExecutor) Pid() (int, error) {
+	if e.cmd.Process != nil {
+		return e.cmd.Process.Pid, nil
+	} else {
+		return 0, fmt.Errorf("Process has finished or was never started")
+	}
 }
 
 func (e *LinuxExecutor) Shutdown() error {

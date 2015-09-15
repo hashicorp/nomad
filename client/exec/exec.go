@@ -38,7 +38,7 @@ type Executor interface {
 	// Limit must be called before Start and restricts the amount of resources
 	// the process can use. Note that an error may be returned ONLY IF the
 	// executor implements resource limiting. Otherwise Limit is ignored.
-	Limit(structs.Resources) error
+	Limit(*structs.Resources) error
 
 	// RunAs sets the user we should use to run this command. This may be set as
 	// a username, uid, or other identifier. The implementation will decide what
@@ -54,6 +54,12 @@ type Executor interface {
 	// Open should be called to restore a previous pid. This might be needed if
 	// nomad is restarted. This sets os.Process internally.
 	Open(int) error
+
+	// This is a convenience wrapper around Command().Wait()
+	Wait() error
+
+	// This is a convenience wrapper around Command().Process.Pid
+	Pid() (int, error)
 
 	// Shutdown should use a graceful stop mechanism so the application can
 	// perform checkpointing or cleanup, if such a mechanism is available.
@@ -100,9 +106,13 @@ func Command(name string, arg ...string) Executor {
 	return executor
 }
 
-func OpenPid(int) Executor {
+func OpenPid(pid int) (Executor, error) {
 	executor := AutoselectExecutor()
-	return executor
+	err := executor.Open(pid)
+	if err != nil {
+		return nil, err
+	}
+	return executor, nil
 }
 
 // AutoselectExecutor uses capability testing to give you the best available
@@ -139,7 +149,7 @@ func (e *UniversalExecutor) Available() bool {
 	return true
 }
 
-func (e *UniversalExecutor) Limit(resources structs.Resources) error {
+func (e *UniversalExecutor) Limit(resources *structs.Resources) error {
 	// No-op
 	return nil
 }
@@ -161,6 +171,19 @@ func (e *UniversalExecutor) Open(pid int) error {
 	}
 	e.Process = process
 	return nil
+}
+
+func (e *UniversalExecutor) Wait() error {
+	// We don't want to call ourself. We want to call Start on our embedded Cmd
+	return e.cmd.Wait()
+}
+
+func (e *UniversalExecutor) Pid() (int, error) {
+	if e.cmd.Process != nil {
+		return e.cmd.Process.Pid, nil
+	} else {
+		return 0, fmt.Errorf("Process has finished or was never started")
+	}
 }
 
 func (e *UniversalExecutor) Shutdown() error {
