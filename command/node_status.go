@@ -136,6 +136,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 				alloc.ID,
 				alloc.EvalID,
 				alloc.JobID,
+				alloc.NodeID,
 				alloc.TaskGroup,
 				alloc.DesiredStatus,
 				alloc.ClientStatus)

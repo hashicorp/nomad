@@ -107,7 +107,6 @@ func (c *StatusCommand) Run(args []string) int {
 		fmt.Sprintf("Priority | %d", job.Priority),
 		fmt.Sprintf("Datacenters | %s", strings.Join(job.Datacenters, ",")),
 		fmt.Sprintf("Status | %s", job.Status),
-		fmt.Sprintf("StatusDescription | %s", job.StatusDescription),
 	}
 
 	var evals, allocs []string
@@ -128,27 +127,25 @@ func (c *StatusCommand) Run(args []string) int {
 
 		// Format the evals
 		evals = make([]string, len(jobEvals)+1)
-		evals[0] = "ID|Priority|Type|TriggeredBy|JobID|Status|Previous|Next"
+		evals[0] = "ID|Priority|Type|TriggeredBy|NodeID|Status"
 		for i, eval := range jobEvals {
-			evals[i+1] = fmt.Sprintf("%s|%d|%s|%s|%s|%s|%s|%s",
+			evals[i+1] = fmt.Sprintf("%s|%d|%s|%s|%s|%s",
 				eval.ID,
 				eval.Priority,
 				eval.Type,
 				eval.TriggeredBy,
-				eval.JobID,
-				eval.Status,
-				eval.PreviousEval,
-				eval.NextEval)
+				eval.NodeID,
+				eval.Status)
 		}
 
 		// Format the allocs
 		allocs = make([]string, len(jobAllocs)+1)
-		allocs[0] = "ID|EvalID|JobID|TaskGroup|DesiredStatus|ClientStatus"
+		allocs[0] = "ID|EvalID|NodeID|TaskGroup|DesiredStatus|ClientStatus"
 		for i, alloc := range jobAllocs {
 			allocs[i+1] = fmt.Sprintf("%s|%s|%s|%s|%s|%s",
 				alloc.ID,
 				alloc.EvalID,
-				alloc.JobID,
+				alloc.NodeID,
 				alloc.TaskGroup,
 				alloc.DesiredStatus,
 				alloc.ClientStatus)
