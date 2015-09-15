@@ -74,6 +74,7 @@ func parseJob(result *structs.Job, obj *hclobj.Object) error {
 	if err := hcl.DecodeObject(&m, obj); err != nil {
 		return err
 	}
+	delete(m, "constraint")
 	delete(m, "meta")
 
 	// Set the name to the object key
@@ -82,6 +83,13 @@ func parseJob(result *structs.Job, obj *hclobj.Object) error {
 	// Decode the rest
 	if err := mapstructure.WeakDecode(m, result); err != nil {
 		return err
+	}
+
+	// Parse constraints
+	if o := obj.Get("constraint", false); o != nil {
+		if err := parseConstraints(&result.Constraints, o); err != nil {
+			return err
+		}
 	}
 
 	// Parse out meta fields. These are in HCL as a list so we need

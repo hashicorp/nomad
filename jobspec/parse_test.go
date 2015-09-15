@@ -27,6 +27,14 @@ func TestParse(t *testing.T) {
 					"foo": "bar",
 				},
 
+				Constraints: []*structs.Constraint{
+					&structs.Constraint{
+						LTarget: "kernel.os",
+						RTarget: "windows",
+						Operand: "=",
+					},
+				},
+
 				TaskGroups: []*structs.TaskGroup{
 					&structs.TaskGroup{
 						Name:  "outside",

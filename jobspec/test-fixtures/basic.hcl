@@ -9,6 +9,11 @@ job "binstore-storagelocker" {
         foo = "bar"
     }
 
+    constraint {
+        attribute = "kernel.os"
+        value = "windows"
+    }
+
     task "outside" {
         driver = "java"
         config {
