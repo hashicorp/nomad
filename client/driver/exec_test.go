@@ -35,6 +35,11 @@ func TestExecDriver_StartOpen_Wait(t *testing.T) {
 			"args":    "1",
 		},
 	}
+	if task.Resources == nil {
+		task.Resources = &structs.Resources{}
+	}
+	task.Resources.CPU = 1024
+
 	handle, err := d.Start(ctx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
