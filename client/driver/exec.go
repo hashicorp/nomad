@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client/config"
-	nexec "github.com/hashicorp/nomad/client/exec"
+	"github.com/hashicorp/nomad/client/executor"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -20,7 +20,7 @@ type ExecDriver struct {
 
 // execHandle is returned from Start/Open as a handle to the PID
 type execHandle struct {
-	cmd    nexec.Executor
+	cmd    executor.Executor
 	waitCh chan error
 	doneCh chan struct{}
 }
@@ -51,7 +51,7 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	}
 
 	// Setup the command
-	cmd := nexec.Command(command, args...)
+	cmd := executor.Command(command, args...)
 	err := cmd.Limit(task.Resources)
 	if err != nil {
 		return nil, fmt.Errorf("failed to constrain resources: %s", err)
@@ -80,7 +80,7 @@ func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 	}
 
 	// Find the process
-	cmd, err := nexec.OpenPid(pid)
+	cmd, err := executor.OpenPid(pid)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find PID %d: %v", pid, err)
 	}

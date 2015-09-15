@@ -13,9 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/sys/unix"
-
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/executor"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -27,7 +26,7 @@ type JavaDriver struct {
 
 // javaHandle is returned from Start/Open as a handle to the PID
 type javaHandle struct {
-	cmd    nexec.Executor
+	cmd    executor.Executor
 	waitCh chan error
 	doneCh chan struct{}
 }
@@ -129,8 +128,8 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 
 	// Setup the command
 	// Assumes Java is in the $PATH, but could probably be detected
-	cmd := nexec.Command("java", args...)
-	err := cmd.Limit(task.Resources)
+	cmd := executor.Command("java", args...)
+	err = cmd.Limit(task.Resources)
 	if err != nil {
 		return nil, fmt.Errorf("failed to constrain resources: %s", err)
 	}
@@ -159,7 +158,7 @@ func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 	}
 
 	// Find the process
-	proc, err := os.FindProcess(pid)
+	cmd, err := executor.OpenPid(pid)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find PID %d: %v", pid, err)
 	}

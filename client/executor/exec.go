@@ -15,7 +15,7 @@
 // However, these should be completely transparent to the calling context. In
 // other words, the Java driver should be able to call exec for any platform and
 // just work.
-package exec
+package executor
 
 import (
 	"fmt"
@@ -91,7 +91,7 @@ type cmd struct {
 
 // Command is a mirror of exec.Command that returns a platform-specific Executor
 func Command(name string, arg ...string) Executor {
-	executor := AutoselectExecutor()
+	executor := Default()
 	cmd := executor.Command()
 	cmd.Path = name
 	cmd.Args = append([]string{name}, arg...)
@@ -107,7 +107,7 @@ func Command(name string, arg ...string) Executor {
 }
 
 func OpenPid(pid int) (Executor, error) {
-	executor := AutoselectExecutor()
+	executor := Default()
 	err := executor.Open(pid)
 	if err != nil {
 		return nil, err
@@ -115,13 +115,13 @@ func OpenPid(pid int) (Executor, error) {
 	return executor, nil
 }
 
-// AutoselectExecutor uses capability testing to give you the best available
+// Default uses capability testing to give you the best available
 // executor based on your platform and execution environment. If you need a
 // specific executor, call it directly.
 //
 // This is a simplistic strategy pattern. We can potentially improve this by
 // using a decorator pattern instead.
-func AutoselectExecutor() Executor {
+func Default() Executor {
 	// These will be IN ORDER and the first available will be used, so preferred
 	// ones should be at the top and fallbacks at the bottom.
 	// TODO refactor this to be more lightweight.
