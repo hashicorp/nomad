@@ -7,7 +7,7 @@ description: >
   or server.
 ---
 
-# Nomad Agent
+# Command: agent
 
 The agent command is the heart of Nomad: it runs the agent that handles client
 or server functionality, including exposing interfaces for client consumption

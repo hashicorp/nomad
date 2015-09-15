@@ -6,7 +6,7 @@ description: >
   Display information and status of a running agent.
 ---
 
-# Agent Info
+# Command: agent-info
 
 The `agent-info` command dumps metrics and status information of a running
 agent. The infomation displayed pertains to the specific agent the CLI

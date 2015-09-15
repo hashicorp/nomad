@@ -1,22 +1,28 @@
 ---
 layout: "docs"
-page_title: "Commands: agent-info"
-sidebar_current: "docs-commands-agent-info"
+page_title: "Commands: agent-join"
+sidebar_current: "docs-commands-agent-join"
 description: >
-  Display information and status of a running agent.
+  Joins the local server to one or more Nomad servers.
 ---
 
-# Agent Info
+# Comand: agent-join
 
-The `agent-info` command dumps metrics and status information of a running
-agent. The infomation displayed pertains to the specific agent the CLI
-connected to. Useful for troubleshooting and performance monitoring.
+The `agent-join` command joins the local server to one or more Nomad servers.
+Joining is only required for server nodes, and only needs to succeed against
+one or more of the provided addresses. Once joined, the gossip layer will
+handle discovery of the other server nodes in the cluster.
 
 ## Usage
 
 ```
-nomad agent-info [options]
+nomad agent-join [options] <addr> [<addr>...]
 ```
+
+One or more server addresses are required. If multiple server addresses are
+specified, then an attempt will be made to join each one. If one or more nodes
+are joined successfully, the exit code will be 0. Otherwise, the exit code will
+be 1.
 
 ## General Options
 

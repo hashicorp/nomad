@@ -6,7 +6,7 @@ description: >
   Force a node into the "left" state.
 ---
 
-# Agent Force-Leave
+# Command: agent-force-leave
 
 The `agent-force-leave` command forces an agent to enter the "left" state.
 This can be used to eject nodes which have failed and will not rejoin the
