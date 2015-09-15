@@ -26,3 +26,11 @@ to enter the "left" state.
 
 * `-address`: The address of the Nomad server. Overrides the `NOMAD_ADDR`
   environment variable if set. Defaults to `http://127.0.0.1:4646`.
+
+## Examples
+
+Force-leave the node "node1":
+
+```
+$ nomad agent-force-leave node1
+```

@@ -6,10 +6,13 @@ description: >
   Toggle drain mode for a given node.
 ---
 
-# Comand: node-drain
+# Command: node-drain
 
 The `node-drain` command is used to toggle drain mode on a given node. Drain
 mode is used to move work away from a specific node.
+
+The [node-status](/docs/commands/node-status.html) command compliments this
+nicely by providing the current drain status of a given node.
 
 ## Usage
 
@@ -25,3 +28,11 @@ disable drain mode for. It is also required to pass one of `-enable` or
 
 * `-address`: The address of the Nomad server. Overrides the `NOMAD_ADDR`
   environment variable if set. Defaults to `http://127.0.0.1:4646`.
+
+## Examples
+
+Enable drain mode on node1:
+
+```
+$ nomad node-drain node1
+```

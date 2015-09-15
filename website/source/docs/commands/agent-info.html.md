@@ -34,9 +34,10 @@ returned. These subsystems are described below:
 * raft    - Status information about the Raft consensus protocol
 * runtime - Various metrics from the runtime environment
 
-Example output:
+## Examples
 
 ```
+$ nomad agent-info
 raft
   commit_index = 0
   fsm_pending = 0

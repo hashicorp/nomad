@@ -6,7 +6,7 @@ description: >
   Display information about nodes.
 ---
 
-# Comand: node-status
+# Command: node-status
 
 The `node-status` command is used to display information about client nodes. A
 node must first be registered with the servers before it will be visible in this
@@ -29,7 +29,7 @@ displayed.
 * `-address`: The address of the Nomad server. Overrides the `NOMAD_ADDR`
   environment variable if set. Defaults to `http://127.0.0.1:4646`.
 
-## Example Output
+## Examples
 
 List view:
 
@@ -42,10 +42,10 @@ a72dfba2-c01f-49de-5ac6-e3391de2c50c  dc1  node1  false  ready
 Single-node view:
 
 ```
-ID          1f3f03ea-a420-b64b-c73b-51290ed7f481
-Name        node2
-Class
-Datacenter  dc1
-Drain       false
-Status      ready
+ID         = 1f3f03ea-a420-b64b-c73b-51290ed7f481
+Name       = node2
+Class      = 
+Datacenter = dc1
+Drain      = false
+Status     = ready
 ```

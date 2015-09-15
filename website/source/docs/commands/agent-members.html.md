@@ -6,7 +6,7 @@ description: >
   Display a list of the known cluster members and their status.
 ---
 
-# Comand: agent-members
+# Command: agent-members
 
 The `agent-members` command displays a list of the known servers in the cluster
 and their current status. Member information is provided by the gossip protocol,
@@ -29,10 +29,22 @@ nomad agent-members [options]
   for each member. This mode reveals additional information not displayed in the
   standard output format.
 
-## Example Output
+## Examples
+
+Default view:
 
 ```
+$ nomad members
 Name          Addr      Port  Status  Proto  Build     DC   Region
 node1.global  10.0.0.8  4648  alive   2      0.1.0dev  dc1  global
 node2.global  10.0.0.9  4648  alive   2      0.1.0dev  dc1  global
+```
+
+Detailed view:
+
+```
+$ nomad members -detailed
+Name   Addr      Port  Tags
+node1  10.0.0.8  4648  bootstrap=1,build=0.1.0dev,vsn=1,vsn_max=1,dc=dc1,port=4647,region=global,role=nomad,vsn_min=1
+node2  10.0.0.9  4648  bootstrap=0,build=0.1.0dev,vsn=1,vsn_max=1,dc=dc1,port=4647,region=global,role=nomad,vsn_min=1
 ```

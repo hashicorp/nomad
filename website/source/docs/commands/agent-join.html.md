@@ -6,7 +6,7 @@ description: >
   Joins the local server to one or more Nomad servers.
 ---
 
-# Comand: agent-join
+# Command: agent-join
 
 The `agent-join` command joins the local server to one or more Nomad servers.
 Joining is only required for server nodes, and only needs to succeed against
@@ -28,3 +28,12 @@ be 1.
 
 * `-address`: The address of the Nomad server. Overrides the `NOMAD_ADDR`
   environment variable if set. Defaults to `http://127.0.0.1:4646`.
+
+## Examples
+
+Join the local server to a remote server:
+
+```
+$ nomad agent-join 10.0.0.8:4648
+Joined 1 nodes successfully
+```
