@@ -701,6 +701,9 @@ type Job struct {
 	// Datacenters contains all the datacenters this job is allowed to span
 	Datacenters []string
 
+	// Region is the Nomad region that handles scheduling this job
+	Region string
+
 	// Constraints can be specified at a job level and apply to
 	// all the task groups and tasks.
 	Constraints []*Constraint

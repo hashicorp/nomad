@@ -22,6 +22,7 @@ func TestParse(t *testing.T) {
 				Priority:    50,
 				AllAtOnce:   true,
 				Datacenters: []string{"us2", "eu1"},
+				Region:      "global",
 
 				Meta: map[string]string{
 					"foo": "bar",
