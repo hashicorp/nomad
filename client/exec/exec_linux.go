@@ -4,19 +4,13 @@ import (
 	"fmt"
 	"os"
 	"os/user"
+	"runtime"
 	"strconv"
 	"syscall"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
-
-// Linux executor is designed to run on linux kernel 2.8+. It will fork/exec as
-// a user you specify and limit resources using rlimit.
-type LinuxExecutor struct {
-	cmd
-	user *user.User
-}
 
 // SetUID changes the Uid for this command (must be set before starting)
 func SetUID(command *cmd, userid string) error {
@@ -50,8 +44,19 @@ func SetGID(command *cmd, groupid string) error {
 	return nil
 }
 
+// Linux executor is designed to run on linux kernel 2.8+. It will fork/exec as
+// a user you specify and limit resources using rlimit.
+type LinuxExecutor struct {
+	cmd
+	user *user.User
+}
+
+func (e *LinuxExecutor) Available() bool {
+	return runtime.GOOS == "linux"
+}
+
 func (e *LinuxExecutor) Limit(resources structs.Resources) error {
-	// TODO rlimit
+	// TODO limit some things
 	return nil
 }
 
@@ -76,7 +81,7 @@ func (e *LinuxExecutor) RunAs(userid string) error {
 		errs = multierror.Append(errs, err)
 	}
 
-	// If we got here we failed to looking based on id and username, so we'll
+	// If we got here we failed to lookup based on id and username, so we'll
 	// return those errors.
 	return fmt.Errorf("Failed to identify user to run as: %s", errs)
 }
@@ -109,7 +114,7 @@ func (e *LinuxExecutor) Open(pid int) error {
 	// On linux FindProcess() will return a pid but doesn't actually check to
 	// see whether that process is running. We'll send signal 0 to see if the
 	// process is alive.
-	err := process.Signal(syscall.Signal(0))
+	err = process.Signal(syscall.Signal(0))
 	if err != nil {
 		return fmt.Errorf("Unable to signal pid %d: %s", err)
 	}

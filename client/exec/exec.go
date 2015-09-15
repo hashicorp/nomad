@@ -30,6 +30,11 @@ import (
 // wrapper must implement. You should not need to implement a Java executor.
 // Rather, you would implement a cgroups executor that the Java driver will use.
 type Executor interface {
+	// Available should return true or false based on whether the current platform
+	// can run this type of executor, based on capability testing. Returning
+	// true does not guarantee that this executor will be used.
+	Available() bool
+
 	// Limit must be called before Start and restricts the amount of resources
 	// the process can use. Note that an error may be returned ONLY IF the
 	// executor implements resource limiting. Otherwise Limit is ignored.
@@ -107,7 +112,20 @@ func OpenPid(int) Executor {
 // This is a simplistic strategy pattern. We can potentially improve this by
 // using a decorator pattern instead.
 func AutoselectExecutor() Executor {
-	// TODO platform switching
+	// These will be IN ORDER and the first available will be used, so preferred
+	// ones should be at the top and fallbacks at the bottom.
+	// TODO refactor this to be more lightweight.
+	executors := []Executor{
+		&LinuxExecutor{},
+	}
+
+	for _, executor := range executors {
+		if executor.Available() {
+			return executor
+		}
+	}
+
+	// Always return something, even if we don't have advanced capabilities.
 	return &UniversalExecutor{}
 }
 
@@ -115,6 +133,10 @@ func AutoselectExecutor() Executor {
 // any resource restrictions or runas capabilities.
 type UniversalExecutor struct {
 	cmd
+}
+
+func (e *UniversalExecutor) Available() bool {
+	return true
 }
 
 func (e *UniversalExecutor) Limit(resources structs.Resources) error {
