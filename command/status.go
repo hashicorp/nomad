@@ -20,7 +20,15 @@ Usage: nomad status [options] [job]
 
 General Options:
 
-  ` + generalOptionsUsage()
+  ` + generalOptionsUsage() + `
+
+Status Options:
+
+  -short
+    Display short output. Used only when a single job is being
+    queried, and drops verbose information about allocations
+    and evaluations.
+`
 	return strings.TrimSpace(helpText)
 }
 
@@ -29,8 +37,12 @@ func (c *StatusCommand) Synopsis() string {
 }
 
 func (c *StatusCommand) Run(args []string) int {
+	var short bool
+
 	flags := c.Meta.FlagSet("status", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
+	flags.BoolVar(&short, "short", false, "")
+
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
@@ -83,6 +95,10 @@ func (c *StatusCommand) Run(args []string) int {
 		return 1
 	}
 
+	// Make the column config so we can dump k = v pairs
+	columnConf := columnize.DefaultConfig()
+	columnConf.Glue = " = "
+
 	// Format the job info
 	basic := []string{
 		fmt.Sprintf("ID | %s", job.ID),
@@ -94,11 +110,58 @@ func (c *StatusCommand) Run(args []string) int {
 		fmt.Sprintf("StatusDescription | %s", job.StatusDescription),
 	}
 
-	// Make the column config so we can dump k = v pairs
-	columnConf := columnize.DefaultConfig()
-	columnConf.Glue = " = "
+	var evals, allocs []string
+	if !short {
+		// Query the evaluations
+		jobEvals, _, err := client.Jobs().Evaluations(jobID, nil)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error querying job evaluations: %s", err))
+			return 1
+		}
+
+		// Query the allocations
+		jobAllocs, _, err := client.Jobs().Allocations(jobID, nil)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error querying job allocations: %s", err))
+			return 1
+		}
+
+		// Format the evals
+		evals = make([]string, len(jobEvals)+1)
+		evals[0] = "ID|Priority|Type|TriggeredBy|JobID|Status|Previous|Next"
+		for i, eval := range jobEvals {
+			evals[i+1] = fmt.Sprintf("%s|%d|%s|%s|%s|%s|%s|%s",
+				eval.ID,
+				eval.Priority,
+				eval.Type,
+				eval.TriggeredBy,
+				eval.JobID,
+				eval.Status,
+				eval.PreviousEval,
+				eval.NextEval)
+		}
+
+		// Format the allocs
+		allocs = make([]string, len(jobAllocs)+1)
+		allocs[0] = "ID|EvalID|JobID|TaskGroup|DesiredStatus|ClientStatus"
+		for i, alloc := range jobAllocs {
+			allocs[i+1] = fmt.Sprintf("%s|%s|%s|%s|%s|%s",
+				alloc.ID,
+				alloc.EvalID,
+				alloc.JobID,
+				alloc.TaskGroup,
+				alloc.DesiredStatus,
+				alloc.ClientStatus)
+		}
+	}
 
 	// Dump the output
 	c.Ui.Output(columnize.Format(basic, columnConf))
+	if !short {
+		c.Ui.Output("\nEvaluations")
+		c.Ui.Output(columnize.SimpleFormat(evals))
+		c.Ui.Output("\nAllocations")
+		c.Ui.Output(columnize.SimpleFormat(allocs))
+	}
 	return 0
 }
