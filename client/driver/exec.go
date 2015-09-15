@@ -81,7 +81,7 @@ func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 
 	// Find the process
 	cmd, err := nexec.OpenPid(pid)
-	if cmd == nil || err != nil {
+	if err != nil {
 		return nil, fmt.Errorf("failed to find PID %d: %v", pid, err)
 	}
 
@@ -110,8 +110,6 @@ func (h *execHandle) Update(task *structs.Task) error {
 	return nil
 }
 
-// Kill is used to terminate the task. We send an Interrupt
-// and then provide a 5 second grace period before doing a Kill.
 func (h *execHandle) Kill() error {
 	h.cmd.Shutdown()
 	select {
