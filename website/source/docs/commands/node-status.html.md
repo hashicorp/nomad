@@ -34,6 +34,7 @@ displayed.
 List view:
 
 ```
+$ nomad node-status
 ID                                    DC   Name   Drain  Status
 a72dfba2-c01f-49de-5ac6-e3391de2c50c  dc1  node1  false  ready
 1f3f03ea-a420-b64b-c73b-51290ed7f481  dc1  node2  false  ready
@@ -42,6 +43,7 @@ a72dfba2-c01f-49de-5ac6-e3391de2c50c  dc1  node1  false  ready
 Single-node view:
 
 ```
+$ nomad node-status 1f3f03ea-a420-b64b-c73b-51290ed7f481
 ID         = 1f3f03ea-a420-b64b-c73b-51290ed7f481
 Name       = node2
 Class      = 
