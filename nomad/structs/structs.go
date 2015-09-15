@@ -532,8 +532,8 @@ type NodeListStub struct {
 // on a client
 type Resources struct {
 	CPU      float64
-	MemoryMB int
-	DiskMB   int
+	MemoryMB int `mapstructure:"memory"`
+	DiskMB   int `mapstructure:"disk"`
 	IOPS     int
 	Networks []*NetworkResource
 }
@@ -600,6 +600,10 @@ func (r *Resources) Add(delta *Resources) error {
 		}
 	}
 	return nil
+}
+
+func (r *Resources) GoString() string {
+	return fmt.Sprintf("*%#v", *r)
 }
 
 // NetworkResource is used to represesent available network
@@ -692,7 +696,7 @@ type Job struct {
 	// AllAtOnce is used to control if incremental scheduling of task groups
 	// is allowed or if we must do a gang scheduling of the entire job. This
 	// can slow down larger jobs if resources are not available.
-	AllAtOnce bool
+	AllAtOnce bool `mapstructure:"all_at_once"`
 
 	// Datacenters contains all the datacenters this job is allowed to span
 	Datacenters []string
@@ -807,6 +811,10 @@ func (tg *TaskGroup) LookupTask(name string) *Task {
 	return nil
 }
 
+func (tg *TaskGroup) GoString() string {
+	return fmt.Sprintf("*%#v", *tg)
+}
+
 // Task is a single process typically that is executed as part of a task group.
 type Task struct {
 	// Name of the task
@@ -828,6 +836,10 @@ type Task struct {
 	// Meta is used to associate arbitrary metadata with this
 	// task. This is opaque to Nomad.
 	Meta map[string]string
+}
+
+func (t *Task) GoString() string {
+	return fmt.Sprintf("*%#v", *t)
 }
 
 // Constraints are used to restrict placement options in the case of
