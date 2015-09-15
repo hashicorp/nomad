@@ -79,6 +79,13 @@ func TestParse(t *testing.T) {
 								Resources: &structs.Resources{
 									CPU:      500,
 									MemoryMB: 128,
+									Networks: []*structs.NetworkResource{
+										&structs.NetworkResource{
+											MBits:         100,
+											ReservedPorts: []int{1, 2, 3},
+											DynamicPorts:  3,
+										},
+									},
 								},
 							},
 							&structs.Task{

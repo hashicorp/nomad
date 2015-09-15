@@ -612,9 +612,9 @@ type NetworkResource struct {
 	Device        string // Name of the device
 	CIDR          string // CIDR block of addresses
 	IP            string // IP address
-	ReservedPorts []int  // Reserved ports
 	MBits         int    // Throughput
-	DynamicPorts  int    // Dynamically assigned ports
+	ReservedPorts []int  `mapstructure:"reserved_ports"` // Reserved ports
+	DynamicPorts  int    `mapstructure:"dynamic_ports"`  // Dynamically assigned ports
 }
 
 // Copy returns a deep copy of the network resource
@@ -636,6 +636,10 @@ func (n *NetworkResource) Add(delta *NetworkResource) {
 	}
 	n.MBits += delta.MBits
 	n.DynamicPorts += delta.DynamicPorts
+}
+
+func (n *NetworkResource) GoString() string {
+	return fmt.Sprintf("*%#v", *n)
 }
 
 const (

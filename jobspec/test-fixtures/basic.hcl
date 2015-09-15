@@ -34,6 +34,12 @@ job "binstore-storagelocker" {
             resources {
                 cpu = 500
                 memory = 128
+
+                network {
+                    mbits = "100"
+                    reserved_ports = [1,2,3]
+                    dynamic_ports = 3
+                }
             }
         }
 

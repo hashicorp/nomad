@@ -305,20 +305,45 @@ func parseTasks(result *[]*structs.Task, obj *hclobj.Object) error {
 		// If we have resources, then parse that
 		if o := o.Get("resources", false); o != nil {
 			var r structs.Resources
-			for _, o := range o.Elem(false) {
-				var m map[string]interface{}
-				if err := hcl.DecodeObject(&m, o); err != nil {
-					return err
-				}
-				if err := mapstructure.WeakDecode(m, &r); err != nil {
-					return err
-				}
+			if err := parseResources(&r, o); err != nil {
+				return err
 			}
 
 			t.Resources = &r
 		}
 
 		*result = append(*result, &t)
+	}
+
+	return nil
+}
+
+func parseResources(result *structs.Resources, obj *hclobj.Object) error {
+	for _, o := range obj.Elem(false) {
+		var m map[string]interface{}
+		if err := hcl.DecodeObject(&m, o); err != nil {
+			return err
+		}
+		delete(m, "network")
+
+		if err := mapstructure.WeakDecode(m, result); err != nil {
+			return err
+		}
+
+		// Parse the network resources
+		if o := o.Get("network", false); o != nil {
+			var r structs.NetworkResource
+			var m map[string]interface{}
+			if err := hcl.DecodeObject(&m, o); err != nil {
+				return err
+			}
+			if err := mapstructure.WeakDecode(m, &r); err != nil {
+				return err
+			}
+
+			result.Networks = []*structs.NetworkResource{&r}
+		}
+
 	}
 
 	return nil
