@@ -2,10 +2,12 @@ package structs
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/go-multierror"
 )
 
 var (
@@ -679,8 +681,11 @@ const (
 // is further composed of tasks. A task group (TG) is the unit of scheduling
 // however.
 type Job struct {
-	// ID is a unique identifier for the job. It can be the same as
-	// the job name, or alternatively a UUID may be used.
+	// Region is the Nomad region that handles scheduling this job
+	Region string
+
+	// ID is a unique identifier for the job per region. It can be
+	// specified hierarchically like LineOfBiz/OrgName/Team/Project
 	ID string
 
 	// Name is the logical name of the job used to refer to it. This is unique
@@ -704,9 +709,6 @@ type Job struct {
 
 	// Datacenters contains all the datacenters this job is allowed to span
 	Datacenters []string
-
-	// Region is the Nomad region that handles scheduling this job
-	Region string
 
 	// Constraints can be specified at a job level and apply to
 	// all the task groups and tasks.
@@ -732,6 +734,50 @@ type Job struct {
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
+}
+
+// Validate is used to sanity check a job input
+func (j *Job) Validate() error {
+	var mErr multierror.Error
+	if j.Region == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("Missing job region"))
+	}
+	if j.ID == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("Missing job ID"))
+	}
+	if j.Name == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("Missing job name"))
+	}
+	if j.Type == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("Missing job type"))
+	}
+	if j.Priority < JobMinPriority || j.Priority > JobMaxPriority {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("Job priority must be between [%d, %d]", JobMinPriority, JobMaxPriority))
+	}
+	if len(j.Datacenters) == 0 {
+		mErr.Errors = append(mErr.Errors, errors.New("Missing job datacenters"))
+	}
+	if len(j.TaskGroups) == 0 {
+		mErr.Errors = append(mErr.Errors, errors.New("Missing job task groups"))
+	}
+
+	// Check for duplicate task groups
+	taskGroups := make(map[string]int)
+	for idx, tg := range j.TaskGroups {
+		if tg.Name == "" {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Job task group %d missing name", idx+1))
+		} else if existing, ok := taskGroups[tg.Name]; ok {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Job task group %d redefines '%s' from group %d", idx+1, tg.Name, existing+1))
+		} else {
+			taskGroups[tg.Name] = idx
+		}
+
+		// Validate the task group
+		if err := tg.Validate(); err != nil {
+			mErr.Errors = append(mErr.Errors, err)
+		}
+	}
+	return mErr.ErrorOrNil()
 }
 
 // LookupTaskGroup finds a task group by name
@@ -808,6 +854,38 @@ type TaskGroup struct {
 	Meta map[string]string
 }
 
+// Validate is used to sanity check a task group
+func (tg *TaskGroup) Validate() error {
+	var mErr multierror.Error
+	if tg.Name == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("Missing task group name"))
+	}
+	if tg.Count < 0 {
+		mErr.Errors = append(mErr.Errors, errors.New("Task group count cannot be negative"))
+	}
+	if len(tg.Tasks) == 0 {
+		mErr.Errors = append(mErr.Errors, errors.New("Missing tasks for task group"))
+	}
+
+	// Check for duplicate tasks
+	tasks := make(map[string]int)
+	for idx, task := range tg.Tasks {
+		if task.Name == "" {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Task %d missing name", idx+1))
+		} else if existing, ok := tasks[task.Name]; ok {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Task %d redefines '%s' from task %d", idx+1, task.Name, existing+1))
+		} else {
+			tasks[task.Name] = idx
+		}
+
+		// Validate the tasks
+		if err := task.Validate(); err != nil {
+			mErr.Errors = append(mErr.Errors, err)
+		}
+	}
+	return mErr.ErrorOrNil()
+}
+
 // LookupTask finds a task by name
 func (tg *TaskGroup) LookupTask(name string) *Task {
 	for _, t := range tg.Tasks {
@@ -847,6 +925,21 @@ type Task struct {
 
 func (t *Task) GoString() string {
 	return fmt.Sprintf("*%#v", *t)
+}
+
+// Validate is used to sanity check a task group
+func (t *Task) Validate() error {
+	var mErr multierror.Error
+	if t.Name == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("Missing task name"))
+	}
+	if t.Driver == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("Missing task driver"))
+	}
+	if t.Resources == nil {
+		mErr.Errors = append(mErr.Errors, errors.New("Missing task resources"))
+	}
+	return mErr.ErrorOrNil()
 }
 
 // Constraints are used to restrict placement options in the case of
