@@ -2,8 +2,128 @@ package structs
 
 import (
 	"reflect"
+	"strings"
 	"testing"
+
+	"github.com/hashicorp/go-multierror"
 )
+
+func TestJob_Validate(t *testing.T) {
+	j := &Job{}
+	err := j.Validate()
+	mErr := err.(*multierror.Error)
+	if !strings.Contains(mErr.Errors[0].Error(), "job region") {
+		t.Fatalf("err: %s", err)
+	}
+	if !strings.Contains(mErr.Errors[1].Error(), "job ID") {
+		t.Fatalf("err: %s", err)
+	}
+	if !strings.Contains(mErr.Errors[2].Error(), "job name") {
+		t.Fatalf("err: %s", err)
+	}
+	if !strings.Contains(mErr.Errors[3].Error(), "job type") {
+		t.Fatalf("err: %s", err)
+	}
+	if !strings.Contains(mErr.Errors[4].Error(), "priority") {
+		t.Fatalf("err: %s", err)
+	}
+	if !strings.Contains(mErr.Errors[5].Error(), "datacenters") {
+		t.Fatalf("err: %s", err)
+	}
+	if !strings.Contains(mErr.Errors[6].Error(), "task groups") {
+		t.Fatalf("err: %s", err)
+	}
+
+	j = &Job{
+		Region:      "global",
+		ID:          GenerateUUID(),
+		Name:        "my-job",
+		Type:        JobTypeService,
+		Priority:    50,
+		Datacenters: []string{"dc1"},
+		TaskGroups: []*TaskGroup{
+			&TaskGroup{
+				Name: "web",
+			},
+			&TaskGroup{
+				Name: "web",
+			},
+			&TaskGroup{},
+		},
+	}
+	err = j.Validate()
+	mErr = err.(*multierror.Error)
+	if !strings.Contains(mErr.Errors[0].Error(), "2 redefines 'web' from group 1") {
+		t.Fatalf("err: %s", err)
+	}
+	if !strings.Contains(mErr.Errors[1].Error(), "group 3 missing name") {
+		t.Fatalf("err: %s", err)
+	}
+	if !strings.Contains(mErr.Errors[2].Error(), "Task group 1 validation failed") {
+		t.Fatalf("err: %s", err)
+	}
+}
+
+func TestTaskGroup_Validate(t *testing.T) {
+	tg := &TaskGroup{}
+	err := tg.Validate()
+	mErr := err.(*multierror.Error)
+	if !strings.Contains(mErr.Errors[0].Error(), "group name") {
+		t.Fatalf("err: %s", err)
+	}
+	if !strings.Contains(mErr.Errors[1].Error(), "count must be positive") {
+		t.Fatalf("err: %s", err)
+	}
+	if !strings.Contains(mErr.Errors[2].Error(), "Missing tasks") {
+		t.Fatalf("err: %s", err)
+	}
+
+	tg = &TaskGroup{
+		Name:  "web",
+		Count: 1,
+		Tasks: []*Task{
+			&Task{Name: "web"},
+			&Task{Name: "web"},
+			&Task{},
+		},
+	}
+	err = tg.Validate()
+	mErr = err.(*multierror.Error)
+	if !strings.Contains(mErr.Errors[0].Error(), "2 redefines 'web' from task 1") {
+		t.Fatalf("err: %s", err)
+	}
+	if !strings.Contains(mErr.Errors[1].Error(), "Task 3 missing name") {
+		t.Fatalf("err: %s", err)
+	}
+	if !strings.Contains(mErr.Errors[2].Error(), "Task 1 validation failed") {
+		t.Fatalf("err: %s", err)
+	}
+}
+
+func TestTask_Validate(t *testing.T) {
+	task := &Task{}
+	err := task.Validate()
+	mErr := err.(*multierror.Error)
+	if !strings.Contains(mErr.Errors[0].Error(), "task name") {
+		t.Fatalf("err: %s", err)
+	}
+	if !strings.Contains(mErr.Errors[1].Error(), "task driver") {
+		t.Fatalf("err: %s", err)
+	}
+	if !strings.Contains(mErr.Errors[2].Error(), "task resources") {
+		t.Fatalf("err: %s", err)
+	}
+
+	task = &Task{
+		Name:      "web",
+		Driver:    "docker",
+		Resources: &Resources{},
+	}
+	err = task.Validate()
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+}
 
 func TestResource_NetIndex(t *testing.T) {
 	r := &Resources{

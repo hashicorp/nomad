@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/go-multierror"
 )
@@ -771,10 +772,13 @@ func (j *Job) Validate() error {
 		} else {
 			taskGroups[tg.Name] = idx
 		}
+	}
 
-		// Validate the task group
+	// Validate the task group
+	for idx, tg := range j.TaskGroups {
 		if err := tg.Validate(); err != nil {
-			mErr.Errors = append(mErr.Errors, err)
+			outer := fmt.Errorf("Task group %d validation failed", idx+1)
+			mErr.Errors = append(mErr.Errors, errwrap.Wrap(outer, err))
 		}
 	}
 	return mErr.ErrorOrNil()
@@ -860,8 +864,8 @@ func (tg *TaskGroup) Validate() error {
 	if tg.Name == "" {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing task group name"))
 	}
-	if tg.Count < 0 {
-		mErr.Errors = append(mErr.Errors, errors.New("Task group count cannot be negative"))
+	if tg.Count <= 0 {
+		mErr.Errors = append(mErr.Errors, errors.New("Task group count must be positive"))
 	}
 	if len(tg.Tasks) == 0 {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing tasks for task group"))
@@ -877,10 +881,13 @@ func (tg *TaskGroup) Validate() error {
 		} else {
 			tasks[task.Name] = idx
 		}
+	}
 
-		// Validate the tasks
+	// Validate the tasks
+	for idx, task := range tg.Tasks {
 		if err := task.Validate(); err != nil {
-			mErr.Errors = append(mErr.Errors, err)
+			outer := fmt.Errorf("Task %d validation failed", idx+1)
+			mErr.Errors = append(mErr.Errors, errwrap.Wrap(outer, err))
 		}
 	}
 	return mErr.ErrorOrNil()
