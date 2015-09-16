@@ -21,7 +21,7 @@ const (
 type monitor struct {
 	ui     cli.Ui
 	client *api.Client
-	state  *monitorState
+	state  *evalState
 
 	sync.Mutex
 }
@@ -32,7 +32,7 @@ func newMonitor(ui cli.Ui, client *api.Client) *monitor {
 	return &monitor{
 		ui:     ui,
 		client: client,
-		state: &monitorState{
+		state: &evalState{
 			allocs: make(map[string]*allocState),
 		},
 	}
@@ -43,9 +43,9 @@ func (m *monitor) output(msg string) {
 	m.ui.Output(fmt.Sprintf("%s %s", time.Now().Format(dateFmt), msg))
 }
 
-// monitorState is used to store the current "state of the world"
+// evalState is used to store the current "state of the world"
 // in the context of monitoring an evaluation.
-type monitorState struct {
+type evalState struct {
 	status string
 	nodeID string
 	allocs map[string]*allocState
@@ -71,7 +71,7 @@ func (m *monitor) update(eval *api.Evaluation, allocs []*api.AllocationListStub)
 	existing := m.state
 
 	// Create the new state
-	update := &monitorState{
+	update := &evalState{
 		status: eval.Status,
 		nodeID: eval.NodeID,
 		allocs: make(map[string]*allocState),
@@ -93,11 +93,12 @@ func (m *monitor) update(eval *api.Evaluation, allocs []*api.AllocationListStub)
 		if existing, ok := existing.allocs[allocID]; !ok {
 			// Check if this is a failure indication allocation
 			if alloc.desired == structs.AllocDesiredStatusFailed {
-				m.output("Scheduling failed")
+				m.output(fmt.Sprintf("Scheduling failed for task group %q",
+					alloc.group))
 			} else {
 				m.output(fmt.Sprintf(
 					"Allocation %q created on node %q for task group %q",
-					alloc.id, alloc.group, alloc.node))
+					alloc.id, alloc.node, alloc.group))
 			}
 		} else {
 			if existing.client != alloc.client {
@@ -148,13 +149,14 @@ func (m *monitor) monitor(evalID string) int {
 
 	m.ui.Info(fmt.Sprintf("Monitoring evaluation %q", evalID))
 	for {
-		// Check the current state of things
+		// Query the evaluation
 		eval, _, err := m.client.Evaluations().Info(evalID, nil)
 		if err != nil {
 			m.ui.Error(fmt.Sprintf("Error reading evaluation: %s", err))
 			return 1
 		}
 
+		// Query the allocations associated with the evaluation
 		allocs, _, err := m.client.Evaluations().Allocations(evalID, nil)
 		if err != nil {
 			m.ui.Error(fmt.Sprintf("Error reading allocations: %s", err))
@@ -176,7 +178,8 @@ func (m *monitor) monitor(evalID string) int {
 
 		// Monitor the next eval, if it exists.
 		if eval.NextEval != "" {
-			return m.monitor(eval.NextEval)
+			mon := newMonitor(m.ui, m.client)
+			return mon.monitor(eval.NextEval)
 		}
 		break
 	}
