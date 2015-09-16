@@ -94,6 +94,7 @@ func (j *Jobs) ForceEvaluate(jobID string, q *WriteOptions) (string, *WriteMeta,
 
 // Job is used to serialize a job.
 type Job struct {
+	Region            string
 	ID                string
 	Name              string
 	Type              string
