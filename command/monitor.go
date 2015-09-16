@@ -54,6 +54,7 @@ type monitorState struct {
 
 // allocState is used to track the state of an allocation
 type allocState struct {
+	id      string
 	group   string
 	node    string
 	desired string
@@ -78,6 +79,7 @@ func (m *monitor) update(eval *api.Evaluation, allocs []*api.AllocationListStub)
 	}
 	for _, alloc := range allocs {
 		update.allocs[alloc.ID] = &allocState{
+			id:      alloc.ID,
 			group:   alloc.TaskGroup,
 			node:    alloc.NodeID,
 			desired: alloc.DesiredStatus,
@@ -88,13 +90,20 @@ func (m *monitor) update(eval *api.Evaluation, allocs []*api.AllocationListStub)
 
 	// Check the allocations
 	for allocID, alloc := range update.allocs {
-		if _, ok := existing.allocs[allocID]; !ok {
+		if existing, ok := existing.allocs[allocID]; !ok {
 			// Check if this is a failure indication allocation
 			if alloc.desired == structs.AllocDesiredStatusFailed {
 				m.output("Scheduling failed")
 			} else {
-				m.output(fmt.Sprintf("Allocated task group %q on node %q",
-					alloc.group, alloc.node))
+				m.output(fmt.Sprintf(
+					"Allocation %q created on node %q for task group %q",
+					alloc.id, alloc.group, alloc.node))
+			}
+		} else {
+			if existing.client != alloc.client {
+				m.output(fmt.Sprintf(
+					"Allocation %q changed status from %q to %q",
+					alloc.id, existing.client, alloc.client))
 			}
 		}
 	}
