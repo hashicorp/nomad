@@ -21,7 +21,7 @@ func TestClientEndpoint_Register(t *testing.T) {
 	node := mock.Node()
 	req := &structs.NodeRegisterRequest{
 		Node:         node,
-		WriteRequest: structs.WriteRequest{Region: "region1"},
+		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 
 	// Fetch the response
@@ -57,7 +57,7 @@ func TestClientEndpoint_Deregister(t *testing.T) {
 	node := mock.Node()
 	reg := &structs.NodeRegisterRequest{
 		Node:         node,
-		WriteRequest: structs.WriteRequest{Region: "region1"},
+		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 
 	// Fetch the response
@@ -69,7 +69,7 @@ func TestClientEndpoint_Deregister(t *testing.T) {
 	// Deregister
 	dereg := &structs.NodeDeregisterRequest{
 		NodeID:       node.ID,
-		WriteRequest: structs.WriteRequest{Region: "region1"},
+		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 	var resp2 structs.GenericResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Node.Deregister", dereg, &resp2); err != nil {
@@ -100,7 +100,7 @@ func TestClientEndpoint_UpdateStatus(t *testing.T) {
 	node := mock.Node()
 	reg := &structs.NodeRegisterRequest{
 		Node:         node,
-		WriteRequest: structs.WriteRequest{Region: "region1"},
+		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 
 	// Fetch the response
@@ -119,7 +119,7 @@ func TestClientEndpoint_UpdateStatus(t *testing.T) {
 	dereg := &structs.NodeUpdateStatusRequest{
 		NodeID:       node.ID,
 		Status:       structs.NodeStatusInit,
-		WriteRequest: structs.WriteRequest{Region: "region1"},
+		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 	var resp2 structs.NodeUpdateResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Node.UpdateStatus", dereg, &resp2); err != nil {
@@ -159,7 +159,7 @@ func TestClientEndpoint_UpdateStatus_HeartbeatOnly(t *testing.T) {
 	node := mock.Node()
 	reg := &structs.NodeRegisterRequest{
 		Node:         node,
-		WriteRequest: structs.WriteRequest{Region: "region1"},
+		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 
 	// Fetch the response
@@ -178,7 +178,7 @@ func TestClientEndpoint_UpdateStatus_HeartbeatOnly(t *testing.T) {
 	dereg := &structs.NodeUpdateStatusRequest{
 		NodeID:       node.ID,
 		Status:       node.Status,
-		WriteRequest: structs.WriteRequest{Region: "region1"},
+		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 	var resp2 structs.NodeUpdateResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Node.UpdateStatus", dereg, &resp2); err != nil {
@@ -205,7 +205,7 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 	node := mock.Node()
 	reg := &structs.NodeRegisterRequest{
 		Node:         node,
-		WriteRequest: structs.WriteRequest{Region: "region1"},
+		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 
 	// Fetch the response
@@ -218,7 +218,7 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 	dereg := &structs.NodeUpdateDrainRequest{
 		NodeID:       node.ID,
 		Drain:        true,
-		WriteRequest: structs.WriteRequest{Region: "region1"},
+		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 	var resp2 structs.NodeDrainUpdateResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp2); err != nil {
@@ -249,7 +249,7 @@ func TestClientEndpoint_GetNode(t *testing.T) {
 	node := mock.Node()
 	reg := &structs.NodeRegisterRequest{
 		Node:         node,
-		WriteRequest: structs.WriteRequest{Region: "region1"},
+		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 
 	// Fetch the response
@@ -263,7 +263,7 @@ func TestClientEndpoint_GetNode(t *testing.T) {
 	// Lookup the node
 	get := &structs.NodeSpecificRequest{
 		NodeID:       node.ID,
-		QueryOptions: structs.QueryOptions{Region: "region1"},
+		QueryOptions: structs.QueryOptions{Region: "global"},
 	}
 	var resp2 structs.SingleNodeResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Node.GetNode", get, &resp2); err != nil {
@@ -300,7 +300,7 @@ func TestClientEndpoint_GetAllocs(t *testing.T) {
 	node := mock.Node()
 	reg := &structs.NodeRegisterRequest{
 		Node:         node,
-		WriteRequest: structs.WriteRequest{Region: "region1"},
+		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 
 	// Fetch the response
@@ -323,7 +323,7 @@ func TestClientEndpoint_GetAllocs(t *testing.T) {
 	// Lookup the allocs
 	get := &structs.NodeSpecificRequest{
 		NodeID:       node.ID,
-		QueryOptions: structs.QueryOptions{Region: "region1"},
+		QueryOptions: structs.QueryOptions{Region: "global"},
 	}
 	var resp2 structs.NodeAllocsResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Node.GetAllocs", get, &resp2); err != nil {
@@ -360,7 +360,7 @@ func TestClientEndpoint_GetAllocs_Blocking(t *testing.T) {
 	node := mock.Node()
 	reg := &structs.NodeRegisterRequest{
 		Node:         node,
-		WriteRequest: structs.WriteRequest{Region: "region1"},
+		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 
 	// Fetch the response
@@ -388,7 +388,7 @@ func TestClientEndpoint_GetAllocs_Blocking(t *testing.T) {
 	get := &structs.NodeSpecificRequest{
 		NodeID: node.ID,
 		QueryOptions: structs.QueryOptions{
-			Region:        "region1",
+			Region:        "global",
 			MinQueryIndex: 50,
 			MaxQueryTime:  time.Second,
 		},
@@ -422,7 +422,7 @@ func TestClientEndpoint_UpdateAlloc(t *testing.T) {
 	node := mock.Node()
 	reg := &structs.NodeRegisterRequest{
 		Node:         node,
-		WriteRequest: structs.WriteRequest{Region: "region1"},
+		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 
 	// Fetch the response
@@ -448,7 +448,7 @@ func TestClientEndpoint_UpdateAlloc(t *testing.T) {
 	// Update the alloc
 	update := &structs.AllocUpdateRequest{
 		Alloc:        []*structs.Allocation{clientAlloc},
-		WriteRequest: structs.WriteRequest{Region: "region1"},
+		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 	var resp2 structs.NodeAllocsResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", update, &resp2); err != nil {
@@ -551,7 +551,7 @@ func TestClientEndpoint_Evaluate(t *testing.T) {
 	// Re-evaluate
 	req := &structs.NodeEvaluateRequest{
 		NodeID:       alloc.NodeID,
-		WriteRequest: structs.WriteRequest{Region: "region1"},
+		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 
 	// Fetch the response
@@ -614,7 +614,7 @@ func TestClientEndpoint_ListNodes(t *testing.T) {
 	node := mock.Node()
 	reg := &structs.NodeRegisterRequest{
 		Node:         node,
-		WriteRequest: structs.WriteRequest{Region: "region1"},
+		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 
 	// Fetch the response
@@ -627,7 +627,7 @@ func TestClientEndpoint_ListNodes(t *testing.T) {
 
 	// Lookup the node
 	get := &structs.NodeListRequest{
-		QueryOptions: structs.QueryOptions{Region: "region1"},
+		QueryOptions: structs.QueryOptions{Region: "global"},
 	}
 	var resp2 structs.NodeListResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Node.List", get, &resp2); err != nil {

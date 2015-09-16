@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	DefaultRegion   = "region1"
+	DefaultRegion   = "global"
 	DefaultDC       = "dc1"
 	DefaultSerfPort = 4648
 )
@@ -34,7 +34,7 @@ var protocolVersionMap map[uint8]uint8
 
 func init() {
 	protocolVersionMap = map[uint8]uint8{
-		1: 5,
+		1: 4,
 	}
 }
 

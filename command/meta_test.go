@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestFlagSet(t *testing.T) {
+func TestMeta_FlagSet(t *testing.T) {
 	cases := []struct {
 		Flags    FlagSetFlags
 		Expected []string
@@ -17,7 +17,7 @@ func TestFlagSet(t *testing.T) {
 			[]string{},
 		},
 		{
-			FlagSetServer,
+			FlagSetClient,
 			[]string{"address"},
 		},
 	}

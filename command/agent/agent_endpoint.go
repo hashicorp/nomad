@@ -1,10 +1,41 @@
 package agent
 
 import (
+	"net"
 	"net/http"
 
 	"github.com/hashicorp/serf/serf"
 )
+
+type Member struct {
+	Name        string
+	Addr        net.IP
+	Port        uint16
+	Tags        map[string]string
+	Status      string
+	ProtocolMin uint8
+	ProtocolMax uint8
+	ProtocolCur uint8
+	DelegateMin uint8
+	DelegateMax uint8
+	DelegateCur uint8
+}
+
+func nomadMember(m serf.Member) Member {
+	return Member{
+		Name:        m.Name,
+		Addr:        m.Addr,
+		Port:        m.Port,
+		Tags:        m.Tags,
+		Status:      m.Status.String(),
+		ProtocolMin: m.ProtocolMin,
+		ProtocolMax: m.ProtocolMax,
+		ProtocolCur: m.ProtocolCur,
+		DelegateMin: m.DelegateMin,
+		DelegateMax: m.DelegateMax,
+		DelegateCur: m.DelegateCur,
+	}
+}
 
 func (s *HTTPServer) AgentSelfRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	if req.Method != "GET" {
@@ -12,16 +43,15 @@ func (s *HTTPServer) AgentSelfRequest(resp http.ResponseWriter, req *http.Reques
 	}
 
 	// Get the member as a server
-	var member *serf.Member
+	var member serf.Member
 	srv := s.agent.Server()
 	if srv != nil {
-		mem := srv.LocalMember()
-		member = &mem
+		member = srv.LocalMember()
 	}
 
 	self := agentSelf{
 		Config: s.agent.config,
-		Member: member,
+		Member: nomadMember(member),
 		Stats:  s.agent.Stats(),
 	}
 	return self, nil
@@ -60,7 +90,13 @@ func (s *HTTPServer) AgentMembersRequest(resp http.ResponseWriter, req *http.Req
 	if srv == nil {
 		return nil, CodedError(501, ErrInvalidMethod)
 	}
-	return srv.Members(), nil
+
+	serfMembers := srv.Members()
+	members := make([]Member, len(serfMembers))
+	for i, mem := range serfMembers {
+		members[i] = nomadMember(mem)
+	}
+	return members, nil
 }
 
 func (s *HTTPServer) AgentForceLeaveRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
@@ -85,7 +121,7 @@ func (s *HTTPServer) AgentForceLeaveRequest(resp http.ResponseWriter, req *http.
 
 type agentSelf struct {
 	Config *Config                      `json:"config"`
-	Member *serf.Member                 `json:"member,omitempty"`
+	Member Member                       `json:"member,omitempty"`
 	Stats  map[string]map[string]string `json:"stats"`
 }
 

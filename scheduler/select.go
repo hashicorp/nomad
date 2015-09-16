@@ -19,6 +19,10 @@ func NewLimitIterator(ctx Context, source RankIterator, limit int) *LimitIterato
 	return iter
 }
 
+func (iter *LimitIterator) SetLimit(limit int) {
+	iter.limit = limit
+}
+
 func (iter *LimitIterator) Next() *RankedNode {
 	if iter.seen == iter.limit {
 		return nil

@@ -29,13 +29,34 @@ var offset uint64
 
 // TestServerConfig is the main server configuration struct.
 type TestServerConfig struct {
-	HTTPAddr          string    `json:"http_addr,omitempty"`
-	Bootstrap         bool      `json:"bootstrap,omitempty"`
-	DataDir           string    `json:"data_dir,omitempty"`
-	Region            string    `json:"region,omitempty"`
-	DisableCheckpoint bool      `json:"disable_update_check"`
-	LogLevel          string    `json:"log_level,omitempty"`
-	Stdout, Stderr    io.Writer `json:"-"`
+	NodeName          string        `json:"name,omitempty"`
+	DataDir           string        `json:"data_dir,omitempty"`
+	Region            string        `json:"region,omitempty"`
+	DisableCheckpoint bool          `json:"disable_update_check"`
+	LogLevel          string        `json:"log_level,omitempty"`
+	Ports             *PortsConfig  `json:"ports,omitempty"`
+	Server            *ServerConfig `json:"server,omitempty"`
+	Client            *ClientConfig `json:"client,omitempty"`
+	DevMode           bool          `json:"-"`
+	Stdout, Stderr    io.Writer     `json:"-"`
+}
+
+// Ports is used to configure the network ports we use.
+type PortsConfig struct {
+	HTTP int `json:"http,omitempty"`
+	RPC  int `json:"rpc,omitempty"`
+	Serf int `json:"serf,omitempty"`
+}
+
+// ServerConfig is used to configure the nomad server.
+type ServerConfig struct {
+	Enabled   bool `json:"enabled"`
+	Bootstrap bool `json:"bootstrap"`
+}
+
+// ClientConfig is used to configure the client
+type ClientConfig struct {
+	Enabled bool `json:"enabled"`
 }
 
 // ServerConfigCallback is a function interface which can be
@@ -48,10 +69,21 @@ func defaultServerConfig() *TestServerConfig {
 	idx := int(atomic.AddUint64(&offset, 1))
 
 	return &TestServerConfig{
+		NodeName:          fmt.Sprintf("node%d", idx),
 		DisableCheckpoint: true,
-		Bootstrap:         true,
 		LogLevel:          "DEBUG",
-		HTTPAddr:          fmt.Sprintf("127.0.0.1:%d", 20000+idx),
+		Ports: &PortsConfig{
+			HTTP: 20000 + idx,
+			RPC:  21000 + idx,
+			Serf: 22000 + idx,
+		},
+		Server: &ServerConfig{
+			Enabled:   true,
+			Bootstrap: true,
+		},
+		Client: &ClientConfig{
+			Enabled: false,
+		},
 	}
 }
 
@@ -62,6 +94,7 @@ type TestServer struct {
 	t      *testing.T
 
 	HTTPAddr   string
+	SerfAddr   string
 	HttpClient *http.Client
 }
 
@@ -110,8 +143,13 @@ func NewTestServer(t *testing.T, cb ServerConfigCallback) *TestServer {
 		stderr = nomadConfig.Stderr
 	}
 
+	args := []string{"agent", "-config", configFile.Name()}
+	if nomadConfig.DevMode {
+		args = append(args, "-dev")
+	}
+
 	// Start the server
-	cmd := exec.Command("nomad", "agent", "-dev", "-config", configFile.Name())
+	cmd := exec.Command("nomad", args...)
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 	if err := cmd.Start(); err != nil {
@@ -126,12 +164,13 @@ func NewTestServer(t *testing.T, cb ServerConfigCallback) *TestServer {
 		PID:    cmd.Process.Pid,
 		t:      t,
 
-		HTTPAddr:   nomadConfig.HTTPAddr,
+		HTTPAddr:   fmt.Sprintf("127.0.0.1:%d", nomadConfig.Ports.HTTP),
+		SerfAddr:   fmt.Sprintf("127.0.0.1:%d", nomadConfig.Ports.Serf),
 		HttpClient: client,
 	}
 
 	// Wait for the server to be ready
-	if nomadConfig.Bootstrap {
+	if nomadConfig.Server.Enabled && nomadConfig.Server.Bootstrap {
 		server.waitForLeader()
 	} else {
 		server.waitForAPI()
@@ -155,7 +194,7 @@ func (s *TestServer) Stop() {
 // but will likely return before a leader is elected.
 func (s *TestServer) waitForAPI() {
 	WaitForResult(func() (bool, error) {
-		resp, err := s.HttpClient.Get(s.url("/v1/jobs?stale"))
+		resp, err := s.HttpClient.Get(s.url("/v1/agent/self"))
 		if err != nil {
 			return false, err
 		}
@@ -187,7 +226,6 @@ func (s *TestServer) waitForLeader() {
 
 		// Ensure we have a leader and a node registeration
 		if leader := resp.Header.Get("X-Nomad-KnownLeader"); leader != "true" {
-			fmt.Println(leader)
 			return false, fmt.Errorf("Nomad leader status: %#v", leader)
 		}
 		return true, nil

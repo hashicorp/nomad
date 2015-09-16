@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -77,5 +78,88 @@ func TestAgent_RPCPing(t *testing.T) {
 	var out struct{}
 	if err := agent.RPC("Status.Ping", struct{}{}, &out); err != nil {
 		t.Fatalf("err: %v", err)
+	}
+}
+
+func TestAgent_ServerConfig(t *testing.T) {
+	conf := DefaultConfig()
+	a := &Agent{config: conf}
+
+	// Returns error on bad serf addr
+	conf.AdvertiseAddrs.Serf = "nope"
+	_, err := a.serverConfig()
+	if err == nil || !strings.Contains(err.Error(), "serf advertise") {
+		t.Fatalf("expected serf address error, got: %#v", err)
+	}
+	conf.AdvertiseAddrs.Serf = "127.0.0.1:4000"
+
+	// Returns error on bad rpc addr
+	conf.AdvertiseAddrs.RPC = "nope"
+	_, err = a.serverConfig()
+	if err == nil || !strings.Contains(err.Error(), "rpc advertise") {
+		t.Fatalf("expected rpc address error, got: %#v", err)
+	}
+	conf.AdvertiseAddrs.RPC = "127.0.0.1:4001"
+
+	// Parses the advertise addrs correctly
+	out, err := a.serverConfig()
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	serfAddr := out.SerfConfig.MemberlistConfig.AdvertiseAddr
+	if serfAddr != "127.0.0.1" {
+		t.Fatalf("expect 127.0.0.1, got: %s", serfAddr)
+	}
+	serfPort := out.SerfConfig.MemberlistConfig.AdvertisePort
+	if serfPort != 4000 {
+		t.Fatalf("expected 4000, got: %d", serfPort)
+	}
+	if addr := out.RPCAdvertise; addr.IP.String() != "127.0.0.1" || addr.Port != 4001 {
+		t.Fatalf("bad rpc advertise addr: %#v", addr)
+	}
+
+	// Sets up the ports properly
+	conf.Ports.RPC = 4003
+	conf.Ports.Serf = 4004
+
+	out, err = a.serverConfig()
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	if addr := out.RPCAddr.Port; addr != 4003 {
+		t.Fatalf("expect 4003, got: %d", out.RPCAddr.Port)
+	}
+	if port := out.SerfConfig.MemberlistConfig.BindPort; port != 4004 {
+		t.Fatalf("expect 4004, got: %d", port)
+	}
+
+	// Prefers the most specific bind addrs
+	conf.BindAddr = "127.0.0.3"
+	conf.Addresses.RPC = "127.0.0.2"
+	conf.Addresses.Serf = "127.0.0.2"
+
+	out, err = a.serverConfig()
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	if addr := out.RPCAddr.IP.String(); addr != "127.0.0.2" {
+		t.Fatalf("expect 127.0.0.2, got: %s", addr)
+	}
+	if addr := out.SerfConfig.MemberlistConfig.BindAddr; addr != "127.0.0.2" {
+		t.Fatalf("expect 127.0.0.2, got: %s", addr)
+	}
+
+	// Defaults to the global bind addr
+	conf.Addresses.RPC = ""
+	conf.Addresses.Serf = ""
+	out, err = a.serverConfig()
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	if addr := out.RPCAddr.IP.String(); addr != "127.0.0.3" {
+		t.Fatalf("expect 127.0.0.3, got: %s", addr)
+	}
+	if addr := out.SerfConfig.MemberlistConfig.BindAddr; addr != "127.0.0.3" {
+		t.Fatalf("expect 127.0.0.3, got: %s", addr)
 	}
 }

@@ -29,7 +29,7 @@ func TestStatusVersion(t *testing.T) {
 
 	arg := &structs.GenericRequest{
 		QueryOptions: structs.QueryOptions{
-			Region:     "region1",
+			Region:     "global",
 			AllowStale: true,
 		},
 	}
@@ -72,7 +72,7 @@ func TestStatusLeader(t *testing.T) {
 
 	arg := &structs.GenericRequest{
 		QueryOptions: structs.QueryOptions{
-			Region:     "region1",
+			Region:     "global",
 			AllowStale: true,
 		},
 	}
@@ -92,7 +92,7 @@ func TestStatusPeers(t *testing.T) {
 
 	arg := &structs.GenericRequest{
 		QueryOptions: structs.QueryOptions{
-			Region:     "region1",
+			Region:     "global",
 			AllowStale: true,
 		},
 	}

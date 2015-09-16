@@ -268,7 +268,7 @@ func TestParseRegion(t *testing.T) {
 	}
 
 	s.Server.parseRegion(req, &region)
-	if region != "region1" {
+	if region != "global" {
 		t.Fatalf("bad %s", region)
 	}
 }

@@ -39,25 +39,50 @@ func TestFilterTerminalALlocs(t *testing.T) {
 	}
 }
 
-func TestPortsOvercommitted(t *testing.T) {
-	r := &Resources{
-		Networks: []*NetworkResource{
-			&NetworkResource{
-				ReservedPorts: []int{22, 80},
-			},
-			&NetworkResource{
-				ReservedPorts: []int{22, 80},
+func TestAllocsFit_PortsOvercommitted(t *testing.T) {
+	n := &Node{
+		Resources: &Resources{
+			Networks: []*NetworkResource{
+				&NetworkResource{
+					Device: "eth0",
+					CIDR:   "10.0.0.0/8",
+					MBits:  100,
+				},
 			},
 		},
 	}
-	if PortsOvercommited(r) {
-		t.Fatalf("bad")
+
+	a1 := &Allocation{
+		TaskResources: map[string]*Resources{
+			"web": &Resources{
+				Networks: []*NetworkResource{
+					&NetworkResource{
+						Device:        "eth0",
+						IP:            "10.0.0.1",
+						MBits:         50,
+						ReservedPorts: []int{8000},
+					},
+				},
+			},
+		},
 	}
 
-	// Overcommit 22
-	r.Networks[1].ReservedPorts[1] = 22
-	if !PortsOvercommited(r) {
-		t.Fatalf("bad")
+	// Should fit one allocation
+	fit, dim, _, err := AllocsFit(n, []*Allocation{a1}, nil)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if !fit {
+		t.Fatalf("Bad: %s", dim)
+	}
+
+	// Should not fit second allocation
+	fit, _, _, err = AllocsFit(n, []*Allocation{a1, a1}, nil)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if fit {
+		t.Fatalf("Bad")
 	}
 }
 
@@ -70,8 +95,9 @@ func TestAllocsFit(t *testing.T) {
 			IOPS:     100,
 			Networks: []*NetworkResource{
 				&NetworkResource{
-					CIDR:  "10.0.0.0/8",
-					MBits: 100,
+					Device: "eth0",
+					CIDR:   "10.0.0.0/8",
+					MBits:  100,
 				},
 			},
 		},
@@ -82,7 +108,8 @@ func TestAllocsFit(t *testing.T) {
 			IOPS:     50,
 			Networks: []*NetworkResource{
 				&NetworkResource{
-					CIDR:          "10.0.0.0/8",
+					Device:        "eth0",
+					IP:            "10.0.0.1",
 					MBits:         50,
 					ReservedPorts: []int{80},
 				},
@@ -98,7 +125,8 @@ func TestAllocsFit(t *testing.T) {
 			IOPS:     50,
 			Networks: []*NetworkResource{
 				&NetworkResource{
-					CIDR:          "10.0.0.0/8",
+					Device:        "eth0",
+					IP:            "10.0.0.1",
 					MBits:         50,
 					ReservedPorts: []int{8000},
 				},
@@ -107,7 +135,7 @@ func TestAllocsFit(t *testing.T) {
 	}
 
 	// Should fit one allocation
-	fit, used, err := AllocsFit(n, []*Allocation{a1})
+	fit, _, used, err := AllocsFit(n, []*Allocation{a1}, nil)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -124,7 +152,7 @@ func TestAllocsFit(t *testing.T) {
 	}
 
 	// Should not fit second allocation
-	fit, used, err = AllocsFit(n, []*Allocation{a1, a1})
+	fit, _, used, err = AllocsFit(n, []*Allocation{a1, a1}, nil)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

@@ -18,6 +18,12 @@ import (
 const (
 	// ErrInvalidMethod is used if the HTTP method is not supported
 	ErrInvalidMethod = "Invalid method"
+
+	// scadaHTTPAddr is the address associated with the
+	// HTTPServer. When populating an ACL token for a request,
+	// this is checked to switch between the ACLToken and
+	// AtlasACLToken
+	scadaHTTPAddr = "SCADA"
 )
 
 // HTTPServer is used to wrap an Agent and expose it over an HTTP interface
@@ -26,14 +32,15 @@ type HTTPServer struct {
 	mux      *http.ServeMux
 	listener net.Listener
 	logger   *log.Logger
+	addr     string
 }
 
 // NewHTTPServer starts new HTTP server over the agent
 func NewHTTPServer(agent *Agent, config *Config, logOutput io.Writer) (*HTTPServer, error) {
 	// Start the listener
-	ln, err := net.Listen("tcp", config.HttpAddr)
+	ln, err := config.Listener("tcp", config.Addresses.HTTP, config.Ports.HTTP)
 	if err != nil {
-		return nil, fmt.Errorf("failed to start HTTP listener on %s: %v", config.HttpAddr, err)
+		return nil, fmt.Errorf("failed to start HTTP listener: %v", err)
 	}
 
 	// Create the mux
@@ -45,12 +52,34 @@ func NewHTTPServer(agent *Agent, config *Config, logOutput io.Writer) (*HTTPServ
 		mux:      mux,
 		listener: ln,
 		logger:   log.New(logOutput, "", log.LstdFlags),
+		addr:     ln.Addr().String(),
 	}
 	srv.registerHandlers(config.EnableDebug)
 
 	// Start the server
 	go http.Serve(ln, mux)
 	return srv, nil
+}
+
+// newScadaHttp creates a new HTTP server wrapping the SCADA
+// listener such that HTTP calls can be sent from the brokers.
+func newScadaHttp(agent *Agent, list net.Listener) *HTTPServer {
+	// Create the mux
+	mux := http.NewServeMux()
+
+	// Create the server
+	srv := &HTTPServer{
+		agent:    agent,
+		mux:      mux,
+		listener: list,
+		logger:   agent.logger,
+		addr:     scadaHTTPAddr,
+	}
+	srv.registerHandlers(false) // Never allow debug for SCADA
+
+	// Start the server
+	go http.Serve(list, mux)
+	return srv
 }
 
 // Shutdown is used to shutdown the HTTP server

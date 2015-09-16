@@ -1,0 +1,76 @@
+---
+layout: "docs"
+page_title: "Commands: status"
+sidebar_current: "docs-commands-status"
+description: >
+  Display information and status of jobs.
+---
+
+# Command: status
+
+The `status` command displays status information for jobs.
+
+## Usage
+
+```
+nomad status [options] [job]
+```
+
+This command accepts an option job ID as the sole argument. If the job ID is
+provided, information about the specific job is queried and displayed. If the ID
+is omitted, the command lists out all of the existing jobs and a few of the most
+useful status fields for each.
+
+## General Options
+
+<%= general_options_usage %>
+
+## Status Options
+
+* `-short`: Display short output. Used only when a single node is being queried.
+  Drops verbose node allocation data from the output.
+
+## Examples
+
+List of all jobs:
+
+```
+$ nomad status
+ID     Type     Priority  Status
+job1   service  3         pending
+job2   service  3         running
+job3   service  2         pending
+job4   service  1         complete
+```
+
+Short view of a specific job:
+
+```
+$ nomad status -short job1
+ID          = job1
+Name        = Test Job
+Type        = service
+Priority    = 3
+Datacenters = dc1,dc2,dc3
+Status      = pending
+```
+
+Full status information of a job:
+
+```
+$ nomad status job1
+ID          = job1
+Name        = Test Job
+Type        = service
+Priority    = 3
+Datacenters = dc1,dc2,dc3
+Status      = pending
+
+### Evaluations
+ID                                    Priority  Type     TriggeredBy   NodeID  Status
+193229c4-aa02-bbe6-f996-fd7d6974a309  3         service  job-register  node2   complete
+
+### Allocations
+ID                                    EvalID                                NodeID  TaskGroup  DesiredStatus  ClientStatus
+678c51dc-6c55-0ac8-d92d-675a1e8ea6b0  193229c4-aa02-bbe6-f996-fd7d6974a309  node2   grp8       failed         failed
+```

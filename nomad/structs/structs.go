@@ -2,10 +2,14 @@ package structs
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"strings"
 	"time"
 
+	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/go-multierror"
 )
 
 var (
@@ -532,18 +536,28 @@ type NodeListStub struct {
 // on a client
 type Resources struct {
 	CPU      float64
-	MemoryMB int
-	DiskMB   int
+	MemoryMB int `mapstructure:"memory"`
+	DiskMB   int `mapstructure:"disk"`
 	IOPS     int
 	Networks []*NetworkResource
 }
 
-// NetIndexByCIDR scans the list of networks for a matching
-// CIDR, returning the index. This currently ONLY handles
-// an exact match and not a subset CIDR.
-func (r *Resources) NetIndexByCIDR(cidr string) int {
+// Copy returns a deep copy of the resources
+func (r *Resources) Copy() *Resources {
+	newR := new(Resources)
+	*newR = *r
+	n := len(r.Networks)
+	newR.Networks = make([]*NetworkResource, n)
+	for i := 0; i < n; i++ {
+		newR.Networks[i] = r.Networks[i].Copy()
+	}
+	return newR
+}
+
+// NetIndex finds the matching net index using device name
+func (r *Resources) NetIndex(n *NetworkResource) int {
 	for idx, net := range r.Networks {
-		if net.CIDR == cidr {
+		if net.Device == n.Device {
 			return idx
 		}
 	}
@@ -551,36 +565,22 @@ func (r *Resources) NetIndexByCIDR(cidr string) int {
 }
 
 // Superset checks if one set of resources is a superset
-// of another.
-func (r *Resources) Superset(other *Resources) bool {
+// of another. This ignores network resources, and the NetworkIndex
+// should be used for that.
+func (r *Resources) Superset(other *Resources) (bool, string) {
 	if r.CPU < other.CPU {
-		return false
+		return false, "cpu exhausted"
 	}
 	if r.MemoryMB < other.MemoryMB {
-		return false
+		return false, "memory exhausted"
 	}
 	if r.DiskMB < other.DiskMB {
-		return false
+		return false, "disk exhausted"
 	}
 	if r.IOPS < other.IOPS {
-		return false
+		return false, "iops exhausted"
 	}
-	for _, net := range r.Networks {
-		idx := other.NetIndexByCIDR(net.CIDR)
-		if idx >= 0 {
-			if net.MBits < other.Networks[idx].MBits {
-				return false
-			}
-		}
-	}
-	// Check that other does not have a network we are missing
-	for _, net := range other.Networks {
-		idx := r.NetIndexByCIDR(net.CIDR)
-		if idx == -1 {
-			return false
-		}
-	}
-	return true
+	return true, ""
 }
 
 // Add adds the resources of the delta to this, potentially
@@ -594,23 +594,42 @@ func (r *Resources) Add(delta *Resources) error {
 	r.DiskMB += delta.DiskMB
 	r.IOPS += delta.IOPS
 
-	for _, net := range delta.Networks {
-		idx := r.NetIndexByCIDR(net.CIDR)
+	for _, n := range delta.Networks {
+		// Find the matching interface by IP or CIDR
+		idx := r.NetIndex(n)
 		if idx == -1 {
-			return fmt.Errorf("missing network for CIDR %s", net.CIDR)
+			r.Networks = append(r.Networks, n.Copy())
+		} else {
+			r.Networks[idx].Add(n)
 		}
-		r.Networks[idx].Add(net)
 	}
 	return nil
+}
+
+func (r *Resources) GoString() string {
+	return fmt.Sprintf("*%#v", *r)
 }
 
 // NetworkResource is used to represesent available network
 // resources
 type NetworkResource struct {
-	Public        bool   // Is this a public address?
+	Device        string // Name of the device
 	CIDR          string // CIDR block of addresses
-	ReservedPorts []int  // Reserved ports
+	IP            string // IP address
 	MBits         int    // Throughput
+	ReservedPorts []int  `mapstructure:"reserved_ports"` // Reserved ports
+	DynamicPorts  int    `mapstructure:"dynamic_ports"`  // Dynamically assigned ports
+}
+
+// Copy returns a deep copy of the network resource
+func (n *NetworkResource) Copy() *NetworkResource {
+	newR := new(NetworkResource)
+	*newR = *n
+	if n.ReservedPorts != nil {
+		newR.ReservedPorts = make([]int, len(n.ReservedPorts))
+		copy(newR.ReservedPorts, n.ReservedPorts)
+	}
+	return newR
 }
 
 // Add adds the resources of the delta to this, potentially
@@ -620,13 +639,17 @@ func (n *NetworkResource) Add(delta *NetworkResource) {
 		n.ReservedPorts = append(n.ReservedPorts, delta.ReservedPorts...)
 	}
 	n.MBits += delta.MBits
+	n.DynamicPorts += delta.DynamicPorts
+}
+
+func (n *NetworkResource) GoString() string {
+	return fmt.Sprintf("*%#v", *n)
 }
 
 const (
 	// JobTypeNomad is reserved for internal system tasks and is
 	// always handled by the CoreScheduler.
 	JobTypeCore    = "_core"
-	JobTypeSystem  = "system"
 	JobTypeService = "service"
 	JobTypeBatch   = "batch"
 )
@@ -660,8 +683,11 @@ const (
 // is further composed of tasks. A task group (TG) is the unit of scheduling
 // however.
 type Job struct {
-	// ID is a unique identifier for the job. It can be the same as
-	// the job name, or alternatively a UUID may be used.
+	// Region is the Nomad region that handles scheduling this job
+	Region string
+
+	// ID is a unique identifier for the job per region. It can be
+	// specified hierarchically like LineOfBiz/OrgName/Team/Project
 	ID string
 
 	// Name is the logical name of the job used to refer to it. This is unique
@@ -681,7 +707,7 @@ type Job struct {
 	// AllAtOnce is used to control if incremental scheduling of task groups
 	// is allowed or if we must do a gang scheduling of the entire job. This
 	// can slow down larger jobs if resources are not available.
-	AllAtOnce bool
+	AllAtOnce bool `mapstructure:"all_at_once"`
 
 	// Datacenters contains all the datacenters this job is allowed to span
 	Datacenters []string
@@ -710,6 +736,55 @@ type Job struct {
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
+}
+
+// Validate is used to sanity check a job input
+func (j *Job) Validate() error {
+	var mErr multierror.Error
+	if j.Region == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("Missing job region"))
+	}
+	if j.ID == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("Missing job ID"))
+	} else if strings.Contains(j.ID, " ") {
+		mErr.Errors = append(mErr.Errors, errors.New("Job ID contains a space"))
+	}
+	if j.Name == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("Missing job name"))
+	}
+	if j.Type == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("Missing job type"))
+	}
+	if j.Priority < JobMinPriority || j.Priority > JobMaxPriority {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("Job priority must be between [%d, %d]", JobMinPriority, JobMaxPriority))
+	}
+	if len(j.Datacenters) == 0 {
+		mErr.Errors = append(mErr.Errors, errors.New("Missing job datacenters"))
+	}
+	if len(j.TaskGroups) == 0 {
+		mErr.Errors = append(mErr.Errors, errors.New("Missing job task groups"))
+	}
+
+	// Check for duplicate task groups
+	taskGroups := make(map[string]int)
+	for idx, tg := range j.TaskGroups {
+		if tg.Name == "" {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Job task group %d missing name", idx+1))
+		} else if existing, ok := taskGroups[tg.Name]; ok {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Job task group %d redefines '%s' from group %d", idx+1, tg.Name, existing+1))
+		} else {
+			taskGroups[tg.Name] = idx
+		}
+	}
+
+	// Validate the task group
+	for idx, tg := range j.TaskGroups {
+		if err := tg.Validate(); err != nil {
+			outer := fmt.Errorf("Task group %d validation failed", idx+1)
+			mErr.Errors = append(mErr.Errors, errwrap.Wrap(outer, err))
+		}
+	}
+	return mErr.ErrorOrNil()
 }
 
 // LookupTaskGroup finds a task group by name
@@ -786,6 +861,41 @@ type TaskGroup struct {
 	Meta map[string]string
 }
 
+// Validate is used to sanity check a task group
+func (tg *TaskGroup) Validate() error {
+	var mErr multierror.Error
+	if tg.Name == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("Missing task group name"))
+	}
+	if tg.Count <= 0 {
+		mErr.Errors = append(mErr.Errors, errors.New("Task group count must be positive"))
+	}
+	if len(tg.Tasks) == 0 {
+		mErr.Errors = append(mErr.Errors, errors.New("Missing tasks for task group"))
+	}
+
+	// Check for duplicate tasks
+	tasks := make(map[string]int)
+	for idx, task := range tg.Tasks {
+		if task.Name == "" {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Task %d missing name", idx+1))
+		} else if existing, ok := tasks[task.Name]; ok {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Task %d redefines '%s' from task %d", idx+1, task.Name, existing+1))
+		} else {
+			tasks[task.Name] = idx
+		}
+	}
+
+	// Validate the tasks
+	for idx, task := range tg.Tasks {
+		if err := task.Validate(); err != nil {
+			outer := fmt.Errorf("Task %d validation failed", idx+1)
+			mErr.Errors = append(mErr.Errors, errwrap.Wrap(outer, err))
+		}
+	}
+	return mErr.ErrorOrNil()
+}
+
 // LookupTask finds a task by name
 func (tg *TaskGroup) LookupTask(name string) *Task {
 	for _, t := range tg.Tasks {
@@ -794,6 +904,10 @@ func (tg *TaskGroup) LookupTask(name string) *Task {
 		}
 	}
 	return nil
+}
+
+func (tg *TaskGroup) GoString() string {
+	return fmt.Sprintf("*%#v", *tg)
 }
 
 // Task is a single process typically that is executed as part of a task group.
@@ -817,6 +931,25 @@ type Task struct {
 	// Meta is used to associate arbitrary metadata with this
 	// task. This is opaque to Nomad.
 	Meta map[string]string
+}
+
+func (t *Task) GoString() string {
+	return fmt.Sprintf("*%#v", *t)
+}
+
+// Validate is used to sanity check a task group
+func (t *Task) Validate() error {
+	var mErr multierror.Error
+	if t.Name == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("Missing task name"))
+	}
+	if t.Driver == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("Missing task driver"))
+	}
+	if t.Resources == nil {
+		mErr.Errors = append(mErr.Errors, errors.New("Missing task resources"))
+	}
+	return mErr.ErrorOrNil()
 }
 
 // Constraints are used to restrict placement options in the case of
@@ -871,9 +1004,13 @@ type Allocation struct {
 	// TaskGroup is the name of the task group that should be run
 	TaskGroup string
 
-	// Resources is the set of resources allocated as part
+	// Resources is the total set of resources allocated as part
 	// of this allocation of the task group.
 	Resources *Resources
+
+	// TaskResources is the set of resources allocated to each
+	// task. These should sum to the total Resources.
+	TaskResources map[string]*Resources
 
 	// Metrics associated with this allocation
 	Metrics *AllocMetric
@@ -964,6 +1101,9 @@ type AllocMetric struct {
 	// ClassExhausted is the number of nodes exhausted by class
 	ClassExhausted map[string]int
 
+	// DimensionExhaused provides the count by dimension or reason
+	DimensionExhaused map[string]int
+
 	// Scores is the scores of the final few nodes remaining
 	// for placement. The top score is typically selected.
 	Scores map[string]float64
@@ -999,13 +1139,19 @@ func (a *AllocMetric) FilterNode(node *Node, constraint string) {
 	}
 }
 
-func (a *AllocMetric) ExhaustedNode(node *Node) {
+func (a *AllocMetric) ExhaustedNode(node *Node, dimension string) {
 	a.NodesExhausted += 1
 	if node != nil && node.NodeClass != "" {
 		if a.ClassExhausted == nil {
 			a.ClassExhausted = make(map[string]int)
 		}
 		a.ClassExhausted[node.NodeClass] += 1
+	}
+	if dimension != "" {
+		if a.DimensionExhaused == nil {
+			a.DimensionExhaused = make(map[string]int)
+		}
+		a.DimensionExhaused[dimension] += 1
 	}
 }
 

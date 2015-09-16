@@ -12,12 +12,11 @@ import (
 
 func TestConfig_Merge(t *testing.T) {
 	c1 := &Config{
-		Region:                    "region1",
+		Region:                    "global",
 		Datacenter:                "dc1",
 		NodeName:                  "node1",
 		DataDir:                   "/tmp/dir1",
 		LogLevel:                  "INFO",
-		HttpAddr:                  "127.0.0.1:4646",
 		EnableDebug:               false,
 		LeaveOnInt:                false,
 		LeaveOnTerm:               false,
@@ -25,6 +24,7 @@ func TestConfig_Merge(t *testing.T) {
 		SyslogFacility:            "local0.info",
 		DisableUpdateCheck:        false,
 		DisableAnonymousSignature: false,
+		BindAddr:                  "127.0.0.1",
 		Telemetry: &Telemetry{
 			StatsiteAddr:    "127.0.0.1:8125",
 			StatsdAddr:      "127.0.0.1:8125",
@@ -43,9 +43,21 @@ func TestConfig_Merge(t *testing.T) {
 			BootstrapExpect: 1,
 			DataDir:         "/tmp/data1",
 			ProtocolVersion: 1,
-			AdvertiseAddr:   "127.0.0.1:4647",
-			BindAddr:        "127.0.0.1",
 			NumSchedulers:   1,
+		},
+		Ports: &Ports{
+			HTTP: 4646,
+			RPC:  4647,
+			Serf: 4648,
+		},
+		Addresses: &Addresses{
+			HTTP: "127.0.0.1",
+			RPC:  "127.0.0.1",
+			Serf: "127.0.0.1",
+		},
+		AdvertiseAddrs: &AdvertiseAddrs{
+			RPC:  "127.0.0.1",
+			Serf: "127.0.0.1",
 		},
 	}
 
@@ -55,7 +67,6 @@ func TestConfig_Merge(t *testing.T) {
 		NodeName:                  "node2",
 		DataDir:                   "/tmp/dir2",
 		LogLevel:                  "DEBUG",
-		HttpAddr:                  "0.0.0.0:80",
 		EnableDebug:               true,
 		LeaveOnInt:                true,
 		LeaveOnTerm:               true,
@@ -63,6 +74,7 @@ func TestConfig_Merge(t *testing.T) {
 		SyslogFacility:            "local0.debug",
 		DisableUpdateCheck:        true,
 		DisableAnonymousSignature: true,
+		BindAddr:                  "127.0.0.2",
 		Telemetry: &Telemetry{
 			StatsiteAddr:    "127.0.0.2:8125",
 			StatsdAddr:      "127.0.0.2:8125",
@@ -83,10 +95,22 @@ func TestConfig_Merge(t *testing.T) {
 			BootstrapExpect:   2,
 			DataDir:           "/tmp/data2",
 			ProtocolVersion:   2,
-			AdvertiseAddr:     "127.0.0.2:4647",
-			BindAddr:          "127.0.0.2",
 			NumSchedulers:     2,
 			EnabledSchedulers: []string{structs.JobTypeBatch},
+		},
+		Ports: &Ports{
+			HTTP: 20000,
+			RPC:  21000,
+			Serf: 22000,
+		},
+		Addresses: &Addresses{
+			HTTP: "127.0.0.2",
+			RPC:  "127.0.0.2",
+			Serf: "127.0.0.2",
+		},
+		AdvertiseAddrs: &AdvertiseAddrs{
+			RPC:  "127.0.0.2",
+			Serf: "127.0.0.2",
 		},
 	}
 
@@ -229,5 +253,46 @@ func TestConfig_LoadConfig(t *testing.T) {
 	}
 	if config.Datacenter != "sfo" {
 		t.Fatalf("bad: %#v", config)
+	}
+}
+
+func TestConfig_Listener(t *testing.T) {
+	config := DefaultConfig()
+
+	// Fails on invalid input
+	if _, err := config.Listener("tcp", "nope", 8080); err == nil {
+		t.Fatalf("expected addr error")
+	}
+	if _, err := config.Listener("nope", "127.0.0.1", 8080); err == nil {
+		t.Fatalf("expected protocol err")
+	}
+	if _, err := config.Listener("tcp", "127.0.0.1", -1); err == nil {
+		t.Fatalf("expected port error")
+	}
+
+	// Works with valid inputs
+	ln, err := config.Listener("tcp", "127.0.0.1", 24000)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	ln.Close()
+
+	if net := ln.Addr().Network(); net != "tcp" {
+		t.Fatalf("expected tcp, got: %q", net)
+	}
+	if addr := ln.Addr().String(); addr != "127.0.0.1:24000" {
+		t.Fatalf("expected 127.0.0.1:4646, got: %q", addr)
+	}
+
+	// Falls back to default bind address if non provided
+	config.BindAddr = "0.0.0.0"
+	ln, err = config.Listener("tcp4", "", 24000)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	ln.Close()
+
+	if addr := ln.Addr().String(); addr != "0.0.0.0:24000" {
+		t.Fatalf("expected 0.0.0.0:24000, got: %q", addr)
 	}
 }
