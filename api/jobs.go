@@ -126,23 +126,24 @@ type JobListStub struct {
 // NewServiceJob creates and returns a new service-style job
 // for long-lived processes using the provided name, ID, and
 // relative job priority.
-func NewServiceJob(id, name string, pri int) *Job {
-	return newJob(id, name, JobTypeService, pri)
+func NewServiceJob(id, name, region string, pri int) *Job {
+	return newJob(id, name, region, JobTypeService, pri)
 }
 
 // NewBatchJob creates and returns a new batch-style job for
 // short-lived processes using the provided name and ID along
 // with the relative job priority.
-func NewBatchJob(id, name string, pri int) *Job {
-	return newJob(id, name, JobTypeBatch, pri)
+func NewBatchJob(id, name, region string, pri int) *Job {
+	return newJob(id, name, region, JobTypeBatch, pri)
 }
 
 // newJob is used to create a new Job struct.
-func newJob(jobID, jobName, jobType string, pri int) *Job {
+func newJob(id, name, region, typ string, pri int) *Job {
 	return &Job{
-		ID:       jobID,
-		Name:     jobName,
-		Type:     jobType,
+		Region:   region,
+		ID:       id,
+		Name:     name,
+		Type:     typ,
 		Priority: pri,
 	}
 }

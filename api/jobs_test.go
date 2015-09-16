@@ -218,8 +218,9 @@ func TestJobs_ForceEvaluate(t *testing.T) {
 }
 
 func TestJobs_NewBatchJob(t *testing.T) {
-	job := NewBatchJob("job1", "myjob", 5)
+	job := NewBatchJob("job1", "myjob", "region1", 5)
 	expect := &Job{
+		Region:   "region1",
 		ID:       "job1",
 		Name:     "myjob",
 		Type:     JobTypeBatch,
@@ -231,8 +232,9 @@ func TestJobs_NewBatchJob(t *testing.T) {
 }
 
 func TestJobs_NewServiceJob(t *testing.T) {
-	job := NewServiceJob("job1", "myjob", 5)
+	job := NewServiceJob("job1", "myjob", "region1", 5)
 	expect := &Job{
+		Region:   "region1",
 		ID:       "job1",
 		Name:     "myjob",
 		Type:     JobTypeService,
