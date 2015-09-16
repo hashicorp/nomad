@@ -37,3 +37,17 @@ func testServer(
 	}
 	return srv, client, clientConf.Address
 }
+
+func testJob(jobID string) *api.Job {
+	task := api.NewTask("task1", "exec").
+		Require(&api.Resources{MemoryMB: 256})
+
+	group := api.NewTaskGroup("group1", 1).
+		AddTask(task)
+
+	job := api.NewBatchJob(jobID, jobID, "region1", 1).
+		AddDatacenter("dc1").
+		AddTaskGroup(group)
+
+	return job
+}

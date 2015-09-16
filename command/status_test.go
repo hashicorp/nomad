@@ -4,7 +4,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/nomad/api"
 	"github.com/mitchellh/cli"
 )
 
@@ -32,11 +31,11 @@ func TestStatusCommand_Run(t *testing.T) {
 	}
 
 	// Register two jobs
-	job1 := api.NewBatchJob("job1", "myjob", 1)
+	job1 := testJob("job1")
 	if _, _, err := client.Jobs().Register(job1, nil); err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	job2 := api.NewBatchJob("job2", "myjob", 1)
+	job2 := testJob("job2")
 	if _, _, err := client.Jobs().Register(job2, nil); err != nil {
 		t.Fatalf("err: %s", err)
 	}
