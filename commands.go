@@ -70,6 +70,12 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 			}, nil
 		},
 
+		"run": func() (cli.Command, error) {
+			return &command.RunCommand{
+				Meta: meta,
+			}, nil
+		},
+
 		"status": func() (cli.Command, error) {
 			return &command.StatusCommand{
 				Meta: meta,
