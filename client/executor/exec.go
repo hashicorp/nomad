@@ -11,7 +11,7 @@
 // process isolation, and security features, or otherwise take advantage of
 // features that are unique to that platform.
 //
-// The semantics of any particular instance are left up to the implementation.
+// The `semantics of any particular instance are left up to the implementation.
 // However, these should be completely transparent to the calling context. In
 // other words, the Java driver should be able to call exec for any platform and
 // just work.
@@ -19,10 +19,10 @@ package executor
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
 	"path/filepath"
-	"sync"
+	"strconv"
+	"syscall"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -31,11 +31,6 @@ import (
 // wrapper must implement. You should not need to implement a Java executor.
 // Rather, you would implement a cgroups executor that the Java driver will use.
 type Executor interface {
-	// Available should return true or false based on whether the current platform
-	// can run this type of executor, based on capability testing. Returning
-	// true does not guarantee that this executor will be used.
-	Available() bool
-
 	// Limit must be called before Start and restricts the amount of resources
 	// the process can use. Note that an error may be returned ONLY IF the
 	// executor implements resource limiting. Otherwise Limit is ignored.
@@ -49,7 +44,7 @@ type Executor interface {
 
 	// Start the process. This may wrap the actual process in another command,
 	// depending on the capabilities in this environment. Errors that arise from
-	// Limits or Runas will bubble through Start()
+	// Limits or Runas may bubble through Start()
 	Start() error
 
 	// Open should be called to restore a previous pid. This might be needed if
@@ -71,9 +66,37 @@ type Executor interface {
 	// implementations must provide this.
 	ForceStop() error
 
-	// Access the underlying Cmd struct. This should never be nil. Also, this is
-	// not intended to be access outside the exec package, so YMMV.
+	// Command provides access the underlying Cmd struct in case the Executor
+	// interface doesn't expose the functionality you need.
 	Command() *cmd
+}
+
+// Command is a mirror of exec.Command that returns a platform-specific Executor
+func Command(name string, arg ...string) Executor {
+	executor := NewExecutor()
+	cmd := executor.Command()
+	cmd.Path = name
+	cmd.Args = append([]string{name}, arg...)
+
+	if filepath.Base(name) == name {
+		if lp, err := exec.LookPath(name); err != nil {
+			// cmd.lookPathErr = err
+		} else {
+			cmd.Path = lp
+		}
+	}
+	return executor
+}
+
+// OpenPid is similar to executor.Command but will initialize executor.Cmd with
+// the Pid set to the one specified.
+func OpenPid(pid int) (Executor, error) {
+	executor := NewExecutor()
+	err := executor.Open(pid)
+	if err != nil {
+		return nil, err
+	}
+	return executor, nil
 }
 
 // Cmd is an extension of exec.Cmd that incorporates functionality for
@@ -90,127 +113,34 @@ type cmd struct {
 	RunAs string
 }
 
-// Command is a mirror of exec.Command that returns a platform-specific Executor
-func Command(name string, arg ...string) Executor {
-	executor := Default()
-	cmd := executor.Command()
-	cmd.Path = name
-	cmd.Args = append([]string{name}, arg...)
-
-	if filepath.Base(name) == name {
-		if lp, err := exec.LookPath(name); err != nil {
-			// cmd.lookPathErr = err
-		} else {
-			cmd.Path = lp
-		}
-	}
-	return executor
-}
-
-func OpenPid(pid int) (Executor, error) {
-	executor := Default()
-	err := executor.Open(pid)
+// SetUID changes the Uid for this command (must be set before starting)
+func (c *cmd) SetUID(userid string) error {
+	uid, err := strconv.ParseUint(userid, 10, 32)
 	if err != nil {
-		return nil, err
+		return fmt.Errorf("Unable to convert userid to uint32: %s", err)
 	}
-	return executor, nil
-}
-
-// ExecutorFactory is an interface for a function that returns an Executor. This
-// allows us to create Executors dynamically.
-type ExecutorFactory func() Executor
-
-var executors []ExecutorFactory
-var execFactoryMutex sync.Mutex
-
-// Register an ExecutorFactory so we can create it with Default()
-func Register(executor ExecutorFactory) {
-	execFactoryMutex.Lock()
-	if executors == nil {
-		executors = []ExecutorFactory{}
+	if c.SysProcAttr == nil {
+		c.SysProcAttr = &syscall.SysProcAttr{}
 	}
-	executors = append(executors, executor)
-	execFactoryMutex.Unlock()
-}
-
-// Default uses capability testing to give you the best available
-// executor based on your platform and execution environment. If you need a
-// specific executor, call it directly.
-//
-// This is a simplistic strategy pattern. We can potentially improve this by
-// using a decorator pattern instead.
-func Default() Executor {
-	// These will be IN ORDER and the first available will be used, so preferred
-	// ones should be at the top and fallbacks at the bottom. Note that if these
-	// are added via init() calls then the order may be a be a bit mysterious
-	// even though it should be deterministic.
-	// TODO Make order more explicit
-	for _, factory := range executors {
-		executor := factory()
-		if executor.Available() {
-			return executor
-		}
+	if c.SysProcAttr.Credential == nil {
+		c.SysProcAttr.Credential = &syscall.Credential{}
 	}
-
-	// Always return something, even if we don't have advanced capabilities.
-	return &UniversalExecutor{}
-}
-
-// UniversalExecutor should work everywhere, and as a result does not include
-// any resource restrictions or runas capabilities.
-type UniversalExecutor struct {
-	cmd
-}
-
-func (e *UniversalExecutor) Available() bool {
-	return true
-}
-
-func (e *UniversalExecutor) Limit(resources *structs.Resources) error {
-	// No-op
+	c.SysProcAttr.Credential.Uid = uint32(uid)
 	return nil
 }
 
-func (e *UniversalExecutor) RunAs(userid string) error {
-	// No-op
-	return nil
-}
-
-func (e *UniversalExecutor) Start() error {
-	// We don't want to call ourself. We want to call Start on our embedded Cmd
-	return e.cmd.Start()
-}
-
-func (e *UniversalExecutor) Open(pid int) error {
-	process, err := os.FindProcess(pid)
+// SetGID changes the Gid for this command (must be set before starting)
+func (c *cmd) SetGID(groupid string) error {
+	gid, err := strconv.ParseUint(groupid, 10, 32)
 	if err != nil {
-		return fmt.Errorf("Failed to reopen pid %d: %s", pid, err)
+		return fmt.Errorf("Unable to convert groupid to uint32: %s", err)
 	}
-	e.Process = process
+	if c.SysProcAttr == nil {
+		c.SysProcAttr = &syscall.SysProcAttr{}
+	}
+	if c.SysProcAttr.Credential == nil {
+		c.SysProcAttr.Credential = &syscall.Credential{}
+	}
+	c.SysProcAttr.Credential.Uid = uint32(gid)
 	return nil
-}
-
-func (e *UniversalExecutor) Wait() error {
-	// We don't want to call ourself. We want to call Start on our embedded Cmd
-	return e.cmd.Wait()
-}
-
-func (e *UniversalExecutor) Pid() (int, error) {
-	if e.cmd.Process != nil {
-		return e.cmd.Process.Pid, nil
-	} else {
-		return 0, fmt.Errorf("Process has finished or was never started")
-	}
-}
-
-func (e *UniversalExecutor) Shutdown() error {
-	return e.ForceStop()
-}
-
-func (e *UniversalExecutor) ForceStop() error {
-	return e.Process.Kill()
-}
-
-func (e *UniversalExecutor) Command() *cmd {
-	return &e.cmd
 }

@@ -4,50 +4,14 @@ import (
 	"fmt"
 	"os"
 	"os/user"
-	"runtime"
-	"strconv"
 	"syscall"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// SetUID changes the Uid for this command (must be set before starting)
-func SetUID(command *cmd, userid string) error {
-	uid, err := strconv.ParseUint(userid, 10, 32)
-	if err != nil {
-		return fmt.Errorf("Unable to convert userid to uint32: %s", err)
-	}
-	if command.SysProcAttr == nil {
-		command.SysProcAttr = &syscall.SysProcAttr{}
-	}
-	if command.SysProcAttr.Credential == nil {
-		command.SysProcAttr.Credential = &syscall.Credential{}
-	}
-	command.SysProcAttr.Credential.Uid = uint32(uid)
-	return nil
-}
-
-// SetGID changes the Gid for this command (must be set before starting)
-func SetGID(command *cmd, groupid string) error {
-	gid, err := strconv.ParseUint(groupid, 10, 32)
-	if err != nil {
-		return fmt.Errorf("Unable to convert groupid to uint32: %s", err)
-	}
-	if command.SysProcAttr == nil {
-		command.SysProcAttr = &syscall.SysProcAttr{}
-	}
-	if command.SysProcAttr.Credential == nil {
-		command.SysProcAttr.Credential = &syscall.Credential{}
-	}
-	command.SysProcAttr.Credential.Uid = uint32(gid)
-	return nil
-}
-
-func init() {
-	Register(func() Executor {
-		return &LinuxExecutor{}
-	})
+func NewExecutor() Executor {
+	return &LinuxExecutor{}
 }
 
 // Linux executor is designed to run on linux kernel 2.8+. It will fork/exec as
@@ -55,10 +19,6 @@ func init() {
 type LinuxExecutor struct {
 	cmd
 	user *user.User
-}
-
-func (e *LinuxExecutor) Available() bool {
-	return runtime.GOOS == "linux"
 }
 
 func (e *LinuxExecutor) Limit(resources *structs.Resources) error {
@@ -101,8 +61,8 @@ func (e *LinuxExecutor) Start() error {
 
 	// Set the user and group this process should run as
 	if e.user != nil {
-		SetUID(&e.cmd, e.user.Uid)
-		SetGID(&e.cmd, e.user.Gid)
+		e.cmd.SetUID(e.user.Uid)
+		e.cmd.SetGID(e.user.Gid)
 	}
 
 	// We don't want to call ourself. We want to call Start on our embedded Cmd.
