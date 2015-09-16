@@ -32,13 +32,14 @@ func TestExecDriver_StartOpen_Wait(t *testing.T) {
 	task := &structs.Task{
 		Config: map[string]string{
 			"command": "/bin/sleep",
-			"args":    "1",
+			"args":    "5",
 		},
 	}
 	if task.Resources == nil {
 		task.Resources = &structs.Resources{}
 	}
-	task.Resources.CPU = 1024
+	task.Resources.CPU = 2048
+	task.Resources.MemoryMB = 2
 
 	handle, err := d.Start(ctx, task)
 	if err != nil {
