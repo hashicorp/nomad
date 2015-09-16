@@ -24,7 +24,16 @@ Usage: nomad run [options] <file>
 
 General Options:
 
-  ` + generalOptionsUsage()
+  ` + generalOptionsUsage() + `
+
+Run Options:
+
+  -monitor
+    On successful job completion, immediately begin monitoring the
+    evaluation created by the job registration. This mode will
+    enter an interactive session where status is printed to the
+    screen, similar to the "tail" UNIX command.
+`
 	return strings.TrimSpace(helpText)
 }
 
@@ -33,8 +42,12 @@ func (c *RunCommand) Synopsis() string {
 }
 
 func (c *RunCommand) Run(args []string) int {
+	var monitor bool
+
 	flags := c.Meta.FlagSet("run", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
+	flags.BoolVar(&monitor, "monitor", false, "")
+
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
@@ -75,9 +88,16 @@ func (c *RunCommand) Run(args []string) int {
 		return 1
 	}
 
-	c.Ui.Info("Job registered successfully!\n")
-	c.Ui.Info("JobID  = " + job.ID)
-	c.Ui.Info("EvalID = " + evalID)
+	// Check if we should enter monitor mode
+	if monitor {
+		mon := newMonitor(c.Ui, client)
+		return mon.monitor(evalID)
+	}
+
+	// By default just print some info and return
+	c.Ui.Output("Job registered successfully!\n")
+	c.Ui.Output("JobID  = " + job.ID)
+	c.Ui.Output("EvalID = " + evalID)
 	return 0
 }
 
