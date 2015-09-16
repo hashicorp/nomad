@@ -40,7 +40,7 @@ func newMonitor(ui cli.Ui, client *api.Client) *monitor {
 
 // output is used to write informational messages to the ui.
 func (m *monitor) output(msg string) {
-	m.ui.Output(fmt.Sprintf("    %s %s", time.Now().Format(dateFmt), msg))
+	m.ui.Output(fmt.Sprintf("%s %s", time.Now().Format(dateFmt), msg))
 }
 
 // monitorState is used to store the current "state of the world"

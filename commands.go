@@ -17,14 +17,9 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 
 	meta := *metaPtr
 	if meta.Ui == nil {
-		meta.Ui = &cli.PrefixedUi{
-			InfoPrefix:   "==> ",
-			OutputPrefix: "",
-			ErrorPrefix:  "",
-			Ui: &cli.BasicUi{
-				Writer:      os.Stdout,
-				ErrorWriter: os.Stderr,
-			},
+		meta.Ui = &cli.BasicUi{
+			Writer:      os.Stdout,
+			ErrorWriter: os.Stderr,
 		}
 	}
 
@@ -59,6 +54,12 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 
 		"agent-members": func() (cli.Command, error) {
 			return &command.AgentMembersCommand{
+				Meta: meta,
+			}, nil
+		},
+
+		"eval-monitor": func() (cli.Command, error) {
+			return &command.EvalMonitorCommand{
 				Meta: meta,
 			}, nil
 		},
