@@ -129,10 +129,23 @@ func (m *monitor) update(eval *api.Evaluation, allocs []*api.AllocationListStub)
 
 // monitor is used to start monitoring the given evaluation ID. It
 // writes output directly to the monitor's ui, and returns the
-// exit code for the command. The return code is 0 if monitoring
-// succeeded and exited successfully, or 1 if an error was encountered
-// or the eval status was returned as failed.
+// exit code for the command. The return code indicates monitoring
+// success or failure ONLY. It is no indication of the outcome of
+// the evaluation, since conflating these values obscures things.
 func (m *monitor) monitor(evalID string) int {
+	// Check if the eval has already completed and fast-path it.
+	eval, _, err := m.client.Evaluations().Info(evalID, nil)
+	if err != nil {
+		m.ui.Error(fmt.Sprintf("Error reading evaluation: %s", err))
+		return 1
+	}
+	switch eval.Status {
+	case structs.EvalStatusComplete, structs.EvalStatusFailed:
+		m.ui.Info(fmt.Sprintf("Evaluation %q already finished with status %q",
+			evalID, eval.Status))
+		return 0
+	}
+
 	m.ui.Info(fmt.Sprintf("Monitoring evaluation %q", evalID))
 	for {
 		// Check the current state of things
@@ -165,14 +178,7 @@ func (m *monitor) monitor(evalID string) int {
 		if eval.NextEval != "" {
 			return m.monitor(eval.NextEval)
 		}
-
-		// Check if the eval is complete
-		switch eval.Status {
-		case structs.EvalStatusComplete:
-			return 0
-		case structs.EvalStatusFailed:
-			return 1
-		}
+		break
 	}
 
 	return 0
