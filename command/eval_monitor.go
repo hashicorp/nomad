@@ -22,9 +22,8 @@ Usage: nomad eval-monitor [options] <evaluation>
   real-time to the terminal.
 
   The command will exit when the given evaluation reaches a terminal
-  state (completed or failed). The exit status will reflect the
-  result of the evaluation (0 on success, 1 on failure). Exit code
-  1 may also be encountered for client connectivity errors.
+  state (completed or failed). The exit code indicates the status
+  of the monitoring only; it does not reflect the evaluation status.
 
 General Options:
 
