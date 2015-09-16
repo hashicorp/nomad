@@ -13,9 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/sys/unix"
-
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/executor"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -27,7 +26,7 @@ type JavaDriver struct {
 
 // javaHandle is returned from Start/Open as a handle to the PID
 type javaHandle struct {
-	proc   *os.Process
+	cmd    executor.Executor
 	waitCh chan error
 	doneCh chan struct{}
 }
@@ -129,7 +128,11 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 
 	// Setup the command
 	// Assumes Java is in the $PATH, but could probably be detected
-	cmd := exec.Command("java", args...)
+	cmd := executor.Command("java", args...)
+	err = cmd.Limit(task.Resources)
+	if err != nil {
+		return nil, fmt.Errorf("failed to constrain resources: %s", err)
+	}
 	err = cmd.Start()
 	if err != nil {
 		return nil, fmt.Errorf("failed to start source: %v", err)
@@ -137,7 +140,7 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 
 	// Return a driver handle
 	h := &javaHandle{
-		proc:   cmd.Process,
+		cmd:    cmd,
 		doneCh: make(chan struct{}),
 		waitCh: make(chan error, 1),
 	}
@@ -155,14 +158,14 @@ func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 	}
 
 	// Find the process
-	proc, err := os.FindProcess(pid)
-	if proc == nil || err != nil {
+	cmd, err := executor.OpenPid(pid)
+	if err != nil {
 		return nil, fmt.Errorf("failed to find PID %d: %v", pid, err)
 	}
 
 	// Return a driver handle
 	h := &javaHandle{
-		proc:   proc,
+		cmd:    cmd,
 		doneCh: make(chan struct{}),
 		waitCh: make(chan error, 1),
 	}
@@ -173,7 +176,8 @@ func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 
 func (h *javaHandle) ID() string {
 	// Return a handle to the PID
-	return fmt.Sprintf("PID:%d", h.proc.Pid)
+	pid, _ := h.cmd.Pid()
+	return fmt.Sprintf("PID:%d", pid)
 }
 
 func (h *javaHandle) WaitCh() chan error {
@@ -185,24 +189,22 @@ func (h *javaHandle) Update(task *structs.Task) error {
 	return nil
 }
 
-// Kill is used to terminate the task. We send an Interrupt
-// and then provide a 5 second grace period before doing a Kill.
 func (h *javaHandle) Kill() error {
-	h.proc.Signal(unix.SIGTERM)
+	h.cmd.Shutdown()
 	select {
 	case <-h.doneCh:
 		return nil
 	case <-time.After(5 * time.Second):
-		return h.proc.Kill()
+		return h.cmd.ForceStop()
 	}
 }
 
 func (h *javaHandle) run() {
-	ps, err := h.proc.Wait()
+	err := h.cmd.Wait()
 	close(h.doneCh)
 	if err != nil {
 		h.waitCh <- err
-	} else if !ps.Success() {
+	} else if !h.cmd.Command().ProcessState.Success() {
 		h.waitCh <- fmt.Errorf("task exited with error")
 	}
 	close(h.waitCh)
