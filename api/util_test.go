@@ -27,9 +27,26 @@ func assertWriteMeta(t *testing.T, wm *WriteMeta) {
 
 func testJob() *Job {
 	return &Job{
-		ID:       "job1",
-		Name:     "redis",
-		Type:     JobTypeService,
+		Region:      "region1",
+		ID:          "job1",
+		Name:        "redis",
+		Type:        JobTypeService,
+		Datacenters: []string{"dc1"},
+		TaskGroups: []*TaskGroup{
+			&TaskGroup{
+				Name:  "group1",
+				Count: 1,
+				Tasks: []*Task{
+					&Task{
+						Name:   "task1",
+						Driver: "exec",
+						Resources: &Resources{
+							MemoryMB: 256,
+						},
+					},
+				},
+			},
+		},
 		Priority: 1,
 	}
 }
