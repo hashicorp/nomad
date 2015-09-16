@@ -14,8 +14,7 @@ func NewExecutor() Executor {
 	return &LinuxExecutor{}
 }
 
-// Linux executor is designed to run on linux kernel 2.8+. It will fork/exec as
-// a user you specify and limit resources using rlimit.
+// Linux executor is designed to run on linux kernel 2.8+.
 type LinuxExecutor struct {
 	cmd
 	user *user.User
@@ -53,13 +52,17 @@ func (e *LinuxExecutor) RunAs(userid string) error {
 }
 
 func (e *LinuxExecutor) Start() error {
-	if e.user == nil {
-		// If no user has been specified, try to run as "nobody" user so we
-		// don't leak root privilege to the spawned process.
+	// If no user has been specified, try to run as "nobody" user so we don't
+	// leak root privilege to the spawned process. Note that we will only do
+	// this if we can call SetUID. Otherwise we'll just run the other process
+	// as our current (non-root) user. This makes testing easier and also means
+	// we aren't forced to run nomad as root.
+	if e.user == nil && canSetUID() {
 		e.RunAs("nobody")
 	}
 
-	// Set the user and group this process should run as
+	// Set the user and group this process should run as. If RunAs was called
+	// but we are not root this will cause Start to fail. This is intentional.
 	if e.user != nil {
 		e.cmd.SetUID(e.user.Uid)
 		e.cmd.SetGID(e.user.Gid)
@@ -111,4 +114,24 @@ func (e *LinuxExecutor) ForceStop() error {
 
 func (e *LinuxExecutor) Command() *cmd {
 	return &e.cmd
+}
+
+// canSetUID will tell us whether we're capable of using SetUID. If we are not
+// rootish this command will fail. In that case we'll just run the forked
+// process under our own user.
+func canSetUID() bool {
+	checkroot := Command("true")
+	u, err := user.Current()
+	if err != nil {
+		return false
+	}
+
+	// Make sure RunAs is explicitly set so we don't cause infinite recursion.
+	checkroot.RunAs(u.Uid)
+
+	err = checkroot.Start()
+	if err != nil {
+		return false
+	}
+	return true
 }
