@@ -52,13 +52,14 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 
 	// Setup the command
 	cmd := executor.Command(command, args...)
-	err := cmd.Limit(task.Resources)
-	if err != nil {
-		return nil, fmt.Errorf("failed to constrain resources: %s", err)
-	}
-	err = cmd.Start()
+	err := cmd.Start()
 	if err != nil {
 		return nil, fmt.Errorf("failed to start command: %v", err)
+	}
+
+	err = cmd.Limit(task.Resources)
+	if err != nil {
+		return nil, fmt.Errorf("failed to constrain resources: %s", err)
 	}
 
 	// Return a driver handle
