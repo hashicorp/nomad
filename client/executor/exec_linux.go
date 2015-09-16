@@ -40,8 +40,20 @@ func (e *LinuxExecutor) Limit(resources *structs.Resources) error {
 	}
 
 	groups := cgroupConfig.Cgroup{}
+
+	// Groups will be created in a heiarchy according to the resource being
+	// constrained, current session, and then this unique name. Restraints are
+	// then placed in the corresponding files.
+	// Ex: restricting a process to 2048Mhz CPU and 2MB of memory:
+	//   $ cat /sys/fs/cgroup/cpu/user/1000.user/4.session/<uuid>/cpu.shares
+	//		2028
+	//   $ cat /sys/fs/cgroup/memory/user/1000.user/4.session/<uuid>/memory.limit_in_bytes
+	//		2097152
+	groups.Name = structs.GenerateUUID()
+
 	// TODO: verify this is needed for things like network access
 	groups.AllowAllDevices = true
+
 	if resources.MemoryMB > 0 {
 		// Total amount of memory allowed to consume
 		groups.Memory = int64(resources.MemoryMB * 1024 * 1024)
@@ -64,7 +76,15 @@ func (e *LinuxExecutor) Limit(resources *structs.Resources) error {
 	}
 
 	e.manager.Cgroups = &groups
-	e.manager.Apply(pid)
+	// Apply will place the pid supplied into the tasks file for each of the
+	// created cgroups:
+	//  /sys/fs/cgroup/memory/user/1000.user/4.session/<uuid>/tasks
+	//
+	// Apply requires superuser permissions, and may fail if Nomad is not run with
+	// the required permissions
+	if err := e.manager.Apply(pid); err != nil {
+		return fmt.Errorf("[ERR] Error creating limits for ExecLinux: %s", err)
+	}
 
 	return nil
 }
