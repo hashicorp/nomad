@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/errwrap"
@@ -745,6 +746,8 @@ func (j *Job) Validate() error {
 	}
 	if j.ID == "" {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing job ID"))
+	} else if strings.Contains(j.ID, " ") {
+		mErr.Errors = append(mErr.Errors, errors.New("Job ID contains a space"))
 	}
 	if j.Name == "" {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing job name"))
