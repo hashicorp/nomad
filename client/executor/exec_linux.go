@@ -44,6 +44,12 @@ func SetGID(command *cmd, groupid string) error {
 	return nil
 }
 
+func init() {
+	Register(func() Executor {
+		return &LinuxExecutor{}
+	})
+}
+
 // Linux executor is designed to run on linux kernel 2.8+. It will fork/exec as
 // a user you specify and limit resources using rlimit.
 type LinuxExecutor struct {

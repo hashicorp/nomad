@@ -22,6 +22,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sync"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -115,6 +116,23 @@ func OpenPid(pid int) (Executor, error) {
 	return executor, nil
 }
 
+// ExecutorFactory is an interface for a function that returns an Executor. This
+// allows us to create Executors dynamically.
+type ExecutorFactory func() Executor
+
+var executors []ExecutorFactory
+var execFactoryMutex sync.Mutex
+
+// Register an ExecutorFactory so we can create it with Default()
+func Register(executor ExecutorFactory) {
+	execFactoryMutex.Lock()
+	if executors == nil {
+		executors = []ExecutorFactory{}
+	}
+	executors = append(executors, executor)
+	execFactoryMutex.Unlock()
+}
+
 // Default uses capability testing to give you the best available
 // executor based on your platform and execution environment. If you need a
 // specific executor, call it directly.
@@ -123,13 +141,12 @@ func OpenPid(pid int) (Executor, error) {
 // using a decorator pattern instead.
 func Default() Executor {
 	// These will be IN ORDER and the first available will be used, so preferred
-	// ones should be at the top and fallbacks at the bottom.
-	// TODO refactor this to be more lightweight.
-	executors := []Executor{
-		&LinuxExecutor{},
-	}
-
-	for _, executor := range executors {
+	// ones should be at the top and fallbacks at the bottom. Note that if these
+	// are added via init() calls then the order may be a be a bit mysterious
+	// even though it should be deterministic.
+	// TODO Make order more explicit
+	for _, factory := range executors {
+		executor := factory()
 		if executor.Available() {
 			return executor
 		}
