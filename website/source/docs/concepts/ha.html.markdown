@@ -3,29 +3,29 @@ layout: "docs"
 page_title: "High Availability"
 sidebar_current: "docs-concepts-ha"
 description: |-
-  Vault can be highly available, allowing you to run multiple Vaults to protect against outages.
+  Nomad can be highly available, allowing you to run multiple Nomads to protect against outages.
 ---
 
 # High Availability Mode (HA)
 
-Vault supports multi-server mode for high availability. This mode protects
-against outages by running multiple Vault servers. High availability mode
+Nomad supports multi-server mode for high availability. This mode protects
+against outages by running multiple Nomad servers. High availability mode
 is automatically enabled when using a storage backend that supports it.
 
 You can tell if a backend supports high availability mode ("HA") by
 starting the server and seeing if "(HA available)" is outputted next to
 the backend information. If it is, then HA will begin happening automatically.
 
-To be highly available, Vault elects a leader and does request forwarding to
+To be highly available, Nomad elects a leader and does request forwarding to
 the leader. Due to this architecture, HA does not enable increased scalability.
-In general, the bottleneck of Vault is the storage backend itself, not
-Vault core. For example: to increase scalability of Vault with Consul, you
-would scale Consul instead of Vault.
+In general, the bottleneck of Nomad is the storage backend itself, not
+Nomad core. For example: to increase scalability of Nomad with Consul, you
+would scale Consul instead of Nomad.
 
 In addition to using a backend that supports HA, you have to configure
-Vault with an _advertise address_. This is the address that Vault advertises
-to other Vault servers in the cluster for request forwarding. By default,
-Vault will use the first private IP address it finds, but you can override
+Nomad with an _advertise address_. This is the address that Nomad advertises
+to other Nomad servers in the cluster for request forwarding. By default,
+Nomad will use the first private IP address it finds, but you can override
 this to any address you want.
 
 ## Backend Support

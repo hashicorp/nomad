@@ -3,7 +3,7 @@ layout: "docs"
 page_title: "Token Authentication"
 sidebar_current: "docs-internals-token"
 description: |-
-  Learn about the client token authentication in Vault.
+  Learn about the client token authentication in Nomad.
 ---
 
 # Token Authentication
@@ -25,7 +25,7 @@ Every token has a number of properties:
 
 The properties of a token are immutable once created. The exception to this
 is the number of uses, which is decremented on each request. Each of these
-properties enable Vault to do a number of interesting things.
+properties enable Nomad to do a number of interesting things.
 
 Each token maintains the source path, or the login path, that was used
 to create the token. This is used to allow source based revocation. For example,
@@ -39,7 +39,7 @@ procedure during a potential compromise.
 If a token is created by another authentication backend, they do not have
 a parent token. However, any tokens created by the `auth/token/create` API
 have a parent token, namely the token used to make that request. By maintaining
-this parent-child relationship, Vault models token trees. Child tokens can
+this parent-child relationship, Nomad models token trees. Child tokens can
 be created with a subset of the parent policies, allowing for dropping of
 privileges. When a token is revoked, the entire sub-tree of tokens is revoked
 with it. This allows clients to safely generate child tokens and then revoke
@@ -50,4 +50,4 @@ When a token is created, its use count can be optionally specified. Providing
 a use count of one makes a _one time token_. This means the token can be used
 for a single request before being automatically revoked. This can be generalized
 to any number of uses. Limited use tokens cannot be used to create sub-tokens,
-but they can be a powerful way to allow extremely limited access to Vault.
+but they can be a powerful way to allow extremely limited access to Nomad.

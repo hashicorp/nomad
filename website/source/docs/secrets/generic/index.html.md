@@ -11,9 +11,9 @@ description: |-
 Name: `generic`
 
 The generic secret backend is used to store arbitrary secrets within
-the configured physical storage for Vault. If you followed along with
+the configured physical storage for Nomad. If you followed along with
 the getting started guide, you interacted with a generic secret backend
-via the `secret/` prefix that Vault mounts by default.
+via the `secret/` prefix that Nomad mounts by default.
 
 Writing to a key in the `secret/` backend will replace the old value,
 the sub-fields are not merged together.

@@ -3,25 +3,25 @@ layout: "docs"
 page_title: "Secret Backend: Transit"
 sidebar_current: "docs-secrets-transit"
 description: |-
-  The transit secret backend for Vault encrypts/decrypts data in-transit. It doesn't store any secrets.
+  The transit secret backend for Nomad encrypts/decrypts data in-transit. It doesn't store any secrets.
 ---
 
 # Transit Secret Backend
 
 Name: `transit`
 
-The transit secret backend is used to encrypt/data in-transit. Vault doesn't
+The transit secret backend is used to encrypt/data in-transit. Nomad doesn't
 store the data sent to the backend. It can also be viewed as "encryption as
 a service."
 
 The primary use case for the transit backend is to encrypt data from
 applications while still storing that encrypted data in some primary data
 store. This relieves the burden of proper encryption/decryption from
-application developers and pushes the burden onto the operators of Vault.
-Operators of Vault generally include the security team at an organization,
+application developers and pushes the burden onto the operators of Nomad.
+Operators of Nomad generally include the security team at an organization,
 which means they can ensure that data is encrypted/decrypted properly.
 
-As of Vault 0.2, the transit backend also supports doing key derivation. This
+As of Nomad 0.2, the transit backend also supports doing key derivation. This
 allows data to be encrypted within a context such that the same context must be
 used for decryption. This can be used to enable per transaction unique keys which
 further increase the security of data at rest.
@@ -87,7 +87,7 @@ ciphertext	vault:v0:czEwyKqGZY/limnuzDCUUe5AK0tbBObWqeZgFqxCuIqq7A84SeiOq3sKD0Y/
 ```
 
 The encryption endpoint expects the plaintext to be provided as a base64 encoded
-strings, so we must first convert it. Vault does not store the plaintext or the
+strings, so we must first convert it. Nomad does not store the plaintext or the
 ciphertext, but only handles it _in transit_ for processing. The application
 is free to store the ciphertext in a database or file at rest.
 

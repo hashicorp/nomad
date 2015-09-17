@@ -3,12 +3,12 @@ layout: "docs"
 page_title: "Secret Backends"
 sidebar_current: "docs-secrets"
 description: |-
-  Secret backends are mountable backends that store or generate secrets in Vault.
+  Secret backends are mountable backends that store or generate secrets in Nomad.
 ---
 
 # Secret Backends
 
-Secret backends are the components in Vault which store and generate
+Secret backends are the components in Nomad which store and generate
 secrets.
 
 Some secret backends, such as "generic", simply store and read
@@ -17,12 +17,12 @@ secrets_: secrets that are made on demand.
 
 Secret backends are part of the
 [mount system](#)
-in Vault. They behave very similarly to a virtual filesystem:
+in Nomad. They behave very similarly to a virtual filesystem:
 any read/write/delete is sent to the secret backend, and the secret
 backend can choose to react to that operation however it sees fit.
 
 For example, the "generic" backend passes through any operation back
-to the configured storage backend for Vault. A "read" turns into a
+to the configured storage backend for Nomad. A "read" turns into a
 "read" of the storage backend at the same path, a "write" turns into
 a write, etc. This is a lot like a normal filesystem.
 
@@ -62,14 +62,14 @@ system to determine the paths it responds to.
 ## Barrier View
 
 An important concept around secret backends is that they receive a
-_barrier view_ to the configured Vault physical storage. This is a lot
+_barrier view_ to the configured Nomad physical storage. This is a lot
 like a [chroot](http://en.wikipedia.org/wiki/Chroot).
 
 Whenever a secret backend is mounted, a random UUID is generated. This
 becomes the data root for that backend. Whenever that backend writes to
 the physical storage layer, it is prefixed with that UUID folder. Since
-the Vault storage layer doesn't support relative access (such as `..`),
+the Nomad storage layer doesn't support relative access (such as `..`),
 this makes it impossible for a mounted backend to access any other data.
 
-This is an important security feature in Vault: even a malicious backend
+This is an important security feature in Nomad: even a malicious backend
 can't access the data from any other backend.

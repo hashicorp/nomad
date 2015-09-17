@@ -3,21 +3,21 @@ layout: "docs"
 page_title: "Telemetry"
 sidebar_current: "docs-internals-telemetry"
 description: |-
-  Learn about the telemetry data available in Vault.
+  Learn about the telemetry data available in Nomad.
 ---
 
 # Telemetry
 
-The Vault agent collects various runtime metrics about the performance of
+The Nomad agent collects various runtime metrics about the performance of
 different libraries and subsystems. These metrics are aggregated on a ten
 second interval and are retained for one minute.
 
-To view this data, you must send a signal to the Vault process: on Unix,
-this is `USR1` while on Windows it is `BREAK`. Once Vault receives the signal,
+To view this data, you must send a signal to the Nomad process: on Unix,
+this is `USR1` while on Windows it is `BREAK`. Once Nomad receives the signal,
 it will dump the current telemetry information to the agent's `stderr`.
 
 This telemetry information can be used for debugging or otherwise
-getting a better view of what Vault is doing.
+getting a better view of what Nomad is doing.
 
 Telemetry information can be streamed to both [statsite](http://github.com/armon/statsite)
 as well as statsd based on providing the appropriate configuration options.

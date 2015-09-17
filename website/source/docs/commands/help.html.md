@@ -3,28 +3,28 @@ layout: "docs"
 page_title: "Path Help"
 sidebar_current: "docs-commands-path-help"
 description: |-
-  The Vault CLI has a built-in help system that can be used to get help for not only the CLI itself, but also any paths that the CLI can be used with within Vault.
+  The Nomad CLI has a built-in help system that can be used to get help for not only the CLI itself, but also any paths that the CLI can be used with within Nomad.
 ---
 
 # Help
 
 In addition to standard CLI help using the `-h` or `-help` flag for
-commands, Vault has a built-in `path-help` command that can be used to get
-help for specific paths within Vault. These paths are used with the
-API or `read, write, delete` commands in order to interact with Vault.
+commands, Nomad has a built-in `path-help` command that can be used to get
+help for specific paths within Nomad. These paths are used with the
+API or `read, write, delete` commands in order to interact with Nomad.
 
 The help system is the easiest way to learn how to use the various systems
-in Vault, and also allows you to discover new paths.
+in Nomad, and also allows you to discover new paths.
 
 -> **Important!** The help system is incredibly important in day-to-day
-use of Vault. As a beginner or experienced user of Vault, you'll be using
+use of Nomad. As a beginner or experienced user of Nomad, you'll be using
 the help command a lot to remember how to use different components of
-Vault. Note that the Vault Server must be running and the client configured
+Nomad. Note that the Nomad Server must be running and the client configured
 properly to execute this command to look up paths.
 
 ## Discovering Paths
 
-Before using `path-help`, it is important to understand "paths" within Vault.
+Before using `path-help`, it is important to understand "paths" within Nomad.
 Paths are the parameters used for `vault read`, `vault write`, etc. An
 example path is `secret/foo`, or `aws/config/root`. The paths available
 depend on the mounted secret backends. Because of this, the interactive
@@ -36,7 +36,7 @@ For example, if you mounted the AWS secret backend, you can use
 will be shown with regular expressions, which can make them hard to
 parse, but they're also extremely exact.
 
-You can try it right away with any Vault with `vault path-help secret`, since
+You can try it right away with any Nomad with `vault path-help secret`, since
 `secret` is always mounted initially. The output from this command is shown
 below and contains both a description of what that backend is for, along with
 the paths it supports.
@@ -46,7 +46,7 @@ $ vault path-help secret
 ## DESCRIPTION
 
 The generic backend reads and writes arbitrary secrets to the backend.
-The secrets are encrypted/decrypted by Vault: they are never stored
+The secrets are encrypted/decrypted by Nomad: they are never stored
 unencrypted in the backend and the backend never has an opportunity to
 see the unencrypted value.
 
@@ -99,7 +99,7 @@ The pass-through backend reads and writes arbitrary data into secret storage,
 encrypting it along the way.
 
 A lease can be specified when writing with the "lease" field. If given, then
-when the secret is read, Vault will report a lease with that duration. It
+when the secret is read, Nomad will report a lease with that duration. It
 is expected that the consumer of this backend properly writes renewed keys
 before the lease is up. In addition, revocation must be handled by the
 user of this backend.

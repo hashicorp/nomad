@@ -3,7 +3,7 @@ layout: "http"
 page_title: "HTTP API: /sys/key-status"
 sidebar_current: "docs-http-rotate-key-status"
 description: |-
-  The '/sys/key-status' endpoint is used to query info about the current encryption key of Vault.
+  The '/sys/key-status' endpoint is used to query info about the current encryption key of Nomad.
 ---
 
 # /sys/key-status
@@ -11,7 +11,7 @@ description: |-
 <dl>
   <dt>Description</dt>
   <dd>
-    Returns information about the current encryption key used by Vault.
+    Returns information about the current encryption key used by Nomad.
   </dd>
 
   <dt>Method</dt>

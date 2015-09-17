@@ -3,23 +3,23 @@ layout: "docs"
 page_title: "Authentication"
 sidebar_current: "docs-concepts-auth"
 description: |-
-  Before performing any operation with Vault, the connecting client must be authenticated.
+  Before performing any operation with Nomad, the connecting client must be authenticated.
 ---
 
 # Authentication
 
-Before performing any operation with Vault, the connecting client must be
+Before performing any operation with Nomad, the connecting client must be
 _authenticated_. Authentication is the process of verifying a person or
 machine is who they say they are and assigning an identity to them. This
-identity is then used when making requests with Vault.
+identity is then used when making requests with Nomad.
 
-Authentication in Vault is pluggable via authentication backends. This
-allows you to authenticate with Vault using a method that works best for your
+Authentication in Nomad is pluggable via authentication backends. This
+allows you to authenticate with Nomad using a method that works best for your
 organization. For example, you can authenticate using GitHub, certs, etc.
 
 ## Authentication Backends
 
-There are many authentication backends available for Vault. They
+There are many authentication backends available for Nomad. They
 are enabled using `vault auth-enable`. After they're enabled, you can
 learn more about them using `vault path-help auth/<name>`. For example,
 if you enable GitHub, you can use `vault path-help auth/github` to learn more
@@ -40,7 +40,7 @@ but it is important to understand that authentication works by verifying
 your identity and then generating a token to associate with that identity.
 
 For example, even though you may authenticate using something like GitHub,
-Vault generates a unique access token for you to use for future requests.
+Nomad generates a unique access token for you to use for future requests.
 The CLI automatically attaches this token to requests, but if you're using
 the API you'll have to do this manually.
 
@@ -88,7 +88,7 @@ be used.
 Just like secrets, identities have
 [leases](/docs/concepts/lease.html) associated with them. This means that
 you must reauthenticate after the given lease period to continue accessing
-Vault.
+Nomad.
 
 To set the lease associated with an identity, reference the help for
 the specific authentication backend in use. It is specific to each backend

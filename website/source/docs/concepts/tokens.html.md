@@ -3,18 +3,18 @@ layout: "docs"
 page_title: "Tokens"
 sidebar_current: "docs-concepts-tokens"
 description: |-
-  Tokens are a core authentication method in Vault. Child tokens, token-based revocation, and more.
+  Tokens are a core authentication method in Nomad. Child tokens, token-based revocation, and more.
 ---
 
 # Tokens
 
-Tokens are the core method for _authentication_ within Vault. Tokens
+Tokens are the core method for _authentication_ within Nomad. Tokens
 can be used directly or [authentication backends](/docs/concepts/auth.html)
 can be used to dynamically generate tokens based on external identities.
 
 If you've gone through the getting started guide, you probably noticed that
 `vault server -dev` (or `vault init` for a non-dev server) outputs an
-initial "root token." This is the first method of authentication for Vault.
+initial "root token." This is the first method of authentication for Nomad.
 It is also the only authentication backend that cannot be disabled.
 
 As stated in the [authentication concepts](/docs/concepts/auth.html),
@@ -47,7 +47,7 @@ with the token. Learn more about policies on the
 Every token has a lease associated with it. These leases behave in much
 the same way as [leases for secrets](/docs/concepts/lease.html). After
 the lease period is up, the token will no longer function. In addition
-to no longer functioning, Vault will revoke it.
+to no longer functioning, Nomad will revoke it.
 
 In order to avoid your token being revoked, the `vault token-renew`
 command should be used to renew the lease on the token periodically.

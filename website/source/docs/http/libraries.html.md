@@ -3,7 +3,7 @@ layout: "http"
 page_title: "HTTP API: Libraries"
 sidebar_current: "docs-http-libraries"
 description: |-
-  List of official and community contributed libraries for interacting with the Vault HTTP API.
+  List of official and community contributed libraries for interacting with the Nomad HTTP API.
 ---
 
 # Libraries
@@ -13,11 +13,11 @@ Some are officially maintained while others are provided by the community.
 
 ## Go
 
-* [Vault Go Client](https://github.com/hashicorp/vault/tree/master/api) (official)
+* [Nomad Go Client](https://github.com/hashicorp/vault/tree/master/api) (official)
 
 ## Ruby
 
-* [Vault Ruby Client](https://github.com/hashicorp/vault-ruby) (official)
+* [Nomad Ruby Client](https://github.com/hashicorp/vault-ruby) (official)
 
 ## Python
 

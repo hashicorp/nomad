@@ -3,15 +3,15 @@ layout: "docs"
 page_title: "Reading and Writing Data"
 sidebar_current: "docs-commands-readwrite"
 description: |-
-  The Vault CLI can be used to read, write, and delete secrets. This page documents how to do this.
+  The Nomad CLI can be used to read, write, and delete secrets. This page documents how to do this.
 ---
 
 # Reading and Writing Data with the CLI
 
-The Vault CLI can be used to read, write, and delete data from Vault.
+The Nomad CLI can be used to read, write, and delete data from Nomad.
 This data might be raw secrets, it might be configuration for
 a backend, etc. Whatever it is, the interface to read and write data
-to Vault is the same.
+to Nomad is the same.
 
 To determine what paths can be used to read and write data,
 please use the built-in [help system](/docs/commands/help.html)
@@ -19,7 +19,7 @@ to discover the paths.
 
 ## Writing Data
 
-To write data to Vault, you use `vault write`. It is very easy to use:
+To write data to Nomad, you use `vault write`. It is very easy to use:
 
 ```
 $ vault write secret/password value=itsasecret
@@ -36,15 +36,15 @@ $ vault write secret/password value=itsasecret username=something
 
 For the `secret/` backend, the key/value pairs are arbitrary and can be
 anything. For other backends, they're generally more strict, and the
-help system can tell you what data to send to Vault.
+help system can tell you what data to send to Nomad.
 
-In addition to writing key/value pairs, Vault can write from a variety
+In addition to writing key/value pairs, Nomad can write from a variety
 more sources.
 
 #### stdin
 
 `vault write` can read data to write from stdin by using "-" as the value.
-If you use "-" as the entire argument, then Vault expects to read a JSON
+If you use "-" as the entire argument, then Nomad expects to read a JSON
 object from stdin. The example below is equivalent to the first example
 above.
 
@@ -59,7 +59,7 @@ from stdin: if they're after the "-" (positionally on the command-line),
 then they will overwrite it, otherwise the values in stdin will overwrite
 the command line values.
 
-In addition to reading full JSON objects, Vault can read just a JSON
+In addition to reading full JSON objects, Nomad can read just a JSON
 value. The example below is also identical to the previous example.
 
 ```

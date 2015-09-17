@@ -10,5 +10,5 @@ description: |-
 
 Welcome to the Nomad documentation! This documentation is more of a reference
 guide for all available features and options of Nomad. If you're just getting
-started with Vault, please start with the
+started with Nomad, please start with the
 [introduction and getting started guide](/intro/index.html) instead.

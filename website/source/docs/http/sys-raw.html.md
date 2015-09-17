@@ -3,7 +3,7 @@ layout: "http"
 page_title: "HTTP API: /sys/raw"
 sidebar_current: "docs-http-debug-raw"
 description: |-
-  The `/sys/raw` endpoint is access the raw underlying store in Vault.
+  The `/sys/raw` endpoint is access the raw underlying store in Nomad.
 ---
 
 # /sys/raw

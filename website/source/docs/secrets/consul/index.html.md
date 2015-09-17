@@ -3,14 +3,14 @@ layout: "docs"
 page_title: "Secret Backend: Consul"
 sidebar_current: "docs-secrets-consul"
 description: |-
-  The Consul secret backend for Vault generates tokens for Consul dynamically.
+  The Consul secret backend for Nomad generates tokens for Consul dynamically.
 ---
 
 # Consul Secret Backend
 
 Name: `consul`
 
-The Consul secret backend for Vault generates
+The Consul secret backend for Nomad generates
 [Consul](http://consul.io)
 API tokens dynamically based on Consul ACL policies.
 
@@ -27,7 +27,7 @@ $ vault mount consul
 Successfully mounted 'consul' at 'consul'!
 ```
 
-Next, we must configure Vault to know how to contact Consul.
+Next, we must configure Nomad to know how to contact Consul.
 This is done by writing the access information:
 
 ```
@@ -35,9 +35,9 @@ $ vault write consul/config/access address=127.0.0.1:8500 token=root
 Success! Data written to: consul/config/access
 ```
 
-In this case, we've configured Vault to connect to Consul
+In this case, we've configured Nomad to connect to Consul
 on the default port with the loopback address. We've also provided
-an ACL token to use with the `token` parameter. Vault must have a management
+an ACL token to use with the `token` parameter. Nomad must have a management
 type token so that it can create and revoke ACL tokens.
 
 The next step is to configure a role. A role is a logical name that maps
@@ -64,7 +64,7 @@ lease_duration	3600
 token         	973a31ea-1ec4-c2de-0f63-623f477c2510
 ```
 
-Here we can see that Vault has generated a new Consul ACL token for us.
+Here we can see that Nomad has generated a new Consul ACL token for us.
 We can test this token out, and verify that it is read-only:
 
 ```

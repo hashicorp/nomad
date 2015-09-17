@@ -3,7 +3,7 @@ layout: "http"
 page_title: "HTTP API: /sys/seal"
 sidebar_current: "docs-http-seal-seal"
 description: |-
-  The '/sys/seal' endpoint seals the Vault.
+  The '/sys/seal' endpoint seals the Nomad.
 ---
 
 # /sys/seal
@@ -11,7 +11,7 @@ description: |-
 <dl>
   <dt>Description</dt>
   <dd>
-    Seals the Vault.
+    Seals the Nomad.
   </dd>
 
   <dt>Method</dt>

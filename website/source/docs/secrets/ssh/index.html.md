@@ -3,14 +3,14 @@ layout: "docs"
 page_title: "Secret Backend: SSH"
 sidebar_current: "docs-secrets-ssh"
 description: |-
-  The SSH secret backend for Vault generates dynamic SSH keys or One-Time-Passwords. 
+  The SSH secret backend for Nomad generates dynamic SSH keys or One-Time-Passwords. 
 ---
 
 # SSH Secret Backend
 
 Name: `ssh`
 
-Vault SSH backend generates SSH credentials for remote hosts dynamically. This
+Nomad SSH backend generates SSH credentials for remote hosts dynamically. This
 backend increases the security by removing the need to share the private key to
 everyone who needs access to infrastructures. It also solves the problem of
 management and distribution of keys belonging to remote hosts.
@@ -27,14 +27,14 @@ on every path, use `vault path-help` after mounting the backend.
 ----------------------------------------------------
 ## I. Dynamic Type
 
-Register the shared secret key (having super user privileges) with Vault and let
-Vault take care of issuing a dynamic secret key every time a client wants to SSH
+Register the shared secret key (having super user privileges) with Nomad and let
+Nomad take care of issuing a dynamic secret key every time a client wants to SSH
 into the remote host.
 
-When a Vault authenticated client requests for a dynamic credential, Vault server
+When a Nomad authenticated client requests for a dynamic credential, Nomad server
 creates a key-pair, uses the previously shared secret key to login to the remote
 host and appends the newly generated public key to `~/.ssh/authorized_keys` file for 
-the desired username. Vault uses an install script (configurable) to achieve this.
+the desired username. Nomad uses an install script (configurable) to achieve this.
 To run this script in super user mode without password prompts, `NOPASSWD` option
 for sudoers should be enabled at all remote hosts.
 
@@ -45,8 +45,8 @@ File: `/etc/sudoers`
 ```
 
 The private key returned to the user will be leased and can be renewed if desired.
-Once the key is given to the user, Vault will not know when it gets used or how many
-time it gets used. Therefore, Vault **WILL NOT** and cannot audit the SSH session
+Once the key is given to the user, Nomad will not know when it gets used or how many
+time it gets used. Therefore, Nomad **WILL NOT** and cannot audit the SSH session
 establishments. An alternative is to use OTP type, which audits every SSH request
 (see below).
 
@@ -60,7 +60,7 @@ $ vault mount ssh
 Successfully mounted 'ssh' at 'ssh'!
 ```
 
-Next, we must register infrastructures with Vault. This is done by writing the role
+Next, we must register infrastructures with Nomad. This is done by writing the role
 information. The type of credentials created are determined by the `key_type` option.
 To do this, first create a named key and then create a role.
 
@@ -95,7 +95,7 @@ are explained in the comments.
 
 # $1: "install" or "uninstall"
 #
-# $2: File name containing public key to be installed. Vault server uses UUID
+# $2: File name containing public key to be installed. Nomad server uses UUID
 # as file name to avoid collisions with public keys generated for requests.
 #
 # $3: Absolute path of the authorized_keys file.
@@ -175,7 +175,7 @@ username@ip:~$
 ### Automate it!
 
 Creation of new key, saving it in a file and establishing an SSH session will all be done
-via a single Vault CLI.
+via a single Nomad CLI.
 
 ```shell
 $ vault ssh -role dynamic_key_role username@ip
@@ -184,18 +184,18 @@ username@ip:~$
 ----------------------------------------------------
 ## II. One-Time-Password (OTP) Type
 
-Install Vault SSH Agent in remote hosts and let Vault server issue an OTP every time
+Install Nomad SSH Agent in remote hosts and let Nomad server issue an OTP every time
 a client wants to SSH into remote hosts.
 
-Vault authenticated clients request for a credential from Vault server and get an OTP
+Nomad authenticated clients request for a credential from Nomad server and get an OTP
 issued. When clients try to establish SSH connection with the remote host, OTP typed
-in at the password prompt will be received by the Vault agent and gets validated
-by the Vault server. Vault server deletes the OTP after validating it once (hence one-time).
+in at the password prompt will be received by the Nomad agent and gets validated
+by the Nomad server. Nomad server deletes the OTP after validating it once (hence one-time).
 
-Since Vault server is contacted for every successful connection establishment, unlike
+Since Nomad server is contacted for every successful connection establishment, unlike
 Dynamic type, every login attempt **WILL** be audited.
 
-See [Vault-SSH-Agent](https://github.com/hashicorp/vault-ssh-agent) for details
+See [Nomad-SSH-Agent](https://github.com/hashicorp/vault-ssh-agent) for details
 on how to configure the agent.
 
 ### Mounting SSH
@@ -212,7 +212,7 @@ Successfully mounted 'ssh' at 'ssh'!
 
 Create a role, say `otp_key_role` for key type `otp`. All the machines represented
 by CIDR block should have agent installed in them and have their SSH configuration
-modified to support Vault SSH Agent client authentication.
+modified to support Nomad SSH Agent client authentication.
 
 ```shell
 $ vault write ssh/roles/otp_key_role key_type=otp default_user=username cidr_list=x.x.x.x/y,m.m.m.m/n
@@ -411,7 +411,7 @@ username@ip:~$
         <span class="param">key</span>
         <span class="param-flags">required for Dynamic type, NA for OTP type</span>
 	(String)
-        Name of the registered key in Vault. Before creating the role, use
+        Name of the registered key in Nomad. Before creating the role, use
         the `keys/` endpoint to create a named key.
       </li>
       <li>
@@ -420,7 +420,7 @@ username@ip:~$
 	(String)
 	Admin user at remote host. The shared key being registered should be
 	for this user and should have root privileges. Everytime a dynamic 
-	credential is being generated for other users, Vault uses this admin
+	credential is being generated for other users, Nomad uses this admin
 	username to login to remote host and install the generated credential
 	for the other user.
       </li>
@@ -446,7 +446,7 @@ username@ip:~$
 	Port number for SSH connection. Default is '22'. Port number does not
 	play any role in creation of OTP. For 'otp' type, this is just a way
 	to inform client about the port number to use. Port number will be
-	returned to client by Vault server along with OTP.
+	returned to client by Nomad server along with OTP.
       </li>
       <li>
         <span class="param">key_type</span>

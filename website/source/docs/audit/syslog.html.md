@@ -14,7 +14,7 @@ The "syslog" audit backend writes audit logs to syslog.
 
 It currently does not support a configurable syslog destination, and
 always sends to the local agent. This backend is only supported on Unix systems,
-and should not be enabled if any standby Vault instances do not support it.
+and should not be enabled if any standby Nomad instances do not support it.
 
 ## Options
 

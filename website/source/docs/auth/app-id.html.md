@@ -3,7 +3,7 @@ layout: "docs"
 page_title: "Auth Backend: App ID"
 sidebar_current: "docs-auth-appid"
 description: |-
-  The App ID auth backend is a mechanism for machines to authenticate with Vault.
+  The App ID auth backend is a mechanism for machines to authenticate with Nomad.
 ---
 
 # Auth Backend: App ID
@@ -11,13 +11,13 @@ description: |-
 Name: `app-id`
 
 The App ID auth backend is a mechanism for machines to authenticate with
-Vault. It works by requiring two hard-to-guess unique pieces of information:
+Nomad. It works by requiring two hard-to-guess unique pieces of information:
 a unique app ID, and a unique user ID.
 
 The goal of this credential provider is to allow elastic users
-(dynamic machines, containers, etc.) to authenticate with Vault without
-having to store passwords outside of Vault. It is a single method of
-solving the chicken-and-egg problem of setting up Vault access on a machine.
+(dynamic machines, containers, etc.) to authenticate with Nomad without
+having to store passwords outside of Nomad. It is a single method of
+solving the chicken-and-egg problem of setting up Nomad access on a machine.
 With this provider, nobody except the machine itself has access to both
 pieces of information necessary to authenticate. For example:
 configuration management will have the app IDs, but the machine itself
@@ -40,7 +40,7 @@ An example, real world process for using this provider:
 
   4. A new server is provisioned. Configuration management configures the
      app ID, the server itself detects its user ID. With both of these
-     pieces of information, Vault can be accessed according to the policy
+     pieces of information, Nomad can be accessed according to the policy
      set by the app ID.
 
 More details on this process follow:

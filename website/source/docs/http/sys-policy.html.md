@@ -3,7 +3,7 @@ layout: "http"
 page_title: "HTTP API: /sys/policy"
 sidebar_current: "docs-http-auth-policy"
 description: |-
-  The `/sys/policy` endpoint is used to manage ACL policies in Vault.
+  The `/sys/policy` endpoint is used to manage ACL policies in Nomad.
 ---
 
 # /sys/policy
