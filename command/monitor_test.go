@@ -1,0 +1,115 @@
+package command
+
+import (
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/mitchellh/cli"
+)
+
+func TestMonitor_Update(t *testing.T) {
+	ui := new(cli.MockUi)
+	mon := newMonitor(ui, nil)
+
+	// Basic eval updates work
+	eval := &api.Evaluation{
+		Status: "pending",
+		NodeID: "node1",
+		Wait:   10 * time.Second,
+	}
+	mon.update(eval, nil)
+
+	// Logs were output
+	out := ui.OutputWriter.String()
+	if !strings.Contains(out, "pending") {
+		t.Fatalf("missing status\n\n%s", out)
+	}
+	if !strings.Contains(out, "node1") {
+		t.Fatalf("missing node\n\n%s", out)
+	}
+	if !strings.Contains(out, "10s") {
+		t.Fatalf("missing eval wait\n\n%s", out)
+	}
+	ui.OutputWriter.Reset()
+
+	// No logs sent if no state update
+	mon.update(eval, nil)
+	if out := ui.OutputWriter.String(); out != "" {
+		t.Fatalf("expected no output\n\n%s", out)
+	}
+
+	// Updates cause more logs to output
+	eval.Status = "complete"
+	mon.update(eval, nil)
+	out = ui.OutputWriter.String()
+	if !strings.Contains(out, "complete") {
+		t.Fatalf("missing status\n\n%s", out)
+	}
+	ui.OutputWriter.Reset()
+
+	// Allocations write new logs
+	allocs := []*api.AllocationListStub{
+		&api.AllocationListStub{
+			ID:            "alloc1",
+			TaskGroup:     "group1",
+			NodeID:        "node1",
+			DesiredStatus: "running",
+			ClientStatus:  "pending",
+		},
+	}
+	mon.update(eval, allocs)
+
+	// Logs were output
+	out = ui.OutputWriter.String()
+	if !strings.Contains(out, "alloc1") {
+		t.Fatalf("missing alloc\n\n%s", out)
+	}
+	if !strings.Contains(out, "group1") {
+		t.Fatalf("missing group\n\n%s", out)
+	}
+	if !strings.Contains(out, "node1") {
+		t.Fatalf("missing node\n\n%s", out)
+	}
+	ui.OutputWriter.Reset()
+
+	// No change yields no logs
+	mon.update(eval, allocs)
+	if out := ui.OutputWriter.String(); out != "" {
+		t.Fatalf("expected no output\n\n%s", out)
+	}
+	ui.OutputWriter.Reset()
+
+	// Updates cause more log lines
+	allocs[0].ClientStatus = "running"
+	mon.update(eval, allocs)
+	out = ui.OutputWriter.String()
+	if !strings.Contains(out, "alloc1") {
+		t.Fatalf("missing alloc\n\n%s", out)
+	}
+	if !strings.Contains(out, "pending") {
+		t.Fatalf("missing old status\n\n%s", out)
+	}
+	if !strings.Contains(out, "running") {
+		t.Fatalf("missing new status\n\n%s", out)
+	}
+	ui.OutputWriter.Reset()
+
+	// New allocs with desired status failed warns
+	allocs = append(allocs, &api.AllocationListStub{
+		TaskGroup:     "group2",
+		DesiredStatus: structs.AllocDesiredStatusFailed,
+	})
+	mon.update(eval, allocs)
+
+	// Scheduling failure was logged
+	out = ui.OutputWriter.String()
+	if !strings.Contains(out, "group2") {
+		t.Fatalf("missing group\n\n%s", out)
+	}
+	if !strings.Contains(out, "Scheduling failed") {
+		t.Fatalf("missing failure\n\n%s", out)
+	}
+}
