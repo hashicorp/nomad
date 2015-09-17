@@ -3,8 +3,6 @@ package command
 import (
 	"fmt"
 	"strings"
-
-	"github.com/mitchellh/cli"
 )
 
 type EvalMonitorCommand struct {
@@ -36,14 +34,6 @@ func (c *EvalMonitorCommand) Synopsis() string {
 }
 
 func (c *EvalMonitorCommand) Run(args []string) int {
-	// Set up the prefixed output
-	c.Ui = &cli.PrefixedUi{
-		InfoPrefix:   "==> ",
-		OutputPrefix: "    ",
-		ErrorPrefix:  "==> ",
-		Ui:           c.Ui,
-	}
-
 	flags := c.Meta.FlagSet("eval-monitor", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	if err := flags.Parse(args); err != nil {

@@ -30,7 +30,12 @@ type monitor struct {
 // write output information to the provided ui.
 func newMonitor(ui cli.Ui, client *api.Client) *monitor {
 	return &monitor{
-		ui:     ui,
+		ui: &cli.PrefixedUi{
+			InfoPrefix:   "==> ",
+			OutputPrefix: "    ",
+			ErrorPrefix:  "==> ",
+			Ui:           ui,
+		},
 		client: client,
 		state: &evalState{
 			allocs: make(map[string]*allocState),
