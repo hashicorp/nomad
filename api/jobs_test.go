@@ -155,18 +155,21 @@ func TestJobs_Delete(t *testing.T) {
 	assertWriteMeta(t, wm)
 
 	// Attempting delete on non-existing job does not error
-	wm2, err := jobs.Delete("nope", nil)
+	_, wm2, err := jobs.Delete("nope", nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
 	assertWriteMeta(t, wm2)
 
 	// Deleting an existing job works
-	wm3, err := jobs.Delete("job1", nil)
+	evalID, wm3, err := jobs.Delete("job1", nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
 	assertWriteMeta(t, wm3)
+	if evalID == "" {
+		t.Fatalf("missing eval ID")
+	}
 
 	// Check that the job is really gone
 	result, qm, err := jobs.List(nil)
