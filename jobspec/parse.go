@@ -77,7 +77,8 @@ func parseJob(result *structs.Job, obj *hclobj.Object) error {
 	delete(m, "constraint")
 	delete(m, "meta")
 
-	// Set the name to the object key
+	// Set the ID and name to the object key
+	result.ID = obj.Key
 	result.Name = obj.Key
 
 	// Defaults
