@@ -94,6 +94,12 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 			}, nil
 		},
 
+		"stop": func() (cli.Command, error) {
+			return &command.StopCommand{
+				Meta: meta,
+			}, nil
+		},
+
 		"version": func() (cli.Command, error) {
 			ver := Version
 			rel := VersionPrerelease
