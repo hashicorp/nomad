@@ -9,7 +9,6 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/jobspec"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/mitchellh/cli"
 )
 
 type RunCommand struct {
@@ -43,14 +42,6 @@ func (c *RunCommand) Synopsis() string {
 }
 
 func (c *RunCommand) Run(args []string) int {
-	// Set up the prefixed output
-	c.Ui = &cli.PrefixedUi{
-		InfoPrefix:   "==> ",
-		OutputPrefix: "    ",
-		ErrorPrefix:  "==> ",
-		Ui:           c.Ui,
-	}
-
 	var monitor bool
 
 	flags := c.Meta.FlagSet("run", FlagSetClient)
@@ -104,7 +95,6 @@ func (c *RunCommand) Run(args []string) int {
 	}
 
 	// By default just print some info and return
-	c.Ui.Info("Job registered successfully!")
 	c.Ui.Output("JobID  = " + job.ID)
 	c.Ui.Output("EvalID = " + evalID)
 	return 0
