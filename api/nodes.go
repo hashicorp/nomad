@@ -1,6 +1,7 @@
 package api
 
 import (
+	"sort"
 	"strconv"
 )
 
@@ -16,11 +17,12 @@ func (c *Client) Nodes() *Nodes {
 
 // List is used to list out all of the nodes
 func (n *Nodes) List(q *QueryOptions) ([]*NodeListStub, *QueryMeta, error) {
-	var resp []*NodeListStub
+	var resp NodeIndexSort
 	qm, err := n.client.query("/v1/nodes", &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
+	sort.Sort(NodeIndexSort(resp))
 	return resp, qm, nil
 }
 
@@ -51,6 +53,7 @@ func (n *Nodes) Allocations(nodeID string, q *QueryOptions) ([]*AllocationListSt
 	if err != nil {
 		return nil, nil, err
 	}
+	sort.Sort(AllocIndexSort(resp))
 	return resp, qm, nil
 }
 
@@ -93,6 +96,21 @@ type NodeListStub struct {
 	StatusDescription string
 	CreateIndex       uint64
 	ModifyIndex       uint64
+}
+
+// NodeIndexSort reverse sorts nodes by CreateIndex
+type NodeIndexSort []*NodeListStub
+
+func (n NodeIndexSort) Len() int {
+	return len(n)
+}
+
+func (n NodeIndexSort) Less(i, j int) bool {
+	return n[i].CreateIndex > n[j].CreateIndex
+}
+
+func (n NodeIndexSort) Swap(i, j int) {
+	n[i], n[j] = n[j], n[i]
 }
 
 // nodeEvalResponse is used to decode a force-eval.
