@@ -80,8 +80,8 @@ func (j *Jobs) Evaluations(jobID string, q *QueryOptions) ([]*Evaluation, *Query
 	return resp, qm, nil
 }
 
-// Delete is used to remove an existing job.
-func (j *Jobs) Delete(jobID string, q *WriteOptions) (string, *WriteMeta, error) {
+// Deregister is used to remove an existing job.
+func (j *Jobs) Deregister(jobID string, q *WriteOptions) (string, *WriteMeta, error) {
 	var resp deregisterJobResponse
 	wm, err := j.client.delete("/v1/job/"+jobID, &resp, q)
 	if err != nil {
