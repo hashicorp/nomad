@@ -81,12 +81,13 @@ func (j *Jobs) Evaluations(jobID string, q *QueryOptions) ([]*Evaluation, *Query
 }
 
 // Delete is used to remove an existing job.
-func (j *Jobs) Delete(jobID string, q *WriteOptions) (*WriteMeta, error) {
-	wm, err := j.client.delete("/v1/job/"+jobID, nil, q)
+func (j *Jobs) Delete(jobID string, q *WriteOptions) (string, *WriteMeta, error) {
+	var resp deregisterJobResponse
+	wm, err := j.client.delete("/v1/job/"+jobID, &resp, q)
 	if err != nil {
-		return nil, err
+		return "", nil, err
 	}
-	return wm, nil
+	return resp.EvalID, wm, nil
 }
 
 // ForceEvaluate is used to force-evaluate an existing job.
@@ -204,5 +205,10 @@ type registerJobRequest struct {
 
 // registerJobResponse is used to deserialize a job response
 type registerJobResponse struct {
+	EvalID string
+}
+
+// deregisterJobResponse is used to decode a deregister response
+type deregisterJobResponse struct {
 	EvalID string
 }
