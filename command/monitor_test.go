@@ -113,3 +113,48 @@ func TestMonitor_Update(t *testing.T) {
 		t.Fatalf("missing failure\n\n%s", out)
 	}
 }
+
+func TestMonitor_Monitor(t *testing.T) {
+	srv, client, _ := testServer(t, nil)
+	defer srv.Stop()
+
+	// Create the monitor
+	ui := new(cli.MockUi)
+	mon := newMonitor(ui, client)
+
+	// Submit a job - this creates a new evaluation we can monitor
+	job := testJob("job1")
+	evalID, _, err := client.Jobs().Register(job, nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	// Start monitoring the eval
+	var code int
+	doneCh := make(chan struct{})
+	go func() {
+		defer close(doneCh)
+		code = mon.monitor(evalID)
+	}()
+
+	// Wait for completion
+	select {
+	case <-doneCh:
+	case <-time.After(5 * time.Second):
+		t.Fatalf("eval monitor took too long")
+	}
+
+	// Check the return code
+	if code != 0 {
+		t.Fatalf("expect exit 0, got: %d", code)
+	}
+
+	// Check the output
+	out := ui.OutputWriter.String()
+	if !strings.Contains(out, evalID) {
+		t.Fatalf("missing eval\n\n%s", out)
+	}
+	if !strings.Contains(out, "finished with status") {
+		t.Fatalf("missing final status\n\n%s", out)
+	}
+}
