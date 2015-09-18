@@ -64,7 +64,7 @@ type AllocationMetric struct {
 	ConstraintFiltered map[string]int
 	NodesExhausted     int
 	ClassExhausted     map[string]int
-	DimensionExhaused  map[string]int
+	DimensionExhausted map[string]int
 	Scores             map[string]float64
 	AllocationTime     time.Duration
 	CoalescedFailures  int
