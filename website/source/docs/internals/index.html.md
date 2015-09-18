@@ -9,7 +9,7 @@ description: |-
 # Nomad Internals
 
 This section covers the internals of Nomad and explains the technical
-details of how Nomad functions, its architecture and security properties.
+details of how Nomad functions, its architecture and sub-systems.
 
 -> **Note:** Knowledge of Nomad internals is not
 required to use Nomad. If you aren't interested in the internals

@@ -25,24 +25,39 @@ as well as statsd based on providing the appropriate configuration options.
 Below is sample output of a telemetry dump:
 
 ```text
-[2015-04-20 12:24:30 -0700 PDT][G] 'vault.runtime.num_goroutines': 12.000
-[2015-04-20 12:24:30 -0700 PDT][G] 'vault.runtime.free_count': 11882.000
-[2015-04-20 12:24:30 -0700 PDT][G] 'vault.runtime.total_gc_runs': 9.000
-[2015-04-20 12:24:30 -0700 PDT][G] 'vault.expire.num_leases': 1.000
-[2015-04-20 12:24:30 -0700 PDT][G] 'vault.runtime.alloc_bytes': 502992.000
-[2015-04-20 12:24:30 -0700 PDT][G] 'vault.runtime.sys_bytes': 3999992.000
-[2015-04-20 12:24:30 -0700 PDT][G] 'vault.runtime.malloc_count': 17315.000
-[2015-04-20 12:24:30 -0700 PDT][G] 'vault.runtime.heap_objects': 5433.000
-[2015-04-20 12:24:30 -0700 PDT][G] 'vault.runtime.total_gc_pause_ns': 3794124.000
-[2015-04-20 12:24:30 -0700 PDT][S] 'vault.audit.log_response': Count: 2 Min: 0.001 Mean: 0.001 Max: 0.001 Stddev: 0.000 Sum: 0.002
-[2015-04-20 12:24:30 -0700 PDT][S] 'vault.route.read.secret-': Count: 1 Sum: 0.036
-[2015-04-20 12:24:30 -0700 PDT][S] 'vault.barrier.get': Count: 3 Min: 0.004 Mean: 0.021 Max: 0.050 Stddev: 0.025 Sum: 0.064
-[2015-04-20 12:24:30 -0700 PDT][S] 'vault.token.lookup': Count: 2 Min: 0.040 Mean: 0.074 Max: 0.108 Stddev: 0.048 Sum: 0.148
-[2015-04-20 12:24:30 -0700 PDT][S] 'vault.policy.get_policy': Count: 2 Min: 0.003 Mean: 0.004 Max: 0.005 Stddev: 0.001 Sum: 0.009
-[2015-04-20 12:24:30 -0700 PDT][S] 'vault.core.check_token': Count: 2 Min: 0.053 Mean: 0.087 Max: 0.121 Stddev: 0.048 Sum: 0.174
-[2015-04-20 12:24:30 -0700 PDT][S] 'vault.audit.log_request': Count: 2 Min: 0.001 Mean: 0.001 Max: 0.001 Stddev: 0.000 Sum: 0.002
-[2015-04-20 12:24:30 -0700 PDT][S] 'vault.barrier.put': Count: 3 Min: 0.004 Mean: 0.010 Max: 0.019 Stddev: 0.008 Sum: 0.029
-[2015-04-20 12:24:30 -0700 PDT][S] 'vault.route.write.secret-': Count: 1 Sum: 0.035
-[2015-04-20 12:24:30 -0700 PDT][S] 'vault.core.handle_request': Count: 2 Min: 0.097 Mean: 0.228 Max: 0.359 Stddev: 0.186 Sum: 0.457
-[2015-04-20 12:24:30 -0700 PDT][S] 'vault.expire.register': Count: 1 Sum: 0.18
+[2015-09-17 16:59:40 -0700 PDT][G] 'nomad.nomad.broker.total_blocked': 0.000
+[2015-09-17 16:59:40 -0700 PDT][G] 'nomad.nomad.plan.queue_depth': 0.000
+[2015-09-17 16:59:40 -0700 PDT][G] 'nomad.runtime.malloc_count': 7568.000
+[2015-09-17 16:59:40 -0700 PDT][G] 'nomad.runtime.total_gc_runs': 8.000
+[2015-09-17 16:59:40 -0700 PDT][G] 'nomad.nomad.broker.total_ready': 0.000
+[2015-09-17 16:59:40 -0700 PDT][G] 'nomad.runtime.num_goroutines': 56.000
+[2015-09-17 16:59:40 -0700 PDT][G] 'nomad.runtime.sys_bytes': 3999992.000
+[2015-09-17 16:59:40 -0700 PDT][G] 'nomad.runtime.heap_objects': 4135.000
+[2015-09-17 16:59:40 -0700 PDT][G] 'nomad.nomad.heartbeat.active': 1.000
+[2015-09-17 16:59:40 -0700 PDT][G] 'nomad.nomad.broker.total_unacked': 0.000
+[2015-09-17 16:59:40 -0700 PDT][G] 'nomad.nomad.broker.total_waiting': 0.000
+[2015-09-17 16:59:40 -0700 PDT][G] 'nomad.runtime.alloc_bytes': 634056.000
+[2015-09-17 16:59:40 -0700 PDT][G] 'nomad.runtime.free_count': 3433.000
+[2015-09-17 16:59:40 -0700 PDT][G] 'nomad.runtime.total_gc_pause_ns': 6572135.000
+[2015-09-17 16:59:40 -0700 PDT][C] 'nomad.memberlist.msg.alive': Count: 1 Sum: 1.000
+[2015-09-17 16:59:40 -0700 PDT][C] 'nomad.serf.member.join': Count: 1 Sum: 1.000
+[2015-09-17 16:59:40 -0700 PDT][C] 'nomad.raft.barrier': Count: 1 Sum: 1.000
+[2015-09-17 16:59:40 -0700 PDT][C] 'nomad.raft.apply': Count: 1 Sum: 1.000
+[2015-09-17 16:59:40 -0700 PDT][C] 'nomad.nomad.rpc.query': Count: 2 Sum: 2.000
+[2015-09-17 16:59:40 -0700 PDT][S] 'nomad.serf.queue.Query': Count: 6 Sum: 0.000
+[2015-09-17 16:59:40 -0700 PDT][S] 'nomad.nomad.fsm.register_node': Count: 1 Sum: 1.296
+[2015-09-17 16:59:40 -0700 PDT][S] 'nomad.serf.queue.Intent': Count: 6 Sum: 0.000
+[2015-09-17 16:59:40 -0700 PDT][S] 'nomad.runtime.gc_pause_ns': Count: 8 Min: 126492.000 Mean: 821516.875 Max: 3126670.000 Stddev: 1139250.294 Sum: 6572135.000
+[2015-09-17 16:59:40 -0700 PDT][S] 'nomad.raft.leader.dispatchLog': Count: 3 Min: 0.007 Mean: 0.018 Max: 0.039 Stddev: 0.018 Sum: 0.054
+[2015-09-17 16:59:40 -0700 PDT][S] 'nomad.nomad.leader.reconcileMember': Count: 1 Sum: 0.007
+[2015-09-17 16:59:40 -0700 PDT][S] 'nomad.nomad.leader.reconcile': Count: 1 Sum: 0.025
+[2015-09-17 16:59:40 -0700 PDT][S] 'nomad.raft.fsm.apply': Count: 1 Sum: 1.306
+[2015-09-17 16:59:40 -0700 PDT][S] 'nomad.nomad.client.get_allocs': Count: 1 Sum: 0.110
+[2015-09-17 16:59:40 -0700 PDT][S] 'nomad.nomad.worker.dequeue_eval': Count: 29 Min: 0.003 Mean: 363.426 Max: 503.377 Stddev: 228.126 Sum: 10539.354
+[2015-09-17 16:59:40 -0700 PDT][S] 'nomad.serf.queue.Event': Count: 6 Sum: 0.000
+[2015-09-17 16:59:40 -0700 PDT][S] 'nomad.raft.commitTime': Count: 3 Min: 0.013 Mean: 0.037 Max: 0.079 Stddev: 0.037 Sum: 0.110
+[2015-09-17 16:59:40 -0700 PDT][S] 'nomad.nomad.leader.barrier': Count: 1 Sum: 0.071
+[2015-09-17 16:59:40 -0700 PDT][S] 'nomad.nomad.client.register': Count: 1 Sum: 1.626
+[2015-09-17 16:59:40 -0700 PDT][S] 'nomad.nomad.eval.dequeue': Count: 21 Min: 500.610 Mean: 501.753 Max: 503.361 Stddev: 1.030 Sum: 10536.813
+[2015-09-17 16:59:40 -0700 PDT][S] 'nomad.memberlist.gossip': Count: 12 Min: 0.009 Mean: 0.017 Max: 0.025 Stddev: 0.005 Sum: 0.204
 ```

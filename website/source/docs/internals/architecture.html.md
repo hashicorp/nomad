@@ -126,6 +126,7 @@ ensuring PCI compliant workloads run on appropriate servers.
 # Getting in Depth
 
 This has been a brief high-level overview of the architecture of Nomad. There
-are more details available for each of the sub-systems.
+are more details available for each of the sub-systems. The [consensus protocol](/docs/internals/consensus.html) is
+documented in detail as is the [gossip protocol](/docs/internals/gossip.html).
 
 For other details, either consult the code, ask in IRC or reach out to the mailing list.
