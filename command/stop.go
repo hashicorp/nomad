@@ -14,10 +14,10 @@ func (c *StopCommand) Help() string {
 Usage: nomad stop [options] <job>
 
   Stop an existing job. This command is used to signal allocations
-  to shut down for the given job ID. The shutdown happens
-  asynchronously, unless the -monitor flag is given, in which case
-  an interactive monitor session will display log lines as the
-  job unwinds and completes shutting down.
+  to shut down for the given job ID. Upon successful deregistraion,
+  an interactive monitor session will start to display log lines as
+  the job unwinds its allocations and completes shutting down. It
+  is safe to exit the monitor early using ctrl+c.
 
 General Options:
 
@@ -25,10 +25,11 @@ General Options:
 
 Stop Options:
 
-  -monitor
-    Starts an interactive monitor for the job deregistration. This
-    will display logs in the terminal related to the job shutdown,
-    and return once the job deregistration has completed.
+  -detach
+    Return immediately instead of entering monitor mode. After the
+    deregister command is submitted, a new evaluation ID is printed
+    to the screen, which can be used to call up a monitor later if
+    needed using the eval-monitor command.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -38,11 +39,11 @@ func (c *StopCommand) Synopsis() string {
 }
 
 func (c *StopCommand) Run(args []string) int {
-	var monitor bool
+	var detach bool
 
 	flags := c.Meta.FlagSet("stop", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	flags.BoolVar(&monitor, "monitor", false, "")
+	flags.BoolVar(&detach, "detach", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -76,10 +77,12 @@ func (c *StopCommand) Run(args []string) int {
 		return 1
 	}
 
-	if monitor {
-		mon := newMonitor(c.Ui, client)
-		return mon.monitor(evalID)
+	if detach {
+		c.Ui.Output(evalID)
+		return 0
 	}
 
-	return 0
+	// Start monitoring the stop eval
+	mon := newMonitor(c.Ui, client)
+	return mon.monitor(evalID)
 }

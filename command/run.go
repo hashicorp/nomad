@@ -22,17 +22,23 @@ Usage: nomad run [options] <file>
   Starts running a new job using the definition located at <file>.
   This is the main command used to invoke new work in Nomad.
 
+  Upon successful job submission, this command will immediately
+  enter an interactive monitor. This is useful to watch Nomad's
+  internals make scheduling decisions and place the submitted work
+  onto nodes. The monitor will end once job placement is done. It
+  is safe to exit the monitor early using ctrl+c.
+
 General Options:
 
   ` + generalOptionsUsage() + `
 
 Run Options:
 
-  -monitor
-    On successful job completion, immediately begin monitoring the
-    evaluation created by the job registration. This mode will
-    enter an interactive session where status is printed to the
-    screen, similar to the "tail" UNIX command.
+  -detach
+    Return immediately instead of entring monitor mode. After job
+    submission, the evaluation ID will be printed to the screen.
+    You can use this ID to start a monitor using the eval-monitor
+    command later if needed.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -42,11 +48,11 @@ func (c *RunCommand) Synopsis() string {
 }
 
 func (c *RunCommand) Run(args []string) int {
-	var monitor bool
+	var detach bool
 
 	flags := c.Meta.FlagSet("run", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	flags.BoolVar(&monitor, "monitor", false, "")
+	flags.BoolVar(&detach, "detach", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -89,15 +95,15 @@ func (c *RunCommand) Run(args []string) int {
 	}
 
 	// Check if we should enter monitor mode
-	if monitor {
-		mon := newMonitor(c.Ui, client)
-		return mon.monitor(evalID)
+	if detach {
+		c.Ui.Output(evalID)
+		return 0
 	}
 
-	// By default just print some info and return
-	c.Ui.Output("JobID  = " + job.ID)
-	c.Ui.Output("EvalID = " + evalID)
-	return 0
+	// Detach was not specified, so start monitoring
+	mon := newMonitor(c.Ui, client)
+	return mon.monitor(evalID)
+
 }
 
 // convertJob is used to take a *structs.Job and convert it to an *api.Job.
