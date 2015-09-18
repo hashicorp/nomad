@@ -121,13 +121,12 @@ func (c *StatusCommand) Run(args []string) int {
 
 		// Format the evals
 		evals = make([]string, len(jobEvals)+1)
-		evals[0] = "ID|Priority|TriggeredBy|NodeID|Status"
+		evals[0] = "ID|Priority|TriggeredBy|Status"
 		for i, eval := range jobEvals {
-			evals[i+1] = fmt.Sprintf("%s|%d|%s|%s|%s",
+			evals[i+1] = fmt.Sprintf("%s|%d|%s|%s",
 				eval.ID,
 				eval.Priority,
 				eval.TriggeredBy,
-				eval.NodeID,
 				eval.Status)
 		}
 
