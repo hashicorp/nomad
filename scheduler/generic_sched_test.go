@@ -139,6 +139,19 @@ func TestServiceSched_JobModify(t *testing.T) {
 	}
 	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
 
+	// Add a few terminal status allocations, these should be ignored
+	var terminal []*structs.Allocation
+	for i := 0; i < 5; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = nodes[i].ID
+		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
+		alloc.DesiredStatus = structs.AllocDesiredStatusFailed
+		terminal = append(terminal, alloc)
+	}
+	noErr(t, h.State.UpsertAllocs(h.NextIndex(), terminal))
+
 	// Update the job
 	job2 := mock.Job()
 	job2.ID = job.ID

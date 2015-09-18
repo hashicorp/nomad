@@ -211,6 +211,9 @@ func (s *GenericScheduler) computeJobAllocs() error {
 			s.eval.JobID, err)
 	}
 
+	// Filter out the allocations in a terminal state
+	allocs = structs.FilterTerminalAllocs(allocs)
+
 	// Determine the tainted nodes containing job allocs
 	tainted, err := taintedNodes(s.state, allocs)
 	if err != nil {
