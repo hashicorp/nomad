@@ -16,9 +16,10 @@ func TestMonitor_Update(t *testing.T) {
 
 	// Basic eval updates work
 	eval := &api.Evaluation{
-		Status: "pending",
-		NodeID: "node1",
-		Wait:   10 * time.Second,
+		Status:      "pending",
+		NodeID:      "node1",
+		Wait:        10 * time.Second,
+		CreateIndex: 2,
 	}
 	mon.update(eval, nil)
 
@@ -50,14 +51,15 @@ func TestMonitor_Update(t *testing.T) {
 	}
 	ui.OutputWriter.Reset()
 
-	// Allocations write new logs
+	// New allocations write new logs
 	allocs := []*api.AllocationListStub{
 		&api.AllocationListStub{
 			ID:            "alloc1",
 			TaskGroup:     "group1",
 			NodeID:        "node1",
-			DesiredStatus: "running",
-			ClientStatus:  "pending",
+			DesiredStatus: structs.AllocDesiredStatusRun,
+			ClientStatus:  structs.AllocClientStatusPending,
+			CreateIndex:   3,
 		},
 	}
 	mon.update(eval, allocs)
@@ -72,6 +74,9 @@ func TestMonitor_Update(t *testing.T) {
 	}
 	if !strings.Contains(out, "node1") {
 		t.Fatalf("missing node\n\n%s", out)
+	}
+	if !strings.Contains(out, "created") {
+		t.Fatalf("missing created\n\n%s", out)
 	}
 	ui.OutputWriter.Reset()
 
@@ -99,8 +104,10 @@ func TestMonitor_Update(t *testing.T) {
 
 	// New allocs with desired status failed warns
 	allocs = append(allocs, &api.AllocationListStub{
+		ID:            "alloc2",
 		TaskGroup:     "group2",
 		DesiredStatus: structs.AllocDesiredStatusFailed,
+		CreateIndex:   4,
 	})
 	mon.update(eval, allocs)
 
@@ -111,6 +118,32 @@ func TestMonitor_Update(t *testing.T) {
 	}
 	if !strings.Contains(out, "Scheduling failed") {
 		t.Fatalf("missing failure\n\n%s", out)
+	}
+	ui.OutputWriter.Reset()
+
+	// New allocs with a create index lower than the
+	// eval create index are logged as modifications
+	allocs = append(allocs, &api.AllocationListStub{
+		ID:          "alloc3",
+		NodeID:      "node1",
+		TaskGroup:   "group2",
+		CreateIndex: 1,
+	})
+	mon.update(eval, allocs)
+
+	// Modification was logged
+	out = ui.OutputWriter.String()
+	if !strings.Contains(out, "alloc3") {
+		t.Fatalf("missing alloc\n\n%s", out)
+	}
+	if !strings.Contains(out, "group2") {
+		t.Fatalf("missing group\n\n%s", out)
+	}
+	if !strings.Contains(out, "node1") {
+		t.Fatalf("missing node\n\n%s", out)
+	}
+	if !strings.Contains(out, "modified") {
+		t.Fatalf("missing modification\n\n%s", out)
 	}
 }
 

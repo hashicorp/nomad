@@ -100,25 +100,32 @@ func (m *monitor) update(eval *api.Evaluation, allocs []*api.AllocationListStub)
 	// Check the allocations
 	for allocID, alloc := range update.allocs {
 		if existing, ok := existing.allocs[allocID]; !ok {
-			// Check if this is a failure indication allocation
-			if alloc.desired == structs.AllocDesiredStatusFailed {
-				m.output(fmt.Sprintf("Scheduling failed for task group %q",
+			switch {
+			case alloc.desired == structs.AllocDesiredStatusFailed:
+				// New allocs with desired state failed indicate
+				// scheduling failure.
+				m.output(fmt.Sprintf("Scheduling failed for group %q",
 					alloc.group))
-			} else {
-				if alloc.index < update.index {
-					m.output(fmt.Sprintf(
-						"Allocation %q updated (node %q, task group %q)",
-						alloc.id, alloc.node, alloc.group))
-				} else {
-					m.output(fmt.Sprintf(
-						"Allocation %q created on node %q for task group %q",
-						alloc.id, alloc.node, alloc.group))
-				}
+
+			case alloc.index < update.index:
+				// New alloc with create index lower than the eval
+				// create index indicates modification
+				m.output(fmt.Sprintf(
+					"Allocation %q modified: node %q, group %q",
+					alloc.id, alloc.node, alloc.group))
+
+			case alloc.desired == structs.AllocDesiredStatusRun:
+				// New allocation with desired status running
+				m.output(fmt.Sprintf(
+					"Allocation %q created: node %q, group %q",
+					alloc.id, alloc.node, alloc.group))
 			}
 		} else {
-			if existing.client != alloc.client {
+			switch {
+			case existing.client != alloc.client:
+				// Allocation status has changed
 				m.output(fmt.Sprintf(
-					"Allocation %q changed status from %q to %q",
+					"Allocation %q status changed: %q -> %q",
 					alloc.id, existing.client, alloc.client))
 			}
 		}
@@ -126,7 +133,7 @@ func (m *monitor) update(eval *api.Evaluation, allocs []*api.AllocationListStub)
 
 	// Check if the status changed
 	if existing.status != update.status {
-		m.output(fmt.Sprintf("Evaluation changed status from %q to %q",
+		m.output(fmt.Sprintf("Evaluation status changed: %q -> %q",
 			existing.status, eval.Status))
 	}
 
