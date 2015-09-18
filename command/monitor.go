@@ -162,19 +162,6 @@ func (m *monitor) update(eval *api.Evaluation, allocs []*api.AllocationListStub)
 // success or failure ONLY. It is no indication of the outcome of
 // the evaluation, since conflating these values obscures things.
 func (m *monitor) monitor(evalID string) int {
-	// Check if the eval has already completed and fast-path it.
-	eval, _, err := m.client.Evaluations().Info(evalID, nil)
-	if err != nil {
-		m.ui.Error(fmt.Sprintf("Error reading evaluation: %s", err))
-		return 1
-	}
-	switch eval.Status {
-	case structs.EvalStatusComplete, structs.EvalStatusFailed:
-		m.ui.Info(fmt.Sprintf("Evaluation %q finished with status %q",
-			evalID, eval.Status))
-		return 0
-	}
-
 	m.ui.Info(fmt.Sprintf("Monitoring evaluation %q", evalID))
 	for {
 		// Query the evaluation
