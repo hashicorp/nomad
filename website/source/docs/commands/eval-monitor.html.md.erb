@@ -1,0 +1,41 @@
+---
+layout: "docs"
+page_title: "Commands: eval-monitor"
+sidebar_current: "docs-commands-eval-monitor"
+description: >
+  The eval-monitor command is used to attach a log monitor to an existing
+  evaluation using its ID.
+---
+
+# Command: eval-monitor
+
+The `eval-monitor` command is used to monitor an existion [evaluation](#).
+Logs will be output describing state changes to the evaluation or its
+associated [allocations](#). The monitor will exit when the evaluation
+reaches a terminal state.
+
+## Usage
+
+```
+nomad eval-monitor [options] <eval>
+```
+
+The eval-monitor command requires a single argument, specifying the
+evaluation ID to monitor. An interactive monitoring session will be
+started in the terminal. It is safe to exit the monitor at any time
+using ctrl+c.
+
+## General Options
+
+<%= general_options_usage %>
+
+## Examples
+
+Monitor an existing evaluation
+
+```
+$ nomad eval-monitor d00797d8-7bc3-fbc7-ae0d-5af0260a871f
+==> Monitoring evaluation "d00797d8-7bc3-fbc7-ae0d-5af0260a871f"
+    2015/09/17 23:21:24 Evaluation status changed: "pending" -> "complete"
+==> Evaluation "d00797d8-7bc3-fbc7-ae0d-5af0260a871f" finished with status "complete"
+```
