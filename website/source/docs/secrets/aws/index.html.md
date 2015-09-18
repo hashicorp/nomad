@@ -3,16 +3,16 @@ layout: "docs"
 page_title: "Secret Backend: AWS"
 sidebar_current: "docs-secrets-aws"
 description: |-
-  The AWS secret backend for Vault generates access keys dynamically based on IAM policies.
+  The AWS secret backend for Nomad generates access keys dynamically based on IAM policies.
 ---
 
 # AWS Secret Backend
 
 Name: `aws`
 
-The AWS secret backend for Vault generates AWS access credentials dynamically
+The AWS secret backend for Nomad generates AWS access credentials dynamically
 based on IAM policies. This makes IAM much easier to use: credentials could
-be generated on the fly, and are automatically revoked when the Vault
+be generated on the fly, and are automatically revoked when the Nomad
 lease is expired.
 
 This page will show a quick start for this backend. For detailed documentation
@@ -59,7 +59,7 @@ This path will create a named role along with the IAM policy used
 to restrict permissions for it. This is used to dynamically create
 a new pair of IAM credentials when needed.
 
-The `@` tells Vault to load the policy from the file named `policy.json`. Here
+The `@` tells Nomad to load the policy from the file named `policy.json`. Here
 is an example IAM policy to get started:
 
 ```javascript

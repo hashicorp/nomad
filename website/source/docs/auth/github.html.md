@@ -3,17 +3,17 @@ layout: "docs"
 page_title: "Auth Backend: GitHub"
 sidebar_current: "docs-auth-github"
 description: |-
-  The GitHub auth backend allows authentication with Vault using GitHub.
+  The GitHub auth backend allows authentication with Nomad using GitHub.
 ---
 
 # Auth Backend: GitHub
 
 Name: `github`
 
-The GitHub auth backend can be used to authenticate with Vault using
+The GitHub auth backend can be used to authenticate with Nomad using
 a GitHub personal access token.
 This method of authentication is most useful for humans: operators or
-developers using Vault directly via the CLI.
+developers using Nomad directly via the CLI.
 
 ## Authentication
 
@@ -63,7 +63,7 @@ Success! Data written to: auth/github/config
 ```
 
 After configuring that, you must map the teams of that organization to
-policies within Vault. Use the `map/teams/<team>` endpoints to do that.
+policies within Nomad. Use the `map/teams/<team>` endpoints to do that.
 Example:
 
 ```
@@ -71,7 +71,7 @@ $ vault write auth/github/map/teams/owners value=root
 Success! Data written to: auth/github/map/teams/owners
 ```
 
-The above would make anyone in the "owners" team a root user in Vault
+The above would make anyone in the "owners" team a root user in Nomad
 (not recommended).
 
 You can then auth with a user that is a member of the "owners" team using a Personal Access Token with the `read:org` scope.

@@ -3,17 +3,17 @@ layout: "docs"
 page_title: "Secret Backend: Cassandra"
 sidebar_current: "docs-secrets-cassandra"
 description: |-
-  The Cassandra secret backend for Vault generates database credentials to access Cassandra.
+  The Cassandra secret backend for Nomad generates database credentials to access Cassandra.
 ---
 
 # Cassandra Secret Backend
 
 Name: `cassandra`
 
-The Cassandra secret backend for Vault generates database credentials
+The Cassandra secret backend for Nomad generates database credentials
 dynamically based on configured roles. This means that services that need
 to access a database no longer need to hardcode credentials: they can request
-them from Vault, and use Vault's leasing mechanism to more easily roll keys.
+them from Nomad, and use Nomad's leasing mechanism to more easily roll keys.
 
 Additionally, it introduces a new ability: with every service accessing
 the database with unique credentials, it makes auditing much easier when
@@ -33,7 +33,7 @@ $ vault mount cassandra
 Successfully mounted 'cassandra' at 'cassandra'!
 ```
 
-Next, Vault must be configured to connect to Cassandra. This is done by
+Next, Nomad must be configured to connect to Cassandra. This is done by
 writing one or more hosts, a username, and a password:
 
 ```text
@@ -41,8 +41,8 @@ $ vault write cassandra/config/connection \
     hosts=localhost username=cassandra password=cassandra
 ```
 
-In this case, we've configured Vault with the user "cassandra" and password "cassandra",
-It is important that the Vault user is a superuser, in order to manage other user accounts.
+In this case, we've configured Nomad with the user "cassandra" and password "cassandra",
+It is important that the Nomad user is a superuser, in order to manage other user accounts.
 
 The next step is to configure a role. A role is a logical name that maps
 to a policy used to generated those credentials. For example, lets create
@@ -58,14 +58,14 @@ Success! Data written to: cassandra/roles/readonly
 By writing to the `roles/readonly` path we are defining the `readonly` role.
 This role will be created by evaluating the given `creation_cql` statements. By
 default, the `{{username}}` and `{{password}}` fields will be populated by
-Vault with dynamically generated values. This CQL statement is creating
+Nomad with dynamically generated values. This CQL statement is creating
 the named user, and then granting it `SELECT` or read-only privileges
 to keyspaces. More complex `GRANT` queries can be used to
 customize the privileges of the role. See the [CQL Reference Manual](http://docs.datastax.com/en/cql/3.1/cql/cql_reference/grant_r.html)
 for more information.
 
 To generate a new set of credentials, we simply read from that role:
-Vault is now configured to create and manage credentials for Cassandra!
+Nomad is now configured to create and manage credentials for Cassandra!
 
 ```text
 $ vault read cassandra/creds/readonly
@@ -77,7 +77,7 @@ password       	dfa80eea-ccbe-b228-ebf7-e2f62b245e71
 username       	vault-root-1434647667-9313
 ```
 
-By reading from the `creds/readonly` path, Vault has generated a new
+By reading from the `creds/readonly` path, Nomad has generated a new
 set of credentials using the `readonly` role configuration. Here we
 see the dynamically generated username and password, along with a one
 hour lease.

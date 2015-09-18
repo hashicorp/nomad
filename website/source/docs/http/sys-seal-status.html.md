@@ -3,7 +3,7 @@ layout: "http"
 page_title: "HTTP API: /sys/seal-status"
 sidebar_current: "docs-http-seal-status"
 description: |-
-  The '/sys/seal-status' endpoint is used to check the seal status of a Vault.
+  The '/sys/seal-status' endpoint is used to check the seal status of a Nomad.
 ---
 
 # /sys/seal-status
@@ -11,7 +11,7 @@ description: |-
 <dl>
   <dt>Description</dt>
   <dd>
-    Returns the seal status of the Vault.
+    Returns the seal status of the Nomad.
   </dd>
 
   <dt>Method</dt>

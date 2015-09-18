@@ -3,13 +3,13 @@ layout: "docs"
 page_title: "Secret Backend: Custom"
 sidebar_current: "docs-secrets-custom"
 description: |-
-  Create custom secret backends for Vault.
+  Create custom secret backends for Nomad.
 ---
 
 # Custom Secret Backends
 
-Vault doesn't currently support the creation of custom secret backends.
-The primary reason is because we want to ensure the core of Vault is
+Nomad doesn't currently support the creation of custom secret backends.
+The primary reason is because we want to ensure the core of Nomad is
 secure before attempting any sort of plug-in system. We're interested
 in supporting custom secret backends, but don't yet have a clear strategy
 or timeline to do.

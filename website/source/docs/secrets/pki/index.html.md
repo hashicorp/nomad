@@ -3,14 +3,14 @@ layout: "docs"
 page_title: "Secret Backend: PKI"
 sidebar_current: "docs-secrets-pki"
 description: |-
-  The PKI secret backend for Vault generates TLS certificates.
+  The PKI secret backend for Nomad generates TLS certificates.
 ---
 
 # PKI Secret Backend
 
 Name: `pki`
 
-The PKI secret backend for Vault generates X.509 certificates dynamically based on configured roles. This means services can get certificates needed for both client and server authentication without going through the usual manual process of generating a private key and CSR, submitting to a CA, and waiting for a verification and signing process to complete. Vault's built-in authentication and authorization mechanisms provide the verification functionality.
+The PKI secret backend for Nomad generates X.509 certificates dynamically based on configured roles. This means services can get certificates needed for both client and server authentication without going through the usual manual process of generating a private key and CSR, submitting to a CA, and waiting for a verification and signing process to complete. Nomad's built-in authentication and authorization mechanisms provide the verification functionality.
 
 By keeping leases relatively short, revocations are less likely to be needed, keeping CRLs short and helping the backend scale to large workloads. This in turn allows each instance of a running application to have a unique certificate, eliminating sharing and the accompanying pain of revocation and rollover.
 
@@ -24,7 +24,7 @@ To successfully deploy this backend, there are a number of important considerati
 
 ### Never use root CAs
 
-Vault storage is secure, but not as secure as a piece of paper in a bank vault. It is, after all, networked software. Your long-lived self-signed root CA's private key should instead be used to issue a shorter-lived intermediate CA certificate, and this is what you should put into Vault. This aligns with industry best practices.
+Nomad storage is secure, but not as secure as a piece of paper in a bank vault. It is, after all, networked software. Your long-lived self-signed root CA's private key should instead be used to issue a shorter-lived intermediate CA certificate, and this is what you should put into Nomad. This aligns with industry best practices.
 
 ### One CA Certificate, One Backend
 
@@ -34,13 +34,13 @@ This also provides a convenient method of switching to a new CA certificate whil
 
 ### Keep certificate lifetimes short, for CRL's sake
 
-This backend aligns with Vault's philosophy of short-lived secrets. As such it is not expected that CRLs will grow large; the only place a private key is ever returned is to the requesting client (this backend does *not* store generated private keys). In most cases, if the key is lost, the certificate can simply be ignored, as it will expire shortly.
+This backend aligns with Nomad's philosophy of short-lived secrets. As such it is not expected that CRLs will grow large; the only place a private key is ever returned is to the requesting client (this backend does *not* store generated private keys). In most cases, if the key is lost, the certificate can simply be ignored, as it will expire shortly.
 
-If a certificate must truly be revoked, the normal Vault revocation function can be used; alternately a root token can be used to revoke the certificate using the certificate's serial number. Any revocation action will cause the CRL to be regenerated. When the CRL is regenerated, any expired certificates are removed from the CRL (and any revoked, expired certificate are removed from backend storage).
+If a certificate must truly be revoked, the normal Nomad revocation function can be used; alternately a root token can be used to revoke the certificate using the certificate's serial number. Any revocation action will cause the CRL to be regenerated. When the CRL is regenerated, any expired certificates are removed from the CRL (and any revoked, expired certificate are removed from backend storage).
 
 This backend does not support multiple CRL endpoints with sliding date windows; often such mechanisms will have the transition point a few days apart, but this gets into the expected realm of the actual certificate validity periods issued from this backend. A good rule of thumb for this backend would be to simply not issue certificates with a validity period greater than your maximum comfortable CRL lifetime. Alternately, you can control CRL caching behavior on the client to ensure that checks happen more often.
 
-Often multiple endpoints are used in case a single CRL endpoint is down so that clients don't have to figure out what to do with a lack of response. Run Vault in HA mode, and the CRL endpoint should be available even if a particular node is down.
+Often multiple endpoints are used in case a single CRL endpoint is down so that clients don't have to figure out what to do with a lack of response. Run Nomad in HA mode, and the CRL endpoint should be available even if a particular node is down.
 
 ### You must configure CRL information *in advance*
 
@@ -48,7 +48,7 @@ This backend serves CRLs from a predictable location. That location must be enco
 
 ### No OCSP support, yet
 
-Vault's architecture does not currently allow for a binary protocol such as OCSP to be supported by a backend. As such, you should configure your software to use CRLs for revocation information, with a caching lifetime that feels good to you. Since you are following the advice above about keeping lifetimes short (right?), CRLs should not grow too large.
+Nomad's architecture does not currently allow for a binary protocol such as OCSP to be supported by a backend. As such, you should configure your software to use CRLs for revocation information, with a caching lifetime that feels good to you. Since you are following the advice above about keeping lifetimes short (right?), CRLs should not grow too large.
 
 ## Quick Start
 
@@ -62,7 +62,7 @@ crlDistributionPoints = URI:https://vault.example.com:8200/v1/pki/crl
 
 Adjust the URI as appropriate.
 
-### Vault
+### Nomad
 
 The first step to using the PKI backend is to mount it. Unlike the `generic` backend, the `pki` backend is not mounted by default.
 
@@ -71,7 +71,7 @@ $ vault mount pki
 Successfully mounted 'pki' at 'pki'!
 ```
 
-Next, Vault must be configured with a root certificate and associated private key. This is done by writing the contents of a file or *stdin*:
+Next, Nomad must be configured with a root certificate and associated private key. This is done by writing the contents of a file or *stdin*:
 
 ```text
 $ vault write pki/config/ca pem_bundle="@ca_bundle.pem"
@@ -85,7 +85,7 @@ $ cat bundle.pem | vault write pki/config/ca pem_bundle="-"
 Success! Data written to: pki/config/ca
 ```
 
-Although in this example the value being piped into *stdin* could be passed directly into the Vault CLI command, a more complex usage might be to use [Ansible](http://www.ansible.com) to securely store the certificate and private key in an `ansible-vault` file, then have an `ansible-playbook` command decrypt this value and pass it in to Vault.
+Although in this example the value being piped into *stdin* could be passed directly into the Nomad CLI command, a more complex usage might be to use [Ansible](http://www.ansible.com) to securely store the certificate and private key in an `ansible-vault` file, then have an `ansible-playbook` command decrypt this value and pass it in to Nomad.
 
 The next step is to configure a role. A role is a logical name that maps to a policy used to generated those credentials. For example, let's create an "example-dot-com" role:
 
@@ -96,7 +96,7 @@ $ vault write pki/roles/example-dot-com \
 Success! Data written to: pki/roles/example-dot-com
 ```
 
-By writing to the `roles/example-dot-com` path we are defining the `example-dot-com` role. To generate a new set of credentials, we simply write to the `issue` endpoint with that role name: Vault is now configured to create and manage certificates!
+By writing to the `roles/example-dot-com` path we are defining the `example-dot-com` role. To generate a new set of credentials, we simply write to the `issue` endpoint with that role name: Nomad is now configured to create and manage certificates!
 
 ```text
 $ vault write pki/issue/example-dot-com common_name=blah.example.com
@@ -123,7 +123,7 @@ serial         	5e:62:eb:2e:44:dd:04:83:8e:21:88:36:fc:15:ce:ed:da:1c:29:f5
 
 Note that this is a write, not a read, to allow values to be passed in at request time.
 
-Vault has now generated a new set of credentials using the `example-dot-com` role configuration. Here we see the dynamically generated private key and certificate. The issuing CA certificate is returned as well.
+Nomad has now generated a new set of credentials using the `example-dot-com` role configuration. Here we see the dynamically generated private key and certificate. The issuing CA certificate is returned as well.
 
 Using ACLs, it is possible to restrict using the pki backend such that trusted operators can manage the role definitions, and both users and applications are restricted in the credentials they are allowed to read.
 
@@ -139,7 +139,7 @@ If you get stuck at any time, simply run `vault path-help pki` or with a subpath
   <dd>
     Retrieves the CA certificate *in raw DER-encoded form*.
     This is a bare endpoint that does not return a
-    standard Vault data structure. If `/pem` is added to the
+    standard Nomad data structure. If `/pem` is added to the
     endpoint, the CA certificate is returned in PEM format.
     <br /><br />This is an unauthenticated endpoint.
   </dd>
@@ -218,7 +218,7 @@ If you get stuck at any time, simply run `vault path-help pki` or with a subpath
     command similar to the following:<br/>
 
     ```text
-    curl -X POST --data "@cabundle.json" http://127.0.0.1:8200/v1/pki/config/ca -H X-Vault-Token:06b9d...
+    curl -X POST --data "@cabundle.json" http://127.0.0.1:8200/v1/pki/config/ca -H X-Nomad-Token:06b9d...
     ```
 
     Note that if you provide the data through the HTTP API it must be
@@ -261,7 +261,7 @@ If you get stuck at any time, simply run `vault path-help pki` or with a subpath
     Retrieves the current CRL *in raw DER-encoded form*. This endpoint
     is suitable for usage in the CRL Distribution Points extension in a
     CA certificate. This is a bare endpoint that does not return a
-    standard Vault data structure. If `/pem` is added to the endpoint,
+    standard Nomad data structure. If `/pem` is added to the endpoint,
     the CRL is returned in PEM format.
     <br /><br />This is an unauthenticated endpoint.
   </dd>
@@ -408,7 +408,7 @@ If you get stuck at any time, simply run `vault path-help pki` or with a subpath
   <dd>
     Revokes a certificate using its serial number. This is an
     alternative option to the standard method of revoking
-    using Vault lease IDs. A successful revocation will
+    using Nomad lease IDs. A successful revocation will
     rotate the CRL.
     <br /><br />This is a root-protected endpoint.
   </dd>

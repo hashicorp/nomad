@@ -3,7 +3,7 @@ layout: "http"
 page_title: "HTTP API: /sys/leader"
 sidebar_current: "docs-http-ha-leader"
 description: |-
-  The '/sys/leader' endpoint is used to check the high availability status and current leader of Vault.
+  The '/sys/leader' endpoint is used to check the high availability status and current leader of Nomad.
 ---
 
 # /sys/leader
@@ -11,7 +11,7 @@ description: |-
 <dl>
   <dt>Description</dt>
   <dd>
-    Returns the high availability status and current leader instance of Vault.
+    Returns the high availability status and current leader instance of Nomad.
   </dd>
 
   <dt>Method</dt>

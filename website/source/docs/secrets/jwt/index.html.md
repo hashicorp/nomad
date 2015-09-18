@@ -2,7 +2,7 @@
 
 Name: `jwt`
 
-The JWT secret backend for Vault generates JSON Web Tokens dynamically based on configured roles. This means services can get tokens needed for authentication without going through the usual manual process of generating a private key and signing the token and maintaining the private key's security. Vault's built-in authentication and authorization mechanisms provide the verification functionality.
+The JWT secret backend for Nomad generates JSON Web Tokens dynamically based on configured roles. This means services can get tokens needed for authentication without going through the usual manual process of generating a private key and signing the token and maintaining the private key's security. Nomad's built-in authentication and authorization mechanisms provide the verification functionality.
 
 This page will show a quick start for this backend. For detailed documentation on every path, use `vault path-help` after mounting the backend.
 
@@ -62,8 +62,8 @@ Generating a token requires passing of additional information so we use the
 
 ```text
 $ vault write jwt/issue/webauth \
-    issuer="Vault" \
-    audience="Vault Client" \
+    issuer="Nomad" \
+    audience="Nomad Client" \
     expiration="1538096292" \
     claims=@extra.json
 ```

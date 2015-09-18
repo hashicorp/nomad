@@ -3,14 +3,14 @@ layout: "intro"
 page_title: "Dynamic Secrets"
 sidebar_current: "gettingstarted-dynamicsecrets"
 description: |-
-  On this page we introduce dynamic secrets by showing you how to create AWS access keys with Vault.
+  On this page we introduce dynamic secrets by showing you how to create AWS access keys with Nomad.
 ---
 
 # Dynamic Secrets
 
-Now that we've written basic secrets to Vault and we have an understanding
+Now that we've written basic secrets to Nomad and we have an understanding
 of the mount system, we're going to move on to the next core feature of
-Vault: _dynamic secrets_.
+Nomad: _dynamic secrets_.
 
 Dynamic secrets are secrets that are generated when they're accessed,
 and aren't statically written like we did in
@@ -20,7 +20,7 @@ generate AWS access keys.
 
 The power of dynamic secrets is that they simply don't exist before
 they're read, so there is no risk of someone stealing them or another
-client using the same secrets. And because Vault has built-in revocation
+client using the same secrets. And because Nomad has built-in revocation
 mechanisms (covered later), the dynamic secret can be revoked right after
 use, minimizing the amount of time the secret existed.
 
@@ -105,7 +105,7 @@ many policies with the backend. Save a file named "policy.json" with the followi
 ```
 
 This is a basic IAM policy that lets the user perform any action within
-Amazon EC2. With the policy saved, write it to Vault and create a new role:
+Amazon EC2. With the policy saved, write it to Nomad and create a new role:
 
 ```
 $ vault write aws/roles/deploy policy=@policy.json
@@ -113,7 +113,7 @@ Success! Data written to: aws/roles/deploy
 ```
 
 Again, we're using a special path here `aws/roles/<NAME>` to write
-an IAM policy to Vault. We also used the special syntax `@filename` with
+an IAM policy to Nomad. We also used the special syntax `@filename` with
 `vault write` to write the contents of a file.
 
 ## Generating the Secret
@@ -134,7 +134,7 @@ Success! The access and secret key can now be used to perform any EC2
 operations within AWS. You can verify they work, if you want. Also notice
 that these keys are new, they're not the keys you entered earlier.
 
-The `lease_id` above is a special ID used for Vault for renewal,
+The `lease_id` above is a special ID used for Nomad for renewal,
 revocation, etc. Copy and save your Lease ID now.
 
 ## Revoking the Secret
@@ -164,7 +164,7 @@ exist for the duration that they're needed.
 On this page we experienced our first dynamic secret, and we also saw
 the revocation system in action. Dynamic secrets are incredibly powerful.
 As time goes on, we expect that more systems will support some sort of
-API to create access credentials, and Vault will be ready to get the
+API to create access credentials, and Nomad will be ready to get the
 most value out of this practice.
 
 Before going further, we're going to take a quick detour to learn

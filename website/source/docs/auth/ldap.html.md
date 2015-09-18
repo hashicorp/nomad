@@ -3,7 +3,7 @@ layout: "docs"
 page_title: "Auth Backend: LDAP"
 sidebar_current: "docs-auth-ldap"
 description: |-
-  The "ldap" auth backend allows users to authenticate with Vault using LDAP credentials.
+  The "ldap" auth backend allows users to authenticate with Nomad using LDAP credentials.
 ---
 
 # Auth Backend: LDAP
@@ -11,11 +11,11 @@ description: |-
 Name: `ldap`
 
 The "ldap" auth backend allows authentication using an existing LDAP
-server and user/password credentials. This allows Vault to be integrated
+server and user/password credentials. This allows Nomad to be integrated
 into environments using LDAP without duplicating the user/pass configuration
 in multiple places.
 
-The mapping of groups in LDAP to Vault policies is managed by using the
+The mapping of groups in LDAP to Nomad policies is managed by using the
 `users/` and `groups/` paths.
 
 ## Authentication
@@ -100,13 +100,13 @@ $ vault write auth/ldap/config url="ldap://ldap.forumsys.com" \
 The above configures the target LDAP server, along with the parameters
 specifying how users and groups should be queried from the LDAP server.
 
-Next we want to create a mapping from an LDAP group to a Vault policy:
+Next we want to create a mapping from an LDAP group to a Nomad policy:
 
 ```
 $ vault write auth/ldap/groups/scientists policies=foo,bar
 ```
 
-This maps the LDAP group "scientists" to the "foo" and "bar" Vault policies.
+This maps the LDAP group "scientists" to the "foo" and "bar" Nomad policies.
 
 We can also add specific LDAP users to additional (potentially non-LDAP) groups:
 
@@ -116,7 +116,7 @@ $ vault write auth/ldap/users/tesla groups=engineers
 ```
 
 This adds the LDAP user "tesla" to the "engineers" group, which maps to
-the "foobar" Vault policy.
+the "foobar" Nomad policy.
 
 Finally, we can test this by authenticating:
 

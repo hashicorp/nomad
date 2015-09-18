@@ -3,14 +3,14 @@ layout: "docs"
 page_title: "Auth Backend: Username & Password"
 sidebar_current: "docs-auth-userpass"
 description: |-
-  The "userpass" auth backend allows users to authenticate with Vault using a username and password.
+  The "userpass" auth backend allows users to authenticate with Nomad using a username and password.
 ---
 
 # Auth Backend: Username & Password
 
 Name: `userpass`
 
-The "userpass" auth backend allows users to authenticate with Vault using
+The "userpass" auth backend allows users to authenticate with Nomad using
 a username and password combination.
 
 The username/password combinations are configured directly to the auth

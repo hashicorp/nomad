@@ -3,12 +3,12 @@ layout: "docs"
 page_title: "Server Configuration"
 sidebar_current: "docs-config"
 description: |-
-  Vault server configuration reference.
+  Nomad server configuration reference.
 ---
 
 # Server Configuration
 
-Outside of development mode, Vault servers are configured using a file.
+Outside of development mode, Nomad servers are configured using a file.
 The format of this file is [HCL](https://github.com/hashicorp/hcl) or JSON.
 An example configuration is shown below:
 
@@ -34,11 +34,11 @@ to specify where the configuration is.
 
 ## Reference
 
-* `backend` (required) - Configures the storage backend where Vault data
+* `backend` (required) - Configures the storage backend where Nomad data
   is stored. There are multiple options available for storage backends,
   and they're documented below.
 
-* `listener` (required) - Configures how Vault is listening for API requests.
+* `listener` (required) - Configures how Nomad is listening for API requests.
   "tcp" is currently the only option available. A full reference for the
    inner syntax is below.
 
@@ -59,9 +59,9 @@ to specify where the configuration is.
 
 In production, you should only consider setting the `disable_mlock` option
 on Linux systems that only use encrypted swap or do not use swap at all.
-Vault does not currently support memory locking on Mac OS X and Windows
+Nomad does not currently support memory locking on Mac OS X and Windows
 and so the feature is automatically disabled on those platforms.  To give
-the Vault executable access to the `mlock` syscall on Linux systems:
+the Nomad executable access to the `mlock` syscall on Linux systems:
 
 ```shell
 sudo setcap cap_ipc_lock=+ep $(readlink -f $(which vault))
@@ -70,11 +70,11 @@ sudo setcap cap_ipc_lock=+ep $(readlink -f $(which vault))
 ## Backend Reference
 
 For the `backend` section, the supported backends are shown below.
-Vault requires that the backend itself will be responsible for backups,
+Nomad requires that the backend itself will be responsible for backups,
 durability, etc.
 
   * `consul` - Store data within [Consul](http://www.consul.io). This
-      backend supports HA. It is the most recommended backend for Vault
+      backend supports HA. It is the most recommended backend for Nomad
       and has been shown to work at high scale under heavy load.
 
   * `etcd` - Store data within [etcd](https://coreos.com/etcd/).
@@ -89,7 +89,7 @@ durability, etc.
   * `mysql` - Store data within MySQL. This backend does not support HA.
 
   * `inmem` - Store data in-memory. This is only really useful for
-      development and experimentation. Data is lost whenever Vault is
+      development and experimentation. Data is lost whenever Nomad is
       restarted.
 
   * `file` - Store data on the filesystem using a directory structure.
@@ -100,7 +100,7 @@ durability, etc.
 All backends support the following options:
 
   * `advertise_addr` (optional) - For backends that support HA, this
-      is the address to advertise to other Vault servers in the cluster
+      is the address to advertise to other Nomad servers in the cluster
       for request forwarding. Most HA backends will attempt to determine
       the advertise address if not provided.
 
@@ -213,7 +213,7 @@ The supported options are:
       defaults to "127.0.0.1:8200".
 
   * `tls_disable` (optional) - If non-empty, then TLS will be disabled.
-      This is an opt-in; Vault assumes by default that TLS will be used.
+      This is an opt-in; Nomad assumes by default that TLS will be used.
 
   * `tls_cert_file` (required unless disabled) - The path to the certificate
       for TLS.
@@ -221,7 +221,7 @@ The supported options are:
   * `tls_key_file` (required unless disabled) - The path to the private key
       for the certificate.
 
-  * `tls_min_version` (optional) - **(Vault > 0.2)** If provided, specifies
+  * `tls_min_version` (optional) - **(Nomad > 0.2)** If provided, specifies
       the minimum supported version of TLS. Accepted values are "tls10", "tls11"
       or "tls12". This defaults to "tls12". WARNING: TLS 1.1 and lower
       are generally considered less secure; avoid using these if

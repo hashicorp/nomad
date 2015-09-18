@@ -3,24 +3,24 @@ layout: "docs"
 page_title: "Secret Backend: MySQL"
 sidebar_current: "docs-secrets-mysql"
 description: |-
-  The MySQL secret backend for Vault generates database credentials to access MySQL.
+  The MySQL secret backend for Nomad generates database credentials to access MySQL.
 ---
 
 # MySQL Secret Backend
 
 Name: `mysql`
 
-The MySQL secret backend for Vault generates database credentials
+The MySQL secret backend for Nomad generates database credentials
 dynamically based on configured roles. This means that services that need
 to access a database no longer need to hardcode credentials: they can request
-them from Vault, and use Vault's leasing mechanism to more easily roll keys.
+them from Nomad, and use Nomad's leasing mechanism to more easily roll keys.
 
 Additionally, it introduces a new ability: with every service accessing
 the database with unique credentials, it makes auditing much easier when
 questionable data access is discovered: you can track it down to the specific
 instance of a service based on the SQL username.
 
-Vault makes use of its own internal revocation system to ensure that users
+Nomad makes use of its own internal revocation system to ensure that users
 become invalid within a reasonable time of the lease expiring.
 
 This page will show a quick start for this backend. For detailed documentation
@@ -36,7 +36,7 @@ $ vault mount mysql
 Successfully mounted 'mysql' at 'mysql'!
 ```
 
-Next, we must configure Vault to know how to connect to the MySQL
+Next, we must configure Nomad to know how to connect to the MySQL
 instance. This is done by providing a DSN (Data Source Name):
 
 ```
@@ -44,13 +44,13 @@ $ vault write mysql/config/connection value="root:root@tcp(192.168.33.10:3306)/"
 Success! Data written to: mysql/config/connection
 ```
 
-In this case, we've configured Vault with the user "root" and password "root,
+In this case, we've configured Nomad with the user "root" and password "root,
 connecting to an instance at "192.168.33.10" on port 3306. It is not necessary
-that Vault has the root user, but the user must have privileges to create
+that Nomad has the root user, but the user must have privileges to create
 other users, namely the `GRANT OPTION` privilege.
 
 Optionally, we can configure the lease settings for credentials generated
-by Vault. This is done by writing to the `config/lease` key:
+by Nomad. This is done by writing to the `config/lease` key:
 
 ```
 $ vault write mysql/config/lease lease=1h lease_max=24h
@@ -74,7 +74,7 @@ Success! Data written to: mysql/roles/readonly
 By writing to the `roles/readonly` path we are defining the `readonly` role.
 This role will be created by evaluating the given `sql` statements. By
 default, the `{{name}}` and `{{password}}` fields will be populated by
-Vault with dynamically generated values. This SQL statement is creating
+Nomad with dynamically generated values. This SQL statement is creating
 the named user, and then granting it `SELECT` or read-only privileges
 to tables in the database. More complex `GRANT` queries can be used to
 customize the privileges of the role. See the [MySQL manual](https://dev.mysql.com/doc/refman/5.7/en/grant.html)
@@ -91,7 +91,7 @@ password      	132ae3ef-5a64-7499-351e-bfe59f3a2a21
 username      	root-aefa635a-18
 ```
 
-By reading from the `creds/readonly` path, Vault has generated a new
+By reading from the `creds/readonly` path, Nomad has generated a new
 set of credentials using the `readonly` role configuration. Here we
 see the dynamically generated username and password, along with a one
 hour lease.

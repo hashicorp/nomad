@@ -3,155 +3,130 @@ layout: "docs"
 page_title: "Architecture"
 sidebar_current: "docs-internals-architecture"
 description: |-
-  Learn about the internal architecture of Vault.
+  Learn about the internal architecture of Nomad.
 ---
 
 # Architecture
 
-Vault is a complex system that has many different pieces. To help both users and developers of Vault
+Nomad is a complex system that has many different pieces. To help both users and developers of Nomad
 build a mental model of how it works, this page documents the system architecture.
 
 ~> **Advanced Topic!** This page covers technical details
-of Vault. You don't need to understand these details to
-effectively use Vault. The details are documented here for
+of Nomad. You don't need to understand these details to
+effectively use Nomad. The details are documented here for
 those who wish to learn about them without having to go
-spelunking through the source code. However, if you're an
-operator of Vault, we recommend learning about the architecture
-due to the importance of Vault in an environment.
+spelunking through the source code.
 
 # Glossary
 
 Before describing the architecture, we provide a glossary of terms to help
 clarify what is being discussed:
 
-* **Storage Backend** - A storage backend is responsible for durable storage of _encrypted_ data.
-  Backends are not trusted by Vault and are only expected to provide durability. The storage
-  backend is configured when starting the Vault server.
+* **Job** - A Job is a specification provided by users that declares a workload for
+  Nomad. A Job is a form of _desired state_, the user is expressing that the job should
+  be running, but not where it should be run. The responsibility of Nomad is to make sure
+  the _actual state_ matches the user desired state. A Job is composed of one or more
+  task groups.
 
-* **Barrier** - The barrier is cryptographic steel and concrete around the Vault. All data that
-  flows between Vault and the Storage Backend passes through the barrier. The barrier ensures
-  that only encrypted data is written out, and that data is verified and decrypted on the way
-  in. Much like a bank vault, the barrier must be "unsealed" before anything inside can be accessed.
+* **Task Group** - A Task Group is a set of tasks that must be run together. For example, a
+  web server may require that a log shipping co-process is always running as well. A task
+  group is the unit of scheduling, meaning the entire group must run on a client node and
+  cannot be split.
 
-* **Secret Backend** - A secret backend is responsible for managing secrets. Simple secret backends
-  like the "generic" backend simply return the same secret when queried. Some backends support
-  using policies to dynamically generate a secret each time they are queried. This allows for
-  unique secrets to be used which allows Vault to do fine-grained revocation and policy updates.
-  As an example, a MySQL backend could be configured with a "web" policy. When the "web" secret
-  is read, a new MySQL user/password pair will be generated with a limited set of privileges
-  for the web server.
+* **Task** - A Task is the smallest unit of work in Nomad. Tasks are executed by drivers,
+  which allow Nomad to be flexible in the types of tasks it supports. Examples include Docker,
+  Qemu, Java and static binaries. Tasks specify their driver, configuration for the driver,
+  constraints, and resources required.
 
-* **Audit Backend** - An audit backend is responsible for managing audit logs. Every request to Vault
-  and response from Vault goes through the configured audit backends. This provides a simple
-  way to integrate Vault with multiple audit logging destinations of different types.
+* **Client** - A Client of Nomad is a machine that tasks can be run on. All clients run the
+  Nomad agent. The agent is responsible for registering with the servers, watching for any
+  work to be assigned and executing tasks. The Nomad agent is a long lived process which
+  interfaces with the servers.
 
-* **Credential Backend** - A credential backend is used to authenticate users or applications which
-  are connecting to Vault. Once authenticated, the backend returns the list of applicable policies
-  which should be applied. Vault takes an authenticated user and returns a client token that can
-  be used for future requests. As an example, the `user-password` backend uses a username and password
-  to authenticate the user. Alternatively, the `github` backend allows users to authenticate
-  via GitHub.
+* **Server** - Nomad servers are the brains of the cluster. There is a cluster of servers
+  per region and they manage all jobs and clients, run evalutations and create task allocations.
+  The servers replicate data between each other and perform leader election to ensure high
+  availability. Servers federate across regions to make Nomad globally aware.
 
-* **Client Token** - A client token is a conceptually similar to a session cookie on a web site.
-  Once a user authenticates, Vault returns a client token which is used for future requests.
-  The token is used by Vault to verify the identity of the client and to enforce the applicable
-  ACL policies.
+* **Regions and Datacenters** - Nomad models infrastructure as regions and datacenters.
+  Regions may contain multiple datacenters. Servers are assigned to regions and manage
+  all state for the region and make scheduling decisions within that region. Requests that
+  are made between regions are forwarded to the appropriate servers. As an example, you may
+  have a "US" region with the "us-east-1" and "us-west-1" datacenters, connected to the
+  "EU" region with the "eu-fr-1" and "eu-uk-1" datacenters.
 
-* **Secret** - A secret is the term for anything returned by Vault which contains confidential
-  or cryptographic material. Not everything returned by Vault is a secret, for example
-  system configuration, status information, or backend policies are not considered Secrets.
-  Secrets always have an associated lease. This means clients cannot assume that the secret
-  contents can be used indefinitely. Vault will revoke a secret at the end of the lease, and
-  an operator may intervene to revoke the secret before the lease is over. This contract
-  between Vault and its clients is critical, as it allows for changes in keys and policies
-  without manual intervention.
+* **Evaluation** - Evaluations are the mechanism by which Nomad makes scheduling decisions.
+  When either the _desired state_ (jobs) or _actual state_ (clients) changes, Nomad creates
+  a new evaluation to determine if any actions must be taken. An evaluation may result
+  in changes to allocations if necessary.
 
-* **Server** - Vault depends on a long-running instance which operates as a server.
-  The Vault server provides an API which clients interact with and manages the
-  interaction between all the backends, ACL enforcement, and secret lease revocation.
-  Having a server based architecture decouples clients from the security keys and policies,
-  enables centralized audit logging and simplifies administration for operators.
+* **Allocation** - An Allocation is a mapping between a task group in a job, and a client
+  node. A single job may have hundreds or thousands of task groups, meaning an equivalent
+  number of allocations must exist to map the work to client machines. Allocations are created
+  by the Nomad servers as part of scheduling decisions made during an evaluation.
+
+* **Bin Packing** - Bin Packing is the process of filling bins with items in a way that
+  maximizes the utilization of bins. This extends to Nomad, where the clients are "bins"
+  and the items are task groups. Nomad optimizes resources by efficiently bin packing
+  tasks onto client machines.
 
 # High-Level Overview
 
-A very high level overview of Vault looks like this:
+Looking at only a single region, at a high level Nomad looks like:
 
-![Architecture Overview](/assets/images/layers.png)
+![Regional Architecture](/assets/images/region-arch.png)
 
-Let's begin to break down this picture. There is a clear separation of components
-that are inside or outside of the security barrier. Only the storage backend and
-the HTTP API are outside, all other components are inside the barrier.
+Within each region, we have both clients and servers. Servers are responsible for
+accepting jobs from users, managing clients, and computing task placements. Each
+region may have clients from multiple datacenters, allowing a small number of servers
+to handle very large clusters.
 
-The storage backend is untrusted and is used to durably store encrypted data. When
-the Vault server is started, it must be provided with a storage backend so that data
-is available across restarts. The HTTP API similarly must be started by the Vault server
-on start so that clients can interact with it.
+In some cases, for either availability or scalability, you may need to run multiple
+regions. Nomad supports federating multiple regions together into a single cluster.
+At a high level, this looks like:
 
-Once started, the Vault is in a _sealed_ state. Before any operation can be performed
-on the Vault it must be unsealed. This is done by providing the unseal keys. When
-the Vault is initialized it generates an encryption key which is used to protect all the
-data. That key is protected by a master key. By default, Vault uses a technique known
-as [Shamir's secret sharing algorithm](http://en.wikipedia.org/wiki/Shamir's_Secret_Sharing)
-to split the master key into 5 shares, any 3 of which are required to reconstruct the master
-key.
+![Global Architecture](/assets/images/global-arch.png)
 
-![Keys](/assets/images/keys.png)
+Regions are fully independent from each other, and do not share jobs, clients or
+state. They are loosely-coupled using a gossip protocol, which allows users to
+submit jobs to any region or query the state of any region transparently. Requests
+are forwarded to the appropriate server to be processed and the results returned.
 
-The number of shares and the minimum threshold required can both be specified. Shamir's
-technique can be disabled, and the master key used directly for unsealing. Once Vault
-retrieves the encryption key, it is able to decrypt the data in the storage backend,
-and enters the _unsealed_ state. Once unsealed, Vault loads all of the configured
-audit, credential and secret backends.
+The servers in each datacenter are all part of a single consensus group. This means
+that they work together to elect a single leader which has extra duties. The leader
+is responsible for processing all queries and transactions. Nomad is an optimistically
+concurrent, meaning all servers participate in making scheduling decisions in parallel.
+The leader provides the additional coordination necessary to do this safely and
+to ensure clients are not oversubscribed.
 
-The configuration of those backends must be stored in Vault since they are security
-sensitive. Only users with the correct permissions should be able to modify them,
-meaning they cannot be specified outside of the barrier. By storing them in Vault,
-any changes to them are protected by the ACL system and tracked by audit logs.
+Each region is expected to have either three or five servers. This strikes a balance
+between availability in the case of failure and performance, as consensus gets
+progressively slower as more servers are added. However, there is no limit to the number
+of clients per region.
 
-After the Vault is unsealed, requests can be processed from the HTTP API to the Core.
-The core is used to manage the flow of requests through the system, enforce ACLs,
-and ensure audit logging is done.
+Clients are configured to communicate with their regional servers and communicate
+using remote procedure calls (RPC) to register themselves, heartbeat for liveness,
+wait for new allocations, and update the status of allocations. A client registers
+with the servers to provide the resources available, attributes, and installed drivers.
+Servers use this information for scheduling decisions and create allocations to assign
+work to clients.
 
-When a client first connects to Vault, it needs to authenticate. Vault provides
-configurable credential backends providing flexibility in the authentication mechanism
-used. Human friendly mechanisms such as username/password or GitHub might be
-used for operators, while applications may use public/private keys or tokens to authenticate.
-An authentication request flows through core and into a credential backend, which determines
-if the request is valid and returns a list of associated policies.
-
-Policies are just a named ACL rule. For example, the "root" policy is builtin and
-permits access to all resources. You can create any number of named policies with
-fine-grained control over paths. Vault operates exclusively in a blacklist mode, meaning
-unless access is explicitly granted via a policy the action is not allowed.
-Since a user may have multiple policies associated, an action is allowed if any policy
-permits it. Policies are stored and managed by an internal policy store. This internal store
-is manipulated through the system backend, which is always mounted at `sys/`.
-
-Once authentication takes place and a credential backend provides a set of applicable
-policies, a new client token is generated and managed by the token store. This client token
-is sent back to the client, and is used to make future requests. This is similar to
-a cookie sent by a website after a user logs in. The client token may have a lease associated
-with it depending on the credential backend configuration. This means the client token
-may need to be periodically renewed to avoid invalidation.
-
-Once authenticated, requests are made providing the client token. The token is used
-to verify the client is authorized and to load the relevant policies. The policies
-are used to authorize the client request. The request is then routed to the secret backend,
-which is processed depending on the type of backend. If the backend returns a secret,
-the core registers it with the expiration manager and attaches a lease ID.
-The lease ID is used by clients to renew or revoke their secret. If a client allows the
-lease to expire, the expiration manager automatically revokes the secret.
-
-The core handles logging of requests and responses to the audit broker, which fans the
-request out to all the configured audit backends. Outside of the request flow, the core
-performs certain background activity. Lease management is critical, as it allows
-expired client tokens or secrets to be revoked automatically. Additionally, Vault handles
-certain partial failure cases by using write ahead logging with a rollback manager.
-This is managed transparently within the core and is not user visible.
+Users make use of the Nomad CLI or API to submit jobs to the servers. A job represents
+a desired state, providing the set of tasks that should be run. The servers are
+responsible for scheduling the tasks, which is done by finding an optimial placement for
+each task such that resource utilization is maximized while satisfying all constraints
+specified by the job. Resource utilization is maximized by bin packing, in which
+the scheduling tries to make use of all the resources of a machine without
+exhausing any dimension. Job constraints can be used to ensure an application is
+running in an appropriate environment. Constraints can be technical requirements based
+on hardware features such as architecture, availability of GPUs, or software features
+like operating system and kernel version, or they can be business constraints like
+ensuring PCI compliant workloads run on appropriate servers.
 
 # Getting in Depth
 
-This has been a brief high-level overview of the architecture of Vault. There
-are more details available for each of the sub-systems.
+This has been a brief high-level overview of the architecture of Nomad. There
+are more details available for each of the sub-systems. The [consensus protocol](/docs/internals/consensus.html) is
+documented in detail as is the [gossip protocol](/docs/internals/gossip.html).
 
 For other details, either consult the code, ask in IRC or reach out to the mailing list.

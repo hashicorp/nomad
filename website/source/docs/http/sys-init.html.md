@@ -3,7 +3,7 @@ layout: "http"
 page_title: "HTTP API: /sys/init"
 sidebar_current: "docs-http-sys-init"
 description: |-
-  The '/sys/init' endpoint is used to initialize a new Vault.
+  The '/sys/init' endpoint is used to initialize a new Nomad.
 ---
 
 # /sys/init
@@ -13,7 +13,7 @@ description: |-
 <dl>
   <dt>Description</dt>
   <dd>
-    Return the initialization status of a Vault.
+    Return the initialization status of a Nomad.
   </dd>
 
   <dt>Method</dt>
@@ -39,7 +39,7 @@ description: |-
 <dl>
   <dt>Description</dt>
   <dd>
-    Initializes a new Vault. The Vault must've not been previously
+    Initializes a new Nomad. The Nomad must've not been previously
     initialized.
   </dd>
 

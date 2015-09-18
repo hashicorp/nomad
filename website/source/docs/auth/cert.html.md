@@ -3,7 +3,7 @@ layout: "docs"
 page_title: "Auth Backend: TLS Certificates"
 sidebar_current: "docs-auth-cert"
 description: |-
-  The "cert" auth backend allows users to authenticate with Vault using TLS client certificates.
+  The "cert" auth backend allows users to authenticate with Nomad using TLS client certificates.
 ---
 
 # Auth Backend: TLS Certificates

@@ -3,22 +3,22 @@ layout: "docs"
 page_title: "Lease, Renew, and Revoke"
 sidebar_current: "docs-concepts-lease"
 description: |-
-  Vault provides a lease with every secret. When this lease is expired, Vault will revoke that secret.
+  Nomad provides a lease with every secret. When this lease is expired, Nomad will revoke that secret.
 ---
 
 # Lease, Renew, and Revoke
 
-With every secret and authentication token, Vault provides a _lease_:
-an amount of time that Vault promises that the data will be valid for.
-Once the lease is up, Vault can automatically revoke the data, and the
+With every secret and authentication token, Nomad provides a _lease_:
+an amount of time that Nomad promises that the data will be valid for.
+Once the lease is up, Nomad can automatically revoke the data, and the
 consumer of the secret can no longer be certain that it is valid.
 
 The benefit should be clear: consumers of secrets need to check in with
-Vault routinely to either renew the lease (if allowed) or request a
-replacement secret. This makes the Vault audit logs more valuable and
+Nomad routinely to either renew the lease (if allowed) or request a
+replacement secret. This makes the Nomad audit logs more valuable and
 also makes key rolling a lot easier.
 
-All secrets in Vault are required to have a lease. Even if the data is
+All secrets in Nomad are required to have a lease. Even if the data is
 meant to be valid for eternity, a lease is required to force the consumer
 to check in routinely.
 
@@ -33,12 +33,12 @@ be deleted from AWS the moment a secret is revoked. This renders the access
 keys invalid from that point forward.
 
 Revocation can happen manually via the API or `vault revoke`, or automatically
-by Vault. When a lease is expired, Vault will automatically revoke that
+by Nomad. When a lease is expired, Nomad will automatically revoke that
 lease.
 
 ## Lease IDs
 
-When reading a secret, such as via `vault read`, Vault always returns
+When reading a secret, such as via `vault read`, Nomad always returns
 a `lease_id`. This is the ID used with commands such as `vault renew` and
 `vault revoke` to manage the lease of the secret.
 

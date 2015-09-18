@@ -3,28 +3,28 @@ layout: "intro"
 page_title: "Access Control Policies"
 sidebar_current: "gettingstarted-acl"
 description: |-
-  Access control policies in Vault control what a user can access.
+  Access control policies in Nomad control what a user can access.
 ---
 
 # Access Control Policies (ACLs)
 
-Access control policies in Vault control what a user can access. In
+Access control policies in Nomad control what a user can access. In
 the last section, we learned about _authentication_. This section is
 about _authorization_.
 
-Whereas for authentication Vault has multiple options or backends that
-can be enabled and used, the authorization or policies of Vault are always
+Whereas for authentication Nomad has multiple options or backends that
+can be enabled and used, the authorization or policies of Nomad are always
 the same format. All authentication backends must map identities back to
-the core policies that are configured with Vault.
+the core policies that are configured with Nomad.
 
-When initializing Vault, there is always one special policy created
+When initializing Nomad, there is always one special policy created
 that can't be removed: the "root" policy. This policy is a special policy
-that gives superuser access to everything in Vault. An identity mapped to
+that gives superuser access to everything in Nomad. An identity mapped to
 the root policy can do anything.
 
 ## Policy Format
 
-Policies in Vault are formatted with
+Policies in Nomad are formatted with
 [HCL](https://github.com/hashicorp/hcl). HCL is a human-readable configuration
 format that is also JSON-compatible, so you can use JSON as well. An example
 policy is shown below:
@@ -42,13 +42,13 @@ path "secret/foo" {
 The policy format uses a prefix matching system on the API path
 to determine access control. The most specific defined policy is used,
 either an exact match or the longest-prefix glob match. Since everything
-in Vault must be accessed via the API, this gives strict control over every
-aspect of Vault, including mounting backends, authenticating, as well as secret access.
+in Nomad must be accessed via the API, this gives strict control over every
+aspect of Nomad, including mounting backends, authenticating, as well as secret access.
 
 In the policy above, a user could write any secret to `secret/`, except
 to `secret/foo`, where only read access is allowed. Policies default to
 deny, so any access to an unspecified path is not allowed. The policy
-language changed slightly in Vault 0.2, [see this page for details](/docs/concepts/policies.html).
+language changed slightly in Nomad 0.2, [see this page for details](/docs/concepts/policies.html).
 
 Save the above policy as `acl.hcl`.
 
@@ -103,7 +103,7 @@ such as `vault mounts` will not work either.
 
 ## Mapping Policies to Auth Backends
 
-Vault is the single policy authority, unlike auth where you can mount
+Nomad is the single policy authority, unlike auth where you can mount
 multiple backends. Any mounted auth backend must map identities to these
 core policies.
 
@@ -124,12 +124,12 @@ mapping policies to identity.
 
 ## Next
 
-Policies are an important part of Vault. While using the root token
+Policies are an important part of Nomad. While using the root token
 is easiest to get up and running, you'll want to restrict access to
-Vault very quickly, and the policy system is the way to do this.
+Nomad very quickly, and the policy system is the way to do this.
 
 The syntax and function of policies is easy to understand and work
 with, and because auth backends all must map to the central policy system,
 you only have to learn this policy system.
 
-Next, we'll cover how to [deploy Vault](/intro/getting-started/deploy.html).
+Next, we'll cover how to [deploy Nomad](/intro/getting-started/deploy.html).

@@ -3,17 +3,17 @@ layout: "docs"
 page_title: "Auth Backends"
 sidebar_current: "docs-auth"
 description: |-
-  Auth backends are mountable backends that perform authentication for Vault.
+  Auth backends are mountable backends that perform authentication for Nomad.
 ---
 
 # Auth Backends
 
-Auth backends are the components in Vault that perform authentication
+Auth backends are the components in Nomad that perform authentication
 and are responsible for assigning identity and a set of policies to a
 user.
 
 Having multiple auth backends enables you to use an auth backend
-that makes the sense for your use case of Vault and your organization.
+that makes the sense for your use case of Nomad and your organization.
 
 For example, on developer machines, the [GitHub auth backend](/docs/auth/github.html)
 is easiest to use. But for servers the [App ID](/docs/auth/app-id.html)
@@ -27,7 +27,7 @@ To learn more about authentication, see the
 Auth backends can be enabled/disabled using the CLI or the API.
 
 When enabled, auth backends are similar to [secret backends](/docs/secrets/index.html):
-they are mounted within the Vault mount table and can be accessed
+they are mounted within the Nomad mount table and can be accessed
 and configured using the standard read/write API. The only difference
 is that all auth backends are mounted underneath the `auth/` prefix.
 

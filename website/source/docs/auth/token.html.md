@@ -14,7 +14,7 @@ built-in CLI methods such as `vault token-create`. It allows users to
 authenticate using a token, as well to create new tokens, revoke
 secrets by token, and more.
 
-When any other auth backend returns an identity, Vault core invokes the
+When any other auth backend returns an identity, Nomad core invokes the
 token backend to create a new unique token for that identity.
 
 The token store can also be used to bypass any other auth backend:

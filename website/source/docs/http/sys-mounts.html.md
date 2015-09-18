@@ -3,7 +3,7 @@ layout: "http"
 page_title: "HTTP API: /sys/mounts"
 sidebar_current: "docs-http-mounts-mounts"
 description: |-
-  The '/sys/mounts' endpoint is used manage secret backends in Vault.
+  The '/sys/mounts' endpoint is used manage secret backends in Nomad.
 ---
 
 # /sys/mounts
