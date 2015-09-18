@@ -24,6 +24,12 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 	}
 
 	return map[string]cli.CommandFactory{
+		"alloc-status": func() (cli.Command, error) {
+			return &command.AllocStatusCommand{
+				Meta: meta,
+			}, nil
+		},
+
 		"agent": func() (cli.Command, error) {
 			return &agent.Command{
 				Revision:          GitCommit,
