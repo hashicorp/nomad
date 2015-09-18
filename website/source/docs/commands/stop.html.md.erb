@@ -1,0 +1,57 @@
+---
+layout: "docs"
+page_title: "Commands: stop"
+sidebar_current: "docs-commands-stop"
+description: >
+  The stop command is used to stop a running job.
+---
+
+# Command: stop
+
+The `stop` command is used to stop a running job and signals the scheduler
+to cancel all of the running allocations.
+
+## Usage
+
+```
+nomad stop [options] <job>
+```
+
+The stop command requires a single argument, specifying the job ID to
+cancel.
+
+Upon successful deregistraion, an interactive monitor session will start to
+display log lines as the job unwinds its allocations and completes shutting
+down. The monitor will exit once all allocations are stopped and the job has
+reached a terminal state. It is safe to exit the monitor early using ctrl+c.
+
+## General Options
+
+<%= general_options_usage %>
+
+## Stop Options
+
+* `-detach`: Return immediately instead of monitoring. A new evaluation ID
+  will be output, which can be used to call the monitor later using the
+  [eval-monitor](/docs/commands/eval-monitor.html) command.
+
+## Examples
+
+Run a new job and monitor placement:
+
+```
+$ nomad run job1.job
+==> Monitoring evaluation "ffd1d625-c208-bf36-ac34-17f3191a7b57"
+    2015/09/17 23:02:14 Allocation "020a32d1-e3a8-b67e-f41a-1a49853b472a" created: node "dd522226-6f0b-6ecd-1ae1-17670e448985", group "group1"
+    2015/09/17 23:02:14 Evaluation status changed: "" -> "pending"
+    2015/09/17 23:02:15 Allocation "020a32d1-e3a8-b67e-f41a-1a49853b472a" status changed: "pending" -> "running"
+    2015/09/17 23:02:15 Evaluation status changed: "pending" -> "complete"
+==> Evaluation "ffd1d625-c208-bf36-ac34-17f3191a7b57" finished with status "complete"
+```
+
+Run a new job and return immediately:
+
+```
+$ nomad run -detach job1.job
+507d26cb-1d67-672c-da9d-f6053837bb70
+```

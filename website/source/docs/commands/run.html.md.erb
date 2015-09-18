@@ -1,0 +1,58 @@
+---
+layout: "docs"
+page_title: "Commands: run"
+sidebar_current: "docs-commands-run"
+description: >
+  The run command is used to run a new job.
+---
+
+# Command: run
+
+The `run` command is used to run new jobs in Nomad. Jobs are specified using
+[HCL](https://github.com/hashicorp/hcl)-encoded files, and may specify one or
+more task groups. More information about jobs and their configuration format
+can be found in the [jobs documentation](#).
+
+## Usage
+
+```
+nomad run [options] <file>
+```
+
+The run command requires a single argument, specifying the path to a file
+containing a valid [job definition](#). This file will be read and the job
+will be submitted to the Nomad server for scheduling.
+
+By default, on sucessful job submission, the run command will enter an
+interactive monitor and display log information detailing the scheduling
+decisions and placement information for the provided job. The monitor will
+exit after scheduling has finished or failed.
+
+## General Options
+
+<%= general_options_usage %>
+
+## Run Options
+
+* `-detach`: Return immediately instead of monitoring. A new evaluation ID
+  will be output, which can be used to call the monitor later using the
+  [eval-monitor](/docs/commands/eval-monitor.html) command.
+
+## Examples
+
+Stop a running job and monitor shutdown:
+
+```
+$ nomad stop job1
+==> Monitoring evaluation "d00797d8-7bc3-fbc7-ae0d-5af0260a871f"
+    2015/09/17 23:21:23 Evaluation status changed: "" -> "pending"
+    2015/09/17 23:21:24 Evaluation status changed: "pending" -> "complete"
+==> Evaluation "d00797d8-7bc3-fbc7-ae0d-5af0260a871f" finished with status "complete"
+```
+
+Stop a running job and return immediately:
+
+```
+$ nomad stop -detach job1
+4947e728-fb4e-90c6-895a-42479940e0bc
+```
