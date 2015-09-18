@@ -2,6 +2,8 @@ package api
 
 import (
 	"fmt"
+	"reflect"
+	"sort"
 	"strings"
 	"testing"
 
@@ -199,5 +201,23 @@ func TestNodes_ForceEvaluate(t *testing.T) {
 	_, _, err = nodes.ForceEvaluate(nodeID, nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
+	}
+}
+
+func TestNodes_Sort(t *testing.T) {
+	nodes := []*NodeListStub{
+		&NodeListStub{CreateIndex: 2},
+		&NodeListStub{CreateIndex: 1},
+		&NodeListStub{CreateIndex: 5},
+	}
+	sort.Sort(NodeIndexSort(nodes))
+
+	expect := []*NodeListStub{
+		&NodeListStub{CreateIndex: 5},
+		&NodeListStub{CreateIndex: 2},
+		&NodeListStub{CreateIndex: 1},
+	}
+	if !reflect.DeepEqual(nodes, expect) {
+		t.Fatalf("\n\n%#v\n\n%#v", nodes, expect)
 	}
 }

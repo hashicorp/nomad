@@ -1,6 +1,7 @@
 package api
 
 import (
+	"sort"
 	"time"
 )
 
@@ -21,6 +22,7 @@ func (a *Allocations) List(q *QueryOptions) ([]*AllocationListStub, *QueryMeta, 
 	if err != nil {
 		return nil, nil, err
 	}
+	sort.Sort(AllocIndexSort(resp))
 	return resp, qm, nil
 }
 
@@ -83,4 +85,19 @@ type AllocationListStub struct {
 	ClientDescription  string
 	CreateIndex        uint64
 	ModifyIndex        uint64
+}
+
+// AllocIndexSort reverse sorts allocs by CreateIndex.
+type AllocIndexSort []*AllocationListStub
+
+func (a AllocIndexSort) Len() int {
+	return len(a)
+}
+
+func (a AllocIndexSort) Less(i, j int) bool {
+	return a[i].CreateIndex > a[j].CreateIndex
+}
+
+func (a AllocIndexSort) Swap(i, j int) {
+	a[i], a[j] = a[j], a[i]
 }

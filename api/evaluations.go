@@ -1,6 +1,7 @@
 package api
 
 import (
+	"sort"
 	"time"
 )
 
@@ -21,6 +22,7 @@ func (e *Evaluations) List(q *QueryOptions) ([]*Evaluation, *QueryMeta, error) {
 	if err != nil {
 		return nil, nil, err
 	}
+	sort.Sort(EvalIndexSort(resp))
 	return resp, qm, nil
 }
 
@@ -42,6 +44,7 @@ func (e *Evaluations) Allocations(evalID string, q *QueryOptions) ([]*Allocation
 	if err != nil {
 		return nil, nil, err
 	}
+	sort.Sort(AllocIndexSort(resp))
 	return resp, qm, nil
 }
 
@@ -60,4 +63,22 @@ type Evaluation struct {
 	Wait              time.Duration
 	NextEval          string
 	PreviousEval      string
+	CreateIndex       uint64
+	ModifyIndex       uint64
+}
+
+// EvalIndexSort is a wrapper to sort evaluations by CreateIndex.
+// We reverse the test so that we get the highest index first.
+type EvalIndexSort []*Evaluation
+
+func (e EvalIndexSort) Len() int {
+	return len(e)
+}
+
+func (e EvalIndexSort) Less(i, j int) bool {
+	return e[i].CreateIndex > e[j].CreateIndex
+}
+
+func (e EvalIndexSort) Swap(i, j int) {
+	e[i], e[j] = e[j], e[i]
 }

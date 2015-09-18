@@ -1,5 +1,9 @@
 package api
 
+import (
+	"sort"
+)
+
 const (
 	// JobTypeService indicates a long-running processes
 	JobTypeService = "service"
@@ -38,6 +42,7 @@ func (j *Jobs) List(q *QueryOptions) ([]*JobListStub, *QueryMeta, error) {
 	if err != nil {
 		return nil, qm, err
 	}
+	sort.Sort(JobIDSort(resp))
 	return resp, qm, nil
 }
 
@@ -59,6 +64,7 @@ func (j *Jobs) Allocations(jobID string, q *QueryOptions) ([]*AllocationListStub
 	if err != nil {
 		return nil, nil, err
 	}
+	sort.Sort(AllocIndexSort(resp))
 	return resp, qm, nil
 }
 
@@ -70,6 +76,7 @@ func (j *Jobs) Evaluations(jobID string, q *QueryOptions) ([]*Evaluation, *Query
 	if err != nil {
 		return nil, nil, err
 	}
+	sort.Sort(EvalIndexSort(resp))
 	return resp, qm, nil
 }
 
@@ -121,6 +128,21 @@ type JobListStub struct {
 	StatusDescription string
 	CreateIndex       uint64
 	ModifyIndex       uint64
+}
+
+// JobIDSort is used to sort jobs by their job ID's.
+type JobIDSort []*JobListStub
+
+func (j JobIDSort) Len() int {
+	return len(j)
+}
+
+func (j JobIDSort) Less(a, b int) bool {
+	return j[a].ID < j[b].ID
+}
+
+func (j JobIDSort) Swap(a, b int) {
+	j[a], j[b] = j[b], j[a]
 }
 
 // NewServiceJob creates and returns a new service-style job

@@ -1,6 +1,8 @@
 package api
 
 import (
+	"reflect"
+	"sort"
 	"testing"
 )
 
@@ -47,5 +49,23 @@ func TestAllocations_List(t *testing.T) {
 	// Check that we got the allocation back
 	if len(allocs) == 0 || allocs[0].EvalID != eval {
 		t.Fatalf("bad: %#v", allocs)
+	}
+}
+
+func TestAllocations_CreateIndexSort(t *testing.T) {
+	allocs := []*AllocationListStub{
+		&AllocationListStub{CreateIndex: 2},
+		&AllocationListStub{CreateIndex: 1},
+		&AllocationListStub{CreateIndex: 5},
+	}
+	sort.Sort(AllocIndexSort(allocs))
+
+	expect := []*AllocationListStub{
+		&AllocationListStub{CreateIndex: 5},
+		&AllocationListStub{CreateIndex: 2},
+		&AllocationListStub{CreateIndex: 1},
+	}
+	if !reflect.DeepEqual(allocs, expect) {
+		t.Fatalf("\n\n%#v\n\n%#v", allocs, expect)
 	}
 }
