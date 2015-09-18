@@ -52,6 +52,7 @@ func (m *monitor) output(msg string) {
 // in the context of monitoring an evaluation.
 type evalState struct {
 	status string
+	desc   string
 	nodeID string
 	allocs map[string]*allocState
 	wait   time.Duration
@@ -60,12 +61,13 @@ type evalState struct {
 
 // allocState is used to track the state of an allocation
 type allocState struct {
-	id      string
-	group   string
-	node    string
-	desired string
-	client  string
-	index   uint64
+	id          string
+	group       string
+	node        string
+	desired     string
+	desiredDesc string
+	client      string
+	index       uint64
 }
 
 // update is used to update our monitor with new state. It can be
@@ -80,6 +82,7 @@ func (m *monitor) update(eval *api.Evaluation, allocs []*api.AllocationListStub)
 	// Create the new state
 	update := &evalState{
 		status: eval.Status,
+		desc:   eval.StatusDescription,
 		nodeID: eval.NodeID,
 		allocs: make(map[string]*allocState),
 		wait:   eval.Wait,
@@ -87,12 +90,13 @@ func (m *monitor) update(eval *api.Evaluation, allocs []*api.AllocationListStub)
 	}
 	for _, alloc := range allocs {
 		update.allocs[alloc.ID] = &allocState{
-			id:      alloc.ID,
-			group:   alloc.TaskGroup,
-			node:    alloc.NodeID,
-			desired: alloc.DesiredStatus,
-			client:  alloc.ClientStatus,
-			index:   alloc.CreateIndex,
+			id:          alloc.ID,
+			group:       alloc.TaskGroup,
+			node:        alloc.NodeID,
+			desired:     alloc.DesiredStatus,
+			desiredDesc: alloc.DesiredDescription,
+			client:      alloc.ClientStatus,
+			index:       alloc.CreateIndex,
 		}
 	}
 	defer func() { m.state = update }()
@@ -104,8 +108,8 @@ func (m *monitor) update(eval *api.Evaluation, allocs []*api.AllocationListStub)
 			case alloc.desired == structs.AllocDesiredStatusFailed:
 				// New allocs with desired state failed indicate
 				// scheduling failure.
-				m.output(fmt.Sprintf("Scheduling failed for group %q",
-					alloc.group))
+				m.output(fmt.Sprintf("Scheduling error for group %q (%s)",
+					alloc.group, alloc.desiredDesc))
 
 			case alloc.index < update.index:
 				// New alloc with create index lower than the eval

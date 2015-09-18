@@ -104,10 +104,11 @@ func TestMonitor_Update(t *testing.T) {
 
 	// New allocs with desired status failed warns
 	allocs = append(allocs, &api.AllocationListStub{
-		ID:            "alloc2",
-		TaskGroup:     "group2",
-		DesiredStatus: structs.AllocDesiredStatusFailed,
-		CreateIndex:   4,
+		ID:                 "alloc2",
+		TaskGroup:          "group2",
+		DesiredStatus:      structs.AllocDesiredStatusFailed,
+		DesiredDescription: "something failed",
+		CreateIndex:        4,
 	})
 	mon.update(eval, allocs)
 
@@ -116,8 +117,11 @@ func TestMonitor_Update(t *testing.T) {
 	if !strings.Contains(out, "group2") {
 		t.Fatalf("missing group\n\n%s", out)
 	}
-	if !strings.Contains(out, "Scheduling failed") {
+	if !strings.Contains(out, "Scheduling error") {
 		t.Fatalf("missing failure\n\n%s", out)
+	}
+	if !strings.Contains(out, "something failed") {
+		t.Fatalf("missing reason\n\n%s", out)
 	}
 	ui.OutputWriter.Reset()
 
