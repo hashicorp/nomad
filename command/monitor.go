@@ -55,6 +55,7 @@ type evalState struct {
 	nodeID string
 	allocs map[string]*allocState
 	wait   time.Duration
+	index  uint64
 }
 
 // allocState is used to track the state of an allocation
@@ -64,6 +65,7 @@ type allocState struct {
 	node    string
 	desired string
 	client  string
+	index   uint64
 }
 
 // update is used to update our monitor with new state. It can be
@@ -81,6 +83,7 @@ func (m *monitor) update(eval *api.Evaluation, allocs []*api.AllocationListStub)
 		nodeID: eval.NodeID,
 		allocs: make(map[string]*allocState),
 		wait:   eval.Wait,
+		index:  eval.CreateIndex,
 	}
 	for _, alloc := range allocs {
 		update.allocs[alloc.ID] = &allocState{
@@ -89,6 +92,7 @@ func (m *monitor) update(eval *api.Evaluation, allocs []*api.AllocationListStub)
 			node:    alloc.NodeID,
 			desired: alloc.DesiredStatus,
 			client:  alloc.ClientStatus,
+			index:   alloc.CreateIndex,
 		}
 	}
 	defer func() { m.state = update }()
@@ -101,9 +105,15 @@ func (m *monitor) update(eval *api.Evaluation, allocs []*api.AllocationListStub)
 				m.output(fmt.Sprintf("Scheduling failed for task group %q",
 					alloc.group))
 			} else {
-				m.output(fmt.Sprintf(
-					"Allocation %q created on node %q for task group %q",
-					alloc.id, alloc.node, alloc.group))
+				if alloc.index < update.index {
+					m.output(fmt.Sprintf(
+						"Allocation %q updated (node %q, task group %q)",
+						alloc.id, alloc.node, alloc.group))
+				} else {
+					m.output(fmt.Sprintf(
+						"Allocation %q created on node %q for task group %q",
+						alloc.id, alloc.node, alloc.group))
+				}
 			}
 		} else {
 			if existing.client != alloc.client {
