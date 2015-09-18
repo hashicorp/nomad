@@ -121,12 +121,11 @@ func (c *StatusCommand) Run(args []string) int {
 
 		// Format the evals
 		evals = make([]string, len(jobEvals)+1)
-		evals[0] = "ID|Priority|Type|TriggeredBy|NodeID|Status"
+		evals[0] = "ID|Priority|TriggeredBy|NodeID|Status"
 		for i, eval := range jobEvals {
-			evals[i+1] = fmt.Sprintf("%s|%d|%s|%s|%s|%s",
+			evals[i+1] = fmt.Sprintf("%s|%d|%s|%s|%s",
 				eval.ID,
 				eval.Priority,
-				eval.Type,
 				eval.TriggeredBy,
 				eval.NodeID,
 				eval.Status)
@@ -134,7 +133,7 @@ func (c *StatusCommand) Run(args []string) int {
 
 		// Format the allocs
 		allocs = make([]string, len(jobAllocs)+1)
-		allocs[0] = "ID|EvalID|NodeID|TaskGroup|DesiredStatus|ClientStatus"
+		allocs[0] = "ID|EvalID|NodeID|TaskGroup|Desired|Status"
 		for i, alloc := range jobAllocs {
 			allocs[i+1] = fmt.Sprintf("%s|%s|%s|%s|%s|%s",
 				alloc.ID,
@@ -149,9 +148,9 @@ func (c *StatusCommand) Run(args []string) int {
 	// Dump the output
 	c.Ui.Output(formatKV(basic))
 	if !short {
-		c.Ui.Output("\n### Evaluations")
+		c.Ui.Output("\n==> Evaluations")
 		c.Ui.Output(formatList(evals))
-		c.Ui.Output("\n### Allocations")
+		c.Ui.Output("\n==> Allocations")
 		c.Ui.Output(formatList(allocs))
 	}
 	return 0
