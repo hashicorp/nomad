@@ -1,12 +1,12 @@
 ---
 layout: "docs"
-page_title: "Secret Backends"
-sidebar_current: "docs-secrets"
+page_title: "Drivers"
+sidebar_current: "docs-drivers"
 description: |-
   Secret backends are mountable backends that store or generate secrets in Nomad.
 ---
 
-# Secret Backends
+# Drivers
 
 Secret backends are the components in Nomad which store and generate
 secrets.

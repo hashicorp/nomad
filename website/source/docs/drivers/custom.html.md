@@ -1,12 +1,12 @@
 ---
 layout: "docs"
-page_title: "Secret Backend: Custom"
-sidebar_current: "docs-secrets-custom"
+page_title: "Drivers: Custom"
+sidebar_current: "docs-drivers-custom"
 description: |-
   Create custom secret backends for Nomad.
 ---
 
-# Custom Secret Backends
+# Custom Drivers
 
 Nomad doesn't currently support the creation of custom secret backends.
 The primary reason is because we want to ensure the core of Nomad is

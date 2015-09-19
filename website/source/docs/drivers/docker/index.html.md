@@ -1,12 +1,12 @@
 ---
 layout: "docs"
-page_title: "Secret Backend: AWS"
-sidebar_current: "docs-secrets-aws"
+page_title: "Drivers: Docker"
+sidebar_current: "docs-drivers-docker"
 description: |-
   The AWS secret backend for Nomad generates access keys dynamically based on IAM policies.
 ---
 
-# AWS Secret Backend
+# Docker Driver
 
 Name: `aws`
 
