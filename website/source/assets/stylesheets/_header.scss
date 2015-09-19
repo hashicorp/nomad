@@ -4,12 +4,14 @@
 
 #header {
     position: relative;
+    height: 108px;
     color: $white;
     text-rendering: optimizeLegibility;
     margin-bottom: 0;
     /* opacity: 0;
     @include translate3d(0, -10px, 0); */
     transition: all 1s ease;
+    background-color: $white;
 
     /* &.showit{
         opacity: 1;
@@ -17,10 +19,10 @@
         transition: all 1s ease;
     } */
 
-    &.navbar-static-top{
-        height:70px;
-        z-index: 1000;
-    }
+    // &.navbar-static-top{
+    //     height:70px;
+    //     z-index: 1000;
+    // }
 
     .navbar-header{
 
@@ -57,10 +59,10 @@
             @include img-retina("../images/logo-header.png", "../images/logo-header@2x.png", 49px, 56px);
 
             &:hover{
-				@include transition(all 300ms ease-in);
-				color: $green-dark;
-				text-decoration: none;
-			}
+                @include transition(all 300ms ease-in);
+                color: $green-dark;
+                text-decoration: none;
+            }
         }
     }
 

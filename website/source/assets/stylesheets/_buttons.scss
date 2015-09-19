@@ -4,7 +4,7 @@
 
 .h-btn{
 	display: inline-block;
-	background-color: $white;
+	background-color: transparent;
 	color: $black;
 	@include transition(color .3s ease-in-out);
 	//@include btn-shadow();
