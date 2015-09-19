@@ -12,44 +12,27 @@ Before understanding use cases, it's useful to know [what Nomad is](/intro/index
 This page lists some concrete use cases for Nomad, but the possible use cases are
 much broader than what we cover.
 
-#### General Secret Storage
+#### Microservices Platform
 
-At a bare minimum, Nomad can be used for the storage of any secrets. For
-example, Nomad would be a fantastic way to store sensitive environment variables,
-database credentials, API keys, etc.
+Microservices, or Service Oriented Architectures (SOA), are a design paradigm in which many
+services with narrow scope, tight state encapsulation, and API driven interfaces interact together
+to form a larger application. However, they add an operational challenge of managing hundreds
+or thousands of services instead of a few large applications. Nomad provides a platform for
+managing microservices making it easier to adopt the paradigm.
 
-Compare this with the current way to store these which might be
-plaintext in files, configuration management, a database, etc. It would be
-much safer to query these using `vault read` or the API. This protects
-the plaintext version of these secrets as well as records access in the Nomad
-audit log.
+#### Hybrid Cloud Deployments
 
-#### Employee Credential Storage
+Nomad is designed to handle multi-datacenter and multi-region deployments and is cloud agnostic.
+This allows Nomad to schedule in private datacenters running bare metal, OpenStack, or VMware
+along side an AWS, Azure, or GCE cloud deployment. This makes it easier to migrate workloads
+incrementally or to utilize the cloud for bursting.
 
-While this overlaps with "General Secret Storage", Nomad is a good mechanism
-for storing credentials that employees share to access web services. The
-audit log mechanism lets you know what secrets an employee accessed and
-when an employee leaves, it is easier to roll keys and understand which keys
-have and haven't been rolled.
+#### E-Commerce
 
-#### API Key Generation for Scripts
+A typical E-Commerce website has a few types of workloads. There are long-lived services
+used for web serving. These include the load balancer, web frontends, API servers, and OLTP databases.
+Batch processing using Hadoop or Spark may run periodically for business reporting, user targeting,
+or generating product recommendations. Nomad allows all these workloads to share an underlying cluster,
+increasing utilization, reducing cost, simplifying scaling and providing a clean abstraction
+for developers.
 
-The "dynamic secrets" feature of Nomad is ideal for scripts: an AWS
-access key can be generated for the duration of a script, then revoked.
-The keypair will not exist before or after the script runs, and the
-creation of the keys are completely logged.
-
-This is an improvement over using something like Amazon IAM but still
-effectively hardcoding limited-access access tokens in various places.
-
-#### Data Encryption
-
-In addition to being able to store secrets, Nomad can be used to
-encrypt/decrypt data that is stored elsewhere. The primary use of this is
-to allow applications to encrypt their data while still storing it in the
-primary data store.
-
-The benefit of this is that developers do not need to worry about how to
-properly encrypt data. The responsibility of encryption is on Nomad
-and the security team managing it, and developers just encrypt/decrypt
-data as needed.
