@@ -77,8 +77,8 @@ Looking at only a single region, at a high level Nomad looks like:
 ![Regional Architecture](/assets/images/region-arch.png)
 
 Within each region, we have both clients and servers. Servers are responsible for
-accepting jobs from users, managing clients, and computing task placements. Each
-region may have clients from multiple datacenters, allowing a small number of servers
+accepting jobs from users, managing clients, and [computing task placements](/docs/internals/scheduling.html).
+Each region may have clients from multiple datacenters, allowing a small number of servers
 to handle very large clusters.
 
 In some cases, for either availability or scalability, you may need to run multiple
@@ -126,7 +126,8 @@ ensuring PCI compliant workloads run on appropriate servers.
 # Getting in Depth
 
 This has been a brief high-level overview of the architecture of Nomad. There
-are more details available for each of the sub-systems. The [consensus protocol](/docs/internals/consensus.html) is
-documented in detail as is the [gossip protocol](/docs/internals/gossip.html).
+are more details available for each of the sub-systems. The [scheduler design](/docs/internals/scheduling.html),
+[consensus protocol](/docs/internals/consensus.html), and [gossip protocol](/docs/internals/gossip.html)
+are all documented in more detail.
 
 For other details, either consult the code, ask in IRC or reach out to the mailing list.

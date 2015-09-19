@@ -10,10 +10,11 @@ description: |-
 
 Scheduling is a core function of Nomad. It is the process of assigning tasks
 from jobs to client machines. This process must respect the constraints as declared
-in the job, and optimize for resource utilization by bin packing. This page documents
-the details of how scheduling works in Nomad to help both users and developers
-build a mental model of how it works. The design is heavily inspired by Google's
-work on [Omega: flexible, scalable schedulers for large compute clusters](http://research.google.com/pubs/pub41684.html)
+in the job, and optimize for resource utilization. This page documents the details
+of how scheduling works in Nomad to help both users and developers
+build a mental model. The design is heavily inspired by Google's
+work on both [Omega: flexible, scalable schedulers for large compute clusters](http://research.google.com/pubs/pub41684.html)
+and [Large-scale cluster management at Google with Borg](http://research.google.com/pubs/pub43438.html).
 
 ~> **Advanced Topic!** This page covers technical details
 of Nomad. You don't need to understand these details to
