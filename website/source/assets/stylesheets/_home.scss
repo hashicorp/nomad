@@ -294,7 +294,10 @@
 			    			background: image-url('../images/partner-engineyard.png') center center no-repeat;
 			   				@include img-retina("../images/partner-engineyard.png", "../images/partner-engineyard@2x.png", 178px, 37px);
 						}
-
+						&.digitalocean-logo{
+			    			background: image-url('../images/partner-digitalocean.png') center center no-repeat;
+			   				@include img-retina("../images/partner-digitalocean.png", "../images/partner-digitalocean@2x.png", 134px, 85px);
+						}
 					}
 				}
 			}
