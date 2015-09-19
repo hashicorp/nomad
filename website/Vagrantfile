@@ -8,12 +8,14 @@ $script = <<SCRIPT
 sudo apt-get -y update
 
 # RVM/Ruby
-sudo apt-get -y install curl
+sudo apt-get -y install curl git
+curl -sSL https://rvm.io/mpapis.asc | gpg --import -
 curl -sSL https://get.rvm.io | bash -s stable
 . ~/.bashrc
 . ~/.bash_profile
-rvm install 2.0.0
-rvm --default use 2.0.0
+rvm install 2.2.2
+rvm --default use 2.2.2
+gem install bundler
 
 # Middleman deps
 cd /vagrant
@@ -26,8 +28,8 @@ sudo apt-get update -y
 sudo apt-get install -y nodejs
 
 # Get JS deps
-cd /vagrant/source
-npm install
+# cd /vagrant/source
+# npm install
 SCRIPT
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
