@@ -19,51 +19,42 @@ guide for all available features as well as internals.
 
 ## What is Nomad?
 
-Nomad is a tool for securely accessing _secrets_. A secret is anything
-that you want to tightly control access to, such as API keys, passwords,
-certificates, and more. Nomad provides a unified interface to any
-secret, while providing tight access control and recording a detailed
-audit log.
-
-A modern system requires access to a multitude of secrets: database
-credentials, API keys for external services, credentials for
-service-oriented architecture communication, etc. Understanding who is
-accessing what secrets is already very difficult and platform-specific.
-Adding on key rolling, secure storage, and detailed audit logs is almost
-impossible without a custom solution. This is where Nomad steps in.
-
-Examples work best to showcase Nomad. Please see the
-[use cases](/intro/use-cases.html).
+Nomad is a tool for managing a cluster of machines and running applications
+on them. Nomad abstracts away machines and the location of applications,
+and instead enables user to declare what they want to run and Nomad handles
+where they should run and how to run them.
 
 The key features of Nomad are:
 
-* **Secure Secret Storage**: Arbitrary key/value secrets can be stored
-  in Nomad. Nomad encrypts these secrets prior to writing them to persistent
-  storage, so gaining access to the raw storage isn't enough to access
-  your secrets. Nomad can write to disk, [Consul](http://www.consul.io),
-  and more.
+* **Docker Support**: Nomad supports Docker as a first-class workload type.
+  Jobs submitted to Nomad can use the “docker” driver to easily deploy containerized
+  applications to a cluster. Nomad enforces the user-specified constraints,
+  ensuring the application only runs in the correct region, datacenter, and host
+  environment. Jobs can specify the number of instances needed and
+  Nomad will handle placement and recover from failures automatically.
 
-* **Dynamic Secrets**: Nomad can generate secrets on-demand for some
-  systems, such as AWS or SQL databases. For example, when an application
-  needs to access an S3 bucket, it asks Nomad for credentials, and Nomad
-  will generate an AWS keypair with valid permissions on demand. After
-  creating these dynamic secrets, Nomad will also automatically revoke them
-  after the lease is up.
+* **Operationally Simple**: Nomad ships as a single binary, both for clients and servers,
+  and requires no external services for coordination or storage. Nomad combines features
+  of both resource managers and schedulers into a single system. Nomad builds on the strength
+  of [Serf](https://www.serfdom.io) and [Consul](https://www.consul.io), distributed management
+  tools by [HashiCorp](https://hashicorp.com).
 
-* **Data Encryption**: Nomad can encrypt and decrypt data without storing
-  it. This allows security teams to define encryption parameters and
-  developers to store encrypted data in a location such as SQL without
-  having to design their own encryption methods.
+* **Multi-Datacenter and Multi-Region Aware**: Nomad models infrastructure as
+  groups of datacenters which form a larger region. Scheduling operates at the region
+  level allowing for cross-datacenter scheduling. Multiple regions federate together
+  allowing jobs to be registered globally.
 
-* **Leasing and Renewal**: All secrets in Nomad have a _lease_ associated
-  with it. At the end of the lease, Nomad will automatically revoke that
-  secret. Clients are able to renew leases via built-in renew APIs.
+* **Flexible Workloads**: Nomad has extensible support for task drivers, allowing it to run
+  containerized, virtualized, and standalone applications. Users can easily start Docker
+  containers, VMs, or application runtimes like Java. Nomad supports Linux, Windows, BSD and OSX,
+  providing the flexibility to run any workload.
 
-* **Revocation**: Nomad has built-in support for secret revocation. Nomad
-  can revoke not only single secrets, but a tree of secrets, for example
-  all secrets read by a specific user, or all secrets of a particular type.
-  Revocation assists in key rolling as well as locking down systems in the
-  case of an intrusion.
+* **Built for Scale**: Nomad was designed from the ground up to support global scale
+  infrastructure. Nomad is distributed and highly available, using both
+  leader election and state replication to provide availability in the face
+  of failures. Nomad is optimistically concurrent, enabling all servers to participate
+  in scheduling decisions which increases the total throughput and reduces latency
+  to support demanding workloads.
 
 ## Next Steps
 
@@ -72,4 +63,5 @@ multiple ways Nomad can be used. Then see
 [how Nomad compares to other software](/intro/vs/index.html)
 to see how it fits into your existing infrastructure. Finally, continue onwards with
 the [getting started guide](/intro/getting-started/install.html) to use
-Nomad to read, write, and create real secrets and see how it works in practice.
+Nomad to run a job and see how it works in practice.
+
