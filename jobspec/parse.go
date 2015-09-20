@@ -178,6 +178,11 @@ func parseGroups(result *structs.Job, obj *hclobj.Object) error {
 		delete(m, "meta")
 		delete(m, "task")
 
+		// Default count to 1 if not specified
+		if _, ok := m["count"]; !ok {
+			m["count"] = 1
+		}
+
 		// Build the group with the basic decode
 		var g structs.TaskGroup
 		g.Name = n
