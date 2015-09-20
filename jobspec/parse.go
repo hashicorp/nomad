@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/hashicorp/hcl"
 	hclobj "github.com/hashicorp/hcl/hcl"
@@ -76,6 +77,7 @@ func parseJob(result *structs.Job, obj *hclobj.Object) error {
 	}
 	delete(m, "constraint")
 	delete(m, "meta")
+	delete(m, "update")
 
 	// Set the ID and name to the object key
 	result.ID = obj.Key
@@ -94,6 +96,13 @@ func parseJob(result *structs.Job, obj *hclobj.Object) error {
 	// Parse constraints
 	if o := obj.Get("constraint", false); o != nil {
 		if err := parseConstraints(&result.Constraints, o); err != nil {
+			return err
+		}
+	}
+
+	// If we have an update strategy, then parse that
+	if o := obj.Get("update", false); o != nil {
+		if err := parseUpdate(&result.Update, o); err != nil {
 			return err
 		}
 	}
@@ -220,6 +229,11 @@ func parseConstraints(result *[]*structs.Constraint, obj *hclobj.Object) error {
 		m["LTarget"] = m["attribute"]
 		m["RTarget"] = m["value"]
 		m["Operand"] = m["operator"]
+
+		// Default constraint to being hard
+		if _, ok := m["hard"]; !ok {
+			m["hard"] = true
+		}
 
 		// Build the constraint
 		var c structs.Constraint
@@ -360,5 +374,40 @@ func parseResources(result *structs.Resources, obj *hclobj.Object) error {
 
 	}
 
+	return nil
+}
+
+func parseUpdate(result *structs.UpdateStrategy, obj *hclobj.Object) error {
+	if obj.Len() > 1 {
+		return fmt.Errorf("only one 'update' block allowed per job")
+	}
+
+	for _, o := range obj.Elem(false) {
+		var m map[string]interface{}
+		if err := hcl.DecodeObject(&m, o); err != nil {
+			return err
+		}
+		for _, key := range []string{"stagger", "Stagger"} {
+			if raw, ok := m[key]; ok {
+				switch v := raw.(type) {
+				case string:
+					dur, err := time.ParseDuration(v)
+					if err != nil {
+						return fmt.Errorf("invalid stagger time '%s'", raw)
+					}
+					m[key] = dur
+				case int:
+					m[key] = time.Duration(v) * time.Second
+				default:
+					return fmt.Errorf("invalid type for stagger time '%s'",
+						raw)
+				}
+			}
+		}
+
+		if err := mapstructure.WeakDecode(m, result); err != nil {
+			return err
+		}
+	}
 	return nil
 }

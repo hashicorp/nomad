@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -31,10 +32,16 @@ func TestParse(t *testing.T) {
 
 				Constraints: []*structs.Constraint{
 					&structs.Constraint{
+						Hard:    true,
 						LTarget: "kernel.os",
 						RTarget: "windows",
 						Operand: "=",
 					},
+				},
+
+				Update: structs.UpdateStrategy{
+					Stagger:     60 * time.Second,
+					MaxParallel: 2,
 				},
 
 				TaskGroups: []*structs.TaskGroup{
@@ -60,6 +67,7 @@ func TestParse(t *testing.T) {
 						Count: 5,
 						Constraints: []*structs.Constraint{
 							&structs.Constraint{
+								Hard:    true,
 								LTarget: "kernel.os",
 								RTarget: "linux",
 								Operand: "=",
@@ -101,6 +109,7 @@ func TestParse(t *testing.T) {
 								},
 								Constraints: []*structs.Constraint{
 									&structs.Constraint{
+										Hard:    true,
 										LTarget: "kernel.arch",
 										RTarget: "amd64",
 										Operand: "=",

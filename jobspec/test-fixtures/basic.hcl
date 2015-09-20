@@ -14,6 +14,11 @@ job "binstore-storagelocker" {
         value = "windows"
     }
 
+    update {
+        stagger = "60s"
+        max_parallel = 2
+    }
+
     task "outside" {
         driver = "java"
         config {
