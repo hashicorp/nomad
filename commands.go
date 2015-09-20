@@ -8,7 +8,7 @@ import (
 	"github.com/mitchellh/cli"
 )
 
-// Commands returns the mapping of CLI commands for Vault. The meta
+// Commands returns the mapping of CLI commands for Nomad. The meta
 // parameter lets you set meta options for all commands.
 func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 	if metaPtr == nil {
