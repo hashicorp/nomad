@@ -3,73 +3,65 @@ layout: "intro"
 page_title: "Introduction"
 sidebar_current: "what"
 description: |-
-  Welcome to the intro guide to Vault! This guide is the best place to start with Vault. We cover what Vault is, what problems it can solve, how it compares to existing software, and contains a quick start for using Vault.
+  Welcome to the intro guide to Nomad! This guide is the best place to start with Nomad. We cover what Nomad is, what problems it can solve, how it compares to existing software, and contains a quick start for using Nomad.
 ---
 
-# Introduction to Vault
+# Introduction to Nomad
 
-Welcome to the intro guide to Vault! This guide is the best
-place to start with Vault. We cover what Vault is, what
+Welcome to the intro guide to Nomad! This guide is the best
+place to start with Nomad. We cover what Nomad is, what
 problems it can solve, how it compares to existing software,
-and contains a quick start for using Vault.
+and contains a quick start for using Nomad.
 
-If you are already familiar with the basics of Vault, the
+If you are already familiar with the basics of Nomad, the
 [documentation](/docs/index.html) provides a better reference
 guide for all available features as well as internals.
 
-## What is Vault?
+## What is Nomad?
 
-Vault is a tool for securely accessing _secrets_. A secret is anything
-that you want to tightly control access to, such as API keys, passwords,
-certificates, and more. Vault provides a unified interface to any
-secret, while providing tight access control and recording a detailed
-audit log.
+Nomad is a tool for managing a cluster of machines and running applications
+on them. Nomad abstracts away machines and the location of applications,
+and instead enables user to declare what they want to run and Nomad handles
+where they should run and how to run them.
 
-A modern system requires access to a multitude of secrets: database
-credentials, API keys for external services, credentials for
-service-oriented architecture communication, etc. Understanding who is
-accessing what secrets is already very difficult and platform-specific.
-Adding on key rolling, secure storage, and detailed audit logs is almost
-impossible without a custom solution. This is where Vault steps in.
+The key features of Nomad are:
 
-Examples work best to showcase Vault. Please see the
-[use cases](/intro/use-cases.html).
+* **Docker Support**: Nomad supports Docker as a first-class workload type.
+  Jobs submitted to Nomad can use the “docker” driver to easily deploy containerized
+  applications to a cluster. Nomad enforces the user-specified constraints,
+  ensuring the application only runs in the correct region, datacenter, and host
+  environment. Jobs can specify the number of instances needed and
+  Nomad will handle placement and recover from failures automatically.
 
-The key features of Vault are:
+* **Operationally Simple**: Nomad ships as a single binary, both for clients and servers,
+  and requires no external services for coordination or storage. Nomad combines features
+  of both resource managers and schedulers into a single system. Nomad builds on the strength
+  of [Serf](https://www.serfdom.io) and [Consul](https://www.consul.io), distributed management
+  tools by [HashiCorp](https://hashicorp.com).
 
-* **Secure Secret Storage**: Arbitrary key/value secrets can be stored
-  in Vault. Vault encrypts these secrets prior to writing them to persistent
-  storage, so gaining access to the raw storage isn't enough to access
-  your secrets. Vault can write to disk, [Consul](http://www.consul.io),
-  and more.
+* **Multi-Datacenter and Multi-Region Aware**: Nomad models infrastructure as
+  groups of datacenters which form a larger region. Scheduling operates at the region
+  level allowing for cross-datacenter scheduling. Multiple regions federate together
+  allowing jobs to be registered globally.
 
-* **Dynamic Secrets**: Vault can generate secrets on-demand for some
-  systems, such as AWS or SQL databases. For example, when an application
-  needs to access an S3 bucket, it asks Vault for credentials, and Vault
-  will generate an AWS keypair with valid permissions on demand. After
-  creating these dynamic secrets, Vault will also automatically revoke them
-  after the lease is up.
+* **Flexible Workloads**: Nomad has extensible support for task drivers, allowing it to run
+  containerized, virtualized, and standalone applications. Users can easily start Docker
+  containers, VMs, or application runtimes like Java. Nomad supports Linux, Windows, BSD and OSX,
+  providing the flexibility to run any workload.
 
-* **Data Encryption**: Vault can encrypt and decrypt data without storing
-  it. This allows security teams to define encryption parameters and
-  developers to store encrypted data in a location such as SQL without
-  having to design their own encryption methods.
-
-* **Leasing and Renewal**: All secrets in Vault have a _lease_ associated
-  with it. At the end of the lease, Vault will automatically revoke that
-  secret. Clients are able to renew leases via built-in renew APIs.
-
-* **Revocation**: Vault has built-in support for secret revocation. Vault
-  can revoke not only single secrets, but a tree of secrets, for example
-  all secrets read by a specific user, or all secrets of a particular type.
-  Revocation assists in key rolling as well as locking down systems in the
-  case of an intrusion.
+* **Built for Scale**: Nomad was designed from the ground up to support global scale
+  infrastructure. Nomad is distributed and highly available, using both
+  leader election and state replication to provide availability in the face
+  of failures. Nomad is optimistically concurrent, enabling all servers to participate
+  in scheduling decisions which increases the total throughput and reduces latency
+  to support demanding workloads.
 
 ## Next Steps
 
-See the page on [Vault use cases](/intro/use-cases.html) to see the
-multiple ways Vault can be used. Then see
-[how Vault compares to other software](/intro/vs/index.html)
+See the page on [Nomad use cases](/intro/use-cases.html) to see the
+multiple ways Nomad can be used. Then see
+[how Nomad compares to other software](/intro/vs/index.html)
 to see how it fits into your existing infrastructure. Finally, continue onwards with
 the [getting started guide](/intro/getting-started/install.html) to use
-Vault to read, write, and create real secrets and see how it works in practice.
+Nomad to run a job and see how it works in practice.
+

@@ -3,7 +3,7 @@ layout: "http"
 page_title: "HTTP API: /sys/rekey/"
 sidebar_current: "docs-http-rotate-rekey"
 description: |-
-  The `/sys/rekey/` endpoints are used to rekey the unseal keys for Vault.
+  The `/sys/rekey/` endpoints are used to rekey the unseal keys for Nomad.
 ---
 
 # /sys/rekey/init
@@ -116,8 +116,8 @@ description: |-
 <dl>
   <dt>Description</dt>
   <dd>
-    Enter a single master key share to progress the rekey of the Vault.
-    If the threshold number of master key shares is reached, Vault
+    Enter a single master key share to progress the rekey of the Nomad.
+    If the threshold number of master key shares is reached, Nomad
     will complete the rekey. Otherwise, this API must be called multiple
     times until that threshold is met.
   </dd>

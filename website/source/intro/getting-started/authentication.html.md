@@ -3,36 +3,36 @@ layout: "intro"
 page_title: "Authentication"
 sidebar_current: "gettingstarted-auth"
 description: |-
-  Authentication to Vault gives a user access to use Vault. Vault can authenticate using multiple methods.
+  Authentication to Nomad gives a user access to use Nomad. Nomad can authenticate using multiple methods.
 ---
 
 # Authentication
 
-Now that we know how to use the basics of Vault, it is important to understand
-how to authenticate to Vault itself. Up to this point, we haven't had to
-authenticate because starting the Vault server in dev mode automatically logs
+Now that we know how to use the basics of Nomad, it is important to understand
+how to authenticate to Nomad itself. Up to this point, we haven't had to
+authenticate because starting the Nomad server in dev mode automatically logs
 us in as root. In practice, you'll almost always have to manually authenticate.
 
 On this page, we'll talk specifically about _authentication_. On the next
 page, we talk about _authorization_.
-Authentication is the mechanism of assigning an identity to a Vault user.
+Authentication is the mechanism of assigning an identity to a Nomad user.
 The access control and permissions associated with an identity are
 authorization, and will not be covered on this page.
 
-Vault has pluggable authentication backends, making it easy to authenticate
-with Vault using whatever form works best for your organization. On this page
+Nomad has pluggable authentication backends, making it easy to authenticate
+with Nomad using whatever form works best for your organization. On this page
 we'll use the token backend as well as the GitHub backend.
 
 ## Tokens
 
 We'll first explain token authentication before going over any other
 authentication backends. Token authentication is enabled by default in
-Vault and cannot be disabled. It is also what we've been using up to this
+Nomad and cannot be disabled. It is also what we've been using up to this
 point.
 
 When you start a dev server with `vault server -dev`, it outputs your
-_root token_. The root token is the initial access token to configure Vault.
-It has root privileges, so it can perform any operation within Vault.
+_root token_. The root token is the initial access token to configure Nomad.
+It has root privileges, so it can perform any operation within Nomad.
 We'll cover how to limit privileges in the next section.
 
 You can create more tokens using `vault token-create`:
@@ -70,17 +70,17 @@ with this token are listed below:
 root
 ```
 
-This authenticates with Vault. It will verify your token and let you know
+This authenticates with Nomad. It will verify your token and let you know
 what access policies the token is associated with. If you want to test
 `vault auth`, make sure you create a new token first.
 
 ## Auth Backends
 
 In addition to tokens, other authentication backends can be enabled.
-Authentication backends enable alternate methods of identifying with Vault.
+Authentication backends enable alternate methods of identifying with Nomad.
 These identities are tied back to a set of access policies, just like tokens.
 
-Vault supports other authentication backends in order to make authentication
+Nomad supports other authentication backends in order to make authentication
 easiest for your environment. For example, for desktop environments,
 private key or GitHub based authentication may be easiest. For server
 environments, some shared secret may be best. Auth backends give you
@@ -148,19 +148,19 @@ $ vault auth-disable github
 Disabled auth provider at path 'github'!
 ```
 
-If you ran the above, you'll probably find you can't access your Vault
+If you ran the above, you'll probably find you can't access your Nomad
 anymore unless you have another root token, since it invalidated your
 own session since we authenticated with GitHub above. Since we're still
 operating in development mode, just restart the dev server to fix this.
 
 ## Next
 
-In this page you learned about how Vault authenticates users. You learned
+In this page you learned about how Nomad authenticates users. You learned
 about the built-in token system as well as enabling other authentication
-backends. At this point you know how Vault assigns an _identity_ to
+backends. At this point you know how Nomad assigns an _identity_ to
 a user.
 
-The multiple authentication backends Vault provides let you choose the
+The multiple authentication backends Nomad provides let you choose the
 most appropriate authentication mechanism for your organization.
 
 In this next section, we'll learn about

@@ -135,6 +135,11 @@ func TestTaskRunner_Update(t *testing.T) {
 	})
 }
 
+/*
+TODO: This test is disabled til a follow-up api changes the restore state interface.
+The driver/executor interface will be changed from Open to Cleanup, in which
+clean-up tears down previous allocs.
+
 func TestTaskRunner_SaveRestoreState(t *testing.T) {
 	upd, tr := testTaskRunner()
 
@@ -170,3 +175,4 @@ func TestTaskRunner_SaveRestoreState(t *testing.T) {
 		t.Fatalf("timeout")
 	}
 }
+*/

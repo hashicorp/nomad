@@ -3,7 +3,7 @@ layout: "http"
 page_title: "HTTP API: /sys/auth"
 sidebar_current: "docs-http-auth-auth"
 description: |-
-  The `/sys/auth` endpoint is used to manage auth backends in Vault.
+  The `/sys/auth` endpoint is used to manage auth backends in Nomad.
 ---
 
 # /sys/auth

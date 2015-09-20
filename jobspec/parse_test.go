@@ -17,6 +17,7 @@ func TestParse(t *testing.T) {
 		{
 			"basic.hcl",
 			&structs.Job{
+				ID:          "binstore-storagelocker",
 				Name:        "binstore-storagelocker",
 				Type:        "service",
 				Priority:    50,
@@ -128,7 +129,20 @@ func TestParse(t *testing.T) {
 		{
 			"default-job.hcl",
 			&structs.Job{
+				ID:       "foo",
 				Name:     "foo",
+				Priority: 50,
+				Region:   "global",
+				Type:     "service",
+			},
+			false,
+		},
+
+		{
+			"specify-job.hcl",
+			&structs.Job{
+				ID:       "job1",
+				Name:     "My Job",
 				Priority: 50,
 				Region:   "global",
 				Type:     "service",

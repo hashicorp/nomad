@@ -3,7 +3,7 @@ layout: "intro"
 page_title: "Built-in Help"
 sidebar_current: "gettingstarted-help"
 description: |-
-  Vault has a built-in help system to learn about the available paths in Vault and how to use them.
+  Nomad has a built-in help system to learn about the available paths in Nomad and how to use them.
 ---
 
 # Built-in Help
@@ -16,11 +16,11 @@ the paths to use differed. AWS in particular had special paths like
 
 Instead of having to memorize or reference documentation constantly
 to determine what paths to use, we built a help system directly into
-Vault. This help system can be accessed via the API or the command-line and
+Nomad. This help system can be accessed via the API or the command-line and
 generates human-readable help for any mounted backend.
 
 On this page, we'll learn how to use this help system. It is an invaluable
-tool as you continue to work with Vault.
+tool as you continue to work with Nomad.
 
 ## Backend Overview
 
@@ -112,9 +112,9 @@ generic `secret/` path.
 
 ## Next
 
-The help system may not be the most exciting feature of Vault, but it
-is indispensable in day-to-day usage of Vault. The help system lets you
-learn about how to use any backend within Vault without leaving the command
+The help system may not be the most exciting feature of Nomad, but it
+is indispensable in day-to-day usage of Nomad. The help system lets you
+learn about how to use any backend within Nomad without leaving the command
 line.
 
 Next, we'll learn about

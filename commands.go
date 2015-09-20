@@ -70,6 +70,12 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 			}, nil
 		},
 
+		"spawn-daemon": func() (cli.Command, error) {
+			return &command.SpawnDaemonCommand{
+				Meta: meta,
+			}, nil
+		},
+
 		"status": func() (cli.Command, error) {
 			return &command.StatusCommand{
 				Meta: meta,

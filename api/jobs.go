@@ -1,5 +1,9 @@
 package api
 
+import (
+	"sort"
+)
+
 const (
 	// JobTypeService indicates a long-running processes
 	JobTypeService = "service"
@@ -38,6 +42,7 @@ func (j *Jobs) List(q *QueryOptions) ([]*JobListStub, *QueryMeta, error) {
 	if err != nil {
 		return nil, qm, err
 	}
+	sort.Sort(JobIDSort(resp))
 	return resp, qm, nil
 }
 
@@ -59,6 +64,7 @@ func (j *Jobs) Allocations(jobID string, q *QueryOptions) ([]*AllocationListStub
 	if err != nil {
 		return nil, nil, err
 	}
+	sort.Sort(AllocIndexSort(resp))
 	return resp, qm, nil
 }
 
@@ -70,6 +76,7 @@ func (j *Jobs) Evaluations(jobID string, q *QueryOptions) ([]*Evaluation, *Query
 	if err != nil {
 		return nil, nil, err
 	}
+	sort.Sort(EvalIndexSort(resp))
 	return resp, qm, nil
 }
 
@@ -94,6 +101,7 @@ func (j *Jobs) ForceEvaluate(jobID string, q *WriteOptions) (string, *WriteMeta,
 
 // Job is used to serialize a job.
 type Job struct {
+	Region            string
 	ID                string
 	Name              string
 	Type              string
@@ -122,26 +130,42 @@ type JobListStub struct {
 	ModifyIndex       uint64
 }
 
+// JobIDSort is used to sort jobs by their job ID's.
+type JobIDSort []*JobListStub
+
+func (j JobIDSort) Len() int {
+	return len(j)
+}
+
+func (j JobIDSort) Less(a, b int) bool {
+	return j[a].ID < j[b].ID
+}
+
+func (j JobIDSort) Swap(a, b int) {
+	j[a], j[b] = j[b], j[a]
+}
+
 // NewServiceJob creates and returns a new service-style job
 // for long-lived processes using the provided name, ID, and
 // relative job priority.
-func NewServiceJob(id, name string, pri int) *Job {
-	return newJob(id, name, JobTypeService, pri)
+func NewServiceJob(id, name, region string, pri int) *Job {
+	return newJob(id, name, region, JobTypeService, pri)
 }
 
 // NewBatchJob creates and returns a new batch-style job for
 // short-lived processes using the provided name and ID along
 // with the relative job priority.
-func NewBatchJob(id, name string, pri int) *Job {
-	return newJob(id, name, JobTypeBatch, pri)
+func NewBatchJob(id, name, region string, pri int) *Job {
+	return newJob(id, name, region, JobTypeBatch, pri)
 }
 
 // newJob is used to create a new Job struct.
-func newJob(jobID, jobName, jobType string, pri int) *Job {
+func newJob(id, name, region, typ string, pri int) *Job {
 	return &Job{
-		ID:       jobID,
-		Name:     jobName,
-		Type:     jobType,
+		Region:   region,
+		ID:       id,
+		Name:     name,
+		Type:     typ,
 		Priority: pri,
 	}
 }

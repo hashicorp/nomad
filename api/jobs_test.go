@@ -2,6 +2,7 @@ package api
 
 import (
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -218,8 +219,9 @@ func TestJobs_ForceEvaluate(t *testing.T) {
 }
 
 func TestJobs_NewBatchJob(t *testing.T) {
-	job := NewBatchJob("job1", "myjob", 5)
+	job := NewBatchJob("job1", "myjob", "region1", 5)
 	expect := &Job{
+		Region:   "region1",
 		ID:       "job1",
 		Name:     "myjob",
 		Type:     JobTypeBatch,
@@ -231,8 +233,9 @@ func TestJobs_NewBatchJob(t *testing.T) {
 }
 
 func TestJobs_NewServiceJob(t *testing.T) {
-	job := NewServiceJob("job1", "myjob", 5)
+	job := NewServiceJob("job1", "myjob", "region1", 5)
 	expect := &Job{
+		Region:   "region1",
 		ID:       "job1",
 		Name:     "myjob",
 		Type:     JobTypeService,
@@ -299,5 +302,23 @@ func TestJobs_Constrain(t *testing.T) {
 	}
 	if !reflect.DeepEqual(job.Constraints, expect) {
 		t.Fatalf("expect: %#v, got: %#v", expect, job.Constraints)
+	}
+}
+
+func TestJobs_Sort(t *testing.T) {
+	jobs := []*JobListStub{
+		&JobListStub{ID: "job2"},
+		&JobListStub{ID: "job0"},
+		&JobListStub{ID: "job1"},
+	}
+	sort.Sort(JobIDSort(jobs))
+
+	expect := []*JobListStub{
+		&JobListStub{ID: "job0"},
+		&JobListStub{ID: "job1"},
+		&JobListStub{ID: "job2"},
+	}
+	if !reflect.DeepEqual(jobs, expect) {
+		t.Fatalf("\n\n%#v\n\n%#v", jobs, expect)
 	}
 }

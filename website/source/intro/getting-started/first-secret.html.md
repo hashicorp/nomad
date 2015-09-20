@@ -3,7 +3,7 @@ layout: "intro"
 page_title: "Your First Secret"
 sidebar_current: "gettingstarted-firstsecret"
 description: |-
-  With the Vault server running, let's read and write our first secret.
+  With the Nomad server running, let's read and write our first secret.
 ---
 
 # Your First Secret
@@ -11,18 +11,18 @@ description: |-
 Now that the dev server is up and running, let's get straight to it and
 read and write our first secret.
 
-One of the core features of Vault is the ability to read and write
+One of the core features of Nomad is the ability to read and write
 arbitrary secrets securely. On this page, we'll do this using the CLI,
 but there is also a complete
 [HTTP API](/docs/http/index.html)
-that can be used to programmatically do anything with Vault.
+that can be used to programmatically do anything with Nomad.
 
-Secrets written to Vault are encrypted and then written to the backend
+Secrets written to Nomad are encrypted and then written to the backend
 storage. For our dev server, backend storage is in-memory, but in production
 this would more likely be on disk or in [Consul](https://www.consul.io).
-Vault encrypts the value before it is ever handed to the storage driver.
+Nomad encrypts the value before it is ever handed to the storage driver.
 The backend storage mechanism _never_ sees the unencrypted value and doesn't
-have the means necessary to decrypt it without Vault.
+have the means necessary to decrypt it without Nomad.
 
 ## Writing a Secret
 
@@ -69,7 +69,7 @@ excited         yes
 value           world
 ```
 
-As you can see, the values we wrote are given back to us. Vault read
+As you can see, the values we wrote are given back to us. Nomad read
 the data from storage and decrypted it.
 The output format is purposefully whitespace separated to make it easy
 to pipe into a tool like `awk`.
@@ -112,7 +112,7 @@ Success! Deleted 'secret/hello'
 ## Next
 
 In this section we learned how to use the powerful CRUD features of
-Vault to store arbitrary secrets. On its own this is already a useful
+Nomad to store arbitrary secrets. On its own this is already a useful
 but basic feature.
 
 Next, we'll learn the basics about [secret backends](/intro/getting-started/secret-backends.html).

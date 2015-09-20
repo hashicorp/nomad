@@ -3,23 +3,42 @@
 // --------------------------------------------------
 
 #hero{
+	position: relative;
 	@include translate3d(0, -10px, 0);
 	text-align: center;
+	background: image-url('../images/hero-lockup.png') 0 0 no-repeat;
+	@include img-retina("../images/hero-bg.png", "../images/hero-bg@2x.png", 1278px, 798px);
+	background-size: cover;
+
+	&:before{
+		content: '';
+		position: absolute;
+		top: -20px;
+		left: 50%;
+		width: 1000px;
+		height: 1000px;
+		margin-left: -500px;
+		border-radius: 500px;
+		background-color: $white;
+		z-index: 1;
+	}
 
 	#hero-graphic{
 		position: relative;
 		display: inline-block;
 		width: 499px;
 		height: 340px;
-		margin: 120px auto;
+		margin: 120px auto 40px;
+		z-index: 2;
 
 		#hero-logotype{
 			position: absolute;
 			display: inline-block;
-		    top: 75px;
-		    left: 187px;
+			top: 75px;
+			left: 50%;
 			width: 115px;
 			height: 155px;
+			margin-left: -60px;
 			background: image-url('../images/hero-logotype.png') 0 0 no-repeat;
 			@include img-retina("../images/hero-logotype.png", "../images/hero-logotype@2x.png", 115px, 155px);
 		}
@@ -63,7 +82,26 @@
 
 	#hero-text{
 		position: relative;
-		text: center;
+
+		&:before{
+			content: '';
+			position: absolute;
+			top: -40px;
+			left: 50%;
+			width: 800px;
+			height: 800px;
+			margin-left: -400px;
+			border-radius: 4px;
+			opacity: .78;
+			background-color: $white;
+			z-index: 1;
+		}
+
+		#hero-text-content{
+			position: relative;
+			z-index: 2;
+			padding-bottom: 40px;
+		}
 
 		h1{
 			color: $blue-dark;
@@ -171,8 +209,8 @@
 
 	.feature{
 		position: relative;
-		margin-bottom: 150px;
-		padding-bottom: 80px;
+		margin-bottom: 60px;
+		padding-bottom: 60px;
 		border-bottom: 1px solid $blue-faint;
 
 		&:last-child{
@@ -256,7 +294,10 @@
 			    			background: image-url('../images/partner-engineyard.png') center center no-repeat;
 			   				@include img-retina("../images/partner-engineyard.png", "../images/partner-engineyard@2x.png", 178px, 37px);
 						}
-
+						&.digitalocean-logo{
+			    			background: image-url('../images/partner-digitalocean.png') center center no-repeat;
+			   				@include img-retina("../images/partner-digitalocean.png", "../images/partner-digitalocean@2x.png", 134px, 85px);
+						}
 					}
 				}
 			}

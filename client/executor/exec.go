@@ -36,26 +36,20 @@ type Executor interface {
 	// executor implements resource limiting. Otherwise Limit is ignored.
 	Limit(*structs.Resources) error
 
-	// RunAs sets the user we should use to run this command. This may be set as
-	// a username, uid, or other identifier. The implementation will decide what
-	// to do with it, if anything. Note that an error may be returned ONLY IF
-	// the executor implements user lookups. Otherwise RunAs is ignored.
-	RunAs(string) error
-
 	// Start the process. This may wrap the actual process in another command,
 	// depending on the capabilities in this environment. Errors that arise from
 	// Limits or Runas may bubble through Start()
 	Start() error
 
-	// Open should be called to restore a previous pid. This might be needed if
-	// nomad is restarted. This sets os.Process internally.
-	Open(int) error
+	// Open should be called to restore a previous execution. This might be needed if
+	// nomad is restarted.
+	Open(string) error
 
-	// This is a convenience wrapper around Command().Wait()
+	// Wait waits till the user's command is completed.
 	Wait() error
 
-	// This is a convenience wrapper around Command().Process.Pid
-	Pid() (int, error)
+	// Returns a handle that is executor specific for use in reopening.
+	ID() (string, error)
 
 	// Shutdown should use a graceful stop mechanism so the application can
 	// perform checkpointing or cleanup, if such a mechanism is available.
@@ -88,11 +82,11 @@ func Command(name string, arg ...string) Executor {
 	return executor
 }
 
-// OpenPid is similar to executor.Command but will initialize executor.Cmd with
-// the Pid set to the one specified.
-func OpenPid(pid int) (Executor, error) {
+// OpenId is similar to executor.Command but will attempt to reopen with the
+// passed ID.
+func OpenId(id string) (Executor, error) {
 	executor := NewExecutor()
-	err := executor.Open(pid)
+	err := executor.Open(id)
 	if err != nil {
 		return nil, err
 	}

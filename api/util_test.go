@@ -26,10 +26,15 @@ func assertWriteMeta(t *testing.T, wm *WriteMeta) {
 }
 
 func testJob() *Job {
-	return &Job{
-		ID:       "job1",
-		Name:     "redis",
-		Type:     JobTypeService,
-		Priority: 1,
-	}
+	task := NewTask("task1", "exec").
+		Require(&Resources{MemoryMB: 256})
+
+	group := NewTaskGroup("group1", 1).
+		AddTask(task)
+
+	job := NewBatchJob("job1", "redis", "region1", 1).
+		AddDatacenter("dc1").
+		AddTaskGroup(group)
+
+	return job
 }

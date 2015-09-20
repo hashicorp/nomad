@@ -3,7 +3,7 @@ layout: "http"
 page_title: "HTTP API: /sys/seal-unseal"
 sidebar_current: "docs-http-seal-unseal"
 description: |-
-  The '/sys/seal-unseal' endpoint is used to unseal the Vault.
+  The '/sys/seal-unseal' endpoint is used to unseal the Nomad.
 ---
 
 # /sys/unseal
@@ -11,9 +11,9 @@ description: |-
 <dl>
   <dt>Description</dt>
   <dd>
-    Enter a single master key share to progress the unsealing of the Vault.
-    If the threshold number of master key shares is reached, Vault
-    will attempt to unseal the Vault. Otherwise, this API must be
+    Enter a single master key share to progress the unsealing of the Nomad.
+    If the threshold number of master key shares is reached, Nomad
+    will attempt to unseal the Nomad. Otherwise, this API must be
     called multiple times until that threshold is met.
   </dd>
 

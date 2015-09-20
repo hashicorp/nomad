@@ -8,21 +8,21 @@ description: |-
 
 # Secret Backends
 
-Previously, we saw how to read and write arbitrary secrets to Vault.
+Previously, we saw how to read and write arbitrary secrets to Nomad.
 To do this, we used the `secret/` prefix. This prefix specifies the
-_secret backend_ to use, and Vault defaults to mounting the _generic_
+_secret backend_ to use, and Nomad defaults to mounting the _generic_
 backend to `secret/`. The generic backend reads and writes raw data to
 the backend storage.
 
-Vault supports other backends in addition to "generic", and this feature
-in particular is what makes Vault unique. For example, the "aws" backend
+Nomad supports other backends in addition to "generic", and this feature
+in particular is what makes Nomad unique. For example, the "aws" backend
 generates AWS access keys dynamically, on demand. Another example --
 this type of backend does not yet exist -- is a backend that
 reads and writes data directly to an
 [HSM](http://en.wikipedia.org/wiki/Hardware_security_module).
-As Vault matures, more and more backends will be added.
+As Nomad matures, more and more backends will be added.
 
-To represent backends, Vault behaves much like a filesystem: backends
+To represent backends, Nomad behaves much like a filesystem: backends
 are _mounted_ at specific paths. For example, the "generic" backend is
 _mounted_ at the `secret/` prefix.
 
@@ -33,7 +33,7 @@ to the next page, where we'll create dynamic secrets.
 ## Mount a Backend
 
 To start, let's mount another "generic" backend. Just like a normal
-filesystem, Vault can mount a backend multiple times at different
+filesystem, Nomad can mount a backend multiple times at different
 mount points. This is useful if you want different access control policies
 (covered later) or configurations for different paths.
 
@@ -61,7 +61,7 @@ sys/      system   system endpoints used for control, policy and debugging
 You can see the `generic/` path we just mounted, as well as the built-in
 secret path. You can also see the `sys/` path. We won't cover this in the
 getting started guide, but this mount point is used to interact with
-the Vault core system.
+the Nomad core system.
 
 Spend some time reading and writing secrets to the new mount point to
 convince yourself it works. As a bonus, write to the `secret/` endpoint
@@ -92,7 +92,7 @@ closely tied to their mount paths.
 Now that you've mounted and unmounted a backend, you might wonder:
 "what is a secret backend? what is the point of this mounting system?"
 
-Vault behaves a lot like a [virtual filesystem](http://en.wikipedia.org/wiki/Virtual_file_system).
+Nomad behaves a lot like a [virtual filesystem](http://en.wikipedia.org/wiki/Virtual_file_system).
 The read/write/delete operations are forwarded to the backend, and the
 backend can choose to react to these operations however it wishes.
 For example, the "generic" backend simply passes this through to the
@@ -103,9 +103,9 @@ policies and access tokens. So, while you might do a `vault read aws/deploy`,
 this isn't reading from any _physical_ path "aws/deploy". Instead, the AWS
 backend is dynamically generating an access key based on the "deploy" policy.
 
-This abstraction is incredibly powerful. It lets Vault interface directly
+This abstraction is incredibly powerful. It lets Nomad interface directly
 with physical systems such as the backend as well as things such as SQL
-databases, HSMs, etc. But in addition to these physical systems, Vault
+databases, HSMs, etc. But in addition to these physical systems, Nomad
 can interact with more unique environments: AWS IAM, dynamic SQL user creation,
 etc. all using the same read/write interface.
 

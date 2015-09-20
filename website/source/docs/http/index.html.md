@@ -3,14 +3,14 @@ layout: "http"
 page_title: "HTTP API"
 sidebar_current: "docs-http-overview"
 description: |-
-  Vault has an HTTP API that can be used to control every aspect of Vault.
+  Nomad has an HTTP API that can be used to control every aspect of Nomad.
 ---
 
 # HTTP API
 
-The Vault HTTP API gives you full access to Vault via HTTP. Every
-aspect of Vault can be controlled via this API. The Vault CLI uses
-the HTTP API to access Vault.
+The Nomad HTTP API gives you full access to Nomad via HTTP. Every
+aspect of Nomad can be controlled via this API. The Nomad CLI uses
+the HTTP API to access Nomad.
 
 ## Version Prefix
 
@@ -18,10 +18,10 @@ All API routes are prefixed with `/v1/`.
 
 This documentation is only for the v1 API.
 
-~> **Backwards compatibility:** At the current version, Vault does
+~> **Backwards compatibility:** At the current version, Nomad does
 not yet promise backwards compatibility even with the v1 prefix. We'll
 remove this warning when this policy changes. We expect we'll reach API
-stability by Vault 0.3.
+stability by Nomad 0.3.
 
 ## Transport
 
@@ -33,10 +33,10 @@ depending on user settings.
 
 ## Authentication
 
-Once the Vault is unsealed, every other operation requires
+Once the Nomad is unsealed, every other operation requires
 a _client token_. A user may have a client token explicitly.
 The client token must be sent as the `token` cookie or the
-`X-Vault-Token` HTTP header.
+`X-Nomad-Token` HTTP header.
 
 Otherwise, a client token can be retrieved via
 [authentication backends](/docs/auth/index.html).
@@ -49,7 +49,7 @@ to each authentication backend.
 Login endpoints for authentication backends that generate an identity
 will be sent down with a `Set-Cookie` header as well as via JSON. If you have a
 well-behaved HTTP client, then authentication information will
-automatically be saved and sent to the Vault API.
+automatically be saved and sent to the Nomad API.
 
 ## Reading and Writing Secrets
 
@@ -66,7 +66,7 @@ Here is an example of reading a secret using cURL:
 
 ```shell
 curl \
-  -H "X-Vault-Token: f3b09679-3001-009d-2b80-9c306ab81aa6" \
+  -H "X-Nomad-Token: f3b09679-3001-009d-2b80-9c306ab81aa6" \
   -X GET \
    http://127.0.0.1:8200/v1/secret/foo
 ```
@@ -89,18 +89,18 @@ Here is an example of writing a secret using cURL:
 
 ```shell
 curl \
-  -H "X-Vault-Token: f3b09679-3001-009d-2b80-9c306ab81aa6" \
+  -H "X-Nomad-Token: f3b09679-3001-009d-2b80-9c306ab81aa6" \
   -H "Content-Type: application/json" \
   -X POST \
   -d '{"value":"bar"}' \
   http://127.0.0.1:8200/v1/secret/baz
 ```
 
-For more examples, please look at the Vault API client.
+For more examples, please look at the Nomad API client.
 
 ## Help
 
-To retrieve the help for any API within Vault, including mounted
+To retrieve the help for any API within Nomad, including mounted
 backends, credential providers, etc. then append `?help=1` to any
 URL. If you have valid permission to access the path, then the help text
 will be returned with the following structure:
@@ -144,5 +144,5 @@ The following HTTP status codes are used throughout the API.
    of time.
 - `500` - Internal server error. An internal error has occurred,
    try again later. If the error persists, report a bug.
-- `503` - Vault is down for maintenance or is currently sealed.
+- `503` - Nomad is down for maintenance or is currently sealed.
    Try again later.

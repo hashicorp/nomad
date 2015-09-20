@@ -3,7 +3,7 @@ layout: "http"
 page_title: "HTTP API: /sys/health"
 sidebar_current: "docs-http-debug-health"
 description: |-
-  The '/sys/health' endpoint is used to check the health status of Vault.
+  The '/sys/health' endpoint is used to check the health status of Nomad.
 ---
 
 # /sys/health
@@ -11,8 +11,8 @@ description: |-
 <dl>
 	<dt>Description</dt>
 	<dd>
-		Returns the health status of Vault. This matches the semantics of a Consul HTTP health
-        check and provides a simple way to monitor the health of a Vault instance.
+		Returns the health status of Nomad. This matches the semantics of a Consul HTTP health
+        check and provides a simple way to monitor the health of a Nomad instance.
 	</dd>
 
 	<dt>Method</dt>
