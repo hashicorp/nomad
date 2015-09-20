@@ -13,18 +13,18 @@ from jobs to client machines. This process must respect the constraints as decla
 in the job, and optimize for resource utilization. This page documents the details
 of how scheduling works in Nomad to help both users and developers
 build a mental model. The design is heavily inspired by Google's
-work on both [Omega: flexible, scalable schedulers for large compute clusters](http://research.google.com/pubs/pub41684.html)
-and [Large-scale cluster management at Google with Borg](http://research.google.com/pubs/pub43438.html).
+work on both [Omega: flexible, scalable schedulers for large compute clusters](https://research.google.com/pubs/pub41684.html)
+and [Large-scale cluster management at Google with Borg](https://research.google.com/pubs/pub43438.html).
 
 ~> **Advanced Topic!** This page covers technical details
-of Nomad. You don't need to understand these details to
+of Nomad. You do not need to understand these details to
 effectively use Nomad. The details are documented here for
 those who wish to learn about them without having to go
 spelunking through the source code.
 
 # Scheduling in Nomad
 
-![Data Model](/assets/images/nomad-nouns.png)
+[![Nomad Data Model](/assets/images/nomad-data-model.png)](/assets/images/nomad-data-model.png)
 
 There are four primary "nouns" in Nomad, these are jobs, nodes, allocations, and evaluations.
 Jobs are submitted by users and represent a _desired state_. A job is a declarative description
@@ -43,7 +43,7 @@ it with the desired state.
 
 This diagram shows the flow of an evaluation through Nomad:
 
-![Evaluation Flow](/assets/images/eval-flow.png)
+[![Nomad Evaluation Flow](/assets/images/nomad-evaluation-flow.png)](/assets/images/nomad-evaluation-flow.png)
 
 The lifecycle of an evaluation beings with an event causing the evaluation to be
 created. Evaluations are created in the `pending` state and are enqueued into the

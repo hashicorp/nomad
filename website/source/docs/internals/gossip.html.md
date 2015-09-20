@@ -3,19 +3,20 @@ layout: "docs"
 page_title: "Gossip Protocol"
 sidebar_current: "docs-internals-gossip"
 description: |-
-  Nomad uses a gossip protocol to manage membership. All of this is provided through the use of the Serf library.
+  Nomad uses a gossip protocol to manage membership. All of this is provided
+  through the use of the Serf library.
 ---
 
 # Gossip Protocol
 
-Nomad uses a [gossip protocol](http://en.wikipedia.org/wiki/Gossip_protocol)
+Nomad uses a [gossip protocol](https://en.wikipedia.org/wiki/Gossip_protocol)
 to manage membership. This is provided through the use of the [Serf library](https://www.serfdom.io/).
 The gossip protocol used by Serf is based on
-["SWIM: Scalable Weakly-consistent Infection-style Process Group Membership Protocol"](http://www.cs.cornell.edu/~asdas/research/dsn02-swim.pdf),
+["SWIM: Scalable Weakly-consistent Infection-style Process Group Membership Protocol"](https://www.cs.cornell.edu/~asdas/research/dsn02-swim.pdf),
 with a few minor adaptations. There are more details about [Serf's protocol here](https://www.serfdom.io/docs/internals/gossip.html).
 
 ~> **Advanced Topic!** This page covers technical details of
-the internals of Nomad. You don't need to know these details to effectively
+the internals of Nomad. You do not need to know these details to effectively
 operate and use Nomad. These details are documented here for those who wish
 to learn about them without having to go spelunking through the source code.
 

@@ -3,54 +3,57 @@ layout: "docs"
 page_title: "Consensus Protocol"
 sidebar_current: "docs-internals-consensus"
 description: |-
-  Nomad uses a consensus protocol to provide Consistency as defined by CAP. The consensus protocol is based on Raft: In search of an Understandable Consensus Algorithm. For a visual explanation of Raft, see The Secret Lives of Data.
+  Nomad uses a consensus protocol to provide Consistency as defined by CAP.
+  The consensus protocol is based on Raft: In search of an Understandable
+  Consensus Algorithm. For a visual explanation of Raft, see The Secret Lives of
+  Data.
 ---
 
 # Consensus Protocol
 
-Nomad uses a [consensus protocol](http://en.wikipedia.org/wiki/Consensus_(computer_science))
-to provide [Consistency (as defined by CAP)](http://en.wikipedia.org/wiki/CAP_theorem).
+Nomad uses a [consensus protocol](https://en.wikipedia.org/wiki/Consensus_(computer_science))
+to provide [Consistency (as defined by CAP)](https://en.wikipedia.org/wiki/CAP_theorem).
 The consensus protocol is based on
 ["Raft: In search of an Understandable Consensus Algorithm"](https://ramcloud.stanford.edu/wiki/download/attachments/11370504/raft.pdf).
 For a visual explanation of Raft, see [The Secret Lives of Data](http://thesecretlivesofdata.com/raft).
 
 ~> **Advanced Topic!** This page covers technical details of
-the internals of Nomad. You don't need to know these details to effectively
+the internals of Nomad. You do not need to know these details to effectively
 operate and use Nomad. These details are documented here for those who wish
 to learn about them without having to go spelunking through the source code.
 
 ## Raft Protocol Overview
 
 Raft is a consensus algorithm that is based on
-[Paxos](http://en.wikipedia.org/wiki/Paxos_%28computer_science%29). Compared
+[Paxos](https://en.wikipedia.org/wiki/Paxos_%28computer_science%29). Compared
 to Paxos, Raft is designed to have fewer states and a simpler, more
 understandable algorithm.
 
 There are a few key terms to know when discussing Raft:
 
-* Log - The primary unit of work in a Raft system is a log entry. The problem
+* **Log** - The primary unit of work in a Raft system is a log entry. The problem
 of consistency can be decomposed into a *replicated log*. A log is an ordered
 sequence of entries. We consider the log consistent if all members agree on
 the entries and their order.
 
-* FSM - [Finite State Machine](http://en.wikipedia.org/wiki/Finite-state_machine).
+* **FSM** - [Finite State Machine](https://en.wikipedia.org/wiki/Finite-state_machine).
 An FSM is a collection of finite states with transitions between them. As new logs
 are applied, the FSM is allowed to transition between states. Application of the
 same sequence of logs must result in the same state, meaning behavior must be deterministic.
 
-* Peer set - The peer set is the set of all members participating in log replication.
+* **Peer set** - The peer set is the set of all members participating in log replication.
 For Nomad's purposes, all server nodes are in the peer set of the local region.
 
-* Quorum - A quorum is a majority of members from a peer set: for a set of size `n`,
+* **Quorum** - A quorum is a majority of members from a peer set: for a set of size `n`,
 quorum requires at least `(n/2)+1` members.
 For example, if there are 5 members in the peer set, we would need 3 nodes
 to form a quorum. If a quorum of nodes is unavailable for any reason, the
 cluster becomes *unavailable* and no new logs can be committed.
 
-* Committed Entry - An entry is considered *committed* when it is durably stored
+* **Committed Entry** - An entry is considered *committed* when it is durably stored
 on a quorum of nodes. Once an entry is committed it can be applied.
 
-* Leader - At any given time, the peer set elects a single node to be the leader.
+* **Leader** - At any given time, the peer set elects a single node to be the leader.
 The leader is responsible for ingesting new log entries, replicating to followers,
 and managing when an entry is considered committed.
 
