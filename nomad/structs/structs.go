@@ -830,7 +830,7 @@ type UpdateStrategy struct {
 	Stagger time.Duration
 
 	// MaxParallel is how many updates can be done in parallel
-	MaxParallel int
+	MaxParallel int `mapstructure:"max_parallel"`
 }
 
 // Rolling returns if a rolling strategy should be used
