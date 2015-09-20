@@ -8,21 +8,22 @@ description: |-
 
 # Nomad vs. Custom Solutions
 
-Many organizations resort to custom solutions for storing secrets,
-whether that be Dropbox, encrypted disk images, encrypted SQL columns,
-etc.
+It is an undisputed fact that distributed systems are hard; building
+one is error-prone and time-consuming. As a result, few organizations
+build a scheduler due to the inherent challenges. However,
+most organizations must develop a means of deploying applications
+and typically this evolves into an ad hoc deployment platform.
 
-These systems require time and resources to build and maintain.
-Storing secrets is also an incredibly important piece of infrastructure
-that must be done correctly. This increases the pressure to maintain
-the internal systems.
+These deployment platforms are typically special cased to the needs
+of the organization at the time of development, reduce future agility,
+and require time and resources to build and maintain
 
-Nomad is designed for secret storage. It provides a simple interface
-on top of a strong security model to meet your secret storage needs.
+Nomad provides a high-level job specification to easily deploy applications.
+It has been designed to work at large scale, with multi-datacenter and
+multi-region support built in. Nomad also has extensible drivers giving it
+flexibility in the workloads it supports, including Docker.
 
-Furthermore, Nomad is an open source tool. This means that the tool is
-as good as the entire community working together to improve it. This
-isn't just features and bug fixes, but finding potential security holes.
-Additionally, since it is an open source, your own security teams can
-review and contribute to Nomad and verify it meets your standards
-for security.
+Nomad provides organizations of any size a solution for deployment
+that is simple, robust, and scalable. It reduces the time and effort spent
+re-inventing the wheel and users can focus instead on their business applications.
+
