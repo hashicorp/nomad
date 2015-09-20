@@ -150,9 +150,9 @@ The `group` object supports the following keys:
 
 The `task` object supports the following keys:
 
-* `driver` - Specifies the driver that should be used to run the
-  task. See the driver documentation for what is available. Examples
-  include "docker", "qemu", "java", and "exec".
+* `driver` - Specifies the task driver that should be used to run the
+  task. See the [driver documentation](/docs/drivers/index.html) for what
+  is available. Examples include "docker", "qemu", "java", and "exec".
 
 * `constraint` - This can be provided multiple times to define additional
   constraints. See the constraint reference for more details.
@@ -255,6 +255,10 @@ Below is a table documenting common node attributes:
   <tr>
     <td>cpu.numcores</td>
     <td>Number of CPU cores on the client</td>
+  </tr>
+  <tr>
+    <td>driver.\<key\></td>
+    <td>See the [task drivers](/docs/drivers/index.html) for attribute documentation</td>
   </tr>
   <tr>
     <td>hostname</td>
