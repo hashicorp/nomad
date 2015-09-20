@@ -1,12 +1,12 @@
 ---
 layout: "docs"
-page_title: "Basic Concepts"
-sidebar_current: "docs-concepts"
+page_title: "Job Configuration"
+sidebar_current: "docs-jobconf"
 description: |-
-  Basic concepts that are important to understand for Nomad usage.
+  Learn about the Job file configuration and features of specific drivers.
 ---
 
-# Basic Concepts
+# Job Configuration
 
 This section covers some high level basic concepts that are important
 to understand for day to day Nomad usage and operation. Every page in
