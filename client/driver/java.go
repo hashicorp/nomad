@@ -9,7 +9,6 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -150,17 +149,10 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 }
 
 func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {
-	// Split the handle
-	pidStr := strings.TrimPrefix(handleID, "PID:")
-	pid, err := strconv.Atoi(pidStr)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse handle '%s': %v", handleID, err)
-	}
-
 	// Find the process
-	cmd, err := executor.OpenPid(pid)
+	cmd, err := executor.OpenId(handleID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to find PID %d: %v", pid, err)
+		return nil, fmt.Errorf("failed to open ID %v: %v", handleID, err)
 	}
 
 	// Return a driver handle
@@ -175,9 +167,8 @@ func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 }
 
 func (h *javaHandle) ID() string {
-	// Return a handle to the PID
-	pid, _ := h.cmd.Pid()
-	return fmt.Sprintf("PID:%d", pid)
+	id, _ := h.cmd.ID()
+	return id
 }
 
 func (h *javaHandle) WaitCh() chan error {

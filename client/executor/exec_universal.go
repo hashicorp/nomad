@@ -24,11 +24,6 @@ func (e *UniversalExecutor) Limit(resources *structs.Resources) error {
 	return nil
 }
 
-func (e *UniversalExecutor) RunAs(userid string) error {
-	// No-op
-	return nil
-}
-
 func (e *UniversalExecutor) Start() error {
 	// We don't want to call ourself. We want to call Start on our embedded Cmd
 	return e.cmd.Start()
