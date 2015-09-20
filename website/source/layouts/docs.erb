@@ -33,11 +33,40 @@
 
 				<li<%= sidebar_current("docs-install") %>>
 					<a href="/docs/install/index.html">Installation</a>
-				</li>
+                </li>
+
+                <hr>
 
 				<li<%= sidebar_current("docs-jobspec") %>>
 					<a href="/docs/jobspec/index.html">Job Specification</a>
-				</li>
+                </li>
+
+				<li<%= sidebar_current("docs-drivers") %>>
+					<a href="/docs/drivers/index.html">Task Drivers</a>
+					<ul class="nav">
+						<li<%= sidebar_current("docs-drivers-docker") %>>
+							<a href="/docs/drivers/docker.html">Docker</a>
+                        </li>
+
+						<li<%= sidebar_current("docs-drivers-exec") %>>
+							<a href="/docs/drivers/exec.html">Fork/Exec</a>
+						</li>
+
+						<li<%= sidebar_current("docs-drivers-java") %>>
+							<a href="/docs/drivers/java.html">Java</a>
+						</li>
+
+						<li<%= sidebar_current("docs-drivers-qeumu") %>>
+							<a href="/docs/drivers/qemu.html">Qemu</a>
+						</li>
+
+						<li<%= sidebar_current("docs-drivers-custom") %>>
+							<a href="/docs/drivers/custom.html">Custom</a>
+						</li>
+					</ul>
+                </li>
+
+                <hr>
 
 				<li<%= sidebar_current("docs-commands") %>>
 					<a href="/docs/commands/index.html">Commands (CLI)</a>
@@ -90,34 +119,6 @@
 				<li<%= sidebar_current("docs-http") %>>
 					<a href="/docs/http/index.html">HTTP API</a>
 				</li>
-
-				<hr>
-
-				<li<%= sidebar_current("docs-drivers") %>>
-					<a href="/docs/drivers/index.html">Task Drivers</a>
-					<ul class="nav">
-						<li<%= sidebar_current("docs-drivers-docker") %>>
-							<a href="/docs/drivers/docker.html">Docker</a>
-                        </li>
-
-						<li<%= sidebar_current("docs-drivers-exec") %>>
-							<a href="/docs/drivers/exec.html">Fork/Exec</a>
-						</li>
-
-						<li<%= sidebar_current("docs-drivers-java") %>>
-							<a href="/docs/drivers/java.html">Java</a>
-						</li>
-
-						<li<%= sidebar_current("docs-drivers-qeumu") %>>
-							<a href="/docs/drivers/qemu.html">Qemu</a>
-						</li>
-
-						<li<%= sidebar_current("docs-drivers-custom") %>>
-							<a href="/docs/drivers/custom.html">Custom</a>
-						</li>
-					</ul>
-				</li>
-
 			</ul>
 		</div>
 	<% end %>
