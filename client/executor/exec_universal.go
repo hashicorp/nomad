@@ -5,6 +5,7 @@ package executor
 import (
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -29,10 +30,15 @@ func (e *UniversalExecutor) Start() error {
 	return e.cmd.Start()
 }
 
-func (e *UniversalExecutor) Open(pid int) error {
-	process, err := os.FindProcess(pid)
+func (e *UniversalExecutor) Open(pid string) error {
+	pidNum, err := strconv.Atoi(pid)
 	if err != nil {
-		return fmt.Errorf("Failed to reopen pid %d: %s", pid, err)
+		return fmt.Errorf("Failed to parse pid %v: %v", pid, err)
+	}
+
+	process, err := os.FindProcess(pidNum)
+	if err != nil {
+		return fmt.Errorf("Failed to reopen pid %d: %v", pidNum, err)
 	}
 	e.Process = process
 	return nil
@@ -43,11 +49,11 @@ func (e *UniversalExecutor) Wait() error {
 	return e.cmd.Wait()
 }
 
-func (e *UniversalExecutor) Pid() (int, error) {
+func (e *UniversalExecutor) ID() (string, error) {
 	if e.cmd.Process != nil {
-		return e.cmd.Process.Pid, nil
+		return strconv.Itoa(e.cmd.Process.Pid), nil
 	} else {
-		return 0, fmt.Errorf("Process has finished or was never started")
+		return "", fmt.Errorf("Process has finished or was never started")
 	}
 }
 
