@@ -3,17 +3,14 @@ layout: "docs"
 page_title: "Drivers: Custom"
 sidebar_current: "docs-drivers-custom"
 description: |-
-  Create custom secret backends for Nomad.
+  Create custom task drivers for Nomad.
 ---
 
 # Custom Drivers
 
-Nomad does not currently support the creation of custom secret backends.
-The primary reason is because we want to ensure the core of Nomad is
-secure before attempting any sort of plug-in system. We're interested
-in supporting custom secret backends, but do not yet have a clear strategy
-or timeline to do.
+Nomad does not currently support pluggable task drivers, however the
+interface that a task driver must implement is minimal. In the short term,
+custom drivers can be implemented in Go and compiled into the binary,
+however in the long term we plan to expose a plugin interface such that
+task drivers can be dynamically registered without recompiling the Nomad binary.
 
-In the mean time, you can use the
-[generic backend](/docs/secrets/generic/index.html) to support custom
-data with custom leases.
