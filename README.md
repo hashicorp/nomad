@@ -56,13 +56,13 @@ Developing Nomad
 --------------------
 
 If you wish to work on Nomad itself or any of its built-in systems,
-you'll first need [Go](https://www.golang.org) installed on your
+you will first need [Go](https://www.golang.org) installed on your
 machine (version 1.4+ is *required*).
 
-**Developing with Vagrant**  
+**Developing with Vagrant**
 There is an included Vagrantfile that can help bootstrap the process. The
 created virtual machine is based off of Ubuntu 14, and installs several of the
-base libraries that can be used by Nomad. 
+base libraries that can be used by Nomad.
 
 To use this virtual machine, checkout Nomad and run `vagrant up` from the root
 of the repository:
@@ -74,9 +74,9 @@ $ vagrant up
 ```
 
 The virtual machine will launch, and a provisioning script will install the
-needed dependencies. 
+needed dependencies.
 
-**Developing locally**  
+**Developing locally**
 For local dev first make sure Go is properly installed, including setting up a
 [GOPATH](https://golang.org/doc/code.html#GOPATH). After setting up Go, you can
 download the required build tools such as vet, cover, godep etc by bootstrapping

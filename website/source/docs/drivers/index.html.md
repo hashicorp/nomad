@@ -28,11 +28,11 @@ a write, etc. This is a lot like a normal filesystem.
 
 The "aws" backend, on the other hand, behaves differently. When you
 write to `aws/config/root`, it expects a certain format and stores that
-information as configuration. You can't read from this path. When you
+information as configuration. You cannot read from this path. When you
 read from `aws/<name>`, it looks up an IAM policy named `<name>` and
-generates AWS access credentials on demand and returns them. It doesn't
-behave at all like a typical filesystem: you're not simply storing and
-retrieving values, you're interacting with an API.
+generates AWS access credentials on demand and returns them. It does not
+behave at all like a typical filesystem: you are not simply storing and
+retrieving values, you are interacting with an API.
 
 ## Mounting/Unmounting Secret Backends
 
@@ -53,7 +53,7 @@ with regards to mounting:
 
   * **Remount** - This moves the mount point for an existing secret backend.
     This revokes all secrets, since secret leases are tied to the path they
-    were created at. The data stored for the backend won't be deleted.
+    were created at. The data stored for the backend will not be deleted.
 
 Once a secret backend is mounted, you can interact with it directly
 at its mount point according to its own API. You can use the `vault path-help`
@@ -68,8 +68,8 @@ like a [chroot](http://en.wikipedia.org/wiki/Chroot).
 Whenever a secret backend is mounted, a random UUID is generated. This
 becomes the data root for that backend. Whenever that backend writes to
 the physical storage layer, it is prefixed with that UUID folder. Since
-the Nomad storage layer doesn't support relative access (such as `..`),
+the Nomad storage layer does not support relative access (such as `..`),
 this makes it impossible for a mounted backend to access any other data.
 
 This is an important security feature in Nomad: even a malicious backend
-can't access the data from any other backend.
+cannot access the data from any other backend.

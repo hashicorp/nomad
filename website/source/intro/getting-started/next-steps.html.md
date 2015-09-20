@@ -1,20 +1,19 @@
 ---
 layout: "intro"
 page_title: "Next Steps"
-sidebar_current: "gettingstarted-nextsteps"
+sidebar_current: "getting-started-nextsteps"
 description: |-
   After completing the getting started guide, learn about what to do next with Nomad.
 ---
 
 # Next Steps
 
-That concludes the getting started guide for Nomad. Hopefully you're
+That concludes the getting started guide for Nomad. Hopefully you are
 excited about the possibilities of Nomad and ready to put this knowledge
 to use to improve your environment.
 
 We've covered the basics of all the core features of Nomad in this guide.
-Due to the importance of securing secrets, we recommend reading the following
-as next steps.
+We recommend reading the following as next steps.
 
   * [Documentation](/docs/index.html) - The documentation is an in-depth
     reference guide to all the features of Nomad.

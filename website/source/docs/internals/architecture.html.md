@@ -12,7 +12,7 @@ Nomad is a complex system that has many different pieces. To help both users and
 build a mental model of how it works, this page documents the system architecture.
 
 ~> **Advanced Topic!** This page covers technical details
-of Nomad. You don't need to understand these details to
+of Nomad. You do not need to understand these details to
 effectively use Nomad. The details are documented here for
 those who wish to learn about them without having to go
 spelunking through the source code.
@@ -74,7 +74,7 @@ clarify what is being discussed:
 
 Looking at only a single region, at a high level Nomad looks like:
 
-![Regional Architecture](/assets/images/region-arch.png)
+[![Regional Architecture](/assets/images/nomad-architecture-region.png)](/assets/images/nomad-architecture-region.png)
 
 Within each region, we have both clients and servers. Servers are responsible for
 accepting jobs from users, managing clients, and [computing task placements](/docs/internals/scheduling.html).
@@ -85,7 +85,7 @@ In some cases, for either availability or scalability, you may need to run multi
 regions. Nomad supports federating multiple regions together into a single cluster.
 At a high level, this looks like:
 
-![Global Architecture](/assets/images/global-arch.png)
+[![Global Architecture](/assets/images/nomad-architecture-global.png)](/assets/images/nomad-architecture-global.png)
 
 Regions are fully independent from each other, and do not share jobs, clients or
 state. They are loosely-coupled using a gossip protocol, which allows users to

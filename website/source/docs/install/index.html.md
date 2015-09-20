@@ -18,7 +18,7 @@ TLS along with SHA256 sums to verify the binary.
 
 To install the precompiled binary,
 [download](/downloads.html) the appropriate package for your system.
-Nomad is currently packaged as a zip file. We don't have any near term
+Nomad is currently packaged as a zip file. We do not have any near term
 plans to provide system packages.
 
 Once the zip is downloaded, unzip it into any directory. The
@@ -31,13 +31,13 @@ from the command-line, make sure to place it somewhere on your `PATH`.
 
 ## Compiling from Source
 
-To compile from source, you'll need [Go](https://golang.org) installed
-and configured properly. You'll also need Git.
+To compile from source, you will need [Go](https://golang.org) installed
+and configured properly. you will also need Git.
 
   1. Clone the Nomad repository into your GOPATH: https://github.com/hashicorp/nomad
 
   1. Verify that the file `$GOPATH/src/github.com/hashicorp/nomad/main.go`
-     exists. If it doesn't, then you didn't clone Nomad into the proper
+     exists. If it does not, then you did not clone Nomad into the proper
      path.
 
   1. Run `make`. This will build Nomad for your current system
