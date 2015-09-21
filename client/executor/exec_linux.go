@@ -162,7 +162,7 @@ func (e *LinuxExecutor) Start() error {
 	return e.spawnDaemon()
 }
 
-// spawnCgroup executes a double fork to start the user command with proper
+// spawnDaemon executes a double fork to start the user command with proper
 // isolation. Stores the child process for use in Wait.
 func (e *LinuxExecutor) spawnDaemon() error {
 	bin, err := discover.NomadExecutable()
