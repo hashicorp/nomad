@@ -1,3 +1,5 @@
+// +build !linux
+
 package allocdir
 
 import "github.com/hashicorp/nomad/nomad/structs"
