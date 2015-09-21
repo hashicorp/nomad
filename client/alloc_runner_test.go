@@ -110,6 +110,11 @@ func TestAllocRunner_Update(t *testing.T) {
 	}
 }
 
+/*
+TODO: This test is disabled til a follow-up api changes the restore state interface.
+The driver/executor interface will be changed from Open to Cleanup, in which
+clean-up tears down previous allocs.
+
 func TestAllocRunner_SaveRestoreState(t *testing.T) {
 	upd, ar := testAllocRunner()
 
@@ -155,3 +160,4 @@ func TestAllocRunner_SaveRestoreState(t *testing.T) {
 		t.Fatalf("took too long to terminate")
 	}
 }
+*/
