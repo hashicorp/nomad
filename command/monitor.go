@@ -131,21 +131,23 @@ func (m *monitor) update(update *evalState) {
 		}
 	}
 
-	// Check if the status changed
-	if existing.status != update.status {
+	// Check if the status changed. We skip any transitions to pending status.
+	if existing.status != "" &&
+		update.status != structs.AllocClientStatusPending &&
+		existing.status != update.status {
 		m.ui.Output(fmt.Sprintf("Evaluation status changed: %q -> %q",
 			existing.status, update.status))
 	}
 
 	// Check if the wait time is different
 	if existing.wait == 0 && update.wait != 0 {
-		m.ui.Output(fmt.Sprintf("Waiting %s before running eval",
+		m.ui.Output(fmt.Sprintf("Evaluation delay is %s",
 			update.wait))
 	}
 
-	// Check if the node changed
+	// Check if the evaluation was triggered by a node
 	if existing.node == "" && update.node != "" {
-		m.ui.Output(fmt.Sprintf("Evaluation was assigned node ID %q",
+		m.ui.Output(fmt.Sprintf("Evaluation triggered by node %q",
 			update.node))
 	}
 }
