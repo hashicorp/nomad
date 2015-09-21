@@ -46,6 +46,11 @@ const (
 	// register errors after start. This is to improve the user experience
 	// in dev mode where the leader isn't elected for a few seconds.
 	registerErrGrace = 10 * time.Second
+
+	// initialHeartbeatStagger is used to stagger the interval between
+	// starting and the intial heartbeat. After the intial heartbeat,
+	// we switch to using the TTL specified by the servers.
+	initialHeartbeatStagger = 10 * time.Second
 )
 
 // DefaultConfig returns the default configuration
@@ -399,8 +404,15 @@ func (c *Client) run() {
 		}
 	}
 
-	// Setup the heartbeat timer
-	heartbeat := time.After(c.heartbeatTTL)
+	// Setup the heartbeat timer, for the initial registration
+	// we want to do this quickly. We want to do it extra quickly
+	// in development mode.
+	var heartbeat <-chan time.Time
+	if c.config.DevMode {
+		heartbeat = time.After(0)
+	} else {
+		heartbeat = time.After(randomStagger(initialHeartbeatStagger))
+	}
 
 	// Watch for changes in allocations
 	allocUpdates := make(chan []*structs.Allocation, 1)
