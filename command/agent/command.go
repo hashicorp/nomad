@@ -262,6 +262,13 @@ func (c *Command) Run(args []string) int {
 	info["client"] = strconv.FormatBool(config.Client.Enabled)
 	info["log level"] = config.LogLevel
 	info["server"] = strconv.FormatBool(config.Server.Enabled)
+	info["region"] = fmt.Sprintf("%s (DC: %s)", config.Region, config.Datacenter)
+	if config.Atlas != nil && config.Atlas.Infrastructure != "" {
+		info["atlas"] = fmt.Sprintf("(Infrastructure: '%s' Join: %v)",
+			config.Atlas.Infrastructure, config.Atlas.Join)
+	} else {
+		info["atlas"] = "<disabled>"
+	}
 
 	// Sort the keys for output
 	infoKeys := make([]string, 0, len(info))
