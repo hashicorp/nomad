@@ -24,14 +24,16 @@ func TestMonitor_Update_Eval(t *testing.T) {
 
 	// Logs were output
 	out := ui.OutputWriter.String()
-	if !strings.Contains(out, "pending") {
-		t.Fatalf("missing status\n\n%s", out)
-	}
 	if !strings.Contains(out, "node1") {
 		t.Fatalf("missing node\n\n%s", out)
 	}
 	if !strings.Contains(out, "10s") {
 		t.Fatalf("missing eval wait\n\n%s", out)
+	}
+
+	// Transition to pending should not be logged
+	if strings.Contains(out, structs.EvalStatusPending) {
+		t.Fatalf("should skip status\n\n%s", out)
 	}
 	ui.OutputWriter.Reset()
 
