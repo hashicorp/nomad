@@ -51,7 +51,6 @@ Schedule the job contained in the file `job1.nomad`, monitoring placement:
 $ nomad run job1.nomad
 ==> Monitoring evaluation "52dee78a-a1f0-95c9-81a5-95b4cbe7f6f8"
     Allocation "5e0b39f0-5e69-6fec-d17b-4b8b7d922cc8" created: node "3e84d3d2-8500-42a3-9d1b-7ad88913352b", group "group1"
-    Evaluation status changed: "" -> "pending"
     Allocation "5e0b39f0-5e69-6fec-d17b-4b8b7d922cc8" status changed: "pending" -> "running"
     Evaluation status changed: "pending" -> "complete"
 ==> Evaluation "52dee78a-a1f0-95c9-81a5-95b4cbe7f6f8" finished with status "complete"
@@ -73,7 +72,6 @@ $ nomad run failing.nomad
     Scheduling error for group "group1" (failed to find a node for placement)
     Allocation "a739288e-547a-cd26-1355-e92ca10f165c" status "failed" (1/1 nodes filtered)
       * Constraint "$attr.kernel.name = linux" filtered 1 nodes
-    Evaluation status changed: "" -> "pending"
     Evaluation status changed: "pending" -> "complete"
 ==> Evaluation "0d7447d9-43fd-4994-6812-500c93c08fce" finished with status "complete"
 ```
