@@ -9,7 +9,7 @@ description: >
 
 # Command: eval-monitor
 
-The `eval-monitor` command is used to monitor an existion [evaluation](#).
+The `eval-monitor` command is used to monitor an existing [evaluation](#).
 Logs will be output describing state changes to the evaluation or its
 associated [allocations](#). The monitor will exit when the evaluation
 reaches a terminal state.
@@ -25,6 +25,14 @@ evaluation ID to monitor. An interactive monitoring session will be
 started in the terminal. It is safe to exit the monitor at any time
 using ctrl+c.
 
+The command will exit when the given evaluation reaches a terminal
+state (completed or failed). Exit code 0 is returned on successful
+evaluation, and if there are no scheduling problems. If there are
+job placement issues encountered (unsatisfiable constraints,
+resource exhaustion, etc), then the exit code will be 2. Any other
+errors, including client connection issues or internal errors, are
+indicated by exit code 1.
+
 ## General Options
 
 <%= general_options_usage %>
@@ -34,8 +42,9 @@ using ctrl+c.
 Monitor an existing evaluation
 
 ```
-$ nomad eval-monitor d00797d8-7bc3-fbc7-ae0d-5af0260a871f
-==> Monitoring evaluation "d00797d8-7bc3-fbc7-ae0d-5af0260a871f"
-    2015/09/17 23:21:24 Evaluation status changed: "pending" -> "complete"
-==> Evaluation "d00797d8-7bc3-fbc7-ae0d-5af0260a871f" finished with status "complete"
+$ nomad eval-monitor 8262bc83-3be0-2894-237c-c06ab5e14785
+==> Monitoring evaluation "8262bc83-3be0-2894-237c-c06ab5e14785"
+    Allocation "bd6bd0de-1c97-1e6c-ab8b-106618a0393c" created: node "6f299da5-8e4e-0e48-93f4-f544f4b948a8", group "group1"
+    Evaluation status changed: "" -> "complete"
+==> Evaluation "8262bc83-3be0-2894-237c-c06ab5e14785" finished with status "complete"
 ```
