@@ -35,17 +35,19 @@ another region can be specified using the `?region=` query parameter.
   <dd>
 
     ```javascript
+    [
     {
-      "aws": {
-        "type": "aws",
-        "description": "AWS keys"
-      },
-
-      "sys": {
-        "type": "system",
-        "description": "system endpoint"
-      }
-    }
+        "ID": "binstore-storagelocker",
+        "Name": "binstore-storagelocker",
+        "Type": "service",
+        "Priority": 50,
+        "Status": "",
+        "StatusDescription": "",
+        "CreateIndex": 14,
+        "ModifyIndex": 14
+    },
+    ...
+    ]
     ```
 
   </dd>
@@ -56,7 +58,7 @@ another region can be specified using the `?region=` query parameter.
 <dl>
   <dt>Description</dt>
   <dd>
-    Registers a new job
+    Registers a new job.
   </dd>
 
   <dt>Method</dt>
@@ -69,20 +71,26 @@ another region can be specified using the `?region=` query parameter.
   <dd>
     <ul>
       <li>
-        <span class="param">type</span>
+        <span class="param">Job</span>
         <span class="param-flags">required</span>
-        The name of the backend type, such as "aws"
-      </li>
-      <li>
-        <span class="param">description</span>
-        <span class="param-flags">optional</span>
-        A human-friendly description of the mount.
+        The JSON definition of the job. The general structure is given
+        by the [job specification](/docs/jobspec/index.html), and matches
+        the return response of [GET against `/v1/job/<ID>`](/docs/http/job.html).
       </li>
     </ul>
   </dd>
 
   <dt>Returns</dt>
-  <dd>`204` response code.
+  <dd>
+
+    ```javascript
+    {
+    "EvalID": "d092fdc0-e1fd-2536-67d8-43af8ca798ac",
+    "EvalCreateIndex": 35,
+    "JobModifyIndex": 34,
+    }
+    ```
+
   </dd>
 </dl>
 
