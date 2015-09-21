@@ -160,6 +160,9 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 	if err := decodeBody(req, &args, nil); err != nil {
 		return nil, CodedError(400, err.Error())
 	}
+	if args.Job == nil {
+		return nil, CodedError(400, "Job must be specified")
+	}
 	if jobName != "" && args.Job.ID != jobName {
 		return nil, CodedError(400, "Job ID does not match")
 	}
