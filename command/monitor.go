@@ -113,6 +113,15 @@ func (m *monitor) update(eval *api.Evaluation, allocs []*api.AllocationListStub)
 				m.ui.Output(fmt.Sprintf("Scheduling error for group %q (%s)",
 					alloc.group, alloc.desiredDesc))
 
+				// Generate a more descriptive error for why the allocation
+				// failed and dump it to the screen
+				fullAlloc, _, err := m.client.Allocations().Info(allocID, nil)
+				if err != nil {
+					m.ui.Output(fmt.Sprintf("Error querying alloc: %s", err))
+					continue
+				}
+				dumpAllocStatus(m.ui, fullAlloc)
+
 			case alloc.index < update.index:
 				// New alloc with create index lower than the eval
 				// create index indicates modification

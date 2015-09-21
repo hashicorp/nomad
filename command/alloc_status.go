@@ -3,6 +3,9 @@ package command
 import (
 	"fmt"
 	"strings"
+
+	"github.com/hashicorp/nomad/api"
+	"github.com/mitchellh/cli"
 )
 
 type AllocStatusCommand struct {
@@ -54,52 +57,36 @@ func (c *AllocStatusCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Format the allocation
-	basic := []string{
-		fmt.Sprintf("ID|%s", alloc.ID),
-		fmt.Sprintf("EvalID|%s", alloc.EvalID),
-		fmt.Sprintf("Name|%s", alloc.Name),
-		fmt.Sprintf("NodeID|%s", alloc.NodeID),
-		fmt.Sprintf("JobID|%s", alloc.JobID),
-		fmt.Sprintf("TaskGroup|%s", alloc.TaskGroup),
-		fmt.Sprintf("DesiredStatus|%s", alloc.DesiredStatus),
-		fmt.Sprintf("DesiredDescription|%s", alloc.DesiredDescription),
-		fmt.Sprintf("ClientStatus|%s", alloc.ClientStatus),
-		fmt.Sprintf("ClientDescription|%s", alloc.ClientDescription),
-		fmt.Sprintf("NodesEvaluated|%d", alloc.Metrics.NodesEvaluated),
-		fmt.Sprintf("NodesFiltered|%d", alloc.Metrics.NodesFiltered),
-	}
+	// Dump any allocation data
+	dumpAllocStatus(c.Ui, alloc)
+	return 0
+}
 
-	// Format exhaustion info
-	var exInfo []string
+// dumpAllocStatus is a helper to generate a more user-friendly error message
+// for scheduling failures, displaying a high level status of why the job
+// could not be scheduled out.
+func dumpAllocStatus(ui cli.Ui, alloc *api.Allocation) {
+	// Print filter stats
+	ui.Output(fmt.Sprintf("Allocation %q status %q (%d/%d nodes filtered)",
+		alloc.ID, alloc.ClientStatus,
+		alloc.Metrics.NodesFiltered, alloc.Metrics.NodesEvaluated))
+
+	// Print exhaustion info
 	if ne := alloc.Metrics.NodesExhausted; ne > 0 {
-		exInfo = append(exInfo, fmt.Sprintf("Node resources (exhausted %d)", ne))
+		ui.Output(fmt.Sprintf("Resources exhausted on %d nodes", ne))
 	}
 	for class, num := range alloc.Metrics.ClassExhausted {
-		exInfo = append(exInfo, fmt.Sprintf("Class %q (exhausted %d)", class, num))
+		ui.Output(fmt.Sprintf("Class %q exhausted on %d nodes", class, num))
 	}
 	for dim, num := range alloc.Metrics.DimensionExhausted {
-		exInfo = append(exInfo, fmt.Sprintf("Dimension %q (exhausted %d)", dim, num))
+		ui.Output(fmt.Sprintf("Dimension %q exhausted on %d nodes", dim, num))
 	}
 
-	// Format the filter info
-	var filterInfo []string
+	// Print filter info
 	for class, num := range alloc.Metrics.ClassFiltered {
-		filterInfo = append(filterInfo, fmt.Sprintf("Class %q (filtered %d)", class, num))
+		ui.Output(fmt.Sprintf("Class %q filtered %d nodes", class, num))
 	}
 	for cs, num := range alloc.Metrics.ConstraintFiltered {
-		filterInfo = append(filterInfo, fmt.Sprintf("Constraint %q (filtered %d)", cs, num))
+		ui.Output(fmt.Sprintf("Constraint %q filtered %d nodes", cs, num))
 	}
-
-	// Dump the output
-	c.Ui.Output(formatKV(basic))
-	if len(exInfo) > 0 {
-		c.Ui.Output("\n==> Nodes Exhausted")
-		c.Ui.Output(strings.Join(exInfo, "\n"))
-	}
-	if len(filterInfo) > 0 {
-		c.Ui.Output("\n==> Filters Applied")
-		c.Ui.Output(strings.Join(filterInfo, "\n"))
-	}
-	return 0
 }
