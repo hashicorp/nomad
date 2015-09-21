@@ -20,8 +20,12 @@ Usage: nomad eval-monitor [options] <evaluation>
   real-time to the terminal.
 
   The command will exit when the given evaluation reaches a terminal
-  state (completed or failed). The exit code indicates the status
-  of the monitoring only; it does not reflect the evaluation status.
+  state (completed or failed). Exit code 0 is returned on successful
+  evaluation, and if there are no scheduling problems. If there are
+  job placement issues encountered (unsatisfiable constraints,
+  resource exhaustion, etc), then the exit code will be 2. Any other
+  errors, including client connection issues or internal errors, are
+  indicated by exit code 1.
 
 General Options:
 

@@ -28,6 +28,12 @@ Usage: nomad run [options] <file>
   onto nodes. The monitor will end once job placement is done. It
   is safe to exit the monitor early using ctrl+c.
 
+  On successful job submission and scheduling, exit code 0 will be
+  returned. If there are job placement issues encountered
+  (unsatisfiable constraints, resource exhaustion, etc), then the
+  exit code will be 2. Any other errors, including client connection
+  issues or internal errors, are indicated by exit code 1.
+
 General Options:
 
   ` + generalOptionsUsage() + `

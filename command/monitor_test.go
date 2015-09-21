@@ -247,9 +247,10 @@ func TestMonitor_Monitor(t *testing.T) {
 		t.Fatalf("eval monitor took too long")
 	}
 
-	// Check the return code
-	if code != 0 {
-		t.Fatalf("expect exit 0, got: %d", code)
+	// Check the return code. We should get exit code 2 as there
+	// would be a scheduling problem on the test server (no clients).
+	if code != 2 {
+		t.Fatalf("expect exit 2, got: %d", code)
 	}
 
 	// Check the output

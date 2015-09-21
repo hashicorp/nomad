@@ -152,10 +152,19 @@ func (m *monitor) update(update *evalState) {
 
 // monitor is used to start monitoring the given evaluation ID. It
 // writes output directly to the monitor's ui, and returns the
-// exit code for the command. The return code indicates monitoring
-// success or failure ONLY. It is no indication of the outcome of
-// the evaluation, since conflating these values obscures things.
+// exit code for the command.
+//
+// The return code will be 0 on successful evaluation. If there are
+// problems scheduling the job (impossible constraints, resources
+// exhausted, etc), then the return code will be 2. For any other
+// failures (API connectivity, internal errors, etc), the return code
+// will be 1.
 func (m *monitor) monitor(evalID string) int {
+	// Track if we encounter a scheduling failure. This can only be
+	// detected while querying allocations, so we use this bool to
+	// carry that status into the return code.
+	var schedFailure bool
+
 	m.ui.Info(fmt.Sprintf("Monitoring evaluation %q", evalID))
 	for {
 		// Query the evaluation
@@ -197,6 +206,7 @@ func (m *monitor) monitor(evalID string) int {
 			// If we have a scheduling error, query the full allocation
 			// to get the details.
 			if alloc.DesiredStatus == structs.AllocDesiredStatusFailed {
+				schedFailure = true
 				failed, _, err := m.client.Allocations().Info(alloc.ID, nil)
 				if err != nil {
 					m.ui.Error(fmt.Sprintf("Error querying allocation: %s", err))
@@ -225,6 +235,12 @@ func (m *monitor) monitor(evalID string) int {
 			return m.monitor(eval.NextEval)
 		}
 		break
+	}
+
+	// Treat scheduling failures specially using a dedicated exit code.
+	// This makes it easier to detect failures from the CLI.
+	if schedFailure {
+		return 2
 	}
 
 	return 0
