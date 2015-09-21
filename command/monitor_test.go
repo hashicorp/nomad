@@ -10,18 +10,17 @@ import (
 	"github.com/mitchellh/cli"
 )
 
-func TestMonitor_Update(t *testing.T) {
+func TestMonitor_Update_Eval(t *testing.T) {
 	ui := new(cli.MockUi)
 	mon := newMonitor(ui, nil)
 
-	// Basic eval updates work
-	eval := &api.Evaluation{
-		Status:      "pending",
-		NodeID:      "node1",
-		Wait:        10 * time.Second,
-		CreateIndex: 2,
+	state := &evalState{
+		status: structs.EvalStatusPending,
+		node:   "node1",
+		wait:   10 * time.Second,
+		index:  2,
 	}
-	mon.update(eval, nil)
+	mon.update(state)
 
 	// Logs were output
 	out := ui.OutputWriter.String()
@@ -36,36 +35,47 @@ func TestMonitor_Update(t *testing.T) {
 	}
 	ui.OutputWriter.Reset()
 
-	// No logs sent if no state update
-	mon.update(eval, nil)
+	// No logs sent if no update
+	mon.update(state)
 	if out := ui.OutputWriter.String(); out != "" {
 		t.Fatalf("expected no output\n\n%s", out)
 	}
 
-	// Updates cause more logs to output
-	eval.Status = "complete"
-	mon.update(eval, nil)
+	// Status change sends more logs
+	state = &evalState{
+		status: structs.EvalStatusComplete,
+		node:   "node1",
+		wait:   10 * time.Second,
+		index:  3,
+	}
+	mon.update(state)
 	out = ui.OutputWriter.String()
-	if !strings.Contains(out, "complete") {
+	if !strings.Contains(out, structs.EvalStatusComplete) {
 		t.Fatalf("missing status\n\n%s", out)
 	}
-	ui.OutputWriter.Reset()
+}
+
+func TestMonitor_Update_Allocs(t *testing.T) {
+	ui := new(cli.MockUi)
+	mon := newMonitor(ui, nil)
 
 	// New allocations write new logs
-	allocs := []*api.AllocationListStub{
-		&api.AllocationListStub{
-			ID:            "alloc1",
-			TaskGroup:     "group1",
-			NodeID:        "node1",
-			DesiredStatus: structs.AllocDesiredStatusRun,
-			ClientStatus:  structs.AllocClientStatusPending,
-			CreateIndex:   3,
+	state := &evalState{
+		allocs: map[string]*allocState{
+			"alloc1": &allocState{
+				id:      "alloc1",
+				group:   "group1",
+				node:    "node1",
+				desired: structs.AllocDesiredStatusRun,
+				client:  structs.AllocClientStatusPending,
+				index:   1,
+			},
 		},
 	}
-	mon.update(eval, allocs)
+	mon.update(state)
 
 	// Logs were output
-	out = ui.OutputWriter.String()
+	out := ui.OutputWriter.String()
 	if !strings.Contains(out, "alloc1") {
 		t.Fatalf("missing alloc\n\n%s", out)
 	}
@@ -81,15 +91,28 @@ func TestMonitor_Update(t *testing.T) {
 	ui.OutputWriter.Reset()
 
 	// No change yields no logs
-	mon.update(eval, allocs)
+	mon.update(state)
 	if out := ui.OutputWriter.String(); out != "" {
 		t.Fatalf("expected no output\n\n%s", out)
 	}
 	ui.OutputWriter.Reset()
 
-	// Updates cause more log lines
-	allocs[0].ClientStatus = "running"
-	mon.update(eval, allocs)
+	// Alloc updates cause more log lines
+	state = &evalState{
+		allocs: map[string]*allocState{
+			"alloc1": &allocState{
+				id:      "alloc1",
+				group:   "group1",
+				node:    "node1",
+				desired: structs.AllocDesiredStatusRun,
+				client:  structs.AllocClientStatusRunning,
+				index:   2,
+			},
+		},
+	}
+	mon.update(state)
+
+	// Updates were logged
 	out = ui.OutputWriter.String()
 	if !strings.Contains(out, "alloc1") {
 		t.Fatalf("missing alloc\n\n%s", out)
@@ -100,20 +123,43 @@ func TestMonitor_Update(t *testing.T) {
 	if !strings.Contains(out, "running") {
 		t.Fatalf("missing new status\n\n%s", out)
 	}
-	ui.OutputWriter.Reset()
+}
+
+func TestMonitor_Update_SchedulingFailure(t *testing.T) {
+	ui := new(cli.MockUi)
+	mon := newMonitor(ui, nil)
 
 	// New allocs with desired status failed warns
-	allocs = append(allocs, &api.AllocationListStub{
-		ID:                 "alloc2",
-		TaskGroup:          "group2",
-		DesiredStatus:      structs.AllocDesiredStatusFailed,
-		DesiredDescription: "something failed",
-		CreateIndex:        4,
-	})
-	mon.update(eval, allocs)
+	state := &evalState{
+		allocs: map[string]*allocState{
+			"alloc2": &allocState{
+				id:          "alloc2",
+				group:       "group2",
+				desired:     structs.AllocDesiredStatusFailed,
+				desiredDesc: "something failed",
+				index:       1,
+
+				// Attach the full failed allocation
+				full: &api.Allocation{
+					ID:            "alloc2",
+					TaskGroup:     "group2",
+					ClientStatus:  structs.AllocClientStatusFailed,
+					DesiredStatus: structs.AllocDesiredStatusFailed,
+					Metrics: &api.AllocationMetric{
+						NodesEvaluated: 3,
+						NodesFiltered:  3,
+						ConstraintFiltered: map[string]int{
+							"$attr.kernel.name = linux": 3,
+						},
+					},
+				},
+			},
+		},
+	}
+	mon.update(state)
 
 	// Scheduling failure was logged
-	out = ui.OutputWriter.String()
+	out := ui.OutputWriter.String()
 	if !strings.Contains(out, "group2") {
 		t.Fatalf("missing group\n\n%s", out)
 	}
@@ -123,20 +169,40 @@ func TestMonitor_Update(t *testing.T) {
 	if !strings.Contains(out, "something failed") {
 		t.Fatalf("missing reason\n\n%s", out)
 	}
-	ui.OutputWriter.Reset()
+
+	// Check that the allocation details were dumped
+	if !strings.Contains(out, "3/3") {
+		t.Fatalf("missing filter stats\n\n%s", out)
+	}
+	if !strings.Contains(out, structs.AllocDesiredStatusFailed) {
+		t.Fatalf("missing alloc status\n\n%s", out)
+	}
+	if !strings.Contains(out, "$attr.kernel.name = linux") {
+		t.Fatalf("missing constraint\n\n%s", out)
+	}
+}
+
+func TestMonitor_Update_AllocModification(t *testing.T) {
+	ui := new(cli.MockUi)
+	mon := newMonitor(ui, nil)
 
 	// New allocs with a create index lower than the
 	// eval create index are logged as modifications
-	allocs = append(allocs, &api.AllocationListStub{
-		ID:          "alloc3",
-		NodeID:      "node1",
-		TaskGroup:   "group2",
-		CreateIndex: 1,
-	})
-	mon.update(eval, allocs)
+	state := &evalState{
+		index: 2,
+		allocs: map[string]*allocState{
+			"alloc3": &allocState{
+				id:    "alloc3",
+				node:  "node1",
+				group: "group2",
+				index: 1,
+			},
+		},
+	}
+	mon.update(state)
 
 	// Modification was logged
-	out = ui.OutputWriter.String()
+	out := ui.OutputWriter.String()
 	if !strings.Contains(out, "alloc3") {
 		t.Fatalf("missing alloc\n\n%s", out)
 	}
