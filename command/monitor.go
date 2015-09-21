@@ -245,3 +245,32 @@ func (m *monitor) monitor(evalID string) int {
 
 	return 0
 }
+
+// dumpAllocStatus is a helper to generate a more user-friendly error message
+// for scheduling failures, displaying a high level status of why the job
+// could not be scheduled out.
+func dumpAllocStatus(ui cli.Ui, alloc *api.Allocation) {
+	// Print filter stats
+	ui.Output(fmt.Sprintf("Allocation %q status %q (%d/%d nodes filtered)",
+		alloc.ID, alloc.ClientStatus,
+		alloc.Metrics.NodesFiltered, alloc.Metrics.NodesEvaluated))
+
+	// Print exhaustion info
+	if ne := alloc.Metrics.NodesExhausted; ne > 0 {
+		ui.Output(fmt.Sprintf("  * Resources exhausted on %d nodes", ne))
+	}
+	for class, num := range alloc.Metrics.ClassExhausted {
+		ui.Output(fmt.Sprintf("  * Class %q exhausted on %d nodes", class, num))
+	}
+	for dim, num := range alloc.Metrics.DimensionExhausted {
+		ui.Output(fmt.Sprintf("  * Dimension %q exhausted on %d nodes", dim, num))
+	}
+
+	// Print filter info
+	for class, num := range alloc.Metrics.ClassFiltered {
+		ui.Output(fmt.Sprintf("  * Class %q filtered %d nodes", class, num))
+	}
+	for cs, num := range alloc.Metrics.ConstraintFiltered {
+		ui.Output(fmt.Sprintf("  * Constraint %q filtered %d nodes", cs, num))
+	}
+}
