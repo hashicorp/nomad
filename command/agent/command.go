@@ -325,7 +325,7 @@ WAIT:
 
 	// Check if we should do a graceful leave
 	graceful := false
-	if sig == os.Interrupt && !config.LeaveOnInt {
+	if sig == os.Interrupt && config.LeaveOnInt {
 		graceful = true
 	} else if sig == syscall.SIGTERM && config.LeaveOnTerm {
 		graceful = true
