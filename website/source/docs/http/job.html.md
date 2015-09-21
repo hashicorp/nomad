@@ -216,41 +216,6 @@ region is used; another region can be specified using the `?region=` query param
   </dd>
 </dl>
 
-# /v1/job/\<ID\>/evaluate
-## PUT / POST
-
-<dl>
-  <dt>Description</dt>
-  <dd>
-    Creates a new evaluation for the given job. This can be used to force
-    run the scheduling logic if necessary.
-  </dd>
-
-  <dt>Method</dt>
-  <dd>PUT or POST</dd>
-
-  <dt>URL</dt>
-  <dd>`/v1/job/<ID>/evaluate`</dd>
-
-  <dt>Parameters</dt>
-  <dd>
-    None
-  </dd>
-
-  <dt>Returns</dt>
-  <dd>
-
-    ```javascript
-    {
-    "EvalID": "d092fdc0-e1fd-2536-67d8-43af8ca798ac",
-    "EvalCreateIndex": 35,
-    "JobModifyIndex": 34,
-    }
-    ```
-
-  </dd>
-</dl>
-
 # /v1/job/\<ID\>/allocations
 ## GET
 
@@ -292,6 +257,41 @@ region is used; another region can be specified using the `?region=` query param
     },
     ...
     ]
+    ```
+
+  </dd>
+</dl>
+
+# /v1/job/\<ID\>/evaluate
+## PUT / POST
+
+<dl>
+  <dt>Description</dt>
+  <dd>
+    Creates a new evaluation for the given job. This can be used to force
+    run the scheduling logic if necessary.
+  </dd>
+
+  <dt>Method</dt>
+  <dd>PUT or POST</dd>
+
+  <dt>URL</dt>
+  <dd>`/v1/job/<ID>/evaluate`</dd>
+
+  <dt>Parameters</dt>
+  <dd>
+    None
+  </dd>
+
+  <dt>Returns</dt>
+  <dd>
+
+    ```javascript
+    {
+    "EvalID": "d092fdc0-e1fd-2536-67d8-43af8ca798ac",
+    "EvalCreateIndex": 35,
+    "JobModifyIndex": 34,
+    }
     ```
 
   </dd>
