@@ -79,6 +79,12 @@ func (c *RunCommand) Run(args []string) int {
 		return 1
 	}
 
+	// Check that the job is valid
+	if err := job.Validate(); err != nil {
+		c.Ui.Error(fmt.Sprintf("Error validating job: %s", err))
+		return 1
+	}
+
 	// Convert it to something we can use
 	apiJob, err := convertJob(job)
 	if err != nil {
