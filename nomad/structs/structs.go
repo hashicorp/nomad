@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/go-multierror"
 )
@@ -780,8 +779,8 @@ func (j *Job) Validate() error {
 	// Validate the task group
 	for idx, tg := range j.TaskGroups {
 		if err := tg.Validate(); err != nil {
-			outer := fmt.Errorf("Task group %d validation failed", idx+1)
-			mErr.Errors = append(mErr.Errors, errwrap.Wrap(outer, err))
+			outer := fmt.Errorf("Task group %d validation failed: %s", idx+1, err)
+			mErr.Errors = append(mErr.Errors, outer)
 		}
 	}
 	return mErr.ErrorOrNil()
@@ -889,8 +888,8 @@ func (tg *TaskGroup) Validate() error {
 	// Validate the tasks
 	for idx, task := range tg.Tasks {
 		if err := task.Validate(); err != nil {
-			outer := fmt.Errorf("Task %d validation failed", idx+1)
-			mErr.Errors = append(mErr.Errors, errwrap.Wrap(outer, err))
+			outer := fmt.Errorf("Task %d validation failed: %s", idx+1, err)
+			mErr.Errors = append(mErr.Errors, outer)
 		}
 	}
 	return mErr.ErrorOrNil()
