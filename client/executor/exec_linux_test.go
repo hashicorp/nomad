@@ -104,8 +104,8 @@ func TestExecutorLinux_Start_Kill(t *testing.T) {
 	filePath := filepath.Join(path, "test")
 	e := Command("/bin/bash", "-c", "sleep 1 ; echo \"failure\" > "+filePath)
 
-	// This test can only be run if we are root.
-	if !e.(*LinuxExecutor).root {
+	// This test can only be run if cgroups are enabled.
+	if !e.(*LinuxExecutor).cgroupEnabled {
 		t.SkipNow()
 	}
 
@@ -142,8 +142,8 @@ func TestExecutorLinux_Open(t *testing.T) {
 	filePath := filepath.Join(path, "test")
 	e := Command("/bin/bash", "-c", "sleep 1 ; echo \"failure\" > "+filePath)
 
-	// This test can only be run if we are root.
-	if !e.(*LinuxExecutor).root {
+	// This test can only be run if cgroups are enabled.
+	if !e.(*LinuxExecutor).cgroupEnabled {
 		t.SkipNow()
 	}
 
