@@ -15,14 +15,14 @@ The `self` endpoint is used to query the state of the target agent.
 <dl>
   <dt>Description</dt>
   <dd>
-    Lists all the evaluations.
+    Query the state of the target agent.
   </dd>
 
   <dt>Method</dt>
   <dd>GET</dd>
 
   <dt>URL</dt>
-  <dd>`/v1/evaluations`</dd>
+  <dd>`/v1/agent/self`</dd>
 
   <dt>Parameters</dt>
   <dd>
