@@ -108,7 +108,8 @@ func (c *RunCommand) Run(args []string) int {
 
 	// Check if we should enter monitor mode
 	if detach {
-		c.Ui.Output(evalID)
+		c.Ui.Output("Job registration successful")
+		c.Ui.Output("Evaluation ID: " + evalID)
 		return 0
 	}
 
