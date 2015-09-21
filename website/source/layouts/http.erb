@@ -64,11 +64,36 @@
 					</ul>
                 </li>
 
+				<li<%= sidebar_current("docs-http-status") %>>
+					<a href="#">Status</a>
+					<ul class="nav nav-visible">
+						<li<%= sidebar_current("docs-http-status-leader") %>>
+							<a href="/docs/http/status-leader.html">/v1/status/leader</a>
+						</li>
+
+						<li<%= sidebar_current("docs-http-status-peers") %>>
+							<a href="/docs/http/status-peers.html">/v1/status/peers</a>
+						</li>
+					</ul>
+                </li>
+
 				<li<%= sidebar_current("docs-http-agent") %>>
 					<a href="#">Agent</a>
 					<ul class="nav nav-visible">
-						<li<%= sidebar_current("docs-http-seal-status") %>>
-							<a href="/docs/http/sys-seal-status.html">/v1/agent/self</a>
+						<li<%= sidebar_current("docs-http-agent-self") %>>
+							<a href="/docs/http/agent-self.html">/v1/agent/self</a>
+                        </li>
+
+						<li<%= sidebar_current("docs-http-agent-join") %>>
+							<a href="/docs/http/agent-join.html">/v1/agent/join</a>
+                        </li>
+
+						<li<%= sidebar_current("docs-http-agent-members") %>>
+							<a href="/docs/http/agent-members.html">/v1/agent/members</a>
+                        </li>
+
+						<li<%= sidebar_current("docs-http-agent-force-leave") %>>
+							<a href="/docs/http/agent-force-leave.html">/v1/agent/force-leave</a>
 						</li>
 					</ul>
                 </li>
