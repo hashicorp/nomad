@@ -143,6 +143,7 @@ func NewClient(cfg *config.Config) (*Client, error) {
 // needed before we begin starting its various components.
 func (c *Client) init() error {
 	// Ensure the alloc dir exists if we have one
+	// TODO(alex): Make a tmp directory if it doesn't?
 	if c.config.AllocDir != "" {
 		if err := os.MkdirAll(c.config.AllocDir, 0700); err != nil {
 			return fmt.Errorf("failed creating alloc dir: %s", err)
@@ -431,7 +432,7 @@ func (c *Client) fingerprint() error {
 // setupDrivers is used to find the available drivers
 func (c *Client) setupDrivers() error {
 	var avail []string
-	driverCtx := driver.NewDriverContext(c.config, c.config.Node, c.logger)
+	driverCtx := driver.NewDriverContext("", c.config, c.config.Node, c.logger)
 	for name := range driver.BuiltinDrivers {
 		d, err := driver.NewDriver(name, driverCtx)
 		if err != nil {

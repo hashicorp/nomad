@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/executor"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -104,7 +105,15 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		return nil, fmt.Errorf("Error downloading source for Java driver: %s", err)
 	}
 
-	fPath := filepath.Join(ctx.AllocDir, path.Base(source))
+	// Get the tasks local directory.
+	taskDir, err := ctx.AllocDir.TaskDir(d.DriverContext.taskName)
+	if err != nil {
+		return nil, err
+	}
+	taskLocal := filepath.Join(taskDir, allocdir.TaskLocal)
+
+	// Create a location to download the binary.
+	fPath := filepath.Join(taskLocal, path.Base(source))
 	f, err := os.OpenFile(fPath, os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {
 		return nil, fmt.Errorf("Error opening file to download to: %s", err)
@@ -113,7 +122,7 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	defer f.Close()
 	defer resp.Body.Close()
 
-	// Copy remote file to local AllocDir for execution
+	// Copy remote file to local directory for execution
 	// TODO: a retry of sort if io.Copy fails, for large binaries
 	_, ioErr := io.Copy(f, resp.Body)
 	if ioErr != nil {
