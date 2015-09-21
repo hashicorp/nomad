@@ -22,7 +22,7 @@ const (
 type evalState struct {
 	status string
 	desc   string
-	nodeID string
+	node   string
 	allocs map[string]*allocState
 	wait   time.Duration
 	index  uint64
@@ -37,6 +37,11 @@ type allocState struct {
 	desiredDesc string
 	client      string
 	index       uint64
+
+	// full is the allocation struct with full details. This
+	// must be queried for explicitly so it is only included
+	// if there is important error information inside.
+	full *api.Allocation
 }
 
 // monitor wraps an evaluation monitor and holds metadata and
@@ -75,33 +80,16 @@ func (m *monitor) init() {
 // update is used to update our monitor with new state. It can be
 // called whether the passed information is new or not, and will
 // only dump update messages when state changes.
-func (m *monitor) update(eval *api.Evaluation, allocs []*api.AllocationListStub) {
+func (m *monitor) update(update *evalState) {
 	m.Lock()
 	defer m.Unlock()
 
 	existing := m.state
 
-	// Create the new state
-	update := &evalState{
-		status: eval.Status,
-		desc:   eval.StatusDescription,
-		nodeID: eval.NodeID,
-		allocs: make(map[string]*allocState),
-		wait:   eval.Wait,
-		index:  eval.CreateIndex,
-	}
-	for _, alloc := range allocs {
-		update.allocs[alloc.ID] = &allocState{
-			id:          alloc.ID,
-			group:       alloc.TaskGroup,
-			node:        alloc.NodeID,
-			desired:     alloc.DesiredStatus,
-			desiredDesc: alloc.DesiredDescription,
-			client:      alloc.ClientStatus,
-			index:       alloc.CreateIndex,
-		}
-	}
-	defer func() { m.state = update }()
+	// Swap in the new state at the end
+	defer func() {
+		m.state = update
+	}()
 
 	// Check the allocations
 	for allocID, alloc := range update.allocs {
@@ -115,12 +103,9 @@ func (m *monitor) update(eval *api.Evaluation, allocs []*api.AllocationListStub)
 
 				// Generate a more descriptive error for why the allocation
 				// failed and dump it to the screen
-				fullAlloc, _, err := m.client.Allocations().Info(allocID, nil)
-				if err != nil {
-					m.ui.Output(fmt.Sprintf("Error querying alloc: %s", err))
-					continue
+				if alloc.full != nil {
+					dumpAllocStatus(m.ui, alloc.full)
 				}
-				dumpAllocStatus(m.ui, fullAlloc)
 
 			case alloc.index < update.index:
 				// New alloc with create index lower than the eval
@@ -149,19 +134,19 @@ func (m *monitor) update(eval *api.Evaluation, allocs []*api.AllocationListStub)
 	// Check if the status changed
 	if existing.status != update.status {
 		m.ui.Output(fmt.Sprintf("Evaluation status changed: %q -> %q",
-			existing.status, eval.Status))
+			existing.status, update.status))
 	}
 
 	// Check if the wait time is different
 	if existing.wait == 0 && update.wait != 0 {
 		m.ui.Output(fmt.Sprintf("Waiting %s before running eval",
-			eval.Wait))
+			update.wait))
 	}
 
-	// Check if the nodeID changed
-	if existing.nodeID == "" && update.nodeID != "" {
+	// Check if the node changed
+	if existing.node == "" && update.node != "" {
 		m.ui.Output(fmt.Sprintf("Evaluation was assigned node ID %q",
-			eval.NodeID))
+			update.node))
 	}
 }
 
@@ -180,6 +165,16 @@ func (m *monitor) monitor(evalID string) int {
 			return 1
 		}
 
+		// Create the new eval state.
+		state := &evalState{
+			status: eval.Status,
+			desc:   eval.StatusDescription,
+			node:   eval.NodeID,
+			allocs: make(map[string]*allocState),
+			wait:   eval.Wait,
+			index:  eval.CreateIndex,
+		}
+
 		// Query the allocations associated with the evaluation
 		allocs, _, err := m.client.Evaluations().Allocations(evalID, nil)
 		if err != nil {
@@ -187,8 +182,32 @@ func (m *monitor) monitor(evalID string) int {
 			return 1
 		}
 
+		// Add the allocs to the state
+		for _, alloc := range allocs {
+			state.allocs[alloc.ID] = &allocState{
+				id:          alloc.ID,
+				group:       alloc.TaskGroup,
+				node:        alloc.NodeID,
+				desired:     alloc.DesiredStatus,
+				desiredDesc: alloc.DesiredDescription,
+				client:      alloc.ClientStatus,
+				index:       alloc.CreateIndex,
+			}
+
+			// If we have a scheduling error, query the full allocation
+			// to get the details.
+			if alloc.DesiredStatus == structs.AllocDesiredStatusFailed {
+				failed, _, err := m.client.Allocations().Info(alloc.ID, nil)
+				if err != nil {
+					m.ui.Error(fmt.Sprintf("Error querying allocation: %s", err))
+					return 1
+				}
+				state.allocs[alloc.ID].full = failed
+			}
+		}
+
 		// Update the state
-		m.update(eval, allocs)
+		m.update(state)
 
 		switch eval.Status {
 		case structs.EvalStatusComplete, structs.EvalStatusFailed:
