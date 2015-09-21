@@ -64,19 +64,6 @@
 					</ul>
                 </li>
 
-				<li<%= sidebar_current("docs-http-status") %>>
-					<a href="#">Status</a>
-					<ul class="nav nav-visible">
-						<li<%= sidebar_current("docs-http-status-leader") %>>
-							<a href="/docs/http/status-leader.html">/v1/status/leader</a>
-						</li>
-
-						<li<%= sidebar_current("docs-http-status-peers") %>>
-							<a href="/docs/http/status-peers.html">/v1/status/peers</a>
-						</li>
-					</ul>
-                </li>
-
 				<li<%= sidebar_current("docs-http-agent") %>>
 					<a href="#">Agent</a>
 					<ul class="nav nav-visible">
@@ -97,6 +84,11 @@
 						</li>
 					</ul>
                 </li>
+
+				<li<%= sidebar_current("docs-http-status") %>>
+					<a href="/docs/http/status.html">Status</a>
+                </li>
+
 			</ul>
 		</div>
 	<% end %>
