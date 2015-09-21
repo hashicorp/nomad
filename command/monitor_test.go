@@ -326,4 +326,15 @@ func TestMonitor_DumpAllocStatus(t *testing.T) {
 	if !strings.Contains(out, `Dimension "cpu" exhausted on 1 nodes`) {
 		t.Fatalf("missing dimension exhaustion\n\n%s", out)
 	}
+	ui.OutputWriter.Reset()
+
+	// Dumping alloc status with no eligible nodes adds a warning
+	alloc.Metrics.NodesEvaluated = 0
+	dumpAllocStatus(ui, alloc)
+
+	// Check the output
+	out = ui.OutputWriter.String()
+	if !strings.Contains(out, "No nodes were eligible") {
+		t.Fatalf("missing eligibility warning\n\n%s", out)
+	}
 }

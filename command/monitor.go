@@ -272,6 +272,11 @@ func dumpAllocStatus(ui cli.Ui, alloc *api.Allocation) {
 		alloc.ID, alloc.ClientStatus,
 		alloc.Metrics.NodesFiltered, alloc.Metrics.NodesEvaluated))
 
+	// Print a helpful message if we have an eligibility problem
+	if alloc.Metrics.NodesEvaluated == 0 {
+		ui.Output("  * No nodes were eligible for evaluation")
+	}
+
 	// Print filter info
 	for class, num := range alloc.Metrics.ClassFiltered {
 		ui.Output(fmt.Sprintf("  * Class %q filtered %d nodes", class, num))
