@@ -1,7 +1,7 @@
 ---
 layout: "docs"
 page_title: "Telemetry"
-sidebar_current: "docs-internals-telemetry"
+sidebar_current: "docs-agent-telemetry"
 description: |-
   Learn about the telemetry data available in Nomad.
 ---
