@@ -23,6 +23,7 @@ type evalState struct {
 	status string
 	desc   string
 	node   string
+	job    string
 	allocs map[string]*allocState
 	wait   time.Duration
 	index  uint64
@@ -36,6 +37,7 @@ type allocState struct {
 	desired     string
 	desiredDesc string
 	client      string
+	clientDesc  string
 	index       uint64
 
 	// full is the allocation struct with full details. This
@@ -91,6 +93,17 @@ func (m *monitor) update(update *evalState) {
 		m.state = update
 	}()
 
+	// Check if the evaluation was triggered by a node
+	if existing.node == "" && update.node != "" {
+		m.ui.Output(fmt.Sprintf("Evaluation triggered by node %q",
+			update.node))
+	}
+
+	// Check if the evaluation was triggered by a job
+	if existing.job == "" && update.job != "" {
+		m.ui.Output(fmt.Sprintf("Evaluation triggered by job %q", update.job))
+	}
+
 	// Check the allocations
 	for allocID, alloc := range update.allocs {
 		if existing, ok := existing.allocs[allocID]; !ok {
@@ -100,6 +113,11 @@ func (m *monitor) update(update *evalState) {
 				// scheduling failure.
 				m.ui.Output(fmt.Sprintf("Scheduling error for group %q (%s)",
 					alloc.group, alloc.desiredDesc))
+
+				// Log the client status, if any provided
+				if alloc.clientDesc != "" {
+					m.ui.Output("Client reported status: " + alloc.clientDesc)
+				}
 
 				// Generate a more descriptive error for why the allocation
 				// failed and dump it to the screen
@@ -125,8 +143,8 @@ func (m *monitor) update(update *evalState) {
 			case existing.client != alloc.client:
 				// Allocation status has changed
 				m.ui.Output(fmt.Sprintf(
-					"Allocation %q status changed: %q -> %q",
-					alloc.id, existing.client, alloc.client))
+					"Allocation %q status changed: %q -> %q (%s)",
+					alloc.id, existing.client, alloc.client, alloc.clientDesc))
 			}
 		}
 	}
@@ -137,18 +155,6 @@ func (m *monitor) update(update *evalState) {
 		existing.status != update.status {
 		m.ui.Output(fmt.Sprintf("Evaluation status changed: %q -> %q",
 			existing.status, update.status))
-	}
-
-	// Check if the wait time is different
-	if existing.wait == 0 && update.wait != 0 {
-		m.ui.Output(fmt.Sprintf("Evaluation delay is %s",
-			update.wait))
-	}
-
-	// Check if the evaluation was triggered by a node
-	if existing.node == "" && update.node != "" {
-		m.ui.Output(fmt.Sprintf("Evaluation triggered by node %q",
-			update.node))
 	}
 }
 
@@ -181,6 +187,7 @@ func (m *monitor) monitor(evalID string) int {
 			status: eval.Status,
 			desc:   eval.StatusDescription,
 			node:   eval.NodeID,
+			job:    eval.JobID,
 			allocs: make(map[string]*allocState),
 			wait:   eval.Wait,
 			index:  eval.CreateIndex,
@@ -202,6 +209,7 @@ func (m *monitor) monitor(evalID string) int {
 				desired:     alloc.DesiredStatus,
 				desiredDesc: alloc.DesiredDescription,
 				client:      alloc.ClientStatus,
+				clientDesc:  alloc.ClientDescription,
 				index:       alloc.CreateIndex,
 			}
 
@@ -231,8 +239,15 @@ func (m *monitor) monitor(evalID string) int {
 			continue
 		}
 
-		// Monitor the next eval, if it exists.
+		// Monitor the next eval in the chain, if present
 		if eval.NextEval != "" {
+			m.ui.Info(fmt.Sprintf(
+				"Monitoring next evaluation %q in %s",
+				eval.NextEval, eval.Wait))
+
+			// Skip some unnecessary polling
+			time.Sleep(eval.Wait)
+
 			m.init()
 			return m.monitor(eval.NextEval)
 		}
@@ -257,6 +272,14 @@ func dumpAllocStatus(ui cli.Ui, alloc *api.Allocation) {
 		alloc.ID, alloc.ClientStatus,
 		alloc.Metrics.NodesFiltered, alloc.Metrics.NodesEvaluated))
 
+	// Print filter info
+	for class, num := range alloc.Metrics.ClassFiltered {
+		ui.Output(fmt.Sprintf("  * Class %q filtered %d nodes", class, num))
+	}
+	for cs, num := range alloc.Metrics.ConstraintFiltered {
+		ui.Output(fmt.Sprintf("  * Constraint %q filtered %d nodes", cs, num))
+	}
+
 	// Print exhaustion info
 	if ne := alloc.Metrics.NodesExhausted; ne > 0 {
 		ui.Output(fmt.Sprintf("  * Resources exhausted on %d nodes", ne))
@@ -266,13 +289,5 @@ func dumpAllocStatus(ui cli.Ui, alloc *api.Allocation) {
 	}
 	for dim, num := range alloc.Metrics.DimensionExhausted {
 		ui.Output(fmt.Sprintf("  * Dimension %q exhausted on %d nodes", dim, num))
-	}
-
-	// Print filter info
-	for class, num := range alloc.Metrics.ClassFiltered {
-		ui.Output(fmt.Sprintf("  * Class %q filtered %d nodes", class, num))
-	}
-	for cs, num := range alloc.Metrics.ConstraintFiltered {
-		ui.Output(fmt.Sprintf("  * Constraint %q filtered %d nodes", cs, num))
 	}
 }

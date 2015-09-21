@@ -14,21 +14,30 @@ func TestMonitor_Update_Eval(t *testing.T) {
 	ui := new(cli.MockUi)
 	mon := newMonitor(ui, nil)
 
+	// Evals triggered by jobs log
 	state := &evalState{
 		status: structs.EvalStatusPending,
-		node:   "node1",
-		wait:   10 * time.Second,
-		index:  2,
+		job:    "job1",
 	}
 	mon.update(state)
 
-	// Logs were output
 	out := ui.OutputWriter.String()
+	if !strings.Contains(out, "job1") {
+		t.Fatalf("missing job\n\n%s", out)
+	}
+	ui.OutputWriter.Reset()
+	mon.init()
+
+	// Evals trigerred by nodes log
+	state = &evalState{
+		status: structs.EvalStatusPending,
+		node:   "node1",
+	}
+	mon.update(state)
+
+	out = ui.OutputWriter.String()
 	if !strings.Contains(out, "node1") {
 		t.Fatalf("missing node\n\n%s", out)
-	}
-	if !strings.Contains(out, "10s") {
-		t.Fatalf("missing eval wait\n\n%s", out)
 	}
 
 	// Transition to pending should not be logged
@@ -47,8 +56,6 @@ func TestMonitor_Update_Eval(t *testing.T) {
 	state = &evalState{
 		status: structs.EvalStatusComplete,
 		node:   "node1",
-		wait:   10 * time.Second,
-		index:  3,
 	}
 	mon.update(state)
 	out = ui.OutputWriter.String()
@@ -139,6 +146,8 @@ func TestMonitor_Update_SchedulingFailure(t *testing.T) {
 				group:       "group2",
 				desired:     structs.AllocDesiredStatusFailed,
 				desiredDesc: "something failed",
+				client:      structs.AllocClientStatusFailed,
+				clientDesc:  "client failed",
 				index:       1,
 
 				// Attach the full failed allocation
@@ -169,7 +178,10 @@ func TestMonitor_Update_SchedulingFailure(t *testing.T) {
 		t.Fatalf("missing failure\n\n%s", out)
 	}
 	if !strings.Contains(out, "something failed") {
-		t.Fatalf("missing reason\n\n%s", out)
+		t.Fatalf("missing desired desc\n\n%s", out)
+	}
+	if !strings.Contains(out, "client failed") {
+		t.Fatalf("missing client desc\n\n%s", out)
 	}
 
 	// Check that the allocation details were dumped
