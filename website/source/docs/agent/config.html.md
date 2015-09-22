@@ -214,7 +214,9 @@ via CLI arguments. The `agent` command accepts the following arguments:
 * `-region=<region>`: Equivalent to the [region](#region) config option.
 * `-client`: Enable client mode on the local agent
 * `-server`: Enable server mode on the local agent
-* `-dev`: Equivalent to the [dev](#dev) config option.
+* `-dev`: Start the agent in development mode. This enables a pre-configured
+  dual-role agent (client + server) which is useful for developing or testing
+  Nomad. No other configuration is required to start the agent in this mode.
 * `-atlas=<infrastructure>`: Equivalent to the Atlas
   [infrastructure](#infrastructure) config option.
 * `-atlas-token=<token>`: Equivalent to the Atlas [token](#token) config option.
