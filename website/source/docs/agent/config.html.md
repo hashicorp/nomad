@@ -178,3 +178,23 @@ configured on server nodes.
     and has no default.
   * `meta`: This is a key/value mapping of metadata pairs. This is a free-form
     map and can contain any string values.
+
+## Atlas Options
+
+The following options are used to configure [Atlas](https://atlas.hashicorp.com)
+integration and are entirely optional.
+
+* `atlas`: The top-level config key used to contain all Atlas-related
+  configuration options. The value is a key/value map which supports the
+  following keys:
+  <br>
+  * `infrastructure`: The Atlas infrastructure name to connect this agent to.
+    This value should be of the form `<org>/<infrastructure>`, and requires a
+    valid [token](#token) authorized on the infrastructure.
+  * `token`: The Atlas token to use for authentication. This token should have
+    access to the provided [infrastructure](#infrastructure).
+  * `join`: A boolean indicating if the auto-join feature of Atlas should be
+    enabled. Defaults to `false`.
+  * `endpoint`: The address of the Atlas instance to connect to. Defaults to the
+    public Atlas endpoint and is only used if both
+    [infrastructure](#infrastructure) and [token](#token) are provided.
