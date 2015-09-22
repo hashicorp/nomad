@@ -48,7 +48,10 @@ job "my-service" {
                 memory = 128
                 network {
                     mbits = 100
-                    dynamic_ports = 1
+                    dynamic_ports = [
+                      "http",
+                      "https",
+                    ]
                 }
             }
         }
@@ -182,9 +185,11 @@ The `resources` object supports the following keys:
 
 The `network` object supports teh following keys:
 
-* `dynamic_ports` - The number of dynamic ports. These are
-  ports that are assigned at task scheduling type, and require
-  the task to be able to bind dynamically. Defaults to 0.
+* `dynamic_ports` - List of strings (`^[a-z0-9_]+$`), called labels. Each label
+  will be associated with a dynamic port when the task starts. Port allocation
+  will be passed to the task as an environment variable like `NOMAD_PORT_{{ .Label }}`
+  (upper-cased). Some Drivers may infer additional semantics from the label. See
+  [Docker](/docs/drivers/docker.html) for an example.
 
 * `mbits` - The number of MBits in bandwidth required.
 
