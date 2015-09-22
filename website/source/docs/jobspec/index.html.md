@@ -185,8 +185,8 @@ The `resources` object supports the following keys:
 
 The `network` object supports teh following keys:
 
-* `dynamic_ports` - List of strings (`^[a-z0-9_]+$`), called labels. Each label
-  will be associated with a dynamic port when the task starts. Port allocation
+* `dynamic_ports` - List of port labels which may contain letters, numbers and underscores.
+  Each label will be associated with a dynamic port when the task starts. Port allocation
   will be passed to the task as an environment variable like `NOMAD_PORT_{{ .Label }}`
   (upper-cased). Some Drivers may infer additional semantics from the label. See
   [Docker](/docs/drivers/docker.html) for an example.
