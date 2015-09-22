@@ -80,7 +80,10 @@ job "my-app" {
                 memory = 128
 
                 network {
-                    dynamic_ports = 2
+                    dynamic_ports = [
+                        "http",
+                        "https",
+                    ]
                 }
             }
         }
