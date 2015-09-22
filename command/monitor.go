@@ -29,6 +29,14 @@ type evalState struct {
 	index  uint64
 }
 
+// newEvalState creates and initializes a new monitorState
+func newEvalState() *evalState {
+	return &evalState{
+		status: structs.EvalStatusPending,
+		allocs: make(map[string]*allocState),
+	}
+}
+
 // allocState is used to track the state of an allocation
 type allocState struct {
 	id          string
@@ -67,16 +75,9 @@ func newMonitor(ui cli.Ui, client *api.Client) *monitor {
 			Ui:           ui,
 		},
 		client: client,
+		state:  newEvalState(),
 	}
-	mon.init()
 	return mon
-}
-
-// init allocates substructures
-func (m *monitor) init() {
-	m.state = &evalState{
-		allocs: make(map[string]*allocState),
-	}
 }
 
 // update is used to update our monitor with new state. It can be
@@ -173,6 +174,9 @@ func (m *monitor) monitor(evalID string) int {
 	// carry that status into the return code.
 	var schedFailure bool
 
+	// Add the initial pending state
+	m.update(newEvalState())
+
 	m.ui.Info(fmt.Sprintf("Monitoring evaluation %q", evalID))
 	for {
 		// Query the evaluation
@@ -183,15 +187,13 @@ func (m *monitor) monitor(evalID string) int {
 		}
 
 		// Create the new eval state.
-		state := &evalState{
-			status: eval.Status,
-			desc:   eval.StatusDescription,
-			node:   eval.NodeID,
-			job:    eval.JobID,
-			allocs: make(map[string]*allocState),
-			wait:   eval.Wait,
-			index:  eval.CreateIndex,
-		}
+		state := newEvalState()
+		state.status = eval.Status
+		state.desc = eval.StatusDescription
+		state.node = eval.NodeID
+		state.job = eval.JobID
+		state.wait = eval.Wait
+		state.index = eval.CreateIndex
 
 		// Query the allocations associated with the evaluation
 		allocs, _, err := m.client.Evaluations().Allocations(evalID, nil)
@@ -248,7 +250,8 @@ func (m *monitor) monitor(evalID string) int {
 			// Skip some unnecessary polling
 			time.Sleep(eval.Wait)
 
-			m.init()
+			// Reset the state and monitor the new eval
+			m.state = newEvalState()
 			return m.monitor(eval.NextEval)
 		}
 		break

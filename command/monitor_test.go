@@ -26,7 +26,6 @@ func TestMonitor_Update_Eval(t *testing.T) {
 		t.Fatalf("missing job\n\n%s", out)
 	}
 	ui.OutputWriter.Reset()
-	mon.init()
 
 	// Evals trigerred by nodes log
 	state = &evalState{
