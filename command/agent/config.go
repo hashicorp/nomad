@@ -482,16 +482,10 @@ func LoadConfig(path string) (*Config, error) {
 	}
 }
 
-// LoadConfigFile loads the configuration from the given file.
-func LoadConfigFile(path string) (*Config, error) {
-	// Read the file
-	d, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-
+// LoadConfigString is used to parse a config string
+func LoadConfigString(s string) (*Config, error) {
 	// Parse!
-	obj, err := hcl.Parse(string(d))
+	obj, err := hcl.Parse(s)
 	if err != nil {
 		return nil, err
 	}
@@ -503,6 +497,16 @@ func LoadConfigFile(path string) (*Config, error) {
 	}
 
 	return &result, nil
+}
+
+// LoadConfigFile loads the configuration from the given file.
+func LoadConfigFile(path string) (*Config, error) {
+	// Read the file
+	d, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	return LoadConfigString(string(d))
 }
 
 func getString(o *hclobj.Object) string {
