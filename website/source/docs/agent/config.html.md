@@ -110,3 +110,39 @@ nodes, unless otherwise specified:
     server to forward metrics to.
   * `disable_hostname`: A boolean indicating if gauge values should not be
     prefixed with the local hostname.
+
+## Server-specific Options
+
+The following options are applicable to server agents only and need not be
+configured on client nodes.
+
+* `server`: This is the top-level key used to define the Nomad server
+  configuration. It is a key/value mapping which supports the following keys:
+  <br>
+  * `enabled`: A boolean indicating if server mode should be enabled for the
+    local agent. All other server options depend on this value being set.
+    Defaults to `false`.
+  * `bootstrap`: A boolean indicating if the server should be started in
+    bootstrap mode. Bootstrap mode is a special case mode used for easily
+    starting a single-server Nomad server cluster. This mode of operation does
+    not provide any fault tolerance and is not recommended for production
+    environments. Defaults to `false`.
+  * `bootstrap_expect`: This is an integer representing the number of server
+    nodes to wait for before bootstrapping. This is a safer alternative to
+    bootstrap mode, as there will never be a single point-of-failure. It is most
+    common to use the odd-numbered integers `3` or `5` for this value, depending
+    on the cluster size. A value of `1` is functionally equivalent to bootstrap
+    mode and is not recommended.
+  * `data_dir`: This is the data directory used for server-specific data,
+    including the replicated log. By default, this directory lives inside of the
+    [data_dir](#data_dir) in the "server" sub-path.
+  * `protocol_version`: The Nomad protocol version spoken when communicating
+    with other Nomad servers. This value is typically not required as the agent
+    internally knows the latest version, but may be useful in some upgrade
+    scenarios.
+  * `num_schedulers`: The number of parallel scheduler threads to run. This
+    can be as many as one per core, or `0` to disallow this server from making
+    any scheduling decisions.
+  * `enabled_schedulers`: This is an array of strings indicating which
+    sub-schedulers this server will handle. This can be used to restrict the
+    evaluations that worker threads will dequeue for processing.
