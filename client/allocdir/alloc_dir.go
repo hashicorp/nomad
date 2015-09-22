@@ -31,6 +31,11 @@ type AllocDirBuilder interface {
 	// Returns the directory of a task if it was created, otherwise an error is
 	// returned.
 	TaskDir(task string) (string, error)
+
+	// Embed takes a mapping of absolute directory paths on the host to their
+	// intended, relative location within the task directory. Embed attempts
+	// hardlink and then defaults to copying.
+	Embed(task string, dirs map[string]string) error
 }
 
 type AllocDir struct {
