@@ -27,6 +27,9 @@ func NewAWSNetworkFingerprinter(logger *log.Logger) Fingerprint {
 }
 
 func (f *AWSNetworkFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
+	if !isAWS() {
+		return false, nil
+	}
 	metadataURL := os.Getenv("AWS_ENV_URL")
 	if metadataURL == "" {
 		metadataURL = "http://169.254.169.254/latest/meta-data/"

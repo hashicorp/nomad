@@ -71,3 +71,18 @@ func TestNetworkFingerprint_AWS(t *testing.T) {
 	assertNodeAttributeContains(t, node, "network.ip-address")
 	assertNodeAttributeContains(t, node, "network.internal-ip")
 }
+
+func TestNetworkFingerprint_notAWS(t *testing.T) {
+	f := NewAWSNetworkFingerprinter(testLogger())
+	node := &structs.Node{
+		Attributes: make(map[string]string),
+	}
+
+	ok, err := f.Fingerprint(&config.Config{}, node)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if ok {
+		t.Fatalf("Should not apply")
+	}
+}
