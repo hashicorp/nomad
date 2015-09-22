@@ -9,7 +9,9 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/hashicorp/nomad/client/config"
@@ -36,6 +38,11 @@ func NewJavaDriver(ctx *DriverContext) Driver {
 }
 
 func (d *JavaDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
+	// Only enable if we are root when running on non-windows systems.
+	if runtime.GOOS != "windows" && syscall.Geteuid() != 0 {
+		return false, nil
+	}
+
 	// Find java version
 	var out bytes.Buffer
 	var erOut bytes.Buffer

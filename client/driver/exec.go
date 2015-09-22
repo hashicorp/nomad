@@ -2,7 +2,9 @@ package driver
 
 import (
 	"fmt"
+	"runtime"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/hashicorp/nomad/client/config"
@@ -30,7 +32,11 @@ func NewExecDriver(ctx *DriverContext) Driver {
 }
 
 func (d *ExecDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
-	// We can always do a fork/exec
+	// Only enable if we are root when running on non-windows systems.
+	if runtime.GOOS != "windows" && syscall.Geteuid() != 0 {
+		return false, nil
+	}
+
 	node.Attributes["driver.exec"] = "1"
 	return true, nil
 }
