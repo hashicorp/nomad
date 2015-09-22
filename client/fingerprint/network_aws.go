@@ -2,11 +2,13 @@
 package fingerprint
 
 import (
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -20,7 +22,7 @@ type AWSNetworkFingerprint struct {
 }
 
 // AWSNetworkFingerprint is used to create a new AWS Network Fingerprinter
-func NewAWSNetworkFingerprinter(logger *log.Logger) NetworkFingerPrinter {
+func NewAWSNetworkFingerprinter(logger *log.Logger) Fingerprint {
 	f := &AWSNetworkFingerprint{logger: logger}
 	return f
 }
@@ -61,19 +63,14 @@ func (f *AWSNetworkFingerprint) Fingerprint(cfg *config.Config, node *structs.No
 		node.Attributes["network."+name] = strings.Trim(string(body), "\n")
 	}
 
-	if throughput := f.LinkSpeed(""); throughput != "" {
+	if throughput := f.linkSpeed(); throughput != "" {
 		node.Attributes["network.throughput"] = throughput
 	}
 
 	return true, nil
 }
 
-func (f *AWSNetworkFingerprint) Interfaces() []string {
-	// NO OP for now
-	return nil
-}
-
-func (f *AWSNetworkFingerprint) LinkSpeed(device string) string {
+func (f *AWSNetworkFingerprint) linkSpeed() string {
 	// This table is an approximation of network speeds based on
 	// http://serverfault.com/questions/324883/aws-bandwidth-and-content-delivery/326797#326797
 	// which itself cites these sources:
@@ -142,9 +139,20 @@ func (f *AWSNetworkFingerprint) LinkSpeed(device string) string {
 	}
 
 	key := strings.Trim(string(body), "\n")
-	if v, ok := net[key]; ok {
-		return v
+	v, ok := net[key]
+	if !ok {
+		return ""
 	}
 
-	return ""
+	// convert to Mbps
+	if strings.Contains(v, "Gbp/s") {
+		i, err := strconv.Atoi(strings.TrimSuffix(v, "Gbp/s"))
+		if err != nil {
+			f.logger.Printf("[Err] Error converting lookup value")
+			return ""
+		}
+		v = fmt.Sprintf("%dMB/s", i*125)
+	}
+
+	return v
 }

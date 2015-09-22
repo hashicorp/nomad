@@ -7,29 +7,7 @@ import (
 	"os"
 	"regexp"
 	"time"
-
-	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/nomad/structs"
 )
-
-type NetworkFingerPrinter interface {
-	// Fingerprint collects information about the nodes network configuration
-	Fingerprint(cfg *config.Config, node *structs.Node) (bool, error)
-
-	// Interfaces returns a slice of connected interface devices for the node
-	Interfaces() []string
-
-	// LinkSpeed queries a given interface device and returns speed information,
-	// in MB/s
-	LinkSpeed(device string) string
-}
-
-func NetworkDefault(logger *log.Logger) NetworkFingerPrinter {
-	if isAWS() {
-		return NewAWSNetworkFingerprinter(logger)
-	}
-	return NewNetworkFingerprinter(logger)
-}
 
 // isAWS queries the internal AWS Instance Metadata url, and determines if the
 // node is running on AWS or not.

@@ -14,7 +14,7 @@ import (
 )
 
 func TestNetworkFingerprint_basic(t *testing.T) {
-	f := NetworkDefault(testLogger())
+	f := NewUnixNetworkFingerprinter(testLogger())
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
@@ -25,9 +25,6 @@ func TestNetworkFingerprint_basic(t *testing.T) {
 	}
 	if !ok {
 		t.Fatalf("should apply")
-	}
-	if _, ok := f.(*UnixNetworkFingerprint); !ok {
-		t.Fatalf("Expected a Unix type Network Fingerprinter")
 	}
 
 	// Darwin uses en0 for the default device, and does not have a standard
@@ -57,7 +54,7 @@ func TestNetworkFingerprint_AWS(t *testing.T) {
 	defer ts.Close()
 	os.Setenv("AWS_ENV_URL", ts.URL+"/latest/meta-data/")
 
-	f := NetworkDefault(testLogger())
+	f := NewAWSNetworkFingerprinter(testLogger())
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
