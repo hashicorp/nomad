@@ -1,4 +1,3 @@
-// +build linux,darwin
 package fingerprint
 
 import (
