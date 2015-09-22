@@ -17,7 +17,7 @@ var BuiltinFingerprints = []string{
 	"memory",
 	"storage",
 	"network_unix",
-	"network_aws",
+	"env_aws",
 }
 
 // builtinFingerprintMap contains the built in registered fingerprints
@@ -29,7 +29,7 @@ var builtinFingerprintMap = map[string]Factory{
 	"memory":       NewMemoryFingerprint,
 	"storage":      NewStorageFingerprint,
 	"network_unix": NewUnixNetworkFingerprinter,
-	"network_aws":  NewAWSNetworkFingerprinter,
+	"env_aws":      NewEnvAWSFingerprint,
 }
 
 // NewFingerprint is used to instantiate and return a new fingerprint
