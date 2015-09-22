@@ -55,12 +55,25 @@ func (c *Command) readConfig() *Config {
 
 	flags := flag.NewFlagSet("agent", flag.ContinueOnError)
 	flags.Usage = func() { c.Ui.Error(c.Help()) }
+
+	// Role options
 	flags.BoolVar(&dev, "dev", false, "")
 	flags.BoolVar(&cmdConfig.Server.Enabled, "server", false, "")
 	flags.BoolVar(&cmdConfig.Client.Enabled, "client", false, "")
-	flags.StringVar(&cmdConfig.DataDir, "data-dir", "", "")
-	flags.StringVar(&cmdConfig.LogLevel, "log-level", "info", "")
+
+	// General options
 	flags.Var((*sliceflag.StringFlag)(&configPath), "config", "config")
+	flags.StringVar(&cmdConfig.BindAddr, "bind", "", "")
+	flags.StringVar(&cmdConfig.Region, "region", "", "")
+	flags.StringVar(&cmdConfig.DataDir, "data-dir", "", "")
+	flags.StringVar(&cmdConfig.Datacenter, "dc", "", "")
+	flags.StringVar(&cmdConfig.LogLevel, "log-level", "info", "")
+	flags.StringVar(&cmdConfig.NodeName, "node", "", "")
+
+	// Atlas options
+	flags.StringVar(&cmdConfig.Atlas.Infrastructure, "atlas", "", "")
+	flags.BoolVar(&cmdConfig.Atlas.Join, "atlas-join", false, "")
+	flags.StringVar(&cmdConfig.Atlas.Token, "atlas-token", "", "")
 
 	if err := flags.Parse(c.args); err != nil {
 		return nil
@@ -89,6 +102,9 @@ func (c *Command) readConfig() *Config {
 	}
 
 	// Ensure the sub-structs at least exist
+	if config.Atlas == nil {
+		config.Atlas = &AtlasConfig{}
+	}
 	if config.Client == nil {
 		config.Client = &ClientConfig{}
 	}
@@ -488,12 +504,12 @@ Usage: nomad agent [options]
   files used, but a subset of the options may also be passed directly
   as CLI arguments, listed below.
 
-Options:
+General Options (clients and servers):
 
-  -client
-    Enable client mode for the agent. Client mode enables a given node
-    to be evaluated for allocations. If client mode is not enabled,
-    no work will be scheduled to the agent.
+  -bind=<addr>
+    The address the agent will bind to for all of its various network
+    services. The individual services that run bind to individual
+    ports on this address. Defaults to the loopback 127.0.0.1.
 
   -config=<path>
     The path to either a single config file or a directory of config
@@ -509,21 +525,58 @@ Options:
     downloaded artifacts used by drivers. On server nodes, the data
     dir is also used to store the replicated log.
 
+  -datacenter=<dc>
+    The name of the datacenter this Nomad agent is a member of. By
+    default this is set to "dc1".
+
+  -log-level=<level>
+    Specify the verbosity level of Nomad's logs. Valid values include
+    DEBUG, INFO, and WARN, in decreasing order of verbosity. The
+    default is INFO.
+
+  -node=<name>
+    The name of the local agent. This name is used to identify the node
+    in the cluster. The name must be unique per region. The default is
+    the current hostname of the machine.
+
+  -region=<region>
+    Name of the region the Nomad agent will be a member of. By default
+    this value is set to "global".
+
+Role-Specific Options:
+
+  -client
+    Enable client mode for the agent. Client mode enables a given node
+    to be evaluated for allocations. If client mode is not enabled,
+    no work will be scheduled to the agent.
+
   -dev
     Start the agent in development mode. This enables a pre-configured
     dual-role agent (client + server) which is useful for developing
     or testing Nomad. No other configuration is required to start the
     agent in this mode.
 
-  -log-level=<level>
-    Specify the verbosity level of Nomad's logs. Valid values include
-    DEBUG, INFO, and WARN, in decreasing order of verbosity.
-
   -server
     Enable server mode for the agent. Agents in server mode are
     clustered together and handle the additional responsibility of
     leader election, data replication, and scheduling work onto
     eligible client nodes.
+
+Atlas Options:
+
+  -atlas=<infrastructure>
+    The Atlas infrastructure name to configure. This enables the SCADA
+    client and attempts to connect Nomad to the HashiCorp Atlas service
+    using the provided infrastructure name and token.
+
+  -atlas-token=<token>
+    The Atlas token to use when connecting to the HashiCorp Atlas
+    service. This must be provided to successfully connect your Nomad
+    agent to Atlas.
+
+  -atlas-join
+    Enable the Atlas join feature. This mode allows agents to discover
+    eachother automatically using the SCADA integration features.
  `
 	return strings.TrimSpace(helpText)
 }
