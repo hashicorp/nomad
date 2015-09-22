@@ -51,7 +51,13 @@ func (c *Command) readConfig() *Config {
 	var dev bool
 	var configPath []string
 
-	cmdConfig := DefaultConfig()
+	// Make a new, empty config.
+	cmdConfig := &Config{
+		Atlas:  &AtlasConfig{},
+		Client: &ClientConfig{},
+		Ports:  &Ports{},
+		Server: &ServerConfig{},
+	}
 
 	flags := flag.NewFlagSet("agent", flag.ContinueOnError)
 	flags.Usage = func() { c.Ui.Error(c.Help()) }
