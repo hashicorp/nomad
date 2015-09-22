@@ -306,6 +306,35 @@ func (c *Client) saveState() error {
 	return mErr.ErrorOrNil()
 }
 
+// nodeID restores a persistent unique ID or generates a new one
+func (c *Client) nodeID() (string, error) {
+	// Do not persist in dev mode
+	if c.config.DevMode {
+		return structs.GenerateUUID(), nil
+	}
+
+	// Attempt to read existing ID
+	path := filepath.Join(c.config.StateDir, "client-id")
+	buf, err := ioutil.ReadFile(path)
+	if err != nil && !os.IsNotExist(err) {
+		return "", err
+	}
+
+	// Use existing ID if any
+	if len(buf) != 0 {
+		return string(buf), nil
+	}
+
+	// Generate new ID
+	id := structs.GenerateUUID()
+
+	// Persist the ID
+	if err := ioutil.WriteFile(path, []byte(id), 0700); err != nil {
+		return "", err
+	}
+	return id, nil
+}
+
 // setupNode is used to setup the initial node
 func (c *Client) setupNode() error {
 	node := c.config.Node
@@ -326,7 +355,11 @@ func (c *Client) setupNode() error {
 		node.Resources = &structs.Resources{}
 	}
 	if node.ID == "" {
-		node.ID = structs.GenerateUUID()
+		id, err := c.nodeID()
+		if err != nil {
+			return fmt.Errorf("node ID setup failed: %v", err)
+		}
+		node.ID = id
 	}
 	if node.Datacenter == "" {
 		node.Datacenter = "dc1"
