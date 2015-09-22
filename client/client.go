@@ -244,8 +244,8 @@ func (c *Client) Stats() map[string]map[string]string {
 		"client": map[string]string{
 			"known_servers":   toString(uint64(len(c.config.Servers))),
 			"num_allocations": toString(uint64(numAllocs)),
-			"last_heartbeat":  fmt.Sprintf("%#v", time.Since(c.lastHeartbeat)),
-			"heartbeat_ttl":   fmt.Sprintf("%#v", c.heartbeatTTL),
+			"last_heartbeat":  fmt.Sprintf("%v", time.Since(c.lastHeartbeat)),
+			"heartbeat_ttl":   fmt.Sprintf("%v", c.heartbeatTTL),
 		},
 		"runtime": nomad.RuntimeStats(),
 	}
