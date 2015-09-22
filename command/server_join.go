@@ -5,13 +5,13 @@ import (
 	"strings"
 )
 
-type AgentJoinCommand struct {
+type ServerJoinCommand struct {
 	Meta
 }
 
-func (c *AgentJoinCommand) Help() string {
+func (c *ServerJoinCommand) Help() string {
 	helpText := `
-Usage: nomad agent-join [options] <addr> [<addr>...]
+Usage: nomad server-join [options] <addr> [<addr>...]
 
   Joins the local server to one or more Nomad servers. Joining is
   only required for server nodes, and only needs to succeed
@@ -25,12 +25,12 @@ General Options:
 	return strings.TrimSpace(helpText)
 }
 
-func (c *AgentJoinCommand) Synopsis() string {
+func (c *ServerJoinCommand) Synopsis() string {
 	return "Join server nodes together"
 }
 
-func (c *AgentJoinCommand) Run(args []string) int {
-	flags := c.Meta.FlagSet("agent-join", FlagSetClient)
+func (c *ServerJoinCommand) Run(args []string) int {
+	flags := c.Meta.FlagSet("server-join", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -59,6 +59,6 @@ func (c *AgentJoinCommand) Run(args []string) int {
 	}
 
 	// Success
-	c.Ui.Output(fmt.Sprintf("Joined %d nodes successfully", n))
+	c.Ui.Output(fmt.Sprintf("Joined %d servers successfully", n))
 	return 0
 }
