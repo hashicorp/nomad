@@ -210,6 +210,7 @@ func DefaultConfig() *Config {
 		},
 		Addresses:      &Addresses{},
 		AdvertiseAddrs: &AdvertiseAddrs{},
+		Atlas:          &AtlasConfig{},
 		Client: &ClientConfig{
 			Enabled: false,
 		},

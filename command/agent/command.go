@@ -50,12 +50,31 @@ type Command struct {
 func (c *Command) readConfig() *Config {
 	var dev bool
 	var configPath []string
-	var logLevel string
+
+	cmdConfig := DefaultConfig()
+
 	flags := flag.NewFlagSet("agent", flag.ContinueOnError)
-	flags.BoolVar(&dev, "dev", false, "")
-	flags.StringVar(&logLevel, "log-level", "info", "")
 	flags.Usage = func() { c.Ui.Error(c.Help()) }
+
+	// Role options
+	flags.BoolVar(&dev, "dev", false, "")
+	flags.BoolVar(&cmdConfig.Server.Enabled, "server", false, "")
+	flags.BoolVar(&cmdConfig.Client.Enabled, "client", false, "")
+
+	// General options
 	flags.Var((*sliceflag.StringFlag)(&configPath), "config", "config")
+	flags.StringVar(&cmdConfig.BindAddr, "bind", "", "")
+	flags.StringVar(&cmdConfig.Region, "region", "", "")
+	flags.StringVar(&cmdConfig.DataDir, "data-dir", "", "")
+	flags.StringVar(&cmdConfig.Datacenter, "dc", "", "")
+	flags.StringVar(&cmdConfig.LogLevel, "log-level", "info", "")
+	flags.StringVar(&cmdConfig.NodeName, "node", "", "")
+
+	// Atlas options
+	flags.StringVar(&cmdConfig.Atlas.Infrastructure, "atlas", "", "")
+	flags.BoolVar(&cmdConfig.Atlas.Join, "atlas-join", false, "")
+	flags.StringVar(&cmdConfig.Atlas.Token, "atlas-token", "", "")
+
 	if err := flags.Parse(c.args); err != nil {
 		return nil
 	}
@@ -83,11 +102,23 @@ func (c *Command) readConfig() *Config {
 	}
 
 	// Ensure the sub-structs at least exist
+	if config.Atlas == nil {
+		config.Atlas = &AtlasConfig{}
+	}
 	if config.Client == nil {
 		config.Client = &ClientConfig{}
 	}
 	if config.Server == nil {
 		config.Server = &ServerConfig{}
+	}
+
+	// Merge any CLI options over config file options
+	config = config.Merge(cmdConfig)
+
+	// Check that we have a data-dir if we are a server
+	if !dev && config.DataDir == "" {
+		c.Ui.Error("Must specify data directory")
+		return nil
 	}
 
 	// Set the version info
@@ -469,50 +500,83 @@ Usage: nomad agent [options]
   Starts the Nomad agent and runs until an interrupt is received.
   The agent may be a client and/or server.
 
-Options:
+  The Nomad agent's configuration primarily comes from the config
+  files used, but a subset of the options may also be passed directly
+  as CLI arguments, listed below.
 
-  -advertise=addr          Sets the advertise address to use
-  -atlas=org/name          Sets the Atlas infrastructure name, enables SCADA.
-  -atlas-join              Enables auto-joining the Atlas cluster
-  -atlas-token=token       Provides the Atlas API token
-  -bootstrap               Sets server to bootstrap mode
-  -bind=0.0.0.0            Sets the bind address for cluster communication
-  -bootstrap-expect=0      Sets server to expect bootstrap mode.
-  -client=127.0.0.1        Sets the address to bind for client access.
-                           This includes RPC, DNS, HTTP and HTTPS (if configured)
-  -config-file=foo         Path to a JSON file to read configuration from.
-                           This can be specified multiple times.
-  -config-dir=foo          Path to a directory to read configuration files
-                           from. This will read every file ending in ".json"
-                           as configuration in this directory in alphabetical
-                           order. This can be specified multiple times.
-  -data-dir=path           Path to a data directory to store agent state
-  -recursor=1.2.3.4        Address of an upstream DNS server.
-                           Can be specified multiple times.
-  -dc=east-aws             Datacenter of the agent
-  -encrypt=key             Provides the gossip encryption key
-  -join=1.2.3.4            Address of an agent to join at start time.
-                           Can be specified multiple times.
-  -join-wan=1.2.3.4        Address of an agent to join -wan at start time.
-                           Can be specified multiple times.
-  -retry-join=1.2.3.4      Address of an agent to join at start time with
-                           retries enabled. Can be specified multiple times.
-  -retry-interval=30s      Time to wait between join attempts.
-  -retry-max=0             Maximum number of join attempts. Defaults to 0, which
-                           will retry indefinitely.
-  -retry-join-wan=1.2.3.4  Address of an agent to join -wan at start time with
-                           retries enabled. Can be specified multiple times.
-  -retry-interval-wan=30s  Time to wait between join -wan attempts.
-  -retry-max-wan=0         Maximum number of join -wan attempts. Defaults to 0, which
-                           will retry indefinitely.
-  -log-level=info          Log level of the agent.
-  -node=hostname           Name of this node. Must be unique in the cluster
-  -protocol=N              Sets the protocol version. Defaults to latest.
-  -rejoin                  Ignores a previous leave and attempts to rejoin the cluster.
-  -server                  Switches agent to server mode.
-  -syslog                  Enables logging to syslog
-  -ui-dir=path             Path to directory containing the Web UI resources
-  -pid-file=path           Path to file to store agent PID
+General Options (clients and servers):
+
+  -bind=<addr>
+    The address the agent will bind to for all of its various network
+    services. The individual services that run bind to individual
+    ports on this address. Defaults to the loopback 127.0.0.1.
+
+  -config=<path>
+    The path to either a single config file or a directory of config
+    files to use for configuring the Nomad agent. This option may be
+    specified multiple times. If multiple config files are used, the
+    values from each will be merged together. During merging, values
+    from files found later in the list are merged over values from
+    previously parsed files.
+
+  -data-dir=<path>
+    The data directory used to store state and other persistent data.
+    On client machines this is used to house allocation data such as
+    downloaded artifacts used by drivers. On server nodes, the data
+    dir is also used to store the replicated log.
+
+  -dc=<datacenter>
+    The name of the datacenter this Nomad agent is a member of. By
+    default this is set to "dc1".
+
+  -log-level=<level>
+    Specify the verbosity level of Nomad's logs. Valid values include
+    DEBUG, INFO, and WARN, in decreasing order of verbosity. The
+    default is INFO.
+
+  -node=<name>
+    The name of the local agent. This name is used to identify the node
+    in the cluster. The name must be unique per region. The default is
+    the current hostname of the machine.
+
+  -region=<region>
+    Name of the region the Nomad agent will be a member of. By default
+    this value is set to "global".
+
+Role-Specific Options:
+
+  -client
+    Enable client mode for the agent. Client mode enables a given node
+    to be evaluated for allocations. If client mode is not enabled,
+    no work will be scheduled to the agent.
+
+  -dev
+    Start the agent in development mode. This enables a pre-configured
+    dual-role agent (client + server) which is useful for developing
+    or testing Nomad. No other configuration is required to start the
+    agent in this mode.
+
+  -server
+    Enable server mode for the agent. Agents in server mode are
+    clustered together and handle the additional responsibility of
+    leader election, data replication, and scheduling work onto
+    eligible client nodes.
+
+Atlas Options:
+
+  -atlas=<infrastructure>
+    The Atlas infrastructure name to configure. This enables the SCADA
+    client and attempts to connect Nomad to the HashiCorp Atlas service
+    using the provided infrastructure name and token.
+
+  -atlas-token=<token>
+    The Atlas token to use when connecting to the HashiCorp Atlas
+    service. This must be provided to successfully connect your Nomad
+    agent to Atlas.
+
+  -atlas-join
+    Enable the Atlas join feature. This mode allows agents to discover
+    eachother automatically using the SCADA integration features.
  `
 	return strings.TrimSpace(helpText)
 }
