@@ -86,7 +86,7 @@ func Job() *structs.Job {
 							Networks: []*structs.NetworkResource{
 								&structs.NetworkResource{
 									MBits:        50,
-									DynamicPorts: []string{"HTTP"},
+									DynamicPorts: []string{"http"},
 								},
 							},
 						},
@@ -135,7 +135,7 @@ func Alloc() *structs.Allocation {
 					IP:            "192.168.0.100",
 					ReservedPorts: []int{12345},
 					MBits:         100,
-					DynamicPorts:  []string{"HTTP"},
+					DynamicPorts:  []string{"http"},
 				},
 			},
 		},
@@ -149,7 +149,7 @@ func Alloc() *structs.Allocation {
 						IP:            "192.168.0.100",
 						ReservedPorts: []int{5000},
 						MBits:         50,
-						DynamicPorts:  []string{"HTTP"},
+						DynamicPorts:  []string{"http"},
 					},
 				},
 			},
