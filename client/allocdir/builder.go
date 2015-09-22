@@ -62,7 +62,7 @@ func (d *AllocDir) Build(tasks []*structs.Task) error {
 	return nil
 }
 
-func (r *AllocDir) Embed(task string, dirs map[string]string) error {
+func (d *AllocDir) Embed(task string, dirs map[string]string) error {
 	return nil
 }
 
