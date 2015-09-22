@@ -525,7 +525,7 @@ General Options (clients and servers):
     downloaded artifacts used by drivers. On server nodes, the data
     dir is also used to store the replicated log.
 
-  -datacenter=<dc>
+  -dc=<datacenter>
     The name of the datacenter this Nomad agent is a member of. By
     default this is set to "dc1".
 
