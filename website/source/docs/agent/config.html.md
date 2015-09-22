@@ -198,3 +198,24 @@ integration and are entirely optional.
   * `endpoint`: The address of the Atlas instance to connect to. Defaults to the
     public Atlas endpoint and is only used if both
     [infrastructure](#infrastructure) and [token](#token) are provided.
+
+## Command-line Options
+
+A subset of the available Nomad agent configuration can optionally be passed in
+via CLI arguments. The `agent` command accepts the following arguments:
+
+* `-bind=<address>`: Equivalent to the [bind_addr](#bind_addr) config option.
+* `-config=<path>`: Specifies the path to a configuration file or a directory of
+  configuration files to load. Can be specified multiple times.
+* `-data-dir=<path>`: Equivalent to the [data_dir](#data_dir) config option.
+* `-dc=<datacenter>`: Equivalent to the [datacenter](#datacenter) config option.
+* `-log-level=<level>`: Equivalent to the [log_level](#log_level) config option.
+* `-node=<name>`: Equivalent to the [node](#node) config option.
+* `-region=<region>`: Equivalent to the [region](#region) config option.
+* `-client`: Enable client mode on the local agent
+* `-server`: Enable server mode on the local agent
+* `-dev`: Equivalent to the [dev](#dev) config option.
+* `-atlas=<infrastructure>`: Equivalent to the Atlas
+  [infrastructure](#infrastructure) config option.
+* `-atlas-token=<token>`: Equivalent to the Atlas [token](#token) config option.
+* `-atlas-join`: Equivalent to the Atlas [join](#join) config option.
