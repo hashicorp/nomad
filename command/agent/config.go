@@ -54,21 +54,29 @@ type Config struct {
 	// Server has our server related settings
 	Server *ServerConfig `hcl:"server"`
 
+	// Telemetry is used to configure sending telemetry
 	Telemetry *Telemetry `hcl:"telemetry"`
 
-	LeaveOnInt     bool
-	LeaveOnTerm    bool
-	EnableSyslog   bool
-	SyslogFacility string
+	// LeaveOnInt is used to gracefully leave on the interrupt signal
+	LeaveOnInt bool `hcl:"leave_on_interrupt"`
 
-	DisableUpdateCheck        bool
-	DisableAnonymousSignature bool
+	// LeaveOnTerm is used to gracefully leave on the terminate signal
+	LeaveOnTerm bool `hcl:"leave_on_terminate"`
 
-	Revision          string
-	Version           string
-	VersionPrerelease string
+	// EnableSyslog is used to enable sending logs to syslog
+	EnableSyslog bool `hcl:"enable_syslog"`
 
-	DevMode bool `hcl:"-"`
+	// SyslogFacility is used to control the syslog facility used.
+	SyslogFacility string `hcl:"syslog_facility"`
+
+	// DisableUpdateCheck is used to disable the periodic update
+	// and security bulletin checking.
+	DisableUpdateCheck bool `hcl:"disable_update_check"`
+
+	// DisableAnonymousSignature is used to disable setting the
+	// anonymous signature when doing the update check and looking
+	// for security bulletins
+	DisableAnonymousSignature bool `hcl:"disable_anonymous_signature"`
 
 	// AtlasConfig is used to configure Atlas
 	Atlas *AtlasConfig `hcl:"atlas"`
@@ -80,11 +88,20 @@ type Config struct {
 	// ClientConfig is used to override the default config.
 	// This is largly used for testing purposes.
 	ClientConfig *client.Config `hcl:"-" json:"-"`
+
+	// DevMode is set by the -dev CLI flag.
+	DevMode bool `hcl:"-"`
+
+	// Version information is set at compilation time
+	Revision          string
+	Version           string
+	VersionPrerelease string
 }
 
 // AtlasConfig is used to enable an parameterize the Atlas integration
 type AtlasConfig struct {
-	// Infrastructure is the name of the infrastructure we belong to. e.g. hashicorp/stage
+	// Infrastructure is the name of the infrastructure
+	// we belong to. e.g. hashicorp/stage
 	Infrastructure string `hcl:"infrastructure"`
 
 	// Token is our authentication token from Atlas
@@ -99,6 +116,7 @@ type AtlasConfig struct {
 	Endpoint string `hcl:"endpoint"`
 }
 
+// ClientConfig is configuration specific to the client mode
 type ClientConfig struct {
 	// Enabled controls if we are a client
 	Enabled bool `hcl:"enabled"`
@@ -123,6 +141,7 @@ type ClientConfig struct {
 	Meta map[string]string `hcl:"meta"`
 }
 
+// ServerConfig is configuration specific to the server mode
 type ServerConfig struct {
 	// Enabled controls if we are a server
 	Enabled bool `hcl:"enabled"`

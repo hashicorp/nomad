@@ -37,14 +37,14 @@ The following configuration options are available to both client and server
 nodes, unless otherwise specified:
 
 * `region`: Specifies the region the Nomad agent is a member of. A region
-  typically maps to a geographic region, for example `us-east`, with potentially
-  multiple zones, which map to [datacenters](#datacenter). Defaults to
-  `global`.
+  typically maps to a geographic region, for example `us`, with potentially
+  multiple zones, which map to [datacenters](#datacenter) such as `us-west`
+  and `us-east`. Defaults to `global`.
 
-* `datacenter`: Datacenter name the local agent is a member of. Members within a
-  single datacenter should all share a local LAN connection. Defaults to `dc1`.
+* `datacenter`: Datacenter of the local agent. All members of a datacenter
+  should all share a local LAN connection. Defaults to `dc1`.
 
-* `node`: The name of the local node. This value is used to identify individual
+* `name`: The name of the local node. This value is used to identify individual
   nodes in a given datacenter and must be unique per-datacenter. By default this
   is set to the local host's name.
 
@@ -99,6 +99,18 @@ nodes, unless otherwise specified:
     server nodes from the same datacenter if possible. Used only on server
     nodes.
 
+* `advertise`: Controls the advertise address for individual network services. Any
+  values configured in this block take precedence over the default
+  [bind_addr](#bind_addr). The value is a map of IP addresses and supports the
+  following keys:
+  <br>
+  * `rpc`: The address to advertise for the RPC interface. Should be exposed
+    only to other cluster members if possible. Used only on server nodes, but
+    must be accessible from all agents.
+  * `serf`: The address used advertise for the gossip layer. Both a TCP and UDP
+    listener will be exposed on this address. Must be accessible from all
+    server nodes. Used only on server nodes.
+
 * `telemetry`: Used to control how the Nomad agent exposes telemetry data to
   external metrics collection servers. This is a key/value mapping and supports
   the following keys:
@@ -110,6 +122,24 @@ nodes, unless otherwise specified:
     server to forward metrics to.
   * `disable_hostname`: A boolean indicating if gauge values should not be
     prefixed with the local hostname.
+
+* `leave_on_interrupt`: Enables gracefully leave when receiving the
+  interrupt signal. By default, the agent will exit forcefully on any signal.
+
+* `leave_on_terminate`: Enables gracefully leave when receiving the
+  terminate signal. By default, the agent will exit forcefully on any signal.
+
+* `enable_syslog`: Enables logging to syslog. This option only work on
+  Unix based systems.
+
+* `syslog_facility`: Controls the syslog facility that is used. By default,
+  `LOCAL0` will be used. This should be used with `enable_syslog`.
+
+* `disable_update_check`: Disables automatic checking for security bulletins
+  and new version releases.
+
+* `disable_anonymous_signature`: Disables providing an anonymous signature
+  for de-duplication with the update check. See `disable_update_check`.
 
 ## Server-specific Options
 
@@ -142,10 +172,11 @@ configured on client nodes.
     scenarios.
   * `num_schedulers`: The number of parallel scheduler threads to run. This
     can be as many as one per core, or `0` to disallow this server from making
-    any scheduling decisions.
+    any scheduling decisions. This defaults to the number of CPU cores.
   * `enabled_schedulers`: This is an array of strings indicating which
     sub-schedulers this server will handle. This can be used to restrict the
-    evaluations that worker threads will dequeue for processing.
+    evaluations that worker threads will dequeue for processing. This
+    defaults to all available schedulers.
 
 ## Client-specific Options
 
