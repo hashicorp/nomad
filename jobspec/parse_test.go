@@ -92,7 +92,7 @@ func TestParse(t *testing.T) {
 										&structs.NetworkResource{
 											MBits:         100,
 											ReservedPorts: []int{1, 2, 3},
-											DynamicPorts:  3,
+											DynamicPorts:  []string{"http", "https", "admin"},
 										},
 									},
 								},

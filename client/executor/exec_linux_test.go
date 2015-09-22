@@ -18,7 +18,7 @@ var (
 		Networks: []*structs.NetworkResource{
 			&structs.NetworkResource{
 				MBits:        50,
-				DynamicPorts: 1,
+				DynamicPorts: []string{"http"},
 			},
 		},
 	}
