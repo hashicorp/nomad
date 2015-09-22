@@ -612,12 +612,12 @@ func (r *Resources) GoString() string {
 // NetworkResource is used to represesent available network
 // resources
 type NetworkResource struct {
-	Device        string // Name of the device
-	CIDR          string // CIDR block of addresses
-	IP            string // IP address
-	MBits         int    // Throughput
-	ReservedPorts []int  `mapstructure:"reserved_ports"` // Reserved ports
-	DynamicPorts  int    `mapstructure:"dynamic_ports"`  // Dynamically assigned ports
+	Device        string   // Name of the device
+	CIDR          string   // CIDR block of addresses
+	IP            string   // IP address
+	MBits         int      // Throughput
+	ReservedPorts []int    `mapstructure:"reserved_ports"` // Reserved ports
+	DynamicPorts  []string `mapstructure:"dynamic_ports"`  // Dynamically assigned ports
 }
 
 // Copy returns a deep copy of the network resource
@@ -638,7 +638,7 @@ func (n *NetworkResource) Add(delta *NetworkResource) {
 		n.ReservedPorts = append(n.ReservedPorts, delta.ReservedPorts...)
 	}
 	n.MBits += delta.MBits
-	n.DynamicPorts += delta.DynamicPorts
+	n.DynamicPorts = append(n.DynamicPorts, delta.DynamicPorts...)
 }
 
 func (n *NetworkResource) GoString() string {

@@ -230,7 +230,7 @@ func TestResource_Add_Network(t *testing.T) {
 		Networks: []*NetworkResource{
 			&NetworkResource{
 				MBits:        50,
-				DynamicPorts: 2,
+				DynamicPorts: []string{"http", "https"},
 			},
 		},
 	}
@@ -238,7 +238,7 @@ func TestResource_Add_Network(t *testing.T) {
 		Networks: []*NetworkResource{
 			&NetworkResource{
 				MBits:        25,
-				DynamicPorts: 1,
+				DynamicPorts: []string{"admin"},
 			},
 		},
 	}
@@ -256,7 +256,7 @@ func TestResource_Add_Network(t *testing.T) {
 		Networks: []*NetworkResource{
 			&NetworkResource{
 				MBits:        75,
-				DynamicPorts: 3,
+				DynamicPorts: []string{"http", "https", "admin"},
 			},
 		},
 	}

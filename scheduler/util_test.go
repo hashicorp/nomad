@@ -261,7 +261,7 @@ func TestTasksUpdated(t *testing.T) {
 	}
 
 	j6 := mock.Job()
-	j6.TaskGroups[0].Tasks[0].Resources.Networks[0].DynamicPorts = 3
+	j6.TaskGroups[0].Tasks[0].Resources.Networks[0].DynamicPorts = []string{"http", "https", "admin"}
 	if !tasksUpdated(j1.TaskGroups[0], j6.TaskGroups[0]) {
 		t.Fatalf("bad")
 	}

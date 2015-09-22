@@ -287,7 +287,7 @@ func TestNetworkIndex_AssignNetwork(t *testing.T) {
 
 	// Ask for dynamic ports
 	ask = &NetworkResource{
-		DynamicPorts: 3,
+		DynamicPorts: []string{"http", "https", "admin"},
 	}
 	offer, err = idx.AssignNetwork(ask)
 	if err != nil {
@@ -306,7 +306,7 @@ func TestNetworkIndex_AssignNetwork(t *testing.T) {
 	// Ask for reserved + dynamic ports
 	ask = &NetworkResource{
 		ReservedPorts: []int{12345},
-		DynamicPorts:  3,
+		DynamicPorts:  []string{"http", "https", "admin"},
 	}
 	offer, err = idx.AssignNetwork(ask)
 	if err != nil {
