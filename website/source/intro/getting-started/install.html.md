@@ -63,5 +63,8 @@ may not have provisioned correctly. Check any error messages that may have
 been occurred during `vagrant up`. You can always destroy the box and
 re-create it.
 
-Otherwise, Nomad is installed and ready to go!
+## Next Steps
+
+Vagrant is running and Nomad is installed. Let's [start Nomad](/intro/getting-started/running.html)!
+
 
