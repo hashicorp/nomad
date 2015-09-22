@@ -3,7 +3,7 @@ layout: "intro"
 page_title: "Running Nomad"
 sidebar_current: "getting-started-running"
 description: |-
-  Learn how to deploy Nomad into production, how to initialize it, configure it, etc.
+  Learn about the Nomad agent, and the lifecycle of running and stopping.
 ---
 
 # Running Nomad
