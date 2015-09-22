@@ -2,13 +2,17 @@
 
 package allocdir
 
-import "github.com/hashicorp/nomad/nomad/structs"
+import (
+	"errors"
+
+	"github.com/hashicorp/nomad/nomad/structs"
+)
 
 func (d *AllocDir) Build(tasks []*structs.Task) error {
 	// TODO: Need to figure out how to do mounts on windows.
-	return nil
+	return errors.New("Not implemented")
 }
 
 func (d *AllocDir) Embed(task string, dirs map[string]string) error {
-	return nil
+	return errors.New("Not implemented")
 }
