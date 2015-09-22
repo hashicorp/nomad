@@ -50,12 +50,18 @@ type Command struct {
 func (c *Command) readConfig() *Config {
 	var dev bool
 	var configPath []string
-	var logLevel string
+
+	cmdConfig := DefaultConfig()
+
 	flags := flag.NewFlagSet("agent", flag.ContinueOnError)
-	flags.BoolVar(&dev, "dev", false, "")
-	flags.StringVar(&logLevel, "log-level", "info", "")
 	flags.Usage = func() { c.Ui.Error(c.Help()) }
+	flags.BoolVar(&dev, "dev", false, "")
+	flags.BoolVar(&cmdConfig.Server.Enabled, "server", false, "")
+	flags.BoolVar(&cmdConfig.Client.Enabled, "client", false, "")
+	flags.StringVar(&cmdConfig.DataDir, "data-dir", "", "")
+	flags.StringVar(&cmdConfig.LogLevel, "log-level", "info", "")
 	flags.Var((*sliceflag.StringFlag)(&configPath), "config", "config")
+
 	if err := flags.Parse(c.args); err != nil {
 		return nil
 	}
@@ -88,6 +94,15 @@ func (c *Command) readConfig() *Config {
 	}
 	if config.Server == nil {
 		config.Server = &ServerConfig{}
+	}
+
+	// Merge any CLI options over config file options
+	config = config.Merge(cmdConfig)
+
+	// Check that we have a data-dir if we are a server
+	if !dev && config.DataDir == "" {
+		c.Ui.Error("Must specify data directory")
+		return nil
 	}
 
 	// Set the version info
@@ -475,6 +490,11 @@ Usage: nomad agent [options]
 
 Options:
 
+  -client
+    Enable client mode for the agent. Client mode enables a given node
+    to be evaluated for allocations. If client mode is not enabled,
+    no work will be scheduled to the agent.
+
   -config=<path>
     The path to either a single config file or a directory of config
     files to use for configuring the Nomad agent. This option may be
@@ -483,15 +503,27 @@ Options:
     from files found later in the list are merged over values from
     previously parsed files.
 
-  -log-level=<level>
-    Specify the verbosity level of Nomad's logs. Valid values include
-    DEBUG, INFO, and WARN, in decreasing order of verbosity.
+  -data-dir=<path>
+    The data directory used to store state and other persistent data.
+    On client machines this is used to house allocation data such as
+    downloaded artifacts used by drivers. On server nodes, the data
+    dir is also used to store the replicated log.
 
   -dev
     Start the agent in development mode. This enables a pre-configured
     dual-role agent (client + server) which is useful for developing
     or testing Nomad. No other configuration is required to start the
     agent in this mode.
+
+  -log-level=<level>
+    Specify the verbosity level of Nomad's logs. Valid values include
+    DEBUG, INFO, and WARN, in decreasing order of verbosity.
+
+  -server
+    Enable server mode for the agent. Agents in server mode are
+    clustered together and handle the additional responsibility of
+    leader election, data replication, and scheduling work onto
+    eligible client nodes.
  `
 	return strings.TrimSpace(helpText)
 }
