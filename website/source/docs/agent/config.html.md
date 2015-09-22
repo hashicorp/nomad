@@ -146,3 +146,35 @@ configured on client nodes.
   * `enabled_schedulers`: This is an array of strings indicating which
     sub-schedulers this server will handle. This can be used to restrict the
     evaluations that worker threads will dequeue for processing.
+
+## Client-specific Options
+
+The following options are applicable to client agents only and need not be
+configured on server nodes.
+
+* `client`: This is the top-level key used to define the Nomad client
+  configuration. Like the server configuration, it is a key/value mapping which
+  supports the following keys:
+  <br>
+  * `enabled`: A boolean indicating if client mode is enabled. All other client
+    configuration options depend on this value. Defaults to `false`.
+  * `state_dir`: This is the state dir used to store client state. By default,
+    it lives inside of the [data_dir](#data_dir), in the "client" sub-path.
+  * `alloc_dir`: A directory used to store allocation data. Depending on the
+    workload, the size of this directory can grow arbitrarily large as it is
+    used to store downloaded artifacts for drivers (QEMU images, JAR files,
+    etc.). It is therefore important to ensure this directory is placed some
+    place on the filesystem with adequate storage capacity. By default, this
+    directory lives under the [state_dir](#state_dir) at the "alloc" sub-path.
+  * `servers`: An array of server addresses. This list is used to register the
+    client with the server nodes and advertise the available resources so that
+    the agent can receive work.
+  * `node_id`: This is the value used to uniquely identify the local agent's
+    node registration with the servers. This can be any arbitrary string but
+    must be unique to the cluster. By default, if not specified, a randomly-
+    generate UUID will be used.
+  * `node_class`: A string used to logically group client nodes by class. This
+    can be used during job placement as a filter. This option is not required
+    and has no default.
+  * `meta`: This is a key/value mapping of metadata pairs. This is a free-form
+    map and can contain any string values.
