@@ -8,15 +8,15 @@ import (
 	"github.com/ryanuber/columnize"
 )
 
-type AgentMembersCommand struct {
+type ServerMembersCommand struct {
 	Meta
 }
 
-func (c *AgentMembersCommand) Help() string {
+func (c *ServerMembersCommand) Help() string {
 	helpText := `
-Usage: nomad agent-members [options]
+Usage: nomad server-members [options]
 
-  Display a list of the known members and their status.
+  Display a list of the known servers and their status.
 
 General Options:
 
@@ -32,14 +32,14 @@ Agent Members Options:
 	return strings.TrimSpace(helpText)
 }
 
-func (c *AgentMembersCommand) Synopsis() string {
-	return "Display a list of known members and their status"
+func (c *ServerMembersCommand) Synopsis() string {
+	return "Display a list of known servers and their status"
 }
 
-func (c *AgentMembersCommand) Run(args []string) int {
+func (c *ServerMembersCommand) Run(args []string) int {
 	var detailed bool
 
-	flags := c.Meta.FlagSet("agent-members", FlagSetClient)
+	flags := c.Meta.FlagSet("server-members", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&detailed, "detailed", false, "Show detailed output")
 
@@ -64,7 +64,7 @@ func (c *AgentMembersCommand) Run(args []string) int {
 	// Query the members
 	mem, err := client.Agent().Members()
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error querying members: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error querying servers: %s", err))
 		return 1
 	}
 

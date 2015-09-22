@@ -7,16 +7,16 @@ import (
 	"github.com/mitchellh/cli"
 )
 
-func TestAgentMembersCommand_Implements(t *testing.T) {
-	var _ cli.Command = &AgentMembersCommand{}
+func TestServerMembersCommand_Implements(t *testing.T) {
+	var _ cli.Command = &ServerMembersCommand{}
 }
 
-func TestAgentMembersCommand_Run(t *testing.T) {
+func TestServerMembersCommand_Run(t *testing.T) {
 	srv, client, url := testServer(t, nil)
 	defer srv.Stop()
 
 	ui := new(cli.MockUi)
-	cmd := &AgentMembersCommand{Meta: Meta{Ui: ui}}
+	cmd := &ServerMembersCommand{Meta: Meta{Ui: ui}}
 
 	// Get our own node name
 	name, err := client.Agent().NodeName()
@@ -44,7 +44,7 @@ func TestAgentMembersCommand_Run(t *testing.T) {
 
 func TestMembersCommand_Fails(t *testing.T) {
 	ui := new(cli.MockUi)
-	cmd := &AgentMembersCommand{Meta: Meta{Ui: ui}}
+	cmd := &ServerMembersCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
 	if code := cmd.Run([]string{"some", "bad", "args"}); code != 1 {
@@ -59,7 +59,7 @@ func TestMembersCommand_Fails(t *testing.T) {
 	if code := cmd.Run([]string{"-address=nope"}); code != 1 {
 		t.Fatalf("expected exit code 1, got: %d", code)
 	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error querying members") {
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error querying servers") {
 		t.Fatalf("expected failed query error, got: %s", out)
 	}
 }

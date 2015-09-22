@@ -34,26 +34,8 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 			}, nil
 		},
 
-		"agent-force-leave": func() (cli.Command, error) {
-			return &command.AgentForceLeaveCommand{
-				Meta: meta,
-			}, nil
-		},
-
 		"agent-info": func() (cli.Command, error) {
 			return &command.AgentInfoCommand{
-				Meta: meta,
-			}, nil
-		},
-
-		"agent-join": func() (cli.Command, error) {
-			return &command.AgentJoinCommand{
-				Meta: meta,
-			}, nil
-		},
-
-		"agent-members": func() (cli.Command, error) {
-			return &command.AgentMembersCommand{
 				Meta: meta,
 			}, nil
 		},
@@ -78,6 +60,24 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 
 		"run": func() (cli.Command, error) {
 			return &command.RunCommand{
+				Meta: meta,
+			}, nil
+		},
+
+		"server-force-leave": func() (cli.Command, error) {
+			return &command.ServerForceLeaveCommand{
+				Meta: meta,
+			}, nil
+		},
+
+		"server-join": func() (cli.Command, error) {
+			return &command.ServerJoinCommand{
+				Meta: meta,
+			}, nil
+		},
+
+		"server-members": func() (cli.Command, error) {
+			return &command.ServerMembersCommand{
 				Meta: meta,
 			}, nil
 		},
