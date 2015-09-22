@@ -58,6 +58,12 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 			}, nil
 		},
 
+		"eval-monitor": func() (cli.Command, error) {
+			return &command.EvalMonitorCommand{
+				Meta: meta,
+			}, nil
+		},
+
 		"node-drain": func() (cli.Command, error) {
 			return &command.NodeDrainCommand{
 				Meta: meta,
@@ -70,6 +76,12 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 			}, nil
 		},
 
+		"run": func() (cli.Command, error) {
+			return &command.RunCommand{
+				Meta: meta,
+			}, nil
+		},
+
 		"spawn-daemon": func() (cli.Command, error) {
 			return &command.SpawnDaemonCommand{
 				Meta: meta,
@@ -78,6 +90,12 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 
 		"status": func() (cli.Command, error) {
 			return &command.StatusCommand{
+				Meta: meta,
+			}, nil
+		},
+
+		"stop": func() (cli.Command, error) {
+			return &command.StopCommand{
 				Meta: meta,
 			}, nil
 		},
