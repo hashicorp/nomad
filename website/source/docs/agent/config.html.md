@@ -236,6 +236,9 @@ A subset of the available Nomad agent configuration can optionally be passed in
 via CLI arguments. The `agent` command accepts the following arguments:
 
 * `-bind=<address>`: Equivalent to the [bind_addr](#bind_addr) config option.
+* `-bootstrap`: Equivalent to the [bootstrap](#bootstrap) config option.
+* `-bootstrap-expect=<num>`: Equivalent to the
+  [bootstrap_expect](#bootstrap_expect) config option.
 * `-config=<path>`: Specifies the path to a configuration file or a directory of
   configuration files to load. Can be specified multiple times.
 * `-data-dir=<path>`: Equivalent to the [data_dir](#data_dir) config option.
