@@ -8,7 +8,16 @@ description: |-
 
 # Clustering
 
-TODO: Document clustering
+We have started our first agent and run a job against it in development mode.
+This demonstrates the ease of use and the workflow of Nomad, but did not show how
+this could be extended to a scalable, production-grade configuration. In this step,
+we will create our first real cluster with multiple nodes.
+
+## Starting the Server
+
+## Starting the Clients
+
+## Submit a Job
 
 ## Next Steps
 
