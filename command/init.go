@@ -105,7 +105,7 @@ job "example" {
 
 			# Configure Docker driver with the image
 			config {
-				image = "redis"
+				image = "redis:latest"
 			}
 
 			# We must specify the resources required for
@@ -113,7 +113,7 @@ job "example" {
 			# enough capacity.
 			resources {
 				cpu = 500 # 500 Mhz
-				memory = 256 # 128MB
+				memory = 256 # 256MB
 				network {
 					mbits = 10
 					dynamic_ports = ["redis"]
