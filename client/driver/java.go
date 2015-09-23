@@ -77,7 +77,6 @@ func (d *JavaDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, 
 	//    OpenJDK Runtime Environment (IcedTea6 1.13.8) (6b36-1.13.8-0ubuntu1~12.04)
 	//    OpenJDK 64-Bit Server VM (build 23.25-b01, mixed mode)
 	// Each line is terminated by \n
-
 	info := strings.Split(infoString, "\n")
 	versionString := info[0]
 	versionString = strings.TrimPrefix(versionString, "java version ")
