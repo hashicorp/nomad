@@ -1,0 +1,37 @@
+{
+  "variables": {
+    "role": "{{ env `NOMAD_ROLE` }}",
+    "bin_url": "{{ env `NOMAD_URL` }}"
+  },
+  "builders": [
+    {
+      "type": "digitalocean",
+      "image": "ubuntu-12-04-x64",
+      "region": "nyc3",
+      "size": "512mb"
+    }
+  ],
+  "provisioners": [
+    {
+      "type": "file",
+      "source": "nomad.zip",
+      "destination": "/tmp/nomad.zip"
+    },
+    {
+      "type": "shell",
+      "inline": [
+        "sudo apt-get -y update",
+        "sudo apt-get -y install unzip",
+        "# Temporarily disabled until public release. Uncomment",
+        "# and remove the above file provisioner.",
+        "#curl -o /tmp/nomad.zip -L {{ user `bin_url` }}",
+        "sudo unzip -d /usr/local/bin /tmp/nomad.zip"
+      ]
+    },
+    {
+      "type": "file",
+      "source": "upstart.nomad",
+      "destination": "/etc/init/nomad"
+    }
+  ]
+}
