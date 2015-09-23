@@ -71,6 +71,10 @@ func (f *EnvAWSFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 	if !isAWS() {
 		return false, nil
 	}
+
+	// newNetwork is populated and addded to the Nodes resources
+	newNetwork := &structs.NetworkResource{}
+
 	if node.Links == nil {
 		node.Links = make(map[string]string)
 	}
@@ -117,22 +121,26 @@ func (f *EnvAWSFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 		node.Attributes["platform.aws."+key] = strings.Trim(string(resp), "\n")
 	}
 
-	// copy over network specific items
-	networkKeys := make(map[string]string)
-	networkKeys["public-hostname"] = "ip-address"
-	networkKeys["local-ipv4"] = "internal-ip"
-	for key, name := range networkKeys {
-		if node.Attributes["platform.aws."+key] != "" {
-			node.Attributes["network."+name] = node.Attributes["platform.aws."+key]
-		}
+	// copy over network specific information
+	if node.Attributes["platform.aws.local-ipv4"] != "" {
+		node.Attributes["network.ip-address"] = node.Attributes["platform.aws.local-ipv4"]
+		newNetwork.IP = node.Attributes["platform.aws.local-ipv4"]
 	}
 
 	// find LinkSpeed from lookup
 	if throughput := f.linkSpeed(); throughput > 0 {
 		node.Attributes["network.throughput"] = fmt.Sprintf("%dMB/s", throughput)
+		newNetwork.MBits = throughput
 	}
 
-	// populate links
+	if node.Resources == nil {
+		node.Resources = &structs.Resources{}
+	}
+	node.Resources.Networks = append(node.Resources.Networks, newNetwork)
+
+	// populate Node Network Resources
+
+	// populate Links
 	node.Links["aws.ec2"] = node.Attributes["platform.aws.placement.availability-zone"] + "." + node.Attributes["platform.aws.instance-id"]
 
 	return true, nil

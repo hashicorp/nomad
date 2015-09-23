@@ -183,7 +183,16 @@ func TestNetworkFingerprint_AWS(t *testing.T) {
 
 	assertNodeAttributeContains(t, node, "network.throughput")
 	assertNodeAttributeContains(t, node, "network.ip-address")
-	assertNodeAttributeContains(t, node, "network.internal-ip")
+
+	if node.Resources == nil || len(node.Resources.Networks) == 0 {
+		t.Fatal("Expected to find Network Resources")
+	}
+
+	// Test at least the first Network Resource
+	net := node.Resources.Networks[0]
+	if net.IP == "" {
+		t.Fatal("Expected Network Resource to not be empty")
+	}
 }
 
 func TestNetworkFingerprint_notAWS(t *testing.T) {

@@ -35,4 +35,14 @@ func TestNetworkFingerprint_basic(t *testing.T) {
 	if match == nil {
 		t.Fatalf("Bad IP match: %s", ip)
 	}
+
+	if node.Resources == nil || len(node.Resources.Networks) == 0 {
+		t.Fatal("Expected to find Network Resources")
+	}
+
+	// Test at least the first Network Resource
+	net := node.Resources.Networks[0]
+	if net.IP == "" {
+		t.Fatal("Expected Network Resource to not be empty")
+	}
 }

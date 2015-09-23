@@ -29,6 +29,9 @@ func NewUnixNetworkFingerprinter(logger *log.Logger) Fingerprint {
 }
 
 func (f *UnixNetworkFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
+	// newNetwork is populated and addded to the Nodes resources
+	newNetwork := &structs.NetworkResource{}
+
 	// eth0 is the default device for Linux, and en0 is default for OS X
 	defaultDevice := "eth0"
 	if "darwin" == runtime.GOOS {
@@ -36,11 +39,19 @@ func (f *UnixNetworkFingerprint) Fingerprint(cfg *config.Config, node *structs.N
 	}
 	if ip := f.ifConfig(defaultDevice); ip != "" {
 		node.Attributes["network.ip-address"] = ip
+		newNetwork.IP = ip
 	}
 
 	if throughput := f.linkSpeed("eth0"); throughput > 0 {
 		node.Attributes["network.throughput"] = fmt.Sprintf("%dMB/s", throughput)
+		newNetwork.MBits = throughput
 	}
+
+	if node.Resources == nil {
+		node.Resources = &structs.Resources{}
+	}
+
+	node.Resources.Networks = append(node.Resources.Networks, newNetwork)
 
 	// return true, because we have a network connection
 	return true, nil
