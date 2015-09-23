@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"time"
 
 	"github.com/hashicorp/hcl"
@@ -343,6 +344,9 @@ func parseTasks(result *[]*structs.Task, obj *hclobj.Object) error {
 	return nil
 }
 
+var reDynamicPorts *regexp.Regexp = regexp.MustCompile("^[a-z0-9_]+$")
+var errDynamicPorts = fmt.Errorf("DynamicPort label does not conform to naming requirements %s", reDynamicPorts.String())
+
 func parseResources(result *structs.Resources, obj *hclobj.Object) error {
 	if obj.Len() > 1 {
 		return fmt.Errorf("only one 'resource' block allowed per task")
@@ -372,6 +376,12 @@ func parseResources(result *structs.Resources, obj *hclobj.Object) error {
 			}
 			if err := mapstructure.WeakDecode(m, &r); err != nil {
 				return err
+			}
+
+			for _, label := range r.DynamicPorts {
+				if !reDynamicPorts.MatchString(label) {
+					return errDynamicPorts
+				}
 			}
 
 			result.Networks = []*structs.NetworkResource{&r}
