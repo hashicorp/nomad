@@ -1,6 +1,7 @@
 package fingerprint
 
 import (
+	"net"
 	"runtime"
 	"testing"
 
@@ -26,6 +27,12 @@ func TestNetworkFingerprint_basic(t *testing.T) {
 	// location for the linkspeed file, so we skip these
 	if "darwin" != runtime.GOOS {
 		assertNodeAttributeContains(t, node, "network.throughput")
-		assertNodeAttributeContains(t, node, "network.ip-address")
+	}
+	assertNodeAttributeContains(t, node, "network.ip-address")
+
+	ip := node.Attributes["network.ip-address"]
+	match := net.ParseIP(ip)
+	if match == nil {
+		t.Fatalf("Bad IP match: %s", ip)
 	}
 }

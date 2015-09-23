@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net"
 	"os"
 	"os/exec"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -27,7 +29,12 @@ func NewUnixNetworkFingerprinter(logger *log.Logger) Fingerprint {
 }
 
 func (f *UnixNetworkFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
-	if ip := f.ifConfig("eth0"); ip != "" {
+	// eth0 is the default device for Linux, and en0 is default for OS X
+	defaultDevice := "eth0"
+	if "darwin" == runtime.GOOS {
+		defaultDevice = "en0"
+	}
+	if ip := f.ifConfig(defaultDevice); ip != "" {
 		node.Attributes["network.ip-address"] = ip
 	}
 
@@ -135,12 +142,33 @@ func (f *UnixNetworkFingerprint) ifConfig(device string) string {
 	if ifConfigPath != "" {
 		outBytes, err := exec.Command(ifConfigPath, device).Output()
 		if err == nil {
+			// Parse out the IP address returned from ifconfig for this device
+			// Tested on Ubuntu, the matching part of ifconfig output for eth0 is like
+			// so:
+			//   inet addr:10.0.2.15  Bcast:10.0.2.255  Mask:255.255.255.0
+			// For OS X and en0, we have:
+			//  inet 192.168.0.7 netmask 0xffffff00 broadcast 192.168.0.255
 			output := strings.TrimSpace(string(outBytes))
-			re := regexp.MustCompile("inet addr:[0-9].+")
-			m := re.FindString(output)
-			args := strings.Split(m, "inet addr:")
 
-			return args[1]
+			// re is a regular expression, which can vary based on the OS
+			var re *regexp.Regexp
+
+			if "darwin" == runtime.GOOS {
+				re = regexp.MustCompile("inet [0-9].+")
+			} else {
+				re = regexp.MustCompile("inet addr:[0-9].+")
+			}
+			args := strings.Split(re.FindString(output), " ")
+
+			var ip string
+			if len(args) > 1 {
+				ip = strings.TrimPrefix(args[1], "addr:")
+			}
+
+			// validate what we've sliced out is a valid IP
+			if net.ParseIP(ip) != nil {
+				return ip
+			}
 		}
 		f.logger.Printf("[Err] Error calling ifconfig (%s): %s", ifConfigPath, err)
 		return ""
