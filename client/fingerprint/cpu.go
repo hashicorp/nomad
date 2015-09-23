@@ -61,7 +61,7 @@ func (f *CPUFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bo
 			node.Resources = &structs.Resources{}
 		}
 
-		node.Resources.CPU = tc
+		node.Resources.CPU = int(tc)
 	}
 
 	if modelName != "" {

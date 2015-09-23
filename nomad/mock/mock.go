@@ -14,7 +14,7 @@ func Node() *structs.Node {
 			"driver.exec": "1",
 		},
 		Resources: &structs.Resources{
-			CPU:      4.0,
+			CPU:      4000,
 			MemoryMB: 8192,
 			DiskMB:   100 * 1024,
 			IOPS:     150,
@@ -27,7 +27,7 @@ func Node() *structs.Node {
 			},
 		},
 		Reserved: &structs.Resources{
-			CPU:      0.1,
+			CPU:      100,
 			MemoryMB: 256,
 			DiskMB:   4 * 1024,
 			Networks: []*structs.NetworkResource{
@@ -81,7 +81,7 @@ func Job() *structs.Job {
 							"args":    "+%s",
 						},
 						Resources: &structs.Resources{
-							CPU:      0.5,
+							CPU:      500,
 							MemoryMB: 256,
 							Networks: []*structs.NetworkResource{
 								&structs.NetworkResource{
@@ -127,7 +127,7 @@ func Alloc() *structs.Allocation {
 		NodeID:    "foo",
 		TaskGroup: "web",
 		Resources: &structs.Resources{
-			CPU:      0.5,
+			CPU:      500,
 			MemoryMB: 256,
 			Networks: []*structs.NetworkResource{
 				&structs.NetworkResource{
@@ -141,7 +141,7 @@ func Alloc() *structs.Allocation {
 		},
 		TaskResources: map[string]*structs.Resources{
 			"web": &structs.Resources{
-				CPU:      0.5,
+				CPU:      500,
 				MemoryMB: 256,
 				Networks: []*structs.NetworkResource{
 					&structs.NetworkResource{

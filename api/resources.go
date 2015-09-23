@@ -3,7 +3,7 @@ package api
 // Resources encapsulates the required resources of
 // a given task or task group.
 type Resources struct {
-	CPU      float64
+	CPU      int
 	MemoryMB int
 	DiskMB   int
 	IOPS     int
