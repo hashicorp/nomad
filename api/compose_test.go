@@ -12,7 +12,7 @@ func TestCompose(t *testing.T) {
 		SetMeta("foo", "bar").
 		Constrain(HardConstraint("kernel.name", "=", "linux")).
 		Require(&Resources{
-		CPU:      1.25,
+		CPU:      1250,
 		MemoryMB: 1024,
 		DiskMB:   2048,
 		IOPS:     1024,
@@ -78,7 +78,7 @@ func TestCompose(t *testing.T) {
 						Name:   "task1",
 						Driver: "exec",
 						Resources: &Resources{
-							CPU:      1.25,
+							CPU:      1250,
 							MemoryMB: 1024,
 							DiskMB:   2048,
 							IOPS:     1024,

@@ -146,13 +146,13 @@ func TestResource_NetIndex(t *testing.T) {
 
 func TestResource_Superset(t *testing.T) {
 	r1 := &Resources{
-		CPU:      2.0,
+		CPU:      2000,
 		MemoryMB: 2048,
 		DiskMB:   10000,
 		IOPS:     100,
 	}
 	r2 := &Resources{
-		CPU:      1.0,
+		CPU:      2000,
 		MemoryMB: 1024,
 		DiskMB:   5000,
 		IOPS:     50,
@@ -174,7 +174,7 @@ func TestResource_Superset(t *testing.T) {
 
 func TestResource_Add(t *testing.T) {
 	r1 := &Resources{
-		CPU:      2.0,
+		CPU:      2000,
 		MemoryMB: 2048,
 		DiskMB:   10000,
 		IOPS:     100,
@@ -187,7 +187,7 @@ func TestResource_Add(t *testing.T) {
 		},
 	}
 	r2 := &Resources{
-		CPU:      1.0,
+		CPU:      2000,
 		MemoryMB: 1024,
 		DiskMB:   5000,
 		IOPS:     50,
@@ -206,7 +206,7 @@ func TestResource_Add(t *testing.T) {
 	}
 
 	expect := &Resources{
-		CPU:      3.0,
+		CPU:      3000,
 		MemoryMB: 3072,
 		DiskMB:   15000,
 		IOPS:     150,

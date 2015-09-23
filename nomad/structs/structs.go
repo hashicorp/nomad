@@ -534,7 +534,7 @@ type NodeListStub struct {
 // Resources is used to define the resources available
 // on a client
 type Resources struct {
-	CPU      float64
+	CPU      int
 	MemoryMB int `mapstructure:"memory"`
 	DiskMB   int `mapstructure:"disk"`
 	IOPS     int

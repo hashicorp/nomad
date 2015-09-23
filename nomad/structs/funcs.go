@@ -91,9 +91,9 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex) (bool, st
 // This is equivalent to their BestFit v3
 func ScoreFit(node *Node, util *Resources) float64 {
 	// Determine the node availability
-	nodeCpu := node.Resources.CPU
+	nodeCpu := float64(node.Resources.CPU)
 	if node.Reserved != nil {
-		nodeCpu -= node.Reserved.CPU
+		nodeCpu -= float64(node.Reserved.CPU)
 	}
 	nodeMem := float64(node.Resources.MemoryMB)
 	if node.Reserved != nil {
@@ -101,7 +101,7 @@ func ScoreFit(node *Node, util *Resources) float64 {
 	}
 
 	// Compute the free percentage
-	freePctCpu := 1 - (util.CPU / nodeCpu)
+	freePctCpu := 1 - (float64(util.CPU) / nodeCpu)
 	freePctRam := 1 - (float64(util.MemoryMB) / nodeMem)
 
 	// Total will be "maximized" the smaller the value is.
