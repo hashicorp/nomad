@@ -27,7 +27,7 @@ job configurations or prototype interactions. It should _**not**_ be used in
 production as it does not persist state.
 
 ```
-$ nomad agent -dev
+$ sudo nomad agent -dev
 ==> Starting Nomad agent...
 ==> Nomad agent configuration:
 
@@ -64,6 +64,11 @@ As you can see, the Nomad agent has started and has output some log
 data. From the log data, you can see that our agent is running in both
 client and server mode, and has claimed leadership of the cluster.
 Additionally, the local client has been registered and marked as ready.
+
+-> **Note:** Typically any agent running in client mode must be run with root level
+privilege. Nomad makes use of operating system primitives for resource isolation
+which require elevated permissions. The agent will function as non-root, but
+certain task drivers will not be available.
 
 ## Cluster Nodes
 
