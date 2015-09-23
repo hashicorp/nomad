@@ -121,8 +121,9 @@ func PopulateEnvironment(ctx *ExecContext, task *structs.Task) []string {
 			network := task.Resources.Networks[0]
 
 			env = append(env, fmt.Sprintf("NOMAD_HOST_IP=%s", network.IP))
-			for idx, port := range network.ListDynamicPorts() {
-				env = append(env, fmt.Sprintf("NOMAD_PORT_%s=%d", strings.ToUpper(network.DynamicPorts[idx]), port))
+
+			for label, port := range network.MapDynamicPorts() {
+				env = append(env, fmt.Sprintf("NOMAD_PORT_%s=%d", strings.ToUpper(label), port))
 			}
 		}
 	}

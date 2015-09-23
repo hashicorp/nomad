@@ -645,8 +645,11 @@ func (n *NetworkResource) GoString() string {
 	return fmt.Sprintf("*%#v", *n)
 }
 
-// ListDynamicPorts returns a list of integers that correspond to the labels in
-// .DynamicPorts. This is a little bit strange and bears some explanation:
+// MapDynamicPorts returns a mapping of Label:PortNumber for dynamic ports
+// allocated on this NetworkResource. The ordering of Label:Port pairs is
+// random.
+//
+// Details:
 //
 // The jobspec lets us ask for two types of ports: Reserved ports and Dynamic
 // ports. Reserved ports are identified by the port number, while Dynamic porrts
@@ -664,31 +667,15 @@ func (n *NetworkResource) GoString() string {
 // were allocated to us we look at the last N ports in our reservation, where N
 // is how many dynamic ports we requested.
 //
-// ListDynamicPorts returns a new list with only the Dynamic port numbers. It
-// has the same indexes as DynamicPorts (the labels) so you can iterate over
-// either one and easily match up the values. If you prefer a less algorithmic
-// implementation you can use MapDynamicPorts() instead, so you can lookup the
-// port number using the label from the jobspec.
+// MapDynamicPorts matches these port numbers with their labels and gives you
+// the port mapping.
 //
 // Also, be aware that this is intended to be called in the context of
 // task.Resources after an offer has been made. If you call it in some other
 // context the behavior is unspecified, including maybe crashing. So don't do that.
-func (n *NetworkResource) ListDynamicPorts() []int {
-	var ports []int
-	for i := len(n.ReservedPorts) - len(n.DynamicPorts); i < len(n.ReservedPorts); i++ {
-		ports = append(ports, n.ReservedPorts[i])
-	}
-	return ports
-}
-
-// MapDynamicPorts returns a mapping of Label:PortNumber for dynamic ports
-// allocated on this NetworkResource. The ordering of Label:Port pairs is
-// random. If you need them in order you should use ListDynamicPorts instead.
-//
-// See caveats and explanation in ListDynamicPorts()
 func (n *NetworkResource) MapDynamicPorts() map[string]int {
-	ports := n.ListDynamicPorts()
-	mapping := map[string]int{}
+	ports := n.ReservedPorts[len(n.ReservedPorts)-len(n.DynamicPorts):]
+	mapping := make(map[string]int, len(n.DynamicPorts))
 
 	for idx, label := range n.DynamicPorts {
 		mapping[label] = ports[idx]
