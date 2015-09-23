@@ -648,18 +648,30 @@ func (n *NetworkResource) GoString() string {
 // ListDynamicPorts returns a list of integers that correspond to the labels in
 // .DynamicPorts. This is a little bit strange and bears some explanation:
 //
-// When we request dynamic ports nomad checks to see which ports are available.
-// Once it finds enough to satisfy our requirements, it sends us an offer and
-// marks those ports as reserved (or if it can't find enough we get an error).
-// The complete reserved list includes reserved ports we requested, along with
-// dynamic ports that nomad found for us. This list is merged together and
-// becomes the list of ALL reserved ports. (Reserved has a double-meaning.)
+// The jobspec lets us ask for two types of ports: Reserved ports and Dynamic
+// ports. Reserved ports are identified by the port number, while Dynamic porrts
+// are identified by a Label.
 //
-// Later when we want to use our dynamic port range, we can call ListDynamicPorts
-// to get a list of ints that correspond to the list of DyanmicPorts requested
-// in the jobspec. The indexes in both DynamicPorts and ListDynamicPorts() will
-// match. DynamicPorts actually holds the Labels while ListDynamicPorts tells us
-// the port numbers (sorry, a bit confusing).
+// When we ask nomad to run a job it checks to see if the Reserved ports we
+// requested are available. If they are, it then tries to provision any Dynamic
+// ports that we have requested. When available ports are found to satisfy our
+// dynamic port requirements, they are APPENDED to the reserved ports list.
+//
+// In effect, the reserved ports list serves double-duty. First it indicates the
+// ports we *want*, and then it indicates the ports we are *using*. After the
+// the offer process is complete and the job is scheduled we want to see which
+// ports were made available to us.
+//
+// The way we do this is by inspecting the ports that were added to the
+// reservation and matching them up with the DynamicPort labels we specified in
+// the jobspec. We do this by looking at the last N ports, where N is how many
+// dynamic ports we requested.
+//
+// ListDynamicPorts returns a new list with only the Dynamic port numbers. It
+// has the same indexes as DynamicPorts so you can iterate over either one and
+// easily match up the values. If you prefer a less algorithmic implementation
+// you can use MapDynamicPorts() instead, so you can lookup the port number
+// using the label from the jobspec.
 //
 // Also, be aware that this is intended to be called in the context of
 // task.Resources after an offer has been made. If you call it in some other
@@ -673,10 +685,10 @@ func (n *NetworkResource) ListDynamicPorts() []int {
 }
 
 // MapDynamicPorts returns a mapping of Label:PortNumber for dynamic ports
-// allocated on this NetworkResource. If you need the port order you should use
-// ListDynamicPorts instead.
+// allocated on this NetworkResource. The ordering of Label:Port pairs is
+// random. If you need them in order you should use ListDynamicPorts instead.
 //
-// See caveats in ListDynamicPorts
+// See caveats and explanation in ListDynamicPorts()
 func (n *NetworkResource) MapDynamicPorts() map[string]int {
 	ports := n.ListDynamicPorts()
 	mapping := map[string]int{}
