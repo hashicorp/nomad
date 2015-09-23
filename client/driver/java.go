@@ -106,9 +106,9 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	}
 
 	// Get the tasks local directory.
-	taskDir, err := ctx.AllocDir.TaskDir(d.DriverContext.taskName)
-	if err != nil {
-		return nil, err
+	taskDir, ok := ctx.AllocDir.TaskDirs[d.DriverContext.taskName]
+	if !ok {
+		return nil, fmt.Errorf("Could not find task directory for task: %v", d.DriverContext.taskName)
 	}
 	taskLocal := filepath.Join(taskDir, allocdir.TaskLocal)
 

@@ -4,8 +4,10 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 
+	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -55,29 +57,15 @@ func TestAllocDir_BuildAlloc(t *testing.T) {
 		t.Fatalf("Build(%v) didn't create AllocDir %v", tasks, d.AllocDir)
 	}
 
-	// Create a file in the alloc dir and then check it exists in each of the
-	// task dirs.
-	allocFile := "foo"
-	allocFileData := []byte{'b', 'a', 'r'}
-	if err := ioutil.WriteFile(filepath.Join(d.AllocDir, allocFile), allocFileData, 0777); err != nil {
-		t.Fatalf("Couldn't create file in alloc dir: %v", err)
-	}
-
 	for _, task := range tasks {
-		tDir, err := d.TaskDir(task.Name)
-		if err != nil {
-			t.Fatalf("TaskDir(%v) failed: %v", task.Name, err)
+		tDir, ok := d.TaskDirs[task.Name]
+		if !ok {
+			t.Fatalf("Task directory not found for %v", task.Name)
 		}
 
 		if _, err := os.Stat(tDir); os.IsNotExist(err) {
 			t.Fatalf("Build(%v) didn't create TaskDir %v", tasks, tDir)
 		}
-
-		// TODO: Enable once mount is done.
-		//allocExpected := filepath.Join(tDir, SharedAllocName, allocFile)
-		//if _, err := os.Stat(allocExpected); os.IsNotExist(err) {
-		//t.Fatalf("File in shared alloc dir not accessible from task dir %v: %v", tDir, err)
-		//}
 	}
 }
 
@@ -148,15 +136,59 @@ func TestAllocDir_EmbedDirs(t *testing.T) {
 	}
 
 	// Check that the embedding was done properly.
-	taskDir, err := d.TaskDir(task)
-	if err != nil {
-		t.Fatalf("TaskDir(%v) failed: %v", task, err)
+	taskDir, ok := d.TaskDirs[task]
+	if !ok {
+		t.Fatalf("Task directory not found for %v", task)
 	}
 
 	exp := []string{filepath.Join(taskDir, taskDest, file), filepath.Join(taskDir, taskDest, subDirName, subFile)}
 	for _, e := range exp {
 		if _, err := os.Stat(e); os.IsNotExist(err) {
 			t.Fatalf("File %v not embeded: %v", e, err)
+		}
+	}
+}
+
+func TestAllocDir_MountSharedAlloc(t *testing.T) {
+	testutil.MountCompatible(t)
+	tmp, err := ioutil.TempDir("", "AllocDir")
+	if err != nil {
+		t.Fatalf("Couldn't create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmp)
+
+	d := NewAllocDir(tmp)
+	tasks := []*structs.Task{t1, t2}
+	if err := d.Build(tasks); err != nil {
+		t.Fatalf("Build(%v) failed: %v", tasks, err)
+	}
+
+	// Write a file to the shared dir.
+	exp := []byte{'f', 'o', 'o'}
+	file := "bar"
+	if err := ioutil.WriteFile(filepath.Join(d.SharedDir, file), exp, 0777); err != nil {
+		t.Fatalf("Couldn't write file to shared directory: %v", err)
+	}
+
+	for _, task := range tasks {
+		// Mount and then check that the file exists in the task directory.
+		if err := d.MountSharedDir(task.Name); err != nil {
+			t.Fatalf("MountSharedDir(%v) failed: %v", task.Name, err)
+		}
+
+		taskDir, ok := d.TaskDirs[task.Name]
+		if !ok {
+			t.Fatalf("Task directory not found for %v", task.Name)
+		}
+
+		taskFile := filepath.Join(taskDir, SharedAllocName, file)
+		act, err := ioutil.ReadFile(taskFile)
+		if err != nil {
+			t.Fatalf("Failed to read shared alloc file from task dir: %v", err)
+		}
+
+		if !reflect.DeepEqual(act, exp) {
+			t.Fatalf("Incorrect data read from task dir: want %v; got %v", exp, act)
 		}
 	}
 }

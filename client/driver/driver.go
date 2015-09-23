@@ -96,7 +96,7 @@ type ExecContext struct {
 	sync.Mutex
 
 	// AllocDir contains information about the alloc directory structure.
-	AllocDir allocdir.AllocDirBuilder
+	AllocDir *allocdir.AllocDir
 }
 
 // NewExecContext is used to create a new execution context
