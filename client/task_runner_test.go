@@ -12,7 +12,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 
-	clientTestUtil "github.com/hashicorp/nomad/client/testutil"
+	ctestutil "github.com/hashicorp/nomad/client/testutil"
 )
 
 func testLogger() *log.Logger {
@@ -46,7 +46,7 @@ func testTaskRunner() (*MockTaskStateUpdater, *TaskRunner) {
 }
 
 func TestTaskRunner_SimpleRun(t *testing.T) {
-	clientTestUtil.ExecCompatible(t)
+	ctestutil.ExecCompatible(t)
 	upd, tr := testTaskRunner()
 	go tr.Run()
 	defer tr.Destroy()
@@ -82,7 +82,7 @@ func TestTaskRunner_SimpleRun(t *testing.T) {
 }
 
 func TestTaskRunner_Destroy(t *testing.T) {
-	clientTestUtil.ExecCompatible(t)
+	ctestutil.ExecCompatible(t)
 	upd, tr := testTaskRunner()
 
 	// Change command to ensure we run for a bit
@@ -117,7 +117,7 @@ func TestTaskRunner_Destroy(t *testing.T) {
 }
 
 func TestTaskRunner_Update(t *testing.T) {
-	clientTestUtil.ExecCompatible(t)
+	ctestutil.ExecCompatible(t)
 	_, tr := testTaskRunner()
 
 	// Change command to ensure we run for a bit

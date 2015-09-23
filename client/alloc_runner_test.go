@@ -8,7 +8,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 
-	clientTestUtil "github.com/hashicorp/nomad/client/testutil"
+	ctestutil "github.com/hashicorp/nomad/client/testutil"
 )
 
 type MockAllocStateUpdater struct {
@@ -34,7 +34,7 @@ func testAllocRunner() (*MockAllocStateUpdater, *AllocRunner) {
 }
 
 func TestAllocRunner_SimpleRun(t *testing.T) {
-	clientTestUtil.ExecCompatible(t)
+	ctestutil.ExecCompatible(t)
 	upd, ar := testAllocRunner()
 	go ar.Run()
 	defer ar.Destroy()
@@ -51,7 +51,7 @@ func TestAllocRunner_SimpleRun(t *testing.T) {
 }
 
 func TestAllocRunner_Destroy(t *testing.T) {
-	clientTestUtil.ExecCompatible(t)
+	ctestutil.ExecCompatible(t)
 	upd, ar := testAllocRunner()
 
 	// Ensure task takes some time
@@ -83,7 +83,7 @@ func TestAllocRunner_Destroy(t *testing.T) {
 }
 
 func TestAllocRunner_Update(t *testing.T) {
-	clientTestUtil.ExecCompatible(t)
+	ctestutil.ExecCompatible(t)
 	upd, ar := testAllocRunner()
 
 	// Ensure task takes some time

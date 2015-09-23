@@ -16,7 +16,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 
-	clientTestUtil "github.com/hashicorp/nomad/client/testutil"
+	ctestutil "github.com/hashicorp/nomad/client/testutil"
 )
 
 var nextPort uint32 = 16000
@@ -139,7 +139,7 @@ func TestClient_Fingerprint(t *testing.T) {
 }
 
 func TestClient_Drivers(t *testing.T) {
-	clientTestUtil.ExecCompatible(t)
+	ctestutil.ExecCompatible(t)
 	c := testClient(t, nil)
 	defer c.Shutdown()
 
@@ -249,7 +249,7 @@ func TestClient_UpdateAllocStatus(t *testing.T) {
 }
 
 func TestClient_WatchAllocs(t *testing.T) {
-	clientTestUtil.ExecCompatible(t)
+	ctestutil.ExecCompatible(t)
 	s1, _ := testServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
@@ -318,7 +318,7 @@ func TestClient_WatchAllocs(t *testing.T) {
 }
 
 func TestClient_SaveRestoreState(t *testing.T) {
-	clientTestUtil.ExecCompatible(t)
+	ctestutil.ExecCompatible(t)
 	s1, _ := testServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
