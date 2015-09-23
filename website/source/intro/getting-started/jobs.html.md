@@ -172,5 +172,6 @@ If we wanted to start the job again, we could simply `run` it again.
 
 Users of Nomad primarily interact with jobs, and we've now seen
 how to create and scale our job, perform an application update,
-and do a job tear down. Next we will do a brief [tour of the HTTP API](http.html).
+and do a job tear down. Next we will add another Nomad
+client to [create our first cluster](cluster.html)
 

@@ -1,12 +1,12 @@
 ---
 layout: "intro"
-page_title: "Nomad Cluster"
+page_title: "Clustering"
 sidebar_current: "getting-started-cluster"
 description: |-
   Join another Nomad client to create your first cluster.
 ---
 
-# Nomad Cluster
+# Clustering
 
 TODO: Document clustering
 
