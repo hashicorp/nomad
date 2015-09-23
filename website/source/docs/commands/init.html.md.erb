@@ -3,20 +3,23 @@ layout: "docs"
 page_title: "Commands: init"
 sidebar_current: "docs-commands-init"
 description: >
-  Toggle drain mode for a given node.
+  Generate a skeleton jobspec template.
 ---
 
 # Command: init
 
-The `init` command creates a [jobspec](/docs/jobspec/) template in the current
+The `init` command creates an example [job specification](/docs/jobspec/) in the current
 directory that demonstrates some common configurations for tasks, tasks groups,
 runtime constraints, and resource allocation.
 
 Please refer to the [jobspec](/docs/jobspec/) and [drivers](/docs/drivers/)
 pages to learn how to customize the template.
 
-## Usage
+## Examples
+
+Generate an example job file:
 
 ```
-nomad init
+$ nomad init
+Example job file written to example.nomad
 ```

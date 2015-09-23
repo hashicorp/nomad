@@ -8,52 +8,63 @@ description: |-
 
 # Install Nomad
 
-Nomad must first be installed on your machine. Nomad is distributed as
-a [binary package](/downloads.html) for all supported platforms and
-architectures. This page will not cover how to compile Nomad from source,
-but compiling from source is covered in the [documentation](/docs/install/index.html)
-for those who want to be sure they're compiling source they trust into
-the final binary.
+The task drivers that are available to Nomad vary by operating system,
+for example Docker is only available on Linux machines. To simplify the
+getting started experience, we will be working in a Vagrant environment.
+Create a new directory, and download [this `Vagrantfile`](#).
 
-## Installing Nomad
+## Vagrant Setup
 
-To install Nomad, find the [appropriate package](/downloads.html) for
-your system and download it. Nomad is packaged as a zip archive.
+Once you have created a new directory and downloaded the `Vagrantfile`
+you must create the virtual the machine:
 
-After downloading Nomad, unzip the package. Nomad runs as a single binary
-named `nomad`. Any other files in the package can be safely removed and
-Nomad will still function.
+    $ vagrant up
 
-The final step is to make sure that `nomad` is available on the PATH.
-See [this page](https://stackoverflow.com/questions/14637979/how-to-permanently-set-path-on-linux)
-for instructions on setting the PATH on Linux and Mac.
-[This page](https://stackoverflow.com/questions/1618280/where-can-i-set-path-to-make-exe-on-windows)
-contains instructions for setting the PATH on Windows.
+This will take a few minutes as the base Ubuntu box must be downloaded
+and provisioned with both Docker and Nomad. Once this completes, you should
+see output similar to:
+
+    Bringing machine 'default' up with 'vmware_fusion' provider...
+    ==> default: Checking if box 'puphpet/ubuntu1404-x64' is up to date...
+    ==> default: Machine is already running.
+
+At this point the Vagrant box is running and ready to go.
 
 ## Verifying the Installation
 
-After installing Nomad, verify the installation worked by opening a new
-terminal session and checking that `nomad` is available. By executing
+After starting the Vagrant box, verify the installation worked by connecting
+to the box using SSH and checking that `nomad` is available. By executing
 `nomad`, you should see help output similar to the following:
 
 ```
-$ nomad
+$ vagrant ssh
+...
+
+vagrant@nomad:~$ nomad
 usage: nomad [--version] [--help] <command> [<args>]
 
 Available commands are:
-    agent                Runs a Nomad agent
-    agent-force-leave    Force a member into the 'left' state
-    agent-info           Display status information about the local agent
-    agent-join           Join server nodes together
-    agent-members        Display a list of known members and their status
-    node-drain           Toggle drain mode on a given node
-    node-status          Display status information about nodes
-    status               Display status information about jobs
-    version              Prints the Nomad version
+    agent                 Runs a Nomad agent
+    agent-info            Display status information about the local agent
+    eval-monitor          Monitor an evaluation interactively
+    node-drain            Toggle drain mode on a given node
+    node-status           Display status information about nodes
+    run                   Run a new job
+    server-force-leave    Force a server into the 'left' state
+    server-join           Join server nodes together
+    server-members        Display a list of known servers and their status
+    status                Display status information about jobs
+    stop                  Stop a running job
+    version               Prints the Nomad version
 ```
 
-If you get an error that Nomad could not be found, then your PATH environment
-variable was not setup properly. Please go back and ensure that your PATH
-variable contains the directory where Nomad was installed.
+If you get an error that Nomad could not be found, then your Vagrant box
+may not have provisioned correctly. Check any error messages that may have
+been occurred during `vagrant up`. You can always destroy the box and
+re-create it.
 
-Otherwise, Nomad is installed and ready to go!
+## Next Steps
+
+Vagrant is running and Nomad is installed. Let's [start Nomad](/intro/getting-started/running.html)!
+
+

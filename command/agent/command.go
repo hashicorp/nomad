@@ -76,7 +76,7 @@ func (c *Command) readConfig() *Config {
 	flags.StringVar(&cmdConfig.Region, "region", "", "")
 	flags.StringVar(&cmdConfig.DataDir, "data-dir", "", "")
 	flags.StringVar(&cmdConfig.Datacenter, "dc", "", "")
-	flags.StringVar(&cmdConfig.LogLevel, "log-level", "info", "")
+	flags.StringVar(&cmdConfig.LogLevel, "log-level", "", "")
 	flags.StringVar(&cmdConfig.NodeName, "node", "", "")
 
 	// Atlas options

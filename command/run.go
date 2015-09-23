@@ -19,8 +19,9 @@ func (c *RunCommand) Help() string {
 	helpText := `
 Usage: nomad run [options] <file>
 
-  Starts running a new job using the definition located at <file>.
-  This is the main command used to invoke new work in Nomad.
+  Starts running a new job or updates an existing job using
+  the specification located at <file>. This is the main command
+  used to interact with Nomad.
 
   Upon successful job submission, this command will immediately
   enter an interactive monitor. This is useful to watch Nomad's
@@ -50,7 +51,7 @@ Run Options:
 }
 
 func (c *RunCommand) Synopsis() string {
-	return "Run a new job"
+	return "Run a new job or update an existing job"
 }
 
 func (c *RunCommand) Run(args []string) int {
