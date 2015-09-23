@@ -77,7 +77,7 @@ func (f *UnixNetworkFingerprint) linkSpeed(device string) int {
 			return speed
 		}
 	}
-	f.logger.Printf("[WARN] Ethtool not found, checking /sys/net speed file")
+	f.logger.Printf("[WARN] fingerprint.network_aws: Ethtool not found, checking /sys/net speed file")
 
 	// Fall back on checking a system file for link speed.
 	return f.linkSpeedSys(device)
@@ -101,7 +101,7 @@ func (f *UnixNetworkFingerprint) linkSpeedSys(device string) int {
 		// convert to MB/s
 		mbs, err := strconv.Atoi(lines[0])
 		if err != nil {
-			f.logger.Println("[WARN] Unable to parse ethtool output")
+			f.logger.Println("[WARN] fingerprint.network_aws: Enable to parse ethtool output")
 			return 0
 		}
 
@@ -124,7 +124,7 @@ func (f *UnixNetworkFingerprint) linkSpeedEthtool(path, device string) int {
 		m := re.FindString(output)
 		if m == "" {
 			// no matches found, output may be in a different format
-			f.logger.Println("[WARN] Ethtool output did not match regex")
+			f.logger.Println("[WARN] fingerprint.network_aws: Ethtool output did not match regex")
 			return 0
 		}
 
@@ -135,7 +135,7 @@ func (f *UnixNetworkFingerprint) linkSpeedEthtool(path, device string) int {
 		// convert to MB/s
 		mbs, err := strconv.Atoi(raw)
 		if err != nil {
-			f.logger.Println("[WARN] Unable to parse ethtool output")
+			f.logger.Println("[WARN] fingerprint.network_aws: Unable to parse ethtool output")
 			return 0
 		}
 
@@ -143,7 +143,7 @@ func (f *UnixNetworkFingerprint) linkSpeedEthtool(path, device string) int {
 			return mbs
 		}
 	}
-	f.logger.Printf("error calling ethtool (%s): %s", path, err)
+	f.logger.Printf("[ERR] fingerprint.network_aws: Error calling ethtool (%s): %s", path, err)
 	return 0
 }
 
@@ -182,10 +182,10 @@ func (f *UnixNetworkFingerprint) ifConfig(device string) string {
 				return ip
 			}
 		}
-		f.logger.Printf("[ERR] Error calling ifconfig (%s): %s", ifConfigPath, err)
+		f.logger.Printf("[ERR] fingerprint.network_aws: Error calling ifconfig (%s): %s", ifConfigPath, err)
 		return ""
 	}
 
-	f.logger.Println("[WARN] Ethtool not found")
+	f.logger.Println("[WARN] fingerprint.network_aws: Ethtool not found")
 	return ""
 }
