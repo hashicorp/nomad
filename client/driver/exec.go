@@ -55,7 +55,7 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		return nil, fmt.Errorf("failed to constrain resources: %s", err)
 	}
 
-	// Add the environment
+	// Populate environment variables
 	cmd.Command().Env = PopulateEnvironment(ctx, task)
 
 	if err := cmd.Start(); err != nil {

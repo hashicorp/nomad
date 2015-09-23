@@ -128,6 +128,10 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	// Setup the command
 	// Assumes Java is in the $PATH, but could probably be detected
 	cmd := executor.Command("java", args...)
+
+	// Populate environment variables
+	cmd.Command().Env = PopulateEnvironment(ctx, task)
+
 	err = cmd.Limit(task.Resources)
 	if err != nil {
 		return nil, fmt.Errorf("failed to constrain resources: %s", err)
