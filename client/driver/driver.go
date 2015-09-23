@@ -114,13 +114,13 @@ func PopulateEnvironment(ctx *ExecContext, task *structs.Task) []string {
 
 	if task.Resources != nil {
 		env = append(env, fmt.Sprintf("NOMAD_MEMORY_LIMIT=%d", task.Resources.MemoryMB))
-		env = append(env, fmt.Sprintf("NOMAD_CPU_LIMIT=%d", task.Resources.CPU))
+		env = append(env, fmt.Sprintf("NOMAD_CPU_LIMIT=%f", task.Resources.CPU))
 
 		// Named Ports
 		if len(task.Resources.Networks) > 0 {
 			network := task.Resources.Networks[0]
 
-			env = append(env, fmt.Sprintf("NOMAD_HOST_IP=%d", network.IP))
+			env = append(env, fmt.Sprintf("NOMAD_HOST_IP=%s", network.IP))
 			for idx, port := range network.ListDynamicPorts() {
 				env = append(env, fmt.Sprintf("NOMAD_PORT_%s=%d", strings.ToUpper(network.DynamicPorts[idx]), port))
 			}
