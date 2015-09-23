@@ -105,7 +105,6 @@ func (f *UnixNetworkFingerprint) linkSpeedSys(device string) int {
 			return 0
 		}
 
-		// Convert to MB/s
 		if mbs > 0 {
 			return mbs
 		}
@@ -140,9 +139,8 @@ func (f *UnixNetworkFingerprint) linkSpeedEthtool(path, device string) int {
 			return 0
 		}
 
-		// Convert to MB/s
 		if mbs > 0 {
-			return mbs / 8
+			return mbs
 		}
 	}
 	f.logger.Printf("error calling ethtool (%s): %s", path, err)
