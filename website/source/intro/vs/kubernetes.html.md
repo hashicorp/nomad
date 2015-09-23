@@ -14,7 +14,7 @@ needed to run Docker based applications including cluster management,
 scheduling, service discovery, monitoring, secrets management and more.
 
 Nomad only aims to provide cluster management and scheduling and is designed
-in the Unix philosophy of having a small scope while composing with tools like [Consul](https://consul.io)
+with the Unix philosophy of having a small scope while composing with tools like [Consul](https://consul.io)
 for service discovery and [Vault](https://www.vaultproject.io) for secret management.
 
 While Kubernetes is specifically focused on Docker, Nomad is more general purpose.

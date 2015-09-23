@@ -9,10 +9,10 @@ description: |-
 # Nomad vs. Docker Swarm
 
 Docker Swarm is the native clustering solution for Docker. It provides
-an API compatible with the Docker Remote API, but allows containers to
+an API compatible with the Docker Remote API, and allows containers to
 be scheduled across many machines.
 
-Nomad differs in many ways with Docker Swarm. Most obviously, Docker Swarm
+Nomad differs in many ways with Docker Swarm, most obviously Docker Swarm
 can only be used to run Docker containers, while Nomad is more general purpose.
 Nomad supports virtualized, containerized and standalone applications, including Docker.
 Nomad is designed with extensible drivers and support will be extended to all
@@ -31,7 +31,7 @@ and multi-region configurations.
 
 By contrast, Swarm is not distributed or highly available by default.
 External systems must be used for coordination to support replication.
-When Swarm has replication enabled, it uses an active/standby model,
+When replication is enabled, Swarm uses an active/standby model,
 meaning the other servers cannot be used to make scheduling decisions.
-Swarm does not support multiple failure isolation regions or federation.
+Swarm also does not support multiple failure isolation regions or federation.
 
