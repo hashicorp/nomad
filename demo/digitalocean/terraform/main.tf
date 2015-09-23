@@ -1,4 +1,4 @@
-variable "image" { default = "xxx" }
+variable "image" { default = "nomad-1443043155" }
 
 module "servers" {
   source = "./server"

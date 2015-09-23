@@ -1,20 +1,21 @@
 variable "count"  {}
 variable "image"  {}
 variable "region" {}
-variable "size"   {}
+variable "size"   { default = "512mb" }
 
 resource "template_file" "server_config" {
-  filepath = "templates/server.hcl.tpl"
+  filename = "templates/server.hcl.tpl"
   vars {
     datacenter = "${var.region}"
   }
 }
 
 resource "digitalocean_droplet" "server" {
-  image = "${var.image}"
-  name  = "server-${var.region}-${count.index}"
-  count = "${var.count}"
-  size  = "${var.size}"
+  image  = "${var.image}"
+  name   = "server-${var.region}-${count.index}"
+  count  = "${var.count}"
+  size   = "${var.size}"
+  region = "${var.region}"
 
   provisioner "file" {
     source      = "${template_file.server_config.filename}"
@@ -27,5 +28,5 @@ resource "digitalocean_droplet" "server" {
 }
 
 output "addrs" {
-  value = "${join(",", resource.digitalocean_droplet.*.ipv4_address)}"
+  value = "${join(",", digitalocean_droplet.server.*.ipv4_address)}"
 }
