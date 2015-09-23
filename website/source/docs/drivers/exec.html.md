@@ -25,15 +25,15 @@ The `exec` driver supports the following configuration in the job spec:
 
 ## Client Requirements
 
-The `exec` driver has no special requirements and can run on all
-supported operating systems. The resource isolation primitives vary
-by OS.
+The `exec` driver can run on all supported operating systems but to provide
+proper isolation the client must be run as root on non-Windows operating systems.
+Further, to support cgroups, `/sys/fs/cgroups/` must be mounted.
 
 ## Client Attributes
 
 The `exec` driver will set the following client attributes:
 
-* `driver.exec` - This will always be set to "1", indicating the
+* `driver.exec` - This will be set to "1", indicating the
   driver is available.
 
 ## Resource Isolation
@@ -41,10 +41,8 @@ The `exec` driver will set the following client attributes:
 The resource isolation provided varies by the operating system of
 the client and the configuration.
 
-On Linux, Nomad will attempt to use cgroups, namespaces, and chroot
-to isolate the resources of a process. If the Nomad agent is not
-running as root many of these mechanisms cannot be used.
+On Linux, Nomad will use cgroups, namespaces, and chroot to isolate the
+resources of a process and as such the Nomad agent must be run as root.
 
-As a baseline, the task driver will just execute the command
-with no additional resource isolation if none are available.
-
+On Windows, the task driver will just execute the command with no additional
+resource isolation.
