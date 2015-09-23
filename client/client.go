@@ -565,6 +565,7 @@ func (c *Client) watchAllocations(allocUpdates chan []*structs.Allocation) {
 
 	for {
 		// Get the allocations, blocking for updates
+		resp = structs.NodeAllocsResponse{}
 		err := c.RPC("Node.GetAllocs", &req, &resp)
 		if err != nil {
 			c.logger.Printf("[ERR] client: failed to query for node allocations: %v", err)
