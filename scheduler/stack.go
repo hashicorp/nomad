@@ -88,7 +88,7 @@ func NewGenericStack(batch bool, ctx Context, baseNodes []*structs.Node) *Generi
 	s.jobAntiAff = NewJobAntiAffinityIterator(ctx, s.binPack, penalty, "")
 
 	// Apply a limit function. This is to avoid scanning *every* possible node.
-	s.limit = NewLimitIterator(ctx, s.binPack, 2)
+	s.limit = NewLimitIterator(ctx, s.jobAntiAff, 2)
 
 	// Select the node with the maximum score for placement
 	s.maxScore = NewMaxScoreIterator(ctx, s.limit)

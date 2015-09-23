@@ -11,6 +11,8 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+
+	ctestutil "github.com/hashicorp/nomad/client/testutil"
 )
 
 func testLogger() *log.Logger {
@@ -44,6 +46,7 @@ func testTaskRunner() (*MockTaskStateUpdater, *TaskRunner) {
 }
 
 func TestTaskRunner_SimpleRun(t *testing.T) {
+	ctestutil.ExecCompatible(t)
 	upd, tr := testTaskRunner()
 	go tr.Run()
 	defer tr.Destroy()
@@ -79,6 +82,7 @@ func TestTaskRunner_SimpleRun(t *testing.T) {
 }
 
 func TestTaskRunner_Destroy(t *testing.T) {
+	ctestutil.ExecCompatible(t)
 	upd, tr := testTaskRunner()
 
 	// Change command to ensure we run for a bit
@@ -113,6 +117,7 @@ func TestTaskRunner_Destroy(t *testing.T) {
 }
 
 func TestTaskRunner_Update(t *testing.T) {
+	ctestutil.ExecCompatible(t)
 	_, tr := testTaskRunner()
 
 	// Change command to ensure we run for a bit
@@ -134,6 +139,11 @@ func TestTaskRunner_Update(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	})
 }
+
+/*
+TODO: This test is disabled til a follow-up api changes the restore state interface.
+The driver/executor interface will be changed from Open to Cleanup, in which
+clean-up tears down previous allocs.
 
 func TestTaskRunner_SaveRestoreState(t *testing.T) {
 	upd, tr := testTaskRunner()
@@ -170,3 +180,4 @@ func TestTaskRunner_SaveRestoreState(t *testing.T) {
 		t.Fatalf("timeout")
 	}
 }
+*/

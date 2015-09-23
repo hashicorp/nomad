@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/mitchellh/mapstructure"
 )
 
 const (
@@ -191,20 +190,9 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 }
 
 // decodeBody is used to decode a JSON request body
-func decodeBody(req *http.Request, out interface{}, cb func(interface{}) error) error {
-	var raw interface{}
+func decodeBody(req *http.Request, out interface{}) error {
 	dec := json.NewDecoder(req.Body)
-	if err := dec.Decode(&raw); err != nil {
-		return err
-	}
-
-	// Invoke the callback prior to decode
-	if cb != nil {
-		if err := cb(raw); err != nil {
-			return err
-		}
-	}
-	return mapstructure.Decode(raw, out)
+	return dec.Decode(&out)
 }
 
 // setIndex is used to set the index response header

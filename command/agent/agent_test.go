@@ -162,4 +162,29 @@ func TestAgent_ServerConfig(t *testing.T) {
 	if addr := out.SerfConfig.MemberlistConfig.BindAddr; addr != "127.0.0.3" {
 		t.Fatalf("expect 127.0.0.3, got: %s", addr)
 	}
+
+	// Properly handles the bootstrap flags
+	conf.Server.BootstrapExpect = 1
+	out, err = a.serverConfig()
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	if !out.Bootstrap {
+		t.Fatalf("should have set bootstrap mode")
+	}
+	if out.BootstrapExpect != 0 {
+		t.Fatalf("boostrap expect should be 0")
+	}
+
+	conf.Server.BootstrapExpect = 3
+	out, err = a.serverConfig()
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	if out.Bootstrap {
+		t.Fatalf("bootstrap mode should be disabled")
+	}
+	if out.BootstrapExpect != 3 {
+		t.Fatalf("should have bootstrap-expect = 3")
+	}
 }

@@ -2,8 +2,9 @@ package driver
 
 import (
 	"fmt"
-	"strconv"
+	"runtime"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/hashicorp/nomad/client/config"
@@ -31,7 +32,12 @@ func NewExecDriver(ctx *DriverContext) Driver {
 }
 
 func (d *ExecDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
-	// We can always do a fork/exec
+	// Only enable if we are root when running on non-windows systems.
+	if runtime.GOOS != "windows" && syscall.Geteuid() != 0 {
+		d.logger.Printf("[DEBUG] driver.exec: must run as root user, disabling")
+		return false, nil
+	}
+
 	node.Attributes["driver.exec"] = "1"
 	return true, nil
 }
@@ -52,12 +58,11 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 
 	// Setup the command
 	cmd := executor.Command(command, args...)
-	err := cmd.Limit(task.Resources)
-	if err != nil {
+	if err := cmd.Limit(task.Resources); err != nil {
 		return nil, fmt.Errorf("failed to constrain resources: %s", err)
 	}
-	err = cmd.Start()
-	if err != nil {
+
+	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("failed to start command: %v", err)
 	}
 
@@ -72,17 +77,10 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 }
 
 func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {
-	// Split the handle
-	pidStr := strings.TrimPrefix(handleID, "PID:")
-	pid, err := strconv.Atoi(pidStr)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse handle '%s': %v", handleID, err)
-	}
-
 	// Find the process
-	cmd, err := executor.OpenPid(pid)
+	cmd, err := executor.OpenId(handleID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to find PID %d: %v", pid, err)
+		return nil, fmt.Errorf("failed to open ID %v: %v", handleID, err)
 	}
 
 	// Return a driver handle
@@ -96,9 +94,8 @@ func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 }
 
 func (h *execHandle) ID() string {
-	// Return a handle to the PID
-	pid, _ := h.cmd.Pid()
-	return fmt.Sprintf("PID:%d", pid)
+	id, _ := h.cmd.ID()
+	return id
 }
 
 func (h *execHandle) WaitCh() chan error {
@@ -125,8 +122,6 @@ func (h *execHandle) run() {
 	close(h.doneCh)
 	if err != nil {
 		h.waitCh <- err
-	} else if !h.cmd.Command().ProcessState.Success() {
-		h.waitCh <- fmt.Errorf("task exited with error")
 	}
 	close(h.waitCh)
 }

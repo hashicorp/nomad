@@ -39,7 +39,6 @@ func TestConfig_Merge(t *testing.T) {
 		},
 		Server: &ServerConfig{
 			Enabled:         false,
-			Bootstrap:       false,
 			BootstrapExpect: 1,
 			DataDir:         "/tmp/data1",
 			ProtocolVersion: 1,
@@ -91,7 +90,6 @@ func TestConfig_Merge(t *testing.T) {
 		},
 		Server: &ServerConfig{
 			Enabled:           true,
-			Bootstrap:         true,
 			BootstrapExpect:   2,
 			DataDir:           "/tmp/data2",
 			ProtocolVersion:   2,
@@ -296,3 +294,139 @@ func TestConfig_Listener(t *testing.T) {
 		t.Fatalf("expected 0.0.0.0:24000, got: %q", addr)
 	}
 }
+
+func TestConfig_LoadConfigString(t *testing.T) {
+	// Load the config
+	config, err := LoadConfigString(testConfig)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	// Expected output
+	expect := &Config{
+		Region:      "foobar",
+		Datacenter:  "dc2",
+		NodeName:    "my-web",
+		DataDir:     "/tmp/nomad",
+		LogLevel:    "ERR",
+		BindAddr:    "192.168.0.1",
+		EnableDebug: true,
+		Ports: &Ports{
+			HTTP: 1234,
+			RPC:  2345,
+			Serf: 3456,
+		},
+		Addresses: &Addresses{
+			HTTP: "127.0.0.1",
+			RPC:  "127.0.0.2",
+			Serf: "127.0.0.3",
+		},
+		AdvertiseAddrs: &AdvertiseAddrs{
+			RPC:  "127.0.0.3",
+			Serf: "127.0.0.4",
+		},
+		Client: &ClientConfig{
+			Enabled:   true,
+			StateDir:  "/tmp/client-state",
+			AllocDir:  "/tmp/alloc",
+			Servers:   []string{"a.b.c:80", "127.0.0.1:1234"},
+			NodeID:    "xyz123",
+			NodeClass: "linux-medium-64bit",
+			Meta: map[string]string{
+				"foo": "bar",
+				"baz": "zip",
+			},
+		},
+		Server: &ServerConfig{
+			Enabled:           true,
+			BootstrapExpect:   5,
+			DataDir:           "/tmp/data",
+			ProtocolVersion:   3,
+			NumSchedulers:     2,
+			EnabledSchedulers: []string{"test"},
+		},
+		Telemetry: &Telemetry{
+			StatsiteAddr:    "127.0.0.1:1234",
+			StatsdAddr:      "127.0.0.1:2345",
+			DisableHostname: true,
+		},
+		LeaveOnInt:                true,
+		LeaveOnTerm:               true,
+		EnableSyslog:              true,
+		SyslogFacility:            "LOCAL1",
+		DisableUpdateCheck:        true,
+		DisableAnonymousSignature: true,
+		Atlas: &AtlasConfig{
+			Infrastructure: "armon/test",
+			Token:          "abcd",
+			Join:           true,
+			Endpoint:       "127.0.0.1:1234",
+		},
+	}
+
+	// Check parsing
+	if !reflect.DeepEqual(config, expect) {
+		t.Fatalf("bad: got: %#v\nexpect: %#v", config, expect)
+	}
+}
+
+const testConfig = `
+region = "foobar"
+datacenter = "dc2"
+name = "my-web"
+data_dir = "/tmp/nomad"
+log_level = "ERR"
+bind_addr = "192.168.0.1"
+enable_debug = true
+ports {
+	http = 1234
+	rpc = 2345
+	serf = 3456
+}
+addresses {
+	http = "127.0.0.1"
+	rpc = "127.0.0.2"
+	serf = "127.0.0.3"
+}
+advertise {
+	rpc = "127.0.0.3"
+	serf = "127.0.0.4"
+}
+client {
+	enabled = true
+	state_dir = "/tmp/client-state"
+	alloc_dir = "/tmp/alloc"
+	servers = ["a.b.c:80", "127.0.0.1:1234"]
+	node_id = "xyz123"
+	node_class = "linux-medium-64bit"
+	meta {
+		foo = "bar"
+		baz = "zip"
+	}
+}
+server {
+	enabled = true
+	bootstrap_expect = 5
+	data_dir = "/tmp/data"
+	protocol_version = 3
+	num_schedulers = 2
+	enabled_schedulers = ["test"]
+}
+telemetry {
+	statsite_address = "127.0.0.1:1234"
+	statsd_address = "127.0.0.1:2345"
+	disable_hostname = true
+}
+leave_on_interrupt = true
+leave_on_terminate = true
+enable_syslog = true
+syslog_facility = "LOCAL1"
+disable_update_check = true
+disable_anonymous_signature = true
+atlas {
+	infrastructure = "armon/test"
+	token = "abcd"
+	join = true
+	endpoint = "127.0.0.1:1234"
+}
+`

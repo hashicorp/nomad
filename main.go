@@ -28,10 +28,20 @@ func RunCustom(args []string, commands map[string]cli.CommandFactory) int {
 		}
 	}
 
+	// Build the commands to include in the help now.
+	commandsInclude := make([]string, 0, len(commands))
+	for k, _ := range commands {
+		switch k {
+		case "spawn-daemon":
+		default:
+			commandsInclude = append(commandsInclude, k)
+		}
+	}
+
 	cli := &cli.CLI{
 		Args:     args,
 		Commands: commands,
-		HelpFunc: cli.BasicHelpFunc("nomad"),
+		HelpFunc: cli.FilteredHelpFunc(commandsInclude, cli.BasicHelpFunc("nomad")),
 	}
 
 	exitCode, err := cli.Run()

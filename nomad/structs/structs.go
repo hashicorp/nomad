@@ -612,12 +612,12 @@ func (r *Resources) GoString() string {
 // NetworkResource is used to represesent available network
 // resources
 type NetworkResource struct {
-	Device        string // Name of the device
-	CIDR          string // CIDR block of addresses
-	IP            string // IP address
-	MBits         int    // Throughput
-	ReservedPorts []int  `mapstructure:"reserved_ports"` // Reserved ports
-	DynamicPorts  int    `mapstructure:"dynamic_ports"`  // Dynamically assigned ports
+	Device        string   // Name of the device
+	CIDR          string   // CIDR block of addresses
+	IP            string   // IP address
+	MBits         int      // Throughput
+	ReservedPorts []int    `mapstructure:"reserved_ports"` // Reserved ports
+	DynamicPorts  []string `mapstructure:"dynamic_ports"`  // Dynamically assigned ports
 }
 
 // Copy returns a deep copy of the network resource
@@ -638,7 +638,7 @@ func (n *NetworkResource) Add(delta *NetworkResource) {
 		n.ReservedPorts = append(n.ReservedPorts, delta.ReservedPorts...)
 	}
 	n.MBits += delta.MBits
-	n.DynamicPorts += delta.DynamicPorts
+	n.DynamicPorts = append(n.DynamicPorts, delta.DynamicPorts...)
 }
 
 func (n *NetworkResource) GoString() string {
@@ -1100,8 +1100,8 @@ type AllocMetric struct {
 	// ClassExhausted is the number of nodes exhausted by class
 	ClassExhausted map[string]int
 
-	// DimensionExhaused provides the count by dimension or reason
-	DimensionExhaused map[string]int
+	// DimensionExhausted provides the count by dimension or reason
+	DimensionExhausted map[string]int
 
 	// Scores is the scores of the final few nodes remaining
 	// for placement. The top score is typically selected.
@@ -1147,10 +1147,10 @@ func (a *AllocMetric) ExhaustedNode(node *Node, dimension string) {
 		a.ClassExhausted[node.NodeClass] += 1
 	}
 	if dimension != "" {
-		if a.DimensionExhaused == nil {
-			a.DimensionExhaused = make(map[string]int)
+		if a.DimensionExhausted == nil {
+			a.DimensionExhausted = make(map[string]int)
 		}
-		a.DimensionExhaused[dimension] += 1
+		a.DimensionExhausted[dimension] += 1
 	}
 }
 
