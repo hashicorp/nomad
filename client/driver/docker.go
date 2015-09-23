@@ -93,11 +93,6 @@ func containerOptionsForTask(task *structs.Task, logger *log.Logger) docker.Crea
 		// See:
 		//  - https://www.kernel.org/doc/Documentation/scheduler/sched-bwc.txt
 		//  - https://www.kernel.org/doc/Documentation/scheduler/sched-design-CFS.txt
-		//
-		// TODO push CPU share up to the task group level. We can retain the
-		// docker-specific implementation for very fine-grained control but the
-		// usage semantics will change once we have this capability in task
-		// groups.
 		CPUShares: int64(task.Resources.CPU),
 	}
 
