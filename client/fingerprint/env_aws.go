@@ -171,14 +171,14 @@ func isAWS() bool {
 	resp, err := client.Get(metadataURL + "ami-id")
 
 	if err != nil {
-		log.Printf("[Err] Error querying AWS Metadata URL, skipping")
+		log.Printf("[ERR] Error querying AWS Metadata URL, skipping")
 		return false
 	}
 	defer resp.Body.Close()
 
 	instanceID, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Printf("[Err] Error reading AWS Instance ID, skipping")
+		log.Printf("[ERR] Error reading AWS Instance ID, skipping")
 		return false
 	}
 

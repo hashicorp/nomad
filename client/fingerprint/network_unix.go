@@ -182,7 +182,7 @@ func (f *UnixNetworkFingerprint) ifConfig(device string) string {
 				return ip
 			}
 		}
-		f.logger.Printf("[Err] Error calling ifconfig (%s): %s", ifConfigPath, err)
+		f.logger.Printf("[ERR] Error calling ifconfig (%s): %s", ifConfigPath, err)
 		return ""
 	}
 
