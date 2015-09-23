@@ -32,6 +32,11 @@
       "type": "file",
       "source": "upstart.nomad",
       "destination": "/etc/init/nomad"
+    },
+    {
+      "type": "file",
+      "source": "default.hcl",
+      "destination": "/usr/local/etc/nomad.hcl"
     }
   ]
 }
