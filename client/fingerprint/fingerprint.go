@@ -8,21 +8,35 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// BuiltinFingerprints contains the built in registered fingerprints
-// which are available
-var BuiltinFingerprints = map[string]Factory{
+// BuiltinFingerprints is a slice containing the key names of all regestered
+// fingerprints available, to provided an ordered iteration
+var BuiltinFingerprints = []string{
+	"arch",
+	"cpu",
+	"host",
+	"memory",
+	"storage",
+	"network",
+	"env_aws",
+}
+
+// builtinFingerprintMap contains the built in registered fingerprints
+// which are available, corresponding to a key found in BuiltinFingerprints
+var builtinFingerprintMap = map[string]Factory{
 	"arch":    NewArchFingerprint,
 	"cpu":     NewCPUFingerprint,
 	"host":    NewHostFingerprint,
 	"memory":  NewMemoryFingerprint,
 	"storage": NewStorageFingerprint,
+	"network": NewNetworkFingerprinter,
+	"env_aws": NewEnvAWSFingerprint,
 }
 
 // NewFingerprint is used to instantiate and return a new fingerprint
 // given the name and a logger
 func NewFingerprint(name string, logger *log.Logger) (Fingerprint, error) {
 	// Lookup the factory function
-	factory, ok := BuiltinFingerprints[name]
+	factory, ok := builtinFingerprintMap[name]
 	if !ok {
 		return nil, fmt.Errorf("unknown fingerprint '%s'", name)
 	}
