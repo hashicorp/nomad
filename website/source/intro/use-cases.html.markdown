@@ -18,14 +18,14 @@ Microservices, or Service Oriented Architectures (SOA), are a design paradigm in
 services with narrow scope, tight state encapsulation, and API driven interfaces interact together
 to form a larger application. However, they add an operational challenge of managing hundreds
 or thousands of services instead of a few large applications. Nomad provides a platform for
-managing microservices making it easier to adopt the paradigm.
+managing microservices, making it easier to adopt the paradigm.
 
 #### Hybrid Cloud Deployments
 
 Nomad is designed to handle multi-datacenter and multi-region deployments and is cloud agnostic.
 This allows Nomad to schedule in private datacenters running bare metal, OpenStack, or VMware
-along side an AWS, Azure, or GCE cloud deployment. This makes it easier to migrate workloads
-incrementally or to utilize the cloud for bursting.
+alongside an AWS, Azure, or GCE cloud deployment. This makes it easier to migrate workloads
+incrementally, or to utilize the cloud for bursting.
 
 #### E-Commerce
 

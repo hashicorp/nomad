@@ -21,13 +21,13 @@ guide for all available features as well as internals.
 
 Nomad is a tool for managing a cluster of machines and running applications
 on them. Nomad abstracts away machines and the location of applications,
-and instead enables user to declare what they want to run and Nomad handles
+and instead enables users to declare what they want to run and Nomad handles
 where they should run and how to run them.
 
 The key features of Nomad are:
 
 * **Docker Support**: Nomad supports Docker as a first-class workload type.
-  Jobs submitted to Nomad can use the “docker” driver to easily deploy containerized
+  Jobs submitted to Nomad can use the `docker` driver to easily deploy containerized
   applications to a cluster. Nomad enforces the user-specified constraints,
   ensuring the application only runs in the correct region, datacenter, and host
   environment. Jobs can specify the number of instances needed and
