@@ -142,6 +142,13 @@ func (c *Client) init() error {
 			return fmt.Errorf("failed creating alloc dir: %s", err)
 		}
 	}
+
+	// Ensure the state dir exists if we have one
+	if c.config.StateDir != "" {
+		if err := os.MkdirAll(c.config.StateDir, 0700); err != nil {
+			return fmt.Errorf("failed creating state dir: %s", err)
+		}
+	}
 	return nil
 }
 
@@ -265,7 +272,9 @@ func (c *Client) restoreState() error {
 
 	// Scan the directory
 	list, err := ioutil.ReadDir(filepath.Join(c.config.StateDir, "alloc"))
-	if err != nil {
+	if err != nil && os.IsNotExist(err) {
+		return nil
+	} else if err != nil {
 		return fmt.Errorf("failed to list alloc state: %v", err)
 	}
 
