@@ -2,8 +2,15 @@ package command
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
-	"path/filepath"
+	"strings"
+)
+
+const (
+	// DefaultInitName is the default name we use when
+	// initializing the example file
+	DefaultInitName = "example.nomad"
 )
 
 // InitCommand generates a new job template that you can customize to your
@@ -13,89 +20,106 @@ type InitCommand struct {
 }
 
 func (c *InitCommand) Help() string {
-	return initUsage
-}
+	helpText := `
+Usage: nomad init
 
-func (c *InitCommand) Run(args []string) int {
-	dir, err := os.Getwd()
-	if err != nil {
-		c.Ui.Error("Unable to determine pwd; aborting")
-		return 1
-	}
+  Creates an example job file that can be used as a starting
+  point to customize further.
 
-	// Derive the job name from the pwd folder name, which is our best guess at
-	// the project's name
-	jobname := filepath.Base(dir)
-	jobfile := fmt.Sprintf("%s.nomad", jobname)
-	jobpath := filepath.Join(dir, jobfile)
-	if _, err := os.Stat(jobpath); err == nil {
-		c.Ui.Error(fmt.Sprintf("%s file already exists", jobfile))
-		return 1
-	}
-
-	file, err := os.Create(jobfile)
-	defer file.Close()
-	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Unable to create file %s: %s", jobfile, err))
-		return 1
-	}
-
-	_, err = file.WriteString(defaultJob)
-	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Failed to write job template to %s", jobfile))
-		return 1
-	}
-
-	c.Ui.Output(fmt.Sprintf("Initialized nomad job template in %s", jobfile))
-
-	return 0
+`
+	return strings.TrimSpace(helpText)
 }
 
 func (c *InitCommand) Synopsis() string {
-	return "Create a new job template"
+	return "Create an example job file"
 }
 
-const initUsage = ``
+func (c *InitCommand) Run(args []string) int {
+	// Check if the file already exists
+	_, err := os.Stat(DefaultInitName)
+	if err == nil || !os.IsNotExist(err) {
+		c.Ui.Error(fmt.Sprintf("Job '%s' already exists", DefaultInitName))
+		return 1
+	} else if !os.IsNotExist(err) {
+		c.Ui.Error(fmt.Sprintf("Failed to stat '%s': %v", DefaultInitName, err))
+		return 1
+	}
+
+	// Write out the example
+	err = ioutil.WriteFile(DefaultInitName, []byte(defaultJob), 0660)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Failed to write '%s': %v", DefaultInitName, err))
+		return 1
+	}
+
+	// Success
+	c.Ui.Output(fmt.Sprintf("Example job file written to %s", DefaultInitName))
+	return 0
+}
 
 const defaultJob = `
-job "my-app" {
-    region = "global"
-    type = "service"
-    priority = 50
+# There can only be a single job definition per file.
+# Create a job with ID and Name 'example'
+job "example" {
+	# Run the job in the global region, which is the default.
+	# region = "global"
 
-    // Each task in the group will be scheduled on the same machine(s).
-    group "app-group" {
-        // How many copies of this group should we run?
-        count = 5
+	# Specify the datacenters within the region this job can run in.
+	datacenters = ["dc1"]
 
-        task "python-webapp" {
-            driver = "docker"
-            config {
-                image = "org/container"
-            }
-            resources {
-                // For CPU 1024 = 1ghz
-                cpu = 500
-                // Memory in megabytes
-                memory = 128
+	# Service type jobs optimize for long-lived services. This is
+	# the default but we can change to batch for short-lived tasks.
+	# type = "service"
 
-                network {
-                    dynamic_ports = [
-                        "http",
-                        "https",
-                    ]
-                }
-            }
-        }
+	# Priority controls our access to resources and scheduling priority.
+	# This can be 1 to 100, inclusively, and defaults to 50.
+	# priority = 50
 
-        task "logshipper" {
-            driver = "exec"
-        }
+	# Restrict our job to only linux. We can specify multiple
+	# constraints as needed.
+	constraint {
+		attribute = "$attr.os.name"
+		value = "linux"
+	}
 
-        constraint {
-            attribute = "kernel.os"
-            value = "linux"
-        }
-    }
+	# Configure the job to do rolling updates
+	update {
+		# Stagger updates every 10 seconds
+		stagger = "10s"
+
+		# Update a single task at a time
+		max_parallel = 1
+	}
+
+	# Create a 'cache' group. Each task in the group will be
+	# scheduled onto the same machine.
+	group "cache" {
+		# Control the number of instances of this groups.
+		# Defaults to 1
+		# count = 1
+
+		# Define a task to run
+		task "redis" {
+			# Use Docker to run the task.
+			driver = "docker"
+
+			# Configure Docker driver with the image
+			config {
+				image = "redis"
+			}
+
+			# We must specify the resources required for
+			# this task to ensure it runs on a machine with
+			# enough capacity.
+			resources {
+				cpu = 500 # 500 Mhz
+				memory = 256 # 128MB
+				network {
+					mbits = 10
+					dynamic_ports = ["redis"]
+				}
+			}
+		}
+	}
 }
 `
