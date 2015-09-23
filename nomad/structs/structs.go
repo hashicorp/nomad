@@ -655,23 +655,20 @@ func (n *NetworkResource) GoString() string {
 // When we ask nomad to run a job it checks to see if the Reserved ports we
 // requested are available. If they are, it then tries to provision any Dynamic
 // ports that we have requested. When available ports are found to satisfy our
-// dynamic port requirements, they are APPENDED to the reserved ports list.
+// dynamic port requirements, they are APPENDED to the reserved ports list. In
+// effect, the reserved ports list serves double-duty. First it indicates the
+// ports we *want*, and then it indicates the ports we are *using*.
 //
-// In effect, the reserved ports list serves double-duty. First it indicates the
-// ports we *want*, and then it indicates the ports we are *using*. After the
-// the offer process is complete and the job is scheduled we want to see which
-// ports were made available to us.
-//
-// The way we do this is by inspecting the ports that were added to the
-// reservation and matching them up with the DynamicPort labels we specified in
-// the jobspec. We do this by looking at the last N ports, where N is how many
-// dynamic ports we requested.
+// After the the offer process is complete and the job is scheduled we want to
+// see which ports were made available to us. To see the dynamic ports that
+// were allocated to us we look at the last N ports in our reservation, where N
+// is how many dynamic ports we requested.
 //
 // ListDynamicPorts returns a new list with only the Dynamic port numbers. It
-// has the same indexes as DynamicPorts so you can iterate over either one and
-// easily match up the values. If you prefer a less algorithmic implementation
-// you can use MapDynamicPorts() instead, so you can lookup the port number
-// using the label from the jobspec.
+// has the same indexes as DynamicPorts (the labels) so you can iterate over
+// either one and easily match up the values. If you prefer a less algorithmic
+// implementation you can use MapDynamicPorts() instead, so you can lookup the
+// port number using the label from the jobspec.
 //
 // Also, be aware that this is intended to be called in the context of
 // task.Resources after an offer has been made. If you call it in some other
