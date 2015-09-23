@@ -266,20 +266,6 @@ func TestResource_Add_Network(t *testing.T) {
 	}
 }
 
-func TestListDynamicPorts(t *testing.T) {
-	resources := &NetworkResource{
-		ReservedPorts: []int{80, 443, 3306, 8080},
-		DynamicPorts:  []string{"mysql", "admin"},
-	}
-
-	expected := []int{3306, 8080}
-	actual := resources.ListDynamicPorts()
-
-	if !reflect.DeepEqual(expected, actual) {
-		t.Fatalf("Expected %#v; found %#v", expected, actual)
-	}
-}
-
 func TestMapDynamicPorts(t *testing.T) {
 	resources := &NetworkResource{
 		ReservedPorts: []int{80, 443, 3306, 8080},
