@@ -645,6 +645,49 @@ func (n *NetworkResource) GoString() string {
 	return fmt.Sprintf("*%#v", *n)
 }
 
+// ListDynamicPorts returns a list of integers that correspond to the labels in
+// .DynamicPorts. This is a little bit strange and bears some explanation:
+//
+// When we request dynamic ports nomad checks to see which ports are available.
+// Once it finds enough to satisfy our requirements, it sends us an offer and
+// marks those ports as reserved (or if it can't find enough we get an error).
+// The complete reserved list includes reserved ports we requested, along with
+// dynamic ports that nomad found for us. This list is merged together and
+// becomes the list of ALL reserved ports. (Reserved has a double-meaning.)
+//
+// Later when we want to use our dynamic port range, we can call ListDynamicPorts
+// to get a list of ints that correspond to the list of DyanmicPorts requested
+// in the jobspec. The indexes in both DynamicPorts and ListDynamicPorts() will
+// match. DynamicPorts actually holds the Labels while ListDynamicPorts tells us
+// the port numbers (sorry, a bit confusing).
+//
+// Also, be aware that this is intended to be called in the context of
+// task.Resources after an offer has been made. If you call it in some other
+// context the behavior is unspecified, including maybe crashing. So don't do that.
+func (n *NetworkResource) ListDynamicPorts() []int {
+	var ports []int
+	for i := len(n.ReservedPorts) - len(n.DynamicPorts); i < len(n.ReservedPorts); i++ {
+		ports = append(ports, n.ReservedPorts[i])
+	}
+	return ports
+}
+
+// MapDynamicPorts returns a mapping of Label:PortNumber for dynamic ports
+// allocated on this NetworkResource. If you need the port order you should use
+// ListDynamicPorts instead.
+//
+// See caveats in ListDynamicPorts
+func (n *NetworkResource) MapDynamicPorts() map[string]int {
+	ports := n.ListDynamicPorts()
+	mapping := map[string]int{}
+
+	for idx, label := range n.DynamicPorts {
+		mapping[label] = ports[idx]
+	}
+
+	return mapping
+}
+
 const (
 	// JobTypeNomad is reserved for internal system tasks and is
 	// always handled by the CoreScheduler.
