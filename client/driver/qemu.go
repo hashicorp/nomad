@@ -54,9 +54,9 @@ func NewQemuDriver(ctx *DriverContext) Driver {
 }
 
 func (d *QemuDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
-	// Only enable if we are root. This check also disables on Windows as
-	// Geteuid() returns -1.
-	if syscall.Geteuid() != 0 {
+	// Only enable if we are root when running on non-windows systems.
+	if runtime.GOOS != "windows" && syscall.Geteuid() != 0 {
+		d.logger.Printf("[DEBUG] driver.qemu: must run as root user, disabling")
 		return false, nil
 	}
 

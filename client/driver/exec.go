@@ -34,6 +34,7 @@ func NewExecDriver(ctx *DriverContext) Driver {
 func (d *ExecDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
 	// Only enable if we are root when running on non-windows systems.
 	if runtime.GOOS != "windows" && syscall.Geteuid() != 0 {
+		d.logger.Printf("[DEBUG] driver.exec: must run as root user, disabling")
 		return false, nil
 	}
 
