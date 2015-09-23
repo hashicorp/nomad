@@ -19,9 +19,10 @@ resource "digitalocean_droplet" "server" {
   region   = "${var.region}"
   ssh_keys = ["${split(",", var.ssh_keys)}"]
 
-  provisioner "file" {
-    source      = "${template_file.server_config.filename}"
-    destination = "/usr/local/etc/nomad/server.hcl"
+  provisioner "remote-exec" {
+    inline = ["cat > /usr/local/etc/nomad/server.hcl <<EOF
+${template_file.server_config.rendered}
+EOF"]
   }
 
   provisioner "remote-exec" {
