@@ -344,7 +344,7 @@ func (c *Client) setupNode() error {
 // fingerprint is used to fingerprint the client and setup the node
 func (c *Client) fingerprint() error {
 	var applied []string
-	for name := range fingerprint.BuiltinFingerprints {
+	for _, name := range fingerprint.BuiltinFingerprints {
 		f, err := fingerprint.NewFingerprint(name, c.logger)
 		if err != nil {
 			return err
