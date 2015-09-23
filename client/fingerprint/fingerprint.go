@@ -16,20 +16,20 @@ var BuiltinFingerprints = []string{
 	"host",
 	"memory",
 	"storage",
-	"network_unix",
+	"network",
 	"env_aws",
 }
 
 // builtinFingerprintMap contains the built in registered fingerprints
 // which are available, corresponding to a key found in BuiltinFingerprints
 var builtinFingerprintMap = map[string]Factory{
-	"arch":         NewArchFingerprint,
-	"cpu":          NewCPUFingerprint,
-	"host":         NewHostFingerprint,
-	"memory":       NewMemoryFingerprint,
-	"storage":      NewStorageFingerprint,
-	"network_unix": NewUnixNetworkFingerprinter,
-	"env_aws":      NewEnvAWSFingerprint,
+	"arch":    NewArchFingerprint,
+	"cpu":     NewCPUFingerprint,
+	"host":    NewHostFingerprint,
+	"memory":  NewMemoryFingerprint,
+	"storage": NewStorageFingerprint,
+	"network": NewNetworkFingerprinter,
+	"env_aws": NewEnvAWSFingerprint,
 }
 
 // NewFingerprint is used to instantiate and return a new fingerprint

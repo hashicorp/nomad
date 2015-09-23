@@ -9,7 +9,7 @@ import (
 )
 
 func TestNetworkFingerprint_basic(t *testing.T) {
-	f := NewUnixNetworkFingerprinter(testLogger())
+	f := NewNetworkFingerprinter(testLogger())
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}

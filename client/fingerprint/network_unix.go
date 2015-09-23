@@ -17,18 +17,19 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// UnixNetworkFingerprint is used to fingerprint the Network capabilities of a node
-type UnixNetworkFingerprint struct {
+// NetworkFingerprint is used to fingerprint the Network capabilities of a node
+type NetworkFingerprint struct {
 	logger *log.Logger
 }
 
-// NewNetworkFingerprint is used to create a CPU fingerprint
-func NewUnixNetworkFingerprinter(logger *log.Logger) Fingerprint {
-	f := &UnixNetworkFingerprint{logger: logger}
+// NewNetworkFingerprint returns a new NetworkFingerprinter with the given
+// logger
+func NewNetworkFingerprinter(logger *log.Logger) Fingerprint {
+	f := &NetworkFingerprint{logger: logger}
 	return f
 }
 
-func (f *UnixNetworkFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
+func (f *NetworkFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
 	// newNetwork is populated and addded to the Nodes resources
 	newNetwork := &structs.NetworkResource{}
 
@@ -67,7 +68,7 @@ func (f *UnixNetworkFingerprint) Fingerprint(cfg *config.Config, node *structs.N
 // The return value is in the format of "<int>MB/s"
 //
 // LinkSpeed returns an empty string if no tools or sys file are found
-func (f *UnixNetworkFingerprint) linkSpeed(device string) int {
+func (f *NetworkFingerprint) linkSpeed(device string) int {
 	// Use LookPath to find the ethtool in the systems $PATH
 	// If it's not found or otherwise errors, LookPath returns and empty string
 	// and an error we can ignore for our purposes
@@ -86,7 +87,7 @@ func (f *UnixNetworkFingerprint) linkSpeed(device string) int {
 // linkSpeedSys parses the information stored in the sys diretory for the
 // default device. This method retuns an empty string if the file is not found
 // or cannot be read
-func (f *UnixNetworkFingerprint) linkSpeedSys(device string) int {
+func (f *NetworkFingerprint) linkSpeedSys(device string) int {
 	path := fmt.Sprintf("/sys/class/net/%s/speed", device)
 	_, err := os.Stat(path)
 	if err != nil {
@@ -116,7 +117,7 @@ func (f *UnixNetworkFingerprint) linkSpeedSys(device string) int {
 // information. It executes the command on the device specified and parses
 // out the speed. The expected format is Mbps and converted to MB/s
 // Returns an empty string there is an error in parsing or executing ethtool
-func (f *UnixNetworkFingerprint) linkSpeedEthtool(path, device string) int {
+func (f *NetworkFingerprint) linkSpeedEthtool(path, device string) int {
 	outBytes, err := exec.Command(path, device).Output()
 	if err == nil {
 		output := strings.TrimSpace(string(outBytes))
@@ -149,7 +150,7 @@ func (f *UnixNetworkFingerprint) linkSpeedEthtool(path, device string) int {
 
 // ifConfig returns the IP Address for this node according to ifConfig, for the
 // specified device.
-func (f *UnixNetworkFingerprint) ifConfig(device string) string {
+func (f *NetworkFingerprint) ifConfig(device string) string {
 	ifConfigPath, _ := exec.LookPath("ifconfig")
 	if ifConfigPath != "" {
 		outBytes, err := exec.Command(ifConfigPath, device).Output()
