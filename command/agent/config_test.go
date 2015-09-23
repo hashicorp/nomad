@@ -39,7 +39,6 @@ func TestConfig_Merge(t *testing.T) {
 		},
 		Server: &ServerConfig{
 			Enabled:         false,
-			Bootstrap:       false,
 			BootstrapExpect: 1,
 			DataDir:         "/tmp/data1",
 			ProtocolVersion: 1,
@@ -91,7 +90,6 @@ func TestConfig_Merge(t *testing.T) {
 		},
 		Server: &ServerConfig{
 			Enabled:           true,
-			Bootstrap:         true,
 			BootstrapExpect:   2,
 			DataDir:           "/tmp/data2",
 			ProtocolVersion:   2,
@@ -341,7 +339,6 @@ func TestConfig_LoadConfigString(t *testing.T) {
 		},
 		Server: &ServerConfig{
 			Enabled:           true,
-			Bootstrap:         true,
 			BootstrapExpect:   5,
 			DataDir:           "/tmp/data",
 			ProtocolVersion:   3,
@@ -409,7 +406,6 @@ client {
 }
 server {
 	enabled = true
-	bootstrap = true
 	bootstrap_expect = 5
 	data_dir = "/tmp/data"
 	protocol_version = 3

@@ -146,10 +146,6 @@ type ServerConfig struct {
 	// Enabled controls if we are a server
 	Enabled bool `hcl:"enabled"`
 
-	// Bootstrap is used to bring up the first Consul server, and
-	// permits that node to elect itself leader
-	Bootstrap bool `hcl:"bootstrap"`
-
 	// BootstrapExpect tries to automatically bootstrap the Consul cluster,
 	// by witholding peers until enough servers join.
 	BootstrapExpect int `hcl:"bootstrap_expect"`
@@ -349,9 +345,6 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 
 	if b.Enabled {
 		result.Enabled = true
-	}
-	if b.Bootstrap {
-		result.Bootstrap = true
 	}
 	if b.BootstrapExpect > 0 {
 		result.BootstrapExpect = b.BootstrapExpect

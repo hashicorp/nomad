@@ -152,17 +152,11 @@ configured on client nodes.
   * `enabled`: A boolean indicating if server mode should be enabled for the
     local agent. All other server options depend on this value being set.
     Defaults to `false`.
-  * `bootstrap`: A boolean indicating if the server should be started in
-    bootstrap mode. Bootstrap mode is a special case mode used for easily
-    starting a single-server Nomad server cluster. This mode of operation does
-    not provide any fault tolerance and is not recommended for production
-    environments. Defaults to `false`.
   * `bootstrap_expect`: This is an integer representing the number of server
-    nodes to wait for before bootstrapping. This is a safer alternative to
-    bootstrap mode, as there will never be a single point-of-failure. It is most
-    common to use the odd-numbered integers `3` or `5` for this value, depending
-    on the cluster size. A value of `1` is functionally equivalent to bootstrap
-    mode and is not recommended.
+    nodes to wait for before bootstrapping. It is most common to use the
+    odd-numbered integers `3` or `5` for this value, depending on the cluster
+    size. A value of `1` does not provide any fault tolerance and is not
+    recommended for production use cases.
   * `data_dir`: This is the data directory used for server-specific data,
     including the replicated log. By default, this directory lives inside of the
     [data_dir](#data_dir) in the "server" sub-path.
@@ -236,6 +230,8 @@ A subset of the available Nomad agent configuration can optionally be passed in
 via CLI arguments. The `agent` command accepts the following arguments:
 
 * `-bind=<address>`: Equivalent to the [bind_addr](#bind_addr) config option.
+* `-bootstrap-expect=<num>`: Equivalent to the
+  [bootstrap_expect](#bootstrap_expect) config option.
 * `-config=<path>`: Specifies the path to a configuration file or a directory of
   configuration files to load. Can be specified multiple times.
 * `-data-dir=<path>`: Equivalent to the [data_dir](#data_dir) config option.
