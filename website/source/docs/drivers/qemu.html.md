@@ -28,29 +28,26 @@ from the Nomad client, via HTTP.
 * `checksum` - **(Required)** The MD5 checksum of the `qemu` image. If the
 checksums do not match, the `Qemu` diver will fail to start the image
 * `accelerator` - (Optional) The type of accelerator to use in the invocation.
-Default is `tcg`. If the host machine has `Qemu` installed with KVM support,
-users can specify `kvm` for the `accelerator`
-* `host_port` - **(Required)** The hosted location of the source Jar file. Must be accessible
-from the Nomad client, via HTTP
-* `guest_port` - **(Required)** The hosted location of the source Jar file. Must be accessible
-from the Nomad client, via HTTP
+ If the host machine has `Qemu` installed with KVM support, users can specify `kvm` for the `accelerator`. Default is `tcg`
+* `host_port` - **(Required)** Port on the host machine to forward to the guest
+VM
+* `guest_port` - **(Required)** Port on the guest machine that is listening for
+traffic from the host
 
 ## Client Requirements
 
-The `java` driver requires Java to be installed and in your systems `$PATH`.
-The `jar_source` must be accessible by the node running Nomad. This can be an 
+The `Qemu` driver requires Qemu to be installed and in your systems `$PATH`.
+The `image_source` must be accessible by the node running Nomad. This can be an 
 internal source, private to your cluster, but it must be reachable by the client 
 over HTTP. 
 
 ## Client Attributes
 
-The `java` driver will set the following client attributes:
+The `Qemu` driver will set the following client attributes:
 
-* `driver.java` - This will always be set to "1", indicating the
-  driver is available.
-* `driver.java.version` - Version of Java, ex: `1.6.0_65`
-* `driver.java.runtime` - Runtime version, ex: `Java(TM) SE Runtime Environment (build 1.6.0_65-b14-466.1-11M4716)`
-* `driver.java.vm` - Virtual Machine information, ex: `Java HotSpot(TM) 64-Bit Server VM (build 20.65-b04-466.1, mixed mode)`
+* `driver.qemu` - Set to `1` if Qemu is found on the host node. Nomad determines
+this by executing `qemu-system-x86_64 -version` on the host and parsing the output
+* `driver.qemu.version` - Version of `qemu-system-x86_64, ex: `2.4.0`
 
 ## Resource Isolation
 
@@ -61,7 +58,6 @@ On Linux, Nomad will attempt to use cgroups, namespaces, and chroot
 to isolate the resources of a process. If the Nomad agent is not
 running as root many of these mechanisms cannot be used.
 
-As a baseline, the Java jars will be ran inside a Java Virtual Machine,
-providing a minimum amount of isolation.
-
+As a baseline, the Qemu images will be ran inside a virtual machine operated by
+Qemu, providing a minimum amount of isolation.
 

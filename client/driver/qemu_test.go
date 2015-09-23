@@ -57,7 +57,6 @@ func TestQemuDriver_Start(t *testing.T) {
 			"accelerator":  "tcg",
 			"host_port":    "8080",
 			"guest_port":   "8081",
-			// ssh u/p would be here
 		},
 	}
 
