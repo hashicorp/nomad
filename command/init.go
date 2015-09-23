@@ -78,7 +78,7 @@ job "example" {
 	# Restrict our job to only linux. We can specify multiple
 	# constraints as needed.
 	constraint {
-		attribute = "$attr.os.name"
+		attribute = "$attr.kernel.name"
 		value = "linux"
 	}
 
