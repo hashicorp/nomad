@@ -31,8 +31,8 @@ func (f *UnixNetworkFingerprint) Fingerprint(cfg *config.Config, node *structs.N
 		node.Attributes["network.ip-address"] = ip
 	}
 
-	if s := f.linkSpeed("eth0"); s != "" {
-		node.Attributes["network.throughput"] = s
+	if throughput := f.linkSpeed("eth0"); throughput > 0 {
+		node.Attributes["network.throughput"] = fmt.Sprintf("%dMB/s", throughput)
 	}
 
 	// return true, because we have a network connection
@@ -46,14 +46,13 @@ func (f *UnixNetworkFingerprint) Fingerprint(cfg *config.Config, node *structs.N
 // The return value is in the format of "<int>MB/s"
 //
 // LinkSpeed returns an empty string if no tools or sys file are found
-func (f *UnixNetworkFingerprint) linkSpeed(device string) string {
+func (f *UnixNetworkFingerprint) linkSpeed(device string) int {
 	// Use LookPath to find the ethtool in the systems $PATH
 	// If it's not found or otherwise errors, LookPath returns and empty string
 	// and an error we can ignore for our purposes
 	ethtoolPath, _ := exec.LookPath("ethtool")
 	if ethtoolPath != "" {
-		speed := f.linkSpeedEthtool(ethtoolPath, device)
-		if speed != "" {
+		if speed := f.linkSpeedEthtool(ethtoolPath, device); speed > 0 {
 			return speed
 		}
 	}
@@ -66,12 +65,12 @@ func (f *UnixNetworkFingerprint) linkSpeed(device string) string {
 // linkSpeedSys parses the information stored in the sys diretory for the
 // default device. This method retuns an empty string if the file is not found
 // or cannot be read
-func (f *UnixNetworkFingerprint) linkSpeedSys(device string) string {
+func (f *UnixNetworkFingerprint) linkSpeedSys(device string) int {
 	path := fmt.Sprintf("/sys/class/net/%s/speed", device)
 	_, err := os.Stat(path)
 	if err != nil {
 		log.Printf("[WARN] Error getting information about net speed")
-		return ""
+		return 0
 	}
 
 	// Read contents of the device/speed file
@@ -82,20 +81,22 @@ func (f *UnixNetworkFingerprint) linkSpeedSys(device string) string {
 		mbs, err := strconv.Atoi(lines[0])
 		if err != nil {
 			f.logger.Println("[WARN] Unable to parse ethtool output")
-			return ""
+			return 0
 		}
-		mbs = mbs / 8
 
-		return fmt.Sprintf("%dMB/s", mbs)
+		// Convert to MB/s
+		if mbs > 0 {
+			return mbs / 8
+		}
 	}
-	return ""
+	return 0
 }
 
 // linkSpeedEthtool uses the ethtool installed on the node to gather link speed
 // information. It executes the command on the device specified and parses
 // out the speed. The expected format is Mbps and converted to MB/s
 // Returns an empty string there is an error in parsing or executing ethtool
-func (f *UnixNetworkFingerprint) linkSpeedEthtool(path, device string) string {
+func (f *UnixNetworkFingerprint) linkSpeedEthtool(path, device string) int {
 	outBytes, err := exec.Command(path, device).Output()
 	if err == nil {
 		output := strings.TrimSpace(string(outBytes))
@@ -104,7 +105,7 @@ func (f *UnixNetworkFingerprint) linkSpeedEthtool(path, device string) string {
 		if m == "" {
 			// no matches found, output may be in a different format
 			f.logger.Println("[WARN] Ethtool output did not match regex")
-			return ""
+			return 0
 		}
 
 		// Split and trim the Mb/s unit from the string output
@@ -115,14 +116,16 @@ func (f *UnixNetworkFingerprint) linkSpeedEthtool(path, device string) string {
 		mbs, err := strconv.Atoi(raw)
 		if err != nil {
 			f.logger.Println("[WARN] Unable to parse ethtool output")
-			return ""
+			return 0
 		}
-		mbs = mbs / 8
 
-		return fmt.Sprintf("%dMB/s", mbs)
+		// Convert to MB/s
+		if mbs > 0 {
+			return mbs / 8
+		}
 	}
 	f.logger.Printf("error calling ethtool (%s): %s", path, err)
-	return ""
+	return 0
 }
 
 // ifConfig returns the IP Address for this node according to ifConfig, for the

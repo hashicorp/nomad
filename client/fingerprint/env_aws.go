@@ -8,13 +8,53 @@ import (
 	"net/url"
 	"os"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
+
+var ec2InstanceSpeedMap = map[string]int{
+	"m4.large":    10,
+	"m3.medium":   10,
+	"m3.large":    10,
+	"c4.large":    10,
+	"c3.large":    10,
+	"c3.xlarge":   10,
+	"r3.large":    10,
+	"r3.xlarge":   10,
+	"i2.xlarge":   10,
+	"d2.xlarge":   10,
+	"t2.micro":    2,
+	"t2.small":    2,
+	"t2.medium":   2,
+	"t2.large":    2,
+	"m4.xlarge":   95,
+	"m4.2xlarge":  95,
+	"m4.4xlarge":  95,
+	"m3.xlarge":   95,
+	"m3.2xlarge":  95,
+	"c4.xlarge":   95,
+	"c4.2xlarge":  95,
+	"c4.4xlarge":  95,
+	"c3.2xlarge":  95,
+	"c3.4xlarge":  95,
+	"g2.2xlarge":  95,
+	"r3.2xlarge":  95,
+	"r3.4xlarge":  95,
+	"i2.2xlarge":  95,
+	"i2.4xlarge":  95,
+	"d2.2xlarge":  95,
+	"d2.4xlarge":  95,
+	"m4.10xlarge": 1250,
+	"c4.8xlarge":  1250,
+	"c3.8xlarge":  1250,
+	"g2.8xlarge":  1250,
+	"r3.8xlarge":  1250,
+	"i2.8xlarge":  1250,
+	"d2.8xlarge":  1250,
+}
 
 // EnvAWSFingerprint is used to fingerprint the CPU
 type EnvAWSFingerprint struct {
@@ -88,8 +128,8 @@ func (f *EnvAWSFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 	}
 
 	// find LinkSpeed from lookup
-	if throughput := f.linkSpeed(); throughput != "" {
-		node.Attributes["network.throughput"] = throughput
+	if throughput := f.linkSpeed(); throughput > 0 {
+		node.Attributes["network.throughput"] = fmt.Sprintf("%dMB/s", throughput)
 	}
 
 	// populate links
@@ -141,46 +181,7 @@ func isAWS() bool {
 // - http://www.soc.napier.ac.uk/~bill/chris_p.pdf
 //
 // This data is meant for a loose approximation
-func (f *EnvAWSFingerprint) linkSpeed() string {
-	net := make(map[string]string)
-	net["m4.large"] = "10MB/s"
-	net["m3.medium"] = "10MB/s"
-	net["m3.large"] = "10MB/s"
-	net["c4.large"] = "10MB/s"
-	net["c3.large"] = "10MB/s"
-	net["c3.xlarge"] = "10MB/s"
-	net["r3.large"] = "10MB/s"
-	net["r3.xlarge"] = "10MB/s"
-	net["i2.xlarge"] = "10MB/s"
-	net["d2.xlarge"] = "10MB/s"
-	net["t2.micro"] = "2MB/s"
-	net["t2.small"] = "2MB/s"
-	net["t2.medium"] = "2MB/s"
-	net["t2.large"] = "2MB/s"
-	net["m4.xlarge"] = "95MB/s"
-	net["m4.2xlarge"] = "95MB/s"
-	net["m4.4xlarge"] = "95MB/s"
-	net["m3.xlarge"] = "95MB/s"
-	net["m3.2xlarge"] = "95MB/s"
-	net["c4.xlarge"] = "95MB/s"
-	net["c4.2xlarge"] = "95MB/s"
-	net["c4.4xlarge"] = "95MB/s"
-	net["c3.2xlarge"] = "95MB/s"
-	net["c3.4xlarge"] = "95MB/s"
-	net["g2.2xlarge"] = "95MB/s"
-	net["r3.2xlarge"] = "95MB/s"
-	net["r3.4xlarge"] = "95MB/s"
-	net["i2.2xlarge"] = "95MB/s"
-	net["i2.4xlarge"] = "95MB/s"
-	net["d2.2xlarge"] = "95MB/s"
-	net["d2.4xlarge"] = "95MB/s"
-	net["m4.10xlarge"] = "10Gbp/s"
-	net["c4.8xlarge"] = "10Gbp/s"
-	net["c3.8xlarge"] = "10Gbp/s"
-	net["g2.8xlarge"] = "10Gbp/s"
-	net["r3.8xlarge"] = "10Gbp/s"
-	net["i2.8xlarge"] = "10Gbp/s"
-	net["d2.8xlarge"] = "10Gbp/s"
+func (f *EnvAWSFingerprint) linkSpeed() int {
 
 	// Query the API for the instance type, and use the table above to approximate
 	// the network speed
@@ -199,23 +200,13 @@ func (f *EnvAWSFingerprint) linkSpeed() string {
 	res.Body.Close()
 	if err != nil {
 		log.Fatal(err)
-		return ""
+		return 0
 	}
 
 	key := strings.Trim(string(body), "\n")
-	v, ok := net[key]
+	v, ok := ec2InstanceSpeedMap[key]
 	if !ok {
-		return ""
-	}
-
-	// convert to Mbps
-	if strings.Contains(v, "Gbp/s") {
-		i, err := strconv.Atoi(strings.TrimSuffix(v, "Gbp/s"))
-		if err != nil {
-			f.logger.Printf("[Err] Error converting lookup value")
-			return ""
-		}
-		v = fmt.Sprintf("%dMB/s", i*125)
+		return 0
 	}
 
 	return v
