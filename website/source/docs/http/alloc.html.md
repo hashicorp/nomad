@@ -169,7 +169,7 @@ be specified using the `?region=` query parameter.
         "ConstraintFiltered": null,
         "NodesExhausted": 0,
         "ClassExhausted": null,
-        "DimensionExhaused": null,
+        "DimensionExhausted": null,
         "Scores": null,
         "AllocationTime": 9408,
         "CoalescedFailures": 4

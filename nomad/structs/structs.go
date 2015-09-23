@@ -1100,8 +1100,8 @@ type AllocMetric struct {
 	// ClassExhausted is the number of nodes exhausted by class
 	ClassExhausted map[string]int
 
-	// DimensionExhaused provides the count by dimension or reason
-	DimensionExhaused map[string]int
+	// DimensionExhausted provides the count by dimension or reason
+	DimensionExhausted map[string]int
 
 	// Scores is the scores of the final few nodes remaining
 	// for placement. The top score is typically selected.
@@ -1147,10 +1147,10 @@ func (a *AllocMetric) ExhaustedNode(node *Node, dimension string) {
 		a.ClassExhausted[node.NodeClass] += 1
 	}
 	if dimension != "" {
-		if a.DimensionExhaused == nil {
-			a.DimensionExhaused = make(map[string]int)
+		if a.DimensionExhausted == nil {
+			a.DimensionExhausted = make(map[string]int)
 		}
-		a.DimensionExhaused[dimension] += 1
+		a.DimensionExhausted[dimension] += 1
 	}
 }
 
