@@ -10,7 +10,6 @@ import (
 	"os/user"
 	"strconv"
 	"strings"
-	"syscall"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/command"
@@ -31,16 +30,8 @@ func NewExecutor() Executor {
 	// TODO: In a follow-up PR make it so this only happens once per client.
 	// Fingerprinting shouldn't happen per task.
 
-	// Check if the process is has root capabilities.
-	e.root = syscall.Geteuid() == 0
-
-	// Check if this process can set uid.
-	if e.root {
-		e.setUidEnabled = true
-	}
-
-	// Check that cgroups are available. Must be root to modify it.
-	if _, err := os.Stat(cgroupMount); err == nil && e.root {
+	// Check that cgroups are available.
+	if _, err := os.Stat(cgroupMount); err == nil {
 		e.cgroupEnabled = true
 	}
 
@@ -53,8 +44,6 @@ type LinuxExecutor struct {
 	user *user.User
 
 	// Finger print capabilities.
-	root          bool
-	setUidEnabled bool
 	cgroupEnabled bool
 
 	// Isolation configurations.
@@ -152,11 +141,9 @@ func (e *LinuxExecutor) Start() error {
 	// spawned process. Note that we will only do this if we can call SetUID.
 	// Otherwise we'll just run the other process as our current (non-root)
 	// user. This means we aren't forced to run nomad as root.
-	if e.setUidEnabled {
-		if err := e.runAs("nobody"); err == nil && e.user != nil {
-			e.cmd.SetUID(e.user.Uid)
-			e.cmd.SetGID(e.user.Gid)
-		}
+	if err := e.runAs("nobody"); err == nil && e.user != nil {
+		e.cmd.SetUID(e.user.Uid)
+		e.cmd.SetGID(e.user.Gid)
 	}
 
 	return e.spawnDaemon()

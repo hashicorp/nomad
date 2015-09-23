@@ -13,7 +13,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/hashicorp/nomad/client/config"
@@ -52,6 +54,12 @@ func NewQemuDriver(ctx *DriverContext) Driver {
 }
 
 func (d *QemuDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
+	// Only enable if we are root when running on non-windows systems.
+	if runtime.GOOS != "windows" && syscall.Geteuid() != 0 {
+		d.logger.Printf("[DEBUG] driver.qemu: must run as root user, disabling")
+		return false, nil
+	}
+
 	outBytes, err := exec.Command("qemu-system-x86_64", "-version").Output()
 	if err != nil {
 		return false, nil
