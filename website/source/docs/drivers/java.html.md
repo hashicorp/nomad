@@ -34,8 +34,8 @@ over HTTP.
 
 The `java` driver will set the following client attributes:
 
-* `driver.java` - This will always be set to "1", indicating the
-  driver is available.
+* `driver.java` - Set to `1` if Java is found on the host node. Nomad determines
+this by executing `java -version` on the host and parsing the output
 * `driver.java.version` - Version of Java, ex: `1.6.0_65`
 * `driver.java.runtime` - Runtime version, ex: `Java(TM) SE Runtime Environment (build 1.6.0_65-b14-466.1-11M4716)`
 * `driver.java.vm` - Virtual Machine information, ex: `Java HotSpot(TM) 64-Bit Server VM (build 20.65-b04-466.1, mixed mode)`
