@@ -51,7 +51,7 @@ Run Options:
 }
 
 func (c *RunCommand) Synopsis() string {
-	return "Run a new job"
+	return "Run a new job or update an existing job"
 }
 
 func (c *RunCommand) Run(args []string) int {
