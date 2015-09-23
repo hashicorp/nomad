@@ -26,37 +26,33 @@ Nomad will pass CPU and memory to your job as `NOMAD_CPU_LIMIT` and
 fit inside the resource allocation that nomad provides. For example, you can use
 the memory limit to inform how large your in-process cache should be, or to
 decide when to flush buffers to disk.
-<!--  -->
-Both CPU and memory are presented as integers. The unit for CPU limit is `1024 = 1Ghz`. The unit for memory is megabytes.
+
+Both CPU and memory are presented as integers. The unit for CPU limit is
+`1024 = 1Ghz`. The unit for memory `1 = 1 megabytes`.
 
 Writing your applications to adjust to these values at runtime provides greater
 scheduling flexibility since you can adjust the resource allocations in your
-jobspec without needing to change your code. You can also schedule workloads that
-use dynamic resource allocations so they can scale down/up as your cluster gets
-more or less busy.
+jobspec without needing to change your code. You can also schedule workloads
+that accept dynamic resource allocations so they can scale down/up as your
+cluster gets more or less busy.
 
 ### IPs and Named Ports
 
 Each task will receive port allocations on a single IP address. The IP is made
 available through `NOMAD_IP.`
 
-If you requested reserved ports in your jobspec and your task is successfully scheduled, these ports are available for your use. Ports from `reserved_ports` in the job spec
-are not exposed through the environment. If you requested dynamic ports in your
-jobspec these are made known to your application via environment variables
-`NOMAD_PORT_{LABEL}`. For example `dynamic_ports = ["http"]` becomes
-`NOMAD_PORT_HTTP`.
+If you requested reserved ports in your jobspec and your task is successfully
+scheduled, these ports are available for your use. Ports from `reserved_ports`
+in the job spec are not exposed through the environment. If you requested
+dynamic ports in your jobspec these are made known to your application via
+environment variables `NOMAD_PORT_{LABEL}`. For example
+`dynamic_ports = ["HTTP"]` becomes `NOMAD_PORT_HTTP`.
 
-Some drivers such as Docker and QEMU use port mapping. With port mapping the
-application code can run on a fixed port and nomad will automatically map a
-random allocated port in the driver. In this case, you should use numeric port
-labels to indicate which ports are exposed in your container or VM. For example
-with `dynamic_ports = ["5000"]` Docker will automatically map the allocated host
-port to port 5000 in the container.
-
-Even with automatic port mapping, numeric ports are also exported via
-environment variables such as `NOMAD_PORT_5000` so you can use these with
-drivers that do not support port mapping. You may also be able to use named
-ports if you want to bind to a dynamic port inside a container or VM.
+Some drivers such as Docker and QEMU use port mapping. If a driver supports port
+mapping and you specify a numeric label, the label will be automatically used as
+the private port number. For example, `dynamic_ports = ["5000"]` will have a
+random port mapped to port 5000 inside the container or VM. These ports are also
+exported as environment variables for consistency, e.g. `NOMAD_PORT_5000`.
 
 Please see the relevant driver documentation for exact details.
 

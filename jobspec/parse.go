@@ -344,7 +344,7 @@ func parseTasks(result *[]*structs.Task, obj *hclobj.Object) error {
 	return nil
 }
 
-var reDynamicPorts *regexp.Regexp = regexp.MustCompile("^[a-z0-9_]+$")
+var reDynamicPorts *regexp.Regexp = regexp.MustCompile("^[A-Z0-9_]+$")
 var errDynamicPorts = fmt.Errorf("DynamicPort label does not conform to naming requirements %s", reDynamicPorts.String())
 
 func parseResources(result *structs.Resources, obj *hclobj.Object) error {
