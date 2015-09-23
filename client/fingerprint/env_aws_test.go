@@ -69,7 +69,6 @@ func TestEnvAWSFingerprint_aws(t *testing.T) {
 		"platform.aws.public-hostname",
 		"platform.aws.public-ipv4",
 		"platform.aws.placement.availability-zone",
-		"network.throughput",
 		"network.ip-address",
 		"network.internal-ip",
 	}
@@ -181,7 +180,6 @@ func TestNetworkFingerprint_AWS(t *testing.T) {
 		t.Fatalf("should apply")
 	}
 
-	assertNodeAttributeContains(t, node, "network.throughput")
 	assertNodeAttributeContains(t, node, "network.ip-address")
 
 	if node.Resources == nil || len(node.Resources.Networks) == 0 {
@@ -191,7 +189,13 @@ func TestNetworkFingerprint_AWS(t *testing.T) {
 	// Test at least the first Network Resource
 	net := node.Resources.Networks[0]
 	if net.IP == "" {
-		t.Fatal("Expected Network Resource to not be empty")
+		t.Fatal("Expected Network Resource to have an IP")
+	}
+	if net.CIDR == "" {
+		t.Fatal("Expected Network Resource to have a CIDR")
+	}
+	if net.Device == "" {
+		t.Fatal("Expected Network Resource to have a Device Name")
 	}
 }
 

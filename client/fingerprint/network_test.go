@@ -2,7 +2,6 @@ package fingerprint
 
 import (
 	"net"
-	"runtime"
 	"testing"
 
 	"github.com/hashicorp/nomad/client/config"
@@ -23,11 +22,6 @@ func TestNetworkFingerprint_basic(t *testing.T) {
 		t.Fatalf("should apply")
 	}
 
-	// Darwin uses en0 for the default device, and does not have a standard
-	// location for the linkspeed file, so we skip these
-	if "darwin" != runtime.GOOS {
-		assertNodeAttributeContains(t, node, "network.throughput")
-	}
 	assertNodeAttributeContains(t, node, "network.ip-address")
 
 	ip := node.Attributes["network.ip-address"]
@@ -44,5 +38,11 @@ func TestNetworkFingerprint_basic(t *testing.T) {
 	net := node.Resources.Networks[0]
 	if net.IP == "" {
 		t.Fatal("Expected Network Resource to not be empty")
+	}
+	if net.CIDR == "" {
+		t.Fatal("Expected Network Resource to have a CIDR")
+	}
+	if net.Device == "" {
+		t.Fatal("Expected Network Resource to have a Device Name")
 	}
 }

@@ -37,13 +37,16 @@ func (f *UnixNetworkFingerprint) Fingerprint(cfg *config.Config, node *structs.N
 	if "darwin" == runtime.GOOS {
 		defaultDevice = "en0"
 	}
+
+	newNetwork.Device = defaultDevice
+
 	if ip := f.ifConfig(defaultDevice); ip != "" {
 		node.Attributes["network.ip-address"] = ip
 		newNetwork.IP = ip
+		newNetwork.CIDR = newNetwork.IP + "/32"
 	}
 
 	if throughput := f.linkSpeed("eth0"); throughput > 0 {
-		node.Attributes["network.throughput"] = fmt.Sprintf("%dMB/s", throughput)
 		newNetwork.MBits = throughput
 	}
 
@@ -104,7 +107,7 @@ func (f *UnixNetworkFingerprint) linkSpeedSys(device string) int {
 
 		// Convert to MB/s
 		if mbs > 0 {
-			return mbs / 8
+			return mbs
 		}
 	}
 	return 0

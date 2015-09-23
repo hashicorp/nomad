@@ -1,7 +1,6 @@
 package fingerprint
 
 import (
-	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -15,45 +14,52 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+// map of instance type to approximate speed, in Mbits/s
+// http://serverfault.com/questions/324883/aws-bandwidth-and-content-delivery/326797#326797
+// which itself cites these sources:
+// - http://blog.rightscale.com/2007/10/28/network-performance-within-amazon-ec2-and-to-amazon-s3/
+// - http://www.soc.napier.ac.uk/~bill/chris_p.pdf
+//
+// This data is meant for a loose approximation
 var ec2InstanceSpeedMap = map[string]int{
-	"m4.large":    10,
-	"m3.medium":   10,
-	"m3.large":    10,
-	"c4.large":    10,
-	"c3.large":    10,
-	"c3.xlarge":   10,
-	"r3.large":    10,
-	"r3.xlarge":   10,
-	"i2.xlarge":   10,
-	"d2.xlarge":   10,
-	"t2.micro":    2,
-	"t2.small":    2,
-	"t2.medium":   2,
-	"t2.large":    2,
-	"m4.xlarge":   95,
-	"m4.2xlarge":  95,
-	"m4.4xlarge":  95,
-	"m3.xlarge":   95,
-	"m3.2xlarge":  95,
-	"c4.xlarge":   95,
-	"c4.2xlarge":  95,
-	"c4.4xlarge":  95,
-	"c3.2xlarge":  95,
-	"c3.4xlarge":  95,
-	"g2.2xlarge":  95,
-	"r3.2xlarge":  95,
-	"r3.4xlarge":  95,
-	"i2.2xlarge":  95,
-	"i2.4xlarge":  95,
-	"d2.2xlarge":  95,
-	"d2.4xlarge":  95,
-	"m4.10xlarge": 1250,
-	"c4.8xlarge":  1250,
-	"c3.8xlarge":  1250,
-	"g2.8xlarge":  1250,
-	"r3.8xlarge":  1250,
-	"i2.8xlarge":  1250,
-	"d2.8xlarge":  1250,
+	"m4.large":    80,
+	"m3.medium":   80,
+	"m3.large":    80,
+	"c4.large":    80,
+	"c3.large":    80,
+	"c3.xlarge":   80,
+	"r3.large":    80,
+	"r3.xlarge":   80,
+	"i2.xlarge":   80,
+	"d2.xlarge":   80,
+	"t2.micro":    16,
+	"t2.small":    16,
+	"t2.medium":   16,
+	"t2.large":    16,
+	"m4.xlarge":   760,
+	"m4.2xlarge":  760,
+	"m4.4xlarge":  760,
+	"m3.xlarge":   760,
+	"m3.2xlarge":  760,
+	"c4.xlarge":   760,
+	"c4.2xlarge":  760,
+	"c4.4xlarge":  760,
+	"c3.2xlarge":  760,
+	"c3.4xlarge":  760,
+	"g2.2xlarge":  760,
+	"r3.2xlarge":  760,
+	"r3.4xlarge":  760,
+	"i2.2xlarge":  760,
+	"i2.4xlarge":  760,
+	"d2.2xlarge":  760,
+	"d2.4xlarge":  760,
+	"m4.10xlarge": 10000,
+	"c4.8xlarge":  10000,
+	"c3.8xlarge":  10000,
+	"g2.8xlarge":  10000,
+	"r3.8xlarge":  10000,
+	"i2.8xlarge":  10000,
+	"d2.8xlarge":  10000,
 }
 
 // EnvAWSFingerprint is used to fingerprint the CPU
@@ -73,7 +79,9 @@ func (f *EnvAWSFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 	}
 
 	// newNetwork is populated and addded to the Nodes resources
-	newNetwork := &structs.NetworkResource{}
+	newNetwork := &structs.NetworkResource{
+		Device: "eth0",
+	}
 
 	if node.Links == nil {
 		node.Links = make(map[string]string)
@@ -125,11 +133,11 @@ func (f *EnvAWSFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 	if node.Attributes["platform.aws.local-ipv4"] != "" {
 		node.Attributes["network.ip-address"] = node.Attributes["platform.aws.local-ipv4"]
 		newNetwork.IP = node.Attributes["platform.aws.local-ipv4"]
+		newNetwork.CIDR = newNetwork.IP + "/32"
 	}
 
 	// find LinkSpeed from lookup
 	if throughput := f.linkSpeed(); throughput > 0 {
-		node.Attributes["network.throughput"] = fmt.Sprintf("%dMB/s", throughput)
 		newNetwork.MBits = throughput
 	}
 
@@ -182,13 +190,7 @@ func isAWS() bool {
 	return true
 }
 
-// EnvAWSFingerprint uses lookup table to approximate network speeds based on
-// http://serverfault.com/questions/324883/aws-bandwidth-and-content-delivery/326797#326797
-// which itself cites these sources:
-// - http://blog.rightscale.com/2007/10/28/network-performance-within-amazon-ec2-and-to-amazon-s3/
-// - http://www.soc.napier.ac.uk/~bill/chris_p.pdf
-//
-// This data is meant for a loose approximation
+// EnvAWSFingerprint uses lookup table to approximate network speeds
 func (f *EnvAWSFingerprint) linkSpeed() int {
 
 	// Query the API for the instance type, and use the table above to approximate
