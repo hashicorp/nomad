@@ -1,6 +1,5 @@
 {
   "variables": {
-    "role": "{{ env `NOMAD_ROLE` }}",
     "bin_url": "{{ env `NOMAD_URL` }}"
   },
   "builders": [
@@ -8,7 +7,8 @@
       "type": "digitalocean",
       "image": "ubuntu-12-04-x64",
       "region": "nyc3",
-      "size": "512mb"
+      "size": "512mb",
+      "snapshot_name": "nomad-{{timestamp}}"
     }
   ],
   "provisioners": [
@@ -36,7 +36,7 @@
     {
       "type": "file",
       "source": "default.hcl",
-      "destination": "/usr/local/etc/nomad.hcl"
+      "destination": "/usr/local/etc/nomad/nomad.hcl"
     }
   ]
 }
