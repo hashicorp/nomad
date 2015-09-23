@@ -67,13 +67,16 @@ func (c *Command) readConfig() *Config {
 	flags.BoolVar(&cmdConfig.Server.Enabled, "server", false, "")
 	flags.BoolVar(&cmdConfig.Client.Enabled, "client", false, "")
 
+	// Server-only options
+	flags.IntVar(&cmdConfig.Server.BootstrapExpect, "bootstrap-expect", 0, "")
+
 	// General options
 	flags.Var((*sliceflag.StringFlag)(&configPath), "config", "config")
 	flags.StringVar(&cmdConfig.BindAddr, "bind", "", "")
 	flags.StringVar(&cmdConfig.Region, "region", "", "")
 	flags.StringVar(&cmdConfig.DataDir, "data-dir", "", "")
 	flags.StringVar(&cmdConfig.Datacenter, "dc", "", "")
-	flags.StringVar(&cmdConfig.LogLevel, "log-level", "info", "")
+	flags.StringVar(&cmdConfig.LogLevel, "log-level", "", "")
 	flags.StringVar(&cmdConfig.NodeName, "node", "", "")
 
 	// Atlas options
@@ -121,16 +124,30 @@ func (c *Command) readConfig() *Config {
 	// Merge any CLI options over config file options
 	config = config.Merge(cmdConfig)
 
-	// Check that we have a data-dir if we are a server
-	if !dev && config.DataDir == "" {
-		c.Ui.Error("Must specify data directory")
-		return nil
-	}
-
 	// Set the version info
 	config.Revision = c.Revision
 	config.Version = c.Version
 	config.VersionPrerelease = c.VersionPrerelease
+
+	if dev {
+		// Skip validation for dev mode
+		return config
+	}
+
+	// Check that we have a data-dir
+	if config.DataDir == "" {
+		c.Ui.Error("Must specify data directory")
+		return nil
+	}
+
+	// Check the bootstrap flags
+	if config.Server.BootstrapExpect > 0 && !config.Server.Enabled {
+		c.Ui.Error("Bootstrap requires server mode to be enabled")
+		return nil
+	}
+	if config.Server.BootstrapExpect == 1 {
+		c.Ui.Error("WARNING: Bootstrap mode enabled! Potentially unsafe operation.")
+	}
 
 	return config
 }
@@ -549,24 +566,31 @@ General Options (clients and servers):
     Name of the region the Nomad agent will be a member of. By default
     this value is set to "global".
 
-Role-Specific Options:
-
-  -client
-    Enable client mode for the agent. Client mode enables a given node
-    to be evaluated for allocations. If client mode is not enabled,
-    no work will be scheduled to the agent.
-
   -dev
     Start the agent in development mode. This enables a pre-configured
     dual-role agent (client + server) which is useful for developing
     or testing Nomad. No other configuration is required to start the
     agent in this mode.
 
+Server Options:
+
   -server
     Enable server mode for the agent. Agents in server mode are
     clustered together and handle the additional responsibility of
     leader election, data replication, and scheduling work onto
     eligible client nodes.
+
+  -bootstrap-expect=<num>
+    Configures the expected number of servers nodes to wait for before
+    bootstrapping the cluster. Once <num> servers have joined eachother,
+    Nomad initiates the bootstrap process.
+
+Client Options:
+
+  -client
+    Enable client mode for the agent. Client mode enables a given node
+    to be evaluated for allocations. If client mode is not enabled,
+    no work will be scheduled to the agent.
 
 Atlas Options:
 

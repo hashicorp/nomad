@@ -142,6 +142,13 @@ func (c *Client) init() error {
 			return fmt.Errorf("failed creating alloc dir: %s", err)
 		}
 	}
+
+	// Ensure the state dir exists if we have one
+	if c.config.StateDir != "" {
+		if err := os.MkdirAll(c.config.StateDir, 0700); err != nil {
+			return fmt.Errorf("failed creating state dir: %s", err)
+		}
+	}
 	return nil
 }
 
@@ -244,8 +251,8 @@ func (c *Client) Stats() map[string]map[string]string {
 		"client": map[string]string{
 			"known_servers":   toString(uint64(len(c.config.Servers))),
 			"num_allocations": toString(uint64(numAllocs)),
-			"last_heartbeat":  fmt.Sprintf("%#v", time.Since(c.lastHeartbeat)),
-			"heartbeat_ttl":   fmt.Sprintf("%#v", c.heartbeatTTL),
+			"last_heartbeat":  fmt.Sprintf("%v", time.Since(c.lastHeartbeat)),
+			"heartbeat_ttl":   fmt.Sprintf("%v", c.heartbeatTTL),
 		},
 		"runtime": nomad.RuntimeStats(),
 	}
@@ -265,7 +272,9 @@ func (c *Client) restoreState() error {
 
 	// Scan the directory
 	list, err := ioutil.ReadDir(filepath.Join(c.config.StateDir, "alloc"))
-	if err != nil {
+	if err != nil && os.IsNotExist(err) {
+		return nil
+	} else if err != nil {
 		return fmt.Errorf("failed to list alloc state: %v", err)
 	}
 
@@ -556,6 +565,7 @@ func (c *Client) watchAllocations(allocUpdates chan []*structs.Allocation) {
 
 	for {
 		// Get the allocations, blocking for updates
+		resp = structs.NodeAllocsResponse{}
 		err := c.RPC("Node.GetAllocs", &req, &resp)
 		if err != nil {
 			c.logger.Printf("[ERR] client: failed to query for node allocations: %v", err)

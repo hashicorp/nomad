@@ -89,7 +89,7 @@ func TestAllocsFit_PortsOvercommitted(t *testing.T) {
 func TestAllocsFit(t *testing.T) {
 	n := &Node{
 		Resources: &Resources{
-			CPU:      2.0,
+			CPU:      2000,
 			MemoryMB: 2048,
 			DiskMB:   10000,
 			IOPS:     100,
@@ -102,7 +102,7 @@ func TestAllocsFit(t *testing.T) {
 			},
 		},
 		Reserved: &Resources{
-			CPU:      1.0,
+			CPU:      1000,
 			MemoryMB: 1024,
 			DiskMB:   5000,
 			IOPS:     50,
@@ -119,7 +119,7 @@ func TestAllocsFit(t *testing.T) {
 
 	a1 := &Allocation{
 		Resources: &Resources{
-			CPU:      1.0,
+			CPU:      1000,
 			MemoryMB: 1024,
 			DiskMB:   5000,
 			IOPS:     50,
@@ -144,7 +144,7 @@ func TestAllocsFit(t *testing.T) {
 	}
 
 	// Sanity check the used resources
-	if used.CPU != 2.0 {
+	if used.CPU != 2000 {
 		t.Fatalf("bad: %#v", used)
 	}
 	if used.MemoryMB != 2048 {
@@ -161,7 +161,7 @@ func TestAllocsFit(t *testing.T) {
 	}
 
 	// Sanity check the used resources
-	if used.CPU != 3.0 {
+	if used.CPU != 3000 {
 		t.Fatalf("bad: %#v", used)
 	}
 	if used.MemoryMB != 3072 {

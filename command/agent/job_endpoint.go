@@ -157,7 +157,7 @@ func (s *HTTPServer) jobQuery(resp http.ResponseWriter, req *http.Request,
 func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 	jobName string) (interface{}, error) {
 	var args structs.JobRegisterRequest
-	if err := decodeBody(req, &args, nil); err != nil {
+	if err := decodeBody(req, &args); err != nil {
 		return nil, CodedError(400, err.Error())
 	}
 	if args.Job == nil {

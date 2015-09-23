@@ -8,10 +8,9 @@ description: >
 
 # Command: run
 
-The `run` command is used to run new jobs in Nomad. Jobs are specified using
-[HCL](https://github.com/hashicorp/hcl)-encoded files, and may specify one or
-more task groups. More information about jobs and their configuration format
-can be found in the [jobs documentation](#).
+The `run` command is used to submit new jobs to Nomad or to update existing
+jobs. Job files must conform to the [job specification](/docs/jobspec/index.html)
+format.
 
 ## Usage
 
@@ -20,8 +19,8 @@ nomad run [options] <file>
 ```
 
 The run command requires a single argument, specifying the path to a file
-containing a valid [job definition](#). This file will be read and the job
-will be submitted to the Nomad server for scheduling.
+containing a valid [job specification](/docs/jobspec/index.html). This file
+will be read and the job will be submitted to Nomad for scheduling.
 
 By default, on sucessful job submission, the run command will enter an
 interactive monitor and display log information detailing the scheduling

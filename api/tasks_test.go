@@ -166,7 +166,7 @@ func TestTask_Require(t *testing.T) {
 
 	// Create some require resources
 	resources := &Resources{
-		CPU:      1.25,
+		CPU:      1250,
 		MemoryMB: 128,
 		DiskMB:   2048,
 		IOPS:     1024,

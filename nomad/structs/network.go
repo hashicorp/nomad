@@ -136,6 +136,7 @@ func (idx *NetworkIndex) yieldIP(cb func(net *NetworkResource, ip net.IP) bool) 
 // AssignNetwork is used to assign network resources given an ask.
 // If the ask cannot be satisfied, returns nil
 func (idx *NetworkIndex) AssignNetwork(ask *NetworkResource) (out *NetworkResource, err error) {
+	err = fmt.Errorf("no networks available")
 	idx.yieldIP(func(n *NetworkResource, ip net.IP) (stop bool) {
 		// Convert the IP to a string
 		ipStr := ip.String()

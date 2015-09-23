@@ -289,8 +289,8 @@ func (iter *JobAntiAffinityIterator) Next() *RankedNode {
 
 		// Apply a penalty if there are collisions
 		if collisions > 0 {
-			scorePenalty := float64(collisions) * iter.penalty
-			option.Score -= scorePenalty
+			scorePenalty := -1 * float64(collisions) * iter.penalty
+			option.Score += scorePenalty
 			iter.ctx.Metrics().ScoreNode(option.Node, "job-anti-affinity", scorePenalty)
 		}
 		return option

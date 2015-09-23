@@ -67,7 +67,7 @@ func TestServiceStack_Select_Size(t *testing.T) {
 		t.Fatalf("missing size")
 	}
 
-	if size.CPU != 0.5 || size.MemoryMB != 256 {
+	if size.CPU != 500 || size.MemoryMB != 256 {
 		t.Fatalf("bad: %#v", size)
 	}
 

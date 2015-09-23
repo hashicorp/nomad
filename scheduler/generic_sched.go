@@ -96,18 +96,18 @@ func (s *GenericScheduler) setStatus(status, desc string) error {
 
 // Process is used to handle a single evaluation
 func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
+	// Store the evaluation
+	s.eval = eval
+
 	// Verify the evaluation trigger reason is understood
 	switch eval.TriggeredBy {
 	case structs.EvalTriggerJobRegister, structs.EvalTriggerNodeUpdate,
-		structs.EvalTriggerJobDeregister:
+		structs.EvalTriggerJobDeregister, structs.EvalTriggerRollingUpdate:
 	default:
 		desc := fmt.Sprintf("scheduler cannot handle '%s' evaluation reason",
 			eval.TriggeredBy)
 		return s.setStatus(structs.EvalStatusFailed, desc)
 	}
-
-	// Store the evaluation
-	s.eval = eval
 
 	// Retry up to the maxScheduleAttempts
 	limit := maxServiceScheduleAttempts

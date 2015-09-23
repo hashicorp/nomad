@@ -77,11 +77,12 @@ func (a *Agent) serverConfig() (*nomad.Config, error) {
 	if a.config.NodeName != "" {
 		conf.NodeName = a.config.NodeName
 	}
-	if a.config.Server.Bootstrap {
-		conf.Bootstrap = a.config.Server.Bootstrap
-	}
 	if a.config.Server.BootstrapExpect > 0 {
-		conf.BootstrapExpect = a.config.Server.BootstrapExpect
+		if a.config.Server.BootstrapExpect == 1 {
+			conf.Bootstrap = true
+		} else {
+			conf.BootstrapExpect = a.config.Server.BootstrapExpect
+		}
 	}
 	if a.config.DataDir != "" {
 		conf.DataDir = filepath.Join(a.config.DataDir, "server")
