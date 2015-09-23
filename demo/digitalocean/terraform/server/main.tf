@@ -27,6 +27,18 @@ resource "digitalocean_droplet" "server" {
   }
 }
 
+resource "null_resource" "server_join" {
+  provisioner "local-exec" {
+    command = <<EOF
+join() {
+  curl -X PUT ${digitalocean_droplet.server.0.ipv4_address}:4646/v1/agent/join?address=$1
+}
+join ${digitalocean_droplet.server.1.ipv4_address}
+join ${digitalocean_droplet.server.2.ipv4_address}
+EOF
+  }
+}
+
 output "addrs" {
   value = "${join(",", digitalocean_droplet.server.*.ipv4_address)}"
 }

@@ -10,7 +10,7 @@ module "servers" {
 module "clients-ams2" {
   source  = "./client"
   region  = "ams2"
-  count   = 500
+  count   = 1
   image   = "${var.image}"
   servers = "${module.servers.addrs}"
 }
@@ -18,7 +18,7 @@ module "clients-ams2" {
 module "clients-ams3" {
   source  = "./client"
   region  = "ams3"
-  count   = 500
+  count   = 1
   image   = "${var.image}"
   servers = "${module.servers.addrs}"
 }
@@ -26,7 +26,7 @@ module "clients-ams3" {
 module "clients-nyc3" {
   source  = "./client"
   region  = "nyc3"
-  count   = 500
+  count   = 1
   image   = "${var.image}"
   servers = "${module.servers.addrs}"
 }
@@ -34,7 +34,7 @@ module "clients-nyc3" {
 module "clients-sfo1" {
   source  = "./client"
   region  = "sfo1"
-  count   = 500
+  count   = 1
   image   = "${var.image}"
   servers = "${module.servers.addrs}"
 }
