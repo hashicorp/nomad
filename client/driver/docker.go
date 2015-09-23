@@ -60,7 +60,7 @@ func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool
 
 // containerOptionsForTask initializes a struct needed to call
 // docker.client.CreateContainer()
-func containerOptionsForTask(task *structs.Task, logger *log.Logger) docker.CreateContainerOptions {
+func containerOptionsForTask(ctx *ExecContext, task *structs.Task, logger *log.Logger) docker.CreateContainerOptions {
 	if task.Resources == nil {
 		panic("task.Resources is nil and we can't constrain resource usage. We shouldn't have been able to schedule this in the first place.")
 	}
@@ -101,6 +101,7 @@ func containerOptionsForTask(task *structs.Task, logger *log.Logger) docker.Crea
 
 	return docker.CreateContainerOptions{
 		Config: &docker.Config{
+			Env:   PopulateEnvironment(ctx, task),
 			Image: task.Config["image"],
 		},
 		HostConfig: containerConfig,
@@ -153,7 +154,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	d.logger.Printf("[INFO] driver.docker: downloaded image %s as %s", image, imageID)
 
 	// Create a container
-	container, err := client.CreateContainer(containerOptionsForTask(task, d.logger))
+	container, err := client.CreateContainer(containerOptionsForTask(ctx, task, d.logger))
 	if err != nil {
 		d.logger.Printf("[ERR] driver.docker: %s", err)
 		return nil, fmt.Errorf("Failed to create container from image %s", image)
