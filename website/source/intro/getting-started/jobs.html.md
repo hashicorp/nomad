@@ -9,7 +9,7 @@ description: |-
 # Jobs
 
 Jobs are the primary configuration that users interact with when using
-Nomad. A job is a declaritive specification of tasks that Nomad should run.
+Nomad. A job is a declarative specification of tasks that Nomad should run.
 Jobs have a globally unique name, one or many task groups, which are themselves
 collections of one or many tasks.
 
@@ -78,7 +78,7 @@ ID                                    EvalID                                Node
 c1d2f085-7049-6c4a-4479-1b2310fdaba9  f119efb5-e2fa-a94f-e4cc-0c9f6c2a07f6  1f43787c-7ab4-8d10-d2d6-1593ed06463a  cache      run      running
 ```
 
-Here we can see that our evalution that was created has completed, and that
+Here we can see that our evaluation that was created has completed, and that
 it resulted in the creation of an allocation that is now running on the local node.
 
 ## Modifying a Job
@@ -87,7 +87,7 @@ The definition of a job is not static, and is meant to be updated overtime.
 You may update a job to change the docker container to update the application version,
 or change the count of a task group to scale with load.
 
-For now, edit the `example.nomad` file to uncommand the count and set it to 3:
+For now, edit the `example.nomad` file to uncomment the count and set it to 3:
 
 ```
 # Control the number of instances of this groups.
