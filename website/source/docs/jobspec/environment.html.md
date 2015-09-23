@@ -54,7 +54,7 @@ the private port number. For example, `dynamic_ports = ["5000"]` will have a
 random port mapped to port 5000 inside the container or VM. These ports are also
 exported as environment variables for consistency, e.g. `NOMAD_PORT_5000`.
 
-Please see the relevant driver documentation for exact details.
+Please see the relevant driver documentation for details.
 
 ## Meta
 
