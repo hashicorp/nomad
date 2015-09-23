@@ -121,7 +121,7 @@ func (f *EnvAWSFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 		resp, err := ioutil.ReadAll(res.Body)
 		res.Body.Close()
 		if err != nil {
-			log.Fatal(err)
+			f.logger.Printf("[ERR]: fingerprint.env_aws: Error reading response body for AWS %s", k)
 		}
 
 		// assume we want blank entries
@@ -209,7 +209,7 @@ func (f *EnvAWSFingerprint) linkSpeed() int {
 	body, err := ioutil.ReadAll(res.Body)
 	res.Body.Close()
 	if err != nil {
-		log.Fatal(err)
+		f.logger.Printf("[ERR]: fingerprint.env_aws: Error reading response body for instance-type")
 		return 0
 	}
 
