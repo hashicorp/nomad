@@ -1,7 +1,8 @@
-variable "count"  {}
-variable "image"  {}
+variable "count" {}
+variable "image" {}
 variable "region" {}
-variable "size"   { default = "512mb" }
+variable "size" { default = "512mb" }
+variable "ssh_keys" {}
 
 resource "template_file" "server_config" {
   filename = "templates/server.hcl.tpl"
@@ -11,11 +12,12 @@ resource "template_file" "server_config" {
 }
 
 resource "digitalocean_droplet" "server" {
-  image  = "${var.image}"
-  name   = "server-${var.region}-${count.index}"
-  count  = "${var.count}"
-  size   = "${var.size}"
-  region = "${var.region}"
+  image    = "${var.image}"
+  name     = "server-${var.region}-${count.index}"
+  count    = "${var.count}"
+  size     = "${var.size}"
+  region   = "${var.region}"
+  ssh_keys = ["${split(",", var.ssh_keys)}"]
 
   provisioner "file" {
     source      = "${template_file.server_config.filename}"

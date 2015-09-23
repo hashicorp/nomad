@@ -1,3 +1,2 @@
-image = "nomad-1443043155"
-client_size = "512mb"
-server_size = "512mb"
+image    = "13671595"
+ssh_keys = "1494275"

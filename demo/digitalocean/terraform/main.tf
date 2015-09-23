@@ -1,40 +1,46 @@
-variable "image" { default = "nomad-1443043155" }
+variable "image" {}
+variable "ssh_keys" {}
 
 module "servers" {
-  source = "./server"
-  region = "nyc3"
-  count  = 3
-  image  = "${var.image}"
+  source   = "./server"
+  region   = "nyc3"
+  count    = 3
+  image    = "${var.image}"
+  ssh_keys = "${var.ssh_keys}"
 }
 
 module "clients-ams2" {
-  source  = "./client"
-  region  = "ams2"
-  count   = 1
-  image   = "${var.image}"
-  servers = "${module.servers.addrs}"
+  source   = "./client"
+  region   = "ams2"
+  count    = 1
+  image    = "${var.image}"
+  servers  = "${module.servers.addrs}"
+  ssh_keys = "${var.ssh_keys}"
 }
 
 module "clients-ams3" {
-  source  = "./client"
-  region  = "ams3"
-  count   = 1
-  image   = "${var.image}"
-  servers = "${module.servers.addrs}"
+  source   = "./client"
+  region   = "ams3"
+  count    = 1
+  image    = "${var.image}"
+  servers  = "${module.servers.addrs}"
+  ssh_keys = "${var.ssh_keys}"
 }
 
 module "clients-nyc3" {
-  source  = "./client"
-  region  = "nyc3"
-  count   = 1
-  image   = "${var.image}"
-  servers = "${module.servers.addrs}"
+  source   = "./client"
+  region   = "nyc3"
+  count    = 1
+  image    = "${var.image}"
+  servers  = "${module.servers.addrs}"
+  ssh_keys = "${var.ssh_keys}"
 }
 
 module "clients-sfo1" {
-  source  = "./client"
-  region  = "sfo1"
-  count   = 1
-  image   = "${var.image}"
-  servers = "${module.servers.addrs}"
+  source   = "./client"
+  region   = "sfo1"
+  count    = 1
+  image    = "${var.image}"
+  servers  = "${module.servers.addrs}"
+  ssh_keys = "${var.ssh_keys}"
 }
