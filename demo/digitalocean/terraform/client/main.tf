@@ -22,12 +22,14 @@ resource "digitalocean_droplet" "client" {
   ssh_keys = ["${split(",", var.ssh_keys)}"]
 
   provisioner "remote-exec" {
-    inline = ["cat > /usr/local/etc/nomad/client.hcl <<EOF
+    inline = <<CMD
+cat > /usr/local/etc/nomad/client.hcl <<EOF
 ${template_file.client_config.rendered}
-EOF"]
+EOF
+CMD
   }
 
   provisioner "remote-exec" {
-    inline = ["sudo restart nomad"]
+    inline = "sudo restart nomad || true"
   }
 }

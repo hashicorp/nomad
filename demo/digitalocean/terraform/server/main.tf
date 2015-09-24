@@ -4,13 +4,6 @@ variable "region" {}
 variable "size" { default = "512mb" }
 variable "ssh_keys" {}
 
-resource "template_file" "server_config" {
-  filename = "templates/server.hcl.tpl"
-  vars {
-    datacenter = "${var.region}"
-  }
-}
-
 resource "digitalocean_droplet" "server" {
   image    = "${var.image}"
   name     = "server-${var.region}-${count.index}"
@@ -20,25 +13,35 @@ resource "digitalocean_droplet" "server" {
   ssh_keys = ["${split(",", var.ssh_keys)}"]
 
   provisioner "remote-exec" {
-    inline = ["cat > /usr/local/etc/nomad/server.hcl <<EOF
-${template_file.server_config.rendered}
-EOF"]
+    inline = <<CMD
+cat > /usr/local/etc/nomad/server.hcl <<EOF
+datacenter = "${var.region}"
+server {
+    enabled = true
+    bootstrap_expect = 3
+}
+advertise {
+    rpc = "${self.ipv4_address}:4647"
+    serf = "${self.ipv4_address}:4648"
+}
+EOF
+CMD
   }
 
   provisioner "remote-exec" {
-    inline = ["sudo restart nomad"]
+    inline = "sudo restart nomad || true"
   }
 }
 
 resource "null_resource" "server_join" {
   provisioner "local-exec" {
-    command = <<EOF
+    command = <<CMD
 join() {
   curl -X PUT ${digitalocean_droplet.server.0.ipv4_address}:4646/v1/agent/join?address=$1
 }
 join ${digitalocean_droplet.server.1.ipv4_address}
 join ${digitalocean_droplet.server.2.ipv4_address}
-EOF
+CMD
   }
 }
 
