@@ -1,4 +1,4 @@
 # This is a comma-separated list of SSH key ID's or fingerprints
 # available in your DigitalOcean account. These keys will be granted
 # SSH access to all of the deployed instances.
-ssh_keys = "ef:7f:3d:c1:76:12:35:e8:ea:d4:17:3d:83:46:59:7c"
+ssh_keys = "7b:40:be:5a:9a:90:1f:8a:b6:ec:7e:48:82:ae:73:dc"
