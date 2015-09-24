@@ -26,7 +26,7 @@ spelunking through the source code.
 
 [![Nomad Data Model](/assets/images/nomad-data-model.png)](/assets/images/nomad-data-model.png)
 
-There are four primary "nouns" in Nomad, these are jobs, nodes, allocations, and evaluations.
+There are four primary "nouns" in Nomad; jobs, nodes, allocations, and evaluations.
 Jobs are submitted by users and represent a _desired state_. A job is a declarative description
 of tasks to run which are bounded by constraints and require resources. Nodes are the servers
 in the clusters that tasks can be scheduled on. The mapping of tasks in a job to nodes is done
