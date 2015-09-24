@@ -32,5 +32,16 @@
       "source": "default.hcl",
       "destination": "/usr/local/etc/nomad/nomad.hcl"
     }
-  ]
+  ],
+  "post-processors": [
+    {
+      "type": "atlas",
+      "artifact": "hashicorp/nomad-demo",
+      "artifact_type": "digitalocean.droplet"
+    }
+  ],
+  "push": {
+    "name": "hashicorp/nomad-demo",
+    "vcs": true
+  }
 }
