@@ -674,6 +674,10 @@ func (n *NetworkResource) GoString() string {
 // task.Resources after an offer has been made. If you call it in some other
 // context the behavior is unspecified, including maybe crashing. So don't do that.
 func (n *NetworkResource) MapDynamicPorts() map[string]int {
+	// Guard against nil
+	if n == nil {
+		return map[string]int{}
+	}
 	ports := n.ReservedPorts[len(n.ReservedPorts)-len(n.DynamicPorts):]
 	mapping := make(map[string]int, len(n.DynamicPorts))
 
@@ -687,6 +691,10 @@ func (n *NetworkResource) MapDynamicPorts() map[string]int {
 // Get the list of Static ports. There are presumed to have known semantics so
 // there is no mapping information.
 func (n *NetworkResource) ListStaticPorts() []int {
+	// Guard against nil
+	if n == nil {
+		return []int{}
+	}
 	return n.ReservedPorts[:len(n.ReservedPorts)-len(n.DynamicPorts)]
 }
 
