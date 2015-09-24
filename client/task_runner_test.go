@@ -45,9 +45,17 @@ func testTaskRunner() (*MockTaskStateUpdater, *TaskRunner) {
 	return upd, tr
 }
 
+func testTaskRunnerPostOffer(*MockTaskStateUpdater, *TaskRunner) {
+	state, runner := testTaskRunner()
+	// testTaskRunner gives us a job in pre-offer state. We need it in post-
+	// offer state some some other things are initialized. We'll init them here.
+	runner.task.Resources.Networks[0].ReservedPorts[0] = 80
+	return state, runner
+}
+
 func TestTaskRunner_SimpleRun(t *testing.T) {
 	ctestutil.ExecCompatible(t)
-	upd, tr := testTaskRunner()
+	upd, tr := testTaskRunnerPostOffer()
 	go tr.Run()
 	defer tr.Destroy()
 
