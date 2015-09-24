@@ -9,6 +9,16 @@ module "servers" {
   ssh_keys = "${var.ssh_keys}"
 }
 
+module "clients-nyc3" {
+  source   = "./client"
+  region   = "nyc3"
+  count    = 1
+  image    = "${var.image}"
+  servers  = "${module.servers.addrs}"
+  ssh_keys = "${var.ssh_keys}"
+}
+
+/*
 module "clients-ams2" {
   source   = "./client"
   region   = "ams2"
@@ -27,15 +37,6 @@ module "clients-ams3" {
   ssh_keys = "${var.ssh_keys}"
 }
 
-module "clients-nyc3" {
-  source   = "./client"
-  region   = "nyc3"
-  count    = 1
-  image    = "${var.image}"
-  servers  = "${module.servers.addrs}"
-  ssh_keys = "${var.ssh_keys}"
-}
-
 module "clients-sfo1" {
   source   = "./client"
   region   = "sfo1"
@@ -44,3 +45,4 @@ module "clients-sfo1" {
   servers  = "${module.servers.addrs}"
   ssh_keys = "${var.ssh_keys}"
 }
+*/

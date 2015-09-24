@@ -6,7 +6,7 @@ variable "servers" {}
 variable "ssh_keys" {}
 
 resource "template_file" "client_config" {
-  filename = "templates/client.hcl.tpl"
+  filename = "${path.module}/client.hcl.tpl"
   vars {
     datacenter = "${var.region}"
     servers    = "${split(",", var.servers)}"
@@ -30,6 +30,6 @@ CMD
   }
 
   provisioner "remote-exec" {
-    inline = "sudo restart nomad || true"
+    inline = "sudo start nomad || sudo restart nomad"
   }
 }

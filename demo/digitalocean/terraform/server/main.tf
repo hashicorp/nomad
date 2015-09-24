@@ -29,7 +29,7 @@ CMD
   }
 
   provisioner "remote-exec" {
-    inline = "sudo restart nomad || true"
+    inline = "sudo start nomad || sudo restart nomad"
   }
 }
 
