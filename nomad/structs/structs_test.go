@@ -283,6 +283,51 @@ func TestMapDynamicPorts(t *testing.T) {
 	}
 }
 
+func TestMapDynamicPortsEmpty(t *testing.T) {
+	resources := &NetworkResource{
+		ReservedPorts: []int{},
+		DynamicPorts:  []string{},
+	}
+
+	expected := map[string]int{}
+	actual := resources.MapDynamicPorts()
+
+	if !reflect.DeepEqual(expected, actual) {
+		t.Fatalf("Expected %#v; found %#v", expected, actual)
+	}
+}
+
+func TestMapDynamicPortsStaticOnly(t *testing.T) {
+	resources := &NetworkResource{
+		ReservedPorts: []int{80, 443},
+		DynamicPorts:  []string{},
+	}
+
+	expected := map[string]int{}
+	actual := resources.MapDynamicPorts()
+
+	if !reflect.DeepEqual(expected, actual) {
+		t.Fatalf("Expected %#v; found %#v", expected, actual)
+	}
+}
+
+func TestMapDynamicPortsOnly(t *testing.T) {
+	resources := &NetworkResource{
+		ReservedPorts: []int{3306, 8080},
+		DynamicPorts:  []string{"mysql", "admin"},
+	}
+
+	expected := map[string]int{
+		"mysql": 3306,
+		"admin": 8080,
+	}
+	actual := resources.MapDynamicPorts()
+
+	if !reflect.DeepEqual(expected, actual) {
+		t.Fatalf("Expected %#v; found %#v", expected, actual)
+	}
+}
+
 func TestListStaticPorts(t *testing.T) {
 	resources := &NetworkResource{
 		ReservedPorts: []int{80, 443, 3306, 8080},
@@ -290,6 +335,48 @@ func TestListStaticPorts(t *testing.T) {
 	}
 
 	expected := []int{80, 443}
+	actual := resources.ListStaticPorts()
+
+	if !reflect.DeepEqual(expected, actual) {
+		t.Fatalf("Expected %#v; found %#v", expected, actual)
+	}
+}
+
+func TestListStaticPortsEmpty(t *testing.T) {
+	resources := &NetworkResource{
+		ReservedPorts: []int{},
+		DynamicPorts:  []string{},
+	}
+
+	expected := []int{}
+	actual := resources.ListStaticPorts()
+
+	if !reflect.DeepEqual(expected, actual) {
+		t.Fatalf("Expected %#v; found %#v", expected, actual)
+	}
+}
+
+func TestListStaticPortsOnly(t *testing.T) {
+	resources := &NetworkResource{
+		ReservedPorts: []int{80, 443},
+		DynamicPorts:  []string{},
+	}
+
+	expected := []int{80, 443}
+	actual := resources.ListStaticPorts()
+
+	if !reflect.DeepEqual(expected, actual) {
+		t.Fatalf("Expected %#v; found %#v", expected, actual)
+	}
+}
+
+func TestListStaticPortsDynamicOnly(t *testing.T) {
+	resources := &NetworkResource{
+		ReservedPorts: []int{3306, 8080},
+		DynamicPorts:  []string{"mysql", "admin"},
+	}
+
+	expected := []int{}
 	actual := resources.ListStaticPorts()
 
 	if !reflect.DeepEqual(expected, actual) {
