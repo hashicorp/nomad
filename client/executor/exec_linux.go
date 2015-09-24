@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"os/user"
@@ -103,7 +104,6 @@ func (e *LinuxExecutor) ConfigureTaskDir(taskName string, alloc *allocdir.AllocD
 
 	// Mount dev
 	dev := filepath.Join(taskDir, "dev")
-	fmt.Println("MOUNTED DEV: ", dev)
 	if err := os.Mkdir(dev, 0777); err != nil {
 		return fmt.Errorf("Mkdir(%v) failed: %v", dev)
 	}
@@ -245,7 +245,6 @@ func (e *LinuxExecutor) spawnDaemon() error {
 
 	c := command.DaemonConfig{
 		Cmd:        e.cmd.Cmd,
-		Groups:     e.groups,
 		Chroot:     e.taskDir,
 		StdoutFile: filepath.Join(e.taskDir, allocdir.TaskLocal, fmt.Sprintf("%v.stdout", e.taskName)),
 		StderrFile: filepath.Join(e.taskDir, allocdir.TaskLocal, fmt.Sprintf("%v.stderr", e.taskName)),
@@ -270,8 +269,42 @@ func (e *LinuxExecutor) spawnDaemon() error {
 	spawn := exec.Command(bin, "spawn-daemon", escaped)
 	spawn.Stdout = e.spawnOutputWriter
 
+	// Capture its Stdin.
+	spawnStdIn, err := spawn.StdinPipe()
+	if err != nil {
+		return err
+	}
+
 	if err := spawn.Start(); err != nil {
 		fmt.Errorf("Failed to call spawn-daemon on nomad executable: %v", err)
+	}
+
+	// Join the spawn-daemon to the cgroup.
+	if e.groups != nil {
+		manager := cgroupFs.Manager{}
+		manager.Cgroups = e.groups
+
+		// Apply will place the current pid into the tasks file for each of the
+		// created cgroups:
+		//  /sys/fs/cgroup/memory/user/1000.user/4.session/<uuid>/tasks
+		//
+		// Apply requires superuser permissions, and may fail if Nomad is not run with
+		// the required permissions
+		if err := manager.Apply(spawn.Process.Pid); err != nil {
+			errs := new(multierror.Error)
+			errs = multierror.Append(errs, fmt.Errorf("Failed to join spawn-daemon to the cgroup (config => %+v): %v", manager.Cgroups, err))
+
+			if err := sendAbortCommand(spawnStdIn); err != nil {
+				errs = multierror.Append(errs, err)
+			}
+
+			return errs
+		}
+	}
+
+	// Tell it to start.
+	if err := sendStartCommand(spawnStdIn); err != nil {
+		return err
 	}
 
 	// Parse the response.
@@ -286,6 +319,24 @@ func (e *LinuxExecutor) spawnDaemon() error {
 	}
 
 	e.spawnChild = *spawn
+	return nil
+}
+
+func sendStartCommand(w io.Writer) error {
+	enc := json.NewEncoder(w)
+	if err := enc.Encode(true); err != nil {
+		return fmt.Errorf("Failed to serialize start command: %v", err)
+	}
+
+	return nil
+}
+
+func sendAbortCommand(w io.Writer) error {
+	enc := json.NewEncoder(w)
+	if err := enc.Encode(false); err != nil {
+		return fmt.Errorf("Failed to serialize abort command: %v", err)
+	}
+
 	return nil
 }
 
@@ -440,7 +491,6 @@ func (e *LinuxExecutor) destroyCgroup() error {
 
 	errs := new(multierror.Error)
 	for _, pid := range pids {
-		fmt.Println("PID: ", pid)
 		process, err := os.FindProcess(pid)
 		if err != nil {
 			multierror.Append(errs, fmt.Errorf("Failed to find Pid %v: %v", pid, err))
