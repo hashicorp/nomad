@@ -652,7 +652,7 @@ func (n *NetworkResource) GoString() string {
 // Details:
 //
 // The jobspec lets us ask for two types of ports: Reserved ports and Dynamic
-// ports. Reserved ports are identified by the port number, while Dynamic porrts
+// ports. Reserved ports are identified by the port number, while Dynamic ports
 // are identified by a Label.
 //
 // When we ask nomad to run a job it checks to see if the Reserved ports we
