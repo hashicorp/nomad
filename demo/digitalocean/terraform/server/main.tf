@@ -1,4 +1,3 @@
-variable "count" {}
 variable "image" {}
 variable "region" {}
 variable "size" { default = "512mb" }
@@ -7,7 +6,7 @@ variable "ssh_keys" {}
 resource "digitalocean_droplet" "server" {
   image    = "${var.image}"
   name     = "server-${var.region}-${count.index}"
-  count    = "${var.count}"
+  count    = 3
   size     = "${var.size}"
   region   = "${var.region}"
   ssh_keys = ["${split(",", var.ssh_keys)}"]
