@@ -1,6 +1,6 @@
 variable "image" {}
 variable "region" {}
-variable "size" { default = "512mb" }
+variable "size" { default = "1gb" }
 variable "ssh_keys" {}
 
 resource "digitalocean_droplet" "server" {

@@ -1,7 +1,7 @@
 variable "count" {}
 variable "image" {}
 variable "region" {}
-variable "size" { default = "512mb" }
+variable "size" { default = "1gb" }
 variable "servers" {}
 variable "ssh_keys" {}
 
