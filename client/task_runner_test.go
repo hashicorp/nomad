@@ -61,6 +61,7 @@ func TestTaskRunner_SimpleRun(t *testing.T) {
 	upd, tr := testTaskRunner()
 	go tr.Run()
 	defer tr.Destroy()
+	defer tr.ctx.AllocDir.Destroy()
 
 	select {
 	case <-tr.WaitCh():
@@ -95,6 +96,7 @@ func TestTaskRunner_SimpleRun(t *testing.T) {
 func TestTaskRunner_Destroy(t *testing.T) {
 	ctestutil.ExecCompatible(t)
 	upd, tr := testTaskRunner()
+	defer tr.ctx.AllocDir.Destroy()
 
 	// Change command to ensure we run for a bit
 	tr.task.Config["command"] = "/bin/sleep"
@@ -136,6 +138,7 @@ func TestTaskRunner_Update(t *testing.T) {
 	tr.task.Config["args"] = "10"
 	go tr.Run()
 	defer tr.Destroy()
+	defer tr.ctx.AllocDir.Destroy()
 
 	// Update the task definition
 	newTask := new(structs.Task)
