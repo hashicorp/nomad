@@ -3,7 +3,7 @@ layout: "docs"
 page_title: "Scheduling"
 sidebar_current: "docs-internals-scheduling"
 description: |-
-  Learn about how schedulig works in Nomad.
+  Learn about how scheduling works in Nomad.
 ---
 
 # Scheduling
