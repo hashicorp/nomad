@@ -36,7 +36,8 @@ func (m *MockTaskStateUpdater) Update(name, status, desc string) {
 func testTaskRunner() (*MockTaskStateUpdater, *TaskRunner) {
 	logger := testLogger()
 	conf := DefaultConfig()
-	conf.StateDir = "/tmp"
+	conf.StateDir = os.TempDir()
+	conf.AllocDir = os.TempDir()
 	upd := &MockTaskStateUpdater{}
 	ctx := driver.NewExecContext()
 	alloc := mock.Alloc()
