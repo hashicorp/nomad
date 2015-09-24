@@ -49,8 +49,8 @@ job "my-service" {
                 network {
                     mbits = 100
                     dynamic_ports = [
-                      "http",
-                      "https",
+                      "HTTP",
+                      "HTTPS",
                     ]
                 }
             }

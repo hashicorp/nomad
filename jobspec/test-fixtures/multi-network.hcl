@@ -11,13 +11,13 @@ job "binstore-storagelocker" {
                 network {
                     mbits = "100"
                     reserved_ports = [1,2,3]
-                    dynamic_ports = ["http", "https", "admin"]
+                    dynamic_ports = ["HTTP", "HTTPS", "ADMIN"]
                 }
 
                 network {
                     mbits = "128"
                     reserved_ports = [1,2,3]
-                    dynamic_ports = ["http", "https", "admin"]
+                    dynamic_ports = ["HTTP", "HTTPS", "ADMIN"]
                 }
             }
         }

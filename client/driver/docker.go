@@ -17,6 +17,7 @@ import (
 var (
 	reDockerVersion = regexp.MustCompile("Docker version ([\\d\\.]+),.+")
 	reDockerSha     = regexp.MustCompile("^[a-f0-9]{64}$")
+	reNumeric       = regexp.MustCompile("^[0-9]+$")
 )
 
 type DockerDriver struct {
@@ -98,6 +99,25 @@ func containerOptionsForTask(ctx *ExecContext, task *structs.Task, logger *log.L
 
 	logger.Printf("[DEBUG] driver.docker: using %d bytes memory for %s", containerConfig.Memory, task.Config["image"])
 	logger.Printf("[DEBUG] driver.docker: using %d cpu shares for %s", containerConfig.CPUShares, task.Config["image"])
+
+	// Setup port mapping (equivalent to -p on docker CLI). Ports must already be
+	// exposed in the container.
+	if len(task.Resources.Networks) == 0 {
+		logger.Print("[WARN] driver.docker: No networks are available for port mapping")
+	} else {
+		logger.Printf("[CBEDNARSKI] %#v", task.Resources.Networks)
+		network := task.Resources.Networks[0]
+		dockerPorts := map[docker.Port][]docker.PortBinding{}
+
+		for label, port := range network.MapDynamicPorts() {
+			if reNumeric.MatchString(label) {
+				dockerPorts[docker.Port(label+"/tcp")] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: string(port)}}
+				dockerPorts[docker.Port(label+"/urp")] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: string(port)}}
+				logger.Printf("[DEBUG] driver.docker: allocated host port %d to %s", port, label)
+			}
+		}
+		containerConfig.PortBindings = dockerPorts
+	}
 
 	return docker.CreateContainerOptions{
 		Config: &docker.Config{
