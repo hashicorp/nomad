@@ -49,7 +49,7 @@ func testTaskRunnerPostOffer() (*MockTaskStateUpdater, *TaskRunner) {
 	state, runner := testTaskRunner()
 	// testTaskRunner gives us a job in pre-offer state. We need it in post-
 	// offer state some some other things are initialized. We'll init them here.
-	runner.task.Resources.Networks[0].ReservedPorts[0] = 80
+	runner.task.Resources.Networks[0].ReservedPorts = []int{80}
 	return state, runner
 }
 
