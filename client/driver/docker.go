@@ -60,14 +60,15 @@ func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool
 	return true, nil
 }
 
-// containerOptionsForTask initializes a struct needed to call
-// docker.client.CreateContainer()
-func containerOptionsForTask(ctx *ExecContext, task *structs.Task, logger *log.Logger) docker.CreateContainerOptions {
+// createContainer initializes a struct needed to call docker.client.CreateContainer()
+func createContainer(ctx *ExecContext, task *structs.Task, logger *log.Logger) docker.CreateContainerOptions {
 	if task.Resources == nil {
 		panic("task.Resources is nil and we can't constrain resource usage. We shouldn't have been able to schedule this in the first place.")
 	}
 
-	containerConfig := &docker.HostConfig{
+	// hostConfig holds options for the docker container that are unique to this
+	// machine, such as resource limits and port mappings
+	hostConfig := &docker.HostConfig{
 		// Convert MB to bytes. This is an absolute value.
 		//
 		// This value represents the total amount of memory a process can use.
@@ -97,9 +98,8 @@ func containerOptionsForTask(ctx *ExecContext, task *structs.Task, logger *log.L
 		//  - https://www.kernel.org/doc/Documentation/scheduler/sched-design-CFS.txt
 		CPUShares: int64(task.Resources.CPU),
 	}
-
-	logger.Printf("[DEBUG] driver.docker: using %d bytes memory for %s", containerConfig.Memory, task.Config["image"])
-	logger.Printf("[DEBUG] driver.docker: using %d cpu shares for %s", containerConfig.CPUShares, task.Config["image"])
+	logger.Printf("[DEBUG] driver.docker: using %d bytes memory for %s", hostConfig.Memory, task.Config["image"])
+	logger.Printf("[DEBUG] driver.docker: using %d cpu shares for %s", hostConfig.CPUShares, task.Config["image"])
 
 	// Setup port mapping (equivalent to -p on docker CLI). Ports must already be
 	// exposed in the container.
@@ -108,6 +108,12 @@ func containerOptionsForTask(ctx *ExecContext, task *structs.Task, logger *log.L
 	} else {
 		network := task.Resources.Networks[0]
 		dockerPorts := map[docker.Port][]docker.PortBinding{}
+
+		for _, port := range network.ListStaticPorts() {
+			dockerPorts[docker.Port(strconv.Itoa(port)+"/tcp")] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: strconv.Itoa(port)}}
+			dockerPorts[docker.Port(strconv.Itoa(port)+"/udp")] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: strconv.Itoa(port)}}
+			logger.Printf("[DEBUG] driver.docker: allocated port %s:%d -> %d (static) %s\n", network.IP, port, port)
+		}
 
 		for label, port := range network.MapDynamicPorts() {
 			// If the label is numeric we expect that there is a service
@@ -127,7 +133,7 @@ func containerOptionsForTask(ctx *ExecContext, task *structs.Task, logger *log.L
 				logger.Printf("[DEBUG] driver.docker: allocated port %s:%d -> %d for label %s\n", network.IP, port, port, label)
 			}
 		}
-		containerConfig.PortBindings = dockerPorts
+		hostConfig.PortBindings = dockerPorts
 	}
 
 	return docker.CreateContainerOptions{
@@ -135,7 +141,7 @@ func containerOptionsForTask(ctx *ExecContext, task *structs.Task, logger *log.L
 			Env:   PopulateEnvironment(ctx, task),
 			Image: task.Config["image"],
 		},
-		HostConfig: containerConfig,
+		HostConfig: hostConfig,
 	}
 }
 
@@ -187,7 +193,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	d.logger.Printf("[INFO] driver.docker: downloaded image %s as %s", image, imageID)
 
 	// Create a container
-	container, err := client.CreateContainer(containerOptionsForTask(ctx, task, d.logger))
+	container, err := client.CreateContainer(createContainer(ctx, task, d.logger))
 	if err != nil {
 		d.logger.Printf("[ERR] driver.docker: %s", err)
 		return nil, fmt.Errorf("Failed to create container from image %s", image)
