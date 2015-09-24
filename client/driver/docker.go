@@ -67,7 +67,9 @@ func containerOptionsForTask(ctx *ExecContext, task *structs.Task, logger *log.L
 		panic("task.Resources is nil and we can't constrain resource usage. We shouldn't have been able to schedule this in the first place.")
 	}
 
-	containerConfig := &docker.HostConfig{
+	// hostConfig holds options for the docker container that are unique to this
+	// machine, such as resource limits and port mappings
+	hostConfig := &docker.HostConfig{
 		// Convert MB to bytes. This is an absolute value.
 		//
 		// This value represents the total amount of memory a process can use.
@@ -97,9 +99,8 @@ func containerOptionsForTask(ctx *ExecContext, task *structs.Task, logger *log.L
 		//  - https://www.kernel.org/doc/Documentation/scheduler/sched-design-CFS.txt
 		CPUShares: int64(task.Resources.CPU),
 	}
-
-	logger.Printf("[DEBUG] driver.docker: using %d bytes memory for %s", containerConfig.Memory, task.Config["image"])
-	logger.Printf("[DEBUG] driver.docker: using %d cpu shares for %s", containerConfig.CPUShares, task.Config["image"])
+	logger.Printf("[DEBUG] driver.docker: using %d bytes memory for %s", hostConfig.Memory, task.Config["image"])
+	logger.Printf("[DEBUG] driver.docker: using %d cpu shares for %s", hostConfig.CPUShares, task.Config["image"])
 
 	// Setup port mapping (equivalent to -p on docker CLI). Ports must already be
 	// exposed in the container.
@@ -133,7 +134,7 @@ func containerOptionsForTask(ctx *ExecContext, task *structs.Task, logger *log.L
 				logger.Printf("[DEBUG] driver.docker: allocated port %s:%d -> %d for label %s\n", network.IP, port, port, label)
 			}
 		}
-		containerConfig.PortBindings = dockerPorts
+		hostConfig.PortBindings = dockerPorts
 	}
 
 	return docker.CreateContainerOptions{
@@ -141,7 +142,7 @@ func containerOptionsForTask(ctx *ExecContext, task *structs.Task, logger *log.L
 			Env:   PopulateEnvironment(ctx, task),
 			Image: task.Config["image"],
 		},
-		HostConfig: containerConfig,
+		HostConfig: hostConfig,
 	}
 }
 
