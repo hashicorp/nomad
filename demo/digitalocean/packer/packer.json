@@ -37,7 +37,7 @@
     {
       "type": "atlas",
       "artifact": "hashicorp/nomad-demo",
-      "artifact_type": "digitalocean.droplet"
+      "artifact_type": "digitalocean.image"
     }
   ],
   "push": {
