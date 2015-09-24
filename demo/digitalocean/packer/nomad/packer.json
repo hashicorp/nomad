@@ -8,7 +8,7 @@
       "image": "ubuntu-12-04-x64",
       "region": "nyc3",
       "size": "512mb",
-      "snapshot_name": "nomad-{{timestamp}}"
+      "snapshot_name": "nomad-demo-{{timestamp}}"
     }
   ],
   "provisioners": [
