@@ -56,6 +56,10 @@ module "clients-sfo1" {
   ssh_keys = "${var.ssh_keys}"
 }
 
-output "cluster-info" {
-  value = "Nomad Servers: ${join(" ", split(",", module.servers.addrs))}"
+output "Nomad Servers" {
+  value = "${join(" ", split(",", module.servers.addrs))}"
+}
+
+output "Statsite Server" {
+  value = "${module.statsite.addr}"
 }
