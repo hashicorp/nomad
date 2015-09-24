@@ -17,6 +17,7 @@ import (
 var (
 	reDockerVersion = regexp.MustCompile("Docker version ([\\d\\.]+),.+")
 	reDockerSha     = regexp.MustCompile("^[a-f0-9]{64}$")
+	reNumeric       = regexp.MustCompile("^[0-9]+$")
 )
 
 type DockerDriver struct {
@@ -60,7 +61,7 @@ func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool
 
 // containerOptionsForTask initializes a struct needed to call
 // docker.client.CreateContainer()
-func containerOptionsForTask(task *structs.Task, logger *log.Logger) docker.CreateContainerOptions {
+func containerOptionsForTask(ctx *ExecContext, task *structs.Task, logger *log.Logger) docker.CreateContainerOptions {
 	if task.Resources == nil {
 		panic("task.Resources is nil and we can't constrain resource usage. We shouldn't have been able to schedule this in the first place.")
 	}
@@ -93,19 +94,44 @@ func containerOptionsForTask(task *structs.Task, logger *log.Logger) docker.Crea
 		// See:
 		//  - https://www.kernel.org/doc/Documentation/scheduler/sched-bwc.txt
 		//  - https://www.kernel.org/doc/Documentation/scheduler/sched-design-CFS.txt
-		//
-		// TODO push CPU share up to the task group level. We can retain the
-		// docker-specific implementation for very fine-grained control but the
-		// usage semantics will change once we have this capability in task
-		// groups.
 		CPUShares: int64(task.Resources.CPU),
 	}
 
 	logger.Printf("[DEBUG] driver.docker: using %d bytes memory for %s", containerConfig.Memory, task.Config["image"])
 	logger.Printf("[DEBUG] driver.docker: using %d cpu shares for %s", containerConfig.CPUShares, task.Config["image"])
 
+	// Setup port mapping (equivalent to -p on docker CLI). Ports must already be
+	// exposed in the container.
+	if len(task.Resources.Networks) == 0 {
+		logger.Print("[WARN] driver.docker: No networks are available for port mapping")
+	} else {
+		network := task.Resources.Networks[0]
+		dockerPorts := map[docker.Port][]docker.PortBinding{}
+
+		for label, port := range network.MapDynamicPorts() {
+			// If the label is numeric we expect that there is a service
+			// listening on that port inside the container. In this case we'll
+			// setup a mapping from our random host port to the label port.
+			//
+			// Otherwise we'll setup a direct 1:1 mapping from the host port to
+			// the container, and assume that the process inside will read the
+			// environment variable and bind to the correct port.
+			if reNumeric.MatchString(label) {
+				dockerPorts[docker.Port(label+"/tcp")] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: string(port)}}
+				dockerPorts[docker.Port(label+"/udp")] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: string(port)}}
+				logger.Printf("[DEBUG] driver.docker: allocated port %s:%d -> %s (mapped)", network.IP, port, label)
+			} else {
+				dockerPorts[docker.Port(string(port)+"/tcp")] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: string(port)}}
+				dockerPorts[docker.Port(string(port)+"/udp")] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: string(port)}}
+				logger.Printf("[DEBUG] driver.docker: allocated port %s:%d -> %d for label %s", network.IP, port, port, label)
+			}
+		}
+		containerConfig.PortBindings = dockerPorts
+	}
+
 	return docker.CreateContainerOptions{
 		Config: &docker.Config{
+			Env:   PopulateEnvironment(ctx, task),
 			Image: task.Config["image"],
 		},
 		HostConfig: containerConfig,
@@ -158,7 +184,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	d.logger.Printf("[INFO] driver.docker: downloaded image %s as %s", image, imageID)
 
 	// Create a container
-	container, err := client.CreateContainer(containerOptionsForTask(task, d.logger))
+	container, err := client.CreateContainer(containerOptionsForTask(ctx, task, d.logger))
 	if err != nil {
 		d.logger.Printf("[ERR] driver.docker: %s", err)
 		return nil, fmt.Errorf("Failed to create container from image %s", image)

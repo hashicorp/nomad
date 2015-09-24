@@ -16,5 +16,6 @@ type NetworkResource struct {
 	Public        bool
 	CIDR          string
 	ReservedPorts []int
+	DynamicPorts  []string
 	MBits         int
 }

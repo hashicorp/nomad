@@ -162,6 +162,7 @@ func (idx *NetworkIndex) AssignNetwork(ask *NetworkResource) (out *NetworkResour
 			Device:        n.Device,
 			IP:            ipStr,
 			ReservedPorts: ask.ReservedPorts,
+			DynamicPorts:  ask.DynamicPorts,
 		}
 
 		// Check if we need to generate any ports

@@ -266,6 +266,23 @@ func TestResource_Add_Network(t *testing.T) {
 	}
 }
 
+func TestMapDynamicPorts(t *testing.T) {
+	resources := &NetworkResource{
+		ReservedPorts: []int{80, 443, 3306, 8080},
+		DynamicPorts:  []string{"mysql", "admin"},
+	}
+
+	expected := map[string]int{
+		"mysql": 3306,
+		"admin": 8080,
+	}
+	actual := resources.MapDynamicPorts()
+
+	if !reflect.DeepEqual(expected, actual) {
+		t.Fatalf("Expected %#v; found %#v", expected, actual)
+	}
+}
+
 func TestEncodeDecode(t *testing.T) {
 	type FooRequest struct {
 		Foo string

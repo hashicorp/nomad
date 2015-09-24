@@ -3,6 +3,7 @@ package jobspec
 import (
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -177,4 +178,18 @@ func TestParse(t *testing.T) {
 			t.Fatalf("file: %s\n\n%#v\n\n%#v", tc.File, actual, tc.Result)
 		}
 	}
+}
+
+func TestBadPorts(t *testing.T) {
+	path, err := filepath.Abs(filepath.Join("./test-fixtures", "bad-ports.hcl"))
+	if err != nil {
+		t.Fatalf("Can't get absoluate path for file: %s", err)
+	}
+
+	_, err = ParseFile(path)
+
+	if !strings.Contains(err.Error(), errDynamicPorts.Error()) {
+		t.Fatalf("\nExpected error\n  %s\ngot\n  %v", errDynamicPorts, err)
+	}
+
 }

@@ -645,6 +645,45 @@ func (n *NetworkResource) GoString() string {
 	return fmt.Sprintf("*%#v", *n)
 }
 
+// MapDynamicPorts returns a mapping of Label:PortNumber for dynamic ports
+// allocated on this NetworkResource. The ordering of Label:Port pairs is
+// random.
+//
+// Details:
+//
+// The jobspec lets us ask for two types of ports: Reserved ports and Dynamic
+// ports. Reserved ports are identified by the port number, while Dynamic porrts
+// are identified by a Label.
+//
+// When we ask nomad to run a job it checks to see if the Reserved ports we
+// requested are available. If they are, it then tries to provision any Dynamic
+// ports that we have requested. When available ports are found to satisfy our
+// dynamic port requirements, they are APPENDED to the reserved ports list. In
+// effect, the reserved ports list serves double-duty. First it indicates the
+// ports we *want*, and then it indicates the ports we are *using*.
+//
+// After the the offer process is complete and the job is scheduled we want to
+// see which ports were made available to us. To see the dynamic ports that
+// were allocated to us we look at the last N ports in our reservation, where N
+// is how many dynamic ports we requested.
+//
+// MapDynamicPorts matches these port numbers with their labels and gives you
+// the port mapping.
+//
+// Also, be aware that this is intended to be called in the context of
+// task.Resources after an offer has been made. If you call it in some other
+// context the behavior is unspecified, including maybe crashing. So don't do that.
+func (n *NetworkResource) MapDynamicPorts() map[string]int {
+	ports := n.ReservedPorts[len(n.ReservedPorts)-len(n.DynamicPorts):]
+	mapping := make(map[string]int, len(n.DynamicPorts))
+
+	for idx, label := range n.DynamicPorts {
+		mapping[label] = ports[idx]
+	}
+
+	return mapping
+}
+
 const (
 	// JobTypeNomad is reserved for internal system tasks and is
 	// always handled by the CoreScheduler.
