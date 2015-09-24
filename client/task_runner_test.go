@@ -45,7 +45,7 @@ func testTaskRunner() (*MockTaskStateUpdater, *TaskRunner) {
 	return upd, tr
 }
 
-func testTaskRunnerPostOffer(*MockTaskStateUpdater, *TaskRunner) {
+func testTaskRunnerPostOffer() (*MockTaskStateUpdater, *TaskRunner) {
 	state, runner := testTaskRunner()
 	// testTaskRunner gives us a job in pre-offer state. We need it in post-
 	// offer state some some other things are initialized. We'll init them here.
