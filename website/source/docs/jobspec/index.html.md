@@ -8,15 +8,17 @@ description: |-
 
 # Job Specification
 
-Jobs can be specified either in [HCL](https://github.com/hashicorp/hcl) which is meant
-to strike a balance between human readable and editable as well as being machine-friendly.
+Jobs can be specified either in [HCL](https://github.com/hashicorp/hcl) or JSON. 
+HCL is meant to strike a balance between human readable and editable, as well 
+as being machine-friendly.
+
 For machine-friendliness, Nomad can also read JSON configurations. In general, we recommend
-recommend using the HCL syntax.
+using the HCL syntax.
 
 ## HCL Syntax
 
-For a detailed description of HCL general syntax, [see the guide](https://github.com/hashicorp/hcl#syntax).
-Here we cover the details of the Job specification for Nomad, here is an example:
+For a detailed description of HCL general syntax, [see this guide](https://github.com/hashicorp/hcl#syntax).
+Here we cover the details of the Job specification for Nomad:
 
 ```
 # Define a job called my-service
@@ -183,7 +185,7 @@ The `resources` object supports the following keys:
 
 * `network` - The network required. Details below.
 
-The `network` object supports teh following keys:
+The `network` object supports the following keys:
 
 * `dynamic_ports` - List of port labels which may contain uppercase letters,
   numbers and underscores (`^[A-Z0-9_]+$`). Each label will be assigned a
@@ -213,7 +215,7 @@ The `constraint` object supports the following keys:
 * `value` - Specifies the value to compare the attribute against.
   This can be a literal value or another attribute.
 
-Below is a table documenting the variables that can be interpretted:
+Below is a table documenting the variables that can be interpreted:
 
 <table class="table table-bordered table-striped">
   <tr>
@@ -294,4 +296,5 @@ and self-documented. The downsides of JSON are less human readability and
 the lack of comments. Otherwise, the two are completely interoperable.
 
 See the API documentation for more details on the JSON structure.
+
 

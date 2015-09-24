@@ -9,7 +9,7 @@ description: |-
 # Runtime Environment
 
 Some settings you specify in your [jobspec](/docs/jobspec/) are passed to tasks
-when they start. Also, some settings are dynamically allocated when your job is
+when they start. Other settings are dynamically allocated when your job is
 scheduled. Both types of values are made available to your job through
 environment variables.
 
@@ -17,11 +17,11 @@ environment variables.
 
 When you request resources for a job, Nomad creates a resource offer. The final
 resources for your job are not determined until it is scheduled. Nomad will
-tell you which resources
+tell you which resources have been allocated after evaulation and placement.
 
 ### CPU and Memory
 
-Nomad will pass CPU and memory to your job as `NOMAD_CPU_LIMIT` and
+Nomad will pass CPU and memory limits to your job as `NOMAD_CPU_LIMIT` and
 `NOMAD_MEMORY_LIMIT`. Your task should use these values to adapt its behavior to
 fit inside the resource allocation that nomad provides. For example, you can use
 the memory limit to inform how large your in-process cache should be, or to

@@ -9,17 +9,17 @@ description: |-
 # Nomad Agent
 
 The Nomad agent is a long running process which runs on every machine that
-is part of the Nomad cluster. The behavior of the agent depends if it is
+is part of the Nomad cluster. The behavior of the agent depends on if it is
 running in client or server mode. Clients are responsible for running tasks,
 while servers are responsible for managing the cluster.
 
 Client mode agents are relatively simple. They make use of fingerprinting
-to determine the capabilities and resources of the host machine. This includes
+to determine the capabilities and resources of the host machine, as well as 
 determining what [drivers](/docs/drivers/index.html) are available. Clients
 register with servers to provide the node information, heartbeat to provide
 liveness, and run any tasks assigned to them.
 
-Servers take on the additional responsibility of being part of the
+Servers take on the responsibility of being part of the 
 [consensus protocol](/docs/internals/consensus.html) and [gossip protocol](/docs/internals/gossip.html).
 The consensus protocol, powered by Raft, allows the servers to perform
 leader election and state replication. The gossip protocol allows for simple
@@ -27,7 +27,7 @@ clustering of servers and multi-region federation. The higher burden on the
 server nodes means that usually they should be run on dedicated instances --
 they are more resource intensive than a client node.
 
-Client nodes make up the majority of the cluster, and they are very lightweight
+Client nodes make up the majority of the cluster, and are very lightweight
 as they interface with the server nodes and maintain very little state of their own.
 Each cluster has usually 3 or 5 server mode agents and potentially thousands of clients.
 
@@ -60,7 +60,7 @@ $ nomad agent -dev
 There are several important messages that `nomad agent` outputs:
 
 * **Atlas**: This shows the [Atlas infrastructure](https://atlas.hashicorp.com)
-  with which the node is registered. It also indicates if auto-join is enabled.
+  with which the node is registered, if any. It also indicates if auto-join is enabled.
   The Atlas infrastructure is set using [`-atlas`](/docs/agent/config.html#_atlas)
   and auto-join is enabled by setting [`-atlas-join`](/docs/agent/config.html#_atlas_join).
 
@@ -75,7 +75,7 @@ There are several important messages that `nomad agent` outputs:
 * **Region**: This is the region and datacenter in which the agent is configured to run.
  Nomad has first-class support for multi-datacenter and multi-region configurations.
  The [`-region` and `-dc`](/docs/agent/config.html#_region) flag can be used to set
- the region and datacenter. The default is the "global" region in "dc1".
+ the region and datacenter. The default is the `global` region in `dc1`.
 
 * **Server**: This indicates whether the agent has enabled server mode.
   Server nodes have the extra burden of participating in the consensus protocol,
@@ -84,7 +84,7 @@ There are several important messages that `nomad agent` outputs:
 ## Stopping an Agent
 
 An agent can be stopped in two ways: gracefully or forcefully. By default,
-any signal to an agent (interupt, terminate, kill) will cause the agent
+any signal to an agent (interrupt, terminate, kill) will cause the agent
 to forcefully stop. Gracefully termination can be configured by either
 setting `leave_on_interrupt` or `leave_on_terminate` to respond to the
 respective signals.
@@ -107,7 +107,7 @@ this lifecycle is useful for building a mental model of an agent's interactions
 with a cluster and how the cluster treats a node.
 
 When a client agent is first started, it fingerprints the host machine to
-identify its attributes, capabililities, and [task drivers](/docs/drivers/index.html).
+identify its attributes, capabilities, and [task drivers](/docs/drivers/index.html).
 These are reported to the servers during an initial registration. The addresses
 of known servers are provided to the agent via configuration, potentially using
 DNS for resolution. Using [Consul](https://consul.io) provides a way to avoid hard
@@ -137,4 +137,3 @@ When a server _leaves_, it specifies its intent to do so, and the cluster marks 
 node as having _left_. If the server has _left_, replication to it will stop and it
 is removed as a member of the consensus quorum. If the server has _failed_, replication
 will attempt to make progress to recover from a software or network failure.
-
