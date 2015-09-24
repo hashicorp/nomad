@@ -13,18 +13,11 @@
   ],
   "provisioners": [
     {
-      "type": "file",
-      "source": "nomad.zip",
-      "destination": "/tmp/nomad.zip"
-    },
-    {
       "type": "shell",
       "inline": [
         "sudo apt-get -y update",
         "sudo apt-get -y install unzip",
-        "# Temporarily disabled until public release. Uncomment",
-        "# and remove the above file provisioner.",
-        "#curl -o /tmp/nomad.zip -L {{ user `bin_url` }}",
+        "curl -o /tmp/nomad.zip -L {{ user `bin_url` }}",
         "sudo unzip -d /usr/local/bin /tmp/nomad.zip",
         "mkdir -p /usr/local/etc/nomad"
       ]
