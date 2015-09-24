@@ -6,11 +6,18 @@ resource "atlas_artifact" "nomad-digitalocean" {
   version = "latest"
 }
 
+module "statsite" {
+  source   = "./statsite"
+  region   = "nyc3"
+  ssh_keys = "${var.ssh_keys}"
+}
+
 module "servers" {
   source   = "./server"
   region   = "nyc3"
   image    = "${atlas_artifact.nomad-digitalocean.id}"
   ssh_keys = "${var.ssh_keys}"
+  statsite = "${module.statsite.addr}"
 }
 
 module "clients-nyc3" {

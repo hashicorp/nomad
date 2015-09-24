@@ -2,6 +2,7 @@ variable "image" {}
 variable "region" {}
 variable "size" { default = "1gb" }
 variable "ssh_keys" {}
+variable "statsite" {}
 
 resource "digitalocean_droplet" "server" {
   image    = "${var.image}"
@@ -22,6 +23,9 @@ server {
 advertise {
     rpc = "${self.ipv4_address}:4647"
     serf = "${self.ipv4_address}:4648"
+}
+telemetry {
+    statsite_address = "${var.statsite}"
 }
 EOF
 CMD
