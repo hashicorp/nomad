@@ -22,7 +22,9 @@ type UniversalExecutor struct {
 }
 
 func (e *UniversalExecutor) Limit(resources *structs.Resources) error {
-	// No-op
+	if resources == nil {
+		return errNoResources
+	}
 	return nil
 }
 

@@ -18,12 +18,15 @@
 package executor
 
 import (
+	"fmt"
 	"os/exec"
 	"path/filepath"
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
+
+var errNoResources = fmt.Errorf("No resources are associated with this task")
 
 // Executor is an interface that any platform- or capability-specific exec
 // wrapper must implement. You should not need to implement a Java executor.
