@@ -85,8 +85,8 @@ func TestAllocDir_EmbedNonExistent(t *testing.T) {
 	fakeDir := "/foobarbaz"
 	task := tasks[0].Name
 	mapping := map[string]string{fakeDir: fakeDir}
-	if err := d.Embed(task, mapping); err == nil {
-		t.Fatalf("Embed(%v, %v) should have failed. %v does not exist", task, mapping, fakeDir)
+	if err := d.Embed(task, mapping); err != nil {
+		t.Fatalf("Embed(%v, %v) should should skip %v since it does not exist", task, mapping, fakeDir)
 	}
 }
 
