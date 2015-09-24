@@ -173,7 +173,9 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	// Get the image ID (sha256). We need to keep track of this in case another
 	// process pulls down a newer version of the image.
 	imageIDBytes, err := exec.Command("docker", "images", "-q", "--no-trunc", image).CombinedOutput()
-	imageID := strings.TrimSpace(string(imageIDBytes))
+	// imageID := strings.TrimSpace(string(imageIDBytes))
+	// TODO this is a hack and needs to get fixed :(
+	imageID := strings.Split(strings.TrimSpace(string(imageIDBytes)), "\n")[0]
 	if err != nil || imageID == "" {
 		d.logger.Printf("[ERR] driver.docker: getting image id %s", imageID)
 		return nil, fmt.Errorf("Failed to determine image id for `%s`: %s", image, err)
