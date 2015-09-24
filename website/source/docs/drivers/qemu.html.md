@@ -31,8 +31,9 @@ checksums do not match, the `Qemu` diver will fail to start the image
  If the host machine has `Qemu` installed with KVM support, users can specify `kvm` for the `accelerator`. Default is `tcg`
 * `host_port` - **(Required)** Port on the host machine to forward to the guest
 VM
-* `guest_port` - **(Required)** Port on the guest machine that is listening for
-traffic from the host
+* `guest_ports` - **(Optional)** Ports on the guest machine that are listening for
+traffic from the host. These ports match up with any `ReservedPorts` requested
+in the `Task` specification
 
 ## Client Requirements
 
