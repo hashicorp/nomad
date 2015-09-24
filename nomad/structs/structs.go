@@ -684,6 +684,12 @@ func (n *NetworkResource) MapDynamicPorts() map[string]int {
 	return mapping
 }
 
+// Get the list of Static ports. There are presumed to have known semantics so
+// there is no mapping information.
+func (n *NetworkResource) ListStaticPorts() []int {
+	return n.ReservedPorts[:len(n.ReservedPorts)-len(n.DynamicPorts)]
+}
+
 const (
 	// JobTypeNomad is reserved for internal system tasks and is
 	// always handled by the CoreScheduler.
