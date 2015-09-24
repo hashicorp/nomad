@@ -72,6 +72,9 @@ type LinuxExecutor struct {
 	spawnChild        exec.Cmd
 	spawnOutputWriter *os.File
 	spawnOutputReader *os.File
+
+	// Track whether there are filesystems mounted in the task dir.
+	mounts bool
 }
 
 func (e *LinuxExecutor) Limit(resources *structs.Resources) error {
@@ -123,12 +126,17 @@ func (e *LinuxExecutor) ConfigureTaskDir(taskName string, alloc *allocdir.AllocD
 	}
 
 	e.alloc = alloc
+	e.mounts = true
 	return nil
 }
 
 func (e *LinuxExecutor) cleanTaskDir() error {
 	if e.alloc == nil {
 		return errors.New("ConfigureTaskDir() must be called before Start()")
+	}
+
+	if !e.mounts {
+		return nil
 	}
 
 	// Unmount dev.
@@ -144,6 +152,7 @@ func (e *LinuxExecutor) cleanTaskDir() error {
 		errs = multierror.Append(errs, fmt.Errorf("Failed to unmount proc (%v): %v", proc, err))
 	}
 
+	e.mounts = false
 	return errs.ErrorOrNil()
 }
 
