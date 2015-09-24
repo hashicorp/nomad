@@ -41,21 +41,18 @@ func testTaskRunner() (*MockTaskStateUpdater, *TaskRunner) {
 	ctx := driver.NewExecContext()
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
+
+	// Initialize the port listing. This should be done by the offer process but
+	// we have a mock so that doesn't happen.
+	task.Resources.Networks[0].ReservedPorts = []int{80}
+
 	tr := NewTaskRunner(logger, conf, upd.Update, ctx, alloc.ID, task)
 	return upd, tr
 }
 
-func testTaskRunnerPostOffer() (*MockTaskStateUpdater, *TaskRunner) {
-	state, runner := testTaskRunner()
-	// testTaskRunner gives us a job in pre-offer state. We need it in post-
-	// offer state some some other things are initialized. We'll init them here.
-	runner.task.Resources.Networks[0].ReservedPorts = []int{80}
-	return state, runner
-}
-
 func TestTaskRunner_SimpleRun(t *testing.T) {
 	ctestutil.ExecCompatible(t)
-	upd, tr := testTaskRunnerPostOffer()
+	upd, tr := testTaskRunner()
 	go tr.Run()
 	defer tr.Destroy()
 
