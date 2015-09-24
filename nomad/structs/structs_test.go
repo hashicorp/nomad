@@ -328,17 +328,6 @@ func TestMapDynamicPortsOnly(t *testing.T) {
 	}
 }
 
-func TestMapDynamicPortsNil(t *testing.T) {
-	var resources *NetworkResource
-
-	expected := map[string]int{}
-	actual := resources.MapDynamicPorts()
-
-	if !reflect.DeepEqual(expected, actual) {
-		t.Fatalf("Expected %#v; found %#v", expected, actual)
-	}
-}
-
 func TestListStaticPorts(t *testing.T) {
 	resources := &NetworkResource{
 		ReservedPorts: []int{80, 443, 3306, 8080},
@@ -386,17 +375,6 @@ func TestListStaticPortsDynamicOnly(t *testing.T) {
 		ReservedPorts: []int{3306, 8080},
 		DynamicPorts:  []string{"mysql", "admin"},
 	}
-
-	expected := []int{}
-	actual := resources.ListStaticPorts()
-
-	if !reflect.DeepEqual(expected, actual) {
-		t.Fatalf("Expected %#v; found %#v", expected, actual)
-	}
-}
-
-func TestListStaticPortsDynamicNil(t *testing.T) {
-	var resources *NetworkResource
 
 	expected := []int{}
 	actual := resources.ListStaticPorts()
