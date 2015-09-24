@@ -109,6 +109,12 @@ func containerOptionsForTask(ctx *ExecContext, task *structs.Task, logger *log.L
 		network := task.Resources.Networks[0]
 		dockerPorts := map[docker.Port][]docker.PortBinding{}
 
+		for _, port := range network.ListStaticPorts() {
+			dockerPorts[docker.Port(strconv.Itoa(port)+"/tcp")] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: strconv.Itoa(port)}}
+			dockerPorts[docker.Port(strconv.Itoa(port)+"/udp")] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: strconv.Itoa(port)}}
+			logger.Printf("[DEBUG] driver.docker: allocated port %s:%d -> %d (static) %s\n", network.IP, port, port)
+		}
+
 		for label, port := range network.MapDynamicPorts() {
 			// If the label is numeric we expect that there is a service
 			// listening on that port inside the container. In this case we'll
