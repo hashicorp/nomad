@@ -19,7 +19,9 @@
         "sudo apt-get -y install unzip",
         "curl -o /tmp/nomad.zip -L {{ user `bin_url` }}",
         "sudo unzip -d /usr/local/bin /tmp/nomad.zip",
-        "mkdir -p /usr/local/etc/nomad"
+        "mkdir -p /usr/local/etc/nomad",
+        "curl -s https://get.docker.com/gpg | sudo apt-key add -",
+        "curl -s https://get.docker.com/ | sudo sh"
       ]
     },
     {
