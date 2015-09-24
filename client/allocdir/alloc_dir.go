@@ -144,10 +144,9 @@ func (d *AllocDir) Embed(task string, dirs map[string]string) error {
 				subdirs[hostEntry] = filepath.Join(dest, filepath.Base(hostEntry))
 				continue
 			} else if !entry.Mode().IsRegular() {
-				// If it is a symlink we can create it, otherwise it is an
-				// error.
+				// If it is a symlink we can create it, otherwise we skip it.
 				if entry.Mode()&os.ModeSymlink == 0 {
-					return fmt.Errorf("Can't embed non-regular file (%v): %v", entry.Mode().String(), hostEntry)
+					continue
 				}
 
 				link, err := os.Readlink(hostEntry)

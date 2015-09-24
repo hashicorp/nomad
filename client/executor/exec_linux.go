@@ -29,6 +29,8 @@ const (
 )
 
 var (
+	// A mapping of directories on the host OS to attempt to embed inside each
+	// task's chroot.
 	chrootEnv = map[string]string{
 		"/bin":     "/bin",
 		"/etc":     "/etc",
