@@ -5,7 +5,7 @@ variable "ssh_keys" {}
 
 resource "digitalocean_droplet" "server" {
   image    = "${var.image}"
-  name     = "server-${var.region}-${count.index}"
+  name     = "nomad-server-${var.region}-${count.index}"
   count    = 3
   size     = "${var.size}"
   region   = "${var.region}"

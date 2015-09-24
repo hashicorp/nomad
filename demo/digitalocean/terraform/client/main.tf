@@ -15,7 +15,7 @@ resource "template_file" "client_config" {
 
 resource "digitalocean_droplet" "client" {
   image    = "${var.image}"
-  name     = "client-${var.region}-${count.index}"
+  name     = "nomad-client-${var.region}-${count.index}"
   count    = "${var.count}"
   size     = "${var.size}"
   region   = "${var.region}"
