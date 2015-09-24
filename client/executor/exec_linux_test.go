@@ -17,7 +17,7 @@ import (
 
 var (
 	constraint = &structs.Resources{
-		CPU:      0.5,
+		CPU:      250,
 		MemoryMB: 256,
 		Networks: []*structs.NetworkResource{
 			&structs.NetworkResource{
