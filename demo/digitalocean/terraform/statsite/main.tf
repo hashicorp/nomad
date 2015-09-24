@@ -10,7 +10,7 @@ resource "atlas_artifact" "statsite-digitalocean" {
 
 resource "digitalocean_droplet" "statsite" {
   image    = "${atlas_artifact.statsite-digitalocean.id}"
-  name     = "statsite-${var.region}-${count.index}"
+  name     = "nomad-statsite-${var.region}-${count.index}"
   count    = 1
   size     = "${var.size}"
   region   = "${var.region}"
