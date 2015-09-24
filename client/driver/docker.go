@@ -105,15 +105,25 @@ func containerOptionsForTask(ctx *ExecContext, task *structs.Task, logger *log.L
 	if len(task.Resources.Networks) == 0 {
 		logger.Print("[WARN] driver.docker: No networks are available for port mapping")
 	} else {
-		logger.Printf("[CBEDNARSKI] %#v", task.Resources.Networks)
 		network := task.Resources.Networks[0]
 		dockerPorts := map[docker.Port][]docker.PortBinding{}
 
 		for label, port := range network.MapDynamicPorts() {
+			// If the label is numeric we expect that there is a service
+			// listening on that port inside the container. In this case we'll
+			// setup a mapping from our random host port to the label port.
+			//
+			// Otherwise we'll setup a direct 1:1 mapping from the host port to
+			// the container, and assume that the process inside will read the
+			// environment variable and bind to the correct port.
 			if reNumeric.MatchString(label) {
 				dockerPorts[docker.Port(label+"/tcp")] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: string(port)}}
-				dockerPorts[docker.Port(label+"/urp")] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: string(port)}}
-				logger.Printf("[DEBUG] driver.docker: allocated host port %d to %s", port, label)
+				dockerPorts[docker.Port(label+"/udp")] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: string(port)}}
+				logger.Printf("[DEBUG] driver.docker: allocated port %s:%d -> %s (mapped)", network.IP, port, label)
+			} else {
+				dockerPorts[docker.Port(string(port)+"/tcp")] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: string(port)}}
+				dockerPorts[docker.Port(string(port)+"/udp")] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: string(port)}}
+				logger.Printf("[DEBUG] driver.docker: allocated port %s:%d -> %d for label %s", network.IP, port, port, label)
 			}
 		}
 		containerConfig.PortBindings = dockerPorts
