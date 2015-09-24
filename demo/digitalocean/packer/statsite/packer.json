@@ -39,7 +39,7 @@
   "post-processors": [
     {
       "type": "atlas",
-      "artifact": "hashicorp/noad-demo-statsite",
+      "artifact": "hashicorp/nomad-demo-statsite",
       "artifact_type": "digitalocean.image"
     }
   ],
