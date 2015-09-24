@@ -609,7 +609,7 @@ func (r *Resources) GoString() string {
 	return fmt.Sprintf("*%#v", *r)
 }
 
-// NetworkResource is used to represesent available network
+// NetworkResource is used to represent available network
 // resources
 type NetworkResource struct {
 	Device        string   // Name of the device
@@ -652,7 +652,7 @@ func (n *NetworkResource) GoString() string {
 // Details:
 //
 // The jobspec lets us ask for two types of ports: Reserved ports and Dynamic
-// ports. Reserved ports are identified by the port number, while Dynamic porrts
+// ports. Reserved ports are identified by the port number, while Dynamic ports
 // are identified by a Label.
 //
 // When we ask nomad to run a job it checks to see if the Reserved ports we
@@ -684,8 +684,9 @@ func (n *NetworkResource) MapDynamicPorts() map[string]int {
 	return mapping
 }
 
-// Get the list of Static ports. There are presumed to have known semantics so
-// there is no mapping information.
+// ListStaticPorts returns the list of Static ports allocated to this
+// NetworkResource. These are presumed to have known semantics so there is no
+// mapping information.
 func (n *NetworkResource) ListStaticPorts() []int {
 	return n.ReservedPorts[:len(n.ReservedPorts)-len(n.DynamicPorts)]
 }
@@ -803,7 +804,7 @@ func (j *Job) Validate() error {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("Job priority must be between [%d, %d]", JobMinPriority, JobMaxPriority))
 	}
 	if len(j.Datacenters) == 0 {
-		mErr.Errors = append(mErr.Errors, errors.New("Missing job datacenters"))
+		mErr.Errors = append(mErr.Errors, errors.New("Missing job data centers"))
 	}
 	if len(j.TaskGroups) == 0 {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing job task groups"))
@@ -1138,7 +1139,7 @@ type AllocMetric struct {
 	// ConstraintFiltered is the number of failures caused by constraint
 	ConstraintFiltered map[string]int
 
-	// NodesExhausted is the nubmer of nodes skipped due to being
+	// NodesExhausted is the number of nodes skipped due to being
 	// exhausted of at least one resource
 	NodesExhausted int
 
@@ -1223,7 +1224,7 @@ const (
 
 const (
 	// CoreJobEvalGC is used for the garbage collection of evaluations
-	// and allocations. We periodically scan evalutations in a terminal state,
+	// and allocations. We periodically scan evaluations in a terminal state,
 	// in which all the corresponding allocations are also terminal. We
 	// delete these out of the system to bound the state.
 	CoreJobEvalGC = "eval-gc"
@@ -1256,7 +1257,7 @@ type Evaluation struct {
 	// was created. (Job change, node failure, alloc failure, etc).
 	TriggeredBy string
 
-	// JobID is the job this evaluation is scoped to. Evalutions cannot
+	// JobID is the job this evaluation is scoped to. Evaluations cannot
 	// be run in parallel for a given JobID, so we serialize on this.
 	JobID string
 
