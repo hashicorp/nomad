@@ -75,7 +75,7 @@ type LinuxExecutor struct {
 
 func (e *LinuxExecutor) Limit(resources *structs.Resources) error {
 	if resources == nil {
-		return nil
+		return fmt.Errorf("Resources are not specified; unable to apply cgroups")
 	}
 
 	if e.cgroupEnabled {

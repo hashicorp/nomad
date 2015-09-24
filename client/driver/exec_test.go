@@ -41,6 +41,7 @@ func TestExecDriver_StartOpen_Wait(t *testing.T) {
 			"command": "/bin/sleep",
 			"args":    "5",
 		},
+		Resources: basicResources,
 	}
 
 	driverCtx := testDriverContext(task.Name)
@@ -81,6 +82,7 @@ func TestExecDriver_Start_Wait(t *testing.T) {
 			"command": "/bin/sleep",
 			"args":    "1",
 		},
+		Resources: basicResources,
 	}
 
 	driverCtx := testDriverContext(task.Name)
@@ -121,6 +123,7 @@ func TestExecDriver_Start_Kill_Wait(t *testing.T) {
 			"command": "/bin/sleep",
 			"args":    "1",
 		},
+		Resources: basicResources,
 	}
 
 	driverCtx := testDriverContext(task.Name)

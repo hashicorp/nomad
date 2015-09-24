@@ -47,6 +47,7 @@ func TestJavaDriver_StartOpen_Wait(t *testing.T) {
 			// "jar_source": "https://s3-us-west-2.amazonaws.com/java-jar-thing/demoapp.jar",
 			// "args": "-d64",
 		},
+		Resources: basicResources,
 	}
 
 	driverCtx := testDriverContext(task.Name)
@@ -89,6 +90,7 @@ func TestJavaDriver_Start_Wait(t *testing.T) {
 			// "jar_source": "https://s3-us-west-2.amazonaws.com/java-jar-thing/demoapp.jar",
 			// "args": "-d64",
 		},
+		Resources: basicResources,
 	}
 
 	driverCtx := testDriverContext(task.Name)
@@ -131,6 +133,7 @@ func TestJavaDriver_Start_Kill_Wait(t *testing.T) {
 			// "jar_source": "https://s3-us-west-2.amazonaws.com/java-jar-thing/demoapp.jar",
 			// "args": "-d64",
 		},
+		Resources: basicResources,
 	}
 
 	driverCtx := testDriverContext(task.Name)

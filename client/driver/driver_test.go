@@ -11,6 +11,18 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+var basicResources = &structs.Resources{
+	CPU:      250,
+	MemoryMB: 256,
+	Networks: []*structs.NetworkResource{
+		&structs.NetworkResource{
+			IP:            "1.2.3.4",
+			ReservedPorts: []int{12345},
+			DynamicPorts:  []string{"HTTP"},
+		},
+	},
+}
+
 func testLogger() *log.Logger {
 	return log.New(os.Stderr, "", log.LstdFlags)
 }

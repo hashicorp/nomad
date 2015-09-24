@@ -54,10 +54,7 @@ func TestDockerDriver_StartOpen_Wait(t *testing.T) {
 		Config: map[string]string{
 			"image": "cbednarski/python-demo",
 		},
-		Resources: &structs.Resources{
-			MemoryMB: 1024,
-			CPU:      512,
-		},
+		Resources: basicResources,
 	}
 
 	driverCtx := testDriverContext(task.Name)
@@ -140,10 +137,7 @@ func TestDockerDriver_Start_Kill_Wait(t *testing.T) {
 		Config: map[string]string{
 			"image": "cbednarski/python-demo",
 		},
-		Resources: &structs.Resources{
-			MemoryMB: 1024,
-			CPU:      512,
-		},
+		Resources: basicResources,
 	}
 
 	driverCtx := testDriverContext(task.Name)
