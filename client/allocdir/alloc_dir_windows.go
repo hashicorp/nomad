@@ -18,5 +18,5 @@ func (d *AllocDir) dropDirPermissions(path string) error {
 
 // The windows version does nothing currently.
 func (d *AllocDir) unmountSharedDir(dir string) error {
-	return syscall.Unlink(dir)
+	return nil
 }
