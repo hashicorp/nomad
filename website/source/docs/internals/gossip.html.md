@@ -22,7 +22,7 @@ to learn about them without having to go spelunking through the source code.
 
 ## Gossip in Nomad
 
-Named makes use of a single global WAN gossip pool that all servers participate in.
+Nomad makes use of a single global WAN gossip pool that all servers participate in.
 Membership information provided by the gossip pool allows servers to perform cross region
 requests. The integrated failure detection allows Nomad to gracefully handle an entire region
 losing connectivity, or just a single server in a remote region. The gossip protocol

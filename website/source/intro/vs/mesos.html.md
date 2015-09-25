@@ -16,8 +16,8 @@ depends on ZooKeeper to provide both coordination and storage.
 There are many different frameworks that integrate with Mesos,
 popular general purpose ones include Aurora and Marathon.
 These frameworks allow users to submit jobs and implement scheduling
-logic. These frameworks depend on Mesos for resource management,
-and external systems like ZooKeeper to provide coordination and storage.
+logic. They depend on Mesos for resource management, and external
+systems like ZooKeeper to provide coordination and storage.
 
 Nomad is architecturally much simpler. Nomad is a single binary, both for clients
 and servers, and requires no external services for coordination or storage.
