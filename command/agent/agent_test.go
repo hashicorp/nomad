@@ -3,7 +3,6 @@ package agent
 import (
 	"fmt"
 	"io/ioutil"
-	"net"
 	"os"
 	"strings"
 	"sync/atomic"
@@ -35,16 +34,16 @@ func makeAgent(t *testing.T, cb func(*Config)) (string, *Agent) {
 	config := nomad.DefaultConfig()
 	conf.NomadConfig = config
 
-	// Only use loopback
-	config.RPCAddr = &net.TCPAddr{
-		IP:   []byte{127, 0, 0, 1},
-		Port: getPort(),
+	// Bind and set ports
+	conf.BindAddr = "127.0.0.1"
+	conf.Ports = &Ports{
+		HTTP: getPort(),
+		RPC:  getPort(),
+		Serf: getPort(),
 	}
-	config.NodeName = fmt.Sprintf("Node %d", config.RPCAddr.Port)
+	conf.NodeName = fmt.Sprintf("Node %d", conf.Ports.RPC)
 
 	// Tighten the Serf timing
-	config.SerfConfig.MemberlistConfig.BindAddr = "127.0.0.1"
-	config.SerfConfig.MemberlistConfig.BindPort = getPort()
 	config.SerfConfig.MemberlistConfig.SuspicionMult = 2
 	config.SerfConfig.MemberlistConfig.RetransmitMult = 2
 	config.SerfConfig.MemberlistConfig.ProbeTimeout = 50 * time.Millisecond
