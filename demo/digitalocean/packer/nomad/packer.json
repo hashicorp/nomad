@@ -1,0 +1,49 @@
+{
+  "variables": {
+    "bin_url": "{{ env `NOMAD_URL` }}"
+  },
+  "builders": [
+    {
+      "type": "digitalocean",
+      "image": "ubuntu-12-04-x64",
+      "region": "nyc3",
+      "size": "512mb",
+      "snapshot_name": "nomad-demo-{{timestamp}}"
+    }
+  ],
+  "provisioners": [
+    {
+      "type": "shell",
+      "inline": [
+        "sudo apt-get -y update",
+        "sudo apt-get -y install unzip",
+        "curl -o /tmp/nomad.zip -L {{ user `bin_url` }}",
+        "sudo unzip -d /usr/local/bin /tmp/nomad.zip",
+        "mkdir -p /usr/local/etc/nomad",
+        "curl -s https://get.docker.com/gpg | sudo apt-key add -",
+        "curl -s https://get.docker.com/ | sudo sh"
+      ]
+    },
+    {
+      "type": "file",
+      "source": "upstart.nomad",
+      "destination": "/etc/init/nomad.conf"
+    },
+    {
+      "type": "file",
+      "source": "default.hcl",
+      "destination": "/usr/local/etc/nomad/nomad.hcl"
+    }
+  ],
+  "post-processors": [
+    {
+      "type": "atlas",
+      "artifact": "hashicorp/nomad-demo",
+      "artifact_type": "digitalocean.image"
+    }
+  ],
+  "push": {
+    "name": "hashicorp/nomad-demo",
+    "vcs": true
+  }
+}
