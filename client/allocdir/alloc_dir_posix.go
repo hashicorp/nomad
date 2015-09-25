@@ -11,13 +11,13 @@ import (
 	"syscall"
 )
 
-func (d *AllocDir) linkOrCopy(src, dst string) error {
+func (d *AllocDir) linkOrCopy(src, dst string, perm os.FileMode) error {
 	// Attempt to hardlink.
 	if err := os.Link(src, dst); err == nil {
 		return nil
 	}
 
-	return fileCopy(src, dst)
+	return fileCopy(src, dst, perm)
 }
 
 func (d *AllocDir) dropDirPermissions(path string) error {

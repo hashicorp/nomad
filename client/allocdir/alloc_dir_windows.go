@@ -1,8 +1,11 @@
 package allocdir
 
-import "errors"
+import (
+	"errors"
+	"os"
+)
 
-func (d *AllocDir) linkOrCopy(src, dst string) error {
+func (d *AllocDir) linkOrCopy(src, dst string, perm os.FileMode) error {
 	return fileCopy(src, dst)
 }
 

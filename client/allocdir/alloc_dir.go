@@ -121,7 +121,8 @@ func (d *AllocDir) Embed(task string, dirs map[string]string) error {
 	subdirs := make(map[string]string)
 	for source, dest := range dirs {
 		// Check to see if directory exists on host.
-		if _, err := os.Stat(source); os.IsNotExist(err) {
+		s, err := os.Stat(source)
+		if os.IsNotExist(err) {
 			continue
 		}
 
@@ -133,7 +134,7 @@ func (d *AllocDir) Embed(task string, dirs map[string]string) error {
 
 		// Create destination directory.
 		destDir := filepath.Join(taskdir, dest)
-		if err := os.MkdirAll(destDir, 0777); err != nil {
+		if err := os.MkdirAll(destDir, s.Mode().Perm()); err != nil {
 			return fmt.Errorf("Couldn't create destination directory %v: %v", destDir, err)
 		}
 
@@ -160,7 +161,7 @@ func (d *AllocDir) Embed(task string, dirs map[string]string) error {
 				continue
 			}
 
-			if err := d.linkOrCopy(hostEntry, taskEntry); err != nil {
+			if err := d.linkOrCopy(hostEntry, taskEntry, entry.Mode().Perm()); err != nil {
 				return err
 			}
 		}
@@ -192,14 +193,14 @@ func (d *AllocDir) MountSharedDir(task string) error {
 	return nil
 }
 
-func fileCopy(src, dst string) error {
+func fileCopy(src, dst string, perm os.FileMode) error {
 	// Do a simple copy.
 	srcFile, err := os.Open(src)
 	if err != nil {
 		return fmt.Errorf("Couldn't open src file %v: %v", src, err)
 	}
 
-	dstFile, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE, 0777)
+	dstFile, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE, perm)
 	if err != nil {
 		return fmt.Errorf("Couldn't create destination file %v: %v", dst, err)
 	}
