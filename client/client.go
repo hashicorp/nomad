@@ -148,7 +148,7 @@ func (c *Client) init() error {
 			return fmt.Errorf("failed creating state dir: %s", err)
 		}
 
-		c.logger.Printf("[INFO] using state directory %v", c.config.StateDir)
+		c.logger.Printf("[INFO] client: using state directory %v", c.config.StateDir)
 	}
 
 	// Ensure the alloc dir exists if we have one
@@ -165,7 +165,7 @@ func (c *Client) init() error {
 	}
 	c.config.AllocDir = p
 
-	c.logger.Printf("[INFO] using alloc directory %v", c.config.AllocDir)
+	c.logger.Printf("[INFO] client: using alloc directory %v", c.config.AllocDir)
 	return nil
 }
 
