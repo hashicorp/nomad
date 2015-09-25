@@ -78,10 +78,17 @@ determine which port to bind to.
 ## Client Requirements
 
 Nomad requires Docker to be installed and running on the host alongside the Nomad
-agent. By default Nomad communicates with the Docker daemon using the daemon's
+agent. Nomad was developed against Docker `1.8.2`.
+
+By default Nomad communicates with the Docker daemon using the daemon's
 unix socket. Nomad will need to be able to read/write to this socket. If you do
 not run Nomad as root, make sure you add the Nomad user to the Docker group so
 Nomad can communicate with the Docker daemon.
+
+For example, on ubuntu you can use the `usermod` command to add the `vagrant` user to the
+`docker` group so you can run Nomad without root:
+
+    sudo usermod -G docker -a vagrant
 
 For the best performance and security features you should use recent versions of
 the Linux Kernel and Docker daemon.
