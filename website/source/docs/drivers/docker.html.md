@@ -1,16 +1,16 @@
 ---
 layout: "docs"
 page_title: "Drivers: Docker"
-sidebar_current: "docs-drivers-Docker"
+sidebar_current: "docs-drivers-docker"
 description: |-
   The Docker task driver is used to run Docker based tasks.
 ---
 
 # Docker Driver
 
-Name: `Docker`
+Name: `docker`
 
-The `Docker` driver provides a first-class Docker workflow on Nomad. The Docker
+The `docker` driver provides a first-class Docker workflow on Nomad. The Docker
 driver handles downloading containers, mapping ports, and starting, watching,
 and cleaning up when containers.
 
