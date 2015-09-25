@@ -2,17 +2,19 @@ package allocdir
 
 import (
 	"os"
-	"path/filepath"
 	"syscall"
 )
 
 // Bind mounts the shared directory into the task directory. Must be root to
 // run.
 func (d *AllocDir) mountSharedDir(taskDir string) error {
-	taskLoc := filepath.Join(taskDir, SharedAllocName)
-	if err := os.Mkdir(taskLoc, 0777); err != nil {
+	if err := os.Mkdir(taskDir, 0777); err != nil {
 		return err
 	}
 
-	return syscall.Mount(d.SharedDir, taskLoc, "", syscall.MS_BIND, "")
+	return syscall.Mount(d.SharedDir, taskDir, "", syscall.MS_BIND, "")
+}
+
+func (d *AllocDir) unmountSharedDir(dir string) error {
+	return syscall.Unmount(dir, 0)
 }

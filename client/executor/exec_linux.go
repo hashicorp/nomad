@@ -8,10 +8,13 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
+	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/command"
 	"github.com/hashicorp/nomad/helper/discover"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -22,6 +25,18 @@ import (
 
 const (
 	cgroupMount = "/sys/fs/cgroup"
+)
+
+var (
+	chrootEnv = map[string]string{
+		"/bin":     "/bin",
+		"/etc":     "/etc",
+		"/lib":     "/lib",
+		"/lib32":   "/lib32",
+		"/lib64":   "/lib64",
+		"/usr/bin": "/usr/bin",
+		"/usr/lib": "/usr/lib",
+	}
 )
 
 func NewExecutor() Executor {
@@ -47,7 +62,10 @@ type LinuxExecutor struct {
 	cgroupEnabled bool
 
 	// Isolation configurations.
-	groups *cgroupConfig.Cgroup
+	groups   *cgroupConfig.Cgroup
+	alloc    *allocdir.AllocDir
+	taskName string
+	taskDir  string
 
 	// Tracking of child process.
 	spawnChild        exec.Cmd
@@ -65,6 +83,68 @@ func (e *LinuxExecutor) Limit(resources *structs.Resources) error {
 	}
 
 	return nil
+}
+
+func (e *LinuxExecutor) ConfigureTaskDir(taskName string, alloc *allocdir.AllocDir) error {
+	e.taskName = taskName
+	taskDir, ok := alloc.TaskDirs[taskName]
+	if !ok {
+		fmt.Errorf("Couldn't find task directory for task %v", taskName)
+	}
+	e.taskDir = taskDir
+
+	if err := alloc.MountSharedDir(taskName); err != nil {
+		return err
+	}
+
+	if err := alloc.Embed(taskName, chrootEnv); err != nil {
+		return err
+	}
+
+	// Mount dev
+	dev := filepath.Join(taskDir, "dev")
+	fmt.Println("MOUNTED DEV: ", dev)
+	if err := os.Mkdir(dev, 0777); err != nil {
+		return fmt.Errorf("Mkdir(%v) failed: %v", dev)
+	}
+
+	if err := syscall.Mount("", dev, "devtmpfs", syscall.MS_RDONLY, ""); err != nil {
+		return fmt.Errorf("Couldn't mount /dev to %v: %v", dev, err)
+	}
+
+	// Mount proc
+	proc := filepath.Join(taskDir, "proc")
+	if err := os.Mkdir(proc, 0777); err != nil {
+		return fmt.Errorf("Mkdir(%v) failed: %v", proc)
+	}
+
+	if err := syscall.Mount("", proc, "proc", syscall.MS_RDONLY, ""); err != nil {
+		return fmt.Errorf("Couldn't mount /proc to %v: %v", proc, err)
+	}
+
+	e.alloc = alloc
+	return nil
+}
+
+func (e *LinuxExecutor) cleanTaskDir() error {
+	if e.alloc == nil {
+		return errors.New("ConfigureTaskDir() must be called before Start()")
+	}
+
+	// Unmount dev.
+	errs := new(multierror.Error)
+	dev := filepath.Join(e.taskDir, "dev")
+	if err := syscall.Unmount(dev, 0); err != nil {
+		errs = multierror.Append(errs, fmt.Errorf("Failed to unmount dev (%v): %v", dev, err))
+	}
+
+	// Unmount proc.
+	proc := filepath.Join(e.taskDir, "proc")
+	if err := syscall.Unmount(proc, 0); err != nil {
+		errs = multierror.Append(errs, fmt.Errorf("Failed to unmount proc (%v): %v", proc, err))
+	}
+
+	return errs.ErrorOrNil()
 }
 
 func (e *LinuxExecutor) configureCgroups(resources *structs.Resources) {
@@ -107,7 +187,6 @@ func (e *LinuxExecutor) configureCgroups(resources *structs.Resources) {
 		e.groups.BlkioThrottleReadIOpsDevice = strconv.FormatInt(int64(resources.IOPS), 10)
 		e.groups.BlkioThrottleWriteIOpsDevice = strconv.FormatInt(int64(resources.IOPS), 10)
 	}
-
 }
 
 func (e *LinuxExecutor) runAs(userid string) error {
@@ -137,13 +216,15 @@ func (e *LinuxExecutor) runAs(userid string) error {
 }
 
 func (e *LinuxExecutor) Start() error {
-	// Try to run as "nobody" user so we don't leak root privilege to the
-	// spawned process. Note that we will only do this if we can call SetUID.
-	// Otherwise we'll just run the other process as our current (non-root)
-	// user. This means we aren't forced to run nomad as root.
+	// Run as "nobody" user so we don't leak root privilege to the
+	// spawned process.
 	if err := e.runAs("nobody"); err == nil && e.user != nil {
 		e.cmd.SetUID(e.user.Uid)
 		e.cmd.SetGID(e.user.Gid)
+	}
+
+	if e.alloc == nil {
+		return errors.New("ConfigureTaskDir() must be called before Start()")
 	}
 
 	return e.spawnDaemon()
@@ -162,13 +243,12 @@ func (e *LinuxExecutor) spawnDaemon() error {
 	var buffer bytes.Buffer
 	enc := json.NewEncoder(&buffer)
 
-	// TODO: Do the stdout file handles once there is alloc and task directories
-	// set up.
 	c := command.DaemonConfig{
 		Cmd:        e.cmd.Cmd,
 		Groups:     e.groups,
-		StdoutFile: "/dev/null",
-		StderrFile: "/dev/null",
+		Chroot:     e.taskDir,
+		StdoutFile: filepath.Join(e.taskDir, allocdir.TaskLocal, fmt.Sprintf("%v.stdout", e.taskName)),
+		StderrFile: filepath.Join(e.taskDir, allocdir.TaskLocal, fmt.Sprintf("%v.stderr", e.taskName)),
 		StdinFile:  "/dev/null",
 	}
 	if err := enc.Encode(c); err != nil {
@@ -249,11 +329,13 @@ func (e *LinuxExecutor) Open(id string) error {
 		if err := e.destroyCgroup(); err != nil {
 			return err
 		}
+		// TODO: cleanTaskDir is a little more complicated here because the OS
+		// may have already unmounted in the case of a restart. Need to scan.
 	default:
 		return fmt.Errorf("Invalid id type: %v", parts[0])
 	}
 
-	return errors.New("Could not re-open to id")
+	return errors.New("Could not re-open to id (intended).")
 }
 
 func (e *LinuxExecutor) Wait() error {
@@ -264,29 +346,24 @@ func (e *LinuxExecutor) Wait() error {
 	defer e.spawnOutputWriter.Close()
 	defer e.spawnOutputReader.Close()
 
-	err := e.spawnChild.Wait()
-	if err != nil {
-		return fmt.Errorf("Wait failed on pid %v: %v", e.spawnChild.Process.Pid, err)
-	}
-
-	// Read the exit status of the spawned process.
-	dec := json.NewDecoder(e.spawnOutputReader)
-	var resp command.SpawnExitStatus
-	if err := dec.Decode(&resp); err != nil {
-		return fmt.Errorf("Failed to parse spawn-daemon exit response: %v", err)
-	}
-
-	if !resp.Success {
-		return errors.New("Task exited with error")
+	errs := new(multierror.Error)
+	if err := e.spawnChild.Wait(); err != nil {
+		errs = multierror.Append(errs, fmt.Errorf("Wait failed on pid %v: %v", e.spawnChild.Process.Pid, err))
 	}
 
 	// If they fork/exec and then exit, wait will return but they will be still
 	// running processes so we need to kill the full cgroup.
-	if e.cgroupEnabled {
-		return e.destroyCgroup()
+	if e.groups != nil {
+		if err := e.destroyCgroup(); err != nil {
+			errs = multierror.Append(errs, err)
+		}
 	}
 
-	return nil
+	if err := e.cleanTaskDir(); err != nil {
+		errs = multierror.Append(errs, err)
+	}
+
+	return errs.ErrorOrNil()
 }
 
 // If cgroups are used, the ID is the cgroup structurue. Otherwise, it is the
@@ -327,7 +404,7 @@ func (e *LinuxExecutor) ForceStop() error {
 
 	// If the task is not running inside a cgroup then just the spawn-daemon child is killed.
 	// TODO: Find a good way to kill the children of the spawn-daemon.
-	if !e.cgroupEnabled {
+	if e.groups == nil {
 		if err := e.spawnChild.Process.Kill(); err != nil {
 			return fmt.Errorf("Failed to kill child (%v): %v", e.spawnChild.Process.Pid, err)
 		}
@@ -335,7 +412,18 @@ func (e *LinuxExecutor) ForceStop() error {
 		return nil
 	}
 
-	return e.destroyCgroup()
+	errs := new(multierror.Error)
+	if e.groups != nil {
+		if err := e.destroyCgroup(); err != nil {
+			errs = multierror.Append(errs, err)
+		}
+	}
+
+	if err := e.cleanTaskDir(); err != nil {
+		errs = multierror.Append(errs, err)
+	}
+
+	return errs.ErrorOrNil()
 }
 
 func (e *LinuxExecutor) destroyCgroup() error {
@@ -352,6 +440,7 @@ func (e *LinuxExecutor) destroyCgroup() error {
 
 	errs := new(multierror.Error)
 	for _, pid := range pids {
+		fmt.Println("PID: ", pid)
 		process, err := os.FindProcess(pid)
 		if err != nil {
 			multierror.Append(errs, fmt.Errorf("Failed to find Pid %v: %v", pid, err))

@@ -318,6 +318,11 @@ func TestClient_WatchAllocs(t *testing.T) {
 	})
 }
 
+/*
+TODO: This test is disabled til a follow-up api changes the restore state interface.
+The driver/executor interface will be changed from Open to Cleanup, in which
+clean-up tears down previous allocs.
+
 func TestClient_SaveRestoreState(t *testing.T) {
 	ctestutil.ExecCompatible(t)
 	s1, _ := testServer(t, nil)
@@ -374,6 +379,7 @@ func TestClient_SaveRestoreState(t *testing.T) {
 		t.Fatalf("bad: %#v", ar.Alloc())
 	}
 }
+*/
 
 func TestClient_Init(t *testing.T) {
 	dir, err := ioutil.TempDir("", "nomad")

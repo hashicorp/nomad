@@ -100,9 +100,8 @@ type ExecContext struct {
 }
 
 // NewExecContext is used to create a new execution context
-func NewExecContext() *ExecContext {
-	ctx := &ExecContext{}
-	return ctx
+func NewExecContext(alloc *allocdir.AllocDir) *ExecContext {
+	return &ExecContext{AllocDir: alloc}
 }
 
 // PopulateEnvironment converts exec context and task configuration into

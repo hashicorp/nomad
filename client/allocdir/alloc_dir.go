@@ -33,6 +33,9 @@ type AllocDir struct {
 
 	// TaskDirs is a mapping of task names to their non-shared directory.
 	TaskDirs map[string]string
+
+	// A list of locations the shared alloc has been mounted to.
+	mounted []string
 }
 
 func NewAllocDir(allocDir string) *AllocDir {
@@ -43,6 +46,13 @@ func NewAllocDir(allocDir string) *AllocDir {
 
 // Tears down previously build directory structure.
 func (d *AllocDir) Destroy() error {
+	// Unmount all mounted shared alloc dirs.
+	for _, m := range d.mounted {
+		if err := d.unmountSharedDir(m); err != nil {
+			return fmt.Errorf("Failed to unmount shared directory: %v", err)
+		}
+	}
+
 	return os.RemoveAll(d.AllocDir)
 }
 
@@ -55,6 +65,11 @@ func (d *AllocDir) Build(tasks []*structs.Task) error {
 
 	// Make the shared directory and make it availabe to all user/groups.
 	if err := os.Mkdir(d.SharedDir, 0777); err != nil {
+		return err
+	}
+
+	// Make the shared directory have non-root permissions.
+	if err := d.dropDirPermissions(d.SharedDir); err != nil {
 		return err
 	}
 
@@ -72,11 +87,21 @@ func (d *AllocDir) Build(tasks []*structs.Task) error {
 			return err
 		}
 
+		// Make the task directory have non-root permissions.
+		if err := d.dropDirPermissions(taskDir); err != nil {
+			return err
+		}
+
 		// Create a local directory that each task can use.
 		local := filepath.Join(taskDir, TaskLocal)
 		if err := os.Mkdir(local, 0777); err != nil {
 			return err
 		}
+
+		if err := d.dropDirPermissions(local); err != nil {
+			return err
+		}
+
 		d.TaskDirs[t.Name] = taskDir
 	}
 
@@ -85,7 +110,8 @@ func (d *AllocDir) Build(tasks []*structs.Task) error {
 
 // Embed takes a mapping of absolute directory paths on the host to their
 // intended, relative location within the task directory. Embed attempts
-// hardlink and then defaults to copying.
+// hardlink and then defaults to copying. If the path exists on the host and
+// can't be embeded an error is returned.
 func (d *AllocDir) Embed(task string, dirs map[string]string) error {
 	taskdir, ok := d.TaskDirs[task]
 	if !ok {
@@ -94,6 +120,11 @@ func (d *AllocDir) Embed(task string, dirs map[string]string) error {
 
 	subdirs := make(map[string]string)
 	for source, dest := range dirs {
+		// Check to see if directory exists on host.
+		if _, err := os.Stat(source); os.IsNotExist(err) {
+			continue
+		}
+
 		// Enumerate the files in source.
 		entries, err := ioutil.ReadDir(source)
 		if err != nil {
@@ -108,14 +139,28 @@ func (d *AllocDir) Embed(task string, dirs map[string]string) error {
 
 		for _, entry := range entries {
 			hostEntry := filepath.Join(source, entry.Name())
+			taskEntry := filepath.Join(destDir, filepath.Base(hostEntry))
 			if entry.IsDir() {
 				subdirs[hostEntry] = filepath.Join(dest, filepath.Base(hostEntry))
 				continue
 			} else if !entry.Mode().IsRegular() {
-				return fmt.Errorf("Can't embed non-regular file: %v", hostEntry)
+				// If it is a symlink we can create it, otherwise it is an
+				// error.
+				if entry.Mode()&os.ModeSymlink == 0 {
+					return fmt.Errorf("Can't embed non-regular file (%v): %v", entry.Mode().String(), hostEntry)
+				}
+
+				link, err := os.Readlink(hostEntry)
+				if err != nil {
+					return fmt.Errorf("Couldn't resolve symlink for %v: %v", source, err)
+				}
+
+				if err := os.Symlink(link, taskEntry); err != nil {
+					return fmt.Errorf("Couldn't create symlink: %v", err)
+				}
+				continue
 			}
 
-			taskEntry := filepath.Join(destDir, filepath.Base(hostEntry))
 			if err := d.linkOrCopy(hostEntry, taskEntry); err != nil {
 				return err
 			}
@@ -139,7 +184,13 @@ func (d *AllocDir) MountSharedDir(task string) error {
 		return fmt.Errorf("No task directory exists for %v", task)
 	}
 
-	return d.mountSharedDir(taskDir)
+	taskLoc := filepath.Join(taskDir, SharedAllocName)
+	if err := d.mountSharedDir(taskLoc); err != nil {
+		return fmt.Errorf("Failed to mount shared directory for task %v: %v", task, err)
+	}
+
+	d.mounted = append(d.mounted, taskLoc)
+	return nil
 }
 
 func fileCopy(src, dst string) error {

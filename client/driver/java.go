@@ -113,7 +113,8 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	taskLocal := filepath.Join(taskDir, allocdir.TaskLocal)
 
 	// Create a location to download the binary.
-	fPath := filepath.Join(taskLocal, path.Base(source))
+	fName := path.Base(source)
+	fPath := filepath.Join(taskLocal, fName)
 	f, err := os.OpenFile(fPath, os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {
 		return nil, fmt.Errorf("Error opening file to download to: %s", err)
@@ -135,7 +136,7 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	if ok {
 		userArgs = strings.Split(argRaw, " ")
 	}
-	args := []string{"-jar", f.Name()}
+	args := []string{"-jar", filepath.Join(allocdir.TaskLocal, fName)}
 
 	for _, s := range userArgs {
 		args = append(args, s)
@@ -148,12 +149,15 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	// Populate environment variables
 	cmd.Command().Env = PopulateEnvironment(ctx, task)
 
-	err = cmd.Limit(task.Resources)
-	if err != nil {
+	if err := cmd.Limit(task.Resources); err != nil {
 		return nil, fmt.Errorf("failed to constrain resources: %s", err)
 	}
-	err = cmd.Start()
-	if err != nil {
+
+	if err := cmd.ConfigureTaskDir(d.taskName, ctx.AllocDir); err != nil {
+		return nil, fmt.Errorf("failed to configure task directory: %v", err)
+	}
+
+	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("failed to start source: %v", err)
 	}
 

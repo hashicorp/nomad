@@ -24,11 +24,7 @@ type DaemonConfig struct {
 	StderrFile string
 
 	Groups *cgroupConfig.Cgroup
-}
-
-// The exit status of the user's command.
-type SpawnExitStatus struct {
-	Success bool
+	Chroot string
 }
 
 func (c *SpawnDaemonCommand) Run(args []string) int {
@@ -69,14 +65,13 @@ func (c *SpawnDaemonCommand) Run(args []string) int {
 		// Apply requires superuser permissions, and may fail if Nomad is not run with
 		// the required permissions
 		if err := manager.Apply(os.Getpid()); err != nil {
-			return c.outputStartStatus(fmt.Errorf("Failed to join cgroup: %v", err), 1)
+			return c.outputStartStatus(fmt.Errorf("Failed to join cgroup (config => %v): %v", manager.Cgroups, err), 1)
 		}
 	}
 
 	// Isolate the user process.
 	if _, err := syscall.Setsid(); err != nil {
-		return c.outputStartStatus(fmt.Errorf("Failed to join cgroup: %v",
-			fmt.Errorf("Failed setting sid: %v", err)), 1)
+		return c.outputStartStatus(fmt.Errorf("Failed setting sid: %v", err), 1)
 	}
 
 	syscall.Umask(0)
@@ -97,9 +92,17 @@ func (c *SpawnDaemonCommand) Run(args []string) int {
 		return c.outputStartStatus(fmt.Errorf("Error opening file to redirect Stdin: %v", err), 1)
 	}
 
-	cmd.Stdout = stdo
-	cmd.Stderr = stde
-	cmd.Stdin = stdi
+	cmd.Cmd.Stdout = stdo
+	cmd.Cmd.Stderr = stde
+	cmd.Cmd.Stdin = stdi
+
+	// Chroot jail the process and set its working directory.
+	if cmd.Cmd.SysProcAttr == nil {
+		cmd.Cmd.SysProcAttr = &syscall.SysProcAttr{}
+	}
+
+	cmd.Cmd.SysProcAttr.Chroot = cmd.Chroot
+	cmd.Cmd.Dir = "/"
 
 	// Spawn the user process.
 	if err := cmd.Cmd.Start(); err != nil {
@@ -110,12 +113,9 @@ func (c *SpawnDaemonCommand) Run(args []string) int {
 	c.outputStartStatus(nil, 0)
 
 	// Wait and then output the exit status.
-	exitStatus := &SpawnExitStatus{}
-	if err := cmd.Wait(); err == nil {
-		exitStatus.Success = true
+	if err := cmd.Wait(); err != nil {
+		return 1
 	}
-	enc := json.NewEncoder(os.Stdout)
-	enc.Encode(exitStatus)
 
 	return 0
 }

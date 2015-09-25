@@ -278,9 +278,9 @@ func (r *AllocRunner) Run() {
 
 	// Create the execution context
 	if r.ctx == nil {
-		r.ctx = driver.NewExecContext()
-		r.ctx.AllocDir = allocdir.NewAllocDir(filepath.Join(r.config.AllocDir, r.alloc.ID))
-		r.ctx.AllocDir.Build(tg.Tasks)
+		alloc := allocdir.NewAllocDir(filepath.Join(r.config.AllocDir, r.alloc.ID))
+		alloc.Build(tg.Tasks)
+		r.ctx = driver.NewExecContext(alloc)
 	}
 
 	// Start the task runners

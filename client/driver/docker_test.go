@@ -26,7 +26,7 @@ func TestDockerDriver_Handle(t *testing.T) {
 }
 
 func TestDockerDriver_Fingerprint(t *testing.T) {
-	d := NewDockerDriver(testDriverContext())
+	d := NewDockerDriver(testDriverContext(""))
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
@@ -48,10 +48,9 @@ func TestDockerDriver_StartOpen_Wait(t *testing.T) {
 	if !dockerLocated {
 		t.SkipNow()
 	}
-	ctx := NewExecContext()
-	d := NewDockerDriver(testDriverContext())
 
 	task := &structs.Task{
+		Name: "python-demo",
 		Config: map[string]string{
 			"image": "cbednarski/python-demo",
 		},
@@ -60,6 +59,12 @@ func TestDockerDriver_StartOpen_Wait(t *testing.T) {
 			CPU:      512,
 		},
 	}
+
+	driverCtx := testDriverContext(task.Name)
+	ctx := testDriverExecContext(task, driverCtx)
+	defer ctx.AllocDir.Destroy()
+	d := NewDockerDriver(driverCtx)
+
 	handle, err := d.Start(ctx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -83,10 +88,9 @@ func TestDockerDriver_Start_Wait(t *testing.T) {
 	if !dockerLocated {
 		t.SkipNow()
 	}
-	ctx := NewExecContext()
-	d := NewDockerDriver(testDriverContext())
 
 	task := &structs.Task{
+		Name: "python-demo",
 		Config: map[string]string{
 			"image": "cbednarski/python-demo",
 		},
@@ -95,6 +99,12 @@ func TestDockerDriver_Start_Wait(t *testing.T) {
 			CPU:      512,
 		},
 	}
+
+	driverCtx := testDriverContext(task.Name)
+	ctx := testDriverExecContext(task, driverCtx)
+	defer ctx.AllocDir.Destroy()
+	d := NewDockerDriver(driverCtx)
+
 	handle, err := d.Start(ctx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -124,10 +134,9 @@ func TestDockerDriver_Start_Kill_Wait(t *testing.T) {
 	if !dockerLocated {
 		t.SkipNow()
 	}
-	ctx := NewExecContext()
-	d := NewDockerDriver(testDriverContext())
 
 	task := &structs.Task{
+		Name: "python-demo",
 		Config: map[string]string{
 			"image": "cbednarski/python-demo",
 		},
@@ -136,6 +145,12 @@ func TestDockerDriver_Start_Kill_Wait(t *testing.T) {
 			CPU:      512,
 		},
 	}
+
+	driverCtx := testDriverContext(task.Name)
+	ctx := testDriverExecContext(task, driverCtx)
+	defer ctx.AllocDir.Destroy()
+	d := NewDockerDriver(driverCtx)
+
 	handle, err := d.Start(ctx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)

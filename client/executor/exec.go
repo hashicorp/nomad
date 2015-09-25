@@ -21,6 +21,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -32,6 +33,10 @@ type Executor interface {
 	// the process can use. Note that an error may be returned ONLY IF the
 	// executor implements resource limiting. Otherwise Limit is ignored.
 	Limit(*structs.Resources) error
+
+	// ConfigureTaskDir must be called before Start and ensures that the tasks
+	// directory is properly configured.
+	ConfigureTaskDir(taskName string, alloc *allocdir.AllocDir) error
 
 	// Start the process. This may wrap the actual process in another command,
 	// depending on the capabilities in this environment. Errors that arise from

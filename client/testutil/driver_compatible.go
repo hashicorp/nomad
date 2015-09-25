@@ -12,6 +12,12 @@ func ExecCompatible(t *testing.T) {
 	}
 }
 
+func QemuCompatible(t *testing.T) {
+	if runtime.GOOS != "windows" && syscall.Geteuid() != 0 {
+		t.Skip("Must be root on non-windows environments to run test")
+	}
+}
+
 func MountCompatible(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Windows does not support mount")

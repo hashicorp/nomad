@@ -3,10 +3,12 @@ package client
 import (
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -39,7 +41,6 @@ func testTaskRunner() (*MockTaskStateUpdater, *TaskRunner) {
 	conf.StateDir = os.TempDir()
 	conf.AllocDir = os.TempDir()
 	upd := &MockTaskStateUpdater{}
-	ctx := driver.NewExecContext()
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 
@@ -47,6 +48,10 @@ func testTaskRunner() (*MockTaskStateUpdater, *TaskRunner) {
 	// we have a mock so that doesn't happen.
 	task.Resources.Networks[0].ReservedPorts = []int{80}
 
+	allocDir := allocdir.NewAllocDir(filepath.Join(conf.AllocDir, alloc.ID))
+	allocDir.Build([]*structs.Task{task})
+
+	ctx := driver.NewExecContext(allocDir)
 	tr := NewTaskRunner(logger, conf, upd.Update, ctx, alloc.ID, task)
 	return upd, tr
 }
