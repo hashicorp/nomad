@@ -40,8 +40,8 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 			}, nil
 		},
 
-		"client-servers": func() (cli.Command, error) {
-			return &command.ClientServersCommand{
+		"client-config": func() (cli.Command, error) {
+			return &command.ClientConfigCommand{
 				Meta: meta,
 			}, nil
 		},
