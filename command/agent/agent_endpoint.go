@@ -119,6 +119,44 @@ func (s *HTTPServer) AgentForceLeaveRequest(resp http.ResponseWriter, req *http.
 	return nil, err
 }
 
+func (s *HTTPServer) AgentServersRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	switch req.Method {
+	case "PUT", "POST":
+		return s.updateServers(resp, req)
+	case "GET":
+		return s.listServers(resp, req)
+	default:
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+}
+
+func (s *HTTPServer) listServers(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	client := s.agent.Client()
+	if client == nil {
+		return nil, CodedError(501, ErrInvalidMethod)
+	}
+
+	// Get the current list of servers
+	return client.Servers(), nil
+}
+
+func (s *HTTPServer) updateServers(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	client := s.agent.Client()
+	if client == nil {
+		return nil, CodedError(501, ErrInvalidMethod)
+	}
+
+	// Get the servers from the request
+	servers := req.URL.Query()["address"]
+	if len(servers) == 0 {
+		return nil, CodedError(400, "missing server address")
+	}
+
+	// Set the servers list into the client
+	client.SetServers(servers)
+	return nil, nil
+}
+
 type agentSelf struct {
 	Config *Config                      `json:"config"`
 	Member Member                       `json:"member,omitempty"`
