@@ -166,7 +166,7 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	// the outside world to be able to reach it. VMs ran without port mappings can
 	// still reach out to the world, but without port mappings it is effectively
 	// firewalled
-	if len(task.Resources.Networks) == 0 {
+	if len(task.Resources.Networks) > 0 {
 		// TODO: Consolidate these into map of host/guest port when we have HCL
 		// Note: Host port must be open and available
 		// Get and split guest ports. The guest_ports configuration must match up with
