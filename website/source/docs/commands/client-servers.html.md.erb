@@ -1,0 +1,57 @@
+---
+layout: "docs"
+page_title: "Commands: client-servers"
+sidebar_current: "docs-commands-client-servers"
+description: >
+  The client-servers command is used to query or update the servers list.
+---
+
+# Command: client-servers
+
+The `client-servers` command is used to query or list the known servers of
+an agent in client mode. Clients do not participate in the gossip protocol
+and instead register themselves with these server nodes directly over TCP.
+This command can be used to keep this server configuration up to date on
+client nodes.
+
+## Usage
+
+```
+nomad client-servers [options] [<address>...]
+```
+
+There are two modes of operation for the `client-status` command. If no
+arguments are given, then list mode is invoked, which queries the agent
+for its known list of servers, and dumps this information to the screen.
+
+If the `-update` flag is given along with some server addresses, then the
+command will update the agent's server list configuration with these new
+addresses. It is important to note that during updates, the server list
+is completely replaced with the given servers. This means you must pass
+in all server addresses required during updates.
+
+## General Options
+
+<%= general_options_usage %>
+
+## Client Servers Options
+
+* `-update`: Updates the client's server list using the provided arguments.
+  Multiple server addresses may be passed using multiple arguments.
+  Requires one or more server addresses to be given as arguments.
+
+## Examples
+
+Query the currently known servers:
+
+```
+$ nomad client-servers
+server1.local:4647
+server2.local:4647
+```
+
+Update the list of servers:
+
+```
+$ nomad client-servers -update server1.local:4647 server2.local:4647 server3.local:4647
+```
