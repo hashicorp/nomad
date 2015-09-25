@@ -123,10 +123,10 @@ config {
 }
 ```
 
-This time we have not change the number of task groups we want running,
+This time we have not changed the number of task groups we want running,
 but we've changed the task itself. This requires stopping the old tasks
-and starting new tasks. Our example job is configured to do a rolling update,
-doing a single update every 10 seconds. Use `run` to push the updated
+and starting new tasks. Our example job is configured to do a rolling update via
+the `stagger` attribute, doing a single update every 10 seconds. Use `run` to push the updated
 specification now:
 
 ```
