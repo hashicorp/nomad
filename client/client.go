@@ -74,6 +74,9 @@ type Client struct {
 	lastRPCTime    time.Time
 	lastServerLock sync.Mutex
 
+	servers    []string
+	serverLock sync.RWMutex
+
 	connPool *nomad.ConnPool
 
 	lastHeartbeat time.Time
@@ -127,6 +130,9 @@ func NewClient(cfg *config.Config) (*Client, error) {
 	if err := c.setupDrivers(); err != nil {
 		return nil, fmt.Errorf("driver setup failed: %v", err)
 	}
+
+	// Set up the known servers list
+	c.SetServers(c.config.Servers)
 
 	// Start the client!
 	go c.run()
@@ -213,13 +219,12 @@ func (c *Client) pickServer() (net.Addr, error) {
 	}
 
 	// Bail if we can't find any servers
-	if len(c.config.Servers) == 0 {
+	servers := c.Servers()
+	if len(servers) == 0 {
 		return nil, fmt.Errorf("no known servers")
 	}
 
-	// Copy the list of servers and shuffle
-	servers := make([]string, len(c.config.Servers))
-	copy(servers, c.config.Servers)
+	// Shuffle so we don't always use the same server
 	shuffleStrings(servers)
 
 	// Try to resolve each server
@@ -237,6 +242,26 @@ func (c *Client) pickServer() (net.Addr, error) {
 	return nil, fmt.Errorf("failed to resolve any servers")
 }
 
+// Servers is used to return the current known servers list. When an agent
+// is first started, this list comes directly from configuration files.
+func (c *Client) Servers() []string {
+	c.serverLock.RLock()
+	defer c.serverLock.RUnlock()
+	return c.servers
+}
+
+// SetServers is used to modify the known servers list. This avoids forcing
+// a config rollout + rolling restart and enables auto-join features. The
+// full set of servers is passed to support adding and/or removing servers.
+func (c *Client) SetServers(servers []string) {
+	c.serverLock.Lock()
+	defer c.serverLock.Unlock()
+	if servers == nil {
+		servers = make([]string, 0)
+	}
+	c.servers = servers
+}
+
 // Stats is used to return statistics for debugging and insight
 // for various sub-systems
 func (c *Client) Stats() map[string]map[string]string {
@@ -249,7 +274,7 @@ func (c *Client) Stats() map[string]map[string]string {
 
 	stats := map[string]map[string]string{
 		"client": map[string]string{
-			"known_servers":   toString(uint64(len(c.config.Servers))),
+			"known_servers":   toString(uint64(len(c.Servers()))),
 			"num_allocations": toString(uint64(numAllocs)),
 			"last_heartbeat":  fmt.Sprintf("%v", time.Since(c.lastHeartbeat)),
 			"heartbeat_ttl":   fmt.Sprintf("%v", c.heartbeatTTL),

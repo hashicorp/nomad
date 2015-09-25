@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -393,5 +394,48 @@ func TestClient_Init(t *testing.T) {
 
 	if _, err := os.Stat(allocDir); err != nil {
 		t.Fatalf("err: %s", err)
+	}
+}
+
+func TestClient_SetServers(t *testing.T) {
+	client := testClient(t, nil)
+
+	// Sets an empty list
+	client.SetServers(nil)
+	if client.servers == nil {
+		t.Fatalf("should not be nil")
+	}
+
+	// Set the initial servers list
+	expect := []string{"foo"}
+	client.SetServers(expect)
+	if !reflect.DeepEqual(client.servers, expect) {
+		t.Fatalf("expect %v, got %v", expect, client.servers)
+	}
+
+	// Add a server
+	expect = []string{"foo", "bar"}
+	client.SetServers(expect)
+	if !reflect.DeepEqual(client.servers, expect) {
+		t.Fatalf("expect %v, got %v", expect, client.servers)
+	}
+
+	// Remove a server
+	expect = []string{"bar"}
+	client.SetServers(expect)
+	if !reflect.DeepEqual(client.servers, expect) {
+		t.Fatalf("expect %v, got %v", expect, client.servers)
+	}
+
+	// Add and remove a server
+	expect = []string{"baz", "zip"}
+	client.SetServers(expect)
+	if !reflect.DeepEqual(client.servers, expect) {
+		t.Fatalf("expect %v, got %v", expect, client.servers)
+	}
+
+	// Query the servers list
+	if servers := client.Servers(); !reflect.DeepEqual(servers, expect) {
+		t.Fatalf("expect %v, got %v", expect, servers)
 	}
 }
