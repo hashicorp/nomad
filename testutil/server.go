@@ -50,8 +50,8 @@ type PortsConfig struct {
 
 // ServerConfig is used to configure the nomad server.
 type ServerConfig struct {
-	Enabled   bool `json:"enabled"`
-	Bootstrap bool `json:"bootstrap"`
+	Enabled         bool `json:"enabled"`
+	BootstrapExpect int  `json:"bootstrap_expect"`
 }
 
 // ClientConfig is used to configure the client
@@ -78,8 +78,8 @@ func defaultServerConfig() *TestServerConfig {
 			Serf: 22000 + idx,
 		},
 		Server: &ServerConfig{
-			Enabled:   true,
-			Bootstrap: true,
+			Enabled:         true,
+			BootstrapExpect: 1,
 		},
 		Client: &ClientConfig{
 			Enabled: false,
@@ -170,7 +170,7 @@ func NewTestServer(t *testing.T, cb ServerConfigCallback) *TestServer {
 	}
 
 	// Wait for the server to be ready
-	if nomadConfig.Server.Enabled && nomadConfig.Server.Bootstrap {
+	if nomadConfig.Server.Enabled && nomadConfig.Server.BootstrapExpect != 0 {
 		server.waitForLeader()
 	} else {
 		server.waitForAPI()
