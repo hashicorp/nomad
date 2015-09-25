@@ -25,8 +25,8 @@ common drivers.
 Kubernetes is designed as a collection of more than a half-dozen interoperating
 services which together provide the full functionality. Coordination and
 storage is provided by etcd at the core. The state is wrapped by API controllers
-which are consumed by other services that provide higher level APIs or features
-like scheduling. Kubernetes supports running in a high available
+which are consumed by other services that provide higher level APIs for features
+like scheduling. Kubernetes supports running in a highly available
 configuration but is operationally complex to setup.
 
 Nomad is architecturally much simpler. Nomad is a single binary, both for clients

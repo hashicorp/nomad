@@ -37,7 +37,7 @@ clarify what is being discussed:
   Example Drivers include Docker, Qemu, Java, and static binaries.
 
 * **Task** - A Task is the smallest unit of work in Nomad. Tasks are executed by drivers,
-  which allow Nomad to be flexible in the types of tasks it supports.  Tasks 
+  which allow Nomad to be flexible in the types of tasks it supports.  Tasks
   specify their driver, configuration for the driver, constraints, and resources required.
 
 * **Client** - A Client of Nomad is a machine that tasks can be run on. All clients run the
