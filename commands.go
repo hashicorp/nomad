@@ -40,6 +40,12 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 			}, nil
 		},
 
+		"client-servers": func() (cli.Command, error) {
+			return &command.ClientServersCommand{
+				Meta: meta,
+			}, nil
+		},
+
 		"eval-monitor": func() (cli.Command, error) {
 			return &command.EvalMonitorCommand{
 				Meta: meta,
