@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -71,7 +72,7 @@ func (d *QemuDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, 
 		return false, fmt.Errorf("Unable to parse Qemu version string: %#v", matches)
 	}
 
-	node.Attributes["driver.qemu"] = "true"
+	node.Attributes["driver.qemu"] = "1"
 	node.Attributes["driver.qemu.version"] = matches[1]
 
 	return true, nil
@@ -160,14 +161,45 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		"-nographic",
 	}
 
-	// TODO: Consolidate these into map of host/guest port when we have HCL
-	// Note: Host port must be open and available
-	if task.Config["guest_port"] != "" && task.Config["host_port"] != "" {
+	// Check the Resources required Networks to add port mappings. If no resources
+	// are required, we assume the VM is a purely compute job and does not require
+	// the outside world to be able to reach it. VMs ran without port mappings can
+	// still reach out to the world, but without port mappings it is effectively
+	// firewalled
+	if len(task.Resources.Networks) > 0 {
+		// TODO: Consolidate these into map of host/guest port when we have HCL
+		// Note: Host port must be open and available
+		// Get and split guest ports. The guest_ports configuration must match up with
+		// the Reserved ports in the Task Resources
+		// Users can supply guest_hosts as a list of posts to map on the guest vm.
+		// These map 1:1 with the requested Reserved Ports from the hostmachine.
+		ports := strings.Split(task.Config["guest_ports"], ",")
+		if len(ports) == 0 {
+			return nil, fmt.Errorf("[ERR] driver.qemu: Error parsing required Guest Ports")
+		}
+
+		// TODO: support more than a single, default Network
+		if len(ports) != len(task.Resources.Networks[0].ReservedPorts) {
+			return nil, fmt.Errorf("[ERR] driver.qemu: Error matching Guest Ports with Reserved ports")
+		}
+
+		// Loop through the reserved ports and construct the hostfwd string, to map
+		// reserved ports to the ports listenting in the VM
+		// Ex:
+		//    hostfwd=tcp::22000-:22,hostfwd=tcp::80-:8080
+		reservedPorts := task.Resources.Networks[0].ReservedPorts
+		var forwarding string
+		for i, p := range ports {
+			forwarding = fmt.Sprintf("%s,hostfwd=tcp::%s-:%s", forwarding, strconv.Itoa(reservedPorts[i]), p)
+		}
+
+		if "" == forwarding {
+			return nil, fmt.Errorf("[ERR] driver.qemu:  Error constructing port forwarding")
+		}
+
 		args = append(args,
 			"-netdev",
-			fmt.Sprintf("user,id=user.0,hostfwd=tcp::%s-:%s",
-				task.Config["host_port"],
-				task.Config["guest_port"]),
+			fmt.Sprintf("user,id=user.0%s", forwarding),
 			"-device", "virtio-net,netdev=user.0",
 		)
 	}
