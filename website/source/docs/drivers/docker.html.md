@@ -16,7 +16,7 @@ and cleaning up when containers.
 
 ## Task Configuration
 
-The `exec` driver supports the following configuration in the job spec:
+The `docker` driver supports the following configuration in the job specification:
 
 * `image` - (Required) The Docker image to run. The image may include a tag or
   custom URL. By default it will be fetched from Docker Hub.
@@ -28,7 +28,7 @@ space on the host's interface. For example, Nomad host running on `1.2.3.4` may
 allocate port `22333` to a task, so you would access that service via
 `1.2.3.4:22333`.
 
-Nomad provides automatic and manual mapping shcemes for Docker. You can use
+Nomad provides automatic and manual mapping schemes for Docker. You can use
 either or both schemes for a task. Nomad binds both tcp and udp protocols to
 ports used for Docker containers. This is not configurable.
 
@@ -86,9 +86,16 @@ Nomad can communicate with the Docker daemon.
 For the best performance and security features you should use recent versions of
 the Linux Kernel and Docker daemon.
 
+## Client Configuration
+
+The `docker` driver has the following configuration options:
+
+* `docker.endpoint` - Defaults to `unix:///var/run/docker.sock`. You will need
+  to customize this if you use a non-standard socket (http or another location).
+
 ## Client Attributes
 
-The `Docker` driver will set the following client attributes:
+The `docker` driver will set the following client attributes:
 
 * `driver.Docker` - This will be set to "1", indicating the
   driver is available.
@@ -100,7 +107,7 @@ The `Docker` driver will set the following client attributes:
 Nomad limits containers' CPU based on CPU shares. CPU shares allow containers to
 burst past their CPU limits. CPU limits will only be imposed when there is
 contention for resources. When the host is under load your process may be
-throttled to stablize QOS depending how how many shares it has. You can see how
+throttled to stabilize QOS depending how how many shares it has. You can see how
 many CPU shares are available to your process by reading `NOMAD_CPU_LIMIT`. 1000
 shares are approximately equal to 1Ghz.
 
@@ -128,6 +135,6 @@ filesystem IO. These will be added in a later release.
 
 Docker provides resource isolation by way of
 [cgroups and namespaces](https://docs.docker.com/introduction/understanding-docker/#the-underlying-technology).
-Containers essentially have a virtual filesystem all to themselves. If you need
+Containers essentially have a virtual file system all to themselves. If you need
 a higher degree of isolation between processes for security or other reasons, it
 is recommended to use full virtualization like [QEMU](/docs/drivers/qemu.html).
