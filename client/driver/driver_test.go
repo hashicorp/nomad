@@ -58,33 +58,44 @@ func TestPopulateEnvironment(t *testing.T) {
 	cpu := "NOMAD_CPU_LIMIT=1000"
 	if !contains(env, cpu) {
 		t.Errorf("%s is missing from env", cpu)
+		t.Fail()
 	}
 	memory := "NOMAD_MEMORY_LIMIT=500"
 	if !contains(env, memory) {
 		t.Errorf("%s is missing from env", memory)
+		t.Fail()
 	}
 
 	// Networking
 	ip := "NOMAD_IP=1.2.3.4"
 	if !contains(env, ip) {
 		t.Errorf("%s is missing from env", ip)
+		t.Fail()
 	}
 	labelport := "NOMAD_PORT_ADMIN=8080"
 	if !contains(env, labelport) {
 		t.Errorf("%s is missing from env", labelport)
+		t.Fail()
 	}
 	numberport := "NOMAD_PORT_5000=12345"
 	if !contains(env, numberport) {
 		t.Errorf("%s is missing from env", numberport)
+		t.Fail()
 	}
 
 	// Metas
 	chocolate := "NOMAD_META_CHOCOLATE=cake"
 	if !contains(env, chocolate) {
 		t.Errorf("%s is missing from env", chocolate)
+		t.Fail()
 	}
 	strawberry := "NOMAD_META_STRAWBERRY=icecream"
 	if !contains(env, strawberry) {
 		t.Errorf("%s is missing from env", strawberry)
+		t.Fail()
+	}
+
+	if t.Failed() {
+		t.Logf("env: %#v", env)
 	}
 }

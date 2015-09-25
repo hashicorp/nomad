@@ -2,6 +2,7 @@ package driver
 
 import (
 	"os"
+	"os/exec"
 	"testing"
 	"time"
 
@@ -9,6 +10,13 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+// javaLocated checks whether java is installed so we can run java stuff.
+func javaLocated() bool {
+	_, err := exec.Command("java", "-version").CombinedOutput()
+	return err == nil
+}
+
+// The fingerprinter test should always pass, even if Java is not installed.
 func TestJavaDriver_Fingerprint(t *testing.T) {
 	d := NewJavaDriver(testDriverContext())
 	node := &structs.Node{
@@ -32,6 +40,10 @@ func TestJavaDriver_Fingerprint(t *testing.T) {
 }
 
 func TestJavaDriver_StartOpen_Wait(t *testing.T) {
+	if !javaLocated() {
+		t.Skip("Java not found; skipping")
+	}
+
 	ctx := NewExecContext()
 	ctx.AllocDir = os.TempDir()
 	d := NewJavaDriver(testDriverContext())
@@ -69,6 +81,10 @@ func TestJavaDriver_StartOpen_Wait(t *testing.T) {
 }
 
 func TestJavaDriver_Start_Wait(t *testing.T) {
+	if !javaLocated() {
+		t.Skip("Java not found; skipping")
+	}
+
 	ctx := NewExecContext()
 	ctx.AllocDir = os.TempDir()
 	d := NewJavaDriver(testDriverContext())
@@ -107,6 +123,10 @@ func TestJavaDriver_Start_Wait(t *testing.T) {
 }
 
 func TestJavaDriver_Start_Kill_Wait(t *testing.T) {
+	if !javaLocated() {
+		t.Skip("Java not found; skipping")
+	}
+
 	ctx := NewExecContext()
 	ctx.AllocDir = os.TempDir()
 	d := NewJavaDriver(testDriverContext())
