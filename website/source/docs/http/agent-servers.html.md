@@ -3,7 +3,7 @@ layout: "http"
 page_title: "HTTP API: /v1/agent/servers"
 sidebar_current: "docs-http-agent-servers"
 description: |-
-  The '/1/agent/servers' endpoint is used to query and update the servers list.
+  The '/v1/agent/servers' endpoint is used to query and update the servers list.
 ---
 
 # /v1/agent/servers
