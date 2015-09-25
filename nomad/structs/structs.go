@@ -804,7 +804,7 @@ func (j *Job) Validate() error {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("Job priority must be between [%d, %d]", JobMinPriority, JobMaxPriority))
 	}
 	if len(j.Datacenters) == 0 {
-		mErr.Errors = append(mErr.Errors, errors.New("Missing job data centers"))
+		mErr.Errors = append(mErr.Errors, errors.New("Missing job datacenters"))
 	}
 	if len(j.TaskGroups) == 0 {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing job task groups"))
