@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -100,6 +101,56 @@ func TestHTTP_AgentForceLeave(t *testing.T) {
 		_, err = s.Server.AgentForceLeaveRequest(respW, req)
 		if err != nil {
 			t.Fatalf("err: %v", err)
+		}
+	})
+}
+
+func TestHTTP_AgentSetServers(t *testing.T) {
+	httpTest(t, nil, func(s *TestServer) {
+		// Create the request
+		req, err := http.NewRequest("PUT", "/v1/agent/servers", nil)
+		if err != nil {
+			t.Fatalf("err: %s", err)
+		}
+
+		// Send the request
+		respW := httptest.NewRecorder()
+		_, err = s.Server.AgentServersRequest(respW, req)
+		if err == nil || !strings.Contains(err.Error(), "missing server address") {
+			t.Fatalf("expected missing servers error, got: %#v", err)
+		}
+
+		// Create a valid request
+		req, err = http.NewRequest("PUT", "/v1/agent/servers?address=foo&address=bar", nil)
+		if err != nil {
+			t.Fatalf("err: %s", err)
+		}
+
+		// Send the request
+		respW = httptest.NewRecorder()
+		_, err = s.Server.AgentServersRequest(respW, req)
+		if err != nil {
+			t.Fatalf("err: %s", err)
+		}
+
+		// Retrieve the servers again
+		req, err = http.NewRequest("GET", "/v1/agent/servers", nil)
+		if err != nil {
+			t.Fatalf("err: %s", err)
+		}
+		respW = httptest.NewRecorder()
+
+		// Make the request and check the result
+		out, err := s.Server.AgentServersRequest(respW, req)
+		if err != nil {
+			t.Fatalf("err: %s", err)
+		}
+		servers := out.([]string)
+		if n := len(servers); n != 2 {
+			t.Fatalf("expected 2 servers, got: %d", n)
+		}
+		if servers[0] != "foo" || servers[1] != "bar" {
+			t.Fatalf("bad servers result: %v", servers)
 		}
 	})
 }

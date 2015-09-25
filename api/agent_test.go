@@ -66,7 +66,7 @@ func TestAgent_Join(t *testing.T) {
 	a1 := c1.Agent()
 
 	_, s2 := makeClient(t, nil, func(c *testutil.TestServerConfig) {
-		c.Server.Bootstrap = false
+		c.Server.BootstrapExpect = 0
 	})
 	defer s2.Stop()
 
@@ -120,4 +120,37 @@ func TestAgent_ForceLeave(t *testing.T) {
 	}
 
 	// TODO: test force-leave on an existing node
+}
+
+func TestAgent_SetServers(t *testing.T) {
+	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
+		c.Client.Enabled = true
+		c.Server.BootstrapExpect = 0
+	})
+	defer s.Stop()
+	a := c.Agent()
+
+	// Attempting to set an empty list errors
+	err := a.SetServers([]string{})
+	if err == nil {
+		t.Fatalf("expected error, got nothing")
+	}
+
+	// Setting a valid list works
+	err = a.SetServers([]string{"foo", "bar"})
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	// Returns the proper list of servers
+	out, err := a.Servers()
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	if n := len(out); n != 2 {
+		t.Fatalf("expected 2 servers, got: %d", n)
+	}
+	if out[0] != "foo" || out[1] != "bar" {
+		t.Fatalf("bad server list: %v", out)
+	}
 }

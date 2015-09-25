@@ -135,6 +135,28 @@ func (a *Agent) ForceLeave(node string) error {
 	return err
 }
 
+// Servers is used to query the list of servers on a client node.
+func (a *Agent) Servers() ([]string, error) {
+	var resp []string
+	_, err := a.client.query("/v1/agent/servers", &resp, nil)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+// SetServers is used to update the list of servers on a client node.
+func (a *Agent) SetServers(addrs []string) error {
+	// Accumulate the addresses
+	v := url.Values{}
+	for _, addr := range addrs {
+		v.Add("address", addr)
+	}
+
+	_, err := a.client.write("/v1/agent/servers?"+v.Encode(), nil, nil, nil)
+	return err
+}
+
 // joinResponse is used to decode the response we get while
 // sending a member join request.
 type joinResponse struct {
