@@ -27,7 +27,7 @@ General Options:
 
   ` + generalOptionsUsage() + `
 
-Client Server Options
+Client Servers Options:
 
   -update
     Updates the client's server list using the provided
