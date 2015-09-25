@@ -124,7 +124,7 @@ func PopulateEnvironment(ctx *ExecContext, task *structs.Task) []string {
 
 			// Named ports for this task
 			for label, port := range network.MapDynamicPorts() {
-				env = append(env, fmt.Sprintf("NOMAD_PORT_%s=%d", label, port))
+				env = append(env, fmt.Sprintf("NOMAD_PORT_%s=%d", strings.ToUpper(label), port))
 			}
 		}
 	}
