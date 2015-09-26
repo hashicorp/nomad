@@ -116,7 +116,22 @@
 
 }
 
-@media (max-width: 768px) {
+@media (max-width: 992px) {
+    #header{
+        .main-links.navbar-nav{
+            margin-left: 20px;
+        }
+
+        .buttons{
+            ul.navbar-nav{
+                li {
+                      &.download{
+                        margin-right: 8px;
+                    }
+                }
+            }
+        }
+    }
 
 }
 
