@@ -1,6 +1,7 @@
 package driver
 
 import (
+	"os/exec"
 	"testing"
 	"time"
 
@@ -8,7 +9,12 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-var dockerLocated bool = true
+// dockerLocated looks to see whether docker is available on this system before
+// we try to run tests. We'll keep it simple and just check for the CLI.
+func dockerLocated() bool {
+	_, err := exec.Command("docker", "-v").CombinedOutput()
+	return err == nil
+}
 
 func TestDockerDriver_Handle(t *testing.T) {
 	h := &dockerHandle{
@@ -25,6 +31,7 @@ func TestDockerDriver_Handle(t *testing.T) {
 	}
 }
 
+// The fingerprinter test should always pass, even if Docker is not installed.
 func TestDockerDriver_Fingerprint(t *testing.T) {
 	d := NewDockerDriver(testDriverContext(""))
 	node := &structs.Node{
@@ -38,21 +45,20 @@ func TestDockerDriver_Fingerprint(t *testing.T) {
 		t.Fatalf("should apply")
 	}
 	if node.Attributes["driver.docker"] == "" {
-		dockerLocated = false
 		t.Fatalf("Docker not found. The remainder of the docker tests will be skipped.")
 	}
 	t.Logf("Found docker version %s", node.Attributes["driver.docker.version"])
 }
 
 func TestDockerDriver_StartOpen_Wait(t *testing.T) {
-	if !dockerLocated {
+	if !dockerLocated() {
 		t.SkipNow()
 	}
 
 	task := &structs.Task{
 		Name: "python-demo",
 		Config: map[string]string{
-			"image": "cbednarski/python-demo",
+			"image": "redis",
 		},
 		Resources: basicResources,
 	}
@@ -82,17 +88,18 @@ func TestDockerDriver_StartOpen_Wait(t *testing.T) {
 }
 
 func TestDockerDriver_Start_Wait(t *testing.T) {
-	if !dockerLocated {
+	if !dockerLocated() {
 		t.SkipNow()
 	}
 
 	task := &structs.Task{
 		Name: "python-demo",
 		Config: map[string]string{
-			"image": "cbednarski/python-demo",
+			"image":   "redis",
+			"command": "redis-server -v",
 		},
 		Resources: &structs.Resources{
-			MemoryMB: 1024,
+			MemoryMB: 256,
 			CPU:      512,
 		},
 	}
@@ -122,20 +129,21 @@ func TestDockerDriver_Start_Wait(t *testing.T) {
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
-	case <-time.After(10 * time.Second):
+		// This should only take a second or two
+	case <-time.After(5 * time.Second):
 		t.Fatalf("timeout")
 	}
 }
 
 func TestDockerDriver_Start_Kill_Wait(t *testing.T) {
-	if !dockerLocated {
+	if !dockerLocated() {
 		t.SkipNow()
 	}
 
 	task := &structs.Task{
 		Name: "python-demo",
 		Config: map[string]string{
-			"image": "cbednarski/python-demo",
+			"image": "redis",
 		},
 		Resources: basicResources,
 	}
@@ -170,4 +178,112 @@ func TestDockerDriver_Start_Kill_Wait(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatalf("timeout")
 	}
+}
+
+func taskTemplate() *structs.Task {
+	return &structs.Task{
+		Config: map[string]string{
+			"image": "redis",
+		},
+		Resources: &structs.Resources{
+			MemoryMB: 256,
+			CPU:      512,
+			Networks: []*structs.NetworkResource{
+				&structs.NetworkResource{
+					IP:            "127.0.0.1",
+					ReservedPorts: []int{11110},
+					DynamicPorts:  []string{"REDIS"},
+				},
+			},
+		},
+	}
+}
+
+func TestDocker_StartN(t *testing.T) {
+
+	task1 := taskTemplate()
+	task1.Resources.Networks[0].ReservedPorts[0] = 11111
+
+	task2 := taskTemplate()
+	task2.Resources.Networks[0].ReservedPorts[0] = 22222
+
+	task3 := taskTemplate()
+	task3.Resources.Networks[0].ReservedPorts[0] = 33333
+
+	taskList := []*structs.Task{task1, task2, task3}
+
+	handles := make([]DriverHandle, len(taskList))
+
+	t.Log("==> Starting %d tasks", len(taskList))
+
+	// Let's spin up a bunch of things
+	var err error
+	for idx, task := range taskList {
+		driverCtx := testDriverContext(task.Name)
+		ctx := testDriverExecContext(task, driverCtx)
+		defer ctx.AllocDir.Destroy()
+		d := NewDockerDriver(driverCtx)
+
+		handles[idx], err = d.Start(ctx, task)
+		if err != nil {
+			t.Errorf("Failed starting task #%d: %s", idx+1, err)
+		}
+	}
+
+	t.Log("==> All tasks are started. Terminating...")
+
+	for idx, handle := range handles {
+		err := handle.Kill()
+		if err != nil {
+			t.Errorf("Failed stopping task #%d: %s", idx+1, err)
+		}
+	}
+
+	t.Log("==> Test complete!")
+}
+
+func TestDocker_StartNVersions(t *testing.T) {
+
+	task1 := taskTemplate()
+	task1.Config["image"] = "redis"
+	task1.Resources.Networks[0].ReservedPorts[0] = 11111
+
+	task2 := taskTemplate()
+	task2.Config["image"] = "redis:latest"
+	task2.Resources.Networks[0].ReservedPorts[0] = 22222
+
+	task3 := taskTemplate()
+	task3.Config["image"] = "redis:3.0"
+	task3.Resources.Networks[0].ReservedPorts[0] = 33333
+
+	taskList := []*structs.Task{task1, task2, task3}
+
+	handles := make([]DriverHandle, len(taskList))
+
+	t.Log("==> Starting %d tasks", len(taskList))
+
+	// Let's spin up a bunch of things
+	var err error
+	for idx, task := range taskList {
+		driverCtx := testDriverContext(task.Name)
+		ctx := testDriverExecContext(task, driverCtx)
+		defer ctx.AllocDir.Destroy()
+		d := NewDockerDriver(driverCtx)
+
+		handles[idx], err = d.Start(ctx, task)
+		if err != nil {
+			t.Errorf("Failed starting task #%d: %s", idx+1, err)
+		}
+	}
+
+	t.Log("==> All tasks are started. Terminating...")
+
+	for idx, handle := range handles {
+		err := handle.Kill()
+		if err != nil {
+			t.Errorf("Failed stopping task #%d: %s", idx+1, err)
+		}
+	}
+
+	t.Log("==> Test complete!")
 }

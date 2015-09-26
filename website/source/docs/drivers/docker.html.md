@@ -32,6 +32,10 @@ Nomad provides automatic and manual mapping schemes for Docker. You can use
 either or both schemes for a task. Nomad binds both tcp and udp protocols to
 ports used for Docker containers. This is not configurable.
 
+Note: You are not required to map any ports, for example if your task is running
+a crawler or aggregator and does not provide a network service. Tasks without a
+port mapping will still be able to make outbound network connections.
+
 #### Automatic Port Mapping
 
 Typically when you create a Docker container you configure the service to start

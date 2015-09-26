@@ -191,5 +191,21 @@ func TestBadPorts(t *testing.T) {
 	if !strings.Contains(err.Error(), errDynamicPorts.Error()) {
 		t.Fatalf("\nExpected error\n  %s\ngot\n  %v", errDynamicPorts, err)
 	}
+}
 
+func TestOverlappingPorts(t *testing.T) {
+	path, err := filepath.Abs(filepath.Join("./test-fixtures", "overlapping-ports.hcl"))
+	if err != nil {
+		t.Fatalf("Can't get absoluate path for file: %s", err)
+	}
+
+	_, err = ParseFile(path)
+
+	if err == nil {
+		t.Fatalf("Expected an error")
+	}
+
+	if !strings.Contains(err.Error(), "Found a port label collision") {
+		t.Fatalf("Expected collision error; got %v", err)
+	}
 }

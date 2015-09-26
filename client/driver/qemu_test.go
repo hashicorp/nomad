@@ -3,6 +3,7 @@ package driver
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"testing"
 
 	"github.com/hashicorp/nomad/client/config"
@@ -10,6 +11,14 @@ import (
 
 	ctestutils "github.com/hashicorp/nomad/client/testutil"
 )
+
+// qemuLocated looks to see whether qemu binaries are available on this system
+// before we try to run tests. We may need to tweak this for cross-OS support
+// but I think this should work on *nix at least.
+func qemuLocated() bool {
+	_, err := exec.Command("qemu-x86_64", "-version").CombinedOutput()
+	return err == nil
+}
 
 func TestQemuDriver_Handle(t *testing.T) {
 	h := &qemuHandle{
@@ -26,6 +35,7 @@ func TestQemuDriver_Handle(t *testing.T) {
 	}
 }
 
+// The fingerprinter test should always pass, even if QEMU is not installed.
 func TestQemuDriver_Fingerprint(t *testing.T) {
 	ctestutils.QemuCompatible(t)
 	d := NewQemuDriver(testDriverContext(""))
@@ -48,6 +58,10 @@ func TestQemuDriver_Fingerprint(t *testing.T) {
 }
 
 func TestQemuDriver_Start(t *testing.T) {
+	if !qemuLocated() {
+		t.Skip("QEMU not found; skipping")
+	}
+
 	// TODO: use test server to load from a fixture
 	task := &structs.Task{
 		Name: "linux",
@@ -96,6 +110,10 @@ func TestQemuDriver_Start(t *testing.T) {
 }
 
 func TestQemuDriver_RequiresMemory(t *testing.T) {
+	if !qemuLocated() {
+		t.Skip("QEMU not found; skipping")
+	}
+
 	// TODO: use test server to load from a fixture
 	task := &structs.Task{
 		Name: "linux",

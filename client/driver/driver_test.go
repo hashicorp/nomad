@@ -110,4 +110,9 @@ func TestPopulateEnvironment(t *testing.T) {
 	if !contains(env, strawberry) {
 		t.Errorf("%s is missing from env", strawberry)
 	}
+
+	// Output some debug info to help see what happened.
+	if t.Failed() {
+		t.Logf("env: %#v", env)
+	}
 }

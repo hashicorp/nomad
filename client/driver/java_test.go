@@ -1,6 +1,7 @@
 package driver
 
 import (
+	"os/exec"
 	"testing"
 	"time"
 
@@ -10,6 +11,13 @@ import (
 	ctestutils "github.com/hashicorp/nomad/client/testutil"
 )
 
+// javaLocated checks whether java is installed so we can run java stuff.
+func javaLocated() bool {
+	_, err := exec.Command("java", "-version").CombinedOutput()
+	return err == nil
+}
+
+// The fingerprinter test should always pass, even if Java is not installed.
 func TestJavaDriver_Fingerprint(t *testing.T) {
 	ctestutils.ExecCompatible(t)
 	d := NewJavaDriver(testDriverContext(""))
@@ -37,7 +45,6 @@ func TestJavaDriver_Fingerprint(t *testing.T) {
 TODO: This test is disabled til a follow-up api changes the restore state interface.
 The driver/executor interface will be changed from Open to Cleanup, in which
 clean-up tears down previous allocs.
-
 func TestJavaDriver_StartOpen_Wait(t *testing.T) {
 	ctestutils.ExecCompatible(t)
 	task := &structs.Task{
@@ -82,6 +89,10 @@ func TestJavaDriver_StartOpen_Wait(t *testing.T) {
 */
 
 func TestJavaDriver_Start_Wait(t *testing.T) {
+	if !javaLocated() {
+		t.Skip("Java not found; skipping")
+	}
+
 	ctestutils.ExecCompatible(t)
 	task := &structs.Task{
 		Name: "demo-app",
@@ -125,6 +136,10 @@ func TestJavaDriver_Start_Wait(t *testing.T) {
 }
 
 func TestJavaDriver_Start_Kill_Wait(t *testing.T) {
+	if !javaLocated() {
+		t.Skip("Java not found; skipping")
+	}
+
 	ctestutils.ExecCompatible(t)
 	task := &structs.Task{
 		Name: "demo-app",
