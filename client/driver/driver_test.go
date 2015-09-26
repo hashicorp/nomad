@@ -93,9 +93,4 @@ func TestDriver_PopulateEnvironment(t *testing.T) {
 	if !reflect.DeepEqual(act, exp) {
 		t.Fatalf("PopulateEnvironment(%v) returned %v; want %v", envVars, act, exp)
 	}
-
-	// Output some debug info to help see what happened.
-	if t.Failed() {
-		t.Logf("env: %#v", env)
-	}
 }
