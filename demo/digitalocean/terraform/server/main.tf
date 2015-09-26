@@ -26,6 +26,7 @@ advertise {
 }
 telemetry {
     statsite_address = "${var.statsite}"
+    disable_hostname = true
 }
 EOF
 CMD
