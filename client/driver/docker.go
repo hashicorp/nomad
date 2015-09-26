@@ -60,15 +60,12 @@ func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool
 	return true, nil
 }
 
-// createContainer initializes a struct needed to call docker.client.CreateContainer()
-func createContainer(ctx *ExecContext, task *structs.Task, logger *log.Logger) docker.CreateContainerOptions {
-	if task.Resources == nil {
-		panic("task.Resources is nil and we can't constrain resource usage. We shouldn't have been able to schedule this in the first place.")
-	}
-
+// We have to call this when we create the container AND when we start it so
+// we'll make a function.
+func createHostConfig(task *structs.Task) *docker.HostConfig {
 	// hostConfig holds options for the docker container that are unique to this
 	// machine, such as resource limits and port mappings
-	hostConfig := &docker.HostConfig{
+	return &docker.HostConfig{
 		// Convert MB to bytes. This is an absolute value.
 		//
 		// This value represents the total amount of memory a process can use.
@@ -98,6 +95,15 @@ func createContainer(ctx *ExecContext, task *structs.Task, logger *log.Logger) d
 		//  - https://www.kernel.org/doc/Documentation/scheduler/sched-design-CFS.txt
 		CPUShares: int64(task.Resources.CPU),
 	}
+}
+
+// createContainer initializes a struct needed to call docker.client.CreateContainer()
+func createContainer(ctx *ExecContext, task *structs.Task, logger *log.Logger) docker.CreateContainerOptions {
+	if task.Resources == nil {
+		panic("task.Resources is nil and we can't constrain resource usage. We shouldn't have been able to schedule this in the first place.")
+	}
+
+	hostConfig := createHostConfig(task)
 	logger.Printf("[DEBUG] driver.docker: using %d bytes memory for %s", hostConfig.Memory, task.Config["image"])
 	logger.Printf("[DEBUG] driver.docker: using %d cpu shares for %s", hostConfig.CPUShares, task.Config["image"])
 
@@ -136,11 +142,18 @@ func createContainer(ctx *ExecContext, task *structs.Task, logger *log.Logger) d
 		hostConfig.PortBindings = dockerPorts
 	}
 
+	config := &docker.Config{
+		Env:   PopulateEnvironment(ctx, task),
+		Image: task.Config["image"],
+	}
+
+	// If the user specified a custom command to run, we'll inject it here.
+	if command, ok := task.Config["command"]; ok {
+		config.Cmd = strings.Split(command, " ")
+	}
+
 	return docker.CreateContainerOptions{
-		Config: &docker.Config{
-			Env:   PopulateEnvironment(ctx, task),
-			Image: task.Config["image"],
-		},
+		Config:     config,
 		HostConfig: hostConfig,
 	}
 }
@@ -168,29 +181,50 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 		return nil, fmt.Errorf("Failed to connect to docker.endpoint (%s): %s", dockerEndpoint, err)
 	}
 
-	// Download the image
-	pull, err := exec.Command("docker", "pull", image).CombinedOutput()
-	if err != nil {
-		d.logger.Printf("[ERR] driver.docker: pulling container %s", pull)
-		return nil, fmt.Errorf("Failed to pull `%s`: %s", image, err)
+	repo, tag := docker.ParseRepositoryTag(image)
+	// Make sure tag is always explicitly set. We'll default to "latest" if it
+	// isn't, which is the expected behavior.
+	if tag == "" {
+		tag = "latest"
 	}
-	d.logger.Printf("[DEBUG] driver.docker: docker pull %s:\n%s", image, pull)
 
-	// Get the image ID (sha256). We need to keep track of this in case another
-	// process pulls down a newer version of the image.
-	imageIDBytes, err := exec.Command("docker", "images", "-q", "--no-trunc", image).CombinedOutput()
-	// imageID := strings.TrimSpace(string(imageIDBytes))
-	// TODO this is a hack and needs to get fixed :(
-	imageID := strings.Split(strings.TrimSpace(string(imageIDBytes)), "\n")[0]
-	if err != nil || imageID == "" {
-		d.logger.Printf("[ERR] driver.docker: getting image id %s", imageID)
-		return nil, fmt.Errorf("Failed to determine image id for `%s`: %s", image, err)
+	var dockerImage *docker.Image
+	// We're going to check whether the image is already downloaded. If the tag
+	// is "latest" we have to check for a new version every time.
+	if tag != "latest" {
+		dockerImage, err = client.InspectImage(image)
 	}
-	if !reDockerSha.MatchString(imageID) {
-		return nil, fmt.Errorf("Image id not in expected format (sha256); found %s", imageID)
+
+	// Download the image
+	if dockerImage == nil {
+		pullOptions := docker.PullImageOptions{
+			Repository: repo,
+			Tag:        tag,
+		}
+		// TODO add auth configuration
+		authOptions := docker.AuthConfiguration{}
+		err = client.PullImage(pullOptions, authOptions)
+		if err != nil {
+			d.logger.Printf("[ERR] driver.docker: pulling container %s", err)
+			return nil, fmt.Errorf("Failed to pull `%s`: %s", image, err)
+		}
+		d.logger.Printf("[DEBUG] driver.docker: docker pull %s:%s succeeded", repo, tag)
+
+		// Now that we have the image we can get the image id
+		dockerImage, err = client.InspectImage(image)
+		if err != nil {
+			d.logger.Printf("[ERR] driver.docker: getting image id for %s", image)
+			return nil, fmt.Errorf("Failed to determine image id for `%s`: %s", image, err)
+		}
 	}
-	d.logger.Printf("[DEBUG] driver.docker: using image %s", imageID)
-	d.logger.Printf("[INFO] driver.docker: downloaded image %s as %s", image, imageID)
+
+	// Sanity check
+	if !reDockerSha.MatchString(dockerImage.ID) {
+		return nil, fmt.Errorf("Image id not in expected format (sha256); found %s", dockerImage.ID)
+	}
+
+	d.logger.Printf("[DEBUG] driver.docker: using image %s", dockerImage.ID)
+	d.logger.Printf("[INFO] driver.docker: identified image %s as %s", image, dockerImage.ID)
 
 	// Create a container
 	container, err := client.CreateContainer(createContainer(ctx, task, d.logger))
@@ -198,15 +232,16 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 		d.logger.Printf("[ERR] driver.docker: %s", err)
 		return nil, fmt.Errorf("Failed to create container from image %s", image)
 	}
+	// Sanity check
 	if !reDockerSha.MatchString(container.ID) {
 		return nil, fmt.Errorf("Container id not in expected format (sha256); found %s", container.ID)
 	}
 	d.logger.Printf("[INFO] driver.docker: created container %s", container.ID)
 
 	// Start the container
-	startBytes, err := exec.Command("docker", "start", container.ID).CombinedOutput()
+	err = client.StartContainer(container.ID, createHostConfig(task))
 	if err != nil {
-		d.logger.Printf("[ERR] driver.docker: starting container %s", strings.TrimSpace(string(startBytes)))
+		d.logger.Printf("[ERR] driver.docker: starting container %s", container.ID)
 		return nil, fmt.Errorf("Failed to start container %s", container.ID)
 	}
 	d.logger.Printf("[INFO] driver.docker: started container %s", container.ID)
@@ -214,7 +249,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	// Return a driver handle
 	h := &dockerHandle{
 		logger:      d.logger,
-		imageID:     imageID,
+		imageID:     dockerImage.ID,
 		containerID: container.ID,
 		doneCh:      make(chan struct{}),
 		waitCh:      make(chan error, 1),
