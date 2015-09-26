@@ -193,7 +193,8 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 
 	var dockerImage *docker.Image
 	// We're going to check whether the image is already downloaded. If the tag
-	// is "latest" we have to check for a new version every time.
+	// is "latest" we have to check for a new version every time so we don't
+	// bother to check and cache the id here. We'll download first, then cache.
 	if tag != "latest" {
 		dockerImage, err = client.InspectImage(image)
 	}
@@ -204,7 +205,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 			Repository: repo,
 			Tag:        tag,
 		}
-		// TODO add auth configuration
+		// TODO add auth configuration for private repos
 		authOptions := docker.AuthConfiguration{}
 		err = client.PullImage(pullOptions, authOptions)
 		if err != nil {
@@ -235,6 +236,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 		d.logger.Printf("[ERR] driver.docker: %s", err)
 		return nil, fmt.Errorf("Failed to create container from image %s", image)
 	}
+
 	// Sanity check
 	if !reDockerSha.MatchString(container.ID) {
 		return nil, fmt.Errorf("Container id not in expected format (sha256); found %s", container.ID)
@@ -280,8 +282,6 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 	}
 
 	// Look for a running container with this ID
-	// docker ps does not return an exit code if there are no matching processes
-	// so we have to read the output and compare it to our known containerID
 	containers, err := client.ListContainers(docker.ListContainersOptions{
 		Filters: map[string][]string{
 			"id": []string{pid.ContainerID},

@@ -21,6 +21,8 @@ The `docker` driver supports the following configuration in the job specificatio
 * `image` - (Required) The Docker image to run. The image may include a tag or
   custom URL. By default it will be fetched from Docker Hub.
 
+* `command` - (Optional) The command to run when starting the container.
+
 ### Port Mapping
 
 Nomad uses port binding to expose services running in containers using the port
