@@ -161,7 +161,7 @@ func TestJavaDriver_Start_Kill_Wait(t *testing.T) {
 	select {
 	case err := <-handle.WaitCh():
 		if err == nil {
-			t.Fatalf("should err: %v", err)
+			t.Fatal("should err")
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatalf("timeout")

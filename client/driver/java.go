@@ -219,8 +219,6 @@ func (h *javaHandle) run() {
 	close(h.doneCh)
 	if err != nil {
 		h.waitCh <- err
-	} else if !h.cmd.Command().ProcessState.Success() {
-		h.waitCh <- fmt.Errorf("task exited with error")
 	}
 	close(h.waitCh)
 }
