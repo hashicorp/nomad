@@ -329,7 +329,7 @@ func (h *dockerHandle) Kill() error {
 	// Stop the container
 	err := h.client.StopContainer(h.containerID, 5)
 	if err != nil {
-		log.Printf("[ERR] driver.docker: stopping container %s", h.containerID)
+		log.Printf("[ERR] driver.docker: failed stopping container %s", h.containerID)
 		return fmt.Errorf("Failed to stop container %s: %s", h.containerID, err)
 	}
 	log.Printf("[INFO] driver.docker: stopped container %s", h.containerID)
@@ -358,10 +358,13 @@ func (h *dockerHandle) Kill() error {
 
 func (h *dockerHandle) run() {
 	// Wait for it...
-	// TODO should we do something with exit status?
-	_, err := h.client.WaitContainer(h.containerID)
+	exitCode, err := h.client.WaitContainer(h.containerID)
 	if err != nil {
 		h.logger.Printf("[ERR] driver.docker: unable to wait for %s; container already terminated", h.containerID)
+	}
+
+	if exitCode != 0 {
+		err = fmt.Errorf("Docker container exited with non-zero exit code: %d", exitCode)
 	}
 
 	close(h.doneCh)

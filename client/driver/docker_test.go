@@ -142,7 +142,8 @@ func TestDockerDriver_Start_Kill_Wait(t *testing.T) {
 	task := &structs.Task{
 		Name: "python-demo",
 		Config: map[string]string{
-			"image": "redis",
+			"image":   "redis",
+			"command": "sleep 10",
 		},
 		Resources: basicResources,
 	}
@@ -174,7 +175,7 @@ func TestDockerDriver_Start_Kill_Wait(t *testing.T) {
 		if err == nil {
 			t.Fatalf("should err: %v", err)
 		}
-	case <-time.After(5 * time.Second):
+	case <-time.After(10 * time.Second):
 		t.Fatalf("timeout")
 	}
 }
