@@ -2,7 +2,10 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
 	"os/exec"
+	"strconv"
 	"time"
 
 	"github.com/hashicorp/nomad/api"
@@ -16,12 +19,36 @@ func main() {
 		return
 	}
 
-	total := 10000
+	total := 0
+	if len(os.Args) != 2 {
+		fmt.Println("need 1 arg")
+		return
+	}
+
+	if total, err = strconv.Atoi(os.Args[1]); err != nil {
+		fmt.Println("arg 1 must be number")
+		return
+	}
+
+	fh, err := ioutil.TempFile("", "bench")
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+	defer os.Remove(fh.Name())
+
+	jobContent := fmt.Sprintf(job, total)
+	if _, err := fh.WriteString(jobContent); err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+	fh.Close()
+
 	isRunning := false
 	start := time.Now()
 	allocClient := client.Allocations()
 
-	cmd := exec.Command("nomad", "run", "bench.nomad")
+	cmd := exec.Command("nomad", "run", fh.Name())
 	if err := cmd.Run(); err != nil {
 		fmt.Println("nomad run failed: " + err.Error())
 		return
@@ -60,3 +87,26 @@ func main() {
 		}
 	}
 }
+
+const job = `
+job "bench" {
+	datacenters = ["ams2", "ams3", "nyc3", "sfo1"]
+
+	group "cache" {
+		count = %d
+
+		task "redis" {
+			driver = "docker"
+
+			config {
+				image = "redis"
+			}
+
+			resources {
+				cpu = 100
+                memory = 100
+			}
+		}
+	}
+}
+`
