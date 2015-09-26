@@ -7,6 +7,8 @@ import (
 
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
+
+	ctestutils "github.com/hashicorp/nomad/client/testutil"
 )
 
 func TestQemuDriver_Handle(t *testing.T) {
@@ -25,7 +27,8 @@ func TestQemuDriver_Handle(t *testing.T) {
 }
 
 func TestQemuDriver_Fingerprint(t *testing.T) {
-	d := NewQemuDriver(testDriverContext())
+	ctestutils.QemuCompatible(t)
+	d := NewQemuDriver(testDriverContext(""))
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
@@ -45,12 +48,9 @@ func TestQemuDriver_Fingerprint(t *testing.T) {
 }
 
 func TestQemuDriver_Start(t *testing.T) {
-	ctx := NewExecContext()
-	ctx.AllocDir = os.TempDir()
-	d := NewQemuDriver(testDriverContext())
-
 	// TODO: use test server to load from a fixture
 	task := &structs.Task{
+		Name: "linux",
 		Config: map[string]string{
 			"image_source": "https://dl.dropboxusercontent.com/u/47675/jar_thing/linux-0.2.img",
 			"checksum":     "a5e836985934c3392cbbd9b26db55a7d35a8d7ae1deb7ca559dd9c0159572544",
@@ -66,6 +66,11 @@ func TestQemuDriver_Start(t *testing.T) {
 			},
 		},
 	}
+
+	driverCtx := testDriverContext(task.Name)
+	ctx := testDriverExecContext(task, driverCtx)
+	defer ctx.AllocDir.Destroy()
+	d := NewQemuDriver(driverCtx)
 
 	handle, err := d.Start(ctx, task)
 	if err != nil {
@@ -91,12 +96,9 @@ func TestQemuDriver_Start(t *testing.T) {
 }
 
 func TestQemuDriver_RequiresMemory(t *testing.T) {
-	ctx := NewExecContext()
-	ctx.AllocDir = os.TempDir()
-	d := NewQemuDriver(testDriverContext())
-
 	// TODO: use test server to load from a fixture
 	task := &structs.Task{
+		Name: "linux",
 		Config: map[string]string{
 			"image_source": "https://dl.dropboxusercontent.com/u/47675/jar_thing/linux-0.2.img",
 			"accelerator":  "tcg",
@@ -106,6 +108,11 @@ func TestQemuDriver_RequiresMemory(t *testing.T) {
 			// ssh u/p would be here
 		},
 	}
+
+	driverCtx := testDriverContext(task.Name)
+	ctx := testDriverExecContext(task, driverCtx)
+	defer ctx.AllocDir.Destroy()
+	d := NewQemuDriver(driverCtx)
 
 	_, err := d.Start(ctx, task)
 	if err == nil {

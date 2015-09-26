@@ -8,12 +8,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+
+	ctestutil "github.com/hashicorp/nomad/client/testutil"
 )
 
 var (
 	constraint = &structs.Resources{
-		CPU:      0.5,
+		CPU:      250,
 		MemoryMB: 256,
 		Networks: []*structs.NetworkResource{
 			&structs.NetworkResource{
@@ -24,12 +28,31 @@ var (
 	}
 )
 
+func mockAllocDir(t *testing.T) (string, *allocdir.AllocDir) {
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+
+	allocDir := allocdir.NewAllocDir(filepath.Join(os.TempDir(), alloc.ID))
+	if err := allocDir.Build([]*structs.Task{task}); err != nil {
+		t.Fatalf("allocDir.Build() failed: %v", err)
+	}
+
+	return task.Name, allocDir
+}
+
 func TestExecutorLinux_Start_Invalid(t *testing.T) {
+	ctestutil.ExecCompatible(t)
 	invalid := "/bin/foobar"
 	e := Command(invalid, "1")
 
 	if err := e.Limit(constraint); err != nil {
 		t.Fatalf("Limit() failed: %v", err)
+	}
+
+	task, alloc := mockAllocDir(t)
+	defer alloc.Destroy()
+	if err := e.ConfigureTaskDir(task, alloc); err != nil {
+		t.Fatalf("ConfigureTaskDir(%v, %v) failed: %v", task, alloc, err)
 	}
 
 	if err := e.Start(); err == nil {
@@ -38,10 +61,17 @@ func TestExecutorLinux_Start_Invalid(t *testing.T) {
 }
 
 func TestExecutorLinux_Start_Wait_Failure_Code(t *testing.T) {
+	ctestutil.ExecCompatible(t)
 	e := Command("/bin/date", "-invalid")
 
 	if err := e.Limit(constraint); err != nil {
 		t.Fatalf("Limit() failed: %v", err)
+	}
+
+	task, alloc := mockAllocDir(t)
+	defer alloc.Destroy()
+	if err := e.ConfigureTaskDir(task, alloc); err != nil {
+		t.Fatalf("ConfigureTaskDir(%v, %v) failed: %v", task, alloc, err)
 	}
 
 	if err := e.Start(); err != nil {
@@ -54,22 +84,27 @@ func TestExecutorLinux_Start_Wait_Failure_Code(t *testing.T) {
 }
 
 func TestExecutorLinux_Start_Wait(t *testing.T) {
-	path, err := ioutil.TempDir("", "TestExecutorLinux_Start_Wait")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.Remove(path)
+	ctestutil.ExecCompatible(t)
+	task, alloc := mockAllocDir(t)
+	defer alloc.Destroy()
 
-	// Make the file writable to everyone.
-	os.Chmod(path, 0777)
+	taskDir, ok := alloc.TaskDirs[task]
+	if !ok {
+		t.Fatalf("No task directory found for task %v", task)
+	}
 
 	expected := "hello world"
-	filePath := filepath.Join(path, "output")
-	cmd := fmt.Sprintf("%v \"%v\" > %v", "sleep 1 ; echo -n", expected, filePath)
+	file := filepath.Join(allocdir.TaskLocal, "output.txt")
+	absFilePath := filepath.Join(taskDir, file)
+	cmd := fmt.Sprintf("%v \"%v\" > %v", "sleep 1 ; echo -n", expected, file)
 	e := Command("/bin/bash", "-c", cmd)
 
 	if err := e.Limit(constraint); err != nil {
 		t.Fatalf("Limit() failed: %v", err)
+	}
+
+	if err := e.ConfigureTaskDir(task, alloc); err != nil {
+		t.Fatalf("ConfigureTaskDir(%v, %v) failed: %v", task, alloc, err)
 	}
 
 	if err := e.Start(); err != nil {
@@ -80,9 +115,9 @@ func TestExecutorLinux_Start_Wait(t *testing.T) {
 		t.Fatalf("Wait() failed: %v", err)
 	}
 
-	output, err := ioutil.ReadFile(filePath)
+	output, err := ioutil.ReadFile(absFilePath)
 	if err != nil {
-		t.Fatalf("Couldn't read file %v", filePath)
+		t.Fatalf("Couldn't read file %v", absFilePath)
 	}
 
 	act := string(output)
@@ -92,16 +127,16 @@ func TestExecutorLinux_Start_Wait(t *testing.T) {
 }
 
 func TestExecutorLinux_Start_Kill(t *testing.T) {
-	path, err := ioutil.TempDir("", "TestExecutorLinux_Start_Kill")
-	if err != nil {
-		t.Fatal(err)
+	ctestutil.ExecCompatible(t)
+	task, alloc := mockAllocDir(t)
+	defer alloc.Destroy()
+
+	taskDir, ok := alloc.TaskDirs[task]
+	if !ok {
+		t.Fatalf("No task directory found for task %v", task)
 	}
-	defer os.Remove(path)
 
-	// Make the file writable to everyone.
-	os.Chmod(path, 0777)
-
-	filePath := filepath.Join(path, "test")
+	filePath := filepath.Join(taskDir, "output")
 	e := Command("/bin/bash", "-c", "sleep 1 ; echo \"failure\" > "+filePath)
 
 	// This test can only be run if cgroups are enabled.
@@ -111,6 +146,10 @@ func TestExecutorLinux_Start_Kill(t *testing.T) {
 
 	if err := e.Limit(constraint); err != nil {
 		t.Fatalf("Limit() failed: %v", err)
+	}
+
+	if err := e.ConfigureTaskDir(task, alloc); err != nil {
+		t.Fatalf("ConfigureTaskDir(%v, %v) failed: %v", task, alloc, err)
 	}
 
 	if err := e.Start(); err != nil {
@@ -130,16 +169,16 @@ func TestExecutorLinux_Start_Kill(t *testing.T) {
 }
 
 func TestExecutorLinux_Open(t *testing.T) {
-	path, err := ioutil.TempDir("", "TestExecutorLinux_Open")
-	if err != nil {
-		t.Fatal(err)
+	ctestutil.ExecCompatible(t)
+	task, alloc := mockAllocDir(t)
+	defer alloc.Destroy()
+
+	taskDir, ok := alloc.TaskDirs[task]
+	if !ok {
+		t.Fatalf("No task directory found for task %v", task)
 	}
-	defer os.Remove(path)
 
-	// Make the file writable to everyone.
-	os.Chmod(path, 0777)
-
-	filePath := filepath.Join(path, "test")
+	filePath := filepath.Join(taskDir, "output")
 	e := Command("/bin/bash", "-c", "sleep 1 ; echo \"failure\" > "+filePath)
 
 	// This test can only be run if cgroups are enabled.
@@ -149,6 +188,10 @@ func TestExecutorLinux_Open(t *testing.T) {
 
 	if err := e.Limit(constraint); err != nil {
 		t.Fatalf("Limit() failed: %v", err)
+	}
+
+	if err := e.ConfigureTaskDir(task, alloc); err != nil {
+		t.Fatalf("ConfigureTaskDir(%v, %v) failed: %v", task, alloc, err)
 	}
 
 	if err := e.Start(); err != nil {

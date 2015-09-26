@@ -19,6 +19,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -101,10 +102,17 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		return nil, fmt.Errorf("Error downloading source for Qemu driver: %s", err)
 	}
 
-	// Create a location in the AllocDir to download and store the image.
+	// Get the tasks local directory.
+	taskDir, ok := ctx.AllocDir.TaskDirs[d.DriverContext.taskName]
+	if !ok {
+		return nil, fmt.Errorf("Could not find task directory for task: %v", d.DriverContext.taskName)
+	}
+	taskLocal := filepath.Join(taskDir, allocdir.TaskLocal)
+
+	// Create a location in the local directory to download and store the image.
 	// TODO: Caching
 	vmID := fmt.Sprintf("qemu-vm-%s-%s", structs.GenerateUUID(), filepath.Base(source))
-	fPath := filepath.Join(ctx.AllocDir, vmID)
+	fPath := filepath.Join(taskLocal, vmID)
 	vmPath, err := os.OpenFile(fPath, os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {
 		return nil, fmt.Errorf("Error opening file to download to: %s", err)

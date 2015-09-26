@@ -1,16 +1,18 @@
 package driver
 
 import (
-	"os"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
+
+	ctestutils "github.com/hashicorp/nomad/client/testutil"
 )
 
 func TestJavaDriver_Fingerprint(t *testing.T) {
-	d := NewJavaDriver(testDriverContext())
+	ctestutils.ExecCompatible(t)
+	d := NewJavaDriver(testDriverContext(""))
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
@@ -31,18 +33,28 @@ func TestJavaDriver_Fingerprint(t *testing.T) {
 	}
 }
 
-func TestJavaDriver_StartOpen_Wait(t *testing.T) {
-	ctx := NewExecContext()
-	ctx.AllocDir = os.TempDir()
-	d := NewJavaDriver(testDriverContext())
+/*
+TODO: This test is disabled til a follow-up api changes the restore state interface.
+The driver/executor interface will be changed from Open to Cleanup, in which
+clean-up tears down previous allocs.
 
+func TestJavaDriver_StartOpen_Wait(t *testing.T) {
+	ctestutils.ExecCompatible(t)
 	task := &structs.Task{
+		Name: "demo-app",
 		Config: map[string]string{
 			"jar_source": "https://dl.dropboxusercontent.com/u/47675/jar_thing/demoapp.jar",
 			// "jar_source": "https://s3-us-west-2.amazonaws.com/java-jar-thing/demoapp.jar",
 			// "args": "-d64",
 		},
+		Resources: basicResources,
 	}
+
+	driverCtx := testDriverContext(task.Name)
+	ctx := testDriverExecContext(task, driverCtx)
+	defer ctx.AllocDir.Destroy()
+	d := NewJavaDriver(driverCtx)
+
 	handle, err := d.Start(ctx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -67,19 +79,25 @@ func TestJavaDriver_StartOpen_Wait(t *testing.T) {
 		t.Fatalf("Error: %s", err)
 	}
 }
+*/
 
 func TestJavaDriver_Start_Wait(t *testing.T) {
-	ctx := NewExecContext()
-	ctx.AllocDir = os.TempDir()
-	d := NewJavaDriver(testDriverContext())
-
+	ctestutils.ExecCompatible(t)
 	task := &structs.Task{
+		Name: "demo-app",
 		Config: map[string]string{
 			"jar_source": "https://dl.dropboxusercontent.com/u/47675/jar_thing/demoapp.jar",
 			// "jar_source": "https://s3-us-west-2.amazonaws.com/java-jar-thing/demoapp.jar",
 			// "args": "-d64",
 		},
+		Resources: basicResources,
 	}
+
+	driverCtx := testDriverContext(task.Name)
+	ctx := testDriverExecContext(task, driverCtx)
+	defer ctx.AllocDir.Destroy()
+	d := NewJavaDriver(driverCtx)
+
 	handle, err := d.Start(ctx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -107,17 +125,22 @@ func TestJavaDriver_Start_Wait(t *testing.T) {
 }
 
 func TestJavaDriver_Start_Kill_Wait(t *testing.T) {
-	ctx := NewExecContext()
-	ctx.AllocDir = os.TempDir()
-	d := NewJavaDriver(testDriverContext())
-
+	ctestutils.ExecCompatible(t)
 	task := &structs.Task{
+		Name: "demo-app",
 		Config: map[string]string{
 			"jar_source": "https://dl.dropboxusercontent.com/u/47675/jar_thing/demoapp.jar",
 			// "jar_source": "https://s3-us-west-2.amazonaws.com/java-jar-thing/demoapp.jar",
 			// "args": "-d64",
 		},
+		Resources: basicResources,
 	}
+
+	driverCtx := testDriverContext(task.Name)
+	ctx := testDriverExecContext(task, driverCtx)
+	defer ctx.AllocDir.Destroy()
+	d := NewJavaDriver(driverCtx)
+
 	handle, err := d.Start(ctx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -138,7 +161,7 @@ func TestJavaDriver_Start_Kill_Wait(t *testing.T) {
 	select {
 	case err := <-handle.WaitCh():
 		if err == nil {
-			t.Fatalf("should err: %v", err)
+			t.Fatal("should err")
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatalf("timeout")
@@ -149,8 +172,4 @@ func TestJavaDriver_Start_Kill_Wait(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error: %s", err)
 	}
-}
-
-func cleanupFile(path string) error {
-	return nil
 }

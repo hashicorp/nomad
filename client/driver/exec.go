@@ -12,9 +12,8 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// ExecDriver is the simplest possible driver. It literally just
-// fork/execs tasks. It should probably not be used for most things,
-// but is useful for testing purposes or for very simple tasks.
+// ExecDriver fork/execs tasks using as many of the underlying OS's isolation
+// features.
 type ExecDriver struct {
 	DriverContext
 }
@@ -64,6 +63,10 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 
 	// Populate environment variables
 	cmd.Command().Env = PopulateEnvironment(ctx, task)
+
+	if err := cmd.ConfigureTaskDir(d.taskName, ctx.AllocDir); err != nil {
+		return nil, fmt.Errorf("failed to configure task directory: %v", err)
+	}
 
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("failed to start command: %v", err)

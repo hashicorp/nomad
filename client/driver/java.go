@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/executor"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -104,7 +105,16 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		return nil, fmt.Errorf("Error downloading source for Java driver: %s", err)
 	}
 
-	fPath := filepath.Join(ctx.AllocDir, path.Base(source))
+	// Get the tasks local directory.
+	taskDir, ok := ctx.AllocDir.TaskDirs[d.DriverContext.taskName]
+	if !ok {
+		return nil, fmt.Errorf("Could not find task directory for task: %v", d.DriverContext.taskName)
+	}
+	taskLocal := filepath.Join(taskDir, allocdir.TaskLocal)
+
+	// Create a location to download the binary.
+	fName := path.Base(source)
+	fPath := filepath.Join(taskLocal, fName)
 	f, err := os.OpenFile(fPath, os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {
 		return nil, fmt.Errorf("Error opening file to download to: %s", err)
@@ -113,7 +123,7 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	defer f.Close()
 	defer resp.Body.Close()
 
-	// Copy remote file to local AllocDir for execution
+	// Copy remote file to local directory for execution
 	// TODO: a retry of sort if io.Copy fails, for large binaries
 	_, ioErr := io.Copy(f, resp.Body)
 	if ioErr != nil {
@@ -126,7 +136,7 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	if ok {
 		userArgs = strings.Split(argRaw, " ")
 	}
-	args := []string{"-jar", f.Name()}
+	args := []string{"-jar", filepath.Join(allocdir.TaskLocal, fName)}
 
 	for _, s := range userArgs {
 		args = append(args, s)
@@ -139,12 +149,15 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	// Populate environment variables
 	cmd.Command().Env = PopulateEnvironment(ctx, task)
 
-	err = cmd.Limit(task.Resources)
-	if err != nil {
+	if err := cmd.Limit(task.Resources); err != nil {
 		return nil, fmt.Errorf("failed to constrain resources: %s", err)
 	}
-	err = cmd.Start()
-	if err != nil {
+
+	if err := cmd.ConfigureTaskDir(d.taskName, ctx.AllocDir); err != nil {
+		return nil, fmt.Errorf("failed to configure task directory: %v", err)
+	}
+
+	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("failed to start source: %v", err)
 	}
 
@@ -206,8 +219,6 @@ func (h *javaHandle) run() {
 	close(h.doneCh)
 	if err != nil {
 		h.waitCh <- err
-	} else if !h.cmd.Command().ProcessState.Success() {
-		h.waitCh <- fmt.Errorf("task exited with error")
 	}
 	close(h.waitCh)
 }

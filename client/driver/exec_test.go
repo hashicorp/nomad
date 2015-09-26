@@ -6,10 +6,13 @@ import (
 
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
+
+	ctestutils "github.com/hashicorp/nomad/client/testutil"
 )
 
 func TestExecDriver_Fingerprint(t *testing.T) {
-	d := NewExecDriver(testDriverContext())
+	ctestutils.ExecCompatible(t)
+	d := NewExecDriver(testDriverContext(""))
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
@@ -25,20 +28,31 @@ func TestExecDriver_Fingerprint(t *testing.T) {
 	}
 }
 
-func TestExecDriver_StartOpen_Wait(t *testing.T) {
-	ctx := NewExecContext()
-	d := NewExecDriver(testDriverContext())
+/*
+TODO: This test is disabled til a follow-up api changes the restore state interface.
+The driver/executor interface will be changed from Open to Cleanup, in which
+clean-up tears down previous allocs.
 
+func TestExecDriver_StartOpen_Wait(t *testing.T) {
+	ctestutils.ExecCompatible(t)
 	task := &structs.Task{
+		Name: "sleep",
 		Config: map[string]string{
 			"command": "/bin/sleep",
 			"args":    "5",
 		},
+		Resources: basicResources,
 	}
+
+	driverCtx := testDriverContext(task.Name)
+	ctx := testDriverExecContext(task, driverCtx)
+	defer ctx.AllocDir.Destroy()
+	d := NewExecDriver(driverCtx)
+
 	if task.Resources == nil {
 		task.Resources = &structs.Resources{}
 	}
-	task.Resources.CPU = 2048
+	task.Resources.CPU = 0.5
 	task.Resources.MemoryMB = 2
 
 	handle, err := d.Start(ctx, task)
@@ -58,17 +72,24 @@ func TestExecDriver_StartOpen_Wait(t *testing.T) {
 		t.Fatalf("missing handle")
 	}
 }
+*/
 
 func TestExecDriver_Start_Wait(t *testing.T) {
-	ctx := NewExecContext()
-	d := NewExecDriver(testDriverContext())
-
+	ctestutils.ExecCompatible(t)
 	task := &structs.Task{
+		Name: "sleep",
 		Config: map[string]string{
 			"command": "/bin/sleep",
 			"args":    "1",
 		},
+		Resources: basicResources,
 	}
+
+	driverCtx := testDriverContext(task.Name)
+	ctx := testDriverExecContext(task, driverCtx)
+	defer ctx.AllocDir.Destroy()
+	d := NewExecDriver(driverCtx)
+
 	handle, err := d.Start(ctx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -95,15 +116,21 @@ func TestExecDriver_Start_Wait(t *testing.T) {
 }
 
 func TestExecDriver_Start_Kill_Wait(t *testing.T) {
-	ctx := NewExecContext()
-	d := NewExecDriver(testDriverContext())
-
+	ctestutils.ExecCompatible(t)
 	task := &structs.Task{
+		Name: "sleep",
 		Config: map[string]string{
 			"command": "/bin/sleep",
-			"args":    "10",
+			"args":    "1",
 		},
+		Resources: basicResources,
 	}
+
+	driverCtx := testDriverContext(task.Name)
+	ctx := testDriverExecContext(task, driverCtx)
+	defer ctx.AllocDir.Destroy()
+	d := NewExecDriver(driverCtx)
+
 	handle, err := d.Start(ctx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -124,7 +151,7 @@ func TestExecDriver_Start_Kill_Wait(t *testing.T) {
 	select {
 	case err := <-handle.WaitCh():
 		if err == nil {
-			t.Fatalf("should err: %v", err)
+			t.Fatal("should err")
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatalf("timeout")

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -146,7 +147,7 @@ func (r *AllocRunner) DestroyState() error {
 
 // DestroyContext is used to destroy the context
 func (r *AllocRunner) DestroyContext() error {
-	return os.RemoveAll(r.ctx.AllocDir)
+	return r.ctx.AllocDir.Destroy()
 }
 
 // Alloc returns the associated allocation
@@ -277,8 +278,9 @@ func (r *AllocRunner) Run() {
 
 	// Create the execution context
 	if r.ctx == nil {
-		r.ctx = driver.NewExecContext()
-		r.ctx.AllocDir = filepath.Join(r.config.AllocDir, r.alloc.ID)
+		allocDir := allocdir.NewAllocDir(filepath.Join(r.config.AllocDir, r.alloc.ID))
+		allocDir.Build(tg.Tasks)
+		r.ctx = driver.NewExecContext(allocDir)
 	}
 
 	// Start the task runners

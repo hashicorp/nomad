@@ -3,23 +3,46 @@ package driver
 import (
 	"log"
 	"os"
+	"path/filepath"
 	"testing"
 
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
+
+var basicResources = &structs.Resources{
+	CPU:      250,
+	MemoryMB: 256,
+	Networks: []*structs.NetworkResource{
+		&structs.NetworkResource{
+			IP:            "1.2.3.4",
+			ReservedPorts: []int{12345},
+			DynamicPorts:  []string{"HTTP"},
+		},
+	},
+}
 
 func testLogger() *log.Logger {
 	return log.New(os.Stderr, "", log.LstdFlags)
 }
 
 func testConfig() *config.Config {
-	return &config.Config{}
+	conf := &config.Config{}
+	conf.StateDir = os.TempDir()
+	conf.AllocDir = os.TempDir()
+	return conf
 }
 
-func testDriverContext() *DriverContext {
+func testDriverContext(task string) *DriverContext {
 	cfg := testConfig()
-	ctx := NewDriverContext(cfg, cfg.Node, testLogger())
+	return NewDriverContext(task, cfg, cfg.Node, testLogger())
+}
+
+func testDriverExecContext(task *structs.Task, driverCtx *DriverContext) *ExecContext {
+	allocDir := allocdir.NewAllocDir(filepath.Join(driverCtx.config.AllocDir, structs.GenerateUUID()))
+	allocDir.Build([]*structs.Task{task})
+	ctx := NewExecContext(allocDir)
 	return ctx
 }
 
