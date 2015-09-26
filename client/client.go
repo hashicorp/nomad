@@ -156,14 +156,14 @@ func (c *Client) init() error {
 		if err := os.MkdirAll(c.config.AllocDir, 0700); err != nil {
 			return fmt.Errorf("failed creating alloc dir: %s", err)
 		}
+	} else {
+		// Othewise make a temp directory to use.
+		p, err := ioutil.TempDir("", "NomadClient")
+		if err != nil {
+			return fmt.Errorf("failed creating temporary directory for the AllocDir: %v", err)
+		}
+		c.config.AllocDir = p
 	}
-
-	// Othewise make a temp directory to use.
-	p, err := ioutil.TempDir("", "NomadClient")
-	if err != nil {
-		return fmt.Errorf("failed creating temporary directory for the AllocDir: %v", err)
-	}
-	c.config.AllocDir = p
 
 	c.logger.Printf("[INFO] client: using alloc directory %v", c.config.AllocDir)
 	return nil

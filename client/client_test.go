@@ -3,6 +3,7 @@ package client
 import (
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net"
 	"os"
 	"path/filepath"
@@ -393,6 +394,7 @@ func TestClient_Init(t *testing.T) {
 		config: &config.Config{
 			AllocDir: allocDir,
 		},
+		logger: log.New(os.Stderr, "", log.LstdFlags),
 	}
 	if err := client.init(); err != nil {
 		t.Fatalf("err: %s", err)
