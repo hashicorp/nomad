@@ -45,7 +45,6 @@ func main() {
 	fh.Close()
 
 	isRunning := false
-	start := time.Now()
 	allocClient := client.Allocations()
 
 	cmd := exec.Command("nomad", "run", fh.Name())
@@ -53,7 +52,9 @@ func main() {
 		fmt.Println("nomad run failed: " + err.Error())
 		return
 	}
+	start := time.Now()
 
+	last := 0
 	fmt.Printf("benchmarking %d allocations\n", total)
 	for i := 0; ; i++ {
 		time.Sleep(100 * time.Millisecond)
@@ -78,9 +79,10 @@ func main() {
 			}
 		}
 
-		if i%10 == 0 || running == total {
+		if last != running {
 			fmt.Printf("%d running after %s\n", running, now.Sub(start))
 		}
+		last = running
 
 		if running == total {
 			return
@@ -103,8 +105,8 @@ job "bench" {
 			}
 
 			resources {
-				cpu = 100
-                memory = 100
+				cpu = 10
+                memory = 10
 			}
 		}
 	}
