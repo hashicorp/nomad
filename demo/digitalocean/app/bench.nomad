@@ -4,11 +4,11 @@ job "bench" {
 	group "cache" {
 		count = 10000
 
-		task "hello-world" {
+		task "redis" {
 			driver = "docker"
 
 			config {
-				image = "hello-world"
+				image = "redis"
 			}
 
 			resources {
