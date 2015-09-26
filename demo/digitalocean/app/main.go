@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os/exec"
 	"time"
 
 	"github.com/hashicorp/nomad/api"
@@ -16,9 +17,15 @@ func main() {
 	}
 
 	total := 4000
-	running := 0
+	isRunning := false
 	start := time.Now()
 	allocClient := client.Allocations()
+
+	cmd := exec.Command("nomad", "run", "bench.nomad")
+	if err := cmd.Run(); err != nil {
+		fmt.Println("nomad run failed: " + err.Error())
+		return
+	}
 
 	fmt.Printf("benchmarking %d allocations\n", total)
 	for i := 0; ; i++ {
@@ -33,10 +40,12 @@ func main() {
 		}
 		now := time.Now()
 
+		running := 0
 		for _, alloc := range allocs {
 			if alloc.ClientStatus == structs.AllocClientStatusRunning {
-				if running == 0 {
-					fmt.Println("time to first running: %s", now.Sub(start))
+				if !isRunning {
+					fmt.Printf("time to first running: %s\n", now.Sub(start))
+					isRunning = true
 				}
 				running++
 			}
