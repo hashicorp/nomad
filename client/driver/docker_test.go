@@ -94,7 +94,8 @@ func TestDockerDriver_Start_Wait(t *testing.T) {
 
 	task := &structs.Task{
 		Config: map[string]string{
-			"image": "redis",
+			"image":   "redis",
+			"command": "redis-server -v",
 		},
 		Resources: &structs.Resources{
 			MemoryMB: 256,
@@ -121,7 +122,8 @@ func TestDockerDriver_Start_Wait(t *testing.T) {
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
-	case <-time.After(10 * time.Second):
+		// This should only take a second or two
+	case <-time.After(5 * time.Second):
 		t.Fatalf("timeout")
 	}
 }
@@ -169,8 +171,8 @@ func TestDockerDriver_Start_Kill_Wait(t *testing.T) {
 	}
 }
 
-func TestDocker_StartTwo(t *testing.T) {
-	task1 := &structs.Task{
+func taskTemplate() *structs.Task {
+	return &structs.Task{
 		Config: map[string]string{
 			"image": "redis",
 		},
@@ -180,33 +182,51 @@ func TestDocker_StartTwo(t *testing.T) {
 			Networks: []*structs.NetworkResource{
 				&structs.NetworkResource{
 					IP:            "127.0.0.1",
-					ReservedPorts: []int{11114},
+					ReservedPorts: []int{11110},
 					DynamicPorts:  []string{"REDIS"},
 				},
 			},
 		},
 	}
+}
 
-	task2 := &structs.Task{
-		Config: map[string]string{
-			"image": "redis",
-		},
-		Resources: &structs.Resources{
-			MemoryMB: 256,
-			CPU:      512,
-			Networks: []*structs.NetworkResource{
-				&structs.NetworkResource{
-					IP:            "127.0.0.1",
-					ReservedPorts: []int{11115},
-					DynamicPorts:  []string{"REDIS"},
-				},
-			},
-		},
-	}
+func TestDocker_StartN(t *testing.T) {
+
+	task1 := taskTemplate()
+	task1.Resources.Networks[0].ReservedPorts[0] = 11111
+
+	task2 := taskTemplate()
+	task2.Resources.Networks[0].ReservedPorts[0] = 22222
+
+	task3 := taskTemplate()
+	task3.Resources.Networks[0].ReservedPorts[0] = 33333
+
+	taskList := []*structs.Task{task1, task2, task3}
 
 	ctx := NewExecContext()
 	d := NewDockerDriver(testDriverContext())
 
-	d.Start(ctx, task1)
-	d.Start(ctx, task2)
+	handles := make([]DriverHandle, len(taskList))
+
+	t.Log("==> Starting %d tasks", len(taskList))
+
+	// Let's spin up a bunch of things
+	var err error
+	for idx, task := range taskList {
+		handles[idx], err = d.Start(ctx, task)
+		if err != nil {
+			t.Errorf("Failed starting task #%d: %s", idx+1, err)
+		}
+	}
+
+	t.Log("==> All tasks are started. Terminating...")
+
+	for idx, handle := range handles {
+		err := handle.Kill()
+		if err != nil {
+			t.Errorf("Failed stopping task #%d: %s", idx+1, err)
+		}
+	}
+
+	t.Log("==> Test complete!")
 }
