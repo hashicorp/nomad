@@ -343,7 +343,20 @@ func (h *dockerHandle) Kill() error {
 	// job. That is OK. Will we log a message but continue.
 	err = h.client.RemoveImage(h.imageID)
 	if err != nil {
-		log.Printf("[WARN] driver.docker: failed to remove image %s; it may still be in use", h.imageID)
+		containers, err := h.client.ListContainers(docker.ListContainersOptions{
+			Filters: map[string][]string{
+				"image": []string{h.imageID},
+			},
+		})
+		if err != nil {
+			return fmt.Errorf("Unable to query list of containers: %s", err)
+		}
+		inUse := len(containers)
+		if inUse > 0 {
+			log.Printf("[INFO] driver.docker: image %s is still in use by %d containers", h.imageID, inUse)
+		} else {
+			return fmt.Errorf("Failed to remove image %s", h.imageID)
+		}
 	} else {
 		log.Printf("[INFO] driver.docker: removed image %s", h.imageID)
 	}
