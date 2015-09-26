@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -12,11 +11,6 @@ import (
 
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
-)
-
-var (
-	reDockerSha = regexp.MustCompile("^[a-f0-9]{64}$")
-	reNumeric   = regexp.MustCompile("^[0-9]+$")
 )
 
 type DockerDriver struct {
@@ -50,15 +44,14 @@ func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool
 		return false, nil
 	}
 
-	node.Attributes["driver.docker"] = "true"
-
 	env, err := client.Version()
-	for _, item := range *env {
-		parts := strings.Split(item, "=")
-		if parts[0] == "Version" {
-			node.Attributes["driver.docker.version"] = parts[1]
-		}
+	if err != nil {
+		// We connected to the daemon but couldn't read the version so something
+		// is broken.
+		return false, err
 	}
+	node.Attributes["driver.docker"] = "true"
+	node.Attributes["driver.docker.version"] = env.Get("Version")
 
 	return true, nil
 }
@@ -132,7 +125,7 @@ func createContainer(ctx *ExecContext, task *structs.Task, logger *log.Logger) d
 			// Otherwise we'll setup a direct 1:1 mapping from the host port to
 			// the container, and assume that the process inside will read the
 			// environment variable and bind to the correct port.
-			if reNumeric.MatchString(label) {
+			if _, err := strconv.Atoi(label); err == nil {
 				dockerPorts[docker.Port(label+"/tcp")] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: strconv.Itoa(port)}}
 				dockerPorts[docker.Port(label+"/udp")] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: strconv.Itoa(port)}}
 				logger.Printf("[DEBUG] driver.docker: allocated port %s:%d -> %s (mapped)", network.IP, port, label)
@@ -221,12 +214,6 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 			return nil, fmt.Errorf("Failed to determine image id for `%s`: %s", image, err)
 		}
 	}
-
-	// Sanity check
-	if !reDockerSha.MatchString(dockerImage.ID) {
-		return nil, fmt.Errorf("Image id not in expected format (sha256); found %s", dockerImage.ID)
-	}
-
 	d.logger.Printf("[DEBUG] driver.docker: using image %s", dockerImage.ID)
 	d.logger.Printf("[INFO] driver.docker: identified image %s as %s", image, dockerImage.ID)
 
@@ -235,11 +222,6 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	if err != nil {
 		d.logger.Printf("[ERR] driver.docker: %s", err)
 		return nil, fmt.Errorf("Failed to create container from image %s", image)
-	}
-
-	// Sanity check
-	if !reDockerSha.MatchString(container.ID) {
-		return nil, fmt.Errorf("Container id not in expected format (sha256); found %s", container.ID)
 	}
 	d.logger.Printf("[INFO] driver.docker: created container %s", container.ID)
 
