@@ -16,7 +16,7 @@ func main() {
 		return
 	}
 
-	total := 4000
+	total := 10000
 	isRunning := false
 	start := time.Now()
 	allocClient := client.Allocations()
