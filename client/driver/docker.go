@@ -31,6 +31,7 @@ type dockerPID struct {
 }
 
 type dockerHandle struct {
+	client      *docker.Client
 	logger      *log.Logger
 	imageID     string
 	containerID string
@@ -248,6 +249,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 
 	// Return a driver handle
 	h := &dockerHandle{
+		client:      client,
 		logger:      d.logger,
 		imageID:     dockerImage.ID,
 		containerID: container.ID,
@@ -268,6 +270,13 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 	}
 	d.logger.Printf("[INFO] driver.docker: re-attaching to docker process: %s", handleID)
 
+	// Initialize docker API client
+	dockerEndpoint := d.config.ReadDefault("docker.endpoint", "unix:///var/run/docker.sock")
+	client, err := docker.NewClient(dockerEndpoint)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to connect to docker.endpoint (%s): %s", dockerEndpoint, err)
+	}
+
 	// Look for a running container with this ID
 	// docker ps does not return an exit code if there are no matching processes
 	// so we have to read the output and compare it to our known containerID
@@ -282,6 +291,7 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 
 	// Return a driver handle
 	h := &dockerHandle{
+		client:      client,
 		logger:      d.logger,
 		imageID:     pid.ImageID,
 		containerID: pid.ContainerID,
@@ -317,24 +327,27 @@ func (h *dockerHandle) Update(task *structs.Task) error {
 // Kill is used to terminate the task. This uses docker stop -t 5
 func (h *dockerHandle) Kill() error {
 	// Stop the container
-	stop, err := exec.Command("docker", "stop", "-t", "5", h.containerID).CombinedOutput()
+	err := h.client.StopContainer(h.containerID, 5)
 	if err != nil {
-		log.Printf("[ERR] driver.docker: stopping container %s", stop)
+		log.Printf("[ERR] driver.docker: stopping container %s", h.containerID)
 		return fmt.Errorf("Failed to stop container %s: %s", h.containerID, err)
 	}
 	log.Printf("[INFO] driver.docker: stopped container %s", h.containerID)
 
 	// Cleanup container
-	rmContainer, err := exec.Command("docker", "rm", h.containerID).CombinedOutput()
+	err = h.client.RemoveContainer(docker.RemoveContainerOptions{
+		ID:            h.containerID,
+		RemoveVolumes: true,
+	})
 	if err != nil {
-		log.Printf("[ERR] driver.docker: removing container %s", rmContainer)
+		log.Printf("[ERR] driver.docker: removing container %s", h.containerID)
 		return fmt.Errorf("Failed to remove container %s: %s", h.containerID, err)
 	}
 	log.Printf("[INFO] driver.docker: removed container %s", h.containerID)
 
 	// Cleanup image. This operation may fail if the image is in use by another
 	// job. That is OK. Will we log a message but continue.
-	_, err = exec.Command("docker", "rmi", h.imageID).CombinedOutput()
+	err = h.client.RemoveImage(h.imageID)
 	if err != nil {
 		log.Printf("[WARN] driver.docker: failed to remove image %s; it may still be in use", h.imageID)
 	} else {
@@ -345,21 +358,10 @@ func (h *dockerHandle) Kill() error {
 
 func (h *dockerHandle) run() {
 	// Wait for it...
-	waitBytes, err := exec.Command("docker", "wait", h.containerID).Output()
+	// TODO should we do something with exit status?
+	_, err := h.client.WaitContainer(h.containerID)
 	if err != nil {
 		h.logger.Printf("[ERR] driver.docker: unable to wait for %s; container already terminated", h.containerID)
-	}
-	wait := strings.TrimSpace(string(waitBytes))
-
-	// If the container failed, try to get the last 10 lines of logs for our
-	// error message.
-	if wait != "0" {
-		var logsBytes []byte
-		logsBytes, err = exec.Command("docker", "logs", "--tail=10", h.containerID).Output()
-		logs := string(logsBytes)
-		if err == nil {
-			err = fmt.Errorf("%s", logs)
-		}
 	}
 
 	close(h.doneCh)

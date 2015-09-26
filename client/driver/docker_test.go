@@ -129,7 +129,6 @@ func TestDockerDriver_Start_Wait(t *testing.T) {
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
-		// This should only take a second or two
 	case <-time.After(5 * time.Second):
 		t.Fatalf("timeout")
 	}
