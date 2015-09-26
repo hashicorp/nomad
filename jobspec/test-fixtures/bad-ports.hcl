@@ -43,7 +43,7 @@ job "binstore-storagelocker" {
                 network {
                     mbits = "100"
                     reserved_ports = [1,2,3]
-                    dynamic_ports = ["Http", "pie-waka", "admin"]
+                    dynamic_ports = ["this_is_aport", "this#is$not-a!port"]
                 }
             }
         }

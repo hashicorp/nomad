@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/hcl"
@@ -378,10 +379,22 @@ func parseResources(result *structs.Resources, obj *hclobj.Object) error {
 				return err
 			}
 
+			// Keep track of labels we've already seen so we can ensure there
+			// are no collisions when we turn them into environment variables.
+			// lowercase:NomalCase so we can get the first for the error message
+			seenLabel := map[string]string{}
+
 			for _, label := range r.DynamicPorts {
 				if !reDynamicPorts.MatchString(label) {
 					return errDynamicPorts
 				}
+				first, seen := seenLabel[strings.ToLower(label)]
+				if seen {
+					return fmt.Errorf("Found a port label collision: `%s` overlaps with previous `%s`", label, first)
+				} else {
+					seenLabel[strings.ToLower(label)] = label
+				}
+
 			}
 
 			result.Networks = []*structs.NetworkResource{&r}
