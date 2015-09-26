@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -55,20 +56,22 @@ type Driver interface {
 // node attributes into a Driver without having to change the Driver interface
 // each time we do it. Used in conjection with Factory, above.
 type DriverContext struct {
-	config *config.Config
-	logger *log.Logger
-	node   *structs.Node
+	taskName string
+	config   *config.Config
+	logger   *log.Logger
+	node     *structs.Node
 }
 
 // NewDriverContext initializes a new DriverContext with the specified fields.
 // This enables other packages to create DriverContexts but keeps the fields
 // private to the driver. If we want to change this later we can gorename all of
 // the fields in DriverContext.
-func NewDriverContext(config *config.Config, node *structs.Node, logger *log.Logger) *DriverContext {
+func NewDriverContext(taskName string, config *config.Config, node *structs.Node, logger *log.Logger) *DriverContext {
 	return &DriverContext{
-		config: config,
-		node:   node,
-		logger: logger,
+		taskName: taskName,
+		config:   config,
+		node:     node,
+		logger:   logger,
 	}
 }
 
@@ -92,15 +95,13 @@ type DriverHandle interface {
 type ExecContext struct {
 	sync.Mutex
 
-	// AllocDir is the directory used for storing any state
-	// of this allocation. It will be purged on alloc destroy.
-	AllocDir string
+	// AllocDir contains information about the alloc directory structure.
+	AllocDir *allocdir.AllocDir
 }
 
 // NewExecContext is used to create a new execution context
-func NewExecContext() *ExecContext {
-	ctx := &ExecContext{}
-	return ctx
+func NewExecContext(alloc *allocdir.AllocDir) *ExecContext {
+	return &ExecContext{AllocDir: alloc}
 }
 
 // PopulateEnvironment converts exec context and task configuration into

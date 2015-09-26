@@ -142,19 +142,30 @@ func NewClient(cfg *config.Config) (*Client, error) {
 // init is used to initialize the client and perform any setup
 // needed before we begin starting its various components.
 func (c *Client) init() error {
-	// Ensure the alloc dir exists if we have one
-	if c.config.AllocDir != "" {
-		if err := os.MkdirAll(c.config.AllocDir, 0700); err != nil {
-			return fmt.Errorf("failed creating alloc dir: %s", err)
-		}
-	}
-
 	// Ensure the state dir exists if we have one
 	if c.config.StateDir != "" {
 		if err := os.MkdirAll(c.config.StateDir, 0700); err != nil {
 			return fmt.Errorf("failed creating state dir: %s", err)
 		}
+
+		c.logger.Printf("[INFO] client: using state directory %v", c.config.StateDir)
 	}
+
+	// Ensure the alloc dir exists if we have one
+	if c.config.AllocDir != "" {
+		if err := os.MkdirAll(c.config.AllocDir, 0700); err != nil {
+			return fmt.Errorf("failed creating alloc dir: %s", err)
+		}
+	} else {
+		// Othewise make a temp directory to use.
+		p, err := ioutil.TempDir("", "NomadClient")
+		if err != nil {
+			return fmt.Errorf("failed creating temporary directory for the AllocDir: %v", err)
+		}
+		c.config.AllocDir = p
+	}
+
+	c.logger.Printf("[INFO] client: using alloc directory %v", c.config.AllocDir)
 	return nil
 }
 
@@ -431,7 +442,7 @@ func (c *Client) fingerprint() error {
 // setupDrivers is used to find the available drivers
 func (c *Client) setupDrivers() error {
 	var avail []string
-	driverCtx := driver.NewDriverContext(c.config, c.config.Node, c.logger)
+	driverCtx := driver.NewDriverContext("", c.config, c.config.Node, c.logger)
 	for name := range driver.BuiltinDrivers {
 		d, err := driver.NewDriver(name, driverCtx)
 		if err != nil {

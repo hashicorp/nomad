@@ -132,7 +132,11 @@ func TestEvalEndpoint_Ack(t *testing.T) {
 }
 
 func TestEvalEndpoint_Nack(t *testing.T) {
-	s1 := testServer(t, nil)
+	s1 := testServer(t, func(c *Config) {
+		// Disable all of the schedulers so we can manually dequeue
+		// evals and check the queue status
+		c.NumSchedulers = 0
+	})
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 

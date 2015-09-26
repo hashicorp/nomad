@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -21,6 +22,13 @@ type UniversalExecutor struct {
 }
 
 func (e *UniversalExecutor) Limit(resources *structs.Resources) error {
+	if resources == nil {
+		return errNoResources
+	}
+	return nil
+}
+
+func (e *UniversalExecutor) ConfigureTaskDir(taskName string, alloc *allocdir.AllocDir) error {
 	// No-op
 	return nil
 }

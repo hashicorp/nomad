@@ -36,6 +36,6 @@ func (c *cmd) SetGID(groupid string) error {
 	if c.SysProcAttr.Credential == nil {
 		c.SysProcAttr.Credential = &syscall.Credential{}
 	}
-	c.SysProcAttr.Credential.Uid = uint32(gid)
+	c.SysProcAttr.Credential.Gid = uint32(gid)
 	return nil
 }

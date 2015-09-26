@@ -3,10 +3,12 @@ package client
 import (
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -36,9 +38,9 @@ func (m *MockTaskStateUpdater) Update(name, status, desc string) {
 func testTaskRunner() (*MockTaskStateUpdater, *TaskRunner) {
 	logger := testLogger()
 	conf := DefaultConfig()
-	conf.StateDir = "/tmp"
+	conf.StateDir = os.TempDir()
+	conf.AllocDir = os.TempDir()
 	upd := &MockTaskStateUpdater{}
-	ctx := driver.NewExecContext()
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 
@@ -46,6 +48,10 @@ func testTaskRunner() (*MockTaskStateUpdater, *TaskRunner) {
 	// we have a mock so that doesn't happen.
 	task.Resources.Networks[0].ReservedPorts = []int{80}
 
+	allocDir := allocdir.NewAllocDir(filepath.Join(conf.AllocDir, alloc.ID))
+	allocDir.Build([]*structs.Task{task})
+
+	ctx := driver.NewExecContext(allocDir)
 	tr := NewTaskRunner(logger, conf, upd.Update, ctx, alloc.ID, task)
 	return upd, tr
 }
@@ -55,6 +61,7 @@ func TestTaskRunner_SimpleRun(t *testing.T) {
 	upd, tr := testTaskRunner()
 	go tr.Run()
 	defer tr.Destroy()
+	defer tr.ctx.AllocDir.Destroy()
 
 	select {
 	case <-tr.WaitCh():
@@ -89,6 +96,7 @@ func TestTaskRunner_SimpleRun(t *testing.T) {
 func TestTaskRunner_Destroy(t *testing.T) {
 	ctestutil.ExecCompatible(t)
 	upd, tr := testTaskRunner()
+	defer tr.ctx.AllocDir.Destroy()
 
 	// Change command to ensure we run for a bit
 	tr.task.Config["command"] = "/bin/sleep"
@@ -130,6 +138,7 @@ func TestTaskRunner_Update(t *testing.T) {
 	tr.task.Config["args"] = "10"
 	go tr.Run()
 	defer tr.Destroy()
+	defer tr.ctx.AllocDir.Destroy()
 
 	// Update the task definition
 	newTask := new(structs.Task)

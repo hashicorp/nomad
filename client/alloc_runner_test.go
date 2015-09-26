@@ -1,6 +1,7 @@
 package client
 
 import (
+	"os"
 	"testing"
 	"time"
 
@@ -26,7 +27,8 @@ func (m *MockAllocStateUpdater) Update(alloc *structs.Allocation) error {
 func testAllocRunner() (*MockAllocStateUpdater, *AllocRunner) {
 	logger := testLogger()
 	conf := DefaultConfig()
-	conf.StateDir = "/tmp"
+	conf.StateDir = os.TempDir()
+	conf.AllocDir = os.TempDir()
 	upd := &MockAllocStateUpdater{}
 	alloc := mock.Alloc()
 	ar := NewAllocRunner(logger, conf, upd.Update, alloc)

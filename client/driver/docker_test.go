@@ -33,7 +33,7 @@ func TestDockerDriver_Handle(t *testing.T) {
 
 // The fingerprinter test should always pass, even if Docker is not installed.
 func TestDockerDriver_Fingerprint(t *testing.T) {
-	d := NewDockerDriver(testDriverContext())
+	d := NewDockerDriver(testDriverContext(""))
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
@@ -54,18 +54,20 @@ func TestDockerDriver_StartOpen_Wait(t *testing.T) {
 	if !dockerLocated() {
 		t.SkipNow()
 	}
-	ctx := NewExecContext()
-	d := NewDockerDriver(testDriverContext())
 
 	task := &structs.Task{
+		Name: "python-demo",
 		Config: map[string]string{
 			"image": "redis",
 		},
-		Resources: &structs.Resources{
-			MemoryMB: 256,
-			CPU:      512,
-		},
+		Resources: basicResources,
 	}
+
+	driverCtx := testDriverContext(task.Name)
+	ctx := testDriverExecContext(task, driverCtx)
+	defer ctx.AllocDir.Destroy()
+	d := NewDockerDriver(driverCtx)
+
 	handle, err := d.Start(ctx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -89,10 +91,9 @@ func TestDockerDriver_Start_Wait(t *testing.T) {
 	if !dockerLocated() {
 		t.SkipNow()
 	}
-	ctx := NewExecContext()
-	d := NewDockerDriver(testDriverContext())
 
 	task := &structs.Task{
+		Name: "python-demo",
 		Config: map[string]string{
 			"image":   "redis",
 			"command": "redis-server -v",
@@ -102,6 +103,12 @@ func TestDockerDriver_Start_Wait(t *testing.T) {
 			CPU:      512,
 		},
 	}
+
+	driverCtx := testDriverContext(task.Name)
+	ctx := testDriverExecContext(task, driverCtx)
+	defer ctx.AllocDir.Destroy()
+	d := NewDockerDriver(driverCtx)
+
 	handle, err := d.Start(ctx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -132,18 +139,20 @@ func TestDockerDriver_Start_Kill_Wait(t *testing.T) {
 	if !dockerLocated() {
 		t.SkipNow()
 	}
-	ctx := NewExecContext()
-	d := NewDockerDriver(testDriverContext())
 
 	task := &structs.Task{
+		Name: "python-demo",
 		Config: map[string]string{
 			"image": "redis",
 		},
-		Resources: &structs.Resources{
-			MemoryMB: 256,
-			CPU:      512,
-		},
+		Resources: basicResources,
 	}
+
+	driverCtx := testDriverContext(task.Name)
+	ctx := testDriverExecContext(task, driverCtx)
+	defer ctx.AllocDir.Destroy()
+	d := NewDockerDriver(driverCtx)
+
 	handle, err := d.Start(ctx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -203,9 +212,6 @@ func TestDocker_StartN(t *testing.T) {
 
 	taskList := []*structs.Task{task1, task2, task3}
 
-	ctx := NewExecContext()
-	d := NewDockerDriver(testDriverContext())
-
 	handles := make([]DriverHandle, len(taskList))
 
 	t.Log("==> Starting %d tasks", len(taskList))
@@ -213,6 +219,11 @@ func TestDocker_StartN(t *testing.T) {
 	// Let's spin up a bunch of things
 	var err error
 	for idx, task := range taskList {
+		driverCtx := testDriverContext(task.Name)
+		ctx := testDriverExecContext(task, driverCtx)
+		defer ctx.AllocDir.Destroy()
+		d := NewDockerDriver(driverCtx)
+
 		handles[idx], err = d.Start(ctx, task)
 		if err != nil {
 			t.Errorf("Failed starting task #%d: %s", idx+1, err)
@@ -247,9 +258,6 @@ func TestDocker_StartNVersions(t *testing.T) {
 
 	taskList := []*structs.Task{task1, task2, task3}
 
-	ctx := NewExecContext()
-	d := NewDockerDriver(testDriverContext())
-
 	handles := make([]DriverHandle, len(taskList))
 
 	t.Log("==> Starting %d tasks", len(taskList))
@@ -257,6 +265,11 @@ func TestDocker_StartNVersions(t *testing.T) {
 	// Let's spin up a bunch of things
 	var err error
 	for idx, task := range taskList {
+		driverCtx := testDriverContext(task.Name)
+		ctx := testDriverExecContext(task, driverCtx)
+		defer ctx.AllocDir.Destroy()
+		d := NewDockerDriver(driverCtx)
+
 		handles[idx], err = d.Start(ctx, task)
 		if err != nil {
 			t.Errorf("Failed starting task #%d: %s", idx+1, err)

@@ -8,7 +8,7 @@ description: |-
 
 # Runtime Environment
 
-Some settings you specify in your [jobspec](/docs/jobspec/) are passed to tasks
+Some settings you specify in your [job specification](/docs/jobspec/) are passed to tasks
 when they start. Other settings are dynamically allocated when your job is
 scheduled. Both types of values are made available to your job through
 environment variables.
@@ -32,7 +32,7 @@ Both CPU and memory are presented as integers. The unit for CPU limit is
 
 Writing your applications to adjust to these values at runtime provides greater
 scheduling flexibility since you can adjust the resource allocations in your
-jobspec without needing to change your code. You can also schedule workloads
+job specification without needing to change your code. You can also schedule workloads
 that accept dynamic resource allocations so they can scale down/up as your
 cluster gets more or less busy.
 
@@ -41,10 +41,10 @@ cluster gets more or less busy.
 Each task will receive port allocations on a single IP address. The IP is made
 available through `NOMAD_IP.`
 
-If you requested reserved ports in your jobspec and your task is successfully
+If you requested reserved ports in your job specification and your task is successfully
 scheduled, these ports are available for your use. Ports from `reserved_ports`
 in the job spec are not exposed through the environment. If you requested
-dynamic ports in your jobspec these are made known to your application via
+dynamic ports in your job specification these are made known to your application via
 environment variables `NOMAD_PORT_{LABEL}`. For example
 `dynamic_ports = ["HTTP"]` becomes `NOMAD_PORT_HTTP`.
 
@@ -58,11 +58,11 @@ Please see the relevant driver documentation for details.
 
 ## Meta
 
-The jobspec also allows you to specify a `meta` block to supply arbitrary
+The job specification also allows you to specify a `meta` block to supply arbitrary
 configuration to a task. This allows you to easily provide job-specific
 configuration even if you use the same executable unit in multiple jobs. These
 key-value pairs are passed through to the job as `NOMAD_META_{KEY}={value}`,
-where `key` is UPPERCASED from the jobspec.
+where `key` is UPPERCASED from the job specification.
 
 Currently there is no enforcement that the meta values be lowercase, but using
 multiple keys with the same uppercased representation will lead to undefined
