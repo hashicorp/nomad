@@ -56,7 +56,7 @@ func main() {
 
 	last := 0
 	fmt.Printf("benchmarking %d allocations\n", total)
-	for i := 0; ; i++ {
+	for {
 		time.Sleep(100 * time.Millisecond)
 
 		allocs, _, err := allocClient.List(nil)
