@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"os/exec"
 	"regexp"
 	"strconv"
 	"strings"
@@ -16,9 +15,8 @@ import (
 )
 
 var (
-	reDockerVersion = regexp.MustCompile("Docker version ([\\d\\.]+),.+")
-	reDockerSha     = regexp.MustCompile("^[a-f0-9]{64}$")
-	reNumeric       = regexp.MustCompile("^[0-9]+$")
+	reDockerSha = regexp.MustCompile("^[a-f0-9]{64}$")
+	reNumeric   = regexp.MustCompile("^[0-9]+$")
 )
 
 type DockerDriver struct {
@@ -44,19 +42,23 @@ func NewDockerDriver(ctx *DriverContext) Driver {
 }
 
 func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
-	outBytes, err := exec.Command("docker", "-v").Output()
-	out := strings.TrimSpace(string(outBytes))
+	// Initialize docker API client
+	dockerEndpoint := d.config.ReadDefault("docker.endpoint", "unix:///var/run/docker.sock")
+	client, err := docker.NewClient(dockerEndpoint)
 	if err != nil {
+		node.Attributes["driver.docker"] = "false"
 		return false, nil
 	}
 
-	matches := reDockerVersion.FindStringSubmatch(out)
-	if len(matches) != 2 {
-		return false, fmt.Errorf("Unable to parse docker version string: %#v", matches)
-	}
-
 	node.Attributes["driver.docker"] = "true"
-	node.Attributes["driver.docker.version"] = matches[1]
+
+	env, err := client.Version()
+	for _, item := range *env {
+		parts := strings.Split(item, "=")
+		if parts[0] == "Version" {
+			node.Attributes["driver.docker.version"] = parts[1]
+		}
+	}
 
 	return true, nil
 }
@@ -280,13 +282,23 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 	// Look for a running container with this ID
 	// docker ps does not return an exit code if there are no matching processes
 	// so we have to read the output and compare it to our known containerID
-	psBytes, err := exec.Command("docker", "ps", "-q", "--no-trunc",
-		fmt.Sprintf("-f=id=%s", pid.ContainerID)).Output()
-	ps := strings.TrimSpace(string(psBytes))
+	containers, err := client.ListContainers(docker.ListContainersOptions{
+		Filters: map[string][]string{
+			"id": []string{pid.ContainerID},
+		},
+	})
 	if err != nil {
+		return nil, fmt.Errorf("Failed to query for container %s: %v", pid.ContainerID, err)
+	}
+
+	found := false
+	for _, container := range containers {
+		if container.ID == pid.ContainerID {
+			found = true
+		}
+	}
+	if !found {
 		return nil, fmt.Errorf("Failed to find container %s: %v", pid.ContainerID, err)
-	} else if ps != pid.ContainerID {
-		return nil, fmt.Errorf("Container ID does not match; expected %s found %s", pid.ContainerID, ps)
 	}
 
 	// Return a driver handle
