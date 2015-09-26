@@ -230,3 +230,47 @@ func TestDocker_StartN(t *testing.T) {
 
 	t.Log("==> Test complete!")
 }
+
+func TestDocker_StartNVersions(t *testing.T) {
+
+	task1 := taskTemplate()
+	task1.Config["image"] = "redis"
+	task1.Resources.Networks[0].ReservedPorts[0] = 11111
+
+	task2 := taskTemplate()
+	task2.Config["image"] = "redis:latest"
+	task2.Resources.Networks[0].ReservedPorts[0] = 22222
+
+	task3 := taskTemplate()
+	task3.Config["image"] = "redis:3.0"
+	task3.Resources.Networks[0].ReservedPorts[0] = 33333
+
+	taskList := []*structs.Task{task1, task2, task3}
+
+	ctx := NewExecContext()
+	d := NewDockerDriver(testDriverContext())
+
+	handles := make([]DriverHandle, len(taskList))
+
+	t.Log("==> Starting %d tasks", len(taskList))
+
+	// Let's spin up a bunch of things
+	var err error
+	for idx, task := range taskList {
+		handles[idx], err = d.Start(ctx, task)
+		if err != nil {
+			t.Errorf("Failed starting task #%d: %s", idx+1, err)
+		}
+	}
+
+	t.Log("==> All tasks are started. Terminating...")
+
+	for idx, handle := range handles {
+		err := handle.Kill()
+		if err != nil {
+			t.Errorf("Failed stopping task #%d: %s", idx+1, err)
+		}
+	}
+
+	t.Log("==> Test complete!")
+}
