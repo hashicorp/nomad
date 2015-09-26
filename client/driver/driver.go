@@ -3,6 +3,7 @@ package driver
 import (
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -104,35 +105,45 @@ func NewExecContext(alloc *allocdir.AllocDir) *ExecContext {
 	return &ExecContext{AllocDir: alloc}
 }
 
-// PopulateEnvironment converts exec context and task configuration into
-// environment variables so they can be passed along to a driver.
-//
-// The output is a list of strings with NAME=value pairs.
-func PopulateEnvironment(ctx *ExecContext, task *structs.Task) []string {
+// PopulateEnvironment takes a map of environment variables to their values
+// and outputs is a list of strings with NAME=value pairs.
+func PopulateEnvironment(envVars map[string]string) []string {
 	env := []string{}
+	for k, v := range envVars {
+		env = append(env, fmt.Sprintf("%s=%s", k, v))
+	}
 
-	env = append(env, fmt.Sprintf("NOMAD_ALLOC_DIR=%s", ctx.AllocDir))
+	return env
+}
+
+// TaskEnvironmentVariables converts exec context and task configuration into a
+// map of environment variables.
+func TaskEnvironmentVariables(ctx *ExecContext, task *structs.Task) map[string]string {
+	env := make(map[string]string)
+
+	// This environment variable is liable to be changed by the drivers.
+	env["NOMAD_ALLOC_DIR"] = ctx.AllocDir.AllocDir
 
 	if task.Resources != nil {
-		env = append(env, fmt.Sprintf("NOMAD_MEMORY_LIMIT=%d", task.Resources.MemoryMB))
-		env = append(env, fmt.Sprintf("NOMAD_CPU_LIMIT=%d", task.Resources.CPU))
+		env["NOMAD_MEMORY_LIMIT"] = strconv.Itoa(task.Resources.MemoryMB)
+		env["NOMAD_CPU_LIMIT"] = strconv.Itoa(task.Resources.CPU)
 
 		if len(task.Resources.Networks) > 0 {
 			network := task.Resources.Networks[0]
 
 			// IP address for this task
-			env = append(env, fmt.Sprintf("NOMAD_IP=%s", network.IP))
+			env["NOMAD_IP"] = network.IP
 
 			// Named ports for this task
 			for label, port := range network.MapDynamicPorts() {
-				env = append(env, fmt.Sprintf("NOMAD_PORT_%s=%d", strings.ToUpper(label), port))
+				env[fmt.Sprintf("NOMAD_PORT_%s", label)] = strconv.Itoa(port)
 			}
 		}
 	}
 
 	// Meta values
 	for key, value := range task.Meta {
-		env = append(env, fmt.Sprintf("NOMAD_META_%s=%s", strings.ToUpper(key), value))
+		env[fmt.Sprintf("NOMAD_META_%s", strings.ToUpper(key))] = value
 	}
 
 	return env

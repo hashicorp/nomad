@@ -3,11 +3,11 @@ package driver
 import (
 	"fmt"
 	"runtime"
-	"strings"
 	"syscall"
 	"time"
 
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/driver/args"
 	"github.com/hashicorp/nomad/client/executor"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -48,21 +48,27 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		return nil, fmt.Errorf("missing command for exec driver")
 	}
 
+	// Get the environment variables.
+	envVars := TaskEnvironmentVariables(ctx, task)
+
 	// Look for arguments
-	argRaw, ok := task.Config["args"]
-	var args []string
-	if ok {
-		args = strings.Split(argRaw, " ")
+	var cmdArgs []string
+	if argRaw, ok := task.Config["args"]; ok {
+		parsed, err := args.ParseAndReplace(argRaw, envVars)
+		if err != nil {
+			return nil, err
+		}
+		cmdArgs = append(cmdArgs, parsed...)
 	}
 
 	// Setup the command
-	cmd := executor.Command(command, args...)
+	cmd := executor.Command(command, cmdArgs...)
 	if err := cmd.Limit(task.Resources); err != nil {
 		return nil, fmt.Errorf("failed to constrain resources: %s", err)
 	}
 
 	// Populate environment variables
-	cmd.Command().Env = PopulateEnvironment(ctx, task)
+	cmd.Command().Env = PopulateEnvironment(envVars)
 
 	if err := cmd.ConfigureTaskDir(d.taskName, ctx.AllocDir); err != nil {
 		return nil, fmt.Errorf("failed to configure task directory: %v", err)
