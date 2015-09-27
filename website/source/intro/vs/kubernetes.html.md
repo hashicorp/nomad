@@ -27,7 +27,7 @@ services which together provide the full functionality. Coordination and
 storage is provided by etcd at the core. The state is wrapped by API controllers
 which are consumed by other services that provide higher level APIs for features
 like scheduling. Kubernetes supports running in a highly available
-configuration but is operationally complex to setup.
+configuration with some additional user configuration.
 
 Nomad is architecturally much simpler. Nomad is a single binary, both for clients
 and servers, and requires no external services for coordination or storage.
@@ -36,6 +36,6 @@ into a single system. By default, Nomad is distributed, highly available,
 and operationally simple.
 
 At the time of writing, Kubernetes targets managing 100 node clusters and supports
-only a single region. Nomad is designed to support clusters several orders of magnitude
+only a single region, although work is underway to improve scale and federation of clusters.
+Nomad is designed to support clusters several orders of magnitude
 larger and supports multi-datacenter and multi-region configurations.
-
