@@ -129,7 +129,10 @@ func (e *LinuxExecutor) ConfigureTaskDir(taskName string, alloc *allocdir.AllocD
 	}
 
 	// Set the tasks AllocDir environment variable.
-	env := environment.ParseFromList(e.Cmd.Env)
+	env, err := environment.ParseFromList(e.Cmd.Env)
+	if err != nil {
+		return err
+	}
 	env.SetAllocDir(filepath.Join(taskDir, allocdir.SharedAllocName))
 	e.Cmd.Env = env.List()
 
