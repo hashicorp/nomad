@@ -28,7 +28,7 @@
 		display: inline-block;
 		width: 499px;
 		height: 340px;
-		margin: 120px auto 40px;
+		margin: 48px auto 40px;
 		z-index: 2;
 
 		#hero-logotype{
@@ -83,20 +83,6 @@
 	#hero-text{
 		position: relative;
 
-		&:before{
-			content: '';
-			position: absolute;
-			top: -40px;
-			left: 50%;
-			width: 800px;
-			height: 800px;
-			margin-left: -400px;
-			border-radius: 4px;
-			opacity: .78;
-			background-color: $white;
-			z-index: 1;
-		}
-
 		#hero-text-content{
 			position: relative;
 			z-index: 2;
@@ -104,6 +90,7 @@
 		}
 
 		h1{
+			margin-top: 0;
 			color: $blue-dark;
 			font-size: $font-size-xl;
 			font-family: $font-family-blanc;
