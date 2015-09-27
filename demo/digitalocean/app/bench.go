@@ -56,10 +56,11 @@ func main() {
 
 	last := 0
 	fmt.Printf("benchmarking %d allocations\n", total)
+	opts := &api.QueryOptions{AllowStale: true}
 	for {
 		time.Sleep(100 * time.Millisecond)
 
-		allocs, _, err := allocClient.List(nil)
+		allocs, _, err := allocClient.List(opts)
 		if err != nil {
 			fmt.Println(err.Error())
 
