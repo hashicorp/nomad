@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"sort"
 	"testing"
 
 	"github.com/hashicorp/nomad/client/allocdir"
@@ -77,20 +76,10 @@ func TestDriver_TaskEnvironmentVariables(t *testing.T) {
 		"NOMAD_PORT_5000":       "12345",
 		"NOMAD_META_CHOCOLATE":  "cake",
 		"NOMAD_META_STRAWBERRY": "icecream",
-		"NOMAD_ALLOC_DIR":       "",
 	}
 
-	if !reflect.DeepEqual(env, exp) {
-		t.Fatalf("TaskEnvironmentVariables(%#v, %#v) returned %#v; want %#v", ctx, task, env, exp)
-	}
-}
-
-func TestDriver_PopulateEnvironment(t *testing.T) {
-	envVars := map[string]string{"foo": "bar", "BAZ": "baM"}
-	act := PopulateEnvironment(envVars)
-	sort.Strings(act)
-	exp := []string{"foo=bar", "BAZ=baM"}
+	act := env.Map()
 	if !reflect.DeepEqual(act, exp) {
-		t.Fatalf("PopulateEnvironment(%v) returned %v; want %v", envVars, act, exp)
+		t.Fatalf("TaskEnvironmentVariables(%#v, %#v) returned %#v; want %#v", ctx, task, act, exp)
 	}
 }

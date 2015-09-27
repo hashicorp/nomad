@@ -54,7 +54,7 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	// Look for arguments
 	var cmdArgs []string
 	if argRaw, ok := task.Config["args"]; ok {
-		parsed, err := args.ParseAndReplace(argRaw, envVars)
+		parsed, err := args.ParseAndReplace(argRaw, envVars.Map())
 		if err != nil {
 			return nil, err
 		}
@@ -68,7 +68,7 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	}
 
 	// Populate environment variables
-	cmd.Command().Env = PopulateEnvironment(envVars)
+	cmd.Command().Env = envVars.List()
 
 	if err := cmd.ConfigureTaskDir(d.taskName, ctx.AllocDir); err != nil {
 		return nil, fmt.Errorf("failed to configure task directory: %v", err)

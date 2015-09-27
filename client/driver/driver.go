@@ -3,12 +3,11 @@ package driver
 import (
 	"fmt"
 	"log"
-	"strconv"
-	"strings"
 	"sync"
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/driver/environment"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -105,45 +104,25 @@ func NewExecContext(alloc *allocdir.AllocDir) *ExecContext {
 	return &ExecContext{AllocDir: alloc}
 }
 
-// PopulateEnvironment takes a map of environment variables to their values
-// and outputs is a list of strings with NAME=value pairs.
-func PopulateEnvironment(envVars map[string]string) []string {
-	env := []string{}
-	for k, v := range envVars {
-		env = append(env, fmt.Sprintf("%s=%s", k, v))
+// TaskEnvironmentVariables converts exec context and task configuration into a
+// TaskEnvironment.
+func TaskEnvironmentVariables(ctx *ExecContext, task *structs.Task) environment.TaskEnvironment {
+	env := environment.NewTaskEnivornment()
+	env.SetMeta(task.Meta)
+
+	if ctx.AllocDir != nil {
+		env.SetAllocDir(ctx.AllocDir.AllocDir)
 	}
 
-	return env
-}
-
-// TaskEnvironmentVariables converts exec context and task configuration into a
-// map of environment variables.
-func TaskEnvironmentVariables(ctx *ExecContext, task *structs.Task) map[string]string {
-	env := make(map[string]string)
-
-	// This environment variable is liable to be changed by the drivers.
-	env["NOMAD_ALLOC_DIR"] = ctx.AllocDir.AllocDir
-
 	if task.Resources != nil {
-		env["NOMAD_MEMORY_LIMIT"] = strconv.Itoa(task.Resources.MemoryMB)
-		env["NOMAD_CPU_LIMIT"] = strconv.Itoa(task.Resources.CPU)
+		env.SetMemLimit(task.Resources.MemoryMB)
+		env.SetCpuLimit(task.Resources.CPU)
 
 		if len(task.Resources.Networks) > 0 {
 			network := task.Resources.Networks[0]
-
-			// IP address for this task
-			env["NOMAD_IP"] = network.IP
-
-			// Named ports for this task
-			for label, port := range network.MapDynamicPorts() {
-				env[fmt.Sprintf("NOMAD_PORT_%s", label)] = strconv.Itoa(port)
-			}
+			env.SetTaskIp(network.IP)
+			env.SetPorts(network.MapDynamicPorts())
 		}
-	}
-
-	// Meta values
-	for key, value := range task.Meta {
-		env[fmt.Sprintf("NOMAD_META_%s", strings.ToUpper(key))] = value
 	}
 
 	return env

@@ -150,7 +150,7 @@ func createContainer(ctx *ExecContext, task *structs.Task, logger *log.Logger) d
 	}
 
 	config := &docker.Config{
-		Env:   PopulateEnvironment(TaskEnvironmentVariables(ctx, task)),
+		Env:   TaskEnvironmentVariables(ctx, task).List(),
 		Image: task.Config["image"],
 	}
 

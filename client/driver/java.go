@@ -137,7 +137,7 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	// Build the argument list.
 	cmdArgs := []string{"-jar", filepath.Join(allocdir.TaskLocal, fName)}
 	if argRaw, ok := task.Config["args"]; ok {
-		parsed, err := args.ParseAndReplace(argRaw, envVars)
+		parsed, err := args.ParseAndReplace(argRaw, envVars.Map())
 		if err != nil {
 			return nil, err
 		}
@@ -149,7 +149,7 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	cmd := executor.Command("java", cmdArgs...)
 
 	// Populate environment variables
-	cmd.Command().Env = PopulateEnvironment(envVars)
+	cmd.Command().Env = envVars.List()
 
 	if err := cmd.Limit(task.Resources); err != nil {
 		return nil, fmt.Errorf("failed to constrain resources: %s", err)
