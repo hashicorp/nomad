@@ -23,12 +23,14 @@ type dockerPID struct {
 }
 
 type dockerHandle struct {
-	client      *docker.Client
-	logger      *log.Logger
-	imageID     string
-	containerID string
-	waitCh      chan error
-	doneCh      chan struct{}
+	client           *docker.Client
+	logger           *log.Logger
+	cleanupContainer bool
+	cleanupImage     bool
+	imageID          string
+	containerID      string
+	waitCh           chan error
+	doneCh           chan struct{}
 }
 
 func NewDockerDriver(ctx *DriverContext) Driver {
@@ -44,11 +46,11 @@ func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool
 		return false, nil
 	}
 
-	cleanupContainer, err := strconv.ParseBool(d.config.ReadDefault("docker.cleanup.container", "true"))
+	_, err = strconv.ParseBool(d.config.ReadDefault("docker.cleanup.container", "true"))
 	if err != nil {
 		return false, fmt.Errorf("Unable to parse docker.cleanup.container: %s", err)
 	}
-	cleanupImage, err := strconv.ParseBool(d.config.ReadDefault("docker.cleanup.image", "true"))
+	_, err = strconv.ParseBool(d.config.ReadDefault("docker.cleanup.image", "true"))
 	if err != nil {
 		return false, fmt.Errorf("Unable to parse docker.cleanup.image: %s", err)
 	}
@@ -179,6 +181,15 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 		return nil, fmt.Errorf("CPU limit cannot be zero")
 	}
 
+	cleanupContainer, err := strconv.ParseBool(d.config.ReadDefault("docker.cleanup.container", "true"))
+	if err != nil {
+		return nil, fmt.Errorf("Unable to parse docker.cleanup.container: %s", err)
+	}
+	cleanupImage, err := strconv.ParseBool(d.config.ReadDefault("docker.cleanup.image", "true"))
+	if err != nil {
+		return nil, fmt.Errorf("Unable to parse docker.cleanup.image: %s", err)
+	}
+
 	// Initialize docker API client
 	dockerEndpoint := d.config.ReadDefault("docker.endpoint", "unix:///var/run/docker.sock")
 	client, err := docker.NewClient(dockerEndpoint)
@@ -244,22 +255,33 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 
 	// Return a driver handle
 	h := &dockerHandle{
-		client:      client,
-		logger:      d.logger,
-		imageID:     dockerImage.ID,
-		containerID: container.ID,
-		doneCh:      make(chan struct{}),
-		waitCh:      make(chan error, 1),
+		client:           client,
+		cleanupContainer: cleanupContainer,
+		cleanupImage:     cleanupImage,
+		logger:           d.logger,
+		imageID:          dockerImage.ID,
+		containerID:      container.ID,
+		doneCh:           make(chan struct{}),
+		waitCh:           make(chan error, 1),
 	}
 	go h.run()
 	return h, nil
 }
 
 func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {
+	cleanupContainer, err := strconv.ParseBool(d.config.ReadDefault("docker.cleanup.container", "true"))
+	if err != nil {
+		return nil, fmt.Errorf("Unable to parse docker.cleanup.container: %s", err)
+	}
+	cleanupImage, err := strconv.ParseBool(d.config.ReadDefault("docker.cleanup.image", "true"))
+	if err != nil {
+		return nil, fmt.Errorf("Unable to parse docker.cleanup.image: %s", err)
+	}
+
 	// Split the handle
 	pidBytes := []byte(strings.TrimPrefix(handleID, "DOCKER:"))
 	pid := &dockerPID{}
-	err := json.Unmarshal(pidBytes, pid)
+	err = json.Unmarshal(pidBytes, pid)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to parse handle '%s': %v", handleID, err)
 	}
@@ -294,12 +316,14 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 
 	// Return a driver handle
 	h := &dockerHandle{
-		client:      client,
-		logger:      d.logger,
-		imageID:     pid.ImageID,
-		containerID: pid.ContainerID,
-		doneCh:      make(chan struct{}),
-		waitCh:      make(chan error, 1),
+		client:           client,
+		cleanupContainer: cleanupContainer,
+		cleanupImage:     cleanupImage,
+		logger:           d.logger,
+		imageID:          pid.ImageID,
+		containerID:      pid.ContainerID,
+		doneCh:           make(chan struct{}),
+		waitCh:           make(chan error, 1),
 	}
 	go h.run()
 	return h, nil
@@ -338,8 +362,7 @@ func (h *dockerHandle) Kill() error {
 	log.Printf("[INFO] driver.docker: stopped container %s", h.containerID)
 
 	// Cleanup container
-	cleanupContainer, err := strconv.ParseBool(d.config.ReadDefault("docker.cleanup.container", "true"))
-	if err == nil && cleanupContainer {
+	if h.cleanupContainer {
 		err = h.client.RemoveContainer(docker.RemoveContainerOptions{
 			ID:            h.containerID,
 			RemoveVolumes: true,
@@ -353,8 +376,7 @@ func (h *dockerHandle) Kill() error {
 
 	// Cleanup image. This operation may fail if the image is in use by another
 	// job. That is OK. Will we log a message but continue.
-	cleanupImage, err := strconv.ParseBool(d.config.ReadDefault("docker.cleanup.image", "true"))
-	if err == nil && cleanupImage {
+	if h.cleanupImage {
 		err = h.client.RemoveImage(h.imageID)
 		if err != nil {
 			containers, err := h.client.ListContainers(docker.ListContainersOptions{
