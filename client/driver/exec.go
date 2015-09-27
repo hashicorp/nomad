@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/driver/args"
 	"github.com/hashicorp/nomad/client/executor"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -52,17 +51,13 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	envVars := TaskEnvironmentVariables(ctx, task)
 
 	// Look for arguments
-	var cmdArgs []string
+	var args []string
 	if argRaw, ok := task.Config["args"]; ok {
-		parsed, err := args.ParseAndReplace(argRaw, envVars.Map())
-		if err != nil {
-			return nil, err
-		}
-		cmdArgs = append(cmdArgs, parsed...)
+		args = append(args, argRaw)
 	}
 
 	// Setup the command
-	cmd := executor.Command(command, cmdArgs...)
+	cmd := executor.Command(command, args...)
 	if err := cmd.Limit(task.Resources); err != nil {
 		return nil, fmt.Errorf("failed to constrain resources: %s", err)
 	}

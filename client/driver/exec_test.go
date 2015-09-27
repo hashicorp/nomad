@@ -1,10 +1,16 @@
 package driver
 
 import (
+	"fmt"
+	"io/ioutil"
+	"path/filepath"
+	"reflect"
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/driver/environment"
 	"github.com/hashicorp/nomad/nomad/structs"
 
 	ctestutils "github.com/hashicorp/nomad/client/testutil"
@@ -112,6 +118,55 @@ func TestExecDriver_Start_Wait(t *testing.T) {
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatalf("timeout")
+	}
+}
+
+func TestExecDriver_Start_Wait_AllocDir(t *testing.T) {
+	ctestutils.ExecCompatible(t)
+
+	exp := []byte{'w', 'i', 'n'}
+	file := "output.txt"
+	task := &structs.Task{
+		Name: "sleep",
+		Config: map[string]string{
+			"command": "/bin/bash",
+			"args":    fmt.Sprintf("-c \"sleep 1; echo -n %s > $%s/%s\"", string(exp), environment.AllocDir, file),
+		},
+		Resources: basicResources,
+	}
+
+	driverCtx := testDriverContext(task.Name)
+	ctx := testDriverExecContext(task, driverCtx)
+	defer ctx.AllocDir.Destroy()
+	d := NewExecDriver(driverCtx)
+
+	handle, err := d.Start(ctx, task)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if handle == nil {
+		t.Fatalf("missing handle")
+	}
+
+	// Task should terminate quickly
+	select {
+	case err := <-handle.WaitCh():
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatalf("timeout")
+	}
+
+	// Check that data was written to the shared alloc directory.
+	outputFile := filepath.Join(ctx.AllocDir.AllocDir, allocdir.SharedAllocName, file)
+	act, err := ioutil.ReadFile(outputFile)
+	if err != nil {
+		t.Fatalf("Couldn't read expected output: %v", err)
+	}
+
+	if !reflect.DeepEqual(act, exp) {
+		t.Fatalf("Command outputted %v; want %v", act, exp)
 	}
 }
 

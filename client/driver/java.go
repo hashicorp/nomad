@@ -16,7 +16,6 @@ import (
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/driver/args"
 	"github.com/hashicorp/nomad/client/executor"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -135,18 +134,14 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	envVars := TaskEnvironmentVariables(ctx, task)
 
 	// Build the argument list.
-	cmdArgs := []string{"-jar", filepath.Join(allocdir.TaskLocal, fName)}
+	args := []string{"-jar", filepath.Join(allocdir.TaskLocal, fName)}
 	if argRaw, ok := task.Config["args"]; ok {
-		parsed, err := args.ParseAndReplace(argRaw, envVars.Map())
-		if err != nil {
-			return nil, err
-		}
-		cmdArgs = append(cmdArgs, parsed...)
+		args = append(args, argRaw)
 	}
 
 	// Setup the command
 	// Assumes Java is in the $PATH, but could probably be detected
-	cmd := executor.Command("java", cmdArgs...)
+	cmd := executor.Command("java", args...)
 
 	// Populate environment variables
 	cmd.Command().Env = envVars.List()
