@@ -358,6 +358,7 @@ func (h *dockerHandle) Kill() error {
 		err = h.client.RemoveImage(h.imageID)
 		if err != nil {
 			containers, err := h.client.ListContainers(docker.ListContainersOptions{
+				All: true,
 				Filters: map[string][]string{
 					"image": []string{h.imageID},
 				},

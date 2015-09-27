@@ -116,7 +116,7 @@ job "example" {
 				memory = 256 # 256MB
 				network {
 					mbits = 10
-					dynamic_ports = ["REDIS"]
+					dynamic_ports = ["redis"]
 				}
 			}
 		}
