@@ -3,8 +3,6 @@ package command
 import (
 	"fmt"
 	"strings"
-
-	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 type AllocStatusCommand struct {
@@ -72,15 +70,13 @@ func (c *AllocStatusCommand) Run(args []string) int {
 		fmt.Sprintf("NodesFiltered|%d", alloc.Metrics.NodesFiltered),
 		fmt.Sprintf("NodesExhausted|%d", alloc.Metrics.NodesExhausted),
 		fmt.Sprintf("AllocationTime|%s", alloc.Metrics.AllocationTime),
-		fmt.Sprintf("CoalescedFailures|%s", alloc.Metrics.CoalescedFailures),
+		fmt.Sprintf("CoalescedFailures|%d", alloc.Metrics.CoalescedFailures),
 	}
 	c.Ui.Output(formatKV(basic))
 
-	// Format any scheduling failures
-	if alloc.DesiredStatus == structs.AllocDesiredStatusFailed {
-		c.Ui.Output("\n==> Scheduling Errors")
-		dumpAllocStatus(c.Ui, alloc)
-	}
+	// Format the detailed status
+	c.Ui.Output("\n==> Status")
+	dumpAllocStatus(c.Ui, alloc)
 
 	return 0
 }
