@@ -16,6 +16,7 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/client/driver/environment"
 	"github.com/hashicorp/nomad/command"
 	"github.com/hashicorp/nomad/helper/discover"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -126,6 +127,11 @@ func (e *LinuxExecutor) ConfigureTaskDir(taskName string, alloc *allocdir.AllocD
 	if err := syscall.Mount("", proc, "proc", syscall.MS_RDONLY, ""); err != nil {
 		return fmt.Errorf("Couldn't mount /proc to %v: %v", proc, err)
 	}
+
+	// Set the tasks AllocDir environment variable.
+	env := environment.ParseFromList(e.Cmd.Env)
+	env.SetAllocDir(filepath.Join(taskDir, allocdir.SharedAllocName))
+	e.Cmd.Env = env.List()
 
 	e.alloc = alloc
 	e.mounts = true
