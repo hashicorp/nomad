@@ -298,4 +298,9 @@ func dumpAllocStatus(ui cli.Ui, alloc *api.Allocation) {
 	for dim, num := range alloc.Metrics.DimensionExhausted {
 		ui.Output(fmt.Sprintf("  * Dimension %q exhausted on %d nodes", dim, num))
 	}
+
+	// Print scores
+	for name, score := range alloc.Metrics.Scores {
+		ui.Output(fmt.Sprintf("  * Score %q = %f", name, score))
+	}
 }
