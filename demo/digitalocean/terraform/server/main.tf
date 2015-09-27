@@ -1,6 +1,6 @@
 variable "image" {}
 variable "region" {}
-variable "size" { default = "1gb" }
+variable "size" { default = "8gb" }
 variable "ssh_keys" {}
 variable "statsite" {}
 
