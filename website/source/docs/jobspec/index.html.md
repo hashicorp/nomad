@@ -8,8 +8,8 @@ description: |-
 
 # Job Specification
 
-Jobs can be specified either in [HCL](https://github.com/hashicorp/hcl) or JSON. 
-HCL is meant to strike a balance between human readable and editable, as well 
+Jobs can be specified either in [HCL](https://github.com/hashicorp/hcl) or JSON.
+HCL is meant to strike a balance between human readable and editable, as well
 as being machine-friendly.
 
 For machine-friendliness, Nomad can also read JSON configurations. In general, we recommend
@@ -51,8 +51,8 @@ job "my-service" {
                 network {
                     mbits = 100
                     dynamic_ports = [
-                      "HTTP",
-                      "HTTPS",
+                      "http",
+                      "https",
                     ]
                 }
             }
@@ -187,7 +187,7 @@ The `resources` object supports the following keys:
 
 The `network` object supports the following keys:
 
-* `dynamic_ports` - List of port labels which may contain uppercase letters,
+* `dynamic_ports` - List of port labels which may contain letters,
   numbers and underscores (`^[a-zA-Z0-9_]+$`). Each label will be assigned a
   dynamic port when the task starts. Ports are passed to the task environment as
   `NOMAD_PORT_{LABEL}`. Drivers may infer additional semantics from the label.
