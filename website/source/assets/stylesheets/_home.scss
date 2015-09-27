@@ -6,9 +6,9 @@
 	position: relative;
 	@include translate3d(0, -10px, 0);
 	text-align: center;
-	background: image-url('../images/hero-lockup.png') 0 0 no-repeat;
-	@include img-retina("../images/hero-bg.png", "../images/hero-bg@2x.png", 1278px, 798px);
-	background-size: cover;
+	background: image-url('../images/nomad-pattern.png') 0 0 repeat;
+	@include img-retina("../images/nomad-pattern.png", "../images/nomad-pattern.png", 1869px / 3, 1074px / 3);
+	background-repeat: repeat;
 
 	&:before{
 		content: '';
