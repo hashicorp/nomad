@@ -44,6 +44,15 @@ func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool
 		return false, nil
 	}
 
+	cleanupContainer, err := strconv.ParseBool(d.config.ReadDefault("docker.cleanup.container", "true"))
+	if err != nil {
+		return false, fmt.Errorf("Unable to parse docker.cleanup.container: %s", err)
+	}
+	cleanupImage, err := strconv.ParseBool(d.config.ReadDefault("docker.cleanup.image", "true"))
+	if err != nil {
+		return false, fmt.Errorf("Unable to parse docker.cleanup.image: %s", err)
+	}
+
 	env, err := client.Version()
 	if err != nil {
 		// We connected to the daemon but couldn't read the version so something
@@ -329,36 +338,42 @@ func (h *dockerHandle) Kill() error {
 	log.Printf("[INFO] driver.docker: stopped container %s", h.containerID)
 
 	// Cleanup container
-	err = h.client.RemoveContainer(docker.RemoveContainerOptions{
-		ID:            h.containerID,
-		RemoveVolumes: true,
-	})
-	if err != nil {
-		log.Printf("[ERR] driver.docker: removing container %s", h.containerID)
-		return fmt.Errorf("Failed to remove container %s: %s", h.containerID, err)
+	cleanupContainer, err := strconv.ParseBool(d.config.ReadDefault("docker.cleanup.container", "true"))
+	if err == nil && cleanupContainer {
+		err = h.client.RemoveContainer(docker.RemoveContainerOptions{
+			ID:            h.containerID,
+			RemoveVolumes: true,
+		})
+		if err != nil {
+			log.Printf("[ERR] driver.docker: removing container %s", h.containerID)
+			return fmt.Errorf("Failed to remove container %s: %s", h.containerID, err)
+		}
+		log.Printf("[INFO] driver.docker: removed container %s", h.containerID)
 	}
-	log.Printf("[INFO] driver.docker: removed container %s", h.containerID)
 
 	// Cleanup image. This operation may fail if the image is in use by another
 	// job. That is OK. Will we log a message but continue.
-	err = h.client.RemoveImage(h.imageID)
-	if err != nil {
-		containers, err := h.client.ListContainers(docker.ListContainersOptions{
-			Filters: map[string][]string{
-				"image": []string{h.imageID},
-			},
-		})
+	cleanupImage, err := strconv.ParseBool(d.config.ReadDefault("docker.cleanup.image", "true"))
+	if err == nil && cleanupImage {
+		err = h.client.RemoveImage(h.imageID)
 		if err != nil {
-			return fmt.Errorf("Unable to query list of containers: %s", err)
-		}
-		inUse := len(containers)
-		if inUse > 0 {
-			log.Printf("[INFO] driver.docker: image %s is still in use by %d containers", h.imageID, inUse)
+			containers, err := h.client.ListContainers(docker.ListContainersOptions{
+				Filters: map[string][]string{
+					"image": []string{h.imageID},
+				},
+			})
+			if err != nil {
+				return fmt.Errorf("Unable to query list of containers: %s", err)
+			}
+			inUse := len(containers)
+			if inUse > 0 {
+				log.Printf("[INFO] driver.docker: image %s is still in use by %d containers", h.imageID, inUse)
+			} else {
+				return fmt.Errorf("Failed to remove image %s", h.imageID)
+			}
 		} else {
-			return fmt.Errorf("Failed to remove image %s", h.imageID)
+			log.Printf("[INFO] driver.docker: removed image %s", h.imageID)
 		}
-	} else {
-		log.Printf("[INFO] driver.docker: removed image %s", h.imageID)
 	}
 	return nil
 }
