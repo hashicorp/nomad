@@ -42,7 +42,6 @@ func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool
 	dockerEndpoint := d.config.ReadDefault("docker.endpoint", "unix:///var/run/docker.sock")
 	client, err := docker.NewClient(dockerEndpoint)
 	if err != nil {
-		node.Attributes["driver.docker"] = "false"
 		return false, nil
 	}
 
@@ -57,6 +56,11 @@ func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool
 
 	env, err := client.Version()
 	if err != nil {
+		// Check the "no such file" error if the unix file is missing
+		if strings.Contains(err.Error(), "no such file") {
+			return false, nil
+		}
+
 		// We connected to the daemon but couldn't read the version so something
 		// is broken.
 		return false, err
