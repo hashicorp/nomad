@@ -5,11 +5,12 @@ import (
 )
 
 func TestHelpers_FormatKV(t *testing.T) {
-	in := []string{"alpha|beta", "charlie|delta"}
+	in := []string{"alpha|beta", "charlie|delta", "echo|"}
 	out := formatKV(in)
 
 	expect := "alpha   = beta\n"
-	expect += "charlie = delta"
+	expect += "charlie = delta\n"
+	expect += "echo    = <none>"
 
 	if out != expect {
 		t.Fatalf("expect: %s, got: %s", expect, out)

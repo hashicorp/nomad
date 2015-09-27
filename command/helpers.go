@@ -8,6 +8,7 @@ import (
 // aligned k = v pairs using the columnize library.
 func formatKV(in []string) string {
 	columnConf := columnize.DefaultConfig()
+	columnConf.Empty = "<none>"
 	columnConf.Glue = " = "
 	return columnize.Format(in, columnConf)
 }
