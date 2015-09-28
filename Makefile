@@ -66,4 +66,4 @@ bootstrap:
     go get $$tool; \
 	done
 
-.PHONY: all cov deps integ test vet web web-push test-nodep
+.PHONY: all bin cov deps integ test vet web web-push test-nodep
