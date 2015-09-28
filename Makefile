@@ -13,7 +13,7 @@ all: deps format
 	@mkdir -p bin/
 	@bash --norc -i ./scripts/build.sh
 
-bin: generate
+bin:
 	@sh -c "'$(CURDIR)/scripts/build.sh'"
 
 cov:
