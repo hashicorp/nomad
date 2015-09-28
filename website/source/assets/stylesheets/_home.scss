@@ -6,9 +6,12 @@
 	position: relative;
 	@include translate3d(0, -10px, 0);
 	text-align: center;
-	background: image-url('../images/nomad-pattern.png') 0 0 repeat;
-	@include img-retina("../images/nomad-pattern.png", "../images/nomad-pattern.png", 1869px / 3, 1074px / 3);
-	background-repeat: repeat;
+	//background: image-url('../images/nomad-bg.png') 0 0 repeat;
+	//@include img-retina("../images/nomad-bg.png", "../images/nomad-bg@2x.png", 624px, 358px);
+	background: image-url('../images/nomad-giant.jpg') 0 0 no-repeat;
+	@include img-retina("../images/nomad-giant.jpg", "../images/nomad-giant.jpg", 624px, 358px);
+	background-color: $green-dark;
+	background-size: cover !important;
 	overflow: hidden;
 
 	&:before{
