@@ -2,6 +2,13 @@
 # Configure Middleman
 #-------------------------------------------------------------------------
 
+helpers do
+  def livestream_active?
+    # Must set key for date
+    ENV["LIVESTREAM_ACTIVE"].present?
+  end
+end
+
 set :base_url, "https://www.nomadproject.io/"
 
 activate :hashicorp do |h|
