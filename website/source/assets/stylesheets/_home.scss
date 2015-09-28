@@ -139,6 +139,12 @@
 .banner{
 	margin-top: 120px;
 
+	.col{
+		p{
+			line-height: 24px;
+		}
+	}
+
 	&.gray-banner{
 		.col{
 			border: 1px solid $blue-faint;
@@ -566,6 +572,21 @@
 				text-align: center !important;
 				max-width: none !important;
 				float: none !important;
+			}
+		}
+	}
+
+	.banner{
+		padding: 18px;
+		margin: 0 20px;
+
+		.col{
+			text-align: center;
+
+			p{
+					display: block;
+					margin-right: 0;
+					margin-bottom: $small-pad;
 			}
 		}
 	}
