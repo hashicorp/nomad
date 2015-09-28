@@ -96,7 +96,7 @@ func TestExecutorLinux_Start_Wait(t *testing.T) {
 	expected := "hello world"
 	file := filepath.Join(allocdir.TaskLocal, "output.txt")
 	absFilePath := filepath.Join(taskDir, file)
-	cmd := fmt.Sprintf("%v \"%v\" > %v", "sleep 1 ; echo -n", expected, file)
+	cmd := fmt.Sprintf(`"%v \"%v\" > %v"`, "/bin/sleep 1 ; echo -n", expected, file)
 	e := Command("/bin/bash", "-c", cmd)
 
 	if err := e.Limit(constraint); err != nil {

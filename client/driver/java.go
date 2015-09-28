@@ -130,16 +130,13 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		return nil, fmt.Errorf("Error copying jar from source: %s", ioErr)
 	}
 
-	// Look for arguments
-	argRaw, ok := task.Config["args"]
-	var userArgs []string
-	if ok {
-		userArgs = strings.Split(argRaw, " ")
-	}
-	args := []string{"-jar", filepath.Join(allocdir.TaskLocal, fName)}
+	// Get the environment variables.
+	envVars := TaskEnvironmentVariables(ctx, task)
 
-	for _, s := range userArgs {
-		args = append(args, s)
+	// Build the argument list.
+	args := []string{"-jar", filepath.Join(allocdir.TaskLocal, fName)}
+	if argRaw, ok := task.Config["args"]; ok {
+		args = append(args, argRaw)
 	}
 
 	// Setup the command
@@ -147,7 +144,7 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	cmd := executor.Command("java", args...)
 
 	// Populate environment variables
-	cmd.Command().Env = PopulateEnvironment(ctx, task)
+	cmd.Command().Env = envVars.List()
 
 	if err := cmd.Limit(task.Resources); err != nil {
 		return nil, fmt.Errorf("failed to constrain resources: %s", err)

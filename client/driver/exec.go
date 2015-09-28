@@ -3,7 +3,6 @@ package driver
 import (
 	"fmt"
 	"runtime"
-	"strings"
 	"syscall"
 	"time"
 
@@ -48,11 +47,13 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		return nil, fmt.Errorf("missing command for exec driver")
 	}
 
+	// Get the environment variables.
+	envVars := TaskEnvironmentVariables(ctx, task)
+
 	// Look for arguments
-	argRaw, ok := task.Config["args"]
 	var args []string
-	if ok {
-		args = strings.Split(argRaw, " ")
+	if argRaw, ok := task.Config["args"]; ok {
+		args = append(args, argRaw)
 	}
 
 	// Setup the command
@@ -62,7 +63,7 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	}
 
 	// Populate environment variables
-	cmd.Command().Env = PopulateEnvironment(ctx, task)
+	cmd.Command().Env = envVars.List()
 
 	if err := cmd.ConfigureTaskDir(d.taskName, ctx.AllocDir); err != nil {
 		return nil, fmt.Errorf("failed to configure task directory: %v", err)

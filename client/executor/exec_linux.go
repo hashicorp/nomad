@@ -16,6 +16,8 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/client/driver/args"
+	"github.com/hashicorp/nomad/client/driver/environment"
 	"github.com/hashicorp/nomad/command"
 	"github.com/hashicorp/nomad/helper/discover"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -127,6 +129,14 @@ func (e *LinuxExecutor) ConfigureTaskDir(taskName string, alloc *allocdir.AllocD
 		return fmt.Errorf("Couldn't mount /proc to %v: %v", proc, err)
 	}
 
+	// Set the tasks AllocDir environment variable.
+	env, err := environment.ParseFromList(e.Cmd.Env)
+	if err != nil {
+		return err
+	}
+	env.SetAllocDir(filepath.Join("/", allocdir.SharedAllocName))
+	e.Cmd.Env = env.List()
+
 	e.alloc = alloc
 	e.mounts = true
 	return nil
@@ -237,6 +247,20 @@ func (e *LinuxExecutor) Start() error {
 	if e.alloc == nil {
 		return errors.New("ConfigureTaskDir() must be called before Start()")
 	}
+
+	// Parse the commands arguments and replace instances of Nomad environment
+	// variables.
+	envVars, err := environment.ParseFromList(e.Cmd.Env)
+	if err != nil {
+		return err
+	}
+
+	combined := strings.Join(e.Cmd.Args, " ")
+	parsed, err := args.ParseAndReplace(combined, envVars.Map())
+	if err != nil {
+		return err
+	}
+	e.Cmd.Args = parsed
 
 	return e.spawnDaemon()
 }
