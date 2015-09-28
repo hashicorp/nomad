@@ -443,6 +443,17 @@
 					margin-top: 0;
 				}
 			}
+
+			&#maintain{
+				.feature-graphic{
+					margin-top: -50px;
+					width: 768px;
+					height: 475px;
+					background: image-url('../images/feature-manage.png') 0 0 no-repeat;
+					@include img-retina("../images/feature-manage.png", "../images/feature-manage@2x.png", 768px, 475px);
+				}
+			}
+
 			&#partners{
 				.partner-logos{
 					.docker-wrap{
@@ -492,6 +503,17 @@
 					}
 				}
 			}
+
+			&#maintain{
+				.feature-graphic{
+					margin-top: $small-pad;
+					width: 480px;
+					height: 297px;
+					background: image-url('../images/feature-manage.png') 0 0 no-repeat;
+					@include img-retina("../images/feature-manage.png", "../images/feature-manage@2x.png", 480px, 297px);
+				}
+			}
+
 			&#partners{
 				.partner-logo{
 					display: block !important;
@@ -565,6 +587,16 @@
 					.docker-outline-logo{
 						display: block;
 					}
+				}
+			}
+
+			&#maintain{
+				.feature-graphic{
+					margin-top: $small-pad;
+					width: 280px;
+					height: 173px;
+					background: image-url('../images/feature-manage.png') 0 0 no-repeat;
+					@include img-retina("../images/feature-manage.png", "../images/feature-manage@2x.png", 280px, 173px);
 				}
 			}
 		}
