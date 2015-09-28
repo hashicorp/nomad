@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 
 # Get the version from the command line
@@ -9,7 +9,7 @@ if [ -z $VERSION ]; then
 fi
 
 # Make sure we have a bintray API key
-if [ -z $BINTRAY_API_KEY ]; then
+if [ -z $BINTRAY_API_KEY ] && [ ! -z $NOBINTRAY ]; then
     echo "Please set your bintray API key in the BINTRAY_API_KEY env var."
     exit 1
 fi
@@ -23,45 +23,25 @@ DIR="$( cd -P "$( dirname "$SOURCE" )/.." && pwd )"
 cd $DIR
 
 # Zip all the files
-rm -rf ./dist/pkg
-mkdir -p ./dist/pkg
-for FILENAME in $(find ./dist -mindepth 1 -maxdepth 1 -type f); do
+rm -rf ./pkg/dist
+mkdir -p ./pkg/dist
+for FILENAME in $(find ./pkg -mindepth 1 -maxdepth 1 -type f); do
     FILENAME=$(basename $FILENAME)
-    EXTENSION="${FILENAME##*.}"
-    PLATFORM="${FILENAME%.*}"
-
-    if [ "${EXTENSION}" != "exe" ]; then
-        EXTENSION=""
-    else
-        EXTENSION=".${EXTENSION}"
-    fi
-
-    NOMADNAME="nomad${EXTENSION}"
-
-    pushd ./dist
-
-    if [ "${FILENAME}" = "ui.zip" ]; then
-        cp ${FILENAME} ./pkg/${VERSION}_web_ui.zip
-    else
-        if [ "${EXTENSION}" = "" ]; then
-            chmod +x ${FILENAME}
-        fi
-
-        cp ${FILENAME} ${NOMADNAME}
-        zip ./pkg/${VERSION}_${PLATFORM}.zip ${NOMADNAME}
-        rm ${NOMADNAME}
-    fi
-
-    popd
+    cp ./pkg/${FILENAME} ./pkg/dist/nomad_${VERSION}_${FILENAME}
 done
 
-# Make the checksums
-pushd ./dist/pkg
-shasum -a256 * > ./${VERSION}_SHA256SUMS
-popd
+if [ -z $NOSIGN ]; then
+  echo "==> Signing..."
+  pushd ./pkg/dist
+  rm -f ./nomad_${VERSION}_SHA256SUMS*
+  shasum -a256 * > ./nomad_${VERSION}_SHA256SUMS
+  gpg --default-key 348FFC4C --detach-sig ./nomad_${VERSION}_SHA256SUMS
+  popd
+fi
 
 # Upload
-for ARCHIVE in ./dist/pkg/*; do
+if [ ! -z $NOBINTRAY ]; then
+  for ARCHIVE in ./pkg/dist/*; do
     ARCHIVE_NAME=$(basename ${ARCHIVE})
 
     echo Uploading: $ARCHIVE_NAME
@@ -69,6 +49,7 @@ for ARCHIVE in ./dist/pkg/*; do
         -T ${ARCHIVE} \
         -umitchellh:${BINTRAY_API_KEY} \
         "https://api.bintray.com/content/mitchellh/nomad/nomad/${VERSION}/${ARCHIVE_NAME}"
-done
+  done
+fi
 
 exit 0

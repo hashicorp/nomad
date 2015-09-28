@@ -13,6 +13,9 @@ all: deps format
 	@mkdir -p bin/
 	@bash --norc -i ./scripts/build.sh
 
+bin: generate
+	@sh -c "'$(CURDIR)/scripts/build.sh'"
+
 cov:
 	gocov test ./... | gocov-html > /tmp/coverage.html
 	open /tmp/coverage.html
