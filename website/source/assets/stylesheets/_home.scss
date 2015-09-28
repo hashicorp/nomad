@@ -454,6 +454,15 @@
 				}
 			}
 
+			&#density{
+				.feature-graphic{
+					width: 768px;
+					height: 302px;
+					background: image-url('../images/feature-density.png') 0 0 no-repeat;
+					@include img-retina("../images/feature-density.png", "../images/feature-density@2x.png", 768px, 302px);
+				}
+			}
+
 			&#partners{
 				.partner-logos{
 					.docker-wrap{
@@ -521,6 +530,16 @@
 					height: 147px;
 					background: image-url('../images/feature-healing.png') 0 0 no-repeat;
 					@include img-retina("../images/feature-healing.png", "../images/feature-healing@2x.png", 480px, 147px);
+				}
+			}
+
+			&#density{
+				.feature-graphic{
+					margin-top: $small-pad;
+					width: 480px;
+					height: 189px;
+					background: image-url('../images/feature-density.png') 0 0 no-repeat;
+					@include img-retina("../images/feature-density.png", "../images/feature-density@2x.png", 480px, 189px);
 				}
 			}
 
@@ -616,6 +635,15 @@
 					height: 86px;
 					background: image-url('../images/feature-healing.png') 0 0 no-repeat;
 					@include img-retina("../images/feature-healing.png", "../images/feature-healing@2x.png", 280px, 86px);
+				}
+			}
+
+			&#density{
+				.feature-graphic{
+					width: 280px;
+					height: 110px;
+					background: image-url('../images/feature-density.png') 0 0 no-repeat;
+					@include img-retina("../images/feature-density.png", "../images/feature-density@2x.png", 280px, 110px);
 				}
 			}
 		}
