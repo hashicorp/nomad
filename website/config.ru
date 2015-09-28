@@ -5,11 +5,6 @@ require "rack/contrib/static_cache"
 require "rack/contrib/try_static"
 require "rack/protection"
 
-# TEMPORARY!
-use Rack::Auth::Basic, "Protected Area" do |username, password|
-  username == 'hashiconf' && password == 'ottomation'
-end
-
 # Protect against various bad things
 use Rack::Protection::JsonCsrf
 use Rack::Protection::RemoteReferrer
