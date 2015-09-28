@@ -201,6 +201,8 @@ configured on server nodes.
   * `node_class`: A string used to logically group client nodes by class. This
     can be used during job placement as a filter. This option is not required
     and has no default.
+  * `options`: This is a key/value mapping of internal configuration for clients,
+    such as for driver configuration.
   * `meta`: This is a key/value mapping of metadata pairs. This is a free-form
     map and can contain any string values.
 
