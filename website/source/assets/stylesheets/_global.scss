@@ -28,7 +28,7 @@ h1{
 	margin-bottom: 24px;
 }
 
-h3{
+h3, h4{
 	font-size: 24px;
 	line-height: 24px;
 	font-family: $font-family-open-sans;
@@ -106,7 +106,12 @@ pre {
     }
 
     h3{
-    	font-size: $font-size-reg !important;
+    	font-size: $font-size-m !important;
+    	font-weight: $font-weight-reg;
+    }
+
+    h4{
+      font-size: $font-size-reg !important;
     	font-weight: $font-weight-reg;
     }
 }

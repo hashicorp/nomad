@@ -101,7 +101,7 @@
 			font-family: $font-family-blanc;
 		}
 
-		h3{
+		h4{
 			color: $blue-light;
 			font-family: $font-family-blanc;
 		}
@@ -209,11 +209,13 @@
 		}
 
 		&#deploy{
-			padding-bottom: 835px;
-			width: 1161px;
-			height: 735px;
-			background: image-url('../images/feature-deploy.png') 0 0 no-repeat;
-			@include img-retina("../images/feature-deploy.png", "../images/feature-deploy@2x.png", 1161px, 735px);
+			.feature-graphic{
+					margin-top: -130px;
+					width: 1161px;
+					height: 735px;
+					background: image-url('../images/feature-deploy.png') 0 0 no-repeat;
+					@include img-retina("../images/feature-deploy.png", "../images/feature-deploy@2x.png", 1161px, 735px);
+			}
 		}
 
 		&#maintain{
@@ -294,15 +296,6 @@
 			}
 		}
 
-		&#audit{
-			.graphic{
-				width: 491px;
-				height: 129px;
-			    background: image-url('../images/graphic-audit.png') 0 0 no-repeat;
-			   	@include img-retina("../images/graphic-audit.png", "../images/graphic-audit@2x.png", 491px, 129px);
-			}
-		}
-
 		.feature-graphic{
 			margin: 0 auto;
 		}
@@ -338,10 +331,7 @@
 		}
 
 		.feature-footer{
-			position: absolute;
-			bottom: 0;
-			left: 0;
-			padding-bottom: 80px;
+			margin-top: -50px;
 
 			p{
 				display: inline-block;
@@ -358,7 +348,9 @@
 				display: inline-block;
 				width: 125px;
 				height: 80px;
-				margin-right: 20px;
+				position: relative;
+				top: 12px;
+				margin-left: 10px;
 			    background: image-url('../images/icon-docker-outline.png') 0 0 no-repeat;
 			   	@include img-retina("../images/icon-docker-outline.png", "../images/icon-docker-outline@2x.png", 125px, 80px);
 			}
@@ -433,13 +425,61 @@
 }
 
 @media (max-width: 992px) {
+	#content{
+		.feature{
+			&#deploy{
+				.feature-graphic{
+					margin-top: -60px;
+					width: 768px;
+					height: 486px;
+					background: image-url('../images/feature-deploy.png') 0 0 no-repeat;
+					@include img-retina("../images/feature-deploy.png", "../images/feature-deploy@2x.png", 768px, 486px);
+				}
 
+				.feature-footer{
+					margin-top: 0;
+				}
+			}
+		}
+	}
 }
 
 @media (max-width: 768px) {
 	#hero{
 		#hero-graphic{
 			@include scale(.8);
+		}
+	}
+
+	#content{
+		.feature{
+			&#deploy{
+				.feature-graphic{
+					margin-top: 0px;
+					width: 480px;
+					height: 304px;
+					background: image-url('../images/feature-deploy.png') 0 0 no-repeat;
+					@include img-retina("../images/feature-deploy.png", "../images/feature-deploy@2x.png", 480px, 304px);
+				}
+
+				.feature-footer{
+					margin-top: $small-pad;
+
+					.docker-outline-logo{
+						width: 94px;
+						height: 63px;
+						background: image-url('../images/icon-docker-outline.png') 0 0 no-repeat;
+						@include img-retina("../images/icon-docker-outline.png", "../images/icon-docker-outline@2x.png", 94px, 63px);
+					}
+				}
+			}
+		}
+
+		.feature-header{
+			h3,p{
+				text-align: center !important;
+				max-width: none !important;
+			}
 		}
 	}
 
@@ -474,6 +514,24 @@
 			padding-top: 220px;
 		}
 	}
+
+	#content{
+		.feature{
+			&#deploy{
+				.feature-graphic{
+					width: 280px;
+					height: 177px;
+					background: image-url('../images/feature-deploy.png') 0 0 no-repeat;
+					@include img-retina("../images/feature-deploy.png", "../images/feature-deploy@2x.png", 280px, 177px);
+				}
+				.feature-footer{
+					.docker-outline-logo{
+						display: block;
+					}
+				}
+			}
+		}
+	}
 }
 
 
@@ -485,28 +543,6 @@
 			height: 132px;
 		    background: image-url('../images/hero.png') center 0 no-repeat;
 		   	@include img-retina("../images/hero.png", "../images/hero@2x.png", 320px, 132px);
-		}
-	}
-
-	#content{
-		.feature{
-			&#crud{
-				.graphic{
-					width: 100%;
-					height: 111px;
-				    background: image-url('../images/graphic-crud.png') center 0 no-repeat;
-				   	@include img-retina("../images/graphic-crud.png", "../images/graphic-crud@2x.png", 290px, 111px);
-				}
-			}
-
-			&#audit{
-				.graphic{
-					width: 100%;
-					height: 76px;
-				    background: image-url('../images/graphic-audit.png') center 0 no-repeat;
-				   	@include img-retina("../images/graphic-audit.png", "../images/graphic-audit@2x.png", 290px, 76px);
-				}
-			}
 		}
 	}
 
