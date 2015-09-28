@@ -46,13 +46,13 @@ func (c *ServerForceLeaveCommand) Run(args []string) int {
 	// Get the HTTP client
 	client, err := c.Meta.Client()
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error initializing client: %v", err))
 		return 1
 	}
 
 	// Call force-leave on the node
 	if err := client.Agent().ForceLeave(node); err != nil {
-		c.Ui.Error(fmt.Sprintf("Error force-leaving server %s: %s", node, err))
+		c.Ui.Error(fmt.Sprintf("Error force-leaving server %s: %v", node, err))
 		return 1
 	}
 

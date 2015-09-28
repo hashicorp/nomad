@@ -64,13 +64,13 @@ func (c *NodeDrainCommand) Run(args []string) int {
 	// Get the HTTP client
 	client, err := c.Meta.Client()
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error initializing client: %v", err))
 		return 1
 	}
 
 	// Toggle node draining
 	if _, err := client.Nodes().ToggleDrain(nodeID, enable, nil); err != nil {
-		c.Ui.Error(fmt.Sprintf("Error toggling drain mode: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error toggling drain mode: %v", err))
 		return 1
 	}
 	return 0

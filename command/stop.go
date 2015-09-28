@@ -60,20 +60,20 @@ func (c *StopCommand) Run(args []string) int {
 	// Get the HTTP client
 	client, err := c.Meta.Client()
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error initializing client: %v", err))
 		return 1
 	}
 
 	// Check if the job exists
 	if _, _, err := client.Jobs().Info(jobID, nil); err != nil {
-		c.Ui.Error(fmt.Sprintf("Error deregistering job: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error deregistering job: %v", err))
 		return 1
 	}
 
 	// Invoke the stop
 	evalID, _, err := client.Jobs().Deregister(jobID, nil)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error deregistering job: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error deregistering job: %v", err))
 		return 1
 	}
 

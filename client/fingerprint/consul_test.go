@@ -31,7 +31,7 @@ func TestConsulFingerprint(t *testing.T) {
 
 	ok, err := fp.Fingerprint(consulConfig, node)
 	if err != nil {
-		t.Fatalf("Failed to fingerprint: %s", err)
+		t.Fatalf("Failed to fingerprint: %v", err)
 	}
 	if !ok {
 		t.Fatalf("Failed to apply node attributes")

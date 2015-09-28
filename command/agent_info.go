@@ -42,14 +42,14 @@ func (c *AgentInfoCommand) Run(args []string) int {
 	// Get the HTTP client
 	client, err := c.Meta.Client()
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error initializing client: %v", err))
 		return 1
 	}
 
 	// Query the agent info
 	info, err := client.Agent().Self()
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error querying agent info: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error querying agent info: %v", err))
 		return 1
 	}
 

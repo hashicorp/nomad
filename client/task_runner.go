@@ -134,7 +134,7 @@ func (r *TaskRunner) createDriver() (driver.Driver, error) {
 	if err != nil {
 		err = fmt.Errorf("failed to create driver '%s' for alloc %s: %v",
 			r.task.Driver, r.allocID, err)
-		r.logger.Printf("[ERR] client: %s", err)
+		r.logger.Printf("[ERR] client: %v", err)
 	}
 	return driver, err
 }

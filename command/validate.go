@@ -44,13 +44,13 @@ func (c *ValidateCommand) Run(args []string) int {
 	// Parse the job file
 	job, err := jobspec.ParseFile(file)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error parsing job file %s: %s", file, err))
+		c.Ui.Error(fmt.Sprintf("Error parsing job file %s: %v", file, err))
 		return 1
 	}
 
 	// Check that the job is valid
 	if err := job.Validate(); err != nil {
-		c.Ui.Error(fmt.Sprintf("Error validating job: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error validating job: %v", err))
 		return 1
 	}
 

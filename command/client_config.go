@@ -70,7 +70,7 @@ func (c *ClientConfigCommand) Run(args []string) int {
 	// Get the HTTP client
 	client, err := c.Meta.Client()
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error initializing client: %v", err))
 		return 1
 	}
 
@@ -83,7 +83,7 @@ func (c *ClientConfigCommand) Run(args []string) int {
 
 		// Set the servers list
 		if err := client.Agent().SetServers(args); err != nil {
-			c.Ui.Error(fmt.Sprintf("Error updating server list: %s", err))
+			c.Ui.Error(fmt.Sprintf("Error updating server list: %v", err))
 			return 1
 		}
 		return 0
@@ -93,7 +93,7 @@ func (c *ClientConfigCommand) Run(args []string) int {
 		// Query the current server list
 		servers, err := client.Agent().Servers()
 		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error querying server list: %s", err))
+			c.Ui.Error(fmt.Sprintf("Error querying server list: %v", err))
 			return 1
 		}
 
