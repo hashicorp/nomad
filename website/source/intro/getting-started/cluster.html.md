@@ -57,19 +57,19 @@ $ sudo nomad agent -config server.hcl
 
 ==> Nomad agent started! Log data will stream in below:
 
-    2015/09/28 00:13:27 [INFO] serf: EventMemberJoin: nomad.global 127.0.0.1
-    2015/09/28 00:13:27 [INFO] nomad: starting 4 scheduling worker(s) for [service batch _core]
-    2015/09/28 00:13:27 [INFO] raft: Node at 127.0.0.1:4647 [Follower] entering Follower state
-    2015/09/28 00:13:27 [INFO] nomad: adding server nomad.global (Addr: 127.0.0.1:4647) (DC: dc1)
-    2015/09/28 00:13:28 [WARN] raft: Heartbeat timeout reached, starting election
-    2015/09/28 00:13:28 [INFO] raft: Node at 127.0.0.1:4647 [Candidate] entering Candidate state
-    2015/09/28 00:13:28 [DEBUG] raft: Votes needed: 1
-    2015/09/28 00:13:28 [DEBUG] raft: Vote granted. Tally: 1
-    2015/09/28 00:13:28 [INFO] raft: Election won. Tally: 1
-    2015/09/28 00:13:28 [INFO] raft: Node at 127.0.0.1:4647 [Leader] entering Leader state
-    2015/09/28 00:13:28 [INFO] nomad: cluster leadership acquired
-    2015/09/28 00:13:28 [INFO] raft: Disabling EnableSingleNode (bootstrap)
-    2015/09/28 00:13:28 [DEBUG] raft: Node 127.0.0.1:4647 updated peer set (2): [127.0.0.1:4647]
+    [INFO] serf: EventMemberJoin: nomad.global 127.0.0.1
+    [INFO] nomad: starting 4 scheduling worker(s) for [service batch _core]
+    [INFO] raft: Node at 127.0.0.1:4647 [Follower] entering Follower state
+    [INFO] nomad: adding server nomad.global (Addr: 127.0.0.1:4647) (DC: dc1)
+    [WARN] raft: Heartbeat timeout reached, starting election
+    [INFO] raft: Node at 127.0.0.1:4647 [Candidate] entering Candidate state
+    [DEBUG] raft: Votes needed: 1
+    [DEBUG] raft: Vote granted. Tally: 1
+    [INFO] raft: Election won. Tally: 1
+    [INFO] raft: Node at 127.0.0.1:4647 [Leader] entering Leader state
+    [INFO] nomad: cluster leadership acquired
+    [INFO] raft: Disabling EnableSingleNode (bootstrap)
+    [DEBUG] raft: Node 127.0.0.1:4647 updated peer set (2): [127.0.0.1:4647]
 ```
 
 We can see above that client mode is disabled, and that we are
