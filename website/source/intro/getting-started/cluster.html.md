@@ -57,18 +57,19 @@ $ sudo nomad agent -config server.hcl
 
 ==> Nomad agent started! Log data will stream in below:
 
-    [INFO] serf: EventMemberJoin: nomad.global 127.0.0.1
-    [INFO] nomad: starting 4 scheduling worker(s) for [service batch _core]
-    [INFO] raft: Node at 127.0.0.1:4647 [Follower] entering Follower state
-    [WARN] serf: Failed to re-join any previously known node
-    [INFO] nomad: adding server nomad.global (Addr: 127.0.0.1:4647) (DC: dc1)
-    [WARN] raft: Heartbeat timeout reached, starting election
-    [INFO] raft: Node at 127.0.0.1:4647 [Candidate] entering Candidate state
-    [DEBUG] raft: Votes needed: 1
-    [DEBUG] raft: Vote granted. Tally: 1
-    [INFO] raft: Election won. Tally: 1
-    [INFO] raft: Node at 127.0.0.1:4647 [Leader] entering Leader state
-    [INFO] nomad: cluster leadership acquired
+    2015/09/28 00:13:27 [INFO] serf: EventMemberJoin: nomad.global 127.0.0.1
+    2015/09/28 00:13:27 [INFO] nomad: starting 4 scheduling worker(s) for [service batch _core]
+    2015/09/28 00:13:27 [INFO] raft: Node at 127.0.0.1:4647 [Follower] entering Follower state
+    2015/09/28 00:13:27 [INFO] nomad: adding server nomad.global (Addr: 127.0.0.1:4647) (DC: dc1)
+    2015/09/28 00:13:28 [WARN] raft: Heartbeat timeout reached, starting election
+    2015/09/28 00:13:28 [INFO] raft: Node at 127.0.0.1:4647 [Candidate] entering Candidate state
+    2015/09/28 00:13:28 [DEBUG] raft: Votes needed: 1
+    2015/09/28 00:13:28 [DEBUG] raft: Vote granted. Tally: 1
+    2015/09/28 00:13:28 [INFO] raft: Election won. Tally: 1
+    2015/09/28 00:13:28 [INFO] raft: Node at 127.0.0.1:4647 [Leader] entering Leader state
+    2015/09/28 00:13:28 [INFO] nomad: cluster leadership acquired
+    2015/09/28 00:13:28 [INFO] raft: Disabling EnableSingleNode (bootstrap)
+    2015/09/28 00:13:28 [DEBUG] raft: Node 127.0.0.1:4647 updated peer set (2): [127.0.0.1:4647]
 ```
 
 We can see above that client mode is disabled, and that we are
@@ -140,8 +141,8 @@ we should see both nodes in the `ready` state:
 ```
 $ nomad node-status
 ID                                    DC   Name   Class   Drain  Status
-e5239796-7285-3ed2-efe1-37cdc2d459d4  dc1  nomad  <none>  false  ready
-d12e4ab0-4206-bd33-ff75-e1367590eceb  dc1  nomad  <none>  false  ready
+f7780117-2cae-8ee9-4b36-f34dd796ab02  dc1  nomad  <none>  false  ready
+ffb5b55a-6059-9ec7-6108-23a2bbba95da  dc1  nomad  <none>  false  ready
 ```
 
 We now have a simple three node cluster running. The only difference
@@ -158,13 +159,13 @@ Then, use the [`run` command](/docs/commands/run.html) to submit the job:
 
 ```
 $ nomad run example.nomad
-==> Monitoring evaluation "2d742049-497f-c602-c56d-ae2a328a5671"
+==> Monitoring evaluation "77e5075f-2a1b-9cce-d14e-fe98cca9e17f"
     Evaluation triggered by job "example"
-    Allocation "44d46439-655d-701e-55ce-552ee74fbbd8" created: node "e5239796-7285-3ed2-efe1-37cdc2d459d4", group "cache"
-    Allocation "624be24f-5992-0c75-742d-7f8dbd3044a2" created: node "e5239796-7285-3ed2-efe1-37cdc2d459d4", group "cache"
-    Allocation "a133a2c7-cc3c-2f8c-8664-71d2389c7759" created: node "d12e4ab0-4206-bd33-ff75-e1367590eceb", group "cache"
+    Allocation "711edd85-f183-99ea-910a-6445b23d79e4" created: node "ffb5b55a-6059-9ec7-6108-23a2bbba95da", group "cache"
+    Allocation "98218a8a-627c-308f-8941-acdbffe1940c" created: node "f7780117-2cae-8ee9-4b36-f34dd796ab02", group "cache"
+    Allocation "e8957a7f-6fff-f61f-2878-57715c26725d" created: node "f7780117-2cae-8ee9-4b36-f34dd796ab02", group "cache"
     Evaluation status changed: "pending" -> "complete"
-==> Evaluation "2d742049-497f-c602-c56d-ae2a328a5671" finished with status "complete"
+==> Evaluation "77e5075f-2a1b-9cce-d14e-fe98cca9e17f" finished with status "complete"
 ```
 
 We can see in the output that the scheduler assigned two of the
@@ -180,17 +181,17 @@ Name        = example
 Type        = service
 Priority    = 50
 Datacenters = dc1
-Status      =
+Status      = <none>
 
 ==> Evaluations
-ID                                    Priority  TriggeredBy     Status
-2d742049-497f-c602-c56d-ae2a328a5671  50        job-register    complete
+ID                                    Priority  TriggeredBy   Status
+77e5075f-2a1b-9cce-d14e-fe98cca9e17f  50        job-register  complete
 
 ==> Allocations
 ID                                    EvalID                                NodeID                                TaskGroup  Desired  Status
-44d46439-655d-701e-55ce-552ee74fbbd8  2d742049-497f-c602-c56d-ae2a328a5671  e5239796-7285-3ed2-efe1-37cdc2d459d4  cache      run      running
-a133a2c7-cc3c-2f8c-8664-71d2389c7759  2d742049-497f-c602-c56d-ae2a328a5671  d12e4ab0-4206-bd33-ff75-e1367590eceb  cache      run      running
-624be24f-5992-0c75-742d-7f8dbd3044a2  2d742049-497f-c602-c56d-ae2a328a5671  e5239796-7285-3ed2-efe1-37cdc2d459d4  cache      run      running
+711edd85-f183-99ea-910a-6445b23d79e4  77e5075f-2a1b-9cce-d14e-fe98cca9e17f  ffb5b55a-6059-9ec7-6108-23a2bbba95da  cache      run      running
+98218a8a-627c-308f-8941-acdbffe1940c  77e5075f-2a1b-9cce-d14e-fe98cca9e17f  f7780117-2cae-8ee9-4b36-f34dd796ab02  cache      run      running
+e8957a7f-6fff-f61f-2878-57715c26725d  77e5075f-2a1b-9cce-d14e-fe98cca9e17f  f7780117-2cae-8ee9-4b36-f34dd796ab02  cache      run      running
 ```
 
 We can see that all our tasks have been allocated and are running.

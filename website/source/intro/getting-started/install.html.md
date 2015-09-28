@@ -41,20 +41,25 @@ $ vagrant ssh
 ...
 
 vagrant@nomad:~$ nomad
+
 usage: nomad [--version] [--help] <command> [<args>]
 
 Available commands are:
     agent                 Runs a Nomad agent
     agent-info            Display status information about the local agent
+    alloc-status          Display allocation status information and metadata
+    client-config         View or modify client configuration details
     eval-monitor          Monitor an evaluation interactively
+    init                  Create an example job file
     node-drain            Toggle drain mode on a given node
     node-status           Display status information about nodes
-    run                   Run a new job
+    run                   Run a new job or update an existing job
     server-force-leave    Force a server into the 'left' state
     server-join           Join server nodes together
     server-members        Display a list of known servers and their status
     status                Display status information about jobs
     stop                  Stop a running job
+    validate              Checks if a given job specification is valid
     version               Prints the Nomad version
 ```
 

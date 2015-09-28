@@ -27,37 +27,40 @@ job configurations or prototype interactions. It should _**not**_ be used in
 production as it does not persist state.
 
 ```
-$ sudo nomad agent -dev
+vagrant@nomad:~$ sudo nomad agent -dev
+
 ==> Starting Nomad agent...
 ==> Nomad agent configuration:
 
                  Atlas: <disabled>
                 Client: true
-             Log Level: debug
+             Log Level: DEBUG
                 Region: global (DC: dc1)
                 Server: true
 
 ==> Nomad agent started! Log data will stream in below:
 
-    [INFO] serf: EventMemberJoin: nomad.global 127.0.0.1
-    [INFO] nomad: starting 4 scheduling worker(s) for [service batch _core]
-    [INFO] raft: Node at 127.0.0.1:4647 [Follower] entering Follower state
-    [INFO] nomad: adding server nomad.global (Addr: 127.0.0.1:4647) (DC: dc1)
-    [DEBUG] client: applied fingerprints [storage arch cpu host memory]
-    [DEBUG] client: available drivers [exec docker]
-    [WARN] raft: Heartbeat timeout reached, starting election
-    [INFO] raft: Node at 127.0.0.1:4647 [Candidate] entering Candidate state
-    [DEBUG] raft: Votes needed: 1
-    [DEBUG] raft: Vote granted. Tally: 1
-    [INFO] raft: Election won. Tally: 1
-    [INFO] raft: Node at 127.0.0.1:4647 [Leader] entering Leader state
-    [INFO] raft: Disabling EnableSingleNode (bootstrap)
-    [DEBUG] raft: Node 127.0.0.1:4647 updated peer set (2): [127.0.0.1:4647]
-    [INFO] nomad: cluster leadership acquired
-    [DEBUG] client: node registration complete
-    [DEBUG] client: updated allocations at index 1 (0 allocs)
-    [DEBUG] client: allocs: (added 0) (removed 0) (updated 0) (ignore 0)
-    [DEBUG] client: state updated to ready
+    2015/09/27 23:51:27 [INFO] serf: EventMemberJoin: nomad.global 127.0.0.1
+    2015/09/27 23:51:27 [INFO] nomad: starting 4 scheduling worker(s) for [service batch _core]
+    2015/09/27 23:51:27 [INFO] client: using alloc directory /tmp/NomadClient599911093
+    2015/09/27 23:51:27 [INFO] raft: Node at 127.0.0.1:4647 [Follower] entering Follower state
+    2015/09/27 23:51:27 [INFO] nomad: adding server nomad.global (Addr: 127.0.0.1:4647) (DC: dc1)
+    2015/09/27 23:51:27 [WARN] fingerprint.network: Ethtool not found, checking /sys/net speed file
+    2015/09/27 23:51:28 [WARN] raft: Heartbeat timeout reached, starting election
+    2015/09/27 23:51:28 [INFO] raft: Node at 127.0.0.1:4647 [Candidate] entering Candidate state
+    2015/09/27 23:51:28 [DEBUG] raft: Votes needed: 1
+    2015/09/27 23:51:28 [DEBUG] raft: Vote granted. Tally: 1
+    2015/09/27 23:51:28 [INFO] raft: Election won. Tally: 1
+    2015/09/27 23:51:28 [INFO] raft: Node at 127.0.0.1:4647 [Leader] entering Leader state
+    2015/09/27 23:51:28 [INFO] raft: Disabling EnableSingleNode (bootstrap)
+    2015/09/27 23:51:28 [DEBUG] raft: Node 127.0.0.1:4647 updated peer set (2): [127.0.0.1:4647]
+    2015/09/27 23:51:28 [INFO] nomad: cluster leadership acquired
+    2015/09/27 23:51:29 [DEBUG] client: applied fingerprints [arch cpu host memory storage network]
+    2015/09/27 23:51:29 [DEBUG] client: available drivers [docker exec java]
+    2015/09/27 23:51:29 [DEBUG] client: node registration complete
+    2015/09/27 23:51:29 [DEBUG] client: updated allocations at index 1 (0 allocs)
+    2015/09/27 23:51:29 [DEBUG] client: allocs: (added 0) (removed 0) (updated 0) (ignore 0)
+    2015/09/27 23:51:29 [DEBUG] client: state updated to ready
 ```
 
 As you can see, the Nomad agent has started and has output some log
