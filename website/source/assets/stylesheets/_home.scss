@@ -10,7 +10,6 @@
 	//@include img-retina("../images/nomad-bg.png", "../images/nomad-bg@2x.png", 624px, 358px);
 	background: image-url('../images/nomad-giant.jpg') 0 0 no-repeat;
 	@include img-retina("../images/nomad-giant.jpg", "../images/nomad-giant.jpg", 624px, 358px);
-	background-color: $green-dark;
 	background-size: cover !important;
 	overflow: hidden;
 
@@ -139,6 +138,12 @@
 
 .banner{
 	margin-top: 120px;
+
+	.col{
+		p{
+			line-height: 24px;
+		}
+	}
 
 	&.gray-banner{
 		.col{
@@ -443,6 +448,26 @@
 					margin-top: 0;
 				}
 			}
+
+			&#maintain{
+				.feature-graphic{
+					margin-top: -50px;
+					width: 768px;
+					height: 475px;
+					background: image-url('../images/feature-manage.png') 0 0 no-repeat;
+					@include img-retina("../images/feature-manage.png", "../images/feature-manage@2x.png", 768px, 475px);
+				}
+			}
+
+			&#density{
+				.feature-graphic{
+					width: 768px;
+					height: 302px;
+					background: image-url('../images/feature-density.png') 0 0 no-repeat;
+					@include img-retina("../images/feature-density.png", "../images/feature-density@2x.png", 768px, 302px);
+				}
+			}
+
 			&#partners{
 				.partner-logos{
 					.docker-wrap{
@@ -492,6 +517,37 @@
 					}
 				}
 			}
+
+			&#maintain{
+				.feature-graphic{
+					margin-top: $small-pad;
+					width: 480px;
+					height: 297px;
+					background: image-url('../images/feature-manage.png') 0 0 no-repeat;
+					@include img-retina("../images/feature-manage.png", "../images/feature-manage@2x.png", 480px, 297px);
+				}
+			}
+
+			&#healing{
+				.feature-graphic{
+					margin-top: $small-pad;
+					width: 480px;
+					height: 147px;
+					background: image-url('../images/feature-healing.png') 0 0 no-repeat;
+					@include img-retina("../images/feature-healing.png", "../images/feature-healing@2x.png", 480px, 147px);
+				}
+			}
+
+			&#density{
+				.feature-graphic{
+					margin-top: $small-pad;
+					width: 480px;
+					height: 189px;
+					background: image-url('../images/feature-density.png') 0 0 no-repeat;
+					@include img-retina("../images/feature-density.png", "../images/feature-density@2x.png", 480px, 189px);
+				}
+			}
+
 			&#partners{
 				.partner-logo{
 					display: block !important;
@@ -516,6 +572,21 @@
 				text-align: center !important;
 				max-width: none !important;
 				float: none !important;
+			}
+		}
+	}
+
+	.banner{
+		padding: 18px;
+		margin: 0 20px;
+
+		.col{
+			text-align: center;
+
+			p{
+					display: block;
+					margin-right: 0;
+					margin-bottom: $small-pad;
 			}
 		}
 	}
@@ -565,6 +636,34 @@
 					.docker-outline-logo{
 						display: block;
 					}
+				}
+			}
+
+			&#maintain{
+				.feature-graphic{
+					margin-top: $small-pad;
+					width: 280px;
+					height: 173px;
+					background: image-url('../images/feature-manage.png') 0 0 no-repeat;
+					@include img-retina("../images/feature-manage.png", "../images/feature-manage@2x.png", 280px, 173px);
+				}
+			}
+
+			&#healing{
+				.feature-graphic{
+					width: 280px;
+					height: 86px;
+					background: image-url('../images/feature-healing.png') 0 0 no-repeat;
+					@include img-retina("../images/feature-healing.png", "../images/feature-healing@2x.png", 280px, 86px);
+				}
+			}
+
+			&#density{
+				.feature-graphic{
+					width: 280px;
+					height: 110px;
+					background: image-url('../images/feature-density.png') 0 0 no-repeat;
+					@include img-retina("../images/feature-density.png", "../images/feature-density@2x.png", 280px, 110px);
 				}
 			}
 		}

@@ -102,13 +102,16 @@ body.page-sub{
     }
 }
 
-@media (max-width: 320px) {
+@media (max-width: 480px) {
 
     #footer{
+        padding: 40px 0 40px;
         text-align: center;
 
         .footer-links{
             .li-under{
+                display: block;
+                margin-bottom: $xsmall-pad;
                 float: none !important;
             }
         }
