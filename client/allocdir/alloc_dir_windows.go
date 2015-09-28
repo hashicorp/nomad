@@ -6,7 +6,7 @@ import (
 )
 
 func (d *AllocDir) linkOrCopy(src, dst string, perm os.FileMode) error {
-	return fileCopy(src, dst)
+	return fileCopy(src, dst, perm)
 }
 
 // The windows version does nothing currently.
