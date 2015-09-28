@@ -9,6 +9,7 @@
 	background: image-url('../images/nomad-pattern.png') 0 0 repeat;
 	@include img-retina("../images/nomad-pattern.png", "../images/nomad-pattern.png", 1869px / 3, 1074px / 3);
 	background-repeat: repeat;
+	overflow: hidden;
 
 	&:before{
 		content: '';
@@ -24,11 +25,14 @@
 	}
 
 	#hero-graphic{
-		position: relative;
+		position: absolute;
 		display: inline-block;
+		left: 50%;
+		top: 0;
 		width: 499px;
 		height: 340px;
-		margin: 48px auto 40px;
+		margin-top: 38px;
+		margin-left: -250px;
 		z-index: 2;
 
 		#hero-logotype{
@@ -82,6 +86,7 @@
 
 	#hero-text{
 		position: relative;
+		padding-top: 400px;
 
 		#hero-text-content{
 			position: relative;
@@ -98,7 +103,6 @@
 
 		h3{
 			color: $blue-light;
-			font-size: $font-size-m;
 			font-family: $font-family-blanc;
 		}
 
@@ -433,6 +437,12 @@
 }
 
 @media (max-width: 768px) {
+	#hero{
+		#hero-graphic{
+			@include scale(.8);
+		}
+	}
+
 	#cta{
 		.intro{
 			text-align: center;
@@ -447,32 +457,21 @@
 
 @media (max-width: 480px) {
 	#hero{
-		#diagram{
-			width: 100%;
-			height: 132px;
-		    background: image-url('../images/hero.png') center 0 no-repeat;
-		   	@include img-retina("../images/hero.png", "../images/hero@2x.png", 320px, 132px);
-		}
-	}
+		background: none;
 
-	#content{
-		.feature{
-			&#audit{
-				.graphic{
-					width: 100%;
-					height: 84px;
-				    background: image-url('../images/graphic-audit.png') center 0 no-repeat;
-				   	@include img-retina("../images/graphic-audit.png", "../images/graphic-audit@2x.png", 320px, 84px);
-				}
-			}
+		&:before{
+			display: none;
 		}
-	}
 
-	.feature-footer{
-		text-align: center;
-		a{
-			margin-bottom: 15px;
-			margin-left: 0 !important;
+		#hero-graphic{
+			height: 60px;
+			margin-top: 0;
+			@include scale(.54);
+		}
+
+		#hero-text{
+			position: relative;
+			padding-top: 220px;
 		}
 	}
 }

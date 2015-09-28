@@ -58,14 +58,6 @@ pre {
 	margin-bottom: 0;
 }
 
-
-//fixed grid below 992 to prevent smaller responsive sizes
-@media (max-width: 992px) {
-	.container{
-		max-width: 970px;
-	}
-}
-
 //all below styles are overriding corrections for below (min-width: 992px)
 //below (min-width: 992px) these styles change
 .navbar-nav {
@@ -87,4 +79,34 @@ pre {
 
 .center {
     text-align: center;
+}
+
+//fixed grid below 992 to prevent smaller responsive sizes
+@media (max-width: 992px) {
+	.container{
+		max-width: 970px;
+	}
+}
+
+@media (max-width: 768px) {
+    body {
+      font-size: 14px;
+    }
+
+    h1{
+    	font-size: $font-size-m !important;
+    	line-height: $font-size-m;
+      font-weight: $font-weight-reg;
+    	margin-bottom: 24px;
+    }
+
+    h2{
+    	font-size: $font-size-m !important;
+    	font-weight: $font-weight-reg;
+    }
+
+    h3{
+    	font-size: $font-size-reg !important;
+    	font-weight: $font-weight-reg;
+    }
 }
