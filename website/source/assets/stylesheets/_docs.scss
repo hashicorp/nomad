@@ -36,7 +36,6 @@ body.layout-intro{
   	z-index: 20;
   	margin-bottom: 30px;
 	margin-top: 50px;
-	margin-right: 4%;
 	@include open();
 
 	.nav.docs-sidenav{
@@ -51,7 +50,7 @@ body.layout-intro{
 			position: relative;
 
 			> a{
-				padding: 10px 0 10px 8px;
+				padding: 10px 8px;
 				font-size: 15px;
 				color: $blue-dark;
 

@@ -4,7 +4,7 @@
 
 #header {
     position: relative;
-    height: 108px;
+    height: 92px;
     color: $white;
     text-rendering: optimizeLegibility;
     margin-bottom: 0;
@@ -44,7 +44,7 @@
     .navbar-brand {
         display: inline-block;
         padding: 0;
-        margin: 30px 10px 0 0 ;
+        margin: 16px 10px 0 0 ;
 
         .logo{
             display: inline-block;
@@ -67,7 +67,7 @@
     }
 
     .main-links.navbar-nav{
-        margin-top: 50px;
+        margin-top: 36px;
         margin-left: 120px;
 
         li > a {
@@ -77,7 +77,7 @@
 
     .buttons{
         ul.navbar-nav{
-            margin-top: 50px;
+            margin-top: 36px;
             li {
               padding-left: 12px;
 
@@ -116,7 +116,22 @@
 
 }
 
-@media (max-width: 768px) {
+@media (max-width: 992px) {
+    #header{
+        .main-links.navbar-nav{
+            margin-left: 20px;
+        }
+
+        .buttons{
+            ul.navbar-nav{
+                li {
+                      &.download{
+                        margin-right: 8px;
+                    }
+                }
+            }
+        }
+    }
 
 }
 
