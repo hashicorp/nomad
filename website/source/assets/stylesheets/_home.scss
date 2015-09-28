@@ -514,6 +514,16 @@
 				}
 			}
 
+			&#healing{
+				.feature-graphic{
+					margin-top: $small-pad;
+					width: 480px;
+					height: 147px;
+					background: image-url('../images/feature-healing.png') 0 0 no-repeat;
+					@include img-retina("../images/feature-healing.png", "../images/feature-healing@2x.png", 480px, 147px);
+				}
+			}
+
 			&#partners{
 				.partner-logo{
 					display: block !important;
@@ -597,6 +607,15 @@
 					height: 173px;
 					background: image-url('../images/feature-manage.png') 0 0 no-repeat;
 					@include img-retina("../images/feature-manage.png", "../images/feature-manage@2x.png", 280px, 173px);
+				}
+			}
+
+			&#healing{
+				.feature-graphic{
+					width: 280px;
+					height: 86px;
+					background: image-url('../images/feature-healing.png') 0 0 no-repeat;
+					@include img-retina("../images/feature-healing.png", "../images/feature-healing@2x.png", 280px, 86px);
 				}
 			}
 		}
