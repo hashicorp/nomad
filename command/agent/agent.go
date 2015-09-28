@@ -192,6 +192,7 @@ func (a *Agent) setupClient() error {
 		conf.AllocDir = a.config.Client.AllocDir
 	}
 	conf.Servers = a.config.Client.Servers
+	conf.Options = a.config.Client.Options
 
 	// Setup the node
 	conf.Node = new(structs.Node)
