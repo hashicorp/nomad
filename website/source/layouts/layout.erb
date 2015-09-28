@@ -1,3 +1,19 @@
+<% if livestream_active? %>
+<% content_for(:body_class, "livestream") %>
+
+<%= partial "layouts/meta" %>
+<div class="livestream-container">
+    <div class="livestream-video">
+        <iframe src="https://www.ustream.tv/embed/21243866?html5ui=1" id="live-stream-video" webkitallowfullscreen allowfullscreen frameborder="no"></iframe>
+    </div>
+</div>
+
+<!-- closing tags from layouts/meta, keep this -->
+</body>
+</html>
+
+<% else %>
+
 <%= partial "layouts/meta" %>
 <%= partial "layouts/header" %>
 <%= partial "layouts/sidebar" %>
@@ -5,3 +21,4 @@
 <%= yield %>
 
 <%= partial "layouts/footer" %>
+<% end %>
