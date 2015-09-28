@@ -440,6 +440,22 @@
 					margin-top: 0;
 				}
 			}
+			&#partners{
+				.partner-logos{
+					.docker-wrap{
+						//border: none;
+						.partner-logo{
+							@include scale(.8);
+							margin-left: -18px;
+						}
+					}
+					.cloud-wrap{
+						.partner-logo{
+							@include scale(.8);
+						}
+					}
+				}
+			}
 		}
 	}
 }
@@ -473,12 +489,30 @@
 					}
 				}
 			}
+			&#partners{
+				.partner-logo{
+					display: block !important;
+					float: none !important;
+					width: 100% !important;
+					margin: 0 auto;
+					-webkit-transform: scale(1) !important;
+			    -ms-transform: scale(1) !important;
+			    transform: scale(1) !important;
+					margin-left: 0 !important;
+					height: 130px !important;
+				}
+
+				p{
+					padding: 0 20px;
+				}
+			}
 		}
 
 		.feature-header{
 			h3,p{
 				text-align: center !important;
 				max-width: none !important;
+				float: none !important;
 			}
 		}
 	}
