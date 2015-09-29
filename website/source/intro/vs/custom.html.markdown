@@ -16,7 +16,7 @@ and typically this evolves into an ad hoc deployment platform.
 
 These deployment platforms are typically special cased to the needs
 of the organization at the time of development, reduce future agility,
-and require time and resources to build and maintain
+and require time and resources to build and maintain.
 
 Nomad provides a high-level job specification to easily deploy applications.
 It has been designed to work at large scale, with multi-datacenter and
