@@ -12,14 +12,6 @@ import (
         ctestutils "github.com/hashicorp/nomad/client/testutil"
 )
 
-// rktLocated looks to see whether rkt binaries are available on this system
-// before we try to run tests. We may need to tweak this for cross-OS support
-// but I think this should work on *nix at least.
-func rktLocated() bool {
-        _, err := exec.Command("rkt", "version").CombinedOutput()
-        return err == nil
-}
-
 func TestRktDriver_Handle(t *testing.T) {
         h := &rktHandle{
                 proc:   &os.Process{Pid: 123},
@@ -55,16 +47,16 @@ func TestRktDriver_Fingerprint(t *testing.T) {
         if node.Attributes["driver.rkt.version"] == "" {
                 t.Fatalf("Missing Rkt driver version")
         }
+        if node.Attributes["driver.rkt.appc.version"] == "" {
+                t.Fatalf("Missing appc version for the Rkt driver")
+        }
 }
 
 func TestRktDriver_Start(t *testing.T) {
-        if !rktLocated() {
-                t.Skip("Rkt not found; skipping")
-        }
-
+        ctestutils.RktCompatible(t)
         // TODO: use test server to load from a fixture
         task := &structs.Task{
-                Name: "linux",
+                Name: "etcd",
                 Config: map[string]string{
                         "trust_prefix": "coreos.com/etcd",
                         "name":  "coreos.com/etcd:v2.0.4",
@@ -74,6 +66,7 @@ func TestRktDriver_Start(t *testing.T) {
         driverCtx := testDriverContext(task.Name)
         ctx := testDriverExecContext(task, driverCtx)
         d := NewRktDriver(driverCtx)
+        defer ctx.AllocDir.Destroy()
 
         handle, err := d.Start(ctx, task)
         if err != nil {
@@ -95,5 +88,45 @@ func TestRktDriver_Start(t *testing.T) {
         // Clean up
         if err := handle.Kill(); err != nil {
                 fmt.Printf("\nError killing Rkt test: %s", err)
+        }
+}
+
+func TestRktDriver_Start_Wait(t *testing.T) {
+        ctestutils.RktCompatible(t)
+        task := &structs.Task{
+                Name: "etcd",
+                Config: map[string]string{
+                        "trust_prefix": "coreos.com/etcd",
+                        "name":  "coreos.com/etcd:v2.0.4",
+                },
+        }
+
+        driverCtx := testDriverContext(task.Name)
+        ctx := testDriverExecContext(task, driverCtx)
+        d := NewRktDriver(driverCtx)
+        defer ctx.AllocDir.Destroy()
+
+        handle, err := d.Start(ctx, task)
+        if err != nil {
+                t.Fatalf("err: %v", err)
+        }
+        if handle == nil {
+                t.Fatalf("missing handle")
+        }
+        defer handle.Kill()
+
+        // Update should be a no-op
+        err = handle.Update(task)
+        if err != nil {
+                t.Fatalf("err: %v", err)
+        }
+
+        select {
+        case err := <-handle.WaitCh():
+                if err != nil {
+                        t.Fatalf("err: %v", err)
+                }
+        case <-time.After(5 * time.Second):
+                t.Fatalf("timeout")
         }
 }

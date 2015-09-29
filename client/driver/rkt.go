@@ -33,6 +33,7 @@ type RktDriver struct {
 type rktHandle struct {
         proc   *os.Process
         name   string
+        logger *log.Logger
         waitCh chan error
         doneCh chan struct{}
 }
@@ -68,9 +69,9 @@ func (d *RktDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, e
                 return false, fmt.Errorf("Unable to parse Rkt version string: %#v", rktMatches)
         }
 
-        node.Attributes["driver.rkt"] = "1"
+        node.Attributes["driver.rkt"] = "true"
         node.Attributes["driver.rkt.version"] = rktMatches[0]
-        node.Attributes["driver.appc.version"] = appcMatches[1]
+        node.Attributes["driver.rkt.appc.version"] = appcMatches[1]
 
         return true, nil
 }
@@ -81,19 +82,14 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
         if !ok || trust_prefix == "" {
                 return nil, fmt.Errorf("Missing trust prefix for rkt")
         }
-        trust_args := []string{
-                "sudo",
-                "rkt",
-                "trust",
-                "--prefix=" + trust_prefix,
-        }
+
         // Add the given trust prefix
         var outBuf, errBuf bytes.Buffer
-        cmd := exec.Command(trust_args[0], trust_args[1:]...)
+        cmd := exec.Command("rkt", "trust", fmt.Sprintf("--prefix=%s", trust_prefix))
         cmd.Stdout = &outBuf
         cmd.Stderr = &errBuf
-        d.logger.Printf("[DEBUG] Starting rkt command: %q", strings.Join(trust_args, " "))
-        if err := cmd.Start(); err != nil {
+        d.logger.Printf("[DEBUG] Starting rkt command: %q", cmd.Args)
+        if err := cmd.Run(); err != nil {
                 return nil, fmt.Errorf(
                         "Error running rkt: %s\n\nOutput: %s\n\nError: %s",
                         err, outBuf.String(), errBuf.String())
@@ -104,18 +100,14 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
         if !ok || name == "" {
                 return nil, fmt.Errorf("Missing ACI name for rkt")
         }
-        run_args := []string{
-                "sudo",
-                "rkt",
-                "run", "--interactive", name,
-        }
+
         // Run the ACI
         var aoutBuf, aerrBuf bytes.Buffer
-        acmd := exec.Command(run_args[0], run_args[1:]...)
+        acmd := exec.Command("rkt", "run", "--interactive", name)
         acmd.Stdout = &aoutBuf
         acmd.Stderr = &aerrBuf
-        d.logger.Printf("[DEBUG] Starting rkt command: %q", strings.Join(run_args, " "))
-        if err := acmd.Start(); err != nil {
+        d.logger.Printf("[DEBUG] Starting rkt command: %q", acmd.Args)
+        if err := acmd.Run(); err != nil {
                 return nil, fmt.Errorf(
                         "Error running rkt: %s\n\nOutput: %s\n\nError: %s",
                         err, aoutBuf.String(), aerrBuf.String())
@@ -124,6 +116,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
         h := &rktHandle{
                 proc:   acmd.Process,
                 name:   name,
+                logger: d.logger,
                 doneCh: make(chan struct{}),
                 waitCh: make(chan error, 1),
         }
@@ -149,6 +142,7 @@ func (d *RktDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error
         h := &rktHandle{
                 proc:   proc,
                 name:   qpid.Name,
+                logger: d.logger,
                 doneCh: make(chan struct{}),
                 waitCh: make(chan error, 1),
         }
@@ -165,7 +159,7 @@ func (h *rktHandle) ID() string {
         }
         data, err := json.Marshal(pid)
         if err != nil {
-                log.Printf("[ERR] failed to marshal rkt PID to JSON: %s", err)
+                h.logger.Printf("[ERR] failed to marshal rkt PID to JSON: %s", err)
         }
         return fmt.Sprintf("Rkt:%s", string(data))
 }
@@ -181,9 +175,6 @@ func (h *rktHandle) Update(task *structs.Task) error {
 
 // Kill is used to terminate the task. We send an Interrupt
 // and then provide a 5 second grace period before doing a Kill.
-//
-// TODO: allow a 'shutdown_command' that can be executed over a ssh connection
-// to the VM
 func (h *rktHandle) Kill() error {
         h.proc.Signal(os.Interrupt)
         select {
