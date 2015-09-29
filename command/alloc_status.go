@@ -11,7 +11,7 @@ type AllocStatusCommand struct {
 
 func (c *AllocStatusCommand) Help() string {
 	helpText := `
-Usage: nomad alloc-stauts [options] <allocation>
+Usage: nomad alloc-status [options] <allocation>
 
   Display information about existing allocations. This command can
   be used to inspect the current status of all allocation,
