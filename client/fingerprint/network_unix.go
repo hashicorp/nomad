@@ -61,13 +61,7 @@ func (f *NetworkFingerprint) Fingerprint(cfg *config.Config, node *structs.Node)
 	return true, nil
 }
 
-// LinkSpeed attempts to determine link speed, first by checking if any tools
-// exist that can return the speed (ethtool for now). If no tools are found,
-// fall back to /sys/class/net speed file, if it exists.
-//
-// The return value is in the format of "<int>MB/s"
-//
-// LinkSpeed returns an empty string if no tools or sys file are found
+// linkSpeed returns link speed in Mb/s, or 0 when unable to determine it.
 func (f *NetworkFingerprint) linkSpeed(device string) int {
 	// Use LookPath to find the ethtool in the systems $PATH
 	// If it's not found or otherwise errors, LookPath returns and empty string
@@ -83,9 +77,7 @@ func (f *NetworkFingerprint) linkSpeed(device string) int {
 	return f.linkSpeedSys(device)
 }
 
-// linkSpeedSys parses the information stored in the sys diretory for the
-// default device. This method retuns an empty string if the file is not found
-// or cannot be read
+// linkSpeedSys parses link speed in Mb/s from /sys.
 func (f *NetworkFingerprint) linkSpeedSys(device string) int {
 	path := fmt.Sprintf("/sys/class/net/%s/speed", device)
 
@@ -97,7 +89,6 @@ func (f *NetworkFingerprint) linkSpeedSys(device string) int {
 	}
 
 	lines := strings.Split(string(content), "\n")
-	// convert to MB/s
 	mbs, err := strconv.Atoi(lines[0])
 	if err != nil || mbs <= 0 {
 		f.logger.Printf("[WARN] fingerprint.network: Unable to parse link speed from %s", path)
@@ -107,10 +98,7 @@ func (f *NetworkFingerprint) linkSpeedSys(device string) int {
 	return mbs
 }
 
-// linkSpeedEthtool uses the ethtool installed on the node to gather link speed
-// information. It executes the command on the device specified and parses
-// out the speed. The expected format is Mbps and converted to MB/s
-// Returns an empty string there is an error in parsing or executing ethtool
+// linkSpeedEthtool determines link speed in Mb/s with 'ethtool'.
 func (f *NetworkFingerprint) linkSpeedEthtool(path, device string) int {
 	outBytes, err := exec.Command(path, device).Output()
 	if err != nil {
