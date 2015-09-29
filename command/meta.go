@@ -49,7 +49,7 @@ func (m *Meta) FlagSet(n string, fs FlagSetFlags) *flag.FlagSet {
 		f.StringVar(&m.flagAddress, "address", "", "")
 	}
 
-	// Create an io.Writer that writes to our Ui properly for errors.
+	// Create an io.Writer that writes to our UI properly for errors.
 	// This is kind of a hack, but it does the job. Basically: create
 	// a pipe, use a scanner to break it into lines, and output each line
 	// to the UI. Do this forever.
