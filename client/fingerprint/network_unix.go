@@ -146,7 +146,7 @@ func (f *NetworkFingerprint) linkSpeedEthtool(path, device string) int {
 func (f *NetworkFingerprint) ifConfig(device string) string {
 	ifConfigPath, _ := exec.LookPath("ifconfig")
 	if ifConfigPath == "" {
-		f.logger.Println("[WARN] fingerprint.network: Ethtool not found")
+		f.logger.Println("[WARN] fingerprint.network: ifconfig not found")
 		return ""
 	}
 
