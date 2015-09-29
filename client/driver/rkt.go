@@ -133,7 +133,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 
 func (d *RktDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {
         // Parse the handle
-        pidBytes := []byte(strings.TrimPrefix(handleID, "RKT:"))
+        pidBytes := []byte(strings.TrimPrefix(handleID, "Rkt:"))
         qpid := &rktPID{}
         if err := json.Unmarshal(pidBytes, qpid); err != nil {
                 return nil, fmt.Errorf("failed to parse Rkt handle '%s': %v", handleID, err)
