@@ -12,7 +12,7 @@ Name: `docker`
 
 The `docker` driver provides a first-class Docker workflow on Nomad. The Docker
 driver handles downloading containers, mapping ports, and starting, watching,
-and cleaning up when containers.
+and cleaning up after containers.
 
 ## Task Configuration
 
