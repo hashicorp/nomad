@@ -561,6 +561,11 @@ func LoadConfigDir(dir string) (*Config, error) {
 		}
 	}
 
+	// Fast-path if we have no files
+	if len(files) == 0 {
+		return &Config{}, nil
+	}
+
 	var result *Config
 	for _, f := range files {
 		config, err := LoadConfigFile(f)
