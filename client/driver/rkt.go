@@ -122,7 +122,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
         }
         d.logger.Printf("[DEBUG] Started ACI: %q", name)
         h := &rktHandle{
-                proc:   cmd.Process,
+                proc:   acmd.Process,
                 name:   name,
                 doneCh: make(chan struct{}),
                 waitCh: make(chan error, 1),
