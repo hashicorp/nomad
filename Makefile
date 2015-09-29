@@ -1,4 +1,3 @@
-DEPS = $(shell go list -f '{{range .TestImports}}{{.}} {{end}}' ./...)
 PACKAGES = $(shell go list ./...)
 VETARGS?=-asmdecl -atomic -bool -buildtags -copylocks -methods \
          -nilfunc -printf -rangeloops -shift -structtags -unsafeptr
@@ -22,11 +21,11 @@ cov:
 
 deps:
 	@echo "--> Installing build dependencies"
-	@go get -d -v ./... $(DEPS)
+	@bash --norc scripts/deps.sh -d -v
 
 updatedeps: deps
 	@echo "--> Updating build dependencies"
-	@go get -d -f -u ./... $(DEPS)
+	@bash --norc scripts/deps.sh -d -f -u
 
 test: deps
 	@./scripts/test.sh
