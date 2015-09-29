@@ -226,7 +226,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 		authOptions := docker.AuthConfiguration{}
 		err = client.PullImage(pullOptions, authOptions)
 		if err != nil {
-			d.logger.Printf("[ERR] driver.docker: pulling container %s", err)
+			d.logger.Printf("[ERR] driver.docker: pulling container %v", err)
 			return nil, fmt.Errorf("Failed to pull `%s`: %s", image, err)
 		}
 		d.logger.Printf("[DEBUG] driver.docker: docker pull %s:%s succeeded", repo, tag)
@@ -244,7 +244,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	// Create a container
 	container, err := client.CreateContainer(createContainer(ctx, task, d.logger))
 	if err != nil {
-		d.logger.Printf("[ERR] driver.docker: %s", err)
+		d.logger.Printf("[ERR] driver.docker: %v", err)
 		return nil, fmt.Errorf("Failed to create container from image %s", image)
 	}
 	d.logger.Printf("[INFO] driver.docker: created container %s", container.ID)
@@ -341,7 +341,7 @@ func (h *dockerHandle) ID() string {
 	}
 	data, err := json.Marshal(pid)
 	if err != nil {
-		h.logger.Printf("[ERR] driver.docker: failed to marshal docker PID to JSON: %s", err)
+		h.logger.Printf("[ERR] driver.docker: failed to marshal docker PID to JSON: %v", err)
 	}
 	return fmt.Sprintf("DOCKER:%s", string(data))
 }

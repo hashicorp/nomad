@@ -46,14 +46,14 @@ func (c *AllocStatusCommand) Run(args []string) int {
 	// Get the HTTP client
 	client, err := c.Meta.Client()
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error initializing client: %v", err))
 		return 1
 	}
 
 	// Query the allocation info
 	alloc, _, err := client.Allocations().Info(allocID, nil)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error querying allocation: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error querying allocation: %v", err))
 		return 1
 	}
 

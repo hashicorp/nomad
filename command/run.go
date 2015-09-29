@@ -76,34 +76,34 @@ func (c *RunCommand) Run(args []string) int {
 	// Parse the job file
 	job, err := jobspec.ParseFile(file)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error parsing job file %s: %s", file, err))
+		c.Ui.Error(fmt.Sprintf("Error parsing job file %s: %v", file, err))
 		return 1
 	}
 
 	// Check that the job is valid
 	if err := job.Validate(); err != nil {
-		c.Ui.Error(fmt.Sprintf("Error validating job: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error validating job: %v", err))
 		return 1
 	}
 
 	// Convert it to something we can use
 	apiJob, err := convertJob(job)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error converting job: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error converting job: %v", err))
 		return 1
 	}
 
 	// Get the HTTP client
 	client, err := c.Meta.Client()
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error initializing client: %v", err))
 		return 1
 	}
 
 	// Submit the job
 	evalID, _, err := client.Jobs().Register(apiJob, nil)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error submitting job: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error submitting job: %v", err))
 		return 1
 	}
 

@@ -55,7 +55,7 @@ func (c *StatusCommand) Run(args []string) int {
 	// Get the HTTP client
 	client, err := c.Meta.Client()
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error initializing client: %v", err))
 		return 1
 	}
 
@@ -63,7 +63,7 @@ func (c *StatusCommand) Run(args []string) int {
 	if len(args) == 0 {
 		jobs, _, err := client.Jobs().List(nil)
 		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error querying jobs: %s", err))
+			c.Ui.Error(fmt.Sprintf("Error querying jobs: %v", err))
 			return 1
 		}
 
@@ -89,7 +89,7 @@ func (c *StatusCommand) Run(args []string) int {
 	jobID := args[0]
 	job, _, err := client.Jobs().Info(jobID, nil)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error querying job: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error querying job: %v", err))
 		return 1
 	}
 
@@ -108,14 +108,14 @@ func (c *StatusCommand) Run(args []string) int {
 		// Query the evaluations
 		jobEvals, _, err := client.Jobs().Evaluations(jobID, nil)
 		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error querying job evaluations: %s", err))
+			c.Ui.Error(fmt.Sprintf("Error querying job evaluations: %v", err))
 			return 1
 		}
 
 		// Query the allocations
 		jobAllocs, _, err := client.Jobs().Allocations(jobID, nil)
 		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error querying job allocations: %s", err))
+			c.Ui.Error(fmt.Sprintf("Error querying job allocations: %v", err))
 			return 1
 		}
 

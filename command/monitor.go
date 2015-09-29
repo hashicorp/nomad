@@ -182,7 +182,7 @@ func (m *monitor) monitor(evalID string) int {
 		// Query the evaluation
 		eval, _, err := m.client.Evaluations().Info(evalID, nil)
 		if err != nil {
-			m.ui.Error(fmt.Sprintf("Error reading evaluation: %s", err))
+			m.ui.Error(fmt.Sprintf("Error reading evaluation: %v", err))
 			return 1
 		}
 
@@ -198,7 +198,7 @@ func (m *monitor) monitor(evalID string) int {
 		// Query the allocations associated with the evaluation
 		allocs, _, err := m.client.Evaluations().Allocations(evalID, nil)
 		if err != nil {
-			m.ui.Error(fmt.Sprintf("Error reading allocations: %s", err))
+			m.ui.Error(fmt.Sprintf("Error reading allocations: %v", err))
 			return 1
 		}
 
@@ -221,7 +221,7 @@ func (m *monitor) monitor(evalID string) int {
 				schedFailure = true
 				failed, _, err := m.client.Allocations().Info(alloc.ID, nil)
 				if err != nil {
-					m.ui.Error(fmt.Sprintf("Error querying allocation: %s", err))
+					m.ui.Error(fmt.Sprintf("Error querying allocation: %v", err))
 					return 1
 				}
 				state.allocs[alloc.ID].full = failed

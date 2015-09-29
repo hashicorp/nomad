@@ -59,7 +59,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 	// Get the HTTP client
 	client, err := c.Meta.Client()
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error initializing client: %v", err))
 		return 1
 	}
 
@@ -68,7 +68,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		// Query the node info
 		nodes, _, err := client.Nodes().List(nil)
 		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error querying node status: %s", err))
+			c.Ui.Error(fmt.Sprintf("Error querying node status: %v", err))
 			return 1
 		}
 
@@ -99,7 +99,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 	nodeID := args[0]
 	node, _, err := client.Nodes().Info(nodeID, nil)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error querying node info: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error querying node info: %v", err))
 		return 1
 	}
 
@@ -118,7 +118,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		// Query the node allocations
 		nodeAllocs, _, err := client.Nodes().Allocations(nodeID, nil)
 		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error querying node allocations: %s", err))
+			c.Ui.Error(fmt.Sprintf("Error querying node allocations: %v", err))
 			return 1
 		}
 

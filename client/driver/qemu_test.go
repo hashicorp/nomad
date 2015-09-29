@@ -105,7 +105,7 @@ func TestQemuDriver_Start(t *testing.T) {
 
 	// Clean up
 	if err := handle.Kill(); err != nil {
-		fmt.Printf("\nError killing Qemu test: %s", err)
+		fmt.Printf("\nError killing Qemu test: %v", err)
 	}
 }
 

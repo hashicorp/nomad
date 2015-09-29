@@ -192,7 +192,7 @@ OUTER:
 				offer, err := netIdx.AssignNetwork(ask)
 				if offer == nil {
 					iter.ctx.Metrics().ExhaustedNode(option.Node,
-						fmt.Sprintf("network: %s", err))
+						fmt.Sprintf("network: %v", err))
 					continue OUTER
 				}
 

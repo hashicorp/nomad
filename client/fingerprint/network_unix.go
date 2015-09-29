@@ -145,7 +145,7 @@ func (f *NetworkFingerprint) linkSpeedEthtool(path, device string) int {
 			return mbs
 		}
 	}
-	f.logger.Printf("[ERR] fingerprint.network: Error calling ethtool (%s): %s", path, err)
+	f.logger.Printf("[ERR] fingerprint.network: Error calling ethtool (%s): %v", path, err)
 	return 0
 }
 
@@ -184,7 +184,7 @@ func (f *NetworkFingerprint) ifConfig(device string) string {
 				return ip
 			}
 		}
-		f.logger.Printf("[ERR] fingerprint.network: Error calling ifconfig (%s): %s", ifConfigPath, err)
+		f.logger.Printf("[ERR] fingerprint.network: Error calling ifconfig (%s): %v", ifConfigPath, err)
 		return ""
 	}
 

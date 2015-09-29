@@ -57,14 +57,14 @@ func (c *ServerMembersCommand) Run(args []string) int {
 	// Get the HTTP client
 	client, err := c.Meta.Client()
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error initializing client: %v", err))
 		return 1
 	}
 
 	// Query the members
 	mem, err := client.Agent().Members()
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error querying servers: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error querying servers: %v", err))
 		return 1
 	}
 

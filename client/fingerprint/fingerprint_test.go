@@ -18,7 +18,7 @@ func testLogger() *log.Logger {
 func assertFingerprintOK(t *testing.T, fp Fingerprint, node *structs.Node) {
 	ok, err := fp.Fingerprint(new(config.Config), node)
 	if err != nil {
-		t.Fatalf("Failed to fingerprint: %s", err)
+		t.Fatalf("Failed to fingerprint: %v", err)
 	}
 	if !ok {
 		t.Fatalf("Failed to apply node attributes")

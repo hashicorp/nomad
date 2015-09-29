@@ -47,14 +47,14 @@ func (c *ServerJoinCommand) Run(args []string) int {
 	// Get the HTTP client
 	client, err := c.Meta.Client()
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error initializing client: %v", err))
 		return 1
 	}
 
 	// Attempt the join
 	n, err := client.Agent().Join(nodes...)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error joining: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error joining: %v", err))
 		return 1
 	}
 

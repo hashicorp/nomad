@@ -199,7 +199,7 @@ func (c *Command) setupAgent(config *Config, logOutput io.Writer) error {
 	c.Ui.Output("Starting Nomad agent...")
 	agent, err := NewAgent(config, logOutput)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error starting agent: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error starting agent: %v", err))
 		return err
 	}
 	c.agent = agent
@@ -207,7 +207,7 @@ func (c *Command) setupAgent(config *Config, logOutput io.Writer) error {
 	// Enable the SCADA integration
 	if err := c.setupSCADA(config); err != nil {
 		agent.Shutdown()
-		c.Ui.Error(fmt.Sprintf("Error starting SCADA: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error starting SCADA: %v", err))
 		return err
 	}
 
@@ -215,7 +215,7 @@ func (c *Command) setupAgent(config *Config, logOutput io.Writer) error {
 	http, err := NewHTTPServer(agent, config, logOutput)
 	if err != nil {
 		agent.Shutdown()
-		c.Ui.Error(fmt.Sprintf("Error starting http server: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error starting http server: %v", err))
 		return err
 	}
 	c.httpServer = http
@@ -288,7 +288,7 @@ func (c *Command) Run(args []string) int {
 
 	// Initialize the telemetry
 	if err := c.setupTelementry(config); err != nil {
-		c.Ui.Error(fmt.Sprintf("Error initializing telemetry: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error initializing telemetry: %v", err))
 		return 1
 	}
 
@@ -395,7 +395,7 @@ WAIT:
 	c.Ui.Output("Gracefully shutting down agent...")
 	go func() {
 		if err := c.agent.Leave(); err != nil {
-			c.Ui.Error(fmt.Sprintf("Error: %s", err))
+			c.Ui.Error(fmt.Sprintf("Error: %v", err))
 			return
 		}
 		close(gracefulCh)
