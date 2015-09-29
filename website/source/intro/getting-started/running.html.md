@@ -129,7 +129,7 @@ and shut down:
 
 By gracefully leaving, Nomad clients update their status to prevent
 futher tasks from being scheduled and to start migrating any tasks that are
-already assigned. Nomad servers notifies other their peers they intend to leave.
+already assigned. Nomad servers notify their peers they intend to leave.
 When a server leaves, replication to that server stops. If a server fails,
 replication continues to be attempted until the node recovers. Nomad will
 automatically try to reconnect to _failed_ nodes, allowing it to recover from
