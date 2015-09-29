@@ -8,7 +8,7 @@ description: |-
 
 # Nomad vs. Hadoop YARN
 
-YARN, or Yet Another Resource Resource Negotiator, is a system in Hadoop
+YARN, or Yet Another Resource Negotiator, is a system in Hadoop
 for both resource management and job scheduling. It is used to allow multiple
 Hadoop frameworks like MapReduce and Spark to run on the same hardware.
 
