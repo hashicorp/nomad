@@ -86,6 +86,10 @@ func TestParse(t *testing.T) {
 								Config: map[string]string{
 									"image": "hashicorp/binstore",
 								},
+								Env: map[string]string{
+									"HELLO": "world",
+									"LOREM": "ipsum",
+								},
 								Resources: &structs.Resources{
 									CPU:      500,
 									MemoryMB: 128,

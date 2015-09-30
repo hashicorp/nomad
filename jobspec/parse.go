@@ -284,6 +284,7 @@ func parseTasks(result *[]*structs.Task, obj *hclobj.Object) error {
 			return err
 		}
 		delete(m, "config")
+		delete(m, "env")
 		delete(m, "constraint")
 		delete(m, "meta")
 		delete(m, "resources")
@@ -293,6 +294,19 @@ func parseTasks(result *[]*structs.Task, obj *hclobj.Object) error {
 		t.Name = o.Key
 		if err := mapstructure.WeakDecode(m, &t); err != nil {
 			return err
+		}
+
+		// If we have env, then parse them
+		if o := o.Get("env", false); o != nil {
+			for _, o := range o.Elem(false) {
+				var m map[string]interface{}
+				if err := hcl.DecodeObject(&m, o); err != nil {
+					return err
+				}
+				if err := mapstructure.WeakDecode(m, &t.Env); err != nil {
+					return err
+				}
+			}
 		}
 
 		// If we have config, then parse that
