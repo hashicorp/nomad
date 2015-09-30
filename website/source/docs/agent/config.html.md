@@ -99,17 +99,19 @@ nodes, unless otherwise specified:
     server nodes from the same datacenter if possible. Used only on server
     nodes.
 
-* `advertise`: Controls the advertise address for individual network services. Any
-  values configured in this block take precedence over the default
-  [bind_addr](#bind_addr). The value is a map of IP addresses and supports the
+* `advertise`: Controls the advertise address for individual network services.
+  This can be used to advertise a different address to the peers of a server
+  node to support more complex network configurations such as NAT. This
+  configuration is optional, and defaults to the bind address of the specific
+  network service if it is not provided. This configuration is only appicable
+  on server nodes. The value is a map of IP addresses and supports the
   following keys:
   <br>
-  * `rpc`: The address to advertise for the RPC interface. Should be exposed
-    only to other cluster members if possible. Used only on server nodes, but
-    must be accessible from all agents.
-  * `serf`: The address used advertise for the gossip layer. Both a TCP and UDP
-    listener will be exposed on this address. Must be accessible from all
-    server nodes. Used only on server nodes.
+  * `rpc`: The address to advertise for the RPC interface. This address should
+    be reachable by all of the agents in the cluster.
+  * `serf`: The address advertised for the gossip layer. This address must be
+    reachable from all server nodes. It is not required that clients can reach
+    this address.
 
 * `telemetry`: Used to control how the Nomad agent exposes telemetry data to
   external metrics collection servers. This is a key/value mapping and supports
