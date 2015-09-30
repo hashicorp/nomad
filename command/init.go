@@ -25,7 +25,6 @@ Usage: nomad init
 
   Creates an example job file that can be used as a starting
   point to customize further.
-
 `
 	return strings.TrimSpace(helpText)
 }
@@ -35,13 +34,20 @@ func (c *InitCommand) Synopsis() string {
 }
 
 func (c *InitCommand) Run(args []string) int {
+	// Check for misuse
+	if len(args) != 0 {
+		c.Ui.Error(c.Help())
+		return 1
+	}
+
 	// Check if the file already exists
 	_, err := os.Stat(DefaultInitName)
-	if err == nil || !os.IsNotExist(err) {
-		c.Ui.Error(fmt.Sprintf("Job '%s' already exists", DefaultInitName))
-		return 1
-	} else if !os.IsNotExist(err) {
+	if err != nil && !os.IsNotExist(err) {
 		c.Ui.Error(fmt.Sprintf("Failed to stat '%s': %v", DefaultInitName, err))
+		return 1
+	}
+	if !os.IsNotExist(err) {
+		c.Ui.Error(fmt.Sprintf("Job '%s' already exists", DefaultInitName))
 		return 1
 	}
 
@@ -57,7 +63,7 @@ func (c *InitCommand) Run(args []string) int {
 	return 0
 }
 
-const defaultJob = `
+var defaultJob = strings.TrimSpace(`
 # There can only be a single job definition per file.
 # Create a job with ID and Name 'example'
 job "example" {
@@ -122,4 +128,4 @@ job "example" {
 		}
 	}
 }
-`
+`)
