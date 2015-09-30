@@ -32,17 +32,18 @@ func NomadExecutable() (string, error) {
 	}
 
 	// Check the CWD.
-	bin = filepath.Join(os.Getenv("GOPATH"), "bin", nomadExe)
-	if _, err := os.Stat(bin); err == nil {
-		return bin, nil
-	}
-
 	pwd, err := os.Getwd()
 	if err != nil {
 		return "", fmt.Errorf("Could not find Nomad executable (%v): %v", err)
 	}
 
 	bin = filepath.Join(pwd, nomadExe)
+	if _, err := os.Stat(bin); err == nil {
+		return bin, nil
+	}
+
+	// Check CWD/bin
+	bin = filepath.Join(pwd, "bin", nomadExe)
 	if _, err := os.Stat(bin); err == nil {
 		return bin, nil
 	}
