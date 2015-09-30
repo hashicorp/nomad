@@ -38,7 +38,7 @@ job "binstore-storagelocker" {
             }
             env {
               HELLO = "world"
-              PLOP = "coucou"
+              LOREM = "ipsum"
             }
             resources {
                 cpu = 500
