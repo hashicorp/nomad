@@ -36,6 +36,10 @@ job "binstore-storagelocker" {
             config {
                 image = "hashicorp/binstore"
             }
+            env {
+              HELLO = "world"
+              PLOP = "coucou"
+            }
             resources {
                 cpu = 500
                 memory = 128
