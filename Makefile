@@ -15,6 +15,9 @@ dev: deps format
 bin:
 	@sh -c "'$(CURDIR)/scripts/build.sh'"
 
+release: updatedeps
+	@$(MAKE) bin
+
 cov:
 	gocov test ./... | gocov-html > /tmp/coverage.html
 	open /tmp/coverage.html

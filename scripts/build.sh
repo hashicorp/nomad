@@ -65,7 +65,7 @@ for F in $(find ${DEV_PLATFORM} -mindepth 1 -maxdepth 1 -type f); do
     cp ${F} ${MAIN_GOPATH}/bin/
 done
 
-if [[ "${NOMAD_DEV}" ]]; then
+if [[ "x${NOMAD_DEV}" == "x" ]]; then
     # Zip and copy to the dist dir
     echo "==> Packaging..."
     for PLATFORM in $(find ./pkg -mindepth 1 -maxdepth 1 -type d); do
