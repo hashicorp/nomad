@@ -99,6 +99,6 @@ func (t TaskEnvironment) SetMeta(m map[string]string) {
 
 func (t TaskEnvironment) SetEnvvars(m map[string]string) {
 	for k, v := range m {
-		t[strings.ToUpper(k)] = v
+		t[k] = v
 	}
 }
