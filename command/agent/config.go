@@ -155,7 +155,7 @@ type ServerConfig struct {
 	// Enabled controls if we are a server
 	Enabled bool `hcl:"enabled"`
 
-	// BootstrapExpect tries to automatically bootstrap the Consul cluster,
+	// BootstrapExpect tries to automatically bootstrap the Nomad cluster,
 	// by witholding peers until enough servers join.
 	BootstrapExpect int `hcl:"bootstrap_expect"`
 
@@ -206,6 +206,15 @@ type Addresses struct {
 type AdvertiseAddrs struct {
 	RPC  string `hcl:"rpc"`
 	Serf string `hcl:"serf"`
+}
+
+// ConsulConfig is used to describe a connection to an existing Consul
+// cluster. During job registration this configuration can be used to
+// connect to Consul and register services, which is useful for
+// discovery purposes post-deployment.
+type ConsulConfig struct {
+	Address string `hcl:"address"`
+	Token   string `hcl:"token"`
 }
 
 // DevConfig is a Config that is used for dev mode of Nomad.
@@ -416,6 +425,14 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 		result.Meta[k] = v
 	}
 
+	// Apply the consul config
+	if result.Consul == nil && b.Consul != nil {
+		consulConf := *b.Consul
+		result.Consul = &consulConf
+	} else if b.Consul != nil {
+		result.Consul = result.Consul.Merge(b.Consul)
+	}
+
 	return &result
 }
 
@@ -476,6 +493,19 @@ func (a *AdvertiseAddrs) Merge(b *AdvertiseAddrs) *AdvertiseAddrs {
 	}
 	if b.Serf != "" {
 		result.Serf = b.Serf
+	}
+	return &result
+}
+
+// Merge merges two Consul configuration blocks together.
+func (a *ConsulConfig) Merge(b *ConsulConfig) *ConsulConfig {
+	var result ConsulConfig = *a
+
+	if b.Address != "" {
+		result.Address = b.Address
+	}
+	if b.Token != "" {
+		result.Token = b.Token
 	}
 	return &result
 }
