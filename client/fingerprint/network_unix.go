@@ -3,6 +3,7 @@
 package fingerprint
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -38,10 +39,13 @@ func (f *NetworkFingerprint) Fingerprint(cfg *config.Config, node *structs.Node)
 	if "darwin" == runtime.GOOS {
 		defaultDevice = "en0"
 	}
+	if cfg.Iface != "" {
+		defaultDevice = cfg.Iface
+	}
 
 	newNetwork.Device = defaultDevice
 
-	if ip := f.ifConfig(defaultDevice); ip != "" {
+	if ip := f.ipAddress(defaultDevice); ip != "" {
 		node.Attributes["network.ip-address"] = ip
 		newNetwork.IP = ip
 		newNetwork.CIDR = newNetwork.IP + "/32"
@@ -127,6 +131,50 @@ func (f *NetworkFingerprint) linkSpeedEthtool(path, device string) int {
 	}
 
 	return mbs
+}
+
+// ipAddress returns the first IPv4 address on the configured default interface
+// Tries Golang native functions and falls back onto ifconfig
+func (f *NetworkFingerprint) ipAddress(device string) string {
+	if ip, err := f.nativeIpAddress(device); err == nil {
+		return ip
+	}
+
+	return f.ifConfig(device)
+}
+
+func (f *NetworkFingerprint) nativeIpAddress(device string) (string, error) {
+	// Find IP address on configured interface
+	var ip string
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return "", errors.New("could not retrieve interface list")
+	}
+
+	// TODO: should we handle IPv6 here? How do we determine precedence?
+	for _, i := range ifaces {
+		if i.Name == device {
+			addrs, _ := i.Addrs()
+			for _, a := range addrs {
+				switch v := a.(type) {
+				case *net.IPNet:
+					if v.IP.To4() != nil {
+						ip = v.IP.String()
+					}
+				case *net.IPAddr:
+					if v.IP.To4() != nil {
+						ip = v.IP.String()
+					}
+				}
+			}
+		}
+	}
+
+	if net.ParseIP(ip) == nil {
+		return "", errors.New(fmt.Sprintf("could not parse IP address `%s`", ip))
+	}
+
+	return ip, nil
 }
 
 // ifConfig returns the IP Address for this node according to ifConfig, for the

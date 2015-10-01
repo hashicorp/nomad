@@ -139,6 +139,9 @@ type ClientConfig struct {
 
 	// Metadata associated with the node
 	Meta map[string]string `hcl:"meta"`
+
+	// Interface to use for network fingerprinting
+	Iface string `hcl:"iface"`
 }
 
 // ServerConfig is configuration specific to the server mode
@@ -383,6 +386,9 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	}
 	if b.NodeClass != "" {
 		result.NodeClass = b.NodeClass
+	}
+	if b.Iface != "" {
+		result.Iface = b.Iface
 	}
 
 	// Add the servers
