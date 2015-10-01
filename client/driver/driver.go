@@ -125,5 +125,9 @@ func TaskEnvironmentVariables(ctx *ExecContext, task *structs.Task) environment.
 		}
 	}
 
+	if task.Env != nil {
+		env.SetEnvvars(task.Env)
+	}
+
 	return env
 }

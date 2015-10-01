@@ -153,14 +153,8 @@ func createContainer(ctx *ExecContext, task *structs.Task, logger *log.Logger) d
 		hostConfig.PortBindings = dockerPorts
 	}
 
-	// Merge Nomad-native with user-specified envvars
-	env := TaskEnvironmentVariables(ctx, task).List()
-	for k, v := range task.Env {
-		env = append(env, fmt.Sprintf("%s=%s", k, v))
-	}
-
 	config := &docker.Config{
-		Env:   env,
+		Env:   TaskEnvironmentVariables(ctx, task).List(),
 		Image: task.Config["image"],
 	}
 
