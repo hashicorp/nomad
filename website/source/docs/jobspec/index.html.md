@@ -45,6 +45,11 @@ job "my-service" {
             config {
                 image = "hashicorp/web-frontend"
             }
+            env {
+                DB_HOST = "db01.example.com"
+                DB_USER = "web"
+                DB_PASSWORD = "loremipsum"
+            }
             resources {
                 cpu = 500
                 memory = 128
@@ -165,6 +170,9 @@ The `task` object supports the following keys:
 * `config` - A map of key/value configuration passed into the driver
   to start the task. The details of configurations are specific to
   each driver.
+
+* `env` - A map of key/value representing environment variables that
+  will be passed along to the running process.
 
 * `resources` - Provides the resource requirements of the task.
   See the resources reference for more details.
