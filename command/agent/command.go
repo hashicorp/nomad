@@ -70,6 +70,18 @@ func (c *Command) readConfig() *Config {
 	// Server-only options
 	flags.IntVar(&cmdConfig.Server.BootstrapExpect, "bootstrap-expect", 0, "")
 
+	// Client-only options
+	flags.StringVar(&cmdConfig.Client.StateDir, "state-dir", "", "")
+	flags.StringVar(&cmdConfig.Client.AllocDir, "alloc-dir", "", "")
+	flags.StringVar(&cmdConfig.Client.NodeID, "node-id", "", "")
+	flags.StringVar(&cmdConfig.Client.NodeClass, "node-class", "", "")
+
+	var servers string
+	flags.StringVar(&servers, "servers", "", "")
+
+	var meta []string
+	flags.Var((*sliceflag.StringFlag)(&meta), "meta", "")
+
 	// General options
 	flags.Var((*sliceflag.StringFlag)(&configPath), "config", "config")
 	flags.StringVar(&cmdConfig.BindAddr, "bind", "", "")
@@ -86,6 +98,25 @@ func (c *Command) readConfig() *Config {
 
 	if err := flags.Parse(c.args); err != nil {
 		return nil
+	}
+
+	// Split the servers.
+	if servers != "" {
+		cmdConfig.Client.Servers = strings.Split(servers, ",")
+	}
+
+	// Parse the meta flags.
+	if len(meta) != 0 {
+		cmdConfig.Client.Meta = make(map[string]string)
+		for _, kv := range meta {
+			parts := strings.Split(kv, "=")
+			if len(parts) != 2 {
+				c.Ui.Error(fmt.Sprintf("Error parsing Client.Meta value: %v", kv))
+				return nil
+			}
+
+			cmdConfig.Client.Meta[parts[0]] = parts[1]
+		}
 	}
 
 	// Load the configuration
@@ -134,10 +165,26 @@ func (c *Command) readConfig() *Config {
 		return config
 	}
 
-	// Check that we have a data-dir
-	if config.DataDir == "" {
+	// Check for valid modes.
+	if config.Server.Enabled && config.Client.Enabled {
+		c.Ui.Error("To run both as a server and client, use -dev mode.")
+		return nil
+	} else if !(config.Server.Enabled || config.Client.Enabled) {
+		c.Ui.Error("Must specify either server, client or dev mode for the agent.")
+		return nil
+	}
+
+	// Ensure that we have the directories we neet to run.
+	if config.Server.Enabled && config.DataDir == "" {
 		c.Ui.Error("Must specify data directory")
 		return nil
+	} else if config.Client.Enabled && config.DataDir == "" {
+		// The config is valid if the top-level data-dir is set or if both
+		// alloc-dir and state-dir are set.
+		if config.Client.AllocDir == "" || config.Client.StateDir == "" {
+			c.Ui.Error("Must specify both the state and alloc dir if data-dir is omitted.")
+			return nil
+		}
 	}
 
 	// Check the bootstrap flags
@@ -588,9 +635,35 @@ Server Options:
 Client Options:
 
   -client
-    Enable client mode for the agent. Client mode enables a given node
-    to be evaluated for allocations. If client mode is not enabled,
-    no work will be scheduled to the agent.
+    Enable client mode for the agent. Client mode enables a given node to be
+    evaluated for allocations. If client mode is not enabled, no work will be
+    scheduled to the agent.
+
+  -state-dir
+    The directory used to store state and other persistent data. If not
+    specified a subdirectory under the "-data-dir" will be used.
+
+  -alloc-dir
+    The directory used to store allocation data such as downloaded artificats as
+    well as data produced by tasks. If not specified, a subdirectory under the
+    "-data-dir" will be used.
+
+  -servers
+    A list of known server addresses to connect to given as "host:port" and
+    delimited by commas.
+
+  -node-id
+    A unique identifier for the node to use. If not provided, a UUID is
+    generated.
+
+  -node-class
+    Mark this node as a member of a node-class. This can be used to label
+    similiar node types.
+
+  -meta
+    User specified metadata to associated with the node. Each instance of -meta
+    parses a single KEY=VALUE pair. Repeat the meta flag for each key/value pair
+    to be added.
 
 Atlas Options:
 
