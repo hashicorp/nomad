@@ -39,6 +39,7 @@ func (f *NetworkFingerprint) Fingerprint(cfg *config.Config, node *structs.Node)
 	if "darwin" == runtime.GOOS {
 		defaultDevice = "en0"
 	}
+	// User-defined override for the default interface
 	if cfg.Iface != "" {
 		defaultDevice = cfg.Iface
 	}
