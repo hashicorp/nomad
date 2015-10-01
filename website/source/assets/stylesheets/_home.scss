@@ -354,13 +354,13 @@
 
 			.docker-outline-logo{
 				display: inline-block;
-				width: 125px;
-				height: 80px;
+				width: 80px;
+				height: 67px;
 				position: relative;
 				top: 12px;
-				margin-left: 10px;
-			    background: image-url('../images/icon-docker-outline.png') 0 0 no-repeat;
-			   	@include img-retina("../images/icon-docker-outline.png", "../images/icon-docker-outline@2x.png", 125px, 80px);
+				margin-left: 8px;
+			    background: image-url('../images/partner-docker.png') 0 0 no-repeat;
+			   	@include img-retina("../images/partner-docker.png", "../images/partner-docker@2x.png", 80px, 67px);
 			}
 
 			a{
