@@ -154,22 +154,24 @@ func (f *NetworkFingerprint) nativeIpAddress(device string) (string, error) {
 
 	// TODO: should we handle IPv6 here? How do we determine precedence?
 	for _, i := range ifaces {
-		if i.Name == device {
-			addrs, err := i.Addrs()
-			if err != nil {
-				return "", errors.New("could not retrieve interface IP addresses")
-			}
+		if i.Name != device {
+			continue
+		}
 
-			for _, a := range addrs {
-				switch v := a.(type) {
-				case *net.IPNet:
-					if v.IP.To4() != nil {
-						ip = v.IP.String()
-					}
-				case *net.IPAddr:
-					if v.IP.To4() != nil {
-						ip = v.IP.String()
-					}
+		addrs, err := i.Addrs()
+		if err != nil {
+			return "", errors.New("could not retrieve interface IP addresses")
+		}
+
+		for _, a := range addrs {
+			switch v := a.(type) {
+			case *net.IPNet:
+				if v.IP.To4() != nil {
+					ip = v.IP.String()
+				}
+			case *net.IPAddr:
+				if v.IP.To4() != nil {
+					ip = v.IP.String()
 				}
 			}
 		}
