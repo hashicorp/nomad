@@ -203,6 +203,8 @@ configured on server nodes.
     and has no default.
   * `meta`: This is a key/value mapping of metadata pairs. This is a free-form
     map and can contain any string values.
+  * `iface`: This is a string to force network fingerprinting to use a specific
+    network interface
 
 ## Atlas Options
 
