@@ -96,3 +96,9 @@ func (t TaskEnvironment) SetMeta(m map[string]string) {
 		t[fmt.Sprintf("%s%s", MetaPrefix, strings.ToUpper(k))] = v
 	}
 }
+
+func (t TaskEnvironment) SetEnvvars(m map[string]string) {
+	for k, v := range m {
+		t[strings.ToUpper(k)] = v
+	}
+}
