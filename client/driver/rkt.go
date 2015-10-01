@@ -103,7 +103,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 
         // Run the ACI
         var aoutBuf, aerrBuf bytes.Buffer
-        acmd := exec.Command("rkt", "run", "--interactive", name)
+        acmd := exec.Command("rkt", "run", "--mds-register=false", "--interactive", name)
         acmd.Stdout = &aoutBuf
         acmd.Stderr = &aerrBuf
         d.logger.Printf("[DEBUG] Starting rkt command: %q", acmd.Args)
