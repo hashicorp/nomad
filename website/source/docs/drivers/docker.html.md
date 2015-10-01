@@ -23,6 +23,11 @@ The `docker` driver supports the following configuration in the job specificatio
 
 * `command` - (Optional) The command to run when starting the container.
 
+* `network_mode` - (Optional) The network mode to be used for the container.
+   Valid options are `net`, `bridge`, `host` or `none`. If nothing is
+   specified, the container will start in `bridge` mode. The `container`
+   network mode is not supported right now.
+
 ### Port Mapping
 
 Nomad uses port binding to expose services running in containers using the port

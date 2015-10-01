@@ -118,6 +118,23 @@ func createContainer(ctx *ExecContext, task *structs.Task, logger *log.Logger) d
 	logger.Printf("[DEBUG] driver.docker: using %d bytes memory for %s", hostConfig.Memory, task.Config["image"])
 	logger.Printf("[DEBUG] driver.docker: using %d cpu shares for %s", hostConfig.CPUShares, task.Config["image"])
 
+	mode, ok := task.Config["network_mode"]
+        if !ok || mode == "" {
+                // docker default
+                logger.Printf("[WARN] driver.docker: no mode specified for networking, defaulting to bridge")
+                mode = "bridge"
+        }
+
+        // Ignore the container mode for now
+        switch mode {
+        case "default", "bridge", "none", "host":
+                logger.Printf("[DEBUG] driver.docker: using %s as network mode", mode)
+        default:
+                logger.Printf("[WARN] invalid setting for network mode %s, defaulting to bridge mode on docker0", mode)
+                mode = "bridge"
+        }
+	hostConfig.NetworkMode = mode
+
 	// Setup port mapping (equivalent to -p on docker CLI). Ports must already be
 	// exposed in the container.
 	if len(task.Resources.Networks) == 0 {
