@@ -4,6 +4,7 @@ import (
 	"runtime"
 	"syscall"
 	"testing"
+        "os/exec"
 )
 
 func ExecCompatible(t *testing.T) {

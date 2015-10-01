@@ -3,8 +3,8 @@ package driver
 import (
         "fmt"
         "os"
-        "os/exec"
         "testing"
+        "time"
 
         "github.com/hashicorp/nomad/client/config"
         "github.com/hashicorp/nomad/nomad/structs"
