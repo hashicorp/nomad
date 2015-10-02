@@ -30,10 +30,6 @@ func TestCommand_Args(t *testing.T) {
 			"Must specify either server, client or dev mode for the agent.",
 		},
 		{
-			[]string{"-client", "-server"},
-			"To run both as a server and client, use -dev mode.",
-		},
-		{
 			[]string{"-client", "-data-dir=" + tmpDir, "-bootstrap-expect=1"},
 			"Bootstrap requires server mode to be enabled",
 		},

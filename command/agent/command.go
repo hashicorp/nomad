@@ -164,11 +164,8 @@ func (c *Command) readConfig() *Config {
 		return config
 	}
 
-	// Check for valid modes.
-	if config.Server.Enabled && config.Client.Enabled {
-		c.Ui.Error("To run both as a server and client, use -dev mode.")
-		return nil
-	} else if !(config.Server.Enabled || config.Client.Enabled) {
+	// Check that the server is running in at least one mode.
+	if !(config.Server.Enabled || config.Client.Enabled) {
 		c.Ui.Error("Must specify either server, client or dev mode for the agent.")
 		return nil
 	}
@@ -177,9 +174,11 @@ func (c *Command) readConfig() *Config {
 	if config.Server.Enabled && config.DataDir == "" {
 		c.Ui.Error("Must specify data directory")
 		return nil
-	} else if config.Client.Enabled && config.DataDir == "" {
-		// The config is valid if the top-level data-dir is set or if both
-		// alloc-dir and state-dir are set.
+	}
+
+	// The config is valid if the top-level data-dir is set or if both
+	// alloc-dir and state-dir are set.
+	if config.Client.Enabled && config.DataDir == "" {
 		if config.Client.AllocDir == "" || config.Client.StateDir == "" {
 			c.Ui.Error("Must specify both the state and alloc dir if data-dir is omitted.")
 			return nil
