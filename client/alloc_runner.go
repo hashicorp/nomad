@@ -38,9 +38,7 @@ type AllocRunner struct {
 	updater AllocStateUpdater
 	logger  *log.Logger
 
-	discovery    []discovery.Discovery
-	discoverLock sync.Mutex
-	registered   bool
+	discovery []discovery.Discovery
 
 	alloc *structs.Allocation
 
@@ -108,7 +106,7 @@ func (r *AllocRunner) RestoreState() error {
 	var mErr multierror.Error
 	for name := range r.taskStatus {
 		task := &structs.Task{Name: name}
-		tr := NewTaskRunner(r.logger, r.config, r.setTaskStatus, r.ctx, r.alloc.ID, task)
+		tr := NewTaskRunner(r.logger, r.config, r.setTaskStatus, r.ctx, r.alloc.ID, task, r.discovery)
 		r.tasks[name] = tr
 		if err := tr.RestoreState(); err != nil {
 			r.logger.Printf("[ERR] client: failed to restore state for alloc %s task '%s': %v", r.alloc.ID, name, err)
@@ -302,7 +300,7 @@ func (r *AllocRunner) Run() {
 		// Merge in the task resources
 		task.Resources = alloc.TaskResources[task.Name]
 
-		tr := NewTaskRunner(r.logger, r.config, r.setTaskStatus, r.ctx, r.alloc.ID, task)
+		tr := NewTaskRunner(r.logger, r.config, r.setTaskStatus, r.ctx, r.alloc.ID, task, r.discovery)
 		r.tasks[task.Name] = tr
 		go tr.Run()
 	}
@@ -329,9 +327,6 @@ OUTER:
 				tr.Update(task)
 			}
 			r.taskLock.RUnlock()
-
-			// Update service discovery
-			r.handleDiscovery(update.ClientStatus)
 
 		case <-r.destroyCh:
 			break OUTER
@@ -386,73 +381,4 @@ func (r *AllocRunner) Destroy() {
 	}
 	r.destroy = true
 	close(r.destroyCh)
-}
-
-// handleDiscovery iterates over the running processes created by the
-// AllocRunner and registers them with any available service discovery
-// back-ends. It is also used to deregister these services when the
-// client status changes to dead.
-func (r *AllocRunner) handleDiscovery(status string) {
-	r.discoverLock.Lock()
-	defer r.discoverLock.Unlock()
-
-	var shouldRegister bool
-	switch status {
-	case structs.AllocClientStatusRunning:
-		if r.registered {
-			return
-		}
-		r.registered = true
-		shouldRegister = true
-	case structs.AllocClientStatusDead:
-		shouldRegister = false
-	default:
-		return
-	}
-
-	for _, tg := range r.alloc.Job.TaskGroups {
-		for _, task := range tg.Tasks {
-			name := task.Discover
-			if name == "" {
-				name = fmt.Sprintf("%s-%s-%s", r.alloc.JobID, tg.Name, task.Name)
-			}
-
-			// Register the main task. This can be used to locate apps on static ports.
-			if shouldRegister {
-				r.discoveryRegister(r.alloc.NodeID, name, "", 0)
-			} else {
-				r.discoveryDeregister(r.alloc.NodeID, name)
-			}
-
-			// Register the dynamic ports
-			if networks := task.Resources.Networks; networks != nil {
-				for _, net := range networks {
-					for dynName, port := range net.MapDynamicPorts() {
-						dynName = fmt.Sprintf("%s-%s", name, dynName)
-						if shouldRegister {
-							r.discoveryRegister(r.alloc.NodeID, dynName, "", port)
-						} else {
-							r.discoveryDeregister(r.alloc.NodeID, dynName)
-						}
-					}
-				}
-			}
-		}
-	}
-}
-
-func (r *AllocRunner) discoveryRegister(node, name, ip string, port int) {
-	for _, disc := range r.discovery {
-		if err := disc.Register(node, name, ip, port); err != nil {
-			r.logger.Printf("[ERR] client: failed registering with discovery layer: %s", err)
-		}
-	}
-}
-
-func (r *AllocRunner) discoveryDeregister(node, name string) {
-	for _, disc := range r.discovery {
-		if err := disc.Deregister(node, name); err != nil {
-			r.logger.Printf("[ERR] client: failed deregistering from discovery layer: %s", err)
-		}
-	}
 }

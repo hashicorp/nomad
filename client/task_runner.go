@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/discovery"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -21,6 +22,8 @@ type TaskRunner struct {
 	logger  *log.Logger
 	ctx     *driver.ExecContext
 	allocID string
+
+	discovery []discovery.Discovery
 
 	task     *structs.Task
 	updateCh chan *structs.Task
@@ -44,13 +47,16 @@ type TaskStateUpdater func(taskName, status, desc string)
 // NewTaskRunner is used to create a new task context
 func NewTaskRunner(logger *log.Logger, config *config.Config,
 	updater TaskStateUpdater, ctx *driver.ExecContext,
-	allocID string, task *structs.Task) *TaskRunner {
+	allocID string, task *structs.Task,
+	discovery []discovery.Discovery) *TaskRunner {
+
 	tc := &TaskRunner{
 		config:    config,
 		updater:   updater,
 		logger:    logger,
 		ctx:       ctx,
 		allocID:   allocID,
+		discovery: discovery,
 		task:      task,
 		updateCh:  make(chan *structs.Task, 8),
 		destroyCh: make(chan struct{}),
@@ -175,6 +181,10 @@ func (r *TaskRunner) Run() {
 		}
 	}
 
+	// Register with service discovery
+	r.handleDiscovery(false)
+	defer r.handleDiscovery(true)
+
 OUTER:
 	// Wait for updates
 	for {
@@ -234,4 +244,56 @@ func (r *TaskRunner) Destroy() {
 	}
 	r.destroy = true
 	close(r.destroyCh)
+}
+
+// handleDiscovery iterates over the running processes created by the
+// AllocRunner and registers them with any available service discovery
+// back-ends. It is also used to deregister these services when the
+// client status changes to dead.
+func (r *TaskRunner) handleDiscovery(deregister bool) {
+	name := r.task.Discover
+	if name == "" {
+		name = r.task.Name
+	}
+
+	// Handle registration of the main task. This can be used
+	// to locate apps with static port bindings.
+	if deregister {
+		r.discoveryDeregister(name)
+	} else {
+		r.discoveryRegister(name, 0)
+	}
+
+	// Register the dynamic ports. These are named ports which
+	// are exposed as individual service entries.
+	if networks := r.task.Resources.Networks; networks != nil {
+		for _, net := range networks {
+			for dynName, port := range net.MapDynamicPorts() {
+				dynName = fmt.Sprintf("%s-%s", name, dynName)
+				if deregister {
+					r.discoveryDeregister(dynName)
+				} else {
+					r.discoveryRegister(dynName, port)
+				}
+			}
+		}
+	}
+}
+
+// discoveryRegister is used to register a given task in service discovery.
+func (r *TaskRunner) discoveryRegister(name string, port int) {
+	for _, disc := range r.discovery {
+		if err := disc.Register(name, port); err != nil {
+			r.logger.Printf("[ERR] client: failed registering with discovery layer: %s", err)
+		}
+	}
+}
+
+// discoveryDeregister is used to remove a task from service discovery.
+func (r *TaskRunner) discoveryDeregister(name string) {
+	for _, disc := range r.discovery {
+		if err := disc.Deregister(name); err != nil {
+			r.logger.Printf("[ERR] client: failed deregistering from discovery layer: %s", err)
+		}
+	}
 }

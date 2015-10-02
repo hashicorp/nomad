@@ -39,7 +39,7 @@ func (c *ConsulDiscovery) Enabled() bool {
 	return ok
 }
 
-func (c *ConsulDiscovery) Register(_, name, _ string, port int) error {
+func (c *ConsulDiscovery) Register(name string, port int) error {
 	// Build the service definition
 	svc := &api.AgentServiceRegistration{
 		ID:   name,
@@ -51,7 +51,7 @@ func (c *ConsulDiscovery) Register(_, name, _ string, port int) error {
 	return c.client.Agent().ServiceRegister(svc)
 }
 
-func (c *ConsulDiscovery) Deregister(node, name string) error {
+func (c *ConsulDiscovery) Deregister(name string) error {
 	// Send the deregister request
 	return c.client.Agent().ServiceDeregister(name)
 }

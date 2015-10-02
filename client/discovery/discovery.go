@@ -26,10 +26,10 @@ type Discovery interface {
 	// system. The address and port are the location of the service, and
 	// the name is the symbolic name used to query it. The node is the
 	// unique node ID known to Nomad.
-	Register(node, name, address string, port int) error
+	Register(name string, port int) error
 
 	// Deregister is used to deregister a service from a discovery system.
-	Deregister(node, name string) error
+	Deregister(name string) error
 }
 
 // Context is used to initialize a discovery backend.
