@@ -40,8 +40,8 @@ func (f *NetworkFingerprint) Fingerprint(cfg *config.Config, node *structs.Node)
 		defaultDevice = "en0"
 	}
 	// User-defined override for the default interface
-	if cfg.Iface != "" {
-		defaultDevice = cfg.Iface
+	if cfg.NetworkInterface != "" {
+		defaultDevice = cfg.NetworkInterface
 	}
 
 	newNetwork.Device = defaultDevice

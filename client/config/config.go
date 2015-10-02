@@ -32,7 +32,7 @@ type Config struct {
 	Region string
 
 	// Network interface to be used in network fingerprinting
-	Iface string
+	NetworkInterface string
 
 	// Servers is a list of known server addresses. These are as "host:port"
 	Servers []string
