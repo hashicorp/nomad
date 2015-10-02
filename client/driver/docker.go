@@ -76,6 +76,22 @@ func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool
 func createHostConfig(task *structs.Task) *docker.HostConfig {
 	// hostConfig holds options for the docker container that are unique to this
 	// machine, such as resource limits and port mappings
+
+        mode, ok := task.Config["network_mode"]
+        if !ok || mode == "" {
+                // docker default
+                logger.Printf("[WARN] driver.docker: no mode specified for networking, using Docker default")
+                mode = "default"
+        }
+
+        // Ignore the container mode for now
+        switch mode {
+        case "default", "bridge", "none", "host":
+                logger.Printf("[DEBUG] driver.docker: using %s as network mode", mode)
+        default:
+                logger.Printf("[WARN] invalid setting for network mode %s, defaulting to bridge mode on docker0", mode)
+                mode = "default"
+        }
 	return &docker.HostConfig{
 		// Convert MB to bytes. This is an absolute value.
 		//
@@ -105,6 +121,7 @@ func createHostConfig(task *structs.Task) *docker.HostConfig {
 		//  - https://www.kernel.org/doc/Documentation/scheduler/sched-bwc.txt
 		//  - https://www.kernel.org/doc/Documentation/scheduler/sched-design-CFS.txt
 		CPUShares: int64(task.Resources.CPU),
+                NetworkMode: mode,
 	}
 }
 
@@ -117,23 +134,6 @@ func createContainer(ctx *ExecContext, task *structs.Task, logger *log.Logger) d
 	hostConfig := createHostConfig(task)
 	logger.Printf("[DEBUG] driver.docker: using %d bytes memory for %s", hostConfig.Memory, task.Config["image"])
 	logger.Printf("[DEBUG] driver.docker: using %d cpu shares for %s", hostConfig.CPUShares, task.Config["image"])
-
-	mode, ok := task.Config["network_mode"]
-        if !ok || mode == "" {
-                // docker default
-                logger.Printf("[WARN] driver.docker: no mode specified for networking, defaulting to bridge")
-                mode = "bridge"
-        }
-
-        // Ignore the container mode for now
-        switch mode {
-        case "default", "bridge", "none", "host":
-                logger.Printf("[DEBUG] driver.docker: using %s as network mode", mode)
-        default:
-                logger.Printf("[WARN] invalid setting for network mode %s, defaulting to bridge mode on docker0", mode)
-                mode = "bridge"
-        }
-	hostConfig.NetworkMode = mode
 
 	// Setup port mapping (equivalent to -p on docker CLI). Ports must already be
 	// exposed in the container.
