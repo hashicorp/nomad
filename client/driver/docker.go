@@ -267,7 +267,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	d.logger.Printf("[INFO] driver.docker: created container %s", container.ID)
 
 	// Start the container
-	err = client.StartContainer(container.ID, createHostConfig(task))
+	err = client.StartContainer(container.ID, container.HostConfig)
 	if err != nil {
 		d.logger.Printf("[ERR] driver.docker: starting container %s", container.ID)
 		return nil, fmt.Errorf("Failed to start container %s", container.ID)
