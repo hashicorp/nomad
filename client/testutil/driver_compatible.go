@@ -19,13 +19,15 @@ func QemuCompatible(t *testing.T) {
 	}
 }
 
-func RktCompatible(t *testing.T) bool {
+func RktCompatible(t *testing.T) {
         if runtime.GOOS == "windows" || syscall.Geteuid() != 0 {
                 t.Skip("Must be root on non-windows environments to run test")
         }
         // else see if rkt exists
         _, err := exec.Command("rkt", "version").CombinedOutput()
-        return err == nil
+        if err != nil {
+                t.Skip("Must have rkt installed for rkt specific tests to run")
+        }
 }
 
 func MountCompatible(t *testing.T) {
