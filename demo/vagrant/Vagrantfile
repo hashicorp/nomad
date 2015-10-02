@@ -29,6 +29,11 @@ Vagrant.configure(2) do |config|
   config.vm.hostname = "nomad"
   config.vm.provision "shell", inline: $script, privileged: false
 
+  # Increase memory for Parallels Desktop
+  config.vm.provider "parallels" do |p, o|
+    p.memory = "1024"
+  end
+
   # Increase memory for Virtualbox
   config.vm.provider "virtualbox" do |vb|
         vb.memory = "1024"
