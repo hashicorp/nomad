@@ -122,7 +122,7 @@ func createContainer(ctx *ExecContext, task *structs.Task, logger *log.Logger) d
         if !ok || mode == "" {
                 // docker default
                 logger.Printf("[WARN] driver.docker: no mode specified for networking, defaulting to bridge")
-                mode = "bridge"
+                mode = "default"
         }
 
         // Ignore the container mode for now
@@ -131,7 +131,7 @@ func createContainer(ctx *ExecContext, task *structs.Task, logger *log.Logger) d
                 logger.Printf("[DEBUG] driver.docker: using %s as network mode", mode)
         default:
                 logger.Printf("[WARN] invalid setting for network mode %s, defaulting to bridge mode on docker0", mode)
-                mode = "bridge"
+                mode = "default"
         }
 	hostConfig.NetworkMode = mode
 
