@@ -27,15 +27,23 @@ func TestCommand_Args(t *testing.T) {
 	tcases := []tcase{
 		{
 			[]string{},
-			"Must specify data directory",
+			"Must specify either server, client or dev mode for the agent.",
 		},
 		{
-			[]string{"-data-dir=" + tmpDir, "-bootstrap-expect=1"},
+			[]string{"-client", "-data-dir=" + tmpDir, "-bootstrap-expect=1"},
 			"Bootstrap requires server mode to be enabled",
 		},
 		{
 			[]string{"-data-dir=" + tmpDir, "-server", "-bootstrap-expect=1"},
 			"WARNING: Bootstrap mode enabled!",
+		},
+		{
+			[]string{"-server"},
+			"Must specify data directory",
+		},
+		{
+			[]string{"-client", "-alloc-dir="},
+			"Must specify both the state and alloc dir if data-dir is omitted.",
 		},
 	}
 	for _, tc := range tcases {
