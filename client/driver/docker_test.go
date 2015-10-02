@@ -287,3 +287,29 @@ func TestDocker_StartNVersions(t *testing.T) {
 
 	t.Log("==> Test complete!")
 }
+
+func TestDockerHostNet(t *testing.T) {
+        task := &structs.Task{
+                Config: map[string]string{
+                        "image": "redis",
+                        "network_mode": "host",
+                },
+                Resources: &structs.Resources{
+                        MemoryMB: 256,
+                        CPU:      512,
+                        },
+                }
+	driverCtx := testDriverContext(task.Name)
+	ctx := testDriverExecContext(task, driverCtx)
+	defer ctx.AllocDir.Destroy()
+	d := NewDockerDriver(driverCtx)
+
+	handle, err := d.Start(ctx, task)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if handle == nil {
+		t.Fatalf("missing handle")
+	}
+	defer handle.Kill()
+}

@@ -95,7 +95,15 @@ func (f *StorageFingerprint) Fingerprint(cfg *config.Config, node *structs.Node)
 		}
 
 		// Use -k to standardize the output values between darwin and linux
-		mountOutput, err := exec.Command("df", "-k", path).Output()
+		var dfArgs string
+		if runtime.GOOS == "linux" {
+			// df on linux needs the -P option to prevent linebreaks on long filesystem paths
+			dfArgs = "-kP"
+		} else {
+			dfArgs = "-k"
+		}
+
+		mountOutput, err := exec.Command("df", dfArgs, path).Output()
 		if err != nil {
 			return false, fmt.Errorf("Failed to determine mount point for %s", path)
 		}

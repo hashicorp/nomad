@@ -96,12 +96,22 @@ $ make test
 ...
 ```
 
-To compile a development version of Nomad, run `make`. This will put the
+To compile a development version of Nomad, run `make dev`. This will put the
 Nomad binary in the `bin` and `$GOPATH/bin` folders:
 
 ```sh
-$ make
+$ make dev
 ...
 $ bin/nomad
+...
+```
+
+To cross-compile Nomad, run `make bin`. This will compile Nomad for multiple
+platforms and place the resulting binaries into the `./pkg` directory:
+
+```sh
+$ make bin
+...
+$ ls ./pkg
 ...
 ```

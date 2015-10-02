@@ -7,13 +7,16 @@ EXTERNAL_TOOLS=\
 	golang.org/x/tools/cmd/cover \
 	golang.org/x/tools/cmd/vet
 
+all: test
 
-all: deps format
-	@mkdir -p bin/
-	@bash --norc -i ./scripts/build.sh
+dev: deps format
+	@NOMAD_DEV=1 sh -c "'$(CURDIR)/scripts/build.sh'"
 
 bin:
 	@sh -c "'$(CURDIR)/scripts/build.sh'"
+
+release: updatedeps
+	@$(MAKE) bin
 
 cov:
 	gocov test ./... | gocov-html > /tmp/coverage.html
@@ -21,18 +24,15 @@ cov:
 
 deps:
 	@echo "--> Installing build dependencies"
-	@bash --norc scripts/deps.sh -d -v
+	@DEP_ARGS="-d -v" sh -c "'$(CURDIR)/scripts/deps.sh'"
 
 updatedeps: deps
 	@echo "--> Updating build dependencies"
-	@bash --norc scripts/deps.sh -d -f -u
+	@DEP_ARGS="-d -f -u" sh -c "'$(CURDIR)/scripts/deps.sh'"
 
 test: deps
-	@./scripts/test.sh
+	@sh -c "'$(CURDIR)/scripts/test.sh'"
 	@$(MAKE) vet
-
-integ:
-	go list ./... | INTEG_TESTS=yes xargs -n1 go test
 
 cover: deps
 	go list ./... | xargs -n1 go test --cover

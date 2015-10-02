@@ -26,6 +26,7 @@ _testmain.go
 *.prof
 
 bin/
+pkg/
 .vagrant/
 website/build/
 website/npm-debug.log

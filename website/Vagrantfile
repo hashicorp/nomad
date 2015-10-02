@@ -37,5 +37,5 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.network "private_network", ip: "33.33.30.10"
   config.vm.network "forwarded_port", guest: 4567, host: 8080
   config.vm.provision "shell", inline: $script, privileged: false
-  config.vm.synced_folder ".", "/vagrant", type: "rsync"
+  config.vm.synced_folder ".", "/vagrant"
 end
