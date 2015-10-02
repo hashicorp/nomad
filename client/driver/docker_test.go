@@ -289,16 +289,16 @@ func TestDocker_StartNVersions(t *testing.T) {
 }
 
 func TestDockerHostNet(t *testing.T) {
-        task := &structs.Task{
-                Config: map[string]string{
-                        "image": "redis",
-                        "network_mode": "host",
-                },
-                Resources: &structs.Resources{
-                        MemoryMB: 256,
-                        CPU:      512,
-                        },
-                }
+	task := &structs.Task{
+		Config: map[string]string{
+			"image":        "redis",
+			"network_mode": "host",
+		},
+		Resources: &structs.Resources{
+			MemoryMB: 256,
+			CPU:      512,
+		},
+	}
 	driverCtx := testDriverContext(task.Name)
 	ctx := testDriverExecContext(task, driverCtx)
 	defer ctx.AllocDir.Destroy()
