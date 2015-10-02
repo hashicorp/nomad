@@ -137,6 +137,12 @@ type ClientConfig struct {
 	// NodeClass is used to group the node by class
 	NodeClass string `hcl:"node_class"`
 
+	// Options is used for configuration of nomad internals,
+	// like fingerprinters and drivers. The format is:
+	//
+	//  namespace.option = value
+	Options map[string]string `hcl:"options"`
+
 	// Metadata associated with the node
 	Meta map[string]string `hcl:"meta"`
 
@@ -393,6 +399,14 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 
 	// Add the servers
 	result.Servers = append(result.Servers, b.Servers...)
+
+	// Add the options map values
+	if result.Options == nil {
+		result.Options = make(map[string]string)
+	}
+	for k, v := range b.Options {
+		result.Options[k] = v
+	}
 
 	// Add the meta map values
 	if result.Meta == nil {
