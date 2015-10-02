@@ -55,6 +55,11 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.provision "shell", inline: $script, privileged: false
   config.vm.synced_folder '.', '/opt/gopath/src/github.com/hashicorp/nomad'
 
+  config.vm.provider "parallels" do |p, o|
+    o.vm.box = "parallels/ubuntu-14.04"
+    p.memory = 2048
+  end
+
   config.vm.provider "virtualbox" do |v|
     v.memory = 1024
     v.cpus = 1
