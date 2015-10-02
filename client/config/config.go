@@ -31,6 +31,9 @@ type Config struct {
 	// Region is the clients region
 	Region string
 
+	// Network interface to be used in network fingerprinting
+	NetworkInterface string
+
 	// Servers is a list of known server addresses. These are as "host:port"
 	Servers []string
 
