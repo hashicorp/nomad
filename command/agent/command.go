@@ -104,8 +104,9 @@ func (c *Command) readConfig() *Config {
 	}
 
 	// Parse the meta flags.
-	if len(meta) != 0 {
-		cmdConfig.Client.Meta = make(map[string]string)
+	metaLength := len(meta)
+	if metaLength != 0 {
+		cmdConfig.Client.Meta = make(map[string]string, metaLength)
 		for _, kv := range meta {
 			parts := strings.SplitN(kv, "=", 2)
 			if len(parts) != 2 {
