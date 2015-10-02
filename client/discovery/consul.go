@@ -5,12 +5,23 @@ import (
 )
 
 type ConsulDiscovery struct {
+	ctx    *Context
 	client *api.Client
 }
 
-func NewConsulDiscovery() (*ConsulDiscovery, error) {
+func NewConsulDiscovery(ctx *Context) (Discovery, error) {
 	// Build the config
 	conf := api.DefaultConfig()
+	conf.Datacenter = ctx.node.Datacenter
+	if addr, ok := ctx.config.Options["discovery.consul.address"]; ok {
+		conf.Address = addr
+	}
+	if scheme, ok := ctx.config.Options["discovery.consul.scheme"]; ok {
+		conf.Scheme = scheme
+	}
+	if token, ok := ctx.config.Options["discovery.consul.token"]; ok {
+		conf.Token = token
+	}
 
 	// Create the client
 	client, err := api.NewClient(conf)
@@ -19,7 +30,12 @@ func NewConsulDiscovery() (*ConsulDiscovery, error) {
 	}
 
 	// Create and return the discovery provider
-	return &ConsulDiscovery{client}, nil
+	return &ConsulDiscovery{ctx, client}, nil
+}
+
+func (c *ConsulDiscovery) Enabled() bool {
+	_, ok := c.ctx.config.Options["discovery.consul.enable"]
+	return ok
 }
 
 func (c *ConsulDiscovery) Register(
@@ -31,29 +47,29 @@ func (c *ConsulDiscovery) Register(
 	svc := &api.CatalogRegistration{
 		Node:       node,
 		Address:    addr,
-		Datacenter: c.config.Datacenter,
+		Datacenter: c.ctx.node.Datacenter,
 		Service: &api.AgentService{
 			ID:      name,
 			Service: name,
-			Tags:    meta,
 			Port:    port,
 			Address: addr,
 		},
 	}
 
 	// Attempt to register
-	return c.client.Catalog().Register(svc)
+	_, err := c.client.Catalog().Register(svc, nil)
+	return err
 }
 
-func (c *ConsulDiscovery) Deregister(node, addr, name string) error {
+func (c *ConsulDiscovery) Deregister(node, name string) error {
 	// Build the dereg request
 	dereg := &api.CatalogDeregistration{
-		Datacenter: c.config.Datacenter,
+		Datacenter: c.ctx.node.Datacenter,
 		Node:       node,
 		ServiceID:  name,
 	}
 
 	// Send the deregister request
-	_, err := c.client.Catalog().Deregister(dereg)
+	_, err := c.client.Catalog().Deregister(dereg, nil)
 	return err
 }

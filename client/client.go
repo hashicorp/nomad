@@ -13,6 +13,7 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/discovery"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/nomad"
@@ -457,6 +458,22 @@ func (c *Client) setupDrivers() error {
 		}
 	}
 	c.logger.Printf("[DEBUG] client: available drivers %v", avail)
+	return nil
+}
+
+func (c *Client) setupDiscovery() error {
+	var avail []string
+	ctx := discovery.NewContext(c.config, c.logger, c.config.Node)
+	for name, fn := range discovery.Builtins {
+		disc, err := fn(ctx)
+		if err != nil {
+			return err
+		}
+		if disc.Enabled() {
+			avail = append(avail, name)
+		}
+	}
+	c.logger.Printf("[DEBUG] client: available discovery layers: %v", avail)
 	return nil
 }
 
