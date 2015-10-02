@@ -50,6 +50,8 @@ type Command struct {
 func (c *Command) readConfig() *Config {
 	var dev bool
 	var configPath []string
+	var servers string
+	var meta []string
 
 	// Make a new, empty config.
 	cmdConfig := &Config{
@@ -75,11 +77,7 @@ func (c *Command) readConfig() *Config {
 	flags.StringVar(&cmdConfig.Client.AllocDir, "alloc-dir", "", "")
 	flags.StringVar(&cmdConfig.Client.NodeID, "node-id", "", "")
 	flags.StringVar(&cmdConfig.Client.NodeClass, "node-class", "", "")
-
-	var servers string
 	flags.StringVar(&servers, "servers", "", "")
-
-	var meta []string
 	flags.Var((*sliceflag.StringFlag)(&meta), "meta", "")
 
 	// General options
@@ -109,7 +107,7 @@ func (c *Command) readConfig() *Config {
 	if len(meta) != 0 {
 		cmdConfig.Client.Meta = make(map[string]string)
 		for _, kv := range meta {
-			parts := strings.Split(kv, "=")
+			parts := strings.SplitN(kv, "=", 2)
 			if len(parts) != 2 {
 				c.Ui.Error(fmt.Sprintf("Error parsing Client.Meta value: %v", kv))
 				return nil
