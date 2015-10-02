@@ -159,9 +159,6 @@ func (r *TaskRunner) startTask() error {
 	}
 	r.handle = handle
 	r.setStatus(structs.AllocClientStatusRunning, "task started")
-
-	// TODO: Register with service discovery
-
 	return nil
 }
 

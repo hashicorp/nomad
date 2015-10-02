@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/discovery"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -36,6 +37,8 @@ type AllocRunner struct {
 	config  *config.Config
 	updater AllocStateUpdater
 	logger  *log.Logger
+
+	discovery []discovery.Discovery
 
 	alloc *structs.Allocation
 
@@ -63,11 +66,14 @@ type allocRunnerState struct {
 }
 
 // NewAllocRunner is used to create a new allocation context
-func NewAllocRunner(logger *log.Logger, config *config.Config, updater AllocStateUpdater, alloc *structs.Allocation) *AllocRunner {
+func NewAllocRunner(
+	logger *log.Logger, config *config.Config, updater AllocStateUpdater,
+	discovery []discovery.Discovery, alloc *structs.Allocation) *AllocRunner {
 	ar := &AllocRunner{
 		config:     config,
 		updater:    updater,
 		logger:     logger,
+		discovery:  discovery,
 		alloc:      alloc,
 		dirtyCh:    make(chan struct{}, 1),
 		tasks:      make(map[string]*TaskRunner),
@@ -300,6 +306,8 @@ func (r *AllocRunner) Run() {
 	}
 	r.taskLock.Unlock()
 
+	r.discoveryRegister()
+
 OUTER:
 	// Wait for updates
 	for {
@@ -375,4 +383,36 @@ func (r *AllocRunner) Destroy() {
 	}
 	r.destroy = true
 	close(r.destroyCh)
+}
+
+func (r *AllocRunner) discoveryRegister() {
+	for _, tg := range r.alloc.Job.TaskGroups {
+		for _, task := range tg.Tasks {
+			name := task.Discover
+			if name == "" {
+				name = fmt.Sprintf("%s-%s-%s", r.alloc.JobID, tg.Name, task.Name)
+			}
+
+			// Register the main task. This can be used to locate apps on static ports.
+			r.discoveryRegisterInner(r.alloc.NodeID, name, "", 0)
+
+			// Register the dynamic ports
+			if networks := task.Resources.Networks; networks != nil {
+				for _, net := range networks {
+					for dynName, port := range net.MapDynamicPorts() {
+						dynName = fmt.Sprintf("%s-%s", name, dynName)
+						r.discoveryRegisterInner(r.alloc.NodeID, dynName, "", port)
+					}
+				}
+			}
+		}
+	}
+}
+
+func (r *AllocRunner) discoveryRegisterInner(node, name, ip string, port int) {
+	for _, disc := range r.discovery {
+		if err := disc.Register(node, name, ip, port); err != nil {
+			r.logger.Printf("[ERR] client: failed registering with discovery layer: %s", err)
+		}
+	}
 }

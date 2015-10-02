@@ -41,6 +41,7 @@ func (g *TaskGroup) AddTask(t *Task) *TaskGroup {
 // Task is a single process in a task group.
 type Task struct {
 	Name        string
+	Discover    string
 	Driver      string
 	Config      map[string]string
 	Constraints []*Constraint

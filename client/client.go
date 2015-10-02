@@ -328,7 +328,7 @@ func (c *Client) restoreState() error {
 	for _, entry := range list {
 		id := entry.Name()
 		alloc := &structs.Allocation{ID: id}
-		ar := NewAllocRunner(c.logger, c.config, c.updateAllocStatus, alloc)
+		ar := NewAllocRunner(c.logger, c.config, c.updateAllocStatus, c.discovery, alloc)
 		c.allocs[id] = ar
 		if err := ar.RestoreState(); err != nil {
 			c.logger.Printf("[ERR] client: failed to restore state for alloc %s: %v",
@@ -718,14 +718,6 @@ func (c *Client) removeAlloc(alloc *structs.Allocation) error {
 		return nil
 	}
 	ar.Destroy()
-
-	// Deregister from service discovery
-	for _, disc := range c.discovery {
-		if err := disc.Deregister(c.Node().ID, "redis"); err != nil {
-			return fmt.Errorf("failed to deregister: %v", err)
-		}
-	}
-
 	delete(c.allocs, alloc.ID)
 	return nil
 }
@@ -747,17 +739,8 @@ func (c *Client) updateAlloc(exist, update *structs.Allocation) error {
 func (c *Client) addAlloc(alloc *structs.Allocation) error {
 	c.allocLock.Lock()
 	defer c.allocLock.Unlock()
-	ar := NewAllocRunner(c.logger, c.config, c.updateAllocStatus, alloc)
+	ar := NewAllocRunner(c.logger, c.config, c.updateAllocStatus, c.discovery, alloc)
 	c.allocs[alloc.ID] = ar
 	go ar.Run()
-
-	// Register with service discovery
-	ip := c.Node().Attributes["network.ip-address"]
-	for _, disc := range c.discovery {
-		if err := disc.Register(c.Node().ID, "redis", ip, nil, 1234); err != nil {
-			return fmt.Errorf("failed to register: %v", err)
-		}
-	}
-
 	return nil
 }

@@ -34,42 +34,24 @@ func NewConsulDiscovery(ctx *Context) (Discovery, error) {
 }
 
 func (c *ConsulDiscovery) Enabled() bool {
+	return true
 	_, ok := c.ctx.config.Options["discovery.consul.enable"]
 	return ok
 }
 
-func (c *ConsulDiscovery) Register(
-	node, name, addr string,
-	meta map[string]string,
-	port int) error {
-
+func (c *ConsulDiscovery) Register(_, name, _ string, port int) error {
 	// Build the service definition
-	svc := &api.CatalogRegistration{
-		Node:       node,
-		Address:    addr,
-		Datacenter: c.ctx.node.Datacenter,
-		Service: &api.AgentService{
-			ID:      name,
-			Service: name,
-			Port:    port,
-			Address: addr,
-		},
+	svc := &api.AgentServiceRegistration{
+		ID:   name,
+		Name: name,
+		Port: port,
 	}
 
 	// Attempt to register
-	_, err := c.client.Catalog().Register(svc, nil)
-	return err
+	return c.client.Agent().ServiceRegister(svc)
 }
 
 func (c *ConsulDiscovery) Deregister(node, name string) error {
-	// Build the dereg request
-	dereg := &api.CatalogDeregistration{
-		Datacenter: c.ctx.node.Datacenter,
-		Node:       node,
-		ServiceID:  name,
-	}
-
 	// Send the deregister request
-	_, err := c.client.Catalog().Deregister(dereg, nil)
-	return err
+	return c.client.Agent().ServiceDeregister(name)
 }
