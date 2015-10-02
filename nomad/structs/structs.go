@@ -960,6 +960,15 @@ type Task struct {
 	// Name of the task
 	Name string
 
+	// Discover is a symbolic name which will be used in place of the
+	// default task name when registering a task with a service discovery
+	// system. By default, the job ID, group, and task name are combined
+	// to create a reasonably unique entry. This can be used to create a
+	// more simple name. It is possible that other jobs in the system may
+	// already have this name, so it is important to take care in setting
+	// the correct value.
+	Discover string
+
 	// Driver is used to control which driver is used
 	Driver string
 
