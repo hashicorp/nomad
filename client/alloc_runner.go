@@ -38,7 +38,9 @@ type AllocRunner struct {
 	updater AllocStateUpdater
 	logger  *log.Logger
 
-	discovery []discovery.Discovery
+	discovery    []discovery.Discovery
+	discoverLock sync.Mutex
+	registered   bool
 
 	alloc *structs.Allocation
 
@@ -306,8 +308,6 @@ func (r *AllocRunner) Run() {
 	}
 	r.taskLock.Unlock()
 
-	r.discoveryRegister()
-
 OUTER:
 	// Wait for updates
 	for {
@@ -329,6 +329,9 @@ OUTER:
 				tr.Update(task)
 			}
 			r.taskLock.RUnlock()
+
+			// Update service discovery
+			r.handleDiscovery(update.ClientStatus)
 
 		case <-r.destroyCh:
 			break OUTER
@@ -385,7 +388,28 @@ func (r *AllocRunner) Destroy() {
 	close(r.destroyCh)
 }
 
-func (r *AllocRunner) discoveryRegister() {
+// handleDiscovery iterates over the running processes created by the
+// AllocRunner and registers them with any available service discovery
+// back-ends. It is also used to deregister these services when the
+// client status changes to dead.
+func (r *AllocRunner) handleDiscovery(status string) {
+	r.discoverLock.Lock()
+	defer r.discoverLock.Unlock()
+
+	var shouldRegister bool
+	switch status {
+	case structs.AllocClientStatusRunning:
+		if r.registered {
+			return
+		}
+		r.registered = true
+		shouldRegister = true
+	case structs.AllocClientStatusDead:
+		shouldRegister = false
+	default:
+		return
+	}
+
 	for _, tg := range r.alloc.Job.TaskGroups {
 		for _, task := range tg.Tasks {
 			name := task.Discover
@@ -394,14 +418,22 @@ func (r *AllocRunner) discoveryRegister() {
 			}
 
 			// Register the main task. This can be used to locate apps on static ports.
-			r.discoveryRegisterInner(r.alloc.NodeID, name, "", 0)
+			if shouldRegister {
+				r.discoveryRegister(r.alloc.NodeID, name, "", 0)
+			} else {
+				r.discoveryDeregister(r.alloc.NodeID, name)
+			}
 
 			// Register the dynamic ports
 			if networks := task.Resources.Networks; networks != nil {
 				for _, net := range networks {
 					for dynName, port := range net.MapDynamicPorts() {
 						dynName = fmt.Sprintf("%s-%s", name, dynName)
-						r.discoveryRegisterInner(r.alloc.NodeID, dynName, "", port)
+						if shouldRegister {
+							r.discoveryRegister(r.alloc.NodeID, dynName, "", port)
+						} else {
+							r.discoveryDeregister(r.alloc.NodeID, dynName)
+						}
 					}
 				}
 			}
@@ -409,10 +441,18 @@ func (r *AllocRunner) discoveryRegister() {
 	}
 }
 
-func (r *AllocRunner) discoveryRegisterInner(node, name, ip string, port int) {
+func (r *AllocRunner) discoveryRegister(node, name, ip string, port int) {
 	for _, disc := range r.discovery {
 		if err := disc.Register(node, name, ip, port); err != nil {
 			r.logger.Printf("[ERR] client: failed registering with discovery layer: %s", err)
+		}
+	}
+}
+
+func (r *AllocRunner) discoveryDeregister(node, name string) {
+	for _, disc := range r.discovery {
+		if err := disc.Deregister(node, name); err != nil {
+			r.logger.Printf("[ERR] client: failed deregistering from discovery layer: %s", err)
 		}
 	}
 }
