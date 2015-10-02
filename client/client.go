@@ -87,6 +87,9 @@ type Client struct {
 	allocs    map[string]*AllocRunner
 	allocLock sync.RWMutex
 
+	// discovery is the set of enabled discovery subsystems
+	discovery []discovery.Discovery
+
 	shutdown     bool
 	shutdownCh   chan struct{}
 	shutdownLock sync.Mutex
@@ -130,6 +133,11 @@ func NewClient(cfg *config.Config) (*Client, error) {
 	// Scan for drivers
 	if err := c.setupDrivers(); err != nil {
 		return nil, fmt.Errorf("driver setup failed: %v", err)
+	}
+
+	// Set up service discovery
+	if err := c.setupDiscovery(); err != nil {
+		return nil, fmt.Errorf("discovery setup failed: %v", err)
 	}
 
 	// Set up the known servers list
@@ -461,6 +469,7 @@ func (c *Client) setupDrivers() error {
 	return nil
 }
 
+// setupDiscovery sets up the discovery layers and initializes them.
 func (c *Client) setupDiscovery() error {
 	var avail []string
 	ctx := discovery.NewContext(c.config, c.logger, c.config.Node)
@@ -470,6 +479,7 @@ func (c *Client) setupDiscovery() error {
 			return err
 		}
 		if disc.Enabled() {
+			c.discovery = append(c.discovery, disc)
 			avail = append(avail, name)
 		}
 	}
@@ -708,6 +718,14 @@ func (c *Client) removeAlloc(alloc *structs.Allocation) error {
 		return nil
 	}
 	ar.Destroy()
+
+	// Deregister from service discovery
+	for _, disc := range c.discovery {
+		if err := disc.Deregister(c.Node().ID, "redis"); err != nil {
+			return fmt.Errorf("failed to deregister: %v", err)
+		}
+	}
+
 	delete(c.allocs, alloc.ID)
 	return nil
 }
@@ -732,5 +750,14 @@ func (c *Client) addAlloc(alloc *structs.Allocation) error {
 	ar := NewAllocRunner(c.logger, c.config, c.updateAllocStatus, alloc)
 	c.allocs[alloc.ID] = ar
 	go ar.Run()
+
+	// Register with service discovery
+	ip := c.Node().Attributes["network.ip-address"]
+	for _, disc := range c.discovery {
+		if err := disc.Register(c.Node().ID, "redis", ip, nil, 1234); err != nil {
+			return fmt.Errorf("failed to register: %v", err)
+		}
+	}
+
 	return nil
 }
