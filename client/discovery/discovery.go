@@ -1,6 +1,7 @@
 package discovery
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/hashicorp/nomad/client/config"
@@ -72,7 +73,8 @@ func NewDiscoveryLayer(
 	for _, factory := range builtins {
 		provider, err := factory(ctx)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed initializing %s discovery: %s",
+				provider.Name(), err)
 		}
 		if provider.Enabled() {
 			dl.providers = append(dl.providers, provider)
