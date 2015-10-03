@@ -50,6 +50,10 @@ func testDriverExecContext(task *structs.Task, driverCtx *DriverContext) *ExecCo
 func TestDriver_TaskEnvironmentVariables(t *testing.T) {
 	ctx := &ExecContext{}
 	task := &structs.Task{
+		Env: map[string]string{
+			"HELLO": "world",
+			"lorem": "ipsum",
+		},
 		Resources: &structs.Resources{
 			CPU:      1000,
 			MemoryMB: 500,
@@ -76,6 +80,8 @@ func TestDriver_TaskEnvironmentVariables(t *testing.T) {
 		"NOMAD_PORT_5000":       "12345",
 		"NOMAD_META_CHOCOLATE":  "cake",
 		"NOMAD_META_STRAWBERRY": "icecream",
+		"HELLO":                 "world",
+		"lorem":                 "ipsum",
 	}
 
 	act := env.Map()

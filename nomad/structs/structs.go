@@ -966,6 +966,9 @@ type Task struct {
 	// Config is provided to the driver to initialize
 	Config map[string]string
 
+	// Map of environment variables to be used by the driver
+	Env map[string]string
+
 	// Constraints can be specified at a task level and apply only to
 	// the particular task.
 	Constraints []*Constraint

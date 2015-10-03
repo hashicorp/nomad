@@ -44,6 +44,7 @@ type Task struct {
 	Driver      string
 	Config      map[string]string
 	Constraints []*Constraint
+	Env         map[string]string
 	Resources   *Resources
 	Meta        map[string]string
 }
