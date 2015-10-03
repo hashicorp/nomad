@@ -23,7 +23,7 @@ type TaskRunner struct {
 	ctx     *driver.ExecContext
 	allocID string
 
-	discovery []discovery.Discovery
+	discovery *discovery.DiscoveryLayer
 
 	task     *structs.Task
 	updateCh chan *structs.Task
@@ -48,7 +48,7 @@ type TaskStateUpdater func(taskName, status, desc string)
 func NewTaskRunner(logger *log.Logger, config *config.Config,
 	updater TaskStateUpdater, ctx *driver.ExecContext,
 	allocID string, task *structs.Task,
-	discovery []discovery.Discovery) *TaskRunner {
+	disc *discovery.DiscoveryLayer) *TaskRunner {
 
 	tc := &TaskRunner{
 		config:    config,
@@ -56,7 +56,7 @@ func NewTaskRunner(logger *log.Logger, config *config.Config,
 		logger:    logger,
 		ctx:       ctx,
 		allocID:   allocID,
-		discovery: discovery,
+		discovery: disc,
 		task:      task,
 		updateCh:  make(chan *structs.Task, 8),
 		destroyCh: make(chan struct{}),
@@ -259,9 +259,9 @@ func (r *TaskRunner) handleDiscovery(deregister bool) {
 	// Handle registration of the main task. This can be used
 	// to locate apps with static port bindings.
 	if deregister {
-		r.discoveryDeregister(name)
+		r.discovery.Deregister(name)
 	} else {
-		r.discoveryRegister(name, 0)
+		r.discovery.Register(name, 0)
 	}
 
 	// Register the dynamic ports. These are named ports which
@@ -271,29 +271,11 @@ func (r *TaskRunner) handleDiscovery(deregister bool) {
 			for dynName, port := range net.MapDynamicPorts() {
 				dynName = fmt.Sprintf("%s-%s", name, dynName)
 				if deregister {
-					r.discoveryDeregister(dynName)
+					r.discovery.Deregister(dynName)
 				} else {
-					r.discoveryRegister(dynName, port)
+					r.discovery.Register(dynName, port)
 				}
 			}
-		}
-	}
-}
-
-// discoveryRegister is used to register a given task in service discovery.
-func (r *TaskRunner) discoveryRegister(name string, port int) {
-	for _, disc := range r.discovery {
-		if err := disc.Register(name, port); err != nil {
-			r.logger.Printf("[ERR] client: failed registering with discovery layer: %s", err)
-		}
-	}
-}
-
-// discoveryDeregister is used to remove a task from service discovery.
-func (r *TaskRunner) discoveryDeregister(name string) {
-	for _, disc := range r.discovery {
-		if err := disc.Deregister(name); err != nil {
-			r.logger.Printf("[ERR] client: failed deregistering from discovery layer: %s", err)
 		}
 	}
 }

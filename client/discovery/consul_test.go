@@ -30,10 +30,14 @@ func TestConsulDiscovery_Register(t *testing.T) {
 	logBuf := new(bytes.Buffer)
 	logger := log.New(logBuf, "", log.LstdFlags)
 	node := &structs.Node{}
-	ctx := NewContext(conf, logger, node)
+	ctx := &context{
+		config: conf,
+		logger: logger,
+		node:   node,
+	}
 
 	// Create the discovery layer
-	disc, err := NewConsulDiscovery(ctx)
+	disc, err := newConsulDiscovery(ctx)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -48,7 +52,7 @@ func TestConsulDiscovery_Register(t *testing.T) {
 		"discovery.consul.enable":  "true",
 		"discovery.consul.address": srv.HTTPAddr,
 	}
-	disc, err = NewConsulDiscovery(ctx)
+	disc, err = newConsulDiscovery(ctx)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}

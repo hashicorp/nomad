@@ -38,7 +38,7 @@ type AllocRunner struct {
 	updater AllocStateUpdater
 	logger  *log.Logger
 
-	discovery []discovery.Discovery
+	discovery *discovery.DiscoveryLayer
 
 	alloc *structs.Allocation
 
@@ -68,12 +68,12 @@ type allocRunnerState struct {
 // NewAllocRunner is used to create a new allocation context
 func NewAllocRunner(
 	logger *log.Logger, config *config.Config, updater AllocStateUpdater,
-	discovery []discovery.Discovery, alloc *structs.Allocation) *AllocRunner {
+	disc *discovery.DiscoveryLayer, alloc *structs.Allocation) *AllocRunner {
 	ar := &AllocRunner{
 		config:     config,
 		updater:    updater,
 		logger:     logger,
-		discovery:  discovery,
+		discovery:  disc,
 		alloc:      alloc,
 		dirtyCh:    make(chan struct{}, 1),
 		tasks:      make(map[string]*TaskRunner),

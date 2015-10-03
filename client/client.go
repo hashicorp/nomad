@@ -88,7 +88,7 @@ type Client struct {
 	allocLock sync.RWMutex
 
 	// discovery is the set of enabled discovery subsystems
-	discovery []discovery.Discovery
+	discovery *discovery.DiscoveryLayer
 
 	shutdown     bool
 	shutdownCh   chan struct{}
@@ -115,6 +115,11 @@ func NewClient(cfg *config.Config) (*Client, error) {
 		return nil, fmt.Errorf("failed intializing client: %v", err)
 	}
 
+	// Set up service discovery
+	if err := c.setupDiscovery(); err != nil {
+		return nil, fmt.Errorf("discovery setup failed: %v", err)
+	}
+
 	// Restore the state
 	if err := c.restoreState(); err != nil {
 		return nil, fmt.Errorf("failed to restore state: %v", err)
@@ -133,11 +138,6 @@ func NewClient(cfg *config.Config) (*Client, error) {
 	// Scan for drivers
 	if err := c.setupDrivers(); err != nil {
 		return nil, fmt.Errorf("driver setup failed: %v", err)
-	}
-
-	// Set up service discovery
-	if err := c.setupDiscovery(); err != nil {
-		return nil, fmt.Errorf("discovery setup failed: %v", err)
 	}
 
 	// Set up the known servers list
@@ -471,18 +471,14 @@ func (c *Client) setupDrivers() error {
 
 // setupDiscovery sets up the discovery layers and initializes them.
 func (c *Client) setupDiscovery() error {
-	var avail []string
-	ctx := discovery.NewContext(c.config, c.logger, c.config.Node)
-	for name, fn := range discovery.Builtins {
-		disc, err := fn(ctx)
-		if err != nil {
-			return err
-		}
-		if disc.Enabled() {
-			c.discovery = append(c.discovery, disc)
-			avail = append(avail, name)
-		}
+	// Create the discovery layer
+	disc, err := discovery.NewDiscoveryLayer(c.config, c.logger, c.config.Node)
+	if err != nil {
+		return err
 	}
+	c.discovery = disc
+
+	avail := disc.Providers()
 	c.logger.Printf("[DEBUG] client: available discovery layers: %v", avail)
 	return nil
 }
