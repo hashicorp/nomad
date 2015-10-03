@@ -36,6 +36,6 @@ into a single system. By default, Nomad is distributed, highly available,
 and operationally simple.
 
 At the time of writing, Kubernetes targets managing 100 node clusters and supports
-only a single region. Nomad is designed to support clusters several orders of magnitude
+only a single region, although work is underway to improve scale and federation of clusters.
+Nomad is designed to support clusters several orders of magnitude
 larger and supports multi-datacenter and multi-region configurations.
-
