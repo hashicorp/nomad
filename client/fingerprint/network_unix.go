@@ -57,6 +57,7 @@ func (f *NetworkFingerprint) Fingerprint(cfg *config.Config, node *structs.Node)
 	if throughput := f.linkSpeed(defaultDevice); throughput > 0 {
 		newNetwork.MBits = throughput
 	} else {
+		f.logger.Printf("[DEBUG] fingerprint.network: Unable to read link speed; setting to default %v", cfg.NetworkSpeed)
 		newNetwork.MBits = cfg.NetworkSpeed
 	}
 
