@@ -36,6 +36,9 @@ func TestConfig_Merge(t *testing.T) {
 			AllocDir:  "/tmp/alloc1",
 			NodeID:    "node1",
 			NodeClass: "class1",
+			Options: map[string]string{
+				"foo": "bar",
+			},
 		},
 		Server: &ServerConfig{
 			Enabled:         false,
@@ -86,7 +89,13 @@ func TestConfig_Merge(t *testing.T) {
 			NodeID:    "node2",
 			NodeClass: "class2",
 			Servers:   []string{"server2"},
-			Meta:      map[string]string{"baz": "zip"},
+			Meta: map[string]string{
+				"baz": "zip",
+			},
+			Options: map[string]string{
+				"foo": "bar",
+				"baz": "zip",
+			},
 		},
 		Server: &ServerConfig{
 			Enabled:           true,
@@ -345,6 +354,10 @@ func TestConfig_LoadConfigString(t *testing.T) {
 				"foo": "bar",
 				"baz": "zip",
 			},
+			Options: map[string]string{
+				"foo": "bar",
+				"baz": "zip",
+			},
 		},
 		Server: &ServerConfig{
 			Enabled:           true,
@@ -409,6 +422,10 @@ client {
 	node_id = "xyz123"
 	node_class = "linux-medium-64bit"
 	meta {
+		foo = "bar"
+		baz = "zip"
+	}
+	options {
 		foo = "bar"
 		baz = "zip"
 	}
