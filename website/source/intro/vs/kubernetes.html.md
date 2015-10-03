@@ -27,7 +27,7 @@ services which together provide the full functionality. Coordination and
 storage is provided by etcd at the core. The state is wrapped by API controllers
 which are consumed by other services that provide higher level APIs for features
 like scheduling. Kubernetes supports running in a highly available
-configuration with some additional user configuration.
+configuration but is operationally complex to setup.
 
 Nomad is architecturally much simpler. Nomad is a single binary, both for clients
 and servers, and requires no external services for coordination or storage.
