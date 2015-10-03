@@ -148,6 +148,9 @@ type ClientConfig struct {
 
 	// Interface to use for network fingerprinting
 	NetworkInterface string `hcl:"network_interface"`
+
+	// The network link speed to use if it can not be determined dynamically.
+	NetworkSpeed int `hcl:"network_speed"`
 }
 
 // ServerConfig is configuration specific to the server mode
@@ -236,7 +239,8 @@ func DefaultConfig() *Config {
 		AdvertiseAddrs: &AdvertiseAddrs{},
 		Atlas:          &AtlasConfig{},
 		Client: &ClientConfig{
-			Enabled: false,
+			Enabled:      false,
+			NetworkSpeed: 100,
 		},
 		Server: &ServerConfig{
 			Enabled: false,
@@ -395,6 +399,9 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	}
 	if b.NetworkInterface != "" {
 		result.NetworkInterface = b.NetworkInterface
+	}
+	if b.NetworkSpeed != 0 {
+		result.NetworkSpeed = b.NetworkSpeed
 	}
 
 	// Add the servers

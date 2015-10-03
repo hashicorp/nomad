@@ -70,7 +70,6 @@ func TestEnvAWSFingerprint_aws(t *testing.T) {
 		"platform.aws.public-ipv4",
 		"platform.aws.placement.availability-zone",
 		"network.ip-address",
-		"network.internal-ip",
 	}
 
 	for _, k := range keys {

@@ -39,6 +39,7 @@ func TestConfig_Merge(t *testing.T) {
 			Options: map[string]string{
 				"foo": "bar",
 			},
+			NetworkSpeed: 100,
 		},
 		Server: &ServerConfig{
 			Enabled:         false,
@@ -96,6 +97,7 @@ func TestConfig_Merge(t *testing.T) {
 				"foo": "bar",
 				"baz": "zip",
 			},
+			NetworkSpeed: 100,
 		},
 		Server: &ServerConfig{
 			Enabled:           true,
@@ -358,6 +360,7 @@ func TestConfig_LoadConfigString(t *testing.T) {
 				"foo": "bar",
 				"baz": "zip",
 			},
+			NetworkSpeed: 100,
 		},
 		Server: &ServerConfig{
 			Enabled:           true,
@@ -429,6 +432,7 @@ client {
 		foo = "bar"
 		baz = "zip"
 	}
+	network_speed = 100
 }
 server {
 	enabled = true

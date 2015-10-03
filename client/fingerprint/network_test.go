@@ -13,8 +13,9 @@ func TestNetworkFingerprint_basic(t *testing.T) {
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
+	cfg := &config.Config{NetworkSpeed: 100}
 
-	ok, err := f.Fingerprint(&config.Config{}, node)
+	ok, err := f.Fingerprint(cfg, node)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -44,5 +45,8 @@ func TestNetworkFingerprint_basic(t *testing.T) {
 	}
 	if net.Device == "" {
 		t.Fatal("Expected Network Resource to have a Device Name")
+	}
+	if net.MBits == 0 {
+		t.Fatal("Expected Network Resource to have a non-zero bandwith")
 	}
 }

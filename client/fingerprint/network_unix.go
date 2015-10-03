@@ -50,10 +50,15 @@ func (f *NetworkFingerprint) Fingerprint(cfg *config.Config, node *structs.Node)
 		node.Attributes["network.ip-address"] = ip
 		newNetwork.IP = ip
 		newNetwork.CIDR = newNetwork.IP + "/32"
+	} else {
+		return false, fmt.Errorf("Unable to determine IP on network interface %v", defaultDevice)
 	}
 
 	if throughput := f.linkSpeed(defaultDevice); throughput > 0 {
 		newNetwork.MBits = throughput
+	} else {
+		f.logger.Printf("[DEBUG] fingerprint.network: Unable to read link speed; setting to default %v", cfg.NetworkSpeed)
+		newNetwork.MBits = cfg.NetworkSpeed
 	}
 
 	if node.Resources == nil {

@@ -34,6 +34,10 @@ type Config struct {
 	// Network interface to be used in network fingerprinting
 	NetworkInterface string
 
+	// Network speed is the default speed of network interfaces if they can not
+	// be determined dynamically.
+	NetworkSpeed int
+
 	// Servers is a list of known server addresses. These are as "host:port"
 	Servers []string
 

@@ -207,10 +207,13 @@ configured on server nodes.
     option is not required and has no default.
   * <a id="meta">`meta`</a>: This is a key/value mapping of metadata pairs. This
     is a free-form map and can contain any string values.
-  * `network_interface`: This is a string to force network fingerprinting to use
-    a specific network interface
   * `options`: This is a key/value mapping of internal configuration for clients,
     such as for driver configuration.
+  * <a id="network_interface">`network_interface`</a>: This is a string to force
+    network fingerprinting to use a specific network interface
+  * <a id="network_speed">`network_speed`</a>: This is an int that sets the
+    default link speed of network interfaces, in megabytes, if their speed can
+    not be determined dynamically.
 
 ## Atlas Options
 
@@ -257,6 +260,10 @@ via CLI arguments. The `agent` command accepts the following arguments:
   Nomad. No other configuration is required to start the agent in this mode.
 * `-log-level=<level>`: Equivalent to the [log_level](#log_level) config option.
 * `-meta=<key=value>`: Equivalent to the Client [meta](#meta) config option.
+* `-network-interface<interface>`: Equivalent to the Client
+   [network_interface](#network_interface) config option.
+* `-network-speed<MBits>`: Equivalent to the Client
+  [network_speed](#network_speed) config option.
 * `-node=<name>`: Equivalent to the [name](#name) config option.
 * `-node-class=<class>`: Equivalent to the Client [node_class](#node_class)
   config option.
