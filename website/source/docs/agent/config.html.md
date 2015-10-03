@@ -209,6 +209,8 @@ configured on server nodes.
     is a free-form map and can contain any string values.
   * `network_interface`: This is a string to force network fingerprinting to use
     a specific network interface
+  * `options`: This is a key/value mapping of internal configuration for clients,
+    such as for driver configuration.
 
 ## Atlas Options
 

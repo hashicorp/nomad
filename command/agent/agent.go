@@ -195,6 +195,7 @@ func (a *Agent) setupClient() error {
 	if a.config.Client.NetworkInterface != "" {
 		conf.NetworkInterface = a.config.Client.NetworkInterface
 	}
+	conf.Options = a.config.Client.Options
 
 	// Setup the node
 	conf.Node = new(structs.Node)
