@@ -66,6 +66,9 @@ func newErrorMockDiscovery(ctx *context) (provider, error) {
 }
 
 func TestDiscoveryLayer_Fails(t *testing.T) {
+	restore := append([]factory{}, builtins...)
+	defer func() { builtins = restore }()
+
 	builtins = []factory{
 		newMockDiscovery,
 		newDisabledMockDiscovery,
@@ -83,6 +86,9 @@ func TestDiscoveryLayer_Fails(t *testing.T) {
 }
 
 func TestDiscoveryLayer(t *testing.T) {
+	restore := append([]factory{}, builtins...)
+	defer func() { builtins = restore }()
+
 	builtins = []factory{
 		newMockDiscovery,
 		newDisabledMockDiscovery,
