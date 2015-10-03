@@ -81,7 +81,7 @@ func TestDriver_TaskEnvironmentVariables(t *testing.T) {
 		"NOMAD_META_CHOCOLATE":  "cake",
 		"NOMAD_META_STRAWBERRY": "icecream",
 		"HELLO":                 "world",
-		"LOREM":                 "ipsum",
+		"lorem":                 "ipsum",
 	}
 
 	act := env.Map()
