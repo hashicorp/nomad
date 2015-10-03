@@ -79,6 +79,8 @@ func (c *Command) readConfig() *Config {
 	flags.StringVar(&cmdConfig.Client.NodeClass, "node-class", "", "")
 	flags.StringVar(&servers, "servers", "", "")
 	flags.Var((*sliceflag.StringFlag)(&meta), "meta", "")
+	flags.StringVar(&cmdConfig.Client.NetworkInterface, "network-interface", "", "")
+	flags.IntVar(&cmdConfig.Client.NetworkSpeed, "network-speed", 0, "")
 
 	// General options
 	flags.Var((*sliceflag.StringFlag)(&configPath), "config", "config")
@@ -662,6 +664,13 @@ Client Options:
     User specified metadata to associated with the node. Each instance of -meta
     parses a single KEY=VALUE pair. Repeat the meta flag for each key/value pair
     to be added.
+
+  -network-interface
+    Forces the network fingerprinter to use the specified network interface.
+
+  -network-speed
+    The default speed for network interfaces in MBits if the link speed can not
+    be determined dynamically.
 
 Atlas Options:
 

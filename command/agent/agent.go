@@ -196,6 +196,9 @@ func (a *Agent) setupClient() error {
 		conf.NetworkInterface = a.config.Client.NetworkInterface
 	}
 	conf.Options = a.config.Client.Options
+	if a.config.Client.NetworkSpeed != 0 {
+		conf.NetworkSpeed = a.config.Client.NetworkSpeed
+	}
 
 	// Setup the node
 	conf.Node = new(structs.Node)
