@@ -8,7 +8,7 @@ description: |-
 
 # /v1/job/\<ID\>
 
-The `job` endpoint is used for CRUD on a singel job. By default, the agent's local
+The `job` endpoint is used for CRUD on a single job. By default, the agent's local
 region is used; another region can be specified using the `?region=` query parameter.
 
 ## GET
