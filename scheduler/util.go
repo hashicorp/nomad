@@ -228,9 +228,16 @@ func tasksUpdated(a, b *structs.TaskGroup) bool {
 			return true
 		}
 
-		// Inspect the network to see if the resource ask is different
-		if !reflect.DeepEqual(at.Resources.Networks, bt.Resources.Networks) {
+		// Inspect the network to see if the dynamic ports are different
+		if len(at.Resources.Networks) != len(bt.Resources.Networks) {
 			return true
+		}
+		for idx := range at.Resources.Networks {
+			an := at.Resources.Networks[idx]
+			bn := bt.Resources.Networks[idx]
+			if len(an.DynamicPorts) != len(bn.DynamicPorts) {
+				return true
+			}
 		}
 	}
 	return false
