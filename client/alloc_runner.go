@@ -53,6 +53,7 @@ type AllocRunner struct {
 	destroy     bool
 	destroyCh   chan struct{}
 	destroyLock sync.Mutex
+	waitCh      chan struct{}
 }
 
 // allocRunnerState is used to snapshot the state of the alloc runner
@@ -74,6 +75,7 @@ func NewAllocRunner(logger *log.Logger, config *config.Config, updater AllocStat
 		taskStatus: make(map[string]taskStatus),
 		updateCh:   make(chan *structs.Allocation, 8),
 		destroyCh:  make(chan struct{}),
+		waitCh:     make(chan struct{}),
 	}
 	return ar
 }
@@ -258,6 +260,7 @@ func (r *AllocRunner) setTaskStatus(taskName, status, desc string) {
 
 // Run is a long running goroutine used to manage an allocation
 func (r *AllocRunner) Run() {
+	defer close(r.waitCh)
 	go r.dirtySyncState()
 
 	// Check if the allocation is in a terminal status
@@ -375,4 +378,9 @@ func (r *AllocRunner) Destroy() {
 	}
 	r.destroy = true
 	close(r.destroyCh)
+}
+
+// WaitCh returns a channel to wait for termination
+func (r *AllocRunner) WaitCh() <-chan struct{} {
+	return r.waitCh
 }
