@@ -59,7 +59,7 @@ used a dynamic port, labeled `https`, it would also be registered as
 The default prefix is sufficient for uniquely identifying specific tasks,
 however it may be undesirable if a shorter, unique service name can be provided.
 These shorter names may be specified using the
-[discovery](/docs/jobspec/index.html#discovery) argument within a given task
+[discover](/docs/jobspec/index.html#discover) argument within a given task
 definition. For example, if the `discovery = "web"` option is given in the task
 definition, then the entries would instead be registered as `web` and
 `web-https`. **Important**: Take care when specifying an explicit discovery name.
