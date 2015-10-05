@@ -20,9 +20,6 @@ import (
 const DEFAULT_GCE_URL = "http://169.254.169.254/computeMetadata/v1/instance/"
 
 type GCEMetadataClient struct {
-	*http.Client
-	logger      *log.Logger
-	metadataURL string
 }
 
 type ReqError struct {
@@ -33,7 +30,15 @@ func (e ReqError) Error() string {
 	return http.StatusText(e.StatusCode)
 }
 
-func NewGCEMetadataClient(logger *log.Logger) GCEMetadataClient {
+// EnvGCEFingerprint is used to fingerprint the CPU
+type EnvGCEFingerprint struct {
+	client      *http.Client
+	logger      *log.Logger
+	metadataURL string
+}
+
+// NewEnvGCEFingerprint is used to create a CPU fingerprint
+func NewEnvGCEFingerprint(logger *log.Logger) Fingerprint {
 	// Read the internal metadata URL from the environment, allowing test files to
 	// provide their own
 	metadataURL := os.Getenv("GCE_ENV_URL")
@@ -46,15 +51,15 @@ func NewGCEMetadataClient(logger *log.Logger) GCEMetadataClient {
 		Timeout: 2 * time.Second,
 	}
 
-	return GCEMetadataClient{
-		Client:      client,
+	return &EnvGCEFingerprint{
+		client:      client,
 		logger:      logger,
 		metadataURL: metadataURL,
 	}
 }
 
-func (g GCEMetadataClient) Get(attribute string, recursive bool) (string, error) {
-	reqUrl := g.metadataURL + attribute
+func (f *EnvGCEFingerprint) Get(attribute string, recursive bool) (string, error) {
+	reqUrl := f.metadataURL + attribute
 	if recursive {
 		reqUrl = reqUrl + "?recursive=true"
 	}
@@ -72,7 +77,7 @@ func (g GCEMetadataClient) Get(attribute string, recursive bool) (string, error)
 		},
 	}
 
-	res, err := g.Client.Do(req)
+	res, err := f.client.Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -80,7 +85,7 @@ func (g GCEMetadataClient) Get(attribute string, recursive bool) (string, error)
 	resp, err := ioutil.ReadAll(res.Body)
 	res.Body.Close()
 	if err != nil {
-		g.logger.Printf("[ERR]: fingerprint.env_gce: Error reading response body for GCE %s", attribute)
+		f.logger.Printf("[ERR]: fingerprint.env_gce: Error reading response body for GCE %s", attribute)
 		return "", err
 	}
 
@@ -89,17 +94,6 @@ func (g GCEMetadataClient) Get(attribute string, recursive bool) (string, error)
 	}
 
 	return string(resp), nil
-}
-
-// EnvGCEFingerprint is used to fingerprint the CPU
-type EnvGCEFingerprint struct {
-	logger *log.Logger
-}
-
-// NewEnvGCEFingerprint is used to create a CPU fingerprint
-func NewEnvGCEFingerprint(logger *log.Logger) Fingerprint {
-	f := &EnvGCEFingerprint{logger: logger}
-	return f
 }
 
 func checkError(err error, logger *log.Logger, desc string) error {
@@ -127,14 +121,12 @@ func (f *EnvGCEFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 		node.Links = make(map[string]string)
 	}
 
-	client := NewGCEMetadataClient(f.logger)
-
 	keys := []string{
 		"hostname",
 		"id",
 	}
 	for _, k := range keys {
-		value, err := client.Get(k, false)
+		value, err := f.Get(k, false)
 		if err != nil {
 			return false, checkError(err, f.logger, k)
 		}
@@ -149,7 +141,7 @@ func (f *EnvGCEFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 		"zone",
 	}
 	for _, k := range keys {
-		value, err := client.Get(k, false)
+		value, err := f.Get(k, false)
 		if err != nil {
 			return false, checkError(err, f.logger, k)
 		}
@@ -160,7 +152,7 @@ func (f *EnvGCEFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 	}
 
 	// Get internal and external IP (if it exits)
-	value, err := client.Get("network-interfaces/0/ip", false)
+	value, err := f.Get("network-interfaces/0/ip", false)
 	if err != nil {
 		return false, checkError(err, f.logger, "ip")
 	}
@@ -168,7 +160,7 @@ func (f *EnvGCEFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 	newNetwork.CIDR = newNetwork.IP + "/32"
 	node.Attributes["network.ip-address"] = newNetwork.IP
 
-	value, err = client.Get("network-interfaces/0/access-configs/0/external-ip", false)
+	value, err = f.Get("network-interfaces/0/access-configs/0/external-ip", false)
 	if re, ok := err.(ReqError); err != nil && (!ok || re.StatusCode != 404) {
 		return false, checkError(err, f.logger, "external IP")
 	}
@@ -178,7 +170,7 @@ func (f *EnvGCEFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 	}
 
 	var tagList []string
-	value, err = client.Get("tags", false)
+	value, err = f.Get("tags", false)
 	if err != nil {
 		return false, checkError(err, f.logger, "tags")
 	}
@@ -192,7 +184,7 @@ func (f *EnvGCEFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 	}
 
 	var attrDict map[string]string
-	value, err = client.Get("attributes/", true)
+	value, err = f.Get("attributes/", true)
 	if err != nil {
 		return false, checkError(err, f.logger, "attributes/")
 	}
@@ -220,9 +212,8 @@ func (f *EnvGCEFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 func (f *EnvGCEFingerprint) isGCE() bool {
 	// TODO: better way to detect GCE?
 
-	client := NewGCEMetadataClient(f.logger)
 	// Query the metadata url for the machine type, to verify we're on GCE
-	machineType, err := client.Get("machine-type", false)
+	machineType, err := f.Get("machine-type", false)
 	if err != nil {
 		if re, ok := err.(ReqError); !ok || re.StatusCode != 404 {
 			// If it wasn't a 404 error, print an error message.

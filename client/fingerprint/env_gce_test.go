@@ -29,7 +29,6 @@ func TestGCEFingerprint_nonGCE(t *testing.T) {
 }
 
 func testFingerprint_GCE(t *testing.T, withExternalIp bool) {
-	f := NewEnvGCEFingerprint(testLogger())
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
@@ -71,6 +70,7 @@ func testFingerprint_GCE(t *testing.T, withExternalIp bool) {
 	}))
 	defer ts.Close()
 	os.Setenv("GCE_ENV_URL", ts.URL+"/computeMetadata/v1/instance/")
+	f := NewEnvGCEFingerprint(testLogger())
 
 	ok, err := f.Fingerprint(&config.Config{}, node)
 	if err != nil {
