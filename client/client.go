@@ -115,6 +115,11 @@ func NewClient(cfg *config.Config) (*Client, error) {
 		return nil, fmt.Errorf("failed intializing client: %v", err)
 	}
 
+	// Setup the node
+	if err := c.setupNode(); err != nil {
+		return nil, fmt.Errorf("node setup failed: %v", err)
+	}
+
 	// Set up service discovery
 	if err := c.setupDiscovery(); err != nil {
 		return nil, fmt.Errorf("discovery setup failed: %v", err)
@@ -123,11 +128,6 @@ func NewClient(cfg *config.Config) (*Client, error) {
 	// Restore the state
 	if err := c.restoreState(); err != nil {
 		return nil, fmt.Errorf("failed to restore state: %v", err)
-	}
-
-	// Setup the node
-	if err := c.setupNode(); err != nil {
-		return nil, fmt.Errorf("node setup failed: %v", err)
 	}
 
 	// Fingerprint the node
