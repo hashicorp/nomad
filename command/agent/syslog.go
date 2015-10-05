@@ -2,8 +2,8 @@ package agent
 
 import (
 	"bytes"
-	"github.com/hashicorp/go-syslog"
-	"github.com/hashicorp/logutils"
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/hashicorp/go-syslog"
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/hashicorp/logutils"
 )
 
 // levelPriority is used to map a log level to a

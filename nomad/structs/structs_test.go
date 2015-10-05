@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/hashicorp/go-multierror"
 )
 
 func TestJob_Validate(t *testing.T) {

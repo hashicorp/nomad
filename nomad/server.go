@@ -14,11 +14,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/consul/tlsutil"
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/hashicorp/consul/tlsutil"
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/hashicorp/raft"
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/hashicorp/raft-boltdb"
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/hashicorp/serf/serf"
 	"github.com/hashicorp/nomad/nomad/state"
-	"github.com/hashicorp/raft"
-	"github.com/hashicorp/raft-boltdb"
-	"github.com/hashicorp/serf/serf"
 )
 
 const (

@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	docker "github.com/fsouza/go-dockerclient"
+	docker "github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/fsouza/go-dockerclient"
 
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"

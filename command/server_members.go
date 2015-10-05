@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/ryanuber/columnize"
 	"github.com/hashicorp/nomad/api"
-	"github.com/ryanuber/columnize"
 )
 
 type ServerMembersCommand struct {

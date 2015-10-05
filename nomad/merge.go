@@ -3,7 +3,7 @@ package nomad
 import (
 	"fmt"
 
-	"github.com/hashicorp/serf/serf"
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/hashicorp/serf/serf"
 )
 
 // serfMergeDelegate is used to handle a cluster merge on the gossip

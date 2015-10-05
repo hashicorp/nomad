@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/kardianos/osext"
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/kardianos/osext"
 )
 
 const (

@@ -8,11 +8,11 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/hashicorp/memberlist"
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/hashicorp/memberlist"
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/hashicorp/raft"
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/hashicorp/serf/serf"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
-	"github.com/hashicorp/raft"
-	"github.com/hashicorp/serf/serf"
 )
 
 const (

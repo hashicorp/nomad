@@ -3,7 +3,7 @@ package command
 import (
 	"testing"
 
-	"github.com/mitchellh/cli"
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/mitchellh/cli"
 )
 
 func TestServerForceLeaveCommand_Implements(t *testing.T) {

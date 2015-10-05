@@ -3,7 +3,7 @@ package state
 import (
 	"testing"
 
-	"github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/hashicorp/go-memdb"
 )
 
 func TestStateStoreSchema(t *testing.T) {

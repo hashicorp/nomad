@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/hashicorp/go-msgpack/codec"
 )
 
 func TestTimeTable(t *testing.T) {

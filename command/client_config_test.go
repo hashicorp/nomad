@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/mitchellh/cli"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/mitchellh/cli"
 )
 
 func TestClientConfigCommand_Implements(t *testing.T) {

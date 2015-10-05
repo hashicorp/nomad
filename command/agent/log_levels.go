@@ -3,7 +3,7 @@ package agent
 import (
 	"io/ioutil"
 
-	"github.com/hashicorp/logutils"
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/hashicorp/logutils"
 )
 
 // LevelFilter returns a LevelFilter that is configured with the log

@@ -5,9 +5,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/mitchellh/cli"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/mitchellh/cli"
 )
 
 const (

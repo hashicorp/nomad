@@ -13,14 +13,14 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/armon/go-metrics"
-	"github.com/hashicorp/go-checkpoint"
-	"github.com/hashicorp/go-syslog"
-	"github.com/hashicorp/logutils"
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/armon/go-metrics"
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/hashicorp/go-checkpoint"
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/hashicorp/go-syslog"
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/hashicorp/logutils"
+	scada "github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/hashicorp/scada-client"
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/mitchellh/cli"
 	"github.com/hashicorp/nomad/helper/flag-slice"
 	"github.com/hashicorp/nomad/helper/gated-writer"
-	scada "github.com/hashicorp/scada-client"
-	"github.com/mitchellh/cli"
 )
 
 // gracefulTimeout controls how long we wait before forcefully terminating

@@ -3,7 +3,7 @@ package state
 import (
 	"fmt"
 
-	"github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/hashicorp/go-memdb"
 )
 
 // stateStoreSchema is used to return the schema for the state store

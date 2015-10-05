@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/armon/go-metrics"
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/armon/go-metrics"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 

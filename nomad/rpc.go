@@ -9,11 +9,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/armon/go-metrics"
-	"github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/armon/go-metrics"
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/hashicorp/yamux"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/yamux"
 )
 
 type RPCType byte

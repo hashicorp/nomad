@@ -10,9 +10,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/hashicorp/consul/tlsutil"
-	"github.com/hashicorp/net-rpc-msgpackrpc"
-	"github.com/hashicorp/yamux"
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/hashicorp/consul/tlsutil"
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/hashicorp/yamux"
 )
 
 // streamClient is used to wrap a stream with an RPC client

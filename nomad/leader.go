@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/armon/go-metrics"
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/armon/go-metrics"
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/hashicorp/raft"
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/hashicorp/serf/serf"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/raft"
-	"github.com/hashicorp/serf/serf"
 )
 
 // monitorLeadership is used to monitor if we acquire or lose our role
