@@ -4,7 +4,8 @@ IMPROVEMENTS:
 
   * Docker networking mode is configurable
   * Set task environment variables
-  * Native IP detection and user specifiable network interface for fingerprinting
+  * Native IP detection and user specifiable network interface for
+    fingerprinting
   * Nomad Client configurable from command-line
 
 BUG FIXES:
