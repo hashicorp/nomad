@@ -15,6 +15,8 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+// This is where the GCE metadata server normally resides. We hardcode the
+// "instance" path as well since it's the only one we access here.
 const DEFAULT_GCE_URL = "http://169.254.169.254/computeMetadata/v1/instance/"
 
 type GCEMetadataClient struct {
