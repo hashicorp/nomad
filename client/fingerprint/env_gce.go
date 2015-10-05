@@ -15,6 +15,8 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+const DEFAULT_GCE_URL = "http://169.254.169.254/computeMetadata/v1/instance/"
+
 type GCEMetadataClient struct {
 	*http.Client
 	logger      *log.Logger
@@ -34,7 +36,7 @@ func NewGCEMetadataClient(logger *log.Logger) GCEMetadataClient {
 	// provide their own
 	metadataURL := os.Getenv("GCE_ENV_URL")
 	if metadataURL == "" {
-		metadataURL = "http://169.254.169.254/computeMetadata/v1/instance/"
+		metadataURL = DEFAULT_GCE_URL
 	}
 
 	// assume 2 seconds is enough time for inside GCE network
