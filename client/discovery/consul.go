@@ -1,6 +1,8 @@
 package discovery
 
 import (
+	"strings"
+
 	"github.com/hashicorp/consul/api"
 )
 
@@ -57,4 +59,8 @@ func (c *consulDiscovery) Register(name string, port int) error {
 func (c *consulDiscovery) Deregister(name string) error {
 	// Send the deregister request
 	return c.client.Agent().ServiceDeregister(name)
+}
+
+func (c *consulDiscovery) DiscoverName(parts []string) string {
+	return strings.Join(parts, "-")
 }

@@ -263,17 +263,19 @@ func (r *TaskRunner) handleDiscovery(deregister bool) {
 	}
 
 	// Check if we have a specific discovery name, or apply a default.
-	name := r.task.Discover
-	if name == "" {
-		name = fmt.Sprintf("%s-%s-%s", r.jobID, r.taskGroup, r.task.Name)
+	var parts []string
+	if r.task.Discover != "" {
+		parts = []string{r.task.Discover}
+	} else {
+		parts = []string{r.jobID, r.taskGroup, r.task.Name}
 	}
 
 	// Handle registration of the main task. This can be used
 	// to locate apps with static port bindings.
 	if deregister {
-		r.discovery.Deregister(name)
+		r.discovery.Deregister(parts)
 	} else {
-		r.discovery.Register(name, 0)
+		r.discovery.Register(parts, 0)
 	}
 
 	// Register the dynamic ports. These are named ports which
@@ -281,11 +283,11 @@ func (r *TaskRunner) handleDiscovery(deregister bool) {
 	if networks := r.task.Resources.Networks; networks != nil {
 		for _, net := range networks {
 			for dynName, port := range net.MapDynamicPorts() {
-				dynName = fmt.Sprintf("%s-%s", name, dynName)
+				dynParts := append(parts, dynName)
 				if deregister {
-					r.discovery.Deregister(dynName)
+					r.discovery.Deregister(dynParts)
 				} else {
-					r.discovery.Register(dynName, port)
+					r.discovery.Register(dynParts, port)
 				}
 			}
 		}

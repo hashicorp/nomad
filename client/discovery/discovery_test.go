@@ -3,7 +3,9 @@ package discovery
 import (
 	"bytes"
 	"errors"
+	"io"
 	"log"
+	"os"
 	"strings"
 	"testing"
 )
@@ -31,6 +33,10 @@ func (m *mockDiscovery) Name() string {
 
 func (m *mockDiscovery) Enabled() bool {
 	return m.enabled
+}
+
+func (m *mockDiscovery) DiscoverName(parts []string) string {
+	return strings.Join(parts, ".")
 }
 
 func (m *mockDiscovery) Register(name string, port int) error {
@@ -96,7 +102,7 @@ func TestDiscoveryLayer(t *testing.T) {
 
 	// Create a logger
 	logBuf := new(bytes.Buffer)
-	logger := log.New(logBuf, "", log.LstdFlags)
+	logger := log.New(io.MultiWriter(logBuf, os.Stdout), "", log.LstdFlags)
 
 	// Create the discovery layer
 	dl, err := NewDiscoveryLayer(nil, logger, nil)
@@ -111,23 +117,23 @@ func TestDiscoveryLayer(t *testing.T) {
 	provider := dl.providers[0].(*mockDiscovery)
 
 	// Register a service
-	dl.Register("foobar", 123)
-	if port, ok := provider.registered["foobar"]; !ok || port != 123 {
+	dl.Register([]string{"foo", "bar"}, 123)
+	if port, ok := provider.registered["foo.bar"]; !ok || port != 123 {
 		t.Fatalf("bad registered services: %v", provider.registered)
 	}
 	logs := logBuf.String()
-	if !strings.Contains(logs, `registered "foobar" with mock`) {
+	if !strings.Contains(logs, `registered "foo.bar" with mock`) {
 		t.Fatalf("should log registration\n\n%s", logs)
 	}
 	logBuf.Reset()
 
 	// Deregister the service
-	dl.Deregister("foobar")
-	if _, ok := provider.registered["foobar"]; ok {
+	dl.Deregister([]string{"foo", "bar"})
+	if _, ok := provider.registered["foo.bar"]; ok {
 		t.Fatalf("should deregister")
 	}
 	logs = logBuf.String()
-	if !strings.Contains(logs, `deregistered "foobar" from mock`) {
+	if !strings.Contains(logs, `deregistered "foo.bar" from mock`) {
 		t.Fatalf("should log deregistration\n\n%s", logs)
 	}
 }

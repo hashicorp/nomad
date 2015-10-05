@@ -20,12 +20,17 @@ type factory func(ctx *context) (provider, error)
 // provider is a generic interface which can be used to implement
 // service discovery back-ends in Nomad.
 type provider interface {
-	// Name returns the name of the service discovery subsystem. This
+	// Name returns the type of the service discovery subsystem. This
 	// is used to identify the system in log messages.
 	Name() string
 
 	// Enabled determines if the discovery layer has been enabled.
 	Enabled() bool
+
+	// DiscoverName returns the name used to register the task into service
+	// discovery. The return value is used in log messages and is passed to
+	// the Register and Deregister functions.
+	DiscoverName(parts []string) string
 
 	// Register is used to register a new entry into a service discovery
 	// system. Only the name and port are required. The name is a symbolic
@@ -96,12 +101,13 @@ func (d *DiscoveryLayer) Providers() []string {
 // service information with them. If an error is encountered, it is
 // only logged to prevent a single failure from crippling the entire
 // discovery layer.
-func (d *DiscoveryLayer) Register(name string, port int) {
+func (d *DiscoveryLayer) Register(parts []string, port int) {
 	for _, disc := range d.providers {
+		name := disc.DiscoverName(parts)
 		if err := disc.Register(name, port); err != nil {
 			d.ctx.logger.Printf(
 				"[ERR] client.discovery: error registering %q with %s: %s",
-				name, disc.Name(), err)
+				parts, disc.Name(), err)
 			return
 		}
 		d.ctx.logger.Printf("[DEBUG] client.discovery: registered %q with %s",
@@ -111,8 +117,9 @@ func (d *DiscoveryLayer) Register(name string, port int) {
 
 // Deregister is like Register, but removes the named service from
 // the discovery subsystems.
-func (d *DiscoveryLayer) Deregister(name string) {
+func (d *DiscoveryLayer) Deregister(parts []string) {
 	for _, disc := range d.providers {
+		name := disc.DiscoverName(parts)
 		if err := disc.Deregister(name); err != nil {
 			d.ctx.logger.Printf(
 				"[ERR] client.discovery: error deregistering %q from %s: %s",
