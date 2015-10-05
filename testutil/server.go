@@ -101,8 +101,9 @@ type TestServer struct {
 // NewTestServerConfig creates a new TestServer, and makes a call to
 // an optional callback function to modify the configuration.
 func NewTestServer(t *testing.T, cb ServerConfigCallback) *TestServer {
-	if path, err := exec.LookPath("nomad"); err != nil || path == "" {
-		t.Skip("nomad not found on $PATH, skipping")
+        path := fmt.Sprintf("%s/bin/nomad", os.Getenv("GOPATH"))
+	if _, err := os.Stat(path); err != nil {
+		t.Skip("nomad not found on $GOPATH, skipping")
 	}
 
 	dataDir, err := ioutil.TempDir("", "nomad")
