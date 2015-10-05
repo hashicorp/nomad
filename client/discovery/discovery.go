@@ -9,7 +9,7 @@ import (
 )
 
 // builtins is a set of discovery layer implementations for various
-// providers.
+// providers. Each provider must implement the provider interface.
 var builtins = []factory{
 	newConsulDiscovery,
 }
@@ -21,7 +21,8 @@ type factory func(ctx *context) (provider, error)
 // service discovery back-ends in Nomad.
 type provider interface {
 	// Name returns the type of the service discovery subsystem. This
-	// is used to identify the system in log messages.
+	// is used to identify the system in log messages and usually
+	// returns a static string value.
 	Name() string
 
 	// Enabled determines if the discovery layer has been enabled.
@@ -97,10 +98,9 @@ func (d *DiscoveryLayer) Providers() []string {
 	return avail
 }
 
-// Register iterates all of the providers and registers the given
-// service information with them. If an error is encountered, it is
-// only logged to prevent a single failure from crippling the entire
-// discovery layer.
+// Register iterates all of the providers and registers the given service
+// information with them. If an error is encountered, it is only logged to
+// prevent a single failure from crippling the entire discovery layer.
 func (d *DiscoveryLayer) Register(parts []string, port int) {
 	for _, disc := range d.providers {
 		name := disc.DiscoverName(parts)
@@ -115,8 +115,7 @@ func (d *DiscoveryLayer) Register(parts []string, port int) {
 	}
 }
 
-// Deregister is like Register, but removes the named service from
-// the discovery subsystems.
+// Deregister is like Register, but removes a service from the providers.
 func (d *DiscoveryLayer) Deregister(parts []string) {
 	for _, disc := range d.providers {
 		name := disc.DiscoverName(parts)
