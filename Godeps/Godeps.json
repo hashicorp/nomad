@@ -1,0 +1,167 @@
+{
+	"ImportPath": "github.com/hashicorp/nomad",
+	"GoVersion": "go1.5.1",
+	"Packages": [
+		"./..."
+	],
+	"Deps": [
+		{
+			"ImportPath": "github.com/armon/go-metrics",
+			"Rev": "6c5fa0d8f48f4661c9ba8709799c88d425ad20f0"
+		},
+		{
+			"ImportPath": "github.com/boltdb/bolt",
+			"Comment": "v1.0-129-g51f99c8",
+			"Rev": "51f99c862475898df9773747d3accd05a7ca33c1"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/mount",
+			"Comment": "v1.4.1-6475-gd6e7350",
+			"Rev": "d6e7350b961d856dcc39db5accd898279d1be3da"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/units",
+			"Comment": "v1.4.1-6475-gd6e7350",
+			"Rev": "d6e7350b961d856dcc39db5accd898279d1be3da"
+		},
+		{
+			"ImportPath": "github.com/fsouza/go-dockerclient",
+			"Rev": "af9789bbd78acf3e279274caa54682185eb7ed33"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/consul/api",
+			"Comment": "v0.5.2-318-gc74355f",
+			"Rev": "c74355fec0badbbccb104088dc319e537dc7d484"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/consul/tlsutil",
+			"Comment": "v0.5.2-318-gc74355f",
+			"Rev": "c74355fec0badbbccb104088dc319e537dc7d484"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/errwrap",
+			"Rev": "7554cd9344cec97297fa6649b055a8c98c2a1e55"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/go-checkpoint",
+			"Rev": "528ab62f37fa83d4360e8ab2b2c425d6692ef533"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/go-immutable-radix",
+			"Rev": "0cf13515182e2bd1c1d588b9dc1e24c730eea843"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/go-memdb",
+			"Rev": "8bd4184df1b1723c9ae03d70d1f0e43b49de4b3e"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/go-msgpack/codec",
+			"Rev": "fa3f63826f7c23912c15263591e65d54d080b458"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/go-multierror",
+			"Rev": "d30f09973e19c1dfcd120b2d9c4f168e68d6b5d5"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/go-syslog",
+			"Rev": "42a2b573b664dbf281bd48c3cc12c086b17a39ba"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/hcl",
+			"Rev": "4de51957ef8d4aba6e285ddfc587633bbfc7c0e8"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/logutils",
+			"Rev": "0dc08b1671f34c4250ce212759ebd880f743d883"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/memberlist",
+			"Rev": "28424fb38c7c3e30f366b72b1a55f690d318d8f3"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/net-rpc-msgpackrpc",
+			"Rev": "d377902b7aba83dd3895837b902f6cf3f71edcb2"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/raft",
+			"Rev": "9dabbbab966c04a0b6efed3cff6960299fed0642"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/raft-boltdb",
+			"Rev": "d1e82c1ec3f15ee991f7cc7ffd5b67ff6f5bbaee"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/scada-client",
+			"Rev": "84989fd23ad4cc0e7ad44d6a871fd793eb9beb0a"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/serf/serf",
+			"Comment": "v0.6.4-46-ge493404",
+			"Rev": "e4934044417efc09bf4aec5b4862062380e00291"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/yamux",
+			"Rev": "ddcd0a6ec7c55e29f235e27935bf98d302281bd3"
+		},
+		{
+			"ImportPath": "github.com/kardianos/osext",
+			"Rev": "6e7f843663477789fac7c02def0d0909e969b4e5"
+		},
+		{
+			"ImportPath": "github.com/mattn/go-shellwords",
+			"Rev": "f4e566c536cf69158e808ec28ef4182a37fdc981"
+		},
+		{
+			"ImportPath": "github.com/mitchellh/cli",
+			"Rev": "8102d0ed5ea2709ade1243798785888175f6e415"
+		},
+		{
+			"ImportPath": "github.com/mitchellh/mapstructure",
+			"Rev": "281073eb9eb092240d33ef253c404f1cca550309"
+		},
+		{
+			"ImportPath": "github.com/opencontainers/runc/libcontainer/cgroups",
+			"Comment": "v0.0.4-63-g902ccd0",
+			"Rev": "902ccd0f1840115ca1ba01585b7051f0673eba92"
+		},
+		{
+			"ImportPath": "github.com/opencontainers/runc/libcontainer/configs",
+			"Comment": "v0.0.4-63-g902ccd0",
+			"Rev": "902ccd0f1840115ca1ba01585b7051f0673eba92"
+		},
+		{
+			"ImportPath": "github.com/opencontainers/runc/libcontainer/system",
+			"Comment": "v0.0.4-63-g902ccd0",
+			"Rev": "902ccd0f1840115ca1ba01585b7051f0673eba92"
+		},
+		{
+			"ImportPath": "github.com/ryanuber/columnize",
+			"Comment": "v2.0.1-8-g983d3a5",
+			"Rev": "983d3a5fab1bf04d1b412465d2d9f8430e2e917e"
+		},
+		{
+			"ImportPath": "github.com/shirou/gopsutil/common",
+			"Comment": "1.0.0-158-g0fd612e",
+			"Rev": "0fd612ec7b9079dc624ae4815acadf1903d82011"
+		},
+		{
+			"ImportPath": "github.com/shirou/gopsutil/cpu",
+			"Comment": "1.0.0-158-g0fd612e",
+			"Rev": "0fd612ec7b9079dc624ae4815acadf1903d82011"
+		},
+		{
+			"ImportPath": "github.com/shirou/gopsutil/host",
+			"Comment": "1.0.0-158-g0fd612e",
+			"Rev": "0fd612ec7b9079dc624ae4815acadf1903d82011"
+		},
+		{
+			"ImportPath": "github.com/shirou/gopsutil/mem",
+			"Comment": "1.0.0-158-g0fd612e",
+			"Rev": "0fd612ec7b9079dc624ae4815acadf1903d82011"
+		},
+		{
+			"ImportPath": "golang.org/x/crypto/ssh/terminal",
+			"Rev": "a7ead6ddf06233883deca151dffaef2effbf498f"
+		}
+	]
+}

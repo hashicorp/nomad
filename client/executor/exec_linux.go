@@ -14,7 +14,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/driver/args"
 	"github.com/hashicorp/nomad/client/driver/environment"
@@ -22,8 +22,8 @@ import (
 	"github.com/hashicorp/nomad/helper/discover"
 	"github.com/hashicorp/nomad/nomad/structs"
 
-	cgroupFs "github.com/opencontainers/runc/libcontainer/cgroups/fs"
-	cgroupConfig "github.com/opencontainers/runc/libcontainer/configs"
+	cgroupFs "github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/opencontainers/runc/libcontainer/cgroups/fs"
+	cgroupConfig "github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/opencontainers/runc/libcontainer/configs"
 )
 
 const (

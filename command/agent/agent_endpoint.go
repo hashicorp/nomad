@@ -4,7 +4,7 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/hashicorp/serf/serf"
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/hashicorp/serf/serf"
 )
 
 type Member struct {

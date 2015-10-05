@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/hashicorp/scada-client"
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/hashicorp/scada-client"
 )
 
 func TestProviderService(t *testing.T) {

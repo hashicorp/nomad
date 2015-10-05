@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/hashicorp/serf/serf"
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/hashicorp/serf/serf"
 )
 
 // ensurePath is used to make sure a path exists

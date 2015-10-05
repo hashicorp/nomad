@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	consul "github.com/hashicorp/consul/api"
+	consul "github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/hashicorp/consul/api"
 
 	client "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"

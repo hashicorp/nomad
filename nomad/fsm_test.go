@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/hashicorp/raft"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/raft"
 )
 
 type MockSink struct {

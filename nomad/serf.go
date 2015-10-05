@@ -1,6 +1,6 @@
 package nomad
 
-import "github.com/hashicorp/serf/serf"
+import "github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/hashicorp/serf/serf"
 
 const (
 	// StatusReap is used to update the status of a node if we

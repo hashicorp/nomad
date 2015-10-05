@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/hashicorp/hcl"
-	hclobj "github.com/hashicorp/hcl/hcl"
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/hashicorp/hcl"
+	hclobj "github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/hashicorp/hcl/hcl"
 	client "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad"
 )

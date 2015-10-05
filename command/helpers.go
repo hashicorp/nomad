@@ -1,7 +1,7 @@
 package command
 
 import (
-	"github.com/ryanuber/columnize"
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/ryanuber/columnize"
 )
 
 // formatKV takes a set of strings and formats them into properly

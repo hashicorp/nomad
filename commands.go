@@ -3,9 +3,9 @@ package main
 import (
 	"os"
 
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/mitchellh/cli"
 	"github.com/hashicorp/nomad/command"
 	"github.com/hashicorp/nomad/command/agent"
-	"github.com/mitchellh/cli"
 )
 
 // Commands returns the mapping of CLI commands for Nomad. The meta

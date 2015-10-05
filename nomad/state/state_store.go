@@ -6,7 +6,7 @@ import (
 	"log"
 	"sync"
 
-	"github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 

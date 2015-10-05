@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/mitchellh/cli"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/mitchellh/cli"
 )
 
 func TestMonitor_Update_Eval(t *testing.T) {

@@ -10,10 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/hcl"
-	hclobj "github.com/hashicorp/hcl/hcl"
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/hashicorp/hcl"
+	hclobj "github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/hashicorp/hcl/hcl"
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/mitchellh/mapstructure"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/mitchellh/mapstructure"
 )
 
 // Parse parses the job spec from the given io.Reader.

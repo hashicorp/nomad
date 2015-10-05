@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/go-msgpack/codec"
-	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/hashicorp/go-multierror"
 )
 
 var (

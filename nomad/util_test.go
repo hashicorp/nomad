@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/hashicorp/serf/serf"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/serf/serf"
 )
 
 func TestIsNomadServer(t *testing.T) {

@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/scada-client"
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/hashicorp/scada-client"
 )
 
 const (

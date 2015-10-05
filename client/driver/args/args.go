@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/mattn/go-shellwords"
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/mattn/go-shellwords"
 )
 
 var (

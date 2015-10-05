@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/shirou/gopsutil/cpu"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/shirou/gopsutil/cpu"
 )
 
 // CPUFingerprint is used to fingerprint the CPU

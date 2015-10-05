@@ -6,9 +6,9 @@ import (
 	"os/exec"
 	"runtime"
 
+	"github.com/hashicorp/nomad/Godeps/_workspace/src/github.com/shirou/gopsutil/host"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/shirou/gopsutil/host"
 )
 
 // HostFingerprint is used to fingerprint the host
