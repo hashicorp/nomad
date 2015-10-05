@@ -176,6 +176,11 @@ func isAWS() bool {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode >= 400 {
+		// URL not found, which indicates that this isn't AWS
+		return false
+	}
+
 	instanceID, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		log.Printf("[ERR] fingerprint.env_aws: Error reading AWS Instance ID, skipping")
