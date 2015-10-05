@@ -472,13 +472,14 @@ func (c *Client) setupDrivers() error {
 // setupDiscovery sets up the discovery layers and initializes them.
 func (c *Client) setupDiscovery() error {
 	// Create the discovery layer
-	disc, err := discovery.NewDiscoveryLayer(c.config, c.logger, c.config.Node)
+	disc, err := discovery.NewDiscoveryLayer(discovery.Builtins, c.config,
+		c.logger, c.config.Node)
 	if err != nil {
 		return err
 	}
 	c.discovery = disc
 
-	avail := disc.Providers()
+	avail := disc.EnabledProviders()
 	c.logger.Printf("[DEBUG] client: available discovery layers: %v", avail)
 	return nil
 }

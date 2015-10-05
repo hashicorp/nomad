@@ -2,7 +2,9 @@ package discovery
 
 import (
 	"bytes"
+	"io"
 	"log"
+	"os"
 	"testing"
 
 	consulapi "github.com/hashicorp/consul/api"
@@ -28,16 +30,16 @@ func TestConsulDiscovery_Register(t *testing.T) {
 	// Build the context
 	conf := &config.Config{}
 	logBuf := new(bytes.Buffer)
-	logger := log.New(logBuf, "", log.LstdFlags)
+	logger := log.New(io.MultiWriter(logBuf, os.Stdout), "", log.LstdFlags)
 	node := &structs.Node{}
-	ctx := &context{
+	ctx := Context{
 		config: conf,
 		logger: logger,
 		node:   node,
 	}
 
 	// Create the discovery layer
-	disc, err := newConsulDiscovery(ctx)
+	disc, err := NewConsulDiscovery(ctx)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -52,7 +54,7 @@ func TestConsulDiscovery_Register(t *testing.T) {
 		"discovery.consul.enable":  "true",
 		"discovery.consul.address": srv.HTTPAddr,
 	}
-	disc, err = newConsulDiscovery(ctx)
+	disc, err = NewConsulDiscovery(ctx)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}

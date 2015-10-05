@@ -4,11 +4,13 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/client/discovery"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -196,3 +198,64 @@ func TestTaskRunner_SaveRestoreState(t *testing.T) {
 	}
 }
 */
+
+func TestTaskRunner_HandleDiscovery(t *testing.T) {
+	// Create the task runner
+	_, tr := testTaskRunner()
+
+	// Modify the job so we have predictable results
+	tr.jobID = "job1"
+	tr.taskGroup = "group1"
+	tr.task.Name = "web"
+
+	// Assign dynamic ports. The ReservedPorts are overloaded for dynamic
+	// ports also, so we set those here as well.
+	tr.task.Resources.Networks[0].DynamicPorts = []string{"http", "https"}
+	tr.task.Resources.Networks[0].ReservedPorts = []int{80, 443}
+
+	// Create the mock discovery layer
+	providers := []discovery.Factory{discovery.NewMockDiscovery}
+	disc, err := discovery.NewDiscoveryLayer(providers, tr.config, tr.logger, tr.config.Node)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	tr.discovery = disc
+	mp := disc.Providers[0].(*discovery.MockDiscovery)
+
+	// Register the task with discovery
+	tr.handleDiscovery(false)
+
+	// Check the result
+	expect := map[string]int{
+		"job1.group1.web":       0,
+		"job1.group1.web.http":  80,
+		"job1.group1.web.https": 443,
+	}
+	if !reflect.DeepEqual(expect, mp.Registered) {
+		t.Fatalf("bad: %#v", mp.Registered)
+	}
+
+	// Deregister
+	tr.handleDiscovery(true)
+	if len(mp.Registered) != 0 {
+		t.Fatalf("bad: %#v", mp.Registered)
+	}
+
+	// Assign a discover name to the task. Should replace the long prefix.
+	tr.task.Discover = "web"
+	tr.handleDiscovery(false)
+	expect = map[string]int{
+		"web":       0,
+		"web.http":  80,
+		"web.https": 443,
+	}
+	if !reflect.DeepEqual(expect, mp.Registered) {
+		t.Fatalf("bad: %#v", mp.Registered)
+	}
+
+	// Deregister
+	tr.handleDiscovery(true)
+	if len(mp.Registered) != 0 {
+		t.Fatalf("bad: %#v", mp.Registered)
+	}
+}

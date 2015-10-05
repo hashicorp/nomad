@@ -8,18 +8,18 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// builtins is a set of discovery layer implementations for various
-// providers. Each provider must implement the provider interface.
-var builtins = []factory{
-	newConsulDiscovery,
+// Builtins is a set of discovery layer implementations for various
+// providers. Each provider must implement the Provider interface.
+var Builtins = []Factory{
+	NewConsulDiscovery,
 }
 
-// factory is a function interface to create new discovery providers.
-type factory func(ctx *context) (provider, error)
+// Factory is a function interface to create new discovery providers.
+type Factory func(Context) (Provider, error)
 
-// provider is a generic interface which can be used to implement
+// Provider is a generic interface which can be used to implement
 // service discovery back-ends in Nomad.
-type provider interface {
+type Provider interface {
 	// Name returns the type of the service discovery subsystem. This
 	// is used to identify the system in log messages and usually
 	// returns a static string value.
@@ -43,8 +43,8 @@ type provider interface {
 	Deregister(name string) error
 }
 
-// context is used to initialize a discovery backend.
-type context struct {
+// Context is used to initialize a discovery backend.
+type Context struct {
 	config *config.Config
 	logger *log.Logger
 	node   *structs.Node
@@ -53,46 +53,45 @@ type context struct {
 // DiscoveryLayer wraps a set of discovery providers and provides
 // easy calls to register/deregister into all of them.
 type DiscoveryLayer struct {
-	ctx       *context
-	providers []provider
+	Providers []Provider
+	Context
 }
 
 // NewDiscoveryLayer is used to initialize the discovery layer. It
 // automatically initializes all of the built-in providers and
 // checks their configuration.
 func NewDiscoveryLayer(
+	factories []Factory,
 	config *config.Config,
 	logger *log.Logger,
 	node *structs.Node) (*DiscoveryLayer, error) {
 
 	// Make the context
-	ctx := &context{
+	ctx := Context{
 		config: config,
 		logger: logger,
 		node:   node,
 	}
 
-	// Create the DiscoveryLayer
-	dl := &DiscoveryLayer{ctx: ctx}
-
 	// Initialize the providers
-	for _, factory := range builtins {
+	var providers []Provider
+	for _, factory := range factories {
 		provider, err := factory(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("failed initializing %s discovery: %s",
 				provider.Name(), err)
 		}
 		if provider.Enabled() {
-			dl.providers = append(dl.providers, provider)
+			providers = append(providers, provider)
 		}
 	}
-	return dl, nil
+	return &DiscoveryLayer{providers, ctx}, nil
 }
 
-// Providers returns the names of the enabled discovery providers.
-func (d *DiscoveryLayer) Providers() []string {
-	avail := make([]string, len(d.providers))
-	for i, provider := range d.providers {
+// EnabledProviders returns the names of the enabled discovery providers.
+func (d *DiscoveryLayer) EnabledProviders() []string {
+	avail := make([]string, len(d.Providers))
+	for i, provider := range d.Providers {
 		avail[i] = provider.Name()
 	}
 	return avail
@@ -102,30 +101,30 @@ func (d *DiscoveryLayer) Providers() []string {
 // information with them. If an error is encountered, it is only logged to
 // prevent a single failure from crippling the entire discovery layer.
 func (d *DiscoveryLayer) Register(parts []string, port int) {
-	for _, disc := range d.providers {
+	for _, disc := range d.Providers {
 		name := disc.DiscoverName(parts)
 		if err := disc.Register(name, port); err != nil {
-			d.ctx.logger.Printf(
+			d.logger.Printf(
 				"[ERR] client.discovery: error registering %q with %s: %s",
 				parts, disc.Name(), err)
 			return
 		}
-		d.ctx.logger.Printf("[DEBUG] client.discovery: registered %q with %s",
+		d.logger.Printf("[DEBUG] client.discovery: registered %q with %s",
 			name, disc.Name())
 	}
 }
 
 // Deregister is like Register, but removes a service from the providers.
 func (d *DiscoveryLayer) Deregister(parts []string) {
-	for _, disc := range d.providers {
+	for _, disc := range d.Providers {
 		name := disc.DiscoverName(parts)
 		if err := disc.Deregister(name); err != nil {
-			d.ctx.logger.Printf(
+			d.logger.Printf(
 				"[ERR] client.discovery: error deregistering %q from %s: %s",
 				name, disc.Name(), err)
 			return
 		}
-		d.ctx.logger.Printf("[DEBUG] client.discovery: deregistered %q from %s",
+		d.logger.Printf("[DEBUG] client.discovery: deregistered %q from %s",
 			name, disc.Name())
 	}
 }

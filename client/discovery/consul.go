@@ -6,21 +6,21 @@ import (
 	"github.com/hashicorp/consul/api"
 )
 
-// consulDiscovery is a back-end for service discovery which can be used
+// ConsulDiscovery is a back-end for service discovery which can be used
 // to populate a local Consul agent with service information. Because
 // Consul already has information about the local node, some shortcuts
 // can be taken in this back-end. Specifically, the IP address of the Nomad
 // agent does not need to be used, because Consul has this information
 // already and may even be configured to expose services on an alternate
 // advertise address.
-type consulDiscovery struct {
-	ctx    *context
+type ConsulDiscovery struct {
 	client *api.Client
+	Context
 }
 
-// newConsulDiscovery creates a new Consul discovery provider using the
+// NewConsulDiscovery creates a new Consul discovery provider using the
 // configuration provided in the client options.
-func newConsulDiscovery(ctx *context) (provider, error) {
+func NewConsulDiscovery(ctx Context) (Provider, error) {
 	// Build the config
 	conf := api.DefaultConfig()
 	conf.Datacenter = ctx.node.Datacenter
@@ -35,24 +35,24 @@ func newConsulDiscovery(ctx *context) (provider, error) {
 	}
 
 	// Create and return the discovery provider
-	return &consulDiscovery{ctx, client}, nil
+	return &ConsulDiscovery{client, ctx}, nil
 }
 
 // Name returns the name of the discovery provider.
-func (c *consulDiscovery) Name() string {
+func (c *ConsulDiscovery) Name() string {
 	return "consul"
 }
 
 // Enabled determines if the Consul layer is enabled. This just looks at a
 // client option and doesn't do any connection testing, as Consul may or may
 // not be available at the time of Nomad's start.
-func (c *consulDiscovery) Enabled() bool {
-	return c.ctx.config.Read("discovery.consul.enable") == "true"
+func (c *ConsulDiscovery) Enabled() bool {
+	return c.config.Read("discovery.consul.enable") == "true"
 }
 
 // Register registers a service name into a Consul agent. The agent will then
 // sync this definition into the service catalog.
-func (c *consulDiscovery) Register(name string, port int) error {
+func (c *ConsulDiscovery) Register(name string, port int) error {
 	// Build the service definition
 	svc := &api.AgentServiceRegistration{
 		ID:   name,
@@ -66,7 +66,7 @@ func (c *consulDiscovery) Register(name string, port int) error {
 
 // Deregister removes a service from the Consul agent. Anti-entropy will
 // then handle deregistering the service from the catalog.
-func (c *consulDiscovery) Deregister(name string) error {
+func (c *ConsulDiscovery) Deregister(name string) error {
 	// Send the deregister request
 	return c.client.Agent().ServiceDeregister(name)
 }
@@ -74,6 +74,6 @@ func (c *consulDiscovery) Deregister(name string) error {
 // DiscoverName returns the service name in Consul, given the parts of the
 // name. This is a simple hyphen-joined string so that we can easily support
 // DNS lookups from Consul.
-func (c *consulDiscovery) DiscoverName(parts []string) string {
+func (c *ConsulDiscovery) DiscoverName(parts []string) string {
 	return strings.Join(parts, "-")
 }
