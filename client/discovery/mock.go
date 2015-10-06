@@ -34,13 +34,13 @@ func (m *MockDiscovery) DiscoverName(parts []string) string {
 	return strings.Join(parts, ".")
 }
 
-func (m *MockDiscovery) Register(name string, port int) error {
-	m.Registered[name] = port
+func (m *MockDiscovery) Register(allocID, name string, port int) error {
+	m.Registered[name+":"+allocID] = port
 	return nil
 }
 
-func (m *MockDiscovery) Deregister(name string) error {
-	delete(m.Registered, name)
+func (m *MockDiscovery) Deregister(allocID, name string) error {
+	delete(m.Registered, name+":"+allocID)
 	return nil
 }
 

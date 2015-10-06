@@ -204,6 +204,7 @@ func TestTaskRunner_HandleDiscovery(t *testing.T) {
 	_, tr := testTaskRunner()
 
 	// Modify the job so we have predictable results
+	tr.allocID = "1"
 	tr.jobID = "job1"
 	tr.taskGroup = "group1"
 	tr.task.Name = "web"
@@ -227,9 +228,9 @@ func TestTaskRunner_HandleDiscovery(t *testing.T) {
 
 	// Check the result
 	expect := map[string]int{
-		"job1.group1.web":       0,
-		"job1.group1.web.http":  80,
-		"job1.group1.web.https": 443,
+		"job1.group1.web:1":       0,
+		"job1.group1.web.http:1":  80,
+		"job1.group1.web.https:1": 443,
 	}
 	if !reflect.DeepEqual(expect, mp.Registered) {
 		t.Fatalf("bad: %#v", mp.Registered)
@@ -245,9 +246,9 @@ func TestTaskRunner_HandleDiscovery(t *testing.T) {
 	tr.task.Discover = "web"
 	tr.handleDiscovery(false)
 	expect = map[string]int{
-		"web":       0,
-		"web.http":  80,
-		"web.https": 443,
+		"web:1":       0,
+		"web.http:1":  80,
+		"web.https:1": 443,
 	}
 	if !reflect.DeepEqual(expect, mp.Registered) {
 		t.Fatalf("bad: %#v", mp.Registered)

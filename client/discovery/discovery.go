@@ -34,13 +34,14 @@ type Provider interface {
 	DiscoverName(parts []string) string
 
 	// Register is used to register a new entry into a service discovery
-	// system. Only the name and port are required. The name is a symbolic
-	// name used to refer to the service. The context can be used from
-	// this function for internal node information such as IP address.
-	Register(name string, port int) error
+	// system. The name is a symbolic name used to refer to the service. The
+	// context can be used from this function for internal node information
+	// such as IP address. The allocID can be used to uniquely identify the
+	// same task running multiple instances on the same node.
+	Register(allocID, name string, port int) error
 
 	// Deregister is used to deregister a service from a discovery system.
-	Deregister(name string) error
+	Deregister(allocID, name string) error
 }
 
 // Context is used to initialize a discovery backend.
@@ -100,31 +101,33 @@ func (d *DiscoveryLayer) EnabledProviders() []string {
 // Register iterates all of the providers and registers the given service
 // information with them. If an error is encountered, it is only logged to
 // prevent a single failure from crippling the entire discovery layer.
-func (d *DiscoveryLayer) Register(parts []string, port int) {
+func (d *DiscoveryLayer) Register(allocID string, parts []string, port int) {
 	for _, disc := range d.Providers {
 		name := disc.DiscoverName(parts)
-		if err := disc.Register(name, port); err != nil {
+		if err := disc.Register(allocID, name, port); err != nil {
 			d.logger.Printf(
-				"[ERR] client.discovery: error registering %q with %s: %s",
-				parts, disc.Name(), err)
+				"[ERR] client.discovery: error registering %q with %s (alloc %s): %s",
+				parts, disc.Name(), allocID, err)
 			return
 		}
-		d.logger.Printf("[DEBUG] client.discovery: registered %q with %s",
-			name, disc.Name())
+		d.logger.Printf(
+			"[DEBUG] client.discovery: registered %q with %s (alloc %s)",
+			name, disc.Name(), allocID)
 	}
 }
 
 // Deregister is like Register, but removes a service from the providers.
-func (d *DiscoveryLayer) Deregister(parts []string) {
+func (d *DiscoveryLayer) Deregister(allocID string, parts []string) {
 	for _, disc := range d.Providers {
 		name := disc.DiscoverName(parts)
-		if err := disc.Deregister(name); err != nil {
+		if err := disc.Deregister(allocID, name); err != nil {
 			d.logger.Printf(
-				"[ERR] client.discovery: error deregistering %q from %s: %s",
-				name, disc.Name(), err)
+				"[ERR] client.discovery: error deregistering %q from %s (alloc %s): %s",
+				name, disc.Name(), allocID, err)
 			return
 		}
-		d.logger.Printf("[DEBUG] client.discovery: deregistered %q from %s",
-			name, disc.Name())
+		d.logger.Printf(
+			"[DEBUG] client.discovery: deregistered %q from %s (alloc %s)",
+			name, disc.Name(), allocID)
 	}
 }

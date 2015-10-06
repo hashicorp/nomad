@@ -273,9 +273,9 @@ func (r *TaskRunner) handleDiscovery(deregister bool) {
 	// Handle registration of the main task. This can be used
 	// to locate apps with static port bindings.
 	if deregister {
-		r.discovery.Deregister(parts)
+		r.discovery.Deregister(r.allocID, parts)
 	} else {
-		r.discovery.Register(parts, 0)
+		r.discovery.Register(r.allocID, parts, 0)
 	}
 
 	// Register the dynamic ports. These are named ports which
@@ -285,9 +285,9 @@ func (r *TaskRunner) handleDiscovery(deregister bool) {
 			for dynName, port := range net.MapDynamicPorts() {
 				dynParts := append(parts, dynName)
 				if deregister {
-					r.discovery.Deregister(dynParts)
+					r.discovery.Deregister(r.allocID, dynParts)
 				} else {
-					r.discovery.Register(dynParts, port)
+					r.discovery.Register(r.allocID, dynParts, port)
 				}
 			}
 		}

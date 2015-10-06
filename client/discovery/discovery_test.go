@@ -49,23 +49,23 @@ func TestDiscoveryLayer(t *testing.T) {
 	provider := dl.Providers[0].(*MockDiscovery)
 
 	// Register a service
-	dl.Register([]string{"foo", "bar"}, 123)
-	if port, ok := provider.Registered["foo.bar"]; !ok || port != 123 {
+	dl.Register("1", []string{"foo", "bar"}, 123)
+	if port, ok := provider.Registered["foo.bar:1"]; !ok || port != 123 {
 		t.Fatalf("bad registered services: %v", provider.Registered)
 	}
 	logs := logBuf.String()
-	if !strings.Contains(logs, `registered "foo.bar" with mock`) {
+	if !strings.Contains(logs, `registered "foo.bar" with mock (alloc 1)`) {
 		t.Fatalf("should log registration\n\n%s", logs)
 	}
 	logBuf.Reset()
 
 	// Deregister the service
-	dl.Deregister([]string{"foo", "bar"})
-	if _, ok := provider.Registered["foo.bar"]; ok {
+	dl.Deregister("1", []string{"foo", "bar"})
+	if _, ok := provider.Registered["foo.bar:1"]; ok {
 		t.Fatalf("should deregister")
 	}
 	logs = logBuf.String()
-	if !strings.Contains(logs, `deregistered "foo.bar" from mock`) {
+	if !strings.Contains(logs, `deregistered "foo.bar" from mock (alloc 1)`) {
 		t.Fatalf("should log deregistration\n\n%s", logs)
 	}
 }

@@ -1,6 +1,7 @@
 package discovery
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/hashicorp/consul/api"
@@ -52,10 +53,11 @@ func (c *ConsulDiscovery) Enabled() bool {
 
 // Register registers a service name into a Consul agent. The agent will then
 // sync this definition into the service catalog.
-func (c *ConsulDiscovery) Register(name string, port int) error {
+func (c *ConsulDiscovery) Register(allocID, name string, port int) error {
 	// Build the service definition
+	serviceID := fmt.Sprintf("%s:%s", name, allocID)
 	svc := &api.AgentServiceRegistration{
-		ID:   name,
+		ID:   serviceID,
 		Name: name,
 		Port: port,
 	}
@@ -66,9 +68,10 @@ func (c *ConsulDiscovery) Register(name string, port int) error {
 
 // Deregister removes a service from the Consul agent. Anti-entropy will
 // then handle deregistering the service from the catalog.
-func (c *ConsulDiscovery) Deregister(name string) error {
+func (c *ConsulDiscovery) Deregister(allocID, name string) error {
 	// Send the deregister request
-	return c.client.Agent().ServiceDeregister(name)
+	serviceID := fmt.Sprintf("%s:%s", name, allocID)
+	return c.client.Agent().ServiceDeregister(serviceID)
 }
 
 // DiscoverName returns the service name in Consul, given the parts of the

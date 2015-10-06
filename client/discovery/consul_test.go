@@ -63,7 +63,7 @@ func TestConsulDiscovery_Register(t *testing.T) {
 	}
 
 	// Should register a service
-	if err := disc.Register("foobar", 123); err != nil {
+	if err := disc.Register("alloc1", "foobar", 123); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
@@ -74,6 +74,9 @@ func TestConsulDiscovery_Register(t *testing.T) {
 	}
 	for _, svc := range services {
 		if svc.Service == "foobar" {
+			if svc.ID != "foobar:alloc1" {
+				t.Fatalf("bad id: %s", svc.ID)
+			}
 			if svc.Port != 123 {
 				t.Fatalf("bad port: %d", svc.Port)
 			}
@@ -84,7 +87,7 @@ func TestConsulDiscovery_Register(t *testing.T) {
 
 REGISTERED:
 	// Deregister the service
-	if err := disc.Deregister("foobar"); err != nil {
+	if err := disc.Deregister("alloc1", "foobar"); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
