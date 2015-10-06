@@ -52,6 +52,20 @@ vet:
 		echo "and fix them if necessary before submitting the code for reviewal."; \
 	fi
 
+xdeps:
+	@GOOS=darwin go get -d -f -u ./... $(DEPS)
+	@GOOS=freebsd go get -d -f -u ./... $(DEPS)
+	@GOOS=linux go get -d -f -u ./... $(DEPS)
+	@GOOS=windows go get -d -f -u ./... $(DEPS)
+
+xc:
+	echo "--> Building..."
+	gox \
+		-osarch="darwin/amd64 freebsd/amd64 linux/amd64 linux/arm windows/amd64" \
+		-output="./bin/nomad_{{.OS}}_{{.Arch}}" \
+		-verbose \
+		.
+
 web:
 	./scripts/website_run.sh
 
