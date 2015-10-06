@@ -88,13 +88,13 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
         cmd := exec.Command("rkt", "trust", fmt.Sprintf("--prefix=%s", trust_prefix))
         cmd.Stdout = &outBuf
         cmd.Stderr = &errBuf
-        d.logger.Printf("[DEBUG] Starting rkt command: %q", cmd.Args)
+        d.logger.Printf("[DEBUG] driver.rkt: starting rkt command: %q", cmd.Args)
         if err := cmd.Run(); err != nil {
                 return nil, fmt.Errorf(
                         "Error running rkt: %s\n\nOutput: %s\n\nError: %s",
                         err, outBuf.String(), errBuf.String())
         }
-        d.logger.Printf("[DEBUG] Added trust prefix: %q", trust_prefix)
+        d.logger.Printf("[DEBUG] driver.rkt: added trust prefix: %q", trust_prefix)
 
         name, ok := task.Config["name"]
         if !ok || name == "" {
@@ -106,13 +106,13 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
         acmd := exec.Command("rkt", "run", "--mds-register=false", name)
         acmd.Stdout = &aoutBuf
         acmd.Stderr = &aerrBuf
-        d.logger.Printf("[DEBUG] Starting rkt command: %q", acmd.Args)
+        d.logger.Printf("[DEBUG] driver:rkt: starting rkt command: %q", acmd.Args)
         if err := acmd.Run(); err != nil {
                 return nil, fmt.Errorf(
                         "Error running rkt: %s\n\nOutput: %s\n\nError: %s",
                         err, aoutBuf.String(), aerrBuf.String())
         }
-        d.logger.Printf("[DEBUG] Started ACI: %q", name)
+        d.logger.Printf("[DEBUG] driver.rkt: started ACI: %q", name)
         h := &rktHandle{
                 proc:   acmd.Process,
                 name:   name,
@@ -159,7 +159,7 @@ func (h *rktHandle) ID() string {
         }
         data, err := json.Marshal(pid)
         if err != nil {
-                h.logger.Printf("[ERR] failed to marshal rkt PID to JSON: %s", err)
+                h.logger.Printf("[ERR] driver.rkt: failed to marshal rkt PID to JSON: %s", err)
         }
         return fmt.Sprintf("Rkt:%s", string(data))
 }
