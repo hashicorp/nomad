@@ -87,7 +87,7 @@ func (e *LinuxExecutor) Limit(resources *structs.Resources) error {
 	}
 
 	if e.cgroupEnabled {
-		e.configureCgroups(resources)
+		return e.configureCgroups(resources)
 	}
 
 	return nil
@@ -168,9 +168,9 @@ func (e *LinuxExecutor) cleanTaskDir() error {
 	return errs.ErrorOrNil()
 }
 
-func (e *LinuxExecutor) configureCgroups(resources *structs.Resources) {
+func (e *LinuxExecutor) configureCgroups(resources *structs.Resources) error {
 	if !e.cgroupEnabled {
-		return
+		return nil
 	}
 
 	e.groups = &cgroupConfig.Cgroup{}
@@ -204,10 +204,16 @@ func (e *LinuxExecutor) configureCgroups(resources *structs.Resources) {
 		e.groups.CpuShares = int64(resources.CPU)
 	}
 
-	if resources.IOPS > 0 {
-		e.groups.BlkioThrottleReadIOpsDevice = strconv.FormatInt(int64(resources.IOPS), 10)
-		e.groups.BlkioThrottleWriteIOpsDevice = strconv.FormatInt(int64(resources.IOPS), 10)
+	if resources.IOPS != 0 {
+		// Validate it is in an acceptable range.
+		if resources.IOPS < 10 || resources.IOPS > 1000 {
+			return fmt.Errorf("resources.IOPS must be between 10 and 1000: %d", resources.IOPS)
+		}
+
+		e.groups.BlkioWeight = uint16(resources.IOPS)
 	}
+
+	return nil
 }
 
 func (e *LinuxExecutor) runAs(userid string) error {

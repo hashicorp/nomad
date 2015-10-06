@@ -169,7 +169,7 @@ func TestTask_Require(t *testing.T) {
 		CPU:      1250,
 		MemoryMB: 128,
 		DiskMB:   2048,
-		IOPS:     1024,
+		IOPS:     500,
 		Networks: []*NetworkResource{
 			&NetworkResource{
 				CIDR:          "0.0.0.0/0",

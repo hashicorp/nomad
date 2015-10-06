@@ -187,7 +187,7 @@ The `resources` object supports the following keys:
 
 * `disk` - The disk required in MB.
 
-* `iops` - The number of IOPS required.
+* `iops` - The number of IOPS required given as a weight between 10-1000.
 
 * `memory` - The memory required in MB.
 
