@@ -39,9 +39,10 @@ func NewDockerDriver(ctx *DriverContext) Driver {
 
 func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
 	// Initialize docker API client
-	dockerEndpoint := d.config.ReadDefault("docker.endpoint", "unix:///var/run/docker.sock")
-	client, err := docker.NewClient(dockerEndpoint)
+	client, err := d.dockerClient()
+
 	if err != nil {
+		d.logger.Printf("[DEBUG] driver.docker: could not connect to docker daemon: %v", err)
 		return false, nil
 	}
 
@@ -56,6 +57,7 @@ func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool
 
 	env, err := client.Version()
 	if err != nil {
+		d.logger.Printf("[DEBUG] driver.docker: could not read version from daemon: %v", err)
 		// Check the "no such file" error if the unix file is missing
 		if strings.Contains(err.Error(), "no such file") {
 			return false, nil
@@ -212,10 +214,9 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	}
 
 	// Initialize docker API client
-	dockerEndpoint := d.config.ReadDefault("docker.endpoint", "unix:///var/run/docker.sock")
-	client, err := docker.NewClient(dockerEndpoint)
+	client, err := d.dockerClient()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to connect to docker.endpoint (%s): %s", dockerEndpoint, err)
+		return nil, fmt.Errorf("Failed to connect to docker.endpoint (%s): %s", client.Endpoint(), err)
 	}
 
 	repo, tag := docker.ParseRepositoryTag(image)
@@ -309,10 +310,9 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 	d.logger.Printf("[INFO] driver.docker: re-attaching to docker process: %s", handleID)
 
 	// Initialize docker API client
-	dockerEndpoint := d.config.ReadDefault("docker.endpoint", "unix:///var/run/docker.sock")
-	client, err := docker.NewClient(dockerEndpoint)
+	client, err := d.dockerClient()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to connect to docker.endpoint (%s): %s", dockerEndpoint, err)
+		return nil, fmt.Errorf("Failed to connect to docker.endpoint (%s): %s", client.Endpoint(), err)
 	}
 
 	// Look for a running container with this ID
@@ -348,6 +348,18 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 	}
 	go h.run()
 	return h, nil
+}
+
+// dockerClient returns a configured *docker.Client from the ClientConfig
+func (d *DockerDriver) dockerClient() (*docker.Client, error) {
+	dockerEndpoint := d.config.Read("docker.endpoint")
+	if dockerEndpoint == "" {
+		client, err := docker.NewClientFromEnv()
+		return client, err
+	} else {
+		client, err := docker.NewClient(dockerEndpoint)
+		return client, err
+	}
 }
 
 func (h *dockerHandle) ID() string {
