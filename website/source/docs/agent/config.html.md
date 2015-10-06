@@ -84,7 +84,7 @@ nodes, unless otherwise specified:
     TCP and UDP should be routable between the server nodes on this port.
     Defaults to `4648`. Only used on server nodes.
 
-* <a id="addresses">`addresses`</a>: Controls the bind address for individual 
+* <a id="addresses">`addresses`</a>: Controls the bind address for individual
   network services. Any values configured in this block take precedence over the
   default [bind_addr](#bind_addr). The value is a map of IP addresses and
   supports the following keys:
@@ -103,8 +103,10 @@ nodes, unless otherwise specified:
   This can be used to advertise a different address to the peers of a server
   node to support more complex network configurations such as NAT. This
   configuration is optional, and defaults to the bind address of the specific
-  network service if it is not provided. This configuration is only appicable
-  on server nodes. The value is a map of IP addresses and supports the
+  network service if it is not provided. This configuration is only applicable
+  on server nodes. A subnet value with CIDR-form (eg. 10.1.0.0/16:4648) is also
+  accepted; in that case, the first configured IP address contained in that
+  subnet will be selected. The value is a map of IP addresses and supports the
   following keys:
   <br>
   * `rpc`: The address to advertise for the RPC interface. This address should
@@ -154,7 +156,7 @@ configured on client nodes.
   * `enabled`: A boolean indicating if server mode should be enabled for the
     local agent. All other server options depend on this value being set.
     Defaults to `false`.
-  * <a id="bootstrap_expect">`bootstrap_expect`</a>: This is an integer 
+  * <a id="bootstrap_expect">`bootstrap_expect`</a>: This is an integer
     representing the number of server nodes to wait for before bootstrapping. It
     is most common to use the odd-numbered integers `3` or `5` for this value,
     depending on the cluster size. A value of `1` does not provide any fault
@@ -205,7 +207,7 @@ configured on server nodes.
   * <a id="node_class">`node_class`</a>: A string used to logically group client
     nodes by class. This can be used during job placement as a filter. This
     option is not required and has no default.
-  * <a id="meta">`meta`</a>: This is a key/value mapping of metadata pairs. This 
+  * <a id="meta">`meta`</a>: This is a key/value mapping of metadata pairs. This
     is a free-form map and can contain any string values.
 
 ## Atlas Options
