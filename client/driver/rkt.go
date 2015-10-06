@@ -89,7 +89,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
         cmd.Stdout = &outBuf
         cmd.Stderr = &errBuf
         d.logger.Printf("[DEBUG] driver.rkt: starting rkt command: %q", cmd.Args)
-        if err := cmd.Run(); err != nil {
+        if err := cmd.Start(); err != nil {
                 return nil, fmt.Errorf(
                         "Error running rkt: %s\n\nOutput: %s\n\nError: %s",
                         err, outBuf.String(), errBuf.String())
@@ -107,7 +107,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
         acmd.Stdout = &aoutBuf
         acmd.Stderr = &aerrBuf
         d.logger.Printf("[DEBUG] driver:rkt: starting rkt command: %q", acmd.Args)
-        if err := acmd.Run(); err != nil {
+        if err := acmd.Start(); err != nil {
                 return nil, fmt.Errorf(
                         "Error running rkt: %s\n\nOutput: %s\n\nError: %s",
                         err, aoutBuf.String(), aerrBuf.String())
