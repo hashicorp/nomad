@@ -41,11 +41,11 @@ func TestDockerDriver_Fingerprint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if !apply {
-		t.Fatalf("should apply")
+	if apply != dockerLocated() {
+		t.Fatalf("Fingerprinter should detect Docker when it is installed")
 	}
 	if node.Attributes["driver.docker"] == "" {
-		t.Fatalf("Docker not found. The remainder of the docker tests will be skipped.")
+		t.Log("Docker not found. The remainder of the docker tests will be skipped.")
 	}
 	t.Logf("Found docker version %s", node.Attributes["driver.docker.version"])
 }
@@ -217,7 +217,7 @@ func TestDocker_StartN(t *testing.T) {
 
 	handles := make([]DriverHandle, len(taskList))
 
-	t.Log("==> Starting %d tasks", len(taskList))
+	t.Logf("==> Starting %d tasks", len(taskList))
 
 	// Let's spin up a bunch of things
 	var err error
@@ -266,7 +266,7 @@ func TestDocker_StartNVersions(t *testing.T) {
 
 	handles := make([]DriverHandle, len(taskList))
 
-	t.Log("==> Starting %d tasks", len(taskList))
+	t.Logf("==> Starting %d tasks", len(taskList))
 
 	// Let's spin up a bunch of things
 	var err error
