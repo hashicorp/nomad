@@ -189,7 +189,7 @@ func taskTemplate() *structs.Task {
 			MemoryMB: 256,
 			CPU:      512,
 			Networks: []*structs.NetworkResource{
-				{
+				&structs.NetworkResource{
 					IP:            "127.0.0.1",
 					ReservedPorts: []int{11110},
 					DynamicPorts:  []string{"REDIS"},
