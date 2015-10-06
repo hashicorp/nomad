@@ -15,7 +15,7 @@ func TestCompose(t *testing.T) {
 		CPU:      1250,
 		MemoryMB: 1024,
 		DiskMB:   2048,
-		IOPS:     1024,
+		IOPS:     500,
 		Networks: []*NetworkResource{
 			&NetworkResource{
 				CIDR:          "0.0.0.0/0",
@@ -81,7 +81,7 @@ func TestCompose(t *testing.T) {
 							CPU:      1250,
 							MemoryMB: 1024,
 							DiskMB:   2048,
-							IOPS:     1024,
+							IOPS:     500,
 							Networks: []*NetworkResource{
 								&NetworkResource{
 									CIDR:  "0.0.0.0/0",
