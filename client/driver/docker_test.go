@@ -189,7 +189,7 @@ func taskTemplate() *structs.Task {
 			MemoryMB: 256,
 			CPU:      512,
 			Networks: []*structs.NetworkResource{
-				&structs.NetworkResource{
+				{
 					IP:            "127.0.0.1",
 					ReservedPorts: []int{11110},
 					DynamicPorts:  []string{"REDIS"},
@@ -200,6 +200,9 @@ func taskTemplate() *structs.Task {
 }
 
 func TestDocker_StartN(t *testing.T) {
+	if !dockerLocated() {
+		t.SkipNow()
+	}
 
 	task1 := taskTemplate()
 	task1.Resources.Networks[0].ReservedPorts[0] = 11111
@@ -243,6 +246,9 @@ func TestDocker_StartN(t *testing.T) {
 }
 
 func TestDocker_StartNVersions(t *testing.T) {
+	if !dockerLocated() {
+		t.SkipNow()
+	}
 
 	task1 := taskTemplate()
 	task1.Config["image"] = "redis"
@@ -289,6 +295,10 @@ func TestDocker_StartNVersions(t *testing.T) {
 }
 
 func TestDockerHostNet(t *testing.T) {
+	if !dockerLocated() {
+		t.SkipNow()
+	}
+
 	task := &structs.Task{
 		Config: map[string]string{
 			"image":        "redis",
