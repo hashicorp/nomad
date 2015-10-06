@@ -37,10 +37,17 @@ func NewDockerDriver(ctx *DriverContext) Driver {
 	return &DockerDriver{*ctx}
 }
 
+// dockerClient creates *docker.Client using ClientConfig so we can get the
+// correct socket for the daemon
+func (d *DockerDriver) dockerClient() (*docker.Client, error) {
+	dockerEndpoint := d.config.Read("docker.endpoint")
+	client, err := docker.NewClient(dockerEndpoint)
+	return client, err
+}
+
 func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
 	// Initialize docker API client
 	client, err := d.dockerClient()
-
 	if err != nil {
 		d.logger.Printf("[DEBUG] driver.docker: could not connect to docker daemon: %v", err)
 		return false, nil
@@ -348,18 +355,6 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 	}
 	go h.run()
 	return h, nil
-}
-
-// dockerClient returns a configured *docker.Client from the ClientConfig
-func (d *DockerDriver) dockerClient() (*docker.Client, error) {
-	dockerEndpoint := d.config.Read("docker.endpoint")
-	if dockerEndpoint == "" {
-		client, err := docker.NewClientFromEnv()
-		return client, err
-	} else {
-		client, err := docker.NewClient(dockerEndpoint)
-		return client, err
-	}
 }
 
 func (h *dockerHandle) ID() string {
