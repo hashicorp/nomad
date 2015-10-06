@@ -205,8 +205,11 @@ func (e *LinuxExecutor) configureCgroups(resources *structs.Resources) {
 	}
 
 	if resources.IOPS > 0 {
-		e.groups.BlkioThrottleReadIOpsDevice = strconv.FormatInt(int64(resources.IOPS), 10)
-		e.groups.BlkioThrottleWriteIOpsDevice = strconv.FormatInt(int64(resources.IOPS), 10)
+		throttleDevice := &cgroupConfig.ThrottleDevice{
+			Rate: uint64(resources.IOPS),
+		}
+		e.groups.BlkioThrottleReadIOPSDevice = append(e.groups.BlkioThrottleReadIOPSDevice, throttleDevice)
+		e.groups.BlkioThrottleWriteIOPSDevice = append(e.groups.BlkioThrottleWriteIOPSDevice, throttleDevice)
 	}
 }
 
