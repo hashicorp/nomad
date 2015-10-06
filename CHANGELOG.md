@@ -1,3 +1,9 @@
+## 0.1.2 (October 6, 2015)
+
+IMPROVEMENTS:
+
+  * Nomad client cleans allocations on exit when in dev mode
+
 ## 0.1.1 (October 5, 2015)
 
 IMPROVEMENTS:
