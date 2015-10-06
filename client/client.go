@@ -184,6 +184,15 @@ func (c *Client) Shutdown() error {
 	if c.shutdown {
 		return nil
 	}
+
+	// Destroy all the running allocations.
+	if c.config.DevMode {
+		for _, ar := range c.allocs {
+			ar.Destroy()
+			<-ar.WaitCh()
+		}
+	}
+
 	c.shutdown = true
 	close(c.shutdownCh)
 	c.connPool.Shutdown()
