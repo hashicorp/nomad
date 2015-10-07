@@ -12,7 +12,7 @@ Name: `rkt`
 
 The `Rkt` driver provides an interface for using CoreOS Rkt for running
 application containers. Currently, the driver supports launching
-containers. 
+containers.
 
 ## Task Configuration
 
@@ -21,6 +21,7 @@ The `Rkt` driver supports the following configuration in the job spec:
 * `trust_prefix` - **(Required)** The trust prefix to be passed to rkt. Must be reachable from
 the box running the nomad agent.
 * `name` - **(Required)** Fully qualified name of an image to run using rkt
+* `exec` - **(Optional**) A command to execute on the ACI
 
 ## Client Requirements
 

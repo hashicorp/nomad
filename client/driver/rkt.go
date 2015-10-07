@@ -101,9 +101,26 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
                 return nil, fmt.Errorf("Missing ACI name for rkt")
         }
 
+        exec_cmd, ok := task.Config["exec"]
+        if !ok || exec_cmd == "" {
+                d.logger.Printf("[WARN] driver.rkt: could not find a command to execute in the ACI, the default command will be executed")
+        }
+
         // Run the ACI
         var aoutBuf, aerrBuf bytes.Buffer
-        acmd := exec.Command("rkt", "run", "--mds-register=false", name)
+        run_cmd := []string{
+                "rkt",
+                "run",
+                "--mds-register=false",
+                name,
+        }
+        if exec_cmd != "" {
+                splitted := strings.Fields(exec_cmd)
+                run_cmd = append(run_cmd, "--exec=", splitted[0], "--")
+                run_cmd = append(run_cmd, splitted[1:]...)
+                run_cmd = append(run_cmd, "---")
+        }
+        acmd := exec.Command(run_cmd[0], run_cmd[1:]...)
         acmd.Stdout = &aoutBuf
         acmd.Stderr = &aerrBuf
         d.logger.Printf("[DEBUG] driver:rkt: starting rkt command: %q", acmd.Args)
