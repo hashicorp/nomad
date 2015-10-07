@@ -174,13 +174,12 @@ func (f *EnvGCEFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 	if err != nil {
 		return false, checkError(err, f.logger, "tags")
 	}
-	err = json.Unmarshal([]byte(value), &tagList)
-	if err == nil {
+	if err := json.Unmarshal([]byte(value), &tagList); err != nil {
+		f.logger.Printf("[WARN] fingerprint.env_gce: Error decoding instance tags: %s", err.Error())
+	} else {
 		for _, tag := range tagList {
 			node.Attributes["platform.gce.tag."+tag] = "true"
 		}
-	} else {
-		f.logger.Printf("[WARN] fingerprint.env_gce: Error decoding instance tags: %s", err.Error())
 	}
 
 	var attrDict map[string]string
@@ -188,13 +187,12 @@ func (f *EnvGCEFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 	if err != nil {
 		return false, checkError(err, f.logger, "attributes/")
 	}
-	err = json.Unmarshal([]byte(value), &attrDict)
-	if err == nil {
+	if err := json.Unmarshal([]byte(value), &attrDict); err != nil {
+		f.logger.Printf("[WARN] fingerprint.env_gce: Error decoding instance attributes: %s", err.Error())
+	} else {
 		for k, v := range attrDict {
 			node.Attributes["platform.gce.attr."+k] = strings.Trim(v, "\n")
 		}
-	} else {
-		f.logger.Printf("[WARN] fingerprint.env_gce: Error decoding instance attributes: %s", err.Error())
 	}
 
 	// populate Node Network Resources
