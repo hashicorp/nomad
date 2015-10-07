@@ -13,6 +13,7 @@ import (
 )
 
 func TestGCEFingerprint_nonGCE(t *testing.T) {
+	os.Setenv("GCE_ENV_URL", "http://127.0.0.1/computeMetadata/v1/instance/")
 	f := NewEnvGCEFingerprint(testLogger())
 	node := &structs.Node{
 		Attributes: make(map[string]string),
