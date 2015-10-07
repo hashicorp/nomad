@@ -34,7 +34,7 @@ func NomadExecutable() (string, error) {
 	// Check the CWD.
 	pwd, err := os.Getwd()
 	if err != nil {
-		return "", fmt.Errorf("Could not find Nomad executable (%v): %v", err)
+		return "", fmt.Errorf("Could not find Nomad executable (%v): %v", nomadExe, err)
 	}
 
 	bin = filepath.Join(pwd, nomadExe)

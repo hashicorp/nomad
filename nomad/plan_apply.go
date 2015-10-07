@@ -159,7 +159,7 @@ func evaluateNodePlan(snap *state.StateSnapshot, plan *structs.Plan, nodeID stri
 	// Get the node itself
 	node, err := snap.NodeByID(nodeID)
 	if err != nil {
-		return false, fmt.Errorf("failed to get node '%s': %v", node, err)
+		return false, fmt.Errorf("failed to get node '%s': %v", nodeID, err)
 	}
 
 	// If the node does not exist or is not ready for schduling it is not fit
@@ -172,7 +172,7 @@ func evaluateNodePlan(snap *state.StateSnapshot, plan *structs.Plan, nodeID stri
 	// Get the existing allocations
 	existingAlloc, err := snap.AllocsByNode(nodeID)
 	if err != nil {
-		return false, fmt.Errorf("failed to get existing allocations for '%s': %v", node, err)
+		return false, fmt.Errorf("failed to get existing allocations for '%s': %v", nodeID, err)
 	}
 
 	// Filter on alloc state
