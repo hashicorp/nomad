@@ -164,7 +164,7 @@ func (s *GenericScheduler) process() (bool, error) {
 	if s.limitReached && s.nextEval == nil {
 		s.nextEval = s.eval.NextRollingEval(s.job.Update.Stagger)
 		if err := s.planner.CreateEval(s.nextEval); err != nil {
-			s.logger.Printf("[ERR] sched: %#v failed to make next eval for rolling update: %v", err)
+			s.logger.Printf("[ERR] sched: %#v failed to make next eval for rolling update: %v", s.eval, err)
 			return false, err
 		}
 		s.logger.Printf("[DEBUG] sched: %#v: rolling update limit reached, next eval '%s' created", s.eval, s.nextEval.ID)
@@ -289,7 +289,7 @@ func (s *GenericScheduler) inplaceUpdate(updates []allocTuple) []allocTuple {
 		node, err := s.state.NodeByID(update.Alloc.NodeID)
 		if err != nil {
 			s.logger.Printf("[ERR] sched: %#v failed to get node '%s': %v",
-				update.Alloc.NodeID, err)
+				s.eval, update.Alloc.NodeID, err)
 			continue
 		}
 		if node == nil {

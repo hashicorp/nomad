@@ -25,7 +25,7 @@ func NewMemoryFingerprint(logger *log.Logger) Fingerprint {
 func (f *MemoryFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
 	memInfo, err := mem.VirtualMemory()
 	if err != nil {
-		f.logger.Println("[WARN] Error reading memory information: %s", err)
+		f.logger.Printf("[WARN] Error reading memory information: %s", err)
 		return false, err
 	}
 

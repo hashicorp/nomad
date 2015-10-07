@@ -20,7 +20,7 @@ func TestAgentInfoCommand_Run(t *testing.T) {
 
 	code := cmd.Run([]string{"-address=" + url})
 	if code != 0 {
-		t.Fatalf("expected exit 0, got: %d %s", code)
+		t.Fatalf("expected exit 0, got: %d", code)
 	}
 }
 
