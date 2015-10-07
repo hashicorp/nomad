@@ -28,8 +28,8 @@ func TestJavaDriver_Fingerprint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if !apply {
-		t.Fatalf("should apply")
+	if apply != javaLocated() {
+		t.Fatalf("Fingerprinter should detect Java when it is installed")
 	}
 	if node.Attributes["driver.java"] != "1" {
 		t.Fatalf("missing driver")

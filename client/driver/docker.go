@@ -188,7 +188,7 @@ func createContainer(ctx *ExecContext, task *structs.Task, logger *log.Logger) d
 		for _, port := range network.ListStaticPorts() {
 			dockerPorts[docker.Port(strconv.Itoa(port)+"/tcp")] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: strconv.Itoa(port)}}
 			dockerPorts[docker.Port(strconv.Itoa(port)+"/udp")] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: strconv.Itoa(port)}}
-			logger.Printf("[DEBUG] driver.docker: allocated port %s:%d -> %d (static) %s\n", network.IP, port, port)
+			logger.Printf("[DEBUG] driver.docker: allocated port %s:%d -> %d (static)\n", network.IP, port, port)
 		}
 
 		for label, port := range network.MapDynamicPorts() {

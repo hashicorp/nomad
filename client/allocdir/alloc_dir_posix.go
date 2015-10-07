@@ -46,7 +46,7 @@ func (d *AllocDir) dropDirPermissions(path string) error {
 	}
 
 	if err := os.Chmod(path, 0777); err != nil {
-		return fmt.Errorf("Couldn't change owner/group of %v to (uid: %v, gid: %v): %v", path, uid, gid, err)
+		return fmt.Errorf("Chmod(%v) failed: %v", path, err)
 	}
 
 	return nil
