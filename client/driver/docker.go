@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"runtime"
 	"strconv"
 	"strings"
 
 	docker "github.com/fsouza/go-dockerclient"
+	opts "github.com/fsouza/go-dockerclient/external/github.com/docker/docker/opts"
 
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -33,16 +35,47 @@ type dockerHandle struct {
 	doneCh           chan struct{}
 }
 
+// getDefaultDockerHost is copied from fsouza. If it were exported we woudn't
+// need this here.
+func getDefaultDockerHost() (string, error) {
+	var defaultHost string
+	if runtime.GOOS == "windows" {
+		// If we do not have a host, default to TCP socket on Windows
+		defaultHost = fmt.Sprintf("tcp://%s:%d", opts.DefaultHTTPHost, opts.DefaultHTTPPort)
+	} else {
+		// If we do not have a host, default to unix socket
+		defaultHost = fmt.Sprintf("unix://%s", opts.DefaultUnixSocket)
+	}
+	return opts.ValidateHost(defaultHost)
+}
+
 func NewDockerDriver(ctx *DriverContext) Driver {
 	return &DockerDriver{*ctx}
 }
 
-// dockerClient creates *docker.Client using ClientConfig so we can get the
-// correct socket for the daemon
+// dockerClient creates *docker.Client. In test / dev mode we can use ENV vars
+// to connect to the docker daemon. In production mode we will read
+// docker.endpoint from the config file.
 func (d *DockerDriver) dockerClient() (*docker.Client, error) {
-	dockerEndpoint := d.config.Read("docker.endpoint")
-	client, err := docker.NewClient(dockerEndpoint)
-	return client, err
+	// In dev mode, read DOCKER_* environment variables DOCKER_HOST,
+	// DOCKER_TLS_VERIFY, and DOCKER_CERT_PATH. This allows you to run tests and
+	// demo against boot2docker or a VM on OSX and Windows. This falls back on
+	// the default unix socket on linux if tests are run on linux.
+	//
+	// Also note that we need to turn on DevMode in the test configs.
+	if d.config.DevMode {
+		return docker.NewClientFromEnv()
+	}
+
+	// In prod mode we'll read the docker.endpoint configuration and fall back
+	// on the host-specific default. We do not read from the environment.
+	defaultEndpoint, err := getDefaultDockerHost()
+	if err != nil {
+		return nil, fmt.Errorf("Unable to determine default docker endpoint: %s", err)
+	}
+	dockerEndpoint := d.config.ReadDefault("docker.endpoint", defaultEndpoint)
+
+	return docker.NewClient(dockerEndpoint)
 }
 
 func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
@@ -408,6 +441,7 @@ func (h *dockerHandle) Kill() error {
 		err = h.client.RemoveImage(h.imageID)
 		if err != nil {
 			containers, err := h.client.ListContainers(docker.ListContainersOptions{
+				// The image might be in use by a stopped container, so check everything
 				All: true,
 				Filters: map[string][]string{
 					"image": []string{h.imageID},
