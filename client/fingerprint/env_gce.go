@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -19,7 +20,14 @@ import (
 // "instance" path as well since it's the only one we access here.
 const DEFAULT_GCE_URL = "http://169.254.169.254/computeMetadata/v1/instance/"
 
-type GCEMetadataClient struct {
+type GCEMetadataNetworkInterface struct {
+	AccessConfigs []struct {
+		ExternalIp string
+		Type       string
+	}
+	ForwardedIps []string
+	Ip           string
+	Network      string
 }
 
 type ReqError struct {
@@ -28,6 +36,11 @@ type ReqError struct {
 
 func (e ReqError) Error() string {
 	return http.StatusText(e.StatusCode)
+}
+
+func lastToken(s string) string {
+	index := strings.LastIndex(s, "/")
+	return s[index+1:]
 }
 
 // EnvGCEFingerprint is used to fingerprint the CPU
@@ -112,11 +125,6 @@ func (f *EnvGCEFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 		return false, nil
 	}
 
-	// newNetwork is populated and addded to the Nodes resources
-	newNetwork := &structs.NetworkResource{
-		Device: "eth0",
-	}
-
 	if node.Links == nil {
 		node.Links = make(map[string]string)
 	}
@@ -146,27 +154,36 @@ func (f *EnvGCEFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 			return false, checkError(err, f.logger, k)
 		}
 
-		index := strings.LastIndex(value, "/")
-		value = value[index+1:]
-		node.Attributes["platform.gce."+k] = strings.Trim(string(value), "\n")
+		node.Attributes["platform.gce."+k] = strings.Trim(lastToken(value), "\n")
 	}
 
-	// Get internal and external IP (if it exits)
-	value, err := f.Get("network-interfaces/0/ip", false)
-	if err != nil {
-		return false, checkError(err, f.logger, "ip")
+	// Prepare to populate Node Network Resources
+	if node.Resources == nil {
+		node.Resources = &structs.Resources{}
 	}
-	newNetwork.IP = strings.Trim(value, "\n")
-	newNetwork.CIDR = newNetwork.IP + "/32"
-	node.Attributes["network.ip-address"] = newNetwork.IP
 
-	value, err = f.Get("network-interfaces/0/access-configs/0/external-ip", false)
-	if re, ok := err.(ReqError); err != nil && (!ok || re.StatusCode != 404) {
-		return false, checkError(err, f.logger, "external IP")
-	}
-	value = strings.Trim(value, "\n")
-	if len(value) > 0 {
-		node.Attributes["platform.gce.external-ip"] = value
+	// Get internal and external IPs (if they exist)
+	value, err := f.Get("network-interfaces/", true)
+	var interfaces []GCEMetadataNetworkInterface
+	if err := json.Unmarshal([]byte(value), &interfaces); err != nil {
+		f.logger.Printf("[WARN] fingerprint.env_gce: Error decoding network interface information: %s", err.Error())
+	} else {
+		for _, intf := range interfaces {
+			prefix := "platform.gce.network." + lastToken(intf.Network)
+
+			// newNetwork is populated and addded to the Nodes resources
+			newNetwork := &structs.NetworkResource{
+				IP: strings.Trim(intf.Ip, "\n"),
+			}
+			newNetwork.CIDR = newNetwork.IP + "/32"
+			node.Resources.Networks = append(node.Resources.Networks, newNetwork)
+
+			node.Attributes["network.ip-address"] = newNetwork.IP
+			node.Attributes[prefix+".ip"] = newNetwork.IP
+			for index, accessConfig := range intf.AccessConfigs {
+				node.Attributes[prefix+".external-ip."+strconv.Itoa(index)] = accessConfig.ExternalIp
+			}
+		}
 	}
 
 	var tagList []string
@@ -194,12 +211,6 @@ func (f *EnvGCEFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 			node.Attributes["platform.gce.attr."+k] = strings.Trim(v, "\n")
 		}
 	}
-
-	// populate Node Network Resources
-	if node.Resources == nil {
-		node.Resources = &structs.Resources{}
-	}
-	node.Resources.Networks = append(node.Resources.Networks, newNetwork)
 
 	// populate Links
 	node.Links["gce"] = node.Attributes["platform.gce.id"]

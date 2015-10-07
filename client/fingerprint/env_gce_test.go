@@ -39,13 +39,16 @@ func testFingerprint_GCE(t *testing.T, withExternalIp bool) {
 	if err := json.Unmarshal([]byte(GCE_routes), &routes); err != nil {
 		t.Fatalf("Failed to unmarshal JSON in GCE ENV test: %s", err)
 	}
-	if withExternalIp {
-		routes.Endpoints = append(routes.Endpoints, &endpoint{
-			Uri:         "/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip",
-			ContentType: "text/plain",
-			Body:        "104.44.55.66",
-		})
+	networkEndpoint := &endpoint{
+		Uri:         "/computeMetadata/v1/instance/network-interfaces/?recursive=true",
+		ContentType: "application/json",
 	}
+	if withExternalIp {
+		networkEndpoint.Body = `[{"accessConfigs":[{"externalIp":"104.44.55.66","type":"ONE_TO_ONE_NAT"},{"externalIp":"104.44.55.67","type":"ONE_TO_ONE_NAT"}],"forwardedIps":[],"ip":"10.240.0.5","network":"projects/555555/networks/default"}]`
+	} else {
+		networkEndpoint.Body = `[{"accessConfigs":[],"forwardedIps":[],"ip":"10.240.0.5","network":"projects/555555/networks/default"}]`
+	}
+	routes.Endpoints = append(routes.Endpoints, networkEndpoint)
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		value, ok := r.Header["Metadata-Flavor"]
@@ -125,15 +128,14 @@ func testFingerprint_GCE(t *testing.T, withExternalIp bool) {
 	if net.CIDR != "10.240.0.5/32" {
 		t.Fatalf("Expected Network Resource to have CIDR 10.240.0.5/32, saw %s", net.CIDR)
 	}
-	if net.Device == "" {
-		t.Fatal("Expected Network Resource to have a Device Name")
-	}
 
 	assertNodeAttributeEquals(t, node, "network.ip-address", "10.240.0.5")
+	assertNodeAttributeEquals(t, node, "platform.gce.network.default.ip", "10.240.0.5")
 	if withExternalIp {
-		assertNodeAttributeEquals(t, node, "platform.gce.external-ip", "104.44.55.66")
-	} else if _, ok := node.Attributes["platform.gce.external-ip"]; ok {
-		t.Fatal("platform.gce.external-ip is set without an external IP")
+		assertNodeAttributeEquals(t, node, "platform.gce.network.default.external-ip.0", "104.44.55.66")
+		assertNodeAttributeEquals(t, node, "platform.gce.network.default.external-ip.1", "104.44.55.67")
+	} else if _, ok := node.Attributes["platform.gce.network.default.external-ip.0"]; ok {
+		t.Fatal("platform.gce.network.default.external-ip is set without an external IP")
 	}
 
 	assertNodeAttributeEquals(t, node, "platform.gce.tag.abc", "true")
@@ -164,11 +166,6 @@ const GCE_routes = `
       "uri": "/computeMetadata/v1/instance/machine-type",
       "content-type": "text/plain",
       "body": "projects/555555/machineTypes/n1-standard-1"
-    },
-    {
-      "uri": "/computeMetadata/v1/instance/network-interfaces/0/ip",
-      "content-type": "text/plain",
-      "body": "10.240.0.5"
     },
     {
       "uri": "/computeMetadata/v1/instance/tags",
