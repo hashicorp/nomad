@@ -41,11 +41,11 @@ func TestDockerDriver_Fingerprint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if !apply {
-		t.Fatalf("should apply")
+	if apply != dockerLocated() {
+		t.Fatalf("Fingerprinter should detect Docker when it is installed")
 	}
 	if node.Attributes["driver.docker"] == "" {
-		t.Fatalf("Docker not found. The remainder of the docker tests will be skipped.")
+		t.Log("Docker not found. The remainder of the docker tests will be skipped.")
 	}
 	t.Logf("Found docker version %s", node.Attributes["driver.docker.version"])
 }
@@ -200,6 +200,9 @@ func taskTemplate() *structs.Task {
 }
 
 func TestDocker_StartN(t *testing.T) {
+	if !dockerLocated() {
+		t.SkipNow()
+	}
 
 	task1 := taskTemplate()
 	task1.Resources.Networks[0].ReservedPorts[0] = 11111
@@ -214,7 +217,7 @@ func TestDocker_StartN(t *testing.T) {
 
 	handles := make([]DriverHandle, len(taskList))
 
-	t.Log("==> Starting %d tasks", len(taskList))
+	t.Logf("==> Starting %d tasks", len(taskList))
 
 	// Let's spin up a bunch of things
 	var err error
@@ -243,6 +246,9 @@ func TestDocker_StartN(t *testing.T) {
 }
 
 func TestDocker_StartNVersions(t *testing.T) {
+	if !dockerLocated() {
+		t.SkipNow()
+	}
 
 	task1 := taskTemplate()
 	task1.Config["image"] = "redis"
@@ -260,7 +266,7 @@ func TestDocker_StartNVersions(t *testing.T) {
 
 	handles := make([]DriverHandle, len(taskList))
 
-	t.Log("==> Starting %d tasks", len(taskList))
+	t.Logf("==> Starting %d tasks", len(taskList))
 
 	// Let's spin up a bunch of things
 	var err error
@@ -289,6 +295,10 @@ func TestDocker_StartNVersions(t *testing.T) {
 }
 
 func TestDockerHostNet(t *testing.T) {
+	if !dockerLocated() {
+		t.SkipNow()
+	}
+
 	task := &structs.Task{
 		Config: map[string]string{
 			"image":        "redis",
