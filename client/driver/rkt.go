@@ -89,7 +89,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
         cmd.Stdout = &outBuf
         cmd.Stderr = &errBuf
         d.logger.Printf("[DEBUG] driver.rkt: starting rkt command: %q", cmd.Args)
-        if err := cmd.Start(); err != nil {
+        if err := cmd.Run(); err != nil {
                 return nil, fmt.Errorf(
                         "Error running rkt: %s\n\nOutput: %s\n\nError: %s",
                         err, outBuf.String(), errBuf.String())
