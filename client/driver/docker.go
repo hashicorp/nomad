@@ -256,7 +256,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	// Initialize docker API client
 	client, err := d.dockerClient()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to connect to docker.endpoint (%s): %s", client.Endpoint(), err)
+		return nil, fmt.Errorf("Failed to connect to docker daemon: %s", err)
 	}
 
 	repo, tag := docker.ParseRepositoryTag(image)
@@ -352,7 +352,7 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 	// Initialize docker API client
 	client, err := d.dockerClient()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to connect to docker.endpoint (%s): %s", client.Endpoint(), err)
+		return nil, fmt.Errorf("Failed to connect to docker daemon: %s", err)
 	}
 
 	// Look for a running container with this ID
