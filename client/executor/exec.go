@@ -1,4 +1,4 @@
-s// Package executor is used to invoke child processes across various "platforms"
+// Package executor is used to invoke child processes across various "platforms"
 // in a way that provides the following features:
 //
 // - Least privilege
