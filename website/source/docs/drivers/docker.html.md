@@ -111,11 +111,21 @@ The `docker` driver has the following configuration options:
 * `docker.endpoint` - Defaults to `unix:///var/run/docker.sock`. You will need
   to customize this if you use a non-standard socket (http or another location).
 
+* `docker.cleanup.container` Defaults to `true`. Changing this to `false` will
+  prevent Nomad from removing containers from stopped tasks.
+
+* `docker.cleanup.image` Defaults to `true`. Changing this to `false` will
+  prevent Nomad from removing images from stopped tasks.
+
+Note: When testing or using the `-dev` flag you can use `DOCKER_HOST`,
+`DOCKER_TLS_VERIFY`, and `DOCKER_CERT_PATH` to customize Nomad's behavior. In
+production Nomad will always read `docker.endpoint`.
+
 ## Client Attributes
 
 The `docker` driver will set the following client attributes:
 
-* `driver.Docker` - This will be set to "1", indicating the
+* `driver.docker` - This will be set to "1", indicating the
   driver is available.
 
 ## Resource Isolation
