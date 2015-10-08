@@ -66,23 +66,24 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   # We're going to compile go and run a concurrent system, so give ourselves
   # some extra resources. Nomad will have trouble working correctly with <2 CPUs
   # so we should use at least that many.
+  cpus = 2
+  memory = 1024
 
   config.vm.provider "parallels" do |p, o|
     o.vm.box = "parallels/ubuntu-14.04"
-    p.memory = 2048
-    p.cpus = 4
+    p.memory = memory
+    p.cpus = cpus
   end
 
   config.vm.provider "virtualbox" do |v|
-    v.memory = 2048
-    v.cpus = 4
+    v.memory = memory
+    v.cpus = cpus
   end
 
   ["vmware_fusion", "vmware_workstation"].each do |p|
     config.vm.provider p do |v|
-      v.vmx["memsize"] = "2048"
-      v.gui = false
-      v.cpus = 4
+      v.memory = memory
+      v.cpus = cpus
     end
   end
 end
