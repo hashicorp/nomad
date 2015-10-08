@@ -17,7 +17,7 @@
 // However, drivers that provide their own isolation should not use executors.
 // For example, using an executor to start QEMU means that the QEMU call is
 // run inside a chroot+cgroup, even though the VM already provides isolation for
-// the task running inside it. That's not what we want.
+// the task running inside it. This is an extraneous level of indirection
 package executor
 
 import (
