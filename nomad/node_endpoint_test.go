@@ -529,7 +529,9 @@ func TestClientEndpoint_CreateNodeEvals(t *testing.T) {
 }
 
 func TestClientEndpoint_Evaluate(t *testing.T) {
-	s1 := testServer(t, nil)
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
