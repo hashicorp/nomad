@@ -13,6 +13,7 @@ import (
 )
 
 func TestEnvAWSFingerprint_nonAws(t *testing.T) {
+	os.Setenv("AWS_ENV_URL", "http://127.0.0.1/latest/meta-data/")
 	f := NewEnvAWSFingerprint(testLogger())
 	node := &structs.Node{
 		Attributes: make(map[string]string),
@@ -199,6 +200,7 @@ func TestNetworkFingerprint_AWS(t *testing.T) {
 }
 
 func TestNetworkFingerprint_notAWS(t *testing.T) {
+	os.Setenv("AWS_ENV_URL", "http://127.0.0.1/latest/meta-data/")
 	f := NewEnvAWSFingerprint(testLogger())
 	node := &structs.Node{
 		Attributes: make(map[string]string),
