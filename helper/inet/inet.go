@@ -1,21 +1,9 @@
 package inet
 
 import (
-	"errors"
 	"fmt"
 	"net"
-	"strconv"
 	"strings"
-)
-
-const (
-	advertiseIp = iota
-	advertisePort
-)
-
-const (
-	address = iota
-	cidr
 )
 
 func AdvertiseIpFromSubnet(ip string) (string, error) {
@@ -25,35 +13,20 @@ func AdvertiseIpFromSubnet(ip string) (string, error) {
 	}
 
 	// Split subnet CIDR IP from the port
-	advertiseTokens := strings.Split(ip, ":")
-	if len(advertiseTokens) != 2 {
-		return "", errors.New(fmt.Sprintf("port was not given in advertise subnet: `%s`", ip))
-	}
-
-	// Split subnet IP and CIDR netmask by slash separator
-	ipTokens := strings.Split(advertiseTokens[advertiseIp], "/")
-	if len(ipTokens) != 2 {
-		return "", errors.New(fmt.Sprintf("cannot parse advertise subnet: `%s`", ip))
+	tokens := strings.Split(ip, ":")
+	if len(tokens) != 2 {
+		return "", fmt.Errorf("port was not given in advertise subnet: `%s`", ip)
 	}
 
 	// Parse subnet IP and netmask
-	subnetIp := net.ParseIP(ipTokens[address])
-	if subnetIp == nil {
-		return "", errors.New(fmt.Sprintf("advertise subnet address out of range: `%s`", ipTokens[address]))
-	}
-	subnetCidr, err := strconv.ParseInt(ipTokens[cidr], 10, 32)
+	_, subnet, err := net.ParseCIDR(tokens[0])
 	if err != nil {
-		return "", errors.New(fmt.Sprintf("cannot parse advertise subnet CIDR: `%s`", ipTokens[cidr]))
-	}
-
-	subnet := net.IPNet{IP: subnetIp, Mask: net.CIDRMask(int(subnetCidr), 32)}
-	if subnet.Mask == nil {
-		return "", errors.New(fmt.Sprintf("advertise subnet CIDR out of range: `%s`", ipTokens[cidr]))
+		return "", fmt.Errorf("could not parse `%s` as an IP subnet: %s", tokens[0], err)
 	}
 
 	ifaces, err := net.Interfaces()
 	if err != nil {
-		return "", errors.New("could not retrieve interface list")
+		return "", fmt.Errorf("could not retrieve interface list: %s", err)
 	}
 
 	for _, i := range ifaces {
@@ -67,15 +40,15 @@ func AdvertiseIpFromSubnet(ip string) (string, error) {
 			switch v := a.(type) {
 			case *net.IPNet:
 				if subnet.Contains(v.IP) {
-					return fmt.Sprintf("%s:%s", v.IP.String(), advertiseTokens[advertisePort]), nil
+					return fmt.Sprintf("%s:%s", v.IP.String(), tokens[1]), nil
 				}
 			case *net.IPAddr:
 				if subnet.Contains(v.IP) {
-					return fmt.Sprintf("%s:%s", v.IP.String(), advertiseTokens[advertisePort]), nil
+					return fmt.Sprintf("%s:%s", v.IP.String(), tokens[1]), nil
 				}
 			}
 		}
 	}
 
-	return "", errors.New(fmt.Sprintf("found no IP matching `%s` subnet", ip))
+	return "", fmt.Errorf("found no IP matching `%s` subnet", ip)
 }
