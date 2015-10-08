@@ -17,6 +17,7 @@ import (
 var BuiltinDrivers = map[string]Factory{
 	"docker": NewDockerDriver,
 	"exec":   NewExecDriver,
+	"pexec":  NewPrivilegedExecDriver,
 	"java":   NewJavaDriver,
 	"qemu":   NewQemuDriver,
 	"rkt":    NewRktDriver,
@@ -112,7 +113,7 @@ func TaskEnvironmentVariables(ctx *ExecContext, task *structs.Task) environment.
 	env.SetMeta(task.Meta)
 
 	if ctx.AllocDir != nil {
-		env.SetAllocDir(ctx.AllocDir.AllocDir)
+		env.SetAllocDir(ctx.AllocDir.SharedDir)
 	}
 
 	if task.Resources != nil {
