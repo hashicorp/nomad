@@ -3,7 +3,7 @@ layout: "intro"
 page_title: "Introduction"
 sidebar_current: "what"
 description: |-
-  Welcome to the intro guide to Nomad! This guide is the best place to start with Nomad. We cover what Nomad is, what problems it can solve, how it compares to existing software, and contains a quick start for using Nomad.
+  Welcome to the intro guide to Nomad! This guide is the best place to start with Nomad. We cover what Nomad is, what problems it can solve, how it compares to existing software, and a quick start for using Nomad.
 ---
 
 # Introduction to Nomad
