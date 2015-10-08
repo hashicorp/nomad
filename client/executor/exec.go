@@ -1,23 +1,23 @@
-// Package executor is used to invoke child processes across various "platforms"
-// in a way that provides the following features:
+// Package executor is used to invoke child processes across various operating
+// systems in a way that provides the following features:
 //
 // - Least privilege
 // - Resource constraints
 // - Process isolation
 //
-// A "platform" may something like "windows" or "linux with systemd". Executors
-// allow drivers like `exec` and `java` to share a common implementation of the
-// isolation capabilities on a particular operating system.
+// An operating system may be something like "windows" or "linux with systemd".
+// Executors allow drivers like `exec` and `java` to share an implementation
+// for isolation capabilities on a particular operating system.
 //
 // For example:
 //
-// - `exec` and `java` on Linux will use a cgroups executor
-// - `exec` and `java` on FreeBSD will use a jails executor
+// - `exec` and `java` on Linux use a cgroups executor
+// - `exec` and `java` on FreeBSD use a jails executor
 //
 // However, drivers that provide their own isolation should not use executors.
 // For example, using an executor to start QEMU means that the QEMU call is
 // run inside a chroot+cgroup, even though the VM already provides isolation for
-// the task running inside it. This is an extraneous level of indirection
+// the task running inside it. This is an extraneous level of indirection.
 package executor
 
 import (
