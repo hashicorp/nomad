@@ -11,9 +11,10 @@ description: |-
 Name: `exec`
 
 The `exec` driver is used to simply execute a particular command for a task.
-This is the simplest driver and is extremely flexible. In particlar, because
-it can invoke any command, it can be used to call scripts or other wrappers
-which provide higher level features.
+However unlike [`raw_exec`](raw_exec.html) it uses the underlying isolation
+primitives of the operating system to limit the tasks access to resources. While
+simple, since the `exec` driver  can invoke any command, it can be used to call
+scripts or other wrappers which provide higher level features.
 
 ## Task Configuration
 
