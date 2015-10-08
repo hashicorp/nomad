@@ -1,7 +1,6 @@
 package driver
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -14,6 +13,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/executor"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -84,15 +84,11 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	}
 
 	// Add the given trust prefix
-	var outBuf, errBuf bytes.Buffer
-	cmd := exec.Command("rkt", "trust", fmt.Sprintf("--prefix=%s", trust_prefix))
-	cmd.Stdout = &outBuf
-	cmd.Stderr = &errBuf
-	d.logger.Printf("[DEBUG] driver.rkt: starting rkt command: %q", cmd.Args)
-	if err := cmd.Run(); err != nil {
+	cmd := executor.Command("rkt", "trust", fmt.Sprintf("--prefix=%s", trust_prefix))
+	d.logger.Printf("[DEBUG] driver.rkt: starting rkt command: %q", cmd.Command().Args)
+	if err := cmd.Command().Run(); err != nil {
 		return nil, fmt.Errorf(
-			"Error running rkt: %s\n\nOutput: %s\n\nError: %s",
-			err, outBuf.String(), errBuf.String())
+			"Error running rkt: %v", err)
 	}
 	d.logger.Printf("[DEBUG] driver.rkt: added trust prefix: %q", trust_prefix)
 
@@ -107,7 +103,6 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	}
 
 	// Run the ACI
-	var aoutBuf, aerrBuf bytes.Buffer
 	run_cmd := []string{
 		"rkt",
 		"run",
@@ -120,18 +115,18 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		run_cmd = append(run_cmd, splitted[1:]...)
 		run_cmd = append(run_cmd, "---")
 	}
-	acmd := exec.Command(run_cmd[0], run_cmd[1:]...)
-	acmd.Stdout = &aoutBuf
-	acmd.Stderr = &aerrBuf
-	d.logger.Printf("[DEBUG] driver:rkt: starting rkt command: %q", acmd.Args)
+	acmd := executor.Command(run_cmd[0], run_cmd[1:]...)
+	if err := acmd.ConfigureTaskDir(d.taskName, ctx.AllocDir); err != nil {
+		return nil, fmt.Errorf("failed to configure task directory: %v", err)
+	}
+	d.logger.Printf("[DEBUG] driver:rkt: starting rkt command: %q", acmd.Command().Args)
 	if err := acmd.Start(); err != nil {
 		return nil, fmt.Errorf(
-			"Error running rkt: %s\n\nOutput: %s\n\nError: %s",
-			err, aoutBuf.String(), aerrBuf.String())
+			"Error running rkt: %v", err)
 	}
 	d.logger.Printf("[DEBUG] driver.rkt: started ACI: %q", name)
 	h := &rktHandle{
-		proc:   acmd.Process,
+		proc:   acmd.Command().Process,
 		name:   name,
 		logger: d.logger,
 		doneCh: make(chan struct{}),
