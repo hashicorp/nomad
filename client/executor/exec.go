@@ -1,20 +1,23 @@
-// Package exec is used to invoke child processes across various platforms to
-// provide the following features:
+// Package executor is used to invoke child processes across various operating
+// systems in a way that provides the following features:
 //
 // - Least privilege
 // - Resource constraints
 // - Process isolation
 //
-// A "platform" may be defined as coarsely as "Windows" or as specifically as
-// "linux 3.20 with systemd". This allows Nomad to use best-effort, best-
-// available capabilities of each platform to provide resource constraints,
-// process isolation, and security features, or otherwise take advantage of
-// features that are unique to that platform.
+// An operating system may be something like "windows" or "linux with systemd".
+// Executors allow drivers like `exec` and `java` to share an implementation
+// for isolation capabilities on a particular operating system.
 //
-// The `semantics of any particular instance are left up to the implementation.
-// However, these should be completely transparent to the calling context. In
-// other words, the Java driver should be able to call exec for any platform and
-// just work.
+// For example:
+//
+// - `exec` and `java` on Linux use a cgroups executor
+// - `exec` and `java` on FreeBSD use a jails executor
+//
+// However, drivers that provide their own isolation should not use executors.
+// For example, using an executor to start QEMU means that the QEMU call is
+// run inside a chroot+cgroup, even though the VM already provides isolation for
+// the task running inside it. This is an extraneous level of indirection.
 package executor
 
 import (
