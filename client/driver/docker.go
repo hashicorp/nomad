@@ -4,12 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"runtime"
 	"strconv"
 	"strings"
 
 	docker "github.com/fsouza/go-dockerclient"
-	opts "github.com/fsouza/go-dockerclient/external/github.com/docker/docker/opts"
 
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -35,20 +33,6 @@ type dockerHandle struct {
 	doneCh           chan struct{}
 }
 
-// getDefaultDockerHost is copied from fsouza. If it were exported we woudn't
-// need this here.
-func getDefaultDockerHost() (string, error) {
-	var defaultHost string
-	if runtime.GOOS == "windows" {
-		// If we do not have a host, default to TCP socket on Windows
-		defaultHost = fmt.Sprintf("tcp://%s:%d", opts.DefaultHTTPHost, opts.DefaultHTTPPort)
-	} else {
-		// If we do not have a host, default to unix socket
-		defaultHost = fmt.Sprintf("unix://%s", opts.DefaultUnixSocket)
-	}
-	return opts.ValidateHost(defaultHost)
-}
-
 func NewDockerDriver(ctx *DriverContext) Driver {
 	return &DockerDriver{*ctx}
 }
@@ -69,7 +53,7 @@ func (d *DockerDriver) dockerClient() (*docker.Client, error) {
 
 	// In prod mode we'll read the docker.endpoint configuration and fall back
 	// on the host-specific default. We do not read from the environment.
-	defaultEndpoint, err := getDefaultDockerHost()
+	defaultEndpoint, err := docker.DefaultDockerHost()
 	if err != nil {
 		return nil, fmt.Errorf("Unable to determine default docker endpoint: %s", err)
 	}
