@@ -11,8 +11,8 @@ description: |-
 Name: `raw_exec`
 
 The `raw_exec` driver is used to execute a command for a task without any
-resource isolation. As such, it should be used with extreme care and is disabled
-by default.
+isolation. Further, the task is started as the same user as the Nomad process.
+As such, it should be used with extreme care and is disabled by default.
 
 ## Task Configuration
 

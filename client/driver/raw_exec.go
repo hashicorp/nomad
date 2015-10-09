@@ -46,8 +46,12 @@ func NewRawExecDriver(ctx *DriverContext) Driver {
 
 func (d *RawExecDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
 	// Check that the user has explicitly enabled this executor.
-	enabled := strings.ToLower(cfg.ReadDefault(rawExecConfigOption, "false"))
-	if enabled == "1" || enabled == "true" {
+	enabled, err := strconv.ParseBool(cfg.ReadDefault(rawExecConfigOption, "false"))
+	if err != nil {
+		return false, fmt.Errorf("Failed to parse %v option: %v", rawExecConfigOption, err)
+	}
+
+	if enabled {
 		d.logger.Printf("[WARN] driver.raw_exec: raw exec is enabled. Only enable if needed")
 		node.Attributes["driver.raw_exec"] = "1"
 		return true, nil
