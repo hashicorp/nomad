@@ -22,6 +22,7 @@ The `Rkt` driver supports the following configuration in the job spec:
 the box running the nomad agent.
 * `name` - **(Required)** Fully qualified name of an image to run using rkt
 * `exec` - **(Optional**) A command to execute on the ACI
+* `args` - **(Optional**) A string of args to pass into the image.
 
 ## Client Requirements
 

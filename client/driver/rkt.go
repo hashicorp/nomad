@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/driver/args"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -78,9 +79,15 @@ func (d *RktDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, e
 
 // Run an existing Rkt image.
 func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
+	// Validate that the config is valid.
 	trust_prefix, ok := task.Config["trust_prefix"]
 	if !ok || trust_prefix == "" {
 		return nil, fmt.Errorf("Missing trust prefix for rkt")
+	}
+
+	name, ok := task.Config["name"]
+	if !ok || name == "" {
+		return nil, fmt.Errorf("Missing ACI name for rkt")
 	}
 
 	// Add the given trust prefix
@@ -88,50 +95,61 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	cmd := exec.Command("rkt", "trust", fmt.Sprintf("--prefix=%s", trust_prefix))
 	cmd.Stdout = &outBuf
 	cmd.Stderr = &errBuf
-	d.logger.Printf("[DEBUG] driver.rkt: starting rkt command: %q", cmd.Args)
 	if err := cmd.Run(); err != nil {
-		return nil, fmt.Errorf(
-			"Error running rkt: %s\n\nOutput: %s\n\nError: %s",
+		return nil, fmt.Errorf("Error running rkt: %s\n\nOutput: %s\n\nError: %s",
 			err, outBuf.String(), errBuf.String())
 	}
 	d.logger.Printf("[DEBUG] driver.rkt: added trust prefix: %q", trust_prefix)
 
-	name, ok := task.Config["name"]
-	if !ok || name == "" {
-		return nil, fmt.Errorf("Missing ACI name for rkt")
+	// Reset the buffers
+	outBuf.Reset()
+	errBuf.Reset()
+
+	// Build the command.
+	var cmd_args []string
+
+	// Inject the environment variables.
+	envVars := TaskEnvironmentVariables(ctx, task)
+	for k, v := range envVars.Map() {
+		cmd_args = append(cmd_args, fmt.Sprintf("--set-env=%v=%v", k, v))
 	}
 
-	exec_cmd, ok := task.Config["exec"]
-	if !ok || exec_cmd == "" {
-		d.logger.Printf("[WARN] driver.rkt: could not find a command to execute in the ACI, the default command will be executed")
+	// Append the run command.
+	cmd_args = append(cmd_args, "run", "--mds-register=false", name)
+
+	// Check if the user has overriden the exec command.
+	if exec_cmd, ok := task.Config["exec"]; ok {
+		cmd_args = append(cmd_args, fmt.Sprintf("--exec=%v", exec_cmd))
 	}
 
-	// Run the ACI
-	var aoutBuf, aerrBuf bytes.Buffer
-	run_cmd := []string{
-		"rkt",
-		"run",
-		"--mds-register=false",
-		name,
+	// Add user passed arguments.
+	if userArgs, ok := task.Config["args"]; ok {
+		parsed, err := args.ParseAndReplace(userArgs, envVars.Map())
+		if err != nil {
+			return nil, err
+		}
+
+		// Need to start arguments with "--"
+		if len(parsed) > 0 {
+			cmd_args = append(cmd_args, "--")
+		}
+
+		for _, arg := range parsed {
+			cmd_args = append(cmd_args, fmt.Sprintf("--%v", arg))
+		}
 	}
-	if exec_cmd != "" {
-		splitted := strings.Fields(exec_cmd)
-		run_cmd = append(run_cmd, "--exec=", splitted[0], "--")
-		run_cmd = append(run_cmd, splitted[1:]...)
-		run_cmd = append(run_cmd, "---")
-	}
-	acmd := exec.Command(run_cmd[0], run_cmd[1:]...)
-	acmd.Stdout = &aoutBuf
-	acmd.Stderr = &aerrBuf
-	d.logger.Printf("[DEBUG] driver:rkt: starting rkt command: %q", acmd.Args)
-	if err := acmd.Start(); err != nil {
-		return nil, fmt.Errorf(
-			"Error running rkt: %s\n\nOutput: %s\n\nError: %s",
-			err, aoutBuf.String(), aerrBuf.String())
+
+	cmd = exec.Command("rkt", cmd_args...)
+	cmd.Stdout = &outBuf
+	cmd.Stderr = &errBuf
+	if err := cmd.Start(); err != nil {
+		return nil, fmt.Errorf("Error running rkt: %s\n\nOutput: %s\n\nError: %s",
+			err, outBuf.String(), errBuf.String())
 	}
 	d.logger.Printf("[DEBUG] driver.rkt: started ACI: %q", name)
+
 	h := &rktHandle{
-		proc:   acmd.Process,
+		proc:   cmd.Process,
 		name:   name,
 		logger: d.logger,
 		doneCh: make(chan struct{}),

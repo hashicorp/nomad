@@ -60,7 +60,7 @@ func TestRktDriver_Start(t *testing.T) {
 		Config: map[string]string{
 			"trust_prefix": "coreos.com/etcd",
 			"name":         "coreos.com/etcd:v2.0.4",
-			"exec":         "/etcd --version",
+			"exec":         "/etcd",
 		},
 	}
 
@@ -99,7 +99,8 @@ func TestRktDriver_Start_Wait(t *testing.T) {
 		Config: map[string]string{
 			"trust_prefix": "coreos.com/etcd",
 			"name":         "coreos.com/etcd:v2.0.4",
-			"exec":         "/etcd --version",
+			"exec":         "/etcd",
+			"args":         "--version",
 		},
 	}
 
