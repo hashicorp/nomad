@@ -130,6 +130,7 @@ func testFingerprint_GCE(t *testing.T, withExternalIp bool) {
 	}
 
 	assertNodeAttributeEquals(t, node, "network.ip-address", "10.240.0.5")
+	assertNodeAttributeEquals(t, node, "platform.gce.network.default", "true")
 	assertNodeAttributeEquals(t, node, "platform.gce.network.default.ip", "10.240.0.5")
 	if withExternalIp {
 		assertNodeAttributeEquals(t, node, "platform.gce.network.default.external-ip.0", "104.44.55.66")
@@ -138,6 +139,9 @@ func testFingerprint_GCE(t *testing.T, withExternalIp bool) {
 		t.Fatal("platform.gce.network.default.external-ip is set without an external IP")
 	}
 
+	assertNodeAttributeEquals(t, node, "platform.gce.scheduling.automatic-restart", "TRUE")
+	assertNodeAttributeEquals(t, node, "platform.gce.scheduling.on-host-maintenance", "MIGRATE")
+	assertNodeAttributeEquals(t, node, "platform.gce.cpu-platform", "Intel Ivy Bridge")
 	assertNodeAttributeEquals(t, node, "platform.gce.tag.abc", "true")
 	assertNodeAttributeEquals(t, node, "platform.gce.tag.def", "true")
 	assertNodeAttributeEquals(t, node, "platform.gce.attr.ghi", "111")
@@ -176,6 +180,21 @@ const GCE_routes = `
       "uri": "/computeMetadata/v1/instance/attributes/?recursive=true",
       "content-type": "application/json",
       "body": "{\"ghi\":\"111\",\"jkl\":\"222\"}"
+    },
+    {
+      "uri": "/computeMetadata/v1/instance/scheduling/automatic-restart",
+      "content-type": "text/plain",
+      "body": "TRUE"
+    },
+    {
+      "uri": "/computeMetadata/v1/instance/scheduling/on-host-maintenance",
+      "content-type": "text/plain",
+      "body": "MIGRATE"
+    },
+    {
+      "uri": "/computeMetadata/v1/instance/cpu-platform",
+      "content-type": "text/plain",
+      "body": "Intel Ivy Bridge"
     }
   ]
 }

@@ -132,6 +132,9 @@ func (f *EnvGCEFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 	keys := []string{
 		"hostname",
 		"id",
+		"cpu-platform",
+		"scheduling/automatic-restart",
+		"scheduling/on-host-maintenance",
 	}
 	for _, k := range keys {
 		value, err := f.Get(k, false)
@@ -140,7 +143,8 @@ func (f *EnvGCEFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 		}
 
 		// assume we want blank entries
-		node.Attributes["platform.gce."+k] = strings.Trim(string(value), "\n")
+		key := strings.Replace(k, "/", ".", -1)
+		node.Attributes["platform.gce."+key] = strings.Trim(string(value), "\n")
 	}
 
 	// These keys need everything before the final slash removed to be usable.
@@ -169,7 +173,9 @@ func (f *EnvGCEFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 		f.logger.Printf("[WARN] fingerprint.env_gce: Error decoding network interface information: %s", err.Error())
 	} else {
 		for _, intf := range interfaces {
-			prefix := "platform.gce.network." + lastToken(intf.Network)
+			network := lastToken(intf.Network)
+			prefix := "platform.gce.network." + network
+			node.Attributes[prefix] = "true"
 
 			// newNetwork is populated and addded to the Nodes resources
 			newNetwork := &structs.NetworkResource{
