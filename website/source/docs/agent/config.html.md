@@ -207,8 +207,8 @@ configured on server nodes.
     option is not required and has no default.
   * <a id="meta">`meta`</a>: This is a key/value mapping of metadata pairs. This
     is a free-form map and can contain any string values.
-  * `options`: This is a key/value mapping of internal configuration for clients,
-    such as for driver configuration.
+  * <a id="options">`options`</a>: This is a key/value mapping of internal
+    configuration for clients, such as for driver configuration.
   * <a id="network_interface">`network_interface`</a>: This is a string to force
     network fingerprinting to use a specific network interface
   * <a id="network_speed">`network_speed`</a>: This is an int that sets the
