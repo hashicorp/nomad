@@ -542,6 +542,11 @@ func (e *LinuxExecutor) destroyCgroup() error {
 			multierror.Append(errs, fmt.Errorf("Failed to kill Pid %v: %v", pid, err))
 			continue
 		}
+
+		if _, err := process.Wait(); err != nil {
+			multierror.Append(errs, fmt.Errorf("Failed to wait Pid %v: %v", pid, err))
+			continue
+		}
 	}
 
 	// Remove the cgroup.
