@@ -23,7 +23,7 @@ As a side affect of the ECS servers being managed by AWS, it is not possible
 to use ECS outside of AWS. Nomad is agnostic to the environment it is run,
 supporting public and private clouds, as well as bare metal datacenters.
 Clusters in Nomad can span multiple datacenters and regions, meaning
-a single cluster could be managing machines on AWS, Azure,and GCE simultaneously.
+a single cluster could be managing machines on AWS, Azure, and GCE simultaneously.
 
 The ECS service is specifically focused on containers and the Docker
 engine, while Nomad is more general purpose. Nomad supports virtualized,
