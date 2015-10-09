@@ -7,12 +7,14 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"strings"
 	"syscall"
 	"time"
 
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/args"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -90,6 +92,14 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		return nil, fmt.Errorf("Missing ACI name for rkt")
 	}
 
+	// Get the tasks local directory.
+	taskName := d.DriverContext.taskName
+	taskDir, ok := ctx.AllocDir.TaskDirs[taskName]
+	if !ok {
+		return nil, fmt.Errorf("Could not find task directory for task: %v", d.DriverContext.taskName)
+	}
+	taskLocal := filepath.Join(taskDir, allocdir.TaskLocal)
+
 	// Add the given trust prefix
 	var outBuf, errBuf bytes.Buffer
 	cmd := exec.Command("rkt", "trust", fmt.Sprintf("--prefix=%s", trust_prefix))
@@ -100,10 +110,6 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 			err, outBuf.String(), errBuf.String())
 	}
 	d.logger.Printf("[DEBUG] driver.rkt: added trust prefix: %q", trust_prefix)
-
-	// Reset the buffers
-	outBuf.Reset()
-	errBuf.Reset()
 
 	// Build the command.
 	var cmd_args []string
@@ -135,13 +141,28 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		}
 
 		for _, arg := range parsed {
-			cmd_args = append(cmd_args, fmt.Sprintf("--%v", arg))
+			cmd_args = append(cmd_args, fmt.Sprintf("%v", arg))
 		}
 	}
 
+	// Create files to capture stdin and out.
+	stdoutFilename := filepath.Join(taskLocal, fmt.Sprintf("%s.stdout", taskName))
+	stderrFilename := filepath.Join(taskLocal, fmt.Sprintf("%s.stderr", taskName))
+
+	stdo, err := os.OpenFile(stdoutFilename, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
+	if err != nil {
+		return nil, fmt.Errorf("Error opening file to redirect stdout: %v", err)
+	}
+
+	stde, err := os.OpenFile(stderrFilename, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
+	if err != nil {
+		return nil, fmt.Errorf("Error opening file to redirect stderr: %v", err)
+	}
+
 	cmd = exec.Command("rkt", cmd_args...)
-	cmd.Stdout = &outBuf
-	cmd.Stderr = &errBuf
+	cmd.Stdout = stdo
+	cmd.Stderr = stde
+
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("Error running rkt: %s\n\nOutput: %s\n\nError: %s",
 			err, outBuf.String(), errBuf.String())
