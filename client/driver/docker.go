@@ -37,11 +37,36 @@ func NewDockerDriver(ctx *DriverContext) Driver {
 	return &DockerDriver{*ctx}
 }
 
+// dockerClient creates *docker.Client. In test / dev mode we can use ENV vars
+// to connect to the docker daemon. In production mode we will read
+// docker.endpoint from the config file.
+func (d *DockerDriver) dockerClient() (*docker.Client, error) {
+	// In dev mode, read DOCKER_* environment variables DOCKER_HOST,
+	// DOCKER_TLS_VERIFY, and DOCKER_CERT_PATH. This allows you to run tests and
+	// demo against boot2docker or a VM on OSX and Windows. This falls back on
+	// the default unix socket on linux if tests are run on linux.
+	//
+	// Also note that we need to turn on DevMode in the test configs.
+	if d.config.DevMode {
+		return docker.NewClientFromEnv()
+	}
+
+	// In prod mode we'll read the docker.endpoint configuration and fall back
+	// on the host-specific default. We do not read from the environment.
+	defaultEndpoint, err := docker.DefaultDockerHost()
+	if err != nil {
+		return nil, fmt.Errorf("Unable to determine default docker endpoint: %s", err)
+	}
+	dockerEndpoint := d.config.ReadDefault("docker.endpoint", defaultEndpoint)
+
+	return docker.NewClient(dockerEndpoint)
+}
+
 func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
 	// Initialize docker API client
-	dockerEndpoint := d.config.ReadDefault("docker.endpoint", "unix:///var/run/docker.sock")
-	client, err := docker.NewClient(dockerEndpoint)
+	client, err := d.dockerClient()
 	if err != nil {
+		d.logger.Printf("[DEBUG] driver.docker: could not connect to docker daemon: %v", err)
 		return false, nil
 	}
 
@@ -56,6 +81,7 @@ func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool
 
 	env, err := client.Version()
 	if err != nil {
+		d.logger.Printf("[DEBUG] driver.docker: could not read version from daemon: %v", err)
 		// Check the "no such file" error if the unix file is missing
 		if strings.Contains(err.Error(), "no such file") {
 			return false, nil
@@ -212,10 +238,9 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	}
 
 	// Initialize docker API client
-	dockerEndpoint := d.config.ReadDefault("docker.endpoint", "unix:///var/run/docker.sock")
-	client, err := docker.NewClient(dockerEndpoint)
+	client, err := d.dockerClient()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to connect to docker.endpoint (%s): %s", dockerEndpoint, err)
+		return nil, fmt.Errorf("Failed to connect to docker daemon: %s", err)
 	}
 
 	repo, tag := docker.ParseRepositoryTag(image)
@@ -309,10 +334,9 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 	d.logger.Printf("[INFO] driver.docker: re-attaching to docker process: %s", handleID)
 
 	// Initialize docker API client
-	dockerEndpoint := d.config.ReadDefault("docker.endpoint", "unix:///var/run/docker.sock")
-	client, err := docker.NewClient(dockerEndpoint)
+	client, err := d.dockerClient()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to connect to docker.endpoint (%s): %s", dockerEndpoint, err)
+		return nil, fmt.Errorf("Failed to connect to docker daemon: %s", err)
 	}
 
 	// Look for a running container with this ID
@@ -401,6 +425,7 @@ func (h *dockerHandle) Kill() error {
 		err = h.client.RemoveImage(h.imageID)
 		if err != nil {
 			containers, err := h.client.ListContainers(docker.ListContainersOptions{
+				// The image might be in use by a stopped container, so check everything
 				All: true,
 				Filters: map[string][]string{
 					"image": []string{h.imageID},

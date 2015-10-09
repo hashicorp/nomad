@@ -9,6 +9,12 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+func testDockerDriverContext(task string) *DriverContext {
+	cfg := testConfig()
+	cfg.DevMode = true
+	return NewDriverContext(task, cfg, cfg.Node, testLogger())
+}
+
 // dockerLocated looks to see whether docker is available on this system before
 // we try to run tests. We'll keep it simple and just check for the CLI.
 func dockerLocated() bool {
@@ -33,7 +39,7 @@ func TestDockerDriver_Handle(t *testing.T) {
 
 // The fingerprinter test should always pass, even if Docker is not installed.
 func TestDockerDriver_Fingerprint(t *testing.T) {
-	d := NewDockerDriver(testDriverContext(""))
+	d := NewDockerDriver(testDockerDriverContext(""))
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
@@ -56,14 +62,14 @@ func TestDockerDriver_StartOpen_Wait(t *testing.T) {
 	}
 
 	task := &structs.Task{
-		Name: "python-demo",
+		Name: "redis-demo",
 		Config: map[string]string{
 			"image": "redis",
 		},
 		Resources: basicResources,
 	}
 
-	driverCtx := testDriverContext(task.Name)
+	driverCtx := testDockerDriverContext(task.Name)
 	ctx := testDriverExecContext(task, driverCtx)
 	defer ctx.AllocDir.Destroy()
 	d := NewDockerDriver(driverCtx)
@@ -93,7 +99,7 @@ func TestDockerDriver_Start_Wait(t *testing.T) {
 	}
 
 	task := &structs.Task{
-		Name: "python-demo",
+		Name: "redis-demo",
 		Config: map[string]string{
 			"image":   "redis",
 			"command": "redis-server -v",
@@ -104,7 +110,7 @@ func TestDockerDriver_Start_Wait(t *testing.T) {
 		},
 	}
 
-	driverCtx := testDriverContext(task.Name)
+	driverCtx := testDockerDriverContext(task.Name)
 	ctx := testDriverExecContext(task, driverCtx)
 	defer ctx.AllocDir.Destroy()
 	d := NewDockerDriver(driverCtx)
@@ -140,7 +146,7 @@ func TestDockerDriver_Start_Kill_Wait(t *testing.T) {
 	}
 
 	task := &structs.Task{
-		Name: "python-demo",
+		Name: "redis-demo",
 		Config: map[string]string{
 			"image":   "redis",
 			"command": "sleep 10",
@@ -148,7 +154,7 @@ func TestDockerDriver_Start_Kill_Wait(t *testing.T) {
 		Resources: basicResources,
 	}
 
-	driverCtx := testDriverContext(task.Name)
+	driverCtx := testDockerDriverContext(task.Name)
 	ctx := testDriverExecContext(task, driverCtx)
 	defer ctx.AllocDir.Destroy()
 	d := NewDockerDriver(driverCtx)
@@ -222,7 +228,7 @@ func TestDocker_StartN(t *testing.T) {
 	// Let's spin up a bunch of things
 	var err error
 	for idx, task := range taskList {
-		driverCtx := testDriverContext(task.Name)
+		driverCtx := testDockerDriverContext(task.Name)
 		ctx := testDriverExecContext(task, driverCtx)
 		defer ctx.AllocDir.Destroy()
 		d := NewDockerDriver(driverCtx)
@@ -271,7 +277,7 @@ func TestDocker_StartNVersions(t *testing.T) {
 	// Let's spin up a bunch of things
 	var err error
 	for idx, task := range taskList {
-		driverCtx := testDriverContext(task.Name)
+		driverCtx := testDockerDriverContext(task.Name)
 		ctx := testDriverExecContext(task, driverCtx)
 		defer ctx.AllocDir.Destroy()
 		d := NewDockerDriver(driverCtx)
@@ -309,7 +315,7 @@ func TestDockerHostNet(t *testing.T) {
 			CPU:      512,
 		},
 	}
-	driverCtx := testDriverContext(task.Name)
+	driverCtx := testDockerDriverContext(task.Name)
 	ctx := testDriverExecContext(task, driverCtx)
 	defer ctx.AllocDir.Destroy()
 	d := NewDockerDriver(driverCtx)
