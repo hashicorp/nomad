@@ -95,7 +95,6 @@ func testFingerprint_GCE(t *testing.T, withExternalIp bool) {
 		"platform.gce.tag.def",
 		"platform.gce.attr.ghi",
 		"platform.gce.attr.jkl",
-		"network.ip-address",
 	}
 
 	for _, k := range keys {
@@ -115,21 +114,6 @@ func testFingerprint_GCE(t *testing.T, withExternalIp bool) {
 	assertNodeAttributeEquals(t, node, "platform.gce.hostname", "instance-1.c.project.internal")
 	assertNodeAttributeEquals(t, node, "platform.gce.zone", "us-central1-f")
 	assertNodeAttributeEquals(t, node, "platform.gce.machine-type", "n1-standard-1")
-
-	if node.Resources == nil || len(node.Resources.Networks) == 0 {
-		t.Fatal("Expected to find Network Resources")
-	}
-
-	// Test at least the first Network Resource
-	net := node.Resources.Networks[0]
-	if net.IP != "10.240.0.5" {
-		t.Fatalf("Expected Network Resource to have IP 10.240.0.5, saw %s", net.IP)
-	}
-	if net.CIDR != "10.240.0.5/32" {
-		t.Fatalf("Expected Network Resource to have CIDR 10.240.0.5/32, saw %s", net.CIDR)
-	}
-
-	assertNodeAttributeEquals(t, node, "network.ip-address", "10.240.0.5")
 	assertNodeAttributeEquals(t, node, "platform.gce.network.default", "true")
 	assertNodeAttributeEquals(t, node, "platform.gce.network.default.ip", "10.240.0.5")
 	if withExternalIp {
