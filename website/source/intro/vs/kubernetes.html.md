@@ -31,7 +31,7 @@ configuration but is operationally complex to setup.
 
 Nomad is architecturally much simpler. Nomad is a single binary, both for clients
 and servers, and requires no external services for coordination or storage.
-Nomad combines a lightweight resource managers and a sophisticated scheduler
+Nomad combines a lightweight resource manager and a sophisticated scheduler
 into a single system. By default, Nomad is distributed, highly available,
 and operationally simple.
 
