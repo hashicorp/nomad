@@ -113,7 +113,7 @@ Because we set the count of the task group to three, Nomad created two
 additional allocations to get to the desired state. It is idempotent to
 run the same job specification again and no new allocations will be created.
 
-Now, lets try to do an application update. In this case, we will simply change
+Now, let's try to do an application update. In this case, we will simply change
 the version of redis we want to run. Edit the `example.nomad` file and change
 the Docker image from "redis:latest" to "redis:2.8":
 
