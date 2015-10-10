@@ -90,7 +90,7 @@ or change the count of a task group to scale with load.
 For now, edit the `example.nomad` file to uncomment the count and set it to 3:
 
 ```
-# Control the number of instances of this groups.
+# Control the number of instances of this group.
 # Defaults to 1
 count = 3
 ```
