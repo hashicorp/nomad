@@ -167,7 +167,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		return nil, fmt.Errorf("Error running rkt: %s\n\nOutput: %s\n\nError: %s",
 			err, outBuf.String(), errBuf.String())
 	}
-	d.logger.Printf("[DEBUG] driver.rkt: started ACI: %q", name)
+	d.logger.Printf("[DEBUG] driver.rkt: started ACI %q with: %v", name, cmd.Args)
 
 	h := &rktHandle{
 		proc:   cmd.Process,
