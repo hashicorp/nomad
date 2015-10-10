@@ -87,8 +87,8 @@ ID                                    DC   Name   Class   Drain  Status
 72d3af97-144f-1e5f-94e5-df1516fe4add  dc1  nomad  <none>  false  ready
 ```
 
-The output shows our Node ID, which is randomly generated UUID,
-it's datacenter, node name, node class, drain mode and current status.
+The output shows our Node ID, which is a randomly generated UUID,
+its datacenter, node name, node class, drain mode and current status.
 We can see that our node is in the ready state, and task draining is
 currently off.
 
