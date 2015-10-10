@@ -52,7 +52,7 @@ func TestRawExecDriver_StartOpen_Wait(t *testing.T) {
 		Name: "sleep",
 		Config: map[string]string{
 			"command": "/bin/sleep",
-			"args":    "2",
+			"args":    "1",
 		},
 	}
 	driverCtx := testDriverContext(task.Name)
@@ -70,7 +70,6 @@ func TestRawExecDriver_StartOpen_Wait(t *testing.T) {
 
 	// Attempt to open
 	handle2, err := d.Open(ctx, handle.ID())
-	handle2.(*rawExecHandle).waitCh = make(chan error, 1)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -80,12 +79,16 @@ func TestRawExecDriver_StartOpen_Wait(t *testing.T) {
 
 	// Task should terminate quickly
 	select {
-	case err := <-handle2.WaitCh():
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
-	case <-time.After(3 * time.Second):
+	case <-handle2.WaitCh():
+	case <-time.After(2 * time.Second):
 		t.Fatalf("timeout")
+	}
+
+	// Check they are both tracking the same PID.
+	pid1 := handle.(*rawExecHandle).proc.Pid
+	pid2 := handle2.(*rawExecHandle).proc.Pid
+	if pid1 != pid2 {
+		t.Fatalf("tracking incorrect Pid; %v != %v", pid1, pid2)
 	}
 }
 
