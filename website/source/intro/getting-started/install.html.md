@@ -16,7 +16,7 @@ Create a new directory, and download [this `Vagrantfile`](https://raw.githubuser
 ## Vagrant Setup
 
 Once you have created a new directory and downloaded the `Vagrantfile`
-you must create the virtual the machine:
+you must create the virtual machine:
 
     $ vagrant up
 
