@@ -83,9 +83,9 @@ it resulted in the creation of an allocation that is now running on the local no
 
 ## Modifying a Job
 
-The definition of a job is not static, and is meant to be updated overtime.
-You may update a job to change the docker container to update the application version,
-or change the count of a task group to scale with load.
+The definition of a job is not static, and is meant to be updated over time.
+You may update a job to change the docker container, to update the application version,
+or to change the count of a task group to scale with load.
 
 For now, edit the `example.nomad` file to uncomment the count and set it to 3:
 
