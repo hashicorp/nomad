@@ -121,7 +121,7 @@ specified by the job. Resource utilization is maximized by bin packing, in which
 the scheduling tries to make use of all the resources of a machine without
 exhausting any dimension. Job constraints can be used to ensure an application is
 running in an appropriate environment. Constraints can be technical requirements based
-on hardware features such as architecture, availability of GPUs, or software features
+on hardware features such as architecture and availability of GPUs, or software features
 like operating system and kernel version, or they can be business constraints like
 ensuring PCI compliant workloads run on appropriate servers.
 
