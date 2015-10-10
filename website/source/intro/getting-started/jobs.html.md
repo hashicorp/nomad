@@ -141,10 +141,9 @@ $ nomad run example.nomad
 ==> Evaluation "d34d37f4-19b1-f4c0-b2da-c949e6ade82d" finished with status "complete"
 ```
 
-We can see that Nomad handled the updated in three phases, each
-time only updating a single task group at a time. The update strategy
-can be configured, but rolling updates makes it easy to upgrade
-an application at large scale.
+We can see that Nomad handled the update in three phases, only updating a single task
+group in each phase. The update strategy can be configured, but rolling updates makes
+it easy to upgrade an application at large scale.
 
 ## Stopping a Job
 
