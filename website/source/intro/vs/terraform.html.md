@@ -25,7 +25,7 @@ on that infrastructure.
 Another major distinction is that Terraform is an offline tool that runs to completion,
 while Nomad is an online system with long lived servers. Nomad allows new jobs to
 be submitted, existing jobs updated or deleted, and can handle node failures. This
-requires operating continuously instead in a single shot like Terraform.
+requires operating continuously instead of in a single shot like Terraform.
 
 For small infrastructures with only a handful of servers or applications, the complexity
 of Nomad may not outweigh simply using Terraform to statically assign applications to
