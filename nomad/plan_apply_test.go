@@ -54,11 +54,24 @@ func TestPlanApply_applyPlan(t *testing.T) {
 		FailedAllocs: []*structs.Allocation{allocFail},
 	}
 
-	// Apply the plan
-	future, err := s1.applyPlan(plan, nil)
+	// Snapshot the state
+	snap, err := s1.State().Snapshot()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
+
+	// Apply the plan
+	future, err := s1.applyPlan(plan, snap)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Verify our optimistic snapshot is updated
+	if out, err := snap.AllocByID(alloc.ID); err != nil || out == nil {
+		t.Fatalf("bad: %v %v", out, err)
+	}
+
+	// Check plan does apply cleanly
 	index, err := planWaitFuture(future)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -99,11 +112,24 @@ func TestPlanApply_applyPlan(t *testing.T) {
 		},
 	}
 
-	// Apply the plan
-	future, err = s1.applyPlan(plan, nil)
+	// Snapshot the state
+	snap, err = s1.State().Snapshot()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
+
+	// Apply the plan
+	future, err = s1.applyPlan(plan, snap)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Check that our optimistic view is updated
+	if out, _ := snap.AllocByID(allocEvict.ID); out.DesiredStatus != structs.AllocDesiredStatusEvict {
+		t.Fatalf("bad: %#v", out)
+	}
+
+	// Verify plan applies cleanly
 	index, err = planWaitFuture(future)
 	if err != nil {
 		t.Fatalf("err: %v", err)
