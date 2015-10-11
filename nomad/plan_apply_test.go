@@ -7,7 +7,16 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/hashicorp/raft"
 )
+
+// planWaitFuture is used to wait for the Raft future to complete
+func planWaitFuture(future raft.ApplyFuture) (uint64, error) {
+	if err := future.Error(); err != nil {
+		return 0, err
+	}
+	return future.Index(), nil
+}
 
 func testRegisterNode(t *testing.T, s *Server, n *structs.Node) {
 	// Create the register request
@@ -50,7 +59,7 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	index, err := s1.planWaitFuture(future)
+	index, err := planWaitFuture(future)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -95,7 +104,7 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	index, err = s1.planWaitFuture(future)
+	index, err = planWaitFuture(future)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
