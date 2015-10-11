@@ -82,7 +82,7 @@ func (s *Server) planApply() {
 		}
 
 		// Dispatch the Raft transaction for the plan
-		future, err := s.applyPlan(result)
+		future, err := s.applyPlan(result, snap)
 		if err != nil {
 			s.logger.Printf("[ERR] nomad: failed to submit plan: %v", err)
 			pending.respond(nil, err)
@@ -97,7 +97,7 @@ func (s *Server) planApply() {
 }
 
 // applyPlan is used to apply the plan result and to return the alloc index
-func (s *Server) applyPlan(result *structs.PlanResult) (raft.ApplyFuture, error) {
+func (s *Server) applyPlan(result *structs.PlanResult, snap *state.StateSnapshot) (raft.ApplyFuture, error) {
 	req := structs.AllocUpdateRequest{}
 	for _, updateList := range result.NodeUpdate {
 		req.Alloc = append(req.Alloc, updateList...)
@@ -107,7 +107,20 @@ func (s *Server) applyPlan(result *structs.PlanResult) (raft.ApplyFuture, error)
 	}
 	req.Alloc = append(req.Alloc, result.FailedAllocs...)
 
-	return s.raftApplyFuture(structs.AllocUpdateRequestType, &req)
+	// Dispatch the Raft transaction
+	future, err := s.raftApplyFuture(structs.AllocUpdateRequestType, &req)
+	if err != nil {
+		return nil, err
+	}
+
+	// Optimistically apply to our state view
+	if snap != nil {
+		nextIdx := s.raft.AppliedIndex() + 1
+		if err := snap.UpsertAllocs(nextIdx, req.Alloc); err != nil {
+			return future, err
+		}
+	}
+	return future, nil
 }
 
 // asyncPlanWait is used to apply and respond to a plan async

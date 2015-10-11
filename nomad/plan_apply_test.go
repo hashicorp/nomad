@@ -55,7 +55,7 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	}
 
 	// Apply the plan
-	future, err := s1.applyPlan(plan)
+	future, err := s1.applyPlan(plan, nil)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -100,7 +100,7 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	}
 
 	// Apply the plan
-	future, err = s1.applyPlan(plan)
+	future, err = s1.applyPlan(plan, nil)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
