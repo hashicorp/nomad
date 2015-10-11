@@ -7,11 +7,35 @@ import (
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/raft"
 )
 
 // planApply is a long lived goroutine that reads plan allocations from
 // the plan queue, determines if they can be applied safely and applies
 // them via Raft.
+//
+// Naively, we could simply dequeue a plan, verify, apply and then respond.
+// However, the plan application is bounded by the Raft apply time and
+// subject to some latency. This creates a stall condition, where we are
+// not evaluating, but simply waiting for a transaction to complete.
+//
+// To avoid this, we overlap verification with apply. This means once
+// we've verified plan N we attempt to apply it. However, while waiting
+// for apply, we begin to verify plan N+1 under the assumption that plan
+// N has succeeded.
+//
+// In this sense, we track two parallel versions of the world. One is
+// the pessimistic one driven by the Raft log which is replicated. The
+// other is optimistic and assumes our transactions will succeed. In the
+// happy path, this lets us do productive work during the latency of
+// apply.
+//
+// In the unhappy path (Raft transaction fails), effectively we only
+// wasted work during a time we would have been waiting anyways. However,
+// in anticipation of this case we cannot respond to the plan until
+// the Raft log is updated. This means our schedulers will stall,
+// but there are many of those and only a single plan verifier.
+//
 func (s *Server) planApply() {
 	for {
 		// Pull the next pending plan, exit if we are no longer leader
@@ -53,7 +77,13 @@ func (s *Server) planApply() {
 
 		// Apply the plan if there is anything to do
 		if !result.IsNoOp() {
-			allocIndex, err := s.applyPlan(result)
+			future, err := s.applyPlan(result)
+			if err != nil {
+				s.logger.Printf("[ERR] nomad: failed to submit plan: %v", err)
+				pending.respond(nil, err)
+				continue
+			}
+			allocIndex, err := s.planWaitFuture(future)
 			if err != nil {
 				s.logger.Printf("[ERR] nomad: failed to apply plan: %v", err)
 				pending.respond(nil, err)
@@ -68,8 +98,7 @@ func (s *Server) planApply() {
 }
 
 // applyPlan is used to apply the plan result and to return the alloc index
-func (s *Server) applyPlan(result *structs.PlanResult) (uint64, error) {
-	defer metrics.MeasureSince([]string{"nomad", "plan", "apply"}, time.Now())
+func (s *Server) applyPlan(result *structs.PlanResult) (raft.ApplyFuture, error) {
 	req := structs.AllocUpdateRequest{}
 	for _, updateList := range result.NodeUpdate {
 		req.Alloc = append(req.Alloc, updateList...)
@@ -79,8 +108,16 @@ func (s *Server) applyPlan(result *structs.PlanResult) (uint64, error) {
 	}
 	req.Alloc = append(req.Alloc, result.FailedAllocs...)
 
-	_, index, err := s.raftApply(structs.AllocUpdateRequestType, &req)
-	return index, err
+	return s.raftApplyFuture(structs.AllocUpdateRequestType, &req)
+}
+
+// planWaitFuture is used to wait for the Raft future to complete
+func (s *Server) planWaitFuture(future raft.ApplyFuture) (uint64, error) {
+	defer metrics.MeasureSince([]string{"nomad", "plan", "apply"}, time.Now())
+	if err := future.Error(); err != nil {
+		return 0, err
+	}
+	return future.Index(), nil
 }
 
 // evaluatePlan is used to determine what portions of a plan

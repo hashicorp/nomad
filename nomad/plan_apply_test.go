@@ -46,7 +46,11 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	}
 
 	// Apply the plan
-	index, err := s1.applyPlan(plan)
+	future, err := s1.applyPlan(plan)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	index, err := s1.planWaitFuture(future)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -87,7 +91,11 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	}
 
 	// Apply the plan
-	index, err = s1.applyPlan(plan)
+	future, err = s1.applyPlan(plan)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	index, err = s1.planWaitFuture(future)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
