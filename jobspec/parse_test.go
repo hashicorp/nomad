@@ -153,6 +153,26 @@ func TestParse(t *testing.T) {
 		},
 
 		{
+			"version-constraint.hcl",
+			&structs.Job{
+				ID:       "foo",
+				Name:     "foo",
+				Priority: 50,
+				Region:   "global",
+				Type:     "service",
+				Constraints: []*structs.Constraint{
+					&structs.Constraint{
+						Hard:    true,
+						LTarget: "$attr.kernel.version",
+						RTarget: "~> 3.2",
+						Operand: "version",
+					},
+				},
+			},
+			false,
+		},
+
+		{
 			"specify-job.hcl",
 			&structs.Job{
 				ID:       "job1",

@@ -242,6 +242,13 @@ func parseConstraints(result *[]*structs.Constraint, obj *hclobj.Object) error {
 			m["hard"] = true
 		}
 
+		// If "version" is provided, set the operand
+		// to "version" and the value to the "RTarget"
+		if constraint, ok := m["version"]; ok {
+			m["Operand"] = "version"
+			m["RTarget"] = constraint
+		}
+
 		// Build the constraint
 		var c structs.Constraint
 		if err := mapstructure.WeakDecode(m, &c); err != nil {
