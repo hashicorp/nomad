@@ -230,6 +230,10 @@ The `constraint` object supports the following keys:
   [go-version](https://github.com/hashicorp/go-version) repository
   for examples.
 
+* `regexp` - Specifies a regular expression constraint against
+  the attribute. This sets the operator to "regexp" and the `value`
+  to the regular expression.
+
 Below is a table documenting the variables that can be interpreted:
 
 <table class="table table-bordered table-striped">
