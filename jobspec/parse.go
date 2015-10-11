@@ -249,6 +249,13 @@ func parseConstraints(result *[]*structs.Constraint, obj *hclobj.Object) error {
 			m["RTarget"] = constraint
 		}
 
+		// If "regexp" is provided, set the operand
+		// to "regexp" and the value to the "RTarget"
+		if constraint, ok := m["regexp"]; ok {
+			m["Operand"] = "regexp"
+			m["RTarget"] = constraint
+		}
+
 		// Build the constraint
 		var c structs.Constraint
 		if err := mapstructure.WeakDecode(m, &c); err != nil {
