@@ -26,7 +26,7 @@ The `docker` driver supports the following configuration in the job specificatio
 * `network_mode` - (Optional) The network mode to be used for the container.
    Valid options are `default`, `bridge`, `host` or `none`. If nothing is
    specified, the container will start in `bridge` mode. The `container`
-   network mode is not supported right now.
+   network mode is not supported right now, this case also defaults to `bridge`.
 
 ### Port Mapping
 
@@ -125,8 +125,10 @@ production Nomad will always read `docker.endpoint`.
 
 The `docker` driver will set the following client attributes:
 
-* `driver.docker` - This will be set to "1", indicating the
+* `driver.docker` - This will be set to "true", indicating the
   driver is available.
+* `driver.docker.version` - This will be set to version of the
+  docker server
 
 ## Resource Isolation
 
