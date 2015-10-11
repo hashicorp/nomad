@@ -239,9 +239,6 @@ func (s *Server) raftApplyFuture(t structs.MessageType, msg interface{}) (raft.A
 	}
 
 	future := s.raft.Apply(buf, enqueueLimit)
-	if err := future.Error(); err != nil {
-		return nil, err
-	}
 	return future, nil
 }
 
@@ -250,6 +247,9 @@ func (s *Server) raftApplyFuture(t structs.MessageType, msg interface{}) (raft.A
 func (s *Server) raftApply(t structs.MessageType, msg interface{}) (interface{}, uint64, error) {
 	future, err := s.raftApplyFuture(t, msg)
 	if err != nil {
+		return nil, 0, err
+	}
+	if err := future.Error(); err != nil {
 		return nil, 0, err
 	}
 	return future.Response(), future.Index(), nil
