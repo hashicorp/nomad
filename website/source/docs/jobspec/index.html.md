@@ -218,7 +218,8 @@ The `constraint` object supports the following keys:
   to true. Soft constraints are not currently supported.
 
 * `operator` - Specifies the comparison operator. Defaults to equality,
-  and can be `=`, `==`, `is`, `!=`, `not`.
+  and can be `=`, `==`, `is`, `!=`, `not`, `>`, `>=`, `<`, `<=`. The
+  ordering is compared lexically.
 
 * `value` - Specifies the value to compare the attribute against.
   This can be a literal value or another attribute.
