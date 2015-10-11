@@ -223,6 +223,13 @@ The `constraint` object supports the following keys:
 * `value` - Specifies the value to compare the attribute against.
   This can be a literal value or another attribute.
 
+* `version` - Specifies a version constraint against the attribute.
+  This sets the operator to "version" and the `value` to what is
+  specified. This supports a comma seperated list of constraints,
+  including the pessimistic operator. See the
+  [go-version](https://github.com/hashicorp/go-version) repository
+  for examples.
+
 Below is a table documenting the variables that can be interpreted:
 
 <table class="table table-bordered table-striped">
