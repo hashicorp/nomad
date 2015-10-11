@@ -53,7 +53,7 @@ and ensure at least once delivery.
 
 Nomad servers run scheduling workers, defaulting to one per CPU core, which are used to
 process evaluations. The workers dequeue evaluations from the broker, and then invoke
-the appropriate schedule as specified by the job. Nomad ships with a `service` scheduler
+the appropriate scheduler as specified by the job. Nomad ships with a `service` scheduler
 that optimizes for long-lived services, a `batch` scheduler that is used for fast placement
 of batch jobs, and a `core` scheduler which is used for internal maintenance. Nomad can
 be extended to support custom schedulers as well.
