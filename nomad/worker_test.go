@@ -52,7 +52,12 @@ func TestWorker_dequeueEvaluation(t *testing.T) {
 
 	// Create the evaluation
 	eval1 := mock.Eval()
-	s1.evalBroker.Enqueue(eval1)
+	testutil.WaitForResult(func() (bool, error) {
+		err := s1.evalBroker.Enqueue(eval1)
+		return err == nil, err
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
 
 	// Create a worker
 	w := &Worker{srv: s1, logger: s1.logger}
@@ -82,7 +87,12 @@ func TestWorker_dequeueEvaluation_paused(t *testing.T) {
 
 	// Create the evaluation
 	eval1 := mock.Eval()
-	s1.evalBroker.Enqueue(eval1)
+	testutil.WaitForResult(func() (bool, error) {
+		err := s1.evalBroker.Enqueue(eval1)
+		return err == nil, err
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
 
 	// Create a worker
 	w := &Worker{srv: s1, logger: s1.logger}
@@ -153,7 +163,12 @@ func TestWorker_sendAck(t *testing.T) {
 
 	// Create the evaluation
 	eval1 := mock.Eval()
-	s1.evalBroker.Enqueue(eval1)
+	testutil.WaitForResult(func() (bool, error) {
+		err := s1.evalBroker.Enqueue(eval1)
+		return err == nil, err
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
 
 	// Create a worker
 	w := &Worker{srv: s1, logger: s1.logger}
