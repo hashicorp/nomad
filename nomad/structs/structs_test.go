@@ -125,6 +125,43 @@ func TestTask_Validate(t *testing.T) {
 	}
 }
 
+func TestConstraint_Validate(t *testing.T) {
+	c := &Constraint{}
+	err := c.Validate()
+	mErr := err.(*multierror.Error)
+	if !strings.Contains(mErr.Errors[0].Error(), "Missing constraint operand") {
+		t.Fatalf("err: %s", err)
+	}
+
+	c = &Constraint{
+		LTarget: "$attr.kernel.name",
+		RTarget: "linux",
+		Operand: "=",
+	}
+	err = c.Validate()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Perform additional regexp validation
+	c.Operand = "regexp"
+	c.RTarget = "(foo"
+	err = c.Validate()
+	mErr = err.(*multierror.Error)
+	if !strings.Contains(mErr.Errors[0].Error(), "missing closing") {
+		t.Fatalf("err: %s", err)
+	}
+
+	// Perform version validation
+	c.Operand = "version"
+	c.RTarget = "~> foo"
+	err = c.Validate()
+	mErr = err.(*multierror.Error)
+	if !strings.Contains(mErr.Errors[0].Error(), "Malformed constraint") {
+		t.Fatalf("err: %s", err)
+	}
+}
+
 func TestResource_NetIndex(t *testing.T) {
 	r := &Resources{
 		Networks: []*NetworkResource{
