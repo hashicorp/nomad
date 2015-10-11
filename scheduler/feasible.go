@@ -3,6 +3,7 @@ package scheduler
 import (
 	"fmt"
 	"reflect"
+	"regexp"
 	"strings"
 
 	"github.com/hashicorp/go-version"
@@ -251,11 +252,10 @@ func checkConstraint(operand string, lVal, rVal interface{}) bool {
 	case "<", "<=", ">", ">=":
 		// TODO: Implement
 		return false
-	case "contains":
-		// TODO: Implement
-		return false
 	case "version":
 		return checkVersionConstraint(lVal, rVal)
+	case "regexp":
+		return checkRegexpConstraint(lVal, rVal)
 	default:
 		return false
 	}
@@ -295,4 +295,29 @@ func checkVersionConstraint(lVal, rVal interface{}) bool {
 
 	// Check the constraints against the version
 	return constraints.Check(vers)
+}
+
+// checkRegexpConstraint is used to compare a value on the
+// left hand side with a regexp on the right hand side
+func checkRegexpConstraint(lVal, rVal interface{}) bool {
+	// Ensure left-hand is string
+	lStr, ok := lVal.(string)
+	if !ok {
+		return false
+	}
+
+	// Regexp must be a string
+	regexpStr, ok := rVal.(string)
+	if !ok {
+		return false
+	}
+
+	// Parse the regexp
+	re, err := regexp.Compile(regexpStr)
+	if err != nil {
+		return false
+	}
+
+	// Look for a match
+	return re.MatchString(lStr)
 }

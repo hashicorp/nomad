@@ -249,6 +249,11 @@ func TestCheckConstraint(t *testing.T) {
 			lVal: "1.2.3", rVal: "~> 1.0",
 			result: true,
 		},
+		{
+			op:   "regexp",
+			lVal: "foobarbaz", rVal: "[\\w]+",
+			result: true,
+		},
 	}
 
 	for _, tc := range cases {
@@ -287,6 +292,40 @@ func TestCheckVersionConstraint(t *testing.T) {
 	}
 	for _, tc := range cases {
 		if res := checkVersionConstraint(tc.lVal, tc.rVal); res != tc.result {
+			t.Fatalf("TC: %#v, Result: %v", tc, res)
+		}
+	}
+}
+
+func TestCheckRegexpConstraint(t *testing.T) {
+	type tcase struct {
+		lVal, rVal interface{}
+		result     bool
+	}
+	cases := []tcase{
+		{
+			lVal: "foobar", rVal: "bar",
+			result: true,
+		},
+		{
+			lVal: "foobar", rVal: "^foo",
+			result: true,
+		},
+		{
+			lVal: "foobar", rVal: "^bar",
+			result: false,
+		},
+		{
+			lVal: "zipzap", rVal: "foo",
+			result: false,
+		},
+		{
+			lVal: 1, rVal: "foo",
+			result: false,
+		},
+	}
+	for _, tc := range cases {
+		if res := checkRegexpConstraint(tc.lVal, tc.rVal); res != tc.result {
 			t.Fatalf("TC: %#v, Result: %v", tc, res)
 		}
 	}
