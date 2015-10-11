@@ -250,12 +250,37 @@ func checkConstraint(operand string, lVal, rVal interface{}) bool {
 	case "!=", "not":
 		return !reflect.DeepEqual(lVal, rVal)
 	case "<", "<=", ">", ">=":
-		// TODO: Implement
-		return false
+		return checkLexicalOrder(operand, lVal, rVal)
 	case "version":
 		return checkVersionConstraint(lVal, rVal)
 	case "regexp":
 		return checkRegexpConstraint(lVal, rVal)
+	default:
+		return false
+	}
+}
+
+// checkLexicalOrder is used to check for lexical ordering
+func checkLexicalOrder(op string, lVal, rVal interface{}) bool {
+	// Ensure the values are strings
+	lStr, ok := lVal.(string)
+	if !ok {
+		return false
+	}
+	rStr, ok := rVal.(string)
+	if !ok {
+		return false
+	}
+
+	switch op {
+	case "<":
+		return lStr < rStr
+	case "<=":
+		return lStr <= rStr
+	case ">":
+		return lStr > rStr
+	case ">=":
+		return lStr >= rStr
 	default:
 		return false
 	}

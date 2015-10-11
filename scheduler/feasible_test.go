@@ -254,10 +254,55 @@ func TestCheckConstraint(t *testing.T) {
 			lVal: "foobarbaz", rVal: "[\\w]+",
 			result: true,
 		},
+		{
+			op:   "<",
+			lVal: "foo", rVal: "bar",
+			result: false,
+		},
 	}
 
 	for _, tc := range cases {
 		if res := checkConstraint(tc.op, tc.lVal, tc.rVal); res != tc.result {
+			t.Fatalf("TC: %#v, Result: %v", tc, res)
+		}
+	}
+}
+
+func TestCheckLexicalOrder(t *testing.T) {
+	type tcase struct {
+		op         string
+		lVal, rVal interface{}
+		result     bool
+	}
+	cases := []tcase{
+		{
+			op:   "<",
+			lVal: "bar", rVal: "foo",
+			result: true,
+		},
+		{
+			op:   "<=",
+			lVal: "foo", rVal: "foo",
+			result: true,
+		},
+		{
+			op:   ">",
+			lVal: "bar", rVal: "foo",
+			result: false,
+		},
+		{
+			op:   ">=",
+			lVal: "bar", rVal: "bar",
+			result: true,
+		},
+		{
+			op:   ">",
+			lVal: 1, rVal: "foo",
+			result: false,
+		},
+	}
+	for _, tc := range cases {
+		if res := checkLexicalOrder(tc.op, tc.lVal, tc.rVal); res != tc.result {
 			t.Fatalf("TC: %#v, Result: %v", tc, res)
 		}
 	}
