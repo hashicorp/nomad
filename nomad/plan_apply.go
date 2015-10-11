@@ -75,7 +75,7 @@ func (s *Server) planApply() {
 
 		// Snapshot the state so that we have a consistent view of the world
 		// if no snapshot is available
-		if snap == nil {
+		if waitCh == nil || snap == nil {
 			snap, err = s.fsm.State().Snapshot()
 			if err != nil {
 				s.logger.Printf("[ERR] nomad: failed to snapshot state: %v", err)
