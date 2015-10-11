@@ -244,10 +244,49 @@ func TestCheckConstraint(t *testing.T) {
 			lVal: "foo", rVal: "bar",
 			result: true,
 		},
+		{
+			op:   "version",
+			lVal: "1.2.3", rVal: "~> 1.0",
+			result: true,
+		},
 	}
 
 	for _, tc := range cases {
 		if res := checkConstraint(tc.op, tc.lVal, tc.rVal); res != tc.result {
+			t.Fatalf("TC: %#v, Result: %v", tc, res)
+		}
+	}
+}
+
+func TestCheckVersionConstraint(t *testing.T) {
+	type tcase struct {
+		lVal, rVal interface{}
+		result     bool
+	}
+	cases := []tcase{
+		{
+			lVal: "1.2.3", rVal: "~> 1.0",
+			result: true,
+		},
+		{
+			lVal: "1.2.3", rVal: ">= 1.0, < 1.4",
+			result: true,
+		},
+		{
+			lVal: "2.0.1", rVal: "~> 1.0",
+			result: false,
+		},
+		{
+			lVal: "1.4", rVal: ">= 1.0, < 1.4",
+			result: false,
+		},
+		{
+			lVal: 1, rVal: "~> 1.0",
+			result: true,
+		},
+	}
+	for _, tc := range cases {
+		if res := checkVersionConstraint(tc.lVal, tc.rVal); res != tc.result {
 			t.Fatalf("TC: %#v, Result: %v", tc, res)
 		}
 	}

@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -253,7 +254,45 @@ func checkConstraint(operand string, lVal, rVal interface{}) bool {
 	case "contains":
 		// TODO: Implement
 		return false
+	case "version":
+		return checkVersionConstraint(lVal, rVal)
 	default:
 		return false
 	}
+}
+
+// checkVersionConstraint is used to compare a version on the
+// left hand side with a set of constraints on the right hand side
+func checkVersionConstraint(lVal, rVal interface{}) bool {
+	// Parse the version
+	var versionStr string
+	switch v := lVal.(type) {
+	case string:
+		versionStr = v
+	case int:
+		versionStr = fmt.Sprintf("%d", v)
+	default:
+		return false
+	}
+
+	// Parse the verison
+	vers, err := version.NewVersion(versionStr)
+	if err != nil {
+		return false
+	}
+
+	// Constraint must be a string
+	constraintStr, ok := rVal.(string)
+	if !ok {
+		return false
+	}
+
+	// Parse the constraints
+	constraints, err := version.NewConstraint(constraintStr)
+	if err != nil {
+		return false
+	}
+
+	// Check the constraints against the version
+	return constraints.Check(vers)
 }
