@@ -7,7 +7,16 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/hashicorp/raft"
 )
+
+// planWaitFuture is used to wait for the Raft future to complete
+func planWaitFuture(future raft.ApplyFuture) (uint64, error) {
+	if err := future.Error(); err != nil {
+		return 0, err
+	}
+	return future.Index(), nil
+}
 
 func testRegisterNode(t *testing.T, s *Server, n *structs.Node) {
 	// Create the register request
@@ -45,8 +54,25 @@ func TestPlanApply_applyPlan(t *testing.T) {
 		FailedAllocs: []*structs.Allocation{allocFail},
 	}
 
+	// Snapshot the state
+	snap, err := s1.State().Snapshot()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
 	// Apply the plan
-	index, err := s1.applyPlan(plan)
+	future, err := s1.applyPlan(plan, snap)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Verify our optimistic snapshot is updated
+	if out, err := snap.AllocByID(alloc.ID); err != nil || out == nil {
+		t.Fatalf("bad: %v %v", out, err)
+	}
+
+	// Check plan does apply cleanly
+	index, err := planWaitFuture(future)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -86,8 +112,25 @@ func TestPlanApply_applyPlan(t *testing.T) {
 		},
 	}
 
+	// Snapshot the state
+	snap, err = s1.State().Snapshot()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
 	// Apply the plan
-	index, err = s1.applyPlan(plan)
+	future, err = s1.applyPlan(plan, snap)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Check that our optimistic view is updated
+	if out, _ := snap.AllocByID(allocEvict.ID); out.DesiredStatus != structs.AllocDesiredStatusEvict {
+		t.Fatalf("bad: %#v", out)
+	}
+
+	// Verify plan applies cleanly
+	index, err = planWaitFuture(future)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
