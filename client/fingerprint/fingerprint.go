@@ -18,6 +18,7 @@ var BuiltinFingerprints = []string{
 	"storage",
 	"network",
 	"env_aws",
+	"env_gce",
 }
 
 // builtinFingerprintMap contains the built in registered fingerprints
@@ -30,6 +31,7 @@ var builtinFingerprintMap = map[string]Factory{
 	"storage": NewStorageFingerprint,
 	"network": NewNetworkFingerprinter,
 	"env_aws": NewEnvAWSFingerprint,
+	"env_gce": NewEnvGCEFingerprint,
 }
 
 // NewFingerprint is used to instantiate and return a new fingerprint

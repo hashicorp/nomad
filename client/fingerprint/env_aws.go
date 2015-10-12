@@ -62,12 +62,12 @@ var ec2InstanceSpeedMap = map[string]int{
 	"d2.8xlarge":  10000,
 }
 
-// EnvAWSFingerprint is used to fingerprint the CPU
+// EnvAWSFingerprint is used to fingerprint AWS metadata
 type EnvAWSFingerprint struct {
 	logger *log.Logger
 }
 
-// NewEnvAWSFingerprint is used to create a CPU fingerprint
+// NewEnvAWSFingerprint is used to create a fingerprint from AWS metadata
 func NewEnvAWSFingerprint(logger *log.Logger) Fingerprint {
 	f := &EnvAWSFingerprint{logger: logger}
 	return f
