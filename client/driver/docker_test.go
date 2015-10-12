@@ -50,7 +50,7 @@ func TestDockerDriver_Fingerprint(t *testing.T) {
 	if apply != dockerLocated() {
 		t.Fatalf("Fingerprinter should detect Docker when it is installed")
 	}
-	if node.Attributes["driver.docker"] == "" {
+	if node.Attributes["driver.docker"] != "1" {
 		t.Log("Docker not found. The remainder of the docker tests will be skipped.")
 	}
 	t.Logf("Found docker version %s", node.Attributes["driver.docker.version"])

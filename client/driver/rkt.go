@@ -69,7 +69,7 @@ func (d *RktDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, e
 		return false, fmt.Errorf("Unable to parse Rkt version string: %#v", rktMatches)
 	}
 
-	node.Attributes["driver.rkt"] = "true"
+	node.Attributes["driver.rkt"] = "1"
 	node.Attributes["driver.rkt.version"] = rktMatches[0]
 	node.Attributes["driver.rkt.appc.version"] = appcMatches[1]
 

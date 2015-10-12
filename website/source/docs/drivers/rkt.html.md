@@ -34,7 +34,7 @@ over HTTP.
 
 The `Rkt` driver will set the following client attributes:
 
-* `driver.rkt` - Set to `true` if Rkt is found on the host node. Nomad determines
+* `driver.rkt` - Set to `1` if Rkt is found on the host node. Nomad determines
 this by executing `rkt version` on the host and parsing the output
 * `driver.rkt.version` - Version of `rkt` eg: `0.8.1`
 * `driver.rkt.appc.version` - Version of `appc` that `rkt` is using eg: `0.8.1`

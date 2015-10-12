@@ -41,7 +41,7 @@ func TestRktDriver_Fingerprint(t *testing.T) {
 	if !apply {
 		t.Fatalf("should apply")
 	}
-	if node.Attributes["driver.rkt"] == "" {
+	if node.Attributes["driver.rkt"] != "1" {
 		t.Fatalf("Missing Rkt driver")
 	}
 	if node.Attributes["driver.rkt.version"] == "" {

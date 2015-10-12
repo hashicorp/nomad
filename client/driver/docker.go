@@ -91,7 +91,7 @@ func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool
 		// is broken.
 		return false, err
 	}
-	node.Attributes["driver.docker"] = "true"
+	node.Attributes["driver.docker"] = "1"
 	node.Attributes["driver.docker.version"] = env.Get("Version")
 
 	return true, nil
