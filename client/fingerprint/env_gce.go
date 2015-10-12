@@ -166,14 +166,14 @@ func (f *EnvGCEFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 	var interfaces []GCEMetadataNetworkInterface
 	if err := json.Unmarshal([]byte(value), &interfaces); err != nil {
 		f.logger.Printf("[WARN] fingerprint.env_gce: Error decoding network interface information: %s", err.Error())
-	} else {
-		for _, intf := range interfaces {
-			prefix := "platform.gce.network." + lastToken(intf.Network)
-			node.Attributes[prefix] = "true"
-			node.Attributes[prefix+".ip"] = strings.Trim(intf.Ip, "\n")
-			for index, accessConfig := range intf.AccessConfigs {
-				node.Attributes[prefix+".external-ip."+strconv.Itoa(index)] = accessConfig.ExternalIp
-			}
+	}
+
+	for _, intf := range interfaces {
+		prefix := "platform.gce.network." + lastToken(intf.Network)
+		node.Attributes[prefix] = "true"
+		node.Attributes[prefix+".ip"] = strings.Trim(intf.Ip, "\n")
+		for index, accessConfig := range intf.AccessConfigs {
+			node.Attributes[prefix+".external-ip."+strconv.Itoa(index)] = accessConfig.ExternalIp
 		}
 	}
 
