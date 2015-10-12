@@ -43,14 +43,14 @@ func lastToken(s string) string {
 	return s[index+1:]
 }
 
-// EnvGCEFingerprint is used to fingerprint the CPU
+// EnvGCEFingerprint is used to fingerprint GCE metadata
 type EnvGCEFingerprint struct {
 	client      *http.Client
 	logger      *log.Logger
 	metadataURL string
 }
 
-// NewEnvGCEFingerprint is used to create a CPU fingerprint
+// NewEnvGCEFingerprint is used to create a fingerprint from GCE metadata
 func NewEnvGCEFingerprint(logger *log.Logger) Fingerprint {
 	// Read the internal metadata URL from the environment, allowing test files to
 	// provide their own
@@ -184,10 +184,9 @@ func (f *EnvGCEFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 	}
 	if err := json.Unmarshal([]byte(value), &tagList); err != nil {
 		f.logger.Printf("[WARN] fingerprint.env_gce: Error decoding instance tags: %s", err.Error())
-	} else {
-		for _, tag := range tagList {
-			node.Attributes["platform.gce.tag."+tag] = "true"
-		}
+	}
+	for _, tag := range tagList {
+		node.Attributes["platform.gce.tag."+tag] = "true"
 	}
 
 	var attrDict map[string]string
@@ -197,10 +196,9 @@ func (f *EnvGCEFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 	}
 	if err := json.Unmarshal([]byte(value), &attrDict); err != nil {
 		f.logger.Printf("[WARN] fingerprint.env_gce: Error decoding instance attributes: %s", err.Error())
-	} else {
-		for k, v := range attrDict {
-			node.Attributes["platform.gce.attr."+k] = strings.Trim(v, "\n")
-		}
+	}
+	for k, v := range attrDict {
+		node.Attributes["platform.gce.attr."+k] = strings.Trim(v, "\n")
 	}
 
 	// populate Links
