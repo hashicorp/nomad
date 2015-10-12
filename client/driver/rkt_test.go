@@ -18,13 +18,13 @@ import (
 func TestRktDriver_Handle(t *testing.T) {
 	h := &rktHandle{
 		proc:   &os.Process{Pid: 123},
-		name:   "foo",
+		image:  "foo",
 		doneCh: make(chan struct{}),
 		waitCh: make(chan error, 1),
 	}
 
 	actual := h.ID()
-	expected := `Rkt:{"Pid":123,"Name":"foo"}`
+	expected := `Rkt:{"Pid":123,"Image":"foo"}`
 	if actual != expected {
 		t.Errorf("Expected `%s`, found `%s`", expected, actual)
 	}
@@ -62,8 +62,8 @@ func TestRktDriver_Start(t *testing.T) {
 		Name: "etcd",
 		Config: map[string]string{
 			"trust_prefix": "coreos.com/etcd",
-			"name":         "coreos.com/etcd:v2.0.4",
-			"exec":         "/etcd",
+			"image":        "coreos.com/etcd:v2.0.4",
+			"command":      "/etcd",
 		},
 	}
 
@@ -101,9 +101,50 @@ func TestRktDriver_Start_Wait(t *testing.T) {
 		Name: "etcd",
 		Config: map[string]string{
 			"trust_prefix": "coreos.com/etcd",
-			"name":         "coreos.com/etcd:v2.0.4",
-			"exec":         "/etcd",
+			"image":        "coreos.com/etcd:v2.0.4",
+			"command":      "/etcd",
 			"args":         "--version",
+		},
+	}
+
+	driverCtx := testDriverContext(task.Name)
+	ctx := testDriverExecContext(task, driverCtx)
+	d := NewRktDriver(driverCtx)
+	defer ctx.AllocDir.Destroy()
+
+	handle, err := d.Start(ctx, task)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if handle == nil {
+		t.Fatalf("missing handle")
+	}
+	defer handle.Kill()
+
+	// Update should be a no-op
+	err = handle.Update(task)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	select {
+	case err := <-handle.WaitCh():
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatalf("timeout")
+	}
+}
+
+func TestRktDriver_Start_Wait_Skip_Trust(t *testing.T) {
+	ctestutils.RktCompatible(t)
+	task := &structs.Task{
+		Name: "etcd",
+		Config: map[string]string{
+			"image":   "coreos.com/etcd:v2.0.4",
+			"command": "/etcd",
+			"args":    "--version",
 		},
 	}
 
@@ -143,8 +184,8 @@ func TestRktDriver_Start_Wait_Logs(t *testing.T) {
 		Name: "etcd",
 		Config: map[string]string{
 			"trust_prefix": "coreos.com/etcd",
-			"name":         "coreos.com/etcd:v2.0.4",
-			"exec":         "/etcd",
+			"image":        "coreos.com/etcd:v2.0.4",
+			"command":      "/etcd",
 			"args":         "--version",
 		},
 	}

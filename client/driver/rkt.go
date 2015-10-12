@@ -35,7 +35,7 @@ type RktDriver struct {
 // rktHandle is returned from Start/Open as a handle to the PID
 type rktHandle struct {
 	proc   *os.Process
-	name   string
+	image  string
 	logger *log.Logger
 	waitCh chan error
 	doneCh chan struct{}
@@ -44,8 +44,8 @@ type rktHandle struct {
 // rktPID is a struct to map the pid running the process to the vm image on
 // disk
 type rktPID struct {
-	Pid  int
-	Name string
+	Pid   int
+	Image string
 }
 
 // NewRktDriver is used to create a new exec driver
@@ -82,14 +82,9 @@ func (d *RktDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, e
 // Run an existing Rkt image.
 func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
 	// Validate that the config is valid.
-	trust_prefix, ok := task.Config["trust_prefix"]
-	if !ok || trust_prefix == "" {
-		return nil, fmt.Errorf("Missing trust prefix for rkt")
-	}
-
-	name, ok := task.Config["name"]
-	if !ok || name == "" {
-		return nil, fmt.Errorf("Missing ACI name for rkt")
+	img, ok := task.Config["image"]
+	if !ok || img == "" {
+		return nil, fmt.Errorf("Missing ACI image for rkt")
 	}
 
 	// Get the tasks local directory.
@@ -101,15 +96,18 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	taskLocal := filepath.Join(taskDir, allocdir.TaskLocal)
 
 	// Add the given trust prefix
-	var outBuf, errBuf bytes.Buffer
-	cmd := exec.Command("rkt", "trust", fmt.Sprintf("--prefix=%s", trust_prefix))
-	cmd.Stdout = &outBuf
-	cmd.Stderr = &errBuf
-	if err := cmd.Run(); err != nil {
-		return nil, fmt.Errorf("Error running rkt: %s\n\nOutput: %s\n\nError: %s",
-			err, outBuf.String(), errBuf.String())
+	trust_prefix, trust_cmd := task.Config["trust_prefix"]
+	if trust_cmd {
+		var outBuf, errBuf bytes.Buffer
+		cmd := exec.Command("rkt", "trust", fmt.Sprintf("--prefix=%s", trust_prefix))
+		cmd.Stdout = &outBuf
+		cmd.Stderr = &errBuf
+		if err := cmd.Run(); err != nil {
+			return nil, fmt.Errorf("Error running rkt trust: %s\n\nOutput: %s\n\nError: %s",
+				err, outBuf.String(), errBuf.String())
+		}
+		d.logger.Printf("[DEBUG] driver.rkt: added trust prefix: %q", trust_prefix)
 	}
-	d.logger.Printf("[DEBUG] driver.rkt: added trust prefix: %q", trust_prefix)
 
 	// Build the command.
 	var cmd_args []string
@@ -120,11 +118,16 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		cmd_args = append(cmd_args, fmt.Sprintf("--set-env=%v=%v", k, v))
 	}
 
+	// Disble signature verification if the trust command was not run.
+	if !trust_cmd {
+		cmd_args = append(cmd_args, "--insecure-skip-verify")
+	}
+
 	// Append the run command.
-	cmd_args = append(cmd_args, "run", "--mds-register=false", name)
+	cmd_args = append(cmd_args, "run", "--mds-register=false", img)
 
 	// Check if the user has overriden the exec command.
-	if exec_cmd, ok := task.Config["exec"]; ok {
+	if exec_cmd, ok := task.Config["command"]; ok {
 		cmd_args = append(cmd_args, fmt.Sprintf("--exec=%v", exec_cmd))
 	}
 
@@ -159,19 +162,18 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		return nil, fmt.Errorf("Error opening file to redirect stderr: %v", err)
 	}
 
-	cmd = exec.Command("rkt", cmd_args...)
+	cmd := exec.Command("rkt", cmd_args...)
 	cmd.Stdout = stdo
 	cmd.Stderr = stde
 
 	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("Error running rkt: %s\n\nOutput: %s\n\nError: %s",
-			err, outBuf.String(), errBuf.String())
+		return nil, fmt.Errorf("Error running rkt: %v", err)
 	}
-	d.logger.Printf("[DEBUG] driver.rkt: started ACI %q with: %v", name, cmd.Args)
 
+	d.logger.Printf("[DEBUG] driver.rkt: started ACI %q with: %v", img, cmd.Args)
 	h := &rktHandle{
 		proc:   cmd.Process,
-		name:   name,
+		image:  img,
 		logger: d.logger,
 		doneCh: make(chan struct{}),
 		waitCh: make(chan error, 1),
@@ -197,7 +199,7 @@ func (d *RktDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error
 	// Return a driver handle
 	h := &rktHandle{
 		proc:   proc,
-		name:   qpid.Name,
+		image:  qpid.Image,
 		logger: d.logger,
 		doneCh: make(chan struct{}),
 		waitCh: make(chan error, 1),
@@ -210,8 +212,8 @@ func (d *RktDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error
 func (h *rktHandle) ID() string {
 	// Return a handle to the PID
 	pid := &rktPID{
-		Pid:  h.proc.Pid,
-		Name: h.name,
+		Pid:   h.proc.Pid,
+		Image: h.image,
 	}
 	data, err := json.Marshal(pid)
 	if err != nil {
