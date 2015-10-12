@@ -3,8 +3,10 @@ package scheduler
 import (
 	"fmt"
 	"reflect"
+	"regexp"
 	"strings"
 
+	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -248,12 +250,99 @@ func checkConstraint(operand string, lVal, rVal interface{}) bool {
 	case "!=", "not":
 		return !reflect.DeepEqual(lVal, rVal)
 	case "<", "<=", ">", ">=":
-		// TODO: Implement
-		return false
-	case "contains":
-		// TODO: Implement
-		return false
+		return checkLexicalOrder(operand, lVal, rVal)
+	case "version":
+		return checkVersionConstraint(lVal, rVal)
+	case "regexp":
+		return checkRegexpConstraint(lVal, rVal)
 	default:
 		return false
 	}
+}
+
+// checkLexicalOrder is used to check for lexical ordering
+func checkLexicalOrder(op string, lVal, rVal interface{}) bool {
+	// Ensure the values are strings
+	lStr, ok := lVal.(string)
+	if !ok {
+		return false
+	}
+	rStr, ok := rVal.(string)
+	if !ok {
+		return false
+	}
+
+	switch op {
+	case "<":
+		return lStr < rStr
+	case "<=":
+		return lStr <= rStr
+	case ">":
+		return lStr > rStr
+	case ">=":
+		return lStr >= rStr
+	default:
+		return false
+	}
+}
+
+// checkVersionConstraint is used to compare a version on the
+// left hand side with a set of constraints on the right hand side
+func checkVersionConstraint(lVal, rVal interface{}) bool {
+	// Parse the version
+	var versionStr string
+	switch v := lVal.(type) {
+	case string:
+		versionStr = v
+	case int:
+		versionStr = fmt.Sprintf("%d", v)
+	default:
+		return false
+	}
+
+	// Parse the verison
+	vers, err := version.NewVersion(versionStr)
+	if err != nil {
+		return false
+	}
+
+	// Constraint must be a string
+	constraintStr, ok := rVal.(string)
+	if !ok {
+		return false
+	}
+
+	// Parse the constraints
+	constraints, err := version.NewConstraint(constraintStr)
+	if err != nil {
+		return false
+	}
+
+	// Check the constraints against the version
+	return constraints.Check(vers)
+}
+
+// checkRegexpConstraint is used to compare a value on the
+// left hand side with a regexp on the right hand side
+func checkRegexpConstraint(lVal, rVal interface{}) bool {
+	// Ensure left-hand is string
+	lStr, ok := lVal.(string)
+	if !ok {
+		return false
+	}
+
+	// Regexp must be a string
+	regexpStr, ok := rVal.(string)
+	if !ok {
+		return false
+	}
+
+	// Parse the regexp
+	re, err := regexp.Compile(regexpStr)
+	if err != nil {
+		return false
+	}
+
+	// Look for a match
+	return re.MatchString(lStr)
 }

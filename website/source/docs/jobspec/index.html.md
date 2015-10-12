@@ -217,10 +217,22 @@ The `constraint` object supports the following keys:
   to true. Soft constraints are not currently supported.
 
 * `operator` - Specifies the comparison operator. Defaults to equality,
-  and can be `=`, `==`, `is`, `!=`, `not`.
+  and can be `=`, `==`, `is`, `!=`, `not`, `>`, `>=`, `<`, `<=`. The
+  ordering is compared lexically.
 
 * `value` - Specifies the value to compare the attribute against.
   This can be a literal value or another attribute.
+
+* `version` - Specifies a version constraint against the attribute.
+  This sets the operator to "version" and the `value` to what is
+  specified. This supports a comma seperated list of constraints,
+  including the pessimistic operator. See the
+  [go-version](https://github.com/hashicorp/go-version) repository
+  for examples.
+
+* `regexp` - Specifies a regular expression constraint against
+  the attribute. This sets the operator to "regexp" and the `value`
+  to the regular expression.
 
 Below is a table documenting the variables that can be interpreted:
 

@@ -244,10 +244,133 @@ func TestCheckConstraint(t *testing.T) {
 			lVal: "foo", rVal: "bar",
 			result: true,
 		},
+		{
+			op:   "version",
+			lVal: "1.2.3", rVal: "~> 1.0",
+			result: true,
+		},
+		{
+			op:   "regexp",
+			lVal: "foobarbaz", rVal: "[\\w]+",
+			result: true,
+		},
+		{
+			op:   "<",
+			lVal: "foo", rVal: "bar",
+			result: false,
+		},
 	}
 
 	for _, tc := range cases {
 		if res := checkConstraint(tc.op, tc.lVal, tc.rVal); res != tc.result {
+			t.Fatalf("TC: %#v, Result: %v", tc, res)
+		}
+	}
+}
+
+func TestCheckLexicalOrder(t *testing.T) {
+	type tcase struct {
+		op         string
+		lVal, rVal interface{}
+		result     bool
+	}
+	cases := []tcase{
+		{
+			op:   "<",
+			lVal: "bar", rVal: "foo",
+			result: true,
+		},
+		{
+			op:   "<=",
+			lVal: "foo", rVal: "foo",
+			result: true,
+		},
+		{
+			op:   ">",
+			lVal: "bar", rVal: "foo",
+			result: false,
+		},
+		{
+			op:   ">=",
+			lVal: "bar", rVal: "bar",
+			result: true,
+		},
+		{
+			op:   ">",
+			lVal: 1, rVal: "foo",
+			result: false,
+		},
+	}
+	for _, tc := range cases {
+		if res := checkLexicalOrder(tc.op, tc.lVal, tc.rVal); res != tc.result {
+			t.Fatalf("TC: %#v, Result: %v", tc, res)
+		}
+	}
+}
+
+func TestCheckVersionConstraint(t *testing.T) {
+	type tcase struct {
+		lVal, rVal interface{}
+		result     bool
+	}
+	cases := []tcase{
+		{
+			lVal: "1.2.3", rVal: "~> 1.0",
+			result: true,
+		},
+		{
+			lVal: "1.2.3", rVal: ">= 1.0, < 1.4",
+			result: true,
+		},
+		{
+			lVal: "2.0.1", rVal: "~> 1.0",
+			result: false,
+		},
+		{
+			lVal: "1.4", rVal: ">= 1.0, < 1.4",
+			result: false,
+		},
+		{
+			lVal: 1, rVal: "~> 1.0",
+			result: true,
+		},
+	}
+	for _, tc := range cases {
+		if res := checkVersionConstraint(tc.lVal, tc.rVal); res != tc.result {
+			t.Fatalf("TC: %#v, Result: %v", tc, res)
+		}
+	}
+}
+
+func TestCheckRegexpConstraint(t *testing.T) {
+	type tcase struct {
+		lVal, rVal interface{}
+		result     bool
+	}
+	cases := []tcase{
+		{
+			lVal: "foobar", rVal: "bar",
+			result: true,
+		},
+		{
+			lVal: "foobar", rVal: "^foo",
+			result: true,
+		},
+		{
+			lVal: "foobar", rVal: "^bar",
+			result: false,
+		},
+		{
+			lVal: "zipzap", rVal: "foo",
+			result: false,
+		},
+		{
+			lVal: 1, rVal: "foo",
+			result: false,
+		},
+	}
+	for _, tc := range cases {
+		if res := checkRegexpConstraint(tc.lVal, tc.rVal); res != tc.result {
 			t.Fatalf("TC: %#v, Result: %v", tc, res)
 		}
 	}
