@@ -18,10 +18,13 @@ containers.
 
 The `Rkt` driver supports the following configuration in the job spec:
 
-* `trust_prefix` - **(Required)** The trust prefix to be passed to rkt. Must be reachable from
-the box running the nomad agent.
-* `name` - **(Required)** Fully qualified name of an image to run using rkt
-* `exec` - **(Optional**) A command to execute on the ACI
+* `trust_prefix` - **(Optional)** The trust prefix to be passed to rkt. Must be reachable from
+the box running the nomad agent. If not specified, the image is run without
+verifying the image signature.
+* `image` - **(Required)** The image to run which may be specified by name,
+hash, ACI address or docker registry.
+* `command` - **(Optional**) A command to execute on the ACI.
+* `args` - **(Optional**) A string of args to pass into the image.
 
 ## Client Requirements
 
