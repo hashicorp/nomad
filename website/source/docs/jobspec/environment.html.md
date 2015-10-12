@@ -28,7 +28,7 @@ the memory limit to inform how large your in-process cache should be, or to
 decide when to flush buffers to disk.
 
 Both CPU and memory are presented as integers. The unit for CPU limit is
-`1024 = 1Ghz`. The unit for memory `1 = 1 megabytes`.
+`1024 = 1Ghz`. The unit for memory is `1 = 1 megabytes`.
 
 Writing your applications to adjust to these values at runtime provides greater
 scheduling flexibility since you can adjust the resource allocations in your
