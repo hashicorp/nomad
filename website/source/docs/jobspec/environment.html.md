@@ -17,7 +17,7 @@ environment variables.
 
 When you request resources for a job, Nomad creates a resource offer. The final
 resources for your job are not determined until it is scheduled. Nomad will
-tell you which resources have been allocated after evaulation and placement.
+tell you which resources have been allocated after evaluation and placement.
 
 ### CPU and Memory
 
