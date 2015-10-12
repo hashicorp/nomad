@@ -1,0 +1,21 @@
+sudo: false
+
+language: go
+
+go:
+  - 1.5.1
+  - tip
+
+matrix:
+  allow_failures:
+    - go: tip
+
+branches:
+  only:
+    - master
+
+install:
+  - make bootstrap
+
+script:
+  - make test
