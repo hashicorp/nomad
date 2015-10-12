@@ -31,7 +31,7 @@ func testAllocRunner() (*MockAllocStateUpdater, *AllocRunner) {
 	conf.AllocDir = os.TempDir()
 	upd := &MockAllocStateUpdater{}
 	alloc := mock.Alloc()
-	ar := NewAllocRunner(logger, conf, upd.Update, alloc)
+	ar := NewAllocRunner(logger, conf, upd.Update, nil, alloc)
 	return upd, ar
 }
 

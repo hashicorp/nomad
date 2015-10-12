@@ -13,6 +13,7 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/discovery"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/nomad"
@@ -86,6 +87,9 @@ type Client struct {
 	allocs    map[string]*AllocRunner
 	allocLock sync.RWMutex
 
+	// discovery is the set of enabled discovery subsystems
+	discovery *discovery.DiscoveryLayer
+
 	shutdown     bool
 	shutdownCh   chan struct{}
 	shutdownLock sync.Mutex
@@ -111,14 +115,19 @@ func NewClient(cfg *config.Config) (*Client, error) {
 		return nil, fmt.Errorf("failed intializing client: %v", err)
 	}
 
-	// Restore the state
-	if err := c.restoreState(); err != nil {
-		return nil, fmt.Errorf("failed to restore state: %v", err)
-	}
-
 	// Setup the node
 	if err := c.setupNode(); err != nil {
 		return nil, fmt.Errorf("node setup failed: %v", err)
+	}
+
+	// Set up service discovery
+	if err := c.setupDiscovery(); err != nil {
+		return nil, fmt.Errorf("discovery setup failed: %v", err)
+	}
+
+	// Restore the state
+	if err := c.restoreState(); err != nil {
+		return nil, fmt.Errorf("failed to restore state: %v", err)
 	}
 
 	// Fingerprint the node
@@ -328,7 +337,7 @@ func (c *Client) restoreState() error {
 	for _, entry := range list {
 		id := entry.Name()
 		alloc := &structs.Allocation{ID: id}
-		ar := NewAllocRunner(c.logger, c.config, c.updateAllocStatus, alloc)
+		ar := NewAllocRunner(c.logger, c.config, c.updateAllocStatus, c.discovery, alloc)
 		c.allocs[id] = ar
 		if err := ar.RestoreState(); err != nil {
 			c.logger.Printf("[ERR] client: failed to restore state for alloc %s: %v",
@@ -466,6 +475,21 @@ func (c *Client) setupDrivers() error {
 		}
 	}
 	c.logger.Printf("[DEBUG] client: available drivers %v", avail)
+	return nil
+}
+
+// setupDiscovery sets up the discovery layers and initializes them.
+func (c *Client) setupDiscovery() error {
+	// Create the discovery layer
+	disc, err := discovery.NewDiscoveryLayer(discovery.Builtins, c.config,
+		c.logger, c.config.Node)
+	if err != nil {
+		return err
+	}
+	c.discovery = disc
+
+	avail := disc.EnabledProviders()
+	c.logger.Printf("[DEBUG] client: available discovery layers: %v", avail)
 	return nil
 }
 
@@ -721,7 +745,7 @@ func (c *Client) updateAlloc(exist, update *structs.Allocation) error {
 func (c *Client) addAlloc(alloc *structs.Allocation) error {
 	c.allocLock.Lock()
 	defer c.allocLock.Unlock()
-	ar := NewAllocRunner(c.logger, c.config, c.updateAllocStatus, alloc)
+	ar := NewAllocRunner(c.logger, c.config, c.updateAllocStatus, c.discovery, alloc)
 	c.allocs[alloc.ID] = ar
 	go ar.Run()
 	return nil

@@ -10,17 +10,22 @@ import (
 	"sync"
 
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/discovery"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 // TaskRunner is used to wrap a task within an allocation and provide the execution context.
 type TaskRunner struct {
-	config  *config.Config
-	updater TaskStateUpdater
-	logger  *log.Logger
-	ctx     *driver.ExecContext
-	allocID string
+	config    *config.Config
+	updater   TaskStateUpdater
+	logger    *log.Logger
+	ctx       *driver.ExecContext
+	allocID   string
+	jobID     string
+	taskGroup string
+
+	discovery *discovery.DiscoveryLayer
 
 	task     *structs.Task
 	updateCh chan *structs.Task
@@ -44,13 +49,18 @@ type TaskStateUpdater func(taskName, status, desc string)
 // NewTaskRunner is used to create a new task context
 func NewTaskRunner(logger *log.Logger, config *config.Config,
 	updater TaskStateUpdater, ctx *driver.ExecContext,
-	allocID string, task *structs.Task) *TaskRunner {
+	allocID, jobID, taskGroup string, task *structs.Task,
+	disc *discovery.DiscoveryLayer) *TaskRunner {
+
 	tc := &TaskRunner{
 		config:    config,
 		updater:   updater,
 		logger:    logger,
 		ctx:       ctx,
 		allocID:   allocID,
+		jobID:     jobID,
+		taskGroup: taskGroup,
+		discovery: disc,
 		task:      task,
 		updateCh:  make(chan *structs.Task, 8),
 		destroyCh: make(chan struct{}),
@@ -173,6 +183,9 @@ func (r *TaskRunner) Run() {
 		if err := r.startTask(); err != nil {
 			return
 		}
+
+		// Register with service discovery
+		r.handleDiscovery(false)
 	}
 
 OUTER:
@@ -191,6 +204,10 @@ OUTER:
 				r.setStatus(structs.AllocClientStatusDead,
 					"task completed")
 			}
+
+			// Deregister from discovery on task completion
+			r.handleDiscovery(true)
+
 			break OUTER
 
 		case update := <-r.updateCh:
@@ -234,4 +251,45 @@ func (r *TaskRunner) Destroy() {
 	}
 	r.destroy = true
 	close(r.destroyCh)
+}
+
+// handleDiscovery takes care of registering a task and its dynamic ports,
+// if any, into service discovery backends. It can also be used to do the
+// inverse and perform deregistration.
+func (r *TaskRunner) handleDiscovery(deregister bool) {
+	// Skip if discovery is not set up. Mainly used to skip for tests.
+	if r.discovery == nil {
+		return
+	}
+
+	// Check if we have a specific discovery name, or apply a default.
+	var parts []string
+	if r.task.Discover != "" {
+		parts = []string{r.task.Discover}
+	} else {
+		parts = []string{r.jobID, r.taskGroup, r.task.Name}
+	}
+
+	// Handle registration of the main task. This can be used
+	// to locate apps with static port bindings.
+	if deregister {
+		r.discovery.Deregister(r.allocID, parts)
+	} else {
+		r.discovery.Register(r.allocID, parts, 0)
+	}
+
+	// Register the dynamic ports. These are named ports which
+	// are exposed as individual service entries.
+	if networks := r.task.Resources.Networks; networks != nil {
+		for _, net := range networks {
+			for dynName, port := range net.MapDynamicPorts() {
+				dynParts := append(parts, dynName)
+				if deregister {
+					r.discovery.Deregister(r.allocID, dynParts)
+				} else {
+					r.discovery.Register(r.allocID, dynParts, port)
+				}
+			}
+		}
+	}
 }

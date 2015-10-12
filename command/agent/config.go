@@ -158,7 +158,7 @@ type ServerConfig struct {
 	// Enabled controls if we are a server
 	Enabled bool `hcl:"enabled"`
 
-	// BootstrapExpect tries to automatically bootstrap the Consul cluster,
+	// BootstrapExpect tries to automatically bootstrap the Nomad cluster,
 	// by witholding peers until enough servers join.
 	BootstrapExpect int `hcl:"bootstrap_expect"`
 

@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/discovery"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -36,6 +37,8 @@ type AllocRunner struct {
 	config  *config.Config
 	updater AllocStateUpdater
 	logger  *log.Logger
+
+	discovery *discovery.DiscoveryLayer
 
 	alloc *structs.Allocation
 
@@ -64,11 +67,14 @@ type allocRunnerState struct {
 }
 
 // NewAllocRunner is used to create a new allocation context
-func NewAllocRunner(logger *log.Logger, config *config.Config, updater AllocStateUpdater, alloc *structs.Allocation) *AllocRunner {
+func NewAllocRunner(
+	logger *log.Logger, config *config.Config, updater AllocStateUpdater,
+	disc *discovery.DiscoveryLayer, alloc *structs.Allocation) *AllocRunner {
 	ar := &AllocRunner{
 		config:     config,
 		updater:    updater,
 		logger:     logger,
+		discovery:  disc,
 		alloc:      alloc,
 		dirtyCh:    make(chan struct{}, 1),
 		tasks:      make(map[string]*TaskRunner),
@@ -102,7 +108,9 @@ func (r *AllocRunner) RestoreState() error {
 	var mErr multierror.Error
 	for name := range r.taskStatus {
 		task := &structs.Task{Name: name}
-		tr := NewTaskRunner(r.logger, r.config, r.setTaskStatus, r.ctx, r.alloc.ID, task)
+		tr := NewTaskRunner(
+			r.logger, r.config, r.setTaskStatus, r.ctx, r.alloc.ID,
+			r.alloc.JobID, r.alloc.TaskGroup, task, r.discovery)
 		r.tasks[name] = tr
 		if err := tr.RestoreState(); err != nil {
 			r.logger.Printf("[ERR] client: failed to restore state for alloc %s task '%s': %v", r.alloc.ID, name, err)
@@ -297,7 +305,9 @@ func (r *AllocRunner) Run() {
 		// Merge in the task resources
 		task.Resources = alloc.TaskResources[task.Name]
 
-		tr := NewTaskRunner(r.logger, r.config, r.setTaskStatus, r.ctx, r.alloc.ID, task)
+		tr := NewTaskRunner(
+			r.logger, r.config, r.setTaskStatus, r.ctx, r.alloc.ID,
+			r.alloc.JobID, r.alloc.TaskGroup, task, r.discovery)
 		r.tasks[task.Name] = tr
 		go tr.Run()
 	}

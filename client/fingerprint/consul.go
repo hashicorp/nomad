@@ -29,16 +29,20 @@ func (f *ConsulFingerprint) Fingerprint(config *client.Config, node *structs.Nod
 		node.Links = map[string]string{}
 	}
 
-	address := config.ReadDefault("consul.address", "127.0.0.1:8500")
-	timeout, err := time.ParseDuration(config.ReadDefault("consul.timeout", "10ms"))
-	if err != nil {
-		return false, fmt.Errorf("Unable to parse consul.timeout: %s", err)
+	// Get the Consul config
+	consulConfig := consul.DefaultConfig()
+	if address := config.Read("consul.address"); address != "" {
+		consulConfig.Address = address
+	}
+	if timeoutRaw := config.Read("consul.timeout"); timeoutRaw != "" {
+		var err error
+		consulConfig.HttpClient.Timeout, err = time.ParseDuration(timeoutRaw)
+		if err != nil {
+			return false, fmt.Errorf("Unable to parse consul.timeout: %s", err)
+		}
 	}
 
-	consulConfig := consul.DefaultConfig()
-	consulConfig.Address = address
-	consulConfig.HttpClient.Timeout = timeout
-
+	// Make the client
 	consulClient, err := consul.NewClient(consulConfig)
 	if err != nil {
 		return false, fmt.Errorf("Failed to initialize consul client: %s", err)

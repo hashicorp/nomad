@@ -164,6 +164,12 @@ The `task` object supports the following keys:
   task. See the [driver documentation](/docs/drivers/index.html) for what
   is available. Examples include "docker", "qemu", "java", and "exec".
 
+* `discover` - An alternative name to use for
+  [service discovery](/docs/discovery/index.html). This name takes the place
+  of the default prefix, which is composed of the job ID, task group, and task
+  name. This is useful if the default discovery name is undesirable. This name
+  should be unique, although this is not enforced.
+
 * `constraint` - This can be provided multiple times to define additional
   constraints. See the constraint reference for more details.
 
