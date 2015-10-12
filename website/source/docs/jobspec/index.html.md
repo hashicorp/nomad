@@ -9,8 +9,7 @@ description: |-
 # Job Specification
 
 Jobs can be specified either in [HCL](https://github.com/hashicorp/hcl) or JSON.
-HCL is meant to strike a balance between human readable and editable, as well
-as being machine-friendly.
+HCL is meant to strike a balance between human readable and editable, and machine-friendly.
 
 For machine-friendliness, Nomad can also read JSON configurations. In general, we recommend
 using the HCL syntax.
