@@ -17,7 +17,7 @@ import (
 // Naively, we could simply dequeue a plan, verify, apply and then respond.
 // However, the plan application is bounded by the Raft apply time and
 // subject to some latency. This creates a stall condition, where we are
-// not evaluating, but simply waiting for a transaction to complete.
+// not evaluating, but simply waiting for a transaction to apply.
 //
 // To avoid this, we overlap verification with apply. This means once
 // we've verified plan N we attempt to apply it. However, while waiting
@@ -37,9 +37,8 @@ import (
 // but there are many of those and only a single plan verifier.
 //
 func (s *Server) planApply() {
-	// waitCh is used to track an outstanding application
-	// while snap holds an optimistic state which includes
-	// that plan application.
+	// waitCh is used to track an outstanding application while snap
+	// holds an optimistic state which includes that plan application.
 	var waitCh chan struct{}
 	var snap *state.StateSnapshot
 
@@ -98,9 +97,8 @@ func (s *Server) planApply() {
 			continue
 		}
 
-		// Ensure any parallel apply is complete before
-		// starting the next one. This also limits how out
-		// of date our snapshot can be.
+		// Ensure any parallel apply is complete before starting the next one.
+		// This also limits how out of date our snapshot can be.
 		if waitCh != nil {
 			<-waitCh
 			snap, err = s.fsm.State().Snapshot()
