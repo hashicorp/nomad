@@ -75,8 +75,8 @@ and density of applications, but is also augmented by affinity and anti-affinity
 Once the scheduler has ranked enough nodes, the highest ranking node is selected and
 added to the allocation plan.
 
-When planning is complete, the scheduler submits the plan to the leader and
-gets added to the plan queue. The plan queue manages pending plans, provides priority
+When planning is complete, the scheduler submits the plan to the leader which adds
+the plan to the plan queue. The plan queue manages pending plans, provides priority
 ordering, and allows Nomad to handle concurrency races. Multiple schedulers are running
 in parallel without locking or reservations, making Nomad optimistically concurrent.
 As a result, schedulers might overlap work on the same node and cause resource
