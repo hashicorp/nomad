@@ -125,7 +125,7 @@ production Nomad will always read `docker.endpoint`.
 
 The `docker` driver will set the following client attributes:
 
-* `driver.docker` - This will be set to "true", indicating the
+* `driver.docker` - This will be set to "1", indicating the
   driver is available.
 * `driver.docker.version` - This will be set to version of the
   docker server
