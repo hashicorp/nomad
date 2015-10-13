@@ -48,7 +48,7 @@ The `Qemu` driver will set the following client attributes:
 
 * `driver.qemu` - Set to `1` if Qemu is found on the host node. Nomad determines
 this by executing `qemu-system-x86_64 -version` on the host and parsing the output
-* `driver.qemu.version` - Version of `qemu-system-x86_64, ex: `2.4.0`
+* `driver.qemu.version` - Version of `qemu-system-x86_64`, ex: `2.4.0`
 
 ## Resource Isolation
 
