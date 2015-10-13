@@ -206,7 +206,7 @@ func (iter *ConstraintIterator) meetsConstraint(constraint *structs.Constraint, 
 	}
 
 	// Check if satisfied
-	return checkConstraint(constraint.Operand, lVal, rVal)
+	return checkConstraint(iter.ctx, constraint.Operand, lVal, rVal)
 }
 
 // resolveConstraintTarget is used to resolve the LTarget and RTarget of a Constraint
@@ -243,7 +243,7 @@ func resolveConstraintTarget(target string, node *structs.Node) (interface{}, bo
 }
 
 // checkConstraint checks if a constraint is satisfied
-func checkConstraint(operand string, lVal, rVal interface{}) bool {
+func checkConstraint(ctx Context, operand string, lVal, rVal interface{}) bool {
 	switch operand {
 	case "=", "==", "is":
 		return reflect.DeepEqual(lVal, rVal)
@@ -252,9 +252,9 @@ func checkConstraint(operand string, lVal, rVal interface{}) bool {
 	case "<", "<=", ">", ">=":
 		return checkLexicalOrder(operand, lVal, rVal)
 	case "version":
-		return checkVersionConstraint(lVal, rVal)
+		return checkVersionConstraint(ctx, lVal, rVal)
 	case "regexp":
-		return checkRegexpConstraint(lVal, rVal)
+		return checkRegexpConstraint(ctx, lVal, rVal)
 	default:
 		return false
 	}
@@ -288,7 +288,7 @@ func checkLexicalOrder(op string, lVal, rVal interface{}) bool {
 
 // checkVersionConstraint is used to compare a version on the
 // left hand side with a set of constraints on the right hand side
-func checkVersionConstraint(lVal, rVal interface{}) bool {
+func checkVersionConstraint(ctx Context, lVal, rVal interface{}) bool {
 	// Parse the version
 	var versionStr string
 	switch v := lVal.(type) {
@@ -312,10 +312,17 @@ func checkVersionConstraint(lVal, rVal interface{}) bool {
 		return false
 	}
 
+	// Check the cache for a match
+	cache := ctx.ConstraintCache()
+	constraints := cache[constraintStr]
+
 	// Parse the constraints
-	constraints, err := version.NewConstraint(constraintStr)
-	if err != nil {
-		return false
+	if constraints == nil {
+		constraints, err = version.NewConstraint(constraintStr)
+		if err != nil {
+			return false
+		}
+		cache[constraintStr] = constraints
 	}
 
 	// Check the constraints against the version
@@ -324,7 +331,7 @@ func checkVersionConstraint(lVal, rVal interface{}) bool {
 
 // checkRegexpConstraint is used to compare a value on the
 // left hand side with a regexp on the right hand side
-func checkRegexpConstraint(lVal, rVal interface{}) bool {
+func checkRegexpConstraint(ctx Context, lVal, rVal interface{}) bool {
 	// Ensure left-hand is string
 	lStr, ok := lVal.(string)
 	if !ok {
@@ -337,10 +344,18 @@ func checkRegexpConstraint(lVal, rVal interface{}) bool {
 		return false
 	}
 
+	// Check the cache
+	cache := ctx.RegexpCache()
+	re := cache[regexpStr]
+
 	// Parse the regexp
-	re, err := regexp.Compile(regexpStr)
-	if err != nil {
-		return false
+	if re == nil {
+		var err error
+		re, err = regexp.Compile(regexpStr)
+		if err != nil {
+			return false
+		}
+		cache[regexpStr] = re
 	}
 
 	// Look for a match

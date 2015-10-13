@@ -2,7 +2,9 @@ package scheduler
 
 import (
 	"log"
+	"regexp"
 
+	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -27,10 +29,36 @@ type Context interface {
 	// which is the existing allocations, removing evictions, and
 	// adding any planned placements.
 	ProposedAllocs(nodeID string) ([]*structs.Allocation, error)
+
+	// RegexpCache is a cache of regular expressions
+	RegexpCache() map[string]*regexp.Regexp
+
+	// ConstraintCache is a cache of version constraints
+	ConstraintCache() map[string]version.Constraints
+}
+
+// EvalCache is used to cache certain things during an evaluation
+type EvalCache struct {
+	reCache         map[string]*regexp.Regexp
+	constraintCache map[string]version.Constraints
+}
+
+func (e *EvalCache) RegexpCache() map[string]*regexp.Regexp {
+	if e.reCache == nil {
+		e.reCache = make(map[string]*regexp.Regexp)
+	}
+	return e.reCache
+}
+func (e *EvalCache) ConstraintCache() map[string]version.Constraints {
+	if e.constraintCache == nil {
+		e.constraintCache = make(map[string]version.Constraints)
+	}
+	return e.constraintCache
 }
 
 // EvalContext is a Context used during an Evaluation
 type EvalContext struct {
+	EvalCache
 	state   State
 	plan    *structs.Plan
 	logger  *log.Logger

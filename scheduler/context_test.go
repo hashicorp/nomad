@@ -9,7 +9,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-func testContext(t *testing.T) (*state.StateStore, *EvalContext) {
+func testContext(t testing.TB) (*state.StateStore, *EvalContext) {
 	state, err := state.NewStateStore(os.Stderr)
 	if err != nil {
 		t.Fatalf("err: %v", err)

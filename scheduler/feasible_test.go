@@ -262,7 +262,8 @@ func TestCheckConstraint(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		if res := checkConstraint(tc.op, tc.lVal, tc.rVal); res != tc.result {
+		_, ctx := testContext(t)
+		if res := checkConstraint(ctx, tc.op, tc.lVal, tc.rVal); res != tc.result {
 			t.Fatalf("TC: %#v, Result: %v", tc, res)
 		}
 	}
@@ -336,7 +337,8 @@ func TestCheckVersionConstraint(t *testing.T) {
 		},
 	}
 	for _, tc := range cases {
-		if res := checkVersionConstraint(tc.lVal, tc.rVal); res != tc.result {
+		_, ctx := testContext(t)
+		if res := checkVersionConstraint(ctx, tc.lVal, tc.rVal); res != tc.result {
 			t.Fatalf("TC: %#v, Result: %v", tc, res)
 		}
 	}
@@ -370,7 +372,8 @@ func TestCheckRegexpConstraint(t *testing.T) {
 		},
 	}
 	for _, tc := range cases {
-		if res := checkRegexpConstraint(tc.lVal, tc.rVal); res != tc.result {
+		_, ctx := testContext(t)
+		if res := checkRegexpConstraint(ctx, tc.lVal, tc.rVal); res != tc.result {
 			t.Fatalf("TC: %#v, Result: %v", tc, res)
 		}
 	}
