@@ -26,7 +26,8 @@ The `docker` driver supports the following configuration in the job specificatio
 * `network_mode` - (Optional) The network mode to be used for the container.
    Valid options are `default`, `bridge`, `host` or `none`. If nothing is
    specified, the container will start in `bridge` mode. The `container`
-   network mode is not supported right now, this case also defaults to `bridge`.
+   network mode is not supported right now and is reported as an invalid
+   option.
 
 ### Port Mapping
 
