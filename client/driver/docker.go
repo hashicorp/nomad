@@ -135,9 +135,11 @@ func createHostConfig(task *structs.Task) *docker.HostConfig {
 }
 
 // createContainer initializes a struct needed to call docker.client.CreateContainer()
-func createContainer(ctx *ExecContext, task *structs.Task, logger *log.Logger) docker.CreateContainerOptions {
+func createContainer(ctx *ExecContext, task *structs.Task, logger *log.Logger) (docker.CreateContainerOptions, error) {
+        var c docker.CreateContainerOptions
 	if task.Resources == nil {
-		panic("task.Resources is nil and we can't constrain resource usage. We shouldn't have been able to schedule this in the first place.")
+                logger.Printf("[ERR] driver.docker: task.Resources is empty")
+                return c, fmt.Errorf("task.Resources is nil and we can't constrain resource usage. We shouldn't have been able to schedule this in the first place.")
 	}
 
 	hostConfig := createHostConfig(task)
@@ -156,8 +158,8 @@ func createContainer(ctx *ExecContext, task *structs.Task, logger *log.Logger) d
 	case "default", "bridge", "none", "host":
 		logger.Printf("[DEBUG] driver.docker: using %s as network mode", mode)
 	default:
-		logger.Printf("[WARN] invalid setting for network mode %s, defaulting to bridge mode on docker0", mode)
-		mode = "bridge"
+		logger.Printf("[ERR] driver.docker: invalid setting for network mode: %s", mode)
+		return c, fmt.Errorf("Invalid setting for network mode: %s", mode)
 	}
 	hostConfig.NetworkMode = mode
 
@@ -209,7 +211,7 @@ func createContainer(ctx *ExecContext, task *structs.Task, logger *log.Logger) d
 	return docker.CreateContainerOptions{
 		Config:     config,
 		HostConfig: hostConfig,
-	}
+	}, nil
 }
 
 func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
@@ -283,8 +285,13 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	d.logger.Printf("[DEBUG] driver.docker: using image %s", dockerImage.ID)
 	d.logger.Printf("[INFO] driver.docker: identified image %s as %s", image, dockerImage.ID)
 
+        config, err := createContainer(ctx, task, d.logger)
+        if err != nil {
+                d.logger.Printf("[ERR] driver.docker: %s", err)
+                return nil, fmt.Errorf("Failed to create container config for image %s", image)
+        }
 	// Create a container
-	container, err := client.CreateContainer(createContainer(ctx, task, d.logger))
+	container, err := client.CreateContainer(config)
 	if err != nil {
 		d.logger.Printf("[ERR] driver.docker: %s", err)
 		return nil, fmt.Errorf("Failed to create container from image %s", image)
