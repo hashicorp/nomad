@@ -136,10 +136,10 @@ func createHostConfig(task *structs.Task) *docker.HostConfig {
 
 // createContainer initializes a struct needed to call docker.client.CreateContainer()
 func createContainer(ctx *ExecContext, task *structs.Task, logger *log.Logger) (docker.CreateContainerOptions, error) {
-        var c docker.CreateContainerOptions
+	var c docker.CreateContainerOptions
 	if task.Resources == nil {
-                logger.Printf("[ERR] driver.docker: task.Resources is empty")
-                return c, fmt.Errorf("task.Resources is nil and we can't constrain resource usage. We shouldn't have been able to schedule this in the first place.")
+		logger.Printf("[ERR] driver.docker: task.Resources is empty")
+		return c, fmt.Errorf("task.Resources is nil and we can't constrain resource usage. We shouldn't have been able to schedule this in the first place.")
 	}
 
 	hostConfig := createHostConfig(task)
@@ -285,11 +285,11 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	d.logger.Printf("[DEBUG] driver.docker: using image %s", dockerImage.ID)
 	d.logger.Printf("[INFO] driver.docker: identified image %s as %s", image, dockerImage.ID)
 
-        config, err := createContainer(ctx, task, d.logger)
-        if err != nil {
-                d.logger.Printf("[ERR] driver.docker: %s", err)
-                return nil, fmt.Errorf("Failed to create container config for image %s", image)
-        }
+	config, err := createContainer(ctx, task, d.logger)
+	if err != nil {
+		d.logger.Printf("[ERR] driver.docker: %s", err)
+		return nil, fmt.Errorf("Failed to create container config for image %s", image)
+	}
 	// Create a container
 	container, err := client.CreateContainer(config)
 	if err != nil {
