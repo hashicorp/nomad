@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/hashicorp/go-version"
@@ -129,8 +130,20 @@ func (iter *DriverIterator) Reset() {
 func (iter *DriverIterator) hasDrivers(option *structs.Node) bool {
 	for driver := range iter.drivers {
 		driverStr := fmt.Sprintf("driver.%s", driver)
-		_, ok := option.Attributes[driverStr]
+		value, ok := option.Attributes[driverStr]
 		if !ok {
+			return false
+		}
+
+		enabled, err := strconv.ParseBool(value)
+		if err != nil {
+			iter.ctx.Logger().
+				Printf("[WARN] scheduler.DriverIterator: node %v has invalid driver setting %v: %v",
+				option.ID, driverStr, value)
+			return false
+		}
+
+		if !enabled {
 			return false
 		}
 	}

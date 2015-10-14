@@ -4,8 +4,14 @@ import (
 	"fmt"
 	"math/rand"
 	"reflect"
+	"regexp"
 
 	"github.com/hashicorp/nomad/nomad/structs"
+)
+
+var (
+	// Regex to capture the identifier of a task group name.
+	taskGroupID = regexp.MustCompile(`.+\..+\[(.*)\]`)
 )
 
 // allocTuple is a tuple of the allocation name and potential alloc ID
@@ -26,6 +32,32 @@ func materializeTaskGroups(job *structs.Job) map[string]*structs.TaskGroup {
 		}
 	}
 	return out
+}
+
+// materializeSystemTaskGroups is used to materialize all the task groups
+// a system job requires. This is used to do the node expansion.
+func materializeSystemTaskGroups(job *structs.Job, nodes []*structs.Node) map[string]*structs.TaskGroup {
+	out := make(map[string]*structs.TaskGroup)
+	for _, tg := range job.TaskGroups {
+		for _, node := range nodes {
+			name := fmt.Sprintf("%s.%s[%s]", job.Name, tg.Name, node.ID)
+			out[name] = tg
+		}
+	}
+	return out
+}
+
+// extractTaskGroupIdreturns the unique identifier for the task group
+// name. It returns the id that distinguishes multiple instantiations of a task
+// group. In the case of the system scheduler they will  be the nodes name and
+// otherwise it will be the tasks count.
+func extractTaskGroupId(name string) (string, error) {
+	matches := taskGroupID.FindStringSubmatch(name)
+	if len(matches) != 2 {
+		return "", fmt.Errorf("could not determine task group id from %v: %#v", name, matches)
+	}
+
+	return matches[1], nil
 }
 
 // diffResult is used to return the sets that result from the diff

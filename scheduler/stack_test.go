@@ -207,3 +207,205 @@ func TestServiceStack_Select_BinPack_Overflow(t *testing.T) {
 		t.Fatalf("bad: %#v", met)
 	}
 }
+
+func TestSystemStack_SetNodes(t *testing.T) {
+	_, ctx := testContext(t)
+	stack := NewSystemStack(ctx, nil)
+
+	nodes := []*structs.Node{
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+	}
+	stack.SetNodes(nodes)
+
+	out := collectFeasible(stack.source)
+	if !reflect.DeepEqual(out, nodes) {
+		t.Fatalf("bad: %#v", out)
+	}
+}
+
+func TestSystemStack_SetJob(t *testing.T) {
+	_, ctx := testContext(t)
+	stack := NewSystemStack(ctx, nil)
+
+	job := mock.Job()
+	stack.SetJob(job)
+
+	if stack.binPack.priority != job.Priority {
+		t.Fatalf("bad")
+	}
+	if !reflect.DeepEqual(stack.jobConstraint.constraints, job.Constraints) {
+		t.Fatalf("bad")
+	}
+}
+
+func TestSystemStack_Select_Size(t *testing.T) {
+	_, ctx := testContext(t)
+	nodes := []*structs.Node{
+		mock.Node(),
+	}
+	stack := NewSystemStack(ctx, nodes)
+
+	job := mock.Job()
+	stack.SetJob(job)
+	node, size := stack.Select(job.TaskGroups[0])
+	if node == nil {
+		t.Fatalf("missing node %#v", ctx.Metrics())
+	}
+	if size == nil {
+		t.Fatalf("missing size")
+	}
+
+	if size.CPU != 500 || size.MemoryMB != 256 {
+		t.Fatalf("bad: %#v", size)
+	}
+
+	met := ctx.Metrics()
+	if met.AllocationTime == 0 {
+		t.Fatalf("missing time")
+	}
+}
+
+func TestSystemStack_Select_MetricsReset(t *testing.T) {
+	_, ctx := testContext(t)
+	nodes := []*structs.Node{
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+	}
+	stack := NewSystemStack(ctx, nodes)
+
+	job := mock.Job()
+	stack.SetJob(job)
+	n1, _ := stack.Select(job.TaskGroups[0])
+	m1 := ctx.Metrics()
+	if n1 == nil {
+		t.Fatalf("missing node %#v", m1)
+	}
+
+	if m1.NodesEvaluated != 1 {
+		t.Fatalf("should only be 1")
+	}
+
+	n2, _ := stack.Select(job.TaskGroups[0])
+	m2 := ctx.Metrics()
+	if n2 == nil {
+		t.Fatalf("missing node %#v", m2)
+	}
+
+	// If we don't reset, this would be 2
+	if m2.NodesEvaluated != 1 {
+		t.Fatalf("should only be 2")
+	}
+}
+
+func TestSystemStack_Select_DriverFilter(t *testing.T) {
+	_, ctx := testContext(t)
+	nodes := []*structs.Node{
+		mock.Node(),
+	}
+	zero := nodes[0]
+	zero.Attributes["driver.foo"] = "1"
+
+	stack := NewSystemStack(ctx, nodes)
+
+	job := mock.Job()
+	job.TaskGroups[0].Tasks[0].Driver = "foo"
+	stack.SetJob(job)
+
+	node, _ := stack.Select(job.TaskGroups[0])
+	if node == nil {
+		t.Fatalf("missing node %#v", ctx.Metrics())
+	}
+
+	if node.Node != zero {
+		t.Fatalf("bad")
+	}
+
+	zero.Attributes["driver.foo"] = "0"
+	stack = NewSystemStack(ctx, nodes)
+	stack.SetJob(job)
+	node, _ = stack.Select(job.TaskGroups[0])
+	if node != nil {
+		t.Fatalf("node not filtered %#v", node)
+	}
+}
+
+func TestSystemStack_Select_ConstraintFilter(t *testing.T) {
+	_, ctx := testContext(t)
+	nodes := []*structs.Node{
+		mock.Node(),
+		mock.Node(),
+	}
+	zero := nodes[1]
+	zero.Attributes["kernel.name"] = "freebsd"
+
+	stack := NewSystemStack(ctx, nodes)
+
+	job := mock.Job()
+	job.Constraints[0].RTarget = "freebsd"
+	stack.SetJob(job)
+
+	node, _ := stack.Select(job.TaskGroups[0])
+	if node == nil {
+		t.Fatalf("missing node %#v", ctx.Metrics())
+	}
+
+	if node.Node != zero {
+		t.Fatalf("bad")
+	}
+
+	met := ctx.Metrics()
+	if met.NodesFiltered != 1 {
+		t.Fatalf("bad: %#v", met)
+	}
+	if met.ClassFiltered["linux-medium-pci"] != 1 {
+		t.Fatalf("bad: %#v", met)
+	}
+	if met.ConstraintFiltered["$attr.kernel.name = freebsd"] != 1 {
+		t.Fatalf("bad: %#v", met)
+	}
+}
+
+func TestSystemStack_Select_BinPack_Overflow(t *testing.T) {
+	_, ctx := testContext(t)
+	nodes := []*structs.Node{
+		mock.Node(),
+		mock.Node(),
+	}
+	zero := nodes[0]
+	zero.Reserved = zero.Resources
+	one := nodes[1]
+
+	stack := NewSystemStack(ctx, nodes)
+
+	job := mock.Job()
+	stack.SetJob(job)
+
+	node, _ := stack.Select(job.TaskGroups[0])
+	if node == nil {
+		t.Fatalf("missing node %#v", ctx.Metrics())
+	}
+
+	if node.Node != one {
+		t.Fatalf("bad")
+	}
+
+	met := ctx.Metrics()
+	if met.NodesExhausted != 1 {
+		t.Fatalf("bad: %#v", met)
+	}
+	if met.ClassExhausted["linux-medium-pci"] != 1 {
+		t.Fatalf("bad: %#v", met)
+	}
+	if len(met.Scores) != 1 {
+		t.Fatalf("bad: %#v", met)
+	}
+}

@@ -699,6 +699,7 @@ const (
 	JobTypeCore    = "_core"
 	JobTypeService = "service"
 	JobTypeBatch   = "batch"
+	JobTypeSystem  = "system"
 )
 
 const (
