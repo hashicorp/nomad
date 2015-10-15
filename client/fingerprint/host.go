@@ -5,6 +5,7 @@ import (
 	"log"
 	"os/exec"
 	"runtime"
+        "strings"
 
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -40,7 +41,7 @@ func (f *HostFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (b
 		if err != nil {
 			return false, fmt.Errorf("Failed to run uname: %s", err)
 		}
-		node.Attributes["kernel.version"] = string(out)
+		node.Attributes["kernel.version"] = strings.Trim(string(out), "\n")
 	}
 
 	node.Attributes["hostname"] = hostInfo.Hostname
