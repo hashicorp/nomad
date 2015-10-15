@@ -5,14 +5,8 @@ import (
 	"log"
 	"math/rand"
 	"reflect"
-	"regexp"
 
 	"github.com/hashicorp/nomad/nomad/structs"
-)
-
-var (
-	// Regex to capture the identifier of a task group name.
-	taskGroupID = regexp.MustCompile(`.+\..+\[(.*)\]`)
 )
 
 // allocTuple is a tuple of the allocation name and potential alloc ID
@@ -26,6 +20,10 @@ type allocTuple struct {
 // a job requires. This is used to do the count expansion.
 func materializeTaskGroups(job *structs.Job) map[string]*structs.TaskGroup {
 	out := make(map[string]*structs.TaskGroup)
+	if job == nil {
+		return out
+	}
+
 	for _, tg := range job.TaskGroups {
 		for i := 0; i < tg.Count; i++ {
 			name := fmt.Sprintf("%s.%s[%d]", job.Name, tg.Name, i)
@@ -35,40 +33,22 @@ func materializeTaskGroups(job *structs.Job) map[string]*structs.TaskGroup {
 	return out
 }
 
-// materializeSystemTaskGroups is used to materialize all the task groups
-// a system job requires. This is used to do the node expansion.
-func materializeSystemTaskGroups(job *structs.Job, nodes []*structs.Node) map[string]*structs.TaskGroup {
-	out := make(map[string]*structs.TaskGroup)
-	for _, tg := range job.TaskGroups {
-		for _, node := range nodes {
-			name := fmt.Sprintf("%s.%s[%s]", job.Name, tg.Name, node.ID)
-			out[name] = tg
-		}
-	}
-	return out
-}
-
-// extractTaskGroupIdreturns the unique identifier for the task group
-// name. It returns the id that distinguishes multiple instantiations of a task
-// group. In the case of the system scheduler they will  be the nodes name and
-// otherwise it will be the tasks count.
-func extractTaskGroupId(name string) (string, error) {
-	matches := taskGroupID.FindStringSubmatch(name)
-	if len(matches) != 2 {
-		return "", fmt.Errorf("could not determine task group id from %v: %#v", name, matches)
-	}
-
-	return matches[1], nil
-}
-
 // diffResult is used to return the sets that result from the diff
 type diffResult struct {
-	place, update, migrate, stop, ignore []allocTuple
+	place, update, migrate, stop, ignore []*allocTuple
 }
 
 func (d *diffResult) GoString() string {
 	return fmt.Sprintf("allocs: (place %d) (update %d) (migrate %d) (stop %d) (ignore %d)",
 		len(d.place), len(d.update), len(d.migrate), len(d.stop), len(d.ignore))
+}
+
+func (d *diffResult) Append(other *diffResult) {
+	d.place = append(d.place, other.place...)
+	d.update = append(d.update, other.update...)
+	d.migrate = append(d.migrate, other.migrate...)
+	d.stop = append(d.stop, other.stop...)
+	d.ignore = append(d.ignore, other.ignore...)
 }
 
 // diffAllocs is used to do a set difference between the target allocations
@@ -93,7 +73,7 @@ func diffAllocs(job *structs.Job, taintedNodes map[string]bool,
 
 		// If not required, we stop the alloc
 		if !ok {
-			result.stop = append(result.stop, allocTuple{
+			result.stop = append(result.stop, &allocTuple{
 				Name:      name,
 				TaskGroup: tg,
 				Alloc:     exist,
@@ -103,7 +83,7 @@ func diffAllocs(job *structs.Job, taintedNodes map[string]bool,
 
 		// If we are on a tainted node, we must migrate
 		if taintedNodes[exist.NodeID] {
-			result.migrate = append(result.migrate, allocTuple{
+			result.migrate = append(result.migrate, &allocTuple{
 				Name:      name,
 				TaskGroup: tg,
 				Alloc:     exist,
@@ -116,7 +96,7 @@ func diffAllocs(job *structs.Job, taintedNodes map[string]bool,
 		// if the job definition has changed in a way that affects
 		// this allocation and potentially ignore it.
 		if job.ModifyIndex != exist.Job.ModifyIndex {
-			result.update = append(result.update, allocTuple{
+			result.update = append(result.update, &allocTuple{
 				Name:      name,
 				TaskGroup: tg,
 				Alloc:     exist,
@@ -125,7 +105,7 @@ func diffAllocs(job *structs.Job, taintedNodes map[string]bool,
 		}
 
 		// Everything is up-to-date
-		result.ignore = append(result.ignore, allocTuple{
+		result.ignore = append(result.ignore, &allocTuple{
 			Name:      name,
 			TaskGroup: tg,
 			Alloc:     exist,
@@ -141,12 +121,53 @@ func diffAllocs(job *structs.Job, taintedNodes map[string]bool,
 		// is an existing allocation, we would have checked for a potential
 		// update or ignore above.
 		if !ok {
-			result.place = append(result.place, allocTuple{
+			result.place = append(result.place, &allocTuple{
 				Name:      name,
 				TaskGroup: tg,
 			})
 		}
 	}
+	return result
+}
+
+// diffSystemAllocs is like diffAllocs however, the allocations in the
+// diffResult contain the specific nodeID they should be allocated on.
+func diffSystemAllocs(job *structs.Job, nodes []*structs.Node, taintedNodes map[string]bool,
+	allocs []*structs.Allocation) *diffResult {
+
+	// Build a mapping of nodes to all their allocs.
+	nodeAllocs := make(map[string][]*structs.Allocation, len(allocs))
+	for _, alloc := range allocs {
+		nallocs := append(nodeAllocs[alloc.NodeID], alloc)
+		nodeAllocs[alloc.NodeID] = nallocs
+	}
+
+	for _, node := range nodes {
+		if _, ok := nodeAllocs[node.ID]; !ok {
+			nodeAllocs[node.ID] = nil
+		}
+	}
+
+	// Create the required task groups.
+	required := materializeTaskGroups(job)
+
+	result := &diffResult{}
+	for nodeID, allocs := range nodeAllocs {
+		diff := diffAllocs(job, taintedNodes, required, allocs)
+
+		// Mark the alloc as being for a specific node.
+		for _, alloc := range diff.place {
+			alloc.Alloc = &structs.Allocation{NodeID: nodeID}
+		}
+
+		// Migrate does not apply to system jobs and instead should be marked as
+		// stop because if a node is tainted, the job is invalid on that node.
+		diff.stop = append(diff.stop, diff.migrate...)
+		diff.migrate = nil
+
+		result.Append(diff)
+	}
+
 	return result
 }
 
@@ -290,7 +311,7 @@ func setStatus(logger *log.Logger, planner Planner, eval, nextEval *structs.Eval
 
 // inplaceUpdate attempts to update allocations in-place where possible.
 func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
-	stack Stack, updates []allocTuple) []allocTuple {
+	stack Stack, updates []*allocTuple) []*allocTuple {
 
 	n := len(updates)
 	inplace := 0
@@ -372,7 +393,7 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 // evictAndPlace is used to mark allocations for evicts and add them to the
 // placement queue. evictAndPlace modifies both the the diffResult and the
 // limit. It returns true if the limit has been reached.
-func evictAndPlace(ctx Context, diff *diffResult, allocs []allocTuple, desc string, limit *int) bool {
+func evictAndPlace(ctx Context, diff *diffResult, allocs []*allocTuple, desc string, limit *int) bool {
 	n := len(allocs)
 	for i := 0; i < n && i < *limit; i++ {
 		a := allocs[i]

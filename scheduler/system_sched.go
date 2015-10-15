@@ -154,12 +154,6 @@ func (s *SystemScheduler) process() (bool, error) {
 // computeJobAllocs is used to reconcile differences between the job,
 // existing allocations and node status to update the allocations.
 func (s *SystemScheduler) computeJobAllocs() error {
-	// Materialize all the task groups per node.
-	var groups map[string]*structs.TaskGroup
-	if s.job != nil {
-		groups = materializeSystemTaskGroups(s.job, s.nodes)
-	}
-
 	// Lookup the allocations by JobID
 	allocs, err := s.state.AllocsByJob(s.eval.JobID)
 	if err != nil {
@@ -178,18 +172,12 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	}
 
 	// Diff the required and existing allocations
-	diff := diffAllocs(s.job, tainted, groups, allocs)
+	diff := diffSystemAllocs(s.job, s.nodes, tainted, allocs)
 	s.logger.Printf("[DEBUG] sched: %#v: %#v", s.eval, diff)
 
 	// Add all the allocs to stop
 	for _, e := range diff.stop {
 		s.plan.AppendUpdate(e.Alloc, structs.AllocDesiredStatusStop, allocNotNeeded)
-	}
-
-	// Also stop all the allocs that are marked as needing migrating. This
-	// allows failed nodes to be properly GC'd.
-	for _, e := range diff.migrate {
-		s.plan.AppendUpdate(e.Alloc, structs.AllocDesiredStatusStop, allocNodeTainted)
 	}
 
 	// Attempt to do the upgrades in place
@@ -214,7 +202,7 @@ func (s *SystemScheduler) computeJobAllocs() error {
 }
 
 // computePlacements computes placements for allocations
-func (s *SystemScheduler) computePlacements(place []allocTuple) error {
+func (s *SystemScheduler) computePlacements(place []*allocTuple) error {
 	nodeByID := make(map[string]*structs.Node, len(s.nodes))
 	for _, node := range s.nodes {
 		nodeByID[node.ID] = node
@@ -226,17 +214,9 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 
 	nodes := make([]*structs.Node, 1)
 	for _, missing := range place {
-		// Get the node by looking at the name in the task group.
-		nodeID, err := extractTaskGroupId(missing.Name)
-		if err != nil {
-			s.logger.Printf("[ERR] sched: %#v failed to parse node id from %q: %v",
-				s.eval, missing.Name, err)
-			return err
-		}
-
-		node, ok := nodeByID[nodeID]
+		node, ok := nodeByID[missing.Alloc.NodeID]
 		if !ok {
-			return fmt.Errorf("could not find node %q", nodeID)
+			return fmt.Errorf("could not find node %q", missing.Alloc.NodeID)
 		}
 
 		// Update the set of placement ndoes

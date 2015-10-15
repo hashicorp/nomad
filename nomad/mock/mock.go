@@ -128,7 +128,8 @@ func SystemJob() *structs.Job {
 		},
 		TaskGroups: []*structs.TaskGroup{
 			&structs.TaskGroup{
-				Name: "web",
+				Name:  "web",
+				Count: 1,
 				Tasks: []*structs.Task{
 					&structs.Task{
 						Name:   "web",

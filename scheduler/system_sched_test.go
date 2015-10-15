@@ -1,7 +1,6 @@
 package scheduler
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -84,7 +83,7 @@ func TestSystemSched_JobRegister_AddNode(t *testing.T) {
 		alloc.Job = job
 		alloc.JobID = job.ID
 		alloc.NodeID = node.ID
-		alloc.Name = fmt.Sprintf("my-job.web[%s]", node.ID)
+		alloc.Name = "my-job.web[0]"
 		allocs = append(allocs, alloc)
 	}
 	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
@@ -119,6 +118,7 @@ func TestSystemSched_JobRegister_AddNode(t *testing.T) {
 		update = append(update, updateList...)
 	}
 	if len(update) != 0 {
+		t.Log(len(update))
 		t.Fatalf("bad: %#v", plan)
 	}
 
@@ -200,7 +200,7 @@ func TestSystemSched_JobModify(t *testing.T) {
 		alloc.Job = job
 		alloc.JobID = job.ID
 		alloc.NodeID = node.ID
-		alloc.Name = fmt.Sprintf("my-job.web[%s]", node.ID)
+		alloc.Name = "my-job.web[0]"
 		allocs = append(allocs, alloc)
 	}
 	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
@@ -212,7 +212,7 @@ func TestSystemSched_JobModify(t *testing.T) {
 		alloc.Job = job
 		alloc.JobID = job.ID
 		alloc.NodeID = nodes[i].ID
-		alloc.Name = fmt.Sprintf("my-job.web[%s]", nodes[i].ID)
+		alloc.Name = "my-job.web[0]"
 		alloc.DesiredStatus = structs.AllocDesiredStatusFailed
 		terminal = append(terminal, alloc)
 	}
@@ -298,7 +298,7 @@ func TestSystemSched_JobModify_Rolling(t *testing.T) {
 		alloc.Job = job
 		alloc.JobID = job.ID
 		alloc.NodeID = node.ID
-		alloc.Name = fmt.Sprintf("my-job.web[%s]", node.ID)
+		alloc.Name = "my-job.web[0]"
 		allocs = append(allocs, alloc)
 	}
 	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
@@ -399,7 +399,7 @@ func TestSystemSched_JobModify_InPlace(t *testing.T) {
 		alloc.Job = job
 		alloc.JobID = job.ID
 		alloc.NodeID = node.ID
-		alloc.Name = fmt.Sprintf("my-job.web[%s]", node.ID)
+		alloc.Name = "my-job.web[0]"
 		allocs = append(allocs, alloc)
 	}
 	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
@@ -492,7 +492,7 @@ func TestSystemSched_JobDeregister(t *testing.T) {
 		alloc.Job = job
 		alloc.JobID = job.ID
 		alloc.NodeID = node.ID
-		alloc.Name = fmt.Sprintf("my-job.web[%s]", node.ID)
+		alloc.Name = "my-job.web[0]"
 		allocs = append(allocs, alloc)
 	}
 	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
@@ -553,7 +553,7 @@ func TestSystemSched_NodeDrain(t *testing.T) {
 	alloc.Job = job
 	alloc.JobID = job.ID
 	alloc.NodeID = node.ID
-	alloc.Name = fmt.Sprintf("my-job.web[%s]", node.ID)
+	alloc.Name = "my-job.web[0]"
 	noErr(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
 
 	// Create a mock evaluation to deal with drain

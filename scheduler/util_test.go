@@ -109,6 +109,80 @@ func TestDiffAllocs(t *testing.T) {
 	}
 }
 
+func TestDiffSystemAllocs(t *testing.T) {
+	job := mock.SystemJob()
+
+	// Create three alive nodes.
+	nodes := []*structs.Node{{ID: "foo"}, {ID: "bar"}, {ID: "baz"}}
+
+	// The "old" job has a previous modify index
+	oldJob := new(structs.Job)
+	*oldJob = *job
+	oldJob.ModifyIndex -= 1
+
+	tainted := map[string]bool{
+		"dead": true,
+		"baz":  false,
+	}
+
+	allocs := []*structs.Allocation{
+		// Update allocation on baz
+		&structs.Allocation{
+			ID:     structs.GenerateUUID(),
+			NodeID: "baz",
+			Name:   "my-job.web[0]",
+			Job:    oldJob,
+		},
+
+		// Ignore allocation on bar
+		&structs.Allocation{
+			ID:     structs.GenerateUUID(),
+			NodeID: "bar",
+			Name:   "my-job.web[0]",
+			Job:    job,
+		},
+
+		// Stop allocation on dead.
+		&structs.Allocation{
+			ID:     structs.GenerateUUID(),
+			NodeID: "dead",
+			Name:   "my-job.web[0]",
+		},
+	}
+
+	diff := diffSystemAllocs(job, nodes, tainted, allocs)
+	place := diff.place
+	update := diff.update
+	migrate := diff.migrate
+	stop := diff.stop
+	ignore := diff.ignore
+
+	// We should update the first alloc
+	if len(update) != 1 || update[0].Alloc != allocs[0] {
+		t.Fatalf("bad: %#v", update)
+	}
+
+	// We should ignore the second alloc
+	if len(ignore) != 1 || ignore[0].Alloc != allocs[1] {
+		t.Fatalf("bad: %#v", ignore)
+	}
+
+	// We should stop the third alloc
+	if len(stop) != 1 || stop[0].Alloc != allocs[2] {
+		t.Fatalf("bad: %#v", stop)
+	}
+
+	// There should be no migrates.
+	if len(migrate) != 0 {
+		t.Fatalf("bad: %#v", migrate)
+	}
+
+	// We should place 1
+	if len(place) != 1 {
+		t.Fatalf("bad: %#v", place)
+	}
+}
+
 func TestReadyNodesInDCs(t *testing.T) {
 	state, err := state.NewStateStore(os.Stderr)
 	if err != nil {
