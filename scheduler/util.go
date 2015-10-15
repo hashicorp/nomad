@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"fmt"
+	"log"
 	"math/rand"
 	"reflect"
 	"regexp"
@@ -273,4 +274,115 @@ func tasksUpdated(a, b *structs.TaskGroup) bool {
 		}
 	}
 	return false
+}
+
+// setStatus is used to update the status of the evaluation
+func setStatus(logger *log.Logger, planner Planner, eval, nextEval *structs.Evaluation, status, desc string) error {
+	logger.Printf("[DEBUG] sched: %#v: setting status to %s", eval, status)
+	newEval := eval.Copy()
+	newEval.Status = status
+	newEval.StatusDescription = desc
+	if nextEval != nil {
+		newEval.NextEval = nextEval.ID
+	}
+	return planner.UpdateEval(newEval)
+}
+
+// inplaceUpdate attempts to update allocations in-place where possible.
+func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
+	stack Stack, updates []allocTuple) []allocTuple {
+
+	n := len(updates)
+	inplace := 0
+	for i := 0; i < n; i++ {
+		// Get the update
+		update := updates[i]
+
+		// Check if the task drivers or config has changed, requires
+		// a rolling upgrade since that cannot be done in-place.
+		existing := update.Alloc.Job.LookupTaskGroup(update.TaskGroup.Name)
+		if tasksUpdated(update.TaskGroup, existing) {
+			continue
+		}
+
+		// Get the existing node
+		node, err := ctx.State().NodeByID(update.Alloc.NodeID)
+		if err != nil {
+			ctx.Logger().Printf("[ERR] sched: %#v failed to get node '%s': %v",
+				eval, update.Alloc.NodeID, err)
+			continue
+		}
+		if node == nil {
+			continue
+		}
+
+		// Set the existing node as the base set
+		stack.SetNodes([]*structs.Node{node})
+
+		// Stage an eviction of the current allocation
+		ctx.Plan().AppendUpdate(update.Alloc, structs.AllocDesiredStatusStop,
+			allocInPlace)
+
+		// Attempt to match the task group
+		option, size := stack.Select(update.TaskGroup)
+
+		// Pop the allocation
+		ctx.Plan().PopUpdate(update.Alloc)
+
+		// Skip if we could not do an in-place update
+		if option == nil {
+			continue
+		}
+
+		// Restore the network offers from the existing allocation.
+		// We do not allow network resources (reserved/dynamic ports)
+		// to be updated. This is guarded in taskUpdated, so we can
+		// safely restore those here.
+		for task, resources := range option.TaskResources {
+			existing := update.Alloc.TaskResources[task]
+			resources.Networks = existing.Networks
+		}
+
+		// Create a shallow copy
+		newAlloc := new(structs.Allocation)
+		*newAlloc = *update.Alloc
+
+		// Update the allocation
+		newAlloc.EvalID = eval.ID
+		newAlloc.Job = job
+		newAlloc.Resources = size
+		newAlloc.TaskResources = option.TaskResources
+		newAlloc.Metrics = ctx.Metrics()
+		newAlloc.DesiredStatus = structs.AllocDesiredStatusRun
+		newAlloc.ClientStatus = structs.AllocClientStatusPending
+		ctx.Plan().AppendAlloc(newAlloc)
+
+		// Remove this allocation from the slice
+		updates[i] = updates[n-1]
+		i--
+		n--
+		inplace++
+	}
+	if len(updates) > 0 {
+		ctx.Logger().Printf("[DEBUG] sched: %#v: %d in-place updates of %d", eval, inplace, len(updates))
+	}
+	return updates[:n]
+}
+
+// evictAndPlace is used to mark allocations for evicts and add them to the
+// placement queue. evictAndPlace modifies both the the diffResult and the
+// limit. It returns true if the limit has been reached.
+func evictAndPlace(ctx Context, diff *diffResult, allocs []allocTuple, desc string, limit *int) bool {
+	n := len(allocs)
+	for i := 0; i < n && i < *limit; i++ {
+		a := allocs[i]
+		ctx.Plan().AppendUpdate(a.Alloc, structs.AllocDesiredStatusStop, desc)
+		diff.place = append(diff.place, a)
+	}
+	if n <= *limit {
+		*limit -= n
+		return false
+	}
+	*limit = 0
+	return true
 }
