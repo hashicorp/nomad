@@ -3,6 +3,7 @@ package driver
 import (
 	"fmt"
 	"log"
+	"path/filepath"
 	"sync"
 
 	"github.com/hashicorp/nomad/client/allocdir"
@@ -114,6 +115,12 @@ func TaskEnvironmentVariables(ctx *ExecContext, task *structs.Task) environment.
 
 	if ctx.AllocDir != nil {
 		env.SetAllocDir(ctx.AllocDir.SharedDir)
+		taskdir, ok := ctx.AllocDir.TaskDirs[task.Name]
+		if !ok {
+			// TODO: Update this to return an error
+		}
+
+		env.SetTaskLocalDir(filepath.Join(taskdir, allocdir.TaskLocal))
 	}
 
 	if task.Resources != nil {

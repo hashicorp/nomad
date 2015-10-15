@@ -135,6 +135,7 @@ func (e *LinuxExecutor) ConfigureTaskDir(taskName string, alloc *allocdir.AllocD
 		return err
 	}
 	env.SetAllocDir(filepath.Join("/", allocdir.SharedAllocName))
+	env.SetTaskLocalDir(filepath.Join("/", allocdir.TaskLocal))
 	e.Cmd.Env = env.List()
 
 	e.alloc = alloc
@@ -264,6 +265,14 @@ func (e *LinuxExecutor) Start() error {
 	if err != nil {
 		return err
 	}
+
+	parsedPath, err := args.ParseAndReplace(e.cmd.Path, envVars.Map())
+	if err != nil {
+		return err
+	} else if len(parsedPath) != 1 {
+		return fmt.Errorf("couldn't properly parse command path: %v", e.cmd.Path)
+	}
+	e.cmd.Path = parsedPath[0]
 
 	combined := strings.Join(e.Cmd.Args, " ")
 	parsed, err := args.ParseAndReplace(combined, envVars.Map())
