@@ -5,7 +5,7 @@ import (
 	"log"
 	"os/exec"
 	"runtime"
-        "strings"
+	"strings"
 
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"

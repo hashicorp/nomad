@@ -4,12 +4,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"path/filepath"
 	"strconv"
 	"strings"
 
 	docker "github.com/fsouza/go-dockerclient"
 
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/driver/args"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -97,12 +100,38 @@ func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool
 	return true, nil
 }
 
-// We have to call this when we create the container AND when we start it so
-// we'll make a function.
-func createHostConfig(task *structs.Task) *docker.HostConfig {
-	// hostConfig holds options for the docker container that are unique to this
-	// machine, such as resource limits and port mappings
-	return &docker.HostConfig{
+func containerBinds(alloc *allocdir.AllocDir, task *structs.Task) ([]string, error) {
+	shared := alloc.SharedDir
+	local, ok := alloc.TaskDirs[task.Name]
+	if !ok {
+		fmt.Println("ALLOCDIR: ", alloc)
+		fmt.Println("TASK DIRS: ", alloc.TaskDirs)
+		for task, dir := range alloc.TaskDirs {
+			fmt.Printf("%v -> %v\n", task, dir)
+		}
+		return nil, fmt.Errorf("Failed to find task local directory: %v", task.Name)
+	}
+
+	return []string{
+		fmt.Sprintf("%s:%s", shared, allocdir.SharedAllocName),
+		fmt.Sprintf("%s:%s", local, allocdir.TaskLocal),
+	}, nil
+}
+
+// createContainer initializes a struct needed to call docker.client.CreateContainer()
+func createContainer(ctx *ExecContext, task *structs.Task, logger *log.Logger) (docker.CreateContainerOptions, error) {
+	var c docker.CreateContainerOptions
+	if task.Resources == nil {
+		logger.Printf("[ERR] driver.docker: task.Resources is empty")
+		return c, fmt.Errorf("task.Resources is nil and we can't constrain resource usage. We shouldn't have been able to schedule this in the first place.")
+	}
+
+	binds, err := containerBinds(ctx.AllocDir, task)
+	if err != nil {
+		return c, err
+	}
+
+	hostConfig := &docker.HostConfig{
 		// Convert MB to bytes. This is an absolute value.
 		//
 		// This value represents the total amount of memory a process can use.
@@ -131,20 +160,16 @@ func createHostConfig(task *structs.Task) *docker.HostConfig {
 		//  - https://www.kernel.org/doc/Documentation/scheduler/sched-bwc.txt
 		//  - https://www.kernel.org/doc/Documentation/scheduler/sched-design-CFS.txt
 		CPUShares: int64(task.Resources.CPU),
-	}
-}
 
-// createContainer initializes a struct needed to call docker.client.CreateContainer()
-func createContainer(ctx *ExecContext, task *structs.Task, logger *log.Logger) (docker.CreateContainerOptions, error) {
-	var c docker.CreateContainerOptions
-	if task.Resources == nil {
-		logger.Printf("[ERR] driver.docker: task.Resources is empty")
-		return c, fmt.Errorf("task.Resources is nil and we can't constrain resource usage. We shouldn't have been able to schedule this in the first place.")
+		// Binds are used to mount a host volume into the container. We mount a
+		// local directory for storage and a shared alloc directory that can be
+		// used to share data between different tasks in the same task group.
+		Binds: binds,
 	}
 
-	hostConfig := createHostConfig(task)
 	logger.Printf("[DEBUG] driver.docker: using %d bytes memory for %s", hostConfig.Memory, task.Config["image"])
 	logger.Printf("[DEBUG] driver.docker: using %d cpu shares for %s", hostConfig.CPUShares, task.Config["image"])
+	logger.Printf("[DEBUG] driver.docker: binding directories %#v for %s", hostConfig.Binds, task.Config["image"])
 
 	mode, ok := task.Config["network_mode"]
 	if !ok || mode == "" {
@@ -198,14 +223,31 @@ func createContainer(ctx *ExecContext, task *structs.Task, logger *log.Logger) (
 		hostConfig.PortBindings = dockerPorts
 	}
 
+	// Create environment variables.
+	env := TaskEnvironmentVariables(ctx, task)
+	env.SetAllocDir(filepath.Join("/", allocdir.SharedAllocName))
+	env.SetTaskLocalDir(filepath.Join("/", allocdir.TaskLocal))
+
 	config := &docker.Config{
-		Env:   TaskEnvironmentVariables(ctx, task).List(),
+		Env:   env.List(),
 		Image: task.Config["image"],
+	}
+
+	rawArgs, hasArgs := task.Config["args"]
+	parsedArgs, err := args.ParseAndReplace(rawArgs, env.Map())
+	if err != nil {
+		return c, err
 	}
 
 	// If the user specified a custom command to run, we'll inject it here.
 	if command, ok := task.Config["command"]; ok {
-		config.Cmd = strings.Split(command, " ")
+		cmd := []string{command}
+		if hasArgs {
+			cmd = append(cmd, parsedArgs...)
+		}
+		config.Cmd = cmd
+	} else if hasArgs {
+		logger.Println("[DEBUG] driver.docker: ignoring args because command not specified")
 	}
 
 	return docker.CreateContainerOptions{
