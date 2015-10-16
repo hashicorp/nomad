@@ -26,6 +26,12 @@ hash, ACI address or docker registry.
 * `command` - **(Optional**) A command to execute on the ACI.
 * `args` - **(Optional**) A string of args to pass into the image.
 
+## Task Directories
+
+The `Rkt` driver does not currently support mounting the `alloc/` and `local/`
+directory. It is currently blocked by this [Rkt
+bug](https://github.com/coreos/rkt/issues/761).
+
 ## Client Requirements
 
 The `Rkt` driver requires rkt to be installed and in your systems `$PATH`.
