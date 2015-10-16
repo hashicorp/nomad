@@ -34,6 +34,10 @@ const (
 	MetaPrefix = "NOMAD_META_"
 )
 
+var (
+	nomadVars = []string{AllocDir, TaskLocalDir, MemLimit, CpuLimit, TaskIP, PortPrefix, MetaPrefix}
+)
+
 type TaskEnvironment map[string]string
 
 func NewTaskEnivornment() TaskEnvironment {
@@ -74,26 +78,54 @@ func (t TaskEnvironment) SetAllocDir(dir string) {
 	t[AllocDir] = dir
 }
 
+func (t TaskEnvironment) ClearAllocDir() {
+	delete(t, AllocDir)
+}
+
 func (t TaskEnvironment) SetTaskLocalDir(dir string) {
 	t[TaskLocalDir] = dir
+}
+
+func (t TaskEnvironment) ClearTaskLocalDir() {
+	delete(t, TaskLocalDir)
 }
 
 func (t TaskEnvironment) SetMemLimit(limit int) {
 	t[MemLimit] = strconv.Itoa(limit)
 }
 
+func (t TaskEnvironment) ClearMemLimit() {
+	delete(t, MemLimit)
+}
+
 func (t TaskEnvironment) SetCpuLimit(limit int) {
 	t[CpuLimit] = strconv.Itoa(limit)
+}
+
+func (t TaskEnvironment) ClearCpuLimit() {
+	delete(t, CpuLimit)
 }
 
 func (t TaskEnvironment) SetTaskIp(ip string) {
 	t[TaskIP] = ip
 }
 
+func (t TaskEnvironment) ClearTaskIp() {
+	delete(t, TaskIP)
+}
+
 // Takes a map of port labels to their port value.
 func (t TaskEnvironment) SetPorts(ports map[string]int) {
 	for label, port := range ports {
 		t[fmt.Sprintf("%s%s", PortPrefix, label)] = strconv.Itoa(port)
+	}
+}
+
+func (t TaskEnvironment) ClearPorts() {
+	for k, _ := range t {
+		if strings.HasPrefix(k, PortPrefix) {
+			delete(t, k)
+		}
 	}
 }
 
@@ -105,8 +137,28 @@ func (t TaskEnvironment) SetMeta(m map[string]string) {
 	}
 }
 
+func (t TaskEnvironment) ClearMeta() {
+	for k, _ := range t {
+		if strings.HasPrefix(k, MetaPrefix) {
+			delete(t, k)
+		}
+	}
+}
+
 func (t TaskEnvironment) SetEnvvars(m map[string]string) {
 	for k, v := range m {
 		t[k] = v
+	}
+}
+
+func (t TaskEnvironment) ClearEnvvars() {
+OUTER:
+	for k, _ := range t {
+		for _, nomadPrefix := range nomadVars {
+			if strings.HasPrefix(k, nomadPrefix) {
+				continue OUTER
+			}
+		}
+		delete(t, k)
 	}
 }
