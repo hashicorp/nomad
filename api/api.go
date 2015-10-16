@@ -86,7 +86,7 @@ type Config struct {
 func DefaultConfig() *Config {
 	config := &Config{
 		Address:    "http://127.0.0.1:4646",
-		HttpClient: http.DefaultClient,
+		HttpClient: &http.Client{},
 	}
 	if addr := os.Getenv("NOMAD_ADDR"); addr != "" {
 		config.Address = addr

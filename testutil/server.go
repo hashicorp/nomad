@@ -156,8 +156,7 @@ func NewTestServer(t *testing.T, cb ServerConfigCallback) *TestServer {
 		t.Fatalf("err: %s", err)
 	}
 
-	var client *http.Client
-	client = http.DefaultClient
+	client := &http.Client{}
 
 	server := &TestServer{
 		Config: nomadConfig,
