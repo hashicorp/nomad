@@ -829,6 +829,12 @@ func (j *Job) Validate() error {
 		} else {
 			taskGroups[tg.Name] = idx
 		}
+
+		if j.Type == "system" && tg.Count != 1 {
+			mErr.Errors = append(mErr.Errors,
+				fmt.Errorf("Job task group %d has count %d. Only count of 1 is supported with system scheduler",
+					idx+1, tg.Count))
+		}
 	}
 
 	// Validate the task group
