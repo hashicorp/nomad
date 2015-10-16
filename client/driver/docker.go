@@ -104,9 +104,6 @@ func containerBinds(alloc *allocdir.AllocDir, task *structs.Task) ([]string, err
 	shared := alloc.SharedDir
 	local, ok := alloc.TaskDirs[task.Name]
 	if !ok {
-		for task, dir := range alloc.TaskDirs {
-			fmt.Printf("%v -> %v\n", task, dir)
-		}
 		return nil, fmt.Errorf("Failed to find task local directory: %v", task.Name)
 	}
 
