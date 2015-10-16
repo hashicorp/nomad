@@ -100,7 +100,7 @@ func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool
 	return true, nil
 }
 
-func containerBinds(alloc *allocdir.AllocDir, task *structs.Task) ([]string, error) {
+func (d *DockerDriver) containerBinds(alloc *allocdir.AllocDir, task *structs.Task) ([]string, error) {
 	shared := alloc.SharedDir
 	local, ok := alloc.TaskDirs[task.Name]
 	if !ok {
@@ -114,14 +114,14 @@ func containerBinds(alloc *allocdir.AllocDir, task *structs.Task) ([]string, err
 }
 
 // createContainer initializes a struct needed to call docker.client.CreateContainer()
-func createContainer(ctx *ExecContext, task *structs.Task, logger *log.Logger) (docker.CreateContainerOptions, error) {
+func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task) (docker.CreateContainerOptions, error) {
 	var c docker.CreateContainerOptions
 	if task.Resources == nil {
-		logger.Printf("[ERR] driver.docker: task.Resources is empty")
+		d.logger.Printf("[ERR] driver.docker: task.Resources is empty")
 		return c, fmt.Errorf("task.Resources is nil and we can't constrain resource usage. We shouldn't have been able to schedule this in the first place.")
 	}
 
-	binds, err := containerBinds(ctx.AllocDir, task)
+	binds, err := d.containerBinds(ctx.AllocDir, task)
 	if err != nil {
 		return c, err
 	}
@@ -162,23 +162,23 @@ func createContainer(ctx *ExecContext, task *structs.Task, logger *log.Logger) (
 		Binds: binds,
 	}
 
-	logger.Printf("[DEBUG] driver.docker: using %d bytes memory for %s", hostConfig.Memory, task.Config["image"])
-	logger.Printf("[DEBUG] driver.docker: using %d cpu shares for %s", hostConfig.CPUShares, task.Config["image"])
-	logger.Printf("[DEBUG] driver.docker: binding directories %#v for %s", hostConfig.Binds, task.Config["image"])
+	d.logger.Printf("[DEBUG] driver.docker: using %d bytes memory for %s", hostConfig.Memory, task.Config["image"])
+	d.logger.Printf("[DEBUG] driver.docker: using %d cpu shares for %s", hostConfig.CPUShares, task.Config["image"])
+	d.logger.Printf("[DEBUG] driver.docker: binding directories %#v for %s", hostConfig.Binds, task.Config["image"])
 
 	mode, ok := task.Config["network_mode"]
 	if !ok || mode == "" {
 		// docker default
-		logger.Printf("[WARN] driver.docker: no mode specified for networking, defaulting to bridge")
+		d.logger.Printf("[WARN] driver.docker: no mode specified for networking, defaulting to bridge")
 		mode = "bridge"
 	}
 
 	// Ignore the container mode for now
 	switch mode {
 	case "default", "bridge", "none", "host":
-		logger.Printf("[DEBUG] driver.docker: using %s as network mode", mode)
+		d.logger.Printf("[DEBUG] driver.docker: using %s as network mode", mode)
 	default:
-		logger.Printf("[ERR] driver.docker: invalid setting for network mode: %s", mode)
+		d.logger.Printf("[ERR] driver.docker: invalid setting for network mode: %s", mode)
 		return c, fmt.Errorf("Invalid setting for network mode: %s", mode)
 	}
 	hostConfig.NetworkMode = mode
@@ -186,7 +186,7 @@ func createContainer(ctx *ExecContext, task *structs.Task, logger *log.Logger) (
 	// Setup port mapping (equivalent to -p on docker CLI). Ports must already be
 	// exposed in the container.
 	if len(task.Resources.Networks) == 0 {
-		logger.Print("[WARN] driver.docker: No networks are available for port mapping")
+		d.logger.Print("[WARN] driver.docker: No networks are available for port mapping")
 	} else {
 		network := task.Resources.Networks[0]
 		dockerPorts := map[docker.Port][]docker.PortBinding{}
@@ -194,7 +194,7 @@ func createContainer(ctx *ExecContext, task *structs.Task, logger *log.Logger) (
 		for _, port := range network.ListStaticPorts() {
 			dockerPorts[docker.Port(strconv.Itoa(port)+"/tcp")] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: strconv.Itoa(port)}}
 			dockerPorts[docker.Port(strconv.Itoa(port)+"/udp")] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: strconv.Itoa(port)}}
-			logger.Printf("[DEBUG] driver.docker: allocated port %s:%d -> %d (static)\n", network.IP, port, port)
+			d.logger.Printf("[DEBUG] driver.docker: allocated port %s:%d -> %d (static)\n", network.IP, port, port)
 		}
 
 		for label, port := range network.MapDynamicPorts() {
@@ -208,11 +208,11 @@ func createContainer(ctx *ExecContext, task *structs.Task, logger *log.Logger) (
 			if _, err := strconv.Atoi(label); err == nil {
 				dockerPorts[docker.Port(label+"/tcp")] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: strconv.Itoa(port)}}
 				dockerPorts[docker.Port(label+"/udp")] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: strconv.Itoa(port)}}
-				logger.Printf("[DEBUG] driver.docker: allocated port %s:%d -> %s (mapped)", network.IP, port, label)
+				d.logger.Printf("[DEBUG] driver.docker: allocated port %s:%d -> %s (mapped)", network.IP, port, label)
 			} else {
 				dockerPorts[docker.Port(strconv.Itoa(port)+"/tcp")] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: strconv.Itoa(port)}}
 				dockerPorts[docker.Port(strconv.Itoa(port)+"/udp")] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: strconv.Itoa(port)}}
-				logger.Printf("[DEBUG] driver.docker: allocated port %s:%d -> %d for label %s\n", network.IP, port, port, label)
+				d.logger.Printf("[DEBUG] driver.docker: allocated port %s:%d -> %d for label %s\n", network.IP, port, port, label)
 			}
 		}
 		hostConfig.PortBindings = dockerPorts
@@ -242,7 +242,7 @@ func createContainer(ctx *ExecContext, task *structs.Task, logger *log.Logger) (
 		}
 		config.Cmd = cmd
 	} else if hasArgs {
-		logger.Println("[DEBUG] driver.docker: ignoring args because command not specified")
+		d.logger.Println("[DEBUG] driver.docker: ignoring args because command not specified")
 	}
 
 	return docker.CreateContainerOptions{
@@ -322,7 +322,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	d.logger.Printf("[DEBUG] driver.docker: using image %s", dockerImage.ID)
 	d.logger.Printf("[INFO] driver.docker: identified image %s as %s", image, dockerImage.ID)
 
-	config, err := createContainer(ctx, task, d.logger)
+	config, err := d.createContainer(ctx, task)
 	if err != nil {
 		d.logger.Printf("[ERR] driver.docker: %s", err)
 		return nil, fmt.Errorf("Failed to create container config for image %s", image)
