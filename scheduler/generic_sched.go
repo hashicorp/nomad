@@ -243,7 +243,7 @@ func (s *GenericScheduler) computeJobAllocs() error {
 }
 
 // computePlacements computes placements for allocations
-func (s *GenericScheduler) computePlacements(place []*allocTuple) error {
+func (s *GenericScheduler) computePlacements(place []allocTuple) error {
 	// Get the base nodes
 	nodes, err := readyNodesInDCs(s.state, s.job.Datacenters)
 	if err != nil {

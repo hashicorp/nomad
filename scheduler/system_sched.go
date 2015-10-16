@@ -202,7 +202,7 @@ func (s *SystemScheduler) computeJobAllocs() error {
 }
 
 // computePlacements computes placements for allocations
-func (s *SystemScheduler) computePlacements(place []*allocTuple) error {
+func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 	nodeByID := make(map[string]*structs.Node, len(s.nodes))
 	for _, node := range s.nodes {
 		nodeByID[node.ID] = node

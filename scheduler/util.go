@@ -35,7 +35,7 @@ func materializeTaskGroups(job *structs.Job) map[string]*structs.TaskGroup {
 
 // diffResult is used to return the sets that result from the diff
 type diffResult struct {
-	place, update, migrate, stop, ignore []*allocTuple
+	place, update, migrate, stop, ignore []allocTuple
 }
 
 func (d *diffResult) GoString() string {
@@ -73,7 +73,7 @@ func diffAllocs(job *structs.Job, taintedNodes map[string]bool,
 
 		// If not required, we stop the alloc
 		if !ok {
-			result.stop = append(result.stop, &allocTuple{
+			result.stop = append(result.stop, allocTuple{
 				Name:      name,
 				TaskGroup: tg,
 				Alloc:     exist,
@@ -83,7 +83,7 @@ func diffAllocs(job *structs.Job, taintedNodes map[string]bool,
 
 		// If we are on a tainted node, we must migrate
 		if taintedNodes[exist.NodeID] {
-			result.migrate = append(result.migrate, &allocTuple{
+			result.migrate = append(result.migrate, allocTuple{
 				Name:      name,
 				TaskGroup: tg,
 				Alloc:     exist,
@@ -96,7 +96,7 @@ func diffAllocs(job *structs.Job, taintedNodes map[string]bool,
 		// if the job definition has changed in a way that affects
 		// this allocation and potentially ignore it.
 		if job.ModifyIndex != exist.Job.ModifyIndex {
-			result.update = append(result.update, &allocTuple{
+			result.update = append(result.update, allocTuple{
 				Name:      name,
 				TaskGroup: tg,
 				Alloc:     exist,
@@ -105,7 +105,7 @@ func diffAllocs(job *structs.Job, taintedNodes map[string]bool,
 		}
 
 		// Everything is up-to-date
-		result.ignore = append(result.ignore, &allocTuple{
+		result.ignore = append(result.ignore, allocTuple{
 			Name:      name,
 			TaskGroup: tg,
 			Alloc:     exist,
@@ -121,7 +121,7 @@ func diffAllocs(job *structs.Job, taintedNodes map[string]bool,
 		// is an existing allocation, we would have checked for a potential
 		// update or ignore above.
 		if !ok {
-			result.place = append(result.place, &allocTuple{
+			result.place = append(result.place, allocTuple{
 				Name:      name,
 				TaskGroup: tg,
 			})
@@ -156,7 +156,8 @@ func diffSystemAllocs(job *structs.Job, nodes []*structs.Node, taintedNodes map[
 		diff := diffAllocs(job, taintedNodes, required, allocs)
 
 		// Mark the alloc as being for a specific node.
-		for _, alloc := range diff.place {
+		for i := range diff.place {
+			alloc := &diff.place[i]
 			alloc.Alloc = &structs.Allocation{NodeID: nodeID}
 		}
 
@@ -311,7 +312,7 @@ func setStatus(logger *log.Logger, planner Planner, eval, nextEval *structs.Eval
 
 // inplaceUpdate attempts to update allocations in-place where possible.
 func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
-	stack Stack, updates []*allocTuple) []*allocTuple {
+	stack Stack, updates []allocTuple) []allocTuple {
 
 	n := len(updates)
 	inplace := 0
@@ -393,7 +394,7 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 // evictAndPlace is used to mark allocations for evicts and add them to the
 // placement queue. evictAndPlace modifies both the the diffResult and the
 // limit. It returns true if the limit has been reached.
-func evictAndPlace(ctx Context, diff *diffResult, allocs []*allocTuple, desc string, limit *int) bool {
+func evictAndPlace(ctx Context, diff *diffResult, allocs []allocTuple, desc string, limit *int) bool {
 	n := len(allocs)
 	for i := 0; i < n && i < *limit; i++ {
 		a := allocs[i]
