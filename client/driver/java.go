@@ -69,7 +69,7 @@ func (d *JavaDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, 
 	}
 
 	if infoString == "" {
-		d.logger.Println("[WARN] Error parsing Java version information, aborting")
+		d.logger.Println("[WARN] driver.java: error parsing Java version information, aborting")
 		return false, nil
 	}
 
@@ -133,15 +133,15 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	// Get the environment variables.
 	envVars := TaskEnvironmentVariables(ctx, task)
 
-        args := []string{jvm_options}
-        // Look for jvm options
-        jvm_options, ok := task.Config["jvm_options"]
-        if ok && jvm_options != "" {
-                d.logger.Printf("[DEBUG] driver.java: found JVM options: %s", jvm_options)
-        }
-        
-        // Build the argument list
-        args = append(args, "-jar", filepath.Join(allocdir.TaskLocal, fName))
+	args := []string{jvm_options}
+	// Look for jvm options
+	jvm_options, ok := task.Config["jvm_options"]
+	if ok && jvm_options != "" {
+		d.logger.Printf("[DEBUG] driver.java: found JVM options: %s", jvm_options)
+	}
+
+	// Build the argument list
+	args = append(args, "-jar", filepath.Join(allocdir.TaskLocal, fName))
 
 	// Build the argument list.
 	if argRaw, ok := task.Config["args"]; ok {
