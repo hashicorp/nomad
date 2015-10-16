@@ -100,6 +100,7 @@ func TestJavaDriver_Start_Wait(t *testing.T) {
 			"jar_source": "https://dl.dropboxusercontent.com/u/47675/jar_thing/demoapp.jar",
 			// "jar_source": "https://s3-us-west-2.amazonaws.com/java-jar-thing/demoapp.jar",
 			// "args": "-d64",
+			"jvm_options": "-Xmx2048m -Xms256m",
 		},
 		Resources: basicResources,
 	}

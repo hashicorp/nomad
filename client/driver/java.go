@@ -138,6 +138,7 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	jvm_options, ok := task.Config["jvm_options"]
 	if ok && jvm_options != "" {
 		d.logger.Printf("[DEBUG] driver.java: found JVM options: %s", jvm_options)
+		args = append(args, jvm_options)
 	}
 
 	// Build the argument list
