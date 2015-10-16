@@ -85,7 +85,7 @@ func TestExecDriver_Start_Wait(t *testing.T) {
 		Name: "sleep",
 		Config: map[string]string{
 			"command": "/bin/sleep",
-			"args":    "1",
+			"args":    "2",
 		},
 		Resources: basicResources,
 	}
@@ -115,7 +115,7 @@ func TestExecDriver_Start_Wait(t *testing.T) {
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
-	case <-time.After(2 * time.Second):
+	case <-time.After(4 * time.Second):
 		t.Fatalf("timeout")
 	}
 }

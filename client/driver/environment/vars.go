@@ -12,6 +12,10 @@ const (
 	// group.
 	AllocDir = "NOMAD_ALLOC_DIR"
 
+	// The path to the tasks local directory where it can store data that is
+	// persisted to the alloc is removed.
+	TaskLocalDir = "NOMAD_TASK_DIR"
+
 	// The tasks memory limit in MBs.
 	MemLimit = "NOMAD_MEMORY_LIMIT"
 
@@ -68,6 +72,10 @@ func (t TaskEnvironment) Map() map[string]string {
 
 func (t TaskEnvironment) SetAllocDir(dir string) {
 	t[AllocDir] = dir
+}
+
+func (t TaskEnvironment) SetTaskLocalDir(dir string) {
+	t[TaskLocalDir] = dir
 }
 
 func (t TaskEnvironment) SetMemLimit(limit int) {

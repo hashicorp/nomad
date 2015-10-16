@@ -56,6 +56,27 @@ exported as environment variables for consistency, e.g. `NOMAD_PORT_5000`.
 
 Please see the relevant driver documentation for details.
 
+### Task Directories
+
+Nomad makes the following two directories available to tasks:
+
+* `alloc/`: This directory is shared across all tasks in a task group and can be
+  used to store data that needs to be used by multiple tasks, such as a log
+  shipper.
+* `local/`: This directory is private to each task. It can be used to store
+  arbitrary data that shouldn't be shared by tasks in the task group.
+
+Both these directories are persisted until the allocation is removed, which
+occurs hours after all the tasks in the task group enter terminal states. This
+gives time to view the data produced by tasks.
+
+Depending on the driver and operating system being targeted, the directories are
+made available in various ways. For example, on `docker` the directories are
+binded to the container, while on `exec` on Linux the directories are mounted into the
+chroot. Regardless of how the directories are made available, the path to the
+directories can be read through the following environment variables:
+`NOMAD_ALLOC_DIR` and `NOMAD_TASK_DIR`.
+
 ## Meta
 
 The job specification also allows you to specify a `meta` block to supply arbitrary
