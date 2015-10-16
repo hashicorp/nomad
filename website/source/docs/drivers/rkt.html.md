@@ -30,7 +30,7 @@ hash, ACI address or docker registry.
 
 The `Rkt` driver does not currently support mounting the `alloc/` and `local/`
 directory. It is currently blocked by this [Rkt
-bug](https://github.com/coreos/rkt/issues/761).
+issue](https://github.com/coreos/rkt/issues/761).
 
 ## Client Requirements
 
