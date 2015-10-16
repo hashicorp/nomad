@@ -30,7 +30,8 @@ hash, ACI address or docker registry.
 
 The `Rkt` driver does not currently support mounting the `alloc/` and `local/`
 directory. It is currently blocked by this [Rkt
-issue](https://github.com/coreos/rkt/issues/761).
+issue](https://github.com/coreos/rkt/issues/761). As such the coresponding
+[environment variables](/docs/jobspec/environment.html#task_dir) are not set.
 
 ## Client Requirements
 

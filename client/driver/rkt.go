@@ -114,6 +114,11 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 
 	// Inject the environment variables.
 	envVars := TaskEnvironmentVariables(ctx, task)
+
+	// Clear the task directories as they are not currently supported.
+	envVars.ClearTaskLocalDir()
+	envVars.ClearAllocDir()
+
 	for k, v := range envVars.Map() {
 		cmd_args = append(cmd_args, fmt.Sprintf("--set-env=%v=%v", k, v))
 	}
