@@ -11,7 +11,7 @@ const (
 	// maxSystemScheduleAttempts is used to limit the number of times
 	// we will attempt to schedule if we continue to hit conflicts for system
 	// jobs.
-	maxSystemScheduleAttempts = 2
+	maxSystemScheduleAttempts = 5
 
 	// allocNodeTainted is the status used when stopping an alloc because it's
 	// node is tainted.

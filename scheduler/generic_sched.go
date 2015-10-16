@@ -228,7 +228,7 @@ func (s *GenericScheduler) computeJobAllocs() error {
 	}
 
 	// Treat migrations as an eviction and a new placement.
-	s.limitReached = evictAndPlace(s.ctx, diff, diff.migrate, allocUpdating, &limit)
+	s.limitReached = evictAndPlace(s.ctx, diff, diff.migrate, allocMigrating, &limit)
 
 	// Treat non in-place updates as an eviction and new placement.
 	s.limitReached = evictAndPlace(s.ctx, diff, diff.update, allocUpdating, &limit)
