@@ -341,7 +341,10 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 		// Set the existing node as the base set
 		stack.SetNodes([]*structs.Node{node})
 
-		// Stage an eviction of the current allocation
+		// Stage an eviction of the current allocation. This is done so that
+		// the current allocation is discounted when checking for feasability.
+		// Otherwise we would be trying to fit the tasks current resources and
+		// updated resources. After select is called we can remove the evict.
 		ctx.Plan().AppendUpdate(update.Alloc, structs.AllocDesiredStatusStop,
 			allocInPlace)
 

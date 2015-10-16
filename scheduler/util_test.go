@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"reflect"
 	"testing"
@@ -338,6 +339,249 @@ func TestTasksUpdated(t *testing.T) {
 	j6.TaskGroups[0].Tasks[0].Resources.Networks[0].DynamicPorts = []string{"http", "https", "admin"}
 	if !tasksUpdated(j1.TaskGroups[0], j6.TaskGroups[0]) {
 		t.Fatalf("bad")
+	}
+}
+
+func TestEvictAndPlace_LimitLessThanAllocs(t *testing.T) {
+	_, ctx := testContext(t)
+	allocs := []allocTuple{
+		allocTuple{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
+		allocTuple{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
+		allocTuple{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
+		allocTuple{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
+	}
+	diff := &diffResult{}
+
+	limit := 2
+	if !evictAndPlace(ctx, diff, allocs, "", &limit) {
+		t.Fatal("evictAndReplace() should have returned true")
+	}
+
+	if limit != 0 {
+		t.Fatal("evictAndReplace() should decremented limit; got %v; want 0", limit)
+	}
+
+	if len(diff.place) != 2 {
+		t.Fatal("evictAndReplace() didn't insert into diffResult properly: %v", diff.place)
+	}
+}
+
+func TestEvictAndPlace_LimitEqualToAllocs(t *testing.T) {
+	_, ctx := testContext(t)
+	allocs := []allocTuple{
+		allocTuple{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
+		allocTuple{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
+		allocTuple{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
+		allocTuple{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
+	}
+	diff := &diffResult{}
+
+	limit := 4
+	if evictAndPlace(ctx, diff, allocs, "", &limit) {
+		t.Fatal("evictAndReplace() should have returned false")
+	}
+
+	if limit != 0 {
+		t.Fatal("evictAndReplace() should decremented limit; got %v; want 0", limit)
+	}
+
+	if len(diff.place) != 4 {
+		t.Fatal("evictAndReplace() didn't insert into diffResult properly: %v", diff.place)
+	}
+}
+
+func TestSetStatus(t *testing.T) {
+	h := NewHarness(t)
+	logger := log.New(os.Stderr, "", log.LstdFlags)
+	eval := mock.Eval()
+	status := "a"
+	desc := "b"
+	if err := setStatus(logger, h, eval, nil, status, desc); err != nil {
+		t.Fatalf("setStatus() failed: %v", err)
+	}
+
+	if len(h.Evals) != 1 {
+		t.Fatalf("setStatus() didn't update plan: %v", h.Evals)
+	}
+
+	newEval := h.Evals[0]
+	if newEval.ID != eval.ID || newEval.Status != status || newEval.StatusDescription != desc {
+		t.Fatalf("setStatus() submited invalid eval: %v", newEval)
+	}
+
+	h = NewHarness(t)
+	next := mock.Eval()
+	if err := setStatus(logger, h, eval, next, status, desc); err != nil {
+		t.Fatalf("setStatus() failed: %v", err)
+	}
+
+	if len(h.Evals) != 1 {
+		t.Fatalf("setStatus() didn't update plan: %v", h.Evals)
+	}
+
+	newEval = h.Evals[0]
+	if newEval.NextEval != next.ID {
+		t.Fatalf("setStatus() didn't set nextEval correctly: %v", newEval)
+	}
+}
+
+func TestInplaceUpdate_ChangedTaskGroup(t *testing.T) {
+	state, ctx := testContext(t)
+	eval := mock.Eval()
+	job := mock.Job()
+
+	node := mock.Node()
+	noErr(t, state.UpsertNode(1000, node))
+
+	// Register an alloc
+	alloc := &structs.Allocation{
+		ID:     structs.GenerateUUID(),
+		EvalID: eval.ID,
+		NodeID: node.ID,
+		JobID:  job.ID,
+		Job:    job,
+		Resources: &structs.Resources{
+			CPU:      2048,
+			MemoryMB: 2048,
+		},
+		DesiredStatus: structs.AllocDesiredStatusRun,
+	}
+	alloc.TaskResources = map[string]*structs.Resources{"web": alloc.Resources}
+	noErr(t, state.UpsertAllocs(1001, []*structs.Allocation{alloc}))
+
+	// Create a new task group that prevents in-place updates.
+	tg := &structs.TaskGroup{}
+	*tg = *job.TaskGroups[0]
+	task := &structs.Task{Name: "FOO"}
+	tg.Tasks = nil
+	tg.Tasks = append(tg.Tasks, task)
+
+	updates := []allocTuple{{Alloc: alloc, TaskGroup: tg}}
+	stack := NewGenericStack(false, ctx, nil)
+
+	// Do the inplace update.
+	unplaced := inplaceUpdate(ctx, eval, job, stack, updates)
+
+	if len(unplaced) != 1 {
+		t.Fatal("inplaceUpdate incorrectly did an inplace update")
+	}
+
+	if len(ctx.plan.NodeAllocation) != 0 {
+		t.Fatal("inplaceUpdate incorrectly did an inplace update")
+	}
+}
+
+func TestInplaceUpdate_NoMatch(t *testing.T) {
+	state, ctx := testContext(t)
+	eval := mock.Eval()
+	job := mock.Job()
+
+	node := mock.Node()
+	noErr(t, state.UpsertNode(1000, node))
+
+	// Register an alloc
+	alloc := &structs.Allocation{
+		ID:     structs.GenerateUUID(),
+		EvalID: eval.ID,
+		NodeID: node.ID,
+		JobID:  job.ID,
+		Job:    job,
+		Resources: &structs.Resources{
+			CPU:      2048,
+			MemoryMB: 2048,
+		},
+		DesiredStatus: structs.AllocDesiredStatusRun,
+	}
+	alloc.TaskResources = map[string]*structs.Resources{"web": alloc.Resources}
+	noErr(t, state.UpsertAllocs(1001, []*structs.Allocation{alloc}))
+
+	// Create a new task group that requires too much resources.
+	tg := &structs.TaskGroup{}
+	*tg = *job.TaskGroups[0]
+	resource := &structs.Resources{CPU: 9999}
+	tg.Tasks[0].Resources = resource
+
+	updates := []allocTuple{{Alloc: alloc, TaskGroup: tg}}
+	stack := NewGenericStack(false, ctx, nil)
+
+	// Do the inplace update.
+	unplaced := inplaceUpdate(ctx, eval, job, stack, updates)
+
+	if len(unplaced) != 1 {
+		t.Fatal("inplaceUpdate incorrectly did an inplace update")
+	}
+
+	if len(ctx.plan.NodeAllocation) != 0 {
+		t.Fatal("inplaceUpdate incorrectly did an inplace update")
+	}
+}
+
+func TestInplaceUpdate_Success(t *testing.T) {
+	state, ctx := testContext(t)
+	eval := mock.Eval()
+	job := mock.Job()
+
+	node := mock.Node()
+	noErr(t, state.UpsertNode(1000, node))
+
+	// Register an alloc
+	alloc := &structs.Allocation{
+		ID:     structs.GenerateUUID(),
+		EvalID: eval.ID,
+		NodeID: node.ID,
+		JobID:  job.ID,
+		Job:    job,
+		Resources: &structs.Resources{
+			CPU:      2048,
+			MemoryMB: 2048,
+		},
+		DesiredStatus: structs.AllocDesiredStatusRun,
+	}
+	alloc.TaskResources = map[string]*structs.Resources{"web": alloc.Resources}
+	noErr(t, state.UpsertAllocs(1001, []*structs.Allocation{alloc}))
+
+	// Create a new task group that updates the resources.
+	tg := &structs.TaskGroup{}
+	*tg = *job.TaskGroups[0]
+	resource := &structs.Resources{CPU: 737}
+	tg.Tasks[0].Resources = resource
+
+	updates := []allocTuple{{Alloc: alloc, TaskGroup: tg}}
+	stack := NewGenericStack(false, ctx, nil)
+
+	// Do the inplace update.
+	unplaced := inplaceUpdate(ctx, eval, job, stack, updates)
+
+	if len(unplaced) != 0 {
+		t.Fatal("inplaceUpdate did not do an inplace update")
+	}
+
+	if len(ctx.plan.NodeAllocation) != 1 {
+		t.Fatal("inplaceUpdate did not do an inplace update")
+	}
+}
+
+func TestEvictAndPlace_LimitGreaterThanAllocs(t *testing.T) {
+	_, ctx := testContext(t)
+	allocs := []allocTuple{
+		allocTuple{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
+		allocTuple{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
+		allocTuple{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
+		allocTuple{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
+	}
+	diff := &diffResult{}
+
+	limit := 6
+	if evictAndPlace(ctx, diff, allocs, "", &limit) {
+		t.Fatal("evictAndReplace() should have returned false")
+	}
+
+	if limit != 2 {
+		t.Fatal("evictAndReplace() should decremented limit; got %v; want 2", limit)
+	}
+
+	if len(diff.place) != 4 {
+		t.Fatal("evictAndReplace() didn't insert into diffResult properly: %v", diff.place)
 	}
 }
 
