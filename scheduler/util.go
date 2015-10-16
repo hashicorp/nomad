@@ -408,3 +408,34 @@ func evictAndPlace(ctx Context, diff *diffResult, allocs []allocTuple, desc stri
 	*limit = 0
 	return true
 }
+
+// tgConstrainTuple is used to store the total constraints of a task group.
+type tgConstrainTuple struct {
+	// Holds the combined constraints of the task group and all it's sub-tasks.
+	constraints []*structs.Constraint
+
+	// The set of required drivers within the task group.
+	drivers map[string]struct{}
+
+	// The combined resources of all tasks within the task group.
+	size *structs.Resources
+}
+
+// taskGroupConstraints collects the constraints, drivers and resources required by each
+// sub-task to aggregate the TaskGroup totals
+func taskGroupConstraints(tg *structs.TaskGroup) tgConstrainTuple {
+	c := tgConstrainTuple{
+		constraints: make([]*structs.Constraint, 0, len(tg.Constraints)),
+		drivers:     make(map[string]struct{}),
+		size:        new(structs.Resources),
+	}
+
+	c.constraints = append(c.constraints, tg.Constraints...)
+	for _, task := range tg.Tasks {
+		c.drivers[task.Driver] = struct{}{}
+		c.constraints = append(c.constraints, task.Constraints...)
+		c.size.Add(task.Resources)
+	}
+
+	return c
+}

@@ -134,21 +134,12 @@ func (s *GenericStack) Select(tg *structs.TaskGroup) (*RankedNode, *structs.Reso
 	s.ctx.Reset()
 	start := time.Now()
 
-	// Collect the constraints, drivers and resources required by each
-	// sub-task to aggregate the TaskGroup totals
-	constr := make([]*structs.Constraint, 0, len(tg.Constraints))
-	drivers := make(map[string]struct{})
-	size := new(structs.Resources)
-	constr = append(constr, tg.Constraints...)
-	for _, task := range tg.Tasks {
-		drivers[task.Driver] = struct{}{}
-		constr = append(constr, task.Constraints...)
-		size.Add(task.Resources)
-	}
+	// Get the task groups constraints.
+	tgConstr := taskGroupConstraints(tg)
 
 	// Update the parameters of iterators
-	s.taskGroupDrivers.SetDrivers(drivers)
-	s.taskGroupConstraint.SetConstraints(constr)
+	s.taskGroupDrivers.SetDrivers(tgConstr.drivers)
+	s.taskGroupConstraint.SetConstraints(tgConstr.constraints)
 	s.binPack.SetTasks(tg.Tasks)
 
 	// Find the node with the max score
@@ -163,7 +154,7 @@ func (s *GenericStack) Select(tg *structs.TaskGroup) (*RankedNode, *structs.Reso
 
 	// Store the compute time
 	s.ctx.Metrics().AllocationTime = time.Since(start)
-	return option, size
+	return option, tgConstr.size
 }
 
 // SystemStack is the Stack used for the System scheduler. It is designed to
@@ -226,21 +217,12 @@ func (s *SystemStack) Select(tg *structs.TaskGroup) (*RankedNode, *structs.Resou
 	s.ctx.Reset()
 	start := time.Now()
 
-	// Collect the constraints, drivers and resources required by each
-	// sub-task to aggregate the TaskGroup totals
-	constr := make([]*structs.Constraint, 0, len(tg.Constraints))
-	drivers := make(map[string]struct{})
-	size := new(structs.Resources)
-	constr = append(constr, tg.Constraints...)
-	for _, task := range tg.Tasks {
-		drivers[task.Driver] = struct{}{}
-		constr = append(constr, task.Constraints...)
-		size.Add(task.Resources)
-	}
+	// Get the task groups constraints.
+	tgConstr := taskGroupConstraints(tg)
 
 	// Update the parameters of iterators
-	s.taskGroupDrivers.SetDrivers(drivers)
-	s.taskGroupConstraint.SetConstraints(constr)
+	s.taskGroupDrivers.SetDrivers(tgConstr.drivers)
+	s.taskGroupConstraint.SetConstraints(tgConstr.constraints)
 	s.binPack.SetTasks(tg.Tasks)
 
 	// Get the next option that satisfies the constraints.
@@ -255,5 +237,5 @@ func (s *SystemStack) Select(tg *structs.TaskGroup) (*RankedNode, *structs.Resou
 
 	// Store the compute time
 	s.ctx.Metrics().AllocationTime = time.Since(start)
-	return option, size
+	return option, tgConstr.size
 }

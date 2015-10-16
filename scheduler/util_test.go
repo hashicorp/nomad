@@ -340,3 +340,53 @@ func TestTasksUpdated(t *testing.T) {
 		t.Fatalf("bad")
 	}
 }
+
+func TestTaskGroupConstraints(t *testing.T) {
+	constr := &structs.Constraint{Hard: true}
+	constr2 := &structs.Constraint{LTarget: "foo"}
+	constr3 := &structs.Constraint{Weight: 10}
+
+	tg := &structs.TaskGroup{
+		Name:        "web",
+		Count:       10,
+		Constraints: []*structs.Constraint{constr},
+		Tasks: []*structs.Task{
+			&structs.Task{
+				Driver: "exec",
+				Resources: &structs.Resources{
+					CPU:      500,
+					MemoryMB: 256,
+				},
+				Constraints: []*structs.Constraint{constr2},
+			},
+			&structs.Task{
+				Driver: "docker",
+				Resources: &structs.Resources{
+					CPU:      500,
+					MemoryMB: 256,
+				},
+				Constraints: []*structs.Constraint{constr3},
+			},
+		},
+	}
+
+	// Build the expected values.
+	expConstr := []*structs.Constraint{constr, constr2, constr3}
+	expDrivers := map[string]struct{}{"exec": struct{}{}, "docker": struct{}{}}
+	expSize := &structs.Resources{
+		CPU:      1000,
+		MemoryMB: 512,
+	}
+
+	actConstrains := taskGroupConstraints(tg)
+	if !reflect.DeepEqual(actConstrains.constraints, expConstr) {
+		t.Fatalf("taskGroupConstraints(%v) returned %v; want %v", tg, actConstrains.constraints, expConstr)
+	}
+	if !reflect.DeepEqual(actConstrains.drivers, expDrivers) {
+		t.Fatalf("taskGroupConstraints(%v) returned %v; want %v", tg, actConstrains.drivers, expDrivers)
+	}
+	if !reflect.DeepEqual(actConstrains.size, expSize) {
+		t.Fatalf("taskGroupConstraints(%v) returned %v; want %v", tg, actConstrains.size, expSize)
+	}
+
+}
