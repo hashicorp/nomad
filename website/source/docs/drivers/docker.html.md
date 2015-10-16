@@ -23,6 +23,9 @@ The `docker` driver supports the following configuration in the job specificatio
 
 * `command` - (Optional) The command to run when starting the container.
 
+* `args` - (Optional) Arguments to the optional `command`. If no `command` is
+  present, `args` are ignored.
+
 * `network_mode` - (Optional) The network mode to be used for the container.
    Valid options are `default`, `bridge`, `host` or `none`. If nothing is
    specified, the container will start in `bridge` mode. The `container`
