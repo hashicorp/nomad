@@ -51,8 +51,8 @@ port mapping will still be able to make outbound network connections.
 
 Typically when you create a Docker container you configure the service to start
 listening on a port (or ports) when you start the container. For example, redis
-starts listening on `6379` when you `Docker run redis`. Nomad supports this by
-mapping the random port to the port inside the container.
+starts listening on `6379` when you `Docker run redis`. Nomad can support this by
+mapping a random port on the host machine to the port inside the container.
 
 You need to tell Nomad which ports your container is using so Nomad can map
 allocated ports for you. You do so by specifying a **numeric port value** for
