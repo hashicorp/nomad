@@ -1,7 +1,6 @@
 package scheduler
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -9,7 +8,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-func TestServiceSched_JobRegister(t *testing.T) {
+func TestSystemSched_JobRegister(t *testing.T) {
 	h := NewHarness(t)
 
 	// Create some nodes
@@ -19,10 +18,10 @@ func TestServiceSched_JobRegister(t *testing.T) {
 	}
 
 	// Create a job
-	job := mock.Job()
+	job := mock.SystemJob()
 	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
 
-	// Create a mock evaluation to register the job
+	// Create a mock evaluation to deregister the job
 	eval := &structs.Evaluation{
 		ID:          structs.GenerateUUID(),
 		Priority:    job.Priority,
@@ -31,7 +30,7 @@ func TestServiceSched_JobRegister(t *testing.T) {
 	}
 
 	// Process the evaluation
-	err := h.Process(NewServiceScheduler, eval)
+	err := h.Process(NewSystemScheduler, eval)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -63,57 +62,7 @@ func TestServiceSched_JobRegister(t *testing.T) {
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
 
-func TestServiceSched_JobRegister_AllocFail(t *testing.T) {
-	h := NewHarness(t)
-
-	// Create NO nodes
-	// Create a job
-	job := mock.Job()
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
-
-	// Create a mock evaluation to register the job
-	eval := &structs.Evaluation{
-		ID:          structs.GenerateUUID(),
-		Priority:    job.Priority,
-		TriggeredBy: structs.EvalTriggerJobRegister,
-		JobID:       job.ID,
-	}
-
-	// Process the evaluation
-	err := h.Process(NewServiceScheduler, eval)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Ensure a single plan
-	if len(h.Plans) != 1 {
-		t.Fatalf("bad: %#v", h.Plans)
-	}
-	plan := h.Plans[0]
-
-	// Ensure the plan failed to alloc
-	if len(plan.FailedAllocs) != 1 {
-		t.Fatalf("bad: %#v", plan)
-	}
-
-	// Lookup the allocations by JobID
-	out, err := h.State.AllocsByJob(job.ID)
-	noErr(t, err)
-
-	// Ensure all allocations placed
-	if len(out) != 1 {
-		t.Fatalf("bad: %#v", out)
-	}
-
-	// Check the coalesced failures
-	if out[0].Metrics.CoalescedFailures != 9 {
-		t.Fatalf("bad: %#v", out[0].Metrics)
-	}
-
-	h.AssertEvalStatus(t, structs.EvalStatusComplete)
-}
-
-func TestServiceSched_JobModify(t *testing.T) {
+func TestSystemSched_JobRegister_AddNode(t *testing.T) {
 	h := NewHarness(t)
 
 	// Create some nodes
@@ -125,16 +74,133 @@ func TestServiceSched_JobModify(t *testing.T) {
 	}
 
 	// Generate a fake job with allocations
-	job := mock.Job()
+	job := mock.SystemJob()
 	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for _, node := range nodes {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = nodes[i].ID
-		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
+		alloc.NodeID = node.ID
+		alloc.Name = "my-job.web[0]"
+		allocs = append(allocs, alloc)
+	}
+	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+
+	// Add a new node.
+	node := mock.Node()
+	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+
+	// Create a mock evaluation to deal with the node update
+	eval := &structs.Evaluation{
+		ID:          structs.GenerateUUID(),
+		Priority:    50,
+		TriggeredBy: structs.EvalTriggerNodeUpdate,
+		JobID:       job.ID,
+	}
+
+	// Process the evaluation
+	err := h.Process(NewSystemScheduler, eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure a single plan
+	if len(h.Plans) != 1 {
+		t.Fatalf("bad: %#v", h.Plans)
+	}
+	plan := h.Plans[0]
+
+	// Ensure the plan had no node updates
+	var update []*structs.Allocation
+	for _, updateList := range plan.NodeUpdate {
+		update = append(update, updateList...)
+	}
+	if len(update) != 0 {
+		t.Log(len(update))
+		t.Fatalf("bad: %#v", plan)
+	}
+
+	// Ensure the plan allocated on the new node
+	var planned []*structs.Allocation
+	for _, allocList := range plan.NodeAllocation {
+		planned = append(planned, allocList...)
+	}
+	if len(planned) != 1 {
+		t.Fatalf("bad: %#v", plan)
+	}
+
+	// Ensure it allocated on the right node
+	if _, ok := plan.NodeAllocation[node.ID]; !ok {
+		t.Fatalf("allocated on wrong node: %#v", plan)
+	}
+
+	// Lookup the allocations by JobID
+	out, err := h.State.AllocsByJob(job.ID)
+	noErr(t, err)
+
+	// Ensure all allocations placed
+	out = structs.FilterTerminalAllocs(out)
+	if len(out) != 11 {
+		t.Fatalf("bad: %#v", out)
+	}
+
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+}
+
+func TestSystemSched_JobRegister_AllocFail(t *testing.T) {
+	h := NewHarness(t)
+
+	// Create NO nodes
+	// Create a job
+	job := mock.SystemJob()
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	// Create a mock evaluation to register the job
+	eval := &structs.Evaluation{
+		ID:          structs.GenerateUUID(),
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+	}
+
+	// Process the evaluation
+	err := h.Process(NewSystemScheduler, eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure no plan as this should be a no-op.
+	if len(h.Plans) != 0 {
+		t.Fatalf("bad: %#v", h.Plans)
+	}
+
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+}
+
+func TestSystemSched_JobModify(t *testing.T) {
+	h := NewHarness(t)
+
+	// Create some nodes
+	var nodes []*structs.Node
+	for i := 0; i < 10; i++ {
+		node := mock.Node()
+		nodes = append(nodes, node)
+		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+	}
+
+	// Generate a fake job with allocations
+	job := mock.SystemJob()
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	var allocs []*structs.Allocation
+	for _, node := range nodes {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = node.ID
+		alloc.Name = "my-job.web[0]"
 		allocs = append(allocs, alloc)
 	}
 	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
@@ -146,14 +212,14 @@ func TestServiceSched_JobModify(t *testing.T) {
 		alloc.Job = job
 		alloc.JobID = job.ID
 		alloc.NodeID = nodes[i].ID
-		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
+		alloc.Name = "my-job.web[0]"
 		alloc.DesiredStatus = structs.AllocDesiredStatusFailed
 		terminal = append(terminal, alloc)
 	}
 	noErr(t, h.State.UpsertAllocs(h.NextIndex(), terminal))
 
 	// Update the job
-	job2 := mock.Job()
+	job2 := mock.SystemJob()
 	job2.ID = job.ID
 
 	// Update the task, such that it cannot be done in-place
@@ -169,7 +235,7 @@ func TestServiceSched_JobModify(t *testing.T) {
 	}
 
 	// Process the evaluation
-	err := h.Process(NewServiceScheduler, eval)
+	err := h.Process(NewSystemScheduler, eval)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -211,7 +277,7 @@ func TestServiceSched_JobModify(t *testing.T) {
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
 
-func TestServiceSched_JobModify_Rolling(t *testing.T) {
+func TestSystemSched_JobModify_Rolling(t *testing.T) {
 	h := NewHarness(t)
 
 	// Create some nodes
@@ -223,22 +289,22 @@ func TestServiceSched_JobModify_Rolling(t *testing.T) {
 	}
 
 	// Generate a fake job with allocations
-	job := mock.Job()
+	job := mock.SystemJob()
 	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for _, node := range nodes {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = nodes[i].ID
-		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
+		alloc.NodeID = node.ID
+		alloc.Name = "my-job.web[0]"
 		allocs = append(allocs, alloc)
 	}
 	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
 
 	// Update the job
-	job2 := mock.Job()
+	job2 := mock.SystemJob()
 	job2.ID = job.ID
 	job2.Update = structs.UpdateStrategy{
 		Stagger:     30 * time.Second,
@@ -258,7 +324,7 @@ func TestServiceSched_JobModify_Rolling(t *testing.T) {
 	}
 
 	// Process the evaluation
-	err := h.Process(NewServiceScheduler, eval)
+	err := h.Process(NewSystemScheduler, eval)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -312,7 +378,7 @@ func TestServiceSched_JobModify_Rolling(t *testing.T) {
 	}
 }
 
-func TestServiceSched_JobModify_InPlace(t *testing.T) {
+func TestSystemSched_JobModify_InPlace(t *testing.T) {
 	h := NewHarness(t)
 
 	// Create some nodes
@@ -324,22 +390,22 @@ func TestServiceSched_JobModify_InPlace(t *testing.T) {
 	}
 
 	// Generate a fake job with allocations
-	job := mock.Job()
+	job := mock.SystemJob()
 	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for _, node := range nodes {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = nodes[i].ID
-		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
+		alloc.NodeID = node.ID
+		alloc.Name = "my-job.web[0]"
 		allocs = append(allocs, alloc)
 	}
 	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
 
 	// Update the job
-	job2 := mock.Job()
+	job2 := mock.SystemJob()
 	job2.ID = job.ID
 	noErr(t, h.State.UpsertJob(h.NextIndex(), job2))
 
@@ -352,7 +418,7 @@ func TestServiceSched_JobModify_InPlace(t *testing.T) {
 	}
 
 	// Process the evaluation
-	err := h.Process(NewServiceScheduler, eval)
+	err := h.Process(NewSystemScheduler, eval)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -406,17 +472,27 @@ func TestServiceSched_JobModify_InPlace(t *testing.T) {
 	}
 }
 
-func TestServiceSched_JobDeregister(t *testing.T) {
+func TestSystemSched_JobDeregister(t *testing.T) {
 	h := NewHarness(t)
 
+	// Create some nodes
+	var nodes []*structs.Node
+	for i := 0; i < 10; i++ {
+		node := mock.Node()
+		nodes = append(nodes, node)
+		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+	}
+
 	// Generate a fake job with allocations
-	job := mock.Job()
+	job := mock.SystemJob()
 
 	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for _, node := range nodes {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
+		alloc.NodeID = node.ID
+		alloc.Name = "my-job.web[0]"
 		allocs = append(allocs, alloc)
 	}
 	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
@@ -430,7 +506,7 @@ func TestServiceSched_JobDeregister(t *testing.T) {
 	}
 
 	// Process the evaluation
-	err := h.Process(NewServiceScheduler, eval)
+	err := h.Process(NewSystemScheduler, eval)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -441,9 +517,11 @@ func TestServiceSched_JobDeregister(t *testing.T) {
 	}
 	plan := h.Plans[0]
 
-	// Ensure the plan evicted all nodes
-	if len(plan.NodeUpdate["foo"]) != len(allocs) {
-		t.Fatalf("bad: %#v", plan)
+	// Ensure the plan evicted the job from all nodes.
+	for _, node := range nodes {
+		if len(plan.NodeUpdate[node.ID]) != 1 {
+			t.Fatalf("bad: %#v", plan)
+		}
 	}
 
 	// Lookup the allocations by JobID
@@ -459,7 +537,7 @@ func TestServiceSched_JobDeregister(t *testing.T) {
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
 
-func TestServiceSched_NodeDrain(t *testing.T) {
+func TestSystemSched_NodeDrain(t *testing.T) {
 	h := NewHarness(t)
 
 	// Register a draining node
@@ -467,26 +545,16 @@ func TestServiceSched_NodeDrain(t *testing.T) {
 	node.Drain = true
 	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
 
-	// Create some nodes
-	for i := 0; i < 10; i++ {
-		node := mock.Node()
-		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
-	}
-
-	// Generate a fake job with allocations
-	job := mock.Job()
+	// Generate a fake job allocated on that node.
+	job := mock.SystemJob()
 	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
 
-	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
-		alloc := mock.Alloc()
-		alloc.Job = job
-		alloc.JobID = job.ID
-		alloc.NodeID = node.ID
-		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
-		allocs = append(allocs, alloc)
-	}
-	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+	alloc := mock.Alloc()
+	alloc.Job = job
+	alloc.JobID = job.ID
+	alloc.NodeID = node.ID
+	alloc.Name = "my-job.web[0]"
+	noErr(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
 
 	// Create a mock evaluation to deal with drain
 	eval := &structs.Evaluation{
@@ -498,7 +566,7 @@ func TestServiceSched_NodeDrain(t *testing.T) {
 	}
 
 	// Process the evaluation
-	err := h.Process(NewServiceScheduler, eval)
+	err := h.Process(NewSystemScheduler, eval)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -510,16 +578,17 @@ func TestServiceSched_NodeDrain(t *testing.T) {
 	plan := h.Plans[0]
 
 	// Ensure the plan evicted all allocs
-	if len(plan.NodeUpdate[node.ID]) != len(allocs) {
+	if len(plan.NodeUpdate[node.ID]) != 1 {
 		t.Fatalf("bad: %#v", plan)
 	}
 
-	// Ensure the plan allocated
+	// Ensure the plan updated the allocation.
 	var planned []*structs.Allocation
-	for _, allocList := range plan.NodeAllocation {
+	for _, allocList := range plan.NodeUpdate {
 		planned = append(planned, allocList...)
 	}
-	if len(planned) != 10 {
+	if len(planned) != 1 {
+		t.Log(len(planned))
 		t.Fatalf("bad: %#v", plan)
 	}
 
@@ -527,16 +596,15 @@ func TestServiceSched_NodeDrain(t *testing.T) {
 	out, err := h.State.AllocsByJob(job.ID)
 	noErr(t, err)
 
-	// Ensure all allocations placed
-	out = structs.FilterTerminalAllocs(out)
-	if len(out) != 10 {
+	// Ensure the allocations is stopped
+	if planned[0].DesiredStatus != structs.AllocDesiredStatusStop {
 		t.Fatalf("bad: %#v", out)
 	}
 
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
 
-func TestServiceSched_RetryLimit(t *testing.T) {
+func TestSystemSched_RetryLimit(t *testing.T) {
 	h := NewHarness(t)
 	h.Planner = &RejectPlan{h}
 
@@ -547,10 +615,10 @@ func TestServiceSched_RetryLimit(t *testing.T) {
 	}
 
 	// Create a job
-	job := mock.Job()
+	job := mock.SystemJob()
 	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
 
-	// Create a mock evaluation to register the job
+	// Create a mock evaluation to deregister the job
 	eval := &structs.Evaluation{
 		ID:          structs.GenerateUUID(),
 		Priority:    job.Priority,
@@ -559,7 +627,7 @@ func TestServiceSched_RetryLimit(t *testing.T) {
 	}
 
 	// Process the evaluation
-	err := h.Process(NewServiceScheduler, eval)
+	err := h.Process(NewSystemScheduler, eval)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

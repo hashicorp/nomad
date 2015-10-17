@@ -8,82 +8,46 @@ import (
 )
 
 const (
-	// maxServiceScheduleAttempts is used to limit the number of times
-	// we will attempt to schedule if we continue to hit conflicts for services.
-	maxServiceScheduleAttempts = 5
+	// maxSystemScheduleAttempts is used to limit the number of times
+	// we will attempt to schedule if we continue to hit conflicts for system
+	// jobs.
+	maxSystemScheduleAttempts = 5
 
-	// maxBatchScheduleAttempts is used to limit the number of times
-	// we will attempt to schedule if we continue to hit conflicts for batch.
-	maxBatchScheduleAttempts = 2
-
-	// allocNotNeeded is the status used when a job no longer requires an allocation
-	allocNotNeeded = "alloc not needed due to job update"
-
-	// allocMigrating is the status used when we must migrate an allocation
-	allocMigrating = "alloc is being migrated"
-
-	// allocUpdating is the status used when a job requires an update
-	allocUpdating = "alloc is being updated due to job update"
-
-	// allocInPlace is the status used when speculating on an in-place update
-	allocInPlace = "alloc updating in-place"
+	// allocNodeTainted is the status used when stopping an alloc because it's
+	// node is tainted.
+	allocNodeTainted = "system alloc not needed as node is tainted"
 )
 
-// SetStatusError is used to set the status of the evaluation to the given error
-type SetStatusError struct {
-	Err        error
-	EvalStatus string
-}
-
-func (s *SetStatusError) Error() string {
-	return s.Err.Error()
-}
-
-// GenericScheduler is used for 'service' and 'batch' type jobs. This scheduler is
-// designed for long-lived services, and as such spends more time attemping
-// to make a high quality placement. This is the primary scheduler for
-// most workloads. It also supports a 'batch' mode to optimize for fast decision
-// making at the cost of quality.
-type GenericScheduler struct {
+// SystemScheduler is used for 'system' jobs. This scheduler is
+// designed for services that should be run on every client.
+type SystemScheduler struct {
 	logger  *log.Logger
 	state   State
 	planner Planner
-	batch   bool
 
 	eval  *structs.Evaluation
 	job   *structs.Job
 	plan  *structs.Plan
 	ctx   *EvalContext
-	stack *GenericStack
+	stack *SystemStack
+	nodes []*structs.Node
 
 	limitReached bool
 	nextEval     *structs.Evaluation
 }
 
-// NewServiceScheduler is a factory function to instantiate a new service scheduler
-func NewServiceScheduler(logger *log.Logger, state State, planner Planner) Scheduler {
-	s := &GenericScheduler{
+// NewSystemScheduler is a factory function to instantiate a new system
+// scheduler.
+func NewSystemScheduler(logger *log.Logger, state State, planner Planner) Scheduler {
+	return &SystemScheduler{
 		logger:  logger,
 		state:   state,
 		planner: planner,
-		batch:   false,
 	}
-	return s
 }
 
-// NewBatchScheduler is a factory function to instantiate a new batch scheduler
-func NewBatchScheduler(logger *log.Logger, state State, planner Planner) Scheduler {
-	s := &GenericScheduler{
-		logger:  logger,
-		state:   state,
-		planner: planner,
-		batch:   true,
-	}
-	return s
-}
-
-// Process is used to handle a single evaluation
-func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
+// Process is used to handle a single evaluation.
+func (s *SystemScheduler) Process(eval *structs.Evaluation) error {
 	// Store the evaluation
 	s.eval = eval
 
@@ -97,12 +61,8 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 		return setStatus(s.logger, s.planner, s.eval, s.nextEval, structs.EvalStatusFailed, desc)
 	}
 
-	// Retry up to the maxScheduleAttempts
-	limit := maxServiceScheduleAttempts
-	if s.batch {
-		limit = maxBatchScheduleAttempts
-	}
-	if err := retryMax(limit, s.process); err != nil {
+	// Retry up to the maxSystemScheduleAttempts
+	if err := retryMax(maxSystemScheduleAttempts, s.process); err != nil {
 		if statusErr, ok := err.(*SetStatusError); ok {
 			return setStatus(s.logger, s.planner, s.eval, s.nextEval, statusErr.EvalStatus, err.Error())
 		}
@@ -115,13 +75,21 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 
 // process is wrapped in retryMax to iteratively run the handler until we have no
 // further work or we've made the maximum number of attempts.
-func (s *GenericScheduler) process() (bool, error) {
+func (s *SystemScheduler) process() (bool, error) {
 	// Lookup the Job by ID
 	var err error
 	s.job, err = s.state.JobByID(s.eval.JobID)
 	if err != nil {
 		return false, fmt.Errorf("failed to get job '%s': %v",
 			s.eval.JobID, err)
+	}
+
+	// Get the ready nodes in the required datacenters
+	if s.job != nil {
+		s.nodes, err = readyNodesInDCs(s.state, s.job.Datacenters)
+		if err != nil {
+			return false, fmt.Errorf("failed to get ready nodes: %v", err)
+		}
 	}
 
 	// Create a plan
@@ -131,7 +99,7 @@ func (s *GenericScheduler) process() (bool, error) {
 	s.ctx = NewEvalContext(s.state, s.plan, s.logger)
 
 	// Construct the placement stack
-	s.stack = NewGenericStack(s.batch, s.ctx)
+	s.stack = NewSystemStack(s.ctx)
 	if s.job != nil {
 		s.stack.SetJob(s.job)
 	}
@@ -185,13 +153,7 @@ func (s *GenericScheduler) process() (bool, error) {
 
 // computeJobAllocs is used to reconcile differences between the job,
 // existing allocations and node status to update the allocations.
-func (s *GenericScheduler) computeJobAllocs() error {
-	// Materialize all the task groups, job could be missing if deregistered
-	var groups map[string]*structs.TaskGroup
-	if s.job != nil {
-		groups = materializeTaskGroups(s.job)
-	}
-
+func (s *SystemScheduler) computeJobAllocs() error {
 	// Lookup the allocations by JobID
 	allocs, err := s.state.AllocsByJob(s.eval.JobID)
 	if err != nil {
@@ -210,7 +172,7 @@ func (s *GenericScheduler) computeJobAllocs() error {
 	}
 
 	// Diff the required and existing allocations
-	diff := diffAllocs(s.job, tainted, groups, allocs)
+	diff := diffSystemAllocs(s.job, s.nodes, tainted, allocs)
 	s.logger.Printf("[DEBUG] sched: %#v: %#v", s.eval, diff)
 
 	// Add all the allocs to stop
@@ -222,13 +184,10 @@ func (s *GenericScheduler) computeJobAllocs() error {
 	diff.update = inplaceUpdate(s.ctx, s.eval, s.job, s.stack, diff.update)
 
 	// Check if a rolling upgrade strategy is being used
-	limit := len(diff.update) + len(diff.migrate)
+	limit := len(diff.update)
 	if s.job != nil && s.job.Update.Rolling() {
 		limit = s.job.Update.MaxParallel
 	}
-
-	// Treat migrations as an eviction and a new placement.
-	s.limitReached = evictAndPlace(s.ctx, diff, diff.migrate, allocMigrating, &limit)
 
 	// Treat non in-place updates as an eviction and new placement.
 	s.limitReached = evictAndPlace(s.ctx, diff, diff.update, allocUpdating, &limit)
@@ -243,29 +202,37 @@ func (s *GenericScheduler) computeJobAllocs() error {
 }
 
 // computePlacements computes placements for allocations
-func (s *GenericScheduler) computePlacements(place []allocTuple) error {
-	// Get the base nodes
-	nodes, err := readyNodesInDCs(s.state, s.job.Datacenters)
-	if err != nil {
-		return err
+func (s *SystemScheduler) computePlacements(place []allocTuple) error {
+	nodeByID := make(map[string]*structs.Node, len(s.nodes))
+	for _, node := range s.nodes {
+		nodeByID[node.ID] = node
 	}
-
-	// Update the set of placement ndoes
-	s.stack.SetNodes(nodes)
 
 	// Track the failed task groups so that we can coalesce
 	// the failures together to avoid creating many failed allocs.
 	failedTG := make(map[*structs.TaskGroup]*structs.Allocation)
 
+	nodes := make([]*structs.Node, 1)
 	for _, missing := range place {
-		// Check if this task group has already failed
-		if alloc, ok := failedTG[missing.TaskGroup]; ok {
-			alloc.Metrics.CoalescedFailures += 1
-			continue
+		node, ok := nodeByID[missing.Alloc.NodeID]
+		if !ok {
+			return fmt.Errorf("could not find node %q", missing.Alloc.NodeID)
 		}
+
+		// Update the set of placement ndoes
+		nodes[0] = node
+		s.stack.SetNodes(nodes)
 
 		// Attempt to match the task group
 		option, size := s.stack.Select(missing.TaskGroup)
+
+		if option == nil {
+			// Check if this task group has already failed
+			if alloc, ok := failedTG[missing.TaskGroup]; ok {
+				alloc.Metrics.CoalescedFailures += 1
+				continue
+			}
+		}
 
 		// Create an allocation for this
 		alloc := &structs.Allocation{

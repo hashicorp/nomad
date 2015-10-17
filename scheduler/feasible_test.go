@@ -82,11 +82,14 @@ func TestDriverIterator(t *testing.T) {
 		mock.Node(),
 		mock.Node(),
 		mock.Node(),
+		mock.Node(),
 	}
 	static := NewStaticIterator(ctx, nodes)
 
-	nodes[0].Attributes["driver.foo"] = "2"
-	nodes[2].Attributes["driver.foo"] = "2"
+	nodes[0].Attributes["driver.foo"] = "1"
+	nodes[1].Attributes["driver.foo"] = "0"
+	nodes[2].Attributes["driver.foo"] = "true"
+	nodes[3].Attributes["driver.foo"] = "False"
 
 	drivers := map[string]struct{}{
 		"exec": struct{}{},

@@ -48,7 +48,7 @@ type GenericStack struct {
 }
 
 // NewGenericStack constructs a stack used for selecting service placements
-func NewGenericStack(batch bool, ctx Context, baseNodes []*structs.Node) *GenericStack {
+func NewGenericStack(batch bool, ctx Context) *GenericStack {
 	// Create a new stack
 	s := &GenericStack{
 		batch: batch,
@@ -58,7 +58,7 @@ func NewGenericStack(batch bool, ctx Context, baseNodes []*structs.Node) *Generi
 	// Create the source iterator. We randomize the order we visit nodes
 	// to reduce collisions between schedulers and to do a basic load
 	// balancing across eligible nodes.
-	s.source = NewRandomIterator(ctx, baseNodes)
+	s.source = NewRandomIterator(ctx, nil)
 
 	// Attach the job constraints. The job is filled in later.
 	s.jobConstraint = NewConstraintIterator(ctx, s.source, nil)
@@ -92,11 +92,6 @@ func NewGenericStack(batch bool, ctx Context, baseNodes []*structs.Node) *Generi
 
 	// Select the node with the maximum score for placement
 	s.maxScore = NewMaxScoreIterator(ctx, s.limit)
-
-	// Set the nodes if given
-	if len(baseNodes) != 0 {
-		s.SetNodes(baseNodes)
-	}
 	return s
 }
 
@@ -109,7 +104,7 @@ func (s *GenericStack) SetNodes(baseNodes []*structs.Node) {
 
 	// Apply a limit function. This is to avoid scanning *every* possible node.
 	// For batch jobs we only need to evaluate 2 options and depend on the
-	// powwer of two choices. For services jobs we need to visit "enough".
+	// power of two choices. For services jobs we need to visit "enough".
 	// Using a log of the total number of nodes is a good restriction, with
 	// at least 2 as the floor
 	limit := 2
@@ -134,21 +129,12 @@ func (s *GenericStack) Select(tg *structs.TaskGroup) (*RankedNode, *structs.Reso
 	s.ctx.Reset()
 	start := time.Now()
 
-	// Collect the constraints, drivers and resources required by each
-	// sub-task to aggregate the TaskGroup totals
-	constr := make([]*structs.Constraint, 0, len(tg.Constraints))
-	drivers := make(map[string]struct{})
-	size := new(structs.Resources)
-	constr = append(constr, tg.Constraints...)
-	for _, task := range tg.Tasks {
-		drivers[task.Driver] = struct{}{}
-		constr = append(constr, task.Constraints...)
-		size.Add(task.Resources)
-	}
+	// Get the task groups constraints.
+	tgConstr := taskGroupConstraints(tg)
 
 	// Update the parameters of iterators
-	s.taskGroupDrivers.SetDrivers(drivers)
-	s.taskGroupConstraint.SetConstraints(constr)
+	s.taskGroupDrivers.SetDrivers(tgConstr.drivers)
+	s.taskGroupConstraint.SetConstraints(tgConstr.constraints)
 	s.binPack.SetTasks(tg.Tasks)
 
 	// Find the node with the max score
@@ -163,5 +149,83 @@ func (s *GenericStack) Select(tg *structs.TaskGroup) (*RankedNode, *structs.Reso
 
 	// Store the compute time
 	s.ctx.Metrics().AllocationTime = time.Since(start)
-	return option, size
+	return option, tgConstr.size
+}
+
+// SystemStack is the Stack used for the System scheduler. It is designed to
+// attempt to make placements on all nodes.
+type SystemStack struct {
+	ctx                 Context
+	source              *StaticIterator
+	jobConstraint       *ConstraintIterator
+	taskGroupDrivers    *DriverIterator
+	taskGroupConstraint *ConstraintIterator
+	binPack             *BinPackIterator
+}
+
+// NewSystemStack constructs a stack used for selecting service placements
+func NewSystemStack(ctx Context) *SystemStack {
+	// Create a new stack
+	s := &SystemStack{ctx: ctx}
+
+	// Create the source iterator. We visit nodes in a linear order because we
+	// have to evaluate on all nodes.
+	s.source = NewStaticIterator(ctx, nil)
+
+	// Attach the job constraints. The job is filled in later.
+	s.jobConstraint = NewConstraintIterator(ctx, s.source, nil)
+
+	// Filter on task group drivers first as they are faster
+	s.taskGroupDrivers = NewDriverIterator(ctx, s.jobConstraint, nil)
+
+	// Filter on task group constraints second
+	s.taskGroupConstraint = NewConstraintIterator(ctx, s.taskGroupDrivers, nil)
+
+	// Upgrade from feasible to rank iterator
+	rankSource := NewFeasibleRankIterator(ctx, s.taskGroupConstraint)
+
+	// Apply the bin packing, this depends on the resources needed
+	// by a particular task group. Enable eviction as system jobs are high
+	// priority.
+	s.binPack = NewBinPackIterator(ctx, rankSource, true, 0)
+	return s
+}
+
+func (s *SystemStack) SetNodes(baseNodes []*structs.Node) {
+	// Update the set of base nodes
+	s.source.SetNodes(baseNodes)
+}
+
+func (s *SystemStack) SetJob(job *structs.Job) {
+	s.jobConstraint.SetConstraints(job.Constraints)
+	s.binPack.SetPriority(job.Priority)
+}
+
+func (s *SystemStack) Select(tg *structs.TaskGroup) (*RankedNode, *structs.Resources) {
+	// Reset the binpack selector and context
+	s.binPack.Reset()
+	s.ctx.Reset()
+	start := time.Now()
+
+	// Get the task groups constraints.
+	tgConstr := taskGroupConstraints(tg)
+
+	// Update the parameters of iterators
+	s.taskGroupDrivers.SetDrivers(tgConstr.drivers)
+	s.taskGroupConstraint.SetConstraints(tgConstr.constraints)
+	s.binPack.SetTasks(tg.Tasks)
+
+	// Get the next option that satisfies the constraints.
+	option := s.binPack.Next()
+
+	// Ensure that the task resources were specified
+	if option != nil && len(option.TaskResources) != len(tg.Tasks) {
+		for _, task := range tg.Tasks {
+			option.SetTaskResources(task, task.Resources)
+		}
+	}
+
+	// Store the compute time
+	s.ctx.Metrics().AllocationTime = time.Since(start)
+	return option, tgConstr.size
 }

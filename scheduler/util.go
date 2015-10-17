@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"fmt"
+	"log"
 	"math/rand"
 	"reflect"
 
@@ -19,6 +20,10 @@ type allocTuple struct {
 // a job requires. This is used to do the count expansion.
 func materializeTaskGroups(job *structs.Job) map[string]*structs.TaskGroup {
 	out := make(map[string]*structs.TaskGroup)
+	if job == nil {
+		return out
+	}
+
 	for _, tg := range job.TaskGroups {
 		for i := 0; i < tg.Count; i++ {
 			name := fmt.Sprintf("%s.%s[%d]", job.Name, tg.Name, i)
@@ -36,6 +41,14 @@ type diffResult struct {
 func (d *diffResult) GoString() string {
 	return fmt.Sprintf("allocs: (place %d) (update %d) (migrate %d) (stop %d) (ignore %d)",
 		len(d.place), len(d.update), len(d.migrate), len(d.stop), len(d.ignore))
+}
+
+func (d *diffResult) Append(other *diffResult) {
+	d.place = append(d.place, other.place...)
+	d.update = append(d.update, other.update...)
+	d.migrate = append(d.migrate, other.migrate...)
+	d.stop = append(d.stop, other.stop...)
+	d.ignore = append(d.ignore, other.ignore...)
 }
 
 // diffAllocs is used to do a set difference between the target allocations
@@ -114,6 +127,48 @@ func diffAllocs(job *structs.Job, taintedNodes map[string]bool,
 			})
 		}
 	}
+	return result
+}
+
+// diffSystemAllocs is like diffAllocs however, the allocations in the
+// diffResult contain the specific nodeID they should be allocated on.
+func diffSystemAllocs(job *structs.Job, nodes []*structs.Node, taintedNodes map[string]bool,
+	allocs []*structs.Allocation) *diffResult {
+
+	// Build a mapping of nodes to all their allocs.
+	nodeAllocs := make(map[string][]*structs.Allocation, len(allocs))
+	for _, alloc := range allocs {
+		nallocs := append(nodeAllocs[alloc.NodeID], alloc)
+		nodeAllocs[alloc.NodeID] = nallocs
+	}
+
+	for _, node := range nodes {
+		if _, ok := nodeAllocs[node.ID]; !ok {
+			nodeAllocs[node.ID] = nil
+		}
+	}
+
+	// Create the required task groups.
+	required := materializeTaskGroups(job)
+
+	result := &diffResult{}
+	for nodeID, allocs := range nodeAllocs {
+		diff := diffAllocs(job, taintedNodes, required, allocs)
+
+		// Mark the alloc as being for a specific node.
+		for i := range diff.place {
+			alloc := &diff.place[i]
+			alloc.Alloc = &structs.Allocation{NodeID: nodeID}
+		}
+
+		// Migrate does not apply to system jobs and instead should be marked as
+		// stop because if a node is tainted, the job is invalid on that node.
+		diff.stop = append(diff.stop, diff.migrate...)
+		diff.migrate = nil
+
+		result.Append(diff)
+	}
+
 	return result
 }
 
@@ -241,4 +296,149 @@ func tasksUpdated(a, b *structs.TaskGroup) bool {
 		}
 	}
 	return false
+}
+
+// setStatus is used to update the status of the evaluation
+func setStatus(logger *log.Logger, planner Planner, eval, nextEval *structs.Evaluation, status, desc string) error {
+	logger.Printf("[DEBUG] sched: %#v: setting status to %s", eval, status)
+	newEval := eval.Copy()
+	newEval.Status = status
+	newEval.StatusDescription = desc
+	if nextEval != nil {
+		newEval.NextEval = nextEval.ID
+	}
+	return planner.UpdateEval(newEval)
+}
+
+// inplaceUpdate attempts to update allocations in-place where possible.
+func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
+	stack Stack, updates []allocTuple) []allocTuple {
+
+	n := len(updates)
+	inplace := 0
+	for i := 0; i < n; i++ {
+		// Get the update
+		update := updates[i]
+
+		// Check if the task drivers or config has changed, requires
+		// a rolling upgrade since that cannot be done in-place.
+		existing := update.Alloc.Job.LookupTaskGroup(update.TaskGroup.Name)
+		if tasksUpdated(update.TaskGroup, existing) {
+			continue
+		}
+
+		// Get the existing node
+		node, err := ctx.State().NodeByID(update.Alloc.NodeID)
+		if err != nil {
+			ctx.Logger().Printf("[ERR] sched: %#v failed to get node '%s': %v",
+				eval, update.Alloc.NodeID, err)
+			continue
+		}
+		if node == nil {
+			continue
+		}
+
+		// Set the existing node as the base set
+		stack.SetNodes([]*structs.Node{node})
+
+		// Stage an eviction of the current allocation. This is done so that
+		// the current allocation is discounted when checking for feasability.
+		// Otherwise we would be trying to fit the tasks current resources and
+		// updated resources. After select is called we can remove the evict.
+		ctx.Plan().AppendUpdate(update.Alloc, structs.AllocDesiredStatusStop,
+			allocInPlace)
+
+		// Attempt to match the task group
+		option, size := stack.Select(update.TaskGroup)
+
+		// Pop the allocation
+		ctx.Plan().PopUpdate(update.Alloc)
+
+		// Skip if we could not do an in-place update
+		if option == nil {
+			continue
+		}
+
+		// Restore the network offers from the existing allocation.
+		// We do not allow network resources (reserved/dynamic ports)
+		// to be updated. This is guarded in taskUpdated, so we can
+		// safely restore those here.
+		for task, resources := range option.TaskResources {
+			existing := update.Alloc.TaskResources[task]
+			resources.Networks = existing.Networks
+		}
+
+		// Create a shallow copy
+		newAlloc := new(structs.Allocation)
+		*newAlloc = *update.Alloc
+
+		// Update the allocation
+		newAlloc.EvalID = eval.ID
+		newAlloc.Job = job
+		newAlloc.Resources = size
+		newAlloc.TaskResources = option.TaskResources
+		newAlloc.Metrics = ctx.Metrics()
+		newAlloc.DesiredStatus = structs.AllocDesiredStatusRun
+		newAlloc.ClientStatus = structs.AllocClientStatusPending
+		ctx.Plan().AppendAlloc(newAlloc)
+
+		// Remove this allocation from the slice
+		updates[i] = updates[n-1]
+		i--
+		n--
+		inplace++
+	}
+	if len(updates) > 0 {
+		ctx.Logger().Printf("[DEBUG] sched: %#v: %d in-place updates of %d", eval, inplace, len(updates))
+	}
+	return updates[:n]
+}
+
+// evictAndPlace is used to mark allocations for evicts and add them to the
+// placement queue. evictAndPlace modifies both the the diffResult and the
+// limit. It returns true if the limit has been reached.
+func evictAndPlace(ctx Context, diff *diffResult, allocs []allocTuple, desc string, limit *int) bool {
+	n := len(allocs)
+	for i := 0; i < n && i < *limit; i++ {
+		a := allocs[i]
+		ctx.Plan().AppendUpdate(a.Alloc, structs.AllocDesiredStatusStop, desc)
+		diff.place = append(diff.place, a)
+	}
+	if n <= *limit {
+		*limit -= n
+		return false
+	}
+	*limit = 0
+	return true
+}
+
+// tgConstrainTuple is used to store the total constraints of a task group.
+type tgConstrainTuple struct {
+	// Holds the combined constraints of the task group and all it's sub-tasks.
+	constraints []*structs.Constraint
+
+	// The set of required drivers within the task group.
+	drivers map[string]struct{}
+
+	// The combined resources of all tasks within the task group.
+	size *structs.Resources
+}
+
+// taskGroupConstraints collects the constraints, drivers and resources required by each
+// sub-task to aggregate the TaskGroup totals
+func taskGroupConstraints(tg *structs.TaskGroup) tgConstrainTuple {
+	c := tgConstrainTuple{
+		constraints: make([]*structs.Constraint, 0, len(tg.Constraints)),
+		drivers:     make(map[string]struct{}),
+		size:        new(structs.Resources),
+	}
+
+	c.constraints = append(c.constraints, tg.Constraints...)
+	for _, task := range tg.Tasks {
+		c.drivers[task.Driver] = struct{}{}
+		c.constraints = append(c.constraints, task.Constraints...)
+		c.size.Add(task.Resources)
+	}
+
+	return c
 }
