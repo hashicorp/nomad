@@ -141,7 +141,7 @@ The `docker` driver will set the following client attributes:
 Nomad limits containers' CPU based on CPU shares. CPU shares allow containers to
 burst past their CPU limits. CPU limits will only be imposed when there is
 contention for resources. When the host is under load your process may be
-throttled to stabilize QOS depending how how many shares it has. You can see how
+throttled to stabilize QOS depending on how many shares it has. You can see how
 many CPU shares are available to your process by reading `NOMAD_CPU_LIMIT`. 1000
 shares are approximately equal to 1Ghz.
 
