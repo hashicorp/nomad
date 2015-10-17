@@ -10,7 +10,7 @@ import (
 
 func TestServiceStack_SetNodes(t *testing.T) {
 	_, ctx := testContext(t)
-	stack := NewGenericStack(false, ctx, nil)
+	stack := NewGenericStack(false, ctx)
 
 	nodes := []*structs.Node{
 		mock.Node(),
@@ -37,7 +37,7 @@ func TestServiceStack_SetNodes(t *testing.T) {
 
 func TestServiceStack_SetJob(t *testing.T) {
 	_, ctx := testContext(t)
-	stack := NewGenericStack(false, ctx, nil)
+	stack := NewGenericStack(false, ctx)
 
 	job := mock.Job()
 	stack.SetJob(job)
@@ -55,7 +55,8 @@ func TestServiceStack_Select_Size(t *testing.T) {
 	nodes := []*structs.Node{
 		mock.Node(),
 	}
-	stack := NewGenericStack(false, ctx, nodes)
+	stack := NewGenericStack(false, ctx)
+	stack.SetNodes(nodes)
 
 	job := mock.Job()
 	stack.SetJob(job)
@@ -85,7 +86,8 @@ func TestServiceStack_Select_MetricsReset(t *testing.T) {
 		mock.Node(),
 		mock.Node(),
 	}
-	stack := NewGenericStack(false, ctx, nodes)
+	stack := NewGenericStack(false, ctx)
+	stack.SetNodes(nodes)
 
 	job := mock.Job()
 	stack.SetJob(job)
@@ -120,7 +122,8 @@ func TestServiceStack_Select_DriverFilter(t *testing.T) {
 	zero := nodes[0]
 	zero.Attributes["driver.foo"] = "1"
 
-	stack := NewGenericStack(false, ctx, nodes)
+	stack := NewGenericStack(false, ctx)
+	stack.SetNodes(nodes)
 
 	job := mock.Job()
 	job.TaskGroups[0].Tasks[0].Driver = "foo"
@@ -145,7 +148,8 @@ func TestServiceStack_Select_ConstraintFilter(t *testing.T) {
 	zero := nodes[0]
 	zero.Attributes["kernel.name"] = "freebsd"
 
-	stack := NewGenericStack(false, ctx, nodes)
+	stack := NewGenericStack(false, ctx)
+	stack.SetNodes(nodes)
 
 	job := mock.Job()
 	job.Constraints[0].RTarget = "freebsd"
@@ -182,7 +186,8 @@ func TestServiceStack_Select_BinPack_Overflow(t *testing.T) {
 	one := nodes[1]
 	one.Reserved = one.Resources
 
-	stack := NewGenericStack(false, ctx, nodes)
+	stack := NewGenericStack(false, ctx)
+	stack.SetNodes(nodes)
 
 	job := mock.Job()
 	stack.SetJob(job)
@@ -210,7 +215,7 @@ func TestServiceStack_Select_BinPack_Overflow(t *testing.T) {
 
 func TestSystemStack_SetNodes(t *testing.T) {
 	_, ctx := testContext(t)
-	stack := NewSystemStack(ctx, nil)
+	stack := NewSystemStack(ctx)
 
 	nodes := []*structs.Node{
 		mock.Node(),
@@ -232,7 +237,7 @@ func TestSystemStack_SetNodes(t *testing.T) {
 
 func TestSystemStack_SetJob(t *testing.T) {
 	_, ctx := testContext(t)
-	stack := NewSystemStack(ctx, nil)
+	stack := NewSystemStack(ctx)
 
 	job := mock.Job()
 	stack.SetJob(job)
@@ -247,10 +252,9 @@ func TestSystemStack_SetJob(t *testing.T) {
 
 func TestSystemStack_Select_Size(t *testing.T) {
 	_, ctx := testContext(t)
-	nodes := []*structs.Node{
-		mock.Node(),
-	}
-	stack := NewSystemStack(ctx, nodes)
+	nodes := []*structs.Node{mock.Node()}
+	stack := NewSystemStack(ctx)
+	stack.SetNodes(nodes)
 
 	job := mock.Job()
 	stack.SetJob(job)
@@ -280,7 +284,8 @@ func TestSystemStack_Select_MetricsReset(t *testing.T) {
 		mock.Node(),
 		mock.Node(),
 	}
-	stack := NewSystemStack(ctx, nodes)
+	stack := NewSystemStack(ctx)
+	stack.SetNodes(nodes)
 
 	job := mock.Job()
 	stack.SetJob(job)
@@ -314,7 +319,8 @@ func TestSystemStack_Select_DriverFilter(t *testing.T) {
 	zero := nodes[0]
 	zero.Attributes["driver.foo"] = "1"
 
-	stack := NewSystemStack(ctx, nodes)
+	stack := NewSystemStack(ctx)
+	stack.SetNodes(nodes)
 
 	job := mock.Job()
 	job.TaskGroups[0].Tasks[0].Driver = "foo"
@@ -330,7 +336,8 @@ func TestSystemStack_Select_DriverFilter(t *testing.T) {
 	}
 
 	zero.Attributes["driver.foo"] = "0"
-	stack = NewSystemStack(ctx, nodes)
+	stack = NewSystemStack(ctx)
+	stack.SetNodes(nodes)
 	stack.SetJob(job)
 	node, _ = stack.Select(job.TaskGroups[0])
 	if node != nil {
@@ -347,7 +354,8 @@ func TestSystemStack_Select_ConstraintFilter(t *testing.T) {
 	zero := nodes[1]
 	zero.Attributes["kernel.name"] = "freebsd"
 
-	stack := NewSystemStack(ctx, nodes)
+	stack := NewSystemStack(ctx)
+	stack.SetNodes(nodes)
 
 	job := mock.Job()
 	job.Constraints[0].RTarget = "freebsd"
@@ -384,7 +392,8 @@ func TestSystemStack_Select_BinPack_Overflow(t *testing.T) {
 	zero.Reserved = zero.Resources
 	one := nodes[1]
 
-	stack := NewSystemStack(ctx, nodes)
+	stack := NewSystemStack(ctx)
+	stack.SetNodes(nodes)
 
 	job := mock.Job()
 	stack.SetJob(job)

@@ -288,7 +288,14 @@ func TestTaintedNodes(t *testing.T) {
 }
 
 func TestShuffleNodes(t *testing.T) {
+	// Use a large number of nodes to make the probability of shuffling to the
+	// original order very low.
 	nodes := []*structs.Node{
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
 		mock.Node(),
 		mock.Node(),
 		mock.Node(),
@@ -299,7 +306,7 @@ func TestShuffleNodes(t *testing.T) {
 	copy(orig, nodes)
 	shuffleNodes(nodes)
 	if reflect.DeepEqual(nodes, orig) {
-		t.Fatalf("shoudl not match")
+		t.Fatalf("should not match")
 	}
 }
 
@@ -457,7 +464,7 @@ func TestInplaceUpdate_ChangedTaskGroup(t *testing.T) {
 	tg.Tasks = append(tg.Tasks, task)
 
 	updates := []allocTuple{{Alloc: alloc, TaskGroup: tg}}
-	stack := NewGenericStack(false, ctx, nil)
+	stack := NewGenericStack(false, ctx)
 
 	// Do the inplace update.
 	unplaced := inplaceUpdate(ctx, eval, job, stack, updates)
@@ -502,7 +509,7 @@ func TestInplaceUpdate_NoMatch(t *testing.T) {
 	tg.Tasks[0].Resources = resource
 
 	updates := []allocTuple{{Alloc: alloc, TaskGroup: tg}}
-	stack := NewGenericStack(false, ctx, nil)
+	stack := NewGenericStack(false, ctx)
 
 	// Do the inplace update.
 	unplaced := inplaceUpdate(ctx, eval, job, stack, updates)
@@ -547,7 +554,7 @@ func TestInplaceUpdate_Success(t *testing.T) {
 	tg.Tasks[0].Resources = resource
 
 	updates := []allocTuple{{Alloc: alloc, TaskGroup: tg}}
-	stack := NewGenericStack(false, ctx, nil)
+	stack := NewGenericStack(false, ctx)
 
 	// Do the inplace update.
 	unplaced := inplaceUpdate(ctx, eval, job, stack, updates)

@@ -99,7 +99,7 @@ func (s *SystemScheduler) process() (bool, error) {
 	s.ctx = NewEvalContext(s.state, s.plan, s.logger)
 
 	// Construct the placement stack
-	s.stack = NewSystemStack(s.ctx, nil)
+	s.stack = NewSystemStack(s.ctx)
 	if s.job != nil {
 		s.stack.SetJob(s.job)
 	}

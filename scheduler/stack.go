@@ -48,7 +48,7 @@ type GenericStack struct {
 }
 
 // NewGenericStack constructs a stack used for selecting service placements
-func NewGenericStack(batch bool, ctx Context, baseNodes []*structs.Node) *GenericStack {
+func NewGenericStack(batch bool, ctx Context) *GenericStack {
 	// Create a new stack
 	s := &GenericStack{
 		batch: batch,
@@ -58,7 +58,7 @@ func NewGenericStack(batch bool, ctx Context, baseNodes []*structs.Node) *Generi
 	// Create the source iterator. We randomize the order we visit nodes
 	// to reduce collisions between schedulers and to do a basic load
 	// balancing across eligible nodes.
-	s.source = NewRandomIterator(ctx, baseNodes)
+	s.source = NewRandomIterator(ctx, nil)
 
 	// Attach the job constraints. The job is filled in later.
 	s.jobConstraint = NewConstraintIterator(ctx, s.source, nil)
@@ -92,11 +92,6 @@ func NewGenericStack(batch bool, ctx Context, baseNodes []*structs.Node) *Generi
 
 	// Select the node with the maximum score for placement
 	s.maxScore = NewMaxScoreIterator(ctx, s.limit)
-
-	// Set the nodes if given
-	if len(baseNodes) != 0 {
-		s.SetNodes(baseNodes)
-	}
 	return s
 }
 
@@ -169,13 +164,13 @@ type SystemStack struct {
 }
 
 // NewSystemStack constructs a stack used for selecting service placements
-func NewSystemStack(ctx Context, baseNodes []*structs.Node) *SystemStack {
+func NewSystemStack(ctx Context) *SystemStack {
 	// Create a new stack
 	s := &SystemStack{ctx: ctx}
 
 	// Create the source iterator. We visit nodes in a linear order because we
 	// have to evaluate on all nodes.
-	s.source = NewStaticIterator(ctx, baseNodes)
+	s.source = NewStaticIterator(ctx, nil)
 
 	// Attach the job constraints. The job is filled in later.
 	s.jobConstraint = NewConstraintIterator(ctx, s.source, nil)
@@ -193,11 +188,6 @@ func NewSystemStack(ctx Context, baseNodes []*structs.Node) *SystemStack {
 	// by a particular task group. Enable eviction as system jobs are high
 	// priority.
 	s.binPack = NewBinPackIterator(ctx, rankSource, true, 0)
-
-	// Set the nodes if given
-	if len(baseNodes) != 0 {
-		s.SetNodes(baseNodes)
-	}
 	return s
 }
 
