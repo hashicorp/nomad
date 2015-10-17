@@ -44,9 +44,9 @@ func testServer(t *testing.T, cb func(*Config)) *Server {
 	config.SerfConfig.MemberlistConfig.GossipInterval = 100 * time.Millisecond
 
 	// Tighten the Raft timing
-	config.RaftConfig.LeaderLeaseTimeout = 20 * time.Millisecond
-	config.RaftConfig.HeartbeatTimeout = 40 * time.Millisecond
-	config.RaftConfig.ElectionTimeout = 40 * time.Millisecond
+	config.RaftConfig.LeaderLeaseTimeout = 50 * time.Millisecond
+	config.RaftConfig.HeartbeatTimeout = 50 * time.Millisecond
+	config.RaftConfig.ElectionTimeout = 50 * time.Millisecond
 	config.RaftTimeout = 500 * time.Millisecond
 
 	// Invoke the callback if any
