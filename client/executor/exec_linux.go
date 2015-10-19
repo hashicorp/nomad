@@ -196,6 +196,10 @@ func (e *LinuxExecutor) configureCgroups(resources *structs.Resources) error {
 	}
 
 	if resources.CPU > 0.0 {
+		if resources.CPU < 2.0 {
+			return fmt.Errorf("resources.CPU must be equal to or greater than 2.0: %v", resources.CPU)
+		}
+
 		// Set the relative CPU shares for this cgroup.
 		// The simplest scale is 1 share to 1 MHz so 1024 = 1GHz. This means any
 		// given process will have at least that amount of resources, but likely
