@@ -28,6 +28,9 @@ job "my-service" {
     # Spread tasks between us-west-1 and us-east-1
     datacenters = ["us-west-1", "us-east-1"]
 
+    # run this job globally
+    type = "system"
+
     # Rolling updates should be sequential
     update {
         stagger = "30s"
@@ -131,7 +134,7 @@ The `job` object supports the following keys:
   a task group of the same name.
 
 * `type` - Specifies the job type and switches which scheduler
-  is used. Nomad provides the `service` and `batch` schedulers,
+  is used. Nomad provides the `service`, `system` and `batch` schedulers,
   and defaults to `service`.
 
 * `update` - Specifies the task update strategy. This requires providing
