@@ -195,9 +195,9 @@ func (e *LinuxExecutor) configureCgroups(resources *structs.Resources) error {
 		e.groups.MemorySwap = int64(-1)
 	}
 
-	if resources.CPU > 0.0 {
-		if resources.CPU < 2.0 {
-			return fmt.Errorf("resources.CPU must be equal to or greater than 2.0: %v", resources.CPU)
+	if resources.CPU != 0 {
+		if resources.CPU < 2 {
+			return fmt.Errorf("resources.CPU must be equal to or greater than 2: %v", resources.CPU)
 		}
 
 		// Set the relative CPU shares for this cgroup.
