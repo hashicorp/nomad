@@ -35,8 +35,8 @@ The `docker` driver supports the following configuration in the job specificatio
 ### Port Mapping
 
 Nomad uses port binding to expose services running in containers using the port
-space on the host's interface. For example, Nomad host running on `1.2.3.4` may
-allocate port `22333` to a task, so you would access that service via
+space on the host's interface. For example, a Nomad host running on `1.2.3.4` may
+allocate port `22333` to a service, so you would access that service via
 `1.2.3.4:22333`.
 
 Nomad provides automatic and manual mapping schemes for Docker. You can use
