@@ -25,7 +25,7 @@ The `Qemu` driver supports the following configuration in the job spec:
 
 * `image_source` - **(Required)** The hosted location of the source Qemu image. Must be accessible
 from the Nomad client, via HTTP.
-* `checksum` - **(Required)** The MD5 checksum of the `qemu` image. If the
+* `checksum` - **(Required)** The SHA256 checksum of the `qemu` image. If the
 checksums do not match, the `Qemu` diver will fail to start the image
 * `accelerator` - (Optional) The type of accelerator to use in the invocation.
  If the host machine has `Qemu` installed with KVM support, users can specify `kvm` for the `accelerator`. Default is `tcg`
