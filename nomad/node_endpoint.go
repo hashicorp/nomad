@@ -448,11 +448,11 @@ func (n *Node) createNodeEvals(nodeID string, nodeIndex uint64) ([]string, uint6
 		return nil, 0, fmt.Errorf("failed to find allocs for '%s': %v", nodeID, err)
 	}
 
-	sysJobs, err := snap.JobsByScheduler("system")
+	sysJobsIter, err := snap.JobsByScheduler("system")
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to find system jobs for '%s': %v", nodeID, err)
 	}
-	nextJob := sysJobs.Next()
+	nextJob := sysJobsIter.Next()
 
 	// Fast-path if nothing to do
 	if len(allocs) == 0 && nextJob == nil {
@@ -486,35 +486,35 @@ func (n *Node) createNodeEvals(nodeID string, nodeIndex uint64) ([]string, uint6
 		evalIDs = append(evalIDs, eval.ID)
 	}
 
+	var sysJobs []*structs.Job
+	if nextJob != nil {
+		sysJobs = append(sysJobs, nextJob.(*structs.Job))
+		for job := sysJobsIter.Next(); job != nil; job = sysJobsIter.Next() {
+			sysJobs = append(sysJobs, job.(*structs.Job))
+		}
+	}
+
 	// Create an evaluation for each system job.
-	curSysJob := nextJob.(*structs.Job)
-	for job := sysJobs.Next(); ; {
+	for _, job := range sysJobs {
 		// Still dedup on JobID as the node may already have the system job.
-		if _, ok := jobIDs[curSysJob.ID]; ok {
+		if _, ok := jobIDs[job.ID]; ok {
 			continue
 		}
-		jobIDs[curSysJob.ID] = struct{}{}
+		jobIDs[job.ID] = struct{}{}
 
 		// Create a new eval
 		eval := &structs.Evaluation{
 			ID:              structs.GenerateUUID(),
-			Priority:        curSysJob.Priority,
-			Type:            curSysJob.Type,
+			Priority:        job.Priority,
+			Type:            job.Type,
 			TriggeredBy:     structs.EvalTriggerNodeUpdate,
-			JobID:           curSysJob.ID,
+			JobID:           job.ID,
 			NodeID:          nodeID,
 			NodeModifyIndex: nodeIndex,
 			Status:          structs.EvalStatusPending,
 		}
 		evals = append(evals, eval)
 		evalIDs = append(evalIDs, eval.ID)
-
-		// Update the current system job for the next iteration.
-		if job == nil {
-			break
-		}
-
-		curSysJob = job.(*structs.Job)
 	}
 
 	// Create the Raft transaction
