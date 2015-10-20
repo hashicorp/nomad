@@ -100,6 +100,12 @@ func (j *Jobs) ForceEvaluate(jobID string, q *WriteOptions) (string, *WriteMeta,
 	return resp.EvalID, wm, nil
 }
 
+//UpdateStrategy is for serializing update strategy for a job.
+type UpdateStrategy struct {
+	Stagger     time.Duration
+	MaxParallel int
+}
+
 // Job is used to serialize a job.
 type Job struct {
 	Region            string
@@ -111,6 +117,7 @@ type Job struct {
 	Datacenters       []string
 	Constraints       []*Constraint
 	TaskGroups        []*TaskGroup
+	Update            *UpdateStrategy
 	Meta              map[string]string
 	Status            string
 	StatusDescription string
