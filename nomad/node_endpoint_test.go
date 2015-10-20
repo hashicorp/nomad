@@ -149,6 +149,87 @@ func TestClientEndpoint_UpdateStatus(t *testing.T) {
 	}
 }
 
+func TestClientEndpoint_UpdateStatus_GetEvals(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Register a system job.
+	job := mock.SystemJob()
+	state := s1.fsm.State()
+	if err := state.UpsertJob(1, job); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Create the register request
+	node := mock.Node()
+	node.Status = structs.NodeStatusInit
+	reg := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.NodeUpdateResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Check for heartbeat interval
+	ttl := resp.HeartbeatTTL
+	if ttl < s1.config.MinHeartbeatTTL || ttl > 2*s1.config.MinHeartbeatTTL {
+		t.Fatalf("bad: %#v", ttl)
+	}
+
+	// Update the status
+	update := &structs.NodeUpdateStatusRequest{
+		NodeID:       node.ID,
+		Status:       structs.NodeStatusReady,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var resp2 structs.NodeUpdateResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Node.UpdateStatus", update, &resp2); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp2.Index == 0 {
+		t.Fatalf("bad index: %d", resp2.Index)
+	}
+
+	// Check for an eval caused by the system job.
+	if len(resp2.EvalIDs) != 1 {
+		t.Fatalf("expected one eval; got %#v", resp2.EvalIDs)
+	}
+
+	evalID := resp2.EvalIDs[0]
+	eval, err := state.EvalByID(evalID)
+	if err != nil {
+		t.Fatalf("could not get eval %v", evalID)
+	}
+
+	if eval.Type != "system" {
+		t.Fatalf("unexpected eval type; got %v; want %q", eval.Type, "system")
+	}
+
+	// Check for heartbeat interval
+	ttl = resp2.HeartbeatTTL
+	if ttl < s1.config.MinHeartbeatTTL || ttl > 2*s1.config.MinHeartbeatTTL {
+		t.Fatalf("bad: %#v", ttl)
+	}
+
+	// Check for the node in the FSM
+	out, err := state.NodeByID(node.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out == nil {
+		t.Fatalf("expected node")
+	}
+	if out.ModifyIndex != resp2.Index {
+		t.Fatalf("index mis-match")
+	}
+}
+
 func TestClientEndpoint_UpdateStatus_HeartbeatOnly(t *testing.T) {
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
