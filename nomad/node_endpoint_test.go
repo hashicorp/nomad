@@ -476,8 +476,13 @@ func TestClientEndpoint_CreateNodeEvals(t *testing.T) {
 	// Inject fake evaluations
 	alloc := mock.Alloc()
 	state := s1.fsm.State()
-	err := state.UpsertAllocs(1, []*structs.Allocation{alloc})
-	if err != nil {
+	if err := state.UpsertAllocs(1, []*structs.Allocation{alloc}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Inject a fake system job.
+	job := mock.SystemJob()
+	if err := state.UpsertJob(1, job); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -489,42 +494,62 @@ func TestClientEndpoint_CreateNodeEvals(t *testing.T) {
 	if index == 0 {
 		t.Fatalf("bad: %d", index)
 	}
-	if len(ids) != 1 {
+	if len(ids) != 2 {
 		t.Fatalf("bad: %s", ids)
 	}
 
-	// Lookup the evaluation
-	eval, err := state.EvalByID(ids[0])
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if eval == nil {
-		t.Fatalf("expected eval")
-	}
-	if eval.CreateIndex != index {
-		t.Fatalf("index mis-match")
+	// Lookup the evaluations
+	evalByType := make(map[string]*structs.Evaluation, 2)
+	for _, id := range ids {
+		eval, err := state.EvalByID(id)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		if eval == nil {
+			t.Fatalf("expected eval")
+		}
+
+		if old, ok := evalByType[eval.Type]; ok {
+			t.Fatalf("multiple evals of the same type: %v and %v", old, eval)
+		}
+
+		evalByType[eval.Type] = eval
 	}
 
-	if eval.Priority != alloc.Job.Priority {
-		t.Fatalf("bad: %#v", eval)
+	if len(evalByType) != 2 {
+		t.Fatalf("Expected a service and system job; got %#v", evalByType)
 	}
-	if eval.Type != alloc.Job.Type {
-		t.Fatalf("bad: %#v", eval)
-	}
-	if eval.TriggeredBy != structs.EvalTriggerNodeUpdate {
-		t.Fatalf("bad: %#v", eval)
-	}
-	if eval.JobID != alloc.JobID {
-		t.Fatalf("bad: %#v", eval)
-	}
-	if eval.NodeID != alloc.NodeID {
-		t.Fatalf("bad: %#v", eval)
-	}
-	if eval.NodeModifyIndex != 1 {
-		t.Fatalf("bad: %#v", eval)
-	}
-	if eval.Status != structs.EvalStatusPending {
-		t.Fatalf("bad: %#v", eval)
+
+	// Ensure the evals are correct.
+	for schedType, eval := range evalByType {
+		expPriority := alloc.Job.Priority
+		expJobID := alloc.JobID
+		if schedType == "system" {
+			expPriority = job.Priority
+			expJobID = job.ID
+		}
+
+		if eval.CreateIndex != index {
+			t.Fatalf("CreateIndex mis-match on type %v: %#v", schedType, eval)
+		}
+		if eval.TriggeredBy != structs.EvalTriggerNodeUpdate {
+			t.Fatalf("TriggeredBy incorrect on type %v: %#v", schedType, eval)
+		}
+		if eval.NodeID != alloc.NodeID {
+			t.Fatalf("NodeID incorrect on type %v: %#v", schedType, eval)
+		}
+		if eval.NodeModifyIndex != 1 {
+			t.Fatalf("NodeModifyIndex incorrect on type %v: %#v", schedType, eval)
+		}
+		if eval.Status != structs.EvalStatusPending {
+			t.Fatalf("Status incorrect on type %v: %#v", schedType, eval)
+		}
+		if eval.Priority != expPriority {
+			t.Fatalf("Priority incorrect on type %v: %#v", schedType, eval)
+		}
+		if eval.JobID != expJobID {
+			t.Fatalf("JobID incorrect on type %v: %#v", schedType, eval)
+		}
 	}
 }
 

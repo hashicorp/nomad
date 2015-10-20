@@ -399,6 +399,19 @@ func (s *StateStore) Jobs() (memdb.ResultIterator, error) {
 	return iter, nil
 }
 
+// JobsByScheduler returns an iterator over all the jobs with the specific
+// scheduler type.
+func (s *StateStore) JobsByScheduler(schedulerType string) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	// Return an iterator for jobs with the specific type.
+	iter, err := txn.Get("jobs", "type", schedulerType)
+	if err != nil {
+		return nil, err
+	}
+	return iter, nil
+}
+
 // UpsertEvaluation is used to upsert an evaluation
 func (s *StateStore) UpsertEvals(index uint64, evals []*structs.Evaluation) error {
 	txn := s.db.Txn(true)
