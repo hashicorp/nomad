@@ -365,11 +365,11 @@ func TestEvictAndPlace_LimitLessThanAllocs(t *testing.T) {
 	}
 
 	if limit != 0 {
-		t.Fatal("evictAndReplace() should decremented limit; got %v; want 0", limit)
+		t.Fatalf("evictAndReplace() should decremented limit; got %v; want 0", limit)
 	}
 
 	if len(diff.place) != 2 {
-		t.Fatal("evictAndReplace() didn't insert into diffResult properly: %v", diff.place)
+		t.Fatalf("evictAndReplace() didn't insert into diffResult properly: %v", diff.place)
 	}
 }
 
@@ -389,11 +389,11 @@ func TestEvictAndPlace_LimitEqualToAllocs(t *testing.T) {
 	}
 
 	if limit != 0 {
-		t.Fatal("evictAndReplace() should decremented limit; got %v; want 0", limit)
+		t.Fatalf("evictAndReplace() should decremented limit; got %v; want 0", limit)
 	}
 
 	if len(diff.place) != 4 {
-		t.Fatal("evictAndReplace() didn't insert into diffResult properly: %v", diff.place)
+		t.Fatalf("evictAndReplace() didn't insert into diffResult properly: %v", diff.place)
 	}
 }
 
@@ -584,11 +584,11 @@ func TestEvictAndPlace_LimitGreaterThanAllocs(t *testing.T) {
 	}
 
 	if limit != 2 {
-		t.Fatal("evictAndReplace() should decremented limit; got %v; want 2", limit)
+		t.Fatalf("evictAndReplace() should decremented limit; got %v; want 2", limit)
 	}
 
 	if len(diff.place) != 4 {
-		t.Fatal("evictAndReplace() didn't insert into diffResult properly: %v", diff.place)
+		t.Fatalf("evictAndReplace() didn't insert into diffResult properly: %v", diff.place)
 	}
 }
 
