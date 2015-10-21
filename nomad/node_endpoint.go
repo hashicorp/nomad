@@ -452,10 +452,14 @@ func (n *Node) createNodeEvals(nodeID string, nodeIndex uint64) ([]string, uint6
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to find system jobs for '%s': %v", nodeID, err)
 	}
-	nextJob := sysJobsIter.Next()
+
+	var sysJobs []*structs.Job
+	for job := sysJobsIter.Next(); job != nil; job = sysJobsIter.Next() {
+		sysJobs = append(sysJobs, job.(*structs.Job))
+	}
 
 	// Fast-path if nothing to do
-	if len(allocs) == 0 && nextJob == nil {
+	if len(allocs) == 0 && len(sysJobs) == 0 {
 		return nil, 0, nil
 	}
 
@@ -484,14 +488,6 @@ func (n *Node) createNodeEvals(nodeID string, nodeIndex uint64) ([]string, uint6
 		}
 		evals = append(evals, eval)
 		evalIDs = append(evalIDs, eval.ID)
-	}
-
-	var sysJobs []*structs.Job
-	if nextJob != nil {
-		sysJobs = append(sysJobs, nextJob.(*structs.Job))
-		for job := sysJobsIter.Next(); job != nil; job = sysJobsIter.Next() {
-			sysJobs = append(sysJobs, job.(*structs.Job))
-		}
 	}
 
 	// Create an evaluation for each system job.
