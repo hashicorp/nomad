@@ -21,8 +21,8 @@ import (
 )
 
 var (
-	reRktVersion  = regexp.MustCompile("rkt version ([\\d\\.]+).+")
-	reAppcVersion = regexp.MustCompile("appc version ([\\d\\.]+).+")
+	reRktVersion  = regexp.MustCompile(`rkt version (\d[.\d]+)`)
+	reAppcVersion = regexp.MustCompile(`appc version (\d[.\d]+)`)
 )
 
 // RktDriver is a driver for running images via Rkt
@@ -67,13 +67,13 @@ func (d *RktDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, e
 	out := strings.TrimSpace(string(outBytes))
 
 	rktMatches := reRktVersion.FindStringSubmatch(out)
-	appcMatches := reRktVersion.FindStringSubmatch(out)
+	appcMatches := reAppcVersion.FindStringSubmatch(out)
 	if len(rktMatches) != 2 || len(appcMatches) != 2 {
 		return false, fmt.Errorf("Unable to parse Rkt version string: %#v", rktMatches)
 	}
 
 	node.Attributes["driver.rkt"] = "1"
-	node.Attributes["driver.rkt.version"] = rktMatches[0]
+	node.Attributes["driver.rkt.version"] = rktMatches[1]
 	node.Attributes["driver.rkt.appc.version"] = appcMatches[1]
 
 	return true, nil
