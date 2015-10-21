@@ -2,6 +2,7 @@ package command
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -103,6 +104,20 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		return 1
 	}
 
+	m := node.Attributes
+	keys := make([]string, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	var attributes []string
+	for _, k := range keys {
+		if k != "" {
+			attributes = append(attributes, fmt.Sprintf("%s:%s", k, m[k]))
+		}
+	}
+
 	// Format the output
 	basic := []string{
 		fmt.Sprintf("ID|%s", node.ID),
@@ -111,6 +126,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		fmt.Sprintf("Datacenter|%s", node.Datacenter),
 		fmt.Sprintf("Drain|%v", node.Drain),
 		fmt.Sprintf("Status|%s", node.Status),
+		fmt.Sprintf("Attributes|%s", strings.Join(attributes, ", ")),
 	}
 
 	var allocs []string
