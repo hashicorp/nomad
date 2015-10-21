@@ -1,6 +1,8 @@
 package api
 
 import (
+	"reflect"
+	"sort"
 	"testing"
 
 	"github.com/hashicorp/nomad/testutil"
@@ -152,5 +154,25 @@ func TestAgent_SetServers(t *testing.T) {
 	}
 	if out[0] != "foo" || out[1] != "bar" {
 		t.Fatalf("bad server list: %v", out)
+	}
+}
+
+func TestAgents_Sort(t *testing.T) {
+	members := []*AgentMember{
+		&AgentMember{Name: "nomad-1.us-east"},
+		&AgentMember{Name: "nomad-2.us-east"},
+		&AgentMember{Name: "nomad-1.us-west"},
+		&AgentMember{Name: "nomad-2.us-west"},
+	}
+	sort.Sort(AgentMembersNameSort(members))
+
+	expect := []*AgentMember{
+		&AgentMember{Name: "nomad-1.us-east"},
+		&AgentMember{Name: "nomad-2.us-east"},
+		&AgentMember{Name: "nomad-1.us-west"},
+		&AgentMember{Name: "nomad-2.us-west"},
+	}
+	if !reflect.DeepEqual(members, expect) {
+		t.Fatalf("\n\n%#v\n\n%#v", members, expect)
 	}
 }

@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 	"net/url"
+	"strings"
 )
 
 // Agent encapsulates an API client which talks to Nomad's
@@ -177,4 +178,32 @@ type AgentMember struct {
 	DelegateMin uint8
 	DelegateMax uint8
 	DelegateCur uint8
+}
+
+func (a *AgentMember) String() string {
+	return "name: " + a.Name
+}
+
+// AgentMembersNameSort implements sort.Interface for []*AgentMembersNameSort based on
+// the Name field.
+type AgentMembersNameSort []*AgentMember
+
+func (a AgentMembersNameSort) Len() int      { return len(a) }
+func (a AgentMembersNameSort) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+func (a AgentMembersNameSort) Less(i, j int) bool {
+	iName := strings.Split(a[i].Name, ".")
+	jName := strings.Split(a[j].Name, ".")
+
+	//Don't have region in name
+	if len(iName) < 2 || len(jName) < 2 {
+		return a[i].Name < a[j].Name
+	}
+
+	//In same regions compare names
+	if iName[1] == jName[1] {
+		return iName[0] < jName[0]
+	}
+
+	return iName[1] < jName[1]
+
 }
