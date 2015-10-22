@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hashicorp/cleanhttp"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -61,7 +62,8 @@ func NewEnvGCEFingerprint(logger *log.Logger) Fingerprint {
 
 	// assume 2 seconds is enough time for inside GCE network
 	client := &http.Client{
-		Timeout: 2 * time.Second,
+		Timeout:   2 * time.Second,
+		Transport: cleanhttp.DefaultTransport(),
 	}
 
 	return &EnvGCEFingerprint{
