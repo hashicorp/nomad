@@ -193,6 +193,24 @@ func TestParse(t *testing.T) {
 		},
 
 		{
+			"unique-constraint.hcl",
+			&structs.Job{
+				ID:       "foo",
+				Name:     "foo",
+				Priority: 50,
+				Region:   "global",
+				Type:     "service",
+				Constraints: []*structs.Constraint{
+					&structs.Constraint{
+						Hard:    true,
+						Operand: "unique",
+					},
+				},
+			},
+			false,
+		},
+
+		{
 			"specify-job.hcl",
 			&structs.Job{
 				ID:       "job1",

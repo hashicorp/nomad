@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -254,6 +255,20 @@ func parseConstraints(result *[]*structs.Constraint, obj *hclobj.Object) error {
 		if constraint, ok := m["regexp"]; ok {
 			m["Operand"] = "regexp"
 			m["RTarget"] = constraint
+		}
+
+		if value, ok := m["unique"]; ok {
+			enabled, err := strconv.ParseBool(value.(string))
+			if err != nil {
+				return err
+			}
+
+			// If it is not enabled, skip the constraint.
+			if !enabled {
+				continue
+			}
+
+			m["Operand"] = "unique"
 		}
 
 		// Build the constraint

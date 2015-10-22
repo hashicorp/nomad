@@ -237,6 +237,14 @@ The `constraint` object supports the following keys:
   the attribute. This sets the operator to "regexp" and the `value`
   to the regular expression.
 
+* `unique` - Unique accepts a boolean value and can be used to mark a Job or
+  a Task Group as requiring placement on unique nodes. If the `unique`
+  constraint is placed on a Job, all of it's Task Groups must be placed on
+  unique nodes. If the `unique` constraint is placed on a Task Group, then
+  multiple instances of that Task Group must be placed on unique nodes. This
+  sets the operator to "unique" if `unique` is set to "true". If set to "false",
+  the constraint is ignored as this is the default behavior.
+
 Below is a table documenting the variables that can be interpreted:
 
 <table class="table table-bordered table-striped">
