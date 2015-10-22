@@ -348,6 +348,73 @@ func TestStateStore_Jobs(t *testing.T) {
 	}
 }
 
+func TestStateStore_JobsByScheduler(t *testing.T) {
+	state := testStateStore(t)
+	var serviceJobs []*structs.Job
+	var sysJobs []*structs.Job
+
+	for i := 0; i < 10; i++ {
+		job := mock.Job()
+		serviceJobs = append(serviceJobs, job)
+
+		err := state.UpsertJob(1000+uint64(i), job)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	}
+
+	for i := 0; i < 10; i++ {
+		job := mock.SystemJob()
+		sysJobs = append(sysJobs, job)
+
+		err := state.UpsertJob(2000+uint64(i), job)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	}
+
+	iter, err := state.JobsByScheduler("service")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	var outService []*structs.Job
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		outService = append(outService, raw.(*structs.Job))
+	}
+
+	iter, err = state.JobsByScheduler("system")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	var outSystem []*structs.Job
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		outSystem = append(outSystem, raw.(*structs.Job))
+	}
+
+	sort.Sort(JobIDSort(serviceJobs))
+	sort.Sort(JobIDSort(sysJobs))
+	sort.Sort(JobIDSort(outService))
+	sort.Sort(JobIDSort(outSystem))
+
+	if !reflect.DeepEqual(serviceJobs, outService) {
+		t.Fatalf("bad: %#v %#v", serviceJobs, outService)
+	}
+
+	if !reflect.DeepEqual(sysJobs, outSystem) {
+		t.Fatalf("bad: %#v %#v", sysJobs, outSystem)
+	}
+}
+
 func TestStateStore_RestoreJob(t *testing.T) {
 	state := testStateStore(t)
 
