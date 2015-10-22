@@ -382,6 +382,180 @@ func TestCheckRegexpConstraint(t *testing.T) {
 	}
 }
 
+func TestDynamicConstraint_JobUnique_Feasible(t *testing.T) {
+	_, ctx := testContext(t)
+	nodes := []*structs.Node{
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+	}
+	static := NewStaticIterator(ctx, nodes)
+
+	// Create a job with a unique constraint and two task groups.
+	tg1 := &structs.TaskGroup{Name: "bar"}
+	tg2 := &structs.TaskGroup{Name: "baz"}
+
+	job := &structs.Job{
+		ID:          "foo",
+		Constraints: []*structs.Constraint{{Operand: "unique"}},
+		TaskGroups:  []*structs.TaskGroup{tg1, tg2},
+	}
+
+	dynamic := NewDynamicConstraintIterator(ctx, static)
+	dynamic.SetTaskGroup(tg1)
+	dynamic.SetJob(job)
+
+	out := collectFeasible(dynamic)
+	if len(out) != 4 {
+		t.Fatalf("Bad: %#v", out)
+	}
+
+	selected := make(map[string]struct{}, 4)
+	for _, option := range out {
+		if _, ok := selected[option.ID]; ok {
+			t.Fatalf("selected node %v for more than one alloc", option)
+		}
+		selected[option.ID] = struct{}{}
+	}
+}
+
+func TestDynamicConstraint_JobUnique_Infeasible(t *testing.T) {
+	_, ctx := testContext(t)
+	nodes := []*structs.Node{
+		mock.Node(),
+		mock.Node(),
+	}
+	static := NewStaticIterator(ctx, nodes)
+
+	// Create a job with a unique constraint and two task groups.
+	tg1 := &structs.TaskGroup{Name: "bar"}
+	tg2 := &structs.TaskGroup{Name: "baz"}
+
+	job := &structs.Job{
+		ID:          "foo",
+		Constraints: []*structs.Constraint{{Operand: "unique"}},
+		TaskGroups:  []*structs.TaskGroup{tg1, tg2},
+	}
+
+	// Add allocs placing tg1 on node1 and tg2 on node2. This should make the
+	// job unsatisfiable.
+	plan := ctx.Plan()
+	plan.NodeAllocation[nodes[0].ID] = []*structs.Allocation{
+		&structs.Allocation{
+			TaskGroup: tg1.Name,
+			JobID:     job.ID,
+		},
+
+		// Should be ignored as it is a different job.
+		&structs.Allocation{
+			TaskGroup: tg2.Name,
+			JobID:     "ignore 2",
+		},
+	}
+	plan.NodeAllocation[nodes[1].ID] = []*structs.Allocation{
+		&structs.Allocation{
+			TaskGroup: tg2.Name,
+			JobID:     job.ID,
+		},
+
+		// Should be ignored as it is a different job.
+		&structs.Allocation{
+			TaskGroup: tg1.Name,
+			JobID:     "ignore 2",
+		},
+	}
+
+	dynamic := NewDynamicConstraintIterator(ctx, static)
+	dynamic.SetTaskGroup(tg1)
+	dynamic.SetJob(job)
+
+	out := collectFeasible(dynamic)
+	if len(out) != 0 {
+		t.Fatalf("Bad: %#v", out)
+	}
+}
+
+func TestDynamicConstraint_JobUnique_InfeasibleCount(t *testing.T) {
+	_, ctx := testContext(t)
+	nodes := []*structs.Node{
+		mock.Node(),
+		mock.Node(),
+	}
+	static := NewStaticIterator(ctx, nodes)
+
+	// Create a job with a unique constraint and three task groups.
+	tg1 := &structs.TaskGroup{Name: "bar"}
+	tg2 := &structs.TaskGroup{Name: "baz"}
+	tg3 := &structs.TaskGroup{Name: "bam"}
+
+	job := &structs.Job{
+		ID:          "foo",
+		Constraints: []*structs.Constraint{{Operand: "unique"}},
+		TaskGroups:  []*structs.TaskGroup{tg1, tg2, tg3},
+	}
+
+	dynamic := NewDynamicConstraintIterator(ctx, static)
+	dynamic.SetTaskGroup(tg1)
+	dynamic.SetJob(job)
+
+	// It should not be able to place 3 tasks with only two nodes.
+	out := collectFeasible(dynamic)
+	if len(out) != 2 {
+		t.Fatalf("Bad: %#v", out)
+	}
+}
+
+func TestDynamicConstraint_TaskGroupUnique(t *testing.T) {
+	_, ctx := testContext(t)
+	nodes := []*structs.Node{
+		mock.Node(),
+		mock.Node(),
+	}
+	static := NewStaticIterator(ctx, nodes)
+
+	// Create a task group with a unique constraint.
+	taskGroup := &structs.TaskGroup{
+		Name: "example",
+		Constraints: []*structs.Constraint{
+			{Operand: "unique"},
+		},
+	}
+
+	// Add a planned alloc to node1.
+	plan := ctx.Plan()
+	plan.NodeAllocation[nodes[0].ID] = []*structs.Allocation{
+		&structs.Allocation{
+			TaskGroup: taskGroup.Name,
+			JobID:     "foo",
+		},
+	}
+
+	// Add a planned alloc to node2 with the same task group name but a
+	// different job.
+	plan.NodeAllocation[nodes[1].ID] = []*structs.Allocation{
+		&structs.Allocation{
+			TaskGroup: taskGroup.Name,
+			JobID:     "bar",
+		},
+	}
+
+	dynamic := NewDynamicConstraintIterator(ctx, static)
+	dynamic.SetTaskGroup(taskGroup)
+	dynamic.SetJob(&structs.Job{ID: "foo"})
+
+	out := collectFeasible(dynamic)
+	if len(out) != 1 {
+		t.Fatalf("Bad: %#v", out)
+	}
+
+	// Expect it to skip the first node as there is a previous alloc on it for
+	// the same task group.
+	if out[0] != nodes[1] {
+		t.Fatalf("Bad: %v", out)
+	}
+}
+
 func collectFeasible(iter FeasibleIterator) (out []*structs.Node) {
 	for {
 		next := iter.Next()

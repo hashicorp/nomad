@@ -150,6 +150,114 @@ func (iter *DriverIterator) hasDrivers(option *structs.Node) bool {
 	return true
 }
 
+// DynamicConstraintIterator is a FeasibleIterator which returns nodes that
+// match constraints that are not static such as Node attributes but are
+// effected by alloc placements. Examples are unique and tenancy constraints.
+// This is used to filter on job and task group constraints.
+type DynamicConstraintIterator struct {
+	ctx    Context
+	source FeasibleIterator
+	tg     *structs.TaskGroup
+	job    *structs.Job
+
+	// Store whether the Job or TaskGroup has unique constraints so they don't
+	// have to be calculated every time Next() is called.
+	tgUnique  bool
+	jobUnique bool
+}
+
+// NewDynamicConstraintIterator creates a DynamicConstraintIterator from a
+// source.
+func NewDynamicConstraintIterator(ctx Context, source FeasibleIterator) *DynamicConstraintIterator {
+	iter := &DynamicConstraintIterator{
+		ctx:    ctx,
+		source: source,
+	}
+	return iter
+}
+
+func (iter *DynamicConstraintIterator) SetTaskGroup(tg *structs.TaskGroup) {
+	iter.tg = tg
+	iter.tgUnique = iter.hasUniqueConstraint(tg.Constraints)
+}
+
+func (iter *DynamicConstraintIterator) SetJob(job *structs.Job) {
+	iter.job = job
+	iter.jobUnique = iter.hasUniqueConstraint(job.Constraints)
+}
+
+func (iter *DynamicConstraintIterator) hasUniqueConstraint(constraints []*structs.Constraint) bool {
+	if constraints == nil {
+		return false
+	}
+
+	for _, con := range constraints {
+		if con.Operand == "unique" {
+			return true
+		}
+	}
+	return false
+}
+
+func (iter *DynamicConstraintIterator) Next() *structs.Node {
+	for {
+		// Get the next option from the source
+		option := iter.source.Next()
+
+		// Hot-path if the option is nil or there are no unique constraints.
+		if option == nil || (!iter.jobUnique && !iter.tgUnique) {
+			return option
+		}
+
+		// In the case the job has a unique constraint it applies to all
+		// TaskGroups.
+		if iter.jobUnique && !iter.satisfiesUnique(option, true) {
+			continue
+		} else if iter.tgUnique && !iter.satisfiesUnique(option, false) {
+			continue
+		}
+
+		return option
+	}
+}
+
+// satisfiesUnique checks if the node satisfies a unique constraint either
+// specified at the job level or the TaskGroup level.
+func (iter *DynamicConstraintIterator) satisfiesUnique(option *structs.Node, job bool) bool {
+	// Get the proposed allocations
+	proposed, err := iter.ctx.ProposedAllocs(option.ID)
+	if err != nil {
+		iter.ctx.Logger().Printf(
+			"[ERR] sched.dynamic-constraint: failed to get proposed allocations: %v", err)
+		return false
+	}
+
+	// Skip the node if the task group has already been allocated on it.
+	for _, alloc := range proposed {
+		jobCollision := alloc.JobID == iter.job.ID
+		taskCollision := alloc.TaskGroup == iter.tg.Name
+
+		// If the job has a unique constraint we only need an alloc collision on
+		// the JobID but if the constraint is on the TaskGroup then we need both
+		// a job and TaskGroup collision.
+		jobInvalid := job && jobCollision
+		tgInvalid := !job && jobCollision && taskCollision
+
+		if jobInvalid || tgInvalid {
+			iter.ctx.Metrics().FilterNode(option, "unique")
+			return false
+		}
+	}
+
+	return true
+}
+
+func (iter *DynamicConstraintIterator) Reset() {
+	iter.tg = nil
+	iter.job = nil
+	iter.source.Reset()
+}
+
 // ConstraintIterator is a FeasibleIterator which returns nodes
 // that match a given set of constraints. This is used to filter
 // on job, task group, and task constraints.
@@ -257,6 +365,14 @@ func resolveConstraintTarget(target string, node *structs.Node) (interface{}, bo
 
 // checkConstraint checks if a constraint is satisfied
 func checkConstraint(ctx Context, operand string, lVal, rVal interface{}) bool {
+	// Check for constraints not handled by this iterator.
+	switch operand {
+	case "unique":
+		return true
+	default:
+		break
+	}
+
 	switch operand {
 	case "=", "==", "is":
 		return reflect.DeepEqual(lVal, rVal)
