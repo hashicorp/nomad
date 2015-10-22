@@ -41,6 +41,7 @@ type GenericStack struct {
 	jobConstraint       *ConstraintIterator
 	taskGroupDrivers    *DriverIterator
 	taskGroupConstraint *ConstraintIterator
+	dynamicConstraint   *DynamicConstraintIterator
 	binPack             *BinPackIterator
 	jobAntiAff          *JobAntiAffinityIterator
 	limit               *LimitIterator
@@ -69,8 +70,10 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 	// Filter on task group constraints second
 	s.taskGroupConstraint = NewConstraintIterator(ctx, s.taskGroupDrivers, nil)
 
+	s.dynamicConstraint = NewDynamicConstraintIterator(ctx, s.taskGroupConstraint)
+
 	// Upgrade from feasible to rank iterator
-	rankSource := NewFeasibleRankIterator(ctx, s.taskGroupConstraint)
+	rankSource := NewFeasibleRankIterator(ctx, s.dynamicConstraint)
 
 	// Apply the bin packing, this depends on the resources needed
 	// by a particular task group. Only enable eviction for the service
@@ -119,6 +122,7 @@ func (s *GenericStack) SetNodes(baseNodes []*structs.Node) {
 
 func (s *GenericStack) SetJob(job *structs.Job) {
 	s.jobConstraint.SetConstraints(job.Constraints)
+	s.dynamicConstraint.SetJob(job)
 	s.binPack.SetPriority(job.Priority)
 	s.jobAntiAff.SetJob(job.ID)
 }
@@ -135,6 +139,7 @@ func (s *GenericStack) Select(tg *structs.TaskGroup) (*RankedNode, *structs.Reso
 	// Update the parameters of iterators
 	s.taskGroupDrivers.SetDrivers(tgConstr.drivers)
 	s.taskGroupConstraint.SetConstraints(tgConstr.constraints)
+	s.dynamicConstraint.SetTaskGroup(tg)
 	s.binPack.SetTasks(tg.Tasks)
 
 	// Find the node with the max score

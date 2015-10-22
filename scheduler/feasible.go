@@ -200,6 +200,16 @@ func (iter *DynamicConstraintIterator) hasUniqueConstraint(constraints []*struct
 }
 
 func (iter *DynamicConstraintIterator) Next() *structs.Node {
+	if iter.job == nil {
+		iter.ctx.Logger().Printf("[ERR] sched.dynamic-constraint: job not set")
+		return nil
+	}
+
+	if iter.tg == nil {
+		iter.ctx.Logger().Printf("[ERR] sched.dynamic-constraint: task group not set")
+		return nil
+	}
+
 	for {
 		// Get the next option from the source
 		option := iter.source.Next()
@@ -253,8 +263,6 @@ func (iter *DynamicConstraintIterator) satisfiesUnique(option *structs.Node, job
 }
 
 func (iter *DynamicConstraintIterator) Reset() {
-	iter.tg = nil
-	iter.job = nil
 	iter.source.Reset()
 }
 
