@@ -23,7 +23,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/hashicorp/cleanhttp"
+	"github.com/hashicorp/go-cleanhttp"
 )
 
 // offset is used to atomically increment the port numbers.
