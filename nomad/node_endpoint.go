@@ -155,7 +155,9 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 
 	// Check if we should trigger evaluations
 	initToReady := node.Status == structs.NodeStatusInit && args.Status == structs.NodeStatusReady
-	if structs.ShouldDrainNode(args.Status) || initToReady {
+	terminalToReady := node.Status == structs.NodeStatusDown && args.Status == structs.NodeStatusReady
+	transitionToReady := initToReady || terminalToReady
+	if structs.ShouldDrainNode(args.Status) || transitionToReady {
 		evalIDs, evalIndex, err := n.createNodeEvals(args.NodeID, index)
 		if err != nil {
 			n.srv.logger.Printf("[ERR] nomad.client: eval creation failed: %v", err)
