@@ -219,11 +219,8 @@ func (iter *DynamicConstraintIterator) Next() *structs.Node {
 			return option
 		}
 
-		// In the case the job has a unique constraint it applies to all
-		// TaskGroups.
-		if iter.jobUnique && !iter.satisfiesUnique(option, true) {
-			continue
-		} else if iter.tgUnique && !iter.satisfiesUnique(option, false) {
+		if !iter.satisfiesUnique(option, iter.jobUnique) {
+			iter.ctx.Metrics().FilterNode(option, "unique")
 			continue
 		}
 
@@ -252,9 +249,7 @@ func (iter *DynamicConstraintIterator) satisfiesUnique(option *structs.Node, job
 		// a job and TaskGroup collision.
 		jobInvalid := job && jobCollision
 		tgInvalid := !job && jobCollision && taskCollision
-
 		if jobInvalid || tgInvalid {
-			iter.ctx.Metrics().FilterNode(option, "unique")
 			return false
 		}
 	}

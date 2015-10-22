@@ -555,6 +555,7 @@ func TestInplaceUpdate_Success(t *testing.T) {
 
 	updates := []allocTuple{{Alloc: alloc, TaskGroup: tg}}
 	stack := NewGenericStack(false, ctx)
+	stack.SetJob(job)
 
 	// Do the inplace update.
 	unplaced := inplaceUpdate(ctx, eval, job, stack, updates)
