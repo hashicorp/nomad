@@ -178,3 +178,22 @@ type AgentMember struct {
 	DelegateMax uint8
 	DelegateCur uint8
 }
+
+// AgentMembersNameSort implements sort.Interface for []*AgentMembersNameSort
+// based on the Name, DC and Region
+type AgentMembersNameSort []*AgentMember
+
+func (a AgentMembersNameSort) Len() int      { return len(a) }
+func (a AgentMembersNameSort) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+func (a AgentMembersNameSort) Less(i, j int) bool {
+	if a[i].Tags["region"] != a[j].Tags["region"] {
+		return a[i].Tags["region"] < a[j].Tags["region"]
+	}
+
+	if a[i].Tags["dc"] != a[j].Tags["dc"] {
+		return a[i].Tags["dc"] < a[j].Tags["dc"]
+	}
+
+	return a[i].Name < a[j].Name
+
+}
