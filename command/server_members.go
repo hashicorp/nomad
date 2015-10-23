@@ -2,6 +2,7 @@ package command
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
@@ -67,6 +68,9 @@ func (c *ServerMembersCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("Error querying servers: %s", err))
 		return 1
 	}
+
+	// Sort the members
+	sort.Sort(api.AgentMembersNameSort(mem))
 
 	// Format the list
 	var out []string

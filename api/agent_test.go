@@ -1,6 +1,8 @@
 package api
 
 import (
+	"reflect"
+	"sort"
 	"testing"
 
 	"github.com/hashicorp/nomad/testutil"
@@ -152,5 +154,119 @@ func TestAgent_SetServers(t *testing.T) {
 	}
 	if out[0] != "foo" || out[1] != "bar" {
 		t.Fatalf("bad server list: %v", out)
+	}
+}
+
+func (a *AgentMember) String() string {
+	return "{Name: " + a.Name + " Region: " + a.Tags["region"] + " DC: " + a.Tags["dc"] + "}"
+}
+
+func TestAgents_Sort(t *testing.T) {
+	var sortTests = []struct {
+		in  []*AgentMember
+		out []*AgentMember
+	}{
+		{
+			[]*AgentMember{
+				&AgentMember{Name: "nomad-2.vac.us-east",
+					Tags: map[string]string{"region": "us-east", "dc": "us-east-1c"}},
+				&AgentMember{Name: "nomad-1.global",
+					Tags: map[string]string{"region": "global", "dc": "dc1"}},
+				&AgentMember{Name: "nomad-1.vac.us-east",
+					Tags: map[string]string{"region": "us-east", "dc": "us-east-1c"}},
+			},
+			[]*AgentMember{
+				&AgentMember{Name: "nomad-1.global",
+					Tags: map[string]string{"region": "global", "dc": "dc1"}},
+				&AgentMember{Name: "nomad-1.vac.us-east",
+					Tags: map[string]string{"region": "us-east", "dc": "us-east-1c"}},
+				&AgentMember{Name: "nomad-2.vac.us-east",
+					Tags: map[string]string{"region": "us-east", "dc": "us-east-1c"}},
+			},
+		},
+		{
+			[]*AgentMember{
+				&AgentMember{Name: "nomad-02.tam.us-east",
+					Tags: map[string]string{"region": "us-east", "dc": "tampa"}},
+				&AgentMember{Name: "nomad-02.pal.us-west",
+					Tags: map[string]string{"region": "us-west", "dc": "palo_alto"}},
+				&AgentMember{Name: "nomad-01.pal.us-west",
+					Tags: map[string]string{"region": "us-west", "dc": "palo_alto"}},
+				&AgentMember{Name: "nomad-01.tam.us-east",
+					Tags: map[string]string{"region": "us-east", "dc": "tampa"}},
+			},
+			[]*AgentMember{
+				&AgentMember{Name: "nomad-01.tam.us-east",
+					Tags: map[string]string{"region": "us-east", "dc": "tampa"}},
+				&AgentMember{Name: "nomad-02.tam.us-east",
+					Tags: map[string]string{"region": "us-east", "dc": "tampa"}},
+				&AgentMember{Name: "nomad-01.pal.us-west",
+					Tags: map[string]string{"region": "us-west", "dc": "palo_alto"}},
+				&AgentMember{Name: "nomad-02.pal.us-west",
+					Tags: map[string]string{"region": "us-west", "dc": "palo_alto"}},
+			},
+		},
+		{
+			[]*AgentMember{
+				&AgentMember{Name: "nomad-02.tam.us-east",
+					Tags: map[string]string{"region": "us-east", "dc": "tampa"}},
+				&AgentMember{Name: "nomad-02.ams.europe",
+					Tags: map[string]string{"region": "europe", "dc": "amsterdam"}},
+				&AgentMember{Name: "nomad-01.tam.us-east",
+					Tags: map[string]string{"region": "us-east", "dc": "tampa"}},
+				&AgentMember{Name: "nomad-01.ams.europe",
+					Tags: map[string]string{"region": "europe", "dc": "amsterdam"}},
+			},
+			[]*AgentMember{
+				&AgentMember{Name: "nomad-01.ams.europe",
+					Tags: map[string]string{"region": "europe", "dc": "amsterdam"}},
+				&AgentMember{Name: "nomad-02.ams.europe",
+					Tags: map[string]string{"region": "europe", "dc": "amsterdam"}},
+				&AgentMember{Name: "nomad-01.tam.us-east",
+					Tags: map[string]string{"region": "us-east", "dc": "tampa"}},
+				&AgentMember{Name: "nomad-02.tam.us-east",
+					Tags: map[string]string{"region": "us-east", "dc": "tampa"}},
+			},
+		},
+		{
+			[]*AgentMember{
+				&AgentMember{Name: "nomad-02.ber.europe",
+					Tags: map[string]string{"region": "europe", "dc": "berlin"}},
+				&AgentMember{Name: "nomad-02.ams.europe",
+					Tags: map[string]string{"region": "europe", "dc": "amsterdam"}},
+				&AgentMember{Name: "nomad-01.ams.europe",
+					Tags: map[string]string{"region": "europe", "dc": "amsterdam"}},
+				&AgentMember{Name: "nomad-01.ber.europe",
+					Tags: map[string]string{"region": "europe", "dc": "berlin"}},
+			},
+			[]*AgentMember{
+				&AgentMember{Name: "nomad-01.ams.europe",
+					Tags: map[string]string{"region": "europe", "dc": "amsterdam"}},
+				&AgentMember{Name: "nomad-02.ams.europe",
+					Tags: map[string]string{"region": "europe", "dc": "amsterdam"}},
+				&AgentMember{Name: "nomad-01.ber.europe",
+					Tags: map[string]string{"region": "europe", "dc": "berlin"}},
+				&AgentMember{Name: "nomad-02.ber.europe",
+					Tags: map[string]string{"region": "europe", "dc": "berlin"}},
+			},
+		},
+		{
+			[]*AgentMember{
+				&AgentMember{Name: "nomad-1.global"},
+				&AgentMember{Name: "nomad-3.global"},
+				&AgentMember{Name: "nomad-2.global"},
+			},
+			[]*AgentMember{
+				&AgentMember{Name: "nomad-1.global"},
+				&AgentMember{Name: "nomad-2.global"},
+				&AgentMember{Name: "nomad-3.global"},
+			},
+		},
+	}
+	for _, tt := range sortTests {
+		sort.Sort(AgentMembersNameSort(tt.in))
+		if !reflect.DeepEqual(tt.in, tt.out) {
+			t.Errorf("\necpected: %s\nget     : %s", tt.in, tt.out)
+		}
 	}
 }
