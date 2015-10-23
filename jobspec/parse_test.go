@@ -193,7 +193,7 @@ func TestParse(t *testing.T) {
 		},
 
 		{
-			"unique-constraint.hcl",
+			"distinctHosts-constraint.hcl",
 			&structs.Job{
 				ID:       "foo",
 				Name:     "foo",
@@ -203,7 +203,7 @@ func TestParse(t *testing.T) {
 				Constraints: []*structs.Constraint{
 					&structs.Constraint{
 						Hard:    true,
-						Operand: "unique",
+						Operand: "distinctHosts",
 					},
 				},
 			},

@@ -257,7 +257,7 @@ func parseConstraints(result *[]*structs.Constraint, obj *hclobj.Object) error {
 			m["RTarget"] = constraint
 		}
 
-		if value, ok := m["unique"]; ok {
+		if value, ok := m["distinctHosts"]; ok {
 			enabled, err := strconv.ParseBool(value.(string))
 			if err != nil {
 				return err
@@ -268,7 +268,7 @@ func parseConstraints(result *[]*structs.Constraint, obj *hclobj.Object) error {
 				continue
 			}
 
-			m["Operand"] = "unique"
+			m["Operand"] = "distinctHosts"
 		}
 
 		// Build the constraint

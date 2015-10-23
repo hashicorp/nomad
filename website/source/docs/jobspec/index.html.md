@@ -237,13 +237,17 @@ The `constraint` object supports the following keys:
   the attribute. This sets the operator to "regexp" and the `value`
   to the regular expression.
 
-* `unique` - Unique accepts a boolean value and can be used to mark a Job or
-  a Task Group as requiring placement on unique nodes. If the `unique`
-  constraint is placed on a Job, all of it's Task Groups must be placed on
-  unique nodes. If the `unique` constraint is placed on a Task Group, then
-  multiple instances of that Task Group must be placed on unique nodes. This
-  sets the operator to "unique" if `unique` is set to "true". If set to "false",
-  the constraint is ignored as this is the default behavior.
+* `distinctHosts` - `distinctHosts` accepts a boolean `true`. The default is
+  `false`.
+
+  When `distinctHosts is `true` at the Job level, each instance of all Task
+  Groups specified in the job is placed on a separate host.
+
+  When `distinctHosts` is `true` at the Task Group level with count > 1, each
+  instance of a Task Group is placed on a separate host. Different task groups in
+  the same job _may_ be co-scheduled.
+
+  Tasks within a task group are always co-scheduled.
 
 Below is a table documenting the variables that can be interpreted:
 

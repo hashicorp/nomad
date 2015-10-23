@@ -382,7 +382,7 @@ func TestCheckRegexpConstraint(t *testing.T) {
 	}
 }
 
-func TestDynamicConstraint_JobUnique_Feasible(t *testing.T) {
+func TestDynamicConstraint_JobDistinctHosts(t *testing.T) {
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{
 		mock.Node(),
@@ -392,13 +392,13 @@ func TestDynamicConstraint_JobUnique_Feasible(t *testing.T) {
 	}
 	static := NewStaticIterator(ctx, nodes)
 
-	// Create a job with a unique constraint and two task groups.
+	// Create a job with a distinctHosts constraint and two task groups.
 	tg1 := &structs.TaskGroup{Name: "bar"}
 	tg2 := &structs.TaskGroup{Name: "baz"}
 
 	job := &structs.Job{
 		ID:          "foo",
-		Constraints: []*structs.Constraint{{Operand: "unique"}},
+		Constraints: []*structs.Constraint{{Operand: "distinctHosts"}},
 		TaskGroups:  []*structs.TaskGroup{tg1, tg2},
 	}
 
@@ -420,7 +420,7 @@ func TestDynamicConstraint_JobUnique_Feasible(t *testing.T) {
 	}
 }
 
-func TestDynamicConstraint_JobUnique_Infeasible(t *testing.T) {
+func TestDynamicConstraint_JobDistinctHosts_Infeasible(t *testing.T) {
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{
 		mock.Node(),
@@ -428,13 +428,13 @@ func TestDynamicConstraint_JobUnique_Infeasible(t *testing.T) {
 	}
 	static := NewStaticIterator(ctx, nodes)
 
-	// Create a job with a unique constraint and two task groups.
+	// Create a job with a distinctHosts constraint and two task groups.
 	tg1 := &structs.TaskGroup{Name: "bar"}
 	tg2 := &structs.TaskGroup{Name: "baz"}
 
 	job := &structs.Job{
 		ID:          "foo",
-		Constraints: []*structs.Constraint{{Operand: "unique"}},
+		Constraints: []*structs.Constraint{{Operand: "distinctHosts"}},
 		TaskGroups:  []*structs.TaskGroup{tg1, tg2},
 	}
 
@@ -476,7 +476,7 @@ func TestDynamicConstraint_JobUnique_Infeasible(t *testing.T) {
 	}
 }
 
-func TestDynamicConstraint_JobUnique_InfeasibleCount(t *testing.T) {
+func TestDynamicConstraint_JobDistinctHosts_InfeasibleCount(t *testing.T) {
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{
 		mock.Node(),
@@ -484,14 +484,14 @@ func TestDynamicConstraint_JobUnique_InfeasibleCount(t *testing.T) {
 	}
 	static := NewStaticIterator(ctx, nodes)
 
-	// Create a job with a unique constraint and three task groups.
+	// Create a job with a distinctHosts constraint and three task groups.
 	tg1 := &structs.TaskGroup{Name: "bar"}
 	tg2 := &structs.TaskGroup{Name: "baz"}
 	tg3 := &structs.TaskGroup{Name: "bam"}
 
 	job := &structs.Job{
 		ID:          "foo",
-		Constraints: []*structs.Constraint{{Operand: "unique"}},
+		Constraints: []*structs.Constraint{{Operand: "distinctHosts"}},
 		TaskGroups:  []*structs.TaskGroup{tg1, tg2, tg3},
 	}
 
@@ -506,7 +506,7 @@ func TestDynamicConstraint_JobUnique_InfeasibleCount(t *testing.T) {
 	}
 }
 
-func TestDynamicConstraint_TaskGroupUnique(t *testing.T) {
+func TestDynamicConstraint_TaskGroupDistinctHosts(t *testing.T) {
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{
 		mock.Node(),
@@ -514,11 +514,11 @@ func TestDynamicConstraint_TaskGroupUnique(t *testing.T) {
 	}
 	static := NewStaticIterator(ctx, nodes)
 
-	// Create a task group with a unique constraint.
+	// Create a task group with a distinctHosts constraint.
 	taskGroup := &structs.TaskGroup{
 		Name: "example",
 		Constraints: []*structs.Constraint{
-			{Operand: "unique"},
+			{Operand: "distinctHosts"},
 		},
 	}
 

@@ -152,7 +152,7 @@ func (iter *DriverIterator) hasDrivers(option *structs.Node) bool {
 
 // DynamicConstraintIterator is a FeasibleIterator which returns nodes that
 // match constraints that are not static such as Node attributes but are
-// effected by alloc placements. Examples are unique and tenancy constraints.
+// effected by alloc placements. Examples are distinctHosts and tenancy constraints.
 // This is used to filter on job and task group constraints.
 type DynamicConstraintIterator struct {
 	ctx    Context
@@ -160,10 +160,10 @@ type DynamicConstraintIterator struct {
 	tg     *structs.TaskGroup
 	job    *structs.Job
 
-	// Store whether the Job or TaskGroup has unique constraints so they don't
-	// have to be calculated every time Next() is called.
-	tgUnique  bool
-	jobUnique bool
+	// Store whether the Job or TaskGroup has a distinctHosts constraints so
+	// they don't have to be calculated every time Next() is called.
+	tgDistinctHosts  bool
+	jobDistinctHosts bool
 }
 
 // NewDynamicConstraintIterator creates a DynamicConstraintIterator from a
@@ -178,21 +178,21 @@ func NewDynamicConstraintIterator(ctx Context, source FeasibleIterator) *Dynamic
 
 func (iter *DynamicConstraintIterator) SetTaskGroup(tg *structs.TaskGroup) {
 	iter.tg = tg
-	iter.tgUnique = iter.hasUniqueConstraint(tg.Constraints)
+	iter.tgDistinctHosts = iter.hasDistinctHostsConstraint(tg.Constraints)
 }
 
 func (iter *DynamicConstraintIterator) SetJob(job *structs.Job) {
 	iter.job = job
-	iter.jobUnique = iter.hasUniqueConstraint(job.Constraints)
+	iter.jobDistinctHosts = iter.hasDistinctHostsConstraint(job.Constraints)
 }
 
-func (iter *DynamicConstraintIterator) hasUniqueConstraint(constraints []*structs.Constraint) bool {
+func (iter *DynamicConstraintIterator) hasDistinctHostsConstraint(constraints []*structs.Constraint) bool {
 	if constraints == nil {
 		return false
 	}
 
 	for _, con := range constraints {
-		if con.Operand == "unique" {
+		if con.Operand == "distinctHosts" {
 			return true
 		}
 	}
@@ -214,13 +214,13 @@ func (iter *DynamicConstraintIterator) Next() *structs.Node {
 		// Get the next option from the source
 		option := iter.source.Next()
 
-		// Hot-path if the option is nil or there are no unique constraints.
-		if option == nil || (!iter.jobUnique && !iter.tgUnique) {
+		// Hot-path if the option is nil or there are no distinctHosts constraints.
+		if option == nil || (!iter.jobDistinctHosts && !iter.tgDistinctHosts) {
 			return option
 		}
 
-		if !iter.satisfiesUnique(option, iter.jobUnique) {
-			iter.ctx.Metrics().FilterNode(option, "unique")
+		if !iter.satisfiesDistinctHosts(option, iter.jobDistinctHosts) {
+			iter.ctx.Metrics().FilterNode(option, "distinctHosts")
 			continue
 		}
 
@@ -228,9 +228,9 @@ func (iter *DynamicConstraintIterator) Next() *structs.Node {
 	}
 }
 
-// satisfiesUnique checks if the node satisfies a unique constraint either
-// specified at the job level or the TaskGroup level.
-func (iter *DynamicConstraintIterator) satisfiesUnique(option *structs.Node, job bool) bool {
+// satisfiesDistinctHosts checks if the node satisfies a distinctHosts
+// constraint either specified at the job level or the TaskGroup level.
+func (iter *DynamicConstraintIterator) satisfiesDistinctHosts(option *structs.Node, job bool) bool {
 	// Get the proposed allocations
 	proposed, err := iter.ctx.ProposedAllocs(option.ID)
 	if err != nil {
@@ -244,9 +244,9 @@ func (iter *DynamicConstraintIterator) satisfiesUnique(option *structs.Node, job
 		jobCollision := alloc.JobID == iter.job.ID
 		taskCollision := alloc.TaskGroup == iter.tg.Name
 
-		// If the job has a unique constraint we only need an alloc collision on
-		// the JobID but if the constraint is on the TaskGroup then we need both
-		// a job and TaskGroup collision.
+		// If the job has a distinctHosts constraint we only need an alloc
+		// collision on the JobID but if the constraint is on the TaskGroup then
+		// we need both a job and TaskGroup collision.
 		jobInvalid := job && jobCollision
 		tgInvalid := !job && jobCollision && taskCollision
 		if jobInvalid || tgInvalid {
@@ -370,7 +370,7 @@ func resolveConstraintTarget(target string, node *structs.Node) (interface{}, bo
 func checkConstraint(ctx Context, operand string, lVal, rVal interface{}) bool {
 	// Check for constraints not handled by this iterator.
 	switch operand {
-	case "unique":
+	case "distinctHosts":
 		return true
 	default:
 		break
