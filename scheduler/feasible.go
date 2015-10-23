@@ -201,12 +201,12 @@ func (iter *DynamicConstraintIterator) hasDistinctHostsConstraint(constraints []
 
 func (iter *DynamicConstraintIterator) Next() *structs.Node {
 	if iter.job == nil {
-		iter.ctx.Logger().Printf("[ERR] sched.dynamic-constraint: job not set")
+		iter.ctx.Logger().Printf("[ERR] scheduler.dynamic-constraint: job not set")
 		return nil
 	}
 
 	if iter.tg == nil {
-		iter.ctx.Logger().Printf("[ERR] sched.dynamic-constraint: task group not set")
+		iter.ctx.Logger().Printf("[ERR] scheduler.dynamic-constraint: task group not set")
 		return nil
 	}
 
@@ -235,7 +235,7 @@ func (iter *DynamicConstraintIterator) satisfiesDistinctHosts(option *structs.No
 	proposed, err := iter.ctx.ProposedAllocs(option.ID)
 	if err != nil {
 		iter.ctx.Logger().Printf(
-			"[ERR] sched.dynamic-constraint: failed to get proposed allocations: %v", err)
+			"[ERR] scheduler.dynamic-constraint: failed to get proposed allocations: %v", err)
 		return false
 	}
 

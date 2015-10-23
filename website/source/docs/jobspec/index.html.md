@@ -240,7 +240,7 @@ The `constraint` object supports the following keys:
 * `distinctHosts` - `distinctHosts` accepts a boolean `true`. The default is
   `false`.
 
-  When `distinctHosts is `true` at the Job level, each instance of all Task
+  When `distinctHosts` is `true` at the Job level, each instance of all Task
   Groups specified in the job is placed on a separate host.
 
   When `distinctHosts` is `true` at the Task Group level with count > 1, each
