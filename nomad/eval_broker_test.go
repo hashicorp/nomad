@@ -90,13 +90,17 @@ func TestEvalBroker_Enqueue_Dequeue_Nack_Ack(t *testing.T) {
 	}
 
 	// OutstandingReset should verify the token
-	reset := b.OutstandingReset(out.ID, "foo")
-	if reset {
-		t.Fatalf("bad")
+	err = b.OutstandingReset("nope", "foo")
+	if err != ErrNotOutstanding {
+		t.Fatalf("err: %v", err)
 	}
-	reset = b.OutstandingReset(out.ID, tokenOut)
-	if !reset {
-		t.Fatalf("bad")
+	err = b.OutstandingReset(out.ID, "foo")
+	if err != ErrTokenMismatch {
+		t.Fatalf("err: %v", err)
+	}
+	err = b.OutstandingReset(out.ID, tokenOut)
+	if err != nil {
+		t.Fatalf("err: %v", err)
 	}
 
 	// Check the stats
@@ -594,8 +598,8 @@ func TestEvalBroker_Nack_TimeoutReset(t *testing.T) {
 
 	// Reset in 2 milliseconds
 	time.Sleep(2 * time.Millisecond)
-	if reset := b.OutstandingReset(out.ID, token); !reset {
-		t.Fatalf("bad")
+	if err := b.OutstandingReset(out.ID, token); err != nil {
+		t.Fatalf("err: %v", err)
 	}
 
 	// Dequeue, should block on Nack timer

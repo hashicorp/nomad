@@ -2,6 +2,7 @@ package nomad
 
 import (
 	"container/heap"
+	"errors"
 	"fmt"
 	"math/rand"
 	"sync"
@@ -16,6 +17,17 @@ const (
 	// they've reached the deliveryLimit. This allows the leader to
 	// set the status to failed.
 	failedQueue = "_failed"
+)
+
+var (
+	// ErrNotOutstanding is returned if an evaluation is not outstanding
+	ErrNotOutstanding = errors.New("evaluation is not outstanding")
+
+	// ErrTokenMismatch is the outstanding eval has a different token
+	ErrTokenMismatch = errors.New("evaluation token does not match")
+
+	// ErrNackTimeoutReached is returned if an expired evaluation is reset
+	ErrNackTimeoutReached = errors.New("evaluation nack timeout reached")
 )
 
 // EvalBroker is used to manage brokering of evaluations. When an evaluation is
@@ -383,17 +395,20 @@ func (b *EvalBroker) Outstanding(evalID string) (string, bool) {
 
 // OutstandingReset resets the Nack timer for the EvalID if the
 // token matches and the eval is outstanding
-func (b *EvalBroker) OutstandingReset(evalID, token string) bool {
+func (b *EvalBroker) OutstandingReset(evalID, token string) error {
 	b.l.RLock()
 	defer b.l.RUnlock()
 	unack, ok := b.unack[evalID]
 	if !ok {
-		return false
+		return ErrNotOutstanding
 	}
 	if unack.Token != token {
-		return false
+		return ErrTokenMismatch
 	}
-	return unack.NackTimer.Reset(b.nackTimeout)
+	if !unack.NackTimer.Reset(b.nackTimeout) {
+		return ErrNackTimeoutReached
+	}
+	return nil
 }
 
 // Ack is used to positively acknowledge handling an evaluation
