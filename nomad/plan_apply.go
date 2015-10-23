@@ -50,17 +50,10 @@ func (s *Server) planApply() {
 		}
 
 		// Verify the evaluation is outstanding, and that the tokens match.
-		token, ok := s.evalBroker.Outstanding(pending.plan.EvalID)
-		if !ok {
-			s.logger.Printf("[ERR] nomad: plan received for non-outstanding evaluation %s",
-				pending.plan.EvalID)
-			pending.respond(nil, fmt.Errorf("evaluation is not outstanding"))
-			continue
-		}
-		if pending.plan.EvalToken != token {
-			s.logger.Printf("[ERR] nomad: plan received for evaluation %s with wrong token",
-				pending.plan.EvalID)
-			pending.respond(nil, fmt.Errorf("evaluation token does not match"))
+		if err := s.evalBroker.OutstandingReset(pending.plan.EvalID, pending.plan.EvalToken); err != nil {
+			s.logger.Printf("[ERR] nomad: plan rejected for evaluation %s: %v",
+				pending.plan.EvalID, err)
+			pending.respond(nil, err)
 			continue
 		}
 
