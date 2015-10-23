@@ -381,6 +381,21 @@ func (b *EvalBroker) Outstanding(evalID string) (string, bool) {
 	return unack.Token, true
 }
 
+// OutstandingReset resets the Nack timer for the EvalID if the
+// token matches and the eval is outstanding
+func (b *EvalBroker) OutstandingReset(evalID, token string) bool {
+	b.l.RLock()
+	defer b.l.RUnlock()
+	unack, ok := b.unack[evalID]
+	if !ok {
+		return false
+	}
+	if unack.Token != token {
+		return false
+	}
+	return unack.NackTimer.Reset(b.nackTimeout)
+}
+
 // Ack is used to positively acknowledge handling an evaluation
 func (b *EvalBroker) Ack(evalID, token string) error {
 	b.l.Lock()
