@@ -16,18 +16,18 @@ import (
 )
 
 func TestRktVersionRegex(t *testing.T) {
-        input_rkt := "rkt version 0.8.1"
-        input_appc := "appc version 1.2.0"
-        expected_rkt := "0.8.1"
-        expected_appc := "1.2.0"
-        rktMatches := reRktVersion.FindStringSubmatch(input_rkt)
-        appcMatches := reAppcVersion.FindStringSubmatch(input_appc)
-        if rktMatches[1] != expected_rkt {
-                fmt.Printf("Test failed; got %q; want %q\n", rktMatches[1], expected_rkt)
-        }
-        if appcMatches[1] != expected_appc {
-                fmt.Printf("Test failed; got %q; want %q\n", appcMatches[1], expected_appc)
-        }
+	input_rkt := "rkt version 0.8.1"
+	input_appc := "appc version 1.2.0"
+	expected_rkt := "0.8.1"
+	expected_appc := "1.2.0"
+	rktMatches := reRktVersion.FindStringSubmatch(input_rkt)
+	appcMatches := reAppcVersion.FindStringSubmatch(input_appc)
+	if rktMatches[1] != expected_rkt {
+		fmt.Printf("Test failed; got %q; want %q\n", rktMatches[1], expected_rkt)
+	}
+	if appcMatches[1] != expected_appc {
+		fmt.Printf("Test failed; got %q; want %q\n", appcMatches[1], expected_appc)
+	}
 }
 
 func TestRktDriver_Handle(t *testing.T) {
