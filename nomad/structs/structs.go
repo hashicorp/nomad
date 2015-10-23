@@ -11,7 +11,6 @@ import (
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-version"
-	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 var (
@@ -831,7 +830,7 @@ func (j *Job) Validate() error {
 			taskGroups[tg.Name] = idx
 		}
 
-		if j.Type == structs.JobTypeSystem && tg.Count != 1 {
+		if j.Type == "system" && tg.Count != 1 {
 			mErr.Errors = append(mErr.Errors,
 				fmt.Errorf("Job task group %d has count %d. Only count of 1 is supported with system scheduler",
 					idx+1, tg.Count))

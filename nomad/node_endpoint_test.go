@@ -207,8 +207,8 @@ func TestClientEndpoint_UpdateStatus_GetEvals(t *testing.T) {
 		t.Fatalf("could not get eval %v", evalID)
 	}
 
-	if eval.Type != structs.JobTypeSystem {
-		t.Fatalf("unexpected eval type; got %v; want %q", eval.Type, structs.JobTypeSystem)
+	if eval.Type != "system" {
+		t.Fatalf("unexpected eval type; got %v; want %q", eval.Type, "system")
 	}
 
 	// Check for heartbeat interval
@@ -605,7 +605,7 @@ func TestClientEndpoint_CreateNodeEvals(t *testing.T) {
 	for schedType, eval := range evalByType {
 		expPriority := alloc.Job.Priority
 		expJobID := alloc.JobID
-		if schedType == structs.JobTypeSystem {
+		if schedType == "system" {
 			expPriority = job.Priority
 			expJobID = job.ID
 		}

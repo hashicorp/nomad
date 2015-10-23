@@ -11,9 +11,9 @@ import (
 // BuiltinSchedulers contains the built in registered schedulers
 // which are available
 var BuiltinSchedulers = map[string]Factory{
-	structs.JobTypeService: NewServiceScheduler,
-	structs.JobTypeBatch:   NewBatchScheduler,
-	structs.JobTypeSystem:  NewSystemScheduler,
+	"service": NewServiceScheduler,
+	"batch":   NewBatchScheduler,
+	"system":  NewSystemScheduler,
 }
 
 // NewScheduler is used to instantiate and return a new scheduler
