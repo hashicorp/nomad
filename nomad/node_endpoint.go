@@ -450,7 +450,7 @@ func (n *Node) createNodeEvals(nodeID string, nodeIndex uint64) ([]string, uint6
 		return nil, 0, fmt.Errorf("failed to find allocs for '%s': %v", nodeID, err)
 	}
 
-	sysJobsIter, err := snap.JobsByScheduler("system")
+	sysJobsIter, err := snap.JobsByScheduler(structs.JobTypeSystem)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to find system jobs for '%s': %v", nodeID, err)
 	}

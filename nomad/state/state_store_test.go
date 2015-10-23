@@ -387,7 +387,7 @@ func TestStateStore_JobsByScheduler(t *testing.T) {
 		outService = append(outService, raw.(*structs.Job))
 	}
 
-	iter, err = state.JobsByScheduler("system")
+	iter, err = state.JobsByScheduler(structs.JobTypeSystem)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
