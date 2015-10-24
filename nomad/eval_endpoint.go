@@ -134,12 +134,8 @@ func (e *Eval) Update(args *structs.EvalUpdateRequest,
 	eval := args.Evals[0]
 
 	// Verify the evaluation is outstanding, and that the tokens match.
-	token, ok := e.srv.evalBroker.Outstanding(eval.ID)
-	if !ok {
-		return fmt.Errorf("evaluation is not outstanding")
-	}
-	if args.EvalToken != token {
-		return fmt.Errorf("evaluation token does not match")
+	if err := e.srv.evalBroker.OutstandingReset(eval.ID, args.EvalToken); err != nil {
+		return err
 	}
 
 	// Update via Raft
@@ -168,12 +164,8 @@ func (e *Eval) Create(args *structs.EvalUpdateRequest,
 	eval := args.Evals[0]
 
 	// Verify the parent evaluation is outstanding, and that the tokens match.
-	token, ok := e.srv.evalBroker.Outstanding(eval.PreviousEval)
-	if !ok {
-		return fmt.Errorf("previous evaluation is not outstanding")
-	}
-	if args.EvalToken != token {
-		return fmt.Errorf("previous evaluation token does not match")
+	if err := e.srv.evalBroker.OutstandingReset(eval.PreviousEval, args.EvalToken); err != nil {
+		return err
 	}
 
 	// Look for the eval
