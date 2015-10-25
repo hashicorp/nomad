@@ -52,6 +52,6 @@ On Linux, Nomad will attempt to use cgroups, namespaces, and chroot
 to isolate the resources of a process. If the Nomad agent is not
 running as root many of these mechanisms cannot be used.
 
-As a baseline, the Java jars will be ran inside a Java Virtual Machine,
+As a baseline, the Java jars will be run inside a Java Virtual Machine,
 providing a minimum amount of isolation.
 
