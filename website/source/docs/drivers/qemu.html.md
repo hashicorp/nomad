@@ -57,6 +57,6 @@ workloads. Nomad can use Qemu KVM's hardware-assisted virtualization to deliver
 better performance.
 
 Virtualization provides the highest level of isolation for workloads that
-require additional security, and resources use is constrained by the Qemu
+require additional security, and resource use is constrained by the Qemu
 hypervisor rather than the host kernel. VM network traffic still flows through
 the host's interface(s).
