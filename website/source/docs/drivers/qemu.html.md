@@ -37,7 +37,7 @@ in the `Task` specification
 
 ## Client Requirements
 
-The `Qemu` driver requires Qemu to be installed and in your systems `$PATH`.
+The `Qemu` driver requires Qemu to be installed and in your system's `$PATH`.
 The `image_source` must be accessible by the node running Nomad. This can be an
 internal source, private to your cluster, but it must be reachable by the client
 over HTTP.
