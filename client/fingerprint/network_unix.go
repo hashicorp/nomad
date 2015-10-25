@@ -30,21 +30,41 @@ func NewNetworkFingerprinter(logger *log.Logger) Fingerprint {
 	return f
 }
 
+func flagsSet(flags net.Flags, test net.Flags) bool {
+	return flags&test != 0
+}
+
+func flagsClear(flags net.Flags, test net.Flags) bool {
+	return flags&test == 0
+}
+
 func (f *NetworkFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
 	// newNetwork is populated and addded to the Nodes resources
 	newNetwork := &structs.NetworkResource{}
+	defaultDevice := ""
 
-	// eth0 is the default device for Linux, and en0 is default for OS X
-	defaultDevice := "eth0"
-	if "darwin" == runtime.GOOS {
-		defaultDevice = "en0"
-	}
-	// User-defined override for the default interface
+	// Use user-defined network device, otherwise use first interface found in the system
 	if cfg.NetworkInterface != "" {
 		defaultDevice = cfg.NetworkInterface
+	} else {
+		intfs, err := net.Interfaces()
+		if err != nil {
+			return false, err
+		}
+
+		for _, i := range intfs {
+			if flagsSet(i.Flags, net.FlagUp) && flagsClear(i.Flags, net.FlagLoopback|net.FlagPointToPoint) {
+				defaultDevice = i.Name
+				break
+			}
+		}
 	}
 
-	newNetwork.Device = defaultDevice
+	if defaultDevice != "" {
+		newNetwork.Device = defaultDevice
+	} else {
+		return false, fmt.Errorf("Unable to find any network interface")
+	}
 
 	if ip := f.ipAddress(defaultDevice); ip != "" {
 		node.Attributes["network.ip-address"] = ip
