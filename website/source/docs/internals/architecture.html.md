@@ -128,8 +128,8 @@ ensuring PCI compliant workloads run on appropriate servers.
 # Getting in Depth
 
 This has been a brief high-level overview of the architecture of Nomad. There
-are more details available for each of the sub-systems. The [scheduler design](/docs/internals/scheduling.html),
-[consensus protocol](/docs/internals/consensus.html), and [gossip protocol](/docs/internals/gossip.html)
+are more details available for each of the sub-systems. The [consensus protocol](/docs/internals/consensus.html),
+[gossip protocol](/docs/internals/gossip.html), and [scheduler design](/docs/internals/scheduling.html)
 are all documented in more detail.
 
 For other details, either consult the code, ask in IRC or reach out to the mailing list.
