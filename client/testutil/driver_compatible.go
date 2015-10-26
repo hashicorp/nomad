@@ -14,7 +14,7 @@ func ExecCompatible(t *testing.T) {
 }
 
 func QemuCompatible(t *testing.T) {
-	if runtime.GOOS == "windows"  {
+	if runtime.GOOS == "windows" {
 		t.Skip("Must be on non-windows environments to run test")
 	}
 	// else see if qemu exists
