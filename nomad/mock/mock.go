@@ -80,6 +80,9 @@ func Job() *structs.Job {
 							"command": "/bin/date",
 							"args":    "+%s",
 						},
+						Env: map[string]string{
+							"FOO": "bar",
+						},
 						Resources: &structs.Resources{
 							CPU:      500,
 							MemoryMB: 256,

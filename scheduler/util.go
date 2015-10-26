@@ -263,7 +263,7 @@ func shuffleNodes(nodes []*structs.Node) {
 }
 
 // tasksUpdated does a diff between task groups to see if the
-// tasks, their drivers or config have updated.
+// tasks, their drivers, environment variables or config have updated.
 func tasksUpdated(a, b *structs.TaskGroup) bool {
 	// If the number of tasks do not match, clearly there is an update
 	if len(a.Tasks) != len(b.Tasks) {
@@ -280,6 +280,9 @@ func tasksUpdated(a, b *structs.TaskGroup) bool {
 			return true
 		}
 		if !reflect.DeepEqual(at.Config, bt.Config) {
+			return true
+		}
+		if !reflect.DeepEqual(at.Env, bt.Env) {
 			return true
 		}
 

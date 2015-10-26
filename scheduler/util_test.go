@@ -347,6 +347,12 @@ func TestTasksUpdated(t *testing.T) {
 	if !tasksUpdated(j1.TaskGroups[0], j6.TaskGroups[0]) {
 		t.Fatalf("bad")
 	}
+
+	j7 := mock.Job()
+	j7.TaskGroups[0].Tasks[0].Env["NEW_ENV"] = "NEW_VALUE"
+	if !tasksUpdated(j1.TaskGroups[0], j7.TaskGroups[0]) {
+		t.Fatalf("bad")
+	}
 }
 
 func TestEvictAndPlace_LimitLessThanAllocs(t *testing.T) {
