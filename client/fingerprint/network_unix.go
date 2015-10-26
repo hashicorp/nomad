@@ -30,32 +30,31 @@ func NewNetworkFingerprinter(logger *log.Logger) Fingerprint {
 	return f
 }
 
-func flagsSet(flags net.Flags, test net.Flags) bool {
-	return flags&test != 0
-}
-
-func flagsClear(flags net.Flags, test net.Flags) bool {
-	return flags&test == 0
-}
-
 func (f *NetworkFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
 	// newNetwork is populated and addded to the Nodes resources
 	newNetwork := &structs.NetworkResource{}
 	defaultDevice := ""
 
-	// Use user-defined network device, otherwise use first interface found in the system
+	// 1. Use user-defined network device
+	// 2. Use first interface found in the system for non-dev mode. (dev mode uses lo by default.)
 	if cfg.NetworkInterface != "" {
 		defaultDevice = cfg.NetworkInterface
 	} else {
+
 		intfs, err := net.Interfaces()
 		if err != nil {
 			return false, err
 		}
 
 		for _, i := range intfs {
-			if flagsSet(i.Flags, net.FlagUp) && flagsClear(i.Flags, net.FlagLoopback|net.FlagPointToPoint) {
-				defaultDevice = i.Name
-				break
+			if (i.Flags&net.FlagUp != 0) && (i.Flags&(net.FlagLoopback|net.FlagPointToPoint) == 0) {
+				if ip := f.ipAddress(i.Name); ip != "" {
+					defaultDevice = i.Name
+					node.Attributes["network.ip-address"] = ip
+					newNetwork.IP = ip
+					newNetwork.CIDR = newNetwork.IP + "/32"
+					break
+				}
 			}
 		}
 	}
@@ -63,15 +62,7 @@ func (f *NetworkFingerprint) Fingerprint(cfg *config.Config, node *structs.Node)
 	if defaultDevice != "" {
 		newNetwork.Device = defaultDevice
 	} else {
-		return false, fmt.Errorf("Unable to find any network interface")
-	}
-
-	if ip := f.ipAddress(defaultDevice); ip != "" {
-		node.Attributes["network.ip-address"] = ip
-		newNetwork.IP = ip
-		newNetwork.CIDR = newNetwork.IP + "/32"
-	} else {
-		return false, fmt.Errorf("Unable to determine IP on network interface %v", defaultDevice)
+		return false, fmt.Errorf("Unable to find any network interface which has IP address")
 	}
 
 	if throughput := f.linkSpeed(defaultDevice); throughput > 0 {
