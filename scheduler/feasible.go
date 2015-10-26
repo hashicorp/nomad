@@ -150,6 +150,106 @@ func (iter *DriverIterator) hasDrivers(option *structs.Node) bool {
 	return true
 }
 
+// ProposedAllocConstraintIterator is a FeasibleIterator which returns nodes that
+// match constraints that are not static such as Node attributes but are
+// effected by proposed alloc placements. Examples are distinct_hosts and
+// tenancy constraints. This is used to filter on job and task group
+// constraints.
+type ProposedAllocConstraintIterator struct {
+	ctx    Context
+	source FeasibleIterator
+	tg     *structs.TaskGroup
+	job    *structs.Job
+
+	// Store whether the Job or TaskGroup has a distinct_hosts constraints so
+	// they don't have to be calculated every time Next() is called.
+	tgDistinctHosts  bool
+	jobDistinctHosts bool
+}
+
+// NewProposedAllocConstraintIterator creates a ProposedAllocConstraintIterator
+// from a source.
+func NewProposedAllocConstraintIterator(ctx Context, source FeasibleIterator) *ProposedAllocConstraintIterator {
+	iter := &ProposedAllocConstraintIterator{
+		ctx:    ctx,
+		source: source,
+	}
+	return iter
+}
+
+func (iter *ProposedAllocConstraintIterator) SetTaskGroup(tg *structs.TaskGroup) {
+	iter.tg = tg
+	iter.tgDistinctHosts = iter.hasDistinctHostsConstraint(tg.Constraints)
+}
+
+func (iter *ProposedAllocConstraintIterator) SetJob(job *structs.Job) {
+	iter.job = job
+	iter.jobDistinctHosts = iter.hasDistinctHostsConstraint(job.Constraints)
+}
+
+func (iter *ProposedAllocConstraintIterator) hasDistinctHostsConstraint(constraints []*structs.Constraint) bool {
+	for _, con := range constraints {
+		if con.Operand == structs.ConstraintDistinctHosts {
+			return true
+		}
+	}
+	return false
+}
+
+func (iter *ProposedAllocConstraintIterator) Next() *structs.Node {
+	for {
+		// Get the next option from the source
+		option := iter.source.Next()
+
+		// Hot-path if the option is nil or there are no distinct_hosts constraints.
+		if option == nil || !(iter.jobDistinctHosts || iter.tgDistinctHosts) {
+			return option
+		}
+
+		if !iter.satisfiesDistinctHosts(option) {
+			iter.ctx.Metrics().FilterNode(option, structs.ConstraintDistinctHosts)
+			continue
+		}
+
+		return option
+	}
+}
+
+// satisfiesDistinctHosts checks if the node satisfies a distinct_hosts
+// constraint either specified at the job level or the TaskGroup level.
+func (iter *ProposedAllocConstraintIterator) satisfiesDistinctHosts(option *structs.Node) bool {
+	// Check if there is no constraint set.
+	if !(iter.jobDistinctHosts || iter.tgDistinctHosts) {
+		return true
+	}
+
+	// Get the proposed allocations
+	proposed, err := iter.ctx.ProposedAllocs(option.ID)
+	if err != nil {
+		iter.ctx.Logger().Printf(
+			"[ERR] scheduler.dynamic-constraint: failed to get proposed allocations: %v", err)
+		return false
+	}
+
+	// Skip the node if the task group has already been allocated on it.
+	for _, alloc := range proposed {
+		// If the job has a distinct_hosts constraint we only need an alloc
+		// collision on the JobID but if the constraint is on the TaskGroup then
+		// we need both a job and TaskGroup collision.
+		jobCollision := alloc.JobID == iter.job.ID
+		taskCollision := alloc.TaskGroup == iter.tg.Name
+		if iter.jobDistinctHosts && jobCollision || jobCollision && taskCollision {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (iter *ProposedAllocConstraintIterator) Reset() {
+	iter.source.Reset()
+}
+
 // ConstraintIterator is a FeasibleIterator which returns nodes
 // that match a given set of constraints. This is used to filter
 // on job, task group, and task constraints.
@@ -257,6 +357,14 @@ func resolveConstraintTarget(target string, node *structs.Node) (interface{}, bo
 
 // checkConstraint checks if a constraint is satisfied
 func checkConstraint(ctx Context, operand string, lVal, rVal interface{}) bool {
+	// Check for constraints not handled by this iterator.
+	switch operand {
+	case structs.ConstraintDistinctHosts:
+		return true
+	default:
+		break
+	}
+
 	switch operand {
 	case "=", "==", "is":
 		return reflect.DeepEqual(lVal, rVal)
@@ -264,9 +372,9 @@ func checkConstraint(ctx Context, operand string, lVal, rVal interface{}) bool {
 		return !reflect.DeepEqual(lVal, rVal)
 	case "<", "<=", ">", ">=":
 		return checkLexicalOrder(operand, lVal, rVal)
-	case "version":
+	case structs.ConstraintVersion:
 		return checkVersionConstraint(ctx, lVal, rVal)
-	case "regexp":
+	case structs.ConstraintRegex:
 		return checkRegexpConstraint(ctx, lVal, rVal)
 	default:
 		return false

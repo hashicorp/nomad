@@ -248,12 +248,12 @@ func TestCheckConstraint(t *testing.T) {
 			result: true,
 		},
 		{
-			op:   "version",
+			op:   structs.ConstraintVersion,
 			lVal: "1.2.3", rVal: "~> 1.0",
 			result: true,
 		},
 		{
-			op:   "regexp",
+			op:   structs.ConstraintRegex,
 			lVal: "foobarbaz", rVal: "[\\w]+",
 			result: true,
 		},
@@ -379,6 +379,180 @@ func TestCheckRegexpConstraint(t *testing.T) {
 		if res := checkRegexpConstraint(ctx, tc.lVal, tc.rVal); res != tc.result {
 			t.Fatalf("TC: %#v, Result: %v", tc, res)
 		}
+	}
+}
+
+func TestProposedAllocConstraint_JobDistinctHosts(t *testing.T) {
+	_, ctx := testContext(t)
+	nodes := []*structs.Node{
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+	}
+	static := NewStaticIterator(ctx, nodes)
+
+	// Create a job with a distinct_hosts constraint and two task groups.
+	tg1 := &structs.TaskGroup{Name: "bar"}
+	tg2 := &structs.TaskGroup{Name: "baz"}
+
+	job := &structs.Job{
+		ID:          "foo",
+		Constraints: []*structs.Constraint{{Operand: structs.ConstraintDistinctHosts}},
+		TaskGroups:  []*structs.TaskGroup{tg1, tg2},
+	}
+
+	propsed := NewProposedAllocConstraintIterator(ctx, static)
+	propsed.SetTaskGroup(tg1)
+	propsed.SetJob(job)
+
+	out := collectFeasible(propsed)
+	if len(out) != 4 {
+		t.Fatalf("Bad: %#v", out)
+	}
+
+	selected := make(map[string]struct{}, 4)
+	for _, option := range out {
+		if _, ok := selected[option.ID]; ok {
+			t.Fatalf("selected node %v for more than one alloc", option)
+		}
+		selected[option.ID] = struct{}{}
+	}
+}
+
+func TestProposedAllocConstraint_JobDistinctHosts_Infeasible(t *testing.T) {
+	_, ctx := testContext(t)
+	nodes := []*structs.Node{
+		mock.Node(),
+		mock.Node(),
+	}
+	static := NewStaticIterator(ctx, nodes)
+
+	// Create a job with a distinct_hosts constraint and two task groups.
+	tg1 := &structs.TaskGroup{Name: "bar"}
+	tg2 := &structs.TaskGroup{Name: "baz"}
+
+	job := &structs.Job{
+		ID:          "foo",
+		Constraints: []*structs.Constraint{{Operand: structs.ConstraintDistinctHosts}},
+		TaskGroups:  []*structs.TaskGroup{tg1, tg2},
+	}
+
+	// Add allocs placing tg1 on node1 and tg2 on node2. This should make the
+	// job unsatisfiable.
+	plan := ctx.Plan()
+	plan.NodeAllocation[nodes[0].ID] = []*structs.Allocation{
+		&structs.Allocation{
+			TaskGroup: tg1.Name,
+			JobID:     job.ID,
+		},
+
+		// Should be ignored as it is a different job.
+		&structs.Allocation{
+			TaskGroup: tg2.Name,
+			JobID:     "ignore 2",
+		},
+	}
+	plan.NodeAllocation[nodes[1].ID] = []*structs.Allocation{
+		&structs.Allocation{
+			TaskGroup: tg2.Name,
+			JobID:     job.ID,
+		},
+
+		// Should be ignored as it is a different job.
+		&structs.Allocation{
+			TaskGroup: tg1.Name,
+			JobID:     "ignore 2",
+		},
+	}
+
+	propsed := NewProposedAllocConstraintIterator(ctx, static)
+	propsed.SetTaskGroup(tg1)
+	propsed.SetJob(job)
+
+	out := collectFeasible(propsed)
+	if len(out) != 0 {
+		t.Fatalf("Bad: %#v", out)
+	}
+}
+
+func TestProposedAllocConstraint_JobDistinctHosts_InfeasibleCount(t *testing.T) {
+	_, ctx := testContext(t)
+	nodes := []*structs.Node{
+		mock.Node(),
+		mock.Node(),
+	}
+	static := NewStaticIterator(ctx, nodes)
+
+	// Create a job with a distinct_hosts constraint and three task groups.
+	tg1 := &structs.TaskGroup{Name: "bar"}
+	tg2 := &structs.TaskGroup{Name: "baz"}
+	tg3 := &structs.TaskGroup{Name: "bam"}
+
+	job := &structs.Job{
+		ID:          "foo",
+		Constraints: []*structs.Constraint{{Operand: structs.ConstraintDistinctHosts}},
+		TaskGroups:  []*structs.TaskGroup{tg1, tg2, tg3},
+	}
+
+	propsed := NewProposedAllocConstraintIterator(ctx, static)
+	propsed.SetTaskGroup(tg1)
+	propsed.SetJob(job)
+
+	// It should not be able to place 3 tasks with only two nodes.
+	out := collectFeasible(propsed)
+	if len(out) != 2 {
+		t.Fatalf("Bad: %#v", out)
+	}
+}
+
+func TestProposedAllocConstraint_TaskGroupDistinctHosts(t *testing.T) {
+	_, ctx := testContext(t)
+	nodes := []*structs.Node{
+		mock.Node(),
+		mock.Node(),
+	}
+	static := NewStaticIterator(ctx, nodes)
+
+	// Create a task group with a distinct_hosts constraint.
+	taskGroup := &structs.TaskGroup{
+		Name: "example",
+		Constraints: []*structs.Constraint{
+			{Operand: structs.ConstraintDistinctHosts},
+		},
+	}
+
+	// Add a planned alloc to node1.
+	plan := ctx.Plan()
+	plan.NodeAllocation[nodes[0].ID] = []*structs.Allocation{
+		&structs.Allocation{
+			TaskGroup: taskGroup.Name,
+			JobID:     "foo",
+		},
+	}
+
+	// Add a planned alloc to node2 with the same task group name but a
+	// different job.
+	plan.NodeAllocation[nodes[1].ID] = []*structs.Allocation{
+		&structs.Allocation{
+			TaskGroup: taskGroup.Name,
+			JobID:     "bar",
+		},
+	}
+
+	propsed := NewProposedAllocConstraintIterator(ctx, static)
+	propsed.SetTaskGroup(taskGroup)
+	propsed.SetJob(&structs.Job{ID: "foo"})
+
+	out := collectFeasible(propsed)
+	if len(out) != 1 {
+		t.Fatalf("Bad: %#v", out)
+	}
+
+	// Expect it to skip the first node as there is a previous alloc on it for
+	// the same task group.
+	if out[0] != nodes[1] {
+		t.Fatalf("Bad: %v", out)
 	}
 }
 

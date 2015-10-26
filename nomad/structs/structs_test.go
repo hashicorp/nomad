@@ -144,7 +144,7 @@ func TestConstraint_Validate(t *testing.T) {
 	}
 
 	// Perform additional regexp validation
-	c.Operand = "regexp"
+	c.Operand = ConstraintRegex
 	c.RTarget = "(foo"
 	err = c.Validate()
 	mErr = err.(*multierror.Error)
@@ -153,7 +153,7 @@ func TestConstraint_Validate(t *testing.T) {
 	}
 
 	// Perform version validation
-	c.Operand = "version"
+	c.Operand = ConstraintVersion
 	c.RTarget = "~> foo"
 	err = c.Validate()
 	mErr = err.(*multierror.Error)

@@ -165,7 +165,7 @@ func TestParse(t *testing.T) {
 						Hard:    true,
 						LTarget: "$attr.kernel.version",
 						RTarget: "~> 3.2",
-						Operand: "version",
+						Operand: structs.ConstraintVersion,
 					},
 				},
 			},
@@ -185,7 +185,25 @@ func TestParse(t *testing.T) {
 						Hard:    true,
 						LTarget: "$attr.kernel.version",
 						RTarget: "[0-9.]+",
-						Operand: "regexp",
+						Operand: structs.ConstraintRegex,
+					},
+				},
+			},
+			false,
+		},
+
+		{
+			"distinctHosts-constraint.hcl",
+			&structs.Job{
+				ID:       "foo",
+				Name:     "foo",
+				Priority: 50,
+				Region:   "global",
+				Type:     "service",
+				Constraints: []*structs.Constraint{
+					&structs.Constraint{
+						Hard:    true,
+						Operand: structs.ConstraintDistinctHosts,
 					},
 				},
 			},
