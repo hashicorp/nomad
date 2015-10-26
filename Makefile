@@ -30,7 +30,7 @@ updatedeps: deps
 	@echo "--> Updating build dependencies"
 	@DEP_ARGS="-d -f -u" sh -c "'$(CURDIR)/scripts/deps.sh'"
 
-test: deps
+test: deps format
 	@sh -c "'$(CURDIR)/scripts/test.sh'"
 	@$(MAKE) vet
 
