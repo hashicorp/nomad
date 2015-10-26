@@ -150,11 +150,12 @@ func (iter *DriverIterator) hasDrivers(option *structs.Node) bool {
 	return true
 }
 
-// DynamicConstraintIterator is a FeasibleIterator which returns nodes that
+// ProposedAllocConstraintIterator is a FeasibleIterator which returns nodes that
 // match constraints that are not static such as Node attributes but are
-// effected by alloc placements. Examples are distinct_hosts and tenancy constraints.
-// This is used to filter on job and task group constraints.
-type DynamicConstraintIterator struct {
+// effected by proposed alloc placements. Examples are distinct_hosts and
+// tenancy constraints. This is used to filter on job and task group
+// constraints.
+type ProposedAllocConstraintIterator struct {
 	ctx    Context
 	source FeasibleIterator
 	tg     *structs.TaskGroup
@@ -166,27 +167,27 @@ type DynamicConstraintIterator struct {
 	jobDistinctHosts bool
 }
 
-// NewDynamicConstraintIterator creates a DynamicConstraintIterator from a
-// source.
-func NewDynamicConstraintIterator(ctx Context, source FeasibleIterator) *DynamicConstraintIterator {
-	iter := &DynamicConstraintIterator{
+// NewProposedAllocConstraintIterator creates a ProposedAllocConstraintIterator
+// from a source.
+func NewProposedAllocConstraintIterator(ctx Context, source FeasibleIterator) *ProposedAllocConstraintIterator {
+	iter := &ProposedAllocConstraintIterator{
 		ctx:    ctx,
 		source: source,
 	}
 	return iter
 }
 
-func (iter *DynamicConstraintIterator) SetTaskGroup(tg *structs.TaskGroup) {
+func (iter *ProposedAllocConstraintIterator) SetTaskGroup(tg *structs.TaskGroup) {
 	iter.tg = tg
 	iter.tgDistinctHosts = iter.hasDistinctHostsConstraint(tg.Constraints)
 }
 
-func (iter *DynamicConstraintIterator) SetJob(job *structs.Job) {
+func (iter *ProposedAllocConstraintIterator) SetJob(job *structs.Job) {
 	iter.job = job
 	iter.jobDistinctHosts = iter.hasDistinctHostsConstraint(job.Constraints)
 }
 
-func (iter *DynamicConstraintIterator) hasDistinctHostsConstraint(constraints []*structs.Constraint) bool {
+func (iter *ProposedAllocConstraintIterator) hasDistinctHostsConstraint(constraints []*structs.Constraint) bool {
 	for _, con := range constraints {
 		if con.Operand == structs.ConstraintDistinctHosts {
 			return true
@@ -195,13 +196,13 @@ func (iter *DynamicConstraintIterator) hasDistinctHostsConstraint(constraints []
 	return false
 }
 
-func (iter *DynamicConstraintIterator) Next() *structs.Node {
+func (iter *ProposedAllocConstraintIterator) Next() *structs.Node {
 	for {
 		// Get the next option from the source
 		option := iter.source.Next()
 
 		// Hot-path if the option is nil or there are no distinct_hosts constraints.
-		if option == nil || (!iter.jobDistinctHosts && !iter.tgDistinctHosts) {
+		if option == nil || !(iter.jobDistinctHosts || iter.tgDistinctHosts) {
 			return option
 		}
 
@@ -216,7 +217,7 @@ func (iter *DynamicConstraintIterator) Next() *structs.Node {
 
 // satisfiesDistinctHosts checks if the node satisfies a distinct_hosts
 // constraint either specified at the job level or the TaskGroup level.
-func (iter *DynamicConstraintIterator) satisfiesDistinctHosts(option *structs.Node) bool {
+func (iter *ProposedAllocConstraintIterator) satisfiesDistinctHosts(option *structs.Node) bool {
 	// Check if there is no constraint set.
 	if !(iter.jobDistinctHosts || iter.tgDistinctHosts) {
 		return true
@@ -245,7 +246,7 @@ func (iter *DynamicConstraintIterator) satisfiesDistinctHosts(option *structs.No
 	return true
 }
 
-func (iter *DynamicConstraintIterator) Reset() {
+func (iter *ProposedAllocConstraintIterator) Reset() {
 	iter.source.Reset()
 }
 

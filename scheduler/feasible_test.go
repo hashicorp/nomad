@@ -382,7 +382,7 @@ func TestCheckRegexpConstraint(t *testing.T) {
 	}
 }
 
-func TestDynamicConstraint_JobDistinctHosts(t *testing.T) {
+func TestProposedAllocConstraint_JobDistinctHosts(t *testing.T) {
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{
 		mock.Node(),
@@ -402,11 +402,11 @@ func TestDynamicConstraint_JobDistinctHosts(t *testing.T) {
 		TaskGroups:  []*structs.TaskGroup{tg1, tg2},
 	}
 
-	dynamic := NewDynamicConstraintIterator(ctx, static)
-	dynamic.SetTaskGroup(tg1)
-	dynamic.SetJob(job)
+	propsed := NewProposedAllocConstraintIterator(ctx, static)
+	propsed.SetTaskGroup(tg1)
+	propsed.SetJob(job)
 
-	out := collectFeasible(dynamic)
+	out := collectFeasible(propsed)
 	if len(out) != 4 {
 		t.Fatalf("Bad: %#v", out)
 	}
@@ -420,7 +420,7 @@ func TestDynamicConstraint_JobDistinctHosts(t *testing.T) {
 	}
 }
 
-func TestDynamicConstraint_JobDistinctHosts_Infeasible(t *testing.T) {
+func TestProposedAllocConstraint_JobDistinctHosts_Infeasible(t *testing.T) {
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{
 		mock.Node(),
@@ -466,17 +466,17 @@ func TestDynamicConstraint_JobDistinctHosts_Infeasible(t *testing.T) {
 		},
 	}
 
-	dynamic := NewDynamicConstraintIterator(ctx, static)
-	dynamic.SetTaskGroup(tg1)
-	dynamic.SetJob(job)
+	propsed := NewProposedAllocConstraintIterator(ctx, static)
+	propsed.SetTaskGroup(tg1)
+	propsed.SetJob(job)
 
-	out := collectFeasible(dynamic)
+	out := collectFeasible(propsed)
 	if len(out) != 0 {
 		t.Fatalf("Bad: %#v", out)
 	}
 }
 
-func TestDynamicConstraint_JobDistinctHosts_InfeasibleCount(t *testing.T) {
+func TestProposedAllocConstraint_JobDistinctHosts_InfeasibleCount(t *testing.T) {
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{
 		mock.Node(),
@@ -495,18 +495,18 @@ func TestDynamicConstraint_JobDistinctHosts_InfeasibleCount(t *testing.T) {
 		TaskGroups:  []*structs.TaskGroup{tg1, tg2, tg3},
 	}
 
-	dynamic := NewDynamicConstraintIterator(ctx, static)
-	dynamic.SetTaskGroup(tg1)
-	dynamic.SetJob(job)
+	propsed := NewProposedAllocConstraintIterator(ctx, static)
+	propsed.SetTaskGroup(tg1)
+	propsed.SetJob(job)
 
 	// It should not be able to place 3 tasks with only two nodes.
-	out := collectFeasible(dynamic)
+	out := collectFeasible(propsed)
 	if len(out) != 2 {
 		t.Fatalf("Bad: %#v", out)
 	}
 }
 
-func TestDynamicConstraint_TaskGroupDistinctHosts(t *testing.T) {
+func TestProposedAllocConstraint_TaskGroupDistinctHosts(t *testing.T) {
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{
 		mock.Node(),
@@ -540,11 +540,11 @@ func TestDynamicConstraint_TaskGroupDistinctHosts(t *testing.T) {
 		},
 	}
 
-	dynamic := NewDynamicConstraintIterator(ctx, static)
-	dynamic.SetTaskGroup(taskGroup)
-	dynamic.SetJob(&structs.Job{ID: "foo"})
+	propsed := NewProposedAllocConstraintIterator(ctx, static)
+	propsed.SetTaskGroup(taskGroup)
+	propsed.SetJob(&structs.Job{ID: "foo"})
 
-	out := collectFeasible(dynamic)
+	out := collectFeasible(propsed)
 	if len(out) != 1 {
 		t.Fatalf("Bad: %#v", out)
 	}
