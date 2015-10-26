@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"testing"
 	"time"
 
@@ -81,6 +82,113 @@ func TestRawExecDriver_StartOpen_Wait(t *testing.T) {
 	select {
 	case <-handle2.WaitCh():
 	case <-time.After(2 * time.Second):
+		t.Fatalf("timeout")
+	}
+
+	// Check they are both tracking the same PID.
+	pid1 := handle.(*rawExecHandle).proc.Pid
+	pid2 := handle2.(*rawExecHandle).proc.Pid
+	if pid1 != pid2 {
+		t.Fatalf("tracking incorrect Pid; %v != %v", pid1, pid2)
+	}
+}
+
+func TestRawExecDriver_Start_Artifact_basic(t *testing.T) {
+	var file string
+	switch runtime.GOOS {
+	case "darwin":
+		file = "hi_darwin_amd64"
+	default:
+		file = "hi_linux_amd64"
+	}
+
+	task := &structs.Task{
+		Name: "sleep",
+		Config: map[string]string{
+			"artifact_source": fmt.Sprintf("https://dl.dropboxusercontent.com/u/47675/jar_thing/%s", file),
+			"command":         filepath.Join("$NOMAD_TASK_DIR", file),
+		},
+	}
+	driverCtx := testDriverContext(task.Name)
+	ctx := testDriverExecContext(task, driverCtx)
+	defer ctx.AllocDir.Destroy()
+
+	d := NewRawExecDriver(driverCtx)
+	handle, err := d.Start(ctx, task)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if handle == nil {
+		t.Fatalf("missing handle")
+	}
+
+	// Attempt to open
+	handle2, err := d.Open(ctx, handle.ID())
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if handle2 == nil {
+		t.Fatalf("missing handle")
+	}
+
+	// Task should terminate quickly
+	select {
+	case <-handle2.WaitCh():
+	case <-time.After(5 * time.Second):
+		t.Fatalf("timeout")
+	}
+
+	// Check they are both tracking the same PID.
+	pid1 := handle.(*rawExecHandle).proc.Pid
+	pid2 := handle2.(*rawExecHandle).proc.Pid
+	if pid1 != pid2 {
+		t.Fatalf("tracking incorrect Pid; %v != %v", pid1, pid2)
+	}
+}
+
+func TestRawExecDriver_Start_Artifact_expanded(t *testing.T) {
+	var file string
+	switch runtime.GOOS {
+	case "darwin":
+		file = "hi_darwin_amd64"
+	default:
+		file = "hi_linux_amd64"
+	}
+
+	task := &structs.Task{
+		Name: "sleep",
+		Config: map[string]string{
+			"artifact_source": fmt.Sprintf("https://dl.dropboxusercontent.com/u/47675/jar_thing/%s", file),
+			"command":         "/bin/bash",
+			"args":            fmt.Sprintf("-c '/bin/sleep 1 && %s'", filepath.Join("$NOMAD_TASK_DIR", file)),
+		},
+	}
+	driverCtx := testDriverContext(task.Name)
+	ctx := testDriverExecContext(task, driverCtx)
+	defer ctx.AllocDir.Destroy()
+
+	d := NewRawExecDriver(driverCtx)
+	handle, err := d.Start(ctx, task)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if handle == nil {
+		t.Fatalf("missing handle")
+	}
+
+	// Attempt to open
+	handle2, err := d.Open(ctx, handle.ID())
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if handle2 == nil {
+		t.Fatalf("missing handle")
+	}
+
+	// Task should terminate quickly
+	select {
+	case <-handle2.WaitCh():
+	case <-time.After(5 * time.Second):
 		t.Fatalf("timeout")
 	}
 

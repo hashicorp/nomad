@@ -20,8 +20,10 @@ scripts or other wrappers which provide higher level features.
 
 The `exec` driver supports the following configuration in the job spec:
 
-* `command` - The command to execute. Must be provided.
-
+* `command` - (Required) The command to execute. Must be provided.
+* `artifact_source` – (Optional) Source location of an executable artifact. Must be accessible
+from the Nomad client. If you specify an `artifact_source` to be executed, you
+must reference it in the `command` as show in the examples below
 * `args` - The argument list to the command, space seperated. Optional.
 
 ## Client Requirements
@@ -29,6 +31,30 @@ The `exec` driver supports the following configuration in the job spec:
 The `exec` driver can run on all supported operating systems but to provide
 proper isolation the client must be run as root on non-Windows operating systems.
 Further, to support cgroups, `/sys/fs/cgroups/` must be mounted.
+
+You must specify a `command` to be executed. Optionally you can specify an
+`artifact_source` to be downloaded as well. Any `command` is assumed to be present on the 
+running client, or a downloaded artifact.
+
+## Examples
+
+To run a binary present on the Node:
+
+```
+  config {
+    command = "/bin/sleep"
+    args = 1
+  }
+```
+
+To execute a binary specified by `artifact_source`:
+
+```
+  config {
+    artifact_source = "https://dl.dropboxusercontent.com/u/1234/binary.bin"
+    command = "$NOMAD_TASK_DIR/binary.bin"
+  }
+```
 
 ## Client Attributes
 

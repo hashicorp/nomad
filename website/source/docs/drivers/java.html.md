@@ -19,7 +19,7 @@ HTTP from the Nomad client.
 The `java` driver supports the following configuration in the job spec:
 
 * `jar_source` - **(Required)** The hosted location of the source Jar file. Must be accessible
-from the Nomad client, via HTTP
+from the Nomad client
 
 * `args` - **(Optional)** The argument list for the `java` command, space separated.
 

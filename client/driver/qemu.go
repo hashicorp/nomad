@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -19,6 +18,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/hashicorp/go-getter"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -94,45 +94,25 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		return nil, fmt.Errorf("Missing required Task Resource: Memory")
 	}
 
-	// Attempt to download the thing
-	// Should be extracted to some kind of Http Fetcher
-	// Right now, assume publicly accessible HTTP url
-	resp, err := http.Get(source)
-	if err != nil {
-		return nil, fmt.Errorf("Error downloading source for Qemu driver: %s", err)
-	}
-
 	// Get the tasks local directory.
 	taskDir, ok := ctx.AllocDir.TaskDirs[d.DriverContext.taskName]
 	if !ok {
 		return nil, fmt.Errorf("Could not find task directory for task: %v", d.DriverContext.taskName)
 	}
-	taskLocal := filepath.Join(taskDir, allocdir.TaskLocal)
 
-	// Create a location in the local directory to download and store the image.
-	// TODO: Caching
+	// Create a location to download the binary.
+	destDir := filepath.Join(taskDir, allocdir.TaskLocal)
 	vmID := fmt.Sprintf("qemu-vm-%s-%s", structs.GenerateUUID(), filepath.Base(source))
-	fPath := filepath.Join(taskLocal, vmID)
-	vmPath, err := os.OpenFile(fPath, os.O_CREATE|os.O_WRONLY, 0666)
-	if err != nil {
-		return nil, fmt.Errorf("Error opening file to download to: %s", err)
-	}
-
-	defer vmPath.Close()
-	defer resp.Body.Close()
-
-	// Copy remote file to local AllocDir for execution
-	// TODO: a retry of sort if io.Copy fails, for large binaries
-	_, ioErr := io.Copy(vmPath, resp.Body)
-	if ioErr != nil {
-		return nil, fmt.Errorf("Error copying Qemu image from source: %s", ioErr)
+	vmPath := filepath.Join(destDir, vmID)
+	if err := getter.GetFile(vmPath, source); err != nil {
+		return nil, fmt.Errorf("Error downloading artifact for Qemu driver: %s", err)
 	}
 
 	// compute and check checksum
 	if check, ok := task.Config["checksum"]; ok {
 		d.logger.Printf("[DEBUG] Running checksum on (%s)", vmID)
 		hasher := sha256.New()
-		file, err := os.Open(vmPath.Name())
+		file, err := os.Open(vmPath)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to open file for checksum")
 		}
@@ -163,7 +143,7 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		"-machine", "type=pc,accel=" + accelerator,
 		"-name", vmID,
 		"-m", mem,
-		"-drive", "file=" + vmPath.Name(),
+		"-drive", "file=" + vmPath,
 		"-nodefconfig",
 		"-nodefaults",
 		"-nographic",
@@ -240,7 +220,7 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	// Create and Return Handle
 	h := &qemuHandle{
 		proc:   cmd.Process,
-		vmID:   vmPath.Name(),
+		vmID:   vmPath,
 		doneCh: make(chan struct{}),
 		waitCh: make(chan error, 1),
 	}

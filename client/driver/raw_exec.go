@@ -2,14 +2,18 @@ package driver
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
+	"github.com/hashicorp/go-getter"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/args"
@@ -61,12 +65,6 @@ func (d *RawExecDriver) Fingerprint(cfg *config.Config, node *structs.Node) (boo
 }
 
 func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
-	// Get the command
-	command, ok := task.Config["command"]
-	if !ok || command == "" {
-		return nil, fmt.Errorf("missing command for raw_exec driver")
-	}
-
 	// Get the tasks local directory.
 	taskName := d.DriverContext.taskName
 	taskDir, ok := ctx.AllocDir.TaskDirs[taskName]
@@ -75,8 +73,48 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 	}
 	taskLocal := filepath.Join(taskDir, allocdir.TaskLocal)
 
+	// Get the command to be ran
+	command, ok := task.Config["command"]
+	if !ok || command == "" {
+		return nil, fmt.Errorf("missing command for Raw Exec driver")
+	}
+
+	// Check if an artificat is specified and attempt to download it
+	source, ok := task.Config["artifact_source"]
+	if ok && source != "" {
+		// Proceed to download an artifact to be executed.
+		// We use go-getter to support a variety of protocols, but need to change
+		// file permissions of the resulted download to be executable
+
+		// Create a location to download the artifact.
+		destDir := filepath.Join(taskDir, allocdir.TaskLocal)
+
+		artifactName := path.Base(source)
+		artifactFile := filepath.Join(destDir, artifactName)
+		if err := getter.GetFile(artifactFile, source); err != nil {
+			return nil, fmt.Errorf("Error downloading artifact for Raw Exec driver: %s", err)
+		}
+
+		// Add execution permissions to the newly downloaded artifact
+		if runtime.GOOS != "windows" {
+			if err := syscall.Chmod(artifactFile, 0755); err != nil {
+				log.Printf("[ERR] driver.raw_exec: Error making artifact executable: %s", err)
+			}
+		}
+	}
+
 	// Get the environment variables.
 	envVars := TaskEnvironmentVariables(ctx, task)
+
+	// expand NOMAD_TASK_DIR
+	parsedPath, err := args.ParseAndReplace(command, envVars.Map())
+	if err != nil {
+		return nil, fmt.Errorf("failure to parse arguments in command path: %v", command)
+	} else if len(parsedPath) != 1 {
+		return nil, fmt.Errorf("couldn't properly parse command path: %v", command)
+	}
+
+	cm := parsedPath[0]
 
 	// Look for arguments
 	var cmdArgs []string
@@ -89,7 +127,7 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 	}
 
 	// Setup the command
-	cmd := exec.Command(command, cmdArgs...)
+	cmd := exec.Command(cm, cmdArgs...)
 	cmd.Dir = taskDir
 	cmd.Env = envVars.List()
 
