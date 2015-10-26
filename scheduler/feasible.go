@@ -187,10 +187,6 @@ func (iter *DynamicConstraintIterator) SetJob(job *structs.Job) {
 }
 
 func (iter *DynamicConstraintIterator) hasDistinctHostsConstraint(constraints []*structs.Constraint) bool {
-	if constraints == nil {
-		return false
-	}
-
 	for _, con := range constraints {
 		if con.Operand == structs.ConstraintDistinctHosts {
 			return true
@@ -200,16 +196,6 @@ func (iter *DynamicConstraintIterator) hasDistinctHostsConstraint(constraints []
 }
 
 func (iter *DynamicConstraintIterator) Next() *structs.Node {
-	if iter.job == nil {
-		iter.ctx.Logger().Printf("[ERR] scheduler.dynamic-constraint: job not set")
-		return nil
-	}
-
-	if iter.tg == nil {
-		iter.ctx.Logger().Printf("[ERR] scheduler.dynamic-constraint: task group not set")
-		return nil
-	}
-
 	for {
 		// Get the next option from the source
 		option := iter.source.Next()
@@ -219,7 +205,7 @@ func (iter *DynamicConstraintIterator) Next() *structs.Node {
 			return option
 		}
 
-		if !iter.satisfiesDistinctHosts(option, iter.jobDistinctHosts) {
+		if !iter.satisfiesDistinctHosts(option) {
 			iter.ctx.Metrics().FilterNode(option, structs.ConstraintDistinctHosts)
 			continue
 		}
@@ -230,7 +216,12 @@ func (iter *DynamicConstraintIterator) Next() *structs.Node {
 
 // satisfiesDistinctHosts checks if the node satisfies a distinct_hosts
 // constraint either specified at the job level or the TaskGroup level.
-func (iter *DynamicConstraintIterator) satisfiesDistinctHosts(option *structs.Node, job bool) bool {
+func (iter *DynamicConstraintIterator) satisfiesDistinctHosts(option *structs.Node) bool {
+	// Check if there is no constraint set.
+	if !(iter.jobDistinctHosts || iter.tgDistinctHosts) {
+		return true
+	}
+
 	// Get the proposed allocations
 	proposed, err := iter.ctx.ProposedAllocs(option.ID)
 	if err != nil {
@@ -241,15 +232,12 @@ func (iter *DynamicConstraintIterator) satisfiesDistinctHosts(option *structs.No
 
 	// Skip the node if the task group has already been allocated on it.
 	for _, alloc := range proposed {
-		jobCollision := alloc.JobID == iter.job.ID
-		taskCollision := alloc.TaskGroup == iter.tg.Name
-
 		// If the job has a distinct_hosts constraint we only need an alloc
 		// collision on the JobID but if the constraint is on the TaskGroup then
 		// we need both a job and TaskGroup collision.
-		jobInvalid := job && jobCollision
-		tgInvalid := !job && jobCollision && taskCollision
-		if jobInvalid || tgInvalid {
+		jobCollision := alloc.JobID == iter.job.ID
+		taskCollision := alloc.TaskGroup == iter.tg.Name
+		if iter.jobDistinctHosts && jobCollision || jobCollision && taskCollision {
 			return false
 		}
 	}
