@@ -245,19 +245,19 @@ func parseConstraints(result *[]*structs.Constraint, obj *hclobj.Object) error {
 
 		// If "version" is provided, set the operand
 		// to "version" and the value to the "RTarget"
-		if constraint, ok := m["version"]; ok {
-			m["Operand"] = "version"
+		if constraint, ok := m[structs.ConstraintVersion]; ok {
+			m["Operand"] = structs.ConstraintVersion
 			m["RTarget"] = constraint
 		}
 
 		// If "regexp" is provided, set the operand
 		// to "regexp" and the value to the "RTarget"
-		if constraint, ok := m["regexp"]; ok {
-			m["Operand"] = "regexp"
+		if constraint, ok := m[structs.ConstraintRegex]; ok {
+			m["Operand"] = structs.ConstraintRegex
 			m["RTarget"] = constraint
 		}
 
-		if value, ok := m["distinctHosts"]; ok {
+		if value, ok := m[structs.ConstraintDistinctHosts]; ok {
 			enabled, err := strconv.ParseBool(value.(string))
 			if err != nil {
 				return err
@@ -268,7 +268,7 @@ func parseConstraints(result *[]*structs.Constraint, obj *hclobj.Object) error {
 				continue
 			}
 
-			m["Operand"] = "distinctHosts"
+			m["Operand"] = structs.ConstraintDistinctHosts
 		}
 
 		// Build the constraint

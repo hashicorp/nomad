@@ -248,12 +248,12 @@ func TestCheckConstraint(t *testing.T) {
 			result: true,
 		},
 		{
-			op:   "version",
+			op:   structs.ConstraintVersion,
 			lVal: "1.2.3", rVal: "~> 1.0",
 			result: true,
 		},
 		{
-			op:   "regexp",
+			op:   structs.ConstraintRegex,
 			lVal: "foobarbaz", rVal: "[\\w]+",
 			result: true,
 		},
@@ -392,13 +392,13 @@ func TestDynamicConstraint_JobDistinctHosts(t *testing.T) {
 	}
 	static := NewStaticIterator(ctx, nodes)
 
-	// Create a job with a distinctHosts constraint and two task groups.
+	// Create a job with a distinct_hosts constraint and two task groups.
 	tg1 := &structs.TaskGroup{Name: "bar"}
 	tg2 := &structs.TaskGroup{Name: "baz"}
 
 	job := &structs.Job{
 		ID:          "foo",
-		Constraints: []*structs.Constraint{{Operand: "distinctHosts"}},
+		Constraints: []*structs.Constraint{{Operand: structs.ConstraintDistinctHosts}},
 		TaskGroups:  []*structs.TaskGroup{tg1, tg2},
 	}
 
@@ -428,13 +428,13 @@ func TestDynamicConstraint_JobDistinctHosts_Infeasible(t *testing.T) {
 	}
 	static := NewStaticIterator(ctx, nodes)
 
-	// Create a job with a distinctHosts constraint and two task groups.
+	// Create a job with a distinct_hosts constraint and two task groups.
 	tg1 := &structs.TaskGroup{Name: "bar"}
 	tg2 := &structs.TaskGroup{Name: "baz"}
 
 	job := &structs.Job{
 		ID:          "foo",
-		Constraints: []*structs.Constraint{{Operand: "distinctHosts"}},
+		Constraints: []*structs.Constraint{{Operand: structs.ConstraintDistinctHosts}},
 		TaskGroups:  []*structs.TaskGroup{tg1, tg2},
 	}
 
@@ -484,14 +484,14 @@ func TestDynamicConstraint_JobDistinctHosts_InfeasibleCount(t *testing.T) {
 	}
 	static := NewStaticIterator(ctx, nodes)
 
-	// Create a job with a distinctHosts constraint and three task groups.
+	// Create a job with a distinct_hosts constraint and three task groups.
 	tg1 := &structs.TaskGroup{Name: "bar"}
 	tg2 := &structs.TaskGroup{Name: "baz"}
 	tg3 := &structs.TaskGroup{Name: "bam"}
 
 	job := &structs.Job{
 		ID:          "foo",
-		Constraints: []*structs.Constraint{{Operand: "distinctHosts"}},
+		Constraints: []*structs.Constraint{{Operand: structs.ConstraintDistinctHosts}},
 		TaskGroups:  []*structs.TaskGroup{tg1, tg2, tg3},
 	}
 
@@ -514,11 +514,11 @@ func TestDynamicConstraint_TaskGroupDistinctHosts(t *testing.T) {
 	}
 	static := NewStaticIterator(ctx, nodes)
 
-	// Create a task group with a distinctHosts constraint.
+	// Create a task group with a distinct_hosts constraint.
 	taskGroup := &structs.TaskGroup{
 		Name: "example",
 		Constraints: []*structs.Constraint{
-			{Operand: "distinctHosts"},
+			{Operand: structs.ConstraintDistinctHosts},
 		},
 	}
 

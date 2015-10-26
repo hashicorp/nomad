@@ -1027,6 +1027,12 @@ func (t *Task) Validate() error {
 	return mErr.ErrorOrNil()
 }
 
+const (
+	ConstraintDistinctHosts = "distinct_hosts"
+	ConstraintRegex         = "regexp"
+	ConstraintVersion       = "version"
+)
+
 // Constraints are used to restrict placement options in the case of
 // a hard constraint, and used to prefer a placement in the case of
 // a soft constraint.
@@ -1050,11 +1056,11 @@ func (c *Constraint) Validate() error {
 
 	// Perform additional validation based on operand
 	switch c.Operand {
-	case "regexp":
+	case ConstraintRegex:
 		if _, err := regexp.Compile(c.RTarget); err != nil {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Regular expression failed to compile: %v", err))
 		}
-	case "version":
+	case ConstraintVersion:
 		if _, err := version.NewConstraint(c.RTarget); err != nil {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Version constraint is invalid: %v", err))
 		}

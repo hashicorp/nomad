@@ -165,7 +165,7 @@ func TestParse(t *testing.T) {
 						Hard:    true,
 						LTarget: "$attr.kernel.version",
 						RTarget: "~> 3.2",
-						Operand: "version",
+						Operand: structs.ConstraintVersion,
 					},
 				},
 			},
@@ -185,7 +185,7 @@ func TestParse(t *testing.T) {
 						Hard:    true,
 						LTarget: "$attr.kernel.version",
 						RTarget: "[0-9.]+",
-						Operand: "regexp",
+						Operand: structs.ConstraintRegex,
 					},
 				},
 			},
@@ -203,7 +203,7 @@ func TestParse(t *testing.T) {
 				Constraints: []*structs.Constraint{
 					&structs.Constraint{
 						Hard:    true,
-						Operand: "distinctHosts",
+						Operand: structs.ConstraintDistinctHosts,
 					},
 				},
 			},

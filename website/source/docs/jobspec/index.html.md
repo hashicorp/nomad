@@ -237,13 +237,13 @@ The `constraint` object supports the following keys:
   the attribute. This sets the operator to "regexp" and the `value`
   to the regular expression.
 
-* `distinctHosts` - `distinctHosts` accepts a boolean `true`. The default is
+* `distinct_hosts` - `distinct_hosts` accepts a boolean `true`. The default is
   `false`.
 
-  When `distinctHosts` is `true` at the Job level, each instance of all Task
+  When `distinct_hosts` is `true` at the Job level, each instance of all Task
   Groups specified in the job is placed on a separate host.
 
-  When `distinctHosts` is `true` at the Task Group level with count > 1, each
+  When `distinct_hosts` is `true` at the Task Group level with count > 1, each
   instance of a Task Group is placed on a separate host. Different task groups in
   the same job _may_ be co-scheduled.
 
