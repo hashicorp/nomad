@@ -58,8 +58,12 @@ type IndexEntry struct {
 // stateWatch holds shared state for watching updates. This is
 // outside of StateStore so it can be shared with snapshots.
 type stateWatch struct {
+	// Allocation watches by node
 	allocs    map[string]*NotifyGroup
 	allocLock sync.Mutex
+
+	// Full table job watches
+	jobs *NotifyGroup
 }
 
 // NewStateStore is used to create a new state store
@@ -73,6 +77,7 @@ func NewStateStore(logOutput io.Writer) (*StateStore, error) {
 	// Create the watch entry
 	watch := &stateWatch{
 		allocs: make(map[string]*NotifyGroup),
+		jobs:   &NotifyGroup{},
 	}
 
 	// Create the state store
@@ -153,6 +158,16 @@ func (w *stateWatch) notifyAllocs(nodes map[string]struct{}) {
 			delete(w.allocs, node)
 		}
 	}
+}
+
+// WatchJobs is used to start watching the jobs view for changes.
+func (s *StateStore) WatchJobs(notify chan struct{}) {
+	s.watch.jobs.Wait(notify)
+}
+
+// StopWatchJobs is used to cancel notification on the given channel.
+func (s *StateStore) StopWatchJobs(notify chan struct{}) {
+	s.watch.jobs.Clear(notify)
 }
 
 // UpsertNode is used to register a node or update a node definition
@@ -342,6 +357,7 @@ func (s *StateStore) UpsertJob(index uint64, job *structs.Job) error {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
+	txn.Defer(func() { s.watch.jobs.Notify() })
 	txn.Commit()
 	return nil
 }
@@ -368,6 +384,7 @@ func (s *StateStore) DeleteJob(index uint64, jobID string) error {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
+	txn.Defer(func() { s.watch.jobs.Notify() })
 	txn.Commit()
 	return nil
 }

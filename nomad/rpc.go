@@ -271,6 +271,7 @@ type blockingOptions struct {
 	queryOpts  *structs.QueryOptions
 	queryMeta  *structs.QueryMeta
 	allocWatch string
+	jobsWatch  bool
 	run        func() error
 }
 
@@ -309,6 +310,9 @@ func (s *Server) blockingRPC(opts *blockingOptions) error {
 		if opts.allocWatch != "" {
 			state.StopWatchAllocs(opts.allocWatch, notifyCh)
 		}
+		if opts.jobsWatch {
+			state.StopWatchJobs(notifyCh)
+		}
 	}()
 
 REGISTER_NOTIFY:
@@ -316,6 +320,9 @@ REGISTER_NOTIFY:
 	// multiple times if we have not reached the target wait index.
 	if opts.allocWatch != "" {
 		state.WatchAllocs(opts.allocWatch, notifyCh)
+	}
+	if opts.jobsWatch {
+		state.WatchJobs(notifyCh)
 	}
 
 RUN_QUERY:

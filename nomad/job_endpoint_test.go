@@ -3,6 +3,7 @@ package nomad
 import (
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -394,6 +395,56 @@ func TestJobEndpoint_ListJobs(t *testing.T) {
 	}
 	if resp2.Jobs[0].ID != job.ID {
 		t.Fatalf("bad: %#v", resp2.Jobs[0])
+	}
+}
+
+func TestJobEndpoint_ListJobs_blocking(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the job
+	job := mock.Job()
+
+	go func() {
+		// Wait a bit
+		time.Sleep(100 * time.Millisecond)
+
+		// Send the register request
+		state := s1.fsm.State()
+		err := state.UpsertJob(2, job)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	}()
+
+	// Lookup the jobs. Should block until the index is reached.
+	get := &structs.JobListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:        "global",
+			MinQueryIndex: 1,
+		},
+	}
+	start := time.Now()
+	var resp structs.JobListResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.List", get, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Check that we blocked
+	if elapsed := time.Now().Sub(start); elapsed < 100*time.Millisecond {
+		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
+	}
+
+	if resp.Index != 2 {
+		t.Fatalf("Bad index: %d %d", resp.Index, 2)
+	}
+	if len(resp.Jobs) != 1 {
+		t.Fatalf("bad: %#v", resp.Jobs)
+	}
+	if resp.Jobs[0].ID != job.ID {
+		t.Fatalf("bad: %#v", resp.Jobs[0])
 	}
 }
 

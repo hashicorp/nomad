@@ -216,35 +216,43 @@ func (j *Job) List(args *structs.JobListRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "job", "list"}, time.Now())
 
-	// Capture all the jobs
-	snap, err := j.srv.fsm.State().Snapshot()
-	if err != nil {
-		return err
-	}
-	iter, err := snap.Jobs()
-	if err != nil {
-		return err
-	}
+	// Setup the blocking query
+	opts := blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		jobsWatch: true,
+		run: func() error {
+			// Capture all the jobs
+			snap, err := j.srv.fsm.State().Snapshot()
+			if err != nil {
+				return err
+			}
+			iter, err := snap.Jobs()
+			if err != nil {
+				return err
+			}
 
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-		job := raw.(*structs.Job)
-		reply.Jobs = append(reply.Jobs, job.Stub())
-	}
+			for {
+				raw := iter.Next()
+				if raw == nil {
+					break
+				}
+				job := raw.(*structs.Job)
+				reply.Jobs = append(reply.Jobs, job.Stub())
+			}
 
-	// Use the last index that affected the jobs table
-	index, err := snap.Index("jobs")
-	if err != nil {
-		return err
-	}
-	reply.Index = index
+			// Use the last index that affected the jobs table
+			index, err := snap.Index("jobs")
+			if err != nil {
+				return err
+			}
+			reply.Index = index
 
-	// Set the query response
-	j.srv.setQueryMeta(&reply.QueryMeta)
-	return nil
+			// Set the query response
+			j.srv.setQueryMeta(&reply.QueryMeta)
+			return nil
+		}}
+	return j.srv.blockingRPC(&opts)
 }
 
 // Allocations is used to list the allocations for a job
