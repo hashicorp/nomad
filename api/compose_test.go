@@ -10,7 +10,7 @@ func TestCompose(t *testing.T) {
 	task := NewTask("task1", "exec").
 		SetConfig("foo", "bar").
 		SetMeta("foo", "bar").
-		Constrain(HardConstraint("kernel.name", "=", "linux")).
+		Constrain(NewConstraint("kernel.name", "=", "linux")).
 		Require(&Resources{
 		CPU:      1250,
 		MemoryMB: 1024,
@@ -27,7 +27,7 @@ func TestCompose(t *testing.T) {
 
 	// Compose a task group
 	grp := NewTaskGroup("grp1", 2).
-		Constrain(HardConstraint("kernel.name", "=", "linux")).
+		Constrain(NewConstraint("kernel.name", "=", "linux")).
 		SetMeta("foo", "bar").
 		AddTask(task)
 
@@ -35,7 +35,7 @@ func TestCompose(t *testing.T) {
 	job := NewServiceJob("job1", "myjob", "region1", 2).
 		SetMeta("foo", "bar").
 		AddDatacenter("dc1").
-		Constrain(HardConstraint("kernel.name", "=", "linux")).
+		Constrain(NewConstraint("kernel.name", "=", "linux")).
 		AddTaskGroup(grp)
 
 	// Check that the composed result looks correct
@@ -53,11 +53,9 @@ func TestCompose(t *testing.T) {
 		},
 		Constraints: []*Constraint{
 			&Constraint{
-				Hard:    true,
 				LTarget: "kernel.name",
 				RTarget: "linux",
 				Operand: "=",
-				Weight:  0,
 			},
 		},
 		TaskGroups: []*TaskGroup{
@@ -66,11 +64,9 @@ func TestCompose(t *testing.T) {
 				Count: 2,
 				Constraints: []*Constraint{
 					&Constraint{
-						Hard:    true,
 						LTarget: "kernel.name",
 						RTarget: "linux",
 						Operand: "=",
-						Weight:  0,
 					},
 				},
 				Tasks: []*Task{
@@ -95,11 +91,9 @@ func TestCompose(t *testing.T) {
 						},
 						Constraints: []*Constraint{
 							&Constraint{
-								Hard:    true,
 								LTarget: "kernel.name",
 								RTarget: "linux",
 								Operand: "=",
-								Weight:  0,
 							},
 						},
 						Config: map[string]string{

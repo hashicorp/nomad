@@ -600,9 +600,9 @@ func TestEvictAndPlace_LimitGreaterThanAllocs(t *testing.T) {
 }
 
 func TestTaskGroupConstraints(t *testing.T) {
-	constr := &structs.Constraint{Hard: true}
+	constr := &structs.Constraint{RTarget: "bar"}
 	constr2 := &structs.Constraint{LTarget: "foo"}
-	constr3 := &structs.Constraint{Weight: 10}
+	constr3 := &structs.Constraint{Operand: "<"}
 
 	tg := &structs.TaskGroup{
 		Name:        "web",

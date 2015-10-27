@@ -303,11 +303,6 @@ func (iter *ConstraintIterator) meetsConstraints(option *structs.Node) bool {
 }
 
 func (iter *ConstraintIterator) meetsConstraint(constraint *structs.Constraint, option *structs.Node) bool {
-	// Only enforce hard constraints, soft constraints are used for ranking
-	if !constraint.Hard {
-		return true
-	}
-
 	// Resolve the targets
 	lVal, ok := resolveConstraintTarget(constraint.LTarget, option)
 	if !ok {

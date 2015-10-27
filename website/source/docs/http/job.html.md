@@ -47,11 +47,9 @@ region is used; another region can be specified using the `?region=` query param
     ],
     "Constraints": [
         {
-            "Hard": true,
             "LTarget": "kernel.os",
             "RTarget": "windows",
             "Operand": "=",
-            "Weight": 0
         }
     ],
     "TaskGroups": [
@@ -60,11 +58,9 @@ region is used; another region can be specified using the `?region=` query param
             "Count": 5,
             "Constraints": [
                 {
-                    "Hard": true,
                     "LTarget": "kernel.os",
                     "RTarget": "linux",
                     "Operand": "=",
-                    "Weight": 0
                 }
             ],
             "Tasks": [
@@ -101,11 +97,9 @@ region is used; another region can be specified using the `?region=` query param
                     },
                     "Constraints": [
                         {
-                            "Hard": true,
                             "LTarget": "kernel.arch",
                             "RTarget": "amd64",
                             "Operand": "=",
-                            "Weight": 0
                         }
                     ],
                     "Resources": {

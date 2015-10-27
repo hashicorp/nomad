@@ -1033,15 +1033,11 @@ const (
 	ConstraintVersion       = "version"
 )
 
-// Constraints are used to restrict placement options in the case of
-// a hard constraint, and used to prefer a placement in the case of
-// a soft constraint.
+// Constraints are used to restrict placement options.
 type Constraint struct {
-	Hard    bool   // Hard or soft constraint
 	LTarget string // Left-hand target
 	RTarget string // Right-hand target
 	Operand string // Constraint operand (<=, <, =, !=, >, >=), contains, near
-	Weight  int    // Soft constraints can vary the weight
 }
 
 func (c *Constraint) String() string {
@@ -1185,8 +1181,7 @@ type AllocMetric struct {
 	// NodesEvaluated is the number of nodes that were evaluated
 	NodesEvaluated int
 
-	// NodesFiltered is the number of nodes filtered due to
-	// a hard constraint
+	// NodesFiltered is the number of nodes filtered due to a constraint
 	NodesFiltered int
 
 	// ClassFiltered is the number of nodes filtered by class

@@ -20,7 +20,7 @@ func TestTaskGroup_Constrain(t *testing.T) {
 	grp := NewTaskGroup("grp1", 1)
 
 	// Add a constraint to the group
-	out := grp.Constrain(HardConstraint("kernel.name", "=", "darwin"))
+	out := grp.Constrain(NewConstraint("kernel.name", "=", "darwin"))
 	if n := len(grp.Constraints); n != 1 {
 		t.Fatalf("expected 1 constraint, got: %d", n)
 	}
@@ -31,21 +31,17 @@ func TestTaskGroup_Constrain(t *testing.T) {
 	}
 
 	// Add a second constraint
-	grp.Constrain(SoftConstraint("memory.totalbytes", ">=", "128000000", 2))
+	grp.Constrain(NewConstraint("memory.totalbytes", ">=", "128000000"))
 	expect := []*Constraint{
 		&Constraint{
-			Hard:    true,
 			LTarget: "kernel.name",
 			RTarget: "darwin",
 			Operand: "=",
-			Weight:  0,
 		},
 		&Constraint{
-			Hard:    false,
 			LTarget: "memory.totalbytes",
 			RTarget: "128000000",
 			Operand: ">=",
-			Weight:  2,
 		},
 	}
 	if !reflect.DeepEqual(grp.Constraints, expect) {
@@ -193,7 +189,7 @@ func TestTask_Constrain(t *testing.T) {
 	task := NewTask("task1", "exec")
 
 	// Add a constraint to the task
-	out := task.Constrain(HardConstraint("kernel.name", "=", "darwin"))
+	out := task.Constrain(NewConstraint("kernel.name", "=", "darwin"))
 	if n := len(task.Constraints); n != 1 {
 		t.Fatalf("expected 1 constraint, got: %d", n)
 	}
@@ -204,21 +200,17 @@ func TestTask_Constrain(t *testing.T) {
 	}
 
 	// Add a second constraint
-	task.Constrain(SoftConstraint("memory.totalbytes", ">=", "128000000", 2))
+	task.Constrain(NewConstraint("memory.totalbytes", ">=", "128000000"))
 	expect := []*Constraint{
 		&Constraint{
-			Hard:    true,
 			LTarget: "kernel.name",
 			RTarget: "darwin",
 			Operand: "=",
-			Weight:  0,
 		},
 		&Constraint{
-			Hard:    false,
 			LTarget: "memory.totalbytes",
 			RTarget: "128000000",
 			Operand: ">=",
-			Weight:  2,
 		},
 	}
 	if !reflect.DeepEqual(task.Constraints, expect) {
