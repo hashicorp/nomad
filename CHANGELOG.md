@@ -3,6 +3,7 @@
 IMPROVEMENTS:
 
   * Nomad client cleans allocations on exit when in dev mode
+  * drivers: Use go-getter for artifact retrieval, add artifact support to Exec, Raw Exec drivers [GH-288]
 
 ## 0.1.1 (October 5, 2015)
 

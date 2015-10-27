@@ -53,10 +53,11 @@ and ensure at least once delivery.
 
 Nomad servers run scheduling workers, defaulting to one per CPU core, which are used to
 process evaluations. The workers dequeue evaluations from the broker, and then invoke
-the appropriate schedule as specified by the job. Nomad ships with a `service` scheduler
+the appropriate scheduler as specified by the job. Nomad ships with a `service` scheduler
 that optimizes for long-lived services, a `batch` scheduler that is used for fast placement
-of batch jobs, and a `core` scheduler which is used for internal maintenance. Nomad can
-be extended to support custom schedulers as well.
+of batch jobs, a `system` scheduler that is used to run jobs on every node,
+and a `core` scheduler which is used for internal maintenance.
+Nomad can be extended to support custom schedulers as well.
 
 Schedulers are responsible for processing an evaluation and generating an allocation _plan_.
 The plan is the set of allocations to evict, update, or create. The specific logic used to
@@ -75,8 +76,8 @@ and density of applications, but is also augmented by affinity and anti-affinity
 Once the scheduler has ranked enough nodes, the highest ranking node is selected and
 added to the allocation plan.
 
-When planning is complete, the scheduler submits the plan to the leader and
-gets added to the plan queue. The plan queue manages pending plans, provides priority
+When planning is complete, the scheduler submits the plan to the leader which adds
+the plan to the plan queue. The plan queue manages pending plans, provides priority
 ordering, and allows Nomad to handle concurrency races. Multiple schedulers are running
 in parallel without locking or reservations, making Nomad optimistically concurrent.
 As a result, schedulers might overlap work on the same node and cause resource

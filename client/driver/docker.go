@@ -4,12 +4,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"path/filepath"
 	"strconv"
 	"strings"
 
 	docker "github.com/fsouza/go-dockerclient"
 
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/driver/args"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -37,11 +40,36 @@ func NewDockerDriver(ctx *DriverContext) Driver {
 	return &DockerDriver{*ctx}
 }
 
+// dockerClient creates *docker.Client. In test / dev mode we can use ENV vars
+// to connect to the docker daemon. In production mode we will read
+// docker.endpoint from the config file.
+func (d *DockerDriver) dockerClient() (*docker.Client, error) {
+	// In dev mode, read DOCKER_* environment variables DOCKER_HOST,
+	// DOCKER_TLS_VERIFY, and DOCKER_CERT_PATH. This allows you to run tests and
+	// demo against boot2docker or a VM on OSX and Windows. This falls back on
+	// the default unix socket on linux if tests are run on linux.
+	//
+	// Also note that we need to turn on DevMode in the test configs.
+	if d.config.DevMode {
+		return docker.NewClientFromEnv()
+	}
+
+	// In prod mode we'll read the docker.endpoint configuration and fall back
+	// on the host-specific default. We do not read from the environment.
+	defaultEndpoint, err := docker.DefaultDockerHost()
+	if err != nil {
+		return nil, fmt.Errorf("Unable to determine default docker endpoint: %s", err)
+	}
+	dockerEndpoint := d.config.ReadDefault("docker.endpoint", defaultEndpoint)
+
+	return docker.NewClient(dockerEndpoint)
+}
+
 func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
 	// Initialize docker API client
-	dockerEndpoint := d.config.ReadDefault("docker.endpoint", "unix:///var/run/docker.sock")
-	client, err := docker.NewClient(dockerEndpoint)
+	client, err := d.dockerClient()
 	if err != nil {
+		d.logger.Printf("[DEBUG] driver.docker: could not connect to docker daemon: %v", err)
 		return false, nil
 	}
 
@@ -56,6 +84,7 @@ func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool
 
 	env, err := client.Version()
 	if err != nil {
+		d.logger.Printf("[DEBUG] driver.docker: could not read version from daemon: %v", err)
 		// Check the "no such file" error if the unix file is missing
 		if strings.Contains(err.Error(), "no such file") {
 			return false, nil
@@ -65,18 +94,39 @@ func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool
 		// is broken.
 		return false, err
 	}
-	node.Attributes["driver.docker"] = "true"
+	node.Attributes["driver.docker"] = "1"
 	node.Attributes["driver.docker.version"] = env.Get("Version")
 
 	return true, nil
 }
 
-// We have to call this when we create the container AND when we start it so
-// we'll make a function.
-func createHostConfig(task *structs.Task) *docker.HostConfig {
-	// hostConfig holds options for the docker container that are unique to this
-	// machine, such as resource limits and port mappings
-	return &docker.HostConfig{
+func (d *DockerDriver) containerBinds(alloc *allocdir.AllocDir, task *structs.Task) ([]string, error) {
+	shared := alloc.SharedDir
+	local, ok := alloc.TaskDirs[task.Name]
+	if !ok {
+		return nil, fmt.Errorf("Failed to find task local directory: %v", task.Name)
+	}
+
+	return []string{
+		fmt.Sprintf("%s:%s", shared, allocdir.SharedAllocName),
+		fmt.Sprintf("%s:%s", local, allocdir.TaskLocal),
+	}, nil
+}
+
+// createContainer initializes a struct needed to call docker.client.CreateContainer()
+func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task) (docker.CreateContainerOptions, error) {
+	var c docker.CreateContainerOptions
+	if task.Resources == nil {
+		d.logger.Printf("[ERR] driver.docker: task.Resources is empty")
+		return c, fmt.Errorf("task.Resources is nil and we can't constrain resource usage. We shouldn't have been able to schedule this in the first place.")
+	}
+
+	binds, err := d.containerBinds(ctx.AllocDir, task)
+	if err != nil {
+		return c, err
+	}
+
+	hostConfig := &docker.HostConfig{
 		// Convert MB to bytes. This is an absolute value.
 		//
 		// This value represents the total amount of memory a process can use.
@@ -105,40 +155,38 @@ func createHostConfig(task *structs.Task) *docker.HostConfig {
 		//  - https://www.kernel.org/doc/Documentation/scheduler/sched-bwc.txt
 		//  - https://www.kernel.org/doc/Documentation/scheduler/sched-design-CFS.txt
 		CPUShares: int64(task.Resources.CPU),
-	}
-}
 
-// createContainer initializes a struct needed to call docker.client.CreateContainer()
-func createContainer(ctx *ExecContext, task *structs.Task, logger *log.Logger) docker.CreateContainerOptions {
-	if task.Resources == nil {
-		panic("task.Resources is nil and we can't constrain resource usage. We shouldn't have been able to schedule this in the first place.")
+		// Binds are used to mount a host volume into the container. We mount a
+		// local directory for storage and a shared alloc directory that can be
+		// used to share data between different tasks in the same task group.
+		Binds: binds,
 	}
 
-	hostConfig := createHostConfig(task)
-	logger.Printf("[DEBUG] driver.docker: using %d bytes memory for %s", hostConfig.Memory, task.Config["image"])
-	logger.Printf("[DEBUG] driver.docker: using %d cpu shares for %s", hostConfig.CPUShares, task.Config["image"])
+	d.logger.Printf("[DEBUG] driver.docker: using %d bytes memory for %s", hostConfig.Memory, task.Config["image"])
+	d.logger.Printf("[DEBUG] driver.docker: using %d cpu shares for %s", hostConfig.CPUShares, task.Config["image"])
+	d.logger.Printf("[DEBUG] driver.docker: binding directories %#v for %s", hostConfig.Binds, task.Config["image"])
 
 	mode, ok := task.Config["network_mode"]
 	if !ok || mode == "" {
 		// docker default
-		logger.Printf("[WARN] driver.docker: no mode specified for networking, defaulting to bridge")
+		d.logger.Printf("[WARN] driver.docker: no mode specified for networking, defaulting to bridge")
 		mode = "bridge"
 	}
 
 	// Ignore the container mode for now
 	switch mode {
 	case "default", "bridge", "none", "host":
-		logger.Printf("[DEBUG] driver.docker: using %s as network mode", mode)
+		d.logger.Printf("[DEBUG] driver.docker: using %s as network mode", mode)
 	default:
-		logger.Printf("[WARN] invalid setting for network mode %s, defaulting to bridge mode on docker0", mode)
-		mode = "bridge"
+		d.logger.Printf("[ERR] driver.docker: invalid setting for network mode: %s", mode)
+		return c, fmt.Errorf("Invalid setting for network mode: %s", mode)
 	}
 	hostConfig.NetworkMode = mode
 
 	// Setup port mapping (equivalent to -p on docker CLI). Ports must already be
 	// exposed in the container.
 	if len(task.Resources.Networks) == 0 {
-		logger.Print("[WARN] driver.docker: No networks are available for port mapping")
+		d.logger.Print("[WARN] driver.docker: No networks are available for port mapping")
 	} else {
 		network := task.Resources.Networks[0]
 		dockerPorts := map[docker.Port][]docker.PortBinding{}
@@ -146,7 +194,7 @@ func createContainer(ctx *ExecContext, task *structs.Task, logger *log.Logger) d
 		for _, port := range network.ListStaticPorts() {
 			dockerPorts[docker.Port(strconv.Itoa(port)+"/tcp")] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: strconv.Itoa(port)}}
 			dockerPorts[docker.Port(strconv.Itoa(port)+"/udp")] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: strconv.Itoa(port)}}
-			logger.Printf("[DEBUG] driver.docker: allocated port %s:%d -> %d (static)\n", network.IP, port, port)
+			d.logger.Printf("[DEBUG] driver.docker: allocated port %s:%d -> %d (static)\n", network.IP, port, port)
 		}
 
 		for label, port := range network.MapDynamicPorts() {
@@ -160,30 +208,47 @@ func createContainer(ctx *ExecContext, task *structs.Task, logger *log.Logger) d
 			if _, err := strconv.Atoi(label); err == nil {
 				dockerPorts[docker.Port(label+"/tcp")] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: strconv.Itoa(port)}}
 				dockerPorts[docker.Port(label+"/udp")] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: strconv.Itoa(port)}}
-				logger.Printf("[DEBUG] driver.docker: allocated port %s:%d -> %s (mapped)", network.IP, port, label)
+				d.logger.Printf("[DEBUG] driver.docker: allocated port %s:%d -> %s (mapped)", network.IP, port, label)
 			} else {
 				dockerPorts[docker.Port(strconv.Itoa(port)+"/tcp")] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: strconv.Itoa(port)}}
 				dockerPorts[docker.Port(strconv.Itoa(port)+"/udp")] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: strconv.Itoa(port)}}
-				logger.Printf("[DEBUG] driver.docker: allocated port %s:%d -> %d for label %s\n", network.IP, port, port, label)
+				d.logger.Printf("[DEBUG] driver.docker: allocated port %s:%d -> %d for label %s\n", network.IP, port, port, label)
 			}
 		}
 		hostConfig.PortBindings = dockerPorts
 	}
 
+	// Create environment variables.
+	env := TaskEnvironmentVariables(ctx, task)
+	env.SetAllocDir(filepath.Join("/", allocdir.SharedAllocName))
+	env.SetTaskLocalDir(filepath.Join("/", allocdir.TaskLocal))
+
 	config := &docker.Config{
-		Env:   TaskEnvironmentVariables(ctx, task).List(),
+		Env:   env.List(),
 		Image: task.Config["image"],
+	}
+
+	rawArgs, hasArgs := task.Config["args"]
+	parsedArgs, err := args.ParseAndReplace(rawArgs, env.Map())
+	if err != nil {
+		return c, err
 	}
 
 	// If the user specified a custom command to run, we'll inject it here.
 	if command, ok := task.Config["command"]; ok {
-		config.Cmd = strings.Split(command, " ")
+		cmd := []string{command}
+		if hasArgs {
+			cmd = append(cmd, parsedArgs...)
+		}
+		config.Cmd = cmd
+	} else if hasArgs {
+		d.logger.Println("[DEBUG] driver.docker: ignoring args because command not specified")
 	}
 
 	return docker.CreateContainerOptions{
 		Config:     config,
 		HostConfig: hostConfig,
-	}
+	}, nil
 }
 
 func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
@@ -212,10 +277,9 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	}
 
 	// Initialize docker API client
-	dockerEndpoint := d.config.ReadDefault("docker.endpoint", "unix:///var/run/docker.sock")
-	client, err := docker.NewClient(dockerEndpoint)
+	client, err := d.dockerClient()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to connect to docker.endpoint (%s): %s", dockerEndpoint, err)
+		return nil, fmt.Errorf("Failed to connect to docker daemon: %s", err)
 	}
 
 	repo, tag := docker.ParseRepositoryTag(image)
@@ -258,8 +322,13 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	d.logger.Printf("[DEBUG] driver.docker: using image %s", dockerImage.ID)
 	d.logger.Printf("[INFO] driver.docker: identified image %s as %s", image, dockerImage.ID)
 
+	config, err := d.createContainer(ctx, task)
+	if err != nil {
+		d.logger.Printf("[ERR] driver.docker: %s", err)
+		return nil, fmt.Errorf("Failed to create container config for image %s", image)
+	}
 	// Create a container
-	container, err := client.CreateContainer(createContainer(ctx, task, d.logger))
+	container, err := client.CreateContainer(config)
 	if err != nil {
 		d.logger.Printf("[ERR] driver.docker: %s", err)
 		return nil, fmt.Errorf("Failed to create container from image %s", image)
@@ -309,10 +378,9 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 	d.logger.Printf("[INFO] driver.docker: re-attaching to docker process: %s", handleID)
 
 	// Initialize docker API client
-	dockerEndpoint := d.config.ReadDefault("docker.endpoint", "unix:///var/run/docker.sock")
-	client, err := docker.NewClient(dockerEndpoint)
+	client, err := d.dockerClient()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to connect to docker.endpoint (%s): %s", dockerEndpoint, err)
+		return nil, fmt.Errorf("Failed to connect to docker daemon: %s", err)
 	}
 
 	// Look for a running container with this ID
@@ -401,6 +469,7 @@ func (h *dockerHandle) Kill() error {
 		err = h.client.RemoveImage(h.imageID)
 		if err != nil {
 			containers, err := h.client.ListContainers(docker.ListContainersOptions{
+				// The image might be in use by a stopped container, so check everything
 				All: true,
 				Filters: map[string][]string{
 					"image": []string{h.imageID},

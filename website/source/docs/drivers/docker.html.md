@@ -23,10 +23,14 @@ The `docker` driver supports the following configuration in the job specificatio
 
 * `command` - (Optional) The command to run when starting the container.
 
+* `args` - (Optional) Arguments to the optional `command`. If no `command` is
+  present, `args` are ignored.
+
 * `network_mode` - (Optional) The network mode to be used for the container.
    Valid options are `default`, `bridge`, `host` or `none`. If nothing is
    specified, the container will start in `bridge` mode. The `container`
-   network mode is not supported right now.
+   network mode is not supported right now and is reported as an invalid
+   option.
 
 ### Port Mapping
 
@@ -47,8 +51,8 @@ port mapping will still be able to make outbound network connections.
 
 Typically when you create a Docker container you configure the service to start
 listening on a port (or ports) when you start the container. For example, redis
-starts listening on `6379` when you `Docker run redis`. Nomad supports this by
-mapping the random port to the port inside the container.
+starts listening on `6379` when you `docker run redis`. Nomad can support this by
+mapping a random port on the host machine to the port inside the container.
 
 You need to tell Nomad which ports your container is using so Nomad can map
 allocated ports for you. You do so by specifying a **numeric port value** for
@@ -111,12 +115,24 @@ The `docker` driver has the following configuration options:
 * `docker.endpoint` - Defaults to `unix:///var/run/docker.sock`. You will need
   to customize this if you use a non-standard socket (http or another location).
 
+* `docker.cleanup.container` Defaults to `true`. Changing this to `false` will
+  prevent Nomad from removing containers from stopped tasks.
+
+* `docker.cleanup.image` Defaults to `true`. Changing this to `false` will
+  prevent Nomad from removing images from stopped tasks.
+
+Note: When testing or using the `-dev` flag you can use `DOCKER_HOST`,
+`DOCKER_TLS_VERIFY`, and `DOCKER_CERT_PATH` to customize Nomad's behavior. In
+production Nomad will always read `docker.endpoint`.
+
 ## Client Attributes
 
 The `docker` driver will set the following client attributes:
 
-* `driver.Docker` - This will be set to "1", indicating the
+* `driver.docker` - This will be set to "1", indicating the
   driver is available.
+* `driver.docker.version` - This will be set to version of the
+  docker server
 
 ## Resource Isolation
 
@@ -125,7 +141,7 @@ The `docker` driver will set the following client attributes:
 Nomad limits containers' CPU based on CPU shares. CPU shares allow containers to
 burst past their CPU limits. CPU limits will only be imposed when there is
 contention for resources. When the host is under load your process may be
-throttled to stabilize QOS depending how how many shares it has. You can see how
+throttled to stabilize QOS depending on how many shares it has. You can see how
 many CPU shares are available to your process by reading `NOMAD_CPU_LIMIT`. 1000
 shares are approximately equal to 1Ghz.
 

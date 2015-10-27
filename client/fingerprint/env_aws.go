@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -62,12 +63,12 @@ var ec2InstanceSpeedMap = map[string]int{
 	"d2.8xlarge":  10000,
 }
 
-// EnvAWSFingerprint is used to fingerprint the CPU
+// EnvAWSFingerprint is used to fingerprint AWS metadata
 type EnvAWSFingerprint struct {
 	logger *log.Logger
 }
 
-// NewEnvAWSFingerprint is used to create a CPU fingerprint
+// NewEnvAWSFingerprint is used to create a fingerprint from AWS metadata
 func NewEnvAWSFingerprint(logger *log.Logger) Fingerprint {
 	f := &EnvAWSFingerprint{logger: logger}
 	return f
@@ -93,7 +94,8 @@ func (f *EnvAWSFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 
 	// assume 2 seconds is enough time for inside AWS network
 	client := &http.Client{
-		Timeout: 2 * time.Second,
+		Timeout:   2 * time.Second,
+		Transport: cleanhttp.DefaultTransport(),
 	}
 
 	keys := []string{
@@ -164,7 +166,8 @@ func isAWS() bool {
 
 	// assume 2 seconds is enough time for inside AWS network
 	client := &http.Client{
-		Timeout: 2 * time.Second,
+		Timeout:   2 * time.Second,
+		Transport: cleanhttp.DefaultTransport(),
 	}
 
 	// Query the metadata url for the ami-id, to veryify we're on AWS
@@ -207,7 +210,8 @@ func (f *EnvAWSFingerprint) linkSpeed() int {
 
 	// assume 2 seconds is enough time for inside AWS network
 	client := &http.Client{
-		Timeout: 2 * time.Second,
+		Timeout:   2 * time.Second,
+		Transport: cleanhttp.DefaultTransport(),
 	}
 
 	res, err := client.Get(metadataURL + "instance-type")

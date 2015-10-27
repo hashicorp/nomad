@@ -37,6 +37,8 @@ func TestRPC_forwardRegion(t *testing.T) {
 	})
 	defer s2.Shutdown()
 	testJoin(t, s1, s2)
+	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForLeader(t, s2.RPC)
 
 	var out struct{}
 	err := s1.forwardRegion("region2", "Status.Ping", struct{}{}, &out)

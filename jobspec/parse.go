@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -240,6 +241,34 @@ func parseConstraints(result *[]*structs.Constraint, obj *hclobj.Object) error {
 		// Default constraint to being hard
 		if _, ok := m["hard"]; !ok {
 			m["hard"] = true
+		}
+
+		// If "version" is provided, set the operand
+		// to "version" and the value to the "RTarget"
+		if constraint, ok := m[structs.ConstraintVersion]; ok {
+			m["Operand"] = structs.ConstraintVersion
+			m["RTarget"] = constraint
+		}
+
+		// If "regexp" is provided, set the operand
+		// to "regexp" and the value to the "RTarget"
+		if constraint, ok := m[structs.ConstraintRegex]; ok {
+			m["Operand"] = structs.ConstraintRegex
+			m["RTarget"] = constraint
+		}
+
+		if value, ok := m[structs.ConstraintDistinctHosts]; ok {
+			enabled, err := strconv.ParseBool(value.(string))
+			if err != nil {
+				return err
+			}
+
+			// If it is not enabled, skip the constraint.
+			if !enabled {
+				continue
+			}
+
+			m["Operand"] = structs.ConstraintDistinctHosts
 		}
 
 		// Build the constraint

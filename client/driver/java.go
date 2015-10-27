@@ -3,9 +3,6 @@ package driver
 import (
 	"bytes"
 	"fmt"
-	"io"
-	"net/http"
-	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
@@ -14,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/hashicorp/go-getter"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/executor"
@@ -69,7 +67,7 @@ func (d *JavaDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, 
 	}
 
 	if infoString == "" {
-		d.logger.Println("[WARN] Error parsing Java version information, aborting")
+		d.logger.Println("[WARN] driver.java: error parsing Java version information, aborting")
 		return false, nil
 	}
 
@@ -97,44 +95,33 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		return nil, fmt.Errorf("missing jar source for Java Jar driver")
 	}
 
-	// Attempt to download the thing
-	// Should be extracted to some kind of Http Fetcher
-	// Right now, assume publicly accessible HTTP url
-	resp, err := http.Get(source)
-	if err != nil {
-		return nil, fmt.Errorf("Error downloading source for Java driver: %s", err)
-	}
-
-	// Get the tasks local directory.
 	taskDir, ok := ctx.AllocDir.TaskDirs[d.DriverContext.taskName]
 	if !ok {
 		return nil, fmt.Errorf("Could not find task directory for task: %v", d.DriverContext.taskName)
 	}
-	taskLocal := filepath.Join(taskDir, allocdir.TaskLocal)
+
+	destDir := filepath.Join(taskDir, allocdir.TaskLocal)
 
 	// Create a location to download the binary.
-	fName := path.Base(source)
-	fPath := filepath.Join(taskLocal, fName)
-	f, err := os.OpenFile(fPath, os.O_CREATE|os.O_WRONLY, 0666)
-	if err != nil {
-		return nil, fmt.Errorf("Error opening file to download to: %s", err)
-	}
-
-	defer f.Close()
-	defer resp.Body.Close()
-
-	// Copy remote file to local directory for execution
-	// TODO: a retry of sort if io.Copy fails, for large binaries
-	_, ioErr := io.Copy(f, resp.Body)
-	if ioErr != nil {
-		return nil, fmt.Errorf("Error copying jar from source: %s", ioErr)
+	jarName := path.Base(source)
+	jarPath := filepath.Join(destDir, jarName)
+	if err := getter.GetFile(jarPath, source); err != nil {
+		return nil, fmt.Errorf("Error downloading source for Java driver: %s", err)
 	}
 
 	// Get the environment variables.
 	envVars := TaskEnvironmentVariables(ctx, task)
 
+	args := []string{}
+	// Look for jvm options
+	jvm_options, ok := task.Config["jvm_options"]
+	if ok && jvm_options != "" {
+		d.logger.Printf("[DEBUG] driver.java: found JVM options: %s", jvm_options)
+		args = append(args, jvm_options)
+	}
+
 	// Build the argument list.
-	args := []string{"-jar", filepath.Join(allocdir.TaskLocal, fName)}
+	args = append(args, "-jar", filepath.Join(allocdir.TaskLocal, jarName))
 	if argRaw, ok := task.Config["args"]; ok {
 		args = append(args, argRaw)
 	}

@@ -10,6 +10,8 @@ import (
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/hashicorp/go-cleanhttp"
 )
 
 // QueryOptions are used to parameterize a query
@@ -86,7 +88,7 @@ type Config struct {
 func DefaultConfig() *Config {
 	config := &Config{
 		Address:    "http://127.0.0.1:4646",
-		HttpClient: http.DefaultClient,
+		HttpClient: cleanhttp.DefaultClient(),
 	}
 	if addr := os.Getenv("NOMAD_ADDR"); addr != "" {
 		config.Address = addr

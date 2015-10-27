@@ -3,6 +3,7 @@ package driver
 import (
 	"fmt"
 	"log"
+	"path/filepath"
 	"sync"
 
 	"github.com/hashicorp/nomad/client/allocdir"
@@ -15,11 +16,12 @@ import (
 // BuiltinDrivers contains the built in registered drivers
 // which are available for allocation handling
 var BuiltinDrivers = map[string]Factory{
-	"docker": NewDockerDriver,
-	"exec":   NewExecDriver,
-	"java":   NewJavaDriver,
-	"qemu":   NewQemuDriver,
-	"rkt":    NewRktDriver,
+	"docker":   NewDockerDriver,
+	"exec":     NewExecDriver,
+	"raw_exec": NewRawExecDriver,
+	"java":     NewJavaDriver,
+	"qemu":     NewQemuDriver,
+	"rkt":      NewRktDriver,
 }
 
 // NewDriver is used to instantiate and return a new driver
@@ -112,7 +114,13 @@ func TaskEnvironmentVariables(ctx *ExecContext, task *structs.Task) environment.
 	env.SetMeta(task.Meta)
 
 	if ctx.AllocDir != nil {
-		env.SetAllocDir(ctx.AllocDir.AllocDir)
+		env.SetAllocDir(ctx.AllocDir.SharedDir)
+		taskdir, ok := ctx.AllocDir.TaskDirs[task.Name]
+		if !ok {
+			// TODO: Update this to return an error
+		}
+
+		env.SetTaskLocalDir(filepath.Join(taskdir, allocdir.TaskLocal))
 	}
 
 	if task.Resources != nil {

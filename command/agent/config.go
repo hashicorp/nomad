@@ -220,6 +220,7 @@ func DevConfig() *Config {
 	conf.DevMode = true
 	conf.EnableDebug = true
 	conf.DisableAnonymousSignature = true
+	conf.Client.NetworkInterface = "lo"
 	return conf
 }
 

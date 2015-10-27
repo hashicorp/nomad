@@ -228,6 +228,7 @@ func TestLeader_EvalBroker_Reset(t *testing.T) {
 	defer s3.Shutdown()
 	servers := []*Server{s1, s2, s3}
 	testJoin(t, s1, s2, s3)
+	testutil.WaitForLeader(t, s1.RPC)
 
 	for _, s := range servers {
 		testutil.WaitForResult(func() (bool, error) {

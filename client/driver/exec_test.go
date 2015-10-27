@@ -5,10 +5,10 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/environment"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -86,7 +86,7 @@ func TestExecDriver_Start_Wait(t *testing.T) {
 		Name: "sleep",
 		Config: map[string]string{
 			"command": "/bin/sleep",
-			"args":    "1",
+			"args":    "2",
 		},
 		Resources: basicResources,
 	}
@@ -116,11 +116,109 @@ func TestExecDriver_Start_Wait(t *testing.T) {
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
-	case <-time.After(2 * time.Second):
+	case <-time.After(4 * time.Second):
 		t.Fatalf("timeout")
 	}
 }
 
+func TestExecDriver_Start_Artifact_basic(t *testing.T) {
+	ctestutils.ExecCompatible(t)
+	var file string
+	switch runtime.GOOS {
+	case "darwin":
+		file = "hi_darwin_amd64"
+	default:
+		file = "hi_linux_amd64"
+	}
+
+	task := &structs.Task{
+		Name: "sleep",
+		Config: map[string]string{
+			"artifact_source": fmt.Sprintf("https://dl.dropboxusercontent.com/u/47675/jar_thing/%s", file),
+			"command":         filepath.Join("$NOMAD_TASK_DIR", file),
+		},
+		Resources: basicResources,
+	}
+
+	driverCtx := testDriverContext(task.Name)
+	ctx := testDriverExecContext(task, driverCtx)
+	defer ctx.AllocDir.Destroy()
+	d := NewExecDriver(driverCtx)
+
+	handle, err := d.Start(ctx, task)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if handle == nil {
+		t.Fatalf("missing handle")
+	}
+
+	// Update should be a no-op
+	err = handle.Update(task)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Task should terminate quickly
+	select {
+	case err := <-handle.WaitCh():
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatalf("timeout")
+	}
+}
+
+func TestExecDriver_Start_Artifact_expanded(t *testing.T) {
+	ctestutils.ExecCompatible(t)
+	var file string
+	switch runtime.GOOS {
+	case "darwin":
+		file = "hi_darwin_amd64"
+	default:
+		file = "hi_linux_amd64"
+	}
+
+	task := &structs.Task{
+		Name: "sleep",
+		Config: map[string]string{
+			"artifact_source": fmt.Sprintf("https://dl.dropboxusercontent.com/u/47675/jar_thing/%s", file),
+			"command":         "/bin/bash",
+			"args":            fmt.Sprintf("-c '/bin/sleep 1 && %s'", filepath.Join("$NOMAD_TASK_DIR", file)),
+		},
+		Resources: basicResources,
+	}
+
+	driverCtx := testDriverContext(task.Name)
+	ctx := testDriverExecContext(task, driverCtx)
+	defer ctx.AllocDir.Destroy()
+	d := NewExecDriver(driverCtx)
+
+	handle, err := d.Start(ctx, task)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if handle == nil {
+		t.Fatalf("missing handle")
+	}
+
+	// Update should be a no-op
+	err = handle.Update(task)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Task should terminate quickly
+	select {
+	case err := <-handle.WaitCh():
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatalf("timeout")
+	}
+}
 func TestExecDriver_Start_Wait_AllocDir(t *testing.T) {
 	ctestutils.ExecCompatible(t)
 
@@ -159,7 +257,7 @@ func TestExecDriver_Start_Wait_AllocDir(t *testing.T) {
 	}
 
 	// Check that data was written to the shared alloc directory.
-	outputFile := filepath.Join(ctx.AllocDir.AllocDir, allocdir.SharedAllocName, file)
+	outputFile := filepath.Join(ctx.AllocDir.SharedDir, file)
 	act, err := ioutil.ReadFile(outputFile)
 	if err != nil {
 		t.Fatalf("Couldn't read expected output: %v", err)

@@ -19,9 +19,12 @@ HTTP from the Nomad client.
 The `java` driver supports the following configuration in the job spec:
 
 * `jar_source` - **(Required)** The hosted location of the source Jar file. Must be accessible
-from the Nomad client, via HTTP
+from the Nomad client
 
-* `args` - (Optional) The argument list for the `java` command, space separated. 
+* `args` - **(Optional)** The argument list for the `java` command, space separated.
+
+* `jvm_options` - **(Optional)** JVM options to be passed while invoking java. These options
+  are passed not validated in any way in Nomad.
 
 ## Client Requirements
 
@@ -49,6 +52,6 @@ On Linux, Nomad will attempt to use cgroups, namespaces, and chroot
 to isolate the resources of a process. If the Nomad agent is not
 running as root many of these mechanisms cannot be used.
 
-As a baseline, the Java jars will be ran inside a Java Virtual Machine,
+As a baseline, the Java jars will be run inside a Java Virtual Machine,
 providing a minimum amount of isolation.
 

@@ -37,7 +37,7 @@ server {
 
 This is a fairly minimal server configuration file, but it
 is enough to start an agent in server only mode and have it
-elect as a leader. The major change that should be made for
+elected as a leader. The major change that should be made for
 production is to run more than one server, and to change the
 corresponding `bootstrap_expect` value.
 

@@ -1,13 +1,24 @@
 package driver
 
 import (
+	"fmt"
+	"io/ioutil"
 	"os/exec"
+	"path/filepath"
+	"reflect"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/driver/environment"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
+
+func testDockerDriverContext(task string) *DriverContext {
+	cfg := testConfig()
+	cfg.DevMode = true
+	return NewDriverContext(task, cfg, cfg.Node, testLogger())
+}
 
 // dockerLocated looks to see whether docker is available on this system before
 // we try to run tests. We'll keep it simple and just check for the CLI.
@@ -33,7 +44,7 @@ func TestDockerDriver_Handle(t *testing.T) {
 
 // The fingerprinter test should always pass, even if Docker is not installed.
 func TestDockerDriver_Fingerprint(t *testing.T) {
-	d := NewDockerDriver(testDriverContext(""))
+	d := NewDockerDriver(testDockerDriverContext(""))
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
@@ -44,7 +55,7 @@ func TestDockerDriver_Fingerprint(t *testing.T) {
 	if apply != dockerLocated() {
 		t.Fatalf("Fingerprinter should detect Docker when it is installed")
 	}
-	if node.Attributes["driver.docker"] == "" {
+	if node.Attributes["driver.docker"] != "1" {
 		t.Log("Docker not found. The remainder of the docker tests will be skipped.")
 	}
 	t.Logf("Found docker version %s", node.Attributes["driver.docker.version"])
@@ -56,14 +67,14 @@ func TestDockerDriver_StartOpen_Wait(t *testing.T) {
 	}
 
 	task := &structs.Task{
-		Name: "python-demo",
+		Name: "redis-demo",
 		Config: map[string]string{
 			"image": "redis",
 		},
 		Resources: basicResources,
 	}
 
-	driverCtx := testDriverContext(task.Name)
+	driverCtx := testDockerDriverContext(task.Name)
 	ctx := testDriverExecContext(task, driverCtx)
 	defer ctx.AllocDir.Destroy()
 	d := NewDockerDriver(driverCtx)
@@ -93,10 +104,11 @@ func TestDockerDriver_Start_Wait(t *testing.T) {
 	}
 
 	task := &structs.Task{
-		Name: "python-demo",
+		Name: "redis-demo",
 		Config: map[string]string{
 			"image":   "redis",
-			"command": "redis-server -v",
+			"command": "redis-server",
+			"args":    "-v",
 		},
 		Resources: &structs.Resources{
 			MemoryMB: 256,
@@ -104,7 +116,7 @@ func TestDockerDriver_Start_Wait(t *testing.T) {
 		},
 	}
 
-	driverCtx := testDriverContext(task.Name)
+	driverCtx := testDockerDriverContext(task.Name)
 	ctx := testDriverExecContext(task, driverCtx)
 	defer ctx.AllocDir.Destroy()
 	d := NewDockerDriver(driverCtx)
@@ -134,21 +146,77 @@ func TestDockerDriver_Start_Wait(t *testing.T) {
 	}
 }
 
+func TestDockerDriver_Start_Wait_AllocDir(t *testing.T) {
+	if !dockerLocated() {
+		t.SkipNow()
+	}
+
+	exp := []byte{'w', 'i', 'n'}
+	file := "output.txt"
+	task := &structs.Task{
+		Name: "redis-demo",
+		Config: map[string]string{
+			"image":   "redis",
+			"command": "/bin/bash",
+			"args":    fmt.Sprintf(`-c "sleep 1; echo -n %s > $%s/%s"`, string(exp), environment.AllocDir, file),
+		},
+		Resources: &structs.Resources{
+			MemoryMB: 256,
+			CPU:      512,
+		},
+	}
+
+	driverCtx := testDockerDriverContext(task.Name)
+	ctx := testDriverExecContext(task, driverCtx)
+	defer ctx.AllocDir.Destroy()
+	d := NewDockerDriver(driverCtx)
+
+	handle, err := d.Start(ctx, task)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if handle == nil {
+		t.Fatalf("missing handle")
+	}
+	defer handle.Kill()
+
+	select {
+	case err := <-handle.WaitCh():
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatalf("timeout")
+	}
+
+	// Check that data was written to the shared alloc directory.
+	outputFile := filepath.Join(ctx.AllocDir.SharedDir, file)
+	act, err := ioutil.ReadFile(outputFile)
+	if err != nil {
+		t.Fatalf("Couldn't read expected output: %v", err)
+	}
+
+	if !reflect.DeepEqual(act, exp) {
+		t.Fatalf("Command outputted %v; want %v", act, exp)
+	}
+}
+
 func TestDockerDriver_Start_Kill_Wait(t *testing.T) {
 	if !dockerLocated() {
 		t.SkipNow()
 	}
 
 	task := &structs.Task{
-		Name: "python-demo",
+		Name: "redis-demo",
 		Config: map[string]string{
 			"image":   "redis",
-			"command": "sleep 10",
+			"command": "/bin/sleep",
+			"args":    "10",
 		},
 		Resources: basicResources,
 	}
 
-	driverCtx := testDriverContext(task.Name)
+	driverCtx := testDockerDriverContext(task.Name)
 	ctx := testDriverExecContext(task, driverCtx)
 	defer ctx.AllocDir.Destroy()
 	d := NewDockerDriver(driverCtx)
@@ -182,6 +250,7 @@ func TestDockerDriver_Start_Kill_Wait(t *testing.T) {
 
 func taskTemplate() *structs.Task {
 	return &structs.Task{
+		Name: "redis-demo",
 		Config: map[string]string{
 			"image": "redis",
 		},
@@ -222,7 +291,7 @@ func TestDocker_StartN(t *testing.T) {
 	// Let's spin up a bunch of things
 	var err error
 	for idx, task := range taskList {
-		driverCtx := testDriverContext(task.Name)
+		driverCtx := testDockerDriverContext(task.Name)
 		ctx := testDriverExecContext(task, driverCtx)
 		defer ctx.AllocDir.Destroy()
 		d := NewDockerDriver(driverCtx)
@@ -236,6 +305,11 @@ func TestDocker_StartN(t *testing.T) {
 	t.Log("==> All tasks are started. Terminating...")
 
 	for idx, handle := range handles {
+		if handle == nil {
+			t.Errorf("Bad handle for task #%d", idx+1)
+			continue
+		}
+
 		err := handle.Kill()
 		if err != nil {
 			t.Errorf("Failed stopping task #%d: %s", idx+1, err)
@@ -271,7 +345,7 @@ func TestDocker_StartNVersions(t *testing.T) {
 	// Let's spin up a bunch of things
 	var err error
 	for idx, task := range taskList {
-		driverCtx := testDriverContext(task.Name)
+		driverCtx := testDockerDriverContext(task.Name)
 		ctx := testDriverExecContext(task, driverCtx)
 		defer ctx.AllocDir.Destroy()
 		d := NewDockerDriver(driverCtx)
@@ -285,6 +359,11 @@ func TestDocker_StartNVersions(t *testing.T) {
 	t.Log("==> All tasks are started. Terminating...")
 
 	for idx, handle := range handles {
+		if handle == nil {
+			t.Errorf("Bad handle for task #%d", idx+1)
+			continue
+		}
+
 		err := handle.Kill()
 		if err != nil {
 			t.Errorf("Failed stopping task #%d: %s", idx+1, err)
@@ -300,6 +379,7 @@ func TestDockerHostNet(t *testing.T) {
 	}
 
 	task := &structs.Task{
+		Name: "redis-demo",
 		Config: map[string]string{
 			"image":        "redis",
 			"network_mode": "host",
@@ -309,7 +389,7 @@ func TestDockerHostNet(t *testing.T) {
 			CPU:      512,
 		},
 	}
-	driverCtx := testDriverContext(task.Name)
+	driverCtx := testDockerDriverContext(task.Name)
 	ctx := testDriverExecContext(task, driverCtx)
 	defer ctx.AllocDir.Destroy()
 	d := NewDockerDriver(driverCtx)

@@ -16,7 +16,7 @@ Create a new directory, and download [this `Vagrantfile`](https://raw.githubuser
 ## Vagrant Setup
 
 Once you have created a new directory and downloaded the `Vagrantfile`
-you must create the virtual the machine:
+you must create the virtual machine:
 
     $ vagrant up
 
@@ -64,8 +64,8 @@ Available commands are:
 ```
 
 If you get an error that Nomad could not be found, then your Vagrant box
-may not have provisioned correctly. Check any error messages that may have
-been occurred during `vagrant up`. You can always destroy the box and
+may not have provisioned correctly. Check for any error messages that may have
+been emitted during `vagrant up`. You can always destroy the box and
 re-create it.
 
 ## Next Steps

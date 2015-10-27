@@ -52,7 +52,7 @@ be specified using the `?region=` query parameter.
         "driver.java.vm": "Java HotSpot(TM) 64-Bit Server VM (build 25.5-b02, mixed mode)",
         "hostname": "Armons-MacBook-Air.local",
         "kernel.name": "darwin",
-        "kernel.version": "14.4.0\n",
+        "kernel.version": "14.4.0",
         "memory.totalbytes": "8589934592",
         "os.name": "darwin",
         "os.version": "14.4.0",

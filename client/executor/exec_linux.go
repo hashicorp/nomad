@@ -112,7 +112,7 @@ func (e *LinuxExecutor) ConfigureTaskDir(taskName string, alloc *allocdir.AllocD
 	// Mount dev
 	dev := filepath.Join(taskDir, "dev")
 	if err := os.Mkdir(dev, 0777); err != nil {
-		return fmt.Errorf("Mkdir(%v) failed: %v", dev)
+		return fmt.Errorf("Mkdir(%v) failed: %v", dev, err)
 	}
 
 	if err := syscall.Mount("", dev, "devtmpfs", syscall.MS_RDONLY, ""); err != nil {
@@ -122,7 +122,7 @@ func (e *LinuxExecutor) ConfigureTaskDir(taskName string, alloc *allocdir.AllocD
 	// Mount proc
 	proc := filepath.Join(taskDir, "proc")
 	if err := os.Mkdir(proc, 0777); err != nil {
-		return fmt.Errorf("Mkdir(%v) failed: %v", proc)
+		return fmt.Errorf("Mkdir(%v) failed: %v", proc, err)
 	}
 
 	if err := syscall.Mount("", proc, "proc", syscall.MS_RDONLY, ""); err != nil {
@@ -135,6 +135,7 @@ func (e *LinuxExecutor) ConfigureTaskDir(taskName string, alloc *allocdir.AllocD
 		return err
 	}
 	env.SetAllocDir(filepath.Join("/", allocdir.SharedAllocName))
+	env.SetTaskLocalDir(filepath.Join("/", allocdir.TaskLocal))
 	e.Cmd.Env = env.List()
 
 	e.alloc = alloc
@@ -195,7 +196,11 @@ func (e *LinuxExecutor) configureCgroups(resources *structs.Resources) error {
 		e.groups.MemorySwap = int64(-1)
 	}
 
-	if resources.CPU > 0.0 {
+	if resources.CPU != 0 {
+		if resources.CPU < 2 {
+			return fmt.Errorf("resources.CPU must be equal to or greater than 2: %v", resources.CPU)
+		}
+
 		// Set the relative CPU shares for this cgroup.
 		// The simplest scale is 1 share to 1 MHz so 1024 = 1GHz. This means any
 		// given process will have at least that amount of resources, but likely
@@ -260,6 +265,14 @@ func (e *LinuxExecutor) Start() error {
 	if err != nil {
 		return err
 	}
+
+	parsedPath, err := args.ParseAndReplace(e.cmd.Path, envVars.Map())
+	if err != nil {
+		return err
+	} else if len(parsedPath) != 1 {
+		return fmt.Errorf("couldn't properly parse command path: %v", e.cmd.Path)
+	}
+	e.cmd.Path = parsedPath[0]
 
 	combined := strings.Join(e.Cmd.Args, " ")
 	parsed, err := args.ParseAndReplace(combined, envVars.Map())
@@ -540,6 +553,11 @@ func (e *LinuxExecutor) destroyCgroup() error {
 
 		if err := process.Kill(); err != nil {
 			multierror.Append(errs, fmt.Errorf("Failed to kill Pid %v: %v", pid, err))
+			continue
+		}
+
+		if _, err := process.Wait(); err != nil {
+			multierror.Append(errs, fmt.Errorf("Failed to wait Pid %v: %v", pid, err))
 			continue
 		}
 	}

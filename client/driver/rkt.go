@@ -7,19 +7,22 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"strings"
 	"syscall"
 	"time"
 
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/driver/args"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 var (
-	reRktVersion  = regexp.MustCompile("rkt version ([\\d\\.]+).+")
-	reAppcVersion = regexp.MustCompile("appc version ([\\d\\.]+).+")
+	reRktVersion  = regexp.MustCompile(`rkt version (\d[.\d]+)`)
+	reAppcVersion = regexp.MustCompile(`appc version (\d[.\d]+)`)
 )
 
 // RktDriver is a driver for running images via Rkt
@@ -32,7 +35,7 @@ type RktDriver struct {
 // rktHandle is returned from Start/Open as a handle to the PID
 type rktHandle struct {
 	proc   *os.Process
-	name   string
+	image  string
 	logger *log.Logger
 	waitCh chan error
 	doneCh chan struct{}
@@ -41,8 +44,8 @@ type rktHandle struct {
 // rktPID is a struct to map the pid running the process to the vm image on
 // disk
 type rktPID struct {
-	Pid  int
-	Name string
+	Pid   int
+	Image string
 }
 
 // NewRktDriver is used to create a new exec driver
@@ -64,13 +67,13 @@ func (d *RktDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, e
 	out := strings.TrimSpace(string(outBytes))
 
 	rktMatches := reRktVersion.FindStringSubmatch(out)
-	appcMatches := reRktVersion.FindStringSubmatch(out)
+	appcMatches := reAppcVersion.FindStringSubmatch(out)
 	if len(rktMatches) != 2 || len(appcMatches) != 2 {
 		return false, fmt.Errorf("Unable to parse Rkt version string: %#v", rktMatches)
 	}
 
-	node.Attributes["driver.rkt"] = "true"
-	node.Attributes["driver.rkt.version"] = rktMatches[0]
+	node.Attributes["driver.rkt"] = "1"
+	node.Attributes["driver.rkt.version"] = rktMatches[1]
 	node.Attributes["driver.rkt.appc.version"] = appcMatches[1]
 
 	return true, nil
@@ -78,61 +81,104 @@ func (d *RktDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, e
 
 // Run an existing Rkt image.
 func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
-	trust_prefix, ok := task.Config["trust_prefix"]
-	if !ok || trust_prefix == "" {
-		return nil, fmt.Errorf("Missing trust prefix for rkt")
+	// Validate that the config is valid.
+	img, ok := task.Config["image"]
+	if !ok || img == "" {
+		return nil, fmt.Errorf("Missing ACI image for rkt")
 	}
+
+	// Get the tasks local directory.
+	taskName := d.DriverContext.taskName
+	taskDir, ok := ctx.AllocDir.TaskDirs[taskName]
+	if !ok {
+		return nil, fmt.Errorf("Could not find task directory for task: %v", d.DriverContext.taskName)
+	}
+	taskLocal := filepath.Join(taskDir, allocdir.TaskLocal)
 
 	// Add the given trust prefix
-	var outBuf, errBuf bytes.Buffer
-	cmd := exec.Command("rkt", "trust", fmt.Sprintf("--prefix=%s", trust_prefix))
-	cmd.Stdout = &outBuf
-	cmd.Stderr = &errBuf
-	d.logger.Printf("[DEBUG] driver.rkt: starting rkt command: %q", cmd.Args)
-	if err := cmd.Run(); err != nil {
-		return nil, fmt.Errorf(
-			"Error running rkt: %s\n\nOutput: %s\n\nError: %s",
-			err, outBuf.String(), errBuf.String())
-	}
-	d.logger.Printf("[DEBUG] driver.rkt: added trust prefix: %q", trust_prefix)
-
-	name, ok := task.Config["name"]
-	if !ok || name == "" {
-		return nil, fmt.Errorf("Missing ACI name for rkt")
+	trust_prefix, trust_cmd := task.Config["trust_prefix"]
+	if trust_cmd {
+		var outBuf, errBuf bytes.Buffer
+		cmd := exec.Command("rkt", "trust", fmt.Sprintf("--prefix=%s", trust_prefix))
+		cmd.Stdout = &outBuf
+		cmd.Stderr = &errBuf
+		if err := cmd.Run(); err != nil {
+			return nil, fmt.Errorf("Error running rkt trust: %s\n\nOutput: %s\n\nError: %s",
+				err, outBuf.String(), errBuf.String())
+		}
+		d.logger.Printf("[DEBUG] driver.rkt: added trust prefix: %q", trust_prefix)
 	}
 
-	exec_cmd, ok := task.Config["exec"]
-	if !ok || exec_cmd == "" {
-		d.logger.Printf("[WARN] driver.rkt: could not find a command to execute in the ACI, the default command will be executed")
+	// Build the command.
+	var cmd_args []string
+
+	// Inject the environment variables.
+	envVars := TaskEnvironmentVariables(ctx, task)
+
+	// Clear the task directories as they are not currently supported.
+	envVars.ClearTaskLocalDir()
+	envVars.ClearAllocDir()
+
+	for k, v := range envVars.Map() {
+		cmd_args = append(cmd_args, fmt.Sprintf("--set-env=%v=%v", k, v))
 	}
 
-	// Run the ACI
-	var aoutBuf, aerrBuf bytes.Buffer
-	run_cmd := []string{
-		"rkt",
-		"run",
-		"--mds-register=false",
-		name,
+	// Disble signature verification if the trust command was not run.
+	if !trust_cmd {
+		cmd_args = append(cmd_args, "--insecure-skip-verify")
 	}
-	if exec_cmd != "" {
-		splitted := strings.Fields(exec_cmd)
-		run_cmd = append(run_cmd, "--exec=", splitted[0], "--")
-		run_cmd = append(run_cmd, splitted[1:]...)
-		run_cmd = append(run_cmd, "---")
+
+	// Append the run command.
+	cmd_args = append(cmd_args, "run", "--mds-register=false", img)
+
+	// Check if the user has overriden the exec command.
+	if exec_cmd, ok := task.Config["command"]; ok {
+		cmd_args = append(cmd_args, fmt.Sprintf("--exec=%v", exec_cmd))
 	}
-	acmd := exec.Command(run_cmd[0], run_cmd[1:]...)
-	acmd.Stdout = &aoutBuf
-	acmd.Stderr = &aerrBuf
-	d.logger.Printf("[DEBUG] driver:rkt: starting rkt command: %q", acmd.Args)
-	if err := acmd.Start(); err != nil {
-		return nil, fmt.Errorf(
-			"Error running rkt: %s\n\nOutput: %s\n\nError: %s",
-			err, aoutBuf.String(), aerrBuf.String())
+
+	// Add user passed arguments.
+	if userArgs, ok := task.Config["args"]; ok {
+		parsed, err := args.ParseAndReplace(userArgs, envVars.Map())
+		if err != nil {
+			return nil, err
+		}
+
+		// Need to start arguments with "--"
+		if len(parsed) > 0 {
+			cmd_args = append(cmd_args, "--")
+		}
+
+		for _, arg := range parsed {
+			cmd_args = append(cmd_args, fmt.Sprintf("%v", arg))
+		}
 	}
-	d.logger.Printf("[DEBUG] driver.rkt: started ACI: %q", name)
+
+	// Create files to capture stdin and out.
+	stdoutFilename := filepath.Join(taskLocal, fmt.Sprintf("%s.stdout", taskName))
+	stderrFilename := filepath.Join(taskLocal, fmt.Sprintf("%s.stderr", taskName))
+
+	stdo, err := os.OpenFile(stdoutFilename, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
+	if err != nil {
+		return nil, fmt.Errorf("Error opening file to redirect stdout: %v", err)
+	}
+
+	stde, err := os.OpenFile(stderrFilename, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
+	if err != nil {
+		return nil, fmt.Errorf("Error opening file to redirect stderr: %v", err)
+	}
+
+	cmd := exec.Command("rkt", cmd_args...)
+	cmd.Stdout = stdo
+	cmd.Stderr = stde
+
+	if err := cmd.Start(); err != nil {
+		return nil, fmt.Errorf("Error running rkt: %v", err)
+	}
+
+	d.logger.Printf("[DEBUG] driver.rkt: started ACI %q with: %v", img, cmd.Args)
 	h := &rktHandle{
-		proc:   acmd.Process,
-		name:   name,
+		proc:   cmd.Process,
+		image:  img,
 		logger: d.logger,
 		doneCh: make(chan struct{}),
 		waitCh: make(chan error, 1),
@@ -158,7 +204,7 @@ func (d *RktDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error
 	// Return a driver handle
 	h := &rktHandle{
 		proc:   proc,
-		name:   qpid.Name,
+		image:  qpid.Image,
 		logger: d.logger,
 		doneCh: make(chan struct{}),
 		waitCh: make(chan error, 1),
@@ -171,8 +217,8 @@ func (d *RktDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error
 func (h *rktHandle) ID() string {
 	// Return a handle to the PID
 	pid := &rktPID{
-		Pid:  h.proc.Pid,
-		Name: h.name,
+		Pid:   h.proc.Pid,
+		Image: h.image,
 	}
 	data, err := json.Marshal(pid)
 	if err != nil {

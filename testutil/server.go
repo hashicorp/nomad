@@ -22,6 +22,8 @@ import (
 	"os/exec"
 	"sync/atomic"
 	"testing"
+
+	"github.com/hashicorp/go-cleanhttp"
 )
 
 // offset is used to atomically increment the port numbers.
@@ -156,8 +158,7 @@ func NewTestServer(t *testing.T, cb ServerConfigCallback) *TestServer {
 		t.Fatalf("err: %s", err)
 	}
 
-	var client *http.Client
-	client = http.DefaultClient
+	client := cleanhttp.DefaultClient()
 
 	server := &TestServer{
 		Config: nomadConfig,

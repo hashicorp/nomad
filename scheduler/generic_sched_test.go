@@ -22,7 +22,7 @@ func TestServiceSched_JobRegister(t *testing.T) {
 	job := mock.Job()
 	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
 
-	// Create a mock evaluation to deregister the job
+	// Create a mock evaluation to register the job
 	eval := &structs.Evaluation{
 		ID:          structs.GenerateUUID(),
 		Priority:    job.Priority,
@@ -71,7 +71,7 @@ func TestServiceSched_JobRegister_AllocFail(t *testing.T) {
 	job := mock.Job()
 	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
 
-	// Create a mock evaluation to deregister the job
+	// Create a mock evaluation to register the job
 	eval := &structs.Evaluation{
 		ID:          structs.GenerateUUID(),
 		Priority:    job.Priority,
@@ -550,7 +550,7 @@ func TestServiceSched_RetryLimit(t *testing.T) {
 	job := mock.Job()
 	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
 
-	// Create a mock evaluation to deregister the job
+	// Create a mock evaluation to register the job
 	eval := &structs.Evaluation{
 		ID:          structs.GenerateUUID(),
 		Priority:    job.Priority,

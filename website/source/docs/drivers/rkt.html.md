@@ -18,10 +18,20 @@ containers.
 
 The `Rkt` driver supports the following configuration in the job spec:
 
-* `trust_prefix` - **(Required)** The trust prefix to be passed to rkt. Must be reachable from
-the box running the nomad agent.
-* `name` - **(Required)** Fully qualified name of an image to run using rkt
-* `exec` - **(Optional**) A command to execute on the ACI
+* `trust_prefix` - **(Optional)** The trust prefix to be passed to rkt. Must be reachable from
+the box running the nomad agent. If not specified, the image is run without
+verifying the image signature.
+* `image` - **(Required)** The image to run which may be specified by name,
+hash, ACI address or docker registry.
+* `command` - **(Optional**) A command to execute on the ACI.
+* `args` - **(Optional**) A string of args to pass into the image.
+
+## Task Directories
+
+The `Rkt` driver does not currently support mounting the `alloc/` and `local/`
+directory. It is currently blocked by this [Rkt
+issue](https://github.com/coreos/rkt/issues/761). As such the coresponding
+[environment variables](/docs/jobspec/environment.html#task_dir) are not set.
 
 ## Client Requirements
 
@@ -34,7 +44,7 @@ over HTTP.
 
 The `Rkt` driver will set the following client attributes:
 
-* `driver.rkt` - Set to `true` if Rkt is found on the host node. Nomad determines
+* `driver.rkt` - Set to `1` if Rkt is found on the host node. Nomad determines
 this by executing `rkt version` on the host and parsing the output
 * `driver.rkt.version` - Version of `rkt` eg: `0.8.1`
 * `driver.rkt.appc.version` - Version of `appc` that `rkt` is using eg: `0.8.1`

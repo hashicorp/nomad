@@ -17,7 +17,7 @@ environment variables.
 
 When you request resources for a job, Nomad creates a resource offer. The final
 resources for your job are not determined until it is scheduled. Nomad will
-tell you which resources have been allocated after evaulation and placement.
+tell you which resources have been allocated after evaluation and placement.
 
 ### CPU and Memory
 
@@ -28,7 +28,7 @@ the memory limit to inform how large your in-process cache should be, or to
 decide when to flush buffers to disk.
 
 Both CPU and memory are presented as integers. The unit for CPU limit is
-`1024 = 1Ghz`. The unit for memory `1 = 1 megabytes`.
+`1024 = 1Ghz`. The unit for memory is `1 = 1 megabytes`.
 
 Writing your applications to adjust to these values at runtime provides greater
 scheduling flexibility since you can adjust the resource allocations in your
@@ -55,6 +55,27 @@ random port mapped to port 5000 inside the container or VM. These ports are also
 exported as environment variables for consistency, e.g. `NOMAD_PORT_5000`.
 
 Please see the relevant driver documentation for details.
+
+<a id="task_dir">### Task Directories</a>
+
+Nomad makes the following two directories available to tasks:
+
+* `alloc/`: This directory is shared across all tasks in a task group and can be
+  used to store data that needs to be used by multiple tasks, such as a log
+  shipper.
+* `local/`: This directory is private to each task. It can be used to store
+  arbitrary data that shouldn't be shared by tasks in the task group.
+
+Both these directories are persisted until the allocation is removed, which
+occurs hours after all the tasks in the task group enter terminal states. This
+gives time to view the data produced by tasks.
+
+Depending on the driver and operating system being targeted, the directories are
+made available in various ways. For example, on `docker` the directories are
+binded to the container, while on `exec` on Linux the directories are mounted into the
+chroot. Regardless of how the directories are made available, the path to the
+directories can be read through the following environment variables:
+`NOMAD_ALLOC_DIR` and `NOMAD_TASK_DIR`.
 
 ## Meta
 

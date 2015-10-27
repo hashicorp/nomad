@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-version"
 )
 
 var (
@@ -697,6 +699,7 @@ const (
 	JobTypeCore    = "_core"
 	JobTypeService = "service"
 	JobTypeBatch   = "batch"
+	JobTypeSystem  = "system"
 )
 
 const (
@@ -809,6 +812,12 @@ func (j *Job) Validate() error {
 	if len(j.TaskGroups) == 0 {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing job task groups"))
 	}
+	for idx, constr := range j.Constraints {
+		if err := constr.Validate(); err != nil {
+			outer := fmt.Errorf("Constraint %d validation failed: %s", idx+1, err)
+			mErr.Errors = append(mErr.Errors, outer)
+		}
+	}
 
 	// Check for duplicate task groups
 	taskGroups := make(map[string]int)
@@ -819,6 +828,12 @@ func (j *Job) Validate() error {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Job task group %d redefines '%s' from group %d", idx+1, tg.Name, existing+1))
 		} else {
 			taskGroups[tg.Name] = idx
+		}
+
+		if j.Type == "system" && tg.Count != 1 {
+			mErr.Errors = append(mErr.Errors,
+				fmt.Errorf("Job task group %d has count %d. Only count of 1 is supported with system scheduler",
+					idx+1, tg.Count))
 		}
 	}
 
@@ -918,6 +933,12 @@ func (tg *TaskGroup) Validate() error {
 	if len(tg.Tasks) == 0 {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing tasks for task group"))
 	}
+	for idx, constr := range tg.Constraints {
+		if err := constr.Validate(); err != nil {
+			outer := fmt.Errorf("Constraint %d validation failed: %s", idx+1, err)
+			mErr.Errors = append(mErr.Errors, outer)
+		}
+	}
 
 	// Check for duplicate tasks
 	tasks := make(map[string]int)
@@ -997,8 +1018,20 @@ func (t *Task) Validate() error {
 	if t.Resources == nil {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing task resources"))
 	}
+	for idx, constr := range t.Constraints {
+		if err := constr.Validate(); err != nil {
+			outer := fmt.Errorf("Constraint %d validation failed: %s", idx+1, err)
+			mErr.Errors = append(mErr.Errors, outer)
+		}
+	}
 	return mErr.ErrorOrNil()
 }
+
+const (
+	ConstraintDistinctHosts = "distinct_hosts"
+	ConstraintRegex         = "regexp"
+	ConstraintVersion       = "version"
+)
 
 // Constraints are used to restrict placement options in the case of
 // a hard constraint, and used to prefer a placement in the case of
@@ -1013,6 +1046,26 @@ type Constraint struct {
 
 func (c *Constraint) String() string {
 	return fmt.Sprintf("%s %s %s", c.LTarget, c.Operand, c.RTarget)
+}
+
+func (c *Constraint) Validate() error {
+	var mErr multierror.Error
+	if c.Operand == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("Missing constraint operand"))
+	}
+
+	// Perform additional validation based on operand
+	switch c.Operand {
+	case ConstraintRegex:
+		if _, err := regexp.Compile(c.RTarget); err != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Regular expression failed to compile: %v", err))
+		}
+	case ConstraintVersion:
+		if _, err := version.NewConstraint(c.RTarget); err != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Version constraint is invalid: %v", err))
+		}
+	}
+	return mErr.ErrorOrNil()
 }
 
 const (

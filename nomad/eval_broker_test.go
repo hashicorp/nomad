@@ -89,6 +89,20 @@ func TestEvalBroker_Enqueue_Dequeue_Nack_Ack(t *testing.T) {
 		t.Fatalf("Bad: %#v %#v", token, tokenOut)
 	}
 
+	// OutstandingReset should verify the token
+	err = b.OutstandingReset("nope", "foo")
+	if err != ErrNotOutstanding {
+		t.Fatalf("err: %v", err)
+	}
+	err = b.OutstandingReset(out.ID, "foo")
+	if err != ErrTokenMismatch {
+		t.Fatalf("err: %v", err)
+	}
+	err = b.OutstandingReset(out.ID, tokenOut)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
 	// Check the stats
 	stats = b.Stats()
 	if stats.TotalReady != 0 {
@@ -556,6 +570,50 @@ func TestEvalBroker_Nack_Timeout(t *testing.T) {
 
 	// Check the nack timer
 	if diff := end.Sub(start); diff < 5*time.Millisecond {
+		t.Fatalf("bad: %#v", diff)
+	}
+}
+
+// Ensure we nack in a timely manner
+func TestEvalBroker_Nack_TimeoutReset(t *testing.T) {
+	b := testBroker(t, 5*time.Millisecond)
+	b.SetEnabled(true)
+
+	// Enqueue
+	eval := mock.Eval()
+	err := b.Enqueue(eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Dequeue
+	out, token, err := b.Dequeue(defaultSched, time.Second)
+	start := time.Now()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out != eval {
+		t.Fatalf("bad: %v", out)
+	}
+
+	// Reset in 2 milliseconds
+	time.Sleep(2 * time.Millisecond)
+	if err := b.OutstandingReset(out.ID, token); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Dequeue, should block on Nack timer
+	out, _, err = b.Dequeue(defaultSched, time.Second)
+	end := time.Now()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out != eval {
+		t.Fatalf("bad: %v", out)
+	}
+
+	// Check the nack timer
+	if diff := end.Sub(start); diff < 7*time.Millisecond {
 		t.Fatalf("bad: %#v", diff)
 	}
 }

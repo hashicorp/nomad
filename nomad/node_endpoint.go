@@ -154,7 +154,10 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 	}
 
 	// Check if we should trigger evaluations
-	if structs.ShouldDrainNode(args.Status) {
+	initToReady := node.Status == structs.NodeStatusInit && args.Status == structs.NodeStatusReady
+	terminalToReady := node.Status == structs.NodeStatusDown && args.Status == structs.NodeStatusReady
+	transitionToReady := initToReady || terminalToReady
+	if structs.ShouldDrainNode(args.Status) || transitionToReady {
 		evalIDs, evalIndex, err := n.createNodeEvals(args.NodeID, index)
 		if err != nil {
 			n.srv.logger.Printf("[ERR] nomad.client: eval creation failed: %v", err)
@@ -271,7 +274,7 @@ func (n *Node) Evaluate(args *structs.NodeEvaluateRequest, reply *structs.NodeUp
 	return nil
 }
 
-// GetNode is used to request information about a specific ndoe
+// GetNode is used to request information about a specific node
 func (n *Node) GetNode(args *structs.NodeSpecificRequest,
 	reply *structs.SingleNodeResponse) error {
 	if done, err := n.srv.forward("Node.GetNode", args, args, reply); done {
@@ -312,7 +315,7 @@ func (n *Node) GetNode(args *structs.NodeSpecificRequest,
 	return nil
 }
 
-// GetAllocs is used to request allocations for a specific ndoe
+// GetAllocs is used to request allocations for a specific node
 func (n *Node) GetAllocs(args *structs.NodeSpecificRequest,
 	reply *structs.NodeAllocsResponse) error {
 	if done, err := n.srv.forward("Node.GetAllocs", args, args, reply); done {
@@ -447,8 +450,18 @@ func (n *Node) createNodeEvals(nodeID string, nodeIndex uint64) ([]string, uint6
 		return nil, 0, fmt.Errorf("failed to find allocs for '%s': %v", nodeID, err)
 	}
 
+	sysJobsIter, err := snap.JobsByScheduler("system")
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to find system jobs for '%s': %v", nodeID, err)
+	}
+
+	var sysJobs []*structs.Job
+	for job := sysJobsIter.Next(); job != nil; job = sysJobsIter.Next() {
+		sysJobs = append(sysJobs, job.(*structs.Job))
+	}
+
 	// Fast-path if nothing to do
-	if len(allocs) == 0 {
+	if len(allocs) == 0 && len(sysJobs) == 0 {
 		return nil, 0, nil
 	}
 
@@ -471,6 +484,29 @@ func (n *Node) createNodeEvals(nodeID string, nodeIndex uint64) ([]string, uint6
 			Type:            alloc.Job.Type,
 			TriggeredBy:     structs.EvalTriggerNodeUpdate,
 			JobID:           alloc.JobID,
+			NodeID:          nodeID,
+			NodeModifyIndex: nodeIndex,
+			Status:          structs.EvalStatusPending,
+		}
+		evals = append(evals, eval)
+		evalIDs = append(evalIDs, eval.ID)
+	}
+
+	// Create an evaluation for each system job.
+	for _, job := range sysJobs {
+		// Still dedup on JobID as the node may already have the system job.
+		if _, ok := jobIDs[job.ID]; ok {
+			continue
+		}
+		jobIDs[job.ID] = struct{}{}
+
+		// Create a new eval
+		eval := &structs.Evaluation{
+			ID:              structs.GenerateUUID(),
+			Priority:        job.Priority,
+			Type:            job.Type,
+			TriggeredBy:     structs.EvalTriggerNodeUpdate,
+			JobID:           job.ID,
 			NodeID:          nodeID,
 			NodeModifyIndex: nodeIndex,
 			Status:          structs.EvalStatusPending,

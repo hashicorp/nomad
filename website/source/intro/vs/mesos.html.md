@@ -13,7 +13,7 @@ resources of a datacenter and exposes an API to integrate with
 Frameworks that have scheduling and job management logic. Mesos
 depends on ZooKeeper to provide both coordination and storage.
 
-There are many different frameworks that integrate with Mesos,
+There are many different frameworks that integrate with Mesos;
 popular general purpose ones include Aurora and Marathon.
 These frameworks allow users to submit jobs and implement scheduling
 logic. They depend on Mesos for resource management, and external

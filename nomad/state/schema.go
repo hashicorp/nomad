@@ -91,6 +91,15 @@ func jobTableSchema() *memdb.TableSchema {
 					Lowercase: true,
 				},
 			},
+			"type": &memdb.IndexSchema{
+				Name:         "type",
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.StringFieldIndex{
+					Field:     "Type",
+					Lowercase: false,
+				},
+			},
 		},
 	}
 }

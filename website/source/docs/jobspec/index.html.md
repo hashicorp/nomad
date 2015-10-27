@@ -9,8 +9,7 @@ description: |-
 # Job Specification
 
 Jobs can be specified either in [HCL](https://github.com/hashicorp/hcl) or JSON.
-HCL is meant to strike a balance between human readable and editable, as well
-as being machine-friendly.
+HCL is meant to strike a balance between human readable and editable, and machine-friendly.
 
 For machine-friendliness, Nomad can also read JSON configurations. In general, we recommend
 using the HCL syntax.
@@ -28,6 +27,9 @@ job "my-service" {
 
     # Spread tasks between us-west-1 and us-east-1
     datacenters = ["us-west-1", "us-east-1"]
+
+    # run this job globally
+    type = "system"
 
     # Rolling updates should be sequential
     update {
@@ -132,7 +134,7 @@ The `job` object supports the following keys:
   a task group of the same name.
 
 * `type` - Specifies the job type and switches which scheduler
-  is used. Nomad provides the `service` and `batch` schedulers,
+  is used. Nomad provides the `service`, `system` and `batch` schedulers,
   and defaults to `service`.
 
 * `update` - Specifies the task update strategy. This requires providing
@@ -218,10 +220,34 @@ The `constraint` object supports the following keys:
   to true. Soft constraints are not currently supported.
 
 * `operator` - Specifies the comparison operator. Defaults to equality,
-  and can be `=`, `==`, `is`, `!=`, `not`.
+  and can be `=`, `==`, `is`, `!=`, `not`, `>`, `>=`, `<`, `<=`. The
+  ordering is compared lexically.
 
 * `value` - Specifies the value to compare the attribute against.
   This can be a literal value or another attribute.
+
+* `version` - Specifies a version constraint against the attribute.
+  This sets the operator to "version" and the `value` to what is
+  specified. This supports a comma seperated list of constraints,
+  including the pessimistic operator. See the
+  [go-version](https://github.com/hashicorp/go-version) repository
+  for examples.
+
+* `regexp` - Specifies a regular expression constraint against
+  the attribute. This sets the operator to "regexp" and the `value`
+  to the regular expression.
+
+* `distinct_hosts` - `distinct_hosts` accepts a boolean `true`. The default is
+  `false`.
+
+  When `distinct_hosts` is `true` at the Job level, each instance of all Task
+  Groups specified in the job is placed on a separate host.
+
+  When `distinct_hosts` is `true` at the Task Group level with count > 1, each
+  instance of a Task Group is placed on a separate host. Different task groups in
+  the same job _may_ be co-scheduled.
+
+  Tasks within a task group are always co-scheduled.
 
 Below is a table documenting the variables that can be interpreted:
 

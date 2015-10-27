@@ -11,7 +11,9 @@ import (
 )
 
 func TestJobEndpoint_Register(t *testing.T) {
-	s1 := testServer(t, nil)
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -78,7 +80,9 @@ func TestJobEndpoint_Register(t *testing.T) {
 }
 
 func TestJobEndpoint_Register_Existing(t *testing.T) {
-	s1 := testServer(t, nil)
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -162,7 +166,9 @@ func TestJobEndpoint_Register_Existing(t *testing.T) {
 }
 
 func TestJobEndpoint_Evaluate(t *testing.T) {
-	s1 := testServer(t, nil)
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -231,7 +237,9 @@ func TestJobEndpoint_Evaluate(t *testing.T) {
 }
 
 func TestJobEndpoint_Deregister(t *testing.T) {
-	s1 := testServer(t, nil)
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)

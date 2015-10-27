@@ -80,6 +80,9 @@ func Job() *structs.Job {
 							"command": "/bin/date",
 							"args":    "+%s",
 						},
+						Env: map[string]string{
+							"FOO": "bar",
+						},
 						Resources: &structs.Resources{
 							CPU:      500,
 							MemoryMB: 256,
@@ -96,6 +99,59 @@ func Job() *structs.Job {
 					"elb_check_type":     "http",
 					"elb_check_interval": "30s",
 					"elb_check_min":      "3",
+				},
+			},
+		},
+		Meta: map[string]string{
+			"owner": "armon",
+		},
+		Status:      structs.JobStatusPending,
+		CreateIndex: 42,
+		ModifyIndex: 99,
+	}
+	return job
+}
+
+func SystemJob() *structs.Job {
+	job := &structs.Job{
+		Region:      "global",
+		ID:          structs.GenerateUUID(),
+		Name:        "my-job",
+		Type:        structs.JobTypeSystem,
+		Priority:    100,
+		AllAtOnce:   false,
+		Datacenters: []string{"dc1"},
+		Constraints: []*structs.Constraint{
+			&structs.Constraint{
+				Hard:    true,
+				LTarget: "$attr.kernel.name",
+				RTarget: "linux",
+				Operand: "=",
+			},
+		},
+		TaskGroups: []*structs.TaskGroup{
+			&structs.TaskGroup{
+				Name:  "web",
+				Count: 1,
+				Tasks: []*structs.Task{
+					&structs.Task{
+						Name:   "web",
+						Driver: "exec",
+						Config: map[string]string{
+							"command": "/bin/date",
+							"args":    "+%s",
+						},
+						Resources: &structs.Resources{
+							CPU:      500,
+							MemoryMB: 256,
+							Networks: []*structs.NetworkResource{
+								&structs.NetworkResource{
+									MBits:        50,
+									DynamicPorts: []string{"http"},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
