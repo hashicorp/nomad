@@ -33,25 +33,36 @@ func NewNetworkFingerprinter(logger *log.Logger) Fingerprint {
 func (f *NetworkFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
 	// newNetwork is populated and addded to the Nodes resources
 	newNetwork := &structs.NetworkResource{}
+	defaultDevice := ""
 
-	// eth0 is the default device for Linux, and en0 is default for OS X
-	defaultDevice := "eth0"
-	if "darwin" == runtime.GOOS {
-		defaultDevice = "en0"
-	}
-	// User-defined override for the default interface
+	// 1. Use user-defined network device
+	// 2. Use first interface found in the system for non-dev mode. (dev mode uses lo by default.)
 	if cfg.NetworkInterface != "" {
 		defaultDevice = cfg.NetworkInterface
+	} else {
+
+		intfs, err := net.Interfaces()
+		if err != nil {
+			return false, err
+		}
+
+		for _, i := range intfs {
+			if (i.Flags&net.FlagUp != 0) && (i.Flags&(net.FlagLoopback|net.FlagPointToPoint) == 0) {
+				if ip := f.ipAddress(i.Name); ip != "" {
+					defaultDevice = i.Name
+					node.Attributes["network.ip-address"] = ip
+					newNetwork.IP = ip
+					newNetwork.CIDR = newNetwork.IP + "/32"
+					break
+				}
+			}
+		}
 	}
 
-	newNetwork.Device = defaultDevice
-
-	if ip := f.ipAddress(defaultDevice); ip != "" {
-		node.Attributes["network.ip-address"] = ip
-		newNetwork.IP = ip
-		newNetwork.CIDR = newNetwork.IP + "/32"
+	if defaultDevice != "" {
+		newNetwork.Device = defaultDevice
 	} else {
-		return false, fmt.Errorf("Unable to determine IP on network interface %v", defaultDevice)
+		return false, fmt.Errorf("Unable to find any network interface which has IP address")
 	}
 
 	if throughput := f.linkSpeed(defaultDevice); throughput > 0 {
