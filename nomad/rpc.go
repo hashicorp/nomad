@@ -334,7 +334,7 @@ RUN_QUERY:
 	err := opts.run()
 
 	// Check for minimum query time
-	if err == nil && opts.queryMeta.Index > 0 && opts.queryMeta.Index <= opts.queryOpts.MinQueryIndex {
+	if err == nil && opts.queryOpts.MinQueryIndex > 0 && opts.queryMeta.Index <= opts.queryOpts.MinQueryIndex {
 		select {
 		case <-notifyCh:
 			goto REGISTER_NOTIFY
