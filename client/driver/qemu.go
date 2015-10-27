@@ -15,7 +15,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/hashicorp/go-getter"
@@ -25,7 +24,7 @@ import (
 )
 
 var (
-	reQemuVersion = regexp.MustCompile("QEMU emulator version ([\\d\\.]+).+")
+	reQemuVersion = regexp.MustCompile(`version (\d[\.\d+]+)`)
 )
 
 // QemuDriver is a driver for running images via Qemu
@@ -56,13 +55,11 @@ func NewQemuDriver(ctx *DriverContext) Driver {
 }
 
 func (d *QemuDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
-	// Only enable if we are root when running on non-windows systems.
-	if runtime.GOOS != "windows" && syscall.Geteuid() != 0 {
-		d.logger.Printf("[DEBUG] driver.qemu: must run as root user, disabling")
-		return false, nil
+	bin := "qemu-system-x86_64"
+	if runtime.GOOS == "windows" {
+		bin = "qemu-img"
 	}
-
-	outBytes, err := exec.Command("qemu-system-x86_64", "-version").Output()
+	outBytes, err := exec.Command(bin, "--version").Output()
 	if err != nil {
 		return false, nil
 	}

@@ -14,10 +14,7 @@ func ExecCompatible(t *testing.T) {
 }
 
 func QemuCompatible(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("Must be on non-windows environments to run test")
-	}
-	// else see if qemu exists
+	// Check if qemu exists
 	_, err := exec.Command("qemu-system-x86_64", "-version").CombinedOutput()
 	if err != nil {
 		t.Skip("Must have Qemu installed for Qemu specific tests to run")
