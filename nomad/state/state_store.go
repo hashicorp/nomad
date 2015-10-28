@@ -62,8 +62,47 @@ type stateWatch struct {
 	allocs    map[string]*NotifyGroup
 	allocLock sync.Mutex
 
-	// Full table job watches
-	jobs *NotifyGroup
+	// Full table watches
+	tables    map[string]*NotifyGroup
+	tableLock sync.Mutex
+}
+
+// watchTable is used to subscribe a channel to a full table watch.
+func (w *stateWatch) watchTable(table string, ch chan struct{}) {
+	w.tableLock.Lock()
+	defer w.tableLock.Unlock()
+
+	tw, ok := w.tables[table]
+	if !ok {
+		tw = new(NotifyGroup)
+		w.tables[table] = tw
+	}
+	tw.Wait(ch)
+}
+
+// stopWatchTable is used to unsubscribe a channel from a table watch.
+func (w *stateWatch) stopWatchTable(table string, ch chan struct{}) {
+	w.tableLock.Lock()
+	defer w.tableLock.Unlock()
+
+	if tw, ok := w.tables[table]; ok {
+		tw.Clear(ch)
+		if tw.Empty() {
+			delete(w.tables, table)
+		}
+	}
+}
+
+// notifyTables is used to notify watchers of the given tables.
+func (w *stateWatch) notifyTables(tables ...string) {
+	w.tableLock.Lock()
+	defer w.tableLock.Unlock()
+
+	for _, table := range tables {
+		if tw, ok := w.tables[table]; ok {
+			tw.Notify()
+		}
+	}
 }
 
 // NewStateStore is used to create a new state store
@@ -77,7 +116,7 @@ func NewStateStore(logOutput io.Writer) (*StateStore, error) {
 	// Create the watch entry
 	watch := &stateWatch{
 		allocs: make(map[string]*NotifyGroup),
-		jobs:   &NotifyGroup{},
+		tables: make(map[string]*NotifyGroup),
 	}
 
 	// Create the state store
@@ -160,14 +199,18 @@ func (w *stateWatch) notifyAllocs(nodes map[string]struct{}) {
 	}
 }
 
-// WatchJobs is used to start watching the jobs view for changes.
-func (s *StateStore) WatchJobs(notify chan struct{}) {
-	s.watch.jobs.Wait(notify)
+// WatchTables is used to subscribe a channel to a set of tables.
+func (s *StateStore) WatchTables(notify chan struct{}, tables ...string) {
+	for _, table := range tables {
+		s.watch.watchTable(table, notify)
+	}
 }
 
-// StopWatchJobs is used to cancel notification on the given channel.
-func (s *StateStore) StopWatchJobs(notify chan struct{}) {
-	s.watch.jobs.Clear(notify)
+// StopWatchTables is used to unsubscribe a channel from table watches.
+func (s *StateStore) StopWatchTables(notify chan struct{}, tables ...string) {
+	for _, table := range tables {
+		s.watch.stopWatchTable(table, notify)
+	}
 }
 
 // UpsertNode is used to register a node or update a node definition
@@ -357,7 +400,7 @@ func (s *StateStore) UpsertJob(index uint64, job *structs.Job) error {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	txn.Defer(func() { s.watch.jobs.Notify() })
+	txn.Defer(func() { s.watch.notifyTables("jobs") })
 	txn.Commit()
 	return nil
 }
@@ -384,7 +427,7 @@ func (s *StateStore) DeleteJob(index uint64, jobID string) error {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	txn.Defer(func() { s.watch.jobs.Notify() })
+	txn.Defer(func() { s.watch.notifyTables("jobs") })
 	txn.Commit()
 	return nil
 }

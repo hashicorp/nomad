@@ -268,11 +268,11 @@ func (s *Server) setQueryMeta(m *structs.QueryMeta) {
 
 // blockingOptions is used to parameterize blockingRPC
 type blockingOptions struct {
-	queryOpts  *structs.QueryOptions
-	queryMeta  *structs.QueryMeta
-	allocWatch string
-	jobsWatch  bool
-	run        func() error
+	queryOpts   *structs.QueryOptions
+	queryMeta   *structs.QueryMeta
+	allocWatch  string
+	watchTables []string
+	run         func() error
 }
 
 // blockingRPC is used for queries that need to wait for a
@@ -310,9 +310,7 @@ func (s *Server) blockingRPC(opts *blockingOptions) error {
 		if opts.allocWatch != "" {
 			state.StopWatchAllocs(opts.allocWatch, notifyCh)
 		}
-		if opts.jobsWatch {
-			state.StopWatchJobs(notifyCh)
-		}
+		state.StopWatchTables(notifyCh, opts.watchTables...)
 	}()
 
 REGISTER_NOTIFY:
@@ -321,9 +319,7 @@ REGISTER_NOTIFY:
 	if opts.allocWatch != "" {
 		state.WatchAllocs(opts.allocWatch, notifyCh)
 	}
-	if opts.jobsWatch {
-		state.WatchJobs(notifyCh)
-	}
+	state.WatchTables(notifyCh, opts.watchTables...)
 
 RUN_QUERY:
 	// Update the query meta data
