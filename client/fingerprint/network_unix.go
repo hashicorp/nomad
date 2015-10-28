@@ -33,11 +33,16 @@ func (f *NetworkFingerprint) Fingerprint(cfg *config.Config, node *structs.Node)
 	// newNetwork is populated and addded to the Nodes resources
 	newNetwork := &structs.NetworkResource{}
 	defaultDevice := ""
+	ip := ""
 
 	// 1. Use user-defined network device
 	// 2. Use first interface found in the system for non-dev mode. (dev mode uses lo by default.)
 	if cfg.NetworkInterface != "" {
 		defaultDevice = cfg.NetworkInterface
+		if intf, err := net.InterfaceByName(defaultDevice); err == nil {
+			ip, _ = f.ipAddress(intf)
+		}
+
 	} else {
 
 		intfs, err := net.Interfaces()
@@ -47,19 +52,20 @@ func (f *NetworkFingerprint) Fingerprint(cfg *config.Config, node *structs.Node)
 
 		for _, intf := range intfs {
 			if f.isDeviceEnabled(&intf) && f.isDeviceLoopBackOrPointToPoint(&intf) && f.deviceHasIpAddress(&intf) {
-				if ip, err := f.ipAddress(&intf); err == nil {
+				var err error
+				if ip, err = f.ipAddress(&intf); err == nil {
 					defaultDevice = intf.Name
-					node.Attributes["network.ip-address"] = ip
-					newNetwork.IP = ip
-					newNetwork.CIDR = newNetwork.IP + "/32"
 					break
 				}
 			}
 		}
 	}
 
-	if defaultDevice != "" {
+	if (defaultDevice != "") && (ip != "") {
 		newNetwork.Device = defaultDevice
+		node.Attributes["network.ip-address"] = ip
+		newNetwork.IP = ip
+		newNetwork.CIDR = newNetwork.IP + "/32"
 	} else {
 		return false, fmt.Errorf("Unable to find any network interface which has IP address")
 	}
@@ -161,7 +167,10 @@ func (f *NetworkFingerprint) ipAddress(intf *net.Interface) (string, error) {
 	if len(addrs) == 0 {
 		return "", errors.New(fmt.Sprintf("Interface %s has no IP address", intf.Name))
 	}
-	return addrs[0].String(), nil
+	if ip, _, err := net.ParseCIDR(addrs[0].String()); err == nil {
+		return ip.String(), nil
+	}
+	return "", errors.New(fmt.Sprintf("Couldn't parse IP address for interface %s with addr %s", intf.Name, addrs[0].String()))
 }
 
 func (f *NetworkFingerprint) isDeviceEnabled(intf *net.Interface) bool {

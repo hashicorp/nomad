@@ -49,5 +49,6 @@ func RunCustom(args []string, commands map[string]cli.CommandFactory) int {
 		fmt.Fprintf(os.Stderr, "Error executing CLI: %s\n", err.Error())
 		return 1
 	}
+
 	return exitCode
 }
