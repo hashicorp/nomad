@@ -36,7 +36,7 @@ func (f *NetworkFingerprint) Fingerprint(cfg *config.Config, node *structs.Node)
 
 	interfaces, err := f.findInterfaces(cfg.NetworkInterface)
 	if err != nil {
-		return false, fmt.Errorf("Error while detecting network interface during fingerprinting: %s", err.Error())
+		return false, fmt.Errorf("Error while detecting network interface during fingerprinting: %v", err)
 	}
 
 	if len(interfaces) == 0 {
@@ -46,7 +46,7 @@ func (f *NetworkFingerprint) Fingerprint(cfg *config.Config, node *structs.Node)
 	// Use the first interface that we have detected.
 	intf := interfaces[0]
 	if ip, err = f.ipAddress(intf); err != nil {
-		return false, fmt.Errorf("Unable to find IP address of interface: %s, err: %s", intf.Name, err.Error())
+		return false, fmt.Errorf("Unable to find IP address of interface: %s, err: %v", intf.Name, err)
 	}
 
 	newNetwork.Device = intf.Name
@@ -143,10 +143,9 @@ func (f *NetworkFingerprint) linkSpeedEthtool(path, device string) int {
 
 // Gets the ipv4 addr for a network interface
 func (f *NetworkFingerprint) ipAddress(intf *net.Interface) (string, error) {
-	var (
-		addrs []net.Addr
-		err   error
-	)
+	var addrs []net.Addr
+	var err error
+
 	if addrs, err = intf.Addrs(); err != nil {
 		return "", err
 	}
@@ -170,7 +169,7 @@ func (f *NetworkFingerprint) ipAddress(intf *net.Interface) (string, error) {
 	}
 
 	if ipV4 == nil {
-		return "", errors.New(fmt.Sprintf("Couldn't parse IP address for interface %s with addr %s", intf.Name))
+		return "", fmt.Errorf("Couldn't parse IP address for interface %s with addr %s", intf.Name)
 	}
 	return ipV4.String(), nil
 
@@ -196,10 +195,9 @@ func (n *NetworkFingerprint) isDeviceLoopBackOrPointToPoint(intf *net.Interface)
 // Returns interfaces which are routable and marked as UP
 // Tries to get the specific interface if the user has specified name
 func (f *NetworkFingerprint) findInterfaces(deviceName string) ([]*net.Interface, error) {
-	var (
-		interfaces []*net.Interface
-		err        error
-	)
+	var interfaces []*net.Interface
+	var err error
+
 	if deviceName != "" {
 		if intf, err := net.InterfaceByName(deviceName); err == nil {
 			interfaces = append(interfaces, intf)
