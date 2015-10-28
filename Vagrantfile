@@ -7,8 +7,7 @@ VAGRANTFILE_API_VERSION = "2"
 $script = <<SCRIPT
 # Install Prereq Packages
 sudo apt-get update
-sudo apt-get install -y build-essential curl git-core libpcre3-dev \
- mercurial pkg-config zip default-jre qemu 
+sudo apt-get install -y build-essential curl git-core mercurial bzr libpcre3-dev pkg-config zip default-jre qemu
 
 # Setup go, for development of Nomad
 SRCROOT="/opt/go"
@@ -42,10 +41,19 @@ sudo chmod 0755 /etc/profile.d/gopath.sh
 source /etc/profile.d/gopath.sh
 
 # Install Docker
-sudo curl -sSL https://get.docker.com/ | sh
+echo deb https://apt.dockerproject.org/repo ubuntu-`lsb_release -c | awk '{print $2}'` main | sudo tee /etc/apt/sources.list.d/docker.list
+sudo apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D
+sudo apt-get update
+sudo apt-get install -y docker-engine
+
+# Make sure we can actually use docker as the vagrant user
+sudo usermod -aG docker vagrant
 
 # Setup Nomad for development
-#TODO: cd to synced Nomad path once go-memdb is public, and do `make updatedeps`
+cd /opt/gopath/src/github.com/hashicorp/nomad && make updatedeps
+
+# CD into the nomad working directory when we login to the VM
+grep "cd /opt/gopath/src/github.com/hashicorp/nomad" ~/.profile || echo "cd /opt/gopath/src/github.com/hashicorp/nomad" >> ~/.profile
 SCRIPT
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
@@ -55,20 +63,27 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.provision "shell", inline: $script, privileged: false
   config.vm.synced_folder '.', '/opt/gopath/src/github.com/hashicorp/nomad'
 
+  # We're going to compile go and run a concurrent system, so give ourselves
+  # some extra resources. Nomad will have trouble working correctly with <2 CPUs
+  # so we should use at least that many.
+  cpus = 2
+  memory = 2048
+
   config.vm.provider "parallels" do |p, o|
     o.vm.box = "parallels/ubuntu-14.04"
-    p.memory = 2048
+    p.memory = memory
+    p.cpus = cpus
   end
 
   config.vm.provider "virtualbox" do |v|
-    v.memory = 1024
-    v.cpus = 1
+    v.memory = memory
+    v.cpus = cpus
   end
 
   ["vmware_fusion", "vmware_workstation"].each do |p|
     config.vm.provider p do |v|
-      v.vmx["memsize"] = "2048"
-      v.gui = true
+      v.memory = memory
+      v.cpus = cpus
     end
   end
 end
