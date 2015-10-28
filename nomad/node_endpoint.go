@@ -410,7 +410,6 @@ func (n *Node) List(args *structs.NodeListRequest,
 		queryMeta:   &reply.QueryMeta,
 		watchTables: []string{"nodes"},
 		run: func() error {
-
 			// Capture all the nodes
 			snap, err := n.srv.fsm.State().Snapshot()
 			if err != nil {
@@ -421,14 +420,16 @@ func (n *Node) List(args *structs.NodeListRequest,
 				return err
 			}
 
+			var nodes []*structs.NodeListStub
 			for {
 				raw := iter.Next()
 				if raw == nil {
 					break
 				}
 				node := raw.(*structs.Node)
-				reply.Nodes = append(reply.Nodes, node.Stub())
+				nodes = append(nodes, node.Stub())
 			}
+			reply.Nodes = nodes
 
 			// Use the last index that affected the jobs table
 			index, err := snap.Index("nodes")
