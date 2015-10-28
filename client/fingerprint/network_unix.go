@@ -144,6 +144,7 @@ func (f *NetworkFingerprint) linkSpeedEthtool(path, device string) int {
 	return mbs
 }
 
+// Gets the ipv4 addr for a network interface
 func (f *NetworkFingerprint) ipAddress(intf *net.Interface) (string, error) {
 	var (
 		addrs []net.Addr
@@ -178,13 +179,15 @@ func (f *NetworkFingerprint) ipAddress(intf *net.Interface) (string, error) {
 
 }
 
+// Checks if the device is marked UP by the operator
 func (f *NetworkFingerprint) isDeviceEnabled(intf *net.Interface) bool {
 	return intf.Flags&net.FlagUp != 0
 }
 
+// Checks if the device has any IP address configured
 func (f *NetworkFingerprint) deviceHasIpAddress(intf *net.Interface) bool {
-	if addrs, err := intf.Addrs(); err == nil {
-		return len(addrs) > 0
+	if _, err := f.ipAddress(intf); err == nil {
+		return true
 	}
 	return false
 }
@@ -193,6 +196,8 @@ func (n *NetworkFingerprint) isDeviceLoopBackOrPointToPoint(intf *net.Interface)
 	return intf.Flags&(net.FlagLoopback|net.FlagPointToPoint) == 0
 }
 
+// Returns interfaces which are routable and marked as UP
+// Tries to get the specific interface if the user has specified name
 func (f *NetworkFingerprint) findInterfaces(deviceName string) ([]*net.Interface, error) {
 	var (
 		interfaces []*net.Interface
@@ -216,6 +221,5 @@ func (f *NetworkFingerprint) findInterfaces(deviceName string) ([]*net.Interface
 			interfaces = append(interfaces, &intf)
 		}
 	}
-
 	return interfaces, nil
 }
