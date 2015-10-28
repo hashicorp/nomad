@@ -214,7 +214,7 @@ func (f *NetworkFingerprint) findInterfaces(deviceName string) ([]*net.Interface
 	}
 
 	for _, intf := range intfs {
-		if f.isDeviceEnabled(&intf) && f.isDeviceLoopBackOrPointToPoint(&intf) && f.deviceHasIpAddress(&intf) {
+		if f.isDeviceEnabled(&intf) && !f.isDeviceLoopBackOrPointToPoint(&intf) && f.deviceHasIpAddress(&intf) {
 			interfaces = append(interfaces, &intf)
 		}
 	}
