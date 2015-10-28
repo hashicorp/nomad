@@ -19,13 +19,30 @@ import (
 
 // NetworkFingerprint is used to fingerprint the Network capabilities of a node
 type NetworkFingerprint struct {
-	logger *log.Logger
+	logger            *log.Logger
+	interfaceDetector NetworkInterfaceDetector
+}
+
+type NetworkInterfaceDetector interface {
+	Interfaces() ([]net.Interface, error)
+	InterfaceByName(name string) (*net.Interface, error)
+}
+
+type BasicNetworkInterfaceDetector struct {
+}
+
+func (b *BasicNetworkInterfaceDetector) Interfaces() ([]net.Interface, error) {
+	return net.Interfaces()
+}
+
+func (b *BasicNetworkInterfaceDetector) InterfaceByName(name string) (*net.Interface, error) {
+	return net.InterfaceByName(name)
 }
 
 // NewNetworkFingerprinter returns a new NetworkFingerprinter with the given
 // logger
 func NewNetworkFingerprinter(logger *log.Logger) Fingerprint {
-	f := &NetworkFingerprint{logger: logger}
+	f := &NetworkFingerprint{logger: logger, interfaceDetector: &BasicNetworkInterfaceDetector{}}
 	return f
 }
 
@@ -195,12 +212,12 @@ func (f *NetworkFingerprint) findInterface(deviceName string) (*net.Interface, e
 	var err error
 
 	if deviceName != "" {
-		return net.InterfaceByName(deviceName)
+		return f.interfaceDetector.InterfaceByName(deviceName)
 	}
 
 	var intfs []net.Interface
 
-	if intfs, err = net.Interfaces(); err != nil {
+	if intfs, err = f.interfaceDetector.Interfaces(); err != nil {
 		return nil, err
 	}
 
