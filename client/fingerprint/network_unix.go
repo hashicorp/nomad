@@ -54,7 +54,7 @@ func (f *NetworkFingerprint) Fingerprint(cfg *config.Config, node *structs.Node)
 	newNetwork.IP = ip
 	newNetwork.CIDR = newNetwork.IP + "/32"
 
-	f.logger.Println("[DEBUG] Detected interface ", intf.Name, " with IP ", ip, " during fingerprinting")
+	f.logger.Println("[DEBUG] fingerprint.network Detected interface ", intf.Name, " with IP ", ip, " during fingerprinting")
 
 	if throughput := f.linkSpeed(intf.Name); throughput > 0 {
 		newNetwork.MBits = throughput
