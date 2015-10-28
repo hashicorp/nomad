@@ -34,17 +34,11 @@ func (f *NetworkFingerprint) Fingerprint(cfg *config.Config, node *structs.Node)
 	newNetwork := &structs.NetworkResource{}
 	var ip string
 
-	interfaces, err := f.findInterfaces(cfg.NetworkInterface)
+	intf, err := f.findInterface(cfg.NetworkInterface)
 	if err != nil {
 		return false, fmt.Errorf("Error while detecting network interface during fingerprinting: %v", err)
 	}
 
-	if len(interfaces) == 0 {
-		return false, errors.New("No network interfaces were detected")
-	}
-
-	// Use the first interface that we have detected.
-	intf := interfaces[0]
 	if ip, err = f.ipAddress(intf); err != nil {
 		return false, fmt.Errorf("Unable to find IP address of interface: %s, err: %v", intf.Name, err)
 	}
@@ -192,17 +186,16 @@ func (n *NetworkFingerprint) isDeviceLoopBackOrPointToPoint(intf *net.Interface)
 	return intf.Flags&(net.FlagLoopback|net.FlagPointToPoint) == 0
 }
 
-// Returns interfaces which are routable and marked as UP
-// Tries to get the specific interface if the user has specified name
-func (f *NetworkFingerprint) findInterfaces(deviceName string) ([]*net.Interface, error) {
+// Returns the interface with the name passed by user
+// If the name is blank then it iterates through all the devices
+// and finds one which is routable and marked as UP
+// It excludes PPP and lo devices unless they are specifically asked
+func (f *NetworkFingerprint) findInterface(deviceName string) (*net.Interface, error) {
 	var interfaces []*net.Interface
 	var err error
 
 	if deviceName != "" {
-		if intf, err := net.InterfaceByName(deviceName); err == nil {
-			interfaces = append(interfaces, intf)
-		}
-		return interfaces, err
+		return net.InterfaceByName(deviceName)
 	}
 
 	var intfs []net.Interface
@@ -216,5 +209,9 @@ func (f *NetworkFingerprint) findInterfaces(deviceName string) ([]*net.Interface
 			interfaces = append(interfaces, &intf)
 		}
 	}
-	return interfaces, nil
+
+	if len(interfaces) == 0 {
+		return nil, errors.New("No network interfaces were detected")
+	}
+	return interfaces[0], nil
 }
