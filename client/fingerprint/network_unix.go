@@ -156,10 +156,26 @@ func (f *NetworkFingerprint) ipAddress(intf *net.Interface) (string, error) {
 	if len(addrs) == 0 {
 		return "", errors.New(fmt.Sprintf("Interface %s has no IP address", intf.Name))
 	}
-	if ip, _, err := net.ParseCIDR(addrs[0].String()); err == nil {
-		return ip.String(), nil
+	var ipV4 net.IP
+	for _, addr := range addrs {
+		var ip net.IP
+		switch v := (addr).(type) {
+		case *net.IPNet:
+			ip = v.IP
+		case *net.IPAddr:
+			ip = v.IP
+		}
+		if ip.To4() != nil {
+			ipV4 = ip
+			break
+		}
 	}
-	return "", errors.New(fmt.Sprintf("Couldn't parse IP address for interface %s with addr %s", intf.Name, addrs[0].String()))
+
+	if ipV4 == nil {
+		return "", errors.New(fmt.Sprintf("Couldn't parse IP address for interface %s with addr %s", intf.Name))
+	}
+	return ipV4.String(), nil
+
 }
 
 func (f *NetworkFingerprint) isDeviceEnabled(intf *net.Interface) bool {
