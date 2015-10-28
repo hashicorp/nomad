@@ -32,45 +32,34 @@ func NewNetworkFingerprinter(logger *log.Logger) Fingerprint {
 func (f *NetworkFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
 	// newNetwork is populated and addded to the Nodes resources
 	newNetwork := &structs.NetworkResource{}
-	defaultDevice := ""
-	ip := ""
+	var ip string
 
-	// 1. Use user-defined network device
-	// 2. Use first interface found in the system for non-dev mode. (dev mode uses lo by default.)
-	if cfg.NetworkInterface != "" {
-		defaultDevice = cfg.NetworkInterface
-		if intf, err := net.InterfaceByName(defaultDevice); err == nil {
-			ip, _ = f.ipAddress(intf)
-		}
-
-	} else {
-
-		intfs, err := net.Interfaces()
-		if err != nil {
-			return false, err
-		}
-
-		for _, intf := range intfs {
-			if f.isDeviceEnabled(&intf) && f.isDeviceLoopBackOrPointToPoint(&intf) && f.deviceHasIpAddress(&intf) {
-				var err error
-				if ip, err = f.ipAddress(&intf); err == nil {
-					defaultDevice = intf.Name
-					break
-				}
-			}
-		}
+	interfaces, err := f.findInterfaces(cfg.NetworkInterface)
+	if err != nil {
+		f.logger.Println(fmt.Sprintf("[DEBUG] Error while detecting network interface during fingerprinting: %s", err.Error()))
+		return false, err
 	}
 
-	if (defaultDevice != "") && (ip != "") {
-		newNetwork.Device = defaultDevice
-		node.Attributes["network.ip-address"] = ip
-		newNetwork.IP = ip
-		newNetwork.CIDR = newNetwork.IP + "/32"
-	} else {
-		return false, fmt.Errorf("Unable to find any network interface which has IP address")
+	if len(interfaces) == 0 {
+		f.logger.Println("[DEBUG] No network interfaces were detected")
+		return false, errors.New("Unable to find any interface")
 	}
 
-	if throughput := f.linkSpeed(defaultDevice); throughput > 0 {
+	// Use the first interface that we have detected.
+	intf := interfaces[0]
+	if ip, err = f.ipAddress(intf); err != nil {
+		f.logger.Println("[DEBUG] Unable to find IP address of interface ", intf.Name)
+		return false, err
+	}
+
+	newNetwork.Device = intf.Name
+	node.Attributes["network.ip-address"] = ip
+	newNetwork.IP = ip
+	newNetwork.CIDR = newNetwork.IP + "/32"
+
+	f.logger.Println("[DEBUG] Detected interface ", intf.Name, " with IP ", ip, " during fingerprinting")
+
+	if throughput := f.linkSpeed(intf.Name); throughput > 0 {
 		newNetwork.MBits = throughput
 	} else {
 		f.logger.Printf("[DEBUG] fingerprint.network: Unable to read link speed; setting to default %v", cfg.NetworkSpeed)
@@ -186,4 +175,31 @@ func (f *NetworkFingerprint) deviceHasIpAddress(intf *net.Interface) bool {
 
 func (n *NetworkFingerprint) isDeviceLoopBackOrPointToPoint(intf *net.Interface) bool {
 	return intf.Flags&(net.FlagLoopback|net.FlagPointToPoint) == 0
+}
+
+func (f *NetworkFingerprint) findInterfaces(deviceName string) ([]*net.Interface, error) {
+	var (
+		interfaces []*net.Interface
+		err        error
+	)
+	if deviceName != "" {
+		if intf, err := net.InterfaceByName(deviceName); err == nil {
+			interfaces = append(interfaces, intf)
+		}
+		return interfaces, err
+	}
+
+	var intfs []net.Interface
+
+	if intfs, err = net.Interfaces(); err != nil {
+		return nil, err
+	}
+
+	for _, intf := range intfs {
+		if f.isDeviceEnabled(&intf) && f.isDeviceLoopBackOrPointToPoint(&intf) && f.deviceHasIpAddress(&intf) {
+			interfaces = append(interfaces, &intf)
+		}
+	}
+
+	return interfaces, nil
 }
