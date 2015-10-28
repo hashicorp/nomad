@@ -67,7 +67,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   # some extra resources. Nomad will have trouble working correctly with <2 CPUs
   # so we should use at least that many.
   cpus = 2
-  memory = 1024
+  memory = 2048
 
   config.vm.provider "parallels" do |p, o|
     o.vm.box = "parallels/ubuntu-14.04"
