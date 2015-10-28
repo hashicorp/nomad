@@ -137,6 +137,14 @@ func (a *Agent) serverConfig() (*nomad.Config, error) {
 		conf.SerfConfig.MemberlistConfig.BindPort = port
 	}
 
+	if rTimeout := a.config.Server.ReconnectTimeout; rTimeout != 0 {
+		conf.SerfConfig.ReconnectTimeout = rTimeout
+	}
+
+	if tTimeout := a.config.Server.TombstoneTimeout; tTimeout != 0 {
+		conf.SerfConfig.TombstoneTimeout = tTimeout
+	}
+
 	return conf, nil
 }
 

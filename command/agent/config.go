@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/hcl"
 	hclobj "github.com/hashicorp/hcl/hcl"
@@ -178,6 +179,17 @@ type ServerConfig struct {
 	// enabled for this server to handle. This will restrict the evaluations
 	// that the workers dequeue for processing.
 	EnabledSchedulers []string `hcl:"enabled_schedulers"`
+
+	// ReconnectTimeout is reconnect timeout. This timeout controls
+	// for how long we attempt to connect to a failed node before removing
+	// it from the cluster..
+	ReconnectTimeoutRaw string `hcl:"reconnect_timeout"`
+	ReconnectTimeout    time.Duration
+
+	// TombstoneTimeout is tombstone timeout. This timeout controls
+	// for how long we remember a left node before removing it from the cluster.
+	TombstoneTimeoutRaw string `hcl:"tombstone_timeout"`
+	TombstoneTimeout    time.Duration
 }
 
 // Telemetry is the telemetry configuration for the server
@@ -373,6 +385,14 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 		result.NumSchedulers = b.NumSchedulers
 	}
 
+	if b.ReconnectTimeout != 0 {
+		result.ReconnectTimeout = b.ReconnectTimeout
+	}
+
+	if b.TombstoneTimeout != 0 {
+		result.TombstoneTimeout = b.TombstoneTimeout
+	}
+
 	// Add the schedulers
 	result.EnabledSchedulers = append(result.EnabledSchedulers, b.EnabledSchedulers...)
 
@@ -517,6 +537,24 @@ func LoadConfigString(s string) (*Config, error) {
 		return nil, err
 	}
 
+	if result.Server != nil {
+		if result.Server.ReconnectTimeoutRaw != "" {
+			dur, err := time.ParseDuration(result.Server.ReconnectTimeoutRaw)
+			if err != nil {
+				return nil, err
+			}
+			result.Server.ReconnectTimeout = dur
+		}
+
+		if result.Server.TombstoneTimeoutRaw != "" {
+			dur, err := time.ParseDuration(result.Server.TombstoneTimeoutRaw)
+			if err != nil {
+				return nil, err
+			}
+			result.Server.TombstoneTimeout = dur
+		}
+
+	}
 	return &result, nil
 }
 
