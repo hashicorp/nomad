@@ -245,6 +245,7 @@ func (s *StateStore) UpsertNode(index uint64, node *structs.Node) error {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
+	txn.Defer(func() { s.watch.notifyTables("nodes") })
 	txn.Commit()
 	return nil
 }
@@ -271,6 +272,7 @@ func (s *StateStore) DeleteNode(index uint64, nodeID string) error {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
+	txn.Defer(func() { s.watch.notifyTables("nodes") })
 	txn.Commit()
 	return nil
 }
@@ -306,6 +308,7 @@ func (s *StateStore) UpdateNodeStatus(index uint64, nodeID, status string) error
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
+	txn.Defer(func() { s.watch.notifyTables("nodes") })
 	txn.Commit()
 	return nil
 }
@@ -341,6 +344,7 @@ func (s *StateStore) UpdateNodeDrain(index uint64, nodeID string, drain bool) er
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
+	txn.Defer(func() { s.watch.notifyTables("nodes") })
 	txn.Commit()
 	return nil
 }

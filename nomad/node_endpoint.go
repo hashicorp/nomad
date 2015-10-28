@@ -404,35 +404,44 @@ func (n *Node) List(args *structs.NodeListRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "list"}, time.Now())
 
-	// Capture all the nodes
-	snap, err := n.srv.fsm.State().Snapshot()
-	if err != nil {
-		return err
-	}
-	iter, err := snap.Nodes()
-	if err != nil {
-		return err
-	}
+	// Setup the blocking query
+	opts := blockingOptions{
+		queryOpts:   &args.QueryOptions,
+		queryMeta:   &reply.QueryMeta,
+		watchTables: []string{"nodes"},
+		run: func() error {
 
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-		node := raw.(*structs.Node)
-		reply.Nodes = append(reply.Nodes, node.Stub())
-	}
+			// Capture all the nodes
+			snap, err := n.srv.fsm.State().Snapshot()
+			if err != nil {
+				return err
+			}
+			iter, err := snap.Nodes()
+			if err != nil {
+				return err
+			}
 
-	// Use the last index that affected the jobs table
-	index, err := snap.Index("nodes")
-	if err != nil {
-		return err
-	}
-	reply.Index = index
+			for {
+				raw := iter.Next()
+				if raw == nil {
+					break
+				}
+				node := raw.(*structs.Node)
+				reply.Nodes = append(reply.Nodes, node.Stub())
+			}
 
-	// Set the query response
-	n.srv.setQueryMeta(&reply.QueryMeta)
-	return nil
+			// Use the last index that affected the jobs table
+			index, err := snap.Index("nodes")
+			if err != nil {
+				return err
+			}
+			reply.Index = index
+
+			// Set the query response
+			n.srv.setQueryMeta(&reply.QueryMeta)
+			return nil
+		}}
+	return n.srv.blockingRPC(&opts)
 }
 
 // createNodeEvals is used to create evaluations for each alloc on a node.

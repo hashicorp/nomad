@@ -752,3 +752,53 @@ func TestClientEndpoint_ListNodes(t *testing.T) {
 		t.Fatalf("bad: %#v", resp2.Nodes[0])
 	}
 }
+
+func TestClientEndpoint_ListNodes_blocking(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the node
+	node := mock.Node()
+
+	go func() {
+		// Wait a bit
+		time.Sleep(100 * time.Millisecond)
+
+		// Send the register request
+		state := s1.fsm.State()
+		err := state.UpsertNode(2, node)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	}()
+
+	// List the nodes. Should block until the index is reached.
+	get := &structs.NodeListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:        "global",
+			MinQueryIndex: 1,
+		},
+	}
+	start := time.Now()
+	var resp structs.NodeListResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Node.List", get, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Check that we blocked
+	if elapsed := time.Now().Sub(start); elapsed < 100*time.Millisecond {
+		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
+	}
+
+	if resp.Index != 2 {
+		t.Fatalf("Bad index: %d %d", resp.Index, 2)
+	}
+	if len(resp.Nodes) != 1 {
+		t.Fatalf("bad: %#v", resp.Nodes)
+	}
+	if resp.Nodes[0].ID != node.ID {
+		t.Fatalf("bad: %#v", resp.Nodes[0])
+	}
+}
