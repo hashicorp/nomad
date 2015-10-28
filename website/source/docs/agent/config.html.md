@@ -173,6 +173,14 @@ configured on client nodes.
     sub-schedulers this server will handle. This can be used to restrict the
     evaluations that worker threads will dequeue for processing. This
     defaults to all available schedulers.
+  * `reconnect_timeout` This is a string with unit suffix, such as "300ms",
+    "48h" or "2h45m" (valid time units are "ns", "us" (or "µs"), "ms", "s", "m",
+    "h"). This timeout controls for how long nomad attempt to
+    connect to a failed node before removing it from the cluster.
+  * `tombstone_timeout` This is a string with unit suffix, such as "300ms",
+    "48h" or "2h45m" (valid time units are "ns", "us" (or "µs"), "ms", "s", "m",
+    "h"). This timeout controls for how long nomad remember a left node before
+    removing it from the cluster.
 
 ## Client-specific Options
 
