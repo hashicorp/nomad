@@ -148,6 +148,19 @@ func TestAgent_ServerConfig(t *testing.T) {
 		t.Fatalf("expect 127.0.0.2, got: %s", addr)
 	}
 
+	conf.Server.ReconnectTimeout = time.Minute * 10
+	conf.Server.TombstoneTimeout = time.Minute * 20
+	out, err = a.serverConfig()
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	if out.SerfConfig.ReconnectTimeout != time.Minute*10 {
+		t.Fatalf("expect 10 min, got: %s", out.SerfConfig.ReconnectTimeout)
+	}
+	if out.SerfConfig.TombstoneTimeout != time.Minute*20 {
+		t.Fatalf("expect 20 min, got: %s", out.SerfConfig.ReconnectTimeout)
+	}
+
 	// Defaults to the global bind addr
 	conf.Addresses.RPC = ""
 	conf.Addresses.Serf = ""

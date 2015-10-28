@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -106,6 +107,8 @@ func TestConfig_Merge(t *testing.T) {
 			ProtocolVersion:   2,
 			NumSchedulers:     2,
 			EnabledSchedulers: []string{structs.JobTypeBatch},
+			ReconnectTimeout:  time.Hour * 12,
+			TombstoneTimeout:  time.Hour * 6,
 		},
 		Ports: &Ports{
 			HTTP: 20000,
@@ -363,12 +366,16 @@ func TestConfig_LoadConfigString(t *testing.T) {
 			NetworkSpeed: 100,
 		},
 		Server: &ServerConfig{
-			Enabled:           true,
-			BootstrapExpect:   5,
-			DataDir:           "/tmp/data",
-			ProtocolVersion:   3,
-			NumSchedulers:     2,
-			EnabledSchedulers: []string{"test"},
+			Enabled:             true,
+			BootstrapExpect:     5,
+			DataDir:             "/tmp/data",
+			ProtocolVersion:     3,
+			NumSchedulers:       2,
+			EnabledSchedulers:   []string{"test"},
+			ReconnectTimeoutRaw: "24h",
+			ReconnectTimeout:    time.Hour * 24,
+			TombstoneTimeoutRaw: "36h",
+			TombstoneTimeout:    time.Hour * 36,
 		},
 		Telemetry: &Telemetry{
 			StatsiteAddr:    "127.0.0.1:1234",
@@ -441,6 +448,8 @@ server {
 	protocol_version = 3
 	num_schedulers = 2
 	enabled_schedulers = ["test"]
+	reconnect_timeout = "24h"
+	tombstone_timeout = "36h"
 }
 telemetry {
 	statsite_address = "127.0.0.1:1234"
