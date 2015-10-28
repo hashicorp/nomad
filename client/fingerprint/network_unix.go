@@ -36,20 +36,17 @@ func (f *NetworkFingerprint) Fingerprint(cfg *config.Config, node *structs.Node)
 
 	interfaces, err := f.findInterfaces(cfg.NetworkInterface)
 	if err != nil {
-		f.logger.Println(fmt.Sprintf("[DEBUG] Error while detecting network interface during fingerprinting: %s", err.Error()))
-		return false, err
+		return false, fmt.Errorf("Error while detecting network interface during fingerprinting: %s", err.Error())
 	}
 
 	if len(interfaces) == 0 {
-		f.logger.Println("[DEBUG] No network interfaces were detected")
-		return false, errors.New("Unable to find any interface")
+		return false, errors.New("No network interfaces were detected")
 	}
 
 	// Use the first interface that we have detected.
 	intf := interfaces[0]
 	if ip, err = f.ipAddress(intf); err != nil {
-		f.logger.Println("[DEBUG] Unable to find IP address of interface ", intf.Name)
-		return false, err
+		return false, fmt.Errorf("Unable to find IP address of interface: %s, err: %s", intf.Name, err.Error())
 	}
 
 	newNetwork.Device = intf.Name
