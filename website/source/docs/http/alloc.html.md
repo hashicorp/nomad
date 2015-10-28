@@ -54,11 +54,9 @@ be specified using the `?region=` query parameter.
         ],
         "Constraints": [
             {
-                "Hard": false,
                 "LTarget": "kernel.os",
                 "RTarget": "windows",
                 "Operand": "=",
-                "Weight": 0
             }
         ],
         "TaskGroups": [
@@ -67,11 +65,9 @@ be specified using the `?region=` query parameter.
                 "Count": 5,
                 "Constraints": [
                     {
-                        "Hard": false,
                         "LTarget": "kernel.os",
                         "RTarget": "linux",
                         "Operand": "=",
-                        "Weight": 0
                     }
                 ],
                 "Tasks": [
@@ -108,11 +104,9 @@ be specified using the `?region=` query parameter.
                         },
                         "Constraints": [
                             {
-                                "Hard": false,
                                 "LTarget": "kernel.arch",
                                 "RTarget": "amd64",
                                 "Operand": "=",
-                                "Weight": 0
                             }
                         ],
                         "Resources": {

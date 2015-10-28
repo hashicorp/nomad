@@ -275,7 +275,7 @@ func TestJobs_Constrain(t *testing.T) {
 	job := &Job{Constraints: nil}
 
 	// Create and add a constraint
-	out := job.Constrain(HardConstraint("kernel.name", "=", "darwin"))
+	out := job.Constrain(NewConstraint("kernel.name", "=", "darwin"))
 	if n := len(job.Constraints); n != 1 {
 		t.Fatalf("expected 1 constraint, got: %d", n)
 	}
@@ -286,21 +286,17 @@ func TestJobs_Constrain(t *testing.T) {
 	}
 
 	// Adding another constraint preserves the original
-	job.Constrain(SoftConstraint("memory.totalbytes", ">=", "128000000", 2))
+	job.Constrain(NewConstraint("memory.totalbytes", ">=", "128000000"))
 	expect := []*Constraint{
 		&Constraint{
-			Hard:    true,
 			LTarget: "kernel.name",
 			RTarget: "darwin",
 			Operand: "=",
-			Weight:  0,
 		},
 		&Constraint{
-			Hard:    false,
 			LTarget: "memory.totalbytes",
 			RTarget: "128000000",
 			Operand: ">=",
-			Weight:  2,
 		},
 	}
 	if !reflect.DeepEqual(job.Constraints, expect) {

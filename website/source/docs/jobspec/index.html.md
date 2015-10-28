@@ -216,9 +216,6 @@ The `constraint` object supports the following keys:
 * `attribute` - Specifies the attribute to examine for the
   constraint. See the table of attributes below.
 
-* `hard` - Specifies if this is a hard or soft constraint. Defaults
-  to true. Soft constraints are not currently supported.
-
 * `operator` - Specifies the comparison operator. Defaults to equality,
   and can be `=`, `==`, `is`, `!=`, `not`, `>`, `>=`, `<`, `<=`. The
   ordering is compared lexically.

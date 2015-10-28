@@ -33,7 +33,6 @@ func TestParse(t *testing.T) {
 
 				Constraints: []*structs.Constraint{
 					&structs.Constraint{
-						Hard:    true,
 						LTarget: "kernel.os",
 						RTarget: "windows",
 						Operand: "=",
@@ -68,7 +67,6 @@ func TestParse(t *testing.T) {
 						Count: 5,
 						Constraints: []*structs.Constraint{
 							&structs.Constraint{
-								Hard:    true,
 								LTarget: "kernel.os",
 								RTarget: "linux",
 								Operand: "=",
@@ -114,7 +112,6 @@ func TestParse(t *testing.T) {
 								},
 								Constraints: []*structs.Constraint{
 									&structs.Constraint{
-										Hard:    true,
 										LTarget: "kernel.arch",
 										RTarget: "amd64",
 										Operand: "=",
@@ -162,7 +159,6 @@ func TestParse(t *testing.T) {
 				Type:     "service",
 				Constraints: []*structs.Constraint{
 					&structs.Constraint{
-						Hard:    true,
 						LTarget: "$attr.kernel.version",
 						RTarget: "~> 3.2",
 						Operand: structs.ConstraintVersion,
@@ -182,7 +178,6 @@ func TestParse(t *testing.T) {
 				Type:     "service",
 				Constraints: []*structs.Constraint{
 					&structs.Constraint{
-						Hard:    true,
 						LTarget: "$attr.kernel.version",
 						RTarget: "[0-9.]+",
 						Operand: structs.ConstraintRegex,
@@ -202,7 +197,6 @@ func TestParse(t *testing.T) {
 				Type:     "service",
 				Constraints: []*structs.Constraint{
 					&structs.Constraint{
-						Hard:    true,
 						Operand: structs.ConstraintDistinctHosts,
 					},
 				},
