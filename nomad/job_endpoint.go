@@ -232,14 +232,16 @@ func (j *Job) List(args *structs.JobListRequest,
 				return err
 			}
 
+			var jobs []*structs.JobListStub
 			for {
 				raw := iter.Next()
 				if raw == nil {
 					break
 				}
 				job := raw.(*structs.Job)
-				reply.Jobs = append(reply.Jobs, job.Stub())
+				jobs = append(jobs, job.Stub())
 			}
+			reply.Jobs = jobs
 
 			// Use the last index that affected the jobs table
 			index, err := snap.Index("jobs")
