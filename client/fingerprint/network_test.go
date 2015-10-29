@@ -138,7 +138,7 @@ func (n *NetworkInterfaceDetectorMultipleInterfaces) Addrs(intf *net.Interface) 
 }
 
 func TestNetworkFingerprint_basic(t *testing.T) {
-	f := &NetworkFingerprint{logger: testLogger(), interfaceDetector: &BasicNetworkInterfaceDetector{}}
+	f := &NetworkFingerprint{logger: testLogger(), interfaceDetector: &DefaultNetworkInterfaceDetector{}}
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}

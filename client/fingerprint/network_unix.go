@@ -74,7 +74,7 @@ func (f *NetworkFingerprint) Fingerprint(cfg *config.Config, node *structs.Node)
 	newNetwork.IP = ip
 	newNetwork.CIDR = newNetwork.IP + "/32"
 
-	f.logger.Println("[DEBUG] fingerprint.network: Detected interface ", intf.Name, " with IP ", ip, " during fingerprinting")
+	f.logger.Printf("[DEBUG] fingerprint.network: Detected interface %v  with IP %v during fingerprinting", intf.Name, ip)
 
 	if throughput := f.linkSpeed(intf.Name); throughput > 0 {
 		newNetwork.MBits = throughput
@@ -173,7 +173,6 @@ func (f *NetworkFingerprint) ipAddress(intf *net.Interface) (string, error) {
 	if len(addrs) == 0 {
 		return "", errors.New(fmt.Sprintf("Interface %s has no IP address", intf.Name))
 	}
-	var ipV4 net.IP
 	for _, addr := range addrs {
 		var ip net.IP
 		switch v := (addr).(type) {
@@ -183,15 +182,11 @@ func (f *NetworkFingerprint) ipAddress(intf *net.Interface) (string, error) {
 			ip = v.IP
 		}
 		if ip.To4() != nil {
-			ipV4 = ip
-			break
+			return ip.String(), nil
 		}
 	}
 
-	if ipV4 == nil {
-		return "", fmt.Errorf("Couldn't parse IP address for interface %s", intf.Name)
-	}
-	return ipV4.String(), nil
+	return "", fmt.Errorf("Couldn't parse IP address for interface %s", intf.Name)
 
 }
 
@@ -202,10 +197,8 @@ func (f *NetworkFingerprint) isDeviceEnabled(intf *net.Interface) bool {
 
 // Checks if the device has any IP address configured
 func (f *NetworkFingerprint) deviceHasIpAddress(intf *net.Interface) bool {
-	if _, err := f.ipAddress(intf); err == nil {
-		return true
-	}
-	return false
+	_, err := f.ipAddress(intf)
+	return err == nil
 }
 
 func (n *NetworkFingerprint) isDeviceLoopBackOrPointToPoint(intf *net.Interface) bool {
