@@ -134,6 +134,8 @@ func (e *LinuxExecutor) ID() (string, error) {
 	return buffer.String(), nil
 }
 
+// runAs takes a user id as a string and looks up the user. It stores the
+// results in the executor and returns an error if the user could not be found.
 func (e *LinuxExecutor) runAs(userid string) error {
 	errs := new(multierror.Error)
 
@@ -161,8 +163,8 @@ func (e *LinuxExecutor) runAs(userid string) error {
 }
 
 func (e *LinuxExecutor) Start() error {
-	// Run as "nobody" user so we don't leak root privilege to the
-	// spawned process.
+	// Run as "nobody" user so we don't leak root privilege to the spawned
+	// process.
 	if err := e.runAs("nobody"); err == nil && e.user != nil {
 		e.cmd.SetUID(e.user.Uid)
 		e.cmd.SetGID(e.user.Gid)
@@ -280,6 +282,8 @@ func (e *LinuxExecutor) spawnDaemon() error {
 	return nil
 }
 
+// sendStartCommand sends the necessary command to the spawn-daemon to have it
+// start the user process.
 func sendStartCommand(w io.Writer) error {
 	enc := json.NewEncoder(w)
 	if err := enc.Encode(true); err != nil {
@@ -289,6 +293,9 @@ func sendStartCommand(w io.Writer) error {
 	return nil
 }
 
+// sendAbortCommand sends the necessary command to the spawn-daemon to have it
+// abort starting the user process. This should be invoked if the spawn-daemon
+// could not be isolated into a cgroup.
 func sendAbortCommand(w io.Writer) error {
 	enc := json.NewEncoder(w)
 	if err := enc.Encode(false); err != nil {
@@ -298,6 +305,8 @@ func sendAbortCommand(w io.Writer) error {
 	return nil
 }
 
+// Wait waits til the user process exits and returns an error on non-zero exit
+// codes. Wait also cleans up the task directory and created cgroups.
 func (e *LinuxExecutor) Wait() error {
 	if e.spawnOutputReader != nil {
 		e.spawnOutputReader.Close()
@@ -341,6 +350,8 @@ func (e *LinuxExecutor) Shutdown() error {
 	return e.ForceStop()
 }
 
+// ForceStop immediately exits the user process and cleans up both the task
+// directory and the cgroups.
 func (e *LinuxExecutor) ForceStop() error {
 	if e.spawnOutputReader != nil {
 		e.spawnOutputReader.Close()
@@ -366,6 +377,8 @@ func (e *LinuxExecutor) ForceStop() error {
 
 // Task Directory related functions.
 
+// ConfigureTaskDir creates the necessary directory structure for a proper
+// chroot. cleanTaskDir should be called after.
 func (e *LinuxExecutor) ConfigureTaskDir(taskName string, alloc *allocdir.AllocDir) error {
 	e.taskName = taskName
 	taskDir, ok := alloc.TaskDirs[taskName]
@@ -418,6 +431,7 @@ func (e *LinuxExecutor) ConfigureTaskDir(taskName string, alloc *allocdir.AllocD
 	return nil
 }
 
+// pathExists is a helper function to check if the path exists.
 func (e *LinuxExecutor) pathExists(path string) bool {
 	if _, err := os.Stat(path); err != nil {
 		if os.IsNotExist(err) {
@@ -427,6 +441,8 @@ func (e *LinuxExecutor) pathExists(path string) bool {
 	return true
 }
 
+// cleanTaskDir is an idempotent operation to clean the task directory and
+// should be called when tearing down the task.
 func (e *LinuxExecutor) cleanTaskDir() error {
 	// Unmount dev.
 	errs := new(multierror.Error)
@@ -450,6 +466,8 @@ func (e *LinuxExecutor) cleanTaskDir() error {
 
 // Cgroup related functions.
 
+// configureCgroups converts a Nomad Resources specification into the equivalent
+// cgroup configuration. It returns an error if the resources are invalid.
 func (e *LinuxExecutor) configureCgroups(resources *structs.Resources) error {
 	e.groups = &cgroupConfig.Cgroup{}
 	e.groups.Name = structs.GenerateUUID()
@@ -483,6 +501,8 @@ func (e *LinuxExecutor) configureCgroups(resources *structs.Resources) error {
 	return nil
 }
 
+// destroyCgroup kills all processes in the cgroup and removes the cgroup
+// configuration from the host.
 func (e *LinuxExecutor) destroyCgroup() error {
 	if e.groups == nil {
 		return errors.New("Can't destroy: cgroup configuration empty")
