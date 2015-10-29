@@ -19,35 +19,45 @@ func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListRes
 	}
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "list"}, time.Now())
 
-	// Capture all the allocations
-	snap, err := a.srv.fsm.State().Snapshot()
-	if err != nil {
-		return err
-	}
-	iter, err := snap.Allocs()
-	if err != nil {
-		return err
-	}
+	// Setup the blocking query
+	opts := blockingOptions{
+		queryOpts:   &args.QueryOptions,
+		queryMeta:   &reply.QueryMeta,
+		watchTables: []string{"allocs"},
+		run: func() error {
+			// Capture all the allocations
+			snap, err := a.srv.fsm.State().Snapshot()
+			if err != nil {
+				return err
+			}
+			iter, err := snap.Allocs()
+			if err != nil {
+				return err
+			}
 
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-		alloc := raw.(*structs.Allocation)
-		reply.Allocations = append(reply.Allocations, alloc.Stub())
-	}
+			var allocs []*structs.AllocListStub
+			for {
+				raw := iter.Next()
+				if raw == nil {
+					break
+				}
+				alloc := raw.(*structs.Allocation)
+				allocs = append(allocs, alloc.Stub())
+			}
+			reply.Allocations = allocs
 
-	// Use the last index that affected the jobs table
-	index, err := snap.Index("allocs")
-	if err != nil {
-		return err
-	}
-	reply.Index = index
+			// Use the last index that affected the jobs table
+			index, err := snap.Index("allocs")
+			if err != nil {
+				return err
+			}
+			reply.Index = index
 
-	// Set the query response
-	a.srv.setQueryMeta(&reply.QueryMeta)
-	return nil
+			// Set the query response
+			a.srv.setQueryMeta(&reply.QueryMeta)
+			return nil
+		}}
+	return a.srv.blockingRPC(&opts)
 }
 
 // GetAlloc is used to lookup a particular allocation

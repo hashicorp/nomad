@@ -580,8 +580,12 @@ func (s *StateStore) UpdateAllocFromClient(index uint64, alloc *structs.Allocati
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
+	tables := map[string]struct{}{"allocs": struct{}{}}
 	nodes := map[string]struct{}{alloc.NodeID: struct{}{}}
-	txn.Defer(func() { s.watch.notifyAllocs(nodes) })
+	txn.Defer(func() {
+		s.watch.notifyAllocs(nodes)
+		s.watch.notifyTables(tables)
+	})
 	txn.Commit()
 	return nil
 }
@@ -621,7 +625,11 @@ func (s *StateStore) UpsertAllocs(index uint64, allocs []*structs.Allocation) er
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	txn.Defer(func() { s.watch.notifyAllocs(nodes) })
+	tables := map[string]struct{}{"allocs": struct{}{}}
+	txn.Defer(func() {
+		s.watch.notifyAllocs(nodes)
+		s.watch.notifyTables(tables)
+	})
 	txn.Commit()
 	return nil
 }
