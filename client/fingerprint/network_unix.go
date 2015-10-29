@@ -26,6 +26,7 @@ type NetworkFingerprint struct {
 type NetworkInterfaceDetector interface {
 	Interfaces() ([]net.Interface, error)
 	InterfaceByName(name string) (*net.Interface, error)
+	Addrs(intf *net.Interface) ([]net.Addr, error)
 }
 
 type BasicNetworkInterfaceDetector struct {
@@ -37,6 +38,10 @@ func (b *BasicNetworkInterfaceDetector) Interfaces() ([]net.Interface, error) {
 
 func (b *BasicNetworkInterfaceDetector) InterfaceByName(name string) (*net.Interface, error) {
 	return net.InterfaceByName(name)
+}
+
+func (b *BasicNetworkInterfaceDetector) Addrs(intf *net.Interface) ([]net.Addr, error) {
+	return intf.Addrs()
 }
 
 // NewNetworkFingerprinter returns a new NetworkFingerprinter with the given
@@ -157,7 +162,7 @@ func (f *NetworkFingerprint) ipAddress(intf *net.Interface) (string, error) {
 	var addrs []net.Addr
 	var err error
 
-	if addrs, err = intf.Addrs(); err != nil {
+	if addrs, err = f.interfaceDetector.Addrs(intf); err != nil {
 		return "", err
 	}
 
