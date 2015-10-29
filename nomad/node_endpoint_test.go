@@ -807,7 +807,7 @@ func TestClientEndpoint_ListNodes_blocking(t *testing.T) {
 	}
 
 	if elapsed := time.Now().Sub(start); elapsed < 100*time.Millisecond {
-		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
+		t.Fatalf("should block (returned in %s) %#v", elapsed, resp2)
 	}
 	if resp2.Index != 3 {
 		t.Fatalf("Bad index: %d %d", resp2.Index, 3)
@@ -831,7 +831,7 @@ func TestClientEndpoint_ListNodes_blocking(t *testing.T) {
 	}
 
 	if elapsed := time.Now().Sub(start); elapsed < 100*time.Millisecond {
-		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
+		t.Fatalf("should block (returned in %s) %#v", elapsed, resp3)
 	}
 	if resp3.Index != 4 {
 		t.Fatalf("Bad index: %d %d", resp3.Index, 4)
@@ -855,7 +855,7 @@ func TestClientEndpoint_ListNodes_blocking(t *testing.T) {
 	}
 
 	if elapsed := time.Now().Sub(start); elapsed < 100*time.Millisecond {
-		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
+		t.Fatalf("should block (returned in %s) %#v", elapsed, resp4)
 	}
 	if resp4.Index != 5 {
 		t.Fatalf("Bad index: %d %d", resp4.Index, 5)

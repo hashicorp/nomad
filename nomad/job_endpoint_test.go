@@ -452,7 +452,7 @@ func TestJobEndpoint_ListJobs_blocking(t *testing.T) {
 	}
 
 	if elapsed := time.Now().Sub(start); elapsed < 100*time.Millisecond {
-		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
+		t.Fatalf("should block (returned in %s) %#v", elapsed, resp2)
 	}
 	if resp2.Index != 3 {
 		t.Fatalf("Bad index: %d %d", resp2.Index, 3)
