@@ -27,32 +27,40 @@ func (e *Eval) GetEval(args *structs.EvalSpecificRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "eval", "get_eval"}, time.Now())
 
-	// Look for the job
-	snap, err := e.srv.fsm.State().Snapshot()
-	if err != nil {
-		return err
-	}
-	out, err := snap.EvalByID(args.EvalID)
-	if err != nil {
-		return err
-	}
+	// Setup the blocking query
+	opts := blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		watch:     watch.NewItems(watch.Item{Eval: args.EvalID}),
+		run: func() error {
+			// Look for the job
+			snap, err := e.srv.fsm.State().Snapshot()
+			if err != nil {
+				return err
+			}
+			out, err := snap.EvalByID(args.EvalID)
+			if err != nil {
+				return err
+			}
 
-	// Setup the output
-	if out != nil {
-		reply.Eval = out
-		reply.Index = out.ModifyIndex
-	} else {
-		// Use the last index that affected the nodes table
-		index, err := snap.Index("evals")
-		if err != nil {
-			return err
-		}
-		reply.Index = index
-	}
+			// Setup the output
+			if out != nil {
+				reply.Eval = out
+				reply.Index = out.ModifyIndex
+			} else {
+				// Use the last index that affected the nodes table
+				index, err := snap.Index("evals")
+				if err != nil {
+					return err
+				}
+				reply.Index = index
+			}
 
-	// Set the query response
-	e.srv.setQueryMeta(&reply.QueryMeta)
-	return nil
+			// Set the query response
+			e.srv.setQueryMeta(&reply.QueryMeta)
+			return nil
+		}}
+	return e.srv.blockingRPC(&opts)
 }
 
 // Dequeue is used to dequeue a pending evaluation
