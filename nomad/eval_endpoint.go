@@ -6,6 +6,7 @@ import (
 
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/nomad/watch"
 )
 
 const (
@@ -221,9 +222,9 @@ func (e *Eval) List(args *structs.EvalListRequest,
 
 	// Setup the blocking query
 	opts := blockingOptions{
-		queryOpts:  &args.QueryOptions,
-		queryMeta:  &reply.QueryMeta,
-		watchTable: "evals",
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		watch:     watch.NewItems(watch.Item{Table: "evals"}),
 		run: func() error {
 			// Scan all the evaluations
 			snap, err := e.srv.fsm.State().Snapshot()

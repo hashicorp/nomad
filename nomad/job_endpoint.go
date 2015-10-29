@@ -6,6 +6,7 @@ import (
 
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/nomad/watch"
 )
 
 // Job endpoint is used for job interactions
@@ -218,9 +219,9 @@ func (j *Job) List(args *structs.JobListRequest,
 
 	// Setup the blocking query
 	opts := blockingOptions{
-		queryOpts:  &args.QueryOptions,
-		queryMeta:  &reply.QueryMeta,
-		watchTable: "jobs",
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		watch:     watch.NewItems(watch.Item{Table: "jobs"}),
 		run: func() error {
 			// Capture all the jobs
 			snap, err := j.srv.fsm.State().Snapshot()

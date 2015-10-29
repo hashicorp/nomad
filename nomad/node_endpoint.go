@@ -6,6 +6,7 @@ import (
 
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/nomad/watch"
 )
 
 // Node endpoint is used for client interactions
@@ -330,9 +331,9 @@ func (n *Node) GetAllocs(args *structs.NodeSpecificRequest,
 
 	// Setup the blocking query
 	opts := blockingOptions{
-		queryOpts:      &args.QueryOptions,
-		queryMeta:      &reply.QueryMeta,
-		watchAllocNode: args.NodeID,
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		watch:     watch.NewItems(watch.Item{AllocNode: args.NodeID}),
 		run: func() error {
 			// Look for the node
 			snap, err := n.srv.fsm.State().Snapshot()
@@ -406,9 +407,9 @@ func (n *Node) List(args *structs.NodeListRequest,
 
 	// Setup the blocking query
 	opts := blockingOptions{
-		queryOpts:  &args.QueryOptions,
-		queryMeta:  &reply.QueryMeta,
-		watchTable: "nodes",
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		watch:     watch.NewItems(watch.Item{Table: "nodes"}),
 		run: func() error {
 			// Capture all the nodes
 			snap, err := n.srv.fsm.State().Snapshot()

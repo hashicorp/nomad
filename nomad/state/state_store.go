@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"sync"
 
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/nomad/watch"
 )
 
 // IndexEntry is used with the "index" table
@@ -68,29 +70,21 @@ func (s *StateStore) Restore() (*StateRestore, error) {
 	r := &StateRestore{
 		txn:   txn,
 		watch: s.watch,
-		items: make(watchItems),
+		items: watch.NewItems(),
 	}
 	return r, nil
 }
 
-// WatchTable is used to subscribe a channel to a full table watch.
-func (s *StateStore) WatchTable(table string, notify chan struct{}) {
-	s.watch.watch(watchItem{table: table}, notify)
+func (s *StateStore) Watch(items watch.Items, notify chan struct{}) {
+	for wi, _ := range items {
+		s.watch.watch(wi, notify)
+	}
 }
 
-// StopWatchTable unsubscribes a channel from a full table watch.
-func (s *StateStore) StopWatchTable(table string, notify chan struct{}) {
-	s.watch.stopWatch(watchItem{table: table}, notify)
-}
-
-// WatchAllocNode is used to subscribe a channel to a node allocation watch.
-func (s *StateStore) WatchAllocNode(nodeID string, notify chan struct{}) {
-	s.watch.watch(watchItem{allocNode: nodeID}, notify)
-}
-
-// StopWatchAllocNode unsubscribes a channel from a node allocation watch.
-func (s *StateStore) StopWatchAllocNode(nodeID string, notify chan struct{}) {
-	s.watch.stopWatch(watchItem{allocNode: nodeID}, notify)
+func (s *StateStore) StopWatch(items watch.Items, notify chan struct{}) {
+	for wi, _ := range items {
+		s.watch.stopWatch(wi, notify)
+	}
 }
 
 // UpsertNode is used to register a node or update a node definition
@@ -100,9 +94,9 @@ func (s *StateStore) UpsertNode(index uint64, node *structs.Node) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
-	watch := make(watchItems)
-	watch.add(watchItem{table: "nodes"})
-	watch.add(watchItem{node: node.ID})
+	watcher := watch.NewItems()
+	watcher.Add(watch.Item{Table: "nodes"})
+	watcher.Add(watch.Item{Node: node.ID})
 
 	// Check if the node already exists
 	existing, err := txn.First("nodes", "id", node.ID)
@@ -129,7 +123,7 @@ func (s *StateStore) UpsertNode(index uint64, node *structs.Node) error {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	txn.Defer(func() { s.watch.notify(watch) })
+	txn.Defer(func() { s.watch.notify(watcher) })
 	txn.Commit()
 	return nil
 }
@@ -139,9 +133,9 @@ func (s *StateStore) DeleteNode(index uint64, nodeID string) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
-	watch := make(watchItems)
-	watch.add(watchItem{table: "nodes"})
-	watch.add(watchItem{node: nodeID})
+	watcher := watch.NewItems()
+	watcher.Add(watch.Item{Table: "nodes"})
+	watcher.Add(watch.Item{Node: nodeID})
 
 	// Lookup the node
 	existing, err := txn.First("nodes", "id", nodeID)
@@ -160,7 +154,7 @@ func (s *StateStore) DeleteNode(index uint64, nodeID string) error {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	txn.Defer(func() { s.watch.notify(watch) })
+	txn.Defer(func() { s.watch.notify(watcher) })
 	txn.Commit()
 	return nil
 }
@@ -170,9 +164,9 @@ func (s *StateStore) UpdateNodeStatus(index uint64, nodeID, status string) error
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
-	watch := make(watchItems)
-	watch.add(watchItem{table: "nodes"})
-	watch.add(watchItem{node: nodeID})
+	watcher := watch.NewItems()
+	watcher.Add(watch.Item{Table: "nodes"})
+	watcher.Add(watch.Item{Node: nodeID})
 
 	// Lookup the node
 	existing, err := txn.First("nodes", "id", nodeID)
@@ -200,7 +194,7 @@ func (s *StateStore) UpdateNodeStatus(index uint64, nodeID, status string) error
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	txn.Defer(func() { s.watch.notify(watch) })
+	txn.Defer(func() { s.watch.notify(watcher) })
 	txn.Commit()
 	return nil
 }
@@ -210,9 +204,9 @@ func (s *StateStore) UpdateNodeDrain(index uint64, nodeID string, drain bool) er
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
-	watch := make(watchItems)
-	watch.add(watchItem{table: "nodes"})
-	watch.add(watchItem{node: nodeID})
+	watcher := watch.NewItems()
+	watcher.Add(watch.Item{Table: "nodes"})
+	watcher.Add(watch.Item{Node: nodeID})
 
 	// Lookup the node
 	existing, err := txn.First("nodes", "id", nodeID)
@@ -240,7 +234,7 @@ func (s *StateStore) UpdateNodeDrain(index uint64, nodeID string, drain bool) er
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	txn.Defer(func() { s.watch.notify(watch) })
+	txn.Defer(func() { s.watch.notify(watcher) })
 	txn.Commit()
 	return nil
 }
@@ -277,9 +271,9 @@ func (s *StateStore) UpsertJob(index uint64, job *structs.Job) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
-	watch := make(watchItems)
-	watch.add(watchItem{table: "jobs"})
-	watch.add(watchItem{job: job.ID})
+	watcher := watch.NewItems()
+	watcher.Add(watch.Item{Table: "jobs"})
+	watcher.Add(watch.Item{Job: job.ID})
 
 	// Check if the job already exists
 	existing, err := txn.First("jobs", "id", job.ID)
@@ -304,7 +298,7 @@ func (s *StateStore) UpsertJob(index uint64, job *structs.Job) error {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	txn.Defer(func() { s.watch.notify(watch) })
+	txn.Defer(func() { s.watch.notify(watcher) })
 	txn.Commit()
 	return nil
 }
@@ -314,9 +308,9 @@ func (s *StateStore) DeleteJob(index uint64, jobID string) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
-	watch := make(watchItems)
-	watch.add(watchItem{table: "jobs"})
-	watch.add(watchItem{job: jobID})
+	watcher := watch.NewItems()
+	watcher.Add(watch.Item{Table: "jobs"})
+	watcher.Add(watch.Item{Job: jobID})
 
 	// Lookup the node
 	existing, err := txn.First("jobs", "id", jobID)
@@ -335,7 +329,7 @@ func (s *StateStore) DeleteJob(index uint64, jobID string) error {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	txn.Defer(func() { s.watch.notify(watch) })
+	txn.Defer(func() { s.watch.notify(watcher) })
 	txn.Commit()
 	return nil
 }
@@ -385,18 +379,18 @@ func (s *StateStore) UpsertEvals(index uint64, evals []*structs.Evaluation) erro
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
-	watch := make(watchItems)
-	watch.add(watchItem{table: "evals"})
+	watcher := watch.NewItems()
+	watcher.Add(watch.Item{Table: "evals"})
 
 	// Do a nested upsert
 	for _, eval := range evals {
-		watch.add(watchItem{eval: eval.ID})
+		watcher.Add(watch.Item{Eval: eval.ID})
 		if err := s.nestedUpsertEval(txn, index, eval); err != nil {
 			return err
 		}
 	}
 
-	txn.Defer(func() { s.watch.notify(watch) })
+	txn.Defer(func() { s.watch.notify(watcher) })
 	txn.Commit()
 	return nil
 }
@@ -432,7 +426,9 @@ func (s *StateStore) nestedUpsertEval(txn *memdb.Txn, index uint64, eval *struct
 func (s *StateStore) DeleteEval(index uint64, evals []string, allocs []string) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
-	watch := make(watchItems)
+	watcher := watch.NewItems()
+	watcher.Add(watch.Item{Table: "evals"})
+	watcher.Add(watch.Item{Table: "allocs"})
 
 	for _, eval := range evals {
 		existing, err := txn.First("evals", "id", eval)
@@ -445,8 +441,7 @@ func (s *StateStore) DeleteEval(index uint64, evals []string, allocs []string) e
 		if err := txn.Delete("evals", existing); err != nil {
 			return fmt.Errorf("eval delete failed: %v", err)
 		}
-		watch.add(watchItem{table: "evals"})
-		watch.add(watchItem{eval: eval})
+		watcher.Add(watch.Item{Eval: eval})
 	}
 
 	for _, alloc := range allocs {
@@ -460,9 +455,8 @@ func (s *StateStore) DeleteEval(index uint64, evals []string, allocs []string) e
 		if err := txn.Delete("allocs", existing); err != nil {
 			return fmt.Errorf("alloc delete failed: %v", err)
 		}
-		watch.add(watchItem{table: "allocs"})
-		watch.add(watchItem{alloc: alloc})
-		watch.add(watchItem{allocNode: existing.(*structs.Allocation).NodeID})
+		watcher.Add(watch.Item{Alloc: alloc})
+		watcher.Add(watch.Item{AllocNode: existing.(*structs.Allocation).NodeID})
 	}
 
 	// Update the indexes
@@ -473,7 +467,7 @@ func (s *StateStore) DeleteEval(index uint64, evals []string, allocs []string) e
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	txn.Defer(func() { s.watch.notify(watch) })
+	txn.Defer(func() { s.watch.notify(watcher) })
 	txn.Commit()
 	return nil
 }
@@ -535,10 +529,10 @@ func (s *StateStore) UpdateAllocFromClient(index uint64, alloc *structs.Allocati
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
-	watch := make(watchItems)
-	watch.add(watchItem{table: "allocs"})
-	watch.add(watchItem{alloc: alloc.ID})
-	watch.add(watchItem{allocNode: alloc.NodeID})
+	watcher := watch.NewItems()
+	watcher.Add(watch.Item{Table: "allocs"})
+	watcher.Add(watch.Item{Alloc: alloc.ID})
+	watcher.Add(watch.Item{AllocNode: alloc.NodeID})
 
 	// Look for existing alloc
 	existing, err := txn.First("allocs", "id", alloc.ID)
@@ -573,7 +567,7 @@ func (s *StateStore) UpdateAllocFromClient(index uint64, alloc *structs.Allocati
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	txn.Defer(func() { s.watch.notify(watch) })
+	txn.Defer(func() { s.watch.notify(watcher) })
 	txn.Commit()
 	return nil
 }
@@ -584,8 +578,8 @@ func (s *StateStore) UpsertAllocs(index uint64, allocs []*structs.Allocation) er
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
-	watch := make(watchItems)
-	watch.add(watchItem{table: "allocs"})
+	watcher := watch.NewItems()
+	watcher.Add(watch.Item{Table: "allocs"})
 
 	// Handle the allocations
 	for _, alloc := range allocs {
@@ -608,8 +602,8 @@ func (s *StateStore) UpsertAllocs(index uint64, allocs []*structs.Allocation) er
 			return fmt.Errorf("alloc insert failed: %v", err)
 		}
 
-		watch.add(watchItem{alloc: alloc.ID})
-		watch.add(watchItem{allocNode: alloc.NodeID})
+		watcher.Add(watch.Item{Alloc: alloc.ID})
+		watcher.Add(watch.Item{AllocNode: alloc.NodeID})
 	}
 
 	// Update the indexes
@@ -617,7 +611,7 @@ func (s *StateStore) UpsertAllocs(index uint64, allocs []*structs.Allocation) er
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	txn.Defer(func() { s.watch.notify(watch) })
+	txn.Defer(func() { s.watch.notify(watcher) })
 	txn.Commit()
 	return nil
 }
@@ -750,7 +744,7 @@ type StateSnapshot struct {
 type StateRestore struct {
 	txn   *memdb.Txn
 	watch *stateWatch
-	items watchItems
+	items watch.Items
 }
 
 // Abort is used to abort the restore operation
@@ -766,7 +760,7 @@ func (s *StateRestore) Commit() {
 
 // NodeRestore is used to restore a node
 func (r *StateRestore) NodeRestore(node *structs.Node) error {
-	r.items.add(watchItem{table: "nodes"})
+	r.items.Add(watch.Item{Table: "nodes"})
 	if err := r.txn.Insert("nodes", node); err != nil {
 		return fmt.Errorf("node insert failed: %v", err)
 	}
@@ -775,7 +769,7 @@ func (r *StateRestore) NodeRestore(node *structs.Node) error {
 
 // JobRestore is used to restore a job
 func (r *StateRestore) JobRestore(job *structs.Job) error {
-	r.items.add(watchItem{table: "jobs"})
+	r.items.Add(watch.Item{Table: "jobs"})
 	if err := r.txn.Insert("jobs", job); err != nil {
 		return fmt.Errorf("job insert failed: %v", err)
 	}
@@ -784,7 +778,7 @@ func (r *StateRestore) JobRestore(job *structs.Job) error {
 
 // EvalRestore is used to restore an evaluation
 func (r *StateRestore) EvalRestore(eval *structs.Evaluation) error {
-	r.items.add(watchItem{table: "evals"})
+	r.items.Add(watch.Item{Table: "evals"})
 	if err := r.txn.Insert("evals", eval); err != nil {
 		return fmt.Errorf("eval insert failed: %v", err)
 	}
@@ -793,8 +787,8 @@ func (r *StateRestore) EvalRestore(eval *structs.Evaluation) error {
 
 // AllocRestore is used to restore an allocation
 func (r *StateRestore) AllocRestore(alloc *structs.Allocation) error {
-	r.items.add(watchItem{table: "allocs"})
-	r.items.add(watchItem{allocNode: alloc.NodeID})
+	r.items.Add(watch.Item{Table: "allocs"})
+	r.items.Add(watch.Item{AllocNode: alloc.NodeID})
 	if err := r.txn.Insert("allocs", alloc); err != nil {
 		return fmt.Errorf("alloc insert failed: %v", err)
 	}
@@ -807,4 +801,56 @@ func (r *StateRestore) IndexRestore(idx *IndexEntry) error {
 		return fmt.Errorf("index insert failed: %v", err)
 	}
 	return nil
+}
+
+// stateWatch holds shared state for watching updates. This is
+// outside of StateStore so it can be shared with snapshots.
+type stateWatch struct {
+	items map[watch.Item]*NotifyGroup
+	l     sync.Mutex
+}
+
+// newStateWatch creates a new stateWatch for change notification.
+func newStateWatch() *stateWatch {
+	return &stateWatch{
+		items: make(map[watch.Item]*NotifyGroup),
+	}
+}
+
+// watch subscribes a channel to the given watch item.
+func (w *stateWatch) watch(wi watch.Item, ch chan struct{}) {
+	w.l.Lock()
+	defer w.l.Unlock()
+
+	grp, ok := w.items[wi]
+	if !ok {
+		grp = new(NotifyGroup)
+		w.items[wi] = grp
+	}
+	grp.Wait(ch)
+}
+
+// stopWatch unsubscribes a channel from the given watch item.
+func (w *stateWatch) stopWatch(wi watch.Item, ch chan struct{}) {
+	w.l.Lock()
+	defer w.l.Unlock()
+
+	if grp, ok := w.items[wi]; ok {
+		grp.Clear(ch)
+		if grp.Empty() {
+			delete(w.items, wi)
+		}
+	}
+}
+
+// notify is used to fire notifications on the given watch items.
+func (w *stateWatch) notify(items watch.Items) {
+	w.l.Lock()
+	defer w.l.Unlock()
+
+	for wi, _ := range items {
+		if grp, ok := w.items[wi]; ok {
+			grp.Notify()
+		}
+	}
 }

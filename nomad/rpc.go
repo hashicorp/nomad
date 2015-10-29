@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/nomad/watch"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/yamux"
 )
@@ -268,11 +269,10 @@ func (s *Server) setQueryMeta(m *structs.QueryMeta) {
 
 // blockingOptions is used to parameterize blockingRPC
 type blockingOptions struct {
-	queryOpts      *structs.QueryOptions
-	queryMeta      *structs.QueryMeta
-	watchAllocNode string
-	watchTable     string
-	run            func() error
+	queryOpts *structs.QueryOptions
+	queryMeta *structs.QueryMeta
+	watch     watch.Items
+	run       func() error
 }
 
 // blockingRPC is used for queries that need to wait for a
@@ -307,15 +307,13 @@ func (s *Server) blockingRPC(opts *blockingOptions) error {
 	state = s.fsm.State()
 	defer func() {
 		timeout.Stop()
-		state.StopWatchAllocNode(opts.watchAllocNode, notifyCh)
-		state.StopWatchTable(opts.watchTable, notifyCh)
+		state.StopWatch(opts.watch, notifyCh)
 	}()
 
 REGISTER_NOTIFY:
 	// Register the notification channel. This may be done
 	// multiple times if we have not reached the target wait index.
-	state.WatchAllocNode(opts.watchAllocNode, notifyCh)
-	state.WatchTable(opts.watchTable, notifyCh)
+	state.Watch(opts.watch, notifyCh)
 
 RUN_QUERY:
 	// Update the query meta data

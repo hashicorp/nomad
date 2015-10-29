@@ -5,6 +5,7 @@ import (
 
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/nomad/watch"
 )
 
 // Alloc endpoint is used for manipulating allocations
@@ -21,9 +22,9 @@ func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListRes
 
 	// Setup the blocking query
 	opts := blockingOptions{
-		queryOpts:  &args.QueryOptions,
-		queryMeta:  &reply.QueryMeta,
-		watchTable: "allocs",
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		watch:     watch.NewItems(watch.Item{Table: "allocs"}),
 		run: func() error {
 			// Capture all the allocations
 			snap, err := a.srv.fsm.State().Snapshot()

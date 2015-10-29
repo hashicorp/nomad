@@ -8,6 +8,7 @@ import (
 
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/nomad/watch"
 )
 
 func testStateStore(t *testing.T) *StateStore {
@@ -585,7 +586,7 @@ func TestStateStore_DeleteEval_Eval(t *testing.T) {
 	}
 
 	notify1 := make(chan struct{}, 1)
-	state.WatchAllocNode(alloc.NodeID, notify1)
+	state.Watch(watch.NewItems(watch.Item{AllocNode: alloc.NodeID}), notify1)
 
 	err = state.DeleteEval(1002, []string{eval.ID, eval2.ID}, []string{alloc.ID, alloc2.ID})
 	if err != nil {
@@ -808,14 +809,16 @@ func TestStateStore_UpsertAlloc_Alloc(t *testing.T) {
 	}
 }
 
-func TestStateStore_WatchAllocNode(t *testing.T) {
+func TestStateStore_Watch(t *testing.T) {
 	state := testStateStore(t)
 
 	notify1 := make(chan struct{}, 1)
 	notify2 := make(chan struct{}, 1)
-	state.WatchAllocNode("foo", notify1)
-	state.WatchAllocNode("foo", notify2)
-	state.StopWatchAllocNode("foo", notify2)
+
+	items := watch.NewItems(watch.Item{AllocNode: "foo"})
+	state.Watch(items, notify1)
+	state.Watch(items, notify2)
+	state.StopWatch(items, notify2)
 
 	alloc := mock.Alloc()
 	alloc.NodeID = "foo"
@@ -1029,6 +1032,49 @@ func TestStateStore_RestoreAlloc(t *testing.T) {
 
 	if !reflect.DeepEqual(out, alloc) {
 		t.Fatalf("Bad: %#v %#v", out, alloc)
+	}
+}
+
+func TestStateWatch_watch(t *testing.T) {
+	sw := newStateWatch()
+	notify1 := make(chan struct{}, 1)
+	notify2 := make(chan struct{}, 1)
+	notify3 := make(chan struct{}, 1)
+
+	// Notifications trigger subscribed channels
+	sw.watch(watch.Item{Table: "foo"}, notify1)
+	sw.watch(watch.Item{Table: "bar"}, notify2)
+	sw.watch(watch.Item{Table: "baz"}, notify3)
+
+	items := watch.NewItems()
+	items.Add(watch.Item{Table: "foo"})
+	items.Add(watch.Item{Table: "bar"})
+
+	sw.notify(items)
+	if len(notify1) != 1 {
+		t.Fatalf("should notify")
+	}
+	if len(notify2) != 1 {
+		t.Fatalf("should notify")
+	}
+	if len(notify3) != 0 {
+		t.Fatalf("should not notify")
+	}
+}
+
+func TestStateWatch_stopWatch(t *testing.T) {
+	sw := newStateWatch()
+	notify := make(chan struct{})
+
+	// First subscribe
+	sw.watch(watch.Item{Table: "foo"}, notify)
+
+	// Unsubscribe stop notifications
+	sw.stopWatch(watch.Item{Table: "foo"}, notify)
+
+	sw.notify(watch.NewItems(watch.Item{Table: "foo"}))
+	if len(notify) != 0 {
+		t.Fatalf("should not notify")
 	}
 }
 
