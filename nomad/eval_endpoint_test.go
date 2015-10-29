@@ -334,6 +334,70 @@ func TestEvalEndpoint_List(t *testing.T) {
 	}
 }
 
+func TestEvalEndpoint_List_blocking(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	state := s1.fsm.State()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the ieval
+	eval := mock.Eval()
+
+	// Upsert eval triggers watches
+	time.AfterFunc(100*time.Millisecond, func() {
+		if err := state.UpsertEvals(2, []*structs.Evaluation{eval}); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	})
+
+	req := &structs.EvalListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:        "global",
+			MinQueryIndex: 1,
+		},
+	}
+	start := time.Now()
+	var resp structs.EvalListResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Eval.List", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if elapsed := time.Now().Sub(start); elapsed < 100*time.Millisecond {
+		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
+	}
+	if resp.Index != 2 {
+		t.Fatalf("Bad index: %d %d", resp.Index, 2)
+	}
+	if len(resp.Evaluations) != 1 || resp.Evaluations[0].ID != eval.ID {
+		t.Fatalf("bad: %#v", resp.Evaluations)
+	}
+
+	// Eval deletion triggers watches
+	time.AfterFunc(100*time.Millisecond, func() {
+		if err := state.DeleteEval(3, []string{eval.ID}, nil); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	})
+
+	req.MinQueryIndex = 2
+	start = time.Now()
+	var resp2 structs.EvalListResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Eval.List", req, &resp2); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if elapsed := time.Now().Sub(start); elapsed < 100*time.Millisecond {
+		t.Fatalf("should block (returned in %s) %#v", elapsed, resp2)
+	}
+	if resp2.Index != 3 {
+		t.Fatalf("Bad index: %d %d", resp2.Index, 3)
+	}
+	if len(resp2.Evaluations) != 0 {
+		t.Fatalf("bad: %#v", resp2.Evaluations)
+	}
+}
+
 func TestEvalEndpoint_Allocations(t *testing.T) {
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()

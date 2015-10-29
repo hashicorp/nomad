@@ -219,35 +219,45 @@ func (e *Eval) List(args *structs.EvalListRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "eval", "list"}, time.Now())
 
-	// Scan all the evaluations
-	snap, err := e.srv.fsm.State().Snapshot()
-	if err != nil {
-		return err
-	}
-	iter, err := snap.Evals()
-	if err != nil {
-		return err
-	}
+	// Setup the blocking query
+	opts := blockingOptions{
+		queryOpts:   &args.QueryOptions,
+		queryMeta:   &reply.QueryMeta,
+		watchTables: []string{"evals"},
+		run: func() error {
+			// Scan all the evaluations
+			snap, err := e.srv.fsm.State().Snapshot()
+			if err != nil {
+				return err
+			}
+			iter, err := snap.Evals()
+			if err != nil {
+				return err
+			}
 
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-		eval := raw.(*structs.Evaluation)
-		reply.Evaluations = append(reply.Evaluations, eval)
-	}
+			var evals []*structs.Evaluation
+			for {
+				raw := iter.Next()
+				if raw == nil {
+					break
+				}
+				eval := raw.(*structs.Evaluation)
+				evals = append(evals, eval)
+			}
+			reply.Evaluations = evals
 
-	// Use the last index that affected the jobs table
-	index, err := snap.Index("evals")
-	if err != nil {
-		return err
-	}
-	reply.Index = index
+			// Use the last index that affected the jobs table
+			index, err := snap.Index("evals")
+			if err != nil {
+				return err
+			}
+			reply.Index = index
 
-	// Set the query response
-	e.srv.setQueryMeta(&reply.QueryMeta)
-	return nil
+			// Set the query response
+			e.srv.setQueryMeta(&reply.QueryMeta)
+			return nil
+		}}
+	return e.srv.blockingRPC(&opts)
 }
 
 // Allocations is used to list the allocations for an evaluation

@@ -407,6 +407,8 @@ func (s *StateStore) UpsertEvals(index uint64, evals []*structs.Evaluation) erro
 		}
 	}
 
+	tables := map[string]struct{}{"evals": struct{}{}}
+	txn.Defer(func() { s.watch.notifyTables(tables) })
 	txn.Commit()
 	return nil
 }
@@ -478,7 +480,12 @@ func (s *StateStore) DeleteEval(index uint64, evals []string, allocs []string) e
 	if err := txn.Insert("index", &IndexEntry{"allocs", index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
 	}
-	txn.Defer(func() { s.watch.notifyAllocs(nodes) })
+
+	tables := map[string]struct{}{"evals": struct{}{}}
+	txn.Defer(func() {
+		s.watch.notifyAllocs(nodes)
+		s.watch.notifyTables(tables)
+	})
 	txn.Commit()
 	return nil
 }
