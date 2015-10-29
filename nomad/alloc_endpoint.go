@@ -69,30 +69,38 @@ func (a *Alloc) GetAlloc(args *structs.AllocSpecificRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "get_alloc"}, time.Now())
 
-	// Lookup the allocation
-	snap, err := a.srv.fsm.State().Snapshot()
-	if err != nil {
-		return err
-	}
-	out, err := snap.AllocByID(args.AllocID)
-	if err != nil {
-		return err
-	}
+	// Setup the blocking query
+	opts := blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		watch:     watch.NewItems(watch.Item{Alloc: args.AllocID}),
+		run: func() error {
+			// Lookup the allocation
+			snap, err := a.srv.fsm.State().Snapshot()
+			if err != nil {
+				return err
+			}
+			out, err := snap.AllocByID(args.AllocID)
+			if err != nil {
+				return err
+			}
 
-	// Setup the output
-	if out != nil {
-		reply.Alloc = out
-		reply.Index = out.ModifyIndex
-	} else {
-		// Use the last index that affected the nodes table
-		index, err := snap.Index("allocs")
-		if err != nil {
-			return err
-		}
-		reply.Index = index
-	}
+			// Setup the output
+			if out != nil {
+				reply.Alloc = out
+				reply.Index = out.ModifyIndex
+			} else {
+				// Use the last index that affected the nodes table
+				index, err := snap.Index("allocs")
+				if err != nil {
+					return err
+				}
+				reply.Index = index
+			}
 
-	// Set the query response
-	a.srv.setQueryMeta(&reply.QueryMeta)
-	return nil
+			// Set the query response
+			a.srv.setQueryMeta(&reply.QueryMeta)
+			return nil
+		}}
+	return a.srv.blockingRPC(&opts)
 }
