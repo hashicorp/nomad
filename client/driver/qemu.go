@@ -57,6 +57,8 @@ func NewQemuDriver(ctx *DriverContext) Driver {
 func (d *QemuDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
 	bin := "qemu-system-x86_64"
 	if runtime.GOOS == "windows" {
+		// On windows, the "qemu-system-x86_64" command does not respond to the
+		// version flag.
 		bin = "qemu-img"
 	}
 	outBytes, err := exec.Command(bin, "--version").Output()
