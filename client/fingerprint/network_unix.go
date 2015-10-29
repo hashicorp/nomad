@@ -23,12 +23,16 @@ type NetworkFingerprint struct {
 	interfaceDetector NetworkInterfaceDetector
 }
 
+// An interface to isolate calls to various api in net package
+// This facilitates testing where we can implement
+// fake interfaces and addresses to test varios code paths
 type NetworkInterfaceDetector interface {
 	Interfaces() ([]net.Interface, error)
 	InterfaceByName(name string) (*net.Interface, error)
 	Addrs(intf *net.Interface) ([]net.Addr, error)
 }
 
+// Implements the interface detector which calls net directly
 type BasicNetworkInterfaceDetector struct {
 }
 
