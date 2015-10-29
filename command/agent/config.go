@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/hashicorp/hcl"
@@ -220,7 +221,12 @@ func DevConfig() *Config {
 	conf.DevMode = true
 	conf.EnableDebug = true
 	conf.DisableAnonymousSignature = true
-	conf.Client.NetworkInterface = "lo"
+	if runtime.GOOS == "darwin" {
+		conf.Client.NetworkInterface = "lo0"
+	} else {
+		conf.Client.NetworkInterface = "lo"
+	}
+
 	return conf
 }
 
