@@ -181,32 +181,41 @@ func (j *Job) GetJob(args *structs.JobSpecificRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "job", "get_job"}, time.Now())
 
-	// Look for the job
-	snap, err := j.srv.fsm.State().Snapshot()
-	if err != nil {
-		return err
-	}
-	out, err := snap.JobByID(args.JobID)
-	if err != nil {
-		return err
-	}
+	// Setup the blocking query
+	opts := blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		watch:     watch.NewItems(watch.Item{Job: args.JobID}),
+		run: func() error {
 
-	// Setup the output
-	if out != nil {
-		reply.Job = out
-		reply.Index = out.ModifyIndex
-	} else {
-		// Use the last index that affected the nodes table
-		index, err := snap.Index("jobs")
-		if err != nil {
-			return err
-		}
-		reply.Index = index
-	}
+			// Look for the job
+			snap, err := j.srv.fsm.State().Snapshot()
+			if err != nil {
+				return err
+			}
+			out, err := snap.JobByID(args.JobID)
+			if err != nil {
+				return err
+			}
 
-	// Set the query response
-	j.srv.setQueryMeta(&reply.QueryMeta)
-	return nil
+			// Setup the output
+			if out != nil {
+				reply.Job = out
+				reply.Index = out.ModifyIndex
+			} else {
+				// Use the last index that affected the nodes table
+				index, err := snap.Index("jobs")
+				if err != nil {
+					return err
+				}
+				reply.Index = index
+			}
+
+			// Set the query response
+			j.srv.setQueryMeta(&reply.QueryMeta)
+			return nil
+		}}
+	return j.srv.blockingRPC(&opts)
 }
 
 // List is used to list the jobs registered in the system
