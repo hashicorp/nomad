@@ -10,7 +10,6 @@ import (
 	"net"
 	"os/exec"
 	"regexp"
-	"runtime"
 	"strconv"
 	"strings"
 
@@ -20,54 +19,64 @@ import (
 
 // NetworkFingerprint is used to fingerprint the Network capabilities of a node
 type NetworkFingerprint struct {
-	logger *log.Logger
+	logger            *log.Logger
+	interfaceDetector NetworkInterfaceDetector
+}
+
+// An interface to isolate calls to various api in net package
+// This facilitates testing where we can implement
+// fake interfaces and addresses to test varios code paths
+type NetworkInterfaceDetector interface {
+	Interfaces() ([]net.Interface, error)
+	InterfaceByName(name string) (*net.Interface, error)
+	Addrs(intf *net.Interface) ([]net.Addr, error)
+}
+
+// Implements the interface detector which calls net directly
+type DefaultNetworkInterfaceDetector struct {
+}
+
+func (b *DefaultNetworkInterfaceDetector) Interfaces() ([]net.Interface, error) {
+	return net.Interfaces()
+}
+
+func (b *DefaultNetworkInterfaceDetector) InterfaceByName(name string) (*net.Interface, error) {
+	return net.InterfaceByName(name)
+}
+
+func (b *DefaultNetworkInterfaceDetector) Addrs(intf *net.Interface) ([]net.Addr, error) {
+	return intf.Addrs()
 }
 
 // NewNetworkFingerprinter returns a new NetworkFingerprinter with the given
 // logger
 func NewNetworkFingerprinter(logger *log.Logger) Fingerprint {
-	f := &NetworkFingerprint{logger: logger}
+	f := &NetworkFingerprint{logger: logger, interfaceDetector: &DefaultNetworkInterfaceDetector{}}
 	return f
 }
 
 func (f *NetworkFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
 	// newNetwork is populated and addded to the Nodes resources
 	newNetwork := &structs.NetworkResource{}
-	defaultDevice := ""
-	ip := ""
+	var ip string
 
-	// 1. Use user-defined network device
-	// 2. Use first interface found in the system for non-dev mode. (dev mode uses lo by default.)
-	if cfg.NetworkInterface != "" {
-		defaultDevice = cfg.NetworkInterface
-		ip = f.ipAddress(defaultDevice)
-	} else {
-
-		intfs, err := net.Interfaces()
-		if err != nil {
-			return false, err
-		}
-
-		for _, i := range intfs {
-			if (i.Flags&net.FlagUp != 0) && (i.Flags&(net.FlagLoopback|net.FlagPointToPoint) == 0) {
-				if ip = f.ipAddress(i.Name); ip != "" {
-					defaultDevice = i.Name
-					break
-				}
-			}
-		}
+	intf, err := f.findInterface(cfg.NetworkInterface)
+	if err != nil {
+		return false, fmt.Errorf("Error while detecting network interface during fingerprinting: %v", err)
 	}
 
-	if (defaultDevice != "") && (ip != "") {
-		newNetwork.Device = defaultDevice
-		node.Attributes["network.ip-address"] = ip
-		newNetwork.IP = ip
-		newNetwork.CIDR = newNetwork.IP + "/32"
-	} else {
-		return false, fmt.Errorf("Unable to find any network interface which has IP address")
+	if ip, err = f.ipAddress(intf); err != nil {
+		return false, fmt.Errorf("Unable to find IP address of interface: %s, err: %v", intf.Name, err)
 	}
 
-	if throughput := f.linkSpeed(defaultDevice); throughput > 0 {
+	newNetwork.Device = intf.Name
+	node.Attributes["network.ip-address"] = ip
+	newNetwork.IP = ip
+	newNetwork.CIDR = newNetwork.IP + "/32"
+
+	f.logger.Printf("[DEBUG] fingerprint.network: Detected interface %v  with IP %v during fingerprinting", intf.Name, ip)
+
+	if throughput := f.linkSpeed(intf.Name); throughput > 0 {
 		newNetwork.MBits = throughput
 	} else {
 		f.logger.Printf("[DEBUG] fingerprint.network: Unable to read link speed; setting to default %v", cfg.NetworkSpeed)
@@ -152,99 +161,76 @@ func (f *NetworkFingerprint) linkSpeedEthtool(path, device string) int {
 	return mbs
 }
 
-// ipAddress returns the first IPv4 address on the configured default interface
-// Tries Golang native functions and falls back onto ifconfig
-func (f *NetworkFingerprint) ipAddress(device string) string {
-	if ip, err := f.nativeIpAddress(device); err == nil {
-		return ip
+// Gets the ipv4 addr for a network interface
+func (f *NetworkFingerprint) ipAddress(intf *net.Interface) (string, error) {
+	var addrs []net.Addr
+	var err error
+
+	if addrs, err = f.interfaceDetector.Addrs(intf); err != nil {
+		return "", err
 	}
 
-	return f.ifConfig(device)
+	if len(addrs) == 0 {
+		return "", errors.New(fmt.Sprintf("Interface %s has no IP address", intf.Name))
+	}
+	for _, addr := range addrs {
+		var ip net.IP
+		switch v := (addr).(type) {
+		case *net.IPNet:
+			ip = v.IP
+		case *net.IPAddr:
+			ip = v.IP
+		}
+		if ip.To4() != nil {
+			return ip.String(), nil
+		}
+	}
+
+	return "", fmt.Errorf("Couldn't parse IP address for interface %s", intf.Name)
+
 }
 
-func (f *NetworkFingerprint) nativeIpAddress(device string) (string, error) {
-	// Find IP address on configured interface
-	var ip string
-	ifaces, err := net.Interfaces()
-	if err != nil {
-		return "", errors.New("could not retrieve interface list")
-	}
-
-	// TODO: should we handle IPv6 here? How do we determine precedence?
-	for _, i := range ifaces {
-		if i.Name != device {
-			continue
-		}
-
-		addrs, err := i.Addrs()
-		if err != nil {
-			return "", errors.New("could not retrieve interface IP addresses")
-		}
-
-		for _, a := range addrs {
-			switch v := a.(type) {
-			case *net.IPNet:
-				if v.IP.To4() != nil {
-					ip = v.IP.String()
-				}
-			case *net.IPAddr:
-				if v.IP.To4() != nil {
-					ip = v.IP.String()
-				}
-			}
-		}
-	}
-
-	if net.ParseIP(ip) == nil {
-		return "", errors.New(fmt.Sprintf("could not parse IP address `%s`", ip))
-	}
-
-	return ip, nil
+// Checks if the device is marked UP by the operator
+func (f *NetworkFingerprint) isDeviceEnabled(intf *net.Interface) bool {
+	return intf.Flags&net.FlagUp != 0
 }
 
-// ifConfig returns the IP Address for this node according to ifConfig, for the
-// specified device.
-func (f *NetworkFingerprint) ifConfig(device string) string {
-	ifConfigPath, _ := exec.LookPath("ifconfig")
-	if ifConfigPath == "" {
-		f.logger.Println("[WARN] fingerprint.network: ifconfig not found")
-		return ""
+// Checks if the device has any IP address configured
+func (f *NetworkFingerprint) deviceHasIpAddress(intf *net.Interface) bool {
+	_, err := f.ipAddress(intf)
+	return err == nil
+}
+
+func (n *NetworkFingerprint) isDeviceLoopBackOrPointToPoint(intf *net.Interface) bool {
+	return intf.Flags&(net.FlagLoopback|net.FlagPointToPoint) != 0
+}
+
+// Returns the interface with the name passed by user
+// If the name is blank then it iterates through all the devices
+// and finds one which is routable and marked as UP
+// It excludes PPP and lo devices unless they are specifically asked
+func (f *NetworkFingerprint) findInterface(deviceName string) (*net.Interface, error) {
+	var interfaces []net.Interface
+	var err error
+
+	if deviceName != "" {
+		return f.interfaceDetector.InterfaceByName(deviceName)
 	}
 
-	outBytes, err := exec.Command(ifConfigPath, device).Output()
-	if err != nil {
-		f.logger.Printf("[WARN] fingerprint.network: Error calling ifconfig (%s %s): %v", ifConfigPath, device, err)
-		return ""
+	var intfs []net.Interface
+
+	if intfs, err = f.interfaceDetector.Interfaces(); err != nil {
+		return nil, err
 	}
 
-	// Parse out the IP address returned from ifconfig for this device
-	// Tested on Ubuntu, the matching part of ifconfig output for eth0 is like
-	// so:
-	//   inet addr:10.0.2.15  Bcast:10.0.2.255  Mask:255.255.255.0
-	// For OS X and en0, we have:
-	//  inet 192.168.0.7 netmask 0xffffff00 broadcast 192.168.0.255
-	output := strings.TrimSpace(string(outBytes))
-
-	// re is a regular expression, which can vary based on the OS
-	var re *regexp.Regexp
-
-	if "darwin" == runtime.GOOS {
-		re = regexp.MustCompile("inet [0-9].+")
-	} else {
-		re = regexp.MustCompile("inet addr:[0-9].+")
-	}
-	args := strings.Split(re.FindString(output), " ")
-
-	var ip string
-	if len(args) > 1 {
-		ip = strings.TrimPrefix(args[1], "addr:")
+	for _, intf := range intfs {
+		if f.isDeviceEnabled(&intf) && !f.isDeviceLoopBackOrPointToPoint(&intf) && f.deviceHasIpAddress(&intf) {
+			interfaces = append(interfaces, intf)
+		}
 	}
 
-	// validate what we've sliced out is a valid IP
-	if net.ParseIP(ip) == nil {
-		f.logger.Printf("[WARN] fingerprint.network: Unable to parse IP in output of '%s %s'", ifConfigPath, device)
-		return ""
+	if len(interfaces) == 0 {
+		return nil, errors.New("No network interfaces were detected")
 	}
-
-	return ip
+	return &interfaces[0], nil
 }
