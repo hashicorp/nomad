@@ -33,25 +33,25 @@ type NetworkInterfaceDetector interface {
 }
 
 // Implements the interface detector which calls net directly
-type BasicNetworkInterfaceDetector struct {
+type DefaultNetworkInterfaceDetector struct {
 }
 
-func (b *BasicNetworkInterfaceDetector) Interfaces() ([]net.Interface, error) {
+func (b *DefaultNetworkInterfaceDetector) Interfaces() ([]net.Interface, error) {
 	return net.Interfaces()
 }
 
-func (b *BasicNetworkInterfaceDetector) InterfaceByName(name string) (*net.Interface, error) {
+func (b *DefaultNetworkInterfaceDetector) InterfaceByName(name string) (*net.Interface, error) {
 	return net.InterfaceByName(name)
 }
 
-func (b *BasicNetworkInterfaceDetector) Addrs(intf *net.Interface) ([]net.Addr, error) {
+func (b *DefaultNetworkInterfaceDetector) Addrs(intf *net.Interface) ([]net.Addr, error) {
 	return intf.Addrs()
 }
 
 // NewNetworkFingerprinter returns a new NetworkFingerprinter with the given
 // logger
 func NewNetworkFingerprinter(logger *log.Logger) Fingerprint {
-	f := &NetworkFingerprint{logger: logger, interfaceDetector: &BasicNetworkInterfaceDetector{}}
+	f := &NetworkFingerprint{logger: logger, interfaceDetector: &DefaultNetworkInterfaceDetector{}}
 	return f
 }
 
