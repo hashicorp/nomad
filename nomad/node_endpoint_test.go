@@ -371,6 +371,56 @@ func TestClientEndpoint_GetNode(t *testing.T) {
 	}
 }
 
+func TestClientEndpoint_GetNode_blocking(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	state := s1.fsm.State()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the node
+	node1 := mock.Node()
+	node2 := mock.Node()
+
+	// First create an unrelated node.
+	time.AfterFunc(100*time.Millisecond, func() {
+		if err := state.UpsertNode(1000, node1); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	})
+
+	// Upsert the node we are watching later
+	time.AfterFunc(200*time.Millisecond, func() {
+		if err := state.UpsertNode(2000, node2); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	})
+
+	// Lookup the node
+	get := &structs.NodeSpecificRequest{
+		NodeID: node2.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:        "global",
+			MinQueryIndex: 1,
+		},
+	}
+	var resp structs.SingleNodeResponse
+	start := time.Now()
+	if err := msgpackrpc.CallWithCodec(codec, "Node.GetNode", get, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if elapsed := time.Now().Sub(start); elapsed < 200*time.Millisecond {
+		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
+	}
+	if resp.Index != 2000 {
+		t.Fatalf("Bad index: %d %d", resp.Index, 2000)
+	}
+	if resp.Node == nil || resp.Node.ID != node2.ID {
+		t.Fatalf("bad: %#v", resp.Node)
+	}
+}
+
 func TestClientEndpoint_GetAllocs(t *testing.T) {
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
