@@ -173,6 +173,10 @@ configured on client nodes.
     sub-schedulers this server will handle. This can be used to restrict the
     evaluations that worker threads will dequeue for processing. This
     defaults to all available schedulers.
+  * `node_gc_threshold` This is a string with a unit suffix, such as "300ms",
+    "1.5h" or "25m". Valid time units are "ns", "us" (or "µs"), "ms", "s",
+    "m", "h". Controls how long a node must be in a terminal state before it is
+    garbage collected and purged from the system.
 
 ## Client-specific Options
 

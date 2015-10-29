@@ -179,6 +179,9 @@ type ServerConfig struct {
 	// enabled for this server to handle. This will restrict the evaluations
 	// that the workers dequeue for processing.
 	EnabledSchedulers []string `hcl:"enabled_schedulers"`
+
+	// NodeGCThreshold contros how "old" a node must be to be collected by GC.
+	NodeGCThreshold string `hcl:"node_gc_threshold"`
 }
 
 // Telemetry is the telemetry configuration for the server
@@ -377,6 +380,9 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	}
 	if b.NumSchedulers != 0 {
 		result.NumSchedulers = b.NumSchedulers
+	}
+	if b.NodeGCThreshold != "" {
+		result.NodeGCThreshold = b.NodeGCThreshold
 	}
 
 	// Add the schedulers
