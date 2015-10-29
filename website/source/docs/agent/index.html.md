@@ -98,7 +98,7 @@ It is especially important that a server node be allowed to leave gracefully
 so that there will be a minimal impact on availability as the server leaves
 the consensus quorum. If a server does not gracefully leave, and will not
 return into service, the [`server-force-leave` command](/docs/commands/server-force-leave.html)
-should be use to eject it from the consensus quorum.
+should be used to eject it from the consensus quorum.
 
 ## Lifecycle
 
