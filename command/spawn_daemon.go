@@ -192,7 +192,7 @@ func (c *SpawnDaemonCommand) outputStartStatus(err error, status int) int {
 		startStatus.ErrorMsg = err.Error()
 	}
 
-	if c.config != nil && c.config.Process == nil {
+	if c.config != nil && c.config.Process != nil {
 		startStatus.UserPID = c.config.Process.Pid
 	}
 
