@@ -7,11 +7,11 @@ import (
 // watchItem describes the scope of a watch. It is used to provide a uniform
 // input for subscribe/unsubscribe and notification firing.
 type watchItem struct {
-	allocID   string
+	alloc     string
 	allocNode string
-	evalID    string
-	jobID     string
-	nodeID    string
+	eval      string
+	job       string
+	node      string
 	table     string
 }
 
@@ -19,18 +19,17 @@ type watchItem struct {
 // the items as they are added using map keys.
 type watchItems map[watchItem]struct{}
 
+func newWatchItems(items ...watchItem) watchItems {
+	wi := make(watchItems)
+	for _, item := range items {
+		wi.add(item)
+	}
+	return wi
+}
+
 // add adds an item to the watch set.
 func (w watchItems) add(wi watchItem) {
 	w[wi] = struct{}{}
-}
-
-// items returns the items as a slice.
-func (w watchItems) items() []watchItem {
-	items := make([]watchItem, 0, len(w))
-	for wi, _ := range w {
-		items = append(items, wi)
-	}
-	return items
 }
 
 // stateWatch holds shared state for watching updates. This is
@@ -74,11 +73,11 @@ func (w *stateWatch) stopWatch(wi watchItem, ch chan struct{}) {
 }
 
 // notify is used to fire notifications on the given watch items.
-func (w *stateWatch) notify(items ...watchItem) {
+func (w *stateWatch) notify(items watchItems) {
 	w.l.Lock()
 	defer w.l.Unlock()
 
-	for _, wi := range items {
+	for wi, _ := range items {
 		if grp, ok := w.items[wi]; ok {
 			grp.Notify()
 		}

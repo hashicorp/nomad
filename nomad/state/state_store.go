@@ -100,6 +100,10 @@ func (s *StateStore) UpsertNode(index uint64, node *structs.Node) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
+	watch := make(watchItems)
+	watch.add(watchItem{table: "nodes"})
+	watch.add(watchItem{node: node.ID})
+
 	// Check if the node already exists
 	existing, err := txn.First("nodes", "id", node.ID)
 	if err != nil {
@@ -125,7 +129,7 @@ func (s *StateStore) UpsertNode(index uint64, node *structs.Node) error {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	txn.Defer(func() { s.watch.notify(watchItem{table: "nodes"}) })
+	txn.Defer(func() { s.watch.notify(watch) })
 	txn.Commit()
 	return nil
 }
@@ -134,6 +138,10 @@ func (s *StateStore) UpsertNode(index uint64, node *structs.Node) error {
 func (s *StateStore) DeleteNode(index uint64, nodeID string) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
+
+	watch := make(watchItems)
+	watch.add(watchItem{table: "nodes"})
+	watch.add(watchItem{node: nodeID})
 
 	// Lookup the node
 	existing, err := txn.First("nodes", "id", nodeID)
@@ -152,7 +160,7 @@ func (s *StateStore) DeleteNode(index uint64, nodeID string) error {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	txn.Defer(func() { s.watch.notify(watchItem{table: "nodes"}) })
+	txn.Defer(func() { s.watch.notify(watch) })
 	txn.Commit()
 	return nil
 }
@@ -161,6 +169,10 @@ func (s *StateStore) DeleteNode(index uint64, nodeID string) error {
 func (s *StateStore) UpdateNodeStatus(index uint64, nodeID, status string) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
+
+	watch := make(watchItems)
+	watch.add(watchItem{table: "nodes"})
+	watch.add(watchItem{node: nodeID})
 
 	// Lookup the node
 	existing, err := txn.First("nodes", "id", nodeID)
@@ -188,7 +200,7 @@ func (s *StateStore) UpdateNodeStatus(index uint64, nodeID, status string) error
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	txn.Defer(func() { s.watch.notify(watchItem{table: "nodes"}) })
+	txn.Defer(func() { s.watch.notify(watch) })
 	txn.Commit()
 	return nil
 }
@@ -197,6 +209,10 @@ func (s *StateStore) UpdateNodeStatus(index uint64, nodeID, status string) error
 func (s *StateStore) UpdateNodeDrain(index uint64, nodeID string, drain bool) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
+
+	watch := make(watchItems)
+	watch.add(watchItem{table: "nodes"})
+	watch.add(watchItem{node: nodeID})
 
 	// Lookup the node
 	existing, err := txn.First("nodes", "id", nodeID)
@@ -224,7 +240,7 @@ func (s *StateStore) UpdateNodeDrain(index uint64, nodeID string, drain bool) er
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	txn.Defer(func() { s.watch.notify(watchItem{table: "nodes"}) })
+	txn.Defer(func() { s.watch.notify(watch) })
 	txn.Commit()
 	return nil
 }
@@ -261,6 +277,10 @@ func (s *StateStore) UpsertJob(index uint64, job *structs.Job) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
+	watch := make(watchItems)
+	watch.add(watchItem{table: "jobs"})
+	watch.add(watchItem{job: job.ID})
+
 	// Check if the job already exists
 	existing, err := txn.First("jobs", "id", job.ID)
 	if err != nil {
@@ -284,7 +304,7 @@ func (s *StateStore) UpsertJob(index uint64, job *structs.Job) error {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	txn.Defer(func() { s.watch.notify(watchItem{table: "jobs"}) })
+	txn.Defer(func() { s.watch.notify(watch) })
 	txn.Commit()
 	return nil
 }
@@ -293,6 +313,10 @@ func (s *StateStore) UpsertJob(index uint64, job *structs.Job) error {
 func (s *StateStore) DeleteJob(index uint64, jobID string) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
+
+	watch := make(watchItems)
+	watch.add(watchItem{table: "jobs"})
+	watch.add(watchItem{job: jobID})
 
 	// Lookup the node
 	existing, err := txn.First("jobs", "id", jobID)
@@ -311,7 +335,7 @@ func (s *StateStore) DeleteJob(index uint64, jobID string) error {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	txn.Defer(func() { s.watch.notify(watchItem{table: "jobs"}) })
+	txn.Defer(func() { s.watch.notify(watch) })
 	txn.Commit()
 	return nil
 }
@@ -361,14 +385,18 @@ func (s *StateStore) UpsertEvals(index uint64, evals []*structs.Evaluation) erro
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
+	watch := make(watchItems)
+	watch.add(watchItem{table: "evals"})
+
 	// Do a nested upsert
 	for _, eval := range evals {
+		watch.add(watchItem{eval: eval.ID})
 		if err := s.nestedUpsertEval(txn, index, eval); err != nil {
 			return err
 		}
 	}
 
-	txn.Defer(func() { s.watch.notify(watchItem{table: "evals"}) })
+	txn.Defer(func() { s.watch.notify(watch) })
 	txn.Commit()
 	return nil
 }
@@ -405,7 +433,6 @@ func (s *StateStore) DeleteEval(index uint64, evals []string, allocs []string) e
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 	watch := make(watchItems)
-	watch.add(watchItem{table: "evals"})
 
 	for _, eval := range evals {
 		existing, err := txn.First("evals", "id", eval)
@@ -418,6 +445,8 @@ func (s *StateStore) DeleteEval(index uint64, evals []string, allocs []string) e
 		if err := txn.Delete("evals", existing); err != nil {
 			return fmt.Errorf("eval delete failed: %v", err)
 		}
+		watch.add(watchItem{table: "evals"})
+		watch.add(watchItem{eval: eval})
 	}
 
 	for _, alloc := range allocs {
@@ -428,10 +457,12 @@ func (s *StateStore) DeleteEval(index uint64, evals []string, allocs []string) e
 		if existing == nil {
 			continue
 		}
-		watch.add(watchItem{allocNode: existing.(*structs.Allocation).NodeID})
 		if err := txn.Delete("allocs", existing); err != nil {
 			return fmt.Errorf("alloc delete failed: %v", err)
 		}
+		watch.add(watchItem{table: "allocs"})
+		watch.add(watchItem{alloc: alloc})
+		watch.add(watchItem{allocNode: existing.(*structs.Allocation).NodeID})
 	}
 
 	// Update the indexes
@@ -442,7 +473,7 @@ func (s *StateStore) DeleteEval(index uint64, evals []string, allocs []string) e
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	txn.Defer(func() { s.watch.notify(watch.items()...) })
+	txn.Defer(func() { s.watch.notify(watch) })
 	txn.Commit()
 	return nil
 }
@@ -504,6 +535,11 @@ func (s *StateStore) UpdateAllocFromClient(index uint64, alloc *structs.Allocati
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
+	watch := make(watchItems)
+	watch.add(watchItem{table: "allocs"})
+	watch.add(watchItem{alloc: alloc.ID})
+	watch.add(watchItem{allocNode: alloc.NodeID})
+
 	// Look for existing alloc
 	existing, err := txn.First("allocs", "id", alloc.ID)
 	if err != nil {
@@ -537,7 +573,7 @@ func (s *StateStore) UpdateAllocFromClient(index uint64, alloc *structs.Allocati
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	txn.Defer(func() { s.watch.notify(watchItem{table: "allocs"}) })
+	txn.Defer(func() { s.watch.notify(watch) })
 	txn.Commit()
 	return nil
 }
@@ -547,12 +583,12 @@ func (s *StateStore) UpdateAllocFromClient(index uint64, alloc *structs.Allocati
 func (s *StateStore) UpsertAllocs(index uint64, allocs []*structs.Allocation) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
+
 	watch := make(watchItems)
 	watch.add(watchItem{table: "allocs"})
 
 	// Handle the allocations
 	for _, alloc := range allocs {
-		watch.add(watchItem{allocNode: alloc.NodeID})
 		existing, err := txn.First("allocs", "id", alloc.ID)
 		if err != nil {
 			return fmt.Errorf("alloc lookup failed: %v", err)
@@ -571,6 +607,9 @@ func (s *StateStore) UpsertAllocs(index uint64, allocs []*structs.Allocation) er
 		if err := txn.Insert("allocs", alloc); err != nil {
 			return fmt.Errorf("alloc insert failed: %v", err)
 		}
+
+		watch.add(watchItem{alloc: alloc.ID})
+		watch.add(watchItem{allocNode: alloc.NodeID})
 	}
 
 	// Update the indexes
@@ -578,7 +617,7 @@ func (s *StateStore) UpsertAllocs(index uint64, allocs []*structs.Allocation) er
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	txn.Defer(func() { s.watch.notify(watch.items()...) })
+	txn.Defer(func() { s.watch.notify(watch) })
 	txn.Commit()
 	return nil
 }
@@ -721,7 +760,7 @@ func (s *StateRestore) Abort() {
 
 // Commit is used to commit the restore operation
 func (s *StateRestore) Commit() {
-	s.txn.Defer(func() { s.watch.notify(s.items.items()...) })
+	s.txn.Defer(func() { s.watch.notify(s.items) })
 	s.txn.Commit()
 }
 

@@ -5,23 +5,19 @@ import (
 )
 
 func TestWatchItems(t *testing.T) {
-	// No items returns empty slice
 	wi := make(watchItems)
-	if items := wi.items(); len(items) != 0 {
-		t.Fatalf("expected empty, got: %#v", items)
-	}
 
 	// Adding items works
 	wi.add(watchItem{table: "foo"})
-	wi.add(watchItem{nodeID: "bar"})
-	if items := wi.items(); len(items) != 2 {
-		t.Fatalf("expected 2 items, got: %#v", items)
+	wi.add(watchItem{node: "bar"})
+	if len(wi) != 2 {
+		t.Fatalf("expected 2 items, got: %#v", wi)
 	}
 
 	// Adding duplicates auto-dedupes
 	wi.add(watchItem{table: "foo"})
-	if items := wi.items(); len(items) != 2 {
-		t.Fatalf("expected 2 items, got: %#v", items)
+	if len(wi) != 2 {
+		t.Fatalf("expected 2 items, got: %#v", wi)
 	}
 }
 
@@ -36,7 +32,11 @@ func TestStateWatch_watch(t *testing.T) {
 	watch.watch(watchItem{table: "bar"}, notify2)
 	watch.watch(watchItem{table: "baz"}, notify3)
 
-	watch.notify(watchItem{table: "foo"}, watchItem{table: "bar"})
+	items := make(watchItems)
+	items.add(watchItem{table: "foo"})
+	items.add(watchItem{table: "bar"})
+
+	watch.notify(items)
 	if len(notify1) != 1 {
 		t.Fatalf("should notify")
 	}
@@ -57,7 +57,10 @@ func TestStateWatch_stopWatch(t *testing.T) {
 
 	// Unsubscribe stop notifications
 	watch.stopWatch(watchItem{table: "foo"}, notify)
-	watch.notify(watchItem{table: "foo"})
+
+	items := make(watchItems)
+	items.add(watchItem{table: "foo"})
+	watch.notify(items)
 	if len(notify) != 0 {
 		t.Fatalf("should not notify")
 	}
