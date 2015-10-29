@@ -189,7 +189,7 @@ func (f *NetworkFingerprint) ipAddress(intf *net.Interface) (string, error) {
 	}
 
 	if ipV4 == nil {
-		return "", fmt.Errorf("Couldn't parse IP address for interface %s with addr %s", intf.Name)
+		return "", fmt.Errorf("Couldn't parse IP address for interface %s", intf.Name)
 	}
 	return ipV4.String(), nil
 
