@@ -85,7 +85,7 @@ There are several important messages that `nomad agent` outputs:
 
 An agent can be stopped in two ways: gracefully or forcefully. By default,
 any signal to an agent (interrupt, terminate, kill) will cause the agent
-to forcefully stop. Gracefully termination can be configured by either
+to forcefully stop. Graceful termination can be configured by either
 setting `leave_on_interrupt` or `leave_on_terminate` to respond to the
 respective signals.
 
