@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/hashicorp/nomad/client"
 	"github.com/hashicorp/nomad/nomad"
@@ -135,6 +136,14 @@ func (a *Agent) serverConfig() (*nomad.Config, error) {
 	}
 	if port := a.config.Ports.Serf; port != 0 {
 		conf.SerfConfig.MemberlistConfig.BindPort = port
+	}
+
+	if gcThreshold := a.config.Server.NodeGCThreshold; gcThreshold != "" {
+		dur, err := time.ParseDuration(gcThreshold)
+		if err != nil {
+			return nil, err
+		}
+		conf.NodeGCThreshold = dur
 	}
 
 	return conf, nil
