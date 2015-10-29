@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"sync"
 
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -405,6 +404,8 @@ func (s *StateStore) nestedUpsertEval(txn *memdb.Txn, index uint64, eval *struct
 func (s *StateStore) DeleteEval(index uint64, evals []string, allocs []string) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
+	watch := make(watchItems)
+	watch.add(watchItem{table: "evals"})
 
 	for _, eval := range evals {
 		existing, err := txn.First("evals", "id", eval)
@@ -427,6 +428,7 @@ func (s *StateStore) DeleteEval(index uint64, evals []string, allocs []string) e
 		if existing == nil {
 			continue
 		}
+		watch.add(watchItem{allocNode: existing.(*structs.Allocation).NodeID})
 		if err := txn.Delete("allocs", existing); err != nil {
 			return fmt.Errorf("alloc delete failed: %v", err)
 		}
@@ -440,7 +442,7 @@ func (s *StateStore) DeleteEval(index uint64, evals []string, allocs []string) e
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	txn.Defer(func() { s.watch.notify(watchItem{table: "evals"}) })
+	txn.Defer(func() { s.watch.notify(watch.items()...) })
 	txn.Commit()
 	return nil
 }
@@ -545,9 +547,12 @@ func (s *StateStore) UpdateAllocFromClient(index uint64, alloc *structs.Allocati
 func (s *StateStore) UpsertAllocs(index uint64, allocs []*structs.Allocation) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
+	watch := make(watchItems)
+	watch.add(watchItem{table: "allocs"})
 
 	// Handle the allocations
 	for _, alloc := range allocs {
+		watch.add(watchItem{allocNode: alloc.NodeID})
 		existing, err := txn.First("allocs", "id", alloc.ID)
 		if err != nil {
 			return fmt.Errorf("alloc lookup failed: %v", err)
@@ -573,7 +578,7 @@ func (s *StateStore) UpsertAllocs(index uint64, allocs []*structs.Allocation) er
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	txn.Defer(func() { s.watch.notify(watchItem{table: "allocs"}) })
+	txn.Defer(func() { s.watch.notify(watch.items()...) })
 	txn.Commit()
 	return nil
 }
@@ -763,85 +768,4 @@ func (r *StateRestore) IndexRestore(idx *IndexEntry) error {
 		return fmt.Errorf("index insert failed: %v", err)
 	}
 	return nil
-}
-
-// watchItem describes the scope of a watch. It is used to provide a uniform
-// input for subscribe/unsubscribe and notification firing.
-type watchItem struct {
-	allocID   string
-	allocNode string
-	evalID    string
-	jobID     string
-	nodeID    string
-	table     string
-}
-
-// watchItems is a helper used to construct a set of watchItems. It deduplicates
-// the items as they are added using map keys.
-type watchItems map[watchItem]struct{}
-
-// add adds an item to the watch set.
-func (w watchItems) add(wi watchItem) {
-	w[wi] = struct{}{}
-}
-
-// items returns the items as a slice.
-func (w watchItems) items() []watchItem {
-	items := make([]watchItem, 0, len(w))
-	for wi, _ := range w {
-		items = append(items, wi)
-	}
-	return items
-}
-
-// stateWatch holds shared state for watching updates. This is
-// outside of StateStore so it can be shared with snapshots.
-type stateWatch struct {
-	items map[watchItem]*NotifyGroup
-	l     sync.Mutex
-}
-
-// newStateWatch creates a new stateWatch for change notification.
-func newStateWatch() *stateWatch {
-	return &stateWatch{
-		items: make(map[watchItem]*NotifyGroup),
-	}
-}
-
-// watch subscribes a channel to the given watch item.
-func (w *stateWatch) watch(wi watchItem, ch chan struct{}) {
-	w.l.Lock()
-	defer w.l.Unlock()
-
-	grp, ok := w.items[wi]
-	if !ok {
-		grp = new(NotifyGroup)
-		w.items[wi] = grp
-	}
-	grp.Wait(ch)
-}
-
-// stopWatch unsubscribes a channel from the given watch item.
-func (w *stateWatch) stopWatch(wi watchItem, ch chan struct{}) {
-	w.l.Lock()
-	defer w.l.Unlock()
-
-	if grp, ok := w.items[wi]; ok {
-		grp.Clear(ch)
-		if grp.Empty() {
-			delete(w.items, wi)
-		}
-	}
-}
-
-// notify is used to fire notifications on the given watch items.
-func (w *stateWatch) notify(items ...watchItem) {
-	w.l.Lock()
-	defer w.l.Unlock()
-
-	for _, wi := range items {
-		if grp, ok := w.items[wi]; ok {
-			grp.Notify()
-		}
-	}
 }

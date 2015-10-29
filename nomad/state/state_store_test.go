@@ -585,7 +585,7 @@ func TestStateStore_DeleteEval_Eval(t *testing.T) {
 	}
 
 	notify1 := make(chan struct{}, 1)
-	state.WatchAllocs(alloc.NodeID, notify1)
+	state.WatchAllocNode(alloc.NodeID, notify1)
 
 	err = state.DeleteEval(1002, []string{eval.ID, eval2.ID}, []string{alloc.ID, alloc2.ID})
 	if err != nil {
@@ -808,14 +808,14 @@ func TestStateStore_UpsertAlloc_Alloc(t *testing.T) {
 	}
 }
 
-func TestStateStore_WatchAllocs(t *testing.T) {
+func TestStateStore_WatchAllocNode(t *testing.T) {
 	state := testStateStore(t)
 
 	notify1 := make(chan struct{}, 1)
 	notify2 := make(chan struct{}, 1)
-	state.WatchAllocs("foo", notify1)
-	state.WatchAllocs("foo", notify2)
-	state.StopWatchAllocs("foo", notify2)
+	state.WatchAllocNode("foo", notify1)
+	state.WatchAllocNode("foo", notify2)
+	state.StopWatchAllocNode("foo", notify2)
 
 	alloc := mock.Alloc()
 	alloc.NodeID = "foo"
