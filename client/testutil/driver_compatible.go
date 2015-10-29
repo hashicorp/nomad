@@ -8,8 +8,8 @@ import (
 )
 
 func ExecCompatible(t *testing.T) {
-	if runtime.GOOS != "windows" && syscall.Geteuid() != 0 {
-		t.Skip("Must be root on non-windows environments to run test")
+	if runtime.GOOS != "linux" || syscall.Geteuid() != 0 {
+		t.Skip("Test only available running as root on linux")
 	}
 }
 
