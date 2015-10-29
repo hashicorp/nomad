@@ -209,7 +209,7 @@ func (f *NetworkFingerprint) deviceHasIpAddress(intf *net.Interface) bool {
 }
 
 func (n *NetworkFingerprint) isDeviceLoopBackOrPointToPoint(intf *net.Interface) bool {
-	return intf.Flags&(net.FlagLoopback|net.FlagPointToPoint) == 0
+	return intf.Flags&(net.FlagLoopback|net.FlagPointToPoint) != 0
 }
 
 // Returns the interface with the name passed by user
@@ -217,7 +217,7 @@ func (n *NetworkFingerprint) isDeviceLoopBackOrPointToPoint(intf *net.Interface)
 // and finds one which is routable and marked as UP
 // It excludes PPP and lo devices unless they are specifically asked
 func (f *NetworkFingerprint) findInterface(deviceName string) (*net.Interface, error) {
-	var interfaces []*net.Interface
+	var interfaces []net.Interface
 	var err error
 
 	if deviceName != "" {
@@ -232,12 +232,12 @@ func (f *NetworkFingerprint) findInterface(deviceName string) (*net.Interface, e
 
 	for _, intf := range intfs {
 		if f.isDeviceEnabled(&intf) && !f.isDeviceLoopBackOrPointToPoint(&intf) && f.deviceHasIpAddress(&intf) {
-			interfaces = append(interfaces, &intf)
+			interfaces = append(interfaces, intf)
 		}
 	}
 
 	if len(interfaces) == 0 {
 		return nil, errors.New("No network interfaces were detected")
 	}
-	return interfaces[0], nil
+	return &interfaces[0], nil
 }
