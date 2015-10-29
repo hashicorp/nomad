@@ -238,11 +238,6 @@ func parseConstraints(result *[]*structs.Constraint, obj *hclobj.Object) error {
 		m["RTarget"] = m["value"]
 		m["Operand"] = m["operator"]
 
-		// Default constraint to being hard
-		if _, ok := m["hard"]; !ok {
-			m["hard"] = true
-		}
-
 		// If "version" is provided, set the operand
 		// to "version" and the value to the "RTarget"
 		if constraint, ok := m[structs.ConstraintVersion]; ok {

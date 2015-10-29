@@ -120,13 +120,11 @@ func TestConstraintIterator(t *testing.T) {
 
 	constraints := []*structs.Constraint{
 		&structs.Constraint{
-			Hard:    true,
 			Operand: "=",
 			LTarget: "$node.datacenter",
 			RTarget: "dc1",
 		},
 		&structs.Constraint{
-			Hard:    true,
 			Operand: "is",
 			LTarget: "$attr.kernel.name",
 			RTarget: "linux",

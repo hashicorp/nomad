@@ -85,7 +85,7 @@ There are several important messages that `nomad agent` outputs:
 
 An agent can be stopped in two ways: gracefully or forcefully. By default,
 any signal to an agent (interrupt, terminate, kill) will cause the agent
-to forcefully stop. Gracefully termination can be configured by either
+to forcefully stop. Graceful termination can be configured by either
 setting `leave_on_interrupt` or `leave_on_terminate` to respond to the
 respective signals.
 
@@ -98,7 +98,7 @@ It is especially important that a server node be allowed to leave gracefully
 so that there will be a minimal impact on availability as the server leaves
 the consensus quorum. If a server does not gracefully leave, and will not
 return into service, the [`server-force-leave` command](/docs/commands/server-force-leave.html)
-should be use to eject it from the consensus quorum.
+should be used to eject it from the consensus quorum.
 
 ## Lifecycle
 

@@ -47,6 +47,7 @@ func TestConfig_Merge(t *testing.T) {
 			DataDir:         "/tmp/data1",
 			ProtocolVersion: 1,
 			NumSchedulers:   1,
+			NodeGCThreshold: "1h",
 		},
 		Ports: &Ports{
 			HTTP: 4646,
@@ -106,6 +107,7 @@ func TestConfig_Merge(t *testing.T) {
 			ProtocolVersion:   2,
 			NumSchedulers:     2,
 			EnabledSchedulers: []string{structs.JobTypeBatch},
+			NodeGCThreshold:   "12h",
 		},
 		Ports: &Ports{
 			HTTP: 20000,
@@ -369,6 +371,7 @@ func TestConfig_LoadConfigString(t *testing.T) {
 			ProtocolVersion:   3,
 			NumSchedulers:     2,
 			EnabledSchedulers: []string{"test"},
+			NodeGCThreshold:   "12h",
 		},
 		Telemetry: &Telemetry{
 			StatsiteAddr:    "127.0.0.1:1234",
@@ -441,6 +444,7 @@ server {
 	protocol_version = 3
 	num_schedulers = 2
 	enabled_schedulers = ["test"]
+	node_gc_threshold = "12h"
 }
 telemetry {
 	statsite_address = "127.0.0.1:1234"
