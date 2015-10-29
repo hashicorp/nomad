@@ -277,32 +277,40 @@ func (e *Eval) Allocations(args *structs.EvalSpecificRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "eval", "allocations"}, time.Now())
 
-	// Capture the allocations
-	snap, err := e.srv.fsm.State().Snapshot()
-	if err != nil {
-		return err
-	}
-	allocs, err := snap.AllocsByEval(args.EvalID)
-	if err != nil {
-		return err
-	}
+	// Setup the blocking query
+	opts := blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		watch:     watch.NewItems(watch.Item{AllocEval: args.EvalID}),
+		run: func() error {
+			// Capture the allocations
+			snap, err := e.srv.fsm.State().Snapshot()
+			if err != nil {
+				return err
+			}
+			allocs, err := snap.AllocsByEval(args.EvalID)
+			if err != nil {
+				return err
+			}
 
-	// Convert to a stub
-	if len(allocs) > 0 {
-		reply.Allocations = make([]*structs.AllocListStub, 0, len(allocs))
-		for _, alloc := range allocs {
-			reply.Allocations = append(reply.Allocations, alloc.Stub())
-		}
-	}
+			// Convert to a stub
+			if len(allocs) > 0 {
+				reply.Allocations = make([]*structs.AllocListStub, 0, len(allocs))
+				for _, alloc := range allocs {
+					reply.Allocations = append(reply.Allocations, alloc.Stub())
+				}
+			}
 
-	// Use the last index that affected the allocs table
-	index, err := snap.Index("allocs")
-	if err != nil {
-		return err
-	}
-	reply.Index = index
+			// Use the last index that affected the allocs table
+			index, err := snap.Index("allocs")
+			if err != nil {
+				return err
+			}
+			reply.Index = index
 
-	// Set the query response
-	e.srv.setQueryMeta(&reply.QueryMeta)
-	return nil
+			// Set the query response
+			e.srv.setQueryMeta(&reply.QueryMeta)
+			return nil
+		}}
+	return e.srv.blockingRPC(&opts)
 }

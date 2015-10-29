@@ -484,3 +484,55 @@ func TestEvalEndpoint_Allocations(t *testing.T) {
 		t.Fatalf("bad: %#v", resp.Allocations)
 	}
 }
+
+func TestEvalEndpoint_Allocations_blocking(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	state := s1.fsm.State()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the allocs
+	alloc1 := mock.Alloc()
+	alloc2 := mock.Alloc()
+
+	// Upsert an unrelated alloc first
+	time.AfterFunc(100*time.Millisecond, func() {
+		err := state.UpsertAllocs(1000, []*structs.Allocation{alloc1})
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	})
+
+	// Upsert an alloc which will trigger the watch later
+	time.AfterFunc(200*time.Millisecond, func() {
+		err := state.UpsertAllocs(2000, []*structs.Allocation{alloc2})
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	})
+
+	// Lookup the eval
+	get := &structs.EvalSpecificRequest{
+		EvalID: alloc2.EvalID,
+		QueryOptions: structs.QueryOptions{
+			Region:        "global",
+			MinQueryIndex: 1,
+		},
+	}
+	var resp structs.EvalAllocationsResponse
+	start := time.Now()
+	if err := msgpackrpc.CallWithCodec(codec, "Eval.Allocations", get, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if elapsed := time.Now().Sub(start); elapsed < 200*time.Millisecond {
+		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
+	}
+	if resp.Index != 2000 {
+		t.Fatalf("Bad index: %d %d", resp.Index, 2000)
+	}
+	if len(resp.Allocations) != 1 || resp.Allocations[0].ID != alloc2.ID {
+		t.Fatalf("bad: %#v", resp.Allocations)
+	}
+}

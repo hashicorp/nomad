@@ -8,6 +8,7 @@ package watch
 // input for subscribe/unsubscribe and notification firing.
 type Item struct {
 	Alloc     string
+	AllocEval string
 	AllocJob  string
 	AllocNode string
 	Eval      string
