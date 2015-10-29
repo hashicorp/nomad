@@ -21,9 +21,9 @@ func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListRes
 
 	// Setup the blocking query
 	opts := blockingOptions{
-		queryOpts:   &args.QueryOptions,
-		queryMeta:   &reply.QueryMeta,
-		watchTables: []string{"allocs"},
+		queryOpts:  &args.QueryOptions,
+		queryMeta:  &reply.QueryMeta,
+		watchTable: "allocs",
 		run: func() error {
 			// Capture all the allocations
 			snap, err := a.srv.fsm.State().Snapshot()

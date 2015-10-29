@@ -221,9 +221,9 @@ func (e *Eval) List(args *structs.EvalListRequest,
 
 	// Setup the blocking query
 	opts := blockingOptions{
-		queryOpts:   &args.QueryOptions,
-		queryMeta:   &reply.QueryMeta,
-		watchTables: []string{"evals"},
+		queryOpts:  &args.QueryOptions,
+		queryMeta:  &reply.QueryMeta,
+		watchTable: "evals",
 		run: func() error {
 			// Scan all the evaluations
 			snap, err := e.srv.fsm.State().Snapshot()

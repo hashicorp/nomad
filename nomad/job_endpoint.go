@@ -218,9 +218,9 @@ func (j *Job) List(args *structs.JobListRequest,
 
 	// Setup the blocking query
 	opts := blockingOptions{
-		queryOpts:   &args.QueryOptions,
-		queryMeta:   &reply.QueryMeta,
-		watchTables: []string{"jobs"},
+		queryOpts:  &args.QueryOptions,
+		queryMeta:  &reply.QueryMeta,
+		watchTable: "jobs",
 		run: func() error {
 			// Capture all the jobs
 			snap, err := j.srv.fsm.State().Snapshot()

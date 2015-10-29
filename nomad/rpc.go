@@ -268,11 +268,11 @@ func (s *Server) setQueryMeta(m *structs.QueryMeta) {
 
 // blockingOptions is used to parameterize blockingRPC
 type blockingOptions struct {
-	queryOpts   *structs.QueryOptions
-	queryMeta   *structs.QueryMeta
-	allocWatch  string
-	watchTables []string
-	run         func() error
+	queryOpts      *structs.QueryOptions
+	queryMeta      *structs.QueryMeta
+	watchAllocNode string
+	watchTable     string
+	run            func() error
 }
 
 // blockingRPC is used for queries that need to wait for a
@@ -307,19 +307,15 @@ func (s *Server) blockingRPC(opts *blockingOptions) error {
 	state = s.fsm.State()
 	defer func() {
 		timeout.Stop()
-		if opts.allocWatch != "" {
-			state.StopWatchAllocs(opts.allocWatch, notifyCh)
-		}
-		state.StopWatchTables(notifyCh, opts.watchTables...)
+		state.StopWatchAllocNode(opts.watchAllocNode, notifyCh)
+		state.StopWatchTable(opts.watchTable, notifyCh)
 	}()
 
 REGISTER_NOTIFY:
 	// Register the notification channel. This may be done
 	// multiple times if we have not reached the target wait index.
-	if opts.allocWatch != "" {
-		state.WatchAllocs(opts.allocWatch, notifyCh)
-	}
-	state.WatchTables(notifyCh, opts.watchTables...)
+	state.WatchAllocNode(opts.watchAllocNode, notifyCh)
+	state.WatchTable(opts.watchTable, notifyCh)
 
 RUN_QUERY:
 	// Update the query meta data

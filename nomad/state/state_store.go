@@ -38,17 +38,11 @@ func NewStateStore(logOutput io.Writer) (*StateStore, error) {
 		return nil, fmt.Errorf("state store setup failed: %v", err)
 	}
 
-	// Create the watch entry
-	watch := &stateWatch{
-		allocs: make(map[string]*NotifyGroup),
-		tables: make(map[string]*NotifyGroup),
-	}
-
 	// Create the state store
 	s := &StateStore{
 		logger: log.New(logOutput, "", log.LstdFlags),
 		db:     db,
-		watch:  watch,
+		watch:  newStateWatch(),
 	}
 	return s, nil
 }
@@ -73,57 +67,30 @@ func (s *StateStore) Snapshot() (*StateSnapshot, error) {
 func (s *StateStore) Restore() (*StateRestore, error) {
 	txn := s.db.Txn(true)
 	r := &StateRestore{
-		txn:        txn,
-		watch:      s.watch,
-		allocNodes: make(map[string]struct{}),
-		tables:     make(map[string]struct{}),
+		txn:   txn,
+		watch: s.watch,
 	}
 	return r, nil
 }
 
-// WatchAllocs is used to subscribe a channel to changes in allocations for a node
-func (s *StateStore) WatchAllocs(node string, notify chan struct{}) {
-	s.watch.allocLock.Lock()
-	defer s.watch.allocLock.Unlock()
-
-	// Check for an existing notify group
-	if grp, ok := s.watch.allocs[node]; ok {
-		grp.Wait(notify)
-		return
-	}
-
-	// Create new notify group
-	grp := &NotifyGroup{}
-	grp.Wait(notify)
-	s.watch.allocs[node] = grp
+// WatchTable is used to subscribe a channel to a full table watch.
+func (s *StateStore) WatchTable(table string, notify chan struct{}) {
+	s.watch.watch(watchItem{table: table}, notify)
 }
 
-// StopWatchAllocs is used to unsubscribe a channel from changes in allocations
-func (s *StateStore) StopWatchAllocs(node string, notify chan struct{}) {
-	s.watch.allocLock.Lock()
-	defer s.watch.allocLock.Unlock()
-
-	// Check for an existing notify group
-	if grp, ok := s.watch.allocs[node]; ok {
-		grp.Clear(notify)
-		if grp.Empty() {
-			delete(s.watch.allocs, node)
-		}
-	}
+// StopWatchTable unsubscribes a channel from a full table watch.
+func (s *StateStore) StopWatchTable(table string, notify chan struct{}) {
+	s.watch.stopWatch(watchItem{table: table}, notify)
 }
 
-// WatchTables is used to subscribe a channel to a set of tables.
-func (s *StateStore) WatchTables(notify chan struct{}, tables ...string) {
-	for _, table := range tables {
-		s.watch.watchTable(table, notify)
-	}
+// WatchAllocNode is used to subscribe a channel to a node allocation watch.
+func (s *StateStore) WatchAllocNode(nodeID string, notify chan struct{}) {
+	s.watch.watch(watchItem{allocNode: nodeID}, notify)
 }
 
-// StopWatchTables is used to unsubscribe a channel from table watches.
-func (s *StateStore) StopWatchTables(notify chan struct{}, tables ...string) {
-	for _, table := range tables {
-		s.watch.stopWatchTable(table, notify)
-	}
+// StopWatchAllocNode unsubscribes a channel from a node allocation watch.
+func (s *StateStore) StopWatchAllocNode(nodeID string, notify chan struct{}) {
+	s.watch.stopWatch(watchItem{allocNode: nodeID}, notify)
 }
 
 // UpsertNode is used to register a node or update a node definition
@@ -158,8 +125,7 @@ func (s *StateStore) UpsertNode(index uint64, node *structs.Node) error {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	tables := map[string]struct{}{"nodes": struct{}{}}
-	txn.Defer(func() { s.watch.notifyTables(tables) })
+	txn.Defer(func() { s.watch.notify(watchItem{table: "nodes"}) })
 	txn.Commit()
 	return nil
 }
@@ -186,8 +152,7 @@ func (s *StateStore) DeleteNode(index uint64, nodeID string) error {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	tables := map[string]struct{}{"nodes": struct{}{}}
-	txn.Defer(func() { s.watch.notifyTables(tables) })
+	txn.Defer(func() { s.watch.notify(watchItem{table: "nodes"}) })
 	txn.Commit()
 	return nil
 }
@@ -223,8 +188,7 @@ func (s *StateStore) UpdateNodeStatus(index uint64, nodeID, status string) error
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	tables := map[string]struct{}{"nodes": struct{}{}}
-	txn.Defer(func() { s.watch.notifyTables(tables) })
+	txn.Defer(func() { s.watch.notify(watchItem{table: "nodes"}) })
 	txn.Commit()
 	return nil
 }
@@ -260,8 +224,7 @@ func (s *StateStore) UpdateNodeDrain(index uint64, nodeID string, drain bool) er
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	tables := map[string]struct{}{"nodes": struct{}{}}
-	txn.Defer(func() { s.watch.notifyTables(tables) })
+	txn.Defer(func() { s.watch.notify(watchItem{table: "nodes"}) })
 	txn.Commit()
 	return nil
 }
@@ -321,8 +284,7 @@ func (s *StateStore) UpsertJob(index uint64, job *structs.Job) error {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	tables := map[string]struct{}{"jobs": struct{}{}}
-	txn.Defer(func() { s.watch.notifyTables(tables) })
+	txn.Defer(func() { s.watch.notify(watchItem{table: "jobs"}) })
 	txn.Commit()
 	return nil
 }
@@ -349,8 +311,7 @@ func (s *StateStore) DeleteJob(index uint64, jobID string) error {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	tables := map[string]struct{}{"jobs": struct{}{}}
-	txn.Defer(func() { s.watch.notifyTables(tables) })
+	txn.Defer(func() { s.watch.notify(watchItem{table: "jobs"}) })
 	txn.Commit()
 	return nil
 }
@@ -407,8 +368,7 @@ func (s *StateStore) UpsertEvals(index uint64, evals []*structs.Evaluation) erro
 		}
 	}
 
-	tables := map[string]struct{}{"evals": struct{}{}}
-	txn.Defer(func() { s.watch.notifyTables(tables) })
+	txn.Defer(func() { s.watch.notify(watchItem{table: "evals"}) })
 	txn.Commit()
 	return nil
 }
@@ -444,7 +404,6 @@ func (s *StateStore) nestedUpsertEval(txn *memdb.Txn, index uint64, eval *struct
 func (s *StateStore) DeleteEval(index uint64, evals []string, allocs []string) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
-	nodes := make(map[string]struct{})
 
 	for _, eval := range evals {
 		existing, err := txn.First("evals", "id", eval)
@@ -467,7 +426,6 @@ func (s *StateStore) DeleteEval(index uint64, evals []string, allocs []string) e
 		if existing == nil {
 			continue
 		}
-		nodes[existing.(*structs.Allocation).NodeID] = struct{}{}
 		if err := txn.Delete("allocs", existing); err != nil {
 			return fmt.Errorf("alloc delete failed: %v", err)
 		}
@@ -481,11 +439,7 @@ func (s *StateStore) DeleteEval(index uint64, evals []string, allocs []string) e
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	tables := map[string]struct{}{"evals": struct{}{}}
-	txn.Defer(func() {
-		s.watch.notifyAllocs(nodes)
-		s.watch.notifyTables(tables)
-	})
+	txn.Defer(func() { s.watch.notify(watchItem{table: "evals"}) })
 	txn.Commit()
 	return nil
 }
@@ -580,12 +534,7 @@ func (s *StateStore) UpdateAllocFromClient(index uint64, alloc *structs.Allocati
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	tables := map[string]struct{}{"allocs": struct{}{}}
-	nodes := map[string]struct{}{alloc.NodeID: struct{}{}}
-	txn.Defer(func() {
-		s.watch.notifyAllocs(nodes)
-		s.watch.notifyTables(tables)
-	})
+	txn.Defer(func() { s.watch.notify(watchItem{table: "allocs"}) })
 	txn.Commit()
 	return nil
 }
@@ -595,7 +544,6 @@ func (s *StateStore) UpdateAllocFromClient(index uint64, alloc *structs.Allocati
 func (s *StateStore) UpsertAllocs(index uint64, allocs []*structs.Allocation) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
-	nodes := make(map[string]struct{})
 
 	// Handle the allocations
 	for _, alloc := range allocs {
@@ -614,7 +562,6 @@ func (s *StateStore) UpsertAllocs(index uint64, allocs []*structs.Allocation) er
 			alloc.ClientStatus = exist.ClientStatus
 			alloc.ClientDescription = exist.ClientDescription
 		}
-		nodes[alloc.NodeID] = struct{}{}
 		if err := txn.Insert("allocs", alloc); err != nil {
 			return fmt.Errorf("alloc insert failed: %v", err)
 		}
@@ -625,11 +572,7 @@ func (s *StateStore) UpsertAllocs(index uint64, allocs []*structs.Allocation) er
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	tables := map[string]struct{}{"allocs": struct{}{}}
-	txn.Defer(func() {
-		s.watch.notifyAllocs(nodes)
-		s.watch.notifyTables(tables)
-	})
+	txn.Defer(func() { s.watch.notify(watchItem{table: "allocs"}) })
 	txn.Commit()
 	return nil
 }
@@ -760,10 +703,9 @@ type StateSnapshot struct {
 // restoring state by only using a single large transaction
 // instead of thousands of sub transactions
 type StateRestore struct {
-	txn        *memdb.Txn
-	watch      *stateWatch
-	allocNodes map[string]struct{}
-	tables     map[string]struct{}
+	txn   *memdb.Txn
+	watch *stateWatch
+	items []watchItem
 }
 
 // Abort is used to abort the restore operation
@@ -773,16 +715,13 @@ func (s *StateRestore) Abort() {
 
 // Commit is used to commit the restore operation
 func (s *StateRestore) Commit() {
-	s.txn.Defer(func() {
-		s.watch.notifyAllocs(s.allocNodes)
-		s.watch.notifyTables(s.tables)
-	})
+	s.txn.Defer(func() { s.watch.notify(s.items...) })
 	s.txn.Commit()
 }
 
 // NodeRestore is used to restore a node
 func (r *StateRestore) NodeRestore(node *structs.Node) error {
-	r.tables["nodes"] = struct{}{}
+	r.items = append(r.items, watchItem{table: "nodes"})
 	if err := r.txn.Insert("nodes", node); err != nil {
 		return fmt.Errorf("node insert failed: %v", err)
 	}
@@ -791,7 +730,7 @@ func (r *StateRestore) NodeRestore(node *structs.Node) error {
 
 // JobRestore is used to restore a job
 func (r *StateRestore) JobRestore(job *structs.Job) error {
-	r.tables["jobs"] = struct{}{}
+	r.items = append(r.items, watchItem{table: "jobs"})
 	if err := r.txn.Insert("jobs", job); err != nil {
 		return fmt.Errorf("job insert failed: %v", err)
 	}
@@ -800,7 +739,7 @@ func (r *StateRestore) JobRestore(job *structs.Job) error {
 
 // EvalRestore is used to restore an evaluation
 func (r *StateRestore) EvalRestore(eval *structs.Evaluation) error {
-	r.tables["evals"] = struct{}{}
+	r.items = append(r.items, watchItem{table: "evals"})
 	if err := r.txn.Insert("evals", eval); err != nil {
 		return fmt.Errorf("eval insert failed: %v", err)
 	}
@@ -809,8 +748,8 @@ func (r *StateRestore) EvalRestore(eval *structs.Evaluation) error {
 
 // AllocRestore is used to restore an allocation
 func (r *StateRestore) AllocRestore(alloc *structs.Allocation) error {
-	r.tables["allocs"] = struct{}{}
-	r.allocNodes[alloc.NodeID] = struct{}{}
+	r.items = append(r.items, watchItem{table: "allocs"})
+	r.items = append(r.items, watchItem{allocNode: alloc.NodeID})
 	if err := r.txn.Insert("allocs", alloc); err != nil {
 		return fmt.Errorf("alloc insert failed: %v", err)
 	}
@@ -825,65 +764,65 @@ func (r *StateRestore) IndexRestore(idx *IndexEntry) error {
 	return nil
 }
 
+// watchItem describes the scope of a watch. It is used to provide a uniform
+// input for subscribe/unsubscribe and notification firing.
+type watchItem struct {
+	allocID   string
+	allocNode string
+	evalID    string
+	jobID     string
+	nodeID    string
+	table     string
+}
+
 // stateWatch holds shared state for watching updates. This is
 // outside of StateStore so it can be shared with snapshots.
 type stateWatch struct {
-	// Allocation watches by node
-	allocs    map[string]*NotifyGroup
-	allocLock sync.Mutex
-
-	// Full table watches
-	tables    map[string]*NotifyGroup
-	tableLock sync.Mutex
+	items map[watchItem]*NotifyGroup
+	l     sync.Mutex
 }
 
-// watchTable is used to subscribe a channel to a full table watch.
-func (w *stateWatch) watchTable(table string, ch chan struct{}) {
-	w.tableLock.Lock()
-	defer w.tableLock.Unlock()
+// newStateWatch creates a new stateWatch for change notification.
+func newStateWatch() *stateWatch {
+	return &stateWatch{
+		items: make(map[watchItem]*NotifyGroup),
+	}
+}
 
-	tw, ok := w.tables[table]
+// watch subscribes a channel to the given watch item.
+func (w *stateWatch) watch(wi watchItem, ch chan struct{}) {
+	w.l.Lock()
+	defer w.l.Unlock()
+
+	grp, ok := w.items[wi]
 	if !ok {
-		tw = new(NotifyGroup)
-		w.tables[table] = tw
+		grp = new(NotifyGroup)
+		w.items[wi] = grp
 	}
-	tw.Wait(ch)
+	grp.Wait(ch)
 }
 
-// stopWatchTable is used to unsubscribe a channel from a table watch.
-func (w *stateWatch) stopWatchTable(table string, ch chan struct{}) {
-	w.tableLock.Lock()
-	defer w.tableLock.Unlock()
+// stopWatch unsubscribes a channel from the given watch item.
+func (w *stateWatch) stopWatch(wi watchItem, ch chan struct{}) {
+	w.l.Lock()
+	defer w.l.Unlock()
 
-	if tw, ok := w.tables[table]; ok {
-		tw.Clear(ch)
-		if tw.Empty() {
-			delete(w.tables, table)
+	if grp, ok := w.items[wi]; ok {
+		grp.Clear(ch)
+		if grp.Empty() {
+			delete(w.items, wi)
 		}
 	}
 }
 
-// notifyTables is used to notify watchers of the given tables.
-func (w *stateWatch) notifyTables(tables map[string]struct{}) {
-	w.tableLock.Lock()
-	defer w.tableLock.Unlock()
+// notify is used to fire notifications on the given watch items.
+func (w *stateWatch) notify(items ...watchItem) {
+	w.l.Lock()
+	defer w.l.Unlock()
 
-	for table, _ := range tables {
-		if tw, ok := w.tables[table]; ok {
-			tw.Notify()
-		}
-	}
-}
-
-// notifyAllocs is used to notify any node alloc listeners of a change
-func (w *stateWatch) notifyAllocs(nodes map[string]struct{}) {
-	w.allocLock.Lock()
-	defer w.allocLock.Unlock()
-
-	for node := range nodes {
-		if grp, ok := w.allocs[node]; ok {
+	for _, wi := range items {
+		if grp, ok := w.items[wi]; ok {
 			grp.Notify()
-			delete(w.allocs, node)
 		}
 	}
 }

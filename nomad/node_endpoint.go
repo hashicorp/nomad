@@ -330,9 +330,9 @@ func (n *Node) GetAllocs(args *structs.NodeSpecificRequest,
 
 	// Setup the blocking query
 	opts := blockingOptions{
-		queryOpts:  &args.QueryOptions,
-		queryMeta:  &reply.QueryMeta,
-		allocWatch: args.NodeID,
+		queryOpts:      &args.QueryOptions,
+		queryMeta:      &reply.QueryMeta,
+		watchAllocNode: args.NodeID,
 		run: func() error {
 			// Look for the node
 			snap, err := n.srv.fsm.State().Snapshot()
@@ -406,9 +406,9 @@ func (n *Node) List(args *structs.NodeListRequest,
 
 	// Setup the blocking query
 	opts := blockingOptions{
-		queryOpts:   &args.QueryOptions,
-		queryMeta:   &reply.QueryMeta,
-		watchTables: []string{"nodes"},
+		queryOpts:  &args.QueryOptions,
+		queryMeta:  &reply.QueryMeta,
+		watchTable: "nodes",
 		run: func() error {
 			// Capture all the nodes
 			snap, err := n.srv.fsm.State().Snapshot()
