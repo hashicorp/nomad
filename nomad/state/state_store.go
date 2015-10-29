@@ -532,6 +532,7 @@ func (s *StateStore) UpdateAllocFromClient(index uint64, alloc *structs.Allocati
 	watcher := watch.NewItems()
 	watcher.Add(watch.Item{Table: "allocs"})
 	watcher.Add(watch.Item{Alloc: alloc.ID})
+	watcher.Add(watch.Item{AllocJob: alloc.JobID})
 	watcher.Add(watch.Item{AllocNode: alloc.NodeID})
 
 	// Look for existing alloc
@@ -603,6 +604,7 @@ func (s *StateStore) UpsertAllocs(index uint64, allocs []*structs.Allocation) er
 		}
 
 		watcher.Add(watch.Item{Alloc: alloc.ID})
+		watcher.Add(watch.Item{AllocJob: alloc.JobID})
 		watcher.Add(watch.Item{AllocNode: alloc.NodeID})
 	}
 

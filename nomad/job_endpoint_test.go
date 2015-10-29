@@ -377,14 +377,14 @@ func TestJobEndpoint_GetJob_blocking(t *testing.T) {
 
 	// Upsert a job we are not interested in first.
 	time.AfterFunc(100*time.Millisecond, func() {
-		if err := state.UpsertJob(2, job1); err != nil {
+		if err := state.UpsertJob(1000, job1); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 	})
 
 	// Upsert another job later which should trigger the watch.
 	time.AfterFunc(200*time.Millisecond, func() {
-		if err := state.UpsertJob(2, job2); err != nil {
+		if err := state.UpsertJob(2000, job2); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 	})
@@ -405,8 +405,8 @@ func TestJobEndpoint_GetJob_blocking(t *testing.T) {
 	if elapsed := time.Now().Sub(start); elapsed < 200*time.Millisecond {
 		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
 	}
-	if resp.Index != 2 {
-		t.Fatalf("Bad index: %d %d", resp.Index, 2)
+	if resp.Index != 2000 {
+		t.Fatalf("Bad index: %d %d", resp.Index, 2000)
 	}
 	if resp.Job == nil || resp.Job.ID != job2.ID {
 		t.Fatalf("bad: %#v", resp.Job)
@@ -543,6 +543,59 @@ func TestJobEndpoint_Allocations(t *testing.T) {
 
 	if len(resp2.Allocations) != 2 {
 		t.Fatalf("bad: %#v", resp2.Allocations)
+	}
+}
+
+func TestJobEndpoint_Allocations_blocking(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	alloc1 := mock.Alloc()
+	alloc2 := mock.Alloc()
+	alloc2.JobID = "job1"
+	state := s1.fsm.State()
+
+	// First upsert an unrelated alloc
+	time.AfterFunc(100*time.Millisecond, func() {
+		err := state.UpsertAllocs(1000, []*structs.Allocation{alloc1})
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	})
+
+	// Upsert an alloc for the job we are interested in later
+	time.AfterFunc(200*time.Millisecond, func() {
+		err := state.UpsertAllocs(2000, []*structs.Allocation{alloc2})
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	})
+
+	// Lookup the jobs
+	get := &structs.JobSpecificRequest{
+		JobID: "job1",
+		QueryOptions: structs.QueryOptions{
+			Region:        "global",
+			MinQueryIndex: 1,
+		},
+	}
+	var resp structs.JobAllocationsResponse
+	start := time.Now()
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Allocations", get, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if elapsed := time.Now().Sub(start); elapsed < 200*time.Millisecond {
+		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
+	}
+	if resp.Index != 2000 {
+		t.Fatalf("Bad index: %d %d", resp.Index, 2000)
+	}
+	if len(resp.Allocations) != 1 || resp.Allocations[0].JobID != "job1" {
+		t.Fatalf("bad: %#v", resp.Allocations)
 	}
 }
 

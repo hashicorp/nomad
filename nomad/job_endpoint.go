@@ -275,34 +275,43 @@ func (j *Job) Allocations(args *structs.JobSpecificRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "job", "allocations"}, time.Now())
 
-	// Capture the allocations
-	snap, err := j.srv.fsm.State().Snapshot()
-	if err != nil {
-		return err
-	}
-	allocs, err := snap.AllocsByJob(args.JobID)
-	if err != nil {
-		return err
-	}
+	// Setup the blocking query
+	opts := blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		watch:     watch.NewItems(watch.Item{AllocJob: args.JobID}),
+		run: func() error {
+			// Capture the allocations
+			snap, err := j.srv.fsm.State().Snapshot()
+			if err != nil {
+				return err
+			}
+			allocs, err := snap.AllocsByJob(args.JobID)
+			if err != nil {
+				return err
+			}
 
-	// Convert to stubs
-	if len(allocs) > 0 {
-		reply.Allocations = make([]*structs.AllocListStub, 0, len(allocs))
-		for _, alloc := range allocs {
-			reply.Allocations = append(reply.Allocations, alloc.Stub())
-		}
-	}
+			// Convert to stubs
+			if len(allocs) > 0 {
+				reply.Allocations = make([]*structs.AllocListStub, 0, len(allocs))
+				for _, alloc := range allocs {
+					reply.Allocations = append(reply.Allocations, alloc.Stub())
+				}
+			}
 
-	// Use the last index that affected the allocs table
-	index, err := snap.Index("allocs")
-	if err != nil {
-		return err
-	}
-	reply.Index = index
+			// Use the last index that affected the allocs table
+			index, err := snap.Index("allocs")
+			if err != nil {
+				return err
+			}
+			reply.Index = index
 
-	// Set the query response
-	j.srv.setQueryMeta(&reply.QueryMeta)
-	return nil
+			// Set the query response
+			j.srv.setQueryMeta(&reply.QueryMeta)
+			return nil
+
+		}}
+	return j.srv.blockingRPC(&opts)
 }
 
 // Evaluations is used to list the evaluations for a job
