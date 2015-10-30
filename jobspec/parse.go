@@ -499,19 +499,11 @@ func parseUpdate(result *structs.UpdateStrategy, obj *hclobj.Object) error {
 		}
 		for _, key := range []string{"stagger", "Stagger"} {
 			if raw, ok := m[key]; ok {
-				switch v := raw.(type) {
-				case string:
-					dur, err := time.ParseDuration(v)
-					if err != nil {
-						return fmt.Errorf("invalid stagger time '%s'", raw)
-					}
-					m[key] = dur
-				case int:
-					m[key] = time.Duration(v) * time.Second
-				default:
-					return fmt.Errorf("invalid type for stagger time '%s'",
-						raw)
+				staggerTime, err := toDuration(raw)
+				if err != nil {
+					return fmt.Errorf("Invalid stagger time: %v", err)
 				}
+				m[key] = staggerTime
 			}
 		}
 
