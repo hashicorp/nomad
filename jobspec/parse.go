@@ -30,6 +30,7 @@ func Parse(r io.Reader) (*structs.Job, error) {
 
 	// Parse the buffer
 	obj, err := hcl.Parse(buf.String())
+
 	if err != nil {
 		return nil, fmt.Errorf("error parsing: %s", err)
 	}
@@ -124,7 +125,7 @@ func parseJob(result *structs.Job, obj *hclobj.Object) error {
 		}
 	}
 
-	// If we have tasks outside, do those
+	// If we have tasks outside, create TaskGroups for them
 	if o := obj.Get("task", false); o != nil {
 		var tasks []*structs.Task
 		if err := parseTasks(&tasks, o); err != nil {
@@ -134,9 +135,10 @@ func parseJob(result *structs.Job, obj *hclobj.Object) error {
 		result.TaskGroups = make([]*structs.TaskGroup, len(tasks), len(tasks)*2)
 		for i, t := range tasks {
 			result.TaskGroups[i] = &structs.TaskGroup{
-				Name:  t.Name,
-				Count: 1,
-				Tasks: []*structs.Task{t},
+				Name:          t.Name,
+				Count:         1,
+				Tasks:         []*structs.Task{t},
+				RestartPolicy: structs.NewRestartPolicy(result.Type),
 			}
 		}
 	}
@@ -180,6 +182,7 @@ func parseGroups(result *structs.Job, obj *hclobj.Object) error {
 		delete(m, "constraint")
 		delete(m, "meta")
 		delete(m, "task")
+		delete(m, "restart")
 
 		// Default count to 1 if not specified
 		if _, ok := m["count"]; !ok {
@@ -198,6 +201,10 @@ func parseGroups(result *structs.Job, obj *hclobj.Object) error {
 			if err := parseConstraints(&g.Constraints, o); err != nil {
 				return err
 			}
+		}
+
+		if err := parseRestartPolicy(structs.NewRestartPolicy(result.Type), o); err != nil {
+			return err
 		}
 
 		// Parse out meta fields. These are in HCL as a list so we need
@@ -225,6 +232,42 @@ func parseGroups(result *structs.Job, obj *hclobj.Object) error {
 	}
 
 	result.TaskGroups = append(result.TaskGroups, collection...)
+	return nil
+}
+
+func parseRestartPolicy(result *structs.RestartPolicy, obj *hclobj.Object) error {
+	var restartHclObj *hclobj.Object
+	var m map[string]interface{}
+	if restartHclObj = obj.Get("restart", false); restartHclObj == nil {
+		return nil
+	}
+	if err := hcl.DecodeObject(&m, restartHclObj); err != nil {
+		return err
+	}
+
+	if delay, ok := m["delay"]; ok {
+		d, err := toDuration(delay)
+		if err != nil {
+			return fmt.Errorf("Invalid Delay time in restart policy: %v", err)
+		}
+		result.Delay = d
+	}
+
+	if interval, ok := m["interval"]; ok {
+		i, err := toDuration(interval)
+		if err != nil {
+			return fmt.Errorf("Invalid Interval time in restart policy: %v", err)
+		}
+		result.Interval = i
+	}
+
+	if attempts, ok := m["attempts"]; ok {
+		a, err := toInteger(attempts)
+		if err != nil {
+			return fmt.Errorf("Invalid value in attempts: %v", err)
+		}
+		result.Attempts = a
+	}
 	return nil
 }
 
@@ -476,4 +519,36 @@ func parseUpdate(result *structs.UpdateStrategy, obj *hclobj.Object) error {
 		}
 	}
 	return nil
+}
+
+func toDuration(value interface{}) (time.Duration, error) {
+	var dur time.Duration
+	var err error
+	switch v := value.(type) {
+	case string:
+		dur, err = time.ParseDuration(v)
+	case int:
+		dur = time.Duration(v) * time.Second
+	default:
+		err = fmt.Errorf("Invalid time %s", value)
+	}
+
+	return dur, err
+}
+
+func toInteger(value interface{}) (int, error) {
+	var integer int
+	var err error
+	switch v := value.(type) {
+	case string:
+		var i int64
+		i, err = strconv.ParseInt(v, 10, 32)
+		integer = int(i)
+	case int:
+		integer = v
+	default:
+		err = fmt.Errorf("Value: %v can't be parsed into int", value)
+	}
+
+	return integer, err
 }

@@ -48,6 +48,11 @@ func TestParse(t *testing.T) {
 					&structs.TaskGroup{
 						Name:  "outside",
 						Count: 1,
+						RestartPolicy: &structs.RestartPolicy{
+							Attempts: 2,
+							Interval: 1 * time.Minute,
+							Delay:    15 * time.Second,
+						},
 						Tasks: []*structs.Task{
 							&structs.Task{
 								Name:   "outside",

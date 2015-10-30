@@ -31,6 +31,11 @@ job "binstore-storagelocker" {
 
     group "binsl" {
         count = 5
+        restart {
+            attempts = 5
+            interval = "10m"
+            delay = "15s"
+        }
         task "binstore" {
             driver = "docker"
             config {
