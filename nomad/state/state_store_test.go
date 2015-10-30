@@ -653,6 +653,7 @@ func TestStateStore_DeleteEval_Eval(t *testing.T) {
 	notify := setupNotifyTest(
 		state,
 		watch.Item{Table: "evals"},
+		watch.Item{Table: "allocs"},
 		watch.Item{Eval: eval1.ID},
 		watch.Item{Eval: eval2.ID},
 		watch.Item{Alloc: alloc1.ID},
@@ -1140,9 +1141,9 @@ func TestStateWatch_watch(t *testing.T) {
 	notify3 := make(chan struct{}, 1)
 
 	// Notifications trigger subscribed channels
-	sw.watch(watch.Item{Table: "foo"}, notify1)
-	sw.watch(watch.Item{Table: "bar"}, notify2)
-	sw.watch(watch.Item{Table: "baz"}, notify3)
+	sw.watch(watch.NewItems(watch.Item{Table: "foo"}), notify1)
+	sw.watch(watch.NewItems(watch.Item{Table: "bar"}), notify2)
+	sw.watch(watch.NewItems(watch.Item{Table: "baz"}), notify3)
 
 	items := watch.NewItems()
 	items.Add(watch.Item{Table: "foo"})
@@ -1165,10 +1166,10 @@ func TestStateWatch_stopWatch(t *testing.T) {
 	notify := make(chan struct{})
 
 	// First subscribe
-	sw.watch(watch.Item{Table: "foo"}, notify)
+	sw.watch(watch.NewItems(watch.Item{Table: "foo"}), notify)
 
 	// Unsubscribe stop notifications
-	sw.stopWatch(watch.Item{Table: "foo"}, notify)
+	sw.stopWatch(watch.NewItems(watch.Item{Table: "foo"}), notify)
 
 	// Check that the group was removed
 	if _, ok := sw.items[watch.Item{Table: "foo"}]; ok {
@@ -1182,6 +1183,8 @@ func TestStateWatch_stopWatch(t *testing.T) {
 	}
 }
 
+// setupNotifyTest takes a state store and a set of watch items, then creates
+// and subscribes a notification channel for each item.
 func setupNotifyTest(state *StateStore, items ...watch.Item) notifyTest {
 	var n notifyTest
 	for _, item := range items {

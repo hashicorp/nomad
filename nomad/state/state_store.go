@@ -75,16 +75,14 @@ func (s *StateStore) Restore() (*StateRestore, error) {
 	return r, nil
 }
 
+// Watch subscribes a channel to a set of watch items.
 func (s *StateStore) Watch(items watch.Items, notify chan struct{}) {
-	for wi, _ := range items {
-		s.watch.watch(wi, notify)
-	}
+	s.watch.watch(items, notify)
 }
 
+// StopWatch unsubscribes a channel from a set of watch items.
 func (s *StateStore) StopWatch(items watch.Items, notify chan struct{}) {
-	for wi, _ := range items {
-		s.watch.stopWatch(wi, notify)
-	}
+	s.watch.stopWatch(items, notify)
 }
 
 // UpsertNode is used to register a node or update a node definition
@@ -830,28 +828,32 @@ func newStateWatch() *stateWatch {
 	}
 }
 
-// watch subscribes a channel to the given watch item.
-func (w *stateWatch) watch(wi watch.Item, ch chan struct{}) {
+// watch subscribes a channel to the given watch items.
+func (w *stateWatch) watch(items watch.Items, ch chan struct{}) {
 	w.l.Lock()
 	defer w.l.Unlock()
 
-	grp, ok := w.items[wi]
-	if !ok {
-		grp = new(NotifyGroup)
-		w.items[wi] = grp
+	for item, _ := range items {
+		grp, ok := w.items[item]
+		if !ok {
+			grp = new(NotifyGroup)
+			w.items[item] = grp
+		}
+		grp.Wait(ch)
 	}
-	grp.Wait(ch)
 }
 
-// stopWatch unsubscribes a channel from the given watch item.
-func (w *stateWatch) stopWatch(wi watch.Item, ch chan struct{}) {
+// stopWatch unsubscribes a channel from the given watch items.
+func (w *stateWatch) stopWatch(items watch.Items, ch chan struct{}) {
 	w.l.Lock()
 	defer w.l.Unlock()
 
-	if grp, ok := w.items[wi]; ok {
-		grp.Clear(ch)
-		if grp.Empty() {
-			delete(w.items, wi)
+	for item, _ := range items {
+		if grp, ok := w.items[item]; ok {
+			grp.Clear(ch)
+			if grp.Empty() {
+				delete(w.items, item)
+			}
 		}
 	}
 }

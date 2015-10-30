@@ -21,6 +21,7 @@ type Item struct {
 // the items as they are added using map keys.
 type Items map[Item]struct{}
 
+// NewItems creates a new Items set and adds the given items.
 func NewItems(items ...Item) Items {
 	wi := make(Items)
 	for _, item := range items {
