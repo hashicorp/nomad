@@ -455,8 +455,11 @@ func (s *StateStore) DeleteEval(index uint64, evals []string, allocs []string) e
 		if err := txn.Delete("allocs", existing); err != nil {
 			return fmt.Errorf("alloc delete failed: %v", err)
 		}
-		watcher.Add(watch.Item{Alloc: alloc})
-		watcher.Add(watch.Item{AllocNode: existing.(*structs.Allocation).NodeID})
+		realAlloc := existing.(*structs.Allocation)
+		watcher.Add(watch.Item{Alloc: realAlloc.ID})
+		watcher.Add(watch.Item{AllocEval: realAlloc.EvalID})
+		watcher.Add(watch.Item{AllocJob: realAlloc.JobID})
+		watcher.Add(watch.Item{AllocNode: realAlloc.NodeID})
 	}
 
 	// Update the indexes
@@ -795,6 +798,9 @@ func (r *StateRestore) EvalRestore(eval *structs.Evaluation) error {
 // AllocRestore is used to restore an allocation
 func (r *StateRestore) AllocRestore(alloc *structs.Allocation) error {
 	r.items.Add(watch.Item{Table: "allocs"})
+	r.items.Add(watch.Item{Alloc: alloc.ID})
+	r.items.Add(watch.Item{AllocEval: alloc.EvalID})
+	r.items.Add(watch.Item{AllocJob: alloc.JobID})
 	r.items.Add(watch.Item{AllocNode: alloc.NodeID})
 	if err := r.txn.Insert("allocs", alloc); err != nil {
 		return fmt.Errorf("alloc insert failed: %v", err)

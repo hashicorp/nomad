@@ -92,7 +92,7 @@ func TestEvalEndpoint_GetEval_Blocking(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if elapsed := time.Now().Sub(start); elapsed < 200*time.Millisecond {
+	if elapsed := time.Since(start); elapsed < 200*time.Millisecond {
 		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
 	}
 	if resp.Index != 200 {
@@ -117,7 +117,7 @@ func TestEvalEndpoint_GetEval_Blocking(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if elapsed := time.Now().Sub(start); elapsed < 100*time.Millisecond {
+	if elapsed := time.Since(start); elapsed < 100*time.Millisecond {
 		t.Fatalf("should block (returned in %s) %#v", elapsed, resp2)
 	}
 	if resp2.Index != 300 {
@@ -440,7 +440,7 @@ func TestEvalEndpoint_List_Blocking(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if elapsed := time.Now().Sub(start); elapsed < 100*time.Millisecond {
+	if elapsed := time.Since(start); elapsed < 100*time.Millisecond {
 		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
 	}
 	if resp.Index != 2 {
@@ -464,7 +464,7 @@ func TestEvalEndpoint_List_Blocking(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if elapsed := time.Now().Sub(start); elapsed < 100*time.Millisecond {
+	if elapsed := time.Since(start); elapsed < 100*time.Millisecond {
 		t.Fatalf("should block (returned in %s) %#v", elapsed, resp2)
 	}
 	if resp2.Index != 3 {
@@ -551,7 +551,7 @@ func TestEvalEndpoint_Allocations_Blocking(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if elapsed := time.Now().Sub(start); elapsed < 200*time.Millisecond {
+	if elapsed := time.Since(start); elapsed < 200*time.Millisecond {
 		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
 	}
 	if resp.Index != 200 {

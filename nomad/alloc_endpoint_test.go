@@ -74,7 +74,7 @@ func TestAllocEndpoint_List_Blocking(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if elapsed := time.Now().Sub(start); elapsed < 100*time.Millisecond {
+	if elapsed := time.Since(start); elapsed < 100*time.Millisecond {
 		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
 	}
 	if resp.Index != 2 {
@@ -101,7 +101,7 @@ func TestAllocEndpoint_List_Blocking(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if elapsed := time.Now().Sub(start); elapsed < 100*time.Millisecond {
+	if elapsed := time.Since(start); elapsed < 100*time.Millisecond {
 		t.Fatalf("should block (returned in %s) %#v", elapsed, resp2)
 	}
 	if resp2.Index != 3 {
@@ -186,7 +186,7 @@ func TestAllocEndpoint_GetAlloc_Blocking(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if elapsed := time.Now().Sub(start); elapsed < 200*time.Millisecond {
+	if elapsed := time.Since(start); elapsed < 200*time.Millisecond {
 		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
 	}
 	if resp.Index != 200 {

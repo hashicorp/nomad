@@ -410,7 +410,7 @@ func TestClientEndpoint_GetNode_Blocking(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if elapsed := time.Now().Sub(start); elapsed < 200*time.Millisecond {
+	if elapsed := time.Since(start); elapsed < 200*time.Millisecond {
 		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
 	}
 	if resp.Index != 200 {
@@ -437,7 +437,7 @@ func TestClientEndpoint_GetNode_Blocking(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if elapsed := time.Now().Sub(start); elapsed < 100*time.Millisecond {
+	if elapsed := time.Since(start); elapsed < 100*time.Millisecond {
 		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
 	}
 	if resp2.Index != 300 {
@@ -461,7 +461,7 @@ func TestClientEndpoint_GetNode_Blocking(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if elapsed := time.Now().Sub(start); elapsed < 100*time.Millisecond {
+	if elapsed := time.Since(start); elapsed < 100*time.Millisecond {
 		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
 	}
 	if resp3.Index != 400 {
@@ -910,7 +910,7 @@ func TestClientEndpoint_ListNodes_Blocking(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if elapsed := time.Now().Sub(start); elapsed < 100*time.Millisecond {
+	if elapsed := time.Since(start); elapsed < 100*time.Millisecond {
 		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
 	}
 	if resp.Index != 2 {
@@ -934,7 +934,7 @@ func TestClientEndpoint_ListNodes_Blocking(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if elapsed := time.Now().Sub(start); elapsed < 100*time.Millisecond {
+	if elapsed := time.Since(start); elapsed < 100*time.Millisecond {
 		t.Fatalf("should block (returned in %s) %#v", elapsed, resp2)
 	}
 	if resp2.Index != 3 {
@@ -958,7 +958,7 @@ func TestClientEndpoint_ListNodes_Blocking(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if elapsed := time.Now().Sub(start); elapsed < 100*time.Millisecond {
+	if elapsed := time.Since(start); elapsed < 100*time.Millisecond {
 		t.Fatalf("should block (returned in %s) %#v", elapsed, resp3)
 	}
 	if resp3.Index != 4 {
@@ -982,7 +982,7 @@ func TestClientEndpoint_ListNodes_Blocking(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if elapsed := time.Now().Sub(start); elapsed < 100*time.Millisecond {
+	if elapsed := time.Since(start); elapsed < 100*time.Millisecond {
 		t.Fatalf("should block (returned in %s) %#v", elapsed, resp4)
 	}
 	if resp4.Index != 5 {

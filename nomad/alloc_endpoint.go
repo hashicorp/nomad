@@ -86,8 +86,8 @@ func (a *Alloc) GetAlloc(args *structs.AllocSpecificRequest,
 			}
 
 			// Setup the output
+			reply.Alloc = out
 			if out != nil {
-				reply.Alloc = out
 				reply.Index = out.ModifyIndex
 			} else {
 				// Use the last index that affected the nodes table
