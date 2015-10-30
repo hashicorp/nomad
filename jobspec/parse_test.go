@@ -82,6 +82,11 @@ func TestParse(t *testing.T) {
 							"elb_interval": "10",
 							"elb_checks":   "3",
 						},
+						RestartPolicy: &structs.RestartPolicy{
+							Interval: 10 * time.Minute,
+							Attempts: 5,
+							Delay:    15 * time.Second,
+						},
 						Tasks: []*structs.Task{
 							&structs.Task{
 								Name:   "binstore",

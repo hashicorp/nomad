@@ -202,8 +202,9 @@ func parseGroups(result *structs.Job, obj *hclobj.Object) error {
 				return err
 			}
 		}
+		g.RestartPolicy = structs.NewRestartPolicy(result.Type)
 
-		if err := parseRestartPolicy(structs.NewRestartPolicy(result.Type), o); err != nil {
+		if err := parseRestartPolicy(g.RestartPolicy, o); err != nil {
 			return err
 		}
 

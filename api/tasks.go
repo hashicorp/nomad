@@ -1,12 +1,25 @@
 package api
 
+import (
+	"time"
+)
+
+//RestartPolicy defines how the Nomad client restarts
+//tasks in a taskgroup when they fail
+type RestartPolicy struct {
+	Interval time.Duration
+	Attempts int
+	Delay    time.Duration
+}
+
 // TaskGroup is the unit of scheduling.
 type TaskGroup struct {
-	Name        string
-	Count       int
-	Constraints []*Constraint
-	Tasks       []*Task
-	Meta        map[string]string
+	Name          string
+	Count         int
+	Constraints   []*Constraint
+	Tasks         []*Task
+	RestartPolicy *RestartPolicy
+	Meta          map[string]string
 }
 
 // NewTaskGroup creates a new TaskGroup.
