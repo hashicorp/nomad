@@ -765,6 +765,7 @@ func (s *StateRestore) Commit() {
 // NodeRestore is used to restore a node
 func (r *StateRestore) NodeRestore(node *structs.Node) error {
 	r.items.Add(watch.Item{Table: "nodes"})
+	r.items.Add(watch.Item{Node: node.ID})
 	if err := r.txn.Insert("nodes", node); err != nil {
 		return fmt.Errorf("node insert failed: %v", err)
 	}
@@ -774,6 +775,7 @@ func (r *StateRestore) NodeRestore(node *structs.Node) error {
 // JobRestore is used to restore a job
 func (r *StateRestore) JobRestore(job *structs.Job) error {
 	r.items.Add(watch.Item{Table: "jobs"})
+	r.items.Add(watch.Item{Job: job.ID})
 	if err := r.txn.Insert("jobs", job); err != nil {
 		return fmt.Errorf("job insert failed: %v", err)
 	}
@@ -783,6 +785,7 @@ func (r *StateRestore) JobRestore(job *structs.Job) error {
 // EvalRestore is used to restore an evaluation
 func (r *StateRestore) EvalRestore(eval *structs.Evaluation) error {
 	r.items.Add(watch.Item{Table: "evals"})
+	r.items.Add(watch.Item{Eval: eval.ID})
 	if err := r.txn.Insert("evals", eval); err != nil {
 		return fmt.Errorf("eval insert failed: %v", err)
 	}
