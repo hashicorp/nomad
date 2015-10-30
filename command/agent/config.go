@@ -226,7 +226,7 @@ func DevConfig() *Config {
 	conf.DisableAnonymousSignature = true
 	if runtime.GOOS == "darwin" {
 		conf.Client.NetworkInterface = "lo0"
-	} else {
+	} else if runtime.GOOS == "linux" {
 		conf.Client.NetworkInterface = "lo"
 	}
 
