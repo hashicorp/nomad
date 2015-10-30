@@ -371,7 +371,7 @@ func TestClientEndpoint_GetNode(t *testing.T) {
 	}
 }
 
-func TestClientEndpoint_GetNode_blocking(t *testing.T) {
+func TestClientEndpoint_GetNode_Blocking(t *testing.T) {
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
@@ -384,40 +384,91 @@ func TestClientEndpoint_GetNode_blocking(t *testing.T) {
 
 	// First create an unrelated node.
 	time.AfterFunc(100*time.Millisecond, func() {
-		if err := state.UpsertNode(1000, node1); err != nil {
+		if err := state.UpsertNode(100, node1); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 	})
 
 	// Upsert the node we are watching later
 	time.AfterFunc(200*time.Millisecond, func() {
-		if err := state.UpsertNode(2000, node2); err != nil {
+		if err := state.UpsertNode(200, node2); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 	})
 
 	// Lookup the node
-	get := &structs.NodeSpecificRequest{
+	req := &structs.NodeSpecificRequest{
 		NodeID: node2.ID,
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
-			MinQueryIndex: 1,
+			MinQueryIndex: 50,
 		},
 	}
 	var resp structs.SingleNodeResponse
 	start := time.Now()
-	if err := msgpackrpc.CallWithCodec(codec, "Node.GetNode", get, &resp); err != nil {
+	if err := msgpackrpc.CallWithCodec(codec, "Node.GetNode", req, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	if elapsed := time.Now().Sub(start); elapsed < 200*time.Millisecond {
 		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
 	}
-	if resp.Index != 2000 {
-		t.Fatalf("Bad index: %d %d", resp.Index, 2000)
+	if resp.Index != 200 {
+		t.Fatalf("Bad index: %d %d", resp.Index, 200)
 	}
 	if resp.Node == nil || resp.Node.ID != node2.ID {
 		t.Fatalf("bad: %#v", resp.Node)
+	}
+
+	// Node update triggers watches
+	time.AfterFunc(100*time.Millisecond, func() {
+		nodeUpdate := mock.Node()
+		nodeUpdate.ID = node2.ID
+		nodeUpdate.Status = structs.NodeStatusDown
+		if err := state.UpsertNode(300, nodeUpdate); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	})
+
+	req.QueryOptions.MinQueryIndex = 250
+	var resp2 structs.SingleNodeResponse
+	start = time.Now()
+	if err := msgpackrpc.CallWithCodec(codec, "Node.GetNode", req, &resp2); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if elapsed := time.Now().Sub(start); elapsed < 100*time.Millisecond {
+		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
+	}
+	if resp2.Index != 300 {
+		t.Fatalf("Bad index: %d %d", resp2.Index, 300)
+	}
+	if resp2.Node == nil || resp2.Node.Status != structs.NodeStatusDown {
+		t.Fatalf("bad: %#v", resp2.Node)
+	}
+
+	// Node delete triggers watches
+	time.AfterFunc(100*time.Millisecond, func() {
+		if err := state.DeleteNode(400, node2.ID); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	})
+
+	req.QueryOptions.MinQueryIndex = 350
+	var resp3 structs.SingleNodeResponse
+	start = time.Now()
+	if err := msgpackrpc.CallWithCodec(codec, "Node.GetNode", req, &resp3); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if elapsed := time.Now().Sub(start); elapsed < 100*time.Millisecond {
+		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
+	}
+	if resp3.Index != 400 {
+		t.Fatalf("Bad index: %d %d", resp2.Index, 400)
+	}
+	if resp3.Node != nil {
+		t.Fatalf("bad: %#v", resp3.Node)
 	}
 }
 
@@ -507,16 +558,15 @@ func TestClientEndpoint_GetAllocs_Blocking(t *testing.T) {
 	alloc.NodeID = node.ID
 	state := s1.fsm.State()
 	start := time.Now()
-	go func() {
-		time.Sleep(100 * time.Millisecond)
+	time.AfterFunc(100*time.Millisecond, func() {
 		err := state.UpsertAllocs(100, []*structs.Allocation{alloc})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
-	}()
+	})
 
 	// Lookup the allocs in a blocking query
-	get := &structs.NodeSpecificRequest{
+	req := &structs.NodeSpecificRequest{
 		NodeID: node.ID,
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
@@ -525,7 +575,7 @@ func TestClientEndpoint_GetAllocs_Blocking(t *testing.T) {
 		},
 	}
 	var resp2 structs.NodeAllocsResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Node.GetAllocs", get, &resp2); err != nil {
+	if err := msgpackrpc.CallWithCodec(codec, "Node.GetAllocs", req, &resp2); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -540,6 +590,34 @@ func TestClientEndpoint_GetAllocs_Blocking(t *testing.T) {
 
 	if len(resp2.Allocs) != 1 || resp2.Allocs[0].ID != alloc.ID {
 		t.Fatalf("bad: %#v", resp2.Allocs)
+	}
+
+	// Alloc updates fire watches
+	time.AfterFunc(100*time.Millisecond, func() {
+		allocUpdate := mock.Alloc()
+		allocUpdate.NodeID = alloc.NodeID
+		allocUpdate.ID = alloc.ID
+		allocUpdate.ClientStatus = structs.AllocClientStatusRunning
+		err := state.UpdateAllocFromClient(200, allocUpdate)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	})
+
+	req.QueryOptions.MinQueryIndex = 150
+	var resp3 structs.NodeAllocsResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Node.GetAllocs", req, &resp3); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if time.Since(start) < 100*time.Millisecond {
+		t.Fatalf("too fast")
+	}
+	if resp3.Index != 200 {
+		t.Fatalf("Bad index: %d %d", resp3.Index, 200)
+	}
+	if len(resp3.Allocs) != 1 || resp3.Allocs[0].ClientStatus != structs.AllocClientStatusRunning {
+		t.Fatalf("bad: %#v", resp3.Allocs[0])
 	}
 }
 
@@ -803,7 +881,7 @@ func TestClientEndpoint_ListNodes(t *testing.T) {
 	}
 }
 
-func TestClientEndpoint_ListNodes_blocking(t *testing.T) {
+func TestClientEndpoint_ListNodes_Blocking(t *testing.T) {
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()

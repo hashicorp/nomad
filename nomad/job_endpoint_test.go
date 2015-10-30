@@ -364,7 +364,7 @@ func TestJobEndpoint_GetJob(t *testing.T) {
 	}
 }
 
-func TestJobEndpoint_GetJob_blocking(t *testing.T) {
+func TestJobEndpoint_GetJob_Blocking(t *testing.T) {
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
@@ -377,14 +377,14 @@ func TestJobEndpoint_GetJob_blocking(t *testing.T) {
 
 	// Upsert a job we are not interested in first.
 	time.AfterFunc(100*time.Millisecond, func() {
-		if err := state.UpsertJob(1000, job1); err != nil {
+		if err := state.UpsertJob(100, job1); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 	})
 
 	// Upsert another job later which should trigger the watch.
 	time.AfterFunc(200*time.Millisecond, func() {
-		if err := state.UpsertJob(2000, job2); err != nil {
+		if err := state.UpsertJob(200, job2); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 	})
@@ -393,7 +393,7 @@ func TestJobEndpoint_GetJob_blocking(t *testing.T) {
 		JobID: job2.ID,
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
-			MinQueryIndex: 1,
+			MinQueryIndex: 50,
 		},
 	}
 	start := time.Now()
@@ -405,11 +405,36 @@ func TestJobEndpoint_GetJob_blocking(t *testing.T) {
 	if elapsed := time.Now().Sub(start); elapsed < 200*time.Millisecond {
 		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
 	}
-	if resp.Index != 2000 {
-		t.Fatalf("Bad index: %d %d", resp.Index, 2000)
+	if resp.Index != 200 {
+		t.Fatalf("Bad index: %d %d", resp.Index, 200)
 	}
 	if resp.Job == nil || resp.Job.ID != job2.ID {
 		t.Fatalf("bad: %#v", resp.Job)
+	}
+
+	// Job delete fires watches
+	time.AfterFunc(100*time.Millisecond, func() {
+		if err := state.DeleteJob(300, job2.ID); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	})
+
+	req.QueryOptions.MinQueryIndex = 250
+	start = time.Now()
+
+	var resp2 structs.SingleJobResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.GetJob", req, &resp2); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if elapsed := time.Now().Sub(start); elapsed < 100*time.Millisecond {
+		t.Fatalf("should block (returned in %s) %#v", elapsed, resp2)
+	}
+	if resp2.Index != 300 {
+		t.Fatalf("Bad index: %d %d", resp2.Index, 300)
+	}
+	if resp2.Job != nil {
+		t.Fatalf("bad: %#v", resp2.Job)
 	}
 }
 
@@ -447,7 +472,7 @@ func TestJobEndpoint_ListJobs(t *testing.T) {
 	}
 }
 
-func TestJobEndpoint_ListJobs_blocking(t *testing.T) {
+func TestJobEndpoint_ListJobs_Blocking(t *testing.T) {
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
@@ -459,7 +484,7 @@ func TestJobEndpoint_ListJobs_blocking(t *testing.T) {
 
 	// Upsert job triggers watches
 	time.AfterFunc(100*time.Millisecond, func() {
-		if err := state.UpsertJob(2, job); err != nil {
+		if err := state.UpsertJob(100, job); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 	})
@@ -467,7 +492,7 @@ func TestJobEndpoint_ListJobs_blocking(t *testing.T) {
 	req := &structs.JobListRequest{
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
-			MinQueryIndex: 1,
+			MinQueryIndex: 50,
 		},
 	}
 	start := time.Now()
@@ -479,8 +504,8 @@ func TestJobEndpoint_ListJobs_blocking(t *testing.T) {
 	if elapsed := time.Now().Sub(start); elapsed < 100*time.Millisecond {
 		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
 	}
-	if resp.Index != 2 {
-		t.Fatalf("Bad index: %d %d", resp.Index, 2)
+	if resp.Index != 100 {
+		t.Fatalf("Bad index: %d %d", resp.Index, 100)
 	}
 	if len(resp.Jobs) != 1 || resp.Jobs[0].ID != job.ID {
 		t.Fatalf("bad: %#v", resp.Jobs)
@@ -488,12 +513,12 @@ func TestJobEndpoint_ListJobs_blocking(t *testing.T) {
 
 	// Job deletion triggers watches
 	time.AfterFunc(100*time.Millisecond, func() {
-		if err := state.DeleteJob(3, job.ID); err != nil {
+		if err := state.DeleteJob(200, job.ID); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 	})
 
-	req.MinQueryIndex = 2
+	req.MinQueryIndex = 150
 	start = time.Now()
 	var resp2 structs.JobListResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Job.List", req, &resp2); err != nil {
@@ -503,8 +528,8 @@ func TestJobEndpoint_ListJobs_blocking(t *testing.T) {
 	if elapsed := time.Now().Sub(start); elapsed < 100*time.Millisecond {
 		t.Fatalf("should block (returned in %s) %#v", elapsed, resp2)
 	}
-	if resp2.Index != 3 {
-		t.Fatalf("Bad index: %d %d", resp2.Index, 3)
+	if resp2.Index != 200 {
+		t.Fatalf("Bad index: %d %d", resp2.Index, 200)
 	}
 	if len(resp2.Jobs) != 0 {
 		t.Fatalf("bad: %#v", resp2.Jobs)
@@ -546,7 +571,7 @@ func TestJobEndpoint_Allocations(t *testing.T) {
 	}
 }
 
-func TestJobEndpoint_Allocations_blocking(t *testing.T) {
+func TestJobEndpoint_Allocations_Blocking(t *testing.T) {
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
@@ -560,7 +585,7 @@ func TestJobEndpoint_Allocations_blocking(t *testing.T) {
 
 	// First upsert an unrelated alloc
 	time.AfterFunc(100*time.Millisecond, func() {
-		err := state.UpsertAllocs(1000, []*structs.Allocation{alloc1})
+		err := state.UpsertAllocs(100, []*structs.Allocation{alloc1})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -568,7 +593,7 @@ func TestJobEndpoint_Allocations_blocking(t *testing.T) {
 
 	// Upsert an alloc for the job we are interested in later
 	time.AfterFunc(200*time.Millisecond, func() {
-		err := state.UpsertAllocs(2000, []*structs.Allocation{alloc2})
+		err := state.UpsertAllocs(200, []*structs.Allocation{alloc2})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -579,7 +604,7 @@ func TestJobEndpoint_Allocations_blocking(t *testing.T) {
 		JobID: "job1",
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
-			MinQueryIndex: 1,
+			MinQueryIndex: 50,
 		},
 	}
 	var resp structs.JobAllocationsResponse
@@ -591,8 +616,8 @@ func TestJobEndpoint_Allocations_blocking(t *testing.T) {
 	if elapsed := time.Now().Sub(start); elapsed < 200*time.Millisecond {
 		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
 	}
-	if resp.Index != 2000 {
-		t.Fatalf("Bad index: %d %d", resp.Index, 2000)
+	if resp.Index != 200 {
+		t.Fatalf("Bad index: %d %d", resp.Index, 200)
 	}
 	if len(resp.Allocations) != 1 || resp.Allocations[0].JobID != "job1" {
 		t.Fatalf("bad: %#v", resp.Allocations)

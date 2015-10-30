@@ -199,8 +199,8 @@ func (j *Job) GetJob(args *structs.JobSpecificRequest,
 			}
 
 			// Setup the output
+			reply.Job = out
 			if out != nil {
-				reply.Job = out
 				reply.Index = out.ModifyIndex
 			} else {
 				// Use the last index that affected the nodes table

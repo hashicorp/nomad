@@ -44,8 +44,8 @@ func (e *Eval) GetEval(args *structs.EvalSpecificRequest,
 			}
 
 			// Setup the output
+			reply.Eval = out
 			if out != nil {
-				reply.Eval = out
 				reply.Index = out.ModifyIndex
 			} else {
 				// Use the last index that affected the nodes table

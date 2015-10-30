@@ -51,7 +51,7 @@ func TestEvalEndpoint_GetEval(t *testing.T) {
 	}
 }
 
-func TestEvalEndpoint_GetEval_blocking(t *testing.T) {
+func TestEvalEndpoint_GetEval_Blocking(t *testing.T) {
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
@@ -64,7 +64,7 @@ func TestEvalEndpoint_GetEval_blocking(t *testing.T) {
 
 	// First create an unrelated eval
 	time.AfterFunc(100*time.Millisecond, func() {
-		err := state.UpsertEvals(1000, []*structs.Evaluation{eval1})
+		err := state.UpsertEvals(100, []*structs.Evaluation{eval1})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -72,34 +72,59 @@ func TestEvalEndpoint_GetEval_blocking(t *testing.T) {
 
 	// Upsert the eval we are watching later
 	time.AfterFunc(200*time.Millisecond, func() {
-		err := state.UpsertEvals(2000, []*structs.Evaluation{eval2})
+		err := state.UpsertEvals(200, []*structs.Evaluation{eval2})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
 	})
 
 	// Lookup the eval
-	get := &structs.EvalSpecificRequest{
+	req := &structs.EvalSpecificRequest{
 		EvalID: eval2.ID,
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
-			MinQueryIndex: 1,
+			MinQueryIndex: 50,
 		},
 	}
 	var resp structs.SingleEvalResponse
 	start := time.Now()
-	if err := msgpackrpc.CallWithCodec(codec, "Eval.GetEval", get, &resp); err != nil {
+	if err := msgpackrpc.CallWithCodec(codec, "Eval.GetEval", req, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	if elapsed := time.Now().Sub(start); elapsed < 200*time.Millisecond {
 		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
 	}
-	if resp.Index != 2000 {
-		t.Fatalf("Bad index: %d %d", resp.Index, 2000)
+	if resp.Index != 200 {
+		t.Fatalf("Bad index: %d %d", resp.Index, 200)
 	}
 	if resp.Eval == nil || resp.Eval.ID != eval2.ID {
 		t.Fatalf("bad: %#v", resp.Eval)
+	}
+
+	// Eval delete triggers watches
+	time.AfterFunc(100*time.Millisecond, func() {
+		err := state.DeleteEval(300, []string{eval2.ID}, []string{})
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	})
+
+	req.QueryOptions.MinQueryIndex = 250
+	var resp2 structs.SingleEvalResponse
+	start = time.Now()
+	if err := msgpackrpc.CallWithCodec(codec, "Eval.GetEval", req, &resp2); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if elapsed := time.Now().Sub(start); elapsed < 100*time.Millisecond {
+		t.Fatalf("should block (returned in %s) %#v", elapsed, resp2)
+	}
+	if resp2.Index != 300 {
+		t.Fatalf("Bad index: %d %d", resp2.Index, 300)
+	}
+	if resp2.Eval != nil {
+		t.Fatalf("bad: %#v", resp2.Eval)
 	}
 }
 
@@ -386,7 +411,7 @@ func TestEvalEndpoint_List(t *testing.T) {
 	}
 }
 
-func TestEvalEndpoint_List_blocking(t *testing.T) {
+func TestEvalEndpoint_List_Blocking(t *testing.T) {
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
@@ -485,7 +510,7 @@ func TestEvalEndpoint_Allocations(t *testing.T) {
 	}
 }
 
-func TestEvalEndpoint_Allocations_blocking(t *testing.T) {
+func TestEvalEndpoint_Allocations_Blocking(t *testing.T) {
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
@@ -498,7 +523,7 @@ func TestEvalEndpoint_Allocations_blocking(t *testing.T) {
 
 	// Upsert an unrelated alloc first
 	time.AfterFunc(100*time.Millisecond, func() {
-		err := state.UpsertAllocs(1000, []*structs.Allocation{alloc1})
+		err := state.UpsertAllocs(100, []*structs.Allocation{alloc1})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -506,7 +531,7 @@ func TestEvalEndpoint_Allocations_blocking(t *testing.T) {
 
 	// Upsert an alloc which will trigger the watch later
 	time.AfterFunc(200*time.Millisecond, func() {
-		err := state.UpsertAllocs(2000, []*structs.Allocation{alloc2})
+		err := state.UpsertAllocs(200, []*structs.Allocation{alloc2})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -517,7 +542,7 @@ func TestEvalEndpoint_Allocations_blocking(t *testing.T) {
 		EvalID: alloc2.EvalID,
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
-			MinQueryIndex: 1,
+			MinQueryIndex: 50,
 		},
 	}
 	var resp structs.EvalAllocationsResponse
@@ -529,8 +554,8 @@ func TestEvalEndpoint_Allocations_blocking(t *testing.T) {
 	if elapsed := time.Now().Sub(start); elapsed < 200*time.Millisecond {
 		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
 	}
-	if resp.Index != 2000 {
-		t.Fatalf("Bad index: %d %d", resp.Index, 2000)
+	if resp.Index != 200 {
+		t.Fatalf("Bad index: %d %d", resp.Index, 200)
 	}
 	if len(resp.Allocations) != 1 || resp.Allocations[0].ID != alloc2.ID {
 		t.Fatalf("bad: %#v", resp.Allocations)

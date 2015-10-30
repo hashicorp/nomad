@@ -45,7 +45,7 @@ func TestAllocEndpoint_List(t *testing.T) {
 	}
 }
 
-func TestAllocEndpoint_List_blocking(t *testing.T) {
+func TestAllocEndpoint_List_Blocking(t *testing.T) {
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
@@ -145,7 +145,7 @@ func TestAllocEndpoint_GetAlloc(t *testing.T) {
 	}
 }
 
-func TestAllocEndpoint_GetAlloc_blocking(t *testing.T) {
+func TestAllocEndpoint_GetAlloc_Blocking(t *testing.T) {
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
@@ -158,7 +158,7 @@ func TestAllocEndpoint_GetAlloc_blocking(t *testing.T) {
 
 	// First create an unrelated alloc
 	time.AfterFunc(100*time.Millisecond, func() {
-		err := state.UpsertAllocs(1000, []*structs.Allocation{alloc1})
+		err := state.UpsertAllocs(100, []*structs.Allocation{alloc1})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -166,7 +166,7 @@ func TestAllocEndpoint_GetAlloc_blocking(t *testing.T) {
 
 	// Create the alloc we are watching later
 	time.AfterFunc(200*time.Millisecond, func() {
-		err := state.UpsertAllocs(2000, []*structs.Allocation{alloc2})
+		err := state.UpsertAllocs(200, []*structs.Allocation{alloc2})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -177,7 +177,7 @@ func TestAllocEndpoint_GetAlloc_blocking(t *testing.T) {
 		AllocID: alloc2.ID,
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
-			MinQueryIndex: 1,
+			MinQueryIndex: 50,
 		},
 	}
 	var resp structs.SingleAllocResponse
@@ -189,8 +189,8 @@ func TestAllocEndpoint_GetAlloc_blocking(t *testing.T) {
 	if elapsed := time.Now().Sub(start); elapsed < 200*time.Millisecond {
 		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
 	}
-	if resp.Index != 2000 {
-		t.Fatalf("Bad index: %d %d", resp.Index, 2000)
+	if resp.Index != 200 {
+		t.Fatalf("Bad index: %d %d", resp.Index, 200)
 	}
 	if resp.Alloc == nil || resp.Alloc.ID != alloc2.ID {
 		t.Fatalf("bad: %#v", resp.Alloc)
