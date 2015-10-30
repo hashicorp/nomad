@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client"
+	"github.com/hashicorp/nomad/helper/inet"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -103,6 +104,13 @@ func (a *Agent) serverConfig() (*nomad.Config, error) {
 
 	// Set up the advertise addrs
 	if addr := a.config.AdvertiseAddrs.Serf; addr != "" {
+		// Try and expand subnet-notation for advertise address (eg. "10.0.0.0/8:4648")
+		addr, err := inet.AdvertiseIpFromSubnet(addr)
+		if err != nil {
+			return nil, err
+		}
+		a.config.AdvertiseAddrs.Serf = addr
+
 		serfAddr, err := net.ResolveTCPAddr("tcp", addr)
 		if err != nil {
 			return nil, fmt.Errorf("error resolving serf advertise address: %s", err)
@@ -111,6 +119,13 @@ func (a *Agent) serverConfig() (*nomad.Config, error) {
 		conf.SerfConfig.MemberlistConfig.AdvertisePort = serfAddr.Port
 	}
 	if addr := a.config.AdvertiseAddrs.RPC; addr != "" {
+		// Try and expand subnet-notation for advertise address (eg. "10.0.0.0/8:4647")
+		addr, err := inet.AdvertiseIpFromSubnet(addr)
+		if err != nil {
+			return nil, err
+		}
+		a.config.AdvertiseAddrs.RPC = addr
+
 		rpcAddr, err := net.ResolveTCPAddr("tcp", addr)
 		if err != nil {
 			return nil, fmt.Errorf("error resolving rpc advertise address: %s", err)
