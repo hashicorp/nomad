@@ -82,4 +82,4 @@ fi
 # Done!
 echo
 echo "==> Results:"
-ls -hl bin/
+ls -hld ${DIR}/bin/*
