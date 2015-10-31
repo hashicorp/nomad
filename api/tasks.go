@@ -12,6 +12,14 @@ type RestartPolicy struct {
 	Delay    time.Duration
 }
 
+func NewRestartPolicy() *RestartPolicy {
+	return &RestartPolicy{
+		Attempts: 10,
+		Interval: 3 * time.Minute,
+		Delay:    5 * time.Second,
+	}
+}
+
 // TaskGroup is the unit of scheduling.
 type TaskGroup struct {
 	Name          string
@@ -24,9 +32,11 @@ type TaskGroup struct {
 
 // NewTaskGroup creates a new TaskGroup.
 func NewTaskGroup(name string, count int) *TaskGroup {
+	restartPolicy := NewRestartPolicy()
 	return &TaskGroup{
-		Name:  name,
-		Count: count,
+		Name:          name,
+		Count:         count,
+		RestartPolicy: restartPolicy,
 	}
 }
 
