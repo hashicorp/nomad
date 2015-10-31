@@ -104,8 +104,8 @@ job "example" {
 		# Defaults to 1
 		# count = 1
 
-		# Restart Policy - This block defines the restart policy for TaskGroups
-		# attempts defines the number of restarts Nomad will do if Tasks
+		# Restart Policy - This block defines the restart policy for TaskGroups,
+		# the attempts value defines the number of restarts Nomad will do if Tasks
 		# in this TaskGroup fails in a rolling window of interval duration
 		# The delay value makes Nomad wait for that duration to restart after a Task
 		# fails or crashes.

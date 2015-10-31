@@ -992,7 +992,6 @@ func (tg *TaskGroup) Validate() error {
 
 	// Validate the tasks
 	for idx, task := range tg.Tasks {
-
 		if err := task.Validate(); err != nil {
 			outer := fmt.Errorf("Task %d validation failed: %s", idx+1, err)
 			mErr.Errors = append(mErr.Errors, outer)

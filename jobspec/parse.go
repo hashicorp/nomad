@@ -30,7 +30,6 @@ func Parse(r io.Reader) (*structs.Job, error) {
 
 	// Parse the buffer
 	obj, err := hcl.Parse(buf.String())
-
 	if err != nil {
 		return nil, fmt.Errorf("error parsing: %s", err)
 	}
