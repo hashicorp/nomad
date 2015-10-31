@@ -1,6 +1,9 @@
 package mock
 
-import "github.com/hashicorp/nomad/nomad/structs"
+import (
+	"github.com/hashicorp/nomad/nomad/structs"
+	"time"
+)
 
 func Node() *structs.Node {
 	node := &structs.Node{
@@ -71,6 +74,11 @@ func Job() *structs.Job {
 			&structs.TaskGroup{
 				Name:  "web",
 				Count: 10,
+				RestartPolicy: &structs.RestartPolicy{
+					Attempts: 3,
+					Interval: 10 * time.Minute,
+					Delay:    1 * time.Minute,
+				},
 				Tasks: []*structs.Task{
 					&structs.Task{
 						Name:   "web",
@@ -131,6 +139,11 @@ func SystemJob() *structs.Job {
 			&structs.TaskGroup{
 				Name:  "web",
 				Count: 1,
+				RestartPolicy: &structs.RestartPolicy{
+					Attempts: 3,
+					Interval: 10 * time.Minute,
+					Delay:    1 * time.Minute,
+				},
 				Tasks: []*structs.Task{
 					&structs.Task{
 						Name:   "web",
