@@ -77,9 +77,9 @@ nodes, unless otherwise specified:
   <br>
   * `http`: The port used to run the HTTP server. Applies to both client and
     server nodes. Defaults to `4646`.
-  * `rpc`: The port used for internal RPC communication between agents and
-    servers, and for inter-server traffic for the consensus algorithm (raft).
-    Defaults to `4647`. Only used on server nodes.
+  * `rpc`: The port used for internal RPC communication between server nodes,
+    and for inter-server traffic for the consensus algorithm (raft). Defaults to
+    `4647`. Only used on server nodes.
   * `serf`: The port used for the gossip protocol for cluster membership. Both
     TCP and UDP should be routable between the server nodes on this port.
     Defaults to `4648`. Only used on server nodes.
