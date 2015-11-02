@@ -131,7 +131,7 @@ nodes, unless otherwise specified:
 * `leave_on_terminate`: Enables gracefully leave when receiving the
   terminate signal. By default, the agent will exit forcefully on any signal.
 
-* `enable_syslog`: Enables logging to syslog. This option only work on
+* `enable_syslog`: Enables logging to syslog. This option only works on
   Unix based systems.
 
 * `syslog_facility`: Controls the syslog facility that is used. By default,
