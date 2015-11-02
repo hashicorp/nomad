@@ -42,7 +42,7 @@ nodes, unless otherwise specified:
   as `us-west` and `us-east`. Defaults to `global`.
 
 * `datacenter`: Datacenter of the local agent. All members of a datacenter
-  should all share a local LAN connection. Defaults to `dc1`.
+  should share a local LAN connection. Defaults to `dc1`.
 
 * <a id="name">`name`</a>: The name of the local node. This value is used to
   identify individual nodes in a given datacenter and must be unique
