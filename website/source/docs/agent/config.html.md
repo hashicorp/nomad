@@ -103,7 +103,7 @@ nodes, unless otherwise specified:
   This can be used to advertise a different address to the peers of a server
   node to support more complex network configurations such as NAT. This
   configuration is optional, and defaults to the bind address of the specific
-  network service if it is not provided. This configuration is only appicable
+  network service if it is not provided. This configuration is only applicable
   on server nodes. The value is a map of IP addresses and supports the
   following keys:
   <br>
