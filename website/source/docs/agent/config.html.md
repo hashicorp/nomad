@@ -125,10 +125,10 @@ nodes, unless otherwise specified:
   * `disable_hostname`: A boolean indicating if gauge values should not be
     prefixed with the local hostname.
 
-* `leave_on_interrupt`: Enables gracefully leave when receiving the
+* `leave_on_interrupt`: Enables gracefully leaving when receiving the
   interrupt signal. By default, the agent will exit forcefully on any signal.
 
-* `leave_on_terminate`: Enables gracefully leave when receiving the
+* `leave_on_terminate`: Enables gracefully leaving when receiving the
   terminate signal. By default, the agent will exit forcefully on any signal.
 
 * `enable_syslog`: Enables logging to syslog. This option only works on
