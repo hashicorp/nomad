@@ -974,10 +974,8 @@ func (tg *TaskGroup) Validate() error {
 		}
 	}
 
-	if tg.RestartPolicy != nil {
-		if err := tg.RestartPolicy.Validate(); err != nil {
-			mErr.Errors = append(mErr.Errors, err)
-		}
+	if err := tg.RestartPolicy.Validate(); err != nil {
+		mErr.Errors = append(mErr.Errors, err)
 	}
 
 	// Check for duplicate tasks

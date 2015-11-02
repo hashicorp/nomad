@@ -4,8 +4,8 @@ import (
 	"time"
 )
 
-//RestartPolicy defines how the Nomad client restarts
-//tasks in a taskgroup when they fail
+// RestartPolicy defines how the Nomad client restarts
+// tasks in a taskgroup when they fail
 type RestartPolicy struct {
 	Interval time.Duration
 	Attempts int
