@@ -14,17 +14,8 @@ import (
 )
 
 var (
-	ErrNoLeader           = fmt.Errorf("No cluster leader")
-	ErrNoRegionPath       = fmt.Errorf("No path to region")
-	BatchJobRestartPolicy = RestartPolicy{
-		Delay:    15 * time.Second,
-		Attempts: 15,
-	}
-	ServiceJobRestartPolicy = RestartPolicy{
-		Delay:    15 * time.Second,
-		Attempts: 2,
-		Interval: 1 * time.Minute,
-	}
+	ErrNoLeader     = fmt.Errorf("No cluster leader")
+	ErrNoRegionPath = fmt.Errorf("No path to region")
 )
 
 type MessageType uint8
@@ -925,9 +916,16 @@ func (r *RestartPolicy) Validate() error {
 func NewRestartPolicy(jobType string) *RestartPolicy {
 	switch jobType {
 	case JobTypeService:
-		return &ServiceJobRestartPolicy
+		return &RestartPolicy{
+			Delay:    15 * time.Second,
+			Attempts: 2,
+			Interval: 1 * time.Minute,
+		}
 	case JobTypeBatch:
-		return &BatchJobRestartPolicy
+		return &RestartPolicy{
+			Delay:    15 * time.Second,
+			Attempts: 15,
+		}
 	default:
 		return nil
 	}
