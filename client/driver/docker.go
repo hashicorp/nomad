@@ -108,8 +108,10 @@ func (d *DockerDriver) containerBinds(alloc *allocdir.AllocDir, task *structs.Ta
 	}
 
 	return []string{
-		fmt.Sprintf("%s:%s", shared, allocdir.SharedAllocName),
-		fmt.Sprintf("%s:%s", local, allocdir.TaskLocal),
+		// "z" and "Z" option is to allocate directory with SELinux label.
+		fmt.Sprintf("%s:/%s:rw,z", shared, allocdir.SharedAllocName),
+		// capital "Z" will label with Multi-Category Security (MCS) labels
+		fmt.Sprintf("%s:/%s:rw,Z", local, allocdir.TaskLocal),
 	}, nil
 }
 
