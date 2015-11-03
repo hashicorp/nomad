@@ -14,17 +14,17 @@ import (
 )
 
 var (
-	ErrNoLeader     = fmt.Errorf("No cluster leader")
-	ErrNoRegionPath = fmt.Errorf("No path to region")
-    defaultServiceJobRestartPolicy = RestartPolicy{
-			Delay:    15 * time.Second,
-			Attempts: 2,
-			Interval: 1 * time.Minute,
-		}
+	ErrNoLeader                    = fmt.Errorf("No cluster leader")
+	ErrNoRegionPath                = fmt.Errorf("No path to region")
+	defaultServiceJobRestartPolicy = RestartPolicy{
+		Delay:    15 * time.Second,
+		Attempts: 2,
+		Interval: 1 * time.Minute,
+	}
 	defaultBatchJobRestartPolicy = RestartPolicy{
-			Delay:    15 * time.Second,
-			Attempts: 15,
-		}
+		Delay:    15 * time.Second,
+		Attempts: 15,
+	}
 )
 
 type MessageType uint8
@@ -928,7 +928,7 @@ func NewRestartPolicy(jobType string) *RestartPolicy {
 		rp := defaultServiceJobRestartPolicy
 		return &rp
 	case JobTypeBatch:
-		rp  := defaultBatchJobRestartPolicy
+		rp := defaultBatchJobRestartPolicy
 		return &rp
 	}
 	return nil
