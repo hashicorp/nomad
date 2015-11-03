@@ -16,6 +16,15 @@ import (
 var (
 	ErrNoLeader     = fmt.Errorf("No cluster leader")
 	ErrNoRegionPath = fmt.Errorf("No path to region")
+    defaultServiceJobRestartPolicy = RestartPolicy{
+			Delay:    15 * time.Second,
+			Attempts: 2,
+			Interval: 1 * time.Minute,
+		}
+	defaultBatchJobRestartPolicy = RestartPolicy{
+			Delay:    15 * time.Second,
+			Attempts: 15,
+		}
 )
 
 type MessageType uint8
@@ -916,19 +925,13 @@ func (r *RestartPolicy) Validate() error {
 func NewRestartPolicy(jobType string) *RestartPolicy {
 	switch jobType {
 	case JobTypeService:
-		return &RestartPolicy{
-			Delay:    15 * time.Second,
-			Attempts: 2,
-			Interval: 1 * time.Minute,
-		}
+		rp := defaultServiceJobRestartPolicy
+		return &rp
 	case JobTypeBatch:
-		return &RestartPolicy{
-			Delay:    15 * time.Second,
-			Attempts: 15,
-		}
-	default:
-		return nil
+		rp  := defaultBatchJobRestartPolicy
+		return &rp
 	}
+	return nil
 }
 
 // TaskGroup is an atomic unit of placement. Each task group belongs to
