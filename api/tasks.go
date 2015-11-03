@@ -1,19 +1,42 @@
 package api
 
+import (
+	"time"
+)
+
+// RestartPolicy defines how the Nomad client restarts
+// tasks in a taskgroup when they fail
+type RestartPolicy struct {
+	Interval time.Duration
+	Attempts int
+	Delay    time.Duration
+}
+
+func NewRestartPolicy() *RestartPolicy {
+	return &RestartPolicy{
+		Attempts: 10,
+		Interval: 3 * time.Minute,
+		Delay:    5 * time.Second,
+	}
+}
+
 // TaskGroup is the unit of scheduling.
 type TaskGroup struct {
-	Name        string
-	Count       int
-	Constraints []*Constraint
-	Tasks       []*Task
-	Meta        map[string]string
+	Name          string
+	Count         int
+	Constraints   []*Constraint
+	Tasks         []*Task
+	RestartPolicy *RestartPolicy
+	Meta          map[string]string
 }
 
 // NewTaskGroup creates a new TaskGroup.
 func NewTaskGroup(name string, count int) *TaskGroup {
+	restartPolicy := NewRestartPolicy()
 	return &TaskGroup{
-		Name:  name,
-		Count: count,
+		Name:          name,
+		Count:         count,
+		RestartPolicy: restartPolicy,
 	}
 }
 

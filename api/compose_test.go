@@ -69,6 +69,7 @@ func TestCompose(t *testing.T) {
 						Operand: "=",
 					},
 				},
+				RestartPolicy: NewRestartPolicy(),
 				Tasks: []*Task{
 					&Task{
 						Name:   "task1",
