@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/docker/docker/vendor/src/gopkg.in/fsnotify.v1"
+	"github.com/go-fsnotify/fsnotify"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/command"
 	"github.com/hashicorp/nomad/helper/discover"

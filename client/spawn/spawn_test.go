@@ -106,7 +106,7 @@ func TestSpawn_Callback(t *testing.T) {
 	}
 
 	if err := spawn.Spawn(cb); err == nil {
-		t.Fatalf("Spawn(%#v) should have errored; want %v", cb, err, cbErr)
+		t.Fatalf("Spawn(%#v) should have errored; want %v", cb, cbErr)
 	}
 
 	if !called {
