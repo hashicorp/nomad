@@ -2,17 +2,15 @@ package driver
 
 import (
 	"fmt"
-	"log"
-	"path"
 	"path/filepath"
 	"runtime"
 	"syscall"
 	"time"
 
-	"github.com/hashicorp/go-getter"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/executor"
+	"github.com/hashicorp/nomad/client/getter"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -55,29 +53,24 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		return nil, fmt.Errorf("missing command for exec driver")
 	}
 
+	// Create a location to download the artifact.
+	taskDir, ok := ctx.AllocDir.TaskDirs[d.DriverContext.taskName]
+	if !ok {
+		return nil, fmt.Errorf("Could not find task directory for task: %v", d.DriverContext.taskName)
+	}
+
 	// Check if an artificat is specified and attempt to download it
 	source, ok := task.Config["artifact_source"]
 	if ok && source != "" {
 		// Proceed to download an artifact to be executed.
-		// We use go-getter to support a variety of protocols, but need to change
-		// file permissions of the resulted download to be executable
-
-		// Create a location to download the artifact.
-		taskDir, ok := ctx.AllocDir.TaskDirs[d.DriverContext.taskName]
-		if !ok {
-			return nil, fmt.Errorf("Could not find task directory for task: %v", d.DriverContext.taskName)
-		}
-		destDir := filepath.Join(taskDir, allocdir.TaskLocal)
-
-		artifactName := path.Base(source)
-		artifactFile := filepath.Join(destDir, artifactName)
-		if err := getter.GetFile(artifactFile, source); err != nil {
-			return nil, fmt.Errorf("Error downloading artifact for Exec driver: %s", err)
-		}
-
-		// Add execution permissions to the newly downloaded artifact
-		if err := syscall.Chmod(artifactFile, 0755); err != nil {
-			log.Printf("[ERR] driver.exec: Error making artifact executable: %s", err)
+		_, err := getter.GetArtifact(
+			filepath.Join(taskDir, allocdir.TaskLocal),
+			task.Config["artifact_source"],
+			task.Config["checksum"],
+			d.logger,
+		)
+		if err != nil {
+			return nil, err
 		}
 	}
 

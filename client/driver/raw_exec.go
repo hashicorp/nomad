@@ -2,21 +2,18 @@ package driver
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
-	"github.com/hashicorp/go-getter"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/args"
+        "github.com/hashicorp/nomad/client/getter"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -83,23 +80,14 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 	source, ok := task.Config["artifact_source"]
 	if ok && source != "" {
 		// Proceed to download an artifact to be executed.
-		// We use go-getter to support a variety of protocols, but need to change
-		// file permissions of the resulted download to be executable
-
-		// Create a location to download the artifact.
-		destDir := filepath.Join(taskDir, allocdir.TaskLocal)
-
-		artifactName := path.Base(source)
-		artifactFile := filepath.Join(destDir, artifactName)
-		if err := getter.GetFile(artifactFile, source); err != nil {
-			return nil, fmt.Errorf("Error downloading artifact for Raw Exec driver: %s", err)
-		}
-
-		// Add execution permissions to the newly downloaded artifact
-		if runtime.GOOS != "windows" {
-			if err := syscall.Chmod(artifactFile, 0755); err != nil {
-				log.Printf("[ERR] driver.raw_exec: Error making artifact executable: %s", err)
-			}
+                _, err := getter.GetArtifact(
+                        filepath.Join(taskDir, allocdir.TaskLocal),
+                        task.Config["artifact_source"],
+                        task.Config["checksum"],
+                        d.logger,
+                )
+                if err != nil {
+                        return nil, err
 		}
 	}
 
