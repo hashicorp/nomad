@@ -13,6 +13,12 @@ func ExecCompatible(t *testing.T) {
 	}
 }
 
+func JavaCompatible(t *testing.T) {
+	if runtime.GOOS == "linux" && syscall.Geteuid() != 0 {
+		t.Skip("Test only available when running as root on linux")
+	}
+}
+
 func QemuCompatible(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Must be on non-windows environments to run test")
