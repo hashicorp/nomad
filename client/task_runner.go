@@ -195,6 +195,25 @@ func (r *TaskRunner) startTask() error {
 	return nil
 }
 
+func (r *TaskRunner) restartTask() (bool, error) {
+	r.errorCounter.Increment()
+	if !r.errorCounter.shouldRestart() {
+		r.logger.Printf("[INFO] client: Not restarting task since it has been started %v times since %v", r.errorCounter.count, r.errorCounter.startTime)
+		return false, nil
+	}
+
+	fmt.Printf("[DEBUG] client: Sleeping for %v before restaring task: %v", r.restartPolicy.Delay, r.task.Name)
+	time.Sleep(r.restartPolicy.Delay)
+	fmt.Printf("[DEBUG] client: Restarting Task: %v", r.task.Name)
+
+	if err := r.startTask(); err != nil {
+		r.logger.Printf("[ERR] client: Couldn't re-start task: %v because of error: %v", r.task.Name, err)
+		return false, err
+	}
+	r.logger.Printf("[INFO] client: Successfuly restated Task: %v", r.task.Name)
+	return true, nil
+}
+
 // Run is a long running routine used to manage the task
 func (r *TaskRunner) Run() {
 	defer close(r.waitCh)
@@ -214,6 +233,12 @@ OUTER:
 		select {
 		case err := <-r.handle.WaitCh():
 			if err != nil {
+				// Trying to restart the task
+				if _, err := r.restartTask(); err == nil {
+					// We have succesfully restarted the task, going
+					// back to listening to events
+					continue
+				}
 				r.logger.Printf("[ERR] client: failed to complete task '%s' for alloc '%s': %v",
 					r.task.Name, r.allocID, err)
 				r.setStatus(structs.AllocClientStatusDead,
