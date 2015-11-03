@@ -202,9 +202,9 @@ func (r *TaskRunner) restartTask() (bool, error) {
 		return false, nil
 	}
 
-	fmt.Printf("[DEBUG] client: Sleeping for %v before restaring task: %v", r.restartPolicy.Delay, r.task.Name)
+	r.logger.Printf("[DEBUG] client: Sleeping for %v before restaring task: %v", r.restartPolicy.Delay, r.task.Name)
 	time.Sleep(r.restartPolicy.Delay)
-	fmt.Printf("[DEBUG] client: Restarting Task: %v", r.task.Name)
+	r.logger.Printf("[DEBUG] client: Restarting Task: %v", r.task.Name)
 
 	if err := r.startTask(); err != nil {
 		r.logger.Printf("[ERR] client: Couldn't re-start task: %v because of error: %v", r.task.Name, err)
