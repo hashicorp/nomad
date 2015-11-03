@@ -179,7 +179,7 @@ func TestJavaDriver_Start_Kill_Wait(t *testing.T) {
 		if err == nil {
 			t.Fatal("should err")
 		}
-	case <-time.After(2 * time.Second):
+	case <-time.After(8 * time.Second):
 		t.Fatalf("timeout")
 	}
 

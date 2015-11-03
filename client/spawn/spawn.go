@@ -225,10 +225,8 @@ func (s *Spawner) waitAsParent() (int, error) {
 		}
 	}
 
-	if state, err := s.spawn.Wait(); err != nil {
+	if _, err := s.spawn.Wait(); err != nil {
 		return -1, err
-	} else if !state.Exited() {
-		return -1, fmt.Errorf("Task was killed or crashed")
 	}
 
 	return s.waitOnStatusFile()

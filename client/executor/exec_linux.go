@@ -54,8 +54,7 @@ type LinuxExecutor struct {
 	allocDir string
 
 	// Spawn process.
-	spawn      *spawn.Spawner
-	spawnState string
+	spawn *spawn.Spawner
 }
 
 func (e *LinuxExecutor) Command() *cmd {
@@ -180,7 +179,7 @@ func (e *LinuxExecutor) Start() error {
 	e.spawn.SetLogs(&spawn.Logs{
 		Stdout: filepath.Join(e.taskDir, allocdir.TaskLocal, fmt.Sprintf("%v.stdout", e.taskName)),
 		Stderr: filepath.Join(e.taskDir, allocdir.TaskLocal, fmt.Sprintf("%v.stderr", e.taskName)),
-		Stdin:  "/dev/null",
+		Stdin:  os.DevNull,
 	})
 
 	enterCgroup := func(pid int) error {
@@ -309,12 +308,15 @@ func (e *LinuxExecutor) pathExists(path string) bool {
 // should be called when tearing down the task.
 func (e *LinuxExecutor) cleanTaskDir() error {
 	// Unmount dev.
-	// TODO: This should check if it is a mount.
 	errs := new(multierror.Error)
 	dev := filepath.Join(e.taskDir, "dev")
 	if e.pathExists(dev) {
 		if err := syscall.Unmount(dev, 0); err != nil {
 			errs = multierror.Append(errs, fmt.Errorf("Failed to unmount dev (%v): %v", dev, err))
+		}
+
+		if err := os.RemoveAll(dev); err != nil {
+			errs = multierror.Append(errs, fmt.Errorf("Failed to delete dev directory (%v): %v", dev, err))
 		}
 	}
 
@@ -323,6 +325,10 @@ func (e *LinuxExecutor) cleanTaskDir() error {
 	if e.pathExists(proc) {
 		if err := syscall.Unmount(proc, 0); err != nil {
 			errs = multierror.Append(errs, fmt.Errorf("Failed to unmount proc (%v): %v", proc, err))
+		}
+
+		if err := os.RemoveAll(proc); err != nil {
+			errs = multierror.Append(errs, fmt.Errorf("Failed to delete proc directory (%v): %v", dev, err))
 		}
 	}
 
