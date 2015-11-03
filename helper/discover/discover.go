@@ -3,6 +3,7 @@ package discover
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 
@@ -24,6 +25,11 @@ func NomadExecutable() (string, error) {
 	}
 
 	if filepath.Base(bin) == nomadExe {
+		return bin, nil
+	}
+
+	// Check the $PATH
+	if bin, err := exec.LookPath(nomadExe); err == nil {
 		return bin, nil
 	}
 
