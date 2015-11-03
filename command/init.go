@@ -110,9 +110,9 @@ job "example" {
 		# The delay value makes Nomad wait for that duration to restart after a Task
 		# fails or crashes.
 		restart {
-			interval = 5m
+			interval = "5m"
 			attempts = 10
-			delay = 25s
+			delay = "25s"
 		}
 
 		# Define a task to run
