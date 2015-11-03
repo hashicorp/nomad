@@ -4,17 +4,19 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"github.com/kardianos/osext"
-)
-
-const (
-	nomadExe = "nomad"
 )
 
 // Checks the current executable, then $GOPATH/bin, and finally the CWD, in that
 // order. If it can't be found, an error is returned.
 func NomadExecutable() (string, error) {
+	nomadExe := "nomad"
+	if runtime.GOOS == "windows" {
+		nomadExe = "nomad.exe"
+	}
+
 	// Check the current executable.
 	bin, err := osext.Executable()
 	if err != nil {

@@ -5,12 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"os"
-	"os/exec"
 	"os/user"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"syscall"
 
@@ -18,8 +15,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/driver/args"
 	"github.com/hashicorp/nomad/client/driver/environment"
-	"github.com/hashicorp/nomad/command"
-	"github.com/hashicorp/nomad/helper/discover"
+	"github.com/hashicorp/nomad/client/spawn"
 	"github.com/hashicorp/nomad/nomad/structs"
 
 	"github.com/opencontainers/runc/libcontainer/cgroups"
@@ -53,18 +49,13 @@ type LinuxExecutor struct {
 
 	// Isolation configurations.
 	groups   *cgroupConfig.Cgroup
-	alloc    *allocdir.AllocDir
 	taskName string
 	taskDir  string
+	allocDir string
 
-	// Tracking of spawn process.
-	spawnChild        *os.Process
-	spawnOutputWriter *os.File
-	spawnOutputReader *os.File
-
-	// Tracking of user process.
-	exitStatusFile string
-	userPid        int
+	// Spawn process.
+	spawn      *spawn.Spawner
+	spawnState string
 }
 
 func (e *LinuxExecutor) Command() *cmd {
@@ -82,11 +73,9 @@ func (e *LinuxExecutor) Limit(resources *structs.Resources) error {
 // execLinuxID contains the necessary information to reattach to an executed
 // process and cleanup the created cgroups.
 type ExecLinuxID struct {
-	Groups         *cgroupConfig.Cgroup
-	SpawnPid       int
-	UserPid        int
-	ExitStatusFile string
-	TaskDir        string
+	Groups  *cgroupConfig.Cgroup
+	Spawn   *spawn.Spawner
+	TaskDir string
 }
 
 func (e *LinuxExecutor) Open(id string) error {
@@ -99,30 +88,22 @@ func (e *LinuxExecutor) Open(id string) error {
 
 	// Setup the executor.
 	e.groups = execID.Groups
-	e.exitStatusFile = execID.ExitStatusFile
-	e.userPid = execID.UserPid
+	e.spawn = execID.Spawn
 	e.taskDir = execID.TaskDir
-
-	proc, err := os.FindProcess(execID.SpawnPid)
-	if proc != nil && err == nil {
-		e.spawnChild = proc
-	}
 
 	return nil
 }
 
 func (e *LinuxExecutor) ID() (string, error) {
-	if e.spawnChild == nil {
-		return "", fmt.Errorf("Process has finished or was never started")
+	if e.groups == nil || e.spawn == nil || e.taskDir == "" {
+		return "", fmt.Errorf("LinuxExecutor not properly initialized.")
 	}
 
 	// Build the ID.
 	id := ExecLinuxID{
-		Groups:         e.groups,
-		SpawnPid:       e.spawnChild.Pid,
-		UserPid:        e.userPid,
-		ExitStatusFile: e.exitStatusFile,
-		TaskDir:        e.taskDir,
+		Groups:  e.groups,
+		Spawn:   e.spawn,
+		TaskDir: e.taskDir,
 	}
 
 	var buffer bytes.Buffer
@@ -170,10 +151,6 @@ func (e *LinuxExecutor) Start() error {
 		e.cmd.SetGID(e.user.Gid)
 	}
 
-	if e.alloc == nil {
-		return errors.New("ConfigureTaskDir() must be called before Start()")
-	}
-
 	// Parse the commands arguments and replace instances of Nomad environment
 	// variables.
 	envVars, err := environment.ParseFromList(e.Cmd.Env)
@@ -196,129 +173,42 @@ func (e *LinuxExecutor) Start() error {
 	}
 	e.Cmd.Args = parsed
 
-	return e.spawnDaemon()
-}
+	spawnState := filepath.Join(e.allocDir, fmt.Sprintf("%s_%s", e.taskName, "exit_status"))
+	e.spawn = spawn.NewSpawner(spawnState)
+	e.spawn.SetCommand(&e.cmd.Cmd)
+	e.spawn.SetChroot(e.taskDir)
+	e.spawn.SetLogs(&spawn.Logs{
+		Stdout: filepath.Join(e.taskDir, allocdir.TaskLocal, fmt.Sprintf("%v.stdout", e.taskName)),
+		Stderr: filepath.Join(e.taskDir, allocdir.TaskLocal, fmt.Sprintf("%v.stderr", e.taskName)),
+		Stdin:  "/dev/null",
+	})
 
-// spawnDaemon executes a double fork to start the user command with proper
-// isolation. Stores the child process for use in Wait.
-func (e *LinuxExecutor) spawnDaemon() error {
-	bin, err := discover.NomadExecutable()
-	if err != nil {
-		return fmt.Errorf("Failed to determine the nomad executable: %v", err)
-	}
+	enterCgroup := func(pid int) error {
+		// Join the spawn-daemon to the cgroup.
+		manager := e.getCgroupManager(e.groups)
 
-	c := command.DaemonConfig{
-		Cmd:            e.cmd.Cmd,
-		Chroot:         e.taskDir,
-		StdoutFile:     filepath.Join(e.taskDir, allocdir.TaskLocal, fmt.Sprintf("%v.stdout", e.taskName)),
-		StderrFile:     filepath.Join(e.taskDir, allocdir.TaskLocal, fmt.Sprintf("%v.stderr", e.taskName)),
-		StdinFile:      "/dev/null",
-		ExitStatusFile: e.exitStatusFile,
-	}
-
-	// Serialize the cmd and the cgroup configuration so it can be passed to the
-	// sub-process.
-	var buffer bytes.Buffer
-	enc := json.NewEncoder(&buffer)
-	if err := enc.Encode(c); err != nil {
-		return fmt.Errorf("Failed to serialize daemon configuration: %v", err)
-	}
-
-	// Create a pipe to capture stdout.
-	if e.spawnOutputReader, e.spawnOutputWriter, err = os.Pipe(); err != nil {
-		return err
-	}
-
-	// Call ourselves using a hidden flag. The new instance of nomad will join
-	// the passed cgroup, forkExec the cmd, and return statuses through stdout.
-	escaped := strconv.Quote(buffer.String())
-	spawn := exec.Command(bin, "spawn-daemon", escaped)
-	spawn.Stdout = e.spawnOutputWriter
-
-	// Capture its Stdin.
-	spawnStdIn, err := spawn.StdinPipe()
-	if err != nil {
-		return err
-	}
-
-	if err := spawn.Start(); err != nil {
-		fmt.Errorf("Failed to call spawn-daemon on nomad executable: %v", err)
-	}
-
-	// Join the spawn-daemon to the cgroup.
-	manager := e.getCgroupManager(e.groups)
-
-	// Apply will place the spawn dameon into the created cgroups.
-	if err := manager.Apply(spawn.Process.Pid); err != nil {
-		errs := new(multierror.Error)
-		errs = multierror.Append(errs,
-			fmt.Errorf("Failed to join spawn-daemon to the cgroup (%+v): %v", e.groups, err))
-
-		if err := sendAbortCommand(spawnStdIn); err != nil {
-			errs = multierror.Append(errs, err)
+		// Apply will place the spawn dameon into the created cgroups.
+		if err := manager.Apply(pid); err != nil {
+			return fmt.Errorf("Failed to join spawn-daemon to the cgroup (%+v): %v", e.groups, err)
 		}
 
-		return errs
+		return nil
 	}
 
-	// Tell it to start.
-	if err := sendStartCommand(spawnStdIn); err != nil {
-		return err
-	}
-
-	// Parse the response.
-	dec := json.NewDecoder(e.spawnOutputReader)
-	var resp command.SpawnStartStatus
-	if err := dec.Decode(&resp); err != nil {
-		return fmt.Errorf("Failed to parse spawn-daemon start response: %v", err)
-	}
-
-	if resp.ErrorMsg != "" {
-		return fmt.Errorf("Failed to execute user command: %s", resp.ErrorMsg)
-	}
-
-	e.userPid = resp.UserPID
-	e.spawnChild = spawn.Process
-	return nil
-}
-
-// sendStartCommand sends the necessary command to the spawn-daemon to have it
-// start the user process.
-func sendStartCommand(w io.Writer) error {
-	enc := json.NewEncoder(w)
-	if err := enc.Encode(true); err != nil {
-		return fmt.Errorf("Failed to serialize start command: %v", err)
-	}
-
-	return nil
-}
-
-// sendAbortCommand sends the necessary command to the spawn-daemon to have it
-// abort starting the user process. This should be invoked if the spawn-daemon
-// could not be isolated into a cgroup.
-func sendAbortCommand(w io.Writer) error {
-	enc := json.NewEncoder(w)
-	if err := enc.Encode(false); err != nil {
-		return fmt.Errorf("Failed to serialize abort command: %v", err)
-	}
-
-	return nil
+	return e.spawn.Spawn(enterCgroup)
 }
 
 // Wait waits til the user process exits and returns an error on non-zero exit
 // codes. Wait also cleans up the task directory and created cgroups.
 func (e *LinuxExecutor) Wait() error {
-	if e.spawnOutputReader != nil {
-		e.spawnOutputReader.Close()
-	}
-
-	if e.spawnOutputWriter != nil {
-		e.spawnOutputWriter.Close()
-	}
-
 	errs := new(multierror.Error)
-	if err := e.spawnWait(); err != nil {
-		errs = multierror.Append(errs, fmt.Errorf("Wait failed on pid %v: %v", e.spawnChild.Pid, err))
+	code, err := e.spawn.Wait()
+	if err != nil {
+		errs = multierror.Append(errs, err)
+	}
+
+	if code != 0 {
+		errs = multierror.Append(errs, fmt.Errorf("Task exited with code: %d", code))
 	}
 
 	if err := e.destroyCgroup(); err != nil {
@@ -332,20 +222,6 @@ func (e *LinuxExecutor) Wait() error {
 	return errs.ErrorOrNil()
 }
 
-// spawnWait waits on the spawn-daemon and can handle the spawn-daemon not being
-// a child of this process.
-func (e *LinuxExecutor) spawnWait() error {
-	// TODO: This needs to be able to wait on non-child processes.
-	state, err := e.spawnChild.Wait()
-	if err != nil {
-		return err
-	} else if !state.Success() {
-		return fmt.Errorf("exited with non-zero code")
-	}
-
-	return nil
-}
-
 func (e *LinuxExecutor) Shutdown() error {
 	return e.ForceStop()
 }
@@ -353,19 +229,9 @@ func (e *LinuxExecutor) Shutdown() error {
 // ForceStop immediately exits the user process and cleans up both the task
 // directory and the cgroups.
 func (e *LinuxExecutor) ForceStop() error {
-	if e.spawnOutputReader != nil {
-		e.spawnOutputReader.Close()
-	}
-
-	if e.spawnOutputWriter != nil {
-		e.spawnOutputWriter.Close()
-	}
-
 	errs := new(multierror.Error)
-	if e.groups != nil {
-		if err := e.destroyCgroup(); err != nil {
-			errs = multierror.Append(errs, err)
-		}
+	if err := e.destroyCgroup(); err != nil {
+		errs = multierror.Append(errs, err)
 	}
 
 	if err := e.cleanTaskDir(); err != nil {
@@ -381,6 +247,8 @@ func (e *LinuxExecutor) ForceStop() error {
 // chroot. cleanTaskDir should be called after.
 func (e *LinuxExecutor) ConfigureTaskDir(taskName string, alloc *allocdir.AllocDir) error {
 	e.taskName = taskName
+	e.allocDir = alloc.AllocDir
+
 	taskDir, ok := alloc.TaskDirs[taskName]
 	if !ok {
 		fmt.Errorf("Couldn't find task directory for task %v", taskName)
@@ -424,10 +292,6 @@ func (e *LinuxExecutor) ConfigureTaskDir(taskName string, alloc *allocdir.AllocD
 	env.SetTaskLocalDir(filepath.Join("/", allocdir.TaskLocal))
 	e.Cmd.Env = env.List()
 
-	// Store the file path to save the exit status to.
-	e.exitStatusFile = filepath.Join(alloc.AllocDir, fmt.Sprintf("%s_%s", taskName, "exit_status"))
-
-	e.alloc = alloc
 	return nil
 }
 
@@ -445,6 +309,7 @@ func (e *LinuxExecutor) pathExists(path string) bool {
 // should be called when tearing down the task.
 func (e *LinuxExecutor) cleanTaskDir() error {
 	// Unmount dev.
+	// TODO: This should check if it is a mount.
 	errs := new(multierror.Error)
 	dev := filepath.Join(e.taskDir, "dev")
 	if e.pathExists(dev) {

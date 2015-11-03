@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 )
 
 type SpawnDaemonCommand struct {
@@ -108,24 +109,31 @@ func (c *SpawnDaemonCommand) parseConfig(args []string) (*DaemonConfig, error) {
 // configureLogs creates the log files and redirects the process
 // stdin/stderr/stdout to them. If unsuccessful, an error is returned.
 func (c *SpawnDaemonCommand) configureLogs() error {
-	stdo, err := os.OpenFile(c.config.StdoutFile, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
-	if err != nil {
-		return fmt.Errorf("Error opening file to redirect stdout: %v", err)
+	if len(c.config.StdoutFile) != 0 {
+		stdo, err := os.OpenFile(c.config.StdoutFile, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
+		if err != nil {
+			return fmt.Errorf("Error opening file to redirect stdout: %v", err)
+		}
+
+		c.config.Cmd.Stdout = stdo
 	}
 
-	stde, err := os.OpenFile(c.config.StderrFile, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
-	if err != nil {
-		return fmt.Errorf("Error opening file to redirect stderr: %v", err)
+	if len(c.config.StderrFile) != 0 {
+		stde, err := os.OpenFile(c.config.StderrFile, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
+		if err != nil {
+			return fmt.Errorf("Error opening file to redirect stderr: %v", err)
+		}
+		c.config.Cmd.Stderr = stde
 	}
 
-	stdi, err := os.OpenFile(c.config.StdinFile, os.O_CREATE|os.O_RDONLY, 0666)
-	if err != nil {
-		return fmt.Errorf("Error opening file to redirect stdin: %v", err)
+	if len(c.config.StdinFile) != 0 {
+		stdi, err := os.OpenFile(c.config.StdinFile, os.O_CREATE|os.O_RDONLY, 0666)
+		if err != nil {
+			return fmt.Errorf("Error opening file to redirect stdin: %v", err)
+		}
+		c.config.Cmd.Stdin = stdi
 	}
 
-	c.config.Cmd.Stdout = stdo
-	c.config.Cmd.Stderr = stde
-	c.config.Cmd.Stdin = stdi
 	return nil
 }
 
@@ -139,7 +147,7 @@ func (c *SpawnDaemonCommand) Run(args []string) int {
 	// Open the file we will be using to write exit codes to. We do this early
 	// to ensure that we don't start the user process when we can't capture its
 	// exit status.
-	c.exitFile, err = os.OpenFile(c.config.ExitStatusFile, os.O_CREATE|os.O_RDWR, 0666)
+	c.exitFile, err = os.OpenFile(c.config.ExitStatusFile, os.O_WRONLY, 0666)
 	if err != nil {
 		return c.outputStartStatus(fmt.Errorf("Error opening file to store exit status: %v", err), 1)
 	}
@@ -177,6 +185,17 @@ func (c *SpawnDaemonCommand) Run(args []string) int {
 	// Indicate that the command was started successfully.
 	c.outputStartStatus(nil, 0)
 
+	// Start a go routine that touches the exit file periodically.
+	go func() {
+		for {
+			select {
+			case <-time.After(2 * time.Second):
+				now := time.Now()
+				os.Chtimes(c.config.ExitStatusFile, now, now)
+			}
+		}
+	}()
+
 	// Wait and then output the exit status.
 	return c.writeExitStatus(c.config.Cmd.Wait())
 }
@@ -192,7 +211,7 @@ func (c *SpawnDaemonCommand) outputStartStatus(err error, status int) int {
 		startStatus.ErrorMsg = err.Error()
 	}
 
-	if c.config != nil && c.config.Process != nil {
+	if c.config != nil && c.config.Cmd.Process != nil {
 		startStatus.UserPID = c.config.Process.Pid
 	}
 
