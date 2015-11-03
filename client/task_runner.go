@@ -8,23 +8,51 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+type errorCounter struct {
+	count       int
+	maxAttempts int
+	startTime   time.Time
+	interval    time.Duration
+}
+
+func newErrorCounter(maxAttempts int, interval time.Duration) *errorCounter {
+	return &errorCounter{maxAttempts: maxAttempts, startTime: time.Now(), interval: interval}
+}
+
+func (c *errorCounter) Increment() {
+	if c.count <= c.maxAttempts {
+		c.count = c.count + 1
+	}
+}
+
+func (c *errorCounter) shouldRestart() bool {
+	if time.Now().After(c.startTime.Add(c.interval)) {
+		c.count = 0
+		c.startTime = time.Now()
+	}
+	return c.count < c.maxAttempts
+}
+
 // TaskRunner is used to wrap a task within an allocation and provide the execution context.
 type TaskRunner struct {
-	config  *config.Config
-	updater TaskStateUpdater
-	logger  *log.Logger
-	ctx     *driver.ExecContext
-	allocID string
+	config       *config.Config
+	updater      TaskStateUpdater
+	logger       *log.Logger
+	ctx          *driver.ExecContext
+	allocID      string
+	errorCounter *errorCounter
 
-	task     *structs.Task
-	updateCh chan *structs.Task
-	handle   driver.DriverHandle
+	task          *structs.Task
+	restartPolicy *structs.RestartPolicy
+	updateCh      chan *structs.Task
+	handle        driver.DriverHandle
 
 	destroy     bool
 	destroyCh   chan struct{}
@@ -44,17 +72,22 @@ type TaskStateUpdater func(taskName, status, desc string)
 // NewTaskRunner is used to create a new task context
 func NewTaskRunner(logger *log.Logger, config *config.Config,
 	updater TaskStateUpdater, ctx *driver.ExecContext,
-	allocID string, task *structs.Task) *TaskRunner {
+	allocID string, task *structs.Task,
+	restartPolicy *structs.RestartPolicy) *TaskRunner {
+
+	ec := newErrorCounter(restartPolicy.Attempts, restartPolicy.Interval)
 	tc := &TaskRunner{
-		config:    config,
-		updater:   updater,
-		logger:    logger,
-		ctx:       ctx,
-		allocID:   allocID,
-		task:      task,
-		updateCh:  make(chan *structs.Task, 8),
-		destroyCh: make(chan struct{}),
-		waitCh:    make(chan struct{}),
+		config:        config,
+		updater:       updater,
+		logger:        logger,
+		errorCounter:  ec,
+		ctx:           ctx,
+		allocID:       allocID,
+		task:          task,
+		restartPolicy: restartPolicy,
+		updateCh:      make(chan *structs.Task, 8),
+		destroyCh:     make(chan struct{}),
+		waitCh:        make(chan struct{}),
 	}
 	return tc
 }
