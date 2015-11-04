@@ -3,7 +3,7 @@ layout: "http"
 page_title: "HTTP API: /v1/evaluation"
 sidebar_current: "docs-http-eval-"
 description: |-
-  The '/1/evaluation' endpoint is used to query a specific evaluation.
+  The '/v1/evaluation' endpoint is used to query a specific evaluation.
 ---
 
 # /v1/evaluation
@@ -17,7 +17,7 @@ be specified using the `?region=` query parameter.
 <dl>
   <dt>Description</dt>
   <dd>
-    Lists all the evaluations.
+    Query a specific evaluation.
   </dd>
 
   <dt>Method</dt>
@@ -29,6 +29,11 @@ be specified using the `?region=` query parameter.
   <dt>Parameters</dt>
   <dd>
     None
+  </dd>
+
+  <dt>Blocking Queries</dt>
+  <dd>
+    [Supported](/docs/http/index.html#blocking-queries)
   </dd>
 
   <dt>Returns</dt>
@@ -57,9 +62,6 @@ be specified using the `?region=` query parameter.
   </dd>
 </dl>
 
-# /v1/evaluation/\<ID\>/allocations
-## GET
-
 <dl>
   <dt>Description</dt>
   <dd>
@@ -75,6 +77,11 @@ be specified using the `?region=` query parameter.
   <dt>Parameters</dt>
   <dd>
     None
+  </dd>
+
+  <dt>Blocking Queries</dt>
+  <dd>
+    [Supported](/docs/http/index.html#blocking-queries)
   </dd>
 
   <dt>Returns</dt>
@@ -102,4 +109,3 @@ be specified using the `?region=` query parameter.
 
   </dd>
 </dl>
-
