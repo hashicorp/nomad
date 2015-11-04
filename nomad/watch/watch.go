@@ -5,7 +5,9 @@ package watch
 // the underlying state store.
 
 // Item describes the scope of a watch. It is used to provide a uniform
-// input for subscribe/unsubscribe and notification firing.
+// input for subscribe/unsubscribe and notification firing. Specifying
+// multiple fields does not place a watch on multiple items. Each Item
+// describes exactly one scoped watch.
 type Item struct {
 	Alloc     string
 	AllocEval string
