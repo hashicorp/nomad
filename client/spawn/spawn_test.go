@@ -214,7 +214,7 @@ func TestSpawn_NonParentWait(t *testing.T) {
 	}
 }
 
-func TestSpawn_DeadSpawnDaemon(t *testing.T) {
+func TestSpawn_DeadSpawnDaemon_Parent(t *testing.T) {
 	f, err := ioutil.TempFile("", "")
 	if err != nil {
 		t.Fatalf("TempFile() failed")
@@ -246,6 +246,45 @@ func TestSpawn_DeadSpawnDaemon(t *testing.T) {
 		t.FailNow()
 	}
 
+	if _, err := spawn.Wait(); err == nil {
+		t.Fatalf("Wait() should have failed: %v", err)
+	}
+}
+
+func TestSpawn_DeadSpawnDaemon_NonParent(t *testing.T) {
+	f, err := ioutil.TempFile("", "")
+	if err != nil {
+		t.Fatalf("TempFile() failed")
+	}
+	defer os.Remove(f.Name())
+
+	var spawnPid int
+	cb := func(pid int) error {
+		spawnPid = pid
+		return nil
+	}
+
+	spawn := NewSpawner(f.Name())
+	spawn.SetCommand(exec.Command("sleep", "5"))
+	if err := spawn.Spawn(cb); err != nil {
+		t.Fatalf("Spawn() errored: %v", err)
+	}
+
+	proc, err := os.FindProcess(spawnPid)
+	if err != nil {
+		t.FailNow()
+	}
+
+	if err := proc.Kill(); err != nil {
+		t.FailNow()
+	}
+
+	if _, err := proc.Wait(); err != nil {
+		t.FailNow()
+	}
+
+	// Force the wait to assume non-parent.
+	spawn.SpawnPpid = 0
 	if _, err := spawn.Wait(); err == nil {
 		t.Fatalf("Wait() should have failed: %v", err)
 	}

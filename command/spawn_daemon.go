@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
-	"time"
 )
 
 type SpawnDaemonCommand struct {
@@ -184,17 +183,6 @@ func (c *SpawnDaemonCommand) Run(args []string) int {
 
 	// Indicate that the command was started successfully.
 	c.outputStartStatus(nil, 0)
-
-	// Start a go routine that touches the exit file periodically.
-	go func() {
-		for {
-			select {
-			case <-time.After(2 * time.Second):
-				now := time.Now()
-				os.Chtimes(c.config.ExitStatusFile, now, now)
-			}
-		}
-	}()
 
 	// Wait and then output the exit status.
 	return c.writeExitStatus(c.config.Cmd.Wait())

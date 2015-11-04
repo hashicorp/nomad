@@ -256,10 +256,6 @@ func (s *Spawner) waitOnStatusFile() (int, error) {
 		return s.readExitCode()
 	}
 
-	// Store the mod time as a way to heartbeat. If the file doesn't get touched
-	// then we know the spawner has died. This avoids an infinite loop.
-	prevModTime := stat.ModTime()
-
 	// Wait on watcher.
 	for {
 		select {
@@ -277,17 +273,10 @@ func (s *Spawner) waitOnStatusFile() (int, error) {
 		case err := <-watcher.Errors:
 			return -1, fmt.Errorf("Failed to watch %v for an exit code: %v", s.StateFile, err)
 		case <-time.After(5 * time.Second):
-			stat, err := os.Stat(s.StateFile)
-			if err != nil {
-				return -1, fmt.Errorf("Failed to Stat exit status file %v: %v", s.StateFile, err)
-			}
-
-			modTime := stat.ModTime()
-			if modTime.Equal(prevModTime) {
+			// Check if the process is still alive.
+			if !s.Alive() {
 				return -1, fmt.Errorf("Task is dead and exit code unreadable")
 			}
-
-			prevModTime = modTime
 		}
 	}
 }
