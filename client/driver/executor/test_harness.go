@@ -39,13 +39,13 @@ func mockAllocDir(t *testing.T) (string, *allocdir.AllocDir) {
 	return task.Name, allocDir
 }
 
-func testExecutor(t *testing.T, newExecutor func() Executor, compatible func(*testing.T)) {
+func testExecutor(t *testing.T, buildExecutor func() Executor, compatible func(*testing.T)) {
 	if compatible != nil {
 		compatible(t)
 	}
 
 	command := func(name string, args ...string) Executor {
-		b := NewExecutor()
+		b := buildExecutor()
 		SetCommand(b, name, args)
 		return b
 	}

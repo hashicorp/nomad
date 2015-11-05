@@ -74,7 +74,6 @@ func (e *BasicExecutor) Start() error {
 	}
 	e.cmd.Args = parsed
 
-	// We don't want to call ourself. We want to call Start on our embedded Cmd
 	spawnState := filepath.Join(e.allocDir, fmt.Sprintf("%s_%s", e.taskName, "exit_status"))
 	e.spawn = spawn.NewSpawner(spawnState)
 	e.spawn.SetCommand(&e.cmd)
