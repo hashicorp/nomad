@@ -53,7 +53,7 @@ func testTaskRunner() (*MockTaskStateUpdater, *TaskRunner) {
 
 	ctx := driver.NewExecContext(allocDir)
 	rp := structs.NewRestartPolicy(structs.JobTypeService)
-	tr := NewTaskRunner(logger, conf, upd.Update, ctx, alloc.ID, task, rp)
+	tr := NewTaskRunner(logger, conf, upd.Update, ctx, alloc.ID, task, structs.JobTypeService, rp)
 	return upd, tr
 }
 
@@ -153,25 +153,6 @@ func TestTaskRunner_Update(t *testing.T) {
 	}, func(err error) {
 		t.Fatalf("err: %v", err)
 	})
-}
-
-func TestTaskRunner_RestartCounter(t *testing.T) {
-	rc := newErrorCounter(3, 1*time.Second)
-	rc.Increment()
-	rc.Increment()
-	rc.Increment()
-	rc.Increment()
-	rc.Increment()
-	actual := rc.shouldRestart()
-	if actual {
-		t.Fatalf("Expect %v, Actual: %v", false, actual)
-	}
-
-	time.Sleep(1 * time.Second)
-	actual = rc.shouldRestart()
-	if !actual {
-		t.Fatalf("Expect %v, Actual: %v", false, actual)
-	}
 }
 
 /*

@@ -59,10 +59,10 @@ type AllocRunner struct {
 
 // allocRunnerState is used to snapshot the state of the alloc runner
 type allocRunnerState struct {
-	Alloc      *structs.Allocation
+	Alloc         *structs.Allocation
 	RestartPolicy *structs.RestartPolicy
-	TaskStatus map[string]taskStatus
-	Context    *driver.ExecContext
+	TaskStatus    map[string]taskStatus
+	Context       *driver.ExecContext
 }
 
 // NewAllocRunner is used to create a new allocation context
@@ -102,10 +102,11 @@ func (r *AllocRunner) RestoreState() error {
 	r.ctx = snap.Context
 
 	// Restore the task runners
+	jobType := r.alloc.Job.Type
 	var mErr multierror.Error
 	for name := range r.taskStatus {
 		task := &structs.Task{Name: name}
-		tr := NewTaskRunner(r.logger, r.config, r.setTaskStatus, r.ctx, r.alloc.ID, task, r.RestartPolicy)
+		tr := NewTaskRunner(r.logger, r.config, r.setTaskStatus, r.ctx, r.alloc.ID, task, jobType, r.RestartPolicy)
 		r.tasks[name] = tr
 		if err := tr.RestoreState(); err != nil {
 			r.logger.Printf("[ERR] client: failed to restore state for alloc %s task '%s': %v", r.alloc.ID, name, err)
@@ -121,10 +122,10 @@ func (r *AllocRunner) RestoreState() error {
 func (r *AllocRunner) SaveState() error {
 	r.taskStatusLock.RLock()
 	snap := allocRunnerState{
-		Alloc:      r.alloc,
+		Alloc:         r.alloc,
 		RestartPolicy: r.RestartPolicy,
-		TaskStatus: r.taskStatus,
-		Context:    r.ctx,
+		TaskStatus:    r.taskStatus,
+		Context:       r.ctx,
 	}
 	err := persistState(r.stateFilePath(), &snap)
 	r.taskStatusLock.RUnlock()
@@ -307,8 +308,8 @@ func (r *AllocRunner) Run() {
 
 		// Merge in the task resources
 		task.Resources = alloc.TaskResources[task.Name]
-
-		tr := NewTaskRunner(r.logger, r.config, r.setTaskStatus, r.ctx, r.alloc.ID, task, r.RestartPolicy)
+		jobType := r.alloc.Job.Type
+		tr := NewTaskRunner(r.logger, r.config, r.setTaskStatus, r.ctx, r.alloc.ID, task, jobType, r.RestartPolicy)
 		r.tasks[task.Name] = tr
 		go tr.Run()
 	}
