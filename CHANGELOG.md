@@ -3,6 +3,11 @@
 FEATURES:
 
   * Blocking queries supported in API [GH-366]
+  * Add support for downloading external artifacts to execute for Exec, Raw exec drivers [GH-381]
+
+BACKWARDS INCOMPATIBILITIES:
+
+  * Qemu and Java driver configurations have been updated to both use `artifact_source` as the source for external images/jars to be ran
 
 ## 0.1.2 (October 6, 2015)
 
