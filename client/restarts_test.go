@@ -13,7 +13,7 @@ func TestTaskRunner_ServiceRestartCounter(t *testing.T) {
 	rt.increment()
 	rt.increment()
 	rt.increment()
-	actual, when := rt.nextRestart()
+	actual, _ := rt.nextRestart()
 	if !actual {
 		t.Fatalf("Expect %v, Actual: %v", true, actual)
 	}
