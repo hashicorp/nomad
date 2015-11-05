@@ -74,11 +74,16 @@ type Executor interface {
 }
 
 // Command is a mirror of exec.Command that returns a platform-specific Executor
-func Command(name string, arg ...string) Executor {
+func Command(name string, args ...string) Executor {
 	executor := NewExecutor()
-	cmd := executor.Command()
+	SetCommand(executor, name, args)
+	return executor
+}
+
+func SetCommand(e Executor, name string, args []string) {
+	cmd := e.Command()
 	cmd.Path = name
-	cmd.Args = append([]string{name}, arg...)
+	cmd.Args = append([]string{name}, args...)
 
 	if filepath.Base(name) == name {
 		if lp, err := exec.LookPath(name); err != nil {
@@ -87,7 +92,6 @@ func Command(name string, arg ...string) Executor {
 			cmd.Path = lp
 		}
 	}
-	return executor
 }
 
 // OpenId is similar to executor.Command but will attempt to reopen with the

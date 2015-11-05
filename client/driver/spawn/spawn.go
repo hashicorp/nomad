@@ -22,6 +22,7 @@ type Spawner struct {
 	SpawnPid  int
 	SpawnPpid int
 	StateFile string
+	UserPid   int
 
 	// User configuration
 	UserCmd *exec.Cmd
@@ -137,6 +138,7 @@ func (s *Spawner) Spawn(cb func(pid int) error) error {
 		if resp.ErrorMsg != "" {
 			return fmt.Errorf("Failed to execute user command: %s", resp.ErrorMsg)
 		}
+		s.UserPid = resp.UserPID
 	case <-time.After(5 * time.Second):
 		return fmt.Errorf("timed out waiting for response")
 	}

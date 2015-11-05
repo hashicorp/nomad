@@ -41,6 +41,10 @@ var (
 )
 
 func NewExecutor() Executor {
+	return NewLinuxExecutor()
+}
+
+func NewLinuxExecutor() Executor {
 	return &LinuxExecutor{}
 }
 
