@@ -443,9 +443,33 @@ func (c *Client) fingerprint() error {
 		if applies {
 			applied = append(applied, name)
 		}
+		p, period := f.Periodic()
+		if p {
+			// TODO: If more periodic fingerprinters are added, then
+			// fingerprintPeriodic should be used to handle all the periodic
+			// fingerprinters by using a priority queue.
+			go c.fingerprintPeriodic(name, f, period)
+		}
 	}
 	c.logger.Printf("[DEBUG] client: applied fingerprints %v", applied)
 	return nil
+}
+
+// fingerprintPeriodic runs a fingerprinter at the specified duration. If the
+// fingerprinter returns an error, the function exits.
+func (c *Client) fingerprintPeriodic(name string, f fingerprint.Fingerprint, d time.Duration) {
+	c.logger.Printf("[DEBUG] client: periodically fingerprinting %v at duration %v", name, d)
+	for {
+		select {
+		case <-time.After(d):
+			if _, err := f.Fingerprint(c.config, c.config.Node); err != nil {
+				c.logger.Printf("[DEBUG] client: disabling periodic fingerprinting for %v: %v", name, err)
+				return
+			}
+		case <-c.shutdownCh:
+			return
+		}
+	}
 }
 
 // setupDrivers is used to find the available drivers
