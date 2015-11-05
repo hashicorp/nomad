@@ -10,7 +10,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/go-fsnotify/fsnotify"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/command"
 	"github.com/hashicorp/nomad/helper/discover"
@@ -144,6 +143,7 @@ func (s *Spawner) Spawn(cb func(pid int) error) error {
 
 	// Store the spawn process.
 	s.spawn = spawn.Process
+	s.SpawnPid = s.spawn.Pid
 	s.SpawnPpid = os.Getpid()
 	return nil
 }
@@ -206,7 +206,7 @@ func (s *Spawner) Wait() (int, error) {
 		return s.waitAsParent()
 	}
 
-	return s.waitOnStatusFile()
+	return s.pollWait()
 }
 
 // waitAsParent waits on the process if the current process was the spawner.
@@ -221,7 +221,7 @@ func (s *Spawner) waitAsParent() (int, error) {
 		// we should just read its exit file.
 		var err error
 		if s.spawn, err = os.FindProcess(s.SpawnPid); err != nil {
-			return s.waitOnStatusFile()
+			return s.pollWait()
 		}
 	}
 
@@ -229,22 +229,13 @@ func (s *Spawner) waitAsParent() (int, error) {
 		return -1, err
 	}
 
-	return s.waitOnStatusFile()
+	return s.pollWait()
 }
 
-// waitOnStatusFile uses OS level file watching APIs to wait on the status file
-// and returns the exit code and possibly an error.
-func (s *Spawner) waitOnStatusFile() (int, error) {
-	// Set up a watcher for the exit status file.
-	watcher, err := fsnotify.NewWatcher()
-	if err != nil {
-		return -1, fmt.Errorf("Failed to create file watcher to read exit code: %v", err)
-	}
-
-	if err := watcher.Add(s.StateFile); err != nil {
-		return -1, fmt.Errorf("Failed to watch %v to read exit code: %v", s.StateFile, err)
-	}
-
+// pollWait polls on the spawn daemon to determine when it exits. After it
+// exits, it reads the state file and returns the exit code and possibly an
+// error.
+func (s *Spawner) pollWait() (int, error) {
 	// Stat to check if it is there to avoid a race condition.
 	stat, err := os.Stat(s.StateFile)
 	if err != nil {
@@ -256,29 +247,14 @@ func (s *Spawner) waitOnStatusFile() (int, error) {
 		return s.readExitCode()
 	}
 
-	// Wait on watcher.
-	for {
-		select {
-		case event := <-watcher.Events:
-			if event.Op&fsnotify.Write == fsnotify.Write {
-				stat, err := os.Stat(s.StateFile)
-				if err != nil {
-					return -1, fmt.Errorf("Failed to Stat exit status file %v: %v", s.StateFile, err)
-				}
-
-				if stat.Size() > 0 {
-					return s.readExitCode()
-				}
-			}
-		case err := <-watcher.Errors:
-			return -1, fmt.Errorf("Failed to watch %v for an exit code: %v", s.StateFile, err)
-		case <-time.After(5 * time.Second):
-			// Check if the process is still alive.
-			if !s.Alive() {
-				return -1, fmt.Errorf("Task is dead and exit code unreadable")
-			}
+	// Read after the process exits.
+	for _ = range time.Tick(5 * time.Second) {
+		if !s.Alive() {
+			break
 		}
 	}
+
+	return s.readExitCode()
 }
 
 // readExitCode parses the state file and returns the exit code of the task. It

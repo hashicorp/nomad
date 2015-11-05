@@ -202,6 +202,15 @@ func TestSpawn_NonParentWait(t *testing.T) {
 		t.Fatalf("Spawn() failed %v", err)
 	}
 
+	// Need to wait on the spawner, otherwise it becomes a zombie and the test
+	// only finishes after the init process cleans it. This speeds that up.
+	go func() {
+		time.Sleep(3 * time.Second)
+		if _, err := spawn.spawn.Wait(); err != nil {
+			t.FailNow()
+		}
+	}()
+
 	// Force the wait to assume non-parent.
 	spawn.SpawnPpid = 0
 	code, err := spawn.Wait()
@@ -265,7 +274,7 @@ func TestSpawn_DeadSpawnDaemon_NonParent(t *testing.T) {
 	}
 
 	spawn := NewSpawner(f.Name())
-	spawn.SetCommand(exec.Command("sleep", "5"))
+	spawn.SetCommand(exec.Command("sleep", "2"))
 	if err := spawn.Spawn(cb); err != nil {
 		t.Fatalf("Spawn() errored: %v", err)
 	}
