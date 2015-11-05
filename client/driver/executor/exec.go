@@ -70,15 +70,20 @@ type Executor interface {
 
 	// Command provides access the underlying Cmd struct in case the Executor
 	// interface doesn't expose the functionality you need.
-	Command() *cmd
+	Command() *exec.Cmd
 }
 
 // Command is a mirror of exec.Command that returns a platform-specific Executor
-func Command(name string, arg ...string) Executor {
+func Command(name string, args ...string) Executor {
 	executor := NewExecutor()
-	cmd := executor.Command()
+	SetCommand(executor, name, args)
+	return executor
+}
+
+func SetCommand(e Executor, name string, args []string) {
+	cmd := e.Command()
 	cmd.Path = name
-	cmd.Args = append([]string{name}, arg...)
+	cmd.Args = append([]string{name}, args...)
 
 	if filepath.Base(name) == name {
 		if lp, err := exec.LookPath(name); err != nil {
@@ -87,7 +92,6 @@ func Command(name string, arg ...string) Executor {
 			cmd.Path = lp
 		}
 	}
-	return executor
 }
 
 // OpenId is similar to executor.Command but will attempt to reopen with the
@@ -99,18 +103,4 @@ func OpenId(id string) (Executor, error) {
 		return nil, err
 	}
 	return executor, nil
-}
-
-// Cmd is an extension of exec.Cmd that incorporates functionality for
-// re-attaching to processes, dropping priviledges, etc., based on platform-
-// specific implementations.
-type cmd struct {
-	exec.Cmd
-
-	// Resources is used to limit CPU and RAM used by the process, by way of
-	// cgroups or a similar mechanism.
-	Resources structs.Resources
-
-	// RunAs may be a username or Uid. The implementation will decide how to use it.
-	RunAs string
 }

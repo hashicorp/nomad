@@ -6,8 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"os/user"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 
@@ -39,12 +41,16 @@ var (
 )
 
 func NewExecutor() Executor {
+	return NewLinuxExecutor()
+}
+
+func NewLinuxExecutor() Executor {
 	return &LinuxExecutor{}
 }
 
 // Linux executor is designed to run on linux kernel 2.8+.
 type LinuxExecutor struct {
-	cmd
+	cmd  exec.Cmd
 	user *user.User
 
 	// Isolation configurations.
@@ -57,7 +63,7 @@ type LinuxExecutor struct {
 	spawn *spawn.Spawner
 }
 
-func (e *LinuxExecutor) Command() *cmd {
+func (e *LinuxExecutor) Command() *exec.Cmd {
 	return &e.cmd
 }
 
@@ -114,45 +120,47 @@ func (e *LinuxExecutor) ID() (string, error) {
 	return buffer.String(), nil
 }
 
-// runAs takes a user id as a string and looks up the user. It stores the
-// results in the executor and returns an error if the user could not be found.
+// runAs takes a user id as a string and looks up the user, and sets the command
+// to execute as that user.
 func (e *LinuxExecutor) runAs(userid string) error {
-	errs := new(multierror.Error)
-
-	// First, try to lookup the user by uid
-	u, err := user.LookupId(userid)
-	if err == nil {
-		e.user = u
-		return nil
-	} else {
-		errs = multierror.Append(errs, err)
+	u, err := user.Lookup(userid)
+	if err != nil {
+		return fmt.Errorf("Failed to identify user %v: %v", userid, err)
 	}
 
-	// Lookup failed, so try by username instead
-	u, err = user.Lookup(userid)
-	if err == nil {
-		e.user = u
-		return nil
-	} else {
-		errs = multierror.Append(errs, err)
+	// Convert the uid and gid
+	uid, err := strconv.ParseUint(u.Uid, 10, 32)
+	if err != nil {
+		return fmt.Errorf("Unable to convert userid to uint32: %s", err)
+	}
+	gid, err := strconv.ParseUint(u.Gid, 10, 32)
+	if err != nil {
+		return fmt.Errorf("Unable to convert groupid to uint32: %s", err)
 	}
 
-	// If we got here we failed to lookup based on id and username, so we'll
-	// return those errors.
-	return fmt.Errorf("Failed to identify user to run as: %s", errs)
+	// Set the command to run as that user and group.
+	if e.cmd.SysProcAttr == nil {
+		e.cmd.SysProcAttr = &syscall.SysProcAttr{}
+	}
+	if e.cmd.SysProcAttr.Credential == nil {
+		e.cmd.SysProcAttr.Credential = &syscall.Credential{}
+	}
+	e.cmd.SysProcAttr.Credential.Uid = uint32(uid)
+	e.cmd.SysProcAttr.Credential.Gid = uint32(gid)
+
+	return nil
 }
 
 func (e *LinuxExecutor) Start() error {
 	// Run as "nobody" user so we don't leak root privilege to the spawned
 	// process.
-	if err := e.runAs("nobody"); err == nil && e.user != nil {
-		e.cmd.SetUID(e.user.Uid)
-		e.cmd.SetGID(e.user.Gid)
+	if err := e.runAs("nobody"); err != nil {
+		return err
 	}
 
 	// Parse the commands arguments and replace instances of Nomad environment
 	// variables.
-	envVars, err := environment.ParseFromList(e.Cmd.Env)
+	envVars, err := environment.ParseFromList(e.cmd.Env)
 	if err != nil {
 		return err
 	}
@@ -165,16 +173,16 @@ func (e *LinuxExecutor) Start() error {
 	}
 	e.cmd.Path = parsedPath[0]
 
-	combined := strings.Join(e.Cmd.Args, " ")
+	combined := strings.Join(e.cmd.Args, " ")
 	parsed, err := args.ParseAndReplace(combined, envVars.Map())
 	if err != nil {
 		return err
 	}
-	e.Cmd.Args = parsed
+	e.cmd.Args = parsed
 
 	spawnState := filepath.Join(e.allocDir, fmt.Sprintf("%s_%s", e.taskName, "exit_status"))
 	e.spawn = spawn.NewSpawner(spawnState)
-	e.spawn.SetCommand(&e.cmd.Cmd)
+	e.spawn.SetCommand(&e.cmd)
 	e.spawn.SetChroot(e.taskDir)
 	e.spawn.SetLogs(&spawn.Logs{
 		Stdout: filepath.Join(e.taskDir, allocdir.TaskLocal, fmt.Sprintf("%v.stdout", e.taskName)),
@@ -283,13 +291,13 @@ func (e *LinuxExecutor) ConfigureTaskDir(taskName string, alloc *allocdir.AllocD
 	}
 
 	// Set the tasks AllocDir environment variable.
-	env, err := environment.ParseFromList(e.Cmd.Env)
+	env, err := environment.ParseFromList(e.cmd.Env)
 	if err != nil {
 		return err
 	}
 	env.SetAllocDir(filepath.Join("/", allocdir.SharedAllocName))
 	env.SetTaskLocalDir(filepath.Join("/", allocdir.TaskLocal))
-	e.Cmd.Env = env.List()
+	e.cmd.Env = env.List()
 
 	return nil
 }
