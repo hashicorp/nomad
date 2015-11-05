@@ -3,6 +3,7 @@ package executor
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 
@@ -15,10 +16,9 @@ import (
 // BasicExecutor should work everywhere, and as a result does not include
 // any resource restrictions or runas capabilities.
 type BasicExecutor struct {
-	cmd
+	cmd exec.Cmd
 }
 
-// TODO: Update to use the Spawner.
 // TODO: Have raw_exec use this as well.
 func NewBasicExecutor() Executor {
 	return &BasicExecutor{}
@@ -36,7 +36,7 @@ func (e *BasicExecutor) ConfigureTaskDir(taskName string, alloc *allocdir.AllocD
 	if !ok {
 		return fmt.Errorf("Error finding task dir for (%s)", taskName)
 	}
-	e.Dir = taskDir
+	e.cmd.Dir = taskDir
 	return nil
 }
 
@@ -61,7 +61,7 @@ func (e *BasicExecutor) Start() error {
 	if err != nil {
 		return err
 	}
-	e.Cmd.Args = parsed
+	e.cmd.Args = parsed
 
 	// We don't want to call ourself. We want to call Start on our embedded Cmd
 	return e.cmd.Start()
@@ -77,7 +77,7 @@ func (e *BasicExecutor) Open(pid string) error {
 	if err != nil {
 		return fmt.Errorf("Failed to reopen pid %d: %v", pidNum, err)
 	}
-	e.Process = process
+	e.cmd.Process = process
 	return nil
 }
 
@@ -99,9 +99,9 @@ func (e *BasicExecutor) Shutdown() error {
 }
 
 func (e *BasicExecutor) ForceStop() error {
-	return e.Process.Kill()
+	return e.cmd.Process.Kill()
 }
 
-func (e *BasicExecutor) Command() *cmd {
+func (e *BasicExecutor) Command() *exec.Cmd {
 	return &e.cmd
 }
