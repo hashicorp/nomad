@@ -38,8 +38,8 @@ func NewJavaDriver(ctx *DriverContext) Driver {
 
 func (d *JavaDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
 	// Only enable if we are root when running on non-windows systems.
-	if runtime.GOOS != "windows" && syscall.Geteuid() != 0 {
-		d.logger.Printf("[DEBUG] driver.java: must run as root user, disabling")
+	if runtime.GOOS == "linux" && syscall.Geteuid() != 0 {
+		d.logger.Printf("[DEBUG] driver.java: must run as root user on linux, disabling")
 		return false, nil
 	}
 
