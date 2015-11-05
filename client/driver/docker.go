@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -166,6 +167,32 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task) (do
 	d.logger.Printf("[DEBUG] driver.docker: using %d cpu shares for %s", hostConfig.CPUShares, task.Config["image"])
 	d.logger.Printf("[DEBUG] driver.docker: binding directories %#v for %s", hostConfig.Binds, task.Config["image"])
 
+	//  set privileged (fallback to false)
+	hostConfig.Privileged, _ = strconv.ParseBool(task.Config["privileged"])
+
+	// set DNS servers
+	dns, ok := task.Config["dns-servers"]
+
+	if ok && dns != "" {
+		for _, v := range strings.Split(dns, ",") {
+			ip := strings.TrimSpace(v)
+			if net.ParseIP(ip) != nil {
+				hostConfig.DNS = append(hostConfig.DNS, ip)
+			} else {
+				d.logger.Printf("[ERR] driver.docker: invalid ip address for container dns server: %s", ip)
+			}
+		}
+	}
+
+	// set DNS search domains
+	dnsSearch, ok := task.Config["search-domains"]
+
+	if ok && dnsSearch != "" {
+		for _, v := range strings.Split(dnsSearch, ",") {
+			hostConfig.DNSSearch = append(hostConfig.DNSSearch, strings.TrimSpace(v))
+		}
+	}
+
 	mode, ok := task.Config["network_mode"]
 	if !ok || mode == "" {
 		// docker default
@@ -303,8 +330,14 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 			Repository: repo,
 			Tag:        tag,
 		}
-		// TODO add auth configuration for private repos
-		authOptions := docker.AuthConfiguration{}
+
+		authOptions := docker.AuthConfiguration{
+			Username:      task.Config["auth.username"],
+			Password:      task.Config["auth.password"],
+			Email:         task.Config["auth.email"],
+			ServerAddress: task.Config["auth.server-address"],
+		}
+
 		err = client.PullImage(pullOptions, authOptions)
 		if err != nil {
 			d.logger.Printf("[ERR] driver.docker: pulling container %s", err)
