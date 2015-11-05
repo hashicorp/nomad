@@ -54,7 +54,7 @@ func testExecutor(t *testing.T, buildExecutor func() Executor, compatible func(*
 	Executor_Start_Wait_Failure_Code(t, command)
 	Executor_Start_Wait(t, command)
 	Executor_Start_Kill(t, command)
-	Executor_Open(t, command)
+	Executor_Open(t, command, buildExecutor)
 }
 
 type buildExecCommand func(name string, args ...string) Executor
@@ -178,7 +178,7 @@ func Executor_Start_Kill(t *testing.T, command buildExecCommand) {
 	}
 }
 
-func Executor_Open(t *testing.T, command buildExecCommand) {
+func Executor_Open(t *testing.T, command buildExecCommand, newExecutor func() Executor) {
 	task, alloc := mockAllocDir(t)
 	defer alloc.Destroy()
 
@@ -210,7 +210,7 @@ func Executor_Open(t *testing.T, command buildExecCommand) {
 		log.Panicf("ID() failed: %v", err)
 	}
 
-	e2 := NewExecutor()
+	e2 := newExecutor()
 	if err := e2.Open(id); err != nil {
 		log.Panicf("Open(%v) failed: %v", id, err)
 	}
