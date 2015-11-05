@@ -16,26 +16,28 @@ const EmptyDuration = time.Duration(0)
 // fingerprints available, to provided an ordered iteration
 var BuiltinFingerprints = []string{
 	"arch",
+	"consul",
 	"cpu",
-	"host",
-	"memory",
-	"storage",
-	"network",
 	"env_aws",
 	"env_gce",
+	"host",
+	"memory",
+	"network",
+	"storage",
 }
 
 // builtinFingerprintMap contains the built in registered fingerprints
 // which are available, corresponding to a key found in BuiltinFingerprints
 var builtinFingerprintMap = map[string]Factory{
 	"arch":    NewArchFingerprint,
+	"consul":  NewConsulFingerprint,
 	"cpu":     NewCPUFingerprint,
-	"host":    NewHostFingerprint,
-	"memory":  NewMemoryFingerprint,
-	"storage": NewStorageFingerprint,
-	"network": NewNetworkFingerprinter,
 	"env_aws": NewEnvAWSFingerprint,
 	"env_gce": NewEnvGCEFingerprint,
+	"host":    NewHostFingerprint,
+	"memory":  NewMemoryFingerprint,
+	"network": NewNetworkFingerprinter,
+	"storage": NewStorageFingerprint,
 }
 
 // NewFingerprint is used to instantiate and return a new fingerprint

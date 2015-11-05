@@ -48,7 +48,7 @@ func (f *ConsulFingerprint) Fingerprint(config *client.Config, node *structs.Nod
 	// If we can't hit this URL consul is probably not running on this machine.
 	info, err := consulClient.Agent().Self()
 	if err != nil {
-		return false, fmt.Errorf("Failed to query consul for agent status: %s", err)
+		return false, nil
 	}
 
 	node.Attributes["consul.server"] = strconv.FormatBool(info["Config"]["Server"].(bool))
