@@ -185,6 +185,20 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task) (do
 	}
 	hostConfig.NetworkMode = mode
 
+	// Handle the privileged flag
+	privileged, ok := task.Config["privileged"]
+	if !ok || privileged == "" {
+		d.logger.Printf("[WARN] driver.docker: privileged flag not set, defaulting to non-privileged")
+		privileged = "false"
+	}
+
+	parsed_privileged, err := strconv.ParseBool(privileged)
+	if err != nil {
+		d.logger.Printf("[ERR] driver.docker: invalid value found for privileged flag: %t", parsed_privileged)
+		return c, fmt.Errorf("invalid value found for privileged flag: %t", parsed_privileged)
+	}
+	hostConfig.Privileged = parsed_privileged
+
 	// Setup port mapping (equivalent to -p on docker CLI). Ports must already be
 	// exposed in the container.
 	if len(task.Resources.Networks) == 0 {
