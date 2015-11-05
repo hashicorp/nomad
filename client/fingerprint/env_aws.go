@@ -69,6 +69,7 @@ var ec2InstanceSpeedMap = map[string]int{
 
 // EnvAWSFingerprint is used to fingerprint AWS metadata
 type EnvAWSFingerprint struct {
+	StaticFingerprinter
 	logger *log.Logger
 }
 

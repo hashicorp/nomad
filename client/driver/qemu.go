@@ -16,6 +16,7 @@ import (
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/client/getter"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -29,6 +30,7 @@ var (
 // planned in the future
 type QemuDriver struct {
 	DriverContext
+	fingerprint.StaticFingerprinter
 }
 
 // qemuHandle is returned from Start/Open as a handle to the PID
@@ -48,7 +50,7 @@ type qemuPID struct {
 
 // NewQemuDriver is used to create a new exec driver
 func NewQemuDriver(ctx *DriverContext) Driver {
-	return &QemuDriver{*ctx}
+	return &QemuDriver{DriverContext: *ctx}
 }
 
 func (d *QemuDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {

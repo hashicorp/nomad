@@ -11,6 +11,7 @@ import (
 
 // NetworkFingerprint is used to fingerprint the Network capabilities of a node
 type NetworkFingerprint struct {
+	StaticFingerprinter
 	logger *log.Logger
 }
 

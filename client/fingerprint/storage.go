@@ -18,6 +18,7 @@ import (
 // StorageFingerprint is used to measure the amount of storage free for
 // applications that the Nomad agent will run on this machine.
 type StorageFingerprint struct {
+	StaticFingerprinter
 	logger *log.Logger
 }
 

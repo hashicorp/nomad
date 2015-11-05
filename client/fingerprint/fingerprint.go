@@ -3,10 +3,14 @@ package fingerprint
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
+
+// EmptyDuration is to be used by fingerprinters that are not periodic.
+const EmptyDuration = time.Duration(0)
 
 // BuiltinFingerprints is a slice containing the key names of all regestered
 // fingerprints available, to provided an ordered iteration
@@ -59,4 +63,17 @@ type Fingerprint interface {
 	// Fingerprint is used to update properties of the Node,
 	// and returns if the fingerprint was applicable and a potential error.
 	Fingerprint(*config.Config, *structs.Node) (bool, error)
+
+	// Periodic is a mechanism for the fingerprinter to indicate that it should
+	// be run periodically. The return value is a boolean indicating if it
+	// should be periodic, and if true, a duration.
+	Periodic() (bool, time.Duration)
+}
+
+// StaticFingerprinter can be embeded in a struct that has a Fingerprint method
+// to make it non-periodic.
+type StaticFingerprinter struct{}
+
+func (s *StaticFingerprinter) Periodic() (bool, time.Duration) {
+	return false, EmptyDuration
 }

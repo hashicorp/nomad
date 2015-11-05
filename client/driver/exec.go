@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/executor"
+	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/client/getter"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -18,6 +19,7 @@ import (
 // features.
 type ExecDriver struct {
 	DriverContext
+	fingerprint.StaticFingerprinter
 }
 
 // execHandle is returned from Start/Open as a handle to the PID
@@ -29,7 +31,7 @@ type execHandle struct {
 
 // NewExecDriver is used to create a new exec driver
 func NewExecDriver(ctx *DriverContext) Driver {
-	return &ExecDriver{*ctx}
+	return &ExecDriver{DriverContext: *ctx}
 }
 
 func (d *ExecDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {

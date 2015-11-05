@@ -63,3 +63,7 @@ func (f *ConsulFingerprint) Fingerprint(config *client.Config, node *structs.Nod
 
 	return true, nil
 }
+
+func (f *ConsulFingerprint) Periodic() (bool, time.Duration) {
+	return false, 15 * time.Second
+}
