@@ -2,11 +2,8 @@ package driver
 
 import (
 	"bytes"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -17,9 +14,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/go-getter"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/getter"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -82,7 +79,7 @@ func (d *QemuDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, 
 // image and save it to the Drivers Allocation Dir
 func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
 	// Get the image source
-	source, ok := task.Config["image_source"]
+	source, ok := task.Config["artifact_source"]
 	if !ok || source == "" {
 		return nil, fmt.Errorf("Missing source image Qemu driver")
 	}
@@ -99,34 +96,18 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		return nil, fmt.Errorf("Could not find task directory for task: %v", d.DriverContext.taskName)
 	}
 
-	// Create a location to download the binary.
-	destDir := filepath.Join(taskDir, allocdir.TaskLocal)
-	vmID := fmt.Sprintf("qemu-vm-%s-%s", structs.GenerateUUID(), filepath.Base(source))
-	vmPath := filepath.Join(destDir, vmID)
-	if err := getter.GetFile(vmPath, source); err != nil {
-		return nil, fmt.Errorf("Error downloading artifact for Qemu driver: %s", err)
+	// Proceed to download an artifact to be executed.
+	vmPath, err := getter.GetArtifact(
+		filepath.Join(taskDir, allocdir.TaskLocal),
+		task.Config["artifact_source"],
+		task.Config["checksum"],
+		d.logger,
+	)
+	if err != nil {
+		return nil, err
 	}
 
-	// compute and check checksum
-	if check, ok := task.Config["checksum"]; ok {
-		d.logger.Printf("[DEBUG] Running checksum on (%s)", vmID)
-		hasher := sha256.New()
-		file, err := os.Open(vmPath)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to open file for checksum")
-		}
-
-		defer file.Close()
-		io.Copy(hasher, file)
-
-		sum := hex.EncodeToString(hasher.Sum(nil))
-		if sum != check {
-			return nil, fmt.Errorf(
-				"Error in Qemu: checksums did not match.\nExpected (%s), got (%s)",
-				check,
-				sum)
-		}
-	}
+	vmID := filepath.Base(vmPath)
 
 	// Parse configuration arguments
 	// Create the base arguments

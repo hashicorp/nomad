@@ -94,12 +94,14 @@ func TestRawExecDriver_StartOpen_Wait(t *testing.T) {
 }
 
 func TestRawExecDriver_Start_Artifact_basic(t *testing.T) {
-	var file string
+	var file, checksum string
 	switch runtime.GOOS {
 	case "darwin":
 		file = "hi_darwin_amd64"
+		checksum = "md5:d7f2fdb13b36dcb7407721d78926b335"
 	default:
 		file = "hi_linux_amd64"
+		checksum = "md5:a9b14903a8942748e4f8474e11f795d3"
 	}
 
 	task := &structs.Task{
@@ -107,6 +109,7 @@ func TestRawExecDriver_Start_Artifact_basic(t *testing.T) {
 		Config: map[string]string{
 			"artifact_source": fmt.Sprintf("https://dl.dropboxusercontent.com/u/47675/jar_thing/%s", file),
 			"command":         filepath.Join("$NOMAD_TASK_DIR", file),
+			"checksum":        checksum,
 		},
 	}
 	driverCtx := testDriverContext(task.Name)

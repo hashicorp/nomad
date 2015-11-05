@@ -123,11 +123,12 @@ func TestExecDriver_Start_Wait(t *testing.T) {
 func TestExecDriver_Start_Artifact_basic(t *testing.T) {
 	ctestutils.ExecCompatible(t)
 	file := "hi_linux_amd64"
+	checksum := "sha256:6f99b4c5184726e601ecb062500aeb9537862434dfe1898dbe5c68d9f50c179c"
 
 	task := &structs.Task{
 		Name: "sleep",
 		Config: map[string]string{
-			"artifact_source": fmt.Sprintf("https://dl.dropboxusercontent.com/u/47675/jar_thing/%s", file),
+			"artifact_source": fmt.Sprintf("https://dl.dropboxusercontent.com/u/47675/jar_thing/%s?checksum=%s", file, checksum),
 			"command":         filepath.Join("$NOMAD_TASK_DIR", file),
 		},
 		Resources: basicResources,

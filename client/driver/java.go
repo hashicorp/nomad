@@ -4,17 +4,16 @@ import (
 	"bytes"
 	"fmt"
 	"os/exec"
-	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"syscall"
 	"time"
 
-	"github.com/hashicorp/go-getter"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/executor"
+	"github.com/hashicorp/nomad/client/getter"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -89,25 +88,23 @@ func (d *JavaDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, 
 }
 
 func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
-	// Get the jar source
-	source, ok := task.Config["jar_source"]
-	if !ok || source == "" {
-		return nil, fmt.Errorf("missing jar source for Java Jar driver")
-	}
-
 	taskDir, ok := ctx.AllocDir.TaskDirs[d.DriverContext.taskName]
 	if !ok {
 		return nil, fmt.Errorf("Could not find task directory for task: %v", d.DriverContext.taskName)
 	}
 
-	destDir := filepath.Join(taskDir, allocdir.TaskLocal)
-
-	// Create a location to download the binary.
-	jarName := path.Base(source)
-	jarPath := filepath.Join(destDir, jarName)
-	if err := getter.GetFile(jarPath, source); err != nil {
-		return nil, fmt.Errorf("Error downloading source for Java driver: %s", err)
+	// Proceed to download an artifact to be executed.
+	path, err := getter.GetArtifact(
+		filepath.Join(taskDir, allocdir.TaskLocal),
+		task.Config["artifact_source"],
+		task.Config["checksum"],
+		d.logger,
+	)
+	if err != nil {
+		return nil, err
 	}
+
+	jarName := filepath.Base(path)
 
 	// Get the environment variables.
 	envVars := TaskEnvironmentVariables(ctx, task)

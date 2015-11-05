@@ -24,6 +24,10 @@ The `exec` driver supports the following configuration in the job spec:
 * `artifact_source` – (Optional) Source location of an executable artifact. Must be accessible
 from the Nomad client. If you specify an `artifact_source` to be executed, you
 must reference it in the `command` as show in the examples below
+* `checksum` - **(Optional)** The checksum type and value for the `artifact_source` image.
+The format is `type:value`, where type is any of `md5`, `sha1`, `sha256`, or `sha512`,
+and the value is the computed checksum. If a checksum is supplied and does not
+match the downloaded artifact, the driver will fail to start
 * `args` - The argument list to the command, space seperated. Optional.
 
 ## Client Requirements
@@ -53,6 +57,7 @@ To execute a binary specified by `artifact_source`:
 ```
   config {
     artifact_source = "https://dl.dropboxusercontent.com/u/1234/binary.bin"
+    checksum = "sha256:abd123445ds4555555555"
     command = "$NOMAD_TASK_DIR/binary.bin"
   }
 ```
