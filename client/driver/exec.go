@@ -12,7 +12,7 @@ import (
 	"github.com/hashicorp/go-getter"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/executor"
+	"github.com/hashicorp/nomad/client/driver/executor"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
