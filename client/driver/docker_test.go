@@ -106,9 +106,10 @@ func TestDockerDriver_Start_Wait(t *testing.T) {
 	task := &structs.Task{
 		Name: "redis-demo",
 		Config: map[string]string{
-			"image":   "redis",
-			"command": "redis-server",
-			"args":    "-v",
+			"image":       "redis",
+			"command":     "redis-server",
+			"args":        "-v",
+			"priviledged": "true",
 		},
 		Resources: &structs.Resources{
 			MemoryMB: 256,
