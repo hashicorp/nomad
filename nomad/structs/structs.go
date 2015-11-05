@@ -14,8 +14,17 @@ import (
 )
 
 var (
-	ErrNoLeader     = fmt.Errorf("No cluster leader")
-	ErrNoRegionPath = fmt.Errorf("No path to region")
+	ErrNoLeader                    = fmt.Errorf("No cluster leader")
+	ErrNoRegionPath                = fmt.Errorf("No path to region")
+	defaultServiceJobRestartPolicy = RestartPolicy{
+		Delay:    15 * time.Second,
+		Attempts: 2,
+		Interval: 1 * time.Minute,
+	}
+	defaultBatchJobRestartPolicy = RestartPolicy{
+		Delay:    15 * time.Second,
+		Attempts: 15,
+	}
 )
 
 type MessageType uint8
@@ -898,6 +907,33 @@ func (u *UpdateStrategy) Rolling() bool {
 	return u.Stagger > 0 && u.MaxParallel > 0
 }
 
+// RestartPolicy influences how Nomad restarts Tasks when they
+// crash or fail.
+type RestartPolicy struct {
+	Attempts int
+	Interval time.Duration
+	Delay    time.Duration
+}
+
+func (r *RestartPolicy) Validate() error {
+	if time.Duration(r.Attempts)*r.Delay > r.Interval {
+		return fmt.Errorf("Nomad can't restart the TaskGroup %v times in an interval of %v with a delay of %v", r.Attempts, r.Interval, r.Delay)
+	}
+	return nil
+}
+
+func NewRestartPolicy(jobType string) *RestartPolicy {
+	switch jobType {
+	case JobTypeService:
+		rp := defaultServiceJobRestartPolicy
+		return &rp
+	case JobTypeBatch:
+		rp := defaultBatchJobRestartPolicy
+		return &rp
+	}
+	return nil
+}
+
 // TaskGroup is an atomic unit of placement. Each task group belongs to
 // a job and may contain any number of tasks. A task group support running
 // in many replicas using the same configuration..
@@ -912,6 +948,9 @@ type TaskGroup struct {
 	// Constraints can be specified at a task group level and apply to
 	// all the tasks contained.
 	Constraints []*Constraint
+
+	//RestartPolicy of a TaskGroup
+	RestartPolicy *RestartPolicy
 
 	// Tasks are the collection of tasks that this task group needs to run
 	Tasks []*Task
@@ -938,6 +977,10 @@ func (tg *TaskGroup) Validate() error {
 			outer := fmt.Errorf("Constraint %d validation failed: %s", idx+1, err)
 			mErr.Errors = append(mErr.Errors, outer)
 		}
+	}
+
+	if err := tg.RestartPolicy.Validate(); err != nil {
+		mErr.Errors = append(mErr.Errors, err)
 	}
 
 	// Check for duplicate tasks

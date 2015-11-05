@@ -14,7 +14,7 @@ import (
 	"github.com/hashicorp/go-getter"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/executor"
+	"github.com/hashicorp/nomad/client/driver/executor"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -38,8 +38,8 @@ func NewJavaDriver(ctx *DriverContext) Driver {
 
 func (d *JavaDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
 	// Only enable if we are root when running on non-windows systems.
-	if runtime.GOOS != "windows" && syscall.Geteuid() != 0 {
-		d.logger.Printf("[DEBUG] driver.java: must run as root user, disabling")
+	if runtime.GOOS == "linux" && syscall.Geteuid() != 0 {
+		d.logger.Printf("[DEBUG] driver.java: must run as root user on linux, disabling")
 		return false, nil
 	}
 

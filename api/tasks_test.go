@@ -8,8 +8,9 @@ import (
 func TestTaskGroup_NewTaskGroup(t *testing.T) {
 	grp := NewTaskGroup("grp1", 2)
 	expect := &TaskGroup{
-		Name:  "grp1",
-		Count: 2,
+		Name:          "grp1",
+		Count:         2,
+		RestartPolicy: NewRestartPolicy(),
 	}
 	if !reflect.DeepEqual(grp, expect) {
 		t.Fatalf("expect: %#v, got: %#v", expect, grp)

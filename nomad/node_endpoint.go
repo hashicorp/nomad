@@ -6,6 +6,7 @@ import (
 
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/nomad/watch"
 )
 
 // Node endpoint is used for client interactions
@@ -282,37 +283,45 @@ func (n *Node) GetNode(args *structs.NodeSpecificRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "get_node"}, time.Now())
 
-	// Verify the arguments
-	if args.NodeID == "" {
-		return fmt.Errorf("missing node ID")
-	}
+	// Setup the blocking query
+	opts := blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		watch:     watch.NewItems(watch.Item{Node: args.NodeID}),
+		run: func() error {
+			// Verify the arguments
+			if args.NodeID == "" {
+				return fmt.Errorf("missing node ID")
+			}
 
-	// Look for the node
-	snap, err := n.srv.fsm.State().Snapshot()
-	if err != nil {
-		return err
-	}
-	out, err := snap.NodeByID(args.NodeID)
-	if err != nil {
-		return err
-	}
+			// Look for the node
+			snap, err := n.srv.fsm.State().Snapshot()
+			if err != nil {
+				return err
+			}
+			out, err := snap.NodeByID(args.NodeID)
+			if err != nil {
+				return err
+			}
 
-	// Setup the output
-	if out != nil {
-		reply.Node = out
-		reply.Index = out.ModifyIndex
-	} else {
-		// Use the last index that affected the nodes table
-		index, err := snap.Index("nodes")
-		if err != nil {
-			return err
-		}
-		reply.Index = index
-	}
+			// Setup the output
+			reply.Node = out
+			if out != nil {
+				reply.Index = out.ModifyIndex
+			} else {
+				// Use the last index that affected the nodes table
+				index, err := snap.Index("nodes")
+				if err != nil {
+					return err
+				}
+				reply.Index = index
+			}
 
-	// Set the query response
-	n.srv.setQueryMeta(&reply.QueryMeta)
-	return nil
+			// Set the query response
+			n.srv.setQueryMeta(&reply.QueryMeta)
+			return nil
+		}}
+	return n.srv.blockingRPC(&opts)
 }
 
 // GetAllocs is used to request allocations for a specific node
@@ -330,9 +339,9 @@ func (n *Node) GetAllocs(args *structs.NodeSpecificRequest,
 
 	// Setup the blocking query
 	opts := blockingOptions{
-		queryOpts:  &args.QueryOptions,
-		queryMeta:  &reply.QueryMeta,
-		allocWatch: args.NodeID,
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		watch:     watch.NewItems(watch.Item{AllocNode: args.NodeID}),
 		run: func() error {
 			// Look for the node
 			snap, err := n.srv.fsm.State().Snapshot()
@@ -404,35 +413,45 @@ func (n *Node) List(args *structs.NodeListRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "list"}, time.Now())
 
-	// Capture all the nodes
-	snap, err := n.srv.fsm.State().Snapshot()
-	if err != nil {
-		return err
-	}
-	iter, err := snap.Nodes()
-	if err != nil {
-		return err
-	}
+	// Setup the blocking query
+	opts := blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		watch:     watch.NewItems(watch.Item{Table: "nodes"}),
+		run: func() error {
+			// Capture all the nodes
+			snap, err := n.srv.fsm.State().Snapshot()
+			if err != nil {
+				return err
+			}
+			iter, err := snap.Nodes()
+			if err != nil {
+				return err
+			}
 
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-		node := raw.(*structs.Node)
-		reply.Nodes = append(reply.Nodes, node.Stub())
-	}
+			var nodes []*structs.NodeListStub
+			for {
+				raw := iter.Next()
+				if raw == nil {
+					break
+				}
+				node := raw.(*structs.Node)
+				nodes = append(nodes, node.Stub())
+			}
+			reply.Nodes = nodes
 
-	// Use the last index that affected the jobs table
-	index, err := snap.Index("nodes")
-	if err != nil {
-		return err
-	}
-	reply.Index = index
+			// Use the last index that affected the jobs table
+			index, err := snap.Index("nodes")
+			if err != nil {
+				return err
+			}
+			reply.Index = index
 
-	// Set the query response
-	n.srv.setQueryMeta(&reply.QueryMeta)
-	return nil
+			// Set the query response
+			n.srv.setQueryMeta(&reply.QueryMeta)
+			return nil
+		}}
+	return n.srv.blockingRPC(&opts)
 }
 
 // createNodeEvals is used to create evaluations for each alloc on a node.

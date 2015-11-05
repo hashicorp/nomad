@@ -48,6 +48,11 @@ func TestParse(t *testing.T) {
 					&structs.TaskGroup{
 						Name:  "outside",
 						Count: 1,
+						RestartPolicy: &structs.RestartPolicy{
+							Attempts: 2,
+							Interval: 1 * time.Minute,
+							Delay:    15 * time.Second,
+						},
 						Tasks: []*structs.Task{
 							&structs.Task{
 								Name:   "outside",
@@ -76,6 +81,11 @@ func TestParse(t *testing.T) {
 							"elb_mode":     "tcp",
 							"elb_interval": "10",
 							"elb_checks":   "3",
+						},
+						RestartPolicy: &structs.RestartPolicy{
+							Interval: 10 * time.Minute,
+							Attempts: 5,
+							Delay:    15 * time.Second,
 						},
 						Tasks: []*structs.Task{
 							&structs.Task{

@@ -1,3 +1,9 @@
+## 0.2.0 (Unreleased)
+
+FEATURES:
+
+  * Blocking queries supported in API [GH-366]
+
 ## 0.1.2 (October 6, 2015)
 
 IMPROVEMENTS:

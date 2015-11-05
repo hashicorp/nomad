@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/nomad/watch"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/yamux"
 )
@@ -268,10 +269,10 @@ func (s *Server) setQueryMeta(m *structs.QueryMeta) {
 
 // blockingOptions is used to parameterize blockingRPC
 type blockingOptions struct {
-	queryOpts  *structs.QueryOptions
-	queryMeta  *structs.QueryMeta
-	allocWatch string
-	run        func() error
+	queryOpts *structs.QueryOptions
+	queryMeta *structs.QueryMeta
+	watch     watch.Items
+	run       func() error
 }
 
 // blockingRPC is used for queries that need to wait for a
@@ -306,17 +307,13 @@ func (s *Server) blockingRPC(opts *blockingOptions) error {
 	state = s.fsm.State()
 	defer func() {
 		timeout.Stop()
-		if opts.allocWatch != "" {
-			state.StopWatchAllocs(opts.allocWatch, notifyCh)
-		}
+		state.StopWatch(opts.watch, notifyCh)
 	}()
 
 REGISTER_NOTIFY:
 	// Register the notification channel. This may be done
 	// multiple times if we have not reached the target wait index.
-	if opts.allocWatch != "" {
-		state.WatchAllocs(opts.allocWatch, notifyCh)
-	}
+	state.Watch(opts.watch, notifyCh)
 
 RUN_QUERY:
 	// Update the query meta data
@@ -327,7 +324,7 @@ RUN_QUERY:
 	err := opts.run()
 
 	// Check for minimum query time
-	if err == nil && opts.queryMeta.Index > 0 && opts.queryMeta.Index <= opts.queryOpts.MinQueryIndex {
+	if err == nil && opts.queryOpts.MinQueryIndex > 0 && opts.queryMeta.Index <= opts.queryOpts.MinQueryIndex {
 		select {
 		case <-notifyCh:
 			goto REGISTER_NOTIFY

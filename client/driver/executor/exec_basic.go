@@ -1,5 +1,3 @@
-// +build !linux
-
 package executor
 
 import (
@@ -14,24 +12,26 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-func NewExecutor() Executor {
-	return &UniversalExecutor{}
-}
-
-// UniversalExecutor should work everywhere, and as a result does not include
+// BasicExecutor should work everywhere, and as a result does not include
 // any resource restrictions or runas capabilities.
-type UniversalExecutor struct {
+type BasicExecutor struct {
 	cmd
 }
 
-func (e *UniversalExecutor) Limit(resources *structs.Resources) error {
+// TODO: Update to use the Spawner.
+// TODO: Have raw_exec use this as well.
+func NewBasicExecutor() Executor {
+	return &BasicExecutor{}
+}
+
+func (e *BasicExecutor) Limit(resources *structs.Resources) error {
 	if resources == nil {
 		return errNoResources
 	}
 	return nil
 }
 
-func (e *UniversalExecutor) ConfigureTaskDir(taskName string, alloc *allocdir.AllocDir) error {
+func (e *BasicExecutor) ConfigureTaskDir(taskName string, alloc *allocdir.AllocDir) error {
 	taskDir, ok := alloc.TaskDirs[taskName]
 	if !ok {
 		return fmt.Errorf("Error finding task dir for (%s)", taskName)
@@ -40,7 +40,7 @@ func (e *UniversalExecutor) ConfigureTaskDir(taskName string, alloc *allocdir.Al
 	return nil
 }
 
-func (e *UniversalExecutor) Start() error {
+func (e *BasicExecutor) Start() error {
 	// Parse the commands arguments and replace instances of Nomad environment
 	// variables.
 	envVars, err := environment.ParseFromList(e.cmd.Env)
@@ -67,7 +67,7 @@ func (e *UniversalExecutor) Start() error {
 	return e.cmd.Start()
 }
 
-func (e *UniversalExecutor) Open(pid string) error {
+func (e *BasicExecutor) Open(pid string) error {
 	pidNum, err := strconv.Atoi(pid)
 	if err != nil {
 		return fmt.Errorf("Failed to parse pid %v: %v", pid, err)
@@ -81,12 +81,12 @@ func (e *UniversalExecutor) Open(pid string) error {
 	return nil
 }
 
-func (e *UniversalExecutor) Wait() error {
+func (e *BasicExecutor) Wait() error {
 	// We don't want to call ourself. We want to call Start on our embedded Cmd
 	return e.cmd.Wait()
 }
 
-func (e *UniversalExecutor) ID() (string, error) {
+func (e *BasicExecutor) ID() (string, error) {
 	if e.cmd.Process != nil {
 		return strconv.Itoa(e.cmd.Process.Pid), nil
 	} else {
@@ -94,14 +94,14 @@ func (e *UniversalExecutor) ID() (string, error) {
 	}
 }
 
-func (e *UniversalExecutor) Shutdown() error {
+func (e *BasicExecutor) Shutdown() error {
 	return e.ForceStop()
 }
 
-func (e *UniversalExecutor) ForceStop() error {
+func (e *BasicExecutor) ForceStop() error {
 	return e.Process.Kill()
 }
 
-func (e *UniversalExecutor) Command() *cmd {
+func (e *BasicExecutor) Command() *cmd {
 	return &e.cmd
 }

@@ -139,11 +139,6 @@ func TestExecutorLinux_Start_Kill(t *testing.T) {
 	filePath := filepath.Join(taskDir, "output")
 	e := Command("/bin/bash", "-c", "sleep 1 ; echo \"failure\" > "+filePath)
 
-	// This test can only be run if cgroups are enabled.
-	if !e.(*LinuxExecutor).cgroupEnabled {
-		t.SkipNow()
-	}
-
 	if err := e.Limit(constraint); err != nil {
 		t.Fatalf("Limit() failed: %v", err)
 	}
@@ -178,13 +173,11 @@ func TestExecutorLinux_Open(t *testing.T) {
 		t.Fatalf("No task directory found for task %v", task)
 	}
 
-	filePath := filepath.Join(taskDir, "output")
-	e := Command("/bin/bash", "-c", "sleep 1 ; echo \"failure\" > "+filePath)
-
-	// This test can only be run if cgroups are enabled.
-	if !e.(*LinuxExecutor).cgroupEnabled {
-		t.SkipNow()
-	}
+	expected := "hello world"
+	file := filepath.Join(allocdir.TaskLocal, "output.txt")
+	absFilePath := filepath.Join(taskDir, file)
+	cmd := fmt.Sprintf(`"%v \"%v\" > %v"`, "/bin/sleep 1 ; echo -n", expected, file)
+	e := Command("/bin/bash", "-c", cmd)
 
 	if err := e.Limit(constraint); err != nil {
 		t.Fatalf("Limit() failed: %v", err)
@@ -203,14 +196,22 @@ func TestExecutorLinux_Open(t *testing.T) {
 		t.Fatalf("ID() failed: %v", err)
 	}
 
-	if _, err := OpenId(id); err == nil {
-		t.Fatalf("Open(%v) should have failed", id)
+	e2 := NewExecutor()
+	if err := e2.Open(id); err != nil {
+		t.Fatalf("Open(%v) failed: %v", id, err)
 	}
 
-	time.Sleep(1500 * time.Millisecond)
+	if err := e2.Wait(); err != nil {
+		t.Fatalf("Wait() failed: %v", err)
+	}
 
-	// Check that the file doesn't exist, open should have killed the process.
-	if _, err := os.Stat(filePath); err == nil {
-		t.Fatalf("Stat(%v) should have failed: task not killed", filePath)
+	output, err := ioutil.ReadFile(absFilePath)
+	if err != nil {
+		t.Fatalf("Couldn't read file %v", absFilePath)
+	}
+
+	act := string(output)
+	if act != expected {
+		t.Fatalf("Command output incorrectly: want %v; got %v", expected, act)
 	}
 }

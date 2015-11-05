@@ -11,7 +11,7 @@ description: |-
 Name: `exec`
 
 The `exec` driver is used to simply execute a particular command for a task.
-However unlike [`raw_exec`](raw_exec.html) it uses the underlying isolation
+However, unlike [`raw_exec`](raw_exec.html) it uses the underlying isolation
 primitives of the operating system to limit the tasks access to resources. While
 simple, since the `exec` driver  can invoke any command, it can be used to call
 scripts or other wrappers which provide higher level features.
@@ -28,9 +28,10 @@ must reference it in the `command` as show in the examples below
 
 ## Client Requirements
 
-The `exec` driver can run on all supported operating systems but to provide
-proper isolation the client must be run as root on non-Windows operating systems.
-Further, to support cgroups, `/sys/fs/cgroups/` must be mounted.
+The `exec` driver can only be run when on Linux and running Nomad as root.
+`exec` is limited to this configuration because currently isolation of resources
+is only guaranteed on Linux. Further the host must have cgroups mounted properly
+in order for the driver to work.
 
 You must specify a `command` to be executed. Optionally you can specify an
 `artifact_source` to be downloaded as well. Any `command` is assumed to be present on the 
@@ -68,8 +69,5 @@ The `exec` driver will set the following client attributes:
 The resource isolation provided varies by the operating system of
 the client and the configuration.
 
-On Linux, Nomad will use cgroups, namespaces, and chroot to isolate the
+On Linux, Nomad will use cgroups, and a chroot to isolate the
 resources of a process and as such the Nomad agent must be run as root.
-
-On Windows, the task driver will just execute the command with no additional
-resource isolation.

@@ -6,6 +6,7 @@ import (
 
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/nomad/watch"
 )
 
 // Job endpoint is used for job interactions
@@ -180,32 +181,41 @@ func (j *Job) GetJob(args *structs.JobSpecificRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "job", "get_job"}, time.Now())
 
-	// Look for the job
-	snap, err := j.srv.fsm.State().Snapshot()
-	if err != nil {
-		return err
-	}
-	out, err := snap.JobByID(args.JobID)
-	if err != nil {
-		return err
-	}
+	// Setup the blocking query
+	opts := blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		watch:     watch.NewItems(watch.Item{Job: args.JobID}),
+		run: func() error {
 
-	// Setup the output
-	if out != nil {
-		reply.Job = out
-		reply.Index = out.ModifyIndex
-	} else {
-		// Use the last index that affected the nodes table
-		index, err := snap.Index("jobs")
-		if err != nil {
-			return err
-		}
-		reply.Index = index
-	}
+			// Look for the job
+			snap, err := j.srv.fsm.State().Snapshot()
+			if err != nil {
+				return err
+			}
+			out, err := snap.JobByID(args.JobID)
+			if err != nil {
+				return err
+			}
 
-	// Set the query response
-	j.srv.setQueryMeta(&reply.QueryMeta)
-	return nil
+			// Setup the output
+			reply.Job = out
+			if out != nil {
+				reply.Index = out.ModifyIndex
+			} else {
+				// Use the last index that affected the nodes table
+				index, err := snap.Index("jobs")
+				if err != nil {
+					return err
+				}
+				reply.Index = index
+			}
+
+			// Set the query response
+			j.srv.setQueryMeta(&reply.QueryMeta)
+			return nil
+		}}
+	return j.srv.blockingRPC(&opts)
 }
 
 // List is used to list the jobs registered in the system
@@ -216,35 +226,45 @@ func (j *Job) List(args *structs.JobListRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "job", "list"}, time.Now())
 
-	// Capture all the jobs
-	snap, err := j.srv.fsm.State().Snapshot()
-	if err != nil {
-		return err
-	}
-	iter, err := snap.Jobs()
-	if err != nil {
-		return err
-	}
+	// Setup the blocking query
+	opts := blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		watch:     watch.NewItems(watch.Item{Table: "jobs"}),
+		run: func() error {
+			// Capture all the jobs
+			snap, err := j.srv.fsm.State().Snapshot()
+			if err != nil {
+				return err
+			}
+			iter, err := snap.Jobs()
+			if err != nil {
+				return err
+			}
 
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-		job := raw.(*structs.Job)
-		reply.Jobs = append(reply.Jobs, job.Stub())
-	}
+			var jobs []*structs.JobListStub
+			for {
+				raw := iter.Next()
+				if raw == nil {
+					break
+				}
+				job := raw.(*structs.Job)
+				jobs = append(jobs, job.Stub())
+			}
+			reply.Jobs = jobs
 
-	// Use the last index that affected the jobs table
-	index, err := snap.Index("jobs")
-	if err != nil {
-		return err
-	}
-	reply.Index = index
+			// Use the last index that affected the jobs table
+			index, err := snap.Index("jobs")
+			if err != nil {
+				return err
+			}
+			reply.Index = index
 
-	// Set the query response
-	j.srv.setQueryMeta(&reply.QueryMeta)
-	return nil
+			// Set the query response
+			j.srv.setQueryMeta(&reply.QueryMeta)
+			return nil
+		}}
+	return j.srv.blockingRPC(&opts)
 }
 
 // Allocations is used to list the allocations for a job
@@ -255,34 +275,43 @@ func (j *Job) Allocations(args *structs.JobSpecificRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "job", "allocations"}, time.Now())
 
-	// Capture the allocations
-	snap, err := j.srv.fsm.State().Snapshot()
-	if err != nil {
-		return err
-	}
-	allocs, err := snap.AllocsByJob(args.JobID)
-	if err != nil {
-		return err
-	}
+	// Setup the blocking query
+	opts := blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		watch:     watch.NewItems(watch.Item{AllocJob: args.JobID}),
+		run: func() error {
+			// Capture the allocations
+			snap, err := j.srv.fsm.State().Snapshot()
+			if err != nil {
+				return err
+			}
+			allocs, err := snap.AllocsByJob(args.JobID)
+			if err != nil {
+				return err
+			}
 
-	// Convert to stubs
-	if len(allocs) > 0 {
-		reply.Allocations = make([]*structs.AllocListStub, 0, len(allocs))
-		for _, alloc := range allocs {
-			reply.Allocations = append(reply.Allocations, alloc.Stub())
-		}
-	}
+			// Convert to stubs
+			if len(allocs) > 0 {
+				reply.Allocations = make([]*structs.AllocListStub, 0, len(allocs))
+				for _, alloc := range allocs {
+					reply.Allocations = append(reply.Allocations, alloc.Stub())
+				}
+			}
 
-	// Use the last index that affected the allocs table
-	index, err := snap.Index("allocs")
-	if err != nil {
-		return err
-	}
-	reply.Index = index
+			// Use the last index that affected the allocs table
+			index, err := snap.Index("allocs")
+			if err != nil {
+				return err
+			}
+			reply.Index = index
 
-	// Set the query response
-	j.srv.setQueryMeta(&reply.QueryMeta)
-	return nil
+			// Set the query response
+			j.srv.setQueryMeta(&reply.QueryMeta)
+			return nil
+
+		}}
+	return j.srv.blockingRPC(&opts)
 }
 
 // Evaluations is used to list the evaluations for a job

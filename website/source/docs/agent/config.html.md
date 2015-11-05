@@ -42,7 +42,7 @@ nodes, unless otherwise specified:
   as `us-west` and `us-east`. Defaults to `global`.
 
 * `datacenter`: Datacenter of the local agent. All members of a datacenter
-  should all share a local LAN connection. Defaults to `dc1`.
+  should share a local LAN connection. Defaults to `dc1`.
 
 * <a id="name">`name`</a>: The name of the local node. This value is used to
   identify individual nodes in a given datacenter and must be unique
@@ -103,7 +103,7 @@ nodes, unless otherwise specified:
   This can be used to advertise a different address to the peers of a server
   node to support more complex network configurations such as NAT. This
   configuration is optional, and defaults to the bind address of the specific
-  network service if it is not provided. This configuration is only appicable
+  network service if it is not provided. This configuration is only applicable
   on server nodes. The value is a map of IP addresses and supports the
   following keys:
   <br>
@@ -125,13 +125,13 @@ nodes, unless otherwise specified:
   * `disable_hostname`: A boolean indicating if gauge values should not be
     prefixed with the local hostname.
 
-* `leave_on_interrupt`: Enables gracefully leave when receiving the
+* `leave_on_interrupt`: Enables gracefully leaving when receiving the
   interrupt signal. By default, the agent will exit forcefully on any signal.
 
-* `leave_on_terminate`: Enables gracefully leave when receiving the
+* `leave_on_terminate`: Enables gracefully leaving when receiving the
   terminate signal. By default, the agent will exit forcefully on any signal.
 
-* `enable_syslog`: Enables logging to syslog. This option only work on
+* `enable_syslog`: Enables logging to syslog. This option only works on
   Unix based systems.
 
 * `syslog_facility`: Controls the syslog facility that is used. By default,
