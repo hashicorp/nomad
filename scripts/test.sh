@@ -10,4 +10,4 @@ go build -o $TEMPDIR/nomad || exit 1
 
 # Run the tests
 echo "--> Running tests"
-go list ./... | PATH=$TEMPDIR:$PATH xargs -n1 go test -cover -timeout=40s
+go list ./... | PATH=$TEMPDIR:$PATH xargs -n1 go test -v -cover -timeout=40s
