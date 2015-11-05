@@ -13,7 +13,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/args"
-        "github.com/hashicorp/nomad/client/getter"
+	"github.com/hashicorp/nomad/client/getter"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -80,14 +80,14 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 	source, ok := task.Config["artifact_source"]
 	if ok && source != "" {
 		// Proceed to download an artifact to be executed.
-                _, err := getter.GetArtifact(
-                        filepath.Join(taskDir, allocdir.TaskLocal),
-                        task.Config["artifact_source"],
-                        task.Config["checksum"],
-                        d.logger,
-                )
-                if err != nil {
-                        return nil, err
+		_, err := getter.GetArtifact(
+			filepath.Join(taskDir, allocdir.TaskLocal),
+			task.Config["artifact_source"],
+			task.Config["checksum"],
+			d.logger,
+		)
+		if err != nil {
+			return nil, err
 		}
 	}
 

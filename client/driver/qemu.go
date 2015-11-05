@@ -16,7 +16,7 @@ import (
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
-        "github.com/hashicorp/nomad/client/getter"
+	"github.com/hashicorp/nomad/client/getter"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -79,7 +79,7 @@ func (d *QemuDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, 
 // image and save it to the Drivers Allocation Dir
 func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
 	// Get the image source
-        source, ok := task.Config["artifact_source"]
+	source, ok := task.Config["artifact_source"]
 	if !ok || source == "" {
 		return nil, fmt.Errorf("Missing source image Qemu driver")
 	}
@@ -96,18 +96,18 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		return nil, fmt.Errorf("Could not find task directory for task: %v", d.DriverContext.taskName)
 	}
 
-        // Proceed to download an artifact to be executed.
-        vmPath, err := getter.GetArtifact(
-                filepath.Join(taskDir, allocdir.TaskLocal),
-                task.Config["artifact_source"],
-                task.Config["checksum"],
-                d.logger,
-        )
-        if err != nil {
-                return nil, err
-        }
+	// Proceed to download an artifact to be executed.
+	vmPath, err := getter.GetArtifact(
+		filepath.Join(taskDir, allocdir.TaskLocal),
+		task.Config["artifact_source"],
+		task.Config["checksum"],
+		d.logger,
+	)
+	if err != nil {
+		return nil, err
+	}
 
-        vmID := filepath.Base(vmPath)
+	vmID := filepath.Base(vmPath)
 
 	// Parse configuration arguments
 	// Create the base arguments

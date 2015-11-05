@@ -97,8 +97,9 @@ func TestJavaDriver_Start_Wait(t *testing.T) {
 	task := &structs.Task{
 		Name: "demo-app",
 		Config: map[string]string{
-                        "artifact_source": "https://dl.dropboxusercontent.com/u/47675/jar_thing/demoapp.jar",
-                        "jvm_options":     "-Xmx2048m -Xms256m",
+			"artifact_source": "https://dl.dropboxusercontent.com/u/47675/jar_thing/demoapp.jar",
+			"jvm_options":     "-Xmx2048m -Xms256m",
+			"checksum":        "sha256:58d6e8130308d32e197c5108edd4f56ddf1417408f743097c2e662df0f0b17c8",
 		},
 		Resources: basicResources,
 	}
@@ -143,7 +144,7 @@ func TestJavaDriver_Start_Kill_Wait(t *testing.T) {
 	task := &structs.Task{
 		Name: "demo-app",
 		Config: map[string]string{
-                        "artifact_source": "https://dl.dropboxusercontent.com/u/47675/jar_thing/demoapp.jar",
+			"artifact_source": "https://dl.dropboxusercontent.com/u/47675/jar_thing/demoapp.jar",
 		},
 		Resources: basicResources,
 	}
