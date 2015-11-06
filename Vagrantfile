@@ -46,6 +46,9 @@ sudo apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58
 sudo apt-get update
 sudo apt-get install -y docker-engine
 
+# Restart docker to make sure we get the latest version of the daemon if there is an upgrade
+sudo service docker restart
+
 # Make sure we can actually use docker as the vagrant user
 sudo usermod -aG docker vagrant
 
