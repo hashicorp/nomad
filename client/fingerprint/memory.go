@@ -11,6 +11,7 @@ import (
 
 // MemoryFingerprint is used to fingerprint the available memory on the node
 type MemoryFingerprint struct {
+	StaticFingerprinter
 	logger *log.Logger
 }
 

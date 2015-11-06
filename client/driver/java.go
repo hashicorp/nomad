@@ -4,17 +4,17 @@ import (
 	"bytes"
 	"fmt"
 	"os/exec"
-	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"syscall"
 	"time"
 
-	"github.com/hashicorp/go-getter"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/executor"
+	"github.com/hashicorp/nomad/client/driver/executor"
+	"github.com/hashicorp/nomad/client/fingerprint"
+	"github.com/hashicorp/nomad/client/getter"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -22,6 +22,7 @@ import (
 // It literally just fork/execs tasks with the java command.
 type JavaDriver struct {
 	DriverContext
+	fingerprint.StaticFingerprinter
 }
 
 // javaHandle is returned from Start/Open as a handle to the PID
@@ -33,13 +34,13 @@ type javaHandle struct {
 
 // NewJavaDriver is used to create a new exec driver
 func NewJavaDriver(ctx *DriverContext) Driver {
-	return &JavaDriver{*ctx}
+	return &JavaDriver{DriverContext: *ctx}
 }
 
 func (d *JavaDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
 	// Only enable if we are root when running on non-windows systems.
-	if runtime.GOOS != "windows" && syscall.Geteuid() != 0 {
-		d.logger.Printf("[DEBUG] driver.java: must run as root user, disabling")
+	if runtime.GOOS == "linux" && syscall.Geteuid() != 0 {
+		d.logger.Printf("[DEBUG] driver.java: must run as root user on linux, disabling")
 		return false, nil
 	}
 
@@ -89,25 +90,23 @@ func (d *JavaDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, 
 }
 
 func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
-	// Get the jar source
-	source, ok := task.Config["jar_source"]
-	if !ok || source == "" {
-		return nil, fmt.Errorf("missing jar source for Java Jar driver")
-	}
-
 	taskDir, ok := ctx.AllocDir.TaskDirs[d.DriverContext.taskName]
 	if !ok {
 		return nil, fmt.Errorf("Could not find task directory for task: %v", d.DriverContext.taskName)
 	}
 
-	destDir := filepath.Join(taskDir, allocdir.TaskLocal)
-
-	// Create a location to download the binary.
-	jarName := path.Base(source)
-	jarPath := filepath.Join(destDir, jarName)
-	if err := getter.GetFile(jarPath, source); err != nil {
-		return nil, fmt.Errorf("Error downloading source for Java driver: %s", err)
+	// Proceed to download an artifact to be executed.
+	path, err := getter.GetArtifact(
+		filepath.Join(taskDir, allocdir.TaskLocal),
+		task.Config["artifact_source"],
+		task.Config["checksum"],
+		d.logger,
+	)
+	if err != nil {
+		return nil, err
 	}
+
+	jarName := filepath.Base(path)
 
 	// Get the environment variables.
 	envVars := TaskEnvironmentVariables(ctx, task)

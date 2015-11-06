@@ -1,14 +1,7 @@
 package driver
 
 import (
-	"bytes"
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
 	"fmt"
-	"io"
-	"log"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -17,9 +10,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/go-getter"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/driver/executor"
+	"github.com/hashicorp/nomad/client/fingerprint"
+	"github.com/hashicorp/nomad/client/getter"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -32,26 +27,19 @@ var (
 // planned in the future
 type QemuDriver struct {
 	DriverContext
+	fingerprint.StaticFingerprinter
 }
 
 // qemuHandle is returned from Start/Open as a handle to the PID
 type qemuHandle struct {
-	proc   *os.Process
-	vmID   string
+	cmd    executor.Executor
 	waitCh chan error
 	doneCh chan struct{}
 }
 
-// qemuPID is a struct to map the pid running the process to the vm image on
-// disk
-type qemuPID struct {
-	Pid  int
-	VmID string
-}
-
 // NewQemuDriver is used to create a new exec driver
 func NewQemuDriver(ctx *DriverContext) Driver {
-	return &QemuDriver{*ctx}
+	return &QemuDriver{DriverContext: *ctx}
 }
 
 func (d *QemuDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
@@ -82,7 +70,7 @@ func (d *QemuDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, 
 // image and save it to the Drivers Allocation Dir
 func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
 	// Get the image source
-	source, ok := task.Config["image_source"]
+	source, ok := task.Config["artifact_source"]
 	if !ok || source == "" {
 		return nil, fmt.Errorf("Missing source image Qemu driver")
 	}
@@ -99,34 +87,18 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		return nil, fmt.Errorf("Could not find task directory for task: %v", d.DriverContext.taskName)
 	}
 
-	// Create a location to download the binary.
-	destDir := filepath.Join(taskDir, allocdir.TaskLocal)
-	vmID := fmt.Sprintf("qemu-vm-%s-%s", structs.GenerateUUID(), filepath.Base(source))
-	vmPath := filepath.Join(destDir, vmID)
-	if err := getter.GetFile(vmPath, source); err != nil {
-		return nil, fmt.Errorf("Error downloading artifact for Qemu driver: %s", err)
+	// Proceed to download an artifact to be executed.
+	vmPath, err := getter.GetArtifact(
+		filepath.Join(taskDir, allocdir.TaskLocal),
+		task.Config["artifact_source"],
+		task.Config["checksum"],
+		d.logger,
+	)
+	if err != nil {
+		return nil, err
 	}
 
-	// compute and check checksum
-	if check, ok := task.Config["checksum"]; ok {
-		d.logger.Printf("[DEBUG] Running checksum on (%s)", vmID)
-		hasher := sha256.New()
-		file, err := os.Open(vmPath)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to open file for checksum")
-		}
-
-		defer file.Close()
-		io.Copy(hasher, file)
-
-		sum := hex.EncodeToString(hasher.Sum(nil))
-		if sum != check {
-			return nil, fmt.Errorf(
-				"Error in Qemu: checksums did not match.\nExpected (%s), got (%s)",
-				check,
-				sum)
-		}
-	}
+	vmID := filepath.Base(vmPath)
 
 	// Parse configuration arguments
 	// Create the base arguments
@@ -201,25 +173,25 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		)
 	}
 
-	// Start Qemu
-	var outBuf, errBuf bytes.Buffer
-	cmd := exec.Command(args[0], args[1:]...)
-	cmd.Stdout = &outBuf
-	cmd.Stderr = &errBuf
+	// Setup the command
+	cmd := executor.Command(args[0], args[1:]...)
+	if err := cmd.Limit(task.Resources); err != nil {
+		return nil, fmt.Errorf("failed to constrain resources: %s", err)
+	}
+
+	if err := cmd.ConfigureTaskDir(d.taskName, ctx.AllocDir); err != nil {
+		return nil, fmt.Errorf("failed to configure task directory: %v", err)
+	}
 
 	d.logger.Printf("[DEBUG] Starting QemuVM command: %q", strings.Join(args, " "))
 	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf(
-			"Error running QEMU: %s\n\nOutput: %s\n\nError: %s",
-			err, outBuf.String(), errBuf.String())
+		return nil, fmt.Errorf("failed to start command: %v", err)
 	}
-
 	d.logger.Printf("[INFO] Started new QemuVM: %s", vmID)
 
 	// Create and Return Handle
 	h := &qemuHandle{
-		proc:   cmd.Process,
-		vmID:   vmPath,
+		cmd:    cmd,
 		doneCh: make(chan struct{}),
 		waitCh: make(chan error, 1),
 	}
@@ -229,42 +201,25 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 }
 
 func (d *QemuDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {
-	// Parse the handle
-	pidBytes := []byte(strings.TrimPrefix(handleID, "QEMU:"))
-	qpid := &qemuPID{}
-	if err := json.Unmarshal(pidBytes, qpid); err != nil {
-		return nil, fmt.Errorf("failed to parse Qemu handle '%s': %v", handleID, err)
-	}
-
 	// Find the process
-	proc, err := os.FindProcess(qpid.Pid)
-	if proc == nil || err != nil {
-		return nil, fmt.Errorf("failed to find Qemu PID %d: %v", qpid.Pid, err)
+	cmd, err := executor.OpenId(handleID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open ID %v: %v", handleID, err)
 	}
 
 	// Return a driver handle
-	h := &qemuHandle{
-		proc:   proc,
-		vmID:   qpid.VmID,
+	h := &execHandle{
+		cmd:    cmd,
 		doneCh: make(chan struct{}),
 		waitCh: make(chan error, 1),
 	}
-
 	go h.run()
 	return h, nil
 }
 
 func (h *qemuHandle) ID() string {
-	// Return a handle to the PID
-	pid := &qemuPID{
-		Pid:  h.proc.Pid,
-		VmID: h.vmID,
-	}
-	data, err := json.Marshal(pid)
-	if err != nil {
-		log.Printf("[ERR] failed to marshal Qemu PID to JSON: %s", err)
-	}
-	return fmt.Sprintf("QEMU:%s", string(data))
+	id, _ := h.cmd.ID()
+	return id
 }
 
 func (h *qemuHandle) WaitCh() chan error {
@@ -276,28 +231,23 @@ func (h *qemuHandle) Update(task *structs.Task) error {
 	return nil
 }
 
-// Kill is used to terminate the task. We send an Interrupt
-// and then provide a 5 second grace period before doing a Kill.
-//
 // TODO: allow a 'shutdown_command' that can be executed over a ssh connection
 // to the VM
 func (h *qemuHandle) Kill() error {
-	h.proc.Signal(os.Interrupt)
+	h.cmd.Shutdown()
 	select {
 	case <-h.doneCh:
 		return nil
 	case <-time.After(5 * time.Second):
-		return h.proc.Kill()
+		return h.cmd.ForceStop()
 	}
 }
 
 func (h *qemuHandle) run() {
-	ps, err := h.proc.Wait()
+	err := h.cmd.Wait()
 	close(h.doneCh)
 	if err != nil {
 		h.waitCh <- err
-	} else if !ps.Success() {
-		h.waitCh <- fmt.Errorf("task exited with error")
 	}
 	close(h.waitCh)
 }

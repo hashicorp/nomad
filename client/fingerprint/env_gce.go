@@ -46,6 +46,7 @@ func lastToken(s string) string {
 
 // EnvGCEFingerprint is used to fingerprint GCE metadata
 type EnvGCEFingerprint struct {
+	StaticFingerprinter
 	client      *http.Client
 	logger      *log.Logger
 	metadataURL string

@@ -19,7 +19,7 @@ func javaLocated() bool {
 
 // The fingerprinter test should always pass, even if Java is not installed.
 func TestJavaDriver_Fingerprint(t *testing.T) {
-	ctestutils.ExecCompatible(t)
+	ctestutils.JavaCompatible(t)
 	d := NewJavaDriver(testDriverContext(""))
 	node := &structs.Node{
 		Attributes: make(map[string]string),
@@ -93,14 +93,13 @@ func TestJavaDriver_Start_Wait(t *testing.T) {
 		t.Skip("Java not found; skipping")
 	}
 
-	ctestutils.ExecCompatible(t)
+	ctestutils.JavaCompatible(t)
 	task := &structs.Task{
 		Name: "demo-app",
 		Config: map[string]string{
-			"jar_source": "https://dl.dropboxusercontent.com/u/47675/jar_thing/demoapp.jar",
-			// "jar_source": "https://s3-us-west-2.amazonaws.com/java-jar-thing/demoapp.jar",
-			// "args": "-d64",
-			"jvm_options": "-Xmx2048m -Xms256m",
+			"artifact_source": "https://dl.dropboxusercontent.com/u/47675/jar_thing/demoapp.jar",
+			"jvm_options":     "-Xmx2048m -Xms256m",
+			"checksum":        "sha256:58d6e8130308d32e197c5108edd4f56ddf1417408f743097c2e662df0f0b17c8",
 		},
 		Resources: basicResources,
 	}
@@ -141,13 +140,11 @@ func TestJavaDriver_Start_Kill_Wait(t *testing.T) {
 		t.Skip("Java not found; skipping")
 	}
 
-	ctestutils.ExecCompatible(t)
+	ctestutils.JavaCompatible(t)
 	task := &structs.Task{
 		Name: "demo-app",
 		Config: map[string]string{
-			"jar_source": "https://dl.dropboxusercontent.com/u/47675/jar_thing/demoapp.jar",
-			// "jar_source": "https://s3-us-west-2.amazonaws.com/java-jar-thing/demoapp.jar",
-			// "args": "-d64",
+			"artifact_source": "https://dl.dropboxusercontent.com/u/47675/jar_thing/demoapp.jar",
 		},
 		Resources: basicResources,
 	}
@@ -179,7 +176,7 @@ func TestJavaDriver_Start_Kill_Wait(t *testing.T) {
 		if err == nil {
 			t.Fatal("should err")
 		}
-	case <-time.After(2 * time.Second):
+	case <-time.After(8 * time.Second):
 		t.Fatalf("timeout")
 	}
 

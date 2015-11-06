@@ -15,6 +15,10 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+// This is where the AWS metadata server normally resides. We hardcode the
+// "instance" path as well since it's the only one we access here.
+const DEFAULT_AWS_URL = "http//169.254.169.254/latest/meta-data/"
+
 // map of instance type to approximate speed, in Mbits/s
 // http://serverfault.com/questions/324883/aws-bandwidth-and-content-delivery/326797#326797
 // which itself cites these sources:
@@ -65,6 +69,7 @@ var ec2InstanceSpeedMap = map[string]int{
 
 // EnvAWSFingerprint is used to fingerprint AWS metadata
 type EnvAWSFingerprint struct {
+	StaticFingerprinter
 	logger *log.Logger
 }
 
@@ -89,7 +94,7 @@ func (f *EnvAWSFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 	}
 	metadataURL := os.Getenv("AWS_ENV_URL")
 	if metadataURL == "" {
-		metadataURL = "http://169.254.169.254/latest/meta-data/"
+		metadataURL = DEFAULT_AWS_URL
 	}
 
 	// assume 2 seconds is enough time for inside AWS network
@@ -161,7 +166,7 @@ func isAWS() bool {
 	// provide their own
 	metadataURL := os.Getenv("AWS_ENV_URL")
 	if metadataURL == "" {
-		metadataURL = "http://169.254.169.254/latest/meta-data/"
+		metadataURL = DEFAULT_AWS_URL
 	}
 
 	// assume 2 seconds is enough time for inside AWS network
@@ -205,7 +210,7 @@ func (f *EnvAWSFingerprint) linkSpeed() int {
 	// the network speed
 	metadataURL := os.Getenv("AWS_ENV_URL")
 	if metadataURL == "" {
-		metadataURL = "http://169.254.169.254/latest/meta-data/"
+		metadataURL = DEFAULT_AWS_URL
 	}
 
 	// assume 2 seconds is enough time for inside AWS network

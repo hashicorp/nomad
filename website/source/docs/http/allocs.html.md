@@ -31,6 +31,11 @@ be specified using the `?region=` query parameter.
     None
   </dd>
 
+  <dt>Blocking Queries</dt>
+  <dd>
+    [Supported](/docs/http/index.html#blocking-queries)
+  </dd>
+
   <dt>Returns</dt>
   <dd>
 
@@ -56,4 +61,3 @@ be specified using the `?region=` query parameter.
 
   </dd>
 </dl>
-

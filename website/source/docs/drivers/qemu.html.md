@@ -23,10 +23,12 @@ The `Qemu` driver can execute any regular `qemu` image (e.g. `qcow`, `img`,
 
 The `Qemu` driver supports the following configuration in the job spec:
 
-* `image_source` - **(Required)** The hosted location of the source Qemu image. Must be accessible
+* `artifact_source` - **(Required)** The hosted location of the source Qemu image. Must be accessible
 from the Nomad client, via HTTP.
-* `checksum` - **(Required)** The SHA256 checksum of the `qemu` image. If the
-checksums do not match, the `Qemu` driver will fail to start the image
+* `checksum` - **(Optional)** The checksum type and value for the `artifact_source` image.
+The format is `type:value`, where type is any of `md5`, `sha1`, `sha256`, or `sha512`,
+and the value is the computed checksum. If a checksum is supplied and does not
+match the downloaded artifact, the driver will fail to start
 * `accelerator` - (Optional) The type of accelerator to use in the invocation.
  If the host machine has `Qemu` installed with KVM support, users can specify `kvm` for the `accelerator`. Default is `tcg`
 * `host_port` - **(Required)** Port on the host machine to forward to the guest
@@ -38,7 +40,7 @@ in the `Task` specification
 ## Client Requirements
 
 The `Qemu` driver requires Qemu to be installed and in your system's `$PATH`.
-The `image_source` must be accessible by the node running Nomad. This can be an
+The `artifact_source` must be accessible by the node running Nomad. This can be an
 internal source, private to your cluster, but it must be reachable by the client
 over HTTP.
 

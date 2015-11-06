@@ -31,6 +31,11 @@ be specified using the `?region=` query parameter.
     None
   </dd>
 
+  <dt>Blocking Queries</dt>
+  <dd>
+    [Supported](/docs/http/index.html#blocking-queries)
+  </dd>
+
   <dt>Returns</dt>
   <dd>
 
@@ -82,9 +87,6 @@ be specified using the `?region=` query parameter.
   </dd>
 </dl>
 
-# /v1/node/\<ID\>/allocations
-## GET
-
 <dl>
   <dt>Description</dt>
   <dd>
@@ -100,6 +102,11 @@ be specified using the `?region=` query parameter.
   <dt>Parameters</dt>
   <dd>
     None
+  </dd>
+
+  <dt>Blocking Queries</dt>
+  <dd>
+    [Supported](/docs/http/index.html#blocking-queries)
   </dd>
 
   <dt>Returns</dt>
@@ -128,7 +135,6 @@ be specified using the `?region=` query parameter.
   </dd>
 </dl>
 
-# /v1/node/\<ID\>/evaluate
 ## PUT / POST
 
 <dl>
@@ -163,9 +169,6 @@ be specified using the `?region=` query parameter.
   </dd>
 </dl>
 
-# /v1/node/\<ID\>/drain
-## PUT / POST
-
 <dl>
   <dt>Description</dt>
   <dd>
@@ -175,7 +178,7 @@ be specified using the `?region=` query parameter.
   </dd>
 
   <dt>Method</dt>
-  <dd>PUT or POSt</dd>
+  <dd>PUT or POST</dd>
 
   <dt>URL</dt>
   <dd>`/v1/node/<ID>/drain`</dd>
@@ -205,4 +208,3 @@ be specified using the `?region=` query parameter.
 
   </dd>
 </dl>
-

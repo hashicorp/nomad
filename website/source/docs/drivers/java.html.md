@@ -18,8 +18,12 @@ HTTP from the Nomad client.
 
 The `java` driver supports the following configuration in the job spec:
 
-* `jar_source` - **(Required)** The hosted location of the source Jar file. Must be accessible
+* `artifact_source` - **(Required)** The hosted location of the source Jar file. Must be accessible
 from the Nomad client
+* `checksum` - **(Optional)** The checksum type and value for the `artifact_source` image.
+The format is `type:value`, where type is any of `md5`, `sha1`, `sha256`, or `sha512`,
+and the value is the computed checksum. If a checksum is supplied and does not
+match the downloaded artifact, the driver will fail to start
 
 * `args` - **(Optional)** The argument list for the `java` command, space separated.
 
@@ -29,9 +33,26 @@ from the Nomad client
 ## Client Requirements
 
 The `java` driver requires Java to be installed and in your systems `$PATH`.
-The `jar_source` must be accessible by the node running Nomad. This can be an 
+The `artifact_source` must be accessible by the node running Nomad. This can be an
 internal source, private to your cluster, but it must be reachable by the client 
 over HTTP. 
+
+## Examples
+
+A simple config block to run a Java Jar:
+
+```json
+# Define a task to run
+task "web" {
+  # Run a Java Jar
+  driver = "java"
+
+  config {
+    artifact_source = "https://dl.dropboxusercontent.com/u/1234/hello.jar"
+    checksum = "md5:123445555555555"
+    jvm_options = "-Xmx2048m -Xms256m"
+  }
+```
 
 ## Client Attributes
 

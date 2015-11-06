@@ -10,6 +10,7 @@ import (
 
 // ArchFingerprint is used to fingerprint the architecture
 type ArchFingerprint struct {
+	StaticFingerprinter
 	logger *log.Logger
 }
 

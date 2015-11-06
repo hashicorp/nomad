@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver"
@@ -16,11 +17,12 @@ import (
 
 // TaskRunner is used to wrap a task within an allocation and provide the execution context.
 type TaskRunner struct {
-	config  *config.Config
-	updater TaskStateUpdater
-	logger  *log.Logger
-	ctx     *driver.ExecContext
-	allocID string
+	config         *config.Config
+	updater        TaskStateUpdater
+	logger         *log.Logger
+	ctx            *driver.ExecContext
+	allocID        string
+	restartTracker restartTracker
 
 	task     *structs.Task
 	updateCh chan *structs.Task
@@ -44,17 +46,19 @@ type TaskStateUpdater func(taskName, status, desc string)
 // NewTaskRunner is used to create a new task context
 func NewTaskRunner(logger *log.Logger, config *config.Config,
 	updater TaskStateUpdater, ctx *driver.ExecContext,
-	allocID string, task *structs.Task) *TaskRunner {
+	allocID string, task *structs.Task, restartTracker restartTracker) *TaskRunner {
+
 	tc := &TaskRunner{
-		config:    config,
-		updater:   updater,
-		logger:    logger,
-		ctx:       ctx,
-		allocID:   allocID,
-		task:      task,
-		updateCh:  make(chan *structs.Task, 8),
-		destroyCh: make(chan struct{}),
-		waitCh:    make(chan struct{}),
+		config:         config,
+		updater:        updater,
+		logger:         logger,
+		restartTracker: restartTracker,
+		ctx:            ctx,
+		allocID:        allocID,
+		task:           task,
+		updateCh:       make(chan *structs.Task, 8),
+		destroyCh:      make(chan struct{}),
+		waitCh:         make(chan struct{}),
 	}
 	return tc
 }
@@ -164,6 +168,7 @@ func (r *TaskRunner) startTask() error {
 
 // Run is a long running routine used to manage the task
 func (r *TaskRunner) Run() {
+	var err error
 	defer close(r.waitCh)
 	r.logger.Printf("[DEBUG] client: starting task context for '%s' (alloc '%s')",
 		r.task.Name, r.allocID)
@@ -175,25 +180,56 @@ func (r *TaskRunner) Run() {
 		}
 	}
 
+	// Monitoring the Driver
+	err = r.monitorDriver(r.handle.WaitCh(), r.updateCh, r.destroyCh)
+	for err != nil {
+		r.logger.Printf("[ERR] client: failed to complete task '%s' for alloc '%s': %v",
+			r.task.Name, r.allocID, err)
+		shouldRestart, when := r.restartTracker.nextRestart()
+		if !shouldRestart {
+			r.logger.Printf("[INFO] client: Not restarting task: %v for alloc: %v ", r.task.Name, r.allocID)
+			r.setStatus(structs.AllocClientStatusDead, fmt.Sprintf("task failed with: %v", err))
+			break
+		}
+
+		r.logger.Printf("[INFO] client: Restarting Task: %v", r.task.Name)
+		r.setStatus(structs.AllocClientStatusPending, "Task Restarting")
+		r.logger.Printf("[DEBUG] client: Sleeping for %v before restarting Task %v", when, r.task.Name)
+		select {
+		case <-time.After(when):
+		case <-r.destroyCh:
+		}
+		r.destroyLock.Lock()
+		if r.destroy {
+			r.logger.Printf("[DEBUG] client: Not restarting task: %v because it's destroyed by user", r.task.Name)
+			break
+		}
+		if err = r.startTask(); err != nil {
+			r.destroyLock.Unlock()
+			continue
+		}
+		r.destroyLock.Unlock()
+		err = r.monitorDriver(r.handle.WaitCh(), r.updateCh, r.destroyCh)
+	}
+
+	// Cleanup after ourselves
+	r.logger.Printf("[INFO] client: completed task '%s' for alloc '%s'", r.task.Name, r.allocID)
+	r.setStatus(structs.AllocClientStatusDead, "task completed")
+
+	r.DestroyState()
+}
+
+// This functions listens to messages from the driver and blocks until the
+// driver exits
+func (r *TaskRunner) monitorDriver(waitCh chan error, updateCh chan *structs.Task, destroyCh chan struct{}) error {
+	var err error
 OUTER:
 	// Wait for updates
 	for {
 		select {
-		case err := <-r.handle.WaitCh():
-			if err != nil {
-				r.logger.Printf("[ERR] client: failed to complete task '%s' for alloc '%s': %v",
-					r.task.Name, r.allocID, err)
-				r.setStatus(structs.AllocClientStatusDead,
-					fmt.Sprintf("task failed with: %v", err))
-			} else {
-				r.logger.Printf("[INFO] client: completed task '%s' for alloc '%s'",
-					r.task.Name, r.allocID)
-				r.setStatus(structs.AllocClientStatusDead,
-					"task completed")
-			}
+		case err = <-waitCh:
 			break OUTER
-
-		case update := <-r.updateCh:
+		case update := <-updateCh:
 			// Update
 			r.task = update
 			if err := r.handle.Update(update); err != nil {
@@ -201,7 +237,7 @@ OUTER:
 					r.task.Name, r.allocID, err)
 			}
 
-		case <-r.destroyCh:
+		case <-destroyCh:
 			// Send the kill signal, and use the WaitCh to block until complete
 			if err := r.handle.Kill(); err != nil {
 				r.logger.Printf("[ERR] client: failed to kill task '%s' for alloc '%s': %v",
@@ -209,9 +245,7 @@ OUTER:
 			}
 		}
 	}
-
-	// Cleanup after ourselves
-	r.DestroyState()
+	return err
 }
 
 // Update is used to update the task of the context

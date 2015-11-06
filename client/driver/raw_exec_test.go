@@ -55,6 +55,7 @@ func TestRawExecDriver_StartOpen_Wait(t *testing.T) {
 			"command": "/bin/sleep",
 			"args":    "1",
 		},
+		Resources: basicResources,
 	}
 	driverCtx := testDriverContext(task.Name)
 	ctx := testDriverExecContext(task, driverCtx)
@@ -84,22 +85,17 @@ func TestRawExecDriver_StartOpen_Wait(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatalf("timeout")
 	}
-
-	// Check they are both tracking the same PID.
-	pid1 := handle.(*rawExecHandle).proc.Pid
-	pid2 := handle2.(*rawExecHandle).proc.Pid
-	if pid1 != pid2 {
-		t.Fatalf("tracking incorrect Pid; %v != %v", pid1, pid2)
-	}
 }
 
 func TestRawExecDriver_Start_Artifact_basic(t *testing.T) {
-	var file string
+	var file, checksum string
 	switch runtime.GOOS {
 	case "darwin":
 		file = "hi_darwin_amd64"
+		checksum = "md5:d7f2fdb13b36dcb7407721d78926b335"
 	default:
 		file = "hi_linux_amd64"
+		checksum = "md5:a9b14903a8942748e4f8474e11f795d3"
 	}
 
 	task := &structs.Task{
@@ -107,7 +103,9 @@ func TestRawExecDriver_Start_Artifact_basic(t *testing.T) {
 		Config: map[string]string{
 			"artifact_source": fmt.Sprintf("https://dl.dropboxusercontent.com/u/47675/jar_thing/%s", file),
 			"command":         filepath.Join("$NOMAD_TASK_DIR", file),
+			"checksum":        checksum,
 		},
+		Resources: basicResources,
 	}
 	driverCtx := testDriverContext(task.Name)
 	ctx := testDriverExecContext(task, driverCtx)
@@ -136,13 +134,6 @@ func TestRawExecDriver_Start_Artifact_basic(t *testing.T) {
 	case <-handle2.WaitCh():
 	case <-time.After(5 * time.Second):
 		t.Fatalf("timeout")
-	}
-
-	// Check they are both tracking the same PID.
-	pid1 := handle.(*rawExecHandle).proc.Pid
-	pid2 := handle2.(*rawExecHandle).proc.Pid
-	if pid1 != pid2 {
-		t.Fatalf("tracking incorrect Pid; %v != %v", pid1, pid2)
 	}
 }
 
@@ -162,6 +153,7 @@ func TestRawExecDriver_Start_Artifact_expanded(t *testing.T) {
 			"command":         "/bin/bash",
 			"args":            fmt.Sprintf("-c '/bin/sleep 1 && %s'", filepath.Join("$NOMAD_TASK_DIR", file)),
 		},
+		Resources: basicResources,
 	}
 	driverCtx := testDriverContext(task.Name)
 	ctx := testDriverExecContext(task, driverCtx)
@@ -191,13 +183,6 @@ func TestRawExecDriver_Start_Artifact_expanded(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatalf("timeout")
 	}
-
-	// Check they are both tracking the same PID.
-	pid1 := handle.(*rawExecHandle).proc.Pid
-	pid2 := handle2.(*rawExecHandle).proc.Pid
-	if pid1 != pid2 {
-		t.Fatalf("tracking incorrect Pid; %v != %v", pid1, pid2)
-	}
 }
 
 func TestRawExecDriver_Start_Wait(t *testing.T) {
@@ -207,6 +192,7 @@ func TestRawExecDriver_Start_Wait(t *testing.T) {
 			"command": "/bin/sleep",
 			"args":    "1",
 		},
+		Resources: basicResources,
 	}
 
 	driverCtx := testDriverContext(task.Name)
@@ -248,6 +234,7 @@ func TestRawExecDriver_Start_Wait_AllocDir(t *testing.T) {
 			"command": "/bin/bash",
 			"args":    fmt.Sprintf(`-c "sleep 1; echo -n %s > $%s/%s"`, string(exp), environment.AllocDir, file),
 		},
+		Resources: basicResources,
 	}
 
 	driverCtx := testDriverContext(task.Name)
@@ -292,6 +279,7 @@ func TestRawExecDriver_Start_Kill_Wait(t *testing.T) {
 			"command": "/bin/sleep",
 			"args":    "1",
 		},
+		Resources: basicResources,
 	}
 
 	driverCtx := testDriverContext(task.Name)

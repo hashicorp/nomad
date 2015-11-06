@@ -1,11 +1,11 @@
 package structs
 
 import (
+	"github.com/hashicorp/go-multierror"
 	"reflect"
 	"strings"
 	"testing"
-
-	"github.com/hashicorp/go-multierror"
+	"time"
 )
 
 func TestJob_Validate(t *testing.T) {
@@ -44,11 +44,27 @@ func TestJob_Validate(t *testing.T) {
 		TaskGroups: []*TaskGroup{
 			&TaskGroup{
 				Name: "web",
+				RestartPolicy: &RestartPolicy{
+					Interval: 5 * time.Minute,
+					Delay:    10 * time.Second,
+					Attempts: 10,
+				},
 			},
 			&TaskGroup{
 				Name: "web",
+				RestartPolicy: &RestartPolicy{
+					Interval: 5 * time.Minute,
+					Delay:    10 * time.Second,
+					Attempts: 10,
+				},
 			},
-			&TaskGroup{},
+			&TaskGroup{
+				RestartPolicy: &RestartPolicy{
+					Interval: 5 * time.Minute,
+					Delay:    10 * time.Second,
+					Attempts: 10,
+				},
+			},
 		},
 	}
 	err = j.Validate()
@@ -65,7 +81,13 @@ func TestJob_Validate(t *testing.T) {
 }
 
 func TestTaskGroup_Validate(t *testing.T) {
-	tg := &TaskGroup{}
+	tg := &TaskGroup{
+		RestartPolicy: &RestartPolicy{
+			Interval: 5 * time.Minute,
+			Delay:    10 * time.Second,
+			Attempts: 10,
+		},
+	}
 	err := tg.Validate()
 	mErr := err.(*multierror.Error)
 	if !strings.Contains(mErr.Errors[0].Error(), "group name") {
@@ -85,6 +107,11 @@ func TestTaskGroup_Validate(t *testing.T) {
 			&Task{Name: "web"},
 			&Task{Name: "web"},
 			&Task{},
+		},
+		RestartPolicy: &RestartPolicy{
+			Interval: 5 * time.Minute,
+			Delay:    10 * time.Second,
+			Attempts: 10,
 		},
 	}
 	err = tg.Validate()

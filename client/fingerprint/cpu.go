@@ -11,6 +11,7 @@ import (
 
 // CPUFingerprint is used to fingerprint the CPU
 type CPUFingerprint struct {
+	StaticFingerprinter
 	logger *log.Logger
 }
 

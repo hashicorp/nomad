@@ -8,6 +8,7 @@ import (
 
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/nomad/watch"
 )
 
 func testStateStore(t *testing.T) *StateStore {
@@ -24,6 +25,11 @@ func testStateStore(t *testing.T) *StateStore {
 func TestStateStore_UpsertNode_Node(t *testing.T) {
 	state := testStateStore(t)
 	node := mock.Node()
+
+	notify := setupNotifyTest(
+		state,
+		watch.Item{Table: "nodes"},
+		watch.Item{Node: node.ID})
 
 	err := state.UpsertNode(1000, node)
 	if err != nil {
@@ -46,11 +52,18 @@ func TestStateStore_UpsertNode_Node(t *testing.T) {
 	if index != 1000 {
 		t.Fatalf("bad: %d", index)
 	}
+
+	notify.verify(t)
 }
 
 func TestStateStore_DeleteNode_Node(t *testing.T) {
 	state := testStateStore(t)
 	node := mock.Node()
+
+	notify := setupNotifyTest(
+		state,
+		watch.Item{Table: "nodes"},
+		watch.Item{Node: node.ID})
 
 	err := state.UpsertNode(1000, node)
 	if err != nil {
@@ -78,11 +91,18 @@ func TestStateStore_DeleteNode_Node(t *testing.T) {
 	if index != 1001 {
 		t.Fatalf("bad: %d", index)
 	}
+
+	notify.verify(t)
 }
 
 func TestStateStore_UpdateNodeStatus_Node(t *testing.T) {
 	state := testStateStore(t)
 	node := mock.Node()
+
+	notify := setupNotifyTest(
+		state,
+		watch.Item{Table: "nodes"},
+		watch.Item{Node: node.ID})
 
 	err := state.UpsertNode(1000, node)
 	if err != nil {
@@ -113,11 +133,18 @@ func TestStateStore_UpdateNodeStatus_Node(t *testing.T) {
 	if index != 1001 {
 		t.Fatalf("bad: %d", index)
 	}
+
+	notify.verify(t)
 }
 
 func TestStateStore_UpdateNodeDrain_Node(t *testing.T) {
 	state := testStateStore(t)
 	node := mock.Node()
+
+	notify := setupNotifyTest(
+		state,
+		watch.Item{Table: "nodes"},
+		watch.Item{Node: node.ID})
 
 	err := state.UpsertNode(1000, node)
 	if err != nil {
@@ -148,6 +175,8 @@ func TestStateStore_UpdateNodeDrain_Node(t *testing.T) {
 	if index != 1001 {
 		t.Fatalf("bad: %d", index)
 	}
+
+	notify.verify(t)
 }
 
 func TestStateStore_Nodes(t *testing.T) {
@@ -188,18 +217,22 @@ func TestStateStore_Nodes(t *testing.T) {
 
 func TestStateStore_RestoreNode(t *testing.T) {
 	state := testStateStore(t)
+	node := mock.Node()
+
+	notify := setupNotifyTest(
+		state,
+		watch.Item{Table: "nodes"},
+		watch.Item{Node: node.ID})
 
 	restore, err := state.Restore()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	node := mock.Node()
 	err = restore.NodeRestore(node)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-
 	restore.Commit()
 
 	out, err := state.NodeByID(node.ID)
@@ -210,11 +243,18 @@ func TestStateStore_RestoreNode(t *testing.T) {
 	if !reflect.DeepEqual(out, node) {
 		t.Fatalf("Bad: %#v %#v", out, node)
 	}
+
+	notify.verify(t)
 }
 
 func TestStateStore_UpsertJob_Job(t *testing.T) {
 	state := testStateStore(t)
 	job := mock.Job()
+
+	notify := setupNotifyTest(
+		state,
+		watch.Item{Table: "jobs"},
+		watch.Item{Job: job.ID})
 
 	err := state.UpsertJob(1000, job)
 	if err != nil {
@@ -237,11 +277,18 @@ func TestStateStore_UpsertJob_Job(t *testing.T) {
 	if index != 1000 {
 		t.Fatalf("bad: %d", index)
 	}
+
+	notify.verify(t)
 }
 
 func TestStateStore_UpdateUpsertJob_Job(t *testing.T) {
 	state := testStateStore(t)
 	job := mock.Job()
+
+	notify := setupNotifyTest(
+		state,
+		watch.Item{Table: "jobs"},
+		watch.Item{Job: job.ID})
 
 	err := state.UpsertJob(1000, job)
 	if err != nil {
@@ -278,11 +325,18 @@ func TestStateStore_UpdateUpsertJob_Job(t *testing.T) {
 	if index != 1001 {
 		t.Fatalf("bad: %d", index)
 	}
+
+	notify.verify(t)
 }
 
 func TestStateStore_DeleteJob_Job(t *testing.T) {
 	state := testStateStore(t)
 	job := mock.Job()
+
+	notify := setupNotifyTest(
+		state,
+		watch.Item{Table: "jobs"},
+		watch.Item{Job: job.ID})
 
 	err := state.UpsertJob(1000, job)
 	if err != nil {
@@ -310,6 +364,8 @@ func TestStateStore_DeleteJob_Job(t *testing.T) {
 	if index != 1001 {
 		t.Fatalf("bad: %d", index)
 	}
+
+	notify.verify(t)
 }
 
 func TestStateStore_Jobs(t *testing.T) {
@@ -417,18 +473,22 @@ func TestStateStore_JobsByScheduler(t *testing.T) {
 
 func TestStateStore_RestoreJob(t *testing.T) {
 	state := testStateStore(t)
+	job := mock.Job()
+
+	notify := setupNotifyTest(
+		state,
+		watch.Item{Table: "jobs"},
+		watch.Item{Job: job.ID})
 
 	restore, err := state.Restore()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	job := mock.Job()
 	err = restore.JobRestore(job)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-
 	restore.Commit()
 
 	out, err := state.JobByID(job.ID)
@@ -439,6 +499,8 @@ func TestStateStore_RestoreJob(t *testing.T) {
 	if !reflect.DeepEqual(out, job) {
 		t.Fatalf("Bad: %#v %#v", out, job)
 	}
+
+	notify.verify(t)
 }
 
 func TestStateStore_Indexes(t *testing.T) {
@@ -503,6 +565,11 @@ func TestStateStore_UpsertEvals_Eval(t *testing.T) {
 	state := testStateStore(t)
 	eval := mock.Eval()
 
+	notify := setupNotifyTest(
+		state,
+		watch.Item{Table: "evals"},
+		watch.Item{Eval: eval.ID})
+
 	err := state.UpsertEvals(1000, []*structs.Evaluation{eval})
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -524,6 +591,8 @@ func TestStateStore_UpsertEvals_Eval(t *testing.T) {
 	if index != 1000 {
 		t.Fatalf("bad: %d", index)
 	}
+
+	notify.verify(t)
 }
 
 func TestStateStore_Update_UpsertEvals_Eval(t *testing.T) {
@@ -534,6 +603,11 @@ func TestStateStore_Update_UpsertEvals_Eval(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
+
+	notify := setupNotifyTest(
+		state,
+		watch.Item{Table: "evals"},
+		watch.Item{Eval: eval.ID})
 
 	eval2 := mock.Eval()
 	eval2.ID = eval.ID
@@ -565,40 +639,54 @@ func TestStateStore_Update_UpsertEvals_Eval(t *testing.T) {
 	if index != 1001 {
 		t.Fatalf("bad: %d", index)
 	}
+
+	notify.verify(t)
 }
 
 func TestStateStore_DeleteEval_Eval(t *testing.T) {
 	state := testStateStore(t)
-	eval := mock.Eval()
+	eval1 := mock.Eval()
 	eval2 := mock.Eval()
-	alloc := mock.Alloc()
+	alloc1 := mock.Alloc()
 	alloc2 := mock.Alloc()
 
-	err := state.UpsertEvals(1000, []*structs.Evaluation{eval, eval2})
+	notify := setupNotifyTest(
+		state,
+		watch.Item{Table: "evals"},
+		watch.Item{Table: "allocs"},
+		watch.Item{Eval: eval1.ID},
+		watch.Item{Eval: eval2.ID},
+		watch.Item{Alloc: alloc1.ID},
+		watch.Item{Alloc: alloc2.ID},
+		watch.Item{AllocEval: alloc1.EvalID},
+		watch.Item{AllocEval: alloc2.EvalID},
+		watch.Item{AllocJob: alloc1.JobID},
+		watch.Item{AllocJob: alloc2.JobID},
+		watch.Item{AllocNode: alloc1.NodeID},
+		watch.Item{AllocNode: alloc2.NodeID})
+
+	err := state.UpsertEvals(1000, []*structs.Evaluation{eval1, eval2})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	err = state.UpsertAllocs(1001, []*structs.Allocation{alloc, alloc2})
+	err = state.UpsertAllocs(1001, []*structs.Allocation{alloc1, alloc2})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	notify1 := make(chan struct{}, 1)
-	state.WatchAllocs(alloc.NodeID, notify1)
-
-	err = state.DeleteEval(1002, []string{eval.ID, eval2.ID}, []string{alloc.ID, alloc2.ID})
+	err = state.DeleteEval(1002, []string{eval1.ID, eval2.ID}, []string{alloc1.ID, alloc2.ID})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	out, err := state.EvalByID(eval.ID)
+	out, err := state.EvalByID(eval1.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	if out != nil {
-		t.Fatalf("bad: %#v %#v", eval, out)
+		t.Fatalf("bad: %#v %#v", eval1, out)
 	}
 
 	out, err = state.EvalByID(eval2.ID)
@@ -607,16 +695,16 @@ func TestStateStore_DeleteEval_Eval(t *testing.T) {
 	}
 
 	if out != nil {
-		t.Fatalf("bad: %#v %#v", eval, out)
+		t.Fatalf("bad: %#v %#v", eval1, out)
 	}
 
-	outA, err := state.AllocByID(alloc.ID)
+	outA, err := state.AllocByID(alloc1.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	if out != nil {
-		t.Fatalf("bad: %#v %#v", alloc, outA)
+		t.Fatalf("bad: %#v %#v", alloc1, outA)
 	}
 
 	outA, err = state.AllocByID(alloc2.ID)
@@ -625,7 +713,7 @@ func TestStateStore_DeleteEval_Eval(t *testing.T) {
 	}
 
 	if out != nil {
-		t.Fatalf("bad: %#v %#v", alloc, outA)
+		t.Fatalf("bad: %#v %#v", alloc1, outA)
 	}
 
 	index, err := state.Index("evals")
@@ -644,11 +732,7 @@ func TestStateStore_DeleteEval_Eval(t *testing.T) {
 		t.Fatalf("bad: %d", index)
 	}
 
-	select {
-	case <-notify1:
-	default:
-		t.Fatalf("should be notified")
-	}
+	notify.verify(t)
 }
 
 func TestStateStore_EvalsByJob(t *testing.T) {
@@ -720,34 +804,48 @@ func TestStateStore_Evals(t *testing.T) {
 
 func TestStateStore_RestoreEval(t *testing.T) {
 	state := testStateStore(t)
+	eval := mock.Eval()
+
+	notify := setupNotifyTest(
+		state,
+		watch.Item{Table: "evals"},
+		watch.Item{Eval: eval.ID})
 
 	restore, err := state.Restore()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	job := mock.Eval()
-	err = restore.EvalRestore(job)
+	err = restore.EvalRestore(eval)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-
 	restore.Commit()
 
-	out, err := state.EvalByID(job.ID)
+	out, err := state.EvalByID(eval.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	if !reflect.DeepEqual(out, job) {
-		t.Fatalf("Bad: %#v %#v", out, job)
+	if !reflect.DeepEqual(out, eval) {
+		t.Fatalf("Bad: %#v %#v", out, eval)
 	}
+
+	notify.verify(t)
 }
 
 func TestStateStore_UpdateAllocFromClient(t *testing.T) {
 	state := testStateStore(t)
-
 	alloc := mock.Alloc()
+
+	notify := setupNotifyTest(
+		state,
+		watch.Item{Table: "allocs"},
+		watch.Item{Alloc: alloc.ID},
+		watch.Item{AllocEval: alloc.EvalID},
+		watch.Item{AllocJob: alloc.JobID},
+		watch.Item{AllocNode: alloc.NodeID})
+
 	err := state.UpsertAllocs(1000, []*structs.Allocation{alloc})
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -779,12 +877,22 @@ func TestStateStore_UpdateAllocFromClient(t *testing.T) {
 	if index != 1001 {
 		t.Fatalf("bad: %d", index)
 	}
+
+	notify.verify(t)
 }
 
 func TestStateStore_UpsertAlloc_Alloc(t *testing.T) {
 	state := testStateStore(t)
-
 	alloc := mock.Alloc()
+
+	notify := setupNotifyTest(
+		state,
+		watch.Item{Table: "allocs"},
+		watch.Item{Alloc: alloc.ID},
+		watch.Item{AllocEval: alloc.EvalID},
+		watch.Item{AllocJob: alloc.JobID},
+		watch.Item{AllocNode: alloc.NodeID})
+
 	err := state.UpsertAllocs(1000, []*structs.Allocation{alloc})
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -806,35 +914,8 @@ func TestStateStore_UpsertAlloc_Alloc(t *testing.T) {
 	if index != 1000 {
 		t.Fatalf("bad: %d", index)
 	}
-}
 
-func TestStateStore_WatchAllocs(t *testing.T) {
-	state := testStateStore(t)
-
-	notify1 := make(chan struct{}, 1)
-	notify2 := make(chan struct{}, 1)
-	state.WatchAllocs("foo", notify1)
-	state.WatchAllocs("foo", notify2)
-	state.StopWatchAllocs("foo", notify2)
-
-	alloc := mock.Alloc()
-	alloc.NodeID = "foo"
-	err := state.UpsertAllocs(1000, []*structs.Allocation{alloc})
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	select {
-	case <-notify1:
-	default:
-		t.Fatalf("should be notified")
-	}
-
-	select {
-	case <-notify2:
-		t.Fatalf("should not be notified")
-	default:
-	}
+	notify.verify(t)
 }
 
 func TestStateStore_UpdateAlloc_Alloc(t *testing.T) {
@@ -849,6 +930,15 @@ func TestStateStore_UpdateAlloc_Alloc(t *testing.T) {
 	alloc2 := mock.Alloc()
 	alloc2.ID = alloc.ID
 	alloc2.NodeID = alloc.NodeID + ".new"
+
+	notify := setupNotifyTest(
+		state,
+		watch.Item{Table: "allocs"},
+		watch.Item{Alloc: alloc2.ID},
+		watch.Item{AllocEval: alloc2.EvalID},
+		watch.Item{AllocJob: alloc2.JobID},
+		watch.Item{AllocNode: alloc2.NodeID})
+
 	err = state.UpsertAllocs(1001, []*structs.Allocation{alloc2})
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -877,6 +967,8 @@ func TestStateStore_UpdateAlloc_Alloc(t *testing.T) {
 	if index != 1001 {
 		t.Fatalf("bad: %d", index)
 	}
+
+	notify.verify(t)
 }
 
 func TestStateStore_EvictAlloc_Alloc(t *testing.T) {
@@ -1008,13 +1100,21 @@ func TestStateStore_Allocs(t *testing.T) {
 
 func TestStateStore_RestoreAlloc(t *testing.T) {
 	state := testStateStore(t)
+	alloc := mock.Alloc()
+
+	notify := setupNotifyTest(
+		state,
+		watch.Item{Table: "allocs"},
+		watch.Item{Alloc: alloc.ID},
+		watch.Item{AllocEval: alloc.EvalID},
+		watch.Item{AllocJob: alloc.JobID},
+		watch.Item{AllocNode: alloc.NodeID})
 
 	restore, err := state.Restore()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	alloc := mock.Alloc()
 	err = restore.AllocRestore(alloc)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -1029,6 +1129,87 @@ func TestStateStore_RestoreAlloc(t *testing.T) {
 
 	if !reflect.DeepEqual(out, alloc) {
 		t.Fatalf("Bad: %#v %#v", out, alloc)
+	}
+
+	notify.verify(t)
+}
+
+func TestStateWatch_watch(t *testing.T) {
+	sw := newStateWatch()
+	notify1 := make(chan struct{}, 1)
+	notify2 := make(chan struct{}, 1)
+	notify3 := make(chan struct{}, 1)
+
+	// Notifications trigger subscribed channels
+	sw.watch(watch.NewItems(watch.Item{Table: "foo"}), notify1)
+	sw.watch(watch.NewItems(watch.Item{Table: "bar"}), notify2)
+	sw.watch(watch.NewItems(watch.Item{Table: "baz"}), notify3)
+
+	items := watch.NewItems()
+	items.Add(watch.Item{Table: "foo"})
+	items.Add(watch.Item{Table: "bar"})
+
+	sw.notify(items)
+	if len(notify1) != 1 {
+		t.Fatalf("should notify")
+	}
+	if len(notify2) != 1 {
+		t.Fatalf("should notify")
+	}
+	if len(notify3) != 0 {
+		t.Fatalf("should not notify")
+	}
+}
+
+func TestStateWatch_stopWatch(t *testing.T) {
+	sw := newStateWatch()
+	notify := make(chan struct{})
+
+	// First subscribe
+	sw.watch(watch.NewItems(watch.Item{Table: "foo"}), notify)
+
+	// Unsubscribe stop notifications
+	sw.stopWatch(watch.NewItems(watch.Item{Table: "foo"}), notify)
+
+	// Check that the group was removed
+	if _, ok := sw.items[watch.Item{Table: "foo"}]; ok {
+		t.Fatalf("should remove group")
+	}
+
+	// Check that we are not notified
+	sw.notify(watch.NewItems(watch.Item{Table: "foo"}))
+	if len(notify) != 0 {
+		t.Fatalf("should not notify")
+	}
+}
+
+// setupNotifyTest takes a state store and a set of watch items, then creates
+// and subscribes a notification channel for each item.
+func setupNotifyTest(state *StateStore, items ...watch.Item) notifyTest {
+	var n notifyTest
+	for _, item := range items {
+		ch := make(chan struct{}, 1)
+		state.Watch(watch.NewItems(item), ch)
+		n = append(n, &notifyTestCase{item, ch})
+	}
+	return n
+}
+
+// notifyTestCase is used to set up and verify watch triggers.
+type notifyTestCase struct {
+	item watch.Item
+	ch   chan struct{}
+}
+
+// notifyTest is a suite of notifyTestCases.
+type notifyTest []*notifyTestCase
+
+// verify ensures that each channel received a notification.
+func (n notifyTest) verify(t *testing.T) {
+	for _, tcase := range n {
+		if len(tcase.ch) != 1 {
+			t.Fatalf("should notify %#v", tcase.item)
+		}
 	}
 }
 

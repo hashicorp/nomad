@@ -2,31 +2,21 @@ package driver
 
 import (
 	"fmt"
-	"log"
-	"os"
-	"os/exec"
-	"path"
 	"path/filepath"
-	"runtime"
 	"strconv"
-	"strings"
-	"syscall"
 	"time"
 
-	"github.com/hashicorp/go-getter"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/driver/args"
+	"github.com/hashicorp/nomad/client/driver/executor"
+	"github.com/hashicorp/nomad/client/fingerprint"
+	"github.com/hashicorp/nomad/client/getter"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 const (
 	// The option that enables this driver in the Config.Options map.
 	rawExecConfigOption = "driver.raw_exec.enable"
-
-	// Null files to use as stdin.
-	unixNull    = "/dev/null"
-	windowsNull = "nul"
 )
 
 // The RawExecDriver is a privileged version of the exec driver. It provides no
@@ -34,18 +24,19 @@ const (
 // and this should only be used when explicitly needed.
 type RawExecDriver struct {
 	DriverContext
+	fingerprint.StaticFingerprinter
 }
 
 // rawExecHandle is returned from Start/Open as a handle to the PID
 type rawExecHandle struct {
-	proc   *os.Process
+	cmd    executor.Executor
 	waitCh chan error
 	doneCh chan struct{}
 }
 
 // NewRawExecDriver is used to create a new raw exec driver
 func NewRawExecDriver(ctx *DriverContext) Driver {
-	return &RawExecDriver{*ctx}
+	return &RawExecDriver{DriverContext: *ctx}
 }
 
 func (d *RawExecDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
@@ -71,7 +62,6 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 	if !ok {
 		return nil, fmt.Errorf("Could not find task directory for task: %v", d.DriverContext.taskName)
 	}
-	taskLocal := filepath.Join(taskDir, allocdir.TaskLocal)
 
 	// Get the command to be ran
 	command, ok := task.Config["command"]
@@ -83,88 +73,47 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 	source, ok := task.Config["artifact_source"]
 	if ok && source != "" {
 		// Proceed to download an artifact to be executed.
-		// We use go-getter to support a variety of protocols, but need to change
-		// file permissions of the resulted download to be executable
-
-		// Create a location to download the artifact.
-		destDir := filepath.Join(taskDir, allocdir.TaskLocal)
-
-		artifactName := path.Base(source)
-		artifactFile := filepath.Join(destDir, artifactName)
-		if err := getter.GetFile(artifactFile, source); err != nil {
-			return nil, fmt.Errorf("Error downloading artifact for Raw Exec driver: %s", err)
-		}
-
-		// Add execution permissions to the newly downloaded artifact
-		if runtime.GOOS != "windows" {
-			if err := syscall.Chmod(artifactFile, 0755); err != nil {
-				log.Printf("[ERR] driver.raw_exec: Error making artifact executable: %s", err)
-			}
+		_, err := getter.GetArtifact(
+			filepath.Join(taskDir, allocdir.TaskLocal),
+			task.Config["artifact_source"],
+			task.Config["checksum"],
+			d.logger,
+		)
+		if err != nil {
+			return nil, err
 		}
 	}
 
 	// Get the environment variables.
 	envVars := TaskEnvironmentVariables(ctx, task)
 
-	// expand NOMAD_TASK_DIR
-	parsedPath, err := args.ParseAndReplace(command, envVars.Map())
-	if err != nil {
-		return nil, fmt.Errorf("failure to parse arguments in command path: %v", command)
-	} else if len(parsedPath) != 1 {
-		return nil, fmt.Errorf("couldn't properly parse command path: %v", command)
-	}
-
-	cm := parsedPath[0]
-
 	// Look for arguments
-	var cmdArgs []string
+	var args []string
 	if argRaw, ok := task.Config["args"]; ok {
-		parsed, err := args.ParseAndReplace(argRaw, envVars.Map())
-		if err != nil {
-			return nil, err
-		}
-		cmdArgs = append(cmdArgs, parsed...)
+		args = append(args, argRaw)
 	}
 
 	// Setup the command
-	cmd := exec.Command(cm, cmdArgs...)
-	cmd.Dir = taskDir
-	cmd.Env = envVars.List()
-
-	// Capture the stdout/stderr and redirect stdin to /dev/null
-	stdoutFilename := filepath.Join(taskLocal, fmt.Sprintf("%s.stdout", taskName))
-	stderrFilename := filepath.Join(taskLocal, fmt.Sprintf("%s.stderr", taskName))
-	stdinFilename := unixNull
-	if runtime.GOOS == "windows" {
-		stdinFilename = windowsNull
+	cmd := executor.NewBasicExecutor()
+	executor.SetCommand(cmd, command, args)
+	if err := cmd.Limit(task.Resources); err != nil {
+		return nil, fmt.Errorf("failed to constrain resources: %s", err)
 	}
 
-	stdo, err := os.OpenFile(stdoutFilename, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
-	if err != nil {
-		return nil, fmt.Errorf("Error opening file to redirect stdout: %v", err)
-	}
+	// Populate environment variables
+	cmd.Command().Env = envVars.List()
 
-	stde, err := os.OpenFile(stderrFilename, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
-	if err != nil {
-		return nil, fmt.Errorf("Error opening file to redirect stderr: %v", err)
+	if err := cmd.ConfigureTaskDir(d.taskName, ctx.AllocDir); err != nil {
+		return nil, fmt.Errorf("failed to configure task directory: %v", err)
 	}
-
-	stdi, err := os.OpenFile(stdinFilename, os.O_CREATE|os.O_RDONLY, 0666)
-	if err != nil {
-		return nil, fmt.Errorf("Error opening file to redirect stdin: %v", err)
-	}
-
-	cmd.Stdout = stdo
-	cmd.Stderr = stde
-	cmd.Stdin = stdi
 
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("failed to start command: %v", err)
 	}
 
 	// Return a driver handle
-	h := &rawExecHandle{
-		proc:   cmd.Process,
+	h := &execHandle{
+		cmd:    cmd,
 		doneCh: make(chan struct{}),
 		waitCh: make(chan error, 1),
 	}
@@ -173,22 +122,15 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 }
 
 func (d *RawExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {
-	// Split the handle
-	pidStr := strings.TrimPrefix(handleID, "PID:")
-	pid, err := strconv.Atoi(pidStr)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse handle '%s': %v", handleID, err)
-	}
-
 	// Find the process
-	proc, err := os.FindProcess(pid)
-	if proc == nil || err != nil {
-		return nil, fmt.Errorf("failed to find PID %d: %v", pid, err)
+	cmd := executor.NewBasicExecutor()
+	if err := cmd.Open(handleID); err != nil {
+		return nil, fmt.Errorf("failed to open ID %v: %v", handleID, err)
 	}
 
 	// Return a driver handle
-	h := &rawExecHandle{
-		proc:   proc,
+	h := &execHandle{
+		cmd:    cmd,
 		doneCh: make(chan struct{}),
 		waitCh: make(chan error, 1),
 	}
@@ -197,8 +139,8 @@ func (d *RawExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, e
 }
 
 func (h *rawExecHandle) ID() string {
-	// Return a handle to the PID
-	return fmt.Sprintf("PID:%d", h.proc.Pid)
+	id, _ := h.cmd.ID()
+	return id
 }
 
 func (h *rawExecHandle) WaitCh() chan error {
@@ -210,30 +152,21 @@ func (h *rawExecHandle) Update(task *structs.Task) error {
 	return nil
 }
 
-// Kill is used to terminate the task. We send an Interrupt
-// and then provide a 5 second grace period before doing a Kill on supported
-// OS's, otherwise we kill immediately.
 func (h *rawExecHandle) Kill() error {
-	if runtime.GOOS == "windows" {
-		return h.proc.Kill()
-	}
-
-	h.proc.Signal(os.Interrupt)
+	h.cmd.Shutdown()
 	select {
 	case <-h.doneCh:
 		return nil
 	case <-time.After(5 * time.Second):
-		return h.proc.Kill()
+		return h.cmd.ForceStop()
 	}
 }
 
 func (h *rawExecHandle) run() {
-	ps, err := h.proc.Wait()
+	err := h.cmd.Wait()
 	close(h.doneCh)
 	if err != nil {
 		h.waitCh <- err
-	} else if !ps.Success() {
-		h.waitCh <- fmt.Errorf("task exited with error")
 	}
 	close(h.waitCh)
 }

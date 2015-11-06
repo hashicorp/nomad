@@ -31,6 +31,7 @@ The API is modeled closely on the underlying data model. Use the links to the le
 documentation about specific endpoints. There are also "Agent" APIs which interact with
 a specific agent and not the broader cluster used for administration.
 
+<a name="blocking-queries"></a>
 ## Blocking Queries
 
 Certain endpoints support a feature called a "blocking query." A blocking query
