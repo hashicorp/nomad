@@ -290,10 +290,13 @@ func (s *Spawner) readExitCode() (int, error) {
 // Wait could be called. This is useful to call when reopening a Spawner
 // throught client restarts. If Valid a nil error is returned.
 func (s *Spawner) Valid() error {
+	// If the spawner is still alive, then the task is running and we can wait
+	// on it.
 	if s.Alive() {
 		return nil
 	}
 
+	// The task isn't alive so check that there is a valid exit code file.
 	if _, err := s.readExitCode(); err == nil {
 		return nil
 	}
