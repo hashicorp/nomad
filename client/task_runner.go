@@ -181,6 +181,7 @@ func (r *TaskRunner) Run() {
 	}
 
 	// Monitoring the Driver
+	defer r.DestroyState()
 	err = r.monitorDriver(r.handle.WaitCh(), r.updateCh, r.destroyCh)
 	for err != nil {
 		r.logger.Printf("[ERR] client: failed to complete task '%s' for alloc '%s': %v",
@@ -189,7 +190,7 @@ func (r *TaskRunner) Run() {
 		if !shouldRestart {
 			r.logger.Printf("[INFO] client: Not restarting task: %v for alloc: %v ", r.task.Name, r.allocID)
 			r.setStatus(structs.AllocClientStatusDead, fmt.Sprintf("task failed with: %v", err))
-			break
+			return
 		}
 
 		r.logger.Printf("[INFO] client: Restarting Task: %v", r.task.Name)
@@ -215,8 +216,6 @@ func (r *TaskRunner) Run() {
 	// Cleanup after ourselves
 	r.logger.Printf("[INFO] client: completed task '%s' for alloc '%s'", r.task.Name, r.allocID)
 	r.setStatus(structs.AllocClientStatusDead, "task completed")
-
-	r.DestroyState()
 }
 
 // This functions listens to messages from the driver and blocks until the
