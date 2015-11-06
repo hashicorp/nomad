@@ -187,14 +187,14 @@ func (r *TaskRunner) Run() {
 			r.task.Name, r.allocID, err)
 		shouldRestart, when := r.restartTracker.nextRestart()
 		if !shouldRestart {
-			r.logger.Printf("[INFO] Not restarting")
+			r.logger.Printf("[INFO] client: Not restarting task: %v ", r.task.Name)
 			r.setStatus(structs.AllocClientStatusDead, fmt.Sprintf("task failed with: %v", err))
 			break
 		}
 
-		r.logger.Printf("[INFO] Restarting Task: %v", r.task.Name)
+		r.logger.Printf("[INFO] client: Restarting Task: %v", r.task.Name)
 		r.setStatus(structs.AllocClientStatusPending, "Task Restarting")
-		r.logger.Printf("[DEBUG] Sleeping for %v before restarting Task %v", when, r.task.Name)
+		r.logger.Printf("[DEBUG] client: Sleeping for %v before restarting Task %v", when, r.task.Name)
 		ch := time.After(when)
 	L:
 		for {
@@ -207,7 +207,7 @@ func (r *TaskRunner) Run() {
 		}
 		r.destroyLock.Lock()
 		if r.destroy {
-			r.logger.Printf("[DEBUG] Not restarting task: %v because it's destroyed by user", r.task.Name)
+			r.logger.Printf("[DEBUG] client: Not restarting task: %v because it's destroyed by user", r.task.Name)
 			break
 		}
 		if err = r.startTask(); err != nil {
