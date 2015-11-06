@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/args"
+	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -30,6 +31,7 @@ var (
 // planned in the future
 type RktDriver struct {
 	DriverContext
+	fingerprint.StaticFingerprinter
 }
 
 // rktHandle is returned from Start/Open as a handle to the PID
@@ -50,7 +52,7 @@ type rktPID struct {
 
 // NewRktDriver is used to create a new exec driver
 func NewRktDriver(ctx *DriverContext) Driver {
-	return &RktDriver{*ctx}
+	return &RktDriver{DriverContext: *ctx}
 }
 
 func (d *RktDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {

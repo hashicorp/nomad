@@ -14,6 +14,7 @@ import (
 
 // HostFingerprint is used to fingerprint the host
 type HostFingerprint struct {
+	StaticFingerprinter
 	logger *log.Logger
 }
 

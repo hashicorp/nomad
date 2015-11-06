@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/args"
+	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/client/getter"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -31,6 +32,7 @@ const (
 // and this should only be used when explicitly needed.
 type RawExecDriver struct {
 	DriverContext
+	fingerprint.StaticFingerprinter
 }
 
 // rawExecHandle is returned from Start/Open as a handle to the PID
@@ -42,7 +44,7 @@ type rawExecHandle struct {
 
 // NewRawExecDriver is used to create a new raw exec driver
 func NewRawExecDriver(ctx *DriverContext) Driver {
-	return &RawExecDriver{*ctx}
+	return &RawExecDriver{DriverContext: *ctx}
 }
 
 func (d *RawExecDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {

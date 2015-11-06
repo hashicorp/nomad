@@ -13,11 +13,13 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/args"
+	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 type DockerDriver struct {
 	DriverContext
+	fingerprint.StaticFingerprinter
 }
 
 type dockerPID struct {
@@ -37,7 +39,7 @@ type dockerHandle struct {
 }
 
 func NewDockerDriver(ctx *DriverContext) Driver {
-	return &DockerDriver{*ctx}
+	return &DockerDriver{DriverContext: *ctx}
 }
 
 // dockerClient creates *docker.Client. In test / dev mode we can use ENV vars
