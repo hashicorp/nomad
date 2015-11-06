@@ -41,9 +41,10 @@ type AllocRunner struct {
 
 	dirtyCh chan struct{}
 
-	ctx      *driver.ExecContext
-	tasks    map[string]*TaskRunner
-	taskLock sync.RWMutex
+	ctx           *driver.ExecContext
+	tasks         map[string]*TaskRunner
+	RestartPolicy *structs.RestartPolicy
+	taskLock      sync.RWMutex
 
 	taskStatus     map[string]taskStatus
 	taskStatusLock sync.RWMutex
@@ -58,9 +59,10 @@ type AllocRunner struct {
 
 // allocRunnerState is used to snapshot the state of the alloc runner
 type allocRunnerState struct {
-	Alloc      *structs.Allocation
-	TaskStatus map[string]taskStatus
-	Context    *driver.ExecContext
+	Alloc         *structs.Allocation
+	RestartPolicy *structs.RestartPolicy
+	TaskStatus    map[string]taskStatus
+	Context       *driver.ExecContext
 }
 
 // NewAllocRunner is used to create a new allocation context
@@ -95,6 +97,7 @@ func (r *AllocRunner) RestoreState() error {
 
 	// Restore fields
 	r.alloc = snap.Alloc
+	r.RestartPolicy = snap.RestartPolicy
 	r.taskStatus = snap.TaskStatus
 	r.ctx = snap.Context
 
@@ -102,7 +105,8 @@ func (r *AllocRunner) RestoreState() error {
 	var mErr multierror.Error
 	for name := range r.taskStatus {
 		task := &structs.Task{Name: name}
-		tr := NewTaskRunner(r.logger, r.config, r.setTaskStatus, r.ctx, r.alloc.ID, task)
+		restartTracker := newRestartTracker(r.alloc.Job.Type, r.RestartPolicy)
+		tr := NewTaskRunner(r.logger, r.config, r.setTaskStatus, r.ctx, r.alloc.ID, task, restartTracker)
 		r.tasks[name] = tr
 		if err := tr.RestoreState(); err != nil {
 			r.logger.Printf("[ERR] client: failed to restore state for alloc %s task '%s': %v", r.alloc.ID, name, err)
@@ -118,9 +122,10 @@ func (r *AllocRunner) RestoreState() error {
 func (r *AllocRunner) SaveState() error {
 	r.taskStatusLock.RLock()
 	snap := allocRunnerState{
-		Alloc:      r.alloc,
-		TaskStatus: r.taskStatus,
-		Context:    r.ctx,
+		Alloc:         r.alloc,
+		RestartPolicy: r.RestartPolicy,
+		TaskStatus:    r.taskStatus,
+		Context:       r.ctx,
 	}
 	err := persistState(r.stateFilePath(), &snap)
 	r.taskStatusLock.RUnlock()
@@ -279,6 +284,9 @@ func (r *AllocRunner) Run() {
 		return
 	}
 
+	// Extract the RestartPolicy from the TG and set it on the alloc
+	r.RestartPolicy = tg.RestartPolicy
+
 	// Create the execution context
 	if r.ctx == nil {
 		allocDir := allocdir.NewAllocDir(filepath.Join(r.config.AllocDir, r.alloc.ID))
@@ -300,8 +308,8 @@ func (r *AllocRunner) Run() {
 
 		// Merge in the task resources
 		task.Resources = alloc.TaskResources[task.Name]
-
-		tr := NewTaskRunner(r.logger, r.config, r.setTaskStatus, r.ctx, r.alloc.ID, task)
+		restartTracker := newRestartTracker(r.alloc.Job.Type, r.RestartPolicy)
+		tr := NewTaskRunner(r.logger, r.config, r.setTaskStatus, r.ctx, r.alloc.ID, task, restartTracker)
 		r.tasks[task.Name] = tr
 		go tr.Run()
 	}

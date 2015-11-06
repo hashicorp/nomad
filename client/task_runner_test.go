@@ -52,7 +52,9 @@ func testTaskRunner() (*MockTaskStateUpdater, *TaskRunner) {
 	allocDir.Build([]*structs.Task{task})
 
 	ctx := driver.NewExecContext(allocDir)
-	tr := NewTaskRunner(logger, conf, upd.Update, ctx, alloc.ID, task)
+	rp := structs.NewRestartPolicy(structs.JobTypeService)
+	restartTracker := newRestartTracker(structs.JobTypeService, rp)
+	tr := NewTaskRunner(logger, conf, upd.Update, ctx, alloc.ID, task, restartTracker)
 	return upd, tr
 }
 
