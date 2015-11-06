@@ -74,7 +74,7 @@ func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool
 		return false, nil
 	}
 
-	privileged, err = strconv.ParseBool(d.config.ReadDefault("docker.privileged.enabled", "false"))
+	privileged, err := strconv.ParseBool(d.config.ReadDefault("docker.privileged.enabled", "false"))
 	if err != nil {
 		return false, fmt.Errorf("Unable to parse docker.privileged.enabled: %s", err)
 	}
@@ -180,7 +180,7 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task) (do
 	if v, ok := task.Config["privileged"]; ok {
 		taskPrivileged, err := strconv.ParseBool(v)
 		if err != nil {
-			return hostConfig, fmt.Errorf("Unable to parse boolean value from task config option 'privileged': %s", err)
+			return c, fmt.Errorf("Unable to parse boolean value from task config option 'privileged': %s", err)
 		}
 		hostConfig.Privileged = taskPrivileged
 	}
