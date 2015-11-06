@@ -165,14 +165,7 @@ func (e *LinuxExecutor) Start() error {
 		return err
 	}
 
-	parsedPath, err := args.ParseAndReplace(e.cmd.Path, envVars.Map())
-	if err != nil {
-		return err
-	} else if len(parsedPath) != 1 {
-		return fmt.Errorf("couldn't properly parse command path: %v", e.cmd.Path)
-	}
-	e.cmd.Path = parsedPath[0]
-
+	e.cmd.Path = args.ReplaceEnv(e.cmd.Path, envVars.Map())
 	combined := strings.Join(e.cmd.Args, " ")
 	parsed, err := args.ParseAndReplace(combined, envVars.Map())
 	if err != nil {

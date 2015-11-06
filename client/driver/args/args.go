@@ -27,7 +27,7 @@ func ParseAndReplace(args string, env map[string]string) ([]string, error) {
 
 	replaced := make([]string, len(parsed))
 	for i, arg := range parsed {
-		replaced[i] = replaceEnv(arg, env)
+		replaced[i] = ReplaceEnv(arg, env)
 	}
 
 	return replaced, nil
@@ -36,7 +36,7 @@ func ParseAndReplace(args string, env map[string]string) ([]string, error) {
 // replaceEnv takes an arg and replaces all occurences of environment variables.
 // If the variable is found in the passed map it is replaced, otherwise the
 // original string is returned.
-func replaceEnv(arg string, env map[string]string) string {
+func ReplaceEnv(arg string, env map[string]string) string {
 	return envRe.ReplaceAllStringFunc(arg, func(arg string) string {
 		stripped := arg[1:]
 		if stripped[0] == '{' {
