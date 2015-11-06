@@ -2,7 +2,6 @@ package driver
 
 import (
 	"fmt"
-	"os"
 	"testing"
 
 	"github.com/hashicorp/nomad/client/config"
@@ -10,21 +9,6 @@ import (
 
 	ctestutils "github.com/hashicorp/nomad/client/testutil"
 )
-
-func TestQemuDriver_Handle(t *testing.T) {
-	h := &qemuHandle{
-		proc:   &os.Process{Pid: 123},
-		vmID:   "vmid",
-		doneCh: make(chan struct{}),
-		waitCh: make(chan error, 1),
-	}
-
-	actual := h.ID()
-	expected := `QEMU:{"Pid":123,"VmID":"vmid"}`
-	if actual != expected {
-		t.Errorf("Expected `%s`, found `%s`", expected, actual)
-	}
-}
 
 // The fingerprinter test should always pass, even if QEMU is not installed.
 func TestQemuDriver_Fingerprint(t *testing.T) {
@@ -48,7 +32,7 @@ func TestQemuDriver_Fingerprint(t *testing.T) {
 	}
 }
 
-func TestQemuDriver_Start(t *testing.T) {
+func TestQemuDriver_StartOpen_Wait(t *testing.T) {
 	ctestutils.QemuCompatible(t)
 	// TODO: use test server to load from a fixture
 	task := &structs.Task{
@@ -60,6 +44,7 @@ func TestQemuDriver_Start(t *testing.T) {
 			"guest_ports":     "22,8080",
 		},
 		Resources: &structs.Resources{
+			CPU:      500,
 			MemoryMB: 512,
 			Networks: []*structs.NetworkResource{
 				&structs.NetworkResource{
