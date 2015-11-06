@@ -37,8 +37,12 @@ type batchRestartTracker struct {
 	count int
 }
 
-func (b *batchRestartTracker) nextRestart() (bool, time.Duration) {
+func (b *batchRestartTracker) increment() {
 	b.count += 1
+}
+
+func (b *batchRestartTracker) nextRestart() (bool, time.Duration) {
+	defer b.increment()
 	if b.count < b.maxAttempts {
 		return true, b.delay
 	}
@@ -54,8 +58,12 @@ type serviceRestartTracker struct {
 	startTime time.Time
 }
 
-func (s *serviceRestartTracker) nextRestart() (bool, time.Duration) {
+func (s *serviceRestartTracker) increment() {
 	s.count += 1
+}
+
+func (s *serviceRestartTracker) nextRestart() (bool, time.Duration) {
+	defer s.increment()
 	windowEndTime := s.startTime.Add(s.interval)
 	now := time.Now()
 	// If the window of restart is over we wait until the delay duration
