@@ -285,3 +285,18 @@ func (s *Spawner) readExitCode() (int, error) {
 
 	return exitStatus.ExitCode, nil
 }
+
+// Valid checks that the state of the Spawner is valid and that a subsequent
+// Wait could be called. This is useful to call when reopening a Spawner
+// throught client restarts. If Valid a nil error is returned.
+func (s *Spawner) Valid() error {
+	if s.Alive() {
+		return nil
+	}
+
+	if _, err := s.readExitCode(); err == nil {
+		return nil
+	}
+
+	return fmt.Errorf("Spawner not alive and exit code not written")
+}

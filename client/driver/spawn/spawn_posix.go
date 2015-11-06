@@ -2,11 +2,17 @@
 
 package spawn
 
-import "syscall"
+import (
+	"os"
+	"syscall"
+)
 
 func (s *Spawner) Alive() bool {
 	if s.spawn == nil {
-		return false
+		var err error
+		if s.spawn, err = os.FindProcess(s.SpawnPid); err != nil {
+			return false
+		}
 	}
 
 	err := s.spawn.Signal(syscall.Signal(0))

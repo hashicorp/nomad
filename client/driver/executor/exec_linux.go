@@ -95,8 +95,7 @@ func (e *LinuxExecutor) Open(id string) error {
 	e.groups = execID.Groups
 	e.spawn = execID.Spawn
 	e.taskDir = execID.TaskDir
-
-	return nil
+	return e.spawn.Valid()
 }
 
 func (e *LinuxExecutor) ID() (string, error) {
