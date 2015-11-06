@@ -195,15 +195,9 @@ func (r *TaskRunner) Run() {
 		r.logger.Printf("[INFO] client: Restarting Task: %v", r.task.Name)
 		r.setStatus(structs.AllocClientStatusPending, "Task Restarting")
 		r.logger.Printf("[DEBUG] client: Sleeping for %v before restarting Task %v", when, r.task.Name)
-		ch := time.After(when)
-	L:
-		for {
-			select {
-			case <-ch:
-				break L
-			case <-r.destroyCh:
-				break L
-			}
+		select {
+		case <-time.After(when):
+		case <-r.destroyCh:
 		}
 		r.destroyLock.Lock()
 		if r.destroy {

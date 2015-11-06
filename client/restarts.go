@@ -42,8 +42,8 @@ func (b *batchRestartTracker) increment() {
 }
 
 func (b *batchRestartTracker) nextRestart() (bool, time.Duration) {
-	defer b.increment()
 	if b.count < b.maxAttempts {
+		b.increment()
 		return true, b.delay
 	}
 	return false, 0

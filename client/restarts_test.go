@@ -36,19 +36,20 @@ func TestTaskRunner_ServiceRestartCounter(t *testing.T) {
 }
 
 func TestTaskRunner_BatchRestartCounter(t *testing.T) {
-	rt := newRestartTracker(structs.JobTypeBatch, &structs.RestartPolicy{Attempts: 2, Interval: 1 * time.Second, Delay: 1 * time.Second})
-	rt.nextRestart()
-	rt.nextRestart()
-	rt.nextRestart()
-	rt.nextRestart()
-	rt.nextRestart()
-	actual, _ := rt.nextRestart()
-	if actual {
-		t.Fatalf("Expect %v, Actual: %v", false, actual)
+	attempts := 2
+	interval := 1 * time.Second
+	delay := 1 * time.Second
+	rt := newRestartTracker(structs.JobTypeBatch, &structs.RestartPolicy{Attempts: attempts, Interval: interval, Delay: delay})
+	for i := 0; i < attempts; i++ {
+		shouldRestart, when := rt.nextRestart()
+		if !shouldRestart {
+			t.Fatalf("should restart returned %v, actual %v", shouldRestart, true)
+		}
+		if when != delay {
+			t.Fatalf("Delay should be %v, actual: %v", delay, when)
+		}
 	}
-
-	time.Sleep(1 * time.Second)
-	actual, _ = rt.nextRestart()
+	actual, _ := rt.nextRestart()
 	if actual {
 		t.Fatalf("Expect %v, Actual: %v", false, actual)
 	}

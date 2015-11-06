@@ -102,11 +102,10 @@ func (r *AllocRunner) RestoreState() error {
 	r.ctx = snap.Context
 
 	// Restore the task runners
-	jobType := r.alloc.Job.Type
 	var mErr multierror.Error
 	for name := range r.taskStatus {
 		task := &structs.Task{Name: name}
-		restartTracker := newRestartTracker(jobType, r.RestartPolicy)
+		restartTracker := newRestartTracker(r.alloc.Job.Type, r.RestartPolicy)
 		tr := NewTaskRunner(r.logger, r.config, r.setTaskStatus, r.ctx, r.alloc.ID, task, restartTracker)
 		r.tasks[name] = tr
 		if err := tr.RestoreState(); err != nil {
@@ -309,8 +308,7 @@ func (r *AllocRunner) Run() {
 
 		// Merge in the task resources
 		task.Resources = alloc.TaskResources[task.Name]
-		jobType := r.alloc.Job.Type
-		restartTracker := newRestartTracker(jobType, r.RestartPolicy)
+		restartTracker := newRestartTracker(r.alloc.Job.Type, r.RestartPolicy)
 		tr := NewTaskRunner(r.logger, r.config, r.setTaskStatus, r.ctx, r.alloc.ID, task, restartTracker)
 		r.tasks[task.Name] = tr
 		go tr.Run()
