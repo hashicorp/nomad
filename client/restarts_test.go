@@ -39,7 +39,12 @@ func TestTaskRunner_BatchRestartCounter(t *testing.T) {
 	attempts := 2
 	interval := 1 * time.Second
 	delay := 1 * time.Second
-	rt := newRestartTracker(structs.JobTypeBatch, &structs.RestartPolicy{Attempts: attempts, Interval: interval, Delay: delay})
+	rt := newRestartTracker(structs.JobTypeBatch,
+		&structs.RestartPolicy{Attempts: attempts,
+			Interval: interval,
+			Delay:    delay,
+		},
+	)
 	for i := 0; i < attempts; i++ {
 		shouldRestart, when := rt.nextRestart()
 		if !shouldRestart {
