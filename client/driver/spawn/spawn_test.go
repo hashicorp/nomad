@@ -298,3 +298,71 @@ func TestSpawn_DeadSpawnDaemon_NonParent(t *testing.T) {
 		t.Fatalf("Wait() should have failed: %v", err)
 	}
 }
+
+func TestSpawn_Valid_TaskRunning(t *testing.T) {
+	f, err := ioutil.TempFile("", "")
+	if err != nil {
+		t.Fatalf("TempFile() failed")
+	}
+	defer os.Remove(f.Name())
+
+	spawn := NewSpawner(f.Name())
+	spawn.SetCommand(exec.Command("sleep", "2"))
+	if err := spawn.Spawn(nil); err != nil {
+		t.Fatalf("Spawn() failed %v", err)
+	}
+
+	if err := spawn.Valid(); err != nil {
+		t.Fatalf("Valid() failed: %v", err)
+	}
+
+	if _, err := spawn.Wait(); err != nil {
+		t.Fatalf("Wait() failed %v", err)
+	}
+}
+
+func TestSpawn_Valid_TaskExit_ExitCode(t *testing.T) {
+	f, err := ioutil.TempFile("", "")
+	if err != nil {
+		t.Fatalf("TempFile() failed")
+	}
+	defer os.Remove(f.Name())
+
+	spawn := NewSpawner(f.Name())
+	spawn.SetCommand(exec.Command("echo", "foo"))
+	if err := spawn.Spawn(nil); err != nil {
+		t.Fatalf("Spawn() failed %v", err)
+	}
+
+	if _, err := spawn.Wait(); err != nil {
+		t.Fatalf("Wait() failed %v", err)
+	}
+
+	if err := spawn.Valid(); err != nil {
+		t.Fatalf("Valid() failed: %v", err)
+	}
+}
+
+func TestSpawn_Valid_TaskExit_NoExitCode(t *testing.T) {
+	f, err := ioutil.TempFile("", "")
+	if err != nil {
+		t.Fatalf("TempFile() failed")
+	}
+
+	spawn := NewSpawner(f.Name())
+	spawn.SetCommand(exec.Command("echo", "foo"))
+	if err := spawn.Spawn(nil); err != nil {
+		t.Fatalf("Spawn() failed %v", err)
+	}
+
+	if _, err := spawn.Wait(); err != nil {
+		t.Fatalf("Wait() failed %v", err)
+	}
+
+	// Delete the file so that it can't find the exit code.
+	os.Remove(f.Name())
+
+	if err := spawn.Valid(); err == nil {
+		t.Fatalf("Valid() should have failed")
+	}
+}
