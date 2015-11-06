@@ -187,7 +187,7 @@ func (r *TaskRunner) Run() {
 			r.task.Name, r.allocID, err)
 		shouldRestart, when := r.restartTracker.nextRestart()
 		if !shouldRestart {
-			r.logger.Printf("[INFO] client: Not restarting task: %v ", r.task.Name)
+			r.logger.Printf("[INFO] client: Not restarting task: %v for alloc: %v ", r.task.Name, r.allocID)
 			r.setStatus(structs.AllocClientStatusDead, fmt.Sprintf("task failed with: %v", err))
 			break
 		}
@@ -219,14 +219,14 @@ func (r *TaskRunner) Run() {
 	}
 
 	// Cleanup after ourselves
-	r.logger.Printf("[INFO] client: completed task '%s' for alloc '%s'",
-		r.task.Name, r.allocID)
-	r.setStatus(structs.AllocClientStatusDead,
-		"task completed")
+	r.logger.Printf("[INFO] client: completed task '%s' for alloc '%s'", r.task.Name, r.allocID)
+	r.setStatus(structs.AllocClientStatusDead, "task completed")
 
 	r.DestroyState()
 }
 
+// This functions listens to messages from the driver and blocks until the
+// driver exits
 func (r *TaskRunner) monitorDriver(waitCh chan error, updateCh chan *structs.Task, destroyCh chan struct{}) error {
 	var err error
 OUTER:
