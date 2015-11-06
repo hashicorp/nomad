@@ -43,7 +43,7 @@ func testDriverContext(task string) *DriverContext {
 func testDriverExecContext(task *structs.Task, driverCtx *DriverContext) *ExecContext {
 	allocDir := allocdir.NewAllocDir(filepath.Join(driverCtx.config.AllocDir, structs.GenerateUUID()))
 	allocDir.Build([]*structs.Task{task})
-	ctx := NewExecContext(allocDir)
+	ctx := NewExecContext(allocDir, "dummyAllocId")
 	return ctx
 }
 

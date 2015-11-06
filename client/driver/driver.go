@@ -100,11 +100,14 @@ type ExecContext struct {
 
 	// AllocDir contains information about the alloc directory structure.
 	AllocDir *allocdir.AllocDir
+
+	// Alloc ID
+	AllocID string
 }
 
 // NewExecContext is used to create a new execution context
-func NewExecContext(alloc *allocdir.AllocDir) *ExecContext {
-	return &ExecContext{AllocDir: alloc}
+func NewExecContext(alloc *allocdir.AllocDir, allocID string) *ExecContext {
+	return &ExecContext{AllocDir: alloc, AllocID: allocID}
 }
 
 // TaskEnvironmentVariables converts exec context and task configuration into a

@@ -295,7 +295,7 @@ func (r *AllocRunner) Run() {
 			r.setStatus(structs.AllocClientStatusFailed, fmt.Sprintf("failed to build task dirs for '%s'", alloc.TaskGroup))
 			return
 		}
-		r.ctx = driver.NewExecContext(allocDir)
+		r.ctx = driver.NewExecContext(allocDir, r.alloc.ID)
 	}
 
 	// Start the task runners
