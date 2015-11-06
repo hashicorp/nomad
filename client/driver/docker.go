@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -73,6 +74,15 @@ func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool
 	if err != nil {
 		d.logger.Printf("[DEBUG] driver.docker: could not connect to docker daemon: %v", err)
 		return false, nil
+	}
+
+	privileged, err := strconv.ParseBool(d.config.ReadDefault("docker.privileged.enabled", "false"))
+	if err != nil {
+		return false, fmt.Errorf("Unable to parse docker.privileged.enabled: %s", err)
+	}
+	if privileged == true {
+		d.logger.Printf("[DEBUG] driver.docker: privileged containers enabled. Only enable if needed")
+		node.Attributes["docker.privileged.enabled"] = "1"
 	}
 
 	_, err = strconv.ParseBool(d.config.ReadDefault("docker.cleanup.container", "true"))
@@ -169,6 +179,38 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task) (do
 	d.logger.Printf("[DEBUG] driver.docker: using %d bytes memory for %s", hostConfig.Memory, task.Config["image"])
 	d.logger.Printf("[DEBUG] driver.docker: using %d cpu shares for %s", hostConfig.CPUShares, task.Config["image"])
 	d.logger.Printf("[DEBUG] driver.docker: binding directories %#v for %s", hostConfig.Binds, task.Config["image"])
+
+	//  set privileged mode
+	if v, ok := task.Config["privileged"]; ok {
+		taskPrivileged, err := strconv.ParseBool(v)
+		if err != nil {
+			return c, fmt.Errorf("Unable to parse boolean value from task config option 'privileged': %s", err)
+		}
+		hostConfig.Privileged = taskPrivileged
+	}
+
+	// set DNS servers
+	dns, ok := task.Config["dns-servers"]
+
+	if ok && dns != "" {
+		for _, v := range strings.Split(dns, ",") {
+			ip := strings.TrimSpace(v)
+			if net.ParseIP(ip) != nil {
+				hostConfig.DNS = append(hostConfig.DNS, ip)
+			} else {
+				d.logger.Printf("[ERR] driver.docker: invalid ip address for container dns server: %s", ip)
+			}
+		}
+	}
+
+	// set DNS search domains
+	dnsSearch, ok := task.Config["search-domains"]
+
+	if ok && dnsSearch != "" {
+		for _, v := range strings.Split(dnsSearch, ",") {
+			hostConfig.DNSSearch = append(hostConfig.DNSSearch, strings.TrimSpace(v))
+		}
+	}
 
 	mode, ok := task.Config["network_mode"]
 	if !ok || mode == "" {
@@ -307,8 +349,14 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 			Repository: repo,
 			Tag:        tag,
 		}
-		// TODO add auth configuration for private repos
-		authOptions := docker.AuthConfiguration{}
+
+		authOptions := docker.AuthConfiguration{
+			Username:      task.Config["auth.username"],
+			Password:      task.Config["auth.password"],
+			Email:         task.Config["auth.email"],
+			ServerAddress: task.Config["auth.server-address"],
+		}
+
 		err = client.PullImage(pullOptions, authOptions)
 		if err != nil {
 			d.logger.Printf("[ERR] driver.docker: pulling container %s", err)
