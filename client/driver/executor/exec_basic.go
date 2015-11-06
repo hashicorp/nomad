@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/hashicorp/nomad/client/allocdir"
@@ -129,6 +130,10 @@ func (e *BasicExecutor) Shutdown() error {
 	proc, err := os.FindProcess(e.spawn.UserPid)
 	if err != nil {
 		return fmt.Errorf("Failed to find user processes %v: %v", e.spawn.UserPid, err)
+	}
+
+	if runtime.GOOS == "windows" {
+		return proc.Kill()
 	}
 
 	return proc.Signal(os.Interrupt)
