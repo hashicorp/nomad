@@ -103,7 +103,12 @@ func (r *AllocRunner) RestoreState() error {
 
 	// Restore the task runners
 	var mErr multierror.Error
-	for name := range r.taskStatus {
+	for name, status := range r.taskStatus {
+		// TODO Think about what other cases when we won't need to restore
+		// Task Runner for tasks
+		if status.Status == structs.AllocClientStatusDead {
+			continue
+		}
 		task := &structs.Task{Name: name}
 		restartTracker := newRestartTracker(r.alloc.Job.Type, r.RestartPolicy)
 		tr := NewTaskRunner(r.logger, r.config, r.setTaskStatus, r.ctx, r.alloc.ID, task, restartTracker)
