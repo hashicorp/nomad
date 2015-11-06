@@ -24,10 +24,9 @@ type TaskRunner struct {
 	allocID        string
 	restartTracker restartTracker
 
-	task          *structs.Task
-	restartPolicy *structs.RestartPolicy
-	updateCh      chan *structs.Task
-	handle        driver.DriverHandle
+	task     *structs.Task
+	updateCh chan *structs.Task
+	handle   driver.DriverHandle
 
 	destroy     bool
 	destroyCh   chan struct{}
@@ -47,19 +46,16 @@ type TaskStateUpdater func(taskName, status, desc string)
 // NewTaskRunner is used to create a new task context
 func NewTaskRunner(logger *log.Logger, config *config.Config,
 	updater TaskStateUpdater, ctx *driver.ExecContext,
-	allocID string, task *structs.Task, taskType string,
-	restartPolicy *structs.RestartPolicy) *TaskRunner {
+	allocID string, task *structs.Task, restartTracker restartTracker) *TaskRunner {
 
-	rt := newRestartTracker(taskType, restartPolicy)
 	tc := &TaskRunner{
 		config:         config,
 		updater:        updater,
 		logger:         logger,
-		restartTracker: rt,
+		restartTracker: restartTracker,
 		ctx:            ctx,
 		allocID:        allocID,
 		task:           task,
-		restartPolicy:  restartPolicy,
 		updateCh:       make(chan *structs.Task, 8),
 		destroyCh:      make(chan struct{}),
 		waitCh:         make(chan struct{}),
@@ -189,7 +185,6 @@ func (r *TaskRunner) Run() {
 	for err != nil {
 		r.logger.Printf("[ERR] client: failed to complete task '%s' for alloc '%s': %v",
 			r.task.Name, r.allocID, err)
-		r.restartTracker.increment()
 		shouldRestart, when := r.restartTracker.nextRestart()
 		if !shouldRestart {
 			r.logger.Printf("[INFO] Not restarting")
@@ -198,6 +193,7 @@ func (r *TaskRunner) Run() {
 		}
 
 		r.logger.Printf("[INFO] Restarting Task: %v", r.task.Name)
+		r.setStatus(structs.AllocClientStatusPending, "Task Restarting")
 		r.logger.Printf("[DEBUG] Sleeping for %v before restarting Task %v", when, r.task.Name)
 		ch := time.After(when)
 	L:

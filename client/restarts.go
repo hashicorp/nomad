@@ -11,7 +11,6 @@ import (
 // will be restarted only upto maxAttempts times
 type restartTracker interface {
 	nextRestart() (bool, time.Duration)
-	increment()
 }
 
 func newRestartTracker(jobType string, restartPolicy *structs.RestartPolicy) restartTracker {
@@ -38,11 +37,8 @@ type batchRestartTracker struct {
 	count int
 }
 
-func (b *batchRestartTracker) increment() {
-	b.count = b.count + 1
-}
-
 func (b *batchRestartTracker) nextRestart() (bool, time.Duration) {
+	b.count += 1
 	if b.count < b.maxAttempts {
 		return true, b.delay
 	}
@@ -58,24 +54,22 @@ type serviceRestartTracker struct {
 	startTime time.Time
 }
 
-func (c *serviceRestartTracker) increment() {
-	if c.count <= c.maxAttempts {
-		c.count = c.count + 1
-	}
-}
-
-func (c *serviceRestartTracker) nextRestart() (bool, time.Duration) {
-	windowEndTime := c.startTime.Add(c.interval)
+func (s *serviceRestartTracker) nextRestart() (bool, time.Duration) {
+	s.count += 1
+	windowEndTime := s.startTime.Add(s.interval)
 	now := time.Now()
+	// If the window of restart is over we wait until the delay duration
 	if now.After(windowEndTime) {
-		c.count = 0
-		c.startTime = time.Now()
-		return true, c.delay
+		s.count = 0
+		s.startTime = time.Now()
+		return true, s.delay
 	}
 
-	if c.count < c.maxAttempts {
-		return true, c.delay
+	// If we are within the delay duration and didn't exhaust all retries
+	if s.count < s.maxAttempts {
+		return true, s.delay
 	}
 
+	// If we exhausted all the retries and are withing the time window
 	return true, windowEndTime.Sub(now)
 }
