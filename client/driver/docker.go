@@ -181,11 +181,20 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task) (do
 	d.logger.Printf("[DEBUG] driver.docker: binding directories %#v for %s", hostConfig.Binds, task.Config["image"])
 
 	//  set privileged mode
+	hostPrivileged, err := strconv.ParseBool(d.config.ReadDefault("docker.privileged.enabled", "false"))
+	if err != nil {
+		return c, fmt.Errorf("Unable to parse docker.privileged.enabled: %s", err)
+	}
+
 	if v, ok := task.Config["privileged"]; ok {
 		taskPrivileged, err := strconv.ParseBool(v)
 		if err != nil {
-			return c, fmt.Errorf("Unable to parse boolean value from task config option 'privileged': %s", err)
+			return c, fmt.Errorf("Unable to parse boolean value from task config option 'privileged': %v", err)
 		}
+		if taskPrivileged && !hostPrivileged {
+			return c, fmt.Errorf(`Unable to set privileged flag since "docker.privileged.enabled" is false`)
+		}
+
 		hostConfig.Privileged = taskPrivileged
 	}
 
