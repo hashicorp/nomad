@@ -34,6 +34,8 @@ The `docker` driver supports the following configuration in the job specificatio
 
 * `privileged` - (optional) Privileged mode gives the container full access to 
    the host. Valid options are `"true"` and `"false"` (defaults to `"false"`).
+   In order to use privileged mode, a client with the option 
+   `docker.privileged.enabled = "true"` must be available.
 
 * `dns-servers` - (optional) A comma separated list of DNS servers for the container 
    to use (e.g. "8.8.8.8,8.8.4.4"). *Docker API v1.10 and above only*
@@ -138,6 +140,11 @@ The `docker` driver has the following configuration options:
 
 * `docker.cleanup.image` Defaults to `true`. Changing this to `false` will
   prevent Nomad from removing images from stopped tasks.
+
+* `docker.privileged.enabled` Defaults to `false`. Changing this to `true` will
+   allow containers to use "privileged" mode, which gives the containers full access
+   to the host
+
 
 Note: When testing or using the `-dev` flag you can use `DOCKER_HOST`,
 `DOCKER_TLS_VERIFY`, and `DOCKER_CERT_PATH` to customize Nomad's behavior. In

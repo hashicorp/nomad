@@ -74,6 +74,15 @@ func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool
 		return false, nil
 	}
 
+	privileged, err = strconv.ParseBool(d.config.ReadDefault("docker.privileged.enabled", "false"))
+	if err != nil {
+		return false, fmt.Errorf("Unable to parse docker.privileged.enabled: %s", err)
+	}
+	if privileged == true {
+		d.logger.Printf("[DEBUG] driver.docker: privileged containers enabled. Only enable if needed")
+		node.Attributes["docker.privileged.enabled"] = "1"
+	}
+
 	_, err = strconv.ParseBool(d.config.ReadDefault("docker.cleanup.container", "true"))
 	if err != nil {
 		return false, fmt.Errorf("Unable to parse docker.cleanup.container: %s", err)
@@ -167,8 +176,14 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task) (do
 	d.logger.Printf("[DEBUG] driver.docker: using %d cpu shares for %s", hostConfig.CPUShares, task.Config["image"])
 	d.logger.Printf("[DEBUG] driver.docker: binding directories %#v for %s", hostConfig.Binds, task.Config["image"])
 
-	//  set privileged (fallback to false)
-	hostConfig.Privileged, _ = strconv.ParseBool(task.Config["privileged"])
+	//  set privileged mode
+	if v, ok := task.Config["privileged"]; ok {
+		taskPrivileged, err := strconv.ParseBool(v)
+		if err != nil {
+			return hostConfig, fmt.Errorf("Unable to parse boolean value from task config option 'privileged': %s", err)
+		}
+		hostConfig.Privileged = taskPrivileged
+	}
 
 	// set DNS servers
 	dns, ok := task.Config["dns-servers"]
