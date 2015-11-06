@@ -229,3 +229,33 @@ func Executor_Open(t *testing.T, command buildExecCommand, newExecutor func() Ex
 		log.Panicf("Command output incorrectly: want %v; got %v", expected, act)
 	}
 }
+
+func Executor_Open_Invalid(t *testing.T, command buildExecCommand, newExecutor func() Executor) {
+	task, alloc := mockAllocDir(t)
+	e := command("echo", "foo")
+
+	if err := e.Limit(constraint); err != nil {
+		log.Panicf("Limit() failed: %v", err)
+	}
+
+	if err := e.ConfigureTaskDir(task, alloc); err != nil {
+		log.Panicf("ConfigureTaskDir(%v, %v) failed: %v", task, alloc, err)
+	}
+
+	if err := e.Start(); err != nil {
+		log.Panicf("Start() failed: %v", err)
+	}
+
+	id, err := e.ID()
+	if err != nil {
+		log.Panicf("ID() failed: %v", err)
+	}
+
+	// Destroy the allocdir which removes the exit code.
+	alloc.Destroy()
+
+	e2 := newExecutor()
+	if err := e2.Open(id); err == nil {
+		log.Panicf("Open(%v) should have failed", id)
+	}
+}

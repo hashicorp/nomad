@@ -89,7 +89,7 @@ func (e *BasicExecutor) Open(id string) error {
 
 	// Setup the executor.
 	e.spawn = &spawn
-	return nil
+	return e.spawn.Valid()
 }
 
 func (e *BasicExecutor) Wait() error {
