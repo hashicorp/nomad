@@ -455,16 +455,14 @@ func (c *Client) fingerprint() error {
 	return nil
 }
 
-// fingerprintPeriodic runs a fingerprinter at the specified duration. If the
-// fingerprinter returns an error, the function exits.
+// fingerprintPeriodic runs a fingerprinter at the specified duration.
 func (c *Client) fingerprintPeriodic(name string, f fingerprint.Fingerprint, d time.Duration) {
 	c.logger.Printf("[DEBUG] client: periodically fingerprinting %v at duration %v", name, d)
 	for {
 		select {
 		case <-time.After(d):
 			if _, err := f.Fingerprint(c.config, c.config.Node); err != nil {
-				c.logger.Printf("[DEBUG] client: disabling periodic fingerprinting for %v: %v", name, err)
-				return
+				c.logger.Printf("[DEBUG] client: periodic fingerprinting for %v failed: %v", name, err)
 			}
 		case <-c.shutdownCh:
 			return
