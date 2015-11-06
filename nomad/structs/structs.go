@@ -924,7 +924,7 @@ func (r *RestartPolicy) Validate() error {
 
 func NewRestartPolicy(jobType string) *RestartPolicy {
 	switch jobType {
-	case JobTypeService:
+	case JobTypeService, JobTypeSystem:
 		rp := defaultServiceJobRestartPolicy
 		return &rp
 	case JobTypeBatch:
