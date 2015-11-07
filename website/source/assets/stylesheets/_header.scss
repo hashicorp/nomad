@@ -23,7 +23,7 @@
       &:hover{
         svg{
           line{
-            stroke: $orange;
+            stroke: $green-dark;
           }
         }
       }
@@ -60,13 +60,13 @@
   #header {
     .navbar-brand {
       .logo{
-        padding-left: 46px;
-        font-size: 22px;
+        padding-left: 42px;
+        font-size: 18px;
+        @include img-retina("../images/logo-header.png", "../images/logo-header@2x.png", $project-logo-width * .75, $project-logo-height * .75);
       }
     }
   }
 }
-
 
 @media (max-width: 320px) {
   #header {
