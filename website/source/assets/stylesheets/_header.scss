@@ -1,148 +1,79 @@
 //
 // Header
+// - Project Specific
+// - edits should be made here
 // --------------------------------------------------
 
 #header {
-    position: relative;
-    height: 92px;
-    color: $white;
-    text-rendering: optimizeLegibility;
-    margin-bottom: 0;
-    /* opacity: 0;
-    @include translate3d(0, -10px, 0); */
-    transition: all 1s ease;
-    background-color: $white;
+  .navbar-brand {
+    .logo{
+      color: $gray-darker;
+      font-family: $font-family-blanc;
+      font-size: 28px;
+      background: image-url('../images/logo-header.png') 0 0 no-repeat;
+      @include img-retina("../images/logo-header.png", "../images/logo-header@2x.png", $project-logo-width, $project-logo-height);
+      background-position: 0 center;
 
-    /* &.showit{
-        opacity: 1;
-        @include translate3d(0, 0px, 0);
-        transition: all 1s ease;
-    } */
-
-    // &.navbar-static-top{
-    //     height:70px;
-    //     z-index: 1000;
-    // }
-
-    .navbar-header{
-
-        .navbar-toggle{
-            padding-right: 15px;
-            margin-top: 26px;
-            margin-bottom: 14px;
-            margin-right: 0;
-            //border: 2px solid $white;
-            border-radius: 0;
-            .icon-bar{
-                border: 1px solid $black;
-                border-radius: 0;
-            }
-        }
+      &:hover{
+        color: $green-dark;
+      }
     }
 
+    .by{
+      &:hover{
+        svg{
+          line{
+            stroke: $orange;
+          }
+        }
+      }
+    }
+  }
 
+  .buttons{
+    margin-top: 2px; //baseline everything
+
+    ul.navbar-nav{
+      li {
+        &:hover{
+          svg path{
+            fill: $black;
+          }
+        }
+
+        svg path{
+          fill: $blue-light;
+        }
+      }
+    }
+  }
+
+  .main-links,
+  .external-links {
+    li > a {
+      @include project-a-style();
+    }
+  }
+}
+
+@media (max-width: 414px) {
+  #header {
     .navbar-brand {
-        display: inline-block;
-        padding: 0;
-        margin: 16px 10px 0 0 ;
-
-        .logo{
-            display: inline-block;
-            height: 56px;
-            padding: 0;
-            color: $gray-darker;
-            font-family: $font-family-blanc;
-            font-size: 28px;
-            line-height: 56px;
-            padding-left: 60px;
-            background: image-url('../images/logo-header.png') 0 0 no-repeat;
-            @include img-retina("../images/logo-header.png", "../images/logo-header@2x.png", 49px, 56px);
-
-            &:hover{
-                @include transition(all 300ms ease-in);
-                color: $green-dark;
-                text-decoration: none;
-            }
-        }
+      .logo{
+        padding-left: 46px;
+        font-size: 22px;
+      }
     }
-
-    .main-links.navbar-nav{
-        margin-top: 36px;
-        margin-left: 120px;
-
-        li > a {
-            @include v-nav-style();
-        }
-    }
-
-    .buttons{
-        ul.navbar-nav{
-            margin-top: 36px;
-            li {
-              padding-left: 12px;
-
-              &.download{
-                background: image-url('../images/icon-download.png') 0 0 no-repeat;
-                @include img-retina("../images/icon-download.png", "../images/icon-download@2x.png", 18px, 18px);
-                margin-right: 22px;
-                background-position: 0 1px;
-              }
-
-              &.github{
-                background: image-url('../images/icon-github.png') 0 0 no-repeat;
-                @include img-retina("../images/icon-github.png", "../images/icon-github@2x.png", 19px, 18px);
-                background-position: 0 1px;
-              }
-
-              >a {
-                    @include v-nav-style();
-                }
-            }
-        }
-    }
-
-    .nav > li > a:hover, .nav > li > a:focus {
-        background-color: transparent;
-        color: $black;
-        @include transition( color 0.3s ease );
-    }
+  }
 }
 
-@media (min-width: 992px) {
-
-}
-
-@media (max-width: 992px) {
-
-}
-
-@media (max-width: 992px) {
-    #header{
-        .main-links.navbar-nav{
-            margin-left: 20px;
-        }
-
-        .buttons{
-            ul.navbar-nav{
-                li {
-                      &.download{
-                        margin-right: 8px;
-                    }
-                }
-            }
-        }
-    }
-
-}
-
-@media (max-width: 763px) {
-    .navbar-static-top {
-        .nav-white {
-            background-color:rgba(0,0,0,0.5);
-        }
-    }
-}
 
 @media (max-width: 320px) {
-
+  #header {
+    .navbar-brand {
+      .logo{
+        // font-size: 0 !important; //hide terraform text
+      }
+    }
+  }
 }
