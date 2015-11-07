@@ -29,9 +29,12 @@ func TestStorageFingerprint(t *testing.T) {
 	}
 
 	if free > total {
-		t.Errorf("storage.bytesfree %d is larger than storage.bytestotal %d", free, total)
+		t.Fatalf("storage.bytesfree %d is larger than storage.bytestotal %d", free, total)
 	}
 
+	if node.Resources == nil {
+		t.Fatalf("Node Resources was nil")
+	}
 	if node.Resources.DiskMB == 0 {
 		t.Errorf("Expected node.Resources.DiskMB to be non-zero")
 	}

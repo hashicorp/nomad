@@ -25,5 +25,8 @@ func TestMemoryFingerprint(t *testing.T) {
 	if node.Resources == nil {
 		t.Fatalf("Node Resources was nil")
 	}
+	if node.Resources.MemoryMB == 0 {
+		t.Errorf("Expected node.Resources.MemoryMB to be non-zero")
+	}
 
 }
