@@ -119,7 +119,7 @@ func (r *AllocRunner) RestoreState() error {
 }
 
 // SaveState is used to snapshot our state
-func (r *AllocRunner) SaveState() error {
+func (r *AllocRunner) SaveState(taskName string) error {
 	r.taskStatusLock.RLock()
 	snap := allocRunnerState{
 		Alloc:         r.alloc,
@@ -137,14 +137,26 @@ func (r *AllocRunner) SaveState() error {
 	r.taskLock.RLock()
 	defer r.taskLock.RUnlock()
 	var mErr multierror.Error
-	for name, tr := range r.tasks {
-		if err := tr.SaveState(); err != nil {
-			r.logger.Printf("[ERR] client: failed to save state for alloc %s task '%s': %v",
-				r.alloc.ID, name, err)
-			mErr.Errors = append(mErr.Errors, err)
+	if taskName != "" {
+		tr, ok := r.tasks[taskName]
+		if !ok {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("[ERR] client: Task with name %v not found in alloc runner %v", taskName, r.alloc.Name))
 		}
+		r.saveTaskRunnerState(tr, &mErr)
+		return mErr.ErrorOrNil()
+	}
+	for _, tr := range r.tasks {
+		r.saveTaskRunnerState(tr, &mErr)
 	}
 	return mErr.ErrorOrNil()
+}
+
+func (r *AllocRunner) saveTaskRunnerState(tr *TaskRunner, mErr *multierror.Error) {
+	if err := tr.SaveState(); err != nil {
+		r.logger.Printf("[ERR] client: failed to save state for alloc %s task '%s': %v",
+			r.alloc.ID, tr.task.Name, err)
+		mErr.Errors = append(mErr.Errors, err)
+	}
 }
 
 // DestroyState is used to cleanup after ourselves
@@ -257,6 +269,7 @@ func (r *AllocRunner) setTaskStatus(taskName, status, desc string) {
 		Description: desc,
 	}
 	r.taskStatusLock.Unlock()
+	r.SaveState(taskName)
 	select {
 	case r.dirtyCh <- struct{}{}:
 	default:
