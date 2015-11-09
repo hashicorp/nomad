@@ -228,6 +228,8 @@ func TestParse(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		t.Logf("Testing parse: %s", tc.File)
+
 		path, err := filepath.Abs(filepath.Join("./test-fixtures", tc.File))
 		if err != nil {
 			t.Fatalf("file: %s\n\n%s", tc.File, err)
