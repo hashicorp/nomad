@@ -138,11 +138,11 @@ func (r *AllocRunner) SaveState(taskName string) error {
 	defer r.taskLock.RUnlock()
 	var mErr multierror.Error
 	if taskName != "" {
-		tr, ok := r.tasks[taskName]
-		if !ok {
+		if tr, ok := r.tasks[taskName]; ok {
+			r.saveTaskRunnerState(tr, &mErr)
+		} else {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("[ERR] client: Task with name %v not found in alloc runner %v", taskName, r.alloc.Name))
 		}
-		r.saveTaskRunnerState(tr, &mErr)
 		return mErr.ErrorOrNil()
 	}
 	for _, tr := range r.tasks {
