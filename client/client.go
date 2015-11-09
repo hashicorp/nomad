@@ -111,11 +111,6 @@ func NewClient(cfg *config.Config) (*Client, error) {
 		return nil, fmt.Errorf("failed intializing client: %v", err)
 	}
 
-	// Restore the state
-	if err := c.restoreState(); err != nil {
-		return nil, fmt.Errorf("failed to restore state: %v", err)
-	}
-
 	// Setup the node
 	if err := c.setupNode(); err != nil {
 		return nil, fmt.Errorf("node setup failed: %v", err)
@@ -133,6 +128,11 @@ func NewClient(cfg *config.Config) (*Client, error) {
 
 	// Set up the known servers list
 	c.SetServers(c.config.Servers)
+
+	// Restore the state
+	if err := c.restoreState(); err != nil {
+		return nil, fmt.Errorf("failed to restore state: %v", err)
+	}
 
 	// Start the client!
 	go c.run()
@@ -331,8 +331,7 @@ func (c *Client) restoreState() error {
 		ar := NewAllocRunner(c.logger, c.config, c.updateAllocStatus, alloc)
 		c.allocs[id] = ar
 		if err := ar.RestoreState(); err != nil {
-			c.logger.Printf("[ERR] client: failed to restore state for alloc %s: %v",
-				id, err)
+			c.logger.Printf("[ERR] client: failed to restore state for alloc %s: %v", id, err)
 			mErr.Errors = append(mErr.Errors, err)
 		} else {
 			go ar.Run()

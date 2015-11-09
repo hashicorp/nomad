@@ -100,10 +100,12 @@ func (r *TaskRunner) RestoreState() error {
 		}
 
 		handle, err := driver.Open(r.ctx, snap.HandleID)
+
+		// In the case it fails, we relaunch the task in the Run() method.
 		if err != nil {
 			r.logger.Printf("[ERR] client: failed to open handle to task '%s' for alloc '%s': %v",
 				r.task.Name, r.allocID, err)
-			return err
+			return nil
 		}
 		r.handle = handle
 	}
