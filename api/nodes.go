@@ -47,13 +47,13 @@ func (n *Nodes) ToggleDrain(nodeID string, drain bool, q *WriteOptions) (*WriteM
 }
 
 // Allocations is used to return the allocations associated with a node.
-func (n *Nodes) Allocations(nodeID string, q *QueryOptions) ([]*AllocationListStub, *QueryMeta, error) {
-	var resp []*AllocationListStub
+func (n *Nodes) Allocations(nodeID string, q *QueryOptions) ([]*Allocation, *QueryMeta, error) {
+	var resp []*Allocation
 	qm, err := n.client.query("/v1/node/"+nodeID+"/allocations", &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
-	sort.Sort(AllocIndexSort(resp))
+	sort.Sort(AllocationSort(resp))
 	return resp, qm, nil
 }
 
@@ -116,4 +116,19 @@ func (n NodeIndexSort) Swap(i, j int) {
 // nodeEvalResponse is used to decode a force-eval.
 type nodeEvalResponse struct {
 	EvalID string
+}
+
+// AllocationSort reverse sorts allocs by CreateIndex.
+type AllocationSort []*Allocation
+
+func (a AllocationSort) Len() int {
+	return len(a)
+}
+
+func (a AllocationSort) Less(i, j int) bool {
+	return a[i].CreateIndex > a[j].CreateIndex
+}
+
+func (a AllocationSort) Swap(i, j int) {
+	a[i], a[j] = a[j], a[i]
 }
