@@ -144,7 +144,7 @@ func TestConfig_LoadConfigFile(t *testing.T) {
 	defer os.RemoveAll(fh.Name())
 
 	// Invalid content returns error
-	if _, err := fh.WriteString("nope"); err != nil {
+	if _, err := fh.WriteString("nope;!!!"); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 	if _, err := LoadConfigFile(fh.Name()); err == nil {
@@ -205,7 +205,7 @@ func TestConfig_LoadConfigDir(t *testing.T) {
 	}
 
 	file3 := filepath.Join(dir, "conf3.hcl")
-	err = ioutil.WriteFile(file3, []byte(`nope`), 0600)
+	err = ioutil.WriteFile(file3, []byte(`nope;!!!`), 0600)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}

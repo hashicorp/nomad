@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl"
-	hclobj "github.com/hashicorp/hcl/hcl"
 	client "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad"
 )
@@ -540,14 +539,6 @@ func LoadConfigFile(path string) (*Config, error) {
 		return nil, err
 	}
 	return LoadConfigString(string(d))
-}
-
-func getString(o *hclobj.Object) string {
-	if o == nil || o.Type != hclobj.ValueTypeString {
-		return ""
-	}
-
-	return o.Value.(string)
 }
 
 // LoadConfigDir loads all the configurations in the given directory
