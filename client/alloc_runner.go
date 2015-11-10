@@ -201,8 +201,7 @@ func (r *AllocRunner) dirtySyncState() {
 // retrySyncState is used to retry the state sync until success
 func (r *AllocRunner) retrySyncState(stopCh chan struct{}) {
 	for {
-		err := r.syncStatus()
-		if err == nil {
+		if err := r.syncStatus(); err == nil {
 			// The Alloc State might have been re-computed so we are
 			// snapshoting only the alloc runner
 			r.SaveState(false)
