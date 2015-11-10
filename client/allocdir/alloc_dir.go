@@ -126,16 +126,22 @@ func (d *AllocDir) Embed(task string, dirs map[string]string) error {
 			continue
 		}
 
+		// Check if destination directory exists. This can happen if restarting
+		// a failed task.
+		destDir := filepath.Join(taskdir, dest)
+		if _, err := os.Stat(destDir); err == nil {
+			continue
+		}
+
+		// Create destination directory.
+		if err := os.MkdirAll(destDir, s.Mode().Perm()); err != nil {
+			return fmt.Errorf("Couldn't create destination directory %v: %v", destDir, err)
+		}
+
 		// Enumerate the files in source.
 		entries, err := ioutil.ReadDir(source)
 		if err != nil {
 			return fmt.Errorf("Couldn't read directory %v: %v", source, err)
-		}
-
-		// Create destination directory.
-		destDir := filepath.Join(taskdir, dest)
-		if err := os.MkdirAll(destDir, s.Mode().Perm()); err != nil {
-			return fmt.Errorf("Couldn't create destination directory %v: %v", destDir, err)
 		}
 
 		for _, entry := range entries {

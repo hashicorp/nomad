@@ -8,7 +8,7 @@ import (
 // Bind mounts the shared directory into the task directory. Must be root to
 // run.
 func (d *AllocDir) mountSharedDir(taskDir string) error {
-	if err := os.Mkdir(taskDir, 0777); err != nil {
+	if err := os.MkdirAll(taskDir, 0777); err != nil {
 		return err
 	}
 
