@@ -351,7 +351,7 @@ func (c *Client) saveState() error {
 	c.allocLock.RLock()
 	defer c.allocLock.RUnlock()
 	for id, ar := range c.allocs {
-		if err := ar.SaveState(""); err != nil {
+		if err := ar.SaveState(true); err != nil {
 			c.logger.Printf("[ERR] client: failed to save state for alloc %s: %v",
 				id, err)
 			mErr.Errors = append(mErr.Errors, err)
