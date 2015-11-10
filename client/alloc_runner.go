@@ -122,23 +122,8 @@ func (r *AllocRunner) RestoreState() error {
 // if the fullSync is marked as false only the state of the Alloc Runner
 // is snapshotted. If fullSync is marked as true, we snapshot
 // all the Task Runners associated with the Alloc
-func (r *AllocRunner) SaveState(fullSync bool) error {
-	r.taskStatusLock.RLock()
-	snap := allocRunnerState{
-		Alloc:         r.alloc,
-		RestartPolicy: r.RestartPolicy,
-		TaskStatus:    r.taskStatus,
-		Context:       r.ctx,
-	}
-	err := persistState(r.stateFilePath(), &snap)
-	r.taskStatusLock.RUnlock()
-	if err != nil {
-		return err
-	}
-
-	if !fullSync {
-		return nil
-	}
+func (r *AllocRunner) SaveState() error {
+	r.saveAllocRunnerState()
 
 	// Save state for each task
 	r.taskLock.RLock()
@@ -150,6 +135,22 @@ func (r *AllocRunner) SaveState(fullSync bool) error {
 		}
 	}
 	return mErr.ErrorOrNil()
+}
+
+func (r *AllocRunner) saveAllocRunnerState() error {
+	r.taskStatusLock.RLock()
+	defer r.taskStatusLock.RUnlock()
+	snap := allocRunnerState{
+		Alloc:         r.alloc,
+		RestartPolicy: r.RestartPolicy,
+		TaskStatus:    r.taskStatus,
+		Context:       r.ctx,
+	}
+	err := persistState(r.stateFilePath(), &snap)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (r *AllocRunner) saveTaskRunnerState(tr *TaskRunner) error {
@@ -204,7 +205,7 @@ func (r *AllocRunner) retrySyncState(stopCh chan struct{}) {
 		if err := r.syncStatus(); err == nil {
 			// The Alloc State might have been re-computed so we are
 			// snapshoting only the alloc runner
-			r.SaveState(false)
+			r.saveAllocRunnerState()
 			return
 		}
 		select {
