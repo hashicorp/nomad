@@ -123,7 +123,9 @@ func (r *AllocRunner) RestoreState() error {
 // is snapshotted. If fullSync is marked as true, we snapshot
 // all the Task Runners associated with the Alloc
 func (r *AllocRunner) SaveState() error {
-	r.saveAllocRunnerState()
+	if err := r.saveAllocRunnerState(); err != nil {
+		return err
+	}
 
 	// Save state for each task
 	r.taskLock.RLock()
@@ -146,11 +148,7 @@ func (r *AllocRunner) saveAllocRunnerState() error {
 		TaskStatus:    r.taskStatus,
 		Context:       r.ctx,
 	}
-	err := persistState(r.stateFilePath(), &snap)
-	if err != nil {
-		return err
-	}
-	return nil
+	return persistState(r.stateFilePath(), &snap)
 }
 
 func (r *AllocRunner) saveTaskRunnerState(tr *TaskRunner) error {
