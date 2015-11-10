@@ -9,8 +9,13 @@ body.page-sub{
 }
 
 #footer{
+  position: relative;
   padding: 64px 0;
   color: $black;
+
+  > .container{
+    position: relative;
+  }
 
   .footer-links{
     li{
@@ -92,6 +97,18 @@ body.page-sub{
         }
       }
     }
+  }
+}
+
+.edit-page-link{
+  position: absolute;
+  top: -70px;
+  right: 30px;;
+
+  a{
+    text-transform: uppercase;
+    color: $black;
+    font-size: 13px;
   }
 }
 
