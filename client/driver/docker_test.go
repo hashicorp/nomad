@@ -27,6 +27,8 @@ func dockerIsConnected(t *testing.T) bool {
 		return false
 	}
 
+	// Creating a client doesn't actually connect, so make sure we do something
+	// like call Version() on it.
 	env, err := client.Version()
 	if err != nil {
 		t.Logf("Failed to connect to docker daemon: %s", err)
@@ -171,6 +173,9 @@ func TestDockerDriver_Start_Wait(t *testing.T) {
 }
 
 func TestDockerDriver_Start_Wait_AllocDir(t *testing.T) {
+	// This test requires that the alloc dir be mounted into docker as a volume.
+	// Because this cannot happen when docker is run remotely, e.g. when running
+	// docker in a VM, we skip this when we detect Docker is being run remotely.
 	if !dockerIsConnected(t) || dockerIsRemote(t) {
 		t.SkipNow()
 	}
