@@ -157,6 +157,7 @@ func TestTaskRunner_Update(t *testing.T) {
 }
 
 func TestTaskRunner_SaveRestoreState(t *testing.T) {
+	ctestutil.ExecCompatible(t)
 	upd, tr := testTaskRunner()
 
 	// Change command to ensure we run for a bit
