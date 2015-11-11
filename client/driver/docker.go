@@ -64,7 +64,7 @@ func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool
 	// Initialize docker API client
 	client, err := d.dockerClient()
 	if err != nil {
-		d.logger.Printf("[DEBUG] driver.docker: could not connect to docker daemon: %v", err)
+		d.logger.Printf("[DEBUG] driver.docker: could not connect to docker daemon: %s", err)
 		return false, nil
 	}
 
@@ -86,17 +86,13 @@ func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool
 		return false, fmt.Errorf("Unable to parse docker.cleanup.image: %s", err)
 	}
 
+	// This is the first operation taken on the client so we'll try to
+	// establish a connection to the Docker daemon. If this fails it means
+	// Docker isn't available so we'll simply disable the docker driver.
 	env, err := client.Version()
 	if err != nil {
-		d.logger.Printf("[DEBUG] driver.docker: could not read version from daemon: %v", err)
-		// Check the "no such file" error if the unix file is missing
-		if strings.Contains(err.Error(), "no such file") {
-			return false, nil
-		}
-
-		// We connected to the daemon but couldn't read the version so something
-		// is broken.
-		return false, err
+		d.logger.Printf("[INFO] driver.docker: connection to daemon failed: %s", err)
+		return false, nil
 	}
 	node.Attributes["driver.docker"] = "1"
 	node.Attributes["driver.docker.version"] = env.Get("Version")
