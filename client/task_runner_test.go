@@ -187,7 +187,7 @@ func TestTaskRunner_SaveRestoreState(t *testing.T) {
 
 	select {
 	case <-tr.WaitCh():
-	case <-time.After(10 * time.Second):
+	case <-time.After(15 * time.Second):
 		t.Fatalf("timeout")
 	}
 }
