@@ -69,10 +69,10 @@ func testServer(t *testing.T, cb func(*nomad.Config)) (*nomad.Server, string) {
 
 func testClient(t *testing.T, cb func(c *config.Config)) *Client {
 	conf := DefaultConfig()
+	conf.DevMode = true
 	if cb != nil {
 		cb(conf)
 	}
-	conf.DevMode = true
 
 	client, err := NewClient(conf)
 	if err != nil {
@@ -319,11 +319,6 @@ func TestClient_WatchAllocs(t *testing.T) {
 	})
 }
 
-/*
-TODO: This test is disabled til a follow-up api changes the restore state interface.
-The driver/executor interface will be changed from Open to Cleanup, in which
-clean-up tears down previous allocs.
-
 func TestClient_SaveRestoreState(t *testing.T) {
 	ctestutil.ExecCompatible(t)
 	s1, _ := testServer(t, nil)
@@ -331,6 +326,7 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	c1 := testClient(t, func(c *config.Config) {
+		c.DevMode = false
 		c.RPCHandler = s1
 	})
 	defer c1.Shutdown()
@@ -352,9 +348,9 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	// Allocations should get registered
 	testutil.WaitForResult(func() (bool, error) {
 		c1.allocLock.RLock()
-		num := len(c1.allocs)
+		ar := c1.allocs[alloc1.ID]
 		c1.allocLock.RUnlock()
-		return num == 1, nil
+		return ar != nil && ar.Alloc().ClientStatus == structs.AllocClientStatusRunning, nil
 	}, func(err error) {
 		t.Fatalf("err: %v", err)
 	})
@@ -374,13 +370,12 @@ func TestClient_SaveRestoreState(t *testing.T) {
 
 	// Ensure the allocation is running
 	c2.allocLock.RLock()
-	ar := c1.allocs[alloc1.ID]
+	ar := c2.allocs[alloc1.ID]
 	c2.allocLock.RUnlock()
 	if ar.Alloc().ClientStatus != structs.AllocClientStatusRunning {
 		t.Fatalf("bad: %#v", ar.Alloc())
 	}
 }
-*/
 
 func TestClient_Init(t *testing.T) {
 	dir, err := ioutil.TempDir("", "nomad")

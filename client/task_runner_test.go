@@ -156,12 +156,8 @@ func TestTaskRunner_Update(t *testing.T) {
 	})
 }
 
-/*
-TODO: This test is disabled til a follow-up api changes the restore state interface.
-The driver/executor interface will be changed from Open to Cleanup, in which
-clean-up tears down previous allocs.
-
 func TestTaskRunner_SaveRestoreState(t *testing.T) {
+	ctestutil.ExecCompatible(t)
 	upd, tr := testTaskRunner()
 
 	// Change command to ensure we run for a bit
@@ -171,29 +167,23 @@ func TestTaskRunner_SaveRestoreState(t *testing.T) {
 	defer tr.Destroy()
 
 	// Snapshot state
-	time.Sleep(200 * time.Millisecond)
-	err := tr.SaveState()
-	if err != nil {
+	time.Sleep(1 * time.Second)
+	if err := tr.SaveState(); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	// Create a new task runner
 	tr2 := NewTaskRunner(tr.logger, tr.config, upd.Update,
-		tr.ctx, tr.allocID, &structs.Task{Name: tr.task.Name})
-	err = tr2.RestoreState()
-	if err != nil {
+		tr.ctx, tr.allocID, &structs.Task{Name: tr.task.Name}, tr.restartTracker)
+	if err := tr2.RestoreState(); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	go tr2.Run()
 	defer tr2.Destroy()
 
 	// Destroy and wait
-	tr2.Destroy()
-
-	select {
-	case <-tr.WaitCh():
-	case <-time.After(2 * time.Second):
-		t.Fatalf("timeout")
+	time.Sleep(1 * time.Second)
+	if tr2.handle == nil {
+		t.Fatalf("RestoreState() didn't open handle")
 	}
 }
-*/

@@ -264,22 +264,26 @@ func (e *LinuxExecutor) ConfigureTaskDir(taskName string, alloc *allocdir.AllocD
 
 	// Mount dev
 	dev := filepath.Join(taskDir, "dev")
-	if err := os.Mkdir(dev, 0777); err != nil {
-		return fmt.Errorf("Mkdir(%v) failed: %v", dev, err)
-	}
+	if !e.pathExists(dev) {
+		if err := os.Mkdir(dev, 0777); err != nil {
+			return fmt.Errorf("Mkdir(%v) failed: %v", dev, err)
+		}
 
-	if err := syscall.Mount("", dev, "devtmpfs", syscall.MS_RDONLY, ""); err != nil {
-		return fmt.Errorf("Couldn't mount /dev to %v: %v", dev, err)
+		if err := syscall.Mount("", dev, "devtmpfs", syscall.MS_RDONLY, ""); err != nil {
+			return fmt.Errorf("Couldn't mount /dev to %v: %v", dev, err)
+		}
 	}
 
 	// Mount proc
 	proc := filepath.Join(taskDir, "proc")
-	if err := os.Mkdir(proc, 0777); err != nil {
-		return fmt.Errorf("Mkdir(%v) failed: %v", proc, err)
-	}
+	if !e.pathExists(proc) {
+		if err := os.Mkdir(proc, 0777); err != nil {
+			return fmt.Errorf("Mkdir(%v) failed: %v", proc, err)
+		}
 
-	if err := syscall.Mount("", proc, "proc", syscall.MS_RDONLY, ""); err != nil {
-		return fmt.Errorf("Couldn't mount /proc to %v: %v", proc, err)
+		if err := syscall.Mount("", proc, "proc", syscall.MS_RDONLY, ""); err != nil {
+			return fmt.Errorf("Couldn't mount /proc to %v: %v", proc, err)
+		}
 	}
 
 	// Set the tasks AllocDir environment variable.

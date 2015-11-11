@@ -126,16 +126,16 @@ func (d *AllocDir) Embed(task string, dirs map[string]string) error {
 			continue
 		}
 
-		// Enumerate the files in source.
-		entries, err := ioutil.ReadDir(source)
-		if err != nil {
-			return fmt.Errorf("Couldn't read directory %v: %v", source, err)
-		}
-
 		// Create destination directory.
 		destDir := filepath.Join(taskdir, dest)
 		if err := os.MkdirAll(destDir, s.Mode().Perm()); err != nil {
 			return fmt.Errorf("Couldn't create destination directory %v: %v", destDir, err)
+		}
+
+		// Enumerate the files in source.
+		entries, err := ioutil.ReadDir(source)
+		if err != nil {
+			return fmt.Errorf("Couldn't read directory %v: %v", source, err)
 		}
 
 		for _, entry := range entries {
@@ -144,7 +144,15 @@ func (d *AllocDir) Embed(task string, dirs map[string]string) error {
 			if entry.IsDir() {
 				subdirs[hostEntry] = filepath.Join(dest, filepath.Base(hostEntry))
 				continue
-			} else if !entry.Mode().IsRegular() {
+			}
+
+			// Check if entry exists. This can happen if restarting a failed
+			// task.
+			if _, err := os.Lstat(taskEntry); err == nil {
+				continue
+			}
+
+			if !entry.Mode().IsRegular() {
 				// If it is a symlink we can create it, otherwise we skip it.
 				if entry.Mode()&os.ModeSymlink == 0 {
 					continue

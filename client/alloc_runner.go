@@ -103,11 +103,18 @@ func (r *AllocRunner) RestoreState() error {
 
 	// Restore the task runners
 	var mErr multierror.Error
-	for name := range r.taskStatus {
+	for name, status := range r.taskStatus {
 		task := &structs.Task{Name: name}
 		restartTracker := newRestartTracker(r.alloc.Job.Type, r.RestartPolicy)
 		tr := NewTaskRunner(r.logger, r.config, r.setTaskStatus, r.ctx, r.alloc.ID, task, restartTracker)
 		r.tasks[name] = tr
+
+		// Skip tasks in terminal states.
+		if status.Status == structs.AllocClientStatusDead ||
+			status.Status == structs.AllocClientStatusFailed {
+			continue
+		}
+
 		if err := tr.RestoreState(); err != nil {
 			r.logger.Printf("[ERR] client: failed to restore state for alloc %s task '%s': %v", r.alloc.ID, name, err)
 			mErr.Errors = append(mErr.Errors, err)
@@ -320,7 +327,7 @@ func (r *AllocRunner) Run() {
 	r.taskLock.Lock()
 	for _, task := range tg.Tasks {
 		// Skip tasks that were restored
-		if _, ok := r.tasks[task.Name]; ok {
+		if _, ok := r.taskStatus[task.Name]; ok {
 			continue
 		}
 
