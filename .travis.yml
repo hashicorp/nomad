@@ -6,6 +6,11 @@ go:
   - 1.5.1
   - tip
 
+before_install:
+  - wget https://github.com/coreos/rkt/releases/download/v0.10.0/rkt-v0.10.0.tar.gz
+  - tar xzvf rkt-v0.10.0.tar.gz
+  - export PATH=$PATH:$PWD/rkt-v0.10.0
+
 matrix:
   allow_failures:
     - go: tip
