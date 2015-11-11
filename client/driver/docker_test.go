@@ -3,7 +3,6 @@ package driver
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -22,7 +21,7 @@ func testDockerDriverContext(task string) *DriverContext {
 }
 
 // dockerIsConnected checks to see if a docker daemon is available (local or remote)
-func dockerIsConnected() bool {
+func dockerIsConnected(t *testing.T) bool {
 	client, err := docker.NewClientFromEnv()
 	if err != nil {
 		return false
@@ -30,15 +29,15 @@ func dockerIsConnected() bool {
 
 	env, err := client.Version()
 	if err != nil {
-		log.Printf("[TEST] Failed")
+		t.Logf("Failed to connect to docker daemon: %s", err)
 		return false
 	}
 
-	log.Printf("[TEST] Successfully connected to docker daemon running version %s", env.Get("Version"))
+	t.Logf("Successfully connected to docker daemon running version %s", env.Get("Version"))
 	return true
 }
 
-func dockerIsRemote() bool {
+func dockerIsRemote(t *testing.T) bool {
 	client, err := docker.NewClientFromEnv()
 	if err != nil {
 		return false
@@ -77,17 +76,17 @@ func TestDockerDriver_Fingerprint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if apply != dockerIsConnected() {
-		t.Fatalf("Fingerprinter should detect Docker when it is installed")
+	if apply != dockerIsConnected(t) {
+		t.Fatalf("Fingerprinter should detect when docker is available")
 	}
 	if node.Attributes["driver.docker"] != "1" {
-		t.Log("Docker not found. The remainder of the docker tests will be skipped.")
+		t.Log("Docker daemon not available. The remainder of the docker tests will be skipped.")
 	}
 	t.Logf("Found docker version %s", node.Attributes["driver.docker.version"])
 }
 
 func TestDockerDriver_StartOpen_Wait(t *testing.T) {
-	if !dockerIsConnected() {
+	if !dockerIsConnected(t) {
 		t.SkipNow()
 	}
 
@@ -124,7 +123,7 @@ func TestDockerDriver_StartOpen_Wait(t *testing.T) {
 }
 
 func TestDockerDriver_Start_Wait(t *testing.T) {
-	if !dockerIsConnected() {
+	if !dockerIsConnected(t) {
 		t.SkipNow()
 	}
 
@@ -172,7 +171,7 @@ func TestDockerDriver_Start_Wait(t *testing.T) {
 }
 
 func TestDockerDriver_Start_Wait_AllocDir(t *testing.T) {
-	if !dockerIsConnected() || dockerIsRemote() {
+	if !dockerIsConnected(t) || dockerIsRemote(t) {
 		t.SkipNow()
 	}
 
@@ -227,7 +226,7 @@ func TestDockerDriver_Start_Wait_AllocDir(t *testing.T) {
 }
 
 func TestDockerDriver_Start_Kill_Wait(t *testing.T) {
-	if !dockerIsConnected() {
+	if !dockerIsConnected(t) {
 		t.SkipNow()
 	}
 
@@ -294,7 +293,7 @@ func taskTemplate() *structs.Task {
 }
 
 func TestDocker_StartN(t *testing.T) {
-	if !dockerIsConnected() {
+	if !dockerIsConnected(t) {
 		t.SkipNow()
 	}
 
@@ -345,7 +344,7 @@ func TestDocker_StartN(t *testing.T) {
 }
 
 func TestDocker_StartNVersions(t *testing.T) {
-	if !dockerIsConnected() {
+	if !dockerIsConnected(t) {
 		t.SkipNow()
 	}
 
@@ -399,7 +398,7 @@ func TestDocker_StartNVersions(t *testing.T) {
 }
 
 func TestDockerHostNet(t *testing.T) {
-	if !dockerIsConnected() {
+	if !dockerIsConnected(t) {
 		t.SkipNow()
 	}
 
