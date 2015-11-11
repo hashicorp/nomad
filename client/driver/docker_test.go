@@ -3,12 +3,12 @@ package driver
 import (
 	"fmt"
 	"io/ioutil"
-	"os/exec"
 	"path/filepath"
 	"reflect"
 	"testing"
 	"time"
 
+	docker "github.com/fsouza/go-dockerclient"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/environment"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -20,11 +20,37 @@ func testDockerDriverContext(task string) *DriverContext {
 	return NewDriverContext(task, cfg, cfg.Node, testLogger())
 }
 
-// dockerLocated looks to see whether docker is available on this system before
-// we try to run tests. We'll keep it simple and just check for the CLI.
-func dockerLocated() bool {
-	_, err := exec.Command("docker", "-v").CombinedOutput()
-	return err == nil
+// dockerIsConnected checks to see if a docker daemon is available (local or remote)
+func dockerIsConnected(t *testing.T) bool {
+	client, err := docker.NewClientFromEnv()
+	if err != nil {
+		return false
+	}
+
+	// Creating a client doesn't actually connect, so make sure we do something
+	// like call Version() on it.
+	env, err := client.Version()
+	if err != nil {
+		t.Logf("Failed to connect to docker daemon: %s", err)
+		return false
+	}
+
+	t.Logf("Successfully connected to docker daemon running version %s", env.Get("Version"))
+	return true
+}
+
+func dockerIsRemote(t *testing.T) bool {
+	client, err := docker.NewClientFromEnv()
+	if err != nil {
+		return false
+	}
+
+	// Technically this could be a local tcp socket but for testing purposes
+	// we'll just assume that tcp is only used for remote connections.
+	if client.Endpoint()[0:3] == "tcp" {
+		return true
+	}
+	return false
 }
 
 func TestDockerDriver_Handle(t *testing.T) {
@@ -42,7 +68,7 @@ func TestDockerDriver_Handle(t *testing.T) {
 	}
 }
 
-// The fingerprinter test should always pass, even if Docker is not installed.
+// This test should always pass, even if docker daemon is not available
 func TestDockerDriver_Fingerprint(t *testing.T) {
 	d := NewDockerDriver(testDockerDriverContext(""))
 	node := &structs.Node{
@@ -52,17 +78,17 @@ func TestDockerDriver_Fingerprint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if apply != dockerLocated() {
-		t.Fatalf("Fingerprinter should detect Docker when it is installed")
+	if apply != dockerIsConnected(t) {
+		t.Fatalf("Fingerprinter should detect when docker is available")
 	}
 	if node.Attributes["driver.docker"] != "1" {
-		t.Log("Docker not found. The remainder of the docker tests will be skipped.")
+		t.Log("Docker daemon not available. The remainder of the docker tests will be skipped.")
 	}
 	t.Logf("Found docker version %s", node.Attributes["driver.docker.version"])
 }
 
 func TestDockerDriver_StartOpen_Wait(t *testing.T) {
-	if !dockerLocated() {
+	if !dockerIsConnected(t) {
 		t.SkipNow()
 	}
 
@@ -99,7 +125,7 @@ func TestDockerDriver_StartOpen_Wait(t *testing.T) {
 }
 
 func TestDockerDriver_Start_Wait(t *testing.T) {
-	if !dockerLocated() {
+	if !dockerIsConnected(t) {
 		t.SkipNow()
 	}
 
@@ -147,7 +173,10 @@ func TestDockerDriver_Start_Wait(t *testing.T) {
 }
 
 func TestDockerDriver_Start_Wait_AllocDir(t *testing.T) {
-	if !dockerLocated() {
+	// This test requires that the alloc dir be mounted into docker as a volume.
+	// Because this cannot happen when docker is run remotely, e.g. when running
+	// docker in a VM, we skip this when we detect Docker is being run remotely.
+	if !dockerIsConnected(t) || dockerIsRemote(t) {
 		t.SkipNow()
 	}
 
@@ -202,7 +231,7 @@ func TestDockerDriver_Start_Wait_AllocDir(t *testing.T) {
 }
 
 func TestDockerDriver_Start_Kill_Wait(t *testing.T) {
-	if !dockerLocated() {
+	if !dockerIsConnected(t) {
 		t.SkipNow()
 	}
 
@@ -269,7 +298,7 @@ func taskTemplate() *structs.Task {
 }
 
 func TestDocker_StartN(t *testing.T) {
-	if !dockerLocated() {
+	if !dockerIsConnected(t) {
 		t.SkipNow()
 	}
 
@@ -320,7 +349,7 @@ func TestDocker_StartN(t *testing.T) {
 }
 
 func TestDocker_StartNVersions(t *testing.T) {
-	if !dockerLocated() {
+	if !dockerIsConnected(t) {
 		t.SkipNow()
 	}
 
@@ -374,7 +403,7 @@ func TestDocker_StartNVersions(t *testing.T) {
 }
 
 func TestDockerHostNet(t *testing.T) {
-	if !dockerLocated() {
+	if !dockerIsConnected(t) {
 		t.SkipNow()
 	}
 

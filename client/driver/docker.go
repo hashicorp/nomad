@@ -47,32 +47,24 @@ func NewDockerDriver(ctx *DriverContext) Driver {
 // to connect to the docker daemon. In production mode we will read
 // docker.endpoint from the config file.
 func (d *DockerDriver) dockerClient() (*docker.Client, error) {
-	// In dev mode, read DOCKER_* environment variables DOCKER_HOST,
-	// DOCKER_TLS_VERIFY, and DOCKER_CERT_PATH. This allows you to run tests and
-	// demo against boot2docker or a VM on OSX and Windows. This falls back on
-	// the default unix socket on linux if tests are run on linux.
-	//
-	// Also note that we need to turn on DevMode in the test configs.
-	if d.config.DevMode {
-		return docker.NewClientFromEnv()
+	// Default to using whatever is configured in docker.endpoint. If this is
+	// not specified we'll fall back on NewClientFromEnv which reads config from
+	// the DOCKER_* environment variables DOCKER_HOST, DOCKER_TLS_VERIFY, and
+	// DOCKER_CERT_PATH. This allows us to lock down the config in production
+	// but also accept the standard ENV configs for dev and test.
+	dockerEndpoint := d.config.Read("docker.endpoint")
+	if dockerEndpoint != "" {
+		return docker.NewClient(dockerEndpoint)
 	}
 
-	// In prod mode we'll read the docker.endpoint configuration and fall back
-	// on the host-specific default. We do not read from the environment.
-	defaultEndpoint, err := docker.DefaultDockerHost()
-	if err != nil {
-		return nil, fmt.Errorf("Unable to determine default docker endpoint: %s", err)
-	}
-	dockerEndpoint := d.config.ReadDefault("docker.endpoint", defaultEndpoint)
-
-	return docker.NewClient(dockerEndpoint)
+	return docker.NewClientFromEnv()
 }
 
 func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
 	// Initialize docker API client
 	client, err := d.dockerClient()
 	if err != nil {
-		d.logger.Printf("[DEBUG] driver.docker: could not connect to docker daemon: %v", err)
+		d.logger.Printf("[DEBUG] driver.docker: could not connect to docker daemon: %s", err)
 		return false, nil
 	}
 
@@ -94,17 +86,13 @@ func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool
 		return false, fmt.Errorf("Unable to parse docker.cleanup.image: %s", err)
 	}
 
+	// This is the first operation taken on the client so we'll try to
+	// establish a connection to the Docker daemon. If this fails it means
+	// Docker isn't available so we'll simply disable the docker driver.
 	env, err := client.Version()
 	if err != nil {
-		d.logger.Printf("[DEBUG] driver.docker: could not read version from daemon: %v", err)
-		// Check the "no such file" error if the unix file is missing
-		if strings.Contains(err.Error(), "no such file") {
-			return false, nil
-		}
-
-		// We connected to the daemon but couldn't read the version so something
-		// is broken.
-		return false, err
+		d.logger.Printf("[INFO] driver.docker: connection to daemon failed: %s", err)
+		return false, nil
 	}
 	node.Attributes["driver.docker"] = "1"
 	node.Attributes["driver.docker.version"] = env.Get("Version")
