@@ -86,87 +86,87 @@
 // Single side border-radius
 @mixin border-top-radius($radius) {
   border-top-right-radius: $radius;
-   border-top-left-radius: $radius;
+  border-top-left-radius: $radius;
 }
 @mixin border-right-radius($radius) {
   border-bottom-right-radius: $radius;
-     border-top-right-radius: $radius;
+  border-top-right-radius: $radius;
 }
 @mixin border-bottom-radius($radius) {
   border-bottom-right-radius: $radius;
-   border-bottom-left-radius: $radius;
+  border-bottom-left-radius: $radius;
 }
 @mixin border-left-radius($radius) {
   border-bottom-left-radius: $radius;
-     border-top-left-radius: $radius;
+  border-top-left-radius: $radius;
 }
 
 // Drop shadows
 @mixin box-shadow($shadow) {
   -webkit-box-shadow: $shadow; // iOS <4.3 & Android <4.1
-          box-shadow: $shadow;
+  box-shadow: $shadow;
 }
 
 // Transitions
 @mixin transition($transition) {
   -webkit-transition: $transition;
-          transition: $transition;
+  transition: $transition;
 }
 @mixin transition-delay($transition-delay) {
   -webkit-transition-delay: $transition-delay;
-          transition-delay: $transition-delay;
+  transition-delay: $transition-delay;
 }
 @mixin transition-duration($transition-duration) {
   -webkit-transition-duration: $transition-duration;
-          transition-duration: $transition-duration;
+  transition-duration: $transition-duration;
 }
 @mixin transition-transform($transition) {
   -webkit-transition: -webkit-transform $transition;
-     -moz-transition: -moz-transform $transition;
-       -o-transition: -o-transform $transition;
-          transition: transform $transition;
+  -moz-transition: -moz-transform $transition;
+  -o-transition: -o-transform $transition;
+  transition: transform $transition;
 }
 
 // Transformations
 @mixin transform($transform...) {
-    -webkit-transform: $transform;
-        -ms-transform: $transform;
-            transform: $transform;
+  -webkit-transform: $transform;
+  -ms-transform: $transform;
+  transform: $transform;
 }
 
 @mixin rotate($degrees) {
   -webkit-transform: rotate($degrees);
-      -ms-transform: rotate($degrees); // IE9+
-          transform: rotate($degrees);
+  -ms-transform: rotate($degrees); // IE9+
+  transform: rotate($degrees);
 }
 
 @mixin scale($ratio) {
   -webkit-transform: scale($ratio);
-      -ms-transform: scale($ratio); // IE9+
-          transform: scale($ratio);
+  -ms-transform: scale($ratio); // IE9+
+  transform: scale($ratio);
 }
 
 @mixin translate($x, $y) {
   -webkit-transform: translate($x, $y);
-      -ms-transform: translate($x, $y); // IE9+
-          transform: translate($x, $y);
+  -ms-transform: translate($x, $y); // IE9+
+  transform: translate($x, $y);
 }
 @mixin skew($x, $y) {
   -webkit-transform: skew($x, $y);
-      -ms-transform: skewX($x) skewY($y); // See https://github.com/twbs/bootstrap/issues/4885; IE9+
-          transform: skew($x, $y);
+  -ms-transform: skewX($x) skewY($y); // See https://github.com/twbs/bootstrap/issues/4885; IE9+
+  transform: skew($x, $y);
 }
 @mixin translate3d($x, $y, $z) {
   -webkit-transform: translate3d($x, $y, $z);
-          transform: translate3d($x, $y, $z);
+  transform: translate3d($x, $y, $z);
 }
 //transform origin
 @mixin transform-origin ($origin) {
-    moz-transform-origin: $origin;
-	     -o-transform-origin: $origin;
-	    -ms-transform-origin: $origin;
-	-webkit-transform-origin: $origin;
-          transform-origin: $origin;
+  moz-transform-origin: $origin;
+  -o-transform-origin: $origin;
+  -ms-transform-origin: $origin;
+  -webkit-transform-origin: $origin;
+  transform-origin: $origin;
 }
 
 // Backface visibility
@@ -175,25 +175,25 @@
 // See git pull https://github.com/dannykeane/bootstrap.git backface-visibility for examples
 @mixin backface-visibility($visibility) {
   -webkit-backface-visibility: $visibility;
-     -moz-backface-visibility: $visibility;
-          backface-visibility: $visibility;
+  -moz-backface-visibility: $visibility;
+  backface-visibility: $visibility;
 }
 
 // Box sizing
 @mixin box-sizing($boxmodel) {
   -webkit-box-sizing: $boxmodel;
-     -moz-box-sizing: $boxmodel;
-          box-sizing: $boxmodel;
+  -moz-box-sizing: $boxmodel;
+  box-sizing: $boxmodel;
 }
 
 // User select
 // For selecting text on the page
 @mixin user-select($select) {
   -webkit-user-select: $select;
-     -moz-user-select: $select;
-      -ms-user-select: $select; // IE10+
-       -o-user-select: $select;
-          user-select: $select;
+  -moz-user-select: $select;
+  -ms-user-select: $select; // IE10+
+  -o-user-select: $select;
+  user-select: $select;
 }
 
 // Resize anything
@@ -205,21 +205,21 @@
 // CSS3 Content Columns
 @mixin content-columns($column-count, $column-gap: $grid-gutter-width) {
   -webkit-column-count: $column-count;
-     -moz-column-count: $column-count;
-          column-count: $column-count;
+  -moz-column-count: $column-count;
+  column-count: $column-count;
   -webkit-column-gap: $column-gap;
-     -moz-column-gap: $column-gap;
-          column-gap: $column-gap;
+  -moz-column-gap: $column-gap;
+  column-gap: $column-gap;
 }
 
 // Optional hyphenation
 @mixin hyphens($mode: auto) {
   word-wrap: break-word;
   -webkit-hyphens: $mode;
-     -moz-hyphens: $mode;
-      -ms-hyphens: $mode; // IE10+
-       -o-hyphens: $mode;
-          hyphens: $mode;
+  -moz-hyphens: $mode;
+  -ms-hyphens: $mode; // IE10+
+  -o-hyphens: $mode;
+  hyphens: $mode;
 }
 
 // Opacity
@@ -433,7 +433,7 @@
   .open .dropdown-toggle& {
     color: $color;
     background-color: darken($background, 8%);
-        border-color: darken($border, 12%);
+    border-color: darken($border, 12%);
   }
   &:active,
   &.active,
@@ -449,7 +449,7 @@
     &:active,
     &.active {
       background-color: $background;
-          border-color: $border
+      border-color: $border
     }
   }
 }
@@ -747,10 +747,10 @@
   background-repeat: no-repeat;
 
   @media (min--moz-device-pixel-ratio: 1.3),
-         (-o-min-device-pixel-ratio: 2.6/2),
-         (-webkit-min-device-pixel-ratio: 1.3),
-         (min-device-pixel-ratio: 1.3),
-         (min-resolution: 1.3dppx) {
+  (-o-min-device-pixel-ratio: 2.6/2),
+  (-webkit-min-device-pixel-ratio: 1.3),
+  (min-device-pixel-ratio: 1.3),
+  (min-resolution: 1.3dppx) {
     /* on retina, use image that's scaled by 2 */
     background-image: url($image);
     background-size: $width $height;
