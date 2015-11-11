@@ -33,11 +33,6 @@ func TestExecDriver_Fingerprint(t *testing.T) {
 	}
 }
 
-/*
-TODO: This test is disabled til a follow-up api changes the restore state interface.
-The driver/executor interface will be changed from Open to Cleanup, in which
-clean-up tears down previous allocs.
-
 func TestExecDriver_StartOpen_Wait(t *testing.T) {
 	ctestutils.ExecCompatible(t)
 	task := &structs.Task{
@@ -53,12 +48,6 @@ func TestExecDriver_StartOpen_Wait(t *testing.T) {
 	ctx := testDriverExecContext(task, driverCtx)
 	defer ctx.AllocDir.Destroy()
 	d := NewExecDriver(driverCtx)
-
-	if task.Resources == nil {
-		task.Resources = &structs.Resources{}
-	}
-	task.Resources.CPU = 0.5
-	task.Resources.MemoryMB = 2
 
 	handle, err := d.Start(ctx, task)
 	if err != nil {
@@ -77,7 +66,6 @@ func TestExecDriver_StartOpen_Wait(t *testing.T) {
 		t.Fatalf("missing handle")
 	}
 }
-*/
 
 func TestExecDriver_Start_Wait(t *testing.T) {
 	ctestutils.ExecCompatible(t)
