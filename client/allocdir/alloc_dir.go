@@ -126,14 +126,8 @@ func (d *AllocDir) Embed(task string, dirs map[string]string) error {
 			continue
 		}
 
-		// Check if destination directory exists. This can happen if restarting
-		// a failed task.
-		destDir := filepath.Join(taskdir, dest)
-		if _, err := os.Stat(destDir); err == nil {
-			continue
-		}
-
 		// Create destination directory.
+		destDir := filepath.Join(taskdir, dest)
 		if err := os.MkdirAll(destDir, s.Mode().Perm()); err != nil {
 			return fmt.Errorf("Couldn't create destination directory %v: %v", destDir, err)
 		}
@@ -150,7 +144,15 @@ func (d *AllocDir) Embed(task string, dirs map[string]string) error {
 			if entry.IsDir() {
 				subdirs[hostEntry] = filepath.Join(dest, filepath.Base(hostEntry))
 				continue
-			} else if !entry.Mode().IsRegular() {
+			}
+
+			// Check if entry exists. This can happen if restarting a failed
+			// task.
+			if _, err := os.Lstat(taskEntry); err == nil {
+				continue
+			}
+
+			if !entry.Mode().IsRegular() {
 				// If it is a symlink we can create it, otherwise we skip it.
 				if entry.Mode()&os.ModeSymlink == 0 {
 					continue
