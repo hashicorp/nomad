@@ -167,27 +167,22 @@ func TestTaskRunner_SaveRestoreState(t *testing.T) {
 
 	// Snapshot state
 	time.Sleep(200 * time.Millisecond)
-	err := tr.SaveState()
-	if err != nil {
+	if err := tr.SaveState(); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	// Create a new task runner
 	tr2 := NewTaskRunner(tr.logger, tr.config, upd.Update,
 		tr.ctx, tr.allocID, &structs.Task{Name: tr.task.Name}, tr.restartTracker)
-	err = tr2.RestoreState()
-	if err != nil {
+	if err := tr2.RestoreState(); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	go tr2.Run()
+	defer tr2.Destroy()
 
 	// Destroy and wait
 	time.Sleep(200 * time.Millisecond)
-	tr2.Destroy()
-
-	select {
-	case <-tr.WaitCh():
-	case <-time.After(15 * time.Second):
-		t.Fatalf("timeout")
+	if tr2.handle == nil {
+		t.Fatalf("RestoreState() didn't open handle")
 	}
 }
