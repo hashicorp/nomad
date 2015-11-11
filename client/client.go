@@ -148,8 +148,15 @@ func (c *Client) init() error {
 			return fmt.Errorf("failed creating state dir: %s", err)
 		}
 
-		c.logger.Printf("[INFO] client: using state directory %v", c.config.StateDir)
+	} else {
+		// Othewise make a temp directory to use.
+		p, err := ioutil.TempDir("", "NomadClient")
+		if err != nil {
+			return fmt.Errorf("failed creating temporary directory for the StateDir: %v", err)
+		}
+		c.config.StateDir = p
 	}
+	c.logger.Printf("[INFO] client: using state directory %v", c.config.StateDir)
 
 	// Ensure the alloc dir exists if we have one
 	if c.config.AllocDir != "" {

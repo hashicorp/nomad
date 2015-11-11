@@ -264,7 +264,7 @@ func (e *LinuxExecutor) ConfigureTaskDir(taskName string, alloc *allocdir.AllocD
 
 	// Mount dev
 	dev := filepath.Join(taskDir, "dev")
-	if err := os.Mkdir(dev, 0777); err != nil {
+	if err := os.MkdirAll(dev, 0777); err != nil {
 		return fmt.Errorf("Mkdir(%v) failed: %v", dev, err)
 	}
 
@@ -274,7 +274,7 @@ func (e *LinuxExecutor) ConfigureTaskDir(taskName string, alloc *allocdir.AllocD
 
 	// Mount proc
 	proc := filepath.Join(taskDir, "proc")
-	if err := os.Mkdir(proc, 0777); err != nil {
+	if err := os.MkdirAll(proc, 0777); err != nil {
 		return fmt.Errorf("Mkdir(%v) failed: %v", proc, err)
 	}
 
