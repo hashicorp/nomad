@@ -52,6 +52,7 @@ type Allocation struct {
 	DesiredDescription string
 	ClientStatus       string
 	ClientDescription  string
+	TaskStates         map[string]*TaskState
 	CreateIndex        uint64
 	ModifyIndex        uint64
 }
@@ -83,6 +84,7 @@ type AllocationListStub struct {
 	DesiredDescription string
 	ClientStatus       string
 	ClientDescription  string
+	TaskStates         map[string]*TaskState
 	CreateIndex        uint64
 	ModifyIndex        uint64
 }

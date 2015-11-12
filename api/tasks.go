@@ -110,3 +110,31 @@ func (t *Task) Constrain(c *Constraint) *Task {
 	t.Constraints = append(t.Constraints, c)
 	return t
 }
+
+// TaskState tracks the current state of a task and events that caused state
+// transistions.
+type TaskState struct {
+	State  string
+	Events []*TaskEvent
+}
+
+// TaskEventType is the set of events that effect the state of a task.
+type TaskEventType int
+
+const (
+	TaskDriverFailure TaskEventType = iota
+	TaskStarted
+	TaskTerminated
+	TaskKilled
+)
+
+// TaskEvent is an event that effects the state of a task and contains meta-data
+// appropriate to the events type.
+type TaskEvent struct {
+	Type        TaskEventType
+	Time        int64
+	DriverError error
+	ExitCode    int
+	Signal      int
+	Message     string
+}
