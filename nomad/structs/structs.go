@@ -979,8 +979,12 @@ func (tg *TaskGroup) Validate() error {
 		}
 	}
 
-	if err := tg.RestartPolicy.Validate(); err != nil {
-		mErr.Errors = append(mErr.Errors, err)
+	if tg.RestartPolicy != nil {
+		if err := tg.RestartPolicy.Validate(); err != nil {
+			mErr.Errors = append(mErr.Errors, err)
+		}
+	} else {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("Task Group %v should have a restart policy", tg.Name))
 	}
 
 	// Check for duplicate tasks
