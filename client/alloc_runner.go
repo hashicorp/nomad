@@ -279,9 +279,6 @@ func (r *AllocRunner) setTaskStatus(taskName, status, desc string) {
 		Description: desc,
 	}
 	r.taskStatusLock.Unlock()
-	if tr, ok := r.tasks[taskName]; ok {
-		r.saveTaskRunnerState(tr)
-	}
 	select {
 	case r.dirtyCh <- struct{}{}:
 	default:

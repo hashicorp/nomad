@@ -134,6 +134,9 @@ func (r *TaskRunner) DestroyState() error {
 
 // setStatus is used to update the status of the task runner
 func (r *TaskRunner) setStatus(status, desc string) {
+	if err := r.SaveState(); err != nil {
+		r.logger.Printf("[ERR] client: failed to save state of Task Runner: %v", r.task.Name)
+	}
 	r.updater(r.task.Name, status, desc)
 }
 
