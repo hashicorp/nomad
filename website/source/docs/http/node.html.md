@@ -114,20 +114,141 @@ be specified using the `?region=` query parameter.
 
     ```javascript
     [
-    {
-        "ID": "3575ba9d-7a12-0c96-7b28-add168c67984",
-        "EvalID": "151accaa-1ac6-90fe-d427-313e70ccbb88",
-        "Name": "binstore-storagelocker.binsl[0]",
-        "NodeID": "a703c3ca-5ff8-11e5-9213-970ee8879d1b",
-        "JobID": "binstore-storagelocker",
-        "TaskGroup": "binsl",
+      {
+        "ID": "8a0c24d9-cdfc-ce67-1208-8d4524b1a9b3",
+        "EvalID": "2c699410-8697-6109-86b7-430909b00bb9",
+        "Name": "example.cache[0]",
+        "NodeID": "12d3409b-9d27-fcad-a03d-b3c18887d153",
+        "JobID": "example",
+        "Job": {
+          "Region": "global",
+          "ID": "example",
+          "Name": "example",
+          "Type": "service",
+          "Priority": 50,
+          "AllAtOnce": false,
+          "Datacenters": [
+            "lon1"
+          ],
+          "Constraints": [
+            {
+              "Hard": true,
+              "LTarget": "$attr.kernel.name",
+              "RTarget": "linux",
+              "Operand": "=",
+              "Weight": 0
+            }
+          ],
+          "TaskGroups": [
+            {
+              "Name": "cache",
+              "Count": 1,
+              "Constraints": null,
+              "Tasks": [
+                {
+                  "Name": "redis",
+                  "Driver": "docker",
+                  "Config": {
+                    "image": "redis:latest"
+                  },
+                  "Env": null,
+                  "Constraints": null,
+                  "Resources": {
+                    "CPU": 500,
+                    "MemoryMB": 256,
+                    "DiskMB": 0,
+                    "IOPS": 0,
+                    "Networks": [
+                      {
+                        "Device": "",
+                        "CIDR": "",
+                        "IP": "",
+                        "MBits": 10,
+                        "ReservedPorts": null,
+                        "DynamicPorts": [
+                          "6379"
+                        ]
+                      }
+                    ]
+                  },
+                  "Meta": null
+                }
+              ],
+              "Meta": null
+            }
+          ],
+          "Update": {
+            "Stagger": 0,
+            "MaxParallel": 0
+          },
+          "Meta": null,
+          "Status": "",
+          "StatusDescription": "",
+          "CreateIndex": 6,
+          "ModifyIndex": 6
+        },
+        "TaskGroup": "cache",
+        "Resources": {
+          "CPU": 500,
+          "MemoryMB": 256,
+          "DiskMB": 0,
+          "IOPS": 0,
+          "Networks": [
+            {
+              "Device": "",
+              "CIDR": "",
+              "IP": "",
+              "MBits": 10,
+              "ReservedPorts": null,
+              "DynamicPorts": [
+                "6379"
+              ]
+            }
+          ]
+        },
+        "TaskResources": {
+          "redis": {
+            "CPU": 500,
+            "MemoryMB": 256,
+            "DiskMB": 0,
+            "IOPS": 0,
+            "Networks": [
+              {
+                "Device": "eth0",
+                "CIDR": "",
+                "IP": "10.16.0.222",
+                "MBits": 0,
+                "ReservedPorts": [
+                  23889
+                ],
+                "DynamicPorts": [
+                  "6379"
+                ]
+              }
+            ]
+          }
+        },
+        "Metrics": {
+          "NodesEvaluated": 1,
+          "NodesFiltered": 0,
+          "ClassFiltered": null,
+          "ConstraintFiltered": null,
+          "NodesExhausted": 0,
+          "ClassExhausted": null,
+          "DimensionExhausted": null,
+          "Scores": {
+            "12d3409b-9d27-fcad-a03d-b3c18887d153.binpack": 10.779215064231561
+          },
+          "AllocationTime": 75232,
+          "CoalescedFailures": 0
+        },
         "DesiredStatus": "run",
         "DesiredDescription": "",
-        "ClientStatus": "running",
+        "ClientStatus": "pending",
         "ClientDescription": "",
-        "CreateIndex": 16,
-        "ModifyIndex": 16
-    },
+        "CreateIndex": 8,
+        "ModifyIndex": 8
+      },
     ...
     ]
     ```
