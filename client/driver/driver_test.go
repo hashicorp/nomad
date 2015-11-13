@@ -17,7 +17,7 @@ var basicResources = &structs.Resources{
 	MemoryMB: 256,
 	Networks: []*structs.NetworkResource{
 		&structs.NetworkResource{
-			IP:            "1.2.3.4",
+			IP:            "0.0.0.0",
 			ReservedPorts: []int{12345},
 			DynamicPorts:  []string{"HTTP"},
 		},
