@@ -128,6 +128,16 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task) (do
 		return c, err
 	}
 
+	// Create environment variables.
+	env := TaskEnvironmentVariables(ctx, task)
+	env.SetAllocDir(filepath.Join("/", allocdir.SharedAllocName))
+	env.SetTaskLocalDir(filepath.Join("/", allocdir.TaskLocal))
+
+	config := &docker.Config{
+		Env:   env.List(),
+		Image: task.Config["image"],
+	}
+
 	hostConfig := &docker.HostConfig{
 		// Convert MB to bytes. This is an absolute value.
 		//
@@ -226,18 +236,22 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task) (do
 	}
 	hostConfig.NetworkMode = mode
 
-	// Setup port mapping (equivalent to -p on docker CLI). Ports must already be
-	// exposed in the container.
+	// Setup port mapping and exposed ports
 	if len(task.Resources.Networks) == 0 {
-		d.logger.Print("[WARN] driver.docker: No networks are available for port mapping")
+		d.logger.Print("[WARN] driver.docker: No network resources are available for port mapping")
 	} else {
+		// TODO add support for more than one network
 		network := task.Resources.Networks[0]
-		dockerPorts := map[docker.Port][]docker.PortBinding{}
+		publishedPorts := map[docker.Port][]docker.PortBinding{}
+		exposedPorts := map[docker.Port]struct{}{}
 
 		for _, port := range network.ListStaticPorts() {
-			dockerPorts[docker.Port(strconv.Itoa(port)+"/tcp")] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: strconv.Itoa(port)}}
-			dockerPorts[docker.Port(strconv.Itoa(port)+"/udp")] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: strconv.Itoa(port)}}
+			publishedPorts[docker.Port(strconv.Itoa(port)+"/tcp")] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: strconv.Itoa(port)}}
+			publishedPorts[docker.Port(strconv.Itoa(port)+"/udp")] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: strconv.Itoa(port)}}
 			d.logger.Printf("[DEBUG] driver.docker: allocated port %s:%d -> %d (static)\n", network.IP, port, port)
+			exposedPorts[docker.Port(strconv.Itoa(port)+"/tcp")] = struct{}{}
+			exposedPorts[docker.Port(strconv.Itoa(port)+"/udp")] = struct{}{}
+			d.logger.Printf("[DEBUG] driver.docker: exposed port %d\n", port)
 		}
 
 		for label, port := range network.MapDynamicPorts() {
@@ -249,26 +263,24 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task) (do
 			// the container, and assume that the process inside will read the
 			// environment variable and bind to the correct port.
 			if _, err := strconv.Atoi(label); err == nil {
-				dockerPorts[docker.Port(label+"/tcp")] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: strconv.Itoa(port)}}
-				dockerPorts[docker.Port(label+"/udp")] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: strconv.Itoa(port)}}
+				publishedPorts[docker.Port(label+"/tcp")] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: strconv.Itoa(port)}}
+				publishedPorts[docker.Port(label+"/udp")] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: strconv.Itoa(port)}}
 				d.logger.Printf("[DEBUG] driver.docker: allocated port %s:%d -> %s (mapped)", network.IP, port, label)
+				exposedPorts[docker.Port(label+"/tcp")] = struct{}{}
+				exposedPorts[docker.Port(label+"/udp")] = struct{}{}
+				d.logger.Printf("[DEBUG] driver.docker: exposed port %d\n", port)
 			} else {
-				dockerPorts[docker.Port(strconv.Itoa(port)+"/tcp")] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: strconv.Itoa(port)}}
-				dockerPorts[docker.Port(strconv.Itoa(port)+"/udp")] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: strconv.Itoa(port)}}
+				publishedPorts[docker.Port(strconv.Itoa(port)+"/tcp")] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: strconv.Itoa(port)}}
+				publishedPorts[docker.Port(strconv.Itoa(port)+"/udp")] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: strconv.Itoa(port)}}
 				d.logger.Printf("[DEBUG] driver.docker: allocated port %s:%d -> %d for label %s\n", network.IP, port, port, label)
+				exposedPorts[docker.Port(strconv.Itoa(port)+"/tcp")] = struct{}{}
+				exposedPorts[docker.Port(strconv.Itoa(port)+"/udp")] = struct{}{}
+				d.logger.Printf("[DEBUG] driver.docker: exposed port %d\n", port)
 			}
 		}
-		hostConfig.PortBindings = dockerPorts
-	}
 
-	// Create environment variables.
-	env := TaskEnvironmentVariables(ctx, task)
-	env.SetAllocDir(filepath.Join("/", allocdir.SharedAllocName))
-	env.SetTaskLocalDir(filepath.Join("/", allocdir.TaskLocal))
-
-	config := &docker.Config{
-		Env:   env.List(),
-		Image: task.Config["image"],
+		hostConfig.PortBindings = publishedPorts
+		config.ExposedPorts = exposedPorts
 	}
 
 	rawArgs, hasArgs := task.Config["args"]
@@ -277,7 +289,8 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task) (do
 		return c, err
 	}
 
-	// If the user specified a custom command to run, we'll inject it here.
+	// If the user specified a custom command to run as their entrypoint, we'll
+	// inject it here.
 	if command, ok := task.Config["command"]; ok {
 		cmd := []string{command}
 		if hasArgs {
