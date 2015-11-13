@@ -17,7 +17,7 @@ import (
 
 // This is where the AWS metadata server normally resides. We hardcode the
 // "instance" path as well since it's the only one we access here.
-const DEFAULT_AWS_URL = "http//169.254.169.254/latest/meta-data/"
+const DEFAULT_AWS_URL = "http://169.254.169.254/latest/meta-data/"
 
 // map of instance type to approximate speed, in Mbits/s
 // http://serverfault.com/questions/324883/aws-bandwidth-and-content-delivery/326797#326797
