@@ -1,8 +1,9 @@
 package mock
 
 import (
-	"github.com/hashicorp/nomad/nomad/structs"
 	"time"
+
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 func Node() *structs.Node {
@@ -219,6 +220,11 @@ func Alloc() *structs.Allocation {
 						DynamicPorts:  []string{"http"},
 					},
 				},
+			},
+		},
+		TaskStates: map[string]*structs.TaskState{
+			"web": &structs.TaskState{
+				State: structs.TaskStatePending,
 			},
 		},
 		Job:           Job(),
