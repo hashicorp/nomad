@@ -498,7 +498,7 @@ func parseResources(result *structs.Resources, list *ast.ObjectList) error {
 
 		var networkObj *ast.ObjectList
 		if ot, ok := o.Items[0].Val.(*ast.ObjectType); ok {
-			listVal = ot.List
+			networkObj = ot.List
 		} else {
 			return fmt.Errorf("resource: should be an object")
 		}
