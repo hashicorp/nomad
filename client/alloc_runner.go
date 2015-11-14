@@ -43,10 +43,10 @@ type AllocRunner struct {
 
 	ctx           *driver.ExecContext
 	tasks         map[string]*TaskRunner
+	restored      map[string]struct{}
 	RestartPolicy *structs.RestartPolicy
 	taskLock      sync.RWMutex
 
-	taskStatus     map[string]taskStatus
 	taskStatusLock sync.RWMutex
 
 	updateCh chan *structs.Allocation
@@ -68,16 +68,16 @@ type allocRunnerState struct {
 // NewAllocRunner is used to create a new allocation context
 func NewAllocRunner(logger *log.Logger, config *config.Config, updater AllocStateUpdater, alloc *structs.Allocation) *AllocRunner {
 	ar := &AllocRunner{
-		config:     config,
-		updater:    updater,
-		logger:     logger,
-		alloc:      alloc,
-		dirtyCh:    make(chan struct{}, 1),
-		tasks:      make(map[string]*TaskRunner),
-		taskStatus: make(map[string]taskStatus),
-		updateCh:   make(chan *structs.Allocation, 8),
-		destroyCh:  make(chan struct{}),
-		waitCh:     make(chan struct{}),
+		config:    config,
+		updater:   updater,
+		logger:    logger,
+		alloc:     alloc,
+		dirtyCh:   make(chan struct{}, 1),
+		tasks:     make(map[string]*TaskRunner),
+		restored:  make(map[string]struct{}),
+		updateCh:  make(chan *structs.Allocation, 8),
+		destroyCh: make(chan struct{}),
+		waitCh:    make(chan struct{}),
 	}
 	return ar
 }
@@ -98,20 +98,22 @@ func (r *AllocRunner) RestoreState() error {
 	// Restore fields
 	r.alloc = snap.Alloc
 	r.RestartPolicy = snap.RestartPolicy
-	r.taskStatus = snap.TaskStatus
 	r.ctx = snap.Context
 
 	// Restore the task runners
 	var mErr multierror.Error
-	for name, status := range r.taskStatus {
+	for name, state := range r.alloc.TaskStates {
+		// Mark the task as restored.
+		r.restored[name] = struct{}{}
+
 		task := &structs.Task{Name: name}
 		restartTracker := newRestartTracker(r.alloc.Job.Type, r.RestartPolicy)
-		tr := NewTaskRunner(r.logger, r.config, r.setTaskStatus, r.ctx, r.alloc.ID, task, restartTracker)
+		tr := NewTaskRunner(r.logger, r.config, r.setTaskState, r.ctx,
+			r.alloc.ID, task, r.alloc.TaskStates[task.Name], restartTracker)
 		r.tasks[name] = tr
 
 		// Skip tasks in terminal states.
-		if status.Status == structs.AllocClientStatusDead ||
-			status.Status == structs.AllocClientStatusFailed {
+		if state.State == structs.TaskStateDead {
 			continue
 		}
 
@@ -152,7 +154,6 @@ func (r *AllocRunner) saveAllocRunnerState() error {
 	snap := allocRunnerState{
 		Alloc:         r.alloc,
 		RestartPolicy: r.RestartPolicy,
-		TaskStatus:    r.taskStatus,
 		Context:       r.ctx,
 	}
 	return persistState(r.stateFilePath(), &snap)
@@ -223,22 +224,26 @@ func (r *AllocRunner) retrySyncState(stopCh chan struct{}) {
 
 // syncStatus is used to run and sync the status when it changes
 func (r *AllocRunner) syncStatus() error {
-	// Scan the task status to termine the status of the alloc
+	// Scan the task states to determine the status of the alloc
 	var pending, running, dead, failed bool
 	r.taskStatusLock.RLock()
-	pending = len(r.taskStatus) < len(r.tasks)
-	for _, status := range r.taskStatus {
-		switch status.Status {
-		case structs.AllocClientStatusRunning:
+	for _, state := range r.alloc.TaskStates {
+		switch state.State {
+		case structs.TaskStateRunning:
 			running = true
-		case structs.AllocClientStatusDead:
-			dead = true
-		case structs.AllocClientStatusFailed:
-			failed = true
+		case structs.TaskStatePending:
+			pending = true
+		case structs.TaskStateDead:
+			last := len(state.Events) - 1
+			if state.Events[last].Type == structs.TaskDriverFailure {
+				failed = true
+			} else {
+				dead = true
+			}
 		}
 	}
-	if len(r.taskStatus) > 0 {
-		taskDesc, _ := json.Marshal(r.taskStatus)
+	if len(r.alloc.TaskStates) > 0 {
+		taskDesc, _ := json.Marshal(r.alloc.TaskStates)
 		r.alloc.ClientDescription = string(taskDesc)
 	}
 	r.taskStatusLock.RUnlock()
@@ -271,14 +276,8 @@ func (r *AllocRunner) setStatus(status, desc string) {
 	}
 }
 
-// setTaskStatus is used to set the status of a task
-func (r *AllocRunner) setTaskStatus(taskName, status, desc string) {
-	r.taskStatusLock.Lock()
-	r.taskStatus[taskName] = taskStatus{
-		Status:      status,
-		Description: desc,
-	}
-	r.taskStatusLock.Unlock()
+// setTaskState is used to set the status of a task
+func (r *AllocRunner) setTaskState(taskName string) {
 	select {
 	case r.dirtyCh <- struct{}{}:
 	default:
@@ -323,15 +322,15 @@ func (r *AllocRunner) Run() {
 	// Start the task runners
 	r.taskLock.Lock()
 	for _, task := range tg.Tasks {
-		// Skip tasks that were restored
-		if _, ok := r.taskStatus[task.Name]; ok {
+		if _, ok := r.restored[task.Name]; ok {
 			continue
 		}
 
 		// Merge in the task resources
 		task.Resources = alloc.TaskResources[task.Name]
 		restartTracker := newRestartTracker(r.alloc.Job.Type, r.RestartPolicy)
-		tr := NewTaskRunner(r.logger, r.config, r.setTaskStatus, r.ctx, r.alloc.ID, task, restartTracker)
+		tr := NewTaskRunner(r.logger, r.config, r.setTaskState, r.ctx,
+			r.alloc.ID, task, r.alloc.TaskStates[task.Name], restartTracker)
 		r.tasks[task.Name] = tr
 		go tr.Run()
 	}
@@ -344,7 +343,6 @@ OUTER:
 		case update := <-r.updateCh:
 			// Check if we're in a terminal status
 			if update.TerminalStatus() {
-				r.setAlloc(update)
 				break OUTER
 			}
 

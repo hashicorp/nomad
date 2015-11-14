@@ -127,8 +127,8 @@ func Executor_Start_Wait(t *testing.T, command buildExecCommand) {
 		log.Panicf("Start() failed: %v", err)
 	}
 
-	if err := e.Wait(); err != nil {
-		log.Panicf("Wait() failed: %v", err)
+	if res := e.Wait(); !res.Successful() {
+		log.Panicf("Wait() failed: %v", res)
 	}
 
 	output, err := ioutil.ReadFile(absFilePath)
@@ -215,8 +215,8 @@ func Executor_Open(t *testing.T, command buildExecCommand, newExecutor func() Ex
 		log.Panicf("Open(%v) failed: %v", id, err)
 	}
 
-	if err := e2.Wait(); err != nil {
-		log.Panicf("Wait() failed: %v", err)
+	if res := e2.Wait(); !res.Successful() {
+		log.Panicf("Wait() failed: %v", res)
 	}
 
 	output, err := ioutil.ReadFile(absFilePath)

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/command"
 	"github.com/hashicorp/nomad/helper/discover"
 )
@@ -203,7 +204,7 @@ func (s *Spawner) sendAbortCommand(w io.Writer) error {
 
 // Wait returns the exit code of the user process or an error if the wait
 // failed.
-func (s *Spawner) Wait() (int, error) {
+func (s *Spawner) Wait() *structs.WaitResult {
 	if os.Getpid() == s.SpawnPpid {
 		return s.waitAsParent()
 	}
@@ -212,9 +213,9 @@ func (s *Spawner) Wait() (int, error) {
 }
 
 // waitAsParent waits on the process if the current process was the spawner.
-func (s *Spawner) waitAsParent() (int, error) {
+func (s *Spawner) waitAsParent() *structs.WaitResult {
 	if s.SpawnPpid != os.Getpid() {
-		return -1, fmt.Errorf("not the parent. Spawner parent is %v; current pid is %v", s.SpawnPpid, os.Getpid())
+		return structs.NewWaitResult(-1, 0, fmt.Errorf("not the parent. Spawner parent is %v; current pid is %v", s.SpawnPpid, os.Getpid()))
 	}
 
 	// Try to reattach to the spawn.
@@ -228,7 +229,7 @@ func (s *Spawner) waitAsParent() (int, error) {
 	}
 
 	if _, err := s.spawn.Wait(); err != nil {
-		return -1, err
+		return structs.NewWaitResult(-1, 0, err)
 	}
 
 	return s.pollWait()
@@ -237,11 +238,11 @@ func (s *Spawner) waitAsParent() (int, error) {
 // pollWait polls on the spawn daemon to determine when it exits. After it
 // exits, it reads the state file and returns the exit code and possibly an
 // error.
-func (s *Spawner) pollWait() (int, error) {
+func (s *Spawner) pollWait() *structs.WaitResult {
 	// Stat to check if it is there to avoid a race condition.
 	stat, err := os.Stat(s.StateFile)
 	if err != nil {
-		return -1, fmt.Errorf("Failed to Stat exit status file %v: %v", s.StateFile, err)
+		return structs.NewWaitResult(-1, 0, fmt.Errorf("Failed to Stat exit status file %v: %v", s.StateFile, err))
 	}
 
 	// If there is data it means that the file has already been written.
@@ -261,29 +262,29 @@ func (s *Spawner) pollWait() (int, error) {
 
 // readExitCode parses the state file and returns the exit code of the task. It
 // returns an error if the file can't be read.
-func (s *Spawner) readExitCode() (int, error) {
+func (s *Spawner) readExitCode() *structs.WaitResult {
 	f, err := os.Open(s.StateFile)
 	defer f.Close()
 	if err != nil {
-		return -1, fmt.Errorf("Failed to open %v to read exit code: %v", s.StateFile, err)
+		return structs.NewWaitResult(-1, 0, fmt.Errorf("Failed to open %v to read exit code: %v", s.StateFile, err))
 	}
 
 	stat, err := f.Stat()
 	if err != nil {
-		return -1, fmt.Errorf("Failed to stat file %v: %v", s.StateFile, err)
+		return structs.NewWaitResult(-1, 0, fmt.Errorf("Failed to stat file %v: %v", s.StateFile, err))
 	}
 
 	if stat.Size() == 0 {
-		return -1, fmt.Errorf("Empty state file: %v", s.StateFile)
+		return structs.NewWaitResult(-1, 0, fmt.Errorf("Empty state file: %v", s.StateFile))
 	}
 
 	var exitStatus command.SpawnExitStatus
 	dec := json.NewDecoder(f)
 	if err := dec.Decode(&exitStatus); err != nil {
-		return -1, fmt.Errorf("Failed to parse exit status from %v: %v", s.StateFile, err)
+		return structs.NewWaitResult(-1, 0, fmt.Errorf("Failed to parse exit status from %v: %v", s.StateFile, err))
 	}
 
-	return exitStatus.ExitCode, nil
+	return structs.NewWaitResult(exitStatus.ExitCode, 0, nil)
 }
 
 // Valid checks that the state of the Spawner is valid and that a subsequent
@@ -297,7 +298,7 @@ func (s *Spawner) Valid() error {
 	}
 
 	// The task isn't alive so check that there is a valid exit code file.
-	if _, err := s.readExitCode(); err == nil {
+	if res := s.readExitCode(); res.Err == nil {
 		return nil
 	}
 

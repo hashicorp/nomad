@@ -1,8 +1,9 @@
 package client
 
 import (
-	"github.com/hashicorp/nomad/nomad/structs"
 	"time"
+
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 // The errorCounter keeps track of the number of times a process has exited
@@ -28,6 +29,11 @@ func newRestartTracker(jobType string, restartPolicy *structs.RestartPolicy) res
 			delay:       restartPolicy.Delay,
 		}
 	}
+}
+
+// noRestartsTracker returns a RestartTracker that never restarts.
+func noRestartsTracker() restartTracker {
+	return &batchRestartTracker{maxAttempts: 0}
 }
 
 type batchRestartTracker struct {

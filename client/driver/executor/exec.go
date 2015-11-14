@@ -27,6 +27,8 @@ import (
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/nomad/structs"
+
+	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 )
 
 var errNoResources = fmt.Errorf("No resources are associated with this task")
@@ -54,7 +56,7 @@ type Executor interface {
 	Open(string) error
 
 	// Wait waits till the user's command is completed.
-	Wait() error
+	Wait() *cstructs.WaitResult
 
 	// Returns a handle that is executor specific for use in reopening.
 	ID() (string, error)

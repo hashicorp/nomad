@@ -137,4 +137,5 @@ type TaskEvent struct {
 	ExitCode    int
 	Signal      int
 	Message     string
+	KillError   string
 }

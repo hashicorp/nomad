@@ -1096,12 +1096,51 @@ type TaskEvent struct {
 	Time int64 // Unix Nanosecond timestamp
 
 	// Driver Failure fields.
-	DriverError error // A driver error occured while starting the task.
+	DriverError string // A driver error occured while starting the task.
 
 	// Task Terminated Fields.
 	ExitCode int    // The exit code of the task.
 	Signal   int    // The signal that terminated the task.
 	Message  string // A possible message explaining the termination of the task.
+
+	// Task Killed Fields.
+	KillError string // Error killing the task.
+}
+
+func NewTaskEvent(event TaskEventType) *TaskEvent {
+	return &TaskEvent{
+		Type: event,
+		Time: time.Now().UnixNano(),
+	}
+}
+
+func (e *TaskEvent) SetDriverError(err error) *TaskEvent {
+	if err != nil {
+		e.DriverError = err.Error()
+	}
+	return e
+}
+
+func (e *TaskEvent) SetExitCode(c int) *TaskEvent {
+	e.ExitCode = c
+	return e
+}
+
+func (e *TaskEvent) SetSignal(s int) *TaskEvent {
+	e.Signal = s
+	return e
+}
+
+func (e *TaskEvent) SetExitMessage(m string) *TaskEvent {
+	e.Message = m
+	return e
+}
+
+func (e *TaskEvent) SetKillError(err error) *TaskEvent {
+	if err != nil {
+		e.KillError = err.Error()
+	}
+	return e
 }
 
 // Validate is used to sanity check a task group

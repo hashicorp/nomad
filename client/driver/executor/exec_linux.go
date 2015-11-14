@@ -24,6 +24,8 @@ import (
 	cgroupFs "github.com/opencontainers/runc/libcontainer/cgroups/fs"
 	"github.com/opencontainers/runc/libcontainer/cgroups/systemd"
 	cgroupConfig "github.com/opencontainers/runc/libcontainer/configs"
+
+	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 )
 
 var (
@@ -199,15 +201,11 @@ func (e *LinuxExecutor) Start() error {
 
 // Wait waits til the user process exits and returns an error on non-zero exit
 // codes. Wait also cleans up the task directory and created cgroups.
-func (e *LinuxExecutor) Wait() error {
+func (e *LinuxExecutor) Wait() *cstructs.WaitResult {
 	errs := new(multierror.Error)
-	code, err := e.spawn.Wait()
-	if err != nil {
-		errs = multierror.Append(errs, err)
-	}
-
-	if code != 0 {
-		errs = multierror.Append(errs, fmt.Errorf("Task exited with code: %d", code))
+	res := e.spawn.Wait()
+	if res.Err != nil {
+		errs = multierror.Append(errs, res.Err)
 	}
 
 	if err := e.destroyCgroup(); err != nil {
@@ -218,7 +216,8 @@ func (e *LinuxExecutor) Wait() error {
 		errs = multierror.Append(errs, err)
 	}
 
-	return errs.ErrorOrNil()
+	res.Err = errs.ErrorOrNil()
+	return res
 }
 
 func (e *LinuxExecutor) Shutdown() error {

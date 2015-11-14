@@ -12,6 +12,8 @@ import (
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/client/getter"
 	"github.com/hashicorp/nomad/nomad/structs"
+
+	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 )
 
 const (
@@ -30,7 +32,7 @@ type RawExecDriver struct {
 // rawExecHandle is returned from Start/Open as a handle to the PID
 type rawExecHandle struct {
 	cmd    executor.Executor
-	waitCh chan error
+	waitCh chan *cstructs.WaitResult
 	doneCh chan struct{}
 }
 
@@ -115,7 +117,7 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 	h := &execHandle{
 		cmd:    cmd,
 		doneCh: make(chan struct{}),
-		waitCh: make(chan error, 1),
+		waitCh: make(chan *cstructs.WaitResult, 1),
 	}
 	go h.run()
 	return h, nil
@@ -132,7 +134,7 @@ func (d *RawExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, e
 	h := &execHandle{
 		cmd:    cmd,
 		doneCh: make(chan struct{}),
-		waitCh: make(chan error, 1),
+		waitCh: make(chan *cstructs.WaitResult, 1),
 	}
 	go h.run()
 	return h, nil
@@ -143,7 +145,7 @@ func (h *rawExecHandle) ID() string {
 	return id
 }
 
-func (h *rawExecHandle) WaitCh() chan error {
+func (h *rawExecHandle) WaitCh() chan *cstructs.WaitResult {
 	return h.waitCh
 }
 
@@ -163,10 +165,8 @@ func (h *rawExecHandle) Kill() error {
 }
 
 func (h *rawExecHandle) run() {
-	err := h.cmd.Wait()
+	res := h.cmd.Wait()
 	close(h.doneCh)
-	if err != nil {
-		h.waitCh <- err
-	}
+	h.waitCh <- res
 	close(h.waitCh)
 }

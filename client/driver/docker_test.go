@@ -11,6 +11,7 @@ import (
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/environment"
+	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -58,7 +59,7 @@ func TestDockerDriver_Handle(t *testing.T) {
 		imageID:     "imageid",
 		containerID: "containerid",
 		doneCh:      make(chan struct{}),
-		waitCh:      make(chan error, 1),
+		waitCh:      make(chan *cstructs.WaitResult, 1),
 	}
 
 	actual := h.ID()
@@ -163,9 +164,9 @@ func TestDockerDriver_Start_Wait(t *testing.T) {
 	}
 
 	select {
-	case err := <-handle.WaitCh():
-		if err != nil {
-			t.Fatalf("err: %v", err)
+	case res := <-handle.WaitCh():
+		if !res.Successful() {
+			t.Fatalf("err: %v", res)
 		}
 	case <-time.After(5 * time.Second):
 		t.Fatalf("timeout")
@@ -210,9 +211,9 @@ func TestDockerDriver_Start_Wait_AllocDir(t *testing.T) {
 	defer handle.Kill()
 
 	select {
-	case err := <-handle.WaitCh():
-		if err != nil {
-			t.Fatalf("err: %v", err)
+	case res := <-handle.WaitCh():
+		if !res.Successful() {
+			t.Fatalf("err: %v", res)
 		}
 	case <-time.After(5 * time.Second):
 		t.Fatalf("timeout")
@@ -268,9 +269,9 @@ func TestDockerDriver_Start_Kill_Wait(t *testing.T) {
 	}()
 
 	select {
-	case err := <-handle.WaitCh():
-		if err == nil {
-			t.Fatalf("should err: %v", err)
+	case res := <-handle.WaitCh():
+		if res.Successful() {
+			t.Fatalf("should err: %v", res)
 		}
 	case <-time.After(10 * time.Second):
 		t.Fatalf("timeout")
