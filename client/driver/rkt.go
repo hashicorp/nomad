@@ -19,6 +19,7 @@ import (
 	"github.com/hashicorp/nomad/client/driver/args"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/mitchellh/mapstructure"
 )
 
 var (
@@ -32,6 +33,11 @@ var (
 type RktDriver struct {
 	DriverContext
 	fingerprint.StaticFingerprinter
+}
+
+type rktDriverConfig struct {
+	ImageName string `mapstructure:"image"`
+	Args      string `mapstructure:"args"`
 }
 
 // rktHandle is returned from Start/Open as a handle to the PID
@@ -83,9 +89,13 @@ func (d *RktDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, e
 
 // Run an existing Rkt image.
 func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
+	var driverConfig rktDriverConfig
+	if err := mapstructure.WeakDecode(task.Config, &driverConfig); err != nil {
+		return nil, err
+	}
 	// Validate that the config is valid.
-	img, ok := task.Config["image"]
-	if !ok || img == "" {
+	img := driverConfig.ImageName
+	if img == "" {
 		return nil, fmt.Errorf("Missing ACI image for rkt")
 	}
 
@@ -139,7 +149,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	}
 
 	// Add user passed arguments.
-	if userArgs, ok := task.Config["args"]; ok {
+	if userArgs := driverConfig.Args; userArgs != "" {
 		parsed, err := args.ParseAndReplace(userArgs, envVars.Map())
 		if err != nil {
 			return nil, err

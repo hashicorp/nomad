@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/client/getter"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/mitchellh/mapstructure"
 )
 
 // ExecDriver fork/execs tasks using as many of the underlying OS's isolation
@@ -20,6 +21,12 @@ import (
 type ExecDriver struct {
 	DriverContext
 	fingerprint.StaticFingerprinter
+}
+type execDriverConfig struct {
+	ArtifactSource string `mapstructure:"artifact_source`
+	Checksum       string `mapstructure:"checksum"`
+	Command        string `mapstructure:"command"`
+	Args           string `mapstructure:"args"`
 }
 
 // execHandle is returned from Start/Open as a handle to the PID
@@ -49,9 +56,13 @@ func (d *ExecDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, 
 }
 
 func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
+	var driverConfig execDriverConfig
+	if err := mapstructure.WeakDecode(task.Config, &driverConfig); err != nil {
+		return nil, err
+	}
 	// Get the command to be ran
-	command, ok := task.Config["command"]
-	if !ok || command == "" {
+	command := driverConfig.Command
+	if command == "" {
 		return nil, fmt.Errorf("missing command for exec driver")
 	}
 
@@ -67,8 +78,8 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		// Proceed to download an artifact to be executed.
 		_, err := getter.GetArtifact(
 			filepath.Join(taskDir, allocdir.TaskLocal),
-			task.Config["artifact_source"],
-			task.Config["checksum"],
+			driverConfig.ArtifactSource,
+			driverConfig.Checksum,
 			d.logger,
 		)
 		if err != nil {
@@ -81,7 +92,7 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 
 	// Look for arguments
 	var args []string
-	if argRaw, ok := task.Config["args"]; ok {
+	if argRaw := driverConfig.Args; argRaw != "" {
 		args = append(args, argRaw)
 	}
 

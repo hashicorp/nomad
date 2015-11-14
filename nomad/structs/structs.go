@@ -620,15 +620,20 @@ func (r *Resources) GoString() string {
 	return fmt.Sprintf("*%#v", *r)
 }
 
+type Port struct {
+	Label string
+	Value int `mapstructure:"static"`
+}
+
 // NetworkResource is used to represent available network
 // resources
 type NetworkResource struct {
-	Device        string   // Name of the device
-	CIDR          string   // CIDR block of addresses
-	IP            string   // IP address
-	MBits         int      // Throughput
-	ReservedPorts []int    `mapstructure:"reserved_ports"` // Reserved ports
-	DynamicPorts  []string `mapstructure:"dynamic_ports"`  // Dynamically assigned ports
+	Device        string // Name of the device
+	CIDR          string // CIDR block of addresses
+	IP            string // IP address
+	MBits         int    // Throughput
+	ReservedPorts []Port // Reserved ports
+	DynamicPorts  []Port // Dynamically assigned ports
 }
 
 // Copy returns a deep copy of the network resource
@@ -636,7 +641,7 @@ func (n *NetworkResource) Copy() *NetworkResource {
 	newR := new(NetworkResource)
 	*newR = *n
 	if n.ReservedPorts != nil {
-		newR.ReservedPorts = make([]int, len(n.ReservedPorts))
+		newR.ReservedPorts = make([]Port, len(n.ReservedPorts))
 		copy(newR.ReservedPorts, n.ReservedPorts)
 	}
 	return newR
@@ -654,52 +659,6 @@ func (n *NetworkResource) Add(delta *NetworkResource) {
 
 func (n *NetworkResource) GoString() string {
 	return fmt.Sprintf("*%#v", *n)
-}
-
-// MapDynamicPorts returns a mapping of Label:PortNumber for dynamic ports
-// allocated on this NetworkResource. The ordering of Label:Port pairs is
-// random.
-//
-// Details:
-//
-// The jobspec lets us ask for two types of ports: Reserved ports and Dynamic
-// ports. Reserved ports are identified by the port number, while Dynamic ports
-// are identified by a Label.
-//
-// When we ask nomad to run a job it checks to see if the Reserved ports we
-// requested are available. If they are, it then tries to provision any Dynamic
-// ports that we have requested. When available ports are found to satisfy our
-// dynamic port requirements, they are APPENDED to the reserved ports list. In
-// effect, the reserved ports list serves double-duty. First it indicates the
-// ports we *want*, and then it indicates the ports we are *using*.
-//
-// After the the offer process is complete and the job is scheduled we want to
-// see which ports were made available to us. To see the dynamic ports that
-// were allocated to us we look at the last N ports in our reservation, where N
-// is how many dynamic ports we requested.
-//
-// MapDynamicPorts matches these port numbers with their labels and gives you
-// the port mapping.
-//
-// Also, be aware that this is intended to be called in the context of
-// task.Resources after an offer has been made. If you call it in some other
-// context the behavior is unspecified, including maybe crashing. So don't do that.
-func (n *NetworkResource) MapDynamicPorts() map[string]int {
-	ports := n.ReservedPorts[len(n.ReservedPorts)-len(n.DynamicPorts):]
-	mapping := make(map[string]int, len(n.DynamicPorts))
-
-	for idx, label := range n.DynamicPorts {
-		mapping[label] = ports[idx]
-	}
-
-	return mapping
-}
-
-// ListStaticPorts returns the list of Static ports allocated to this
-// NetworkResource. These are presumed to have known semantics so there is no
-// mapping information.
-func (n *NetworkResource) ListStaticPorts() []int {
-	return n.ReservedPorts[:len(n.ReservedPorts)-len(n.DynamicPorts)]
 }
 
 const (
@@ -1032,7 +991,7 @@ type Task struct {
 	Driver string
 
 	// Config is provided to the driver to initialize
-	Config map[string]string
+	Config map[string]interface{}
 
 	// Map of environment variables to be used by the driver
 	Env map[string]string

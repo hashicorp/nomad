@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/client/getter"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/mitchellh/mapstructure"
 )
 
 var (
@@ -28,6 +29,13 @@ var (
 type QemuDriver struct {
 	DriverContext
 	fingerprint.StaticFingerprinter
+}
+
+type qemuDriverConfig struct {
+	ArtifactSource string `mapstructure:"artifact_source`
+	Checksum       string `mapstructure:"checksum"`
+	Accelerator    string `mapstructure:"accelerator"`
+	GuestPorts     string `mapstructure:"guest_ports"`
 }
 
 // qemuHandle is returned from Start/Open as a handle to the PID
@@ -69,6 +77,10 @@ func (d *QemuDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, 
 // Run an existing Qemu image. Start() will pull down an existing, valid Qemu
 // image and save it to the Drivers Allocation Dir
 func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
+	var driverConfig qemuDriverConfig
+	if err := mapstructure.WeakDecode(task.Config, &driverConfig); err != nil {
+		return nil, err
+	}
 	// Get the image source
 	source, ok := task.Config["artifact_source"]
 	if !ok || source == "" {
@@ -90,8 +102,8 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	// Proceed to download an artifact to be executed.
 	vmPath, err := getter.GetArtifact(
 		filepath.Join(taskDir, allocdir.TaskLocal),
-		task.Config["artifact_source"],
-		task.Config["checksum"],
+		driverConfig.ArtifactSource,
+		driverConfig.Checksum,
 		d.logger,
 	)
 	if err != nil {
@@ -103,7 +115,7 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	// Parse configuration arguments
 	// Create the base arguments
 	accelerator := "tcg"
-	if acc, ok := task.Config["accelerator"]; ok {
+	if acc := driverConfig.Accelerator; acc != "" {
 		accelerator = acc
 	}
 	// TODO: Check a lower bounds, e.g. the default 128 of Qemu
@@ -132,7 +144,7 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		// the Reserved ports in the Task Resources
 		// Users can supply guest_hosts as a list of posts to map on the guest vm.
 		// These map 1:1 with the requested Reserved Ports from the hostmachine.
-		ports := strings.Split(task.Config["guest_ports"], ",")
+		ports := strings.Split(driverConfig.GuestPorts, ",")
 		if len(ports) == 0 {
 			return nil, fmt.Errorf("[ERR] driver.qemu: Error parsing required Guest Ports")
 		}
@@ -149,7 +161,7 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		reservedPorts := task.Resources.Networks[0].ReservedPorts
 		var forwarding string
 		for i, p := range ports {
-			forwarding = fmt.Sprintf("%s,hostfwd=tcp::%s-:%s", forwarding, strconv.Itoa(reservedPorts[i]), p)
+			forwarding = fmt.Sprintf("%s,hostfwd=tcp::%s-:%s", forwarding, strconv.Itoa(reservedPorts[i].Value), p)
 		}
 
 		if "" == forwarding {
