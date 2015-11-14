@@ -1070,29 +1070,26 @@ type TaskState struct {
 	Events []*TaskEvent
 }
 
-// TaskEventType is the set of events that effect the state of a task.
-type TaskEventType int
-
 const (
 	// A Driver failure indicates that the task could not be started due to a
 	// failure in the driver.
-	TaskDriverFailure TaskEventType = iota
+	TaskDriverFailure = "Driver Failure"
 
 	// Task Started signals that the task was started and its timestamp can be
 	// used to determine the running length of the task.
-	TaskStarted
+	TaskStarted = "Started"
 
 	// Task terminated indicates that the task was started and exited.
-	TaskTerminated
+	TaskTerminated = "Terminated"
 
 	// Task Killed indicates a user has killed the task.
-	TaskKilled
+	TaskKilled = "Killed"
 )
 
 // TaskEvent is an event that effects the state of a task and contains meta-data
 // appropriate to the events type.
 type TaskEvent struct {
-	Type TaskEventType
+	Type string
 	Time int64 // Unix Nanosecond timestamp
 
 	// Driver Failure fields.
@@ -1107,7 +1104,7 @@ type TaskEvent struct {
 	KillError string // Error killing the task.
 }
 
-func NewTaskEvent(event TaskEventType) *TaskEvent {
+func NewTaskEvent(event string) *TaskEvent {
 	return &TaskEvent{
 		Type: event,
 		Time: time.Now().UnixNano(),
