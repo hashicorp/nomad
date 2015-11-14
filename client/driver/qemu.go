@@ -31,7 +31,7 @@ type QemuDriver struct {
 	fingerprint.StaticFingerprinter
 }
 
-type qemuDriverConfig struct {
+type QemuDriverConfig struct {
 	ArtifactSource string `mapstructure:"artifact_source`
 	Checksum       string `mapstructure:"checksum"`
 	Accelerator    string `mapstructure:"accelerator"`
@@ -77,7 +77,7 @@ func (d *QemuDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, 
 // Run an existing Qemu image. Start() will pull down an existing, valid Qemu
 // image and save it to the Drivers Allocation Dir
 func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
-	var driverConfig qemuDriverConfig
+	var driverConfig QemuDriverConfig
 	if err := mapstructure.WeakDecode(task.Config, &driverConfig); err != nil {
 		return nil, err
 	}

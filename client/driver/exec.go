@@ -22,7 +22,7 @@ type ExecDriver struct {
 	DriverContext
 	fingerprint.StaticFingerprinter
 }
-type execDriverConfig struct {
+type ExecDriverConfig struct {
 	ArtifactSource string `mapstructure:"artifact_source`
 	Checksum       string `mapstructure:"checksum"`
 	Command        string `mapstructure:"command"`
@@ -56,7 +56,7 @@ func (d *ExecDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, 
 }
 
 func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
-	var driverConfig execDriverConfig
+	var driverConfig ExecDriverConfig
 	if err := mapstructure.WeakDecode(task.Config, &driverConfig); err != nil {
 		return nil, err
 	}

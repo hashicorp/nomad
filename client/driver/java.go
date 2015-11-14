@@ -26,7 +26,7 @@ type JavaDriver struct {
 	fingerprint.StaticFingerprinter
 }
 
-type javaDriverConfig struct {
+type JavaDriverConfig struct {
 	JvmOpts        string `mapstructure:"jvm_options"`
 	ArtifactSource string `mapstructure:"artifact_source`
 	Checksum       string `mapstructure:"checksum"`
@@ -98,7 +98,7 @@ func (d *JavaDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, 
 }
 
 func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
-	var driverConfig javaDriverConfig
+	var driverConfig JavaDriverConfig
 	if err := mapstructure.WeakDecode(task.Config, &driverConfig); err != nil {
 		return nil, err
 	}

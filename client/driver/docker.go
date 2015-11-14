@@ -24,7 +24,7 @@ type DockerDriver struct {
 	fingerprint.StaticFingerprinter
 }
 
-type dockerDriverConfig struct {
+type DockerDriverConfig struct {
 	ImageName     string         `mapstructure:"image"`
 	Command       string         `mapstructure:"command"`
 	Args          string         `mapstructure:"args"`
@@ -39,7 +39,7 @@ type dockerDriverConfig struct {
 	SearchDomains string         `mapstructure:"search_domains"`
 }
 
-func (c *dockerDriverConfig) Validate() error {
+func (c *DockerDriverConfig) Validate() error {
 	if c.ImageName == "" {
 		return fmt.Errorf("Docker Driver needs an image name")
 	}
@@ -139,7 +139,7 @@ func (d *DockerDriver) containerBinds(alloc *allocdir.AllocDir, task *structs.Ta
 }
 
 // createContainer initializes a struct needed to call docker.client.CreateContainer()
-func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, driverConfig *dockerDriverConfig) (docker.CreateContainerOptions, error) {
+func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, driverConfig *DockerDriverConfig) (docker.CreateContainerOptions, error) {
 	var c docker.CreateContainerOptions
 	if task.Resources == nil {
 		d.logger.Printf("[ERR] driver.docker: task.Resources is empty")
@@ -320,7 +320,7 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, dri
 }
 
 func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
-	var driverConfig dockerDriverConfig
+	var driverConfig DockerDriverConfig
 	if err := mapstructure.WeakDecode(task.Config, &driverConfig); err != nil {
 		return nil, err
 	}

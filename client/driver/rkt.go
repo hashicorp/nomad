@@ -35,7 +35,7 @@ type RktDriver struct {
 	fingerprint.StaticFingerprinter
 }
 
-type rktDriverConfig struct {
+type RktDriverConfig struct {
 	ImageName string `mapstructure:"image"`
 	Args      string `mapstructure:"args"`
 }
@@ -89,7 +89,7 @@ func (d *RktDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, e
 
 // Run an existing Rkt image.
 func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
-	var driverConfig rktDriverConfig
+	var driverConfig RktDriverConfig
 	if err := mapstructure.WeakDecode(task.Config, &driverConfig); err != nil {
 		return nil, err
 	}
