@@ -37,7 +37,7 @@ func Node() *structs.Node {
 				&structs.NetworkResource{
 					Device:        "eth0",
 					IP:            "192.168.0.100",
-					ReservedPorts: []structs.Port{structs.Port{Label: "main", Value: 22}},
+					ReservedPorts: []structs.Port{{Label: "main", Value: 22}},
 					MBits:         1,
 				},
 			},
@@ -96,7 +96,7 @@ func Job() *structs.Job {
 							Networks: []*structs.NetworkResource{
 								&structs.NetworkResource{
 									MBits:        50,
-									DynamicPorts: []structs.Port{structs.Port{Label: "http"}},
+									DynamicPorts: []structs.Port{{Label: "http"}},
 								},
 							},
 						},
@@ -158,7 +158,7 @@ func SystemJob() *structs.Job {
 							Networks: []*structs.NetworkResource{
 								&structs.NetworkResource{
 									MBits:        50,
-									DynamicPorts: []structs.Port{structs.Port{Label: "http"}},
+									DynamicPorts: []structs.Port{{Label: "http"}},
 								},
 							},
 						},
@@ -200,9 +200,9 @@ func Alloc() *structs.Allocation {
 				&structs.NetworkResource{
 					Device:        "eth0",
 					IP:            "192.168.0.100",
-					ReservedPorts: []structs.Port{structs.Port{Label: "main", Value: 12345}},
+					ReservedPorts: []structs.Port{{Label: "main", Value: 12345}},
 					MBits:         100,
-					DynamicPorts:  []structs.Port{structs.Port{Label: "http"}},
+					DynamicPorts:  []structs.Port{{Label: "http"}},
 				},
 			},
 		},
@@ -214,9 +214,9 @@ func Alloc() *structs.Allocation {
 					&structs.NetworkResource{
 						Device:        "eth0",
 						IP:            "192.168.0.100",
-						ReservedPorts: []structs.Port{structs.Port{Label: "main", Value: 5000}},
+						ReservedPorts: []structs.Port{{Label: "main", Value: 5000}},
 						MBits:         50,
-						DynamicPorts:  []structs.Port{structs.Port{Label: "http"}},
+						DynamicPorts:  []structs.Port{{Label: "http"}},
 					},
 				},
 			},
