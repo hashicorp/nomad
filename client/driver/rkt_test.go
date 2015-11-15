@@ -75,7 +75,7 @@ func TestRktDriver_Start(t *testing.T) {
 	// TODO: use test server to load from a fixture
 	task := &structs.Task{
 		Name: "etcd",
-		Config: map[string]string{
+		Config: map[string]interface{}{
 			"trust_prefix": "coreos.com/etcd",
 			"image":        "coreos.com/etcd:v2.0.4",
 			"command":      "/etcd",
@@ -114,7 +114,7 @@ func TestRktDriver_Start_Wait(t *testing.T) {
 	ctestutils.RktCompatible(t)
 	task := &structs.Task{
 		Name: "etcd",
-		Config: map[string]string{
+		Config: map[string]interface{}{
 			"trust_prefix": "coreos.com/etcd",
 			"image":        "coreos.com/etcd:v2.0.4",
 			"command":      "/etcd",
@@ -156,7 +156,7 @@ func TestRktDriver_Start_Wait_Skip_Trust(t *testing.T) {
 	ctestutils.RktCompatible(t)
 	task := &structs.Task{
 		Name: "etcd",
-		Config: map[string]string{
+		Config: map[string]interface{}{
 			"image":   "coreos.com/etcd:v2.0.4",
 			"command": "/etcd",
 			"args":    "--version",
@@ -197,7 +197,7 @@ func TestRktDriver_Start_Wait_Logs(t *testing.T) {
 	ctestutils.RktCompatible(t)
 	task := &structs.Task{
 		Name: "etcd",
-		Config: map[string]string{
+		Config: map[string]interface{}{
 			"trust_prefix": "coreos.com/etcd",
 			"image":        "coreos.com/etcd:v2.0.4",
 			"command":      "/etcd",
