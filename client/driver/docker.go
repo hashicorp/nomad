@@ -25,23 +25,29 @@ type DockerDriver struct {
 }
 
 type DockerDriverConfig struct {
-	ImageName     string         `mapstructure:"image"`
-	Command       string         `mapstructure:"command"`
-	Args          string         `mapstructure:"args"`
-	NetworkMode   string         `mapstructure:"network_mode"`
-	PortMap       map[string]int `mapstructure:"port_map"`
-	UserName      string         `mapstructure:"auth.username"`
-	Password      string         `mapstructure:"auth.password`
-	Email         string         `mapstructure:"auth.email"`
-	ServerAddress string         `mapstructure:"auth.server_address`
-	Privileged    bool           `mapstructure:"privileged"`
-	DNS           string         `mapstructure:"dns_server"`
-	SearchDomains string         `mapstructure:"search_domains"`
+	ImageName     string           `mapstructure:"image"`
+	Command       string           `mapstructure:"command"`
+	Args          string           `mapstructure:"args"`
+	NetworkMode   string           `mapstructure:"network_mode"`
+	PortMap       []map[string]int `mapstructure:"port_map"`
+	UserName      string           `mapstructure:"auth.username"`
+	Password      string           `mapstructure:"auth.password`
+	Email         string           `mapstructure:"auth.email"`
+	ServerAddress string           `mapstructure:"auth.server_address`
+	Privileged    bool             `mapstructure:"privileged"`
+	DNS           string           `mapstructure:"dns_server"`
+	SearchDomains string           `mapstructure:"search_domains"`
 }
 
 func (c *DockerDriverConfig) Validate() error {
 	if c.ImageName == "" {
 		return fmt.Errorf("Docker Driver needs an image name")
+	}
+
+	fmt.Printf("[DIPTANU] Portmap %#v \n", c.PortMap)
+
+	if len(c.PortMap) > 1 {
+		return fmt.Errorf("Only one port_map block is allowed in the docker driver config")
 	}
 	return nil
 }
@@ -274,7 +280,7 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, dri
 
 		containerToHostPortMap := make(map[string]int)
 		for _, port := range network.DynamicPorts {
-			containerPort, ok := driverConfig.PortMap[port.Label]
+			containerPort, ok := driverConfig.PortMap[0][port.Label]
 			if !ok {
 				containerPort = port.Value
 			}
