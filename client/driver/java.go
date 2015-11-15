@@ -28,7 +28,7 @@ type JavaDriver struct {
 
 type JavaDriverConfig struct {
 	JvmOpts        string `mapstructure:"jvm_options"`
-	ArtifactSource string `mapstructure:"artifact_source`
+	ArtifactSource string `mapstructure:"artifact_source"`
 	Checksum       string `mapstructure:"checksum"`
 	Args           string `mapstructure:"args"`
 }
