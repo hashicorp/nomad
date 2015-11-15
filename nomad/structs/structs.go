@@ -661,6 +661,15 @@ func (n *NetworkResource) GoString() string {
 	return fmt.Sprintf("*%#v", *n)
 }
 
+func (n *NetworkResource) MapLabelToValues() map[string]int {
+	labelValues := make(map[string]int)
+	ports := append(n.ReservedPorts, n.DynamicPorts...)
+	for _, port := range ports {
+		labelValues[port.Label] = port.Value
+	}
+	return labelValues
+}
+
 const (
 	// JobTypeNomad is reserved for internal system tasks and is
 	// always handled by the CoreScheduler.

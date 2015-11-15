@@ -133,6 +133,7 @@ func TaskEnvironmentVariables(ctx *ExecContext, task *structs.Task) environment.
 		if len(task.Resources.Networks) > 0 {
 			network := task.Resources.Networks[0]
 			env.SetTaskIp(network.IP)
+			env.SetPorts(network.MapLabelToValues())
 		}
 	}
 
