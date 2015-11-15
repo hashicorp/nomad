@@ -23,7 +23,7 @@ type ExecDriver struct {
 	fingerprint.StaticFingerprinter
 }
 type ExecDriverConfig struct {
-	ArtifactSource string `mapstructure:"artifact_source`
+	ArtifactSource string `mapstructure:"artifact_source"`
 	Checksum       string `mapstructure:"checksum"`
 	Command        string `mapstructure:"command"`
 	Args           string `mapstructure:"args"`
