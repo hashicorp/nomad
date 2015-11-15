@@ -1543,7 +1543,7 @@ func (p *PlanResult) FullCommit(plan *Plan) (bool, int, int) {
 }
 
 // msgpackHandle is a shared handle for encoding/decoding of structs
-var msgpackHandle = &codec.MsgpackHandle{}
+var msgpackHandle = &codec.MsgpackHandle{RawToString: true}
 
 // Decode is used to decode a MsgPack encoded object
 func Decode(buf []byte, out interface{}) error {
