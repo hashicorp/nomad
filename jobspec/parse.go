@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
@@ -16,7 +17,7 @@ import (
 )
 
 var reDynamicPorts *regexp.Regexp = regexp.MustCompile("^[a-zA-Z0-9_]+$")
-var errDynamicPorts = fmt.Errorf("DynamicPort label does not conform to naming requirements %s", reDynamicPorts.String())
+var errPortLabel = fmt.Errorf("Port label does not conform to naming requirements %s", reDynamicPorts.String())
 
 // Parse parses the job spec from the given io.Reader.
 //
@@ -513,11 +514,15 @@ func parseResources(result *structs.Resources, list *ast.ObjectList) error {
 }
 
 func parsePorts(networkObj *ast.ObjectList, nw *structs.NetworkResource) error {
-	portsObjList := networkObj.Filter("Port")
+	portsObjList := networkObj.Filter("port")
 	knownPortLabels := make(map[string]bool)
 	for _, port := range portsObjList.Items {
 		label := port.Keys[0].Token.Value().(string)
-		if knownPortLabels[label] {
+		if !reDynamicPorts.MatchString(label) {
+			return errPortLabel
+		}
+		l := strings.ToLower(label)
+		if knownPortLabels[l] {
 			return fmt.Errorf("Found a port label collision: %s", label)
 		}
 		var p map[string]interface{}
@@ -534,6 +539,7 @@ func parsePorts(networkObj *ast.ObjectList, nw *structs.NetworkResource) error {
 		} else {
 			nw.DynamicPorts = append(nw.DynamicPorts, res)
 		}
+		knownPortLabels[l] = true
 	}
 	return nil
 }

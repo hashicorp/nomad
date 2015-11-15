@@ -57,7 +57,7 @@ func TestParse(t *testing.T) {
 							&structs.Task{
 								Name:   "outside",
 								Driver: "java",
-								Config: map[string]string{
+								Config: map[string]interface{}{
 									"jar": "s3://my-cool-store/foo.jar",
 								},
 								Meta: map[string]string{
@@ -91,7 +91,7 @@ func TestParse(t *testing.T) {
 							&structs.Task{
 								Name:   "binstore",
 								Driver: "docker",
-								Config: map[string]string{
+								Config: map[string]interface{}{
 									"image": "hashicorp/binstore",
 								},
 								Env: map[string]string{
@@ -104,8 +104,8 @@ func TestParse(t *testing.T) {
 									Networks: []*structs.NetworkResource{
 										&structs.NetworkResource{
 											MBits:         100,
-											ReservedPorts: []int{1, 2, 3},
-											DynamicPorts:  []string{"http", "https", "admin"},
+											ReservedPorts: []structs.Port{{"one", 1}, {"two", 2}, {"three", 3}},
+											DynamicPorts:  []structs.Port{{"http", 0}, {"https", 0}, {"admin", 0}},
 										},
 									},
 								},
@@ -113,7 +113,7 @@ func TestParse(t *testing.T) {
 							&structs.Task{
 								Name:   "storagelocker",
 								Driver: "java",
-								Config: map[string]string{
+								Config: map[string]interface{}{
 									"image": "hashicorp/storagelocker",
 								},
 								Resources: &structs.Resources{
@@ -256,8 +256,8 @@ func TestBadPorts(t *testing.T) {
 
 	_, err = ParseFile(path)
 
-	if !strings.Contains(err.Error(), errDynamicPorts.Error()) {
-		t.Fatalf("\nExpected error\n  %s\ngot\n  %v", errDynamicPorts, err)
+	if !strings.Contains(err.Error(), errPortLabel.Error()) {
+		t.Fatalf("\nExpected error\n  %s\ngot\n  %v", errPortLabel, err)
 	}
 }
 
