@@ -1128,8 +1128,10 @@ func (e *TaskEvent) SetSignal(s int) *TaskEvent {
 	return e
 }
 
-func (e *TaskEvent) SetExitMessage(m string) *TaskEvent {
-	e.Message = m
+func (e *TaskEvent) SetExitMessage(err error) *TaskEvent {
+	if err != nil {
+		e.Message = err.Error()
+	}
 	return e
 }
 

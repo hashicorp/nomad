@@ -303,11 +303,10 @@ func (r *TaskRunner) run() {
 
 // Helper function for converting a WaitResult into a TaskTerminated event.
 func (r *TaskRunner) waitErrorToEvent(res *cstructs.WaitResult) *structs.TaskEvent {
-	e := structs.NewTaskEvent(structs.TaskTerminated).SetExitCode(res.ExitCode).SetSignal(res.Signal)
-	if res.Err != nil {
-		e.SetExitMessage(res.Err.Error())
-	}
-	return e
+	return structs.NewTaskEvent(structs.TaskTerminated).
+		SetExitCode(res.ExitCode).
+		SetSignal(res.Signal).
+		SetExitMessage(res.Err)
 }
 
 // Update is used to update the task of the context
