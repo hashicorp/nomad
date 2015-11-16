@@ -31,9 +31,9 @@ type DockerDriverConfig struct {
 	NetworkMode   string           `mapstructure:"network_mode"`
 	PortMap       []map[string]int `mapstructure:"port_map"`
 	UserName      string           `mapstructure:"auth.username"`
-	Password      string           `mapstructure:"auth.password`
+	Password      string           `mapstructure:"auth.password"`
 	Email         string           `mapstructure:"auth.email"`
-	ServerAddress string           `mapstructure:"auth.server_address`
+	ServerAddress string           `mapstructure:"auth.server_address"`
 	Privileged    bool             `mapstructure:"privileged"`
 	DNS           string           `mapstructure:"dns_server"`
 	SearchDomains string           `mapstructure:"search_domains"`

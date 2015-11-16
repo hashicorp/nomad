@@ -32,7 +32,7 @@ type QemuDriver struct {
 }
 
 type QemuDriverConfig struct {
-	ArtifactSource string `mapstructure:"artifact_source`
+	ArtifactSource string `mapstructure:"artifact_source"`
 	Checksum       string `mapstructure:"checksum"`
 	Accelerator    string `mapstructure:"accelerator"`
 	GuestPorts     string `mapstructure:"guest_ports"`
