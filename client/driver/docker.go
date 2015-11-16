@@ -24,18 +24,23 @@ type DockerDriver struct {
 	fingerprint.StaticFingerprinter
 }
 
+type DockerAuthConfig struct {
+	UserName      string `mapstructure:"auth.username"`      // user name of the registry
+	Password      string `mapstructure:"auth.password`       // password to access the registry
+	Email         string `mapstructure:"auth.email"`         // email address of the user who is allowed to access the registry
+	ServerAddress string `mapstructure:"auth.server_address` // server address of the registry
+
+}
+
 type DockerDriverConfig struct {
-	ImageName     string           `mapstructure:"image"`
-	Command       string           `mapstructure:"command"`
-	Args          string           `mapstructure:"args"`
-	NetworkMode   string           `mapstructure:"network_mode"`
-	PortMap       []map[string]int `mapstructure:"port_map"`
-	UserName      string           `mapstructure:"auth.username"`
-	Password      string           `mapstructure:"auth.password"`
-	Email         string           `mapstructure:"auth.email"`
-	ServerAddress string           `mapstructure:"auth.server_address"`
-	Privileged    bool             `mapstructure:"privileged"`
-	DNS           string           `mapstructure:"dns_server"`
+	DockerAuthConfig
+	ImageName     string           `mapstructure:"image"`        // Container's Image Name
+	Command       string           `mapstructure:"command"`      // The Command/Entrypoint to run when the container starts up
+	Args          string           `mapstructure:"args"`         // The arguments to the Command/Entrypoint
+	NetworkMode   string           `mapstructure:"network_mode"` // The network mode of the container - host, net and none
+	PortMap       []map[string]int `mapstructure:"port_map"`     // A map of host port labels and the ports exposed on the container
+	Privileged    bool             `mapstructure:"privileged"`   // Flag to run the container in priviledged mode
+	DNS           string           `mapstructure:"dns_server"`   // DNS Server for containers
 	SearchDomains string           `mapstructure:"search_domains"`
 }
 
@@ -43,8 +48,6 @@ func (c *DockerDriverConfig) Validate() error {
 	if c.ImageName == "" {
 		return fmt.Errorf("Docker Driver needs an image name")
 	}
-
-	fmt.Printf("[DIPTANU] Portmap %#v \n", c.PortMap)
 
 	if len(c.PortMap) > 1 {
 		return fmt.Errorf("Only one port_map block is allowed in the docker driver config")
