@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"reflect"
 	"regexp"
 	"strings"
 	"time"
@@ -1543,7 +1544,15 @@ func (p *PlanResult) FullCommit(plan *Plan) (bool, int, int) {
 }
 
 // msgpackHandle is a shared handle for encoding/decoding of structs
-var msgpackHandle = &codec.MsgpackHandle{RawToString: true}
+var msgpackHandle = func() *codec.MsgpackHandle {
+	h := &codec.MsgpackHandle{RawToString: true}
+
+	// Sets the default type for decoding a map into a nil interface{}.
+	// This is necessary in particular because we store the driver configs as a
+	// nil interface{}.
+	h.MapType = reflect.TypeOf(map[string]interface{}(nil))
+	return h
+}()
 
 // Decode is used to decode a MsgPack encoded object
 func Decode(buf []byte, out interface{}) error {
