@@ -211,90 +211,93 @@ func (r *TaskRunner) Run() {
 	r.logger.Printf("[DEBUG] client: starting task context for '%s' (alloc '%s')",
 		r.task.Name, r.allocID)
 
-	r.run(false)
+	r.run()
 	return
 }
 
-func (r *TaskRunner) run(forceStart bool) {
-	// Start the task if not yet started or it is being forced.
-	if r.handle == nil || forceStart {
-		if err := r.startTask(); err != nil {
+func (r *TaskRunner) run() {
+	var forceStart bool
+	for {
+		// Start the task if not yet started or it is being forced.
+		if r.handle == nil || forceStart {
+			forceStart = false
+			if err := r.startTask(); err != nil {
+				return
+			}
+		}
+
+		// Store the errors that caused use to stop waiting for updates.
+		var waitRes *cstructs.WaitResult
+		var destroyErr error
+		destroyed := false
+
+	OUTER:
+		// Wait for updates
+		for {
+			select {
+			case waitRes = <-r.handle.WaitCh():
+				break OUTER
+			case update := <-r.updateCh:
+				// Update
+				r.task = update
+				if err := r.handle.Update(update); err != nil {
+					r.logger.Printf("[ERR] client: failed to update task '%s' for alloc '%s': %v", r.task.Name, r.allocID, err)
+				}
+			case <-r.destroyCh:
+				// Send the kill signal, and use the WaitCh to block until complete
+				if err := r.handle.Kill(); err != nil {
+					r.logger.Printf("[ERR] client: failed to kill task '%s' for alloc '%s': %v", r.task.Name, r.allocID, err)
+					destroyErr = err
+				}
+				destroyed = true
+			}
+		}
+
+		// If the user destroyed the task, we do not attempt to do any restarts.
+		if destroyed {
+			r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskKilled).SetKillError(destroyErr))
 			return
 		}
-	}
 
-	// Store the errors that caused use to stop waiting for updates.
-	var waitRes *cstructs.WaitResult
-	var destroyErr error
-	destroyed := false
-
-OUTER:
-	// Wait for updates
-	for {
-		select {
-		case waitRes = <-r.handle.WaitCh():
-			break OUTER
-		case update := <-r.updateCh:
-			// Update
-			r.task = update
-			if err := r.handle.Update(update); err != nil {
-				r.logger.Printf("[ERR] client: failed to update task '%s' for alloc '%s': %v", r.task.Name, r.allocID, err)
-			}
-		case <-r.destroyCh:
-			// Send the kill signal, and use the WaitCh to block until complete
-			if err := r.handle.Kill(); err != nil {
-				r.logger.Printf("[ERR] client: failed to kill task '%s' for alloc '%s': %v", r.task.Name, r.allocID, err)
-				destroyErr = err
-			}
-			destroyed = true
+		// Log whether the task was successful or not.
+		if !waitRes.Successful() {
+			r.logger.Printf("[ERR] client: failed to complete task '%s' for alloc '%s': %v", r.task.Name, r.allocID, waitRes)
+		} else {
+			r.logger.Printf("[INFO] client: completed task '%s' for alloc '%s'", r.task.Name, r.allocID)
 		}
+
+		// Check if we should restart. If not mark task as dead and exit.
+		waitEvent := r.waitErrorToEvent(waitRes)
+		shouldRestart, when := r.restartTracker.nextRestart()
+		if !shouldRestart {
+			r.logger.Printf("[INFO] client: Not restarting task: %v for alloc: %v ", r.task.Name, r.allocID)
+			r.setState(structs.TaskStateDead, waitEvent)
+			return
+		}
+
+		r.logger.Printf("[INFO] client: Restarting Task: %v", r.task.Name)
+		r.logger.Printf("[DEBUG] client: Sleeping for %v before restarting Task %v", when, r.task.Name)
+		r.setState(structs.TaskStatePending, waitEvent)
+
+		// Sleep but watch for destroy events.
+		select {
+		case <-time.After(when):
+		case <-r.destroyCh:
+		}
+
+		// Destroyed while we were waiting to restart, so abort.
+		r.destroyLock.Lock()
+		destroyed = r.destroy
+		r.destroyLock.Unlock()
+		if destroyed {
+			r.logger.Printf("[DEBUG] client: Not restarting task: %v because it's destroyed by user", r.task.Name)
+			r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskKilled))
+			return
+		}
+
+		// Set force start because we are restarting the task.
+		forceStart = true
 	}
-
-	// If the user destroyed the task, we do not attempt to do any restarts.
-	if destroyed {
-		r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskKilled).SetKillError(destroyErr))
-		return
-	}
-
-	// Log whether the task was successful or not.
-	if !waitRes.Successful() {
-		r.logger.Printf("[ERR] client: failed to complete task '%s' for alloc '%s': %v", r.task.Name, r.allocID, waitRes)
-	} else {
-		r.logger.Printf("[INFO] client: completed task '%s' for alloc '%s'", r.task.Name, r.allocID)
-	}
-
-	// Check if we should restart. If not mark task as dead and exit.
-	waitEvent := r.waitErrorToEvent(waitRes)
-	shouldRestart, when := r.restartTracker.nextRestart()
-	if !shouldRestart {
-		r.logger.Printf("[INFO] client: Not restarting task: %v for alloc: %v ", r.task.Name, r.allocID)
-		r.setState(structs.TaskStateDead, waitEvent)
-		return
-	}
-
-	r.logger.Printf("[INFO] client: Restarting Task: %v", r.task.Name)
-	r.logger.Printf("[DEBUG] client: Sleeping for %v before restarting Task %v", when, r.task.Name)
-	r.setState(structs.TaskStatePending, waitEvent)
-
-	// Sleep but watch for destroy events.
-	select {
-	case <-time.After(when):
-	case <-r.destroyCh:
-	}
-
-	// Destroyed while we were waiting to restart, so abort.
-	r.destroyLock.Lock()
-	destroyed = r.destroy
-	r.destroyLock.Unlock()
-	if destroyed {
-		r.logger.Printf("[DEBUG] client: Not restarting task: %v because it's destroyed by user", r.task.Name)
-		r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskKilled))
-		return
-	}
-
-	// Recurse on ourselves and force the start since we are restarting the task.
-	r.run(true)
-	// TODO: Alex
 	return
 }
 
