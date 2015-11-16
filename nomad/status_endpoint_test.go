@@ -1,26 +1,12 @@
 package nomad
 
 import (
-	"net"
-	"net/rpc"
 	"testing"
-	"time"
 
 	"github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 )
-
-func rpcClient(t *testing.T, s *Server) rpc.ClientCodec {
-	addr := s.config.RPCAddr
-	conn, err := net.DialTimeout("tcp", addr.String(), time.Second)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	// Write the Consul RPC byte to set the mode
-	conn.Write([]byte{byte(rpcNomad)})
-	return msgpackrpc.NewClientCodec(conn)
-}
 
 func TestStatusVersion(t *testing.T) {
 	s1 := testServer(t, nil)

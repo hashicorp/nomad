@@ -6,10 +6,12 @@ import (
 	"io"
 	"math/rand"
 	"net"
+	"net/rpc"
 	"strings"
 	"time"
 
 	"github.com/armon/go-metrics"
+	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -50,6 +52,26 @@ const (
 	// the requesting goroutine forever.
 	enqueueLimit = 30 * time.Second
 )
+
+var (
+	// rpcHandle is the MsgpackHandle to be used by both Client and Server codecs.
+	rpcHandle = &codec.MsgpackHandle{
+		// Enables proper encoding of strings within nil interfaces.
+		RawToString: true,
+	}
+)
+
+// NewClientCodec returns a new rpc.ClientCodec to be used to make RPC calls to
+// the Nomad Server.
+func NewClientCodec(conn io.ReadWriteCloser) rpc.ClientCodec {
+	return msgpackrpc.NewCodecFromHandle(true, true, conn, rpcHandle)
+}
+
+// NewServerCodec returns a new rpc.ServerCodec to be used by the Nomad Server
+// to handle rpcs.
+func NewServerCodec(conn io.ReadWriteCloser) rpc.ServerCodec {
+	return msgpackrpc.NewCodecFromHandle(true, true, conn, rpcHandle)
+}
 
 // listen is used to listen for incoming RPC connections
 func (s *Server) listen() {
@@ -139,7 +161,7 @@ func (s *Server) handleMultiplex(conn net.Conn) {
 // handleNomadConn is used to service a single Nomad RPC connection
 func (s *Server) handleNomadConn(conn net.Conn) {
 	defer conn.Close()
-	rpcCodec := msgpackrpc.NewServerCodec(conn)
+	rpcCodec := NewServerCodec(conn)
 	for {
 		select {
 		case <-s.shutdownCh:
