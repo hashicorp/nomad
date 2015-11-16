@@ -71,7 +71,7 @@ func (c *Conn) getClient() (*StreamClient, error) {
 	}
 
 	// Create a client codec
-	codec := msgpackrpc.NewClientCodec(stream)
+	codec := NewClientCodec(stream)
 
 	// Return a new stream client
 	sc := &StreamClient{

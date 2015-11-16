@@ -1,10 +1,26 @@
 package nomad
 
 import (
+	"net"
+	"net/rpc"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/testutil"
 )
+
+// rpcClient is a test helper method to return a ClientCodec to use to make rpc
+// calls to the passed server.
+func rpcClient(t *testing.T, s *Server) rpc.ClientCodec {
+	addr := s.config.RPCAddr
+	conn, err := net.DialTimeout("tcp", addr.String(), time.Second)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	// Write the Consul RPC byte to set the mode
+	conn.Write([]byte{byte(rpcNomad)})
+	return NewClientCodec(conn)
+}
 
 func TestRPC_forwardLeader(t *testing.T) {
 	s1 := testServer(t, nil)
