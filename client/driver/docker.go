@@ -25,10 +25,10 @@ type DockerDriver struct {
 }
 
 type DockerAuthConfig struct {
-	UserName      string `mapstructure:"auth.username"`      // user name of the registry
-	Password      string `mapstructure:"auth.password`       // password to access the registry
-	Email         string `mapstructure:"auth.email"`         // email address of the user who is allowed to access the registry
-	ServerAddress string `mapstructure:"auth.server_address` // server address of the registry
+	UserName      string `mapstructure:"auth.username"`       // user name of the registry
+	Password      string `mapstructure:"auth.password"`       // password to access the registry
+	Email         string `mapstructure:"auth.email"`          // email address of the user who is allowed to access the registry
+	ServerAddress string `mapstructure:"auth.server_address"` // server address of the registry
 
 }
 
