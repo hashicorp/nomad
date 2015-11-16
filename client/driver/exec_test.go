@@ -99,9 +99,9 @@ func TestExecDriver_Start_Wait(t *testing.T) {
 
 	// Task should terminate quickly
 	select {
-	case err := <-handle.WaitCh():
-		if err != nil {
-			t.Fatalf("err: %v", err)
+	case res := <-handle.WaitCh():
+		if !res.Successful() {
+			t.Fatalf("err: %v", res)
 		}
 	case <-time.After(4 * time.Second):
 		t.Fatalf("timeout")
@@ -143,9 +143,9 @@ func TestExecDriver_Start_Artifact_basic(t *testing.T) {
 
 	// Task should terminate quickly
 	select {
-	case err := <-handle.WaitCh():
-		if err != nil {
-			t.Fatalf("err: %v", err)
+	case res := <-handle.WaitCh():
+		if !res.Successful() {
+			t.Fatalf("err: %v", res)
 		}
 	case <-time.After(5 * time.Second):
 		t.Fatalf("timeout")
@@ -187,9 +187,9 @@ func TestExecDriver_Start_Artifact_expanded(t *testing.T) {
 
 	// Task should terminate quickly
 	select {
-	case err := <-handle.WaitCh():
-		if err != nil {
-			t.Fatalf("err: %v", err)
+	case res := <-handle.WaitCh():
+		if !res.Successful() {
+			t.Fatalf("err: %v", res)
 		}
 	case <-time.After(5 * time.Second):
 		t.Fatalf("timeout")
@@ -224,9 +224,9 @@ func TestExecDriver_Start_Wait_AllocDir(t *testing.T) {
 
 	// Task should terminate quickly
 	select {
-	case err := <-handle.WaitCh():
-		if err != nil {
-			t.Fatalf("err: %v", err)
+	case res := <-handle.WaitCh():
+		if !res.Successful() {
+			t.Fatalf("err: %v", res)
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatalf("timeout")
@@ -278,8 +278,8 @@ func TestExecDriver_Start_Kill_Wait(t *testing.T) {
 
 	// Task should terminate quickly
 	select {
-	case err := <-handle.WaitCh():
-		if err == nil {
+	case res := <-handle.WaitCh():
+		if res.Successful() {
 			t.Fatal("should err")
 		}
 	case <-time.After(8 * time.Second):

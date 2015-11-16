@@ -15,6 +15,8 @@ import (
 	"github.com/hashicorp/nomad/client/driver/environment"
 	"github.com/hashicorp/nomad/client/driver/spawn"
 	"github.com/hashicorp/nomad/nomad/structs"
+
+	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 )
 
 // BasicExecutor should work everywhere, and as a result does not include
@@ -92,17 +94,8 @@ func (e *BasicExecutor) Open(id string) error {
 	return e.spawn.Valid()
 }
 
-func (e *BasicExecutor) Wait() error {
-	code, err := e.spawn.Wait()
-	if err != nil {
-		return err
-	}
-
-	if code != 0 {
-		return fmt.Errorf("Task exited with code: %d", code)
-	}
-
-	return nil
+func (e *BasicExecutor) Wait() *cstructs.WaitResult {
+	return e.spawn.Wait()
 }
 
 func (e *BasicExecutor) ID() (string, error) {

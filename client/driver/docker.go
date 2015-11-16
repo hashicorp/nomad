@@ -9,13 +9,14 @@ import (
 	"strconv"
 	"strings"
 
-	docker "github.com/fsouza/go-dockerclient"
-
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/args"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/nomad/structs"
+
+	docker "github.com/fsouza/go-dockerclient"
+	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 )
 
 type DockerDriver struct {
@@ -35,7 +36,7 @@ type dockerHandle struct {
 	cleanupImage     bool
 	imageID          string
 	containerID      string
-	waitCh           chan error
+	waitCh           chan *cstructs.WaitResult
 	doneCh           chan struct{}
 }
 
@@ -414,7 +415,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 		imageID:          dockerImage.ID,
 		containerID:      container.ID,
 		doneCh:           make(chan struct{}),
-		waitCh:           make(chan error, 1),
+		waitCh:           make(chan *cstructs.WaitResult, 1),
 	}
 	go h.run()
 	return h, nil
@@ -474,7 +475,7 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 		imageID:          pid.ImageID,
 		containerID:      pid.ContainerID,
 		doneCh:           make(chan struct{}),
-		waitCh:           make(chan error, 1),
+		waitCh:           make(chan *cstructs.WaitResult, 1),
 	}
 	go h.run()
 	return h, nil
@@ -493,7 +494,7 @@ func (h *dockerHandle) ID() string {
 	return fmt.Sprintf("DOCKER:%s", string(data))
 }
 
-func (h *dockerHandle) WaitCh() chan error {
+func (h *dockerHandle) WaitCh() chan *cstructs.WaitResult {
 	return h.waitCh
 }
 
@@ -565,8 +566,6 @@ func (h *dockerHandle) run() {
 	}
 
 	close(h.doneCh)
-	if err != nil {
-		h.waitCh <- err
-	}
+	h.waitCh <- cstructs.NewWaitResult(exitCode, 0, err)
 	close(h.waitCh)
 }

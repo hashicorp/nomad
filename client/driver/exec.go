@@ -13,6 +13,8 @@ import (
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/client/getter"
 	"github.com/hashicorp/nomad/nomad/structs"
+
+	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 )
 
 // ExecDriver fork/execs tasks using as many of the underlying OS's isolation
@@ -25,7 +27,7 @@ type ExecDriver struct {
 // execHandle is returned from Start/Open as a handle to the PID
 type execHandle struct {
 	cmd    executor.Executor
-	waitCh chan error
+	waitCh chan *cstructs.WaitResult
 	doneCh chan struct{}
 }
 
@@ -106,7 +108,7 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	h := &execHandle{
 		cmd:    cmd,
 		doneCh: make(chan struct{}),
-		waitCh: make(chan error, 1),
+		waitCh: make(chan *cstructs.WaitResult, 1),
 	}
 	go h.run()
 	return h, nil
@@ -123,7 +125,7 @@ func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 	h := &execHandle{
 		cmd:    cmd,
 		doneCh: make(chan struct{}),
-		waitCh: make(chan error, 1),
+		waitCh: make(chan *cstructs.WaitResult, 1),
 	}
 	go h.run()
 	return h, nil
@@ -134,7 +136,7 @@ func (h *execHandle) ID() string {
 	return id
 }
 
-func (h *execHandle) WaitCh() chan error {
+func (h *execHandle) WaitCh() chan *cstructs.WaitResult {
 	return h.waitCh
 }
 
@@ -154,10 +156,8 @@ func (h *execHandle) Kill() error {
 }
 
 func (h *execHandle) run() {
-	err := h.cmd.Wait()
+	res := h.cmd.Wait()
 	close(h.doneCh)
-	if err != nil {
-		h.waitCh <- err
-	}
+	h.waitCh <- res
 	close(h.waitCh)
 }
