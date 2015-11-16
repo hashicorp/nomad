@@ -133,8 +133,8 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 
 	// Build the argument list.
 	args = append(args, "-jar", filepath.Join(allocdir.TaskLocal, jarName))
-	if argRaw := driverConfig.Args; argRaw != "" {
-		args = append(args, argRaw)
+	if driverConfig.Args != "" {
+		args = append(args, driverConfig.Args)
 	}
 
 	// Setup the command

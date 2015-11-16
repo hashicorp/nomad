@@ -115,8 +115,8 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	// Parse configuration arguments
 	// Create the base arguments
 	accelerator := "tcg"
-	if acc := driverConfig.Accelerator; acc != "" {
-		accelerator = acc
+	if driverConfig.Accelerator != "" {
+		accelerator = driverConfig.Accelerator
 	}
 	// TODO: Check a lower bounds, e.g. the default 128 of Qemu
 	mem := fmt.Sprintf("%dM", task.Resources.MemoryMB)

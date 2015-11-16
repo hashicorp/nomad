@@ -92,8 +92,8 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 
 	// Look for arguments
 	var args []string
-	if argRaw := driverConfig.Args; argRaw != "" {
-		args = append(args, argRaw)
+	if driverConfig.Args != "" {
+		args = append(args, driverConfig.Args)
 	}
 
 	// Setup the command

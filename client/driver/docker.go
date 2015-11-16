@@ -215,12 +215,12 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, dri
 		return c, fmt.Errorf("Unable to parse docker.privileged.enabled: %s", err)
 	}
 
-	if taskPrivileged := driverConfig.Privileged; taskPrivileged {
-		if taskPrivileged && !hostPrivileged {
+	if driverConfig.Privileged {
+		if !hostPrivileged {
 			return c, fmt.Errorf(`Unable to set privileged flag since "docker.privileged.enabled" is false`)
 		}
 
-		hostConfig.Privileged = taskPrivileged
+		hostConfig.Privileged = driverConfig.Privileged
 	}
 
 	// set DNS servers
@@ -303,8 +303,7 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, dri
 		config.ExposedPorts = exposedPorts
 	}
 
-	rawArgs := driverConfig.Args
-	parsedArgs, err := args.ParseAndReplace(rawArgs, env.Map())
+	parsedArgs, err := args.ParseAndReplace(driverConfig.Args, env.Map())
 	if err != nil {
 		return c, err
 	}

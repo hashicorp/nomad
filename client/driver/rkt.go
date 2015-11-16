@@ -149,8 +149,8 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	}
 
 	// Add user passed arguments.
-	if userArgs := driverConfig.Args; userArgs != "" {
-		parsed, err := args.ParseAndReplace(userArgs, envVars.Map())
+	if driverConfig.Args != "" {
+		parsed, err := args.ParseAndReplace(driverConfig.Args, envVars.Map())
 		if err != nil {
 			return nil, err
 		}
