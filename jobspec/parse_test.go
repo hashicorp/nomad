@@ -225,6 +225,43 @@ func TestParse(t *testing.T) {
 			},
 			false,
 		},
+
+		{
+			"task-nested-config.hcl",
+			&structs.Job{
+				Region:   "global",
+				ID:       "foo",
+				Name:     "foo",
+				Type:     "service",
+				Priority: 50,
+
+				TaskGroups: []*structs.TaskGroup{
+					&structs.TaskGroup{
+						Name:  "bar",
+						Count: 1,
+						RestartPolicy: &structs.RestartPolicy{
+							Attempts: 2,
+							Interval: 1 * time.Minute,
+							Delay:    15 * time.Second,
+						},
+						Tasks: []*structs.Task{
+							&structs.Task{
+								Name:   "bar",
+								Driver: "docker",
+								Config: map[string]interface{}{
+									"port_map": []map[string]interface{}{
+										map[string]interface{}{
+											"db": 1234,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			false,
+		},
 	}
 
 	for _, tc := range cases {
