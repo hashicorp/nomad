@@ -142,7 +142,7 @@ func (r *TaskRunner) setStatus(status, desc string) {
 
 // createDriver makes a driver for the task
 func (r *TaskRunner) createDriver() (driver.Driver, error) {
-	taskName := fmt.Sprintf("%s-%s-%s", r.allocID, r.task.Name, r.restartTracker.totalRestartCount())
+	taskName := fmt.Sprintf("%s-%s-%v", r.allocID, r.task.Name, r.restartTracker.totalRestartCount())
 	driverCtx := driver.NewDriverContext(taskName, r.config, r.config.Node, r.logger)
 	driver, err := driver.NewDriver(r.task.Driver, driverCtx)
 	if err != nil {
