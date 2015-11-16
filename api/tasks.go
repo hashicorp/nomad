@@ -130,7 +130,7 @@ const (
 type TaskEvent struct {
 	Type        string
 	Time        int64
-	DriverError error
+	DriverError string
 	ExitCode    int
 	Signal      int
 	Message     string

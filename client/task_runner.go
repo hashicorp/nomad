@@ -137,11 +137,27 @@ func (r *TaskRunner) DestroyState() error {
 	return os.RemoveAll(r.stateFilePath())
 }
 
+func (r *TaskRunner) appendEvent(event *structs.TaskEvent) {
+	capacity := 10
+	if r.state.Events == nil {
+		r.state.Events = make([]*structs.TaskEvent, 0, capacity)
+	}
+
+	// If we hit capacity, then shift it.
+	if len(r.state.Events) == capacity {
+		old := r.state.Events
+		r.state.Events = make([]*structs.TaskEvent, 0, capacity)
+		r.state.Events = append(r.state.Events, old[1:]...)
+	}
+
+	r.state.Events = append(r.state.Events, event)
+}
+
 // setState is used to update the state of the task runner
 func (r *TaskRunner) setState(state string, event *structs.TaskEvent) {
 	// Update the task.
 	r.state.State = state
-	r.state.Events = append(r.state.Events, event)
+	r.appendEvent(event)
 
 	// Persist our state to disk.
 	if err := r.SaveState(); err != nil {
@@ -278,6 +294,7 @@ OUTER:
 
 	// Recurse on ourselves and force the start since we are restarting the task.
 	r.run(true)
+	// TODO: Alex
 	return
 }
 

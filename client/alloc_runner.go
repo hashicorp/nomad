@@ -183,16 +183,6 @@ func (r *AllocRunner) Alloc() *structs.Allocation {
 	return r.alloc
 }
 
-// setAlloc is used to update the allocation of the runner
-// we preserve the existing client status and description
-func (r *AllocRunner) setAlloc(alloc *structs.Allocation) {
-	if r.alloc != nil {
-		alloc.ClientStatus = r.alloc.ClientStatus
-		alloc.ClientDescription = r.alloc.ClientDescription
-	}
-	r.alloc = alloc
-}
-
 // dirtySyncState is used to watch for state being marked dirty to sync
 func (r *AllocRunner) dirtySyncState() {
 	for {
