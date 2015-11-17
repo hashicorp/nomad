@@ -52,7 +52,7 @@ func (c *AllocStatusCommand) Run(args []string) int {
 
 	// Check that we got exactly one allocation ID
 	args = flags.Args()
-	if len(args) == 0 {
+	if len(args) != 1 {
 		c.Ui.Error(c.Help())
 		return 1
 	}
