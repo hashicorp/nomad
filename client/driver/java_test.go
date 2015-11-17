@@ -118,9 +118,9 @@ func TestJavaDriver_Start_Wait(t *testing.T) {
 
 	// Task should terminate quickly
 	select {
-	case err := <-handle.WaitCh():
-		if err != nil {
-			t.Fatalf("err: %v", err)
+	case res := <-handle.WaitCh():
+		if !res.Successful() {
+			t.Fatalf("err: %v", res)
 		}
 	case <-time.After(2 * time.Second):
 		// expect the timeout b/c it's a long lived process
@@ -171,8 +171,8 @@ func TestJavaDriver_Start_Kill_Wait(t *testing.T) {
 
 	// Task should terminate quickly
 	select {
-	case err := <-handle.WaitCh():
-		if err == nil {
+	case res := <-handle.WaitCh():
+		if res.Successful() {
 			t.Fatal("should err")
 		}
 	case <-time.After(8 * time.Second):

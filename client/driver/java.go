@@ -17,6 +17,8 @@ import (
 	"github.com/hashicorp/nomad/client/getter"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/mapstructure"
+	cstructs "github.com/hashicorp/nomad/client/driver/structs"
+
 )
 
 // JavaDriver is a simple driver to execute applications packaged in Jars.
@@ -36,7 +38,7 @@ type JavaDriverConfig struct {
 // javaHandle is returned from Start/Open as a handle to the PID
 type javaHandle struct {
 	cmd    executor.Executor
-	waitCh chan error
+	waitCh chan *cstructs.WaitResult
 	doneCh chan struct{}
 }
 
@@ -160,7 +162,7 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	h := &javaHandle{
 		cmd:    cmd,
 		doneCh: make(chan struct{}),
-		waitCh: make(chan error, 1),
+		waitCh: make(chan *cstructs.WaitResult, 1),
 	}
 
 	go h.run()
@@ -178,7 +180,7 @@ func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 	h := &javaHandle{
 		cmd:    cmd,
 		doneCh: make(chan struct{}),
-		waitCh: make(chan error, 1),
+		waitCh: make(chan *cstructs.WaitResult, 1),
 	}
 
 	go h.run()
@@ -190,7 +192,7 @@ func (h *javaHandle) ID() string {
 	return id
 }
 
-func (h *javaHandle) WaitCh() chan error {
+func (h *javaHandle) WaitCh() chan *cstructs.WaitResult {
 	return h.waitCh
 }
 
@@ -210,10 +212,8 @@ func (h *javaHandle) Kill() error {
 }
 
 func (h *javaHandle) run() {
-	err := h.cmd.Wait()
+	res := h.cmd.Wait()
 	close(h.doneCh)
-	if err != nil {
-		h.waitCh <- err
-	}
+	h.waitCh <- res
 	close(h.waitCh)
 }

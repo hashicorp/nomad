@@ -17,6 +17,8 @@ import (
 	"github.com/hashicorp/nomad/client/getter"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/mapstructure"
+	cstructs "github.com/hashicorp/nomad/client/driver/structs"
+
 )
 
 var (
@@ -41,7 +43,7 @@ type QemuDriverConfig struct {
 // qemuHandle is returned from Start/Open as a handle to the PID
 type qemuHandle struct {
 	cmd    executor.Executor
-	waitCh chan error
+	waitCh chan *cstructs.WaitResult
 	doneCh chan struct{}
 }
 
@@ -205,7 +207,7 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	h := &qemuHandle{
 		cmd:    cmd,
 		doneCh: make(chan struct{}),
-		waitCh: make(chan error, 1),
+		waitCh: make(chan *cstructs.WaitResult, 1),
 	}
 
 	go h.run()
@@ -223,7 +225,7 @@ func (d *QemuDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 	h := &execHandle{
 		cmd:    cmd,
 		doneCh: make(chan struct{}),
-		waitCh: make(chan error, 1),
+		waitCh: make(chan *cstructs.WaitResult, 1),
 	}
 	go h.run()
 	return h, nil
@@ -234,7 +236,7 @@ func (h *qemuHandle) ID() string {
 	return id
 }
 
-func (h *qemuHandle) WaitCh() chan error {
+func (h *qemuHandle) WaitCh() chan *cstructs.WaitResult {
 	return h.waitCh
 }
 
@@ -256,10 +258,8 @@ func (h *qemuHandle) Kill() error {
 }
 
 func (h *qemuHandle) run() {
-	err := h.cmd.Wait()
+	res := h.cmd.Wait()
 	close(h.doneCh)
-	if err != nil {
-		h.waitCh <- err
-	}
+	h.waitCh <- res
 	close(h.waitCh)
 }

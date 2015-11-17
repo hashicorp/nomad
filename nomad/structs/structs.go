@@ -1022,6 +1022,95 @@ func (t *Task) GoString() string {
 	return fmt.Sprintf("*%#v", *t)
 }
 
+// Set of possible states for a task.
+const (
+	TaskStatePending = "pending" // The task is waiting to be run.
+	TaskStateRunning = "running" // The task is currently running.
+	TaskStateDead    = "dead"    // Terminal state of task.
+)
+
+// TaskState tracks the current state of a task and events that caused state
+// transistions.
+type TaskState struct {
+	// The current state of the task.
+	State string
+
+	// Series of task events that transistion the state of the task.
+	Events []*TaskEvent
+}
+
+const (
+	// A Driver failure indicates that the task could not be started due to a
+	// failure in the driver.
+	TaskDriverFailure = "Driver Failure"
+
+	// Task Started signals that the task was started and its timestamp can be
+	// used to determine the running length of the task.
+	TaskStarted = "Started"
+
+	// Task terminated indicates that the task was started and exited.
+	TaskTerminated = "Terminated"
+
+	// Task Killed indicates a user has killed the task.
+	TaskKilled = "Killed"
+)
+
+// TaskEvent is an event that effects the state of a task and contains meta-data
+// appropriate to the events type.
+type TaskEvent struct {
+	Type string
+	Time int64 // Unix Nanosecond timestamp
+
+	// Driver Failure fields.
+	DriverError string // A driver error occured while starting the task.
+
+	// Task Terminated Fields.
+	ExitCode int    // The exit code of the task.
+	Signal   int    // The signal that terminated the task.
+	Message  string // A possible message explaining the termination of the task.
+
+	// Task Killed Fields.
+	KillError string // Error killing the task.
+}
+
+func NewTaskEvent(event string) *TaskEvent {
+	return &TaskEvent{
+		Type: event,
+		Time: time.Now().UnixNano(),
+	}
+}
+
+func (e *TaskEvent) SetDriverError(err error) *TaskEvent {
+	if err != nil {
+		e.DriverError = err.Error()
+	}
+	return e
+}
+
+func (e *TaskEvent) SetExitCode(c int) *TaskEvent {
+	e.ExitCode = c
+	return e
+}
+
+func (e *TaskEvent) SetSignal(s int) *TaskEvent {
+	e.Signal = s
+	return e
+}
+
+func (e *TaskEvent) SetExitMessage(err error) *TaskEvent {
+	if err != nil {
+		e.Message = err.Error()
+	}
+	return e
+}
+
+func (e *TaskEvent) SetKillError(err error) *TaskEvent {
+	if err != nil {
+		e.KillError = err.Error()
+	}
+	return e
+}
+
 // Validate is used to sanity check a task group
 func (t *Task) Validate() error {
 	var mErr multierror.Error
@@ -1140,6 +1229,9 @@ type Allocation struct {
 	// ClientStatusDescription is meant to provide more human useful information
 	ClientDescription string
 
+	// TaskStates stores the state of each task,
+	TaskStates map[string]*TaskState
+
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
@@ -1169,6 +1261,7 @@ func (a *Allocation) Stub() *AllocListStub {
 		DesiredDescription: a.DesiredDescription,
 		ClientStatus:       a.ClientStatus,
 		ClientDescription:  a.ClientDescription,
+		TaskStates:         a.TaskStates,
 		CreateIndex:        a.CreateIndex,
 		ModifyIndex:        a.ModifyIndex,
 	}
@@ -1186,6 +1279,7 @@ type AllocListStub struct {
 	DesiredDescription string
 	ClientStatus       string
 	ClientDescription  string
+	TaskStates         map[string]*TaskState
 	CreateIndex        uint64
 	ModifyIndex        uint64
 }

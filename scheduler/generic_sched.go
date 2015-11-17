@@ -285,11 +285,13 @@ func (s *GenericScheduler) computePlacements(place []allocTuple) error {
 			alloc.TaskResources = option.TaskResources
 			alloc.DesiredStatus = structs.AllocDesiredStatusRun
 			alloc.ClientStatus = structs.AllocClientStatusPending
+			alloc.TaskStates = initTaskState(missing.TaskGroup, structs.TaskStatePending)
 			s.plan.AppendAlloc(alloc)
 		} else {
 			alloc.DesiredStatus = structs.AllocDesiredStatusFailed
 			alloc.DesiredDescription = "failed to find a node for placement"
 			alloc.ClientStatus = structs.AllocClientStatusFailed
+			alloc.TaskStates = initTaskState(missing.TaskGroup, structs.TaskStateDead)
 			s.plan.AppendFailed(alloc)
 			failedTG[missing.TaskGroup] = alloc
 		}

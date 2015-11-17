@@ -648,3 +648,26 @@ func TestTaskGroupConstraints(t *testing.T) {
 	}
 
 }
+
+func TestInitTaskState(t *testing.T) {
+	tg := &structs.TaskGroup{
+		Tasks: []*structs.Task{
+			&structs.Task{Name: "foo"},
+			&structs.Task{Name: "bar"},
+		},
+	}
+	expPending := map[string]*structs.TaskState{
+		"foo": &structs.TaskState{State: structs.TaskStatePending},
+		"bar": &structs.TaskState{State: structs.TaskStatePending},
+	}
+	expDead := map[string]*structs.TaskState{
+		"foo": &structs.TaskState{State: structs.TaskStateDead},
+		"bar": &structs.TaskState{State: structs.TaskStateDead},
+	}
+	actPending := initTaskState(tg, structs.TaskStatePending)
+	actDead := initTaskState(tg, structs.TaskStateDead)
+
+	if !(reflect.DeepEqual(expPending, actPending) && reflect.DeepEqual(expDead, actDead)) {
+		t.Fatal("Expected and actual not equal")
+	}
+}

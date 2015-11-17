@@ -20,6 +20,8 @@ import (
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/mapstructure"
+	cstructs "github.com/hashicorp/nomad/client/driver/structs"
+
 )
 
 var (
@@ -45,7 +47,7 @@ type rktHandle struct {
 	proc   *os.Process
 	image  string
 	logger *log.Logger
-	waitCh chan error
+	waitCh chan *cstructs.WaitResult
 	doneCh chan struct{}
 }
 
@@ -193,7 +195,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		image:  img,
 		logger: d.logger,
 		doneCh: make(chan struct{}),
-		waitCh: make(chan error, 1),
+		waitCh: make(chan *cstructs.WaitResult, 1),
 	}
 	go h.run()
 	return h, nil
@@ -219,7 +221,7 @@ func (d *RktDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error
 		image:  qpid.Image,
 		logger: d.logger,
 		doneCh: make(chan struct{}),
-		waitCh: make(chan error, 1),
+		waitCh: make(chan *cstructs.WaitResult, 1),
 	}
 
 	go h.run()
@@ -239,7 +241,7 @@ func (h *rktHandle) ID() string {
 	return fmt.Sprintf("Rkt:%s", string(data))
 }
 
-func (h *rktHandle) WaitCh() chan error {
+func (h *rktHandle) WaitCh() chan *cstructs.WaitResult {
 	return h.waitCh
 }
 
@@ -263,10 +265,11 @@ func (h *rktHandle) Kill() error {
 func (h *rktHandle) run() {
 	ps, err := h.proc.Wait()
 	close(h.doneCh)
-	if err != nil {
-		h.waitCh <- err
-	} else if !ps.Success() {
-		h.waitCh <- fmt.Errorf("task exited with error")
+	code := 0
+	if !ps.Success() {
+		// TODO: Better exit code parsing.
+		code = 1
 	}
+	h.waitCh <- cstructs.NewWaitResult(code, 0, err)
 	close(h.waitCh)
 }

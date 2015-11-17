@@ -445,3 +445,11 @@ func taskGroupConstraints(tg *structs.TaskGroup) tgConstrainTuple {
 
 	return c
 }
+
+func initTaskState(tg *structs.TaskGroup, state string) map[string]*structs.TaskState {
+	states := make(map[string]*structs.TaskState, len(tg.Tasks))
+	for _, task := range tg.Tasks {
+		states[task.Name] = &structs.TaskState{State: state}
+	}
+	return states
+}
