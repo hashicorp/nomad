@@ -244,6 +244,11 @@ func (r *TaskRunner) run() {
 					r.logger.Printf("[ERR] client: failed to update task '%s' for alloc '%s': %v", r.task.Name, r.allocID, err)
 				}
 			case <-r.destroyCh:
+				// Avoid destroying twice
+				if destroyed {
+					continue
+				}
+
 				// Send the kill signal, and use the WaitCh to block until complete
 				if err := r.handle.Kill(); err != nil {
 					r.logger.Printf("[ERR] client: failed to kill task '%s' for alloc '%s': %v", r.task.Name, r.allocID, err)

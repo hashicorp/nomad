@@ -885,6 +885,9 @@ type RestartPolicy struct {
 }
 
 func (r *RestartPolicy) Validate() error {
+	if r.Interval == 0 {
+		return nil
+	}
 	if time.Duration(r.Attempts)*r.Delay > r.Interval {
 		return fmt.Errorf("Nomad can't restart the TaskGroup %v times in an interval of %v with a delay of %v", r.Attempts, r.Interval, r.Delay)
 	}
