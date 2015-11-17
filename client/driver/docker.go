@@ -43,6 +43,7 @@ type DockerDriverConfig struct {
 	Privileged    bool             `mapstructure:"privileged"`     // Flag to run the container in priviledged mode
 	DNS           string           `mapstructure:"dns_server"`     // DNS Server for containers
 	SearchDomains string           `mapstructure:"search_domains"` // DNS Search domains for containers
+	Hostname      string           `mapstructure:"hostname"`       // Hostname for containers
 }
 
 func (c *DockerDriverConfig) Validate() error {
@@ -167,7 +168,8 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, dri
 	env.SetTaskLocalDir(filepath.Join("/", allocdir.TaskLocal))
 
 	config := &docker.Config{
-		Image: driverConfig.ImageName,
+		Image:    driverConfig.ImageName,
+		Hostname: driverConfig.Hostname,
 	}
 
 	hostConfig := &docker.HostConfig{
