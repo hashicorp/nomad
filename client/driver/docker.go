@@ -325,6 +325,7 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, dri
 
 	config.Env = env.List()
 	return docker.CreateContainerOptions{
+		Name:       d.taskName,
 		Config:     config,
 		HostConfig: hostConfig,
 	}, nil

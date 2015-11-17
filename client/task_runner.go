@@ -170,7 +170,8 @@ func (r *TaskRunner) setState(state string, event *structs.TaskEvent) {
 
 // createDriver makes a driver for the task
 func (r *TaskRunner) createDriver() (driver.Driver, error) {
-	driverCtx := driver.NewDriverContext(r.task.Name, r.config, r.config.Node, r.logger)
+	taskName := fmt.Sprintf("%s-%s-%v", r.allocID, r.task.Name, r.restartTracker.totalRestartCount())
+	driverCtx := driver.NewDriverContext(taskName, r.config, r.config.Node, r.logger)
 	driver, err := driver.NewDriver(r.task.Driver, driverCtx)
 	if err != nil {
 		err = fmt.Errorf("failed to create driver '%s' for alloc %s: %v",

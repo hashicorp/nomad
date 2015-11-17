@@ -11,6 +11,7 @@ import (
 // For Batch jobs, the interval is set to zero value since the takss
 // will be restarted only upto maxAttempts times
 type restartTracker interface {
+	totalRestartCount() int
 	nextRestart() (bool, time.Duration)
 }
 
@@ -55,17 +56,23 @@ func (b *batchRestartTracker) nextRestart() (bool, time.Duration) {
 	return false, 0
 }
 
+func (b *batchRestartTracker) totalRestartCount() int {
+	return b.count
+}
+
 type serviceRestartTracker struct {
 	maxAttempts int
 	delay       time.Duration
 	interval    time.Duration
 
-	count     int
-	startTime time.Time
+	count         int
+	totalRestarts int
+	startTime     time.Time
 }
 
 func (s *serviceRestartTracker) increment() {
 	s.count += 1
+	s.totalRestarts += 1
 }
 
 func (s *serviceRestartTracker) nextRestart() (bool, time.Duration) {
@@ -86,4 +93,8 @@ func (s *serviceRestartTracker) nextRestart() (bool, time.Duration) {
 
 	// If we exhausted all the retries and are withing the time window
 	return true, windowEndTime.Sub(now)
+}
+
+func (s *serviceRestartTracker) totalRestartCount() int {
+	return s.totalRestarts
 }
