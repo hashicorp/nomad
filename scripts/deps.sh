@@ -10,4 +10,4 @@ GOOS=linux go get $DEP_ARGS github.com/opencontainers/runc/libcontainer/configs
 
 # Get the rest of the deps
 DEPS=$(go list -f '{{range .TestImports}}{{.}} {{end}}' ./...)
-go get $DEP_ARGS ./... $DEPS
+go get -u $DEP_ARGS ./... $DEPS
