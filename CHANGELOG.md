@@ -72,7 +72,7 @@ IMPROVEMENTS:
   * Docker networking mode is configurable [GH-184]
   * Set task environment variables [GH-206]
   * Native IP detection and user specifiable network interface for
-    fingerprinting  [GH-189]
+    fingerprinting [GH-189]
   * Nomad Client configurable from command-line [GH-191]
 
 BUG FIXES:
