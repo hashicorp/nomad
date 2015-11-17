@@ -12,26 +12,20 @@ import (
 )
 
 func TestSpawn_NoCmd(t *testing.T) {
-	f, err := ioutil.TempFile("", "")
-	if err != nil {
-		t.Fatalf("TempFile() failed")
-	}
-	defer os.Remove(f.Name())
+	tempFile := tempFileName(t)
+	defer os.Remove(tempFile)
 
-	spawn := NewSpawner(f.Name())
+	spawn := NewSpawner(tempFile)
 	if err := spawn.Spawn(nil); err == nil {
 		t.Fatalf("Spawn() with no user command should fail")
 	}
 }
 
 func TestSpawn_InvalidCmd(t *testing.T) {
-	f, err := ioutil.TempFile("", "")
-	if err != nil {
-		t.Fatalf("TempFile() failed")
-	}
-	defer os.Remove(f.Name())
+	tempFile := tempFileName(t)
+	defer os.Remove(tempFile)
 
-	spawn := NewSpawner(f.Name())
+	spawn := NewSpawner(tempFile)
 	spawn.SetCommand(exec.Command("foo"))
 	if err := spawn.Spawn(nil); err == nil {
 		t.Fatalf("Spawn() with no invalid command should fail")
@@ -46,23 +40,17 @@ func TestSpawn_SetsLogs(t *testing.T) {
 		t.Skip("Test fails on windows; unknown reason. Skipping")
 	}
 
-	f, err := ioutil.TempFile("", "")
-	if err != nil {
-		t.Fatalf("TempFile() failed")
-	}
-	defer os.Remove(f.Name())
+	tempFile := tempFileName(t)
+	defer os.Remove(tempFile)
 
-	spawn := NewSpawner(f.Name())
+	spawn := NewSpawner(tempFile)
 	exp := "foo"
 	spawn.SetCommand(exec.Command("echo", exp))
 
 	// Create file for stdout.
-	stdout, err := ioutil.TempFile("", "")
-	if err != nil {
-		t.Fatalf("TempFile() failed")
-	}
-	defer os.Remove(stdout.Name())
-	spawn.SetLogs(&Logs{Stdout: stdout.Name()})
+	stdout := tempFileName(t)
+	defer os.Remove(stdout)
+	spawn.SetLogs(&Logs{Stdout: stdout})
 
 	if err := spawn.Spawn(nil); err != nil {
 		t.Fatalf("Spawn() failed: %v", err)
@@ -72,7 +60,7 @@ func TestSpawn_SetsLogs(t *testing.T) {
 		t.Fatalf("Wait() returned %v, %v; want 0, nil", res.ExitCode, res.Err)
 	}
 
-	stdout2, err := os.Open(stdout.Name())
+	stdout2, err := os.Open(stdout)
 	if err != nil {
 		t.Fatalf("Open() failed: %v", err)
 	}
@@ -89,13 +77,10 @@ func TestSpawn_SetsLogs(t *testing.T) {
 }
 
 func TestSpawn_Callback(t *testing.T) {
-	f, err := ioutil.TempFile("", "")
-	if err != nil {
-		t.Fatalf("TempFile() failed")
-	}
-	defer os.Remove(f.Name())
+	tempFile := tempFileName(t)
+	defer os.Remove(tempFile)
 
-	spawn := NewSpawner(f.Name())
+	spawn := NewSpawner(tempFile)
 	spawn.SetCommand(exec.Command("sleep", "1"))
 
 	called := false
@@ -115,13 +100,10 @@ func TestSpawn_Callback(t *testing.T) {
 }
 
 func TestSpawn_ParentWaitExited(t *testing.T) {
-	f, err := ioutil.TempFile("", "")
-	if err != nil {
-		t.Fatalf("TempFile() failed")
-	}
-	defer os.Remove(f.Name())
+	tempFile := tempFileName(t)
+	defer os.Remove(tempFile)
 
-	spawn := NewSpawner(f.Name())
+	spawn := NewSpawner(tempFile)
 	spawn.SetCommand(exec.Command("echo", "foo"))
 	if err := spawn.Spawn(nil); err != nil {
 		t.Fatalf("Spawn() failed %v", err)
@@ -135,13 +117,10 @@ func TestSpawn_ParentWaitExited(t *testing.T) {
 }
 
 func TestSpawn_ParentWait(t *testing.T) {
-	f, err := ioutil.TempFile("", "")
-	if err != nil {
-		t.Fatalf("TempFile() failed")
-	}
-	defer os.Remove(f.Name())
+	tempFile := tempFileName(t)
+	defer os.Remove(tempFile)
 
-	spawn := NewSpawner(f.Name())
+	spawn := NewSpawner(tempFile)
 	spawn.SetCommand(exec.Command("sleep", "2"))
 	if err := spawn.Spawn(nil); err != nil {
 		t.Fatalf("Spawn() failed %v", err)
@@ -153,13 +132,10 @@ func TestSpawn_ParentWait(t *testing.T) {
 }
 
 func TestSpawn_NonParentWaitExited(t *testing.T) {
-	f, err := ioutil.TempFile("", "")
-	if err != nil {
-		t.Fatalf("TempFile() failed")
-	}
-	defer os.Remove(f.Name())
+	tempFile := tempFileName(t)
+	defer os.Remove(tempFile)
 
-	spawn := NewSpawner(f.Name())
+	spawn := NewSpawner(tempFile)
 	spawn.SetCommand(exec.Command("echo", "foo"))
 	if err := spawn.Spawn(nil); err != nil {
 		t.Fatalf("Spawn() failed %v", err)
@@ -175,13 +151,10 @@ func TestSpawn_NonParentWaitExited(t *testing.T) {
 }
 
 func TestSpawn_NonParentWait(t *testing.T) {
-	f, err := ioutil.TempFile("", "")
-	if err != nil {
-		t.Fatalf("TempFile() failed")
-	}
-	defer os.Remove(f.Name())
+	tempFile := tempFileName(t)
+	defer os.Remove(tempFile)
 
-	spawn := NewSpawner(f.Name())
+	spawn := NewSpawner(tempFile)
 	spawn.SetCommand(exec.Command("sleep", "2"))
 	if err := spawn.Spawn(nil); err != nil {
 		t.Fatalf("Spawn() failed %v", err)
@@ -204,11 +177,8 @@ func TestSpawn_NonParentWait(t *testing.T) {
 }
 
 func TestSpawn_DeadSpawnDaemon_Parent(t *testing.T) {
-	f, err := ioutil.TempFile("", "")
-	if err != nil {
-		t.Fatalf("TempFile() failed")
-	}
-	defer os.Remove(f.Name())
+	tempFile := tempFileName(t)
+	defer os.Remove(tempFile)
 
 	var spawnPid int
 	cb := func(pid int) error {
@@ -216,7 +186,7 @@ func TestSpawn_DeadSpawnDaemon_Parent(t *testing.T) {
 		return nil
 	}
 
-	spawn := NewSpawner(f.Name())
+	spawn := NewSpawner(tempFile)
 	spawn.SetCommand(exec.Command("sleep", "5"))
 	if err := spawn.Spawn(cb); err != nil {
 		t.Fatalf("Spawn() errored: %v", err)
@@ -241,11 +211,8 @@ func TestSpawn_DeadSpawnDaemon_Parent(t *testing.T) {
 }
 
 func TestSpawn_DeadSpawnDaemon_NonParent(t *testing.T) {
-	f, err := ioutil.TempFile("", "")
-	if err != nil {
-		t.Fatalf("TempFile() failed")
-	}
-	defer os.Remove(f.Name())
+	tempFile := tempFileName(t)
+	defer os.Remove(tempFile)
 
 	var spawnPid int
 	cb := func(pid int) error {
@@ -253,7 +220,7 @@ func TestSpawn_DeadSpawnDaemon_NonParent(t *testing.T) {
 		return nil
 	}
 
-	spawn := NewSpawner(f.Name())
+	spawn := NewSpawner(tempFile)
 	spawn.SetCommand(exec.Command("sleep", "2"))
 	if err := spawn.Spawn(cb); err != nil {
 		t.Fatalf("Spawn() errored: %v", err)
@@ -280,13 +247,10 @@ func TestSpawn_DeadSpawnDaemon_NonParent(t *testing.T) {
 }
 
 func TestSpawn_Valid_TaskRunning(t *testing.T) {
-	f, err := ioutil.TempFile("", "")
-	if err != nil {
-		t.Fatalf("TempFile() failed")
-	}
-	defer os.Remove(f.Name())
+	tempFile := tempFileName(t)
+	defer os.Remove(tempFile)
 
-	spawn := NewSpawner(f.Name())
+	spawn := NewSpawner(tempFile)
 	spawn.SetCommand(exec.Command("sleep", "2"))
 	if err := spawn.Spawn(nil); err != nil {
 		t.Fatalf("Spawn() failed %v", err)
@@ -302,13 +266,10 @@ func TestSpawn_Valid_TaskRunning(t *testing.T) {
 }
 
 func TestSpawn_Valid_TaskExit_ExitCode(t *testing.T) {
-	f, err := ioutil.TempFile("", "")
-	if err != nil {
-		t.Fatalf("TempFile() failed")
-	}
-	defer os.Remove(f.Name())
+	tempFile := tempFileName(t)
+	defer os.Remove(tempFile)
 
-	spawn := NewSpawner(f.Name())
+	spawn := NewSpawner(tempFile)
 	spawn.SetCommand(exec.Command("echo", "foo"))
 	if err := spawn.Spawn(nil); err != nil {
 		t.Fatalf("Spawn() failed %v", err)
@@ -324,12 +285,10 @@ func TestSpawn_Valid_TaskExit_ExitCode(t *testing.T) {
 }
 
 func TestSpawn_Valid_TaskExit_NoExitCode(t *testing.T) {
-	f, err := ioutil.TempFile("", "")
-	if err != nil {
-		t.Fatalf("TempFile() failed")
-	}
+	tempFile := tempFileName(t)
+	defer os.Remove(tempFile)
 
-	spawn := NewSpawner(f.Name())
+	spawn := NewSpawner(tempFile)
 	spawn.SetCommand(exec.Command("echo", "foo"))
 	if err := spawn.Spawn(nil); err != nil {
 		t.Fatalf("Spawn() failed %v", err)
@@ -340,9 +299,18 @@ func TestSpawn_Valid_TaskExit_NoExitCode(t *testing.T) {
 	}
 
 	// Delete the file so that it can't find the exit code.
-	os.Remove(f.Name())
+	os.Remove(tempFile)
 
 	if err := spawn.Valid(); err == nil {
 		t.Fatalf("Valid() should have failed")
 	}
+}
+
+func tempFileName(t *testing.T) string {
+	f, err := ioutil.TempFile("", "")
+	if err != nil {
+		t.Fatalf("TempFile() failed")
+	}
+	defer f.Close()
+	return f.Name()
 }
