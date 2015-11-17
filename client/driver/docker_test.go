@@ -432,39 +432,3 @@ func TestDockerHostNet(t *testing.T) {
 	}
 	defer handle.Kill()
 }
-
-func TestsSlitEnvVarsLabels(t *testing.T) {
-
-	environment := []string{
-		"NOMAD_IP=1.1.1.1",
-		"NOMAD_CPU_LIMIT=500",
-		"NOMAD_META_TEST1=true_one",
-		"NOMAD_META_LABEL_LAB1=one",
-		"NOMAD_META_TEST2=test_two",
-		"NOMAD_META_LABEL_LAB2=two",
-		"NOMAD_META_TEST3=true_three",
-		"NOMAD_META_LABEL_LAB3=three",
-		"NOMAD_MEMORY_LIMIT=1024",
-	}
-
-	envVars, labels := splitEnvVarsLabels(environment)
-	if got, want := len(envVars), 6; got != want {
-		t.Errorf("Error on len. Got: %v. Expect %v items.", got, want)
-	}
-	if got, want := len(labels), 3; got != want {
-		t.Errorf("Error on len. Got: %v. Expect %v items.", got, want)
-	}
-	if got, want := envVars[3], environment[4]; got != want {
-		t.Errorf("Error. Got: '%v'. Expect '%v'.", got, want)
-	}
-	if got, want := envVars[4], environment[6]; got != want {
-		t.Errorf("Error. Got: '%v'. Expect '%v'.", got, want)
-	}
-	if got, want := labels["LAB2"], "two"; got != want {
-		t.Errorf("Error. Got: '%v'. Expect '%v'.", got, want)
-	}
-	if got, want := labels["LAB3"], "three"; got != want {
-		t.Errorf("Error. Got: '%v'. Expect '%v'.", got, want)
-	}
-
-}

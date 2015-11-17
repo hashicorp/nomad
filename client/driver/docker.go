@@ -14,7 +14,6 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/args"
-	"github.com/hashicorp/nomad/client/driver/environment"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -43,10 +42,6 @@ type dockerHandle struct {
 func NewDockerDriver(ctx *DriverContext) Driver {
 	return &DockerDriver{DriverContext: *ctx}
 }
-
-const (
-	labelPrefix = environment.MetaPrefix + "LABEL_"
-)
 
 // dockerClient creates *docker.Client. In test / dev mode we can use ENV vars
 // to connect to the docker daemon. In production mode we will read
@@ -271,12 +266,9 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task) (do
 	env.SetAllocDir(filepath.Join("/", allocdir.SharedAllocName))
 	env.SetTaskLocalDir(filepath.Join("/", allocdir.TaskLocal))
 
-	envVars, labels := splitEnvVarsLabels(env.List())
-
 	config := &docker.Config{
-		Env:    envVars,
-		Labels: labels,
-		Image:  task.Config["image"],
+		Env:   env.List(),
+		Image: task.Config["image"],
 	}
 
 	rawArgs, hasArgs := task.Config["args"]
@@ -564,21 +556,4 @@ func (h *dockerHandle) run() {
 		h.waitCh <- err
 	}
 	close(h.waitCh)
-}
-
-// splitEnvVarsLabels returns environment vars and labels to set on the container
-func splitEnvVarsLabels(envVars []string) ([]string, map[string]string) {
-	var envs []string
-	labels := make(map[string]string)
-
-	for _, value := range envVars {
-		if strings.HasPrefix(value, labelPrefix) {
-			parts := strings.SplitN(value, "=", 2)
-			labels[strings.TrimPrefix(parts[0], labelPrefix)] = parts[1]
-		} else {
-			envs = append(envs, value)
-		}
-	}
-
-	return envs, labels
 }
