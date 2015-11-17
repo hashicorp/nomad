@@ -249,7 +249,7 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, dri
 		}
 	}
 
-	hostConfig.NetworkMode := driverConfig.NetworkMode
+	hostConfig.NetworkMode = driverConfig.NetworkMode
 	if hostConfig.NetworkMode == "" {
 		// docker default
 		d.logger.Printf("[INFO] driver.docker: networking mode not specified; defaulting to bridge")
