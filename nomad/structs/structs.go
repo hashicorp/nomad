@@ -995,6 +995,13 @@ func (tg *TaskGroup) GoString() string {
 	return fmt.Sprintf("*%#v", *tg)
 }
 
+const (
+	ServiceCheckHTTP   = "http"
+	ServiceCheckTCP    = "tcp"
+	ServiceCheckDocker = "docker"
+	ServiceCheckScript = "script"
+)
+
 // The ServiceCheck data model represents the consul health check that
 // Nomad registers for a Task
 type ServiceCheck struct {
@@ -1007,6 +1014,14 @@ type ServiceCheck struct {
 	Timeout  time.Duration
 }
 
+func (sc *ServiceCheck) Validate() error {
+	t := strings.ToLower(sc.Type)
+	if t != ServiceCheckTCP && t != ServiceCheckHTTP && t != ServiceCheckDocker && t != ServiceCheckScript {
+		return fmt.Errorf("Check with name %v has invalid check type: %s ", sc.Name, sc.Type)
+	}
+	return nil
+}
+
 // The Service model represents a Consul service defintion
 type Service struct {
 	Id        string
@@ -1014,6 +1029,16 @@ type Service struct {
 	Tags      []string
 	PortLabel string `mapstructure:"port"`
 	Checks    []ServiceCheck
+}
+
+func (s *Service) Validate() error {
+	var mErr multierror.Error
+	for _, c := range s.Checks {
+		if err := c.Validate(); err != nil {
+			mErr.Errors = append(mErr.Errors, err)
+		}
+	}
+	return mErr.ErrorOrNil()
 }
 
 // Task is a single process typically that is executed as part of a task group.
@@ -1154,6 +1179,12 @@ func (t *Task) Validate() error {
 		if err := constr.Validate(); err != nil {
 			outer := fmt.Errorf("Constraint %d validation failed: %s", idx+1, err)
 			mErr.Errors = append(mErr.Errors, outer)
+		}
+	}
+
+	for _, service := range t.Services {
+		if err := service.Validate(); err != nil {
+			mErr.Errors = append(mErr.Errors, err)
 		}
 	}
 	return mErr.ErrorOrNil()
