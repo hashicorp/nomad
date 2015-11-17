@@ -43,7 +43,9 @@ The `docker` driver supports the following configuration in the job specificatio
 * `search-domains` - (optional) A comma separated list of DNS search domains for the 
   container to use.
 
-* `hostname` - (optional) The hostname to assign to the container. 
+* `hostname` - (optional) The hostname to assign to the container. When launching more
+  than one of a task (using `count`) with this option set, every container the task 
+  starts will have the same hostname.
   
 **Authentication**  
 Registry authentication can be set per task with the following authentication 
