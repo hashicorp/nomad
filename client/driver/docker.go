@@ -224,9 +224,8 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, dri
 	hostConfig.Privileged = hostPrivileged
 
 	// set DNS servers
-	dns := driverConfig.DNS
-	if dns != "" {
-		for _, v := range strings.Split(dns, ",") {
+	if driverConfig.DNS != "" {
+		for _, v := range strings.Split(driverConfig.DNS, ",") {
 			ip := strings.TrimSpace(v)
 			if net.ParseIP(ip) != nil {
 				hostConfig.DNS = append(hostConfig.DNS, ip)
@@ -237,9 +236,8 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, dri
 	}
 
 	// set DNS search domains
-	dnsSearch := driverConfig.SearchDomains
-	if dnsSearch != "" {
-		for _, v := range strings.Split(dnsSearch, ",") {
+	if driverConfig.SearchDomains != "" {
+		for _, v := range strings.Split(driverConfig.SearchDomains, ",") {
 			hostConfig.DNSSearch = append(hostConfig.DNSSearch, strings.TrimSpace(v))
 		}
 	}
@@ -265,7 +263,7 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, dri
 	if len(task.Resources.Networks) == 0 {
 		d.logger.Print("[INFO] driver.docker: No network interfaces are available")
 		if len(driverConfig.PortMap[0]) > 0 {
-			return nil, fmt.Errorf("Trying to map ports but no network interface is available")
+			return c, fmt.Errorf("Trying to map ports but no network interface is available")
 		}
 	} else {
 		// TODO add support for more than one network
