@@ -906,25 +906,6 @@ func NewRestartPolicy(jobType string) *RestartPolicy {
 	return nil
 }
 
-// The ServiceCheck data model represents the consul health check that
-// Nomad registers for a Task
-type ServiceCheck struct {
-	Id       string
-	Name     string
-	Type     string
-	Interval time.Duration
-	Timeout  time.Duration
-}
-
-// The Service model represents a Consul service defintion
-type Service struct {
-	Id        string
-	Name      string
-	Tags      []string
-	PortLabel string `mapstructure:"port"`
-	Checks    []ServiceCheck
-}
-
 // TaskGroup is an atomic unit of placement. Each task group belongs to
 // a job and may contain any number of tasks. A task group support running
 // in many replicas using the same configuration..
@@ -1014,6 +995,25 @@ func (tg *TaskGroup) GoString() string {
 	return fmt.Sprintf("*%#v", *tg)
 }
 
+// The ServiceCheck data model represents the consul health check that
+// Nomad registers for a Task
+type ServiceCheck struct {
+	Id       string
+	Name     string
+	Type     string
+	Interval time.Duration
+	Timeout  time.Duration
+}
+
+// The Service model represents a Consul service defintion
+type Service struct {
+	Id        string
+	Name      string
+	Tags      []string
+	PortLabel string `mapstructure:"port"`
+	Checks    []ServiceCheck
+}
+
 // Task is a single process typically that is executed as part of a task group.
 type Task struct {
 	// Name of the task
@@ -1028,6 +1028,7 @@ type Task struct {
 	// Map of environment variables to be used by the driver
 	Env map[string]string
 
+	// List of service definitions exposed by the Task
 	Services []Service
 
 	// Constraints can be specified at a task level and apply only to

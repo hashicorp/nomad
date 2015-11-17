@@ -20,6 +20,25 @@ func NewRestartPolicy() *RestartPolicy {
 	}
 }
 
+// The ServiceCheck data model represents the consul health check that
+// Nomad registers for a Task
+type ServiceCheck struct {
+	Id       string
+	Name     string
+	Type     string
+	Interval time.Duration
+	Timeout  time.Duration
+}
+
+// The Service model represents a Consul service defintion
+type Service struct {
+	Id        string
+	Name      string
+	Tags      []string
+	PortLabel string `mapstructure:"port"`
+	Checks    []ServiceCheck
+}
+
 // TaskGroup is the unit of scheduling.
 type TaskGroup struct {
 	Name          string
@@ -68,6 +87,7 @@ type Task struct {
 	Config      map[string]interface{}
 	Constraints []*Constraint
 	Env         map[string]string
+	Services    []Service
 	Resources   *Resources
 	Meta        map[string]string
 }
