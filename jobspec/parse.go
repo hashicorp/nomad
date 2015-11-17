@@ -378,6 +378,7 @@ func parseTasks(result *[]*structs.Task, list *ast.ObjectList) error {
 		delete(m, "config")
 		delete(m, "env")
 		delete(m, "constraint")
+		delete(m, "service")
 		delete(m, "meta")
 		delete(m, "resources")
 
@@ -398,6 +399,69 @@ func parseTasks(result *[]*structs.Task, list *ast.ObjectList) error {
 				if err := mapstructure.WeakDecode(m, &t.Env); err != nil {
 					return err
 				}
+			}
+		}
+
+		if o := listVal.Filter("service"); len(o.Items) > 0 {
+			t.Services = make([]structs.Service, len(o.Items))
+			for idx, o := range o.Items {
+				var service structs.Service
+				label := o.Keys[0].Token.Value().(string)
+				service.Id = label
+
+				var m map[string]interface{}
+				if err := hcl.DecodeObject(&m, o.Val); err != nil {
+					return err
+				}
+
+				delete(m, "check")
+
+				if err := mapstructure.WeakDecode(m, &service); err != nil {
+					return err
+				}
+
+				if service.Name == "" {
+					service.Name = service.Id
+				}
+
+				// Fileter checks
+				var checkList *ast.ObjectList
+				if ot, ok := o.Val.(*ast.ObjectType); ok {
+					checkList = ot.List
+				} else {
+					return fmt.Errorf("service '%s': should be an object", label)
+				}
+
+				if co := checkList.Filter("check"); len(co.Items) > 0 {
+					service.Checks = make([]structs.ServiceCheck, len(co.Items))
+					for idx, co := range co.Items {
+						var check structs.ServiceCheck
+						label := o.Keys[0].Token.Value().(string)
+						var cm map[string]interface{}
+						if err := hcl.DecodeObject(&cm, co.Val); err != nil {
+							return err
+						}
+						dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+							DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
+							WeaklyTypedInput: true,
+							Result:           &check,
+						})
+						if err != nil {
+							return err
+						}
+						if err := dec.Decode(cm); err != nil {
+							return err
+						}
+
+						check.Id = label
+						if check.Name == "" {
+							check.Name = label
+						}
+						service.Checks[idx] = check
+					}
+				}
+
+				t.Services[idx] = service
 			}
 		}
 

@@ -906,6 +906,22 @@ func NewRestartPolicy(jobType string) *RestartPolicy {
 	return nil
 }
 
+type ServiceCheck struct {
+	Id       string
+	Name     string
+	Type     string
+	Interval time.Duration
+	Timeout  time.Duration
+}
+
+type Service struct {
+	Id        string
+	Name      string
+	Tags      []string
+	PortLabel string `mapstructure:"port"`
+	Checks    []ServiceCheck
+}
+
 // TaskGroup is an atomic unit of placement. Each task group belongs to
 // a job and may contain any number of tasks. A task group support running
 // in many replicas using the same configuration..
@@ -1008,6 +1024,8 @@ type Task struct {
 
 	// Map of environment variables to be used by the driver
 	Env map[string]string
+
+	Services []Service
 
 	// Constraints can be specified at a task level and apply only to
 	// the particular task.

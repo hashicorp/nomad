@@ -128,12 +128,11 @@ job "example" {
 				}
 			}
 
-			service {
+			service "id-redis-check" {
 				# name = redis
 				tags = ["global", "cache"]
 				port = "db"
-				check {
-					id = "id-alive-check"
+				check "id-alive-check" {
 					name = "alive"
 					type = "tcp"
 					interval = "10s"
