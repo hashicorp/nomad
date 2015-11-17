@@ -1005,14 +1005,14 @@ const (
 // The ServiceCheck data model represents the consul health check that
 // Nomad registers for a Task
 type ServiceCheck struct {
-	Id       string
-	Name     string
-	Type     string
-	Script   string
-	Http     string
-	Protocol string
-	Interval time.Duration
-	Timeout  time.Duration
+	Id       string        // If of the check
+	Name     string        // Name of the check, defaults to id
+	Type     string        // Type of the check - tcp, http, docker and script
+	Script   string        // Script to invoke for script check
+	Http     string        // path of the health check url for http type check
+	Protocol string        // Protocol to use if check is http
+	Interval time.Duration // Interval of the check
+	Timeout  time.Duration // Timeout of the response from the check before consul fails the check
 }
 
 func (sc *ServiceCheck) Validate() error {
@@ -1025,11 +1025,11 @@ func (sc *ServiceCheck) Validate() error {
 
 // The Service model represents a Consul service defintion
 type Service struct {
-	Id        string
-	Name      string
-	Tags      []string
-	PortLabel string `mapstructure:"port"`
-	Checks    []ServiceCheck
+	Id        string         // Id of the service
+	Name      string         // Name of the service, defaults to id
+	Tags      []string       // List of tags for the service
+	PortLabel string         `mapstructure:"port"` // port for the service
+	Checks    []ServiceCheck // List of checks associated with the service
 }
 
 func (s *Service) Validate() error {
