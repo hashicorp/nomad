@@ -1,7 +1,9 @@
 package config
 
 import (
+	"fmt"
 	"io"
+	"strconv"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -72,4 +74,27 @@ func (c *Config) ReadDefault(id string, defaultValue string) string {
 		return val
 	}
 	return defaultValue
+}
+
+// ReadBool parses the specified option as a boolean.
+func (c *Config) ReadBool(id string) (bool, error) {
+	val, ok := c.Options[id]
+	if !ok {
+		return false, nil
+	}
+	bval, err := strconv.ParseBool(val)
+	if err != nil {
+		return false, fmt.Errorf("Failed to parse %s as bool: %s", val, err)
+	}
+	return bval, nil
+}
+
+// ReadBoolDefault tries to parse the specified option as a boolean. If there is
+// an error in parsing, the default option is returned.
+func (c *Config) ReadBoolDefault(id string, defaultValue bool) bool {
+	val, err := c.ReadBool()
+	if err != nil {
+		return defaultValue
+	}
+	return val
 }
