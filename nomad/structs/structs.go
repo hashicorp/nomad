@@ -1025,7 +1025,7 @@ func (sc *ServiceCheck) Validate() error {
 
 // The Service model represents a Consul service defintion
 type Service struct {
-	Id        string         // Id of the service
+	Id        string         // Id of the service, this needs to be unique on a local machine
 	Name      string         // Name of the service, defaults to id
 	Tags      []string       // List of tags for the service
 	PortLabel string         `mapstructure:"port"` // port for the service

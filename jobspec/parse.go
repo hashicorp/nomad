@@ -490,35 +490,43 @@ func parseServices(task *structs.Task, serviceObjs *ast.ObjectList) error {
 		}
 
 		if co := checkList.Filter("check"); len(co.Items) > 0 {
-			service.Checks = make([]structs.ServiceCheck, len(co.Items))
-			for idx, co := range co.Items {
-				var check structs.ServiceCheck
-				label := co.Keys[0].Token.Value().(string)
-				var cm map[string]interface{}
-				if err := hcl.DecodeObject(&cm, co.Val); err != nil {
-					return err
-				}
-				dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
-					DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
-					WeaklyTypedInput: true,
-					Result:           &check,
-				})
-				if err != nil {
-					return err
-				}
-				if err := dec.Decode(cm); err != nil {
-					return err
-				}
-
-				check.Id = label
-				if check.Name == "" {
-					check.Name = label
-				}
-				service.Checks[idx] = check
+			if err := parseChecks(&service, co); err != nil {
+				return err
 			}
 		}
 
 		task.Services[idx] = service
+	}
+
+	return nil
+}
+
+func parseChecks(service *structs.Service, checkObjs *ast.ObjectList) error {
+	service.Checks = make([]structs.ServiceCheck, len(checkObjs.Items))
+	for idx, co := range checkObjs.Items {
+		var check structs.ServiceCheck
+		label := co.Keys[0].Token.Value().(string)
+		var cm map[string]interface{}
+		if err := hcl.DecodeObject(&cm, co.Val); err != nil {
+			return err
+		}
+		dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+			DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
+			WeaklyTypedInput: true,
+			Result:           &check,
+		})
+		if err != nil {
+			return err
+		}
+		if err := dec.Decode(cm); err != nil {
+			return err
+		}
+
+		check.Id = label
+		if check.Name == "" {
+			check.Name = label
+		}
+		service.Checks[idx] = check
 	}
 
 	return nil
