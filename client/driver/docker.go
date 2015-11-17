@@ -35,14 +35,14 @@ type DockerAuthConfig struct {
 
 type DockerDriverConfig struct {
 	DockerAuthConfig
-	ImageName     string           `mapstructure:"image"`        // Container's Image Name
-	Command       string           `mapstructure:"command"`      // The Command/Entrypoint to run when the container starts up
-	Args          string           `mapstructure:"args"`         // The arguments to the Command/Entrypoint
-	NetworkMode   string           `mapstructure:"network_mode"` // The network mode of the container - host, net and none
-	PortMap       []map[string]int `mapstructure:"port_map"`     // A map of host port labels and the ports exposed on the container
-	Privileged    bool             `mapstructure:"privileged"`   // Flag to run the container in priviledged mode
-	DNS           string           `mapstructure:"dns_server"`   // DNS Server for containers
-	SearchDomains string           `mapstructure:"search_domains"`
+	ImageName     string           `mapstructure:"image"`          // Container's Image Name
+	Command       string           `mapstructure:"command"`        // The Command/Entrypoint to run when the container starts up
+	Args          string           `mapstructure:"args"`           // The arguments to the Command/Entrypoint
+	NetworkMode   string           `mapstructure:"network_mode"`   // The network mode of the container - host, net and none
+	PortMap       []map[string]int `mapstructure:"port_map"`       // A map of host port labels and the ports exposed on the container
+	Privileged    bool             `mapstructure:"privileged"`     // Flag to run the container in priviledged mode
+	DNS           string           `mapstructure:"dns_server"`     // DNS Server for containers
+	SearchDomains string           `mapstructure:"search_domains"` // DNS Search domains for containers
 }
 
 func (c *DockerDriverConfig) Validate() error {
@@ -311,8 +311,8 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, dri
 
 	// If the user specified a custom command to run as their entrypoint, we'll
 	// inject it here.
-	if command := driverConfig.Command; command != "" {
-		cmd := []string{command}
+	if driverConfig.Command != "" {
+		cmd := []string{driverConfig.Command}
 		if driverConfig.Args != "" {
 			cmd = append(cmd, parsedArgs...)
 		}
