@@ -116,7 +116,7 @@ func (c *AllocStatusCommand) shortTaskStatus(alloc *api.Allocation) {
 		if l != 0 {
 			last := state.Events[l-1]
 			lastEvent = last.Type
-			lastTime = c.formatUnixNonoTime(last.Time)
+			lastTime = c.formatUnixNanoTime(last.Time)
 		}
 
 		tasks = append(tasks, fmt.Sprintf("%s|%s|%s|%s",
@@ -136,7 +136,7 @@ func (c *AllocStatusCommand) taskStatus(alloc *api.Allocation) {
 
 		size := len(state.Events)
 		for i, event := range state.Events {
-			formatedTime := c.formatUnixNonoTime(event.Time)
+			formatedTime := c.formatUnixNanoTime(event.Time)
 
 			// Build up the description based on the event type.
 			var desc string
@@ -168,8 +168,8 @@ func (c *AllocStatusCommand) taskStatus(alloc *api.Allocation) {
 	}
 }
 
-// formatUnixNonoTime is a helper for formating time for output.
-func (c *AllocStatusCommand) formatUnixNonoTime(nano int64) string {
+// formatUnixNanoTime is a helper for formating time for output.
+func (c *AllocStatusCommand) formatUnixNanoTime(nano int64) string {
 	t := time.Unix(0, nano)
 	return t.Format("15:04:05 01/02/06")
 }
@@ -180,7 +180,7 @@ func (c *AllocStatusCommand) sortedTaskStateIterator(m map[string]*api.TaskState
 	output := make(chan string, len(m))
 	keys := make([]string, len(m))
 	i := 0
-	for k, _ := range m {
+	for k := range m {
 		keys[i] = k
 		i++
 	}
