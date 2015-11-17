@@ -128,6 +128,19 @@ job "example" {
 				}
 			}
 
+			service {
+				# name = redis
+				tags = ["global", "cache"]
+				port = "db"
+				check {
+					id = "id-alive-check"
+					name = "alive"
+					type = "tcp"
+					interval = "10s"
+					timeout = "2s"
+				}
+			}
+
 			# We must specify the resources required for
 			# this task to ensure it runs on a machine with
 			# enough capacity.
