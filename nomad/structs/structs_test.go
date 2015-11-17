@@ -356,3 +356,10 @@ func TestEncodeDecode(t *testing.T) {
 		t.Fatalf("bad: %#v %#v", arg, out)
 	}
 }
+
+func TestBatchRestartPolicyValidate(t *testing.T) {
+	rp := RestartPolicy{Attempts: 10, Delay: 25 * time.Second}
+	if err := rp.Validate(); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+}
