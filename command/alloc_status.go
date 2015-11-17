@@ -29,7 +29,7 @@ General Options:
 Alloc Status Options:
 
   -short
-    Display short output, showing only the most recent task event.
+    Display short output. Shows only the most recent task event.
 `
 
 	return strings.TrimSpace(helpText)
