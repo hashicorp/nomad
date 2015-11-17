@@ -436,7 +436,7 @@ func parseTasks(result *[]*structs.Task, list *ast.ObjectList) error {
 					service.Checks = make([]structs.ServiceCheck, len(co.Items))
 					for idx, co := range co.Items {
 						var check structs.ServiceCheck
-						label := o.Keys[0].Token.Value().(string)
+						label := co.Keys[0].Token.Value().(string)
 						var cm map[string]interface{}
 						if err := hcl.DecodeObject(&cm, co.Val); err != nil {
 							return err

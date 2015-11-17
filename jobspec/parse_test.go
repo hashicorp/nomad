@@ -94,6 +94,23 @@ func TestParse(t *testing.T) {
 								Config: map[string]interface{}{
 									"image": "hashicorp/binstore",
 								},
+								Services: []structs.Service{
+									{
+										Id:        "service-id",
+										Name:      "service-name",
+										Tags:      []string{"foo", "bar"},
+										PortLabel: "http",
+										Checks: []structs.ServiceCheck{
+											{
+												Id:       "check-id",
+												Name:     "check-name",
+												Type:     "tcp",
+												Interval: 10 * time.Second,
+												Timeout:  2 * time.Second,
+											},
+										},
+									},
+								},
 								Env: map[string]string{
 									"HELLO": "world",
 									"LOREM": "ipsum",
