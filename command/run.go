@@ -123,6 +123,7 @@ func (c *RunCommand) Run(args []string) int {
 // convertJob is used to take a *structs.Job and convert it to an *api.Job.
 // This function is just a hammer and probably needs to be revisited.
 func convertJob(in *structs.Job) (*api.Job, error) {
+	gob.Register([]map[string]interface{}{})
 	var apiJob *api.Job
 	buf := new(bytes.Buffer)
 	if err := gob.NewEncoder(buf).Encode(in); err != nil {

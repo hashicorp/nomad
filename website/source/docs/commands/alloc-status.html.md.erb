@@ -3,14 +3,15 @@ layout: "docs"
 page_title: "Commands: alloc-status"
 sidebar_current: "docs-commands-alloc-status"
 description: >
-  Display status and metadata about existing allocations
+  Display status and metadata about existing allocations and their tasks.
 ---
 
 # Command: alloc-status
 
-The `alloc-status` command displays status information and metadata about
-an existing allocation. It can be useful while debugging to reveal the
-underlying reasons for scheduling decisions or failures.
+The `alloc-status` command displays status information and metadata about an
+existing allocation and its tasks. It can be useful while debugging to reveal
+the underlying reasons for scheduling decisions or failures, as well as the
+current state of its tasks.
 
 ## Usage
 
@@ -24,25 +25,71 @@ and detailed information for it will be dumped.
 ## General Options
 
 <%= general_options_usage %>
+#
+## Status Options
+
+* `-short`: Display short output. Shows only the most recent task event.
 
 ## Examples
 
+Short status of an alloc:
+
 ```
-nomad alloc-status 9f3276d6-c873-c0a3-81ae-247e8c665cbe
-ID                = 9f3276d6-c873-c0a3-81ae-247e8c665cbe
-EvalID            = dc186cc2-a9b2-218e-cc00-eea3d4eaccf4
+$ nomad alloc-status --short a7365fe4-8b9f-4284-612d-a101fb41e773
+ID                = a7365fe4-8b9f-4284-612d-a101fb41e773
+EvalID            = 44c2d9ed-6377-ca3d-14a8-b2e6327230ce
 Name              = example.cache[0]
-NodeID            = <none>
+NodeID            = e55859b1-4330-f00b-da49-8a292432ead3
 JobID             = example
-ClientStatus      = failed
-ClientDescription = <none>
+ClientStatus      = running
 NodesEvaluated    = 1
-NodesFiltered     = 1
+NodesFiltered     = 0
 NodesExhausted    = 0
-AllocationTime    = 15.242µs
+AllocationTime    = 911.026µs
 CoalescedFailures = 0
+redis
+web
+
+==> Tasks
+Name   State    LastEvent  Time
+redis  running  Started    02:29:40 11/17/15
+web    running  Started    02:30:41 11/17/15
 
 ==> Status
-Allocation "9f3276d6-c873-c0a3-81ae-247e8c665cbe" status "failed" (1/1 nodes filtered)
-  * Constraint "$attr.kernel.name = linux" filtered 1 nodes
+Allocation "a7365fe4-8b9f-4284-612d-a101fb41e773" status "running" (0/1 nodes filtered)
+  * Score "e55859b1-4330-f00b-da49-8a292432ead3.binpack" = 10.334026
+```
+
+Full status of an alloc, which shows one of the tasks dying and then being restarted:
+
+```
+$ nomad alloc-status a7365fe4-8b9f-4284-612d-a101fb41e773
+ID                = a7365fe4-8b9f-4284-612d-a101fb41e773
+EvalID            = 44c2d9ed-6377-ca3d-14a8-b2e6327230ce
+Name              = example.cache[0]
+NodeID            = e55859b1-4330-f00b-da49-8a292432ead3
+JobID             = example
+ClientStatus      = running
+NodesEvaluated    = 1
+NodesFiltered     = 0
+NodesExhausted    = 0
+AllocationTime    = 911.026µs
+CoalescedFailures = 0
+
+==> Task "redis" is "running"
+Recent Events:
+Time               Type     Description
+02:29:40 11/17/15  Started  <none>
+
+==> Task "web" is "running"
+Recent Events:
+Time               Type        Description
+02:30:41 11/17/15  Started     <none>
+02:30:02 11/17/15  Terminated  Exit Code: 137, Exit Message: "Docker container exited with non-zero exit code: 137"
+02:29:40 11/17/15  Started     <none>
+
+==> Status
+Allocation "a7365fe4-8b9f-4284-612d-a101fb41e773" status "running" (0/1 nodes filtered)
+  * Score "e55859b1-4330-f00b-da49-8a292432ead3.binpack" = 10.334026
+
 ```

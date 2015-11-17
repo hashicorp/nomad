@@ -95,7 +95,7 @@ func TestDockerDriver_StartOpen_Wait(t *testing.T) {
 
 	task := &structs.Task{
 		Name: "redis-demo",
-		Config: map[string]string{
+		Config: map[string]interface{}{
 			"image": "redis",
 		},
 		Resources: basicResources,
@@ -132,7 +132,7 @@ func TestDockerDriver_Start_Wait(t *testing.T) {
 
 	task := &structs.Task{
 		Name: "redis-demo",
-		Config: map[string]string{
+		Config: map[string]interface{}{
 			"image":   "redis",
 			"command": "redis-server",
 			"args":    "-v",
@@ -185,7 +185,7 @@ func TestDockerDriver_Start_Wait_AllocDir(t *testing.T) {
 	file := "output.txt"
 	task := &structs.Task{
 		Name: "redis-demo",
-		Config: map[string]string{
+		Config: map[string]interface{}{
 			"image":   "redis",
 			"command": "/bin/bash",
 			"args":    fmt.Sprintf(`-c "sleep 1; echo -n %s > $%s/%s"`, string(exp), environment.AllocDir, file),
@@ -238,7 +238,7 @@ func TestDockerDriver_Start_Kill_Wait(t *testing.T) {
 
 	task := &structs.Task{
 		Name: "redis-demo",
-		Config: map[string]string{
+		Config: map[string]interface{}{
 			"image":   "redis",
 			"command": "/bin/sleep",
 			"args":    "10",
@@ -281,7 +281,7 @@ func TestDockerDriver_Start_Kill_Wait(t *testing.T) {
 func taskTemplate() *structs.Task {
 	return &structs.Task{
 		Name: "redis-demo",
-		Config: map[string]string{
+		Config: map[string]interface{}{
 			"image": "redis",
 		},
 		Resources: &structs.Resources{
@@ -290,8 +290,8 @@ func taskTemplate() *structs.Task {
 			Networks: []*structs.NetworkResource{
 				&structs.NetworkResource{
 					IP:            "127.0.0.1",
-					ReservedPorts: []int{11110},
-					DynamicPorts:  []string{"REDIS"},
+					ReservedPorts: []structs.Port{{"main", 11110}},
+					DynamicPorts:  []structs.Port{{"REDIS", 0}},
 				},
 			},
 		},
@@ -304,13 +304,13 @@ func TestDocker_StartN(t *testing.T) {
 	}
 
 	task1 := taskTemplate()
-	task1.Resources.Networks[0].ReservedPorts[0] = 11111
+	task1.Resources.Networks[0].ReservedPorts[0] = structs.Port{"main", 11110}
 
 	task2 := taskTemplate()
-	task2.Resources.Networks[0].ReservedPorts[0] = 22222
+	task2.Resources.Networks[0].ReservedPorts[0] = structs.Port{"main", 22222}
 
 	task3 := taskTemplate()
-	task3.Resources.Networks[0].ReservedPorts[0] = 33333
+	task3.Resources.Networks[0].ReservedPorts[0] = structs.Port{"main", 33333}
 
 	taskList := []*structs.Task{task1, task2, task3}
 
@@ -356,15 +356,15 @@ func TestDocker_StartNVersions(t *testing.T) {
 
 	task1 := taskTemplate()
 	task1.Config["image"] = "redis"
-	task1.Resources.Networks[0].ReservedPorts[0] = 11111
+	task1.Resources.Networks[0].ReservedPorts[0] = structs.Port{"main", 11110}
 
 	task2 := taskTemplate()
 	task2.Config["image"] = "redis:latest"
-	task2.Resources.Networks[0].ReservedPorts[0] = 22222
+	task2.Resources.Networks[0].ReservedPorts[0] = structs.Port{"main", 22222}
 
 	task3 := taskTemplate()
 	task3.Config["image"] = "redis:3.0"
-	task3.Resources.Networks[0].ReservedPorts[0] = 33333
+	task3.Resources.Networks[0].ReservedPorts[0] = structs.Port{"main", 33333}
 
 	taskList := []*structs.Task{task1, task2, task3}
 
@@ -410,7 +410,7 @@ func TestDockerHostNet(t *testing.T) {
 
 	task := &structs.Task{
 		Name: "redis-demo",
-		Config: map[string]string{
+		Config: map[string]interface{}{
 			"image":        "redis",
 			"network_mode": "host",
 		},

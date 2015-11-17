@@ -35,7 +35,7 @@ func testTaskRunner(restarts bool) (*MockTaskStateUpdater, *TaskRunner) {
 
 	// Initialize the port listing. This should be done by the offer process but
 	// we have a mock so that doesn't happen.
-	task.Resources.Networks[0].ReservedPorts = []int{80}
+	task.Resources.Networks[0].ReservedPorts = []structs.Port{{"", 80}}
 
 	allocDir := allocdir.NewAllocDir(filepath.Join(conf.AllocDir, alloc.ID))
 	allocDir.Build([]*structs.Task{task})

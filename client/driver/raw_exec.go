@@ -9,11 +9,11 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/executor"
+	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/client/getter"
 	"github.com/hashicorp/nomad/nomad/structs"
-
-	cstructs "github.com/hashicorp/nomad/client/driver/structs"
+	"github.com/mitchellh/mapstructure"
 )
 
 const (
@@ -58,6 +58,10 @@ func (d *RawExecDriver) Fingerprint(cfg *config.Config, node *structs.Node) (boo
 }
 
 func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
+	var driverConfig ExecDriverConfig
+	if err := mapstructure.WeakDecode(task.Config, &driverConfig); err != nil {
+		return nil, err
+	}
 	// Get the tasks local directory.
 	taskName := d.DriverContext.taskName
 	taskDir, ok := ctx.AllocDir.TaskDirs[taskName]
@@ -66,8 +70,8 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 	}
 
 	// Get the command to be ran
-	command, ok := task.Config["command"]
-	if !ok || command == "" {
+	command := driverConfig.Command
+	if command == "" {
 		return nil, fmt.Errorf("missing command for Raw Exec driver")
 	}
 
@@ -77,8 +81,8 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 		// Proceed to download an artifact to be executed.
 		_, err := getter.GetArtifact(
 			filepath.Join(taskDir, allocdir.TaskLocal),
-			task.Config["artifact_source"],
-			task.Config["checksum"],
+			driverConfig.ArtifactSource,
+			driverConfig.Checksum,
 			d.logger,
 		)
 		if err != nil {
@@ -91,8 +95,8 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 
 	// Look for arguments
 	var args []string
-	if argRaw, ok := task.Config["args"]; ok {
-		args = append(args, argRaw)
+	if driverConfig.Args != "" {
+		args = append(args, driverConfig.Args)
 	}
 
 	// Setup the command

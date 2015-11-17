@@ -96,10 +96,10 @@ func (idx *NetworkIndex) AddReserved(n *NetworkResource) (collide bool) {
 		idx.UsedPorts[n.IP] = used
 	}
 	for _, port := range n.ReservedPorts {
-		if _, ok := used[port]; ok {
+		if _, ok := used[port.Value]; ok {
 			collide = true
 		} else {
-			used[port] = struct{}{}
+			used[port.Value] = struct{}{}
 		}
 	}
 
@@ -151,7 +151,7 @@ func (idx *NetworkIndex) AssignNetwork(ask *NetworkResource) (out *NetworkResour
 
 		// Check if any of the reserved ports are in use
 		for _, port := range ask.ReservedPorts {
-			if _, ok := idx.UsedPorts[ipStr][port]; ok {
+			if _, ok := idx.UsedPorts[ipStr][port.Value]; ok {
 				err = fmt.Errorf("reserved port collision")
 				return
 			}
@@ -179,10 +179,10 @@ func (idx *NetworkIndex) AssignNetwork(ask *NetworkResource) (out *NetworkResour
 			if _, ok := idx.UsedPorts[ipStr][randPort]; ok {
 				goto PICK
 			}
-			if IntContains(offer.ReservedPorts, randPort) {
+			if isPortReserved(offer.ReservedPorts, randPort) {
 				goto PICK
 			}
-			offer.ReservedPorts = append(offer.ReservedPorts, randPort)
+			offer.DynamicPorts[i].Value = randPort
 		}
 
 		// Stop, we have an offer!
@@ -194,9 +194,9 @@ func (idx *NetworkIndex) AssignNetwork(ask *NetworkResource) (out *NetworkResour
 }
 
 // IntContains scans an integer slice for a value
-func IntContains(haystack []int, needle int) bool {
+func isPortReserved(haystack []Port, needle int) bool {
 	for _, item := range haystack {
-		if item == needle {
+		if item.Value == needle {
 			return true
 		}
 	}

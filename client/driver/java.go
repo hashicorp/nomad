@@ -13,11 +13,11 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/executor"
+	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/client/getter"
 	"github.com/hashicorp/nomad/nomad/structs"
-
-	cstructs "github.com/hashicorp/nomad/client/driver/structs"
+	"github.com/mitchellh/mapstructure"
 )
 
 // JavaDriver is a simple driver to execute applications packaged in Jars.
@@ -25,6 +25,13 @@ import (
 type JavaDriver struct {
 	DriverContext
 	fingerprint.StaticFingerprinter
+}
+
+type JavaDriverConfig struct {
+	JvmOpts        string `mapstructure:"jvm_options"`
+	ArtifactSource string `mapstructure:"artifact_source"`
+	Checksum       string `mapstructure:"checksum"`
+	Args           string `mapstructure:"args"`
 }
 
 // javaHandle is returned from Start/Open as a handle to the PID
@@ -92,6 +99,10 @@ func (d *JavaDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, 
 }
 
 func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
+	var driverConfig JavaDriverConfig
+	if err := mapstructure.WeakDecode(task.Config, &driverConfig); err != nil {
+		return nil, err
+	}
 	taskDir, ok := ctx.AllocDir.TaskDirs[d.DriverContext.taskName]
 	if !ok {
 		return nil, fmt.Errorf("Could not find task directory for task: %v", d.DriverContext.taskName)
@@ -100,8 +111,8 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	// Proceed to download an artifact to be executed.
 	path, err := getter.GetArtifact(
 		filepath.Join(taskDir, allocdir.TaskLocal),
-		task.Config["artifact_source"],
-		task.Config["checksum"],
+		driverConfig.ArtifactSource,
+		driverConfig.Checksum,
 		d.logger,
 	)
 	if err != nil {
@@ -115,16 +126,15 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 
 	args := []string{}
 	// Look for jvm options
-	jvm_options, ok := task.Config["jvm_options"]
-	if ok && jvm_options != "" {
-		d.logger.Printf("[DEBUG] driver.java: found JVM options: %s", jvm_options)
-		args = append(args, jvm_options)
+	if driverConfig.JvmOpts != "" {
+		d.logger.Printf("[DEBUG] driver.java: found JVM options: %s", driverConfig.JvmOpts)
+		args = append(args, driverConfig.JvmOpts)
 	}
 
 	// Build the argument list.
 	args = append(args, "-jar", filepath.Join(allocdir.TaskLocal, jarName))
-	if argRaw, ok := task.Config["args"]; ok {
-		args = append(args, argRaw)
+	if driverConfig.Args != "" {
+		args = append(args, driverConfig.Args)
 	}
 
 	// Setup the command

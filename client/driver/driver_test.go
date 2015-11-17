@@ -18,8 +18,8 @@ var basicResources = &structs.Resources{
 	Networks: []*structs.NetworkResource{
 		&structs.NetworkResource{
 			IP:            "0.0.0.0",
-			ReservedPorts: []int{12345},
-			DynamicPorts:  []string{"HTTP"},
+			ReservedPorts: []structs.Port{{"main", 12345}},
+			DynamicPorts:  []structs.Port{{"HTTP", 0}},
 		},
 	},
 }
@@ -60,8 +60,8 @@ func TestDriver_TaskEnvironmentVariables(t *testing.T) {
 			Networks: []*structs.NetworkResource{
 				&structs.NetworkResource{
 					IP:            "1.2.3.4",
-					ReservedPorts: []int{80, 443, 8080, 12345},
-					DynamicPorts:  []string{"admin", "5000"},
+					ReservedPorts: []structs.Port{{"one", 80}, {"two", 443}, {"three", 8080}, {"four", 12345}},
+					DynamicPorts:  []structs.Port{{"admin", 8081}, {"web", 8086}},
 				},
 			},
 		},
@@ -76,8 +76,12 @@ func TestDriver_TaskEnvironmentVariables(t *testing.T) {
 		"NOMAD_CPU_LIMIT":       "1000",
 		"NOMAD_MEMORY_LIMIT":    "500",
 		"NOMAD_IP":              "1.2.3.4",
-		"NOMAD_PORT_admin":      "8080",
-		"NOMAD_PORT_5000":       "12345",
+		"NOMAD_PORT_one":        "80",
+		"NOMAD_PORT_two":        "443",
+		"NOMAD_PORT_three":      "8080",
+		"NOMAD_PORT_four":       "12345",
+		"NOMAD_PORT_admin":      "8081",
+		"NOMAD_PORT_web":        "8086",
 		"NOMAD_META_CHOCOLATE":  "cake",
 		"NOMAD_META_STRAWBERRY": "icecream",
 		"HELLO":                 "world",

@@ -123,6 +123,9 @@ job "example" {
 			# Configure Docker driver with the image
 			config {
 				image = "redis:latest"
+				port_map {
+					db = 6379
+				}
 			}
 
 			# We must specify the resources required for
@@ -133,7 +136,8 @@ job "example" {
 				memory = 256 # 256MB
 				network {
 					mbits = 10
-					dynamic_ports = ["6379"]
+					port "db" {
+					}
 				}
 			}
 		}

@@ -65,7 +65,7 @@ func (g *TaskGroup) AddTask(t *Task) *TaskGroup {
 type Task struct {
 	Name        string
 	Driver      string
-	Config      map[string]string
+	Config      map[string]interface{}
 	Constraints []*Constraint
 	Env         map[string]string
 	Resources   *Resources
@@ -84,7 +84,7 @@ func NewTask(name, driver string) *Task {
 // the task.
 func (t *Task) SetConfig(key, val string) *Task {
 	if t.Config == nil {
-		t.Config = make(map[string]string)
+		t.Config = make(map[string]interface{})
 	}
 	t.Config[key] = val
 	return t
