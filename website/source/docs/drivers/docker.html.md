@@ -32,25 +32,28 @@ The `docker` driver supports the following configuration in the job specificatio
    network mode is not supported right now and is reported as an invalid
    option.
 
-* `privileged` - (optional) Privileged mode gives the container full access to 
+* `privileged` - (Optional) Privileged mode gives the container full access to
    the host. Valid options are `"true"` and `"false"` (defaults to `"false"`).
    Tasks with `privileged` set can only run on Nomad Agents with
    `docker.privileged.enabled = "true"`.
 
-* `dns-servers` - (optional) A comma separated list of DNS servers for the container 
+* `dns-servers` - (Optional) A comma separated list of DNS servers for the container
    to use (e.g. "8.8.8.8,8.8.4.4"). *Docker API v1.10 and above only*
 
-* `search-domains` - (optional) A comma separated list of DNS search domains for the 
+* `search-domains` - (Optional) A comma separated list of DNS search domains for the
   container to use.
-  
+
+* `labels` - (Optional) A key/value map of labels to set to the containers on start.
+
+
 **Authentication**  
-Registry authentication can be set per task with the following authentication 
-parameters.  These options can provide access to private repositories that 
+Registry authentication can be set per task with the following authentication
+parameters.  These options can provide access to private repositories that
 utilize the docker remote api (e.g. dockerhub, quay.io)  
-    - `auth.username` - (optional) The account username  
-    - `auth.password` - (optional) The account password  
-    - `auth.email` - (optional) The account email  
-    - `auth.server-address` - (optional) The server domain/ip without the protocol  
+    - `auth.username` - (Optional) The account username  
+    - `auth.password` - (Optional) The account password  
+    - `auth.email` - (Optional) The account email  
+    - `auth.server-address` - (Optional) The server domain/ip without the protocol  
 
 ### Port Mapping
 
