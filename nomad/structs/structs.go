@@ -1001,6 +1001,8 @@ type ServiceCheck struct {
 	Id       string
 	Name     string
 	Type     string
+	Script   string
+	Http     string
 	Interval time.Duration
 	Timeout  time.Duration
 }
