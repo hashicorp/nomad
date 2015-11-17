@@ -14,10 +14,10 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/args"
+	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/mapstructure"
-	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 )
 
 type DockerDriver struct {
@@ -276,10 +276,10 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, dri
 		for _, port := range network.ReservedPorts {
 			publishedPorts[docker.Port(strconv.Itoa(port.Value)+"/tcp")] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: strconv.Itoa(port.Value)}}
 			publishedPorts[docker.Port(strconv.Itoa(port.Value)+"/udp")] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: strconv.Itoa(port.Value)}}
-			d.logger.Printf("[DEBUG] driver.docker: allocated port %s:%d -> %d (static)\n", network.IP, port, port)
+			d.logger.Printf("[DEBUG] driver.docker: allocated port %s:%d -> %d (static)\n", network.IP, port.Value, port.Value)
 			exposedPorts[docker.Port(strconv.Itoa(port.Value)+"/tcp")] = struct{}{}
 			exposedPorts[docker.Port(strconv.Itoa(port.Value)+"/udp")] = struct{}{}
-			d.logger.Printf("[DEBUG] driver.docker: exposed port %d\n", port)
+			d.logger.Printf("[DEBUG] driver.docker: exposed port %d\n", port.Value)
 		}
 
 		containerToHostPortMap := make(map[string]int)
@@ -295,7 +295,7 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, dri
 			d.logger.Printf("[DEBUG] driver.docker: allocated port %s:%d -> %d (mapped)", network.IP, port.Value, containerPort)
 			exposedPorts[docker.Port(cp+"/tcp")] = struct{}{}
 			exposedPorts[docker.Port(cp+"/udp")] = struct{}{}
-			d.logger.Printf("[DEBUG] driver.docker: exposed port %d\n", hostPort)
+			d.logger.Printf("[DEBUG] driver.docker: exposed port %s\n", hostPort)
 			containerToHostPortMap[cp] = port.Value
 		}
 
