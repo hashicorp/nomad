@@ -5,11 +5,44 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
 )
+
+func TestMain(m *testing.M) {
+	switch os.Getenv("TEST_MAIN") {
+	case "app":
+		appMain()
+	default:
+		os.Exit(m.Run())
+	}
+}
+
+func appMain() {
+	if len(os.Args) < 2 {
+		fmt.Fprintln(os.Stderr, "no command provided")
+		os.Exit(1)
+	}
+	switch cmd := os.Args[1]; cmd {
+	case "echo":
+		fmt.Println(strings.Join(os.Args[2:], " "))
+	case "sleep":
+		if len(os.Args) != 3 {
+			fmt.Fprintln(os.Stderr, "expected 3 args")
+			os.Exit(1)
+		}
+		dur, err := time.ParseDuration(os.Args[2])
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "could not parse sleep time: %v", err)
+			os.Exit(1)
+		}
+		time.Sleep(dur)
+	default:
+		fmt.Fprintln(os.Stderr, "unknown command:", cmd)
+		os.Exit(1)
+	}
+}
 
 func TestSpawn_NoCmd(t *testing.T) {
 	tempFile := tempFileName(t)
@@ -26,26 +59,19 @@ func TestSpawn_InvalidCmd(t *testing.T) {
 	defer os.Remove(tempFile)
 
 	spawn := NewSpawner(tempFile)
-	spawn.SetCommand(exec.Command("foo"))
+	spawn.SetCommand(exec.Command("foo")) // non-existent command
 	if err := spawn.Spawn(nil); err == nil {
-		t.Fatalf("Spawn() with no invalid command should fail")
+		t.Fatalf("Spawn() with an invalid command should fail")
 	}
 }
 
 func TestSpawn_SetsLogs(t *testing.T) {
-	// TODO: Figure out why this test fails. If the spawn-daemon directly writes
-	// to the opened stdout file it works but not the user command. Maybe a
-	// flush issue?
-	if runtime.GOOS == "windows" {
-		t.Skip("Test fails on windows; unknown reason. Skipping")
-	}
-
 	tempFile := tempFileName(t)
 	defer os.Remove(tempFile)
 
 	spawn := NewSpawner(tempFile)
 	exp := "foo"
-	spawn.SetCommand(exec.Command("echo", exp))
+	spawn.SetCommand(testCommand("echo", exp))
 
 	// Create file for stdout.
 	stdout := tempFileName(t)
@@ -81,7 +107,7 @@ func TestSpawn_Callback(t *testing.T) {
 	defer os.Remove(tempFile)
 
 	spawn := NewSpawner(tempFile)
-	spawn.SetCommand(exec.Command("sleep", "1"))
+	spawn.SetCommand(testCommand("sleep", "1s"))
 
 	called := false
 	cbErr := fmt.Errorf("ERROR CB")
@@ -104,7 +130,7 @@ func TestSpawn_ParentWaitExited(t *testing.T) {
 	defer os.Remove(tempFile)
 
 	spawn := NewSpawner(tempFile)
-	spawn.SetCommand(exec.Command("echo", "foo"))
+	spawn.SetCommand(testCommand("echo", "foo"))
 	if err := spawn.Spawn(nil); err != nil {
 		t.Fatalf("Spawn() failed %v", err)
 	}
@@ -121,7 +147,7 @@ func TestSpawn_ParentWait(t *testing.T) {
 	defer os.Remove(tempFile)
 
 	spawn := NewSpawner(tempFile)
-	spawn.SetCommand(exec.Command("sleep", "2"))
+	spawn.SetCommand(testCommand("sleep", "2s"))
 	if err := spawn.Spawn(nil); err != nil {
 		t.Fatalf("Spawn() failed %v", err)
 	}
@@ -136,7 +162,7 @@ func TestSpawn_NonParentWaitExited(t *testing.T) {
 	defer os.Remove(tempFile)
 
 	spawn := NewSpawner(tempFile)
-	spawn.SetCommand(exec.Command("echo", "foo"))
+	spawn.SetCommand(testCommand("echo", "foo"))
 	if err := spawn.Spawn(nil); err != nil {
 		t.Fatalf("Spawn() failed %v", err)
 	}
@@ -155,7 +181,7 @@ func TestSpawn_NonParentWait(t *testing.T) {
 	defer os.Remove(tempFile)
 
 	spawn := NewSpawner(tempFile)
-	spawn.SetCommand(exec.Command("sleep", "2"))
+	spawn.SetCommand(testCommand("sleep", "2s"))
 	if err := spawn.Spawn(nil); err != nil {
 		t.Fatalf("Spawn() failed %v", err)
 	}
@@ -187,7 +213,7 @@ func TestSpawn_DeadSpawnDaemon_Parent(t *testing.T) {
 	}
 
 	spawn := NewSpawner(tempFile)
-	spawn.SetCommand(exec.Command("sleep", "5"))
+	spawn.SetCommand(testCommand("sleep", "5s"))
 	if err := spawn.Spawn(cb); err != nil {
 		t.Fatalf("Spawn() errored: %v", err)
 	}
@@ -221,7 +247,7 @@ func TestSpawn_DeadSpawnDaemon_NonParent(t *testing.T) {
 	}
 
 	spawn := NewSpawner(tempFile)
-	spawn.SetCommand(exec.Command("sleep", "2"))
+	spawn.SetCommand(testCommand("sleep", "2s"))
 	if err := spawn.Spawn(cb); err != nil {
 		t.Fatalf("Spawn() errored: %v", err)
 	}
@@ -251,7 +277,7 @@ func TestSpawn_Valid_TaskRunning(t *testing.T) {
 	defer os.Remove(tempFile)
 
 	spawn := NewSpawner(tempFile)
-	spawn.SetCommand(exec.Command("sleep", "2"))
+	spawn.SetCommand(testCommand("sleep", "2s"))
 	if err := spawn.Spawn(nil); err != nil {
 		t.Fatalf("Spawn() failed %v", err)
 	}
@@ -270,7 +296,7 @@ func TestSpawn_Valid_TaskExit_ExitCode(t *testing.T) {
 	defer os.Remove(tempFile)
 
 	spawn := NewSpawner(tempFile)
-	spawn.SetCommand(exec.Command("echo", "foo"))
+	spawn.SetCommand(testCommand("echo", "foo"))
 	if err := spawn.Spawn(nil); err != nil {
 		t.Fatalf("Spawn() failed %v", err)
 	}
@@ -289,7 +315,7 @@ func TestSpawn_Valid_TaskExit_NoExitCode(t *testing.T) {
 	defer os.Remove(tempFile)
 
 	spawn := NewSpawner(tempFile)
-	spawn.SetCommand(exec.Command("echo", "foo"))
+	spawn.SetCommand(testCommand("echo", "foo"))
 	if err := spawn.Spawn(nil); err != nil {
 		t.Fatalf("Spawn() failed %v", err)
 	}
@@ -313,4 +339,10 @@ func tempFileName(t *testing.T) string {
 	}
 	defer f.Close()
 	return f.Name()
+}
+
+func testCommand(args ...string) *exec.Cmd {
+	cmd := exec.Command(os.Args[0], args...)
+	cmd.Env = append(os.Environ(), "TEST_MAIN=app")
+	return cmd
 }
