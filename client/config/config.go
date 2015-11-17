@@ -80,7 +80,7 @@ func (c *Config) ReadDefault(id string, defaultValue string) string {
 func (c *Config) ReadBool(id string) (bool, error) {
 	val, ok := c.Options[id]
 	if !ok {
-		return false, nil
+		return false, fmt.Errorf("Specified config is missing from options")
 	}
 	bval, err := strconv.ParseBool(val)
 	if err != nil {
@@ -92,7 +92,7 @@ func (c *Config) ReadBool(id string) (bool, error) {
 // ReadBoolDefault tries to parse the specified option as a boolean. If there is
 // an error in parsing, the default option is returned.
 func (c *Config) ReadBoolDefault(id string, defaultValue bool) bool {
-	val, err := c.ReadBool()
+	val, err := c.ReadBool(id)
 	if err != nil {
 		return defaultValue
 	}
