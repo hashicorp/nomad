@@ -245,7 +245,7 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, dri
 	mode := driverConfig.NetworkMode
 	if mode == "" {
 		// docker default
-		d.logger.Printf("[INFO] driver.docker: no mode specified for networking, defaulting to bridge")
+		d.logger.Printf("[DEBUG] driver.docker: no mode specified for networking, defaulting to bridge")
 		mode = "bridge"
 	}
 
@@ -412,18 +412,17 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 			return nil, fmt.Errorf("Failed to determine image id for `%s`: %s", image, err)
 		}
 	}
-	d.logger.Printf("[DEBUG] driver.docker: using image %s", dockerImage.ID)
-	d.logger.Printf("[INFO] driver.docker: identified image %s as %s", image, dockerImage.ID)
+	d.logger.Printf("[DEBUG] driver.docker: identified image %s as %s", image, dockerImage.ID)
 
 	config, err := d.createContainer(ctx, task, &driverConfig)
 	if err != nil {
-		d.logger.Printf("[ERR] driver.docker: %s", err)
-		return nil, fmt.Errorf("Failed to create container config for image %s", image)
+		d.logger.Printf("[ERR] driver.docker: failed to create container configuration for image %s: %s", image, err)
+		return nil, fmt.Errorf("Failed to create container configuration for image %s: %s", image, err)
 	}
 	// Create a container
 	container, err := client.CreateContainer(config)
 	if err != nil {
-		d.logger.Printf("[ERR] driver.docker: %s", err)
+		d.logger.Printf("[ERR] driver.docker: failed to create container from image %s: %s", image, err)
 		return nil, fmt.Errorf("Failed to create container from image %s", image)
 	}
 	d.logger.Printf("[INFO] driver.docker: created container %s", container.ID)
@@ -538,7 +537,7 @@ func (h *dockerHandle) Kill() error {
 	// Stop the container
 	err := h.client.StopContainer(h.containerID, 5)
 	if err != nil {
-		log.Printf("[ERR] driver.docker: failed stopping container %s", h.containerID)
+		log.Printf("[ERR] driver.docker: failed to stop container %s", h.containerID)
 		return fmt.Errorf("Failed to stop container %s: %s", h.containerID, err)
 	}
 	log.Printf("[INFO] driver.docker: stopped container %s", h.containerID)
@@ -550,7 +549,7 @@ func (h *dockerHandle) Kill() error {
 			RemoveVolumes: true,
 		})
 		if err != nil {
-			log.Printf("[ERR] driver.docker: removing container %s", h.containerID)
+			log.Printf("[ERR] driver.docker: failed to remove container %s", h.containerID)
 			return fmt.Errorf("Failed to remove container %s: %s", h.containerID, err)
 		}
 		log.Printf("[INFO] driver.docker: removed container %s", h.containerID)
