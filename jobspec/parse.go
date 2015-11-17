@@ -17,7 +17,7 @@ import (
 )
 
 var reDynamicPorts *regexp.Regexp = regexp.MustCompile("^[a-zA-Z0-9_]+$")
-var errDynamicPorts = fmt.Errorf("DynamicPort label does not conform to naming requirements %s", reDynamicPorts.String())
+var errPortLabel = fmt.Errorf("Port label does not conform to naming requirements %s", reDynamicPorts.String())
 
 // Parse parses the job spec from the given io.Reader.
 //
@@ -408,6 +408,7 @@ func parseTasks(result *[]*structs.Task, list *ast.ObjectList) error {
 				if err := hcl.DecodeObject(&m, o.Val); err != nil {
 					return err
 				}
+
 				if err := mapstructure.WeakDecode(m, &t.Config); err != nil {
 					return err
 				}
@@ -496,26 +497,50 @@ func parseResources(result *structs.Resources, list *ast.ObjectList) error {
 			return err
 		}
 
-		// Keep track of labels we've already seen so we can ensure there
-		// are no collisions when we turn them into environment variables.
-		// lowercase:NomalCase so we can get the first for the error message
-		seenLabel := map[string]string{}
-		for _, label := range r.DynamicPorts {
-			if !reDynamicPorts.MatchString(label) {
-				return errDynamicPorts
-			}
-			first, seen := seenLabel[strings.ToLower(label)]
-			if seen {
-				return fmt.Errorf("Found a port label collision: `%s` overlaps with previous `%s`", label, first)
-			} else {
-				seenLabel[strings.ToLower(label)] = label
-			}
-
+		var networkObj *ast.ObjectList
+		if ot, ok := o.Items[0].Val.(*ast.ObjectType); ok {
+			networkObj = ot.List
+		} else {
+			return fmt.Errorf("resource: should be an object")
+		}
+		if err := parsePorts(networkObj, &r); err != nil {
+			return err
 		}
 
 		result.Networks = []*structs.NetworkResource{&r}
 	}
 
+	return nil
+}
+
+func parsePorts(networkObj *ast.ObjectList, nw *structs.NetworkResource) error {
+	portsObjList := networkObj.Filter("port")
+	knownPortLabels := make(map[string]bool)
+	for _, port := range portsObjList.Items {
+		label := port.Keys[0].Token.Value().(string)
+		if !reDynamicPorts.MatchString(label) {
+			return errPortLabel
+		}
+		l := strings.ToLower(label)
+		if knownPortLabels[l] {
+			return fmt.Errorf("Found a port label collision: %s", label)
+		}
+		var p map[string]interface{}
+		var res structs.Port
+		if err := hcl.DecodeObject(&p, port.Val); err != nil {
+			return err
+		}
+		if err := mapstructure.WeakDecode(p, &res); err != nil {
+			return err
+		}
+		res.Label = label
+		if res.Value > 0 {
+			nw.ReservedPorts = append(nw.ReservedPorts, res)
+		} else {
+			nw.DynamicPorts = append(nw.DynamicPorts, res)
+		}
+		knownPortLabels[l] = true
+	}
 	return nil
 }
 

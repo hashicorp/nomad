@@ -38,7 +38,7 @@ func Node() *structs.Node {
 				&structs.NetworkResource{
 					Device:        "eth0",
 					IP:            "192.168.0.100",
-					ReservedPorts: []int{22},
+					ReservedPorts: []structs.Port{{Label: "main", Value: 22}},
 					MBits:         1,
 				},
 			},
@@ -84,7 +84,7 @@ func Job() *structs.Job {
 					&structs.Task{
 						Name:   "web",
 						Driver: "exec",
-						Config: map[string]string{
+						Config: map[string]interface{}{
 							"command": "/bin/date",
 							"args":    "+%s",
 						},
@@ -97,7 +97,7 @@ func Job() *structs.Job {
 							Networks: []*structs.NetworkResource{
 								&structs.NetworkResource{
 									MBits:        50,
-									DynamicPorts: []string{"http"},
+									DynamicPorts: []structs.Port{{Label: "http"}},
 								},
 							},
 						},
@@ -149,7 +149,7 @@ func SystemJob() *structs.Job {
 					&structs.Task{
 						Name:   "web",
 						Driver: "exec",
-						Config: map[string]string{
+						Config: map[string]interface{}{
 							"command": "/bin/date",
 							"args":    "+%s",
 						},
@@ -159,7 +159,7 @@ func SystemJob() *structs.Job {
 							Networks: []*structs.NetworkResource{
 								&structs.NetworkResource{
 									MBits:        50,
-									DynamicPorts: []string{"http"},
+									DynamicPorts: []structs.Port{{Label: "http"}},
 								},
 							},
 						},
@@ -201,9 +201,9 @@ func Alloc() *structs.Allocation {
 				&structs.NetworkResource{
 					Device:        "eth0",
 					IP:            "192.168.0.100",
-					ReservedPorts: []int{12345},
+					ReservedPorts: []structs.Port{{Label: "main", Value: 12345}},
 					MBits:         100,
-					DynamicPorts:  []string{"http"},
+					DynamicPorts:  []structs.Port{{Label: "http"}},
 				},
 			},
 		},
@@ -215,9 +215,9 @@ func Alloc() *structs.Allocation {
 					&structs.NetworkResource{
 						Device:        "eth0",
 						IP:            "192.168.0.100",
-						ReservedPorts: []int{5000},
+						ReservedPorts: []structs.Port{{Label: "main", Value: 5000}},
 						MBits:         50,
-						DynamicPorts:  []string{"http"},
+						DynamicPorts:  []structs.Port{{Label: "http"}},
 					},
 				},
 			},

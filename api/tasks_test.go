@@ -130,7 +130,7 @@ func TestTask_SetConfig(t *testing.T) {
 
 	// Set another config value
 	task.SetConfig("baz", "zip")
-	expect := map[string]string{"foo": "bar", "baz": "zip"}
+	expect := map[string]interface{}{"foo": "bar", "baz": "zip"}
 	if !reflect.DeepEqual(task.Config, expect) {
 		t.Fatalf("expect: %#v, got: %#v", expect, task.Config)
 	}
@@ -171,7 +171,7 @@ func TestTask_Require(t *testing.T) {
 			&NetworkResource{
 				CIDR:          "0.0.0.0/0",
 				MBits:         100,
-				ReservedPorts: []int{80, 443},
+				ReservedPorts: []Port{{"", 80}, {"", 443}},
 			},
 		},
 	}

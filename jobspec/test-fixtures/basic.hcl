@@ -51,8 +51,18 @@ job "binstore-storagelocker" {
 
                 network {
                     mbits = "100"
-                    reserved_ports = [1,2,3]
-                    dynamic_ports = ["http", "https", "admin"]
+                    port "one" {
+                        static = 1
+                    }
+                    port "two" {
+                        static = 2
+                    }
+                    port "three" {
+                        static = 3
+                    }
+                    port "http" {}
+                    port "https" {}
+                    port "admin" {}
                 }
             }
         }

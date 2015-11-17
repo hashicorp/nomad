@@ -20,7 +20,7 @@ func TestCompose(t *testing.T) {
 			&NetworkResource{
 				CIDR:          "0.0.0.0/0",
 				MBits:         100,
-				ReservedPorts: []int{80, 443},
+				ReservedPorts: []Port{{"", 80}, {"", 443}},
 			},
 		},
 	})
@@ -83,9 +83,9 @@ func TestCompose(t *testing.T) {
 								&NetworkResource{
 									CIDR:  "0.0.0.0/0",
 									MBits: 100,
-									ReservedPorts: []int{
-										80,
-										443,
+									ReservedPorts: []Port{
+										{"", 80},
+										{"", 443},
 									},
 								},
 							},
@@ -97,7 +97,7 @@ func TestCompose(t *testing.T) {
 								Operand: "=",
 							},
 						},
-						Config: map[string]string{
+						Config: map[string]interface{}{
 							"foo": "bar",
 						},
 						Meta: map[string]string{

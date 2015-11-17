@@ -15,7 +15,7 @@ var (
 	t1 = &structs.Task{
 		Name:   "web",
 		Driver: "exec",
-		Config: map[string]string{
+		Config: map[string]interface{}{
 			"command": "/bin/date",
 			"args":    "+%s",
 		},
@@ -27,7 +27,7 @@ var (
 	t2 = &structs.Task{
 		Name:   "web2",
 		Driver: "exec",
-		Config: map[string]string{
+		Config: map[string]interface{}{
 			"command": "/bin/date",
 			"args":    "+%s",
 		},
