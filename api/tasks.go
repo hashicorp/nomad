@@ -65,7 +65,7 @@ func (g *TaskGroup) AddTask(t *Task) *TaskGroup {
 type Task struct {
 	Name        string
 	Driver      string
-	Config      map[string]string
+	Config      map[string]interface{}
 	Constraints []*Constraint
 	Env         map[string]string
 	Resources   *Resources
@@ -84,7 +84,7 @@ func NewTask(name, driver string) *Task {
 // the task.
 func (t *Task) SetConfig(key, val string) *Task {
 	if t.Config == nil {
-		t.Config = make(map[string]string)
+		t.Config = make(map[string]interface{})
 	}
 	t.Config[key] = val
 	return t
@@ -109,4 +109,30 @@ func (t *Task) Require(r *Resources) *Task {
 func (t *Task) Constrain(c *Constraint) *Task {
 	t.Constraints = append(t.Constraints, c)
 	return t
+}
+
+// TaskState tracks the current state of a task and events that caused state
+// transistions.
+type TaskState struct {
+	State  string
+	Events []*TaskEvent
+}
+
+const (
+	TaskDriverFailure = "Driver Failure"
+	TaskStarted       = "Started"
+	TaskTerminated    = "Terminated"
+	TaskKilled        = "Killed"
+)
+
+// TaskEvent is an event that effects the state of a task and contains meta-data
+// appropriate to the events type.
+type TaskEvent struct {
+	Type        string
+	Time        int64
+	DriverError string
+	ExitCode    int
+	Signal      int
+	Message     string
+	KillError   string
 }

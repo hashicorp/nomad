@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"reflect"
 	"regexp"
 	"strings"
 	"time"
@@ -620,15 +621,20 @@ func (r *Resources) GoString() string {
 	return fmt.Sprintf("*%#v", *r)
 }
 
+type Port struct {
+	Label string
+	Value int `mapstructure:"static"`
+}
+
 // NetworkResource is used to represent available network
 // resources
 type NetworkResource struct {
-	Device        string   // Name of the device
-	CIDR          string   // CIDR block of addresses
-	IP            string   // IP address
-	MBits         int      // Throughput
-	ReservedPorts []int    `mapstructure:"reserved_ports"` // Reserved ports
-	DynamicPorts  []string `mapstructure:"dynamic_ports"`  // Dynamically assigned ports
+	Device        string // Name of the device
+	CIDR          string // CIDR block of addresses
+	IP            string // IP address
+	MBits         int    // Throughput
+	ReservedPorts []Port // Reserved ports
+	DynamicPorts  []Port // Dynamically assigned ports
 }
 
 // Copy returns a deep copy of the network resource
@@ -636,7 +642,7 @@ func (n *NetworkResource) Copy() *NetworkResource {
 	newR := new(NetworkResource)
 	*newR = *n
 	if n.ReservedPorts != nil {
-		newR.ReservedPorts = make([]int, len(n.ReservedPorts))
+		newR.ReservedPorts = make([]Port, len(n.ReservedPorts))
 		copy(newR.ReservedPorts, n.ReservedPorts)
 	}
 	return newR
@@ -656,50 +662,13 @@ func (n *NetworkResource) GoString() string {
 	return fmt.Sprintf("*%#v", *n)
 }
 
-// MapDynamicPorts returns a mapping of Label:PortNumber for dynamic ports
-// allocated on this NetworkResource. The ordering of Label:Port pairs is
-// random.
-//
-// Details:
-//
-// The jobspec lets us ask for two types of ports: Reserved ports and Dynamic
-// ports. Reserved ports are identified by the port number, while Dynamic ports
-// are identified by a Label.
-//
-// When we ask nomad to run a job it checks to see if the Reserved ports we
-// requested are available. If they are, it then tries to provision any Dynamic
-// ports that we have requested. When available ports are found to satisfy our
-// dynamic port requirements, they are APPENDED to the reserved ports list. In
-// effect, the reserved ports list serves double-duty. First it indicates the
-// ports we *want*, and then it indicates the ports we are *using*.
-//
-// After the the offer process is complete and the job is scheduled we want to
-// see which ports were made available to us. To see the dynamic ports that
-// were allocated to us we look at the last N ports in our reservation, where N
-// is how many dynamic ports we requested.
-//
-// MapDynamicPorts matches these port numbers with their labels and gives you
-// the port mapping.
-//
-// Also, be aware that this is intended to be called in the context of
-// task.Resources after an offer has been made. If you call it in some other
-// context the behavior is unspecified, including maybe crashing. So don't do that.
-func (n *NetworkResource) MapDynamicPorts() map[string]int {
-	ports := n.ReservedPorts[len(n.ReservedPorts)-len(n.DynamicPorts):]
-	mapping := make(map[string]int, len(n.DynamicPorts))
-
-	for idx, label := range n.DynamicPorts {
-		mapping[label] = ports[idx]
+func (n *NetworkResource) MapLabelToValues() map[string]int {
+	labelValues := make(map[string]int)
+	ports := append(n.ReservedPorts, n.DynamicPorts...)
+	for _, port := range ports {
+		labelValues[port.Label] = port.Value
 	}
-
-	return mapping
-}
-
-// ListStaticPorts returns the list of Static ports allocated to this
-// NetworkResource. These are presumed to have known semantics so there is no
-// mapping information.
-func (n *NetworkResource) ListStaticPorts() []int {
-	return n.ReservedPorts[:len(n.ReservedPorts)-len(n.DynamicPorts)]
+	return labelValues
 }
 
 const (
@@ -1032,7 +1001,7 @@ type Task struct {
 	Driver string
 
 	// Config is provided to the driver to initialize
-	Config map[string]string
+	Config map[string]interface{}
 
 	// Map of environment variables to be used by the driver
 	Env map[string]string
@@ -1051,6 +1020,95 @@ type Task struct {
 
 func (t *Task) GoString() string {
 	return fmt.Sprintf("*%#v", *t)
+}
+
+// Set of possible states for a task.
+const (
+	TaskStatePending = "pending" // The task is waiting to be run.
+	TaskStateRunning = "running" // The task is currently running.
+	TaskStateDead    = "dead"    // Terminal state of task.
+)
+
+// TaskState tracks the current state of a task and events that caused state
+// transistions.
+type TaskState struct {
+	// The current state of the task.
+	State string
+
+	// Series of task events that transistion the state of the task.
+	Events []*TaskEvent
+}
+
+const (
+	// A Driver failure indicates that the task could not be started due to a
+	// failure in the driver.
+	TaskDriverFailure = "Driver Failure"
+
+	// Task Started signals that the task was started and its timestamp can be
+	// used to determine the running length of the task.
+	TaskStarted = "Started"
+
+	// Task terminated indicates that the task was started and exited.
+	TaskTerminated = "Terminated"
+
+	// Task Killed indicates a user has killed the task.
+	TaskKilled = "Killed"
+)
+
+// TaskEvent is an event that effects the state of a task and contains meta-data
+// appropriate to the events type.
+type TaskEvent struct {
+	Type string
+	Time int64 // Unix Nanosecond timestamp
+
+	// Driver Failure fields.
+	DriverError string // A driver error occured while starting the task.
+
+	// Task Terminated Fields.
+	ExitCode int    // The exit code of the task.
+	Signal   int    // The signal that terminated the task.
+	Message  string // A possible message explaining the termination of the task.
+
+	// Task Killed Fields.
+	KillError string // Error killing the task.
+}
+
+func NewTaskEvent(event string) *TaskEvent {
+	return &TaskEvent{
+		Type: event,
+		Time: time.Now().UnixNano(),
+	}
+}
+
+func (e *TaskEvent) SetDriverError(err error) *TaskEvent {
+	if err != nil {
+		e.DriverError = err.Error()
+	}
+	return e
+}
+
+func (e *TaskEvent) SetExitCode(c int) *TaskEvent {
+	e.ExitCode = c
+	return e
+}
+
+func (e *TaskEvent) SetSignal(s int) *TaskEvent {
+	e.Signal = s
+	return e
+}
+
+func (e *TaskEvent) SetExitMessage(err error) *TaskEvent {
+	if err != nil {
+		e.Message = err.Error()
+	}
+	return e
+}
+
+func (e *TaskEvent) SetKillError(err error) *TaskEvent {
+	if err != nil {
+		e.KillError = err.Error()
+	}
+	return e
 }
 
 // Validate is used to sanity check a task group
@@ -1171,6 +1229,9 @@ type Allocation struct {
 	// ClientStatusDescription is meant to provide more human useful information
 	ClientDescription string
 
+	// TaskStates stores the state of each task,
+	TaskStates map[string]*TaskState
+
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
@@ -1200,6 +1261,7 @@ func (a *Allocation) Stub() *AllocListStub {
 		DesiredDescription: a.DesiredDescription,
 		ClientStatus:       a.ClientStatus,
 		ClientDescription:  a.ClientDescription,
+		TaskStates:         a.TaskStates,
 		CreateIndex:        a.CreateIndex,
 		ModifyIndex:        a.ModifyIndex,
 	}
@@ -1217,6 +1279,7 @@ type AllocListStub struct {
 	DesiredDescription string
 	ClientStatus       string
 	ClientDescription  string
+	TaskStates         map[string]*TaskState
 	CreateIndex        uint64
 	ModifyIndex        uint64
 }
@@ -1575,7 +1638,15 @@ func (p *PlanResult) FullCommit(plan *Plan) (bool, int, int) {
 }
 
 // msgpackHandle is a shared handle for encoding/decoding of structs
-var msgpackHandle = &codec.MsgpackHandle{}
+var msgpackHandle = func() *codec.MsgpackHandle {
+	h := &codec.MsgpackHandle{RawToString: true}
+
+	// Sets the default type for decoding a map into a nil interface{}.
+	// This is necessary in particular because we store the driver configs as a
+	// nil interface{}.
+	h.MapType = reflect.TypeOf(map[string]interface{}(nil))
+	return h
+}()
 
 // Decode is used to decode a MsgPack encoded object
 func Decode(buf []byte, out interface{}) error {

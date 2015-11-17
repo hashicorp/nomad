@@ -11,6 +11,8 @@ import (
 	"github.com/hashicorp/nomad/client/driver/environment"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/nomad/structs"
+
+	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 )
 
 // BuiltinDrivers contains the built in registered drivers
@@ -85,7 +87,7 @@ type DriverHandle interface {
 	ID() string
 
 	// WaitCh is used to return a channel used wait for task completion
-	WaitCh() chan error
+	WaitCh() chan *cstructs.WaitResult
 
 	// Update is used to update the task if possible
 	Update(task *structs.Task) error
@@ -133,7 +135,7 @@ func TaskEnvironmentVariables(ctx *ExecContext, task *structs.Task) environment.
 		if len(task.Resources.Networks) > 0 {
 			network := task.Resources.Networks[0]
 			env.SetTaskIp(network.IP)
-			env.SetPorts(network.MapDynamicPorts())
+			env.SetPorts(network.MapLabelToValues())
 		}
 	}
 

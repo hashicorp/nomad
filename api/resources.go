@@ -10,12 +10,17 @@ type Resources struct {
 	Networks []*NetworkResource
 }
 
+type Port struct {
+	Label string
+	Value int
+}
+
 // NetworkResource is used to describe required network
 // resources of a given task.
 type NetworkResource struct {
 	Public        bool
 	CIDR          string
-	ReservedPorts []int
-	DynamicPorts  []string
+	ReservedPorts []Port
+	DynamicPorts  []Port
 	MBits         int
 }

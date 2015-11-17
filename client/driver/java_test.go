@@ -49,7 +49,7 @@ func TestJavaDriver_StartOpen_Wait(t *testing.T) {
 	ctestutils.JavaCompatible(t)
 	task := &structs.Task{
 		Name: "demo-app",
-		Config: map[string]string{
+		Config: map[string]interface{}{
 			"artifact_source": "https://dl.dropboxusercontent.com/u/47675/jar_thing/demoapp.jar",
 			"jvm_options":     "-Xmx2048m -Xms256m",
 			"checksum":        "sha256:58d6e8130308d32e197c5108edd4f56ddf1417408f743097c2e662df0f0b17c8",
@@ -95,7 +95,7 @@ func TestJavaDriver_Start_Wait(t *testing.T) {
 	ctestutils.JavaCompatible(t)
 	task := &structs.Task{
 		Name: "demo-app",
-		Config: map[string]string{
+		Config: map[string]interface{}{
 			"artifact_source": "https://dl.dropboxusercontent.com/u/47675/jar_thing/demoapp.jar",
 			"jvm_options":     "-Xmx2048m -Xms256m",
 			"checksum":        "sha256:58d6e8130308d32e197c5108edd4f56ddf1417408f743097c2e662df0f0b17c8",
@@ -118,9 +118,9 @@ func TestJavaDriver_Start_Wait(t *testing.T) {
 
 	// Task should terminate quickly
 	select {
-	case err := <-handle.WaitCh():
-		if err != nil {
-			t.Fatalf("err: %v", err)
+	case res := <-handle.WaitCh():
+		if !res.Successful() {
+			t.Fatalf("err: %v", res)
 		}
 	case <-time.After(2 * time.Second):
 		// expect the timeout b/c it's a long lived process
@@ -142,7 +142,7 @@ func TestJavaDriver_Start_Kill_Wait(t *testing.T) {
 	ctestutils.JavaCompatible(t)
 	task := &structs.Task{
 		Name: "demo-app",
-		Config: map[string]string{
+		Config: map[string]interface{}{
 			"artifact_source": "https://dl.dropboxusercontent.com/u/47675/jar_thing/demoapp.jar",
 		},
 		Resources: basicResources,
@@ -171,8 +171,8 @@ func TestJavaDriver_Start_Kill_Wait(t *testing.T) {
 
 	// Task should terminate quickly
 	select {
-	case err := <-handle.WaitCh():
-		if err == nil {
+	case res := <-handle.WaitCh():
+		if res.Successful() {
 			t.Fatal("should err")
 		}
 	case <-time.After(8 * time.Second):

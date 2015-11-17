@@ -68,8 +68,8 @@ func TestSpawn_SetsLogs(t *testing.T) {
 		t.Fatalf("Spawn() failed: %v", err)
 	}
 
-	if code, err := spawn.Wait(); code != 0 && err != nil {
-		t.Fatalf("Wait() returned %v, %v; want 0, nil", code, err)
+	if res := spawn.Wait(); res.ExitCode != 0 && res.Err != nil {
+		t.Fatalf("Wait() returned %v, %v; want 0, nil", res.ExitCode, res.Err)
 	}
 
 	stdout2, err := os.Open(stdout.Name())
@@ -129,13 +129,8 @@ func TestSpawn_ParentWaitExited(t *testing.T) {
 
 	time.Sleep(1 * time.Second)
 
-	code, err := spawn.Wait()
-	if err != nil {
-		t.Fatalf("Wait() failed %v", err)
-	}
-
-	if code != 0 {
-		t.Fatalf("Wait() returned %v; want 0", code)
+	if res := spawn.Wait(); res.ExitCode != 0 && res.Err != nil {
+		t.Fatalf("Wait() returned %v, %v; want 0, nil", res.ExitCode, res.Err)
 	}
 }
 
@@ -152,13 +147,8 @@ func TestSpawn_ParentWait(t *testing.T) {
 		t.Fatalf("Spawn() failed %v", err)
 	}
 
-	code, err := spawn.Wait()
-	if err != nil {
-		t.Fatalf("Wait() failed %v", err)
-	}
-
-	if code != 0 {
-		t.Fatalf("Wait() returned %v; want 0", code)
+	if res := spawn.Wait(); res.ExitCode != 0 && res.Err != nil {
+		t.Fatalf("Wait() returned %v, %v; want 0, nil", res.ExitCode, res.Err)
 	}
 }
 
@@ -179,13 +169,8 @@ func TestSpawn_NonParentWaitExited(t *testing.T) {
 
 	// Force the wait to assume non-parent.
 	spawn.SpawnPpid = 0
-	code, err := spawn.Wait()
-	if err != nil {
-		t.Fatalf("Wait() failed %v", err)
-	}
-
-	if code != 0 {
-		t.Fatalf("Wait() returned %v; want 0", code)
+	if res := spawn.Wait(); res.ExitCode != 0 && res.Err != nil {
+		t.Fatalf("Wait() returned %v, %v; want 0, nil", res.ExitCode, res.Err)
 	}
 }
 
@@ -213,13 +198,8 @@ func TestSpawn_NonParentWait(t *testing.T) {
 
 	// Force the wait to assume non-parent.
 	spawn.SpawnPpid = 0
-	code, err := spawn.Wait()
-	if err != nil {
-		t.Fatalf("Wait() failed %v", err)
-	}
-
-	if code != 0 {
-		t.Fatalf("Wait() returned %v; want 0", code)
+	if res := spawn.Wait(); res.ExitCode != 0 && res.Err != nil {
+		t.Fatalf("Wait() returned %v, %v; want 0, nil", res.ExitCode, res.Err)
 	}
 }
 
@@ -255,8 +235,8 @@ func TestSpawn_DeadSpawnDaemon_Parent(t *testing.T) {
 		t.FailNow()
 	}
 
-	if _, err := spawn.Wait(); err == nil {
-		t.Fatalf("Wait() should have failed: %v", err)
+	if res := spawn.Wait(); res.Err == nil {
+		t.Fatalf("Wait() should have failed: %v", res.Err)
 	}
 }
 
@@ -294,8 +274,8 @@ func TestSpawn_DeadSpawnDaemon_NonParent(t *testing.T) {
 
 	// Force the wait to assume non-parent.
 	spawn.SpawnPpid = 0
-	if _, err := spawn.Wait(); err == nil {
-		t.Fatalf("Wait() should have failed: %v", err)
+	if res := spawn.Wait(); res.Err == nil {
+		t.Fatalf("Wait() should have failed: %v", res.Err)
 	}
 }
 
@@ -316,8 +296,8 @@ func TestSpawn_Valid_TaskRunning(t *testing.T) {
 		t.Fatalf("Valid() failed: %v", err)
 	}
 
-	if _, err := spawn.Wait(); err != nil {
-		t.Fatalf("Wait() failed %v", err)
+	if res := spawn.Wait(); res.Err != nil {
+		t.Fatalf("Wait() failed: %v", res.Err)
 	}
 }
 
@@ -334,8 +314,8 @@ func TestSpawn_Valid_TaskExit_ExitCode(t *testing.T) {
 		t.Fatalf("Spawn() failed %v", err)
 	}
 
-	if _, err := spawn.Wait(); err != nil {
-		t.Fatalf("Wait() failed %v", err)
+	if res := spawn.Wait(); res.Err != nil {
+		t.Fatalf("Wait() failed: %v", res.Err)
 	}
 
 	if err := spawn.Valid(); err != nil {
@@ -355,8 +335,8 @@ func TestSpawn_Valid_TaskExit_NoExitCode(t *testing.T) {
 		t.Fatalf("Spawn() failed %v", err)
 	}
 
-	if _, err := spawn.Wait(); err != nil {
-		t.Fatalf("Wait() failed %v", err)
+	if res := spawn.Wait(); res.Err != nil {
+		t.Fatalf("Wait() failed: %v", res.Err)
 	}
 
 	// Delete the file so that it can't find the exit code.

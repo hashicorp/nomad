@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
 
+	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	ctestutils "github.com/hashicorp/nomad/client/testutil"
 )
 
@@ -35,7 +36,7 @@ func TestRktDriver_Handle(t *testing.T) {
 		proc:   &os.Process{Pid: 123},
 		image:  "foo",
 		doneCh: make(chan struct{}),
-		waitCh: make(chan error, 1),
+		waitCh: make(chan *cstructs.WaitResult, 1),
 	}
 
 	actual := h.ID()
@@ -75,7 +76,7 @@ func TestRktDriver_Start(t *testing.T) {
 	// TODO: use test server to load from a fixture
 	task := &structs.Task{
 		Name: "etcd",
-		Config: map[string]string{
+		Config: map[string]interface{}{
 			"trust_prefix": "coreos.com/etcd",
 			"image":        "coreos.com/etcd:v2.0.4",
 			"command":      "/etcd",
@@ -114,7 +115,7 @@ func TestRktDriver_Start_Wait(t *testing.T) {
 	ctestutils.RktCompatible(t)
 	task := &structs.Task{
 		Name: "etcd",
-		Config: map[string]string{
+		Config: map[string]interface{}{
 			"trust_prefix": "coreos.com/etcd",
 			"image":        "coreos.com/etcd:v2.0.4",
 			"command":      "/etcd",
@@ -143,9 +144,9 @@ func TestRktDriver_Start_Wait(t *testing.T) {
 	}
 
 	select {
-	case err := <-handle.WaitCh():
-		if err != nil {
-			t.Fatalf("err: %v", err)
+	case res := <-handle.WaitCh():
+		if !res.Successful() {
+			t.Fatalf("err: %v", res)
 		}
 	case <-time.After(5 * time.Second):
 		t.Fatalf("timeout")
@@ -156,7 +157,7 @@ func TestRktDriver_Start_Wait_Skip_Trust(t *testing.T) {
 	ctestutils.RktCompatible(t)
 	task := &structs.Task{
 		Name: "etcd",
-		Config: map[string]string{
+		Config: map[string]interface{}{
 			"image":   "coreos.com/etcd:v2.0.4",
 			"command": "/etcd",
 			"args":    "--version",
@@ -184,9 +185,9 @@ func TestRktDriver_Start_Wait_Skip_Trust(t *testing.T) {
 	}
 
 	select {
-	case err := <-handle.WaitCh():
-		if err != nil {
-			t.Fatalf("err: %v", err)
+	case res := <-handle.WaitCh():
+		if !res.Successful() {
+			t.Fatalf("err: %v", res)
 		}
 	case <-time.After(5 * time.Second):
 		t.Fatalf("timeout")
@@ -197,7 +198,7 @@ func TestRktDriver_Start_Wait_Logs(t *testing.T) {
 	ctestutils.RktCompatible(t)
 	task := &structs.Task{
 		Name: "etcd",
-		Config: map[string]string{
+		Config: map[string]interface{}{
 			"trust_prefix": "coreos.com/etcd",
 			"image":        "coreos.com/etcd:v2.0.4",
 			"command":      "/etcd",
@@ -220,9 +221,9 @@ func TestRktDriver_Start_Wait_Logs(t *testing.T) {
 	defer handle.Kill()
 
 	select {
-	case err := <-handle.WaitCh():
-		if err != nil {
-			t.Fatalf("err: %v", err)
+	case res := <-handle.WaitCh():
+		if !res.Successful() {
+			t.Fatalf("err: %v", res)
 		}
 	case <-time.After(5 * time.Second):
 		t.Fatalf("timeout")

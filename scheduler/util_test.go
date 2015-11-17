@@ -343,7 +343,7 @@ func TestTasksUpdated(t *testing.T) {
 	}
 
 	j6 := mock.Job()
-	j6.TaskGroups[0].Tasks[0].Resources.Networks[0].DynamicPorts = []string{"http", "https", "admin"}
+	j6.TaskGroups[0].Tasks[0].Resources.Networks[0].DynamicPorts = []structs.Port{{"http", 0}, {"https", 0}, {"admin", 0}}
 	if !tasksUpdated(j1.TaskGroups[0], j6.TaskGroups[0]) {
 		t.Fatalf("bad")
 	}
@@ -647,4 +647,27 @@ func TestTaskGroupConstraints(t *testing.T) {
 		t.Fatalf("taskGroupConstraints(%v) returned %v; want %v", tg, actConstrains.size, expSize)
 	}
 
+}
+
+func TestInitTaskState(t *testing.T) {
+	tg := &structs.TaskGroup{
+		Tasks: []*structs.Task{
+			&structs.Task{Name: "foo"},
+			&structs.Task{Name: "bar"},
+		},
+	}
+	expPending := map[string]*structs.TaskState{
+		"foo": &structs.TaskState{State: structs.TaskStatePending},
+		"bar": &structs.TaskState{State: structs.TaskStatePending},
+	}
+	expDead := map[string]*structs.TaskState{
+		"foo": &structs.TaskState{State: structs.TaskStateDead},
+		"bar": &structs.TaskState{State: structs.TaskStateDead},
+	}
+	actPending := initTaskState(tg, structs.TaskStatePending)
+	actDead := initTaskState(tg, structs.TaskStateDead)
+
+	if !(reflect.DeepEqual(expPending, actPending) && reflect.DeepEqual(expDead, actDead)) {
+		t.Fatal("Expected and actual not equal")
+	}
 }

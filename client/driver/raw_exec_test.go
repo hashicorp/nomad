@@ -51,7 +51,7 @@ func TestRawExecDriver_Fingerprint(t *testing.T) {
 func TestRawExecDriver_StartOpen_Wait(t *testing.T) {
 	task := &structs.Task{
 		Name: "sleep",
-		Config: map[string]string{
+		Config: map[string]interface{}{
 			"command": "/bin/sleep",
 			"args":    "1",
 		},
@@ -100,7 +100,7 @@ func TestRawExecDriver_Start_Artifact_basic(t *testing.T) {
 
 	task := &structs.Task{
 		Name: "sleep",
-		Config: map[string]string{
+		Config: map[string]interface{}{
 			"artifact_source": fmt.Sprintf("https://dl.dropboxusercontent.com/u/47675/jar_thing/%s", file),
 			"command":         filepath.Join("$NOMAD_TASK_DIR", file),
 			"checksum":        checksum,
@@ -148,7 +148,7 @@ func TestRawExecDriver_Start_Artifact_expanded(t *testing.T) {
 
 	task := &structs.Task{
 		Name: "sleep",
-		Config: map[string]string{
+		Config: map[string]interface{}{
 			"artifact_source": fmt.Sprintf("https://dl.dropboxusercontent.com/u/47675/jar_thing/%s", file),
 			"command":         "/bin/bash",
 			"args":            fmt.Sprintf("-c '/bin/sleep 1 && %s'", filepath.Join("$NOMAD_TASK_DIR", file)),
@@ -188,7 +188,7 @@ func TestRawExecDriver_Start_Artifact_expanded(t *testing.T) {
 func TestRawExecDriver_Start_Wait(t *testing.T) {
 	task := &structs.Task{
 		Name: "sleep",
-		Config: map[string]string{
+		Config: map[string]interface{}{
 			"command": "/bin/sleep",
 			"args":    "1",
 		},
@@ -216,9 +216,9 @@ func TestRawExecDriver_Start_Wait(t *testing.T) {
 
 	// Task should terminate quickly
 	select {
-	case err := <-handle.WaitCh():
-		if err != nil {
-			t.Fatalf("err: %v", err)
+	case res := <-handle.WaitCh():
+		if !res.Successful() {
+			t.Fatalf("err: %v", res)
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatalf("timeout")
@@ -230,7 +230,7 @@ func TestRawExecDriver_Start_Wait_AllocDir(t *testing.T) {
 	file := "output.txt"
 	task := &structs.Task{
 		Name: "sleep",
-		Config: map[string]string{
+		Config: map[string]interface{}{
 			"command": "/bin/bash",
 			"args":    fmt.Sprintf(`-c "sleep 1; echo -n %s > $%s/%s"`, string(exp), environment.AllocDir, file),
 		},
@@ -252,9 +252,9 @@ func TestRawExecDriver_Start_Wait_AllocDir(t *testing.T) {
 
 	// Task should terminate quickly
 	select {
-	case err := <-handle.WaitCh():
-		if err != nil {
-			t.Fatalf("err: %v", err)
+	case res := <-handle.WaitCh():
+		if !res.Successful() {
+			t.Fatalf("err: %v", res)
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatalf("timeout")
@@ -275,7 +275,7 @@ func TestRawExecDriver_Start_Wait_AllocDir(t *testing.T) {
 func TestRawExecDriver_Start_Kill_Wait(t *testing.T) {
 	task := &structs.Task{
 		Name: "sleep",
-		Config: map[string]string{
+		Config: map[string]interface{}{
 			"command": "/bin/sleep",
 			"args":    "1",
 		},
@@ -305,8 +305,8 @@ func TestRawExecDriver_Start_Kill_Wait(t *testing.T) {
 
 	// Task should terminate quickly
 	select {
-	case err := <-handle.WaitCh():
-		if err == nil {
+	case res := <-handle.WaitCh():
+		if res.Successful() {
 			t.Fatal("should err")
 		}
 	case <-time.After(2 * time.Second):

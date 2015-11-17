@@ -17,8 +17,10 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/args"
+	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/mitchellh/mapstructure"
 )
 
 var (
@@ -34,12 +36,17 @@ type RktDriver struct {
 	fingerprint.StaticFingerprinter
 }
 
+type RktDriverConfig struct {
+	ImageName string `mapstructure:"image"`
+	Args      string `mapstructure:"args"`
+}
+
 // rktHandle is returned from Start/Open as a handle to the PID
 type rktHandle struct {
 	proc   *os.Process
 	image  string
 	logger *log.Logger
-	waitCh chan error
+	waitCh chan *cstructs.WaitResult
 	doneCh chan struct{}
 }
 
@@ -83,9 +90,13 @@ func (d *RktDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, e
 
 // Run an existing Rkt image.
 func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
+	var driverConfig RktDriverConfig
+	if err := mapstructure.WeakDecode(task.Config, &driverConfig); err != nil {
+		return nil, err
+	}
 	// Validate that the config is valid.
-	img, ok := task.Config["image"]
-	if !ok || img == "" {
+	img := driverConfig.ImageName
+	if img == "" {
 		return nil, fmt.Errorf("Missing ACI image for rkt")
 	}
 
@@ -139,8 +150,8 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	}
 
 	// Add user passed arguments.
-	if userArgs, ok := task.Config["args"]; ok {
-		parsed, err := args.ParseAndReplace(userArgs, envVars.Map())
+	if driverConfig.Args != "" {
+		parsed, err := args.ParseAndReplace(driverConfig.Args, envVars.Map())
 		if err != nil {
 			return nil, err
 		}
@@ -183,7 +194,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		image:  img,
 		logger: d.logger,
 		doneCh: make(chan struct{}),
-		waitCh: make(chan error, 1),
+		waitCh: make(chan *cstructs.WaitResult, 1),
 	}
 	go h.run()
 	return h, nil
@@ -209,7 +220,7 @@ func (d *RktDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error
 		image:  qpid.Image,
 		logger: d.logger,
 		doneCh: make(chan struct{}),
-		waitCh: make(chan error, 1),
+		waitCh: make(chan *cstructs.WaitResult, 1),
 	}
 
 	go h.run()
@@ -229,7 +240,7 @@ func (h *rktHandle) ID() string {
 	return fmt.Sprintf("Rkt:%s", string(data))
 }
 
-func (h *rktHandle) WaitCh() chan error {
+func (h *rktHandle) WaitCh() chan *cstructs.WaitResult {
 	return h.waitCh
 }
 
@@ -253,10 +264,11 @@ func (h *rktHandle) Kill() error {
 func (h *rktHandle) run() {
 	ps, err := h.proc.Wait()
 	close(h.doneCh)
-	if err != nil {
-		h.waitCh <- err
-	} else if !ps.Success() {
-		h.waitCh <- fmt.Errorf("task exited with error")
+	code := 0
+	if !ps.Success() {
+		// TODO: Better exit code parsing.
+		code = 1
 	}
+	h.waitCh <- cstructs.NewWaitResult(code, 0, err)
 	close(h.waitCh)
 }

@@ -10,9 +10,11 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/executor"
+	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/client/getter"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/mitchellh/mapstructure"
 )
 
 // ExecDriver fork/execs tasks using as many of the underlying OS's isolation
@@ -21,11 +23,17 @@ type ExecDriver struct {
 	DriverContext
 	fingerprint.StaticFingerprinter
 }
+type ExecDriverConfig struct {
+	ArtifactSource string `mapstructure:"artifact_source"`
+	Checksum       string `mapstructure:"checksum"`
+	Command        string `mapstructure:"command"`
+	Args           string `mapstructure:"args"`
+}
 
 // execHandle is returned from Start/Open as a handle to the PID
 type execHandle struct {
 	cmd    executor.Executor
-	waitCh chan error
+	waitCh chan *cstructs.WaitResult
 	doneCh chan struct{}
 }
 
@@ -49,9 +57,13 @@ func (d *ExecDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, 
 }
 
 func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
+	var driverConfig ExecDriverConfig
+	if err := mapstructure.WeakDecode(task.Config, &driverConfig); err != nil {
+		return nil, err
+	}
 	// Get the command to be ran
-	command, ok := task.Config["command"]
-	if !ok || command == "" {
+	command := driverConfig.Command
+	if command == "" {
 		return nil, fmt.Errorf("missing command for exec driver")
 	}
 
@@ -67,8 +79,8 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		// Proceed to download an artifact to be executed.
 		_, err := getter.GetArtifact(
 			filepath.Join(taskDir, allocdir.TaskLocal),
-			task.Config["artifact_source"],
-			task.Config["checksum"],
+			driverConfig.ArtifactSource,
+			driverConfig.Checksum,
 			d.logger,
 		)
 		if err != nil {
@@ -81,8 +93,8 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 
 	// Look for arguments
 	var args []string
-	if argRaw, ok := task.Config["args"]; ok {
-		args = append(args, argRaw)
+	if driverConfig.Args != "" {
+		args = append(args, driverConfig.Args)
 	}
 
 	// Setup the command
@@ -106,7 +118,7 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	h := &execHandle{
 		cmd:    cmd,
 		doneCh: make(chan struct{}),
-		waitCh: make(chan error, 1),
+		waitCh: make(chan *cstructs.WaitResult, 1),
 	}
 	go h.run()
 	return h, nil
@@ -123,7 +135,7 @@ func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 	h := &execHandle{
 		cmd:    cmd,
 		doneCh: make(chan struct{}),
-		waitCh: make(chan error, 1),
+		waitCh: make(chan *cstructs.WaitResult, 1),
 	}
 	go h.run()
 	return h, nil
@@ -134,7 +146,7 @@ func (h *execHandle) ID() string {
 	return id
 }
 
-func (h *execHandle) WaitCh() chan error {
+func (h *execHandle) WaitCh() chan *cstructs.WaitResult {
 	return h.waitCh
 }
 
@@ -154,10 +166,8 @@ func (h *execHandle) Kill() error {
 }
 
 func (h *execHandle) run() {
-	err := h.cmd.Wait()
+	res := h.cmd.Wait()
 	close(h.doneCh)
-	if err != nil {
-		h.waitCh <- err
-	}
+	h.waitCh <- res
 	close(h.waitCh)
 }

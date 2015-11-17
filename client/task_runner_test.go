@@ -4,7 +4,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -21,21 +20,11 @@ func testLogger() *log.Logger {
 	return log.New(os.Stderr, "", log.LstdFlags)
 }
 
-type MockTaskStateUpdater struct {
-	Count       int
-	Name        []string
-	Status      []string
-	Description []string
-}
+type MockTaskStateUpdater struct{}
 
-func (m *MockTaskStateUpdater) Update(name, status, desc string) {
-	m.Count += 1
-	m.Name = append(m.Name, name)
-	m.Status = append(m.Status, status)
-	m.Description = append(m.Description, desc)
-}
+func (m *MockTaskStateUpdater) Update(name string) {}
 
-func testTaskRunner() (*MockTaskStateUpdater, *TaskRunner) {
+func testTaskRunner(restarts bool) (*MockTaskStateUpdater, *TaskRunner) {
 	logger := testLogger()
 	conf := DefaultConfig()
 	conf.StateDir = os.TempDir()
@@ -46,7 +35,7 @@ func testTaskRunner() (*MockTaskStateUpdater, *TaskRunner) {
 
 	// Initialize the port listing. This should be done by the offer process but
 	// we have a mock so that doesn't happen.
-	task.Resources.Networks[0].ReservedPorts = []int{80}
+	task.Resources.Networks[0].ReservedPorts = []structs.Port{{"", 80}}
 
 	allocDir := allocdir.NewAllocDir(filepath.Join(conf.AllocDir, alloc.ID))
 	allocDir.Build([]*structs.Task{task})
@@ -54,13 +43,18 @@ func testTaskRunner() (*MockTaskStateUpdater, *TaskRunner) {
 	ctx := driver.NewExecContext(allocDir, alloc.ID)
 	rp := structs.NewRestartPolicy(structs.JobTypeService)
 	restartTracker := newRestartTracker(structs.JobTypeService, rp)
-	tr := NewTaskRunner(logger, conf, upd.Update, ctx, alloc.ID, task, restartTracker)
+	if !restarts {
+		restartTracker = noRestartsTracker()
+	}
+
+	state := alloc.TaskStates[task.Name]
+	tr := NewTaskRunner(logger, conf, upd.Update, ctx, alloc.ID, task, state, restartTracker)
 	return upd, tr
 }
 
 func TestTaskRunner_SimpleRun(t *testing.T) {
 	ctestutil.ExecCompatible(t)
-	upd, tr := testTaskRunner()
+	_, tr := testTaskRunner(false)
 	go tr.Run()
 	defer tr.Destroy()
 	defer tr.ctx.AllocDir.Destroy()
@@ -71,33 +65,26 @@ func TestTaskRunner_SimpleRun(t *testing.T) {
 		t.Fatalf("timeout")
 	}
 
-	if upd.Count != 2 {
-		t.Fatalf("should have 2 updates: %#v", upd)
-	}
-	if upd.Name[0] != tr.task.Name {
-		t.Fatalf("bad: %#v", upd.Name)
-	}
-	if upd.Status[0] != structs.AllocClientStatusRunning {
-		t.Fatalf("bad: %#v", upd.Status)
-	}
-	if upd.Description[0] != "task started" {
-		t.Fatalf("bad: %#v", upd.Description)
+	if len(tr.state.Events) != 2 {
+		t.Fatalf("should have 2 updates: %#v", tr.state.Events)
 	}
 
-	if upd.Name[1] != tr.task.Name {
-		t.Fatalf("bad: %#v", upd.Name)
+	if tr.state.State != structs.TaskStateDead {
+		t.Fatalf("TaskState %v; want %v", tr.state.State, structs.TaskStateDead)
 	}
-	if upd.Status[1] != structs.AllocClientStatusDead {
-		t.Fatalf("bad: %#v", upd.Status)
+
+	if tr.state.Events[0].Type != structs.TaskStarted {
+		t.Fatalf("First Event was %v; want %v", tr.state.Events[0].Type, structs.TaskStarted)
 	}
-	if upd.Description[1] != "task completed" {
-		t.Fatalf("bad: %#v", upd.Description)
+
+	if tr.state.Events[1].Type != structs.TaskTerminated {
+		t.Fatalf("First Event was %v; want %v", tr.state.Events[1].Type, structs.TaskTerminated)
 	}
 }
 
 func TestTaskRunner_Destroy(t *testing.T) {
 	ctestutil.ExecCompatible(t)
-	upd, tr := testTaskRunner()
+	_, tr := testTaskRunner(true)
 	defer tr.ctx.AllocDir.Destroy()
 
 	// Change command to ensure we run for a bit
@@ -113,27 +100,31 @@ func TestTaskRunner_Destroy(t *testing.T) {
 
 	select {
 	case <-tr.WaitCh():
-	case <-time.After(2 * time.Second):
+	case <-time.After(8 * time.Second):
 		t.Fatalf("timeout")
 	}
 
-	if upd.Count != 2 {
-		t.Fatalf("should have 2 updates: %#v", upd)
+	if len(tr.state.Events) != 2 {
+		t.Fatalf("should have 2 updates: %#v", tr.state.Events)
 	}
-	if upd.Status[0] != structs.AllocClientStatusRunning {
-		t.Fatalf("bad: %#v", upd.Status)
+
+	if tr.state.State != structs.TaskStateDead {
+		t.Fatalf("TaskState %v; want %v", tr.state.State, structs.TaskStateDead)
 	}
-	if upd.Status[1] != structs.AllocClientStatusDead {
-		t.Fatalf("bad: %#v", upd.Status)
+
+	if tr.state.Events[0].Type != structs.TaskStarted {
+		t.Fatalf("First Event was %v; want %v", tr.state.Events[0].Type, structs.TaskStarted)
 	}
-	if !strings.Contains(upd.Description[1], "task failed") {
-		t.Fatalf("bad: %#v", upd.Description)
+
+	if tr.state.Events[1].Type != structs.TaskKilled {
+		t.Fatalf("First Event was %v; want %v", tr.state.Events[1].Type, structs.TaskKilled)
 	}
+
 }
 
 func TestTaskRunner_Update(t *testing.T) {
 	ctestutil.ExecCompatible(t)
-	_, tr := testTaskRunner()
+	_, tr := testTaskRunner(false)
 
 	// Change command to ensure we run for a bit
 	tr.task.Config["command"] = "/bin/sleep"
@@ -158,7 +149,7 @@ func TestTaskRunner_Update(t *testing.T) {
 
 func TestTaskRunner_SaveRestoreState(t *testing.T) {
 	ctestutil.ExecCompatible(t)
-	upd, tr := testTaskRunner()
+	upd, tr := testTaskRunner(false)
 
 	// Change command to ensure we run for a bit
 	tr.task.Config["command"] = "/bin/sleep"
@@ -174,7 +165,7 @@ func TestTaskRunner_SaveRestoreState(t *testing.T) {
 
 	// Create a new task runner
 	tr2 := NewTaskRunner(tr.logger, tr.config, upd.Update,
-		tr.ctx, tr.allocID, &structs.Task{Name: tr.task.Name}, tr.restartTracker)
+		tr.ctx, tr.allocID, &structs.Task{Name: tr.task.Name}, tr.state, tr.restartTracker)
 	if err := tr2.RestoreState(); err != nil {
 		t.Fatalf("err: %v", err)
 	}
