@@ -41,12 +41,16 @@ IMPROVEMENTS:
   * client: Test Skip Detection [GH-221]
   * driver/docker: Advanced docker driver options [GH-390]
   * driver/docker: Docker hostname can be set [GH-426]
+<<<<<<< Updated upstream
   * driver/docker: Mount task local and alloc directory to docker containers
     [GH-290]
   * driver/docker: Pass JVM options in java driver [GH-293, GH-297]
   * drivers: Use BlkioWeight rather than BlkioThrottleReadIopsDevice [GH-222]
   * jobspec and drivers: Driver configuration supports arbitrary struct to be
     passed in jobspec [GH-415]
+=======
+  * driver/docker: Docker container name can be set [GH-389]
+>>>>>>> Stashed changes
 
 BUG FIXES:
 
