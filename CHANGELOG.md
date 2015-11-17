@@ -10,14 +10,14 @@ BACKWARDS INCOMPATIBILITIES:
 
 FEATURES:
 
-  * client: GCE Fingerprinting [GH-215]
-  * client: Restart policy for task groups enforced by the client [GH-369,
-    GH-393]
   * core: Blocking queries supported in API [GH-366]
   * core: distinctHost constraint ensures Task Groups are running on distinct
     clients [GH-321]
   * core: Regexp, version and lexical ordering constraints [GH-271]
   * core: System Scheduler that runs tasks on every node [GH-287]
+  * client: GCE Fingerprinting [GH-215]
+  * client: Restart policy for task groups enforced by the client [GH-369,
+    GH-393]
   * driver/rawexec: Raw Fork/Exec Driver [GH-237]
   * driver/rkt: Experimental Rkt Driver [GH-165, GH-247]
   * drivers: Add support for downloading external artifacts to execute for
