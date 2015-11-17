@@ -1010,13 +1010,20 @@ type ServiceCheck struct {
 	Type     string        // Type of the check - tcp, http, docker and script
 	Script   string        // Script to invoke for script check
 	Http     string        // path of the health check url for http type check
-	Protocol string        // Protocol to use if check is http
+	Protocol string        // Protocol to use if check is http, defaults to http
 	Interval time.Duration // Interval of the check
 	Timeout  time.Duration // Timeout of the response from the check before consul fails the check
 }
 
 func (sc *ServiceCheck) Validate() error {
 	t := strings.ToLower(sc.Type)
+	if sc.Type == ServiceCheckHTTP && sc.Http == "" {
+		return fmt.Errorf("http checks needs the Http path information.")
+	}
+
+	if sc.Type == ServiceCheckScript && sc.Script == "" {
+		return fmt.Errorf("Script checks need the script to invoke")
+	}
 	if t != ServiceCheckTCP && t != ServiceCheckHTTP && t != ServiceCheckDocker && t != ServiceCheckScript {
 		return fmt.Errorf("Check with name %v has invalid check type: %s ", sc.Name, sc.Type)
 	}
