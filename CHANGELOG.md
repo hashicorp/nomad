@@ -55,7 +55,7 @@ BACKWARDS INCOMPATIBILITIES:
   * Qemu and Java driver configurations have been updated to both use `artifact_source`
     as the source for external images/jars to be ran
   * Removed weight and hard/soft fields in constraints [GH-351]
-  * Api /v1/node/<id>/allocations returns full Allocation and not stub [GH-402]
+  * Api /v1/node/\<id\>/allocations returns full Allocation and not stub [GH-402]
 
 ## 0.1.2 (October 6, 2015)
 
