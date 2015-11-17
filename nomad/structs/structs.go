@@ -906,6 +906,8 @@ func NewRestartPolicy(jobType string) *RestartPolicy {
 	return nil
 }
 
+// The ServiceCheck data model represents the consul health check that
+// Nomad registers for a Task
 type ServiceCheck struct {
 	Id       string
 	Name     string
@@ -914,6 +916,7 @@ type ServiceCheck struct {
 	Timeout  time.Duration
 }
 
+// The Service model represents a Consul service defintion
 type Service struct {
 	Id        string
 	Name      string
