@@ -1,5 +1,12 @@
 ## 0.2.0 (Unreleased)
 
+BACKWARDS INCOMPATIBILITIES:
+
+  * Qemu and Java driver configurations have been updated to both use `artifact_source`
+    as the source for external images/jars to be ran
+  * Removed weight and hard/soft fields in constraints [GH-351]
+  * Api /v1/node/\<id\>/allocations returns full Allocation and not stub [GH-402]
+
 FEATURES:
 
   * System Scheduler that runs tasks on every node [GH-287]
@@ -49,13 +56,6 @@ BUG FIXES:
   * Restarting Nomad Client leads to orphaned containers [GH-159]
   * Nomad Client doesn't restart failed containers [GH-198]
   * Docker driver exposes ports when creating container [GH-212, GH-412]
-
-BACKWARDS INCOMPATIBILITIES:
-
-  * Qemu and Java driver configurations have been updated to both use `artifact_source`
-    as the source for external images/jars to be ran
-  * Removed weight and hard/soft fields in constraints [GH-351]
-  * Api /v1/node/\<id\>/allocations returns full Allocation and not stub [GH-402]
 
 ## 0.1.2 (October 6, 2015)
 
