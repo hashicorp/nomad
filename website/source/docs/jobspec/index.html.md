@@ -47,6 +47,15 @@ job "my-service" {
             config {
                 image = "hashicorp/web-frontend"
             }
+            service {
+                port = "http"
+                check {
+                    type = "http"
+                    path = "/health"
+                    interval = "10s"
+                    timeout = "2s"
+                }
+            }
             env {
                 DB_HOST = "db01.example.com"
                 DB_USER = "web"
@@ -57,10 +66,13 @@ job "my-service" {
                 memory = 128
                 network {
                     mbits = 100
-                    dynamic_ports = [
-                      "http",
-                      "https",
-                    ]
+                    # Request for a dynamic port
+                    port "http" {
+                    }
+                    # Request for a static port
+                    port "https" {
+                        static = 443
+                    }
                 }
             }
         }
@@ -177,6 +189,12 @@ The `task` object supports the following keys:
 * `config` - A map of key/value configuration passed into the driver
   to start the task. The details of configurations are specific to
   each driver.
+
+* `service` - Nomad integrates with Consul for Service Discovery. A service 
+  block represents a rotable and discoverable service on the network. Nomad
+  automatically registers when a Task is started and de-registers it when the
+  Task transitons to the DEAD state. See the Service Discovery section
+  for more details. To learn more about Services please visit [here](/docs/jobspec/servicediscovery.html.md)
 
 * `env` - A map of key/value representing environment variables that
   will be passed along to the running process.
