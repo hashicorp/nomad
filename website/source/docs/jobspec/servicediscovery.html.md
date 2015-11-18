@@ -4,7 +4,7 @@ page_title: "Service Discovery in Nomad"
 sidebar_current: "docs-jobspec-service-discovery"
 description: |-
   Learn how to add service discovery to jobs
-  ---
+---
 
 # Service Discovery
 
