@@ -256,42 +256,42 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, dri
 
 		for _, port := range network.ReservedPorts {
 			hostPortStr := strconv.Itoa(port.Value)
-			dockerPort := docker.Port(hostPortStr)
+			containerPort := docker.Port(hostPortStr)
 
-			publishedPorts[dockerPort+"/tcp"] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: hostPortStr}}
-			publishedPorts[dockerPort+"/udp"] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: hostPortStr}}
+			publishedPorts[containerPort+"/tcp"] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: hostPortStr}}
+			publishedPorts[containerPort+"/udp"] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: hostPortStr}}
 			d.logger.Printf("[DEBUG] driver.docker: allocated port %s:%d -> %d (static)", network.IP, port.Value, port.Value)
 
-			exposedPorts[dockerPort+"/tcp"] = struct{}{}
-			exposedPorts[dockerPort+"/udp"] = struct{}{}
+			exposedPorts[containerPort+"/tcp"] = struct{}{}
+			exposedPorts[containerPort+"/udp"] = struct{}{}
 			d.logger.Printf("[DEBUG] driver.docker: exposed port %d", port.Value)
 		}
 
 		containerToHostPortMap := make(map[string]int)
 		for _, port := range network.DynamicPorts {
 			// By default we will map the allocated port 1:1 to the container
-			containerPort := port.Value
+			containerPortInt := port.Value
 
 			// If the user has mapped a port using port_map we'll change it here
 			if len(driverConfig.PortMap) == 1 {
 				mapped, ok := driverConfig.PortMap[0][port.Label]
 				if ok {
-					containerPort = mapped
+					containerPortInt = mapped
 				}
 			}
 
-			containerPortStr := docker.Port(strconv.Itoa(containerPort))
 			hostPortStr := strconv.Itoa(port.Value)
+			containerPort := docker.Port(hostPortStr)
 
-			publishedPorts[containerPortStr+"/tcp"] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: hostPortStr}}
-			publishedPorts[containerPortStr+"/udp"] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: hostPortStr}}
-			d.logger.Printf("[DEBUG] driver.docker: allocated port %s:%d -> %d (mapped)", network.IP, port.Value, containerPort)
+			publishedPorts[containerPort+"/tcp"] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: hostPortStr}}
+			publishedPorts[containerPort+"/udp"] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: hostPortStr}}
+			d.logger.Printf("[DEBUG] driver.docker: allocated port %s:%d -> %d (mapped)", network.IP, port.Value, containerPortInt)
 
-			exposedPorts[containerPortStr+"/tcp"] = struct{}{}
-			exposedPorts[containerPortStr+"/udp"] = struct{}{}
+			exposedPorts[containerPort+"/tcp"] = struct{}{}
+			exposedPorts[containerPort+"/udp"] = struct{}{}
 			d.logger.Printf("[DEBUG] driver.docker: exposed port %s", hostPortStr)
 
-			containerToHostPortMap[string(containerPortStr)] = port.Value
+			containerToHostPortMap[string(containerPort)] = port.Value
 		}
 
 		env.SetPorts(containerToHostPortMap)
