@@ -272,14 +272,15 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, dri
 		exposedPorts := map[docker.Port]struct{}{}
 
 		for _, port := range network.ReservedPorts {
-			portStr := docker.Port(port.Value)
+			hostPortStr := strconv.Itoa(port.Value)
+			dockerPort := docker.Port(hostPortStr)
 
-			publishedPorts[portStr+"/tcp"] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: strconv.Itoa(port.Value)}}
-			publishedPorts[portStr+"/udp"] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: strconv.Itoa(port.Value)}}
+			publishedPorts[dockerPort+"/tcp"] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: hostPortStr}}
+			publishedPorts[dockerPort+"/udp"] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: hostPortStr}}
 			d.logger.Printf("[DEBUG] driver.docker: allocated port %s:%d -> %d (static)\n", network.IP, port.Value, port.Value)
 
-			exposedPorts[portStr+"/tcp"] = struct{}{}
-			exposedPorts[portStr+"/udp"] = struct{}{}
+			exposedPorts[dockerPort+"/tcp"] = struct{}{}
+			exposedPorts[dockerPort+"/udp"] = struct{}{}
 			d.logger.Printf("[DEBUG] driver.docker: exposed port %d\n", port.Value)
 		}
 
