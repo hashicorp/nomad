@@ -336,7 +336,7 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	alloc1.NodeID = c1.Node().ID
 	task := alloc1.Job.TaskGroups[0].Tasks[0]
 	task.Config["command"] = "/bin/sleep"
-	task.Config["args"] = "10"
+	task.Config["args"] = []string{"10"}
 
 	state := s1.State()
 	err := state.UpsertAllocs(100,

@@ -112,7 +112,7 @@ func Executor_Start_Wait(t *testing.T, command buildExecCommand) {
 	expected := "hello world"
 	file := filepath.Join(allocdir.TaskLocal, "output.txt")
 	absFilePath := filepath.Join(taskDir, file)
-	cmd := fmt.Sprintf(`"%v \"%v\" > %v"`, "/bin/sleep 1 ; echo -n", expected, file)
+	cmd := fmt.Sprintf(`/bin/sleep 1 ; echo -n %v > %v`, expected, file)
 	e := command("/bin/bash", "-c", cmd)
 
 	if err := e.Limit(constraint); err != nil {
@@ -190,7 +190,7 @@ func Executor_Open(t *testing.T, command buildExecCommand, newExecutor func() Ex
 	expected := "hello world"
 	file := filepath.Join(allocdir.TaskLocal, "output.txt")
 	absFilePath := filepath.Join(taskDir, file)
-	cmd := fmt.Sprintf(`"%v \"%v\" > %v"`, "/bin/sleep 1 ; echo -n", expected, file)
+	cmd := fmt.Sprintf(`/bin/sleep 1 ; echo -n %v > %v`, expected, file)
 	e := command("/bin/bash", "-c", cmd)
 
 	if err := e.Limit(constraint); err != nil {

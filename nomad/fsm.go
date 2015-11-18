@@ -13,13 +13,6 @@ import (
 	"github.com/hashicorp/raft"
 )
 
-var (
-	msgpackHandle = &codec.MsgpackHandle{
-		RawToString: true,
-		WriteExt:    true,
-	}
-)
-
 const (
 	// timeTableGranularity is the granularity of index to time tracking
 	timeTableGranularity = 5 * time.Minute
@@ -328,7 +321,7 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 	defer restore.Abort()
 
 	// Create a decoder
-	dec := codec.NewDecoder(old, msgpackHandle)
+	dec := codec.NewDecoder(old, structs.MsgpackHandle)
 
 	// Read in the header
 	var header snapshotHeader
@@ -412,7 +405,7 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "persist"}, time.Now())
 	// Register the nodes
-	encoder := codec.NewEncoder(sink, msgpackHandle)
+	encoder := codec.NewEncoder(sink, structs.MsgpackHandle)
 
 	// Write the header
 	header := snapshotHeader{}

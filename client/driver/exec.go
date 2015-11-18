@@ -24,10 +24,10 @@ type ExecDriver struct {
 	fingerprint.StaticFingerprinter
 }
 type ExecDriverConfig struct {
-	ArtifactSource string `mapstructure:"artifact_source"`
-	Checksum       string `mapstructure:"checksum"`
-	Command        string `mapstructure:"command"`
-	Args           string `mapstructure:"args"`
+	ArtifactSource string   `mapstructure:"artifact_source"`
+	Checksum       string   `mapstructure:"checksum"`
+	Command        string   `mapstructure:"command"`
+	Args           []string `mapstructure:"args"`
 }
 
 // execHandle is returned from Start/Open as a handle to the PID
@@ -91,14 +91,8 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	// Get the environment variables.
 	envVars := TaskEnvironmentVariables(ctx, task)
 
-	// Look for arguments
-	var args []string
-	if driverConfig.Args != "" {
-		args = append(args, driverConfig.Args)
-	}
-
 	// Setup the command
-	cmd := executor.Command(command, args...)
+	cmd := executor.Command(command, driverConfig.Args...)
 	if err := cmd.Limit(task.Resources); err != nil {
 		return nil, fmt.Errorf("failed to constrain resources: %s", err)
 	}

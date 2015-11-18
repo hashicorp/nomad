@@ -19,13 +19,13 @@ and cleaning up after containers.
 The `docker` driver supports the following configuration in the job
 specification:
 
-* `image` - (Required) The Docker image to run. The image may include a tag or
+* `image` - The Docker image to run. The image may include a tag or
   custom URL. By default it will be fetched from Docker Hub.
 
 * `command` - (Optional) The command to run when starting the container.
 
-* `args` - (Optional) Arguments to the optional `command`. If no `command` is
-  present, `args` are ignored.
+* `args` - (Optional) A list of arguments to the optional `command`. If no
+  `command` is present, `args` are ignored.
 
 * `network_mode` - (Optional) The network mode to be used for the container. In
   order to support userspace networking plugins in Docker 1.9 this accepts any
