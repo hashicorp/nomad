@@ -212,7 +212,7 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, dri
 	//  set privileged mode
 	hostPrivileged := d.config.ReadBoolDefault("docker.privileged.enabled", false)
 	if driverConfig.Privileged && !hostPrivileged {
-		return c, fmt.Errorf(`Unable to set privileged flag since "docker.privileged.enabled" is false`)
+		return c, fmt.Errorf(`Docker privileged mode is disabled on this Nomad agent`)
 	}
 	hostConfig.Privileged = hostPrivileged
 
@@ -416,8 +416,46 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	// Create a container
 	container, err := client.CreateContainer(config)
 	if err != nil {
-		d.logger.Printf("[ERR] driver.docker: failed to create container from image %s: %s\n", image, err)
-		return nil, fmt.Errorf("Failed to create container from image %s: %s", image, err)
+		// If the container already exists because of a previous failure we'll
+		// try to purge it and re-create it.
+		if err.Error() == "container already exists" {
+			// Get the ID of the existing container so we can delete it
+			containers, err := client.ListContainers(docker.ListContainersOptions{
+				// The image might be in use by a stopped container, so check everything
+				All: true,
+				Filters: map[string][]string{
+					"name": []string{config.Name},
+				},
+			})
+			if err != nil {
+				log.Printf("[ERR] driver.docker: failed to query list of containers matching name:%s\n", config.Name)
+				return nil, fmt.Errorf("Failed to query list of containers: %s", err)
+			}
+
+			if len(containers) != 1 {
+				log.Printf("[ERR] driver.docker: failed to get id for container %s\n", config.Name)
+				return nil, fmt.Errorf("Failed to get id for container %s", config.Name, err)
+			}
+
+			log.Printf("[INFO] driver.docker: a container with the name %s already exists; will attempt to purge and re-create\n", config.Name)
+			err = client.RemoveContainer(docker.RemoveContainerOptions{
+				ID: containers[0].ID,
+			})
+			if err != nil {
+				log.Printf("[ERR] driver.docker: failed to purge container %s\n", config.Name)
+				return nil, fmt.Errorf("Failed to purge container %s: %s", config.Name, err)
+			}
+			log.Printf("[INFO] driver.docker: purged container %s\n", config.Name)
+			container, err = client.CreateContainer(config)
+			if err != nil {
+				log.Printf("[ERR] driver.docker: failed to re-create container %s; aborting\n", config.Name)
+				return nil, fmt.Errorf("Failed to re-create container %s; aborting", config.Name)
+			}
+		} else {
+			// We failed to create the container for some other reason.
+			d.logger.Printf("[ERR] driver.docker: failed to create container from image %s: %s\n", image, err)
+			return nil, fmt.Errorf("Failed to create container from image %s: %s", image, err)
+		}
 	}
 	d.logger.Printf("[INFO] driver.docker: created container %s\n", container.ID)
 
@@ -555,11 +593,12 @@ func (h *dockerHandle) Kill() error {
 				},
 			})
 			if err != nil {
-				return fmt.Errorf("Unable to query list of containers: %s", err)
+				log.Printf("[ERR] driver.docker: failed to query list of containers matching image:%s\n", h.imageID)
+				return fmt.Errorf("Failed to query list of containers: %s", err)
 			}
 			inUse := len(containers)
 			if inUse > 0 {
-				log.Printf("[INFO] driver.docker: image %s is still in use by %d containers\n", h.imageID, inUse)
+				log.Printf("[INFO] driver.docker: image %s is still in use by %d container(s)\n", h.imageID, inUse)
 			} else {
 				return fmt.Errorf("Failed to remove image %s", h.imageID)
 			}
@@ -574,7 +613,7 @@ func (h *dockerHandle) run() {
 	// Wait for it...
 	exitCode, err := h.client.WaitContainer(h.containerID)
 	if err != nil {
-		h.logger.Printf("[ERR] driver.docker: unable to wait for %s; container already terminated\n", h.containerID)
+		h.logger.Printf("[ERR] driver.docker: failed to wait for %s; container already terminated\n", h.containerID)
 	}
 
 	if exitCode != 0 {
