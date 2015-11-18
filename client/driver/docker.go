@@ -440,8 +440,7 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 	// Split the handle
 	pidBytes := []byte(strings.TrimPrefix(handleID, "DOCKER:"))
 	pid := &dockerPID{}
-	err := json.Unmarshal(pidBytes, pid)
-	if err != nil {
+	if err := json.Unmarshal(pidBytes, pid); err != nil {
 		return nil, fmt.Errorf("Failed to parse handle '%s': %v", handleID, err)
 	}
 	d.logger.Printf("[INFO] driver.docker: re-attaching to docker process: %s\n", handleID)
