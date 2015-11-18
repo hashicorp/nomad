@@ -56,11 +56,13 @@ specification:
 following authentication parameters.  These options can provide access to
 private repositories that utilize the docker remote api (e.g. dockerhub,
 quay.io)
-    - `auth.username` - (Optional) The account username
-    - `auth.password` - (Optional) The account password
-    - `auth.email` - (Optional) The account email
-    - `auth.server-address` - (Optional) The server domain/ip without the
-      protocol
+
+The `auth` object supports the following keys:
+
+* `username` - (Optional) The account username.
+* `password` - (Optional) The account password.
+* `email` - (Optional) The account email.
+* `server_address` - (Optional) The server domain/ip without the protocol.
 
 ### Port Mapping
 
