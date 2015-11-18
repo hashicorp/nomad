@@ -1711,7 +1711,6 @@ var MsgpackHandle = func() *codec.MsgpackHandle {
 	// This is necessary in particular because we store the driver configs as a
 	// nil interface{}.
 	h.MapType = reflect.TypeOf(map[string]interface{}(nil))
-	h.SliceType = reflect.TypeOf([]string{})
 	return h
 }()
 
