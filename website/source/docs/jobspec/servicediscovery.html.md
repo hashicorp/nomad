@@ -63,15 +63,18 @@ group "database" {
 
 ```
 
-* `name`: Nomad automatically determines the name of a Task By default the name
+* `name`: Nomad automatically determines the name of a Task. By default the name
   of a service is $(job-name)-$(task-group)-$(task-name). Users can explictly
-  name the service by specifying this option.
+  name the service by specifying this option. If multiple services are defined
+  for a Task then all the services have to be explictly named. Nomad will add
+  the prefix $(job-name)-${task-group}-${task-name} prefix to each user defined
+  names.
 
 * `tags`: A list of tags associated with this Service.
 
 * `port`: The port indicates the port associated with the Service. Users are
   reruired to specify a valid port label here which they have defined in the
-  resources block. This could be a label to either a dynamic or static port. If
+  resources block. This could be a label to either a dynamic or a static port. If
   an incorrect port label is specified, Nomad doesn't register the service with
   Consul.
 
@@ -100,6 +103,8 @@ group "database" {
 
 
 ## Assumptions 
+
+* Consul 0.6 is needed for using the TCP checks.
 
 * The Service Discovery feature in Nomad depends on Operators making sure that the
   Nomad client can reach the consul agent.
