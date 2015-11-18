@@ -40,17 +40,13 @@ IMPROVEMENTS:
   * client: Task State is tracked by client [GH-416]
   * client: Test Skip Detection [GH-221]
   * driver/docker: Advanced docker driver options [GH-390]
-  * driver/docker: Docker hostname can be set [GH-426]
-<<<<<<< Updated upstream
-  * driver/docker: Mount task local and alloc directory to docker containers
-    [GH-290]
-  * driver/docker: Pass JVM options in java driver [GH-293, GH-297]
-  * drivers: Use BlkioWeight rather than BlkioThrottleReadIopsDevice [GH-222]
-  * jobspec and drivers: Driver configuration supports arbitrary struct to be
-    passed in jobspec [GH-415]
-=======
   * driver/docker: Docker container name can be set [GH-389]
->>>>>>> Stashed changes
+  * driver/docker: Docker hostname can be set [GH-426]
+  * driver/docker: Mount task local and alloc directory to docker containers [GH-290]
+  * driver/docker: Now accepts any value for `network_mode` to support userspace networking plugins in docker 1.9
+  * driver/java: Pass JVM options in java driver [GH-293, GH-297]
+  * drivers: Use BlkioWeight rather than BlkioThrottleReadIopsDevice [GH-222]
+  * jobspec and drivers: Driver configuration supports arbitrary struct to be passed in jobspec [GH-415]
 
 BUG FIXES:
 
