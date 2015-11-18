@@ -6,6 +6,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"log"
+	"net/url"
 	"sync"
 	"time"
 )
@@ -180,7 +181,15 @@ func (c *ConsulClient) makeChecks(service *structs.Service, ip string, port int)
 		}
 		switch check.Type {
 		case structs.ServiceCheckHTTP:
-			c.HTTP = fmt.Sprintf("%s://%s:%d/%s", check.Protocol, ip, port, check.Http)
+			if check.Protocol == "" {
+				check.Protocol = "http"
+			}
+			url := url.URL{
+				Scheme: check.Protocol,
+				Host:   fmt.Sprintf("%s:%d", ip, port),
+				Path:   check.Path,
+			}
+			c.HTTP = url.String()
 		case structs.ServiceCheckTCP:
 			c.TCP = fmt.Sprintf("%s:%d", ip, port)
 		case structs.ServiceCheckScript:

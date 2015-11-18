@@ -98,7 +98,7 @@ group "database" {
   of the health check endpoint.
 
 * `protocol`: This indicates the protocol for the http checks. Valid options
-  are `http` and `https`.
+  are `http` and `https`. We default it to `http`
 
 ## Assumptions
 
