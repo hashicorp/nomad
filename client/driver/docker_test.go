@@ -293,7 +293,7 @@ func taskTemplate() *structs.Task {
 				&structs.NetworkResource{
 					IP:            "127.0.0.1",
 					ReservedPorts: []structs.Port{{"main", 11110}},
-					DynamicPorts:  []structs.Port{{"REDIS", 0}},
+					DynamicPorts:  []structs.Port{{"REDIS", 43330}},
 				},
 			},
 		},
@@ -307,12 +307,15 @@ func TestDocker_StartN(t *testing.T) {
 
 	task1 := taskTemplate()
 	task1.Resources.Networks[0].ReservedPorts[0] = structs.Port{"main", 11110}
+	task1.Resources.Networks[0].DynamicPorts[0] = structs.Port{"REDIS", 43331}
 
 	task2 := taskTemplate()
 	task2.Resources.Networks[0].ReservedPorts[0] = structs.Port{"main", 22222}
+	task2.Resources.Networks[0].DynamicPorts[0] = structs.Port{"REDIS", 43332}
 
 	task3 := taskTemplate()
 	task3.Resources.Networks[0].ReservedPorts[0] = structs.Port{"main", 33333}
+	task3.Resources.Networks[0].DynamicPorts[0] = structs.Port{"REDIS", 43333}
 
 	taskList := []*structs.Task{task1, task2, task3}
 
@@ -359,14 +362,17 @@ func TestDocker_StartNVersions(t *testing.T) {
 	task1 := taskTemplate()
 	task1.Config["image"] = "redis"
 	task1.Resources.Networks[0].ReservedPorts[0] = structs.Port{"main", 11110}
+	task1.Resources.Networks[0].DynamicPorts[0] = structs.Port{"REDIS", 43331}
 
 	task2 := taskTemplate()
 	task2.Config["image"] = "redis:latest"
 	task2.Resources.Networks[0].ReservedPorts[0] = structs.Port{"main", 22222}
+	task2.Resources.Networks[0].DynamicPorts[0] = structs.Port{"REDIS", 43332}
 
 	task3 := taskTemplate()
 	task3.Config["image"] = "redis:3.0"
 	task3.Resources.Networks[0].ReservedPorts[0] = structs.Port{"main", 33333}
+	task3.Resources.Networks[0].DynamicPorts[0] = structs.Port{"REDIS", 43333}
 
 	taskList := []*structs.Task{task1, task2, task3}
 
