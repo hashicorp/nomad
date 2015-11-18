@@ -545,3 +545,9 @@ func TestDockerDNS(t *testing.T) {
 		t.Errorf("DNS Servers don't match.\nExpected:\n%s\nGot:\n%s\n", task.Config["dns_search_domains"], container.HostConfig.DNSSearch)
 	}
 }
+
+func TestDockerAuth(t *testing.T) {
+	if !dockerIsConnected(t) {
+		t.SkipNow()
+	}
+}
