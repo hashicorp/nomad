@@ -153,6 +153,10 @@ The `group` object supports the following keys:
 * `constraint` - This can be provided multiple times to define additional
   constraints. See the constraint reference for more details.
 
+* `restart` - Specifies the restart policy to be applied to tasks in this group.
+  If omitted, a default policy for batch and non-batch jobs is used based on the
+  job type. See the restart policy reference for more details.
+
 * `task` - This can be specified multiple times, to add a task as
   part of the group.
 
@@ -209,6 +213,43 @@ The `network` object supports the following keys:
   For applications that cannot use a dynamic port, they can
   request a specific port.
 
+### Restart Policy
+
+The `restart` object supports the following keys:
+
+* `attempts` - For `batch` jobs, `attempts` is the maximum number of restarts
+  allowed before the task is failed. For non-batch jobs, the `attempts` is the
+  number of restarts allowed in an `interval` before a restart delay is added.
+
+* `interval` - `interval` is only valid on non-batch jobs and is a time duration
+  that can be specified using the "s", "m", and "h" suffixes, such as "30s".
+  The `interval` begins when the first task starts and ensures that only
+  `attempts` number of restarts happens within it. If more than `attempts`
+  number of failures happen, the restart is delayed till after the `interval`,
+  which is then reset.
+
+* `delay` - A duration to wait before restarting a task. It is specified as a
+  time duration using the "s", "m", and "h" suffixes, such as "30s".
+
+The default `batch` restart policy is:
+
+```
+restart {
+    attempts = 15
+    delay = "15s"
+}
+```
+
+The default non-batch restart policy is: 
+
+```
+restart {
+    interval = "1m"
+    attempts = 2
+    delay = "15s"
+}
+```
+
 ### Constraint
 
 The `constraint` object supports the following keys:
@@ -234,17 +275,17 @@ The `constraint` object supports the following keys:
   the attribute. This sets the operator to "regexp" and the `value`
   to the regular expression.
 
-* `distinct_hosts` - `distinct_hosts` accepts a boolean `true`. The default is
-  `false`.
+*   `distinct_hosts` - `distinct_hosts` accepts a boolean `true`. The default is
+    `false`.
 
-  When `distinct_hosts` is `true` at the Job level, each instance of all Task
-  Groups specified in the job is placed on a separate host.
+    When `distinct_hosts` is `true` at the Job level, each instance of all Task
+    Groups specified in the job is placed on a separate host.
 
-  When `distinct_hosts` is `true` at the Task Group level with count > 1, each
-  instance of a Task Group is placed on a separate host. Different task groups in
-  the same job _may_ be co-scheduled.
+    When `distinct_hosts` is `true` at the Task Group level with count > 1, each
+    instance of a Task Group is placed on a separate host. Different task groups in
+    the same job _may_ be co-scheduled.
 
-  Tasks within a task group are always co-scheduled.
+    Tasks within a task group are always co-scheduled.
 
 Below is a table documenting the variables that can be interpreted:
 
