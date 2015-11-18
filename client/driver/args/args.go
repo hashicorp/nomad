@@ -9,13 +9,13 @@ var (
 // ParseAndReplace takes the user supplied args and a map of environment
 // variables. It replaces any instance of an environment variable in the args
 // with the actual value.
-func ParseAndReplace(args []string, env map[string]string) ([]string, error) {
+func ParseAndReplace(args []string, env map[string]string) []string {
 	replaced := make([]string, len(args))
 	for i, arg := range args {
 		replaced[i] = ReplaceEnv(arg, env)
 	}
 
-	return replaced, nil
+	return replaced
 }
 
 // ReplaceEnv takes an arg and replaces all occurences of environment variables.

@@ -293,10 +293,7 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, dri
 		config.ExposedPorts = exposedPorts
 	}
 
-	parsedArgs, err := args.ParseAndReplace(driverConfig.Args, env.Map())
-	if err != nil {
-		return c, err
-	}
+	parsedArgs := args.ParseAndReplace(driverConfig.Args, env.Map())
 
 	// If the user specified a custom command to run as their entrypoint, we'll
 	// inject it here.

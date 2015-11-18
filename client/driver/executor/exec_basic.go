@@ -62,11 +62,7 @@ func (e *BasicExecutor) Start() error {
 	}
 
 	e.cmd.Path = args.ReplaceEnv(e.cmd.Path, envVars.Map())
-	parsed, err := args.ParseAndReplace(e.cmd.Args, envVars.Map())
-	if err != nil {
-		return err
-	}
-	e.cmd.Args = parsed
+	e.cmd.Args = args.ParseAndReplace(e.cmd.Args, envVars.Map())
 
 	spawnState := filepath.Join(e.allocDir, fmt.Sprintf("%s_%s", e.taskName, "exit_status"))
 	e.spawn = spawn.NewSpawner(spawnState)
