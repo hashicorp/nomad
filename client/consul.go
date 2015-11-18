@@ -29,11 +29,15 @@ func NewConsulClient() (*ConsulClient, error) {
 	return &consulClient, nil
 }
 
-func (c *ConsulClient) Register(task *structs.Task, allocID string, port int, host string) error {
+func (c *ConsulClient) Register(task *structs.Task, allocID string) error {
 	var mErr multierror.Error
-	serviceDefns := make([]*api.AgentServiceRegistration, len(task.Services))
+	var serviceDefns []*api.AgentServiceRegistration
 	for idx, service := range task.Services {
 		service.Id = fmt.Sprintf("%s-%s", allocID, task.Name)
+		host, port := c.findPortAndHostForLabel(service.PortLabel, task)
+		if host == "" || port == 0 {
+			continue
+		}
 		asr := &api.AgentServiceRegistration{
 			ID:      service.Id,
 			Name:    service.Name,
@@ -61,4 +65,18 @@ func (c *ConsulClient) DeRegister(task *structs.Task) error {
 		}
 	}
 	return mErr.ErrorOrNil()
+}
+
+func (c *ConsulClient) findPortAndHostForLabel(portLabel string, task *structs.Task) (string, int) {
+	var host string
+	var port int
+	for _, network := range task.Resources.Networks {
+		if p, ok := network.MapLabelToValues()[portLabel]; ok {
+			host = network.IP
+			port = p
+			break
+		}
+	}
+
+	return host, port
 }

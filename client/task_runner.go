@@ -234,20 +234,7 @@ func (r *TaskRunner) run() {
 		destroyed := false
 
 		// Register the services defined by the task with Consil
-		for _, service := range r.task.Services {
-			portLabel := service.PortLabel
-			var port int
-			var host string
-			for _, network := range r.task.Resources.Networks {
-				if p, ok := network.MapLabelToValues()[portLabel]; ok {
-					port = p
-					host = network.IP
-					break
-				}
-			}
-
-			r.consulClient.Register(r.task, r.allocID, port, host)
-		}
+		r.consulClient.Register(r.task, r.allocID)
 
 	OUTER:
 		// Wait for updates
