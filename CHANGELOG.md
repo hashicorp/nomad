@@ -39,9 +39,10 @@ IMPROVEMENTS:
   * client: Precise snapshotting of TaskRunner and AllocRunner [GH-403, GH-411]
   * client: Task State is tracked by client [GH-416]
   * client: Test Skip Detection [GH-221]
-  * driver/docker: Advanced docker driver options [GH-390]
-  * driver/docker: Docker container name can be set [GH-389]
-  * driver/docker: Docker hostname can be set [GH-426]
+  * driver/docker: Can now specify auth for docker pull [GH-390]
+  * driver/docker: Can now specify DNS and DNSSearch options [GH-390]
+  * driver/docker: Can now specify the container's hostname [GH-426]
+  * driver/docker: Containers now have names based on the task name. [GH-389]
   * driver/docker: Mount task local and alloc directory to docker containers [GH-290]
   * driver/docker: Now accepts any value for `network_mode` to support userspace networking plugins in docker 1.9
   * driver/java: Pass JVM options in java driver [GH-293, GH-297]
