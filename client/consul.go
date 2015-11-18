@@ -51,6 +51,7 @@ func NewConsulClient(logger *log.Logger, consulAddr string) (*ConsulClient, erro
 func (c *ConsulClient) Register(task *structs.Task, allocID string) error {
 	var mErr multierror.Error
 	for _, service := range task.Services {
+		c.logger.Printf("[INFO] Registering service %s with Consul.", service.Name)
 		if err := c.registerService(service, task, allocID); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 		}
