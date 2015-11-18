@@ -81,7 +81,7 @@ where a task is eligible for running. An example constraint looks like:
 ```
 # Restrict to only nodes running linux
 constraint {
-    attribute = "$attr.kernel.os"
+    attribute = "$attr.kernel.name"
     value = "linux"
 }
 ```
@@ -344,6 +344,14 @@ Below is a table documenting common node attributes:
     <td>Hostname of the client</td>
   </tr>
   <tr>
+    <td>kernel.name</td>
+    <td>Kernel of the client. Examples: "linux", "darwin"</td>
+  </tr>
+  <tr>
+    <td>kernel.version</td>
+    <td>Version of the client kernel. Examples: "3.19.0-25-generic", "15.0.0"</td>
+  </tr>
+  <tr>
     <td>platform.aws.ami-id</td>
     <td>On EC2, the AMI ID of the client node</td>
   </tr>
@@ -353,7 +361,7 @@ Below is a table documenting common node attributes:
   </tr>
   <tr>
     <td>os.name</td>
-    <td>Operating system of the client. Examples: "linux", "windows", "darwin"</td>
+    <td>Operating system of the client. Examples: "ubuntu", "windows", "darwin"</td>
   </tr>
   <tr>
     <td>os.version</td>
