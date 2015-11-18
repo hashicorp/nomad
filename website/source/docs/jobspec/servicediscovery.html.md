@@ -8,30 +8,27 @@ description: |-
 
 # Service Discovery
 
-Nomad enables dynamic scheduling on compute resources to run services at scale
-on compute nodes. Size of an application cluster varies depending
-on volume of traffic, health of services, etc thereby the network topology of
-services are constanly changing. This introduces the challenge of discovery of services, 
-Nomad solves this problem by integrating with [Consul](https://consul.io) to provide service
-discovery and health checks of services.
+Nomad schedules workloads of various types across a cluster of generic hosts.
+Because of this, placement is not known in advance and you will need to use
+service discovery to connect tasks to other services deployed across your
+cluster. Nomad integrates with [Consul](https://consul.io) to provide service
+discovery and monitoring.
 
-Operators have to run Consul agents on a Nomad compute node. Nomad also makes
-running an application like Consul agent on every single node in a data centre
-simple by providing system jobs. Nomad connects to Consul on it's default http
-port but operators can override it.
+Note that in order to use Consul with Nomad, you will need to configure and
+install Consul on your nodes alongside Nomad, or schedule it as a system job.
+Nomad does not currently run Consul for you.
 
 ## Configuration
 
-* `consul.address`: This is a Nomad client config which can be used to override
+* `consul.address`: This is a Nomad client configuration which can be used to override
   the default Consul Agent HTTP port that Nomad uses to connect to Consul. The
   default for this is "127.0.0.1:8500"
 
-## Service Deginition Syntax
+## Service Definition Syntax
 
 The service blocks in a Task definition defines a service which Nomad will
 register with Consul. Multiple Service blocks are allowed in a Task definition,
-which makes it usable for cases when an application listens on multiple ports
-each exposing a specific service.
+which allow registering multiple services for a task that exposes multiple ports.
 
 ### Example 
 
@@ -49,7 +46,7 @@ group "database" {
                 timeout = "2s"
             }
         }
-        reources {
+        resources {
             cpu = 500
             memory = 1024
             network {
@@ -64,22 +61,22 @@ group "database" {
 ```
 
 * `name`: Nomad automatically determines the name of a Task. By default the name
-  of a service is $(job-name)-$(task-group)-$(task-name). Users can explictly
+  of a service is $(job-name)-$(task-group)-$(task-name). Users can explicitly
   name the service by specifying this option. If multiple services are defined
-  for a Task then all the services have to be explictly named. Nomad will add
-  the prefix $(job-name)-${task-group}-${task-name} prefix to each user defined
-  names.
+  for a Task then only one task can have the default name, all the services have 
+  to be explicitly named. Nomad will add the prefix ```$(job-name)-${task-group}-${task-name}``` 
+  prefix to each user defined name.
 
 * `tags`: A list of tags associated with this Service.
 
 * `port`: The port indicates the port associated with the Service. Users are
-  reruired to specify a valid port label here which they have defined in the
+  required to specify a valid port label here which they have defined in the
   resources block. This could be a label to either a dynamic or a static port. If
   an incorrect port label is specified, Nomad doesn't register the service with
   Consul.
 
 * `check`: A check block defines a health check associated with the service.
-  Mutliple check blocks are allowed for a service. Nomad currently supports only
+  Multiple check blocks are allowed for a service. Nomad currently supports only
   the `http` and `tcp` Consul Checks.
 
 ### Check Syntax 
