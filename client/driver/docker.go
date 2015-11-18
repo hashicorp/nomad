@@ -25,21 +25,25 @@ type DockerDriver struct {
 	fingerprint.StaticFingerprinter
 }
 
+type DockerDriverAuth struct {
+	Username      string `mapstructure:"username"`       // username for the registry
+	Password      string `mapstructure:"password"`       // password to access the registry
+	Email         string `mapstructure:"email"`          // email address of the user who is allowed to access the registry
+	ServerAddress string `mapstructure:"server_address"` // server address of the registry
+}
+
 type DockerDriverConfig struct {
-	ImageName     string              `mapstructure:"image"`               // Container's Image Name
-	Command       string              `mapstructure:"command"`             // The Command/Entrypoint to run when the container starts up
-	Args          string              `mapstructure:"args"`                // The arguments to the Command/Entrypoint
-	NetworkMode   string              `mapstructure:"network_mode"`        // The network mode of the container - host, net and none
-	PortMap       []map[string]int    `mapstructure:"port_map"`            // A map of host port labels and the ports exposed on the container
-	Privileged    bool                `mapstructure:"privileged"`          // Flag to run the container in priviledged mode
-	DNS           string              `mapstructure:"dns_server"`          // DNS Server for containers
-	SearchDomains string              `mapstructure:"search_domains"`      // DNS Search domains for containers
-	Hostname      string              `mapstructure:"hostname"`            // Hostname for containers
-	Labels        []map[string]string `mapstructure:"labels"`              // Labels to set when the container starts up
-	UserName      string              `mapstructure:"auth_username"`       // user name of the registry
-	Password      string              `mapstructure:"auth_password"`       // password to access the registry
-	Email         string              `mapstructure:"auth_email"`          // email address of the user who is allowed to access the registry
-	ServerAddress string              `mapstructure:"auth_server_address"` // server address of the registry
+	ImageName     string              `mapstructure:"image"`          // Container's Image Name
+	Command       string              `mapstructure:"command"`        // The Command/Entrypoint to run when the container starts up
+	Args          string              `mapstructure:"args"`           // The arguments to the Command/Entrypoint
+	NetworkMode   string              `mapstructure:"network_mode"`   // The network mode of the container - host, net and none
+	PortMap       []map[string]int    `mapstructure:"port_map"`       // A map of host port labels and the ports exposed on the container
+	Privileged    bool                `mapstructure:"privileged"`     // Flag to run the container in priviledged mode
+	DNS           string              `mapstructure:"dns_server"`     // DNS Server for containers
+	SearchDomains string              `mapstructure:"search_domains"` // DNS Search domains for containers
+	Hostname      string              `mapstructure:"hostname"`       // Hostname for containers
+	Labels        []map[string]string `mapstructure:"labels"`         // Labels to set when the container starts up
+	Auth          []DockerDriverAuth  `mapstructure:"auth"`           // Authentication credentials for a private Docker registry
 }
 
 func (c *DockerDriverConfig) Validate() error {
@@ -380,16 +384,16 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 			Tag:        tag,
 		}
 
-		authOptions := docker.AuthConfiguration{
-			Username:      driverConfig.UserName,
-			Password:      driverConfig.Password,
-			Email:         driverConfig.Email,
-			ServerAddress: driverConfig.ServerAddress,
+		authOptions := docker.AuthConfiguration{}
+		if len(driverConfig.Auth) != 0 {
+			authOptions = docker.AuthConfiguration{
+				Username:      driverConfig.Auth[0].Username,
+				Password:      driverConfig.Auth[0].Password,
+				Email:         driverConfig.Auth[0].Email,
+				ServerAddress: driverConfig.Auth[0].ServerAddress,
+			}
 		}
 
-		d.logger.Printf("[DEBUG] TASKCONFIG: %v", task.Config)
-		d.logger.Printf("[DEBUG] DRIVERCONFIG: %v", driverConfig)
-		d.logger.Printf("[DEBUG] AUTH: %v", authOptions)
 		err = client.PullImage(pullOptions, authOptions)
 		if err != nil {
 			d.logger.Printf("[ERR] driver.docker: failed pulling container %s:%s: %s", repo, tag, err)
