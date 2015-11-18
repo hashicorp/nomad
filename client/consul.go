@@ -68,15 +68,10 @@ func (c *ConsulClient) DeRegister(task *structs.Task) error {
 }
 
 func (c *ConsulClient) findPortAndHostForLabel(portLabel string, task *structs.Task) (string, int) {
-	var host string
-	var port int
 	for _, network := range task.Resources.Networks {
 		if p, ok := network.MapLabelToValues()[portLabel]; ok {
-			host = network.IP
-			port = p
-			break
+			return network.IP, p
 		}
 	}
-
-	return host, port
+	return "", 0
 }
