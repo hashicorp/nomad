@@ -37,8 +37,8 @@ type RktDriver struct {
 }
 
 type RktDriverConfig struct {
-	ImageName string `mapstructure:"image"`
-	Args      string `mapstructure:"args"`
+	ImageName string   `mapstructure:"image"`
+	Args      []string `mapstructure:"args"`
 }
 
 // rktHandle is returned from Start/Open as a handle to the PID
@@ -150,7 +150,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	}
 
 	// Add user passed arguments.
-	if driverConfig.Args != "" {
+	if len(driverConfig.Args) != 0 {
 		parsed, err := args.ParseAndReplace(driverConfig.Args, envVars.Map())
 		if err != nil {
 			return nil, err

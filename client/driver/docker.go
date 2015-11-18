@@ -35,7 +35,7 @@ type DockerDriverAuth struct {
 type DockerDriverConfig struct {
 	ImageName        string              `mapstructure:"image"`              // Container's Image Name
 	Command          string              `mapstructure:"command"`            // The Command/Entrypoint to run when the container starts up
-	Args             string              `mapstructure:"args"`               // The arguments to the Command/Entrypoint
+	Args             []string            `mapstructure:"args"`               // The arguments to the Command/Entrypoint
 	NetworkMode      string              `mapstructure:"network_mode"`       // The network mode of the container - host, net and none
 	PortMap          []map[string]int    `mapstructure:"port_map"`           // A map of host port labels and the ports exposed on the container
 	Privileged       bool                `mapstructure:"privileged"`         // Flag to run the container in priviledged mode
@@ -302,12 +302,12 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, dri
 	// inject it here.
 	if driverConfig.Command != "" {
 		cmd := []string{driverConfig.Command}
-		if driverConfig.Args != "" {
+		if len(driverConfig.Args) != 0 {
 			cmd = append(cmd, parsedArgs...)
 		}
 		d.logger.Printf("[DEBUG] driver.docker: setting container startup command to: %s", strings.Join(cmd, " "))
 		config.Cmd = cmd
-	} else if driverConfig.Args != "" {
+	} else if len(driverConfig.Args) != 0 {
 		d.logger.Println("[DEBUG] driver.docker: ignoring command arguments because command is not specified")
 	}
 

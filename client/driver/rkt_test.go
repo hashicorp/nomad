@@ -119,7 +119,7 @@ func TestRktDriver_Start_Wait(t *testing.T) {
 			"trust_prefix": "coreos.com/etcd",
 			"image":        "coreos.com/etcd:v2.0.4",
 			"command":      "/etcd",
-			"args":         "--version",
+			"args":         []string{"--version"},
 		},
 	}
 
@@ -160,7 +160,7 @@ func TestRktDriver_Start_Wait_Skip_Trust(t *testing.T) {
 		Config: map[string]interface{}{
 			"image":   "coreos.com/etcd:v2.0.4",
 			"command": "/etcd",
-			"args":    "--version",
+			"args":    []string{"--version"},
 		},
 	}
 
@@ -202,7 +202,7 @@ func TestRktDriver_Start_Wait_Logs(t *testing.T) {
 			"trust_prefix": "coreos.com/etcd",
 			"image":        "coreos.com/etcd:v2.0.4",
 			"command":      "/etcd",
-			"args":         "--version",
+			"args":         []string{"--version"},
 		},
 	}
 

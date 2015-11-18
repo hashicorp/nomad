@@ -28,10 +28,10 @@ type JavaDriver struct {
 }
 
 type JavaDriverConfig struct {
-	JvmOpts        string `mapstructure:"jvm_options"`
-	ArtifactSource string `mapstructure:"artifact_source"`
-	Checksum       string `mapstructure:"checksum"`
-	Args           string `mapstructure:"args"`
+	JvmOpts        string   `mapstructure:"jvm_options"`
+	ArtifactSource string   `mapstructure:"artifact_source"`
+	Checksum       string   `mapstructure:"checksum"`
+	Args           []string `mapstructure:"args"`
 }
 
 // javaHandle is returned from Start/Open as a handle to the PID
@@ -133,8 +133,8 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 
 	// Build the argument list.
 	args = append(args, "-jar", filepath.Join(allocdir.TaskLocal, jarName))
-	if driverConfig.Args != "" {
-		args = append(args, driverConfig.Args)
+	if len(driverConfig.Args) != 0 {
+		args = append(args, driverConfig.Args...)
 	}
 
 	// Setup the command

@@ -93,15 +93,9 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 	// Get the environment variables.
 	envVars := TaskEnvironmentVariables(ctx, task)
 
-	// Look for arguments
-	var args []string
-	if driverConfig.Args != "" {
-		args = append(args, driverConfig.Args)
-	}
-
 	// Setup the command
 	cmd := executor.NewBasicExecutor()
-	executor.SetCommand(cmd, command, args)
+	executor.SetCommand(cmd, command, driverConfig.Args)
 	if err := cmd.Limit(task.Resources); err != nil {
 		return nil, fmt.Errorf("failed to constrain resources: %s", err)
 	}
