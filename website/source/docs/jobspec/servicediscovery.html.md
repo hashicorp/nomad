@@ -117,9 +117,3 @@ group "database" {
   namespace of the host. There are a couple of ways to solve this, one way is to run the
   container in the host networking mode, or make the Consul agent listen on an
   interface on the network namespace of the container.
-
-
-
-
-
-
