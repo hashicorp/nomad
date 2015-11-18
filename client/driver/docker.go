@@ -255,7 +255,7 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, dri
 	// Setup port mapping and exposed ports
 	if len(task.Resources.Networks) == 0 {
 		d.logger.Println("[DEBUG] driver.docker: No network interfaces are available")
-		if len(driverConfig.PortMap[0]) > 0 {
+		if len(driverConfig.PortMap) > 0 {
 			return c, fmt.Errorf("Trying to map ports but no network interface is available")
 		}
 	} else {
