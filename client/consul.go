@@ -27,10 +27,12 @@ type ConsulClient struct {
 	trackedServices map[string]*trackedService
 }
 
-func NewConsulClient(logger *log.Logger) (*ConsulClient, error) {
+func NewConsulClient(logger *log.Logger, consulAddr string) (*ConsulClient, error) {
 	var err error
 	var c *consul.Client
-	if c, err = consul.NewClient(consul.DefaultConfig()); err != nil {
+	cfg := consul.DefaultConfig()
+	cfg.Address = consulAddr
+	if c, err = consul.NewClient(cfg); err != nil {
 		return nil, err
 	}
 

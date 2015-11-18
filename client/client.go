@@ -99,7 +99,8 @@ func NewClient(cfg *config.Config) (*Client, error) {
 	logger := log.New(cfg.LogOutput, "", log.LstdFlags)
 
 	// Create the consul client
-	consulClient, err := NewConsulClient(logger)
+	consulAddr := cfg.ReadDefault("consul.address", "127.0.0.1:8500")
+	consulClient, err := NewConsulClient(logger, consulAddr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create the consul client: %v", err)
 	}
