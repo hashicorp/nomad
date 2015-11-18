@@ -98,7 +98,6 @@ func (c *ConsulClient) SyncWithConsul() {
 		select {
 		case <-sync:
 			sync = time.After(syncInterval)
-			c.logger.Printf("[DEBUG] Syncing with consul")
 			var consulServices map[string]*consul.AgentService
 			var err error
 			if consulServices, err = agent.Services(); err != nil {
