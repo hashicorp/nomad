@@ -102,24 +102,12 @@ func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool
 		return false, nil
 	}
 
-	privileged, err := strconv.ParseBool(d.config.ReadDefault("docker.privileged.enabled", "false"))
-	if err != nil {
-		return false, fmt.Errorf("Unable to parse docker.privileged.enabled: %s", err)
-	}
-	if privileged == true {
+	privileged := d.config.ReadBoolDefault("docker.privileged.enabled", false)
+	if privileged {
 		d.logger.Println("[INFO] driver.docker: privileged containers are enabled")
 		node.Attributes["docker.privileged.enabled"] = "1"
 	} else {
 		d.logger.Println("[INFO] driver.docker: privileged containers are disabled")
-	}
-
-	_, err = strconv.ParseBool(d.config.ReadDefault("docker.cleanup.container", "true"))
-	if err != nil {
-		return false, fmt.Errorf("Unable to parse docker.cleanup.container: %s", err)
-	}
-	_, err = strconv.ParseBool(d.config.ReadDefault("docker.cleanup.image", "true"))
-	if err != nil {
-		return false, fmt.Errorf("Unable to parse docker.cleanup.image: %s", err)
 	}
 
 	// This is the first operation taken on the client so we'll try to
@@ -355,14 +343,8 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 		return nil, fmt.Errorf("CPU limit cannot be zero")
 	}
 
-	cleanupContainer, err := strconv.ParseBool(d.config.ReadDefault("docker.cleanup.container", "true"))
-	if err != nil {
-		return nil, fmt.Errorf("Unable to parse docker.cleanup.container: %s", err)
-	}
-	cleanupImage, err := strconv.ParseBool(d.config.ReadDefault("docker.cleanup.image", "true"))
-	if err != nil {
-		return nil, fmt.Errorf("Unable to parse docker.cleanup.image: %s", err)
-	}
+	cleanupContainer := d.config.ReadBoolDefault("docker.cleanup.container", true)
+	cleanupImage := d.config.ReadBoolDefault("docker.cleanup.image", true)
 
 	// Initialize docker API client
 	client, err := d.dockerClient()
@@ -452,19 +434,13 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 }
 
 func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {
-	cleanupContainer, err := strconv.ParseBool(d.config.ReadDefault("docker.cleanup.container", "true"))
-	if err != nil {
-		return nil, fmt.Errorf("Unable to parse docker.cleanup.container: %s", err)
-	}
-	cleanupImage, err := strconv.ParseBool(d.config.ReadDefault("docker.cleanup.image", "true"))
-	if err != nil {
-		return nil, fmt.Errorf("Unable to parse docker.cleanup.image: %s", err)
-	}
+	cleanupContainer := d.config.ReadBoolDefault("docker.cleanup.container", true)
+	cleanupImage := d.config.ReadBoolDefault("docker.cleanup.image", true)
 
 	// Split the handle
 	pidBytes := []byte(strings.TrimPrefix(handleID, "DOCKER:"))
 	pid := &dockerPID{}
-	err = json.Unmarshal(pidBytes, pid)
+	err := json.Unmarshal(pidBytes, pid)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to parse handle '%s': %v", handleID, err)
 	}
