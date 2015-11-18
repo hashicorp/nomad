@@ -235,22 +235,12 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, dri
 		}
 	}
 
-	mode := driverConfig.NetworkMode
-	if mode == "" {
+	hostConfig.NetworkMode = driverConfig.NetworkMode
+	if hostConfig.NetworkMode == "" {
 		// docker default
-		d.logger.Println("[DEBUG] driver.docker: no mode specified for networking, defaulting to bridge")
-		mode = "bridge"
+		d.logger.Println("[INFO] driver.docker: networking mode not specified; defaulting to bridge")
+		hostConfig.NetworkMode = "bridge"
 	}
-
-	// Ignore the container mode for now
-	switch mode {
-	case "default", "bridge", "none", "host":
-		d.logger.Printf("[DEBUG] driver.docker: using %s as network mode\n", mode)
-	default:
-		d.logger.Printf("[ERR] driver.docker: invalid setting for network mode: %s\n", mode)
-		return c, fmt.Errorf("Invalid setting for network mode: %s", mode)
-	}
-	hostConfig.NetworkMode = mode
 
 	// Setup port mapping and exposed ports
 	if len(task.Resources.Networks) == 0 {
