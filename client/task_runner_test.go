@@ -32,7 +32,7 @@ func testTaskRunner(restarts bool) (*MockTaskStateUpdater, *TaskRunner) {
 	upd := &MockTaskStateUpdater{}
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
-
+	consulClient, _ := NewConsulClient()
 	// Initialize the port listing. This should be done by the offer process but
 	// we have a mock so that doesn't happen.
 	task.Resources.Networks[0].ReservedPorts = []structs.Port{{"", 80}}
@@ -48,7 +48,7 @@ func testTaskRunner(restarts bool) (*MockTaskStateUpdater, *TaskRunner) {
 	}
 
 	state := alloc.TaskStates[task.Name]
-	tr := NewTaskRunner(logger, conf, upd.Update, ctx, alloc.ID, task, state, restartTracker)
+	tr := NewTaskRunner(logger, conf, upd.Update, ctx, alloc.ID, task, state, restartTracker, consulClient)
 	return upd, tr
 }
 
@@ -164,8 +164,10 @@ func TestTaskRunner_SaveRestoreState(t *testing.T) {
 	}
 
 	// Create a new task runner
+	consulClient, _ := NewConsulClient()
 	tr2 := NewTaskRunner(tr.logger, tr.config, upd.Update,
-		tr.ctx, tr.allocID, &structs.Task{Name: tr.task.Name}, tr.state, tr.restartTracker)
+		tr.ctx, tr.allocID, &structs.Task{Name: tr.task.Name}, tr.state, tr.restartTracker,
+		consulClient)
 	if err := tr2.RestoreState(); err != nil {
 		t.Fatalf("err: %v", err)
 	}

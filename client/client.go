@@ -70,6 +70,8 @@ type Client struct {
 
 	logger *log.Logger
 
+	consulClient *ConsulClient
+
 	lastServer     net.Addr
 	lastRPCTime    time.Time
 	lastServerLock sync.Mutex
@@ -96,14 +98,21 @@ func NewClient(cfg *config.Config) (*Client, error) {
 	// Create a logger
 	logger := log.New(cfg.LogOutput, "", log.LstdFlags)
 
+	// Create the consul client
+	consulClient, err := NewConsulClient()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create the consul client: %v", err)
+	}
+
 	// Create the client
 	c := &Client{
-		config:     cfg,
-		start:      time.Now(),
-		connPool:   nomad.NewPool(cfg.LogOutput, clientRPCCache, clientMaxStreams, nil),
-		logger:     logger,
-		allocs:     make(map[string]*AllocRunner),
-		shutdownCh: make(chan struct{}),
+		config:       cfg,
+		start:        time.Now(),
+		consulClient: consulClient,
+		connPool:     nomad.NewPool(cfg.LogOutput, clientRPCCache, clientMaxStreams, nil),
+		logger:       logger,
+		allocs:       make(map[string]*AllocRunner),
+		shutdownCh:   make(chan struct{}),
 	}
 
 	// Initialize the client
@@ -335,7 +344,7 @@ func (c *Client) restoreState() error {
 	for _, entry := range list {
 		id := entry.Name()
 		alloc := &structs.Allocation{ID: id}
-		ar := NewAllocRunner(c.logger, c.config, c.updateAllocStatus, alloc)
+		ar := NewAllocRunner(c.logger, c.config, c.updateAllocStatus, alloc, c.consulClient)
 		c.allocs[id] = ar
 		if err := ar.RestoreState(); err != nil {
 			c.logger.Printf("[ERR] client: failed to restore state for alloc %s: %v", id, err)
@@ -749,7 +758,7 @@ func (c *Client) updateAlloc(exist, update *structs.Allocation) error {
 func (c *Client) addAlloc(alloc *structs.Allocation) error {
 	c.allocLock.Lock()
 	defer c.allocLock.Unlock()
-	ar := NewAllocRunner(c.logger, c.config, c.updateAllocStatus, alloc)
+	ar := NewAllocRunner(c.logger, c.config, c.updateAllocStatus, alloc, c.consulClient)
 	c.allocs[alloc.ID] = ar
 	go ar.Run()
 	return nil

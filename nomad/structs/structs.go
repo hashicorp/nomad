@@ -1064,7 +1064,7 @@ type Task struct {
 	Env map[string]string
 
 	// List of service definitions exposed by the Task
-	Services []Service
+	Services []*Service
 
 	// Constraints can be specified at a task level and apply only to
 	// the particular task.

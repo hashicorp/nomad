@@ -25,6 +25,7 @@ type TaskRunner struct {
 	ctx            *driver.ExecContext
 	allocID        string
 	restartTracker restartTracker
+	consulClient   *ConsulClient
 
 	task     *structs.Task
 	state    *structs.TaskState
@@ -52,13 +53,14 @@ type TaskStateUpdater func(taskName string)
 func NewTaskRunner(logger *log.Logger, config *config.Config,
 	updater TaskStateUpdater, ctx *driver.ExecContext,
 	allocID string, task *structs.Task, state *structs.TaskState,
-	restartTracker restartTracker) *TaskRunner {
+	restartTracker restartTracker, consulClient *ConsulClient) *TaskRunner {
 
 	tc := &TaskRunner{
 		config:         config,
 		updater:        updater,
 		logger:         logger,
 		restartTracker: restartTracker,
+		consulClient:   consulClient,
 		ctx:            ctx,
 		allocID:        allocID,
 		task:           task,
@@ -231,6 +233,22 @@ func (r *TaskRunner) run() {
 		var destroyErr error
 		destroyed := false
 
+		// Register the services defined by the task with Consil
+		for _, service := range r.task.Services {
+			portLabel := service.PortLabel
+			var port int
+			var host string
+			for _, network := range r.task.Resources.Networks {
+				if p, ok := network.MapLabelToValues()[portLabel]; ok {
+					port = p
+					host = network.IP
+					break
+				}
+			}
+
+			r.consulClient.Register(r.task, r.allocID, port, host)
+		}
+
 	OUTER:
 		// Wait for updates
 		for {
@@ -303,6 +321,9 @@ func (r *TaskRunner) run() {
 		// Set force start because we are restarting the task.
 		forceStart = true
 	}
+
+	// De-Register the services belonging to the task from consul
+	r.consulClient.DeRegister(r.task)
 	return
 }
 

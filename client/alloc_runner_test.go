@@ -31,12 +31,13 @@ func testAllocRunner(restarts bool) (*MockAllocStateUpdater, *AllocRunner) {
 	conf.AllocDir = os.TempDir()
 	upd := &MockAllocStateUpdater{}
 	alloc := mock.Alloc()
+	consulClient, _ := NewConsulClient()
 	if !restarts {
 		alloc.Job.Type = structs.JobTypeBatch
 		*alloc.Job.LookupTaskGroup(alloc.TaskGroup).RestartPolicy = structs.RestartPolicy{Attempts: 0}
 	}
 
-	ar := NewAllocRunner(logger, conf, upd.Update, alloc)
+	ar := NewAllocRunner(logger, conf, upd.Update, alloc, consulClient)
 	return upd, ar
 }
 
@@ -141,8 +142,9 @@ func TestAllocRunner_SaveRestoreState(t *testing.T) {
 	}
 
 	// Create a new alloc runner
+	consulClient, err := NewConsulClient()
 	ar2 := NewAllocRunner(ar.logger, ar.config, upd.Update,
-		&structs.Allocation{ID: ar.alloc.ID})
+		&structs.Allocation{ID: ar.alloc.ID}, consulClient)
 	err = ar2.RestoreState()
 	if err != nil {
 		t.Fatalf("err: %v", err)
