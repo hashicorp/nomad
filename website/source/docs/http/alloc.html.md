@@ -41,144 +41,193 @@ be specified using the `?region=` query parameter.
 
     ```javascript
     {
-    "ID": "3575ba9d-7a12-0c96-7b28-add168c67984",
-    "EvalID": "151accaa-1ac6-90fe-d427-313e70ccbb88",
-    "Name": "binstore-storagelocker.binsl[3]",
-    "NodeID": "",
-    "JobID": "binstore-storagelocker",
-    "Job": {
+      "ID": "203266e5-e0d6-9486-5e05-397ed2b184af",
+      "EvalID": "e68125ed-3fba-fb46-46cc-291addbc4455",
+      "Name": "example.cache[0]",
+      "NodeID": "e02b6169-83bd-9df6-69bd-832765f333eb",
+      "JobID": "example",
+      "ModifyIndex": 9,
+      "Resources": {
+        "Networks": [
+          {
+            "DynamicPorts": [
+              {
+                "Value": 20802,
+                "Label": "db"
+              }
+            ],
+            "ReservedPorts": null,
+            "MBits": 10,
+            "IP": "",
+            "CIDR": "",
+            "Device": ""
+          }
+        ],
+        "IOPS": 0,
+        "DiskMB": 0,
+        "MemoryMB": 256,
+        "CPU": 500
+      },
+      "TaskGroup": "cache",
+      "Job": {
+        "ModifyIndex": 5,
+        "CreateIndex": 5,
+        "StatusDescription": "",
+        "Status": "",
+        "Meta": null,
+        "Update": {
+          "MaxParallel": 1,
+          "Stagger": 1e+10
+        },
+        "TaskGroups": [
+          {
+            "Meta": null,
+            "Tasks": [
+              {
+                "Meta": null,
+                "Resources": {
+                  "Networks": [
+                    {
+                      "DynamicPorts": [
+                        {
+                          "Value": 20802,
+                          "Label": "db"
+                        }
+                      ],
+                      "ReservedPorts": null,
+                      "MBits": 0,
+                      "IP": "127.0.0.1",
+                      "CIDR": "",
+                      "Device": "lo"
+                    }
+                  ],
+                  "IOPS": 0,
+                  "DiskMB": 0,
+                  "MemoryMB": 256,
+                  "CPU": 500
+                },
+                "Constraints": null,
+                "Services": [
+                  {
+                    "Checks": [
+                      {
+                        "Timeout": 2e+09,
+                        "Interval": 1e+10,
+                        "Protocol": "",
+                        "Http": "",
+                        "Script": "",
+                        "Type": "tcp",
+                        "Name": "alive",
+                        "Id": ""
+                      }
+                    ],
+                    "PortLabel": "db",
+                    "Tags": [
+                      "global",
+                      "cache"
+                    ],
+                    "Name": "example-cache-redis",
+                    "Id": ""
+                  }
+                ],
+                "Env": null,
+                "Config": {
+                  "port_map": [
+                    {
+                      "db": 6379
+                    }
+                  ],
+                  "image": "redis:latest"
+                },
+                "Driver": "docker",
+                "Name": "redis"
+              }
+            ],
+            "RestartPolicy": {
+              "Delay": 2.5e+10,
+              "Interval": 3e+11,
+              "Attempts": 10
+            },
+            "Constraints": null,
+            "Count": 1,
+            "Name": "cache"
+          }
+        ],
         "Region": "global",
-        "ID": "binstore-storagelocker",
-        "Name": "binstore-storagelocker",
+        "ID": "example",
+        "Name": "example",
         "Type": "service",
         "Priority": 50,
         "AllAtOnce": false,
         "Datacenters": [
-            "us2",
-            "eu1"
+          "dc1"
         ],
         "Constraints": [
-            {
-                "LTarget": "kernel.os",
-                "RTarget": "windows",
-                "Operand": "=",
-            }
-        ],
-        "TaskGroups": [
-            {
-                "Name": "binsl",
-                "Count": 5,
-                "Constraints": [
-                    {
-                        "LTarget": "kernel.os",
-                        "RTarget": "linux",
-                        "Operand": "=",
-                    }
-                ],
-                "Tasks": [
-                    {
-                        "Name": "binstore",
-                        "Driver": "docker",
-                        "Config": {
-                            "image": "hashicorp/binstore"
-                        },
-                        "Constraints": null,
-                        "Resources": {
-                            "CPU": 500,
-                            "MemoryMB": 0,
-                            "DiskMB": 0,
-                            "IOPS": 0,
-                            "Networks": [
-                                {
-                                    "Device": "",
-                                    "CIDR": "",
-                                    "IP": "",
-                                    "MBits": 100,
-                                    "ReservedPorts": null,
-                                    "DynamicPorts": 0
-                                }
-                            ]
-                        },
-                        "Meta": null
-                    },
-                    {
-                        "Name": "storagelocker",
-                        "Driver": "java",
-                        "Config": {
-                            "image": "hashicorp/storagelocker"
-                        },
-                        "Constraints": [
-                            {
-                                "LTarget": "kernel.arch",
-                                "RTarget": "amd64",
-                                "Operand": "=",
-                            }
-                        ],
-                        "Resources": {
-                            "CPU": 500,
-                            "MemoryMB": 0,
-                            "DiskMB": 0,
-                            "IOPS": 0,
-                            "Networks": null
-                        },
-                        "Meta": null
-                    }
-                ],
-                "Meta": {
-                    "elb_checks": "3",
-                    "elb_interval": "10",
-                    "elb_mode": "tcp"
-                }
-            }
-        ],
-        "Update": {
-            "Stagger": 0,
-            "MaxParallel": 0
-        },
-        "Meta": {
-            "foo": "bar"
-        },
-        "Status": "",
-        "StatusDescription": "",
-        "CreateIndex": 14,
-        "ModifyIndex": 14
-    },
-    "TaskGroup": "binsl",
-    "Resources": {
-        "CPU": 1000,
-        "MemoryMB": 0,
-        "DiskMB": 0,
-        "IOPS": 0,
-        "Networks": [
-            {
-                "Device": "",
-                "CIDR": "",
-                "IP": "",
-                "MBits": 100,
-                "ReservedPorts": null,
-                "DynamicPorts": 0
-            }
+          {
+            "Operand": "=",
+            "RTarget": "linux",
+            "LTarget": "$attr.kernel.name"
+          }
         ]
-    },
-    "TaskResources": null,
-    "Metrics": {
-        "NodesEvaluated": 0,
+      },
+      "TaskResources": {
+        "redis": {
+          "Networks": [
+            {
+              "DynamicPorts": [
+                {
+                  "Value": 20802,
+                  "Label": "db"
+                }
+              ],
+              "ReservedPorts": null,
+              "MBits": 0,
+              "IP": "127.0.0.1",
+              "CIDR": "",
+              "Device": "lo"
+            }
+          ],
+          "IOPS": 0,
+          "DiskMB": 0,
+          "MemoryMB": 256,
+          "CPU": 500
+        }
+      },
+      "Metrics": {
+        "CoalescedFailures": 0,
+        "AllocationTime": 1590406,
+        "NodesEvaluated": 1,
         "NodesFiltered": 0,
         "ClassFiltered": null,
         "ConstraintFiltered": null,
         "NodesExhausted": 0,
         "ClassExhausted": null,
         "DimensionExhausted": null,
-        "Scores": null,
-        "AllocationTime": 9408,
-        "CoalescedFailures": 4
-    },
-    "DesiredStatus": "failed",
-    "DesiredDescription": "failed to find a node for placement",
-    "ClientStatus": "failed",
-    "ClientDescription": "",
-    "CreateIndex": 16,
-    "ModifyIndex": 16
+        "Scores": {
+          "e02b6169-83bd-9df6-69bd-832765f333eb.binpack": 6.133651487695705
+        }
+      },
+      "DesiredStatus": "run",
+      "DesiredDescription": "",
+      "ClientStatus": "running",
+      "ClientDescription": "",
+      "TaskStates": {
+        "redis": {
+          "Events": [
+            {
+              "KillError": "",
+              "Message": "",
+              "Signal": 0,
+              "ExitCode": 0,
+              "DriverError": "",
+              "Time": 1447806038427841000,
+              "Type": "Started"
+            }
+          ],
+          "State": "running"
+        }
+      },
+      "CreateIndex": 7
     }
     ```
 

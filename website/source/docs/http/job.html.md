@@ -88,7 +88,7 @@ region is used; another region can be specified using the `?region=` query param
                                 "IP": "",
                                 "MBits": 100,
                                 "ReservedPorts": null,
-                                "DynamicPorts": 0
+                                "DynamicPorts": null
                             }
                         ]
                     },

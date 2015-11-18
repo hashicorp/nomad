@@ -269,8 +269,14 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, dri
 
 		containerToHostPortMap := make(map[string]int)
 		for _, port := range network.DynamicPorts {
-			containerPort, ok := driverConfig.PortMap[0][port.Label]
-			if !ok {
+			var containerPort int
+			if len(driverConfig.PortMap) > 0 {
+				var ok bool
+				containerPort, ok = driverConfig.PortMap[0][port.Label]
+				if !ok {
+					containerPort = port.Value
+				}
+			} else {
 				containerPort = port.Value
 			}
 
