@@ -324,7 +324,7 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, dri
 
 	config.Env = env.List()
 	return docker.CreateContainerOptions{
-		// Name:       fmt.Sprintf("%s-%s", task.Name, ctx.AllocID),
+		Name:       fmt.Sprintf("%s-%s", task.Name, ctx.AllocID),
 		Config:     config,
 		HostConfig: hostConfig,
 	}, nil

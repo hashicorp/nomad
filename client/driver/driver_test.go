@@ -1,7 +1,9 @@
 package driver
 
 import (
+	"fmt"
 	"log"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -24,6 +26,10 @@ var basicResources = &structs.Resources{
 	},
 }
 
+func init() {
+	rand.Seed(49875)
+}
+
 func testLogger() *log.Logger {
 	return log.New(os.Stderr, "", log.LstdFlags)
 }
@@ -43,7 +49,7 @@ func testDriverContext(task string) *DriverContext {
 func testDriverExecContext(task *structs.Task, driverCtx *DriverContext) *ExecContext {
 	allocDir := allocdir.NewAllocDir(filepath.Join(driverCtx.config.AllocDir, structs.GenerateUUID()))
 	allocDir.Build([]*structs.Task{task})
-	ctx := NewExecContext(allocDir, "dummyAllocId")
+	ctx := NewExecContext(allocDir, fmt.Sprintf("alloc-id-%d", int(rand.Int31())))
 	return ctx
 }
 
