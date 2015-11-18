@@ -94,6 +94,23 @@ func TestParse(t *testing.T) {
 								Config: map[string]interface{}{
 									"image": "hashicorp/binstore",
 								},
+								Services: []structs.Service{
+									{
+										Id:        "",
+										Name:      "binstore-storagelocker-binsl-binstore",
+										Tags:      []string{"foo", "bar"},
+										PortLabel: "http",
+										Checks: []structs.ServiceCheck{
+											{
+												Id:       "",
+												Name:     "check-name",
+												Type:     "tcp",
+												Interval: 10 * time.Second,
+												Timeout:  2 * time.Second,
+											},
+										},
+									},
+								},
 								Env: map[string]string{
 									"HELLO": "world",
 									"LOREM": "ipsum",
@@ -301,7 +318,7 @@ func TestBadPorts(t *testing.T) {
 func TestOverlappingPorts(t *testing.T) {
 	path, err := filepath.Abs(filepath.Join("./test-fixtures", "overlapping-ports.hcl"))
 	if err != nil {
-		t.Fatalf("Can't get absoluate path for file: %s", err)
+		t.Fatalf("Can't get absolute path for file: %s", err)
 	}
 
 	_, err = ParseFile(path)
@@ -311,6 +328,23 @@ func TestOverlappingPorts(t *testing.T) {
 	}
 
 	if !strings.Contains(err.Error(), "Found a port label collision") {
+		t.Fatalf("Expected collision error; got %v", err)
+	}
+}
+
+func TestIncompleteServiceDefn(t *testing.T) {
+	path, err := filepath.Abs(filepath.Join("./test-fixtures", "incorrect-service-def.hcl"))
+	if err != nil {
+		t.Fatalf("Can't get absolute path for file: %s", err)
+	}
+
+	_, err = ParseFile(path)
+
+	if err == nil {
+		t.Fatalf("Expected an error")
+	}
+
+	if !strings.Contains(err.Error(), "Only one service block may omit the Name field") {
 		t.Fatalf("Expected collision error; got %v", err)
 	}
 }
