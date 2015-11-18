@@ -238,7 +238,7 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, dri
 	hostConfig.NetworkMode = driverConfig.NetworkMode
 	if hostConfig.NetworkMode == "" {
 		// docker default
-		d.logger.Println("[INFO] driver.docker: networking mode not specified; defaulting to bridge")
+		d.logger.Println("[DEBUG] driver.docker: networking mode not specified; defaulting to bridge")
 		hostConfig.NetworkMode = "bridge"
 	}
 
@@ -319,12 +319,16 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, dri
 
 	if len(driverConfig.Labels) == 1 {
 		config.Labels = driverConfig.Labels[0]
-		d.logger.Println("[DEBUG] driver.docker: applied labels on the container")
+		d.logger.Printf("[DEBUG] driver.docker: applied labels on the container: %+v\n", config.Labels)
 	}
 
 	config.Env = env.List()
+
+	containerName := fmt.Sprintf("%s-%s", task.Name, ctx.AllocID)
+	d.logger.Printf("[DEBUG] driver.docker: setting container name to: %s\n", containerName)
+
 	return docker.CreateContainerOptions{
-		Name:       fmt.Sprintf("%s-%s", task.Name, ctx.AllocID),
+		Name:       containerName,
 		Config:     config,
 		HostConfig: hostConfig,
 	}, nil
