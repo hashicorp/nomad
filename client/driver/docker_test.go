@@ -490,3 +490,56 @@ func TestDockerLabels(t *testing.T) {
 
 	defer handle.Kill()
 }
+
+func TestDockerDNS(t *testing.T) {
+	if !dockerIsConnected(t) {
+		t.SkipNow()
+	}
+
+	task := taskTemplate()
+	task.Config["dns_servers"] = []string{"8.8.8.8", "8.8.4.4"}
+	task.Config["dns_search_names"] = []string{"example.com", "example.org", "example.net"}
+
+	driverCtx := testDockerDriverContext(task.Name)
+	ctx := testDriverExecContext(task, driverCtx)
+	defer ctx.AllocDir.Destroy()
+	d := NewDockerDriver(driverCtx)
+
+	handle, err := d.Start(ctx, task)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if handle == nil {
+		t.Fatalf("missing handle")
+	}
+
+	client, err := docker.NewClientFromEnv()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// don't know if is queriable in a clean way
+	parts := strings.SplitN(handle.ID(), ":", 2)
+	var pid dockerPID
+	err = json.Unmarshal([]byte(parts[1]), &pid)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	container, err := client.InspectContainer(pid.ContainerID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	fmt.Printf("%#v", container)
+
+	if want, got := 2, len(container.Config.Labels); want != got {
+		t.Errorf("Wrong labels count for docker job. Expect: %d, got: %d", want, got)
+	}
+
+	if want, got := "value1", container.Config.Labels["label1"]; want != got {
+		t.Errorf("Wrong label value docker job. Expect: %s, got: %s", want, got)
+	}
+
+	defer handle.Kill()
+}

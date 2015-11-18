@@ -35,16 +35,16 @@ type DockerAuthConfig struct {
 
 type DockerDriverConfig struct {
 	DockerAuthConfig
-	ImageName     string              `mapstructure:"image"`          // Container's Image Name
-	Command       string              `mapstructure:"command"`        // The Command/Entrypoint to run when the container starts up
-	Args          string              `mapstructure:"args"`           // The arguments to the Command/Entrypoint
-	NetworkMode   string              `mapstructure:"network_mode"`   // The network mode of the container - host, net and none
-	PortMap       []map[string]int    `mapstructure:"port_map"`       // A map of host port labels and the ports exposed on the container
-	Privileged    bool                `mapstructure:"privileged"`     // Flag to run the container in priviledged mode
-	DNS           string              `mapstructure:"dns_server"`     // DNS Server for containers
-	SearchDomains string              `mapstructure:"search_domains"` // DNS Search domains for containers
-	Hostname      string              `mapstructure:"hostname"`       // Hostname for containers
-	Labels        []map[string]string `mapstructure:"labels"`         // Labels to set when the container starts up
+	ImageName        string              `mapstructure:"image"`              // Container's Image Name
+	Command          string              `mapstructure:"command"`            // The Command/Entrypoint to run when the container starts up
+	Args             string              `mapstructure:"args"`               // The arguments to the Command/Entrypoint
+	NetworkMode      string              `mapstructure:"network_mode"`       // The network mode of the container - host, net and none
+	PortMap          []map[string]int    `mapstructure:"port_map"`           // A map of host port labels and the ports exposed on the container
+	Privileged       bool                `mapstructure:"privileged"`         // Flag to run the container in priviledged mode
+	DNSServers       []string            `mapstructure:"dns_servers"`        // DNS Server for containers
+	DNSSearchDomains []string            `mapstructure:"dns_search_domains"` // DNS Search domains for containers
+	Hostname         string              `mapstructure:"hostname"`           // Hostname for containers
+	Labels           []map[string]string `mapstructure:"labels"`             // Labels to set when the container starts up
 }
 
 func (c *DockerDriverConfig) Validate() error {
@@ -217,22 +217,17 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, dri
 	hostConfig.Privileged = hostPrivileged
 
 	// set DNS servers
-	if driverConfig.DNS != "" {
-		for _, v := range strings.Split(driverConfig.DNS, ",") {
-			ip := strings.TrimSpace(v)
-			if net.ParseIP(ip) != nil {
-				hostConfig.DNS = append(hostConfig.DNS, ip)
-			} else {
-				d.logger.Printf("[ERR] driver.docker: invalid ip address for container dns server: %s\n", ip)
-			}
+	for _, ip := range driverConfig.DNSServers {
+		if net.ParseIP(ip) != nil {
+			hostConfig.DNS = append(hostConfig.DNS, ip)
+		} else {
+			d.logger.Printf("[ERR] driver.docker: invalid ip address for container dns server: %s\n", ip)
 		}
 	}
 
 	// set DNS search domains
-	if driverConfig.SearchDomains != "" {
-		for _, v := range strings.Split(driverConfig.SearchDomains, ",") {
-			hostConfig.DNSSearch = append(hostConfig.DNSSearch, strings.TrimSpace(v))
-		}
+	for _, domain := range driverConfig.DNSSearchDomains {
+		hostConfig.DNSSearch = append(hostConfig.DNSSearch, domain)
 	}
 
 	mode := driverConfig.NetworkMode
@@ -279,6 +274,9 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, dri
 
 		containerToHostPortMap := make(map[string]int)
 		for _, port := range network.DynamicPorts {
+			if len(driverConfig.PortMap) == 0 {
+				continue
+			}
 			containerPort, ok := driverConfig.PortMap[0][port.Label]
 			if !ok {
 				containerPort = port.Value
