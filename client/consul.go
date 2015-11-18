@@ -36,7 +36,7 @@ func NewConsulClient(logger *log.Logger) (*ConsulClient, error) {
 func (c *ConsulClient) Register(task *structs.Task, allocID string) error {
 	var mErr multierror.Error
 	var serviceDefns []*api.AgentServiceRegistration
-	for idx, service := range task.Services {
+	for _, service := range task.Services {
 		service.Id = fmt.Sprintf("%s-%s", allocID, task.Name)
 		host, port := c.findPortAndHostForLabel(service.PortLabel, task)
 		if host == "" || port == 0 {
@@ -49,11 +49,13 @@ func (c *ConsulClient) Register(task *structs.Task, allocID string) error {
 			Port:    port,
 			Address: host,
 		}
-		serviceDefns[idx] = asr
+		serviceDefns = append(serviceDefns, asr)
 	}
 
 	for _, serviceDefn := range serviceDefns {
+		c.logger.Printf("[INFO] Registering service %v with Consul", serviceDefn.Name)
 		if err := c.client.Agent().ServiceRegister(serviceDefn); err != nil {
+			c.logger.Printf("[ERROR] Error while registering service %v with Consul: %v", serviceDefn.Name, err)
 			mErr.Errors = append(mErr.Errors, err)
 		}
 	}
@@ -61,10 +63,12 @@ func (c *ConsulClient) Register(task *structs.Task, allocID string) error {
 	return mErr.ErrorOrNil()
 }
 
-func (c *ConsulClient) DeRegister(task *structs.Task) error {
+func (c *ConsulClient) Deregister(task *structs.Task) error {
 	var mErr multierror.Error
 	for _, service := range task.Services {
+		c.logger.Printf("[INFO] De-Registering service %v with Consul", service.Name)
 		if err := c.client.Agent().ServiceDeregister(service.Id); err != nil {
+			c.logger.Printf("[ERROR] Error in de-registering service %v from Consul", service.Name)
 			mErr.Errors = append(mErr.Errors, err)
 		}
 	}

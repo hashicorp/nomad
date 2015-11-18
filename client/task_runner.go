@@ -236,6 +236,9 @@ func (r *TaskRunner) run() {
 		// Register the services defined by the task with Consil
 		r.consulClient.Register(r.task, r.allocID)
 
+		// De-Register the services belonging to the task from consul
+		defer r.consulClient.Deregister(r.task)
+
 	OUTER:
 		// Wait for updates
 		for {
@@ -309,8 +312,6 @@ func (r *TaskRunner) run() {
 		forceStart = true
 	}
 
-	// De-Register the services belonging to the task from consul
-	r.consulClient.DeRegister(r.task)
 	return
 }
 
