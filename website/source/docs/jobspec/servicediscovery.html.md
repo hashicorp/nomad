@@ -20,17 +20,18 @@ Nomad does not currently run Consul for you.
 
 ## Configuration
 
-* `consul.address`: This is a Nomad client configuration which can be used to override
-  the default Consul Agent HTTP port that Nomad uses to connect to Consul. The
-  default for this is "127.0.0.1:8500"
+* `consul.address`: This is a Nomad client configuration which can be used to
+  override the default Consul Agent HTTP port that Nomad uses to connect to
+  Consul. The default for this is `127.0.0.1:8500`.
 
 ## Service Definition Syntax
 
 The service blocks in a Task definition defines a service which Nomad will
 register with Consul. Multiple Service blocks are allowed in a Task definition,
-which allow registering multiple services for a task that exposes multiple ports.
+which allow registering multiple services for a task that exposes multiple
+ports.
 
-### Example 
+### Example
 
 A brief example of a service definition in a Task
 ```
@@ -60,26 +61,27 @@ group "database" {
 
 ```
 
-* `name`: Nomad automatically determines the name of a Task. By default the name
-  of a service is $(job-name)-$(task-group)-$(task-name). Users can explicitly
-  name the service by specifying this option. If multiple services are defined
-  for a Task then only one task can have the default name, all the services have 
-  to be explicitly named. Nomad will add the prefix ```$(job-name)-${task-group}-${task-name}``` 
-  prefix to each user defined name.
+* `name`: Nomad automatically determines the name of a Task. By default the
+  name of a service is $(job-name)-$(task-group)-$(task-name). Users can
+  explicitly name the service by specifying this option. If multiple services
+  are defined for a Task then only one task can have the default name, all the
+  services have to be explicitly named. Nomad will add the prefix ```$(job-name
+  )-${task-group}-${task-name}``` prefix to each user defined name.
 
 * `tags`: A list of tags associated with this Service.
 
 * `port`: The port indicates the port associated with the Service. Users are
   required to specify a valid port label here which they have defined in the
-  resources block. This could be a label to either a dynamic or a static port. If
-  an incorrect port label is specified, Nomad doesn't register the service with
-  Consul.
+  resources block. This could be a label to either a dynamic or a static port.
+  If an incorrect port label is specified, Nomad doesn't register the service
+  with Consul.
 
 * `check`: A check block defines a health check associated with the service.
-  Multiple check blocks are allowed for a service. Nomad currently supports only
-  the `http` and `tcp` Consul Checks.
+  Multiple check blocks are allowed for a service. Nomad currently supports
+  only the `http` and `tcp` Consul Checks.
 
-### Check Syntax 
+### Check Syntax
+
 * `type`: This indicates the check types supported by Nomad. Valid options are
   currently `http` and `tcp`. In the future Nomad will add support for more
   Consul checks.
@@ -95,25 +97,24 @@ group "database" {
   of the service and the port, users are only required to add the relative url
   of the health check endpoint.
 
-* `protocol`: This indicates the protocol for the http checks. Valid options are
-  `http` and `https`.
+* `protocol`: This indicates the protocol for the http checks. Valid options
+  are `http` and `https`.
 
-
-## Assumptions 
+## Assumptions
 
 * Consul 0.6 is needed for using the TCP checks.
 
-* The Service Discovery feature in Nomad depends on Operators making sure that the
-  Nomad client can reach the consul agent.
+* The Service Discovery feature in Nomad depends on Operators making sure that
+  the Nomad client can reach the consul agent.
 
 * Nomad assumes that it controls the life cycle of all the externally
   discoverable services running on a host.
 
-* Tasks running inside Nomad also needs to reach out to the Consul agent if they
-  want to use any of the Consul APIs. Ex: A task running inside a docker container in
-  the bridge mode won't be able to talk to a Consul Agent running on the
-  loopback interface of the host since the container in the bridge mode has it's
-  own network interface and doesn't see interfaces on the global network
-  namespace of the host. There are a couple of ways to solve this, one way is to run the
-  container in the host networking mode, or make the Consul agent listen on an
-  interface on the network namespace of the container.
+* Tasks running inside Nomad also needs to reach out to the Consul agent if
+  they want to use any of the Consul APIs. Ex: A task running inside a docker
+  container in the bridge mode won't be able to talk to a Consul Agent running
+  on the loopback interface of the host since the container in the bridge mode
+  has it's own network interface and doesn't see interfaces on the global
+  network namespace of the host. There are a couple of ways to solve this, one
+  way is to run the container in the host networking mode, or make the Consul
+  agent listen on an interface on the network namespace of the container.
