@@ -1024,7 +1024,7 @@ func (sc *ServiceCheck) Validate() error {
 	if sc.Type == ServiceCheckScript && sc.Script == "" {
 		return fmt.Errorf("Script checks need the script to invoke")
 	}
-	if t != ServiceCheckTCP && t != ServiceCheckHTTP && t != ServiceCheckDocker && t != ServiceCheckScript {
+	if t != ServiceCheckTCP && t != ServiceCheckHTTP {
 		return fmt.Errorf("Check with name %v has invalid check type: %s ", sc.Name, sc.Type)
 	}
 	return nil
