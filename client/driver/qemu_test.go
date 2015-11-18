@@ -41,7 +41,10 @@ func TestQemuDriver_StartOpen_Wait(t *testing.T) {
 			"artifact_source": "https://dl.dropboxusercontent.com/u/47675/jar_thing/linux-0.2.img",
 			"checksum":        "sha256:a5e836985934c3392cbbd9b26db55a7d35a8d7ae1deb7ca559dd9c0159572544",
 			"accelerator":     "tcg",
-			"guest_ports":     "22,8080",
+			"port_map": []map[string]int{{
+				"main": 22,
+				"web":  8080,
+			}},
 		},
 		Resources: &structs.Resources{
 			CPU:      500,
