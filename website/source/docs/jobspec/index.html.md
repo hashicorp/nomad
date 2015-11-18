@@ -181,7 +181,7 @@ The `task` object supports the following keys:
 
 * `driver` - Specifies the task driver that should be used to run the
   task. See the [driver documentation](/docs/drivers/index.html) for what
-  is available. Examples include "docker", "qemu", "java", and "exec".
+  is available. Examples include `docker`, `qemu`, `java`, and `exec`.
 
 * `constraint` - This can be provided multiple times to define additional
   constraints. See the constraint reference for more details.
@@ -240,14 +240,14 @@ The `restart` object supports the following keys:
   number of restarts allowed in an `interval` before a restart delay is added.
 
 * `interval` - `interval` is only valid on non-batch jobs and is a time duration
-  that can be specified using the "s", "m", and "h" suffixes, such as "30s".
+  that can be specified using the `s`, `m`, and `h` suffixes, such as `30s`.
   The `interval` begins when the first task starts and ensures that only
   `attempts` number of restarts happens within it. If more than `attempts`
   number of failures happen, the restart is delayed till after the `interval`,
   which is then reset.
 
 * `delay` - A duration to wait before restarting a task. It is specified as a
-  time duration using the "s", "m", and "h" suffixes, such as "30s".
+  time duration using the `s`, `m`, and `h` suffixes, such as `30s`.
 
 The default `batch` restart policy is:
 
@@ -283,7 +283,7 @@ The `constraint` object supports the following keys:
   This can be a literal value or another attribute.
 
 * `version` - Specifies a version constraint against the attribute.
-  This sets the operator to "version" and the `value` to what is
+  This sets the operator to `version` and the `value` to what is
   specified. This supports a comma seperated list of constraints,
   including the pessimistic operator. See the
   [go-version](https://github.com/hashicorp/go-version) repository
@@ -343,7 +343,7 @@ Below is a table documenting common node attributes:
   </tr>
   <tr>
     <td>arch</td>
-    <td>CPU architecture of the client. Examples: "amd64", "386"</td>
+    <td>CPU architecture of the client. Examples: `amd64`, `386`</td>
   </tr>
   <tr>
     <td>consul.datacenter</td>
@@ -363,11 +363,11 @@ Below is a table documenting common node attributes:
   </tr>
   <tr>
     <td>kernel.name</td>
-    <td>Kernel of the client. Examples: "linux", "darwin"</td>
+    <td>Kernel of the client. Examples: `linux`, `darwin`</td>
   </tr>
   <tr>
     <td>kernel.version</td>
-    <td>Version of the client kernel. Examples: "3.19.0-25-generic", "15.0.0"</td>
+    <td>Version of the client kernel. Examples: `3.19.0-25-generic`, `15.0.0`</td>
   </tr>
   <tr>
     <td>platform.aws.ami-id</td>
@@ -379,7 +379,7 @@ Below is a table documenting common node attributes:
   </tr>
   <tr>
     <td>os.name</td>
-    <td>Operating system of the client. Examples: "ubuntu", "windows", "darwin"</td>
+    <td>Operating system of the client. Examples: `ubuntu`, `windows`, `darwin`</td>
   </tr>
   <tr>
     <td>os.version</td>
