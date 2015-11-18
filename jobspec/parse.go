@@ -477,6 +477,10 @@ func parseServices(jobName string, taskGroupName string, task *structs.Task, ser
 			return err
 		}
 
+		if idx > 0 && service.Name == "" {
+			return fmt.Errorf("More than one service block is declared, please name each service explicitly")
+		}
+
 		if service.Name == "" {
 			service.Name = fmt.Sprintf("%s-%s-%s", jobName, taskGroupName, task.Name)
 		}
