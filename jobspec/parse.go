@@ -479,7 +479,7 @@ func parseServices(jobName string, taskGroupName string, task *structs.Task, ser
 		}
 
 		if defaultServiceName && service.Name == "" {
-			return fmt.Errorf("More than one service block is declared, please name each service explicitly")
+			return fmt.Errorf("Only one service block may omit the Name field")
 		}
 
 		if service.Name == "" {
@@ -488,8 +488,6 @@ func parseServices(jobName string, taskGroupName string, task *structs.Task, ser
 		} else {
 			service.Name = fmt.Sprintf("%s-%s-%s-%s", jobName, taskGroupName, task.Name, service.Name)
 		}
-
-		service.Id = "" // Forcing this to be blank while parsing since we will autogenerate this
 
 		// Fileter checks
 		var checkList *ast.ObjectList

@@ -331,3 +331,20 @@ func TestOverlappingPorts(t *testing.T) {
 		t.Fatalf("Expected collision error; got %v", err)
 	}
 }
+
+func TestIncompleteServiceDefn(t *testing.T) {
+	path, err := filepath.Abs(filepath.Join("./test-fixtures", "incorrect-service-def.hcl"))
+	if err != nil {
+		t.Fatalf("Can't get absoluate path for file: %s", err)
+	}
+
+	_, err = ParseFile(path)
+
+	if err == nil {
+		t.Fatalf("Expected an error")
+	}
+
+	if !strings.Contains(err.Error(), "Only one service block may omit the Name field") {
+		t.Fatalf("Expected collision error; got %v", err)
+	}
+}
