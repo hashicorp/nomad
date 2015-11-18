@@ -86,7 +86,7 @@ func Job() *structs.Job {
 						Driver: "exec",
 						Config: map[string]interface{}{
 							"command": "/bin/date",
-							"args":    "+%s",
+							"args":    []string{"+%s"},
 						},
 						Env: map[string]string{
 							"FOO": "bar",
@@ -151,7 +151,7 @@ func SystemJob() *structs.Job {
 						Driver: "exec",
 						Config: map[string]interface{}{
 							"command": "/bin/date",
-							"args":    "+%s",
+							"args":    []string{"+%s"},
 						},
 						Resources: &structs.Resources{
 							CPU:      500,
