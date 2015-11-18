@@ -25,16 +25,14 @@ type DockerDriver struct {
 	fingerprint.StaticFingerprinter
 }
 
-type DockerAuthConfig struct {
-	UserName      string `mapstructure:"auth.username"`       // user name of the registry
-	Password      string `mapstructure:"auth.password"`       // password to access the registry
-	Email         string `mapstructure:"auth.email"`          // email address of the user who is allowed to access the registry
-	ServerAddress string `mapstructure:"auth.server_address"` // server address of the registry
-
+type DockerDriverAuth struct {
+	Username      string `mapstructure:"username"`       // username for the registry
+	Password      string `mapstructure:"password"`       // password to access the registry
+	Email         string `mapstructure:"email"`          // email address of the user who is allowed to access the registry
+	ServerAddress string `mapstructure:"server_address"` // server address of the registry
 }
 
 type DockerDriverConfig struct {
-	DockerAuthConfig
 	ImageName        string              `mapstructure:"image"`              // Container's Image Name
 	Command          string              `mapstructure:"command"`            // The Command/Entrypoint to run when the container starts up
 	Args             string              `mapstructure:"args"`               // The arguments to the Command/Entrypoint
@@ -45,6 +43,7 @@ type DockerDriverConfig struct {
 	DNSSearchDomains []string            `mapstructure:"dns_search_domains"` // DNS Search domains for containers
 	Hostname         string              `mapstructure:"hostname"`           // Hostname for containers
 	Labels           []map[string]string `mapstructure:"labels"`             // Labels to set when the container starts up
+	Auth             []DockerDriverAuth  `mapstructure:"auth"`               // Authentication credentials for a private Docker registry
 }
 
 func (c *DockerDriverConfig) Validate() error {
@@ -380,11 +379,14 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 			Tag:        tag,
 		}
 
-		authOptions := docker.AuthConfiguration{
-			Username:      driverConfig.UserName,
-			Password:      driverConfig.Password,
-			Email:         driverConfig.Email,
-			ServerAddress: driverConfig.ServerAddress,
+		authOptions := docker.AuthConfiguration{}
+		if len(driverConfig.Auth) != 0 {
+			authOptions = docker.AuthConfiguration{
+				Username:      driverConfig.Auth[0].Username,
+				Password:      driverConfig.Auth[0].Password,
+				Email:         driverConfig.Auth[0].Email,
+				ServerAddress: driverConfig.Auth[0].ServerAddress,
+			}
 		}
 
 		err = client.PullImage(pullOptions, authOptions)
