@@ -42,12 +42,14 @@ func (c *ConsulClient) Register(task *structs.Task, allocID string) error {
 		if host == "" || port == 0 {
 			continue
 		}
+		checks := c.makeChecks(service, host, port)
 		asr := &api.AgentServiceRegistration{
 			ID:      service.Id,
 			Name:    service.Name,
 			Tags:    service.Tags,
 			Port:    port,
 			Address: host,
+			Checks:  checks,
 		}
 		serviceDefns = append(serviceDefns, asr)
 	}
@@ -82,4 +84,24 @@ func (c *ConsulClient) findPortAndHostForLabel(portLabel string, task *structs.T
 		}
 	}
 	return "", 0
+}
+
+func (c *ConsulClient) makeChecks(service *structs.Service, ip string, port int) []*api.AgentServiceCheck {
+	var checks []*api.AgentServiceCheck
+	for _, check := range service.Checks {
+		c := &api.AgentServiceCheck{
+			Interval: check.Interval.String(),
+			Timeout:  check.Timeout.String(),
+		}
+		switch check.Type {
+		case structs.ServiceCheckHTTP:
+			c.HTTP = fmt.Sprintf("%s://%s:%d/%s", check.Protocol, ip, port, check.Http)
+		case structs.ServiceCheckTCP:
+			c.TCP = fmt.Sprintf("%s:%d", ip, port)
+		case structs.ServiceCheckScript:
+			c.Script = check.Script // TODO This needs to include the path of the alloc dir and based on driver types
+		}
+		checks = append(checks, c)
+	}
+	return checks
 }
