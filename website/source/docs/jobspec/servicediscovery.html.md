@@ -34,6 +34,7 @@ ports.
 ### Example
 
 A brief example of a service definition in a Task
+
 ```
 group "database" {
     task "mysql" {
@@ -58,7 +59,6 @@ group "database" {
         }
     }
 }
-
 ```
 
 * `name`: Nomad automatically determines the name of a Task. By default the
