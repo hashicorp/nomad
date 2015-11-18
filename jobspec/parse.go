@@ -464,6 +464,7 @@ func parseTasks(jobName string, taskGroupName string, result *[]*structs.Task, l
 
 func parseServices(jobName string, taskGroupName string, task *structs.Task, serviceObjs *ast.ObjectList) error {
 	task.Services = make([]structs.Service, len(serviceObjs.Items))
+	var defaultServiceName bool
 	for idx, o := range serviceObjs.Items {
 		var service structs.Service
 		var m map[string]interface{}
@@ -477,13 +478,18 @@ func parseServices(jobName string, taskGroupName string, task *structs.Task, ser
 			return err
 		}
 
-		if idx > 0 && service.Name == "" {
+		if defaultServiceName && service.Name == "" {
 			return fmt.Errorf("More than one service block is declared, please name each service explicitly")
 		}
 
 		if service.Name == "" {
+			defaultServiceName = true
 			service.Name = fmt.Sprintf("%s-%s-%s", jobName, taskGroupName, task.Name)
+		} else {
+			service.Name = fmt.Sprintf("%s-%s-%s-%s", jobName, taskGroupName, task.Name, service.Name)
 		}
+
+		service.Id = "" // Forcing this to be blank while parsing since we will autogenerate this
 
 		// Fileter checks
 		var checkList *ast.ObjectList
