@@ -20,6 +20,13 @@ func TestMakeChecks(t *testing.T) {
 				Timeout:  2 * time.Second,
 			},
 			{
+				Type:     "http",
+				Protocol: "https",
+				Path:     "/foo/bar",
+				Interval: 10 * time.Second,
+				Timeout:  2 * time.Second,
+			},
+			{
 				Type:     "tcp",
 				Interval: 10 * time.Second,
 				Timeout:  2 * time.Second,
@@ -36,7 +43,11 @@ func TestMakeChecks(t *testing.T) {
 		t.Fatalf("Invalid http url for check: %v", checks[0].HTTP)
 	}
 
-	if checks[1].TCP != "10.10.0.1:8090" {
+	if checks[1].HTTP != "https://10.10.0.1:8090/foo/bar" {
+		t.Fatalf("Invalid http url for check: %v", checks[0].HTTP)
+	}
+
+	if checks[2].TCP != "10.10.0.1:8090" {
 		t.Fatalf("Invalid tcp check: %v", checks[0].TCP)
 	}
 }
