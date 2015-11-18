@@ -144,7 +144,7 @@ func parseJob(result *structs.Job, list *ast.ObjectList) error {
 	// If we have tasks outside, create TaskGroups for them
 	if o := listVal.Filter("task"); len(o.Items) > 0 {
 		var tasks []*structs.Task
-		if err := parseTasks(&tasks, o); err != nil {
+		if err := parseTasks(result.Name, "", &tasks, o); err != nil {
 			return err
 		}
 
@@ -247,7 +247,7 @@ func parseGroups(result *structs.Job, list *ast.ObjectList) error {
 
 		// Parse tasks
 		if o := listVal.Filter("task"); len(o.Items) > 0 {
-			if err := parseTasks(&g.Tasks, o); err != nil {
+			if err := parseTasks(result.Name, g.Name, &g.Tasks, o); err != nil {
 				return err
 			}
 		}
@@ -346,7 +346,7 @@ func parseConstraints(result *[]*structs.Constraint, list *ast.ObjectList) error
 	return nil
 }
 
-func parseTasks(result *[]*structs.Task, list *ast.ObjectList) error {
+func parseTasks(jobName string, taskGroupName string, result *[]*structs.Task, list *ast.ObjectList) error {
 	list = list.Children()
 	if len(list.Items) == 0 {
 		return nil
@@ -378,12 +378,16 @@ func parseTasks(result *[]*structs.Task, list *ast.ObjectList) error {
 		delete(m, "config")
 		delete(m, "env")
 		delete(m, "constraint")
+		delete(m, "service")
 		delete(m, "meta")
 		delete(m, "resources")
 
 		// Build the task
 		var t structs.Task
 		t.Name = n
+		if taskGroupName == "" {
+			taskGroupName = n
+		}
 		if err := mapstructure.WeakDecode(m, &t); err != nil {
 			return err
 		}
@@ -398,6 +402,12 @@ func parseTasks(result *[]*structs.Task, list *ast.ObjectList) error {
 				if err := mapstructure.WeakDecode(m, &t.Env); err != nil {
 					return err
 				}
+			}
+		}
+
+		if o := listVal.Filter("service"); len(o.Items) > 0 {
+			if err := parseServices(jobName, taskGroupName, &t, o); err != nil {
+				return err
 			}
 		}
 
@@ -447,6 +457,79 @@ func parseTasks(result *[]*structs.Task, list *ast.ObjectList) error {
 		}
 
 		*result = append(*result, &t)
+	}
+
+	return nil
+}
+
+func parseServices(jobName string, taskGroupName string, task *structs.Task, serviceObjs *ast.ObjectList) error {
+	task.Services = make([]structs.Service, len(serviceObjs.Items))
+	var defaultServiceName bool
+	for idx, o := range serviceObjs.Items {
+		var service structs.Service
+		var m map[string]interface{}
+		if err := hcl.DecodeObject(&m, o.Val); err != nil {
+			return err
+		}
+
+		delete(m, "check")
+
+		if err := mapstructure.WeakDecode(m, &service); err != nil {
+			return err
+		}
+
+		if defaultServiceName && service.Name == "" {
+			return fmt.Errorf("Only one service block may omit the Name field")
+		}
+
+		if service.Name == "" {
+			defaultServiceName = true
+			service.Name = fmt.Sprintf("%s-%s-%s", jobName, taskGroupName, task.Name)
+		} else {
+			service.Name = fmt.Sprintf("%s-%s-%s-%s", jobName, taskGroupName, task.Name, service.Name)
+		}
+
+		// Fileter checks
+		var checkList *ast.ObjectList
+		if ot, ok := o.Val.(*ast.ObjectType); ok {
+			checkList = ot.List
+		} else {
+			return fmt.Errorf("service '%s': should be an object", service.Name)
+		}
+
+		if co := checkList.Filter("check"); len(co.Items) > 0 {
+			if err := parseChecks(&service, co); err != nil {
+				return err
+			}
+		}
+
+		task.Services[idx] = service
+	}
+
+	return nil
+}
+
+func parseChecks(service *structs.Service, checkObjs *ast.ObjectList) error {
+	service.Checks = make([]structs.ServiceCheck, len(checkObjs.Items))
+	for idx, co := range checkObjs.Items {
+		var check structs.ServiceCheck
+		var cm map[string]interface{}
+		if err := hcl.DecodeObject(&cm, co.Val); err != nil {
+			return err
+		}
+		dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+			DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
+			WeaklyTypedInput: true,
+			Result:           &check,
+		})
+		if err != nil {
+			return err
+		}
+		if err := dec.Decode(cm); err != nil {
+			return err
+		}
+
+		service.Checks[idx] = check
 	}
 
 	return nil

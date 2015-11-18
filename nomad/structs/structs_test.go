@@ -357,9 +357,21 @@ func TestEncodeDecode(t *testing.T) {
 	}
 }
 
-func TestBatchRestartPolicyValidate(t *testing.T) {
-	rp := RestartPolicy{Attempts: 10, Delay: 25 * time.Second}
-	if err := rp.Validate(); err != nil {
-		t.Fatalf("err: %v", err)
+func TestInvalidServiceCheck(t *testing.T) {
+	s := Service{
+		Id:        "service-id",
+		Name:      "service-name",
+		PortLabel: "bar",
+		Checks: []ServiceCheck{
+			{
+
+				Id:   "check-id",
+				Name: "check-name",
+				Type: "lol",
+			},
+		},
+	}
+	if err := s.Validate(); err == nil {
+		t.Fatalf("Service should be invalid")
 	}
 }
