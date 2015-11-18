@@ -45,11 +45,10 @@ job "binstore-storagelocker" {
               HELLO = "world"
               LOREM = "ipsum"
             }
-            service "service-id" {
-                name = "service-name"
+            service {
                 tags = ["foo", "bar"]
                 port = "http"
-                check "check-id" {
+                check {
                     name = "check-name"
                     type = "tcp"
                     interval = "10s"

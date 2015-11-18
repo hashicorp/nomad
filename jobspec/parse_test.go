@@ -96,13 +96,13 @@ func TestParse(t *testing.T) {
 								},
 								Services: []structs.Service{
 									{
-										Id:        "service-id",
-										Name:      "service-name",
+										Id:        "",
+										Name:      "binstore-storagelocker-binsl-binstore",
 										Tags:      []string{"foo", "bar"},
 										PortLabel: "http",
 										Checks: []structs.ServiceCheck{
 											{
-												Id:       "check-id",
+												Id:       "",
 												Name:     "check-name",
 												Type:     "tcp",
 												Interval: 10 * time.Second,

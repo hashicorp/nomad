@@ -144,7 +144,7 @@ func parseJob(result *structs.Job, list *ast.ObjectList) error {
 	// If we have tasks outside, create TaskGroups for them
 	if o := listVal.Filter("task"); len(o.Items) > 0 {
 		var tasks []*structs.Task
-		if err := parseTasks(&tasks, o); err != nil {
+		if err := parseTasks(result.Name, "", &tasks, o); err != nil {
 			return err
 		}
 
@@ -247,7 +247,7 @@ func parseGroups(result *structs.Job, list *ast.ObjectList) error {
 
 		// Parse tasks
 		if o := listVal.Filter("task"); len(o.Items) > 0 {
-			if err := parseTasks(&g.Tasks, o); err != nil {
+			if err := parseTasks(result.Name, g.Name, &g.Tasks, o); err != nil {
 				return err
 			}
 		}
@@ -346,7 +346,7 @@ func parseConstraints(result *[]*structs.Constraint, list *ast.ObjectList) error
 	return nil
 }
 
-func parseTasks(result *[]*structs.Task, list *ast.ObjectList) error {
+func parseTasks(jobName string, taskGroupName string, result *[]*structs.Task, list *ast.ObjectList) error {
 	list = list.Children()
 	if len(list.Items) == 0 {
 		return nil
@@ -385,6 +385,9 @@ func parseTasks(result *[]*structs.Task, list *ast.ObjectList) error {
 		// Build the task
 		var t structs.Task
 		t.Name = n
+		if taskGroupName == "" {
+			taskGroupName = n
+		}
 		if err := mapstructure.WeakDecode(m, &t); err != nil {
 			return err
 		}
@@ -403,7 +406,7 @@ func parseTasks(result *[]*structs.Task, list *ast.ObjectList) error {
 		}
 
 		if o := listVal.Filter("service"); len(o.Items) > 0 {
-			if err := parseServices(&t, o); err != nil {
+			if err := parseServices(jobName, taskGroupName, &t, o); err != nil {
 				return err
 			}
 		}
@@ -459,13 +462,10 @@ func parseTasks(result *[]*structs.Task, list *ast.ObjectList) error {
 	return nil
 }
 
-func parseServices(task *structs.Task, serviceObjs *ast.ObjectList) error {
+func parseServices(jobName string, taskGroupName string, task *structs.Task, serviceObjs *ast.ObjectList) error {
 	task.Services = make([]structs.Service, len(serviceObjs.Items))
 	for idx, o := range serviceObjs.Items {
 		var service structs.Service
-		label := o.Keys[0].Token.Value().(string)
-		service.Id = label
-
 		var m map[string]interface{}
 		if err := hcl.DecodeObject(&m, o.Val); err != nil {
 			return err
@@ -478,7 +478,7 @@ func parseServices(task *structs.Task, serviceObjs *ast.ObjectList) error {
 		}
 
 		if service.Name == "" {
-			service.Name = service.Id
+			service.Name = fmt.Sprintf("%s-%s-%s", jobName, taskGroupName, task.Name)
 		}
 
 		// Fileter checks
@@ -486,7 +486,7 @@ func parseServices(task *structs.Task, serviceObjs *ast.ObjectList) error {
 		if ot, ok := o.Val.(*ast.ObjectType); ok {
 			checkList = ot.List
 		} else {
-			return fmt.Errorf("service '%s': should be an object", label)
+			return fmt.Errorf("service '%s': should be an object", service.Name)
 		}
 
 		if co := checkList.Filter("check"); len(co.Items) > 0 {
@@ -505,7 +505,6 @@ func parseChecks(service *structs.Service, checkObjs *ast.ObjectList) error {
 	service.Checks = make([]structs.ServiceCheck, len(checkObjs.Items))
 	for idx, co := range checkObjs.Items {
 		var check structs.ServiceCheck
-		label := co.Keys[0].Token.Value().(string)
 		var cm map[string]interface{}
 		if err := hcl.DecodeObject(&cm, co.Val); err != nil {
 			return err
@@ -522,10 +521,6 @@ func parseChecks(service *structs.Service, checkObjs *ast.ObjectList) error {
 			return err
 		}
 
-		check.Id = label
-		if check.Name == "" {
-			check.Name = label
-		}
 		service.Checks[idx] = check
 	}
 
