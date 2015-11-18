@@ -5,6 +5,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"log"
 )
 
 const (
@@ -13,9 +14,11 @@ const (
 
 type ConsulClient struct {
 	client *api.Client
+
+	logger *log.Logger
 }
 
-func NewConsulClient() (*ConsulClient, error) {
+func NewConsulClient(logger *log.Logger) (*ConsulClient, error) {
 	var err error
 	var c *api.Client
 	if c, err = api.NewClient(api.DefaultConfig()); err != nil {
@@ -24,6 +27,7 @@ func NewConsulClient() (*ConsulClient, error) {
 
 	consulClient := ConsulClient{
 		client: c,
+		logger: logger,
 	}
 
 	return &consulClient, nil
