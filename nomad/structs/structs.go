@@ -1704,7 +1704,7 @@ func (p *PlanResult) FullCommit(plan *Plan) (bool, int, int) {
 }
 
 // msgpackHandle is a shared handle for encoding/decoding of structs
-var msgpackHandle = func() *codec.MsgpackHandle {
+var MsgpackHandle = func() *codec.MsgpackHandle {
 	h := &codec.MsgpackHandle{RawToString: true}
 
 	// Sets the default type for decoding a map into a nil interface{}.
@@ -1716,13 +1716,13 @@ var msgpackHandle = func() *codec.MsgpackHandle {
 
 // Decode is used to decode a MsgPack encoded object
 func Decode(buf []byte, out interface{}) error {
-	return codec.NewDecoder(bytes.NewReader(buf), msgpackHandle).Decode(out)
+	return codec.NewDecoder(bytes.NewReader(buf), MsgpackHandle).Decode(out)
 }
 
 // Encode is used to encode a MsgPack object with type prefix
 func Encode(t MessageType, msg interface{}) ([]byte, error) {
 	var buf bytes.Buffer
 	buf.WriteByte(uint8(t))
-	err := codec.NewEncoder(&buf, msgpackHandle).Encode(msg)
+	err := codec.NewEncoder(&buf, MsgpackHandle).Encode(msg)
 	return buf.Bytes(), err
 }

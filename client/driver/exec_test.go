@@ -39,7 +39,7 @@ func TestExecDriver_StartOpen_Wait(t *testing.T) {
 		Name: "sleep",
 		Config: map[string]interface{}{
 			"command": "/bin/sleep",
-			"args":    "5",
+			"args":    []string{"5"},
 		},
 		Resources: basicResources,
 	}
@@ -73,7 +73,7 @@ func TestExecDriver_Start_Wait(t *testing.T) {
 		Name: "sleep",
 		Config: map[string]interface{}{
 			"command": "/bin/sleep",
-			"args":    "2",
+			"args":    []string{"2"},
 		},
 		Resources: basicResources,
 	}
@@ -161,7 +161,10 @@ func TestExecDriver_Start_Artifact_expanded(t *testing.T) {
 		Config: map[string]interface{}{
 			"artifact_source": fmt.Sprintf("https://dl.dropboxusercontent.com/u/47675/jar_thing/%s", file),
 			"command":         "/bin/bash",
-			"args":            fmt.Sprintf("-c '/bin/sleep 1 && %s'", filepath.Join("$NOMAD_TASK_DIR", file)),
+			"args": []string{
+				"-c",
+				fmt.Sprintf(`/bin/sleep 1 && %s`, filepath.Join("$NOMAD_TASK_DIR", file)),
+			},
 		},
 		Resources: basicResources,
 	}
@@ -204,7 +207,10 @@ func TestExecDriver_Start_Wait_AllocDir(t *testing.T) {
 		Name: "sleep",
 		Config: map[string]interface{}{
 			"command": "/bin/bash",
-			"args":    fmt.Sprintf("-c \"sleep 1; echo -n %s > $%s/%s\"", string(exp), environment.AllocDir, file),
+			"args": []string{
+				"-c",
+				fmt.Sprintf(`sleep 1; echo -n %s > $%s/%s`, string(exp), environment.AllocDir, file),
+			},
 		},
 		Resources: basicResources,
 	}
@@ -250,7 +256,7 @@ func TestExecDriver_Start_Kill_Wait(t *testing.T) {
 		Name: "sleep",
 		Config: map[string]interface{}{
 			"command": "/bin/sleep",
-			"args":    "1",
+			"args":    []string{"1"},
 		},
 		Resources: basicResources,
 	}

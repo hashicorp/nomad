@@ -35,7 +35,7 @@ type DockerDriverAuth struct {
 type DockerDriverConfig struct {
 	ImageName        string              `mapstructure:"image"`              // Container's Image Name
 	Command          string              `mapstructure:"command"`            // The Command/Entrypoint to run when the container starts up
-	Args             string              `mapstructure:"args"`               // The arguments to the Command/Entrypoint
+	Args             []string            `mapstructure:"args"`               // The arguments to the Command/Entrypoint
 	NetworkMode      string              `mapstructure:"network_mode"`       // The network mode of the container - host, net and none
 	PortMap          []map[string]int    `mapstructure:"port_map"`           // A map of host port labels and the ports exposed on the container
 	Privileged       bool                `mapstructure:"privileged"`         // Flag to run the container in priviledged mode
@@ -293,21 +293,18 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, dri
 		config.ExposedPorts = exposedPorts
 	}
 
-	parsedArgs, err := args.ParseAndReplace(driverConfig.Args, env.Map())
-	if err != nil {
-		return c, err
-	}
+	parsedArgs := args.ParseAndReplace(driverConfig.Args, env.Map())
 
 	// If the user specified a custom command to run as their entrypoint, we'll
 	// inject it here.
 	if driverConfig.Command != "" {
 		cmd := []string{driverConfig.Command}
-		if driverConfig.Args != "" {
+		if len(driverConfig.Args) != 0 {
 			cmd = append(cmd, parsedArgs...)
 		}
 		d.logger.Printf("[DEBUG] driver.docker: setting container startup command to: %s", strings.Join(cmd, " "))
 		config.Cmd = cmd
-	} else if driverConfig.Args != "" {
+	} else if len(driverConfig.Args) != 0 {
 		d.logger.Println("[DEBUG] driver.docker: ignoring command arguments because command is not specified")
 	}
 
@@ -431,7 +428,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 
 			if len(containers) != 1 {
 				log.Printf("[ERR] driver.docker: failed to get id for container %s", config.Name)
-				return nil, fmt.Errorf("Failed to get id for container %s: %s", config.Name, err)
+				return nil, fmt.Errorf("Failed to get id for container %s", config.Name)
 			}
 
 			log.Printf("[INFO] driver.docker: a container with the name %s already exists; will attempt to purge and re-create", config.Name)
