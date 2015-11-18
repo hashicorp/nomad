@@ -49,16 +49,16 @@ specification:
   launching more than one of a task (using `count`) with this option set, every
   container the task starts will have the same hostname.
 
-* `labels` - (Optional) A key/value map of labels to set to the containers on start.
-
+* `labels` - (Optional) A key/value map of labels to set to the containers on
+  start.
 
 **Authentication** Registry authentication can be set per task with the
 following authentication parameters.  These options can provide access to
 private repositories that utilize the docker remote api (e.g. dockerhub,
 quay.io)
-    - `auth.username` - (optional) The account username  
-    - `auth.password` - (optional) The account password  
-    - `auth.email` - (optional) The account email  
+    - `auth.username` - (Optional) The account username
+    - `auth.password` - (Optional) The account password
+    - `auth.email` - (Optional) The account email
     - `auth.server-address` - (Optional) The server domain/ip without the
       protocol
 
