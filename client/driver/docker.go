@@ -431,7 +431,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 
 			if len(containers) != 1 {
 				log.Printf("[ERR] driver.docker: failed to get id for container %s", config.Name)
-				return nil, fmt.Errorf("Failed to get id for container %s", config.Name, err)
+				return nil, fmt.Errorf("Failed to get id for container %s: %s", config.Name, err)
 			}
 
 			log.Printf("[INFO] driver.docker: a container with the name %s already exists; will attempt to purge and re-create", config.Name)
