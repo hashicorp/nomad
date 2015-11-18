@@ -467,6 +467,7 @@ func TestDockerLabels(t *testing.T) {
 	if handle == nil {
 		t.Fatalf("missing handle")
 	}
+	defer handle.Kill()
 
 	client, err := docker.NewClientFromEnv()
 	if err != nil {
@@ -493,8 +494,6 @@ func TestDockerLabels(t *testing.T) {
 	if want, got := "value1", container.Config.Labels["label1"]; want != got {
 		t.Errorf("Wrong label value docker job. Expect: %s, got: %s", want, got)
 	}
-
-	defer handle.Kill()
 }
 
 func TestDockerDNS(t *testing.T) {
@@ -504,7 +503,7 @@ func TestDockerDNS(t *testing.T) {
 
 	task := taskTemplate()
 	task.Config["dns_servers"] = []string{"8.8.8.8", "8.8.4.4"}
-	task.Config["dns_search_names"] = []string{"example.com", "example.org", "example.net"}
+	task.Config["dns_search_domains"] = []string{"example.com", "example.org", "example.net"}
 
 	driverCtx := testDockerDriverContext(task.Name)
 	ctx := testDriverExecContext(task, driverCtx)
@@ -518,6 +517,7 @@ func TestDockerDNS(t *testing.T) {
 	if handle == nil {
 		t.Fatalf("missing handle")
 	}
+	defer handle.Kill()
 
 	client, err := docker.NewClientFromEnv()
 	if err != nil {
@@ -537,15 +537,11 @@ func TestDockerDNS(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	fmt.Printf("%#v", container)
-
-	if want, got := 2, len(container.Config.Labels); want != got {
-		t.Errorf("Wrong labels count for docker job. Expect: %d, got: %d", want, got)
+	if !reflect.DeepEqual(task.Config["dns_servers"], container.HostConfig.DNS) {
+		t.Errorf("DNS Servers don't match.\nExpected:\n%s\nGot:\n%s\n", task.Config["dns_servers"], container.HostConfig.DNS)
 	}
 
-	if want, got := "value1", container.Config.Labels["label1"]; want != got {
-		t.Errorf("Wrong label value docker job. Expect: %s, got: %s", want, got)
+	if !reflect.DeepEqual(task.Config["dns_search_domains"], container.HostConfig.DNSSearch) {
+		t.Errorf("DNS Servers don't match.\nExpected:\n%s\nGot:\n%s\n", task.Config["dns_search_domains"], container.HostConfig.DNSSearch)
 	}
-
-	defer handle.Kill()
 }
