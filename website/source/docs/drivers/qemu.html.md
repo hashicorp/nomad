@@ -23,19 +23,16 @@ The `Qemu` driver can execute any regular `qemu` image (e.g. `qcow`, `img`,
 
 The `Qemu` driver supports the following configuration in the job spec:
 
-* `artifact_source` - The hosted location of the source Qemu image. Must be accessible
+* `artifact_source` - **(Required)** The hosted location of the source Qemu image. Must be accessible
   from the Nomad client, via HTTP.
-
-* `checksum` - (Optional) The checksum type and value for the `artifact_source` image.
+* `checksum` - **(Optional)** The checksum type and value for the `artifact_source` image.
   The format is `type:value`, where type is any of `md5`, `sha1`, `sha256`, or `sha512`,
   and the value is the computed checksum. If a checksum is supplied and does not
   match the downloaded artifact, the driver will fail to start
-
 * `accelerator` - (Optional) The type of accelerator to use in the invocation.
   If the host machine has `Qemu` installed with KVM support, users can specify
   `kvm` for the `accelerator`. Default is `tcg`
-
-* `port_map` - (Optional) A `map[string]int` that maps port labels to ports
+* `port_map` - **(Optional)** A `map[string]int` that maps port labels to ports
   on the guest. This forwards the host port to the guest vm. For example,
   `port_map { db = 6539 }` would forward the host port with label `db` to the
   guest vm's port 6539.

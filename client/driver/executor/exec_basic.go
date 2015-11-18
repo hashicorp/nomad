@@ -29,6 +29,7 @@ type BasicExecutor struct {
 	allocDir string
 }
 
+// TODO: Have raw_exec use this as well.
 func NewBasicExecutor() Executor {
 	return &BasicExecutor{}
 }
@@ -62,7 +63,12 @@ func (e *BasicExecutor) Start() error {
 	}
 
 	e.cmd.Path = args.ReplaceEnv(e.cmd.Path, envVars.Map())
-	e.cmd.Args = args.ParseAndReplace(e.cmd.Args, envVars.Map())
+	combined := strings.Join(e.cmd.Args, " ")
+	parsed, err := args.ParseAndReplace(combined, envVars.Map())
+	if err != nil {
+		return err
+	}
+	e.cmd.Args = parsed
 
 	spawnState := filepath.Join(e.allocDir, fmt.Sprintf("%s_%s", e.taskName, "exit_status"))
 	e.spawn = spawn.NewSpawner(spawnState)
