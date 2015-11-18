@@ -245,7 +245,7 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, dri
 	// Setup port mapping and exposed ports
 	if len(task.Resources.Networks) == 0 {
 		d.logger.Println("[DEBUG] driver.docker: No network interfaces are available")
-		if len(driverConfig.PortMap[0]) > 0 {
+		if len(driverConfig.PortMap) == 1 && len(driverConfig.PortMap[0]) > 0 {
 			return c, fmt.Errorf("Trying to map ports but no network interface is available")
 		}
 	} else {
@@ -269,9 +269,15 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, dri
 
 		containerToHostPortMap := make(map[string]int)
 		for _, port := range network.DynamicPorts {
-			containerPort, ok := driverConfig.PortMap[0][port.Label]
-			if !ok {
-				containerPort = port.Value
+			// By default we will map the allocated port 1:1 to the container
+			containerPort := port.Value
+
+			// If the user has mapped a port using port_map we'll change it here
+			if len(driverConfig.PortMap) == 1 {
+				mapped, ok := driverConfig.PortMap[0][port.Label]
+				if ok {
+					containerPort = mapped
+				}
 			}
 
 			containerPortStr := docker.Port(strconv.Itoa(containerPort))
@@ -318,7 +324,7 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, dri
 
 	config.Env = env.List()
 	return docker.CreateContainerOptions{
-		Name:       fmt.Sprintf("%s-%s", task.Name, ctx.AllocID),
+		// Name:       fmt.Sprintf("%s-%s", task.Name, ctx.AllocID),
 		Config:     config,
 		HostConfig: hostConfig,
 	}, nil
@@ -392,7 +398,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 		// Now that we have the image we can get the image id
 		dockerImage, err = client.InspectImage(image)
 		if err != nil {
-			d.logger.Printf("[ERR] driver.docker: failed getting image id for %s\n", image)
+			d.logger.Printf("[ERR] driver.docker: failed getting image id for %s: %s\n", image, err)
 			return nil, fmt.Errorf("Failed to determine image id for `%s`: %s", image, err)
 		}
 	}
@@ -407,15 +413,15 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	container, err := client.CreateContainer(config)
 	if err != nil {
 		d.logger.Printf("[ERR] driver.docker: failed to create container from image %s: %s\n", image, err)
-		return nil, fmt.Errorf("Failed to create container from image %s", image)
+		return nil, fmt.Errorf("Failed to create container from image %s: %s", image, err)
 	}
 	d.logger.Printf("[INFO] driver.docker: created container %s\n", container.ID)
 
 	// Start the container
 	err = client.StartContainer(container.ID, container.HostConfig)
 	if err != nil {
-		d.logger.Printf("[ERR] driver.docker: starting container %s\n", container.ID)
-		return nil, fmt.Errorf("Failed to start container %s", container.ID)
+		d.logger.Printf("[ERR] driver.docker: failed to start container %s: %s\n", container.ID, err)
+		return nil, fmt.Errorf("Failed to start container %s: %s", container.ID, err)
 	}
 	d.logger.Printf("[INFO] driver.docker: started container %s\n", container.ID)
 

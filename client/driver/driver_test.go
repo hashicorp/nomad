@@ -19,7 +19,7 @@ var basicResources = &structs.Resources{
 		&structs.NetworkResource{
 			IP:            "0.0.0.0",
 			ReservedPorts: []structs.Port{{"main", 12345}},
-			DynamicPorts:  []structs.Port{{"HTTP", 0}},
+			DynamicPorts:  []structs.Port{{"HTTP", 43330}},
 		},
 	},
 }
