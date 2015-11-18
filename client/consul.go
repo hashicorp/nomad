@@ -179,11 +179,11 @@ func (c *ConsulClient) makeChecks(service *structs.Service, ip string, port int)
 			Interval: check.Interval.String(),
 			Timeout:  check.Timeout.String(),
 		}
-		if check.Protocol == "" {
-			check.Protocol = "http"
-		}
 		switch check.Type {
 		case structs.ServiceCheckHTTP:
+			if check.Protocol == "" {
+				check.Protocol = "http"
+			}
 			url := url.URL{
 				Scheme: check.Protocol,
 				Host:   fmt.Sprintf("%s:%d", ip, port),
