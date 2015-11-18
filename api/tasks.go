@@ -27,7 +27,7 @@ type ServiceCheck struct {
 	Name     string
 	Type     string
 	Script   string
-	Http     string
+	Path     string
 	Protocol string
 	Interval time.Duration
 	Timeout  time.Duration
