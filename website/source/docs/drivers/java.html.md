@@ -29,8 +29,8 @@ The `java` driver supports the following configuration in the job spec:
 
 * `args` - (Optional) A list of arguments to the `java` command.
 
-* `jvm_options` - (Optional) JVM options to be passed while invoking java. These options
-  are passed not validated in any way in Nomad.
+* `jvm_options` - (Optional) A list of JVM options to be passed while invoking
+  java. These options are passed not validated in any way in Nomad.
 
 ## Client Requirements
 

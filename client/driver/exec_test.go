@@ -163,7 +163,7 @@ func TestExecDriver_Start_Artifact_expanded(t *testing.T) {
 			"command":         "/bin/bash",
 			"args": []string{
 				"-c",
-				fmt.Sprintf(`'/bin/sleep 1 && %s'`, filepath.Join("$NOMAD_TASK_DIR", file)),
+				fmt.Sprintf(`/bin/sleep 1 && %s`, filepath.Join("$NOMAD_TASK_DIR", file)),
 			},
 		},
 		Resources: basicResources,
@@ -209,7 +209,7 @@ func TestExecDriver_Start_Wait_AllocDir(t *testing.T) {
 			"command": "/bin/bash",
 			"args": []string{
 				"-c",
-				fmt.Sprintf(`"sleep 1; echo -n %s > $%s/%s"`, string(exp), environment.AllocDir, file),
+				fmt.Sprintf(`sleep 1; echo -n %s > $%s/%s`, string(exp), environment.AllocDir, file),
 			},
 		},
 		Resources: basicResources,

@@ -28,7 +28,7 @@ type JavaDriver struct {
 }
 
 type JavaDriverConfig struct {
-	JvmOpts        string   `mapstructure:"jvm_options"`
+	JvmOpts        []string `mapstructure:"jvm_options"`
 	ArtifactSource string   `mapstructure:"artifact_source"`
 	Checksum       string   `mapstructure:"checksum"`
 	Args           []string `mapstructure:"args"`
@@ -126,9 +126,9 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 
 	args := []string{}
 	// Look for jvm options
-	if driverConfig.JvmOpts != "" {
+	if len(driverConfig.JvmOpts) != 0 {
 		d.logger.Printf("[DEBUG] driver.java: found JVM options: %s", driverConfig.JvmOpts)
-		args = append(args, driverConfig.JvmOpts)
+		args = append(args, driverConfig.JvmOpts...)
 	}
 
 	// Build the argument list.

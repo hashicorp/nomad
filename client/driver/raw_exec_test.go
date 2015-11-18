@@ -237,7 +237,7 @@ func TestRawExecDriver_Start_Wait_AllocDir(t *testing.T) {
 			"command": "/bin/bash",
 			"args": []string{
 				"-c",
-				fmt.Sprintf(`"sleep 1; echo -n %s > $%s/%s"`, string(exp), environment.AllocDir, file),
+				fmt.Sprintf(`sleep 1; echo -n %s > $%s/%s`, string(exp), environment.AllocDir, file),
 			},
 		},
 		Resources: basicResources,
