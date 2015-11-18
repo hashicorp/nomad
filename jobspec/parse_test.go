@@ -318,7 +318,7 @@ func TestBadPorts(t *testing.T) {
 func TestOverlappingPorts(t *testing.T) {
 	path, err := filepath.Abs(filepath.Join("./test-fixtures", "overlapping-ports.hcl"))
 	if err != nil {
-		t.Fatalf("Can't get absoluate path for file: %s", err)
+		t.Fatalf("Can't get absolute path for file: %s", err)
 	}
 
 	_, err = ParseFile(path)
@@ -335,7 +335,7 @@ func TestOverlappingPorts(t *testing.T) {
 func TestIncompleteServiceDefn(t *testing.T) {
 	path, err := filepath.Abs(filepath.Join("./test-fixtures", "incorrect-service-def.hcl"))
 	if err != nil {
-		t.Fatalf("Can't get absoluate path for file: %s", err)
+		t.Fatalf("Can't get absolute path for file: %s", err)
 	}
 
 	_, err = ParseFile(path)
