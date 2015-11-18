@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-msgpack/codec"
-	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 func TestTimeTable(t *testing.T) {
@@ -105,14 +104,14 @@ func TestTimeTable_SerializeDeserialize(t *testing.T) {
 	tt.Witness(50, plusHour)
 
 	var buf bytes.Buffer
-	enc := codec.NewEncoder(&buf, structs.MsgpackHandle)
+	enc := codec.NewEncoder(&buf, msgpackHandle)
 
 	err := tt.Serialize(enc)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	dec := codec.NewDecoder(&buf, structs.MsgpackHandle)
+	dec := codec.NewDecoder(&buf, msgpackHandle)
 
 	tt2 := NewTimeTable(time.Second, time.Minute)
 	err = tt2.Deserialize(dec)

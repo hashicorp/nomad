@@ -51,7 +51,7 @@ func TestJavaDriver_StartOpen_Wait(t *testing.T) {
 		Name: "demo-app",
 		Config: map[string]interface{}{
 			"artifact_source": "https://dl.dropboxusercontent.com/u/47675/jar_thing/demoapp.jar",
-			"jvm_options":     []string{"-Xmx64m", "-Xms32m"},
+			"jvm_options":     "-Xmx2048m -Xms256m",
 			"checksum":        "sha256:58d6e8130308d32e197c5108edd4f56ddf1417408f743097c2e662df0f0b17c8",
 		},
 		Resources: basicResources,
@@ -97,6 +97,7 @@ func TestJavaDriver_Start_Wait(t *testing.T) {
 		Name: "demo-app",
 		Config: map[string]interface{}{
 			"artifact_source": "https://dl.dropboxusercontent.com/u/47675/jar_thing/demoapp.jar",
+			"jvm_options":     "-Xmx2048m -Xms256m",
 			"checksum":        "sha256:58d6e8130308d32e197c5108edd4f56ddf1417408f743097c2e662df0f0b17c8",
 		},
 		Resources: basicResources,

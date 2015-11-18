@@ -137,7 +137,7 @@ func TestDockerDriver_Start_Wait(t *testing.T) {
 		Config: map[string]interface{}{
 			"image":   "redis",
 			"command": "redis-server",
-			"args":    []string{"-v"},
+			"args":    "-v",
 		},
 		Resources: &structs.Resources{
 			MemoryMB: 256,
@@ -190,11 +190,7 @@ func TestDockerDriver_Start_Wait_AllocDir(t *testing.T) {
 		Config: map[string]interface{}{
 			"image":   "redis",
 			"command": "/bin/bash",
-			"args": []string{
-				"-c",
-				fmt.Sprintf(`sleep 1; echo -n %s > $%s/%s`,
-					string(exp), environment.AllocDir, file),
-			},
+			"args":    fmt.Sprintf(`-c "sleep 1; echo -n %s > $%s/%s"`, string(exp), environment.AllocDir, file),
 		},
 		Resources: &structs.Resources{
 			MemoryMB: 256,
@@ -247,7 +243,7 @@ func TestDockerDriver_Start_Kill_Wait(t *testing.T) {
 		Config: map[string]interface{}{
 			"image":   "redis",
 			"command": "/bin/sleep",
-			"args":    []string{"10"},
+			"args":    "10",
 		},
 		Resources: basicResources,
 	}
