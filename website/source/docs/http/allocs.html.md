@@ -42,19 +42,35 @@ be specified using the `?region=` query parameter.
     ```javascript
     [
     {
-        "ID": "3575ba9d-7a12-0c96-7b28-add168c67984",
-        "EvalID": "151accaa-1ac6-90fe-d427-313e70ccbb88",
-        "Name": "binstore-storagelocker.binsl[3]",
-        "NodeID": "c9972143-861d-46e6-df73-1d8287bc3e66",
-        "JobID": "binstore-storagelocker",
-        "TaskGroup": "binsl",
-        "DesiredStatus": "run",
-        "DesiredDescription": "",
-        "ClientStatus": "running",
-        "ClientDescription": "",
-        "CreateIndex": 16,
-        "ModifyIndex": 16
-    },
+      "ID": "203266e5-e0d6-9486-5e05-397ed2b184af",
+      "EvalID": "e68125ed-3fba-fb46-46cc-291addbc4455",
+      "Name": "example.cache[0]",
+      "NodeID": "e02b6169-83bd-9df6-69bd-832765f333eb",
+      "JobID": "example",
+      "TaskGroup": "cache",
+      "DesiredStatus": "run",
+      "DesiredDescription": ""
+      "ClientDescription": "",
+      "ClientStatus": "running",
+      "TaskStates": {
+        "redis": {
+          "Events": [
+            {
+              "KillError": "",
+              "Message": "",
+              "Signal": 0,
+              "ExitCode": 0,
+              "DriverError": "",
+              "Time": 1447806038427841000,
+              "Type": "Started"
+            }
+          ],
+          "State": "running"
+        }
+      },
+      "CreateIndex": 7,
+      "ModifyIndex": 9,
+    }
     ...
     ]
     ```

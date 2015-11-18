@@ -50,10 +50,13 @@ job "binstore-storagelocker" {
                 port = "http"
                 check {
                     name = "check-name"
-                    type = "tcp"
+                    type = "http"
                     interval = "10s"
                     timeout = "2s"
                 }
+            }
+            service {
+                port = "one"
             }
             resources {
                 cpu = 500
@@ -64,43 +67,11 @@ job "binstore-storagelocker" {
                     port "one" {
                         static = 1
                     }
-                    port "two" {
-                        static = 2
-                    }
                     port "three" {
                         static = 3
                     }
                     port "http" {}
-                    port "https" {}
-                    port "admin" {}
                 }
             }
         }
-
-        task "storagelocker" {
-            driver = "java"
-            config {
-                image = "hashicorp/storagelocker"
-            }
-            resources {
-                cpu = 500
-                memory = 128
-            }
-            constraint {
-                attribute = "kernel.arch"
-                value = "amd64"
-            }
-        }
-
-        constraint {
-            attribute = "kernel.os"
-            value = "linux"
-        }
-
-        meta {
-            elb_mode = "tcp"
-            elb_interval = 10
-            elb_checks = 3
-        }
-    }
 }

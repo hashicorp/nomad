@@ -995,6 +995,60 @@ func (tg *TaskGroup) GoString() string {
 	return fmt.Sprintf("*%#v", *tg)
 }
 
+const (
+	ServiceCheckHTTP   = "http"
+	ServiceCheckTCP    = "tcp"
+	ServiceCheckDocker = "docker"
+	ServiceCheckScript = "script"
+)
+
+// The ServiceCheck data model represents the consul health check that
+// Nomad registers for a Task
+type ServiceCheck struct {
+	Id       string        // Id of the check, must be unique and it is autogenrated
+	Name     string        // Name of the check, defaults to id
+	Type     string        // Type of the check - tcp, http, docker and script
+	Script   string        // Script to invoke for script check
+	Http     string        // path of the health check url for http type check
+	Protocol string        // Protocol to use if check is http, defaults to http
+	Interval time.Duration // Interval of the check
+	Timeout  time.Duration // Timeout of the response from the check before consul fails the check
+}
+
+func (sc *ServiceCheck) Validate() error {
+	t := strings.ToLower(sc.Type)
+	if sc.Type == ServiceCheckHTTP && sc.Http == "" {
+		return fmt.Errorf("http checks needs the Http path information.")
+	}
+
+	if sc.Type == ServiceCheckScript && sc.Script == "" {
+		return fmt.Errorf("Script checks need the script to invoke")
+	}
+	if t != ServiceCheckTCP && t != ServiceCheckHTTP && t != ServiceCheckDocker && t != ServiceCheckScript {
+		return fmt.Errorf("Check with name %v has invalid check type: %s ", sc.Name, sc.Type)
+	}
+	return nil
+}
+
+// The Service model represents a Consul service defintion
+type Service struct {
+	Id        string         // Id of the service, this needs to be unique on a local machine
+	Name      string         // Name of the service, defaults to id
+	Tags      []string       // List of tags for the service
+	PortLabel string         `mapstructure:"port"` // port for the service
+	Checks    []ServiceCheck // List of checks associated with the service
+}
+
+func (s *Service) Validate() error {
+	var mErr multierror.Error
+	for _, c := range s.Checks {
+		if err := c.Validate(); err != nil {
+			mErr.Errors = append(mErr.Errors, err)
+		}
+	}
+	return mErr.ErrorOrNil()
+}
+
 // Task is a single process typically that is executed as part of a task group.
 type Task struct {
 	// Name of the task
@@ -1008,6 +1062,9 @@ type Task struct {
 
 	// Map of environment variables to be used by the driver
 	Env map[string]string
+
+	// List of service definitions exposed by the Task
+	Services []Service
 
 	// Constraints can be specified at a task level and apply only to
 	// the particular task.
@@ -1130,6 +1187,12 @@ func (t *Task) Validate() error {
 		if err := constr.Validate(); err != nil {
 			outer := fmt.Errorf("Constraint %d validation failed: %s", idx+1, err)
 			mErr.Errors = append(mErr.Errors, outer)
+		}
+	}
+
+	for _, service := range t.Services {
+		if err := service.Validate(); err != nil {
+			mErr.Errors = append(mErr.Errors, err)
 		}
 	}
 	return mErr.ErrorOrNil()
