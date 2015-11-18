@@ -9,13 +9,13 @@ description: |-
 # Service Discovery
 
 Nomad enables dynamic scheduling on compute resources to run services at scale
-on compute nodes. Compute nodes, size of an application cluster varies depending
-on volume of traffic etc, thereby the network topology of services constanly
-changing. This introduces the challenge of discovery of services, Nomad solves
-this problem by integrating with [Consul](https://consul.io) to provide service
+on compute nodes. Size of an application cluster varies depending
+on volume of traffic, health of services, etc thereby the network topology of
+services are constanly changing. This introduces the challenge of discovery of services, 
+Nomad solves this problem by integrating with [Consul](https://consul.io) to provide service
 discovery and health checks of services.
 
-Operators have to run Consul agents on a Nomad compute node.Nomad also makes
+Operators have to run Consul agents on a Nomad compute node. Nomad also makes
 running an application like Consul agent on every single node in a data centre
 simple by providing system jobs. Nomad connects to Consul on it's default http
 port but operators can override it.
@@ -29,7 +29,7 @@ port but operators can override it.
 ## Service Deginition Syntax
 
 The service blocks in a Task definition defines a service which Nomad will
-register with Consul. Multiple Service blocks are allowed in a Task deginition,
+register with Consul. Multiple Service blocks are allowed in a Task definition,
 which makes it usable for cases when an application listens on multiple ports
 each exposing a specific service.
 
@@ -69,7 +69,7 @@ group "database" {
 
 * `tags`: A list of tags associated with this Service.
 
-* `port`: The port indicated the port associated with the Service. Users are
+* `port`: The port indicates the port associated with the Service. Users are
   reruired to specify a valid port label here which they have defined in the
   resources block. This could be a label to either a dynamic or static port. If
   an incorrect port label is specified, Nomad doesn't register the service with
