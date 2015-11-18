@@ -467,6 +467,7 @@ func TestDockerLabels(t *testing.T) {
 	if handle == nil {
 		t.Fatalf("missing handle")
 	}
+	defer handle.Kill()
 
 	client, err := docker.NewClientFromEnv()
 	if err != nil {
@@ -493,6 +494,54 @@ func TestDockerLabels(t *testing.T) {
 	if want, got := "value1", container.Config.Labels["label1"]; want != got {
 		t.Errorf("Wrong label value docker job. Expect: %s, got: %s", want, got)
 	}
+}
 
+func TestDockerDNS(t *testing.T) {
+	if !dockerIsConnected(t) {
+		t.SkipNow()
+	}
+
+	task := taskTemplate()
+	task.Config["dns_servers"] = []string{"8.8.8.8", "8.8.4.4"}
+	task.Config["dns_search_domains"] = []string{"example.com", "example.org", "example.net"}
+
+	driverCtx := testDockerDriverContext(task.Name)
+	ctx := testDriverExecContext(task, driverCtx)
+	defer ctx.AllocDir.Destroy()
+	d := NewDockerDriver(driverCtx)
+
+	handle, err := d.Start(ctx, task)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if handle == nil {
+		t.Fatalf("missing handle")
+	}
 	defer handle.Kill()
+
+	client, err := docker.NewClientFromEnv()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// don't know if is queriable in a clean way
+	parts := strings.SplitN(handle.ID(), ":", 2)
+	var pid dockerPID
+	err = json.Unmarshal([]byte(parts[1]), &pid)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	container, err := client.InspectContainer(pid.ContainerID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !reflect.DeepEqual(task.Config["dns_servers"], container.HostConfig.DNS) {
+		t.Errorf("DNS Servers don't match.\nExpected:\n%s\nGot:\n%s\n", task.Config["dns_servers"], container.HostConfig.DNS)
+	}
+
+	if !reflect.DeepEqual(task.Config["dns_search_domains"], container.HostConfig.DNSSearch) {
+		t.Errorf("DNS Servers don't match.\nExpected:\n%s\nGot:\n%s\n", task.Config["dns_search_domains"], container.HostConfig.DNSSearch)
+	}
 }

@@ -39,11 +39,11 @@ specification:
   Tasks with `privileged` set can only run on Nomad Agents with
   `docker.privileged.enabled = "true"`.
 
-* `dns_servers` - (Optional) A comma separated list of DNS servers for the
-  container to use (e.g. "8.8.8.8,8.8.4.4"). *Docker API v1.10 and above only*
+* `dns_servers` - (Optional) A list of DNS servers for the container to use
+  (e.g. ["8.8.8.8", "8.8.4.4"]). *Docker API v1.10 and above only*
 
-* `search_domains` - (Optional) A comma separated list of DNS search domains
-  for the container to use.
+* `search_domains` - (Optional) A list of DNS search domains for the container
+  to use.
 
 * `hostname` - (Optional) The hostname to assign to the container. When
   launching more than one of a task (using `count`) with this option set, every
