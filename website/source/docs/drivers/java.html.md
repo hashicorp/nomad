@@ -18,16 +18,18 @@ HTTP from the Nomad client.
 
 The `java` driver supports the following configuration in the job spec:
 
-* `artifact_source` - **(Required)** The hosted location of the source Jar file. Must be accessible
-from the Nomad client
-* `checksum` - **(Optional)** The checksum type and value for the `artifact_source` image.
-The format is `type:value`, where type is any of `md5`, `sha1`, `sha256`, or `sha512`,
-and the value is the computed checksum. If a checksum is supplied and does not
-match the downloaded artifact, the driver will fail to start
+* `artifact_source` - The hosted location of the source Jar file. Must be
+  accessible from the Nomad client
 
-* `args` - **(Optional)** The argument list for the `java` command, space separated.
+* `checksum` - (Optional) The checksum type and value for the `artifact_source`
+  image.  The format is `type:value`, where type is any of `md5`, `sha1`,
+  `sha256`, or `sha512`, and the value is the computed checksum. If a checksum
+  is supplied and does not match the downloaded artifact, the driver will fail
+  to start
 
-* `jvm_options` - **(Optional)** JVM options to be passed while invoking java. These options
+* `args` - (Optional) A list of arguments to the `java` command.
+
+* `jvm_options` - (Optional) JVM options to be passed while invoking java. These options
   are passed not validated in any way in Nomad.
 
 ## Client Requirements

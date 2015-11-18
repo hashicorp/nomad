@@ -20,13 +20,16 @@ being marked as experimental and should be used with care.
 
 The `rkt` driver supports the following configuration in the job spec:
 
-* `trust_prefix` - **(Optional)** The trust prefix to be passed to rkt. Must be reachable from
-the box running the nomad agent. If not specified, the image is run without
-verifying the image signature.
-* `image` - **(Required)** The image to run which may be specified by name,
-hash, ACI address or docker registry.
-* `command` - **(Optional**) A command to execute on the ACI.
-* `args` - **(Optional**) A string of args to pass into the image.
+* `image` - The image to run which may be specified by name, hash, ACI address
+  or docker registry.
+
+* `command` - (Optional) A command to execute on the ACI.
+
+* `args` - (Optional) A list of arguments to the image.
+
+* `trust_prefix` - (Optional) The trust prefix to be passed to rkt. Must be
+  reachable from the box running the nomad agent. If not specified, the image is
+  run without verifying the image signature.
 
 ## Task Directories
 
