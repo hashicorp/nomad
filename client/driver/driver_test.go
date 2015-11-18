@@ -1,7 +1,9 @@
 package driver
 
 import (
+	"fmt"
 	"log"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -19,9 +21,13 @@ var basicResources = &structs.Resources{
 		&structs.NetworkResource{
 			IP:            "0.0.0.0",
 			ReservedPorts: []structs.Port{{"main", 12345}},
-			DynamicPorts:  []structs.Port{{"HTTP", 0}},
+			DynamicPorts:  []structs.Port{{"HTTP", 43330}},
 		},
 	},
+}
+
+func init() {
+	rand.Seed(49875)
 }
 
 func testLogger() *log.Logger {
@@ -43,7 +49,7 @@ func testDriverContext(task string) *DriverContext {
 func testDriverExecContext(task *structs.Task, driverCtx *DriverContext) *ExecContext {
 	allocDir := allocdir.NewAllocDir(filepath.Join(driverCtx.config.AllocDir, structs.GenerateUUID()))
 	allocDir.Build([]*structs.Task{task})
-	ctx := NewExecContext(allocDir, "dummyAllocId")
+	ctx := NewExecContext(allocDir, fmt.Sprintf("alloc-id-%d", int(rand.Int31())))
 	return ctx
 }
 
