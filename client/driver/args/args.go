@@ -1,11 +1,6 @@
 package args
 
-import (
-	"fmt"
-	"regexp"
-
-	"github.com/mattn/go-shellwords"
-)
+import "regexp"
 
 var (
 	envRe = regexp.MustCompile(`\$({[a-zA-Z0-9_]+}|[a-zA-Z0-9_]+)`)
@@ -13,27 +8,17 @@ var (
 
 // ParseAndReplace takes the user supplied args and a map of environment
 // variables. It replaces any instance of an environment variable in the args
-// with the actual value and does correct splitting of the arg list.
-func ParseAndReplace(args string, env map[string]string) ([]string, error) {
-	// Set up parser.
-	p := shellwords.NewParser()
-	p.ParseEnv = false
-	p.ParseBacktick = false
-
-	parsed, err := p.Parse(args)
-	if err != nil {
-		return nil, fmt.Errorf("Couldn't parse args %v: %v", args, err)
-	}
-
-	replaced := make([]string, len(parsed))
-	for i, arg := range parsed {
+// with the actual value.
+func ParseAndReplace(args []string, env map[string]string) ([]string, error) {
+	replaced := make([]string, len(args))
+	for i, arg := range args {
 		replaced[i] = ReplaceEnv(arg, env)
 	}
 
 	return replaced, nil
 }
 
-// replaceEnv takes an arg and replaces all occurences of environment variables.
+// ReplaceEnv takes an arg and replaces all occurences of environment variables.
 // If the variable is found in the passed map it is replaced, otherwise the
 // original string is returned.
 func ReplaceEnv(arg string, env map[string]string) string {
