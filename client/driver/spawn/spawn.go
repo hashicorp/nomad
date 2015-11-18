@@ -73,10 +73,10 @@ func (s *Spawner) Spawn(cb func(pid int) error) error {
 	}
 
 	exitFile, err := os.OpenFile(s.StateFile, os.O_CREATE|os.O_WRONLY, 0666)
-	defer exitFile.Close()
 	if err != nil {
 		return fmt.Errorf("Error opening file to store exit status: %v", err)
 	}
+	defer exitFile.Close()
 
 	config, err := s.spawnConfig()
 	if err != nil {
@@ -87,17 +87,17 @@ func (s *Spawner) Spawn(cb func(pid int) error) error {
 
 	// Capture stdout
 	spawnStdout, err := spawn.StdoutPipe()
-	defer spawnStdout.Close()
 	if err != nil {
 		return fmt.Errorf("Failed to capture spawn-daemon stdout: %v", err)
 	}
+	defer spawnStdout.Close()
 
 	// Capture stdin.
 	spawnStdin, err := spawn.StdinPipe()
-	defer spawnStdin.Close()
 	if err != nil {
 		return fmt.Errorf("Failed to capture spawn-daemon stdin: %v", err)
 	}
+	defer spawnStdin.Close()
 
 	if err := spawn.Start(); err != nil {
 		return fmt.Errorf("Failed to call spawn-daemon on nomad executable: %v", err)
@@ -264,10 +264,10 @@ func (s *Spawner) pollWait() *structs.WaitResult {
 // returns an error if the file can't be read.
 func (s *Spawner) readExitCode() *structs.WaitResult {
 	f, err := os.Open(s.StateFile)
-	defer f.Close()
 	if err != nil {
 		return structs.NewWaitResult(-1, 0, fmt.Errorf("Failed to open %v to read exit code: %v", s.StateFile, err))
 	}
+	defer f.Close()
 
 	stat, err := f.Stat()
 	if err != nil {
@@ -289,7 +289,7 @@ func (s *Spawner) readExitCode() *structs.WaitResult {
 
 // Valid checks that the state of the Spawner is valid and that a subsequent
 // Wait could be called. This is useful to call when reopening a Spawner
-// throught client restarts. If Valid a nil error is returned.
+// through client restarts. If Valid a nil error is returned.
 func (s *Spawner) Valid() error {
 	// If the spawner is still alive, then the task is running and we can wait
 	// on it.
