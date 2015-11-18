@@ -30,7 +30,6 @@ type ConsulClient struct {
 func NewConsulClient(logger *log.Logger) (*ConsulClient, error) {
 	var err error
 	var c *consul.Client
-	ts := make(map[string]*trackedService)
 	if c, err = consul.NewClient(consul.DefaultConfig()); err != nil {
 		return nil, err
 	}
@@ -38,7 +37,8 @@ func NewConsulClient(logger *log.Logger) (*ConsulClient, error) {
 	consulClient := ConsulClient{
 		client:          c,
 		logger:          logger,
-		trackedServices: ts,
+		trackedServices: make(map[string]*trackedService),
+		shutdownCh:      make(chan struct{}),
 	}
 
 	return &consulClient, nil
@@ -53,6 +53,7 @@ func (c *ConsulClient) Register(task *structs.Task, allocID string) error {
 		ts := &trackedService{
 			allocId: allocID,
 			task:    task,
+			service: service,
 		}
 		c.trackedServices[service.Id] = ts
 
@@ -74,6 +75,10 @@ func (c *ConsulClient) Deregister(task *structs.Task) error {
 	return mErr.ErrorOrNil()
 }
 
+func (c *ConsulClient) ShutDown() {
+	close(c.shutdownCh)
+}
+
 func (c *ConsulClient) findPortAndHostForLabel(portLabel string, task *structs.Task) (string, int) {
 	for _, network := range task.Resources.Networks {
 		if p, ok := network.MapLabelToValues()[portLabel]; ok {
@@ -90,6 +95,8 @@ func (c *ConsulClient) SyncWithConsul() {
 	for {
 		select {
 		case <-sync:
+			sync = time.After(syncInterval)
+			c.logger.Printf("[DEBUG] Syncing with consul")
 			var consulServices map[string]*consul.AgentService
 			var err error
 			if consulServices, err = agent.Services(); err != nil {
@@ -104,6 +111,9 @@ func (c *ConsulClient) SyncWithConsul() {
 			}
 
 			for serviceId := range consulServices {
+				if serviceId == "consul" {
+					continue
+				}
 				if _, ok := c.trackedServices[serviceId]; !ok {
 					if err := c.deregisterService(serviceId); err != nil {
 						c.logger.Printf("[DEBUG] Error while de-registering service with ID: %s", serviceId)
@@ -111,6 +121,7 @@ func (c *ConsulClient) SyncWithConsul() {
 				}
 			}
 		case <-c.shutdownCh:
+			c.logger.Printf("[INFO] Shutting down Consul Client")
 			return
 		}
 	}

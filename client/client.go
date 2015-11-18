@@ -145,6 +145,9 @@ func NewClient(cfg *config.Config) (*Client, error) {
 
 	// Start the client!
 	go c.run()
+
+	// Start the consul client
+	go c.consulClient.SyncWithConsul()
 	return c, nil
 }
 
@@ -208,6 +211,9 @@ func (c *Client) Shutdown() error {
 			<-ar.WaitCh()
 		}
 	}
+
+	// Stop the consul client
+	c.consulClient.ShutDown()
 
 	c.shutdown = true
 	close(c.shutdownCh)
