@@ -135,7 +135,8 @@ The `job` object supports the following keys:
 
 * `type` - Specifies the job type and switches which scheduler
   is used. Nomad provides the `service`, `system` and `batch` schedulers,
-  and defaults to `service`.
+  and defaults to `service`. To learn more about each scheduler type visit
+  [here](/docs/jobspec/schedulers.html)
 
 * `update` - Specifies the task update strategy. This requires providing
   `max_parallel` as an integer and `stagger` as a time duration. If stagger
@@ -240,7 +241,7 @@ restart {
 }
 ```
 
-The default non-batch restart policy is: 
+The default non-batch restart policy is:
 
 ```
 restart {
