@@ -41,22 +41,21 @@ cluster gets more or less busy.
 Each task will receive port allocations on a single IP address. The IP is made
 available through `NOMAD_IP.`
 
-If you requested reserved ports in your job specification and your task is successfully
-scheduled, these ports are available for your use. Ports from `reserved_ports`
-in the job spec are not exposed through the environment. If you requested
-dynamic ports in your job specification these are made known to your application via
-environment variables `NOMAD_PORT_{LABEL}`. For example
-`dynamic_ports = ["HTTP"]` becomes `NOMAD_PORT_HTTP`.
+Both dynamic and reserved ports are exposed through environment variables in the
+following format, `NOMAD_PORT_{LABEL}={PORT}`. For example, a dynamic port
+`port "HTTP" {}` becomes `NOMAD_PORT_HTTP=48907`.
 
 Some drivers such as Docker and QEMU use port mapping. If a driver supports port
-mapping and you specify a numeric label, the label will be automatically used as
-the private port number. For example, `dynamic_ports = ["5000"]` will have a
-random port mapped to port 5000 inside the container or VM. These ports are also
-exported as environment variables for consistency, e.g. `NOMAD_PORT_5000`.
+mapping and it has been set in the driver configuration, container ports and
+their mapped host port are exposed as environment variables with the following
+format, `NOMAD_PORT_{CONTAINER_PORT}={HOST_PORT}`. To give a concrete example,
+imagine you had the following port configuration, `port "db" { static = 8181 }`
+and you had the following port mapping, `port_map { db = 6379 }`. The following
+environment variable would then be set, `NOMAD_PORT_6379=8181`.
 
 Please see the relevant driver documentation for details.
 
-<a id="task_dir">### Task Directories</a>
+### Task Directories <a id="task_dir"></a>
 
 Nomad makes the following two directories available to tasks:
 
