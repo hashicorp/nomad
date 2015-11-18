@@ -45,6 +45,7 @@ func appMain() {
 }
 
 func TestSpawn_NoCmd(t *testing.T) {
+	t.Parallel()
 	tempFile := tempFileName(t)
 	defer os.Remove(tempFile)
 
@@ -55,6 +56,7 @@ func TestSpawn_NoCmd(t *testing.T) {
 }
 
 func TestSpawn_InvalidCmd(t *testing.T) {
+	t.Parallel()
 	tempFile := tempFileName(t)
 	defer os.Remove(tempFile)
 
@@ -66,6 +68,7 @@ func TestSpawn_InvalidCmd(t *testing.T) {
 }
 
 func TestSpawn_SetsLogs(t *testing.T) {
+	t.Parallel()
 	tempFile := tempFileName(t)
 	defer os.Remove(tempFile)
 
@@ -103,6 +106,7 @@ func TestSpawn_SetsLogs(t *testing.T) {
 }
 
 func TestSpawn_Callback(t *testing.T) {
+	t.Parallel()
 	tempFile := tempFileName(t)
 	defer os.Remove(tempFile)
 
@@ -126,6 +130,7 @@ func TestSpawn_Callback(t *testing.T) {
 }
 
 func TestSpawn_ParentWaitExited(t *testing.T) {
+	t.Parallel()
 	tempFile := tempFileName(t)
 	defer os.Remove(tempFile)
 
@@ -143,6 +148,7 @@ func TestSpawn_ParentWaitExited(t *testing.T) {
 }
 
 func TestSpawn_ParentWait(t *testing.T) {
+	t.Parallel()
 	tempFile := tempFileName(t)
 	defer os.Remove(tempFile)
 
@@ -158,6 +164,7 @@ func TestSpawn_ParentWait(t *testing.T) {
 }
 
 func TestSpawn_NonParentWaitExited(t *testing.T) {
+	t.Parallel()
 	tempFile := tempFileName(t)
 	defer os.Remove(tempFile)
 
@@ -177,6 +184,7 @@ func TestSpawn_NonParentWaitExited(t *testing.T) {
 }
 
 func TestSpawn_NonParentWait(t *testing.T) {
+	t.Parallel()
 	tempFile := tempFileName(t)
 	defer os.Remove(tempFile)
 
@@ -203,6 +211,7 @@ func TestSpawn_NonParentWait(t *testing.T) {
 }
 
 func TestSpawn_DeadSpawnDaemon_Parent(t *testing.T) {
+	t.Parallel()
 	tempFile := tempFileName(t)
 	defer os.Remove(tempFile)
 
@@ -237,6 +246,7 @@ func TestSpawn_DeadSpawnDaemon_Parent(t *testing.T) {
 }
 
 func TestSpawn_DeadSpawnDaemon_NonParent(t *testing.T) {
+	t.Parallel()
 	tempFile := tempFileName(t)
 	defer os.Remove(tempFile)
 
@@ -273,6 +283,7 @@ func TestSpawn_DeadSpawnDaemon_NonParent(t *testing.T) {
 }
 
 func TestSpawn_Valid_TaskRunning(t *testing.T) {
+	t.Parallel()
 	tempFile := tempFileName(t)
 	defer os.Remove(tempFile)
 
@@ -292,6 +303,7 @@ func TestSpawn_Valid_TaskRunning(t *testing.T) {
 }
 
 func TestSpawn_Valid_TaskExit_ExitCode(t *testing.T) {
+	t.Parallel()
 	tempFile := tempFileName(t)
 	defer os.Remove(tempFile)
 
@@ -311,6 +323,7 @@ func TestSpawn_Valid_TaskExit_ExitCode(t *testing.T) {
 }
 
 func TestSpawn_Valid_TaskExit_NoExitCode(t *testing.T) {
+	t.Parallel()
 	tempFile := tempFileName(t)
 	defer os.Remove(tempFile)
 
