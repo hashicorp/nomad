@@ -418,7 +418,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	if err != nil {
 		// If the container already exists because of a previous failure we'll
 		// try to purge it and re-create it.
-		if err.Error() == "container already exists" {
+		if strings.Contains(err.Error(), "container already exists") {
 			// Get the ID of the existing container so we can delete it
 			containers, err := client.ListContainers(docker.ListContainersOptions{
 				// The image might be in use by a stopped container, so check everything
