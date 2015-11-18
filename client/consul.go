@@ -100,10 +100,15 @@ func (c *ConsulClient) SyncWithConsul() {
 			sync = time.After(syncInterval)
 			var consulServices map[string]*consul.AgentService
 			var err error
+
+			// Get the list of the services that Consul knows about
 			if consulServices, err = agent.Services(); err != nil {
 				c.logger.Printf("[DEBUG] Error while syncing services with Consul: %v", err)
 				continue
 			}
+
+			// See if we have services that Consul doesn't know about yet.
+			// Register with Consul the services which are not registered
 			for serviceId := range c.trackedServices {
 				if _, ok := consulServices[serviceId]; !ok {
 					ts := c.trackedServices[serviceId]
@@ -111,6 +116,8 @@ func (c *ConsulClient) SyncWithConsul() {
 				}
 			}
 
+			// See if consul thinks we have some services which are not running
+			// anymore on the node. We de-register those services
 			for serviceId := range consulServices {
 				if serviceId == "consul" {
 					continue
