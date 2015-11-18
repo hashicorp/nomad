@@ -6,6 +6,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"log"
+	"sync"
 	"time"
 )
 
@@ -25,6 +26,7 @@ type ConsulClient struct {
 	shutdownCh chan struct{}
 
 	trackedServices map[string]*trackedService
+	trackedSrvLock  sync.Mutex
 }
 
 func NewConsulClient(logger *log.Logger, consulAddr string) (*ConsulClient, error) {
@@ -57,8 +59,9 @@ func (c *ConsulClient) Register(task *structs.Task, allocID string) error {
 			task:    task,
 			service: service,
 		}
+		c.trackedSrvLock.Lock()
 		c.trackedServices[service.Id] = ts
-
+		c.trackedSrvLock.Unlock()
 	}
 
 	return mErr.ErrorOrNil()
@@ -72,7 +75,9 @@ func (c *ConsulClient) Deregister(task *structs.Task) error {
 			c.logger.Printf("[ERROR] Error in de-registering service %v from Consul", service.Name)
 			mErr.Errors = append(mErr.Errors, err)
 		}
+		c.trackedSrvLock.Lock()
 		delete(c.trackedServices, service.Id)
+		c.trackedSrvLock.Unlock()
 	}
 	return mErr.ErrorOrNil()
 }
