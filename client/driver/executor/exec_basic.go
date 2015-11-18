@@ -29,7 +29,6 @@ type BasicExecutor struct {
 	allocDir string
 }
 
-// TODO: Have raw_exec use this as well.
 func NewBasicExecutor() Executor {
 	return &BasicExecutor{}
 }
