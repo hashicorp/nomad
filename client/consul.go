@@ -103,13 +103,12 @@ func (c *ConsulClient) SyncWithConsul() {
 	for {
 		select {
 		case <-sync:
-			sync = time.After(syncInterval)
 			var consulServices map[string]*consul.AgentService
 			var err error
 
 			for serviceId, ts := range c.trackedServices {
 				if !ts.IsServiceValid() {
-					c.logger.Printf("[INFO] Removing service: %s since the task doesn't have it anymore", ts.service.Name)
+					c.logger.Printf("[INFO] consul: Removing service: %s since the task doesn't have it anymore", ts.service.Name)
 					c.deregisterService(serviceId)
 				}
 			}
@@ -141,6 +140,7 @@ func (c *ConsulClient) SyncWithConsul() {
 					}
 				}
 			}
+			sync = time.After(syncInterval)
 		case <-c.shutdownCh:
 			c.logger.Printf("[INFO] Shutting down Consul Client")
 			return
