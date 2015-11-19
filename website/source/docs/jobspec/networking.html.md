@@ -57,7 +57,7 @@ place your task.
 ```
 task "dnsservice" {
     port "dns" {
-        static = "53"
+        static = 53
     }        
 }
 ```

@@ -173,7 +173,7 @@ task "redis" {
     config {
       image = "redis"
       port_map {
-        redis = "6379"
+        redis = 6379
       }
     }
 }
