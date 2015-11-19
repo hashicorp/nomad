@@ -16,8 +16,18 @@ and cleaning up after containers.
 
 ## Task Configuration
 
-The `docker` driver supports the following configuration in the job
-specification:
+The `docker` driver is configured via a `config` block:
+
+```
+task "webservice" {
+    driver = "docker"
+    config = {
+        image = "redis"
+    }
+}
+```
+
+The following options are available for use in the job specification.
 
 * `image` - (Required) The Docker image to run. The image may include a tag or
   custom URL. By default it will be fetched from Docker Hub.
@@ -27,105 +37,134 @@ specification:
 * `args` - (Optional) Arguments to the optional `command`. If no `command` is
   present, `args` are ignored.
 
+* `labels` - (Optional) A key/value map of labels to set to the containers on
+  start.
+
+* `privileged` - (Optional) `true` or `false` (default). Privileged mode gives
+  the container access to devices on the host. Note that this also requires the
+  nomad agent and docker daemon to be configured to allow privileged
+  containers.
+
 * `network_mode` - (Optional) The network mode to be used for the container. In
   order to support userspace networking plugins in Docker 1.9 this accepts any
   value. The default is `bridge`. Other networking modes may not work without
   additional configuration on the host (which is outside the scope of Nomad).
   Valid values pre-docker 1.9 are `default`, `bridge`, `host`, `none`, or
-  `container:name`.
+  `container:name`. See below for more details.
 
-* `privileged` - (Optional) Privileged mode gives the container full access to
-  the host. Valid options are `"true"` and `"false"` (defaults to `"false"`).
-  Tasks with `privileged` set can only run on Nomad Agents with
-  `docker.privileged.enabled = "true"`.
-
-* `dns_servers` - (Optional) A list of DNS servers for the container to use
+* `hostname` - (Optional) The hostname to assign to the container. When
+  launching more than one of a task (using `count`) with this option set, every
+  container the task starts will have the same hostname.* `dns_servers` - (Optional) A list of DNS servers for the container to use
   (e.g. ["8.8.8.8", "8.8.4.4"]). *Docker API v1.10 and above only*
 
 * `search_domains` - (Optional) A list of DNS search domains for the container
   to use.
 
-* `hostname` - (Optional) The hostname to assign to the container. When
-  launching more than one of a task (using `count`) with this option set, every
-  container the task starts will have the same hostname.
+* `port_map` - (Optional) A key/value map of port labels (see below).
 
-* `labels` - (Optional) A key/value map of labels to set to the containers on
-  start.
+* `auth` - (Optional) Provide authentication for a private registry (see below).
 
-**Authentication** Registry authentication can be set per task with the
-following authentication parameters.  These options can provide access to
-private repositories that utilize the docker remote api (e.g. dockerhub,
-quay.io)
+### Authentication
+
+If you want to pull from a private repo (for example on dockerhub or quay.io), you will need to specify credentials in your job via the `auth` option.
 
 The `auth` object supports the following keys:
 
 * `username` - (Optional) The account username.
+
 * `password` - (Optional) The account password.
+
 * `email` - (Optional) The account email.
+
 * `server_address` - (Optional) The server domain/ip without the protocol.
+  Docker Hub is used by default.
 
-### Port Mapping
-
-Nomad uses port binding to expose services running in containers using the port
-space on the host's interface. For example, Nomad host running on `1.2.3.4` may
-allocate port `22333` to a task, so you would access that service via
-`1.2.3.4:22333`.
-
-Nomad provides automatic and manual mapping schemes for Docker. You can use
-either or both schemes for a task. Nomad binds both tcp and udp protocols to
-ports used for Docker containers. This is not configurable.
-
-Note: You are not required to map any ports, for example if your task is
-running a crawler or aggregator and does not provide a network service. Tasks
-without a port mapping will still be able to make outbound network connections.
-
-#### Automatic Port Mapping
-
-Typically when you create a Docker container you configure the service to start
-listening on a port (or ports) when you start the container. For example, redis
-starts listening on `6379` when you `docker run redis`. Nomad can support this
-by mapping a random port on the host machine to the port inside the container.
-
-You need to tell Nomad which ports your container is using so Nomad can map
-allocated ports for you. You do so by specifying a **numeric port value** for
-the `dynamic_ports` option in your job specification.
+Example:
 
 ```
-dynamic_ports = ["6379"]
-# or
-dynamic_ports = [6379]
+task "secretservice" {
+    driver = "docker"
+    config {
+        image = "secret/service"
+        auth {
+            username = "dockerhub_user"
+            username = "dockerhub_password"
+        }
+    }
+}
 ```
 
-This instructs Nomad to create a port mapping from the random port on the host
-to the port inside the container. So in our example above, when you contact the
-host on `1.2.3.4:22333` you will actually hit the service running inside the
-container on port `6379`. You can see which port was actually bound by reading
-the `NOMAD_PORT_6379` [environment variable](/docs/jobspec/environment.html).
+**Please note that these credentials are stored in Nomad in plain text.** Secrets management will be added in a later release.
 
-In most cases, the automatic port mapping will be the easiest to use, but you
-can also use manual port mapping (described below).
+## Networking
 
-#### Manual Port Mapping
+Docker supports a variety of networking configurations, including using host interfaces, SDNs, etc. Nomad uses `bridged` networking by default, like Docker.
 
-The `dynamic_ports` option takes any alphanumeric string as a label, so you
-could also specify a label for the port like `http` or `admin` to designate how
-the port will be used.
+You can specify other networking options, including custom networking plugins
+in Docker 1.9. **You may need to perform additional configuration on the host
+in order to make these work.** This additional configuration is outside the
+scope of Nomad.
 
-In this case, Nomad doesn't know which container port to map to, so it maps 1:1
-with the host port. For example, `1.2.3.4:22333` will map to `22333` inside the
-container.
+### Allocating Ports
+
+You can allocate ports to your task using the port syntax described on the [networking page](/docs/jobspec/networking.html). Here is a recap:
 
 ```
-dynamic_ports = ["http"]
+task "webservice" {
+    driver = "docker"
+
+    port "http" {}
+    port "https" {}
+}
 ```
 
-Your process will need to read the `NOMAD_PORT_HTTP` environment variable to
-determine which port to bind to.
+### Forwarding and Exposing Ports
 
-## Client Requirements
+A Docker container typically specifies which port a service will listen on by specifying the `EXPOSE` directive in the `Dockerfile`.
+
+Because dynamic ports will not match the ports exposed in your Dockerfile, Nomad will automatically expose all of the ports it allocates to your container.
+
+These ports will be identified via environment variables. For example:
+
+```
+port "http" {}
+```
+
+If Nomad allocates port `23332` to your task for `http`, `23332` will be automatically exposed and forwarded to your container, and the driver will set an environment variable `NOMAD_PORT_http` with the value `23332` that you can read inside your container.
+
+This provides an easy way to use the `host` networking option for better performance.
+
+### Using the Port Map
+
+If you prefer to use the traditional port-mapping method, you can specify the `port_map` option in your job specification. It looks like this:
+
+```
+task "redis" {
+    driver = "docker"
+
+    port "redis" {}
+
+    config {
+      image = "redis"
+      port_map {
+        redis = "6379"
+      }
+    }
+}
+```
+
+If Nomad allocates port `23332` to your task, the Docker driver will automatically setup the port mapping from `23332` on the host to `6379` in your container, so it will just work!
+
+Note that by default this only works with `bridged` networking mode. It may also work with custom networking plugins which implement the same API for expose and port forwarding.
+
+### Other Networking Modes
+
+Some networking modes like `container` or `none` will require coordination outside of Nomad. First-class support for these options may be improved later through Nomad plugins or dynamic job configuration.
+
+## Host Requirements
 
 Nomad requires Docker to be installed and running on the host alongside the
-Nomad agent. Nomad was developed against Docker `1.8.2`.
+Nomad agent. Nomad was developed against Docker `1.8.2` and `1.9`.
 
 By default Nomad communicates with the Docker daemon using the daemon's unix
 socket. Nomad will need to be able to read/write to this socket. If you do not
@@ -140,9 +179,9 @@ user to the `docker` group so you can run Nomad without root:
 For the best performance and security features you should use recent versions
 of the Linux Kernel and Docker daemon.
 
-## Client Configuration
+## Agent Configuration
 
-The `docker` driver has the following configuration options:
+The `docker` driver has the following host-level configuration options:
 
 * `docker.endpoint` - Defaults to `unix:///var/run/docker.sock`. You will need
   to customize this if you use a non-standard socket (http or another
@@ -155,14 +194,14 @@ The `docker` driver has the following configuration options:
   prevent Nomad from removing images from stopped tasks.
 
 * `docker.privileged.enabled` Defaults to `false`. Changing this to `true` will
-  allow containers to use "privileged" mode, which gives the containers full
-  access to the host.
+  allow containers to use `privileged` mode, which gives the containers full
+  access to the host's devices. Note that you must set a similar setting on the Docker daemon for this to work.
 
 Note: When testing or using the `-dev` flag you can use `DOCKER_HOST`,
 `DOCKER_TLS_VERIFY`, and `DOCKER_CERT_PATH` to customize Nomad's behavior. In
 production Nomad will always read `docker.endpoint`.
 
-## Client Attributes
+## Agent Attributes
 
 The `docker` driver will set the following client attributes:
 
