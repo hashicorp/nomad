@@ -21,12 +21,22 @@ type trackedService struct {
 	service *structs.Service
 }
 
+func (t *trackedService) IsServiceValid() bool {
+	for _, service := range t.task.Services {
+		if service.Id == t.service.Id {
+			return true
+		}
+	}
+
+	return false
+}
+
 type ConsulClient struct {
 	client     *consul.Client
 	logger     *log.Logger
 	shutdownCh chan struct{}
 
-	trackedServices map[string]*trackedService
+	trackedServices map[string]*trackedService // Service ID to Tracked Service Map
 	trackedSrvLock  sync.Mutex
 }
 
@@ -50,20 +60,15 @@ func NewConsulClient(logger *log.Logger, consulAddr string) (*ConsulClient, erro
 }
 
 func (c *ConsulClient) Register(task *structs.Task, allocID string) error {
+	// Removing the service first so that we can re-sync everything cleanly
+	c.Deregister(task)
+
 	var mErr multierror.Error
 	for _, service := range task.Services {
 		c.logger.Printf("[INFO] consul: Registering service %s with Consul.", service.Name)
 		if err := c.registerService(service, task, allocID); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 		}
-		ts := &trackedService{
-			allocId: allocID,
-			task:    task,
-			service: service,
-		}
-		c.trackedSrvLock.Lock()
-		c.trackedServices[service.Id] = ts
-		c.trackedSrvLock.Unlock()
 	}
 
 	return mErr.ErrorOrNil()
@@ -72,14 +77,14 @@ func (c *ConsulClient) Register(task *structs.Task, allocID string) error {
 func (c *ConsulClient) Deregister(task *structs.Task) error {
 	var mErr multierror.Error
 	for _, service := range task.Services {
+		if service.Id == "" {
+			continue
+		}
 		c.logger.Printf("[INFO] consul: De-Registering service %v with Consul", service.Name)
 		if err := c.deregisterService(service.Id); err != nil {
 			c.logger.Printf("[ERROR] consul: Error in de-registering service %v from Consul", service.Name)
 			mErr.Errors = append(mErr.Errors, err)
 		}
-		c.trackedSrvLock.Lock()
-		delete(c.trackedServices, service.Id)
-		c.trackedSrvLock.Unlock()
 	}
 	return mErr.ErrorOrNil()
 }
@@ -104,9 +109,15 @@ func (c *ConsulClient) SyncWithConsul() {
 	for {
 		select {
 		case <-sync:
-			sync = time.After(syncInterval)
 			var consulServices map[string]*consul.AgentService
 			var err error
+
+			for serviceId, ts := range c.trackedServices {
+				if !ts.IsServiceValid() {
+					c.logger.Printf("[INFO] consul: Removing service: %s since the task doesn't have it anymore", ts.service.Name)
+					c.deregisterService(serviceId)
+				}
+			}
 
 			// Get the list of the services that Consul knows about
 			if consulServices, err = agent.Services(); err != nil {
@@ -135,6 +146,7 @@ func (c *ConsulClient) SyncWithConsul() {
 					}
 				}
 			}
+			sync = time.After(syncInterval)
 		case <-c.shutdownCh:
 			c.logger.Printf("[INFO] Shutting down Consul Client")
 			return
@@ -158,6 +170,15 @@ func (c *ConsulClient) registerService(service *structs.Service, task *structs.T
 		Address: host,
 		Checks:  checks,
 	}
+	ts := &trackedService{
+		allocId: allocID,
+		task:    task,
+		service: service,
+	}
+	c.trackedSrvLock.Lock()
+	c.trackedServices[service.Id] = ts
+	c.trackedSrvLock.Unlock()
+
 	if err := c.client.Agent().ServiceRegister(asr); err != nil {
 		c.logger.Printf("[ERROR] consul: Error while registering service %v with Consul: %v", service.Name, err)
 		mErr.Errors = append(mErr.Errors, err)
@@ -166,6 +187,10 @@ func (c *ConsulClient) registerService(service *structs.Service, task *structs.T
 }
 
 func (c *ConsulClient) deregisterService(serviceId string) error {
+	c.trackedSrvLock.Lock()
+	delete(c.trackedServices, serviceId)
+	c.trackedSrvLock.Unlock()
+
 	if err := c.client.Agent().ServiceDeregister(serviceId); err != nil {
 		return err
 	}
