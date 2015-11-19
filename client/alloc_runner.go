@@ -348,6 +348,19 @@ OUTER:
 
 				// Merge in the task resources
 				task.Resources = update.TaskResources[task.Name]
+			FOUND:
+				for _, updateGroup := range update.Job.TaskGroups {
+					if tg.Name != updateGroup.Name {
+						continue
+					}
+					for _, updateTask := range updateGroup.Tasks {
+						if updateTask.Name != task.Name {
+							continue
+						}
+						task.Services = updateTask.Services
+						break FOUND
+					}
+				}
 				tr.Update(task)
 			}
 			r.taskLock.RUnlock()
