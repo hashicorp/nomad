@@ -543,6 +543,10 @@ func (h *dockerHandle) ID() string {
 	return fmt.Sprintf("DOCKER:%s", string(data))
 }
 
+func (h *dockerHandle) ContainerID() string {
+	return h.containerID
+}
+
 func (h *dockerHandle) WaitCh() chan *cstructs.WaitResult {
 	return h.waitCh
 }
