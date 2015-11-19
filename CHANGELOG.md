@@ -1,4 +1,4 @@
-## 0.2.0 (Unreleased)
+## 0.2.0
 
 BACKWARDS INCOMPATIBILITIES:
 
@@ -8,9 +8,13 @@ BACKWARDS INCOMPATIBILITIES:
   * drivers: Qemu and Java driver configurations have been updated to both use
     `artifact_source` as the source for external images/jars to be ran
   * New reserved and dynamic port specification [GH-415]
+  * jobspec and drivers: Driver configuration supports arbitrary struct to be
+    passed in jobspec [GH-415]
 
 FEATURES:
 
+  * core: Service block definition with Consul registration [GH-463, GH-460,
+    GH-458, GH-455, GH-446, GH-425]
   * core: Blocking queries supported in API [GH-366]
   * core: distinctHost constraint ensures Task Groups are running on distinct
     clients [GH-321]
