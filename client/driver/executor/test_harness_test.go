@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -13,6 +14,57 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
+
+func TestMain(m *testing.M) {
+	switch os.Getenv("TEST_MAIN") {
+	case "app":
+		appMain()
+	default:
+		os.Exit(m.Run())
+	}
+}
+
+func appMain() {
+	if len(os.Args) < 2 {
+		fmt.Fprintln(os.Stderr, "no command provided")
+		os.Exit(1)
+	}
+	args := os.Args[1:]
+	shift := func() string {
+		s := args[0]
+		args = args[1:]
+		return s
+	}
+	for len(args) > 0 {
+		switch cmd := shift(); cmd {
+		case "sleep":
+			if len(args) < 1 {
+				fmt.Fprintln(os.Stderr, "expected arg for sleep")
+				os.Exit(1)
+			}
+			dur, err := time.ParseDuration(shift())
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "could not parse sleep time: %v", err)
+				os.Exit(1)
+			}
+			time.Sleep(dur)
+		case "echo":
+			fmt.Println(strings.Join(args, " "))
+			args = args[:0]
+		case "write":
+			if len(args) < 2 {
+				fmt.Fprintln(os.Stderr, "expected two args for write")
+				os.Exit(1)
+			}
+			msg := shift()
+			file := shift()
+			ioutil.WriteFile(file, []byte(msg), 0666)
+		default:
+			fmt.Fprintln(os.Stderr, "unknown command:", cmd)
+			os.Exit(1)
+		}
+	}
+}
 
 var (
 	constraint = &structs.Resources{
@@ -45,9 +97,10 @@ func testExecutor(t *testing.T, buildExecutor func() Executor, compatible func(*
 	}
 
 	command := func(name string, args ...string) Executor {
-		b := buildExecutor()
-		SetCommand(b, name, args)
-		return b
+		e := buildExecutor()
+		SetCommand(e, name, args)
+		e.Command().Env = append(os.Environ(), "TEST_MAIN=app")
+		return e
 	}
 
 	Executor_Start_Invalid(t, command)
@@ -79,7 +132,7 @@ func Executor_Start_Invalid(t *testing.T, command buildExecCommand) {
 }
 
 func Executor_Start_Wait_Failure_Code(t *testing.T, command buildExecCommand) {
-	e := command("/bin/date", "-invalid")
+	e := command(os.Args[0], "fail")
 
 	if err := e.Limit(constraint); err != nil {
 		log.Panicf("Limit() failed: %v", err)
@@ -112,8 +165,7 @@ func Executor_Start_Wait(t *testing.T, command buildExecCommand) {
 	expected := "hello world"
 	file := filepath.Join(allocdir.TaskLocal, "output.txt")
 	absFilePath := filepath.Join(taskDir, file)
-	cmd := fmt.Sprintf(`/bin/sleep 1 ; echo -n %v > %v`, expected, file)
-	e := command("/bin/bash", "-c", cmd)
+	e := command(os.Args[0], "sleep", "1s", "write", expected, file)
 
 	if err := e.Limit(constraint); err != nil {
 		log.Panicf("Limit() failed: %v", err)
@@ -152,7 +204,7 @@ func Executor_Start_Kill(t *testing.T, command buildExecCommand) {
 	}
 
 	filePath := filepath.Join(taskDir, "output")
-	e := command("/bin/bash", "-c", "sleep 1 ; echo \"failure\" > "+filePath)
+	e := command(os.Args[0], "sleep", "1s", "write", "failure", filePath)
 
 	if err := e.Limit(constraint); err != nil {
 		log.Panicf("Limit() failed: %v", err)
@@ -190,8 +242,7 @@ func Executor_Open(t *testing.T, command buildExecCommand, newExecutor func() Ex
 	expected := "hello world"
 	file := filepath.Join(allocdir.TaskLocal, "output.txt")
 	absFilePath := filepath.Join(taskDir, file)
-	cmd := fmt.Sprintf(`/bin/sleep 1 ; echo -n %v > %v`, expected, file)
-	e := command("/bin/bash", "-c", cmd)
+	e := command(os.Args[0], "sleep", "1s", "write", expected, file)
 
 	if err := e.Limit(constraint); err != nil {
 		log.Panicf("Limit() failed: %v", err)
