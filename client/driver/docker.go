@@ -66,7 +66,7 @@ type dockerPID struct {
 	ContainerID string
 }
 
-type dockerHandle struct {
+type DockerHandle struct {
 	client           *docker.Client
 	logger           *log.Logger
 	cleanupContainer bool
@@ -463,7 +463,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	d.logger.Printf("[INFO] driver.docker: started container %s", container.ID)
 
 	// Return a driver handle
-	h := &dockerHandle{
+	h := &DockerHandle{
 		client:           client,
 		cleanupContainer: cleanupContainer,
 		cleanupImage:     cleanupImage,
@@ -516,7 +516,7 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 	}
 
 	// Return a driver handle
-	h := &dockerHandle{
+	h := &DockerHandle{
 		client:           client,
 		cleanupContainer: cleanupContainer,
 		cleanupImage:     cleanupImage,
@@ -530,7 +530,7 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 	return h, nil
 }
 
-func (h *dockerHandle) ID() string {
+func (h *DockerHandle) ID() string {
 	// Return a handle to the PID
 	pid := dockerPID{
 		ImageID:     h.imageID,
@@ -543,21 +543,21 @@ func (h *dockerHandle) ID() string {
 	return fmt.Sprintf("DOCKER:%s", string(data))
 }
 
-func (h *dockerHandle) ContainerID() string {
+func (h *DockerHandle) ContainerID() string {
 	return h.containerID
 }
 
-func (h *dockerHandle) WaitCh() chan *cstructs.WaitResult {
+func (h *DockerHandle) WaitCh() chan *cstructs.WaitResult {
 	return h.waitCh
 }
 
-func (h *dockerHandle) Update(task *structs.Task) error {
+func (h *DockerHandle) Update(task *structs.Task) error {
 	// Update is not possible
 	return nil
 }
 
 // Kill is used to terminate the task. This uses docker stop -t 5
-func (h *dockerHandle) Kill() error {
+func (h *DockerHandle) Kill() error {
 	// Stop the container
 	err := h.client.StopContainer(h.containerID, 5)
 	if err != nil {
@@ -608,7 +608,7 @@ func (h *dockerHandle) Kill() error {
 	return nil
 }
 
-func (h *dockerHandle) run() {
+func (h *DockerHandle) run() {
 	// Wait for it...
 	exitCode, err := h.client.WaitContainer(h.containerID)
 	if err != nil {

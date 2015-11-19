@@ -1,12 +1,10 @@
 package driver
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
 	"reflect"
-	"strings"
 	"testing"
 	"time"
 
@@ -57,7 +55,7 @@ func dockerIsRemote(t *testing.T) bool {
 }
 
 func TestDockerDriver_Handle(t *testing.T) {
-	h := &dockerHandle{
+	h := &DockerHandle{
 		imageID:     "imageid",
 		containerID: "containerid",
 		doneCh:      make(chan struct{}),
@@ -478,15 +476,7 @@ func TestDockerLabels(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	// don't know if is queriable in a clean way
-	parts := strings.SplitN(handle.ID(), ":", 2)
-	var pid dockerPID
-	err = json.Unmarshal([]byte(parts[1]), &pid)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	container, err := client.InspectContainer(pid.ContainerID)
+	container, err := client.InspectContainer(handle.(*DockerHandle).ContainerID())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -529,14 +519,7 @@ func TestDockerDNS(t *testing.T) {
 	}
 
 	// don't know if is queriable in a clean way
-	parts := strings.SplitN(handle.ID(), ":", 2)
-	var pid dockerPID
-	err = json.Unmarshal([]byte(parts[1]), &pid)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	container, err := client.InspectContainer(pid.ContainerID)
+	container, err := client.InspectContainer(handle.(*DockerHandle).ContainerID())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
