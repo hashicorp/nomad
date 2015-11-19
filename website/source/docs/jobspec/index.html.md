@@ -193,7 +193,7 @@ The `task` object supports the following keys:
 * `service` - Nomad integrates with Consul for Service Discovery. A service 
   block represents a routable and discoverable service on the network. Nomad
   automatically registers when a Task is started and de-registers it when the
-  Task transitons to the DEAD state. To learn more about Services please visit [here](/docs/jobspec/servicediscovery.html.md)
+  Task transitons to the DEAD state. To learn more about Services please visit [here](/docs/jobspec/servicediscovery.html)
 
 * `env` - A map of key/value representing environment variables that
   will be passed along to the running process.
