@@ -251,6 +251,10 @@ func (r *TaskRunner) run() {
 				if err := r.handle.Update(update); err != nil {
 					r.logger.Printf("[ERR] client: failed to update task '%s' for alloc '%s': %v", r.task.Name, r.allocID, err)
 				}
+
+				if err := r.consulClient.Register(update, r.allocID); err != nil {
+					r.logger.Printf("[ERR] client: failed to update service definition: %v", err)
+				}
 			case <-r.destroyCh:
 				// Avoid destroying twice
 				if destroyed {
