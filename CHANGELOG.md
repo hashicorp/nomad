@@ -7,6 +7,7 @@ BACKWARDS INCOMPATIBILITIES:
   * core: Removed weight and hard/soft fields in constraints [GH-351]
   * drivers: Qemu and Java driver configurations have been updated to both use
     `artifact_source` as the source for external images/jars to be ran
+  * New reserved and dynamic port specification [GH-415]
 
 FEATURES:
 
