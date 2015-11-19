@@ -188,7 +188,7 @@ func TestNetworkFingerprint_no_devices(t *testing.T) {
 	cfg := &config.Config{NetworkSpeed: 100}
 
 	ok, err := f.Fingerprint(cfg, node)
-	if err == nil {
+	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
