@@ -275,7 +275,8 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, dri
 			}
 
 			hostPortStr := strconv.Itoa(port.Value)
-			containerPort := docker.Port(hostPortStr)
+			// containerPort := docker.Port(hostPortStr)
+			containerPort := docker.Port(strconv.Itoa(containerPortInt))
 
 			publishedPorts[containerPort+"/tcp"] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: hostPortStr}}
 			publishedPorts[containerPort+"/udp"] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: hostPortStr}}
