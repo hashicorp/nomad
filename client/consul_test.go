@@ -8,6 +8,12 @@ import (
 	"time"
 )
 
+func newConsulClient() *ConsulClient {
+	logger := log.New(os.Stdout, "logger: ", log.Lshortfile)
+	c, _ := NewConsulClient(logger, "")
+	return c
+}
+
 func TestMakeChecks(t *testing.T) {
 	service := &structs.Service{
 		Id:   "Foo",
@@ -34,9 +40,8 @@ func TestMakeChecks(t *testing.T) {
 		},
 	}
 
-	logger := log.New(os.Stdout, "logger: ", log.Lshortfile)
+	c := newConsulClient()
 
-	c, _ := NewConsulClient(logger, "")
 	checks := c.makeChecks(service, "10.10.0.1", 8090)
 
 	if checks[0].HTTP != "http://10.10.0.1:8090/foo/bar" {
@@ -49,5 +54,47 @@ func TestMakeChecks(t *testing.T) {
 
 	if checks[2].TCP != "10.10.0.1:8090" {
 		t.Fatalf("Invalid tcp check: %v", checks[0].TCP)
+	}
+}
+
+func TestInvalidPortLabelForService(t *testing.T) {
+	task := &structs.Task{
+		Name:   "foo",
+		Driver: "docker",
+		Resources: &structs.Resources{
+			CPU:      500,
+			MemoryMB: 1024,
+			DiskMB:   1024,
+			IOPS:     10,
+			Networks: []*structs.NetworkResource{
+				{
+					Device: "eth0",
+					CIDR:   "255.255.0.0/16",
+					MBits:  10,
+					ReservedPorts: []structs.Port{
+						{
+							Label: "http",
+							Value: 8080,
+						},
+						{
+							Label: "ssh",
+							Value: 2026,
+						},
+					},
+				},
+			},
+		},
+	}
+	service := &structs.Service{
+		Id:        "service-id",
+		Name:      "foo",
+		Tags:      []string{"a", "b"},
+		PortLabel: "https",
+		Checks:    make([]structs.ServiceCheck, 0),
+	}
+
+	c := newConsulClient()
+	if err := c.registerService(service, task, "allocid"); err == nil {
+		t.Fatalf("Service should be invalid")
 	}
 }

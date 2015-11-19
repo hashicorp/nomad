@@ -52,7 +52,7 @@ func NewConsulClient(logger *log.Logger, consulAddr string) (*ConsulClient, erro
 func (c *ConsulClient) Register(task *structs.Task, allocID string) error {
 	var mErr multierror.Error
 	for _, service := range task.Services {
-		c.logger.Printf("[INFO] Registering service %s with Consul.", service.Name)
+		c.logger.Printf("[INFO] consul: Registering service %s with Consul.", service.Name)
 		if err := c.registerService(service, task, allocID); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 		}
@@ -72,9 +72,9 @@ func (c *ConsulClient) Register(task *structs.Task, allocID string) error {
 func (c *ConsulClient) Deregister(task *structs.Task) error {
 	var mErr multierror.Error
 	for _, service := range task.Services {
-		c.logger.Printf("[INFO] De-Registering service %v with Consul", service.Name)
+		c.logger.Printf("[INFO] consul: De-Registering service %v with Consul", service.Name)
 		if err := c.deregisterService(service.Id); err != nil {
-			c.logger.Printf("[ERROR] Error in de-registering service %v from Consul", service.Name)
+			c.logger.Printf("[ERROR] consul: Error in de-registering service %v from Consul", service.Name)
 			mErr.Errors = append(mErr.Errors, err)
 		}
 		c.trackedSrvLock.Lock()
@@ -110,7 +110,7 @@ func (c *ConsulClient) SyncWithConsul() {
 
 			// Get the list of the services that Consul knows about
 			if consulServices, err = agent.Services(); err != nil {
-				c.logger.Printf("[DEBUG] Error while syncing services with Consul: %v", err)
+				c.logger.Printf("[DEBUG] consul: Error while syncing services with Consul: %v", err)
 				continue
 			}
 
@@ -131,7 +131,7 @@ func (c *ConsulClient) SyncWithConsul() {
 				}
 				if _, ok := c.trackedServices[serviceId]; !ok {
 					if err := c.deregisterService(serviceId); err != nil {
-						c.logger.Printf("[DEBUG] Error while de-registering service with ID: %s", serviceId)
+						c.logger.Printf("[DEBUG] consul: Error while de-registering service with ID: %s", serviceId)
 					}
 				}
 			}
@@ -147,7 +147,7 @@ func (c *ConsulClient) registerService(service *structs.Service, task *structs.T
 	service.Id = fmt.Sprintf("%s-%s", allocID, task.Name)
 	host, port := c.findPortAndHostForLabel(service.PortLabel, task)
 	if host == "" || port == 0 {
-		return fmt.Errorf("The port:%s marked for registration of service: %s couldn't be found", service.PortLabel, service.Name)
+		return fmt.Errorf("consul: The port:%s marked for registration of service: %s couldn't be found", service.PortLabel, service.Name)
 	}
 	checks := c.makeChecks(service, host, port)
 	asr := &consul.AgentServiceRegistration{
@@ -159,7 +159,7 @@ func (c *ConsulClient) registerService(service *structs.Service, task *structs.T
 		Checks:  checks,
 	}
 	if err := c.client.Agent().ServiceRegister(asr); err != nil {
-		c.logger.Printf("[ERROR] Error while registering service %v with Consul: %v", service.Name, err)
+		c.logger.Printf("[ERROR] consul: Error while registering service %v with Consul: %v", service.Name, err)
 		mErr.Errors = append(mErr.Errors, err)
 	}
 	return mErr.ErrorOrNil()
