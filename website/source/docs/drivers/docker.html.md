@@ -23,6 +23,9 @@ task "webservice" {
     driver = "docker"
     config = {
         image = "redis"
+        labels = {
+            group = "webservice-cache"
+        }
     }
 }
 ```
@@ -63,6 +66,12 @@ The following options are available for use in the job specification.
 * `port_map` - (Optional) A key/value map of port labels (see below).
 
 * `auth` - (Optional) Provide authentication for a private registry (see below).
+
+### Container Name
+
+Nomad creates a container after pulling an image. Containers are named `{taskName}-{allocId}`. This is necessary in order to place more than one container from the same task on a host (e.g. with count > 1). This also means that each container's name is unique across the cluster.
+
+This is not configurable.
 
 ### Authentication
 
@@ -156,6 +165,12 @@ task "redis" {
 If Nomad allocates port `23332` to your task, the Docker driver will automatically setup the port mapping from `23332` on the host to `6379` in your container, so it will just work!
 
 Note that by default this only works with `bridged` networking mode. It may also work with custom networking plugins which implement the same API for expose and port forwarding.
+
+### Networking Protocols
+
+The Docker driver configures ports on both the `tcp` and `udp` protocols.
+
+This is not configurable.
 
 ### Other Networking Modes
 
