@@ -44,17 +44,22 @@ func NewTaskEnivornment() TaskEnvironment {
 	return make(map[string]string)
 }
 
-// Parses a list of strings with NAME=value pairs and returns a TaskEnvironment.
+// ParseFromList parses a list of strings with NAME=value pairs and returns a
+// TaskEnvironment.
 func ParseFromList(envVars []string) (TaskEnvironment, error) {
 	t := NewTaskEnivornment()
 
 	for _, pair := range envVars {
-		parts := strings.Split(pair, "=")
-		if len(parts) != 2 {
+		// Start the search from the second byte to skip a possible leading
+		// "=". Cmd.exe on Windows creates some special environment variables
+		// that start with an "=" and they can be properly retrieved by OS
+		// functions so we should handle them properly here.
+		idx := strings.Index(pair[1:], "=")
+		if idx == -1 {
 			return nil, fmt.Errorf("Couldn't parse environment variable: %v", pair)
 		}
-
-		t[parts[0]] = parts[1]
+		idx++ // adjust for slice offset above
+		t[pair[:idx]] = pair[idx+1:]
 	}
 
 	return t, nil

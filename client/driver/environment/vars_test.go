@@ -22,26 +22,33 @@ func TestEnvironment_AsList(t *testing.T) {
 }
 
 func TestEnvironment_ParseFromList(t *testing.T) {
-	input := []string{"foo=bar", "BAZ=baM"}
+	input := []string{
+		"foo=bar",
+		"BAZ=baM",
+		"bar=emb=edded",      // This can be done in multiple OSes.
+		"=ExitCode=00000000", // A Windows cmd.exe annoyance
+	}
 	env, err := ParseFromList(input)
 	if err != nil {
 		t.Fatalf("ParseFromList(%#v) failed: %v", input, err)
 	}
 
 	exp := map[string]string{
-		"foo": "bar",
-		"BAZ": "baM",
+		"foo":       "bar",
+		"BAZ":       "baM",
+		"bar":       "emb=edded",
+		"=ExitCode": "00000000",
 	}
 
 	if len(env) != len(exp) {
-		t.Fatalf("ParseFromList(%#v) has length %v; want %v", input, len(env), len(exp))
+		t.Errorf("ParseFromList(%#v) has length %v; want %v", input, len(env), len(exp))
 	}
 
 	for k, v := range exp {
 		if actV, ok := env[k]; !ok {
-			t.Fatalf("ParseFromList(%#v) doesn't contain expected %v", input, k)
+			t.Errorf("ParseFromList(%#v) doesn't contain expected %v", input, k)
 		} else if actV != v {
-			t.Fatalf("ParseFromList(%#v) has incorrect value for %v; got %v; want %v", input, k, actV, v)
+			t.Errorf("ParseFromList(%#v) has incorrect value for %v; got %v; want %v", input, k, actV, v)
 		}
 	}
 }
