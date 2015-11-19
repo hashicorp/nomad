@@ -32,8 +32,8 @@ task "webservice" {
 
 The following options are available for use in the job specification.
 
-* `image` - The Docker image to run. The image may include a tag or
-  custom URL. By default it will be fetched from Docker Hub.
+* `image` - The Docker image to run. The image may include a tag or custom URL.
+  By default it will be fetched from Docker Hub.
 
 * `command` - (Optional) The command to run when starting the container.
 
@@ -57,8 +57,9 @@ The following options are available for use in the job specification.
 
 * `hostname` - (Optional) The hostname to assign to the container. When
   launching more than one of a task (using `count`) with this option set, every
-  container the task starts will have the same hostname.* `dns_servers` - (Optional) A list of DNS servers for the container to use
-  (e.g. ["8.8.8.8", "8.8.4.4"]). *Docker API v1.10 and above only*
+  container the task starts will have the same hostname.* `dns_servers` -
+  (Optional) A list of DNS servers for the container to use (e.g. ["8.8.8.8",
+  "8.8.4.4"]). *Docker API v1.10 and above only*
 
 * `search_domains` - (Optional) A list of DNS search domains for the container
   to use.
@@ -69,13 +70,17 @@ The following options are available for use in the job specification.
 
 ### Container Name
 
-Nomad creates a container after pulling an image. Containers are named `{taskName}-{allocId}`. This is necessary in order to place more than one container from the same task on a host (e.g. with count > 1). This also means that each container's name is unique across the cluster.
+Nomad creates a container after pulling an image. Containers are named
+`{taskName}-{allocId}`. This is necessary in order to place more than one
+container from the same task on a host (e.g. with count > 1). This also means
+that each container's name is unique across the cluster.
 
 This is not configurable.
 
 ### Authentication
 
-If you want to pull from a private repo (for example on dockerhub or quay.io), you will need to specify credentials in your job via the `auth` option.
+If you want to pull from a private repo (for example on dockerhub or quay.io),
+you will need to specify credentials in your job via the `auth` option.
 
 The `auth` object supports the following keys:
 
@@ -103,11 +108,13 @@ task "secretservice" {
 }
 ```
 
-**Please note that these credentials are stored in Nomad in plain text.** Secrets management will be added in a later release.
+**Please note that these credentials are stored in Nomad in plain text.**
+Secrets management will be added in a later release.
 
 ## Networking
 
-Docker supports a variety of networking configurations, including using host interfaces, SDNs, etc. Nomad uses `bridged` networking by default, like Docker.
+Docker supports a variety of networking configurations, including using host
+interfaces, SDNs, etc. Nomad uses `bridged` networking by default, like Docker.
 
 You can specify other networking options, including custom networking plugins
 in Docker 1.9. **You may need to perform additional configuration on the host
@@ -116,7 +123,8 @@ scope of Nomad.
 
 ### Allocating Ports
 
-You can allocate ports to your task using the port syntax described on the [networking page](/docs/jobspec/networking.html). Here is a recap:
+You can allocate ports to your task using the port syntax described on the
+[networking page](/docs/jobspec/networking.html). Here is a recap:
 
 ```
 task "webservice" {
@@ -129,9 +137,12 @@ task "webservice" {
 
 ### Forwarding and Exposing Ports
 
-A Docker container typically specifies which port a service will listen on by specifying the `EXPOSE` directive in the `Dockerfile`.
+A Docker container typically specifies which port a service will listen on by
+specifying the `EXPOSE` directive in the `Dockerfile`.
 
-Because dynamic ports will not match the ports exposed in your Dockerfile, Nomad will automatically expose all of the ports it allocates to your container.
+Because dynamic ports will not match the ports exposed in your Dockerfile,
+Nomad will automatically expose all of the ports it allocates to your
+container.
 
 These ports will be identified via environment variables. For example:
 
@@ -139,13 +150,18 @@ These ports will be identified via environment variables. For example:
 port "http" {}
 ```
 
-If Nomad allocates port `23332` to your task for `http`, `23332` will be automatically exposed and forwarded to your container, and the driver will set an environment variable `NOMAD_PORT_http` with the value `23332` that you can read inside your container.
+If Nomad allocates port `23332` to your task for `http`, `23332` will be
+automatically exposed and forwarded to your container, and the driver will set
+an environment variable `NOMAD_PORT_http` with the value `23332` that you can
+read inside your container.
 
-This provides an easy way to use the `host` networking option for better performance.
+This provides an easy way to use the `host` networking option for better
+performance.
 
 ### Using the Port Map
 
-If you prefer to use the traditional port-mapping method, you can specify the `port_map` option in your job specification. It looks like this:
+If you prefer to use the traditional port-mapping method, you can specify the
+`port_map` option in your job specification. It looks like this:
 
 ```
 task "redis" {
@@ -162,9 +178,13 @@ task "redis" {
 }
 ```
 
-If Nomad allocates port `23332` to your task, the Docker driver will automatically setup the port mapping from `23332` on the host to `6379` in your container, so it will just work!
+If Nomad allocates port `23332` to your task, the Docker driver will
+automatically setup the port mapping from `23332` on the host to `6379` in your
+container, so it will just work!
 
-Note that by default this only works with `bridged` networking mode. It may also work with custom networking plugins which implement the same API for expose and port forwarding.
+Note that by default this only works with `bridged` networking mode. It may
+also work with custom networking plugins which implement the same API for
+expose and port forwarding.
 
 ### Networking Protocols
 
@@ -174,7 +194,9 @@ This is not configurable.
 
 ### Other Networking Modes
 
-Some networking modes like `container` or `none` will require coordination outside of Nomad. First-class support for these options may be improved later through Nomad plugins or dynamic job configuration.
+Some networking modes like `container` or `none` will require coordination
+outside of Nomad. First-class support for these options may be improved later
+through Nomad plugins or dynamic job configuration.
 
 ## Host Requirements
 
@@ -210,7 +232,8 @@ The `docker` driver has the following host-level configuration options:
 
 * `docker.privileged.enabled` Defaults to `false`. Changing this to `true` will
   allow containers to use `privileged` mode, which gives the containers full
-  access to the host's devices. Note that you must set a similar setting on the Docker daemon for this to work.
+  access to the host's devices. Note that you must set a similar setting on the
+  Docker daemon for this to work.
 
 Note: When testing or using the `-dev` flag you can use `DOCKER_HOST`,
 `DOCKER_TLS_VERIFY`, and `DOCKER_CERT_PATH` to customize Nomad's behavior. In
