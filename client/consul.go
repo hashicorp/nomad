@@ -60,6 +60,9 @@ func NewConsulClient(logger *log.Logger, consulAddr string) (*ConsulClient, erro
 }
 
 func (c *ConsulClient) Register(task *structs.Task, allocID string) error {
+	// Nuking the service first so that we can re-sync everything cleanly
+	c.Deregister(task)
+
 	var mErr multierror.Error
 	for _, service := range task.Services {
 		c.logger.Printf("[INFO] consul: Registering service %s with Consul.", service.Name)
@@ -74,6 +77,9 @@ func (c *ConsulClient) Register(task *structs.Task, allocID string) error {
 func (c *ConsulClient) Deregister(task *structs.Task) error {
 	var mErr multierror.Error
 	for _, service := range task.Services {
+		if service.Id == "" {
+			continue
+		}
 		c.logger.Printf("[INFO] consul: De-Registering service %v with Consul", service.Name)
 		if err := c.deregisterService(service.Id); err != nil {
 			c.logger.Printf("[ERROR] consul: Error in de-registering service %v from Consul", service.Name)
