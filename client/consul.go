@@ -60,7 +60,7 @@ func NewConsulClient(logger *log.Logger, consulAddr string) (*ConsulClient, erro
 }
 
 func (c *ConsulClient) Register(task *structs.Task, allocID string) error {
-	// Nuking the service first so that we can re-sync everything cleanly
+	// Removing the service first so that we can re-sync everything cleanly
 	c.Deregister(task)
 
 	var mErr multierror.Error
