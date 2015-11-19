@@ -1009,7 +1009,7 @@ type ServiceCheck struct {
 	Name     string        // Name of the check, defaults to id
 	Type     string        // Type of the check - tcp, http, docker and script
 	Script   string        // Script to invoke for script check
-	Http     string        // path of the health check url for http type check
+	Path     string        // path of the health check url for http type check
 	Protocol string        // Protocol to use if check is http, defaults to http
 	Interval time.Duration // Interval of the check
 	Timeout  time.Duration // Timeout of the response from the check before consul fails the check
@@ -1017,15 +1017,15 @@ type ServiceCheck struct {
 
 func (sc *ServiceCheck) Validate() error {
 	t := strings.ToLower(sc.Type)
-	if sc.Type == ServiceCheckHTTP && sc.Http == "" {
+	if t != ServiceCheckTCP && t != ServiceCheckHTTP {
+		return fmt.Errorf("Check with name %v has invalid check type: %s ", sc.Name, sc.Type)
+	}
+	if sc.Type == ServiceCheckHTTP && sc.Path == "" {
 		return fmt.Errorf("http checks needs the Http path information.")
 	}
 
 	if sc.Type == ServiceCheckScript && sc.Script == "" {
 		return fmt.Errorf("Script checks need the script to invoke")
-	}
-	if t != ServiceCheckTCP && t != ServiceCheckHTTP && t != ServiceCheckDocker && t != ServiceCheckScript {
-		return fmt.Errorf("Check with name %v has invalid check type: %s ", sc.Name, sc.Type)
 	}
 	return nil
 }
@@ -1064,7 +1064,7 @@ type Task struct {
 	Env map[string]string
 
 	// List of service definitions exposed by the Task
-	Services []Service
+	Services []*Service
 
 	// Constraints can be specified at a task level and apply only to
 	// the particular task.
@@ -1704,7 +1704,7 @@ func (p *PlanResult) FullCommit(plan *Plan) (bool, int, int) {
 }
 
 // msgpackHandle is a shared handle for encoding/decoding of structs
-var msgpackHandle = func() *codec.MsgpackHandle {
+var MsgpackHandle = func() *codec.MsgpackHandle {
 	h := &codec.MsgpackHandle{RawToString: true}
 
 	// Sets the default type for decoding a map into a nil interface{}.
@@ -1716,13 +1716,13 @@ var msgpackHandle = func() *codec.MsgpackHandle {
 
 // Decode is used to decode a MsgPack encoded object
 func Decode(buf []byte, out interface{}) error {
-	return codec.NewDecoder(bytes.NewReader(buf), msgpackHandle).Decode(out)
+	return codec.NewDecoder(bytes.NewReader(buf), MsgpackHandle).Decode(out)
 }
 
 // Encode is used to encode a MsgPack object with type prefix
 func Encode(t MessageType, msg interface{}) ([]byte, error) {
 	var buf bytes.Buffer
 	buf.WriteByte(uint8(t))
-	err := codec.NewEncoder(&buf, msgpackHandle).Encode(msg)
+	err := codec.NewEncoder(&buf, MsgpackHandle).Encode(msg)
 	return buf.Bytes(), err
 }

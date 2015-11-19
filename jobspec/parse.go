@@ -463,7 +463,7 @@ func parseTasks(jobName string, taskGroupName string, result *[]*structs.Task, l
 }
 
 func parseServices(jobName string, taskGroupName string, task *structs.Task, serviceObjs *ast.ObjectList) error {
-	task.Services = make([]structs.Service, len(serviceObjs.Items))
+	task.Services = make([]*structs.Service, len(serviceObjs.Items))
 	var defaultServiceName bool
 	for idx, o := range serviceObjs.Items {
 		var service structs.Service
@@ -503,7 +503,7 @@ func parseServices(jobName string, taskGroupName string, task *structs.Task, ser
 			}
 		}
 
-		task.Services[idx] = service
+		task.Services[idx] = &service
 	}
 
 	return nil

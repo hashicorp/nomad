@@ -32,13 +32,13 @@ task "webservice" {
 
 The following options are available for use in the job specification.
 
-* `image` - (Required) The Docker image to run. The image may include a tag or
+* `image` - The Docker image to run. The image may include a tag or
   custom URL. By default it will be fetched from Docker Hub.
 
 * `command` - (Optional) The command to run when starting the container.
 
-* `args` - (Optional) Arguments to the optional `command`. If no `command` is
-  present, `args` are ignored.
+* `args` - (Optional) A list of arguments to the optional `command`. If no
+  `command` is present, `args` are ignored.
 
 * `labels` - (Optional) A key/value map of labels to set to the containers on
   start.

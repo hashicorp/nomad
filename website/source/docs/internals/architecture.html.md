@@ -64,8 +64,8 @@ clarify what is being discussed:
   Regions may contain multiple datacenters. Servers are assigned to regions and manage
   all state for the region and make scheduling decisions within that region. Requests that
   are made between regions are forwarded to the appropriate servers. As an example, you may
-  have a "US" region with the "us-east-1" and "us-west-1" datacenters, connected to the
-  "EU" region with the "eu-fr-1" and "eu-uk-1" datacenters.
+  have a `US` region with the `us-east-1` and `us-west-1` datacenters, connected to the
+  `EU` region with the `eu-fr-1` and `eu-uk-1` datacenters.
 
 * **Bin Packing** - Bin Packing is the process of filling bins with items in a way that
   maximizes the utilization of bins. This extends to Nomad, where the clients are "bins"

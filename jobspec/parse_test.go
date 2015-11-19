@@ -94,7 +94,7 @@ func TestParse(t *testing.T) {
 								Config: map[string]interface{}{
 									"image": "hashicorp/binstore",
 								},
-								Services: []structs.Service{
+								Services: []*structs.Service{
 									{
 										Id:        "",
 										Name:      "binstore-storagelocker-binsl-binstore",

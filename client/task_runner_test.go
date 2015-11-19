@@ -32,7 +32,7 @@ func testTaskRunner(restarts bool) (*MockTaskStateUpdater, *TaskRunner) {
 	upd := &MockTaskStateUpdater{}
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
-
+	consulClient, _ := NewConsulClient(logger, "127.0.0.1:8500")
 	// Initialize the port listing. This should be done by the offer process but
 	// we have a mock so that doesn't happen.
 	task.Resources.Networks[0].ReservedPorts = []structs.Port{{"", 80}}
@@ -48,7 +48,7 @@ func testTaskRunner(restarts bool) (*MockTaskStateUpdater, *TaskRunner) {
 	}
 
 	state := alloc.TaskStates[task.Name]
-	tr := NewTaskRunner(logger, conf, upd.Update, ctx, alloc.ID, task, state, restartTracker)
+	tr := NewTaskRunner(logger, conf, upd.Update, ctx, alloc.ID, task, state, restartTracker, consulClient)
 	return upd, tr
 }
 
@@ -89,7 +89,7 @@ func TestTaskRunner_Destroy(t *testing.T) {
 
 	// Change command to ensure we run for a bit
 	tr.task.Config["command"] = "/bin/sleep"
-	tr.task.Config["args"] = "10"
+	tr.task.Config["args"] = []string{"10"}
 	go tr.Run()
 
 	// Begin the tear down
@@ -128,7 +128,7 @@ func TestTaskRunner_Update(t *testing.T) {
 
 	// Change command to ensure we run for a bit
 	tr.task.Config["command"] = "/bin/sleep"
-	tr.task.Config["args"] = "10"
+	tr.task.Config["args"] = []string{"10"}
 	go tr.Run()
 	defer tr.Destroy()
 	defer tr.ctx.AllocDir.Destroy()
@@ -153,7 +153,7 @@ func TestTaskRunner_SaveRestoreState(t *testing.T) {
 
 	// Change command to ensure we run for a bit
 	tr.task.Config["command"] = "/bin/sleep"
-	tr.task.Config["args"] = "10"
+	tr.task.Config["args"] = []string{"10"}
 	go tr.Run()
 	defer tr.Destroy()
 
@@ -164,8 +164,10 @@ func TestTaskRunner_SaveRestoreState(t *testing.T) {
 	}
 
 	// Create a new task runner
+	consulClient, _ := NewConsulClient(tr.logger, "127.0.0.1:8500")
 	tr2 := NewTaskRunner(tr.logger, tr.config, upd.Update,
-		tr.ctx, tr.allocID, &structs.Task{Name: tr.task.Name}, tr.state, tr.restartTracker)
+		tr.ctx, tr.allocID, &structs.Task{Name: tr.task.Name}, tr.state, tr.restartTracker,
+		consulClient)
 	if err := tr2.RestoreState(); err != nil {
 		t.Fatalf("err: %v", err)
 	}
