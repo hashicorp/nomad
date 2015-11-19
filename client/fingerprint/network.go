@@ -64,6 +64,11 @@ func (f *NetworkFingerprint) Fingerprint(cfg *config.Config, node *structs.Node)
 		return false, fmt.Errorf("Error while detecting network interface during fingerprinting: %v", err)
 	}
 
+	// No interface could be found
+	if intf == nil {
+		return false, nil
+	}
+
 	if ip, err = f.ipAddress(intf); err != nil {
 		return false, fmt.Errorf("Unable to find IP address of interface: %s, err: %v", intf.Name, err)
 	}
@@ -229,7 +234,7 @@ func (f *NetworkFingerprint) findInterface(deviceName string) (*net.Interface, e
 	}
 
 	if len(interfaces) == 0 {
-		return nil, errors.New("No network interfaces were detected")
+		return nil, nil
 	}
 	return &interfaces[0], nil
 }
