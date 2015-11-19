@@ -57,9 +57,10 @@ The following options are available for use in the job specification.
 
 * `hostname` - (Optional) The hostname to assign to the container. When
   launching more than one of a task (using `count`) with this option set, every
-  container the task starts will have the same hostname.* `dns_servers` -
-  (Optional) A list of DNS servers for the container to use (e.g. ["8.8.8.8",
-  "8.8.4.4"]). *Docker API v1.10 and above only*
+  container the task starts will have the same hostname.
+
+* `dns_servers` - (Optional) A list of DNS servers for the container to use
+  (e.g. ["8.8.8.8", "8.8.4.4"]). *Docker API v1.10 and above only*
 
 * `search_domains` - (Optional) A list of DNS search domains for the container
   to use.

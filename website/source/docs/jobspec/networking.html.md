@@ -25,7 +25,7 @@ allows you to have a higher density of services, or bind to interfaces on
 different subnets (for example public vs. private subnets).
 
 Each task will receive port allocations on a single interface. The IP is passed
-to your job via the `NOMAD_IP.` environment variable.
+to your job via the `NOMAD_IP` environment variable.
 
 ## Ports
 
