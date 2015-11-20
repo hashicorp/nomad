@@ -54,6 +54,69 @@ func dockerIsRemote(t *testing.T) bool {
 	return false
 }
 
+func dockerTask() *structs.Task {
+	return &structs.Task{
+		Name: "redis-demo",
+		Config: map[string]interface{}{
+			"image": "redis",
+		},
+		Resources: &structs.Resources{
+			MemoryMB: 256,
+			CPU:      512,
+			Networks: []*structs.NetworkResource{
+				&structs.NetworkResource{
+					IP:            "127.0.0.1",
+					ReservedPorts: []structs.Port{{"main", 11110}},
+					DynamicPorts:  []structs.Port{{"REDIS", 43330}},
+				},
+			},
+		},
+	}
+}
+
+// dockerSetup does all of the basic setup you need to get a running docker
+// process up and running for testing. Use like:
+//
+//	task := taskTemplate()
+//	// do custom task configuration
+//	client, handle, cleanup := dockerSetup(t, task)
+//	defer cleanup()
+//	// do test stuff
+//
+// If there is a problem during setup this function will abort or skip the test
+// and indicate the reason.
+func dockerSetup(t *testing.T, task *structs.Task) (*docker.Client, DriverHandle, func()) {
+	if !dockerIsConnected(t) {
+		t.SkipNow()
+	}
+
+	client, err := docker.NewClientFromEnv()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	driverCtx := testDockerDriverContext(task.Name)
+	ctx := testDriverExecContext(task, driverCtx)
+	driver := NewDockerDriver(driverCtx)
+
+	handle, err := driver.Start(ctx, task)
+	if err != nil {
+		ctx.AllocDir.Destroy()
+		t.Fatalf("err: %v", err)
+	}
+	if handle == nil {
+		ctx.AllocDir.Destroy()
+		t.Fatalf("missing handle")
+	}
+
+	cleanup := func() {
+		handle.Kill()
+		ctx.AllocDir.Destroy()
+	}
+
+	return client, handle, cleanup
+}
+
 func TestDockerDriver_Handle(t *testing.T) {
 	h := &DockerHandle{
 		imageID:     "imageid",
@@ -89,10 +152,6 @@ func TestDockerDriver_Fingerprint(t *testing.T) {
 }
 
 func TestDockerDriver_StartOpen_Wait(t *testing.T) {
-	if !dockerIsConnected(t) {
-		t.SkipNow()
-	}
-
 	task := &structs.Task{
 		Name: "redis-demo",
 		Config: map[string]interface{}{
@@ -126,10 +185,6 @@ func TestDockerDriver_StartOpen_Wait(t *testing.T) {
 }
 
 func TestDockerDriver_Start_Wait(t *testing.T) {
-	if !dockerIsConnected(t) {
-		t.SkipNow()
-	}
-
 	task := &structs.Task{
 		Name: "redis-demo",
 		Config: map[string]interface{}{
@@ -143,22 +198,11 @@ func TestDockerDriver_Start_Wait(t *testing.T) {
 		},
 	}
 
-	driverCtx := testDockerDriverContext(task.Name)
-	ctx := testDriverExecContext(task, driverCtx)
-	defer ctx.AllocDir.Destroy()
-	d := NewDockerDriver(driverCtx)
-
-	handle, err := d.Start(ctx, task)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if handle == nil {
-		t.Fatalf("missing handle")
-	}
-	defer handle.Kill()
+	_, handle, cleanup := dockerSetup(t, task)
+	defer cleanup()
 
 	// Update should be a no-op
-	err = handle.Update(task)
+	err := handle.Update(task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -177,7 +221,7 @@ func TestDockerDriver_Start_Wait_AllocDir(t *testing.T) {
 	// This test requires that the alloc dir be mounted into docker as a volume.
 	// Because this cannot happen when docker is run remotely, e.g. when running
 	// docker in a VM, we skip this when we detect Docker is being run remotely.
-	if !dockerIsConnected(t) || dockerIsRemote(t) {
+	if dockerIsRemote(t) {
 		t.SkipNow()
 	}
 
@@ -236,10 +280,6 @@ func TestDockerDriver_Start_Wait_AllocDir(t *testing.T) {
 }
 
 func TestDockerDriver_Start_Kill_Wait(t *testing.T) {
-	if !dockerIsConnected(t) {
-		t.SkipNow()
-	}
-
 	task := &structs.Task{
 		Name: "redis-demo",
 		Config: map[string]interface{}{
@@ -250,19 +290,8 @@ func TestDockerDriver_Start_Kill_Wait(t *testing.T) {
 		Resources: basicResources,
 	}
 
-	driverCtx := testDockerDriverContext(task.Name)
-	ctx := testDriverExecContext(task, driverCtx)
-	defer ctx.AllocDir.Destroy()
-	d := NewDockerDriver(driverCtx)
-
-	handle, err := d.Start(ctx, task)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if handle == nil {
-		t.Fatalf("missing handle")
-	}
-	defer handle.Kill()
+	_, handle, cleanup := dockerSetup(t, task)
+	defer cleanup()
 
 	go func() {
 		time.Sleep(100 * time.Millisecond)
@@ -282,40 +311,20 @@ func TestDockerDriver_Start_Kill_Wait(t *testing.T) {
 	}
 }
 
-func taskTemplate() *structs.Task {
-	return &structs.Task{
-		Name: "redis-demo",
-		Config: map[string]interface{}{
-			"image": "redis",
-		},
-		Resources: &structs.Resources{
-			MemoryMB: 256,
-			CPU:      512,
-			Networks: []*structs.NetworkResource{
-				&structs.NetworkResource{
-					IP:            "127.0.0.1",
-					ReservedPorts: []structs.Port{{"main", 11110}},
-					DynamicPorts:  []structs.Port{{"REDIS", 43330}},
-				},
-			},
-		},
-	}
-}
-
 func TestDocker_StartN(t *testing.T) {
 	if !dockerIsConnected(t) {
 		t.SkipNow()
 	}
 
-	task1 := taskTemplate()
+	task1 := dockerTask()
 	task1.Resources.Networks[0].ReservedPorts[0] = structs.Port{"main", 11110}
 	task1.Resources.Networks[0].DynamicPorts[0] = structs.Port{"REDIS", 43331}
 
-	task2 := taskTemplate()
+	task2 := dockerTask()
 	task2.Resources.Networks[0].ReservedPorts[0] = structs.Port{"main", 22222}
 	task2.Resources.Networks[0].DynamicPorts[0] = structs.Port{"REDIS", 43332}
 
-	task3 := taskTemplate()
+	task3 := dockerTask()
 	task3.Resources.Networks[0].ReservedPorts[0] = structs.Port{"main", 33333}
 	task3.Resources.Networks[0].DynamicPorts[0] = structs.Port{"REDIS", 43333}
 
@@ -361,17 +370,17 @@ func TestDocker_StartNVersions(t *testing.T) {
 		t.SkipNow()
 	}
 
-	task1 := taskTemplate()
+	task1 := dockerTask()
 	task1.Config["image"] = "redis"
 	task1.Resources.Networks[0].ReservedPorts[0] = structs.Port{"main", 11110}
 	task1.Resources.Networks[0].DynamicPorts[0] = structs.Port{"REDIS", 43331}
 
-	task2 := taskTemplate()
+	task2 := dockerTask()
 	task2.Config["image"] = "redis:latest"
 	task2.Resources.Networks[0].ReservedPorts[0] = structs.Port{"main", 22222}
 	task2.Resources.Networks[0].DynamicPorts[0] = structs.Port{"REDIS", 43332}
 
-	task3 := taskTemplate()
+	task3 := dockerTask()
 	task3.Config["image"] = "redis:3.0"
 	task3.Resources.Networks[0].ReservedPorts[0] = structs.Port{"main", 33333}
 	task3.Resources.Networks[0].DynamicPorts[0] = structs.Port{"REDIS", 43333}
@@ -414,42 +423,36 @@ func TestDocker_StartNVersions(t *testing.T) {
 }
 
 func TestDockerHostNet(t *testing.T) {
-	if !dockerIsConnected(t) {
-		t.SkipNow()
-	}
+	expected := "host"
 
 	task := &structs.Task{
 		Name: "redis-demo",
 		Config: map[string]interface{}{
 			"image":        "redis",
-			"network_mode": "host",
+			"network_mode": expected,
 		},
 		Resources: &structs.Resources{
 			MemoryMB: 256,
 			CPU:      512,
 		},
 	}
-	driverCtx := testDockerDriverContext(task.Name)
-	ctx := testDriverExecContext(task, driverCtx)
-	defer ctx.AllocDir.Destroy()
-	d := NewDockerDriver(driverCtx)
 
-	handle, err := d.Start(ctx, task)
+	client, handle, cleanup := dockerSetup(t, task)
+	defer cleanup()
+
+	container, err := client.InspectContainer(handle.(*DockerHandle).ContainerID())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if handle == nil {
-		t.Fatalf("missing handle")
+
+	actual := container.HostConfig.NetworkMode
+	if actual != expected {
+		t.Errorf("DNS Network mode doesn't match.\nExpected:\n%s\nGot:\n%s\n", expected, actual)
 	}
-	defer handle.Kill()
 }
 
 func TestDockerLabels(t *testing.T) {
-	if !dockerIsConnected(t) {
-		t.SkipNow()
-	}
-
-	task := taskTemplate()
+	task := dockerTask()
 	task.Config["labels"] = []map[string]string{
 		map[string]string{
 			"label1": "value1",
@@ -457,24 +460,8 @@ func TestDockerLabels(t *testing.T) {
 		},
 	}
 
-	driverCtx := testDockerDriverContext(task.Name)
-	ctx := testDriverExecContext(task, driverCtx)
-	defer ctx.AllocDir.Destroy()
-	d := NewDockerDriver(driverCtx)
-
-	handle, err := d.Start(ctx, task)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if handle == nil {
-		t.Fatalf("missing handle")
-	}
-	defer handle.Kill()
-
-	client, err := docker.NewClientFromEnv()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	client, handle, cleanup := dockerSetup(t, task)
+	defer cleanup()
 
 	container, err := client.InspectContainer(handle.(*DockerHandle).ContainerID())
 	if err != nil {
@@ -491,34 +478,13 @@ func TestDockerLabels(t *testing.T) {
 }
 
 func TestDockerDNS(t *testing.T) {
-	if !dockerIsConnected(t) {
-		t.SkipNow()
-	}
-
-	task := taskTemplate()
+	task := dockerTask()
 	task.Config["dns_servers"] = []string{"8.8.8.8", "8.8.4.4"}
 	task.Config["dns_search_domains"] = []string{"example.com", "example.org", "example.net"}
 
-	driverCtx := testDockerDriverContext(task.Name)
-	ctx := testDriverExecContext(task, driverCtx)
-	defer ctx.AllocDir.Destroy()
-	d := NewDockerDriver(driverCtx)
+	client, handle, cleanup := dockerSetup(t, task)
+	defer cleanup()
 
-	handle, err := d.Start(ctx, task)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if handle == nil {
-		t.Fatalf("missing handle")
-	}
-	defer handle.Kill()
-
-	client, err := docker.NewClientFromEnv()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// don't know if is queriable in a clean way
 	container, err := client.InspectContainer(handle.(*DockerHandle).ContainerID())
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -530,5 +496,118 @@ func TestDockerDNS(t *testing.T) {
 
 	if !reflect.DeepEqual(task.Config["dns_search_domains"], container.HostConfig.DNSSearch) {
 		t.Errorf("DNS Servers don't match.\nExpected:\n%s\nGot:\n%s\n", task.Config["dns_search_domains"], container.HostConfig.DNSSearch)
+	}
+}
+
+func inSlice(needle string, haystack []string) bool {
+	for _, h := range haystack {
+		if h == needle {
+			return true
+		}
+	}
+	return false
+}
+
+func TestDockerPortsNoMap(t *testing.T) {
+	task := dockerTask()
+
+	client, handle, cleanup := dockerSetup(t, task)
+	defer cleanup()
+
+	container, err := client.InspectContainer(handle.(*DockerHandle).ContainerID())
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Verify that the correct ports are EXPOSED
+	expectedExposedPorts := map[docker.Port]struct{}{
+		docker.Port("11110/tcp"): struct{}{},
+		docker.Port("11110/udp"): struct{}{},
+		docker.Port("43330/tcp"): struct{}{},
+		docker.Port("43330/udp"): struct{}{},
+		// This one comes from the redis container
+		docker.Port("6379/tcp"): struct{}{},
+	}
+
+	if !reflect.DeepEqual(container.Config.ExposedPorts, expectedExposedPorts) {
+		t.Errorf("Exposed ports don't match.\nExpected:\n%s\nGot:\n%s\n", expectedExposedPorts, container.Config.ExposedPorts)
+	}
+
+	// Verify that the correct ports are FORWARDED
+	expectedPortBindings := map[docker.Port][]docker.PortBinding{
+		docker.Port("11110/tcp"): []docker.PortBinding{docker.PortBinding{HostIP: "127.0.0.1", HostPort: "11110"}},
+		docker.Port("11110/udp"): []docker.PortBinding{docker.PortBinding{HostIP: "127.0.0.1", HostPort: "11110"}},
+		docker.Port("43330/tcp"): []docker.PortBinding{docker.PortBinding{HostIP: "127.0.0.1", HostPort: "43330"}},
+		docker.Port("43330/udp"): []docker.PortBinding{docker.PortBinding{HostIP: "127.0.0.1", HostPort: "43330"}},
+	}
+
+	if !reflect.DeepEqual(container.HostConfig.PortBindings, expectedPortBindings) {
+		t.Errorf("Forwarded ports don't match.\nExpected:\n%s\nGot:\n%s\n", expectedPortBindings, container.HostConfig.PortBindings)
+	}
+
+	expectedEnvironment := map[string]string{
+		"NOMAD_PORT_main":  "11110",
+		"NOMAD_PORT_REDIS": "43330",
+	}
+
+	for key, val := range expectedEnvironment {
+		search := fmt.Sprintf("%s=%s", key, val)
+		if !inSlice(search, container.Config.Env) {
+			t.Errorf("Expected to find %s in container environment: %+v", search, container.Config.Env)
+		}
+	}
+}
+
+func TestDockerPortsMapping(t *testing.T) {
+	task := dockerTask()
+	task.Config["port_map"] = []map[string]string{
+		map[string]string{
+			"main":  "8080",
+			"REDIS": "6379",
+		},
+	}
+
+	client, handle, cleanup := dockerSetup(t, task)
+	defer cleanup()
+
+	container, err := client.InspectContainer(handle.(*DockerHandle).ContainerID())
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Verify that the correct ports are EXPOSED
+	expectedExposedPorts := map[docker.Port]struct{}{
+		docker.Port("8080/tcp"): struct{}{},
+		docker.Port("8080/udp"): struct{}{},
+		docker.Port("6379/tcp"): struct{}{},
+		docker.Port("6379/udp"): struct{}{},
+	}
+
+	if !reflect.DeepEqual(container.Config.ExposedPorts, expectedExposedPorts) {
+		t.Errorf("Exposed ports don't match.\nExpected:\n%s\nGot:\n%s\n", expectedExposedPorts, container.Config.ExposedPorts)
+	}
+
+	// Verify that the correct ports are FORWARDED
+	expectedPortBindings := map[docker.Port][]docker.PortBinding{
+		docker.Port("8080/tcp"): []docker.PortBinding{docker.PortBinding{HostIP: "127.0.0.1", HostPort: "11110"}},
+		docker.Port("8080/udp"): []docker.PortBinding{docker.PortBinding{HostIP: "127.0.0.1", HostPort: "11110"}},
+		docker.Port("6379/tcp"): []docker.PortBinding{docker.PortBinding{HostIP: "127.0.0.1", HostPort: "43330"}},
+		docker.Port("6379/udp"): []docker.PortBinding{docker.PortBinding{HostIP: "127.0.0.1", HostPort: "43330"}},
+	}
+
+	if !reflect.DeepEqual(container.HostConfig.PortBindings, expectedPortBindings) {
+		t.Errorf("Forwarded ports don't match.\nExpected:\n%s\nGot:\n%s\n", expectedPortBindings, container.HostConfig.PortBindings)
+	}
+
+	expectedEnvironment := map[string]string{
+		"NOMAD_PORT_main":  "8080",
+		"NOMAD_PORT_REDIS": "6379",
+	}
+
+	for key, val := range expectedEnvironment {
+		search := fmt.Sprintf("%s=%s", key, val)
+		if !inSlice(search, container.Config.Env) {
+			t.Errorf("Expected to find %s in container environment: %+v", search, container.Config.Env)
+		}
 	}
 }

@@ -662,11 +662,15 @@ func (n *NetworkResource) GoString() string {
 	return fmt.Sprintf("*%#v", *n)
 }
 
-func (n *NetworkResource) MapLabelToValues() map[string]int {
+func (n *NetworkResource) MapLabelToValues(port_map map[string]int) map[string]int {
 	labelValues := make(map[string]int)
 	ports := append(n.ReservedPorts, n.DynamicPorts...)
 	for _, port := range ports {
-		labelValues[port.Label] = port.Value
+		if mapping, ok := port_map[port.Label]; ok {
+			labelValues[port.Label] = mapping
+		} else {
+			labelValues[port.Label] = port.Value
+		}
 	}
 	return labelValues
 }

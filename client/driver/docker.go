@@ -249,8 +249,19 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, dri
 		exposedPorts := map[docker.Port]struct{}{}
 
 		for _, port := range network.ReservedPorts {
+			// By default we will map the allocated port 1:1 to the container
+			containerPortInt := port.Value
+
+			// If the user has mapped a port using port_map we'll change it here
+			if len(driverConfig.PortMap) == 1 {
+				mapped, ok := driverConfig.PortMap[0][port.Label]
+				if ok {
+					containerPortInt = mapped
+				}
+			}
+
 			hostPortStr := strconv.Itoa(port.Value)
-			containerPort := docker.Port(hostPortStr)
+			containerPort := docker.Port(strconv.Itoa(containerPortInt))
 
 			publishedPorts[containerPort+"/tcp"] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: hostPortStr}}
 			publishedPorts[containerPort+"/udp"] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: hostPortStr}}
@@ -261,7 +272,6 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, dri
 			d.logger.Printf("[DEBUG] driver.docker: exposed port %d", port.Value)
 		}
 
-		containerToHostPortMap := make(map[string]int)
 		for _, port := range network.DynamicPorts {
 			// By default we will map the allocated port 1:1 to the container
 			containerPortInt := port.Value
@@ -275,7 +285,6 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, dri
 			}
 
 			hostPortStr := strconv.Itoa(port.Value)
-			// containerPort := docker.Port(hostPortStr)
 			containerPort := docker.Port(strconv.Itoa(containerPortInt))
 
 			publishedPorts[containerPort+"/tcp"] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: hostPortStr}}
@@ -284,12 +293,18 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, dri
 
 			exposedPorts[containerPort+"/tcp"] = struct{}{}
 			exposedPorts[containerPort+"/udp"] = struct{}{}
-			d.logger.Printf("[DEBUG] driver.docker: exposed port %s", hostPortStr)
-
-			containerToHostPortMap[string(containerPort)] = port.Value
+			d.logger.Printf("[DEBUG] driver.docker: exposed port %s", containerPort)
 		}
 
-		env.SetPorts(containerToHostPortMap)
+		// This was set above in a call to TaskEnvironmentVariables but if we
+		// have mapped any ports we will need to override them.
+		//
+		// TODO refactor the implementation in TaskEnvironmentVariables to match
+		// the 0.2 ports world view. Docker seems to be the only place where
+		// this is actually needed, but this is kinda hacky.
+		if len(driverConfig.PortMap) == 1 {
+			env.SetPorts(network.MapLabelToValues(driverConfig.PortMap[0]))
+		}
 		hostConfig.PortBindings = publishedPorts
 		config.ExposedPorts = exposedPorts
 	}
