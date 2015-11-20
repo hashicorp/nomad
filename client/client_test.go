@@ -151,6 +151,33 @@ func TestClient_Drivers(t *testing.T) {
 	}
 }
 
+func TestClient_Drivers_InWhitelist(t *testing.T) {
+	ctestutil.ExecCompatible(t)
+	c := testClient(t, func(c *config.Config) {
+		// Weird spacing to test trimming
+		c.Options["driver.whitelist"] = "   exec ,  foo	"
+	})
+	defer c.Shutdown()
+
+	node := c.Node()
+	if node.Attributes["driver.exec"] == "" {
+		t.Fatalf("missing exec driver")
+	}
+}
+
+func TestClient_Drivers_OutOfWhitelist(t *testing.T) {
+	ctestutil.ExecCompatible(t)
+	c := testClient(t, func(c *config.Config) {
+		c.Options["driver.whitelist"] = "foo,bar,baz"
+	})
+	defer c.Shutdown()
+
+	node := c.Node()
+	if node.Attributes["driver.exec"] != "" {
+		t.Fatalf("found exec driver")
+	}
+}
+
 func TestClient_Register(t *testing.T) {
 	s1, _ := testServer(t, nil)
 	defer s1.Shutdown()
