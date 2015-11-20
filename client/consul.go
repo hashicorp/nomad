@@ -156,7 +156,7 @@ func (c *ConsulClient) SyncWithConsul() {
 
 func (c *ConsulClient) registerService(service *structs.Service, task *structs.Task, allocID string) error {
 	var mErr multierror.Error
-	service.Id = fmt.Sprintf("%s-%s", allocID, task.Name)
+	service.Id = fmt.Sprintf("%s-%s", allocID, service.Name)
 	host, port := c.findPortAndHostForLabel(service.PortLabel, task)
 	if host == "" || port == 0 {
 		return fmt.Errorf("consul: The port:%s marked for registration of service: %s couldn't be found", service.PortLabel, service.Name)
