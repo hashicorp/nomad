@@ -507,13 +507,13 @@ func (c *Client) setupDrivers() error {
 	whitelistEnabled := len(whitelist) > 0
 
 	var avail []string
-	var whitelisted []string
+	var skipped []string
 	driverCtx := driver.NewDriverContext("", c.config, c.config.Node, c.logger)
 	for name := range driver.BuiltinDrivers {
 		// Skip fingerprinting drivers that are not in the whitelist if it is
 		// enabled.
 		if _, ok := whitelist[name]; whitelistEnabled && !ok {
-			whitelisted = append(whitelisted, name)
+			skipped = append(skipped, name)
 			continue
 		}
 
@@ -532,8 +532,8 @@ func (c *Client) setupDrivers() error {
 
 	c.logger.Printf("[DEBUG] client: available drivers %v", avail)
 
-	if len(whitelisted) != 0 {
-		c.logger.Printf("[DEBUG] client: drivers disabled by whitelist: %v", whitelisted)
+	if len(skipped) != 0 {
+		c.logger.Printf("[DEBUG] client: drivers skipped due to whitelist: %v", skipped)
 	}
 
 	return nil
