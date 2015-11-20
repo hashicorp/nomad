@@ -3,6 +3,7 @@
 IMPROVEMENTS:
 
   * core: Can specify a whitelist for activating drivers [GH-467]
+  * client/spawn: spawn package tests made portable (work on Windows) [GH-442]
 
 BUG FIXES:
 
