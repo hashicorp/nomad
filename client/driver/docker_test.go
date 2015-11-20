@@ -153,6 +153,10 @@ func TestDockerDriver_Fingerprint(t *testing.T) {
 }
 
 func TestDockerDriver_StartOpen_Wait(t *testing.T) {
+	if !dockerIsConnected(t) {
+		t.SkipNow()
+	}
+
 	task := &structs.Task{
 		Name: "redis-demo",
 		Config: map[string]interface{}{
@@ -222,7 +226,7 @@ func TestDockerDriver_Start_Wait_AllocDir(t *testing.T) {
 	// This test requires that the alloc dir be mounted into docker as a volume.
 	// Because this cannot happen when docker is run remotely, e.g. when running
 	// docker in a VM, we skip this when we detect Docker is being run remotely.
-	if dockerIsRemote(t) {
+	if !dockerIsConnected(t) || dockerIsRemote(t) {
 		t.SkipNow()
 	}
 
