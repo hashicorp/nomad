@@ -2,13 +2,14 @@ package client
 
 import (
 	"fmt"
-	consul "github.com/hashicorp/consul/api"
-	"github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/nomad/nomad/structs"
 	"log"
 	"net/url"
 	"sync"
 	"time"
+
+	consul "github.com/hashicorp/consul/api"
+	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 const (
@@ -95,7 +96,7 @@ func (c *ConsulClient) ShutDown() {
 
 func (c *ConsulClient) findPortAndHostForLabel(portLabel string, task *structs.Task) (string, int) {
 	for _, network := range task.Resources.Networks {
-		if p, ok := network.MapLabelToValues()[portLabel]; ok {
+		if p, ok := network.MapLabelToValues(nil)[portLabel]; ok {
 			return network.IP, p
 		}
 	}
