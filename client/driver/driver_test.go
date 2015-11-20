@@ -99,3 +99,51 @@ func TestDriver_TaskEnvironmentVariables(t *testing.T) {
 		t.Fatalf("TaskEnvironmentVariables(%#v, %#v) returned %#v; want %#v", ctx, task, act, exp)
 	}
 }
+
+func TestMapMergeStrInt(t *testing.T) {
+	a := map[string]int{
+		"cakes":   5,
+		"cookies": 3,
+	}
+
+	b := map[string]int{
+		"cakes": 3,
+		"pies":  2,
+	}
+
+	c := mapMergeStrInt(a, b)
+
+	d := map[string]int{
+		"cakes":   3,
+		"cookies": 3,
+		"pies":    2,
+	}
+
+	if !reflect.DeepEqual(c, d) {
+		t.Errorf("\nExpected\n%+v\nGot\n%+v\n", d, c)
+	}
+}
+
+func TestMapMergeStrStr(t *testing.T) {
+	a := map[string]string{
+		"cake":   "chocolate",
+		"cookie": "caramel",
+	}
+
+	b := map[string]string{
+		"cake": "strawberry",
+		"pie":  "apple",
+	}
+
+	c := mapMergeStrStr(a, b)
+
+	d := map[string]string{
+		"cake":   "strawberry",
+		"cookie": "caramel",
+		"pie":    "apple",
+	}
+
+	if !reflect.DeepEqual(c, d) {
+		t.Errorf("\nExpected\n%+v\nGot\n%+v\n", d, c)
+	}
+}

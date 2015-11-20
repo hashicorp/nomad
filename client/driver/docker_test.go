@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"reflect"
+	"runtime/debug"
 	"testing"
 	"time"
 
@@ -92,7 +93,7 @@ func dockerSetup(t *testing.T, task *structs.Task) (*docker.Client, DriverHandle
 
 	client, err := docker.NewClientFromEnv()
 	if err != nil {
-		t.Fatalf("err: %v", err)
+		t.Fatalf("Failed to initialize client: %s\nStack\n%s", err, debug.Stack())
 	}
 
 	driverCtx := testDockerDriverContext(task.Name)
@@ -102,11 +103,11 @@ func dockerSetup(t *testing.T, task *structs.Task) (*docker.Client, DriverHandle
 	handle, err := driver.Start(ctx, task)
 	if err != nil {
 		ctx.AllocDir.Destroy()
-		t.Fatalf("err: %v", err)
+		t.Fatalf("Failed to start driver: %s\nStack\n%s", err, debug.Stack())
 	}
 	if handle == nil {
 		ctx.AllocDir.Destroy()
-		t.Fatalf("missing handle")
+		t.Fatalf("handle is nil\nStack\n%s", debug.Stack())
 	}
 
 	cleanup := func() {

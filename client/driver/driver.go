@@ -145,3 +145,23 @@ func TaskEnvironmentVariables(ctx *ExecContext, task *structs.Task) environment.
 
 	return env
 }
+
+func mapMergeStrInt(maps ...map[string]int) map[string]int {
+	out := map[string]int{}
+	for _, in := range maps {
+		for key, val := range in {
+			out[key] = val
+		}
+	}
+	return out
+}
+
+func mapMergeStrStr(maps ...map[string]string) map[string]string {
+	out := map[string]string{}
+	for _, in := range maps {
+		for key, val := range in {
+			out[key] = val
+		}
+	}
+	return out
+}

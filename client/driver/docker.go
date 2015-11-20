@@ -37,12 +37,14 @@ type DockerDriverConfig struct {
 	Command          string              `mapstructure:"command"`            // The Command/Entrypoint to run when the container starts up
 	Args             []string            `mapstructure:"args"`               // The arguments to the Command/Entrypoint
 	NetworkMode      string              `mapstructure:"network_mode"`       // The network mode of the container - host, net and none
-	PortMap          []map[string]int    `mapstructure:"port_map"`           // A map of host port labels and the ports exposed on the container
+	PortMapRaw       []map[string]int    `mapstructure:"port_map"`           //
+	PortMap          map[string]int      `mapstructure:"-"`                  // A map of host port labels and the ports exposed on the container
 	Privileged       bool                `mapstructure:"privileged"`         // Flag to run the container in priviledged mode
 	DNSServers       []string            `mapstructure:"dns_servers"`        // DNS Server for containers
 	DNSSearchDomains []string            `mapstructure:"dns_search_domains"` // DNS Search domains for containers
 	Hostname         string              `mapstructure:"hostname"`           // Hostname for containers
-	Labels           []map[string]string `mapstructure:"labels"`             // Labels to set when the container starts up
+	LabelsRaw        []map[string]string `mapstructure:"labels"`             //
+	Labels           map[string]string   `mapstructure:"-"`                  // Labels to set when the container starts up
 	Auth             []DockerDriverAuth  `mapstructure:"auth"`               // Authentication credentials for a private Docker registry
 }
 
@@ -51,13 +53,9 @@ func (c *DockerDriverConfig) Validate() error {
 		return fmt.Errorf("Docker Driver needs an image name")
 	}
 
-	if len(c.PortMap) > 1 {
-		return fmt.Errorf("Only one port_map block is allowed in the docker driver config")
-	}
+	c.PortMap = mapMergeStrInt(c.PortMapRaw...)
+	c.Labels = mapMergeStrStr(c.LabelsRaw...)
 
-	if len(c.Labels) > 1 {
-		return fmt.Errorf("Only one labels block is allowed in the docker driver config")
-	}
 	return nil
 }
 
@@ -239,7 +237,7 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, dri
 	// Setup port mapping and exposed ports
 	if len(task.Resources.Networks) == 0 {
 		d.logger.Println("[DEBUG] driver.docker: No network interfaces are available")
-		if len(driverConfig.PortMap) == 1 && len(driverConfig.PortMap[0]) > 0 {
+		if len(driverConfig.PortMap) > 0 {
 			return c, fmt.Errorf("Trying to map ports but no network interface is available")
 		}
 	} else {
@@ -253,11 +251,8 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, dri
 			containerPortInt := port.Value
 
 			// If the user has mapped a port using port_map we'll change it here
-			if len(driverConfig.PortMap) == 1 {
-				mapped, ok := driverConfig.PortMap[0][port.Label]
-				if ok {
-					containerPortInt = mapped
-				}
+			if mapped, ok := driverConfig.PortMap[port.Label]; ok {
+				containerPortInt = mapped
 			}
 
 			hostPortStr := strconv.Itoa(port.Value)
@@ -277,11 +272,8 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, dri
 			containerPortInt := port.Value
 
 			// If the user has mapped a port using port_map we'll change it here
-			if len(driverConfig.PortMap) == 1 {
-				mapped, ok := driverConfig.PortMap[0][port.Label]
-				if ok {
-					containerPortInt = mapped
-				}
+			if mapped, ok := driverConfig.PortMap[port.Label]; ok {
+				containerPortInt = mapped
 			}
 
 			hostPortStr := strconv.Itoa(port.Value)
@@ -302,8 +294,8 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, dri
 		// TODO refactor the implementation in TaskEnvironmentVariables to match
 		// the 0.2 ports world view. Docker seems to be the only place where
 		// this is actually needed, but this is kinda hacky.
-		if len(driverConfig.PortMap) == 1 {
-			env.SetPorts(network.MapLabelToValues(driverConfig.PortMap[0]))
+		if len(driverConfig.PortMap) > 0 {
+			env.SetPorts(network.MapLabelToValues(driverConfig.PortMap))
 		}
 		hostConfig.PortBindings = publishedPorts
 		config.ExposedPorts = exposedPorts
@@ -324,8 +316,8 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, dri
 		d.logger.Println("[DEBUG] driver.docker: ignoring command arguments because command is not specified")
 	}
 
-	if len(driverConfig.Labels) == 1 {
-		config.Labels = driverConfig.Labels[0]
+	if len(driverConfig.Labels) > 0 {
+		config.Labels = driverConfig.Labels
 		d.logger.Printf("[DEBUG] driver.docker: applied labels on the container: %+v", config.Labels)
 	}
 
