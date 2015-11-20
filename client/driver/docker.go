@@ -103,7 +103,7 @@ func (d *DockerDriver) dockerClient() (*docker.Client, error) {
 		}
 	}
 
-	d.logger.Println("[DEBUG] driver.docker: using client connection initialized from environment %s", dockerEndpoint)
+	d.logger.Println("[DEBUG] driver.docker: using client connection initialized from environment")
 	return docker.NewClientFromEnv()
 }
 
