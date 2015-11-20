@@ -38,7 +38,9 @@ cluster gets more or less busy.
 
 ### Networking
 
-Nomad assigns IPs and ports to your jobs and exposes them via environment variables. See the [Networking](/docs/jobspec/networking.html) page for more details.
+Nomad assigns IPs and ports to your jobs and exposes them via environment
+variables. See the [Networking](/docs/jobspec/networking.html) page for more
+details.
 
 ### Task Directories <a id="task_dir"></a>
 

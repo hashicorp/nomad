@@ -212,12 +212,29 @@ configured on server nodes.
   * <a id="meta">`meta`</a>: This is a key/value mapping of metadata pairs. This
     is a free-form map and can contain any string values.
   * <a id="options">`options`</a>: This is a key/value mapping of internal
-    configuration for clients, such as for driver configuration.
+    configuration for clients, such as for driver configuration. Please see
+    [here](#options_map) for a description of available options.
   * <a id="network_interface">`network_interface`</a>: This is a string to force
     network fingerprinting to use a specific network interface
   * <a id="network_speed">`network_speed`</a>: This is an int that sets the
     default link speed of network interfaces, in megabytes, if their speed can
     not be determined dynamically.
+
+### Client Options Map <a id="options_map"></a>
+
+The following is not an exhaustive list of options that can be passed to the
+Client, but rather the set of options that configure the Client and not the
+drivers. To find the options supported by an individual driver, see the drivers
+documentation [here](/docs/drivers/index.html)
+
+* `consul.address`: The address to the local Consul agent given in the format of
+  `host:port`. The default is the same as the Consul default address,
+  `127.0.0.1:8500`.
+
+* `driver.whitelist`: A comma seperated list of whitelisted drivers (e.g.
+  "docker,qemu"). If specified, drivers not in the whitelist will be disabled.
+  If the whitelist is empty, all drivers are fingerprinted and enabled where
+  applicable.
 
 ## Atlas Options
 

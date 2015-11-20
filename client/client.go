@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -494,9 +495,28 @@ func (c *Client) fingerprintPeriodic(name string, f fingerprint.Fingerprint, d t
 
 // setupDrivers is used to find the available drivers
 func (c *Client) setupDrivers() error {
+	// Build the whitelist of drivers.
+	userWhitelist := strings.TrimSpace(c.config.ReadDefault("driver.whitelist", ""))
+	whitelist := make(map[string]struct{})
+	if userWhitelist != "" {
+		for _, driver := range strings.Split(userWhitelist, ",") {
+			trimmed := strings.TrimSpace(driver)
+			whitelist[trimmed] = struct{}{}
+		}
+	}
+	whitelistEnabled := len(whitelist) > 0
+
 	var avail []string
+	var skipped []string
 	driverCtx := driver.NewDriverContext("", c.config, c.config.Node, c.logger)
 	for name := range driver.BuiltinDrivers {
+		// Skip fingerprinting drivers that are not in the whitelist if it is
+		// enabled.
+		if _, ok := whitelist[name]; whitelistEnabled && !ok {
+			skipped = append(skipped, name)
+			continue
+		}
+
 		d, err := driver.NewDriver(name, driverCtx)
 		if err != nil {
 			return err
@@ -509,7 +529,13 @@ func (c *Client) setupDrivers() error {
 			avail = append(avail, name)
 		}
 	}
+
 	c.logger.Printf("[DEBUG] client: available drivers %v", avail)
+
+	if len(skipped) != 0 {
+		c.logger.Printf("[DEBUG] client: drivers skipped due to whitelist: %v", skipped)
+	}
+
 	return nil
 }
 
