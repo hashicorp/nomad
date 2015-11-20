@@ -103,7 +103,7 @@ task "secretservice" {
         image = "secret/service"
         auth {
             username = "dockerhub_user"
-            username = "dockerhub_password"
+            password = "dockerhub_password"
         }
     }
 }
