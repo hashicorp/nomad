@@ -2,8 +2,10 @@ package structs
 
 import (
 	"bytes"
+	"crypto/sha1"
 	"errors"
 	"fmt"
+	"io"
 	"reflect"
 	"regexp"
 	"strings"
@@ -1036,6 +1038,19 @@ func (sc *ServiceCheck) Validate() error {
 		return fmt.Errorf("Script checks need the script to invoke")
 	}
 	return nil
+}
+
+func (sc *ServiceCheck) Hash() string {
+	h := sha1.New()
+	io.WriteString(h, sc.Name)
+	io.WriteString(h, sc.Type)
+	io.WriteString(h, sc.Script)
+	io.WriteString(h, sc.Path)
+	io.WriteString(h, sc.Path)
+	io.WriteString(h, sc.Protocol)
+	io.WriteString(h, sc.Interval.String())
+	io.WriteString(h, sc.Timeout.String())
+	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
 // The Service model represents a Consul service defintion

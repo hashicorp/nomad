@@ -1,6 +1,7 @@
 package structs
 
 import (
+	"fmt"
 	"github.com/hashicorp/go-multierror"
 	"reflect"
 	"strings"
@@ -374,4 +375,34 @@ func TestInvalidServiceCheck(t *testing.T) {
 	if err := s.Validate(); err == nil {
 		t.Fatalf("Service should be invalid")
 	}
+}
+
+func TestDistinctCheckId(t *testing.T) {
+	c1 := ServiceCheck{
+		Name:     "web-health",
+		Type:     "http",
+		Path:     "/health",
+		Interval: 2 * time.Second,
+		Timeout:  3 * time.Second,
+	}
+	c2 := ServiceCheck{
+		Name:     "web-health",
+		Type:     "http",
+		Path:     "/health1",
+		Interval: 2 * time.Second,
+		Timeout:  3 * time.Second,
+	}
+
+	c3 := ServiceCheck{
+		Name:     "web-health",
+		Type:     "http",
+		Path:     "/health",
+		Interval: 4 * time.Second,
+		Timeout:  3 * time.Second,
+	}
+
+	if c1.Hash() == c2.Hash() || c1.Hash() == c3.Hash() || c3.Hash() == c2.Hash() {
+		t.Fatalf("Checks need to be uniq c1: %s, c2: %s, c3: %s", c1.Hash(), c2.Hash(), c3.Hash())
+	}
+
 }
