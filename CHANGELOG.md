@@ -4,6 +4,7 @@ IMPROVEMENTS:
 
   * core: Can specify a whitelist for activating drivers [GH-467]
   * client/spawn: spawn package tests made portable (work on Windows) [GH-442]
+  * driver/docker: Added TLS client options to the config file [GH-480]
 
 BUG FIXES:
 
