@@ -95,10 +95,10 @@ func (d *DockerDriver) dockerClient() (*docker.Client, error) {
 		ca := d.config.Read("docker.tls.ca")
 
 		if cert+key+ca != "" {
-			d.logger.Println("[DEBUG] driver.docker: using TLS client connection to %s", dockerEndpoint)
+			d.logger.Printf("[DEBUG] driver.docker: using TLS client connection to %s", dockerEndpoint)
 			return docker.NewTLSClient(dockerEndpoint, cert, key, ca)
 		} else {
-			d.logger.Println("[DEBUG] driver.docker: using standard client connection to %s", dockerEndpoint)
+			d.logger.Printf("[DEBUG] driver.docker: using standard client connection to %s", dockerEndpoint)
 			return docker.NewClient(dockerEndpoint)
 		}
 	}
