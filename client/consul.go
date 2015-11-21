@@ -122,7 +122,6 @@ func (c *ConsulClient) SyncWithConsul() {
 
 			// Get the list of the services that Consul knows about
 			if consulServices, err = agent.Services(); err != nil {
-				c.logger.Printf("[DEBUG] consul: Error while syncing services with Consul: %v", err)
 				continue
 			}
 
