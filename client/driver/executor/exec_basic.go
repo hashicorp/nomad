@@ -43,7 +43,7 @@ func (e *BasicExecutor) Limit(resources *structs.Resources) error {
 func (e *BasicExecutor) ConfigureTaskDir(taskName string, alloc *allocdir.AllocDir) error {
 	taskDir, ok := alloc.TaskDirs[taskName]
 	if !ok {
-		fmt.Errorf("Couldn't find task directory for task %v", taskName)
+		return fmt.Errorf("Couldn't find task directory for task %v", taskName)
 	}
 	e.cmd.Dir = taskDir
 
