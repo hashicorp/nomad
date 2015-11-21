@@ -322,16 +322,16 @@ func TestDocker_StartN(t *testing.T) {
 	}
 
 	task1 := dockerTask()
-	task1.Resources.Networks[0].ReservedPorts[0] = structs.Port{"main", 11110}
-	task1.Resources.Networks[0].DynamicPorts[0] = structs.Port{"REDIS", 43331}
+	task1.Resources.Networks[0].ReservedPorts[0] = structs.Port{Label: "main", Value: 11110}
+	task1.Resources.Networks[0].DynamicPorts[0] = structs.Port{Label: "REDIS", Value: 43331}
 
 	task2 := dockerTask()
-	task2.Resources.Networks[0].ReservedPorts[0] = structs.Port{"main", 22222}
-	task2.Resources.Networks[0].DynamicPorts[0] = structs.Port{"REDIS", 43332}
+	task2.Resources.Networks[0].ReservedPorts[0] = structs.Port{Label: "main", Value: 22222}
+	task2.Resources.Networks[0].DynamicPorts[0] = structs.Port{Label: "REDIS", Value: 43332}
 
 	task3 := dockerTask()
-	task3.Resources.Networks[0].ReservedPorts[0] = structs.Port{"main", 33333}
-	task3.Resources.Networks[0].DynamicPorts[0] = structs.Port{"REDIS", 43333}
+	task3.Resources.Networks[0].ReservedPorts[0] = structs.Port{Label: "main", Value: 33333}
+	task3.Resources.Networks[0].DynamicPorts[0] = structs.Port{Label: "REDIS", Value: 43333}
 
 	taskList := []*structs.Task{task1, task2, task3}
 
@@ -377,18 +377,18 @@ func TestDocker_StartNVersions(t *testing.T) {
 
 	task1 := dockerTask()
 	task1.Config["image"] = "redis"
-	task1.Resources.Networks[0].ReservedPorts[0] = structs.Port{"main", 11110}
-	task1.Resources.Networks[0].DynamicPorts[0] = structs.Port{"REDIS", 43331}
+	task1.Resources.Networks[0].ReservedPorts[0] = structs.Port{Label: "main", Value: 11110}
+	task1.Resources.Networks[0].DynamicPorts[0] = structs.Port{Label: "REDIS", Value: 43331}
 
 	task2 := dockerTask()
 	task2.Config["image"] = "redis:latest"
-	task2.Resources.Networks[0].ReservedPorts[0] = structs.Port{"main", 22222}
-	task2.Resources.Networks[0].DynamicPorts[0] = structs.Port{"REDIS", 43332}
+	task2.Resources.Networks[0].ReservedPorts[0] = structs.Port{Label: "main", Value: 22222}
+	task2.Resources.Networks[0].DynamicPorts[0] = structs.Port{Label: "REDIS", Value: 43332}
 
 	task3 := dockerTask()
 	task3.Config["image"] = "redis:3.0"
-	task3.Resources.Networks[0].ReservedPorts[0] = structs.Port{"main", 33333}
-	task3.Resources.Networks[0].DynamicPorts[0] = structs.Port{"REDIS", 43333}
+	task3.Resources.Networks[0].ReservedPorts[0] = structs.Port{Label: "main", Value: 33333}
+	task3.Resources.Networks[0].DynamicPorts[0] = structs.Port{Label: "REDIS", Value: 43333}
 
 	taskList := []*structs.Task{task1, task2, task3}
 
