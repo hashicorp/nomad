@@ -90,9 +90,20 @@ func (d *DockerDriver) dockerClient() (*docker.Client, error) {
 	// but also accept the standard ENV configs for dev and test.
 	dockerEndpoint := d.config.Read("docker.endpoint")
 	if dockerEndpoint != "" {
-		return docker.NewClient(dockerEndpoint)
+		cert := d.config.Read("docker.tls.cert")
+		key := d.config.Read("docker.tls.key")
+		ca := d.config.Read("docker.tls.ca")
+
+		if cert+key+ca != "" {
+			d.logger.Printf("[DEBUG] driver.docker: using TLS client connection to %s", dockerEndpoint)
+			return docker.NewTLSClient(dockerEndpoint, cert, key, ca)
+		} else {
+			d.logger.Printf("[DEBUG] driver.docker: using standard client connection to %s", dockerEndpoint)
+			return docker.NewClient(dockerEndpoint)
+		}
 	}
 
+	d.logger.Println("[DEBUG] driver.docker: using client connection initialized from environment")
 	return docker.NewClientFromEnv()
 }
 

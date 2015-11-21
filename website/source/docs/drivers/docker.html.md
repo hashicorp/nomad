@@ -225,6 +225,21 @@ The `docker` driver has the following host-level configuration options:
   to customize this if you use a non-standard socket (http or another
   location).
 
+* `docker.tls.cert` - Path to the server's certificate file (`.pem`). Specify
+  this along with `docker.tls.key` and `docker.tls.ca` to use a TLS client to
+  connect to the docker daemon. `docker.endpoint` must also be specified or
+  this setting will be ignored.
+
+* `docker.tls.key` - Path to the client's private key (`.pem`). Specify this
+  along with `docker.tls.cert` and `docker.tls.ca` to use a TLS client to
+  connect to the docker daemon. `docker.endpoint` must also be specified or
+  this setting will be ignored.
+
+* `docker.tls.ca` - Path to the server's CA file (`.pem`). Specify this along
+  with `docker.tls.cert` and `docker.tls.key` to use a TLS client to connect to
+  the docker daemon. `docker.endpoint` must also be specified or this setting
+  will be ignored.
+
 * `docker.cleanup.container` Defaults to `true`. Changing this to `false` will
   prevent Nomad from removing containers from stopped tasks.
 
@@ -236,9 +251,14 @@ The `docker` driver has the following host-level configuration options:
   access to the host's devices. Note that you must set a similar setting on the
   Docker daemon for this to work.
 
+    cert := d.config.Read("docker.tls.cert")
+    key := d.config.Read("docker.tls.key")
+    ca := d.config.Read("docker.tls.ca")
+
 Note: When testing or using the `-dev` flag you can use `DOCKER_HOST`,
-`DOCKER_TLS_VERIFY`, and `DOCKER_CERT_PATH` to customize Nomad's behavior. In
-production Nomad will always read `docker.endpoint`.
+`DOCKER_TLS_VERIFY`, and `DOCKER_CERT_PATH` to customize Nomad's behavior. If
+`docker.endpoint` is set Nomad will **only** read client configuration from the
+config filie.
 
 ## Agent Attributes
 
