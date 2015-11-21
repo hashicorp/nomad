@@ -1,7 +1,6 @@
 package structs
 
 import (
-	"fmt"
 	"github.com/hashicorp/go-multierror"
 	"reflect"
 	"strings"
