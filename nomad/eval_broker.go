@@ -233,7 +233,7 @@ SCAN:
 	}
 
 	// Setup the timeout channel the first time around
-	if timeoutTimer == nil && timeout != 0 {
+	if timeoutTimer == nil {
 		timeoutTimer = time.NewTimer(timeout)
 	}
 
