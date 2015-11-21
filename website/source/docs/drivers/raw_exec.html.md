@@ -36,13 +36,15 @@ The `raw_exec` driver supports the following configuration in the job spec:
 
 The `raw_exec` driver can run on all supported operating systems. It is however
 disabled by default. In order to be enabled, the Nomad client configuration must
-explicitly enable the `raw_exec` driver in the
+explicitly enable the `raw_exec` driver in the client's
 [options](../agent/config.html#options) field:
 
 ```
-options = {
-    driver.raw_exec.enable = "1"
-}
+  client {
+    options = {
+        "driver.raw_exec.enable" = "1"
+    }
+  }
 ```
 
 You must specify a `command` to be executed. Optionally you can specify an
