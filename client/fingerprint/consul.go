@@ -53,6 +53,8 @@ func (f *ConsulFingerprint) Fingerprint(config *client.Config, node *structs.Nod
 	// If we can't hit this URL consul is probably not running on this machine.
 	info, err := f.client.Agent().Self()
 	if err != nil {
+		// Clear any attributes set by a previous fingerprint.
+		f.clearConsulAttributes(node)
 		return false, nil
 	}
 
@@ -67,6 +69,17 @@ func (f *ConsulFingerprint) Fingerprint(config *client.Config, node *structs.Nod
 		node.Attributes["consul.name"])
 
 	return true, nil
+}
+
+// clearConsulAttributes removes consul attributes and links from the passed
+// Node.
+func (f *ConsulFingerprint) clearConsulAttributes(n *structs.Node) {
+	delete(n.Attributes, "consul.server")
+	delete(n.Attributes, "consul.version")
+	delete(n.Attributes, "consul.revision")
+	delete(n.Attributes, "consul.name")
+	delete(n.Attributes, "consul.datacenter")
+	delete(n.Links, "consul")
 }
 
 func (f *ConsulFingerprint) Periodic() (bool, time.Duration) {
