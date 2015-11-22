@@ -15,6 +15,7 @@ import (
 // ConsulFingerprint is used to fingerprint the architecture
 type ConsulFingerprint struct {
 	logger *log.Logger
+	client *consul.Client
 }
 
 // NewConsulFingerprint is used to create an OS fingerprint
@@ -29,24 +30,28 @@ func (f *ConsulFingerprint) Fingerprint(config *client.Config, node *structs.Nod
 		node.Links = map[string]string{}
 	}
 
-	address := config.ReadDefault("consul.address", "127.0.0.1:8500")
-	timeout, err := time.ParseDuration(config.ReadDefault("consul.timeout", "10ms"))
-	if err != nil {
-		return false, fmt.Errorf("Unable to parse consul.timeout: %s", err)
-	}
+	// Only create the client once to avoid creating too many connections to
+	// Consul.
+	if f.client == nil {
+		address := config.ReadDefault("consul.address", "127.0.0.1:8500")
+		timeout, err := time.ParseDuration(config.ReadDefault("consul.timeout", "10ms"))
+		if err != nil {
+			return false, fmt.Errorf("Unable to parse consul.timeout: %s", err)
+		}
 
-	consulConfig := consul.DefaultConfig()
-	consulConfig.Address = address
-	consulConfig.HttpClient.Timeout = timeout
+		consulConfig := consul.DefaultConfig()
+		consulConfig.Address = address
+		consulConfig.HttpClient.Timeout = timeout
 
-	consulClient, err := consul.NewClient(consulConfig)
-	if err != nil {
-		return false, fmt.Errorf("Failed to initialize consul client: %s", err)
+		f.client, err = consul.NewClient(consulConfig)
+		if err != nil {
+			return false, fmt.Errorf("Failed to initialize consul client: %s", err)
+		}
 	}
 
 	// We'll try to detect consul by making a query to to the agent's self API.
 	// If we can't hit this URL consul is probably not running on this machine.
-	info, err := consulClient.Agent().Self()
+	info, err := f.client.Agent().Self()
 	if err != nil {
 		return false, nil
 	}
