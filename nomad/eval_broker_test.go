@@ -400,6 +400,26 @@ func TestEvalBroker_Dequeue_Timeout(t *testing.T) {
 	}
 }
 
+func TestEvalBroker_Dequeue_Empty_Timeout(t *testing.T) {
+	b := testBroker(t, 0)
+	b.SetEnabled(true)
+
+	start := time.Now()
+	out, _, err := b.Dequeue(defaultSched, 0)
+	end := time.Now()
+
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out != nil {
+		t.Fatalf("unexpected: %#v", out)
+	}
+
+	if diff := end.Sub(start); diff > 1*time.Millisecond {
+		t.Fatalf("bad: %#v", diff)
+	}
+}
+
 // Ensure higher priority dequeued first
 func TestEvalBroker_Dequeue_Priority(t *testing.T) {
 	b := testBroker(t, 0)
