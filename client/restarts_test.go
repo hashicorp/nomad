@@ -73,7 +73,6 @@ func TestTaskRunner_BatchRestartOnSuccess(t *testing.T) {
 	shouldRestart, _ := rt.nextRestart(0)
 	if shouldRestart {
 		t.Fatalf("should restart returned %v, expected: %v", shouldRestart, false)
-		t.Fail()
 	}
 
 }
