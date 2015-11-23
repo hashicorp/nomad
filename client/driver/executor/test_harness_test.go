@@ -316,7 +316,7 @@ func Executor_Open(t *testing.T, command buildExecCommand, newExecutor func() Ex
 
 func Executor_Open_Invalid(t *testing.T, command buildExecCommand, newExecutor func() Executor) {
 	task, alloc := mockAllocDir(t)
-	e := command("echo", "foo")
+	e := command(testBinary, "echo", "foo")
 
 	if err := e.Limit(constraint); err != nil {
 		log.Panicf("Limit() failed: %v", err)
@@ -335,8 +335,19 @@ func Executor_Open_Invalid(t *testing.T, command buildExecCommand, newExecutor f
 		log.Panicf("ID() failed: %v", err)
 	}
 
+	// Kill the task because some OSes (windows) will not let us destroy the
+	// alloc (below) if the task is still running.
+	if err := e.ForceStop(); err != nil {
+		log.Panicf("e.ForceStop() failed: %v", err)
+	}
+
+	// Wait until process is actually gone, we don't care what the result was.
+	e.Wait()
+
 	// Destroy the allocdir which removes the exit code.
-	alloc.Destroy()
+	if err := alloc.Destroy(); err != nil {
+		log.Panicf("alloc.Destroy() failed: %v", err)
+	}
 
 	e2 := newExecutor()
 	if err := e2.Open(id); err == nil {
