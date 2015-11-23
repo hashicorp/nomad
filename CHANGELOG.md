@@ -12,7 +12,7 @@ BUG FIXES:
   * driver/docker: Support `port_map` for static ports [GH-476]
   * driver/docker: Pass 0.2.0-style port environment variables to the docker container [GH-476]
   * client/service discovery: Make Service IDs unique [GH-479]
-  * client/restart policy: Not restarting Batch Jobs if the exit code is 0
+  * client/restart policy: Not restarting Batch Jobs if the exit code is 0 [GH-491]
 
 ## 0.2.0 (November 18, 2015)
 
