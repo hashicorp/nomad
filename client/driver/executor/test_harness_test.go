@@ -140,6 +140,7 @@ func testExecutor(t *testing.T, buildExecutor func() Executor, compatible func(*
 	Executor_Start_Wait(t, command)
 	Executor_Start_Kill(t, command)
 	Executor_Open(t, command, buildExecutor)
+	Executor_Open_Invalid(t, command, buildExecutor)
 }
 
 type buildExecCommand func(name string, args ...string) Executor
