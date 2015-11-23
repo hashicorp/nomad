@@ -1072,6 +1072,14 @@ func (s *Service) Validate() error {
 	return mErr.ErrorOrNil()
 }
 
+func (s *Service) Hash() string {
+	h := sha1.New()
+	io.WriteString(h, s.Name)
+	io.WriteString(h, strings.Join(s.Tags, ""))
+	io.WriteString(h, s.PortLabel)
+	return fmt.Sprintf("%x", h.Sum(nil))
+}
+
 // Task is a single process typically that is executed as part of a task group.
 type Task struct {
 	// Name of the task
