@@ -284,8 +284,8 @@ func (r *TaskRunner) run() {
 		}
 
 		// Check if we should restart. If not mark task as dead and exit.
+		shouldRestart, when := r.restartTracker.nextRestart(waitRes.ExitCode)
 		waitEvent := r.waitErrorToEvent(waitRes)
-		shouldRestart, when := r.restartTracker.nextRestart()
 		if !shouldRestart {
 			r.logger.Printf("[INFO] client: Not restarting task: %v for alloc: %v ", r.task.Name, r.allocID)
 			r.setState(structs.TaskStateDead, waitEvent)
