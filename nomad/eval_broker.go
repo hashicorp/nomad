@@ -214,6 +214,7 @@ func (b *EvalBroker) enqueueLocked(eval *structs.Evaluation, queue string) {
 // Dequeue is used to perform a blocking dequeue
 func (b *EvalBroker) Dequeue(schedulers []string, timeout time.Duration) (*structs.Evaluation, string, error) {
 	var timeoutTimer *time.Timer
+	var timeoutCh <-chan time.Time
 SCAN:
 	// Scan for work
 	eval, token, err := b.scanForSchedulers(schedulers)
@@ -233,12 +234,13 @@ SCAN:
 	}
 
 	// Setup the timeout channel the first time around
-	if timeoutTimer == nil {
+	if timeoutTimer == nil && timeout != 0 {
 		timeoutTimer = time.NewTimer(timeout)
+		timeoutCh = timeoutTimer.C
 	}
 
 	// Block until we get work
-	scan := b.waitForSchedulers(schedulers, timeoutTimer.C)
+	scan := b.waitForSchedulers(schedulers, timeoutCh)
 	if scan {
 		goto SCAN
 	}
