@@ -276,15 +276,17 @@ func (r *TaskRunner) run() {
 			return
 		}
 
+		waitEvent := r.waitErrorToEvent(waitRes)
 		// Log whether the task was successful or not.
 		if !waitRes.Successful() {
 			r.logger.Printf("[ERR] client: failed to complete task '%s' for alloc '%s': %v", r.task.Name, r.allocID, waitRes)
 		} else {
 			r.logger.Printf("[INFO] client: completed task '%s' for alloc '%s'", r.task.Name, r.allocID)
+			r.setState(structs.TaskStateDead, waitEvent)
+			return
 		}
 
 		// Check if we should restart. If not mark task as dead and exit.
-		waitEvent := r.waitErrorToEvent(waitRes)
 		shouldRestart, when := r.restartTracker.nextRestart()
 		if !shouldRestart {
 			r.logger.Printf("[INFO] client: Not restarting task: %v for alloc: %v ", r.task.Name, r.allocID)
