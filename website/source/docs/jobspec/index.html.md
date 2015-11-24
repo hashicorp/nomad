@@ -1,7 +1,7 @@
 ---
 layout: "docs"
 page_title: "Job Specification"
-sidebar_current: "docs-jobspec"
+sidebar_current: "docs-jobspec-syntax"
 description: |-
   Learn about the Job specification used to submit jobs to Nomad.
 ---
