@@ -95,11 +95,14 @@ func (idx *NetworkIndex) AddReserved(n *NetworkResource) (collide bool) {
 		used = make(map[int]struct{})
 		idx.UsedPorts[n.IP] = used
 	}
-	for _, port := range n.ReservedPorts {
-		if _, ok := used[port.Value]; ok {
-			collide = true
-		} else {
-			used[port.Value] = struct{}{}
+
+	for _, ports := range [][]Port{n.ReservedPorts, n.DynamicPorts} {
+		for _, port := range ports {
+			if _, ok := used[port.Value]; ok {
+				collide = true
+			} else {
+				used[port.Value] = struct{}{}
+			}
 		}
 	}
 
@@ -179,8 +182,11 @@ func (idx *NetworkIndex) AssignNetwork(ask *NetworkResource) (out *NetworkResour
 			if _, ok := idx.UsedPorts[ipStr][randPort]; ok {
 				goto PICK
 			}
-			if isPortReserved(offer.ReservedPorts, randPort) {
-				goto PICK
+
+			for _, ports := range [][]Port{offer.ReservedPorts, offer.DynamicPorts} {
+				if isPortReserved(ports, randPort) {
+					goto PICK
+				}
 			}
 			offer.DynamicPorts[i].Value = randPort
 		}

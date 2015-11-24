@@ -645,6 +645,10 @@ func (n *NetworkResource) Copy() *NetworkResource {
 		newR.ReservedPorts = make([]Port, len(n.ReservedPorts))
 		copy(newR.ReservedPorts, n.ReservedPorts)
 	}
+	if n.DynamicPorts != nil {
+		newR.DynamicPorts = make([]Port, len(n.DynamicPorts))
+		copy(newR.DynamicPorts, n.DynamicPorts)
+	}
 	return newR
 }
 

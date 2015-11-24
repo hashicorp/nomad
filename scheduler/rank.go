@@ -188,7 +188,7 @@ OUTER:
 
 			// Check if we need a network resource
 			if len(taskResources.Networks) > 0 {
-				ask := taskResources.Networks[0]
+				ask := taskResources.Networks[0].Copy()
 				offer, err := netIdx.AssignNetwork(ask)
 				if offer == nil {
 					iter.ctx.Metrics().ExhaustedNode(option.Node,
