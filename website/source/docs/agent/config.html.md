@@ -236,12 +236,9 @@ documentation [here](/docs/drivers/index.html)
   If the whitelist is empty, all drivers are fingerprinted and enabled where
   applicable.
 
-* `fingerprint.whitelist`: A comma seperated list of whitelisted modules (e.g.
-  "arch,consul,cpu,host,memory,network,storage" to enabled all current
-  implemented modules expect AWS and GCE). If specified, fingerprinting modules
-  not in the whitelist will be disabled.
-  If the whitelist is empty, all modules are fingerprinted and enabled where
-  applicable.
+* `fingerprint.whitelist`: A comma seperated list of whitelisted fingerprinters.
+  If specified, fingerprinters not in the whitelist will be disabled. If the
+  whitelist is empty, all fingerprinters are used.
 
 ## Atlas Options
 

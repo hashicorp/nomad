@@ -17,8 +17,8 @@ the differences between each of these schedulers.
 The `service` scheduler is designed for scheduling long lived services that
 should never go down. As such, the `service` scheduler ranks a large portion
 of the nodes that meet the jobs constraints and selects the optimal node to
-place a task group on. The `service` scheduler uses a scoring algorithm based on
-Google's BestFit v3 algorithm. Ranking this larger set of candidate nodes
+place a task group on. The `service` scheduler uses a best fit scoring algorithm
+influenced by Google work on Borg. Ranking this larger set of candidate nodes
 increases scheduling time but provides greater guarantees about the optimality
 of a job placement, which given the service workload is highly desirable.
 
