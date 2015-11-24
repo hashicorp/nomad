@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"strings"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -97,4 +98,18 @@ func (c *Config) ReadBoolDefault(id string, defaultValue bool) bool {
 		return defaultValue
 	}
 	return val
+}
+
+// ReadStringListToMap tries to parse the specified option as a comma seperated list.
+// If there is an error in parsing, an empty list is returned.
+func (c *Config) ReadStringListToMap(key string) map[string]struct{} {
+	s := strings.TrimSpace(c.Read(key))
+	list := make(map[string]struct{})
+	if s != "" {
+		for _, e := range strings.Split(s, ",") {
+			trimmed := strings.TrimSpace(e)
+			list[trimmed] = struct{}{}
+		}
+	}
+	return list
 }
