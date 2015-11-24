@@ -17,6 +17,7 @@ import (
 )
 
 func TestRawExecDriver_Fingerprint(t *testing.T) {
+	t.Parallel()
 	d := NewRawExecDriver(testDriverContext(""))
 	node := &structs.Node{
 		Attributes: make(map[string]string),
@@ -51,6 +52,7 @@ func TestRawExecDriver_Fingerprint(t *testing.T) {
 }
 
 func TestRawExecDriver_StartOpen_Wait(t *testing.T) {
+	t.Parallel()
 	task := &structs.Task{
 		Name: "sleep",
 		Config: map[string]interface{}{
@@ -91,6 +93,7 @@ func TestRawExecDriver_StartOpen_Wait(t *testing.T) {
 }
 
 func TestRawExecDriver_Start_Artifact_basic(t *testing.T) {
+	t.Parallel()
 	path := testtask.Path()
 	ts := httptest.NewServer(http.FileServer(http.Dir(filepath.Dir(path))))
 	defer ts.Close()
@@ -138,6 +141,7 @@ func TestRawExecDriver_Start_Artifact_basic(t *testing.T) {
 }
 
 func TestRawExecDriver_Start_Artifact_expanded(t *testing.T) {
+	t.Parallel()
 	path := testtask.Path()
 	ts := httptest.NewServer(http.FileServer(http.Dir(filepath.Dir(path))))
 	defer ts.Close()
@@ -185,6 +189,7 @@ func TestRawExecDriver_Start_Artifact_expanded(t *testing.T) {
 }
 
 func TestRawExecDriver_Start_Wait(t *testing.T) {
+	t.Parallel()
 	task := &structs.Task{
 		Name: "sleep",
 		Config: map[string]interface{}{
@@ -226,6 +231,7 @@ func TestRawExecDriver_Start_Wait(t *testing.T) {
 }
 
 func TestRawExecDriver_Start_Wait_AllocDir(t *testing.T) {
+	t.Parallel()
 	exp := []byte{'w', 'i', 'n'}
 	file := "output.txt"
 	outPath := fmt.Sprintf(`$%s/%s`, environment.AllocDir, file)
@@ -278,6 +284,7 @@ func TestRawExecDriver_Start_Wait_AllocDir(t *testing.T) {
 }
 
 func TestRawExecDriver_Start_Kill_Wait(t *testing.T) {
+	t.Parallel()
 	task := &structs.Task{
 		Name: "sleep",
 		Config: map[string]interface{}{

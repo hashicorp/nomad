@@ -119,6 +119,7 @@ func dockerSetup(t *testing.T, task *structs.Task) (*docker.Client, DriverHandle
 }
 
 func TestDockerDriver_Handle(t *testing.T) {
+	t.Parallel()
 	h := &DockerHandle{
 		imageID:     "imageid",
 		containerID: "containerid",
@@ -135,6 +136,7 @@ func TestDockerDriver_Handle(t *testing.T) {
 
 // This test should always pass, even if docker daemon is not available
 func TestDockerDriver_Fingerprint(t *testing.T) {
+	t.Parallel()
 	d := NewDockerDriver(testDockerDriverContext(""))
 	node := &structs.Node{
 		Attributes: make(map[string]string),
@@ -153,6 +155,7 @@ func TestDockerDriver_Fingerprint(t *testing.T) {
 }
 
 func TestDockerDriver_StartOpen_Wait(t *testing.T) {
+	t.Parallel()
 	if !dockerIsConnected(t) {
 		t.SkipNow()
 	}
@@ -190,6 +193,7 @@ func TestDockerDriver_StartOpen_Wait(t *testing.T) {
 }
 
 func TestDockerDriver_Start_Wait(t *testing.T) {
+	t.Parallel()
 	task := &structs.Task{
 		Name: "redis-demo",
 		Config: map[string]interface{}{
@@ -223,6 +227,7 @@ func TestDockerDriver_Start_Wait(t *testing.T) {
 }
 
 func TestDockerDriver_Start_Wait_AllocDir(t *testing.T) {
+	t.Parallel()
 	// This test requires that the alloc dir be mounted into docker as a volume.
 	// Because this cannot happen when docker is run remotely, e.g. when running
 	// docker in a VM, we skip this when we detect Docker is being run remotely.
@@ -285,6 +290,7 @@ func TestDockerDriver_Start_Wait_AllocDir(t *testing.T) {
 }
 
 func TestDockerDriver_Start_Kill_Wait(t *testing.T) {
+	t.Parallel()
 	task := &structs.Task{
 		Name: "redis-demo",
 		Config: map[string]interface{}{
@@ -317,6 +323,7 @@ func TestDockerDriver_Start_Kill_Wait(t *testing.T) {
 }
 
 func TestDocker_StartN(t *testing.T) {
+	t.Parallel()
 	if !dockerIsConnected(t) {
 		t.SkipNow()
 	}
@@ -371,6 +378,7 @@ func TestDocker_StartN(t *testing.T) {
 }
 
 func TestDocker_StartNVersions(t *testing.T) {
+	t.Parallel()
 	if !dockerIsConnected(t) {
 		t.SkipNow()
 	}
@@ -428,6 +436,7 @@ func TestDocker_StartNVersions(t *testing.T) {
 }
 
 func TestDockerHostNet(t *testing.T) {
+	t.Parallel()
 	expected := "host"
 
 	task := &structs.Task{
@@ -457,6 +466,7 @@ func TestDockerHostNet(t *testing.T) {
 }
 
 func TestDockerLabels(t *testing.T) {
+	t.Parallel()
 	task := dockerTask()
 	task.Config["labels"] = []map[string]string{
 		map[string]string{
@@ -483,6 +493,7 @@ func TestDockerLabels(t *testing.T) {
 }
 
 func TestDockerDNS(t *testing.T) {
+	t.Parallel()
 	task := dockerTask()
 	task.Config["dns_servers"] = []string{"8.8.8.8", "8.8.4.4"}
 	task.Config["dns_search_domains"] = []string{"example.com", "example.org", "example.net"}
@@ -514,6 +525,7 @@ func inSlice(needle string, haystack []string) bool {
 }
 
 func TestDockerPortsNoMap(t *testing.T) {
+	t.Parallel()
 	task := dockerTask()
 
 	client, handle, cleanup := dockerSetup(t, task)
@@ -564,6 +576,7 @@ func TestDockerPortsNoMap(t *testing.T) {
 }
 
 func TestDockerPortsMapping(t *testing.T) {
+	t.Parallel()
 	task := dockerTask()
 	task.Config["port_map"] = []map[string]string{
 		map[string]string{

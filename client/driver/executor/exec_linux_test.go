@@ -13,5 +13,6 @@ func init() {
 }
 
 func TestExecutorLinux(t *testing.T) {
+	t.Parallel()
 	testExecutor(t, NewLinuxExecutor, ctestutil.ExecCompatible)
 }
