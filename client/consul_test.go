@@ -8,13 +8,13 @@ import (
 	"time"
 )
 
-func newConsulClient() *ConsulClient {
+func newConsulService() *ConsulService {
 	logger := log.New(os.Stdout, "logger: ", log.Lshortfile)
-	c, _ := NewConsulClient(logger, "")
+	c, _ := NewConsulService(logger, "")
 	return c
 }
 
-func TestMakeChecks(t *testing.T) {
+func TestConsul_MakeChecks(t *testing.T) {
 	service := &structs.Service{
 		Id:   "Foo",
 		Name: "Bar",
@@ -40,7 +40,7 @@ func TestMakeChecks(t *testing.T) {
 		},
 	}
 
-	c := newConsulClient()
+	c := newConsulService()
 
 	checks := c.makeChecks(service, "10.10.0.1", 8090)
 
@@ -57,7 +57,7 @@ func TestMakeChecks(t *testing.T) {
 	}
 }
 
-func TestInvalidPortLabelForService(t *testing.T) {
+func TestConsul_InvalidPortLabelForService(t *testing.T) {
 	task := &structs.Task{
 		Name:   "foo",
 		Driver: "docker",
@@ -93,8 +93,12 @@ func TestInvalidPortLabelForService(t *testing.T) {
 		Checks:    make([]structs.ServiceCheck, 0),
 	}
 
-	c := newConsulClient()
+	c := newConsulService()
 	if err := c.registerService(service, task, "allocid"); err == nil {
 		t.Fatalf("Service should be invalid")
 	}
+}
+
+func TestSyncWithConsul_Services_Deleted_From_Task(t *testing.T) {
+
 }
