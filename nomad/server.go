@@ -134,6 +134,7 @@ type endpoints struct {
 	Eval   *Eval
 	Plan   *Plan
 	Alloc  *Alloc
+	Region *Region
 }
 
 // NewServer is used to construct a new Nomad server from the
@@ -353,6 +354,7 @@ func (s *Server) setupRPC(tlsWrap tlsutil.DCWrapper) error {
 	s.endpoints.Eval = &Eval{s}
 	s.endpoints.Plan = &Plan{s}
 	s.endpoints.Alloc = &Alloc{s}
+	s.endpoints.Region = &Region{s}
 
 	// Register the handlers
 	s.rpcServer.Register(s.endpoints.Status)
@@ -361,6 +363,7 @@ func (s *Server) setupRPC(tlsWrap tlsutil.DCWrapper) error {
 	s.rpcServer.Register(s.endpoints.Eval)
 	s.rpcServer.Register(s.endpoints.Plan)
 	s.rpcServer.Register(s.endpoints.Alloc)
+	s.rpcServer.Register(s.endpoints.Region)
 
 	list, err := net.ListenTCP("tcp", s.config.RPCAddr)
 	if err != nil {
@@ -610,6 +613,18 @@ func (s *Server) Encrypted() bool {
 // be used to modify state directly.
 func (s *Server) State() *state.StateStore {
 	return s.fsm.State()
+}
+
+// Regions returns the known regions in the cluster.
+func (s *Server) Regions() []string {
+	s.peerLock.Lock()
+	defer s.peerLock.Unlock()
+
+	regions := make([]string, 0, len(s.peers))
+	for region, _ := range s.peers {
+		regions = append(regions, region)
+	}
+	return regions
 }
 
 // inmemCodec is used to do an RPC call without going over a network
