@@ -116,7 +116,7 @@ func checkError(err error, logger *log.Logger, desc string) error {
 	// If it's a URL error, assume we're not actually in an GCE environment.
 	// To the outer layers, this isn't an error so return nil.
 	if _, ok := err.(*url.Error); ok {
-		logger.Printf("[ERR] fingerprint.env_gce: Error querying GCE " + desc + ", skipping")
+		logger.Printf("[DEBUG] fingerprint.env_gce: Error querying GCE " + desc + ", skipping")
 		return nil
 	}
 	// Otherwise pass the error through.
@@ -218,7 +218,7 @@ func (f *EnvGCEFingerprint) isGCE() bool {
 	if err != nil {
 		if re, ok := err.(ReqError); !ok || re.StatusCode != 404 {
 			// If it wasn't a 404 error, print an error message.
-			f.logger.Printf("[ERR] fingerprint.env_gce: Error querying GCE Metadata URL, skipping")
+			f.logger.Printf("[DEBUG] fingerprint.env_gce: Error querying GCE Metadata URL, skipping")
 		}
 		return false
 	}

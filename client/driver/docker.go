@@ -117,10 +117,10 @@ func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool
 
 	privileged := d.config.ReadBoolDefault("docker.privileged.enabled", false)
 	if privileged {
-		d.logger.Println("[INFO] driver.docker: privileged containers are enabled")
+		d.logger.Println("[DEBUG] driver.docker: privileged containers are enabled")
 		node.Attributes["docker.privileged.enabled"] = "1"
 	} else {
-		d.logger.Println("[INFO] driver.docker: privileged containers are disabled")
+		d.logger.Println("[DEBUG] driver.docker: privileged containers are disabled")
 	}
 
 	// This is the first operation taken on the client so we'll try to
@@ -128,7 +128,7 @@ func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool
 	// Docker isn't available so we'll simply disable the docker driver.
 	env, err := client.Version()
 	if err != nil {
-		d.logger.Printf("[INFO] driver.docker: could not connect to docker daemon at %s: %s", client.Endpoint(), err)
+		d.logger.Printf("[DEBUG] driver.docker: could not connect to docker daemon at %s: %s", client.Endpoint(), err)
 		return false, nil
 	}
 	node.Attributes["driver.docker"] = "1"

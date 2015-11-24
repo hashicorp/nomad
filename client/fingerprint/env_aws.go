@@ -177,9 +177,8 @@ func isAWS() bool {
 
 	// Query the metadata url for the ami-id, to veryify we're on AWS
 	resp, err := client.Get(metadataURL + "ami-id")
-
 	if err != nil {
-		log.Printf("[ERR] fingerprint.env_aws: Error querying AWS Metadata URL, skipping")
+		log.Printf("[DEBUG] fingerprint.env_aws: Error querying AWS Metadata URL, skipping")
 		return false
 	}
 	defer resp.Body.Close()
@@ -191,7 +190,7 @@ func isAWS() bool {
 
 	instanceID, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Printf("[ERR] fingerprint.env_aws: Error reading AWS Instance ID, skipping")
+		log.Printf("[DEBUG] fingerprint.env_aws: Error reading AWS Instance ID, skipping")
 		return false
 	}
 
