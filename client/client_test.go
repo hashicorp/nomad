@@ -140,6 +140,33 @@ func TestClient_Fingerprint(t *testing.T) {
 	}
 }
 
+func TestClient_Fingerprint_InWhitelist(t *testing.T) {
+	ctestutil.ExecCompatible(t)
+	c := testClient(t, func(c *config.Config) {
+		// Weird spacing to test trimming. Whitelist all modules expect cpu.
+		c.Options["fingerprint.whitelist"] = "  arch, consul,env_aws,env_gce,host,memory,network,storage,foo,bar	"
+	})
+	defer c.Shutdown()
+
+	node := c.Node()
+	if node.Attributes["cpu.frequency"] == "" {
+		t.Fatalf("missing cpu fingerprint module")
+	}
+}
+
+func TestClient_Fingerprint_OutOfWhitelist(t *testing.T) {
+	ctestutil.ExecCompatible(t)
+	c := testClient(t, func(c *config.Config) {
+		c.Options["fingerprint.whitelist"] = "arch,consul,cpu,env_aws,env_gce,host,memory,network,storage,foo,bar"
+	})
+	defer c.Shutdown()
+
+	node := c.Node()
+	if node.Attributes["cpu.frequency"] != "" {
+		t.Fatalf("found cpu fingerprint module")
+	}
+}
+
 func TestClient_Drivers(t *testing.T) {
 	ctestutil.ExecCompatible(t)
 	c := testClient(t, nil)

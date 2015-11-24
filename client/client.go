@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -453,8 +452,17 @@ func (c *Client) setupNode() error {
 
 // fingerprint is used to fingerprint the client and setup the node
 func (c *Client) fingerprint() error {
+	whitelist := c.config.ReadStringListToMap("fingerprint.whitelist")
+	whitelistEnabled := len(whitelist) > 0
+
 	var applied []string
+	var skipped []string
 	for _, name := range fingerprint.BuiltinFingerprints {
+		// Skip modules that are not in the whitelist if it is enabled.
+		if _, ok := whitelist[name]; whitelistEnabled && !ok {
+			skipped = append(skipped, name)
+			continue
+		}
 		f, err := fingerprint.NewFingerprint(name, c.logger)
 		if err != nil {
 			return err
@@ -475,6 +483,9 @@ func (c *Client) fingerprint() error {
 		}
 	}
 	c.logger.Printf("[DEBUG] client: applied fingerprints %v", applied)
+	if len(skipped) != 0 {
+		c.logger.Printf("[DEBUG] client: fingerprint modules skipped due to whitelist: %v", skipped)
+	}
 	return nil
 }
 
@@ -496,14 +507,7 @@ func (c *Client) fingerprintPeriodic(name string, f fingerprint.Fingerprint, d t
 // setupDrivers is used to find the available drivers
 func (c *Client) setupDrivers() error {
 	// Build the whitelist of drivers.
-	userWhitelist := strings.TrimSpace(c.config.ReadDefault("driver.whitelist", ""))
-	whitelist := make(map[string]struct{})
-	if userWhitelist != "" {
-		for _, driver := range strings.Split(userWhitelist, ",") {
-			trimmed := strings.TrimSpace(driver)
-			whitelist[trimmed] = struct{}{}
-		}
-	}
+	whitelist := c.config.ReadStringListToMap("driver.whitelist")
 	whitelistEnabled := len(whitelist) > 0
 
 	var avail []string
