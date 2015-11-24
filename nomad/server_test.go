@@ -7,6 +7,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/hashicorp/nomad/testutil"
 )
 
 var nextPort uint32 = 15000
@@ -85,4 +87,35 @@ func TestServer_RPC(t *testing.T) {
 	if err := s1.RPC("Status.Ping", struct{}{}, &out); err != nil {
 		t.Fatalf("err: %v", err)
 	}
+}
+
+func TestServer_Regions(t *testing.T) {
+	// Make the servers
+	s1 := testServer(t, func(c *Config) {
+		c.Region = "region1"
+	})
+	defer s1.Shutdown()
+
+	s2 := testServer(t, func(c *Config) {
+		c.Region = "region2"
+	})
+	defer s2.Shutdown()
+
+	// Join them together
+	s2Addr := fmt.Sprintf("127.0.0.1:%d",
+		s2.config.SerfConfig.MemberlistConfig.BindPort)
+	if n, err := s1.Join([]string{s2Addr}); err != nil || n != 1 {
+		t.Fatalf("Failed joining: %v (%d joined)", err, n)
+	}
+
+	// Try listing the regions
+	testutil.WaitForResult(func() (bool, error) {
+		out := s1.Regions()
+		if len(out) != 2 || out[0] != "region1" || out[1] != "region2" {
+			return false, fmt.Errorf("unexpected regions: %v", out)
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
 }
