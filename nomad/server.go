@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"strconv"
 	"sync"
 	"time"
@@ -624,6 +625,7 @@ func (s *Server) Regions() []string {
 	for region, _ := range s.peers {
 		regions = append(regions, region)
 	}
+	sort.Strings(regions)
 	return regions
 }
 
