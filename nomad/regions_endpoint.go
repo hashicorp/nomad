@@ -7,12 +7,10 @@ type Region struct {
 	srv *Server
 }
 
-// List is used to list all of the known regions.
+// List is used to list all of the known regions. No leader forwarding is
+// required for this endpoint because memberlist is used to populate the
+// peers list we read from.
 func (r *Region) List(args *structs.GenericRequest, reply *[]string) error {
-	if done, err := r.srv.forward("Region.List", args, args, reply); done {
-		return err
-	}
-
 	*reply = r.srv.Regions()
 	return nil
 }
