@@ -403,20 +403,38 @@ func TestEvalBroker_Dequeue_Timeout(t *testing.T) {
 func TestEvalBroker_Dequeue_Empty_Timeout(t *testing.T) {
 	b := testBroker(t, 0)
 	b.SetEnabled(true)
+	doneCh := make(chan struct{}, 1)
 
-	start := time.Now()
-	out, _, err := b.Dequeue(defaultSched, 0)
-	end := time.Now()
+	go func() {
+		out, _, err := b.Dequeue(defaultSched, 0)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		if out == nil {
+			t.Fatal("Expect an eval")
+		}
+		doneCh <- struct{}{}
+	}()
 
+	// Sleep for a little bit
+	select {
+	case <-time.After(5 * time.Millisecond):
+	case <-doneCh:
+		t.Fatalf("Dequeue(0) should block")
+	}
+
+	// Enqueue to unblock the dequeue.
+	eval := mock.Eval()
+	err := b.Enqueue(eval)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if out != nil {
-		t.Fatalf("unexpected: %#v", out)
-	}
 
-	if diff := end.Sub(start); diff > 1*time.Millisecond {
-		t.Fatalf("bad: %#v", diff)
+	select {
+	case <-doneCh:
+		return
+	case <-time.After(5 * time.Millisecond):
+		t.Fatal("timeout: Dequeue(0) should return after enqueue")
 	}
 }
 
