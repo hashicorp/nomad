@@ -99,6 +99,65 @@ func TestConsul_InvalidPortLabelForService(t *testing.T) {
 	}
 }
 
-func TestSyncWithConsul_Services_Deleted_From_Task(t *testing.T) {
+func TestConsul_Services_Deleted_From_Task(t *testing.T) {
+	c := newConsulService()
+	task := structs.Task{
+		Name:     "redis",
+		Services: make([]*structs.Service, 0),
+	}
+	s1 := structs.Service{
+		Id:        "1-example-cache-redis",
+		Name:      "example-cache-redis",
+		Tags:      []string{"global"},
+		PortLabel: "db",
+	}
+	ts := trackedService{
+		allocId: "1",
+		task:    &task,
+		service: &s1,
+	}
+	c.trackedServices = map[string]*trackedService{
+		"1-example-cache-redis": &ts,
+	}
 
+	c.performSync(c.client.Agent())
+	if len(c.trackedServices) != 0 {
+		t.Fatal("All services should have been de-registered")
+	}
+}
+
+func TestConsul_Service_Should_Be_Re_Reregistered_On_Change(t *testing.T) {
+	c := newConsulService()
+	var services []*structs.Service
+	task := structs.Task{
+		Name:     "redis",
+		Services: services,
+	}
+	s1 := structs.Service{
+		Id:        "1-example-cache-redis",
+		Name:      "example-cache-redis",
+		Tags:      []string{"global"},
+		PortLabel: "db",
+	}
+	task.Services = append(task.Services, &s1)
+	ts := trackedService{
+		allocId: "1",
+		task:    &task,
+		service: &s1,
+	}
+	c.trackedServices = map[string]*trackedService{
+		"1-example-cache-redis": &ts,
+	}
+
+	s1.Tags = []string{"frontcache"}
+
+	c.performSync(c.client.Agent())
+
+	if len(c.trackedServices) != 1 {
+		t.Fatal("We should be tracking one service")
+	}
+
+	if c.trackedServices[s1.Id].service.Tags[0] != "frontcache" {
+		t.Fatalf("Tag is %v, expected %v", c.trackedServices[s1.Id].service.Tags[0], "frontcache")
+	}
 }

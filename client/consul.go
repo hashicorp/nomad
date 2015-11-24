@@ -109,48 +109,53 @@ func (c *ConsulService) SyncWithConsul() {
 	for {
 		select {
 		case <-sync:
-			var consulServices map[string]*consul.AgentService
-			var err error
-
-			for serviceId, ts := range c.trackedServices {
-				if !ts.IsServiceValid() {
-					c.logger.Printf("[INFO] consul: Removing service: %s since the task doesn't have it anymore", ts.service.Name)
-					c.deregisterService(serviceId)
-				}
-			}
-
-			// Get the list of the services that Consul knows about
-			if consulServices, err = agent.Services(); err != nil {
-				continue
-			}
-
-			// See if we have services that Consul doesn't know about yet.
-			// Register with Consul the services which are not registered
-			for serviceId := range c.trackedServices {
-				if _, ok := consulServices[serviceId]; !ok {
-					ts := c.trackedServices[serviceId]
-					c.registerService(ts.service, ts.task, ts.allocId)
-				}
-			}
-
-			// See if consul thinks we have some services which are not running
-			// anymore on the node. We de-register those services
-			for serviceId := range consulServices {
-				if serviceId == "consul" {
-					continue
-				}
-				if _, ok := c.trackedServices[serviceId]; !ok {
-					if err := c.deregisterService(serviceId); err != nil {
-						c.logger.Printf("[DEBUG] consul: Error while de-registering service with ID: %s", serviceId)
-					}
-				}
-			}
+			c.performSync(agent)
 			sync = time.After(syncInterval)
 		case <-c.shutdownCh:
 			c.logger.Printf("[INFO] Shutting down Consul Client")
 			return
 		}
 	}
+}
+
+func (c *ConsulService) performSync(agent *consul.Agent) {
+	var consulServices map[string]*consul.AgentService
+	var err error
+
+	for serviceId, ts := range c.trackedServices {
+		if !ts.IsServiceValid() {
+			c.logger.Printf("[INFO] consul: Removing service: %s since the task doesn't have it anymore", ts.service.Name)
+			c.deregisterService(serviceId)
+		}
+	}
+
+	// Get the list of the services that Consul knows about
+	if consulServices, err = agent.Services(); err != nil {
+		return
+	}
+
+	// See if we have services that Consul doesn't know about yet.
+	// Register with Consul the services which are not registered
+	for serviceId := range c.trackedServices {
+		if _, ok := consulServices[serviceId]; !ok {
+			ts := c.trackedServices[serviceId]
+			c.registerService(ts.service, ts.task, ts.allocId)
+		}
+	}
+
+	// See if consul thinks we have some services which are not running
+	// anymore on the node. We de-register those services
+	for serviceId := range consulServices {
+		if serviceId == "consul" {
+			continue
+		}
+		if _, ok := c.trackedServices[serviceId]; !ok {
+			if err := c.deregisterService(serviceId); err != nil {
+				c.logger.Printf("[DEBUG] consul: Error while de-registering service with ID: %s", serviceId)
+			}
+		}
+	}
+
 }
 
 func (c *ConsulService) registerService(service *structs.Service, task *structs.Task, allocID string) error {
