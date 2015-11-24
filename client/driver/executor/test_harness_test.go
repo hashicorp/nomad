@@ -5,7 +5,9 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -13,6 +15,88 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
+
+// testBinary is the path to the running test binary
+var testBinary = os.Args[0]
+
+func TestMain(m *testing.M) {
+	// The tests in this package recursively execute the test binary produced
+	// by go test. The TEST_MAIN environment variable controls the recursive
+	// execution.
+	switch tm := os.Getenv("TEST_MAIN"); tm {
+	case "":
+		os.Exit(m.Run())
+	case "app":
+		appMain()
+	default:
+		fmt.Fprintf(os.Stderr, "unexpected value for TEST_MAIN, \"%s\"\n", tm)
+		os.Exit(1)
+	}
+}
+
+// setTestAppEnv sets the environement of cmd for a recursive call into
+// TestMain.
+func setTestAppEnv(cmd *exec.Cmd) {
+	cmd.Env = append(os.Environ(), "TEST_MAIN=app")
+}
+
+func appMain() {
+	if len(os.Args) < 2 {
+		fmt.Fprintln(os.Stderr, "no command provided")
+		os.Exit(1)
+	}
+
+	args := os.Args[1:]
+
+	// popArg removes the first argument from args and returns it.
+	popArg := func() string {
+		s := args[0]
+		args = args[1:]
+		return s
+	}
+
+	// execute a sequence of operations from args
+	for len(args) > 0 {
+		switch cmd := popArg(); cmd {
+
+		case "sleep":
+			// sleep <dur>: sleep for a duration indicated by the first
+			// argument
+			if len(args) < 1 {
+				fmt.Fprintln(os.Stderr, "expected arg for sleep")
+				os.Exit(1)
+			}
+			dur, err := time.ParseDuration(popArg())
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "could not parse sleep time: %v", err)
+				os.Exit(1)
+			}
+			time.Sleep(dur)
+
+		case "echo":
+			// echo <msg ...>: write the remaining arguments to stdout each
+			// separated by a single space and followed by a newline.
+			fmt.Println(strings.Join(args, " "))
+			args = args[:0]
+
+		case "write":
+			// write <msg> <file>: write a message to a file. The first
+			// argument is the msg. The second argument is the path to the
+			// target file.
+			if len(args) < 2 {
+				fmt.Fprintln(os.Stderr, "expected two args for write")
+				os.Exit(1)
+			}
+			msg := popArg()
+			file := popArg()
+			ioutil.WriteFile(file, []byte(msg), 0666)
+
+		default:
+			fmt.Fprintln(os.Stderr, "unknown command:", cmd)
+			os.Exit(1)
+		}
+	}
+}
 
 var (
 	constraint = &structs.Resources{
@@ -45,9 +129,10 @@ func testExecutor(t *testing.T, buildExecutor func() Executor, compatible func(*
 	}
 
 	command := func(name string, args ...string) Executor {
-		b := buildExecutor()
-		SetCommand(b, name, args)
-		return b
+		e := buildExecutor()
+		SetCommand(e, name, args)
+		setTestAppEnv(e.Command())
+		return e
 	}
 
 	Executor_Start_Invalid(t, command)
@@ -55,6 +140,7 @@ func testExecutor(t *testing.T, buildExecutor func() Executor, compatible func(*
 	Executor_Start_Wait(t, command)
 	Executor_Start_Kill(t, command)
 	Executor_Open(t, command, buildExecutor)
+	Executor_Open_Invalid(t, command, buildExecutor)
 }
 
 type buildExecCommand func(name string, args ...string) Executor
@@ -79,7 +165,7 @@ func Executor_Start_Invalid(t *testing.T, command buildExecCommand) {
 }
 
 func Executor_Start_Wait_Failure_Code(t *testing.T, command buildExecCommand) {
-	e := command("/bin/date", "-invalid")
+	e := command(testBinary, "fail")
 
 	if err := e.Limit(constraint); err != nil {
 		log.Panicf("Limit() failed: %v", err)
@@ -112,8 +198,7 @@ func Executor_Start_Wait(t *testing.T, command buildExecCommand) {
 	expected := "hello world"
 	file := filepath.Join(allocdir.TaskLocal, "output.txt")
 	absFilePath := filepath.Join(taskDir, file)
-	cmd := fmt.Sprintf(`/bin/sleep 1 ; echo -n %v > %v`, expected, file)
-	e := command("/bin/bash", "-c", cmd)
+	e := command(testBinary, "sleep", "1s", "write", expected, file)
 
 	if err := e.Limit(constraint); err != nil {
 		log.Panicf("Limit() failed: %v", err)
@@ -152,7 +237,7 @@ func Executor_Start_Kill(t *testing.T, command buildExecCommand) {
 	}
 
 	filePath := filepath.Join(taskDir, "output")
-	e := command("/bin/bash", "-c", "sleep 1 ; echo \"failure\" > "+filePath)
+	e := command(testBinary, "sleep", "1s", "write", "failure", filePath)
 
 	if err := e.Limit(constraint); err != nil {
 		log.Panicf("Limit() failed: %v", err)
@@ -190,8 +275,7 @@ func Executor_Open(t *testing.T, command buildExecCommand, newExecutor func() Ex
 	expected := "hello world"
 	file := filepath.Join(allocdir.TaskLocal, "output.txt")
 	absFilePath := filepath.Join(taskDir, file)
-	cmd := fmt.Sprintf(`/bin/sleep 1 ; echo -n %v > %v`, expected, file)
-	e := command("/bin/bash", "-c", cmd)
+	e := command(testBinary, "sleep", "1s", "write", expected, file)
 
 	if err := e.Limit(constraint); err != nil {
 		log.Panicf("Limit() failed: %v", err)
@@ -232,7 +316,7 @@ func Executor_Open(t *testing.T, command buildExecCommand, newExecutor func() Ex
 
 func Executor_Open_Invalid(t *testing.T, command buildExecCommand, newExecutor func() Executor) {
 	task, alloc := mockAllocDir(t)
-	e := command("echo", "foo")
+	e := command(testBinary, "echo", "foo")
 
 	if err := e.Limit(constraint); err != nil {
 		log.Panicf("Limit() failed: %v", err)
@@ -251,8 +335,19 @@ func Executor_Open_Invalid(t *testing.T, command buildExecCommand, newExecutor f
 		log.Panicf("ID() failed: %v", err)
 	}
 
+	// Kill the task because some OSes (windows) will not let us destroy the
+	// alloc (below) if the task is still running.
+	if err := e.ForceStop(); err != nil {
+		log.Panicf("e.ForceStop() failed: %v", err)
+	}
+
+	// Wait until process is actually gone, we don't care what the result was.
+	e.Wait()
+
 	// Destroy the allocdir which removes the exit code.
-	alloc.Destroy()
+	if err := alloc.Destroy(); err != nil {
+		log.Panicf("alloc.Destroy() failed: %v", err)
+	}
 
 	e2 := newExecutor()
 	if err := e2.Open(id); err == nil {
