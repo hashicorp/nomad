@@ -190,10 +190,11 @@ The `task` object supports the following keys:
   to start the task. The details of configurations are specific to
   each driver.
 
-* `service` - Nomad integrates with Consul for Service Discovery. A service 
+* `service` - Nomad integrates with Consul for service discovery. A service
   block represents a routable and discoverable service on the network. Nomad
-  automatically registers when a Task is started and de-registers it when the
-  Task transitons to the DEAD state. To learn more about Services please visit [here](/docs/jobspec/servicediscovery.html)
+  automatically registers when a task is started and de-registers it when the
+  task transitons to the dead state. [Click
+  here](/docs/jobspec/servicediscovery.html) to learn more about services.
 
 * `env` - A map of key/value representing environment variables that
   will be passed along to the running process.
@@ -296,11 +297,11 @@ The `constraint` object supports the following keys:
 *   `distinct_hosts` - `distinct_hosts` accepts a boolean `true`. The default is
     `false`.
 
-    When `distinct_hosts` is `true` at the Job level, each instance of all Task
+    When `distinct_hosts` is `true` at the Job level, each instance of all task
     Groups specified in the job is placed on a separate host.
 
-    When `distinct_hosts` is `true` at the Task Group level with count > 1, each
-    instance of a Task Group is placed on a separate host. Different task groups in
+    When `distinct_hosts` is `true` at the task group level with count > 1, each
+    instance of a task group is placed on a separate host. Different task groups in
     the same job _may_ be co-scheduled.
 
     Tasks within a task group are always co-scheduled.
