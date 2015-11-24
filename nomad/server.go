@@ -617,8 +617,8 @@ func (s *Server) State() *state.StateStore {
 
 // Regions returns the known regions in the cluster.
 func (s *Server) Regions() []string {
-	s.peerLock.Lock()
-	defer s.peerLock.Unlock()
+	s.peerLock.RLock()
+	defer s.peerLock.RUnlock()
 
 	regions := make([]string, 0, len(s.peers))
 	for region, _ := range s.peers {
