@@ -53,7 +53,7 @@ func testExecutor(t *testing.T, buildExecutor func() Executor, compatible func(*
 	command := func(name string, args ...string) Executor {
 		e := buildExecutor()
 		SetCommand(e, name, args)
-		testtask.SetEnv(e.Command())
+		testtask.SetCmdEnv(e.Command())
 		return e
 	}
 

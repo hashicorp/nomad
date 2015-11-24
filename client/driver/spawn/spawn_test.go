@@ -330,6 +330,6 @@ func tempFileName(t *testing.T) string {
 
 func testCommand(args ...string) *exec.Cmd {
 	cmd := exec.Command(testtask.Path(), args...)
-	testtask.SetEnv(cmd)
+	testtask.SetCmdEnv(cmd)
 	return cmd
 }

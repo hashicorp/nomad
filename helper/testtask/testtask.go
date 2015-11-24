@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"time"
 
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/kardianos/osext"
 )
 
@@ -21,15 +22,24 @@ func Path() string {
 	return path
 }
 
-// SetEnv configures the environment of cmd so that Run executes a testtask
-// script when called from within cmd when executed.
-func SetEnv(cmd *exec.Cmd) {
+// SetCmdEnv configures the environment of cmd so that Run executes a testtask
+// script when called from within cmd.
+func SetCmdEnv(cmd *exec.Cmd) {
 	cmd.Env = append(os.Environ(), "TEST_TASK=execute")
 }
 
+// SetTaskEnv configures the environment of t so that Run executes a testtask
+// script when called from within t.
+func SetTaskEnv(t *structs.Task) {
+	if t.Env == nil {
+		t.Env = map[string]string{}
+	}
+	t.Env["TEST_TASK"] = "execute"
+}
+
 // Run interprets os.Args as a testtask script if the current program was
-// launched with an environment configured by SetEnv. It returns false if
-// the environment was not set by this package.
+// launched with an environment configured by SetCmdEnv or SetTaskEnv. It
+// returns false if the environment was not set by this package.
 func Run() bool {
 	switch tm := os.Getenv("TEST_TASK"); tm {
 	case "":

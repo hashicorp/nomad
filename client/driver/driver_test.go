@@ -11,6 +11,7 @@ import (
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/helper/testtask"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -28,6 +29,12 @@ var basicResources = &structs.Resources{
 
 func init() {
 	rand.Seed(49875)
+}
+
+func TestMain(m *testing.M) {
+	if !testtask.Run() {
+		os.Exit(m.Run())
+	}
 }
 
 func testLogger() *log.Logger {
