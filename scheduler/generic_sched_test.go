@@ -60,6 +60,19 @@ func TestServiceSched_JobRegister(t *testing.T) {
 		t.Fatalf("bad: %#v", out)
 	}
 
+	// Ensure different ports were used.
+	used := make(map[int]struct{})
+	for _, alloc := range out {
+		for _, resource := range alloc.TaskResources {
+			for _, port := range resource.Networks[0].DynamicPorts {
+				if _, ok := used[port.Value]; ok {
+					t.Fatalf("Port collision %v", port.Value)
+				}
+				used[port.Value] = struct{}{}
+			}
+		}
+	}
+
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
 
