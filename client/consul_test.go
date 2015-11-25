@@ -102,23 +102,25 @@ func TestConsul_InvalidPortLabelForService(t *testing.T) {
 func TestConsul_Services_Deleted_From_Task(t *testing.T) {
 	c := newConsulService()
 	task := structs.Task{
-		Name:     "redis",
-		Services: make([]*structs.Service, 0),
+		Name: "redis",
+		Services: []*structs.Service{
+			&structs.Service{
+				Name:      "example-cache-redis",
+				Tags:      []string{"global"},
+				PortLabel: "db",
+			},
+		},
+		Resources: &structs.Resources{
+			Networks: []*structs.NetworkResource{
+				{
+					IP:           "10.10.0.1",
+					DynamicPorts: []structs.Port{{"db", 20413}},
+				},
+			},
+		},
 	}
-	s1 := structs.Service{
-		Id:        "1-example-cache-redis",
-		Name:      "example-cache-redis",
-		Tags:      []string{"global"},
-		PortLabel: "db",
-	}
-	ts := trackedService{
-		allocId: "1",
-		task:    &task,
-		service: &s1,
-	}
-	c.trackedServices = map[string]*trackedService{
-		"1-example-cache-redis": &ts,
-	}
+	c.Register(&task, "1")
+	task.Services = []*structs.Service{}
 
 	c.performSync(c.client.Agent())
 	if len(c.trackedServices) != 0 {
