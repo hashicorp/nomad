@@ -17,19 +17,27 @@ import (
 )
 
 // testBinary is the path to the running test binary
-var testBinary = os.Args[0]
+var testBinary = func() string {
+	abs, err := filepath.Abs(os.Args[0])
+	if err != nil {
+		return err.Error()
+	}
+
+	return abs
+}()
 
 func TestMain(m *testing.M) {
 	// The tests in this package recursively execute the test binary produced
 	// by go test. The TEST_MAIN environment variable controls the recursive
 	// execution.
-	switch tm := os.Getenv("TEST_MAIN"); tm {
+	switch tm := os.Getenv(testModeEnvVar); tm {
 	case "":
 		os.Exit(m.Run())
 	case "app":
 		appMain()
 	default:
-		fmt.Fprintf(os.Stderr, "unexpected value for TEST_MAIN, \"%s\"\n", tm)
+		fmt.Fprintf(os.Stderr,
+			"Unexpected value for test mode environment variable, %q\n", tm)
 		os.Exit(1)
 	}
 }
@@ -37,7 +45,7 @@ func TestMain(m *testing.M) {
 // setTestAppEnv sets the environement of cmd for a recursive call into
 // TestMain.
 func setTestAppEnv(cmd *exec.Cmd) {
-	cmd.Env = append(os.Environ(), "TEST_MAIN=app")
+	cmd.Env = append(os.Environ(), fmt.Sprintf("%v=app", testModeEnvVar))
 }
 
 func appMain() {

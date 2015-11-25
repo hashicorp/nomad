@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -32,6 +33,11 @@ import (
 )
 
 var errNoResources = fmt.Errorf("No resources are associated with this task")
+
+// If testModeEnvVar is set in a process's environment variables, the
+// LinuxExecutor will detect it and inject the current binary into the chroot.
+// This enables using the test binary in tests to provide portability.
+var testModeEnvVar = "NOMAD_EXECUTOR_TEST_ONLY_13871827980214"
 
 // Executor is an interface that any platform- or capability-specific exec
 // wrapper must implement. You should not need to implement a Java executor.
@@ -105,4 +111,19 @@ func OpenId(id string) (Executor, error) {
 		return nil, err
 	}
 	return executor, nil
+}
+
+// isTest returns whether the cmd is a test binary.
+func isTest(cmd *exec.Cmd) bool {
+	if cmd == nil {
+		return false
+	}
+
+	for _, env := range cmd.Env {
+		if strings.HasPrefix(env, testModeEnvVar) {
+			return true
+		}
+	}
+
+	return false
 }
