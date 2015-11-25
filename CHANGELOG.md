@@ -18,6 +18,7 @@ BUG FIXES:
   * client/restart policy: Not restarting Batch Jobs if the exit code is 0 [GH-491]
   * core: Shared reference to DynamicPorts caused port conflicts when scheduling
     count > 1 [GH-494]
+  * distinct_hosts constraint can be specified as a boolean (previously panicked) [GH-501]
 
 ## 0.2.0 (November 18, 2015)
 
