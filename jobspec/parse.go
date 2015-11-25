@@ -318,17 +318,9 @@ func parseConstraints(result *[]*structs.Constraint, list *ast.ObjectList) error
 		}
 
 		if value, ok := m[structs.ConstraintDistinctHosts]; ok {
-			var enabled bool
-			var err error
-			switch value.(type) {
-			case string:
-				if enabled, err = strconv.ParseBool(value.(string)); err != nil {
-					return err
-				}
-			case bool:
-				enabled = value.(bool)
-			default:
-				return fmt.Errorf("distinct_hosts should be set to true or false; got %v", value)
+			enabled, err := parseBool(value)
+			if err != nil {
+				return fmt.Errorf("distinct_hosts should be set to true or false; %v", err)
 			}
 
 			// If it is not enabled, skip the constraint.
@@ -352,6 +344,23 @@ func parseConstraints(result *[]*structs.Constraint, list *ast.ObjectList) error
 	}
 
 	return nil
+}
+
+// parseBool takes an interface value and tries to convert it to a boolean and
+// returns an error if the type can't be converted.
+func parseBool(value interface{}) (bool, error) {
+	var enabled bool
+	var err error
+	switch value.(type) {
+	case string:
+		enabled, err = strconv.ParseBool(value.(string))
+	case bool:
+		enabled = value.(bool)
+	default:
+		err = fmt.Errorf("%v couldn't be converted to boolean value", value)
+	}
+
+	return enabled, err
 }
 
 func parseTasks(jobName string, taskGroupName string, result *[]*structs.Task, list *ast.ObjectList) error {
