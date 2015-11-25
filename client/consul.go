@@ -17,14 +17,20 @@ const (
 )
 
 type trackedService struct {
-	allocId string
+	allocId     string
+	task        *structs.Task
+	serviceHash string
+	service     *structs.Service
+}
+
+type trackedTask struct {
+	allocID string
 	task    *structs.Task
-	service *structs.Service
 }
 
 func (t *trackedService) IsServiceValid() bool {
 	for _, service := range t.task.Services {
-		if service.Hash() == t.service.Hash() {
+		if service.Id == t.service.Id && service.Hash() == t.serviceHash {
 			return true
 		}
 	}
@@ -39,8 +45,10 @@ type ConsulService struct {
 
 	trackedServices map[string]*trackedService // Service ID to Tracked Service Map
 	trackedChecks   map[string]bool            // List of check ids that is being tracked
+	trackedTasks    map[string]*trackedTask
 	trackedSrvLock  sync.Mutex
 	trackedChkLock  sync.Mutex
+	trackedTskLock  sync.Mutex
 }
 
 func NewConsulService(logger *log.Logger, consulAddr string) (*ConsulService, error) {
@@ -56,6 +64,7 @@ func NewConsulService(logger *log.Logger, consulAddr string) (*ConsulService, er
 		client:          c,
 		logger:          logger,
 		trackedServices: make(map[string]*trackedService),
+		trackedTasks:    make(map[string]*trackedTask),
 		shutdownCh:      make(chan struct{}),
 	}
 
@@ -64,6 +73,10 @@ func NewConsulService(logger *log.Logger, consulAddr string) (*ConsulService, er
 
 func (c *ConsulService) Register(task *structs.Task, allocID string) error {
 	var mErr multierror.Error
+	c.trackedTskLock.Lock()
+	tt := &trackedTask{allocID: allocID, task: task}
+	c.trackedTasks[fmt.Sprintf("%s-%s", allocID, task.Name)] = tt
+	c.trackedTskLock.Unlock()
 	for _, service := range task.Services {
 		c.logger.Printf("[INFO] consul: Registering service %s with Consul.", service.Name)
 		if err := c.registerService(service, task, allocID); err != nil {
@@ -74,8 +87,11 @@ func (c *ConsulService) Register(task *structs.Task, allocID string) error {
 	return mErr.ErrorOrNil()
 }
 
-func (c *ConsulService) Deregister(task *structs.Task) error {
+func (c *ConsulService) Deregister(task *structs.Task, allocID string) error {
 	var mErr multierror.Error
+	c.trackedTskLock.Lock()
+	delete(c.trackedTasks, fmt.Sprintf("%s-%s", allocID, task.Name))
+	c.trackedTskLock.Unlock()
 	for _, service := range task.Services {
 		if service.Id == "" {
 			continue
@@ -122,10 +138,20 @@ func (c *ConsulService) performSync(agent *consul.Agent) {
 	var consulServices map[string]*consul.AgentService
 	var err error
 
+	// Remove the tracked services which tasks no longer references
 	for serviceId, ts := range c.trackedServices {
 		if !ts.IsServiceValid() {
 			c.logger.Printf("[INFO] consul: Removing service: %s since the task doesn't have it anymore", ts.service.Name)
 			c.deregisterService(serviceId)
+		}
+	}
+
+	// Add additional tasks that we might not have added from tasks
+	for _, trackedTask := range c.trackedTasks {
+		for _, service := range trackedTask.task.Services {
+			if _, ok := c.trackedServices[service.Id]; !ok {
+				c.registerService(service, trackedTask.task, trackedTask.allocID)
+			}
 		}
 	}
 
@@ -173,9 +199,10 @@ func (c *ConsulService) registerService(service *structs.Service, task *structs.
 		Address: host,
 	}
 	ts := &trackedService{
-		allocId: allocID,
-		task:    task,
-		service: service,
+		allocId:     allocID,
+		task:        task,
+		serviceHash: service.Hash(),
+		service:     service,
 	}
 	c.trackedSrvLock.Lock()
 	c.trackedServices[service.Id] = ts

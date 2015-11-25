@@ -237,7 +237,7 @@ func (r *TaskRunner) run() {
 		r.consulService.Register(r.task, r.allocID)
 
 		// De-Register the services belonging to the task from consul
-		defer r.consulService.Deregister(r.task)
+		defer r.consulService.Deregister(r.task, r.allocID)
 
 	OUTER:
 		// Wait for updates

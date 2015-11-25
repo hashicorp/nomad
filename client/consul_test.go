@@ -132,6 +132,14 @@ func TestConsul_Service_Should_Be_Re_Reregistered_On_Change(t *testing.T) {
 	task := structs.Task{
 		Name:     "redis",
 		Services: services,
+		Resources: &structs.Resources{
+			Networks: []*structs.NetworkResource{
+				{
+					IP:           "10.10.0.1",
+					DynamicPorts: []structs.Port{{"db", 20413}},
+				},
+			},
+		},
 	}
 	s1 := structs.Service{
 		Id:        "1-example-cache-redis",
@@ -140,14 +148,7 @@ func TestConsul_Service_Should_Be_Re_Reregistered_On_Change(t *testing.T) {
 		PortLabel: "db",
 	}
 	task.Services = append(task.Services, &s1)
-	ts := trackedService{
-		allocId: "1",
-		task:    &task,
-		service: &s1,
-	}
-	c.trackedServices = map[string]*trackedService{
-		"1-example-cache-redis": &ts,
-	}
+	c.Register(&task, "1")
 
 	s1.Tags = []string{"frontcache"}
 
