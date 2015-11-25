@@ -24,6 +24,12 @@ Nomad does not currently run Consul for you.
   override the default Consul Agent HTTP port that Nomad uses to connect to
   Consul. The default for this is `127.0.0.1:8500`.
 
+* `consul.token`: Token is used to provide a per-request ACL token.This options
+  overrides the agent's default token
+
+* `consul.auth`: The auth information to use for http access to the Consul
+  Agent.
+
 * `consul.ssl`: This boolean option sets the transport scheme to talk to the Consul
   Agent as `https`. This option is unset by default and so the default transport
   scheme for the consul api client is `http`.

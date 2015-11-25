@@ -234,7 +234,6 @@ documentation [here](/docs/drivers/index.html)
 * `consul.token`: Token is used to provide a per-request ACL token.This options
   overrides the agent's default token
 
-
 * `consul.auth`: The auth information to use for http access to the Consul
   Agent.
 
