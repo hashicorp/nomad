@@ -98,22 +98,19 @@ func NewClient(cfg *config.Config) (*Client, error) {
 	// Create a logger
 	logger := log.New(cfg.LogOutput, "", log.LstdFlags)
 
-	// Create the consul service
-	consulAddr := cfg.ReadDefault("consul.address", "127.0.0.1:8500")
-	consulService, err := NewConsulService(logger, consulAddr)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create the consul client: %v", err)
-	}
-
 	// Create the client
 	c := &Client{
-		config:        cfg,
-		start:         time.Now(),
-		consulService: consulService,
-		connPool:      nomad.NewPool(cfg.LogOutput, clientRPCCache, clientMaxStreams, nil),
-		logger:        logger,
-		allocs:        make(map[string]*AllocRunner),
-		shutdownCh:    make(chan struct{}),
+		config:     cfg,
+		start:      time.Now(),
+		connPool:   nomad.NewPool(cfg.LogOutput, clientRPCCache, clientMaxStreams, nil),
+		logger:     logger,
+		allocs:     make(map[string]*AllocRunner),
+		shutdownCh: make(chan struct{}),
+	}
+
+	// Setup the Consul Service
+	if err := c.setupConsulService(); err != nil {
+		return nil, fmt.Errorf("failed to create the consul service: %v", err)
 	}
 
 	// Initialize the client
@@ -150,6 +147,21 @@ func NewClient(cfg *config.Config) (*Client, error) {
 	// Start the consul service
 	go c.consulService.SyncWithConsul()
 	return c, nil
+}
+
+func (c *Client) setupConsulService() error {
+	var consulService *ConsulService
+	var err error
+	addr := c.config.ReadDefault("consul.address", "127.0.0.1:8500")
+	token := c.config.Read("consul.token")
+	auth := c.config.Read("consul.auth")
+	enableSSL := c.config.ReadBoolDefault("consul.ssl", false)
+	verifySSL := c.config.ReadBoolDefault("consul.verifyssl", false)
+	if consulService, err = NewConsulService(c.logger, addr, token, auth, enableSSL, verifySSL); err != nil {
+		return err
+	}
+	c.consulService = consulService
+	return nil
 }
 
 // init is used to initialize the client and perform any setup
