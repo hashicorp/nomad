@@ -270,7 +270,7 @@ func (c *ConsulService) makeChecks(service *structs.Service, ip string, port int
 			check.Name = fmt.Sprintf("service: '%s' check", service.Name)
 		}
 		cr := &consul.AgentCheckRegistration{
-			ID:        check.Hash(),
+			ID:        check.Hash(service.Id),
 			Name:      check.Name,
 			ServiceID: service.Id,
 		}

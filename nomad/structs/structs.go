@@ -1040,8 +1040,9 @@ func (sc *ServiceCheck) Validate() error {
 	return nil
 }
 
-func (sc *ServiceCheck) Hash() string {
+func (sc *ServiceCheck) Hash(serviceId string) string {
 	h := sha1.New()
+	io.WriteString(h, serviceId)
 	io.WriteString(h, sc.Name)
 	io.WriteString(h, sc.Type)
 	io.WriteString(h, sc.Script)
