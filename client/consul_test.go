@@ -136,29 +136,20 @@ func TestConsul_Services_Deleted_From_Task(t *testing.T) {
 		},
 	}
 	c.Register(&task, "1")
+	if len(c.trackedServices) != 1 {
+		t.Fatalf("Expected tracked services: %v, Actual: %v", 1, len(c.trackedServices))
+	}
 	task.Services = []*structs.Service{}
 
 	c.performSync(c.client.Agent())
 	if len(c.trackedServices) != 0 {
-		t.Fatal("All services should have been de-registered")
+		t.Fatalf("Expected tracked services: %v, Actual: %v", 0, len(c.trackedServices))
 	}
 }
 
 func TestConsul_Service_Should_Be_Re_Reregistered_On_Change(t *testing.T) {
 	c := newConsulService()
-	var services []*structs.Service
-	task := structs.Task{
-		Name:     "redis",
-		Services: services,
-		Resources: &structs.Resources{
-			Networks: []*structs.NetworkResource{
-				{
-					IP:           "10.10.0.1",
-					DynamicPorts: []structs.Port{{"db", 20413}},
-				},
-			},
-		},
-	}
+	task := newTask()
 	s1 := structs.Service{
 		Id:        "1-example-cache-redis",
 		Name:      "example-cache-redis",
@@ -166,7 +157,7 @@ func TestConsul_Service_Should_Be_Re_Reregistered_On_Change(t *testing.T) {
 		PortLabel: "db",
 	}
 	task.Services = append(task.Services, &s1)
-	c.Register(&task, "1")
+	c.Register(task, "1")
 
 	s1.Tags = []string{"frontcache"}
 

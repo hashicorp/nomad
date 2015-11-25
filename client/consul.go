@@ -135,7 +135,7 @@ func (c *ConsulService) performSync(agent *consul.Agent) {
 	// Remove the tracked services which tasks no longer references
 	for serviceId, ts := range c.trackedServices {
 		if !ts.IsServiceValid() {
-			c.logger.Printf("[INFO] consul: Removing service: %s since the task doesn't have it anymore", ts.service.Name)
+			c.logger.Printf("[DEBUG] consul: Removing service: %s since the task doesn't have it anymore", ts.service.Name)
 			c.deregisterService(serviceId)
 		}
 	}
