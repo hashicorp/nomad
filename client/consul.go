@@ -43,8 +43,8 @@ type ConsulService struct {
 	logger     *log.Logger
 	shutdownCh chan struct{}
 
-	trackedServices map[string]*trackedService // Service ID to Tracked Service Map
-	trackedChecks   map[string]bool            // List of check ids that is being tracked
+	trackedServices map[string]*trackedService                // Service ID to Tracked Service Map
+	trackedChecks   map[string]*consul.AgentCheckRegistration // List of check ids that is being tracked
 	trackedTasks    map[string]*trackedTask
 	trackedSrvLock  sync.Mutex
 	trackedChkLock  sync.Mutex
@@ -65,6 +65,7 @@ func NewConsulService(logger *log.Logger, consulAddr string) (*ConsulService, er
 		logger:          logger,
 		trackedServices: make(map[string]*trackedService),
 		trackedTasks:    make(map[string]*trackedTask),
+		trackedChecks:   make(map[string]*consul.AgentCheckRegistration),
 		shutdownCh:      make(chan struct{}),
 	}
 
@@ -109,15 +110,6 @@ func (c *ConsulService) ShutDown() {
 	close(c.shutdownCh)
 }
 
-func (c *ConsulService) findPortAndHostForLabel(portLabel string, task *structs.Task) (string, int) {
-	for _, network := range task.Resources.Networks {
-		if p, ok := network.MapLabelToValues(nil)[portLabel]; ok {
-			return network.IP, p
-		}
-	}
-	return "", 0
-}
-
 func (c *ConsulService) SyncWithConsul() {
 	sync := time.After(syncInterval)
 	agent := c.client.Agent()
@@ -136,6 +128,7 @@ func (c *ConsulService) SyncWithConsul() {
 
 func (c *ConsulService) performSync(agent *consul.Agent) {
 	var consulServices map[string]*consul.AgentService
+	var consulChecks map[string]*consul.AgentCheck
 	var err error
 
 	// Remove the tracked services which tasks no longer references
@@ -182,12 +175,37 @@ func (c *ConsulService) performSync(agent *consul.Agent) {
 		}
 	}
 
+	if consulChecks, err = agent.Checks(); err != nil {
+		return
+	}
+
+	// Remove checks that Consul knows about but we don't
+	for checkID := range consulChecks {
+		if _, ok := c.trackedChecks[checkID]; !ok {
+			c.deregisterCheck(checkID)
+		}
+	}
+
+	// Add checks that might not be present
+	for _, trackedService := range c.trackedServices {
+		host, port := trackedService.task.FindHostAndPortFor(trackedService.service.PortLabel)
+		if host == "" || port == 0 {
+			continue
+		}
+		checks := c.makeChecks(trackedService.service, host, port)
+		for _, check := range checks {
+			if _, ok := consulChecks[check.ID]; !ok {
+				c.registerCheck(check)
+			}
+		}
+
+	}
 }
 
 func (c *ConsulService) registerService(service *structs.Service, task *structs.Task, allocID string) error {
 	var mErr multierror.Error
 	service.Id = fmt.Sprintf("%s-%s", allocID, service.Name)
-	host, port := c.findPortAndHostForLabel(service.PortLabel, task)
+	host, port := task.FindHostAndPortFor(service.PortLabel)
 	if host == "" || port == 0 {
 		return fmt.Errorf("consul: The port:%s marked for registration of service: %s couldn't be found", service.PortLabel, service.Name)
 	}
@@ -214,15 +232,28 @@ func (c *ConsulService) registerService(service *structs.Service, task *structs.
 	}
 	checks := c.makeChecks(service, host, port)
 	for _, check := range checks {
-		if err := c.client.Agent().CheckRegister(check); err != nil {
+		if err := c.registerCheck(check); err != nil {
 			c.logger.Printf("[ERROR] consul: Error while registerting check %v with Consul: %v", check.Name, err)
 			mErr.Errors = append(mErr.Errors, err)
 		}
-		c.trackedChkLock.Lock()
-		c.trackedChecks[check.ID] = true
-		c.trackedChkLock.Unlock()
 	}
 	return mErr.ErrorOrNil()
+}
+
+func (c *ConsulService) registerCheck(check *consul.AgentCheckRegistration) error {
+	c.logger.Printf("[DEBUG] Registering Check with ID: %v for Service: %v", check.ID, check.ServiceID)
+	c.trackedChkLock.Lock()
+	c.trackedChecks[check.ID] = check
+	c.trackedChkLock.Unlock()
+	return c.client.Agent().CheckRegister(check)
+}
+
+func (c *ConsulService) deregisterCheck(checkID string) error {
+	c.logger.Printf("[DEBUG] Removing check with ID: %v", checkID
+	c.trackedChkLock.Lock()
+	delete(c.trackedChecks, checkID)
+	c.trackedChkLock.Unlock()
+	return c.client.Agent().CheckDeregister(checkID)
 }
 
 func (c *ConsulService) deregisterService(serviceId string) error {

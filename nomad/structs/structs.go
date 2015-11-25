@@ -1113,6 +1113,15 @@ func (t *Task) GoString() string {
 	return fmt.Sprintf("*%#v", *t)
 }
 
+func (t *Task) FindHostAndPortFor(portLabel string) (string, int) {
+	for _, network := range t.Resources.Networks {
+		if p, ok := network.MapLabelToValues(nil)[portLabel]; ok {
+			return network.IP, p
+		}
+	}
+	return "", 0
+}
+
 // Set of possible states for a task.
 const (
 	TaskStatePending = "pending" // The task is waiting to be run.
