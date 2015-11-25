@@ -2,8 +2,10 @@ package structs
 
 import (
 	"bytes"
+	"crypto/sha1"
 	"errors"
 	"fmt"
+	"io"
 	"reflect"
 	"regexp"
 	"strings"
@@ -1038,6 +1040,19 @@ func (sc *ServiceCheck) Validate() error {
 	return nil
 }
 
+func (sc *ServiceCheck) Hash() string {
+	h := sha1.New()
+	io.WriteString(h, sc.Name)
+	io.WriteString(h, sc.Type)
+	io.WriteString(h, sc.Script)
+	io.WriteString(h, sc.Path)
+	io.WriteString(h, sc.Path)
+	io.WriteString(h, sc.Protocol)
+	io.WriteString(h, sc.Interval.String())
+	io.WriteString(h, sc.Timeout.String())
+	return fmt.Sprintf("%x", h.Sum(nil))
+}
+
 // The Service model represents a Consul service defintion
 type Service struct {
 	Id        string         // Id of the service, this needs to be unique on a local machine
@@ -1055,6 +1070,14 @@ func (s *Service) Validate() error {
 		}
 	}
 	return mErr.ErrorOrNil()
+}
+
+func (s *Service) Hash() string {
+	h := sha1.New()
+	io.WriteString(h, s.Name)
+	io.WriteString(h, strings.Join(s.Tags, ""))
+	io.WriteString(h, s.PortLabel)
+	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
 // Task is a single process typically that is executed as part of a task group.
@@ -1088,6 +1111,15 @@ type Task struct {
 
 func (t *Task) GoString() string {
 	return fmt.Sprintf("*%#v", *t)
+}
+
+func (t *Task) FindHostAndPortFor(portLabel string) (string, int) {
+	for _, network := range t.Resources.Networks {
+		if p, ok := network.MapLabelToValues(nil)[portLabel]; ok {
+			return network.IP, p
+		}
+	}
+	return "", 0
 }
 
 // Set of possible states for a task.

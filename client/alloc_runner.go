@@ -33,10 +33,10 @@ type AllocStateUpdater func(alloc *structs.Allocation) error
 
 // AllocRunner is used to wrap an allocation and provide the execution context.
 type AllocRunner struct {
-	config       *config.Config
-	updater      AllocStateUpdater
-	logger       *log.Logger
-	consulClient *ConsulClient
+	config        *config.Config
+	updater       AllocStateUpdater
+	logger        *log.Logger
+	consulService *ConsulService
 
 	alloc *structs.Allocation
 
@@ -68,19 +68,19 @@ type allocRunnerState struct {
 
 // NewAllocRunner is used to create a new allocation context
 func NewAllocRunner(logger *log.Logger, config *config.Config, updater AllocStateUpdater,
-	alloc *structs.Allocation, consulClient *ConsulClient) *AllocRunner {
+	alloc *structs.Allocation, consulService *ConsulService) *AllocRunner {
 	ar := &AllocRunner{
-		config:       config,
-		updater:      updater,
-		logger:       logger,
-		alloc:        alloc,
-		consulClient: consulClient,
-		dirtyCh:      make(chan struct{}, 1),
-		tasks:        make(map[string]*TaskRunner),
-		restored:     make(map[string]struct{}),
-		updateCh:     make(chan *structs.Allocation, 8),
-		destroyCh:    make(chan struct{}),
-		waitCh:       make(chan struct{}),
+		config:        config,
+		updater:       updater,
+		logger:        logger,
+		alloc:         alloc,
+		consulService: consulService,
+		dirtyCh:       make(chan struct{}, 1),
+		tasks:         make(map[string]*TaskRunner),
+		restored:      make(map[string]struct{}),
+		updateCh:      make(chan *structs.Allocation, 8),
+		destroyCh:     make(chan struct{}),
+		waitCh:        make(chan struct{}),
 	}
 	return ar
 }
@@ -113,7 +113,7 @@ func (r *AllocRunner) RestoreState() error {
 		restartTracker := newRestartTracker(r.alloc.Job.Type, r.RestartPolicy)
 		tr := NewTaskRunner(r.logger, r.config, r.setTaskState, r.ctx,
 			r.alloc.ID, task, r.alloc.TaskStates[task.Name], restartTracker,
-			r.consulClient)
+			r.consulService)
 		r.tasks[name] = tr
 
 		// Skip tasks in terminal states.
@@ -325,7 +325,7 @@ func (r *AllocRunner) Run() {
 		restartTracker := newRestartTracker(r.alloc.Job.Type, r.RestartPolicy)
 		tr := NewTaskRunner(r.logger, r.config, r.setTaskState, r.ctx,
 			r.alloc.ID, task, r.alloc.TaskStates[task.Name], restartTracker,
-			r.consulClient)
+			r.consulService)
 		r.tasks[task.Name] = tr
 		go tr.Run()
 	}
