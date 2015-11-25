@@ -21,6 +21,8 @@ type trackedService struct {
 	task        *structs.Task
 	serviceHash string
 	service     *structs.Service
+	host        string
+	port        int
 }
 
 type trackedTask struct {
@@ -187,12 +189,8 @@ func (c *ConsulService) performSync(agent *consul.Agent) {
 	}
 
 	// Add checks that might not be present
-	for _, trackedService := range c.trackedServices {
-		host, port := trackedService.task.FindHostAndPortFor(trackedService.service.PortLabel)
-		if host == "" || port == 0 {
-			continue
-		}
-		checks := c.makeChecks(trackedService.service, host, port)
+	for _, ts := range c.trackedServices {
+		checks := c.makeChecks(ts.service, ts.host, ts.port)
 		for _, check := range checks {
 			if _, ok := consulChecks[check.ID]; !ok {
 				c.registerCheck(check)
@@ -209,6 +207,18 @@ func (c *ConsulService) registerService(service *structs.Service, task *structs.
 	if host == "" || port == 0 {
 		return fmt.Errorf("consul: The port:%s marked for registration of service: %s couldn't be found", service.PortLabel, service.Name)
 	}
+	ts := &trackedService{
+		allocId:     allocID,
+		task:        task,
+		serviceHash: service.Hash(),
+		service:     service,
+		host:        host,
+		port:        port,
+	}
+	c.trackedSrvLock.Lock()
+	c.trackedServices[service.Id] = ts
+	c.trackedSrvLock.Unlock()
+
 	asr := &consul.AgentServiceRegistration{
 		ID:      service.Id,
 		Name:    service.Name,
@@ -216,15 +226,6 @@ func (c *ConsulService) registerService(service *structs.Service, task *structs.
 		Port:    port,
 		Address: host,
 	}
-	ts := &trackedService{
-		allocId:     allocID,
-		task:        task,
-		serviceHash: service.Hash(),
-		service:     service,
-	}
-	c.trackedSrvLock.Lock()
-	c.trackedServices[service.Id] = ts
-	c.trackedSrvLock.Unlock()
 
 	if err := c.client.Agent().ServiceRegister(asr); err != nil {
 		c.logger.Printf("[DEBUG] consul: Error while registering service %v with Consul: %v", service.Name, err)
