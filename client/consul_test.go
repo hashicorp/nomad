@@ -14,6 +14,22 @@ func newConsulService() *ConsulService {
 	return c
 }
 
+func newTask() *structs.Task {
+	var services []*structs.Service
+	return &structs.Task{
+		Name:     "redis",
+		Services: services,
+		Resources: &structs.Resources{
+			Networks: []*structs.NetworkResource{
+				{
+					IP:           "10.10.0.1",
+					DynamicPorts: []structs.Port{{"db", 20413}},
+				},
+			},
+		},
+	}
+}
+
 func TestConsul_MakeChecks(t *testing.T) {
 	service := &structs.Service{
 		Id:   "Foo",
@@ -162,5 +178,34 @@ func TestConsul_Service_Should_Be_Re_Reregistered_On_Change(t *testing.T) {
 
 	if c.trackedServices[s1.Id].service.Tags[0] != "frontcache" {
 		t.Fatalf("Tag is %v, expected %v", c.trackedServices[s1.Id].service.Tags[0], "frontcache")
+	}
+}
+
+func TestConsul_AddCheck_To_Service(t *testing.T) {
+	c := newConsulService()
+	task := newTask()
+	var checks []structs.ServiceCheck
+	s1 := structs.Service{
+		Id:        "1-example-cache-redis",
+		Name:      "example-cache-redis",
+		Tags:      []string{"global"},
+		PortLabel: "db",
+		Checks:    checks,
+	}
+	task.Services = append(task.Services, &s1)
+	c.Register(task, "1")
+
+	check1 := structs.ServiceCheck{
+		Name:     "alive",
+		Type:     "tcp",
+		Interval: 10 * time.Second,
+		Timeout:  5 * time.Second,
+	}
+
+	s1.Checks = append(s1.Checks, check1)
+
+	c.performSync(c.client.Agent())
+	if len(c.trackedChecks) != 1 {
+		t.Fatalf("Expected tracked checks: %v, actual: %v", 1, len(c.trackedChecks))
 	}
 }

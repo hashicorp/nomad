@@ -131,7 +131,6 @@ func (c *ConsulService) SyncWithConsul() {
 func (c *ConsulService) performSync(agent *consul.Agent) {
 	var consulServices map[string]*consul.AgentService
 	var consulChecks map[string]*consul.AgentCheck
-	var err error
 
 	// Remove the tracked services which tasks no longer references
 	for serviceId, ts := range c.trackedServices {
@@ -151,9 +150,7 @@ func (c *ConsulService) performSync(agent *consul.Agent) {
 	}
 
 	// Get the list of the services that Consul knows about
-	if consulServices, err = agent.Services(); err != nil {
-		return
-	}
+	consulServices, _ = agent.Services()
 
 	// See if we have services that Consul doesn't know about yet.
 	// Register with Consul the services which are not registered
@@ -177,9 +174,7 @@ func (c *ConsulService) performSync(agent *consul.Agent) {
 		}
 	}
 
-	if consulChecks, err = agent.Checks(); err != nil {
-		return
-	}
+	consulChecks, _ = agent.Checks()
 
 	// Remove checks that Consul knows about but we don't
 	for checkID := range consulChecks {
