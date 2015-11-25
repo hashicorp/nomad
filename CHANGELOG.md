@@ -8,6 +8,7 @@ IMPROVEMENTS:
   * client/executor: executor package tests made portable (work on Windows) [GH-497]
   * driver/docker: Added TLS client options to the config file [GH-480]
   * core/api: Can list all known regions in the cluster [GH-495]
+  * client/discovery: Added more consul client api configuration options [GH-503]
 
 BUG FIXES:
 
@@ -19,6 +20,7 @@ BUG FIXES:
   * core: Shared reference to DynamicPorts caused port conflicts when scheduling
     count > 1 [GH-494]
   * distinct_hosts constraint can be specified as a boolean (previously panicked) [GH-501]
+  * client/service: Fixes update to check definitions and services which are already registered [GH-498]
 
 ## 0.2.0 (November 18, 2015)
 
