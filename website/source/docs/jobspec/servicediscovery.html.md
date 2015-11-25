@@ -42,10 +42,6 @@ Nomad does not currently run Consul for you.
   If the whitelist is empty, all drivers are fingerprinted and enabled where
   applicable.
 
-* `fingerprint.whitelist`: A comma separated list of whitelisted fingerprinters.
-  If specified, fingerprinters not in the whitelist will be disabled. If the
-  whitelist is empty, all fingerprinters are used.
-
 
 ## Service Definition Syntax
 
