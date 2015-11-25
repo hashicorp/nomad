@@ -318,9 +318,17 @@ func parseConstraints(result *[]*structs.Constraint, list *ast.ObjectList) error
 		}
 
 		if value, ok := m[structs.ConstraintDistinctHosts]; ok {
-			enabled, err := strconv.ParseBool(value.(string))
-			if err != nil {
-				return err
+			var enabled bool
+			var err error
+			switch value.(type) {
+			case string:
+				if enabled, err = strconv.ParseBool(value.(string)); err != nil {
+					return err
+				}
+			case bool:
+				enabled = value.(bool)
+			default:
+				return fmt.Errorf("distinct_hosts should be set to true or false; got %v", value)
 			}
 
 			// If it is not enabled, skip the constraint.
