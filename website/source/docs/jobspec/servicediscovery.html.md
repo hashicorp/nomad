@@ -37,11 +37,6 @@ Nomad does not currently run Consul for you.
 * `consul.verifyssl`: This option disables SSL verification when the transport
  scheme for the Consul API client is `https`. This is set to true by default.
 
-* `driver.whitelist`: A comma separated list of whitelisted drivers (e.g.
-  "docker,qemu"). If specified, drivers not in the whitelist will be disabled.
-  If the whitelist is empty, all drivers are fingerprinted and enabled where
-  applicable.
-
 
 ## Service Definition Syntax
 
