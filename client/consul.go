@@ -139,7 +139,7 @@ func (c *ConsulService) performSync(agent *consul.Agent) {
 		}
 	}
 
-	// Add additional tasks that we might not have added from tasks
+	// Add additional services that we might not have added from tasks
 	for _, trackedTask := range c.trackedTasks {
 		for _, service := range trackedTask.task.Services {
 			if _, ok := c.trackedServices[service.Id]; !ok {
@@ -249,7 +249,7 @@ func (c *ConsulService) registerCheck(check *consul.AgentCheckRegistration) erro
 }
 
 func (c *ConsulService) deregisterCheck(checkID string) error {
-	c.logger.Printf("[DEBUG] Removing check with ID: %v", checkID
+	c.logger.Printf("[DEBUG] Removing check with ID: %v", checkID)
 	c.trackedChkLock.Lock()
 	delete(c.trackedChecks, checkID)
 	c.trackedChkLock.Unlock()
