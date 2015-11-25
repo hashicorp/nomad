@@ -108,21 +108,37 @@ func (d *AllocDir) Build(tasks []*structs.Task) error {
 	return nil
 }
 
-// Embed takes a mapping of absolute directory paths on the host to their
-// intended, relative location within the task directory. Embed attempts
+// Embed takes a mapping of absolute directory or file paths on the host to
+// their intended, relative location within the task directory. Embed attempts
 // hardlink and then defaults to copying. If the path exists on the host and
 // can't be embeded an error is returned.
-func (d *AllocDir) Embed(task string, dirs map[string]string) error {
+func (d *AllocDir) Embed(task string, entries map[string]string) error {
 	taskdir, ok := d.TaskDirs[task]
 	if !ok {
 		return fmt.Errorf("Task directory doesn't exist for task %v", task)
 	}
 
 	subdirs := make(map[string]string)
-	for source, dest := range dirs {
+	for source, dest := range entries {
 		// Check to see if directory exists on host.
 		s, err := os.Stat(source)
 		if os.IsNotExist(err) {
+			continue
+		}
+
+		// Embedding a single file
+		if !s.IsDir() {
+			destDir := filepath.Join(taskdir, filepath.Dir(dest))
+			if err := os.MkdirAll(destDir, s.Mode().Perm()); err != nil {
+				return fmt.Errorf("Couldn't create destination directory %v: %v", destDir, err)
+			}
+
+			// Copy the file.
+			taskEntry := filepath.Join(destDir, filepath.Base(dest))
+			if err := d.linkOrCopy(source, taskEntry, s.Mode().Perm()); err != nil {
+				return err
+			}
+
 			continue
 		}
 
@@ -133,12 +149,12 @@ func (d *AllocDir) Embed(task string, dirs map[string]string) error {
 		}
 
 		// Enumerate the files in source.
-		entries, err := ioutil.ReadDir(source)
+		dirEntries, err := ioutil.ReadDir(source)
 		if err != nil {
 			return fmt.Errorf("Couldn't read directory %v: %v", source, err)
 		}
 
-		for _, entry := range entries {
+		for _, entry := range dirEntries {
 			hostEntry := filepath.Join(source, entry.Name())
 			taskEntry := filepath.Join(destDir, filepath.Base(hostEntry))
 			if entry.IsDir() {
