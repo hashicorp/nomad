@@ -24,6 +24,23 @@ Nomad does not currently run Consul for you.
   override the default Consul Agent HTTP port that Nomad uses to connect to
   Consul. The default for this is `127.0.0.1:8500`.
 
+* `consul.ssl`: This boolean option sets the transport scheme to talk to the Consul
+  Agent as `https`. This option is unset by default and so the default transport
+  scheme for the consul api client is `http`.
+
+* `consul.verifyssl`: This option disables SSL verification when the transport
+ scheme for the Consul API client is `https`. This is set to true by default.
+
+* `driver.whitelist`: A comma seperated list of whitelisted drivers (e.g.
+  "docker,qemu"). If specified, drivers not in the whitelist will be disabled.
+  If the whitelist is empty, all drivers are fingerprinted and enabled where
+  applicable.
+
+* `fingerprint.whitelist`: A comma seperated list of whitelisted fingerprinters.
+  If specified, fingerprinters not in the whitelist will be disabled. If the
+  whitelist is empty, all fingerprinters are used.
+
+
 ## Service Definition Syntax
 
 The service blocks in a Task definition defines a service which Nomad will
