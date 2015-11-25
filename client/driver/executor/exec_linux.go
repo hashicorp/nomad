@@ -252,6 +252,13 @@ func (e *LinuxExecutor) ConfigureTaskDir(taskName string, alloc *allocdir.AllocD
 		return err
 	}
 
+	// Embed ourselves if this is a test. This needs to be done so the test
+	// binary is inside the chroot.
+	if isTest(&e.cmd) {
+		bin := e.cmd.Args[0]
+		alloc.Embed(taskName, map[string]string{bin: bin})
+	}
+
 	if err := alloc.Embed(taskName, chrootEnv); err != nil {
 		return err
 	}
