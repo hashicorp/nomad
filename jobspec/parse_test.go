@@ -100,7 +100,7 @@ func TestParse(t *testing.T) {
 										Name:      "binstore-storagelocker-binsl-binstore",
 										Tags:      []string{"foo", "bar"},
 										PortLabel: "http",
-										Checks: []structs.ServiceCheck{
+										Checks: []*structs.ServiceCheck{
 											{
 												Id:       "",
 												Name:     "check-name",

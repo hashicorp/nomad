@@ -527,7 +527,7 @@ func parseServices(jobName string, taskGroupName string, task *structs.Task, ser
 }
 
 func parseChecks(service *structs.Service, checkObjs *ast.ObjectList) error {
-	service.Checks = make([]structs.ServiceCheck, len(checkObjs.Items))
+	service.Checks = make([]*structs.ServiceCheck, len(checkObjs.Items))
 	for idx, co := range checkObjs.Items {
 		var check structs.ServiceCheck
 		var cm map[string]interface{}
@@ -546,7 +546,7 @@ func parseChecks(service *structs.Service, checkObjs *ast.ObjectList) error {
 			return err
 		}
 
-		service.Checks[idx] = check
+		service.Checks[idx] = &check
 	}
 
 	return nil
