@@ -19,6 +19,7 @@ const (
 	syncInterval = 5 * time.Second
 )
 
+// consulApi is the interface which wraps the actual consul api client
 type consulApi interface {
 	CheckRegister(check *consul.AgentCheckRegistration) error
 	CheckDeregister(checkID string) error
@@ -28,6 +29,8 @@ type consulApi interface {
 	Checks() (map[string]*consul.AgentCheck, error)
 }
 
+// consulApiClient is the actual implementation of the consulApi which
+// talks to the consul agent
 type consulApiClient struct {
 	client *consul.Client
 }
@@ -56,11 +59,15 @@ func (a *consulApiClient) Checks() (map[string]*consul.AgentCheck, error) {
 	return a.client.Agent().Checks()
 }
 
+// trackedTask is a Task that we are tracking for changes in service and check
+// definitions and keep them sycned with Consul Agent
 type trackedTask struct {
 	allocID string
 	task    *structs.Task
 }
 
+// ConsulService is the service which tracks tasks and syncs the services and
+// checks defined in them with Consul Agent
 type ConsulService struct {
 	client     consulApi
 	logger     *log.Logger
