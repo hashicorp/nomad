@@ -155,7 +155,6 @@ func (c *ConsulService) performSync(agent *consul.Agent) (int, int) {
 
 	// Add services and checks which Consul doesn't know about
 	for _, trackedTask := range c.trackedTasks {
-		fmt.Printf("DIPTANU services in Task %v \n", len(trackedTask.task.Services))
 		for _, service := range trackedTask.task.Services {
 			knownServices[service.Id] = struct{}{}
 			if _, ok := consulServices[service.Id]; !ok {

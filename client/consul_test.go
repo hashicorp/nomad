@@ -202,3 +202,38 @@ func TestConsul_AddCheck_To_Service(t *testing.T) {
 		t.Fatalf("Expected tracked checks: %v, actual: %v", 1, totalChecks)
 	}
 }
+
+func TestConsul_ModifyCheck(t *testing.T) {
+	c := newConsulService()
+	task := newTask()
+	var checks []*structs.ServiceCheck
+	s1 := structs.Service{
+		Id:        "1-example-cache-redis",
+		Name:      "example-cache-redis",
+		Tags:      []string{"global"},
+		PortLabel: "db",
+		Checks:    checks,
+	}
+	task.Services = append(task.Services, &s1)
+	c.Register(task, "1")
+
+	check1 := structs.ServiceCheck{
+		Name:     "alive",
+		Type:     "tcp",
+		Interval: 10 * time.Second,
+		Timeout:  5 * time.Second,
+	}
+
+	s1.Checks = append(s1.Checks, &check1)
+
+	_, totalChecks := c.performSync(c.client.Agent())
+	if totalChecks != 1 {
+		t.Fatalf("Expected tracked checks: %v, actual: %v", 1, totalChecks)
+	}
+	check1.Timeout = 2 * time.Second
+	_, totalChecks = c.performSync(c.client.Agent())
+	if totalChecks != 1 {
+		t.Fatalf("Expected tracked checks: %v, actual: %v", 1, totalChecks)
+	}
+
+}
