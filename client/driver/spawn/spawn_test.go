@@ -8,39 +8,13 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/hashicorp/nomad/helper/testtask"
 )
 
 func TestMain(m *testing.M) {
-	switch os.Getenv("TEST_MAIN") {
-	case "app":
-		appMain()
-	default:
+	if !testtask.Run() {
 		os.Exit(m.Run())
-	}
-}
-
-func appMain() {
-	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "no command provided")
-		os.Exit(1)
-	}
-	switch cmd := os.Args[1]; cmd {
-	case "echo":
-		fmt.Println(strings.Join(os.Args[2:], " "))
-	case "sleep":
-		if len(os.Args) != 3 {
-			fmt.Fprintln(os.Stderr, "expected 3 args")
-			os.Exit(1)
-		}
-		dur, err := time.ParseDuration(os.Args[2])
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "could not parse sleep time: %v", err)
-			os.Exit(1)
-		}
-		time.Sleep(dur)
-	default:
-		fmt.Fprintln(os.Stderr, "unknown command:", cmd)
-		os.Exit(1)
 	}
 }
 
@@ -355,7 +329,7 @@ func tempFileName(t *testing.T) string {
 }
 
 func testCommand(args ...string) *exec.Cmd {
-	cmd := exec.Command(os.Args[0], args...)
-	cmd.Env = append(os.Environ(), "TEST_MAIN=app")
+	cmd := exec.Command(testtask.Path(), args...)
+	testtask.SetCmdEnv(cmd)
 	return cmd
 }

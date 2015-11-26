@@ -16,6 +16,7 @@ import (
 )
 
 func TestExecDriver_Fingerprint(t *testing.T) {
+	t.Parallel()
 	ctestutils.ExecCompatible(t)
 	d := NewExecDriver(testDriverContext(""))
 	node := &structs.Node{
@@ -34,6 +35,7 @@ func TestExecDriver_Fingerprint(t *testing.T) {
 }
 
 func TestExecDriver_StartOpen_Wait(t *testing.T) {
+	t.Parallel()
 	ctestutils.ExecCompatible(t)
 	task := &structs.Task{
 		Name: "sleep",
@@ -68,6 +70,7 @@ func TestExecDriver_StartOpen_Wait(t *testing.T) {
 }
 
 func TestExecDriver_Start_Wait(t *testing.T) {
+	t.Parallel()
 	ctestutils.ExecCompatible(t)
 	task := &structs.Task{
 		Name: "sleep",
@@ -109,6 +112,7 @@ func TestExecDriver_Start_Wait(t *testing.T) {
 }
 
 func TestExecDriver_Start_Artifact_basic(t *testing.T) {
+	t.Parallel()
 	ctestutils.ExecCompatible(t)
 	file := "hi_linux_amd64"
 	checksum := "sha256:6f99b4c5184726e601ecb062500aeb9537862434dfe1898dbe5c68d9f50c179c"
@@ -153,6 +157,7 @@ func TestExecDriver_Start_Artifact_basic(t *testing.T) {
 }
 
 func TestExecDriver_Start_Artifact_expanded(t *testing.T) {
+	t.Parallel()
 	ctestutils.ExecCompatible(t)
 	file := "hi_linux_amd64"
 
@@ -199,6 +204,7 @@ func TestExecDriver_Start_Artifact_expanded(t *testing.T) {
 	}
 }
 func TestExecDriver_Start_Wait_AllocDir(t *testing.T) {
+	t.Parallel()
 	ctestutils.ExecCompatible(t)
 
 	exp := []byte{'w', 'i', 'n'}
@@ -251,6 +257,7 @@ func TestExecDriver_Start_Wait_AllocDir(t *testing.T) {
 }
 
 func TestExecDriver_Start_Kill_Wait(t *testing.T) {
+	t.Parallel()
 	ctestutils.ExecCompatible(t)
 	task := &structs.Task{
 		Name: "sleep",

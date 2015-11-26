@@ -11,6 +11,7 @@ import (
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/helper/testtask"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -28,6 +29,12 @@ var basicResources = &structs.Resources{
 
 func init() {
 	rand.Seed(49875)
+}
+
+func TestMain(m *testing.M) {
+	if !testtask.Run() {
+		os.Exit(m.Run())
+	}
 }
 
 func testLogger() *log.Logger {
@@ -54,6 +61,7 @@ func testDriverExecContext(task *structs.Task, driverCtx *DriverContext) *ExecCo
 }
 
 func TestDriver_TaskEnvironmentVariables(t *testing.T) {
+	t.Parallel()
 	ctx := &ExecContext{}
 	task := &structs.Task{
 		Env: map[string]string{
@@ -101,6 +109,7 @@ func TestDriver_TaskEnvironmentVariables(t *testing.T) {
 }
 
 func TestMapMergeStrInt(t *testing.T) {
+	t.Parallel()
 	a := map[string]int{
 		"cakes":   5,
 		"cookies": 3,
@@ -125,6 +134,7 @@ func TestMapMergeStrInt(t *testing.T) {
 }
 
 func TestMapMergeStrStr(t *testing.T) {
+	t.Parallel()
 	a := map[string]string{
 		"cake":   "chocolate",
 		"cookie": "caramel",

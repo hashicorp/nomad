@@ -19,6 +19,7 @@ func javaLocated() bool {
 
 // The fingerprinter test should always pass, even if Java is not installed.
 func TestJavaDriver_Fingerprint(t *testing.T) {
+	t.Parallel()
 	ctestutils.JavaCompatible(t)
 	d := NewJavaDriver(testDriverContext(""))
 	node := &structs.Node{
@@ -42,6 +43,7 @@ func TestJavaDriver_Fingerprint(t *testing.T) {
 }
 
 func TestJavaDriver_StartOpen_Wait(t *testing.T) {
+	t.Parallel()
 	if !javaLocated() {
 		t.Skip("Java not found; skipping")
 	}
@@ -88,6 +90,7 @@ func TestJavaDriver_StartOpen_Wait(t *testing.T) {
 }
 
 func TestJavaDriver_Start_Wait(t *testing.T) {
+	t.Parallel()
 	if !javaLocated() {
 		t.Skip("Java not found; skipping")
 	}
@@ -134,6 +137,7 @@ func TestJavaDriver_Start_Wait(t *testing.T) {
 }
 
 func TestJavaDriver_Start_Kill_Wait(t *testing.T) {
+	t.Parallel()
 	if !javaLocated() {
 		t.Skip("Java not found; skipping")
 	}
