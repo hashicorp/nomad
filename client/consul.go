@@ -124,14 +124,13 @@ func (c *ConsulService) performSync(agent *consul.Agent) {
 				continue
 			}
 			for _, check := range service.Checks {
-				hash := check.Hash(service.Id)
-				knownChecks[hash] = struct{}{}
-				if _, ok := consulChecks[hash]; !ok {
+				knownChecks[check.Id] = struct{}{}
+				if _, ok := consulChecks[check.Id]; !ok {
 					host, port := trackedTask.task.FindHostAndPortFor(service.PortLabel)
 					if host == "" || port == 0 {
 						continue
 					}
-					cr := c.makeCheck(service, &check, host, port)
+					cr := c.makeCheck(service, check, host, port)
 					c.registerCheck(cr)
 				}
 			}
@@ -174,7 +173,7 @@ func (c *ConsulService) registerService(service *structs.Service, task *structs.
 		mErr.Errors = append(mErr.Errors, err)
 	}
 	for _, check := range service.Checks {
-		cr := c.makeCheck(service, &check, host, port)
+		cr := c.makeCheck(service, check, host, port)
 		if err := c.registerCheck(cr); err != nil {
 			c.logger.Printf("[ERROR] consul: Error while registerting check %v with Consul: %v", check.Name, err)
 			mErr.Errors = append(mErr.Errors, err)
@@ -206,8 +205,9 @@ func (c *ConsulService) makeCheck(service *structs.Service, check *structs.Servi
 	if check.Name == "" {
 		check.Name = fmt.Sprintf("service: '%s' check", service.Name)
 	}
+	check.Id = check.Hash(service.Id)
 	cr := &consul.AgentCheckRegistration{
-		ID:        check.Hash(service.Id),
+		ID:        check.Id,
 		Name:      check.Name,
 		ServiceID: service.Id,
 	}
