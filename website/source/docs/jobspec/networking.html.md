@@ -13,7 +13,7 @@ machines along with other jobs and services. Because you don't know in advance
 what host your job will be provisioned on, Nomad will provide your task with
 network configuration when they start up.
 
-Note that this document applies only applies to services that want to _listen_
+Note that this document only applies to services that want to _listen_
 on a port. Batch jobs or services that only make outbound connections do not
 need to allocate ports, since they will use any available interface to make an
 outbound connection.
