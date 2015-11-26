@@ -105,15 +105,20 @@ func (c *ConsulService) SyncWithConsul() {
 	}
 }
 
-func (c *ConsulService) performSync(agent *consul.Agent) {
+func (c *ConsulService) performSync(agent *consul.Agent) (int, int) {
 	// Get the list of the services and that Consul knows about
 	consulServices, _ := agent.Services()
 	consulChecks, _ := agent.Checks()
 	delete(consulServices, "consul")
 
 	knownChecks := make(map[string]struct{})
+	knownServices := make(map[string]struct{})
+
+	// Add services and checks which Consul doesn't know about
 	for _, trackedTask := range c.trackedTasks {
+		fmt.Printf("DIPTANU services in Task %v \n", len(trackedTask.task.Services))
 		for _, service := range trackedTask.task.Services {
+			knownServices[service.Id] = struct{}{}
 			if _, ok := consulServices[service.Id]; !ok {
 				c.registerService(service, trackedTask.task, trackedTask.allocID)
 				continue
@@ -127,9 +132,6 @@ func (c *ConsulService) performSync(agent *consul.Agent) {
 				knownChecks[check.Id] = struct{}{}
 				if _, ok := consulChecks[check.Id]; !ok {
 					host, port := trackedTask.task.FindHostAndPortFor(service.PortLabel)
-					if host == "" || port == 0 {
-						continue
-					}
 					cr := c.makeCheck(service, check, host, port)
 					c.registerCheck(cr)
 				}
@@ -137,18 +139,22 @@ func (c *ConsulService) performSync(agent *consul.Agent) {
 		}
 	}
 
+	// Remove services that are not present anymore
 	for _, consulService := range consulServices {
-		if _, ok := c.serviceStates[consulService.ID]; !ok {
+		if _, ok := knownServices[consulService.ID]; !ok {
+			delete(c.serviceStates, consulService.ID)
 			c.deregisterService(consulService.ID)
 		}
 	}
 
+	// Remove checks that are not present anymore
 	for _, consulCheck := range consulChecks {
 		if _, ok := knownChecks[consulCheck.CheckID]; !ok {
 			c.deregisterCheck(consulCheck.CheckID)
 		}
 	}
 
+	return len(c.serviceStates), len(knownChecks)
 }
 
 func (c *ConsulService) registerService(service *structs.Service, task *structs.Task, allocID string) error {

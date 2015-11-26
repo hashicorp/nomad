@@ -34,7 +34,7 @@ func TestConsul_MakeChecks(t *testing.T) {
 	service := &structs.Service{
 		Id:   "Foo",
 		Name: "Bar",
-		Checks: []structs.ServiceCheck{
+		Checks: []*structs.ServiceCheck{
 			{
 				Type:     "http",
 				Path:     "/foo/bar",
@@ -58,18 +58,20 @@ func TestConsul_MakeChecks(t *testing.T) {
 
 	c := newConsulService()
 
-	checks := c.makeChecks(service, "10.10.0.1", 8090)
+	check1 := c.makeCheck(service, service.Checks[0], "10.10.0.1", 8090)
+	check2 := c.makeCheck(service, service.Checks[1], "10.10.0.1", 8090)
+	check3 := c.makeCheck(service, service.Checks[2], "10.10.0.1", 8090)
 
-	if checks[0].HTTP != "http://10.10.0.1:8090/foo/bar" {
-		t.Fatalf("Invalid http url for check: %v", checks[0].HTTP)
+	if check1.HTTP != "http://10.10.0.1:8090/foo/bar" {
+		t.Fatalf("Invalid http url for check: %v", check1.HTTP)
 	}
 
-	if checks[1].HTTP != "https://10.10.0.1:8090/foo/bar" {
-		t.Fatalf("Invalid http url for check: %v", checks[0].HTTP)
+	if check2.HTTP != "https://10.10.0.1:8090/foo/bar" {
+		t.Fatalf("Invalid http url for check: %v", check2.HTTP)
 	}
 
-	if checks[2].TCP != "10.10.0.1:8090" {
-		t.Fatalf("Invalid tcp check: %v", checks[0].TCP)
+	if check3.TCP != "10.10.0.1:8090" {
+		t.Fatalf("Invalid tcp check: %v", check3.TCP)
 	}
 }
 
@@ -106,7 +108,7 @@ func TestConsul_InvalidPortLabelForService(t *testing.T) {
 		Name:      "foo",
 		Tags:      []string{"a", "b"},
 		PortLabel: "https",
-		Checks:    make([]structs.ServiceCheck, 0),
+		Checks:    make([]*structs.ServiceCheck, 0),
 	}
 
 	c := newConsulService()
@@ -136,14 +138,14 @@ func TestConsul_Services_Deleted_From_Task(t *testing.T) {
 		},
 	}
 	c.Register(&task, "1")
-	if len(c.trackedServices) != 1 {
-		t.Fatalf("Expected tracked services: %v, Actual: %v", 1, len(c.trackedServices))
+	if len(c.serviceStates) != 1 {
+		t.Fatalf("Expected tracked services: %v, Actual: %v", 1, len(c.serviceStates))
 	}
 	task.Services = []*structs.Service{}
 
 	c.performSync(c.client.Agent())
-	if len(c.trackedServices) != 0 {
-		t.Fatalf("Expected tracked services: %v, Actual: %v", 0, len(c.trackedServices))
+	if len(c.serviceStates) != 0 {
+		t.Fatalf("Expected tracked services: %v, Actual: %v", 0, len(c.serviceStates))
 	}
 }
 
@@ -163,19 +165,19 @@ func TestConsul_Service_Should_Be_Re_Reregistered_On_Change(t *testing.T) {
 
 	c.performSync(c.client.Agent())
 
-	if len(c.trackedServices) != 1 {
+	if len(c.serviceStates) != 1 {
 		t.Fatal("We should be tracking one service")
 	}
 
-	if c.trackedServices[s1.Id].service.Tags[0] != "frontcache" {
-		t.Fatalf("Tag is %v, expected %v", c.trackedServices[s1.Id].service.Tags[0], "frontcache")
+	if c.serviceStates[s1.Id] != s1.Hash() {
+		t.Fatalf("Hash is %v, expected %v", c.serviceStates[s1.Id], s1.Hash())
 	}
 }
 
 func TestConsul_AddCheck_To_Service(t *testing.T) {
 	c := newConsulService()
 	task := newTask()
-	var checks []structs.ServiceCheck
+	var checks []*structs.ServiceCheck
 	s1 := structs.Service{
 		Id:        "1-example-cache-redis",
 		Name:      "example-cache-redis",
@@ -193,10 +195,10 @@ func TestConsul_AddCheck_To_Service(t *testing.T) {
 		Timeout:  5 * time.Second,
 	}
 
-	s1.Checks = append(s1.Checks, check1)
+	s1.Checks = append(s1.Checks, &check1)
 
-	c.performSync(c.client.Agent())
-	if len(c.trackedChecks) != 1 {
-		t.Fatalf("Expected tracked checks: %v, actual: %v", 1, len(c.trackedChecks))
+	_, totalChecks := c.performSync(c.client.Agent())
+	if totalChecks != 1 {
+		t.Fatalf("Expected tracked checks: %v, actual: %v", 1, totalChecks)
 	}
 }
