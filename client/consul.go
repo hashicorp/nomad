@@ -126,7 +126,8 @@ func (c *ConsulService) ShutDown() {
 	close(c.shutdownCh)
 }
 
-// Performs calls to sync checks and services periodically
+// SyncWithConsul is a long lived function that performs calls to sync
+// checks and services periodically with Consul Agent
 func (c *ConsulService) SyncWithConsul() {
 	sync := time.After(syncInterval)
 	agent := c.client.Agent()
@@ -143,7 +144,8 @@ func (c *ConsulService) SyncWithConsul() {
 	}
 }
 
-// Sync checks and services with Consul
+// performSync syncs checks and services with Consul and removed tracked
+// services which are no longer present in tasks
 func (c *ConsulService) performSync(agent *consul.Agent) (int, int) {
 	// Get the list of the services and that Consul knows about
 	consulServices, _ := agent.Services()
@@ -156,16 +158,21 @@ func (c *ConsulService) performSync(agent *consul.Agent) (int, int) {
 	// Add services and checks which Consul doesn't know about
 	for _, trackedTask := range c.trackedTasks {
 		for _, service := range trackedTask.task.Services {
+
+			// Add new services which Consul agent isn't aware of
 			knownServices[service.Id] = struct{}{}
 			if _, ok := consulServices[service.Id]; !ok {
 				c.registerService(service, trackedTask.task, trackedTask.allocID)
 				continue
 			}
 
+			// If a service has changed, re-register it with Consul agent
 			if service.Hash() != c.serviceStates[service.Id] {
 				c.registerService(service, trackedTask.task, trackedTask.allocID)
 				continue
 			}
+
+			// Add new checks that Consul isn't aware of
 			for _, check := range service.Checks {
 				knownChecks[check.Id] = struct{}{}
 				if _, ok := consulChecks[check.Id]; !ok {
@@ -174,6 +181,13 @@ func (c *ConsulService) performSync(agent *consul.Agent) (int, int) {
 					c.registerCheck(cr)
 				}
 			}
+		}
+	}
+
+	// Remove services from the service tracker which no longer exists
+	for serviceId := range c.serviceStates {
+		if _, ok := knownServices[serviceId]; !ok {
+			delete(c.serviceStates, serviceId)
 		}
 	}
 
@@ -195,7 +209,7 @@ func (c *ConsulService) performSync(agent *consul.Agent) (int, int) {
 	return len(c.serviceStates), len(knownChecks)
 }
 
-// Registers a Service with Consul
+// registerService registers a Service with Consul
 func (c *ConsulService) registerService(service *structs.Service, task *structs.Task, allocID string) error {
 	var mErr multierror.Error
 	service.Id = fmt.Sprintf("%s-%s", allocID, service.Name)
@@ -228,19 +242,19 @@ func (c *ConsulService) registerService(service *structs.Service, task *structs.
 	return mErr.ErrorOrNil()
 }
 
-// Registers a check with Consul
+// registerCheck registers a check with Consul
 func (c *ConsulService) registerCheck(check *consul.AgentCheckRegistration) error {
 	c.logger.Printf("[DEBUG] Registering Check with ID: %v for Service: %v", check.ID, check.ServiceID)
 	return c.client.Agent().CheckRegister(check)
 }
 
-// Deregisters a check with a specific ID from Consul
+// deregisterCheck de-registers a check with a specific ID from Consul
 func (c *ConsulService) deregisterCheck(checkID string) error {
 	c.logger.Printf("[DEBUG] Removing check with ID: %v", checkID)
 	return c.client.Agent().CheckDeregister(checkID)
 }
 
-// De-Registers a Service with a specific id from Consul
+// deregisterService de-registers a Service with a specific id from Consul
 func (c *ConsulService) deregisterService(serviceId string) error {
 	delete(c.serviceStates, serviceId)
 	if err := c.client.Agent().ServiceDeregister(serviceId); err != nil {
@@ -249,7 +263,7 @@ func (c *ConsulService) deregisterService(serviceId string) error {
 	return nil
 }
 
-// Creates a Consul Check Registration struct
+// makeCheck creates a Consul Check Registration struct
 func (c *ConsulService) makeCheck(service *structs.Service, check *structs.ServiceCheck, ip string, port int) *consul.AgentCheckRegistration {
 	if check.Name == "" {
 		check.Name = fmt.Sprintf("service: %q%s%q check", service.Name)
