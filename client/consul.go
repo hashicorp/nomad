@@ -19,13 +19,50 @@ const (
 	syncInterval = 5 * time.Second
 )
 
+type consulApi interface {
+	CheckRegister(check *consul.AgentCheckRegistration) error
+	CheckDeregister(checkID string) error
+	ServiceRegister(service *consul.AgentServiceRegistration) error
+	ServiceDeregister(ServiceID string) error
+	Services() (map[string]*consul.AgentService, error)
+	Checks() (map[string]*consul.AgentCheck, error)
+}
+
+type consulApiClient struct {
+	client *consul.Client
+}
+
+func (a *consulApiClient) CheckRegister(check *consul.AgentCheckRegistration) error {
+	return a.client.Agent().CheckRegister(check)
+}
+
+func (a *consulApiClient) CheckDeregister(checkID string) error {
+	return a.client.Agent().CheckDeregister(checkID)
+}
+
+func (a *consulApiClient) ServiceRegister(service *consul.AgentServiceRegistration) error {
+	return a.client.Agent().ServiceRegister(service)
+}
+
+func (a *consulApiClient) ServiceDeregister(serviceId string) error {
+	return a.client.Agent().ServiceDeregister(serviceId)
+}
+
+func (a *consulApiClient) Services() (map[string]*consul.AgentService, error) {
+	return a.client.Agent().Services()
+}
+
+func (a *consulApiClient) Checks() (map[string]*consul.AgentCheck, error) {
+	return a.client.Agent().Checks()
+}
+
 type trackedTask struct {
 	allocID string
 	task    *structs.Task
 }
 
 type ConsulService struct {
-	client     *consul.Client
+	client     consulApi
 	logger     *log.Logger
 	shutdownCh chan struct{}
 
@@ -76,7 +113,7 @@ func NewConsulService(logger *log.Logger, consulAddr string, token string,
 	}
 
 	consulService := ConsulService{
-		client:        c,
+		client:        &consulApiClient{client: c},
 		logger:        logger,
 		trackedTasks:  make(map[string]*trackedTask),
 		serviceStates: make(map[string]string),
@@ -130,12 +167,11 @@ func (c *ConsulService) ShutDown() {
 // checks and services periodically with Consul Agent
 func (c *ConsulService) SyncWithConsul() {
 	sync := time.After(syncInterval)
-	agent := c.client.Agent()
 
 	for {
 		select {
 		case <-sync:
-			c.performSync(agent)
+			c.performSync()
 			sync = time.After(syncInterval)
 		case <-c.shutdownCh:
 			c.logger.Printf("[INFO] Shutting down Consul Client")
@@ -146,10 +182,10 @@ func (c *ConsulService) SyncWithConsul() {
 
 // performSync syncs checks and services with Consul and removed tracked
 // services which are no longer present in tasks
-func (c *ConsulService) performSync(agent *consul.Agent) (int, int) {
+func (c *ConsulService) performSync() {
 	// Get the list of the services and that Consul knows about
-	consulServices, _ := agent.Services()
-	consulChecks, _ := agent.Checks()
+	consulServices, _ := c.client.Services()
+	consulChecks, _ := c.client.Checks()
 	delete(consulServices, "consul")
 
 	knownChecks := make(map[string]struct{})
@@ -205,8 +241,6 @@ func (c *ConsulService) performSync(agent *consul.Agent) (int, int) {
 			c.deregisterCheck(consulCheck.CheckID)
 		}
 	}
-
-	return len(c.serviceStates), len(knownChecks)
 }
 
 // registerService registers a Service with Consul
@@ -227,7 +261,7 @@ func (c *ConsulService) registerService(service *structs.Service, task *structs.
 		Address: host,
 	}
 
-	if err := c.client.Agent().ServiceRegister(asr); err != nil {
+	if err := c.client.ServiceRegister(asr); err != nil {
 		c.logger.Printf("[DEBUG] consul: Error while registering service %v with Consul: %v", service.Name, err)
 		mErr.Errors = append(mErr.Errors, err)
 	}
@@ -245,19 +279,19 @@ func (c *ConsulService) registerService(service *structs.Service, task *structs.
 // registerCheck registers a check with Consul
 func (c *ConsulService) registerCheck(check *consul.AgentCheckRegistration) error {
 	c.logger.Printf("[DEBUG] Registering Check with ID: %v for Service: %v", check.ID, check.ServiceID)
-	return c.client.Agent().CheckRegister(check)
+	return c.client.CheckRegister(check)
 }
 
 // deregisterCheck de-registers a check with a specific ID from Consul
 func (c *ConsulService) deregisterCheck(checkID string) error {
 	c.logger.Printf("[DEBUG] Removing check with ID: %v", checkID)
-	return c.client.Agent().CheckDeregister(checkID)
+	return c.client.CheckDeregister(checkID)
 }
 
 // deregisterService de-registers a Service with a specific id from Consul
 func (c *ConsulService) deregisterService(serviceId string) error {
 	delete(c.serviceStates, serviceId)
-	if err := c.client.Agent().ServiceDeregister(serviceId); err != nil {
+	if err := c.client.ServiceDeregister(serviceId); err != nil {
 		return err
 	}
 	return nil
