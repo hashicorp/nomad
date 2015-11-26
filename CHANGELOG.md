@@ -6,6 +6,7 @@ IMPROVEMENTS:
   * core: Can specify a whitelist for activating fingerprinters [GH-488]
   * client/spawn: spawn package tests made portable (work on Windows) [GH-442]
   * client/executor: executor package tests made portable (work on Windows) [GH-497]
+  * client/driver: driver package tests made portable (work on windows) [GH-502]
   * driver/docker: Added TLS client options to the config file [GH-480]
   * core/api: Can list all known regions in the cluster [GH-495]
   * client/discovery: Added more consul client api configuration options [GH-503]
