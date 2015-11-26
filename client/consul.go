@@ -1,9 +1,12 @@
 package client
 
 import (
+	"crypto/tls"
 	"fmt"
 	"log"
+	"net/http"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -32,11 +35,42 @@ type ConsulService struct {
 }
 
 // A factory method to create new consul service
-func NewConsulService(logger *log.Logger, consulAddr string) (*ConsulService, error) {
+func NewConsulService(logger *log.Logger, consulAddr string, token string,
+	auth string, enableSSL bool, verifySSL bool) (*ConsulService, error) {
 	var err error
 	var c *consul.Client
 	cfg := consul.DefaultConfig()
 	cfg.Address = consulAddr
+	if token != "" {
+		cfg.Token = token
+	}
+
+	if auth != "" {
+		var username, password string
+		if strings.Contains(auth, ":") {
+			split := strings.SplitN(auth, ":", 2)
+			username = split[0]
+			password = split[1]
+		} else {
+			username = auth
+		}
+
+		cfg.HttpAuth = &consul.HttpBasicAuth{
+			Username: username,
+			Password: password,
+		}
+	}
+	if enableSSL {
+		cfg.Scheme = "https"
+	}
+	if enableSSL && !verifySSL {
+		cfg.HttpClient.Transport = &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
+			},
+		}
+
+	}
 	if c, err = consul.NewClient(cfg); err != nil {
 		return nil, err
 	}

@@ -10,7 +10,7 @@ import (
 
 func newConsulService() *ConsulService {
 	logger := log.New(os.Stdout, "logger: ", log.Lshortfile)
-	c, _ := NewConsulService(logger, "")
+	c, _ := NewConsulService(logger, "", "", "", false, false)
 	return c
 }
 
