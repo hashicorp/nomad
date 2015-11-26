@@ -31,6 +31,7 @@ type ConsulService struct {
 	trackedTskLock sync.Mutex
 }
 
+// A factory method to create new consul service
 func NewConsulService(logger *log.Logger, consulAddr string) (*ConsulService, error) {
 	var err error
 	var c *consul.Client
@@ -51,6 +52,7 @@ func NewConsulService(logger *log.Logger, consulAddr string) (*ConsulService, er
 	return &consulService, nil
 }
 
+// Starts tracking a task for changes to it's services and tasks
 func (c *ConsulService) Register(task *structs.Task, allocID string) error {
 	var mErr multierror.Error
 	c.trackedTskLock.Lock()
@@ -67,6 +69,7 @@ func (c *ConsulService) Register(task *structs.Task, allocID string) error {
 	return mErr.ErrorOrNil()
 }
 
+// Stops tracking a task for changes to it's services and checks
 func (c *ConsulService) Deregister(task *structs.Task, allocID string) error {
 	var mErr multierror.Error
 	c.trackedTskLock.Lock()
@@ -89,6 +92,7 @@ func (c *ConsulService) ShutDown() {
 	close(c.shutdownCh)
 }
 
+// Performs calls to sync checks and services periodically
 func (c *ConsulService) SyncWithConsul() {
 	sync := time.After(syncInterval)
 	agent := c.client.Agent()
@@ -105,6 +109,7 @@ func (c *ConsulService) SyncWithConsul() {
 	}
 }
 
+// Sync checks and services with Consul
 func (c *ConsulService) performSync(agent *consul.Agent) (int, int) {
 	// Get the list of the services and that Consul knows about
 	consulServices, _ := agent.Services()
@@ -157,6 +162,7 @@ func (c *ConsulService) performSync(agent *consul.Agent) (int, int) {
 	return len(c.serviceStates), len(knownChecks)
 }
 
+// Registers a Service with Consul
 func (c *ConsulService) registerService(service *structs.Service, task *structs.Task, allocID string) error {
 	var mErr multierror.Error
 	service.Id = fmt.Sprintf("%s-%s", allocID, service.Name)
@@ -189,16 +195,19 @@ func (c *ConsulService) registerService(service *structs.Service, task *structs.
 	return mErr.ErrorOrNil()
 }
 
+// Registers a check with Consul
 func (c *ConsulService) registerCheck(check *consul.AgentCheckRegistration) error {
 	c.logger.Printf("[DEBUG] Registering Check with ID: %v for Service: %v", check.ID, check.ServiceID)
 	return c.client.Agent().CheckRegister(check)
 }
 
+// Deregisters a check with a specific ID from Consul
 func (c *ConsulService) deregisterCheck(checkID string) error {
 	c.logger.Printf("[DEBUG] Removing check with ID: %v", checkID)
 	return c.client.Agent().CheckDeregister(checkID)
 }
 
+// De-Registers a Service with a specific id from Consul
 func (c *ConsulService) deregisterService(serviceId string) error {
 	delete(c.serviceStates, serviceId)
 	if err := c.client.Agent().ServiceDeregister(serviceId); err != nil {
@@ -207,11 +216,13 @@ func (c *ConsulService) deregisterService(serviceId string) error {
 	return nil
 }
 
+// Creates a Consul Check Registration struct
 func (c *ConsulService) makeCheck(service *structs.Service, check *structs.ServiceCheck, ip string, port int) *consul.AgentCheckRegistration {
 	if check.Name == "" {
-		check.Name = fmt.Sprintf("service: '%s' check", service.Name)
+		check.Name = fmt.Sprintf("service: %q%s%q check", service.Name)
 	}
 	check.Id = check.Hash(service.Id)
+
 	cr := &consul.AgentCheckRegistration{
 		ID:        check.Id,
 		Name:      check.Name,
@@ -219,6 +230,7 @@ func (c *ConsulService) makeCheck(service *structs.Service, check *structs.Servi
 	}
 	cr.Interval = check.Interval.String()
 	cr.Timeout = check.Timeout.String()
+
 	switch check.Type {
 	case structs.ServiceCheckHTTP:
 		if check.Protocol == "" {
