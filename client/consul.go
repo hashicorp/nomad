@@ -130,7 +130,8 @@ func NewConsulService(logger *log.Logger, consulAddr string, token string,
 	return &consulService, nil
 }
 
-// Starts tracking a task for changes to it's services and tasks
+// Register starts tracking a task for changes to it's services and tasks and
+// adds/removes services and checks associated with it.
 func (c *ConsulService) Register(task *structs.Task, allocID string) error {
 	var mErr multierror.Error
 	c.trackedTskLock.Lock()
@@ -147,7 +148,8 @@ func (c *ConsulService) Register(task *structs.Task, allocID string) error {
 	return mErr.ErrorOrNil()
 }
 
-// Stops tracking a task for changes to it's services and checks
+// Deregister stops tracking a task for changes to it's services and checks and
+// removes all the services and checks associated with the Task
 func (c *ConsulService) Deregister(task *structs.Task, allocID string) error {
 	var mErr multierror.Error
 	c.trackedTskLock.Lock()

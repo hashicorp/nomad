@@ -400,9 +400,12 @@ func TestDistinctCheckId(t *testing.T) {
 		Timeout:  3 * time.Second,
 	}
 	serviceId := "123"
+	c1Hash := c1.Hash(serviceId)
+	c2Hash := c2.Hash(serviceId)
+	c3Hash := c3.Hash(serviceId)
 
-	if c1.Hash(serviceId) == c2.Hash(serviceId) || c1.Hash(serviceId) == c3.Hash(serviceId) || c3.Hash(serviceId) == c2.Hash(serviceId) {
-		t.Fatalf("Checks need to be uniq c1: %s, c2: %s, c3: %s", c1.Hash(serviceId), c2.Hash(serviceId), c3.Hash(serviceId))
+	if c1Hash == c2Hash || c1Hash == c3Hash || c3Hash == c2Hash {
+		t.Fatalf("Checks need to be uniq c1: %s, c2: %s, c3: %s", c1Hash, c2Hash, c3Hash)
 	}
 
 }
