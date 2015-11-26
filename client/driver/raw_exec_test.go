@@ -3,18 +3,21 @@ package driver
 import (
 	"fmt"
 	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
 	"path/filepath"
 	"reflect"
-	"runtime"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/environment"
+	"github.com/hashicorp/nomad/helper/testtask"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 func TestRawExecDriver_Fingerprint(t *testing.T) {
+	t.Parallel()
 	d := NewRawExecDriver(testDriverContext(""))
 	node := &structs.Node{
 		Attributes: make(map[string]string),
@@ -49,14 +52,16 @@ func TestRawExecDriver_Fingerprint(t *testing.T) {
 }
 
 func TestRawExecDriver_StartOpen_Wait(t *testing.T) {
+	t.Parallel()
 	task := &structs.Task{
 		Name: "sleep",
 		Config: map[string]interface{}{
-			"command": "/bin/sleep",
-			"args":    []string{"1"},
+			"command": testtask.Path(),
+			"args":    []string{"sleep", "1s"},
 		},
 		Resources: basicResources,
 	}
+	testtask.SetTaskEnv(task)
 	driverCtx := testDriverContext(task.Name)
 	ctx := testDriverExecContext(task, driverCtx)
 	defer ctx.AllocDir.Destroy()
@@ -88,25 +93,23 @@ func TestRawExecDriver_StartOpen_Wait(t *testing.T) {
 }
 
 func TestRawExecDriver_Start_Artifact_basic(t *testing.T) {
-	var file, checksum string
-	switch runtime.GOOS {
-	case "darwin":
-		file = "hi_darwin_amd64"
-		checksum = "md5:d7f2fdb13b36dcb7407721d78926b335"
-	default:
-		file = "hi_linux_amd64"
-		checksum = "md5:a9b14903a8942748e4f8474e11f795d3"
-	}
+	t.Parallel()
+	path := testtask.Path()
+	ts := httptest.NewServer(http.FileServer(http.Dir(filepath.Dir(path))))
+	defer ts.Close()
 
+	file := filepath.Base(path)
 	task := &structs.Task{
 		Name: "sleep",
 		Config: map[string]interface{}{
-			"artifact_source": fmt.Sprintf("https://dl.dropboxusercontent.com/u/47675/jar_thing/%s", file),
+			"artifact_source": fmt.Sprintf("%s/%s", ts.URL, file),
 			"command":         filepath.Join("$NOMAD_TASK_DIR", file),
-			"checksum":        checksum,
+			"args":            []string{"sleep", "1s"},
 		},
 		Resources: basicResources,
 	}
+	testtask.SetTaskEnv(task)
+
 	driverCtx := testDriverContext(task.Name)
 	ctx := testDriverExecContext(task, driverCtx)
 	defer ctx.AllocDir.Destroy()
@@ -138,26 +141,23 @@ func TestRawExecDriver_Start_Artifact_basic(t *testing.T) {
 }
 
 func TestRawExecDriver_Start_Artifact_expanded(t *testing.T) {
-	var file string
-	switch runtime.GOOS {
-	case "darwin":
-		file = "hi_darwin_amd64"
-	default:
-		file = "hi_linux_amd64"
-	}
+	t.Parallel()
+	path := testtask.Path()
+	ts := httptest.NewServer(http.FileServer(http.Dir(filepath.Dir(path))))
+	defer ts.Close()
 
+	file := filepath.Base(path)
 	task := &structs.Task{
 		Name: "sleep",
 		Config: map[string]interface{}{
-			"artifact_source": fmt.Sprintf("https://dl.dropboxusercontent.com/u/47675/jar_thing/%s", file),
-			"command":         "/bin/bash",
-			"args": []string{
-				"-c",
-				fmt.Sprintf(`'/bin/sleep 1 && %s'`, filepath.Join("$NOMAD_TASK_DIR", file)),
-			},
+			"artifact_source": fmt.Sprintf("%s/%s", ts.URL, file),
+			"command":         filepath.Join("$NOMAD_TASK_DIR", file),
+			"args":            []string{"sleep", "1s"},
 		},
 		Resources: basicResources,
 	}
+	testtask.SetTaskEnv(task)
+
 	driverCtx := testDriverContext(task.Name)
 	ctx := testDriverExecContext(task, driverCtx)
 	defer ctx.AllocDir.Destroy()
@@ -189,14 +189,16 @@ func TestRawExecDriver_Start_Artifact_expanded(t *testing.T) {
 }
 
 func TestRawExecDriver_Start_Wait(t *testing.T) {
+	t.Parallel()
 	task := &structs.Task{
 		Name: "sleep",
 		Config: map[string]interface{}{
-			"command": "/bin/sleep",
-			"args":    []string{"1"},
+			"command": testtask.Path(),
+			"args":    []string{"sleep", "1s"},
 		},
 		Resources: basicResources,
 	}
+	testtask.SetTaskEnv(task)
 
 	driverCtx := testDriverContext(task.Name)
 	ctx := testDriverExecContext(task, driverCtx)
@@ -229,19 +231,22 @@ func TestRawExecDriver_Start_Wait(t *testing.T) {
 }
 
 func TestRawExecDriver_Start_Wait_AllocDir(t *testing.T) {
+	t.Parallel()
 	exp := []byte{'w', 'i', 'n'}
 	file := "output.txt"
+	outPath := fmt.Sprintf(`$%s/%s`, environment.AllocDir, file)
 	task := &structs.Task{
 		Name: "sleep",
 		Config: map[string]interface{}{
-			"command": "/bin/bash",
+			"command": testtask.Path(),
 			"args": []string{
-				"-c",
-				fmt.Sprintf(`sleep 1; echo -n %s > $%s/%s`, string(exp), environment.AllocDir, file),
+				"sleep", "1s",
+				"write", string(exp), outPath,
 			},
 		},
 		Resources: basicResources,
 	}
+	testtask.SetTaskEnv(task)
 
 	driverCtx := testDriverContext(task.Name)
 	ctx := testDriverExecContext(task, driverCtx)
@@ -279,14 +284,16 @@ func TestRawExecDriver_Start_Wait_AllocDir(t *testing.T) {
 }
 
 func TestRawExecDriver_Start_Kill_Wait(t *testing.T) {
+	t.Parallel()
 	task := &structs.Task{
 		Name: "sleep",
 		Config: map[string]interface{}{
-			"command": "/bin/sleep",
-			"args":    []string{"1"},
+			"command": testtask.Path(),
+			"args":    []string{"sleep", "1s"},
 		},
 		Resources: basicResources,
 	}
+	testtask.SetTaskEnv(task)
 
 	driverCtx := testDriverContext(task.Name)
 	ctx := testDriverExecContext(task, driverCtx)
