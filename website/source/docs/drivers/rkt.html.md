@@ -33,10 +33,8 @@ The `rkt` driver supports the following configuration in the job spec:
 
 ## Task Directories
 
-The `rkt` driver does not currently support mounting the `alloc/` and `local/`
-directory. It is currently blocked by this [rkt
-issue](https://github.com/coreos/rkt/issues/761). As such the coresponding
-[environment variables](/docs/jobspec/environment.html#task_dir) are not set.
+The `rkt` driver currently does not support mounting of the `alloc/` and `local/` directory. 
+Once support is added, version `v0.10.0` or above of `rkt` will be required. 
 
 ## Client Requirements
 
