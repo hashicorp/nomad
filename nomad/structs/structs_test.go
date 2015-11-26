@@ -362,7 +362,7 @@ func TestInvalidServiceCheck(t *testing.T) {
 		Id:        "service-id",
 		Name:      "service-name",
 		PortLabel: "bar",
-		Checks: []ServiceCheck{
+		Checks: []*ServiceCheck{
 			{
 
 				Id:   "check-id",
@@ -399,9 +399,10 @@ func TestDistinctCheckId(t *testing.T) {
 		Interval: 4 * time.Second,
 		Timeout:  3 * time.Second,
 	}
+	serviceId := "123"
 
-	if c1.Hash() == c2.Hash() || c1.Hash() == c3.Hash() || c3.Hash() == c2.Hash() {
-		t.Fatalf("Checks need to be uniq c1: %s, c2: %s, c3: %s", c1.Hash(), c2.Hash(), c3.Hash())
+	if c1.Hash(serviceId) == c2.Hash(serviceId) || c1.Hash(serviceId) == c3.Hash(serviceId) || c3.Hash(serviceId) == c2.Hash(serviceId) {
+		t.Fatalf("Checks need to be uniq c1: %s, c2: %s, c3: %s", c1.Hash(serviceId), c2.Hash(serviceId), c3.Hash(serviceId))
 	}
 
 }
