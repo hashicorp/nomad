@@ -1042,6 +1042,8 @@ type ServiceCheck struct {
 	Timeout  time.Duration // Timeout of the response from the check before consul fails the check
 }
 
+// ExpandName interpolates values of Job, Task Group and Task in the Service
+// Name
 func (s *Service) ExpandName(job string, taskGroup string, task string) {
 	s.Name = args.ReplaceEnv(s.Name, map[string]string{
 		"JOB":       job,
