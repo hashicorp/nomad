@@ -351,7 +351,11 @@ func TestJobEndpoint_GetJob(t *testing.T) {
 		t.Fatalf("Bad index: %d %d", resp2.Index, resp.Index)
 	}
 
-	if !reflect.DeepEqual(job, resp2.Job) {
+	// Make a copy of the origin job and change the service name so that we can
+	// do a deep equal with the response from the GET JOB Api
+	j := job
+	j.TaskGroups[0].Tasks[0].Services[0].Name = "web-frontend"
+	if !reflect.DeepEqual(j, resp2.Job) {
 		t.Fatalf("bad: %#v %#v", job, resp2.Job)
 	}
 
