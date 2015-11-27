@@ -29,6 +29,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		return err
 	}
 
+	// Expand the service names
 	args.Job.ExpandAllServiceNames()
 
 	if args.Job.Type == structs.JobTypeCore {

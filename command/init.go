@@ -129,7 +129,7 @@ job "example" {
 			}
 
 			service {
-				# name = redis
+				name = "${TASKGROUP}-redis"
 				tags = ["global", "cache"]
 				port = "db"
 				check {
