@@ -82,7 +82,7 @@ group "database" {
   services have to be explicitly named. Users can add the following to the
   service names: ```${JOB}```, ```${TASKGROUP}```, ```${TASK}```, ```${BASE}```. 
   Nomad will replace them with the appropriate value of the Job, Task Group and 
-  Task Group name while registering the Job. ```${BASE}``` expands to ${JOB}-${TASKGROUP}-${TASK}
+  Task names while registering the Job. ```${BASE}``` expands to ${JOB}-${TASKGROUP}-${TASK}
 
 * `tags`: A list of tags associated with this Service.
 
