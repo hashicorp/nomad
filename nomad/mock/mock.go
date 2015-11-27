@@ -90,6 +90,12 @@ func Job() *structs.Job {
 						Env: map[string]string{
 							"FOO": "bar",
 						},
+						Services: []*structs.Service{
+							{
+								Name:      "${TASK}-frontend",
+								PortLabel: "http",
+							},
+						},
 						Resources: &structs.Resources{
 							CPU:      500,
 							MemoryMB: 256,

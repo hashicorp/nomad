@@ -1,8 +1,6 @@
 package api
 
 import (
-	"fmt"
-	"github.com/hashicorp/nomad/helper/args"
 	"time"
 )
 
@@ -42,16 +40,6 @@ type Service struct {
 	Tags      []string
 	PortLabel string `mapstructure:"port"`
 	Checks    []ServiceCheck
-}
-
-func (s *Service) ExpandName(job string, taskGroup string, task string) {
-	s.Name = args.ReplaceEnv(s.Name, map[string]string{
-		"JOB":       job,
-		"TASKGROUP": taskGroup,
-		"TASK":      task,
-		"BASE":      fmt.Sprintf("%s-%s-%s", job, taskGroup, task),
-	},
-	)
 }
 
 // TaskGroup is the unit of scheduling.

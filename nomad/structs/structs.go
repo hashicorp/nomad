@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-version"
+	"github.com/hashicorp/nomad/helper/args"
 )
 
 var (
@@ -774,6 +775,14 @@ type Job struct {
 	ModifyIndex uint64
 }
 
+// ExpandAllServiceNames traverses all Task Groups and makes them
+// interpolate Job, Task group and Task names in all Service names
+func (j *Job) ExpandAllServiceNames() {
+	for _, tg := range j.TaskGroups {
+		tg.ExpandAllServiceNames(j.Name)
+	}
+}
+
 // Validate is used to sanity check a job input
 func (j *Job) Validate() error {
 	var mErr multierror.Error
@@ -942,6 +951,14 @@ type TaskGroup struct {
 	Meta map[string]string
 }
 
+// ExpandAllServiceNames traverses over all Tasks and makes them to interpolate
+// values of Job, Task Group and Task names in all Service Names
+func (tg *TaskGroup) ExpandAllServiceNames(job string) {
+	for _, task := range tg.Tasks {
+		task.ExpandAllServiceNames(job, tg.Name)
+	}
+}
+
 // Validate is used to sanity check a task group
 func (tg *TaskGroup) Validate() error {
 	var mErr multierror.Error
@@ -1023,6 +1040,16 @@ type ServiceCheck struct {
 	Protocol string        // Protocol to use if check is http, defaults to http
 	Interval time.Duration // Interval of the check
 	Timeout  time.Duration // Timeout of the response from the check before consul fails the check
+}
+
+func (s *Service) ExpandName(job string, taskGroup string, task string) {
+	s.Name = args.ReplaceEnv(s.Name, map[string]string{
+		"JOB":       job,
+		"TASKGROUP": taskGroup,
+		"TASK":      task,
+		"BASE":      fmt.Sprintf("%s-%s-%s", job, taskGroup, task),
+	},
+	)
 }
 
 func (sc *ServiceCheck) Validate() error {
@@ -1107,6 +1134,14 @@ type Task struct {
 	// Meta is used to associate arbitrary metadata with this
 	// task. This is opaque to Nomad.
 	Meta map[string]string
+}
+
+// ExpandAllServiceNames interpolates values of Job, Task Group
+// and Tasks in all the service Names of a Task
+func (t *Task) ExpandAllServiceNames(job string, taskGroup string) {
+	for _, service := range t.Services {
+		service.ExpandName(job, taskGroup, t.Name)
+	}
 }
 
 func (t *Task) GoString() string {

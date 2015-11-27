@@ -47,6 +47,10 @@ func TestJobEndpoint_Register(t *testing.T) {
 	if out.CreateIndex != resp.JobModifyIndex {
 		t.Fatalf("index mis-match")
 	}
+	serviceName := out.TaskGroups[0].Tasks[0].Services[0].Name
+	if serviceName != "web-frontend" {
+		t.Fatalf("Expected Service Name: %s, Actual: %s", serviceName)
+	}
 
 	// Lookup the evaluation
 	eval, err := state.EvalByID(resp.EvalID)
