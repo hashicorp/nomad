@@ -218,3 +218,37 @@ func TestTask_Constrain(t *testing.T) {
 		t.Fatalf("expect: %#v, got: %#v", expect, task.Constraints)
 	}
 }
+
+func TestService_Expand_Name(t *testing.T) {
+	job := "example"
+	taskGroup := "cache"
+	task := "redis"
+
+	s := Service{
+		Name: "${TASK}-db",
+	}
+
+	s.ExpandName(job, taskGroup, task)
+	if s.Name != "redis-db" {
+		t.Fatalf("Expected name: %v, Actual: %v", "redis-db", s.Name)
+	}
+
+	s.Name = "db"
+	s.ExpandName(job, taskGroup, task)
+	if s.Name != "db" {
+		t.Fatalf("Expected name: %v, Actual: %v", "redis-db", s.Name)
+	}
+
+	s.Name = "${JOB}-${TASKGROUP}-${TASK}-db"
+	s.ExpandName(job, taskGroup, task)
+	if s.Name != "example-cache-redis-db" {
+		t.Fatalf("Expected name: %v, Actual: %v", "expample-cache-redis-db", s.Name)
+	}
+
+	s.Name = "${BASE}-db"
+	s.ExpandName(job, taskGroup, task)
+	if s.Name != "example-cache-redis-db" {
+		t.Fatalf("Expected name: %v, Actual: %v", "expample-cache-redis-db", s.Name)
+	}
+
+}
