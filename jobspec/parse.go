@@ -502,8 +502,6 @@ func parseServices(jobName string, taskGroupName string, task *structs.Task, ser
 		if service.Name == "" {
 			defaultServiceName = true
 			service.Name = fmt.Sprintf("%s-%s-%s", jobName, taskGroupName, task.Name)
-		} else {
-			service.Name = fmt.Sprintf("%s-%s-%s-%s", jobName, taskGroupName, task.Name, service.Name)
 		}
 
 		// Fileter checks

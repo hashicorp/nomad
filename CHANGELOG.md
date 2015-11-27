@@ -10,6 +10,7 @@ IMPROVEMENTS:
   * driver/docker: Added TLS client options to the config file [GH-480]
   * core/api: Can list all known regions in the cluster [GH-495]
   * client/discovery: Added more consul client api configuration options [GH-503]
+  * jobspec: More flexibility in naming Services [GH-509]
 
 BUG FIXES:
 

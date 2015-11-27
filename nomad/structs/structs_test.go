@@ -409,3 +409,82 @@ func TestDistinctCheckId(t *testing.T) {
 	}
 
 }
+
+func TestService_Expand_Name(t *testing.T) {
+	job := "example"
+	taskGroup := "cache"
+	task := "redis"
+
+	s := Service{
+		Name: "${TASK}-db",
+	}
+
+	s.ExpandName(job, taskGroup, task)
+	if s.Name != "redis-db" {
+		t.Fatalf("Expected name: %v, Actual: %v", "redis-db", s.Name)
+	}
+
+	s.Name = "db"
+	s.ExpandName(job, taskGroup, task)
+	if s.Name != "db" {
+		t.Fatalf("Expected name: %v, Actual: %v", "redis-db", s.Name)
+	}
+
+	s.Name = "${JOB}-${TASKGROUP}-${TASK}-db"
+	s.ExpandName(job, taskGroup, task)
+	if s.Name != "example-cache-redis-db" {
+		t.Fatalf("Expected name: %v, Actual: %v", "expample-cache-redis-db", s.Name)
+	}
+
+	s.Name = "${BASE}-db"
+	s.ExpandName(job, taskGroup, task)
+	if s.Name != "example-cache-redis-db" {
+		t.Fatalf("Expected name: %v, Actual: %v", "expample-cache-redis-db", s.Name)
+	}
+
+}
+
+func TestJob_ExpandServiceNames(t *testing.T) {
+	j := &Job{
+		Name: "my-job",
+		TaskGroups: []*TaskGroup{
+			&TaskGroup{
+				Name: "web",
+				Tasks: []*Task{
+					{
+						Name: "frontend",
+						Services: []*Service{
+							{
+								Name: "${BASE}-default",
+							},
+							{
+								Name: "jmx",
+							},
+						},
+					},
+				},
+			},
+			&TaskGroup{
+				Name: "admin",
+				Tasks: []*Task{
+					{
+						Name: "admin-web",
+					},
+				},
+			},
+		},
+	}
+
+	j.ExpandAllServiceNames()
+
+	service1Name := j.TaskGroups[0].Tasks[0].Services[0].Name
+	if service1Name != "my-job-web-frontend-default" {
+		t.Fatalf("Expected Service Name: %s, Actual: %s", "my-job-web-frontend-default", service1Name)
+	}
+
+	service2Name := j.TaskGroups[0].Tasks[0].Services[1].Name
+	if service2Name != "jmx" {
+		t.Fatalf("Expected Service Name: %s, Actual: %s", "jmx", service2Name)
+	}
+
+}

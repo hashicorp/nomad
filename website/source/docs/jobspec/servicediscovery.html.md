@@ -79,8 +79,10 @@ group "database" {
   name of a service is $(job-name)-$(task-group)-$(task-name). Users can
   explicitly name the service by specifying this option. If multiple services
   are defined for a Task then only one task can have the default name, all the
-  services have to be explicitly named. Nomad will add the prefix ```$(job-name
-  )-${task-group}-${task-name}``` prefix to each user defined name.
+  services have to be explicitly named. Users can add the following to the
+  service names: ```${JOB}```, ```${TASKGROUP}```, ```${TASK}```, ```${BASE}```. 
+  Nomad will replace them with the appropriate value of the Job, Task Group and 
+  Task names while registering the Job. ```${BASE}``` expands to ${JOB}-${TASKGROUP}-${TASK}
 
 * `tags`: A list of tags associated with this Service.
 
