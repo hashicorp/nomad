@@ -1,4 +1,4 @@
-## 0.2.1 (UNRELEASED)
+## 0.2.1
 
 IMPROVEMENTS:
 
