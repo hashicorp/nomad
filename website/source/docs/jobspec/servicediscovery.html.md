@@ -34,7 +34,7 @@ Nomad does not currently run Consul for you.
   Agent as `https`. This option is unset by default and so the default transport
   scheme for the consul api client is `http`.
 
-* `consul.verifyssl`: This option disables SSL verification when the transport
+* `consul.verifyssl`: This option enables SSL verification when the transport
  scheme for the Consul API client is `https`. This is set to true by default.
 
 
