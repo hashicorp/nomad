@@ -358,6 +358,14 @@ func (a *Config) Merge(b *Config) *Config {
 		result.AdvertiseAddrs = result.AdvertiseAddrs.Merge(b.AdvertiseAddrs)
 	}
 
+	// Apply the Atlas configuration
+	if result.Atlas == nil && b.Atlas != nil {
+		atlasConfig := *b.Atlas
+		result.Atlas = &atlasConfig
+	} else if b.Atlas != nil {
+		result.Atlas = result.Atlas.Merge(b.Atlas)
+	}
+
 	return &result
 }
 
@@ -495,6 +503,25 @@ func (a *AdvertiseAddrs) Merge(b *AdvertiseAddrs) *AdvertiseAddrs {
 	}
 	if b.Serf != "" {
 		result.Serf = b.Serf
+	}
+	return &result
+}
+
+// Merge merges two Atlas configurations together.
+func (a *AtlasConfig) Merge(b *AtlasConfig) *AtlasConfig {
+	var result AtlasConfig = *a
+
+	if b.Infrastructure != "" {
+		result.Infrastructure = b.Infrastructure
+	}
+	if b.Token != "" {
+		result.Token = b.Token
+	}
+	if b.Join {
+		result.Join = true
+	}
+	if b.Endpoint != "" {
+		result.Endpoint = b.Endpoint
 	}
 	return &result
 }
