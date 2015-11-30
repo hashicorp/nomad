@@ -16,7 +16,7 @@ unzip nomad.zip
 sudo chmod +x nomad
 sudo mv nomad /usr/bin/nomad
 
-sudo mkdir /etc/nomad.d
+sudo mkdir -p /etc/nomad.d
 sudo chmod a+w /etc/nomad.d
 
 SCRIPT
