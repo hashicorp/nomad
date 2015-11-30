@@ -220,17 +220,17 @@ The `resources` object supports the following keys:
 
 The `network` object supports the following keys:
 
-* `dynamic_ports` - List of port labels which may contain letters,
-  numbers and underscores (`^[a-zA-Z0-9_]+$`). Each label will be assigned a
-  dynamic port when the task starts. Ports are passed to the task environment as
-  `NOMAD_PORT_{LABEL}`. Drivers may infer additional semantics from the label.
-  See the relevant driver docs for details.
-
 * `mbits` - The number of MBits in bandwidth required.
 
-* `reserved_ports` - This is a list of specific ports required.
-  For applications that cannot use a dynamic port, they can
-  request a specific port.
+*   `port` - `port` is a repeatable object that can be used to specify both
+    dynamic ports and reserved ports. It has the following format:
+
+    ```
+    port "label" {
+        // If the `static` field is omitted, a dynamic port will be assigned.
+        static = 6539
+    }
+    ```
 
 ### Restart Policy
 

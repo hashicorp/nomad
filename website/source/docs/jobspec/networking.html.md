@@ -43,8 +43,14 @@ startup.
 
 ```
 task "webservice" {
-    port "http" {}
-    port "https" {}
+    ...
+    resources {
+        ...
+        network {
+            port "http" {}
+            port "https" {}
+        }
+    }
 }
 ```
 
@@ -56,9 +62,15 @@ place your task.
 
 ```
 task "dnsservice" {
-    port "dns" {
-        static = 53
-    }        
+    ...
+    resources {
+        ...
+        network {
+            port "dns" {
+                static = 53
+            }
+        }
+    }
 }
 ```
 
