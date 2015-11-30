@@ -309,7 +309,7 @@ func (c *ConsulService) deregisterService(serviceId string) error {
 // makeCheck creates a Consul Check Registration struct
 func (c *ConsulService) makeCheck(service *structs.Service, check *structs.ServiceCheck, ip string, port int) *consul.AgentCheckRegistration {
 	if check.Name == "" {
-		check.Name = fmt.Sprintf("service: %q%s%q check", service.Name)
+		check.Name = fmt.Sprintf("service: %s check", service.Name)
 	}
 	check.Id = check.Hash(service.Id)
 
