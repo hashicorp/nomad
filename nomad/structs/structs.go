@@ -929,8 +929,8 @@ func (p *PeriodicConfig) Validate() error {
 		return nil
 	}
 
-	if p.SpecType == "" {
-		return fmt.Errorf("Must specify a spec type to be able to parse the interval")
+	if p.Spec == "" {
+		return fmt.Errorf("Must specify a spec")
 	}
 
 	switch p.SpecType {
