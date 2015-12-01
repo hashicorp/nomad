@@ -43,7 +43,7 @@ func testStateStore(t *testing.T) *state.StateStore {
 }
 
 func testFSM(t *testing.T) *nomadFSM {
-	fsm, err := NewFSM(testBroker(t, 0), os.Stderr)
+	fsm, err := NewFSM(testBroker(t, 0), NewMockPeriodic(), os.Stderr)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -222,8 +222,11 @@ func TestFSM_UpdateNodeDrain(t *testing.T) {
 func TestFSM_RegisterJob(t *testing.T) {
 	fsm := testFSM(t)
 
+	job := mock.Job()
+	job.Type = structs.JobTypeBatch
+	job.Periodic = &structs.PeriodicConfig{Enabled: true}
 	req := structs.JobRegisterRequest{
-		Job: mock.Job(),
+		Job: job,
 	}
 	buf, err := structs.Encode(structs.JobRegisterRequestType, req)
 	if err != nil {
@@ -236,15 +239,20 @@ func TestFSM_RegisterJob(t *testing.T) {
 	}
 
 	// Verify we are registered
-	job, err := fsm.State().JobByID(req.Job.ID)
+	jobOut, err := fsm.State().JobByID(req.Job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if job == nil {
+	if jobOut == nil {
 		t.Fatalf("not found!")
 	}
-	if job.CreateIndex != 1 {
-		t.Fatalf("bad index: %d", job.CreateIndex)
+	if jobOut.CreateIndex != 1 {
+		t.Fatalf("bad index: %d", jobOut.CreateIndex)
+	}
+
+	// Verify it was added to the periodic runner.
+	if _, ok := fsm.periodicRunner.(*MockPeriodic).Jobs[job.ID]; !ok {
+		t.Fatal("job not added to periodic runner")
 	}
 }
 
@@ -252,6 +260,8 @@ func TestFSM_DeregisterJob(t *testing.T) {
 	fsm := testFSM(t)
 
 	job := mock.Job()
+	job.Type = structs.JobTypeBatch
+	job.Periodic = &structs.PeriodicConfig{Enabled: true}
 	req := structs.JobRegisterRequest{
 		Job: job,
 	}
@@ -279,12 +289,17 @@ func TestFSM_DeregisterJob(t *testing.T) {
 	}
 
 	// Verify we are NOT registered
-	job, err = fsm.State().JobByID(req.Job.ID)
+	jobOut, err := fsm.State().JobByID(req.Job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if job != nil {
+	if jobOut != nil {
 		t.Fatalf("job found!")
+	}
+
+	// Verify it was removed from the periodic runner.
+	if _, ok := fsm.periodicRunner.(*MockPeriodic).Jobs[job.ID]; ok {
+		t.Fatal("job not removed from periodic runner")
 	}
 }
 

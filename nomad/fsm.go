@@ -38,11 +38,12 @@ const (
 // along with Raft to provide strong consistency. We implement
 // this outside the Server to avoid exposing this outside the package.
 type nomadFSM struct {
-	evalBroker *EvalBroker
-	logOutput  io.Writer
-	logger     *log.Logger
-	state      *state.StateStore
-	timetable  *TimeTable
+	evalBroker     *EvalBroker
+	periodicRunner PeriodicRunner
+	logOutput      io.Writer
+	logger         *log.Logger
+	state          *state.StateStore
+	timetable      *TimeTable
 }
 
 // nomadSnapshot is used to provide a snapshot of the current
@@ -58,7 +59,7 @@ type snapshotHeader struct {
 }
 
 // NewFSMPath is used to construct a new FSM with a blank state
-func NewFSM(evalBroker *EvalBroker, logOutput io.Writer) (*nomadFSM, error) {
+func NewFSM(evalBroker *EvalBroker, periodic PeriodicRunner, logOutput io.Writer) (*nomadFSM, error) {
 	// Create a state store
 	state, err := state.NewStateStore(logOutput)
 	if err != nil {
@@ -66,11 +67,12 @@ func NewFSM(evalBroker *EvalBroker, logOutput io.Writer) (*nomadFSM, error) {
 	}
 
 	fsm := &nomadFSM{
-		evalBroker: evalBroker,
-		logOutput:  logOutput,
-		logger:     log.New(logOutput, "", log.LstdFlags),
-		state:      state,
-		timetable:  NewTimeTable(timeTableGranularity, timeTableLimit),
+		evalBroker:     evalBroker,
+		periodicRunner: periodic,
+		logOutput:      logOutput,
+		logger:         log.New(logOutput, "", log.LstdFlags),
+		state:          state,
+		timetable:      NewTimeTable(timeTableGranularity, timeTableLimit),
 	}
 	return fsm, nil
 }
@@ -204,6 +206,14 @@ func (n *nomadFSM) applyUpsertJob(buf []byte, index uint64) interface{} {
 		n.logger.Printf("[ERR] nomad.fsm: UpsertJob failed: %v", err)
 		return err
 	}
+
+	if req.Job.IsPeriodic() {
+		if err := n.periodicRunner.Add(req.Job); err != nil {
+			n.logger.Printf("[ERR] nomad.fsm: PeriodicRunner.Add failed: %v", err)
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -218,6 +228,12 @@ func (n *nomadFSM) applyDeregisterJob(buf []byte, index uint64) interface{} {
 		n.logger.Printf("[ERR] nomad.fsm: DeleteJob failed: %v", err)
 		return err
 	}
+
+	if err := n.periodicRunner.Remove(req.JobID); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: PeriodicRunner.Remove failed: %v", err)
+		return err
+	}
+
 	return nil
 }
 
