@@ -675,7 +675,7 @@ func parseUpdate(result *structs.UpdateStrategy, list *ast.ObjectList) error {
 	return dec.Decode(m)
 }
 
-func parsePeriodic(result *structs.PeriodicConfig, list *ast.ObjectList) error {
+func parsePeriodic(result **structs.PeriodicConfig, list *ast.ObjectList) error {
 	list = list.Elem()
 	if len(list.Items) > 1 {
 		return fmt.Errorf("only one 'periodic' block allowed per job")
@@ -711,6 +711,6 @@ func parsePeriodic(result *structs.PeriodicConfig, list *ast.ObjectList) error {
 	if err := mapstructure.WeakDecode(m, &p); err != nil {
 		return err
 	}
-	*result = p
+	*result = &p
 	return nil
 }

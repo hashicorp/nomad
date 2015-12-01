@@ -239,7 +239,7 @@ func TestParse(t *testing.T) {
 				Priority: 50,
 				Region:   "global",
 				Type:     "service",
-				Periodic: structs.PeriodicConfig{
+				Periodic: &structs.PeriodicConfig{
 					Enabled:  true,
 					SpecType: structs.PeriodicSpecCron,
 					Spec:     "*/5 * * *",
