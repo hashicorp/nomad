@@ -37,7 +37,7 @@ func TestJob_Validate(t *testing.T) {
 
 	j = &Job{
 		Type: JobTypeService,
-		Periodic: PeriodicConfig{
+		Periodic: &PeriodicConfig{
 			Enabled: true,
 		},
 	}
@@ -90,6 +90,25 @@ func TestJob_Validate(t *testing.T) {
 	}
 	if !strings.Contains(mErr.Errors[2].Error(), "Task group 1 validation failed") {
 		t.Fatalf("err: %s", err)
+	}
+}
+
+func TestJob_IsPeriodic(t *testing.T) {
+	j := &Job{
+		Type: JobTypeService,
+		Periodic: &PeriodicConfig{
+			Enabled: true,
+		},
+	}
+	if !j.IsPeriodic() {
+		t.Fatalf("IsPeriodic() returned false on periodic job")
+	}
+
+	j = &Job{
+		Type: JobTypeService,
+	}
+	if j.IsPeriodic() {
+		t.Fatalf("IsPeriodic() returned true on non-periodic job")
 	}
 }
 

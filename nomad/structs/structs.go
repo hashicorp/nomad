@@ -762,7 +762,7 @@ type Job struct {
 	Update UpdateStrategy
 
 	// Periodic is used to define the interval the job is run at.
-	Periodic PeriodicConfig
+	Periodic *PeriodicConfig
 
 	// Meta is used to associate arbitrary metadata with this
 	// job. This is opaque to Nomad.
@@ -847,7 +847,7 @@ func (j *Job) Validate() error {
 	}
 
 	// Validate periodic is only used with batch jobs.
-	if j.Periodic.Enabled && j.Type != JobTypeBatch {
+	if j.Periodic != nil && j.Periodic.Enabled && j.Type != JobTypeBatch {
 		mErr.Errors = append(mErr.Errors,
 			fmt.Errorf("Periodic can only be used with %q scheduler", JobTypeBatch))
 	}
@@ -877,6 +877,11 @@ func (j *Job) Stub() *JobListStub {
 		CreateIndex:       j.CreateIndex,
 		ModifyIndex:       j.ModifyIndex,
 	}
+}
+
+// IsPeriodic returns whether a job is periodic.
+func (j *Job) IsPeriodic() bool {
+	return j.Periodic != nil
 }
 
 // JobListStub is used to return a subset of job information
