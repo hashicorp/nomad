@@ -232,6 +232,23 @@ func TestParse(t *testing.T) {
 		},
 
 		{
+			"periodic-cron.hcl",
+			&structs.Job{
+				ID:       "foo",
+				Name:     "foo",
+				Priority: 50,
+				Region:   "global",
+				Type:     "service",
+				Periodic: &structs.PeriodicConfig{
+					Enabled:  true,
+					SpecType: structs.PeriodicSpecCron,
+					Spec:     "*/5 * * *",
+				},
+			},
+			false,
+		},
+
+		{
 			"specify-job.hcl",
 			&structs.Job{
 				ID:       "job1",

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gorhill/cronexpr"
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-version"
@@ -760,6 +761,9 @@ type Job struct {
 	// Update is used to control the update strategy
 	Update UpdateStrategy
 
+	// Periodic is used to define the interval the job is run at.
+	Periodic *PeriodicConfig
+
 	// Meta is used to associate arbitrary metadata with this
 	// job. This is opaque to Nomad.
 	Meta map[string]string
@@ -841,6 +845,13 @@ func (j *Job) Validate() error {
 			mErr.Errors = append(mErr.Errors, outer)
 		}
 	}
+
+	// Validate periodic is only used with batch jobs.
+	if j.Periodic != nil && j.Periodic.Enabled && j.Type != JobTypeBatch {
+		mErr.Errors = append(mErr.Errors,
+			fmt.Errorf("Periodic can only be used with %q scheduler", JobTypeBatch))
+	}
+
 	return mErr.ErrorOrNil()
 }
 
@@ -868,6 +879,11 @@ func (j *Job) Stub() *JobListStub {
 	}
 }
 
+// IsPeriodic returns whether a job is periodic.
+func (j *Job) IsPeriodic() bool {
+	return j.Periodic != nil
+}
+
 // JobListStub is used to return a subset of job information
 // for the job list
 type JobListStub struct {
@@ -893,6 +909,61 @@ type UpdateStrategy struct {
 // Rolling returns if a rolling strategy should be used
 func (u *UpdateStrategy) Rolling() bool {
 	return u.Stagger > 0 && u.MaxParallel > 0
+}
+
+const (
+	// PeriodicSpecCron is used for a cron spec.
+	PeriodicSpecCron = "cron"
+)
+
+// Periodic defines the interval a job should be run at.
+type PeriodicConfig struct {
+	// Enabled determines if the job should be run periodically.
+	Enabled bool
+
+	// Spec specifies the interval the job should be run as. It is parsed based
+	// on the SpecType.
+	Spec string
+
+	// SpecType defines the format of the spec.
+	SpecType string
+}
+
+func (p *PeriodicConfig) Validate() error {
+	if !p.Enabled {
+		return nil
+	}
+
+	if p.Spec == "" {
+		return fmt.Errorf("Must specify a spec")
+	}
+
+	switch p.SpecType {
+	case PeriodicSpecCron:
+		// Validate the cron spec
+		if _, err := cronexpr.Parse(p.Spec); err != nil {
+			return fmt.Errorf("Invalid cron spec %q: %v", p.Spec, err)
+		}
+	default:
+		return fmt.Errorf("Unknown specification type %q", p.SpecType)
+	}
+
+	return nil
+}
+
+// Next returns the closest time instant matching the spec that is after the
+// passed time. If no matching instance exists, the zero value of time.Time is
+// returned. The `time.Location` of the returned value matches that of the
+// passed time.
+func (p *PeriodicConfig) Next(fromTime time.Time) time.Time {
+	switch p.SpecType {
+	case PeriodicSpecCron:
+		if e, err := cronexpr.Parse(p.Spec); err == nil {
+			return e.Next(fromTime)
+		}
+	}
+
+	return time.Time{}
 }
 
 // RestartPolicy influences how Nomad restarts Tasks when they

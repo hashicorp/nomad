@@ -1,11 +1,12 @@
 package structs
 
 import (
-	"github.com/hashicorp/go-multierror"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/hashicorp/go-multierror"
 )
 
 func TestJob_Validate(t *testing.T) {
@@ -31,6 +32,18 @@ func TestJob_Validate(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 	if !strings.Contains(mErr.Errors[6].Error(), "task groups") {
+		t.Fatalf("err: %s", err)
+	}
+
+	j = &Job{
+		Type: JobTypeService,
+		Periodic: &PeriodicConfig{
+			Enabled: true,
+		},
+	}
+	err = j.Validate()
+	mErr = err.(*multierror.Error)
+	if !strings.Contains(mErr.Error(), "Periodic") {
 		t.Fatalf("err: %s", err)
 	}
 
@@ -77,6 +90,25 @@ func TestJob_Validate(t *testing.T) {
 	}
 	if !strings.Contains(mErr.Errors[2].Error(), "Task group 1 validation failed") {
 		t.Fatalf("err: %s", err)
+	}
+}
+
+func TestJob_IsPeriodic(t *testing.T) {
+	j := &Job{
+		Type: JobTypeService,
+		Periodic: &PeriodicConfig{
+			Enabled: true,
+		},
+	}
+	if !j.IsPeriodic() {
+		t.Fatalf("IsPeriodic() returned false on periodic job")
+	}
+
+	j = &Job{
+		Type: JobTypeService,
+	}
+	if j.IsPeriodic() {
+		t.Fatalf("IsPeriodic() returned true on non-periodic job")
 	}
 }
 
@@ -487,4 +519,57 @@ func TestJob_ExpandServiceNames(t *testing.T) {
 		t.Fatalf("Expected Service Name: %s, Actual: %s", "jmx", service2Name)
 	}
 
+}
+
+func TestPeriodicConfig_EnabledInvalid(t *testing.T) {
+	// Create a config that is enabled but with no interval specified.
+	p := &PeriodicConfig{Enabled: true}
+	if err := p.Validate(); err == nil {
+		t.Fatal("Enabled PeriodicConfig with no spec or type shouldn't be valid")
+	}
+
+	// Create a config that is enabled, with a spec but no type specified.
+	p = &PeriodicConfig{Enabled: true, Spec: "foo"}
+	if err := p.Validate(); err == nil {
+		t.Fatal("Enabled PeriodicConfig with no spec type shouldn't be valid")
+	}
+
+	// Create a config that is enabled, with a spec type but no spec specified.
+	p = &PeriodicConfig{Enabled: true, SpecType: PeriodicSpecCron}
+	if err := p.Validate(); err == nil {
+		t.Fatal("Enabled PeriodicConfig with no spec shouldn't be valid")
+	}
+}
+
+func TestPeriodicConfig_InvalidCron(t *testing.T) {
+	specs := []string{"foo", "* *", "@foo"}
+	for _, spec := range specs {
+		p := &PeriodicConfig{Enabled: true, SpecType: PeriodicSpecCron, Spec: spec}
+		if err := p.Validate(); err == nil {
+			t.Fatal("Invalid cron spec")
+		}
+	}
+}
+
+func TestPeriodicConfig_ValidCron(t *testing.T) {
+	specs := []string{"0 0 29 2 *", "@hourly", "0 0-15 * * *"}
+	for _, spec := range specs {
+		p := &PeriodicConfig{Enabled: true, SpecType: PeriodicSpecCron, Spec: spec}
+		if err := p.Validate(); err != nil {
+			t.Fatal("Passed valid cron")
+		}
+	}
+}
+
+func TestPeriodicConfig_NextCron(t *testing.T) {
+	from := time.Date(2009, time.November, 10, 23, 22, 30, 0, time.UTC)
+	specs := []string{"0 0 29 2 * 1980", "*/5 * * * *"}
+	expected := []time.Time{time.Time{}, time.Date(2009, time.November, 10, 23, 25, 0, 0, time.UTC)}
+	for i, spec := range specs {
+		p := &PeriodicConfig{Enabled: true, SpecType: PeriodicSpecCron, Spec: spec}
+		n := p.Next(from)
+		if expected[i] != n {
+			t.Fatalf("Next(%v) returned %v; want %v", from, n, expected[i])
+		}
+	}
 }
