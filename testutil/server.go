@@ -43,7 +43,7 @@ type TestServerConfig struct {
 	Stdout, Stderr    io.Writer     `json:"-"`
 }
 
-// Ports is used to configure the network ports we use.
+// PortsConfig is used to configure the network ports we use.
 type PortsConfig struct {
 	HTTP int `json:"http,omitempty"`
 	RPC  int `json:"rpc,omitempty"`
@@ -97,10 +97,10 @@ type TestServer struct {
 
 	HTTPAddr   string
 	SerfAddr   string
-	HttpClient *http.Client
+	HTTPClient *http.Client
 }
 
-// NewTestServerConfig creates a new TestServer, and makes a call to
+// NewTestServer creates a new TestServer, and makes a call to
 // an optional callback function to modify the configuration.
 func NewTestServer(t *testing.T, cb ServerConfigCallback) *TestServer {
 	if path, err := exec.LookPath("nomad"); err != nil || path == "" {
@@ -167,7 +167,7 @@ func NewTestServer(t *testing.T, cb ServerConfigCallback) *TestServer {
 
 		HTTPAddr:   fmt.Sprintf("127.0.0.1:%d", nomadConfig.Ports.HTTP),
 		SerfAddr:   fmt.Sprintf("127.0.0.1:%d", nomadConfig.Ports.Serf),
-		HttpClient: client,
+		HTTPClient: client,
 	}
 
 	// Wait for the server to be ready
@@ -195,7 +195,7 @@ func (s *TestServer) Stop() {
 // but will likely return before a leader is elected.
 func (s *TestServer) waitForAPI() {
 	WaitForResult(func() (bool, error) {
-		resp, err := s.HttpClient.Get(s.url("/v1/agent/self"))
+		resp, err := s.HTTPClient.Get(s.url("/v1/agent/self"))
 		if err != nil {
 			return false, err
 		}
@@ -216,7 +216,7 @@ func (s *TestServer) waitForAPI() {
 func (s *TestServer) waitForLeader() {
 	WaitForResult(func() (bool, error) {
 		// Query the API and check the status code
-		resp, err := s.HttpClient.Get(s.url("/v1/jobs"))
+		resp, err := s.HTTPClient.Get(s.url("/v1/jobs"))
 		if err != nil {
 			return false, err
 		}
@@ -256,7 +256,7 @@ func (s *TestServer) put(path string, body io.Reader) *http.Response {
 	if err != nil {
 		s.t.Fatalf("err: %s", err)
 	}
-	resp, err := s.HttpClient.Do(req)
+	resp, err := s.HTTPClient.Do(req)
 	if err != nil {
 		s.t.Fatalf("err: %s", err)
 	}
@@ -269,7 +269,7 @@ func (s *TestServer) put(path string, body io.Reader) *http.Response {
 
 // get performs a new HTTP GET request.
 func (s *TestServer) get(path string) *http.Response {
-	resp, err := s.HttpClient.Get(s.url(path))
+	resp, err := s.HTTPClient.Get(s.url(path))
 	if err != nil {
 		s.t.Fatalf("err: %s", err)
 	}
