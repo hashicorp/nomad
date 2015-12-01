@@ -8,9 +8,6 @@ func assertQueryMeta(t *testing.T, qm *QueryMeta) {
 	if qm.LastIndex == 0 {
 		t.Fatalf("bad index: %d", qm.LastIndex)
 	}
-	if qm.RequestTime == 0 {
-		t.Fatalf("bad request time: %d", qm.RequestTime)
-	}
 	if !qm.KnownLeader {
 		t.Fatalf("expected known leader, got none")
 	}
