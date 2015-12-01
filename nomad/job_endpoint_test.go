@@ -233,6 +233,55 @@ func TestJobEndpoint_Register_GC_Set(t *testing.T) {
 	}
 }
 
+func TestJobEndpoint_Register_Periodic(t *testing.T) {
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request for a periodic job.
+	job := mock.Job()
+	job.Type = structs.JobTypeBatch
+	job.Periodic = &structs.PeriodicConfig{Enabled: true}
+	req := &structs.JobRegisterRequest{
+		Job:          job,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp.JobModifyIndex == 0 {
+		t.Fatalf("bad index: %d", resp.Index)
+	}
+
+	// Check for the node in the FSM
+	state := s1.fsm.State()
+	out, err := state.JobByID(job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out == nil {
+		t.Fatalf("expected job")
+	}
+	if out.CreateIndex != resp.JobModifyIndex {
+		t.Fatalf("index mis-match")
+	}
+	serviceName := out.TaskGroups[0].Tasks[0].Services[0].Name
+	expectedServiceName := "web-frontend"
+	if serviceName != expectedServiceName {
+		t.Fatalf("Expected Service Name: %s, Actual: %s", expectedServiceName, serviceName)
+	}
+
+	if resp.EvalID != "" {
+		t.Fatalf("Register created an eval for a periodic job")
+	}
+}
+
 func TestJobEndpoint_Evaluate(t *testing.T) {
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -301,6 +350,44 @@ func TestJobEndpoint_Evaluate(t *testing.T) {
 	}
 	if eval.Status != structs.EvalStatusPending {
 		t.Fatalf("bad: %#v", eval)
+	}
+}
+
+func TestJobEndpoint_Evaluate_Periodic(t *testing.T) {
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	job := mock.Job()
+	job.Type = structs.JobTypeBatch
+	job.Periodic = &structs.PeriodicConfig{Enabled: true}
+	req := &structs.JobRegisterRequest{
+		Job:          job,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp.JobModifyIndex == 0 {
+		t.Fatalf("bad index: %d", resp.Index)
+	}
+
+	// Force a re-evaluation
+	reEval := &structs.JobEvaluateRequest{
+		JobID:        job.ID,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Evaluate", reEval, &resp); err == nil {
+		t.Fatal("expect an err")
 	}
 }
 
@@ -377,6 +464,57 @@ func TestJobEndpoint_Deregister(t *testing.T) {
 	}
 	if eval.Status != structs.EvalStatusPending {
 		t.Fatalf("bad: %#v", eval)
+	}
+}
+
+func TestJobEndpoint_Deregister_Periodic(t *testing.T) {
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	job := mock.Job()
+	job.Type = structs.JobTypeBatch
+	job.Periodic = &structs.PeriodicConfig{Enabled: true}
+	reg := &structs.JobRegisterRequest{
+		Job:          job,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", reg, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Deregister
+	dereg := &structs.JobDeregisterRequest{
+		JobID:        job.ID,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var resp2 structs.JobDeregisterResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Deregister", dereg, &resp2); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp2.JobModifyIndex == 0 {
+		t.Fatalf("bad index: %d", resp2.Index)
+	}
+
+	// Check for the node in the FSM
+	state := s1.fsm.State()
+	out, err := state.JobByID(job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out != nil {
+		t.Fatalf("unexpected job")
+	}
+
+	if resp.EvalID != "" {
+		t.Fatalf("Deregister created an eval for a periodic job")
 	}
 }
 

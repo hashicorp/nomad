@@ -49,6 +49,14 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		return err
 	}
 
+	// Populate the reply with job information
+	reply.JobModifyIndex = index
+
+	// If the job is periodic, we don't create an eval.
+	if args.Job.IsPeriodic() {
+		return nil
+	}
+
 	// Create a new evaluation
 	eval := &structs.Evaluation{
 		ID:             structs.GenerateUUID(),
@@ -73,10 +81,9 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		return err
 	}
 
-	// Setup the reply
+	// Populate the reply with eval information
 	reply.EvalID = eval.ID
 	reply.EvalCreateIndex = evalIndex
-	reply.JobModifyIndex = index
 	reply.Index = evalIndex
 	return nil
 }
@@ -116,6 +123,10 @@ func (j *Job) Evaluate(args *structs.JobEvaluateRequest, reply *structs.JobRegis
 		return fmt.Errorf("job not found")
 	}
 
+	if job.IsPeriodic() {
+		return fmt.Errorf("can't evaluate periodic job")
+	}
+
 	// Create a new evaluation
 	eval := &structs.Evaluation{
 		ID:             structs.GenerateUUID(),
@@ -153,11 +164,37 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 	}
 	defer metrics.MeasureSince([]string{"nomad", "job", "deregister"}, time.Now())
 
+	// Validate the arguments
+	if args.JobID == "" {
+		return fmt.Errorf("missing job ID for evaluation")
+	}
+
+	// Lookup the job
+	snap, err := j.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+	job, err := snap.JobByID(args.JobID)
+	if err != nil {
+		return err
+	}
+	if job == nil {
+		return fmt.Errorf("job not found")
+	}
+
 	// Commit this update via Raft
 	_, index, err := j.srv.raftApply(structs.JobDeregisterRequestType, args)
 	if err != nil {
 		j.srv.logger.Printf("[ERR] nomad.job: Deregister failed: %v", err)
 		return err
+	}
+
+	// Populate the reply with job information
+	reply.JobModifyIndex = index
+
+	// If the job is periodic, we don't create an eval.
+	if job.IsPeriodic() {
+		return nil
 	}
 
 	// Create a new evaluation
@@ -185,10 +222,9 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 		return err
 	}
 
-	// Setup the reply
+	// Populate the reply with eval information
 	reply.EvalID = eval.ID
 	reply.EvalCreateIndex = evalIndex
-	reply.JobModifyIndex = index
 	reply.Index = evalIndex
 	return nil
 }
