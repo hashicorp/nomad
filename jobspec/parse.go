@@ -90,6 +90,7 @@ func parseJob(result *structs.Job, list *ast.ObjectList) error {
 	delete(m, "constraint")
 	delete(m, "meta")
 	delete(m, "update")
+	delete(m, "periodic")
 
 	// Set the ID and name to the object key
 	result.ID = obj.Keys[0].Token.Value().(string)
@@ -123,6 +124,13 @@ func parseJob(result *structs.Job, list *ast.ObjectList) error {
 	// If we have an update strategy, then parse that
 	if o := listVal.Filter("update"); len(o.Items) > 0 {
 		if err := parseUpdate(&result.Update, o); err != nil {
+			return err
+		}
+	}
+
+	// If we have a periodic definition, then parse that
+	if o := listVal.Filter("periodic"); len(o.Items) > 0 {
+		if err := parsePeriodic(&result.Periodic, o); err != nil {
 			return err
 		}
 	}
@@ -665,4 +673,44 @@ func parseUpdate(result *structs.UpdateStrategy, list *ast.ObjectList) error {
 		return err
 	}
 	return dec.Decode(m)
+}
+
+func parsePeriodic(result *structs.PeriodicConfig, list *ast.ObjectList) error {
+	list = list.Elem()
+	if len(list.Items) > 1 {
+		return fmt.Errorf("only one 'periodic' block allowed per job")
+	}
+
+	// Get our resource object
+	o := list.Items[0]
+
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, o.Val); err != nil {
+		return err
+	}
+
+	// Enabled by default if the periodic block exists.
+	if value, ok := m["enabled"]; !ok {
+		m["Enabled"] = true
+	} else {
+		enabled, err := parseBool(value)
+		if err != nil {
+			return fmt.Errorf("periodic.enabled should be set to true or false; %v", err)
+		}
+		m["Enabled"] = enabled
+	}
+
+	// If "cron_spec" is provided, set the type to "cron" and store the spec.
+	if cron, ok := m["cron_spec"]; ok {
+		m["SpecType"] = structs.PeriodicSpecCron
+		m["Spec"] = cron
+	}
+
+	// Build the constraint
+	var p structs.PeriodicConfig
+	if err := mapstructure.WeakDecode(m, &p); err != nil {
+		return err
+	}
+	*result = p
+	return nil
 }
