@@ -113,6 +113,9 @@ type Server struct {
 	// plans that are waiting to be assessed by the leader
 	planQueue *PlanQueue
 
+	// periodicRunner is used to track and create evaluations for periodic jobs.
+	periodicRunner PeriodicRunner
+
 	// heartbeatTimers track the expiration time of each heartbeat that has
 	// a TTL. On expiration, the node status is updated to be 'down'.
 	heartbeatTimers     map[string]*time.Timer
@@ -406,7 +409,7 @@ func (s *Server) setupRaft() error {
 
 	// Create the FSM
 	var err error
-	s.fsm, err = NewFSM(s.evalBroker, s.config.LogOutput)
+	s.fsm, err = NewFSM(s.evalBroker, s.periodicRunner, s.config.LogOutput)
 	if err != nil {
 		return err
 	}
