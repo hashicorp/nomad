@@ -48,7 +48,7 @@ func TestJobEndpoint_Register(t *testing.T) {
 		t.Fatalf("index mis-match")
 	}
 	serviceName := out.TaskGroups[0].Tasks[0].Services[0].Name
-	exptectedServiceName := "web-frontend"
+	expectedServiceName := "web-frontend"
 	if serviceName != expectedServiceName {
 		t.Fatalf("Expected Service Name: %s, Actual: %s", expectedServiceName, serviceName)
 	}
