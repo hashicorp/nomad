@@ -91,7 +91,7 @@ func defaultServerConfig() *TestServerConfig {
 
 // TestServer is the main server wrapper struct.
 type TestServer struct {
-	PID    int
+	cmd    *exec.Cmd
 	Config *TestServerConfig
 	t      *testing.T
 
@@ -117,6 +117,7 @@ func NewTestServer(t *testing.T, cb ServerConfigCallback) *TestServer {
 		defer os.RemoveAll(dataDir)
 		t.Fatalf("err: %s", err)
 	}
+	defer configFile.Close()
 
 	nomadConfig := defaultServerConfig()
 	nomadConfig.DataDir = dataDir
@@ -162,7 +163,7 @@ func NewTestServer(t *testing.T, cb ServerConfigCallback) *TestServer {
 
 	server := &TestServer{
 		Config: nomadConfig,
-		PID:    cmd.Process.Pid,
+		cmd:    cmd,
 		t:      t,
 
 		HTTPAddr:   fmt.Sprintf("127.0.0.1:%d", nomadConfig.Ports.HTTP),
@@ -184,10 +185,13 @@ func NewTestServer(t *testing.T, cb ServerConfigCallback) *TestServer {
 func (s *TestServer) Stop() {
 	defer os.RemoveAll(s.Config.DataDir)
 
-	cmd := exec.Command("kill", "-9", fmt.Sprintf("%d", s.PID))
-	if err := cmd.Run(); err != nil {
+	if err := s.cmd.Process.Kill(); err != nil {
 		s.t.Errorf("err: %s", err)
 	}
+
+	// wait for the process to exit to be sure that the data dir can be
+	// deleted on all platforms.
+	s.cmd.Wait()
 }
 
 // waitForAPI waits for only the agent HTTP endpoint to start
