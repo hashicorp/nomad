@@ -182,7 +182,7 @@ configured on client nodes.
     as a permanent intent and does not attempt to join the cluster again when
     starting. This flag allows the previous state to be used to rejoin the
     cluster.
-  * <a id="retry_join">`retry_join`</a> Similar to [`start_join`](#_start_join) but allows retrying a join
+  * <a id="retry_join">`retry_join`</a> Similar to [`start_join`](#start_join) but allows retrying a join
     if the first attempt fails. This is useful for cases where we know the
     address will become available eventually.
   * <a id="retry_interval">`retry_interval`</a> The time to wait between join attempts. Defaults to 30s.
