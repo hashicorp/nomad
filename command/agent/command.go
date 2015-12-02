@@ -71,6 +71,11 @@ func (c *Command) readConfig() *Config {
 
 	// Server-only options
 	flags.IntVar(&cmdConfig.Server.BootstrapExpect, "bootstrap-expect", 0, "")
+	flags.BoolVar(&cmdConfig.Server.RejoinAfterLeave, "rejoin", false, "")
+	flags.Var((*sliceflag.StringFlag)(&cmdConfig.Server.StartJoin), "join", "")
+	flags.Var((*sliceflag.StringFlag)(&cmdConfig.Server.RetryJoin), "retry-join", "")
+	flags.IntVar(&cmdConfig.Server.RetryMaxAttempts, "retry-max", 0, "")
+	flags.StringVar(&cmdConfig.Server.RetryInterval, "retry-interval", "", "")
 
 	// Client-only options
 	flags.StringVar(&cmdConfig.Client.StateDir, "state-dir", "", "")
@@ -98,6 +103,15 @@ func (c *Command) readConfig() *Config {
 
 	if err := flags.Parse(c.args); err != nil {
 		return nil
+	}
+
+	if cmdConfig.Server.RetryInterval != "" {
+		dur, err := time.ParseDuration(cmdConfig.Server.RetryInterval)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error: %s", err))
+			return nil
+		}
+		cmdConfig.Server.retryInterval = dur
 	}
 
 	// Split the servers.
@@ -358,6 +372,12 @@ func (c *Command) Run(args []string) int {
 		}
 	}()
 
+	// Join startup nodes if specified
+	if err := c.startupJoin(config); err != nil {
+		c.Ui.Error(err.Error())
+		return 1
+	}
+
 	// Compile agent information for output later
 	info := make(map[string]string)
 	info["client"] = strconv.FormatBool(config.Client.Enabled)
@@ -396,12 +416,16 @@ func (c *Command) Run(args []string) int {
 	// Enable log streaming
 	logGate.Flush()
 
+	// Start retry join process
+	errCh := make(chan struct{})
+	go c.retryJoin(config, errCh)
+
 	// Wait for exit
-	return c.handleSignals(config)
+	return c.handleSignals(config, errCh)
 }
 
 // handleSignals blocks until we get an exit-causing signal
-func (c *Command) handleSignals(config *Config) int {
+func (c *Command) handleSignals(config *Config, retryJoin <-chan struct{}) int {
 	signalCh := make(chan os.Signal, 4)
 	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 
@@ -413,6 +437,8 @@ WAIT:
 		sig = s
 	case <-c.ShutdownCh:
 		sig = os.Interrupt
+	case <-retryJoin:
+		return 1
 	}
 	c.Ui.Output(fmt.Sprintf("Caught signal: %v", sig))
 
@@ -559,6 +585,52 @@ func (c *Command) setupSCADA(config *Config) error {
 	return nil
 }
 
+func (c *Command) startupJoin(config *Config) error {
+	if len(config.Server.StartJoin) == 0 || !config.Server.Enabled {
+		return nil
+	}
+
+	c.Ui.Output("Joining cluster...")
+	n, err := c.agent.server.Join(config.Server.StartJoin)
+	if err != nil {
+		return err
+	}
+
+	c.Ui.Info(fmt.Sprintf("Join completed. Synced with %d initial agents", n))
+	return nil
+}
+
+// retryJoin is used to handle retrying a join until it succeeds or all retries
+// are exhausted.
+func (c *Command) retryJoin(config *Config, errCh chan<- struct{}) {
+	if len(config.Server.RetryJoin) == 0 || !config.Server.Enabled {
+		return
+	}
+
+	logger := c.agent.logger
+	logger.Printf("[INFO] agent: Joining cluster...")
+
+	attempt := 0
+	for {
+		n, err := c.agent.server.Join(config.Server.RetryJoin)
+		if err == nil {
+			logger.Printf("[INFO] agent: Join completed. Synced with %d initial agents", n)
+			return
+		}
+
+		attempt++
+		if config.Server.RetryMaxAttempts > 0 && attempt > config.Server.RetryMaxAttempts {
+			logger.Printf("[ERROR] agent: max join retry exhausted, exiting")
+			close(errCh)
+			return
+		}
+
+		logger.Printf("[WARN] agent: Join failed: %v, retrying in %v", err,
+			config.Server.RetryInterval)
+		time.Sleep(config.Server.retryInterval)
+	}
+}
+
 func (c *Command) Synopsis() string {
 	return "Runs a Nomad agent"
 }
@@ -631,6 +703,24 @@ Server Options:
     Configures the expected number of servers nodes to wait for before
     bootstrapping the cluster. Once <num> servers have joined eachother,
     Nomad initiates the bootstrap process.
+
+  -join=<address>
+    Address of an agent to join at start time. Can be specified
+    multiple times.
+
+  -retry-join=<address>
+    Address of an agent to join at start time with retries enabled.
+    Can be specified multiple times.
+
+  -retry-max=<num>
+    Maximum number of join attempts. Defaults to 0, which will retry
+    indefinitely.
+
+  -retry-interval=<dur>
+    Time to wait between join attempts.
+
+  -rejoin
+    Ignore a previous leave and attempts to rejoin the cluster.
 
 Client Options:
 

@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/hcl"
 	client "github.com/hashicorp/nomad/client/config"
@@ -181,6 +182,31 @@ type ServerConfig struct {
 
 	// NodeGCThreshold contros how "old" a node must be to be collected by GC.
 	NodeGCThreshold string `hcl:"node_gc_threshold"`
+
+	// StartJoin is a list of addresses to attempt to join when the
+	// agent starts. If Serf is unable to communicate with any of these
+	// addresses, then the agent will error and exit.
+	StartJoin []string `hcl:"start_join"`
+
+	// RetryJoin is a list of addresses to join with retry enabled.
+	RetryJoin []string `hcl:"retry_join"`
+
+	// RetryMaxAttempts specifies the maximum number of times to retry joining a
+	// host on startup. This is useful for cases where we know the node will be
+	// online eventually.
+	RetryMaxAttempts int `hcl:"retry_max"`
+
+	// RetryInterval specifies the amount of time to wait in between join
+	// attempts on agent start. The minimum allowed value is 1 second and
+	// the default is 30s.
+	RetryInterval string        `hcl:"retry_interval"`
+	retryInterval time.Duration `hcl:"-"`
+
+	// RejoinAfterLeave controls our interaction with the cluster after leave.
+	// When set to false (default), a leave causes Consul to not rejoin
+	// the cluster until an explicit join is received. If this is set to
+	// true, we ignore the leave, and rejoin the cluster on start.
+	RejoinAfterLeave bool `hcl:"rejoin_after_leave"`
 }
 
 // Telemetry is the telemetry configuration for the server
@@ -252,7 +278,9 @@ func DefaultConfig() *Config {
 			NetworkSpeed: 100,
 		},
 		Server: &ServerConfig{
-			Enabled: false,
+			Enabled:   false,
+			StartJoin: []string{},
+			RetryJoin: []string{},
 		},
 	}
 }
@@ -358,14 +386,6 @@ func (a *Config) Merge(b *Config) *Config {
 		result.AdvertiseAddrs = result.AdvertiseAddrs.Merge(b.AdvertiseAddrs)
 	}
 
-	// Apply the Atlas configuration
-	if result.Atlas == nil && b.Atlas != nil {
-		atlasConfig := *b.Atlas
-		result.Atlas = &atlasConfig
-	} else if b.Atlas != nil {
-		result.Atlas = result.Atlas.Merge(b.Atlas)
-	}
-
 	return &result
 }
 
@@ -391,9 +411,29 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	if b.NodeGCThreshold != "" {
 		result.NodeGCThreshold = b.NodeGCThreshold
 	}
+	if b.RetryMaxAttempts != 0 {
+		result.RetryMaxAttempts = b.RetryMaxAttempts
+	}
+	if b.RetryInterval != "" {
+		result.RetryInterval = b.RetryInterval
+		result.retryInterval = b.retryInterval
+	}
+	if b.RejoinAfterLeave {
+		result.RejoinAfterLeave = true
+	}
 
 	// Add the schedulers
 	result.EnabledSchedulers = append(result.EnabledSchedulers, b.EnabledSchedulers...)
+
+	// Copy the start join addresses
+	result.StartJoin = make([]string, 0, len(a.StartJoin)+len(b.StartJoin))
+	result.StartJoin = append(result.StartJoin, a.StartJoin...)
+	result.StartJoin = append(result.StartJoin, b.StartJoin...)
+
+	// Copy the retry join addresses
+	result.RetryJoin = make([]string, 0, len(a.RetryJoin)+len(b.RetryJoin))
+	result.RetryJoin = append(result.RetryJoin, a.RetryJoin...)
+	result.RetryJoin = append(result.RetryJoin, b.RetryJoin...)
 
 	return &result
 }
@@ -503,25 +543,6 @@ func (a *AdvertiseAddrs) Merge(b *AdvertiseAddrs) *AdvertiseAddrs {
 	}
 	if b.Serf != "" {
 		result.Serf = b.Serf
-	}
-	return &result
-}
-
-// Merge merges two Atlas configurations together.
-func (a *AtlasConfig) Merge(b *AtlasConfig) *AtlasConfig {
-	var result AtlasConfig = *a
-
-	if b.Infrastructure != "" {
-		result.Infrastructure = b.Infrastructure
-	}
-	if b.Token != "" {
-		result.Token = b.Token
-	}
-	if b.Join {
-		result.Join = true
-	}
-	if b.Endpoint != "" {
-		result.Endpoint = b.Endpoint
 	}
 	return &result
 }
