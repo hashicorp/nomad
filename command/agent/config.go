@@ -278,9 +278,11 @@ func DefaultConfig() *Config {
 			NetworkSpeed: 100,
 		},
 		Server: &ServerConfig{
-			Enabled:   false,
-			StartJoin: []string{},
-			RetryJoin: []string{},
+			Enabled:          false,
+			StartJoin:        []string{},
+			RetryJoin:        []string{},
+			RetryInterval:    30 * time.Second,
+			RetryMaxAttempts: 0,
 		},
 	}
 }
