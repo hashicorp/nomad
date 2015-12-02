@@ -281,7 +281,7 @@ func DefaultConfig() *Config {
 			Enabled:          false,
 			StartJoin:        []string{},
 			RetryJoin:        []string{},
-			RetryInterval:    30 * time.Second,
+			RetryInterval:    "30s",
 			RetryMaxAttempts: 0,
 		},
 	}
