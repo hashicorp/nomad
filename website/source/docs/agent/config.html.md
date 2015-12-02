@@ -177,19 +177,19 @@ configured on client nodes.
     "1.5h" or "25m". Valid time units are "ns", "us" (or "µs"), "ms", "s",
     "m", "h". Controls how long a node must be in a terminal state before it is
     garbage collected and purged from the system.
-  * <a name="_rejoin_after_leave"></a><a href="#_rejoin_after_leave">`rejoin_after_leave`</a> When provided, Nomad will ignore a previous leave and
+  * <a id="rejoin_after_leave">`rejoin_after_leave`</a> When provided, Nomad will ignore a previous leave and
     attempt to rejoin the cluster when starting. By default, Nomad treats leave
     as a permanent intent and does not attempt to join the cluster again when
     starting. This flag allows the previous state to be used to rejoin the
     cluster.
-  * <a name="_retry_join"></a><a href="#_retry_join">`retry_join`</a> Similar to [`start_join`](#_start_join) but allows retrying a join
+  * <a id="retry_join">`retry_join`</a> Similar to [`start_join`](#_start_join) but allows retrying a join
     if the first attempt fails. This is useful for cases where we know the
     address will become available eventually.
-  * <a name="_retry_interval"></a><a href="#_retry_interval">`retry_interval`</a> The time to wait between join attempts. Defaults to 30s.
-  * <a name="_retry_max"></a><a href="#_retry_max">`retry_max`</a> The maximum number of join attempts to be made before exiting
+  * <a id="retry_interval">`retry_interval`</a> The time to wait between join attempts. Defaults to 30s.
+  * <a id="retry_max">`retry_max`</a> The maximum number of join attempts to be made before exiting
     with a return code of 1. By default, this is set to 0 which is interpreted
     as infinite retries.
-  * <a name="_start_join"></a><a href="#_start_join">`start_join`</a> An array of strings specifying addresses of nodes to join upon startup.
+  * <a id="start_join">`start_join`</a> An array of strings specifying addresses of nodes to join upon startup.
     If Nomad is unable to join with any of the specified addresses, agent startup will
     fail. By default, the agent won't join any nodes when it starts up.
 
