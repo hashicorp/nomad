@@ -13,9 +13,9 @@ The following example configuration files are provided:
 - `server.conf`
 - `client.conf`
 
-Place one of these under `/etc/nomad` depending on the node's role. You should use `server.conf` to configure a node as a server (which is responsible for scheduling) or `client.conf` to configure a node as a client (which is responsible for running workloads). Both type of agents should include `_common.conf`.
+Place one of these under `/etc/nomad` depending on the node's role. You should use `server.conf` to configure a node as a server (which is responsible for scheduling) or `client.conf` to configure a node as a client (which is responsible for running workloads).
 
-See <https://nomadproject.io/docs/agent/config.html> for details about how to configure Nomad.
+Read <https://nomadproject.io/docs/agent/config.html> to learn which options are available and how to configure them.
 
 ## Upstart
 
