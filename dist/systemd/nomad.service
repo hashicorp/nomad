@@ -3,4 +3,4 @@ Description=Nomad
 Documentation=https://nomadproject.io/docs/
 
 [Service]
-ExecStart=/usr/local/bin/nomad agent -c /etc/nomad/
+ExecStart=/usr/local/bin/nomad agent -config /etc/nomad
