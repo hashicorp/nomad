@@ -4,7 +4,7 @@ The `dist` folder contains sample configs for various platforms.
 
 ## Conventions
 
-On unixes we will place agent configs under `/etc/nomad` and store data under `/var/lib/nomad/`. You will need to create both of these directories. We assume that `nomad` is installed to `/usr/local/bin/nomad`.
+On unixes we will place agent configs under `/etc/nomad` and store data under `/var/lib/nomad/`. You will need to create both of these directories. We assume that `nomad` is installed to `/usr/bin/nomad`.
 
 ## Agent Configs
 
@@ -25,6 +25,6 @@ You can control Nomad with `start|stop|restart nomad`.
 
 ## Systemd
 
-On systems using systemd the basic systemd file under `systemd/nomad.service` starts and stops the nomad agent. Place it under `/etc/systemd/system/nomad.service`.
+On systems using systemd the basic systemd unit file under `systemd/nomad.service` starts and stops the nomad agent. Place it under `/etc/systemd/system/nomad.service`.
 
 You can control Nomad with `systemctl start|stop|restart nomad`.
