@@ -64,6 +64,12 @@ func TestConfig_Merge(t *testing.T) {
 			RPC:  "127.0.0.1",
 			Serf: "127.0.0.1",
 		},
+		Atlas: &AtlasConfig{
+			Infrastructure: "hashicorp/test1",
+			Token:          "abc",
+			Join:           false,
+			Endpoint:       "foo",
+		},
 	}
 
 	c2 := &Config{
@@ -128,6 +134,12 @@ func TestConfig_Merge(t *testing.T) {
 		AdvertiseAddrs: &AdvertiseAddrs{
 			RPC:  "127.0.0.2",
 			Serf: "127.0.0.2",
+		},
+		Atlas: &AtlasConfig{
+			Infrastructure: "hashicorp/test2",
+			Token:          "xyz",
+			Join:           true,
+			Endpoint:       "bar",
 		},
 	}
 
