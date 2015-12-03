@@ -160,19 +160,25 @@ func TestPlanQueue_Dequeue_Priority(t *testing.T) {
 func TestPlanQueue_Dequeue_FIFO(t *testing.T) {
 	pq := testPlanQueue(t)
 	pq.SetEnabled(true)
-	NUM := 100
 
-	plans := make([]*structs.Plan, NUM)
-	for i := 0; i < NUM; i++ {
-		plan := mock.Plan()
-		pq.Enqueue(plan)
-		plans[i] = plan
+	plans := make([]*structs.Plan, 100)
+	for i := 0; i < len(plans); i++ {
+		if i%5 == 0 {
+			time.Sleep(10 * time.Millisecond)
+		}
+		plans[i] = mock.Plan()
+		pq.Enqueue(plans[i])
 	}
 
-	for i := 0; i < NUM; i++ {
-		out1, _ := pq.Dequeue(time.Second)
-		if out1.plan != plans[i] {
-			t.Fatalf("bad: %d %#v", i, out1)
+	var prev *pendingPlan
+	for i := range plans {
+		out, err := pq.Dequeue(time.Second)
+		if err != nil {
+			t.Fatalf("failed to dequeue plan %d: %v", i, err)
 		}
+		if prev != nil && out.enqueueTime.Before(prev.enqueueTime) {
+			t.Fatalf("out of order dequeue at %d, prev=%v, got=%v", i, prev.enqueueTime, out.enqueueTime)
+		}
+		prev = out
 	}
 }
