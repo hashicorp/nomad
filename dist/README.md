@@ -19,7 +19,7 @@ Read <https://nomadproject.io/docs/agent/config.html> to learn which options are
 
 ## Upstart
 
-On systems using upstart the basic upstart file under `upstart/nomad.hcl` starts and stops the nomad agent. Place it under `/etc/init/nomad.hcl`.
+On systems using upstart the basic upstart file under `upstart/nomad.conf` starts and stops the nomad agent. Place it under `/etc/init/nomad.conf`.
 
 You can control Nomad with `start|stop|restart nomad`.
 
