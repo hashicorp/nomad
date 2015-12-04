@@ -863,9 +863,15 @@ func (j *Job) Validate() error {
 	}
 
 	// Validate periodic is only used with batch jobs.
-	if j.Periodic != nil && j.Periodic.Enabled && j.Type != JobTypeBatch {
-		mErr.Errors = append(mErr.Errors,
-			fmt.Errorf("Periodic can only be used with %q scheduler", JobTypeBatch))
+	if j.IsPeriodic() {
+		if j.Type != JobTypeBatch {
+			mErr.Errors = append(mErr.Errors,
+				fmt.Errorf("Periodic can only be used with %q scheduler", JobTypeBatch))
+		}
+
+		if err := j.Periodic.Validate(); err != nil {
+			mErr.Errors = append(mErr.Errors, err)
+		}
 	}
 
 	return mErr.ErrorOrNil()

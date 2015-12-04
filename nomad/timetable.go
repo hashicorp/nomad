@@ -64,7 +64,7 @@ func (t *TimeTable) Deserialize(dec *codec.Decoder) error {
 	return nil
 }
 
-// Witness is used to witness a new inde and time.
+// Witness is used to witness a new index and time.
 func (t *TimeTable) Witness(index uint64, when time.Time) {
 	t.l.Lock()
 	defer t.l.Unlock()

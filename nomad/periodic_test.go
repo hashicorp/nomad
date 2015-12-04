@@ -63,6 +63,19 @@ func (m *MockPeriodic) Tracked() []structs.Job {
 	return tracked
 }
 
+func testPeriodicJob(times ...time.Time) *structs.Job {
+	job := mock.PeriodicJob()
+	job.Periodic.SpecType = structs.PeriodicSpecTest
+
+	l := make([]string, len(times))
+	for i, t := range times {
+		l[i] = strconv.Itoa(int(t.Unix()))
+	}
+
+	job.Periodic.Spec = strings.Join(l, ",")
+	return job
+}
+
 func TestPeriodicDispatch_DisabledOperations(t *testing.T) {
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -171,7 +184,7 @@ func TestPeriodicDispatch_Add_TriggersUpdate(t *testing.T) {
 		t.Fatalf("Unexpected number of evals created; got %#v; want 1", evals)
 	}
 
-	eval := evals[0]
+	eval := evals[0].Eval
 	expID := s1.periodicDispatcher.derivedJobID(job, expected)
 	if eval.JobID != expID {
 		t.Fatalf("periodic dispatcher created eval at the wrong time; got %v; want %v",
@@ -331,8 +344,8 @@ func TestPeriodicDispatch_Run_Multiple(t *testing.T) {
 	d := s1.periodicDispatcher
 	expected := []string{d.derivedJobID(job, launch1), d.derivedJobID(job, launch2)}
 	for i, eval := range evals {
-		if eval.JobID != expected[i] {
-			t.Fatalf("eval created incorrectly; got %v; want %v", eval.JobID, expected[i])
+		if eval.Eval.JobID != expected[i] {
+			t.Fatalf("eval created incorrectly; got %v; want %v", eval.Eval.JobID, expected[i])
 		}
 	}
 }
@@ -375,8 +388,8 @@ func TestPeriodicDispatch_Run_SameTime(t *testing.T) {
 
 		d := s1.periodicDispatcher
 		expected := d.derivedJobID(job, launch)
-		if evals[0].JobID != expected {
-			t.Fatalf("eval created incorrectly; got %v; want %v", evals[0].JobID, expected)
+		if evals[0].Eval.JobID != expected {
+			t.Fatalf("eval created incorrectly; got %v; want %v", evals[0].Eval.JobID, expected)
 		}
 	}
 }
@@ -464,7 +477,7 @@ func TestPeriodicDispatch_Complex(t *testing.T) {
 
 		var jobs []string
 		for _, eval := range evals {
-			jobs = append(jobs, eval.JobID)
+			jobs = append(jobs, eval.Eval.JobID)
 		}
 		actual[job.ID] = jobs
 	}
@@ -482,17 +495,36 @@ func shuffle(jobs []*structs.Job) {
 	}
 }
 
-func testPeriodicJob(times ...time.Time) *structs.Job {
-	job := mock.PeriodicJob()
-	job.Periodic.SpecType = structs.PeriodicSpecTest
+func TestPeriodicDispatch_CreatedEvals(t *testing.T) {
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
 
-	l := make([]string, len(times))
-	for i, t := range times {
-		l[i] = strconv.Itoa(int(t.Unix()))
+	// Create three evals.
+	job := mock.PeriodicJob()
+	now := time.Now().Round(time.Second)
+	times := []time.Time{now.Add(1 * time.Second), now.Add(2 * time.Second), now}
+	for _, time := range times {
+		if err := s1.periodicDispatcher.createEval(job, time); err != nil {
+			t.Fatalf("createEval() failed: %v", err)
+		}
 	}
 
-	job.Periodic.Spec = strings.Join(l, ",")
-	return job
+	// Get the created evals.
+	created, err := s1.periodicDispatcher.CreatedEvals(job.ID)
+	if err != nil {
+		t.Fatalf("CreatedEvals(%v) failed: %v", job.ID, err)
+	}
+	expected := []time.Time{times[2], times[0], times[1]}
+	for i, c := range created {
+		if c.JobLaunch != expected[i] {
+			t.Fatalf("CreatedEvals are in wrong order; got %v; want %v at index %d",
+				c.JobLaunch, expected[i], i)
+		}
+	}
+
 }
 
 // TODO: Check that it doesn't create evals for overlapping things.
