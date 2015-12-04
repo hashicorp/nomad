@@ -286,6 +286,190 @@ func TestLeader_EvalBroker_Reset(t *testing.T) {
 	})
 }
 
+func TestLeader_PeriodicDispatcher_Restore_Adds(t *testing.T) {
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+	})
+	defer s1.Shutdown()
+
+	s2 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+		c.DevDisableBootstrap = true
+	})
+	defer s2.Shutdown()
+
+	s3 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+		c.DevDisableBootstrap = true
+	})
+	defer s3.Shutdown()
+	servers := []*Server{s1, s2, s3}
+	testJoin(t, s1, s2, s3)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	for _, s := range servers {
+		testutil.WaitForResult(func() (bool, error) {
+			peers, _ := s.raftPeers.Peers()
+			return len(peers) == 3, nil
+		}, func(err error) {
+			t.Fatalf("should have 3 peers")
+		})
+	}
+
+	var leader *Server
+	for _, s := range servers {
+		if s.IsLeader() {
+			leader = s
+			break
+		}
+	}
+	if leader == nil {
+		t.Fatalf("Should have a leader")
+	}
+
+	// Inject a periodic job and non-periodic job
+	periodic := mock.PeriodicJob()
+	nonPeriodic := mock.Job()
+	for _, job := range []*structs.Job{nonPeriodic, periodic} {
+		req := structs.JobRegisterRequest{
+			Job: job,
+		}
+		_, _, err := leader.raftApply(structs.JobRegisterRequestType, req)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	}
+
+	// Kill the leader
+	leader.Shutdown()
+	time.Sleep(100 * time.Millisecond)
+
+	// Wait for a new leader
+	leader = nil
+	testutil.WaitForResult(func() (bool, error) {
+		for _, s := range servers {
+			if s.IsLeader() {
+				leader = s
+				return true, nil
+			}
+		}
+		return false, nil
+	}, func(err error) {
+		t.Fatalf("should have leader")
+	})
+
+	// Check that the new leader is tracking the periodic job.
+	testutil.WaitForResult(func() (bool, error) {
+		_, tracked := leader.periodicDispatcher.tracked[periodic.ID]
+		return tracked, nil
+	}, func(err error) {
+		t.Fatalf("periodic job not tracked")
+	})
+}
+
+func TestLeader_PeriodicDispatcher_Restore_NoEvals(t *testing.T) {
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+	})
+	defer s1.Shutdown()
+
+	// Inject a periodic job that will be triggered soon.
+	launch := time.Now().Add(1 * time.Second)
+	job := testPeriodicJob(launch)
+	req := structs.JobRegisterRequest{
+		Job: job,
+	}
+	_, _, err := s1.raftApply(structs.JobRegisterRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Flush the periodic dispatcher, ensuring that no evals will be created.
+	s1.periodicDispatcher.Flush()
+
+	// Sleep till after the job should have been launched.
+	time.Sleep(2 * time.Second)
+
+	// Restore the periodic dispatcher.
+	s1.restorePeriodicDispatcher()
+
+	// Ensure the job is tracked.
+	if _, tracked := s1.periodicDispatcher.tracked[job.ID]; !tracked {
+		t.Fatalf("periodic job not restored")
+	}
+
+	// Check that an eval was made.
+	evals, err := s1.periodicDispatcher.CreatedEvals(job.ID)
+	if err != nil {
+		t.Fatalf("CreatedEvals(%v) failed: %v", job.ID, err)
+	}
+
+	if len(evals) != 1 {
+		t.Fatalf("restorePeriodicDispatcher() didn't create an eval")
+	}
+}
+
+func TestLeader_PeriodicDispatcher_Restore_Evals(t *testing.T) {
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+	})
+	defer s1.Shutdown()
+
+	// Inject a periodic job that triggered once in the past, should trigger now
+	// and once in the future.
+	now := time.Now()
+	past := now.Add(-1 * time.Second)
+	future := now.Add(10 * time.Second)
+	job := testPeriodicJob(past, now, future)
+	req := structs.JobRegisterRequest{
+		Job: job,
+	}
+	_, _, err := s1.raftApply(structs.JobRegisterRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Create an eval for the past launch.
+	s1.periodicDispatcher.createEval(job, past)
+
+	// Flush the periodic dispatcher, ensuring that no evals will be created.
+	s1.periodicDispatcher.Flush()
+
+	// Sleep till after the job should have been launched.
+	time.Sleep(2 * time.Second)
+
+	// Restore the periodic dispatcher.
+	s1.restorePeriodicDispatcher()
+
+	// Ensure the job is tracked.
+	if _, tracked := s1.periodicDispatcher.tracked[job.ID]; !tracked {
+		t.Fatalf("periodic job not restored")
+	}
+
+	// Check that an eval was made.
+	evals, err := s1.periodicDispatcher.CreatedEvals(job.ID)
+	if err != nil {
+		t.Fatalf("CreatedEvals(%v) failed: %v", job.ID, err)
+	}
+
+	if len(evals) != 2 {
+		t.Fatalf("restorePeriodicDispatcher() didn't create an eval")
+	}
+
+	// Check it was for the right time.
+	match := false
+	for _, eval := range evals {
+		if eval.JobLaunch != past && eval.JobLaunch != future {
+			match = true
+			break
+		}
+	}
+
+	if !match {
+		t.Fatal("restorePeriodicDispatcher() didn't create the correct eval")
+	}
+}
+
 func TestLeader_PeriodicDispatch(t *testing.T) {
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0
