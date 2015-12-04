@@ -16,13 +16,17 @@ the Nomad agent.
 
 ## Loading Configuration Files
 
-When specifying multiple config file options on the command-line, the files are loaded in the order they are specified. For example:
+When specifying multiple config file options on the command-line, the files are
+loaded in the order they are specified. For example:
 
     nomad agent -config server.conf /etc/nomad extra.json
 
-Will load configuration from `server.conf`, from `.hcl` and `.json` files under `/etc/nomad`, and finally from `extra.json`.
+Will load configuration from `server.conf`, from `.hcl` and `.json` files under
+`/etc/nomad`, and finally from `extra.json`.
 
-Configuration files in directories are loaded alphabetically. With the directory option, only files ending with the `.hcl` or `.json` extensions are used. Directories are not loaded recursively.
+Configuration files in directories are loaded alphabetically. With the
+directory option, only files ending with the `.hcl` or `.json` extensions are
+used. Directories are not loaded recursively.
 
 As each file is processed, its contents are merged into the existing
 configuration. When merging, any non-empty values from the latest config file
@@ -37,7 +41,8 @@ refer to the sections below for the details of each option.
 
 ## Configuration Syntax
 
-The preferred configuration syntax is HCL, which supports comments, but you can also use JSON. Below is an example configuration file in HCL syntax.
+The preferred configuration syntax is HCL, which supports comments, but you can
+also use JSON. Below is an example configuration file in HCL syntax.
 
 ```
 bind_addr = "0.0.0.0"
@@ -65,7 +70,8 @@ atlas {
 }
 ```
 
-Note that it is strongly recommended _not_ to operate a node as both `client` and `server`, although this is supported to simplify development and testing.
+Note that it is strongly recommended _not_ to operate a node as both `client`
+and `server`, although this is supported to simplify development and testing.
 
 ## General Options
 
