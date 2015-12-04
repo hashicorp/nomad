@@ -8,28 +8,70 @@ description: |-
 
 # Configuration
 
-Nomad agents are highly configurable and expose many configuration options
-through the use of config files. Config files are written in
-[HCL](https://github.com/hashicorp/hcl) or JSON syntax. Multiple configuration
-files or directories of configuration files may be used jointly to configure the
-Nomad agent.
+Nomad agents have a variety of options that can be specified via configuration
+files or command-line flags. Config files must be written in
+[HCL](https://github.com/hashicorp/hcl) or JSON syntax. Nomad can read and
+combine options from multiple configuration files or directories to configure
+the Nomad agent.
 
-When loading configuration files and directories, the Nomad agent parses each
-file in lexical order. As each file is processed, its contents are merged into
-the existing configuration, enabling a layered, additive configuration
-mechanism. During a merge, configuration values are copied from
-the next configuration file in the set if they have a non-empty value. An
-empty value means `""` for strings, `0` for integer or float values, and
-`false` for booleans. More complex data types like arrays or maps are usually
-appended together. Any exceptions to these rules are documented alongside the
-configuration options below.
+## Loading Configuration Files
 
-A subset of the configuration options can also be specified using the
-command-line interface. See the [CLI Options](#cli) section for further details.
+When specifying multiple config file options on the command-line, the files are
+loaded in the order they are specified. For example:
 
-Nomad's configuration is broken down into logical groupings. Because of the high
-number of configuration options available, this page is also broken into
-sections for easier reading.
+    nomad agent -config server.conf /etc/nomad extra.json
+
+Will load configuration from `server.conf`, from `.hcl` and `.json` files under
+`/etc/nomad`, and finally from `extra.json`.
+
+Configuration files in directories are loaded alphabetically. With the
+directory option, only files ending with the `.hcl` or `.json` extensions are
+used. Directories are not loaded recursively.
+
+As each file is processed, its contents are merged into the existing
+configuration. When merging, any non-empty values from the latest config file
+will append or replace options in the current configuration. An empty value
+means `""` for strings, `0` for integer or float values, and `false` for
+booleans. Since empty values are ignored you cannot disable an option like
+server mode once you've enabled it.
+
+Complex data types like arrays or maps are usually merged. [Some configuration
+options](#cli) can also be specified using the command-line interface. Please
+refer to the sections below for the details of each option.
+
+## Configuration Syntax
+
+The preferred configuration syntax is HCL, which supports comments, but you can
+also use JSON. Below is an example configuration file in HCL syntax.
+
+```
+bind_addr = "0.0.0.0"
+data_dir = "/var/lib/nomad"
+
+advertise {
+  # We need to specify our host's IP because we can't
+  # advertise 0.0.0.0 to other nodes in our cluster.
+  rpc = "1.2.3.4:4647"
+}
+
+server {
+  enabled = true
+  bootstrap_expect = 3
+}
+
+client {
+  enabled = true
+  network_speed = 10
+}
+
+atlas {
+  infrastructure = "hashicorp/mars"
+  token = "atlas.v1.AFE84330943"
+}
+```
+
+Note that it is strongly recommended _not_ to operate a node as both `client`
+and `server`, although this is supported to simplify development and testing.
 
 ## General Options
 
@@ -104,11 +146,16 @@ nodes, unless otherwise specified:
   node to support more complex network configurations such as NAT. This
   configuration is optional, and defaults to the bind address of the specific
   network service if it is not provided. This configuration is only applicable
-  on server nodes. The value is a map of IP addresses and supports the
-  following keys:
+  on server nodes. The value is a map of IP addresses and ports and supports
+  the following keys:
   <br>
   * `rpc`: The address to advertise for the RPC interface. This address should
-    be reachable by all of the agents in the cluster.
+    be reachable by all of the agents in the cluster. For example:
+    ```
+    advertise {
+      rpc = "1.2.3.4:4647"
+    }
+    ```
   * `serf`: The address advertised for the gossip layer. This address must be
     reachable from all server nodes. It is not required that clients can reach
     this address.
@@ -217,7 +264,7 @@ configured on server nodes.
   * <a id="network_interface">`network_interface`</a>: This is a string to force
     network fingerprinting to use a specific network interface
   * <a id="network_speed">`network_speed`</a>: This is an int that sets the
-    default link speed of network interfaces, in megabytes, if their speed can
+    default link speed of network interfaces, in megabits, if their speed can
     not be determined dynamically.
 
 ### Client Options Map <a id="options_map"></a>
