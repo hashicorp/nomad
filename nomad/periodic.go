@@ -5,10 +5,19 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"sort"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
+)
+
+const (
+	// The string appended to the periodic jobs ID when launching derived
+	// instances of it.
+	JobLaunchSuffix = "-launch-"
 )
 
 // PeriodicRunner is the interface for tracking and launching periodic jobs at
@@ -117,10 +126,12 @@ func (p *PeriodicDispatch) Add(job *structs.Job) error {
 		if err := p.heap.Update(job, next); err != nil {
 			return fmt.Errorf("failed to update job %v launch time: %v", job.ID, err)
 		}
+		p.logger.Printf("[DEBUG] nomad.periodic: updated periodic job %q", job.ID)
 	} else {
 		if err := p.heap.Push(job, next); err != nil {
 			return fmt.Errorf("failed to add job %v", job.ID, err)
 		}
+		p.logger.Printf("[DEBUG] nomad.periodic: registered periodic job %q", job.ID)
 	}
 
 	// Signal an update.
@@ -160,6 +171,7 @@ func (p *PeriodicDispatch) Remove(jobID string) error {
 		}
 	}
 
+	p.logger.Printf("[DEBUG] nomad.periodic: deregistered periodic job %q", jobID)
 	return nil
 }
 
@@ -192,13 +204,14 @@ func (p *PeriodicDispatch) run() {
 	}
 	p.l.RUnlock()
 
-	now := time.Now().Local()
+	var now time.Time
 
 PICK:
 	// If there is nothing wait for an update.
 	p.l.RLock()
 	if p.heap.Length() == 0 {
 		p.l.RUnlock()
+		p.logger.Printf("[DEBUG] nomad.periodic: no periodic jobs; waiting")
 		<-p.updateCh
 		p.l.RLock()
 	}
@@ -206,7 +219,7 @@ PICK:
 	nextJob, err := p.heap.Peek()
 	p.l.RUnlock()
 	if err != nil {
-		p.logger.Printf("[ERR] nomad.periodic_dispatch: failed to determine next periodic job: %v", err)
+		p.logger.Printf("[ERR] nomad.periodic: failed to determine next periodic job: %v", err)
 		return
 	}
 
@@ -214,9 +227,14 @@ PICK:
 
 	// If there are only invalid times, wait for an update.
 	if launchTime.IsZero() {
+		p.logger.Printf("[DEBUG] nomad.periodic: job %q has no valid launch time", nextJob.job.ID)
 		<-p.updateCh
 		goto PICK
 	}
+
+	now = time.Now()
+	p.logger.Printf("[DEBUG] nomad.periodic: launching job %q in %s",
+		nextJob.job.ID, nextJob.next.Sub(now))
 
 	select {
 	case <-p.stopCh:
@@ -237,7 +255,7 @@ PICK:
 
 			j, err := p.heap.Peek()
 			if err != nil {
-				p.logger.Printf("[ERR] nomad.periodic_dispatch: failed to determine next periodic job: %v", err)
+				p.logger.Printf("[ERR] nomad.periodic: failed to determine next periodic job: %v", err)
 				break
 			}
 
@@ -246,11 +264,10 @@ PICK:
 			}
 
 			if err := p.heap.Update(j.job, j.job.Periodic.Next(nowUpdate)); err != nil {
-				p.logger.Printf("[ERR] nomad.periodic_dispatch: failed to update next launch of periodic job: %v", j.job.ID, err)
+				p.logger.Printf("[ERR] nomad.periodic: failed to update next launch of periodic job %q: %v", j.job.ID, err)
 			}
 
-			// TODO(alex): Want to be able to check that there isn't a previously
-			// running cron job for this job.
+			p.logger.Printf("[DEBUG] nomad.periodic: launching job %v at %v", j.job.ID, launchTime)
 			go p.createEval(j.job, launchTime)
 		}
 
@@ -273,7 +290,7 @@ func (p *PeriodicDispatch) createEval(periodicJob *structs.Job, time time.Time) 
 	req := structs.JobRegisterRequest{Job: derived}
 	_, index, err := p.srv.raftApply(structs.JobRegisterRequestType, req)
 	if err != nil {
-		p.logger.Printf("[ERR] nomad.periodic_dispatch: Register failed: %v", err)
+		p.logger.Printf("[ERR] nomad.periodic: registering child job for periodic job %q failed: %v", periodicJob.ID, err)
 		return err
 	}
 
@@ -296,7 +313,7 @@ func (p *PeriodicDispatch) createEval(periodicJob *structs.Job, time time.Time) 
 	// but that the EvalUpdate does not.
 	_, _, err = p.srv.raftApply(structs.EvalUpdateRequestType, update)
 	if err != nil {
-		p.logger.Printf("[ERR] nomad.periodic_dispatch: Eval create failed: %v", err)
+		p.logger.Printf("[ERR] nomad.periodic: creating eval for %q failed: %v", derived.ID, err)
 		return err
 	}
 
@@ -312,7 +329,7 @@ func (p *PeriodicDispatch) deriveJob(periodicJob *structs.Job, time time.Time) (
 	// Have to recover in case the job copy panics.
 	defer func() {
 		if r := recover(); r != nil {
-			p.logger.Printf("[ERR] nomad.periodic_dispatch: deriving job from"+
+			p.logger.Printf("[ERR] nomad.periodic: deriving job from"+
 				" periodic job %v failed; deregistering from periodic runner: %v",
 				periodicJob.ID, r)
 			p.Remove(periodicJob.ID)
@@ -326,7 +343,7 @@ func (p *PeriodicDispatch) deriveJob(periodicJob *structs.Job, time time.Time) (
 	derived = periodicJob.Copy()
 	derived.ParentID = periodicJob.ID
 	derived.ID = p.derivedJobID(periodicJob, time)
-	derived.Name = periodicJob.ID
+	derived.Name = derived.ID
 	derived.Periodic = nil
 	return
 }
@@ -334,30 +351,75 @@ func (p *PeriodicDispatch) deriveJob(periodicJob *structs.Job, time time.Time) (
 // deriveJobID returns a job ID based on the parent periodic job and the launch
 // time.
 func (p *PeriodicDispatch) derivedJobID(periodicJob *structs.Job, time time.Time) string {
-	return fmt.Sprintf("%s-%d", periodicJob.ID, time.Unix())
+	return fmt.Sprintf("%s%s%d", periodicJob.ID, JobLaunchSuffix, time.Unix())
 }
 
 // CreatedEvals returns the set of evaluations created from the passed periodic
-// job.
-func (p *PeriodicDispatch) CreatedEvals(periodicJobID string) ([]*structs.Evaluation, error) {
+// job in sorted order, with the earliest job launch first.
+func (p *PeriodicDispatch) CreatedEvals(periodicJobID string) (PeriodicEvals, error) {
 	state := p.srv.fsm.State()
 	iter, err := state.ChildJobs(periodicJobID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to look up children of job %v: %v", periodicJobID, err)
 	}
 
-	var evals []*structs.Evaluation
+	var evals PeriodicEvals
 	for i := iter.Next(); i != nil; i = iter.Next() {
 		job := i.(*structs.Job)
 		childEvals, err := state.EvalsByJob(job.ID)
 		if err != nil {
-			fmt.Errorf("failed to look up evals for job %v: %v", job.ID, err)
+			return nil, fmt.Errorf("failed to look up evals for job %v: %v", job.ID, err)
 		}
 
-		evals = append(evals, childEvals...)
+		for _, eval := range childEvals {
+			launch, err := p.evalLaunchTime(eval)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get launch time for eval %v: %v", eval, err)
+			}
+
+			pEval := &PeriodicEval{
+				Eval:      eval,
+				JobLaunch: launch,
+			}
+
+			evals = append(evals, pEval)
+		}
 	}
 
+	// Return the sorted evals.
+	sort.Sort(evals)
 	return evals, nil
+}
+
+// PeriodicEval stores the evaluation and launch time for an instantiated
+// periodic job.
+type PeriodicEval struct {
+	Eval      *structs.Evaluation
+	JobLaunch time.Time
+}
+
+type PeriodicEvals []*PeriodicEval
+
+func (p PeriodicEvals) Len() int           { return len(p) }
+func (p PeriodicEvals) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+func (p PeriodicEvals) Less(i, j int) bool { return p[i].JobLaunch.Before(p[j].JobLaunch) }
+
+// evalLaunchTime returns the launch time of the job associated with the eval.
+// This is only valid for evaluations created by PeriodicDispatch and will
+// otherwise return an error.
+func (p *PeriodicDispatch) evalLaunchTime(created *structs.Evaluation) (time.Time, error) {
+	jobID := created.JobID
+	index := strings.LastIndex(jobID, JobLaunchSuffix)
+	if index == -1 {
+		return time.Time{}, fmt.Errorf("couldn't parse launch time from eval: %v", jobID)
+	}
+
+	launch, err := strconv.Atoi(jobID[index+len(JobLaunchSuffix):])
+	if err != nil {
+		return time.Time{}, fmt.Errorf("couldn't parse launch time from eval: %v", jobID)
+	}
+
+	return time.Unix(int64(launch), 0), nil
 }
 
 // Flush clears the state of the PeriodicDispatcher
