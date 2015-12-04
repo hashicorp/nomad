@@ -44,7 +44,6 @@ gox \
     -arch="${XC_ARCH}" \
     -osarch="!linux/arm !darwin/386" \
     -ldflags "-X main.GitCommit ${GIT_COMMIT}${GIT_DIRTY}" \
-    -cgo \
     -output "pkg/{{.OS}}_{{.Arch}}/nomad" \
     .
 
