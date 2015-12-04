@@ -371,6 +371,18 @@ func (s *StateStore) ChildJobs(id string) (memdb.ResultIterator, error) {
 	return iter, nil
 }
 
+// JobsByPeriodic returns an iterator over all the periodic or non-periodic jobs.
+func (s *StateStore) JobsByPeriodic(periodic bool) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	// Scan all jobs whose parent is the passed id.
+	iter, err := txn.Get("jobs", "periodic", periodic)
+	if err != nil {
+		return nil, err
+	}
+	return iter, nil
+}
+
 // JobsByScheduler returns an iterator over all the jobs with the specific
 // scheduler type.
 func (s *StateStore) JobsByScheduler(schedulerType string) (memdb.ResultIterator, error) {

@@ -446,6 +446,72 @@ func TestStateStore_ChildJobs(t *testing.T) {
 	}
 }
 
+func TestStateStore_JobsByPeriodic(t *testing.T) {
+	state := testStateStore(t)
+	var periodic, nonPeriodic []*structs.Job
+
+	for i := 0; i < 10; i++ {
+		job := mock.Job()
+		nonPeriodic = append(nonPeriodic, job)
+
+		err := state.UpsertJob(1000+uint64(i), job)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	}
+
+	for i := 0; i < 10; i++ {
+		job := mock.PeriodicJob()
+		periodic = append(periodic, job)
+
+		err := state.UpsertJob(2000+uint64(i), job)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	}
+
+	iter, err := state.JobsByPeriodic(true)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	var outPeriodic []*structs.Job
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		outPeriodic = append(outPeriodic, raw.(*structs.Job))
+	}
+
+	iter, err = state.JobsByPeriodic(false)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	var outNonPeriodic []*structs.Job
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		outNonPeriodic = append(outNonPeriodic, raw.(*structs.Job))
+	}
+
+	sort.Sort(JobIDSort(periodic))
+	sort.Sort(JobIDSort(nonPeriodic))
+	sort.Sort(JobIDSort(outPeriodic))
+	sort.Sort(JobIDSort(outNonPeriodic))
+
+	if !reflect.DeepEqual(periodic, outPeriodic) {
+		t.Fatalf("bad: %#v %#v", periodic, outPeriodic)
+	}
+
+	if !reflect.DeepEqual(nonPeriodic, outNonPeriodic) {
+		t.Fatalf("bad: %#v %#v", nonPeriodic, outNonPeriodic)
+	}
+}
+
 func TestStateStore_JobsByScheduler(t *testing.T) {
 	state := testStateStore(t)
 	var serviceJobs []*structs.Job

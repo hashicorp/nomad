@@ -118,6 +118,14 @@ func jobTableSchema() *memdb.TableSchema {
 					Lowercase: true,
 				},
 			},
+			"periodic": &memdb.IndexSchema{
+				Name:         "periodic",
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.FieldSetIndex{
+					Field: "Periodic",
+				},
+			},
 		},
 	}
 }
