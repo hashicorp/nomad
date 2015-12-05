@@ -45,6 +45,7 @@ type PeriodicDispatch struct {
 
 	updateCh chan struct{}
 	stopCh   chan struct{}
+	waitCh   chan struct{}
 	logger   *log.Logger
 	l        sync.RWMutex
 }
@@ -57,7 +58,8 @@ func NewPeriodicDispatch(srv *Server) *PeriodicDispatch {
 		tracked:  make(map[string]*structs.Job),
 		heap:     NewPeriodicHeap(),
 		updateCh: make(chan struct{}, 1),
-		stopCh:   make(chan struct{}, 1),
+		stopCh:   make(chan struct{}),
+		waitCh:   make(chan struct{}),
 		logger:   srv.logger,
 	}
 }
@@ -70,7 +72,8 @@ func (p *PeriodicDispatch) SetEnabled(enabled bool) {
 	p.enabled = enabled
 	p.l.Unlock()
 	if !enabled {
-		p.stopCh <- struct{}{}
+		close(p.stopCh)
+		<-p.waitCh
 		p.Flush()
 	}
 }
@@ -196,6 +199,8 @@ func (p *PeriodicDispatch) ForceRun(jobID string) error {
 // run is a long-lived function that waits til a job's periodic spec is met and
 // then creates an evaluation to run the job.
 func (p *PeriodicDispatch) run() {
+	defer close(p.waitCh)
+
 	// Do nothing if not enabled.
 	p.l.RLock()
 	if !p.enabled {
@@ -212,15 +217,24 @@ PICK:
 	if p.heap.Length() == 0 {
 		p.l.RUnlock()
 		p.logger.Printf("[DEBUG] nomad.periodic: no periodic jobs; waiting")
-		<-p.updateCh
+		select {
+		case <-p.stopCh:
+			return
+		case <-p.updateCh:
+		}
 		p.l.RLock()
 	}
 
 	nextJob, err := p.heap.Peek()
 	p.l.RUnlock()
 	if err != nil {
-		p.logger.Printf("[ERR] nomad.periodic: failed to determine next periodic job: %v", err)
-		return
+		select {
+		case <-p.stopCh:
+			return
+		default:
+			p.logger.Printf("[ERR] nomad.periodic: failed to determine next periodic job: %v", err)
+			return
+		}
 	}
 
 	launchTime := nextJob.next
@@ -228,8 +242,12 @@ PICK:
 	// If there are only invalid times, wait for an update.
 	if launchTime.IsZero() {
 		p.logger.Printf("[DEBUG] nomad.periodic: job %q has no valid launch time", nextJob.job.ID)
-		<-p.updateCh
-		goto PICK
+		select {
+		case <-p.stopCh:
+			return
+		case <-p.updateCh:
+			goto PICK
+		}
 	}
 
 	now = time.Now()
@@ -426,8 +444,9 @@ func (p *PeriodicDispatch) evalLaunchTime(created *structs.Evaluation) (time.Tim
 func (p *PeriodicDispatch) Flush() {
 	p.l.Lock()
 	defer p.l.Unlock()
-	p.stopCh = make(chan struct{}, 1)
+	p.stopCh = make(chan struct{})
 	p.updateCh = make(chan struct{}, 1)
+	p.waitCh = make(chan struct{})
 	p.tracked = make(map[string]*structs.Job)
 	p.heap = NewPeriodicHeap()
 }
@@ -486,8 +505,11 @@ func (p *periodicHeap) Contains(job *structs.Job) bool {
 }
 
 func (p *periodicHeap) Update(job *structs.Job, next time.Time) error {
-	if job, ok := p.index[job.ID]; ok {
-		p.heap.update(job, next)
+	if pJob, ok := p.index[job.ID]; ok {
+		// Need to update the job as well because its spec can change.
+		pJob.job = job
+		pJob.next = next
+		heap.Fix(&p.heap, pJob.index)
 		return nil
 	}
 
@@ -549,10 +571,4 @@ func (h *periodicHeapImp) Pop() interface{} {
 	job.index = -1 // for safety
 	*h = old[0 : n-1]
 	return job
-}
-
-// update modifies the priority and next time of an periodic job in the queue.
-func (h *periodicHeapImp) update(job *periodicJob, next time.Time) {
-	job.next = next
-	heap.Fix(h, job.index)
 }
