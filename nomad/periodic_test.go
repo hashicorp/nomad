@@ -77,6 +77,7 @@ func testPeriodicJob(times ...time.Time) *structs.Job {
 }
 
 func TestPeriodicDispatch_DisabledOperations(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -97,6 +98,7 @@ func TestPeriodicDispatch_DisabledOperations(t *testing.T) {
 }
 
 func TestPeriodicDispatch_Add_NonPeriodic(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -115,6 +117,7 @@ func TestPeriodicDispatch_Add_NonPeriodic(t *testing.T) {
 }
 
 func TestPeriodicDispatch_Add_UpdateJob(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -148,14 +151,12 @@ func TestPeriodicDispatch_Add_UpdateJob(t *testing.T) {
 }
 
 func TestPeriodicDispatch_Add_TriggersUpdate(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
-
-	// Start the periodic dispatcher.
-	s1.periodicDispatcher.Start()
 
 	// Create a job that won't be evalauted for a while.
 	job := testPeriodicJob(time.Now().Add(10 * time.Second))
@@ -193,6 +194,7 @@ func TestPeriodicDispatch_Add_TriggersUpdate(t *testing.T) {
 }
 
 func TestPeriodicDispatch_Remove_Untracked(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -205,6 +207,7 @@ func TestPeriodicDispatch_Remove_Untracked(t *testing.T) {
 }
 
 func TestPeriodicDispatch_Remove_Tracked(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -232,14 +235,12 @@ func TestPeriodicDispatch_Remove_Tracked(t *testing.T) {
 }
 
 func TestPeriodicDispatch_Remove_TriggersUpdate(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
-
-	// Start the periodic dispatcher.
-	s1.periodicDispatcher.Start()
 
 	// Create a job that will be evaluated soon.
 	job := testPeriodicJob(time.Now().Add(1 * time.Second))
@@ -268,6 +269,7 @@ func TestPeriodicDispatch_Remove_TriggersUpdate(t *testing.T) {
 }
 
 func TestPeriodicDispatch_ForceRun_Untracked(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -280,14 +282,12 @@ func TestPeriodicDispatch_ForceRun_Untracked(t *testing.T) {
 }
 
 func TestPeriodicDispatch_ForceRun_Tracked(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
-
-	// Start the periodic dispatcher.
-	s1.periodicDispatcher.Start()
 
 	// Create a job that won't be evalauted for a while.
 	job := testPeriodicJob(time.Now().Add(10 * time.Second))
@@ -314,14 +314,12 @@ func TestPeriodicDispatch_ForceRun_Tracked(t *testing.T) {
 }
 
 func TestPeriodicDispatch_Run_Multiple(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
-
-	// Start the periodic dispatcher.
-	s1.periodicDispatcher.Start()
 
 	// Create a job that will be launched twice.
 	launch1 := time.Now().Add(1 * time.Second)
@@ -351,14 +349,12 @@ func TestPeriodicDispatch_Run_Multiple(t *testing.T) {
 }
 
 func TestPeriodicDispatch_Run_SameTime(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
-
-	// Start the periodic dispatcher.
-	s1.periodicDispatcher.Start()
 
 	// Create two job that will be launched at the same time.
 	launch := time.Now().Add(1 * time.Second)
@@ -398,14 +394,12 @@ func TestPeriodicDispatch_Run_SameTime(t *testing.T) {
 // some after each other and some invalid times, and ensures the correct
 // behavior.
 func TestPeriodicDispatch_Complex(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
-
-	// Start the periodic dispatcher.
-	s1.periodicDispatcher.Start()
 
 	// Create some jobs launching at different times.
 	now := time.Now()
@@ -496,6 +490,7 @@ func shuffle(jobs []*structs.Job) {
 }
 
 func TestPeriodicDispatch_CreatedEvals(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -527,9 +522,8 @@ func TestPeriodicDispatch_CreatedEvals(t *testing.T) {
 
 }
 
-// TODO: Check that it doesn't create evals for overlapping things.
-
 func TestPeriodicHeap_Order(t *testing.T) {
+	t.Parallel()
 	h := NewPeriodicHeap()
 	j1 := mock.PeriodicJob()
 	j2 := mock.PeriodicJob()

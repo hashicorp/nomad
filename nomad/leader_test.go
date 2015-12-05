@@ -372,6 +372,7 @@ func TestLeader_PeriodicDispatcher_Restore_NoEvals(t *testing.T) {
 		c.NumSchedulers = 0
 	})
 	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
 
 	// Inject a periodic job that will be triggered soon.
 	launch := time.Now().Add(1 * time.Second)
@@ -385,12 +386,14 @@ func TestLeader_PeriodicDispatcher_Restore_NoEvals(t *testing.T) {
 	}
 
 	// Flush the periodic dispatcher, ensuring that no evals will be created.
-	s1.periodicDispatcher.Flush()
+	s1.periodicDispatcher.SetEnabled(false)
 
 	// Sleep till after the job should have been launched.
-	time.Sleep(2 * time.Second)
+	time.Sleep(3 * time.Second)
 
 	// Restore the periodic dispatcher.
+	s1.periodicDispatcher.SetEnabled(true)
+	s1.periodicDispatcher.Start()
 	s1.restorePeriodicDispatcher()
 
 	// Ensure the job is tracked.
@@ -414,6 +417,7 @@ func TestLeader_PeriodicDispatcher_Restore_Evals(t *testing.T) {
 		c.NumSchedulers = 0
 	})
 	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
 
 	// Inject a periodic job that triggered once in the past, should trigger now
 	// and once in the future.
@@ -433,12 +437,14 @@ func TestLeader_PeriodicDispatcher_Restore_Evals(t *testing.T) {
 	s1.periodicDispatcher.createEval(job, past)
 
 	// Flush the periodic dispatcher, ensuring that no evals will be created.
-	s1.periodicDispatcher.Flush()
+	s1.periodicDispatcher.SetEnabled(false)
 
 	// Sleep till after the job should have been launched.
-	time.Sleep(2 * time.Second)
+	time.Sleep(3 * time.Second)
 
 	// Restore the periodic dispatcher.
+	s1.periodicDispatcher.SetEnabled(true)
+	s1.periodicDispatcher.Start()
 	s1.restorePeriodicDispatcher()
 
 	// Ensure the job is tracked.
