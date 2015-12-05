@@ -267,9 +267,9 @@ func TestConfig_LoadConfig(t *testing.T) {
 	}
 
 	expectedConfigFiles := []string{fh.Name()}
-	if !reflect.DeepEqual(config.ConfigFiles, expectedConfigFiles) {
+	if !reflect.DeepEqual(config.Files, expectedConfigFiles) {
 		t.Errorf("Loaded configs don't match\nExpected\n%+vGot\n%+v\n",
-			expectedConfigFiles, config.ConfigFiles)
+			expectedConfigFiles, config.Files)
 	}
 
 	dir, err := ioutil.TempDir("", "nomad")
@@ -294,9 +294,9 @@ func TestConfig_LoadConfig(t *testing.T) {
 	}
 
 	expectedConfigFiles = []string{file1}
-	if !reflect.DeepEqual(config.ConfigFiles, expectedConfigFiles) {
+	if !reflect.DeepEqual(config.Files, expectedConfigFiles) {
 		t.Errorf("Loaded configs don't match\nExpected\n%+vGot\n%+v\n",
-			expectedConfigFiles, config.ConfigFiles)
+			expectedConfigFiles, config.Files)
 	}
 
 }
