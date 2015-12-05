@@ -298,7 +298,31 @@ func TestConfig_LoadConfig(t *testing.T) {
 		t.Errorf("Loaded configs don't match\nExpected\n%+vGot\n%+v\n",
 			expectedConfigFiles, config.Files)
 	}
+}
 
+func TestConfig_LoadConfigsFileOrder(t *testing.T) {
+	config1, err := LoadConfigDir("test-resources/etcnomad")
+	if err != nil {
+		t.Fatalf("Failed to load config: %s", err)
+	}
+
+	config2, err := LoadConfig("test-resources/myconf")
+	if err != nil {
+		t.Fatalf("Failed to load config: %s", err)
+	}
+
+	expected := []string{
+		"test-resources/etcnomad/common.hcl",
+		"test-resources/etcnomad/server.json",
+		"test-resources/myconf",
+	}
+
+	config := config1.Merge(config2)
+
+	if !reflect.DeepEqual(config.Files, expected) {
+		t.Errorf("Loaded configs don't match\nExpected\n%+vGot\n%+v\n",
+			expected, config.Files)
+	}
 }
 
 func TestConfig_Listener(t *testing.T) {
