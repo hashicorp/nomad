@@ -242,9 +242,7 @@ func TestJobEndpoint_Register_Periodic(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the register request for a periodic job.
-	job := mock.Job()
-	job.Type = structs.JobTypeBatch
-	job.Periodic = &structs.PeriodicConfig{Enabled: true}
+	job := mock.PeriodicJob()
 	req := &structs.JobRegisterRequest{
 		Job:          job,
 		WriteRequest: structs.WriteRequest{Region: "global"},
@@ -362,9 +360,7 @@ func TestJobEndpoint_Evaluate_Periodic(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the register request
-	job := mock.Job()
-	job.Type = structs.JobTypeBatch
-	job.Periodic = &structs.PeriodicConfig{Enabled: true}
+	job := mock.PeriodicJob()
 	req := &structs.JobRegisterRequest{
 		Job:          job,
 		WriteRequest: structs.WriteRequest{Region: "global"},
@@ -476,9 +472,7 @@ func TestJobEndpoint_Deregister_Periodic(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the register request
-	job := mock.Job()
-	job.Type = structs.JobTypeBatch
-	job.Periodic = &structs.PeriodicConfig{Enabled: true}
+	job := mock.PeriodicJob()
 	reg := &structs.JobRegisterRequest{
 		Job:          job,
 		WriteRequest: structs.WriteRequest{Region: "global"},

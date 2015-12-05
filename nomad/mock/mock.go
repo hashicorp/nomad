@@ -192,10 +192,11 @@ func SystemJob() *structs.Job {
 
 func PeriodicJob() *structs.Job {
 	job := Job()
+	job.Type = structs.JobTypeBatch
 	job.Periodic = &structs.PeriodicConfig{
 		Enabled:  true,
 		SpecType: structs.PeriodicSpecCron,
-		Spec:     "*/30 * * *",
+		Spec:     "*/30 * * * *",
 	}
 	return job
 }
