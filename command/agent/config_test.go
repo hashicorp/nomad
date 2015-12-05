@@ -266,6 +266,12 @@ func TestConfig_LoadConfig(t *testing.T) {
 		t.Fatalf("bad: %#v", config)
 	}
 
+	expectedConfigFiles := []string{fh.Name()}
+	if !reflect.DeepEqual(config.ConfigFiles, expectedConfigFiles) {
+		t.Errorf("Loaded configs don't match\nExpected\n%+vGot\n%+v\n",
+			expectedConfigFiles, config.ConfigFiles)
+	}
+
 	dir, err := ioutil.TempDir("", "nomad")
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -286,6 +292,13 @@ func TestConfig_LoadConfig(t *testing.T) {
 	if config.Datacenter != "sfo" {
 		t.Fatalf("bad: %#v", config)
 	}
+
+	expectedConfigFiles = []string{file1}
+	if !reflect.DeepEqual(config.ConfigFiles, expectedConfigFiles) {
+		t.Errorf("Loaded configs don't match\nExpected\n%+vGot\n%+v\n",
+			expectedConfigFiles, config.ConfigFiles)
+	}
+
 }
 
 func TestConfig_Listener(t *testing.T) {
