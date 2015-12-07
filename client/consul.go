@@ -139,7 +139,7 @@ func (c *ConsulService) Register(task *structs.Task, allocID string) error {
 	c.trackedTasks[fmt.Sprintf("%s-%s", allocID, task.Name)] = tt
 	c.trackedTskLock.Unlock()
 	for _, service := range task.Services {
-		c.logger.Printf("[INFO] consul: Registering service %s with Consul.", service.Name)
+		c.logger.Printf("[INFO] consul: Registering service %s with consul.", service.Name)
 		if err := c.registerService(service, task, allocID); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 		}
@@ -159,9 +159,9 @@ func (c *ConsulService) Deregister(task *structs.Task, allocID string) error {
 		if service.Id == "" {
 			continue
 		}
-		c.logger.Printf("[INFO] consul: De-Registering service %v with Consul", service.Name)
+		c.logger.Printf("[INFO] consul: De-Registering service %v with consul", service.Name)
 		if err := c.deregisterService(service.Id); err != nil {
-			c.logger.Printf("[DEBUG] consul: Error in de-registering service %v from Consul", service.Name)
+			c.logger.Printf("[DEBUG] consul: Error in de-registering service %v from consul", service.Name)
 			mErr.Errors = append(mErr.Errors, err)
 		}
 	}
@@ -183,7 +183,7 @@ func (c *ConsulService) SyncWithConsul() {
 			c.performSync()
 			sync = time.After(syncInterval)
 		case <-c.shutdownCh:
-			c.logger.Printf("[INFO] Shutting down Consul Client")
+			c.logger.Printf("[INFO] consul: Shutting down consul Client")
 			return
 		}
 	}
@@ -271,13 +271,13 @@ func (c *ConsulService) registerService(service *structs.Service, task *structs.
 	}
 
 	if err := c.client.ServiceRegister(asr); err != nil {
-		c.logger.Printf("[DEBUG] consul: Error while registering service %v with Consul: %v", service.Name, err)
+		c.logger.Printf("[DEBUG] consul: Error while registering service %v with consul: %v", service.Name, err)
 		mErr.Errors = append(mErr.Errors, err)
 	}
 	for _, check := range service.Checks {
 		cr := c.makeCheck(service, check, host, port)
 		if err := c.registerCheck(cr); err != nil {
-			c.logger.Printf("[ERROR] consul: Error while registerting check %v with Consul: %v", check.Name, err)
+			c.logger.Printf("[ERROR] consul: Error while registerting check %v with consul: %v", check.Name, err)
 			mErr.Errors = append(mErr.Errors, err)
 		}
 
@@ -287,13 +287,13 @@ func (c *ConsulService) registerService(service *structs.Service, task *structs.
 
 // registerCheck registers a check with Consul
 func (c *ConsulService) registerCheck(check *consul.AgentCheckRegistration) error {
-	c.logger.Printf("[DEBUG] Registering Check with ID: %v for Service: %v", check.ID, check.ServiceID)
+	c.logger.Printf("[DEBUG] consul: Registering Check with ID: %v for Service: %v", check.ID, check.ServiceID)
 	return c.client.CheckRegister(check)
 }
 
 // deregisterCheck de-registers a check with a specific ID from Consul
 func (c *ConsulService) deregisterCheck(checkID string) error {
-	c.logger.Printf("[DEBUG] Removing check with ID: %v", checkID)
+	c.logger.Printf("[DEBUG] consul: Removing check with ID: %v", checkID)
 	return c.client.CheckDeregister(checkID)
 }
 
