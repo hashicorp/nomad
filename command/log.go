@@ -2,23 +2,12 @@ package command
 
 import (
 	"fmt"
+	"github.com/hashicorp/nomad/command/logdaemon"
 	"strings"
 )
 
 type LogDaemonCommand struct {
 	Meta
-}
-
-type LogDaemonConfig struct {
-	apiPort       int
-	apitInterface string
-}
-
-func NewLogDaemonConfig() *LogDaemonConfig {
-	return &LogDaemonConfig{
-		apiPort:       4470,
-		apitInterface: "lo",
-	}
 }
 
 func (l *LogDaemonCommand) Help() string {
@@ -39,11 +28,23 @@ func (l *LogDaemonCommand) Synopsis() string {
 }
 
 func (l *LogDaemonCommand) Run(args []string) int {
-	l.parseConfig(args)
+	var config *logdaemon.LogDaemonConfig
+	var logDaemon *logdaemon.LogDaemon
+	var err error
+
+	if config, err = l.parseConfig(args); err != nil {
+		l.Ui.Error(err.Error())
+		return 1
+	}
+	if logDaemon, err = logdaemon.NewLogDaemon(config); err != nil {
+		l.Ui.Error(err.Error())
+		return 1
+	}
+	logDaemon.Start()
 	return 0
 }
 
-func (l *LogDaemonCommand) parseConfig(args []string) (*LogDaemonConfig, error) {
+func (l *LogDaemonCommand) parseConfig(args []string) (*logdaemon.LogDaemonConfig, error) {
 	flags := l.Meta.FlagSet("log-daemon", FlagSetClient)
 	flags.Usage = func() { l.Ui.Output(l.Help()) }
 
@@ -51,6 +52,6 @@ func (l *LogDaemonCommand) parseConfig(args []string) (*LogDaemonConfig, error) 
 		return nil, fmt.Errorf("Unable to parse args: %v", err)
 	}
 
-	config := NewLogDaemonConfig()
+	config := logdaemon.NewLogDaemonConfig()
 	return config, nil
 }
