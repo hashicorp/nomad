@@ -639,3 +639,27 @@ func TestFSM_SnapshotRestore_TimeTable(t *testing.T) {
 		t.Fatalf("bad")
 	}
 }
+
+func TestFSM_SnapshotRestore_PeriodicLaunches(t *testing.T) {
+	// Add some state
+	fsm := testFSM(t)
+	state := fsm.State()
+	job1 := mock.Job()
+	launch1 := &structs.PeriodicLaunch{job1.ID, time.Now()}
+	state.UpsertPeriodicLaunch(1000, launch1)
+	job2 := mock.Job()
+	launch2 := &structs.PeriodicLaunch{job2.ID, time.Now()}
+	state.UpsertPeriodicLaunch(1001, launch2)
+
+	// Verify the contents
+	fsm2 := testSnapshotRestore(t, fsm)
+	state2 := fsm2.State()
+	out1, _ := state2.PeriodicLaunchByID(launch1.ID)
+	out2, _ := state2.PeriodicLaunchByID(launch2.ID)
+	if !reflect.DeepEqual(launch1, out1) {
+		t.Fatalf("bad: \n%#v\n%#v", out1, job1)
+	}
+	if !reflect.DeepEqual(launch2, out2) {
+		t.Fatalf("bad: \n%#v\n%#v", out2, job2)
+	}
+}
