@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -375,57 +374,6 @@ func (p *PeriodicDispatch) derivedJobID(periodicJob *structs.Job, time time.Time
 	return fmt.Sprintf("%s%s%d", periodicJob.ID, JobLaunchSuffix, time.Unix())
 }
 
-// CreatedEvals returns the set of evaluations created from the passed periodic
-// job in sorted order, with the earliest job launch first.
-// TODO: Get rid of this
-func (p *PeriodicDispatch) CreatedEvals(periodicJobID string) (PeriodicEvals, error) {
-	state := p.srv.fsm.State()
-	iter, err := state.ChildJobs(periodicJobID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to look up children of job %v: %v", periodicJobID, err)
-	}
-
-	var evals PeriodicEvals
-	for i := iter.Next(); i != nil; i = iter.Next() {
-		job := i.(*structs.Job)
-		childEvals, err := state.EvalsByJob(job.ID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to look up evals for job %v: %v", job.ID, err)
-		}
-
-		for _, eval := range childEvals {
-			launch, err := p.LaunchTime(eval.JobID)
-			if err != nil {
-				return nil, fmt.Errorf("failed to get launch time for eval %v: %v", eval, err)
-			}
-
-			pEval := &PeriodicEval{
-				Eval:      eval,
-				JobLaunch: launch,
-			}
-
-			evals = append(evals, pEval)
-		}
-	}
-
-	// Return the sorted evals.
-	sort.Sort(evals)
-	return evals, nil
-}
-
-// PeriodicEval stores the evaluation and launch time for an instantiated
-// periodic job.
-type PeriodicEval struct {
-	Eval      *structs.Evaluation
-	JobLaunch time.Time
-}
-
-type PeriodicEvals []*PeriodicEval
-
-func (p PeriodicEvals) Len() int           { return len(p) }
-func (p PeriodicEvals) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
-func (p PeriodicEvals) Less(i, j int) bool { return p[i].JobLaunch.Before(p[j].JobLaunch) }
-
 // LaunchTime returns the launch time of the job. This is only valid for
 // jobs created by PeriodicDispatch and will otherwise return an error.
 func (p *PeriodicDispatch) LaunchTime(jobID string) (time.Time, error) {
@@ -453,7 +401,7 @@ func (p *PeriodicDispatch) Flush() {
 	p.heap = NewPeriodicHeap()
 }
 
-// TODO
+// periodicHeap wraps a heap and gives operations other than Push/Pop.
 type periodicHeap struct {
 	index map[string]*periodicJob
 	heap  periodicHeapImp
