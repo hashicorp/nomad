@@ -482,6 +482,18 @@ func (s *StateStore) PeriodicLaunchByID(id string) (*structs.PeriodicLaunch, err
 	return nil, nil
 }
 
+// PeriodicLaunches returns an iterator over all the periodic launches
+func (s *StateStore) PeriodicLaunches() (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	// Walk the entire table
+	iter, err := txn.Get("periodic_launch", "id")
+	if err != nil {
+		return nil, err
+	}
+	return iter, nil
+}
+
 // UpsertEvaluation is used to upsert an evaluation
 func (s *StateStore) UpsertEvals(index uint64, evals []*structs.Evaluation) error {
 	txn := s.db.Txn(true)
@@ -921,6 +933,16 @@ func (r *StateRestore) AllocRestore(alloc *structs.Allocation) error {
 func (r *StateRestore) IndexRestore(idx *IndexEntry) error {
 	if err := r.txn.Insert("index", idx); err != nil {
 		return fmt.Errorf("index insert failed: %v", err)
+	}
+	return nil
+}
+
+// PeriodicLaunchRestore is used to restore a periodic launch.
+func (r *StateRestore) PeriodicLaunchRestore(launch *structs.PeriodicLaunch) error {
+	r.items.Add(watch.Item{Table: "periodic_launch"})
+	r.items.Add(watch.Item{Job: launch.ID})
+	if err := r.txn.Insert("periodic_launch", launch); err != nil {
+		return fmt.Errorf("periodic launch insert failed: %v", err)
 	}
 	return nil
 }

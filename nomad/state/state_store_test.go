@@ -785,6 +785,91 @@ func TestStateStore_DeletePeriodicLaunch(t *testing.T) {
 	notify.verify(t)
 }
 
+func TestStateStore_PeriodicLaunches(t *testing.T) {
+	state := testStateStore(t)
+	var launches []*structs.PeriodicLaunch
+
+	for i := 0; i < 10; i++ {
+		job := mock.Job()
+		launch := &structs.PeriodicLaunch{job.ID, time.Now()}
+		launches = append(launches, launch)
+
+		err := state.UpsertPeriodicLaunch(1000+uint64(i), launch)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	}
+
+	iter, err := state.PeriodicLaunches()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	out := make(map[string]*structs.PeriodicLaunch, 10)
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		launch := raw.(*structs.PeriodicLaunch)
+		if _, ok := out[launch.ID]; ok {
+			t.Fatalf("duplicate: %v", launch.ID)
+		}
+
+		out[launch.ID] = launch
+	}
+
+	for _, launch := range launches {
+		l, ok := out[launch.ID]
+		if !ok {
+			t.Fatalf("bad %v", launch.ID)
+		}
+
+		if !reflect.DeepEqual(launch, l) {
+			t.Fatalf("bad: %#v %#v", launch, l)
+		}
+
+		delete(out, launch.ID)
+	}
+
+	if len(out) != 0 {
+		t.Fatalf("leftover: %#v", out)
+	}
+}
+
+func TestStateStore_RestorePeriodicLaunch(t *testing.T) {
+	state := testStateStore(t)
+	job := mock.Job()
+	launch := &structs.PeriodicLaunch{job.ID, time.Now()}
+
+	notify := setupNotifyTest(
+		state,
+		watch.Item{Table: "periodic_launch"},
+		watch.Item{Job: job.ID})
+
+	restore, err := state.Restore()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	err = restore.PeriodicLaunchRestore(launch)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	restore.Commit()
+
+	out, err := state.PeriodicLaunchByID(job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !reflect.DeepEqual(out, launch) {
+		t.Fatalf("Bad: %#v %#v", out, job)
+	}
+
+	notify.verify(t)
+}
+
 func TestStateStore_Indexes(t *testing.T) {
 	state := testStateStore(t)
 	node := mock.Node()

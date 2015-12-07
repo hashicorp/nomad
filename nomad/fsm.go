@@ -32,6 +32,7 @@ const (
 	EvalSnapshot
 	AllocSnapshot
 	TimeTableSnapshot
+	PeriodicLaunchSnapshot
 )
 
 // nomadFSM implements a finite state machine that is used
@@ -456,6 +457,15 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 				return err
 			}
 
+		case PeriodicLaunchSnapshot:
+			launch := new(structs.PeriodicLaunch)
+			if err := dec.Decode(launch); err != nil {
+				return err
+			}
+			if err := restore.PeriodicLaunchRestore(launch); err != nil {
+				return err
+			}
+
 		default:
 			return fmt.Errorf("Unrecognized snapshot type: %v", msgType)
 		}
@@ -503,6 +513,10 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 		return err
 	}
 	if err := s.persistAllocs(sink, encoder); err != nil {
+		sink.Cancel()
+		return err
+	}
+	if err := s.persistPeriodicLaunches(sink, encoder); err != nil {
 		sink.Cancel()
 		return err
 	}
@@ -638,6 +652,33 @@ func (s *nomadSnapshot) persistAllocs(sink raft.SnapshotSink,
 		// Write out the evaluation
 		sink.Write([]byte{byte(AllocSnapshot)})
 		if err := encoder.Encode(alloc); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *nomadSnapshot) persistPeriodicLaunches(sink raft.SnapshotSink,
+	encoder *codec.Encoder) error {
+	// Get all the jobs
+	launches, err := s.snap.PeriodicLaunches()
+	if err != nil {
+		return err
+	}
+
+	for {
+		// Get the next item
+		raw := launches.Next()
+		if raw == nil {
+			break
+		}
+
+		// Prepare the request struct
+		launch := raw.(*structs.PeriodicLaunch)
+
+		// Write out a job registration
+		sink.Write([]byte{byte(PeriodicLaunchSnapshot)})
+		if err := encoder.Encode(launch); err != nil {
 			return err
 		}
 	}
