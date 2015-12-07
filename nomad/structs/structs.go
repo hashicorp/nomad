@@ -1019,6 +1019,12 @@ func (p *PeriodicConfig) Next(fromTime time.Time) time.Time {
 	return time.Time{}
 }
 
+// PeriodicLaunch tracks the last launch time of a periodic job.
+type PeriodicLaunch struct {
+	ID     string    // ID of the periodic job.
+	Launch time.Time // The last launch time.
+}
+
 // RestartPolicy influences how Nomad restarts Tasks when they
 // crash or fail.
 type RestartPolicy struct {

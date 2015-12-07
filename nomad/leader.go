@@ -188,43 +188,19 @@ func (s *Server) restorePeriodicDispatcher() error {
 	}
 
 	now := time.Now()
-	var last time.Time
 	for i := iter.Next(); i != nil; i = iter.Next() {
 		job := i.(*structs.Job)
 		s.periodicDispatcher.Add(job)
 
-		// Need to force run the job if an evaluation should have been created
-		// during the leader election period. At a high-level the logic to
-		// determine whether to force run a job is split based on whether an
-		// eval has been created for it. If so we check that since the last
-		// eval, should there have been a launch. If there is no eval, we check
-		// if there should have been a launch since the job was inserted.
-		evals, err := s.periodicDispatcher.CreatedEvals(job.ID)
-		if err != nil {
-			return fmt.Errorf("failed to get the evals created for periodic job %v: %v",
-				job.ID, err)
+		launch, err := s.fsm.State().PeriodicLaunchByID(job.ID)
+		if err != nil || launch == nil {
+			return fmt.Errorf("failed to get periodic launch time: %v", err)
 		}
 
-		// Determine if we need to force run by checking if a run should have
-		// occured since the last eval
-		if l := len(evals); l != 0 {
-			last = evals[l-1].JobLaunch
-			if !job.Periodic.Next(last).Before(now) {
-				continue
-			}
-
-			goto FORCE
-		}
-
-		// Determine if we need to force run by checking if a run should have
-		// occured since the job was added.
-		last = s.fsm.TimeTable().NearestTime(job.ModifyIndex)
-		// TODO(alex): Think about the 0 time case
-		if !job.Periodic.Next(last).Before(now) {
+		if !job.Periodic.Next(launch.Launch).Before(now) {
 			continue
 		}
 
-	FORCE:
 		if err := s.periodicDispatcher.ForceRun(job.ID); err != nil {
 			s.logger.Printf(
 				"[ERR] nomad.periodic: force run of periodic job %q failed: %v",
