@@ -17,7 +17,7 @@ import (
 const (
 	// The string appended to the periodic jobs ID when launching derived
 	// instances of it.
-	JobLaunchSuffix = "-launch-"
+	JobLaunchSuffix = "/periodic-"
 )
 
 // PeriodicRunner is the interface for tracking and launching periodic jobs at
@@ -30,6 +30,7 @@ type PeriodicRunner interface {
 	ForceRun(jobID string) error
 	Tracked() []structs.Job
 	Flush()
+	LaunchTime(jobID string) (time.Time, error)
 }
 
 // PeriodicDispatch is used to track and launch periodic jobs. It maintains the
@@ -72,8 +73,10 @@ func (p *PeriodicDispatch) SetEnabled(enabled bool) {
 	p.enabled = enabled
 	p.l.Unlock()
 	if !enabled {
-		close(p.stopCh)
-		<-p.waitCh
+		if p.running {
+			close(p.stopCh)
+			<-p.waitCh
+		}
 		p.Flush()
 	}
 }
@@ -107,7 +110,7 @@ func (p *PeriodicDispatch) Add(job *structs.Job) error {
 
 	// Do nothing if not enabled
 	if !p.enabled {
-		return fmt.Errorf("periodic dispatch disabled")
+		return nil
 	}
 
 	// If we were tracking a job and it has been disabled or made non-periodic remove it.
@@ -156,7 +159,7 @@ func (p *PeriodicDispatch) Remove(jobID string) error {
 
 	// Do nothing if not enabled
 	if !p.enabled {
-		return fmt.Errorf("periodic dispatch disabled")
+		return nil
 	}
 
 	if job, tracked := p.tracked[jobID]; tracked {
@@ -374,6 +377,7 @@ func (p *PeriodicDispatch) derivedJobID(periodicJob *structs.Job, time time.Time
 
 // CreatedEvals returns the set of evaluations created from the passed periodic
 // job in sorted order, with the earliest job launch first.
+// TODO: Get rid of this
 func (p *PeriodicDispatch) CreatedEvals(periodicJobID string) (PeriodicEvals, error) {
 	state := p.srv.fsm.State()
 	iter, err := state.ChildJobs(periodicJobID)
@@ -390,7 +394,7 @@ func (p *PeriodicDispatch) CreatedEvals(periodicJobID string) (PeriodicEvals, er
 		}
 
 		for _, eval := range childEvals {
-			launch, err := p.evalLaunchTime(eval)
+			launch, err := p.LaunchTime(eval.JobID)
 			if err != nil {
 				return nil, fmt.Errorf("failed to get launch time for eval %v: %v", eval, err)
 			}
@@ -422,11 +426,9 @@ func (p PeriodicEvals) Len() int           { return len(p) }
 func (p PeriodicEvals) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 func (p PeriodicEvals) Less(i, j int) bool { return p[i].JobLaunch.Before(p[j].JobLaunch) }
 
-// evalLaunchTime returns the launch time of the job associated with the eval.
-// This is only valid for evaluations created by PeriodicDispatch and will
-// otherwise return an error.
-func (p *PeriodicDispatch) evalLaunchTime(created *structs.Evaluation) (time.Time, error) {
-	jobID := created.JobID
+// LaunchTime returns the launch time of the job. This is only valid for
+// jobs created by PeriodicDispatch and will otherwise return an error.
+func (p *PeriodicDispatch) LaunchTime(jobID string) (time.Time, error) {
 	index := strings.LastIndex(jobID, JobLaunchSuffix)
 	if index == -1 {
 		return time.Time{}, fmt.Errorf("couldn't parse launch time from eval: %v", jobID)

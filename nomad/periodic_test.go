@@ -47,6 +47,10 @@ func (m *MockPeriodic) ForceRun(jobID string) error {
 	return nil
 }
 
+func (m *MockPeriodic) LaunchTime(jobID string) (time.Time, error) {
+	return time.Time{}, nil
+}
+
 func (m *MockPeriodic) Start() {}
 
 func (m *MockPeriodic) Flush() {
@@ -74,27 +78,6 @@ func testPeriodicJob(times ...time.Time) *structs.Job {
 
 	job.Periodic.Spec = strings.Join(l, ",")
 	return job
-}
-
-func TestPeriodicDispatch_DisabledOperations(t *testing.T) {
-	t.Parallel()
-	s1 := testServer(t, func(c *Config) {
-		c.NumSchedulers = 0 // Prevent automatic dequeue
-	})
-	defer s1.Shutdown()
-	testutil.WaitForLeader(t, s1.RPC)
-
-	// Disable the dispatcher.
-	s1.periodicDispatcher.SetEnabled(false)
-
-	job := mock.PeriodicJob()
-	if err := s1.periodicDispatcher.Add(job); err == nil {
-		t.Fatalf("Add on disabled dispatcher should fail")
-	}
-
-	if err := s1.periodicDispatcher.Remove(job.ID); err == nil {
-		t.Fatalf("Remove on disabled dispatcher should fail")
-	}
 }
 
 func TestPeriodicDispatch_Add_NonPeriodic(t *testing.T) {
