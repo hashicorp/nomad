@@ -402,9 +402,9 @@ func TestLeader_PeriodicDispatcher_Restore_NoEvals(t *testing.T) {
 	}
 
 	// Check that an eval was made.
-	evals, err := s1.periodicDispatcher.CreatedEvals(job.ID)
+	evals, err := createdEvals(s1.periodicDispatcher, job.ID)
 	if err != nil {
-		t.Fatalf("CreatedEvals(%v) failed: %v", job.ID, err)
+		t.Fatalf("createdEvals(%v) failed: %v", job.ID, err)
 	}
 
 	if len(evals) != 1 {
@@ -453,9 +453,9 @@ func TestLeader_PeriodicDispatcher_Restore_Evals(t *testing.T) {
 	}
 
 	// Check that an eval was made.
-	evals, err := s1.periodicDispatcher.CreatedEvals(job.ID)
+	evals, err := createdEvals(s1.periodicDispatcher, job.ID)
 	if err != nil {
-		t.Fatalf("CreatedEvals(%v) failed: %v", job.ID, err)
+		t.Fatalf("createdEvals(%v) failed: %v", job.ID, err)
 	}
 
 	if len(evals) != 2 {

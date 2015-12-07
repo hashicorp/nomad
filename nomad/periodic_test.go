@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -79,6 +80,57 @@ func testPeriodicJob(times ...time.Time) *structs.Job {
 	job.Periodic.Spec = strings.Join(l, ",")
 	return job
 }
+
+// createdEvals returns the set of evaluations created from the passed periodic
+// job in sorted order, with the earliest job launch first.
+func createdEvals(p *PeriodicDispatch, periodicJobID string) (PeriodicEvals, error) {
+	state := p.srv.fsm.State()
+	iter, err := state.ChildJobs(periodicJobID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to look up children of job %v: %v", periodicJobID, err)
+	}
+
+	var evals PeriodicEvals
+	for i := iter.Next(); i != nil; i = iter.Next() {
+		job := i.(*structs.Job)
+		childEvals, err := state.EvalsByJob(job.ID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to look up evals for job %v: %v", job.ID, err)
+		}
+
+		for _, eval := range childEvals {
+			launch, err := p.LaunchTime(eval.JobID)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get launch time for eval %v: %v", eval, err)
+			}
+
+			pEval := &PeriodicEval{
+				Eval:      eval,
+				JobLaunch: launch,
+			}
+
+			evals = append(evals, pEval)
+		}
+	}
+
+	// Return the sorted evals.
+	sort.Sort(evals)
+	return evals, nil
+}
+
+// PeriodicEval stores the evaluation and launch time for an instantiated
+// periodic job.
+type PeriodicEval struct {
+	Eval      *structs.Evaluation
+	JobLaunch time.Time
+}
+
+// For sorting.
+type PeriodicEvals []*PeriodicEval
+
+func (p PeriodicEvals) Len() int           { return len(p) }
+func (p PeriodicEvals) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+func (p PeriodicEvals) Less(i, j int) bool { return p[i].JobLaunch.Before(p[j].JobLaunch) }
 
 func TestPeriodicDispatch_Add_NonPeriodic(t *testing.T) {
 	t.Parallel()
@@ -159,9 +211,9 @@ func TestPeriodicDispatch_Add_TriggersUpdate(t *testing.T) {
 	time.Sleep(2 * time.Second)
 
 	// Check that an eval was created for the right time.
-	evals, err := s1.periodicDispatcher.CreatedEvals(job.ID)
+	evals, err := createdEvals(s1.periodicDispatcher, job.ID)
 	if err != nil {
-		t.Fatalf("CreatedEvals(%v) failed %v", job.ID, err)
+		t.Fatalf("createdEvals(%v) failed %v", job.ID, err)
 	}
 
 	if len(evals) != 1 {
@@ -241,9 +293,9 @@ func TestPeriodicDispatch_Remove_TriggersUpdate(t *testing.T) {
 	time.Sleep(2 * time.Second)
 
 	// Check that an eval wasn't created.
-	evals, err := s1.periodicDispatcher.CreatedEvals(job.ID)
+	evals, err := createdEvals(s1.periodicDispatcher, job.ID)
 	if err != nil {
-		t.Fatalf("CreatedEvals(%v) failed %v", job.ID, err)
+		t.Fatalf("createdEvals(%v) failed %v", job.ID, err)
 	}
 
 	if len(evals) != 0 {
@@ -286,9 +338,9 @@ func TestPeriodicDispatch_ForceRun_Tracked(t *testing.T) {
 	}
 
 	// Check that an eval was created for the right time.
-	evals, err := s1.periodicDispatcher.CreatedEvals(job.ID)
+	evals, err := createdEvals(s1.periodicDispatcher, job.ID)
 	if err != nil {
-		t.Fatalf("CreatedEvals(%v) failed %v", job.ID, err)
+		t.Fatalf("createdEvals(%v) failed %v", job.ID, err)
 	}
 
 	if len(evals) != 1 {
@@ -317,9 +369,9 @@ func TestPeriodicDispatch_Run_Multiple(t *testing.T) {
 	time.Sleep(3 * time.Second)
 
 	// Check that the evals were created correctly
-	evals, err := s1.periodicDispatcher.CreatedEvals(job.ID)
+	evals, err := createdEvals(s1.periodicDispatcher, job.ID)
 	if err != nil {
-		t.Fatalf("CreatedEvals(%v) failed %v", job.ID, err)
+		t.Fatalf("createdEvals(%v) failed %v", job.ID, err)
 	}
 
 	d := s1.periodicDispatcher
@@ -356,9 +408,9 @@ func TestPeriodicDispatch_Run_SameTime(t *testing.T) {
 
 	// Check that the evals were created correctly
 	for _, job := range []*structs.Job{job, job2} {
-		evals, err := s1.periodicDispatcher.CreatedEvals(job.ID)
+		evals, err := createdEvals(s1.periodicDispatcher, job.ID)
 		if err != nil {
-			t.Fatalf("CreatedEvals(%v) failed %v", job.ID, err)
+			t.Fatalf("createdEvals(%v) failed %v", job.ID, err)
 		}
 
 		if len(evals) != 1 {
@@ -447,9 +499,9 @@ func TestPeriodicDispatch_Complex(t *testing.T) {
 	time.Sleep(4 * time.Second)
 	actual := make(map[string][]string, len(expected))
 	for _, job := range jobs {
-		evals, err := s1.periodicDispatcher.CreatedEvals(job.ID)
+		evals, err := createdEvals(s1.periodicDispatcher, job.ID)
 		if err != nil {
-			t.Fatalf("CreatedEvals(%v) failed %v", job.ID, err)
+			t.Fatalf("createdEvals(%v) failed %v", job.ID, err)
 		}
 
 		var jobs []string
@@ -470,39 +522,6 @@ func shuffle(jobs []*structs.Job) {
 		j := rand.Intn(len(jobs))
 		jobs[i], jobs[j] = jobs[j], jobs[i]
 	}
-}
-
-func TestPeriodicDispatch_CreatedEvals(t *testing.T) {
-	t.Parallel()
-	s1 := testServer(t, func(c *Config) {
-		c.NumSchedulers = 0 // Prevent automatic dequeue
-	})
-	defer s1.Shutdown()
-	testutil.WaitForLeader(t, s1.RPC)
-
-	// Create three evals.
-	job := mock.PeriodicJob()
-	now := time.Now().Round(time.Second)
-	times := []time.Time{now.Add(1 * time.Second), now.Add(2 * time.Second), now}
-	for _, time := range times {
-		if err := s1.periodicDispatcher.createEval(job, time); err != nil {
-			t.Fatalf("createEval() failed: %v", err)
-		}
-	}
-
-	// Get the created evals.
-	created, err := s1.periodicDispatcher.CreatedEvals(job.ID)
-	if err != nil {
-		t.Fatalf("CreatedEvals(%v) failed: %v", job.ID, err)
-	}
-	expected := []time.Time{times[2], times[0], times[1]}
-	for i, c := range created {
-		if c.JobLaunch != expected[i] {
-			t.Fatalf("CreatedEvals are in wrong order; got %v; want %v at index %d",
-				c.JobLaunch, expected[i], i)
-		}
-	}
-
 }
 
 func TestPeriodicHeap_Order(t *testing.T) {
