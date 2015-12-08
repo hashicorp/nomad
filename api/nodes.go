@@ -76,6 +76,7 @@ type Node struct {
 	Resources         *Resources
 	Reserved          *Resources
 	Links             map[string]string
+	Meta              map[string]string
 	NodeClass         string
 	Drain             bool
 	Status            string
