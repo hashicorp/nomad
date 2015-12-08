@@ -254,6 +254,7 @@ func DefaultConfig() *Config {
 		Server: &ServerConfig{
 			Enabled: false,
 		},
+		SyslogFacility: "LOCAL0",
 	}
 }
 
