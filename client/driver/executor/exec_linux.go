@@ -215,8 +215,15 @@ func (e *LinuxExecutor) Wait() *cstructs.WaitResult {
 	return res
 }
 
+// Shutdown sends the user process an interrupt signal indicating that it is
+// about to be forcefully shutdown in sometime
 func (e *LinuxExecutor) Shutdown() error {
-	return e.ForceStop()
+	proc, err := os.FindProcess(e.spawn.UserPid)
+	if err != nil {
+		return fmt.Errorf("Failed to find user processes %v: %v", e.spawn.UserPid, err)
+	}
+
+	return proc.Signal(os.Interrupt)
 }
 
 // ForceStop immediately exits the user process and cleans up both the task
