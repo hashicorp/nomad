@@ -1,3 +1,9 @@
+## 0.3.0
+
+BUG FIXES:
+  * Shutdown a task now sends the interrupt signal first to the process before
+    forcefully killing it. [GH-543]
+
 ## 0.2.1
 
 IMPROVEMENTS:
