@@ -38,11 +38,11 @@ type Command struct {
 	Ui                cli.Ui
 	ShutdownCh        <-chan struct{}
 
-	args       []string
-	agent      *Agent
-	httpServer *HTTPServer
-	logFilter  *logutils.LevelFilter
-	logOutput  io.Writer
+	args           []string
+	agent          *Agent
+	httpServer     *HTTPServer
+	logFilter      *logutils.LevelFilter
+	logOutput      io.Writer
 	retryJoinErrCh chan struct{}
 
 	scadaProvider *scada.Provider
@@ -356,7 +356,11 @@ func (c *Command) Run(args []string) int {
 	}
 
 	// Log config files
-	c.Ui.Info(fmt.Sprintf("Loaded configuration from %s", strings.Join(config.Files, ", ")))
+	if len(config.Files) > 1 {
+		c.Ui.Info(fmt.Sprintf("Loaded configuration from %s", strings.Join(config.Files, ", ")))
+	} else {
+		c.Ui.Info("No configuration files loaded")
+	}
 
 	// Initialize the telemetry
 	if err := c.setupTelementry(config); err != nil {
