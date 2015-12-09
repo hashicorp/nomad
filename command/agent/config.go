@@ -258,7 +258,7 @@ func DefaultConfig() *Config {
 	}
 }
 
-// GetListener can be used to get a new listener using a custom bind address.
+// Listener can be used to get a new listener using a custom bind address.
 // If the bind provided address is empty, the BindAddr is used instead.
 func (c *Config) Listener(proto, addr string, port int) (net.Listener, error) {
 	if addr == "" {
@@ -268,8 +268,8 @@ func (c *Config) Listener(proto, addr string, port int) (net.Listener, error) {
 }
 
 // Merge merges two configurations.
-func (a *Config) Merge(b *Config) *Config {
-	var result Config = *a
+func (c *Config) Merge(b *Config) *Config {
+	result := *c
 
 	if b.Region != "" {
 		result.Region = b.Region
@@ -372,7 +372,7 @@ func (a *Config) Merge(b *Config) *Config {
 
 // Merge is used to merge two server configs together
 func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
-	var result ServerConfig = *a
+	result := *a
 
 	if b.Enabled {
 		result.Enabled = true
@@ -401,7 +401,7 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 
 // Merge is used to merge two client configs together
 func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
-	var result ClientConfig = *a
+	result := *a
 
 	if b.Enabled {
 		result.Enabled = true
@@ -449,7 +449,7 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 
 // Merge is used to merge two telemetry configs together
 func (a *Telemetry) Merge(b *Telemetry) *Telemetry {
-	var result Telemetry = *a
+	result := *a
 
 	if b.StatsiteAddr != "" {
 		result.StatsiteAddr = b.StatsiteAddr
@@ -465,7 +465,7 @@ func (a *Telemetry) Merge(b *Telemetry) *Telemetry {
 
 // Merge is used to merge two port configurations.
 func (a *Ports) Merge(b *Ports) *Ports {
-	var result Ports = *a
+	result := *a
 
 	if b.HTTP != 0 {
 		result.HTTP = b.HTTP
@@ -481,7 +481,7 @@ func (a *Ports) Merge(b *Ports) *Ports {
 
 // Merge is used to merge two address configs together.
 func (a *Addresses) Merge(b *Addresses) *Addresses {
-	var result Addresses = *a
+	result := *a
 
 	if b.HTTP != "" {
 		result.HTTP = b.HTTP
@@ -497,7 +497,7 @@ func (a *Addresses) Merge(b *Addresses) *Addresses {
 
 // Merge merges two advertise addrs configs together.
 func (a *AdvertiseAddrs) Merge(b *AdvertiseAddrs) *AdvertiseAddrs {
-	var result AdvertiseAddrs = *a
+	result := *a
 
 	if b.RPC != "" {
 		result.RPC = b.RPC
@@ -510,7 +510,7 @@ func (a *AdvertiseAddrs) Merge(b *AdvertiseAddrs) *AdvertiseAddrs {
 
 // Merge merges two Atlas configurations together.
 func (a *AtlasConfig) Merge(b *AtlasConfig) *AtlasConfig {
-	var result AtlasConfig = *a
+	result := *a
 
 	if b.Infrastructure != "" {
 		result.Infrastructure = b.Infrastructure
@@ -537,9 +537,8 @@ func LoadConfig(path string) (*Config, error) {
 
 	if fi.IsDir() {
 		return LoadConfigDir(path)
-	} else {
-		return LoadConfigFile(path)
 	}
+	return LoadConfigFile(path)
 }
 
 // LoadConfigString is used to parse a config string
