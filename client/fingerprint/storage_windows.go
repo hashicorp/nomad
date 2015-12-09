@@ -22,11 +22,11 @@ func (f *StorageFingerprint) diskFree(path string) (volume string, total, free u
 
 	absPathp, err := syscall.UTF16PtrFromString(absPath)
 	if err != nil {
-		return "", 0, 0, fmt.Errorf("failed to determine disk space for %s: %v", absPath, err)
+		return "", 0, 0, fmt.Errorf("failed to convert \"%s\" to UTF16: %v", absPath, err)
 	}
 
 	if err := getDiskFreeSpaceEx(absPathp, nil, &total, &free); err != nil {
-		return "", 0, 0, fmt.Errorf("failed to determine disk space for %s: %v", absPath, err)
+		return "", 0, 0, fmt.Errorf("failed to get free disk space for %s: %v", absPath, err)
 	}
 
 	return volume, total, free, nil

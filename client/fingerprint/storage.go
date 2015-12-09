@@ -10,6 +10,8 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+const bytesPerMegabyte = 1024 * 1024
+
 // StorageFingerprint is used to measure the amount of storage free for
 // applications that the Nomad agent will run on this machine.
 type StorageFingerprint struct {
@@ -38,21 +40,20 @@ func (f *StorageFingerprint) Fingerprint(cfg *config.Config, node *structs.Node)
 		var err error
 		storageDir, err = os.Getwd()
 		if err != nil {
-			return false, fmt.Errorf("Unable to get CWD from filesystem: %s", err)
+			return false, fmt.Errorf("unable to get CWD from filesystem: %s", err)
 		}
 	}
 
 	volume, total, free, err := f.diskFree(storageDir)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to determine disk space for %s: %v", storageDir, err)
 	}
 
 	node.Attributes["storage.volume"] = volume
 	node.Attributes["storage.bytestotal"] = strconv.FormatUint(total, 10)
 	node.Attributes["storage.bytesfree"] = strconv.FormatUint(free, 10)
 
-	const mb = 1024 * 1024
-	node.Resources.DiskMB = int(free / mb)
+	node.Resources.DiskMB = int(free / bytesPerMegabyte)
 
 	return true, nil
 }
