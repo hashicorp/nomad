@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"reflect"
+	"runtime"
 	"testing"
 
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -72,8 +73,11 @@ func TestServiceStack_Select_Size(t *testing.T) {
 		t.Fatalf("bad: %#v", size)
 	}
 
+	// Note: On Windows time.Now currently has a best case granularity of 1ms.
+	// We skip the following assertion on Windows because this test usually
+	// runs too fast to measure an allocation time on Windows.
 	met := ctx.Metrics()
-	if met.AllocationTime == 0 {
+	if runtime.GOOS != "windows" && met.AllocationTime == 0 {
 		t.Fatalf("missing time")
 	}
 }
@@ -270,8 +274,11 @@ func TestSystemStack_Select_Size(t *testing.T) {
 		t.Fatalf("bad: %#v", size)
 	}
 
+	// Note: On Windows time.Now currently has a best case granularity of 1ms.
+	// We skip the following assertion on Windows because this test usually
+	// runs too fast to measure an allocation time on Windows.
 	met := ctx.Metrics()
-	if met.AllocationTime == 0 {
+	if runtime.GOOS != "windows" && met.AllocationTime == 0 {
 		t.Fatalf("missing time")
 	}
 }
