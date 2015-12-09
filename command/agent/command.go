@@ -42,6 +42,7 @@ type Command struct {
 	httpServer *HTTPServer
 	logFilter  *logutils.LevelFilter
 	logOutput  io.Writer
+	retryJoinErrCh chan struct{}
 
 	scadaProvider *scada.Provider
 	scadaHttp     *HTTPServer
@@ -417,15 +418,15 @@ func (c *Command) Run(args []string) int {
 	logGate.Flush()
 
 	// Start retry join process
-	errCh := make(chan struct{})
-	go c.retryJoin(config, errCh)
+	c.retryJoinErrCh = make(chan struct{})
+	go c.retryJoin(config)
 
 	// Wait for exit
-	return c.handleSignals(config, errCh)
+	return c.handleSignals(config)
 }
 
 // handleSignals blocks until we get an exit-causing signal
-func (c *Command) handleSignals(config *Config, retryJoin <-chan struct{}) int {
+func (c *Command) handleSignals(config *Config) int {
 	signalCh := make(chan os.Signal, 4)
 	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 
@@ -437,7 +438,7 @@ WAIT:
 		sig = s
 	case <-c.ShutdownCh:
 		sig = os.Interrupt
-	case <-retryJoin:
+	case <-c.retryJoinErrCh:
 		return 1
 	}
 	c.Ui.Output(fmt.Sprintf("Caught signal: %v", sig))
@@ -602,7 +603,7 @@ func (c *Command) startupJoin(config *Config) error {
 
 // retryJoin is used to handle retrying a join until it succeeds or all retries
 // are exhausted.
-func (c *Command) retryJoin(config *Config, errCh chan<- struct{}) {
+func (c *Command) retryJoin(config *Config) {
 	if len(config.Server.RetryJoin) == 0 || !config.Server.Enabled {
 		return
 	}
@@ -621,7 +622,7 @@ func (c *Command) retryJoin(config *Config, errCh chan<- struct{}) {
 		attempt++
 		if config.Server.RetryMaxAttempts > 0 && attempt > config.Server.RetryMaxAttempts {
 			logger.Printf("[ERROR] agent: max join retry exhausted, exiting")
-			close(errCh)
+			close(c.retryJoinErrCh)
 			return
 		}
 
