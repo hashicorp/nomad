@@ -109,7 +109,7 @@ func (c *Command) readConfig() *Config {
 	if cmdConfig.Server.RetryInterval != "" {
 		dur, err := time.ParseDuration(cmdConfig.Server.RetryInterval)
 		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error: %s", err))
+			c.Ui.Error(fmt.Sprintf("Error parsing retry interval: %s", err))
 			return nil
 		}
 		cmdConfig.Server.retryInterval = dur
