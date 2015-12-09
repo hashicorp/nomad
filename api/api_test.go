@@ -1,7 +1,9 @@
 package api
 
 import (
+	"encoding/json"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 	"time"
@@ -44,6 +46,54 @@ func makeClient(t *testing.T, cb1 configCallback,
 	}
 
 	return client, server
+}
+
+func TestRequestTime(t *testing.T) {
+	t.Parallel()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(100 * time.Millisecond)
+		d, err := json.Marshal(struct{ Done bool }{true})
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Write(d)
+	}))
+	defer srv.Close()
+
+	conf := DefaultConfig()
+	conf.Address = srv.URL
+
+	client, err := NewClient(conf)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	var out interface{}
+
+	qm, err := client.query("/", &out, nil)
+	if err != nil {
+		t.Fatalf("query err: %v", err)
+	}
+	if qm.RequestTime == 0 {
+		t.Errorf("bad request time: %d", qm.RequestTime)
+	}
+
+	wm, err := client.write("/", struct{ S string }{"input"}, &out, nil)
+	if err != nil {
+		t.Fatalf("write err: %v", err)
+	}
+	if wm.RequestTime == 0 {
+		t.Errorf("bad request time: %d", wm.RequestTime)
+	}
+
+	wm, err = client.delete("/", &out, nil)
+	if err != nil {
+		t.Fatalf("delete err: %v", err)
+	}
+	if wm.RequestTime == 0 {
+		t.Errorf("bad request time: %d", wm.RequestTime)
+	}
 }
 
 func TestDefaultConfig_env(t *testing.T) {

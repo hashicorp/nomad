@@ -292,13 +292,16 @@ func TestConfig_Listener(t *testing.T) {
 	config := DefaultConfig()
 
 	// Fails on invalid input
-	if _, err := config.Listener("tcp", "nope", 8080); err == nil {
+	if ln, err := config.Listener("tcp", "nope", 8080); err == nil {
+		ln.Close()
 		t.Fatalf("expected addr error")
 	}
-	if _, err := config.Listener("nope", "127.0.0.1", 8080); err == nil {
+	if ln, err := config.Listener("nope", "127.0.0.1", 8080); err == nil {
+		ln.Close()
 		t.Fatalf("expected protocol err")
 	}
-	if _, err := config.Listener("tcp", "127.0.0.1", -1); err == nil {
+	if ln, err := config.Listener("tcp", "127.0.0.1", -1); err == nil {
+		ln.Close()
 		t.Fatalf("expected port error")
 	}
 
