@@ -264,6 +264,22 @@ func (c *Config) Listener(proto, addr string, port int) (net.Listener, error) {
 	if addr == "" {
 		addr = c.BindAddr
 	}
+
+	// Do our own range check to avoid bugs in package net.
+	//
+	//   golang.org/issue/11715
+	//   golang.org/issue/13447
+	//
+	// Both of the above bugs were fixed by golang.org/cl/12447 which will be
+	// included in Go 1.6. The error returned below is the same as what Go 1.6
+	// will return.
+	if 0 > port || port > 65535 {
+		return nil, &net.OpError{
+			Op:  "listen",
+			Net: proto,
+			Err: &net.AddrError{Err: "invalid port", Addr: fmt.Sprint(port)},
+		}
+	}
 	return net.Listen(proto, fmt.Sprintf("%s:%d", addr, port))
 }
 
