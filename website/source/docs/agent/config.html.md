@@ -224,6 +224,21 @@ configured on client nodes.
     "1.5h" or "25m". Valid time units are "ns", "us" (or "µs"), "ms", "s",
     "m", "h". Controls how long a node must be in a terminal state before it is
     garbage collected and purged from the system.
+  * <a id="rejoin_after_leave">`rejoin_after_leave`</a> When provided, Nomad will ignore a previous leave and
+    attempt to rejoin the cluster when starting. By default, Nomad treats leave
+    as a permanent intent and does not attempt to join the cluster again when
+    starting. This flag allows the previous state to be used to rejoin the
+    cluster.
+  * <a id="retry_join">`retry_join`</a> Similar to [`start_join`](#start_join) but allows retrying a join
+    if the first attempt fails. This is useful for cases where we know the
+    address will become available eventually.
+  * <a id="retry_interval">`retry_interval`</a> The time to wait between join attempts. Defaults to 30s.
+  * <a id="retry_max">`retry_max`</a> The maximum number of join attempts to be made before exiting
+    with a return code of 1. By default, this is set to 0 which is interpreted
+    as infinite retries.
+  * <a id="start_join">`start_join`</a> An array of strings specifying addresses of nodes to join upon startup.
+    If Nomad is unable to join with any of the specified addresses, agent startup will
+    fail. By default, the agent won't join any nodes when it starts up.
 
 ## Client-specific Options
 
@@ -348,6 +363,8 @@ via CLI arguments. The `agent` command accepts the following arguments:
 * `-dev`: Start the agent in development mode. This enables a pre-configured
   dual-role agent (client + server) which is useful for developing or testing
   Nomad. No other configuration is required to start the agent in this mode.
+* `-join=<address>`: Address of another agent to join upon starting up. This can
+  be specified multiple times to specify multiple agents to join.
 * `-log-level=<level>`: Equivalent to the [log_level](#log_level) config option.
 * `-meta=<key=value>`: Equivalent to the Client [meta](#meta) config option.
 * `-network-interface<interface>`: Equivalent to the Client
@@ -359,6 +376,10 @@ via CLI arguments. The `agent` command accepts the following arguments:
   config option.
 * `-node-id=<uuid>`: Equivalent to the Client [node_id](#node_id) config option.
 * `-region=<region>`: Equivalent to the [region](#region) config option.
+* `-rejoin`: Equivalent to the [rejoin_after_leave](#rejoin_after_leave) config option.
+* `-retry-interval`: Equivalent to the [retry_interval](#retry_interval) config option.
+* `-retry-join`: Similar to `-join` but allows retrying a join if the first attempt fails.
+* `-retry-max`: Similar to the [retry_max](#retry_max) config option.
 * `-server`: Enable server mode on the local agent.
 * `-servers=<host:port>`: Equivalent to the Client [servers](#servers) config
   option.

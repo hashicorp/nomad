@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -114,6 +115,11 @@ func TestConfig_Merge(t *testing.T) {
 			NumSchedulers:     2,
 			EnabledSchedulers: []string{structs.JobTypeBatch},
 			NodeGCThreshold:   "12h",
+			RejoinAfterLeave:  true,
+			StartJoin:         []string{"1.1.1.1"},
+			RetryJoin:         []string{"1.1.1.1"},
+			RetryInterval:     "10s",
+			retryInterval:     time.Second * 10,
 		},
 		Ports: &Ports{
 			HTTP: 20000,
@@ -424,6 +430,11 @@ func TestConfig_LoadConfigString(t *testing.T) {
 			NumSchedulers:     2,
 			EnabledSchedulers: []string{"test"},
 			NodeGCThreshold:   "12h",
+			RetryJoin:         []string{"1.1.1.1", "2.2.2.2"},
+			StartJoin:         []string{"1.1.1.1", "2.2.2.2"},
+			RetryInterval:     "15s",
+			RejoinAfterLeave:  true,
+			RetryMaxAttempts:  3,
 		},
 		Telemetry: &Telemetry{
 			StatsiteAddr:    "127.0.0.1:1234",
@@ -497,6 +508,11 @@ server {
 	num_schedulers = 2
 	enabled_schedulers = ["test"]
 	node_gc_threshold = "12h"
+	retry_join = [ "1.1.1.1", "2.2.2.2" ]
+	start_join = [ "1.1.1.1", "2.2.2.2" ]
+	retry_max = 3
+	retry_interval = "15s"
+	rejoin_after_leave = true
 }
 telemetry {
 	statsite_address = "127.0.0.1:1234"

@@ -1,11 +1,14 @@
 package agent
 
 import (
+	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 )
 
@@ -68,4 +71,59 @@ func TestCommand_Args(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestRetryJoin(t *testing.T) {
+	dir, agent := makeAgent(t, nil)
+	defer os.RemoveAll(dir)
+	defer agent.Shutdown()
+
+	tmpDir, err := ioutil.TempDir("", "nomad")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	doneCh := make(chan struct{})
+	shutdownCh := make(chan struct{})
+
+	defer func() {
+		close(shutdownCh)
+		<-doneCh
+	}()
+
+	cmd := &Command{
+		ShutdownCh: shutdownCh,
+		Ui:         new(cli.MockUi),
+	}
+
+	serfAddr := fmt.Sprintf(
+		"%s:%d",
+		agent.config.BindAddr,
+		agent.config.Ports.Serf)
+
+	args := []string{
+		"-server",
+		"-data-dir", tmpDir,
+		"-node", fmt.Sprintf(`"Node %d"`, getPort()),
+		"-retry-join", serfAddr,
+		"-retry-interval", "1s",
+	}
+
+	go func() {
+		if code := cmd.Run(args); code != 0 {
+			log.Printf("bad: %d", code)
+		}
+		close(doneCh)
+	}()
+
+	testutil.WaitForResult(func() (bool, error) {
+		mem := agent.server.Members()
+		if len(mem) != 2 {
+			return false, fmt.Errorf("bad :%#v", mem)
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf(err.Error())
+	})
 }
