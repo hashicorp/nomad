@@ -340,6 +340,9 @@ func (c *Command) Run(args []string) int {
 		return 1
 	}
 
+	// Log config files
+	c.Ui.Info(fmt.Sprintf("Loaded configuration from %s", strings.Join(config.Files, ", ")))
+
 	// Initialize the telemetry
 	if err := c.setupTelementry(config); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error initializing telemetry: %s", err))

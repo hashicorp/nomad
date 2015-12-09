@@ -96,6 +96,9 @@ type Config struct {
 	Revision          string
 	Version           string
 	VersionPrerelease string
+
+	// List of config files that have been loaded (in order)
+	Files []string
 }
 
 // AtlasConfig is used to enable an parameterize the Atlas integration
@@ -383,6 +386,9 @@ func (c *Config) Merge(b *Config) *Config {
 		result.Atlas = result.Atlas.Merge(b.Atlas)
 	}
 
+	// Merge config files lists
+	result.Files = append(result.Files, b.Files...)
+
 	return &result
 }
 
@@ -581,7 +587,13 @@ func LoadConfigFile(path string) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	return LoadConfigString(string(d))
+
+	config, err := LoadConfigString(string(d))
+	if err == nil {
+		config.Files = append(config.Files, path)
+	}
+
+	return config, err
 }
 
 // LoadConfigDir loads all the configurations in the given directory
