@@ -44,11 +44,6 @@ func (d *RawExecDriver) Fingerprint(cfg *config.Config, node *structs.Node) (boo
 	// Check that the user has explicitly enabled this executor.
 	enabled := cfg.ReadBoolDefault(rawExecConfigOption, false)
 
-	// Always turn this driver on in dev mode because we don't have a config file
-	if cfg.DevMode {
-		enabled = true
-	}
-
 	if enabled {
 		d.logger.Printf("[WARN] driver.raw_exec: raw exec is enabled. Only enable if needed")
 		node.Attributes["driver.raw_exec"] = "1"
