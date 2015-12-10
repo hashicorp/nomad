@@ -139,7 +139,7 @@ func (c *ConsulService) Register(task *structs.Task, allocID string) error {
 	c.trackedTasks[fmt.Sprintf("%s-%s", allocID, task.Name)] = tt
 	var mErr multierror.Error
 	for _, service := range task.Services {
-		c.logger.Printf("[INFO] consul: Registering service %s with consul.", service.Name)
+		c.logger.Printf("[INFO] consul: registering service %s with consul.", service.Name)
 		if err := c.registerService(service, task, allocID); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 		}
@@ -156,9 +156,9 @@ func (c *ConsulService) Deregister(task *structs.Task, allocID string) error {
 	delete(c.trackedTasks, fmt.Sprintf("%s-%s", allocID, task.Name))
 	for _, service := range task.Services {
 		serviceId := c.createServiceId(allocID, service)
-		c.logger.Printf("[INFO] consul: Deregistering service %v with consul", service.Name)
+		c.logger.Printf("[INFO] consul: deregistering service %v with consul", service.Name)
 		if err := c.deregisterService(serviceId); err != nil {
-			c.logger.Printf("[DEBUG] consul: Error in de-registering service %v from consul", service.Name)
+			c.logger.Printf("[DEBUG] consul: error in deregistering service %v from consul", service.Name)
 			mErr.Errors = append(mErr.Errors, err)
 		}
 	}
@@ -180,7 +180,7 @@ func (c *ConsulService) SyncWithConsul() {
 			c.performSync()
 			sync = time.After(syncInterval)
 		case <-c.shutdownCh:
-			c.logger.Printf("[INFO] consul: Shutting down consul Client")
+			c.logger.Printf("[INFO] consul: shutting down consul client")
 			return
 		}
 	}
@@ -209,14 +209,14 @@ func (c *ConsulService) performSync() {
 			// Add new services which Consul agent isn't aware of
 			knownServices[serviceId] = struct{}{}
 			if _, ok := consulServices[serviceId]; !ok {
-				c.logger.Printf("[INFO] consul: Registering service %s with consul.", service.Name)
+				c.logger.Printf("[INFO] consul: registering service %s with consul.", service.Name)
 				c.registerService(service, trackedTask.task, trackedTask.allocID)
 				continue
 			}
 
 			// If a service has changed, re-register it with Consul agent
 			if service.Hash() != c.serviceStates[serviceId] {
-				c.logger.Printf("[INFO] consul: Reregistering service %s with consul.", service.Name)
+				c.logger.Printf("[INFO] consul: reregistering service %s with consul.", service.Name)
 				c.registerService(service, trackedTask.task, trackedTask.allocID)
 				continue
 			}
@@ -245,7 +245,7 @@ func (c *ConsulService) performSync() {
 	for _, consulService := range consulServices {
 		if _, ok := knownServices[consulService.ID]; !ok {
 			delete(c.serviceStates, consulService.ID)
-			c.logger.Printf("[INFO] consul: Deregistering service %v with consul", consulService.Service)
+			c.logger.Printf("[INFO] consul: deregistering service %v with consul", consulService.Service)
 			c.deregisterService(consulService.ID)
 		}
 	}
@@ -293,13 +293,13 @@ func (c *ConsulService) registerService(service *structs.Service, task *structs.
 
 // registerCheck registers a check with Consul
 func (c *ConsulService) registerCheck(check *consul.AgentCheckRegistration) error {
-	c.logger.Printf("[INFO] consul: Registering Check with ID: %v for Service: %v", check.ID, check.ServiceID)
+	c.logger.Printf("[INFO] consul: registering Check with ID: %v for service: %v", check.ID, check.ServiceID)
 	return c.client.CheckRegister(check)
 }
 
 // deregisterCheck de-registers a check with a specific ID from Consul
 func (c *ConsulService) deregisterCheck(checkID string) error {
-	c.logger.Printf("[INFO] consul: Removing check with ID: %v", checkID)
+	c.logger.Printf("[INFO] consul: removing check with ID: %v", checkID)
 	return c.client.CheckDeregister(checkID)
 }
 
