@@ -69,7 +69,6 @@ func newTask() *structs.Task {
 
 func TestConsul_MakeChecks(t *testing.T) {
 	service := &structs.Service{
-		Id:   "Foo",
 		Name: "Bar",
 		Checks: []*structs.ServiceCheck{
 			{
@@ -95,9 +94,9 @@ func TestConsul_MakeChecks(t *testing.T) {
 
 	c := newConsulService()
 
-	check1 := c.makeCheck(service, service.Checks[0], "10.10.0.1", 8090)
-	check2 := c.makeCheck(service, service.Checks[1], "10.10.0.1", 8090)
-	check3 := c.makeCheck(service, service.Checks[2], "10.10.0.1", 8090)
+	check1 := c.makeCheck(service, service.Checks[0], "10.10.0.1", 8090, "1234")
+	check2 := c.makeCheck(service, service.Checks[1], "10.10.0.1", 8090, "1234")
+	check3 := c.makeCheck(service, service.Checks[2], "10.10.0.1", 8090, "1234")
 
 	if check1.HTTP != "http://10.10.0.1:8090/foo/bar" {
 		t.Fatalf("Invalid http url for check: %v", check1.HTTP)
@@ -141,7 +140,6 @@ func TestConsul_InvalidPortLabelForService(t *testing.T) {
 		},
 	}
 	service := &structs.Service{
-		Id:        "service-id",
 		Name:      "foo",
 		Tags:      []string{"a", "b"},
 		PortLabel: "https",
@@ -189,14 +187,15 @@ func TestConsul_Services_Deleted_From_Task(t *testing.T) {
 func TestConsul_Service_Should_Be_Re_Reregistered_On_Change(t *testing.T) {
 	c := newConsulService()
 	task := newTask()
+	allocId := "1"
 	s1 := structs.Service{
-		Id:        "1-example-cache-redis",
 		Name:      "example-cache-redis",
 		Tags:      []string{"global"},
 		PortLabel: "db",
 	}
+	serviceId := c.createServiceId(allocId, &s1)
 	task.Services = append(task.Services, &s1)
-	c.Register(task, "1")
+	c.Register(task, allocId)
 
 	s1.Tags = []string{"frontcache"}
 
@@ -206,8 +205,8 @@ func TestConsul_Service_Should_Be_Re_Reregistered_On_Change(t *testing.T) {
 		t.Fatal("We should be tracking one service")
 	}
 
-	if c.serviceStates[s1.Id] != s1.Hash() {
-		t.Fatalf("Hash is %v, expected %v", c.serviceStates[s1.Id], s1.Hash())
+	if c.serviceStates[serviceId] != s1.Hash() {
+		t.Fatalf("Hash is %v, expected %v", c.serviceStates[serviceId], s1.Hash())
 	}
 }
 
@@ -218,7 +217,6 @@ func TestConsul_AddCheck_To_Service(t *testing.T) {
 	task := newTask()
 	var checks []*structs.ServiceCheck
 	s1 := structs.Service{
-		Id:        "1-example-cache-redis",
 		Name:      "example-cache-redis",
 		Tags:      []string{"global"},
 		PortLabel: "db",
@@ -249,7 +247,6 @@ func TestConsul_ModifyCheck(t *testing.T) {
 	task := newTask()
 	var checks []*structs.ServiceCheck
 	s1 := structs.Service{
-		Id:        "1-example-cache-redis",
 		Name:      "example-cache-redis",
 		Tags:      []string{"global"},
 		PortLabel: "db",

@@ -1103,7 +1103,6 @@ const (
 // The ServiceCheck data model represents the consul health check that
 // Nomad registers for a Task
 type ServiceCheck struct {
-	Id       string        // Id of the check, must be unique and it is autogenrated
 	Name     string        // Name of the check, defaults to id
 	Type     string        // Type of the check - tcp, http, docker and script
 	Script   string        // Script to invoke for script check
@@ -1113,18 +1112,7 @@ type ServiceCheck struct {
 	Timeout  time.Duration // Timeout of the response from the check before consul fails the check
 }
 
-// ExpandName interpolates values of Job, Task Group and Task in the Service
-// Name
-func (s *Service) ExpandName(job string, taskGroup string, task string) {
-	s.Name = args.ReplaceEnv(s.Name, map[string]string{
-		"JOB":       job,
-		"TASKGROUP": taskGroup,
-		"TASK":      task,
-		"BASE":      fmt.Sprintf("%s-%s-%s", job, taskGroup, task),
-	},
-	)
-}
-
+// Validate checks if the Check definition is valid
 func (sc *ServiceCheck) Validate() error {
 	t := strings.ToLower(sc.Type)
 	if t != ServiceCheckTCP && t != ServiceCheckHTTP {
@@ -1140,6 +1128,8 @@ func (sc *ServiceCheck) Validate() error {
 	return nil
 }
 
+// Hash calculates the hash of the check based on it's content and the service
+// which owns it
 func (sc *ServiceCheck) Hash(serviceId string) string {
 	h := sha1.New()
 	io.WriteString(h, serviceId)
@@ -1156,13 +1146,31 @@ func (sc *ServiceCheck) Hash(serviceId string) string {
 
 // The Service model represents a Consul service defintion
 type Service struct {
-	Id        string          // Id of the service, this needs to be unique on a local machine
 	Name      string          // Name of the service, defaults to id
 	Tags      []string        // List of tags for the service
 	PortLabel string          `mapstructure:"port"` // port for the service
 	Checks    []*ServiceCheck // List of checks associated with the service
 }
 
+// ExpandName interpolates values of Job, Task Group and Task in the Service
+// Name
+func (s *Service) ExpandName(job string, taskGroup string, task string) {
+	s.Name = args.ReplaceEnv(s.Name, map[string]string{
+		"JOB":       job,
+		"TASKGROUP": taskGroup,
+		"TASK":      task,
+		"BASE":      fmt.Sprintf("%s-%s-%s", job, taskGroup, task),
+	},
+	)
+
+	for _, check := range s.Checks {
+		if check.Name == "" {
+			check.Name = fmt.Sprintf("service: %s check", s.Name)
+		}
+	}
+}
+
+// Validate validates if the service and it's associated checks are valid
 func (s *Service) Validate() error {
 	var mErr multierror.Error
 	for _, c := range s.Checks {
@@ -1173,6 +1181,7 @@ func (s *Service) Validate() error {
 	return mErr.ErrorOrNil()
 }
 
+// Hash calculates the hash of the service struct based on it's contents
 func (s *Service) Hash() string {
 	h := sha1.New()
 	io.WriteString(h, s.Name)

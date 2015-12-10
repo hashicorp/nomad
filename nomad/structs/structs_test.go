@@ -391,13 +391,10 @@ func TestEncodeDecode(t *testing.T) {
 
 func TestInvalidServiceCheck(t *testing.T) {
 	s := Service{
-		Id:        "service-id",
 		Name:      "service-name",
 		PortLabel: "bar",
 		Checks: []*ServiceCheck{
 			{
-
-				Id:   "check-id",
 				Name: "check-name",
 				Type: "lol",
 			},
