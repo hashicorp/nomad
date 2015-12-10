@@ -3,7 +3,6 @@ package driver
 import (
 	"fmt"
 	"path/filepath"
-	"strconv"
 	"time"
 
 	"github.com/hashicorp/nomad/client/allocdir"
@@ -43,10 +42,7 @@ func NewRawExecDriver(ctx *DriverContext) Driver {
 
 func (d *RawExecDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
 	// Check that the user has explicitly enabled this executor.
-	enabled, err := strconv.ParseBool(cfg.ReadDefault(rawExecConfigOption, "false"))
-	if err != nil {
-		return false, fmt.Errorf("Failed to parse %v option: %v", rawExecConfigOption, err)
-	}
+	enabled := cfg.ReadBoolDefault(rawExecConfigOption, false)
 
 	// Always turn this driver on in dev mode because we don't have a config file
 	if cfg.DevMode {
