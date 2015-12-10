@@ -48,6 +48,11 @@ func (d *RawExecDriver) Fingerprint(cfg *config.Config, node *structs.Node) (boo
 		return false, fmt.Errorf("Failed to parse %v option: %v", rawExecConfigOption, err)
 	}
 
+	// Always turn this driver on in dev mode because we don't have a config file
+	if cfg.DevMode {
+		enabled = true
+	}
+
 	if enabled {
 		d.logger.Printf("[WARN] driver.raw_exec: raw exec is enabled. Only enable if needed")
 		node.Attributes["driver.raw_exec"] = "1"
