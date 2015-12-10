@@ -207,12 +207,14 @@ func (c *ConsulService) performSync() {
 			// Add new services which Consul agent isn't aware of
 			knownServices[service.Id] = struct{}{}
 			if _, ok := consulServices[service.Id]; !ok {
+				c.logger.Printf("[INFO] consul: Registering service %s with consul.", service.Name)
 				c.registerService(service, trackedTask.task, trackedTask.allocID)
 				continue
 			}
 
 			// If a service has changed, re-register it with Consul agent
 			if service.Hash() != c.serviceStates[service.Id] {
+				c.logger.Printf("[INFO] consul: Re-Registering service %s with consul.", service.Name)
 				c.registerService(service, trackedTask.task, trackedTask.allocID)
 				continue
 			}
@@ -240,6 +242,7 @@ func (c *ConsulService) performSync() {
 	for _, consulService := range consulServices {
 		if _, ok := knownServices[consulService.ID]; !ok {
 			delete(c.serviceStates, consulService.ID)
+			c.logger.Printf("[INFO] consul: De-Registering service %v with consul", consulService.Service)
 			c.deregisterService(consulService.ID)
 		}
 	}
@@ -287,13 +290,13 @@ func (c *ConsulService) registerService(service *structs.Service, task *structs.
 
 // registerCheck registers a check with Consul
 func (c *ConsulService) registerCheck(check *consul.AgentCheckRegistration) error {
-	c.logger.Printf("[DEBUG] consul: Registering Check with ID: %v for Service: %v", check.ID, check.ServiceID)
+	c.logger.Printf("[INFO] consul: Registering Check with ID: %v for Service: %v", check.ID, check.ServiceID)
 	return c.client.CheckRegister(check)
 }
 
 // deregisterCheck de-registers a check with a specific ID from Consul
 func (c *ConsulService) deregisterCheck(checkID string) error {
-	c.logger.Printf("[DEBUG] consul: Removing check with ID: %v", checkID)
+	c.logger.Printf("[INFO] consul: Removing check with ID: %v", checkID)
 	return c.client.CheckDeregister(checkID)
 }
 
