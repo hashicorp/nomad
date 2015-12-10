@@ -5,6 +5,7 @@ import (
 	"encoding/gob"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/jobspec"
@@ -89,6 +90,9 @@ func (c *RunCommand) Run(args []string) int {
 		return 1
 	}
 
+	// Check if the job is periodic.
+	periodic := job.IsPeriodic()
+
 	// Convert it to something we can use
 	apiJob, err := convertJob(job)
 	if err != nil {
@@ -111,9 +115,14 @@ func (c *RunCommand) Run(args []string) int {
 	}
 
 	// Check if we should enter monitor mode
-	if detach {
+	if detach || periodic {
 		c.Ui.Output("Job registration successful")
-		c.Ui.Output("Evaluation ID: " + evalID)
+		if periodic {
+			c.Ui.Output(fmt.Sprintf("Approximate next launch time: %v", job.Periodic.Next(time.Now())))
+		} else {
+			c.Ui.Output("Evaluation ID: " + evalID)
+		}
+
 		return 0
 	}
 
