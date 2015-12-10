@@ -280,7 +280,7 @@ func (c *ConsulService) registerService(service *structs.Service, task *structs.
 	for _, check := range service.Checks {
 		cr := c.makeCheck(service, check, host, port)
 		if err := c.registerCheck(cr); err != nil {
-			c.logger.Printf("[ERROR] consul: Error while registerting check %v with consul: %v", check.Name, err)
+			c.logger.Printf("[ERROR] consul: Error while registering check %v with consul: %v", check.Name, err)
 			mErr.Errors = append(mErr.Errors, err)
 		}
 
