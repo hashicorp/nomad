@@ -116,7 +116,7 @@ func (p *PeriodicDispatch) Add(job *structs.Job) error {
 	disabled := !job.IsPeriodic() || !job.Periodic.Enabled
 	_, tracked := p.tracked[job.ID]
 	if tracked && disabled {
-		return p.Remove(job.ID)
+		return p.removeLocked(job.ID)
 	}
 
 	// If the job is diabled and we aren't tracking it, do nothing.
@@ -155,7 +155,12 @@ func (p *PeriodicDispatch) Add(job *structs.Job) error {
 func (p *PeriodicDispatch) Remove(jobID string) error {
 	p.l.Lock()
 	defer p.l.Unlock()
+	return p.removeLocked(jobID)
+}
 
+// Remove stops tracking the passed job. If the job is not tracked, it is a
+// no-op. It assumes this is called while a lock is held.
+func (p *PeriodicDispatch) removeLocked(jobID string) error {
 	// Do nothing if not enabled
 	if !p.enabled {
 		return nil
