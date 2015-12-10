@@ -257,6 +257,9 @@ func DevConfig() *Config {
 	} else if runtime.GOOS == "linux" {
 		conf.Client.NetworkInterface = "lo"
 	}
+	conf.Client.Options = map[string]string{
+		"driver.raw_exec.enable": "true",
+	}
 
 	return conf
 }
