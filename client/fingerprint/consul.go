@@ -65,7 +65,7 @@ func (f *ConsulFingerprint) Fingerprint(config *client.Config, node *structs.Nod
 		// Print a message indicating that the Consul Agent is not available
 		// anymore
 		if f.lastState == consulAvailable {
-			f.logger.Printf("[INFO] fingerprinter: consul agent is unavailable")
+			f.logger.Printf("[INFO] fingerprint.consul: consul agent is unavailable")
 		}
 		f.lastState = consulUnavailable
 		return false, nil
@@ -84,7 +84,7 @@ func (f *ConsulFingerprint) Fingerprint(config *client.Config, node *structs.Nod
 	// If the Consul Agent was previously unavailable print a message to
 	// indicate the Agent is available now
 	if f.lastState == consulUnavailable {
-		f.logger.Printf("[INFO] fingerprinter: consul agent is available")
+		f.logger.Printf("[INFO] fingerprt.consul: consul agent is available")
 	}
 	f.lastState = consulAvailable
 	return true, nil
