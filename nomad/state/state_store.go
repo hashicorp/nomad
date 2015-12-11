@@ -375,7 +375,6 @@ func (s *StateStore) ChildJobs(id string) (memdb.ResultIterator, error) {
 func (s *StateStore) JobsByPeriodic(periodic bool) (memdb.ResultIterator, error) {
 	txn := s.db.Txn(false)
 
-	// Scan all jobs whose parent is the passed id.
 	iter, err := txn.Get("jobs", "periodic", periodic)
 	if err != nil {
 		return nil, err
