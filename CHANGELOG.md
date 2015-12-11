@@ -1,5 +1,9 @@
 ## 0.3.0
 
+IMPROVEMENTS:
+  * Server join/retry-join command line and config options [GH-527]
+  * Enable raw_exec driver in dev mode [GH-558]
+
 BUG FIXES:
   * Shutdown a task now sends the interrupt signal first to the process before
     forcefully killing it. [GH-543]
