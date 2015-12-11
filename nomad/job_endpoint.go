@@ -29,8 +29,8 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		return err
 	}
 
-	// Expand the service names
-	args.Job.ExpandAllServiceNames()
+	// Initialize all the fields of services
+	args.Job.InitAllServiceFields()
 
 	if args.Job.Type == structs.JobTypeCore {
 		return fmt.Errorf("job type cannot be core")
