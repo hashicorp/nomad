@@ -309,7 +309,7 @@ func (c *ConsulService) registerService(service *structs.Service, task *structs.
 
 // registerCheck registers a check with Consul
 func (c *ConsulService) registerCheck(check *consul.AgentCheckRegistration) error {
-	c.printLogMessage("[INFO] consul: registering check with ID: %v for service: %v", check.ID, check.ServiceID)
+	c.printLogMessage("[INFO] consul: registering check with ID: %s for service: %s", check.ID, check.ServiceID)
 	return c.client.CheckRegister(check)
 }
 
@@ -388,6 +388,6 @@ func (c *ConsulService) filterConsulChecks(chks map[string]*consul.AgentCheck) m
 // related information
 func (c *ConsulService) printLogMessage(message string, v ...interface{}) {
 	if _, ok := c.node.Attributes["consul.version"]; ok {
-		c.logger.Printf(message, v)
+		c.logger.Println(fmt.Sprintf(message, v...))
 	}
 }
