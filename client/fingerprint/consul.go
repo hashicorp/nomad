@@ -12,15 +12,21 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+const (
+	consulAvailable   = "consulavailable"
+	consulUnavailable = "consulunavailable"
+)
+
 // ConsulFingerprint is used to fingerprint the architecture
 type ConsulFingerprint struct {
-	logger *log.Logger
-	client *consul.Client
+	logger    *log.Logger
+	client    *consul.Client
+	lastState string
 }
 
 // NewConsulFingerprint is used to create an OS fingerprint
 func NewConsulFingerprint(logger *log.Logger) Fingerprint {
-	f := &ConsulFingerprint{logger: logger}
+	f := &ConsulFingerprint{logger: logger, lastState: consulUnavailable}
 	return f
 }
 
@@ -55,6 +61,13 @@ func (f *ConsulFingerprint) Fingerprint(config *client.Config, node *structs.Nod
 	if err != nil {
 		// Clear any attributes set by a previous fingerprint.
 		f.clearConsulAttributes(node)
+
+		// Print a message indicating that the Consul Agent is not available
+		// anymore
+		if f.lastState == consulAvailable {
+			f.logger.Printf("[INFO] fingerprinter: consul agent is unavailable")
+		}
+		f.lastState = consulUnavailable
 		return false, nil
 	}
 
@@ -68,6 +81,12 @@ func (f *ConsulFingerprint) Fingerprint(config *client.Config, node *structs.Nod
 		node.Attributes["consul.datacenter"],
 		node.Attributes["consul.name"])
 
+	// If the Consul Agent was previously unavailable print a message to
+	// indicate the Agent is available now
+	if f.lastState == consulUnavailable {
+		f.logger.Printf("[INFO] fingerprinter: consul agent is available")
+	}
+	f.lastState = consulAvailable
 	return true, nil
 }
 
