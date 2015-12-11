@@ -1157,7 +1157,7 @@ type Service struct {
 // InitFields interpolates values of Job, Task Group and Task in the Service
 // Name. This also generates check names, service id and check ids.
 func (s *Service) InitFields(job string, taskGroup string, task string) {
-	s.Id = GenerateUUID()
+	s.Id = fmt.Sprintf("nomad-%s", GenerateUUID())
 	s.Name = args.ReplaceEnv(s.Name, map[string]string{
 		"JOB":       job,
 		"TASKGROUP": taskGroup,

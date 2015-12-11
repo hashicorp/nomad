@@ -278,3 +278,6 @@ func TestConsul_ModifyCheck(t *testing.T) {
 		t.Fatalf("Expected number of check registrations: %v, Actual: %v", 2, apiClient.checkRegisterCallCount)
 	}
 }
+
+func TestConsul_FilterNomadServicesAndChecks(t *testing.T) {
+}

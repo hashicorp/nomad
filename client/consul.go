@@ -195,15 +195,18 @@ func (c *ConsulService) SyncWithConsul() {
 // services which are no longer present in tasks
 func (c *ConsulService) performSync() {
 	// Get the list of the services and that Consul knows about
-	consulServices, err := c.client.Services()
+	srvcs, err := c.client.Services()
 	if err != nil {
 		return
 	}
-	consulChecks, err := c.client.Checks()
+	chks, err := c.client.Checks()
 	if err != nil {
 		return
 	}
-	delete(consulServices, "consul")
+
+	// Filter the services and checks that isn't managed by consul
+	consulServices := c.filterConsulServices(srvcs)
+	consulChecks := c.filterConsulChecks(chks)
 
 	knownChecks := make(map[string]struct{})
 	knownServices := make(map[string]struct{})
@@ -345,6 +348,35 @@ func (c *ConsulService) makeCheck(service *structs.Service, check *structs.Servi
 	return cr
 }
 
+// filterConsulServices prunes out all the service whose ids are not prefixed
+// with nomad-
+func (c *ConsulService) filterConsulServices(srvcs map[string]*consul.AgentService) map[string]*consul.AgentService {
+	nomadServices := make(map[string]*consul.AgentService)
+	delete(srvcs, "consul")
+	for _, srv := range srvcs {
+		if strings.HasPrefix(srv.ID, "nomad-") {
+			nomadServices[srv.ID] = srv
+		}
+	}
+	return nomadServices
+
+}
+
+// filterConsulChecks prunes out all the consul checks which do not have
+// services with id prefixed with noamd-
+func (c *ConsulService) filterConsulChecks(chks map[string]*consul.AgentCheck) map[string]*consul.AgentCheck {
+	nomadChecks := make(map[string]*consul.AgentCheck)
+	for _, chk := range chks {
+		if strings.HasPrefix(chk.ServiceID, "nomad-") {
+			nomadChecks[chk.CheckID] = chk
+		}
+	}
+	return nomadChecks
+
+}
+
+// printLogMessage prints log messages only when the node attributes have consul
+// related information
 func (c *ConsulService) printLogMessage(message string, v ...interface{}) {
 	if _, ok := c.node.Attributes["consul.version"]; ok {
 		c.logger.Printf(message, v)
