@@ -1,15 +1,15 @@
 ## 0.2.2 (Unreleased)
 
 IMPROVEMENTS:
-  * core: Enable raw_exec driver in dev mode [GH-558]
+  * core: Enable `raw_exec` driver in dev mode [GH-558]
   * cli: Server join/retry-join command line and config options [GH-527]
   * cli: Nomad reports which config files are loaded at start time, or if none
-    are loaded [GH-536], [GH-553 ]
+    are loaded [GH-536], [GH-553]
 
 BUG FIXES:
   * core: Send syslog to `LOCAL0` by default as previously documented [GH-547]
-  * consul: Nomad is less noisy when Consul is not running. [GH-567]
-  * consul: Nomad only deregisters services that it created. [GH-568]
+  * consul: Nomad is less noisy when Consul is not running [GH-567]
+  * consul: Nomad only deregisters services that it created [GH-568]
   * driver/docker: Docker driver no longer leaks unix domain socket connections
     [GH-556]
   * driver/exec: Shutdown a task now sends the interrupt signal first to the
