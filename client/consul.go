@@ -195,8 +195,14 @@ func (c *ConsulService) SyncWithConsul() {
 // services which are no longer present in tasks
 func (c *ConsulService) performSync() {
 	// Get the list of the services and that Consul knows about
-	consulServices, _ := c.client.Services()
-	consulChecks, _ := c.client.Checks()
+	consulServices, err := c.client.Services()
+	if err != nil {
+		return
+	}
+	consulChecks, err := c.client.Checks()
+	if err != nil {
+		return
+	}
 	delete(consulServices, "consul")
 
 	knownChecks := make(map[string]struct{})
