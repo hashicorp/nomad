@@ -5,6 +5,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"log"
 	"os"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -46,7 +47,7 @@ func (a *mockConsulApiClient) Checks() (map[string]*consul.AgentCheck, error) {
 
 func newConsulService() *ConsulService {
 	logger := log.New(os.Stdout, "logger: ", log.Lshortfile)
-	c, _ := NewConsulService(logger, "", "", "", false, false)
+	c, _ := NewConsulService(&consulServiceConfig{logger, "", "", "", false, false, &structs.Node{}})
 	c.client = &mockConsulApiClient{}
 	return c
 }
@@ -277,4 +278,80 @@ func TestConsul_ModifyCheck(t *testing.T) {
 	if apiClient.checkRegisterCallCount != 2 {
 		t.Fatalf("Expected number of check registrations: %v, Actual: %v", 2, apiClient.checkRegisterCallCount)
 	}
+}
+
+func TestConsul_FilterNomadServicesAndChecks(t *testing.T) {
+	c := newConsulService()
+	srvs := map[string]*consul.AgentService{
+		"foo-bar": {
+			ID:      "foo-bar",
+			Service: "http-frontend",
+			Tags:    []string{"global"},
+			Port:    8080,
+			Address: "10.10.1.11",
+		},
+		"nomad-2121212": {
+			ID:      "nomad-2121212",
+			Service: "identity-service",
+			Tags:    []string{"global"},
+			Port:    8080,
+			Address: "10.10.1.11",
+		},
+	}
+
+	expSrvcs := map[string]*consul.AgentService{
+		"nomad-2121212": {
+			ID:      "nomad-2121212",
+			Service: "identity-service",
+			Tags:    []string{"global"},
+			Port:    8080,
+			Address: "10.10.1.11",
+		},
+	}
+
+	nomadServices := c.filterConsulServices(srvs)
+	if !reflect.DeepEqual(expSrvcs, nomadServices) {
+		t.Fatalf("Expected: %v, Actual: %v", expSrvcs, nomadServices)
+	}
+
+	nomadServices = c.filterConsulServices(nil)
+	if len(nomadServices) != 0 {
+		t.Fatalf("Expected number of services: %v, Actual: %v", 0, len(nomadServices))
+	}
+
+	chks := map[string]*consul.AgentCheck{
+		"foo-bar-chk": {
+			CheckID:   "foo-bar-chk",
+			ServiceID: "foo-bar",
+			Name:      "alive",
+		},
+		"212121212": {
+			CheckID:   "212121212",
+			ServiceID: "nomad-2121212",
+			Name:      "ping",
+		},
+	}
+
+	expChks := map[string]*consul.AgentCheck{
+		"212121212": {
+			CheckID:   "212121212",
+			ServiceID: "nomad-2121212",
+			Name:      "ping",
+		},
+	}
+
+	nomadChecks := c.filterConsulChecks(chks)
+	if !reflect.DeepEqual(expChks, nomadChecks) {
+		t.Fatalf("Expected: %v, Actual: %v", expChks, nomadChecks)
+	}
+
+	if len(nomadChecks) != 1 {
+		t.Fatalf("Expected number of checks: %v, Actual: %v", 1, len(nomadChecks))
+	}
+
+	nomadChecks = c.filterConsulChecks(nil)
+	if len(nomadChecks) != 0 {
+		t.Fatalf("Expected number of checks: %v, Actual: %v", 0, len(nomadChecks))
+	}
+
 }
