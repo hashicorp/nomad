@@ -260,7 +260,7 @@ func (c *ConsulService) registerService(service *structs.Service, task *structs.
 	var mErr multierror.Error
 	host, port := task.FindHostAndPortFor(service.PortLabel)
 	if host == "" || port == 0 {
-		return fmt.Errorf("consul: the port:%s marked for registration of service: %s couldn't be found", service.PortLabel, service.Name)
+		return fmt.Errorf("consul: the port:%q marked for registration of service: %q couldn't be found", service.PortLabel, service.Name)
 	}
 	c.serviceStates[service.Id] = service.Hash()
 

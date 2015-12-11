@@ -1169,7 +1169,7 @@ func (s *Service) InitFields(job string, taskGroup string, task string) {
 	for _, check := range s.Checks {
 		check.Id = check.Hash(s.Id)
 		if check.Name == "" {
-			check.Name = fmt.Sprintf("service: %s check", s.Name)
+			check.Name = fmt.Sprintf("service: %q check", s.Name)
 		}
 	}
 }
