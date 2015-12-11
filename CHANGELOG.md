@@ -1,4 +1,4 @@
-## 0.2.2 (Unreleased)
+## 0.2.2 (December 11, 2015)
 
 IMPROVEMENTS:
   * core: Enable `raw_exec` driver in dev mode [GH-558]
