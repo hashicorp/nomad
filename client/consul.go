@@ -79,25 +79,34 @@ type ConsulService struct {
 	trackedTskLock sync.Mutex
 }
 
+type consulServiceConfig struct {
+	logger     *log.Logger
+	consulAddr string
+	token      string
+	auth       string
+	enableSSL  bool
+	verifySSL  bool
+	node       *structs.Node
+}
+
 // A factory method to create new consul service
-func NewConsulService(logger *log.Logger, consulAddr string, token string,
-	auth string, enableSSL bool, verifySSL bool, node *structs.Node) (*ConsulService, error) {
+func NewConsulService(config *consulServiceConfig) (*ConsulService, error) {
 	var err error
 	var c *consul.Client
 	cfg := consul.DefaultConfig()
-	cfg.Address = consulAddr
-	if token != "" {
-		cfg.Token = token
+	cfg.Address = config.consulAddr
+	if config.token != "" {
+		cfg.Token = config.token
 	}
 
-	if auth != "" {
+	if config.auth != "" {
 		var username, password string
-		if strings.Contains(auth, ":") {
-			split := strings.SplitN(auth, ":", 2)
+		if strings.Contains(config.auth, ":") {
+			split := strings.SplitN(config.auth, ":", 2)
 			username = split[0]
 			password = split[1]
 		} else {
-			username = auth
+			username = config.auth
 		}
 
 		cfg.HttpAuth = &consul.HttpBasicAuth{
@@ -105,10 +114,10 @@ func NewConsulService(logger *log.Logger, consulAddr string, token string,
 			Password: password,
 		}
 	}
-	if enableSSL {
+	if config.enableSSL {
 		cfg.Scheme = "https"
 	}
-	if enableSSL && !verifySSL {
+	if config.enableSSL && !config.verifySSL {
 		cfg.HttpClient.Transport = &http.Transport{
 			TLSClientConfig: &tls.Config{
 				InsecureSkipVerify: true,
@@ -122,8 +131,8 @@ func NewConsulService(logger *log.Logger, consulAddr string, token string,
 
 	consulService := ConsulService{
 		client:        &consulApiClient{client: c},
-		logger:        logger,
-		node:          node,
+		logger:        config.logger,
+		node:          config.node,
 		trackedTasks:  make(map[string]*trackedTask),
 		serviceStates: make(map[string]string),
 		shutdownCh:    make(chan struct{}),
@@ -195,15 +204,18 @@ func (c *ConsulService) SyncWithConsul() {
 // services which are no longer present in tasks
 func (c *ConsulService) performSync() {
 	// Get the list of the services and that Consul knows about
-	consulServices, err := c.client.Services()
+	srvcs, err := c.client.Services()
 	if err != nil {
 		return
 	}
-	consulChecks, err := c.client.Checks()
+	chks, err := c.client.Checks()
 	if err != nil {
 		return
 	}
-	delete(consulServices, "consul")
+
+	// Filter the services and checks that isn't managed by consul
+	consulServices := c.filterConsulServices(srvcs)
+	consulChecks := c.filterConsulChecks(chks)
 
 	knownChecks := make(map[string]struct{})
 	knownServices := make(map[string]struct{})
@@ -345,6 +357,35 @@ func (c *ConsulService) makeCheck(service *structs.Service, check *structs.Servi
 	return cr
 }
 
+// filterConsulServices prunes out all the service whose ids are not prefixed
+// with nomad-
+func (c *ConsulService) filterConsulServices(srvcs map[string]*consul.AgentService) map[string]*consul.AgentService {
+	nomadServices := make(map[string]*consul.AgentService)
+	delete(srvcs, "consul")
+	for _, srv := range srvcs {
+		if strings.HasPrefix(srv.ID, structs.NomadConsulPrefix) {
+			nomadServices[srv.ID] = srv
+		}
+	}
+	return nomadServices
+
+}
+
+// filterConsulChecks prunes out all the consul checks which do not have
+// services with id prefixed with noamd-
+func (c *ConsulService) filterConsulChecks(chks map[string]*consul.AgentCheck) map[string]*consul.AgentCheck {
+	nomadChecks := make(map[string]*consul.AgentCheck)
+	for _, chk := range chks {
+		if strings.HasPrefix(chk.ServiceID, structs.NomadConsulPrefix) {
+			nomadChecks[chk.CheckID] = chk
+		}
+	}
+	return nomadChecks
+
+}
+
+// printLogMessage prints log messages only when the node attributes have consul
+// related information
 func (c *ConsulService) printLogMessage(message string, v ...interface{}) {
 	if _, ok := c.node.Attributes["consul.version"]; ok {
 		c.logger.Printf(message, v)
