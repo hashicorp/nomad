@@ -157,7 +157,16 @@ func (c *Client) setupConsulService() error {
 	auth := c.config.Read("consul.auth")
 	enableSSL := c.config.ReadBoolDefault("consul.ssl", false)
 	verifySSL := c.config.ReadBoolDefault("consul.verifyssl", true)
-	if consulService, err = NewConsulService(c.logger, addr, token, auth, enableSSL, verifySSL, c.config.Node); err != nil {
+	consulServiceCfg := &consulServiceConfig{
+		logger:     c.logger,
+		consulAddr: addr,
+		token:      token,
+		auth:       auth,
+		enableSSL:  enableSSL,
+		verifySSL:  verifySSL,
+		node:       c.config.Node,
+	}
+	if consulService, err = NewConsulService(consulServiceCfg); err != nil {
 		return err
 	}
 	c.consulService = consulService

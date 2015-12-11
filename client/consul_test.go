@@ -46,7 +46,7 @@ func (a *mockConsulApiClient) Checks() (map[string]*consul.AgentCheck, error) {
 
 func newConsulService() *ConsulService {
 	logger := log.New(os.Stdout, "logger: ", log.Lshortfile)
-	c, _ := NewConsulService(logger, "", "", "", false, false, &structs.Node{})
+	c, _ := NewConsulService(&consulServiceConfig{logger, "", "", "", false, false, &structs.Node{}})
 	c.client = &mockConsulApiClient{}
 	return c
 }

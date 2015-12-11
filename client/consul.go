@@ -79,25 +79,34 @@ type ConsulService struct {
 	trackedTskLock sync.Mutex
 }
 
+type consulServiceConfig struct {
+	logger     *log.Logger
+	consulAddr string
+	token      string
+	auth       string
+	enableSSL  bool
+	verifySSL  bool
+	node       *structs.Node
+}
+
 // A factory method to create new consul service
-func NewConsulService(logger *log.Logger, consulAddr string, token string,
-	auth string, enableSSL bool, verifySSL bool, node *structs.Node) (*ConsulService, error) {
+func NewConsulService(config *consulServiceConfig) (*ConsulService, error) {
 	var err error
 	var c *consul.Client
 	cfg := consul.DefaultConfig()
-	cfg.Address = consulAddr
-	if token != "" {
-		cfg.Token = token
+	cfg.Address = config.consulAddr
+	if config.token != "" {
+		cfg.Token = config.token
 	}
 
-	if auth != "" {
+	if config.auth != "" {
 		var username, password string
-		if strings.Contains(auth, ":") {
-			split := strings.SplitN(auth, ":", 2)
+		if strings.Contains(config.auth, ":") {
+			split := strings.SplitN(config.auth, ":", 2)
 			username = split[0]
 			password = split[1]
 		} else {
-			username = auth
+			username = config.auth
 		}
 
 		cfg.HttpAuth = &consul.HttpBasicAuth{
@@ -105,10 +114,10 @@ func NewConsulService(logger *log.Logger, consulAddr string, token string,
 			Password: password,
 		}
 	}
-	if enableSSL {
+	if config.enableSSL {
 		cfg.Scheme = "https"
 	}
-	if enableSSL && !verifySSL {
+	if config.enableSSL && !config.verifySSL {
 		cfg.HttpClient.Transport = &http.Transport{
 			TLSClientConfig: &tls.Config{
 				InsecureSkipVerify: true,
@@ -122,8 +131,8 @@ func NewConsulService(logger *log.Logger, consulAddr string, token string,
 
 	consulService := ConsulService{
 		client:        &consulApiClient{client: c},
-		logger:        logger,
-		node:          node,
+		logger:        config.logger,
+		node:          config.node,
 		trackedTasks:  make(map[string]*trackedTask),
 		serviceStates: make(map[string]string),
 		shutdownCh:    make(chan struct{}),
