@@ -779,11 +779,13 @@ type Job struct {
 	ModifyIndex uint64
 }
 
-// ExpandAllServiceNames traverses all Task Groups and makes them
-// interpolate Job, Task group and Task names in all Service names
-func (j *Job) ExpandAllServiceNames() {
+// InitAllServiceFields traverses all Task Groups and makes them
+// interpolate Job, Task group and Task names in all Service names.
+// It also generates the check names if they are not set. This method also
+// generates Check and Service IDs
+func (j *Job) InitAllServiceFields() {
 	for _, tg := range j.TaskGroups {
-		tg.ExpandAllServiceNames(j.Name)
+		tg.InitAllServiceFields(j.Name)
 	}
 }
 
@@ -1022,11 +1024,12 @@ type TaskGroup struct {
 	Meta map[string]string
 }
 
-// ExpandAllServiceNames traverses over all Tasks and makes them to interpolate
-// values of Job, Task Group and Task names in all Service Names
-func (tg *TaskGroup) ExpandAllServiceNames(job string) {
+// InitAllServiceFields traverses over all Tasks and makes them to interpolate
+// values of Job, Task Group and Task names in all Service Names.
+// It also generates service ids, check ids and check names
+func (tg *TaskGroup) InitAllServiceFields(job string) {
 	for _, task := range tg.Tasks {
-		task.ExpandAllServiceNames(job, tg.Name)
+		task.InitAllServiceFields(job, tg.Name)
 	}
 }
 
@@ -1113,18 +1116,6 @@ type ServiceCheck struct {
 	Timeout  time.Duration // Timeout of the response from the check before consul fails the check
 }
 
-// ExpandName interpolates values of Job, Task Group and Task in the Service
-// Name
-func (s *Service) ExpandName(job string, taskGroup string, task string) {
-	s.Name = args.ReplaceEnv(s.Name, map[string]string{
-		"JOB":       job,
-		"TASKGROUP": taskGroup,
-		"TASK":      task,
-		"BASE":      fmt.Sprintf("%s-%s-%s", job, taskGroup, task),
-	},
-	)
-}
-
 func (sc *ServiceCheck) Validate() error {
 	t := strings.ToLower(sc.Type)
 	if t != ServiceCheckTCP && t != ServiceCheckHTTP {
@@ -1163,6 +1154,27 @@ type Service struct {
 	Checks    []*ServiceCheck // List of checks associated with the service
 }
 
+// InitFields interpolates values of Job, Task Group and Task in the Service
+// Name. This also generates check names, service id and check ids.
+func (s *Service) InitFields(job string, taskGroup string, task string) {
+	s.Id = GenerateUUID()
+	s.Name = args.ReplaceEnv(s.Name, map[string]string{
+		"JOB":       job,
+		"TASKGROUP": taskGroup,
+		"TASK":      task,
+		"BASE":      fmt.Sprintf("%s-%s-%s", job, taskGroup, task),
+	},
+	)
+
+	for _, check := range s.Checks {
+		check.Id = check.Hash(s.Id)
+		if check.Name == "" {
+			check.Name = fmt.Sprintf("service: %q check", s.Name)
+		}
+	}
+}
+
+// Validate checks if the Check definition is valid
 func (s *Service) Validate() error {
 	var mErr multierror.Error
 	for _, c := range s.Checks {
@@ -1173,6 +1185,8 @@ func (s *Service) Validate() error {
 	return mErr.ErrorOrNil()
 }
 
+// Hash calculates the hash of the check based on it's content and the service
+// which owns it
 func (s *Service) Hash() string {
 	h := sha1.New()
 	io.WriteString(h, s.Name)
@@ -1210,11 +1224,12 @@ type Task struct {
 	Meta map[string]string
 }
 
-// ExpandAllServiceNames interpolates values of Job, Task Group
-// and Tasks in all the service Names of a Task
-func (t *Task) ExpandAllServiceNames(job string, taskGroup string) {
+// InitAllServiceFields interpolates values of Job, Task Group
+// and Tasks in all the service Names of a Task. This also generates the service
+// id, check id and check names.
+func (t *Task) InitAllServiceFields(job string, taskGroup string) {
 	for _, service := range t.Services {
-		service.ExpandName(job, taskGroup, t.Name)
+		service.InitFields(job, taskGroup, t.Name)
 	}
 }
 

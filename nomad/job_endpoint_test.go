@@ -356,6 +356,19 @@ func TestJobEndpoint_GetJob(t *testing.T) {
 	// do a deep equal with the response from the GET JOB Api
 	j := job
 	j.TaskGroups[0].Tasks[0].Services[0].Name = "web-frontend"
+	for tgix, tg := range j.TaskGroups {
+		for tidx, t := range tg.Tasks {
+			for sidx, service := range t.Services {
+				service.Id = resp2.Job.TaskGroups[tgix].Tasks[tidx].Services[sidx].Id
+				for cidx, check := range service.Checks {
+					check.Name = resp2.Job.TaskGroups[tgix].Tasks[tidx].Services[sidx].Checks[cidx].Name
+					check.Id = resp2.Job.TaskGroups[tgix].Tasks[tidx].Services[sidx].Checks[cidx].Id
+				}
+			}
+		}
+	}
+	j.TaskGroups[0].Tasks[0].Services[0].Id = resp2.Job.TaskGroups[0].Tasks[0].Services[0].Id
+
 	if !reflect.DeepEqual(j, resp2.Job) {
 		t.Fatalf("bad: %#v %#v", job, resp2.Job)
 	}
