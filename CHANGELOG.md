@@ -3,7 +3,8 @@
 IMPROVEMENTS:
   * core: Enable raw_exec driver in dev mode [GH-558]
   * cli: Server join/retry-join command line and config options [GH-527]
-  * cli: Nomad reports which config files are loaded at start time, or if none are loaded [GH-536], [GH-553 ]
+  * cli: Nomad reports which config files are loaded at start time, or if none
+    are loaded [GH-536], [GH-553 ]
 
 BUG FIXES:
   * core: Send syslog to `LOCAL0` by default as previously documented [GH-547]
