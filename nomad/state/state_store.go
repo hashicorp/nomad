@@ -241,13 +241,26 @@ func (s *StateStore) UpdateNodeDrain(index uint64, nodeID string, drain bool) er
 func (s *StateStore) NodeByID(nodeID string) (*structs.Node, error) {
 	txn := s.db.Txn(false)
 
-	existing, err := txn.First("nodes", "id", nodeID)
+	existing, err := txn.Find("nodes", "id", nodeID)
 	if err != nil {
 		return nil, fmt.Errorf("node lookup failed: %v", err)
 	}
 
 	if existing != nil {
-		return existing.(*structs.Node), nil
+		// Return exact match directly
+		if len(existing) == 1 {
+			return existing[0].(*structs.Node), nil
+		}
+
+		// The results were ambiguous for the given node identifier. Return
+		// an error with possible options so that the user can try again with
+		// a more specific identifier.
+		var nodes []string
+		for _, result := range existing {
+			node := result.(*structs.Node)
+			nodes = append(nodes, node.ID)
+		}
+		return nil, fmt.Errorf("Ambiguous identifier: %v", nodes)
 	}
 	return nil, nil
 }
@@ -336,13 +349,26 @@ func (s *StateStore) DeleteJob(index uint64, jobID string) error {
 func (s *StateStore) JobByID(id string) (*structs.Job, error) {
 	txn := s.db.Txn(false)
 
-	existing, err := txn.First("jobs", "id", id)
+	existing, err := txn.Find("jobs", "id", id)
 	if err != nil {
 		return nil, fmt.Errorf("job lookup failed: %v", err)
 	}
 
 	if existing != nil {
-		return existing.(*structs.Job), nil
+		// Return exact match directly
+		if len(existing) == 1 {
+			return existing[0].(*structs.Job), nil
+		}
+
+		// The results were ambiguous for the given job identifier. Return
+		// an error with possible options so that the user can try again with
+		// a more specific identifier.
+		var jobs []string
+		for _, result := range existing {
+			job := result.(*structs.Job)
+			jobs = append(jobs, job.ID)
+		}
+		return nil, fmt.Errorf("Ambiguous identifier: %v", jobs)
 	}
 	return nil, nil
 }
@@ -477,13 +503,26 @@ func (s *StateStore) DeleteEval(index uint64, evals []string, allocs []string) e
 func (s *StateStore) EvalByID(id string) (*structs.Evaluation, error) {
 	txn := s.db.Txn(false)
 
-	existing, err := txn.First("evals", "id", id)
+	existing, err := txn.Find("evals", "id", id)
 	if err != nil {
 		return nil, fmt.Errorf("eval lookup failed: %v", err)
 	}
 
 	if existing != nil {
-		return existing.(*structs.Evaluation), nil
+		// Return exact match directly
+		if len(existing) == 1 {
+			return existing[0].(*structs.Evaluation), nil
+		}
+
+		// The results were ambiguous for the given eval identifier. Return
+		// an error with possible options so that the user can try again with
+		// a more specific identifier.
+		var evals []string
+		for _, result := range existing {
+			eval := result.(*structs.Evaluation)
+			evals = append(evals, eval.ID)
+		}
+		return nil, fmt.Errorf("Ambiguous identifier: %v", evals)
 	}
 	return nil, nil
 }
@@ -625,13 +664,26 @@ func (s *StateStore) UpsertAllocs(index uint64, allocs []*structs.Allocation) er
 func (s *StateStore) AllocByID(id string) (*structs.Allocation, error) {
 	txn := s.db.Txn(false)
 
-	existing, err := txn.First("allocs", "id", id)
+	existing, err := txn.Find("allocs", "id", id)
 	if err != nil {
 		return nil, fmt.Errorf("alloc lookup failed: %v", err)
 	}
 
 	if existing != nil {
-		return existing.(*structs.Allocation), nil
+		// Return exact match directly
+		if len(existing) == 1 {
+			return existing[0].(*structs.Allocation), nil
+		}
+
+		// The results were ambiguous for the given job identifier. Return
+		// an error with possible options so that the user can try again with
+		// a more specific identifier.
+		var allocs []string
+		for _, result := range existing {
+			alloc := result.(*structs.Allocation)
+			allocs = append(allocs, alloc.ID)
+		}
+		return nil, fmt.Errorf("Ambiguous identifier: %v", allocs)
 	}
 	return nil, nil
 }

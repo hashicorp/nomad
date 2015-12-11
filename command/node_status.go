@@ -132,7 +132,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 	var allocs []string
 	if !short {
 		// Query the node allocations
-		nodeAllocs, _, err := client.Nodes().Allocations(nodeID, nil)
+		nodeAllocs, _, err := client.Nodes().Allocations(node.ID, nil)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error querying node allocations: %s", err))
 			return 1
