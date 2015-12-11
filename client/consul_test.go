@@ -280,4 +280,57 @@ func TestConsul_ModifyCheck(t *testing.T) {
 }
 
 func TestConsul_FilterNomadServicesAndChecks(t *testing.T) {
+	c := newConsulService()
+	srvs := map[string]*consul.AgentService{
+		"foo-bar": {
+			ID:      "foo-bar",
+			Service: "http-frontend",
+			Tags:    []string{"global"},
+			Port:    8080,
+			Address: "10.10.1.11",
+		},
+		"nomad-2121212": {
+			ID:      "nomad-2121212",
+			Service: "identity-service",
+			Tags:    []string{"global"},
+			Port:    8080,
+			Address: "10.10.1.11",
+		},
+	}
+
+	nomadServices := c.filterConsulServices(srvs)
+
+	if len(nomadServices) != 1 {
+		t.Fatalf("Expected number of services: %v, Actual: %v", 1, len(nomadServices))
+	}
+
+	nomadServices = c.filterConsulServices(nil)
+	if len(nomadServices) != 0 {
+		t.Fatalf("Expected number of services: %v, Actual: %v", 0, len(nomadServices))
+	}
+
+	chks := map[string]*consul.AgentCheck{
+		"foo-bar-chk": {
+			CheckID:   "foo-bar-chk",
+			ServiceID: "foo-bar",
+			Name:      "alive",
+		},
+		"212121212": {
+			CheckID:   "212121212",
+			ServiceID: "nomad-2121212",
+			Name:      "ping",
+		},
+	}
+
+	nomadChecks := c.filterConsulChecks(chks)
+
+	if len(nomadChecks) != 1 {
+		t.Fatalf("Expected number of checks: %v, Actual: %v", 1, len(nomadChecks))
+	}
+
+	nomadChecks = c.filterConsulChecks(nil)
+	if len(nomadChecks) != 0 {
+		t.Fatalf("Expected number of checks: %v, Actual: %v", 0, len(nomadChecks))
+	}
+
 }
