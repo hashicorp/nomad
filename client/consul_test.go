@@ -5,6 +5,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"log"
 	"os"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -298,9 +299,19 @@ func TestConsul_FilterNomadServicesAndChecks(t *testing.T) {
 		},
 	}
 
+	expSrvcs := map[string]*consul.AgentService{
+		"nomad-2121212": {
+			ID:      "nomad-2121212",
+			Service: "identity-service",
+			Tags:    []string{"global"},
+			Port:    8080,
+			Address: "10.10.1.11",
+		},
+	}
+
 	nomadServices := c.filterConsulServices(srvs)
-	if len(nomadServices) != 1 {
-		t.Fatalf("Expected number of services: %v, Actual: %v", 1, len(nomadServices))
+	if !reflect.DeepEqual(expSrvcs, nomadServices) {
+		t.Fatalf("Expected: %v, Actual: %v", expSrvcs, nomadServices)
 	}
 
 	nomadServices = c.filterConsulServices(nil)
@@ -321,7 +332,19 @@ func TestConsul_FilterNomadServicesAndChecks(t *testing.T) {
 		},
 	}
 
+	expChks := map[string]*consul.AgentCheck{
+		"212121212": {
+			CheckID:   "212121212",
+			ServiceID: "nomad-2121212",
+			Name:      "ping",
+		},
+	}
+
 	nomadChecks := c.filterConsulChecks(chks)
+	if !reflect.DeepEqual(expChks, nomadChecks) {
+		t.Fatalf("Expected: %v, Actual: %v", expChks, nomadChecks)
+	}
+
 	if len(nomadChecks) != 1 {
 		t.Fatalf("Expected number of checks: %v, Actual: %v", 1, len(nomadChecks))
 	}
