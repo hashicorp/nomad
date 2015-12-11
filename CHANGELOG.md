@@ -16,7 +16,7 @@ BUG FIXES:
     process before forcefully killing it. [GH-543]
   * fingerprint/network: Now correctly detects interfaces on Windows [GH-382]
 
-## 0.2.1
+## 0.2.1 (November 28, 2015)
 
 IMPROVEMENTS:
 
