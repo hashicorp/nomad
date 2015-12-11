@@ -15,6 +15,7 @@ BUG FIXES:
   * driver/exec: Shutdown a task now sends the interrupt signal first to the
     process before forcefully killing it. [GH-543]
   * fingerprint/network: Now correctly detects interfaces on Windows [GH-382]
+  * client: remove all calls to default logger [GH-570]
 
 ## 0.2.1 (November 28, 2015)
 
