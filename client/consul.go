@@ -159,7 +159,7 @@ func (c *ConsulService) Deregister(task *structs.Task, allocID string) error {
 		if service.Id == "" {
 			continue
 		}
-		c.logger.Printf("[INFO] consul: deregistering service %v with consul", service.Name)
+		c.logger.Printf("[INFO] consul: deregistering service %v from consul", service.Name)
 		if err := c.deregisterService(service.Id); err != nil {
 			c.logger.Printf("[DEBUG] consul: error in deregistering service %v from consul", service.Name)
 			mErr.Errors = append(mErr.Errors, err)
@@ -189,7 +189,7 @@ func (c *ConsulService) SyncWithConsul() {
 	}
 }
 
-// performSync syncs checks and services with Consul and removed tracked
+// performSync syncs checks and services with Consul and removes tracked
 // services which are no longer present in tasks
 func (c *ConsulService) performSync() {
 	// Get the list of the services and that Consul knows about
@@ -235,22 +235,6 @@ func (c *ConsulService) performSync() {
 	for serviceId := range c.serviceStates {
 		if _, ok := knownServices[serviceId]; !ok {
 			delete(c.serviceStates, serviceId)
-		}
-	}
-
-	// Remove services that are not present anymore
-	for _, consulService := range consulServices {
-		if _, ok := knownServices[consulService.ID]; !ok {
-			delete(c.serviceStates, consulService.ID)
-			c.logger.Printf("[INFO] consul: deregistering service %v with consul", consulService.Service)
-			c.deregisterService(consulService.ID)
-		}
-	}
-
-	// Remove checks that are not present anymore
-	for _, consulCheck := range consulChecks {
-		if _, ok := knownChecks[consulCheck.CheckID]; !ok {
-			c.deregisterCheck(consulCheck.CheckID)
 		}
 	}
 }
