@@ -7,6 +7,7 @@ IMPROVEMENTS:
 BUG FIXES:
   * Shutdown a task now sends the interrupt signal first to the process before
     forcefully killing it. [GH-543]
+  * Docker driver no longer leaks unix domain socket connections [GH-556]
 
 ## 0.2.1
 
