@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 
 	docker "github.com/fsouza/go-dockerclient"
 
@@ -19,6 +20,10 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/mapstructure"
 )
+
+// We store the client globally to cache the connection to the docker daemon.
+var createClient sync.Once
+var client *docker.Client
 
 type DockerDriver struct {
 	DriverContext
@@ -83,28 +88,37 @@ func NewDockerDriver(ctx *DriverContext) Driver {
 // to connect to the docker daemon. In production mode we will read
 // docker.endpoint from the config file.
 func (d *DockerDriver) dockerClient() (*docker.Client, error) {
-	// Default to using whatever is configured in docker.endpoint. If this is
-	// not specified we'll fall back on NewClientFromEnv which reads config from
-	// the DOCKER_* environment variables DOCKER_HOST, DOCKER_TLS_VERIFY, and
-	// DOCKER_CERT_PATH. This allows us to lock down the config in production
-	// but also accept the standard ENV configs for dev and test.
-	dockerEndpoint := d.config.Read("docker.endpoint")
-	if dockerEndpoint != "" {
-		cert := d.config.Read("docker.tls.cert")
-		key := d.config.Read("docker.tls.key")
-		ca := d.config.Read("docker.tls.ca")
-
-		if cert+key+ca != "" {
-			d.logger.Printf("[DEBUG] driver.docker: using TLS client connection to %s", dockerEndpoint)
-			return docker.NewTLSClient(dockerEndpoint, cert, key, ca)
-		} else {
-			d.logger.Printf("[DEBUG] driver.docker: using standard client connection to %s", dockerEndpoint)
-			return docker.NewClient(dockerEndpoint)
-		}
+	if client != nil {
+		return client, nil
 	}
 
-	d.logger.Println("[DEBUG] driver.docker: using client connection initialized from environment")
-	return docker.NewClientFromEnv()
+	var err error
+	createClient.Do(func() {
+		// Default to using whatever is configured in docker.endpoint. If this is
+		// not specified we'll fall back on NewClientFromEnv which reads config from
+		// the DOCKER_* environment variables DOCKER_HOST, DOCKER_TLS_VERIFY, and
+		// DOCKER_CERT_PATH. This allows us to lock down the config in production
+		// but also accept the standard ENV configs for dev and test.
+		dockerEndpoint := d.config.Read("docker.endpoint")
+		if dockerEndpoint != "" {
+			cert := d.config.Read("docker.tls.cert")
+			key := d.config.Read("docker.tls.key")
+			ca := d.config.Read("docker.tls.ca")
+
+			if cert+key+ca != "" {
+				d.logger.Printf("[DEBUG] driver.docker: using TLS client connection to %s", dockerEndpoint)
+				client, err = docker.NewTLSClient(dockerEndpoint, cert, key, ca)
+			} else {
+				d.logger.Printf("[DEBUG] driver.docker: using standard client connection to %s", dockerEndpoint)
+				client, err = docker.NewClient(dockerEndpoint)
+			}
+			return
+		}
+
+		d.logger.Println("[DEBUG] driver.docker: using client connection initialized from environment")
+		client, err = docker.NewClientFromEnv()
+	})
+	return client, err
 }
 
 func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
