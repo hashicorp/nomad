@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	available   = "available"
-	unavailable = "unavailable"
+	consulAvailable   = "available"
+	consulUnavailable = "unavailable"
 )
 
 // ConsulFingerprint is used to fingerprint the architecture
@@ -26,7 +26,7 @@ type ConsulFingerprint struct {
 
 // NewConsulFingerprint is used to create an OS fingerprint
 func NewConsulFingerprint(logger *log.Logger) Fingerprint {
-	return &ConsulFingerprint{logger: logger, lastState: unavailable}
+	return &ConsulFingerprint{logger: logger, lastState: consulUnavailable}
 }
 
 func (f *ConsulFingerprint) Fingerprint(config *client.Config, node *structs.Node) (bool, error) {
@@ -63,10 +63,10 @@ func (f *ConsulFingerprint) Fingerprint(config *client.Config, node *structs.Nod
 
 		// Print a message indicating that the Consul Agent is not available
 		// anymore
-		if f.lastState == available {
+		if f.lastState == consulAvailable {
 			f.logger.Printf("[INFO] fingerprint.consul: consul agent is unavailable")
 		}
-		f.lastState = unavailable
+		f.lastState = consulUnavailable
 		return false, nil
 	}
 
@@ -82,10 +82,10 @@ func (f *ConsulFingerprint) Fingerprint(config *client.Config, node *structs.Nod
 
 	// If the Consul Agent was previously unavailable print a message to
 	// indicate the Agent is available now
-	if f.lastState == unavailable {
+	if f.lastState == consulUnavailable {
 		f.logger.Printf("[INFO] fingerprint.consul: consul agent is available")
 	}
-	f.lastState = available
+	f.lastState = consulAvailable
 	return true, nil
 }
 
