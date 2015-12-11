@@ -299,7 +299,6 @@ func TestConsul_FilterNomadServicesAndChecks(t *testing.T) {
 	}
 
 	nomadServices := c.filterConsulServices(srvs)
-
 	if len(nomadServices) != 1 {
 		t.Fatalf("Expected number of services: %v, Actual: %v", 1, len(nomadServices))
 	}
@@ -323,7 +322,6 @@ func TestConsul_FilterNomadServicesAndChecks(t *testing.T) {
 	}
 
 	nomadChecks := c.filterConsulChecks(chks)
-
 	if len(nomadChecks) != 1 {
 		t.Fatalf("Expected number of checks: %v, Actual: %v", 1, len(nomadChecks))
 	}
