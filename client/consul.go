@@ -363,7 +363,7 @@ func (c *ConsulService) filterConsulServices(srvcs map[string]*consul.AgentServi
 	nomadServices := make(map[string]*consul.AgentService)
 	delete(srvcs, "consul")
 	for _, srv := range srvcs {
-		if strings.HasPrefix(srv.ID, "nomad-") {
+		if strings.HasPrefix(srv.ID, structs.NomadConsulPrefix) {
 			nomadServices[srv.ID] = srv
 		}
 	}
@@ -376,7 +376,7 @@ func (c *ConsulService) filterConsulServices(srvcs map[string]*consul.AgentServi
 func (c *ConsulService) filterConsulChecks(chks map[string]*consul.AgentCheck) map[string]*consul.AgentCheck {
 	nomadChecks := make(map[string]*consul.AgentCheck)
 	for _, chk := range chks {
-		if strings.HasPrefix(chk.ServiceID, "nomad-") {
+		if strings.HasPrefix(chk.ServiceID, structs.NomadConsulPrefix) {
 			nomadChecks[chk.CheckID] = chk
 		}
 	}
