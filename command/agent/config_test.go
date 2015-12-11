@@ -318,9 +318,10 @@ func TestConfig_LoadConfigsFileOrder(t *testing.T) {
 	}
 
 	expected := []string{
-		"test-resources/etcnomad/common.hcl",
-		"test-resources/etcnomad/server.json",
-		"test-resources/myconf",
+		// filepath.FromSlash changes these to backslash \ on Windows
+		filepath.FromSlash("test-resources/etcnomad/common.hcl"),
+		filepath.FromSlash("test-resources/etcnomad/server.json"),
+		filepath.FromSlash("test-resources/myconf"),
 	}
 
 	config := config1.Merge(config2)
