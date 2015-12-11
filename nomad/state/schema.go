@@ -100,6 +100,15 @@ func jobTableSchema() *memdb.TableSchema {
 					Lowercase: false,
 				},
 			},
+			"parent": &memdb.IndexSchema{
+				Name:         "parent",
+				AllowMissing: true,
+				Unique:       false,
+				Indexer: &memdb.StringFieldIndex{
+					Field:     "ParentID",
+					Lowercase: true,
+				},
+			},
 		},
 	}
 }

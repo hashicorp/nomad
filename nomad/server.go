@@ -113,8 +113,8 @@ type Server struct {
 	// plans that are waiting to be assessed by the leader
 	planQueue *PlanQueue
 
-	// periodicRunner is used to track and create evaluations for periodic jobs.
-	periodicRunner PeriodicRunner
+	// periodicDispatcher is used to track and create evaluations for periodic jobs.
+	periodicDispatcher *PeriodicDispatch
 
 	// heartbeatTimers track the expiration time of each heartbeat that has
 	// a TTL. On expiration, the node status is updated to be 'down'.
@@ -183,6 +183,9 @@ func NewServer(config *Config) (*Server, error) {
 		planQueue:   planQueue,
 		shutdownCh:  make(chan struct{}),
 	}
+
+	// Create the periodic dispatcher for launching periodic jobs.
+	s.periodicDispatcher = NewPeriodicDispatch(s)
 
 	// Initialize the RPC layer
 	// TODO: TLS...
@@ -409,7 +412,7 @@ func (s *Server) setupRaft() error {
 
 	// Create the FSM
 	var err error
-	s.fsm, err = NewFSM(s.evalBroker, s.periodicRunner, s.config.LogOutput)
+	s.fsm, err = NewFSM(s.evalBroker, s.periodicDispatcher, s.config.LogOutput)
 	if err != nil {
 		return err
 	}
