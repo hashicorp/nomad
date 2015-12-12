@@ -2,6 +2,7 @@ package command
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -53,14 +54,26 @@ func (c *AgentInfoCommand) Run(args []string) int {
 		return 1
 	}
 
+	// Sort and output agent info
 	var stats map[string]interface{}
 	stats, _ = info["stats"]
+	stats_keys := make([]string, 0, len(stats))
+	for key := range stats {
+		stats_keys = append(stats_keys, key)
+	}
+	sort.Strings(stats_keys)
 
-	for section, data := range stats {
-		c.Ui.Output(section)
-		d, _ := data.(map[string]interface{})
-		for k, v := range d {
-			c.Ui.Output(fmt.Sprintf("  %s = %v", k, v))
+	for _, key := range stats_keys {
+		c.Ui.Output(key)
+		d, _ := stats[key].(map[string]interface{})
+		d_keys := make([]string, 0, len(d))
+		for key := range d {
+			d_keys = append(d_keys, key)
+		}
+		sort.Strings(d_keys)
+
+		for _, key := range d_keys {
+			c.Ui.Output(fmt.Sprintf("  %s = %v", key, d[key]))
 		}
 	}
 
