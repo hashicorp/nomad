@@ -327,7 +327,7 @@ func TestConfig_LoadConfigsFileOrder(t *testing.T) {
 	config := config1.Merge(config2)
 
 	if !reflect.DeepEqual(config.Files, expected) {
-		t.Errorf("Loaded configs don't match\nExpected\n%+vGot\n%+v\n",
+		t.Errorf("Loaded configs don't match\nwant: %+v\n got: %+v\n",
 			expected, config.Files)
 	}
 }
