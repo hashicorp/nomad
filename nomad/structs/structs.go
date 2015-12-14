@@ -1106,7 +1106,6 @@ const (
 // The ServiceCheck data model represents the consul health check that
 // Nomad registers for a Task
 type ServiceCheck struct {
-	Id       string        // Id of the check, must be unique and it is autogenrated
 	Name     string        // Name of the check, defaults to id
 	Type     string        // Type of the check - tcp, http, docker and script
 	Script   string        // Script to invoke for script check
@@ -1151,7 +1150,6 @@ const (
 
 // The Service model represents a Consul service defintion
 type Service struct {
-	Id        string          // Id of the service, this needs to be unique on a local machine
 	Name      string          // Name of the service, defaults to id
 	Tags      []string        // List of tags for the service
 	PortLabel string          `mapstructure:"port"` // port for the service
@@ -1161,10 +1159,6 @@ type Service struct {
 // InitFields interpolates values of Job, Task Group and Task in the Service
 // Name. This also generates check names, service id and check ids.
 func (s *Service) InitFields(job string, taskGroup string, task string) {
-	// We add a prefix to the Service ID so that we can know that this service
-	// is managed by Consul since Consul can also have service which are not
-	// managed by Nomad
-	s.Id = fmt.Sprintf("%s-%s", NomadConsulPrefix, GenerateUUID())
 	s.Name = args.ReplaceEnv(s.Name, map[string]string{
 		"JOB":       job,
 		"TASKGROUP": taskGroup,
@@ -1174,7 +1168,6 @@ func (s *Service) InitFields(job string, taskGroup string, task string) {
 	)
 
 	for _, check := range s.Checks {
-		check.Id = check.Hash(s.Id)
 		if check.Name == "" {
 			check.Name = fmt.Sprintf("service: %q check", s.Name)
 		}
@@ -1451,6 +1444,9 @@ type Allocation struct {
 	// task. These should sum to the total Resources.
 	TaskResources map[string]*Resources
 
+	// Services is a map of service names and service ids
+	Services map[string]string
+
 	// Metrics associated with this allocation
 	Metrics *AllocMetric
 
@@ -1501,6 +1497,19 @@ func (a *Allocation) Stub() *AllocListStub {
 		TaskStates:         a.TaskStates,
 		CreateIndex:        a.CreateIndex,
 		ModifyIndex:        a.ModifyIndex,
+	}
+}
+
+func (a *Allocation) PopulateServiceIds() {
+	a.Services = make(map[string]string)
+	tg := a.Job.LookupTaskGroup(a.TaskGroup)
+	for _, task := range tg.Tasks {
+		for _, service := range task.Services {
+			// We add a prefix to the Service ID so that we can know that this service
+			// is managed by Consul since Consul can also have service which are not
+			// managed by Nomad
+			a.Services[service.Name] = fmt.Sprintf("%s-%s", NomadConsulPrefix, GenerateUUID())
+		}
 	}
 }
 

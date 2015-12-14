@@ -279,6 +279,10 @@ func (s *GenericScheduler) computePlacements(place []allocTuple) error {
 			Metrics:   s.ctx.Metrics(),
 		}
 
+		// Generate the service ids for the tasks which this allocation is going
+		// to run
+		alloc.PopulateServiceIds()
+
 		// Set fields based on if we found an allocation option
 		if option != nil {
 			alloc.NodeID = option.Node.ID
