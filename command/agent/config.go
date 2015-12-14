@@ -613,7 +613,7 @@ func LoadConfig(path string) (*Config, error) {
 	if fi.IsDir() {
 		return LoadConfigDir(path)
 	}
-	return LoadConfigFile(path)
+	return LoadConfigFile(filepath.Clean(path))
 }
 
 // LoadConfigString is used to parse a config string

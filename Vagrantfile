@@ -18,8 +18,8 @@ ARCH=`uname -m | sed 's|i686|386|' | sed 's|x86_64|amd64|'`
 
 # Install Go
 cd /tmp
-wget -q https://storage.googleapis.com/golang/go1.5.1.linux-${ARCH}.tar.gz
-tar -xf go1.5.1.linux-${ARCH}.tar.gz
+wget -q https://storage.googleapis.com/golang/go1.5.2.linux-${ARCH}.tar.gz
+tar -xf go1.5.2.linux-${ARCH}.tar.gz
 sudo mv go $SRCROOT
 sudo chmod 775 $SRCROOT
 sudo chown vagrant:vagrant $SRCROOT
@@ -42,7 +42,7 @@ source /etc/profile.d/gopath.sh
 
 echo Fetching Consul...
 cd /tmp/
-wget https://releases.hashicorp.com/consul/0.6.0-rc2/consul_0.6.0-rc2_linux_amd64.zip -O consul.zip
+wget https://releases.hashicorp.com/consul/0.6.0/consul_0.6.0_linux_amd64.zip -O consul.zip
 echo Installing Consul...
 unzip consul.zip
 sudo chmod +x consul

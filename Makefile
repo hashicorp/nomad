@@ -48,8 +48,12 @@ vet:
 	@echo "--> Running go tool vet $(VETARGS) ."
 	@go tool vet $(VETARGS) . ; if [ $$? -eq 1 ]; then \
 		echo ""; \
-		echo "Vet found suspicious constructs. Please check the reported constructs"; \
-		echo "and fix them if necessary before submitting the code for reviewal."; \
+		echo "[LINT] Vet found suspicious constructs. Please check the reported constructs"; \
+		echo "and fix them if necessary before submitting the code for review."; \
+	fi
+
+	@git grep -n `echo "log"".Print"` ; if [ $$? -eq 0 ]; then \
+		echo "[LINT] Found "log"".Printf" calls. These should use Nomad's logger instead."; \
 	fi
 
 web:

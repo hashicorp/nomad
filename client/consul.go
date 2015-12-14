@@ -72,31 +72,41 @@ type ConsulService struct {
 	client     consulApi
 	logger     *log.Logger
 	shutdownCh chan struct{}
+	node       *structs.Node
 
 	trackedTasks   map[string]*trackedTask
 	serviceStates  map[string]string
 	trackedTskLock sync.Mutex
 }
 
+type consulServiceConfig struct {
+	logger     *log.Logger
+	consulAddr string
+	token      string
+	auth       string
+	enableSSL  bool
+	verifySSL  bool
+	node       *structs.Node
+}
+
 // A factory method to create new consul service
-func NewConsulService(logger *log.Logger, consulAddr string, token string,
-	auth string, enableSSL bool, verifySSL bool) (*ConsulService, error) {
+func NewConsulService(config *consulServiceConfig) (*ConsulService, error) {
 	var err error
 	var c *consul.Client
 	cfg := consul.DefaultConfig()
-	cfg.Address = consulAddr
-	if token != "" {
-		cfg.Token = token
+	cfg.Address = config.consulAddr
+	if config.token != "" {
+		cfg.Token = config.token
 	}
 
-	if auth != "" {
+	if config.auth != "" {
 		var username, password string
-		if strings.Contains(auth, ":") {
-			split := strings.SplitN(auth, ":", 2)
+		if strings.Contains(config.auth, ":") {
+			split := strings.SplitN(config.auth, ":", 2)
 			username = split[0]
 			password = split[1]
 		} else {
-			username = auth
+			username = config.auth
 		}
 
 		cfg.HttpAuth = &consul.HttpBasicAuth{
@@ -104,10 +114,10 @@ func NewConsulService(logger *log.Logger, consulAddr string, token string,
 			Password: password,
 		}
 	}
-	if enableSSL {
+	if config.enableSSL {
 		cfg.Scheme = "https"
 	}
-	if enableSSL && !verifySSL {
+	if config.enableSSL && !config.verifySSL {
 		cfg.HttpClient.Transport = &http.Transport{
 			TLSClientConfig: &tls.Config{
 				InsecureSkipVerify: true,
@@ -121,7 +131,8 @@ func NewConsulService(logger *log.Logger, consulAddr string, token string,
 
 	consulService := ConsulService{
 		client:        &consulApiClient{client: c},
-		logger:        logger,
+		logger:        config.logger,
+		node:          config.node,
 		trackedTasks:  make(map[string]*trackedTask),
 		serviceStates: make(map[string]string),
 		shutdownCh:    make(chan struct{}),
@@ -161,7 +172,7 @@ func (c *ConsulService) Deregister(task *structs.Task, allocID string) error {
 		}
 		c.logger.Printf("[INFO] consul: deregistering service %v with consul", service.Name)
 		if err := c.deregisterService(service.Id); err != nil {
-			c.logger.Printf("[DEBUG] consul: error in deregistering service %v from consul", service.Name)
+			c.printLogMessage("[DEBUG] consul: error in deregistering service %v from consul", service.Name)
 			mErr.Errors = append(mErr.Errors, err)
 		}
 	}
@@ -193,9 +204,18 @@ func (c *ConsulService) SyncWithConsul() {
 // services which are no longer present in tasks
 func (c *ConsulService) performSync() {
 	// Get the list of the services and that Consul knows about
-	consulServices, _ := c.client.Services()
-	consulChecks, _ := c.client.Checks()
-	delete(consulServices, "consul")
+	srvcs, err := c.client.Services()
+	if err != nil {
+		return
+	}
+	chks, err := c.client.Checks()
+	if err != nil {
+		return
+	}
+
+	// Filter the services and checks that isn't managed by consul
+	consulServices := c.filterConsulServices(srvcs)
+	consulChecks := c.filterConsulChecks(chks)
 
 	knownChecks := make(map[string]struct{})
 	knownServices := make(map[string]struct{})
@@ -207,14 +227,14 @@ func (c *ConsulService) performSync() {
 			// Add new services which Consul agent isn't aware of
 			knownServices[service.Id] = struct{}{}
 			if _, ok := consulServices[service.Id]; !ok {
-				c.logger.Printf("[INFO] consul: registering service %s with consul.", service.Name)
+				c.printLogMessage("[INFO] consul: registering service %s with consul.", service.Name)
 				c.registerService(service, trackedTask.task, trackedTask.allocID)
 				continue
 			}
 
 			// If a service has changed, re-register it with Consul agent
 			if service.Hash() != c.serviceStates[service.Id] {
-				c.logger.Printf("[INFO] consul: reregistering service %s with consul.", service.Name)
+				c.printLogMessage("[INFO] consul: reregistering service %s with consul.", service.Name)
 				c.registerService(service, trackedTask.task, trackedTask.allocID)
 				continue
 			}
@@ -242,7 +262,7 @@ func (c *ConsulService) performSync() {
 	for _, consulService := range consulServices {
 		if _, ok := knownServices[consulService.ID]; !ok {
 			delete(c.serviceStates, consulService.ID)
-			c.logger.Printf("[INFO] consul: deregistering service %v with consul", consulService.Service)
+			c.printLogMessage("[INFO] consul: deregistering service %v with consul", consulService.Service)
 			c.deregisterService(consulService.ID)
 		}
 	}
@@ -273,13 +293,13 @@ func (c *ConsulService) registerService(service *structs.Service, task *structs.
 	}
 
 	if err := c.client.ServiceRegister(asr); err != nil {
-		c.logger.Printf("[DEBUG] consul: error while registering service %v with consul: %v", service.Name, err)
+		c.printLogMessage("[DEBUG] consul: error while registering service %v with consul: %v", service.Name, err)
 		mErr.Errors = append(mErr.Errors, err)
 	}
 	for _, check := range service.Checks {
 		cr := c.makeCheck(service, check, host, port)
 		if err := c.registerCheck(cr); err != nil {
-			c.logger.Printf("[DEBUG] consul: error while registerting check %v with consul: %v", check.Name, err)
+			c.printLogMessage("[DEBUG] consul: error while registerting check %v with consul: %v", check.Name, err)
 			mErr.Errors = append(mErr.Errors, err)
 		}
 
@@ -289,13 +309,13 @@ func (c *ConsulService) registerService(service *structs.Service, task *structs.
 
 // registerCheck registers a check with Consul
 func (c *ConsulService) registerCheck(check *consul.AgentCheckRegistration) error {
-	c.logger.Printf("[INFO] consul: registering Check with ID: %v for service: %v", check.ID, check.ServiceID)
+	c.printLogMessage("[INFO] consul: registering check with ID: %s for service: %s", check.ID, check.ServiceID)
 	return c.client.CheckRegister(check)
 }
 
 // deregisterCheck de-registers a check with a specific ID from Consul
 func (c *ConsulService) deregisterCheck(checkID string) error {
-	c.logger.Printf("[INFO] consul: removing check with ID: %v", checkID)
+	c.printLogMessage("[INFO] consul: removing check with ID: %v", checkID)
 	return c.client.CheckDeregister(checkID)
 }
 
@@ -335,4 +355,39 @@ func (c *ConsulService) makeCheck(service *structs.Service, check *structs.Servi
 		cr.Script = check.Script // TODO This needs to include the path of the alloc dir and based on driver types
 	}
 	return cr
+}
+
+// filterConsulServices prunes out all the service whose ids are not prefixed
+// with nomad-
+func (c *ConsulService) filterConsulServices(srvcs map[string]*consul.AgentService) map[string]*consul.AgentService {
+	nomadServices := make(map[string]*consul.AgentService)
+	delete(srvcs, "consul")
+	for _, srv := range srvcs {
+		if strings.HasPrefix(srv.ID, structs.NomadConsulPrefix) {
+			nomadServices[srv.ID] = srv
+		}
+	}
+	return nomadServices
+
+}
+
+// filterConsulChecks prunes out all the consul checks which do not have
+// services with id prefixed with noamd-
+func (c *ConsulService) filterConsulChecks(chks map[string]*consul.AgentCheck) map[string]*consul.AgentCheck {
+	nomadChecks := make(map[string]*consul.AgentCheck)
+	for _, chk := range chks {
+		if strings.HasPrefix(chk.ServiceID, structs.NomadConsulPrefix) {
+			nomadChecks[chk.CheckID] = chk
+		}
+	}
+	return nomadChecks
+
+}
+
+// printLogMessage prints log messages only when the node attributes have consul
+// related information
+func (c *ConsulService) printLogMessage(message string, v ...interface{}) {
+	if _, ok := c.node.Attributes["consul.version"]; ok {
+		c.logger.Println(fmt.Sprintf(message, v...))
+	}
 }

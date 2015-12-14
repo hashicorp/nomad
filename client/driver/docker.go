@@ -455,27 +455,27 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 				},
 			})
 			if err != nil {
-				log.Printf("[ERR] driver.docker: failed to query list of containers matching name:%s", config.Name)
+				d.logger.Printf("[ERR] driver.docker: failed to query list of containers matching name:%s", config.Name)
 				return nil, fmt.Errorf("Failed to query list of containers: %s", err)
 			}
 
 			if len(containers) != 1 {
-				log.Printf("[ERR] driver.docker: failed to get id for container %s", config.Name)
+				d.logger.Printf("[ERR] driver.docker: failed to get id for container %s", config.Name)
 				return nil, fmt.Errorf("Failed to get id for container %s", config.Name)
 			}
 
-			log.Printf("[INFO] driver.docker: a container with the name %s already exists; will attempt to purge and re-create", config.Name)
+			d.logger.Printf("[INFO] driver.docker: a container with the name %s already exists; will attempt to purge and re-create", config.Name)
 			err = client.RemoveContainer(docker.RemoveContainerOptions{
 				ID: containers[0].ID,
 			})
 			if err != nil {
-				log.Printf("[ERR] driver.docker: failed to purge container %s", config.Name)
+				d.logger.Printf("[ERR] driver.docker: failed to purge container %s", config.Name)
 				return nil, fmt.Errorf("Failed to purge container %s: %s", config.Name, err)
 			}
-			log.Printf("[INFO] driver.docker: purged container %s", config.Name)
+			d.logger.Printf("[INFO] driver.docker: purged container %s", config.Name)
 			container, err = client.CreateContainer(config)
 			if err != nil {
-				log.Printf("[ERR] driver.docker: failed to re-create container %s; aborting", config.Name)
+				d.logger.Printf("[ERR] driver.docker: failed to re-create container %s; aborting", config.Name)
 				return nil, fmt.Errorf("Failed to re-create container %s; aborting", config.Name)
 			}
 		} else {
@@ -593,10 +593,10 @@ func (h *DockerHandle) Kill() error {
 	// Stop the container
 	err := h.client.StopContainer(h.containerID, 5)
 	if err != nil {
-		log.Printf("[ERR] driver.docker: failed to stop container %s", h.containerID)
+		h.logger.Printf("[ERR] driver.docker: failed to stop container %s", h.containerID)
 		return fmt.Errorf("Failed to stop container %s: %s", h.containerID, err)
 	}
-	log.Printf("[INFO] driver.docker: stopped container %s", h.containerID)
+	h.logger.Printf("[INFO] driver.docker: stopped container %s", h.containerID)
 
 	// Cleanup container
 	if h.cleanupContainer {
@@ -605,10 +605,10 @@ func (h *DockerHandle) Kill() error {
 			RemoveVolumes: true,
 		})
 		if err != nil {
-			log.Printf("[ERR] driver.docker: failed to remove container %s", h.containerID)
+			h.logger.Printf("[ERR] driver.docker: failed to remove container %s", h.containerID)
 			return fmt.Errorf("Failed to remove container %s: %s", h.containerID, err)
 		}
-		log.Printf("[INFO] driver.docker: removed container %s", h.containerID)
+		h.logger.Printf("[INFO] driver.docker: removed container %s", h.containerID)
 	}
 
 	// Cleanup image. This operation may fail if the image is in use by another
@@ -624,17 +624,17 @@ func (h *DockerHandle) Kill() error {
 				},
 			})
 			if err != nil {
-				log.Printf("[ERR] driver.docker: failed to query list of containers matching image:%s", h.imageID)
+				h.logger.Printf("[ERR] driver.docker: failed to query list of containers matching image:%s", h.imageID)
 				return fmt.Errorf("Failed to query list of containers: %s", err)
 			}
 			inUse := len(containers)
 			if inUse > 0 {
-				log.Printf("[INFO] driver.docker: image %s is still in use by %d container(s)", h.imageID, inUse)
+				h.logger.Printf("[INFO] driver.docker: image %s is still in use by %d container(s)", h.imageID, inUse)
 			} else {
 				return fmt.Errorf("Failed to remove image %s", h.imageID)
 			}
 		} else {
-			log.Printf("[INFO] driver.docker: removed image %s", h.imageID)
+			h.logger.Printf("[INFO] driver.docker: removed image %s", h.imageID)
 		}
 	}
 	return nil
