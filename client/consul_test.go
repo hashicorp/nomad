@@ -290,8 +290,8 @@ func TestConsul_FilterNomadServicesAndChecks(t *testing.T) {
 			Port:    8080,
 			Address: "10.10.1.11",
 		},
-		"nomad-2121212": {
-			ID:      "nomad-2121212",
+		"nomad-registered-service-2121212": {
+			ID:      "nomad-registered-service-2121212",
 			Service: "identity-service",
 			Tags:    []string{"global"},
 			Port:    8080,
@@ -300,8 +300,8 @@ func TestConsul_FilterNomadServicesAndChecks(t *testing.T) {
 	}
 
 	expSrvcs := map[string]*consul.AgentService{
-		"nomad-2121212": {
-			ID:      "nomad-2121212",
+		"nomad-registered-service-2121212": {
+			ID:      "nomad-registered-service-2121212",
 			Service: "identity-service",
 			Tags:    []string{"global"},
 			Port:    8080,
@@ -327,7 +327,7 @@ func TestConsul_FilterNomadServicesAndChecks(t *testing.T) {
 		},
 		"212121212": {
 			CheckID:   "212121212",
-			ServiceID: "nomad-2121212",
+			ServiceID: "nomad-registered-service-2121212",
 			Name:      "ping",
 		},
 	}
@@ -335,7 +335,7 @@ func TestConsul_FilterNomadServicesAndChecks(t *testing.T) {
 	expChks := map[string]*consul.AgentCheck{
 		"212121212": {
 			CheckID:   "212121212",
-			ServiceID: "nomad-2121212",
+			ServiceID: "nomad-registered-service-2121212",
 			Name:      "ping",
 		},
 	}
