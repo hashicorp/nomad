@@ -34,7 +34,7 @@ func (a *mockConsulApiClient) ServiceRegister(service *consul.AgentServiceRegist
 	return nil
 }
 
-func (a *mockConsulApiClient) ServiceDeregister(serviceId string) error {
+func (a *mockConsulApiClient) ServiceDeregister(serviceID string) error {
 	a.serviceDeregisterCallCount += 1
 	return nil
 }
@@ -96,11 +96,11 @@ func TestConsul_MakeChecks(t *testing.T) {
 	}
 
 	c := newConsulService()
-	serviceId := fmt.Sprintf("%s-1234", structs.NomadConsulPrefix)
+	serviceID := fmt.Sprintf("%s-1234", structs.NomadConsulPrefix)
 
-	check1 := c.makeCheck(serviceId, service.Checks[0], "10.10.0.1", 8090)
-	check2 := c.makeCheck(serviceId, service.Checks[1], "10.10.0.1", 8090)
-	check3 := c.makeCheck(serviceId, service.Checks[2], "10.10.0.1", 8090)
+	check1 := c.makeCheck(serviceID, service.Checks[0], "10.10.0.1", 8090)
+	check2 := c.makeCheck(serviceID, service.Checks[1], "10.10.0.1", 8090)
+	check3 := c.makeCheck(serviceID, service.Checks[2], "10.10.0.1", 8090)
 
 	if check1.HTTP != "http://10.10.0.1:8090/foo/bar" {
 		t.Fatalf("Invalid http url for check: %v", check1.HTTP)

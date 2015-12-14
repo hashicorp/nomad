@@ -248,7 +248,7 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 
 		// Generate the service ids for the tasks that this allocation is going
 		// to run
-		alloc.PopulateServiceIds()
+		alloc.PopulateServiceIDs()
 
 		// Set fields based on if we found an allocation option
 		if option != nil {

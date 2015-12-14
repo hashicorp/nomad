@@ -1130,9 +1130,9 @@ func (sc *ServiceCheck) Validate() error {
 	return nil
 }
 
-func (sc *ServiceCheck) Hash(serviceId string) string {
+func (sc *ServiceCheck) Hash(serviceID string) string {
 	h := sha1.New()
-	io.WriteString(h, serviceId)
+	io.WriteString(h, serviceID)
 	io.WriteString(h, sc.Name)
 	io.WriteString(h, sc.Type)
 	io.WriteString(h, sc.Script)
@@ -1500,7 +1500,7 @@ func (a *Allocation) Stub() *AllocListStub {
 	}
 }
 
-func (a *Allocation) PopulateServiceIds() {
+func (a *Allocation) PopulateServiceIDs() {
 	a.Services = make(map[string]string)
 	tg := a.Job.LookupTaskGroup(a.TaskGroup)
 	for _, task := range tg.Tasks {

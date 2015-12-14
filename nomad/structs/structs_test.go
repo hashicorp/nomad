@@ -406,7 +406,7 @@ func TestInvalidServiceCheck(t *testing.T) {
 	}
 }
 
-func TestDistinctCheckId(t *testing.T) {
+func TestDistinctCheckID(t *testing.T) {
 	c1 := ServiceCheck{
 		Name:     "web-health",
 		Type:     "http",
@@ -429,10 +429,10 @@ func TestDistinctCheckId(t *testing.T) {
 		Interval: 4 * time.Second,
 		Timeout:  3 * time.Second,
 	}
-	serviceId := "123"
-	c1Hash := c1.Hash(serviceId)
-	c2Hash := c2.Hash(serviceId)
-	c3Hash := c3.Hash(serviceId)
+	serviceID := "123"
+	c1Hash := c1.Hash(serviceID)
+	c2Hash := c2.Hash(serviceID)
+	c3Hash := c3.Hash(serviceID)
 
 	if c1Hash == c2Hash || c1Hash == c3Hash || c3Hash == c2Hash {
 		t.Fatalf("Checks need to be uniq c1: %s, c2: %s, c3: %s", c1Hash, c2Hash, c3Hash)
