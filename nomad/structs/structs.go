@@ -1146,7 +1146,7 @@ func (sc *ServiceCheck) Hash(serviceId string) string {
 }
 
 const (
-	NomadConsulPrefix = "nomad"
+	NomadConsulPrefix = "1729nomad"
 )
 
 // The Service model represents a Consul service defintion
