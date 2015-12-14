@@ -391,13 +391,11 @@ func TestEncodeDecode(t *testing.T) {
 
 func TestInvalidServiceCheck(t *testing.T) {
 	s := Service{
-		Id:        "service-id",
 		Name:      "service-name",
 		PortLabel: "bar",
 		Checks: []*ServiceCheck{
 			{
 
-				Id:   "check-id",
 				Name: "check-name",
 				Type: "lol",
 			},
@@ -442,7 +440,7 @@ func TestDistinctCheckId(t *testing.T) {
 
 }
 
-func TestService_InitFiels(t *testing.T) {
+func TestService_InitFields(t *testing.T) {
 	job := "example"
 	taskGroup := "cache"
 	task := "redis"
@@ -454,9 +452,6 @@ func TestService_InitFiels(t *testing.T) {
 	s.InitFields(job, taskGroup, task)
 	if s.Name != "redis-db" {
 		t.Fatalf("Expected name: %v, Actual: %v", "redis-db", s.Name)
-	}
-	if s.Id == "" {
-		t.Fatalf("Expected a GUID for Service ID, Actual: %v", s.Id)
 	}
 
 	s.Name = "db"
