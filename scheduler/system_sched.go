@@ -246,12 +246,12 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 			Metrics:   s.ctx.Metrics(),
 		}
 
-		// Generate the service ids for the tasks that this allocation is going
-		// to run
-		alloc.PopulateServiceIDs()
-
 		// Set fields based on if we found an allocation option
 		if option != nil {
+			// Generate the service ids for the tasks that this allocation is going
+			// to run
+			alloc.PopulateServiceIDs()
+
 			alloc.NodeID = option.Node.ID
 			alloc.TaskResources = option.TaskResources
 			alloc.DesiredStatus = structs.AllocDesiredStatusRun

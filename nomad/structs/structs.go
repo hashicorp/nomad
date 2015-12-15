@@ -1508,7 +1508,7 @@ func (a *Allocation) PopulateServiceIDs() {
 	for _, task := range tg.Tasks {
 		for _, service := range task.Services {
 			// We add a prefix to the Service ID so that we can know that this service
-			// is managed by Nomad Consul since Consul can also have service which are not
+			// is managed by Nomad since Consul can also have service which are not
 			// managed by Nomad
 			a.Services[service.Name] = fmt.Sprintf("%s-%s", NomadConsulPrefix, GenerateUUID())
 		}
