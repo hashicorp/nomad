@@ -580,6 +580,12 @@ func TestInplaceUpdate_Success(t *testing.T) {
 	if len(ctx.plan.NodeAllocation) != 1 {
 		t.Fatal("inplaceUpdate did not do an inplace update")
 	}
+
+	// Get the alloc we inserted.
+	a := ctx.plan.NodeAllocation[alloc.NodeID][0]
+	if len(a.Services) != 0 {
+		t.Fatalf("Expected number of services: %v, Actual: %v", 0, len(a.Services))
+	}
 }
 
 func TestEvictAndPlace_LimitGreaterThanAllocs(t *testing.T) {
