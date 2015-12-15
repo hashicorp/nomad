@@ -95,6 +95,10 @@ func Job() *structs.Job {
 								Name:      "${TASK}-frontend",
 								PortLabel: "http",
 							},
+							{
+								Name:      "${TASK}-admin",
+								PortLabel: "admin",
+							},
 						},
 						Resources: &structs.Resources{
 							CPU:      500,
@@ -102,7 +106,7 @@ func Job() *structs.Job {
 							Networks: []*structs.NetworkResource{
 								&structs.NetworkResource{
 									MBits:        50,
-									DynamicPorts: []structs.Port{{Label: "http"}},
+									DynamicPorts: []structs.Port{{Label: "http"}, {Label: "admin"}},
 								},
 							},
 						},

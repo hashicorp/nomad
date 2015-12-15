@@ -556,8 +556,9 @@ func TestInplaceUpdate_Success(t *testing.T) {
 	noErr(t, state.UpsertAllocs(1001, []*structs.Allocation{alloc}))
 
 	webFeSrvID := alloc.Services["web-frontend"]
+	adminSrvID := alloc.Services["web-admin"]
 
-	if webFeSrvID == "" {
+	if webFeSrvID == "" || adminSrvID == "" {
 		t.Fatal("Service ID needs to be generated for service")
 	}
 
@@ -576,6 +577,11 @@ func TestInplaceUpdate_Success(t *testing.T) {
 			PortLabel: "http",
 		},
 	}
+
+	// Delete service 2
+	tg.Tasks[0].Services = tg.Tasks[0].Services[:1]
+
+	// Add the new services
 	tg.Tasks[0].Services = append(tg.Tasks[0].Services, newServices...)
 
 	updates := []allocTuple{{Alloc: alloc, TaskGroup: tg}}
@@ -602,6 +608,12 @@ func TestInplaceUpdate_Success(t *testing.T) {
 	// Test that the service id for the old service is still the same
 	if a.Services["web-frontend"] != webFeSrvID {
 		t.Fatalf("Expected service ID: %v, Actual: %v", webFeSrvID, a.Services["web-frontend"])
+	}
+
+	// Test that the map doesn't contain the service ID of the admin Service
+	// anymore
+	if _, ok := a.Services["web-admin"]; ok {
+		t.Fatal("Service shouldn't be present")
 	}
 }
 
