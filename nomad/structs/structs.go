@@ -1503,14 +1503,28 @@ func (a *Allocation) Stub() *AllocListStub {
 // PopulateServiceIDs generates the service IDs for all the service definitions
 // in that Allocation
 func (a *Allocation) PopulateServiceIDs() {
+	// Make a copy of the old map which contains the service names and their
+	// generated IDs
+	oldIDs := make(map[string]string)
+	for k, v := range a.Services {
+		oldIDs[k] = v
+	}
+
 	a.Services = make(map[string]string)
 	tg := a.Job.LookupTaskGroup(a.TaskGroup)
 	for _, task := range tg.Tasks {
 		for _, service := range task.Services {
-			// We add a prefix to the Service ID so that we can know that this service
-			// is managed by Nomad since Consul can also have service which are not
-			// managed by Nomad
-			a.Services[service.Name] = fmt.Sprintf("%s-%s", NomadConsulPrefix, GenerateUUID())
+			// If the ID for a service name is already generated then we re-use
+			// it
+			if ID, ok := oldIDs[service.Name]; ok {
+				a.Services[service.Name] = ID
+			} else {
+				// If the service hasn't been generated an ID, we generate one.
+				// We add a prefix to the Service ID so that we can know that this service
+				// is managed by Nomad since Consul can also have service which are not
+				// managed by Nomad
+				a.Services[service.Name] = fmt.Sprintf("%s-%s", NomadConsulPrefix, GenerateUUID())
+			}
 		}
 	}
 }

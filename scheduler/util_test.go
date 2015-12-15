@@ -555,7 +555,9 @@ func TestInplaceUpdate_Success(t *testing.T) {
 	alloc.PopulateServiceIDs()
 	noErr(t, state.UpsertAllocs(1001, []*structs.Allocation{alloc}))
 
-	if alloc.Services["web-frontend"] == "" {
+	webFeSrvID := alloc.Services["web-frontend"]
+
+	if webFeSrvID == "" {
 		t.Fatal("Service ID needs to be generated for service")
 	}
 
@@ -564,7 +566,17 @@ func TestInplaceUpdate_Success(t *testing.T) {
 	*tg = *job.TaskGroups[0]
 	resource := &structs.Resources{CPU: 737}
 	tg.Tasks[0].Resources = resource
-	tg.Tasks[0].Services = []*structs.Service{}
+	newServices := []*structs.Service{
+		{
+			Name:      "dummy-service",
+			PortLabel: "http",
+		},
+		{
+			Name:      "dummy-service2",
+			PortLabel: "http",
+		},
+	}
+	tg.Tasks[0].Services = append(tg.Tasks[0].Services, newServices...)
 
 	updates := []allocTuple{{Alloc: alloc, TaskGroup: tg}}
 	stack := NewGenericStack(false, ctx)
@@ -583,8 +595,13 @@ func TestInplaceUpdate_Success(t *testing.T) {
 
 	// Get the alloc we inserted.
 	a := ctx.plan.NodeAllocation[alloc.NodeID][0]
-	if len(a.Services) != 0 {
-		t.Fatalf("Expected number of services: %v, Actual: %v", 0, len(a.Services))
+	if len(a.Services) != 3 {
+		t.Fatalf("Expected number of services: %v, Actual: %v", 3, len(a.Services))
+	}
+
+	// Test that the service id for the old service is still the same
+	if a.Services["web-frontend"] != webFeSrvID {
+		t.Fatalf("Expected service ID: %v, Actual: %v", webFeSrvID, a.Services["web-frontend"])
 	}
 }
 
