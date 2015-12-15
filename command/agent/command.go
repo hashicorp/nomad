@@ -356,7 +356,7 @@ func (c *Command) Run(args []string) int {
 	}
 
 	// Log config files
-	if len(config.Files) > 1 {
+	if len(config.Files) > 0 {
 		c.Ui.Info(fmt.Sprintf("Loaded configuration from %s", strings.Join(config.Files, ", ")))
 	} else {
 		c.Ui.Info("No configuration files loaded")
