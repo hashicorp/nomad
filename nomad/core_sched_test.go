@@ -172,7 +172,7 @@ func TestCoreScheduler_JobGC(t *testing.T) {
 
 		// Update the time tables to make this work
 		tt := s1.fsm.TimeTable()
-		tt.Witness(2000, time.Now().UTC().Add(-1*threshold))
+		tt.Witness(2000, time.Now().UTC().Add(-1*s1.config.JobGCThreshold))
 
 		// Create a core scheduler
 		snap, err := state.Snapshot()
