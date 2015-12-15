@@ -254,10 +254,7 @@ func TestParse(t *testing.T) {
 				Priority: 50,
 				Region:   "global",
 				Type:     "service",
-				GC: &structs.JobGCConfig{
-					Enabled:   true,
-					Threshold: 2 * time.Hour,
-				},
+				GC:       true,
 			},
 			false,
 		},

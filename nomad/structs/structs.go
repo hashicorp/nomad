@@ -766,7 +766,7 @@ type Job struct {
 
 	// GC is used to mark the job as available for garbage collection after it
 	// has no outstanding evaluations or allocations.
-	GC *JobGCConfig
+	GC bool
 
 	// Meta is used to associate arbitrary metadata with this
 	// job. This is opaque to Nomad.
@@ -788,11 +788,6 @@ type Job struct {
 func (j *Job) InitFields() {
 	// Initialize the service block.
 	j.InitAllServiceFields()
-
-	// Initalize the GC policy
-	if j.GC != nil {
-		j.GC.Init()
-	}
 }
 
 // InitAllServiceFields traverses all Task Groups and makes them
@@ -870,13 +865,6 @@ func (j *Job) Validate() error {
 			fmt.Errorf("Periodic can only be used with %q scheduler", JobTypeBatch))
 	}
 
-	// Validate the GC config.
-	if j.GC != nil {
-		if err := j.GC.Validate(); err != nil {
-			mErr.Errors = append(mErr.Errors, err)
-		}
-	}
-
 	return mErr.ErrorOrNil()
 }
 
@@ -920,37 +908,6 @@ type JobListStub struct {
 	StatusDescription string
 	CreateIndex       uint64
 	ModifyIndex       uint64
-}
-
-const (
-	// DefaultJobGCThreshold is the default threshold for garbage collecting
-	// eligible jobs.
-	DefaultJobGCThreshold = 4 * time.Hour
-)
-
-// JobGCConfig configures the garbage collection policy of a job.
-type JobGCConfig struct {
-	// Enabled determines whether the job is eligible for garbage collection.
-	Enabled bool
-
-	// Threshold is how old a job must be before it eligible for GC. This gives
-	// the user time to inspect the job.
-	Threshold time.Duration
-}
-
-// Init sets the Threshold time to its default value if it is un-specified but
-// garbage collection is enabled.
-func (gc *JobGCConfig) Init() {
-	if gc.Enabled && gc.Threshold == 0 {
-		gc.Threshold = DefaultJobGCThreshold
-	}
-}
-
-func (gc *JobGCConfig) Validate() error {
-	if gc.Threshold < 0 {
-		return fmt.Errorf("job GC threshold must be positive: %v", gc.Threshold)
-	}
-	return nil
 }
 
 // UpdateStrategy is used to modify how updates are done

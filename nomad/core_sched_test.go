@@ -145,11 +145,7 @@ func TestCoreScheduler_JobGC(t *testing.T) {
 		// Insert job.
 		state := s1.fsm.State()
 		job := mock.Job()
-		threshold := 1 * time.Hour
-		job.GC = &structs.JobGCConfig{
-			Enabled:   true,
-			Threshold: threshold,
-		}
+		job.GC = true
 		err := state.UpsertJob(1000, job)
 		if err != nil {
 			t.Fatalf("test(%s) err: %v", test.test, err)

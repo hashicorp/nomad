@@ -723,7 +723,7 @@ func parsePeriodic(result **structs.PeriodicConfig, list *ast.ObjectList) error 
 	return nil
 }
 
-func parseGC(result **structs.JobGCConfig, list *ast.ObjectList) error {
+func parseGC(result *bool, list *ast.ObjectList) error {
 	list = list.Elem()
 	if len(list.Items) > 1 {
 		return fmt.Errorf("only one 'gc' block allowed per job")
@@ -738,23 +738,17 @@ func parseGC(result **structs.JobGCConfig, list *ast.ObjectList) error {
 	}
 
 	// Enabled by default if the gc block exists.
+	enabled := false
 	if value, ok := m["enabled"]; !ok {
-		m["Enabled"] = true
+		enabled = true
 	} else {
-		enabled, err := parseBool(value)
+		var err error
+		enabled, err = parseBool(value)
 		if err != nil {
 			return fmt.Errorf("gc.enabled should be set to true or false; %v", err)
 		}
-		m["Enabled"] = enabled
 	}
 
-	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
-		DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
-		WeaklyTypedInput: true,
-		Result:           result,
-	})
-	if err != nil {
-		return err
-	}
-	return dec.Decode(m)
+	*result = enabled
+	return nil
 }

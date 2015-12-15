@@ -50,6 +50,10 @@ func (c *CoreScheduler) jobGC(eval *structs.Evaluation) error {
 
 	// Get the time table to calculate GC cutoffs.
 	tt := c.srv.fsm.TimeTable()
+	cutoff := time.Now().UTC().Add(-1 * c.srv.config.JobGCThreshold)
+	oldThreshold := tt.NearestIndex(cutoff)
+	c.srv.logger.Printf("[DEBUG] sched.core: job GC: scanning before index %d (%v)",
+		oldThreshold, c.srv.config.JobGCThreshold)
 
 	// Collect the allocations and evaluations to GC
 	var gcAlloc, gcEval, gcJob []string
@@ -57,8 +61,6 @@ func (c *CoreScheduler) jobGC(eval *structs.Evaluation) error {
 OUTER:
 	for i := jIter.Next(); i != nil; i = jIter.Next() {
 		job := i.(*structs.Job)
-		cutoff := time.Now().UTC().Add(-1 * job.GC.Threshold)
-		oldThreshold := tt.NearestIndex(cutoff)
 
 		// Ignore new jobs.
 		if job.CreateIndex > oldThreshold {

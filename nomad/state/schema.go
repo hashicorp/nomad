@@ -121,11 +121,7 @@ func jobIsGCable(obj interface{}) (bool, error) {
 		return false, fmt.Errorf("Unexpected type: %v", obj)
 	}
 
-	if j.GC == nil || !j.GC.Enabled {
-		return false, nil
-	}
-
-	return true, nil
+	return j.GC, nil
 }
 
 // evalTableSchema returns the MemDB schema for the eval table.

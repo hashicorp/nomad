@@ -486,10 +486,7 @@ func TestStateStore_JobsByGC(t *testing.T) {
 
 	for i := 0; i < 10; i++ {
 		job := mock.Job()
-		job.GC = &structs.JobGCConfig{
-			Enabled:   true,
-			Threshold: structs.DefaultJobGCThreshold,
-		}
+		job.GC = true
 		gc = append(gc, job)
 
 		if err := state.UpsertJob(2000+uint64(i), job); err != nil {
