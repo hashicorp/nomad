@@ -5,7 +5,6 @@ package allocdir
 
 import (
 	"fmt"
-	"github.com/hashicorp/nomad/helper/user-lookup"
 	"os"
 	"os/user"
 	"strconv"
@@ -27,7 +26,7 @@ func (d *AllocDir) dropDirPermissions(path string) error {
 		return nil
 	}
 
-	u, err := userlookup.Lookup("nobody")
+	u, err := user.Lookup("nobody")
 	if err != nil {
 		return err
 	}

@@ -24,7 +24,6 @@ import (
 	"github.com/hashicorp/nomad/client/driver/spawn"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/helper/args"
-	"github.com/hashicorp/nomad/helper/user-lookup"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -124,7 +123,7 @@ func (e *LinuxExecutor) ID() (string, error) {
 // runAs takes a user id as a string and looks up the user, and sets the command
 // to execute as that user.
 func (e *LinuxExecutor) runAs(userid string) error {
-	u, err := userlookup.Lookup(userid)
+	u, err := user.Lookup(userid)
 	if err != nil {
 		return fmt.Errorf("Failed to identify user %v: %v", userid, err)
 	}
