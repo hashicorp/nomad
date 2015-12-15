@@ -33,9 +33,86 @@ func (s *CoreScheduler) Process(eval *structs.Evaluation) error {
 		return s.evalGC(eval)
 	case structs.CoreJobNodeGC:
 		return s.nodeGC(eval)
+	case structs.CoreJobJobGC:
+		return s.jobGC(eval)
 	default:
 		return fmt.Errorf("core scheduler cannot handle job '%s'", eval.JobID)
 	}
+}
+
+// jobGC is used to garbage collect eligible jobs.
+func (c *CoreScheduler) jobGC(eval *structs.Evaluation) error {
+	// Get all the jobs eligible for garbage collection.
+	jIter, err := c.snap.JobsByGC(true)
+	if err != nil {
+		return err
+	}
+
+	// Get the time table to calculate GC cutoffs.
+	tt := c.srv.fsm.TimeTable()
+
+	// Collect the allocations and evaluations to GC
+	var gcAlloc, gcEval, gcJob []string
+
+OUTER:
+	for i := jIter.Next(); i != nil; i = jIter.Next() {
+		job := i.(*structs.Job)
+		cutoff := time.Now().UTC().Add(-1 * job.GC.Threshold)
+		oldThreshold := tt.NearestIndex(cutoff)
+
+		// Ignore new jobs.
+		if job.CreateIndex > oldThreshold {
+			continue OUTER
+		}
+
+		evals, err := c.snap.EvalsByJob(job.ID)
+		if err != nil {
+			c.srv.logger.Printf("[ERR] sched.core: failed to get evals for job %s: %v", job.ID, err)
+			continue
+		}
+
+		for _, eval := range evals {
+			gc, allocs, err := c.gcEval(eval, oldThreshold)
+			if err != nil || !gc {
+				continue OUTER
+			}
+
+			gcEval = append(gcEval, eval.ID)
+			gcAlloc = append(gcAlloc, allocs...)
+		}
+
+		// Job is eligible for garbage collection
+		gcJob = append(gcJob, job.ID)
+	}
+
+	// Fast-path the nothing case
+	if len(gcEval) == 0 && len(gcAlloc) == 0 && len(gcJob) == 0 {
+		return nil
+	}
+	c.srv.logger.Printf("[DEBUG] sched.core: job GC: %d jobs, %d evaluations, %d allocs eligible",
+		len(gcJob), len(gcEval), len(gcAlloc))
+
+	// Reap the evals and allocs
+	if err := c.evalReap(gcEval, gcAlloc); err != nil {
+		return err
+	}
+
+	// Call to the leader to deregister the jobs.
+	for _, job := range gcJob {
+		req := structs.JobDeregisterRequest{
+			JobID: job,
+			WriteRequest: structs.WriteRequest{
+				Region: c.srv.config.Region,
+			},
+		}
+		var resp structs.JobDeregisterResponse
+		if err := c.srv.RPC("Job.Deregister", &req, &resp); err != nil {
+			c.srv.logger.Printf("[ERR] sched.core: job deregister failed: %v", err)
+			return err
+		}
+	}
+
+	return nil
 }
 
 // evalGC is used to garbage collect old evaluations
@@ -57,39 +134,16 @@ func (c *CoreScheduler) evalGC(eval *structs.Evaluation) error {
 
 	// Collect the allocations and evaluations to GC
 	var gcAlloc, gcEval []string
-
-OUTER:
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
+	for raw := iter.Next(); raw != nil; raw = iter.Next() {
 		eval := raw.(*structs.Evaluation)
-
-		// Ignore non-terminal and new evaluations
-		if !eval.TerminalStatus() || eval.ModifyIndex > oldThreshold {
-			continue
-		}
-
-		// Get the allocations by eval
-		allocs, err := c.snap.AllocsByEval(eval.ID)
+		gc, allocs, err := c.gcEval(eval, oldThreshold)
 		if err != nil {
-			c.srv.logger.Printf("[ERR] sched.core: failed to get allocs for eval %s: %v",
-				eval.ID, err)
-			continue
+			return err
 		}
 
-		// Scan the allocations to ensure they are terminal and old
-		for _, alloc := range allocs {
-			if !alloc.TerminalStatus() || alloc.ModifyIndex > oldThreshold {
-				continue OUTER
-			}
-		}
-
-		// Evaluation is eligible for garbage collection
-		gcEval = append(gcEval, eval.ID)
-		for _, alloc := range allocs {
-			gcAlloc = append(gcAlloc, alloc.ID)
+		if gc {
+			gcEval = append(gcEval, eval.ID)
+			gcAlloc = append(gcAlloc, allocs...)
 		}
 	}
 
@@ -100,10 +154,52 @@ OUTER:
 	c.srv.logger.Printf("[DEBUG] sched.core: eval GC: %d evaluations, %d allocs eligible",
 		len(gcEval), len(gcAlloc))
 
+	return c.evalReap(gcEval, gcAlloc)
+}
+
+// gcEval returns whether the eval should be garbage collected given a raft
+// threshold index. The eval disqualifies for garbage collection if it or its
+// allocs are not older than the threshold. If the eval should be garbage
+// collected, the associated alloc ids that should also be removed are also
+// returned
+func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64) (
+	bool, []string, error) {
+	// Ignore non-terminal and new evaluations
+	if !eval.TerminalStatus() || eval.ModifyIndex > thresholdIndex {
+		return false, nil, nil
+	}
+
+	// Get the allocations by eval
+	allocs, err := c.snap.AllocsByEval(eval.ID)
+	if err != nil {
+		c.srv.logger.Printf("[ERR] sched.core: failed to get allocs for eval %s: %v",
+			eval.ID, err)
+		return false, nil, err
+	}
+
+	// Scan the allocations to ensure they are terminal and old
+	for _, alloc := range allocs {
+		if !alloc.TerminalStatus() || alloc.ModifyIndex > thresholdIndex {
+			return false, nil, nil
+		}
+	}
+
+	allocIds := make([]string, len(allocs))
+	for i, alloc := range allocs {
+		allocIds[i] = alloc.ID
+	}
+
+	// Evaluation is eligible for garbage collection
+	return true, allocIds, nil
+}
+
+// evalReap contacts the leader and issues a reap on the passed evals and
+// allocs.
+func (c *CoreScheduler) evalReap(evals, allocs []string) error {
 	// Call to the leader to issue the reap
 	req := structs.EvalDeleteRequest{
-		Evals:  gcEval,
-		Allocs: gcAlloc,
+		Evals:  evals,
+		Allocs: allocs,
 		WriteRequest: structs.WriteRequest{
 			Region: c.srv.config.Region,
 		},
@@ -113,6 +209,7 @@ OUTER:
 		c.srv.logger.Printf("[ERR] sched.core: eval reap failed: %v", err)
 		return err
 	}
+
 	return nil
 }
 

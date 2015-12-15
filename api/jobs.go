@@ -107,6 +107,12 @@ type UpdateStrategy struct {
 	MaxParallel int
 }
 
+// JobGCConfig configures the garbage collection policy of a job.
+type JobGCConfig struct {
+	Enabled   bool
+	Threshold time.Duration
+}
+
 // Job is used to serialize a job.
 type Job struct {
 	Region            string
@@ -119,6 +125,7 @@ type Job struct {
 	Constraints       []*Constraint
 	TaskGroups        []*TaskGroup
 	Update            *UpdateStrategy
+	GC                *JobGCConfig
 	Meta              map[string]string
 	Status            string
 	StatusDescription string

@@ -131,6 +131,10 @@ type Config struct {
 	// for GC. This gives users some time to debug a failed evaluation.
 	EvalGCThreshold time.Duration
 
+	// JobGCInterval is how often we dispatch a job to GC jobs that are
+	// available for garbage collection.
+	JobGCInterval time.Duration
+
 	// NodeGCInterval is how often we dispatch a job to GC failed nodes.
 	NodeGCInterval time.Duration
 
@@ -202,6 +206,7 @@ func DefaultConfig() *Config {
 		ReconcileInterval:      60 * time.Second,
 		EvalGCInterval:         5 * time.Minute,
 		EvalGCThreshold:        1 * time.Hour,
+		JobGCInterval:          5 * time.Minute,
 		NodeGCInterval:         5 * time.Minute,
 		NodeGCThreshold:        24 * time.Hour,
 		EvalNackTimeout:        60 * time.Second,

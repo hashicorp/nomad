@@ -247,6 +247,22 @@ func TestParse(t *testing.T) {
 		},
 
 		{
+			"gc.hcl",
+			&structs.Job{
+				ID:       "foo",
+				Name:     "foo",
+				Priority: 50,
+				Region:   "global",
+				Type:     "service",
+				GC: &structs.JobGCConfig{
+					Enabled:   true,
+					Threshold: 2 * time.Hour,
+				},
+			},
+			false,
+		},
+
+		{
 			"specify-job.hcl",
 			&structs.Job{
 				ID:       "job1",

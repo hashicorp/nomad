@@ -203,6 +203,9 @@ func TestBinPackIterator_ExistingAlloc(t *testing.T) {
 			MemoryMB: 2048,
 		},
 		DesiredStatus: structs.AllocDesiredStatusRun,
+		TaskStates: map[string]*structs.TaskState{
+			"foo": &structs.TaskState{State: structs.TaskStatePending},
+		},
 	}
 	alloc2 := &structs.Allocation{
 		ID:     structs.GenerateUUID(),
@@ -214,6 +217,9 @@ func TestBinPackIterator_ExistingAlloc(t *testing.T) {
 			MemoryMB: 1024,
 		},
 		DesiredStatus: structs.AllocDesiredStatusRun,
+		TaskStates: map[string]*structs.TaskState{
+			"foo": &structs.TaskState{State: structs.TaskStatePending},
+		},
 	}
 	noErr(t, state.UpsertAllocs(1000, []*structs.Allocation{alloc1, alloc2}))
 
@@ -277,6 +283,9 @@ func TestBinPackIterator_ExistingAlloc_PlannedEvict(t *testing.T) {
 			MemoryMB: 2048,
 		},
 		DesiredStatus: structs.AllocDesiredStatusRun,
+		TaskStates: map[string]*structs.TaskState{
+			"foo": &structs.TaskState{State: structs.TaskStatePending},
+		},
 	}
 	alloc2 := &structs.Allocation{
 		ID:     structs.GenerateUUID(),
@@ -288,6 +297,9 @@ func TestBinPackIterator_ExistingAlloc_PlannedEvict(t *testing.T) {
 			MemoryMB: 1024,
 		},
 		DesiredStatus: structs.AllocDesiredStatusRun,
+		TaskStates: map[string]*structs.TaskState{
+			"foo": &structs.TaskState{State: structs.TaskStatePending},
+		},
 	}
 	noErr(t, state.UpsertAllocs(1000, []*structs.Allocation{alloc1, alloc2}))
 
@@ -317,7 +329,7 @@ func TestBinPackIterator_ExistingAlloc_PlannedEvict(t *testing.T) {
 		t.Fatalf("Bad: %v", out[0])
 	}
 	if out[1].Score != 18 {
-		t.Fatalf("Bad: %v", out[0])
+		t.Fatalf("Bad: %v", out[1])
 	}
 }
 

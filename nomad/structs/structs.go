@@ -764,6 +764,10 @@ type Job struct {
 	// Periodic is used to define the interval the job is run at.
 	Periodic *PeriodicConfig
 
+	// GC is used to mark the job as available for garbage collection after it
+	// has no outstanding evaluations or allocations.
+	GC *JobGCConfig
+
 	// Meta is used to associate arbitrary metadata with this
 	// job. This is opaque to Nomad.
 	Meta map[string]string
@@ -777,6 +781,18 @@ type Job struct {
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
+}
+
+// InitFields is used to initialize fields in the Job. This should be called
+// when registering a Job.
+func (j *Job) InitFields() {
+	// Initialize the service block.
+	j.InitAllServiceFields()
+
+	// Initalize the GC policy
+	if j.GC != nil {
+		j.GC.Init()
+	}
 }
 
 // InitAllServiceFields traverses all Task Groups and makes them
@@ -854,6 +870,13 @@ func (j *Job) Validate() error {
 			fmt.Errorf("Periodic can only be used with %q scheduler", JobTypeBatch))
 	}
 
+	// Validate the GC config.
+	if j.GC != nil {
+		if err := j.GC.Validate(); err != nil {
+			mErr.Errors = append(mErr.Errors, err)
+		}
+	}
+
 	return mErr.ErrorOrNil()
 }
 
@@ -897,6 +920,37 @@ type JobListStub struct {
 	StatusDescription string
 	CreateIndex       uint64
 	ModifyIndex       uint64
+}
+
+const (
+	// DefaultJobGCThreshold is the default threshold for garbage collecting
+	// eligible jobs.
+	DefaultJobGCThreshold = 4 * time.Hour
+)
+
+// JobGCConfig configures the garbage collection policy of a job.
+type JobGCConfig struct {
+	// Enabled determines whether the job is eligible for garbage collection.
+	Enabled bool
+
+	// Threshold is how old a job must be before it eligible for GC. This gives
+	// the user time to inspect the job.
+	Threshold time.Duration
+}
+
+// Init sets the Threshold time to its default value if it is un-specified but
+// garbage collection is enabled.
+func (gc *JobGCConfig) Init() {
+	if gc.Enabled && gc.Threshold == 0 {
+		gc.Threshold = DefaultJobGCThreshold
+	}
+}
+
+func (gc *JobGCConfig) Validate() error {
+	if gc.Threshold < 0 {
+		return fmt.Errorf("job GC threshold must be positive: %v", gc.Threshold)
+	}
+	return nil
 }
 
 // UpdateStrategy is used to modify how updates are done
@@ -1470,14 +1524,21 @@ type Allocation struct {
 	ModifyIndex uint64
 }
 
-// TerminalStatus returns if the desired status is terminal and
-// will no longer transition. This is not based on the current client status.
+// TerminalStatus returns if the desired or actual status is terminal and
+// will no longer transition.
 func (a *Allocation) TerminalStatus() bool {
 	switch a.DesiredStatus {
 	case AllocDesiredStatusStop, AllocDesiredStatusEvict, AllocDesiredStatusFailed:
 		return true
 	default:
-		return false
+		// If all tasks are dead, the alloc is terminal.
+		for _, state := range a.TaskStates {
+			if state.State != TaskStateDead {
+				return false
+			}
+		}
+
+		return true
 	}
 }
 
@@ -1656,6 +1717,12 @@ const (
 	// We periodically scan nodes in a terminal state, and if they have no
 	// corresponding allocations we delete these out of the system.
 	CoreJobNodeGC = "node-gc"
+
+	// CoreJobJobGC is used for the garbage collection of eligible jobs. We
+	// periodically scan garbage collectible jobs and check if both their
+	// evaluations and allocations are terminal. If so, we delete these out of
+	// the system.
+	CoreJobJobGC = "job-gc"
 )
 
 // Evaluation is used anytime we need to apply business logic as a result

@@ -91,6 +91,7 @@ func parseJob(result *structs.Job, list *ast.ObjectList) error {
 	delete(m, "meta")
 	delete(m, "update")
 	delete(m, "periodic")
+	delete(m, "gc")
 
 	// Set the ID and name to the object key
 	result.ID = obj.Keys[0].Token.Value().(string)
@@ -131,6 +132,13 @@ func parseJob(result *structs.Job, list *ast.ObjectList) error {
 	// If we have a periodic definition, then parse that
 	if o := listVal.Filter("periodic"); len(o.Items) > 0 {
 		if err := parsePeriodic(&result.Periodic, o); err != nil {
+			return err
+		}
+	}
+
+	// If we have a gc config, then parse that
+	if o := listVal.Filter("gc"); len(o.Items) > 0 {
+		if err := parseGC(&result.GC, o); err != nil {
 			return err
 		}
 	}
@@ -713,4 +721,40 @@ func parsePeriodic(result **structs.PeriodicConfig, list *ast.ObjectList) error 
 	}
 	*result = &p
 	return nil
+}
+
+func parseGC(result **structs.JobGCConfig, list *ast.ObjectList) error {
+	list = list.Elem()
+	if len(list.Items) > 1 {
+		return fmt.Errorf("only one 'gc' block allowed per job")
+	}
+
+	// Get our resource object
+	o := list.Items[0]
+
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, o.Val); err != nil {
+		return err
+	}
+
+	// Enabled by default if the gc block exists.
+	if value, ok := m["enabled"]; !ok {
+		m["Enabled"] = true
+	} else {
+		enabled, err := parseBool(value)
+		if err != nil {
+			return fmt.Errorf("gc.enabled should be set to true or false; %v", err)
+		}
+		m["Enabled"] = enabled
+	}
+
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
+		WeaklyTypedInput: true,
+		Result:           result,
+	})
+	if err != nil {
+		return err
+	}
+	return dec.Decode(m)
 }

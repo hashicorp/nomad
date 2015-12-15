@@ -156,6 +156,29 @@ The `job` object supports the following keys:
   and "h" suffix can be used, such as "30s". Both values default to zero,
   which disables rolling updates.
 
+*   `gc` - Specifies the job's garbage collection configuration. This allows jobs
+    to be garbage collected when all their evaluations and allocations are
+    terminal. The `gc` block has the following format:
+
+    ```
+    "gc" {
+        // Enabled is set to true by default if the "gc" block is included.
+        enabled = true
+
+        // Threshold is a duration that configures how old a job must be
+        // before it is garbage collected.
+        threshold = "4h"
+    }
+    ```
+
+    * `enabled`: Toggles the eligibility of a job for garbage collection.
+
+    * `threshold`: `threshold` is a string that should be parseable as a
+      [time.Duration](https://golang.org/pkg/time/#ParseDuration). A job will
+      only be garbage collected after the job, its evaluations and allocations
+      are all older than the threshold.
+
+
 ### Task Group
 
 The `group` object supports the following keys:
