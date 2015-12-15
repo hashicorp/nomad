@@ -533,7 +533,6 @@ func TestInplaceUpdate_Success(t *testing.T) {
 	state, ctx := testContext(t)
 	eval := mock.Eval()
 	job := mock.Job()
-	job.InitAllServiceFields()
 
 	node := mock.Node()
 	noErr(t, state.UpsertNode(1000, node))

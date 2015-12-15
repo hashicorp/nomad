@@ -1444,7 +1444,7 @@ type Allocation struct {
 	// task. These should sum to the total Resources.
 	TaskResources map[string]*Resources
 
-	// Services is a map of service names and service ids
+	// Services is a map of service names to service ids
 	Services map[string]string
 
 	// Metrics associated with this allocation
@@ -1500,13 +1500,15 @@ func (a *Allocation) Stub() *AllocListStub {
 	}
 }
 
+// PopulateServiceIDs generates the service IDs for all the service definitions
+// in that Allocation
 func (a *Allocation) PopulateServiceIDs() {
 	a.Services = make(map[string]string)
 	tg := a.Job.LookupTaskGroup(a.TaskGroup)
 	for _, task := range tg.Tasks {
 		for _, service := range task.Services {
 			// We add a prefix to the Service ID so that we can know that this service
-			// is managed by Consul since Consul can also have service which are not
+			// is managed by Nomad Consul since Consul can also have service which are not
 			// managed by Nomad
 			a.Services[service.Name] = fmt.Sprintf("%s-%s", NomadConsulPrefix, GenerateUUID())
 		}

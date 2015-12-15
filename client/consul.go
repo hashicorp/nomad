@@ -152,7 +152,6 @@ func (c *ConsulService) Register(task *structs.Task, alloc *structs.Allocation) 
 	for _, service := range task.Services {
 		c.logger.Printf("[INFO] consul: registering service %s with consul.", service.Name)
 		if err := c.registerService(service, task, alloc); err != nil {
-			fmt.Printf("DIPTANU ERR %v\n", err)
 			mErr.Errors = append(mErr.Errors, err)
 		}
 	}
