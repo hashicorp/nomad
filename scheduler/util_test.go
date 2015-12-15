@@ -533,17 +533,19 @@ func TestInplaceUpdate_Success(t *testing.T) {
 	state, ctx := testContext(t)
 	eval := mock.Eval()
 	job := mock.Job()
+	job.InitAllServiceFields()
 
 	node := mock.Node()
 	noErr(t, state.UpsertNode(1000, node))
 
 	// Register an alloc
 	alloc := &structs.Allocation{
-		ID:     structs.GenerateUUID(),
-		EvalID: eval.ID,
-		NodeID: node.ID,
-		JobID:  job.ID,
-		Job:    job,
+		ID:        structs.GenerateUUID(),
+		EvalID:    eval.ID,
+		NodeID:    node.ID,
+		JobID:     job.ID,
+		Job:       job,
+		TaskGroup: job.TaskGroups[0].Name,
 		Resources: &structs.Resources{
 			CPU:      2048,
 			MemoryMB: 2048,
@@ -551,13 +553,19 @@ func TestInplaceUpdate_Success(t *testing.T) {
 		DesiredStatus: structs.AllocDesiredStatusRun,
 	}
 	alloc.TaskResources = map[string]*structs.Resources{"web": alloc.Resources}
+	alloc.PopulateServiceIDs()
 	noErr(t, state.UpsertAllocs(1001, []*structs.Allocation{alloc}))
+
+	if alloc.Services["web-frontend"] == "" {
+		t.Fatal("Service ID needs to be generated for service")
+	}
 
 	// Create a new task group that updates the resources.
 	tg := &structs.TaskGroup{}
 	*tg = *job.TaskGroups[0]
 	resource := &structs.Resources{CPU: 737}
 	tg.Tasks[0].Resources = resource
+	tg.Tasks[0].Services = []*structs.Service{}
 
 	updates := []allocTuple{{Alloc: alloc, TaskGroup: tg}}
 	stack := NewGenericStack(false, ctx)
