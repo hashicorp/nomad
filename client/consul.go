@@ -47,8 +47,8 @@ func (a *consulApiClient) ServiceRegister(service *consul.AgentServiceRegistrati
 	return a.client.Agent().ServiceRegister(service)
 }
 
-func (a *consulApiClient) ServiceDeregister(serviceId string) error {
-	return a.client.Agent().ServiceDeregister(serviceId)
+func (a *consulApiClient) ServiceDeregister(serviceID string) error {
+	return a.client.Agent().ServiceDeregister(serviceID)
 }
 
 func (a *consulApiClient) Services() (map[string]*consul.AgentService, error) {
@@ -62,8 +62,8 @@ func (a *consulApiClient) Checks() (map[string]*consul.AgentCheck, error) {
 // trackedTask is a Task that we are tracking for changes in service and check
 // definitions and keep them sycned with Consul Agent
 type trackedTask struct {
-	allocID string
-	task    *structs.Task
+	task  *structs.Task
+	alloc *structs.Allocation
 }
 
 // ConsulService is the service which tracks tasks and syncs the services and
@@ -143,15 +143,15 @@ func NewConsulService(config *consulServiceConfig) (*ConsulService, error) {
 
 // Register starts tracking a task for changes to it's services and tasks and
 // adds/removes services and checks associated with it.
-func (c *ConsulService) Register(task *structs.Task, allocID string) error {
+func (c *ConsulService) Register(task *structs.Task, alloc *structs.Allocation) error {
 	var mErr multierror.Error
 	c.trackedTskLock.Lock()
-	tt := &trackedTask{allocID: allocID, task: task}
-	c.trackedTasks[fmt.Sprintf("%s-%s", allocID, task.Name)] = tt
+	tt := &trackedTask{task: task, alloc: alloc}
+	c.trackedTasks[fmt.Sprintf("%s-%s", alloc.ID, task.Name)] = tt
 	c.trackedTskLock.Unlock()
 	for _, service := range task.Services {
 		c.logger.Printf("[INFO] consul: registering service %s with consul.", service.Name)
-		if err := c.registerService(service, task, allocID); err != nil {
+		if err := c.registerService(service, task, alloc); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 		}
 	}
@@ -161,17 +161,18 @@ func (c *ConsulService) Register(task *structs.Task, allocID string) error {
 
 // Deregister stops tracking a task for changes to it's services and checks and
 // removes all the services and checks associated with the Task
-func (c *ConsulService) Deregister(task *structs.Task, allocID string) error {
+func (c *ConsulService) Deregister(task *structs.Task, alloc *structs.Allocation) error {
 	var mErr multierror.Error
 	c.trackedTskLock.Lock()
-	delete(c.trackedTasks, fmt.Sprintf("%s-%s", allocID, task.Name))
+	delete(c.trackedTasks, fmt.Sprintf("%s-%s", alloc.ID, task.Name))
 	c.trackedTskLock.Unlock()
 	for _, service := range task.Services {
-		if service.Id == "" {
+		serviceID := alloc.Services[service.Name]
+		if serviceID == "" {
 			continue
 		}
 		c.logger.Printf("[INFO] consul: deregistering service %v with consul", service.Name)
-		if err := c.deregisterService(service.Id); err != nil {
+		if err := c.deregisterService(serviceID); err != nil {
 			c.printLogMessage("[DEBUG] consul: error in deregistering service %v from consul", service.Name)
 			mErr.Errors = append(mErr.Errors, err)
 		}
@@ -223,28 +224,30 @@ func (c *ConsulService) performSync() {
 	// Add services and checks which Consul doesn't know about
 	for _, trackedTask := range c.trackedTasks {
 		for _, service := range trackedTask.task.Services {
+			serviceID := trackedTask.alloc.Services[service.Name]
 
 			// Add new services which Consul agent isn't aware of
-			knownServices[service.Id] = struct{}{}
-			if _, ok := consulServices[service.Id]; !ok {
+			knownServices[serviceID] = struct{}{}
+			if _, ok := consulServices[serviceID]; !ok {
 				c.printLogMessage("[INFO] consul: registering service %s with consul.", service.Name)
-				c.registerService(service, trackedTask.task, trackedTask.allocID)
+				c.registerService(service, trackedTask.task, trackedTask.alloc)
 				continue
 			}
 
 			// If a service has changed, re-register it with Consul agent
-			if service.Hash() != c.serviceStates[service.Id] {
+			if service.Hash() != c.serviceStates[serviceID] {
 				c.printLogMessage("[INFO] consul: reregistering service %s with consul.", service.Name)
-				c.registerService(service, trackedTask.task, trackedTask.allocID)
+				c.registerService(service, trackedTask.task, trackedTask.alloc)
 				continue
 			}
 
 			// Add new checks that Consul isn't aware of
 			for _, check := range service.Checks {
-				knownChecks[check.Id] = struct{}{}
-				if _, ok := consulChecks[check.Id]; !ok {
+				checkID := check.Hash(serviceID)
+				knownChecks[checkID] = struct{}{}
+				if _, ok := consulChecks[checkID]; !ok {
 					host, port := trackedTask.task.FindHostAndPortFor(service.PortLabel)
-					cr := c.makeCheck(service, check, host, port)
+					cr := c.makeCheck(serviceID, check, host, port)
 					c.registerCheck(cr)
 				}
 			}
@@ -252,9 +255,9 @@ func (c *ConsulService) performSync() {
 	}
 
 	// Remove services from the service tracker which no longer exists
-	for serviceId := range c.serviceStates {
-		if _, ok := knownServices[serviceId]; !ok {
-			delete(c.serviceStates, serviceId)
+	for serviceID := range c.serviceStates {
+		if _, ok := knownServices[serviceID]; !ok {
+			delete(c.serviceStates, serviceID)
 		}
 	}
 
@@ -276,16 +279,17 @@ func (c *ConsulService) performSync() {
 }
 
 // registerService registers a Service with Consul
-func (c *ConsulService) registerService(service *structs.Service, task *structs.Task, allocID string) error {
+func (c *ConsulService) registerService(service *structs.Service, task *structs.Task, alloc *structs.Allocation) error {
 	var mErr multierror.Error
 	host, port := task.FindHostAndPortFor(service.PortLabel)
 	if host == "" || port == 0 {
 		return fmt.Errorf("consul: the port:%q marked for registration of service: %q couldn't be found", service.PortLabel, service.Name)
 	}
-	c.serviceStates[service.Id] = service.Hash()
+	serviceID := alloc.Services[service.Name]
+	c.serviceStates[serviceID] = service.Hash()
 
 	asr := &consul.AgentServiceRegistration{
-		ID:      service.Id,
+		ID:      serviceID,
 		Name:    service.Name,
 		Tags:    service.Tags,
 		Port:    port,
@@ -297,7 +301,7 @@ func (c *ConsulService) registerService(service *structs.Service, task *structs.
 		mErr.Errors = append(mErr.Errors, err)
 	}
 	for _, check := range service.Checks {
-		cr := c.makeCheck(service, check, host, port)
+		cr := c.makeCheck(serviceID, check, host, port)
 		if err := c.registerCheck(cr); err != nil {
 			c.printLogMessage("[DEBUG] consul: error while registerting check %v with consul: %v", check.Name, err)
 			mErr.Errors = append(mErr.Errors, err)
@@ -320,20 +324,21 @@ func (c *ConsulService) deregisterCheck(checkID string) error {
 }
 
 // deregisterService de-registers a Service with a specific id from Consul
-func (c *ConsulService) deregisterService(serviceId string) error {
-	delete(c.serviceStates, serviceId)
-	if err := c.client.ServiceDeregister(serviceId); err != nil {
+func (c *ConsulService) deregisterService(serviceID string) error {
+	delete(c.serviceStates, serviceID)
+	if err := c.client.ServiceDeregister(serviceID); err != nil {
 		return err
 	}
 	return nil
 }
 
 // makeCheck creates a Consul Check Registration struct
-func (c *ConsulService) makeCheck(service *structs.Service, check *structs.ServiceCheck, ip string, port int) *consul.AgentCheckRegistration {
+func (c *ConsulService) makeCheck(serviceID string, check *structs.ServiceCheck, ip string, port int) *consul.AgentCheckRegistration {
+	checkID := check.Hash(serviceID)
 	cr := &consul.AgentCheckRegistration{
-		ID:        check.Id,
+		ID:        checkID,
 		Name:      check.Name,
-		ServiceID: service.Id,
+		ServiceID: serviceID,
 	}
 	cr.Interval = check.Interval.String()
 	cr.Timeout = check.Timeout.String()

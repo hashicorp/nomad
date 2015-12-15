@@ -48,7 +48,7 @@ func testTaskRunner(restarts bool) (*MockTaskStateUpdater, *TaskRunner) {
 	}
 
 	state := alloc.TaskStates[task.Name]
-	tr := NewTaskRunner(logger, conf, upd.Update, ctx, alloc.ID, task, state, restartTracker, consulClient)
+	tr := NewTaskRunner(logger, conf, upd.Update, ctx, mock.Alloc(), task, state, restartTracker, consulClient)
 	return upd, tr
 }
 
@@ -166,7 +166,7 @@ func TestTaskRunner_SaveRestoreState(t *testing.T) {
 	// Create a new task runner
 	consulClient, _ := NewConsulService(&consulServiceConfig{tr.logger, "127.0.0.1:8500", "", "", false, false, &structs.Node{}})
 	tr2 := NewTaskRunner(tr.logger, tr.config, upd.Update,
-		tr.ctx, tr.allocID, &structs.Task{Name: tr.task.Name}, tr.state, tr.restartTracker,
+		tr.ctx, tr.alloc, &structs.Task{Name: tr.task.Name}, tr.state, tr.restartTracker,
 		consulClient)
 	if err := tr2.RestoreState(); err != nil {
 		t.Fatalf("err: %v", err)

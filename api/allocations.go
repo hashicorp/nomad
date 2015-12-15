@@ -47,6 +47,7 @@ type Allocation struct {
 	TaskGroup          string
 	Resources          *Resources
 	TaskResources      map[string]*Resources
+	Services           map[string]string
 	Metrics            *AllocationMetric
 	DesiredStatus      string
 	DesiredDescription string

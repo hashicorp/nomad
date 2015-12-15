@@ -1,7 +1,9 @@
 package client
 
 import (
+	"fmt"
 	consul "github.com/hashicorp/consul/api"
+	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"log"
 	"os"
@@ -32,7 +34,7 @@ func (a *mockConsulApiClient) ServiceRegister(service *consul.AgentServiceRegist
 	return nil
 }
 
-func (a *mockConsulApiClient) ServiceDeregister(serviceId string) error {
+func (a *mockConsulApiClient) ServiceDeregister(serviceID string) error {
 	a.serviceDeregisterCallCount += 1
 	return nil
 }
@@ -70,7 +72,6 @@ func newTask() *structs.Task {
 
 func TestConsul_MakeChecks(t *testing.T) {
 	service := &structs.Service{
-		Id:   "Foo",
 		Name: "Bar",
 		Checks: []*structs.ServiceCheck{
 			{
@@ -95,10 +96,11 @@ func TestConsul_MakeChecks(t *testing.T) {
 	}
 
 	c := newConsulService()
+	serviceID := fmt.Sprintf("%s-1234", structs.NomadConsulPrefix)
 
-	check1 := c.makeCheck(service, service.Checks[0], "10.10.0.1", 8090)
-	check2 := c.makeCheck(service, service.Checks[1], "10.10.0.1", 8090)
-	check3 := c.makeCheck(service, service.Checks[2], "10.10.0.1", 8090)
+	check1 := c.makeCheck(serviceID, service.Checks[0], "10.10.0.1", 8090)
+	check2 := c.makeCheck(serviceID, service.Checks[1], "10.10.0.1", 8090)
+	check3 := c.makeCheck(serviceID, service.Checks[2], "10.10.0.1", 8090)
 
 	if check1.HTTP != "http://10.10.0.1:8090/foo/bar" {
 		t.Fatalf("Invalid http url for check: %v", check1.HTTP)
@@ -142,7 +144,6 @@ func TestConsul_InvalidPortLabelForService(t *testing.T) {
 		},
 	}
 	service := &structs.Service{
-		Id:        "service-id",
 		Name:      "foo",
 		Tags:      []string{"a", "b"},
 		PortLabel: "https",
@@ -150,7 +151,7 @@ func TestConsul_InvalidPortLabelForService(t *testing.T) {
 	}
 
 	c := newConsulService()
-	if err := c.registerService(service, task, "allocid"); err == nil {
+	if err := c.registerService(service, task, mock.Alloc()); err == nil {
 		t.Fatalf("Service should be invalid")
 	}
 }
@@ -175,7 +176,7 @@ func TestConsul_Services_Deleted_From_Task(t *testing.T) {
 			},
 		},
 	}
-	c.Register(&task, "1")
+	c.Register(&task, mock.Alloc())
 	if len(c.serviceStates) != 1 {
 		t.Fatalf("Expected tracked services: %v, Actual: %v", 1, len(c.serviceStates))
 	}
@@ -191,13 +192,14 @@ func TestConsul_Service_Should_Be_Re_Reregistered_On_Change(t *testing.T) {
 	c := newConsulService()
 	task := newTask()
 	s1 := structs.Service{
-		Id:        "1-example-cache-redis",
 		Name:      "example-cache-redis",
 		Tags:      []string{"global"},
 		PortLabel: "db",
 	}
 	task.Services = append(task.Services, &s1)
-	c.Register(task, "1")
+	alloc := mock.Alloc()
+	serviceID := alloc.Services[s1.Name]
+	c.Register(task, alloc)
 
 	s1.Tags = []string{"frontcache"}
 
@@ -207,8 +209,8 @@ func TestConsul_Service_Should_Be_Re_Reregistered_On_Change(t *testing.T) {
 		t.Fatal("We should be tracking one service")
 	}
 
-	if c.serviceStates[s1.Id] != s1.Hash() {
-		t.Fatalf("Hash is %v, expected %v", c.serviceStates[s1.Id], s1.Hash())
+	if c.serviceStates[serviceID] != s1.Hash() {
+		t.Fatalf("Hash is %v, expected %v", c.serviceStates[serviceID], s1.Hash())
 	}
 }
 
@@ -219,14 +221,13 @@ func TestConsul_AddCheck_To_Service(t *testing.T) {
 	task := newTask()
 	var checks []*structs.ServiceCheck
 	s1 := structs.Service{
-		Id:        "1-example-cache-redis",
 		Name:      "example-cache-redis",
 		Tags:      []string{"global"},
 		PortLabel: "db",
 		Checks:    checks,
 	}
 	task.Services = append(task.Services, &s1)
-	c.Register(task, "1")
+	c.Register(task, mock.Alloc())
 
 	check1 := structs.ServiceCheck{
 		Name:     "alive",
@@ -250,14 +251,13 @@ func TestConsul_ModifyCheck(t *testing.T) {
 	task := newTask()
 	var checks []*structs.ServiceCheck
 	s1 := structs.Service{
-		Id:        "1-example-cache-redis",
 		Name:      "example-cache-redis",
 		Tags:      []string{"global"},
 		PortLabel: "db",
 		Checks:    checks,
 	}
 	task.Services = append(task.Services, &s1)
-	c.Register(task, "1")
+	c.Register(task, mock.Alloc())
 
 	check1 := structs.ServiceCheck{
 		Name:     "alive",
