@@ -180,7 +180,7 @@ func TestPeriodicDispatch_Add_UpdateJob(t *testing.T) {
 		t.Fatalf("Add didn't update: %v", tracked)
 	}
 
-	if !reflect.DeepEqual(*job, tracked[0]) {
+	if !reflect.DeepEqual(job, tracked[0]) {
 		t.Fatalf("Add didn't properly update: got %v; want %v", tracked[0], job)
 	}
 }
