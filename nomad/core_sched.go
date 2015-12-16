@@ -43,7 +43,7 @@ func (s *CoreScheduler) Process(eval *structs.Evaluation) error {
 // jobGC is used to garbage collect eligible jobs.
 func (c *CoreScheduler) jobGC(eval *structs.Evaluation) error {
 	// Get all the jobs eligible for garbage collection.
-	jIter, err := c.snap.JobsByGC(true)
+	iter, err := c.snap.JobsByGC(true)
 	if err != nil {
 		return err
 	}
@@ -55,16 +55,16 @@ func (c *CoreScheduler) jobGC(eval *structs.Evaluation) error {
 	c.srv.logger.Printf("[DEBUG] sched.core: job GC: scanning before index %d (%v)",
 		oldThreshold, c.srv.config.JobGCThreshold)
 
-	// Collect the allocations and evaluations to GC
+	// Collect the allocations, evaluations and jobs to GC
 	var gcAlloc, gcEval, gcJob []string
 
 OUTER:
-	for i := jIter.Next(); i != nil; i = jIter.Next() {
+	for i := iter.Next(); i != nil; i = iter.Next() {
 		job := i.(*structs.Job)
 
 		// Ignore new jobs.
 		if job.CreateIndex > oldThreshold {
-			continue OUTER
+			continue
 		}
 
 		evals, err := c.snap.EvalsByJob(job.ID)
