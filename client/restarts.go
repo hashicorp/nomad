@@ -6,7 +6,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-func NewRestartTracker(policy *structs.RestartPolicy) *RestartTracker {
+func newRestartTracker(policy *structs.RestartPolicy) *RestartTracker {
 	return &RestartTracker{
 		startTime: time.Now(),
 		policy:    policy,
@@ -54,5 +54,5 @@ func (r *RestartTracker) shouldRestart(exitCode int) bool {
 // Returns a tracker that never restarts.
 func noRestartsTracker() *RestartTracker {
 	policy := &structs.RestartPolicy{Attempts: 0, Mode: structs.RestartPolicyModeFail}
-	return NewRestartTracker(policy)
+	return newRestartTracker(policy)
 }

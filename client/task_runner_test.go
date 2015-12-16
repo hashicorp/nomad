@@ -42,7 +42,7 @@ func testTaskRunner(restarts bool) (*MockTaskStateUpdater, *TaskRunner) {
 
 	ctx := driver.NewExecContext(allocDir, alloc.ID)
 	rp := structs.NewRestartPolicy(structs.JobTypeService)
-	restartTracker := NewRestartTracker(rp)
+	restartTracker := newRestartTracker(rp)
 	if !restarts {
 		restartTracker = noRestartsTracker()
 	}

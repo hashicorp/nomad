@@ -20,7 +20,7 @@ func testPolicy(success bool, mode string) *structs.RestartPolicy {
 func TestClient_RestartTracker_ModeDelay(t *testing.T) {
 	t.Parallel()
 	p := testPolicy(true, structs.RestartPolicyModeDelay)
-	rt := NewRestartTracker(p)
+	rt := newRestartTracker(p)
 	for i := 0; i < p.Attempts; i++ {
 		actual, when := rt.NextRestart(127)
 		if !actual {
@@ -46,7 +46,7 @@ func TestClient_RestartTracker_ModeDelay(t *testing.T) {
 func TestClient_RestartTracker_ModeFail(t *testing.T) {
 	t.Parallel()
 	p := testPolicy(true, structs.RestartPolicyModeFail)
-	rt := NewRestartTracker(p)
+	rt := newRestartTracker(p)
 	for i := 0; i < p.Attempts; i++ {
 		actual, when := rt.NextRestart(127)
 		if !actual {
@@ -66,7 +66,7 @@ func TestClient_RestartTracker_ModeFail(t *testing.T) {
 func TestClient_RestartTracker_NoRestartOnSuccess(t *testing.T) {
 	t.Parallel()
 	p := testPolicy(false, structs.RestartPolicyModeDelay)
-	rt := NewRestartTracker(p)
+	rt := newRestartTracker(p)
 	if shouldRestart, _ := rt.NextRestart(0); shouldRestart {
 		t.Fatalf("NextRestart() returned %v, expected: %v", shouldRestart, false)
 	}
