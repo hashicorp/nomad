@@ -788,6 +788,11 @@ type Job struct {
 func (j *Job) InitFields() {
 	// Initialize the service block.
 	j.InitAllServiceFields()
+
+	// If the job is batch then make it GC.
+	if j.Type == JobTypeBatch {
+		j.GC = true
+	}
 }
 
 // InitAllServiceFields traverses all Task Groups and makes them
