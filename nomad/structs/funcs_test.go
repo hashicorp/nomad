@@ -27,42 +27,22 @@ func TestFilterTerminalAllocs(t *testing.T) {
 		&Allocation{ID: "bar", DesiredStatus: AllocDesiredStatusEvict},
 		&Allocation{ID: "baz", DesiredStatus: AllocDesiredStatusStop},
 		&Allocation{
-			ID:            "zip",
-			DesiredStatus: AllocDesiredStatusRun,
-			TaskStates: map[string]*TaskState{
-				"a": &TaskState{State: TaskStatePending},
-			},
-		},
-		&Allocation{
 			ID:            "foo",
 			DesiredStatus: AllocDesiredStatusRun,
-			TaskStates: map[string]*TaskState{
-				"a": &TaskState{State: TaskStatePending},
-			},
+			ClientStatus:  AllocClientStatusPending,
 		},
 		&Allocation{
 			ID:            "bam",
 			DesiredStatus: AllocDesiredStatusRun,
-			TaskStates: map[string]*TaskState{
-				"a": &TaskState{State: TaskStatePending},
-				"b": &TaskState{State: TaskStateDead},
-			},
-		},
-		&Allocation{
-			ID:            "fizz",
-			DesiredStatus: AllocDesiredStatusRun,
-			TaskStates: map[string]*TaskState{
-				"a": &TaskState{State: TaskStateDead},
-				"b": &TaskState{State: TaskStateDead},
-			},
+			ClientStatus:  AllocClientStatusDead,
 		},
 	}
 
 	out := FilterTerminalAllocs(l)
-	if len(out) != 3 {
+	if len(out) != 1 {
 		t.Fatalf("bad: %#v", out)
 	}
-	if out[0].ID != "zip" && out[1].ID != "foo" && out[2].ID != "bam" {
+	if out[0].ID != "foo" {
 		t.Fatalf("bad: %#v", out)
 	}
 }
