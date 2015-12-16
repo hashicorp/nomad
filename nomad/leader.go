@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -192,20 +193,28 @@ func (s *Server) restorePeriodicDispatcher() error {
 		job := i.(*structs.Job)
 		s.periodicDispatcher.Add(job)
 
+		// If the periodic job has never been launched before, launch will hold
+		// the time the periodic job was added. Otherwise it has the last launch
+		// time of the periodic job.
 		launch, err := s.fsm.State().PeriodicLaunchByID(job.ID)
 		if err != nil || launch == nil {
 			return fmt.Errorf("failed to get periodic launch time: %v", err)
 		}
 
-		if !job.Periodic.Next(launch.Launch).Before(now) {
+		// nextLaunch is the next launch that should occur.
+		nextLaunch := job.Periodic.Next(launch.Launch)
+
+		// We skip force launching the job if  there should be no next launch
+		// (the zero case) or if the next launch time is in the future. If it is
+		// in the future, it will be handled by the periodic dispatcher.
+		if nextLaunch.IsZero() || !nextLaunch.Before(now) {
 			continue
 		}
 
 		if err := s.periodicDispatcher.ForceRun(job.ID); err != nil {
-			s.logger.Printf(
-				"[ERR] nomad.periodic: force run of periodic job %q failed: %v",
-				job.ID, err)
-			return fmt.Errorf("failed for force run periodic job %q: %v", job.ID, err)
+			msg := fmt.Sprintf("force run of periodic job %q failed: %v", job.ID, err)
+			s.logger.Printf("[ERR] nomad.periodic: %s", msg)
+			return errors.New(msg)
 		}
 		s.logger.Printf("[DEBUG] nomad.periodic: periodic job %q force"+
 			" run during leadership establishment", job.ID)
