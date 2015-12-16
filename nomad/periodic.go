@@ -27,7 +27,7 @@ type PeriodicRunner interface {
 	Add(job *structs.Job) error
 	Remove(jobID string) error
 	ForceRun(jobID string) error
-	Tracked() []structs.Job
+	Tracked() []*structs.Job
 	Flush()
 	LaunchTime(jobID string) (time.Time, error)
 }
@@ -89,13 +89,13 @@ func (p *PeriodicDispatch) Start() {
 }
 
 // Tracked returns the set of tracked job IDs.
-func (p *PeriodicDispatch) Tracked() []structs.Job {
+func (p *PeriodicDispatch) Tracked() []*structs.Job {
 	p.l.RLock()
 	defer p.l.RUnlock()
-	tracked := make([]structs.Job, len(p.tracked))
+	tracked := make([]*structs.Job, len(p.tracked))
 	i := 0
 	for _, job := range p.tracked {
-		tracked[i] = *job
+		tracked[i] = job
 		i++
 	}
 	return tracked
@@ -115,12 +115,12 @@ func (p *PeriodicDispatch) Add(job *structs.Job) error {
 	// If we were tracking a job and it has been disabled or made non-periodic remove it.
 	disabled := !job.IsPeriodic() || !job.Periodic.Enabled
 	_, tracked := p.tracked[job.ID]
-	if tracked && disabled {
-		return p.removeLocked(job.ID)
-	}
-
-	// If the job is diabled and we aren't tracking it, do nothing.
 	if disabled {
+		if tracked {
+			p.removeLocked(job.ID)
+		}
+
+		// If the job is diabled and we aren't tracking it, do nothing.
 		return nil
 	}
 
@@ -223,7 +223,6 @@ PICK:
 	p.l.RLock()
 	if p.heap.Length() == 0 {
 		p.l.RUnlock()
-		p.logger.Printf("[DEBUG] nomad.periodic: no periodic jobs; waiting")
 		select {
 		case <-p.stopCh:
 			return

@@ -645,10 +645,10 @@ func TestFSM_SnapshotRestore_PeriodicLaunches(t *testing.T) {
 	fsm := testFSM(t)
 	state := fsm.State()
 	job1 := mock.Job()
-	launch1 := &structs.PeriodicLaunch{job1.ID, time.Now()}
+	launch1 := &structs.PeriodicLaunch{ID: job1.ID, Launch: time.Now()}
 	state.UpsertPeriodicLaunch(1000, launch1)
 	job2 := mock.Job()
-	launch2 := &structs.PeriodicLaunch{job2.ID, time.Now()}
+	launch2 := &structs.PeriodicLaunch{ID: job2.ID, Launch: time.Now()}
 	state.UpsertPeriodicLaunch(1001, launch2)
 
 	// Verify the contents

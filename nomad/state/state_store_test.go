@@ -672,7 +672,7 @@ func TestStateStore_RestoreJob(t *testing.T) {
 func TestStateStore_UpsertPeriodicLaunch(t *testing.T) {
 	state := testStateStore(t)
 	job := mock.Job()
-	launch := &structs.PeriodicLaunch{job.ID, time.Now()}
+	launch := &structs.PeriodicLaunch{ID: job.ID, Launch: time.Now()}
 
 	notify := setupNotifyTest(
 		state,
@@ -687,6 +687,12 @@ func TestStateStore_UpsertPeriodicLaunch(t *testing.T) {
 	out, err := state.PeriodicLaunchByID(job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
+	}
+	if out.CreateIndex != 1000 {
+		t.Fatalf("bad: %#v", out)
+	}
+	if out.ModifyIndex != 1000 {
+		t.Fatalf("bad: %#v", out)
 	}
 
 	if !reflect.DeepEqual(launch, out) {
@@ -707,7 +713,7 @@ func TestStateStore_UpsertPeriodicLaunch(t *testing.T) {
 func TestStateStore_UpdateUpsertPeriodicLaunch(t *testing.T) {
 	state := testStateStore(t)
 	job := mock.Job()
-	launch := &structs.PeriodicLaunch{job.ID, time.Now()}
+	launch := &structs.PeriodicLaunch{ID: job.ID, Launch: time.Now()}
 
 	notify := setupNotifyTest(
 		state,
@@ -719,7 +725,10 @@ func TestStateStore_UpdateUpsertPeriodicLaunch(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	launch2 := &structs.PeriodicLaunch{job.ID, launch.Launch.Add(1 * time.Second)}
+	launch2 := &structs.PeriodicLaunch{
+		ID:     job.ID,
+		Launch: launch.Launch.Add(1 * time.Second),
+	}
 	err = state.UpsertPeriodicLaunch(1001, launch2)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -728,6 +737,12 @@ func TestStateStore_UpdateUpsertPeriodicLaunch(t *testing.T) {
 	out, err := state.PeriodicLaunchByID(job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
+	}
+	if out.CreateIndex != 1000 {
+		t.Fatalf("bad: %#v", out)
+	}
+	if out.ModifyIndex != 1001 {
+		t.Fatalf("bad: %#v", out)
 	}
 
 	if !reflect.DeepEqual(launch2, out) {
@@ -748,7 +763,7 @@ func TestStateStore_UpdateUpsertPeriodicLaunch(t *testing.T) {
 func TestStateStore_DeletePeriodicLaunch(t *testing.T) {
 	state := testStateStore(t)
 	job := mock.Job()
-	launch := &structs.PeriodicLaunch{job.ID, time.Now()}
+	launch := &structs.PeriodicLaunch{ID: job.ID, Launch: time.Now()}
 
 	notify := setupNotifyTest(
 		state,
@@ -791,7 +806,7 @@ func TestStateStore_PeriodicLaunches(t *testing.T) {
 
 	for i := 0; i < 10; i++ {
 		job := mock.Job()
-		launch := &structs.PeriodicLaunch{job.ID, time.Now()}
+		launch := &structs.PeriodicLaunch{ID: job.ID, Launch: time.Now()}
 		launches = append(launches, launch)
 
 		err := state.UpsertPeriodicLaunch(1000+uint64(i), launch)
@@ -840,7 +855,7 @@ func TestStateStore_PeriodicLaunches(t *testing.T) {
 func TestStateStore_RestorePeriodicLaunch(t *testing.T) {
 	state := testStateStore(t)
 	job := mock.Job()
-	launch := &structs.PeriodicLaunch{job.ID, time.Now()}
+	launch := &structs.PeriodicLaunch{ID: job.ID, Launch: time.Now()}
 
 	notify := setupNotifyTest(
 		state,

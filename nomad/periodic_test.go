@@ -58,11 +58,11 @@ func (m *MockPeriodic) Flush() {
 	m.Jobs = make(map[string]*structs.Job)
 }
 
-func (m *MockPeriodic) Tracked() []structs.Job {
-	tracked := make([]structs.Job, len(m.Jobs))
+func (m *MockPeriodic) Tracked() []*structs.Job {
+	tracked := make([]*structs.Job, len(m.Jobs))
 	i := 0
 	for _, job := range m.Jobs {
-		tracked[i] = *job
+		tracked[i] = job
 		i++
 	}
 	return tracked

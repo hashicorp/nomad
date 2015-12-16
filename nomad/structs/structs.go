@@ -939,7 +939,7 @@ const (
 
 	// PeriodicSpecTest is only used by unit tests. It is a sorted, comma
 	// seperated list of unix timestamps at which to launch.
-	PeriodicSpecTest = "test"
+	PeriodicSpecTest = "_internal_test"
 )
 
 // Periodic defines the interval a job should be run at.
@@ -1021,6 +1021,10 @@ func (p *PeriodicConfig) Next(fromTime time.Time) time.Time {
 type PeriodicLaunch struct {
 	ID     string    // ID of the periodic job.
 	Launch time.Time // The last launch time.
+
+	// Raft Indexes
+	CreateIndex uint64
+	ModifyIndex uint64
 }
 
 var (

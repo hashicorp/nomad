@@ -131,10 +131,6 @@ func (s *StateStore) DeleteNode(index uint64, nodeID string) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
-	watcher := watch.NewItems()
-	watcher.Add(watch.Item{Table: "nodes"})
-	watcher.Add(watch.Item{Node: nodeID})
-
 	// Lookup the node
 	existing, err := txn.First("nodes", "id", nodeID)
 	if err != nil {
@@ -143,6 +139,10 @@ func (s *StateStore) DeleteNode(index uint64, nodeID string) error {
 	if existing == nil {
 		return fmt.Errorf("node not found")
 	}
+
+	watcher := watch.NewItems()
+	watcher.Add(watch.Item{Table: "nodes"})
+	watcher.Add(watch.Item{Node: nodeID})
 
 	// Delete the node
 	if err := txn.Delete("nodes", existing); err != nil {
@@ -306,10 +306,6 @@ func (s *StateStore) DeleteJob(index uint64, jobID string) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
-	watcher := watch.NewItems()
-	watcher.Add(watch.Item{Table: "jobs"})
-	watcher.Add(watch.Item{Job: jobID})
-
 	// Lookup the node
 	existing, err := txn.First("jobs", "id", jobID)
 	if err != nil {
@@ -318,6 +314,10 @@ func (s *StateStore) DeleteJob(index uint64, jobID string) error {
 	if existing == nil {
 		return fmt.Errorf("job not found")
 	}
+
+	watcher := watch.NewItems()
+	watcher.Add(watch.Item{Table: "jobs"})
+	watcher.Add(watch.Item{Job: jobID})
 
 	// Delete the node
 	if err := txn.Delete("jobs", existing); err != nil {
@@ -417,8 +417,18 @@ func (s *StateStore) UpsertPeriodicLaunch(index uint64, launch *structs.Periodic
 	watcher.Add(watch.Item{Job: launch.ID})
 
 	// Check if the job already exists
-	if _, err := txn.First("periodic_launch", "id", launch.ID); err != nil {
+	existing, err := txn.First("periodic_launch", "id", launch.ID)
+	if err != nil {
 		return fmt.Errorf("periodic launch lookup failed: %v", err)
+	}
+
+	// Setup the indexes correctly
+	if existing != nil {
+		launch.CreateIndex = existing.(*structs.PeriodicLaunch).CreateIndex
+		launch.ModifyIndex = index
+	} else {
+		launch.CreateIndex = index
+		launch.ModifyIndex = index
 	}
 
 	// Insert the job
@@ -439,10 +449,6 @@ func (s *StateStore) DeletePeriodicLaunch(index uint64, jobID string) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
-	watcher := watch.NewItems()
-	watcher.Add(watch.Item{Table: "periodic_launch"})
-	watcher.Add(watch.Item{Job: jobID})
-
 	// Lookup the launch
 	existing, err := txn.First("periodic_launch", "id", jobID)
 	if err != nil {
@@ -451,6 +457,10 @@ func (s *StateStore) DeletePeriodicLaunch(index uint64, jobID string) error {
 	if existing == nil {
 		return fmt.Errorf("launch not found")
 	}
+
+	watcher := watch.NewItems()
+	watcher.Add(watch.Item{Table: "periodic_launch"})
+	watcher.Add(watch.Item{Job: jobID})
 
 	// Delete the launch
 	if err := txn.Delete("periodic_launch", existing); err != nil {

@@ -217,7 +217,7 @@ func (n *nomadFSM) applyUpsertJob(buf []byte, index uint64) interface{} {
 		}
 
 		// Record the insertion time as a launch.
-		launch := &structs.PeriodicLaunch{req.Job.ID, time.Now()}
+		launch := &structs.PeriodicLaunch{ID: req.Job.ID, Launch: time.Now()}
 		if err := n.state.UpsertPeriodicLaunch(index, launch); err != nil {
 			n.logger.Printf("[ERR] nomad.fsm: UpsertPeriodicLaunch failed: %v", err)
 			return err
@@ -242,7 +242,7 @@ func (n *nomadFSM) applyUpsertJob(buf []byte, index uint64) interface{} {
 				n.logger.Printf("[ERR] nomad.fsm: LaunchTime(%v) failed: %v", req.Job.ID, err)
 				return err
 			}
-			launch := &structs.PeriodicLaunch{parentID, t}
+			launch := &structs.PeriodicLaunch{ID: parentID, Launch: t}
 			if err := n.state.UpsertPeriodicLaunch(index, launch); err != nil {
 				n.logger.Printf("[ERR] nomad.fsm: UpsertPeriodicLaunch failed: %v", err)
 				return err
