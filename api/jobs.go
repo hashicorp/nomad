@@ -119,7 +119,6 @@ type Job struct {
 	Constraints       []*Constraint
 	TaskGroups        []*TaskGroup
 	Update            *UpdateStrategy
-	GC                bool
 	Meta              map[string]string
 	Status            string
 	StatusDescription string

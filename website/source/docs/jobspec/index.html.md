@@ -156,23 +156,6 @@ The `job` object supports the following keys:
   and "h" suffix can be used, such as "30s". Both values default to zero,
   which disables rolling updates.
 
-*   `gc` - Toggles the job's eligibility for garbage collection. This allows jobs
-    to be garbage collected when all their evaluations and allocations are
-    terminal. The `gc` block has the following format:
-
-    ```
-    "gc" {
-        // Enabled is set to true by default if the "gc" block is included.
-        enabled = true
-    }
-
-    // Equivalent configuration.
-    "gc" {}
-    ```
-
-    * `enabled`: Toggles the eligibility of a job for garbage collection.
-
-
 ### Task Group
 
 The `group` object supports the following keys:
