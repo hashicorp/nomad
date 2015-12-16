@@ -126,7 +126,7 @@ func Job() *structs.Job {
 		CreateIndex: 42,
 		ModifyIndex: 99,
 	}
-	job.InitAllServiceFields()
+	job.InitFields()
 	return job
 }
 
