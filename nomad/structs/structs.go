@@ -1489,18 +1489,19 @@ type Allocation struct {
 // TerminalStatus returns if the desired or actual status is terminal and
 // will no longer transition.
 func (a *Allocation) TerminalStatus() bool {
+	// First check the desired state and if that isn't terminal, check client
+	// state.
 	switch a.DesiredStatus {
 	case AllocDesiredStatusStop, AllocDesiredStatusEvict, AllocDesiredStatusFailed:
 		return true
 	default:
-		// If all tasks are dead, the alloc is terminal.
-		for _, state := range a.TaskStates {
-			if state.State != TaskStateDead {
-				return false
-			}
-		}
+	}
 
+	switch a.ClientStatus {
+	case AllocClientStatusDead, AllocClientStatusFailed:
 		return true
+	default:
+		return false
 	}
 }
 
