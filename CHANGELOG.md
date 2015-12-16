@@ -1,3 +1,12 @@
+## 0.2.3-rc1 (December 15, 2015)
+
+BUG FIXES:
+  * client: Fixes for user lookup to support CoreOS [GH-591]
+  * discovery: Fixes for service registration when multiple allocations are bin
+    packed on a node [GH-583]
+  * discovery: Using a random prefix for nomad managed services [GH-579]
+  * configuration: Sort configuration files [GH-588]
+
 ## 0.2.2 (December 11, 2015)
 
 IMPROVEMENTS:
