@@ -556,6 +556,7 @@ func (s *StateStore) UpdateAllocFromClient(index uint64, alloc *structs.Allocati
 	// Pull in anything the client is the authority on
 	copyAlloc.ClientStatus = alloc.ClientStatus
 	copyAlloc.ClientDescription = alloc.ClientDescription
+	copyAlloc.TaskStates = alloc.TaskStates
 
 	// Update the modify index
 	copyAlloc.ModifyIndex = index
