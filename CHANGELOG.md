@@ -1,4 +1,4 @@
-## 0.2.3-rc1 (December 15, 2015)
+## 0.2.3 (December 17, 2015)
 
 BUG FIXES:
   * client: Fixes for user lookup to support CoreOS [GH-591]
