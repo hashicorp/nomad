@@ -6,6 +6,7 @@ BUG FIXES:
     packed on a node [GH-583]
   * discovery: Using a random prefix for nomad managed services [GH-579]
   * configuration: Sort configuration files [GH-588]
+  * core: Task States not being properly updated [GH-600]
 
 ## 0.2.2 (December 11, 2015)
 
