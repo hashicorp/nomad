@@ -7,7 +7,7 @@ VAGRANTFILE_API_VERSION = "2"
 $script = <<SCRIPT
 # Install Prereq Packages
 sudo apt-get update
-sudo apt-get install -y build-essential curl git-core mercurial bzr libpcre3-dev pkg-config zip default-jre qemu
+sudo apt-get install -y build-essential curl git-core mercurial bzr libpcre3-dev pkg-config zip default-jre qemu libc6-dev-i386 silversearcher-ag jq htop vim
 
 # Setup go, for development of Nomad
 SRCROOT="/opt/go"
