@@ -245,7 +245,8 @@ The `restart` object supports the following keys:
   controlled by `mode`.
 
 * `delay` - A duration to wait before restarting a task. It is specified as a
-  time duration using the `s`, `m`, and `h` suffixes, such as `30s`.
+  time duration using the `s`, `m`, and `h` suffixes, such as `30s`. A random
+  jitter of up to 25% is added to the the delay.
 
 * `on_success` - `on_success` controls whether a task is restarted when the
   task exits successfully.
