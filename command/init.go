@@ -104,15 +104,24 @@ job "example" {
 		# Defaults to 1
 		# count = 1
 
-		# Restart Policy - This block defines the restart policy for TaskGroups,
-		# the attempts value defines the number of restarts Nomad will do if Tasks
-		# in this TaskGroup fails in a rolling window of interval duration
-		# The delay value makes Nomad wait for that duration to restart after a Task
-		# fails or crashes.
+		# Configure the restart policy for the task group. If not provided, a
+		# default is used based on the job type.
 		restart {
-			interval = "5m"
+			# The number of attempts to run the job within the specified interval.
 			attempts = 10
+			interval = "5m"
+			
+			# A delay between a task failing and a restart occuring.
 			delay = "25s"
+
+			# Whether the tasks should be restarted if the exit successfully.
+			on_success = true
+
+			# Mode controls what happens when a task has restarted "attempts"
+			# times within the interval. "delay" mode delays the next restart
+			# till the next interval. "fail" mode does not restart the task if
+			# "attempts" has been hit within the interval.
+			mode = "delay"
 		}
 
 		# Define a task to run

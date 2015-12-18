@@ -236,19 +236,28 @@ The `network` object supports the following keys:
 
 The `restart` object supports the following keys:
 
-* `attempts` - For `batch` jobs, `attempts` is the maximum number of restarts
-  allowed before the task is failed. For non-batch jobs, the `attempts` is the
-  number of restarts allowed in an `interval` before a restart delay is added.
+* `attempts` - `attempts` is the number of restarts allowed in an `interval`.
 
-* `interval` - `interval` is only valid on non-batch jobs and is a time duration
-  that can be specified using the `s`, `m`, and `h` suffixes, such as `30s`.
-  The `interval` begins when the first task starts and ensures that only
-  `attempts` number of restarts happens within it. If more than `attempts`
-  number of failures happen, the restart is delayed till after the `interval`,
-  which is then reset.
+* `interval` - `interval` is a time duration that can be specified using the
+  `s`, `m`, and `h` suffixes, such as `30s`.  The `interval` begins when the
+  first task starts and ensures that only `attempts` number of restarts happens
+  within it. If more than `attempts` number of failures happen, behavior is
+  controlled by `mode`.
 
 * `delay` - A duration to wait before restarting a task. It is specified as a
-  time duration using the `s`, `m`, and `h` suffixes, such as `30s`.
+  time duration using the `s`, `m`, and `h` suffixes, such as `30s`. A random
+  jitter of up to 25% is added to the the delay.
+
+* `on_success` - `on_success` controls whether a task is restarted when the
+  task exits successfully.
+
+*   `mode` - Controls the behavior when the task fails more than `attempts`
+    times in an interval. Possible values are listed below:
+
+    * `delay` - `delay` will delay the next restart until the next `interval` is
+      reached.
+
+    * `fail` - `fail` will not restart the task again.
 
 The default `batch` restart policy is:
 
@@ -256,6 +265,9 @@ The default `batch` restart policy is:
 restart {
     attempts = 15
     delay = "15s"
+    interval = "168h" # 7 days
+    on_success = false
+    mode = "delay"
 }
 ```
 
@@ -266,6 +278,8 @@ restart {
     interval = "1m"
     attempts = 2
     delay = "15s"
+    on_success = true
+    mode = "delay"
 }
 ```
 

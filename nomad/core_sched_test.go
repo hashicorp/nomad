@@ -192,7 +192,7 @@ func TestCoreScheduler_JobGC(t *testing.T) {
 		// Should still exist
 		out, err := state.JobByID(job.ID)
 		if err != nil {
-			t.Fatalf("test(%s) err: %v", err)
+			t.Fatalf("test(%s) err: %v", test.test, err)
 		}
 		if (test.shouldExist && out == nil) || (!test.shouldExist && out != nil) {
 			t.Fatalf("test(%s) bad: %v", test.test, out)
@@ -200,7 +200,7 @@ func TestCoreScheduler_JobGC(t *testing.T) {
 
 		outE, err := state.EvalByID(eval.ID)
 		if err != nil {
-			t.Fatalf("test(%s) err: %v", err)
+			t.Fatalf("test(%s) err: %v", test.test, err)
 		}
 		if (test.shouldExist && outE == nil) || (!test.shouldExist && outE != nil) {
 			t.Fatalf("test(%s) bad: %v", test.test, out)
@@ -208,7 +208,7 @@ func TestCoreScheduler_JobGC(t *testing.T) {
 
 		outA, err := state.AllocByID(alloc.ID)
 		if err != nil {
-			t.Fatalf("test(%s) err: %v", err)
+			t.Fatalf("test(%s) err: %v", test.test, err)
 		}
 		if (test.shouldExist && outA == nil) || (!test.shouldExist && outA != nil) {
 			t.Fatalf("test(%s) bad: %v", test.test, outA)
