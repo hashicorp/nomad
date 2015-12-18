@@ -471,6 +471,63 @@ func TestStateStore_JobsByScheduler(t *testing.T) {
 	}
 }
 
+func TestStateStore_JobsByGC(t *testing.T) {
+	state := testStateStore(t)
+	var gc, nonGc []*structs.Job
+
+	for i := 0; i < 10; i++ {
+		job := mock.Job()
+		nonGc = append(nonGc, job)
+
+		if err := state.UpsertJob(1000+uint64(i), job); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	}
+
+	for i := 0; i < 10; i++ {
+		job := mock.Job()
+		job.GC = true
+		gc = append(gc, job)
+
+		if err := state.UpsertJob(2000+uint64(i), job); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	}
+
+	iter, err := state.JobsByGC(true)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	var outGc []*structs.Job
+	for i := iter.Next(); i != nil; i = iter.Next() {
+		outGc = append(outGc, i.(*structs.Job))
+	}
+
+	iter, err = state.JobsByGC(false)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	var outNonGc []*structs.Job
+	for i := iter.Next(); i != nil; i = iter.Next() {
+		outNonGc = append(outNonGc, i.(*structs.Job))
+	}
+
+	sort.Sort(JobIDSort(gc))
+	sort.Sort(JobIDSort(nonGc))
+	sort.Sort(JobIDSort(outGc))
+	sort.Sort(JobIDSort(outNonGc))
+
+	if !reflect.DeepEqual(gc, outGc) {
+		t.Fatalf("bad: %#v %#v", gc, outGc)
+	}
+
+	if !reflect.DeepEqual(nonGc, outNonGc) {
+		t.Fatalf("bad: %#v %#v", nonGc, outNonGc)
+	}
+}
+
 func TestStateStore_RestoreJob(t *testing.T) {
 	state := testStateStore(t)
 	job := mock.Job()

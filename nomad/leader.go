@@ -173,6 +173,8 @@ func (s *Server) schedulePeriodic(stopCh chan struct{}) {
 	defer evalGC.Stop()
 	nodeGC := time.NewTicker(s.config.NodeGCInterval)
 	defer nodeGC.Stop()
+	jobGC := time.NewTicker(s.config.JobGCInterval)
+	defer jobGC.Stop()
 
 	for {
 		select {
@@ -180,6 +182,8 @@ func (s *Server) schedulePeriodic(stopCh chan struct{}) {
 			s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobEvalGC))
 		case <-nodeGC.C:
 			s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobNodeGC))
+		case <-jobGC.C:
+			s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobJobGC))
 		case <-stopCh:
 			return
 		}

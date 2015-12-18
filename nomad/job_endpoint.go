@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -25,12 +26,17 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	if args.Job == nil {
 		return fmt.Errorf("missing job for registration")
 	}
-	if err := args.Job.Validate(); err != nil {
+
+	if err := j.checkBlacklist(args.Job); err != nil {
 		return err
 	}
 
-	// Initialize all the fields of services
-	args.Job.InitAllServiceFields()
+	// Initialize the job fields (sets defaults and any necessary init work).
+	args.Job.InitFields()
+
+	if err := args.Job.Validate(); err != nil {
+		return err
+	}
 
 	if args.Job.Type == structs.JobTypeCore {
 		return fmt.Errorf("job type cannot be core")
@@ -72,6 +78,16 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	reply.EvalCreateIndex = evalIndex
 	reply.JobModifyIndex = index
 	reply.Index = evalIndex
+	return nil
+}
+
+// checkBlacklist returns an error if the user has set any blacklisted field in
+// the job.
+func (j *Job) checkBlacklist(job *structs.Job) error {
+	if job.GC {
+		return errors.New("GC field of a job is used only internally and should not be set by user")
+	}
+
 	return nil
 }
 

@@ -764,6 +764,10 @@ type Job struct {
 	// Periodic is used to define the interval the job is run at.
 	Periodic *PeriodicConfig
 
+	// GC is used to mark the job as available for garbage collection after it
+	// has no outstanding evaluations or allocations.
+	GC bool
+
 	// Meta is used to associate arbitrary metadata with this
 	// job. This is opaque to Nomad.
 	Meta map[string]string
@@ -777,6 +781,18 @@ type Job struct {
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
+}
+
+// InitFields is used to initialize fields in the Job. This should be called
+// when registering a Job.
+func (j *Job) InitFields() {
+	// Initialize the service block.
+	j.InitAllServiceFields()
+
+	// If the job is batch then make it GC.
+	if j.Type == JobTypeBatch {
+		j.GC = true
+	}
 }
 
 // InitAllServiceFields traverses all Task Groups and makes them
@@ -1470,11 +1486,19 @@ type Allocation struct {
 	ModifyIndex uint64
 }
 
-// TerminalStatus returns if the desired status is terminal and
-// will no longer transition. This is not based on the current client status.
+// TerminalStatus returns if the desired or actual status is terminal and
+// will no longer transition.
 func (a *Allocation) TerminalStatus() bool {
+	// First check the desired state and if that isn't terminal, check client
+	// state.
 	switch a.DesiredStatus {
 	case AllocDesiredStatusStop, AllocDesiredStatusEvict, AllocDesiredStatusFailed:
+		return true
+	default:
+	}
+
+	switch a.ClientStatus {
+	case AllocClientStatusDead, AllocClientStatusFailed:
 		return true
 	default:
 		return false
@@ -1656,6 +1680,12 @@ const (
 	// We periodically scan nodes in a terminal state, and if they have no
 	// corresponding allocations we delete these out of the system.
 	CoreJobNodeGC = "node-gc"
+
+	// CoreJobJobGC is used for the garbage collection of eligible jobs. We
+	// periodically scan garbage collectible jobs and check if both their
+	// evaluations and allocations are terminal. If so, we delete these out of
+	// the system.
+	CoreJobJobGC = "job-gc"
 )
 
 // Evaluation is used anytime we need to apply business logic as a result

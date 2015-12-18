@@ -231,12 +231,6 @@ func Alloc() *structs.Allocation {
 				},
 			},
 		},
-		Services: map[string]string{"web-frontend": "nomad-registered-task-1234"},
-		TaskStates: map[string]*structs.TaskState{
-			"web": &structs.TaskState{
-				State: structs.TaskStatePending,
-			},
-		},
 		Job:           Job(),
 		DesiredStatus: structs.AllocDesiredStatusRun,
 		ClientStatus:  structs.AllocClientStatusPending,
