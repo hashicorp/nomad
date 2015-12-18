@@ -236,9 +236,6 @@ func (r *TaskRunner) run() {
 		// Register the services defined by the task with Consil
 		r.consulService.Register(r.task, r.alloc)
 
-		// De-Register the services belonging to the task from consul
-		defer r.consulService.Deregister(r.task, r.alloc)
-
 	OUTER:
 		// Wait for updates
 		for {
@@ -265,6 +262,9 @@ func (r *TaskRunner) run() {
 				destroyed = true
 			}
 		}
+
+		// De-Register the services belonging to the task from consul
+		r.consulService.Deregister(r.task, r.alloc)
 
 		// If the user destroyed the task, we do not attempt to do any restarts.
 		if destroyed {
