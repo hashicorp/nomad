@@ -7,6 +7,7 @@ BUG FIXES:
   * discovery: Using a random prefix for nomad managed services [GH-579]
   * configuration: Sort configuration files [GH-588]
   * core: Task States not being properly updated [GH-600]
+  * cli: RetryInterval was not being applied properly [GH-601]
 
 ## 0.2.2 (December 11, 2015)
 
