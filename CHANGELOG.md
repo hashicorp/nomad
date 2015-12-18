@@ -4,6 +4,8 @@ BUG FIXES:
   * client: Fixes for user lookup to support CoreOS [GH-591]
   * discovery: Fixes for service registration when multiple allocations are bin
     packed on a node [GH-583]
+  * discovery: De-Registering Tasks while Nomad sleeps before failed tasks are
+    restarted.
   * discovery: Using a random prefix for nomad managed services [GH-579]
   * configuration: Sort configuration files [GH-588]
   * core: Task States not being properly updated [GH-600]
