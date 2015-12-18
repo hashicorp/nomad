@@ -342,7 +342,7 @@ func TestOverlappingPorts(t *testing.T) {
 		t.Fatalf("Expected an error")
 	}
 
-	if !strings.Contains(err.Error(), "Found a port label collision") {
+	if !strings.Contains(err.Error(), "found a port label collision") {
 		t.Fatalf("Expected collision error; got %v", err)
 	}
 }
