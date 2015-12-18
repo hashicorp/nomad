@@ -24,7 +24,7 @@ type TaskRunner struct {
 	logger         *log.Logger
 	ctx            *driver.ExecContext
 	alloc          *structs.Allocation
-	restartTracker restartTracker
+	restartTracker *RestartTracker
 	consulService  *ConsulService
 
 	task     *structs.Task
@@ -53,7 +53,7 @@ type TaskStateUpdater func(taskName string)
 func NewTaskRunner(logger *log.Logger, config *config.Config,
 	updater TaskStateUpdater, ctx *driver.ExecContext,
 	alloc *structs.Allocation, task *structs.Task, state *structs.TaskState,
-	restartTracker restartTracker, consulService *ConsulService) *TaskRunner {
+	restartTracker *RestartTracker, consulService *ConsulService) *TaskRunner {
 
 	tc := &TaskRunner{
 		config:         config,
@@ -280,7 +280,7 @@ func (r *TaskRunner) run() {
 		}
 
 		// Check if we should restart. If not mark task as dead and exit.
-		shouldRestart, when := r.restartTracker.nextRestart(waitRes.ExitCode)
+		shouldRestart, when := r.restartTracker.NextRestart(waitRes.ExitCode)
 		waitEvent := r.waitErrorToEvent(waitRes)
 		if !shouldRestart {
 			r.logger.Printf("[INFO] client: Not restarting task: %v for alloc: %v ", r.task.Name, r.alloc.ID)
