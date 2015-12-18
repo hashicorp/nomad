@@ -190,6 +190,16 @@ func SystemJob() *structs.Job {
 	return job
 }
 
+func PeriodicJob() *structs.Job {
+	job := Job()
+	job.Periodic = &structs.PeriodicConfig{
+		Enabled:  true,
+		SpecType: structs.PeriodicSpecCron,
+		Spec:     "*/30 * * *",
+	}
+	return job
+}
+
 func Eval() *structs.Evaluation {
 	eval := &structs.Evaluation{
 		ID:       structs.GenerateUUID(),

@@ -359,6 +359,18 @@ func (s *StateStore) Jobs() (memdb.ResultIterator, error) {
 	return iter, nil
 }
 
+// ChildJobs returns an iterator over all the children of the passed job.
+func (s *StateStore) ChildJobs(id string) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	// Scan all jobs whose parent is the passed id.
+	iter, err := txn.Get("jobs", "parent", id)
+	if err != nil {
+		return nil, err
+	}
+	return iter, nil
+}
+
 // JobsByScheduler returns an iterator over all the jobs with the specific
 // scheduler type.
 func (s *StateStore) JobsByScheduler(schedulerType string) (memdb.ResultIterator, error) {

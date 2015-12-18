@@ -117,6 +117,14 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 		return err
 	}
 
+	// Enable the periodic dispatcher,since we are now the leader.
+	s.periodicDispatcher.SetEnabled(true)
+
+	// Restore the periodic dispatcher state
+	if err := s.restorePeriodicDispatcher(); err != nil {
+		return err
+	}
+
 	// Scheduler periodic jobs
 	go s.schedulePeriodic(stopCh)
 
@@ -164,6 +172,11 @@ func (s *Server) restoreEvalBroker() error {
 			return fmt.Errorf("failed to enqueue evaluation %s: %v", eval.ID, err)
 		}
 	}
+	return nil
+}
+
+func (s *Server) restorePeriodicDispatcher() error {
+	// TODO(alex)
 	return nil
 }
 
@@ -249,6 +262,9 @@ func (s *Server) revokeLeadership() error {
 
 	// Disable the eval broker, since it is only useful as a leader
 	s.evalBroker.SetEnabled(false)
+
+	// Disable the periodic dispatcher, since it is only useful as a leader
+	s.periodicDispatcher.SetEnabled(false)
 
 	// Clear the heartbeat timers on either shutdown or step down,
 	// since we are no longer responsible for TTL expirations.
