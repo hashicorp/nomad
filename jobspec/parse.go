@@ -159,10 +159,9 @@ func parseJob(result *structs.Job, list *ast.ObjectList) error {
 		result.TaskGroups = make([]*structs.TaskGroup, len(tasks), len(tasks)*2)
 		for i, t := range tasks {
 			result.TaskGroups[i] = &structs.TaskGroup{
-				Name:          t.Name,
-				Count:         1,
-				Tasks:         []*structs.Task{t},
-				RestartPolicy: structs.NewRestartPolicy(result.Type),
+				Name:  t.Name,
+				Count: 1,
+				Tasks: []*structs.Task{t},
 			}
 		}
 	}
@@ -230,11 +229,10 @@ func parseGroups(result *structs.Job, list *ast.ObjectList) error {
 				return err
 			}
 		}
-		g.RestartPolicy = structs.NewRestartPolicy(result.Type)
 
 		// Parse restart policy
 		if o := listVal.Filter("restart"); len(o.Items) > 0 {
-			if err := parseRestartPolicy(g.RestartPolicy, o); err != nil {
+			if err := parseRestartPolicy(&g.RestartPolicy, o); err != nil {
 				return err
 			}
 		}
@@ -267,12 +265,9 @@ func parseGroups(result *structs.Job, list *ast.ObjectList) error {
 	return nil
 }
 
-func parseRestartPolicy(final *structs.RestartPolicy, list *ast.ObjectList) error {
+func parseRestartPolicy(final **structs.RestartPolicy, list *ast.ObjectList) error {
 	list = list.Elem()
-	if len(list.Items) == 0 {
-		return nil
-	}
-	if len(list.Items) != 1 {
+	if len(list.Items) > 1 {
 		return fmt.Errorf("only one 'restart' block allowed")
 	}
 
@@ -297,7 +292,7 @@ func parseRestartPolicy(final *structs.RestartPolicy, list *ast.ObjectList) erro
 		return err
 	}
 
-	*final = result
+	*final = &result
 	return nil
 }
 

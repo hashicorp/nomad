@@ -19,17 +19,8 @@ import (
 )
 
 var (
-	ErrNoLeader                    = fmt.Errorf("No cluster leader")
-	ErrNoRegionPath                = fmt.Errorf("No path to region")
-	defaultServiceJobRestartPolicy = RestartPolicy{
-		Delay:    15 * time.Second,
-		Attempts: 2,
-		Interval: 1 * time.Minute,
-	}
-	defaultBatchJobRestartPolicy = RestartPolicy{
-		Delay:    15 * time.Second,
-		Attempts: 15,
-	}
+	ErrNoLeader     = fmt.Errorf("No cluster leader")
+	ErrNoRegionPath = fmt.Errorf("No path to region")
 )
 
 type MessageType uint8
@@ -786,22 +777,13 @@ type Job struct {
 // InitFields is used to initialize fields in the Job. This should be called
 // when registering a Job.
 func (j *Job) InitFields() {
-	// Initialize the service block.
-	j.InitAllServiceFields()
+	for _, tg := range j.TaskGroups {
+		tg.InitFields(j)
+	}
 
 	// If the job is batch then make it GC.
 	if j.Type == JobTypeBatch {
 		j.GC = true
-	}
-}
-
-// InitAllServiceFields traverses all Task Groups and makes them
-// interpolate Job, Task group and Task names in all Service names.
-// It also generates the check names if they are not set. This method also
-// generates Check and Service IDs
-func (j *Job) InitAllServiceFields() {
-	for _, tg := range j.TaskGroups {
-		tg.InitAllServiceFields(j.Name)
 	}
 }
 
@@ -984,15 +966,61 @@ func (p *PeriodicConfig) Next(fromTime time.Time) time.Time {
 	return time.Time{}
 }
 
-// RestartPolicy influences how Nomad restarts Tasks when they
-// crash or fail.
+var (
+	defaultServiceJobRestartPolicy = RestartPolicy{
+		Delay:            15 * time.Second,
+		Attempts:         2,
+		Interval:         1 * time.Minute,
+		RestartOnSuccess: true,
+		Mode:             RestartPolicyModeDelay,
+	}
+	defaultBatchJobRestartPolicy = RestartPolicy{
+		Delay:            15 * time.Second,
+		Attempts:         15,
+		Interval:         7 * 24 * time.Hour,
+		RestartOnSuccess: false,
+		Mode:             RestartPolicyModeDelay,
+	}
+)
+
+const (
+	// RestartPolicyModeDelay causes an artificial delay till the next interval is
+	// reached when the specified attempts have been reached in the interval.
+	RestartPolicyModeDelay = "delay"
+
+	// RestartPolicyModeFail causes a job to fail if the specified number of
+	// attempts are reached within an interval.
+	RestartPolicyModeFail = "fail"
+)
+
+// RestartPolicy configures how Tasks are restarted when they crash or fail.
 type RestartPolicy struct {
+	// Attempts is the number of restart that will occur in an interval.
 	Attempts int
+
+	// Interval is a duration in which we can limit the number of restarts
+	// within.
 	Interval time.Duration
-	Delay    time.Duration
+
+	// Delay is the time between a failure and a restart.
+	Delay time.Duration
+
+	// RestartOnSuccess determines whether a task should be restarted if it
+	// exited successfully.
+	RestartOnSuccess bool `mapstructure:"on_success"`
+
+	// Mode controls what happens when the task restarts more than attempt times
+	// in an interval.
+	Mode string
 }
 
 func (r *RestartPolicy) Validate() error {
+	switch r.Mode {
+	case RestartPolicyModeDelay, RestartPolicyModeFail:
+	default:
+		return fmt.Errorf("Unsupported restart mode: %q", r.Mode)
+	}
+
 	if r.Interval == 0 {
 		return nil
 	}
@@ -1040,12 +1068,15 @@ type TaskGroup struct {
 	Meta map[string]string
 }
 
-// InitAllServiceFields traverses over all Tasks and makes them to interpolate
-// values of Job, Task Group and Task names in all Service Names.
-// It also generates service ids, check ids and check names
-func (tg *TaskGroup) InitAllServiceFields(job string) {
+// InitFields is used to initialize fields in the TaskGroup.
+func (tg *TaskGroup) InitFields(job *Job) {
+	// Set the default restart policy.
+	if tg.RestartPolicy == nil {
+		tg.RestartPolicy = NewRestartPolicy(job.Type)
+	}
+
 	for _, task := range tg.Tasks {
-		task.InitAllServiceFields(job, tg.Name)
+		task.InitFields(job, tg)
 	}
 }
 
@@ -1240,10 +1271,15 @@ type Task struct {
 	Meta map[string]string
 }
 
-// InitAllServiceFields interpolates values of Job, Task Group
+// InitFields initializes fields in the task.
+func (t *Task) InitFields(job *Job, tg *TaskGroup) {
+	t.InitServiceFields(job.Name, tg.Name)
+}
+
+// InitServiceFields interpolates values of Job, Task Group
 // and Tasks in all the service Names of a Task. This also generates the service
 // id, check id and check names.
-func (t *Task) InitAllServiceFields(job string, taskGroup string) {
+func (t *Task) InitServiceFields(job string, taskGroup string) {
 	for _, service := range t.Services {
 		service.InitFields(job, taskGroup, t.Name)
 	}

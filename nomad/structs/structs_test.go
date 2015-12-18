@@ -115,9 +115,11 @@ func TestJob_IsPeriodic(t *testing.T) {
 func TestTaskGroup_Validate(t *testing.T) {
 	tg := &TaskGroup{
 		RestartPolicy: &RestartPolicy{
-			Interval: 5 * time.Minute,
-			Delay:    10 * time.Second,
-			Attempts: 10,
+			Interval:         5 * time.Minute,
+			Delay:            10 * time.Second,
+			Attempts:         10,
+			RestartOnSuccess: true,
+			Mode:             RestartPolicyModeDelay,
 		},
 	}
 	err := tg.Validate()
@@ -141,9 +143,11 @@ func TestTaskGroup_Validate(t *testing.T) {
 			&Task{},
 		},
 		RestartPolicy: &RestartPolicy{
-			Interval: 5 * time.Minute,
-			Delay:    10 * time.Second,
-			Attempts: 10,
+			Interval:         5 * time.Minute,
+			Delay:            10 * time.Second,
+			Attempts:         10,
+			RestartOnSuccess: true,
+			Mode:             RestartPolicyModeDelay,
 		},
 	}
 	err = tg.Validate()
@@ -505,7 +509,7 @@ func TestJob_ExpandServiceNames(t *testing.T) {
 		},
 	}
 
-	j.InitAllServiceFields()
+	j.InitFields()
 
 	service1Name := j.TaskGroups[0].Tasks[0].Services[0].Name
 	if service1Name != "my-job-web-frontend-default" {

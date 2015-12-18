@@ -35,6 +35,8 @@ job "binstore-storagelocker" {
             attempts = 5
             interval = "10m"
             delay = "15s"
+            on_success = true
+            mode = "delay"
         }
         task "binstore" {
             driver = "docker"

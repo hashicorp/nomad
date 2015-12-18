@@ -24,6 +24,7 @@ func TestValidateCommand(t *testing.T) {
 	defer os.Remove(fh.Name())
 	_, err = fh.WriteString(`
 job "job1" {
+	type = "service"
 	datacenters = [ "dc1" ]
 	group "group1" {
 		count = 1

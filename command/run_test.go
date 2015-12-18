@@ -77,6 +77,7 @@ func TestRunCommand_Fails(t *testing.T) {
 	defer os.Remove(fh3.Name())
 	_, err = fh3.WriteString(`
 job "job1" {
+	type = "service"
 	datacenters = [ "dc1" ]
 	group "group1" {
 		count = 1
