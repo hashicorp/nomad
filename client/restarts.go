@@ -7,6 +7,9 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+// jitter is the percent of jitter added to restart delays.
+const jitter = 0.25
+
 func newRestartTracker(policy *structs.RestartPolicy) *RestartTracker {
 	return &RestartTracker{
 		startTime: time.Now(),
@@ -57,8 +60,8 @@ func (r *RestartTracker) shouldRestart(exitCode int) bool {
 // jitter returns the delay time plus a jitter.
 func (r *RestartTracker) jitter() time.Duration {
 	d := r.policy.Delay.Nanoseconds()
-	j := r.rand.Int63n(d) / 4 // Up to 25% jitter
-	return time.Duration(d + j)
+	j := float64(r.rand.Int63n(d)) * jitter
+	return time.Duration(d + int64(j))
 }
 
 // Returns a tracker that never restarts.

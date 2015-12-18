@@ -17,6 +17,13 @@ func testPolicy(success bool, mode string) *structs.RestartPolicy {
 	}
 }
 
+// withinJitter is a helper that returns whether the returned delay is within
+// the jitter.
+func withinJitter(expected, actual time.Duration) bool {
+	return float64((actual.Nanoseconds()-expected.Nanoseconds())/
+		expected.Nanoseconds()) <= jitter
+}
+
 func TestClient_RestartTracker_ModeDelay(t *testing.T) {
 	t.Parallel()
 	p := testPolicy(true, structs.RestartPolicyModeDelay)
@@ -26,8 +33,8 @@ func TestClient_RestartTracker_ModeDelay(t *testing.T) {
 		if !actual {
 			t.Fatalf("NextRestart() returned %v, want %v", actual, true)
 		}
-		if when != p.Delay {
-			t.Fatalf("NextRestart() returned %v; want %v", when, p.Delay)
+		if !withinJitter(p.Delay, when) {
+			t.Fatalf("NextRestart() returned %v; want %v+jitter", when, p.Delay)
 		}
 	}
 
@@ -52,8 +59,8 @@ func TestClient_RestartTracker_ModeFail(t *testing.T) {
 		if !actual {
 			t.Fatalf("NextRestart() returned %v, want %v", actual, true)
 		}
-		if when != p.Delay {
-			t.Fatalf("NextRestart() returned %v; want %v", when, p.Delay)
+		if !withinJitter(p.Delay, when) {
+			t.Fatalf("NextRestart() returned %v; want %v+jitter", when, p.Delay)
 		}
 	}
 
