@@ -624,7 +624,7 @@ func parsePorts(networkObj *ast.ObjectList, nw *structs.NetworkResource) error {
 	knownPortLabels := make(map[string]bool)
 	for _, port := range portsObjList.Items {
 		if len(port.Keys) == 0 {
-			return fmt.Errorf("Nomad expects ports to be named")
+			return fmt.Errorf("Ports must be named")
 		}
 		label := port.Keys[0].Token.Value().(string)
 		if !reDynamicPorts.MatchString(label) {
