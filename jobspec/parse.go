@@ -624,7 +624,7 @@ func parsePorts(networkObj *ast.ObjectList, nw *structs.NetworkResource) error {
 	knownPortLabels := make(map[string]bool)
 	for _, port := range portsObjList.Items {
 		if len(port.Keys) == 0 {
-			return fmt.Errorf("Ports must be named")
+			return fmt.Errorf("ports must be named")
 		}
 		label := port.Keys[0].Token.Value().(string)
 		if !reDynamicPorts.MatchString(label) {
@@ -632,7 +632,7 @@ func parsePorts(networkObj *ast.ObjectList, nw *structs.NetworkResource) error {
 		}
 		l := strings.ToLower(label)
 		if knownPortLabels[l] {
-			return fmt.Errorf("Found a port label collision: %s", label)
+			return fmt.Errorf("found a port label collision: %s", label)
 		}
 		var p map[string]interface{}
 		var res structs.Port
