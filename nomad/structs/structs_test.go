@@ -115,9 +115,11 @@ func TestJob_IsPeriodic(t *testing.T) {
 func TestTaskGroup_Validate(t *testing.T) {
 	tg := &TaskGroup{
 		RestartPolicy: &RestartPolicy{
-			Interval: 5 * time.Minute,
-			Delay:    10 * time.Second,
-			Attempts: 10,
+			Interval:         5 * time.Minute,
+			Delay:            10 * time.Second,
+			Attempts:         10,
+			RestartOnSuccess: true,
+			Mode:             RestartPolicyModeDelay,
 		},
 	}
 	err := tg.Validate()
@@ -141,9 +143,11 @@ func TestTaskGroup_Validate(t *testing.T) {
 			&Task{},
 		},
 		RestartPolicy: &RestartPolicy{
-			Interval: 5 * time.Minute,
-			Delay:    10 * time.Second,
-			Attempts: 10,
+			Interval:         5 * time.Minute,
+			Delay:            10 * time.Second,
+			Attempts:         10,
+			RestartOnSuccess: true,
+			Mode:             RestartPolicyModeDelay,
 		},
 	}
 	err = tg.Validate()

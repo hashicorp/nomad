@@ -80,6 +80,9 @@ func (c *RunCommand) Run(args []string) int {
 		return 1
 	}
 
+	// Initialize any fields that need to be.
+	job.InitFields()
+
 	// Check that the job is valid
 	if err := job.Validate(); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error validating job: %s", err))
