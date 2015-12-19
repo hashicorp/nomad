@@ -408,6 +408,80 @@ func (s *StateStore) JobsByGC(gc bool) (memdb.ResultIterator, error) {
 	return iter, nil
 }
 
+// UpsertPeriodicLaunch is used to register a launch or update it.
+func (s *StateStore) UpsertPeriodicLaunch(index uint64, launch *structs.PeriodicLaunch) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	watcher := watch.NewItems()
+	watcher.Add(watch.Item{Table: "periodic_launch"})
+	watcher.Add(watch.Item{Job: launch.ID})
+
+	// Check if the job already exists
+	if _, err := txn.First("periodic_launch", "id", launch.ID); err != nil {
+		return fmt.Errorf("periodic launch lookup failed: %v", err)
+	}
+
+	// Insert the job
+	if err := txn.Insert("periodic_launch", launch); err != nil {
+		return fmt.Errorf("launch insert failed: %v", err)
+	}
+	if err := txn.Insert("index", &IndexEntry{"periodic_launch", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	txn.Defer(func() { s.watch.notify(watcher) })
+	txn.Commit()
+	return nil
+}
+
+// DeletePeriodicLaunch is used to delete the periodic launch
+func (s *StateStore) DeletePeriodicLaunch(index uint64, jobID string) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	watcher := watch.NewItems()
+	watcher.Add(watch.Item{Table: "periodic_launch"})
+	watcher.Add(watch.Item{Job: jobID})
+
+	// Lookup the launch
+	existing, err := txn.First("periodic_launch", "id", jobID)
+	if err != nil {
+		return fmt.Errorf("launch lookup failed: %v", err)
+	}
+	if existing == nil {
+		return fmt.Errorf("launch not found")
+	}
+
+	// Delete the launch
+	if err := txn.Delete("periodic_launch", existing); err != nil {
+		return fmt.Errorf("launch delete failed: %v", err)
+	}
+	if err := txn.Insert("index", &IndexEntry{"periodic_launch", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	txn.Defer(func() { s.watch.notify(watcher) })
+	txn.Commit()
+	return nil
+}
+
+// PeriodicLaunchByID is used to lookup a periodic launch by the periodic job
+// ID.
+func (s *StateStore) PeriodicLaunchByID(id string) (*structs.PeriodicLaunch, error) {
+	txn := s.db.Txn(false)
+
+	existing, err := txn.First("periodic_launch", "id", id)
+	if err != nil {
+		return nil, fmt.Errorf("periodic launch lookup failed: %v", err)
+	}
+
+	if existing != nil {
+		return existing.(*structs.PeriodicLaunch), nil
+	}
+	return nil, nil
+}
+
 // UpsertEvaluation is used to upsert an evaluation
 func (s *StateStore) UpsertEvals(index uint64, evals []*structs.Evaluation) error {
 	txn := s.db.Txn(true)

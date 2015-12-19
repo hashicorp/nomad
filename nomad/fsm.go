@@ -207,10 +207,45 @@ func (n *nomadFSM) applyUpsertJob(buf []byte, index uint64) interface{} {
 		return err
 	}
 
+	// If it is periodic, insert it into the periodic runner and record the
+	// time it was inserted.
 	if req.Job.IsPeriodic() {
 		if err := n.periodicRunner.Add(req.Job); err != nil {
 			n.logger.Printf("[ERR] nomad.fsm: PeriodicRunner.Add failed: %v", err)
 			return err
+		}
+
+		// Record the insertion time as a launch.
+		launch := &structs.PeriodicLaunch{req.Job.ID, time.Now()}
+		if err := n.state.UpsertPeriodicLaunch(index, launch); err != nil {
+			n.logger.Printf("[ERR] nomad.fsm: UpsertPeriodicLaunch failed: %v", err)
+			return err
+		}
+	}
+
+	// Check if the parent job is periodic and mark the launch time.
+	parentID := req.Job.ParentID
+	if parentID != "" {
+		parent, err := n.state.JobByID(parentID)
+		if err != nil {
+			n.logger.Printf("[ERR] nomad.fsm: JobByID(%v) lookup for parent failed: %v", parentID, err)
+			return err
+		} else if parent == nil {
+			// The parent has been deregistered.
+			return nil
+		}
+
+		if parent.IsPeriodic() {
+			t, err := n.periodicRunner.LaunchTime(req.Job.ID)
+			if err != nil {
+				n.logger.Printf("[ERR] nomad.fsm: LaunchTime(%v) failed: %v", req.Job.ID, err)
+				return err
+			}
+			launch := &structs.PeriodicLaunch{parentID, t}
+			if err := n.state.UpsertPeriodicLaunch(index, launch); err != nil {
+				n.logger.Printf("[ERR] nomad.fsm: UpsertPeriodicLaunch failed: %v", err)
+				return err
+			}
 		}
 	}
 
@@ -224,14 +259,27 @@ func (n *nomadFSM) applyDeregisterJob(buf []byte, index uint64) interface{} {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
+	job, err := n.state.JobByID(req.JobID)
+	if err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: DeleteJob failed: %v", err)
+		return err
+	}
+
 	if err := n.state.DeleteJob(index, req.JobID); err != nil {
 		n.logger.Printf("[ERR] nomad.fsm: DeleteJob failed: %v", err)
 		return err
 	}
 
-	if err := n.periodicRunner.Remove(req.JobID); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: PeriodicRunner.Remove failed: %v", err)
-		return err
+	if job.IsPeriodic() {
+		if err := n.periodicRunner.Remove(req.JobID); err != nil {
+			n.logger.Printf("[ERR] nomad.fsm: PeriodicRunner.Remove failed: %v", err)
+			return err
+		}
+
+		if err := n.state.DeletePeriodicLaunch(index, req.JobID); err != nil {
+			n.logger.Printf("[ERR] nomad.fsm: DeletePeriodicLaunch failed: %v", err)
+			return err
+		}
 	}
 
 	return nil

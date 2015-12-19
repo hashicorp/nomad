@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -663,6 +664,122 @@ func TestStateStore_RestoreJob(t *testing.T) {
 
 	if !reflect.DeepEqual(out, job) {
 		t.Fatalf("Bad: %#v %#v", out, job)
+	}
+
+	notify.verify(t)
+}
+
+func TestStateStore_UpsertPeriodicLaunch(t *testing.T) {
+	state := testStateStore(t)
+	job := mock.Job()
+	launch := &structs.PeriodicLaunch{job.ID, time.Now()}
+
+	notify := setupNotifyTest(
+		state,
+		watch.Item{Table: "periodic_launch"},
+		watch.Item{Job: job.ID})
+
+	err := state.UpsertPeriodicLaunch(1000, launch)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	out, err := state.PeriodicLaunchByID(job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !reflect.DeepEqual(launch, out) {
+		t.Fatalf("bad: %#v %#v", job, out)
+	}
+
+	index, err := state.Index("periodic_launch")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if index != 1000 {
+		t.Fatalf("bad: %d", index)
+	}
+
+	notify.verify(t)
+}
+
+func TestStateStore_UpdateUpsertPeriodicLaunch(t *testing.T) {
+	state := testStateStore(t)
+	job := mock.Job()
+	launch := &structs.PeriodicLaunch{job.ID, time.Now()}
+
+	notify := setupNotifyTest(
+		state,
+		watch.Item{Table: "periodic_launch"},
+		watch.Item{Job: job.ID})
+
+	err := state.UpsertPeriodicLaunch(1000, launch)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	launch2 := &structs.PeriodicLaunch{job.ID, launch.Launch.Add(1 * time.Second)}
+	err = state.UpsertPeriodicLaunch(1001, launch2)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	out, err := state.PeriodicLaunchByID(job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !reflect.DeepEqual(launch2, out) {
+		t.Fatalf("bad: %#v %#v", launch2, out)
+	}
+
+	index, err := state.Index("periodic_launch")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if index != 1001 {
+		t.Fatalf("bad: %d", index)
+	}
+
+	notify.verify(t)
+}
+
+func TestStateStore_DeletePeriodicLaunch(t *testing.T) {
+	state := testStateStore(t)
+	job := mock.Job()
+	launch := &structs.PeriodicLaunch{job.ID, time.Now()}
+
+	notify := setupNotifyTest(
+		state,
+		watch.Item{Table: "periodic_launch"},
+		watch.Item{Job: job.ID})
+
+	err := state.UpsertPeriodicLaunch(1000, launch)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	err = state.DeletePeriodicLaunch(1001, job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	out, err := state.PeriodicLaunchByID(job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if out != nil {
+		t.Fatalf("bad: %#v %#v", job, out)
+	}
+
+	index, err := state.Index("periodic_launch")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if index != 1001 {
+		t.Fatalf("bad: %d", index)
 	}
 
 	notify.verify(t)

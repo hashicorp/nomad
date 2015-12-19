@@ -698,8 +698,8 @@ func parsePeriodic(result **structs.PeriodicConfig, list *ast.ObjectList) error 
 		m["Enabled"] = enabled
 	}
 
-	// If "cron_spec" is provided, set the type to "cron" and store the spec.
-	if cron, ok := m["cron_spec"]; ok {
+	// If "cron" is provided, set the type to "cron" and store the spec.
+	if cron, ok := m["cron"]; ok {
 		m["SpecType"] = structs.PeriodicSpecCron
 		m["Spec"] = cron
 	}

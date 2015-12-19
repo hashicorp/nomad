@@ -19,6 +19,7 @@ func stateStoreSchema() *memdb.DBSchema {
 		indexTableSchema,
 		nodeTableSchema,
 		jobTableSchema,
+		periodicLaunchTableSchema,
 		evalTableSchema,
 		allocTableSchema,
 	}
@@ -139,6 +140,28 @@ func jobIsGCable(obj interface{}) (bool, error) {
 	}
 
 	return j.GC, nil
+}
+
+// periodicLaunchTableSchema returns the MemDB schema tracking the most recent
+// launch time for a perioidic job.
+func periodicLaunchTableSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: "periodic_launch",
+		Indexes: map[string]*memdb.IndexSchema{
+			// Primary index is used for job management
+			// and simple direct lookup. ID is required to be
+			// unique.
+			"id": &memdb.IndexSchema{
+				Name:         "id",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.StringFieldIndex{
+					Field:     "ID",
+					Lowercase: true,
+				},
+			},
+		},
+	}
 }
 
 // evalTableSchema returns the MemDB schema for the eval table.

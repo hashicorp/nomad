@@ -222,9 +222,7 @@ func TestFSM_UpdateNodeDrain(t *testing.T) {
 func TestFSM_RegisterJob(t *testing.T) {
 	fsm := testFSM(t)
 
-	job := mock.Job()
-	job.Type = structs.JobTypeBatch
-	job.Periodic = &structs.PeriodicConfig{Enabled: true}
+	job := mock.PeriodicJob()
 	req := structs.JobRegisterRequest{
 		Job: job,
 	}
@@ -254,14 +252,24 @@ func TestFSM_RegisterJob(t *testing.T) {
 	if _, ok := fsm.periodicRunner.(*MockPeriodic).Jobs[job.ID]; !ok {
 		t.Fatal("job not added to periodic runner")
 	}
+
+	// Verify the launch time was tracked.
+	launchOut, err := fsm.State().PeriodicLaunchByID(req.Job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if launchOut == nil {
+		t.Fatalf("not found!")
+	}
+	if launchOut.Launch.IsZero() {
+		t.Fatalf("bad launch time: %v", launchOut.Launch)
+	}
 }
 
 func TestFSM_DeregisterJob(t *testing.T) {
 	fsm := testFSM(t)
 
-	job := mock.Job()
-	job.Type = structs.JobTypeBatch
-	job.Periodic = &structs.PeriodicConfig{Enabled: true}
+	job := mock.PeriodicJob()
 	req := structs.JobRegisterRequest{
 		Job: job,
 	}
@@ -300,6 +308,15 @@ func TestFSM_DeregisterJob(t *testing.T) {
 	// Verify it was removed from the periodic runner.
 	if _, ok := fsm.periodicRunner.(*MockPeriodic).Jobs[job.ID]; ok {
 		t.Fatal("job not removed from periodic runner")
+	}
+
+	// Verify it was removed from the periodic launch table.
+	launchOut, err := fsm.State().PeriodicLaunchByID(req.Job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if launchOut != nil {
+		t.Fatalf("launch found!")
 	}
 }
 
