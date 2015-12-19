@@ -43,7 +43,8 @@ func testStateStore(t *testing.T) *state.StateStore {
 }
 
 func testFSM(t *testing.T) *nomadFSM {
-	fsm, err := NewFSM(testBroker(t, 0), NewMockPeriodic(), os.Stderr)
+	p, _ := testPeriodicDispatcher()
+	fsm, err := NewFSM(testBroker(t, 0), p, os.Stderr)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -249,7 +250,7 @@ func TestFSM_RegisterJob(t *testing.T) {
 	}
 
 	// Verify it was added to the periodic runner.
-	if _, ok := fsm.periodicRunner.(*MockPeriodic).Jobs[job.ID]; !ok {
+	if _, ok := fsm.periodicDispatcher.tracked[job.ID]; !ok {
 		t.Fatal("job not added to periodic runner")
 	}
 
@@ -306,7 +307,7 @@ func TestFSM_DeregisterJob(t *testing.T) {
 	}
 
 	// Verify it was removed from the periodic runner.
-	if _, ok := fsm.periodicRunner.(*MockPeriodic).Jobs[job.ID]; ok {
+	if _, ok := fsm.periodicDispatcher.tracked[job.ID]; ok {
 		t.Fatal("job not removed from periodic runner")
 	}
 

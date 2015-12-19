@@ -391,6 +391,10 @@ func TestLeader_PeriodicDispatcher_Restore_NoEvals(t *testing.T) {
 	// Sleep till after the job should have been launched.
 	time.Sleep(3 * time.Second)
 
+	// Get the current time to ensure the launch time is after this once we
+	// restore.
+	now := time.Now()
+
 	// Restore the periodic dispatcher.
 	s1.periodicDispatcher.SetEnabled(true)
 	s1.periodicDispatcher.Start()
@@ -402,13 +406,13 @@ func TestLeader_PeriodicDispatcher_Restore_NoEvals(t *testing.T) {
 	}
 
 	// Check that an eval was made.
-	evals, err := createdEvals(s1.periodicDispatcher, job.ID)
-	if err != nil {
-		t.Fatalf("createdEvals(%v) failed: %v", job.ID, err)
+	last, err := s1.fsm.State().PeriodicLaunchByID(job.ID)
+	if err != nil || last == nil {
+		t.Fatalf("failed to get periodic launch time: %v", err)
 	}
 
-	if len(evals) != 1 {
-		t.Fatalf("restorePeriodicDispatcher() didn't create an eval")
+	if last.Launch.Before(now) {
+		t.Fatalf("restorePeriodicDispatcher did not force launch")
 	}
 }
 
@@ -453,26 +457,12 @@ func TestLeader_PeriodicDispatcher_Restore_Evals(t *testing.T) {
 	}
 
 	// Check that an eval was made.
-	evals, err := createdEvals(s1.periodicDispatcher, job.ID)
-	if err != nil {
-		t.Fatalf("createdEvals(%v) failed: %v", job.ID, err)
+	last, err := s1.fsm.State().PeriodicLaunchByID(job.ID)
+	if err != nil || last == nil {
+		t.Fatalf("failed to get periodic launch time: %v", err)
 	}
-
-	if len(evals) != 2 {
-		t.Fatalf("restorePeriodicDispatcher() didn't create an eval")
-	}
-
-	// Check it was for the right time.
-	match := false
-	for _, eval := range evals {
-		if eval.JobLaunch != past && eval.JobLaunch != future {
-			match = true
-			break
-		}
-	}
-
-	if !match {
-		t.Fatal("restorePeriodicDispatcher() didn't create the correct eval")
+	if last.Launch == past {
+		t.Fatalf("restorePeriodicDispatcher did not force launch")
 	}
 }
 

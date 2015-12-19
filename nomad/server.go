@@ -185,7 +185,7 @@ func NewServer(config *Config) (*Server, error) {
 	}
 
 	// Create the periodic dispatcher for launching periodic jobs.
-	s.periodicDispatcher = NewPeriodicDispatch(s)
+	s.periodicDispatcher = NewPeriodicDispatch(s.logger, s)
 
 	// Initialize the RPC layer
 	// TODO: TLS...

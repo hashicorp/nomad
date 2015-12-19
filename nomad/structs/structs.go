@@ -938,7 +938,7 @@ const (
 	PeriodicSpecCron = "cron"
 
 	// PeriodicSpecTest is only used by unit tests. It is a sorted, comma
-	// seperated list of unix timestamps at which to launch.
+	// seperated list of unix nanosecond timestamps at which to launch.
 	PeriodicSpecTest = "_internal_test"
 )
 
@@ -1003,7 +1003,7 @@ func (p *PeriodicConfig) Next(fromTime time.Time) time.Time {
 				return time.Time{}
 			}
 
-			times[i] = time.Unix(int64(unix), 0)
+			times[i] = time.Unix(0, int64(unix))
 		}
 
 		// Find the next match

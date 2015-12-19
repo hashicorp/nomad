@@ -39,12 +39,12 @@ const (
 // along with Raft to provide strong consistency. We implement
 // this outside the Server to avoid exposing this outside the package.
 type nomadFSM struct {
-	evalBroker     *EvalBroker
-	periodicRunner PeriodicRunner
-	logOutput      io.Writer
-	logger         *log.Logger
-	state          *state.StateStore
-	timetable      *TimeTable
+	evalBroker         *EvalBroker
+	periodicDispatcher *PeriodicDispatch
+	logOutput          io.Writer
+	logger             *log.Logger
+	state              *state.StateStore
+	timetable          *TimeTable
 }
 
 // nomadSnapshot is used to provide a snapshot of the current
@@ -60,7 +60,7 @@ type snapshotHeader struct {
 }
 
 // NewFSMPath is used to construct a new FSM with a blank state
-func NewFSM(evalBroker *EvalBroker, periodic PeriodicRunner, logOutput io.Writer) (*nomadFSM, error) {
+func NewFSM(evalBroker *EvalBroker, periodic *PeriodicDispatch, logOutput io.Writer) (*nomadFSM, error) {
 	// Create a state store
 	state, err := state.NewStateStore(logOutput)
 	if err != nil {
@@ -68,12 +68,12 @@ func NewFSM(evalBroker *EvalBroker, periodic PeriodicRunner, logOutput io.Writer
 	}
 
 	fsm := &nomadFSM{
-		evalBroker:     evalBroker,
-		periodicRunner: periodic,
-		logOutput:      logOutput,
-		logger:         log.New(logOutput, "", log.LstdFlags),
-		state:          state,
-		timetable:      NewTimeTable(timeTableGranularity, timeTableLimit),
+		evalBroker:         evalBroker,
+		periodicDispatcher: periodic,
+		logOutput:          logOutput,
+		logger:             log.New(logOutput, "", log.LstdFlags),
+		state:              state,
+		timetable:          NewTimeTable(timeTableGranularity, timeTableLimit),
 	}
 	return fsm, nil
 }
@@ -211,8 +211,8 @@ func (n *nomadFSM) applyUpsertJob(buf []byte, index uint64) interface{} {
 	// If it is periodic, insert it into the periodic runner and record the
 	// time it was inserted.
 	if req.Job.IsPeriodic() {
-		if err := n.periodicRunner.Add(req.Job); err != nil {
-			n.logger.Printf("[ERR] nomad.fsm: PeriodicRunner.Add failed: %v", err)
+		if err := n.periodicDispatcher.Add(req.Job); err != nil {
+			n.logger.Printf("[ERR] nomad.fsm: periodicDispatcher.Add failed: %v", err)
 			return err
 		}
 
@@ -237,7 +237,7 @@ func (n *nomadFSM) applyUpsertJob(buf []byte, index uint64) interface{} {
 		}
 
 		if parent.IsPeriodic() {
-			t, err := n.periodicRunner.LaunchTime(req.Job.ID)
+			t, err := n.periodicDispatcher.LaunchTime(req.Job.ID)
 			if err != nil {
 				n.logger.Printf("[ERR] nomad.fsm: LaunchTime(%v) failed: %v", req.Job.ID, err)
 				return err
@@ -272,8 +272,8 @@ func (n *nomadFSM) applyDeregisterJob(buf []byte, index uint64) interface{} {
 	}
 
 	if job.IsPeriodic() {
-		if err := n.periodicRunner.Remove(req.JobID); err != nil {
-			n.logger.Printf("[ERR] nomad.fsm: PeriodicRunner.Remove failed: %v", err)
+		if err := n.periodicDispatcher.Remove(req.JobID); err != nil {
+			n.logger.Printf("[ERR] nomad.fsm: periodicDispatcher.Remove failed: %v", err)
 			return err
 		}
 

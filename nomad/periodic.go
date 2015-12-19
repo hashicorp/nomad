@@ -19,26 +19,13 @@ const (
 	JobLaunchSuffix = "/periodic-"
 )
 
-// PeriodicRunner is the interface for tracking and launching periodic jobs at
-// their periodic spec.
-type PeriodicRunner interface {
-	Start()
-	SetEnabled(enabled bool)
-	Add(job *structs.Job) error
-	Remove(jobID string) error
-	ForceRun(jobID string) error
-	Tracked() []*structs.Job
-	Flush()
-	LaunchTime(jobID string) (time.Time, error)
-}
-
 // PeriodicDispatch is used to track and launch periodic jobs. It maintains the
 // set of periodic jobs and creates derived jobs and evaluations per
 // instantiation which is determined by the periodic spec.
 type PeriodicDispatch struct {
-	srv     *Server
-	enabled bool
-	running bool
+	dispatcher JobEvalDispatcher
+	enabled    bool
+	running    bool
 
 	tracked map[string]*structs.Job
 	heap    *periodicHeap
@@ -50,17 +37,60 @@ type PeriodicDispatch struct {
 	l        sync.RWMutex
 }
 
+// JobEvalDispatcher is an interface to submit jobs and have evaluations created
+// for them.
+type JobEvalDispatcher interface {
+	// DispatchJob takes a job a new, untracked job and creates an evaluation
+	// for it.
+	DispatchJob(job *structs.Job) error
+}
+
+// DispatchJob creates an evaluation for the passed job and commits both the
+// evaluation and the job to the raft log.
+func (s *Server) DispatchJob(job *structs.Job) error {
+	// Commit this update via Raft
+	req := structs.JobRegisterRequest{Job: job}
+	_, index, err := s.raftApply(structs.JobRegisterRequestType, req)
+	if err != nil {
+		return err
+	}
+
+	// Create a new evaluation
+	eval := &structs.Evaluation{
+		ID:             structs.GenerateUUID(),
+		Priority:       job.Priority,
+		Type:           job.Type,
+		TriggeredBy:    structs.EvalTriggerJobRegister,
+		JobID:          job.ID,
+		JobModifyIndex: index,
+		Status:         structs.EvalStatusPending,
+	}
+	update := &structs.EvalUpdateRequest{
+		Evals: []*structs.Evaluation{eval},
+	}
+
+	// Commit this evaluation via Raft
+	// XXX: There is a risk of partial failure where the JobRegister succeeds
+	// but that the EvalUpdate does not.
+	_, _, err = s.raftApply(structs.EvalUpdateRequestType, update)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // NewPeriodicDispatch returns a periodic dispatcher that is used to track and
 // launch periodic jobs.
-func NewPeriodicDispatch(srv *Server) *PeriodicDispatch {
+func NewPeriodicDispatch(logger *log.Logger, dispatcher JobEvalDispatcher) *PeriodicDispatch {
 	return &PeriodicDispatch{
-		srv:      srv,
-		tracked:  make(map[string]*structs.Job),
-		heap:     NewPeriodicHeap(),
-		updateCh: make(chan struct{}, 1),
-		stopCh:   make(chan struct{}),
-		waitCh:   make(chan struct{}),
-		logger:   srv.logger,
+		dispatcher: dispatcher,
+		tracked:    make(map[string]*structs.Job),
+		heap:       NewPeriodicHeap(),
+		updateCh:   make(chan struct{}, 1),
+		stopCh:     make(chan struct{}),
+		waitCh:     make(chan struct{}),
+		logger:     logger,
 	}
 }
 
@@ -121,7 +151,7 @@ func (p *PeriodicDispatch) Add(job *structs.Job) error {
 			p.removeLocked(job.ID)
 		}
 
-		// If the job is diabled and we aren't tracking it, do nothing.
+		// If the job is disabled and we aren't tracking it, do nothing.
 		return nil
 	}
 
@@ -219,7 +249,11 @@ func (p *PeriodicDispatch) run() {
 	for p.shouldRun() {
 		job, launch, err := p.nextLaunch()
 		if err != nil {
-			p.logger.Printf("[ERR] nomad.periodic: failed to determine next periodic job: %v", err)
+			p.l.RLock()
+			defer p.l.RUnlock()
+			if !p.running {
+				p.logger.Printf("[ERR] nomad.periodic: failed to determine next periodic job: %v", err)
+			}
 			return
 		} else if job == nil {
 			return
@@ -325,34 +359,8 @@ func (p *PeriodicDispatch) createEval(periodicJob *structs.Job, time time.Time) 
 		return err
 	}
 
-	// Commit this update via Raft
-	req := structs.JobRegisterRequest{Job: derived}
-	_, index, err := p.srv.raftApply(structs.JobRegisterRequestType, req)
-	if err != nil {
-		p.logger.Printf("[ERR] nomad.periodic: registering child job for periodic job %q failed: %v", periodicJob.ID, err)
-		return err
-	}
-
-	// Create a new evaluation
-	eval := &structs.Evaluation{
-		ID:             structs.GenerateUUID(),
-		Priority:       derived.Priority,
-		Type:           derived.Type,
-		TriggeredBy:    structs.EvalTriggerJobRegister,
-		JobID:          derived.ID,
-		JobModifyIndex: index,
-		Status:         structs.EvalStatusPending,
-	}
-	update := &structs.EvalUpdateRequest{
-		Evals: []*structs.Evaluation{eval},
-	}
-
-	// Commit this evaluation via Raft
-	// XXX: There is a risk of partial failure where the JobRegister succeeds
-	// but that the EvalUpdate does not.
-	_, _, err = p.srv.raftApply(structs.EvalUpdateRequestType, update)
-	if err != nil {
-		p.logger.Printf("[ERR] nomad.periodic: creating eval for %q failed: %v", derived.ID, err)
+	if err := p.dispatcher.DispatchJob(derived); err != nil {
+		p.logger.Printf("[ERR] nomad.periodic: failed to dispatch job %q: %v", periodicJob.ID, err)
 		return err
 	}
 
@@ -361,7 +369,6 @@ func (p *PeriodicDispatch) createEval(periodicJob *structs.Job, time time.Time) 
 
 // deriveJob instantiates a new job based on the passed periodic job and the
 // launch time.
-// TODO: these jobs need to be marked as GC'able
 func (p *PeriodicDispatch) deriveJob(periodicJob *structs.Job, time time.Time) (
 	derived *structs.Job, err error) {
 
@@ -384,13 +391,14 @@ func (p *PeriodicDispatch) deriveJob(periodicJob *structs.Job, time time.Time) (
 	derived.ID = p.derivedJobID(periodicJob, time)
 	derived.Name = derived.ID
 	derived.Periodic = nil
+	derived.GC = true
 	return
 }
 
 // deriveJobID returns a job ID based on the parent periodic job and the launch
 // time.
 func (p *PeriodicDispatch) derivedJobID(periodicJob *structs.Job, time time.Time) string {
-	return fmt.Sprintf("%s%s%d", periodicJob.ID, JobLaunchSuffix, time.Unix())
+	return fmt.Sprintf("%s%s%d", periodicJob.ID, JobLaunchSuffix, time.UnixNano())
 }
 
 // LaunchTime returns the launch time of the job. This is only valid for
@@ -406,7 +414,7 @@ func (p *PeriodicDispatch) LaunchTime(jobID string) (time.Time, error) {
 		return time.Time{}, fmt.Errorf("couldn't parse launch time from eval: %v", jobID)
 	}
 
-	return time.Unix(int64(launch), 0), nil
+	return time.Unix(0, int64(launch)), nil
 }
 
 // Flush clears the state of the PeriodicDispatcher
