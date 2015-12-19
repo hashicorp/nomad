@@ -398,6 +398,18 @@ func (s *StateStore) JobsByScheduler(schedulerType string) (memdb.ResultIterator
 	return iter, nil
 }
 
+// JobsByGC returns an iterator over all jobs eligible or uneligible for garbage
+// collection.
+func (s *StateStore) JobsByGC(gc bool) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	iter, err := txn.Get("jobs", "gc", gc)
+	if err != nil {
+		return nil, err
+	}
+	return iter, nil
+}
+
 // UpsertEvaluation is used to upsert an evaluation
 func (s *StateStore) UpsertEvals(index uint64, evals []*structs.Evaluation) error {
 	txn := s.db.Txn(true)
@@ -595,6 +607,7 @@ func (s *StateStore) UpdateAllocFromClient(index uint64, alloc *structs.Allocati
 	// Pull in anything the client is the authority on
 	copyAlloc.ClientStatus = alloc.ClientStatus
 	copyAlloc.ClientDescription = alloc.ClientDescription
+	copyAlloc.TaskStates = alloc.TaskStates
 
 	// Update the modify index
 	copyAlloc.ModifyIndex = index

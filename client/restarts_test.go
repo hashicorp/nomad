@@ -1,78 +1,81 @@
 package client
 
 import (
-	"github.com/hashicorp/nomad/nomad/structs"
 	"testing"
 	"time"
+
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-func TestTaskRunner_ServiceRestartCounter(t *testing.T) {
-	interval := 2 * time.Minute
-	delay := 1 * time.Second
-	attempts := 3
-	rt := newRestartTracker(structs.JobTypeService, &structs.RestartPolicy{Attempts: attempts, Interval: interval, Delay: delay})
+func testPolicy(success bool, mode string) *structs.RestartPolicy {
+	return &structs.RestartPolicy{
+		Interval:         2 * time.Minute,
+		Delay:            1 * time.Second,
+		Attempts:         3,
+		Mode:             mode,
+		RestartOnSuccess: success,
+	}
+}
 
-	for i := 0; i < attempts; i++ {
-		actual, when := rt.nextRestart(127)
+// withinJitter is a helper that returns whether the returned delay is within
+// the jitter.
+func withinJitter(expected, actual time.Duration) bool {
+	return float64((actual.Nanoseconds()-expected.Nanoseconds())/
+		expected.Nanoseconds()) <= jitter
+}
+
+func TestClient_RestartTracker_ModeDelay(t *testing.T) {
+	t.Parallel()
+	p := testPolicy(true, structs.RestartPolicyModeDelay)
+	rt := newRestartTracker(p)
+	for i := 0; i < p.Attempts; i++ {
+		actual, when := rt.NextRestart(127)
 		if !actual {
-			t.Fatalf("should restart returned %v, actual %v", actual, true)
+			t.Fatalf("NextRestart() returned %v, want %v", actual, true)
 		}
-		if when != delay {
-			t.Fatalf("nextRestart() returned %v; want %v", when, delay)
+		if !withinJitter(p.Delay, when) {
+			t.Fatalf("NextRestart() returned %v; want %v+jitter", when, p.Delay)
 		}
 	}
 
-	time.Sleep(1 * time.Second)
+	// Follow up restarts should cause delay.
 	for i := 0; i < 3; i++ {
-		actual, when := rt.nextRestart(127)
+		actual, when := rt.NextRestart(127)
 		if !actual {
 			t.Fail()
 		}
-		if !(when > delay && when < interval) {
-			t.Fatalf("nextRestart() returned %v; want less than %v and more than %v", when, interval, delay)
+		if !(when > p.Delay && when < p.Interval) {
+			t.Fatalf("NextRestart() returned %v; want less than %v and more than %v", when, p.Interval, p.Delay)
 		}
-	}
-
-}
-
-func TestTaskRunner_BatchRestartCounter(t *testing.T) {
-	attempts := 2
-	interval := 1 * time.Second
-	delay := 1 * time.Second
-	rt := newRestartTracker(structs.JobTypeBatch,
-		&structs.RestartPolicy{Attempts: attempts,
-			Interval: interval,
-			Delay:    delay,
-		},
-	)
-	for i := 0; i < attempts; i++ {
-		shouldRestart, when := rt.nextRestart(127)
-		if !shouldRestart {
-			t.Fatalf("should restart returned %v, actual %v", shouldRestart, true)
-		}
-		if when != delay {
-			t.Fatalf("Delay should be %v, actual: %v", delay, when)
-		}
-	}
-	actual, _ := rt.nextRestart(1)
-	if actual {
-		t.Fatalf("Expect %v, Actual: %v", false, actual)
 	}
 }
 
-func TestTaskRunner_BatchRestartOnSuccess(t *testing.T) {
-	attempts := 2
-	interval := 1 * time.Second
-	delay := 1 * time.Second
-	rt := newRestartTracker(structs.JobTypeBatch,
-		&structs.RestartPolicy{Attempts: attempts,
-			Interval: interval,
-			Delay:    delay,
-		},
-	)
-	shouldRestart, _ := rt.nextRestart(0)
-	if shouldRestart {
-		t.Fatalf("should restart returned %v, expected: %v", shouldRestart, false)
+func TestClient_RestartTracker_ModeFail(t *testing.T) {
+	t.Parallel()
+	p := testPolicy(true, structs.RestartPolicyModeFail)
+	rt := newRestartTracker(p)
+	for i := 0; i < p.Attempts; i++ {
+		actual, when := rt.NextRestart(127)
+		if !actual {
+			t.Fatalf("NextRestart() returned %v, want %v", actual, true)
+		}
+		if !withinJitter(p.Delay, when) {
+			t.Fatalf("NextRestart() returned %v; want %v+jitter", when, p.Delay)
+		}
+	}
+
+	// Next restart should cause fail
+	if actual, _ := rt.NextRestart(127); actual {
+		t.Fail()
+	}
+}
+
+func TestClient_RestartTracker_NoRestartOnSuccess(t *testing.T) {
+	t.Parallel()
+	p := testPolicy(false, structs.RestartPolicyModeDelay)
+	rt := newRestartTracker(p)
+	if shouldRestart, _ := rt.NextRestart(0); shouldRestart {
+		t.Fatalf("NextRestart() returned %v, expected: %v", shouldRestart, false)
 	}
 
 }

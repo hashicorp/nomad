@@ -76,9 +76,11 @@ func Job() *structs.Job {
 				Name:  "web",
 				Count: 10,
 				RestartPolicy: &structs.RestartPolicy{
-					Attempts: 3,
-					Interval: 10 * time.Minute,
-					Delay:    1 * time.Minute,
+					Attempts:         3,
+					Interval:         10 * time.Minute,
+					Delay:            1 * time.Minute,
+					RestartOnSuccess: true,
+					Mode:             structs.RestartPolicyModeDelay,
 				},
 				Tasks: []*structs.Task{
 					&structs.Task{
@@ -95,6 +97,10 @@ func Job() *structs.Job {
 								Name:      "${TASK}-frontend",
 								PortLabel: "http",
 							},
+							{
+								Name:      "${TASK}-admin",
+								PortLabel: "admin",
+							},
 						},
 						Resources: &structs.Resources{
 							CPU:      500,
@@ -102,7 +108,7 @@ func Job() *structs.Job {
 							Networks: []*structs.NetworkResource{
 								&structs.NetworkResource{
 									MBits:        50,
-									DynamicPorts: []structs.Port{{Label: "http"}},
+									DynamicPorts: []structs.Port{{Label: "http"}, {Label: "admin"}},
 								},
 							},
 						},
@@ -122,6 +128,7 @@ func Job() *structs.Job {
 		CreateIndex: 42,
 		ModifyIndex: 99,
 	}
+	job.InitFields()
 	return job
 }
 
@@ -146,9 +153,11 @@ func SystemJob() *structs.Job {
 				Name:  "web",
 				Count: 1,
 				RestartPolicy: &structs.RestartPolicy{
-					Attempts: 3,
-					Interval: 10 * time.Minute,
-					Delay:    1 * time.Minute,
+					Attempts:         3,
+					Interval:         10 * time.Minute,
+					Delay:            1 * time.Minute,
+					RestartOnSuccess: true,
+					Mode:             structs.RestartPolicyModeDelay,
 				},
 				Tasks: []*structs.Task{
 					&structs.Task{
@@ -224,11 +233,6 @@ func Alloc() *structs.Allocation {
 						DynamicPorts:  []structs.Port{{Label: "http"}},
 					},
 				},
-			},
-		},
-		TaskStates: map[string]*structs.TaskState{
-			"web": &structs.TaskState{
-				State: structs.TaskStatePending,
 			},
 		},
 		Job:           Job(),

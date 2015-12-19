@@ -23,8 +23,8 @@ type TaskRunner struct {
 	updater        TaskStateUpdater
 	logger         *log.Logger
 	ctx            *driver.ExecContext
-	allocID        string
-	restartTracker restartTracker
+	alloc          *structs.Allocation
+	restartTracker *RestartTracker
 	consulService  *ConsulService
 
 	task     *structs.Task
@@ -52,8 +52,8 @@ type TaskStateUpdater func(taskName string)
 // NewTaskRunner is used to create a new task context
 func NewTaskRunner(logger *log.Logger, config *config.Config,
 	updater TaskStateUpdater, ctx *driver.ExecContext,
-	allocID string, task *structs.Task, state *structs.TaskState,
-	restartTracker restartTracker, consulService *ConsulService) *TaskRunner {
+	alloc *structs.Allocation, task *structs.Task, state *structs.TaskState,
+	restartTracker *RestartTracker, consulService *ConsulService) *TaskRunner {
 
 	tc := &TaskRunner{
 		config:         config,
@@ -62,7 +62,7 @@ func NewTaskRunner(logger *log.Logger, config *config.Config,
 		restartTracker: restartTracker,
 		consulService:  consulService,
 		ctx:            ctx,
-		allocID:        allocID,
+		alloc:          alloc,
 		task:           task,
 		state:          state,
 		updateCh:       make(chan *structs.Task, 8),
@@ -85,7 +85,7 @@ func (r *TaskRunner) stateFilePath() string {
 	dirName := fmt.Sprintf("task-%s", hashHex)
 
 	// Generate the path
-	path := filepath.Join(r.config.StateDir, "alloc", r.allocID,
+	path := filepath.Join(r.config.StateDir, "alloc", r.alloc.ID,
 		dirName, "state.json")
 	return path
 }
@@ -113,7 +113,7 @@ func (r *TaskRunner) RestoreState() error {
 		// In the case it fails, we relaunch the task in the Run() method.
 		if err != nil {
 			r.logger.Printf("[ERR] client: failed to open handle to task '%s' for alloc '%s': %v",
-				r.task.Name, r.allocID, err)
+				r.task.Name, r.alloc.ID, err)
 			return nil
 		}
 		r.handle = handle
@@ -176,7 +176,7 @@ func (r *TaskRunner) createDriver() (driver.Driver, error) {
 	driver, err := driver.NewDriver(r.task.Driver, driverCtx)
 	if err != nil {
 		err = fmt.Errorf("failed to create driver '%s' for alloc %s: %v",
-			r.task.Driver, r.allocID, err)
+			r.task.Driver, r.alloc.ID, err)
 		r.logger.Printf("[ERR] client: %s", err)
 	}
 	return driver, err
@@ -196,7 +196,7 @@ func (r *TaskRunner) startTask() error {
 	handle, err := driver.Start(r.ctx, r.task)
 	if err != nil {
 		r.logger.Printf("[ERR] client: failed to start task '%s' for alloc '%s': %v",
-			r.task.Name, r.allocID, err)
+			r.task.Name, r.alloc.ID, err)
 		e := structs.NewTaskEvent(structs.TaskDriverFailure).
 			SetDriverError(fmt.Errorf("failed to start: %v", err))
 		r.setState(structs.TaskStateDead, e)
@@ -211,7 +211,7 @@ func (r *TaskRunner) startTask() error {
 func (r *TaskRunner) Run() {
 	defer close(r.waitCh)
 	r.logger.Printf("[DEBUG] client: starting task context for '%s' (alloc '%s')",
-		r.task.Name, r.allocID)
+		r.task.Name, r.alloc.ID)
 
 	r.run()
 	return
@@ -234,10 +234,7 @@ func (r *TaskRunner) run() {
 		destroyed := false
 
 		// Register the services defined by the task with Consil
-		r.consulService.Register(r.task, r.allocID)
-
-		// De-Register the services belonging to the task from consul
-		defer r.consulService.Deregister(r.task, r.allocID)
+		r.consulService.Register(r.task, r.alloc)
 
 	OUTER:
 		// Wait for updates
@@ -249,7 +246,7 @@ func (r *TaskRunner) run() {
 				// Update
 				r.task = update
 				if err := r.handle.Update(update); err != nil {
-					r.logger.Printf("[ERR] client: failed to update task '%s' for alloc '%s': %v", r.task.Name, r.allocID, err)
+					r.logger.Printf("[ERR] client: failed to update task '%s' for alloc '%s': %v", r.task.Name, r.alloc.ID, err)
 				}
 			case <-r.destroyCh:
 				// Avoid destroying twice
@@ -259,12 +256,15 @@ func (r *TaskRunner) run() {
 
 				// Send the kill signal, and use the WaitCh to block until complete
 				if err := r.handle.Kill(); err != nil {
-					r.logger.Printf("[ERR] client: failed to kill task '%s' for alloc '%s': %v", r.task.Name, r.allocID, err)
+					r.logger.Printf("[ERR] client: failed to kill task '%s' for alloc '%s': %v", r.task.Name, r.alloc.ID, err)
 					destroyErr = err
 				}
 				destroyed = true
 			}
 		}
+
+		// De-Register the services belonging to the task from consul
+		r.consulService.Deregister(r.task, r.alloc)
 
 		// If the user destroyed the task, we do not attempt to do any restarts.
 		if destroyed {
@@ -274,16 +274,16 @@ func (r *TaskRunner) run() {
 
 		// Log whether the task was successful or not.
 		if !waitRes.Successful() {
-			r.logger.Printf("[ERR] client: failed to complete task '%s' for alloc '%s': %v", r.task.Name, r.allocID, waitRes)
+			r.logger.Printf("[ERR] client: failed to complete task '%s' for alloc '%s': %v", r.task.Name, r.alloc.ID, waitRes)
 		} else {
-			r.logger.Printf("[INFO] client: completed task '%s' for alloc '%s'", r.task.Name, r.allocID)
+			r.logger.Printf("[INFO] client: completed task '%s' for alloc '%s'", r.task.Name, r.alloc.ID)
 		}
 
 		// Check if we should restart. If not mark task as dead and exit.
-		shouldRestart, when := r.restartTracker.nextRestart(waitRes.ExitCode)
+		shouldRestart, when := r.restartTracker.NextRestart(waitRes.ExitCode)
 		waitEvent := r.waitErrorToEvent(waitRes)
 		if !shouldRestart {
-			r.logger.Printf("[INFO] client: Not restarting task: %v for alloc: %v ", r.task.Name, r.allocID)
+			r.logger.Printf("[INFO] client: Not restarting task: %v for alloc: %v ", r.task.Name, r.alloc.ID)
 			r.setState(structs.TaskStateDead, waitEvent)
 			return
 		}
@@ -329,7 +329,7 @@ func (r *TaskRunner) Update(update *structs.Task) {
 	case r.updateCh <- update:
 	default:
 		r.logger.Printf("[ERR] client: dropping task update '%s' (alloc '%s')",
-			update.Name, r.allocID)
+			update.Name, r.alloc.ID)
 	}
 }
 

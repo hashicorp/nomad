@@ -80,7 +80,7 @@ func NewEnvAWSFingerprint(logger *log.Logger) Fingerprint {
 }
 
 func (f *EnvAWSFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
-	if !isAWS() {
+	if !f.isAWS() {
 		return false, nil
 	}
 
@@ -161,7 +161,7 @@ func (f *EnvAWSFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 	return true, nil
 }
 
-func isAWS() bool {
+func (f *EnvAWSFingerprint) isAWS() bool {
 	// Read the internal metadata URL from the environment, allowing test files to
 	// provide their own
 	metadataURL := os.Getenv("AWS_ENV_URL")
@@ -178,7 +178,7 @@ func isAWS() bool {
 	// Query the metadata url for the ami-id, to veryify we're on AWS
 	resp, err := client.Get(metadataURL + "ami-id")
 	if err != nil {
-		log.Printf("[DEBUG] fingerprint.env_aws: Error querying AWS Metadata URL, skipping")
+		f.logger.Printf("[DEBUG] fingerprint.env_aws: Error querying AWS Metadata URL, skipping")
 		return false
 	}
 	defer resp.Body.Close()
@@ -190,7 +190,7 @@ func isAWS() bool {
 
 	instanceID, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Printf("[DEBUG] fingerprint.env_aws: Error reading AWS Instance ID, skipping")
+		f.logger.Printf("[DEBUG] fingerprint.env_aws: Error reading AWS Instance ID, skipping")
 		return false
 	}
 

@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"time"
 
@@ -613,7 +614,7 @@ func LoadConfig(path string) (*Config, error) {
 	if fi.IsDir() {
 		return LoadConfigDir(path)
 	}
-	return LoadConfigFile(path)
+	return LoadConfigFile(filepath.Clean(path))
 }
 
 // LoadConfigString is used to parse a config string
@@ -704,6 +705,8 @@ func LoadConfigDir(dir string) (*Config, error) {
 	if len(files) == 0 {
 		return &Config{}, nil
 	}
+
+	sort.Strings(files)
 
 	var result *Config
 	for _, f := range files {

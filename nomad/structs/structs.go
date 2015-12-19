@@ -19,17 +19,8 @@ import (
 )
 
 var (
-	ErrNoLeader                    = fmt.Errorf("No cluster leader")
-	ErrNoRegionPath                = fmt.Errorf("No path to region")
-	defaultServiceJobRestartPolicy = RestartPolicy{
-		Delay:    15 * time.Second,
-		Attempts: 2,
-		Interval: 1 * time.Minute,
-	}
-	defaultBatchJobRestartPolicy = RestartPolicy{
-		Delay:    15 * time.Second,
-		Attempts: 15,
-	}
+	ErrNoLeader     = fmt.Errorf("No cluster leader")
+	ErrNoRegionPath = fmt.Errorf("No path to region")
 )
 
 type MessageType uint8
@@ -764,6 +755,10 @@ type Job struct {
 	// Periodic is used to define the interval the job is run at.
 	Periodic *PeriodicConfig
 
+	// GC is used to mark the job as available for garbage collection after it
+	// has no outstanding evaluations or allocations.
+	GC bool
+
 	// Meta is used to associate arbitrary metadata with this
 	// job. This is opaque to Nomad.
 	Meta map[string]string
@@ -779,13 +774,16 @@ type Job struct {
 	ModifyIndex uint64
 }
 
-// InitAllServiceFields traverses all Task Groups and makes them
-// interpolate Job, Task group and Task names in all Service names.
-// It also generates the check names if they are not set. This method also
-// generates Check and Service IDs
-func (j *Job) InitAllServiceFields() {
+// InitFields is used to initialize fields in the Job. This should be called
+// when registering a Job.
+func (j *Job) InitFields() {
 	for _, tg := range j.TaskGroups {
-		tg.InitAllServiceFields(j.Name)
+		tg.InitFields(j)
+	}
+
+	// If the job is batch then make it GC.
+	if j.Type == JobTypeBatch {
+		j.GC = true
 	}
 }
 
@@ -968,15 +966,61 @@ func (p *PeriodicConfig) Next(fromTime time.Time) time.Time {
 	return time.Time{}
 }
 
-// RestartPolicy influences how Nomad restarts Tasks when they
-// crash or fail.
+var (
+	defaultServiceJobRestartPolicy = RestartPolicy{
+		Delay:            15 * time.Second,
+		Attempts:         2,
+		Interval:         1 * time.Minute,
+		RestartOnSuccess: true,
+		Mode:             RestartPolicyModeDelay,
+	}
+	defaultBatchJobRestartPolicy = RestartPolicy{
+		Delay:            15 * time.Second,
+		Attempts:         15,
+		Interval:         7 * 24 * time.Hour,
+		RestartOnSuccess: false,
+		Mode:             RestartPolicyModeDelay,
+	}
+)
+
+const (
+	// RestartPolicyModeDelay causes an artificial delay till the next interval is
+	// reached when the specified attempts have been reached in the interval.
+	RestartPolicyModeDelay = "delay"
+
+	// RestartPolicyModeFail causes a job to fail if the specified number of
+	// attempts are reached within an interval.
+	RestartPolicyModeFail = "fail"
+)
+
+// RestartPolicy configures how Tasks are restarted when they crash or fail.
 type RestartPolicy struct {
+	// Attempts is the number of restart that will occur in an interval.
 	Attempts int
+
+	// Interval is a duration in which we can limit the number of restarts
+	// within.
 	Interval time.Duration
-	Delay    time.Duration
+
+	// Delay is the time between a failure and a restart.
+	Delay time.Duration
+
+	// RestartOnSuccess determines whether a task should be restarted if it
+	// exited successfully.
+	RestartOnSuccess bool `mapstructure:"on_success"`
+
+	// Mode controls what happens when the task restarts more than attempt times
+	// in an interval.
+	Mode string
 }
 
 func (r *RestartPolicy) Validate() error {
+	switch r.Mode {
+	case RestartPolicyModeDelay, RestartPolicyModeFail:
+	default:
+		return fmt.Errorf("Unsupported restart mode: %q", r.Mode)
+	}
+
 	if r.Interval == 0 {
 		return nil
 	}
@@ -1024,12 +1068,15 @@ type TaskGroup struct {
 	Meta map[string]string
 }
 
-// InitAllServiceFields traverses over all Tasks and makes them to interpolate
-// values of Job, Task Group and Task names in all Service Names.
-// It also generates service ids, check ids and check names
-func (tg *TaskGroup) InitAllServiceFields(job string) {
+// InitFields is used to initialize fields in the TaskGroup.
+func (tg *TaskGroup) InitFields(job *Job) {
+	// Set the default restart policy.
+	if tg.RestartPolicy == nil {
+		tg.RestartPolicy = NewRestartPolicy(job.Type)
+	}
+
 	for _, task := range tg.Tasks {
-		task.InitAllServiceFields(job, tg.Name)
+		task.InitFields(job, tg)
 	}
 }
 
@@ -1106,7 +1153,6 @@ const (
 // The ServiceCheck data model represents the consul health check that
 // Nomad registers for a Task
 type ServiceCheck struct {
-	Id       string        // Id of the check, must be unique and it is autogenrated
 	Name     string        // Name of the check, defaults to id
 	Type     string        // Type of the check - tcp, http, docker and script
 	Script   string        // Script to invoke for script check
@@ -1131,9 +1177,9 @@ func (sc *ServiceCheck) Validate() error {
 	return nil
 }
 
-func (sc *ServiceCheck) Hash(serviceId string) string {
+func (sc *ServiceCheck) Hash(serviceID string) string {
 	h := sha1.New()
-	io.WriteString(h, serviceId)
+	io.WriteString(h, serviceID)
 	io.WriteString(h, sc.Name)
 	io.WriteString(h, sc.Type)
 	io.WriteString(h, sc.Script)
@@ -1145,9 +1191,12 @@ func (sc *ServiceCheck) Hash(serviceId string) string {
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
+const (
+	NomadConsulPrefix = "nomad-registered-service"
+)
+
 // The Service model represents a Consul service defintion
 type Service struct {
-	Id        string          // Id of the service, this needs to be unique on a local machine
 	Name      string          // Name of the service, defaults to id
 	Tags      []string        // List of tags for the service
 	PortLabel string          `mapstructure:"port"` // port for the service
@@ -1157,7 +1206,6 @@ type Service struct {
 // InitFields interpolates values of Job, Task Group and Task in the Service
 // Name. This also generates check names, service id and check ids.
 func (s *Service) InitFields(job string, taskGroup string, task string) {
-	s.Id = GenerateUUID()
 	s.Name = args.ReplaceEnv(s.Name, map[string]string{
 		"JOB":       job,
 		"TASKGROUP": taskGroup,
@@ -1167,7 +1215,6 @@ func (s *Service) InitFields(job string, taskGroup string, task string) {
 	)
 
 	for _, check := range s.Checks {
-		check.Id = check.Hash(s.Id)
 		if check.Name == "" {
 			check.Name = fmt.Sprintf("service: %q check", s.Name)
 		}
@@ -1224,10 +1271,15 @@ type Task struct {
 	Meta map[string]string
 }
 
-// InitAllServiceFields interpolates values of Job, Task Group
+// InitFields initializes fields in the task.
+func (t *Task) InitFields(job *Job, tg *TaskGroup) {
+	t.InitServiceFields(job.Name, tg.Name)
+}
+
+// InitServiceFields interpolates values of Job, Task Group
 // and Tasks in all the service Names of a Task. This also generates the service
 // id, check id and check names.
-func (t *Task) InitAllServiceFields(job string, taskGroup string) {
+func (t *Task) InitServiceFields(job string, taskGroup string) {
 	for _, service := range t.Services {
 		service.InitFields(job, taskGroup, t.Name)
 	}
@@ -1444,6 +1496,9 @@ type Allocation struct {
 	// task. These should sum to the total Resources.
 	TaskResources map[string]*Resources
 
+	// Services is a map of service names to service ids
+	Services map[string]string
+
 	// Metrics associated with this allocation
 	Metrics *AllocMetric
 
@@ -1467,11 +1522,19 @@ type Allocation struct {
 	ModifyIndex uint64
 }
 
-// TerminalStatus returns if the desired status is terminal and
-// will no longer transition. This is not based on the current client status.
+// TerminalStatus returns if the desired or actual status is terminal and
+// will no longer transition.
 func (a *Allocation) TerminalStatus() bool {
+	// First check the desired state and if that isn't terminal, check client
+	// state.
 	switch a.DesiredStatus {
 	case AllocDesiredStatusStop, AllocDesiredStatusEvict, AllocDesiredStatusFailed:
+		return true
+	default:
+	}
+
+	switch a.ClientStatus {
+	case AllocClientStatusDead, AllocClientStatusFailed:
 		return true
 	default:
 		return false
@@ -1494,6 +1557,35 @@ func (a *Allocation) Stub() *AllocListStub {
 		TaskStates:         a.TaskStates,
 		CreateIndex:        a.CreateIndex,
 		ModifyIndex:        a.ModifyIndex,
+	}
+}
+
+// PopulateServiceIDs generates the service IDs for all the service definitions
+// in that Allocation
+func (a *Allocation) PopulateServiceIDs() {
+	// Make a copy of the old map which contains the service names and their
+	// generated IDs
+	oldIDs := make(map[string]string)
+	for k, v := range a.Services {
+		oldIDs[k] = v
+	}
+
+	a.Services = make(map[string]string)
+	tg := a.Job.LookupTaskGroup(a.TaskGroup)
+	for _, task := range tg.Tasks {
+		for _, service := range task.Services {
+			// If the ID for a service name is already generated then we re-use
+			// it
+			if ID, ok := oldIDs[service.Name]; ok {
+				a.Services[service.Name] = ID
+			} else {
+				// If the service hasn't been generated an ID, we generate one.
+				// We add a prefix to the Service ID so that we can know that this service
+				// is managed by Nomad since Consul can also have service which are not
+				// managed by Nomad
+				a.Services[service.Name] = fmt.Sprintf("%s-%s", NomadConsulPrefix, GenerateUUID())
+			}
+		}
 	}
 }
 
@@ -1624,6 +1716,12 @@ const (
 	// We periodically scan nodes in a terminal state, and if they have no
 	// corresponding allocations we delete these out of the system.
 	CoreJobNodeGC = "node-gc"
+
+	// CoreJobJobGC is used for the garbage collection of eligible jobs. We
+	// periodically scan garbage collectible jobs and check if both their
+	// evaluations and allocations are terminal. If so, we delete these out of
+	// the system.
+	CoreJobJobGC = "job-gc"
 )
 
 // Evaluation is used anytime we need to apply business logic as a result

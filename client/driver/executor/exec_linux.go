@@ -24,7 +24,6 @@ import (
 	"github.com/hashicorp/nomad/client/driver/spawn"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/helper/args"
-	"github.com/hashicorp/nomad/helper/user-lookup"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -124,7 +123,7 @@ func (e *LinuxExecutor) ID() (string, error) {
 // runAs takes a user id as a string and looks up the user, and sets the command
 // to execute as that user.
 func (e *LinuxExecutor) runAs(userid string) error {
-	u, err := userlookup.Lookup(userid)
+	u, err := user.Lookup(userid)
 	if err != nil {
 		return fmt.Errorf("Failed to identify user %v: %v", userid, err)
 	}
@@ -346,16 +345,17 @@ func (e *LinuxExecutor) cleanTaskDir() error {
 // cgroup configuration. It returns an error if the resources are invalid.
 func (e *LinuxExecutor) configureCgroups(resources *structs.Resources) error {
 	e.groups = &cgroupConfig.Cgroup{}
+	e.groups.Resources = &cgroupConfig.Resources{}
 	e.groups.Name = structs.GenerateUUID()
 
 	// TODO: verify this is needed for things like network access
-	e.groups.AllowAllDevices = true
+	e.groups.Resources.AllowAllDevices = true
 
 	if resources.MemoryMB > 0 {
 		// Total amount of memory allowed to consume
-		e.groups.Memory = int64(resources.MemoryMB * 1024 * 1024)
+		e.groups.Resources.Memory = int64(resources.MemoryMB * 1024 * 1024)
 		// Disable swap to avoid issues on the machine
-		e.groups.MemorySwap = int64(-1)
+		e.groups.Resources.MemorySwap = int64(-1)
 	}
 
 	if resources.CPU < 2 {
@@ -363,7 +363,7 @@ func (e *LinuxExecutor) configureCgroups(resources *structs.Resources) error {
 	}
 
 	// Set the relative CPU shares for this cgroup.
-	e.groups.CpuShares = int64(resources.CPU)
+	e.groups.Resources.CpuShares = int64(resources.CPU)
 
 	if resources.IOPS != 0 {
 		// Validate it is in an acceptable range.
@@ -371,7 +371,7 @@ func (e *LinuxExecutor) configureCgroups(resources *structs.Resources) error {
 			return fmt.Errorf("resources.IOPS must be between 10 and 1000: %d", resources.IOPS)
 		}
 
-		e.groups.BlkioWeight = uint16(resources.IOPS)
+		e.groups.Resources.BlkioWeight = uint16(resources.IOPS)
 	}
 
 	return nil

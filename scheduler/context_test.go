@@ -61,6 +61,7 @@ func TestEvalContext_ProposedAlloc(t *testing.T) {
 			MemoryMB: 2048,
 		},
 		DesiredStatus: structs.AllocDesiredStatusRun,
+		ClientStatus:  structs.AllocClientStatusPending,
 	}
 	alloc2 := &structs.Allocation{
 		ID:     structs.GenerateUUID(),
@@ -72,6 +73,7 @@ func TestEvalContext_ProposedAlloc(t *testing.T) {
 			MemoryMB: 1024,
 		},
 		DesiredStatus: structs.AllocDesiredStatusRun,
+		ClientStatus:  structs.AllocClientStatusPending,
 	}
 	noErr(t, state.UpsertAllocs(1000, []*structs.Allocation{alloc1, alloc2}))
 

@@ -48,11 +48,6 @@ func TestParse(t *testing.T) {
 					&structs.TaskGroup{
 						Name:  "outside",
 						Count: 1,
-						RestartPolicy: &structs.RestartPolicy{
-							Attempts: 2,
-							Interval: 1 * time.Minute,
-							Delay:    15 * time.Second,
-						},
 						Tasks: []*structs.Task{
 							&structs.Task{
 								Name:   "outside",
@@ -83,9 +78,11 @@ func TestParse(t *testing.T) {
 							"elb_checks":   "3",
 						},
 						RestartPolicy: &structs.RestartPolicy{
-							Interval: 10 * time.Minute,
-							Attempts: 5,
-							Delay:    15 * time.Second,
+							Interval:         10 * time.Minute,
+							Attempts:         5,
+							Delay:            15 * time.Second,
+							RestartOnSuccess: true,
+							Mode:             "delay",
 						},
 						Tasks: []*structs.Task{
 							&structs.Task{
@@ -96,13 +93,11 @@ func TestParse(t *testing.T) {
 								},
 								Services: []*structs.Service{
 									{
-										Id:        "",
 										Name:      "binstore-storagelocker-binsl-binstore",
 										Tags:      []string{"foo", "bar"},
 										PortLabel: "http",
 										Checks: []*structs.ServiceCheck{
 											{
-												Id:       "",
 												Name:     "check-name",
 												Type:     "tcp",
 												Interval: 10 * time.Second,
@@ -273,11 +268,6 @@ func TestParse(t *testing.T) {
 					&structs.TaskGroup{
 						Name:  "bar",
 						Count: 1,
-						RestartPolicy: &structs.RestartPolicy{
-							Attempts: 2,
-							Interval: 1 * time.Minute,
-							Delay:    15 * time.Second,
-						},
 						Tasks: []*structs.Task{
 							&structs.Task{
 								Name:   "bar",
@@ -344,7 +334,7 @@ func TestOverlappingPorts(t *testing.T) {
 		t.Fatalf("Expected an error")
 	}
 
-	if !strings.Contains(err.Error(), "Found a port label collision") {
+	if !strings.Contains(err.Error(), "found a port label collision") {
 		t.Fatalf("Expected collision error; got %v", err)
 	}
 }

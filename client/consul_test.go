@@ -1,10 +1,13 @@
 package client
 
 import (
+	"fmt"
 	consul "github.com/hashicorp/consul/api"
+	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"log"
 	"os"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -31,7 +34,7 @@ func (a *mockConsulApiClient) ServiceRegister(service *consul.AgentServiceRegist
 	return nil
 }
 
-func (a *mockConsulApiClient) ServiceDeregister(serviceId string) error {
+func (a *mockConsulApiClient) ServiceDeregister(serviceID string) error {
 	a.serviceDeregisterCallCount += 1
 	return nil
 }
@@ -46,7 +49,7 @@ func (a *mockConsulApiClient) Checks() (map[string]*consul.AgentCheck, error) {
 
 func newConsulService() *ConsulService {
 	logger := log.New(os.Stdout, "logger: ", log.Lshortfile)
-	c, _ := NewConsulService(logger, "", "", "", false, false)
+	c, _ := NewConsulService(&consulServiceConfig{logger, "", "", "", false, false, &structs.Node{}})
 	c.client = &mockConsulApiClient{}
 	return c
 }
@@ -69,7 +72,6 @@ func newTask() *structs.Task {
 
 func TestConsul_MakeChecks(t *testing.T) {
 	service := &structs.Service{
-		Id:   "Foo",
 		Name: "Bar",
 		Checks: []*structs.ServiceCheck{
 			{
@@ -94,10 +96,11 @@ func TestConsul_MakeChecks(t *testing.T) {
 	}
 
 	c := newConsulService()
+	serviceID := fmt.Sprintf("%s-1234", structs.NomadConsulPrefix)
 
-	check1 := c.makeCheck(service, service.Checks[0], "10.10.0.1", 8090)
-	check2 := c.makeCheck(service, service.Checks[1], "10.10.0.1", 8090)
-	check3 := c.makeCheck(service, service.Checks[2], "10.10.0.1", 8090)
+	check1 := c.makeCheck(serviceID, service.Checks[0], "10.10.0.1", 8090)
+	check2 := c.makeCheck(serviceID, service.Checks[1], "10.10.0.1", 8090)
+	check3 := c.makeCheck(serviceID, service.Checks[2], "10.10.0.1", 8090)
 
 	if check1.HTTP != "http://10.10.0.1:8090/foo/bar" {
 		t.Fatalf("Invalid http url for check: %v", check1.HTTP)
@@ -141,7 +144,6 @@ func TestConsul_InvalidPortLabelForService(t *testing.T) {
 		},
 	}
 	service := &structs.Service{
-		Id:        "service-id",
 		Name:      "foo",
 		Tags:      []string{"a", "b"},
 		PortLabel: "https",
@@ -149,7 +151,7 @@ func TestConsul_InvalidPortLabelForService(t *testing.T) {
 	}
 
 	c := newConsulService()
-	if err := c.registerService(service, task, "allocid"); err == nil {
+	if err := c.registerService(service, task, mock.Alloc()); err == nil {
 		t.Fatalf("Service should be invalid")
 	}
 }
@@ -174,7 +176,7 @@ func TestConsul_Services_Deleted_From_Task(t *testing.T) {
 			},
 		},
 	}
-	c.Register(&task, "1")
+	c.Register(&task, mock.Alloc())
 	if len(c.serviceStates) != 1 {
 		t.Fatalf("Expected tracked services: %v, Actual: %v", 1, len(c.serviceStates))
 	}
@@ -190,13 +192,14 @@ func TestConsul_Service_Should_Be_Re_Reregistered_On_Change(t *testing.T) {
 	c := newConsulService()
 	task := newTask()
 	s1 := structs.Service{
-		Id:        "1-example-cache-redis",
 		Name:      "example-cache-redis",
 		Tags:      []string{"global"},
 		PortLabel: "db",
 	}
 	task.Services = append(task.Services, &s1)
-	c.Register(task, "1")
+	alloc := mock.Alloc()
+	serviceID := alloc.Services[s1.Name]
+	c.Register(task, alloc)
 
 	s1.Tags = []string{"frontcache"}
 
@@ -206,8 +209,8 @@ func TestConsul_Service_Should_Be_Re_Reregistered_On_Change(t *testing.T) {
 		t.Fatal("We should be tracking one service")
 	}
 
-	if c.serviceStates[s1.Id] != s1.Hash() {
-		t.Fatalf("Hash is %v, expected %v", c.serviceStates[s1.Id], s1.Hash())
+	if c.serviceStates[serviceID] != s1.Hash() {
+		t.Fatalf("Hash is %v, expected %v", c.serviceStates[serviceID], s1.Hash())
 	}
 }
 
@@ -218,14 +221,13 @@ func TestConsul_AddCheck_To_Service(t *testing.T) {
 	task := newTask()
 	var checks []*structs.ServiceCheck
 	s1 := structs.Service{
-		Id:        "1-example-cache-redis",
 		Name:      "example-cache-redis",
 		Tags:      []string{"global"},
 		PortLabel: "db",
 		Checks:    checks,
 	}
 	task.Services = append(task.Services, &s1)
-	c.Register(task, "1")
+	c.Register(task, mock.Alloc())
 
 	check1 := structs.ServiceCheck{
 		Name:     "alive",
@@ -249,14 +251,13 @@ func TestConsul_ModifyCheck(t *testing.T) {
 	task := newTask()
 	var checks []*structs.ServiceCheck
 	s1 := structs.Service{
-		Id:        "1-example-cache-redis",
 		Name:      "example-cache-redis",
 		Tags:      []string{"global"},
 		PortLabel: "db",
 		Checks:    checks,
 	}
 	task.Services = append(task.Services, &s1)
-	c.Register(task, "1")
+	c.Register(task, mock.Alloc())
 
 	check1 := structs.ServiceCheck{
 		Name:     "alive",
@@ -277,4 +278,80 @@ func TestConsul_ModifyCheck(t *testing.T) {
 	if apiClient.checkRegisterCallCount != 2 {
 		t.Fatalf("Expected number of check registrations: %v, Actual: %v", 2, apiClient.checkRegisterCallCount)
 	}
+}
+
+func TestConsul_FilterNomadServicesAndChecks(t *testing.T) {
+	c := newConsulService()
+	srvs := map[string]*consul.AgentService{
+		"foo-bar": {
+			ID:      "foo-bar",
+			Service: "http-frontend",
+			Tags:    []string{"global"},
+			Port:    8080,
+			Address: "10.10.1.11",
+		},
+		"nomad-registered-service-2121212": {
+			ID:      "nomad-registered-service-2121212",
+			Service: "identity-service",
+			Tags:    []string{"global"},
+			Port:    8080,
+			Address: "10.10.1.11",
+		},
+	}
+
+	expSrvcs := map[string]*consul.AgentService{
+		"nomad-registered-service-2121212": {
+			ID:      "nomad-registered-service-2121212",
+			Service: "identity-service",
+			Tags:    []string{"global"},
+			Port:    8080,
+			Address: "10.10.1.11",
+		},
+	}
+
+	nomadServices := c.filterConsulServices(srvs)
+	if !reflect.DeepEqual(expSrvcs, nomadServices) {
+		t.Fatalf("Expected: %v, Actual: %v", expSrvcs, nomadServices)
+	}
+
+	nomadServices = c.filterConsulServices(nil)
+	if len(nomadServices) != 0 {
+		t.Fatalf("Expected number of services: %v, Actual: %v", 0, len(nomadServices))
+	}
+
+	chks := map[string]*consul.AgentCheck{
+		"foo-bar-chk": {
+			CheckID:   "foo-bar-chk",
+			ServiceID: "foo-bar",
+			Name:      "alive",
+		},
+		"212121212": {
+			CheckID:   "212121212",
+			ServiceID: "nomad-registered-service-2121212",
+			Name:      "ping",
+		},
+	}
+
+	expChks := map[string]*consul.AgentCheck{
+		"212121212": {
+			CheckID:   "212121212",
+			ServiceID: "nomad-registered-service-2121212",
+			Name:      "ping",
+		},
+	}
+
+	nomadChecks := c.filterConsulChecks(chks)
+	if !reflect.DeepEqual(expChks, nomadChecks) {
+		t.Fatalf("Expected: %v, Actual: %v", expChks, nomadChecks)
+	}
+
+	if len(nomadChecks) != 1 {
+		t.Fatalf("Expected number of checks: %v, Actual: %v", 1, len(nomadChecks))
+	}
+
+	nomadChecks = c.filterConsulChecks(nil)
+	if len(nomadChecks) != 0 {
+		t.Fatalf("Expected number of checks: %v, Actual: %v", 0, len(nomadChecks))
+	}
+
 }

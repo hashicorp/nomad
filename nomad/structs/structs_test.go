@@ -115,9 +115,11 @@ func TestJob_IsPeriodic(t *testing.T) {
 func TestTaskGroup_Validate(t *testing.T) {
 	tg := &TaskGroup{
 		RestartPolicy: &RestartPolicy{
-			Interval: 5 * time.Minute,
-			Delay:    10 * time.Second,
-			Attempts: 10,
+			Interval:         5 * time.Minute,
+			Delay:            10 * time.Second,
+			Attempts:         10,
+			RestartOnSuccess: true,
+			Mode:             RestartPolicyModeDelay,
 		},
 	}
 	err := tg.Validate()
@@ -141,9 +143,11 @@ func TestTaskGroup_Validate(t *testing.T) {
 			&Task{},
 		},
 		RestartPolicy: &RestartPolicy{
-			Interval: 5 * time.Minute,
-			Delay:    10 * time.Second,
-			Attempts: 10,
+			Interval:         5 * time.Minute,
+			Delay:            10 * time.Second,
+			Attempts:         10,
+			RestartOnSuccess: true,
+			Mode:             RestartPolicyModeDelay,
 		},
 	}
 	err = tg.Validate()
@@ -391,13 +395,11 @@ func TestEncodeDecode(t *testing.T) {
 
 func TestInvalidServiceCheck(t *testing.T) {
 	s := Service{
-		Id:        "service-id",
 		Name:      "service-name",
 		PortLabel: "bar",
 		Checks: []*ServiceCheck{
 			{
 
-				Id:   "check-id",
 				Name: "check-name",
 				Type: "lol",
 			},
@@ -408,7 +410,7 @@ func TestInvalidServiceCheck(t *testing.T) {
 	}
 }
 
-func TestDistinctCheckId(t *testing.T) {
+func TestDistinctCheckID(t *testing.T) {
 	c1 := ServiceCheck{
 		Name:     "web-health",
 		Type:     "http",
@@ -431,10 +433,10 @@ func TestDistinctCheckId(t *testing.T) {
 		Interval: 4 * time.Second,
 		Timeout:  3 * time.Second,
 	}
-	serviceId := "123"
-	c1Hash := c1.Hash(serviceId)
-	c2Hash := c2.Hash(serviceId)
-	c3Hash := c3.Hash(serviceId)
+	serviceID := "123"
+	c1Hash := c1.Hash(serviceID)
+	c2Hash := c2.Hash(serviceID)
+	c3Hash := c3.Hash(serviceID)
 
 	if c1Hash == c2Hash || c1Hash == c3Hash || c3Hash == c2Hash {
 		t.Fatalf("Checks need to be uniq c1: %s, c2: %s, c3: %s", c1Hash, c2Hash, c3Hash)
@@ -442,7 +444,7 @@ func TestDistinctCheckId(t *testing.T) {
 
 }
 
-func TestService_InitFiels(t *testing.T) {
+func TestService_InitFields(t *testing.T) {
 	job := "example"
 	taskGroup := "cache"
 	task := "redis"
@@ -454,9 +456,6 @@ func TestService_InitFiels(t *testing.T) {
 	s.InitFields(job, taskGroup, task)
 	if s.Name != "redis-db" {
 		t.Fatalf("Expected name: %v, Actual: %v", "redis-db", s.Name)
-	}
-	if s.Id == "" {
-		t.Fatalf("Expected a GUID for Service ID, Actual: %v", s.Id)
 	}
 
 	s.Name = "db"
@@ -510,7 +509,7 @@ func TestJob_ExpandServiceNames(t *testing.T) {
 		},
 	}
 
-	j.InitAllServiceFields()
+	j.InitFields()
 
 	service1Name := j.TaskGroups[0].Tasks[0].Services[0].Name
 	if service1Name != "my-job-web-frontend-default" {

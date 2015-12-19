@@ -539,11 +539,12 @@ func TestInplaceUpdate_Success(t *testing.T) {
 
 	// Register an alloc
 	alloc := &structs.Allocation{
-		ID:     structs.GenerateUUID(),
-		EvalID: eval.ID,
-		NodeID: node.ID,
-		JobID:  job.ID,
-		Job:    job,
+		ID:        structs.GenerateUUID(),
+		EvalID:    eval.ID,
+		NodeID:    node.ID,
+		JobID:     job.ID,
+		Job:       job,
+		TaskGroup: job.TaskGroups[0].Name,
 		Resources: &structs.Resources{
 			CPU:      2048,
 			MemoryMB: 2048,
@@ -551,13 +552,37 @@ func TestInplaceUpdate_Success(t *testing.T) {
 		DesiredStatus: structs.AllocDesiredStatusRun,
 	}
 	alloc.TaskResources = map[string]*structs.Resources{"web": alloc.Resources}
+	alloc.PopulateServiceIDs()
 	noErr(t, state.UpsertAllocs(1001, []*structs.Allocation{alloc}))
+
+	webFeSrvID := alloc.Services["web-frontend"]
+	adminSrvID := alloc.Services["web-admin"]
+
+	if webFeSrvID == "" || adminSrvID == "" {
+		t.Fatal("Service ID needs to be generated for service")
+	}
 
 	// Create a new task group that updates the resources.
 	tg := &structs.TaskGroup{}
 	*tg = *job.TaskGroups[0]
 	resource := &structs.Resources{CPU: 737}
 	tg.Tasks[0].Resources = resource
+	newServices := []*structs.Service{
+		{
+			Name:      "dummy-service",
+			PortLabel: "http",
+		},
+		{
+			Name:      "dummy-service2",
+			PortLabel: "http",
+		},
+	}
+
+	// Delete service 2
+	tg.Tasks[0].Services = tg.Tasks[0].Services[:1]
+
+	// Add the new services
+	tg.Tasks[0].Services = append(tg.Tasks[0].Services, newServices...)
 
 	updates := []allocTuple{{Alloc: alloc, TaskGroup: tg}}
 	stack := NewGenericStack(false, ctx)
@@ -572,6 +597,23 @@ func TestInplaceUpdate_Success(t *testing.T) {
 
 	if len(ctx.plan.NodeAllocation) != 1 {
 		t.Fatal("inplaceUpdate did not do an inplace update")
+	}
+
+	// Get the alloc we inserted.
+	a := ctx.plan.NodeAllocation[alloc.NodeID][0]
+	if len(a.Services) != 3 {
+		t.Fatalf("Expected number of services: %v, Actual: %v", 3, len(a.Services))
+	}
+
+	// Test that the service id for the old service is still the same
+	if a.Services["web-frontend"] != webFeSrvID {
+		t.Fatalf("Expected service ID: %v, Actual: %v", webFeSrvID, a.Services["web-frontend"])
+	}
+
+	// Test that the map doesn't contain the service ID of the admin Service
+	// anymore
+	if _, ok := a.Services["web-admin"]; ok {
+		t.Fatal("Service shouldn't be present")
 	}
 }
 

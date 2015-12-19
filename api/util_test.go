@@ -17,9 +17,6 @@ func assertWriteMeta(t *testing.T, wm *WriteMeta) {
 	if wm.LastIndex == 0 {
 		t.Fatalf("bad index: %d", wm.LastIndex)
 	}
-	if wm.RequestTime == 0 {
-		t.Fatalf("bad request time: %d", wm.RequestTime)
-	}
 }
 
 func testJob() *Job {

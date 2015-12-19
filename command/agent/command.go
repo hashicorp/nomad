@@ -107,15 +107,6 @@ func (c *Command) readConfig() *Config {
 		return nil
 	}
 
-	if cmdConfig.Server.RetryInterval != "" {
-		dur, err := time.ParseDuration(cmdConfig.Server.RetryInterval)
-		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error parsing retry interval: %s", err))
-			return nil
-		}
-		cmdConfig.Server.retryInterval = dur
-	}
-
 	// Split the servers.
 	if servers != "" {
 		cmdConfig.Client.Servers = strings.Split(servers, ",")
@@ -187,6 +178,14 @@ func (c *Command) readConfig() *Config {
 		// Skip validation for dev mode
 		return config
 	}
+
+	// Parse the RetryInterval.
+	dur, err := time.ParseDuration(config.Server.RetryInterval)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error parsing retry interval: %s", err))
+		return nil
+	}
+	config.Server.retryInterval = dur
 
 	// Check that the server is running in at least one mode.
 	if !(config.Server.Enabled || config.Client.Enabled) {
@@ -356,7 +355,7 @@ func (c *Command) Run(args []string) int {
 	}
 
 	// Log config files
-	if len(config.Files) > 1 {
+	if len(config.Files) > 0 {
 		c.Ui.Info(fmt.Sprintf("Loaded configuration from %s", strings.Join(config.Files, ", ")))
 	} else {
 		c.Ui.Info("No configuration files loaded")

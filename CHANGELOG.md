@@ -1,15 +1,36 @@
-## 0.3.0
-
-IMPROVEMENTS:
-  * Server join/retry-join command line and config options [GH-527]
-  * Enable raw_exec driver in dev mode [GH-558]
+## 0.2.3 (December 17, 2015)
 
 BUG FIXES:
-  * Shutdown a task now sends the interrupt signal first to the process before
-    forcefully killing it. [GH-543]
-  * Docker driver no longer leaks unix domain socket connections [GH-556]
+  * client: Fixes for user lookup to support CoreOS [GH-591]
+  * discovery: Fixes for service registration when multiple allocations are bin
+    packed on a node [GH-583]
+  * discovery: De-Registering Tasks while Nomad sleeps before failed tasks are
+    restarted.
+  * discovery: Using a random prefix for nomad managed services [GH-579]
+  * configuration: Sort configuration files [GH-588]
+  * core: Task States not being properly updated [GH-600]
+  * cli: RetryInterval was not being applied properly [GH-601]
 
-## 0.2.1
+## 0.2.2 (December 11, 2015)
+
+IMPROVEMENTS:
+  * core: Enable `raw_exec` driver in dev mode [GH-558]
+  * cli: Server join/retry-join command line and config options [GH-527]
+  * cli: Nomad reports which config files are loaded at start time, or if none
+    are loaded [GH-536], [GH-553]
+
+BUG FIXES:
+  * core: Send syslog to `LOCAL0` by default as previously documented [GH-547]
+  * consul: Nomad is less noisy when Consul is not running [GH-567]
+  * consul: Nomad only deregisters services that it created [GH-568]
+  * driver/docker: Docker driver no longer leaks unix domain socket connections
+    [GH-556]
+  * driver/exec: Shutdown a task now sends the interrupt signal first to the
+    process before forcefully killing it. [GH-543]
+  * fingerprint/network: Now correctly detects interfaces on Windows [GH-382]
+  * client: remove all calls to default logger [GH-570]
+
+## 0.2.1 (November 28, 2015)
 
 IMPROVEMENTS:
 

@@ -7,7 +7,7 @@ VAGRANTFILE_API_VERSION = "2"
 $script = <<SCRIPT
 # Install Prereq Packages
 sudo apt-get update
-sudo apt-get install -y build-essential curl git-core mercurial bzr libpcre3-dev pkg-config zip default-jre qemu
+sudo apt-get install -y build-essential curl git-core mercurial bzr libpcre3-dev pkg-config zip default-jre qemu libc6-dev-i386 silversearcher-ag jq htop vim unzip
 
 # Setup go, for development of Nomad
 SRCROOT="/opt/go"
@@ -18,8 +18,8 @@ ARCH=`uname -m | sed 's|i686|386|' | sed 's|x86_64|amd64|'`
 
 # Install Go
 cd /tmp
-wget -q https://storage.googleapis.com/golang/go1.5.1.linux-${ARCH}.tar.gz
-tar -xf go1.5.1.linux-${ARCH}.tar.gz
+wget -q https://storage.googleapis.com/golang/go1.5.2.linux-${ARCH}.tar.gz
+tar -xf go1.5.2.linux-${ARCH}.tar.gz
 sudo mv go $SRCROOT
 sudo chmod 775 $SRCROOT
 sudo chown vagrant:vagrant $SRCROOT
@@ -42,7 +42,7 @@ source /etc/profile.d/gopath.sh
 
 echo Fetching Consul...
 cd /tmp/
-wget https://releases.hashicorp.com/consul/0.6.0-rc2/consul_0.6.0-rc2_linux_amd64.zip -O consul.zip
+wget https://releases.hashicorp.com/consul/0.6.0/consul_0.6.0_linux_amd64.zip -O consul.zip
 echo Installing Consul...
 unzip consul.zip
 sudo chmod +x consul

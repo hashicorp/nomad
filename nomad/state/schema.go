@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 // stateStoreSchema is used to return the schema for the state store
@@ -100,8 +101,27 @@ func jobTableSchema() *memdb.TableSchema {
 					Lowercase: false,
 				},
 			},
+			"gc": &memdb.IndexSchema{
+				Name:         "gc",
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.ConditionalIndex{
+					Conditional: jobIsGCable,
+				},
+			},
 		},
 	}
+}
+
+// jobIsGCable satisfies the ConditionalIndexFunc interface and creates an index
+// on whether a job is eligible for garbage collection.
+func jobIsGCable(obj interface{}) (bool, error) {
+	j, ok := obj.(*structs.Job)
+	if !ok {
+		return false, fmt.Errorf("Unexpected type: %v", obj)
+	}
+
+	return j.GC, nil
 }
 
 // evalTableSchema returns the MemDB schema for the eval table.

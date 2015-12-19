@@ -62,7 +62,7 @@ The following options are available for use in the job specification.
 * `dns_servers` - (Optional) A list of DNS servers for the container to use
   (e.g. ["8.8.8.8", "8.8.4.4"]). *Docker API v1.10 and above only*
 
-* `search_domains` - (Optional) A list of DNS search domains for the container
+* `dns_search_domains` - (Optional) A list of DNS search domains for the container
   to use.
 
 * `port_map` - (Optional) A key/value map of port labels (see below).

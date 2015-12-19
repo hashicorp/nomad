@@ -171,6 +171,68 @@ func TestJobEndpoint_Register_Existing(t *testing.T) {
 	}
 }
 
+func TestJobEndpoint_Register_Batch(t *testing.T) {
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	job := mock.Job()
+	job.Type = structs.JobTypeBatch
+	req := &structs.JobRegisterRequest{
+		Job:          job,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp.Index == 0 {
+		t.Fatalf("bad index: %d", resp.Index)
+	}
+
+	// Check for the node in the FSM
+	state := s1.fsm.State()
+	out, err := state.JobByID(job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out == nil {
+		t.Fatalf("expected job")
+	}
+	if !out.GC {
+		t.Fatal("expect batch job to be made garbage collectible")
+	}
+}
+
+func TestJobEndpoint_Register_GC_Set(t *testing.T) {
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	job := mock.Job()
+	job.GC = true
+	req := &structs.JobRegisterRequest{
+		Job:          job,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp); err == nil {
+		t.Fatalf("expect err")
+	}
+}
+
 func TestJobEndpoint_Evaluate(t *testing.T) {
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -359,15 +421,12 @@ func TestJobEndpoint_GetJob(t *testing.T) {
 	for tgix, tg := range j.TaskGroups {
 		for tidx, t := range tg.Tasks {
 			for sidx, service := range t.Services {
-				service.Id = resp2.Job.TaskGroups[tgix].Tasks[tidx].Services[sidx].Id
 				for cidx, check := range service.Checks {
 					check.Name = resp2.Job.TaskGroups[tgix].Tasks[tidx].Services[sidx].Checks[cidx].Name
-					check.Id = resp2.Job.TaskGroups[tgix].Tasks[tidx].Services[sidx].Checks[cidx].Id
 				}
 			}
 		}
 	}
-	j.TaskGroups[0].Tasks[0].Services[0].Id = resp2.Job.TaskGroups[0].Tasks[0].Services[0].Id
 
 	if !reflect.DeepEqual(j, resp2.Job) {
 		t.Fatalf("bad: %#v %#v", job, resp2.Job)

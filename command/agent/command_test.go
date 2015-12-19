@@ -3,7 +3,6 @@ package agent
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"strings"
 	"testing"
@@ -112,7 +111,7 @@ func TestRetryJoin(t *testing.T) {
 
 	go func() {
 		if code := cmd.Run(args); code != 0 {
-			log.Printf("bad: %d", code)
+			t.Logf("bad: %d", code)
 		}
 		close(doneCh)
 	}()
