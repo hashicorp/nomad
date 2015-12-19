@@ -304,6 +304,29 @@ func (n *Node) GetNode(args *structs.NodeSpecificRequest,
 				return err
 			}
 
+			if out == nil {
+				iter, err := snap.NodeByIDPrefix(args.NodeID)
+				if err != nil {
+					return err
+				}
+
+				var nodes []*structs.Node
+				for {
+					raw := iter.Next()
+					if raw == nil {
+						break
+					}
+					node := raw.(*structs.Node)
+					nodes = append(nodes, node)
+				}
+
+				if len(nodes) == 1 {
+					out = nodes[0]
+				} else {
+					return fmt.Errorf("Ambiguous identifier: %v", nodes)
+				}
+			}
+
 			// Setup the output
 			reply.Node = out
 			if out != nil {

@@ -106,14 +106,14 @@ func (c *StatusCommand) Run(args []string) int {
 	var evals, allocs []string
 	if !short {
 		// Query the evaluations
-		jobEvals, _, err := client.Jobs().Evaluations(jobID, nil)
+		jobEvals, _, err := client.Jobs().Evaluations(job.ID, nil)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error querying job evaluations: %s", err))
 			return 1
 		}
 
 		// Query the allocations
-		jobAllocs, _, err := client.Jobs().Allocations(jobID, nil)
+		jobAllocs, _, err := client.Jobs().Allocations(job.ID, nil)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error querying job allocations: %s", err))
 			return 1

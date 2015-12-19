@@ -196,7 +196,7 @@ func (m *monitor) monitor(evalID string) int {
 		state.index = eval.CreateIndex
 
 		// Query the allocations associated with the evaluation
-		allocs, _, err := m.client.Evaluations().Allocations(evalID, nil)
+		allocs, _, err := m.client.Evaluations().Allocations(eval.ID, nil)
 		if err != nil {
 			m.ui.Error(fmt.Sprintf("Error reading allocations: %s", err))
 			return 1

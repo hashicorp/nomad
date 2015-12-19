@@ -218,6 +218,34 @@ func (j *Job) GetJob(args *structs.JobSpecificRequest,
 				return err
 			}
 
+			// Exact lookup failed so try a prefix based lookup
+			if out == nil {
+				iter, err := snap.JobByIDPrefix(args.JobID)
+				if err != nil {
+					return err
+				}
+
+				// Gather all matching jobs
+				var jobs []*structs.Job
+				var jobIds []string
+				for {
+					raw := iter.Next()
+					if raw == nil {
+						break
+					}
+					job := raw.(*structs.Job)
+					jobIds = append(jobIds, job.ID)
+					jobs = append(jobs, job)
+				}
+
+				if len(jobs) == 1 {
+					// Return unique match
+					out = jobs[0]
+				} else if len(jobs) > 1 {
+					return fmt.Errorf("Ambiguous identifier: %+v", jobIds)
+				}
+			}
+
 			// Setup the output
 			reply.Job = out
 			if out != nil {

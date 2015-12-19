@@ -241,28 +241,27 @@ func (s *StateStore) UpdateNodeDrain(index uint64, nodeID string, drain bool) er
 func (s *StateStore) NodeByID(nodeID string) (*structs.Node, error) {
 	txn := s.db.Txn(false)
 
-	existing, err := txn.Find("nodes", "id", nodeID)
+	existing, err := txn.First("nodes", "id", nodeID)
 	if err != nil {
 		return nil, fmt.Errorf("node lookup failed: %v", err)
 	}
 
 	if existing != nil {
-		// Return exact match directly
-		if len(existing) == 1 {
-			return existing[0].(*structs.Node), nil
-		}
-
-		// The results were ambiguous for the given node identifier. Return
-		// an error with possible options so that the user can try again with
-		// a more specific identifier.
-		var nodes []string
-		for _, result := range existing {
-			node := result.(*structs.Node)
-			nodes = append(nodes, node.ID)
-		}
-		return nil, fmt.Errorf("Ambiguous identifier: %v", nodes)
+		return existing.(*structs.Node), nil
 	}
 	return nil, nil
+}
+
+// NodeByIDPrefix is used to lookup a node by partial ID
+func (s *StateStore) NodeByIDPrefix(nodeID string) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	iter, err := txn.Get("nodes", "id_prefix", nodeID)
+	if err != nil {
+		return nil, fmt.Errorf("node lookup failed: %v", err)
+	}
+
+	return iter, nil
 }
 
 // Nodes returns an iterator over all the nodes
@@ -349,28 +348,27 @@ func (s *StateStore) DeleteJob(index uint64, jobID string) error {
 func (s *StateStore) JobByID(id string) (*structs.Job, error) {
 	txn := s.db.Txn(false)
 
-	existing, err := txn.Find("jobs", "id", id)
+	existing, err := txn.First("jobs", "id", id)
 	if err != nil {
 		return nil, fmt.Errorf("job lookup failed: %v", err)
 	}
 
 	if existing != nil {
-		// Return exact match directly
-		if len(existing) == 1 {
-			return existing[0].(*structs.Job), nil
-		}
-
-		// The results were ambiguous for the given job identifier. Return
-		// an error with possible options so that the user can try again with
-		// a more specific identifier.
-		var jobs []string
-		for _, result := range existing {
-			job := result.(*structs.Job)
-			jobs = append(jobs, job.ID)
-		}
-		return nil, fmt.Errorf("Ambiguous identifier: %v", jobs)
+		return existing.(*structs.Job), nil
 	}
 	return nil, nil
+}
+
+// JobByIDPrefix is used to lookup a job by partial ID
+func (s *StateStore) JobByIDPrefix(id string) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	iter, err := txn.Get("jobs", "id_prefix", id)
+	if err != nil {
+		return nil, fmt.Errorf("job lookup failed: %v", err)
+	}
+
+	return iter, nil
 }
 
 // Jobs returns an iterator over all the jobs
@@ -515,28 +513,27 @@ func (s *StateStore) DeleteEval(index uint64, evals []string, allocs []string) e
 func (s *StateStore) EvalByID(id string) (*structs.Evaluation, error) {
 	txn := s.db.Txn(false)
 
-	existing, err := txn.Find("evals", "id", id)
+	existing, err := txn.First("evals", "id", id)
 	if err != nil {
 		return nil, fmt.Errorf("eval lookup failed: %v", err)
 	}
 
 	if existing != nil {
-		// Return exact match directly
-		if len(existing) == 1 {
-			return existing[0].(*structs.Evaluation), nil
-		}
-
-		// The results were ambiguous for the given eval identifier. Return
-		// an error with possible options so that the user can try again with
-		// a more specific identifier.
-		var evals []string
-		for _, result := range existing {
-			eval := result.(*structs.Evaluation)
-			evals = append(evals, eval.ID)
-		}
-		return nil, fmt.Errorf("Ambiguous identifier: %v", evals)
+		return existing.(*structs.Evaluation), nil
 	}
 	return nil, nil
+}
+
+// EvalByIDPrefix is used to lookup an eval by partial ID
+func (s *StateStore) EvalByIDPrefix(id string) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	iter, err := txn.Get("evals", "id_prefix", id)
+	if err != nil {
+		return nil, fmt.Errorf("eval lookup failed: %v", err)
+	}
+
+	return iter, nil
 }
 
 // EvalsByJob returns all the evaluations by job id
@@ -677,28 +674,27 @@ func (s *StateStore) UpsertAllocs(index uint64, allocs []*structs.Allocation) er
 func (s *StateStore) AllocByID(id string) (*structs.Allocation, error) {
 	txn := s.db.Txn(false)
 
-	existing, err := txn.Find("allocs", "id", id)
+	existing, err := txn.First("allocs", "id", id)
 	if err != nil {
 		return nil, fmt.Errorf("alloc lookup failed: %v", err)
 	}
 
 	if existing != nil {
-		// Return exact match directly
-		if len(existing) == 1 {
-			return existing[0].(*structs.Allocation), nil
-		}
-
-		// The results were ambiguous for the given job identifier. Return
-		// an error with possible options so that the user can try again with
-		// a more specific identifier.
-		var allocs []string
-		for _, result := range existing {
-			alloc := result.(*structs.Allocation)
-			allocs = append(allocs, alloc.ID)
-		}
-		return nil, fmt.Errorf("Ambiguous identifier: %v", allocs)
+		return existing.(*structs.Allocation), nil
 	}
 	return nil, nil
+}
+
+// AllocByIDPrefix is used to lookup an alloc by partial ID
+func (s *StateStore) AllocByIDPrefix(id string) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	iter, err := txn.Get("allocs", "id_prefix", id)
+	if err != nil {
+		return nil, fmt.Errorf("alloc lookup failed: %v", err)
+	}
+
+	return iter, nil
 }
 
 // AllocsByNode returns all the allocations by node
