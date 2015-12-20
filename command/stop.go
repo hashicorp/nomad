@@ -65,13 +65,14 @@ func (c *StopCommand) Run(args []string) int {
 	}
 
 	// Check if the job exists
-	if _, _, err := client.Jobs().Info(jobID, nil); err != nil {
+	job, _, err := client.Jobs().Info(jobID, nil)
+	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error deregistering job: %s", err))
 		return 1
 	}
 
 	// Invoke the stop
-	evalID, _, err := client.Jobs().Deregister(jobID, nil)
+	evalID, _, err := client.Jobs().Deregister(job.ID, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error deregistering job: %s", err))
 		return 1
