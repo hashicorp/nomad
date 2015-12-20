@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 )
@@ -106,5 +107,49 @@ func TestNodeStatusCommand_Fails(t *testing.T) {
 	}
 	if out := ui.ErrorWriter.String(); !strings.Contains(out, "not found") {
 		t.Fatalf("expected not found error, got: %s", out)
+	}
+}
+
+func Test_ShortenId(t *testing.T) {
+	id := "1234567890"
+	shortID := "12345678"
+
+	dontShorten := shortenId(id, false)
+	if dontShorten != id {
+		t.Fatalf("Shorten ID should not short id on false, expected %s, got: %s", id, dontShorten)
+	}
+
+	shorten := shortenId(id, true)
+	if shorten != shortID {
+		t.Fatalf("Shorten ID should short id on true, expected %s, got: %s", shortID, shorten)
+	}
+}
+
+func Test_ShouldShortenNodeIds(t *testing.T) {
+	var list []*api.NodeListStub
+	nodeCustomId := &api.NodeListStub{
+		ID: "my_own_id",
+	}
+	nodeOne := &api.NodeListStub{
+		ID: "11111111-1111-1111-1111-111111111111",
+	}
+	nodeTwo := &api.NodeListStub{
+		ID: "11111111-2222-2222-2222-222222222222",
+	}
+
+	list = append(list, nodeCustomId)
+	if shouldShortenNodeIds(list) != false {
+		t.Fatalf("ShouldShortenNodeIds should return false when using custom id")
+	}
+
+	list = nil
+	list = append(list, nodeOne)
+	if shouldShortenNodeIds(list) != true {
+		t.Fatalf("ShouldShortenNodeIds should return true when no collisions")
+	}
+
+	list = append(list, nodeTwo)
+	if shouldShortenNodeIds(list) != false {
+		t.Fatalf("ShouldShortenNodeIds should return false when collision detected")
 	}
 }
