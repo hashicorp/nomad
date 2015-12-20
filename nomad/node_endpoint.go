@@ -310,6 +310,7 @@ func (n *Node) GetNode(args *structs.NodeSpecificRequest,
 					return err
 				}
 
+				// Gather all matching nodes
 				var nodes []*structs.Node
 				for {
 					raw := iter.Next()
@@ -321,6 +322,7 @@ func (n *Node) GetNode(args *structs.NodeSpecificRequest,
 				}
 
 				if len(nodes) == 1 {
+					// return unique node
 					out = nodes[0]
 				} else {
 					return fmt.Errorf("Ambiguous identifier: %v", nodes)

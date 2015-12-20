@@ -96,7 +96,7 @@ func (a *Alloc) GetAlloc(args *structs.AllocSpecificRequest,
 					return err
 				}
 
-				// Gather all matching nodes
+				// Gather all matching allocations
 				var allocs []*structs.Allocation
 				var allocIds []string
 				for {
@@ -122,7 +122,7 @@ func (a *Alloc) GetAlloc(args *structs.AllocSpecificRequest,
 			if out != nil {
 				reply.Index = out.ModifyIndex
 			} else {
-				// Use the last index that affected the nodes table
+				// Use the last index that affected the allocs table
 				index, err := snap.Index("allocs")
 				if err != nil {
 					return err
