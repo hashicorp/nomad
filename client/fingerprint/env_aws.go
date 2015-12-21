@@ -116,6 +116,10 @@ func (f *EnvAWSFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 	}
 	for _, k := range keys {
 		res, err := client.Get(metadataURL + k)
+		if res.StatusCode != http.StatusOK {
+			f.logger.Printf("[WARN]: fingerprint.env_aws: Could not read value for attribute %q", k)
+			continue
+		}
 		if err != nil {
 			// if it's a URL error, assume we're not in an AWS environment
 			// TODO: better way to detect AWS? Check xen virtualization?
