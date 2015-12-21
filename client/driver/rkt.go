@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
@@ -85,6 +86,13 @@ func (d *RktDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, e
 	node.Attributes["driver.rkt.version"] = rktMatches[1]
 	node.Attributes["driver.rkt.appc.version"] = appcMatches[1]
 
+	minVersion, _ := version.NewVersion("0.14.0")
+	currentVersion, _ := version.NewVersion(node.Attributes["driver.rkt.version"])
+	if currentVersion.LessThan(minVersion) {
+		// Do not allow rkt < 0.14.0
+		d.logger.Printf("[WARN] driver.rkt: please upgrade rkt to a version >= %s", minVersion)
+		node.Attributes["driver.rkt"] = "0"
+	}
 	return true, nil
 }
 
