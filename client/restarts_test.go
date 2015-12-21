@@ -44,8 +44,8 @@ func TestClient_RestartTracker_ModeDelay(t *testing.T) {
 		if !actual {
 			t.Fail()
 		}
-		if !(when > p.Delay && when < p.Interval) {
-			t.Fatalf("NextRestart() returned %v; want less than %v and more than %v", when, p.Interval, p.Delay)
+		if !(when > p.Delay && when <= p.Interval) {
+			t.Fatalf("NextRestart() returned %v; want > %v and <= %v", when, p.Delay, p.Interval)
 		}
 	}
 }
