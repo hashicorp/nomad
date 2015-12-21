@@ -219,7 +219,6 @@ func (p *PeriodicDispatch) removeLocked(jobID string) error {
 // ForceRun causes the periodic job to be evaluated immediately.
 func (p *PeriodicDispatch) ForceRun(jobID string) error {
 	p.l.Lock()
-	defer p.l.Unlock()
 
 	// Do nothing if not enabled
 	if !p.enabled {
@@ -231,6 +230,7 @@ func (p *PeriodicDispatch) ForceRun(jobID string) error {
 		return fmt.Errorf("can't force run non-tracked job %v", jobID)
 	}
 
+	p.l.Unlock()
 	return p.createEval(job, time.Now())
 }
 
