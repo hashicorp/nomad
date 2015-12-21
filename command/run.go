@@ -94,7 +94,7 @@ func (c *RunCommand) Run(args []string) int {
 	periodic := job.IsPeriodic()
 
 	// Convert it to something we can use
-	apiJob, err := convertJob(job)
+	apiJob, err := convertStructJob(job)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error converting job: %s", err))
 		return 1
@@ -132,9 +132,9 @@ func (c *RunCommand) Run(args []string) int {
 
 }
 
-// convertJob is used to take a *structs.Job and convert it to an *api.Job.
+// convertStructJob is used to take a *structs.Job and convert it to an *api.Job.
 // This function is just a hammer and probably needs to be revisited.
-func convertJob(in *structs.Job) (*api.Job, error) {
+func convertStructJob(in *structs.Job) (*api.Job, error) {
 	gob.Register([]map[string]interface{}{})
 	gob.Register([]interface{}{})
 	var apiJob *api.Job
