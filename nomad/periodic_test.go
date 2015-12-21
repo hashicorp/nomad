@@ -128,6 +128,31 @@ func TestPeriodicDispatch_Add_UpdateJob(t *testing.T) {
 	}
 }
 
+func TestPeriodicDispatch_Add_RemoveJob(t *testing.T) {
+	t.Parallel()
+	p, _ := testPeriodicDispatcher()
+	job := mock.PeriodicJob()
+	if err := p.Add(job); err != nil {
+		t.Fatalf("Add failed %v", err)
+	}
+
+	tracked := p.Tracked()
+	if len(tracked) != 1 {
+		t.Fatalf("Add didn't track the job: %v", tracked)
+	}
+
+	// Update the job to be non-periodic and add it again.
+	job.Periodic = nil
+	if err := p.Add(job); err != nil {
+		t.Fatalf("Add failed %v", err)
+	}
+
+	tracked = p.Tracked()
+	if len(tracked) != 0 {
+		t.Fatalf("Add didn't remove: %v", tracked)
+	}
+}
+
 func TestPeriodicDispatch_Add_TriggersUpdate(t *testing.T) {
 	t.Parallel()
 	p, m := testPeriodicDispatcher()
