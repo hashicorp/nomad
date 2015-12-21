@@ -235,6 +235,11 @@ func Alloc() *structs.Allocation {
 				},
 			},
 		},
+		TaskStates: map[string]*structs.TaskState{
+			"web": &structs.TaskState{
+				State: structs.TaskStatePending,
+			},
+		},
 		Job:           Job(),
 		DesiredStatus: structs.AllocDesiredStatusRun,
 		ClientStatus:  structs.AllocClientStatusPending,
