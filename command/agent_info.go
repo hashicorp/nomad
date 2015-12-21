@@ -66,9 +66,11 @@ func (c *AgentInfoCommand) Run(args []string) int {
 	for _, key := range statsKeys {
 		c.Ui.Output(key)
 		statsData, _ := stats[key].(map[string]interface{})
-		statsDataKeys := make([]string, 0, len(statsData))
+		statsDataKeys := make([]string, len(statsData))
+		i := 0
 		for key := range statsData {
-			statsDataKeys = append(statsDataKeys, key)
+			statsDataKeys[i] = key
+			i++
 		}
 		sort.Strings(statsDataKeys)
 
