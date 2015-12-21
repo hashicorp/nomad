@@ -109,21 +109,21 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	taskLocal := filepath.Join(taskDir, allocdir.TaskLocal)
 
 	// Add the given trust prefix
-	trust_prefix, trust_cmd := task.Config["trust_prefix"]
-	if trust_cmd {
+	trustPrefix, trustCmd := task.Config["trust_prefix"]
+	if trustCmd {
 		var outBuf, errBuf bytes.Buffer
-		cmd := exec.Command("rkt", "trust", fmt.Sprintf("--prefix=%s", trust_prefix))
+		cmd := exec.Command("rkt", "trust", fmt.Sprintf("--prefix=%s", trustPrefix))
 		cmd.Stdout = &outBuf
 		cmd.Stderr = &errBuf
 		if err := cmd.Run(); err != nil {
 			return nil, fmt.Errorf("Error running rkt trust: %s\n\nOutput: %s\n\nError: %s",
 				err, outBuf.String(), errBuf.String())
 		}
-		d.logger.Printf("[DEBUG] driver.rkt: added trust prefix: %q", trust_prefix)
+		d.logger.Printf("[DEBUG] driver.rkt: added trust prefix: %q", trustPrefix)
 	}
 
 	// Build the command.
-	var cmd_args []string
+	var cmdArgs []string
 
 	// Inject the environment variables.
 	envVars := TaskEnvironmentVariables(ctx, task)
@@ -133,20 +133,20 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	envVars.ClearAllocDir()
 
 	for k, v := range envVars.Map() {
-		cmd_args = append(cmd_args, fmt.Sprintf("--set-env=%v=%v", k, v))
+		cmdArgs = append(cmdArgs, fmt.Sprintf("--set-env=%v=%v", k, v))
 	}
 
 	// Disble signature verification if the trust command was not run.
-	if !trust_cmd {
-		cmd_args = append(cmd_args, "--insecure-skip-verify")
+	if !trustCmd {
+		cmdArgs = append(cmdArgs, "--insecure-skip-verify")
 	}
 
 	// Append the run command.
-	cmd_args = append(cmd_args, "run", "--mds-register=false", img)
+	cmdArgs = append(cmdArgs, "run", "--mds-register=false", img)
 
 	// Check if the user has overriden the exec command.
-	if exec_cmd, ok := task.Config["command"]; ok {
-		cmd_args = append(cmd_args, fmt.Sprintf("--exec=%v", exec_cmd))
+	if execCmd, ok := task.Config["command"]; ok {
+		cmdArgs = append(cmdArgs, fmt.Sprintf("--exec=%v", execCmd))
 	}
 
 	if task.Resources.MemoryMB == 0 {
@@ -157,10 +157,10 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	}
 
 	// Add memory isolator
-	cmd_args = append(cmd_args, fmt.Sprintf("--memory=%vM", int64(task.Resources.MemoryMB)*1024*1024))
+	cmdArgs = append(cmdArgs, fmt.Sprintf("--memory=%vM", int64(task.Resources.MemoryMB)*1024*1024))
 
 	// Add CPU isolator
-	cmd_args = append(cmd_args, fmt.Sprintf("--cpu=%vm", int64(task.Resources.CPU)))
+	cmdArgs = append(cmdArgs, fmt.Sprintf("--cpu=%vm", int64(task.Resources.CPU)))
 
 	// Add user passed arguments.
 	if len(driverConfig.Args) != 0 {
@@ -168,11 +168,11 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 
 		// Need to start arguments with "--"
 		if len(parsed) > 0 {
-			cmd_args = append(cmd_args, "--")
+			cmdArgs = append(cmdArgs, "--")
 		}
 
 		for _, arg := range parsed {
-			cmd_args = append(cmd_args, fmt.Sprintf("%v", arg))
+			cmdArgs = append(cmdArgs, fmt.Sprintf("%v", arg))
 		}
 	}
 
@@ -190,7 +190,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		return nil, fmt.Errorf("Error opening file to redirect stderr: %v", err)
 	}
 
-	cmd := exec.Command("rkt", cmd_args...)
+	cmd := exec.Command("rkt", cmdArgs...)
 	cmd.Stdout = stdo
 	cmd.Stderr = stde
 
