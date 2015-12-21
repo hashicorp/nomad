@@ -149,6 +149,19 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		cmd_args = append(cmd_args, fmt.Sprintf("--exec=%v", exec_cmd))
 	}
 
+	if task.Resources.MemoryMB == 0 {
+                return nil, fmt.Errorf("Memory limit cannot be zero")
+        }
+        if task.Resources.CPU == 0 {
+                return nil, fmt.Errorf("CPU limit cannot be zero")
+        }
+
+	// Add memory isolator
+	cmd_args = append(cmd_args, fmt.Sprintf("--memory=%vM", int64(task.Resources.MemoryMB) * 1024 * 1024))
+
+	// Add CPU isolator
+	cmd_args = append(cmd_args, fmt.Sprintf("--cpu=%vm", int64(task.Resources.CPU)))
+
 	// Add user passed arguments.
 	if len(driverConfig.Args) != 0 {
 		parsed := args.ParseAndReplace(driverConfig.Args, envVars.Map())
