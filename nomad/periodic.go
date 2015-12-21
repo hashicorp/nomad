@@ -398,7 +398,7 @@ func (p *PeriodicDispatch) deriveJob(periodicJob *structs.Job, time time.Time) (
 // deriveJobID returns a job ID based on the parent periodic job and the launch
 // time.
 func (p *PeriodicDispatch) derivedJobID(periodicJob *structs.Job, time time.Time) string {
-	return fmt.Sprintf("%s%s%d", periodicJob.ID, JobLaunchSuffix, time.UnixNano())
+	return fmt.Sprintf("%s%s%d", periodicJob.ID, JobLaunchSuffix, time.Unix())
 }
 
 // LaunchTime returns the launch time of the job. This is only valid for
@@ -414,7 +414,7 @@ func (p *PeriodicDispatch) LaunchTime(jobID string) (time.Time, error) {
 		return time.Time{}, fmt.Errorf("couldn't parse launch time from eval: %v", jobID)
 	}
 
-	return time.Unix(0, int64(launch)), nil
+	return time.Unix(int64(launch), 0), nil
 }
 
 // Flush clears the state of the PeriodicDispatcher

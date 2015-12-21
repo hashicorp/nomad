@@ -78,7 +78,7 @@ func testPeriodicJob(times ...time.Time) *structs.Job {
 
 	l := make([]string, len(times))
 	for i, t := range times {
-		l[i] = strconv.Itoa(int(t.UnixNano()))
+		l[i] = strconv.Itoa(int(t.Round(1 * time.Second).Unix()))
 	}
 
 	job.Periodic.Spec = strings.Join(l, ",")
@@ -166,8 +166,8 @@ func TestPeriodicDispatch_Add_TriggersUpdate(t *testing.T) {
 	}
 
 	// Update it to be sooner and re-add.
-	expected := time.Now().Add(1 * time.Second)
-	job.Periodic.Spec = fmt.Sprintf("%d", expected.UnixNano())
+	expected := time.Now().Round(1 * time.Second).Add(1 * time.Second)
+	job.Periodic.Spec = fmt.Sprintf("%d", expected.Unix())
 	if err := p.Add(job); err != nil {
 		t.Fatalf("Add failed %v", err)
 	}
@@ -293,8 +293,8 @@ func TestPeriodicDispatch_Run_Multiple(t *testing.T) {
 	p, m := testPeriodicDispatcher()
 
 	// Create a job that will be launched twice.
-	launch1 := time.Now().Add(1 * time.Second)
-	launch2 := time.Now().Add(2 * time.Second)
+	launch1 := time.Now().Round(1 * time.Second).Add(1 * time.Second)
+	launch2 := time.Now().Round(1 * time.Second).Add(2 * time.Second)
 	job := testPeriodicJob(launch1, launch2)
 
 	// Add it.
@@ -325,7 +325,7 @@ func TestPeriodicDispatch_Run_SameTime(t *testing.T) {
 	p, m := testPeriodicDispatcher()
 
 	// Create two job that will be launched at the same time.
-	launch := time.Now().Add(1 * time.Second)
+	launch := time.Now().Round(1 * time.Second).Add(1 * time.Second)
 	job := testPeriodicJob(launch)
 	job2 := testPeriodicJob(launch)
 
@@ -362,11 +362,11 @@ func TestPeriodicDispatch_Complex(t *testing.T) {
 	p, m := testPeriodicDispatcher()
 
 	// Create some jobs launching at different times.
-	now := time.Now()
+	now := time.Now().Round(1 * time.Second)
 	same := now.Add(1 * time.Second)
 	launch1 := same.Add(1 * time.Second)
-	launch2 := same.Add(1500 * time.Millisecond)
-	launch3 := same.Add(2 * time.Second)
+	launch2 := same.Add(2 * time.Second)
+	launch3 := same.Add(3 * time.Second)
 	invalid := now.Add(-200 * time.Second)
 
 	// Create two jobs launching at the same time.
@@ -417,7 +417,7 @@ func TestPeriodicDispatch_Complex(t *testing.T) {
 		}
 	}
 
-	time.Sleep(4 * time.Second)
+	time.Sleep(5 * time.Second)
 	actual := make(map[string][]time.Time, len(expected))
 	for _, job := range jobs {
 		launches, err := m.LaunchTimes(p, job.ID)
@@ -439,7 +439,7 @@ func TestPeriodicDispatch_NextLaunch(t *testing.T) {
 
 	// Create two job that will be launched at the same time.
 	invalid := time.Unix(0, 0)
-	expected := time.Now().Add(1 * time.Second)
+	expected := time.Now().Round(1 * time.Second).Add(1 * time.Second)
 	job := testPeriodicJob(invalid)
 	job2 := testPeriodicJob(expected)
 
