@@ -22,14 +22,14 @@
     .by{
       &:hover{
         svg{
-          line{
-            stroke: $green-dark;
+          .svg-bg-line{
+            fill: $green-dark;
           }
         }
       }
     }
   }
-  
+
   .buttons{
     margin-top: 2px; //baseline everything
 

@@ -53,10 +53,8 @@ body.page-sub{
 
       &:hover{
         svg{
-          &.svg-by{
-            line{
-              stroke: $green-dark;
-            }
+          .svg-bg-line{
+            fill: $green-dark;
           }
         }
       }
@@ -95,6 +93,14 @@ body.page-sub{
             @include transition(all 300ms ease-in);
           }
         }
+
+        .svg-bg-line{
+          @include transition(all 300ms ease-in);
+
+          &:hover{
+            @include transition(all 300ms ease-in);
+          }
+        }          
       }
     }
   }
