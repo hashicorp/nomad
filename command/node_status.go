@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-
-	"github.com/hashicorp/nomad/api"
 )
 
 type NodeStatusCommand struct {
@@ -80,14 +78,12 @@ func (c *NodeStatusCommand) Run(args []string) int {
 			return 0
 		}
 
-		shortenNodeId := shouldShortenNodeIds(nodes)
-
 		// Format the nodes list
 		out := make([]string, len(nodes)+1)
 		out[0] = "ID|DC|Name|Class|Drain|Status"
 		for i, node := range nodes {
 			out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%v|%s",
-				shortenId(node.ID, shortenNodeId),
+				node.ID,
 				node.Datacenter,
 				node.Name,
 				node.NodeClass,
@@ -163,28 +159,4 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		c.Ui.Output(formatList(allocs))
 	}
 	return 0
-}
-
-// check if there is a collision if we shorten the Node ids
-func shouldShortenNodeIds(nodes []*api.NodeListStub) bool {
-	ids := map[string]bool{}
-
-	for _, node := range nodes {
-		if len(node.ID) != 36 {
-			return false //We have a custom ID, don't shorten anything
-		} else if ids[node.ID[:8]] == true {
-			return false //There is a collision
-		} else {
-			ids[node.ID[:8]] = true
-		}
-	}
-	return true
-}
-
-// shorten an UUID syntax XXXXXXXX-XX... to 8 chars XXXXXXXX
-func shortenId(id string, shouldShortenId bool) string {
-	if shouldShortenId == true {
-		return id[:8]
-	}
-	return id
 }
