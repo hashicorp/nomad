@@ -29,6 +29,13 @@ var (
 	reAppcVersion = regexp.MustCompile(`appc version (\d[.\d]+)`)
 )
 
+const (
+	// rkt added support for CPU and memory isolators in 0.14.0. We cannot support
+	// an earlier version to maintain an uniform interface across all drivers
+	minRktVersion    = "0.14.0"
+	conversionFactor = 1024 * 1024
+)
+
 // RktDriver is a driver for running images via Rkt
 // We attempt to chose sane defaults for now, with more configuration available
 // planned in the future
@@ -86,7 +93,7 @@ func (d *RktDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, e
 	node.Attributes["driver.rkt.version"] = rktMatches[1]
 	node.Attributes["driver.rkt.appc.version"] = appcMatches[1]
 
-	minVersion, _ := version.NewVersion("0.14.0")
+	minVersion, _ := version.NewVersion(minRktVersion)
 	currentVersion, _ := version.NewVersion(node.Attributes["driver.rkt.version"])
 	if currentVersion.LessThan(minVersion) {
 		// Do not allow rkt < 0.14.0
@@ -165,7 +172,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	}
 
 	// Add memory isolator
-	cmdArgs = append(cmdArgs, fmt.Sprintf("--memory=%vM", int64(task.Resources.MemoryMB)*1024*1024))
+	cmdArgs = append(cmdArgs, fmt.Sprintf("--memory=%vM", int64(task.Resources.MemoryMB)*conversionFactor))
 
 	// Add CPU isolator
 	cmdArgs = append(cmdArgs, fmt.Sprintf("--cpu=%vm", int64(task.Resources.CPU)))
