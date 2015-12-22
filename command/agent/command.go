@@ -193,6 +193,23 @@ func (c *Command) readConfig() *Config {
 		return nil
 	}
 
+	// Verify the paths are absolute.
+	dirs := map[string]string{
+		"data-dir":  config.DataDir,
+		"alloc-dir": config.Client.AllocDir,
+		"state-dir": config.Client.StateDir,
+	}
+	for k, dir := range dirs {
+		if dir == "" {
+			continue
+		}
+
+		if !filepath.IsAbs(dir) {
+			c.Ui.Error(fmt.Sprintf("%s must be given as an absolute path: got %v", k, dir))
+			return nil
+		}
+	}
+
 	// Ensure that we have the directories we neet to run.
 	if config.Server.Enabled && config.DataDir == "" {
 		c.Ui.Error("Must specify data directory")
