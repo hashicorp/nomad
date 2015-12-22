@@ -31,6 +31,9 @@ type QueryOptions struct {
 	// WaitTime is used to bound the duration of a wait.
 	// Defaults to that of the Config, but can be overriden.
 	WaitTime time.Duration
+
+	// If set, used as prefix for resource list searches
+	Prefix string
 }
 
 // WriteOptions are used to parameterize a write
@@ -149,6 +152,9 @@ func (r *request) setQueryOptions(q *QueryOptions) {
 	}
 	if q.WaitTime != 0 {
 		r.params.Set("wait", durToMsec(q.WaitTime))
+	}
+	if q.Prefix != "" {
+		r.params.Set("prefix", q.Prefix)
 	}
 }
 

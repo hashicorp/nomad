@@ -69,6 +69,9 @@ type QueryOptions struct {
 	// If set, any follower can service the request. Results
 	// may be arbitrarily stale.
 	AllowStale bool
+
+	// If set, used as prefix for resource list searches
+	Prefix string
 }
 
 func (q QueryOptions) RequestRegion() string {

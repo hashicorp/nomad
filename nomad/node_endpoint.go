@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/armon/go-metrics"
+	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/watch"
 )
@@ -304,31 +305,6 @@ func (n *Node) GetNode(args *structs.NodeSpecificRequest,
 				return err
 			}
 
-			if out == nil {
-				iter, err := snap.NodeByIDPrefix(args.NodeID)
-				if err != nil {
-					return err
-				}
-
-				// Gather all matching nodes
-				var nodes []*structs.Node
-				for {
-					raw := iter.Next()
-					if raw == nil {
-						break
-					}
-					node := raw.(*structs.Node)
-					nodes = append(nodes, node)
-				}
-
-				if len(nodes) == 1 {
-					// return unique node
-					out = nodes[0]
-				} else {
-					return fmt.Errorf("Ambiguous identifier: %v", nodes)
-				}
-			}
-
 			// Setup the output
 			reply.Node = out
 			if out != nil {
@@ -449,7 +425,12 @@ func (n *Node) List(args *structs.NodeListRequest,
 			if err != nil {
 				return err
 			}
-			iter, err := snap.Nodes()
+			var iter memdb.ResultIterator
+			if prefix := args.QueryOptions.Prefix; prefix != "" {
+				iter, err = snap.NodesByIDPrefix(prefix)
+			} else {
+				iter, err = snap.Nodes()
+			}
 			if err != nil {
 				return err
 			}

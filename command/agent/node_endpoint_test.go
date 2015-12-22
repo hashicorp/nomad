@@ -56,6 +56,55 @@ func TestHTTP_NodesList(t *testing.T) {
 	})
 }
 
+func TestHTTP_NodesPrefixList(t *testing.T) {
+	httpTest(t, nil, func(s *TestServer) {
+		ids := []string{"aaaaa", "aaaab", "aaabb", "aabbb", "abbbb", "bbbbb"}
+		for i := 0; i < 5; i++ {
+			// Create the node
+			node := mock.Node()
+			node.ID = ids[i]
+			args := structs.NodeRegisterRequest{
+				Node:         node,
+				WriteRequest: structs.WriteRequest{Region: "global"},
+			}
+			var resp structs.NodeUpdateResponse
+			if err := s.Agent.RPC("Node.Register", &args, &resp); err != nil {
+				t.Fatalf("err: %v", err)
+			}
+		}
+
+		// Make the HTTP request
+		req, err := http.NewRequest("GET", "/v1/nodes?prefix=aaa", nil)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		respW := httptest.NewRecorder()
+
+		// Make the request
+		obj, err := s.Server.NodesRequest(respW, req)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Check for the index
+		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+			t.Fatalf("missing index")
+		}
+		if respW.HeaderMap.Get("X-Nomad-KnownLeader") != "true" {
+			t.Fatalf("missing known leader")
+		}
+		if respW.HeaderMap.Get("X-Nomad-LastContact") == "" {
+			t.Fatalf("missing last contact")
+		}
+
+		// Check the job
+		n := obj.([]*structs.NodeListStub)
+		if len(n) != 3 {
+			t.Fatalf("bad: %#v", n)
+		}
+	})
+}
+
 func TestHTTP_NodeForceEval(t *testing.T) {
 	httpTest(t, nil, func(s *TestServer) {
 		// Create the node

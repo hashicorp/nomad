@@ -1,7 +1,6 @@
 package nomad
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/armon/go-metrics"
@@ -81,40 +80,9 @@ func (a *Alloc) GetAlloc(args *structs.AllocSpecificRequest,
 			if err != nil {
 				return err
 			}
-
-			var out *structs.Allocation
-
-			// Exact lookup if the identifier length is 36 (full UUID)
-			if len(args.AllocID) == 36 {
-				out, err = snap.AllocByID(args.AllocID)
-				if err != nil {
-					return err
-				}
-			} else {
-				iter, err := snap.AllocByIDPrefix(args.AllocID)
-				if err != nil {
-					return err
-				}
-
-				// Gather all matching allocations
-				var allocs []*structs.Allocation
-				var allocIds []string
-				for {
-					raw := iter.Next()
-					if raw == nil {
-						break
-					}
-					alloc := raw.(*structs.Allocation)
-					allocIds = append(allocIds, alloc.ID)
-					allocs = append(allocs, alloc)
-				}
-
-				if len(allocs) == 1 {
-					// Return unique allocation
-					out = allocs[0]
-				} else if len(allocs) > 1 {
-					return fmt.Errorf("Ambiguous identifier: %+v", allocIds)
-				}
+			out, err := snap.AllocByID(args.AllocID)
+			if err != nil {
+				return err
 			}
 
 			// Setup the output
@@ -122,7 +90,7 @@ func (a *Alloc) GetAlloc(args *structs.AllocSpecificRequest,
 			if out != nil {
 				reply.Index = out.ModifyIndex
 			} else {
-				// Use the last index that affected the allocs table
+				// Use the last index that affected the nodes table
 				index, err := snap.Index("allocs")
 				if err != nil {
 					return err

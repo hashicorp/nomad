@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/hashicorp/nomad/api"
 )
 
 type NodeStatusCommand struct {
@@ -100,8 +102,41 @@ func (c *NodeStatusCommand) Run(args []string) int {
 	nodeID := args[0]
 	node, _, err := client.Nodes().Info(nodeID, nil)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error querying node info: %s", err))
-		return 1
+		// Exact lookup failed, try with prefix based search
+		nodes, _, err := client.Nodes().List(&api.QueryOptions{Prefix: nodeID})
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error querying node info: %s", err))
+			return 1
+		}
+		// Return error if no nodes are found
+		if len(nodes) == 0 {
+			c.Ui.Error(fmt.Sprintf("Node not found"))
+			return 1
+		}
+		if len(nodes) > 1 {
+			// Format the nodes list that matches the prefix so that the user
+			// can create a more specific request
+			out := make([]string, len(nodes)+1)
+			out[0] = "ID|DC|Name|Class|Drain|Status"
+			for i, node := range nodes {
+				out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%v|%s",
+					node.ID,
+					node.Datacenter,
+					node.Name,
+					node.NodeClass,
+					node.Drain,
+					node.Status)
+			}
+			// Dump the output
+			c.Ui.Output(formatList(out))
+			return 0
+		}
+		//  Query full node information for unique prefix match
+		node, _, err = client.Nodes().Info(nodes[0].ID, nil)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error querying node info: %s", err))
+			return 1
+		}
 	}
 
 	m := node.Attributes

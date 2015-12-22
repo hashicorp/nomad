@@ -71,7 +71,7 @@ func (c *NodeDrainCommand) Run(args []string) int {
 	// Check if node exists
 	node, _, err := client.Nodes().Info(nodeID, nil)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error querying node info: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error toggling drain mode: %s", err))
 		return 1
 	}
 

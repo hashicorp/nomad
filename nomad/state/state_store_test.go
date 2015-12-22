@@ -216,7 +216,7 @@ func TestStateStore_Nodes(t *testing.T) {
 	}
 }
 
-func TestStateStore_NodeByIDPrefix(t *testing.T) {
+func TestStateStore_NodesByIDPrefix(t *testing.T) {
 	state := testStateStore(t)
 	node := mock.Node()
 
@@ -226,7 +226,7 @@ func TestStateStore_NodeByIDPrefix(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	iter, err := state.NodeByIDPrefix(node.ID)
+	iter, err := state.NodesByIDPrefix(node.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -249,7 +249,7 @@ func TestStateStore_NodeByIDPrefix(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	iter, err = state.NodeByIDPrefix("11")
+	iter, err = state.NodesByIDPrefix("11")
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -266,7 +266,7 @@ func TestStateStore_NodeByIDPrefix(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	iter, err = state.NodeByIDPrefix("11")
+	iter, err = state.NodesByIDPrefix("11")
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -276,7 +276,7 @@ func TestStateStore_NodeByIDPrefix(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	iter, err = state.NodeByIDPrefix("111")
+	iter, err = state.NodesByIDPrefix("111")
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -476,7 +476,7 @@ func TestStateStore_Jobs(t *testing.T) {
 	}
 }
 
-func TestStateStore_JobByIDPrefix(t *testing.T) {
+func TestStateStore_JobsByIDPrefix(t *testing.T) {
 	state := testStateStore(t)
 	job := mock.Job()
 
@@ -486,7 +486,7 @@ func TestStateStore_JobByIDPrefix(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	iter, err := state.JobByIDPrefix(job.ID)
+	iter, err := state.JobsByIDPrefix(job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -508,7 +508,7 @@ func TestStateStore_JobByIDPrefix(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	iter, err = state.JobByIDPrefix("re")
+	iter, err = state.JobsByIDPrefix("re")
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -525,7 +525,7 @@ func TestStateStore_JobByIDPrefix(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	iter, err = state.JobByIDPrefix("r")
+	iter, err = state.JobsByIDPrefix("r")
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -535,7 +535,7 @@ func TestStateStore_JobByIDPrefix(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	iter, err = state.JobByIDPrefix("ri")
+	iter, err = state.JobsByIDPrefix("ri")
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1001,7 +1001,7 @@ func TestStateStore_Evals(t *testing.T) {
 	}
 }
 
-func TestStateStore_EvalByIDPrefix(t *testing.T) {
+func TestStateStore_EvalsByIDPrefix(t *testing.T) {
 	state := testStateStore(t)
 	var evals []*structs.Evaluation
 
@@ -1027,7 +1027,7 @@ func TestStateStore_EvalByIDPrefix(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	iter, err := state.EvalByIDPrefix("aaaa")
+	iter, err := state.EvalsByIDPrefix("aaaa")
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1057,7 +1057,7 @@ func TestStateStore_EvalByIDPrefix(t *testing.T) {
 		}
 	}
 
-	iter, err = state.EvalByIDPrefix("b-a7bfb")
+	iter, err = state.EvalsByIDPrefix("b-a7bfb")
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1329,7 +1329,7 @@ func TestStateStore_AllocsByJob(t *testing.T) {
 	}
 }
 
-func TestStateStore_AllocByIDPrefix(t *testing.T) {
+func TestStateStore_AllocsByIDPrefix(t *testing.T) {
 	state := testStateStore(t)
 	var allocs []*structs.Allocation
 
@@ -1355,7 +1355,7 @@ func TestStateStore_AllocByIDPrefix(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	iter, err := state.AllocByIDPrefix("aaaa")
+	iter, err := state.AllocsByIDPrefix("aaaa")
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1385,7 +1385,7 @@ func TestStateStore_AllocByIDPrefix(t *testing.T) {
 		}
 	}
 
-	iter, err = state.AllocByIDPrefix("b-a7bfb")
+	iter, err = state.AllocsByIDPrefix("b-a7bfb")
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

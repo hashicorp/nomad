@@ -38,40 +38,9 @@ func (e *Eval) GetEval(args *structs.EvalSpecificRequest,
 			if err != nil {
 				return err
 			}
-
-			var out *structs.Evaluation
-
-			// Exact lookup if the identifier length is 36 (full UUID)
-			if len(args.EvalID) == 36 {
-				out, err = snap.EvalByID(args.EvalID)
-				if err != nil {
-					return err
-				}
-			} else {
-				iter, err := snap.EvalByIDPrefix(args.EvalID)
-				if err != nil {
-					return err
-				}
-
-				// Gather all matching evaluations
-				var evals []*structs.Evaluation
-				var evalIds []string
-				for {
-					raw := iter.Next()
-					if raw == nil {
-						break
-					}
-					eval := raw.(*structs.Evaluation)
-					evalIds = append(evalIds, eval.ID)
-					evals = append(evals, eval)
-				}
-
-				if len(evals) == 1 {
-					// Return unique evaluation
-					out = evals[0]
-				} else if len(evals) > 1 {
-					return fmt.Errorf("Ambiguous identifier: %+v", evalIds)
-				}
+			out, err := snap.EvalByID(args.EvalID)
+			if err != nil {
+				return err
 			}
 
 			// Setup the output
