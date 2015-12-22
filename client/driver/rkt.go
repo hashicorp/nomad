@@ -126,6 +126,9 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	}
 	taskLocal := filepath.Join(taskDir, allocdir.TaskLocal)
 
+	// Build the command.
+	var cmdArgs []string
+
 	// Add the given trust prefix
 	trustPrefix, trustCmd := task.Config["trust_prefix"]
 	if trustCmd {
@@ -138,10 +141,10 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 				err, outBuf.String(), errBuf.String())
 		}
 		d.logger.Printf("[DEBUG] driver.rkt: added trust prefix: %q", trustPrefix)
+	} else {
+		// Disble signature verification if the trust command was not run.
+		cmdArgs = append(cmdArgs, "--insecure-skip-verify")
 	}
-
-	// Build the command.
-	var cmdArgs []string
 
 	// Inject the environment variables.
 	envVars := TaskEnvironmentVariables(ctx, task)
@@ -152,11 +155,6 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 
 	for k, v := range envVars.Map() {
 		cmdArgs = append(cmdArgs, fmt.Sprintf("--set-env=%v=%v", k, v))
-	}
-
-	// Disble signature verification if the trust command was not run.
-	if !trustCmd {
-		cmdArgs = append(cmdArgs, "--insecure-skip-verify")
 	}
 
 	// Append the run command.
