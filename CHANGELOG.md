@@ -9,6 +9,7 @@ IMPROVEMENTS:
 BUG FIXES:
   * cli: Handle parsing of un-named ports [GH-604]
   * client: Handle non-200 codes when parsing AWS metadata [GH-614]
+  * cli: Enforce absolute paths for data directories [GH-622]
 
 ## 0.2.3 (December 17, 2015)
 
