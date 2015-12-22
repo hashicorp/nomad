@@ -94,7 +94,7 @@ nodes, unless otherwise specified:
   directory by default to store temporary allocation data as well as cluster
   information. Server nodes use this directory to store cluster state, including
   the replicated log and snapshot data. This option is required to start the
-  Nomad agent.
+  Nomad agent and must be specified as an absolute path.
 
 * `log_level`: Controls the verbosity of logs the Nomad agent will output. Valid
   log levels include `WARN`, `INFO`, or `DEBUG` in increasing order of
@@ -253,14 +253,14 @@ configured on server nodes.
     configuration options depend on this value. Defaults to `false`.
   * <a id="state_dir">`state_dir`</a>: This is the state dir used to store
     client state. By default, it lives inside of the [data_dir](#data_dir), in
-    the "client" sub-path.
+    the "client" sub-path. It must be specified as an absolute path.
   * <a id="alloc_dir">`alloc_dir`</a>: A directory used to store allocation data.
     Depending on the workload, the size of this directory can grow arbitrarily
     large as it is used to store downloaded artifacts for drivers (QEMU images,
     JAR files, etc.). It is therefore important to ensure this directory is
     placed some place on the filesystem with adequate storage capacity. By
     default, this directory lives under the [data_dir](#data_dir) at the
-    "alloc" sub-path.
+    "alloc" sub-path. It must be specified as an absolute path.
   * <a id="servers">`servers`</a>: An array of server addresses. This list is
     used to register the client with the server nodes and advertise the
     available resources so that the agent can receive work.
