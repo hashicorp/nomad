@@ -49,9 +49,11 @@ The `rkt` driver will set the following client attributes:
 
 * `driver.rkt` - Set to `1` if rkt is found on the host node. Nomad determines
 this by executing `rkt version` on the host and parsing the output
-* `driver.rkt.version` - Version of `rkt` eg: `0.8.1`
+* `driver.rkt.version` - Version of `rkt` eg: `0.8.1`. Note that the minimum required
+version is `0.14.0`
 * `driver.rkt.appc.version` - Version of `appc` that `rkt` is using eg: `0.8.1`
 
 ## Resource Isolation
 
-This driver does not support any resource isolation as of now.
+This driver supports CPU and memory isolation by delegating to `rkt`. Network isolation
+is not supported as of now.
