@@ -340,6 +340,10 @@ Below is a table documenting the variables that can be interpreted:
     <td>The client node name</td>
   </tr>
   <tr>
+    <td>$node.class</td>
+    <td>The client node class</td>
+  </tr>
+  <tr>
     <td>$attr.\<key\></td>
     <td>The attribute given by `key` on the client node.</td>
   </tr>
