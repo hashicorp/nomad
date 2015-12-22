@@ -11,10 +11,9 @@ description: |-
 Name: `rkt`
 
 The `rkt` driver provides an interface for using CoreOS rkt for running
-application containers. Currently, the driver supports launching
-containers but does not support resource isolation or dynamic ports. This can
-lead to resource over commitment and port conflicts and as such, this driver is
-being marked as experimental and should be used with care.
+application containers. Currently, the driver supports launching containers but
+does not support dynamic ports. This can lead to port conflicts and as such,
+this driver is being marked as experimental and should be used with care.
 
 ## Task Configuration
 
