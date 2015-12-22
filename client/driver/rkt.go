@@ -30,10 +30,13 @@ var (
 )
 
 const (
-	// rkt added support for CPU and memory isolators in 0.14.0. We cannot support
-	// an earlier version to maintain an uniform interface across all drivers
-	minRktVersion    = "0.14.0"
-	conversionFactor = 1024 * 1024
+	// minRktVersion is the earliest supported version of rkt. rkt added support
+	// for CPU and memory isolators in 0.14.0. We cannot support an earlier
+	// version to maintain an uniform interface across all drivers
+	minRktVersion = "0.14.0"
+
+	// bytesToMB is the conversion from bytes to megabytes.
+	bytesToMB = 1024 * 1024
 )
 
 // RktDriver is a driver for running images via Rkt
@@ -172,7 +175,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	}
 
 	// Add memory isolator
-	cmdArgs = append(cmdArgs, fmt.Sprintf("--memory=%vM", int64(task.Resources.MemoryMB)*conversionFactor))
+	cmdArgs = append(cmdArgs, fmt.Sprintf("--memory=%vM", int64(task.Resources.MemoryMB)*bytesToMB))
 
 	// Add CPU isolator
 	cmdArgs = append(cmdArgs, fmt.Sprintf("--cpu=%vm", int64(task.Resources.CPU)))
