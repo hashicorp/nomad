@@ -204,6 +204,10 @@ The `task` object supports the following keys:
 
 * `meta` - Annotates the task group with opaque metadata.
 
+* `kill_timeout` - `kill_timeout` is a time duration that can be specified using
+  the `s`, `m`, and `h` suffixes, such as `30s`. It can be used to configure the
+  time between signaling a task it will be killed and actually killing it.
+
 ### Resources
 
 The `resources` object supports the following keys:

@@ -408,7 +408,15 @@ func parseTasks(jobName string, taskGroupName string, result *[]*structs.Task, l
 		if taskGroupName == "" {
 			taskGroupName = n
 		}
-		if err := mapstructure.WeakDecode(m, &t); err != nil {
+		dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+			DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
+			WeaklyTypedInput: true,
+			Result:           &t,
+		})
+		if err != nil {
+			return err
+		}
+		if err := dec.Decode(m); err != nil {
 			return err
 		}
 

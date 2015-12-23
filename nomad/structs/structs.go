@@ -1242,6 +1242,12 @@ func (s *Service) Hash() string {
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
+const (
+	// DefaultKillTimeout is the default timeout between signaling a task it
+	// will be killed and killing it.
+	DefaultKillTimeout = 5 * time.Second
+)
+
 // Task is a single process typically that is executed as part of a task group.
 type Task struct {
 	// Name of the task
@@ -1269,11 +1275,20 @@ type Task struct {
 	// Meta is used to associate arbitrary metadata with this
 	// task. This is opaque to Nomad.
 	Meta map[string]string
+
+	// KillTimeout is the time between signaling a task that it will be
+	// killed and killing it.
+	KillTimeout time.Duration `mapstructure:"kill_timeout"`
 }
 
 // InitFields initializes fields in the task.
 func (t *Task) InitFields(job *Job, tg *TaskGroup) {
 	t.InitServiceFields(job.Name, tg.Name)
+
+	// Set the default timeout if it is not specified.
+	if t.KillTimeout == 0 {
+		t.KillTimeout = DefaultKillTimeout
+	}
 }
 
 // InitServiceFields interpolates values of Job, Task Group

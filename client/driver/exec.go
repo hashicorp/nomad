@@ -1,7 +1,9 @@
 package driver
 
 import (
+	"encoding/json"
 	"fmt"
+	"log"
 	"path/filepath"
 	"runtime"
 	"syscall"
@@ -32,9 +34,11 @@ type ExecDriverConfig struct {
 
 // execHandle is returned from Start/Open as a handle to the PID
 type execHandle struct {
-	cmd    executor.Executor
-	waitCh chan *cstructs.WaitResult
-	doneCh chan struct{}
+	cmd         executor.Executor
+	killTimeout time.Duration
+	logger      *log.Logger
+	waitCh      chan *cstructs.WaitResult
+	doneCh      chan struct{}
 }
 
 // NewExecDriver is used to create a new exec driver
@@ -110,34 +114,57 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 
 	// Return a driver handle
 	h := &execHandle{
-		cmd:    cmd,
-		doneCh: make(chan struct{}),
-		waitCh: make(chan *cstructs.WaitResult, 1),
+		cmd:         cmd,
+		killTimeout: d.DriverContext.KillTimeout(task),
+		logger:      d.logger,
+		doneCh:      make(chan struct{}),
+		waitCh:      make(chan *cstructs.WaitResult, 1),
 	}
 	go h.run()
 	return h, nil
 }
 
+type execId struct {
+	ExecutorId  string
+	KillTimeout time.Duration
+}
+
 func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {
+	id := &execId{}
+	if err := json.Unmarshal([]byte(handleID), id); err != nil {
+		return nil, fmt.Errorf("Failed to parse handle '%s': %v", handleID, err)
+	}
+
 	// Find the process
-	cmd, err := executor.OpenId(handleID)
+	cmd, err := executor.OpenId(id.ExecutorId)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open ID %v: %v", handleID, err)
+		return nil, fmt.Errorf("failed to open ID %v: %v", id.ExecutorId, err)
 	}
 
 	// Return a driver handle
 	h := &execHandle{
-		cmd:    cmd,
-		doneCh: make(chan struct{}),
-		waitCh: make(chan *cstructs.WaitResult, 1),
+		cmd:         cmd,
+		logger:      d.logger,
+		killTimeout: id.KillTimeout,
+		doneCh:      make(chan struct{}),
+		waitCh:      make(chan *cstructs.WaitResult, 1),
 	}
 	go h.run()
 	return h, nil
 }
 
 func (h *execHandle) ID() string {
-	id, _ := h.cmd.ID()
-	return id
+	executorId, _ := h.cmd.ID()
+	id := execId{
+		ExecutorId:  executorId,
+		KillTimeout: h.killTimeout,
+	}
+
+	data, err := json.Marshal(id)
+	if err != nil {
+		h.logger.Printf("[ERR] driver.exec: failed to marshal ID to JSON: %s", err)
+	}
+	return string(data)
 }
 
 func (h *execHandle) WaitCh() chan *cstructs.WaitResult {
@@ -154,7 +181,7 @@ func (h *execHandle) Kill() error {
 	select {
 	case <-h.doneCh:
 		return nil
-	case <-time.After(5 * time.Second):
+	case <-time.After(h.killTimeout):
 		return h.cmd.ForceStop()
 	}
 }

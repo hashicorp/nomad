@@ -85,6 +85,7 @@ type Task struct {
 	Services    []Service
 	Resources   *Resources
 	Meta        map[string]string
+	KillTimeout time.Duration
 }
 
 // NewTask creates and initializes a new Task.

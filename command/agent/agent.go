@@ -208,6 +208,13 @@ func (a *Agent) setupClient() error {
 	if a.config.Client.NetworkSpeed != 0 {
 		conf.NetworkSpeed = a.config.Client.NetworkSpeed
 	}
+	if a.config.Client.MaxKillTimeout != "" {
+		dur, err := time.ParseDuration(a.config.Client.MaxKillTimeout)
+		if err != nil {
+			return fmt.Errorf("Error parsing retry interval: %s", err)
+		}
+		conf.MaxKillTimeout = dur
+	}
 
 	// Setup the node
 	conf.Node = new(structs.Node)

@@ -123,12 +123,13 @@ func TestDockerDriver_Handle(t *testing.T) {
 	h := &DockerHandle{
 		imageID:     "imageid",
 		containerID: "containerid",
+		killTimeout: 5 * time.Nanosecond,
 		doneCh:      make(chan struct{}),
 		waitCh:      make(chan *cstructs.WaitResult, 1),
 	}
 
 	actual := h.ID()
-	expected := `DOCKER:{"ImageID":"imageid","ContainerID":"containerid"}`
+	expected := `DOCKER:{"ImageID":"imageid","ContainerID":"containerid","KillTimeout":5}`
 	if actual != expected {
 		t.Errorf("Expected `%s`, found `%s`", expected, actual)
 	}
