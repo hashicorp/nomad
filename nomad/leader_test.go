@@ -388,12 +388,12 @@ func TestLeader_PeriodicDispatcher_Restore_NoEvals(t *testing.T) {
 	// Flush the periodic dispatcher, ensuring that no evals will be created.
 	s1.periodicDispatcher.SetEnabled(false)
 
-	// Sleep till after the job should have been launched.
-	time.Sleep(3 * time.Second)
-
 	// Get the current time to ensure the launch time is after this once we
 	// restore.
 	now := time.Now()
+
+	// Sleep till after the job should have been launched.
+	time.Sleep(3 * time.Second)
 
 	// Restore the periodic dispatcher.
 	s1.periodicDispatcher.SetEnabled(true)
@@ -412,7 +412,7 @@ func TestLeader_PeriodicDispatcher_Restore_NoEvals(t *testing.T) {
 	}
 
 	if last.Launch.Before(now) {
-		t.Fatalf("restorePeriodicDispatcher did not force launch")
+		t.Fatalf("restorePeriodicDispatcher did not force launch: last %v; want after %v", last.Launch, now)
 	}
 }
 
