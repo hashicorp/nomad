@@ -197,11 +197,14 @@ func (p *PeriodicDispatch) removeLocked(jobID string) error {
 		return nil
 	}
 
-	if job, tracked := p.tracked[jobID]; tracked {
-		delete(p.tracked, jobID)
-		if err := p.heap.Remove(job); err != nil {
-			return fmt.Errorf("failed to remove tracked job %v: %v", jobID, err)
-		}
+	job, tracked := p.tracked[jobID]
+	if !tracked {
+		return nil
+	}
+
+	delete(p.tracked, jobID)
+	if err := p.heap.Remove(job); err != nil {
+		return fmt.Errorf("failed to remove tracked job %v: %v", jobID, err)
 	}
 
 	// Signal an update.

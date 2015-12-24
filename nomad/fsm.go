@@ -262,28 +262,20 @@ func (n *nomadFSM) applyDeregisterJob(buf []byte, index uint64) interface{} {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	job, err := n.state.JobByID(req.JobID)
-	if err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: DeleteJob failed: %v", err)
-		return err
-	}
-
 	if err := n.state.DeleteJob(index, req.JobID); err != nil {
 		n.logger.Printf("[ERR] nomad.fsm: DeleteJob failed: %v", err)
 		return err
 	}
 
-	if job.IsPeriodic() {
-		if err := n.periodicDispatcher.Remove(req.JobID); err != nil {
-			n.logger.Printf("[ERR] nomad.fsm: periodicDispatcher.Remove failed: %v", err)
-			return err
-		}
-
-		if err := n.state.DeletePeriodicLaunch(index, req.JobID); err != nil {
-			n.logger.Printf("[ERR] nomad.fsm: DeletePeriodicLaunch failed: %v", err)
-			return err
-		}
+	if err := n.periodicDispatcher.Remove(req.JobID); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: periodicDispatcher.Remove failed: %v", err)
+		return err
 	}
+
+	// We always delete from the periodic launch table because it is possible that
+	// the job was updated to be non-perioidic, thus checking if it is periodic
+	// doesn't ensure we clean it up properly.
+	n.state.DeletePeriodicLaunch(index, req.JobID)
 
 	return nil
 }
