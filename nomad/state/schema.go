@@ -123,8 +123,8 @@ func jobTableSchema() *memdb.TableSchema {
 				Name:         "periodic",
 				AllowMissing: false,
 				Unique:       false,
-				Indexer: &memdb.FieldSetIndex{
-					Field: "Periodic",
+				Indexer: &memdb.ConditionalIndex{
+					Conditional: jobIsPeriodic,
 				},
 			},
 		},
@@ -140,6 +140,21 @@ func jobIsGCable(obj interface{}) (bool, error) {
 	}
 
 	return j.GC, nil
+}
+
+// jobIsPeriodic satisfies the ConditionalIndexFunc interface and creates an index
+// on whether a job is periodic.
+func jobIsPeriodic(obj interface{}) (bool, error) {
+	j, ok := obj.(*structs.Job)
+	if !ok {
+		return false, fmt.Errorf("Unexpected type: %v", obj)
+	}
+
+	if j.Periodic != nil && j.Periodic.Enabled == true {
+		return true, nil
+	}
+
+	return false, nil
 }
 
 // periodicLaunchTableSchema returns the MemDB schema tracking the most recent
