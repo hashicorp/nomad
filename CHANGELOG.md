@@ -1,6 +1,7 @@
 ## 0.3.0 (UNRELEASED)
 
 IMPROVEMENTS:
+  * core: Periodic specification for jobs [GH-540]
   * core: Improved restart policy with more user configuration [GH-594]
   * core: Batch jobs are garbage collected from the Nomad Servers [GH-586]
   * driver/rkt: Add support for CPU/Memory isolation [GH-610]
