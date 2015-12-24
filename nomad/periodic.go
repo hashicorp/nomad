@@ -165,7 +165,7 @@ func (p *PeriodicDispatch) Add(job *structs.Job) error {
 		p.logger.Printf("[DEBUG] nomad.periodic: updated periodic job %q", job.ID)
 	} else {
 		if err := p.heap.Push(job, next); err != nil {
-			return fmt.Errorf("failed to add job %v", job.ID, err)
+			return fmt.Errorf("failed to add job %v: %v", job.ID, err)
 		}
 		p.logger.Printf("[DEBUG] nomad.periodic: registered periodic job %q", job.ID)
 	}
