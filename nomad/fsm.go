@@ -222,12 +222,20 @@ func (n *nomadFSM) applyUpsertJob(buf []byte, index uint64) interface{} {
 	// job was not launched. In this case, we use the insertion time to
 	// determine if a launch was missed.
 	if req.Job.IsPeriodic() {
+		prevLaunch, err := n.state.PeriodicLaunchByID(req.Job.ID)
+		if err != nil {
+			n.logger.Printf("[ERR] nomad.fsm: PeriodicLaunchByID failed: %v", err)
+			return err
+		}
+
 		// Record the insertion time as a launch. We overload the launch table
 		// such that the first entry is the insertion time.
-		launch := &structs.PeriodicLaunch{ID: req.Job.ID, Launch: time.Now()}
-		if err := n.state.UpsertPeriodicLaunch(index, launch); err != nil {
-			n.logger.Printf("[ERR] nomad.fsm: UpsertPeriodicLaunch failed: %v", err)
-			return err
+		if prevLaunch == nil {
+			launch := &structs.PeriodicLaunch{ID: req.Job.ID, Launch: time.Now()}
+			if err := n.state.UpsertPeriodicLaunch(index, launch); err != nil {
+				n.logger.Printf("[ERR] nomad.fsm: UpsertPeriodicLaunch failed: %v", err)
+				return err
+			}
 		}
 	}
 
