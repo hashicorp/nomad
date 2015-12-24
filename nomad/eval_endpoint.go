@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/armon/go-metrics"
+	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/watch"
 )
@@ -239,7 +240,12 @@ func (e *Eval) List(args *structs.EvalListRequest,
 			if err != nil {
 				return err
 			}
-			iter, err := snap.Evals()
+			var iter memdb.ResultIterator
+			if prefix := args.QueryOptions.Prefix; prefix != "" {
+				iter, err = snap.EvalsByIDPrefix(prefix)
+			} else {
+				iter, err = snap.Evals()
+			}
 			if err != nil {
 				return err
 			}

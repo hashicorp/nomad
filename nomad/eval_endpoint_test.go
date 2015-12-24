@@ -391,7 +391,9 @@ func TestEvalEndpoint_List(t *testing.T) {
 
 	// Create the register request
 	eval1 := mock.Eval()
+	eval1.ID = "aaaaaaaa-3350-4b4b-d185-0e1992ed43e9"
 	eval2 := mock.Eval()
+	eval2.ID = "aaaabbbb-3350-4b4b-d185-0e1992ed43e9"
 	s1.fsm.State().UpsertEvals(1000, []*structs.Evaluation{eval1, eval2})
 
 	// Lookup the eval
@@ -409,6 +411,23 @@ func TestEvalEndpoint_List(t *testing.T) {
 	if len(resp.Evaluations) != 2 {
 		t.Fatalf("bad: %#v", resp.Evaluations)
 	}
+
+	// Lookup the eval by prefix
+	get = &structs.EvalListRequest{
+		QueryOptions: structs.QueryOptions{Region: "global", Prefix: "aaaabb"},
+	}
+	var resp2 structs.EvalListResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Eval.List", get, &resp2); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp2.Index != 1000 {
+		t.Fatalf("Bad index: %d %d", resp2.Index, 1000)
+	}
+
+	if len(resp2.Evaluations) != 1 {
+		t.Fatalf("bad: %#v", resp2.Evaluations)
+	}
+
 }
 
 func TestEvalEndpoint_List_Blocking(t *testing.T) {

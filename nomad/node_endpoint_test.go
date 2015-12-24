@@ -879,6 +879,25 @@ func TestClientEndpoint_ListNodes(t *testing.T) {
 	if resp2.Nodes[0].ID != node.ID {
 		t.Fatalf("bad: %#v", resp2.Nodes[0])
 	}
+
+	// Lookup the node with prefix
+	get = &structs.NodeListRequest{
+		QueryOptions: structs.QueryOptions{Region: "global", Prefix: node.ID[:4]},
+	}
+	var resp3 structs.NodeListResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Node.List", get, &resp3); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp3.Index != resp.Index {
+		t.Fatalf("Bad index: %d %d", resp3.Index, resp2.Index)
+	}
+
+	if len(resp3.Nodes) != 1 {
+		t.Fatalf("bad: %#v", resp3.Nodes)
+	}
+	if resp3.Nodes[0].ID != node.ID {
+		t.Fatalf("bad: %#v", resp3.Nodes[0])
+	}
 }
 
 func TestClientEndpoint_ListNodes_Blocking(t *testing.T) {

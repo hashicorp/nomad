@@ -46,6 +46,45 @@ func TestEvaluations_List(t *testing.T) {
 	}
 }
 
+func TestEvaluations_PrefixList(t *testing.T) {
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	e := c.Evaluations()
+
+	// Listing when nothing exists returns empty
+	result, qm, err := e.PrefixList("abcdef")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	if qm.LastIndex != 0 {
+		t.Fatalf("bad index: %d", qm.LastIndex)
+	}
+	if n := len(result); n != 0 {
+		t.Fatalf("expected 0 evaluations, got: %d", n)
+	}
+
+	// Register a job. This will create an evaluation.
+	jobs := c.Jobs()
+	job := testJob()
+	evalID, wm, err := jobs.Register(job, nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	assertWriteMeta(t, wm)
+
+	// Check the evaluations again
+	result, qm, err = e.PrefixList(evalID[:4])
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	assertQueryMeta(t, qm)
+
+	// Check if we have the right list
+	if len(result) != 1 || result[0].ID != evalID {
+		t.Fatalf("bad: %#v", result)
+	}
+}
+
 func TestEvaluations_Info(t *testing.T) {
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()

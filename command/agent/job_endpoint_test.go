@@ -56,6 +56,59 @@ func TestHTTP_JobsList(t *testing.T) {
 	})
 }
 
+func TestHTTP_PrefixJobsList(t *testing.T) {
+	ids := []string{
+		"aaaaaaaa-e8f7-fd38-c855-ab94ceb89706",
+		"aabbbbbb-e8f7-fd38-c855-ab94ceb89706",
+		"aabbcccc-e8f7-fd38-c855-ab94ceb89706",
+	}
+	httpTest(t, nil, func(s *TestServer) {
+		for i := 0; i < 3; i++ {
+			// Create the job
+			job := mock.Job()
+			job.ID = ids[i]
+			args := structs.JobRegisterRequest{
+				Job:          job,
+				WriteRequest: structs.WriteRequest{Region: "global"},
+			}
+			var resp structs.JobRegisterResponse
+			if err := s.Agent.RPC("Job.Register", &args, &resp); err != nil {
+				t.Fatalf("err: %v", err)
+			}
+		}
+
+		// Make the HTTP request
+		req, err := http.NewRequest("GET", "/v1/jobs?prefix=aabb", nil)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		respW := httptest.NewRecorder()
+
+		// Make the request
+		obj, err := s.Server.JobsRequest(respW, req)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Check for the index
+		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+			t.Fatalf("missing index")
+		}
+		if respW.HeaderMap.Get("X-Nomad-KnownLeader") != "true" {
+			t.Fatalf("missing known leader")
+		}
+		if respW.HeaderMap.Get("X-Nomad-LastContact") == "" {
+			t.Fatalf("missing last contact")
+		}
+
+		// Check the job
+		j := obj.([]*structs.JobListStub)
+		if len(j) != 2 {
+			t.Fatalf("bad: %#v", j)
+		}
+	})
+}
+
 func TestHTTP_JobsRegister(t *testing.T) {
 	httpTest(t, nil, func(s *TestServer) {
 		// Create the job

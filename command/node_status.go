@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-
-	"github.com/hashicorp/nomad/api"
 )
 
 type NodeStatusCommand struct {
@@ -103,14 +101,14 @@ func (c *NodeStatusCommand) Run(args []string) int {
 	node, _, err := client.Nodes().Info(nodeID, nil)
 	if err != nil {
 		// Exact lookup failed, try with prefix based search
-		nodes, _, err := client.Nodes().List(&api.QueryOptions{Prefix: nodeID})
+		nodes, _, err := client.Nodes().PrefixList(nodeID)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error querying node info: %s", err))
 			return 1
 		}
 		// Return error if no nodes are found
 		if len(nodes) == 0 {
-			c.Ui.Error(fmt.Sprintf("Node not found"))
+			c.Ui.Error(fmt.Sprintf("No node(s) with prefix %q found", nodeID))
 			return 1
 		}
 		if len(nodes) > 1 {

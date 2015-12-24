@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/armon/go-metrics"
+	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/watch"
 )
@@ -257,7 +258,12 @@ func (j *Job) List(args *structs.JobListRequest,
 			if err != nil {
 				return err
 			}
-			iter, err := snap.Jobs()
+			var iter memdb.ResultIterator
+			if prefix := args.QueryOptions.Prefix; prefix != "" {
+				iter, err = snap.JobsByIDPrefix(prefix)
+			} else {
+				iter, err = snap.Jobs()
+			}
 			if err != nil {
 				return err
 			}

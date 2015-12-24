@@ -38,6 +38,52 @@ func TestNodes_List(t *testing.T) {
 	assertQueryMeta(t, qm)
 }
 
+func TestNodes_PrefixList(t *testing.T) {
+	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
+		c.DevMode = true
+	})
+	defer s.Stop()
+	nodes := c.Nodes()
+
+	var qm *QueryMeta
+	var out []*NodeListStub
+	var err error
+
+	// Get the node ID
+	var nodeID, dc string
+	testutil.WaitForResult(func() (bool, error) {
+		out, _, err := nodes.List(nil)
+		if err != nil {
+			return false, err
+		}
+		if n := len(out); n != 1 {
+			return false, fmt.Errorf("expected 1 node, got: %d", n)
+		}
+		nodeID = out[0].ID
+		dc = out[0].Datacenter
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %s", err)
+	})
+
+	// Find node based on four character prefix
+	testutil.WaitForResult(func() (bool, error) {
+		out, qm, err = nodes.PrefixList(nodeID[:4])
+		if err != nil {
+			return false, err
+		}
+		if n := len(out); n != 1 {
+			return false, fmt.Errorf("expected 1 node, got: %d ", n)
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %s", err)
+	})
+
+	// Check that we got valid QueryMeta.
+	assertQueryMeta(t, qm)
+}
+
 func TestNodes_Info(t *testing.T) {
 	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
 		c.DevMode = true

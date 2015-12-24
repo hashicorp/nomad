@@ -26,6 +26,10 @@ func (e *Evaluations) List(q *QueryOptions) ([]*Evaluation, *QueryMeta, error) {
 	return resp, qm, nil
 }
 
+func (e *Evaluations) PrefixList(prefix string) ([]*Evaluation, *QueryMeta, error) {
+	return e.List(&QueryOptions{Prefix: prefix})
+}
+
 // Info is used to query a single evaluation by its ID.
 func (e *Evaluations) Info(evalID string, q *QueryOptions) (*Evaluation, *QueryMeta, error) {
 	var resp Evaluation

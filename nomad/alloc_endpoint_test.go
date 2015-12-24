@@ -25,7 +25,7 @@ func TestAllocEndpoint_List(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	// Lookup the jobs
+	// Lookup the allocations
 	get := &structs.AllocListRequest{
 		QueryOptions: structs.QueryOptions{Region: "global"},
 	}
@@ -42,6 +42,26 @@ func TestAllocEndpoint_List(t *testing.T) {
 	}
 	if resp.Allocations[0].ID != alloc.ID {
 		t.Fatalf("bad: %#v", resp.Allocations[0])
+	}
+
+	// Lookup the allocations by prefix
+	get = &structs.AllocListRequest{
+		QueryOptions: structs.QueryOptions{Region: "global", Prefix: alloc.ID[:4]},
+	}
+
+	var resp2 structs.AllocListResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Alloc.List", get, &resp2); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp2.Index != 1000 {
+		t.Fatalf("Bad index: %d %d", resp2.Index, 1000)
+	}
+
+	if len(resp2.Allocations) != 1 {
+		t.Fatalf("bad: %#v", resp2.Allocations)
+	}
+	if resp2.Allocations[0].ID != alloc.ID {
+		t.Fatalf("bad: %#v", resp2.Allocations[0])
 	}
 }
 

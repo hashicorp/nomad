@@ -81,6 +81,82 @@ func TestJobs_Info(t *testing.T) {
 	}
 }
 
+func TestJobs_PrefixList(t *testing.T) {
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	jobs := c.Jobs()
+
+	// Listing when nothing exists returns empty
+	results, qm, err := jobs.PrefixList("dummy")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	if qm.LastIndex != 0 {
+		t.Fatalf("bad index: %d", qm.LastIndex)
+	}
+	if n := len(results); n != 0 {
+		t.Fatalf("expected 0 jobs, got: %d", n)
+	}
+
+	// Register the job
+	job := testJob()
+	_, wm, err := jobs.Register(job, nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	assertWriteMeta(t, wm)
+
+	// Query the job again and ensure it exists
+	// Listing when nothing exists returns empty
+	results, qm, err = jobs.PrefixList(job.ID[:1])
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	// Check if we have the right list
+	if len(results) != 1 || results[0].ID != job.ID {
+		t.Fatalf("bad: %#v", results)
+	}
+}
+
+func TestJobs_List(t *testing.T) {
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	jobs := c.Jobs()
+
+	// Listing when nothing exists returns empty
+	results, qm, err := jobs.List(nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	if qm.LastIndex != 0 {
+		t.Fatalf("bad index: %d", qm.LastIndex)
+	}
+	if n := len(results); n != 0 {
+		t.Fatalf("expected 0 jobs, got: %d", n)
+	}
+
+	// Register the job
+	job := testJob()
+	_, wm, err := jobs.Register(job, nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	assertWriteMeta(t, wm)
+
+	// Query the job again and ensure it exists
+	// Listing when nothing exists returns empty
+	results, qm, err = jobs.List(nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	// Check if we have the right list
+	if len(results) != 1 || results[0].ID != job.ID {
+		t.Fatalf("bad: %#v", results)
+	}
+}
+
 func TestJobs_Allocations(t *testing.T) {
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()

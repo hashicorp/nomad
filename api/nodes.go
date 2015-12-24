@@ -26,6 +26,10 @@ func (n *Nodes) List(q *QueryOptions) ([]*NodeListStub, *QueryMeta, error) {
 	return resp, qm, nil
 }
 
+func (n *Nodes) PrefixList(prefix string) ([]*NodeListStub, *QueryMeta, error) {
+	return n.List(&QueryOptions{Prefix: prefix})
+}
+
 // Info is used to query a specific node by its ID.
 func (n *Nodes) Info(nodeID string, q *QueryOptions) (*Node, *QueryMeta, error) {
 	var resp Node
