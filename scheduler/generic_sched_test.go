@@ -405,6 +405,9 @@ func TestServiceSched_JobModify_InPlace(t *testing.T) {
 
 	// Ensure all allocations placed
 	if len(out) != 10 {
+		for _, alloc := range out {
+			t.Logf("%#v", alloc)
+		}
 		t.Fatalf("bad: %#v", out)
 	}
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
