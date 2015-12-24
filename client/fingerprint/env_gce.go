@@ -94,7 +94,8 @@ func (f *EnvGCEFingerprint) Get(attribute string, recursive bool) (string, error
 	}
 
 	res, err := f.client.Do(req)
-	if err != nil {
+	if err != nil || res.StatusCode != http.StatusOK {
+		f.logger.Printf("[WARN]: fingerprint.env_gce: Could not read value for attribute %q", attribute)
 		return "", err
 	}
 

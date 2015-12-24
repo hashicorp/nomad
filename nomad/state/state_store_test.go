@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -546,6 +547,64 @@ func TestStateStore_JobsByIDPrefix(t *testing.T) {
 	}
 }
 
+func TestStateStore_JobsByPeriodic(t *testing.T) {
+	state := testStateStore(t)
+	var periodic, nonPeriodic []*structs.Job
+
+	for i := 0; i < 10; i++ {
+		job := mock.Job()
+		nonPeriodic = append(nonPeriodic, job)
+
+		err := state.UpsertJob(1000+uint64(i), job)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	}
+
+	for i := 0; i < 10; i++ {
+		job := mock.PeriodicJob()
+		periodic = append(periodic, job)
+
+		err := state.UpsertJob(2000+uint64(i), job)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	}
+
+	iter, err := state.JobsByPeriodic(true)
+	var outPeriodic []*structs.Job
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		outPeriodic = append(outPeriodic, raw.(*structs.Job))
+	}
+
+	iter, err = state.JobsByPeriodic(false)
+	var outNonPeriodic []*structs.Job
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		outNonPeriodic = append(outNonPeriodic, raw.(*structs.Job))
+	}
+
+	sort.Sort(JobIDSort(periodic))
+	sort.Sort(JobIDSort(nonPeriodic))
+	sort.Sort(JobIDSort(outPeriodic))
+	sort.Sort(JobIDSort(outNonPeriodic))
+
+	if !reflect.DeepEqual(periodic, outPeriodic) {
+		t.Fatalf("bad: %#v %#v", periodic, outPeriodic)
+	}
+
+	if !reflect.DeepEqual(nonPeriodic, outNonPeriodic) {
+		t.Fatalf("bad: %#v %#v", nonPeriodic, outNonPeriodic)
+	}
+}
+
 func TestStateStore_JobsByScheduler(t *testing.T) {
 	state := testStateStore(t)
 	var serviceJobs []*structs.Job
@@ -696,6 +755,222 @@ func TestStateStore_RestoreJob(t *testing.T) {
 	}
 
 	if !reflect.DeepEqual(out, job) {
+		t.Fatalf("Bad: %#v %#v", out, job)
+	}
+
+	notify.verify(t)
+}
+
+func TestStateStore_UpsertPeriodicLaunch(t *testing.T) {
+	state := testStateStore(t)
+	job := mock.Job()
+	launch := &structs.PeriodicLaunch{ID: job.ID, Launch: time.Now()}
+
+	notify := setupNotifyTest(
+		state,
+		watch.Item{Table: "periodic_launch"},
+		watch.Item{Job: job.ID})
+
+	err := state.UpsertPeriodicLaunch(1000, launch)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	out, err := state.PeriodicLaunchByID(job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out.CreateIndex != 1000 {
+		t.Fatalf("bad: %#v", out)
+	}
+	if out.ModifyIndex != 1000 {
+		t.Fatalf("bad: %#v", out)
+	}
+
+	if !reflect.DeepEqual(launch, out) {
+		t.Fatalf("bad: %#v %#v", job, out)
+	}
+
+	index, err := state.Index("periodic_launch")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if index != 1000 {
+		t.Fatalf("bad: %d", index)
+	}
+
+	notify.verify(t)
+}
+
+func TestStateStore_UpdateUpsertPeriodicLaunch(t *testing.T) {
+	state := testStateStore(t)
+	job := mock.Job()
+	launch := &structs.PeriodicLaunch{ID: job.ID, Launch: time.Now()}
+
+	notify := setupNotifyTest(
+		state,
+		watch.Item{Table: "periodic_launch"},
+		watch.Item{Job: job.ID})
+
+	err := state.UpsertPeriodicLaunch(1000, launch)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	launch2 := &structs.PeriodicLaunch{
+		ID:     job.ID,
+		Launch: launch.Launch.Add(1 * time.Second),
+	}
+	err = state.UpsertPeriodicLaunch(1001, launch2)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	out, err := state.PeriodicLaunchByID(job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out.CreateIndex != 1000 {
+		t.Fatalf("bad: %#v", out)
+	}
+	if out.ModifyIndex != 1001 {
+		t.Fatalf("bad: %#v", out)
+	}
+
+	if !reflect.DeepEqual(launch2, out) {
+		t.Fatalf("bad: %#v %#v", launch2, out)
+	}
+
+	index, err := state.Index("periodic_launch")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if index != 1001 {
+		t.Fatalf("bad: %d", index)
+	}
+
+	notify.verify(t)
+}
+
+func TestStateStore_DeletePeriodicLaunch(t *testing.T) {
+	state := testStateStore(t)
+	job := mock.Job()
+	launch := &structs.PeriodicLaunch{ID: job.ID, Launch: time.Now()}
+
+	notify := setupNotifyTest(
+		state,
+		watch.Item{Table: "periodic_launch"},
+		watch.Item{Job: job.ID})
+
+	err := state.UpsertPeriodicLaunch(1000, launch)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	err = state.DeletePeriodicLaunch(1001, job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	out, err := state.PeriodicLaunchByID(job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if out != nil {
+		t.Fatalf("bad: %#v %#v", job, out)
+	}
+
+	index, err := state.Index("periodic_launch")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if index != 1001 {
+		t.Fatalf("bad: %d", index)
+	}
+
+	notify.verify(t)
+}
+
+func TestStateStore_PeriodicLaunches(t *testing.T) {
+	state := testStateStore(t)
+	var launches []*structs.PeriodicLaunch
+
+	for i := 0; i < 10; i++ {
+		job := mock.Job()
+		launch := &structs.PeriodicLaunch{ID: job.ID, Launch: time.Now()}
+		launches = append(launches, launch)
+
+		err := state.UpsertPeriodicLaunch(1000+uint64(i), launch)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	}
+
+	iter, err := state.PeriodicLaunches()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	out := make(map[string]*structs.PeriodicLaunch, 10)
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		launch := raw.(*structs.PeriodicLaunch)
+		if _, ok := out[launch.ID]; ok {
+			t.Fatalf("duplicate: %v", launch.ID)
+		}
+
+		out[launch.ID] = launch
+	}
+
+	for _, launch := range launches {
+		l, ok := out[launch.ID]
+		if !ok {
+			t.Fatalf("bad %v", launch.ID)
+		}
+
+		if !reflect.DeepEqual(launch, l) {
+			t.Fatalf("bad: %#v %#v", launch, l)
+		}
+
+		delete(out, launch.ID)
+	}
+
+	if len(out) != 0 {
+		t.Fatalf("leftover: %#v", out)
+	}
+}
+
+func TestStateStore_RestorePeriodicLaunch(t *testing.T) {
+	state := testStateStore(t)
+	job := mock.Job()
+	launch := &structs.PeriodicLaunch{ID: job.ID, Launch: time.Now()}
+
+	notify := setupNotifyTest(
+		state,
+		watch.Item{Table: "periodic_launch"},
+		watch.Item{Job: job.ID})
+
+	restore, err := state.Restore()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	err = restore.PeriodicLaunchRestore(launch)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	restore.Commit()
+
+	out, err := state.PeriodicLaunchByID(job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !reflect.DeepEqual(out, launch) {
 		t.Fatalf("Bad: %#v %#v", out, job)
 	}
 

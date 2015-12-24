@@ -32,17 +32,19 @@ const (
 	EvalSnapshot
 	AllocSnapshot
 	TimeTableSnapshot
+	PeriodicLaunchSnapshot
 )
 
 // nomadFSM implements a finite state machine that is used
 // along with Raft to provide strong consistency. We implement
 // this outside the Server to avoid exposing this outside the package.
 type nomadFSM struct {
-	evalBroker *EvalBroker
-	logOutput  io.Writer
-	logger     *log.Logger
-	state      *state.StateStore
-	timetable  *TimeTable
+	evalBroker         *EvalBroker
+	periodicDispatcher *PeriodicDispatch
+	logOutput          io.Writer
+	logger             *log.Logger
+	state              *state.StateStore
+	timetable          *TimeTable
 }
 
 // nomadSnapshot is used to provide a snapshot of the current
@@ -58,7 +60,7 @@ type snapshotHeader struct {
 }
 
 // NewFSMPath is used to construct a new FSM with a blank state
-func NewFSM(evalBroker *EvalBroker, logOutput io.Writer) (*nomadFSM, error) {
+func NewFSM(evalBroker *EvalBroker, periodic *PeriodicDispatch, logOutput io.Writer) (*nomadFSM, error) {
 	// Create a state store
 	state, err := state.NewStateStore(logOutput)
 	if err != nil {
@@ -66,11 +68,12 @@ func NewFSM(evalBroker *EvalBroker, logOutput io.Writer) (*nomadFSM, error) {
 	}
 
 	fsm := &nomadFSM{
-		evalBroker: evalBroker,
-		logOutput:  logOutput,
-		logger:     log.New(logOutput, "", log.LstdFlags),
-		state:      state,
-		timetable:  NewTimeTable(timeTableGranularity, timeTableLimit),
+		evalBroker:         evalBroker,
+		periodicDispatcher: periodic,
+		logOutput:          logOutput,
+		logger:             log.New(logOutput, "", log.LstdFlags),
+		state:              state,
+		timetable:          NewTimeTable(timeTableGranularity, timeTableLimit),
 	}
 	return fsm, nil
 }
@@ -204,6 +207,65 @@ func (n *nomadFSM) applyUpsertJob(buf []byte, index uint64) interface{} {
 		n.logger.Printf("[ERR] nomad.fsm: UpsertJob failed: %v", err)
 		return err
 	}
+
+	// We always add the job to the periodic dispatcher because there is the
+	// possibility that the periodic spec was removed and then we should stop
+	// tracking it.
+	if err := n.periodicDispatcher.Add(req.Job); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: periodicDispatcher.Add failed: %v", err)
+		return err
+	}
+
+	// If it is periodic, record the time it was inserted. This is necessary for
+	// recovering during leader election. It is possible that from the time it
+	// is added to when it was suppose to launch, leader election occurs and the
+	// job was not launched. In this case, we use the insertion time to
+	// determine if a launch was missed.
+	if req.Job.IsPeriodic() {
+		prevLaunch, err := n.state.PeriodicLaunchByID(req.Job.ID)
+		if err != nil {
+			n.logger.Printf("[ERR] nomad.fsm: PeriodicLaunchByID failed: %v", err)
+			return err
+		}
+
+		// Record the insertion time as a launch. We overload the launch table
+		// such that the first entry is the insertion time.
+		if prevLaunch == nil {
+			launch := &structs.PeriodicLaunch{ID: req.Job.ID, Launch: time.Now()}
+			if err := n.state.UpsertPeriodicLaunch(index, launch); err != nil {
+				n.logger.Printf("[ERR] nomad.fsm: UpsertPeriodicLaunch failed: %v", err)
+				return err
+			}
+		}
+	}
+
+	// Check if the parent job is periodic and mark the launch time.
+	parentID := req.Job.ParentID
+	if parentID != "" {
+		parent, err := n.state.JobByID(parentID)
+		if err != nil {
+			n.logger.Printf("[ERR] nomad.fsm: JobByID(%v) lookup for parent failed: %v", parentID, err)
+			return err
+		} else if parent == nil {
+			// The parent has been deregistered.
+			return nil
+		}
+
+		if parent.IsPeriodic() {
+			t, err := n.periodicDispatcher.LaunchTime(req.Job.ID)
+			if err != nil {
+				n.logger.Printf("[ERR] nomad.fsm: LaunchTime(%v) failed: %v", req.Job.ID, err)
+				return err
+			}
+
+			launch := &structs.PeriodicLaunch{ID: parentID, Launch: t}
+			if err := n.state.UpsertPeriodicLaunch(index, launch); err != nil {
+				n.logger.Printf("[ERR] nomad.fsm: UpsertPeriodicLaunch failed: %v", err)
+				return err
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -218,6 +280,17 @@ func (n *nomadFSM) applyDeregisterJob(buf []byte, index uint64) interface{} {
 		n.logger.Printf("[ERR] nomad.fsm: DeleteJob failed: %v", err)
 		return err
 	}
+
+	if err := n.periodicDispatcher.Remove(req.JobID); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: periodicDispatcher.Remove failed: %v", err)
+		return err
+	}
+
+	// We always delete from the periodic launch table because it is possible that
+	// the job was updated to be non-perioidic, thus checking if it is periodic
+	// doesn't ensure we clean it up properly.
+	n.state.DeletePeriodicLaunch(index, req.JobID)
+
 	return nil
 }
 
@@ -392,6 +465,15 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 				return err
 			}
 
+		case PeriodicLaunchSnapshot:
+			launch := new(structs.PeriodicLaunch)
+			if err := dec.Decode(launch); err != nil {
+				return err
+			}
+			if err := restore.PeriodicLaunchRestore(launch); err != nil {
+				return err
+			}
+
 		default:
 			return fmt.Errorf("Unrecognized snapshot type: %v", msgType)
 		}
@@ -439,6 +521,10 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 		return err
 	}
 	if err := s.persistAllocs(sink, encoder); err != nil {
+		sink.Cancel()
+		return err
+	}
+	if err := s.persistPeriodicLaunches(sink, encoder); err != nil {
 		sink.Cancel()
 		return err
 	}
@@ -574,6 +660,33 @@ func (s *nomadSnapshot) persistAllocs(sink raft.SnapshotSink,
 		// Write out the evaluation
 		sink.Write([]byte{byte(AllocSnapshot)})
 		if err := encoder.Encode(alloc); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *nomadSnapshot) persistPeriodicLaunches(sink raft.SnapshotSink,
+	encoder *codec.Encoder) error {
+	// Get all the jobs
+	launches, err := s.snap.PeriodicLaunches()
+	if err != nil {
+		return err
+	}
+
+	for {
+		// Get the next item
+		raw := launches.Next()
+		if raw == nil {
+			break
+		}
+
+		// Prepare the request struct
+		launch := raw.(*structs.PeriodicLaunch)
+
+		// Write out a job registration
+		sink.Write([]byte{byte(PeriodicLaunchSnapshot)})
+		if err := encoder.Encode(launch); err != nil {
 			return err
 		}
 	}

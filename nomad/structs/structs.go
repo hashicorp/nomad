@@ -8,6 +8,7 @@ import (
 	"io"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/helper/args"
+	"github.com/mitchellh/copystructure"
 )
 
 var (
@@ -722,6 +724,9 @@ type Job struct {
 	// specified hierarchically like LineOfBiz/OrgName/Team/Project
 	ID string
 
+	// ParentID is the unique identifier of the job that spawned this job.
+	ParentID string
+
 	// Name is the logical name of the job used to refer to it. This is unique
 	// per region, but not unique globally.
 	Name string
@@ -790,6 +795,17 @@ func (j *Job) InitFields() {
 	}
 }
 
+// Copy returns a deep copy of the Job. It is expected that callers use recover.
+// This job can panic if the deep copy failed as it uses reflection.
+func (j *Job) Copy() *Job {
+	i, err := copystructure.Copy(j)
+	if err != nil {
+		panic(err)
+	}
+
+	return i.(*Job)
+}
+
 // Validate is used to sanity check a job input
 func (j *Job) Validate() error {
 	var mErr multierror.Error
@@ -850,9 +866,15 @@ func (j *Job) Validate() error {
 	}
 
 	// Validate periodic is only used with batch jobs.
-	if j.Periodic != nil && j.Periodic.Enabled && j.Type != JobTypeBatch {
-		mErr.Errors = append(mErr.Errors,
-			fmt.Errorf("Periodic can only be used with %q scheduler", JobTypeBatch))
+	if j.IsPeriodic() {
+		if j.Type != JobTypeBatch {
+			mErr.Errors = append(mErr.Errors,
+				fmt.Errorf("Periodic can only be used with %q scheduler", JobTypeBatch))
+		}
+
+		if err := j.Periodic.Validate(); err != nil {
+			mErr.Errors = append(mErr.Errors, err)
+		}
 	}
 
 	return mErr.ErrorOrNil()
@@ -917,6 +939,10 @@ func (u *UpdateStrategy) Rolling() bool {
 const (
 	// PeriodicSpecCron is used for a cron spec.
 	PeriodicSpecCron = "cron"
+
+	// PeriodicSpecTest is only used by unit tests. It is a sorted, comma
+	// seperated list of unix timestamps at which to launch.
+	PeriodicSpecTest = "_internal_test"
 )
 
 // Periodic defines the interval a job should be run at.
@@ -947,8 +973,10 @@ func (p *PeriodicConfig) Validate() error {
 		if _, err := cronexpr.Parse(p.Spec); err != nil {
 			return fmt.Errorf("Invalid cron spec %q: %v", p.Spec, err)
 		}
+	case PeriodicSpecTest:
+		// No-op
 	default:
-		return fmt.Errorf("Unknown specification type %q", p.SpecType)
+		return fmt.Errorf("Unknown periodic specification type %q", p.SpecType)
 	}
 
 	return nil
@@ -964,9 +992,42 @@ func (p *PeriodicConfig) Next(fromTime time.Time) time.Time {
 		if e, err := cronexpr.Parse(p.Spec); err == nil {
 			return e.Next(fromTime)
 		}
+	case PeriodicSpecTest:
+		split := strings.Split(p.Spec, ",")
+		if len(split) == 1 && split[0] == "" {
+			return time.Time{}
+		}
+
+		// Parse the times
+		times := make([]time.Time, len(split))
+		for i, s := range split {
+			unix, err := strconv.Atoi(s)
+			if err != nil {
+				return time.Time{}
+			}
+
+			times[i] = time.Unix(int64(unix), 0)
+		}
+
+		// Find the next match
+		for _, next := range times {
+			if fromTime.Before(next) {
+				return next
+			}
+		}
 	}
 
 	return time.Time{}
+}
+
+// PeriodicLaunch tracks the last launch time of a periodic job.
+type PeriodicLaunch struct {
+	ID     string    // ID of the periodic job.
+	Launch time.Time // The last launch time.
+
+	// Raft Indexes
+	CreateIndex uint64
+	ModifyIndex uint64
 }
 
 var (

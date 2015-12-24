@@ -19,6 +19,7 @@ func stateStoreSchema() *memdb.DBSchema {
 		indexTableSchema,
 		nodeTableSchema,
 		jobTableSchema,
+		periodicLaunchTableSchema,
 		evalTableSchema,
 		allocTableSchema,
 	}
@@ -109,6 +110,14 @@ func jobTableSchema() *memdb.TableSchema {
 					Conditional: jobIsGCable,
 				},
 			},
+			"periodic": &memdb.IndexSchema{
+				Name:         "periodic",
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.ConditionalIndex{
+					Conditional: jobIsPeriodic,
+				},
+			},
 		},
 	}
 }
@@ -122,6 +131,43 @@ func jobIsGCable(obj interface{}) (bool, error) {
 	}
 
 	return j.GC, nil
+}
+
+// jobIsPeriodic satisfies the ConditionalIndexFunc interface and creates an index
+// on whether a job is periodic.
+func jobIsPeriodic(obj interface{}) (bool, error) {
+	j, ok := obj.(*structs.Job)
+	if !ok {
+		return false, fmt.Errorf("Unexpected type: %v", obj)
+	}
+
+	if j.Periodic != nil && j.Periodic.Enabled == true {
+		return true, nil
+	}
+
+	return false, nil
+}
+
+// periodicLaunchTableSchema returns the MemDB schema tracking the most recent
+// launch time for a perioidic job.
+func periodicLaunchTableSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: "periodic_launch",
+		Indexes: map[string]*memdb.IndexSchema{
+			// Primary index is used for job management
+			// and simple direct lookup. ID is required to be
+			// unique.
+			"id": &memdb.IndexSchema{
+				Name:         "id",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.StringFieldIndex{
+					Field:     "ID",
+					Lowercase: true,
+				},
+			},
+		},
+	}
 }
 
 // evalTableSchema returns the MemDB schema for the eval table.

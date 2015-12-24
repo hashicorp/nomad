@@ -1,8 +1,14 @@
 package command
 
 import (
+	"bytes"
+	"encoding/gob"
 	"fmt"
 	"strings"
+	"time"
+
+	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 type StatusCommand struct {
@@ -118,6 +124,14 @@ func (c *StatusCommand) Run(args []string) int {
 		}
 	}
 
+	// Check if it is periodic
+	sJob, err := convertApiJob(job)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error converting job: %s", err))
+		return 1
+	}
+	periodic := sJob.IsPeriodic()
+
 	// Format the job info
 	basic := []string{
 		fmt.Sprintf("ID|%s", job.ID),
@@ -126,10 +140,19 @@ func (c *StatusCommand) Run(args []string) int {
 		fmt.Sprintf("Priority|%d", job.Priority),
 		fmt.Sprintf("Datacenters|%s", strings.Join(job.Datacenters, ",")),
 		fmt.Sprintf("Status|%s", job.Status),
+		fmt.Sprintf("Periodic|%v", periodic),
 	}
 
-	var evals, allocs []string
-	if !short {
+	if periodic {
+		basic = append(basic, fmt.Sprintf("Next Periodic Launch|%v",
+			sJob.Periodic.Next(time.Now())))
+	}
+
+	c.Ui.Output(formatKV(basic))
+
+	if !periodic && !short {
+		var evals, allocs []string
+
 		// Query the evaluations
 		jobEvals, _, err := client.Jobs().Evaluations(job.ID, nil)
 		if err != nil {
@@ -167,15 +190,28 @@ func (c *StatusCommand) Run(args []string) int {
 				alloc.DesiredStatus,
 				alloc.ClientStatus)
 		}
-	}
 
-	// Dump the output
-	c.Ui.Output(formatKV(basic))
-	if !short {
 		c.Ui.Output("\n==> Evaluations")
 		c.Ui.Output(formatList(evals))
 		c.Ui.Output("\n==> Allocations")
 		c.Ui.Output(formatList(allocs))
 	}
+
 	return 0
+}
+
+// convertApiJob is used to take a *api.Job and convert it to an *struct.Job.
+// This function is just a hammer and probably needs to be revisited.
+func convertApiJob(in *api.Job) (*structs.Job, error) {
+	gob.Register(map[string]interface{}{})
+	gob.Register([]interface{}{})
+	var structJob *structs.Job
+	buf := new(bytes.Buffer)
+	if err := gob.NewEncoder(buf).Encode(in); err != nil {
+		return nil, err
+	}
+	if err := gob.NewDecoder(buf).Decode(&structJob); err != nil {
+		return nil, err
+	}
+	return structJob, nil
 }

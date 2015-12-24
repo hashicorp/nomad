@@ -131,10 +131,6 @@ func (s *StateStore) DeleteNode(index uint64, nodeID string) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
-	watcher := watch.NewItems()
-	watcher.Add(watch.Item{Table: "nodes"})
-	watcher.Add(watch.Item{Node: nodeID})
-
 	// Lookup the node
 	existing, err := txn.First("nodes", "id", nodeID)
 	if err != nil {
@@ -143,6 +139,10 @@ func (s *StateStore) DeleteNode(index uint64, nodeID string) error {
 	if existing == nil {
 		return fmt.Errorf("node not found")
 	}
+
+	watcher := watch.NewItems()
+	watcher.Add(watch.Item{Table: "nodes"})
+	watcher.Add(watch.Item{Node: nodeID})
 
 	// Delete the node
 	if err := txn.Delete("nodes", existing); err != nil {
@@ -318,10 +318,6 @@ func (s *StateStore) DeleteJob(index uint64, jobID string) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
-	watcher := watch.NewItems()
-	watcher.Add(watch.Item{Table: "jobs"})
-	watcher.Add(watch.Item{Job: jobID})
-
 	// Lookup the node
 	existing, err := txn.First("jobs", "id", jobID)
 	if err != nil {
@@ -330,6 +326,10 @@ func (s *StateStore) DeleteJob(index uint64, jobID string) error {
 	if existing == nil {
 		return fmt.Errorf("job not found")
 	}
+
+	watcher := watch.NewItems()
+	watcher.Add(watch.Item{Table: "jobs"})
+	watcher.Add(watch.Item{Job: jobID})
 
 	// Delete the node
 	if err := txn.Delete("jobs", existing); err != nil {
@@ -383,6 +383,17 @@ func (s *StateStore) Jobs() (memdb.ResultIterator, error) {
 	return iter, nil
 }
 
+// JobsByPeriodic returns an iterator over all the periodic or non-periodic jobs.
+func (s *StateStore) JobsByPeriodic(periodic bool) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	iter, err := txn.Get("jobs", "periodic", periodic)
+	if err != nil {
+		return nil, err
+	}
+	return iter, nil
+}
+
 // JobsByScheduler returns an iterator over all the jobs with the specific
 // scheduler type.
 func (s *StateStore) JobsByScheduler(schedulerType string) (memdb.ResultIterator, error) {
@@ -402,6 +413,102 @@ func (s *StateStore) JobsByGC(gc bool) (memdb.ResultIterator, error) {
 	txn := s.db.Txn(false)
 
 	iter, err := txn.Get("jobs", "gc", gc)
+	if err != nil {
+		return nil, err
+	}
+	return iter, nil
+}
+
+// UpsertPeriodicLaunch is used to register a launch or update it.
+func (s *StateStore) UpsertPeriodicLaunch(index uint64, launch *structs.PeriodicLaunch) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	watcher := watch.NewItems()
+	watcher.Add(watch.Item{Table: "periodic_launch"})
+	watcher.Add(watch.Item{Job: launch.ID})
+
+	// Check if the job already exists
+	existing, err := txn.First("periodic_launch", "id", launch.ID)
+	if err != nil {
+		return fmt.Errorf("periodic launch lookup failed: %v", err)
+	}
+
+	// Setup the indexes correctly
+	if existing != nil {
+		launch.CreateIndex = existing.(*structs.PeriodicLaunch).CreateIndex
+		launch.ModifyIndex = index
+	} else {
+		launch.CreateIndex = index
+		launch.ModifyIndex = index
+	}
+
+	// Insert the job
+	if err := txn.Insert("periodic_launch", launch); err != nil {
+		return fmt.Errorf("launch insert failed: %v", err)
+	}
+	if err := txn.Insert("index", &IndexEntry{"periodic_launch", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	txn.Defer(func() { s.watch.notify(watcher) })
+	txn.Commit()
+	return nil
+}
+
+// DeletePeriodicLaunch is used to delete the periodic launch
+func (s *StateStore) DeletePeriodicLaunch(index uint64, jobID string) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	// Lookup the launch
+	existing, err := txn.First("periodic_launch", "id", jobID)
+	if err != nil {
+		return fmt.Errorf("launch lookup failed: %v", err)
+	}
+	if existing == nil {
+		return fmt.Errorf("launch not found")
+	}
+
+	watcher := watch.NewItems()
+	watcher.Add(watch.Item{Table: "periodic_launch"})
+	watcher.Add(watch.Item{Job: jobID})
+
+	// Delete the launch
+	if err := txn.Delete("periodic_launch", existing); err != nil {
+		return fmt.Errorf("launch delete failed: %v", err)
+	}
+	if err := txn.Insert("index", &IndexEntry{"periodic_launch", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	txn.Defer(func() { s.watch.notify(watcher) })
+	txn.Commit()
+	return nil
+}
+
+// PeriodicLaunchByID is used to lookup a periodic launch by the periodic job
+// ID.
+func (s *StateStore) PeriodicLaunchByID(id string) (*structs.PeriodicLaunch, error) {
+	txn := s.db.Txn(false)
+
+	existing, err := txn.First("periodic_launch", "id", id)
+	if err != nil {
+		return nil, fmt.Errorf("periodic launch lookup failed: %v", err)
+	}
+
+	if existing != nil {
+		return existing.(*structs.PeriodicLaunch), nil
+	}
+	return nil, nil
+}
+
+// PeriodicLaunches returns an iterator over all the periodic launches
+func (s *StateStore) PeriodicLaunches() (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	// Walk the entire table
+	iter, err := txn.Get("periodic_launch", "id")
 	if err != nil {
 		return nil, err
 	}
@@ -871,6 +978,16 @@ func (r *StateRestore) AllocRestore(alloc *structs.Allocation) error {
 func (r *StateRestore) IndexRestore(idx *IndexEntry) error {
 	if err := r.txn.Insert("index", idx); err != nil {
 		return fmt.Errorf("index insert failed: %v", err)
+	}
+	return nil
+}
+
+// PeriodicLaunchRestore is used to restore a periodic launch.
+func (r *StateRestore) PeriodicLaunchRestore(launch *structs.PeriodicLaunch) error {
+	r.items.Add(watch.Item{Table: "periodic_launch"})
+	r.items.Add(watch.Item{Job: launch.ID})
+	if err := r.txn.Insert("periodic_launch", launch); err != nil {
+		return fmt.Errorf("periodic launch insert failed: %v", err)
 	}
 	return nil
 }
