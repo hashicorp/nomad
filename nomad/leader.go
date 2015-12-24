@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -117,6 +118,15 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 		return err
 	}
 
+	// Enable the periodic dispatcher, since we are now the leader.
+	s.periodicDispatcher.SetEnabled(true)
+	s.periodicDispatcher.Start()
+
+	// Restore the periodic dispatcher state
+	if err := s.restorePeriodicDispatcher(); err != nil {
+		return err
+	}
+
 	// Scheduler periodic jobs
 	go s.schedulePeriodic(stopCh)
 
@@ -164,6 +174,52 @@ func (s *Server) restoreEvalBroker() error {
 			return fmt.Errorf("failed to enqueue evaluation %s: %v", eval.ID, err)
 		}
 	}
+	return nil
+}
+
+// restorePeriodicDispatcher is used to restore all periodic jobs into the
+// periodic dispatcher. It also determines if a periodic job should have been
+// created during the leadership transition and force runs them. The periodic
+// dispatcher is maintained only by the leader, so it must be restored anytime a
+// leadership transition takes place.
+func (s *Server) restorePeriodicDispatcher() error {
+	iter, err := s.fsm.State().JobsByPeriodic(true)
+	if err != nil {
+		return fmt.Errorf("failed to get periodic jobs: %v", err)
+	}
+
+	now := time.Now()
+	for i := iter.Next(); i != nil; i = iter.Next() {
+		job := i.(*structs.Job)
+		s.periodicDispatcher.Add(job)
+
+		// If the periodic job has never been launched before, launch will hold
+		// the time the periodic job was added. Otherwise it has the last launch
+		// time of the periodic job.
+		launch, err := s.fsm.State().PeriodicLaunchByID(job.ID)
+		if err != nil || launch == nil {
+			return fmt.Errorf("failed to get periodic launch time: %v", err)
+		}
+
+		// nextLaunch is the next launch that should occur.
+		nextLaunch := job.Periodic.Next(launch.Launch)
+
+		// We skip force launching the job if  there should be no next launch
+		// (the zero case) or if the next launch time is in the future. If it is
+		// in the future, it will be handled by the periodic dispatcher.
+		if nextLaunch.IsZero() || !nextLaunch.Before(now) {
+			continue
+		}
+
+		if err := s.periodicDispatcher.ForceRun(job.ID); err != nil {
+			msg := fmt.Sprintf("force run of periodic job %q failed: %v", job.ID, err)
+			s.logger.Printf("[ERR] nomad.periodic: %s", msg)
+			return errors.New(msg)
+		}
+		s.logger.Printf("[DEBUG] nomad.periodic: periodic job %q force"+
+			" run during leadership establishment", job.ID)
+	}
+
 	return nil
 }
 
@@ -249,6 +305,9 @@ func (s *Server) revokeLeadership() error {
 
 	// Disable the eval broker, since it is only useful as a leader
 	s.evalBroker.SetEnabled(false)
+
+	// Disable the periodic dispatcher, since it is only useful as a leader
+	s.periodicDispatcher.SetEnabled(false)
 
 	// Clear the heartbeat timers on either shutdown or step down,
 	// since we are no longer responsible for TTL expirations.

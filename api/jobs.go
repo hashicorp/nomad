@@ -101,10 +101,17 @@ func (j *Jobs) ForceEvaluate(jobID string, q *WriteOptions) (string, *WriteMeta,
 	return resp.EvalID, wm, nil
 }
 
-//UpdateStrategy is for serializing update strategy for a job.
+// UpdateStrategy is for serializing update strategy for a job.
 type UpdateStrategy struct {
 	Stagger     time.Duration
 	MaxParallel int
+}
+
+// PeriodicConfig is for serializing periodic config for a job.
+type PeriodicConfig struct {
+	Enabled  bool
+	Spec     string
+	SpecType string
 }
 
 // Job is used to serialize a job.
@@ -119,6 +126,7 @@ type Job struct {
 	Constraints       []*Constraint
 	TaskGroups        []*TaskGroup
 	Update            *UpdateStrategy
+	Periodic          *PeriodicConfig
 	Meta              map[string]string
 	Status            string
 	StatusDescription string

@@ -1,5 +1,5 @@
 job "foo" {
     periodic {
-        cron_spec = "*/5 * * *"
+        cron = "*/5 * * *"
     }
 }

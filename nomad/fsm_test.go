@@ -43,7 +43,8 @@ func testStateStore(t *testing.T) *state.StateStore {
 }
 
 func testFSM(t *testing.T) *nomadFSM {
-	fsm, err := NewFSM(testBroker(t, 0), os.Stderr)
+	p, _ := testPeriodicDispatcher()
+	fsm, err := NewFSM(testBroker(t, 0), p, os.Stderr)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -222,8 +223,9 @@ func TestFSM_UpdateNodeDrain(t *testing.T) {
 func TestFSM_RegisterJob(t *testing.T) {
 	fsm := testFSM(t)
 
+	job := mock.PeriodicJob()
 	req := structs.JobRegisterRequest{
-		Job: mock.Job(),
+		Job: job,
 	}
 	buf, err := structs.Encode(structs.JobRegisterRequestType, req)
 	if err != nil {
@@ -236,22 +238,39 @@ func TestFSM_RegisterJob(t *testing.T) {
 	}
 
 	// Verify we are registered
-	job, err := fsm.State().JobByID(req.Job.ID)
+	jobOut, err := fsm.State().JobByID(req.Job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if job == nil {
+	if jobOut == nil {
 		t.Fatalf("not found!")
 	}
-	if job.CreateIndex != 1 {
-		t.Fatalf("bad index: %d", job.CreateIndex)
+	if jobOut.CreateIndex != 1 {
+		t.Fatalf("bad index: %d", jobOut.CreateIndex)
+	}
+
+	// Verify it was added to the periodic runner.
+	if _, ok := fsm.periodicDispatcher.tracked[job.ID]; !ok {
+		t.Fatal("job not added to periodic runner")
+	}
+
+	// Verify the launch time was tracked.
+	launchOut, err := fsm.State().PeriodicLaunchByID(req.Job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if launchOut == nil {
+		t.Fatalf("not found!")
+	}
+	if launchOut.Launch.IsZero() {
+		t.Fatalf("bad launch time: %v", launchOut.Launch)
 	}
 }
 
 func TestFSM_DeregisterJob(t *testing.T) {
 	fsm := testFSM(t)
 
-	job := mock.Job()
+	job := mock.PeriodicJob()
 	req := structs.JobRegisterRequest{
 		Job: job,
 	}
@@ -279,12 +298,26 @@ func TestFSM_DeregisterJob(t *testing.T) {
 	}
 
 	// Verify we are NOT registered
-	job, err = fsm.State().JobByID(req.Job.ID)
+	jobOut, err := fsm.State().JobByID(req.Job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if job != nil {
+	if jobOut != nil {
 		t.Fatalf("job found!")
+	}
+
+	// Verify it was removed from the periodic runner.
+	if _, ok := fsm.periodicDispatcher.tracked[job.ID]; ok {
+		t.Fatal("job not removed from periodic runner")
+	}
+
+	// Verify it was removed from the periodic launch table.
+	launchOut, err := fsm.State().PeriodicLaunchByID(req.Job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if launchOut != nil {
+		t.Fatalf("launch found!")
 	}
 }
 
@@ -605,5 +638,29 @@ func TestFSM_SnapshotRestore_TimeTable(t *testing.T) {
 	}
 	if tt2.NearestIndex(start.Add(15*time.Minute)) != 2000 {
 		t.Fatalf("bad")
+	}
+}
+
+func TestFSM_SnapshotRestore_PeriodicLaunches(t *testing.T) {
+	// Add some state
+	fsm := testFSM(t)
+	state := fsm.State()
+	job1 := mock.Job()
+	launch1 := &structs.PeriodicLaunch{ID: job1.ID, Launch: time.Now()}
+	state.UpsertPeriodicLaunch(1000, launch1)
+	job2 := mock.Job()
+	launch2 := &structs.PeriodicLaunch{ID: job2.ID, Launch: time.Now()}
+	state.UpsertPeriodicLaunch(1001, launch2)
+
+	// Verify the contents
+	fsm2 := testSnapshotRestore(t, fsm)
+	state2 := fsm2.State()
+	out1, _ := state2.PeriodicLaunchByID(launch1.ID)
+	out2, _ := state2.PeriodicLaunchByID(launch2.ID)
+	if !reflect.DeepEqual(launch1, out1) {
+		t.Fatalf("bad: \n%#v\n%#v", out1, job1)
+	}
+	if !reflect.DeepEqual(launch2, out2) {
+		t.Fatalf("bad: \n%#v\n%#v", out2, job2)
 	}
 }
