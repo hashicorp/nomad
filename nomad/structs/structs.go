@@ -973,7 +973,7 @@ func (p *PeriodicConfig) Validate() error {
 	case PeriodicSpecTest:
 		// No-op
 	default:
-		return fmt.Errorf("Unknown specification type %q", p.SpecType)
+		return fmt.Errorf("Unknown periodic specification type %q", p.SpecType)
 	}
 
 	return nil
