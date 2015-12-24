@@ -110,15 +110,6 @@ func jobTableSchema() *memdb.TableSchema {
 					Conditional: jobIsGCable,
 				},
 			},
-			"parent": &memdb.IndexSchema{
-				Name:         "parent",
-				AllowMissing: true,
-				Unique:       false,
-				Indexer: &memdb.StringFieldIndex{
-					Field:     "ParentID",
-					Lowercase: true,
-				},
-			},
 			"periodic": &memdb.IndexSchema{
 				Name:         "periodic",
 				AllowMissing: false,
