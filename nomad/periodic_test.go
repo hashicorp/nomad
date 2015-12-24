@@ -433,57 +433,6 @@ func TestPeriodicDispatch_Complex(t *testing.T) {
 	}
 }
 
-func TestPeriodicDispatch_NextLaunch(t *testing.T) {
-	t.Parallel()
-	p, _ := testPeriodicDispatcher()
-
-	// Create two job that will be launched at the same time.
-	invalid := time.Unix(0, 0)
-	expected := time.Now().Round(1 * time.Second).Add(1 * time.Second)
-	job := testPeriodicJob(invalid)
-	job2 := testPeriodicJob(expected)
-
-	// Make sure the periodic dispatcher isn't running.
-	close(p.stopCh)
-	p.stopCh = make(chan struct{})
-
-	// Run nextLaunch.
-	timeout := make(chan struct{})
-	var j *structs.Job
-	var launch time.Time
-	var err error
-	go func() {
-		j, launch, err = p.nextLaunch()
-		close(timeout)
-	}()
-
-	// Add them.
-	if err := p.Add(job); err != nil {
-		t.Fatalf("Add failed %v", err)
-	}
-
-	// Delay adding a valid job.
-	time.Sleep(200 * time.Millisecond)
-	if err := p.Add(job2); err != nil {
-		t.Fatalf("Add failed %v", err)
-	}
-
-	select {
-	case <-time.After(2 * time.Second):
-		t.Fatal("timeout")
-	case <-timeout:
-		if err != nil {
-			t.Fatalf("nextLaunch() failed: %v", err)
-		}
-		if j != job2 {
-			t.Fatalf("Incorrect job returned; got %v; want %v", j, job2)
-		}
-		if launch != expected {
-			t.Fatalf("Incorrect launch time; got %v; want %v", launch, expected)
-		}
-	}
-}
-
 func shuffle(jobs []*structs.Job) {
 	rand.Seed(time.Now().Unix())
 	for i := range jobs {
@@ -512,11 +461,7 @@ func TestPeriodicHeap_Order(t *testing.T) {
 	exp := []string{"j2", "j3", "j1"}
 	var act []string
 	for i := 0; i < 3; i++ {
-		pJob, err := h.Pop()
-		if err != nil {
-			t.Fatal(err)
-		}
-
+		pJob := h.Pop()
 		act = append(act, lookup[pJob.job])
 	}
 
