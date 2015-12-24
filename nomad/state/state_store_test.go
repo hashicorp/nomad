@@ -572,6 +572,10 @@ func TestStateStore_JobsByPeriodic(t *testing.T) {
 	}
 
 	iter, err := state.JobsByPeriodic(true)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
 	var outPeriodic []*structs.Job
 	for {
 		raw := iter.Next()
@@ -582,6 +586,7 @@ func TestStateStore_JobsByPeriodic(t *testing.T) {
 	}
 
 	iter, err = state.JobsByPeriodic(false)
+
 	var outNonPeriodic []*structs.Job
 	for {
 		raw := iter.Next()
