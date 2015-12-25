@@ -149,16 +149,26 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	// Inject the environment variables.
 	envVars := TaskEnvironmentVariables(ctx, task)
 
-	// Clear the task directories as they are not currently supported.
-	envVars.ClearTaskLocalDir()
-	envVars.ClearAllocDir()
-
 	for k, v := range envVars.Map() {
 		cmdArgs = append(cmdArgs, fmt.Sprintf("--set-env=%v=%v", k, v))
 	}
 
 	// Append the run command.
 	cmdArgs = append(cmdArgs, "run", "--mds-register=false", img)
+
+	// Mount allc and task dirs
+	binds, err := getBindDirs(ctx.AllocDir, task)
+	if err != nil {
+		return nil, err
+	}
+	for _, bind := range binds {
+		s := strings.Split(bind, ":")
+		if s[2] == "rw,z" || s[2] == "rw,Z" {
+			cmdArgs = append(cmdArgs, fmt.Sprintf("--volume data,kind=empty,readOnly=false %v %v", s[0], s[1]))
+		} else {
+			cmdArgs = append(cmdArgs, fmt.Sprintf("--volume data,kind=empty,readOnly=true %v %v", s[0], s[1]))
+		}
+	}
 
 	// Check if the user has overriden the exec command.
 	if execCmd, ok := task.Config["command"]; ok {
