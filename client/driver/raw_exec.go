@@ -119,7 +119,7 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 		doneCh:      make(chan struct{}),
 		waitCh:      make(chan *cstructs.WaitResult, 1),
 	}
-	go h.run()
+	go h.Wait()
 	return h, nil
 }
 
@@ -148,7 +148,6 @@ func (d *RawExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, e
 		doneCh:      make(chan struct{}),
 		waitCh:      make(chan *cstructs.WaitResult, 1),
 	}
-	go h.run()
 	return h, nil
 }
 
@@ -185,7 +184,7 @@ func (h *rawExecHandle) Kill() error {
 	}
 }
 
-func (h *rawExecHandle) run() {
+func (h *rawExecHandle) Wait() {
 	res := h.cmd.Wait()
 	close(h.doneCh)
 	h.waitCh <- res

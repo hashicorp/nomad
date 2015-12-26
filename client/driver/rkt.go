@@ -232,7 +232,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		doneCh:      make(chan struct{}),
 		waitCh:      make(chan *cstructs.WaitResult, 1),
 	}
-	go h.run()
+	go h.Wait()
 	return h, nil
 }
 
@@ -260,7 +260,6 @@ func (d *RktDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error
 		waitCh:      make(chan *cstructs.WaitResult, 1),
 	}
 
-	go h.run()
 	return h, nil
 }
 
@@ -299,7 +298,7 @@ func (h *rktHandle) Kill() error {
 	}
 }
 
-func (h *rktHandle) run() {
+func (h *rktHandle) Wait() {
 	ps, err := h.proc.Wait()
 	close(h.doneCh)
 	code := 0

@@ -100,6 +100,9 @@ type DriverHandle interface {
 	// Returns an opaque handle that can be used to re-open the handle
 	ID() string
 
+	// Wait waits for the task to end
+	Wait()
+
 	// WaitCh is used to return a channel used wait for task completion
 	WaitCh() chan *cstructs.WaitResult
 

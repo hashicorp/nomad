@@ -538,7 +538,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 		doneCh:           make(chan struct{}),
 		waitCh:           make(chan *cstructs.WaitResult, 1),
 	}
-	go h.run()
+	go h.Wait()
 	return h, nil
 }
 
@@ -592,7 +592,6 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 		doneCh:           make(chan struct{}),
 		waitCh:           make(chan *cstructs.WaitResult, 1),
 	}
-	go h.run()
 	return h, nil
 }
 
@@ -675,7 +674,7 @@ func (h *DockerHandle) Kill() error {
 	return nil
 }
 
-func (h *DockerHandle) run() {
+func (h *DockerHandle) Wait() {
 	// Wait for it...
 	exitCode, err := h.client.WaitContainer(h.containerID)
 	if err != nil {
