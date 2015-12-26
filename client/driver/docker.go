@@ -1,8 +1,10 @@
 package driver
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"path/filepath"
@@ -687,4 +689,19 @@ func (h *DockerHandle) run() {
 	close(h.doneCh)
 	h.waitCh <- cstructs.NewWaitResult(exitCode, 0, err)
 	close(h.waitCh)
+}
+
+func (h *DockerHandle) Logs() (io.Reader, error) {
+	var buf bytes.Buffer
+	err := h.client.Logs(docker.LogsOptions{
+		Container:    h.containerID,
+		OutputStream: &buf,
+		ErrorStream:  &buf,
+		Stdout:       true,
+		Stderr:       true,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &buf, nil
 }

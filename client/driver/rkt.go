@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -308,4 +309,8 @@ func (h *rktHandle) run() {
 	}
 	h.waitCh <- cstructs.NewWaitResult(code, 0, err)
 	close(h.waitCh)
+}
+
+func (h *rktHandle) Logs() (io.Reader, error) {
+	return nil, nil
 }

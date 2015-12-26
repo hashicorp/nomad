@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"os/exec"
 	"path/filepath"
@@ -241,4 +242,8 @@ func (h *javaHandle) run() {
 	close(h.doneCh)
 	h.waitCh <- res
 	close(h.waitCh)
+}
+
+func (h *javaHandle) Logs() (io.Reader, error) {
+	return nil, nil
 }

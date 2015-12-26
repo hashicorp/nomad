@@ -3,6 +3,7 @@ package driver
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"path/filepath"
 	"runtime"
@@ -191,4 +192,8 @@ func (h *execHandle) run() {
 	close(h.doneCh)
 	h.waitCh <- res
 	close(h.waitCh)
+}
+
+func (h *execHandle) Logs() (io.Reader, error) {
+	return nil, nil
 }
