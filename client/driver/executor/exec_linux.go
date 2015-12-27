@@ -1,10 +1,12 @@
 package executor
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"os/user"
@@ -25,6 +27,12 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/helper/args"
 	"github.com/hashicorp/nomad/nomad/structs"
+)
+
+// The buffer names which the executor uses as file extensions for the logs
+const (
+	stdout = "stdout"
+	stderr = "stderr"
 )
 
 var (
@@ -174,8 +182,8 @@ func (e *LinuxExecutor) Start() error {
 	e.spawn.SetCommand(&e.cmd)
 	e.spawn.SetChroot(e.taskDir)
 	e.spawn.SetLogs(&spawn.Logs{
-		Stdout: filepath.Join(e.taskDir, allocdir.TaskLocal, fmt.Sprintf("%v.stdout", e.taskName)),
-		Stderr: filepath.Join(e.taskDir, allocdir.TaskLocal, fmt.Sprintf("%v.stderr", e.taskName)),
+		Stdout: e.logPath(e.taskName, stdout),
+		Stderr: e.logPath(e.taskName, stderr),
 		Stdin:  os.DevNull,
 	})
 
@@ -297,6 +305,11 @@ func (e *LinuxExecutor) ConfigureTaskDir(taskName string, alloc *allocdir.AllocD
 	e.cmd.Env = env.List()
 
 	return nil
+}
+
+// logPath returns the path of the log file for a specific buffer of the task
+func (e *LinuxExecutor) logPath(taskName string, bufferName string) string {
+	return filepath.Join(e.taskDir, allocdir.TaskLocal, fmt.Sprintf("%s.%s", taskName, bufferName))
 }
 
 // pathExists is a helper function to check if the path exists.
@@ -425,4 +438,21 @@ func (e *LinuxExecutor) getCgroupManager(groups *cgroupConfig.Cgroup) cgroups.Ma
 		manager = &systemd.Manager{Cgroups: groups}
 	}
 	return manager
+}
+
+// Logs return a reader where logs of the task are written to
+func (e *LinuxExecutor) Logs() (io.Reader, error) {
+	var buf bytes.Buffer
+	var stdOutLogs *os.File
+	var err error
+	if stdOutLogs, err = os.Open(e.logPath(e.taskName, stdout)); err != nil {
+		return nil, err
+	}
+
+	scanner := bufio.NewScanner(stdOutLogs)
+
+	for scanner.Scan() {
+		buf.Write(scanner.Bytes())
+	}
+	return &buf, scanner.Err()
 }

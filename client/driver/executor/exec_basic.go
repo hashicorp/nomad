@@ -1,9 +1,11 @@
 package executor
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -68,8 +70,8 @@ func (e *BasicExecutor) Start() error {
 	e.spawn = spawn.NewSpawner(spawnState)
 	e.spawn.SetCommand(&e.cmd)
 	e.spawn.SetLogs(&spawn.Logs{
-		Stdout: filepath.Join(e.taskDir, allocdir.TaskLocal, fmt.Sprintf("%v.stdout", e.taskName)),
-		Stderr: filepath.Join(e.taskDir, allocdir.TaskLocal, fmt.Sprintf("%v.stderr", e.taskName)),
+		Stdout: e.logPath(e.taskName, stdout),
+		Stderr: e.logPath(e.taskName, stderr),
 		Stdin:  os.DevNull,
 	})
 
@@ -130,4 +132,26 @@ func (e *BasicExecutor) ForceStop() error {
 
 func (e *BasicExecutor) Command() *exec.Cmd {
 	return &e.cmd
+}
+
+// logPath returns the path of the log file for a specific buffer of the task
+func (e *BasicExecutor) logPath(taskName string, bufferName string) string {
+	return filepath.Join(e.taskDir, allocdir.TaskLocal, fmt.Sprintf("%s.%s", taskName, bufferName))
+}
+
+// Logs return a reader where logs of the task are written to
+func (e *BasicExecutor) Logs() (io.Reader, error) {
+	var buf bytes.Buffer
+	var stdOutLogs *os.File
+	var err error
+	if stdOutLogs, err = os.Open(e.logPath(e.taskName, stdout)); err != nil {
+		return nil, err
+	}
+
+	scanner := bufio.NewScanner(stdOutLogs)
+
+	for scanner.Scan() {
+		buf.Write(scanner.Bytes())
+	}
+	return &buf, scanner.Err()
 }

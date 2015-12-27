@@ -498,6 +498,10 @@ type Node struct {
 	// StatusDescription is meant to provide more human useful information
 	StatusDescription string
 
+	// LogDaemonAddr is the server:port address on which the log daemon is waiting for
+	// waiting for user requests
+	LogDaemonAddr string
+
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64

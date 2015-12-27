@@ -57,11 +57,22 @@ type Config struct {
 	// Node provides the base node
 	Node *structs.Node
 
+	// LogDaemonResources is the amount of resources the logging process is
+	// allowed to use on a node
+	LogDaemonResources *LogDaemonResources
+
 	// Options provides arbitrary key-value configuration for nomad internals,
 	// like fingerprinters and drivers. The format is:
 	//
 	//	namespace.option = value
 	Options map[string]string
+}
+
+// LogDaemonResources is the amoung of resources the logging daemon is allowed
+// to consume
+type LogDaemonResources struct {
+	Cpu      int
+	MemoryMB int
 }
 
 // Read returns the specified configuration value or "".

@@ -22,6 +22,7 @@ package executor
 
 import (
 	"fmt"
+	"io"
 	"os/exec"
 	"path/filepath"
 
@@ -73,6 +74,9 @@ type Executor interface {
 	// Command provides access the underlying Cmd struct in case the Executor
 	// interface doesn't expose the functionality you need.
 	Command() *exec.Cmd
+
+	// Logs return a handle to read the stdout and stderr of the process
+	Logs() (io.Reader, error)
 }
 
 // Command is a mirror of exec.Command that returns a platform-specific Executor

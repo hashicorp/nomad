@@ -194,5 +194,5 @@ func (h *execHandle) Wait() {
 }
 
 func (h *execHandle) Logs() (io.Reader, error) {
-	return nil, nil
+	return h.cmd.Logs()
 }
