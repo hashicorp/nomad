@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/hashicorp/nomad/command/logdaemon"
-	"strconv"
 	"strings"
 )
 
@@ -59,16 +58,13 @@ func (l *LogDaemonCommand) parseConfig(args []string) (*logdaemon.LogDaemonConfi
 	if len(args) != 1 {
 		return nil, fmt.Errorf("passing the configuration is mandatory")
 	}
-	json, err := strconv.Unquote(args[0])
-	if err != nil {
-		return nil, fmt.Errorf("failed to unquote configuration: %v", err)
-	}
+	configuration := args[0]
 
 	// De-serialize the passed command.
-	var config LogDaemonConfig
-	dec := json.NewDecoder(strings.NewReader(json))
+	var config logdaemon.LogDaemonConfig
+	dec := json.NewDecoder(strings.NewReader(configuration))
 	if err := dec.Decode(&config); err != nil {
 		return nil, err
 	}
-	return config, nil
+	return &config, nil
 }
