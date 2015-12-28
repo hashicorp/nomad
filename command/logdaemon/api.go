@@ -4,10 +4,13 @@ import (
 	"crypto/sha1"
 	"encoding/json"
 	"fmt"
-	"github.com/hashicorp/nomad/nomad/structs"
 	"io"
+	"log"
 	"net"
 	"net/http"
+	"os"
+
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 type trackedTask struct {
@@ -27,6 +30,8 @@ type LogDaemon struct {
 	mux      *http.ServeMux
 	listener net.Listener
 	tasks    map[string]*trackedTask
+
+	logger *log.Logger
 }
 
 // NewLogDaemon creates a new logging daemon
@@ -46,6 +51,7 @@ func NewLogDaemon(config *structs.LogDaemonConfig) (*LogDaemon, error) {
 		mux:      mux,
 		listener: listener,
 		tasks:    make(map[string]*trackedTask),
+		logger:   log.New(os.Stdout, "", 0),
 	}
 
 	// Configure the routes
@@ -56,6 +62,7 @@ func NewLogDaemon(config *structs.LogDaemonConfig) (*LogDaemon, error) {
 
 // Start starts the http server of the log daemon
 func (ld *LogDaemon) Start() error {
+	ld.logger.Printf("[INFO] log daemon has started, it is listening on %v", ld.listener.Addr())
 	return http.Serve(ld.listener, ld.mux)
 }
 
