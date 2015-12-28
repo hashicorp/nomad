@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client"
-	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -218,8 +217,8 @@ func (a *Agent) setupClient() error {
 	}
 
 	if a.config.Client.LogDaemon != nil {
-		conf.LogDaemonResources = &config.LogDaemonResources{
-			Cpu:      a.config.Client.LogDaemon.Cpu,
+		conf.LogDaemonResources = &structs.Resources{
+			CPU:      a.config.Client.LogDaemon.Cpu,
 			MemoryMB: a.config.Client.LogDaemon.MemoryMB,
 		}
 	}
