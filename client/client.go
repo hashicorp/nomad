@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/client/fingerprint"
+	"github.com/hashicorp/nomad/client/helper"
 	"github.com/hashicorp/nomad/helper/discover"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -662,16 +663,25 @@ func (c *Client) setupLogDaemon() error {
 
 	stdOut, err := logDaemon.StdoutPipe()
 	if err != nil {
-		return fmt.Errorf("Failed to get the stdout stream of the log daemon: %v", err)
+		return fmt.Errorf("failed to get the stdout stream of the log daemon: %v", err)
 	}
 	stdErr, err := logDaemon.StderrPipe()
 	if err != nil {
-		return fmt.Errorf("Failed to get the stdin stream of the log daemon: %v", err)
+		return fmt.Errorf("failed to get the stdin stream of the log daemon: %v", err)
 	}
 
 	if err = logDaemon.Start(); err != nil {
-		return fmt.Errorf("Unable to start the log daemon: %v", err)
+		return fmt.Errorf("unable to start the log daemon: %v", err)
 	}
+
+	rc, err := helper.NewResourceConstrainer(c.config.LogDaemonResources, logDaemon.Process.Pid)
+	if err != nil {
+		return fmt.Errorf("unable to create a cgroup for the log daemon: %v", err)
+	}
+	if err := rc.Apply(); err != nil {
+		return fmt.Errorf("unable to join log daemon to the cgroup: %v", err)
+	}
+
 	go c.runLogDaemon(logDaemon, stdOut, stdErr)
 	return nil
 }
