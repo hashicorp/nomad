@@ -2,6 +2,8 @@ package client
 
 import (
 	"bufio"
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -646,14 +648,17 @@ func (c *Client) setupLogDaemon() error {
 		return fmt.Errorf("Unable to find free port on loopback device: %v", err)
 	}
 
-	fmt.Println("DIPTANU Port ", port)
-
 	bin, err := discover.NomadExecutable()
 	if err != nil {
 		return fmt.Errorf("Failed to determine the Nomad executable: %v", err)
 	}
 
-	logDaemon := exec.Command(bin, "log-daemon")
+	configuration, err := c.createLogDaemonConfig(port)
+	if err != nil {
+		return err
+	}
+
+	logDaemon := exec.Command(bin, "log-daemon", configuration)
 
 	stdOut, err := logDaemon.StdoutPipe()
 	if err != nil {
@@ -669,6 +674,20 @@ func (c *Client) setupLogDaemon() error {
 	}
 	go c.runLogDaemon(logDaemon, stdOut, stdErr)
 	return nil
+}
+
+func (c *Client) createLogDaemonConfig(rpcPort int) (string, error) {
+	conf := structs.LogDaemonConfig{
+		APIAddr: c.config.Node.LogDaemonAddr,
+		RPCPort: rpcPort,
+	}
+
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	if err := enc.Encode(conf); err != nil {
+		return "", fmt.Errorf("failed to create configuration for the log daemon")
+	}
+	return buf.String(), nil
 }
 
 func (c *Client) runLogDaemon(logDaemon *exec.Cmd, stdOut io.Reader, stdErr io.Reader) {

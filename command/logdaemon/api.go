@@ -4,6 +4,7 @@ import (
 	"crypto/sha1"
 	"encoding/json"
 	"fmt"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"io"
 	"net"
 	"net/http"
@@ -22,19 +23,6 @@ func (tt *trackedTask) Hash() string {
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
-type LogDaemonConfig struct {
-	ApiPort      int
-	ApiInterface string
-	RPCPort      int
-}
-
-func NewLogDaemonConfig() *LogDaemonConfig {
-	return &LogDaemonConfig{
-		ApiPort:      4470,
-		ApiInterface: "127.0.0.1",
-	}
-}
-
 type LogDaemon struct {
 	mux      *http.ServeMux
 	listener net.Listener
@@ -42,13 +30,13 @@ type LogDaemon struct {
 }
 
 // NewLogDaemon creates a new logging daemon
-func NewLogDaemon(config *LogDaemonConfig) (*LogDaemon, error) {
+func NewLogDaemon(config *structs.LogDaemonConfig) (*LogDaemon, error) {
 
 	// Create the mux
 	mux := http.NewServeMux()
 
 	// Create the listener
-	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", config.ApiInterface, config.ApiPort))
+	listener, err := net.Listen("tcp", config.APIAddr)
 	if err != nil {
 		return nil, err
 	}

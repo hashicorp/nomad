@@ -3,8 +3,10 @@ package command
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/hashicorp/nomad/command/logdaemon"
 	"strings"
+
+	"github.com/hashicorp/nomad/command/logdaemon"
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 type LogDaemonCommand struct {
@@ -29,7 +31,7 @@ func (l *LogDaemonCommand) Synopsis() string {
 }
 
 func (l *LogDaemonCommand) Run(args []string) int {
-	var config *logdaemon.LogDaemonConfig
+	var config *structs.LogDaemonConfig
 	var logDaemon *logdaemon.LogDaemon
 	var err error
 
@@ -45,7 +47,7 @@ func (l *LogDaemonCommand) Run(args []string) int {
 	return 0
 }
 
-func (l *LogDaemonCommand) parseConfig(args []string) (*logdaemon.LogDaemonConfig, error) {
+func (l *LogDaemonCommand) parseConfig(args []string) (*structs.LogDaemonConfig, error) {
 	flags := l.Meta.FlagSet("log-daemon", FlagSetClient)
 	flags.Usage = func() { l.Ui.Output(l.Help()) }
 
@@ -60,8 +62,8 @@ func (l *LogDaemonCommand) parseConfig(args []string) (*logdaemon.LogDaemonConfi
 	}
 	configuration := args[0]
 
-	// De-serialize the passed command.
-	var config logdaemon.LogDaemonConfig
+	// De-serialize the passed configuration
+	var config structs.LogDaemonConfig
 	dec := json.NewDecoder(strings.NewReader(configuration))
 	if err := dec.Decode(&config); err != nil {
 		return nil, err
