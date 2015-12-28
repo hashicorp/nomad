@@ -335,6 +335,9 @@ func resolveConstraintTarget(target string, node *structs.Node) (interface{}, bo
 	case "$node.name" == target:
 		return node.Name, true
 
+	case "$node.class" == target:
+		return node.NodeClass, true
+
 	case strings.HasPrefix(target, "$attr."):
 		attr := strings.TrimPrefix(target, "$attr.")
 		val, ok := node.Attributes[attr]

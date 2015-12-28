@@ -112,11 +112,13 @@ func TestConstraintIterator(t *testing.T) {
 		mock.Node(),
 		mock.Node(),
 		mock.Node(),
+		mock.Node(),
 	}
 	static := NewStaticIterator(ctx, nodes)
 
 	nodes[0].Attributes["kernel.name"] = "freebsd"
 	nodes[1].Datacenter = "dc2"
+	nodes[2].NodeClass = "large"
 
 	constraints := []*structs.Constraint{
 		&structs.Constraint{
@@ -128,6 +130,11 @@ func TestConstraintIterator(t *testing.T) {
 			Operand: "is",
 			LTarget: "$attr.kernel.name",
 			RTarget: "linux",
+		},
+		&structs.Constraint{
+			Operand: "is",
+			LTarget: "$node.class",
+			RTarget: "large",
 		},
 	}
 	constr := NewConstraintIterator(ctx, static, constraints)
@@ -166,6 +173,12 @@ func TestResolveConstraintTarget(t *testing.T) {
 			target: "$node.name",
 			node:   node,
 			val:    node.Name,
+			result: true,
+		},
+		{
+			target: "$node.class",
+			node:   node,
+			val:    node.NodeClass,
 			result: true,
 		},
 		{
