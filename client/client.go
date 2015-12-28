@@ -1,11 +1,14 @@
 package client
 
 import (
+	"bufio"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"sync"
@@ -15,6 +18,7 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/client/fingerprint"
+	"github.com/hashicorp/nomad/helper/discover"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -139,6 +143,11 @@ func NewClient(cfg *config.Config) (*Client, error) {
 	// Restore the state
 	if err := c.restoreState(); err != nil {
 		return nil, fmt.Errorf("failed to restore state: %v", err)
+	}
+
+	// Setup the log daemon
+	if err := c.setupLogDaemon(); err != nil {
+		return nil, fmt.Errorf("failed to initialize the log daemon %v", err)
 	}
 
 	// Start the client!
@@ -625,6 +634,60 @@ func (c *Client) run() {
 		case <-c.shutdownCh:
 			return
 		}
+	}
+}
+
+// setupLogDaemon starts the log daemon and keeps restarting it when it crashes
+func (c *Client) setupLogDaemon() error {
+	var port int
+	var err error
+
+	if port, err = getFreePort(); err != nil {
+		return fmt.Errorf("Unable to find free port on loopback device: %v", err)
+	}
+
+	fmt.Println("DIPTANU Port ", port)
+
+	bin, err := discover.NomadExecutable()
+	if err != nil {
+		return fmt.Errorf("Failed to determine the Nomad executable: %v", err)
+	}
+
+	logDaemon := exec.Command(bin, "log-daemon")
+
+	stdOut, err := logDaemon.StdoutPipe()
+	if err != nil {
+		return fmt.Errorf("Failed to get the stdout stream of the log daemon: %v", err)
+	}
+	stdErr, err := logDaemon.StderrPipe()
+	if err != nil {
+		return fmt.Errorf("Failed to get the stdin stream of the log daemon: %v", err)
+	}
+
+	if err = logDaemon.Start(); err != nil {
+		return fmt.Errorf("Unable to start the log daemon: %v", err)
+	}
+	go c.runLogDaemon(logDaemon, stdOut, stdErr)
+	return nil
+}
+
+func (c *Client) runLogDaemon(logDaemon *exec.Cmd, stdOut io.Reader, stdErr io.Reader) {
+	func() {
+		scanner := bufio.NewScanner(stdOut)
+		for scanner.Scan() {
+			c.logger.Printf(scanner.Text())
+		}
+	}()
+
+	func() {
+		scanner := bufio.NewScanner(stdErr)
+		for scanner.Scan() {
+			c.logger.Printf(scanner.Text())
+		}
+	}()
+
+	if err := logDaemon.Wait(); err != nil {
+		c.logger.Printf("Error with log daemon: %v", err)
 	}
 }
 

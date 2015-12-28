@@ -23,14 +23,15 @@ func (tt *trackedTask) Hash() string {
 }
 
 type LogDaemonConfig struct {
-	Port      int
-	Interface string
+	ApiPort      int
+	ApiInterface string
+	RPCPort      int
 }
 
 func NewLogDaemonConfig() *LogDaemonConfig {
 	return &LogDaemonConfig{
-		Port:      4470,
-		Interface: "127.0.0.1",
+		ApiPort:      4470,
+		ApiInterface: "127.0.0.1",
 	}
 }
 
@@ -47,7 +48,7 @@ func NewLogDaemon(config *LogDaemonConfig) (*LogDaemon, error) {
 	mux := http.NewServeMux()
 
 	// Create the listener
-	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", config.Interface, config.Port))
+	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", config.ApiInterface, config.ApiPort))
 	if err != nil {
 		return nil, err
 	}
