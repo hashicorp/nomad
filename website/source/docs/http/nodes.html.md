@@ -28,7 +28,13 @@ be specified using the `?region=` query parameter.
 
   <dt>Parameters</dt>
   <dd>
-    None
+    <ul>
+      <li>
+        <span class="param">prefix</span>
+        <span class="param-flags">optional</span>
+        Filter nodes based on an identifier prefix.
+      </li>
+    </ul>
   </dd>
 
   <dt>Blocking Queries</dt>
