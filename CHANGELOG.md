@@ -6,6 +6,7 @@ IMPROVEMENTS:
   * core: Batch jobs are garbage collected from the Nomad Servers [GH-586]
   * driver/rkt: Add support for CPU/Memory isolation [GH-610]
   * cli: Output of agent-info is sorted [GH-617]
+  * core: Node class constraint [GH-618]
 
 BUG FIXES:
   * cli: Handle parsing of un-named ports [GH-604]

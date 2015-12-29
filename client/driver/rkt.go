@@ -143,7 +143,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		d.logger.Printf("[DEBUG] driver.rkt: added trust prefix: %q", trustPrefix)
 	} else {
 		// Disble signature verification if the trust command was not run.
-		cmdArgs = append(cmdArgs, "--insecure-skip-verify")
+		cmdArgs = append(cmdArgs, "--insecure-options=all")
 	}
 
 	// Inject the environment variables.
