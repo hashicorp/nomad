@@ -5,7 +5,9 @@ EXTERNAL_TOOLS=\
 	github.com/tools/godep \
 	github.com/mitchellh/gox \
 	golang.org/x/tools/cmd/cover \
-	golang.org/x/tools/cmd/vet
+	golang.org/x/tools/cmd/vet \
+	github.com/axw/gocov/gocov \
+	gopkg.in/matm/v1/gocov-html
 
 all: test
 
