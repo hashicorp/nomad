@@ -7,6 +7,7 @@ IMPROVEMENTS:
   * driver/rkt: Add support for CPU/Memory isolation [GH-610]
   * cli: Output of agent-info is sorted [GH-617]
   * core: Node class constraint [GH-618]
+  * core: User specifiable kill timeout [GH-624]
 
 BUG FIXES:
   * cli: Handle parsing of un-named ports [GH-604]
