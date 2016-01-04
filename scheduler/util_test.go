@@ -215,10 +215,10 @@ func TestReadyNodesInDCs(t *testing.T) {
 	if nodes[0].ID == node3.ID || nodes[1].ID == node3.ID {
 		t.Fatalf("Bad: %#v", nodes)
 	}
-	if count, ok := dc["dc1"]; !ok || count != 0 {
+	if count, ok := dc["dc1"]; !ok || count != 1 {
 		t.Fatalf("Bad: dc1 count %v", count)
 	}
-	if count, ok := dc["dc2"]; !ok || count != 2 {
+	if count, ok := dc["dc2"]; !ok || count != 1 {
 		t.Fatalf("Bad: dc2 count %v", count)
 	}
 }
