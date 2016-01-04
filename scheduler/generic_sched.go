@@ -250,9 +250,6 @@ func (s *GenericScheduler) computePlacements(place []allocTuple) error {
 		return err
 	}
 
-	// Store the available nodes by datacenter
-	s.ctx.Metrics().NodesAvailable = byDC
-
 	// Update the set of placement ndoes
 	s.stack.SetNodes(nodes)
 
@@ -282,6 +279,9 @@ func (s *GenericScheduler) computePlacements(place []allocTuple) error {
 			Metrics:   s.ctx.Metrics(),
 		}
 
+		// Store the available nodes by datacenter
+		s.ctx.Metrics().NodesAvailable = byDC
+
 		// Set fields based on if we found an allocation option
 		if option != nil {
 			// Generate the service ids for the tasks which this allocation is going
@@ -303,5 +303,6 @@ func (s *GenericScheduler) computePlacements(place []allocTuple) error {
 			failedTG[missing.TaskGroup] = alloc
 		}
 	}
+
 	return nil
 }

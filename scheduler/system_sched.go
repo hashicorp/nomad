@@ -25,12 +25,13 @@ type SystemScheduler struct {
 	state   State
 	planner Planner
 
-	eval  *structs.Evaluation
-	job   *structs.Job
-	plan  *structs.Plan
-	ctx   *EvalContext
-	stack *SystemStack
-	nodes []*structs.Node
+	eval      *structs.Evaluation
+	job       *structs.Job
+	plan      *structs.Plan
+	ctx       *EvalContext
+	stack     *SystemStack
+	nodes     []*structs.Node
+	nodesByDC map[string]int
 
 	limitReached bool
 	nextEval     *structs.Evaluation
@@ -86,14 +87,10 @@ func (s *SystemScheduler) process() (bool, error) {
 
 	// Get the ready nodes in the required datacenters
 	if s.job != nil {
-		var byDC map[string]int
-		s.nodes, byDC, err = readyNodesInDCs(s.state, s.job.Datacenters)
+		s.nodes, s.nodesByDC, err = readyNodesInDCs(s.state, s.job.Datacenters)
 		if err != nil {
 			return false, fmt.Errorf("failed to get ready nodes: %v", err)
 		}
-
-		// Store the available nodes by datacenter
-		s.ctx.Metrics().NodesAvailable = byDC
 	}
 
 	// Create a plan
@@ -249,6 +246,9 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 			Resources: size,
 			Metrics:   s.ctx.Metrics(),
 		}
+
+		// Store the available nodes by datacenter
+		s.ctx.Metrics().NodesAvailable = s.nodesByDC
 
 		// Set fields based on if we found an allocation option
 		if option != nil {
