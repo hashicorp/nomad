@@ -281,6 +281,11 @@ configured on server nodes.
   * <a id="network_speed">`network_speed`</a>: This is an int that sets the
     default link speed of network interfaces, in megabits, if their speed can
     not be determined dynamically.
+  * `max_kill_timeout`: `max_kill_timeout` is a time duration that can be
+    specified using the `s`, `m`, and `h` suffixes, such as `30s`. If a job's
+    task specifies a `kill_timeout` greater than `max_kill_timeout`,
+    `max_kill_timeout` is used. This is to prevent a user being able to set an
+    unreasonable timeout. If unset, a default is used.
 
 ### Client Options Map <a id="options_map"></a>
 

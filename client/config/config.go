@@ -5,6 +5,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -40,6 +41,11 @@ type Config struct {
 	// Network speed is the default speed of network interfaces if they can not
 	// be determined dynamically.
 	NetworkSpeed int
+
+	// MaxKillTimeout allows capping the user-specifiable KillTimeout. If the
+	// task's KillTimeout is greater than the MaxKillTimeout, MaxKillTimeout is
+	// used.
+	MaxKillTimeout time.Duration
 
 	// Servers is a list of known server addresses. These are as "host:port"
 	Servers []string

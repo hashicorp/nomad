@@ -33,14 +33,15 @@ func TestRktVersionRegex(t *testing.T) {
 
 func TestRktDriver_Handle(t *testing.T) {
 	h := &rktHandle{
-		proc:   &os.Process{Pid: 123},
-		image:  "foo",
-		doneCh: make(chan struct{}),
-		waitCh: make(chan *cstructs.WaitResult, 1),
+		proc:        &os.Process{Pid: 123},
+		image:       "foo",
+		killTimeout: 5 * time.Nanosecond,
+		doneCh:      make(chan struct{}),
+		waitCh:      make(chan *cstructs.WaitResult, 1),
 	}
 
 	actual := h.ID()
-	expected := `Rkt:{"Pid":123,"Image":"foo"}`
+	expected := `Rkt:{"Pid":123,"Image":"foo","KillTimeout":5}`
 	if actual != expected {
 		t.Errorf("Expected `%s`, found `%s`", expected, actual)
 	}

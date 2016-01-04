@@ -121,6 +121,7 @@ func TestParse(t *testing.T) {
 										},
 									},
 								},
+								KillTimeout: 22 * time.Second,
 							},
 							&structs.Task{
 								Name:   "storagelocker",

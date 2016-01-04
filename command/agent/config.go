@@ -156,6 +156,9 @@ type ClientConfig struct {
 
 	// The network link speed to use if it can not be determined dynamically.
 	NetworkSpeed int `hcl:"network_speed"`
+
+	// MaxKillTimeout allows capping the user-specifiable KillTimeout.
+	MaxKillTimeout string `hcl:"max_kill_timeout"`
 }
 
 // ServerConfig is configuration specific to the server mode
@@ -281,8 +284,9 @@ func DefaultConfig() *Config {
 		AdvertiseAddrs: &AdvertiseAddrs{},
 		Atlas:          &AtlasConfig{},
 		Client: &ClientConfig{
-			Enabled:      false,
-			NetworkSpeed: 100,
+			Enabled:        false,
+			NetworkSpeed:   100,
+			MaxKillTimeout: "30s",
 		},
 		Server: &ServerConfig{
 			Enabled:          false,
@@ -499,6 +503,9 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	}
 	if b.NetworkSpeed != 0 {
 		result.NetworkSpeed = b.NetworkSpeed
+	}
+	if b.MaxKillTimeout != "" {
+		result.MaxKillTimeout = b.MaxKillTimeout
 	}
 
 	// Add the servers

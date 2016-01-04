@@ -2,7 +2,9 @@ package driver
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
+	"log"
 	"os/exec"
 	"path/filepath"
 	"runtime"
@@ -36,9 +38,11 @@ type JavaDriverConfig struct {
 
 // javaHandle is returned from Start/Open as a handle to the PID
 type javaHandle struct {
-	cmd    executor.Executor
-	waitCh chan *cstructs.WaitResult
-	doneCh chan struct{}
+	cmd         executor.Executor
+	killTimeout time.Duration
+	logger      *log.Logger
+	waitCh      chan *cstructs.WaitResult
+	doneCh      chan struct{}
 }
 
 // NewJavaDriver is used to create a new exec driver
@@ -158,27 +162,41 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 
 	// Return a driver handle
 	h := &javaHandle{
-		cmd:    cmd,
-		doneCh: make(chan struct{}),
-		waitCh: make(chan *cstructs.WaitResult, 1),
+		cmd:         cmd,
+		killTimeout: d.DriverContext.KillTimeout(task),
+		logger:      d.logger,
+		doneCh:      make(chan struct{}),
+		waitCh:      make(chan *cstructs.WaitResult, 1),
 	}
 
 	go h.run()
 	return h, nil
 }
 
+type javaId struct {
+	ExecutorId  string
+	KillTimeout time.Duration
+}
+
 func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {
+	id := &javaId{}
+	if err := json.Unmarshal([]byte(handleID), id); err != nil {
+		return nil, fmt.Errorf("Failed to parse handle '%s': %v", handleID, err)
+	}
+
 	// Find the process
-	cmd, err := executor.OpenId(handleID)
+	cmd, err := executor.OpenId(id.ExecutorId)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open ID %v: %v", handleID, err)
+		return nil, fmt.Errorf("failed to open ID %v: %v", id.ExecutorId, err)
 	}
 
 	// Return a driver handle
 	h := &javaHandle{
-		cmd:    cmd,
-		doneCh: make(chan struct{}),
-		waitCh: make(chan *cstructs.WaitResult, 1),
+		cmd:         cmd,
+		logger:      d.logger,
+		killTimeout: id.KillTimeout,
+		doneCh:      make(chan struct{}),
+		waitCh:      make(chan *cstructs.WaitResult, 1),
 	}
 
 	go h.run()
@@ -186,8 +204,17 @@ func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 }
 
 func (h *javaHandle) ID() string {
-	id, _ := h.cmd.ID()
-	return id
+	executorId, _ := h.cmd.ID()
+	id := javaId{
+		ExecutorId:  executorId,
+		KillTimeout: h.killTimeout,
+	}
+
+	data, err := json.Marshal(id)
+	if err != nil {
+		h.logger.Printf("[ERR] driver.java: failed to marshal ID to JSON: %s", err)
+	}
+	return string(data)
 }
 
 func (h *javaHandle) WaitCh() chan *cstructs.WaitResult {
@@ -204,7 +231,7 @@ func (h *javaHandle) Kill() error {
 	select {
 	case <-h.doneCh:
 		return nil
-	case <-time.After(5 * time.Second):
+	case <-time.After(h.killTimeout):
 		return h.cmd.ForceStop()
 	}
 }

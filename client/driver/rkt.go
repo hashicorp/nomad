@@ -54,18 +54,20 @@ type RktDriverConfig struct {
 
 // rktHandle is returned from Start/Open as a handle to the PID
 type rktHandle struct {
-	proc   *os.Process
-	image  string
-	logger *log.Logger
-	waitCh chan *cstructs.WaitResult
-	doneCh chan struct{}
+	proc        *os.Process
+	image       string
+	logger      *log.Logger
+	killTimeout time.Duration
+	waitCh      chan *cstructs.WaitResult
+	doneCh      chan struct{}
 }
 
 // rktPID is a struct to map the pid running the process to the vm image on
 // disk
 type rktPID struct {
-	Pid   int
-	Image string
+	Pid         int
+	Image       string
+	KillTimeout time.Duration
 }
 
 // NewRktDriver is used to create a new exec driver
@@ -216,11 +218,12 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 
 	d.logger.Printf("[DEBUG] driver.rkt: started ACI %q with: %v", img, cmd.Args)
 	h := &rktHandle{
-		proc:   cmd.Process,
-		image:  img,
-		logger: d.logger,
-		doneCh: make(chan struct{}),
-		waitCh: make(chan *cstructs.WaitResult, 1),
+		proc:        cmd.Process,
+		image:       img,
+		logger:      d.logger,
+		killTimeout: d.DriverContext.KillTimeout(task),
+		doneCh:      make(chan struct{}),
+		waitCh:      make(chan *cstructs.WaitResult, 1),
 	}
 	go h.run()
 	return h, nil
@@ -242,11 +245,12 @@ func (d *RktDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error
 
 	// Return a driver handle
 	h := &rktHandle{
-		proc:   proc,
-		image:  qpid.Image,
-		logger: d.logger,
-		doneCh: make(chan struct{}),
-		waitCh: make(chan *cstructs.WaitResult, 1),
+		proc:        proc,
+		image:       qpid.Image,
+		logger:      d.logger,
+		killTimeout: qpid.KillTimeout,
+		doneCh:      make(chan struct{}),
+		waitCh:      make(chan *cstructs.WaitResult, 1),
 	}
 
 	go h.run()
@@ -256,8 +260,9 @@ func (d *RktDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error
 func (h *rktHandle) ID() string {
 	// Return a handle to the PID
 	pid := &rktPID{
-		Pid:   h.proc.Pid,
-		Image: h.image,
+		Pid:         h.proc.Pid,
+		Image:       h.image,
+		KillTimeout: h.killTimeout,
 	}
 	data, err := json.Marshal(pid)
 	if err != nil {
@@ -282,7 +287,7 @@ func (h *rktHandle) Kill() error {
 	select {
 	case <-h.doneCh:
 		return nil
-	case <-time.After(5 * time.Second):
+	case <-time.After(h.killTimeout):
 		return h.proc.Kill()
 	}
 }

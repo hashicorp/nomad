@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
 
@@ -67,6 +68,7 @@ func (c *DockerDriverConfig) Validate() error {
 type dockerPID struct {
 	ImageID     string
 	ContainerID string
+	KillTimeout time.Duration
 }
 
 type DockerHandle struct {
@@ -76,6 +78,7 @@ type DockerHandle struct {
 	cleanupImage     bool
 	imageID          string
 	containerID      string
+	killTimeout      time.Duration
 	waitCh           chan *cstructs.WaitResult
 	doneCh           chan struct{}
 }
@@ -502,6 +505,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 		logger:           d.logger,
 		imageID:          dockerImage.ID,
 		containerID:      container.ID,
+		killTimeout:      d.DriverContext.KillTimeout(task),
 		doneCh:           make(chan struct{}),
 		waitCh:           make(chan *cstructs.WaitResult, 1),
 	}
@@ -555,6 +559,7 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 		logger:           d.logger,
 		imageID:          pid.ImageID,
 		containerID:      pid.ContainerID,
+		killTimeout:      pid.KillTimeout,
 		doneCh:           make(chan struct{}),
 		waitCh:           make(chan *cstructs.WaitResult, 1),
 	}
@@ -567,6 +572,7 @@ func (h *DockerHandle) ID() string {
 	pid := dockerPID{
 		ImageID:     h.imageID,
 		ContainerID: h.containerID,
+		KillTimeout: h.killTimeout,
 	}
 	data, err := json.Marshal(pid)
 	if err != nil {
@@ -588,10 +594,10 @@ func (h *DockerHandle) Update(task *structs.Task) error {
 	return nil
 }
 
-// Kill is used to terminate the task. This uses docker stop -t 5
+// Kill is used to terminate the task. This uses `docker stop -t killTimeout`
 func (h *DockerHandle) Kill() error {
 	// Stop the container
-	err := h.client.StopContainer(h.containerID, 5)
+	err := h.client.StopContainer(h.containerID, uint(h.killTimeout.Seconds()))
 	if err != nil {
 		h.logger.Printf("[ERR] driver.docker: failed to stop container %s", h.containerID)
 		return fmt.Errorf("Failed to stop container %s: %s", h.containerID, err)

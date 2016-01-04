@@ -40,7 +40,8 @@ func TestConfig_Merge(t *testing.T) {
 			Options: map[string]string{
 				"foo": "bar",
 			},
-			NetworkSpeed: 100,
+			NetworkSpeed:   100,
+			MaxKillTimeout: "20s",
 		},
 		Server: &ServerConfig{
 			Enabled:         false,
@@ -105,7 +106,8 @@ func TestConfig_Merge(t *testing.T) {
 				"foo": "bar",
 				"baz": "zip",
 			},
-			NetworkSpeed: 100,
+			NetworkSpeed:   105,
+			MaxKillTimeout: "50s",
 		},
 		Server: &ServerConfig{
 			Enabled:           true,

@@ -77,6 +77,8 @@ job "binstore-storagelocker" {
                     port "admin" {}
                 }
             }
+
+            kill_timeout = "22s"
         }
 
         task "storagelocker" {

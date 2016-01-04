@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
@@ -58,6 +59,24 @@ func testDriverExecContext(task *structs.Task, driverCtx *DriverContext) *ExecCo
 	allocDir.Build([]*structs.Task{task})
 	ctx := NewExecContext(allocDir, fmt.Sprintf("alloc-id-%d", int(rand.Int31())))
 	return ctx
+}
+
+func TestDriver_KillTimeout(t *testing.T) {
+	ctx := testDriverContext("foo")
+	ctx.config.MaxKillTimeout = 10 * time.Second
+	expected := 1 * time.Second
+	task := &structs.Task{KillTimeout: expected}
+
+	if actual := ctx.KillTimeout(task); expected != actual {
+		t.Fatalf("KillTimeout(%v) returned %v; want %v", task, actual, expected)
+	}
+
+	expected = 10 * time.Second
+	task = &structs.Task{KillTimeout: 11 * time.Second}
+
+	if actual := ctx.KillTimeout(task); expected != actual {
+		t.Fatalf("KillTimeout(%v) returned %v; want %v", task, actual, expected)
+	}
 }
 
 func TestDriver_TaskEnvironmentVariables(t *testing.T) {

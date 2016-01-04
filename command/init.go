@@ -161,6 +161,10 @@ job "example" {
 					}
 				}
 			}
+
+			# Controls the timeout between signalling a task it will be killed
+			# and killing the task. If not set a default is used.
+			# kill_timeout = "20s"
 		}
 	}
 }
