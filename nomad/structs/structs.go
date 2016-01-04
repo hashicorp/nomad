@@ -1414,6 +1414,9 @@ func (t *Task) Validate() error {
 	if t.Resources == nil {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing task resources"))
 	}
+	if t.KillTimeout.Nanoseconds() < 0 {
+		mErr.Errors = append(mErr.Errors, errors.New("KillTimeout must be a positive value"))
+	}
 	for idx, constr := range t.Constraints {
 		if err := constr.Validate(); err != nil {
 			outer := fmt.Errorf("Constraint %d validation failed: %s", idx+1, err)
