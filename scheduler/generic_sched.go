@@ -245,10 +245,13 @@ func (s *GenericScheduler) computeJobAllocs() error {
 // computePlacements computes placements for allocations
 func (s *GenericScheduler) computePlacements(place []allocTuple) error {
 	// Get the base nodes
-	nodes, err := readyNodesInDCs(s.state, s.job.Datacenters)
+	nodes, byDC, err := readyNodesInDCs(s.state, s.job.Datacenters)
 	if err != nil {
 		return err
 	}
+
+	// Store the available nodes by datacenter
+	s.ctx.Metrics().NodesAvailable = byDC
 
 	// Update the set of placement ndoes
 	s.stack.SetNodes(nodes)

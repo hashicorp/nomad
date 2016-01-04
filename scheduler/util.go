@@ -172,19 +172,20 @@ func diffSystemAllocs(job *structs.Job, nodes []*structs.Node, taintedNodes map[
 	return result
 }
 
-// readyNodesInDCs returns all the ready nodes in the given datacenters
-func readyNodesInDCs(state State, dcs []string) ([]*structs.Node, error) {
+// readyNodesInDCs returns all the ready nodes in the given datacenters and a
+// mapping of each data center to the count of ready nodes.
+func readyNodesInDCs(state State, dcs []string) ([]*structs.Node, map[string]int, error) {
 	// Index the DCs
-	dcMap := make(map[string]struct{}, len(dcs))
+	dcMap := make(map[string]int, len(dcs))
 	for _, dc := range dcs {
-		dcMap[dc] = struct{}{}
+		dcMap[dc] = 0
 	}
 
 	// Scan the nodes
 	var out []*structs.Node
 	iter, err := state.Nodes()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	for {
 		raw := iter.Next()
@@ -204,8 +205,9 @@ func readyNodesInDCs(state State, dcs []string) ([]*structs.Node, error) {
 			continue
 		}
 		out = append(out, node)
+		dcMap[node.Datacenter] += 1
 	}
-	return out, nil
+	return out, dcMap, nil
 }
 
 // retryMax is used to retry a callback until it returns success or

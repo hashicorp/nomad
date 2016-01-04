@@ -86,10 +86,14 @@ func (s *SystemScheduler) process() (bool, error) {
 
 	// Get the ready nodes in the required datacenters
 	if s.job != nil {
-		s.nodes, err = readyNodesInDCs(s.state, s.job.Datacenters)
+		var byDC map[string]int
+		s.nodes, byDC, err = readyNodesInDCs(s.state, s.job.Datacenters)
 		if err != nil {
 			return false, fmt.Errorf("failed to get ready nodes: %v", err)
 		}
+
+		// Store the available nodes by datacenter
+		s.ctx.Metrics().NodesAvailable = byDC
 	}
 
 	// Create a plan
@@ -219,7 +223,7 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 			return fmt.Errorf("could not find node %q", missing.Alloc.NodeID)
 		}
 
-		// Update the set of placement ndoes
+		// Update the set of placement nodes
 		nodes[0] = node
 		s.stack.SetNodes(nodes)
 
