@@ -245,7 +245,7 @@ func (s *GenericScheduler) computeJobAllocs() error {
 // computePlacements computes placements for allocations
 func (s *GenericScheduler) computePlacements(place []allocTuple) error {
 	// Get the base nodes
-	nodes, err := readyNodesInDCs(s.state, s.job.Datacenters)
+	nodes, byDC, err := readyNodesInDCs(s.state, s.job.Datacenters)
 	if err != nil {
 		return err
 	}
@@ -279,6 +279,9 @@ func (s *GenericScheduler) computePlacements(place []allocTuple) error {
 			Metrics:   s.ctx.Metrics(),
 		}
 
+		// Store the available nodes by datacenter
+		s.ctx.Metrics().NodesAvailable = byDC
+
 		// Set fields based on if we found an allocation option
 		if option != nil {
 			// Generate the service ids for the tasks which this allocation is going
@@ -300,5 +303,6 @@ func (s *GenericScheduler) computePlacements(place []allocTuple) error {
 			failedTG[missing.TaskGroup] = alloc
 		}
 	}
+
 	return nil
 }

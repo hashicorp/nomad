@@ -59,6 +59,11 @@ func TestSystemSched_JobRegister(t *testing.T) {
 		t.Fatalf("bad: %#v", out)
 	}
 
+	// Check the available nodes
+	if count, ok := out[0].Metrics.NodesAvailable["dc1"]; !ok || count != 10 {
+		t.Fatalf("bad: %#v", out[0].Metrics)
+	}
+
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
 

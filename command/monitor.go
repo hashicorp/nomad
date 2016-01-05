@@ -280,6 +280,14 @@ func dumpAllocStatus(ui cli.Ui, alloc *api.Allocation) {
 		ui.Output("  * No nodes were eligible for evaluation")
 	}
 
+	// Print a helpful message if the user has asked for a DC that has no
+	// available nodes.
+	for dc, available := range alloc.Metrics.NodesAvailable {
+		if available == 0 {
+			ui.Output(fmt.Sprintf("  * No nodes are available in datacenter %q", dc))
+		}
+	}
+
 	// Print filter info
 	for class, num := range alloc.Metrics.ClassFiltered {
 		ui.Output(fmt.Sprintf("  * Class %q filtered %d nodes", class, num))

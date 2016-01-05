@@ -123,6 +123,11 @@ func TestServiceSched_JobRegister_AllocFail(t *testing.T) {
 		t.Fatalf("bad: %#v", out[0].Metrics)
 	}
 
+	// Check the available nodes
+	if count, ok := out[0].Metrics.NodesAvailable["dc1"]; !ok || count != 0 {
+		t.Fatalf("bad: %#v", out[0].Metrics)
+	}
+
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
 

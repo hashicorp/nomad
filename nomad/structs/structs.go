@@ -1695,6 +1695,9 @@ type AllocMetric struct {
 	// NodesFiltered is the number of nodes filtered due to a constraint
 	NodesFiltered int
 
+	// NodesAvailable is the number of nodes available for evaluation per DC.
+	NodesAvailable map[string]int
+
 	// ClassFiltered is the number of nodes filtered by class
 	ClassFiltered map[string]int
 
