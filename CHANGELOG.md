@@ -8,6 +8,7 @@ IMPROVEMENTS:
   * cli: Output of agent-info is sorted [GH-617]
   * core: Node class constraint [GH-618]
   * core: User specifiable kill timeout [GH-624]
+  * core: Add available nodes by DC to AllocMetrics [GH-619]
 
 BUG FIXES:
   * cli: Handle parsing of un-named ports [GH-604]
