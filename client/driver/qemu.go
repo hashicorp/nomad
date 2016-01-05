@@ -167,7 +167,7 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		if len(forwarding) != 0 {
 			args = append(args,
 				"-netdev",
-				fmt.Sprintf("user,id=user.0%s", strings.Join(forwarding, ",")),
+				fmt.Sprintf("user,id=user.0,%s", strings.Join(forwarding, ",")),
 				"-device", "virtio-net,netdev=user.0",
 			)
 		}
