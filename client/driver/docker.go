@@ -154,21 +154,6 @@ func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool
 	return true, nil
 }
 
-func (d *DockerDriver) containerBinds(alloc *allocdir.AllocDir, task *structs.Task) ([]string, error) {
-	shared := alloc.SharedDir
-	local, ok := alloc.TaskDirs[task.Name]
-	if !ok {
-		return nil, fmt.Errorf("Failed to find task local directory: %v", task.Name)
-	}
-
-	return []string{
-		// "z" and "Z" option is to allocate directory with SELinux label.
-		fmt.Sprintf("%s:/%s:rw,z", shared, allocdir.SharedAllocName),
-		// capital "Z" will label with Multi-Category Security (MCS) labels
-		fmt.Sprintf("%s:/%s:rw,Z", local, allocdir.TaskLocal),
-	}, nil
-}
-
 // createContainer initializes a struct needed to call docker.client.CreateContainer()
 func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, driverConfig *DockerDriverConfig) (docker.CreateContainerOptions, error) {
 	var c docker.CreateContainerOptions
@@ -179,7 +164,7 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, dri
 		return c, fmt.Errorf("task.Resources is empty")
 	}
 
-	binds, err := d.containerBinds(ctx.AllocDir, task)
+	binds, err := getBindDirs(ctx.AllocDir, task)
 	if err != nil {
 		return c, err
 	}
