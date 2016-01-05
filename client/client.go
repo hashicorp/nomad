@@ -1,11 +1,9 @@
 package client
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"log"
 	"net"
@@ -660,15 +658,8 @@ func (c *Client) setupLogDaemon() error {
 	}
 
 	logDaemon := exec.Command(bin, "log-daemon", configuration)
-
-	stdOut, err := logDaemon.StdoutPipe()
-	if err != nil {
-		return fmt.Errorf("failed to get the stdout stream of the log daemon: %v", err)
-	}
-	stdErr, err := logDaemon.StderrPipe()
-	if err != nil {
-		return fmt.Errorf("failed to get the stdin stream of the log daemon: %v", err)
-	}
+	logDaemon.Stderr = c.config.LogOutput
+	logDaemon.Stdout = c.config.LogOutput
 
 	if err = logDaemon.Start(); err != nil {
 		return fmt.Errorf("unable to start the log daemon: %v", err)
@@ -682,7 +673,7 @@ func (c *Client) setupLogDaemon() error {
 		return fmt.Errorf("unable to join log daemon to the cgroup: %v", err)
 	}
 
-	go c.runLogDaemon(logDaemon, stdOut, stdErr)
+	go c.runLogDaemon(logDaemon)
 	return nil
 }
 
@@ -700,21 +691,7 @@ func (c *Client) createLogDaemonConfig(rpcPort int) (string, error) {
 	return buf.String(), nil
 }
 
-func (c *Client) runLogDaemon(logDaemon *exec.Cmd, stdOut io.Reader, stdErr io.Reader) {
-	func() {
-		scanner := bufio.NewScanner(stdOut)
-		for scanner.Scan() {
-			c.logger.Printf(scanner.Text())
-		}
-	}()
-
-	func() {
-		scanner := bufio.NewScanner(stdErr)
-		for scanner.Scan() {
-			c.logger.Printf(scanner.Text())
-		}
-	}()
-
+func (c *Client) runLogDaemon(logDaemon *exec.Cmd) {
 	if err := logDaemon.Wait(); err != nil {
 		c.logger.Printf("Error with log daemon: %v", err)
 	}
