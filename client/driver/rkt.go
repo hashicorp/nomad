@@ -151,9 +151,8 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	// Inject the environment variables.
 	envVars := TaskEnvironmentVariables(ctx, task)
 
-	// Clear the task directories as they are not currently supported.
-	envVars.ClearTaskLocalDir()
-	envVars.ClearAllocDir()
+	envVars.SetAllocDir(filepath.Join("/", allocdir.SharedAllocName))
+	envVars.SetTaskLocalDir(filepath.Join("/", allocdir.TaskLocal))
 
 	for k, v := range envVars.Map() {
 		cmdArgs = append(cmdArgs, fmt.Sprintf("--set-env=%v=%v", k, v))
@@ -161,6 +160,13 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 
 	// Append the run command.
 	cmdArgs = append(cmdArgs, "run", "--mds-register=false", img)
+
+	// Mount allc and task dirs
+	local, ok := ctx.AllocDir.TaskDirs[task.Name]
+	if !ok {
+		return nil, fmt.Errorf("Failed to find task local directory: %v", task.Name)
+	}
+	cmdArgs = append(cmdArgs, fmt.Sprintf("--volume %s,kind=empty,readOnly=false,source=%s --mount volume=data,target=%s", task.Name, local, ctx.AllocDir.SharedDir))
 
 	// Check if the user has overriden the exec command.
 	if execCmd, ok := task.Config["command"]; ok {
