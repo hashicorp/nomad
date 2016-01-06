@@ -150,11 +150,26 @@ The `job` object supports the following keys:
   and defaults to `service`. To learn more about each scheduler type visit
   [here](/docs/jobspec/schedulers.html)
 
-* `update` - Specifies the task update strategy. This requires providing
-  `max_parallel` as an integer and `stagger` as a time duration. If stagger
-  is provided as an integer, seconds are assumed. Otherwise the "s", "m",
-  and "h" suffix can be used, such as "30s". Both values default to zero,
-  which disables rolling updates.
+*   `update` - Specifies the task's update strategy. When omitted, rolling
+    updates are disabled. The `update` block has the following configuration:
+
+    ```
+    update {
+        // The number of tasks that can be updated in parallel.
+        max_parallel = 3
+
+        // A delay introduced between sets of task updates.
+        stagger = "30s"
+    }
+    ```
+
+    * `max_parallel` - `max_parallel` is given as an integer value and specifies
+      the number of tasks that can be updated at the same time.
+
+    * `stagger` - `stagger` introduces a delay between sets of task updates and
+      is given as an as a time duration. If stagger is provided as an integer,
+      seconds are assumed. Otherwise the "s", "m", and "h" suffix can be used,
+      such as "30s".
 
 *   `periodic` - `periodic` allows the job to be scheduled at fixed times, dates
     or intervals. The `periodic` block has the following configuration:
