@@ -182,8 +182,35 @@ func (m *monitor) monitor(evalID string) int {
 		// Query the evaluation
 		eval, _, err := m.client.Evaluations().Info(evalID, nil)
 		if err != nil {
-			m.ui.Error(fmt.Sprintf("Error reading evaluation: %s", err))
-			return 1
+			evals, _, err := m.client.Evaluations().PrefixList(evalID)
+			if err != nil {
+				m.ui.Error(fmt.Sprintf("Error reading evaluation: %s", err))
+				return 1
+			}
+			if len(evals) == 0 {
+				m.ui.Error(fmt.Sprintf("No evaluation(s) with prefix or id %q found", evalID))
+				return 1
+			}
+			if len(evals) > 1 {
+				// Format the evaluations
+				out := make([]string, len(evals)+1)
+				out[0] = "ID|Priority|Type|TriggeredBy|Status"
+				for i, eval := range evals {
+					out[i+1] = fmt.Sprintf("%s|%d|%s|%s|%s",
+						eval.ID,
+						eval.Priority,
+						eval.Type,
+						eval.TriggeredBy,
+						eval.Status)
+				}
+				m.ui.Output(fmt.Sprintf("Please disambiguate the desired evaluation\n\n%s", formatList(out)))
+				return 0
+			}
+			// Prefix lookup matched a single evaluation
+			eval, _, err = m.client.Evaluations().Info(evals[0].ID, nil)
+			if err != nil {
+				m.ui.Error(fmt.Sprintf("Error reading evaluation: %s", err))
+			}
 		}
 
 		// Create the new eval state.
@@ -196,7 +223,7 @@ func (m *monitor) monitor(evalID string) int {
 		state.index = eval.CreateIndex
 
 		// Query the allocations associated with the evaluation
-		allocs, _, err := m.client.Evaluations().Allocations(evalID, nil)
+		allocs, _, err := m.client.Evaluations().Allocations(eval.ID, nil)
 		if err != nil {
 			m.ui.Error(fmt.Sprintf("Error reading allocations: %s", err))
 			return 1

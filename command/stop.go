@@ -65,13 +65,40 @@ func (c *StopCommand) Run(args []string) int {
 	}
 
 	// Check if the job exists
-	if _, _, err := client.Jobs().Info(jobID, nil); err != nil {
-		c.Ui.Error(fmt.Sprintf("Error deregistering job: %s", err))
-		return 1
+	job, _, err := client.Jobs().Info(jobID, nil)
+	if err != nil {
+		jobs, _, err := client.Jobs().PrefixList(jobID)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error deregistering job: %s", err))
+			return 1
+		}
+		if len(jobs) == 0 {
+			c.Ui.Error(fmt.Sprintf("No job(s) with prefix or id %q found", jobID))
+			return 1
+		}
+		if len(jobs) > 1 {
+			out := make([]string, len(jobs)+1)
+			out[0] = "ID|Type|Priority|Status"
+			for i, job := range jobs {
+				out[i+1] = fmt.Sprintf("%s|%s|%d|%s",
+					job.ID,
+					job.Type,
+					job.Priority,
+					job.Status)
+			}
+			c.Ui.Output(fmt.Sprintf("Please disambiguate the desired job\n\n%s", formatList(out)))
+			return 0
+		}
+		// Prefix lookup matched a single job
+		job, _, err = client.Jobs().Info(jobs[0].ID, nil)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error deregistering job: %s", err))
+			return 1
+		}
 	}
 
 	// Invoke the stop
-	evalID, _, err := client.Jobs().Deregister(jobID, nil)
+	evalID, _, err := client.Jobs().Deregister(job.ID, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error deregistering job: %s", err))
 		return 1

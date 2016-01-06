@@ -74,6 +74,19 @@ func TestNodeStatusCommand_Run(t *testing.T) {
 	if strings.Contains(out, "Allocations") {
 		t.Fatalf("should not dump allocations")
 	}
+
+	// Query a single node based on prefix
+	if code := cmd.Run([]string{"-address=" + url, nodeID[:4]}); code != 0 {
+		t.Fatalf("expected exit 0, got: %d", code)
+	}
+	out = ui.OutputWriter.String()
+	if !strings.Contains(out, "mynode") {
+		t.Fatalf("expect to find mynode, got: %s", out)
+	}
+	if !strings.Contains(out, "Allocations") {
+		t.Fatalf("expected allocations, got: %s", out)
+	}
+	ui.OutputWriter.Reset()
 }
 
 func TestNodeStatusCommand_Fails(t *testing.T) {
@@ -99,12 +112,13 @@ func TestNodeStatusCommand_Fails(t *testing.T) {
 	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error querying node status") {
 		t.Fatalf("expected failed query error, got: %s", out)
 	}
+	ui.ErrorWriter.Reset()
 
 	// Fails on non-existent node
 	if code := cmd.Run([]string{"-address=" + url, "nope"}); code != 1 {
 		t.Fatalf("expected exit 1, got: %d", code)
 	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "not found") {
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, "No node(s) with prefix") {
 		t.Fatalf("expected not found error, got: %s", out)
 	}
 }

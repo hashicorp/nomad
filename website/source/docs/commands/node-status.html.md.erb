@@ -20,9 +20,11 @@ nomad node-status [options] [node]
 
 If no node ID is passed, then the command will enter "list mode" and dump a
 high-level list of all known nodes. This list output contains less information
-but is a good way to get a bird's-eye view of things. If a node ID is specified,
-then that particular node will be queried, and detailed information will be
-displayed.
+but is a good way to get a bird's-eye view of things.
+
+If there is an exact match based on the provided node ID or prefix, then that
+particular node will be queried, and detailed information will be displayed.
+Otherwise, a list of matching nodes and information will be displayed.
 
 ## General Options
 
@@ -50,7 +52,7 @@ Single-node view in short mode:
 $ nomad node-status -short 1f3f03ea-a420-b64b-c73b-51290ed7f481
 ID         = 1f3f03ea-a420-b64b-c73b-51290ed7f481
 Name       = node2
-Class      = 
+Class      =
 Datacenter = dc1
 Drain      = false
 Status     = ready
@@ -62,7 +64,7 @@ Full output for a single node:
 $ nomad node-status 1f3f03ea-a420-b64b-c73b-51290ed7f481
 ID         = 1f3f03ea-a420-b64b-c73b-51290ed7f481
 Name       = node2
-Class      = 
+Class      =
 Datacenter = dc1
 Drain      = false
 Status     = ready

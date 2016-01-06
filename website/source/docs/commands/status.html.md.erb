@@ -16,10 +16,13 @@ The `status` command displays status information for jobs.
 nomad status [options] [job]
 ```
 
-This command accepts an optional job ID as the sole argument. If the job ID is
-provided, information about the specific job is queried and displayed. If the ID
-is omitted, the command lists out all of the existing jobs and a few of the most
-useful status fields for each.
+This command accepts an optional job ID or prefix as the sole argument. If there
+is an exact match based on the provided job ID or prefix, then information about
+the specific job is queried and displayed. Otherwise, a list of matching jobs and
+information will be displayed.
+
+If the ID is omitted, the command lists out all of the existing jobs and a few of
+the most useful status fields for each.
 
 ## General Options
 

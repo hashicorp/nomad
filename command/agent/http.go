@@ -258,6 +258,14 @@ func parseConsistency(req *http.Request, b *structs.QueryOptions) {
 	}
 }
 
+// parsePrefix is used to parse the ?prefix query param
+func parsePrefix(req *http.Request, b *structs.QueryOptions) {
+	query := req.URL.Query()
+	if prefix := query.Get("prefix"); prefix != "" {
+		b.Prefix = prefix
+	}
+}
+
 // parseRegion is used to parse the ?region query param
 func (s *HTTPServer) parseRegion(req *http.Request, r *string) {
 	if other := req.URL.Query().Get("region"); other != "" {
@@ -271,5 +279,6 @@ func (s *HTTPServer) parseRegion(req *http.Request, r *string) {
 func (s *HTTPServer) parse(resp http.ResponseWriter, req *http.Request, r *string, b *structs.QueryOptions) bool {
 	s.parseRegion(req, r)
 	parseConsistency(req, b)
+	parsePrefix(req, b)
 	return parseWait(resp, req, b)
 }

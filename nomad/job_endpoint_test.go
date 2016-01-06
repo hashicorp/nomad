@@ -683,6 +683,25 @@ func TestJobEndpoint_ListJobs(t *testing.T) {
 	if resp2.Jobs[0].ID != job.ID {
 		t.Fatalf("bad: %#v", resp2.Jobs[0])
 	}
+
+	// Lookup the jobs by prefix
+	get = &structs.JobListRequest{
+		QueryOptions: structs.QueryOptions{Region: "global", Prefix: resp2.Jobs[0].ID[:4]},
+	}
+	var resp3 structs.JobListResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.List", get, &resp3); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp3.Index != 1000 {
+		t.Fatalf("Bad index: %d %d", resp3.Index, 1000)
+	}
+
+	if len(resp3.Jobs) != 1 {
+		t.Fatalf("bad: %#v", resp3.Jobs)
+	}
+	if resp3.Jobs[0].ID != job.ID {
+		t.Fatalf("bad: %#v", resp3.Jobs[0])
+	}
 }
 
 func TestJobEndpoint_ListJobs_Blocking(t *testing.T) {

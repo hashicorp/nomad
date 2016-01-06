@@ -40,7 +40,7 @@ func TestNodeDrainCommand_Fails(t *testing.T) {
 	if code := cmd.Run([]string{"-address=" + url, "-enable", "nope"}); code != 1 {
 		t.Fatalf("expected exit 1, got: %d", code)
 	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "not found") {
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, "No node(s) with prefix or id") {
 		t.Fatalf("expected not exist error, got: %s", out)
 	}
 	ui.ErrorWriter.Reset()

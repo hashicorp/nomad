@@ -68,8 +68,37 @@ func (c *AllocStatusCommand) Run(args []string) int {
 	// Query the allocation info
 	alloc, _, err := client.Allocations().Info(allocID, nil)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error querying allocation: %s", err))
-		return 1
+		allocs, _, err := client.Allocations().PrefixList(allocID)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error querying allocation: %v", err))
+			return 1
+		}
+		if len(allocs) == 0 {
+			c.Ui.Error(fmt.Sprintf("No allocation(s) with prefix or id %q found", allocID))
+			return 1
+		}
+		if len(allocs) > 1 {
+			// Format the allocs
+			out := make([]string, len(allocs)+1)
+			out[0] = "ID|EvalID|JobID|TaskGroup|DesiredStatus|ClientStatus"
+			for i, alloc := range allocs {
+				out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%s|%s",
+					alloc.ID,
+					alloc.EvalID,
+					alloc.JobID,
+					alloc.TaskGroup,
+					alloc.DesiredStatus,
+					alloc.ClientStatus)
+			}
+			c.Ui.Output(fmt.Sprintf("Please disambiguate the desired allocation\n\n%s", formatList(out)))
+			return 0
+		}
+		// Prefix lookup matched a single allocation
+		alloc, _, err = client.Allocations().Info(allocs[0].ID, nil)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error querying allocation: %s", err))
+			return 1
+		}
 	}
 
 	// Format the allocation data

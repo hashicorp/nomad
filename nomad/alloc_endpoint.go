@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/armon/go-metrics"
+	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/watch"
 )
@@ -31,7 +32,12 @@ func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListRes
 			if err != nil {
 				return err
 			}
-			iter, err := snap.Allocs()
+			var iter memdb.ResultIterator
+			if prefix := args.QueryOptions.Prefix; prefix != "" {
+				iter, err = snap.AllocsByIDPrefix(prefix)
+			} else {
+				iter, err = snap.Allocs()
+			}
 			if err != nil {
 				return err
 			}

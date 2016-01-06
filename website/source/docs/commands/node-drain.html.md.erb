@@ -21,9 +21,12 @@ nicely by providing the current drain status of a given node.
 nomad node-drain [options] <node>
 ```
 
-This command expects exactly one argument to specify the node ID to enable or
-disable drain mode for. It is also required to pass one of `-enable` or
-`-disable`, depending on which operation is desired.
+A node ID or prefix must be provided. If there is an exact match, the
+drain mode will be adjusted for that node. Otherwise, a list of matching
+nodes and information will be displayed.
+
+It is also required to pass one of `-enable` or `-disable`, depending on which
+operation is desired.
 
 ## General Options
 

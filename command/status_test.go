@@ -31,11 +31,11 @@ func TestStatusCommand_Run(t *testing.T) {
 	}
 
 	// Register two jobs
-	job1 := testJob("job1")
+	job1 := testJob("job1_sfx")
 	if _, _, err := client.Jobs().Register(job1, nil); err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	job2 := testJob("job2")
+	job2 := testJob("job2_sfx")
 	if _, _, err := client.Jobs().Register(job2, nil); err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -45,24 +45,44 @@ func TestStatusCommand_Run(t *testing.T) {
 		t.Fatalf("expected exit 0, got: %d", code)
 	}
 	out := ui.OutputWriter.String()
-	if !strings.Contains(out, "job1") || !strings.Contains(out, "job2") {
-		t.Fatalf("expected job1 and job2, got: %s", out)
+	if !strings.Contains(out, "job1_sfx") || !strings.Contains(out, "job2_sfx") {
+		t.Fatalf("expected job1_sfx and job2_sfx, got: %s", out)
 	}
 	ui.OutputWriter.Reset()
 
 	// Query a single job
-	if code := cmd.Run([]string{"-address=" + url, "job2"}); code != 0 {
+	if code := cmd.Run([]string{"-address=" + url, "job2_sfx"}); code != 0 {
 		t.Fatalf("expected exit 0, got: %d", code)
 	}
 	out = ui.OutputWriter.String()
-	if strings.Contains(out, "job1") || !strings.Contains(out, "job2") {
-		t.Fatalf("expected only job2, got: %s", out)
+	if strings.Contains(out, "job1_sfx") || !strings.Contains(out, "job2_sfx") {
+		t.Fatalf("expected only job2_sfx, got: %s", out)
 	}
 	if !strings.Contains(out, "Evaluations") {
 		t.Fatalf("should dump evaluations")
 	}
 	if !strings.Contains(out, "Allocations") {
 		t.Fatalf("should dump allocations")
+	}
+	ui.OutputWriter.Reset()
+
+	// Query jobs with prefix match
+	if code := cmd.Run([]string{"-address=" + url, "job"}); code != 0 {
+		t.Fatalf("expected exit 0, got: %d", code)
+	}
+	out = ui.OutputWriter.String()
+	if !strings.Contains(out, "job1_sfx") || !strings.Contains(out, "job2_sfx") {
+		t.Fatalf("expected job1_sfx and job2_sfx, got: %s", out)
+	}
+	ui.OutputWriter.Reset()
+
+	// Query a single job with prefix match
+	if code := cmd.Run([]string{"-address=" + url, "job1"}); code != 0 {
+		t.Fatalf("expected exit 0, got: %d", code)
+	}
+	out = ui.OutputWriter.String()
+	if !strings.Contains(out, "job1_sfx") || strings.Contains(out, "job2_sfx") {
+		t.Fatalf("expected only job1_sfx, got: %s", out)
 	}
 	ui.OutputWriter.Reset()
 

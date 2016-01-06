@@ -100,8 +100,41 @@ func (c *NodeStatusCommand) Run(args []string) int {
 	nodeID := args[0]
 	node, _, err := client.Nodes().Info(nodeID, nil)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error querying node info: %s", err))
-		return 1
+		// Exact lookup failed, try with prefix based search
+		nodes, _, err := client.Nodes().PrefixList(nodeID)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error querying node info: %s", err))
+			return 1
+		}
+		// Return error if no nodes are found
+		if len(nodes) == 0 {
+			c.Ui.Error(fmt.Sprintf("No node(s) with prefix %q found", nodeID))
+			return 1
+		}
+		if len(nodes) > 1 {
+			// Format the nodes list that matches the prefix so that the user
+			// can create a more specific request
+			out := make([]string, len(nodes)+1)
+			out[0] = "ID|DC|Name|Class|Drain|Status"
+			for i, node := range nodes {
+				out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%v|%s",
+					node.ID,
+					node.Datacenter,
+					node.Name,
+					node.NodeClass,
+					node.Drain,
+					node.Status)
+			}
+			// Dump the output
+			c.Ui.Output(fmt.Sprintf("Please disambiguate the desired node\n\n%s", formatList(out)))
+			return 0
+		}
+		// Prefix lookup matched a single node
+		node, _, err = client.Nodes().Info(nodes[0].ID, nil)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error querying node info: %s", err))
+			return 1
+		}
 	}
 
 	m := node.Attributes
@@ -132,7 +165,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 	var allocs []string
 	if !short {
 		// Query the node allocations
-		nodeAllocs, _, err := client.Nodes().Allocations(nodeID, nil)
+		nodeAllocs, _, err := client.Nodes().Allocations(node.ID, nil)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error querying node allocations: %s", err))
 			return 1

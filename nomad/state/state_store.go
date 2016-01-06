@@ -252,6 +252,18 @@ func (s *StateStore) NodeByID(nodeID string) (*structs.Node, error) {
 	return nil, nil
 }
 
+// NodesByIDPrefix is used to lookup nodes by prefix
+func (s *StateStore) NodesByIDPrefix(nodeID string) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	iter, err := txn.Get("nodes", "id_prefix", nodeID)
+	if err != nil {
+		return nil, fmt.Errorf("node lookup failed: %v", err)
+	}
+
+	return iter, nil
+}
+
 // Nodes returns an iterator over all the nodes
 func (s *StateStore) Nodes() (memdb.ResultIterator, error) {
 	txn := s.db.Txn(false)
@@ -345,6 +357,18 @@ func (s *StateStore) JobByID(id string) (*structs.Job, error) {
 		return existing.(*structs.Job), nil
 	}
 	return nil, nil
+}
+
+// JobsByIDPrefix is used to lookup a job by prefix
+func (s *StateStore) JobsByIDPrefix(id string) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	iter, err := txn.Get("jobs", "id_prefix", id)
+	if err != nil {
+		return nil, fmt.Errorf("job lookup failed: %v", err)
+	}
+
+	return iter, nil
 }
 
 // Jobs returns an iterator over all the jobs
@@ -607,6 +631,18 @@ func (s *StateStore) EvalByID(id string) (*structs.Evaluation, error) {
 	return nil, nil
 }
 
+// EvalsByIDPrefix is used to lookup evaluations by prefix
+func (s *StateStore) EvalsByIDPrefix(id string) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	iter, err := txn.Get("evals", "id_prefix", id)
+	if err != nil {
+		return nil, fmt.Errorf("eval lookup failed: %v", err)
+	}
+
+	return iter, nil
+}
+
 // EvalsByJob returns all the evaluations by job id
 func (s *StateStore) EvalsByJob(jobID string) ([]*structs.Evaluation, error) {
 	txn := s.db.Txn(false)
@@ -754,6 +790,18 @@ func (s *StateStore) AllocByID(id string) (*structs.Allocation, error) {
 		return existing.(*structs.Allocation), nil
 	}
 	return nil, nil
+}
+
+// AllocsByIDPrefix is used to lookup allocs by prefix
+func (s *StateStore) AllocsByIDPrefix(id string) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	iter, err := txn.Get("allocs", "id_prefix", id)
+	if err != nil {
+		return nil, fmt.Errorf("alloc lookup failed: %v", err)
+	}
+
+	return iter, nil
 }
 
 // AllocsByNode returns all the allocations by node

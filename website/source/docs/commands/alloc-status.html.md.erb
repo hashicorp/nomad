@@ -19,8 +19,9 @@ current state of its tasks.
 nomad alloc-status [options] <allocation>
 ```
 
-An allocation ID must be provided. This specific allocation will be queried
-and detailed information for it will be dumped.
+An allocation ID or prefix must be provided. If there is an exact match, the
+full details of the allocation will be displayed. Otherwise, a list of matching
+allocations and information will be displayed.
 
 ## General Options
 

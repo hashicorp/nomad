@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/watch"
@@ -216,6 +217,77 @@ func TestStateStore_Nodes(t *testing.T) {
 	}
 }
 
+func TestStateStore_NodesByIDPrefix(t *testing.T) {
+	state := testStateStore(t)
+	node := mock.Node()
+
+	node.ID = "11111111-662e-d0ab-d1c9-3e434af7bdb4"
+	err := state.UpsertNode(1000, node)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	iter, err := state.NodesByIDPrefix(node.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	gatherNodes := func(iter memdb.ResultIterator) []*structs.Node {
+		var nodes []*structs.Node
+		for {
+			raw := iter.Next()
+			if raw == nil {
+				break
+			}
+			node := raw.(*structs.Node)
+			nodes = append(nodes, node)
+		}
+		return nodes
+	}
+
+	nodes := gatherNodes(iter)
+	if len(nodes) != 1 {
+		t.Fatalf("err: %v", err)
+	}
+
+	iter, err = state.NodesByIDPrefix("11")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	nodes = gatherNodes(iter)
+	if len(nodes) != 1 {
+		t.Fatalf("err: %v", err)
+	}
+
+	node = mock.Node()
+	node.ID = "11222222-662e-d0ab-d1c9-3e434af7bdb4"
+	err = state.UpsertNode(1001, node)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	iter, err = state.NodesByIDPrefix("11")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	nodes = gatherNodes(iter)
+	if len(nodes) != 2 {
+		t.Fatalf("err: %v", err)
+	}
+
+	iter, err = state.NodesByIDPrefix("111")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	nodes = gatherNodes(iter)
+	if len(nodes) != 1 {
+		t.Fatalf("err: %v", err)
+	}
+}
+
 func TestStateStore_RestoreNode(t *testing.T) {
 	state := testStateStore(t)
 	node := mock.Node()
@@ -405,6 +477,76 @@ func TestStateStore_Jobs(t *testing.T) {
 	}
 }
 
+func TestStateStore_JobsByIDPrefix(t *testing.T) {
+	state := testStateStore(t)
+	job := mock.Job()
+
+	job.ID = "redis"
+	err := state.UpsertJob(1000, job)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	iter, err := state.JobsByIDPrefix(job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	gatherJobs := func(iter memdb.ResultIterator) []*structs.Job {
+		var jobs []*structs.Job
+		for {
+			raw := iter.Next()
+			if raw == nil {
+				break
+			}
+			jobs = append(jobs, raw.(*structs.Job))
+		}
+		return jobs
+	}
+
+	jobs := gatherJobs(iter)
+	if len(jobs) != 1 {
+		t.Fatalf("err: %v", err)
+	}
+
+	iter, err = state.JobsByIDPrefix("re")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	jobs = gatherJobs(iter)
+	if len(jobs) != 1 {
+		t.Fatalf("err: %v", err)
+	}
+
+	job = mock.Job()
+	job.ID = "riak"
+	err = state.UpsertJob(1001, job)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	iter, err = state.JobsByIDPrefix("r")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	jobs = gatherJobs(iter)
+	if len(jobs) != 2 {
+		t.Fatalf("err: %v", err)
+	}
+
+	iter, err = state.JobsByIDPrefix("ri")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	jobs = gatherJobs(iter)
+	if len(jobs) != 1 {
+		t.Fatalf("err: %v", err)
+	}
+}
+
 func TestStateStore_JobsByPeriodic(t *testing.T) {
 	state := testStateStore(t)
 	var periodic, nonPeriodic []*structs.Job
@@ -444,9 +586,6 @@ func TestStateStore_JobsByPeriodic(t *testing.T) {
 	}
 
 	iter, err = state.JobsByPeriodic(false)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
 
 	var outNonPeriodic []*structs.Job
 	for {
@@ -1142,6 +1281,74 @@ func TestStateStore_Evals(t *testing.T) {
 	}
 }
 
+func TestStateStore_EvalsByIDPrefix(t *testing.T) {
+	state := testStateStore(t)
+	var evals []*structs.Evaluation
+
+	ids := []string{
+		"aaaaaaaa-7bfb-395d-eb95-0685af2176b2",
+		"aaaaaaab-7bfb-395d-eb95-0685af2176b2",
+		"aaaaaabb-7bfb-395d-eb95-0685af2176b2",
+		"aaaaabbb-7bfb-395d-eb95-0685af2176b2",
+		"aaaabbbb-7bfb-395d-eb95-0685af2176b2",
+		"aaabbbbb-7bfb-395d-eb95-0685af2176b2",
+		"aabbbbbb-7bfb-395d-eb95-0685af2176b2",
+		"abbbbbbb-7bfb-395d-eb95-0685af2176b2",
+		"bbbbbbbb-7bfb-395d-eb95-0685af2176b2",
+	}
+	for i := 0; i < 9; i++ {
+		eval := mock.Eval()
+		eval.ID = ids[i]
+		evals = append(evals, eval)
+	}
+
+	err := state.UpsertEvals(1000, evals)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	iter, err := state.EvalsByIDPrefix("aaaa")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	gatherEvals := func(iter memdb.ResultIterator) []*structs.Evaluation {
+		var evals []*structs.Evaluation
+		for {
+			raw := iter.Next()
+			if raw == nil {
+				break
+			}
+			evals = append(evals, raw.(*structs.Evaluation))
+		}
+		return evals
+	}
+
+	out := gatherEvals(iter)
+	if len(out) != 5 {
+		t.Fatalf("bad: expected five evaluations, got: %#v", out)
+	}
+
+	sort.Sort(EvalIDSort(evals))
+
+	for index, eval := range out {
+		if ids[index] != eval.ID {
+			t.Fatalf("bad: got unexpected id: %s", eval.ID)
+		}
+	}
+
+	iter, err = state.EvalsByIDPrefix("b-a7bfb")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	out = gatherEvals(iter)
+	if len(out) != 0 {
+		t.Fatalf("bad: unexpected zero evaluations, got: %#v", out)
+	}
+
+}
+
 func TestStateStore_RestoreEval(t *testing.T) {
 	state := testStateStore(t)
 	eval := mock.Eval()
@@ -1399,6 +1606,73 @@ func TestStateStore_AllocsByJob(t *testing.T) {
 
 	if !reflect.DeepEqual(allocs, out) {
 		t.Fatalf("bad: %#v %#v", allocs, out)
+	}
+}
+
+func TestStateStore_AllocsByIDPrefix(t *testing.T) {
+	state := testStateStore(t)
+	var allocs []*structs.Allocation
+
+	ids := []string{
+		"aaaaaaaa-7bfb-395d-eb95-0685af2176b2",
+		"aaaaaaab-7bfb-395d-eb95-0685af2176b2",
+		"aaaaaabb-7bfb-395d-eb95-0685af2176b2",
+		"aaaaabbb-7bfb-395d-eb95-0685af2176b2",
+		"aaaabbbb-7bfb-395d-eb95-0685af2176b2",
+		"aaabbbbb-7bfb-395d-eb95-0685af2176b2",
+		"aabbbbbb-7bfb-395d-eb95-0685af2176b2",
+		"abbbbbbb-7bfb-395d-eb95-0685af2176b2",
+		"bbbbbbbb-7bfb-395d-eb95-0685af2176b2",
+	}
+	for i := 0; i < 9; i++ {
+		alloc := mock.Alloc()
+		alloc.ID = ids[i]
+		allocs = append(allocs, alloc)
+	}
+
+	err := state.UpsertAllocs(1000, allocs)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	iter, err := state.AllocsByIDPrefix("aaaa")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	gatherAllocs := func(iter memdb.ResultIterator) []*structs.Allocation {
+		var allocs []*structs.Allocation
+		for {
+			raw := iter.Next()
+			if raw == nil {
+				break
+			}
+			allocs = append(allocs, raw.(*structs.Allocation))
+		}
+		return allocs
+	}
+
+	out := gatherAllocs(iter)
+	if len(out) != 5 {
+		t.Fatalf("bad: expected five allocations, got: %#v", out)
+	}
+
+	sort.Sort(AllocIDSort(allocs))
+
+	for index, alloc := range out {
+		if ids[index] != alloc.ID {
+			t.Fatalf("bad: got unexpected id: %s", alloc.ID)
+		}
+	}
+
+	iter, err = state.AllocsByIDPrefix("b-a7bfb")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	out = gatherAllocs(iter)
+	if len(out) != 0 {
+		t.Fatalf("bad: unexpected zero allocations, got: %#v", out)
 	}
 }
 

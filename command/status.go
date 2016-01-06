@@ -95,8 +95,34 @@ func (c *StatusCommand) Run(args []string) int {
 	jobID := args[0]
 	job, _, err := client.Jobs().Info(jobID, nil)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error querying job: %s", err))
-		return 1
+		jobs, _, err := client.Jobs().PrefixList(jobID)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error querying job: %s", err))
+			return 1
+		}
+		if len(jobs) == 0 {
+			c.Ui.Error(fmt.Sprintf("No job(s) with prefix or id %q found", jobID))
+			return 1
+		}
+		if len(jobs) > 1 {
+			out := make([]string, len(jobs)+1)
+			out[0] = "ID|Type|Priority|Status"
+			for i, job := range jobs {
+				out[i+1] = fmt.Sprintf("%s|%s|%d|%s",
+					job.ID,
+					job.Type,
+					job.Priority,
+					job.Status)
+			}
+			c.Ui.Output(fmt.Sprintf("Please disambiguate the desired job\n\n%s", formatList(out)))
+			return 0
+		}
+		// Prefix lookup matched a single job
+		job, _, err = client.Jobs().Info(jobs[0].ID, nil)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error querying job: %s", err))
+			return 1
+		}
 	}
 
 	// Check if it is periodic
@@ -129,14 +155,14 @@ func (c *StatusCommand) Run(args []string) int {
 		var evals, allocs []string
 
 		// Query the evaluations
-		jobEvals, _, err := client.Jobs().Evaluations(jobID, nil)
+		jobEvals, _, err := client.Jobs().Evaluations(job.ID, nil)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error querying job evaluations: %s", err))
 			return 1
 		}
 
 		// Query the allocations
-		jobAllocs, _, err := client.Jobs().Allocations(jobID, nil)
+		jobAllocs, _, err := client.Jobs().Allocations(job.ID, nil)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error querying job allocations: %s", err))
 			return 1
