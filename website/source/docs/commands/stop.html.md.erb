@@ -17,8 +17,10 @@ to cancel all of the running allocations.
 nomad stop [options] <job>
 ```
 
-The stop command requires a single argument, specifying the job ID (prefix) to
-cancel.
+The stop command requires a single argument, specifying the job ID or prefix to
+cancel. If there is an exact match based on the provided job ID or prefix, then
+the job will be cancelled. Otherwise, a list of matching jobs and information
+will be displayed.
 
 Upon successful deregistration, an interactive monitor session will start to
 display log lines as the job unwinds its allocations and completes shutting

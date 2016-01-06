@@ -97,9 +97,10 @@ func (c *NodeDrainCommand) Run(args []string) int {
 					node.Status)
 			}
 			// Dump the output
-			c.Ui.Output(formatList(out))
+			c.Ui.Output(fmt.Sprintf("Please disambiguate the desired node\n\n%s", formatList(out)))
 			return 0
 		}
+		// Prefix lookup matched a single node
 		node, _, err = client.Nodes().Info(nodes[0].ID, nil)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error toggling drain mode: %s", err))

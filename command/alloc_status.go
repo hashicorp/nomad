@@ -70,7 +70,7 @@ func (c *AllocStatusCommand) Run(args []string) int {
 	if err != nil {
 		allocs, _, err := client.Allocations().PrefixList(allocID)
 		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error querying allocation: %s", err))
+			c.Ui.Error(fmt.Sprintf("Error querying allocation: %v", err))
 			return 1
 		}
 		if len(allocs) == 0 {
@@ -90,9 +90,10 @@ func (c *AllocStatusCommand) Run(args []string) int {
 					alloc.DesiredStatus,
 					alloc.ClientStatus)
 			}
-			c.Ui.Output(formatList(out))
+			c.Ui.Output(fmt.Sprintf("Please disambiguate the desired allocation\n\n%s", formatList(out)))
 			return 0
 		}
+		// Prefix lookup matched a single allocation
 		alloc, _, err = client.Allocations().Info(allocs[0].ID, nil)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error querying allocation: %s", err))

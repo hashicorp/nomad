@@ -86,9 +86,10 @@ func (c *StopCommand) Run(args []string) int {
 					job.Priority,
 					job.Status)
 			}
-			c.Ui.Output(formatList(out))
+			c.Ui.Output(fmt.Sprintf("Please disambiguate the desired job\n\n%s", formatList(out)))
 			return 0
 		}
+		// Prefix lookup matched a single job
 		job, _, err = client.Jobs().Info(jobs[0].ID, nil)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error deregistering job: %s", err))

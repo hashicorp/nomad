@@ -45,7 +45,7 @@ func TestHTTP_EvalList(t *testing.T) {
 			t.Fatalf("missing last contact")
 		}
 
-		// Check the job
+		// Check the eval
 		e := obj.([]*structs.Evaluation)
 		if len(e) != 2 {
 			t.Fatalf("bad: %#v", e)
@@ -91,10 +91,15 @@ func TestHTTP_EvalPrefixList(t *testing.T) {
 			t.Fatalf("missing last contact")
 		}
 
-		// Check the job
+		// Check the eval
 		e := obj.([]*structs.Evaluation)
 		if len(e) != 1 {
 			t.Fatalf("bad: %#v", e)
+		}
+
+		// Check the identifier
+		if e[0].ID != eval2.ID {
+			t.Fatalf("expected eval ID: %v, Actual: %v", eval2.ID, e[0].ID)
 		}
 	})
 }

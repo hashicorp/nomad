@@ -203,9 +203,10 @@ func (m *monitor) monitor(evalID string) int {
 						eval.TriggeredBy,
 						eval.Status)
 				}
-				m.ui.Output(formatList(out))
+				m.ui.Output(fmt.Sprintf("Please disambiguate the desired evaluation\n\n%s", formatList(out)))
 				return 0
 			}
+			// Prefix lookup matched a single evaluation
 			eval, _, err = m.client.Evaluations().Info(evals[0].ID, nil)
 			if err != nil {
 				m.ui.Error(fmt.Sprintf("Error reading evaluation: %s", err))

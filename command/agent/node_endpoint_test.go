@@ -48,7 +48,7 @@ func TestHTTP_NodesList(t *testing.T) {
 			t.Fatalf("missing last contact")
 		}
 
-		// Check the job
+		// Check the nodes
 		n := obj.([]*structs.NodeListStub)
 		if len(n) < 3 { // Maybe 4 including client
 			t.Fatalf("bad: %#v", n)
@@ -97,7 +97,7 @@ func TestHTTP_NodesPrefixList(t *testing.T) {
 			t.Fatalf("missing last contact")
 		}
 
-		// Check the job
+		// Check the nodes
 		n := obj.([]*structs.NodeListStub)
 		if len(n) != 3 {
 			t.Fatalf("bad: %#v", n)

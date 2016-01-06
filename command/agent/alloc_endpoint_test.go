@@ -45,7 +45,7 @@ func TestHTTP_AllocsList(t *testing.T) {
 			t.Fatalf("missing last contact")
 		}
 
-		// Check the job
+		// Check the alloc
 		n := obj.([]*structs.AllocListStub)
 		if len(n) != 2 {
 			t.Fatalf("bad: %#v", n)
@@ -91,10 +91,15 @@ func TestHTTP_AllocsPrefixList(t *testing.T) {
 			t.Fatalf("missing last contact")
 		}
 
-		// Check the job
+		// Check the alloc
 		n := obj.([]*structs.AllocListStub)
 		if len(n) != 1 {
 			t.Fatalf("bad: %#v", n)
+		}
+
+		// Check the identifier
+		if n[0].ID != alloc2.ID {
+			t.Fatalf("expected alloc ID: %v, Actual: %v", alloc2.ID, n[0].ID)
 		}
 	})
 }

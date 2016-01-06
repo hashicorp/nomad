@@ -67,18 +67,13 @@ func TestNodes_PrefixList(t *testing.T) {
 	})
 
 	// Find node based on four character prefix
-	testutil.WaitForResult(func() (bool, error) {
-		out, qm, err = nodes.PrefixList(nodeID[:4])
-		if err != nil {
-			return false, err
-		}
-		if n := len(out); n != 1 {
-			return false, fmt.Errorf("expected 1 node, got: %d ", n)
-		}
-		return true, nil
-	}, func(err error) {
+	out, qm, err = nodes.PrefixList(nodeID[:4])
+	if err != nil {
 		t.Fatalf("err: %s", err)
-	})
+	}
+	if n := len(out); n != 1 {
+		t.Fatalf("expected 1 node, got: %d ", n)
+	}
 
 	// Check that we got valid QueryMeta.
 	assertQueryMeta(t, qm)
