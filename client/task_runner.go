@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
-	"net/rpc"
 	"os"
 	"path/filepath"
 	"sync"
@@ -28,6 +27,7 @@ type TaskRunner struct {
 	alloc          *structs.Allocation
 	restartTracker *RestartTracker
 	consulService  *ConsulService
+	logClient      *logdaemon.LogDaemonClient
 
 	task     *structs.Task
 	state    *structs.TaskState
@@ -71,6 +71,8 @@ func NewTaskRunner(logger *log.Logger, config *config.Config,
 		destroyCh:      make(chan struct{}),
 		waitCh:         make(chan struct{}),
 	}
+	ipcAddr := config.Node.Attributes["client.logdaemon.ipcserver"]
+	tc.logClient = logdaemon.NewLogDaemonClient(ipcAddr, logger)
 	return tc
 }
 
@@ -344,6 +346,8 @@ func (r *TaskRunner) Destroy() {
 	r.destroyLock.Lock()
 	defer r.destroyLock.Unlock()
 
+	r.logClient.Remove(&logdaemon.TaskInfo{Name: r.task.Name})
+
 	if r.destroy {
 		return
 	}
@@ -352,23 +356,18 @@ func (r *TaskRunner) Destroy() {
 }
 
 func (r *TaskRunner) registerTaskWithLogDaemon() {
-	ipcAddr := r.config.Node.Attributes["client.logdaemon.ipcserver"]
-	if ipcAddr == "" {
-		r.logger.Printf("[DEBUG] client: ipc addr for logdaemon not found")
-		return
-	}
-	client, err := rpc.DialHTTP("tcp", r.config.Node.Attributes["client.logdaemon.ipcserver"])
-	if err != nil {
-		r.logger.Printf("[INFO] client: error registering task with log daemon: %v", err)
-	}
 	taskInfo := logdaemon.TaskInfo{
 		HandleId: r.handle.ID(),
 		AllocDir: r.ctx.AllocDir,
 		AllocID:  r.alloc.ID,
 		Name:     r.task.Name,
 	}
-	var response string
-	if err := client.Call("RunningTasks.Register", taskInfo, &response); err != nil {
-		r.logger.Printf("[INFO] client: error registering task with log daemon: %v", err)
+	r.logClient.Register(&taskInfo)
+}
+
+func (r *TaskRunner) removeTaskFromLogDaemon() {
+	taskInfo := logdaemon.TaskInfo{
+		Name: r.task.Name,
 	}
+	r.logClient.Remove(&taskInfo)
 }

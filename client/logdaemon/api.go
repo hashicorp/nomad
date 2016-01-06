@@ -114,6 +114,7 @@ func (ld *LogDaemon) Wait() {
 	for {
 		select {
 		case <-signalChan:
+			ld.logger.Printf("[INFO] client.logdaemon: shutting down")
 			os.Exit(0)
 		}
 	}
