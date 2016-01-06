@@ -44,6 +44,7 @@ func (l *LogDaemonCommand) Run(args []string) int {
 		return 1
 	}
 	logDaemon.Start()
+	logDaemon.Wait()
 	return 0
 }
 

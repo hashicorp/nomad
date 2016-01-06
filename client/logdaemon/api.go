@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/rpc"
 	"os"
+	"os/signal"
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -85,8 +86,11 @@ func NewLogDaemon(config *structs.LogDaemonConfig) (*LogDaemon, error) {
 // Start starts the http server of the log daemon
 func (ld *LogDaemon) Start() error {
 	ld.logger.Printf("[INFO] client.logdaemon: api server has started, it is listening on %v", ld.apiListener.Addr())
-	go ld.startIpcServer()
 	go http.Serve(ld.apiListener, ld.mux)
+
+	rpc.HandleHTTP()
+	ld.logger.Printf("[INFO] client.logdaemon: ipc server has started, it is listening on %v", ld.ipcListener.Addr())
+	go http.Serve(ld.ipcListener, nil)
 	return nil
 }
 
@@ -98,14 +102,19 @@ func (ld *LogDaemon) configureRoutes() {
 	rpc.Register(ld.runningTasks)
 }
 
-func (ld *LogDaemon) startIpcServer() {
-	ld.logger.Printf("[INFO] client.logdaemon: ipc server has started, it is listening on %v", ld.ipcListener.Addr())
-	rpc.HandleHTTP()
-	rpc.Accept(ld.ipcListener)
-}
-
 // Ping responds by writing pong to the response. Serves as the health check
 // endpoint for the log daemon
 func (ld *LogDaemon) Ping(resp http.ResponseWriter, req *http.Request) {
 	fmt.Fprint(resp, "pong")
+}
+
+func (ld *LogDaemon) Wait() {
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, os.Interrupt)
+	for {
+		select {
+		case <-signalChan:
+			os.Exit(0)
+		}
+	}
 }

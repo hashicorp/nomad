@@ -9,7 +9,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-func TestClientRegisterTask(t *testing.T) {
+func TestClientRegisterAndRemoveTask(t *testing.T) {
 	apiPort, err := getFreePort()
 	if err != nil {
 		t.Fatalf("error in getting free port : %v", err)
@@ -32,7 +32,7 @@ func TestClientRegisterTask(t *testing.T) {
 
 	ld.Start()
 
-	time.Sleep(2 * time.Second)
+	time.Sleep(1 * time.Second)
 
 	client := NewLogDaemonClient(cfg.IPCAddr, ld.logger)
 
@@ -47,6 +47,20 @@ func TestClientRegisterTask(t *testing.T) {
 	if len(ld.runningTasks.tasks) != 1 {
 		t.Fatalf("Expected number of registered tasks: %v, Actual: %v", 1, len(ld.runningTasks.tasks))
 	}
+
+	if _, ok := ld.runningTasks.tasks["foo"]; !ok {
+		t.Fatal("Expected task foo to be present")
+	}
+
+	client.Remove(&tInfo)
+	if len(ld.runningTasks.tasks) != 0 {
+		t.Fatalf("Expected number of registered tasks: %v, Actual: %v", 0, len(ld.runningTasks.tasks))
+	}
+
+	if _, ok := ld.runningTasks.tasks["foo"]; ok {
+		t.Fatal("Expected task foo to be not present")
+	}
+
 }
 
 func getFreePort() (int, error) {
