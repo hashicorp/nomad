@@ -680,7 +680,7 @@ func (c *Client) setupLogDaemon() error {
 func (c *Client) createLogDaemonConfig(rpcPort int) (string, error) {
 	conf := structs.LogDaemonConfig{
 		APIAddr: c.config.Node.LogDaemonAddr,
-		RPCPort: rpcPort,
+		RPCAddr: fmt.Sprintf("127.0.0.1:%d", rpcPort),
 	}
 
 	var buf bytes.Buffer

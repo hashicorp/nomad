@@ -2097,5 +2097,5 @@ func Encode(t MessageType, msg interface{}) ([]byte, error) {
 // daemon when it's forked off by the nomad client
 type LogDaemonConfig struct {
 	APIAddr string
-	RPCPort int
+	RPCAddr string
 }

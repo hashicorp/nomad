@@ -1,35 +1,43 @@
 package logdaemon
 
 import (
-	"crypto/sha1"
-	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"net"
 	"net/http"
+	"net/rpc"
 	"os"
 
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-type trackedTask struct {
-	Name    string `json:"name"`
-	AllocId string `json:"alloc"`
-	Driver  string `json:"driver"`
+type TaskInfo struct {
+	HandleId string
+	AllocDir *allocdir.AllocDir
+	AllocID  string
+	Name     string
 }
 
-func (tt *trackedTask) Hash() string {
-	h := sha1.New()
-	io.WriteString(h, tt.Name)
-	io.WriteString(h, tt.AllocId)
-	return fmt.Sprintf("%x", h.Sum(nil))
+type RunningTasks struct {
+	tasks map[string]*TaskInfo
+}
+
+func (r *RunningTasks) Register(task *TaskInfo, reply *string) error {
+	r.tasks[task.Name] = task
+	return nil
+}
+
+func (r *RunningTasks) Remove(task *TaskInfo, reply *string) error {
+	delete(r.tasks, task.Name)
+	return nil
 }
 
 type LogDaemon struct {
-	mux      *http.ServeMux
-	listener net.Listener
-	tasks    map[string]*trackedTask
+	mux          *http.ServeMux
+	apiListener  net.Listener
+	ipcListener  net.Listener
+	runningTasks *RunningTasks
 
 	logger *log.Logger
 }
@@ -37,81 +45,60 @@ type LogDaemon struct {
 // NewLogDaemon creates a new logging daemon
 func NewLogDaemon(config *structs.LogDaemonConfig) (*LogDaemon, error) {
 
-	// Create the mux
+	// Create the mux for api
 	mux := http.NewServeMux()
 
-	// Create the listener
-	listener, err := net.Listen("tcp", config.APIAddr)
+	// Create the api listener
+	apiListener, err := net.Listen("tcp", config.APIAddr)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create the ipc listener
+	ipcListener, err := net.Listen("tcp", config.RPCAddr)
 	if err != nil {
 		return nil, err
 	}
 
 	// Create the log Daemon
 	ld := LogDaemon{
-		mux:      mux,
-		listener: listener,
-		tasks:    make(map[string]*trackedTask),
-		logger:   log.New(os.Stdout, "", 0),
+		mux:         mux,
+		apiListener: apiListener,
+		ipcListener: ipcListener,
+		runningTasks: &RunningTasks{
+			tasks: make(map[string]*TaskInfo),
+		},
+		logger: log.New(os.Stdout, "", log.LstdFlags),
 	}
 
 	// Configure the routes
 	ld.configureRoutes()
+
+	go ld.startIpcServer()
 
 	return &ld, nil
 }
 
 // Start starts the http server of the log daemon
 func (ld *LogDaemon) Start() error {
-	ld.logger.Printf("[INFO] log daemon has started, it is listening on %v", ld.listener.Addr())
-	return http.Serve(ld.listener, ld.mux)
+	ld.logger.Printf("[INFO] client.logdaemon: api server has started, it is listening on %v", ld.apiListener.Addr())
+	return http.Serve(ld.apiListener, ld.mux)
 }
 
 // configureRoutes sets up the mux with the various api end points of the log
 // daemon
 func (ld *LogDaemon) configureRoutes() {
 	ld.mux.HandleFunc("/ping", ld.Ping)
-	ld.mux.HandleFunc("/internal/tasks", ld.Tasks)
+}
+
+func (ld *LogDaemon) startIpcServer() {
+	rpc.Register(ld.runningTasks)
+	ld.logger.Printf("[INFO] client.logdaemon: ipc server has started, it is listening on %v", ld.ipcListener.Addr())
+	rpc.Accept(ld.ipcListener)
 }
 
 // Ping responds by writing pong to the response. Serves as the health check
 // endpoint for the log daemon
 func (ld *LogDaemon) Ping(resp http.ResponseWriter, req *http.Request) {
 	fmt.Fprint(resp, "pong")
-}
-
-// Tasks handles requests for registering new tasks or deleting tasks with the
-// logging daemon. Once a task is registered the logging daemon can stream logs
-// produces by the task.
-func (ld *LogDaemon) Tasks(resp http.ResponseWriter, req *http.Request) {
-	if req.Method == "POST" {
-		ld.registerTask(resp, req)
-	} else if req.Method == "DELETE" {
-		ld.deleteTask(resp, req)
-	} else {
-		resp.WriteHeader(http.StatusBadRequest)
-	}
-}
-
-func (ld *LogDaemon) registerTask(resp http.ResponseWriter, req *http.Request) {
-	decoder := json.NewDecoder(req.Body)
-	var tt trackedTask
-	if err := decoder.Decode(&tt); err != nil {
-		resp.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(resp, "Error while decoding payload for register task req: %v", err)
-		return
-	}
-	ld.tasks[tt.Hash()] = &trackedTask{Name: tt.Name, AllocId: tt.AllocId, Driver: tt.Driver}
-	resp.WriteHeader(http.StatusCreated)
-}
-
-func (ld *LogDaemon) deleteTask(resp http.ResponseWriter, req *http.Request) {
-	decoder := json.NewDecoder(req.Body)
-	var tt trackedTask
-	if err := decoder.Decode(&tt); err != nil {
-		resp.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(resp, "Error while decoding payload for delete task req: %v", err)
-		return
-	}
-	delete(ld.tasks, tt.Hash())
-	resp.WriteHeader(http.StatusAccepted)
 }
