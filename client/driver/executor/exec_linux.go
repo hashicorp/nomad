@@ -20,7 +20,6 @@ import (
 	cgroupConfig "github.com/opencontainers/runc/libcontainer/configs"
 
 	"github.com/hashicorp/nomad/client/allocdir"
-	"github.com/hashicorp/nomad/client/driver/environment"
 	"github.com/hashicorp/nomad/client/driver/spawn"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -161,8 +160,9 @@ func (e *LinuxExecutor) Start() error {
 
 	// Parse the commands arguments and replace instances of Nomad environment
 	// variables.
-	e.cmd.Path = e.taskEnv.ReplaceEnv(e.cmd.Path, envVars.Map())
-	e.cmd.Args = e.taskEnv.ParseAndReplace(e.cmd.Args, envVars.Map())
+	e.cmd.Path = e.taskEnv.ReplaceEnv(e.cmd.Path)
+	e.cmd.Args = e.taskEnv.ParseAndReplace(e.cmd.Args)
+	e.cmd.Env = e.taskEnv.EnvList()
 
 	spawnState := filepath.Join(e.allocDir, fmt.Sprintf("%s_%s", e.taskName, "exit_status"))
 	e.spawn = spawn.NewSpawner(spawnState)
@@ -283,14 +283,7 @@ func (e *LinuxExecutor) ConfigureTaskDir(taskName string, alloc *allocdir.AllocD
 	}
 
 	// Set the tasks AllocDir environment variable.
-	env, err := environment.ParseFromList(e.cmd.Env)
-	if err != nil {
-		return err
-	}
-	env.SetAllocDir(filepath.Join("/", allocdir.SharedAllocName))
-	env.SetTaskLocalDir(filepath.Join("/", allocdir.TaskLocal))
-	e.cmd.Env = env.List()
-
+	e.taskEnv.SetAllocDir(filepath.Join("/", allocdir.SharedAllocName)).SetTaskLocalDir(filepath.Join("/", allocdir.TaskLocal)).Build()
 	return nil
 }
 

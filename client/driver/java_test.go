@@ -21,7 +21,8 @@ func javaLocated() bool {
 func TestJavaDriver_Fingerprint(t *testing.T) {
 	t.Parallel()
 	ctestutils.JavaCompatible(t)
-	d := NewJavaDriver(testDriverContext(""))
+	driverCtx, _ := testDriverContexts(&structs.Task{Name: "foo"})
+	d := NewJavaDriver(driverCtx)
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
@@ -59,12 +60,11 @@ func TestJavaDriver_StartOpen_Wait(t *testing.T) {
 		Resources: basicResources,
 	}
 
-	driverCtx := testDriverContext(task.Name)
-	ctx := testDriverExecContext(task, driverCtx)
-	defer ctx.AllocDir.Destroy()
+	driverCtx, execCtx := testDriverContexts(task)
+	defer execCtx.AllocDir.Destroy()
 	d := NewJavaDriver(driverCtx)
 
-	handle, err := d.Start(ctx, task)
+	handle, err := d.Start(execCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -73,7 +73,7 @@ func TestJavaDriver_StartOpen_Wait(t *testing.T) {
 	}
 
 	// Attempt to open
-	handle2, err := d.Open(ctx, handle.ID())
+	handle2, err := d.Open(execCtx, handle.ID())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -105,12 +105,11 @@ func TestJavaDriver_Start_Wait(t *testing.T) {
 		Resources: basicResources,
 	}
 
-	driverCtx := testDriverContext(task.Name)
-	ctx := testDriverExecContext(task, driverCtx)
-	defer ctx.AllocDir.Destroy()
+	driverCtx, execCtx := testDriverContexts(task)
+	defer execCtx.AllocDir.Destroy()
 	d := NewJavaDriver(driverCtx)
 
-	handle, err := d.Start(ctx, task)
+	handle, err := d.Start(execCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -151,12 +150,11 @@ func TestJavaDriver_Start_Kill_Wait(t *testing.T) {
 		Resources: basicResources,
 	}
 
-	driverCtx := testDriverContext(task.Name)
-	ctx := testDriverExecContext(task, driverCtx)
-	defer ctx.AllocDir.Destroy()
+	driverCtx, execCtx := testDriverContexts(task)
+	defer execCtx.AllocDir.Destroy()
 	d := NewJavaDriver(driverCtx)
 
-	handle, err := d.Start(ctx, task)
+	handle, err := d.Start(execCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

@@ -14,7 +14,8 @@ import (
 func TestQemuDriver_Fingerprint(t *testing.T) {
 	t.Parallel()
 	ctestutils.QemuCompatible(t)
-	d := NewQemuDriver(testDriverContext(""))
+	driverCtx, _ := testDriverContexts(&structs.Task{Name: "foo"})
+	d := NewQemuDriver(driverCtx)
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
@@ -59,12 +60,11 @@ func TestQemuDriver_StartOpen_Wait(t *testing.T) {
 		},
 	}
 
-	driverCtx := testDriverContext(task.Name)
-	ctx := testDriverExecContext(task, driverCtx)
-	defer ctx.AllocDir.Destroy()
+	driverCtx, execCtx := testDriverContexts(task)
+	defer execCtx.AllocDir.Destroy()
 	d := NewQemuDriver(driverCtx)
 
-	handle, err := d.Start(ctx, task)
+	handle, err := d.Start(execCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -73,7 +73,7 @@ func TestQemuDriver_StartOpen_Wait(t *testing.T) {
 	}
 
 	// Attempt to open
-	handle2, err := d.Open(ctx, handle.ID())
+	handle2, err := d.Open(execCtx, handle.ID())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -103,12 +103,11 @@ func TestQemuDriver_RequiresMemory(t *testing.T) {
 		},
 	}
 
-	driverCtx := testDriverContext(task.Name)
-	ctx := testDriverExecContext(task, driverCtx)
-	defer ctx.AllocDir.Destroy()
+	driverCtx, execCtx := testDriverContexts(task)
+	defer execCtx.AllocDir.Destroy()
 	d := NewQemuDriver(driverCtx)
 
-	_, err := d.Start(ctx, task)
+	_, err := d.Start(execCtx, task)
 	if err == nil {
 		t.Fatalf("Expected error when not specifying memory")
 	}

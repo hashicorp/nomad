@@ -11,14 +11,15 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/driver/environment"
+	"github.com/hashicorp/nomad/client/driver/env"
 	"github.com/hashicorp/nomad/helper/testtask"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 func TestRawExecDriver_Fingerprint(t *testing.T) {
 	t.Parallel()
-	d := NewRawExecDriver(testDriverContext(""))
+	driverCtx, _ := testDriverContexts(&structs.Task{Name: "foo"})
+	d := NewRawExecDriver(driverCtx)
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
@@ -62,12 +63,11 @@ func TestRawExecDriver_StartOpen_Wait(t *testing.T) {
 		Resources: basicResources,
 	}
 	testtask.SetTaskEnv(task)
-	driverCtx := testDriverContext(task.Name)
-	ctx := testDriverExecContext(task, driverCtx)
-	defer ctx.AllocDir.Destroy()
-
+	driverCtx, execCtx := testDriverContexts(task)
+	defer execCtx.AllocDir.Destroy()
 	d := NewRawExecDriver(driverCtx)
-	handle, err := d.Start(ctx, task)
+
+	handle, err := d.Start(execCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -76,7 +76,7 @@ func TestRawExecDriver_StartOpen_Wait(t *testing.T) {
 	}
 
 	// Attempt to open
-	handle2, err := d.Open(ctx, handle.ID())
+	handle2, err := d.Open(execCtx, handle.ID())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -110,12 +110,11 @@ func TestRawExecDriver_Start_Artifact_basic(t *testing.T) {
 	}
 	testtask.SetTaskEnv(task)
 
-	driverCtx := testDriverContext(task.Name)
-	ctx := testDriverExecContext(task, driverCtx)
-	defer ctx.AllocDir.Destroy()
-
+	driverCtx, execCtx := testDriverContexts(task)
+	defer execCtx.AllocDir.Destroy()
 	d := NewRawExecDriver(driverCtx)
-	handle, err := d.Start(ctx, task)
+
+	handle, err := d.Start(execCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -124,7 +123,7 @@ func TestRawExecDriver_Start_Artifact_basic(t *testing.T) {
 	}
 
 	// Attempt to open
-	handle2, err := d.Open(ctx, handle.ID())
+	handle2, err := d.Open(execCtx, handle.ID())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -158,12 +157,11 @@ func TestRawExecDriver_Start_Artifact_expanded(t *testing.T) {
 	}
 	testtask.SetTaskEnv(task)
 
-	driverCtx := testDriverContext(task.Name)
-	ctx := testDriverExecContext(task, driverCtx)
-	defer ctx.AllocDir.Destroy()
-
+	driverCtx, execCtx := testDriverContexts(task)
+	defer execCtx.AllocDir.Destroy()
 	d := NewRawExecDriver(driverCtx)
-	handle, err := d.Start(ctx, task)
+
+	handle, err := d.Start(execCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -172,7 +170,7 @@ func TestRawExecDriver_Start_Artifact_expanded(t *testing.T) {
 	}
 
 	// Attempt to open
-	handle2, err := d.Open(ctx, handle.ID())
+	handle2, err := d.Open(execCtx, handle.ID())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -199,13 +197,11 @@ func TestRawExecDriver_Start_Wait(t *testing.T) {
 		Resources: basicResources,
 	}
 	testtask.SetTaskEnv(task)
-
-	driverCtx := testDriverContext(task.Name)
-	ctx := testDriverExecContext(task, driverCtx)
-	defer ctx.AllocDir.Destroy()
-
+	driverCtx, execCtx := testDriverContexts(task)
+	defer execCtx.AllocDir.Destroy()
 	d := NewRawExecDriver(driverCtx)
-	handle, err := d.Start(ctx, task)
+
+	handle, err := d.Start(execCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -234,7 +230,7 @@ func TestRawExecDriver_Start_Wait_AllocDir(t *testing.T) {
 	t.Parallel()
 	exp := []byte{'w', 'i', 'n'}
 	file := "output.txt"
-	outPath := fmt.Sprintf(`$%s/%s`, environment.AllocDir, file)
+	outPath := fmt.Sprintf(`$%s/%s`, env.AllocDir, file)
 	task := &structs.Task{
 		Name: "sleep",
 		Config: map[string]interface{}{
@@ -248,12 +244,11 @@ func TestRawExecDriver_Start_Wait_AllocDir(t *testing.T) {
 	}
 	testtask.SetTaskEnv(task)
 
-	driverCtx := testDriverContext(task.Name)
-	ctx := testDriverExecContext(task, driverCtx)
-	defer ctx.AllocDir.Destroy()
-
+	driverCtx, execCtx := testDriverContexts(task)
+	defer execCtx.AllocDir.Destroy()
 	d := NewRawExecDriver(driverCtx)
-	handle, err := d.Start(ctx, task)
+
+	handle, err := d.Start(execCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -272,7 +267,7 @@ func TestRawExecDriver_Start_Wait_AllocDir(t *testing.T) {
 	}
 
 	// Check that data was written to the shared alloc directory.
-	outputFile := filepath.Join(ctx.AllocDir.SharedDir, file)
+	outputFile := filepath.Join(execCtx.AllocDir.SharedDir, file)
 	act, err := ioutil.ReadFile(outputFile)
 	if err != nil {
 		t.Fatalf("Couldn't read expected output: %v", err)
@@ -295,12 +290,11 @@ func TestRawExecDriver_Start_Kill_Wait(t *testing.T) {
 	}
 	testtask.SetTaskEnv(task)
 
-	driverCtx := testDriverContext(task.Name)
-	ctx := testDriverExecContext(task, driverCtx)
-	defer ctx.AllocDir.Destroy()
-
+	driverCtx, execCtx := testDriverContexts(task)
+	defer execCtx.AllocDir.Destroy()
 	d := NewRawExecDriver(driverCtx)
-	handle, err := d.Start(ctx, task)
+
+	handle, err := d.Start(execCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
