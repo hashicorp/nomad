@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
+	"net/rpc"
 	"os"
 	"path/filepath"
 	"sync"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver"
+	"github.com/hashicorp/nomad/client/logdaemon"
 	"github.com/hashicorp/nomad/nomad/structs"
 
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
@@ -238,6 +240,8 @@ func (r *TaskRunner) run() {
 		// Register the services defined by the task with Consil
 		r.consulService.Register(r.task, r.alloc)
 
+		r.registerTaskWithLogDaemon()
+
 	OUTER:
 		// Wait for updates
 		for {
@@ -345,4 +349,26 @@ func (r *TaskRunner) Destroy() {
 	}
 	r.destroy = true
 	close(r.destroyCh)
+}
+
+func (r *TaskRunner) registerTaskWithLogDaemon() {
+	ipcAddr := r.config.Node.Attributes["client.logdaemon.ipcserver"]
+	if ipcAddr == "" {
+		r.logger.Printf("[DEBUG] client: ipc addr for logdaemon not found")
+		return
+	}
+	client, err := rpc.DialHTTP("tcp", r.config.Node.Attributes["client.logdaemon.ipcserver"])
+	if err != nil {
+		r.logger.Printf("[INFO] client: error registering task with log daemon: %v", err)
+	}
+	taskInfo := logdaemon.TaskInfo{
+		HandleId: r.handle.ID(),
+		AllocDir: r.ctx.AllocDir,
+		AllocID:  r.alloc.ID,
+		Name:     r.task.Name,
+	}
+	var response string
+	if err := client.Call("RunningTasks.Register", taskInfo, &response); err != nil {
+		r.logger.Printf("[INFO] client: error registering task with log daemon: %v", err)
+	}
 }

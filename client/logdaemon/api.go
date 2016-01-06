@@ -20,15 +20,18 @@ type TaskInfo struct {
 }
 
 type RunningTasks struct {
-	tasks map[string]*TaskInfo
+	tasks  map[string]*TaskInfo
+	logger *log.Logger
 }
 
 func (r *RunningTasks) Register(task *TaskInfo, reply *string) error {
+	r.logger.Printf("[DEBUG] client.logdaemon: registering task: %v", task.Name)
 	r.tasks[task.Name] = task
 	return nil
 }
 
 func (r *RunningTasks) Remove(task *TaskInfo, reply *string) error {
+	r.logger.Printf("[DEBUG] client.logdaemon: de-registering task: %v", task.Name)
 	delete(r.tasks, task.Name)
 	return nil
 }
@@ -55,10 +58,11 @@ func NewLogDaemon(config *structs.LogDaemonConfig) (*LogDaemon, error) {
 	}
 
 	// Create the ipc listener
-	ipcListener, err := net.Listen("tcp", config.RPCAddr)
+	ipcListener, err := net.Listen("tcp", config.IPCAddr)
 	if err != nil {
 		return nil, err
 	}
+	logger := log.New(os.Stdout, "", log.LstdFlags)
 
 	// Create the log Daemon
 	ld := LogDaemon{
@@ -66,15 +70,14 @@ func NewLogDaemon(config *structs.LogDaemonConfig) (*LogDaemon, error) {
 		apiListener: apiListener,
 		ipcListener: ipcListener,
 		runningTasks: &RunningTasks{
-			tasks: make(map[string]*TaskInfo),
+			tasks:  make(map[string]*TaskInfo),
+			logger: logger,
 		},
-		logger: log.New(os.Stdout, "", log.LstdFlags),
+		logger: logger,
 	}
 
 	// Configure the routes
 	ld.configureRoutes()
-
-	go ld.startIpcServer()
 
 	return &ld, nil
 }
@@ -82,18 +85,22 @@ func NewLogDaemon(config *structs.LogDaemonConfig) (*LogDaemon, error) {
 // Start starts the http server of the log daemon
 func (ld *LogDaemon) Start() error {
 	ld.logger.Printf("[INFO] client.logdaemon: api server has started, it is listening on %v", ld.apiListener.Addr())
-	return http.Serve(ld.apiListener, ld.mux)
+	go ld.startIpcServer()
+	go http.Serve(ld.apiListener, ld.mux)
+	return nil
 }
 
 // configureRoutes sets up the mux with the various api end points of the log
 // daemon
 func (ld *LogDaemon) configureRoutes() {
 	ld.mux.HandleFunc("/ping", ld.Ping)
+
+	rpc.Register(ld.runningTasks)
 }
 
 func (ld *LogDaemon) startIpcServer() {
-	rpc.Register(ld.runningTasks)
 	ld.logger.Printf("[INFO] client.logdaemon: ipc server has started, it is listening on %v", ld.ipcListener.Addr())
+	rpc.HandleHTTP()
 	rpc.Accept(ld.ipcListener)
 }
 

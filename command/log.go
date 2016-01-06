@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/hashicorp/nomad/command/logdaemon"
+	"github.com/hashicorp/nomad/client/logdaemon"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
