@@ -10,6 +10,7 @@ IMPROVEMENTS:
   * core: User specifiable kill timeout [GH-624]
   * core: Add available nodes by DC to AllocMetrics [GH-619]
   * driver/rkt: Add support for mounting alloc/task directory [GH-645]
+  * core/cli: Prefix based lookups of allocs/nodes/evals/jobs [GH-575]
 
 BUG FIXES:
   * cli: Handle parsing of un-named ports [GH-604]
