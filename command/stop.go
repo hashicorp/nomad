@@ -86,7 +86,7 @@ func (c *StopCommand) Run(args []string) int {
 					job.Priority,
 					job.Status)
 			}
-			c.Ui.Output(fmt.Sprintf("Please disambiguate the desired job\n\n%s", formatList(out)))
+			c.Ui.Output(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", formatList(out)))
 			return 0
 		}
 		// Prefix lookup matched a single job

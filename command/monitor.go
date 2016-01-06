@@ -203,7 +203,7 @@ func (m *monitor) monitor(evalID string) int {
 						eval.TriggeredBy,
 						eval.Status)
 				}
-				m.ui.Output(fmt.Sprintf("Please disambiguate the desired evaluation\n\n%s", formatList(out)))
+				m.ui.Output(fmt.Sprintf("Prefix matched multiple evaluations\n\n%s", formatList(out)))
 				return 0
 			}
 			// Prefix lookup matched a single evaluation

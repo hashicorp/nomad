@@ -90,7 +90,7 @@ func (c *AllocStatusCommand) Run(args []string) int {
 					alloc.DesiredStatus,
 					alloc.ClientStatus)
 			}
-			c.Ui.Output(fmt.Sprintf("Please disambiguate the desired allocation\n\n%s", formatList(out)))
+			c.Ui.Output(fmt.Sprintf("Prefix matched multiple allocations\n\n%s", formatList(out)))
 			return 0
 		}
 		// Prefix lookup matched a single allocation
