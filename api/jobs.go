@@ -114,9 +114,10 @@ type UpdateStrategy struct {
 
 // PeriodicConfig is for serializing periodic config for a job.
 type PeriodicConfig struct {
-	Enabled  bool
-	Spec     string
-	SpecType string
+	Enabled         bool
+	Spec            string
+	SpecType        string
+	ProhibitOverlap bool
 }
 
 // Job is used to serialize a job.

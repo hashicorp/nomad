@@ -42,6 +42,9 @@ type JobEvalDispatcher interface {
 	// DispatchJob takes a job a new, untracked job and creates an evaluation
 	// for it.
 	DispatchJob(job *structs.Job) error
+
+	// RunningChildren returns whether the passed job has any running children.
+	RunningChildren(job *structs.Job) (bool, error)
 }
 
 // DispatchJob creates an evaluation for the passed job and commits both the
@@ -77,6 +80,53 @@ func (s *Server) DispatchJob(job *structs.Job) error {
 	}
 
 	return nil
+}
+
+// RunningChildren checks whether the passed job has any running children.
+func (s *Server) RunningChildren(job *structs.Job) (bool, error) {
+	state := s.fsm.State()
+	prefix := fmt.Sprintf("%s%s", job.ID, JobLaunchSuffix)
+	iter, err := state.JobsByIDPrefix(prefix)
+	if err != nil {
+		return false, err
+	}
+
+	var child *structs.Job
+	for i := iter.Next(); i != nil; i = iter.Next() {
+		child = i.(*structs.Job)
+
+		// Ensure the job is actually a child.
+		if child.ParentID != job.ID {
+			continue
+		}
+
+		// Get the childs evaluations.
+		evals, err := state.EvalsByJob(child.ID)
+		if err != nil {
+			return false, err
+		}
+
+		// Check if any of the evals are active or have running allocations.
+		for _, eval := range evals {
+			if !eval.TerminalStatus() {
+				return true, nil
+			}
+
+			allocs, err := state.AllocsByEval(eval.ID)
+			if err != nil {
+				return false, err
+			}
+
+			for _, alloc := range allocs {
+				if !alloc.TerminalStatus() {
+					return true, nil
+				}
+			}
+		}
+	}
+
+	// There are no evals or allocations that aren't terminal.
+	return false, nil
 }
 
 // NewPeriodicDispatch returns a periodic dispatcher that is used to track and
@@ -273,14 +323,32 @@ func (p *PeriodicDispatch) run() {
 // based on the passed launch time.
 func (p *PeriodicDispatch) dispatch(job *structs.Job, launchTime time.Time) {
 	p.l.Lock()
-	defer p.l.Unlock()
 
 	nextLaunch := job.Periodic.Next(launchTime)
 	if err := p.heap.Update(job, nextLaunch); err != nil {
 		p.logger.Printf("[ERR] nomad.periodic: failed to update next launch of periodic job %q: %v", job.ID, err)
 	}
 
+	// If the job prohibits overlapping and there are running children, we skip
+	// the launch.
+	if job.Periodic.ProhibitOverlap {
+		running, err := p.dispatcher.RunningChildren(job)
+		if err != nil {
+			msg := fmt.Sprintf("[ERR] nomad.periodic: failed to determine if"+
+				" periodic job %q has running children: %v", job.ID, err)
+			p.logger.Println(msg)
+			p.l.Unlock()
+			return
+		}
+
+		if running {
+			p.l.Unlock()
+			return
+		}
+	}
+
 	p.logger.Printf("[DEBUG] nomad.periodic: launching job %v at %v", job.ID, launchTime)
+	p.l.Unlock()
 	p.createEval(job, launchTime)
 }
 
@@ -304,7 +372,7 @@ func (p *PeriodicDispatch) nextLaunch() (*structs.Job, time.Time) {
 }
 
 // createEval instantiates a job based on the passed periodic job and submits an
-// evaluation for it.
+// evaluation for it. This should not be called with the lock held.
 func (p *PeriodicDispatch) createEval(periodicJob *structs.Job, time time.Time) error {
 	derived, err := p.deriveJob(periodicJob, time)
 	if err != nil {

@@ -956,6 +956,9 @@ type PeriodicConfig struct {
 
 	// SpecType defines the format of the spec.
 	SpecType string
+
+	// ProhibitOverlap enforces that spawned jobs do not run in parallel.
+	ProhibitOverlap bool `mapstructure:"prohibit_overlap"`
 }
 
 func (p *PeriodicConfig) Validate() error {
