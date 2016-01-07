@@ -161,7 +161,8 @@ func (m *monitor) update(update *evalState) {
 
 // monitor is used to start monitoring the given evaluation ID. It
 // writes output directly to the monitor's ui, and returns the
-// exit code for the command.
+// exit code for the command. If allowPrefix is false, monitor will only accept
+// exact matching evalIDs.
 //
 // The return code will be 0 on successful evaluation. If there are
 // problems scheduling the job (impossible constraints, resources
