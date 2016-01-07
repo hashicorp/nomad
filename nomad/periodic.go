@@ -336,7 +336,6 @@ func (p *PeriodicDispatch) dispatch(job *structs.Job, launchTime time.Time) {
 		}
 
 		if running {
-			p.logger.Println("ALEX: Job prohibits overlap and is running")
 			p.l.Unlock()
 			return
 		}
