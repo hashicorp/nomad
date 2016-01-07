@@ -12,12 +12,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-const (
-	// The string appended to the periodic jobs ID when launching derived
-	// instances of it.
-	JobLaunchSuffix = "/periodic-"
-)
-
 // PeriodicDispatch is used to track and launch periodic jobs. It maintains the
 // set of periodic jobs and creates derived jobs and evaluations per
 // instantiation which is determined by the periodic spec.
@@ -418,18 +412,18 @@ func (p *PeriodicDispatch) deriveJob(periodicJob *structs.Job, time time.Time) (
 // deriveJobID returns a job ID based on the parent periodic job and the launch
 // time.
 func (p *PeriodicDispatch) derivedJobID(periodicJob *structs.Job, time time.Time) string {
-	return fmt.Sprintf("%s%s%d", periodicJob.ID, JobLaunchSuffix, time.Unix())
+	return fmt.Sprintf("%s%s%d", periodicJob.ID, structs.PeriodicLaunchSuffix, time.Unix())
 }
 
 // LaunchTime returns the launch time of the job. This is only valid for
 // jobs created by PeriodicDispatch and will otherwise return an error.
 func (p *PeriodicDispatch) LaunchTime(jobID string) (time.Time, error) {
-	index := strings.LastIndex(jobID, JobLaunchSuffix)
+	index := strings.LastIndex(jobID, structs.PeriodicLaunchSuffix)
 	if index == -1 {
 		return time.Time{}, fmt.Errorf("couldn't parse launch time from eval: %v", jobID)
 	}
 
-	launch, err := strconv.Atoi(jobID[index+len(JobLaunchSuffix):])
+	launch, err := strconv.Atoi(jobID[index+len(structs.PeriodicLaunchSuffix):])
 	if err != nil {
 		return time.Time{}, fmt.Errorf("couldn't parse launch time from eval: %v", jobID)
 	}

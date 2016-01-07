@@ -1023,6 +1023,12 @@ func (p *PeriodicConfig) Next(fromTime time.Time) time.Time {
 	return time.Time{}
 }
 
+const (
+	// PeriodicLaunchSuffix is the string appended to the periodic jobs ID
+	// when launching derived instances of it.
+	PeriodicLaunchSuffix = "/periodic-"
+)
+
 // PeriodicLaunch tracks the last launch time of a periodic job.
 type PeriodicLaunch struct {
 	ID     string    // ID of the periodic job.
