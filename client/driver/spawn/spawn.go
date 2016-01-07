@@ -12,9 +12,41 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/driver/structs"
-	"github.com/hashicorp/nomad/command"
 	"github.com/hashicorp/nomad/helper/discover"
 )
+
+// Status of executing the user's command.
+type SpawnStartStatus struct {
+	// The PID of the user's command.
+	UserPID int
+
+	// ErrorMsg will be empty if the user command was started successfully.
+	// Otherwise it will have an error message.
+	ErrorMsg string
+}
+
+// Exit status of the user's command.
+type SpawnExitStatus struct {
+	// The exit code of the user's command.
+	ExitCode int
+}
+
+// Configuration for the command to start as a daemon.
+type DaemonConfig struct {
+	exec.Cmd
+
+	// The filepath to write the exit status to.
+	ExitStatusFile string
+
+	// The paths, if not /dev/null, must be either in the tasks root directory
+	// or in the shared alloc directory.
+	StdoutFile string
+	StdinFile  string
+	StderrFile string
+
+	// An optional path specifying the directory to chroot the process in.
+	Chroot string
+}
 
 // Spawner is used to start a user command in an isolated fashion that is
 // resistent to Nomad agent failure.
@@ -120,11 +152,11 @@ func (s *Spawner) Spawn(cb func(pid int) error) error {
 		return err
 	}
 
-	respCh := make(chan command.SpawnStartStatus, 1)
+	respCh := make(chan SpawnStartStatus, 1)
 	errCh := make(chan error, 1)
 
 	go func() {
-		var resp command.SpawnStartStatus
+		var resp SpawnStartStatus
 		dec := json.NewDecoder(spawnStdout)
 		if err := dec.Decode(&resp); err != nil {
 			errCh <- fmt.Errorf("Failed to parse spawn-daemon start response: %v", err)
@@ -158,7 +190,7 @@ func (s *Spawner) spawnConfig() (string, error) {
 		return "", fmt.Errorf("Must specify user command")
 	}
 
-	config := command.DaemonConfig{
+	config := DaemonConfig{
 		Cmd:            *s.UserCmd,
 		Chroot:         s.Chroot,
 		ExitStatusFile: s.StateFile,
@@ -280,7 +312,7 @@ func (s *Spawner) readExitCode() *structs.WaitResult {
 		return structs.NewWaitResult(-1, 0, fmt.Errorf("Empty state file: %v", s.StateFile))
 	}
 
-	var exitStatus command.SpawnExitStatus
+	var exitStatus SpawnExitStatus
 	dec := json.NewDecoder(f)
 	if err := dec.Decode(&exitStatus); err != nil {
 		return structs.NewWaitResult(-1, 0, fmt.Errorf("Failed to parse exit status from %v: %v", s.StateFile, err))

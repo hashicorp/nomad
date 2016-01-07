@@ -9,11 +9,13 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+
+	"github.com/hashicorp/nomad/client/driver/spawn"
 )
 
 type SpawnDaemonCommand struct {
 	Meta
-	config   *DaemonConfig
+	config   *spawn.DaemonConfig
 	exitFile io.WriteCloser
 }
 
@@ -40,45 +42,12 @@ func (c *SpawnDaemonCommand) Synopsis() string {
 	return "Spawn a daemon command with configurable isolation."
 }
 
-// Status of executing the user's command.
-type SpawnStartStatus struct {
-	// The PID of the user's command.
-	UserPID int
-
-	// ErrorMsg will be empty if the user command was started successfully.
-	// Otherwise it will have an error message.
-	ErrorMsg string
-}
-
-// Exit status of the user's command.
-type SpawnExitStatus struct {
-	// The exit code of the user's command.
-	ExitCode int
-}
-
-// Configuration for the command to start as a daemon.
-type DaemonConfig struct {
-	exec.Cmd
-
-	// The filepath to write the exit status to.
-	ExitStatusFile string
-
-	// The paths, if not /dev/null, must be either in the tasks root directory
-	// or in the shared alloc directory.
-	StdoutFile string
-	StdinFile  string
-	StderrFile string
-
-	// An optional path specifying the directory to chroot the process in.
-	Chroot string
-}
-
 // Whether to start the user command or abort.
 type TaskStart bool
 
 // parseConfig reads the DaemonConfig from the passed arguments. If not
 // successful, an error is returned.
-func (c *SpawnDaemonCommand) parseConfig(args []string) (*DaemonConfig, error) {
+func (c *SpawnDaemonCommand) parseConfig(args []string) (*spawn.DaemonConfig, error) {
 	flags := c.Meta.FlagSet("spawn-daemon", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	if err := flags.Parse(args); err != nil {
@@ -96,7 +65,7 @@ func (c *SpawnDaemonCommand) parseConfig(args []string) (*DaemonConfig, error) {
 	}
 
 	// De-serialize the passed command.
-	var config DaemonConfig
+	var config spawn.DaemonConfig
 	dec := json.NewDecoder(strings.NewReader(jsonInput))
 	if err := dec.Decode(&config); err != nil {
 		return nil, err
@@ -192,7 +161,7 @@ func (c *SpawnDaemonCommand) Run(args []string) int {
 // Stdout with the passed error, which may be nil to indicate no error. It
 // returns the passed status.
 func (c *SpawnDaemonCommand) outputStartStatus(err error, status int) int {
-	startStatus := &SpawnStartStatus{}
+	startStatus := &spawn.SpawnStartStatus{}
 	enc := json.NewEncoder(os.Stdout)
 
 	if err != nil {
@@ -212,7 +181,7 @@ func (c *SpawnDaemonCommand) outputStartStatus(err error, status int) int {
 // command.
 func (c *SpawnDaemonCommand) writeExitStatus(exit error) int {
 	// Parse the exit code.
-	exitStatus := &SpawnExitStatus{}
+	exitStatus := &spawn.SpawnExitStatus{}
 	if exit != nil {
 		// Default to exit code 1 if we can not get the actual exit code.
 		exitStatus.ExitCode = 1
