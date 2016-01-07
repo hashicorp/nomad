@@ -61,5 +61,5 @@ func (c *EvalMonitorCommand) Run(args []string) int {
 
 	// Start monitoring
 	mon := newMonitor(c.Ui, client)
-	return mon.monitor(evalID)
+	return mon.monitor(evalID, true)
 }

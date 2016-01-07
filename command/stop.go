@@ -104,6 +104,11 @@ func (c *StopCommand) Run(args []string) int {
 		return 1
 	}
 
+	// If we are stopping a periodic job there won't be an evalID.
+	if evalID == "" {
+		return 0
+	}
+
 	if detach {
 		c.Ui.Output(evalID)
 		return 0
@@ -111,5 +116,5 @@ func (c *StopCommand) Run(args []string) int {
 
 	// Start monitoring the stop eval
 	mon := newMonitor(c.Ui, client)
-	return mon.monitor(evalID)
+	return mon.monitor(evalID, false)
 }

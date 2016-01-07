@@ -168,7 +168,7 @@ func (m *monitor) update(update *evalState) {
 // exhausted, etc), then the return code will be 2. For any other
 // failures (API connectivity, internal errors, etc), the return code
 // will be 1.
-func (m *monitor) monitor(evalID string) int {
+func (m *monitor) monitor(evalID string, allowPrefix bool) int {
 	// Track if we encounter a scheduling failure. This can only be
 	// detected while querying allocations, so we use this bool to
 	// carry that status into the return code.
@@ -182,6 +182,11 @@ func (m *monitor) monitor(evalID string) int {
 		// Query the evaluation
 		eval, _, err := m.client.Evaluations().Info(evalID, nil)
 		if err != nil {
+			if !allowPrefix {
+				m.ui.Error(fmt.Sprintf("No evaluation with id %q found", evalID))
+				return 1
+			}
+
 			evals, _, err := m.client.Evaluations().PrefixList(evalID)
 			if err != nil {
 				m.ui.Error(fmt.Sprintf("Error reading evaluation: %s", err))
@@ -279,7 +284,7 @@ func (m *monitor) monitor(evalID string) int {
 
 			// Reset the state and monitor the new eval
 			m.state = newEvalState()
-			return m.monitor(eval.NextEval)
+			return m.monitor(eval.NextEval, allowPrefix)
 		}
 		break
 	}

@@ -250,7 +250,7 @@ func TestMonitor_Monitor(t *testing.T) {
 	doneCh := make(chan struct{})
 	go func() {
 		defer close(doneCh)
-		code = mon.monitor(evalID)
+		code = mon.monitor(evalID, false)
 	}()
 
 	// Wait for completion
@@ -296,7 +296,7 @@ func TestMonitor_MonitorWithPrefix(t *testing.T) {
 	doneCh := make(chan struct{})
 	go func() {
 		defer close(doneCh)
-		code = mon.monitor(evalID[:4])
+		code = mon.monitor(evalID[:4], true)
 	}()
 
 	// Wait for completion
