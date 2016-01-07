@@ -419,6 +419,18 @@ func (s *StateStore) JobsByGC(gc bool) (memdb.ResultIterator, error) {
 	return iter, nil
 }
 
+// ChildJobs returns an iterator over all the children of the passed job.
+func (s *StateStore) ChildJobs(id string) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	// Scan all jobs whose parent is the passed id.
+	iter, err := txn.Get("jobs", "parent", id)
+	if err != nil {
+		return nil, err
+	}
+	return iter, nil
+}
+
 // UpsertPeriodicLaunch is used to register a launch or update it.
 func (s *StateStore) UpsertPeriodicLaunch(index uint64, launch *structs.PeriodicLaunch) error {
 	txn := s.db.Txn(true)

@@ -15,6 +15,7 @@ import (
 
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/testutil"
 )
 
 type MockJobEvalDispatcher struct {
@@ -31,6 +32,17 @@ func (m *MockJobEvalDispatcher) DispatchJob(job *structs.Job) error {
 	defer m.lock.Unlock()
 	m.Jobs[job.ID] = job
 	return nil
+}
+
+func (m *MockJobEvalDispatcher) RunningChildren(parent *structs.Job) (bool, error) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	for _, job := range m.Jobs {
+		if job.ParentID == parent.ID {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // LaunchTimes returns the launch times of child jobs in sorted order.
@@ -288,6 +300,36 @@ func TestPeriodicDispatch_ForceRun_Tracked(t *testing.T) {
 	}
 }
 
+func TestPeriodicDispatch_Run_DisallowOverlaps(t *testing.T) {
+	t.Parallel()
+	p, m := testPeriodicDispatcher()
+
+	// Create a job that will trigger two launches but disallows overlapping.
+	launch1 := time.Now().Round(1 * time.Second).Add(1 * time.Second)
+	launch2 := time.Now().Round(1 * time.Second).Add(2 * time.Second)
+	job := testPeriodicJob(launch1, launch2)
+	job.Periodic.ProhibitOverlap = true
+
+	// Add it.
+	if err := p.Add(job); err != nil {
+		t.Fatalf("Add failed %v", err)
+	}
+
+	time.Sleep(3 * time.Second)
+
+	// Check that only one job was launched.
+	times, err := m.LaunchTimes(p, job.ID)
+	if err != nil {
+		t.Fatalf("failed to get launch times for job %q", job.ID)
+	}
+	if len(times) != 1 {
+		t.Fatalf("incorrect number of launch times for job %q; got %v", job.ID, times)
+	}
+	if times[0] != launch1 {
+		t.Fatalf("periodic dispatcher created eval for time %v; want %v", times[0], launch1)
+	}
+}
+
 func TestPeriodicDispatch_Run_Multiple(t *testing.T) {
 	t.Parallel()
 	p, m := testPeriodicDispatcher()
@@ -467,5 +509,108 @@ func TestPeriodicHeap_Order(t *testing.T) {
 
 	if !reflect.DeepEqual(act, exp) {
 		t.Fatalf("Wrong ordering; got %v; want %v", act, exp)
+	}
+}
+
+func TestPeriodicDispatch_RunningChildren_NoEvals(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Insert job.
+	state := s1.fsm.State()
+	job := mock.PeriodicJob()
+	if err := state.UpsertJob(1000, job); err != nil {
+		t.Fatalf("UpsertJob failed: %v", err)
+	}
+
+	running, err := s1.RunningChildren(job)
+	if err != nil {
+		t.Fatalf("RunningChildren failed: %v", err)
+	}
+
+	if running {
+		t.Fatalf("RunningChildren should return false")
+	}
+}
+
+func TestPeriodicDispatch_RunningChildren_ActiveEvals(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Insert periodic job and child.
+	state := s1.fsm.State()
+	job := mock.PeriodicJob()
+	if err := state.UpsertJob(1000, job); err != nil {
+		t.Fatalf("UpsertJob failed: %v", err)
+	}
+
+	childjob := mock.Job()
+	childjob.ParentID = job.ID
+	if err := state.UpsertJob(1001, childjob); err != nil {
+		t.Fatalf("UpsertJob failed: %v", err)
+	}
+
+	// Insert non-terminal eval
+	eval := mock.Eval()
+	eval.JobID = childjob.ID
+	eval.Status = structs.EvalStatusPending
+	if err := state.UpsertEvals(1002, []*structs.Evaluation{eval}); err != nil {
+		t.Fatalf("UpsertEvals failed: %v", err)
+	}
+
+	running, err := s1.RunningChildren(job)
+	if err != nil {
+		t.Fatalf("RunningChildren failed: %v", err)
+	}
+
+	if !running {
+		t.Fatalf("RunningChildren should return true")
+	}
+}
+
+func TestPeriodicDispatch_RunningChildren_ActiveAllocs(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Insert periodic job and child.
+	state := s1.fsm.State()
+	job := mock.PeriodicJob()
+	if err := state.UpsertJob(1000, job); err != nil {
+		t.Fatalf("UpsertJob failed: %v", err)
+	}
+
+	childjob := mock.Job()
+	childjob.ParentID = job.ID
+	if err := state.UpsertJob(1001, childjob); err != nil {
+		t.Fatalf("UpsertJob failed: %v", err)
+	}
+
+	// Insert terminal eval
+	eval := mock.Eval()
+	eval.JobID = childjob.ID
+	eval.Status = structs.EvalStatusPending
+	if err := state.UpsertEvals(1002, []*structs.Evaluation{eval}); err != nil {
+		t.Fatalf("UpsertEvals failed: %v", err)
+	}
+
+	// Insert active alloc
+	alloc := mock.Alloc()
+	alloc.JobID = childjob.ID
+	alloc.EvalID = eval.ID
+	alloc.DesiredStatus = structs.AllocDesiredStatusRun
+	if err := state.UpsertAllocs(1003, []*structs.Allocation{alloc}); err != nil {
+		t.Fatalf("UpsertAllocs failed: %v", err)
+	}
+
+	running, err := s1.RunningChildren(job)
+	if err != nil {
+		t.Fatalf("RunningChildren failed: %v", err)
+	}
+
+	if !running {
+		t.Fatalf("RunningChildren should return true")
 	}
 }
