@@ -512,6 +512,15 @@ func TestPeriodicHeap_Order(t *testing.T) {
 	}
 }
 
+// deriveChildJob takes a parent periodic job and returns a job with fields set
+// such that it appears spawned from the parent.
+func deriveChildJob(parent *structs.Job) *structs.Job {
+	childjob := mock.Job()
+	childjob.ParentID = parent.ID
+	childjob.ID = fmt.Sprintf("%s%s%v", parent.ID, JobLaunchSuffix, time.Now().Unix())
+	return childjob
+}
+
 func TestPeriodicDispatch_RunningChildren_NoEvals(t *testing.T) {
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
@@ -546,8 +555,7 @@ func TestPeriodicDispatch_RunningChildren_ActiveEvals(t *testing.T) {
 		t.Fatalf("UpsertJob failed: %v", err)
 	}
 
-	childjob := mock.Job()
-	childjob.ParentID = job.ID
+	childjob := deriveChildJob(job)
 	if err := state.UpsertJob(1001, childjob); err != nil {
 		t.Fatalf("UpsertJob failed: %v", err)
 	}
@@ -582,8 +590,7 @@ func TestPeriodicDispatch_RunningChildren_ActiveAllocs(t *testing.T) {
 		t.Fatalf("UpsertJob failed: %v", err)
 	}
 
-	childjob := mock.Job()
-	childjob.ParentID = job.ID
+	childjob := deriveChildJob(job)
 	if err := state.UpsertJob(1001, childjob); err != nil {
 		t.Fatalf("UpsertJob failed: %v", err)
 	}
