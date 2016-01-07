@@ -1,8 +1,10 @@
 ## 0.3.0 (UNRELEASED)
 
+BACKWARDS INCOMPATIBILITIES:
+  * core: Improved restart policy with more user configuration [GH-594]
+
 IMPROVEMENTS:
   * core: Periodic specification for jobs [GH-540]
-  * core: Improved restart policy with more user configuration [GH-594]
   * core: Batch jobs are garbage collected from the Nomad Servers [GH-586]
   * driver/rkt: Add support for CPU/Memory isolation [GH-610]
   * cli: Output of agent-info is sorted [GH-617]
@@ -16,6 +18,7 @@ BUG FIXES:
   * cli: Handle parsing of un-named ports [GH-604]
   * client: Handle non-200 codes when parsing AWS metadata [GH-614]
   * cli: Enforce absolute paths for data directories [GH-622]
+  * driver/qemu: failed to load image and kvm accelerator fixes [GH-656]
 
 ## 0.2.3 (December 17, 2015)
 
