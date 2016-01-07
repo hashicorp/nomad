@@ -894,6 +894,7 @@ func (j *Job) LookupTaskGroup(name string) *TaskGroup {
 func (j *Job) Stub() *JobListStub {
 	return &JobListStub{
 		ID:                j.ID,
+		ParentID:          j.ParentID,
 		Name:              j.Name,
 		Type:              j.Type,
 		Priority:          j.Priority,
@@ -913,6 +914,7 @@ func (j *Job) IsPeriodic() bool {
 // for the job list
 type JobListStub struct {
 	ID                string
+	ParentID          string
 	Name              string
 	Type              string
 	Priority          int

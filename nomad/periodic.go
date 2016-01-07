@@ -79,7 +79,7 @@ func (s *Server) DispatchJob(job *structs.Job) error {
 // RunningChildren checks whether the passed job has any running children.
 func (s *Server) RunningChildren(job *structs.Job) (bool, error) {
 	state := s.fsm.State()
-	prefix := fmt.Sprintf("%s%s", job.ID, JobLaunchSuffix)
+	prefix := fmt.Sprintf("%s%s", job.ID, structs.PeriodicLaunchSuffix)
 	iter, err := state.JobsByIDPrefix(prefix)
 	if err != nil {
 		return false, err
