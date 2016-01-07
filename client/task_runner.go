@@ -71,8 +71,7 @@ func NewTaskRunner(logger *log.Logger, config *config.Config,
 		destroyCh:      make(chan struct{}),
 		waitCh:         make(chan struct{}),
 	}
-	ipcAddr := config.Node.Attributes["client.logdaemon.ipcserver"]
-	tc.logClient = logdaemon.NewLogDaemonClient(ipcAddr, logger)
+	tc.logClient = logdaemon.NewLogDaemonClient(config.LogDaemonIPCAddr, logger)
 	return tc
 }
 

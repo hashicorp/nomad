@@ -8,9 +8,10 @@ import (
 	"net/rpc"
 	"os"
 	"os/signal"
+	"strings"
 
 	"github.com/hashicorp/nomad/client/allocdir"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/client/config"
 )
 
 type TaskInfo struct {
@@ -18,6 +19,7 @@ type TaskInfo struct {
 	AllocDir *allocdir.AllocDir
 	AllocID  string
 	Name     string
+	Driver   string
 }
 
 type RunningTasks struct {
@@ -27,13 +29,15 @@ type RunningTasks struct {
 
 func (r *RunningTasks) Register(task *TaskInfo, reply *string) error {
 	r.logger.Printf("[DEBUG] client.logdaemon: registering task: %v", task.Name)
-	r.tasks[task.Name] = task
+	key := fmt.Sprintf("%s-%s", task.AllocID, task.Name)
+	r.tasks[key] = task
 	return nil
 }
 
 func (r *RunningTasks) Remove(task *TaskInfo, reply *string) error {
 	r.logger.Printf("[DEBUG] client.logdaemon: de-registering task: %v", task.Name)
-	delete(r.tasks, task.Name)
+	key := fmt.Sprintf("%s-%s", task.AllocID, task.Name)
+	delete(r.tasks, key)
 	return nil
 }
 
@@ -42,24 +46,25 @@ type LogDaemon struct {
 	apiListener  net.Listener
 	ipcListener  net.Listener
 	runningTasks *RunningTasks
+	config       *config.Config
 
 	logger *log.Logger
 }
 
 // NewLogDaemon creates a new logging daemon
-func NewLogDaemon(config *structs.LogDaemonConfig) (*LogDaemon, error) {
+func NewLogDaemon(config *config.Config) (*LogDaemon, error) {
 
 	// Create the mux for api
 	mux := http.NewServeMux()
 
 	// Create the api listener
-	apiListener, err := net.Listen("tcp", config.APIAddr)
+	apiListener, err := net.Listen("tcp", config.Node.LogDaemonAddr)
 	if err != nil {
 		return nil, err
 	}
 
 	// Create the ipc listener
-	ipcListener, err := net.Listen("tcp", config.IPCAddr)
+	ipcListener, err := net.Listen("tcp", config.LogDaemonIPCAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -83,6 +88,12 @@ func NewLogDaemon(config *structs.LogDaemonConfig) (*LogDaemon, error) {
 	return &ld, nil
 }
 
+func (ld *LogDaemon) SetConfig(config *config.Config, reply *string) error {
+	ld.logger.Printf("[INFO] client.logdaemon: setting config")
+	ld.config = config
+	return nil
+}
+
 // Start starts the http server of the log daemon
 func (ld *LogDaemon) Start() error {
 	ld.logger.Printf("[INFO] client.logdaemon: api server has started, it is listening on %v", ld.apiListener.Addr())
@@ -98,14 +109,49 @@ func (ld *LogDaemon) Start() error {
 // daemon
 func (ld *LogDaemon) configureRoutes() {
 	ld.mux.HandleFunc("/ping", ld.Ping)
+	ld.mux.HandleFunc("/v1/logs/", ld.StreamLogs)
 
 	rpc.Register(ld.runningTasks)
+	rpc.Register(ld)
 }
 
 // Ping responds by writing pong to the response. Serves as the health check
 // endpoint for the log daemon
 func (ld *LogDaemon) Ping(resp http.ResponseWriter, req *http.Request) {
 	fmt.Fprint(resp, "pong")
+}
+
+func (ld *LogDaemon) StreamLogs(resp http.ResponseWriter, req *http.Request) {
+	urlTokens := strings.Split(strings.Trim(req.URL.Path, "/"), "/")
+	if len(urlTokens) < 4 {
+		resp.WriteHeader(http.StatusNotFound)
+		fmt.Fprint(resp, "alloc id and task names are mandatory")
+		return
+	}
+
+	if len(urlTokens) > 5 {
+		resp.WriteHeader(http.StatusNotFound)
+		return
+	}
+	//allocId := urlTokens[2]
+	//taskName := urlTokens[3]
+
+	if len(urlTokens) == 4 {
+		fmt.Fprint(resp, "multiplexed")
+		return
+	}
+
+	if len(urlTokens) == 5 {
+		streamName := urlTokens[5]
+		if streamName != "stdout" || streamName != "stderr" {
+			resp.WriteHeader(http.StatusNotAcceptable)
+			fmt.Fprint(resp, "only stdout and stderr can be streamed")
+			return
+		}
+		fmt.Fprint(resp, streamName)
+	}
+
+	fmt.Fprint(resp, req.URL.Path)
 }
 
 func (ld *LogDaemon) Wait() {

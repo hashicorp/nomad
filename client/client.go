@@ -647,14 +647,14 @@ func (c *Client) setupLogDaemon() error {
 		return fmt.Errorf("Unable to find free port on loopback device: %v", err)
 	}
 
-	ipcAddr := fmt.Sprintf("127.0.0.1:%v", port)
+	c.config.LogDaemonIPCAddr = fmt.Sprintf("127.0.0.1:%v", port)
 
 	bin, err := discover.NomadExecutable()
 	if err != nil {
 		return fmt.Errorf("Failed to determine the Nomad executable: %v", err)
 	}
 
-	configuration, err := c.createLogDaemonConfig(ipcAddr)
+	configuration, err := c.createLogDaemonConfig()
 	if err != nil {
 		return err
 	}
@@ -677,19 +677,13 @@ func (c *Client) setupLogDaemon() error {
 
 	go c.runLogDaemon(logDaemon)
 
-	c.config.Node.Attributes["client.logdaemon.ipcserver"] = ipcAddr
 	return nil
 }
 
-func (c *Client) createLogDaemonConfig(ipcAddr string) (string, error) {
-	conf := structs.LogDaemonConfig{
-		APIAddr: c.config.Node.LogDaemonAddr,
-		IPCAddr: ipcAddr,
-	}
-
+func (c *Client) createLogDaemonConfig() (string, error) {
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
-	if err := enc.Encode(conf); err != nil {
+	if err := enc.Encode(c.config); err != nil {
 		return "", fmt.Errorf("failed to create configuration for the log daemon")
 	}
 	return buf.String(), nil

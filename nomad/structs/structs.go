@@ -2092,10 +2092,3 @@ func Encode(t MessageType, msg interface{}) ([]byte, error) {
 	err := codec.NewEncoder(&buf, MsgpackHandle).Encode(msg)
 	return buf.Bytes(), err
 }
-
-// LogDaemonConfig is the configutation that's serialized and sent to the log
-// daemon when it's forked off by the nomad client
-type LogDaemonConfig struct {
-	APIAddr string
-	IPCAddr string
-}

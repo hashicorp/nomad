@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/logdaemon"
-	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 type LogDaemonCommand struct {
@@ -31,7 +31,7 @@ func (l *LogDaemonCommand) Synopsis() string {
 }
 
 func (l *LogDaemonCommand) Run(args []string) int {
-	var config *structs.LogDaemonConfig
+	var config *config.Config
 	var logDaemon *logdaemon.LogDaemon
 	var err error
 
@@ -48,7 +48,7 @@ func (l *LogDaemonCommand) Run(args []string) int {
 	return 0
 }
 
-func (l *LogDaemonCommand) parseConfig(args []string) (*structs.LogDaemonConfig, error) {
+func (l *LogDaemonCommand) parseConfig(args []string) (*config.Config, error) {
 	flags := l.Meta.FlagSet("log-daemon", FlagSetClient)
 	flags.Usage = func() { l.Ui.Output(l.Help()) }
 
@@ -64,7 +64,7 @@ func (l *LogDaemonCommand) parseConfig(args []string) (*structs.LogDaemonConfig,
 	configuration := args[0]
 
 	// De-serialize the passed configuration
-	var config structs.LogDaemonConfig
+	var config config.Config
 	dec := json.NewDecoder(strings.NewReader(configuration))
 	if err := dec.Decode(&config); err != nil {
 		return nil, err
