@@ -356,10 +356,11 @@ func (r *TaskRunner) Destroy() {
 
 func (r *TaskRunner) registerTaskWithLogDaemon() {
 	taskInfo := logdaemon.TaskInfo{
-		HandleId: r.handle.ID(),
+		HandleID: r.handle.ID(),
 		AllocDir: r.ctx.AllocDir,
 		AllocID:  r.alloc.ID,
 		Name:     r.task.Name,
+		Driver:   r.task.Driver,
 	}
 	r.logClient.Register(&taskInfo)
 }

@@ -2,6 +2,7 @@ package logdaemon
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -12,10 +13,11 @@ import (
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/driver"
 )
 
 type TaskInfo struct {
-	HandleId string
+	HandleID string
 	AllocDir *allocdir.AllocDir
 	AllocID  string
 	Name     string
@@ -29,14 +31,14 @@ type RunningTasks struct {
 
 func (r *RunningTasks) Register(task *TaskInfo, reply *string) error {
 	r.logger.Printf("[DEBUG] client.logdaemon: registering task: %v", task.Name)
-	key := fmt.Sprintf("%s-%s", task.AllocID, task.Name)
+	key := taskId(task.AllocID, task.Name)
 	r.tasks[key] = task
 	return nil
 }
 
 func (r *RunningTasks) Remove(task *TaskInfo, reply *string) error {
 	r.logger.Printf("[DEBUG] client.logdaemon: de-registering task: %v", task.Name)
-	key := fmt.Sprintf("%s-%s", task.AllocID, task.Name)
+	key := taskId(task.AllocID, task.Name)
 	delete(r.tasks, key)
 	return nil
 }
@@ -79,6 +81,7 @@ func NewLogDaemon(config *config.Config) (*LogDaemon, error) {
 			tasks:  make(map[string]*TaskInfo),
 			logger: logger,
 		},
+		config: config,
 		logger: logger,
 	}
 
@@ -133,11 +136,37 @@ func (ld *LogDaemon) StreamLogs(resp http.ResponseWriter, req *http.Request) {
 		resp.WriteHeader(http.StatusNotFound)
 		return
 	}
-	//allocId := urlTokens[2]
-	//taskName := urlTokens[3]
+	allocID := urlTokens[2]
+	taskName := urlTokens[3]
 
+	taskInfo, ok := ld.runningTasks.tasks[taskId(allocID, taskName)]
+	if !ok {
+		resp.WriteHeader(http.StatusNotAcceptable)
+		fmt.Fprintf(resp, "task with name: %s and alloc id: %s is not running on this node", taskName, allocID)
+		return
+	}
+	d, err := ld.createDriver(taskInfo)
+	if err != nil {
+		ld.logger.Printf("[ERROR] client.logdaemon: could not create driver: %v", err)
+		resp.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	ctx := driver.NewExecContext(taskInfo.AllocDir, taskInfo.AllocID)
+	handle, err := d.Open(ctx, taskInfo.HandleID)
+	if err != nil {
+		ld.logger.Printf("[ERROR] client.logdaemon: could not create driver handle: %v", err)
+		resp.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	reader, err := handle.Logs()
+	if err != nil {
+		ld.logger.Printf("[ERROR] client.logdaemon: error reading logs: %v", err)
+		resp.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 	if len(urlTokens) == 4 {
-		fmt.Fprint(resp, "multiplexed")
+		io.Copy(resp, reader)
 		return
 	}
 
@@ -164,4 +193,20 @@ func (ld *LogDaemon) Wait() {
 			os.Exit(0)
 		}
 	}
+}
+
+// createDriver makes a driver for the task
+func (ld *LogDaemon) createDriver(taskInfo *TaskInfo) (driver.Driver, error) {
+	driverCtx := driver.NewDriverContext(taskInfo.Name, ld.config, ld.config.Node, ld.logger)
+	driver, err := driver.NewDriver(taskInfo.Driver, driverCtx)
+	if err != nil {
+		err = fmt.Errorf("failed to create driver '%s' for alloc %s: %v",
+			taskInfo.Driver, taskInfo.AllocID, err)
+		ld.logger.Printf("[ERR] client: %s", err)
+	}
+	return driver, err
+}
+
+func taskId(allocID string, taskName string) string {
+	return fmt.Sprintf("%s-%s", allocID, taskName)
 }
