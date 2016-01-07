@@ -734,48 +734,6 @@ func TestStateStore_JobsByGC(t *testing.T) {
 	}
 }
 
-func TestStateStore_ChildJobs(t *testing.T) {
-	state := testStateStore(t)
-	parent := mock.Job()
-	var childJobs []*structs.Job
-
-	if err := state.UpsertJob(999, parent); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	for i := 0; i < 10; i++ {
-		job := mock.Job()
-		job.ParentID = parent.ID
-		childJobs = append(childJobs, job)
-
-		err := state.UpsertJob(1000+uint64(i), job)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
-	}
-
-	iter, err := state.ChildJobs(parent.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	var out []*structs.Job
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-		out = append(out, raw.(*structs.Job))
-	}
-
-	sort.Sort(JobIDSort(childJobs))
-	sort.Sort(JobIDSort(out))
-
-	if !reflect.DeepEqual(childJobs, out) {
-		t.Fatalf("bad: %#v %#v", childJobs, out)
-	}
-}
-
 func TestStateStore_RestoreJob(t *testing.T) {
 	state := testStateStore(t)
 	job := mock.Job()

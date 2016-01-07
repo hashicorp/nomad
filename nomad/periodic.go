@@ -85,7 +85,8 @@ func (s *Server) DispatchJob(job *structs.Job) error {
 // RunningChildren checks whether the passed job has any running children.
 func (s *Server) RunningChildren(job *structs.Job) (bool, error) {
 	state := s.fsm.State()
-	iter, err := state.ChildJobs(job.ID)
+	prefix := fmt.Sprintf("%s%s", job.ID, JobLaunchSuffix)
+	iter, err := state.JobsByIDPrefix(prefix)
 	if err != nil {
 		return false, err
 	}
@@ -93,6 +94,11 @@ func (s *Server) RunningChildren(job *structs.Job) (bool, error) {
 	var child *structs.Job
 	for i := iter.Next(); i != nil; i = iter.Next() {
 		child = i.(*structs.Job)
+
+		// Ensure the job is actually a child.
+		if child.ParentID != job.ID {
+			continue
+		}
 
 		// Get the childs evaluations.
 		evals, err := state.EvalsByJob(child.ID)
