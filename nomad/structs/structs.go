@@ -1240,14 +1240,18 @@ type ServiceCheck struct {
 func (sc *ServiceCheck) Validate() error {
 	t := strings.ToLower(sc.Type)
 	if t != ServiceCheckTCP && t != ServiceCheckHTTP {
-		return fmt.Errorf("Check with name %v has invalid check type: %s ", sc.Name, sc.Type)
+		return fmt.Errorf("service check must be either http or tcp type")
 	}
 	if sc.Type == ServiceCheckHTTP && sc.Path == "" {
-		return fmt.Errorf("http checks needs the Http path information.")
+		return fmt.Errorf("service checks of http type must have a valid http path")
 	}
 
 	if sc.Type == ServiceCheckScript && sc.Script == "" {
-		return fmt.Errorf("Script checks need the script to invoke")
+		return fmt.Errorf("service checks of script type must have a valid script path")
+	}
+
+	if sc.Interval <= 0 {
+		return fmt.Errorf("service checks must have positive time intervals")
 	}
 	return nil
 }
