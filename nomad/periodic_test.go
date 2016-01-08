@@ -517,7 +517,7 @@ func TestPeriodicHeap_Order(t *testing.T) {
 func deriveChildJob(parent *structs.Job) *structs.Job {
 	childjob := mock.Job()
 	childjob.ParentID = parent.ID
-	childjob.ID = fmt.Sprintf("%s%s%v", parent.ID, JobLaunchSuffix, time.Now().Unix())
+	childjob.ID = fmt.Sprintf("%s%s%v", parent.ID, structs.PeriodicLaunchSuffix, time.Now().Unix())
 	return childjob
 }
 

@@ -128,7 +128,7 @@ func (c *RunCommand) Run(args []string) int {
 
 	// Detach was not specified, so start monitoring
 	mon := newMonitor(c.Ui, client)
-	return mon.monitor(evalID)
+	return mon.monitor(evalID, false)
 
 }
 

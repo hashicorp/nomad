@@ -151,54 +151,108 @@ func (c *StatusCommand) Run(args []string) int {
 
 	c.Ui.Output(formatKV(basic))
 
-	if !periodic && !short {
-		var evals, allocs []string
+	// Exit early
+	if short {
+		return 0
+	}
 
-		// Query the evaluations
-		jobEvals, _, err := client.Jobs().Evaluations(job.ID, nil)
-		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error querying job evaluations: %s", err))
+	// Print periodic job information
+	if periodic {
+		if err := c.outputPeriodicInfo(client, job); err != nil {
+			c.Ui.Error(err.Error())
 			return 1
 		}
 
-		// Query the allocations
-		jobAllocs, _, err := client.Jobs().Allocations(job.ID, nil)
-		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error querying job allocations: %s", err))
-			return 1
-		}
+		return 0
+	}
 
-		// Format the evals
-		evals = make([]string, len(jobEvals)+1)
-		evals[0] = "ID|Priority|TriggeredBy|Status"
-		for i, eval := range jobEvals {
-			evals[i+1] = fmt.Sprintf("%s|%d|%s|%s",
-				eval.ID,
-				eval.Priority,
-				eval.TriggeredBy,
-				eval.Status)
-		}
-
-		// Format the allocs
-		allocs = make([]string, len(jobAllocs)+1)
-		allocs[0] = "ID|EvalID|NodeID|TaskGroup|Desired|Status"
-		for i, alloc := range jobAllocs {
-			allocs[i+1] = fmt.Sprintf("%s|%s|%s|%s|%s|%s",
-				alloc.ID,
-				alloc.EvalID,
-				alloc.NodeID,
-				alloc.TaskGroup,
-				alloc.DesiredStatus,
-				alloc.ClientStatus)
-		}
-
-		c.Ui.Output("\n==> Evaluations")
-		c.Ui.Output(formatList(evals))
-		c.Ui.Output("\n==> Allocations")
-		c.Ui.Output(formatList(allocs))
+	if err := c.outputJobInfo(client, job); err != nil {
+		c.Ui.Error(err.Error())
+		return 1
 	}
 
 	return 0
+}
+
+// outputPeriodicInfo prints information about the passed periodic job. If a
+// request fails, an error is returned.
+func (c *StatusCommand) outputPeriodicInfo(client *api.Client, job *api.Job) error {
+	// Generate the prefix that matches launched jobs from the periodic job.
+	prefix := fmt.Sprintf("%s%s", job.ID, structs.PeriodicLaunchSuffix)
+	children, _, err := client.Jobs().PrefixList(prefix)
+	if err != nil {
+		return fmt.Errorf("Error querying job: %s", err)
+	}
+
+	if len(children) == 0 {
+		c.Ui.Output("\nNo previously launched jobs")
+		return nil
+	}
+
+	out := make([]string, 1)
+	out[0] = "ID|Status"
+	for _, child := range children {
+		// Ensure that we are only showing jobs whose parent is the requested
+		// job.
+		if child.ParentID != job.ID {
+			continue
+		}
+
+		out = append(out, fmt.Sprintf("%s|%s",
+			child.ID,
+			child.Status))
+	}
+
+	c.Ui.Output(fmt.Sprintf("\nPreviously launched jobs:\n%s", formatList(out)))
+	return nil
+}
+
+// outputJobInfo prints information about the passed non-periodic job. If a
+// request fails, an error is returned.
+func (c *StatusCommand) outputJobInfo(client *api.Client, job *api.Job) error {
+	var evals, allocs []string
+
+	// Query the evaluations
+	jobEvals, _, err := client.Jobs().Evaluations(job.ID, nil)
+	if err != nil {
+		return fmt.Errorf("Error querying job evaluations: %s", err)
+	}
+
+	// Query the allocations
+	jobAllocs, _, err := client.Jobs().Allocations(job.ID, nil)
+	if err != nil {
+		return fmt.Errorf("Error querying job allocations: %s", err)
+	}
+
+	// Format the evals
+	evals = make([]string, len(jobEvals)+1)
+	evals[0] = "ID|Priority|TriggeredBy|Status"
+	for i, eval := range jobEvals {
+		evals[i+1] = fmt.Sprintf("%s|%d|%s|%s",
+			eval.ID,
+			eval.Priority,
+			eval.TriggeredBy,
+			eval.Status)
+	}
+
+	// Format the allocs
+	allocs = make([]string, len(jobAllocs)+1)
+	allocs[0] = "ID|EvalID|NodeID|TaskGroup|Desired|Status"
+	for i, alloc := range jobAllocs {
+		allocs[i+1] = fmt.Sprintf("%s|%s|%s|%s|%s|%s",
+			alloc.ID,
+			alloc.EvalID,
+			alloc.NodeID,
+			alloc.TaskGroup,
+			alloc.DesiredStatus,
+			alloc.ClientStatus)
+	}
+
+	c.Ui.Output("\n==> Evaluations")
+	c.Ui.Output(formatList(evals))
+	c.Ui.Output("\n==> Allocations")
+	c.Ui.Output(formatList(allocs))
+	return nil
 }
 
 // convertApiJob is used to take a *api.Job and convert it to an *struct.Job.

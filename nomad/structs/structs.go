@@ -894,6 +894,7 @@ func (j *Job) LookupTaskGroup(name string) *TaskGroup {
 func (j *Job) Stub() *JobListStub {
 	return &JobListStub{
 		ID:                j.ID,
+		ParentID:          j.ParentID,
 		Name:              j.Name,
 		Type:              j.Type,
 		Priority:          j.Priority,
@@ -913,6 +914,7 @@ func (j *Job) IsPeriodic() bool {
 // for the job list
 type JobListStub struct {
 	ID                string
+	ParentID          string
 	Name              string
 	Type              string
 	Priority          int
@@ -1022,6 +1024,12 @@ func (p *PeriodicConfig) Next(fromTime time.Time) time.Time {
 
 	return time.Time{}
 }
+
+const (
+	// PeriodicLaunchSuffix is the string appended to the periodic jobs ID
+	// when launching derived instances of it.
+	PeriodicLaunchSuffix = "/periodic-"
+)
 
 // PeriodicLaunch tracks the last launch time of a periodic job.
 type PeriodicLaunch struct {

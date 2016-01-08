@@ -144,6 +144,7 @@ type Job struct {
 // jobs during list operations.
 type JobListStub struct {
 	ID                string
+	ParentID          string
 	Name              string
 	Type              string
 	Priority          int
