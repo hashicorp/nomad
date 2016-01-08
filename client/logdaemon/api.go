@@ -9,7 +9,8 @@ import (
 	"net/rpc"
 	"os"
 	"os/signal"
-	"strings"
+
+	"github.com/julienschmidt/httprouter"
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
@@ -44,7 +45,7 @@ func (r *RunningTasks) Remove(task *TaskInfo, reply *string) error {
 }
 
 type LogDaemon struct {
-	mux          *http.ServeMux
+	router       *httprouter.Router
 	apiListener  net.Listener
 	ipcListener  net.Listener
 	runningTasks *RunningTasks
@@ -55,10 +56,6 @@ type LogDaemon struct {
 
 // NewLogDaemon creates a new logging daemon
 func NewLogDaemon(config *config.Config) (*LogDaemon, error) {
-
-	// Create the mux for api
-	mux := http.NewServeMux()
-
 	// Create the api listener
 	apiListener, err := net.Listen("tcp", config.Node.LogDaemonAddr)
 	if err != nil {
@@ -74,7 +71,7 @@ func NewLogDaemon(config *config.Config) (*LogDaemon, error) {
 
 	// Create the log Daemon
 	ld := LogDaemon{
-		mux:         mux,
+		router:      httprouter.New(),
 		apiListener: apiListener,
 		ipcListener: ipcListener,
 		runningTasks: &RunningTasks{
@@ -87,6 +84,7 @@ func NewLogDaemon(config *config.Config) (*LogDaemon, error) {
 
 	// Configure the routes
 	ld.configureRoutes()
+	ld.router.RedirectTrailingSlash = true
 
 	return &ld, nil
 }
@@ -100,7 +98,7 @@ func (ld *LogDaemon) SetConfig(config *config.Config, reply *string) error {
 // Start starts the http server of the log daemon
 func (ld *LogDaemon) Start() error {
 	ld.logger.Printf("[INFO] client.logdaemon: api server has started, it is listening on %v", ld.apiListener.Addr())
-	go http.Serve(ld.apiListener, ld.mux)
+	go http.Serve(ld.apiListener, ld.router)
 
 	rpc.HandleHTTP()
 	ld.logger.Printf("[INFO] client.logdaemon: ipc server has started, it is listening on %v", ld.ipcListener.Addr())
@@ -111,8 +109,10 @@ func (ld *LogDaemon) Start() error {
 // configureRoutes sets up the mux with the various api end points of the log
 // daemon
 func (ld *LogDaemon) configureRoutes() {
-	ld.mux.HandleFunc("/ping", ld.Ping)
-	ld.mux.HandleFunc("/v1/logs/", ld.StreamLogs)
+	ld.router.GET("/ping", ld.Ping)
+	ld.router.GET("/v1/logs/:allocation/:task", ld.MuxLogs)
+	ld.router.GET("/v1/logs/:allocation/:task/stdout", ld.Stdout)
+	ld.router.GET("/v1/logs/:allocation/:task/stderr", ld.Stderr)
 
 	rpc.Register(ld.runningTasks)
 	rpc.Register(ld)
@@ -120,39 +120,20 @@ func (ld *LogDaemon) configureRoutes() {
 
 // Ping responds by writing pong to the response. Serves as the health check
 // endpoint for the log daemon
-func (ld *LogDaemon) Ping(resp http.ResponseWriter, req *http.Request) {
+func (ld *LogDaemon) Ping(resp http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 	fmt.Fprint(resp, "pong")
 }
 
-func (ld *LogDaemon) StreamLogs(resp http.ResponseWriter, req *http.Request) {
-	urlTokens := strings.Split(strings.Trim(req.URL.Path, "/"), "/")
-	if len(urlTokens) < 4 {
-		resp.WriteHeader(http.StatusNotFound)
-		fmt.Fprint(resp, "alloc id and task names are mandatory")
-		return
-	}
-
-	if len(urlTokens) > 5 {
-		resp.WriteHeader(http.StatusNotFound)
-		return
-	}
-	allocID := urlTokens[2]
-	taskName := urlTokens[3]
-
+func (ld *LogDaemon) MuxLogs(resp http.ResponseWriter, req *http.Request, p httprouter.Params) {
+	allocID := p.ByName("allocation")
+	taskName := p.ByName("task")
 	taskInfo, ok := ld.runningTasks.tasks[taskId(allocID, taskName)]
 	if !ok {
 		resp.WriteHeader(http.StatusNotAcceptable)
 		fmt.Fprintf(resp, "task with name: %s and alloc id: %s is not running on this node", taskName, allocID)
 		return
 	}
-	d, err := ld.createDriver(taskInfo)
-	if err != nil {
-		ld.logger.Printf("[ERROR] client.logdaemon: could not create driver: %v", err)
-		resp.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	ctx := driver.NewExecContext(taskInfo.AllocDir, taskInfo.AllocID)
-	handle, err := d.Open(ctx, taskInfo.HandleID)
+	handle, err := ld.driverHandle(taskInfo)
 	if err != nil {
 		ld.logger.Printf("[ERROR] client.logdaemon: could not create driver handle: %v", err)
 		resp.WriteHeader(http.StatusInternalServerError)
@@ -165,22 +146,15 @@ func (ld *LogDaemon) StreamLogs(resp http.ResponseWriter, req *http.Request) {
 		resp.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	if len(urlTokens) == 4 {
-		io.Copy(resp, reader)
-		return
-	}
 
-	if len(urlTokens) == 5 {
-		streamName := urlTokens[5]
-		if streamName != "stdout" || streamName != "stderr" {
-			resp.WriteHeader(http.StatusNotAcceptable)
-			fmt.Fprint(resp, "only stdout and stderr can be streamed")
-			return
-		}
-		fmt.Fprint(resp, streamName)
-	}
+	io.Copy(resp, reader)
+	return
+}
 
-	fmt.Fprint(resp, req.URL.Path)
+func (ld *LogDaemon) Stdout(resp http.ResponseWriter, req *http.Request, p httprouter.Params) {
+}
+
+func (ld *LogDaemon) Stderr(resp http.ResponseWriter, req *http.Request, p httprouter.Params) {
 }
 
 func (ld *LogDaemon) Wait() {
@@ -196,15 +170,22 @@ func (ld *LogDaemon) Wait() {
 }
 
 // createDriver makes a driver for the task
-func (ld *LogDaemon) createDriver(taskInfo *TaskInfo) (driver.Driver, error) {
+func (ld *LogDaemon) driverHandle(taskInfo *TaskInfo) (driver.DriverHandle, error) {
 	driverCtx := driver.NewDriverContext(taskInfo.Name, ld.config, ld.config.Node, ld.logger)
-	driver, err := driver.NewDriver(taskInfo.Driver, driverCtx)
+	d, err := driver.NewDriver(taskInfo.Driver, driverCtx)
 	if err != nil {
-		err = fmt.Errorf("failed to create driver '%s' for alloc %s: %v",
+		ld.logger.Printf("[ERROR] client.logdaemon: failed to create driver '%s' for alloc %s: %v",
 			taskInfo.Driver, taskInfo.AllocID, err)
-		ld.logger.Printf("[ERR] client: %s", err)
+		return nil, err
 	}
-	return driver, err
+	ctx := driver.NewExecContext(taskInfo.AllocDir, taskInfo.AllocID)
+	handle, err := d.Open(ctx, taskInfo.HandleID)
+	if err != nil {
+		ld.logger.Printf("[ERROR] client.logdaemon: could not create driver handle: %v", err)
+		return nil, err
+	}
+
+	return handle, nil
 }
 
 func taskId(allocID string, taskName string) string {
