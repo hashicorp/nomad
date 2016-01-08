@@ -284,6 +284,6 @@ func (h *qemuHandle) Wait() {
 	close(h.waitCh)
 }
 
-func (h *qemuHandle) Logs() (io.Reader, error) {
+func (h *qemuHandle) Logs(follow bool, stdout bool, stderr bool) (io.Reader, error) {
 	return nil, nil
 }

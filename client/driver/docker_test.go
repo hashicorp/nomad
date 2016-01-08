@@ -638,7 +638,7 @@ func TestDockerReadLogs(t *testing.T) {
 	defer cleanup()
 	// Wait for a few seconds so that the process starts up
 	time.Sleep(2 * time.Second)
-	rdr, err := handle.Logs()
+	rdr, err := handle.Logs(false, true, true)
 	if err != nil {
 		t.Fatal(err.Error())
 	}

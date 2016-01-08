@@ -9,6 +9,7 @@ import (
 	"net/rpc"
 	"os"
 	"os/signal"
+	"strconv"
 
 	"github.com/julienschmidt/httprouter"
 
@@ -125,8 +126,8 @@ func (ld *LogDaemon) Ping(resp http.ResponseWriter, req *http.Request, _ httprou
 }
 
 func (ld *LogDaemon) MuxLogs(resp http.ResponseWriter, req *http.Request, p httprouter.Params) {
-	allocID := p.ByName("allocation")
-	taskName := p.ByName("task")
+	allocID, taskName, follow := ld.parseURL(req, p)
+
 	taskInfo, ok := ld.runningTasks.tasks[taskId(allocID, taskName)]
 	if !ok {
 		resp.WriteHeader(http.StatusNotAcceptable)
@@ -140,14 +141,15 @@ func (ld *LogDaemon) MuxLogs(resp http.ResponseWriter, req *http.Request, p http
 		return
 	}
 
-	reader, err := handle.Logs()
+	reader, err := handle.Logs(follow, true, true)
 	if err != nil {
 		ld.logger.Printf("[ERROR] client.logdaemon: error reading logs: %v", err)
 		resp.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	io.Copy(resp, reader)
+	logWriter := LogResponseWriter{W: resp, Flush: resp.(http.Flusher).Flush}
+	io.Copy(logWriter, reader)
 	return
 }
 
@@ -155,6 +157,17 @@ func (ld *LogDaemon) Stdout(resp http.ResponseWriter, req *http.Request, p httpr
 }
 
 func (ld *LogDaemon) Stderr(resp http.ResponseWriter, req *http.Request, p httprouter.Params) {
+}
+
+type LogResponseWriter struct {
+	W     io.Writer
+	Flush func()
+}
+
+func (r LogResponseWriter) Write(p []byte) (int, error) {
+	n, err := r.W.Write(p)
+	r.Flush()
+	return n, err
 }
 
 func (ld *LogDaemon) Wait() {
@@ -186,6 +199,18 @@ func (ld *LogDaemon) driverHandle(taskInfo *TaskInfo) (driver.DriverHandle, erro
 	}
 
 	return handle, nil
+}
+
+func (ld *LogDaemon) parseURL(req *http.Request, p httprouter.Params) (allocID string, task string, follow bool) {
+	allocID = p.ByName("allocation")
+	task = p.ByName("task")
+	follow = false
+	if f := req.URL.Query().Get("follow"); f != "" {
+		if val, err := strconv.ParseBool(f); err == nil {
+			follow = val
+		}
+	}
+	return
 }
 
 func taskId(allocID string, taskName string) string {

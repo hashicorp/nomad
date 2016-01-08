@@ -690,14 +690,15 @@ func (h *DockerHandle) Wait() {
 	close(h.waitCh)
 }
 
-func (h *DockerHandle) Logs() (io.Reader, error) {
+func (h *DockerHandle) Logs(follow bool, stdout bool, stderr bool) (io.Reader, error) {
 	var buf bytes.Buffer
 	err := h.client.Logs(docker.LogsOptions{
 		Container:    h.containerID,
 		OutputStream: &buf,
 		ErrorStream:  &buf,
-		Stdout:       true,
-		Stderr:       true,
+		Stdout:       stdout,
+		Stderr:       stderr,
+		Follow:       follow,
 	})
 	if err != nil {
 		return nil, err
