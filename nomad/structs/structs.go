@@ -689,10 +689,9 @@ const (
 )
 
 const (
-	JobStatusPending  = "pending"  // Pending means the job is waiting on scheduling
-	JobStatusRunning  = "running"  // Running means the entire job is running
-	JobStatusComplete = "complete" // Complete means there was a clean termination
-	JobStatusDead     = "dead"     // Dead means there was abnormal termination
+	JobStatusPending = "pending" // Pending means the job is waiting on scheduling
+	JobStatusRunning = "running" // Running means the job has non-terminal allocations
+	JobStatusDead    = "dead"    // Dead means all evaluation's and allocations are terminal
 )
 
 const (
