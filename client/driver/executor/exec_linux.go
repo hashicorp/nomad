@@ -25,12 +25,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// The buffer names which the executor uses as file extensions for the logs
-const (
-	stdout = "stdout"
-	stderr = "stderr"
-)
-
 var (
 	// A mapping of directories on the host OS to attempt to embed inside each
 	// task's chroot.

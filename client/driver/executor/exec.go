@@ -32,6 +32,12 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 )
 
+// The buffer names which the executor uses as file extensions for the logs
+const (
+	stdout = "stdout"
+	stderr = "stderr"
+)
+
 var errNoResources = fmt.Errorf("No resources are associated with this task")
 
 // Executor is an interface that any platform- or capability-specific exec
