@@ -336,6 +336,9 @@ func (p *PeriodicDispatch) dispatch(job *structs.Job, launchTime time.Time) {
 		}
 
 		if running {
+			msg := fmt.Sprintf("[DEBUG] nomad.periodic: skipping launch of"+
+				" periodic job %q because job prohibits overlap", job.ID)
+			p.logger.Println(msg)
 			p.l.Unlock()
 			return
 		}
