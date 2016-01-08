@@ -248,7 +248,10 @@ func (c *ConsulService) performSync() {
 				if _, ok := consulChecks[checkID]; !ok {
 					host, port := trackedTask.task.FindHostAndPortFor(service.PortLabel)
 					cr := c.makeCheck(serviceID, check, host, port)
-					c.registerCheck(cr)
+					if err := c.registerCheck(cr); err != nil {
+						c.printLogMessage("[DEBUG] consul: error registering check %q: %v", cr.ID, err)
+					}
+
 				}
 			}
 		}
