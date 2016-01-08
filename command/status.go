@@ -185,7 +185,7 @@ func (c *StatusCommand) outputPeriodicInfo(client *api.Client, job *api.Job) err
 	}
 
 	if len(children) == 0 {
-		c.Ui.Output("\nNo previously launched jobs")
+		c.Ui.Output("\nNo instances of periodic job found")
 		return nil
 	}
 
