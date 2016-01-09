@@ -1748,6 +1748,161 @@ func TestStateStore_RestoreAlloc(t *testing.T) {
 	notify.verify(t)
 }
 
+func TestStateStore_SetJobStatus_ForceStatus(t *testing.T) {
+	// Create a mock job.
+	job := mock.Job()
+	job.Status = ""
+
+	state := testStateStore(t)
+	watcher := watch.NewItems()
+	txn := state.db.Txn(false)
+	exp := "foobar"
+	if err := state.setJobStatus(watcher, txn, job, false, exp); err != nil {
+		t.Fatalf("setJobStatus() failed: %v", err)
+	}
+
+	if job.Status != exp {
+		t.Fatalf("setJobStatus() set %v; expected %v", job.Status, exp)
+	}
+}
+
+func TestStateStore_SetJobStatus_NoEvalsOrAllocs(t *testing.T) {
+	// Create a mock job.
+	job := mock.Job()
+	job.Status = ""
+
+	state := testStateStore(t)
+	watcher := watch.NewItems()
+	txn := state.db.Txn(false)
+	if err := state.setJobStatus(watcher, txn, job, false, ""); err != nil {
+		t.Fatalf("setJobStatus() failed: %v", err)
+	}
+
+	if job.Status != structs.JobStatusPending {
+		t.Fatalf("setJobStatus() set %v; expected %v", job.Status, structs.JobStatusPending)
+	}
+}
+
+func TestStateStore_SetJobStatus_NoEvalsOrAllocs_Periodic(t *testing.T) {
+	// Create a mock job.
+	job := mock.PeriodicJob()
+	job.Status = ""
+
+	state := testStateStore(t)
+	watcher := watch.NewItems()
+	txn := state.db.Txn(false)
+	if err := state.setJobStatus(watcher, txn, job, false, ""); err != nil {
+		t.Fatalf("setJobStatus() failed: %v", err)
+	}
+
+	if job.Status != structs.JobStatusRunning {
+		t.Fatalf("setJobStatus() set %v; expected %v", job.Status, structs.JobStatusRunning)
+	}
+}
+
+func TestStateStore_SetJobStatus_NoEvalsOrAllocs_EvalDelete(t *testing.T) {
+	// Create a mock job.
+	job := mock.Job()
+	job.Status = ""
+
+	state := testStateStore(t)
+	watcher := watch.NewItems()
+	txn := state.db.Txn(false)
+	if err := state.setJobStatus(watcher, txn, job, true, ""); err != nil {
+		t.Fatalf("setJobStatus() failed: %v", err)
+	}
+
+	if job.Status != structs.JobStatusDead {
+		t.Fatalf("setJobStatus() set %v; expected %v", job.Status, structs.JobStatusDead)
+	}
+}
+
+func TestStateStore_SetJobStatus_DeadEvalsAndAllocs(t *testing.T) {
+	state := testStateStore(t)
+
+	// Create a mock job.
+	job := mock.Job()
+	job.Status = ""
+
+	// Create a mock alloc that is dead.
+	alloc := mock.Alloc()
+	alloc.JobID = job.ID
+	alloc.DesiredStatus = structs.AllocDesiredStatusFailed
+	if err := state.UpsertAllocs(1000, []*structs.Allocation{alloc}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Create a mock eval that is complete
+	eval := mock.Eval()
+	eval.JobID = job.ID
+	eval.Status = structs.EvalStatusComplete
+	if err := state.UpsertEvals(1001, []*structs.Evaluation{eval}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	watcher := watch.NewItems()
+	txn := state.db.Txn(false)
+	if err := state.setJobStatus(watcher, txn, job, false, ""); err != nil {
+		t.Fatalf("setJobStatus() failed: %v", err)
+	}
+
+	if job.Status != structs.JobStatusDead {
+		t.Fatalf("setJobStatus() set %v; expected %v", job.Status, structs.JobStatusDead)
+	}
+}
+
+func TestStateStore_SetJobStatus_RunningAlloc(t *testing.T) {
+	state := testStateStore(t)
+
+	// Create a mock job.
+	job := mock.Job()
+	job.Status = ""
+
+	// Create a mock alloc that is running.
+	alloc := mock.Alloc()
+	alloc.JobID = job.ID
+	alloc.DesiredStatus = structs.AllocDesiredStatusRun
+	if err := state.UpsertAllocs(1000, []*structs.Allocation{alloc}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	watcher := watch.NewItems()
+	txn := state.db.Txn(false)
+	if err := state.setJobStatus(watcher, txn, job, true, ""); err != nil {
+		t.Fatalf("setJobStatus() failed: %v", err)
+	}
+
+	if job.Status != structs.JobStatusRunning {
+		t.Fatalf("setJobStatus() set %v; expected %v", job.Status, structs.JobStatusRunning)
+	}
+}
+
+func TestStateStore_SetJobStatus_PendingEval(t *testing.T) {
+	state := testStateStore(t)
+
+	// Create a mock job.
+	job := mock.Job()
+	job.Status = ""
+
+	// Create a mock eval that is pending.
+	eval := mock.Eval()
+	eval.JobID = job.ID
+	eval.Status = structs.EvalStatusPending
+	if err := state.UpsertEvals(1000, []*structs.Evaluation{eval}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	watcher := watch.NewItems()
+	txn := state.db.Txn(false)
+	if err := state.setJobStatus(watcher, txn, job, true, ""); err != nil {
+		t.Fatalf("setJobStatus() failed: %v", err)
+	}
+
+	if job.Status != structs.JobStatusPending {
+		t.Fatalf("setJobStatus() set %v; expected %v", job.Status, structs.JobStatusPending)
+	}
+}
+
 func TestStateWatch_watch(t *testing.T) {
 	sw := newStateWatch()
 	notify1 := make(chan struct{}, 1)
