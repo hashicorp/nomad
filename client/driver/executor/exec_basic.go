@@ -70,8 +70,8 @@ func (e *BasicExecutor) Start() error {
 	e.spawn = spawn.NewSpawner(spawnState)
 	e.spawn.SetCommand(&e.cmd)
 	e.spawn.SetLogs(&spawn.Logs{
-		Stdout: e.logPath(e.taskName, stdout),
-		Stderr: e.logPath(e.taskName, stderr),
+		Stdout: e.logPath(e.taskName, stdoutBufExt),
+		Stderr: e.logPath(e.taskName, stderrBufExt),
 		Stdin:  os.DevNull,
 	})
 
@@ -140,10 +140,10 @@ func (e *BasicExecutor) logPath(taskName string, bufferName string) string {
 }
 
 // Logs return a reader where logs of the task are written to
-func (e *BasicExecutor) Logs(w io.Writer) error {
+func (e *BasicExecutor) Logs(w io.Writer, follow bool, stdout bool, stderr bool, lines int64) error {
 	var stdOutLogs *os.File
 	var err error
-	if stdOutLogs, err = os.Open(e.logPath(e.taskName, stdout)); err != nil {
+	if stdOutLogs, err = os.Open(e.logPath(e.taskName, stdoutBufExt)); err != nil {
 		return err
 	}
 

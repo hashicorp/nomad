@@ -14,6 +14,8 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/hpcloud/tail"
+
 	"github.com/hashicorp/go-multierror"
 
 	"github.com/hashicorp/nomad/client/allocdir"
@@ -345,10 +347,10 @@ func (e *LinuxExecutor) cleanTaskDir() error {
 }
 
 // Logs return a reader where logs of the task are written to
-func (e *LinuxExecutor) Logs(w io.Writer) error {
-	var stdOutLogs *os.File
+func (e *LinuxExecutor) Logs(w io.Writer, follow bool, stderr bool, stdout bool, lines int64) error {
+	var t *tail.Tail
 	var err error
-	if stdOutLogs, err = os.Open(e.logPath(e.taskName, stdout)); err != nil {
+	if t, err = tail.TailFile(e.logPath(e.taskName, stdoutBufExt)); err != nil {
 		return err
 	}
 

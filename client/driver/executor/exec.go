@@ -34,8 +34,8 @@ import (
 
 // The buffer names which the executor uses as file extensions for the logs
 const (
-	stdout = "stdout"
-	stderr = "stderr"
+	stdoutBufExt = "stdout"
+	stderrBufExt = "stderr"
 )
 
 var errNoResources = fmt.Errorf("No resources are associated with this task")
@@ -82,7 +82,7 @@ type Executor interface {
 	Command() *exec.Cmd
 
 	// Logs return a handle to read the stdout and stderr of the process
-	Logs(w io.Writer) error
+	Logs(w io.Writer, follow bool, stdout bool, stderr bool, lines int64) error
 }
 
 // Command is a mirror of exec.Command that returns a platform-specific Executor
