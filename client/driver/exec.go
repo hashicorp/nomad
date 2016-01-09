@@ -193,6 +193,6 @@ func (h *execHandle) Wait() {
 	close(h.waitCh)
 }
 
-func (h *execHandle) Logs(w io.Writer, follow bool, stdout bool, stderr bool) error {
+func (h *execHandle) Logs(w io.Writer, follow bool, stdout bool, stderr bool, lines int64) error {
 	return h.cmd.Logs(w)
 }

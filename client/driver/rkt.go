@@ -310,6 +310,6 @@ func (h *rktHandle) Wait() {
 	close(h.waitCh)
 }
 
-func (h *rktHandle) Logs(w io.Writer, follow bool, stdout bool, stderr bool) error {
+func (h *rktHandle) Logs(w io.Writer, follow bool, stdout bool, stderr bool, lines int64) error {
 	return nil
 }

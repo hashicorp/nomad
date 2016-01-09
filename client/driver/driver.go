@@ -113,7 +113,7 @@ type DriverHandle interface {
 	Kill() error
 
 	// Logs return an io reader which streams the logs
-	Logs(w io.Writer, follow bool, stdout bool, stderr bool) error
+	Logs(w io.Writer, follow bool, stdout bool, stderr bool, lines int64) error
 }
 
 // ExecContext is shared between drivers within an allocation

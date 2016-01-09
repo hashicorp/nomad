@@ -126,7 +126,7 @@ func (ld *LogDaemon) Ping(resp http.ResponseWriter, req *http.Request, _ httprou
 }
 
 func (ld *LogDaemon) MuxLogs(resp http.ResponseWriter, req *http.Request, p httprouter.Params) {
-	allocID, taskName, follow := ld.parseURL(req, p)
+	allocID, taskName, follow, lines := ld.parseURL(req, p)
 
 	taskInfo, ok := ld.runningTasks.tasks[taskId(allocID, taskName)]
 	if !ok {
@@ -141,8 +141,8 @@ func (ld *LogDaemon) MuxLogs(resp http.ResponseWriter, req *http.Request, p http
 		return
 	}
 
-	logWriter := LogResponseWriter{W: resp, Flush: resp.(http.Flusher).Flush}
-	if err := handle.Logs(&logWriter, follow, true, true); err != nil {
+	fw := FlushWriter{W: resp, Flush: resp.(http.Flusher).Flush}
+	if err := handle.Logs(&fw, follow, true, true, lines); err != nil {
 		ld.logger.Printf("[ERROR] client.logdaemon: error reading logs: %v", err)
 		resp.WriteHeader(http.StatusInternalServerError)
 		return
@@ -157,14 +157,14 @@ func (ld *LogDaemon) Stdout(resp http.ResponseWriter, req *http.Request, p httpr
 func (ld *LogDaemon) Stderr(resp http.ResponseWriter, req *http.Request, p httprouter.Params) {
 }
 
-type LogResponseWriter struct {
+type FlushWriter struct {
 	W     io.Writer
 	Flush func()
 }
 
-func (r LogResponseWriter) Write(p []byte) (int, error) {
-	n, err := r.W.Write(p)
-	r.Flush()
+func (f FlushWriter) Write(p []byte) (int, error) {
+	n, err := f.W.Write(p)
+	f.Flush()
 	return n, err
 }
 
@@ -199,13 +199,21 @@ func (ld *LogDaemon) driverHandle(taskInfo *TaskInfo) (driver.DriverHandle, erro
 	return handle, nil
 }
 
-func (ld *LogDaemon) parseURL(req *http.Request, p httprouter.Params) (allocID string, task string, follow bool) {
+func (ld *LogDaemon) parseURL(req *http.Request, p httprouter.Params) (allocID string, task string, follow bool, lines int64) {
 	allocID = p.ByName("allocation")
 	task = p.ByName("task")
 	follow = false
+	lines = -1
 	if f := req.URL.Query().Get("follow"); f != "" {
 		if val, err := strconv.ParseBool(f); err == nil {
 			follow = val
+		}
+	}
+	if l := req.URL.Query().Get("lines"); l != "" {
+		if val, err := strconv.Atoi(l); err == nil {
+			if val > 0 {
+				lines = int64(val)
+			}
 		}
 	}
 	return

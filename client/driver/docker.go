@@ -689,7 +689,7 @@ func (h *DockerHandle) Wait() {
 	close(h.waitCh)
 }
 
-func (h *DockerHandle) Logs(w io.Writer, follow bool, stdout bool, stderr bool) error {
+func (h *DockerHandle) Logs(w io.Writer, follow bool, stdout bool, stderr bool, lines int64) error {
 	err := h.client.Logs(docker.LogsOptions{
 		Container:    h.containerID,
 		OutputStream: w,
@@ -697,6 +697,7 @@ func (h *DockerHandle) Logs(w io.Writer, follow bool, stdout bool, stderr bool) 
 		Stdout:       stdout,
 		Stderr:       stderr,
 		Follow:       follow,
+		Tail:         strconv.Itoa(int(lines)),
 	})
 
 	if err != nil {
