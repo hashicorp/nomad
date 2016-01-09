@@ -141,15 +141,13 @@ func (ld *LogDaemon) MuxLogs(resp http.ResponseWriter, req *http.Request, p http
 		return
 	}
 
-	reader, err := handle.Logs(follow, true, true)
-	if err != nil {
+	logWriter := LogResponseWriter{W: resp, Flush: resp.(http.Flusher).Flush}
+	if err := handle.Logs(&logWriter, follow, true, true); err != nil {
 		ld.logger.Printf("[ERROR] client.logdaemon: error reading logs: %v", err)
 		resp.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	logWriter := LogResponseWriter{W: resp, Flush: resp.(http.Flusher).Flush}
-	io.Copy(logWriter, reader)
 	return
 }
 

@@ -243,6 +243,6 @@ func (h *javaHandle) Wait() {
 	close(h.waitCh)
 }
 
-func (h *javaHandle) Logs(follow bool, stdout bool, stderr bool) (io.Reader, error) {
-	return h.cmd.Logs()
+func (h *javaHandle) Logs(w io.Writer, follow bool, stdout bool, stderr bool) error {
+	return h.cmd.Logs(w)
 }

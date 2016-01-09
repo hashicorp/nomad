@@ -82,7 +82,7 @@ type Executor interface {
 	Command() *exec.Cmd
 
 	// Logs return a handle to read the stdout and stderr of the process
-	Logs() (io.Reader, error)
+	Logs(w io.Writer) error
 }
 
 // Command is a mirror of exec.Command that returns a platform-specific Executor

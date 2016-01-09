@@ -345,18 +345,17 @@ func (e *LinuxExecutor) cleanTaskDir() error {
 }
 
 // Logs return a reader where logs of the task are written to
-func (e *LinuxExecutor) Logs() (io.Reader, error) {
-	var buf bytes.Buffer
+func (e *LinuxExecutor) Logs(w io.Writer) error {
 	var stdOutLogs *os.File
 	var err error
 	if stdOutLogs, err = os.Open(e.logPath(e.taskName, stdout)); err != nil {
-		return nil, err
+		return err
 	}
 
 	scanner := bufio.NewScanner(stdOutLogs)
 
 	for scanner.Scan() {
-		buf.Write(scanner.Bytes())
+		w.Write(scanner.Bytes())
 	}
-	return &buf, scanner.Err()
+	return scanner.Err()
 }

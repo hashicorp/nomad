@@ -1,7 +1,6 @@
 package driver
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -690,18 +689,18 @@ func (h *DockerHandle) Wait() {
 	close(h.waitCh)
 }
 
-func (h *DockerHandle) Logs(follow bool, stdout bool, stderr bool) (io.Reader, error) {
-	var buf bytes.Buffer
+func (h *DockerHandle) Logs(w io.Writer, follow bool, stdout bool, stderr bool) error {
 	err := h.client.Logs(docker.LogsOptions{
 		Container:    h.containerID,
-		OutputStream: &buf,
-		ErrorStream:  &buf,
+		OutputStream: w,
+		ErrorStream:  w,
 		Stdout:       stdout,
 		Stderr:       stderr,
 		Follow:       follow,
 	})
+
 	if err != nil {
-		return nil, err
+		h.logger.Printf("[ERROR] client: error fetching logs from container: %v, err: %v", h.containerID, err)
 	}
-	return &buf, nil
+	return nil
 }

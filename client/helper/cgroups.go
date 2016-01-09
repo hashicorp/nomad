@@ -6,6 +6,8 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+// This is an empty impl of ResourceConstrainer for platforms where we enforce
+// resource constraints
 type ResourceConstrainer struct {
 }
 
