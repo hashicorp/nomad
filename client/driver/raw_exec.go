@@ -3,6 +3,7 @@ package driver
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"path/filepath"
 	"time"
@@ -189,4 +190,8 @@ func (h *rawExecHandle) Wait() {
 	close(h.doneCh)
 	h.waitCh <- res
 	close(h.waitCh)
+}
+
+func (h *rawExecHandle) Logs(w io.Writer, follow bool, stdout bool, stderr bool, lines int64) error {
+	return h.cmd.Logs(w, follow, stdout, stderr, lines)
 }
