@@ -85,6 +85,7 @@ type Node struct {
 	Drain             bool
 	Status            string
 	StatusDescription string
+	LogDaemonAddr     string
 	CreateIndex       uint64
 	ModifyIndex       uint64
 }
