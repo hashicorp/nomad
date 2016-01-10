@@ -20,6 +20,10 @@ func (l *TaskLogs) Get(alloc string, task string, stdout bool, stderr bool, foll
 	if err != nil {
 		return nil, err
 	}
+
+	if allocation.ClientStatus == "pending" {
+		return nil, fmt.Errorf("task %q hasn't started on the allocation %q", task, alloc)
+	}
 	nodeID := allocation.NodeID
 
 	node, _, err := l.client.Nodes().Info(nodeID, &QueryOptions{})
