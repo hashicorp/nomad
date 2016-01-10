@@ -39,6 +39,7 @@ func NewBasicExecutor() Executor {
 
 type ExecBasicID struct {
 	Spawn    *spawn.Spawner
+	TaskDir  string
 	TaskName string
 	AllocDir string
 }
@@ -95,6 +96,7 @@ func (e *BasicExecutor) Open(id string) error {
 
 	// Setup the executor.
 	e.spawn = basicID.Spawn
+	e.taskDir = basicID.TaskDir
 	e.taskName = basicID.TaskName
 	e.allocDir = basicID.AllocDir
 
@@ -112,6 +114,7 @@ func (e *BasicExecutor) ID() (string, error) {
 
 	id := ExecBasicID{
 		Spawn:    e.spawn,
+		TaskDir:  e.taskDir,
 		TaskName: e.taskName,
 		AllocDir: e.allocDir,
 	}
