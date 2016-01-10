@@ -42,7 +42,10 @@ type DockerDriverConfig struct {
 	ImageName        string              `mapstructure:"image"`              // Container's Image Name
 	Command          string              `mapstructure:"command"`            // The Command/Entrypoint to run when the container starts up
 	Args             []string            `mapstructure:"args"`               // The arguments to the Command/Entrypoint
+	IpcMode          string              `mapstructure:"ipc_mode"`           // The IPC mode of the container - host and none
 	NetworkMode      string              `mapstructure:"network_mode"`       // The network mode of the container - host, net and none
+	PidMode          string              `mapstructure:"pid_mode"`           // The PID mode of the container - host and none
+	UTSMode          string              `mapstructure:"uts_mode"`           // The UTS mode of the container - host and none
 	PortMapRaw       []map[string]int    `mapstructure:"port_map"`           //
 	PortMap          map[string]int      `mapstructure:"-"`                  // A map of host port labels and the ports exposed on the container
 	Privileged       bool                `mapstructure:"privileged"`         // Flag to run the container in priviledged mode
@@ -254,6 +257,30 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, dri
 	for _, domain := range driverConfig.DNSSearchDomains {
 		hostConfig.DNSSearch = append(hostConfig.DNSSearch, domain)
 	}
+
+	if driverConfig.IpcMode != "" {
+		if !hostPrivileged {
+			return c, fmt.Errorf(`Docker privileged mode is disabled on this Nomad agent, setting ipc mode not allowed`)
+		}
+		d.logger.Printf("[DEBUG] driver.docker: setting ipc mode to %s", driverConfig.IpcMode)
+	}
+	hostConfig.IpcMode = driverConfig.IpcMode
+
+	if driverConfig.PidMode != "" {
+		if !hostPrivileged {
+			return c, fmt.Errorf(`Docker privileged mode is disabled on this Nomad agent, setting pid mode not allowed`)
+		}
+		d.logger.Printf("[DEBUG] driver.docker: setting pid mode to %s", driverConfig.PidMode)
+	}
+	hostConfig.PidMode = driverConfig.PidMode
+
+	if driverConfig.UTSMode != "" {
+		if !hostPrivileged {
+			return c, fmt.Errorf(`Docker privileged mode is disabled on this Nomad agent, setting UTS mode not allowed`)
+		}
+		d.logger.Printf("[DEBUG] driver.docker: setting UTS mode to %s", driverConfig.UTSMode)
+	}
+	hostConfig.UTSMode = driverConfig.UTSMode
 
 	hostConfig.NetworkMode = driverConfig.NetworkMode
 	if hostConfig.NetworkMode == "" {
