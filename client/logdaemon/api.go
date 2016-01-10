@@ -126,6 +126,18 @@ func (ld *LogDaemon) Ping(resp http.ResponseWriter, req *http.Request, _ httprou
 }
 
 func (ld *LogDaemon) MuxLogs(resp http.ResponseWriter, req *http.Request, p httprouter.Params) {
+	ld.writeLogs(resp, req, p, true, true)
+}
+
+func (ld *LogDaemon) Stdout(resp http.ResponseWriter, req *http.Request, p httprouter.Params) {
+	ld.writeLogs(resp, req, p, true, false)
+}
+
+func (ld *LogDaemon) Stderr(resp http.ResponseWriter, req *http.Request, p httprouter.Params) {
+	ld.writeLogs(resp, req, p, false, true)
+}
+
+func (ld *LogDaemon) writeLogs(resp http.ResponseWriter, req *http.Request, p httprouter.Params, stdout bool, stderr bool) {
 	allocID, taskName, follow, lines := ld.parseURL(req, p)
 
 	taskInfo, ok := ld.runningTasks.tasks[taskId(allocID, taskName)]
@@ -142,19 +154,12 @@ func (ld *LogDaemon) MuxLogs(resp http.ResponseWriter, req *http.Request, p http
 	}
 
 	fw := FlushWriter{W: resp, Flush: resp.(http.Flusher).Flush}
-	if err := handle.Logs(&fw, follow, true, true, lines); err != nil {
+	if err := handle.Logs(&fw, follow, stdout, stderr, lines); err != nil {
 		ld.logger.Printf("[ERROR] client.logdaemon: error reading logs: %v", err)
 		resp.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-
 	return
-}
-
-func (ld *LogDaemon) Stdout(resp http.ResponseWriter, req *http.Request, p httprouter.Params) {
-}
-
-func (ld *LogDaemon) Stderr(resp http.ResponseWriter, req *http.Request, p httprouter.Params) {
 }
 
 type FlushWriter struct {

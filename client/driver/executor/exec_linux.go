@@ -353,7 +353,7 @@ func (e *LinuxExecutor) cleanTaskDir() error {
 }
 
 // Logs return a reader where logs of the task are written to
-func (e *LinuxExecutor) Logs(w io.Writer, follow bool, stderr bool, stdout bool, lines int64) error {
+func (e *LinuxExecutor) Logs(w io.Writer, follow bool, stdout bool, stderr bool, lines int64) error {
 	var to, te *tail.Tail
 	var err error
 	var wg sync.WaitGroup
