@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 )
 
 type TaskLogs struct {
@@ -15,7 +16,7 @@ func (c *Client) TaskLogs() *TaskLogs {
 	return &TaskLogs{client: c}
 }
 
-func (l *TaskLogs) Get(alloc string, task string, stdout bool, stderr bool, follow bool, lines int64) (io.Reader, error) {
+func (l *TaskLogs) Get(alloc string, task string, stdout bool, stderr bool, follow bool, lines int) (io.Reader, error) {
 	allocation, _, err := l.client.Allocations().Info(alloc, &QueryOptions{})
 	if err != nil {
 		return nil, err
@@ -35,6 +36,10 @@ func (l *TaskLogs) Get(alloc string, task string, stdout bool, stderr bool, foll
 	}
 
 	u, _ := url.Parse(fmt.Sprintf("http://%s/v1/logs/%s/%s", node.LogDaemonAddr, alloc, task))
+	u.Query().Set("follow", strconv.FormatBool(follow))
+	u.Query().Set("lines", strconv.Itoa(lines))
+	u.Query().Set("stdout", strconv.FormatBool(stdout))
+	u.Query().Set("stderr", strconv.FormatBool(stderr))
 
 	req := &http.Request{
 		Method: "GET",

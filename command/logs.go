@@ -30,7 +30,7 @@ func (l *LogsCommand) Run(args []string) int {
 	var stdout bool
 	var stderr bool
 	var follow bool
-	var lines int64
+	var lines int
 
 	flags := l.Meta.FlagSet("logs", FlagSetClient)
 	flags.StringVar(&alloc, "alloc", "", "allocation id")
@@ -38,7 +38,7 @@ func (l *LogsCommand) Run(args []string) int {
 	flags.BoolVar(&stdout, "stdout", true, "stdout buffer")
 	flags.BoolVar(&stderr, "stderr", true, "stderr buffer")
 	flags.BoolVar(&follow, "follow", follow, "follow")
-	flags.Int64Var(&lines, "lines", -1, "number of lines")
+	flags.IntVar(&lines, "lines", -1, "number of lines")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
