@@ -1,7 +1,6 @@
 package executor
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -12,6 +11,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 
 	"github.com/hpcloud/tail"
@@ -81,9 +81,11 @@ func (e *LinuxExecutor) Limit(resources *structs.Resources) error {
 // execLinuxID contains the necessary information to reattach to an executed
 // process and cleanup the created cgroups.
 type ExecLinuxID struct {
-	RC      *helper.ResourceConstrainer
-	Spawn   *spawn.Spawner
-	TaskDir string
+	RC       *helper.ResourceConstrainer
+	Spawn    *spawn.Spawner
+	TaskDir  string
+	TaskName string
+	AllocDir string
 }
 
 func (e *LinuxExecutor) Open(id string) error {
@@ -98,6 +100,8 @@ func (e *LinuxExecutor) Open(id string) error {
 	e.spawn = execID.Spawn
 	e.taskDir = execID.TaskDir
 	e.rc = execID.RC
+	e.taskName = execID.TaskName
+	e.allocDir = execID.AllocDir
 	return e.spawn.Valid()
 }
 
@@ -108,9 +112,11 @@ func (e *LinuxExecutor) ID() (string, error) {
 
 	// Build the ID.
 	id := ExecLinuxID{
-		RC:      e.rc,
-		Spawn:   e.spawn,
-		TaskDir: e.taskDir,
+		RC:       e.rc,
+		Spawn:    e.spawn,
+		TaskDir:  e.taskDir,
+		TaskName: e.taskName,
+		AllocDir: e.allocDir,
 	}
 
 	var buffer bytes.Buffer
@@ -175,8 +181,8 @@ func (e *LinuxExecutor) Start() error {
 	e.spawn.SetCommand(&e.cmd)
 	e.spawn.SetChroot(e.taskDir)
 	e.spawn.SetLogs(&spawn.Logs{
-		Stdout: e.logPath(e.taskName, stdout),
-		Stderr: e.logPath(e.taskName, stderr),
+		Stdout: e.logPath(e.taskName, stdoutBufExt),
+		Stderr: e.logPath(e.taskName, stderrBufExt),
 		Stdin:  os.DevNull,
 	})
 
@@ -348,16 +354,36 @@ func (e *LinuxExecutor) cleanTaskDir() error {
 
 // Logs return a reader where logs of the task are written to
 func (e *LinuxExecutor) Logs(w io.Writer, follow bool, stderr bool, stdout bool, lines int64) error {
-	var t *tail.Tail
+	var to, te *tail.Tail
 	var err error
-	if t, err = tail.TailFile(e.logPath(e.taskName, stdoutBufExt)); err != nil {
-		return err
+	var wg sync.WaitGroup
+	if stdout {
+		if to, err = tail.TailFile(e.logPath(e.taskName, stdoutBufExt), tail.Config{Follow: follow}); err != nil {
+			return err
+		}
+		wg.Add(1)
+		go e.writeLog(w, to.Lines, &wg)
 	}
 
-	scanner := bufio.NewScanner(stdOutLogs)
-
-	for scanner.Scan() {
-		w.Write(scanner.Bytes())
+	if stderr {
+		if te, err = tail.TailFile(e.logPath(e.taskName, stderrBufExt), tail.Config{Follow: follow}); err != nil {
+			return err
+		}
+		wg.Add(1)
+		go e.writeLog(w, te.Lines, &wg)
 	}
-	return scanner.Err()
+	wg.Wait()
+	return nil
+}
+
+func (e *LinuxExecutor) writeLog(w io.Writer, lineCh chan *tail.Line, wg *sync.WaitGroup) {
+	var l *tail.Line
+	var more bool
+	for {
+		if l, more = <-lineCh; !more {
+			wg.Done()
+			return
+		}
+		w.Write([]byte(l.Text))
+	}
 }
