@@ -48,9 +48,20 @@ The following options are available for use in the job specification.
   nomad agent and docker daemon to be configured to allow privileged
   containers.
 
-* `pid_mode` - (Optional) `host` or not set (default). et to `host`  Note that this also requires the
-  nomad agent and docker daemon to be configured to allow privileged
-  containers.
+* `ipc_mode` - (Optional) The IPC mode to be used for the container. The default
+  is `none` for a private IPC namespace. Other values are `host` for sharing
+  the host IPC namespace or the name or id of an existing container. Note that
+  it is not possible to refer to Nomad started Docker containers since their
+  names are not known in advance. Note that setting this option also requires the
+  Nomad agent to be configured to allow privileged containers.
+
+* `pid_mode` - (Optional) `host` or not set (default). Set to `host` to share
+  the PID namespace with the host. Note that this also requires the Nomad agent
+  to be configured to allow privileged containers.
+
+* `uts_mode` - (Optional) `host` or not set (default). Set to `host` to share
+  the UTS namsepce with the host. Note that this also requires the Nomad agent
+  to be configured to allow privileged containers.
 
 * `network_mode` - (Optional) The network mode to be used for the container. In
   order to support userspace networking plugins in Docker 1.9 this accepts any
