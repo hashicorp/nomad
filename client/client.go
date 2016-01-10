@@ -667,14 +667,13 @@ func (c *Client) setupLogDaemon() error {
 		return fmt.Errorf("unable to start the log daemon: %v", err)
 	}
 
-	rc, err := helper.NewResourceConstrainer(c.config.LogDaemonResources, logDaemon.Process.Pid)
-	if err != nil {
-		return fmt.Errorf("unable to create a cgroup for the log daemon: %v", err)
+	if rc, err := helper.NewResourceConstrainer(c.config.LogDaemonResources, logDaemon.Process.Pid); err == nil {
+		if err := rc.Apply(); err != nil {
+			c.logger.Printf("[ERROR] client: unable to join log daemon to the cgroup: %v", err)
+		}
+	} else {
+		c.logger.Printf("[ERROR] client: unable to create a cgroup for the log daemon: %v", err)
 	}
-	if err := rc.Apply(); err != nil {
-		return fmt.Errorf("unable to join log daemon to the cgroup: %v", err)
-	}
-
 	go c.runLogDaemon(logDaemon)
 
 	return nil
