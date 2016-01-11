@@ -19,7 +19,6 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/client/fingerprint"
-	"github.com/hashicorp/nomad/helper/args"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/mapstructure"
 )
@@ -148,13 +147,10 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		cmdArgs = append(cmdArgs, "--insecure-options=all")
 	}
 
-	// Inject the environment variables.
-	envVars := TaskEnvironmentVariables(ctx, task)
+	d.taskEnv.SetAllocDir(filepath.Join("/", allocdir.SharedAllocName)).
+		SetTaskLocalDir(filepath.Join("/", allocdir.TaskLocal)).Build()
 
-	envVars.SetAllocDir(filepath.Join("/", allocdir.SharedAllocName))
-	envVars.SetTaskLocalDir(filepath.Join("/", allocdir.TaskLocal))
-
-	for k, v := range envVars.Map() {
+	for k, v := range d.taskEnv.EnvMap() {
 		cmdArgs = append(cmdArgs, fmt.Sprintf("--set-env=%v=%v", k, v))
 	}
 
@@ -188,7 +184,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 
 	// Add user passed arguments.
 	if len(driverConfig.Args) != 0 {
-		parsed := args.ParseAndReplace(driverConfig.Args, envVars.Map())
+		parsed := d.taskEnv.ParseAndReplace(driverConfig.Args)
 
 		// Need to start arguments with "--"
 		if len(parsed) > 0 {

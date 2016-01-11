@@ -23,7 +23,6 @@ import (
 	"github.com/hashicorp/nomad/client/driver/environment"
 	"github.com/hashicorp/nomad/client/driver/spawn"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
-	"github.com/hashicorp/nomad/helper/args"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -42,16 +41,17 @@ var (
 	}
 )
 
-func NewExecutor() Executor {
-	return NewLinuxExecutor()
+func NewExecutor(ctx *ExecutorContext) Executor {
+	return NewLinuxExecutor(ctx)
 }
 
-func NewLinuxExecutor() Executor {
-	return &LinuxExecutor{}
+func NewLinuxExecutor(ctx *ExecutorContext) Executor {
+	return &LinuxExecutor{ExecutorContext: ctx}
 }
 
 // Linux executor is designed to run on linux kernel 2.8+.
 type LinuxExecutor struct {
+	*ExecutorContext
 	cmd  exec.Cmd
 	user *user.User
 
@@ -161,13 +161,8 @@ func (e *LinuxExecutor) Start() error {
 
 	// Parse the commands arguments and replace instances of Nomad environment
 	// variables.
-	envVars, err := environment.ParseFromList(e.cmd.Env)
-	if err != nil {
-		return err
-	}
-
-	e.cmd.Path = args.ReplaceEnv(e.cmd.Path, envVars.Map())
-	e.cmd.Args = args.ParseAndReplace(e.cmd.Args, envVars.Map())
+	e.cmd.Path = e.taskEnv.ReplaceEnv(e.cmd.Path, envVars.Map())
+	e.cmd.Args = e.taskEnv.ParseAndReplace(e.cmd.Args, envVars.Map())
 
 	spawnState := filepath.Join(e.allocDir, fmt.Sprintf("%s_%s", e.taskName, "exit_status"))
 	e.spawn = spawn.NewSpawner(spawnState)

@@ -81,7 +81,6 @@ func TestDriver_KillTimeout(t *testing.T) {
 
 func TestDriver_TaskEnvironmentVariables(t *testing.T) {
 	t.Parallel()
-	ctx := &ExecContext{}
 	task := &structs.Task{
 		Env: map[string]string{
 			"HELLO": "world",
@@ -104,7 +103,10 @@ func TestDriver_TaskEnvironmentVariables(t *testing.T) {
 		},
 	}
 
-	env := TaskEnvironmentVariables(ctx, task)
+	env, err := GetTaskEnv(nil, nil, task)
+	if err != nil {
+		t.Fatalf("GetTaskEnv() failed: %v", err)
+	}
 	exp := map[string]string{
 		"NOMAD_CPU_LIMIT":       "1000",
 		"NOMAD_MEMORY_LIMIT":    "500",
@@ -123,7 +125,7 @@ func TestDriver_TaskEnvironmentVariables(t *testing.T) {
 
 	act := env.Map()
 	if !reflect.DeepEqual(act, exp) {
-		t.Fatalf("TaskEnvironmentVariables(%#v, %#v) returned %#v; want %#v", ctx, task, act, exp)
+		t.Fatalf("GetTaskEnv() returned %#v; want %#v", act, exp)
 	}
 }
 

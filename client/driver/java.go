@@ -125,9 +125,6 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 
 	jarName := filepath.Base(path)
 
-	// Get the environment variables.
-	envVars := TaskEnvironmentVariables(ctx, task)
-
 	args := []string{}
 	// Look for jvm options
 	if len(driverConfig.JvmOpts) != 0 {
@@ -143,10 +140,11 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 
 	// Setup the command
 	// Assumes Java is in the $PATH, but could probably be detected
-	cmd := executor.Command("java", args...)
+	execCtx := executor.NewExecutorContext(d.taskEnv)
+	cmd := executor.Command(execCtx, "java", args...)
 
 	// Populate environment variables
-	cmd.Command().Env = envVars.List()
+	cmd.Command().Env = d.taskEnv.EnvList()
 
 	if err := cmd.Limit(task.Resources); err != nil {
 		return nil, fmt.Errorf("failed to constrain resources: %s", err)
@@ -185,7 +183,8 @@ func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 	}
 
 	// Find the process
-	cmd, err := executor.OpenId(id.ExecutorId)
+	execCtx := executor.NewExecutorContext(d.taskEnv)
+	cmd, err := executor.OpenId(execCtx, id.ExecutorId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open ID %v: %v", id.ExecutorId, err)
 	}

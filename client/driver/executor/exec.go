@@ -28,6 +28,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/nomad/structs"
 
+	"github.com/hashicorp/nomad/client/driver/env"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 )
 
@@ -75,9 +76,23 @@ type Executor interface {
 	Command() *exec.Cmd
 }
 
-// Command is a mirror of exec.Command that returns a platform-specific Executor
-func Command(name string, args ...string) Executor {
-	executor := NewExecutor()
+// ExecutorContext is a means to inject dependencies such as loggers, configs, and
+// node attributes into a Driver without having to change the Driver interface
+// each time we do it. Used in conjection with Factory, above.
+type ExecutorContext struct {
+	taskEnv *env.TaskEnvironment
+}
+
+// NewExecutorContext initializes a new DriverContext with the specified fields.
+func NewExecutorContext(taskEnv *env.TaskEnvironment) *ExecutorContext {
+	return &ExecutorContext{
+		taskEnv: taskEnv,
+	}
+}
+
+// Command returns a platform-specific Executor
+func Command(ctx *ExecutorContext, name string, args ...string) Executor {
+	executor := NewExecutor(ctx)
 	SetCommand(executor, name, args)
 	return executor
 }
@@ -98,8 +113,8 @@ func SetCommand(e Executor, name string, args []string) {
 
 // OpenId is similar to executor.Command but will attempt to reopen with the
 // passed ID.
-func OpenId(id string) (Executor, error) {
-	executor := NewExecutor()
+func OpenId(ctx *ExecutorContext, id string) (Executor, error) {
+	executor := NewExecutor(ctx)
 	err := executor.Open(id)
 	if err != nil {
 		return nil, err

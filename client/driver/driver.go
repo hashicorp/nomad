@@ -9,7 +9,7 @@ import (
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/driver/environment"
+	"github.com/hashicorp/nomad/client/driver/env"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/nomad/structs"
 
@@ -66,18 +66,21 @@ type DriverContext struct {
 	config   *config.Config
 	logger   *log.Logger
 	node     *structs.Node
+	taskEnv  *env.TaskEnvironment
 }
 
 // NewDriverContext initializes a new DriverContext with the specified fields.
 // This enables other packages to create DriverContexts but keeps the fields
 // private to the driver. If we want to change this later we can gorename all of
 // the fields in DriverContext.
-func NewDriverContext(taskName string, config *config.Config, node *structs.Node, logger *log.Logger) *DriverContext {
+func NewDriverContext(taskName string, config *config.Config, node *structs.Node,
+	logger *log.Logger, taskEnv *env.TaskEnvironment) *DriverContext {
 	return &DriverContext{
 		taskName: taskName,
 		config:   config,
 		node:     node,
 		logger:   logger,
+		taskEnv:  taskEnv,
 	}
 }
 
@@ -125,17 +128,18 @@ func NewExecContext(alloc *allocdir.AllocDir, allocID string) *ExecContext {
 	return &ExecContext{AllocDir: alloc, AllocID: allocID}
 }
 
-// TaskEnvironmentVariables converts exec context and task configuration into a
+// GetTaskEnv converts the alloc dir, the node and task configuration into a
 // TaskEnvironment.
-func TaskEnvironmentVariables(ctx *ExecContext, task *structs.Task) environment.TaskEnvironment {
-	env := environment.NewTaskEnivornment()
-	env.SetMeta(task.Meta)
+func GetTaskEnv(alloc *allocdir.AllocDir, node *structs.Node, task *structs.Task) (*env.TaskEnvironment, error) {
+	env := env.NewTaskEnvironment(node).
+		SetMeta(task.Meta).
+		SetEnvvars(task.Env)
 
-	if ctx.AllocDir != nil {
-		env.SetAllocDir(ctx.AllocDir.SharedDir)
-		taskdir, ok := ctx.AllocDir.TaskDirs[task.Name]
+	if alloc != nil {
+		env.SetAllocDir(alloc.SharedDir)
+		taskdir, ok := alloc.TaskDirs[task.Name]
 		if !ok {
-			// TODO: Update this to return an error
+			return nil, fmt.Errorf("failed to get task directory for task %q", task.Name)
 		}
 
 		env.SetTaskLocalDir(filepath.Join(taskdir, allocdir.TaskLocal))
@@ -152,11 +156,7 @@ func TaskEnvironmentVariables(ctx *ExecContext, task *structs.Task) environment.
 		}
 	}
 
-	if task.Env != nil {
-		env.SetEnvvars(task.Env)
-	}
-
-	return env
+	return env.Build(), nil
 }
 
 func mapMergeStrInt(maps ...map[string]int) map[string]int {

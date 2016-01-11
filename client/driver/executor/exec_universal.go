@@ -2,11 +2,13 @@
 
 package executor
 
-func NewExecutor() Executor {
-	return &UniversalExecutor{BasicExecutor{}}
+func NewExecutor(ctx *ExecutorContext) Executor {
+	return &UniversalExecutor{
+		BasicExecutor: NewBasicExecutor(ctx).(*BasicExecutor),
+	}
 }
 
 // UniversalExecutor wraps the BasicExecutor
 type UniversalExecutor struct {
-	BasicExecutor
+	*BasicExecutor
 }
