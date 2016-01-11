@@ -163,7 +163,7 @@ func (e *BasicExecutor) Logs(w io.Writer, follow bool, stdout bool, stderr bool,
 			return err
 		}
 		wg.Add(1)
-		go e.writeLog(w, to.Lines, &wg)
+		go e.writeLogLine(w, to.Lines, &wg)
 	}
 
 	if stderr {
@@ -171,13 +171,13 @@ func (e *BasicExecutor) Logs(w io.Writer, follow bool, stdout bool, stderr bool,
 			return err
 		}
 		wg.Add(1)
-		go e.writeLog(w, te.Lines, &wg)
+		go e.writeLogLine(w, te.Lines, &wg)
 	}
 	wg.Wait()
 	return nil
 }
 
-func (e *BasicExecutor) writeLog(w io.Writer, lineCh chan *tail.Line, wg *sync.WaitGroup) {
+func (e *BasicExecutor) writeLogLine(w io.Writer, lineCh chan *tail.Line, wg *sync.WaitGroup) {
 	var l *tail.Line
 	var more bool
 	for {
