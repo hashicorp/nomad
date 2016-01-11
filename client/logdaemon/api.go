@@ -18,6 +18,8 @@ import (
 	"github.com/hashicorp/nomad/client/driver"
 )
 
+// TaskInfo is the information that the Nomad client provides the log daemon so
+// that it can create drivers for streaming logs
 type TaskInfo struct {
 	HandleID string
 	AllocDir *allocdir.AllocDir
@@ -26,11 +28,14 @@ type TaskInfo struct {
 	Driver   string
 }
 
+// RunningTasks is the container that is registered with the rpc package for
+// tracking the task which currently have allocations on the node
 type RunningTasks struct {
 	tasks  map[string]*TaskInfo
 	logger *log.Logger
 }
 
+// Register a new task with the daemon
 func (r *RunningTasks) Register(task *TaskInfo, reply *string) error {
 	r.logger.Printf("[DEBUG] client.logdaemon: registering task: %v", task.Name)
 	key := taskId(task.AllocID, task.Name)
@@ -38,6 +43,7 @@ func (r *RunningTasks) Register(task *TaskInfo, reply *string) error {
 	return nil
 }
 
+// Remove a task from the daemon
 func (r *RunningTasks) Remove(task *TaskInfo, reply *string) error {
 	r.logger.Printf("[DEBUG] client.logdaemon: de-registering task: %v", task.Name)
 	key := taskId(task.AllocID, task.Name)
@@ -45,6 +51,9 @@ func (r *RunningTasks) Remove(task *TaskInfo, reply *string) error {
 	return nil
 }
 
+// LogDaemon provides two http endpoints. One of the endpoints streams the logs
+// of tasks and the other endpoint is for internal IPC between the log daemon
+// and the nomad client
 type LogDaemon struct {
 	router       *httprouter.Router
 	apiListener  net.Listener
@@ -90,12 +99,6 @@ func NewLogDaemon(config *config.Config) (*LogDaemon, error) {
 	return &ld, nil
 }
 
-func (ld *LogDaemon) SetConfig(config *config.Config, reply *string) error {
-	ld.logger.Printf("[INFO] client.logdaemon: setting config")
-	ld.config = config
-	return nil
-}
-
 // Start starts the http server of the log daemon
 func (ld *LogDaemon) Start() error {
 	ld.logger.Printf("[INFO] client.logdaemon: api server has started, it is listening on %v", ld.apiListener.Addr())
@@ -125,18 +128,23 @@ func (ld *LogDaemon) Ping(resp http.ResponseWriter, req *http.Request, _ httprou
 	fmt.Fprint(resp, "pong")
 }
 
+// MuxLogs streams the stdout and stderr logs of a task
 func (ld *LogDaemon) MuxLogs(resp http.ResponseWriter, req *http.Request, p httprouter.Params) {
 	ld.writeLogs(resp, req, p, true, true)
 }
 
+// Stdout streams the stdout logs of a task
 func (ld *LogDaemon) Stdout(resp http.ResponseWriter, req *http.Request, p httprouter.Params) {
 	ld.writeLogs(resp, req, p, true, false)
 }
 
+// Stderr streams the stderr logs of a task
 func (ld *LogDaemon) Stderr(resp http.ResponseWriter, req *http.Request, p httprouter.Params) {
 	ld.writeLogs(resp, req, p, false, true)
 }
 
+// writeLogs creates a driver handle for a task and streams the logs for the
+// same over http
 func (ld *LogDaemon) writeLogs(resp http.ResponseWriter, req *http.Request, p httprouter.Params, stdout bool, stderr bool) {
 	allocID, taskName, follow, lines := ld.parseURL(req, p)
 
@@ -162,17 +170,21 @@ func (ld *LogDaemon) writeLogs(resp http.ResponseWriter, req *http.Request, p ht
 	return
 }
 
+// FlushWriter is a special writer which wraps a writer and calls flush
+// everytime a write happens on the bugger
 type FlushWriter struct {
 	W     io.Writer
 	Flush func()
 }
 
+// Write writes the bytes to the writer and flushes
 func (f FlushWriter) Write(p []byte) (int, error) {
 	n, err := f.W.Write(p)
 	f.Flush()
 	return n, err
 }
 
+// Wait waits for an os interrupt and returns
 func (ld *LogDaemon) Wait() {
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, os.Interrupt)
@@ -204,6 +216,8 @@ func (ld *LogDaemon) driverHandle(taskInfo *TaskInfo) (driver.DriverHandle, erro
 	return handle, nil
 }
 
+// parseURL parses the URL to log api requests and extracts the alloc id, task
+// name and other query parameters
 func (ld *LogDaemon) parseURL(req *http.Request, p httprouter.Params) (allocID string, task string, follow bool, lines int64) {
 	allocID = p.ByName("allocation")
 	task = p.ByName("task")
@@ -224,6 +238,7 @@ func (ld *LogDaemon) parseURL(req *http.Request, p httprouter.Params) (allocID s
 	return
 }
 
+// taskId creates an ID based on the allocation id and the task name
 func taskId(allocID string, taskName string) string {
 	return fmt.Sprintf("%s-%s", allocID, taskName)
 }

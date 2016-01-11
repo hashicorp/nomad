@@ -177,6 +177,8 @@ func (e *BasicExecutor) Logs(w io.Writer, follow bool, stdout bool, stderr bool,
 	return nil
 }
 
+// writeLog writes a log line to the writer when a line of text appears on the
+// channel
 func (e *BasicExecutor) writeLogLine(w io.Writer, lineCh chan *tail.Line, wg *sync.WaitGroup) {
 	var l *tail.Line
 	var more bool
