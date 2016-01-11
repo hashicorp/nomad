@@ -35,8 +35,8 @@ func (l *LogsCommand) Run(args []string) int {
 	flags := l.Meta.FlagSet("logs", FlagSetClient)
 	flags.StringVar(&alloc, "alloc", "", "allocation id")
 	flags.StringVar(&task, "task", "", "task name")
-	flags.BoolVar(&stdout, "stdout", true, "stdout buffer")
-	flags.BoolVar(&stderr, "stderr", true, "stderr buffer")
+	flags.BoolVar(&stdout, "stdout", false, "stdout buffer")
+	flags.BoolVar(&stderr, "stderr", false, "stderr buffer")
 	flags.BoolVar(&follow, "follow", follow, "follow")
 	flags.IntVar(&lines, "lines", -1, "number of lines")
 
@@ -46,6 +46,11 @@ func (l *LogsCommand) Run(args []string) int {
 
 	if task == "" || alloc == "" {
 		l.Ui.Error("Provide a valid task name and alloc id")
+		return 1
+	}
+
+	if !(stdout || stderr) {
+		l.Ui.Error("stderr, stdout or both has to be provided for streaming")
 		return 1
 	}
 

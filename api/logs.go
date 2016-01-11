@@ -34,13 +34,7 @@ func (l *TaskLogs) Get(alloc string, task string, stdout bool, stderr bool, foll
 	if node.LogDaemonAddr == "" {
 		return nil, fmt.Errorf("log daemon not running on node: %v", nodeID)
 	}
-
-	u, _ := url.Parse(fmt.Sprintf("http://%s/v1/logs/%s/%s", node.LogDaemonAddr, alloc, task))
-	u.Query().Set("follow", strconv.FormatBool(follow))
-	u.Query().Set("lines", strconv.Itoa(lines))
-	u.Query().Set("stdout", strconv.FormatBool(stdout))
-	u.Query().Set("stderr", strconv.FormatBool(stderr))
-
+	u := l.getPath(node.LogDaemonAddr, alloc, task, stdout, stderr, follow, lines)
 	req := &http.Request{
 		Method: "GET",
 		URL:    u,
@@ -52,4 +46,32 @@ func (l *TaskLogs) Get(alloc string, task string, stdout bool, stderr bool, foll
 	}
 
 	return resp.Body, nil
+}
+
+func (l *TaskLogs) getPath(addr string, alloc string, task string,
+	stdout bool, stderr bool, follow bool, lines int) *url.URL {
+	p := "/v1/logs/%s/%s"
+
+	if !stderr && stdout {
+		p = "/v1/logs/%s/%s/stdout"
+	}
+
+	if !stdout && stderr {
+		p = "/v1/logs/%s/%s/stderr"
+	}
+
+	path := fmt.Sprintf(p, alloc, task)
+
+	u := &url.URL{
+		Scheme: "http",
+		Host:   addr,
+		Path:   path,
+	}
+
+	v := url.Values{}
+	v.Set("follow", strconv.FormatBool(follow))
+	v.Set("lines", strconv.Itoa(lines))
+	u.RawQuery = v.Encode()
+
+	return u
 }
