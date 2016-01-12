@@ -1749,80 +1749,147 @@ func TestStateStore_RestoreAlloc(t *testing.T) {
 }
 
 func TestStateStore_SetJobStatus_ForceStatus(t *testing.T) {
-	// Create a mock job.
-	job := mock.Job()
-	job.Status = ""
-
 	state := testStateStore(t)
 	watcher := watch.NewItems()
-	txn := state.db.Txn(false)
+	txn := state.db.Txn(true)
+
+	// Create and insert a mock job.
+	job := mock.Job()
+	job.Status = ""
+	job.ModifyIndex = 0
+	if err := txn.Insert("jobs", job); err != nil {
+		t.Fatalf("job insert failed: %v", err)
+	}
+
 	exp := "foobar"
-	if err := state.setJobStatus(watcher, txn, job, false, exp); err != nil {
+	index := uint64(1000)
+	if err := state.setJobStatus(index, watcher, txn, job, false, exp); err != nil {
 		t.Fatalf("setJobStatus() failed: %v", err)
 	}
 
-	if job.Status != exp {
-		t.Fatalf("setJobStatus() set %v; expected %v", job.Status, exp)
+	i, err := txn.First("jobs", "id", job.ID)
+	if err != nil {
+		t.Fatalf("job lookup failed: %v", err)
+	}
+	updated := i.(*structs.Job)
+
+	if updated.Status != exp {
+		t.Fatalf("setJobStatus() set %v; expected %v", updated.Status, exp)
+	}
+
+	if updated.ModifyIndex != index {
+		t.Fatalf("setJobStatus() set %d; expected %d", updated.ModifyIndex, index)
 	}
 }
 
-func TestStateStore_SetJobStatus_NoEvalsOrAllocs(t *testing.T) {
-	// Create a mock job.
-	job := mock.Job()
-	job.Status = ""
-
+func TestStateStore_SetJobStatus_NoOp(t *testing.T) {
 	state := testStateStore(t)
 	watcher := watch.NewItems()
-	txn := state.db.Txn(false)
-	if err := state.setJobStatus(watcher, txn, job, false, ""); err != nil {
+	txn := state.db.Txn(true)
+
+	// Create and insert a mock job that should be pending.
+	job := mock.Job()
+	job.Status = structs.JobStatusPending
+	job.ModifyIndex = 10
+	if err := txn.Insert("jobs", job); err != nil {
+		t.Fatalf("job insert failed: %v", err)
+	}
+
+	index := uint64(1000)
+	if err := state.setJobStatus(index, watcher, txn, job, false, ""); err != nil {
 		t.Fatalf("setJobStatus() failed: %v", err)
 	}
 
-	if job.Status != structs.JobStatusPending {
-		t.Fatalf("setJobStatus() set %v; expected %v", job.Status, structs.JobStatusPending)
+	i, err := txn.First("jobs", "id", job.ID)
+	if err != nil {
+		t.Fatalf("job lookup failed: %v", err)
+	}
+	updated := i.(*structs.Job)
+
+	if updated.ModifyIndex == index {
+		t.Fatalf("setJobStatus() should have been a no-op")
 	}
 }
 
-func TestStateStore_SetJobStatus_NoEvalsOrAllocs_Periodic(t *testing.T) {
-	// Create a mock job.
+func TestStateStore_SetJobStatus(t *testing.T) {
+	state := testStateStore(t)
+	watcher := watch.NewItems()
+	txn := state.db.Txn(true)
+
+	// Create and insert a mock job that should be pending but has an incorrect
+	// status.
+	job := mock.Job()
+	job.Status = "foobar"
+	job.ModifyIndex = 10
+	if err := txn.Insert("jobs", job); err != nil {
+		t.Fatalf("job insert failed: %v", err)
+	}
+
+	index := uint64(1000)
+	if err := state.setJobStatus(index, watcher, txn, job, false, ""); err != nil {
+		t.Fatalf("setJobStatus() failed: %v", err)
+	}
+
+	i, err := txn.First("jobs", "id", job.ID)
+	if err != nil {
+		t.Fatalf("job lookup failed: %v", err)
+	}
+	updated := i.(*structs.Job)
+
+	if updated.Status != structs.JobStatusPending {
+		t.Fatalf("setJobStatus() set %v; expected %v", updated.Status, structs.JobStatusPending)
+	}
+
+	if updated.ModifyIndex != index {
+		t.Fatalf("setJobStatus() set %d; expected %d", updated.ModifyIndex, index)
+	}
+}
+
+func TestStateStore_GetJobStatus_NoEvalsOrAllocs(t *testing.T) {
+	job := mock.Job()
+	state := testStateStore(t)
+	txn := state.db.Txn(false)
+	status, err := state.getJobStatus(txn, job, false)
+	if err != nil {
+		t.Fatalf("getJobStatus() failed: %v", err)
+	}
+
+	if status != structs.JobStatusPending {
+		t.Fatalf("getJobStatus() returned %v; expected %v", status, structs.JobStatusPending)
+	}
+}
+
+func TestStateStore_GetJobStatus_NoEvalsOrAllocs_Periodic(t *testing.T) {
 	job := mock.PeriodicJob()
-	job.Status = ""
-
 	state := testStateStore(t)
-	watcher := watch.NewItems()
 	txn := state.db.Txn(false)
-	if err := state.setJobStatus(watcher, txn, job, false, ""); err != nil {
-		t.Fatalf("setJobStatus() failed: %v", err)
+	status, err := state.getJobStatus(txn, job, false)
+	if err != nil {
+		t.Fatalf("getJobStatus() failed: %v", err)
 	}
 
-	if job.Status != structs.JobStatusRunning {
-		t.Fatalf("setJobStatus() set %v; expected %v", job.Status, structs.JobStatusRunning)
+	if status != structs.JobStatusRunning {
+		t.Fatalf("getJobStatus() returned %v; expected %v", status, structs.JobStatusRunning)
 	}
 }
 
-func TestStateStore_SetJobStatus_NoEvalsOrAllocs_EvalDelete(t *testing.T) {
-	// Create a mock job.
+func TestStateStore_GetJobStatus_NoEvalsOrAllocs_EvalDelete(t *testing.T) {
 	job := mock.Job()
-	job.Status = ""
-
 	state := testStateStore(t)
-	watcher := watch.NewItems()
 	txn := state.db.Txn(false)
-	if err := state.setJobStatus(watcher, txn, job, true, ""); err != nil {
-		t.Fatalf("setJobStatus() failed: %v", err)
+	status, err := state.getJobStatus(txn, job, true)
+	if err != nil {
+		t.Fatalf("getJobStatus() failed: %v", err)
 	}
 
-	if job.Status != structs.JobStatusDead {
-		t.Fatalf("setJobStatus() set %v; expected %v", job.Status, structs.JobStatusDead)
+	if status != structs.JobStatusDead {
+		t.Fatalf("getJobStatus() returned %v; expected %v", status, structs.JobStatusDead)
 	}
 }
 
-func TestStateStore_SetJobStatus_DeadEvalsAndAllocs(t *testing.T) {
+func TestStateStore_GetJobStatus_DeadEvalsAndAllocs(t *testing.T) {
 	state := testStateStore(t)
-
-	// Create a mock job.
 	job := mock.Job()
-	job.Status = ""
 
 	// Create a mock alloc that is dead.
 	alloc := mock.Alloc()
@@ -1840,23 +1907,20 @@ func TestStateStore_SetJobStatus_DeadEvalsAndAllocs(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	watcher := watch.NewItems()
 	txn := state.db.Txn(false)
-	if err := state.setJobStatus(watcher, txn, job, false, ""); err != nil {
-		t.Fatalf("setJobStatus() failed: %v", err)
+	status, err := state.getJobStatus(txn, job, false)
+	if err != nil {
+		t.Fatalf("getJobStatus() failed: %v", err)
 	}
 
-	if job.Status != structs.JobStatusDead {
-		t.Fatalf("setJobStatus() set %v; expected %v", job.Status, structs.JobStatusDead)
+	if status != structs.JobStatusDead {
+		t.Fatalf("getJobStatus() returned %v; expected %v", status, structs.JobStatusDead)
 	}
 }
 
-func TestStateStore_SetJobStatus_RunningAlloc(t *testing.T) {
+func TestStateStore_GetJobStatus_RunningAlloc(t *testing.T) {
 	state := testStateStore(t)
-
-	// Create a mock job.
 	job := mock.Job()
-	job.Status = ""
 
 	// Create a mock alloc that is running.
 	alloc := mock.Alloc()
@@ -1866,23 +1930,20 @@ func TestStateStore_SetJobStatus_RunningAlloc(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	watcher := watch.NewItems()
 	txn := state.db.Txn(false)
-	if err := state.setJobStatus(watcher, txn, job, true, ""); err != nil {
-		t.Fatalf("setJobStatus() failed: %v", err)
+	status, err := state.getJobStatus(txn, job, true)
+	if err != nil {
+		t.Fatalf("getJobStatus() failed: %v", err)
 	}
 
-	if job.Status != structs.JobStatusRunning {
-		t.Fatalf("setJobStatus() set %v; expected %v", job.Status, structs.JobStatusRunning)
+	if status != structs.JobStatusRunning {
+		t.Fatalf("getJobStatus() returned %v; expected %v", status, structs.JobStatusRunning)
 	}
 }
 
 func TestStateStore_SetJobStatus_PendingEval(t *testing.T) {
 	state := testStateStore(t)
-
-	// Create a mock job.
 	job := mock.Job()
-	job.Status = ""
 
 	// Create a mock eval that is pending.
 	eval := mock.Eval()
@@ -1892,14 +1953,14 @@ func TestStateStore_SetJobStatus_PendingEval(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	watcher := watch.NewItems()
 	txn := state.db.Txn(false)
-	if err := state.setJobStatus(watcher, txn, job, true, ""); err != nil {
-		t.Fatalf("setJobStatus() failed: %v", err)
+	status, err := state.getJobStatus(txn, job, true)
+	if err != nil {
+		t.Fatalf("getJobStatus() failed: %v", err)
 	}
 
-	if job.Status != structs.JobStatusPending {
-		t.Fatalf("setJobStatus() set %v; expected %v", job.Status, structs.JobStatusPending)
+	if status != structs.JobStatusPending {
+		t.Fatalf("getJobStatus() returned %v; expected %v", status, structs.JobStatusPending)
 	}
 }
 
