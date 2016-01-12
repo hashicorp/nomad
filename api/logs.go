@@ -16,25 +16,15 @@ func (c *Client) TaskLogs() *TaskLogs {
 	return &TaskLogs{client: c}
 }
 
-func (l *TaskLogs) Get(alloc string, task string, stdout bool, stderr bool, follow bool, lines int) (io.Reader, error) {
-	allocation, _, err := l.client.Allocations().Info(alloc, &QueryOptions{})
-	if err != nil {
-		return nil, err
-	}
-
-	if allocation.ClientStatus == "pending" {
-		return nil, fmt.Errorf("task %q hasn't started on the allocation %q", task, alloc)
-	}
-	nodeID := allocation.NodeID
-
-	node, _, err := l.client.Nodes().Info(nodeID, &QueryOptions{})
+func (l *TaskLogs) Get(allocation *Allocation, task string, stdout bool, stderr bool, follow bool, lines int) (io.Reader, error) {
+	node, _, err := l.client.Nodes().Info(allocation.NodeID, &QueryOptions{})
 	if err != nil {
 		return nil, err
 	}
 	if node.LogDaemonAddr == "" {
-		return nil, fmt.Errorf("log daemon not running on node: %v", nodeID)
+		return nil, fmt.Errorf("log daemon not running on node: %v", allocation.NodeID)
 	}
-	u := l.getPath(node.LogDaemonAddr, alloc, task, stdout, stderr, follow, lines)
+	u := l.getPath(node.LogDaemonAddr, allocation.ID, task, stdout, stderr, follow, lines)
 	req := &http.Request{
 		Method: "GET",
 		URL:    u,
