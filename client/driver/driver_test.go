@@ -49,23 +49,26 @@ func testConfig() *config.Config {
 	return conf
 }
 
-func testDriverContext(task string) *DriverContext {
+func testDriverContexts(task *structs.Task) (*DriverContext, *ExecContext) {
 	cfg := testConfig()
-	return NewDriverContext(task, cfg, cfg.Node, testLogger())
-}
-
-func testDriverExecContext(task *structs.Task, driverCtx *DriverContext) *ExecContext {
-	allocDir := allocdir.NewAllocDir(filepath.Join(driverCtx.config.AllocDir, structs.GenerateUUID()))
+	allocDir := allocdir.NewAllocDir(filepath.Join(cfg.AllocDir, structs.GenerateUUID()))
 	allocDir.Build([]*structs.Task{task})
-	ctx := NewExecContext(allocDir, fmt.Sprintf("alloc-id-%d", int(rand.Int31())))
-	return ctx
+	execCtx := NewExecContext(allocDir, fmt.Sprintf("alloc-id-%d", int(rand.Int31())))
+
+	taskEnv, err := GetTaskEnv(allocDir, cfg.Node, task)
+	if err != nil {
+		return nil, nil
+	}
+
+	driverCtx := NewDriverContext(task.Name, cfg, cfg.Node, testLogger(), taskEnv)
+	return driverCtx, execCtx
 }
 
 func TestDriver_KillTimeout(t *testing.T) {
-	ctx := testDriverContext("foo")
-	ctx.config.MaxKillTimeout = 10 * time.Second
 	expected := 1 * time.Second
-	task := &structs.Task{KillTimeout: expected}
+	task := &structs.Task{Name: "foo", KillTimeout: expected}
+	ctx, _ := testDriverContexts(task)
+	ctx.config.MaxKillTimeout = 10 * time.Second
 
 	if actual := ctx.KillTimeout(task); expected != actual {
 		t.Fatalf("KillTimeout(%v) returned %v; want %v", task, actual, expected)
@@ -79,9 +82,8 @@ func TestDriver_KillTimeout(t *testing.T) {
 	}
 }
 
-func TestDriver_TaskEnvironmentVariables(t *testing.T) {
+func TestDriver_GetTaskEnv(t *testing.T) {
 	t.Parallel()
-	ctx := &ExecContext{}
 	task := &structs.Task{
 		Env: map[string]string{
 			"HELLO": "world",
@@ -104,7 +106,10 @@ func TestDriver_TaskEnvironmentVariables(t *testing.T) {
 		},
 	}
 
-	env := TaskEnvironmentVariables(ctx, task)
+	env, err := GetTaskEnv(nil, nil, task)
+	if err != nil {
+		t.Fatalf("GetTaskEnv() failed: %v", err)
+	}
 	exp := map[string]string{
 		"NOMAD_CPU_LIMIT":       "1000",
 		"NOMAD_MEMORY_LIMIT":    "500",
@@ -121,9 +126,9 @@ func TestDriver_TaskEnvironmentVariables(t *testing.T) {
 		"lorem":                 "ipsum",
 	}
 
-	act := env.Map()
+	act := env.EnvMap()
 	if !reflect.DeepEqual(act, exp) {
-		t.Fatalf("TaskEnvironmentVariables(%#v, %#v) returned %#v; want %#v", ctx, task, act, exp)
+		t.Fatalf("GetTaskEnv() returned %#v; want %#v", act, exp)
 	}
 }
 

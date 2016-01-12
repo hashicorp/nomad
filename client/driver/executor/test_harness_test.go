@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/client/driver/env"
 	"github.com/hashicorp/nomad/helper/testtask"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -45,13 +46,18 @@ func mockAllocDir(t *testing.T) (string, *allocdir.AllocDir) {
 	return task.Name, allocDir
 }
 
-func testExecutor(t *testing.T, buildExecutor func() Executor, compatible func(*testing.T)) {
+func testExecutorContext() *ExecutorContext {
+	taskEnv := env.NewTaskEnvironment(mock.Node())
+	return &ExecutorContext{taskEnv: taskEnv}
+}
+
+func testExecutor(t *testing.T, buildExecutor func(*ExecutorContext) Executor, compatible func(*testing.T)) {
 	if compatible != nil {
 		compatible(t)
 	}
 
 	command := func(name string, args ...string) Executor {
-		e := buildExecutor()
+		e := buildExecutor(testExecutorContext())
 		SetCommand(e, name, args)
 		testtask.SetCmdEnv(e.Command())
 		return e
@@ -185,7 +191,7 @@ func Executor_Start_Kill(t *testing.T, command buildExecCommand) {
 	}
 }
 
-func Executor_Open(t *testing.T, command buildExecCommand, newExecutor func() Executor) {
+func Executor_Open(t *testing.T, command buildExecCommand, newExecutor func(*ExecutorContext) Executor) {
 	task, alloc := mockAllocDir(t)
 	defer alloc.Destroy()
 
@@ -216,7 +222,7 @@ func Executor_Open(t *testing.T, command buildExecCommand, newExecutor func() Ex
 		log.Panicf("ID() failed: %v", err)
 	}
 
-	e2 := newExecutor()
+	e2 := newExecutor(testExecutorContext())
 	if err := e2.Open(id); err != nil {
 		log.Panicf("Open(%v) failed: %v", id, err)
 	}
@@ -236,7 +242,7 @@ func Executor_Open(t *testing.T, command buildExecCommand, newExecutor func() Ex
 	}
 }
 
-func Executor_Open_Invalid(t *testing.T, command buildExecCommand, newExecutor func() Executor) {
+func Executor_Open_Invalid(t *testing.T, command buildExecCommand, newExecutor func(*ExecutorContext) Executor) {
 	task, alloc := mockAllocDir(t)
 	e := command(testtask.Path(), "echo", "foo")
 
@@ -271,7 +277,7 @@ func Executor_Open_Invalid(t *testing.T, command buildExecCommand, newExecutor f
 		log.Panicf("alloc.Destroy() failed: %v", err)
 	}
 
-	e2 := newExecutor()
+	e2 := newExecutor(testExecutorContext())
 	if err := e2.Open(id); err == nil {
 		log.Panicf("Open(%v) should have failed", id)
 	}

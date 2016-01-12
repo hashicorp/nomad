@@ -11,16 +11,10 @@ import (
 
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/driver/environment"
+	"github.com/hashicorp/nomad/client/driver/env"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
-
-func testDockerDriverContext(task string) *DriverContext {
-	cfg := testConfig()
-	cfg.DevMode = true
-	return NewDriverContext(task, cfg, cfg.Node, testLogger())
-}
 
 // dockerIsConnected checks to see if a docker daemon is available (local or remote)
 func dockerIsConnected(t *testing.T) bool {
@@ -96,23 +90,22 @@ func dockerSetup(t *testing.T, task *structs.Task) (*docker.Client, DriverHandle
 		t.Fatalf("Failed to initialize client: %s\nStack\n%s", err, debug.Stack())
 	}
 
-	driverCtx := testDockerDriverContext(task.Name)
-	ctx := testDriverExecContext(task, driverCtx)
+	driverCtx, execCtx := testDriverContexts(task)
 	driver := NewDockerDriver(driverCtx)
 
-	handle, err := driver.Start(ctx, task)
+	handle, err := driver.Start(execCtx, task)
 	if err != nil {
-		ctx.AllocDir.Destroy()
+		execCtx.AllocDir.Destroy()
 		t.Fatalf("Failed to start driver: %s\nStack\n%s", err, debug.Stack())
 	}
 	if handle == nil {
-		ctx.AllocDir.Destroy()
+		execCtx.AllocDir.Destroy()
 		t.Fatalf("handle is nil\nStack\n%s", debug.Stack())
 	}
 
 	cleanup := func() {
 		handle.Kill()
-		ctx.AllocDir.Destroy()
+		execCtx.AllocDir.Destroy()
 	}
 
 	return client, handle, cleanup
@@ -138,7 +131,8 @@ func TestDockerDriver_Handle(t *testing.T) {
 // This test should always pass, even if docker daemon is not available
 func TestDockerDriver_Fingerprint(t *testing.T) {
 	t.Parallel()
-	d := NewDockerDriver(testDockerDriverContext(""))
+	driverCtx, _ := testDriverContexts(&structs.Task{Name: "foo"})
+	d := NewDockerDriver(driverCtx)
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
@@ -169,12 +163,11 @@ func TestDockerDriver_StartOpen_Wait(t *testing.T) {
 		Resources: basicResources,
 	}
 
-	driverCtx := testDockerDriverContext(task.Name)
-	ctx := testDriverExecContext(task, driverCtx)
-	defer ctx.AllocDir.Destroy()
+	driverCtx, execCtx := testDriverContexts(task)
+	defer execCtx.AllocDir.Destroy()
 	d := NewDockerDriver(driverCtx)
 
-	handle, err := d.Start(ctx, task)
+	handle, err := d.Start(execCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -184,7 +177,7 @@ func TestDockerDriver_StartOpen_Wait(t *testing.T) {
 	defer handle.Kill()
 
 	// Attempt to open
-	handle2, err := d.Open(ctx, handle.ID())
+	handle2, err := d.Open(execCtx, handle.ID())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -246,7 +239,7 @@ func TestDockerDriver_Start_Wait_AllocDir(t *testing.T) {
 			"args": []string{
 				"-c",
 				fmt.Sprintf(`sleep 1; echo -n %s > $%s/%s`,
-					string(exp), environment.AllocDir, file),
+					string(exp), env.AllocDir, file),
 			},
 		},
 		Resources: &structs.Resources{
@@ -255,12 +248,11 @@ func TestDockerDriver_Start_Wait_AllocDir(t *testing.T) {
 		},
 	}
 
-	driverCtx := testDockerDriverContext(task.Name)
-	ctx := testDriverExecContext(task, driverCtx)
-	defer ctx.AllocDir.Destroy()
+	driverCtx, execCtx := testDriverContexts(task)
+	defer execCtx.AllocDir.Destroy()
 	d := NewDockerDriver(driverCtx)
 
-	handle, err := d.Start(ctx, task)
+	handle, err := d.Start(execCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -279,7 +271,7 @@ func TestDockerDriver_Start_Wait_AllocDir(t *testing.T) {
 	}
 
 	// Check that data was written to the shared alloc directory.
-	outputFile := filepath.Join(ctx.AllocDir.SharedDir, file)
+	outputFile := filepath.Join(execCtx.AllocDir.SharedDir, file)
 	act, err := ioutil.ReadFile(outputFile)
 	if err != nil {
 		t.Fatalf("Couldn't read expected output: %v", err)
@@ -350,12 +342,11 @@ func TestDocker_StartN(t *testing.T) {
 	// Let's spin up a bunch of things
 	var err error
 	for idx, task := range taskList {
-		driverCtx := testDockerDriverContext(task.Name)
-		ctx := testDriverExecContext(task, driverCtx)
-		defer ctx.AllocDir.Destroy()
+		driverCtx, execCtx := testDriverContexts(task)
+		defer execCtx.AllocDir.Destroy()
 		d := NewDockerDriver(driverCtx)
 
-		handles[idx], err = d.Start(ctx, task)
+		handles[idx], err = d.Start(execCtx, task)
 		if err != nil {
 			t.Errorf("Failed starting task #%d: %s", idx+1, err)
 		}
@@ -408,12 +399,11 @@ func TestDocker_StartNVersions(t *testing.T) {
 	// Let's spin up a bunch of things
 	var err error
 	for idx, task := range taskList {
-		driverCtx := testDockerDriverContext(task.Name)
-		ctx := testDriverExecContext(task, driverCtx)
-		defer ctx.AllocDir.Destroy()
+		driverCtx, execCtx := testDriverContexts(task)
+		defer execCtx.AllocDir.Destroy()
 		d := NewDockerDriver(driverCtx)
 
-		handles[idx], err = d.Start(ctx, task)
+		handles[idx], err = d.Start(execCtx, task)
 		if err != nil {
 			t.Errorf("Failed starting task #%d: %s", idx+1, err)
 		}

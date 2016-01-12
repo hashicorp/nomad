@@ -24,7 +24,14 @@ The `rkt` driver supports the following configuration in the job spec:
 
 * `command` - (Optional) A command to execute on the ACI.
 
-* `args` - (Optional) A list of arguments to the image.
+*   `args` - (Optional) A list of arguments to the optional `command`.
+    References to environment variables or any [intepretable Nomad
+    variables](/docs/jobspec/index.html#interpreted_vars) will be interpreted
+    before launching the task. For example:
+
+    ```
+        args = ["$nomad.ip", "$MY_ENV", $meta.foo"]
+    ```
 
 * `trust_prefix` - (Optional) The trust prefix to be passed to rkt. Must be
   reachable from the box running the nomad agent. If not specified, the image is

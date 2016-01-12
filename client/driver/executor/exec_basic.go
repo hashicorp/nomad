@@ -11,9 +11,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/nomad/client/allocdir"
-	"github.com/hashicorp/nomad/client/driver/environment"
 	"github.com/hashicorp/nomad/client/driver/spawn"
-	"github.com/hashicorp/nomad/helper/args"
 	"github.com/hashicorp/nomad/nomad/structs"
 
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
@@ -22,6 +20,7 @@ import (
 // BasicExecutor should work everywhere, and as a result does not include
 // any resource restrictions or runas capabilities.
 type BasicExecutor struct {
+	*ExecutorContext
 	cmd      exec.Cmd
 	spawn    *spawn.Spawner
 	taskName string
@@ -29,8 +28,8 @@ type BasicExecutor struct {
 	allocDir string
 }
 
-func NewBasicExecutor() Executor {
-	return &BasicExecutor{}
+func NewBasicExecutor(ctx *ExecutorContext) Executor {
+	return &BasicExecutor{ExecutorContext: ctx}
 }
 
 func (e *BasicExecutor) Limit(resources *structs.Resources) error {
@@ -56,13 +55,8 @@ func (e *BasicExecutor) ConfigureTaskDir(taskName string, alloc *allocdir.AllocD
 func (e *BasicExecutor) Start() error {
 	// Parse the commands arguments and replace instances of Nomad environment
 	// variables.
-	envVars, err := environment.ParseFromList(e.cmd.Env)
-	if err != nil {
-		return err
-	}
-
-	e.cmd.Path = args.ReplaceEnv(e.cmd.Path, envVars.Map())
-	e.cmd.Args = args.ParseAndReplace(e.cmd.Args, envVars.Map())
+	e.cmd.Path = e.taskEnv.ReplaceEnv(e.cmd.Path)
+	e.cmd.Args = e.taskEnv.ParseAndReplace(e.cmd.Args)
 
 	spawnState := filepath.Join(e.allocDir, fmt.Sprintf("%s_%s", e.taskName, "exit_status"))
 	e.spawn = spawn.NewSpawner(spawnState)

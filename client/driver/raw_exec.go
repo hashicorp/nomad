@@ -90,18 +90,16 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 		}
 	}
 
-	// Get the environment variables.
-	envVars := TaskEnvironmentVariables(ctx, task)
-
 	// Setup the command
-	cmd := executor.NewBasicExecutor()
+	execCtx := executor.NewExecutorContext(d.taskEnv)
+	cmd := executor.NewBasicExecutor(execCtx)
 	executor.SetCommand(cmd, command, driverConfig.Args)
 	if err := cmd.Limit(task.Resources); err != nil {
 		return nil, fmt.Errorf("failed to constrain resources: %s", err)
 	}
 
 	// Populate environment variables
-	cmd.Command().Env = envVars.List()
+	cmd.Command().Env = d.taskEnv.EnvList()
 
 	if err := cmd.ConfigureTaskDir(d.taskName, ctx.AllocDir); err != nil {
 		return nil, fmt.Errorf("failed to configure task directory: %v", err)
@@ -135,7 +133,8 @@ func (d *RawExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, e
 	}
 
 	// Find the process
-	cmd := executor.NewBasicExecutor()
+	execCtx := executor.NewExecutorContext(d.taskEnv)
+	cmd := executor.NewBasicExecutor(execCtx)
 	if err := cmd.Open(id.ExecutorId); err != nil {
 		return nil, fmt.Errorf("failed to open ID %v: %v", id.ExecutorId, err)
 	}

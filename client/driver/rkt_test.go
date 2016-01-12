@@ -50,7 +50,8 @@ func TestRktDriver_Handle(t *testing.T) {
 // The fingerprinter test should always pass, even if rkt is not installed.
 func TestRktDriver_Fingerprint(t *testing.T) {
 	ctestutils.RktCompatible(t)
-	d := NewRktDriver(testDriverContext(""))
+	driverCtx, _ := testDriverContexts(&structs.Task{Name: "foo"})
+	d := NewRktDriver(driverCtx)
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
@@ -88,12 +89,11 @@ func TestRktDriver_Start(t *testing.T) {
 		},
 	}
 
-	driverCtx := testDriverContext(task.Name)
-	ctx := testDriverExecContext(task, driverCtx)
+	driverCtx, execCtx := testDriverContexts(task)
+	defer execCtx.AllocDir.Destroy()
 	d := NewRktDriver(driverCtx)
-	defer ctx.AllocDir.Destroy()
 
-	handle, err := d.Start(ctx, task)
+	handle, err := d.Start(execCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -102,7 +102,7 @@ func TestRktDriver_Start(t *testing.T) {
 	}
 
 	// Attempt to open
-	handle2, err := d.Open(ctx, handle.ID())
+	handle2, err := d.Open(execCtx, handle.ID())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -132,12 +132,11 @@ func TestRktDriver_Start_Wait(t *testing.T) {
 		},
 	}
 
-	driverCtx := testDriverContext(task.Name)
-	ctx := testDriverExecContext(task, driverCtx)
+	driverCtx, execCtx := testDriverContexts(task)
+	defer execCtx.AllocDir.Destroy()
 	d := NewRktDriver(driverCtx)
-	defer ctx.AllocDir.Destroy()
 
-	handle, err := d.Start(ctx, task)
+	handle, err := d.Start(execCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -177,12 +176,11 @@ func TestRktDriver_Start_Wait_Skip_Trust(t *testing.T) {
 		},
 	}
 
-	driverCtx := testDriverContext(task.Name)
-	ctx := testDriverExecContext(task, driverCtx)
+	driverCtx, execCtx := testDriverContexts(task)
+	defer execCtx.AllocDir.Destroy()
 	d := NewRktDriver(driverCtx)
-	defer ctx.AllocDir.Destroy()
 
-	handle, err := d.Start(ctx, task)
+	handle, err := d.Start(execCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -223,12 +221,11 @@ func TestRktDriver_Start_Wait_Logs(t *testing.T) {
 		},
 	}
 
-	driverCtx := testDriverContext(task.Name)
-	ctx := testDriverExecContext(task, driverCtx)
+	driverCtx, execCtx := testDriverContexts(task)
+	defer execCtx.AllocDir.Destroy()
 	d := NewRktDriver(driverCtx)
-	defer ctx.AllocDir.Destroy()
 
-	handle, err := d.Start(ctx, task)
+	handle, err := d.Start(execCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -246,7 +243,7 @@ func TestRktDriver_Start_Wait_Logs(t *testing.T) {
 		t.Fatalf("timeout")
 	}
 
-	taskDir, ok := ctx.AllocDir.TaskDirs[task.Name]
+	taskDir, ok := execCtx.AllocDir.TaskDirs[task.Name]
 	if !ok {
 		t.Fatalf("Could not find task directory for task: %v", task)
 	}

@@ -240,8 +240,20 @@ The `task` object supports the following keys:
   task transitons to the dead state. [Click
   here](/docs/jobspec/servicediscovery.html) to learn more about services.
 
-* `env` - A map of key/value representing environment variables that
-  will be passed along to the running process.
+*   `env` - A map of key/value representing environment variables that
+    will be passed along to the running process. Nomad variables are
+    interpreted when set in the environment variable values. See the table of
+    interpreted variables [here](#interpreted_vars).
+
+    For example the below environment map will be reinterpreted:
+
+    ```
+        env {
+            // The value will be interpreted by the client and set to the
+            // correct value.
+            NODE_CLASS = "$nomad.class"
+        }
+    ```
 
 * `resources` - Provides the resource requirements of the task.
   See the resources reference for more details.
@@ -336,7 +348,7 @@ restart {
 The `constraint` object supports the following keys:
 
 * `attribute` - Specifies the attribute to examine for the
-  constraint. See the table of attributes below.
+  constraint. See the table of attributes [below](#interpreted_vars).
 
 * `operator` - Specifies the comparison operator. Defaults to equality,
   and can be `=`, `==`, `is`, `!=`, `not`, `>`, `>=`, `<`, `<=`. The
@@ -368,7 +380,11 @@ The `constraint` object supports the following keys:
 
     Tasks within a task group are always co-scheduled.
 
-Below is a table documenting the variables that can be interpreted:
+### Interpreted Variables <a id="interpreted_vars"></a>
+
+Certain Nomad variables are interpretable for use in constraints, task
+environment variables and task arguments. Below is a table documenting the
+variables that can be interpreted:
 
 <table class="table table-bordered table-striped">
   <tr>

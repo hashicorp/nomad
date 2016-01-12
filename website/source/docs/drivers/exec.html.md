@@ -32,7 +32,14 @@ The `exec` driver supports the following configuration in the job spec:
   is supplied and does not match the downloaded artifact, the driver will fail
   to start
 
-* `args` - (Optional) A list of arguments to the `command`.
+*   `args` - (Optional) A list of arguments to the optional `command`.
+    References to environment variables or any [intepretable Nomad
+    variables](/docs/jobspec/index.html#interpreted_vars) will be interpreted
+    before launching the task. For example:
+
+    ```
+        args = ["$nomad.ip", "$MY_ENV", $meta.foo"]
+    ```
 
 ## Client Requirements
 

@@ -533,7 +533,7 @@ func (c *Client) setupDrivers() error {
 
 	var avail []string
 	var skipped []string
-	driverCtx := driver.NewDriverContext("", c.config, c.config.Node, c.logger)
+	driverCtx := driver.NewDriverContext("", c.config, c.config.Node, c.logger, nil)
 	for name := range driver.BuiltinDrivers {
 		// Skip fingerprinting drivers that are not in the whitelist if it is
 		// enabled.
