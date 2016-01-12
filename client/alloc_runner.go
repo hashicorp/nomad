@@ -424,3 +424,7 @@ func (r *AllocRunner) Destroy() {
 func (r *AllocRunner) WaitCh() <-chan struct{} {
 	return r.waitCh
 }
+
+func (r *AllocRunner) FSList(path string) ([]*allocdir.AllocFile, error) {
+	return r.ctx.AllocDir.FSList(path)
+}

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/client/fingerprint"
@@ -351,6 +352,15 @@ func (c *Client) Stats() map[string]map[string]string {
 // Node returns the locally registered node
 func (c *Client) Node() *structs.Node {
 	return c.config.Node
+}
+
+func (c *Client) FSList(allocID string, path string) ([]*allocdir.AllocFile, error) {
+	ar, ok := c.allocs[allocID]
+	if !ok {
+		return nil, fmt.Errorf("alloc not present")
+	}
+
+	return ar.FSList(path)
 }
 
 // restoreState is used to restore our state from the data dir

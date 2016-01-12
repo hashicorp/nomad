@@ -38,6 +38,11 @@ type AllocDir struct {
 	mounted []string
 }
 
+type AllocFile struct {
+	Name  string
+	IsDir bool
+}
+
 func NewAllocDir(allocDir string) *AllocDir {
 	d := &AllocDir{AllocDir: allocDir, TaskDirs: make(map[string]string)}
 	d.SharedDir = filepath.Join(d.AllocDir, SharedAllocName)
@@ -215,6 +220,22 @@ func (d *AllocDir) MountSharedDir(task string) error {
 
 	d.mounted = append(d.mounted, taskLoc)
 	return nil
+}
+
+func (d *AllocDir) FSList(path string) ([]*AllocFile, error) {
+	p := filepath.Join(d.AllocDir, path)
+	finfos, err := ioutil.ReadDir(p)
+	if err != nil {
+		return []*AllocFile{}, nil
+	}
+	files := make([]*AllocFile, len(finfos))
+	for idx, info := range finfos {
+		files[idx] = &AllocFile{
+			Name:  info.Name(),
+			IsDir: info.IsDir(),
+		}
+	}
+	return files, err
 }
 
 func fileCopy(src, dst string, perm os.FileMode) error {
