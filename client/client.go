@@ -363,6 +363,14 @@ func (c *Client) FSList(allocID string, path string) ([]*allocdir.AllocFile, err
 	return ar.FSList(path)
 }
 
+func (c *Client) FSStat(allocID string, path string) (*allocdir.AllocFile, error) {
+	ar, ok := c.allocs[allocID]
+	if !ok {
+		return nil, fmt.Errorf("alloc not found")
+	}
+	return ar.FSStat(path)
+}
+
 // restoreState is used to restore our state from the data dir
 func (c *Client) restoreState() error {
 	if c.config.DevMode {

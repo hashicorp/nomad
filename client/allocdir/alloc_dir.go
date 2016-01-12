@@ -41,6 +41,7 @@ type AllocDir struct {
 type AllocFile struct {
 	Name  string
 	IsDir bool
+	Size  int64
 }
 
 func NewAllocDir(allocDir string) *AllocDir {
@@ -233,9 +234,24 @@ func (d *AllocDir) FSList(path string) ([]*AllocFile, error) {
 		files[idx] = &AllocFile{
 			Name:  info.Name(),
 			IsDir: info.IsDir(),
+			Size:  info.Size(),
 		}
 	}
 	return files, err
+}
+
+func (d *AllocDir) FSStat(path string) (*AllocFile, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil, err
+	}
+
+	return &AllocFile{
+		Size:  info.Size(),
+		Name:  info.Name(),
+		IsDir: info.IsDir(),
+	}, nil
+
 }
 
 func fileCopy(src, dst string, perm os.FileMode) error {
