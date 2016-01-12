@@ -14,6 +14,7 @@ IMPROVEMENTS:
   * driver/rkt: Add support for mounting alloc/task directory [GH-645]
   * core/cli: Prefix based lookups of allocs/nodes/evals/jobs [GH-575]
   * drivers: Interpret Nomad variables in environment variables/args [GH-653]
+  * core: Populate job status [GH-663]
 
 BUG FIXES:
   * cli: Handle parsing of un-named ports [GH-604]
