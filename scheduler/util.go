@@ -92,10 +92,7 @@ func diffAllocs(job *structs.Job, taintedNodes map[string]bool,
 		}
 
 		// If the definition is updated we need to update
-		// XXX: This is an extremely conservative approach. We can check
-		// if the job definition has changed in a way that affects
-		// this allocation and potentially ignore it.
-		if job.ModifyIndex != exist.Job.ModifyIndex {
+		if job.JobModifyIndex != exist.Job.JobModifyIndex {
 			result.update = append(result.update, allocTuple{
 				Name:      name,
 				TaskGroup: tg,

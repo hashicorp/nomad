@@ -689,10 +689,9 @@ const (
 )
 
 const (
-	JobStatusPending  = "pending"  // Pending means the job is waiting on scheduling
-	JobStatusRunning  = "running"  // Running means the entire job is running
-	JobStatusComplete = "complete" // Complete means there was a clean termination
-	JobStatusDead     = "dead"     // Dead means there was abnormal termination
+	JobStatusPending = "pending" // Pending means the job is waiting on scheduling
+	JobStatusRunning = "running" // Running means the job has non-terminal allocations
+	JobStatusDead    = "dead"    // Dead means all evaluation's and allocations are terminal
 )
 
 const (
@@ -778,8 +777,9 @@ type Job struct {
 	StatusDescription string
 
 	// Raft Indexes
-	CreateIndex uint64
-	ModifyIndex uint64
+	CreateIndex    uint64
+	ModifyIndex    uint64
+	JobModifyIndex uint64
 }
 
 // InitFields is used to initialize fields in the Job. This should be called
