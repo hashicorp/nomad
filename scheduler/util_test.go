@@ -38,7 +38,7 @@ func TestDiffAllocs(t *testing.T) {
 	// The "old" job has a previous modify index
 	oldJob := new(structs.Job)
 	*oldJob = *job
-	oldJob.ModifyIndex -= 1
+	oldJob.JobModifyIndex -= 1
 
 	tainted := map[string]bool{
 		"dead": true,
@@ -119,7 +119,7 @@ func TestDiffSystemAllocs(t *testing.T) {
 	// The "old" job has a previous modify index
 	oldJob := new(structs.Job)
 	*oldJob = *job
-	oldJob.ModifyIndex -= 1
+	oldJob.JobModifyIndex -= 1
 
 	tainted := map[string]bool{
 		"dead": true,

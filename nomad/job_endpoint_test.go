@@ -532,6 +532,7 @@ func TestJobEndpoint_GetJob(t *testing.T) {
 	}
 	job.CreateIndex = resp.JobModifyIndex
 	job.ModifyIndex = resp.JobModifyIndex
+	job.JobModifyIndex = resp.JobModifyIndex
 
 	// Lookup the job
 	get := &structs.JobSpecificRequest{

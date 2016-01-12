@@ -295,6 +295,7 @@ func (s *StateStore) UpsertJob(index uint64, job *structs.Job) error {
 	if existing != nil {
 		job.CreateIndex = existing.(*structs.Job).CreateIndex
 		job.ModifyIndex = index
+		job.JobModifyIndex = index
 
 		// Compute the job status
 		var err error
@@ -305,6 +306,7 @@ func (s *StateStore) UpsertJob(index uint64, job *structs.Job) error {
 	} else {
 		job.CreateIndex = index
 		job.ModifyIndex = index
+		job.JobModifyIndex = index
 
 		// If we are inserting the job for the first time, we don't need to
 		// calculate the jobs status as it is known.

@@ -777,8 +777,9 @@ type Job struct {
 	StatusDescription string
 
 	// Raft Indexes
-	CreateIndex uint64
-	ModifyIndex uint64
+	CreateIndex    uint64
+	ModifyIndex    uint64
+	JobModifyIndex uint64
 }
 
 // InitFields is used to initialize fields in the Job. This should be called
