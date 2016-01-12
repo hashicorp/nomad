@@ -630,3 +630,23 @@ func TestDockerPortsMapping(t *testing.T) {
 		}
 	}
 }
+
+func TestDockerReadLogs(t *testing.T) {
+	t.Parallel()
+	task := dockerTask()
+	_, handle, cleanup := dockerSetup(t, task)
+	defer cleanup()
+	// Wait for a few seconds so that the process starts up
+	time.Sleep(2 * time.Second)
+	rdr, err := handle.Logs(false, true, true)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	logs, err := ioutil.ReadAll(rdr)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(logs) == 0 {
+		t.Fatal("Expected to return the logs from stdout of the container")
+	}
+}

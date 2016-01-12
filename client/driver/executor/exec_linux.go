@@ -3,26 +3,26 @@ package executor
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"os/user"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 
+	"github.com/hpcloud/tail"
+
 	"github.com/hashicorp/go-multierror"
-	"github.com/opencontainers/runc/libcontainer/cgroups"
-	cgroupFs "github.com/opencontainers/runc/libcontainer/cgroups/fs"
-	"github.com/opencontainers/runc/libcontainer/cgroups/systemd"
-	cgroupConfig "github.com/opencontainers/runc/libcontainer/configs"
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/driver/environment"
 	"github.com/hashicorp/nomad/client/driver/spawn"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
+	"github.com/hashicorp/nomad/client/helper"
 	"github.com/hashicorp/nomad/helper/args"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -56,10 +56,11 @@ type LinuxExecutor struct {
 	user *user.User
 
 	// Isolation configurations.
-	groups   *cgroupConfig.Cgroup
-	taskName string
-	taskDir  string
-	allocDir string
+	rc        *helper.ResourceConstrainer
+	resources *structs.Resources
+	taskName  string
+	taskDir   string
+	allocDir  string
 
 	// Spawn process.
 	spawn *spawn.Spawner
@@ -73,16 +74,18 @@ func (e *LinuxExecutor) Limit(resources *structs.Resources) error {
 	if resources == nil {
 		return errNoResources
 	}
-
-	return e.configureCgroups(resources)
+	e.resources = resources
+	return nil
 }
 
 // execLinuxID contains the necessary information to reattach to an executed
 // process and cleanup the created cgroups.
 type ExecLinuxID struct {
-	Groups  *cgroupConfig.Cgroup
-	Spawn   *spawn.Spawner
-	TaskDir string
+	RC       *helper.ResourceConstrainer
+	Spawn    *spawn.Spawner
+	TaskDir  string
+	TaskName string
+	AllocDir string
 }
 
 func (e *LinuxExecutor) Open(id string) error {
@@ -94,22 +97,26 @@ func (e *LinuxExecutor) Open(id string) error {
 	}
 
 	// Setup the executor.
-	e.groups = execID.Groups
 	e.spawn = execID.Spawn
 	e.taskDir = execID.TaskDir
+	e.rc = execID.RC
+	e.taskName = execID.TaskName
+	e.allocDir = execID.AllocDir
 	return e.spawn.Valid()
 }
 
 func (e *LinuxExecutor) ID() (string, error) {
-	if e.groups == nil || e.spawn == nil || e.taskDir == "" {
+	if e.rc == nil || e.spawn == nil || e.taskDir == "" {
 		return "", fmt.Errorf("LinuxExecutor not properly initialized.")
 	}
 
 	// Build the ID.
 	id := ExecLinuxID{
-		Groups:  e.groups,
-		Spawn:   e.spawn,
-		TaskDir: e.taskDir,
+		RC:       e.rc,
+		Spawn:    e.spawn,
+		TaskDir:  e.taskDir,
+		TaskName: e.taskName,
+		AllocDir: e.allocDir,
 	}
 
 	var buffer bytes.Buffer
@@ -174,20 +181,20 @@ func (e *LinuxExecutor) Start() error {
 	e.spawn.SetCommand(&e.cmd)
 	e.spawn.SetChroot(e.taskDir)
 	e.spawn.SetLogs(&spawn.Logs{
-		Stdout: filepath.Join(e.taskDir, allocdir.TaskLocal, fmt.Sprintf("%v.stdout", e.taskName)),
-		Stderr: filepath.Join(e.taskDir, allocdir.TaskLocal, fmt.Sprintf("%v.stderr", e.taskName)),
+		Stdout: e.logPath(e.taskName, stdoutBufExt),
+		Stderr: e.logPath(e.taskName, stderrBufExt),
 		Stdin:  os.DevNull,
 	})
 
 	enterCgroup := func(pid int) error {
-		// Join the spawn-daemon to the cgroup.
-		manager := e.getCgroupManager(e.groups)
-
-		// Apply will place the spawn dameon into the created cgroups.
-		if err := manager.Apply(pid); err != nil {
-			return fmt.Errorf("Failed to join spawn-daemon to the cgroup (%+v): %v", e.groups, err)
+		rc, err := helper.NewResourceConstrainer(e.resources, pid)
+		if err != nil {
+			return fmt.Errorf("failed to create cgroup for spawn daemon: %v", err)
 		}
-
+		e.rc = rc
+		if err := e.rc.Apply(); err != nil {
+			return fmt.Errorf("failed to apply resource constraint on spawn daemon: %v", err)
+		}
 		return nil
 	}
 
@@ -203,7 +210,7 @@ func (e *LinuxExecutor) Wait() *cstructs.WaitResult {
 		errs = multierror.Append(errs, res.Err)
 	}
 
-	if err := e.destroyCgroup(); err != nil {
+	if err := e.rc.Destroy(); err != nil {
 		errs = multierror.Append(errs, err)
 	}
 
@@ -230,7 +237,7 @@ func (e *LinuxExecutor) Shutdown() error {
 // directory and the cgroups.
 func (e *LinuxExecutor) ForceStop() error {
 	errs := new(multierror.Error)
-	if err := e.destroyCgroup(); err != nil {
+	if err := e.rc.Destroy(); err != nil {
 		errs = multierror.Append(errs, err)
 	}
 
@@ -299,6 +306,11 @@ func (e *LinuxExecutor) ConfigureTaskDir(taskName string, alloc *allocdir.AllocD
 	return nil
 }
 
+// logPath returns the path of the log file for a specific buffer of the task
+func (e *LinuxExecutor) logPath(taskName string, bufferName string) string {
+	return filepath.Join(e.taskDir, allocdir.TaskLocal, fmt.Sprintf("%s.%s", taskName, bufferName))
+}
+
 // pathExists is a helper function to check if the path exists.
 func (e *LinuxExecutor) pathExists(path string) bool {
 	if _, err := os.Stat(path); err != nil {
@@ -340,89 +352,40 @@ func (e *LinuxExecutor) cleanTaskDir() error {
 	return errs.ErrorOrNil()
 }
 
-// Cgroup related functions.
-
-// configureCgroups converts a Nomad Resources specification into the equivalent
-// cgroup configuration. It returns an error if the resources are invalid.
-func (e *LinuxExecutor) configureCgroups(resources *structs.Resources) error {
-	e.groups = &cgroupConfig.Cgroup{}
-	e.groups.Resources = &cgroupConfig.Resources{}
-	e.groups.Name = structs.GenerateUUID()
-
-	// TODO: verify this is needed for things like network access
-	e.groups.Resources.AllowAllDevices = true
-
-	if resources.MemoryMB > 0 {
-		// Total amount of memory allowed to consume
-		e.groups.Resources.Memory = int64(resources.MemoryMB * 1024 * 1024)
-		// Disable swap to avoid issues on the machine
-		e.groups.Resources.MemorySwap = int64(-1)
-	}
-
-	if resources.CPU < 2 {
-		return fmt.Errorf("resources.CPU must be equal to or greater than 2: %v", resources.CPU)
-	}
-
-	// Set the relative CPU shares for this cgroup.
-	e.groups.Resources.CpuShares = int64(resources.CPU)
-
-	if resources.IOPS != 0 {
-		// Validate it is in an acceptable range.
-		if resources.IOPS < 10 || resources.IOPS > 1000 {
-			return fmt.Errorf("resources.IOPS must be between 10 and 1000: %d", resources.IOPS)
+// Logs return a reader where logs of the task are written to
+func (e *LinuxExecutor) Logs(w io.Writer, follow bool, stdout bool, stderr bool, lines int64) error {
+	var to, te *tail.Tail
+	var err error
+	var wg sync.WaitGroup
+	if stdout {
+		if to, err = tail.TailFile(e.logPath(e.taskName, stdoutBufExt), tail.Config{Follow: follow}); err != nil {
+			return err
 		}
-
-		e.groups.Resources.BlkioWeight = uint16(resources.IOPS)
+		wg.Add(1)
+		go e.writeLogLine(w, to.Lines, &wg)
 	}
 
+	if stderr {
+		if te, err = tail.TailFile(e.logPath(e.taskName, stderrBufExt), tail.Config{Follow: follow}); err != nil {
+			return err
+		}
+		wg.Add(1)
+		go e.writeLogLine(w, te.Lines, &wg)
+	}
+	wg.Wait()
 	return nil
 }
 
-// destroyCgroup kills all processes in the cgroup and removes the cgroup
-// configuration from the host.
-func (e *LinuxExecutor) destroyCgroup() error {
-	if e.groups == nil {
-		return errors.New("Can't destroy: cgroup configuration empty")
-	}
-
-	manager := e.getCgroupManager(e.groups)
-	pids, err := manager.GetPids()
-	if err != nil {
-		return fmt.Errorf("Failed to get pids in the cgroup %v: %v", e.groups.Name, err)
-	}
-
-	errs := new(multierror.Error)
-	for _, pid := range pids {
-		process, err := os.FindProcess(pid)
-		if err != nil {
-			multierror.Append(errs, fmt.Errorf("Failed to find Pid %v: %v", pid, err))
-			continue
+// writeLogLine writes a log line to the writer when a line of text appears on the
+// channel
+func (e *LinuxExecutor) writeLogLine(w io.Writer, lineCh chan *tail.Line, wg *sync.WaitGroup) {
+	var l *tail.Line
+	var more bool
+	for {
+		if l, more = <-lineCh; !more {
+			wg.Done()
+			return
 		}
-
-		if err := process.Kill(); err != nil {
-			multierror.Append(errs, fmt.Errorf("Failed to kill Pid %v: %v", pid, err))
-			continue
-		}
+		w.Write([]byte(l.Text))
 	}
-
-	// Remove the cgroup.
-	if err := manager.Destroy(); err != nil {
-		multierror.Append(errs, fmt.Errorf("Failed to delete the cgroup directories: %v", err))
-	}
-
-	if len(errs.Errors) != 0 {
-		return fmt.Errorf("Failed to destroy cgroup: %v", errs)
-	}
-
-	return nil
-}
-
-// getCgroupManager returns the correct libcontainer cgroup manager.
-func (e *LinuxExecutor) getCgroupManager(groups *cgroupConfig.Cgroup) cgroups.Manager {
-	var manager cgroups.Manager
-	manager = &cgroupFs.Manager{Cgroups: groups}
-	if systemd.UseSystemd() {
-		manager = &systemd.Manager{Cgroups: groups}
-	}
-	return manager
 }

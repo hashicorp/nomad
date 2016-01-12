@@ -3,6 +3,7 @@ package driver
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"path/filepath"
@@ -536,7 +537,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 		doneCh:           make(chan struct{}),
 		waitCh:           make(chan *cstructs.WaitResult, 1),
 	}
-	go h.run()
+	go h.Wait()
 	return h, nil
 }
 
@@ -590,7 +591,6 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 		doneCh:           make(chan struct{}),
 		waitCh:           make(chan *cstructs.WaitResult, 1),
 	}
-	go h.run()
 	return h, nil
 }
 
@@ -673,7 +673,7 @@ func (h *DockerHandle) Kill() error {
 	return nil
 }
 
-func (h *DockerHandle) run() {
+func (h *DockerHandle) Wait() {
 	// Wait for it...
 	exitCode, err := h.client.WaitContainer(h.containerID)
 	if err != nil {
@@ -687,4 +687,21 @@ func (h *DockerHandle) run() {
 	close(h.doneCh)
 	h.waitCh <- cstructs.NewWaitResult(exitCode, 0, err)
 	close(h.waitCh)
+}
+
+func (h *DockerHandle) Logs(w io.Writer, follow bool, stdout bool, stderr bool, lines int64) error {
+	err := h.client.Logs(docker.LogsOptions{
+		Container:    h.containerID,
+		OutputStream: w,
+		ErrorStream:  w,
+		Stdout:       stdout,
+		Stderr:       stderr,
+		Follow:       follow,
+		Tail:         strconv.Itoa(int(lines)),
+	})
+
+	if err != nil {
+		h.logger.Printf("[ERROR] client: error fetching logs from container: %v, err: %v", h.containerID, err)
+	}
+	return nil
 }

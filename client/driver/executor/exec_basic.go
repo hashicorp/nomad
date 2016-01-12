@@ -4,11 +4,15 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
+
+	"github.com/hpcloud/tail"
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/driver/environment"
@@ -31,6 +35,13 @@ type BasicExecutor struct {
 
 func NewBasicExecutor() Executor {
 	return &BasicExecutor{}
+}
+
+type ExecBasicID struct {
+	Spawn    *spawn.Spawner
+	TaskDir  string
+	TaskName string
+	AllocDir string
 }
 
 func (e *BasicExecutor) Limit(resources *structs.Resources) error {
@@ -68,8 +79,8 @@ func (e *BasicExecutor) Start() error {
 	e.spawn = spawn.NewSpawner(spawnState)
 	e.spawn.SetCommand(&e.cmd)
 	e.spawn.SetLogs(&spawn.Logs{
-		Stdout: filepath.Join(e.taskDir, allocdir.TaskLocal, fmt.Sprintf("%v.stdout", e.taskName)),
-		Stderr: filepath.Join(e.taskDir, allocdir.TaskLocal, fmt.Sprintf("%v.stderr", e.taskName)),
+		Stdout: e.logPath(e.taskName, stdoutBufExt),
+		Stderr: e.logPath(e.taskName, stderrBufExt),
 		Stdin:  os.DevNull,
 	})
 
@@ -77,14 +88,18 @@ func (e *BasicExecutor) Start() error {
 }
 
 func (e *BasicExecutor) Open(id string) error {
-	var spawn spawn.Spawner
+	var basicID ExecBasicID
 	dec := json.NewDecoder(strings.NewReader(id))
-	if err := dec.Decode(&spawn); err != nil {
+	if err := dec.Decode(&basicID); err != nil {
 		return fmt.Errorf("Failed to parse id: %v", err)
 	}
 
 	// Setup the executor.
-	e.spawn = &spawn
+	e.spawn = basicID.Spawn
+	e.taskDir = basicID.TaskDir
+	e.taskName = basicID.TaskName
+	e.allocDir = basicID.AllocDir
+
 	return e.spawn.Valid()
 }
 
@@ -97,9 +112,16 @@ func (e *BasicExecutor) ID() (string, error) {
 		return "", fmt.Errorf("Process was never started")
 	}
 
+	id := ExecBasicID{
+		Spawn:    e.spawn,
+		TaskDir:  e.taskDir,
+		TaskName: e.taskName,
+		AllocDir: e.allocDir,
+	}
+
 	var buffer bytes.Buffer
 	enc := json.NewEncoder(&buffer)
-	if err := enc.Encode(e.spawn); err != nil {
+	if err := enc.Encode(id); err != nil {
 		return "", fmt.Errorf("Failed to serialize id: %v", err)
 	}
 
@@ -130,4 +152,46 @@ func (e *BasicExecutor) ForceStop() error {
 
 func (e *BasicExecutor) Command() *exec.Cmd {
 	return &e.cmd
+}
+
+func (e *BasicExecutor) Logs(w io.Writer, follow bool, stdout bool, stderr bool, lines int64) error {
+	var to, te *tail.Tail
+	var err error
+	var wg sync.WaitGroup
+	if stdout {
+		if to, err = tail.TailFile(e.logPath(e.taskName, stdoutBufExt), tail.Config{Follow: follow}); err != nil {
+			return err
+		}
+		wg.Add(1)
+		go e.writeLogLine(w, to.Lines, &wg)
+	}
+
+	if stderr {
+		if te, err = tail.TailFile(e.logPath(e.taskName, stderrBufExt), tail.Config{Follow: follow}); err != nil {
+			return err
+		}
+		wg.Add(1)
+		go e.writeLogLine(w, te.Lines, &wg)
+	}
+	wg.Wait()
+	return nil
+}
+
+// writeLog writes a log line to the writer when a line of text appears on the
+// channel
+func (e *BasicExecutor) writeLogLine(w io.Writer, lineCh chan *tail.Line, wg *sync.WaitGroup) {
+	var l *tail.Line
+	var more bool
+	for {
+		if l, more = <-lineCh; !more {
+			wg.Done()
+			return
+		}
+		w.Write([]byte(l.Text))
+	}
+}
+
+// logPath returns the path of the log file for a specific buffer of the task
+func (e *BasicExecutor) logPath(taskName string, bufferName string) string {
+	return filepath.Join(e.taskDir, allocdir.TaskLocal, fmt.Sprintf("%s.%s", taskName, bufferName))
 }

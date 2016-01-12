@@ -216,6 +216,13 @@ func (a *Agent) setupClient() error {
 		conf.MaxKillTimeout = dur
 	}
 
+	if a.config.Client.LogDaemon != nil {
+		conf.LogDaemonResources = &structs.Resources{
+			CPU:      a.config.Client.LogDaemon.Cpu,
+			MemoryMB: a.config.Client.LogDaemon.MemoryMB,
+		}
+	}
+
 	// Setup the node
 	conf.Node = new(structs.Node)
 	conf.Node.Datacenter = a.config.Datacenter
@@ -223,6 +230,7 @@ func (a *Agent) setupClient() error {
 	conf.Node.ID = a.config.Client.NodeID
 	conf.Node.Meta = a.config.Client.Meta
 	conf.Node.NodeClass = a.config.Client.NodeClass
+	conf.Node.LogDaemonAddr = a.config.Client.LogDaemon.Addr
 
 	// Create the client
 	client, err := client.NewClient(conf)

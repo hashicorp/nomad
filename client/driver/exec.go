@@ -3,6 +3,7 @@ package driver
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"path/filepath"
 	"runtime"
@@ -120,7 +121,7 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		doneCh:      make(chan struct{}),
 		waitCh:      make(chan *cstructs.WaitResult, 1),
 	}
-	go h.run()
+	go h.Wait()
 	return h, nil
 }
 
@@ -149,7 +150,6 @@ func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		doneCh:      make(chan struct{}),
 		waitCh:      make(chan *cstructs.WaitResult, 1),
 	}
-	go h.run()
 	return h, nil
 }
 
@@ -186,9 +186,13 @@ func (h *execHandle) Kill() error {
 	}
 }
 
-func (h *execHandle) run() {
+func (h *execHandle) Wait() {
 	res := h.cmd.Wait()
 	close(h.doneCh)
 	h.waitCh <- res
 	close(h.waitCh)
+}
+
+func (h *execHandle) Logs(w io.Writer, follow bool, stdout bool, stderr bool, lines int64) error {
+	return h.cmd.Logs(w, follow, stdout, stderr, lines)
 }

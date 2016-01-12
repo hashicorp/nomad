@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"os/exec"
 	"path/filepath"
@@ -169,7 +170,7 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		waitCh:      make(chan *cstructs.WaitResult, 1),
 	}
 
-	go h.run()
+	go h.Wait()
 	return h, nil
 }
 
@@ -199,7 +200,6 @@ func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		waitCh:      make(chan *cstructs.WaitResult, 1),
 	}
 
-	go h.run()
 	return h, nil
 }
 
@@ -236,9 +236,13 @@ func (h *javaHandle) Kill() error {
 	}
 }
 
-func (h *javaHandle) run() {
+func (h *javaHandle) Wait() {
 	res := h.cmd.Wait()
 	close(h.doneCh)
 	h.waitCh <- res
 	close(h.waitCh)
+}
+
+func (h *javaHandle) Logs(w io.Writer, follow bool, stdout bool, stderr bool, lines int64) error {
+	return h.cmd.Logs(w, follow, stdout, stderr, lines)
 }

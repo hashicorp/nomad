@@ -1,0 +1,62 @@
+---
+layout: "docs"
+page_title: "Commands: logs"
+sidebar_current: "docs-commands-logs"
+description: >
+  Stream logs of tasks.
+---
+
+# Command: logs
+
+The `logs` command is used to stream logs of tasks. Nomad can only stream logs of
+tasks which are either running or whose allocation has not been destroyed. Nomad 
+currently streams only the log lines written to the stdout and stderr buffers.
+
+## Usage
+
+```
+nomad logs --allocation [allocation-id] --task [task-name]
+```
+
+Nomad will stream the logs of the task in an allocation whose name and allocation id 
+is passed along with the logs command. 
+
+Nomad will only stream logs for allocations which are not in the `pending` state.
+
+
+## General Options
+
+<%= general_options_usage %>
+
+## Logs Options
+
+* `--stdout`: Streams the stdout logs
+
+* `--stderr`: Streams the stdout logs 
+
+* `--follow`: The command blocks until the allocation dies and continues to stream logs
+
+* `--lines`: stream only the last `K` lines 
+
+
+## Examples
+
+Stream the logs written to stdout buffer: 
+
+```
+$ nomad logs --alloc 751d3ad3-a38c-5b53-e27a-04d812ac4dea --task redis --stdout 
+```
+
+Stream the logs written to stdout, stderr buffers and follow:
+
+```
+$ nomad logs --alloc 751d3ad3-a38c-5b53-e27a-04d812ac4dea --task redis --stdout --stderr --follow
+```
+
+Stream the last three lines from a running task and follow:
+
+```
+$ nomad logs --alloc 751d3ad3-a38c-5b53-e27a-04d812ac4dea --task redis --stdout --stderr --follow --lines 3
+```
+
+

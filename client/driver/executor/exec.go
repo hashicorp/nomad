@@ -22,6 +22,7 @@ package executor
 
 import (
 	"fmt"
+	"io"
 	"os/exec"
 	"path/filepath"
 
@@ -29,6 +30,12 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
+)
+
+// The buffer names which the executor uses as file extensions for the logs
+const (
+	stdoutBufExt = "stdout"
+	stderrBufExt = "stderr"
 )
 
 var errNoResources = fmt.Errorf("No resources are associated with this task")
@@ -73,6 +80,9 @@ type Executor interface {
 	// Command provides access the underlying Cmd struct in case the Executor
 	// interface doesn't expose the functionality you need.
 	Command() *exec.Cmd
+
+	// Logs return a handle to read the stdout and stderr of the process
+	Logs(w io.Writer, follow bool, stdout bool, stderr bool, lines int64) error
 }
 
 // Command is a mirror of exec.Command that returns a platform-specific Executor

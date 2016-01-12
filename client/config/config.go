@@ -30,7 +30,7 @@ type Config struct {
 	AllocDir string
 
 	// LogOutput is the destination for logs
-	LogOutput io.Writer
+	LogOutput io.Writer `json:"-"`
 
 	// Region is the clients region
 	Region string
@@ -52,10 +52,18 @@ type Config struct {
 
 	// RPCHandler can be provided to avoid network traffic if the
 	// server is running locally.
-	RPCHandler RPCHandler
+	RPCHandler RPCHandler `json:"-"`
 
 	// Node provides the base node
 	Node *structs.Node
+
+	// LogDaemonResources is the amount of resources the logging process is
+	// allowed to use on a node
+	LogDaemonResources *structs.Resources
+
+	// LogDaemonIPCAddr is the network address on which the log daemon listens
+	// to api calls to register and remove tasks whose logs needs to be managed
+	LogDaemonIPCAddr string
 
 	// Options provides arbitrary key-value configuration for nomad internals,
 	// like fingerprinters and drivers. The format is:

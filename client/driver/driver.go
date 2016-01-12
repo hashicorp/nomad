@@ -2,6 +2,7 @@ package driver
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"path/filepath"
 	"sync"
@@ -99,6 +100,9 @@ type DriverHandle interface {
 	// Returns an opaque handle that can be used to re-open the handle
 	ID() string
 
+	// Wait waits for the task to end
+	Wait()
+
 	// WaitCh is used to return a channel used wait for task completion
 	WaitCh() chan *cstructs.WaitResult
 
@@ -107,6 +111,9 @@ type DriverHandle interface {
 
 	// Kill is used to stop the task
 	Kill() error
+
+	// Logs return an io reader which streams the logs
+	Logs(w io.Writer, follow bool, stdout bool, stderr bool, lines int64) error
 }
 
 // ExecContext is shared between drivers within an allocation

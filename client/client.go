@@ -1,11 +1,14 @@
 package client
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"sync"
@@ -15,6 +18,8 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/client/fingerprint"
+	"github.com/hashicorp/nomad/client/helper"
+	"github.com/hashicorp/nomad/helper/discover"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -139,6 +144,11 @@ func NewClient(cfg *config.Config) (*Client, error) {
 	// Restore the state
 	if err := c.restoreState(); err != nil {
 		return nil, fmt.Errorf("failed to restore state: %v", err)
+	}
+
+	// Setup the log daemon
+	if err := c.setupLogDaemon(); err != nil {
+		return nil, fmt.Errorf("failed to initialize the log daemon %v", err)
 	}
 
 	// Start the client!
@@ -625,6 +635,62 @@ func (c *Client) run() {
 		case <-c.shutdownCh:
 			return
 		}
+	}
+}
+
+// setupLogDaemon starts the log daemon and keeps restarting it when it crashes
+func (c *Client) setupLogDaemon() error {
+	var port int
+	var err error
+
+	if port, err = getFreePort(); err != nil {
+		return fmt.Errorf("Unable to find free port on loopback device: %v", err)
+	}
+
+	c.config.LogDaemonIPCAddr = fmt.Sprintf("127.0.0.1:%v", port)
+
+	bin, err := discover.NomadExecutable()
+	if err != nil {
+		return fmt.Errorf("Failed to determine the Nomad executable: %v", err)
+	}
+
+	configuration, err := c.createLogDaemonConfig()
+	if err != nil {
+		return err
+	}
+
+	logDaemon := exec.Command(bin, "log-daemon", configuration)
+	logDaemon.Stderr = c.config.LogOutput
+	logDaemon.Stdout = c.config.LogOutput
+
+	if err = logDaemon.Start(); err != nil {
+		return fmt.Errorf("unable to start the log daemon: %v", err)
+	}
+
+	if rc, err := helper.NewResourceConstrainer(c.config.LogDaemonResources, logDaemon.Process.Pid); err == nil {
+		if err := rc.Apply(); err != nil {
+			c.logger.Printf("[ERROR] client: unable to join log daemon to the cgroup: %v", err)
+		}
+	} else {
+		c.logger.Printf("[ERROR] client: unable to create a cgroup for the log daemon: %v", err)
+	}
+	go c.runLogDaemon(logDaemon)
+
+	return nil
+}
+
+func (c *Client) createLogDaemonConfig() (string, error) {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	if err := enc.Encode(c.config); err != nil {
+		return "", fmt.Errorf("failed to create configuration for the log daemon")
+	}
+	return buf.String(), nil
+}
+
+func (c *Client) runLogDaemon(logDaemon *exec.Cmd) {
+	if err := logDaemon.Wait(); err != nil {
+		c.logger.Printf("Error with log daemon: %v", err)
 	}
 }
 

@@ -12,6 +12,7 @@ import (
 
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver"
+	"github.com/hashicorp/nomad/client/logdaemon"
 	"github.com/hashicorp/nomad/nomad/structs"
 
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
@@ -26,6 +27,7 @@ type TaskRunner struct {
 	alloc          *structs.Allocation
 	restartTracker *RestartTracker
 	consulService  *ConsulService
+	logClient      *logdaemon.LogDaemonClient
 
 	task     *structs.Task
 	state    *structs.TaskState
@@ -69,6 +71,7 @@ func NewTaskRunner(logger *log.Logger, config *config.Config,
 		destroyCh:      make(chan struct{}),
 		waitCh:         make(chan struct{}),
 	}
+	tc.logClient = logdaemon.NewLogDaemonClient(config.LogDaemonIPCAddr, logger)
 	return tc
 }
 
@@ -109,6 +112,8 @@ func (r *TaskRunner) RestoreState() error {
 		}
 
 		handle, err := driver.Open(r.ctx, snap.HandleID)
+
+		go handle.Wait()
 
 		// In the case it fails, we relaunch the task in the Run() method.
 		if err != nil {
@@ -236,6 +241,8 @@ func (r *TaskRunner) run() {
 		// Register the services defined by the task with Consil
 		r.consulService.Register(r.task, r.alloc)
 
+		r.registerTaskWithLogDaemon()
+
 	OUTER:
 		// Wait for updates
 		for {
@@ -338,9 +345,29 @@ func (r *TaskRunner) Destroy() {
 	r.destroyLock.Lock()
 	defer r.destroyLock.Unlock()
 
+	r.logClient.Remove(&logdaemon.TaskInfo{Name: r.task.Name})
+
 	if r.destroy {
 		return
 	}
 	r.destroy = true
 	close(r.destroyCh)
+}
+
+func (r *TaskRunner) registerTaskWithLogDaemon() {
+	taskInfo := logdaemon.TaskInfo{
+		HandleID: r.handle.ID(),
+		AllocDir: r.ctx.AllocDir,
+		AllocID:  r.alloc.ID,
+		Name:     r.task.Name,
+		Driver:   r.task.Driver,
+	}
+	r.logClient.Register(&taskInfo)
+}
+
+func (r *TaskRunner) removeTaskFromLogDaemon() {
+	taskInfo := logdaemon.TaskInfo{
+		Name: r.task.Name,
+	}
+	r.logClient.Remove(&taskInfo)
 }

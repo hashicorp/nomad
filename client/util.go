@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/rand"
+	"net"
 	"os"
 	"path/filepath"
 	"time"
@@ -115,4 +116,20 @@ func restoreState(path string, data interface{}) error {
 		return fmt.Errorf("failed to decode state: %v", err)
 	}
 	return nil
+}
+
+// getFreePort returns an unused port on the loopback device
+func getFreePort() (int, error) {
+	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
+	if err != nil {
+		return 0, err
+	}
+
+	dummyServer, err := net.ListenTCP("tcp", addr)
+	if err != nil {
+		return 0, err
+	}
+
+	defer dummyServer.Close()
+	return dummyServer.Addr().(*net.TCPAddr).Port, nil
 }
