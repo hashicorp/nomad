@@ -262,11 +262,8 @@ func (d *AllocDir) FSReadAt(allocID string, path string, offset int64, limit int
 		return err
 	}
 	n, err := f.ReadAt(buf, offset)
-	if err != nil {
-		return err
-	}
 	w.Write(buf[:n])
-	return nil
+	return err
 }
 
 func fileCopy(src, dst string, perm os.FileMode) error {
