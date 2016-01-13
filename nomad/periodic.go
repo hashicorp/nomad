@@ -34,21 +34,21 @@ type PeriodicDispatch struct {
 // for them.
 type JobEvalDispatcher interface {
 	// DispatchJob takes a job a new, untracked job and creates an evaluation
-	// for it.
-	DispatchJob(job *structs.Job) error
+	// for it and returns the eval.
+	DispatchJob(job *structs.Job) (*structs.Evaluation, error)
 
 	// RunningChildren returns whether the passed job has any running children.
 	RunningChildren(job *structs.Job) (bool, error)
 }
 
 // DispatchJob creates an evaluation for the passed job and commits both the
-// evaluation and the job to the raft log.
-func (s *Server) DispatchJob(job *structs.Job) error {
+// evaluation and the job to the raft log. It returns the eval.
+func (s *Server) DispatchJob(job *structs.Job) (*structs.Evaluation, error) {
 	// Commit this update via Raft
 	req := structs.JobRegisterRequest{Job: job}
 	_, index, err := s.raftApply(structs.JobRegisterRequestType, req)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Create a new evaluation
@@ -68,12 +68,15 @@ func (s *Server) DispatchJob(job *structs.Job) error {
 	// Commit this evaluation via Raft
 	// XXX: There is a risk of partial failure where the JobRegister succeeds
 	// but that the EvalUpdate does not.
-	_, _, err = s.raftApply(structs.EvalUpdateRequestType, update)
+	_, evalIndex, err := s.raftApply(structs.EvalUpdateRequestType, update)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	// Update its indexes.
+	eval.CreateIndex = evalIndex
+	eval.ModifyIndex = evalIndex
+	return eval, nil
 }
 
 // RunningChildren checks whether the passed job has any running children.
@@ -262,18 +265,19 @@ func (p *PeriodicDispatch) removeLocked(jobID string) error {
 	return nil
 }
 
-// ForceRun causes the periodic job to be evaluated immediately.
-func (p *PeriodicDispatch) ForceRun(jobID string) error {
+// ForceRun causes the periodic job to be evaluated immediately and returns the
+// subsequent eval.
+func (p *PeriodicDispatch) ForceRun(jobID string) (*structs.Evaluation, error) {
 	p.l.Lock()
 
 	// Do nothing if not enabled
 	if !p.enabled {
-		return fmt.Errorf("periodic dispatch disabled")
+		return nil, fmt.Errorf("periodic dispatch disabled")
 	}
 
 	job, tracked := p.tracked[jobID]
 	if !tracked {
-		return fmt.Errorf("can't force run non-tracked job %v", jobID)
+		return nil, fmt.Errorf("can't force run non-tracked job %v", jobID)
 	}
 
 	p.l.Unlock()
@@ -370,18 +374,19 @@ func (p *PeriodicDispatch) nextLaunch() (*structs.Job, time.Time) {
 
 // createEval instantiates a job based on the passed periodic job and submits an
 // evaluation for it. This should not be called with the lock held.
-func (p *PeriodicDispatch) createEval(periodicJob *structs.Job, time time.Time) error {
+func (p *PeriodicDispatch) createEval(periodicJob *structs.Job, time time.Time) (*structs.Evaluation, error) {
 	derived, err := p.deriveJob(periodicJob, time)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	if err := p.dispatcher.DispatchJob(derived); err != nil {
+	eval, err := p.dispatcher.DispatchJob(derived)
+	if err != nil {
 		p.logger.Printf("[ERR] nomad.periodic: failed to dispatch job %q: %v", periodicJob.ID, err)
-		return err
+		return nil, err
 	}
 
-	return nil
+	return eval, nil
 }
 
 // deriveJob instantiates a new job based on the passed periodic job and the

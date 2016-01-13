@@ -221,6 +221,12 @@ func (j *Job) AddTaskGroup(grp *TaskGroup) *Job {
 	return j
 }
 
+// AddPeriodicConfig adds a periodic config to an existing job.
+func (j *Job) AddPeriodicConfig(cfg *PeriodicConfig) *Job {
+	j.Periodic = cfg
+	return j
+}
+
 // registerJobRequest is used to serialize a job registration
 type registerJobRequest struct {
 	Job *Job

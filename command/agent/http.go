@@ -114,6 +114,8 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/status/leader", s.wrap(s.StatusLeaderRequest))
 	s.mux.HandleFunc("/v1/status/peers", s.wrap(s.StatusPeersRequest))
 
+	s.mux.HandleFunc("/v1/periodic/", s.wrap(s.PeriodicSpecificReqeust))
+
 	if enableDebug {
 		s.mux.HandleFunc("/debug/pprof/", pprof.Index)
 		s.mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)

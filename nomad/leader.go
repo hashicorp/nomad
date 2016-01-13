@@ -211,7 +211,7 @@ func (s *Server) restorePeriodicDispatcher() error {
 			continue
 		}
 
-		if err := s.periodicDispatcher.ForceRun(job.ID); err != nil {
+		if _, err := s.periodicDispatcher.ForceRun(job.ID); err != nil {
 			msg := fmt.Sprintf("force run of periodic job %q failed: %v", job.ID, err)
 			s.logger.Printf("[ERR] nomad.periodic: %s", msg)
 			return errors.New(msg)

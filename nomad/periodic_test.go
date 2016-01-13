@@ -27,11 +27,11 @@ func NewMockJobEvalDispatcher() *MockJobEvalDispatcher {
 	return &MockJobEvalDispatcher{Jobs: make(map[string]*structs.Job)}
 }
 
-func (m *MockJobEvalDispatcher) DispatchJob(job *structs.Job) error {
+func (m *MockJobEvalDispatcher) DispatchJob(job *structs.Job) (*structs.Evaluation, error) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	m.Jobs[job.ID] = job
-	return nil
+	return nil, nil
 }
 
 func (m *MockJobEvalDispatcher) RunningChildren(parent *structs.Job) (bool, error) {
@@ -266,7 +266,7 @@ func TestPeriodicDispatch_ForceRun_Untracked(t *testing.T) {
 	t.Parallel()
 	p, _ := testPeriodicDispatcher()
 
-	if err := p.ForceRun("foo"); err == nil {
+	if _, err := p.ForceRun("foo"); err == nil {
 		t.Fatal("ForceRun of untracked job should fail")
 	}
 }
@@ -284,7 +284,7 @@ func TestPeriodicDispatch_ForceRun_Tracked(t *testing.T) {
 	}
 
 	// ForceRun the job
-	if err := p.ForceRun(job.ID); err != nil {
+	if _, err := p.ForceRun(job.ID); err != nil {
 		t.Fatalf("ForceRun failed %v", err)
 	}
 

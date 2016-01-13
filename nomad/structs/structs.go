@@ -123,7 +123,7 @@ type QueryMeta struct {
 	KnownLeader bool
 }
 
-// WriteMeta allows a write response to includ e potentially
+// WriteMeta allows a write response to include potentially
 // useful metadata about the write
 type WriteMeta struct {
 	// This is the index associated with the write
@@ -272,6 +272,12 @@ type AllocSpecificRequest struct {
 	QueryOptions
 }
 
+// PeriodicForceReqeuest is used to force a specific periodic job.
+type PeriodicForceRequest struct {
+	JobID string
+	WriteRequest
+}
+
 // GenericRequest is used to request where no
 // specific information is needed.
 type GenericRequest struct {
@@ -413,6 +419,13 @@ type EvalListResponse struct {
 type EvalAllocationsResponse struct {
 	Allocations []*AllocListStub
 	QueryMeta
+}
+
+// PeriodicForceResponse is used to respond to a periodic job force launch
+type PeriodicForceResponse struct {
+	EvalID          string
+	EvalCreateIndex uint64
+	WriteMeta
 }
 
 const (
