@@ -24,7 +24,7 @@ func (s *HTTPServer) DirectoryListRequest(resp http.ResponseWriter, req *http.Re
 }
 
 func (s *HTTPServer) FileStatRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	allocID := strings.TrimPrefix(req.URL.Path, "/v1/client/fs/ls/")
+	allocID := strings.TrimPrefix(req.URL.Path, "/v1/client/fs/stat/")
 	path := req.URL.Query().Get("path")
 	if path == "" {
 		resp.WriteHeader(http.StatusNotFound)

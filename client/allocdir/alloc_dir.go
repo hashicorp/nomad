@@ -241,7 +241,8 @@ func (d *AllocDir) FSList(path string) ([]*AllocFile, error) {
 }
 
 func (d *AllocDir) FSStat(path string) (*AllocFile, error) {
-	info, err := os.Stat(path)
+	p := filepath.Join(d.AllocDir, path)
+	info, err := os.Stat(p)
 	if err != nil {
 		return nil, err
 	}
@@ -251,7 +252,17 @@ func (d *AllocDir) FSStat(path string) (*AllocFile, error) {
 		Name:  info.Name(),
 		IsDir: info.IsDir(),
 	}, nil
+}
 
+func (d *AllocDir) FSReadAt(allocID string, path string, offset int64, limit int64) ([]byte, error) {
+	p := filepath.Join(d.AllocDir, path)
+	f, err := os.Open(p)
+	if err != nil {
+		return nil, err
+	}
+	b := make([]byte, limit)
+	f.ReadAt(b, offset)
+	return b, nil
 }
 
 func fileCopy(src, dst string, perm os.FileMode) error {

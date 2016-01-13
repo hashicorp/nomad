@@ -371,6 +371,10 @@ func (c *Client) FSStat(allocID string, path string) (*allocdir.AllocFile, error
 	return ar.FSStat(path)
 }
 
+func (c *Client) FSReadAt(allocID string, path string, offset int64, limit int64) ([]byte, error) {
+	return nil, nil
+}
+
 // restoreState is used to restore our state from the data dir
 func (c *Client) restoreState() error {
 	if c.config.DevMode {
