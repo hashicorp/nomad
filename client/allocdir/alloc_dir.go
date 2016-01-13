@@ -260,6 +260,7 @@ func (d *AllocDir) FSReadAt(allocID string, path string, offset int64, limit int
 	if err != nil {
 		return err
 	}
+	defer f.Close()
 	io.Copy(w, io.LimitReader(f, limit))
 	return nil
 }
