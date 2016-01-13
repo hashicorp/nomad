@@ -254,15 +254,19 @@ func (d *AllocDir) FSStat(path string) (*AllocFile, error) {
 	}, nil
 }
 
-func (d *AllocDir) FSReadAt(allocID string, path string, offset int64, limit int64) ([]byte, error) {
+func (d *AllocDir) FSReadAt(allocID string, path string, offset int64, limit int64, w io.Writer) error {
+	buf := make([]byte, limit)
 	p := filepath.Join(d.AllocDir, path)
 	f, err := os.Open(p)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	b := make([]byte, limit)
-	f.ReadAt(b, offset)
-	return b, nil
+	n, err := f.ReadAt(buf, offset)
+	if err != nil {
+		return err
+	}
+	w.Write(buf[:n])
+	return nil
 }
 
 func fileCopy(src, dst string, perm os.FileMode) error {

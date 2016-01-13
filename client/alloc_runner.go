@@ -3,6 +3,7 @@ package client
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -431,4 +432,8 @@ func (r *AllocRunner) FSList(path string) ([]*allocdir.AllocFile, error) {
 
 func (r *AllocRunner) FSStat(path string) (*allocdir.AllocFile, error) {
 	return r.ctx.AllocDir.FSStat(path)
+}
+
+func (r *AllocRunner) FSReadAt(allocID string, path string, offset int64, limit int64, w io.Writer) error {
+	return r.ctx.AllocDir.FSReadAt(allocID, path, offset, limit, w)
 }
