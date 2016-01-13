@@ -184,9 +184,10 @@ The `job` object supports the following keys:
     [here](https://github.com/gorhill/cronexpr#implementation) for full
     documentation of supported cron specs and the predefined expressions.
 
-    * `prohibit_overlap` - `prohibit_overlap` can be set to true to enforce that
-    the periodic job doesn't spawn a new instance of the job if any of the
-    previous jobs are still running. It is defaulted to false.
+    * <a id="prohibit_overlap">`prohibit_overlap`</a> - `prohibit_overlap` can
+      be set to true to enforce that the periodic job doesn't spawn a new
+      instance of the job if any of the previous jobs are still running. It is
+      defaulted to false.
 
     An example `periodic` block:
 
