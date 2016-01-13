@@ -29,7 +29,7 @@ func (s *HTTPServer) FileStatRequest(resp http.ResponseWriter, req *http.Request
 	if allocID = strings.TrimPrefix(req.URL.Path, "/v1/client/fs/stat/"); allocID == "" {
 		return nil, allocIDNotPresentErr
 	}
-	if path := req.URL.Query().Get("path"); path == "" {
+	if path = req.URL.Query().Get("path"); path == "" {
 		return nil, fileNameNotPresentErr
 	}
 	return s.agent.client.FSStat(allocID, path)
