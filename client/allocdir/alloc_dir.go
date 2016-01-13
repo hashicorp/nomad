@@ -255,15 +255,13 @@ func (d *AllocDir) FSStat(path string) (*AllocFile, error) {
 }
 
 func (d *AllocDir) FSReadAt(allocID string, path string, offset int64, limit int64, w io.Writer) error {
-	buf := make([]byte, limit)
 	p := filepath.Join(d.AllocDir, path)
 	f, err := os.Open(p)
 	if err != nil {
 		return err
 	}
-	n, err := f.ReadAt(buf, offset)
-	w.Write(buf[:n])
-	return err
+	io.Copy(w, io.LimitReader(f, limit))
+	return nil
 }
 
 func fileCopy(src, dst string, perm os.FileMode) error {
