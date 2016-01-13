@@ -7,11 +7,16 @@ import (
 	"strings"
 )
 
+var (
+	allocIDNotPresentErr  = fmt.Errorf("must provide a valid alloc id")
+	fileNameNotPresentErr = fmt.Errorf("must provide a file name")
+)
+
 func (s *HTTPServer) DirectoryListRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	var allocID, path string
 
 	if allocID = strings.TrimPrefix(req.URL.Path, "/v1/client/fs/ls/"); allocID == "" {
-		return nil, fmt.Errorf("alloc id not found")
+		return nil, allocIDNotPresentErr
 	}
 	if path = req.URL.Query().Get("path"); path == "" {
 		path = "/"
@@ -22,10 +27,10 @@ func (s *HTTPServer) DirectoryListRequest(resp http.ResponseWriter, req *http.Re
 func (s *HTTPServer) FileStatRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	var allocID, path string
 	if allocID = strings.TrimPrefix(req.URL.Path, "/v1/client/fs/stat/"); allocID == "" {
-		return nil, fmt.Errorf("alloc id not found")
+		return nil, allocIDNotPresentErr
 	}
 	if path := req.URL.Query().Get("path"); path == "" {
-		return nil, fmt.Errorf("must provide a file name")
+		return nil, fileNameNotPresentErr
 	}
 	return s.agent.client.FSStat(allocID, path)
 }
@@ -38,10 +43,10 @@ func (s *HTTPServer) FileReadAtRequest(resp http.ResponseWriter, req *http.Reque
 	q := req.URL.Query()
 
 	if allocID = strings.TrimPrefix(req.URL.Path, "/v1/client/fs/readat/"); allocID == "" {
-		return nil, fmt.Errorf("alloc id not found")
+		return nil, allocIDNotPresentErr
 	}
 	if path = q.Get("path"); path == "" {
-		return nil, fmt.Errorf("must provide a file name")
+		return nil, fileNameNotPresentErr
 	}
 
 	if offset, err = strconv.ParseInt(q.Get("offset"), 10, 64); err != nil {
