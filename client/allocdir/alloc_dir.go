@@ -227,7 +227,7 @@ func (d *AllocDir) List(path string) ([]*AllocFileInfo, error) {
 	p := filepath.Join(d.AllocDir, path)
 	finfos, err := ioutil.ReadDir(p)
 	if err != nil {
-		return []*AllocFileInfo{}, nil
+		return []*AllocFileInfo{}, err
 	}
 	files := make([]*AllocFileInfo, len(finfos))
 	for idx, info := range finfos {
