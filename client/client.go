@@ -355,7 +355,7 @@ func (c *Client) Node() *structs.Node {
 	return c.config.Node
 }
 
-func (c *Client) FSList(allocID string, path string) ([]*allocdir.AllocFile, error) {
+func (c *Client) FSList(allocID string, path string) ([]*allocdir.AllocFileInfo, error) {
 	ar, ok := c.allocs[allocID]
 	if !ok {
 		return nil, fmt.Errorf("alloc not present")
@@ -364,7 +364,7 @@ func (c *Client) FSList(allocID string, path string) ([]*allocdir.AllocFile, err
 	return ar.FSList(path)
 }
 
-func (c *Client) FSStat(allocID string, path string) (*allocdir.AllocFile, error) {
+func (c *Client) FSStat(allocID string, path string) (*allocdir.AllocFileInfo, error) {
 	ar, ok := c.allocs[allocID]
 	if !ok {
 		return nil, fmt.Errorf("alloc not found")

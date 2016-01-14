@@ -426,14 +426,14 @@ func (r *AllocRunner) WaitCh() <-chan struct{} {
 	return r.waitCh
 }
 
-func (r *AllocRunner) FSList(path string) ([]*allocdir.AllocFile, error) {
-	return r.ctx.AllocDir.FSList(path)
+func (r *AllocRunner) FSList(path string) ([]*allocdir.AllocFileInfo, error) {
+	return r.ctx.AllocDir.List(path)
 }
 
-func (r *AllocRunner) FSStat(path string) (*allocdir.AllocFile, error) {
-	return r.ctx.AllocDir.FSStat(path)
+func (r *AllocRunner) FSStat(path string) (*allocdir.AllocFileInfo, error) {
+	return r.ctx.AllocDir.Stat(path)
 }
 
 func (r *AllocRunner) FSReadAt(allocID string, path string, offset int64, limit int64, w io.Writer) error {
-	return r.ctx.AllocDir.FSReadAt(allocID, path, offset, limit, w)
+	return r.ctx.AllocDir.ReadAt(allocID, path, offset, limit, w)
 }

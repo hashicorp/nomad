@@ -38,7 +38,7 @@ type AllocDir struct {
 	mounted []string
 }
 
-type AllocFile struct {
+type AllocFileInfo struct {
 	Name  string
 	IsDir bool
 	Size  int64
@@ -223,15 +223,15 @@ func (d *AllocDir) MountSharedDir(task string) error {
 	return nil
 }
 
-func (d *AllocDir) FSList(path string) ([]*AllocFile, error) {
+func (d *AllocDir) List(path string) ([]*AllocFileInfo, error) {
 	p := filepath.Join(d.AllocDir, path)
 	finfos, err := ioutil.ReadDir(p)
 	if err != nil {
-		return []*AllocFile{}, nil
+		return []*AllocFileInfo{}, nil
 	}
-	files := make([]*AllocFile, len(finfos))
+	files := make([]*AllocFileInfo, len(finfos))
 	for idx, info := range finfos {
-		files[idx] = &AllocFile{
+		files[idx] = &AllocFileInfo{
 			Name:  info.Name(),
 			IsDir: info.IsDir(),
 			Size:  info.Size(),
@@ -240,21 +240,21 @@ func (d *AllocDir) FSList(path string) ([]*AllocFile, error) {
 	return files, err
 }
 
-func (d *AllocDir) FSStat(path string) (*AllocFile, error) {
+func (d *AllocDir) Stat(path string) (*AllocFileInfo, error) {
 	p := filepath.Join(d.AllocDir, path)
 	info, err := os.Stat(p)
 	if err != nil {
 		return nil, err
 	}
 
-	return &AllocFile{
+	return &AllocFileInfo{
 		Size:  info.Size(),
 		Name:  info.Name(),
 		IsDir: info.IsDir(),
 	}, nil
 }
 
-func (d *AllocDir) FSReadAt(allocID string, path string, offset int64, limit int64, w io.Writer) error {
+func (d *AllocDir) ReadAt(allocID string, path string, offset int64, limit int64, w io.Writer) error {
 	p := filepath.Join(d.AllocDir, path)
 	f, err := os.Open(p)
 	if err != nil {
