@@ -2,6 +2,7 @@ package agent
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -21,7 +22,11 @@ func (s *HTTPServer) DirectoryListRequest(resp http.ResponseWriter, req *http.Re
 	if path = req.URL.Query().Get("path"); path == "" {
 		path = "/"
 	}
-	return s.agent.client.FSList(allocID, path)
+	fs, err := s.agent.client.GetAllocFS(allocID)
+	if err != nil {
+		return nil, err
+	}
+	return fs.List(path)
 }
 
 func (s *HTTPServer) FileStatRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
@@ -32,7 +37,11 @@ func (s *HTTPServer) FileStatRequest(resp http.ResponseWriter, req *http.Request
 	if path = req.URL.Query().Get("path"); path == "" {
 		return nil, fileNameNotPresentErr
 	}
-	return s.agent.client.FSStat(allocID, path)
+	fs, err := s.agent.client.GetAllocFS(allocID)
+	if err != nil {
+		return nil, err
+	}
+	return fs.Stat(path)
 }
 
 func (s *HTTPServer) FileReadAtRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
@@ -55,8 +64,14 @@ func (s *HTTPServer) FileReadAtRequest(resp http.ResponseWriter, req *http.Reque
 	if limit, err = strconv.ParseInt(q.Get("limit"), 10, 64); err != nil {
 		return nil, fmt.Errorf("error parsing limit: %v", err)
 	}
-	if err = s.agent.client.FSReadAt(allocID, path, offset, limit, resp); err != nil {
+	fs, err := s.agent.client.GetAllocFS(allocID)
+	if err != nil {
 		return nil, err
 	}
+	r, err := fs.ReadAt(path, offset, limit)
+	if err != nil {
+		return nil, err
+	}
+	io.Copy(resp, r)
 	return nil, nil
 }

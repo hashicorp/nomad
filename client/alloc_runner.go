@@ -3,7 +3,6 @@ package client
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -426,14 +425,6 @@ func (r *AllocRunner) WaitCh() <-chan struct{} {
 	return r.waitCh
 }
 
-func (r *AllocRunner) FSList(path string) ([]*allocdir.AllocFileInfo, error) {
-	return r.ctx.AllocDir.List(path)
-}
-
-func (r *AllocRunner) FSStat(path string) (*allocdir.AllocFileInfo, error) {
-	return r.ctx.AllocDir.Stat(path)
-}
-
-func (r *AllocRunner) FSReadAt(allocID string, path string, offset int64, limit int64, w io.Writer) error {
-	return r.ctx.AllocDir.ReadAt(allocID, path, offset, limit, w)
+func (r *AllocRunner) GetAllocFS(allocID string) allocdir.AllocDirFS {
+	return r.ctx.AllocDir
 }

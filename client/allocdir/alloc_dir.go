@@ -44,6 +44,12 @@ type AllocFileInfo struct {
 	Size  int64
 }
 
+type AllocDirFS interface {
+	List(path string) ([]*AllocFileInfo, error)
+	Stat(path string) (*AllocFileInfo, error)
+	ReadAt(path string, offset int64, limit int64) (io.ReadCloser, error)
+}
+
 func NewAllocDir(allocDir string) *AllocDir {
 	d := &AllocDir{AllocDir: allocDir, TaskDirs: make(map[string]string)}
 	d.SharedDir = filepath.Join(d.AllocDir, SharedAllocName)
@@ -254,15 +260,18 @@ func (d *AllocDir) Stat(path string) (*AllocFileInfo, error) {
 	}, nil
 }
 
-func (d *AllocDir) ReadAt(allocID string, path string, offset int64, limit int64, w io.Writer) error {
+func (d *AllocDir) ReadAt(path string, offset int64, limit int64) (io.ReadCloser, error) {
 	p := filepath.Join(d.AllocDir, path)
 	f, err := os.Open(p)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	defer f.Close()
-	io.Copy(w, io.LimitReader(f, limit))
-	return nil
+	return &LimitReadCloser{Reader: io.LimitReader(f, limit), Closer: f}, nil
+}
+
+type LimitReadCloser struct {
+	io.Reader
+	io.Closer
 }
 
 func fileCopy(src, dst string, perm os.FileMode) error {
