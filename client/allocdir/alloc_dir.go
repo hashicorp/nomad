@@ -38,12 +38,14 @@ type AllocDir struct {
 	mounted []string
 }
 
+// AllocFileInfo holds information about a file inside the AllocDir
 type AllocFileInfo struct {
 	Name  string
 	IsDir bool
 	Size  int64
 }
 
+// AllocDirFS returns methods which exposes file operations on the alloc dir
 type AllocDirFS interface {
 	List(path string) ([]*AllocFileInfo, error)
 	Stat(path string) (*AllocFileInfo, error)
