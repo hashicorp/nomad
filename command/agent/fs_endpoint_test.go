@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestHTTP_FSDirectoryList(t *testing.T) {
+func TestAllocDirFS_List(t *testing.T) {
 	httpTest(t, nil, func(s *TestServer) {
 		req, err := http.NewRequest("GET", "/v1/client/fs/ls/", nil)
 		if err != nil {
@@ -21,7 +21,7 @@ func TestHTTP_FSDirectoryList(t *testing.T) {
 	})
 }
 
-func TestHTTP_FSStat(t *testing.T) {
+func TestAllocDirFS_Stat(t *testing.T) {
 	httpTest(t, nil, func(s *TestServer) {
 		req, err := http.NewRequest("GET", "/v1/client/fs/stat/", nil)
 		if err != nil {
@@ -48,7 +48,7 @@ func TestHTTP_FSStat(t *testing.T) {
 	})
 }
 
-func TestHTTP_FSReadAt(t *testing.T) {
+func TestAllocDirFS_ReadAt(t *testing.T) {
 	httpTest(t, nil, func(s *TestServer) {
 		req, err := http.NewRequest("GET", "/v1/client/fs/readat/", nil)
 		if err != nil {
