@@ -8,7 +8,7 @@ description: |-
 
 # Nomad vs. Terraform
 
-[Terraform](https://terraform.io) is a tool for building, changing, and versioning
+[Terraform](https://www.terraform.io) is a tool for building, changing, and versioning
 infrastructure safely and efficiently. Configuration files describe to Terraform
 the components needed to run a single application or your entire datacenter. Terraform
 generates an execution plan describing what it will do to reach the desired state,

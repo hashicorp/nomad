@@ -11,7 +11,7 @@ description: |-
 Nomad schedules workloads of various types across a cluster of generic hosts.
 Because of this, placement is not known in advance and you will need to use
 service discovery to connect tasks to other services deployed across your
-cluster. Nomad integrates with [Consul](https://consul.io) to provide service
+cluster. Nomad integrates with [Consul](https://www.consul.io) to provide service
 discovery and monitoring.
 
 Note that in order to use Consul with Nomad, you will need to configure and

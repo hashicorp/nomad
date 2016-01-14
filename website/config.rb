@@ -4,6 +4,4 @@ activate :hashicorp do |h|
   h.name        = "nomad"
   h.version     = "0.2.3"
   h.github_slug = "hashicorp/nomad"
-
-  h.minify_javascript = false
 end
