@@ -110,7 +110,7 @@ When a client agent is first started, it fingerprints the host machine to
 identify its attributes, capabilities, and [task drivers](/docs/drivers/index.html).
 These are reported to the servers during an initial registration. The addresses
 of known servers are provided to the agent via configuration, potentially using
-DNS for resolution. Using [Consul](https://consul.io) provides a way to avoid hard
+DNS for resolution. Using [Consul](https://www.consul.io) provides a way to avoid hard
 coding addresses and resolving them on demand.
 
 While a client is running, it is performing heartbeating with servers to
