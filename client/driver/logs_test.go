@@ -1,6 +1,7 @@
 package driver
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"testing"
@@ -19,6 +20,7 @@ func TestLogRotator_FindCorrectIndex(t *testing.T) {
 	if err := os.Mkdir(path, os.ModeDir|os.ModePerm); err != nil {
 		t.Fatalf("test setup err: %v", err)
 	}
+	defer os.RemoveAll(path)
 
 	fname := filepath.Join(path, "redis.stdout.1")
 	if f, err := os.Create(fname); err == nil {
@@ -37,4 +39,25 @@ func TestLogRotator_FindCorrectIndex(t *testing.T) {
 	if r.logFileIdx != 2 {
 		t.Fatalf("Expected log file idx: %v, actual: %v", 2, r.logFileIdx)
 	}
+}
+
+func TestLogRotator_AppendToCurrentFile(t *testing.T) {
+	path := "/tmp/tmplogrator"
+	if err := os.Mkdir(path, os.ModeDir|os.ModePerm); err != nil {
+		t.Fatalf("test setup err: %v", err)
+	}
+	defer os.RemoveAll(path)
+	fname := filepath.Join(path, "redis.stdout.1")
+	if f, err := os.Create(fname); err == nil {
+		f.Close()
+	}
+
+	r, err := NewLogRotor(path, "redis.stdout", 10, 10)
+	if err != nil {
+		t.Fatalf("test setup err: %v", err)
+	}
+
+	var buf bytes.Buffer
+	buf.WriteString("hello")
+	r.Start(&buf)
 }

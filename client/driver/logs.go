@@ -24,7 +24,7 @@ func NewLogRotor(path string, fileName string, maxFiles int, fileSize int64) (*L
 		return nil, err
 	}
 
-	logFileIdx := 0
+	logFileIdx := 1
 	for _, f := range files {
 		if strings.HasPrefix(f.Name(), fileName) {
 			fileIdx := strings.TrimPrefix(f.Name(), fmt.Sprintf("%s.", fileName))
