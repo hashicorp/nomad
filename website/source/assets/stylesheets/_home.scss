@@ -5,8 +5,8 @@
 #hero{
   position: relative;
   text-align: center;
-  background: image-url('../images/nomad-giant.jpg') 0 0 no-repeat;
-  @include img-retina("../images/nomad-giant.jpg", "../images/nomad-giant.jpg", 624px, 358px);
+  background: image-url('nomad-giant.jpg') 0 0 no-repeat;
+  @include img-retina("nomad-giant.jpg", "nomad-giant.jpg", 624px, 358px);
   background-size: cover !important;
   overflow: hidden;
 
@@ -42,8 +42,8 @@
       width: 115px;
       height: 155px;
       margin-left: -60px;
-      background: image-url('../images/hero-logotype.png') 0 0 no-repeat;
-      @include img-retina("../images/hero-logotype.png", "../images/hero-logotype@2x.png", 115px, 155px);
+      background: image-url('hero-logotype.png') 0 0 no-repeat;
+      @include img-retina("hero-logotype.png", "hero-logotype@2x.png", 115px, 155px);
     }
 
     #cubes{
@@ -218,8 +218,8 @@
         margin-top: -130px;
         width: 1161px;
         height: 735px;
-        background: image-url('../images/feature-deploy.png') 0 0 no-repeat;
-        @include img-retina("../images/feature-deploy.png", "../images/feature-deploy@2x.png", 1161px, 735px);
+        background: image-url('feature-deploy.png') 0 0 no-repeat;
+        @include img-retina("feature-deploy.png", "feature-deploy@2x.png", 1161px, 735px);
       }
     }
 
@@ -228,8 +228,8 @@
         margin-top: -50px;
         width: 1113px;
         height: 689px;
-        background: image-url('../images/feature-manage.png') 0 0 no-repeat;
-        @include img-retina("../images/feature-manage.png", "../images/feature-manage@2x.png", 1113px, 689px);
+        background: image-url('feature-manage.png') 0 0 no-repeat;
+        @include img-retina("feature-manage.png", "feature-manage@2x.png", 1113px, 689px);
       }
     }
 
@@ -238,8 +238,8 @@
         margin-top: 80px;
         width: 1009px;
         height: 309px;
-        background: image-url('../images/feature-healing.png') 0 0 no-repeat;
-        @include img-retina("../images/feature-healing.png", "../images/feature-healing@2x.png", 1009px, 309px);
+        background: image-url('feature-healing.png') 0 0 no-repeat;
+        @include img-retina("feature-healing.png", "feature-healing@2x.png", 1009px, 309px);
       }
     }
 
@@ -248,8 +248,8 @@
         margin-top: 80px;
         width: 1040px;
         height: 409px;
-        background: image-url('../images/feature-density.png') 0 0 no-repeat;
-        @include img-retina("../images/feature-density.png", "../images/feature-density@2x.png", 1040px, 409px);
+        background: image-url('feature-density.png') 0 0 no-repeat;
+        @include img-retina("feature-density.png", "feature-density@2x.png", 1040px, 409px);
       }
     }
 
@@ -264,8 +264,8 @@
             height: 180px;
 
             &.docker-logo{
-              background: image-url('../images/partner-docker.png') center center no-repeat;
-              @include img-retina("../images/partner-docker.png", "../images/partner-docker@2x.png", 100px, 84px);
+              background: image-url('partner-docker.png') center center no-repeat;
+              @include img-retina("partner-docker.png", "partner-docker@2x.png", 100px, 84px);
             }
           }
         }
@@ -277,24 +277,24 @@
             height: 180px;
 
             &.aws-logo{
-              background: image-url('../images/partner-amazon.png') center center no-repeat;
-              @include img-retina("../images/partner-amazon.png", "../images/partner-amazon@2x.png", 153px, 56px);
+              background: image-url('partner-amazon.png') center center no-repeat;
+              @include img-retina("partner-amazon.png", "partner-amazon@2x.png", 153px, 56px);
             }
             &.google-logo{
-              background: image-url('../images/partner-google.png') center center no-repeat;
-              @include img-retina("../images/partner-google.png", "../images/partner-google@2x.png", 135px, 87px);
+              background: image-url('partner-google.png') center center no-repeat;
+              @include img-retina("partner-google.png", "partner-google@2x.png", 135px, 87px);
             }
             &.microsoft-logo{
-              background: image-url('../images/partner-microsoft.png') center center no-repeat;
-              @include img-retina("../images/partner-microsoft.png", "../images/partner-microsoft@2x.png", 188px, 84px);
+              background: image-url('partner-microsoft.png') center center no-repeat;
+              @include img-retina("partner-microsoft.png", "partner-microsoft@2x.png", 188px, 84px);
             }
             &.engineyard-logo{
-              background: image-url('../images/partner-engineyard.png') center center no-repeat;
-              @include img-retina("../images/partner-engineyard.png", "../images/partner-engineyard@2x.png", 178px, 37px);
+              background: image-url('partner-engineyard.png') center center no-repeat;
+              @include img-retina("partner-engineyard.png", "partner-engineyard@2x.png", 178px, 37px);
             }
             &.digitalocean-logo{
-              background: image-url('../images/partner-digitalocean.png') center center no-repeat;
-              @include img-retina("../images/partner-digitalocean.png", "../images/partner-digitalocean@2x.png", 134px, 85px);
+              background: image-url('partner-digitalocean.png') center center no-repeat;
+              @include img-retina("partner-digitalocean.png", "partner-digitalocean@2x.png", 134px, 85px);
             }
           }
         }
@@ -356,8 +356,8 @@
         position: relative;
         top: 12px;
         margin-left: 8px;
-        background: image-url('../images/partner-docker.png') 0 0 no-repeat;
-        @include img-retina("../images/partner-docker.png", "../images/partner-docker@2x.png", 80px, 67px);
+        background: image-url('partner-docker.png') 0 0 no-repeat;
+        @include img-retina("partner-docker.png", "partner-docker@2x.png", 80px, 67px);
       }
 
       a{
@@ -367,41 +367,6 @@
         &:first-child{
           margin-left: 0;
         }
-      }
-    }
-  }
-
-  #cta {
-    position: relative;
-    padding: 160px 0;
-    background: image-url('../images/bg-iconscrud.png') center center no-repeat;
-    @include img-retina("../images/bg-icons.png", "../images/bg-icons@2x.png", 669px, 260px);
-    background-position: center center;
-    border-top: 1px solid $faint-gray;
-    border-bottom: 1px solid $faint-gray;
-
-    a{
-      margin-bottom: 5px;
-    }
-
-    p{
-      margin-top: 10px;
-      color: $black;
-      font-size: 14px;
-      font-weight: 600;
-      line-height: 1.5esm;
-
-      &.cta-gray{
-        color: $gray;
-        font-weight: 300;
-      }
-    }
-
-    .outline-btn {
-      padding: 16px 40px;
-      display: inline-block;
-      &:focus {
-        outline: 0;
       }
     }
   }
@@ -437,8 +402,8 @@
           margin-top: -60px;
           width: 768px;
           height: 486px;
-          background: image-url('../images/feature-deploy.png') 0 0 no-repeat;
-          @include img-retina("../images/feature-deploy.png", "../images/feature-deploy@2x.png", 768px, 486px);
+          background: image-url('feature-deploy.png') 0 0 no-repeat;
+          @include img-retina("feature-deploy.png", "feature-deploy@2x.png", 768px, 486px);
         }
 
         .feature-footer{
@@ -451,8 +416,8 @@
           margin-top: -50px;
           width: 768px;
           height: 475px;
-          background: image-url('../images/feature-manage.png') 0 0 no-repeat;
-          @include img-retina("../images/feature-manage.png", "../images/feature-manage@2x.png", 768px, 475px);
+          background: image-url('feature-manage.png') 0 0 no-repeat;
+          @include img-retina("feature-manage.png", "feature-manage@2x.png", 768px, 475px);
         }
       }
 
@@ -460,8 +425,8 @@
         .feature-graphic{
           width: 768px;
           height: 302px;
-          background: image-url('../images/feature-density.png') 0 0 no-repeat;
-          @include img-retina("../images/feature-density.png", "../images/feature-density@2x.png", 768px, 302px);
+          background: image-url('feature-density.png') 0 0 no-repeat;
+          @include img-retina("feature-density.png", "feature-density@2x.png", 768px, 302px);
         }
       }
 
@@ -499,8 +464,8 @@
           margin-top: 0px;
           width: 480px;
           height: 304px;
-          background: image-url('../images/feature-deploy.png') 0 0 no-repeat;
-          @include img-retina("../images/feature-deploy.png", "../images/feature-deploy@2x.png", 480px, 304px);
+          background: image-url('feature-deploy.png') 0 0 no-repeat;
+          @include img-retina("feature-deploy.png", "feature-deploy@2x.png", 480px, 304px);
         }
 
         .feature-footer{
@@ -509,8 +474,8 @@
           .docker-outline-logo{
             width: 94px;
             height: 63px;
-            background: image-url('../images/icon-docker-outline.png') 0 0 no-repeat;
-            @include img-retina("../images/icon-docker-outline.png", "../images/icon-docker-outline@2x.png", 94px, 63px);
+            background: image-url('partner-docker.png') 0 0 no-repeat;
+            @include img-retina("partner-docker.png", "partner-docker@2x.png", 94px, 63px);
           }
         }
       }
@@ -520,8 +485,8 @@
           margin-top: $small-pad;
           width: 480px;
           height: 297px;
-          background: image-url('../images/feature-manage.png') 0 0 no-repeat;
-          @include img-retina("../images/feature-manage.png", "../images/feature-manage@2x.png", 480px, 297px);
+          background: image-url('feature-manage.png') 0 0 no-repeat;
+          @include img-retina("feature-manage.png", "feature-manage@2x.png", 480px, 297px);
         }
       }
 
@@ -530,8 +495,8 @@
           margin-top: $small-pad;
           width: 480px;
           height: 147px;
-          background: image-url('../images/feature-healing.png') 0 0 no-repeat;
-          @include img-retina("../images/feature-healing.png", "../images/feature-healing@2x.png", 480px, 147px);
+          background: image-url('feature-healing.png') 0 0 no-repeat;
+          @include img-retina("feature-healing.png", "feature-healing@2x.png", 480px, 147px);
         }
       }
 
@@ -540,8 +505,8 @@
           margin-top: $small-pad;
           width: 480px;
           height: 189px;
-          background: image-url('../images/feature-density.png') 0 0 no-repeat;
-          @include img-retina("../images/feature-density.png", "../images/feature-density@2x.png", 480px, 189px);
+          background: image-url('feature-density.png') 0 0 no-repeat;
+          @include img-retina("feature-density.png", "feature-density@2x.png", 480px, 189px);
         }
       }
 
@@ -626,8 +591,8 @@
         .feature-graphic{
           width: 280px;
           height: 177px;
-          background: image-url('../images/feature-deploy.png') 0 0 no-repeat;
-          @include img-retina("../images/feature-deploy.png", "../images/feature-deploy@2x.png", 280px, 177px);
+          background: image-url('feature-deploy.png') 0 0 no-repeat;
+          @include img-retina("feature-deploy.png", "feature-deploy@2x.png", 280px, 177px);
         }
         .feature-footer{
           .docker-outline-logo{
@@ -641,8 +606,8 @@
           margin-top: $small-pad;
           width: 280px;
           height: 173px;
-          background: image-url('../images/feature-manage.png') 0 0 no-repeat;
-          @include img-retina("../images/feature-manage.png", "../images/feature-manage@2x.png", 280px, 173px);
+          background: image-url('feature-manage.png') 0 0 no-repeat;
+          @include img-retina("feature-manage.png", "feature-manage@2x.png", 280px, 173px);
         }
       }
 
@@ -650,8 +615,8 @@
         .feature-graphic{
           width: 280px;
           height: 86px;
-          background: image-url('../images/feature-healing.png') 0 0 no-repeat;
-          @include img-retina("../images/feature-healing.png", "../images/feature-healing@2x.png", 280px, 86px);
+          background: image-url('feature-healing.png') 0 0 no-repeat;
+          @include img-retina("feature-healing.png", "feature-healing@2x.png", 280px, 86px);
         }
       }
 
@@ -659,28 +624,10 @@
         .feature-graphic{
           width: 280px;
           height: 110px;
-          background: image-url('../images/feature-density.png') 0 0 no-repeat;
-          @include img-retina("../images/feature-density.png", "../images/feature-density@2x.png", 280px, 110px);
+          background: image-url('feature-density.png') 0 0 no-repeat;
+          @include img-retina("feature-density.png", "feature-density@2x.png", 280px, 110px);
         }
       }
     }
-  }
-}
-
-
-@media (max-width: 320px) {
-
-  #hero{
-    #diagram{
-      width: 100%;
-      height: 132px;
-      background: image-url('../images/hero.png') center 0 no-repeat;
-      @include img-retina("../images/hero.png", "../images/hero@2x.png", 320px, 132px);
-    }
-  }
-
-  #cta a {
-    font-size: 14px;
-    font-weight: 400;
   }
 }
