@@ -66,9 +66,8 @@ func nodeTableSchema() *memdb.TableSchema {
 				Name:         "id",
 				AllowMissing: false,
 				Unique:       true,
-				Indexer: &memdb.StringFieldIndex{
-					Field:     "ID",
-					Lowercase: true,
+				Indexer: &memdb.UUIDFieldIndex{
+					Field: "ID",
 				},
 			},
 		},

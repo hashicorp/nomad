@@ -35,7 +35,6 @@ func TestConfig_Merge(t *testing.T) {
 			Enabled:   false,
 			StateDir:  "/tmp/state1",
 			AllocDir:  "/tmp/alloc1",
-			NodeID:    "node1",
 			NodeClass: "class1",
 			Options: map[string]string{
 				"foo": "bar",
@@ -96,7 +95,6 @@ func TestConfig_Merge(t *testing.T) {
 			Enabled:   true,
 			StateDir:  "/tmp/state2",
 			AllocDir:  "/tmp/alloc2",
-			NodeID:    "node2",
 			NodeClass: "class2",
 			Servers:   []string{"server2"},
 			Meta: map[string]string{
@@ -413,7 +411,6 @@ func TestConfig_LoadConfigString(t *testing.T) {
 			StateDir:  "/tmp/client-state",
 			AllocDir:  "/tmp/alloc",
 			Servers:   []string{"a.b.c:80", "127.0.0.1:1234"},
-			NodeID:    "xyz123",
 			NodeClass: "linux-medium-64bit",
 			Meta: map[string]string{
 				"foo": "bar",

@@ -47,6 +47,9 @@ Run Options:
     submission, the evaluation ID will be printed to the screen.
     You can use this ID to start a monitor using the eval-monitor
     command later if needed.
+
+  -full-id
+    Display full identifiers.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -56,14 +59,21 @@ func (c *RunCommand) Synopsis() string {
 }
 
 func (c *RunCommand) Run(args []string) int {
-	var detach bool
+	var detach, fullId bool
 
 	flags := c.Meta.FlagSet("run", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&detach, "detach", false, "")
+	flags.BoolVar(&fullId, "full-id", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
+	}
+
+	// Truncate the id unless full length is requested
+	length := shortIdLength
+	if fullId {
+		length = fullIdLength
 	}
 
 	// Check that we got exactly one node
@@ -127,7 +137,7 @@ func (c *RunCommand) Run(args []string) int {
 	}
 
 	// Detach was not specified, so start monitoring
-	mon := newMonitor(c.Ui, client)
+	mon := newMonitor(c.Ui, client, length)
 	return mon.monitor(evalID, false)
 
 }

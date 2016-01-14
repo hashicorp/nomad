@@ -13,6 +13,7 @@ import (
 
 type StatusCommand struct {
 	Meta
+	length int
 }
 
 func (c *StatusCommand) Help() string {
@@ -32,6 +33,9 @@ Status Options:
     Display short output. Used only when a single job is being
     queried, and drops verbose information about allocations
     and evaluations.
+
+  -full-id
+    Display full identifiers.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -41,11 +45,12 @@ func (c *StatusCommand) Synopsis() string {
 }
 
 func (c *StatusCommand) Run(args []string) int {
-	var short bool
+	var short, fullId bool
 
 	flags := c.Meta.FlagSet("status", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&short, "short", false, "")
+	flags.BoolVar(&fullId, "full-id", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -56,6 +61,12 @@ func (c *StatusCommand) Run(args []string) int {
 	if len(args) > 1 {
 		c.Ui.Error(c.Help())
 		return 1
+	}
+
+	// Truncate the id unless full length is requested
+	c.length = shortIdLength
+	if fullId {
+		c.length = fullIdLength
 	}
 
 	// Get the HTTP client
@@ -229,7 +240,7 @@ func (c *StatusCommand) outputJobInfo(client *api.Client, job *api.Job) error {
 	evals[0] = "ID|Priority|TriggeredBy|Status"
 	for i, eval := range jobEvals {
 		evals[i+1] = fmt.Sprintf("%s|%d|%s|%s",
-			eval.ID,
+			eval.ID[:c.length],
 			eval.Priority,
 			eval.TriggeredBy,
 			eval.Status)
@@ -240,9 +251,9 @@ func (c *StatusCommand) outputJobInfo(client *api.Client, job *api.Job) error {
 	allocs[0] = "ID|EvalID|NodeID|TaskGroup|Desired|Status"
 	for i, alloc := range jobAllocs {
 		allocs[i+1] = fmt.Sprintf("%s|%s|%s|%s|%s|%s",
-			alloc.ID,
-			alloc.EvalID,
-			alloc.NodeID,
+			alloc.ID[:c.length],
+			alloc.EvalID[:c.length],
+			alloc.NodeID[:c.length],
 			alloc.TaskGroup,
 			alloc.DesiredStatus,
 			alloc.ClientStatus)

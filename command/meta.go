@@ -15,6 +15,10 @@ const (
 	// Names of environment variables used to supply various
 	// config options to the Nomad CLI.
 	EnvNomadAddress = "NOMAD_ADDR"
+
+	// Constants for CLI identifier length
+	shortIdLength = 8
+	fullIdLength  = 36
 )
 
 // FlagSetFlags is an enum to define what flags are present in the

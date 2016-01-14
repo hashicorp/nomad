@@ -87,7 +87,7 @@ func TestNodes_Info(t *testing.T) {
 	nodes := c.Nodes()
 
 	// Retrieving a non-existent node returns error
-	_, _, err := nodes.Info("nope", nil)
+	_, _, err := nodes.Info("12345678-abcd-efab-cdef-123456789abc", nil)
 	if err == nil || !strings.Contains(err.Error(), "not found") {
 		t.Fatalf("expected not found error, got: %#v", err)
 	}
@@ -215,7 +215,7 @@ func TestNodes_ForceEvaluate(t *testing.T) {
 	nodes := c.Nodes()
 
 	// Force-eval on a non-existent node fails
-	_, _, err := nodes.ForceEvaluate("nope", nil)
+	_, _, err := nodes.ForceEvaluate("12345678-abcd-efab-cdef-123456789abc", nil)
 	if err == nil || !strings.Contains(err.Error(), "not found") {
 		t.Fatalf("expected not found error, got: %#v", err)
 	}

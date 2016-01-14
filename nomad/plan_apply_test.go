@@ -322,7 +322,7 @@ func TestPlanApply_EvalNodePlan_NodeNotExist(t *testing.T) {
 	state := testStateStore(t)
 	snap, _ := state.Snapshot()
 
-	nodeID := "foo"
+	nodeID := "12345678-abcd-efab-cdef-123456789abc"
 	alloc := mock.Alloc()
 	plan := &structs.Plan{
 		NodeAllocation: map[string][]*structs.Allocation{

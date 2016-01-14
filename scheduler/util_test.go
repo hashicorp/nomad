@@ -275,7 +275,7 @@ func TestTaintedNodes(t *testing.T) {
 		&structs.Allocation{NodeID: node2.ID},
 		&structs.Allocation{NodeID: node3.ID},
 		&structs.Allocation{NodeID: node4.ID},
-		&structs.Allocation{NodeID: "blah"},
+		&structs.Allocation{NodeID: "12345678-abcd-efab-cdef-123456789abc"},
 	}
 	tainted, err := taintedNodes(state, allocs)
 	if err != nil {
@@ -288,7 +288,7 @@ func TestTaintedNodes(t *testing.T) {
 	if tainted[node1.ID] || tainted[node2.ID] {
 		t.Fatalf("Bad: %v", tainted)
 	}
-	if !tainted[node3.ID] || !tainted[node4.ID] || !tainted["blah"] {
+	if !tainted[node3.ID] || !tainted[node4.ID] || !tainted["12345678-abcd-efab-cdef-123456789abc"] {
 		t.Fatalf("Bad: %v", tainted)
 	}
 }

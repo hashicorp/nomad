@@ -12,7 +12,7 @@ import (
 
 func TestMonitor_Update_Eval(t *testing.T) {
 	ui := new(cli.MockUi)
-	mon := newMonitor(ui, nil)
+	mon := newMonitor(ui, nil, fullIdLength)
 
 	// Evals triggered by jobs log
 	state := &evalState{
@@ -30,12 +30,12 @@ func TestMonitor_Update_Eval(t *testing.T) {
 	// Evals trigerred by nodes log
 	state = &evalState{
 		status: structs.EvalStatusPending,
-		node:   "node1",
+		node:   "12345678-abcd-efab-cdef-123456789abc",
 	}
 	mon.update(state)
 
 	out = ui.OutputWriter.String()
-	if !strings.Contains(out, "node1") {
+	if !strings.Contains(out, "12345678-abcd-efab-cdef-123456789abc") {
 		t.Fatalf("missing node\n\n%s", out)
 	}
 
@@ -54,7 +54,7 @@ func TestMonitor_Update_Eval(t *testing.T) {
 	// Status change sends more logs
 	state = &evalState{
 		status: structs.EvalStatusComplete,
-		node:   "node1",
+		node:   "12345678-abcd-efab-cdef-123456789abc",
 	}
 	mon.update(state)
 	out = ui.OutputWriter.String()
@@ -65,15 +65,15 @@ func TestMonitor_Update_Eval(t *testing.T) {
 
 func TestMonitor_Update_Allocs(t *testing.T) {
 	ui := new(cli.MockUi)
-	mon := newMonitor(ui, nil)
+	mon := newMonitor(ui, nil, fullIdLength)
 
 	// New allocations write new logs
 	state := &evalState{
 		allocs: map[string]*allocState{
 			"alloc1": &allocState{
-				id:      "alloc1",
+				id:      "87654321-abcd-efab-cdef-123456789abc",
 				group:   "group1",
-				node:    "node1",
+				node:    "12345678-abcd-efab-cdef-123456789abc",
 				desired: structs.AllocDesiredStatusRun,
 				client:  structs.AllocClientStatusPending,
 				index:   1,
@@ -84,13 +84,13 @@ func TestMonitor_Update_Allocs(t *testing.T) {
 
 	// Logs were output
 	out := ui.OutputWriter.String()
-	if !strings.Contains(out, "alloc1") {
+	if !strings.Contains(out, "87654321-abcd-efab-cdef-123456789abc") {
 		t.Fatalf("missing alloc\n\n%s", out)
 	}
 	if !strings.Contains(out, "group1") {
 		t.Fatalf("missing group\n\n%s", out)
 	}
-	if !strings.Contains(out, "node1") {
+	if !strings.Contains(out, "12345678-abcd-efab-cdef-123456789abc") {
 		t.Fatalf("missing node\n\n%s", out)
 	}
 	if !strings.Contains(out, "created") {
@@ -109,9 +109,9 @@ func TestMonitor_Update_Allocs(t *testing.T) {
 	state = &evalState{
 		allocs: map[string]*allocState{
 			"alloc1": &allocState{
-				id:      "alloc1",
+				id:      "87654321-abcd-efab-cdef-123456789abc",
 				group:   "group1",
-				node:    "node1",
+				node:    "12345678-abcd-efab-cdef-123456789abc",
 				desired: structs.AllocDesiredStatusRun,
 				client:  structs.AllocClientStatusRunning,
 				index:   2,
@@ -122,7 +122,7 @@ func TestMonitor_Update_Allocs(t *testing.T) {
 
 	// Updates were logged
 	out = ui.OutputWriter.String()
-	if !strings.Contains(out, "alloc1") {
+	if !strings.Contains(out, "87654321-abcd-efab-cdef-123456789abc") {
 		t.Fatalf("missing alloc\n\n%s", out)
 	}
 	if !strings.Contains(out, "pending") {
@@ -135,13 +135,13 @@ func TestMonitor_Update_Allocs(t *testing.T) {
 
 func TestMonitor_Update_SchedulingFailure(t *testing.T) {
 	ui := new(cli.MockUi)
-	mon := newMonitor(ui, nil)
+	mon := newMonitor(ui, nil, shortIdLength)
 
 	// New allocs with desired status failed warns
 	state := &evalState{
 		allocs: map[string]*allocState{
 			"alloc2": &allocState{
-				id:          "alloc2",
+				id:          "87654321-dcba-efab-cdef-123456789abc",
 				group:       "group2",
 				desired:     structs.AllocDesiredStatusFailed,
 				desiredDesc: "something failed",
@@ -151,7 +151,7 @@ func TestMonitor_Update_SchedulingFailure(t *testing.T) {
 
 				// Attach the full failed allocation
 				full: &api.Allocation{
-					ID:            "alloc2",
+					ID:            "87654321-dcba-efab-cdef-123456789abc",
 					TaskGroup:     "group2",
 					ClientStatus:  structs.AllocClientStatusFailed,
 					DesiredStatus: structs.AllocDesiredStatusFailed,
@@ -197,7 +197,7 @@ func TestMonitor_Update_SchedulingFailure(t *testing.T) {
 
 func TestMonitor_Update_AllocModification(t *testing.T) {
 	ui := new(cli.MockUi)
-	mon := newMonitor(ui, nil)
+	mon := newMonitor(ui, nil, fullIdLength)
 
 	// New allocs with a create index lower than the
 	// eval create index are logged as modifications
@@ -205,8 +205,8 @@ func TestMonitor_Update_AllocModification(t *testing.T) {
 		index: 2,
 		allocs: map[string]*allocState{
 			"alloc3": &allocState{
-				id:    "alloc3",
-				node:  "node1",
+				id:    "87654321-abcd-bafe-cdef-123456789abc",
+				node:  "12345678-abcd-efab-cdef-123456789abc",
 				group: "group2",
 				index: 1,
 			},
@@ -216,13 +216,13 @@ func TestMonitor_Update_AllocModification(t *testing.T) {
 
 	// Modification was logged
 	out := ui.OutputWriter.String()
-	if !strings.Contains(out, "alloc3") {
+	if !strings.Contains(out, "87654321-abcd-bafe-cdef-123456789abc") {
 		t.Fatalf("missing alloc\n\n%s", out)
 	}
 	if !strings.Contains(out, "group2") {
 		t.Fatalf("missing group\n\n%s", out)
 	}
-	if !strings.Contains(out, "node1") {
+	if !strings.Contains(out, "12345678-abcd-efab-cdef-123456789abc") {
 		t.Fatalf("missing node\n\n%s", out)
 	}
 	if !strings.Contains(out, "modified") {
@@ -236,7 +236,7 @@ func TestMonitor_Monitor(t *testing.T) {
 
 	// Create the monitor
 	ui := new(cli.MockUi)
-	mon := newMonitor(ui, client)
+	mon := newMonitor(ui, client, fullIdLength)
 
 	// Submit a job - this creates a new evaluation we can monitor
 	job := testJob("job1")
@@ -282,7 +282,7 @@ func TestMonitor_MonitorWithPrefix(t *testing.T) {
 
 	// Create the monitor
 	ui := new(cli.MockUi)
-	mon := newMonitor(ui, client)
+	mon := newMonitor(ui, client, shortIdLength)
 
 	// Submit a job - this creates a new evaluation we can monitor
 	job := testJob("job1")
@@ -296,7 +296,7 @@ func TestMonitor_MonitorWithPrefix(t *testing.T) {
 	doneCh := make(chan struct{})
 	go func() {
 		defer close(doneCh)
-		code = mon.monitor(evalID[:4], true)
+		code = mon.monitor(evalID[:8], true)
 	}()
 
 	// Wait for completion
@@ -314,8 +314,11 @@ func TestMonitor_MonitorWithPrefix(t *testing.T) {
 
 	// Check the output
 	out := ui.OutputWriter.String()
-	if !strings.Contains(out, evalID) {
+	if !strings.Contains(out, evalID[:8]) {
 		t.Fatalf("missing eval\n\n%s", out)
+	}
+	if strings.Contains(out, evalID) {
+		t.Fatalf("expected truncated eval id, got: %s", out)
 	}
 	if !strings.Contains(out, "finished with status") {
 		t.Fatalf("missing final status\n\n%s", out)
@@ -327,7 +330,7 @@ func TestMonitor_DumpAllocStatus(t *testing.T) {
 
 	// Create an allocation and dump its status to the UI
 	alloc := &api.Allocation{
-		ID:           "alloc1",
+		ID:           "87654321-abcd-efab-cdef-123456789abc",
 		TaskGroup:    "group1",
 		ClientStatus: structs.AllocClientStatusRunning,
 		Metrics: &api.AllocationMetric{
@@ -345,11 +348,11 @@ func TestMonitor_DumpAllocStatus(t *testing.T) {
 			},
 		},
 	}
-	dumpAllocStatus(ui, alloc)
+	dumpAllocStatus(ui, alloc, fullIdLength)
 
 	// Check the output
 	out := ui.OutputWriter.String()
-	if !strings.Contains(out, "alloc1") {
+	if !strings.Contains(out, "87654321-abcd-efab-cdef-123456789abc") {
 		t.Fatalf("missing alloc\n\n%s", out)
 	}
 	if !strings.Contains(out, structs.AllocClientStatusRunning) {
@@ -375,11 +378,17 @@ func TestMonitor_DumpAllocStatus(t *testing.T) {
 
 	// Dumping alloc status with no eligible nodes adds a warning
 	alloc.Metrics.NodesEvaluated = 0
-	dumpAllocStatus(ui, alloc)
+	dumpAllocStatus(ui, alloc, shortIdLength)
 
 	// Check the output
 	out = ui.OutputWriter.String()
 	if !strings.Contains(out, "No nodes were eligible") {
 		t.Fatalf("missing eligibility warning\n\n%s", out)
+	}
+	if strings.Contains(out, "87654321-abcd-efab-cdef-123456789abc") {
+		t.Fatalf("expected truncated id, got %s", out)
+	}
+	if !strings.Contains(out, "87654321") {
+		t.Fatalf("expected alloc id, got %s", out)
 	}
 }

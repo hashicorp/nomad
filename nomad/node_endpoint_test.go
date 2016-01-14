@@ -359,7 +359,7 @@ func TestClientEndpoint_GetNode(t *testing.T) {
 	}
 
 	// Lookup non-existing node
-	get.NodeID = "foobarbaz"
+	get.NodeID = "12345678-abcd-efab-cdef-123456789abc"
 	if err := msgpackrpc.CallWithCodec(codec, "Node.GetNode", get, &resp2); err != nil {
 		t.Fatalf("err: %v", err)
 	}
