@@ -38,7 +38,7 @@ The `exec` driver supports the following configuration in the job spec:
     before launching the task. For example:
 
     ```
-        args = ["$nomad.ip", "$MY_ENV", $meta.foo"]
+        args = ["$nomad.ip", "$MY_ENV", "$meta.foo"]
     ```
 
 ## Client Requirements
