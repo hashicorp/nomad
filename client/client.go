@@ -339,6 +339,7 @@ func (c *Client) Stats() map[string]map[string]string {
 
 	stats := map[string]map[string]string{
 		"client": map[string]string{
+			"node_id":         c.Node().ID,
 			"known_servers":   toString(uint64(len(c.Servers()))),
 			"num_allocations": toString(uint64(numAllocs)),
 			"last_heartbeat":  fmt.Sprintf("%v", time.Since(c.lastHeartbeat)),
