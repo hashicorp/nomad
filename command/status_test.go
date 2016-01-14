@@ -26,8 +26,9 @@ func TestStatusCommand_Run(t *testing.T) {
 	// Check for this awkward nil string, since a nil bytes.Buffer
 	// returns this purposely, and mitchellh/cli has a nil pointer
 	// if nothing was ever output.
-	if out := ui.OutputWriter.String(); out != "<nil>" {
-		t.Fatalf("expected empty output, got: %s", out)
+	exp := "No running jobs"
+	if out := strings.TrimSpace(ui.OutputWriter.String()); out != exp {
+		t.Fatalf("expected %q; got: %q", exp, out)
 	}
 
 	// Register two jobs
