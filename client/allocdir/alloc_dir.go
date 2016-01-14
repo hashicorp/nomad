@@ -229,6 +229,7 @@ func (d *AllocDir) MountSharedDir(task string) error {
 	return nil
 }
 
+// List returns the list of files at a path relative to the alloc dir
 func (d *AllocDir) List(path string) ([]*AllocFileInfo, error) {
 	p := filepath.Join(d.AllocDir, path)
 	finfos, err := ioutil.ReadDir(p)
@@ -246,6 +247,7 @@ func (d *AllocDir) List(path string) ([]*AllocFileInfo, error) {
 	return files, err
 }
 
+// Stat returns information about the file at path relative to the alloc dir
 func (d *AllocDir) Stat(path string) (*AllocFileInfo, error) {
 	p := filepath.Join(d.AllocDir, path)
 	info, err := os.Stat(p)
@@ -260,16 +262,20 @@ func (d *AllocDir) Stat(path string) (*AllocFileInfo, error) {
 	}, nil
 }
 
+// ReadAt returns a reader  for a file at the path relative to the alloc dir
+//which will read a chunk of bytes at a particular offset
 func (d *AllocDir) ReadAt(path string, offset int64, limit int64) (io.ReadCloser, error) {
 	p := filepath.Join(d.AllocDir, path)
 	f, err := os.Open(p)
 	if err != nil {
 		return nil, err
 	}
-	return &LimitReadCloser{Reader: io.LimitReader(f, limit), Closer: f}, nil
+	return &FileReadCloser{Reader: io.LimitReader(f, limit), Closer: f}, nil
 }
 
-type LimitReadCloser struct {
+// FileReadCloser wraps a LimitReader so that a file is closed once it has been
+// read
+type FileReadCloser struct {
 	io.Reader
 	io.Closer
 }

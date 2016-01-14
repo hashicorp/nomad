@@ -424,7 +424,3 @@ func (r *AllocRunner) Destroy() {
 func (r *AllocRunner) WaitCh() <-chan struct{} {
 	return r.waitCh
 }
-
-func (r *AllocRunner) GetAllocFS(allocID string) allocdir.AllocDirFS {
-	return r.ctx.AllocDir
-}

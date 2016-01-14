@@ -354,12 +354,13 @@ func (c *Client) Node() *structs.Node {
 	return c.config.Node
 }
 
+// GetAllocFS returns the AllocFS interface for the alloc dir of an allocation
 func (c *Client) GetAllocFS(allocID string) (allocdir.AllocDirFS, error) {
 	ar, ok := c.allocs[allocID]
 	if !ok {
 		return nil, fmt.Errorf("alloc not found")
 	}
-	return ar.GetAllocFS(allocID), nil
+	return ar.ctx.AllocDir, nil
 
 }
 
