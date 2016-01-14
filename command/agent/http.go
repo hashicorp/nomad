@@ -103,6 +103,10 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/evaluations", s.wrap(s.EvalsRequest))
 	s.mux.HandleFunc("/v1/evaluation/", s.wrap(s.EvalSpecificRequest))
 
+	s.mux.HandleFunc("/v1/client/fs/ls/", s.wrap(s.DirectoryListRequest))
+	s.mux.HandleFunc("/v1/client/fs/stat/", s.wrap(s.FileStatRequest))
+	s.mux.HandleFunc("/v1/client/fs/readat/", s.wrap(s.FileReadAtRequest))
+
 	s.mux.HandleFunc("/v1/agent/self", s.wrap(s.AgentSelfRequest))
 	s.mux.HandleFunc("/v1/agent/join", s.wrap(s.AgentJoinRequest))
 	s.mux.HandleFunc("/v1/agent/members", s.wrap(s.AgentMembersRequest))

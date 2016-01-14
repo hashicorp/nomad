@@ -38,6 +38,20 @@ type AllocDir struct {
 	mounted []string
 }
 
+// AllocFileInfo holds information about a file inside the AllocDir
+type AllocFileInfo struct {
+	Name  string
+	IsDir bool
+	Size  int64
+}
+
+// AllocDirFS returns methods which exposes file operations on the alloc dir
+type AllocDirFS interface {
+	List(path string) ([]*AllocFileInfo, error)
+	Stat(path string) (*AllocFileInfo, error)
+	ReadAt(path string, offset int64, limit int64) (io.ReadCloser, error)
+}
+
 func NewAllocDir(allocDir string) *AllocDir {
 	d := &AllocDir{AllocDir: allocDir, TaskDirs: make(map[string]string)}
 	d.SharedDir = filepath.Join(d.AllocDir, SharedAllocName)
@@ -215,6 +229,57 @@ func (d *AllocDir) MountSharedDir(task string) error {
 
 	d.mounted = append(d.mounted, taskLoc)
 	return nil
+}
+
+// List returns the list of files at a path relative to the alloc dir
+func (d *AllocDir) List(path string) ([]*AllocFileInfo, error) {
+	p := filepath.Join(d.AllocDir, path)
+	finfos, err := ioutil.ReadDir(p)
+	if err != nil {
+		return []*AllocFileInfo{}, err
+	}
+	files := make([]*AllocFileInfo, len(finfos))
+	for idx, info := range finfos {
+		files[idx] = &AllocFileInfo{
+			Name:  info.Name(),
+			IsDir: info.IsDir(),
+			Size:  info.Size(),
+		}
+	}
+	return files, err
+}
+
+// Stat returns information about the file at path relative to the alloc dir
+func (d *AllocDir) Stat(path string) (*AllocFileInfo, error) {
+	p := filepath.Join(d.AllocDir, path)
+	info, err := os.Stat(p)
+	if err != nil {
+		return nil, err
+	}
+
+	return &AllocFileInfo{
+		Size:  info.Size(),
+		Name:  info.Name(),
+		IsDir: info.IsDir(),
+	}, nil
+}
+
+// ReadAt returns a reader  for a file at the path relative to the alloc dir
+//which will read a chunk of bytes at a particular offset
+func (d *AllocDir) ReadAt(path string, offset int64, limit int64) (io.ReadCloser, error) {
+	p := filepath.Join(d.AllocDir, path)
+	f, err := os.Open(p)
+	if err != nil {
+		return nil, err
+	}
+	return &FileReadCloser{Reader: io.LimitReader(f, limit), Closer: f}, nil
+}
+
+// FileReadCloser wraps a LimitReader so that a file is closed once it has been
+// read
+type FileReadCloser struct {
+	io.Reader
+	io.Closer
 }
 
 func fileCopy(src, dst string, perm os.FileMode) error {
