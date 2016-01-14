@@ -45,7 +45,7 @@ type AllocFileInfo struct {
 	Size  int64
 }
 
-// AllocDirFS returns methods which exposes file operations on the alloc dir
+// AllocDirFS exposes file operations on the alloc dir
 type AllocDirFS interface {
 	List(path string) ([]*AllocFileInfo, error)
 	Stat(path string) (*AllocFileInfo, error)
@@ -249,7 +249,7 @@ func (d *AllocDir) List(path string) ([]*AllocFileInfo, error) {
 	return files, err
 }
 
-// Stat returns information about the file at path relative to the alloc dir
+// Stat returns information about the file at a path relative to the alloc dir
 func (d *AllocDir) Stat(path string) (*AllocFileInfo, error) {
 	p := filepath.Join(d.AllocDir, path)
 	info, err := os.Stat(p)
@@ -265,19 +265,19 @@ func (d *AllocDir) Stat(path string) (*AllocFileInfo, error) {
 }
 
 // ReadAt returns a reader  for a file at the path relative to the alloc dir
-//which will read a chunk of bytes at a particular offset
+// which will read a chunk of bytes at a particular offset
 func (d *AllocDir) ReadAt(path string, offset int64, limit int64) (io.ReadCloser, error) {
 	p := filepath.Join(d.AllocDir, path)
 	f, err := os.Open(p)
 	if err != nil {
 		return nil, err
 	}
-	return &FileReadCloser{Reader: io.LimitReader(f, limit), Closer: f}, nil
+	return &ReadCloserWrapper{Reader: io.LimitReader(f, limit), Closer: f}, nil
 }
 
-// FileReadCloser wraps a LimitReader so that a file is closed once it has been
+// ReadCloserWrapper wraps a LimitReader so that a file is closed once it has been
 // read
-type FileReadCloser struct {
+type ReadCloserWrapper struct {
 	io.Reader
 	io.Closer
 }

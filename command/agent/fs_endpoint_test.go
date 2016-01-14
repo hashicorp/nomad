@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestAllocDirFS_List(t *testing.T) {
+func TestAllocDirFS_List_MissingParams(t *testing.T) {
 	httpTest(t, nil, func(s *TestServer) {
 		req, err := http.NewRequest("GET", "/v1/client/fs/ls/", nil)
 		if err != nil {
@@ -21,7 +21,7 @@ func TestAllocDirFS_List(t *testing.T) {
 	})
 }
 
-func TestAllocDirFS_Stat(t *testing.T) {
+func TestAllocDirFS_Stat_MissingParams(t *testing.T) {
 	httpTest(t, nil, func(s *TestServer) {
 		req, err := http.NewRequest("GET", "/v1/client/fs/stat/", nil)
 		if err != nil {
@@ -48,7 +48,7 @@ func TestAllocDirFS_Stat(t *testing.T) {
 	})
 }
 
-func TestAllocDirFS_ReadAt(t *testing.T) {
+func TestAllocDirFS_ReadAt_MissingParams(t *testing.T) {
 	httpTest(t, nil, func(s *TestServer) {
 		req, err := http.NewRequest("GET", "/v1/client/fs/readat/", nil)
 		if err != nil {

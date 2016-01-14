@@ -361,7 +361,6 @@ func (c *Client) GetAllocFS(allocID string) (allocdir.AllocDirFS, error) {
 		return nil, fmt.Errorf("alloc not found")
 	}
 	return ar.ctx.AllocDir, nil
-
 }
 
 // restoreState is used to restore our state from the data dir
