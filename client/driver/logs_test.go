@@ -1,7 +1,7 @@
 package driver
 
 import (
-	"bytes"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -10,7 +10,7 @@ import (
 func TestLogRotator_IncorrectPath(t *testing.T) {
 	incorrectPath := "/foo"
 
-	if _, err := NewLogRotor(incorrectPath, "redis.stdout", 10, 10); err == nil {
+	if _, err := NewLogRotator(incorrectPath, "redis.stdout", 10, 10); err == nil {
 		t.Fatal("expected err")
 	}
 }
@@ -32,7 +32,7 @@ func TestLogRotator_FindCorrectIndex(t *testing.T) {
 		f.Close()
 	}
 
-	r, err := NewLogRotor(path, "redis.stdout", 10, 10)
+	r, err := NewLogRotator(path, "redis.stdout", 10, 10)
 	if err != nil {
 		t.Fatalf("test setup err: %v", err)
 	}
@@ -43,21 +43,35 @@ func TestLogRotator_FindCorrectIndex(t *testing.T) {
 
 func TestLogRotator_AppendToCurrentFile(t *testing.T) {
 	path := "/tmp/tmplogrator"
+	defer os.RemoveAll(path)
 	if err := os.Mkdir(path, os.ModeDir|os.ModePerm); err != nil {
 		t.Fatalf("test setup err: %v", err)
 	}
-	defer os.RemoveAll(path)
-	fname := filepath.Join(path, "redis.stdout.1")
+	fname := filepath.Join(path, "redis.stdout.0")
 	if f, err := os.Create(fname); err == nil {
+		f.WriteString("abcde")
 		f.Close()
 	}
 
-	r, err := NewLogRotor(path, "redis.stdout", 10, 10)
+	l, err := NewLogRotator(path, "redis.stdout", 10, 6)
 	if err != nil {
 		t.Fatalf("test setup err: %v", err)
 	}
 
-	var buf bytes.Buffer
-	buf.WriteString("hello")
-	r.Start(&buf)
+	r, w := io.Pipe()
+	go func() {
+		w.Write([]byte("fg"))
+		w.Close()
+	}()
+	err = l.Start(r)
+	if err != nil && err != io.EOF{
+		t.Fatal(err)
+	}
+	finfo, err := os.Stat(fname)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if finfo.Size() != 6 {
+		t.Fatalf("Expected size of file: %v, actual: %v", 6, finfo.Size())
+	}
 }

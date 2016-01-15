@@ -18,13 +18,13 @@ type LogRotator struct {
 	logFileIdx int
 }
 
-func NewLogRotor(path string, fileName string, maxFiles int, fileSize int64) (*LogRotator, error) {
+func NewLogRotator(path string, fileName string, maxFiles int, fileSize int64) (*LogRotator, error) {
 	files, err := ioutil.ReadDir(path)
 	if err != nil {
 		return nil, err
 	}
 
-	logFileIdx := 1
+	logFileIdx := 0
 	for _, f := range files {
 		if strings.HasPrefix(f.Name(), fileName) {
 			fileIdx := strings.TrimPrefix(f.Name(), fmt.Sprintf("%s.", fileName))
@@ -48,22 +48,39 @@ func NewLogRotor(path string, fileName string, maxFiles int, fileSize int64) (*L
 }
 
 func (l *LogRotator) Start(r io.Reader) error {
+	buf := make([]byte, 32 * 1024)
 	for {
 		logFileName := filepath.Join(l.path, fmt.Sprintf("%s.%d", l.fileName, l.logFileIdx))
-		f, err := os.OpenFile(logFileName, os.O_RDWR|os.O_CREATE|os.O_APPEND, 066)
+		f, err := os.OpenFile(logFileName, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0066)
 		if err != nil {
 			return err
 		}
 		remainingSize := l.fileSize
 		if finfo, err := os.Stat(logFileName); err == nil {
-			remainingSize = l.fileSize - finfo.Size()
+			remainingSize -= finfo.Size()
 		}
 		if remainingSize < 1 {
 			l.logFileIdx = l.logFileIdx + 1
+			f.Close()
 			continue
 		}
-		if _, err := io.Copy(f, io.LimitReader(r, remainingSize)); err != nil {
-			return err
+
+		for {
+			nr, err := io.LimitReader(r, remainingSize).Read(buf)
+			if err != nil {
+				f.Close()
+				return err
+			}
+			nw, err := f.Write(buf[:nr])
+			if err != nil {
+				f.Close()
+				return err
+			}
+			if nr != nw {
+				f.Close()
+				return fmt.Errorf("Failed to write data R: %d W: %d", nr, nw)
+			}
+			remainingSize -= int64(nr)
 		}
 		l.logFileIdx = l.logFileIdx + 1
 	}
