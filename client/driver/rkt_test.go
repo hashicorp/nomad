@@ -157,8 +157,12 @@ func TestRktDriver_Start_Wait(t *testing.T) {
 			t.Fatalf("err: %v", res)
 		}
 	case <-time.After(5 * time.Second):
-		t.Fatalf("timeout")
+		break
 	}
+        err = handle.Kill()
+        if err != nil {
+                t.Fatalf("Error: %s", err)
+        }
 }
 
 func TestRktDriver_Start_Wait_Skip_Trust(t *testing.T) {
@@ -201,8 +205,12 @@ func TestRktDriver_Start_Wait_Skip_Trust(t *testing.T) {
 			t.Fatalf("err: %v", res)
 		}
 	case <-time.After(5 * time.Second):
-		t.Fatalf("timeout")
+		break
 	}
+        err = handle.Kill()
+        if err != nil {
+                t.Fatalf("Error: %s", err)
+        }
 }
 
 func TestRktDriver_Start_Wait_Logs(t *testing.T) {
@@ -240,7 +248,7 @@ func TestRktDriver_Start_Wait_Logs(t *testing.T) {
 			t.Fatalf("err: %v", res)
 		}
 	case <-time.After(5 * time.Second):
-		t.Fatalf("timeout")
+	        break
 	}
 
 	taskDir, ok := execCtx.AllocDir.TaskDirs[task.Name]
