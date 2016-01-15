@@ -120,3 +120,35 @@ func TestLogRotator_RotateFiles(t *testing.T) {
 		t.Fatalf("Expected number of files: %v, actual: %v", 2, numFiles)
 	}
 }
+
+func TestLogRotator_StartFromEmptyDir(t *testing.T) {
+	path := "/tmp/tmplogrator"
+	defer os.RemoveAll(path)
+	if err := os.Mkdir(path, os.ModeDir|os.ModePerm); err != nil {
+		t.Fatalf("test setup err: %v", err)
+	}
+
+	l, err := NewLogRotator(path, "redis.stdout", 10, 10)
+	if err != nil {
+		t.Fatalf("test setup err: %v", err)
+	}
+
+	r, w := io.Pipe()
+	go func() {
+		w.Write([]byte("abcdefg"))
+		w.Close()
+	}()
+	err = l.Start(r)
+	if err != nil && err != io.EOF {
+		t.Fatalf("Failure in logrotator start %v", err)
+	}
+
+	finfo, err := os.Stat(filepath.Join(path, "redis.stdout.0"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if finfo.Size() != 7 {
+		t.Fatalf("expected size of file: %v, actual: %v", 7, finfo.Size())
+	}
+
+}
