@@ -4,10 +4,15 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+)
+
+const (
+	bufSize = 32 * 1024
 )
 
 type LogRotator struct {
@@ -16,6 +21,8 @@ type LogRotator struct {
 	path       string
 	fileName   string
 	logFileIdx int
+
+	logger *log.Logger
 }
 
 func NewLogRotator(path string, fileName string, maxFiles int, fileSize int64) (*LogRotator, error) {
@@ -52,7 +59,7 @@ func NewLogRotator(path string, fileName string, maxFiles int, fileSize int64) (
 }
 
 func (l *LogRotator) Start(r io.Reader) error {
-	buf := make([]byte, 32*1024)
+	buf := make([]byte, bufSize)
 	for {
 		logFileName := filepath.Join(l.path, fmt.Sprintf("%s.%d", l.fileName, l.logFileIdx))
 		if f, err := os.Stat(logFileName); err == nil {
@@ -65,6 +72,7 @@ func (l *LogRotator) Start(r io.Reader) error {
 		if err != nil {
 			return err
 		}
+		l.logger.Println("[INFO] logrotator: opened a new file: %s", logFileName)
 		remainingSize := l.fileSize
 		if finfo, err := os.Stat(logFileName); err == nil {
 			remainingSize -= finfo.Size()
@@ -78,7 +86,7 @@ func (l *LogRotator) Start(r io.Reader) error {
 		for {
 			var nr int
 			var err error
-			if remainingSize < 32*1024 {
+			if remainingSize < bufSize {
 				nr, err = r.Read(buf[0:remainingSize])
 			} else {
 				nr, err = r.Read(buf)
