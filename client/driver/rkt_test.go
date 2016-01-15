@@ -215,6 +215,7 @@ func TestRktDriver_Start_Wait_Skip_Trust(t *testing.T) {
 
 func TestRktDriver_Start_Wait_Logs(t *testing.T) {
 	ctestutils.RktCompatible(t)
+        t.Skip("Logs not implemented for rkt")
 	task := &structs.Task{
 		Name: "etcd",
 		Config: map[string]interface{}{
