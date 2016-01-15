@@ -5,12 +5,12 @@ type Periodic struct {
 	client *Client
 }
 
-// Regions returns a handle on the allocs endpoints.
+// Periodic returns a handle to access periodic job endpoints.
 func (c *Client) PeriodicJobs() *Periodic {
 	return &Periodic{client: c}
 }
 
-// List returns a list of all of the regions.
+// Force spawns a new instance of the periodic job and returns the eval ID
 func (p *Periodic) Force(jobID string, q *WriteOptions) (string, *WriteMeta, error) {
 	var resp periodicForceResponse
 	wm, err := p.client.write("/v1/periodic/"+jobID+"/force", nil, &resp, q)
