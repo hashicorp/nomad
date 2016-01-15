@@ -152,3 +152,50 @@ func TestLogRotator_StartFromEmptyDir(t *testing.T) {
 	}
 
 }
+
+func TestLogRotator_SetPathAsFile(t *testing.T) {
+	path := "/tmp/tmplogrator"
+	defer os.RemoveAll(path)
+	if _, err := os.Create(path); err != nil {
+		t.Fatalf("test setup problem: %v", err)
+	}
+
+	_, err := NewLogRotator(path, "redis.stdout", 10, 10)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestLogRotator_ExcludeDirs(t *testing.T) {
+	path := "/tmp/tmplogrator"
+	defer os.RemoveAll(path)
+	if err := os.Mkdir(path, os.ModeDir|os.ModePerm); err != nil {
+		t.Fatalf("test setup err: %v", err)
+	}
+	if err := os.Mkdir(filepath.Join(path, "redis.stdout.0"), os.ModeDir|os.ModePerm); err != nil {
+		t.Fatalf("test setup err: %v", err)
+	}
+
+	l, err := NewLogRotator(path, "redis.stdout", 10, 6)
+	if err != nil {
+		t.Fatalf("test setup err: %v", err)
+	}
+
+	r, w := io.Pipe()
+	go func() {
+		w.Write([]byte("fg"))
+		w.Close()
+	}()
+	err = l.Start(r)
+	if err != nil && err != io.EOF {
+		t.Fatalf("Failure in logrotator start %v", err)
+	}
+
+	finfo, err := os.Stat("/tmp/tmplogrator/redis.stdout.1")
+	if err != nil {
+		t.Fatal("expected rotator to create redis.stdout.1")
+	}
+	if finfo.Size() != 2 {
+		t.Fatalf("expected size: %v, actual: %v", 2, finfo.Size())
+	}
+}

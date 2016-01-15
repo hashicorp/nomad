@@ -27,6 +27,10 @@ func NewLogRotator(path string, fileName string, maxFiles int, fileSize int64) (
 	logFileIdx := 0
 	for _, f := range files {
 		if strings.HasPrefix(f.Name(), fileName) {
+			if f.IsDir() {
+				logFileIdx += 1
+				continue
+			}
 			fileIdx := strings.TrimPrefix(f.Name(), fmt.Sprintf("%s.", fileName))
 			n, err := strconv.Atoi(fileIdx)
 			if err != nil {
@@ -51,6 +55,12 @@ func (l *LogRotator) Start(r io.Reader) error {
 	buf := make([]byte, 32*1024)
 	for {
 		logFileName := filepath.Join(l.path, fmt.Sprintf("%s.%d", l.fileName, l.logFileIdx))
+		if f, err := os.Stat(logFileName); err == nil {
+			if f.IsDir() {
+				l.logFileIdx += 1
+				continue
+			}
+		}
 		f, err := os.OpenFile(logFileName, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 		if err != nil {
 			return err
