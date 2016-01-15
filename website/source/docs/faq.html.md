@@ -10,7 +10,7 @@ description: |-
 
 ## Q: What is Checkpoint? / Does Nomad call home?
 
-Nomad makes use of a HashiCorp service called [Checkpoint](http://checkpoint.hashicorp.com)
+Nomad makes use of a HashiCorp service called [Checkpoint](https://checkpoint.hashicorp.com)
 which is used to check for updates and critical security bulletins.
 Only anonymous information, which cannot be used to identify the user or host, is
 sent to Checkpoint. An anonymous ID is sent which helps de-duplicate warning messages.
@@ -35,4 +35,3 @@ a [gossip protocol](/docs/internals/gossip.html). The consensus protocol is stro
 consistent, and is used for all state replication and scheduling. The gossip protocol
 is used to manage the addresses of servers for automatic clustering and multi-region
 federation. This means all data that managed by Nomad is strongly consistent.
-

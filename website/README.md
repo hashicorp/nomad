@@ -1,6 +1,6 @@
 # Nomad Website
 
-This subdirectory contains the entire source for the [Nomad Website](https://nomadproject.io/).
+This subdirectory contains the entire source for the [Nomad Website](https://www.nomadproject.io/).
 This is a [Middleman](http://middlemanapp.com) project, which builds a static
 site from these source files.
 

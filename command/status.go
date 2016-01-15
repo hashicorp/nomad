@@ -86,6 +86,7 @@ func (c *StatusCommand) Run(args []string) int {
 
 		// No output if we have no jobs
 		if len(jobs) == 0 {
+			c.Ui.Output("No running jobs")
 			return 0
 		}
 

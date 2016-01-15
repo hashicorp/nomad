@@ -37,7 +37,7 @@ The key features of Nomad are:
   and requires no external services for coordination or storage. Nomad combines features
   of both resource managers and schedulers into a single system. Nomad builds on the strength
   of [Serf](https://www.serfdom.io) and [Consul](https://www.consul.io), distributed management
-  tools by [HashiCorp](https://hashicorp.com).
+  tools by [HashiCorp](https://www.hashicorp.com).
 
 * **Multi-Datacenter and Multi-Region Aware**: Nomad models infrastructure as
   groups of datacenters which form a larger region. Scheduling operates at the region

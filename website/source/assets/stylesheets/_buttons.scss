@@ -50,8 +50,8 @@
 
     &.has-caret{
       span.h-caret{
-        background: image-url('../images/caret-light.png') 0 0 no-repeat;
-        @include img-retina("../images/caret-light.png", "../images/caret-light@2x.png", 8px, 12px);
+        background: image-url('caret-light.png') 0 0 no-repeat;
+        @include img-retina("caret-light.png", "caret-light@2x.png", 8px, 12px);
       }
     }
   }
@@ -64,8 +64,8 @@
     }
 
     span.h-caret{
-      background: image-url('../images/caret-green.png') 0 0 no-repeat;
-      @include img-retina("../images/caret-green.png", "../images/caret-green@2x.png", 8px, 12px);
+      background: image-url('caret-green.png') 0 0 no-repeat;
+      @include img-retina("caret-green.png", "caret-green@2x.png", 8px, 12px);
     }
 
     &.fill{
@@ -73,8 +73,8 @@
       color: $white;
 
       span.h-caret{
-        background: image-url('../images/caret-white.png') 0 0 no-repeat;
-        @include img-retina("../images/caret-white.png", "../images/caret-white@2x.png", 8px, 12px);
+        background: image-url('caret-white.png') 0 0 no-repeat;
+        @include img-retina("caret-white.png", "caret-white@2x.png", 8px, 12px);
       }
     }
   }
@@ -91,8 +91,8 @@
       color: $white;
 
       span.h-caret{
-        background: image-url('../images/caret-white.png') 0 0 no-repeat;
-        @include img-retina("../images/caret-white.png", "../images/caret-white@2x.png", 8px, 12px);
+        background: image-url('caret-white.png') 0 0 no-repeat;
+        @include img-retina("caret-white.png", "caret-white@2x.png", 8px, 12px);
       }
     }
   }
