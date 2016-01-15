@@ -32,8 +32,8 @@ Node Status Options:
     Display short output. Used only when a single node is being
     queried, and drops verbose output about node allocations.
 
-  -full-id
-    Display full identifiers.
+  -verbose
+    Display full information.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -43,12 +43,12 @@ func (c *NodeStatusCommand) Synopsis() string {
 }
 
 func (c *NodeStatusCommand) Run(args []string) int {
-	var short, fullId bool
+	var short, verbose bool
 
 	flags := c.Meta.FlagSet("node-status", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&short, "short", false, "")
-	flags.BoolVar(&fullId, "full-id", false, "")
+	flags.BoolVar(&verbose, "verbose", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -62,9 +62,9 @@ func (c *NodeStatusCommand) Run(args []string) int {
 	}
 
 	// Truncate the id unless full length is requested
-	length := shortIdLength
-	if fullId {
-		length = fullIdLength
+	length := shortId
+	if verbose {
+		length = fullId
 	}
 
 	// Get the HTTP client

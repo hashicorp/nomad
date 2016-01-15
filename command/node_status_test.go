@@ -95,7 +95,7 @@ func TestNodeStatusCommand_Run(t *testing.T) {
 	ui.OutputWriter.Reset()
 
 	// Request full id output
-	if code := cmd.Run([]string{"-address=" + url, "-full-id", nodeID[:4]}); code != 0 {
+	if code := cmd.Run([]string{"-address=" + url, "-verbose", nodeID[:4]}); code != 0 {
 		t.Fatalf("expected exit 0, got: %d", code)
 	}
 	out = ui.OutputWriter.String()

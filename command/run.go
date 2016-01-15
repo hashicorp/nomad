@@ -48,8 +48,8 @@ Run Options:
     You can use this ID to start a monitor using the eval-monitor
     command later if needed.
 
-  -full-id
-    Display full identifiers.
+  -verbose
+    Display full information.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -59,21 +59,21 @@ func (c *RunCommand) Synopsis() string {
 }
 
 func (c *RunCommand) Run(args []string) int {
-	var detach, fullId bool
+	var detach, verbose bool
 
 	flags := c.Meta.FlagSet("run", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&detach, "detach", false, "")
-	flags.BoolVar(&fullId, "full-id", false, "")
+	flags.BoolVar(&verbose, "verbose", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
 
 	// Truncate the id unless full length is requested
-	length := shortIdLength
-	if fullId {
-		length = fullIdLength
+	length := shortId
+	if verbose {
+		length = fullId
 	}
 
 	// Check that we got exactly one node

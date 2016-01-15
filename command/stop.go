@@ -31,8 +31,8 @@ Stop Options:
     to the screen, which can be used to call up a monitor later if
     needed using the eval-monitor command.
 
-  -full-id
-    Display full identifiers.
+  -verbose
+    Display full information.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -42,21 +42,21 @@ func (c *StopCommand) Synopsis() string {
 }
 
 func (c *StopCommand) Run(args []string) int {
-	var detach, fullId bool
+	var detach, verbose bool
 
 	flags := c.Meta.FlagSet("stop", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&detach, "detach", false, "")
-	flags.BoolVar(&fullId, "full-id", false, "")
+	flags.BoolVar(&verbose, "verbose", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
 
 	// Truncate the id unless full length is requested
-	length := shortIdLength
-	if fullId {
-		length = fullIdLength
+	length := shortId
+	if verbose {
+		length = fullId
 	}
 
 	// Check that we got exactly one job

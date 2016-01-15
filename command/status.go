@@ -34,8 +34,8 @@ Status Options:
     queried, and drops verbose information about allocations
     and evaluations.
 
-  -full-id
-    Display full identifiers.
+  -verbose
+    Display full information.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -45,12 +45,12 @@ func (c *StatusCommand) Synopsis() string {
 }
 
 func (c *StatusCommand) Run(args []string) int {
-	var short, fullId bool
+	var short, verbose bool
 
 	flags := c.Meta.FlagSet("status", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&short, "short", false, "")
-	flags.BoolVar(&fullId, "full-id", false, "")
+	flags.BoolVar(&verbose, "verbose", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -64,9 +64,9 @@ func (c *StatusCommand) Run(args []string) int {
 	}
 
 	// Truncate the id unless full length is requested
-	c.length = shortIdLength
-	if fullId {
-		c.length = fullIdLength
+	c.length = shortId
+	if verbose {
+		c.length = fullId
 	}
 
 	// Get the HTTP client

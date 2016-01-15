@@ -30,8 +30,8 @@ General Options:
   -short
     Display short output. Shows only the most recent task event.
 
-  -full-id
-    Show full identifiers.
+  -verbose
+    Show full information.
 `
 
 	return strings.TrimSpace(helpText)
@@ -42,12 +42,12 @@ func (c *AllocStatusCommand) Synopsis() string {
 }
 
 func (c *AllocStatusCommand) Run(args []string) int {
-	var short, fullId bool
+	var short, verbose bool
 
 	flags := c.Meta.FlagSet("alloc-status", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&short, "short", false, "")
-	flags.BoolVar(&fullId, "full-id", false, "")
+	flags.BoolVar(&verbose, "verbose", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -69,9 +69,9 @@ func (c *AllocStatusCommand) Run(args []string) int {
 	}
 
 	// Truncate the id unless full length is requested
-	length := shortIdLength
-	if fullId {
-		length = fullIdLength
+	length := shortId
+	if verbose {
+		length = fullId
 	}
 
 	// Query the allocation info

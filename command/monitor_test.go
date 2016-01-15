@@ -12,7 +12,7 @@ import (
 
 func TestMonitor_Update_Eval(t *testing.T) {
 	ui := new(cli.MockUi)
-	mon := newMonitor(ui, nil, fullIdLength)
+	mon := newMonitor(ui, nil, fullId)
 
 	// Evals triggered by jobs log
 	state := &evalState{
@@ -65,7 +65,7 @@ func TestMonitor_Update_Eval(t *testing.T) {
 
 func TestMonitor_Update_Allocs(t *testing.T) {
 	ui := new(cli.MockUi)
-	mon := newMonitor(ui, nil, fullIdLength)
+	mon := newMonitor(ui, nil, fullId)
 
 	// New allocations write new logs
 	state := &evalState{
@@ -135,7 +135,7 @@ func TestMonitor_Update_Allocs(t *testing.T) {
 
 func TestMonitor_Update_SchedulingFailure(t *testing.T) {
 	ui := new(cli.MockUi)
-	mon := newMonitor(ui, nil, shortIdLength)
+	mon := newMonitor(ui, nil, shortId)
 
 	// New allocs with desired status failed warns
 	state := &evalState{
@@ -197,7 +197,7 @@ func TestMonitor_Update_SchedulingFailure(t *testing.T) {
 
 func TestMonitor_Update_AllocModification(t *testing.T) {
 	ui := new(cli.MockUi)
-	mon := newMonitor(ui, nil, fullIdLength)
+	mon := newMonitor(ui, nil, fullId)
 
 	// New allocs with a create index lower than the
 	// eval create index are logged as modifications
@@ -236,7 +236,7 @@ func TestMonitor_Monitor(t *testing.T) {
 
 	// Create the monitor
 	ui := new(cli.MockUi)
-	mon := newMonitor(ui, client, fullIdLength)
+	mon := newMonitor(ui, client, fullId)
 
 	// Submit a job - this creates a new evaluation we can monitor
 	job := testJob("job1")
@@ -282,7 +282,7 @@ func TestMonitor_MonitorWithPrefix(t *testing.T) {
 
 	// Create the monitor
 	ui := new(cli.MockUi)
-	mon := newMonitor(ui, client, shortIdLength)
+	mon := newMonitor(ui, client, shortId)
 
 	// Submit a job - this creates a new evaluation we can monitor
 	job := testJob("job1")
@@ -348,7 +348,7 @@ func TestMonitor_DumpAllocStatus(t *testing.T) {
 			},
 		},
 	}
-	dumpAllocStatus(ui, alloc, fullIdLength)
+	dumpAllocStatus(ui, alloc, fullId)
 
 	// Check the output
 	out := ui.OutputWriter.String()
@@ -378,7 +378,7 @@ func TestMonitor_DumpAllocStatus(t *testing.T) {
 
 	// Dumping alloc status with no eligible nodes adds a warning
 	alloc.Metrics.NodesEvaluated = 0
-	dumpAllocStatus(ui, alloc, shortIdLength)
+	dumpAllocStatus(ui, alloc, shortId)
 
 	// Check the output
 	out = ui.OutputWriter.String()

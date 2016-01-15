@@ -108,7 +108,7 @@ func TestStatusCommand_Run(t *testing.T) {
 	ui.OutputWriter.Reset()
 
 	// Request full identifiers
-	if code := cmd.Run([]string{"-address=" + url, "-full-id", "job1"}); code != 0 {
+	if code := cmd.Run([]string{"-address=" + url, "-verbose", "job1"}); code != 0 {
 		t.Fatalf("expected exit 0, got: %d", code)
 	}
 	out = ui.OutputWriter.String()

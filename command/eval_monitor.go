@@ -33,8 +33,8 @@ General Options:
 
 Eval Monitor Options:
 
-  -full-id
-    Show full identifiers.
+  -verbose
+    Show full information.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -44,20 +44,20 @@ func (c *EvalMonitorCommand) Synopsis() string {
 }
 
 func (c *EvalMonitorCommand) Run(args []string) int {
-	var fullId bool
+	var verbose bool
 
 	flags := c.Meta.FlagSet("eval-monitor", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	flags.BoolVar(&fullId, "full-id", false, "")
+	flags.BoolVar(&verbose, "verbose", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
 
 	// Truncate the id unless full length is requested
-	length := shortIdLength
-	if fullId {
-		length = fullIdLength
+	length := shortId
+	if verbose {
+		length = fullId
 	}
 
 	// Check that we got exactly one eval ID
