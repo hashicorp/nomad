@@ -2,8 +2,10 @@ package driver
 
 import (
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -54,6 +56,41 @@ func TestLogRotator_AppendToCurrentFile(t *testing.T) {
 	}
 
 	l, err := NewLogRotator(path, "redis.stdout", 10, 6)
+	if err != nil && err != io.EOF {
+		t.Fatalf("test setup err: %v", err)
+	}
+
+	r, w := io.Pipe()
+	go func() {
+		w.Write([]byte("fg"))
+		w.Close()
+	}()
+	err = l.Start(r)
+	if err != nil && err != io.EOF {
+		t.Fatal(err)
+	}
+	finfo, err := os.Stat(fname)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if finfo.Size() != 6 {
+		t.Fatalf("Expected size of file: %v, actual: %v", 6, finfo.Size())
+	}
+}
+
+func TestLogRotator_RotateFiles(t *testing.T) {
+	path := "/tmp/tmplogrator"
+	defer os.RemoveAll(path)
+	if err := os.Mkdir(path, os.ModeDir|os.ModePerm); err != nil {
+		t.Fatalf("test setup err: %v", err)
+	}
+	fname := filepath.Join(path, "redis.stdout.0")
+	if f, err := os.Create(fname); err == nil {
+		f.WriteString("abcde")
+		f.Close()
+	}
+
+	l, err := NewLogRotator(path, "redis.stdout", 10, 6)
 	if err != nil {
 		t.Fatalf("test setup err: %v", err)
 	}
@@ -64,14 +101,22 @@ func TestLogRotator_AppendToCurrentFile(t *testing.T) {
 		w.Close()
 	}()
 	err = l.Start(r)
-	if err != nil && err != io.EOF{
-		t.Fatal(err)
+	if err != nil && err != io.EOF {
+		t.Fatalf("Failure in logrotator start %v", err)
 	}
-	finfo, err := os.Stat(fname)
+
+	files, err := ioutil.ReadDir(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if finfo.Size() != 6 {
-		t.Fatalf("Expected size of file: %v, actual: %v", 6, finfo.Size())
+	numFiles := 0
+	for _, f := range files {
+		if strings.HasPrefix(f.Name(), "redis.stdout.") {
+			numFiles += 1
+		}
+	}
+
+	if numFiles != 2 {
+		t.Fatalf("Expected number of files: %v, actual: %v", 2, numFiles)
 	}
 }

@@ -48,10 +48,10 @@ func NewLogRotator(path string, fileName string, maxFiles int, fileSize int64) (
 }
 
 func (l *LogRotator) Start(r io.Reader) error {
-	buf := make([]byte, 32 * 1024)
+	buf := make([]byte, 32*1024)
 	for {
 		logFileName := filepath.Join(l.path, fmt.Sprintf("%s.%d", l.fileName, l.logFileIdx))
-		f, err := os.OpenFile(logFileName, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0066)
+		f, err := os.OpenFile(logFileName, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 		if err != nil {
 			return err
 		}
@@ -66,7 +66,13 @@ func (l *LogRotator) Start(r io.Reader) error {
 		}
 
 		for {
-			nr, err := io.LimitReader(r, remainingSize).Read(buf)
+			var nr int
+			var err error
+			if remainingSize < 32*1024 {
+				nr, err = r.Read(buf[0:remainingSize])
+			} else {
+				nr, err = r.Read(buf)
+			}
 			if err != nil {
 				f.Close()
 				return err
@@ -81,6 +87,10 @@ func (l *LogRotator) Start(r io.Reader) error {
 				return fmt.Errorf("Failed to write data R: %d W: %d", nr, nw)
 			}
 			remainingSize -= int64(nr)
+			if remainingSize < 1 {
+				f.Close()
+				break
+			}
 		}
 		l.logFileIdx = l.logFileIdx + 1
 	}
