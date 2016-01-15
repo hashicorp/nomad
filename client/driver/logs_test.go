@@ -3,16 +3,21 @@ package driver
 import (
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
 
+var (
+	logger = log.New(os.Stdout, "", log.LstdFlags)
+)
+
 func TestLogRotator_IncorrectPath(t *testing.T) {
 	incorrectPath := "/foo"
 
-	if _, err := NewLogRotator(incorrectPath, "redis.stdout", 10, 10); err == nil {
+	if _, err := NewLogRotator(incorrectPath, "redis.stdout", 10, 10, logger); err == nil {
 		t.Fatal("expected err")
 	}
 }
@@ -34,7 +39,7 @@ func TestLogRotator_FindCorrectIndex(t *testing.T) {
 		f.Close()
 	}
 
-	r, err := NewLogRotator(path, "redis.stdout", 10, 10)
+	r, err := NewLogRotator(path, "redis.stdout", 10, 10, logger)
 	if err != nil {
 		t.Fatalf("test setup err: %v", err)
 	}
@@ -55,7 +60,7 @@ func TestLogRotator_AppendToCurrentFile(t *testing.T) {
 		f.Close()
 	}
 
-	l, err := NewLogRotator(path, "redis.stdout", 10, 6)
+	l, err := NewLogRotator(path, "redis.stdout", 10, 6, logger)
 	if err != nil && err != io.EOF {
 		t.Fatalf("test setup err: %v", err)
 	}
@@ -90,7 +95,7 @@ func TestLogRotator_RotateFiles(t *testing.T) {
 		f.Close()
 	}
 
-	l, err := NewLogRotator(path, "redis.stdout", 10, 6)
+	l, err := NewLogRotator(path, "redis.stdout", 10, 6, logger)
 	if err != nil {
 		t.Fatalf("test setup err: %v", err)
 	}
@@ -128,7 +133,7 @@ func TestLogRotator_StartFromEmptyDir(t *testing.T) {
 		t.Fatalf("test setup err: %v", err)
 	}
 
-	l, err := NewLogRotator(path, "redis.stdout", 10, 10)
+	l, err := NewLogRotator(path, "redis.stdout", 10, 10, logger)
 	if err != nil {
 		t.Fatalf("test setup err: %v", err)
 	}
@@ -160,7 +165,7 @@ func TestLogRotator_SetPathAsFile(t *testing.T) {
 		t.Fatalf("test setup problem: %v", err)
 	}
 
-	_, err := NewLogRotator(path, "redis.stdout", 10, 10)
+	_, err := NewLogRotator(path, "redis.stdout", 10, 10, logger)
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -176,7 +181,7 @@ func TestLogRotator_ExcludeDirs(t *testing.T) {
 		t.Fatalf("test setup err: %v", err)
 	}
 
-	l, err := NewLogRotator(path, "redis.stdout", 10, 6)
+	l, err := NewLogRotator(path, "redis.stdout", 10, 6, logger)
 	if err != nil {
 		t.Fatalf("test setup err: %v", err)
 	}

@@ -25,7 +25,7 @@ type LogRotator struct {
 	logger *log.Logger
 }
 
-func NewLogRotator(path string, fileName string, maxFiles int, fileSize int64) (*LogRotator, error) {
+func NewLogRotator(path string, fileName string, maxFiles int, fileSize int64, logger *log.Logger) (*LogRotator, error) {
 	files, err := ioutil.ReadDir(path)
 	if err != nil {
 		return nil, err
@@ -34,10 +34,6 @@ func NewLogRotator(path string, fileName string, maxFiles int, fileSize int64) (
 	logFileIdx := 0
 	for _, f := range files {
 		if strings.HasPrefix(f.Name(), fileName) {
-			if f.IsDir() {
-				logFileIdx += 1
-				continue
-			}
 			fileIdx := strings.TrimPrefix(f.Name(), fmt.Sprintf("%s.", fileName))
 			n, err := strconv.Atoi(fileIdx)
 			if err != nil {
@@ -55,6 +51,7 @@ func NewLogRotator(path string, fileName string, maxFiles int, fileSize int64) (
 		path:       path,
 		fileName:   fileName,
 		logFileIdx: logFileIdx,
+		logger:     logger,
 	}, nil
 }
 
