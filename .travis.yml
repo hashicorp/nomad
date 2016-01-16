@@ -1,4 +1,4 @@
-sudo: false
+sudo: required
 
 language: go
 
@@ -15,7 +15,8 @@ branches:
     - master
 
 install:
+  - ./scripts/install-rkt.sh
   - make bootstrap
 
 script:
-  - make test
+  - sudo make test
