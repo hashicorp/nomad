@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	bufSize = 32 * 1024
+	bufSize = 32 * 1024 // Max number of bytes read from a buffer
 )
 
 // LogRotator rotates files for a buffer and retains only the last N rotated
