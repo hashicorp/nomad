@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -15,6 +16,8 @@ const (
 	bufSize = 32 * 1024
 )
 
+// LogRotator rotates files for a buffer and retains only the last N rotated
+// files
 type LogRotator struct {
 	maxFiles   int
 	fileSize   int64
@@ -25,6 +28,7 @@ type LogRotator struct {
 	logger *log.Logger
 }
 
+// NewLogRotator configures and returns a new LogRotator
 func NewLogRotator(path string, fileName string, maxFiles int, fileSize int64, logger *log.Logger) (*LogRotator, error) {
 	files, err := ioutil.ReadDir(path)
 	if err != nil {
@@ -55,6 +59,8 @@ func NewLogRotator(path string, fileName string, maxFiles int, fileSize int64, l
 	}, nil
 }
 
+// Start reads from a Reader and writes them to files and rotates them when the
+// size of the file becomes equal to the max size configured
 func (l *LogRotator) Start(r io.Reader) error {
 	buf := make([]byte, bufSize)
 	for {
@@ -110,4 +116,33 @@ func (l *LogRotator) Start(r io.Reader) error {
 		l.logFileIdx = l.logFileIdx + 1
 	}
 	return nil
+}
+
+// PurgeOldFiles removes older files and keeps only the last N files rotated for
+// a file
+func (l *LogRotator) PurgeOldFiles() {
+	fIndexes := make([]int, l.maxFiles)
+	files, err := ioutil.ReadDir(l.path)
+	if err != nil {
+		return
+	}
+	count := 0
+	for _, f := range files {
+		if strings.HasPrefix(f.Name(), l.fileName) {
+			fileIdx := strings.TrimPrefix(f.Name(), fmt.Sprintf("%s.", l.fileName))
+			n, err := strconv.Atoi(fileIdx)
+			if err != nil {
+				continue
+			}
+			if count == l.maxFiles {
+				sort.Sort(sort.Reverse(sort.IntSlice(fIndexes)))
+				fname := filepath.Join(l.path, fmt.Sprintf("%s.%d", l.fileName, fIndexes[count-1]))
+				l.logger.Printf("[INFO] removing file: %v", fname)
+				os.RemoveAll(fname)
+				count -= 1
+			}
+			fIndexes[count] = n
+			count += 1
+		}
+	}
 }

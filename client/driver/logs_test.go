@@ -12,6 +12,7 @@ import (
 
 var (
 	logger = log.New(os.Stdout, "", log.LstdFlags)
+	path   = "/tmp/logrotator"
 )
 
 func TestLogRotator_IncorrectPath(t *testing.T) {
@@ -23,7 +24,6 @@ func TestLogRotator_IncorrectPath(t *testing.T) {
 }
 
 func TestLogRotator_FindCorrectIndex(t *testing.T) {
-	path := "/tmp/tmplogrator"
 	if err := os.Mkdir(path, os.ModeDir|os.ModePerm); err != nil {
 		t.Fatalf("test setup err: %v", err)
 	}
@@ -49,7 +49,6 @@ func TestLogRotator_FindCorrectIndex(t *testing.T) {
 }
 
 func TestLogRotator_AppendToCurrentFile(t *testing.T) {
-	path := "/tmp/tmplogrator"
 	defer os.RemoveAll(path)
 	if err := os.Mkdir(path, os.ModeDir|os.ModePerm); err != nil {
 		t.Fatalf("test setup err: %v", err)
@@ -84,7 +83,6 @@ func TestLogRotator_AppendToCurrentFile(t *testing.T) {
 }
 
 func TestLogRotator_RotateFiles(t *testing.T) {
-	path := "/tmp/tmplogrator"
 	defer os.RemoveAll(path)
 	if err := os.Mkdir(path, os.ModeDir|os.ModePerm); err != nil {
 		t.Fatalf("test setup err: %v", err)
@@ -127,7 +125,6 @@ func TestLogRotator_RotateFiles(t *testing.T) {
 }
 
 func TestLogRotator_StartFromEmptyDir(t *testing.T) {
-	path := "/tmp/tmplogrator"
 	defer os.RemoveAll(path)
 	if err := os.Mkdir(path, os.ModeDir|os.ModePerm); err != nil {
 		t.Fatalf("test setup err: %v", err)
@@ -159,7 +156,6 @@ func TestLogRotator_StartFromEmptyDir(t *testing.T) {
 }
 
 func TestLogRotator_SetPathAsFile(t *testing.T) {
-	path := "/tmp/tmplogrator"
 	defer os.RemoveAll(path)
 	if _, err := os.Create(path); err != nil {
 		t.Fatalf("test setup problem: %v", err)
@@ -172,7 +168,6 @@ func TestLogRotator_SetPathAsFile(t *testing.T) {
 }
 
 func TestLogRotator_ExcludeDirs(t *testing.T) {
-	path := "/tmp/tmplogrator"
 	defer os.RemoveAll(path)
 	if err := os.Mkdir(path, os.ModeDir|os.ModePerm); err != nil {
 		t.Fatalf("test setup err: %v", err)
@@ -196,11 +191,43 @@ func TestLogRotator_ExcludeDirs(t *testing.T) {
 		t.Fatalf("Failure in logrotator start %v", err)
 	}
 
-	finfo, err := os.Stat("/tmp/tmplogrator/redis.stdout.1")
+	finfo, err := os.Stat(filepath.Join(path, "redis.stdout.1"))
 	if err != nil {
 		t.Fatal("expected rotator to create redis.stdout.1")
 	}
 	if finfo.Size() != 2 {
 		t.Fatalf("expected size: %v, actual: %v", 2, finfo.Size())
+	}
+}
+
+func TestLogRotator_PurgeDirs(t *testing.T) {
+	defer os.RemoveAll(path)
+	if err := os.Mkdir(path, os.ModeDir|os.ModePerm); err != nil {
+		t.Fatalf("test setup err: %v", err)
+	}
+
+	l, err := NewLogRotator(path, "redis.stdout", 2, 4, logger)
+	if err != nil {
+		t.Fatalf("test setup err: %v", err)
+	}
+
+	r, w := io.Pipe()
+	go func() {
+		w.Write([]byte("abcdefghijklmno"))
+		w.Close()
+	}()
+
+	err = l.Start(r)
+	if err != nil && err != io.EOF {
+		t.Fatalf("failure in logrotator start: %v", err)
+	}
+	l.PurgeOldFiles()
+
+	files, err := ioutil.ReadDir(path)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if len(files) != 2 {
+		t.Fatalf("expected number of files: %v, actual: %v", 2, len(files))
 	}
 }
