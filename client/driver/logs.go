@@ -65,21 +65,19 @@ func (l *LogRotator) Start(r io.Reader) error {
 	buf := make([]byte, bufSize)
 	for {
 		logFileName := filepath.Join(l.path, fmt.Sprintf("%s.%d", l.fileName, l.logFileIdx))
+		remainingSize := l.fileSize
 		if f, err := os.Stat(logFileName); err == nil {
 			if f.IsDir() {
 				l.logFileIdx += 1
 				continue
 			}
+			remainingSize = l.fileSize - f.Size()
 		}
 		f, err := os.OpenFile(logFileName, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 		if err != nil {
 			return err
 		}
 		l.logger.Println("[INFO] logrotator: opened a new file: %s", logFileName)
-		remainingSize := l.fileSize
-		if finfo, err := os.Stat(logFileName); err == nil {
-			remainingSize -= finfo.Size()
-		}
 		if remainingSize < 1 {
 			l.logFileIdx = l.logFileIdx + 1
 			f.Close()
