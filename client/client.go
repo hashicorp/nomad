@@ -450,11 +450,12 @@ func (c *Client) setupNode() error {
 		node = &structs.Node{}
 		c.config.Node = node
 	}
-	id, err := c.nodeID()
+	// Generate an iD for the node
+	var err error
+	node.ID, err = c.nodeID()
 	if err != nil {
 		return fmt.Errorf("node ID setup failed: %v", err)
 	}
-	node.ID = id
 	if node.Attributes == nil {
 		node.Attributes = make(map[string]string)
 	}

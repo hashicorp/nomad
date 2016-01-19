@@ -60,13 +60,16 @@ type monitor struct {
 	ui     cli.Ui
 	client *api.Client
 	state  *evalState
+
+	// length determines the number of characters for identifiers in the ui.
 	length int
 
 	sync.Mutex
 }
 
 // newMonitor returns a new monitor. The returned monitor will
-// write output information to the provided ui.
+// write output information to the provided ui. The length parameter determines
+// the number of characters for identifiers in the ui.
 func newMonitor(ui cli.Ui, client *api.Client, length int) *monitor {
 	mon := &monitor{
 		ui: &cli.PrefixedUi{
