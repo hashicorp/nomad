@@ -3,6 +3,7 @@ package driver
 import (
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"path/filepath"
 	"reflect"
 	"runtime/debug"
@@ -49,7 +50,11 @@ func dockerIsRemote(t *testing.T) bool {
 	return false
 }
 
-func dockerTask() *structs.Task {
+// Returns a task with a reserved and dynamic port. The ports are returned
+// respectively.
+func dockerTask() (*structs.Task, int, int) {
+	reserved := 32768 + int(rand.Int31n(25000))
+	dynamic := 32768 + int(rand.Int31n(25000))
 	return &structs.Task{
 		Name: "redis-demo",
 		Config: map[string]interface{}{
@@ -61,12 +66,12 @@ func dockerTask() *structs.Task {
 			Networks: []*structs.NetworkResource{
 				&structs.NetworkResource{
 					IP:            "127.0.0.1",
-					ReservedPorts: []structs.Port{{"main", 11110}},
-					DynamicPorts:  []structs.Port{{"REDIS", 43330}},
+					ReservedPorts: []structs.Port{{"main", reserved}},
+					DynamicPorts:  []structs.Port{{"REDIS", dynamic}},
 				},
 			},
 		},
-	}
+	}, reserved, dynamic
 }
 
 // dockerSetup does all of the basic setup you need to get a running docker
@@ -321,18 +326,9 @@ func TestDocker_StartN(t *testing.T) {
 		t.SkipNow()
 	}
 
-	task1 := dockerTask()
-	task1.Resources.Networks[0].ReservedPorts[0] = structs.Port{Label: "main", Value: 11110}
-	task1.Resources.Networks[0].DynamicPorts[0] = structs.Port{Label: "REDIS", Value: 43331}
-
-	task2 := dockerTask()
-	task2.Resources.Networks[0].ReservedPorts[0] = structs.Port{Label: "main", Value: 22222}
-	task2.Resources.Networks[0].DynamicPorts[0] = structs.Port{Label: "REDIS", Value: 43332}
-
-	task3 := dockerTask()
-	task3.Resources.Networks[0].ReservedPorts[0] = structs.Port{Label: "main", Value: 33333}
-	task3.Resources.Networks[0].DynamicPorts[0] = structs.Port{Label: "REDIS", Value: 43333}
-
+	task1, _, _ := dockerTask()
+	task2, _, _ := dockerTask()
+	task3, _, _ := dockerTask()
 	taskList := []*structs.Task{task1, task2, task3}
 
 	handles := make([]DriverHandle, len(taskList))
@@ -375,20 +371,14 @@ func TestDocker_StartNVersions(t *testing.T) {
 		t.SkipNow()
 	}
 
-	task1 := dockerTask()
+	task1, _, _ := dockerTask()
 	task1.Config["image"] = "redis"
-	task1.Resources.Networks[0].ReservedPorts[0] = structs.Port{Label: "main", Value: 11110}
-	task1.Resources.Networks[0].DynamicPorts[0] = structs.Port{Label: "REDIS", Value: 43331}
 
-	task2 := dockerTask()
+	task2, _, _ := dockerTask()
 	task2.Config["image"] = "redis:latest"
-	task2.Resources.Networks[0].ReservedPorts[0] = structs.Port{Label: "main", Value: 22222}
-	task2.Resources.Networks[0].DynamicPorts[0] = structs.Port{Label: "REDIS", Value: 43332}
 
-	task3 := dockerTask()
+	task3, _, _ := dockerTask()
 	task3.Config["image"] = "redis:3.0"
-	task3.Resources.Networks[0].ReservedPorts[0] = structs.Port{Label: "main", Value: 33333}
-	task3.Resources.Networks[0].DynamicPorts[0] = structs.Port{Label: "REDIS", Value: 43333}
 
 	taskList := []*structs.Task{task1, task2, task3}
 
@@ -458,7 +448,7 @@ func TestDockerHostNet(t *testing.T) {
 
 func TestDockerLabels(t *testing.T) {
 	t.Parallel()
-	task := dockerTask()
+	task, _, _ := dockerTask()
 	task.Config["labels"] = []map[string]string{
 		map[string]string{
 			"label1": "value1",
@@ -485,7 +475,7 @@ func TestDockerLabels(t *testing.T) {
 
 func TestDockerDNS(t *testing.T) {
 	t.Parallel()
-	task := dockerTask()
+	task, _, _ := dockerTask()
 	task.Config["dns_servers"] = []string{"8.8.8.8", "8.8.4.4"}
 	task.Config["dns_search_domains"] = []string{"example.com", "example.org", "example.net"}
 
@@ -517,7 +507,7 @@ func inSlice(needle string, haystack []string) bool {
 
 func TestDockerPortsNoMap(t *testing.T) {
 	t.Parallel()
-	task := dockerTask()
+	task, res, dyn := dockerTask()
 
 	client, handle, cleanup := dockerSetup(t, task)
 	defer cleanup()
@@ -529,10 +519,10 @@ func TestDockerPortsNoMap(t *testing.T) {
 
 	// Verify that the correct ports are EXPOSED
 	expectedExposedPorts := map[docker.Port]struct{}{
-		docker.Port("11110/tcp"): struct{}{},
-		docker.Port("11110/udp"): struct{}{},
-		docker.Port("43330/tcp"): struct{}{},
-		docker.Port("43330/udp"): struct{}{},
+		docker.Port(fmt.Sprintf("%d/tcp", res)): struct{}{},
+		docker.Port(fmt.Sprintf("%d/udp", res)): struct{}{},
+		docker.Port(fmt.Sprintf("%d/tcp", dyn)): struct{}{},
+		docker.Port(fmt.Sprintf("%d/udp", dyn)): struct{}{},
 		// This one comes from the redis container
 		docker.Port("6379/tcp"): struct{}{},
 	}
@@ -543,10 +533,10 @@ func TestDockerPortsNoMap(t *testing.T) {
 
 	// Verify that the correct ports are FORWARDED
 	expectedPortBindings := map[docker.Port][]docker.PortBinding{
-		docker.Port("11110/tcp"): []docker.PortBinding{docker.PortBinding{HostIP: "127.0.0.1", HostPort: "11110"}},
-		docker.Port("11110/udp"): []docker.PortBinding{docker.PortBinding{HostIP: "127.0.0.1", HostPort: "11110"}},
-		docker.Port("43330/tcp"): []docker.PortBinding{docker.PortBinding{HostIP: "127.0.0.1", HostPort: "43330"}},
-		docker.Port("43330/udp"): []docker.PortBinding{docker.PortBinding{HostIP: "127.0.0.1", HostPort: "43330"}},
+		docker.Port(fmt.Sprintf("%d/tcp", res)): []docker.PortBinding{docker.PortBinding{HostIP: "127.0.0.1", HostPort: fmt.Sprintf("%d", res)}},
+		docker.Port(fmt.Sprintf("%d/udp", res)): []docker.PortBinding{docker.PortBinding{HostIP: "127.0.0.1", HostPort: fmt.Sprintf("%d", res)}},
+		docker.Port(fmt.Sprintf("%d/tcp", dyn)): []docker.PortBinding{docker.PortBinding{HostIP: "127.0.0.1", HostPort: fmt.Sprintf("%d", dyn)}},
+		docker.Port(fmt.Sprintf("%d/udp", dyn)): []docker.PortBinding{docker.PortBinding{HostIP: "127.0.0.1", HostPort: fmt.Sprintf("%d", dyn)}},
 	}
 
 	if !reflect.DeepEqual(container.HostConfig.PortBindings, expectedPortBindings) {
@@ -554,8 +544,8 @@ func TestDockerPortsNoMap(t *testing.T) {
 	}
 
 	expectedEnvironment := map[string]string{
-		"NOMAD_PORT_main":  "11110",
-		"NOMAD_PORT_REDIS": "43330",
+		"NOMAD_PORT_main":  fmt.Sprintf("%d", res),
+		"NOMAD_PORT_REDIS": fmt.Sprintf("%d", dyn),
 	}
 
 	for key, val := range expectedEnvironment {
@@ -568,7 +558,7 @@ func TestDockerPortsNoMap(t *testing.T) {
 
 func TestDockerPortsMapping(t *testing.T) {
 	t.Parallel()
-	task := dockerTask()
+	task, res, dyn := dockerTask()
 	task.Config["port_map"] = []map[string]string{
 		map[string]string{
 			"main":  "8080",
@@ -598,10 +588,10 @@ func TestDockerPortsMapping(t *testing.T) {
 
 	// Verify that the correct ports are FORWARDED
 	expectedPortBindings := map[docker.Port][]docker.PortBinding{
-		docker.Port("8080/tcp"): []docker.PortBinding{docker.PortBinding{HostIP: "127.0.0.1", HostPort: "11110"}},
-		docker.Port("8080/udp"): []docker.PortBinding{docker.PortBinding{HostIP: "127.0.0.1", HostPort: "11110"}},
-		docker.Port("6379/tcp"): []docker.PortBinding{docker.PortBinding{HostIP: "127.0.0.1", HostPort: "43330"}},
-		docker.Port("6379/udp"): []docker.PortBinding{docker.PortBinding{HostIP: "127.0.0.1", HostPort: "43330"}},
+		docker.Port("8080/tcp"): []docker.PortBinding{docker.PortBinding{HostIP: "127.0.0.1", HostPort: fmt.Sprintf("%d", res)}},
+		docker.Port("8080/udp"): []docker.PortBinding{docker.PortBinding{HostIP: "127.0.0.1", HostPort: fmt.Sprintf("%d", res)}},
+		docker.Port("6379/tcp"): []docker.PortBinding{docker.PortBinding{HostIP: "127.0.0.1", HostPort: fmt.Sprintf("%d", dyn)}},
+		docker.Port("6379/udp"): []docker.PortBinding{docker.PortBinding{HostIP: "127.0.0.1", HostPort: fmt.Sprintf("%d", dyn)}},
 	}
 
 	if !reflect.DeepEqual(container.HostConfig.PortBindings, expectedPortBindings) {

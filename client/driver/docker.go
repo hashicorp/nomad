@@ -358,6 +358,7 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, dri
 		config.ExposedPorts = exposedPorts
 	}
 
+	taskEnv.Build()
 	parsedArgs := taskEnv.ParseAndReplace(driverConfig.Args)
 
 	// If the user specified a custom command to run as their entrypoint, we'll
@@ -489,11 +490,6 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 			if err != nil {
 				d.logger.Printf("[ERR] driver.docker: failed to query list of containers matching name:%s", config.Name)
 				return nil, fmt.Errorf("Failed to query list of containers: %s", err)
-			}
-
-			if len(containers) != 1 {
-				d.logger.Printf("[ERR] driver.docker: failed to get id for container %s", config.Name)
-				return nil, fmt.Errorf("Failed to get id for container %s", config.Name)
 			}
 
 			d.logger.Printf("[INFO] driver.docker: a container with the name %s already exists; will attempt to purge and re-create", config.Name)
