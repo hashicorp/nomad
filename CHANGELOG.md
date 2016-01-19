@@ -4,7 +4,7 @@ BACKWARDS INCOMPATIBILITIES:
   * core: Improved restart policy with more user configuration [GH-594]
 
 IMPROVEMENTS:
-  * core: Periodic specification for jobs [GH-540, GH-657, GH-659]
+  * core: Periodic specification for jobs [GH-540, GH-657, GH-659, GH-668]
   * core: Batch jobs are garbage collected from the Nomad Servers [GH-586]
   * driver/rkt: Add support for CPU/Memory isolation [GH-610]
   * cli: Output of agent-info is sorted [GH-617]
