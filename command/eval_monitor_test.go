@@ -37,7 +37,7 @@ func TestEvalMonitorCommand_Fails(t *testing.T) {
 	ui.ErrorWriter.Reset()
 
 	// Fails on connection failure
-	if code := cmd.Run([]string{"-address=nope", "nope"}); code != 1 {
+	if code := cmd.Run([]string{"-address=nope", "12345678-abcd-efab-cdef-123456789abc"}); code != 1 {
 		t.Fatalf("expected exit code 1, got: %d", code)
 	}
 	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error reading evaluation") {

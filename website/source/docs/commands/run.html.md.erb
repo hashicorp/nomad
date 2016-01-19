@@ -42,24 +42,28 @@ client connection issues or internal errors, are indicated by exit code 1.
   will be output, which can be used to call the monitor later using the
   [eval-monitor](/docs/commands/eval-monitor.html) command.
 
+## Status Options
+
+* `-verbose`: Show full information.
+
 ## Examples
 
 Schedule the job contained in the file `job1.nomad`, monitoring placement:
 
 ```
 $ nomad run job1.nomad
-==> Monitoring evaluation "52dee78a-a1f0-95c9-81a5-95b4cbe7f6f8"
-    Allocation "5e0b39f0-5e69-6fec-d17b-4b8b7d922cc8" created: node "3e84d3d2-8500-42a3-9d1b-7ad88913352b", group "group1"
-    Allocation "5e0b39f0-5e69-6fec-d17b-4b8b7d922cc8" status changed: "pending" -> "running"
+==> Monitoring evaluation "52dee78a"
+    Allocation "5e0b39f0" created: node "3e84d3d2", group "group1"
+    Allocation "5e0b39f0" status changed: "pending" -> "running"
     Evaluation status changed: "pending" -> "complete"
-==> Evaluation "52dee78a-a1f0-95c9-81a5-95b4cbe7f6f8" finished with status "complete"
+==> Evaluation "52dee78a" finished with status "complete"
 ```
 
 Schedule the job contained in `job1.nomad` and return immediately:
 
 ```
 $ nomad run -detach job1.nomad
-4947e728-fb4e-90c6-895a-42479940e0bc
+4947e728
 ```
 
 Schedule a job which cannot get placement. This results in a scheduling failure
@@ -67,10 +71,10 @@ and the specifics of the placement are printed:
 
 ```
 $ nomad run failing.nomad
-==> Monitoring evaluation "0d7447d9-43fd-4994-6812-500c93c08fce"
+==> Monitoring evaluation "0d7447d9"
     Scheduling error for group "group1" (failed to find a node for placement)
-    Allocation "a739288e-547a-cd26-1355-e92ca10f165c" status "failed" (1/1 nodes filtered)
+    Allocation "a739288e" status "failed" (1/1 nodes filtered)
       * Constraint "$attr.kernel.name = linux" filtered 1 nodes
     Evaluation status changed: "pending" -> "complete"
-==> Evaluation "0d7447d9-43fd-4994-6812-500c93c08fce" finished with status "complete"
+==> Evaluation "0d7447d9" finished with status "complete"
 ```

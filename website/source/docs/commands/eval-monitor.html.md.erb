@@ -39,14 +39,18 @@ indicated by exit code 1.
 
 <%= general_options_usage %>
 
+## Status Options
+
+* `-verbose`: Show full information.
+
 ## Examples
 
 Monitor an existing evaluation
 
 ```
-$ nomad eval-monitor 8262bc83-3be0-2894-237c-c06ab5e14785
-==> Monitoring evaluation "8262bc83-3be0-2894-237c-c06ab5e14785"
-    Allocation "bd6bd0de-1c97-1e6c-ab8b-106618a0393c" created: node "6f299da5-8e4e-0e48-93f4-f544f4b948a8", group "group1"
+$ nomad eval-monitor 8262bc83
+==> Monitoring evaluation "8262bc83"
+    Allocation "bd6bd0de" created: node "6f299da5", group "group1"
     Evaluation status changed: "pending" -> "complete"
-==> Evaluation "8262bc83-3be0-2894-237c-c06ab5e14785" finished with status "complete"
+==> Evaluation "8262bc83" finished with status "complete"
 ```

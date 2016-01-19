@@ -464,7 +464,7 @@ func TestServiceSched_JobDeregister(t *testing.T) {
 	plan := h.Plans[0]
 
 	// Ensure the plan evicted all nodes
-	if len(plan.NodeUpdate["foo"]) != len(allocs) {
+	if len(plan.NodeUpdate["12345678-abcd-efab-cdef-123456789abc"]) != len(allocs) {
 		t.Fatalf("bad: %#v", plan)
 	}
 

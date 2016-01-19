@@ -31,6 +31,9 @@ Node Status Options:
   -short
     Display short output. Used only when a single node is being
     queried, and drops verbose output about node allocations.
+
+  -verbose
+    Display full information.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -40,11 +43,12 @@ func (c *NodeStatusCommand) Synopsis() string {
 }
 
 func (c *NodeStatusCommand) Run(args []string) int {
-	var short bool
+	var short, verbose bool
 
 	flags := c.Meta.FlagSet("node-status", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&short, "short", false, "")
+	flags.BoolVar(&verbose, "verbose", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -55,6 +59,12 @@ func (c *NodeStatusCommand) Run(args []string) int {
 	if len(args) > 1 {
 		c.Ui.Error(c.Help())
 		return 1
+	}
+
+	// Truncate the id unless full length is requested
+	length := shortId
+	if verbose {
+		length = fullId
 	}
 
 	// Get the HTTP client
@@ -83,7 +93,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		out[0] = "ID|DC|Name|Class|Drain|Status"
 		for i, node := range nodes {
 			out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%v|%s",
-				node.ID,
+				node.ID[:length],
 				node.Datacenter,
 				node.Name,
 				node.NodeClass,
@@ -118,7 +128,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 			out[0] = "ID|DC|Name|Class|Drain|Status"
 			for i, node := range nodes {
 				out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%v|%s",
-					node.ID,
+					node.ID[:length],
 					node.Datacenter,
 					node.Name,
 					node.NodeClass,
@@ -153,7 +163,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 
 	// Format the output
 	basic := []string{
-		fmt.Sprintf("ID|%s", node.ID),
+		fmt.Sprintf("ID|%s", node.ID[:length]),
 		fmt.Sprintf("Name|%s", node.Name),
 		fmt.Sprintf("Class|%s", node.NodeClass),
 		fmt.Sprintf("Datacenter|%s", node.Datacenter),
@@ -176,8 +186,8 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		allocs[0] = "ID|EvalID|JobID|TaskGroup|DesiredStatus|ClientStatus"
 		for i, alloc := range nodeAllocs {
 			allocs[i+1] = fmt.Sprintf("%s|%s|%s|%s|%s|%s",
-				alloc.ID,
-				alloc.EvalID,
+				alloc.ID[:length],
+				alloc.EvalID[:length],
 				alloc.JobID,
 				alloc.TaskGroup,
 				alloc.DesiredStatus,

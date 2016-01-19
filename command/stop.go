@@ -30,6 +30,9 @@ Stop Options:
     deregister command is submitted, a new evaluation ID is printed
     to the screen, which can be used to call up a monitor later if
     needed using the eval-monitor command.
+
+  -verbose
+    Display full information.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -39,14 +42,21 @@ func (c *StopCommand) Synopsis() string {
 }
 
 func (c *StopCommand) Run(args []string) int {
-	var detach bool
+	var detach, verbose bool
 
 	flags := c.Meta.FlagSet("stop", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&detach, "detach", false, "")
+	flags.BoolVar(&verbose, "verbose", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
+	}
+
+	// Truncate the id unless full length is requested
+	length := shortId
+	if verbose {
+		length = fullId
 	}
 
 	// Check that we got exactly one job
@@ -115,6 +125,6 @@ func (c *StopCommand) Run(args []string) int {
 	}
 
 	// Start monitoring the stop eval
-	mon := newMonitor(c.Ui, client)
+	mon := newMonitor(c.Ui, client, length)
 	return mon.monitor(evalID, false)
 }

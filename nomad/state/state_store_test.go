@@ -277,7 +277,7 @@ func TestStateStore_NodesByIDPrefix(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	iter, err = state.NodesByIDPrefix("111")
+	iter, err = state.NodesByIDPrefix("1111")
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

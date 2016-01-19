@@ -29,7 +29,13 @@ Usage: nomad eval-monitor [options] <evaluation>
 
 General Options:
 
-  ` + generalOptionsUsage()
+  ` + generalOptionsUsage() + `
+
+Eval Monitor Options:
+
+  -verbose
+    Show full information.
+`
 	return strings.TrimSpace(helpText)
 }
 
@@ -38,10 +44,20 @@ func (c *EvalMonitorCommand) Synopsis() string {
 }
 
 func (c *EvalMonitorCommand) Run(args []string) int {
+	var verbose bool
+
 	flags := c.Meta.FlagSet("eval-monitor", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
+	flags.BoolVar(&verbose, "verbose", false, "")
+
 	if err := flags.Parse(args); err != nil {
 		return 1
+	}
+
+	// Truncate the id unless full length is requested
+	length := shortId
+	if verbose {
+		length = fullId
 	}
 
 	// Check that we got exactly one eval ID
@@ -60,6 +76,6 @@ func (c *EvalMonitorCommand) Run(args []string) int {
 	}
 
 	// Start monitoring
-	mon := newMonitor(c.Ui, client)
+	mon := newMonitor(c.Ui, client, length)
 	return mon.monitor(evalID, true)
 }

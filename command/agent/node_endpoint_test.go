@@ -58,7 +58,14 @@ func TestHTTP_NodesList(t *testing.T) {
 
 func TestHTTP_NodesPrefixList(t *testing.T) {
 	httpTest(t, nil, func(s *TestServer) {
-		ids := []string{"aaaaa", "aaaab", "aaabb", "aabbb", "abbbb", "bbbbb"}
+		ids := []string{
+			"12345678-abcd-efab-cdef-123456789abc",
+			"12345678-aaaa-efab-cdef-123456789abc",
+			"1234aaaa-abcd-efab-cdef-123456789abc",
+			"1234bbbb-abcd-efab-cdef-123456789abc",
+			"1234cccc-abcd-efab-cdef-123456789abc",
+			"1234dddd-abcd-efab-cdef-123456789abc",
+		}
 		for i := 0; i < 5; i++ {
 			// Create the node
 			node := mock.Node()
@@ -74,7 +81,7 @@ func TestHTTP_NodesPrefixList(t *testing.T) {
 		}
 
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/nodes?prefix=aaa", nil)
+		req, err := http.NewRequest("GET", "/v1/nodes?prefix=12345678", nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -99,7 +106,7 @@ func TestHTTP_NodesPrefixList(t *testing.T) {
 
 		// Check the nodes
 		n := obj.([]*structs.NodeListStub)
-		if len(n) != 3 {
+		if len(n) != 2 {
 			t.Fatalf("bad: %#v", n)
 		}
 	})

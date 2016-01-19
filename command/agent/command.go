@@ -82,7 +82,6 @@ func (c *Command) readConfig() *Config {
 	// Client-only options
 	flags.StringVar(&cmdConfig.Client.StateDir, "state-dir", "", "")
 	flags.StringVar(&cmdConfig.Client.AllocDir, "alloc-dir", "", "")
-	flags.StringVar(&cmdConfig.Client.NodeID, "node-id", "", "")
 	flags.StringVar(&cmdConfig.Client.NodeClass, "node-class", "", "")
 	flags.StringVar(&servers, "servers", "", "")
 	flags.Var((*sliceflag.StringFlag)(&meta), "meta", "")

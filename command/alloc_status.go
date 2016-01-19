@@ -26,10 +26,12 @@ General Options:
 
   ` + generalOptionsUsage() + `
 
-Alloc Status Options:
 
   -short
     Display short output. Shows only the most recent task event.
+
+  -verbose
+    Show full information.
 `
 
 	return strings.TrimSpace(helpText)
@@ -40,11 +42,12 @@ func (c *AllocStatusCommand) Synopsis() string {
 }
 
 func (c *AllocStatusCommand) Run(args []string) int {
-	var short bool
+	var short, verbose bool
 
 	flags := c.Meta.FlagSet("alloc-status", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&short, "short", false, "")
+	flags.BoolVar(&verbose, "verbose", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -65,6 +68,12 @@ func (c *AllocStatusCommand) Run(args []string) int {
 		return 1
 	}
 
+	// Truncate the id unless full length is requested
+	length := shortId
+	if verbose {
+		length = fullId
+	}
+
 	// Query the allocation info
 	alloc, _, err := client.Allocations().Info(allocID, nil)
 	if err != nil {
@@ -83,12 +92,13 @@ func (c *AllocStatusCommand) Run(args []string) int {
 			out[0] = "ID|EvalID|JobID|TaskGroup|DesiredStatus|ClientStatus"
 			for i, alloc := range allocs {
 				out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%s|%s",
-					alloc.ID,
-					alloc.EvalID,
+					alloc.ID[:length],
+					alloc.EvalID[:length],
 					alloc.JobID,
 					alloc.TaskGroup,
 					alloc.DesiredStatus,
-					alloc.ClientStatus)
+					alloc.ClientStatus,
+				)
 			}
 			c.Ui.Output(fmt.Sprintf("Prefix matched multiple allocations\n\n%s", formatList(out)))
 			return 0
@@ -103,10 +113,10 @@ func (c *AllocStatusCommand) Run(args []string) int {
 
 	// Format the allocation data
 	basic := []string{
-		fmt.Sprintf("ID|%s", alloc.ID),
-		fmt.Sprintf("EvalID|%s", alloc.EvalID),
+		fmt.Sprintf("ID|%s", alloc.ID[:length]),
+		fmt.Sprintf("EvalID|%s", alloc.EvalID[:length]),
 		fmt.Sprintf("Name|%s", alloc.Name),
-		fmt.Sprintf("NodeID|%s", alloc.NodeID),
+		fmt.Sprintf("NodeID|%s", alloc.NodeID[:length]),
 		fmt.Sprintf("JobID|%s", alloc.JobID),
 		fmt.Sprintf("ClientStatus|%s", alloc.ClientStatus),
 		fmt.Sprintf("NodesEvaluated|%d", alloc.Metrics.NodesEvaluated),
@@ -126,7 +136,7 @@ func (c *AllocStatusCommand) Run(args []string) int {
 
 	// Format the detailed status
 	c.Ui.Output("\n==> Status")
-	dumpAllocStatus(c.Ui, alloc)
+	dumpAllocStatus(c.Ui, alloc, length)
 
 	return 0
 }

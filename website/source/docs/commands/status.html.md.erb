@@ -32,6 +32,7 @@ the most useful status fields for each.
 
 * `-short`: Display short output. Used only when a single node is being queried.
   Drops verbose node allocation data from the output.
+* `-verbose`: Show full information.
 
 ## Examples
 
@@ -70,10 +71,10 @@ Datacenters = dc1,dc2,dc3
 Status      = pending
 
 ### Evaluations
-ID                                    Priority  Type     TriggeredBy   NodeID  Status
-193229c4-aa02-bbe6-f996-fd7d6974a309  3         service  job-register  node2   complete
+ID        Priority  Type     TriggeredBy   NodeID  Status
+193229c4  3         service  job-register  node2   complete
 
 ### Allocations
-ID                                    EvalID                                NodeID  TaskGroup  DesiredStatus  ClientStatus
-678c51dc-6c55-0ac8-d92d-675a1e8ea6b0  193229c4-aa02-bbe6-f996-fd7d6974a309  node2   grp8       failed         failed
+ID        EvalID    NodeID  TaskGroup  DesiredStatus  ClientStatus
+678c51dc  193229c4  node2   grp8       failed         failed
 ```

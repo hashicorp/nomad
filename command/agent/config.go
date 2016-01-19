@@ -135,10 +135,6 @@ type ClientConfig struct {
 	// Servers is a list of known server addresses. These are as "host:port"
 	Servers []string `hcl:"servers"`
 
-	// NodeID is the unique node identifier to use. A UUID is used
-	// if not provided, and stored in the data directory
-	NodeID string `hcl:"node_id"`
-
 	// NodeClass is used to group the node by class
 	NodeClass string `hcl:"node_class"`
 
@@ -491,9 +487,6 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	}
 	if b.AllocDir != "" {
 		result.AllocDir = b.AllocDir
-	}
-	if b.NodeID != "" {
-		result.NodeID = b.NodeID
 	}
 	if b.NodeClass != "" {
 		result.NodeClass = b.NodeClass

@@ -220,7 +220,6 @@ func (a *Agent) setupClient() error {
 	conf.Node = new(structs.Node)
 	conf.Node.Datacenter = a.config.Datacenter
 	conf.Node.Name = a.config.NodeName
-	conf.Node.ID = a.config.Client.NodeID
 	conf.Node.Meta = a.config.Client.Meta
 	conf.Node.NodeClass = a.config.Client.NodeClass
 

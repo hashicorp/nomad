@@ -217,7 +217,7 @@ func Alloc() *structs.Allocation {
 	alloc := &structs.Allocation{
 		ID:        structs.GenerateUUID(),
 		EvalID:    structs.GenerateUUID(),
-		NodeID:    "foo",
+		NodeID:    "12345678-abcd-efab-cdef-123456789abc",
 		TaskGroup: "web",
 		Resources: &structs.Resources{
 			CPU:      500,

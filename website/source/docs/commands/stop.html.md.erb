@@ -37,20 +37,24 @@ reached a terminal state. It is safe to exit the monitor early using ctrl+c.
   will be output, which can be used to call the monitor later using the
   [eval-monitor](/docs/commands/eval-monitor.html) command.
 
+## Status Options
+
+* `-verbose`: Show full information.
+
 ## Examples
 
 Stop the job with ID "job1":
 
 ```
 $ nomad stop job1
-==> Monitoring evaluation "43bfe672-e9a2-1cb8-457a-4c2dca5ce1c7"
+==> Monitoring evaluation "43bfe672"
     Evaluation status changed: "pending" -> "complete"
-==> Evaluation "43bfe672-e9a2-1cb8-457a-4c2dca5ce1c7" finished with status "complete"
+==> Evaluation "43bfe672" finished with status "complete"
 ```
 
 Stop the job with ID "job1" and return immediately:
 
 ```
 $ nomad stop -detach job1
-507d26cb-1d67-672c-da9d-f6053837bb70
+507d26cb
 ```

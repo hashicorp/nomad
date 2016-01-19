@@ -86,7 +86,24 @@ func TestNodeStatusCommand_Run(t *testing.T) {
 	if !strings.Contains(out, "Allocations") {
 		t.Fatalf("expected allocations, got: %s", out)
 	}
+	if strings.Contains(out, nodeID) {
+		t.Fatalf("expected truncated node id, got: %s", out)
+	}
+	if !strings.Contains(out, nodeID[:8]) {
+		t.Fatalf("expected node id %q, got: %s", nodeID[:8], out)
+	}
 	ui.OutputWriter.Reset()
+
+	// Request full id output
+	if code := cmd.Run([]string{"-address=" + url, "-verbose", nodeID[:4]}); code != 0 {
+		t.Fatalf("expected exit 0, got: %d", code)
+	}
+	out = ui.OutputWriter.String()
+	if !strings.Contains(out, nodeID) {
+		t.Fatalf("expected full node id %q, got: %s", nodeID, out)
+	}
+	ui.OutputWriter.Reset()
+
 }
 
 func TestNodeStatusCommand_Fails(t *testing.T) {
@@ -115,7 +132,7 @@ func TestNodeStatusCommand_Fails(t *testing.T) {
 	ui.ErrorWriter.Reset()
 
 	// Fails on non-existent node
-	if code := cmd.Run([]string{"-address=" + url, "nope"}); code != 1 {
+	if code := cmd.Run([]string{"-address=" + url, "12345678-abcd-efab-cdef-123456789abc"}); code != 1 {
 		t.Fatalf("expected exit 1, got: %d", code)
 	}
 	if out := ui.ErrorWriter.String(); !strings.Contains(out, "No node(s) with prefix") {
