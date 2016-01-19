@@ -1,9 +1,12 @@
-sudo: false
+sudo: required
+
+services:
+    - docker
 
 language: go
 
 go:
-  - 1.5.2
+  - 1.5.3
   - tip
 
 matrix:
