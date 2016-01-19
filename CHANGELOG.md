@@ -2,10 +2,12 @@
 
 BACKWARDS INCOMPATIBILITIES:
   * core: Improved restart policy with more user configuration [GH-594]
+  * core/cli: Print short identifiers [GH-675]
 
 IMPROVEMENTS:
   * core: Periodic specification for jobs [GH-540, GH-657, GH-659, GH-668]
   * core: Batch jobs are garbage collected from the Nomad Servers [GH-586]
+  * core: Improved restart policy with more user configuration [GH-594]
   * driver/rkt: Add support for CPU/Memory isolation [GH-610]
   * cli: Output of agent-info is sorted [GH-617]
   * core: Node class constraint [GH-618]
@@ -15,6 +17,7 @@ IMPROVEMENTS:
   * core/cli: Prefix based lookups of allocs/nodes/evals/jobs [GH-575]
   * drivers: Interpret Nomad variables in environment variables/args [GH-653]
   * core: Populate job status [GH-663]
+  * core/cli: Print short identifiers [GH-675]
 
 BUG FIXES:
   * cli: Handle parsing of un-named ports [GH-604]
