@@ -26,21 +26,22 @@ allocations and information will be displayed.
 ## General Options
 
 <%= general_options_usage %>
-#
+
 ## Status Options
 
 * `-short`: Display short output. Shows only the most recent task event.
+* `-verbose`: Show full information.
 
 ## Examples
 
 Short status of an alloc:
 
 ```
-$ nomad alloc-status --short a7365fe4-8b9f-4284-612d-a101fb41e773
-ID                = a7365fe4-8b9f-4284-612d-a101fb41e773
-EvalID            = 44c2d9ed-6377-ca3d-14a8-b2e6327230ce
+$ nomad alloc-status --short a7365fe4
+ID                = a7365fe4
+EvalID            = 44c2d9ed
 Name              = example.cache[0]
-NodeID            = e55859b1-4330-f00b-da49-8a292432ead3
+NodeID            = e55859b1
 JobID             = example
 ClientStatus      = running
 NodesEvaluated    = 1
@@ -57,18 +58,18 @@ redis  running  Started    02:29:40 11/17/15
 web    running  Started    02:30:41 11/17/15
 
 ==> Status
-Allocation "a7365fe4-8b9f-4284-612d-a101fb41e773" status "running" (0/1 nodes filtered)
-  * Score "e55859b1-4330-f00b-da49-8a292432ead3.binpack" = 10.334026
+Allocation "a7365fe4" status "running" (0/1 nodes filtered)
+  * Score "e55859b1.binpack" = 10.334026
 ```
 
 Full status of an alloc, which shows one of the tasks dying and then being restarted:
 
 ```
-$ nomad alloc-status a7365fe4-8b9f-4284-612d-a101fb41e773
-ID                = a7365fe4-8b9f-4284-612d-a101fb41e773
-EvalID            = 44c2d9ed-6377-ca3d-14a8-b2e6327230ce
+$ nomad alloc-status a7365fe4
+ID                = a7365fe4
+EvalID            = 44c2d9ed
 Name              = example.cache[0]
-NodeID            = e55859b1-4330-f00b-da49-8a292432ead3
+NodeID            = e55859b1
 JobID             = example
 ClientStatus      = running
 NodesEvaluated    = 1
@@ -90,7 +91,7 @@ Time               Type        Description
 02:29:40 11/17/15  Started     <none>
 
 ==> Status
-Allocation "a7365fe4-8b9f-4284-612d-a101fb41e773" status "running" (0/1 nodes filtered)
-  * Score "e55859b1-4330-f00b-da49-8a292432ead3.binpack" = 10.334026
+Allocation "a7365fe4" status "running" (0/1 nodes filtered)
+  * Score "e55859b1.binpack" = 10.334026
 
 ```
