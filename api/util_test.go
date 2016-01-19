@@ -32,3 +32,12 @@ func testJob() *Job {
 
 	return job
 }
+
+func testPeriodicJob() *Job {
+	job := testJob().AddPeriodicConfig(&PeriodicConfig{
+		Enabled:  true,
+		Spec:     "*/30 * * * *",
+		SpecType: "cron",
+	})
+	return job
+}
