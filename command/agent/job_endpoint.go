@@ -48,6 +48,9 @@ func (s *HTTPServer) JobSpecificRequest(resp http.ResponseWriter, req *http.Requ
 	case strings.HasSuffix(path, "/evaluations"):
 		jobName := strings.TrimSuffix(path, "/evaluations")
 		return s.jobEvaluations(resp, req, jobName)
+	case strings.HasSuffix(path, "/periodic/force"):
+		jobName := strings.TrimSuffix(path, "/periodic/force")
+		return s.periodicForceRequest(resp, req, jobName)
 	default:
 		return s.jobCRUD(resp, req, path)
 	}
@@ -65,6 +68,25 @@ func (s *HTTPServer) jobForceEvaluate(resp http.ResponseWriter, req *http.Reques
 
 	var out structs.JobRegisterResponse
 	if err := s.agent.RPC("Job.Evaluate", &args, &out); err != nil {
+		return nil, err
+	}
+	setIndex(resp, out.Index)
+	return out, nil
+}
+
+func (s *HTTPServer) periodicForceRequest(resp http.ResponseWriter, req *http.Request,
+	jobName string) (interface{}, error) {
+	if req.Method != "PUT" && req.Method != "POST" {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+
+	args := structs.PeriodicForceRequest{
+		JobID: jobName,
+	}
+	s.parseRegion(req, &args.Region)
+
+	var out structs.PeriodicForceResponse
+	if err := s.agent.RPC("Periodic.Force", &args, &out); err != nil {
 		return nil, err
 	}
 	setIndex(resp, out.Index)

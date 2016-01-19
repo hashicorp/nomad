@@ -106,6 +106,21 @@ func (j *Jobs) ForceEvaluate(jobID string, q *WriteOptions) (string, *WriteMeta,
 	return resp.EvalID, wm, nil
 }
 
+// PeriodicForce spawns a new instance of the periodic job and returns the eval ID
+func (j *Jobs) PeriodicForce(jobID string, q *WriteOptions) (string, *WriteMeta, error) {
+	var resp periodicForceResponse
+	wm, err := j.client.write("/v1/job/"+jobID+"/periodic/force", nil, &resp, q)
+	if err != nil {
+		return "", nil, err
+	}
+	return resp.EvalID, wm, nil
+}
+
+// periodicForceResponse is used to deserialize a force response
+type periodicForceResponse struct {
+	EvalID string
+}
+
 // UpdateStrategy is for serializing update strategy for a job.
 type UpdateStrategy struct {
 	Stagger     time.Duration
