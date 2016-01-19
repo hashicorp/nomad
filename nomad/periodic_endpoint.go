@@ -8,12 +8,12 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// Job endpoint is used for job interactions
+// Periodic endpoint is used for periodic job interactions
 type Periodic struct {
 	srv *Server
 }
 
-// Evaluate is used to force a job for re-evaluation
+// Force is used to force a new instance of a periodic job
 func (p *Periodic) Force(args *structs.PeriodicForceRequest, reply *structs.PeriodicForceResponse) error {
 	if done, err := p.srv.forward("Periodic.Force", args, args, reply); done {
 		return err
