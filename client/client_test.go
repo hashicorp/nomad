@@ -141,10 +141,13 @@ func TestClient_Fingerprint(t *testing.T) {
 }
 
 func TestClient_Fingerprint_InWhitelist(t *testing.T) {
-	ctestutil.ExecCompatible(t)
 	c := testClient(t, func(c *config.Config) {
+		if c.Options == nil {
+			c.Options = make(map[string]string)
+		}
+
 		// Weird spacing to test trimming. Whitelist all modules expect cpu.
-		c.Options["fingerprint.whitelist"] = "  arch, consul,env_aws,env_gce,host,memory,network,storage,foo,bar	"
+		c.Options["fingerprint.whitelist"] = "  arch, consul,cpu,env_aws,env_gce,host,memory,network,storage,foo,bar	"
 	})
 	defer c.Shutdown()
 
@@ -155,9 +158,12 @@ func TestClient_Fingerprint_InWhitelist(t *testing.T) {
 }
 
 func TestClient_Fingerprint_OutOfWhitelist(t *testing.T) {
-	ctestutil.ExecCompatible(t)
 	c := testClient(t, func(c *config.Config) {
-		c.Options["fingerprint.whitelist"] = "arch,consul,cpu,env_aws,env_gce,host,memory,network,storage,foo,bar"
+		if c.Options == nil {
+			c.Options = make(map[string]string)
+		}
+
+		c.Options["fingerprint.whitelist"] = "arch,consul,env_aws,env_gce,host,memory,network,storage,foo,bar"
 	})
 	defer c.Shutdown()
 
@@ -168,7 +174,6 @@ func TestClient_Fingerprint_OutOfWhitelist(t *testing.T) {
 }
 
 func TestClient_Drivers(t *testing.T) {
-	ctestutil.ExecCompatible(t)
 	c := testClient(t, nil)
 	defer c.Shutdown()
 
@@ -179,8 +184,11 @@ func TestClient_Drivers(t *testing.T) {
 }
 
 func TestClient_Drivers_InWhitelist(t *testing.T) {
-	ctestutil.ExecCompatible(t)
 	c := testClient(t, func(c *config.Config) {
+		if c.Options == nil {
+			c.Options = make(map[string]string)
+		}
+
 		// Weird spacing to test trimming
 		c.Options["driver.whitelist"] = "   exec ,  foo	"
 	})
@@ -193,8 +201,11 @@ func TestClient_Drivers_InWhitelist(t *testing.T) {
 }
 
 func TestClient_Drivers_OutOfWhitelist(t *testing.T) {
-	ctestutil.ExecCompatible(t)
 	c := testClient(t, func(c *config.Config) {
+		if c.Options == nil {
+			c.Options = make(map[string]string)
+		}
+
 		c.Options["driver.whitelist"] = "foo,bar,baz"
 	})
 	defer c.Shutdown()

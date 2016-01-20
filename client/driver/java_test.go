@@ -82,11 +82,10 @@ func TestJavaDriver_StartOpen_Wait(t *testing.T) {
 	}
 
 	time.Sleep(2 * time.Second)
-	// need to kill long lived process
-	err = handle.Kill()
-	if err != nil {
-		t.Fatalf("Error: %s", err)
-	}
+
+	// There is a race condition between the handle waiting and killing. One
+	// will return an error.
+	handle.Kill()
 }
 
 func TestJavaDriver_Start_Wait(t *testing.T) {

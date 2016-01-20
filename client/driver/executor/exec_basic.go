@@ -57,6 +57,7 @@ func (e *BasicExecutor) Start() error {
 	// variables.
 	e.cmd.Path = e.taskEnv.ReplaceEnv(e.cmd.Path)
 	e.cmd.Args = e.taskEnv.ParseAndReplace(e.cmd.Args)
+	e.cmd.Env = e.taskEnv.Build().EnvList()
 
 	spawnState := filepath.Join(e.allocDir, fmt.Sprintf("%s_%s", e.taskName, "exit_status"))
 	e.spawn = spawn.NewSpawner(spawnState)

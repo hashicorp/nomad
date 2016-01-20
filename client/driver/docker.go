@@ -492,15 +492,25 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 				return nil, fmt.Errorf("Failed to query list of containers: %s", err)
 			}
 
-			d.logger.Printf("[INFO] driver.docker: a container with the name %s already exists; will attempt to purge and re-create", config.Name)
-			err = client.RemoveContainer(docker.RemoveContainerOptions{
-				ID: containers[0].ID,
-			})
-			if err != nil {
-				d.logger.Printf("[ERR] driver.docker: failed to purge container %s", config.Name)
-				return nil, fmt.Errorf("Failed to purge container %s: %s", config.Name, err)
+			// Couldn't find any matching containers
+			if len(containers) == 0 {
+				d.logger.Printf("[ERR] driver.docker: failed to get id for container %s: %#v", config.Name, containers)
+				return nil, fmt.Errorf("Failed to get id for container %s", config.Name)
 			}
-			d.logger.Printf("[INFO] driver.docker: purged container %s", config.Name)
+
+			// Delete matching containers
+			d.logger.Printf("[INFO] driver.docker: a container with the name %s already exists; will attempt to purge and re-create", config.Name)
+			for _, container := range containers {
+				err = client.RemoveContainer(docker.RemoveContainerOptions{
+					ID: container.ID,
+				})
+				if err != nil {
+					d.logger.Printf("[ERR] driver.docker: failed to purge container %s", container.ID)
+					return nil, fmt.Errorf("Failed to purge container %s: %s", container.ID, err)
+				}
+				d.logger.Printf("[INFO] driver.docker: purged container %s", container.ID)
+			}
+
 			container, err = client.CreateContainer(config)
 			if err != nil {
 				d.logger.Printf("[ERR] driver.docker: failed to re-create container %s; aborting", config.Name)
@@ -624,7 +634,7 @@ func (h *DockerHandle) Kill() error {
 	// Stop the container
 	err := h.client.StopContainer(h.containerID, uint(h.killTimeout.Seconds()))
 	if err != nil {
-		h.logger.Printf("[ERR] driver.docker: failed to stop container %s", h.containerID)
+		h.logger.Printf("[ERR] driver.docker: failed to stop container %s: %v", h.containerID, err)
 		return fmt.Errorf("Failed to stop container %s: %s", h.containerID, err)
 	}
 	h.logger.Printf("[INFO] driver.docker: stopped container %s", h.containerID)

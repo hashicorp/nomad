@@ -57,9 +57,10 @@ func testExecutor(t *testing.T, buildExecutor func(*ExecutorContext) Executor, c
 	}
 
 	command := func(name string, args ...string) Executor {
-		e := buildExecutor(testExecutorContext())
+		ctx := testExecutorContext()
+		e := buildExecutor(ctx)
 		SetCommand(e, name, args)
-		testtask.SetCmdEnv(e.Command())
+		testtask.SetEnv(ctx.taskEnv)
 		return e
 	}
 

@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/env"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/testutil"
 
 	ctestutils "github.com/hashicorp/nomad/client/testutil"
 )
@@ -196,7 +197,7 @@ func TestExecDriver_Start_Artifact_expanded(t *testing.T) {
 		if !res.Successful() {
 			t.Fatalf("err: %v", res)
 		}
-	case <-time.After(5 * time.Second):
+	case <-time.After(15 * time.Second):
 		t.Fatalf("timeout")
 	}
 }
@@ -236,7 +237,7 @@ func TestExecDriver_Start_Wait_AllocDir(t *testing.T) {
 		if !res.Successful() {
 			t.Fatalf("err: %v", res)
 		}
-	case <-time.After(2 * time.Second):
+	case <-time.After(testutil.TestMultiplier() * 2 * time.Second):
 		t.Fatalf("timeout")
 	}
 

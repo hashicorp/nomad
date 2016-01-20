@@ -47,6 +47,7 @@ func TestAllocDir_BuildAlloc(t *testing.T) {
 	defer os.RemoveAll(tmp)
 
 	d := NewAllocDir(tmp)
+	defer d.Destroy()
 	tasks := []*structs.Task{t1, t2}
 	if err := d.Build(tasks); err != nil {
 		t.Fatalf("Build(%v) failed: %v", tasks, err)
@@ -77,6 +78,7 @@ func TestAllocDir_EmbedNonExistent(t *testing.T) {
 	defer os.RemoveAll(tmp)
 
 	d := NewAllocDir(tmp)
+	defer d.Destroy()
 	tasks := []*structs.Task{t1, t2}
 	if err := d.Build(tasks); err != nil {
 		t.Fatalf("Build(%v) failed: %v", tasks, err)
@@ -98,6 +100,7 @@ func TestAllocDir_EmbedDirs(t *testing.T) {
 	defer os.RemoveAll(tmp)
 
 	d := NewAllocDir(tmp)
+	defer d.Destroy()
 	tasks := []*structs.Task{t1, t2}
 	if err := d.Build(tasks); err != nil {
 		t.Fatalf("Build(%v) failed: %v", tasks, err)
@@ -158,6 +161,7 @@ func TestAllocDir_MountSharedAlloc(t *testing.T) {
 	defer os.RemoveAll(tmp)
 
 	d := NewAllocDir(tmp)
+	defer d.Destroy()
 	tasks := []*structs.Task{t1, t2}
 	if err := d.Build(tasks); err != nil {
 		t.Fatalf("Build(%v) failed: %v", tasks, err)

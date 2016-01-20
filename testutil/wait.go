@@ -1,18 +1,27 @@
 package testutil
 
 import (
+	"os"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+const (
+	// TravisRunEnv is an environment variable that is set if being run by
+	// Travis.
+	TravisRunEnv = "TRAVIS_RUN"
+)
+
 type testFn func() (bool, error)
 type errorFn func(error)
 
 func WaitForResult(test testFn, error errorFn) {
-	retries := 1000
+	WaitForResultRetries(1000*TestMultiplier(), test, error)
+}
 
+func WaitForResultRetries(retries int, test testFn, error errorFn) {
 	for retries > 0 {
 		time.Sleep(10 * time.Millisecond)
 		retries--
@@ -26,6 +35,16 @@ func WaitForResult(test testFn, error errorFn) {
 			error(err)
 		}
 	}
+}
+
+// TestMultiplier returns a multiplier for retries and waits given environment
+// the tests are being run under.
+func TestMultiplier() int {
+	if _, ok := os.LookupEnv(TravisRunEnv); ok {
+		return 3
+	}
+
+	return 1
 }
 
 type rpcFn func(string, interface{}, interface{}) error

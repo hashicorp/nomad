@@ -33,8 +33,7 @@ func testAllocRunner(restarts bool) (*MockAllocStateUpdater, *AllocRunner) {
 	alloc := mock.Alloc()
 	consulClient, _ := NewConsulService(&consulServiceConfig{logger, "127.0.0.1:8500", "", "", false, false, &structs.Node{}})
 	if !restarts {
-		alloc.Job.Type = structs.JobTypeBatch
-		*alloc.Job.LookupTaskGroup(alloc.TaskGroup).RestartPolicy = structs.RestartPolicy{Attempts: 0}
+		*alloc.Job.LookupTaskGroup(alloc.TaskGroup).RestartPolicy = structs.RestartPolicy{Attempts: 0, RestartOnSuccess: false}
 	}
 
 	ar := NewAllocRunner(logger, conf, upd.Update, alloc, consulClient)
@@ -85,7 +84,7 @@ func TestAllocRunner_Destroy(t *testing.T) {
 		t.Fatalf("err: %v %#v %#v", err, upd.Allocs[0], ar.alloc.TaskStates)
 	})
 
-	if time.Since(start) > 8*time.Second {
+	if time.Since(start) > 15*time.Second {
 		t.Fatalf("took too long to terminate")
 	}
 }
@@ -118,7 +117,7 @@ func TestAllocRunner_Update(t *testing.T) {
 		t.Fatalf("err: %v %#v %#v", err, upd.Allocs[0], ar.alloc.TaskStates)
 	})
 
-	if time.Since(start) > 8*time.Second {
+	if time.Since(start) > 15*time.Second {
 		t.Fatalf("took too long to terminate")
 	}
 }

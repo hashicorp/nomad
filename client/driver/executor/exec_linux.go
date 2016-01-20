@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 
 	"github.com/hashicorp/go-multierror"
@@ -53,6 +54,7 @@ type LinuxExecutor struct {
 	*ExecutorContext
 	cmd  exec.Cmd
 	user *user.User
+	l    sync.Mutex
 
 	// Isolation configurations.
 	groups   *cgroupConfig.Cgroup
@@ -265,7 +267,7 @@ func (e *LinuxExecutor) ConfigureTaskDir(taskName string, alloc *allocdir.AllocD
 			return fmt.Errorf("Mkdir(%v) failed: %v", dev, err)
 		}
 
-		if err := syscall.Mount("", dev, "devtmpfs", syscall.MS_RDONLY, ""); err != nil {
+		if err := syscall.Mount("none", dev, "devtmpfs", syscall.MS_RDONLY, ""); err != nil {
 			return fmt.Errorf("Couldn't mount /dev to %v: %v", dev, err)
 		}
 	}
@@ -277,7 +279,7 @@ func (e *LinuxExecutor) ConfigureTaskDir(taskName string, alloc *allocdir.AllocD
 			return fmt.Errorf("Mkdir(%v) failed: %v", proc, err)
 		}
 
-		if err := syscall.Mount("", proc, "proc", syscall.MS_RDONLY, ""); err != nil {
+		if err := syscall.Mount("none", proc, "proc", syscall.MS_RDONLY, ""); err != nil {
 			return fmt.Errorf("Couldn't mount /proc to %v: %v", proc, err)
 		}
 	}
@@ -300,6 +302,10 @@ func (e *LinuxExecutor) pathExists(path string) bool {
 // cleanTaskDir is an idempotent operation to clean the task directory and
 // should be called when tearing down the task.
 func (e *LinuxExecutor) cleanTaskDir() error {
+	// Prevent a race between Wait/ForceStop
+	e.l.Lock()
+	defer e.l.Unlock()
+
 	// Unmount dev.
 	errs := new(multierror.Error)
 	dev := filepath.Join(e.taskDir, "dev")
@@ -372,6 +378,10 @@ func (e *LinuxExecutor) destroyCgroup() error {
 	if e.groups == nil {
 		return errors.New("Can't destroy: cgroup configuration empty")
 	}
+
+	// Prevent a race between Wait/ForceStop
+	e.l.Lock()
+	defer e.l.Unlock()
 
 	manager := e.getCgroupManager(e.groups)
 	pids, err := manager.GetPids()

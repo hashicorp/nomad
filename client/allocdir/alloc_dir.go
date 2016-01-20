@@ -194,7 +194,10 @@ func (d *AllocDir) Embed(task string, entries map[string]string) error {
 				}
 
 				if err := os.Symlink(link, taskEntry); err != nil {
-					return fmt.Errorf("Couldn't create symlink: %v", err)
+					// Symlinking twice
+					if err.(*os.LinkError).Err.Error() != "file exists" {
+						return fmt.Errorf("Couldn't create symlink: %v", err)
+					}
 				}
 				continue
 			}

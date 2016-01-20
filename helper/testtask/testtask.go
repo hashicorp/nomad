@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"time"
 
+	"github.com/hashicorp/nomad/client/driver/env"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/kardianos/osext"
 )
@@ -20,6 +21,12 @@ func Path() string {
 		panic(err)
 	}
 	return path
+}
+
+// SetEnv configures the environment of the task so that Run executes a testtask
+// script when called from within cmd.
+func SetEnv(env *env.TaskEnvironment) {
+	env.AppendEnvvars(map[string]string{"TEST_TASK": "execute"})
 }
 
 // SetCmdEnv configures the environment of cmd so that Run executes a testtask

@@ -1,4 +1,5 @@
 sudo: required
+dist: trusty
 
 services:
     - docker
@@ -8,6 +9,9 @@ language: go
 go:
   - 1.5.3
   - tip
+
+env:
+  - TRAVIS_RUN=true
 
 matrix:
   allow_failures:
