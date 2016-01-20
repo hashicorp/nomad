@@ -80,7 +80,7 @@ func (l *LogRotator) Start(r io.Reader) error {
 		if err != nil {
 			return err
 		}
-		l.logger.Println("[INFO] client.logrotator: opened a new file: %s", logFileName)
+		l.logger.Printf("[DEBUG] client.logrotator: opened a new file: %s", logFileName)
 		// closing the current log file if it doesn't have any more capacity
 		if remainingSize < 1 {
 			l.logFileIdx = l.logFileIdx + 1
@@ -125,12 +125,12 @@ func (l *LogRotator) Start(r io.Reader) error {
 // PurgeOldFiles removes older files and keeps only the last N files rotated for
 // a file
 func (l *LogRotator) PurgeOldFiles() {
-	fIndexes := make([]int, l.maxFiles)
+	var fIndexes []int
 	files, err := ioutil.ReadDir(l.path)
 	if err != nil {
 		return
 	}
-	count := 0
+	// Inserting all the rotated files in a slice
 	for _, f := range files {
 		if strings.HasPrefix(f.Name(), l.fileName) {
 			fileIdx := strings.TrimPrefix(f.Name(), fmt.Sprintf("%s.", l.fileName))
@@ -138,15 +138,16 @@ func (l *LogRotator) PurgeOldFiles() {
 			if err != nil {
 				continue
 			}
-			if count == l.maxFiles {
-				sort.Sort(sort.Reverse(sort.IntSlice(fIndexes)))
-				fname := filepath.Join(l.path, fmt.Sprintf("%s.%d", l.fileName, fIndexes[count-1]))
-				l.logger.Printf("[DEBUG] client.logrator: removing file: %v", fname)
-				os.RemoveAll(fname)
-				count -= 1
-			}
-			fIndexes[count] = n
-			count += 1
+			fIndexes = append(fIndexes, n)
 		}
+	}
+
+	// sorting the file indexes so that we can purge the older files and keep
+	// only the number of files as configured by the user
+	sort.Sort(sort.IntSlice(fIndexes))
+	toDelete := fIndexes[l.maxFiles-1 : len(fIndexes)-1]
+	for _, fIndex := range toDelete {
+		fname := filepath.Join(l.path, fmt.Sprintf("%s.%d", l.fileName, fIndex))
+		os.RemoveAll(fname)
 	}
 }
