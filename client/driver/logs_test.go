@@ -15,10 +15,10 @@ var (
 	path   = "/tmp/logrotator"
 )
 
-func TestLogRotator_IncorrectPath(t *testing.T) {
-	incorrectPath := "/foo"
+func TestLogRotator_InvalidPath(t *testing.T) {
+	invalidPath := "/foo"
 
-	if _, err := NewLogRotator(incorrectPath, "redis.stdout", 10, 10, logger); err == nil {
+	if _, err := NewLogRotator(invalidPath, "redis.stdout", 10, 10, logger); err == nil {
 		t.Fatal("expected err")
 	}
 }
