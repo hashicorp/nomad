@@ -16,14 +16,14 @@ const (
 	bufSize = 32 * 1024 // Max number of bytes read from a buffer
 )
 
-// LogRotator rotates files for a buffer and retains only the last N rotated
-// files
+// LogRotator ingests data and writes out to a rotated set of files
 type LogRotator struct {
-	maxFiles   int
-	fileSize   int64
-	path       string
-	fileName   string
-	logFileIdx int
+	maxFiles int    // maximum number of rotated files retained by the log rotator
+	fileSize int64  // maximum file size of a rotated file
+	path     string // path where the rotated files are created
+	fileName string // base file name of the rotated files
+
+	logFileIdx int // index to the current file
 
 	logger *log.Logger
 }
@@ -35,6 +35,7 @@ func NewLogRotator(path string, fileName string, maxFiles int, fileSize int64, l
 		return nil, err
 	}
 
+	// finding out the log file with the largest index
 	logFileIdx := 0
 	for _, f := range files {
 		if strings.HasPrefix(f.Name(), fileName) {
@@ -67,23 +68,28 @@ func (l *LogRotator) Start(r io.Reader) error {
 		logFileName := filepath.Join(l.path, fmt.Sprintf("%s.%d", l.fileName, l.logFileIdx))
 		remainingSize := l.fileSize
 		if f, err := os.Stat(logFileName); err == nil {
+			// skipping the current file if it happens to be a directory
 			if f.IsDir() {
 				l.logFileIdx += 1
 				continue
 			}
+			// calculating the remaining capacity of the log file
 			remainingSize = l.fileSize - f.Size()
 		}
 		f, err := os.OpenFile(logFileName, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 		if err != nil {
 			return err
 		}
-		l.logger.Println("[INFO] logrotator: opened a new file: %s", logFileName)
+		l.logger.Println("[INFO] client.logrotator: opened a new file: %s", logFileName)
+		// closing the current log file if it doesn't have any more capacity
 		if remainingSize < 1 {
 			l.logFileIdx = l.logFileIdx + 1
 			f.Close()
 			continue
 		}
 
+		// reading from the reader and writing into the current log file as long
+		// as it has capacity or the reader closes
 		for {
 			var nr int
 			var err error
@@ -103,7 +109,7 @@ func (l *LogRotator) Start(r io.Reader) error {
 			}
 			if nr != nw {
 				f.Close()
-				return fmt.Errorf("Failed to write data R: %d W: %d", nr, nw)
+				return fmt.Errorf("failed to write data read from the reader into file, R: %d W: %d", nr, nw)
 			}
 			remainingSize -= int64(nr)
 			if remainingSize < 1 {
@@ -135,7 +141,7 @@ func (l *LogRotator) PurgeOldFiles() {
 			if count == l.maxFiles {
 				sort.Sort(sort.Reverse(sort.IntSlice(fIndexes)))
 				fname := filepath.Join(l.path, fmt.Sprintf("%s.%d", l.fileName, fIndexes[count-1]))
-				l.logger.Printf("[INFO] removing file: %v", fname)
+				l.logger.Printf("[DEBUG] client.logrator: removing file: %v", fname)
 				os.RemoveAll(fname)
 				count -= 1
 			}
