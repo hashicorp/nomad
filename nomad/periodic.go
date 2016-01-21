@@ -56,7 +56,7 @@ func (s *Server) DispatchJob(job *structs.Job) (*structs.Evaluation, error) {
 		ID:             structs.GenerateUUID(),
 		Priority:       job.Priority,
 		Type:           job.Type,
-		TriggeredBy:    structs.EvalTriggerJobRegister,
+		TriggeredBy:    structs.EvalTriggerPeriodicJob,
 		JobID:          job.ID,
 		JobModifyIndex: index,
 		Status:         structs.EvalStatusPending,
