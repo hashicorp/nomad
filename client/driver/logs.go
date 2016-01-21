@@ -35,11 +35,12 @@ func NewLogRotator(path string, fileName string, maxFiles int, fileSize int64, l
 		return nil, err
 	}
 
-	// finding out the log file with the largest index
+	// Finding out the log file with the largest index
 	logFileIdx := 0
+	prefix := fmt.Sprintf("%s.", fileName)
 	for _, f := range files {
-		if strings.HasPrefix(f.Name(), fileName) {
-			fileIdx := strings.TrimPrefix(f.Name(), fmt.Sprintf("%s.", fileName))
+		if strings.HasPrefix(f.Name(), prefix) {
+			fileIdx := strings.TrimPrefix(f.Name(), prefix)
 			n, err := strconv.Atoi(fileIdx)
 			if err != nil {
 				continue
@@ -68,12 +69,12 @@ func (l *LogRotator) Start(r io.Reader) error {
 		logFileName := filepath.Join(l.path, fmt.Sprintf("%s.%d", l.fileName, l.logFileIdx))
 		remainingSize := l.fileSize
 		if f, err := os.Stat(logFileName); err == nil {
-			// skipping the current file if it happens to be a directory
+			// Skipping the current file if it happens to be a directory
 			if f.IsDir() {
 				l.logFileIdx += 1
 				continue
 			}
-			// calculating the remaining capacity of the log file
+			// Calculating the remaining capacity of the log file
 			remainingSize = l.fileSize - f.Size()
 		}
 		f, err := os.OpenFile(logFileName, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
@@ -82,14 +83,14 @@ func (l *LogRotator) Start(r io.Reader) error {
 		}
 		l.logger.Printf("[DEBUG] client.logrotator: opened a new file: %s", logFileName)
 
-		// closing the current log file if it doesn't have any more capacity
+		// Closing the current log file if it doesn't have any more capacity
 		if remainingSize <= 0 {
 			l.logFileIdx = l.logFileIdx + 1
 			f.Close()
 			continue
 		}
 
-		// reading from the reader and writing into the current log file as long
+		// Reading from the reader and writing into the current log file as long
 		// as it has capacity or the reader closes
 		for {
 			var nr int
@@ -143,7 +144,7 @@ func (l *LogRotator) PurgeOldFiles() {
 		}
 	}
 
-	// sorting the file indexes so that we can purge the older files and keep
+	// Sorting the file indexes so that we can purge the older files and keep
 	// only the number of files as configured by the user
 	sort.Sort(sort.IntSlice(fIndexes))
 	toDelete := fIndexes[l.maxFiles-1 : len(fIndexes)-1]
