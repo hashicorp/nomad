@@ -476,9 +476,6 @@ type Node struct {
 	// "docker.runtime=1.8.3"
 	Attributes map[string]string
 
-	// UniqueAttributes are attributes that uniquely identify a node.
-	UniqueAttributes map[string]struct{}
-
 	// Resources is the available resources on the client.
 	// For example 'cpu=2' 'memory=2048'
 	Resources *Resources
@@ -570,7 +567,7 @@ type Resources struct {
 	MemoryMB int `mapstructure:"memory"`
 	DiskMB   int `mapstructure:"disk"`
 	IOPS     int
-	Networks []*NetworkResource `hash:"set"`
+	Networks []*NetworkResource
 }
 
 // Copy returns a deep copy of the resources

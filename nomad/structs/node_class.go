@@ -4,13 +4,14 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/gobwas/glob"
 	"github.com/mitchellh/hashstructure"
 )
 
 const (
-	// A suffix that can be appended to node meta keys to mark them for
-	// exclusion in computed node class.
-	NodeMetaUnique = "_unique"
+	// NodeUniqueSuffix is a suffix that can be appended to node meta or
+	// attribute keys to mark them for exclusion in computed node class.
+	NodeUniqueSuffix = "_unique"
 )
 
 // ComputeClass computes a derived class for the node based on its attributes.
@@ -18,7 +19,6 @@ const (
 // attributes and capabilities. Thus, when calculating a node's computed class
 // we avoid including any uniquely identifing fields.
 func (n *Node) ComputeClass() error {
-	// TODO: Bucket node resources such as DiskMB/IOPS/etc.
 	hash, err := hashstructure.Hash(n, nil)
 	if err != nil {
 		return err
@@ -40,11 +40,43 @@ func (n Node) HashInclude(field string, v interface{}) (bool, error) {
 		return false, nil
 	case "CreateIndex", "ModifyIndex": // Raft indexes
 		return false, nil
-	case "Reserved": // Doesn't effect placement capability
+	case "Resources", "Reserved": // Doesn't effect placement capability
 		return false, nil
 	default:
 		return true, nil
 	}
+}
+
+var (
+	// GlobalUniqueAttrs is a set of attributes that uniquely identify all
+	// nodes. It is stored once by the server, rather than by each node to
+	// reduce storage costs.
+	GlobalUniqueAttrs = []glob.Glob{
+		glob.MustCompile("consul.name"),
+		glob.MustCompile("platform.gce.hostname"),
+		glob.MustCompile("platform.gce.id"),
+		glob.MustCompile("platform.gce.network.*.ip"),
+		glob.MustCompile("platform.gce.network.*.external-ip"),
+		glob.MustCompile("platform.aws.ami-id"),
+		glob.MustCompile("platform.aws.hostname"),
+		glob.MustCompile("platform.aws.instance-id"),
+		glob.MustCompile("platform.aws.local*"),
+		glob.MustCompile("platform.aws.public*"),
+		glob.MustCompile("network.ip-address"),
+		glob.MustCompile("storage.*"), // Ignore all storage
+	}
+)
+
+// excludeAttr returns whether the key should be excluded when calculating
+// computed node class.
+func excludeAttr(key string) bool {
+	for _, g := range GlobalUniqueAttrs {
+		if g.Match(key) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // HashIncludeMap is used to blacklist uniquely identifying node map keys from being
@@ -55,28 +87,15 @@ func (n Node) HashIncludeMap(field string, k, v interface{}) (bool, error) {
 		return false, fmt.Errorf("map key %v not a string")
 	}
 
+	// Check if the user marked the key as unique.
+	isUnique := strings.HasSuffix(key, NodeUniqueSuffix)
+
 	switch field {
 	case "Attributes":
-		// Check if the key is marked as unique by the fingerprinters.
-		_, unique := n.UniqueAttributes[key]
-		return !unique, nil
+		return !excludeAttr(key) && !isUnique, nil
 	case "Meta":
-		// Check if the user marked the key as unique.
-		return !strings.HasSuffix(key, NodeMetaUnique), nil
+		return !isUnique, nil
 	default:
 		return false, fmt.Errorf("unexpected map field: %v", field)
-	}
-}
-
-// HashInclude is used to blacklist uniquely identifying network fields from being
-// included in the computed node class.
-func (n NetworkResource) HashInclude(field string, v interface{}) (bool, error) {
-	switch field {
-	case "IP", "CIDR": // Uniquely identifying
-		return false, nil
-	case "ReservedPorts", "DynamicPorts": // Doesn't effect placement capability
-		return false, nil
-	default:
-		return true, nil
 	}
 }
