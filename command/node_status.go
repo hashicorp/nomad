@@ -198,7 +198,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 	// Dump the output
 	c.Ui.Output(formatKV(basic))
 	if !short {
-		c.Ui.Output("\n### Allocations")
+		c.Ui.Output("\n==> Allocations")
 		c.Ui.Output(formatList(allocs))
 	}
 	return 0
