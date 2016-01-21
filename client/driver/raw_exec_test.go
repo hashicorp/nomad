@@ -285,7 +285,7 @@ func TestRawExecDriver_Start_Kill_Wait(t *testing.T) {
 		Name: "sleep",
 		Config: map[string]interface{}{
 			"command": testtask.Path(),
-			"args":    []string{"sleep", "5s"},
+			"args":    []string{"sleep", "15s"},
 		},
 		Resources: basicResources,
 	}
@@ -304,7 +304,7 @@ func TestRawExecDriver_Start_Kill_Wait(t *testing.T) {
 	}
 
 	go func() {
-		time.Sleep(time.Duration(testutil.TestMultiplier()*1) * time.Second)
+		time.Sleep(1 * time.Second)
 		err := handle.Kill()
 		if err != nil {
 			t.Fatalf("err: %v", err)
@@ -317,7 +317,7 @@ func TestRawExecDriver_Start_Kill_Wait(t *testing.T) {
 		if res.Successful() {
 			t.Fatal("should err")
 		}
-	case <-time.After(3 * time.Second):
+	case <-time.After(time.Duration(testutil.TestMultiplier()*3) * time.Second):
 		t.Fatalf("timeout")
 	}
 }
