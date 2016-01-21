@@ -134,7 +134,12 @@ func TestAllocRunner_SaveRestoreState(t *testing.T) {
 	defer ar.Destroy()
 
 	// Snapshot state
-	time.Sleep(200 * time.Millisecond)
+	testutil.WaitForResult(func() (bool, error) {
+		return len(ar.tasks) == 1, nil
+	}, func(err error) {
+		t.Fatalf("task never started: %v", err)
+	})
+
 	err := ar.SaveState()
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -149,7 +154,6 @@ func TestAllocRunner_SaveRestoreState(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 	go ar2.Run()
-	defer ar2.Destroy()
 
 	// Destroy and wait
 	ar2.Destroy()
@@ -165,7 +169,7 @@ func TestAllocRunner_SaveRestoreState(t *testing.T) {
 		t.Fatalf("err: %v %#v %#v", err, upd.Allocs[0], ar.alloc.TaskStates)
 	})
 
-	if time.Since(start) > 15*time.Second {
+	if time.Since(start) > time.Duration(testutil.TestMultiplier()*15)*time.Second {
 		t.Fatalf("took too long to terminate")
 	}
 }
