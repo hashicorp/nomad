@@ -132,7 +132,7 @@ func TestNode_ComputedClass_Attr(t *testing.T) {
 	old = n.ComputedClass
 
 	// Add an ignored attribute and compute the class again.
-	n.Attributes["network.ip-address"] = "hello world"
+	n.Attributes["storage.bytes-foo"] = "hello world"
 	if err := n.ComputeClass(); err != nil {
 		t.Fatalf("ComputeClass() failed: %v", err)
 	}

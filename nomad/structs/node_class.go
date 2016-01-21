@@ -36,7 +36,7 @@ func (n Node) HashInclude(field string, v interface{}) (bool, error) {
 		return false, nil
 	case "Drain", "Status", "StatusDescription": // Set by server
 		return false, nil
-	case "ComputedClass", "UniqueAttributes": // Part of computed node class
+	case "ComputedClass": // Part of computed node class
 		return false, nil
 	case "CreateIndex", "ModifyIndex": // Raft indexes
 		return false, nil
