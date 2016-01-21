@@ -90,7 +90,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 
 		// Format the nodes list
 		out := make([]string, len(nodes)+1)
-		out[0] = "ID|DC|Name|Class|Drain|Status"
+		out[0] = "ID|Datacenter|Name|Class|Drain|Status"
 		for i, node := range nodes {
 			out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%v|%s",
 				node.ID[:length],
@@ -125,7 +125,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 			// Format the nodes list that matches the prefix so that the user
 			// can create a more specific request
 			out := make([]string, len(nodes)+1)
-			out[0] = "ID|DC|Name|Class|Drain|Status"
+			out[0] = "ID|Datacenter|Name|Class|Drain|Status"
 			for i, node := range nodes {
 				out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%v|%s",
 					node.ID[:length],
@@ -183,7 +183,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 
 		// Format the allocations
 		allocs = make([]string, len(nodeAllocs)+1)
-		allocs[0] = "ID|EvalID|JobID|TaskGroup|DesiredStatus|ClientStatus"
+		allocs[0] = "ID|Eval ID|Job ID|Task Group|Desired Status|Client Status"
 		for i, alloc := range nodeAllocs {
 			allocs[i+1] = fmt.Sprintf("%s|%s|%s|%s|%s|%s",
 				alloc.ID[:length],

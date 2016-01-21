@@ -209,7 +209,7 @@ func (m *monitor) monitor(evalID string, allowPrefix bool) int {
 			if len(evals) > 1 {
 				// Format the evaluations
 				out := make([]string, len(evals)+1)
-				out[0] = "ID|Priority|Type|TriggeredBy|Status"
+				out[0] = "ID|Priority|Type|Triggered By|Status"
 				for i, eval := range evals {
 					out[i+1] = fmt.Sprintf("%s|%d|%s|%s|%s",
 						eval.ID[:m.length],
