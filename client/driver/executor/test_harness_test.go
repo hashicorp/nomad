@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/helper/testtask"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/testutil"
 )
 
 func TestMain(m *testing.M) {
@@ -184,7 +185,7 @@ func Executor_Start_Kill(t *testing.T, command buildExecCommand) {
 		log.Panicf("Shutdown() failed: %v", err)
 	}
 
-	time.Sleep(1500 * time.Millisecond)
+	time.Sleep(time.Duration(testutil.TestMultiplier()*2) * time.Second)
 
 	// Check that the file doesn't exist.
 	if _, err := os.Stat(filePath); err == nil {

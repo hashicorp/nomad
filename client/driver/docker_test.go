@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/nomad/client/driver/env"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/testutil"
 )
 
 // dockerIsConnected checks to see if a docker daemon is available (local or remote)
@@ -226,7 +227,7 @@ func TestDockerDriver_Start_Wait(t *testing.T) {
 		if !res.Successful() {
 			t.Fatalf("err: %v", res)
 		}
-	case <-time.After(5 * time.Second):
+	case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
 		t.Fatalf("timeout")
 	}
 }
@@ -277,7 +278,7 @@ func TestDockerDriver_Start_Wait_AllocDir(t *testing.T) {
 		if !res.Successful() {
 			t.Fatalf("err: %v", res)
 		}
-	case <-time.After(5 * time.Second):
+	case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
 		t.Fatalf("timeout")
 	}
 
@@ -321,7 +322,7 @@ func TestDockerDriver_Start_Kill_Wait(t *testing.T) {
 		if res.Successful() {
 			t.Fatalf("should err: %v", res)
 		}
-	case <-time.After(10 * time.Second):
+	case <-time.After(time.Duration(testutil.TestMultiplier()*10) * time.Second):
 		t.Fatalf("timeout")
 	}
 }

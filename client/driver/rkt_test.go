@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/testutil"
 
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	ctestutils "github.com/hashicorp/nomad/client/testutil"
@@ -156,7 +157,7 @@ func TestRktDriver_Start_Wait(t *testing.T) {
 		if !res.Successful() {
 			t.Fatalf("err: %v", res)
 		}
-	case <-time.After(5 * time.Second):
+	case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
 		t.Fatalf("timeout")
 	}
 }
@@ -200,7 +201,7 @@ func TestRktDriver_Start_Wait_Skip_Trust(t *testing.T) {
 		if !res.Successful() {
 			t.Fatalf("err: %v", res)
 		}
-	case <-time.After(5 * time.Second):
+	case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
 		t.Fatalf("timeout")
 	}
 }
@@ -239,7 +240,7 @@ func TestRktDriver_Start_Wait_Logs(t *testing.T) {
 		if !res.Successful() {
 			t.Fatalf("err: %v", res)
 		}
-	case <-time.After(5 * time.Second):
+	case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
 		t.Fatalf("timeout")
 	}
 

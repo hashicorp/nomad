@@ -62,7 +62,7 @@ func TestTaskRunner_SimpleRun(t *testing.T) {
 
 	select {
 	case <-tr.WaitCh():
-	case <-time.After(15 * time.Second):
+	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
 		t.Fatalf("timeout")
 	}
 
