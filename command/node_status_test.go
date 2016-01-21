@@ -104,6 +104,14 @@ func TestNodeStatusCommand_Run(t *testing.T) {
 	}
 	ui.OutputWriter.Reset()
 
+	// Identifiers with uneven length should produce a query result
+	if code := cmd.Run([]string{"-address=" + url, nodeID[:3]}); code != 0 {
+		t.Fatalf("expected exit 0, got: %d", code)
+	}
+	out = ui.OutputWriter.String()
+	if !strings.Contains(out, "mynode") {
+		t.Fatalf("expect to find mynode, got: %s", out)
+	}
 }
 
 func TestNodeStatusCommand_Fails(t *testing.T) {
@@ -137,5 +145,14 @@ func TestNodeStatusCommand_Fails(t *testing.T) {
 	}
 	if out := ui.ErrorWriter.String(); !strings.Contains(out, "No node(s) with prefix") {
 		t.Fatalf("expected not found error, got: %s", out)
+	}
+	ui.ErrorWriter.Reset()
+
+	// Fail on identifier with too few characters
+	if code := cmd.Run([]string{"-address=" + url, "1"}); code != 1 {
+		t.Fatalf("expected exit 1, got: %d", code)
+	}
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, "must contain at least two characters.") {
+		t.Fatalf("expected too few characters error, got: %s", out)
 	}
 }

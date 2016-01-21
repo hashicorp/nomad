@@ -77,6 +77,16 @@ func (c *AllocStatusCommand) Run(args []string) int {
 	// Query the allocation info
 	alloc, _, err := client.Allocations().Info(allocID, nil)
 	if err != nil {
+		if len(allocID) == 1 {
+			c.Ui.Error(fmt.Sprintf("Identifier must contain at least two characters."))
+			return 1
+		}
+		if len(allocID)%2 == 1 {
+			// Identifiers must be of even length, so we strip off the last byte
+			// to provide a consistent user experience.
+			allocID = allocID[:len(allocID)-1]
+		}
+
 		allocs, _, err := client.Allocations().PrefixList(allocID)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error querying allocation: %v", err))

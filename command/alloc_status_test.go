@@ -28,7 +28,7 @@ func TestAllocStatusCommand_Fails(t *testing.T) {
 	ui.ErrorWriter.Reset()
 
 	// Fails on connection failure
-	if code := cmd.Run([]string{"-address=nope", "foo"}); code != 1 {
+	if code := cmd.Run([]string{"-address=nope", "foobar"}); code != 1 {
 		t.Fatalf("expected exit code 1, got: %d", code)
 	}
 	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error querying allocation") {
@@ -43,4 +43,23 @@ func TestAllocStatusCommand_Fails(t *testing.T) {
 	if out := ui.ErrorWriter.String(); !strings.Contains(out, "No allocation(s) with prefix or id") {
 		t.Fatalf("expected not found error, got: %s", out)
 	}
+	ui.ErrorWriter.Reset()
+
+	// Fail on identifier with too few characters
+	if code := cmd.Run([]string{"-address=" + url, "2"}); code != 1 {
+		t.Fatalf("expected exit 1, got: %d", code)
+	}
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, "must contain at least two characters.") {
+		t.Fatalf("expected too few characters error, got: %s", out)
+	}
+	ui.ErrorWriter.Reset()
+
+	// Identifiers with uneven length should produce a query result
+	if code := cmd.Run([]string{"-address=" + url, "123"}); code != 1 {
+		t.Fatalf("expected exit 1, got: %d", code)
+	}
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, "No allocation(s) with prefix or id") {
+		t.Fatalf("expected not found error, got: %s", out)
+	}
+
 }
