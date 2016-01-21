@@ -304,7 +304,7 @@ func TestRawExecDriver_Start_Kill_Wait(t *testing.T) {
 	}
 
 	go func() {
-		time.Sleep(testutil.TestMultiplier() * 1 * time.Second)
+		time.Sleep(time.Duration(testutil.TestMultiplier()*1) * time.Second)
 		err := handle.Kill()
 		if err != nil {
 			t.Fatalf("err: %v", err)

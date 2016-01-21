@@ -21,7 +21,7 @@ func WaitForResult(test testFn, error errorFn) {
 	WaitForResultRetries(1000*TestMultiplier(), test, error)
 }
 
-func WaitForResultRetries(retries int, test testFn, error errorFn) {
+func WaitForResultRetries(retries int64, test testFn, error errorFn) {
 	for retries > 0 {
 		time.Sleep(10 * time.Millisecond)
 		retries--
@@ -39,7 +39,7 @@ func WaitForResultRetries(retries int, test testFn, error errorFn) {
 
 // TestMultiplier returns a multiplier for retries and waits given environment
 // the tests are being run under.
-func TestMultiplier() int {
+func TestMultiplier() int64 {
 	if _, ok := os.LookupEnv(TravisRunEnv); ok {
 		return 3
 	}

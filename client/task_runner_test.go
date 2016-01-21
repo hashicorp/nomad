@@ -175,7 +175,7 @@ func TestTaskRunner_SaveRestoreState(t *testing.T) {
 	defer tr2.Destroy()
 
 	// Destroy and wait
-	time.Sleep(testutil.TestMultiplier() * 2 * time.Second)
+	time.Sleep(time.Duration(testutil.TestMultiplier()*2) * time.Second)
 	if tr2.handle == nil {
 		t.Fatalf("RestoreState() didn't open handle")
 	}
