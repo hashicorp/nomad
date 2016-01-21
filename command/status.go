@@ -238,7 +238,7 @@ func (c *StatusCommand) outputJobInfo(client *api.Client, job *api.Job) error {
 
 	// Format the evals
 	evals = make([]string, len(jobEvals)+1)
-	evals[0] = "ID|Priority|TriggeredBy|Status"
+	evals[0] = "ID|Priority|Triggered By|Status"
 	for i, eval := range jobEvals {
 		evals[i+1] = fmt.Sprintf("%s|%d|%s|%s",
 			eval.ID[:c.length],
@@ -249,7 +249,7 @@ func (c *StatusCommand) outputJobInfo(client *api.Client, job *api.Job) error {
 
 	// Format the allocs
 	allocs = make([]string, len(jobAllocs)+1)
-	allocs[0] = "ID|EvalID|NodeID|TaskGroup|Desired|Status"
+	allocs[0] = "ID|Eval ID|Node ID|Task Group|Desired|Status"
 	for i, alloc := range jobAllocs {
 		allocs[i+1] = fmt.Sprintf("%s|%s|%s|%s|%s|%s",
 			alloc.ID[:c.length],

@@ -88,7 +88,7 @@ func (c *ServerMembersCommand) Run(args []string) int {
 func standardOutput(mem []*api.AgentMember) []string {
 	// Format the members list
 	members := make([]string, len(mem)+1)
-	members[0] = "Name|Addr|Port|Status|Proto|Build|DC|Region"
+	members[0] = "Name|Address|Port|Status|Protocol|Build|Datacenter|Region"
 	for i, member := range mem {
 		members[i+1] = fmt.Sprintf("%s|%s|%d|%s|%d|%s|%s|%s",
 			member.Name,
@@ -106,7 +106,7 @@ func standardOutput(mem []*api.AgentMember) []string {
 func detailedOutput(mem []*api.AgentMember) []string {
 	// Format the members list
 	members := make([]string, len(mem)+1)
-	members[0] = "Name|Addr|Port|Tags"
+	members[0] = "Name|Address|Port|Tags"
 	for i, member := range mem {
 		// Format the tags
 		tagPairs := make([]string, 0, len(member.Tags))

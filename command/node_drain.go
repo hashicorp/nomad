@@ -86,7 +86,7 @@ func (c *NodeDrainCommand) Run(args []string) int {
 			// Format the nodes list that matches the prefix so that the user
 			// can create a more specific request
 			out := make([]string, len(nodes)+1)
-			out[0] = "ID|DC|Name|Class|Drain|Status"
+			out[0] = "ID|Datacenter|Name|Class|Drain|Status"
 			for i, node := range nodes {
 				out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%v|%s",
 					node.ID,
