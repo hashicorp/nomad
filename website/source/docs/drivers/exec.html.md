@@ -87,3 +87,9 @@ the client and the configuration.
 
 On Linux, Nomad will use cgroups, and a chroot to isolate the
 resources of a process and as such the Nomad agent must be run as root.
+
+### Chroot
+The chroot is populated with data in the following folders from the host
+machine:
+
+`["/bin", "/etc", "/lib", "/lib32", "/lib64", "/usr/bin", "/usr/lib", "/usr/share"]`
