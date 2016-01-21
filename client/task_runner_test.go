@@ -1,6 +1,7 @@
 package client
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -175,8 +176,9 @@ func TestTaskRunner_SaveRestoreState(t *testing.T) {
 	defer tr2.Destroy()
 
 	// Destroy and wait
-	time.Sleep(time.Duration(testutil.TestMultiplier()*5) * time.Second)
-	if tr2.handle == nil {
-		t.Fatalf("RestoreState() didn't open handle")
-	}
+	testutil.WaitForResult(func() (bool, error) {
+		return tr2.handle != nil, fmt.Errorf("RestoreState() didn't open handle")
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
 }

@@ -397,7 +397,7 @@ func (e *LinuxExecutor) destroyCgroup() error {
 			continue
 		}
 
-		if err := process.Kill(); err != nil {
+		if err := process.Kill(); err != nil && err.Error() != "os: process already finished" {
 			multierror.Append(errs, fmt.Errorf("Failed to kill Pid %v: %v", pid, err))
 			continue
 		}

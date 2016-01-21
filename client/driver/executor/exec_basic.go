@@ -120,7 +120,10 @@ func (e *BasicExecutor) ForceStop() error {
 		return fmt.Errorf("Failed to find user processes %v: %v", e.spawn.UserPid, err)
 	}
 
-	return proc.Kill()
+	if err := proc.Kill(); err != nil && err.Error() != "os: process already finished" {
+		return err
+	}
+	return nil
 }
 
 func (e *BasicExecutor) Command() *exec.Cmd {
