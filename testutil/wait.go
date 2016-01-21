@@ -40,11 +40,16 @@ func WaitForResultRetries(retries int64, test testFn, error errorFn) {
 // TestMultiplier returns a multiplier for retries and waits given environment
 // the tests are being run under.
 func TestMultiplier() int64 {
-	if _, ok := os.LookupEnv(TravisRunEnv); ok {
+	if IsTravis() {
 		return 3
 	}
 
 	return 1
+}
+
+func IsTravis() bool {
+	_, ok := os.LookupEnv(TravisRunEnv)
+	return ok
 }
 
 type rpcFn func(string, interface{}, interface{}) error
