@@ -110,6 +110,11 @@ func (c *NodeStatusCommand) Run(args []string) int {
 	nodeID := args[0]
 	node, _, err := client.Nodes().Info(nodeID, nil)
 	if err != nil {
+		if len(nodeID)%2 != 0 {
+			c.Ui.Error(fmt.Sprintf("Identifier (without hyphens) must be of even length."))
+			return 1
+		}
+
 		// Exact lookup failed, try with prefix based search
 		nodes, _, err := client.Nodes().PrefixList(nodeID)
 		if err != nil {

@@ -61,4 +61,13 @@ func TestNodeDrainCommand_Fails(t *testing.T) {
 	if out := ui.ErrorWriter.String(); !strings.Contains(out, cmd.Help()) {
 		t.Fatalf("expected help output, got: %s", out)
 	}
+	ui.ErrorWriter.Reset()
+
+	// Fail on uneven identifier length
+	if code := cmd.Run([]string{"-address=" + url, "-enable", "1234567-abcd-efab-cdef-123456789abc"}); code != 1 {
+		t.Fatalf("expected exit 1, got: %d", code)
+	}
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, "must be of even length.") {
+		t.Fatalf("expected even length error, got: %s", out)
+	}
 }

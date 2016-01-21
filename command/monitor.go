@@ -196,6 +196,10 @@ func (m *monitor) monitor(evalID string, allowPrefix bool) int {
 				m.ui.Error(fmt.Sprintf("No evaluation with id %q found", evalID))
 				return 1
 			}
+			if len(evalID)%2 != 0 {
+				m.ui.Error(fmt.Sprintf("Identifier (without hyphens) must be of even length."))
+				return 1
+			}
 
 			evals, _, err := m.client.Evaluations().PrefixList(evalID)
 			if err != nil {

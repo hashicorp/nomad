@@ -77,6 +77,10 @@ func (c *AllocStatusCommand) Run(args []string) int {
 	// Query the allocation info
 	alloc, _, err := client.Allocations().Info(allocID, nil)
 	if err != nil {
+		if len(allocID)%2 != 0 {
+			c.Ui.Error(fmt.Sprintf("Identifier (without hyphens) must be of even length."))
+			return 1
+		}
 		allocs, _, err := client.Allocations().PrefixList(allocID)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error querying allocation: %v", err))

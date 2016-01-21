@@ -323,6 +323,17 @@ func TestMonitor_MonitorWithPrefix(t *testing.T) {
 	if !strings.Contains(out, "finished with status") {
 		t.Fatalf("missing final status\n\n%s", out)
 	}
+
+	// Test identifiers of uneven length
+	code = mon.monitor(evalID[:7], true)
+	if code != 1 {
+		t.Fatalf("expect exit 1, got: %d", code)
+	}
+	out = ui.ErrorWriter.String()
+	t.Logf("dus: %s", out)
+	if !strings.Contains(out, "must be of even length.") {
+		t.Fatalf("expect even length error, got %s", out)
+	}
 }
 
 func TestMonitor_DumpAllocStatus(t *testing.T) {
