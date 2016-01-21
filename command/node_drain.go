@@ -71,9 +71,14 @@ func (c *NodeDrainCommand) Run(args []string) int {
 	// Check if node exists
 	node, _, err := client.Nodes().Info(nodeID, nil)
 	if err != nil {
-		if len(nodeID)%2 != 0 {
-			c.Ui.Error(fmt.Sprintf("Identifier (without hyphens) must be of even length."))
+		if len(nodeID) == 1 {
+			c.Ui.Error(fmt.Sprintf("Identifier must contain at least two characters."))
 			return 1
+		}
+		if len(nodeID)%2 == 1 {
+			// Identifiers must be of even length, so we strip off the last byte
+			// to provide a consistent user experience.
+			nodeID = nodeID[:len(nodeID)-1]
 		}
 
 		// Exact lookup failed, try with prefix based search

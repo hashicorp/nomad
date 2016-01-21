@@ -324,16 +324,24 @@ func TestMonitor_MonitorWithPrefix(t *testing.T) {
 		t.Fatalf("missing final status\n\n%s", out)
 	}
 
-	// Test identifiers of uneven length
-	code = mon.monitor(evalID[:7], true)
+	// Fail on identifier with too few characters
+	code = mon.monitor(evalID[:1], true)
 	if code != 1 {
 		t.Fatalf("expect exit 1, got: %d", code)
 	}
-	out = ui.ErrorWriter.String()
-	t.Logf("dus: %s", out)
-	if !strings.Contains(out, "must be of even length.") {
-		t.Fatalf("expect even length error, got %s", out)
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, "must contain at least two characters.") {
+		t.Fatalf("expected too few characters error, got: %s", out)
 	}
+	ui.ErrorWriter.Reset()
+
+	code = mon.monitor(evalID[:3], true)
+	if code != 2 {
+		t.Fatalf("expect exit 2, got: %d", code)
+	}
+	if out := ui.OutputWriter.String(); !strings.Contains(out, "Monitoring evaluation") {
+		t.Fatalf("expected evaluation monitoring output, got: %s", out)
+	}
+
 }
 
 func TestMonitor_DumpAllocStatus(t *testing.T) {

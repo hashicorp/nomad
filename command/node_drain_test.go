@@ -63,11 +63,20 @@ func TestNodeDrainCommand_Fails(t *testing.T) {
 	}
 	ui.ErrorWriter.Reset()
 
-	// Fail on uneven identifier length
-	if code := cmd.Run([]string{"-address=" + url, "-enable", "1234567-abcd-efab-cdef-123456789abc"}); code != 1 {
+	// Fail on identifier with too few characters
+	if code := cmd.Run([]string{"-address=" + url, "-enable", "1"}); code != 1 {
 		t.Fatalf("expected exit 1, got: %d", code)
 	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "must be of even length.") {
-		t.Fatalf("expected even length error, got: %s", out)
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, "must contain at least two characters.") {
+		t.Fatalf("expected too few characters error, got: %s", out)
+	}
+	ui.ErrorWriter.Reset()
+
+	// Identifiers with uneven length should produce a query result
+	if code := cmd.Run([]string{"-address=" + url, "-enable", "123"}); code != 1 {
+		t.Fatalf("expected exit 1, got: %d", code)
+	}
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, "No node(s) with prefix or id") {
+		t.Fatalf("expected not exist error, got: %s", out)
 	}
 }

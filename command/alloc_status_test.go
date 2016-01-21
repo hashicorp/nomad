@@ -43,12 +43,23 @@ func TestAllocStatusCommand_Fails(t *testing.T) {
 	if out := ui.ErrorWriter.String(); !strings.Contains(out, "No allocation(s) with prefix or id") {
 		t.Fatalf("expected not found error, got: %s", out)
 	}
+	ui.ErrorWriter.Reset()
 
-	// Fail on uneven identifier length
-	if code := cmd.Run([]string{"-address=" + url, "26470238-5CF2-438F-8772-DC67CFB0705"}); code != 1 {
+	// Fail on identifier with too few characters
+	if code := cmd.Run([]string{"-address=" + url, "2"}); code != 1 {
 		t.Fatalf("expected exit 1, got: %d", code)
 	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "must be of even length.") {
-		t.Fatalf("expected even length error, got: %s", out)
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, "must contain at least two characters.") {
+		t.Fatalf("expected too few characters error, got: %s", out)
 	}
+	ui.ErrorWriter.Reset()
+
+	// Identifiers with uneven length should produce a query result
+	if code := cmd.Run([]string{"-address=" + url, "123"}); code != 1 {
+		t.Fatalf("expected exit 1, got: %d", code)
+	}
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, "No allocation(s) with prefix or id") {
+		t.Fatalf("expected not found error, got: %s", out)
+	}
+
 }
