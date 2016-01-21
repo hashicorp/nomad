@@ -44,6 +44,11 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 		return fmt.Errorf("invalid status for node")
 	}
 
+	// Compute the node class
+	if err := args.Node.ComputeClass(); err != nil {
+		return fmt.Errorf("failed to computed node class: %v", err)
+	}
+
 	// Commit this update via Raft
 	_, index, err := n.srv.raftApply(structs.NodeRegisterRequestType, args)
 	if err != nil {

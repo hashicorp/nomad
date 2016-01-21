@@ -45,6 +45,9 @@ func TestClientEndpoint_Register(t *testing.T) {
 	if out.CreateIndex != resp.Index {
 		t.Fatalf("index mis-match")
 	}
+	if out.ComputedClass == 0 {
+		t.Fatal("ComputedClass not set")
+	}
 }
 
 func TestClientEndpoint_Deregister(t *testing.T) {

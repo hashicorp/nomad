@@ -476,6 +476,9 @@ type Node struct {
 	// "docker.runtime=1.8.3"
 	Attributes map[string]string
 
+	// UniqueAttributes are attributes that uniquely identify a node.
+	UniqueAttributes map[string]struct{}
+
 	// Resources is the available resources on the client.
 	// For example 'cpu=2' 'memory=2048'
 	Resources *Resources
@@ -499,6 +502,10 @@ type Node struct {
 	// NodeClass is an opaque identifier used to group nodes
 	// together for the purpose of determining scheduling pressure.
 	NodeClass string
+
+	// ComputedClass is a unique id that identifies nodes with a common set of
+	// attributes and capabilities.
+	ComputedClass uint64
 
 	// Drain is controlled by the servers, and not the client.
 	// If true, no jobs will be scheduled to this node, and existing
@@ -563,7 +570,7 @@ type Resources struct {
 	MemoryMB int `mapstructure:"memory"`
 	DiskMB   int `mapstructure:"disk"`
 	IOPS     int
-	Networks []*NetworkResource
+	Networks []*NetworkResource `hash:"set"`
 }
 
 // Copy returns a deep copy of the resources

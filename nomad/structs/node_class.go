@@ -1,0 +1,82 @@
+package structs
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/mitchellh/hashstructure"
+)
+
+const (
+	// A suffix that can be appended to node meta keys to mark them for
+	// exclusion in computed node class.
+	NodeMetaUnique = "_unique"
+)
+
+// ComputeClass computes a derived class for the node based on its attributes.
+// ComputedClass is a unique id that identifies nodes with a common set of
+// attributes and capabilities. Thus, when calculating a node's computed class
+// we avoid including any uniquely identifing fields.
+func (n *Node) ComputeClass() error {
+	// TODO: Bucket node resources such as DiskMB/IOPS/etc.
+	hash, err := hashstructure.Hash(n, nil)
+	if err != nil {
+		return err
+	}
+
+	n.ComputedClass = hash
+	return nil
+}
+
+// HashInclude is used to blacklist uniquely identifying node fields from being
+// included in the computed node class.
+func (n Node) HashInclude(field string, v interface{}) (bool, error) {
+	switch field {
+	case "ID", "Name", "Links": // Uniquely identifying
+		return false, nil
+	case "Drain", "Status", "StatusDescription": // Set by server
+		return false, nil
+	case "ComputedClass", "UniqueAttributes": // Part of computed node class
+		return false, nil
+	case "CreateIndex", "ModifyIndex": // Raft indexes
+		return false, nil
+	case "Reserved": // Doesn't effect placement capability
+		return false, nil
+	default:
+		return true, nil
+	}
+}
+
+// HashIncludeMap is used to blacklist uniquely identifying node map keys from being
+// included in the computed node class.
+func (n Node) HashIncludeMap(field string, k, v interface{}) (bool, error) {
+	key, ok := k.(string)
+	if !ok {
+		return false, fmt.Errorf("map key %v not a string")
+	}
+
+	switch field {
+	case "Attributes":
+		// Check if the key is marked as unique by the fingerprinters.
+		_, unique := n.UniqueAttributes[key]
+		return !unique, nil
+	case "Meta":
+		// Check if the user marked the key as unique.
+		return !strings.HasSuffix(key, NodeMetaUnique), nil
+	default:
+		return false, fmt.Errorf("unexpected map field: %v", field)
+	}
+}
+
+// HashInclude is used to blacklist uniquely identifying network fields from being
+// included in the computed node class.
+func (n NetworkResource) HashInclude(field string, v interface{}) (bool, error) {
+	switch field {
+	case "IP", "CIDR": // Uniquely identifying
+		return false, nil
+	case "ReservedPorts", "DynamicPorts": // Doesn't effect placement capability
+		return false, nil
+	default:
+		return true, nil
+	}
+}
