@@ -11,8 +11,8 @@ import (
 )
 
 var (
-	logger = log.New(os.Stdout, "", log.LstdFlags)
-	path   = "/tmp/logrotator"
+	logger     = log.New(os.Stdout, "", log.LstdFlags)
+	pathPrefix = "logrotator"
 )
 
 func TestLogRotator_InvalidPath(t *testing.T) {
@@ -24,7 +24,9 @@ func TestLogRotator_InvalidPath(t *testing.T) {
 }
 
 func TestLogRotator_FindCorrectIndex(t *testing.T) {
-	if err := os.Mkdir(path, os.ModeDir|os.ModePerm); err != nil {
+	var path string
+	var err error
+	if path, err = ioutil.TempDir("", pathPrefix); err != nil {
 		t.Fatalf("test setup err: %v", err)
 	}
 	defer os.RemoveAll(path)
@@ -49,8 +51,10 @@ func TestLogRotator_FindCorrectIndex(t *testing.T) {
 }
 
 func TestLogRotator_AppendToCurrentFile(t *testing.T) {
+	var path string
+	var err error
 	defer os.RemoveAll(path)
-	if err := os.Mkdir(path, os.ModeDir|os.ModePerm); err != nil {
+	if path, err = ioutil.TempDir("", pathPrefix); err != nil {
 		t.Fatalf("test setup err: %v", err)
 	}
 	fname := filepath.Join(path, "redis.stdout.0")
@@ -83,8 +87,10 @@ func TestLogRotator_AppendToCurrentFile(t *testing.T) {
 }
 
 func TestLogRotator_RotateFiles(t *testing.T) {
+	var path string
+	var err error
 	defer os.RemoveAll(path)
-	if err := os.Mkdir(path, os.ModeDir|os.ModePerm); err != nil {
+	if path, err = ioutil.TempDir("", pathPrefix); err != nil {
 		t.Fatalf("test setup err: %v", err)
 	}
 	fname := filepath.Join(path, "redis.stdout.0")
@@ -125,8 +131,10 @@ func TestLogRotator_RotateFiles(t *testing.T) {
 }
 
 func TestLogRotator_StartFromEmptyDir(t *testing.T) {
+	var path string
+	var err error
 	defer os.RemoveAll(path)
-	if err := os.Mkdir(path, os.ModeDir|os.ModePerm); err != nil {
+	if path, err = ioutil.TempDir("", pathPrefix); err != nil {
 		t.Fatalf("test setup err: %v", err)
 	}
 
@@ -156,20 +164,26 @@ func TestLogRotator_StartFromEmptyDir(t *testing.T) {
 }
 
 func TestLogRotator_SetPathAsFile(t *testing.T) {
+	var f *os.File
+	var err error
+	var path string
 	defer os.RemoveAll(path)
-	if _, err := os.Create(path); err != nil {
+	if f, err = ioutil.TempFile("", pathPrefix); err != nil {
 		t.Fatalf("test setup problem: %v", err)
 	}
 
-	_, err := NewLogRotator(path, "redis.stdout", 10, 10, logger)
-	if err == nil {
+	path = f.Name()
+
+	if _, err = NewLogRotator(f.Name(), "redis.stdout", 10, 10, logger); err == nil {
 		t.Fatal("expected error")
 	}
 }
 
 func TestLogRotator_ExcludeDirs(t *testing.T) {
+	var path string
+	var err error
 	defer os.RemoveAll(path)
-	if err := os.Mkdir(path, os.ModeDir|os.ModePerm); err != nil {
+	if path, err = ioutil.TempDir("", pathPrefix); err != nil {
 		t.Fatalf("test setup err: %v", err)
 	}
 	if err := os.Mkdir(filepath.Join(path, "redis.stdout.0"), os.ModeDir|os.ModePerm); err != nil {
@@ -201,8 +215,10 @@ func TestLogRotator_ExcludeDirs(t *testing.T) {
 }
 
 func TestLogRotator_PurgeDirs(t *testing.T) {
+	var path string
+	var err error
 	defer os.RemoveAll(path)
-	if err := os.Mkdir(path, os.ModeDir|os.ModePerm); err != nil {
+	if path, err = ioutil.TempDir("", pathPrefix); err != nil {
 		t.Fatalf("test setup err: %v", err)
 	}
 

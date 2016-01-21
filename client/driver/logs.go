@@ -81,8 +81,9 @@ func (l *LogRotator) Start(r io.Reader) error {
 			return err
 		}
 		l.logger.Printf("[DEBUG] client.logrotator: opened a new file: %s", logFileName)
+
 		// closing the current log file if it doesn't have any more capacity
-		if remainingSize < 1 {
+		if remainingSize <= 0 {
 			l.logFileIdx = l.logFileIdx + 1
 			f.Close()
 			continue
