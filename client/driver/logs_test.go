@@ -105,6 +105,7 @@ func TestLogRotator_RotateFiles(t *testing.T) {
 
 	r, w := io.Pipe()
 	go func() {
+		// This should make the current log file rotate
 		w.Write([]byte("fg"))
 		w.Close()
 	}()
