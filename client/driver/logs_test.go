@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
@@ -114,19 +113,20 @@ func TestLogRotator_RotateFiles(t *testing.T) {
 		t.Fatalf("Failure in logrotator start %v", err)
 	}
 
-	files, err := ioutil.ReadDir(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	numFiles := 0
-	for _, f := range files {
-		if strings.HasPrefix(f.Name(), "redis.stdout.") {
-			numFiles += 1
+	if finfo, err := os.Stat(filepath.Join(path, "redis.stdout.1")); err == nil {
+		if finfo.Size() != 1 {
+			t.Fatalf("expected number of bytes: %v, actual: %v", 1, finfo.Size())
 		}
+	} else {
+		t.Fatal("expected file redis.stdout.1")
 	}
 
-	if numFiles != 2 {
-		t.Fatalf("Expected number of files: %v, actual: %v", 2, numFiles)
+	if finfo, err := os.Stat(filepath.Join(path, "redis.stdout.0")); err == nil {
+		if finfo.Size() != 6 {
+			t.Fatalf("expected number of bytes: %v, actual: %v", 1, finfo.Size())
+		}
+	} else {
+		t.Fatal("expected file redis.stdout.0")
 	}
 }
 
@@ -171,9 +171,7 @@ func TestLogRotator_SetPathAsFile(t *testing.T) {
 	if f, err = ioutil.TempFile("", pathPrefix); err != nil {
 		t.Fatalf("test setup problem: %v", err)
 	}
-
 	path = f.Name()
-
 	if _, err = NewLogRotator(f.Name(), "redis.stdout", 10, 10, logger); err == nil {
 		t.Fatal("expected error")
 	}
