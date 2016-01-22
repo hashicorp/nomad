@@ -186,13 +186,9 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, dri
 		return c, err
 	}
 
-	// Create environment variables.
-	taskEnv, err := GetTaskEnv(ctx.AllocDir, d.node, task)
-	if err != nil {
-		return c, err
-	}
-	taskEnv.SetAllocDir(filepath.Join("/", allocdir.SharedAllocName))
-	taskEnv.SetTaskLocalDir(filepath.Join("/", allocdir.TaskLocal))
+	// Set environment variables.
+	d.taskEnv.SetAllocDir(filepath.Join("/", allocdir.SharedAllocName))
+	d.taskEnv.SetTaskLocalDir(filepath.Join("/", allocdir.TaskLocal))
 
 	config := &docker.Config{
 		Image:    driverConfig.ImageName,
@@ -352,14 +348,14 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, dri
 		// the 0.2 ports world view. Docker seems to be the only place where
 		// this is actually needed, but this is kinda hacky.
 		if len(driverConfig.PortMap) > 0 {
-			taskEnv.SetPorts(network.MapLabelToValues(driverConfig.PortMap))
+			d.taskEnv.SetPorts(network.MapLabelToValues(driverConfig.PortMap))
 		}
 		hostConfig.PortBindings = publishedPorts
 		config.ExposedPorts = exposedPorts
 	}
 
-	taskEnv.Build()
-	parsedArgs := taskEnv.ParseAndReplace(driverConfig.Args)
+	d.taskEnv.Build()
+	parsedArgs := d.taskEnv.ParseAndReplace(driverConfig.Args)
 
 	// If the user specified a custom command to run as their entrypoint, we'll
 	// inject it here.
@@ -379,7 +375,7 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, dri
 		d.logger.Printf("[DEBUG] driver.docker: applied labels on the container: %+v", config.Labels)
 	}
 
-	config.Env = taskEnv.EnvList()
+	config.Env = d.taskEnv.EnvList()
 
 	containerName := fmt.Sprintf("%s-%s", task.Name, ctx.AllocID)
 	d.logger.Printf("[DEBUG] driver.docker: setting container name to: %s", containerName)
