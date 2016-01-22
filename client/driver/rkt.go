@@ -162,9 +162,9 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	if !ok {
 		return nil, fmt.Errorf("Failed to find task local directory: %v", task.Name)
 	}
-	cmdArgs = append(cmdArgs, fmt.Sprintf("--volume %s,kind=empty,readOnly=false,source=%s --mount volume=data,target=%s", task.Name, local, ctx.AllocDir.SharedDir))
-
-	// Check if the user has overriden the exec command.
+        cmdArgs = append(cmdArgs, fmt.Sprintf("--volume %s,kind=host,readOnly=false,source=%s --mount volume=%s,target=%s", task.Name, local, task.Name, ctx.AllocDir.SharedDir))
+	
+        // Check if the user has overriden the exec command.
 	if execCmd, ok := task.Config["command"]; ok {
 		cmdArgs = append(cmdArgs, fmt.Sprintf("--exec=%v", execCmd))
 	}
@@ -227,7 +227,6 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		doneCh:      make(chan struct{}),
 		waitCh:      make(chan *cstructs.WaitResult, 1),
 	}
-	go h.run()
 	return h, nil
 }
 
@@ -255,7 +254,7 @@ func (d *RktDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error
 		waitCh:      make(chan *cstructs.WaitResult, 1),
 	}
 
-	go h.run()
+	go h.Wait()
 	return h, nil
 }
 
@@ -294,7 +293,7 @@ func (h *rktHandle) Kill() error {
 	}
 }
 
-func (h *rktHandle) run() {
+func (h *rktHandle) Wait() {
 	ps, err := h.proc.Wait()
 	close(h.doneCh)
 	code := 0
