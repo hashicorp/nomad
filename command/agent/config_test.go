@@ -453,6 +453,9 @@ func TestConfig_LoadConfigString(t *testing.T) {
 			Join:           true,
 			Endpoint:       "127.0.0.1:1234",
 		},
+		HTTPAPIResponseHeaders: map[string]string{
+			"Access-Control-Allow-Origin": "*",
+		},
 	}
 
 	// Check parsing
@@ -530,5 +533,8 @@ atlas {
 	token = "abcd"
 	join = true
 	endpoint = "127.0.0.1:1234"
+}
+http_api_response_headers {
+	Access-Control-Allow-Origin = "*"
 }
 `
