@@ -35,7 +35,7 @@ Nomad combines a lightweight resource manager and a sophisticated scheduler
 into a single system. By default, Nomad is distributed, highly available,
 and operationally simple.
 
-At the time of writing, Kubernetes targets managing 100 node clusters and supports
-only a single region, although work is underway to improve scale and federation of clusters.
-Nomad is designed to support clusters several orders of magnitude
-larger and supports multi-datacenter and multi-region configurations.
+Kubernetes documentation states they can support clusters greater than 1,000 nodes
+and they support a multi-AZ/multi-region configuration. Nomad has been tested
+on clusters up to 5,000 nodes, but is expected to work on much larger clusters as
+well. Nomad also supports multi-datacenter and multi-region configurations.
