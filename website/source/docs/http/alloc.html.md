@@ -233,3 +233,27 @@ be specified using the `?region=` query parameter.
 
   </dd>
 </dl>
+
+### Field Reference
+
+*   `TaskStates` - `TaskStates` is a map of tasks to their current state and the
+    latest events that have effected the state.
+
+    A task can be in the following states:
+
+    * `TaskStatePending` - The task is waiting to be run, either for the first
+      time or do to a restart.
+    * `TaskStateRunning` - The task is currently running.
+    * `TaskStateDead` - The task is dead and will not run again.
+
+    <p>The latest 10 events are stored per task. Each event is timestamped (unix seconds)
+    and has one of the following types:</p>
+
+    * `Driver Failure` - The task could not be started due to a failure in the
+      driver.
+    * `Started` - The task was started; either for the first time or do to a
+      restart.
+    * `Terminated` - The task terminated.
+    * `Killed` - The task was killed by the user.
+
+    Depending on the type the event will have applicable annotations.
