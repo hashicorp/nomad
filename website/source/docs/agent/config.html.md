@@ -190,6 +190,15 @@ nodes, unless otherwise specified:
 * `disable_anonymous_signature`: Disables providing an anonymous signature
   for de-duplication with the update check. See `disable_update_check`.
 
+* `http_api_response_headers`: This object allows adding headers to the 
+  HTTP API responses. For example, the following config can be used to enable
+  CORS on the HTTP API endpoints:
+  ```
+  http_api_response_headers {
+      Access-Control-Allow-Origin = "*"
+  }
+  ```
+
 ## Server-specific Options
 
 The following options are applicable to server agents only and need not be
