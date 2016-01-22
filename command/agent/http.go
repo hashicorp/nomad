@@ -152,6 +152,7 @@ func (e *codedError) Code() int {
 // wrap is used to wrap functions to make them more convenient
 func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Request) (interface{}, error)) func(resp http.ResponseWriter, req *http.Request) {
 	f := func(resp http.ResponseWriter, req *http.Request) {
+		setHeaders(resp, s.agent.config.HTTPAPIResponseHeaders)
 		// Invoke the handler
 		reqURL := req.URL.String()
 		start := time.Now()
@@ -227,6 +228,13 @@ func setMeta(resp http.ResponseWriter, m *structs.QueryMeta) {
 	setIndex(resp, m.Index)
 	setLastContact(resp, m.LastContact)
 	setKnownLeader(resp, m.KnownLeader)
+}
+
+// setHeaders is used to set canonical response header fields
+func setHeaders(resp http.ResponseWriter, headers map[string]string) {
+	for field, value := range headers {
+		resp.Header().Set(http.CanonicalHeaderKey(field), value)
+	}
 }
 
 // parseWait is used to parse the ?wait and ?index query params

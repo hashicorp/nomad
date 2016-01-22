@@ -104,6 +104,26 @@ func TestSetMeta(t *testing.T) {
 	}
 }
 
+func TestSetHeaders(t *testing.T) {
+	s := makeHTTPServer(t, nil)
+	s.Agent.config.HTTPAPIResponseHeaders = map[string]string{"foo": "bar"}
+	defer s.Cleanup()
+
+	resp := httptest.NewRecorder()
+	handler := func(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+		return &structs.Job{Name: "foo"}, nil
+	}
+
+	req, _ := http.NewRequest("GET", "/v1/kv/key", nil)
+	s.Server.wrap(handler)(resp, req)
+	header := resp.Header().Get("foo")
+
+	if header != "bar" {
+		t.Fatalf("expected header: %v, actual: %v", "bar", header)
+	}
+
+}
+
 func TestContentTypeIsJSON(t *testing.T) {
 	s := makeHTTPServer(t, nil)
 	defer s.Cleanup()
