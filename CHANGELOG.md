@@ -18,6 +18,7 @@ IMPROVEMENTS:
   * drivers: Interpret Nomad variables in environment variables/args [GH-653]
   * core: Populate job status [GH-663]
   * core/cli: Print short identifiers and UX cleanup [GH-675, GH-693, GH-692]
+  * api: Allow users to set arbitrary headers via agent config [GH-699]
 
 BUG FIXES:
   * cli: Handle parsing of un-named ports [GH-604]
