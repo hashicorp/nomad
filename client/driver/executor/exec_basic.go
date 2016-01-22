@@ -57,6 +57,7 @@ func (e *BasicExecutor) Start() error {
 	// variables.
 	e.cmd.Path = e.taskEnv.ReplaceEnv(e.cmd.Path)
 	e.cmd.Args = e.taskEnv.ParseAndReplace(e.cmd.Args)
+	e.cmd.Env = e.taskEnv.Build().EnvList()
 
 	spawnState := filepath.Join(e.allocDir, fmt.Sprintf("%s_%s", e.taskName, "exit_status"))
 	e.spawn = spawn.NewSpawner(spawnState)
@@ -119,7 +120,10 @@ func (e *BasicExecutor) ForceStop() error {
 		return fmt.Errorf("Failed to find user processes %v: %v", e.spawn.UserPid, err)
 	}
 
-	return proc.Kill()
+	if err := proc.Kill(); err != nil && err.Error() != "os: process already finished" {
+		return err
+	}
+	return nil
 }
 
 func (e *BasicExecutor) Command() *exec.Cmd {

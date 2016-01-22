@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/env"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/testutil"
 
 	ctestutils "github.com/hashicorp/nomad/client/testutil"
 )
@@ -105,7 +106,7 @@ func TestExecDriver_Start_Wait(t *testing.T) {
 		if !res.Successful() {
 			t.Fatalf("err: %v", res)
 		}
-	case <-time.After(4 * time.Second):
+	case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
 		t.Fatalf("timeout")
 	}
 }
@@ -149,7 +150,7 @@ func TestExecDriver_Start_Artifact_basic(t *testing.T) {
 		if !res.Successful() {
 			t.Fatalf("err: %v", res)
 		}
-	case <-time.After(5 * time.Second):
+	case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
 		t.Fatalf("timeout")
 	}
 }
@@ -196,7 +197,7 @@ func TestExecDriver_Start_Artifact_expanded(t *testing.T) {
 		if !res.Successful() {
 			t.Fatalf("err: %v", res)
 		}
-	case <-time.After(5 * time.Second):
+	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
 		t.Fatalf("timeout")
 	}
 }
@@ -236,7 +237,7 @@ func TestExecDriver_Start_Wait_AllocDir(t *testing.T) {
 		if !res.Successful() {
 			t.Fatalf("err: %v", res)
 		}
-	case <-time.After(2 * time.Second):
+	case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
 		t.Fatalf("timeout")
 	}
 
@@ -290,7 +291,7 @@ func TestExecDriver_Start_Kill_Wait(t *testing.T) {
 		if res.Successful() {
 			t.Fatal("should err")
 		}
-	case <-time.After(8 * time.Second):
+	case <-time.After(time.Duration(testutil.TestMultiplier()*10) * time.Second):
 		t.Fatalf("timeout")
 	}
 }

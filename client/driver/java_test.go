@@ -7,6 +7,7 @@ import (
 
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/testutil"
 
 	ctestutils "github.com/hashicorp/nomad/client/testutil"
 )
@@ -82,11 +83,10 @@ func TestJavaDriver_StartOpen_Wait(t *testing.T) {
 	}
 
 	time.Sleep(2 * time.Second)
-	// need to kill long lived process
-	err = handle.Kill()
-	if err != nil {
-		t.Fatalf("Error: %s", err)
-	}
+
+	// There is a race condition between the handle waiting and killing. One
+	// will return an error.
+	handle.Kill()
 }
 
 func TestJavaDriver_Start_Wait(t *testing.T) {
@@ -123,7 +123,7 @@ func TestJavaDriver_Start_Wait(t *testing.T) {
 		if !res.Successful() {
 			t.Fatalf("err: %v", res)
 		}
-	case <-time.After(2 * time.Second):
+	case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
 		// expect the timeout b/c it's a long lived process
 		break
 	}
@@ -176,7 +176,7 @@ func TestJavaDriver_Start_Kill_Wait(t *testing.T) {
 		if res.Successful() {
 			t.Fatal("should err")
 		}
-	case <-time.After(8 * time.Second):
+	case <-time.After(time.Duration(testutil.TestMultiplier()*10) * time.Second):
 		t.Fatalf("timeout")
 	}
 

@@ -259,6 +259,18 @@ func (t *TaskEnvironment) SetEnvvars(m map[string]string) *TaskEnvironment {
 	return t
 }
 
+// Appends the given environment variables.
+func (t *TaskEnvironment) AppendEnvvars(m map[string]string) *TaskEnvironment {
+	if t.env == nil {
+		t.env = make(map[string]string, len(m))
+	}
+
+	for k, v := range m {
+		t.env[k] = v
+	}
+	return t
+}
+
 func (t *TaskEnvironment) ClearEnvvars() *TaskEnvironment {
 	t.env = nil
 	return t

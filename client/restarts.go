@@ -32,7 +32,7 @@ func (r *RestartTracker) NextRestart(exitCode int) (bool, time.Duration) {
 	if now.After(end) {
 		r.count = 0
 		r.startTime = now
-		return true, r.jitter()
+		return r.shouldRestart(exitCode), r.jitter()
 	}
 
 	r.count++
@@ -59,7 +59,12 @@ func (r *RestartTracker) shouldRestart(exitCode int) bool {
 
 // jitter returns the delay time plus a jitter.
 func (r *RestartTracker) jitter() time.Duration {
+	// Get the delay and ensure it is valid.
 	d := r.policy.Delay.Nanoseconds()
+	if d == 0 {
+		d = 1
+	}
+
 	j := float64(r.rand.Int63n(d)) * jitter
 	return time.Duration(d + int64(j))
 }

@@ -33,8 +33,7 @@ func testAllocRunner(restarts bool) (*MockAllocStateUpdater, *AllocRunner) {
 	alloc := mock.Alloc()
 	consulClient, _ := NewConsulService(&consulServiceConfig{logger, "127.0.0.1:8500", "", "", false, false, &structs.Node{}})
 	if !restarts {
-		alloc.Job.Type = structs.JobTypeBatch
-		*alloc.Job.LookupTaskGroup(alloc.TaskGroup).RestartPolicy = structs.RestartPolicy{Attempts: 0}
+		*alloc.Job.LookupTaskGroup(alloc.TaskGroup).RestartPolicy = structs.RestartPolicy{Attempts: 0, RestartOnSuccess: false}
 	}
 
 	ar := NewAllocRunner(logger, conf, upd.Update, alloc, consulClient)
@@ -85,7 +84,7 @@ func TestAllocRunner_Destroy(t *testing.T) {
 		t.Fatalf("err: %v %#v %#v", err, upd.Allocs[0], ar.alloc.TaskStates)
 	})
 
-	if time.Since(start) > 8*time.Second {
+	if time.Since(start) > 15*time.Second {
 		t.Fatalf("took too long to terminate")
 	}
 }
@@ -118,7 +117,7 @@ func TestAllocRunner_Update(t *testing.T) {
 		t.Fatalf("err: %v %#v %#v", err, upd.Allocs[0], ar.alloc.TaskStates)
 	})
 
-	if time.Since(start) > 8*time.Second {
+	if time.Since(start) > 15*time.Second {
 		t.Fatalf("took too long to terminate")
 	}
 }
@@ -135,7 +134,12 @@ func TestAllocRunner_SaveRestoreState(t *testing.T) {
 	defer ar.Destroy()
 
 	// Snapshot state
-	time.Sleep(200 * time.Millisecond)
+	testutil.WaitForResult(func() (bool, error) {
+		return len(ar.tasks) == 1, nil
+	}, func(err error) {
+		t.Fatalf("task never started: %v", err)
+	})
+
 	err := ar.SaveState()
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -150,7 +154,6 @@ func TestAllocRunner_SaveRestoreState(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 	go ar2.Run()
-	defer ar2.Destroy()
 
 	// Destroy and wait
 	ar2.Destroy()
@@ -161,12 +164,12 @@ func TestAllocRunner_SaveRestoreState(t *testing.T) {
 			return false, nil
 		}
 		last := upd.Allocs[upd.Count-1]
-		return last.ClientStatus == structs.AllocClientStatusDead, nil
+		return last.ClientStatus != structs.AllocClientStatusPending, nil
 	}, func(err error) {
 		t.Fatalf("err: %v %#v %#v", err, upd.Allocs[0], ar.alloc.TaskStates)
 	})
 
-	if time.Since(start) > 15*time.Second {
+	if time.Since(start) > time.Duration(testutil.TestMultiplier()*15)*time.Second {
 		t.Fatalf("took too long to terminate")
 	}
 }

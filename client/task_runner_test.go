@@ -1,6 +1,7 @@
 package client
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -61,7 +62,7 @@ func TestTaskRunner_SimpleRun(t *testing.T) {
 
 	select {
 	case <-tr.WaitCh():
-	case <-time.After(2 * time.Second):
+	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
 		t.Fatalf("timeout")
 	}
 
@@ -100,7 +101,7 @@ func TestTaskRunner_Destroy(t *testing.T) {
 
 	select {
 	case <-tr.WaitCh():
-	case <-time.After(8 * time.Second):
+	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
 		t.Fatalf("timeout")
 	}
 
@@ -158,7 +159,7 @@ func TestTaskRunner_SaveRestoreState(t *testing.T) {
 	defer tr.Destroy()
 
 	// Snapshot state
-	time.Sleep(1 * time.Second)
+	time.Sleep(2 * time.Second)
 	if err := tr.SaveState(); err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -175,8 +176,9 @@ func TestTaskRunner_SaveRestoreState(t *testing.T) {
 	defer tr2.Destroy()
 
 	// Destroy and wait
-	time.Sleep(1 * time.Second)
-	if tr2.handle == nil {
-		t.Fatalf("RestoreState() didn't open handle")
-	}
+	testutil.WaitForResult(func() (bool, error) {
+		return tr2.handle != nil, fmt.Errorf("RestoreState() didn't open handle")
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
 }

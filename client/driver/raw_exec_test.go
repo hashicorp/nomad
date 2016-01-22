@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/client/driver/env"
 	"github.com/hashicorp/nomad/helper/testtask"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/testutil"
 )
 
 func TestRawExecDriver_Fingerprint(t *testing.T) {
@@ -87,7 +88,7 @@ func TestRawExecDriver_StartOpen_Wait(t *testing.T) {
 	// Task should terminate quickly
 	select {
 	case <-handle2.WaitCh():
-	case <-time.After(2 * time.Second):
+	case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
 		t.Fatalf("timeout")
 	}
 }
@@ -134,7 +135,7 @@ func TestRawExecDriver_Start_Artifact_basic(t *testing.T) {
 	// Task should terminate quickly
 	select {
 	case <-handle2.WaitCh():
-	case <-time.After(5 * time.Second):
+	case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
 		t.Fatalf("timeout")
 	}
 }
@@ -181,7 +182,7 @@ func TestRawExecDriver_Start_Artifact_expanded(t *testing.T) {
 	// Task should terminate quickly
 	select {
 	case <-handle2.WaitCh():
-	case <-time.After(5 * time.Second):
+	case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
 		t.Fatalf("timeout")
 	}
 }
@@ -221,7 +222,7 @@ func TestRawExecDriver_Start_Wait(t *testing.T) {
 		if !res.Successful() {
 			t.Fatalf("err: %v", res)
 		}
-	case <-time.After(2 * time.Second):
+	case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
 		t.Fatalf("timeout")
 	}
 }
@@ -262,7 +263,7 @@ func TestRawExecDriver_Start_Wait_AllocDir(t *testing.T) {
 		if !res.Successful() {
 			t.Fatalf("err: %v", res)
 		}
-	case <-time.After(2 * time.Second):
+	case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
 		t.Fatalf("timeout")
 	}
 
@@ -284,7 +285,7 @@ func TestRawExecDriver_Start_Kill_Wait(t *testing.T) {
 		Name: "sleep",
 		Config: map[string]interface{}{
 			"command": testtask.Path(),
-			"args":    []string{"sleep", "1s"},
+			"args":    []string{"sleep", "15s"},
 		},
 		Resources: basicResources,
 	}
@@ -303,9 +304,11 @@ func TestRawExecDriver_Start_Kill_Wait(t *testing.T) {
 	}
 
 	go func() {
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(1 * time.Second)
 		err := handle.Kill()
-		if err != nil {
+
+		// Can't rely on the ordering between wait and kill on travis...
+		if !testutil.IsTravis() && err != nil {
 			t.Fatalf("err: %v", err)
 		}
 	}()
@@ -316,7 +319,7 @@ func TestRawExecDriver_Start_Kill_Wait(t *testing.T) {
 		if res.Successful() {
 			t.Fatal("should err")
 		}
-	case <-time.After(2 * time.Second):
+	case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
 		t.Fatalf("timeout")
 	}
 }
