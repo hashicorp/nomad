@@ -164,7 +164,7 @@ func TestAllocRunner_SaveRestoreState(t *testing.T) {
 			return false, nil
 		}
 		last := upd.Allocs[upd.Count-1]
-		return last.ClientStatus == structs.AllocClientStatusDead, nil
+		return last.ClientStatus != structs.AllocClientStatusPending, nil
 	}, func(err error) {
 		t.Fatalf("err: %v %#v %#v", err, upd.Allocs[0], ar.alloc.TaskStates)
 	})
