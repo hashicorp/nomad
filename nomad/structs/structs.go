@@ -496,6 +496,9 @@ type Node struct {
 	// client. This is opaque to Nomad.
 	Meta map[string]string
 
+	// UniqueAttributes are attributes that uniquely identify a node.
+	UniqueAttributes map[string]struct{}
+
 	// NodeClass is an opaque identifier used to group nodes
 	// together for the purpose of determining scheduling pressure.
 	NodeClass string
