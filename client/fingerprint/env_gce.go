@@ -2,6 +2,7 @@ package fingerprint
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -140,6 +141,12 @@ func (f *EnvGCEFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 		"scheduling/automatic-restart",
 		"scheduling/on-host-maintenance",
 	}
+
+	// Keys that should be marked as unique
+	unique := map[string]struct{}{
+		"id":       struct{}{},
+		"hostname": struct{}{},
+	}
 	for _, k := range keys {
 		value, err := f.Get(k, false)
 		if err != nil {
@@ -147,8 +154,11 @@ func (f *EnvGCEFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 		}
 
 		// assume we want blank entries
-		key := strings.Replace(k, "/", ".", -1)
-		node.Attributes["platform.gce."+key] = strings.Trim(string(value), "\n")
+		key := "platform.gce." + strings.Replace(k, "/", ".", -1)
+		if _, ok := unique[k]; ok {
+			key = structs.UniqueNamespace(key)
+		}
+		node.Attributes[key] = strings.Trim(string(value), "\n")
 	}
 
 	// These keys need everything before the final slash removed to be usable.
@@ -174,10 +184,11 @@ func (f *EnvGCEFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 
 	for _, intf := range interfaces {
 		prefix := "platform.gce.network." + lastToken(intf.Network)
+		uniquePrefix := "unique." + prefix
 		node.Attributes[prefix] = "true"
-		node.Attributes[prefix+".ip"] = strings.Trim(intf.Ip, "\n")
+		node.Attributes[uniquePrefix+".ip"] = strings.Trim(intf.Ip, "\n")
 		for index, accessConfig := range intf.AccessConfigs {
-			node.Attributes[prefix+".external-ip."+strconv.Itoa(index)] = accessConfig.ExternalIp
+			node.Attributes[uniquePrefix+".external-ip."+strconv.Itoa(index)] = accessConfig.ExternalIp
 		}
 	}
 
@@ -190,7 +201,19 @@ func (f *EnvGCEFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 		f.logger.Printf("[WARN] fingerprint.env_gce: Error decoding instance tags: %s", err.Error())
 	}
 	for _, tag := range tagList {
-		node.Attributes["platform.gce.tag."+tag] = "true"
+		attr := "platform.gce.tag."
+		var key string
+
+		// If the tag is namespaced as unique, we strip it from the tag and
+		// prepend to the whole attribute.
+		if structs.IsUniqueNamespace(tag) {
+			tag = strings.TrimPrefix(tag, structs.NodeUniqueNamespace)
+			key = fmt.Sprintf("%s%s%s", structs.NodeUniqueNamespace, attr, tag)
+		} else {
+			key = fmt.Sprintf("%s%s", attr, tag)
+		}
+
+		node.Attributes[key] = "true"
 	}
 
 	var attrDict map[string]string
@@ -202,11 +225,23 @@ func (f *EnvGCEFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 		f.logger.Printf("[WARN] fingerprint.env_gce: Error decoding instance attributes: %s", err.Error())
 	}
 	for k, v := range attrDict {
-		node.Attributes["platform.gce.attr."+k] = strings.Trim(v, "\n")
+		attr := "platform.gce.attr."
+		var key string
+
+		// If the key is namespaced as unique, we strip it from the
+		// key and prepend to the whole attribute.
+		if structs.IsUniqueNamespace(k) {
+			k = strings.TrimPrefix(k, structs.NodeUniqueNamespace)
+			key = fmt.Sprintf("%s%s%s", structs.NodeUniqueNamespace, attr, k)
+		} else {
+			key = fmt.Sprintf("%s%s", attr, k)
+		}
+
+		node.Attributes[key] = strings.Trim(v, "\n")
 	}
 
 	// populate Links
-	node.Links["gce"] = node.Attributes["platform.gce.id"]
+	node.Links["gce"] = node.Attributes["unique.platform.gce.id"]
 
 	return true, nil
 }

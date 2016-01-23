@@ -1,9 +1,6 @@
 package structs
 
-import (
-	"fmt"
-	"testing"
-)
+import "testing"
 
 func testNode() *Node {
 	return &Node{
@@ -110,7 +107,7 @@ func TestNode_ComputedClass_Attr(t *testing.T) {
 	old := n.ComputedClass
 
 	// Add a unique addr and compute the class again
-	n.Attributes[fmt.Sprintf("%s%s", NodeUniqueNamespace, "foo")] = "bar"
+	n.Attributes["unique.foo"] = "bar"
 	if err := n.ComputeClass(); err != nil {
 		t.Fatalf("ComputeClass() failed: %v", err)
 	}
@@ -157,8 +154,7 @@ func TestNode_ComputedClass_Meta(t *testing.T) {
 	old = n.ComputedClass
 
 	// Add a unique meta key and compute the class again.
-	key := fmt.Sprintf("%s%s", NodeUniqueNamespace, "foo")
-	n.Meta[key] = "ignore"
+	n.Meta["unique.foo"] = "ignore"
 	if err := n.ComputeClass(); err != nil {
 		t.Fatalf("ComputeClass() failed: %v", err)
 	}

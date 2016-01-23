@@ -1,6 +1,7 @@
 package fingerprint
 
 import (
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -114,6 +115,17 @@ func (f *EnvAWSFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 		"public-ipv4",
 		"placement/availability-zone",
 	}
+
+	// Keys that should be marked as unique
+	unique := map[string]struct{}{
+		"ami-id":          struct{}{},
+		"hostname":        struct{}{},
+		"instance-id":     struct{}{},
+		"local-hostname":  struct{}{},
+		"local-ipv4":      struct{}{},
+		"public-hostname": struct{}{},
+		"public-ipv4":     struct{}{},
+	}
 	for _, k := range keys {
 		res, err := client.Get(metadataURL + k)
 		if res.StatusCode != http.StatusOK {
@@ -136,14 +148,18 @@ func (f *EnvAWSFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 		}
 
 		// assume we want blank entries
-		key := strings.Replace(k, "/", ".", -1)
-		node.Attributes["platform.aws."+key] = strings.Trim(string(resp), "\n")
+		key := "platform.aws." + strings.Replace(k, "/", ".", -1)
+		if _, ok := unique[k]; ok {
+			key = structs.UniqueNamespace(key)
+		}
+
+		node.Attributes[key] = strings.Trim(string(resp), "\n")
 	}
 
 	// copy over network specific information
-	if node.Attributes["platform.aws.local-ipv4"] != "" {
-		node.Attributes["network.ip-address"] = node.Attributes["platform.aws.local-ipv4"]
-		newNetwork.IP = node.Attributes["platform.aws.local-ipv4"]
+	if val := node.Attributes["unique.platform.aws.local-ipv4"]; val != "" {
+		node.Attributes["unique.network.ip-address"] = val
+		newNetwork.IP = val
 		newNetwork.CIDR = newNetwork.IP + "/32"
 	}
 
@@ -160,7 +176,9 @@ func (f *EnvAWSFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 	// populate Node Network Resources
 
 	// populate Links
-	node.Links["aws.ec2"] = node.Attributes["platform.aws.placement.availability-zone"] + "." + node.Attributes["platform.aws.instance-id"]
+	node.Links["aws.ec2"] = fmt.Sprintf("%s.%s",
+		node.Attributes["platform.aws.placement.availability-zone"],
+		node.Attributes["unique.platform.aws.instance-id"])
 
 	return true, nil
 }

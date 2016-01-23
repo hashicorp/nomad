@@ -73,12 +73,12 @@ func (f *ConsulFingerprint) Fingerprint(config *client.Config, node *structs.Nod
 	node.Attributes["consul.server"] = strconv.FormatBool(info["Config"]["Server"].(bool))
 	node.Attributes["consul.version"] = info["Config"]["Version"].(string)
 	node.Attributes["consul.revision"] = info["Config"]["Revision"].(string)
-	node.Attributes["consul.name"] = info["Config"]["NodeName"].(string)
+	node.Attributes["unique.consul.name"] = info["Config"]["NodeName"].(string)
 	node.Attributes["consul.datacenter"] = info["Config"]["Datacenter"].(string)
 
 	node.Links["consul"] = fmt.Sprintf("%s.%s",
 		node.Attributes["consul.datacenter"],
-		node.Attributes["consul.name"])
+		node.Attributes["unique.consul.name"])
 
 	// If the Consul Agent was previously unavailable print a message to
 	// indicate the Agent is available now
@@ -95,7 +95,7 @@ func (f *ConsulFingerprint) clearConsulAttributes(n *structs.Node) {
 	delete(n.Attributes, "consul.server")
 	delete(n.Attributes, "consul.version")
 	delete(n.Attributes, "consul.revision")
-	delete(n.Attributes, "consul.name")
+	delete(n.Attributes, "unique.consul.name")
 	delete(n.Attributes, "consul.datacenter")
 	delete(n.Links, "consul")
 }

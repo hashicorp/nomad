@@ -27,9 +27,9 @@ func NewStorageFingerprint(logger *log.Logger) Fingerprint {
 func (f *StorageFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
 
 	// Initialize these to empty defaults
-	node.Attributes["storage.volume"] = ""
-	node.Attributes["storage.bytestotal"] = ""
-	node.Attributes["storage.bytesfree"] = ""
+	node.Attributes["unique.storage.volume"] = ""
+	node.Attributes["unique.storage.bytestotal"] = ""
+	node.Attributes["unique.storage.bytesfree"] = ""
 	if node.Resources == nil {
 		node.Resources = &structs.Resources{}
 	}
@@ -49,9 +49,9 @@ func (f *StorageFingerprint) Fingerprint(cfg *config.Config, node *structs.Node)
 		return false, fmt.Errorf("failed to determine disk space for %s: %v", storageDir, err)
 	}
 
-	node.Attributes["storage.volume"] = volume
-	node.Attributes["storage.bytestotal"] = strconv.FormatUint(total, 10)
-	node.Attributes["storage.bytesfree"] = strconv.FormatUint(free, 10)
+	node.Attributes["unique.storage.volume"] = volume
+	node.Attributes["unique.storage.bytestotal"] = strconv.FormatUint(total, 10)
+	node.Attributes["unique.storage.bytesfree"] = strconv.FormatUint(free, 10)
 
 	node.Resources.DiskMB = int(free / bytesPerMegabyte)
 

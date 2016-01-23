@@ -40,7 +40,7 @@ func TestConsulFingerprint(t *testing.T) {
 	assertNodeAttributeContains(t, node, "consul.server")
 	assertNodeAttributeContains(t, node, "consul.version")
 	assertNodeAttributeContains(t, node, "consul.revision")
-	assertNodeAttributeContains(t, node, "consul.name")
+	assertNodeAttributeContains(t, node, "unique.consul.name")
 	assertNodeAttributeContains(t, node, "consul.datacenter")
 
 	expectedLink := "vagrant.consul2"

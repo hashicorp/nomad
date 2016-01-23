@@ -61,16 +61,16 @@ func TestEnvAWSFingerprint_aws(t *testing.T) {
 	}
 
 	keys := []string{
-		"platform.aws.ami-id",
-		"platform.aws.hostname",
-		"platform.aws.instance-id",
+		"unique.platform.aws.ami-id",
+		"unique.platform.aws.hostname",
+		"unique.platform.aws.instance-id",
 		"platform.aws.instance-type",
-		"platform.aws.local-hostname",
-		"platform.aws.local-ipv4",
-		"platform.aws.public-hostname",
-		"platform.aws.public-ipv4",
+		"unique.platform.aws.local-hostname",
+		"unique.platform.aws.local-ipv4",
+		"unique.platform.aws.public-hostname",
+		"unique.platform.aws.public-ipv4",
 		"platform.aws.placement.availability-zone",
-		"network.ip-address",
+		"unique.network.ip-address",
 	}
 
 	for _, k := range keys {
@@ -180,7 +180,7 @@ func TestNetworkFingerprint_AWS(t *testing.T) {
 		t.Fatalf("should apply")
 	}
 
-	assertNodeAttributeContains(t, node, "network.ip-address")
+	assertNodeAttributeContains(t, node, "unique.network.ip-address")
 
 	if node.Resources == nil || len(node.Resources.Networks) == 0 {
 		t.Fatal("Expected to find Network Resources")

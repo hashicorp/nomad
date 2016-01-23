@@ -13,6 +13,17 @@ const (
 	NodeUniqueNamespace = "unique."
 )
 
+// UniqueNamespace takes a key and returns the key marked under the unique
+// namespace.
+func UniqueNamespace(key string) string {
+	return fmt.Sprintf("%s%s", NodeUniqueNamespace, key)
+}
+
+// IsUniqueNamespace returns whether the key is under the unique namespace.
+func IsUniqueNamespace(key string) bool {
+	return strings.HasPrefix(key, NodeUniqueNamespace)
+}
+
 // ComputeClass computes a derived class for the node based on its attributes.
 // ComputedClass is a unique id that identifies nodes with a common set of
 // attributes and capabilities. Thus, when calculating a node's computed class
@@ -54,12 +65,9 @@ func (n Node) HashIncludeMap(field string, k, v interface{}) (bool, error) {
 		return false, fmt.Errorf("map key %v not a string")
 	}
 
-	// Check if the key is unique.
-	isUnique := strings.HasPrefix(key, NodeUniqueNamespace)
-
 	switch field {
 	case "Meta", "Attributes":
-		return !isUnique, nil
+		return !IsUniqueNamespace(key), nil
 	default:
 		return false, fmt.Errorf("unexpected map field: %v", field)
 	}

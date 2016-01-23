@@ -86,15 +86,17 @@ func testFingerprint_GCE(t *testing.T, withExternalIp bool) {
 	}
 
 	keys := []string{
-		"platform.gce.id",
-		"platform.gce.hostname",
+		"unique.platform.gce.id",
+		"unique.platform.gce.hostname",
 		"platform.gce.zone",
 		"platform.gce.machine-type",
 		"platform.gce.zone",
 		"platform.gce.tag.abc",
 		"platform.gce.tag.def",
+		"unique.platform.gce.tag.foo",
 		"platform.gce.attr.ghi",
 		"platform.gce.attr.jkl",
+		"unique.platform.gce.attr.bar",
 	}
 
 	for _, k := range keys {
@@ -110,17 +112,17 @@ func testFingerprint_GCE(t *testing.T, withExternalIp bool) {
 		assertNodeLinksContains(t, node, k)
 	}
 
-	assertNodeAttributeEquals(t, node, "platform.gce.id", "12345")
-	assertNodeAttributeEquals(t, node, "platform.gce.hostname", "instance-1.c.project.internal")
+	assertNodeAttributeEquals(t, node, "unique.platform.gce.id", "12345")
+	assertNodeAttributeEquals(t, node, "unique.platform.gce.hostname", "instance-1.c.project.internal")
 	assertNodeAttributeEquals(t, node, "platform.gce.zone", "us-central1-f")
 	assertNodeAttributeEquals(t, node, "platform.gce.machine-type", "n1-standard-1")
 	assertNodeAttributeEquals(t, node, "platform.gce.network.default", "true")
-	assertNodeAttributeEquals(t, node, "platform.gce.network.default.ip", "10.240.0.5")
+	assertNodeAttributeEquals(t, node, "unique.platform.gce.network.default.ip", "10.240.0.5")
 	if withExternalIp {
-		assertNodeAttributeEquals(t, node, "platform.gce.network.default.external-ip.0", "104.44.55.66")
-		assertNodeAttributeEquals(t, node, "platform.gce.network.default.external-ip.1", "104.44.55.67")
-	} else if _, ok := node.Attributes["platform.gce.network.default.external-ip.0"]; ok {
-		t.Fatal("platform.gce.network.default.external-ip is set without an external IP")
+		assertNodeAttributeEquals(t, node, "unique.platform.gce.network.default.external-ip.0", "104.44.55.66")
+		assertNodeAttributeEquals(t, node, "unique.platform.gce.network.default.external-ip.1", "104.44.55.67")
+	} else if _, ok := node.Attributes["unique.platform.gce.network.default.external-ip.0"]; ok {
+		t.Fatal("unique.platform.gce.network.default.external-ip is set without an external IP")
 	}
 
 	assertNodeAttributeEquals(t, node, "platform.gce.scheduling.automatic-restart", "TRUE")
@@ -128,8 +130,10 @@ func testFingerprint_GCE(t *testing.T, withExternalIp bool) {
 	assertNodeAttributeEquals(t, node, "platform.gce.cpu-platform", "Intel Ivy Bridge")
 	assertNodeAttributeEquals(t, node, "platform.gce.tag.abc", "true")
 	assertNodeAttributeEquals(t, node, "platform.gce.tag.def", "true")
+	assertNodeAttributeEquals(t, node, "unique.platform.gce.tag.foo", "true")
 	assertNodeAttributeEquals(t, node, "platform.gce.attr.ghi", "111")
 	assertNodeAttributeEquals(t, node, "platform.gce.attr.jkl", "222")
+	assertNodeAttributeEquals(t, node, "unique.platform.gce.attr.bar", "333")
 }
 
 const GCE_routes = `
@@ -158,12 +162,12 @@ const GCE_routes = `
     {
       "uri": "/computeMetadata/v1/instance/tags",
       "content-type": "application/json",
-      "body": "[\"abc\", \"def\"]"
+      "body": "[\"abc\", \"def\", \"unique.foo\"]"
     },
     {
       "uri": "/computeMetadata/v1/instance/attributes/?recursive=true",
       "content-type": "application/json",
-      "body": "{\"ghi\":\"111\",\"jkl\":\"222\"}"
+      "body": "{\"ghi\":\"111\",\"jkl\":\"222\",\"unique.bar\":\"333\"}"
     },
     {
       "uri": "/computeMetadata/v1/instance/scheduling/automatic-restart",
