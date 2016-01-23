@@ -110,7 +110,7 @@ func TestNode_ComputedClass_Attr(t *testing.T) {
 	old := n.ComputedClass
 
 	// Add a unique addr and compute the class again
-	n.Attributes[fmt.Sprintf("%s%s", "foo", NodeUniqueSuffix)] = "bar"
+	n.Attributes[fmt.Sprintf("%s%s", NodeUniqueNamespace, "foo")] = "bar"
 	if err := n.ComputeClass(); err != nil {
 		t.Fatalf("ComputeClass() failed: %v", err)
 	}
@@ -130,18 +130,6 @@ func TestNode_ComputedClass_Attr(t *testing.T) {
 		t.Fatal("ComputeClass() ignored attribute change")
 	}
 	old = n.ComputedClass
-
-	// Add an ignored attribute and compute the class again.
-	n.Attributes["storage.bytes-foo"] = "hello world"
-	if err := n.ComputeClass(); err != nil {
-		t.Fatalf("ComputeClass() failed: %v", err)
-	}
-	if n.ComputedClass == 0 {
-		t.Fatal("ComputeClass() didn't set computed class")
-	}
-	if old != n.ComputedClass {
-		t.Fatal("ComputeClass() didn't ignore unique attribute")
-	}
 }
 
 func TestNode_ComputedClass_Meta(t *testing.T) {
@@ -169,7 +157,7 @@ func TestNode_ComputedClass_Meta(t *testing.T) {
 	old = n.ComputedClass
 
 	// Add a unique meta key and compute the class again.
-	key := "test_unique"
+	key := fmt.Sprintf("%s%s", NodeUniqueNamespace, "foo")
 	n.Meta[key] = "ignore"
 	if err := n.ComputeClass(); err != nil {
 		t.Fatalf("ComputeClass() failed: %v", err)

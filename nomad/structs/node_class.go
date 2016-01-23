@@ -4,14 +4,13 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/gobwas/glob"
 	"github.com/mitchellh/hashstructure"
 )
 
 const (
-	// NodeUniqueSuffix is a suffix that can be appended to node meta or
+	// NodeUniqueNamespace is a prefix that can be appended to node meta or
 	// attribute keys to mark them for exclusion in computed node class.
-	NodeUniqueSuffix = "_unique"
+	NodeUniqueNamespace = "unique."
 )
 
 // ComputeClass computes a derived class for the node based on its attributes.
@@ -47,38 +46,6 @@ func (n Node) HashInclude(field string, v interface{}) (bool, error) {
 	}
 }
 
-var (
-	// GlobalUniqueAttrs is a set of attributes that uniquely identify all
-	// nodes. It is stored once by the server, rather than by each node to
-	// reduce storage costs.
-	GlobalUniqueAttrs = []glob.Glob{
-		glob.MustCompile("consul.name"),
-		glob.MustCompile("platform.gce.hostname"),
-		glob.MustCompile("platform.gce.id"),
-		glob.MustCompile("platform.gce.network.*.ip"),
-		glob.MustCompile("platform.gce.network.*.external-ip"),
-		glob.MustCompile("platform.aws.ami-id"),
-		glob.MustCompile("platform.aws.hostname"),
-		glob.MustCompile("platform.aws.instance-id"),
-		glob.MustCompile("platform.aws.local*"),
-		glob.MustCompile("platform.aws.public*"),
-		glob.MustCompile("network.ip-address"),
-		glob.MustCompile("storage.*"), // Ignore all storage
-	}
-)
-
-// excludeAttr returns whether the key should be excluded when calculating
-// computed node class.
-func excludeAttr(key string) bool {
-	for _, g := range GlobalUniqueAttrs {
-		if g.Match(key) {
-			return true
-		}
-	}
-
-	return false
-}
-
 // HashIncludeMap is used to blacklist uniquely identifying node map keys from being
 // included in the computed node class.
 func (n Node) HashIncludeMap(field string, k, v interface{}) (bool, error) {
@@ -87,13 +54,11 @@ func (n Node) HashIncludeMap(field string, k, v interface{}) (bool, error) {
 		return false, fmt.Errorf("map key %v not a string")
 	}
 
-	// Check if the user marked the key as unique.
-	isUnique := strings.HasSuffix(key, NodeUniqueSuffix)
+	// Check if the key is unique.
+	isUnique := strings.HasPrefix(key, NodeUniqueNamespace)
 
 	switch field {
-	case "Attributes":
-		return !excludeAttr(key) && !isUnique, nil
-	case "Meta":
+	case "Meta", "Attributes":
 		return !isUnique, nil
 	default:
 		return false, fmt.Errorf("unexpected map field: %v", field)
