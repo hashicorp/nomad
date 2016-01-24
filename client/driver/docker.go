@@ -347,9 +347,8 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, dri
 		// TODO refactor the implementation in GetTaskEnv to match
 		// the 0.2 ports world view. Docker seems to be the only place where
 		// this is actually needed, but this is kinda hacky.
-		if len(driverConfig.PortMap) > 0 {
-			d.taskEnv.SetPorts(network.MapLabelToValues(driverConfig.PortMap))
-		}
+		d.taskEnv.SetPortMap(driverConfig.PortMap)
+
 		hostConfig.PortBindings = publishedPorts
 		config.ExposedPorts = exposedPorts
 	}

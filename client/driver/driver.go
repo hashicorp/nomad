@@ -148,12 +148,7 @@ func GetTaskEnv(alloc *allocdir.AllocDir, node *structs.Node, task *structs.Task
 	if task.Resources != nil {
 		env.SetMemLimit(task.Resources.MemoryMB)
 		env.SetCpuLimit(task.Resources.CPU)
-
-		if len(task.Resources.Networks) > 0 {
-			network := task.Resources.Networks[0]
-			env.SetTaskIp(network.IP)
-			env.SetPorts(network.MapLabelToValues(nil))
-		}
+		env.SetNetworks(task.Resources.Networks)
 	}
 
 	return env.Build(), nil

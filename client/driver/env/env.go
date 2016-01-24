@@ -30,8 +30,8 @@ const (
 
 	// Prefix for passing both dynamic and static port allocations to
 	// tasks.
-	// E.g. $NOMAD_PORT_1 or $NOMAD_PORT_http
-	PortPrefix = "NOMAD_PORT_"
+	// E.g. $NOMAD_IP_1=127.0.0.1:1 or $NOMAD_IP_http=127.0.0.1:80
+	IPPortPrefix = "NOMAD_IP_"
 
 	// Prefix for passing task meta data.
 	MetaPrefix = "NOMAD_META_"
@@ -54,13 +54,13 @@ const (
 type TaskEnvironment struct {
 	env      map[string]string
 	meta     map[string]string
-	ports    map[string]int
 	allocDir string
 	taskDir  string
 	cpuLimit int
 	memLimit int
-	ip       string
 	node     *structs.Node
+	networks []*structs.NetworkResource
+	portMap  map[string]int
 
 	// taskEnv is the variables that will be set in the tasks environment
 	taskEnv map[string]string
@@ -103,8 +103,11 @@ func (t *TaskEnvironment) Build() *TaskEnvironment {
 	}
 
 	// Build the ports
-	for label, port := range t.ports {
-		t.taskEnv[fmt.Sprintf("%s%s", PortPrefix, label)] = strconv.Itoa(port)
+	for _, network := range t.networks {
+		for label, value := range network.MapLabelToValues(t.portMap) {
+			IPPort := fmt.Sprintf("%s:%d", network.IP, value)
+			t.taskEnv[fmt.Sprintf("%s%s", IPPortPrefix, label)] = IPPort
+		}
 	}
 
 	// Build the directories
@@ -124,8 +127,8 @@ func (t *TaskEnvironment) Build() *TaskEnvironment {
 	}
 
 	// Build the IP
-	if t.ip != "" {
-		t.taskEnv[TaskIP] = t.ip
+	if len(t.networks) > 0 {
+		t.taskEnv[TaskIP] = t.networks[0].IP
 	}
 
 	// Build the node
@@ -221,24 +224,23 @@ func (t *TaskEnvironment) ClearCpuLimit() *TaskEnvironment {
 	return t
 }
 
-func (t *TaskEnvironment) SetTaskIp(ip string) *TaskEnvironment {
-	t.ip = ip
+func (t *TaskEnvironment) SetNetworks(networks []*structs.NetworkResource) *TaskEnvironment {
+	t.networks = networks
 	return t
 }
 
-func (t *TaskEnvironment) ClearTaskIp() *TaskEnvironment {
-	t.ip = ""
+func (t *TaskEnvironment) clearNetworks() *TaskEnvironment {
+	t.networks = nil
 	return t
 }
 
-// Takes a map of port labels to their port value.
-func (t *TaskEnvironment) SetPorts(ports map[string]int) *TaskEnvironment {
-	t.ports = ports
+func (t *TaskEnvironment) SetPortMap(portMap map[string]int) *TaskEnvironment {
+	t.portMap = portMap
 	return t
 }
 
-func (t *TaskEnvironment) ClearPorts() *TaskEnvironment {
-	t.ports = nil
+func (t *TaskEnvironment) clearPortMap() *TaskEnvironment {
+	t.portMap = nil
 	return t
 }
 
