@@ -57,5 +57,20 @@ window.onload = function(){
 
 <%= javascript_include_tag "application" %>
 
+<script type="application/ld+json">
+  {
+    "@context": "http://schema.org",
+    "@type": "Product",
+    "name": "Nomad",
+    "alternateName": "Nomad by HashiCorp",
+    "manufacturer": "HashiCorp",
+    "url": "https://www.nomadproject.io",
+    "logo": "<%= File.join(base_url, image_path("logo_large.png")) %>",
+    "sameAs": [
+      "https://github.com/hashicorp/nomad"
+    ]
+  }
+</script>
+
 </body>
 </html>
