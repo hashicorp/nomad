@@ -326,13 +326,13 @@ func resolveConstraintTarget(target string, node *structs.Node) (interface{}, bo
 
 	// Handle the interpolations
 	switch {
-	case "$node.id" == target:
+	case "$unique.node.id" == target:
 		return node.ID, true
 
 	case "$node.datacenter" == target:
 		return node.Datacenter, true
 
-	case "$node.name" == target:
+	case "$unique.node.name" == target:
 		return node.Name, true
 
 	case "$node.class" == target:
