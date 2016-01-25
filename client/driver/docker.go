@@ -341,12 +341,6 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, dri
 			d.logger.Printf("[DEBUG] driver.docker: exposed port %s", containerPort)
 		}
 
-		// This was set above in a call to GetTaskEnv but if we
-		// have mapped any ports we will need to override them.
-		//
-		// TODO refactor the implementation in GetTaskEnv to match
-		// the 0.2 ports world view. Docker seems to be the only place where
-		// this is actually needed, but this is kinda hacky.
 		d.taskEnv.SetPortMap(driverConfig.PortMap)
 
 		hostConfig.PortBindings = publishedPorts

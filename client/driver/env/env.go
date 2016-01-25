@@ -31,7 +31,10 @@ const (
 	// Prefix for passing both dynamic and static port allocations to
 	// tasks.
 	// E.g. $NOMAD_IP_1=127.0.0.1:1 or $NOMAD_IP_http=127.0.0.1:80
-	IPPortPrefix = "NOMAD_IP_"
+	AddrPrefix = "NOMAD_ADDR_"
+
+	// Prefix for passing the host port when a portmap is specified.
+	HostPortPrefix = "NOMAD_HOST_PORT_"
 
 	// Prefix for passing task meta data.
 	MetaPrefix = "NOMAD_META_"
@@ -106,7 +109,12 @@ func (t *TaskEnvironment) Build() *TaskEnvironment {
 	for _, network := range t.networks {
 		for label, value := range network.MapLabelToValues(t.portMap) {
 			IPPort := fmt.Sprintf("%s:%d", network.IP, value)
-			t.taskEnv[fmt.Sprintf("%s%s", IPPortPrefix, label)] = IPPort
+			t.taskEnv[fmt.Sprintf("%s%s", AddrPrefix, label)] = IPPort
+
+			// Pass an explicit port mapping to the environment
+			if port, ok := t.portMap[label]; ok {
+				t.taskEnv[fmt.Sprintf("%s%s", HostPortPrefix, label)] = strconv.Itoa(port)
+			}
 		}
 	}
 
@@ -124,11 +132,6 @@ func (t *TaskEnvironment) Build() *TaskEnvironment {
 	}
 	if t.cpuLimit != 0 {
 		t.taskEnv[CpuLimit] = strconv.Itoa(t.cpuLimit)
-	}
-
-	// Build the IP
-	if len(t.networks) > 0 {
-		t.taskEnv[TaskIP] = t.networks[0].IP
 	}
 
 	// Build the node

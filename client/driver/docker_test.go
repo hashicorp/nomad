@@ -551,8 +551,8 @@ func TestDockerPortsNoMap(t *testing.T) {
 	}
 
 	expectedEnvironment := map[string]string{
-		"NOMAD_IP_main":  fmt.Sprintf("127.0.0.1:%d", res),
-		"NOMAD_IP_REDIS": fmt.Sprintf("127.0.0.1:%d", dyn),
+		"NOMAD_ADDR_main":  fmt.Sprintf("127.0.0.1:%d", res),
+		"NOMAD_ADDR_REDIS": fmt.Sprintf("127.0.0.1:%d", dyn),
 	}
 
 	for key, val := range expectedEnvironment {
@@ -606,8 +606,9 @@ func TestDockerPortsMapping(t *testing.T) {
 	}
 
 	expectedEnvironment := map[string]string{
-		"NOMAD_IP_main":  "127.0.0.1:8080",
-		"NOMAD_IP_REDIS": "127.0.0.1:6379",
+		"NOMAD_ADDR_main":      "127.0.0.1:8080",
+		"NOMAD_ADDR_REDIS":     "127.0.0.1:6379",
+		"NOMAD_HOST_PORT_main": "8080",
 	}
 
 	for key, val := range expectedEnvironment {

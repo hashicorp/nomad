@@ -142,9 +142,9 @@ func TestEnvironment_AsList(t *testing.T) {
 
 	act := env.EnvList()
 	exp := []string{
-		"NOMAD_IP=127.0.0.1",
-		"NOMAD_IP_http=127.0.0.1:80",
-		"NOMAD_IP_https=127.0.0.1:443",
+		"NOMAD_ADDR_http=127.0.0.1:80",
+		"NOMAD_ADDR_https=127.0.0.1:443",
+		"NOMAD_HOST_PORT_https=443",
 		"NOMAD_META_FOO=baz",
 	}
 	sort.Strings(act)
@@ -163,9 +163,9 @@ func TestEnvironment_ClearEnvvars(t *testing.T) {
 
 	act := env.EnvList()
 	exp := []string{
-		"NOMAD_IP=127.0.0.1",
-		"NOMAD_IP_http=127.0.0.1:80",
-		"NOMAD_IP_https=127.0.0.1:443",
+		"NOMAD_ADDR_http=127.0.0.1:80",
+		"NOMAD_ADDR_https=127.0.0.1:443",
+		"NOMAD_HOST_PORT_https=443",
 		"bar=bang",
 		"foo=baz",
 	}
@@ -180,9 +180,9 @@ func TestEnvironment_ClearEnvvars(t *testing.T) {
 
 	act = env.EnvList()
 	exp = []string{
-		"NOMAD_IP=127.0.0.1",
-		"NOMAD_IP_http=127.0.0.1:80",
-		"NOMAD_IP_https=127.0.0.1:443",
+		"NOMAD_ADDR_http=127.0.0.1:80",
+		"NOMAD_ADDR_https=127.0.0.1:443",
+		"NOMAD_HOST_PORT_https=443",
 	}
 	sort.Strings(act)
 	sort.Strings(exp)
