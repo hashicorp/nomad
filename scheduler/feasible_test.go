@@ -189,7 +189,7 @@ func TestResolveConstraintTarget(t *testing.T) {
 	node := mock.Node()
 	cases := []tcase{
 		{
-			target: "$unique.node.id",
+			target: "$node.unique.id",
 			node:   node,
 			val:    node.ID,
 			result: true,
@@ -201,7 +201,7 @@ func TestResolveConstraintTarget(t *testing.T) {
 			result: true,
 		},
 		{
-			target: "$unique.node.name",
+			target: "$node.unique.name",
 			node:   node,
 			val:    node.Name,
 			result: true,

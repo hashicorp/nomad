@@ -82,7 +82,7 @@ func EscapedConstraints(constraints []*Constraint) []*Constraint {
 // computed node class optimization.
 func constraintTargetEscapes(target string) bool {
 	switch {
-	case strings.HasPrefix(target, "$unique."):
+	case strings.HasPrefix(target, "$node.unique."):
 		return true
 
 	case strings.HasPrefix(target, "$attr."):
