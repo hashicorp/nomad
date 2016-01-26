@@ -74,7 +74,7 @@ func (f *NetworkFingerprint) Fingerprint(cfg *config.Config, node *structs.Node)
 	}
 
 	newNetwork.Device = intf.Name
-	node.Attributes["network.ip-address"] = ip
+	node.Attributes["unique.network.ip-address"] = ip
 	newNetwork.IP = ip
 	newNetwork.CIDR = newNetwork.IP + "/32"
 

@@ -500,6 +500,10 @@ type Node struct {
 	// together for the purpose of determining scheduling pressure.
 	NodeClass string
 
+	// ComputedClass is a unique id that identifies nodes with a common set of
+	// attributes and capabilities.
+	ComputedClass uint64
+
 	// Drain is controlled by the servers, and not the client.
 	// If true, no jobs will be scheduled to this node, and existing
 	// allocations will be drained.

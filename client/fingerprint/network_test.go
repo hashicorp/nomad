@@ -152,9 +152,9 @@ func TestNetworkFingerprint_basic(t *testing.T) {
 		t.Fatalf("should apply")
 	}
 
-	assertNodeAttributeContains(t, node, "network.ip-address")
+	assertNodeAttributeContains(t, node, "unique.network.ip-address")
 
-	ip := node.Attributes["network.ip-address"]
+	ip := node.Attributes["unique.network.ip-address"]
 	match := net.ParseIP(ip)
 	if match == nil {
 		t.Fatalf("Bad IP match: %s", ip)
@@ -229,9 +229,9 @@ func TestNetworkFingerPrint_default_device(t *testing.T) {
 		t.Fatalf("should apply")
 	}
 
-	assertNodeAttributeContains(t, node, "network.ip-address")
+	assertNodeAttributeContains(t, node, "unique.network.ip-address")
 
-	ip := node.Attributes["network.ip-address"]
+	ip := node.Attributes["unique.network.ip-address"]
 	match := net.ParseIP(ip)
 	if match == nil {
 		t.Fatalf("Bad IP match: %s", ip)
@@ -272,9 +272,9 @@ func TestNetworkFingerPrint_excludelo_down_interfaces(t *testing.T) {
 		t.Fatalf("should apply")
 	}
 
-	assertNodeAttributeContains(t, node, "network.ip-address")
+	assertNodeAttributeContains(t, node, "unique.network.ip-address")
 
-	ip := node.Attributes["network.ip-address"]
+	ip := node.Attributes["unique.network.ip-address"]
 	match := net.ParseIP(ip)
 	if match == nil {
 		t.Fatalf("Bad IP match: %s", ip)

@@ -45,6 +45,9 @@ func TestClientEndpoint_Register(t *testing.T) {
 	if out.CreateIndex != resp.Index {
 		t.Fatalf("index mis-match")
 	}
+	if out.ComputedClass == 0 {
+		t.Fatal("ComputedClass not set")
+	}
 }
 
 func TestClientEndpoint_Deregister(t *testing.T) {
@@ -353,6 +356,13 @@ func TestClientEndpoint_GetNode(t *testing.T) {
 	if resp2.Index != resp.Index {
 		t.Fatalf("Bad index: %d %d", resp2.Index, resp.Index)
 	}
+
+	if resp2.Node.ComputedClass == 0 {
+		t.Fatalf("bad ComputedClass: %#v", resp2.Node)
+	}
+
+	// Reset for comparison
+	resp2.Node.ComputedClass = 0
 
 	if !reflect.DeepEqual(node, resp2.Node) {
 		t.Fatalf("bad: %#v %#v", node, resp2.Node)

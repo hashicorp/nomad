@@ -15,21 +15,21 @@ func TestStorageFingerprint(t *testing.T) {
 
 	assertFingerprintOK(t, fp, node)
 
-	assertNodeAttributeContains(t, node, "storage.volume")
-	assertNodeAttributeContains(t, node, "storage.bytestotal")
-	assertNodeAttributeContains(t, node, "storage.bytesfree")
+	assertNodeAttributeContains(t, node, "unique.storage.volume")
+	assertNodeAttributeContains(t, node, "unique.storage.bytestotal")
+	assertNodeAttributeContains(t, node, "unique.storage.bytesfree")
 
-	total, err := strconv.ParseInt(node.Attributes["storage.bytestotal"], 10, 64)
+	total, err := strconv.ParseInt(node.Attributes["unique.storage.bytestotal"], 10, 64)
 	if err != nil {
-		t.Fatalf("Failed to parse storage.bytestotal: %s", err)
+		t.Fatalf("Failed to parse unique.storage.bytestotal: %s", err)
 	}
-	free, err := strconv.ParseInt(node.Attributes["storage.bytesfree"], 10, 64)
+	free, err := strconv.ParseInt(node.Attributes["unique.storage.bytesfree"], 10, 64)
 	if err != nil {
-		t.Fatalf("Failed to parse storage.bytesfree: %s", err)
+		t.Fatalf("Failed to parse unique.storage.bytesfree: %s", err)
 	}
 
 	if free > total {
-		t.Fatalf("storage.bytesfree %d is larger than storage.bytestotal %d", free, total)
+		t.Fatalf("unique.storage.bytesfree %d is larger than unique.storage.bytestotal %d", free, total)
 	}
 
 	if node.Resources == nil {
