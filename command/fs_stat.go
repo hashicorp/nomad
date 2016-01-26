@@ -5,25 +5,25 @@ import (
 	"strings"
 )
 
-type FSListCommand struct {
+type FSStatCommand struct {
 	Meta
 }
 
-func (f *FSListCommand) Help() string {
+func (f *FSStatCommand) Help() string {
 	helpText := `
-Usage: nomad fs-list [alloc-id] [path]
-
-	Displays the files in the alloc-dir of the given alloc id. The path 
-	is relative to the root of the alloc dir.
+Usage: nomad fs-stat [alloc-id] [path]
+	
+	Displays information about a file in an allocation directory at the given path.
+	The path is relative to the allocation directory.
 `
 	return strings.TrimSpace(helpText)
 }
 
-func (f *FSListCommand) Synopsis() string {
-	return "Displays list of files of an alloc dir"
+func (f *FSStatCommand) Synopsis() string {
+	return "Stats a file in an allocation directory"
 }
 
-func (f *FSListCommand) Run(args []string) int {
+func (f *FSStatCommand) Run(args []string) int {
 	flags := f.Meta.FlagSet("fs-list", FlagSetClient)
 	flags.Usage = func() { f.Ui.Output(f.Help()) }
 
@@ -55,24 +55,21 @@ func (f *FSListCommand) Run(args []string) int {
 		return 1
 	}
 
-	files, _, err := client.AllocFS().List(alloc, path, nil)
+	file, _, err := client.AllocFS().Stat(alloc, path, nil)
 	if err != nil {
-		f.Ui.Error(fmt.Sprintf("Error listing alloc dir: %v", err))
+		f.Ui.Error(fmt.Sprintf("Error stating file: %v:", err))
 		return 1
 	}
 
-	out := make([]string, len(files)+1)
+	out := make([]string, 2)
 	out[0] = "Name|Size"
-	for i, file := range files {
+	if file != nil {
 		fn := file.Name
 		if file.IsDir {
 			fn = fmt.Sprintf("%s/", fn)
 		}
-		out[i+1] = fmt.Sprintf("%s|%d",
-			fn,
-			file.Size)
+		out[1] = fmt.Sprintf("%s|%d", fn, file.Size)
 	}
-
 	f.Ui.Output(formatList(out))
 	return 0
 }

@@ -52,3 +52,38 @@ func (a *AllocFS) List(alloc *Allocation, path string, q *QueryOptions) ([]*allo
 	}
 	return files, nil, nil
 }
+
+// Stat is used to stat a file at a given path of an allocation directory
+func (a *AllocFS) Stat(alloc *Allocation, path string, q *QueryOptions) (*allocdir.AllocFileInfo, *QueryMeta, error) {
+	node, _, err := a.client.Nodes().Info(alloc.NodeID, &QueryOptions{})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if node.HTTPAddr == "" {
+		return nil, nil, fmt.Errorf("http addr of the node where alloc %q is running is not advertised", alloc.ID)
+	}
+	u := &url.URL{
+		Scheme: "http",
+		Host:   node.HTTPAddr,
+		Path:   fmt.Sprintf("/v1/client/fs/stat/%s", alloc.ID),
+	}
+	v := url.Values{}
+	v.Set("path", path)
+	u.RawQuery = v.Encode()
+	req := &http.Request{
+		Method: "GET",
+		URL:    u,
+	}
+	c := http.Client{}
+	resp, err := c.Do(req)
+	if err != nil {
+		return nil, nil, err
+	}
+	decoder := json.NewDecoder(resp.Body)
+	var file *allocdir.AllocFileInfo
+	if err := decoder.Decode(&file); err != nil {
+		return nil, nil, err
+	}
+	return file, nil, nil
+}
