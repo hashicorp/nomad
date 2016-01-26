@@ -1535,10 +1535,15 @@ type Constraint struct {
 	LTarget string // Left-hand target
 	RTarget string // Right-hand target
 	Operand string // Constraint operand (<=, <, =, !=, >, >=), contains, near
+	str     string // Memoized string
 }
 
 func (c *Constraint) String() string {
-	return fmt.Sprintf("%s %s %s", c.LTarget, c.Operand, c.RTarget)
+	if c.str != "" {
+		return c.str
+	}
+	c.str = fmt.Sprintf("%s %s %s", c.LTarget, c.Operand, c.RTarget)
+	return c.str
 }
 
 func (c *Constraint) Validate() error {
