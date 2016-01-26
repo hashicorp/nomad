@@ -104,29 +104,21 @@ func (f *EnvAWSFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 		Transport: cleanhttp.DefaultTransport(),
 	}
 
-	keys := []string{
-		"ami-id",
-		"hostname",
-		"instance-id",
-		"instance-type",
-		"local-hostname",
-		"local-ipv4",
-		"public-hostname",
-		"public-ipv4",
-		"placement/availability-zone",
+	// Keys and whether they should be namespaced as unique. Any key whose value
+	// uniquely identifies a node, such as ip, should be marked as unique. When
+	// marked as unique, the key isn't included in the computed node class.
+	keys := map[string]bool{
+		"ami-id":                      true,
+		"hostname":                    true,
+		"instance-id":                 true,
+		"instance-type":               false,
+		"local-hostname":              true,
+		"local-ipv4":                  true,
+		"public-hostname":             true,
+		"public-ipv4":                 true,
+		"placement/availability-zone": false,
 	}
-
-	// Keys that should be marked as unique
-	unique := map[string]struct{}{
-		"ami-id":          struct{}{},
-		"hostname":        struct{}{},
-		"instance-id":     struct{}{},
-		"local-hostname":  struct{}{},
-		"local-ipv4":      struct{}{},
-		"public-hostname": struct{}{},
-		"public-ipv4":     struct{}{},
-	}
-	for _, k := range keys {
+	for k, unique := range keys {
 		res, err := client.Get(metadataURL + k)
 		if res.StatusCode != http.StatusOK {
 			f.logger.Printf("[WARN]: fingerprint.env_aws: Could not read value for attribute %q", k)
@@ -149,7 +141,7 @@ func (f *EnvAWSFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 
 		// assume we want blank entries
 		key := "platform.aws." + strings.Replace(k, "/", ".", -1)
-		if _, ok := unique[k]; ok {
+		if unique {
 			key = structs.UniqueNamespace(key)
 		}
 

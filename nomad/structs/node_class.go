@@ -42,18 +42,10 @@ func (n *Node) ComputeClass() error {
 // included in the computed node class.
 func (n Node) HashInclude(field string, v interface{}) (bool, error) {
 	switch field {
-	case "ID", "Name", "Links": // Uniquely identifying
-		return false, nil
-	case "Drain", "Status", "StatusDescription": // Set by server
-		return false, nil
-	case "ComputedClass": // Part of computed node class
-		return false, nil
-	case "CreateIndex", "ModifyIndex": // Raft indexes
-		return false, nil
-	case "Resources", "Reserved": // Doesn't effect placement capability
-		return false, nil
-	default:
+	case "Datacenter", "Attributes", "Meta", "NodeClass":
 		return true, nil
+	default:
+		return false, nil
 	}
 }
 

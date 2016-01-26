@@ -134,20 +134,18 @@ func (f *EnvGCEFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 		node.Links = make(map[string]string)
 	}
 
-	keys := []string{
-		"hostname",
-		"id",
-		"cpu-platform",
-		"scheduling/automatic-restart",
-		"scheduling/on-host-maintenance",
+	// Keys and whether they should be namespaced as unique. Any key whose value
+	// uniquely identifies a node, such as ip, should be marked as unique. When
+	// marked as unique, the key isn't included in the computed node class.
+	keys := map[string]bool{
+		"hostname":                       true,
+		"id":                             true,
+		"cpu-platform":                   false,
+		"scheduling/automatic-restart":   false,
+		"scheduling/on-host-maintenance": false,
 	}
 
-	// Keys that should be marked as unique
-	unique := map[string]struct{}{
-		"id":       struct{}{},
-		"hostname": struct{}{},
-	}
-	for _, k := range keys {
+	for k, unique := range keys {
 		value, err := f.Get(k, false)
 		if err != nil {
 			return false, checkError(err, f.logger, k)
@@ -155,24 +153,28 @@ func (f *EnvGCEFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 
 		// assume we want blank entries
 		key := "platform.gce." + strings.Replace(k, "/", ".", -1)
-		if _, ok := unique[k]; ok {
+		if unique {
 			key = structs.UniqueNamespace(key)
 		}
 		node.Attributes[key] = strings.Trim(string(value), "\n")
 	}
 
 	// These keys need everything before the final slash removed to be usable.
-	keys = []string{
-		"machine-type",
-		"zone",
+	keys = map[string]bool{
+		"machine-type": false,
+		"zone":         false,
 	}
-	for _, k := range keys {
+	for k, unique := range keys {
 		value, err := f.Get(k, false)
 		if err != nil {
 			return false, checkError(err, f.logger, k)
 		}
 
-		node.Attributes["platform.gce."+k] = strings.Trim(lastToken(value), "\n")
+		key := "platform.gce." + k
+		if unique {
+			key = structs.UniqueNamespace(key)
+		}
+		node.Attributes[key] = strings.Trim(lastToken(value), "\n")
 	}
 
 	// Get internal and external IPs (if they exist)
