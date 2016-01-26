@@ -125,6 +125,9 @@ func TestServiceStack_Select_DriverFilter(t *testing.T) {
 	}
 	zero := nodes[0]
 	zero.Attributes["driver.foo"] = "1"
+	if err := zero.ComputeClass(); err != nil {
+		t.Fatalf("ComputedClass() failed: %v", err)
+	}
 
 	stack := NewGenericStack(false, ctx)
 	stack.SetNodes(nodes)
@@ -151,6 +154,9 @@ func TestServiceStack_Select_ConstraintFilter(t *testing.T) {
 	}
 	zero := nodes[0]
 	zero.Attributes["kernel.name"] = "freebsd"
+	if err := zero.ComputeClass(); err != nil {
+		t.Fatalf("ComputedClass() failed: %v", err)
+	}
 
 	stack := NewGenericStack(false, ctx)
 	stack.SetNodes(nodes)
@@ -343,6 +349,10 @@ func TestSystemStack_Select_DriverFilter(t *testing.T) {
 	}
 
 	zero.Attributes["driver.foo"] = "0"
+	if err := zero.ComputeClass(); err != nil {
+		t.Fatalf("ComputedClass() failed: %v", err)
+	}
+
 	stack = NewSystemStack(ctx)
 	stack.SetNodes(nodes)
 	stack.SetJob(job)
@@ -360,6 +370,9 @@ func TestSystemStack_Select_ConstraintFilter(t *testing.T) {
 	}
 	zero := nodes[1]
 	zero.Attributes["kernel.name"] = "freebsd"
+	if err := zero.ComputeClass(); err != nil {
+		t.Fatalf("ComputedClass() failed: %v", err)
+	}
 
 	stack := NewSystemStack(ctx)
 	stack.SetNodes(nodes)

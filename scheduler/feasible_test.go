@@ -76,7 +76,7 @@ func TestRandomIterator(t *testing.T) {
 	}
 }
 
-func TestDriverIterator(t *testing.T) {
+func TestDriverChecker(t *testing.T) {
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{
 		mock.Node(),
@@ -84,8 +84,6 @@ func TestDriverIterator(t *testing.T) {
 		mock.Node(),
 		mock.Node(),
 	}
-	static := NewStaticIterator(ctx, nodes)
-
 	nodes[0].Attributes["driver.foo"] = "1"
 	nodes[1].Attributes["driver.foo"] = "0"
 	nodes[2].Attributes["driver.foo"] = "true"
@@ -95,18 +93,37 @@ func TestDriverIterator(t *testing.T) {
 		"exec": struct{}{},
 		"foo":  struct{}{},
 	}
-	driver := NewDriverIterator(ctx, static, drivers)
-
-	out := collectFeasible(driver)
-	if len(out) != 2 {
-		t.Fatalf("missing nodes")
+	checker := NewDriverChecker(ctx, drivers)
+	cases := []struct {
+		Node   *structs.Node
+		Result bool
+	}{
+		{
+			Node:   nodes[0],
+			Result: true,
+		},
+		{
+			Node:   nodes[1],
+			Result: false,
+		},
+		{
+			Node:   nodes[2],
+			Result: true,
+		},
+		{
+			Node:   nodes[3],
+			Result: false,
+		},
 	}
-	if out[0] != nodes[0] || out[1] != nodes[2] {
-		t.Fatalf("bad: %#v", out)
+
+	for i, c := range cases {
+		if act := checker.Feasible(c.Node); act != c.Result {
+			t.Fatalf("case(%d) failed: got %v; want %v", i, act, c.Result)
+		}
 	}
 }
 
-func TestConstraintIterator(t *testing.T) {
+func TestConstraintChecker(t *testing.T) {
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{
 		mock.Node(),
@@ -114,7 +131,6 @@ func TestConstraintIterator(t *testing.T) {
 		mock.Node(),
 		mock.Node(),
 	}
-	static := NewStaticIterator(ctx, nodes)
 
 	nodes[0].Attributes["kernel.name"] = "freebsd"
 	nodes[1].Datacenter = "dc2"
@@ -137,14 +153,29 @@ func TestConstraintIterator(t *testing.T) {
 			RTarget: "large",
 		},
 	}
-	constr := NewConstraintIterator(ctx, static, constraints)
-
-	out := collectFeasible(constr)
-	if len(out) != 1 {
-		t.Fatalf("missing nodes")
+	checker := NewConstraintChecker(ctx, constraints)
+	cases := []struct {
+		Node   *structs.Node
+		Result bool
+	}{
+		{
+			Node:   nodes[0],
+			Result: false,
+		},
+		{
+			Node:   nodes[1],
+			Result: false,
+		},
+		{
+			Node:   nodes[2],
+			Result: true,
+		},
 	}
-	if out[0] != nodes[2] {
-		t.Fatalf("bad: %#v", out)
+
+	for i, c := range cases {
+		if act := checker.Feasible(c.Node); act != c.Result {
+			t.Fatalf("case(%d) failed: got %v; want %v", i, act, c.Result)
+		}
 	}
 }
 
@@ -576,4 +607,143 @@ func collectFeasible(iter FeasibleIterator) (out []*structs.Node) {
 		out = append(out, next)
 	}
 	return
+}
+
+// mockFeasibilityChecker is a FeasibilityChecker that returns predetermined
+// feasibility values.
+type mockFeasibilityChecker struct {
+	retVals []bool
+	i       int
+}
+
+func newMockFeasiblityChecker(values ...bool) *mockFeasibilityChecker {
+	return &mockFeasibilityChecker{retVals: values}
+}
+
+func (c *mockFeasibilityChecker) Feasible(*structs.Node) bool {
+	if c.i >= len(c.retVals) {
+		c.i++
+		return false
+	}
+
+	f := c.retVals[c.i]
+	c.i++
+	return f
+}
+
+// calls returns how many times the checker was called.
+func (c *mockFeasibilityChecker) calls() int { return c.i }
+
+func TestFeasibilityWrapper_JobIneligible(t *testing.T) {
+	_, ctx := testContext(t)
+	nodes := []*structs.Node{mock.Node()}
+	static := NewStaticIterator(ctx, nodes)
+	mocked := newMockFeasiblityChecker(false)
+	wrapper := NewFeasibilityWrapper(ctx, static, []FeasibilityChecker{mocked}, nil)
+
+	// Set the job to ineligible
+	ctx.Eligibility().SetJobEligibility(false, nodes[0].ComputedClass)
+
+	// Run the wrapper.
+	out := collectFeasible(wrapper)
+
+	if out != nil || mocked.calls() != 0 {
+		t.Fatalf("bad: %#v", out)
+	}
+}
+
+func TestFeasibilityWrapper_JobEscapes(t *testing.T) {
+	_, ctx := testContext(t)
+	nodes := []*structs.Node{mock.Node()}
+	static := NewStaticIterator(ctx, nodes)
+	mocked := newMockFeasiblityChecker(false)
+	wrapper := NewFeasibilityWrapper(ctx, static, []FeasibilityChecker{mocked}, nil)
+
+	// Set the job to escaped
+	cc := nodes[0].ComputedClass
+	ctx.Eligibility().Job[cc] = EvalComputedClassEscaped
+
+	// Run the wrapper.
+	out := collectFeasible(wrapper)
+
+	if out != nil || mocked.calls() != 1 {
+		t.Fatalf("bad: %#v", out)
+	}
+
+	// Ensure that the job status didn't change from escaped even though the
+	// option failed.
+	if status := ctx.Eligibility().JobStatus(cc); status != EvalComputedClassEscaped {
+		t.Fatalf("job status is %v; want %v", status, EvalComputedClassEscaped)
+	}
+}
+
+func TestFeasibilityWrapper_JobAndTg_Eligible(t *testing.T) {
+	_, ctx := testContext(t)
+	nodes := []*structs.Node{mock.Node()}
+	static := NewStaticIterator(ctx, nodes)
+	jobMock := newMockFeasiblityChecker(true)
+	tgMock := newMockFeasiblityChecker(false)
+	wrapper := NewFeasibilityWrapper(ctx, static, []FeasibilityChecker{jobMock}, []FeasibilityChecker{tgMock})
+
+	// Set the job to escaped
+	cc := nodes[0].ComputedClass
+	ctx.Eligibility().Job[cc] = EvalComputedClassEligible
+	ctx.Eligibility().SetTaskGroupEligibility(true, "foo", cc)
+	wrapper.SetTaskGroup("foo")
+
+	// Run the wrapper.
+	out := collectFeasible(wrapper)
+
+	if out == nil || tgMock.calls() != 0 {
+		t.Fatalf("bad: %#v %v", out, tgMock.calls())
+	}
+}
+
+func TestFeasibilityWrapper_JobEligible_TgIneligible(t *testing.T) {
+	_, ctx := testContext(t)
+	nodes := []*structs.Node{mock.Node()}
+	static := NewStaticIterator(ctx, nodes)
+	jobMock := newMockFeasiblityChecker(true)
+	tgMock := newMockFeasiblityChecker(false)
+	wrapper := NewFeasibilityWrapper(ctx, static, []FeasibilityChecker{jobMock}, []FeasibilityChecker{tgMock})
+
+	// Set the job to escaped
+	cc := nodes[0].ComputedClass
+	ctx.Eligibility().Job[cc] = EvalComputedClassEligible
+	ctx.Eligibility().SetTaskGroupEligibility(false, "foo", cc)
+	wrapper.SetTaskGroup("foo")
+
+	// Run the wrapper.
+	out := collectFeasible(wrapper)
+
+	if out != nil || tgMock.calls() != 0 {
+		t.Fatalf("bad: %#v %v", out, tgMock.calls())
+	}
+}
+
+func TestFeasibilityWrapper_JobEligible_TgEscaped(t *testing.T) {
+	_, ctx := testContext(t)
+	nodes := []*structs.Node{mock.Node()}
+	static := NewStaticIterator(ctx, nodes)
+	jobMock := newMockFeasiblityChecker(true)
+	tgMock := newMockFeasiblityChecker(true)
+	wrapper := NewFeasibilityWrapper(ctx, static, []FeasibilityChecker{jobMock}, []FeasibilityChecker{tgMock})
+
+	// Set the job to escaped
+	cc := nodes[0].ComputedClass
+	ctx.Eligibility().Job[cc] = EvalComputedClassEligible
+	ctx.Eligibility().TaskGroups["foo"] =
+		map[uint64]ComputedClassEligibility{cc: EvalComputedClassEscaped}
+	wrapper.SetTaskGroup("foo")
+
+	// Run the wrapper.
+	out := collectFeasible(wrapper)
+
+	if out == nil || tgMock.calls() != 1 {
+		t.Fatalf("bad: %#v %v", out, tgMock.calls())
+	}
+
+	if e, ok := ctx.Eligibility().TaskGroups["foo"][cc]; !ok || e != EvalComputedClassEscaped {
+		t.Fatalf("bad: %v %v", e, ok)
+	}
 }
