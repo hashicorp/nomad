@@ -76,6 +76,7 @@ type Node struct {
 	ID                string
 	Datacenter        string
 	Name              string
+	HTTPAddr          string
 	Attributes        map[string]string
 	Resources         *Resources
 	Reserved          *Resources

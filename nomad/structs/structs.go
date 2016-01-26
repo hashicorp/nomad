@@ -470,6 +470,9 @@ type Node struct {
 	// Node name
 	Name string
 
+	// HTTP Addr of the Nomad client
+	HTTPAddr string
+
 	// Attributes is an arbitrary set of key/value
 	// data that can be used for constraints. Examples
 	// include "kernel.name=linux", "arch=386", "driver.docker=1",

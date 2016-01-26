@@ -222,6 +222,7 @@ func (a *Agent) setupClient() error {
 	conf.Node.Name = a.config.NodeName
 	conf.Node.Meta = a.config.Client.Meta
 	conf.Node.NodeClass = a.config.Client.NodeClass
+	conf.Node.HTTPAddr = fmt.Sprintf("%s:%d", a.config.BindAddr, a.config.Ports.HTTP)
 
 	// Create the client
 	client, err := client.NewClient(conf)
