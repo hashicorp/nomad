@@ -24,7 +24,6 @@ func (f *FSListCommand) Synopsis() string {
 }
 
 func (c *FSListCommand) Run(args []string) int {
-
 	flags := c.Meta.FlagSet("fs-list", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 

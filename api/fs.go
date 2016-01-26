@@ -8,14 +8,17 @@ import (
 	"net/url"
 )
 
+// AllocFS is used to introspect an allocation directory on a Nomad client
 type AllocFS struct {
 	client *Client
 }
 
+// AllocFS returns an handle to the AllocFS endpoints
 func (c *Client) AllocFS() *AllocFS {
 	return &AllocFS{client: c}
 }
 
+// List is used to list the files at a given path of an allocation directory
 func (a *AllocFS) List(alloc *Allocation, path string, q *QueryOptions) ([]*allocdir.AllocFileInfo, *QueryMeta, error) {
 	node, _, err := a.client.Nodes().Info(alloc.NodeID, &QueryOptions{})
 	if err != nil {
@@ -25,11 +28,10 @@ func (a *AllocFS) List(alloc *Allocation, path string, q *QueryOptions) ([]*allo
 	if node.HTTPAddr == "" {
 		return nil, nil, fmt.Errorf("http addr of the node where alloc %q is running is not advertised", alloc.ID)
 	}
-	urlPath := fmt.Sprintf("/v1/client/fs/ls/%s", alloc.ID)
 	u := &url.URL{
 		Scheme: "http",
 		Host:   node.HTTPAddr,
-		Path:   urlPath,
+		Path:   fmt.Sprintf("/v1/client/fs/ls/%s", alloc.ID),
 	}
 	v := url.Values{}
 	v.Set("path", path)
