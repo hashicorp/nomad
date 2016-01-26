@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"fmt"
 	"reflect"
 	"runtime"
 	"testing"
@@ -8,6 +9,48 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
+
+func BenchmarkServiceStack_With_ComputedClass(b *testing.B) {
+	// Key doesn't escape computed node class.
+	benchmarkServiceStack_MetaKeyConstraint(b, "key", 5000, 64)
+}
+
+func BenchmarkServiceStack_WithOut_ComputedClass(b *testing.B) {
+	// Key escapes computed node class.
+	benchmarkServiceStack_MetaKeyConstraint(b, "unique.key", 5000, 64)
+}
+
+// benchmarkServiceStack_MetaKeyConstraint creates the passed number of nodes
+// and sets the meta data key to have nodePartitions number of values. It then
+// benchmarks the stack by selecting a job that constrains against one of the
+// partitions.
+func benchmarkServiceStack_MetaKeyConstraint(b *testing.B, key string, numNodes, nodePartitions int) {
+	_, ctx := testContext(b)
+	stack := NewGenericStack(false, ctx)
+
+	// Create 4 classes of nodes.
+	nodes := make([]*structs.Node, numNodes)
+	for i := 0; i < numNodes; i++ {
+		n := mock.Node()
+		n.Meta[key] = fmt.Sprintf("%d", i%nodePartitions)
+		nodes[i] = n
+	}
+	stack.SetNodes(nodes)
+
+	// Create a job whose constraint meets two node classes.
+	job := mock.Job()
+	job.Constraints[0] = &structs.Constraint{
+		LTarget: "$meta." + key,
+		RTarget: "1",
+		Operand: "<",
+	}
+	stack.SetJob(job)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		stack.Select(job.TaskGroups[0])
+	}
+}
 
 func TestServiceStack_SetNodes(t *testing.T) {
 	_, ctx := testContext(t)
