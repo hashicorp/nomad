@@ -11,16 +11,16 @@ type FSListCommand struct {
 
 func (f *FSListCommand) Help() string {
 	helpText := `
-Usage: nomad fs-list [alloc-id] [path]
+Usage: nomad fs-list alloc-id path
 
-	Displays the files in the alloc-dir of the given alloc id. The path 
-	is relative to the root of the alloc dir.
+	List displays the contents of the allocation directory for the passed allocation. The path 
+	is relative to the root of the alloc dir and defaults to root if unspecified.
 `
 	return strings.TrimSpace(helpText)
 }
 
 func (f *FSListCommand) Synopsis() string {
-	return "Displays list of files of an alloc dir"
+	return "Lists list of files of an allocation directory"
 }
 
 func (f *FSListCommand) Run(args []string) int {
@@ -33,7 +33,7 @@ func (f *FSListCommand) Run(args []string) int {
 	args = flags.Args()
 
 	if len(args) < 1 {
-		f.Ui.Error("a valid alloc id is essential")
+		f.Ui.Error("allocation id is a required parameter")
 		return 1
 	}
 
@@ -53,7 +53,7 @@ func (f *FSListCommand) Run(args []string) int {
 	alloc, _, err := client.Allocations().Info(allocID, nil)
 	if err != nil {
 		if len(allocID) == 1 {
-			f.Ui.Error(fmt.Sprintf("Identifier must contain at least two characters."))
+			f.Ui.Error(fmt.Sprintf("Alloc ID must contain at least two characters."))
 			return 1
 		}
 		if len(allocID)%2 == 1 {
@@ -96,7 +96,7 @@ func (f *FSListCommand) Run(args []string) int {
 		}
 	}
 
-	// Ge the file at the given path
+	// Get the file at the given path
 	files, _, err := client.AllocFS().List(alloc, path, nil)
 	if err != nil {
 		f.Ui.Error(fmt.Sprintf("Error listing alloc dir: %v", err))

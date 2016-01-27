@@ -13,10 +13,10 @@ type FSCatCommand struct {
 
 func (f *FSCatCommand) Help() string {
 	helpText := `
-	Usage: nomad fs-cat [alloc-id] [path]
+	Usage: nomad fs-cat <alloc-id> <path>
 
 	Dispays a file in an allocation directory at the given path.
-	The path is relative to the allocation directory
+	The path is relative to the allocation directory and defaults to root if unspecified.
 	`
 	return strings.TrimSpace(helpText)
 }
@@ -35,7 +35,7 @@ func (f *FSCatCommand) Run(args []string) int {
 	args = flags.Args()
 
 	if len(args) < 1 {
-		f.Ui.Error("a valid alloc id is essential")
+		f.Ui.Error("allocation id is a required parameter")
 		return 1
 	}
 
@@ -55,7 +55,7 @@ func (f *FSCatCommand) Run(args []string) int {
 	alloc, _, err := client.Allocations().Info(allocID, nil)
 	if err != nil {
 		if len(allocID) == 1 {
-			f.Ui.Error(fmt.Sprintf("Identifier must contain at least two characters."))
+			f.Ui.Error(fmt.Sprintf("Alloc ID must contain at least two characters."))
 			return 1
 		}
 		if len(allocID)%2 == 1 {
