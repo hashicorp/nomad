@@ -102,8 +102,8 @@ func (c *AllocStatusCommand) Run(args []string) int {
 			out[0] = "ID|Eval ID|Job ID|Task Group|Desired Status|Client Status"
 			for i, alloc := range allocs {
 				out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%s|%s",
-					alloc.ID[:length],
-					alloc.EvalID[:length],
+					limit(alloc.ID, length),
+					limit(alloc.EvalID, length),
 					alloc.JobID,
 					alloc.TaskGroup,
 					alloc.DesiredStatus,
@@ -123,10 +123,10 @@ func (c *AllocStatusCommand) Run(args []string) int {
 
 	// Format the allocation data
 	basic := []string{
-		fmt.Sprintf("ID|%s", alloc.ID[:length]),
-		fmt.Sprintf("Eval ID|%s", alloc.EvalID[:length]),
+		fmt.Sprintf("ID|%s", limit(alloc.ID, length)),
+		fmt.Sprintf("Eval ID|%s", limit(alloc.EvalID, length)),
 		fmt.Sprintf("Name|%s", alloc.Name),
-		fmt.Sprintf("Node ID|%s", alloc.NodeID[:length]),
+		fmt.Sprintf("Node ID|%s", limit(alloc.NodeID, length)),
 		fmt.Sprintf("Job ID|%s", alloc.JobID),
 		fmt.Sprintf("Client Status|%s", alloc.ClientStatus),
 		fmt.Sprintf("Evaluated Nodes|%d", alloc.Metrics.NodesEvaluated),

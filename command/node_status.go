@@ -93,7 +93,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		out[0] = "ID|Datacenter|Name|Class|Drain|Status"
 		for i, node := range nodes {
 			out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%v|%s",
-				node.ID[:length],
+				limit(node.ID, length),
 				node.Datacenter,
 				node.Name,
 				node.NodeClass,
@@ -138,7 +138,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 			out[0] = "ID|Datacenter|Name|Class|Drain|Status"
 			for i, node := range nodes {
 				out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%v|%s",
-					node.ID[:length],
+					limit(node.ID, length),
 					node.Datacenter,
 					node.Name,
 					node.NodeClass,
@@ -173,7 +173,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 
 	// Format the output
 	basic := []string{
-		fmt.Sprintf("ID|%s", node.ID[:length]),
+		fmt.Sprintf("ID|%s", limit(node.ID, length)),
 		fmt.Sprintf("Name|%s", node.Name),
 		fmt.Sprintf("Class|%s", node.NodeClass),
 		fmt.Sprintf("Datacenter|%s", node.Datacenter),
@@ -196,8 +196,8 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		allocs[0] = "ID|Eval ID|Job ID|Task Group|Desired Status|Client Status"
 		for i, alloc := range nodeAllocs {
 			allocs[i+1] = fmt.Sprintf("%s|%s|%s|%s|%s|%s",
-				alloc.ID[:length],
-				alloc.EvalID[:length],
+				limit(alloc.ID, length),
+				limit(alloc.EvalID, length),
 				alloc.JobID,
 				alloc.TaskGroup,
 				alloc.DesiredStatus,
