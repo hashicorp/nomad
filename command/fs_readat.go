@@ -97,6 +97,7 @@ func (f *FSCatCommand) Run(args []string) int {
 		}
 	}
 
+	// Stat the file to find it's size
 	file, _, err := client.AllocFS().Stat(alloc, path, nil)
 	if err != nil {
 		f.Ui.Error(fmt.Sprintf("Error stating file: %v:", err))
@@ -107,6 +108,7 @@ func (f *FSCatCommand) Run(args []string) int {
 		return 1
 	}
 
+	// Get the contents of the file
 	offset := 0
 	limit := file.Size
 	if _, err := client.AllocFS().ReadAt(alloc, path, int64(offset), limit, os.Stdout, nil); err != nil {

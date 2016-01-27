@@ -96,12 +96,14 @@ func (f *FSListCommand) Run(args []string) int {
 		}
 	}
 
+	// Ge the file at the given path
 	files, _, err := client.AllocFS().List(alloc, path, nil)
 	if err != nil {
 		f.Ui.Error(fmt.Sprintf("Error listing alloc dir: %v", err))
 		return 1
 	}
 
+	// Display the file information in a tabular format
 	out := make([]string, len(files)+1)
 	out[0] = "Name|Size"
 	for i, file := range files {
