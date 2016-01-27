@@ -20,10 +20,6 @@ Usage: nomad fs-stat <alloc-id> <path>
 
   ` + generalOptionsUsage() + `
 
-
-  -short
-    Display short output. Shows only the most recent task event.
-
   -verbose
     Show full information.
 `
@@ -35,10 +31,9 @@ func (f *FSStatCommand) Synopsis() string {
 }
 
 func (f *FSStatCommand) Run(args []string) int {
-	var short, verbose bool
+	var verbose bool
 	flags := f.Meta.FlagSet("fs-list", FlagSetClient)
 	flags.Usage = func() { f.Ui.Output(f.Help()) }
-	flags.BoolVar(&short, "short", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
 
 	if err := flags.Parse(args); err != nil {
