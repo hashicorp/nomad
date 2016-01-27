@@ -16,7 +16,6 @@ func testNode() *Node {
 			"version":     "0.1.0",
 			"driver.exec": "1",
 		},
-		UniqueAttributes: make(map[string]struct{}),
 		Resources: &Resources{
 			CPU:      4000,
 			MemoryMB: 8192,

@@ -648,7 +648,7 @@ func TestFeasibilityWrapper_JobIneligible(t *testing.T) {
 	out := collectFeasible(wrapper)
 
 	if out != nil || mocked.calls() != 0 {
-		t.Fatalf("bad: %#v", out)
+		t.Fatalf("bad: %#v %d", out, mocked.calls())
 	}
 }
 

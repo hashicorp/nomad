@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"fmt"
 	"log"
 	"regexp"
 
@@ -165,16 +166,16 @@ type EvalEligibility struct {
 	// job tracks the eligibility at the job level per computed node class.
 	job map[uint64]ComputedClassFeasibility
 
-	// jobEscapedConstraints tracks escaped constraints at the job level.
-	jobEscapedConstraints []*structs.Constraint
+	// jobEscaped marks whether constraints have escaped at the job level.
+	jobEscaped bool
 
 	// taskGroups tracks the eligibility at the task group level per computed
 	// node class.
 	taskGroups map[string]map[uint64]ComputedClassFeasibility
 
-	// tgEscapedConstraints is a map of task groups to a set of constraints that
-	// have escaped.
-	tgEscapedConstraints map[string][]*structs.Constraint
+	// tgEscapedConstraints is a map of task groups to whether constraints have
+	// escaped.
+	tgEscapedConstraints map[string]bool
 }
 
 // NewEvalEligibility returns an eligibility tracker for the context of an evaluation.
@@ -182,15 +183,15 @@ func NewEvalEligibility() *EvalEligibility {
 	return &EvalEligibility{
 		job:                  make(map[uint64]ComputedClassFeasibility),
 		taskGroups:           make(map[string]map[uint64]ComputedClassFeasibility),
-		tgEscapedConstraints: make(map[string][]*structs.Constraint),
+		tgEscapedConstraints: make(map[string]bool),
 	}
 }
 
 // SetJob takes the job being evaluated and calculates the escaped constraints
 // at the job and task group level.
 func (e *EvalEligibility) SetJob(job *structs.Job) {
-	// Determine the escaped constraints for the job.
-	e.jobEscapedConstraints = structs.EscapedConstraints(job.Constraints)
+	// Determine whether the job has escaped constraints.
+	e.jobEscaped = len(structs.EscapedConstraints(job.Constraints)) != 0
 
 	// Determine the escaped constraints per task group.
 	for _, tg := range job.TaskGroups {
@@ -199,8 +200,24 @@ func (e *EvalEligibility) SetJob(job *structs.Job) {
 			constraints = append(constraints, task.Constraints...)
 		}
 
-		e.tgEscapedConstraints[tg.Name] = structs.EscapedConstraints(constraints)
+		e.tgEscapedConstraints[tg.Name] = len(structs.EscapedConstraints(constraints)) != 0
 	}
+}
+
+// HasEscaped returns whether any of the constraints in the passed job have
+// escaped computed node classes.
+func (e *EvalEligibility) HasEscaped() bool {
+	if e.jobEscaped {
+		return true
+	}
+
+	for _, escaped := range e.tgEscapedConstraints {
+		if escaped {
+			return true
+		}
+	}
+
+	return false
 }
 
 // JobStatus returns the eligibility status of the job.
@@ -208,7 +225,8 @@ func (e *EvalEligibility) JobStatus(class uint64) ComputedClassFeasibility {
 	// COMPAT: Computed node class was introduced in 0.3. Clients running < 0.3
 	// will not have a computed class. The safest value to return is the escaped
 	// case, since it disables any optimization.
-	if len(e.jobEscapedConstraints) != 0 || class == 0 {
+	if e.jobEscaped || class == 0 {
+		fmt.Println(e.jobEscaped, class)
 		return EvalComputedClassEscaped
 	}
 
@@ -238,7 +256,7 @@ func (e *EvalEligibility) TaskGroupStatus(tg string, class uint64) ComputedClass
 	}
 
 	if escaped, ok := e.tgEscapedConstraints[tg]; ok {
-		if len(escaped) != 0 {
+		if escaped {
 			return EvalComputedClassEscaped
 		}
 	}
