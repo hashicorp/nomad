@@ -11,10 +11,22 @@ type FSListCommand struct {
 
 func (f *FSListCommand) Help() string {
 	helpText := `
-Usage: nomad fs-list alloc-id path
+Usage: nomad fs-list <alloc-id> <path>
 
 	List displays the contents of the allocation directory for the passed allocation. The path 
 	is relative to the root of the alloc dir and defaults to root if unspecified.
+    
+	General Options:
+
+  ` + generalOptionsUsage() + `
+
+
+  -short
+    Display short output. Shows only the most recent task event.
+
+  -verbose
+    Show full information.
+
 `
 	return strings.TrimSpace(helpText)
 }
@@ -24,8 +36,11 @@ func (f *FSListCommand) Synopsis() string {
 }
 
 func (f *FSListCommand) Run(args []string) int {
+	var short, verbose bool
 	flags := f.Meta.FlagSet("fs-list", FlagSetClient)
 	flags.Usage = func() { f.Ui.Output(f.Help()) }
+	flags.BoolVar(&short, "short", false, "")
+	flags.BoolVar(&verbose, "verbose", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1

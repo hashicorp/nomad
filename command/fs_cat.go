@@ -17,7 +17,18 @@ func (f *FSCatCommand) Help() string {
 
 	Dispays a file in an allocation directory at the given path.
 	The path is relative to the allocation directory and defaults to root if unspecified.
-	`
+
+	General Options:
+
+  ` + generalOptionsUsage() + `
+
+
+  -short
+    Display short output. Shows only the most recent task event.
+
+  -verbose
+    Show full information.
+`
 	return strings.TrimSpace(helpText)
 }
 
@@ -26,8 +37,11 @@ func (f *FSCatCommand) Synopsis() string {
 }
 
 func (f *FSCatCommand) Run(args []string) int {
+	var short, verbose bool
 	flags := f.Meta.FlagSet("fs-list", FlagSetClient)
 	flags.Usage = func() { f.Ui.Output(f.Help()) }
+	flags.BoolVar(&short, "short", false, "")
+	flags.BoolVar(&verbose, "verbose", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
