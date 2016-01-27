@@ -243,6 +243,7 @@ type Addresses struct {
 // different network services. Not all network services support an
 // advertise address. All are optional and default to BindAddr.
 type AdvertiseAddrs struct {
+	HTTP string `hcl:"http"`
 	RPC  string `hcl:"rpc"`
 	Serf string `hcl:"serf"`
 }
