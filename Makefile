@@ -12,10 +12,10 @@ EXTERNAL_TOOLS=\
 all: test
 
 dev: deps format
-	@NOMAD_DEV=1 sh -c "'$(CURDIR)/scripts/build.sh'"
+	@NOMAD_DEV=1 sh -c "'$(PWD)/scripts/build.sh'"
 
 bin:
-	@sh -c "'$(CURDIR)/scripts/build.sh'"
+	@sh -c "'$(PWD)/scripts/build.sh'"
 
 release: updatedeps
 	@$(MAKE) bin
@@ -26,14 +26,14 @@ cov:
 
 deps:
 	@echo "--> Installing build dependencies"
-	@DEP_ARGS="-d -v" sh -c "'$(CURDIR)/scripts/deps.sh'"
+	@DEP_ARGS="-d -v" sh -c "'$(PWD)/scripts/deps.sh'"
 
 updatedeps: deps
 	@echo "--> Updating build dependencies"
-	@DEP_ARGS="-d -f -u" sh -c "'$(CURDIR)/scripts/deps.sh'"
+	@DEP_ARGS="-d -f -u" sh -c "'$(PWD)/scripts/deps.sh'"
 
 test: deps
-	@sh -c "'$(CURDIR)/scripts/test.sh'"
+	@sh -c "'$(PWD)/scripts/test.sh'"
 	@$(MAKE) vet
 
 cover: deps

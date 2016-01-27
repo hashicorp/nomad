@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # First get the OS-specific packages
 GOOS=windows go get $DEP_ARGS github.com/StackExchange/wmi
