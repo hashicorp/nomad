@@ -119,13 +119,13 @@ func (f *FSStatCommand) Run(args []string) int {
 
 	// Display the file information
 	out := make([]string, 2)
-	out[0] = "Name|Size"
+	out[0] = "Mode|Size|Modified Time|Name"
 	if file != nil {
 		fn := file.Name
 		if file.IsDir {
 			fn = fmt.Sprintf("%s/", fn)
 		}
-		out[1] = fmt.Sprintf("%s|%d", fn, file.Size)
+		out[1] = fmt.Sprintf("%s|%d|%s|%s", file.FileMode, file.Size, file.ModTime, fn)
 	}
 	f.Ui.Output(formatList(out))
 	return 0

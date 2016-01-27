@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -40,9 +41,11 @@ type AllocDir struct {
 
 // AllocFileInfo holds information about a file inside the AllocDir
 type AllocFileInfo struct {
-	Name  string
-	IsDir bool
-	Size  int64
+	Name     string
+	IsDir    bool
+	Size     int64
+	FileMode string
+	ModTime  time.Time
 }
 
 // AllocDirFS exposes file operations on the alloc dir
@@ -244,9 +247,11 @@ func (d *AllocDir) List(path string) ([]*AllocFileInfo, error) {
 	files := make([]*AllocFileInfo, len(finfos))
 	for idx, info := range finfos {
 		files[idx] = &AllocFileInfo{
-			Name:  info.Name(),
-			IsDir: info.IsDir(),
-			Size:  info.Size(),
+			Name:     info.Name(),
+			IsDir:    info.IsDir(),
+			Size:     info.Size(),
+			FileMode: info.Mode().String(),
+			ModTime:  info.ModTime(),
 		}
 	}
 	return files, err
@@ -261,9 +266,11 @@ func (d *AllocDir) Stat(path string) (*AllocFileInfo, error) {
 	}
 
 	return &AllocFileInfo{
-		Size:  info.Size(),
-		Name:  info.Name(),
-		IsDir: info.IsDir(),
+		Size:     info.Size(),
+		Name:     info.Name(),
+		IsDir:    info.IsDir(),
+		FileMode: info.Mode().String(),
+		ModTime:  info.ModTime(),
 	}, nil
 }
 

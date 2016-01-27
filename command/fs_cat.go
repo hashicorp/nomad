@@ -119,7 +119,7 @@ func (f *FSCatCommand) Run(args []string) int {
 		return 1
 	}
 	if file.IsDir {
-		f.Ui.Error("The file %q is a directory")
+		f.Ui.Error(fmt.Sprintf("The file %q is a directory", file.Name))
 		return 1
 	}
 

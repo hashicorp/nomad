@@ -120,15 +120,18 @@ func (f *FSListCommand) Run(args []string) int {
 
 	// Display the file information in a tabular format
 	out := make([]string, len(files)+1)
-	out[0] = "Name|Size"
+	out[0] = "Mode|Size|Modfied Time|Name"
 	for i, file := range files {
 		fn := file.Name
 		if file.IsDir {
 			fn = fmt.Sprintf("%s/", fn)
 		}
-		out[i+1] = fmt.Sprintf("%s|%d",
+		out[i+1] = fmt.Sprintf("%s|%d|%s|%s",
+			file.FileMode,
+			file.Size,
+			file.ModTime,
 			fn,
-			file.Size)
+		)
 	}
 
 	f.Ui.Output(formatList(out))

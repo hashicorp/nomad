@@ -7,13 +7,16 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"time"
 )
 
 // AllocFileInfo holds information about a file inside the AllocDir
 type AllocFileInfo struct {
-	Name  string
-	IsDir bool
-	Size  int64
+	Name     string
+	IsDir    bool
+	Size     int64
+	FileMode string
+	ModTime  time.Time
 }
 
 // AllocFS is used to introspect an allocation directory on a Nomad client
