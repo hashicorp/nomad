@@ -3,12 +3,18 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/hashicorp/nomad/client/allocdir"
 	"io"
 	"net/http"
 	"net/url"
 	"strconv"
 )
+
+// AllocFileInfo holds information about a file inside the AllocDir
+type AllocFileInfo struct {
+	Name  string
+	IsDir bool
+	Size  int64
+}
 
 // AllocFS is used to introspect an allocation directory on a Nomad client
 type AllocFS struct {
@@ -21,7 +27,7 @@ func (c *Client) AllocFS() *AllocFS {
 }
 
 // List is used to list the files at a given path of an allocation directory
-func (a *AllocFS) List(alloc *Allocation, path string, q *QueryOptions) ([]*allocdir.AllocFileInfo, *QueryMeta, error) {
+func (a *AllocFS) List(alloc *Allocation, path string, q *QueryOptions) ([]*AllocFileInfo, *QueryMeta, error) {
 	node, _, err := a.client.Nodes().Info(alloc.NodeID, &QueryOptions{})
 	if err != nil {
 		return nil, nil, err
@@ -48,7 +54,7 @@ func (a *AllocFS) List(alloc *Allocation, path string, q *QueryOptions) ([]*allo
 		return nil, nil, err
 	}
 	decoder := json.NewDecoder(resp.Body)
-	var files []*allocdir.AllocFileInfo
+	var files []*AllocFileInfo
 	if err := decoder.Decode(&files); err != nil {
 		return nil, nil, err
 	}
@@ -56,7 +62,7 @@ func (a *AllocFS) List(alloc *Allocation, path string, q *QueryOptions) ([]*allo
 }
 
 // Stat is used to stat a file at a given path of an allocation directory
-func (a *AllocFS) Stat(alloc *Allocation, path string, q *QueryOptions) (*allocdir.AllocFileInfo, *QueryMeta, error) {
+func (a *AllocFS) Stat(alloc *Allocation, path string, q *QueryOptions) (*AllocFileInfo, *QueryMeta, error) {
 	node, _, err := a.client.Nodes().Info(alloc.NodeID, &QueryOptions{})
 	if err != nil {
 		return nil, nil, err
@@ -83,7 +89,7 @@ func (a *AllocFS) Stat(alloc *Allocation, path string, q *QueryOptions) (*allocd
 		return nil, nil, err
 	}
 	decoder := json.NewDecoder(resp.Body)
-	var file *allocdir.AllocFileInfo
+	var file *AllocFileInfo
 	if err := decoder.Decode(&file); err != nil {
 		return nil, nil, err
 	}
