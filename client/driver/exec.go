@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"path/filepath"
-	"runtime"
 	"syscall"
 	"time"
 
@@ -13,7 +12,6 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/executor"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
-	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/client/getter"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/mapstructure"
@@ -23,8 +21,8 @@ import (
 // features.
 type ExecDriver struct {
 	DriverContext
-	fingerprint.StaticFingerprinter
 }
+
 type ExecDriverConfig struct {
 	ArtifactSource string   `mapstructure:"artifact_source"`
 	Checksum       string   `mapstructure:"checksum"`
@@ -47,9 +45,9 @@ func NewExecDriver(ctx *DriverContext) Driver {
 }
 
 func (d *ExecDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
-	// Only enable if we are root on linux.
-	if runtime.GOOS != "linux" {
-		d.logger.Printf("[DEBUG] driver.exec: only available on linux, disabling")
+	// Only enable if cgroups are available and we are root
+	if _, ok := node.Attributes["cgroup.mountpoint"]; !ok {
+		d.logger.Printf("[DEBUG] driver.exec: cgroups unavailable, disabling")
 		return false, nil
 	} else if syscall.Geteuid() != 0 {
 		d.logger.Printf("[DEBUG] driver.exec: must run as root user, disabling")
@@ -58,6 +56,10 @@ func (d *ExecDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, 
 
 	node.Attributes["driver.exec"] = "1"
 	return true, nil
+}
+
+func (d *ExecDriver) Periodic() (bool, time.Duration) {
+	return true, 15 * time.Second
 }
 
 func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
