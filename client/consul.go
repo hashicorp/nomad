@@ -306,7 +306,7 @@ func (c *ConsulService) registerService(service *structs.Service, task *structs.
 	for _, check := range service.Checks {
 		cr := c.makeCheck(serviceID, check, host, port)
 		if err := c.registerCheck(cr); err != nil {
-			c.printLogMessage("[DEBUG] consul: error while registerting check %v with consul: %v", check.Name, err)
+			c.printLogMessage("[DEBUG] consul: error while registering check %v with consul: %v", check.Name, err)
 			mErr.Errors = append(mErr.Errors, err)
 		}
 
