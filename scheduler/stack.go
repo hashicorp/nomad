@@ -35,12 +35,15 @@ type Stack interface {
 // GenericStack is the Stack used for the Generic scheduler. It is
 // designed to make better placement decisions at the cost of performance.
 type GenericStack struct {
-	batch                   bool
-	ctx                     Context
-	source                  *StaticIterator
-	jobConstraint           *ConstraintIterator
-	taskGroupDrivers        *DriverIterator
-	taskGroupConstraint     *ConstraintIterator
+	batch  bool
+	ctx    Context
+	source *StaticIterator
+
+	wrappedChecks       *FeasibilityWrapper
+	jobConstraint       *ConstraintChecker
+	taskGroupDrivers    *DriverChecker
+	taskGroupConstraint *ConstraintChecker
+
 	proposedAllocConstraint *ProposedAllocConstraintIterator
 	binPack                 *BinPackIterator
 	jobAntiAff              *JobAntiAffinityIterator
@@ -62,16 +65,24 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 	s.source = NewRandomIterator(ctx, nil)
 
 	// Attach the job constraints. The job is filled in later.
-	s.jobConstraint = NewConstraintIterator(ctx, s.source, nil)
+	s.jobConstraint = NewConstraintChecker(ctx, nil)
 
 	// Filter on task group drivers first as they are faster
-	s.taskGroupDrivers = NewDriverIterator(ctx, s.jobConstraint, nil)
+	s.taskGroupDrivers = NewDriverChecker(ctx, nil)
 
 	// Filter on task group constraints second
-	s.taskGroupConstraint = NewConstraintIterator(ctx, s.taskGroupDrivers, nil)
+	s.taskGroupConstraint = NewConstraintChecker(ctx, nil)
+
+	// Create the feasibility wrapper which wraps all feasibility checks in
+	// which feasibility checking can be skipped if the computed node class has
+	// previously been marked as eligible or ineligible. Generally this will be
+	// checks that only needs to examine the single node to determine feasibility.
+	jobs := []FeasibilityChecker{s.jobConstraint}
+	tgs := []FeasibilityChecker{s.taskGroupDrivers, s.taskGroupConstraint}
+	s.wrappedChecks = NewFeasibilityWrapper(ctx, s.source, jobs, tgs)
 
 	// Filter on constraints that are affected by propsed allocations.
-	s.proposedAllocConstraint = NewProposedAllocConstraintIterator(ctx, s.taskGroupConstraint)
+	s.proposedAllocConstraint = NewProposedAllocConstraintIterator(ctx, s.wrappedChecks)
 
 	// Upgrade from feasible to rank iterator
 	rankSource := NewFeasibleRankIterator(ctx, s.proposedAllocConstraint)
@@ -126,6 +137,7 @@ func (s *GenericStack) SetJob(job *structs.Job) {
 	s.proposedAllocConstraint.SetJob(job)
 	s.binPack.SetPriority(job.Priority)
 	s.jobAntiAff.SetJob(job.ID)
+	s.ctx.Eligibility().SetJob(job)
 }
 
 func (s *GenericStack) Select(tg *structs.TaskGroup) (*RankedNode, *structs.Resources) {
@@ -163,9 +175,10 @@ func (s *GenericStack) Select(tg *structs.TaskGroup) (*RankedNode, *structs.Reso
 type SystemStack struct {
 	ctx                 Context
 	source              *StaticIterator
-	jobConstraint       *ConstraintIterator
-	taskGroupDrivers    *DriverIterator
-	taskGroupConstraint *ConstraintIterator
+	wrappedChecks       *FeasibilityWrapper
+	jobConstraint       *ConstraintChecker
+	taskGroupDrivers    *DriverChecker
+	taskGroupConstraint *ConstraintChecker
 	binPack             *BinPackIterator
 }
 
@@ -179,16 +192,24 @@ func NewSystemStack(ctx Context) *SystemStack {
 	s.source = NewStaticIterator(ctx, nil)
 
 	// Attach the job constraints. The job is filled in later.
-	s.jobConstraint = NewConstraintIterator(ctx, s.source, nil)
+	s.jobConstraint = NewConstraintChecker(ctx, nil)
 
 	// Filter on task group drivers first as they are faster
-	s.taskGroupDrivers = NewDriverIterator(ctx, s.jobConstraint, nil)
+	s.taskGroupDrivers = NewDriverChecker(ctx, nil)
 
 	// Filter on task group constraints second
-	s.taskGroupConstraint = NewConstraintIterator(ctx, s.taskGroupDrivers, nil)
+	s.taskGroupConstraint = NewConstraintChecker(ctx, nil)
+
+	// Create the feasibility wrapper which wraps all feasibility checks in
+	// which feasibility checking can be skipped if the computed node class has
+	// previously been marked as eligible or ineligible. Generally this will be
+	// checks that only needs to examine the single node to determine feasibility.
+	jobs := []FeasibilityChecker{s.jobConstraint}
+	tgs := []FeasibilityChecker{s.taskGroupDrivers, s.taskGroupConstraint}
+	s.wrappedChecks = NewFeasibilityWrapper(ctx, s.source, jobs, tgs)
 
 	// Upgrade from feasible to rank iterator
-	rankSource := NewFeasibleRankIterator(ctx, s.taskGroupConstraint)
+	rankSource := NewFeasibleRankIterator(ctx, s.wrappedChecks)
 
 	// Apply the bin packing, this depends on the resources needed
 	// by a particular task group. Enable eviction as system jobs are high
@@ -205,6 +226,7 @@ func (s *SystemStack) SetNodes(baseNodes []*structs.Node) {
 func (s *SystemStack) SetJob(job *structs.Job) {
 	s.jobConstraint.SetConstraints(job.Constraints)
 	s.binPack.SetPriority(job.Priority)
+	s.ctx.Eligibility().SetJob(job)
 }
 
 func (s *SystemStack) Select(tg *structs.TaskGroup) (*RankedNode, *structs.Resources) {

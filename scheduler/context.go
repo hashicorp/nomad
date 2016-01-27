@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"fmt"
 	"log"
 	"regexp"
 
@@ -35,6 +36,10 @@ type Context interface {
 
 	// ConstraintCache is a cache of version constraints
 	ConstraintCache() map[string]version.Constraints
+
+	// Eligibility returns a tracker for node eligibility in the context of the
+	// eval.
+	Eligibility() *EvalEligibility
 }
 
 // EvalCache is used to cache certain things during an evaluation
@@ -59,10 +64,11 @@ func (e *EvalCache) ConstraintCache() map[string]version.Constraints {
 // EvalContext is a Context used during an Evaluation
 type EvalContext struct {
 	EvalCache
-	state   State
-	plan    *structs.Plan
-	logger  *log.Logger
-	metrics *structs.AllocMetric
+	state       State
+	plan        *structs.Plan
+	logger      *log.Logger
+	metrics     *structs.AllocMetric
+	eligibility *EvalEligibility
 }
 
 // NewEvalContext constructs a new EvalContext
@@ -123,4 +129,159 @@ func (e *EvalContext) ProposedAllocs(nodeID string) ([]*structs.Allocation, erro
 		proposed = make([]*structs.Allocation, 0)
 	}
 	return proposed, nil
+}
+
+func (e *EvalContext) Eligibility() *EvalEligibility {
+	if e.eligibility == nil {
+		e.eligibility = NewEvalEligibility()
+	}
+
+	return e.eligibility
+}
+
+type ComputedClassFeasibility byte
+
+const (
+	// EvalComputedClassUnknown is the initial state until the eligibility has
+	// been explicitely marked to eligible/ineligible or escaped.
+	EvalComputedClassUnknown ComputedClassFeasibility = iota
+
+	// EvalComputedClassIneligible is used to mark the computed class as
+	// ineligible for the evaluation.
+	EvalComputedClassIneligible
+
+	// EvalComputedClassIneligible is used to mark the computed class as
+	// eligible for the evaluation.
+	EvalComputedClassEligible
+
+	// EvalComputedClassEscaped signals that computed class can not determine
+	// eligibility because a constraint exists that is not captured by computed
+	// node classes.
+	EvalComputedClassEscaped
+)
+
+// EvalEligibility tracks eligibility of nodes by computed node class over the
+// course of an evaluation.
+type EvalEligibility struct {
+	// job tracks the eligibility at the job level per computed node class.
+	job map[uint64]ComputedClassFeasibility
+
+	// jobEscaped marks whether constraints have escaped at the job level.
+	jobEscaped bool
+
+	// taskGroups tracks the eligibility at the task group level per computed
+	// node class.
+	taskGroups map[string]map[uint64]ComputedClassFeasibility
+
+	// tgEscapedConstraints is a map of task groups to whether constraints have
+	// escaped.
+	tgEscapedConstraints map[string]bool
+}
+
+// NewEvalEligibility returns an eligibility tracker for the context of an evaluation.
+func NewEvalEligibility() *EvalEligibility {
+	return &EvalEligibility{
+		job:                  make(map[uint64]ComputedClassFeasibility),
+		taskGroups:           make(map[string]map[uint64]ComputedClassFeasibility),
+		tgEscapedConstraints: make(map[string]bool),
+	}
+}
+
+// SetJob takes the job being evaluated and calculates the escaped constraints
+// at the job and task group level.
+func (e *EvalEligibility) SetJob(job *structs.Job) {
+	// Determine whether the job has escaped constraints.
+	e.jobEscaped = len(structs.EscapedConstraints(job.Constraints)) != 0
+
+	// Determine the escaped constraints per task group.
+	for _, tg := range job.TaskGroups {
+		constraints := tg.Constraints
+		for _, task := range tg.Tasks {
+			constraints = append(constraints, task.Constraints...)
+		}
+
+		e.tgEscapedConstraints[tg.Name] = len(structs.EscapedConstraints(constraints)) != 0
+	}
+}
+
+// HasEscaped returns whether any of the constraints in the passed job have
+// escaped computed node classes.
+func (e *EvalEligibility) HasEscaped() bool {
+	if e.jobEscaped {
+		return true
+	}
+
+	for _, escaped := range e.tgEscapedConstraints {
+		if escaped {
+			return true
+		}
+	}
+
+	return false
+}
+
+// JobStatus returns the eligibility status of the job.
+func (e *EvalEligibility) JobStatus(class uint64) ComputedClassFeasibility {
+	// COMPAT: Computed node class was introduced in 0.3. Clients running < 0.3
+	// will not have a computed class. The safest value to return is the escaped
+	// case, since it disables any optimization.
+	if e.jobEscaped || class == 0 {
+		fmt.Println(e.jobEscaped, class)
+		return EvalComputedClassEscaped
+	}
+
+	if status, ok := e.job[class]; ok {
+		return status
+	}
+	return EvalComputedClassUnknown
+}
+
+// SetJobEligibility sets the eligibility status of the job for the computed
+// node class.
+func (e *EvalEligibility) SetJobEligibility(eligible bool, class uint64) {
+	if eligible {
+		e.job[class] = EvalComputedClassEligible
+	} else {
+		e.job[class] = EvalComputedClassIneligible
+	}
+}
+
+// TaskGroupStatus returns the eligibility status of the task group.
+func (e *EvalEligibility) TaskGroupStatus(tg string, class uint64) ComputedClassFeasibility {
+	// COMPAT: Computed node class was introduced in 0.3. Clients running < 0.3
+	// will not have a computed class. The safest value to return is the escaped
+	// case, since it disables any optimization.
+	if class == 0 {
+		return EvalComputedClassEscaped
+	}
+
+	if escaped, ok := e.tgEscapedConstraints[tg]; ok {
+		if escaped {
+			return EvalComputedClassEscaped
+		}
+	}
+
+	if classes, ok := e.taskGroups[tg]; ok {
+		if status, ok := classes[class]; ok {
+			return status
+		}
+	}
+	return EvalComputedClassUnknown
+}
+
+// SetTaskGroupEligibility sets the eligibility status of the task group for the
+// computed node class.
+func (e *EvalEligibility) SetTaskGroupEligibility(eligible bool, tg string, class uint64) {
+	var eligibility ComputedClassFeasibility
+	if eligible {
+		eligibility = EvalComputedClassEligible
+	} else {
+		eligibility = EvalComputedClassIneligible
+	}
+
+	if classes, ok := e.taskGroups[tg]; ok {
+		classes[class] = eligibility
+	} else {
+		e.taskGroups[tg] = map[uint64]ComputedClassFeasibility{class: eligibility}
+	}
 }

@@ -54,7 +54,7 @@ func (n Node) HashInclude(field string, v interface{}) (bool, error) {
 func (n Node) HashIncludeMap(field string, k, v interface{}) (bool, error) {
 	key, ok := k.(string)
 	if !ok {
-		return false, fmt.Errorf("map key %v not a string")
+		return false, fmt.Errorf("map key %v not a string", k)
 	}
 
 	switch field {
@@ -62,5 +62,33 @@ func (n Node) HashIncludeMap(field string, k, v interface{}) (bool, error) {
 		return !IsUniqueNamespace(key), nil
 	default:
 		return false, fmt.Errorf("unexpected map field: %v", field)
+	}
+}
+
+// EscapedConstraints takes a set of constraints and returns the set that
+// escapes computed node classes.
+func EscapedConstraints(constraints []*Constraint) []*Constraint {
+	var escaped []*Constraint
+	for _, c := range constraints {
+		if constraintTargetEscapes(c.LTarget) || constraintTargetEscapes(c.RTarget) {
+			escaped = append(escaped, c)
+		}
+	}
+
+	return escaped
+}
+
+// constraintTargetEscapes returns whether the target of a constraint escapes
+// computed node class optimization.
+func constraintTargetEscapes(target string) bool {
+	switch {
+	case strings.HasPrefix(target, "$node.unique."):
+		return true
+	case strings.HasPrefix(target, "$attr.unique."):
+		return true
+	case strings.HasPrefix(target, "$meta.unique."):
+		return true
+	default:
+		return false
 	}
 }

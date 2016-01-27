@@ -1,6 +1,9 @@
 package structs
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+)
 
 func testNode() *Node {
 	return &Node{
@@ -163,5 +166,46 @@ func TestNode_ComputedClass_Meta(t *testing.T) {
 	}
 	if old != n.ComputedClass {
 		t.Fatal("ComputeClass() didn't ignore unique meta key")
+	}
+}
+
+func TestNode_EscapedConstraints(t *testing.T) {
+	// Non-escaped constraints
+	ne1 := &Constraint{
+		LTarget: "$attr.kernel.name",
+		RTarget: "linux",
+		Operand: "=",
+	}
+	ne2 := &Constraint{
+		LTarget: "$meta.key_foo",
+		RTarget: "linux",
+		Operand: "<",
+	}
+	ne3 := &Constraint{
+		LTarget: "$node.dc",
+		RTarget: "test",
+		Operand: "!=",
+	}
+
+	// Escaped constraints
+	e1 := &Constraint{
+		LTarget: "$attr.unique.kernel.name",
+		RTarget: "linux",
+		Operand: "=",
+	}
+	e2 := &Constraint{
+		LTarget: "$meta.unique.key_foo",
+		RTarget: "linux",
+		Operand: "<",
+	}
+	e3 := &Constraint{
+		LTarget: "$unique.node.id",
+		RTarget: "test",
+		Operand: "!=",
+	}
+	constraints := []*Constraint{ne1, ne2, ne3, e1, e2, e3}
+	expected := []*Constraint{ne1, ne2, ne3}
+	if act := EscapedConstraints(constraints); reflect.DeepEqual(act, expected) {
+		t.Fatalf("EscapedConstraints(%v) returned %v; want %v", constraints, act, expected)
 	}
 }

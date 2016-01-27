@@ -52,6 +52,7 @@ func Node() *structs.Node {
 		NodeClass: "linux-medium-pci",
 		Status:    structs.NodeStatusReady,
 	}
+	node.ComputeClass()
 	return node
 }
 
