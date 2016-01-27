@@ -361,9 +361,6 @@ func TestClientEndpoint_GetNode(t *testing.T) {
 		t.Fatalf("bad ComputedClass: %#v", resp2.Node)
 	}
 
-	// Reset for comparison
-	resp2.Node.ComputedClass = 0
-
 	if !reflect.DeepEqual(node, resp2.Node) {
 		t.Fatalf("bad: %#v %#v", node, resp2.Node)
 	}
