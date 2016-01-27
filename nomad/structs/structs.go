@@ -470,7 +470,8 @@ type Node struct {
 	// Node name
 	Name string
 
-	// HTTP Addr of the Nomad client
+	// HTTPAddr is the address on which the Nomad client is listening for http
+	// requests
 	HTTPAddr string
 
 	// Attributes is an arbitrary set of key/value
