@@ -2,6 +2,7 @@ package command
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"strings"
 )
@@ -111,9 +112,11 @@ func (f *FSCatCommand) Run(args []string) int {
 	// Get the contents of the file
 	offset := 0
 	limit := file.Size
-	if _, err := client.AllocFS().ReadAt(alloc, path, int64(offset), limit, os.Stdout, nil); err != nil {
+	r, _, err := client.AllocFS().ReadAt(alloc, path, int64(offset), limit, nil)
+	if err != nil {
 		f.Ui.Error(fmt.Sprintf("Error reading file: %v", err))
 		return 1
 	}
+	io.Copy(os.Stdout, r)
 	return 0
 }

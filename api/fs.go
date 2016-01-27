@@ -98,14 +98,14 @@ func (a *AllocFS) Stat(alloc *Allocation, path string, q *QueryOptions) (*AllocF
 
 // ReadAt is used to read bytes at a given offset until limit at the given path
 // in an allocation directory
-func (a *AllocFS) ReadAt(alloc *Allocation, path string, offset int64, limit int64, w io.Writer, q *QueryOptions) (*QueryMeta, error) {
+func (a *AllocFS) ReadAt(alloc *Allocation, path string, offset int64, limit int64, q *QueryOptions) (io.Reader, *QueryMeta, error) {
 	node, _, err := a.client.Nodes().Info(alloc.NodeID, &QueryOptions{})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if node.HTTPAddr == "" {
-		return nil, fmt.Errorf("http addr of the node where alloc %q is running is not advertised", alloc.ID)
+		return nil, nil, fmt.Errorf("http addr of the node where alloc %q is running is not advertised", alloc.ID)
 	}
 	u := &url.URL{
 		Scheme: "http",
@@ -124,8 +124,7 @@ func (a *AllocFS) ReadAt(alloc *Allocation, path string, offset int64, limit int
 	c := http.Client{}
 	resp, err := c.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	io.Copy(w, resp.Body)
-	return nil, nil
+	return resp.Body, nil, nil
 }
