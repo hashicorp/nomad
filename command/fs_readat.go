@@ -1,0 +1,76 @@
+package command
+
+import (
+	"fmt"
+	"os"
+	"strings"
+)
+
+type FSCatCommand struct {
+	Meta
+}
+
+func (f *FSCatCommand) Help() string {
+	helpText := `
+	Usage: nomad fs-cat [alloc-id] [path]
+
+	Dispays a file in an allocation directory at the given path.
+	The path is relative to the allocation directory
+	`
+	return strings.TrimSpace(helpText)
+}
+
+func (f *FSCatCommand) Synopsis() string {
+	return "displays a file at a given location"
+}
+
+func (f *FSCatCommand) Run(args []string) int {
+	flags := f.Meta.FlagSet("fs-list", FlagSetClient)
+	flags.Usage = func() { f.Ui.Output(f.Help()) }
+
+	if err := flags.Parse(args); err != nil {
+		return 1
+	}
+	args = flags.Args()
+
+	if len(args) < 1 {
+		f.Ui.Error("a valid alloc id is essential")
+		return 1
+	}
+
+	allocID := args[0]
+	path := "/"
+	if len(args) == 2 {
+		path = args[1]
+	}
+
+	client, err := f.Meta.Client()
+	if err != nil {
+		f.Ui.Error(fmt.Sprintf("Error inititalizing client: %v", err))
+		return 1
+	}
+
+	alloc, _, err := client.Allocations().Info(allocID, nil)
+	if err != nil {
+		f.Ui.Error(fmt.Sprintf("Error getting alloc: %v", err))
+		return 1
+	}
+
+	file, _, err := client.AllocFS().Stat(alloc, path, nil)
+	if err != nil {
+		f.Ui.Error(fmt.Sprintf("Error stating file: %v:", err))
+		return 1
+	}
+	if file.IsDir {
+		f.Ui.Error("The file %q is a directory")
+		return 1
+	}
+
+	offset := 0
+	limit := file.Size
+	if _, err := client.AllocFS().ReadAt(alloc, path, int64(offset), limit, os.Stdout, nil); err != nil {
+		f.Ui.Error(fmt.Sprintf("Error reading file: %v", err))
+		return 1
+	}
+	return 0
+}

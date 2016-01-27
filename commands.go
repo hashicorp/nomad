@@ -67,7 +67,11 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
-
+		"fs-cat": func() (cli.Command, error) {
+			return &command.FSCatCommand{
+				Meta: meta,
+			}, nil
+		},
 		"init": func() (cli.Command, error) {
 			return &command.InitCommand{
 				Meta: meta,
