@@ -16,6 +16,7 @@ const EmptyDuration = time.Duration(0)
 // fingerprints available, to provided an ordered iteration
 var BuiltinFingerprints = []string{
 	"arch",
+	"cgroup",
 	"consul",
 	"cpu",
 	"env_aws",
@@ -30,6 +31,7 @@ var BuiltinFingerprints = []string{
 // which are available, corresponding to a key found in BuiltinFingerprints
 var builtinFingerprintMap = map[string]Factory{
 	"arch":    NewArchFingerprint,
+	"cgroup":  NewCGroupFingerprint,
 	"consul":  NewConsulFingerprint,
 	"cpu":     NewCPUFingerprint,
 	"env_aws": NewEnvAWSFingerprint,
@@ -41,6 +43,7 @@ var builtinFingerprintMap = map[string]Factory{
 }
 
 // NewFingerprint is used to instantiate and return a new fingerprint
+
 // given the name and a logger
 func NewFingerprint(name string, logger *log.Logger) (Fingerprint, error) {
 	// Lookup the factory function
