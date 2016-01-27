@@ -63,6 +63,11 @@ func (f *FSStatCommand) Run(args []string) int {
 		return 1
 	}
 
+	// Truncate the id unless full length is requested
+	length := shortId
+	if verbose {
+		length = fullId
+	}
 	// Query the allocation info
 	alloc, _, err := client.Allocations().Info(allocID, nil)
 	if err != nil {
@@ -91,8 +96,8 @@ func (f *FSStatCommand) Run(args []string) int {
 			out[0] = "ID|Eval ID|Job ID|Task Group|Desired Status|Client Status"
 			for i, alloc := range allocs {
 				out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%s|%s",
-					alloc.ID,
-					alloc.EvalID,
+					limit(alloc.ID, length),
+					limit(alloc.EvalID, length),
 					alloc.JobID,
 					alloc.TaskGroup,
 					alloc.DesiredStatus,
