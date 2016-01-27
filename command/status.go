@@ -241,7 +241,7 @@ func (c *StatusCommand) outputJobInfo(client *api.Client, job *api.Job) error {
 	evals[0] = "ID|Priority|Triggered By|Status"
 	for i, eval := range jobEvals {
 		evals[i+1] = fmt.Sprintf("%s|%d|%s|%s",
-			eval.ID[:c.length],
+			limit(eval.ID, c.length),
 			eval.Priority,
 			eval.TriggeredBy,
 			eval.Status)
@@ -252,9 +252,9 @@ func (c *StatusCommand) outputJobInfo(client *api.Client, job *api.Job) error {
 	allocs[0] = "ID|Eval ID|Node ID|Task Group|Desired|Status"
 	for i, alloc := range jobAllocs {
 		allocs[i+1] = fmt.Sprintf("%s|%s|%s|%s|%s|%s",
-			alloc.ID[:c.length],
-			alloc.EvalID[:c.length],
-			alloc.NodeID[:c.length],
+			limit(alloc.ID, c.length),
+			limit(alloc.EvalID, c.length),
+			limit(alloc.NodeID, c.length),
 			alloc.TaskGroup,
 			alloc.DesiredStatus,
 			alloc.ClientStatus)

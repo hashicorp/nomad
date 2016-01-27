@@ -102,7 +102,7 @@ func (m *monitor) update(update *evalState) {
 	// Check if the evaluation was triggered by a node
 	if existing.node == "" && update.node != "" {
 		m.ui.Output(fmt.Sprintf("Evaluation triggered by node %q",
-			update.node[:m.length]))
+			limit(update.node, m.length)))
 	}
 
 	// Check if the evaluation was triggered by a job
@@ -136,13 +136,13 @@ func (m *monitor) update(update *evalState) {
 				// create index indicates modification
 				m.ui.Output(fmt.Sprintf(
 					"Allocation %q modified: node %q, group %q",
-					alloc.id[:m.length], alloc.node[:m.length], alloc.group))
+					limit(alloc.id, m.length), limit(alloc.node, m.length), alloc.group))
 
 			case alloc.desired == structs.AllocDesiredStatusRun:
 				// New allocation with desired status running
 				m.ui.Output(fmt.Sprintf(
 					"Allocation %q created: node %q, group %q",
-					alloc.id[:m.length], alloc.node[:m.length], alloc.group))
+					limit(alloc.id, m.length), limit(alloc.node, m.length), alloc.group))
 			}
 		} else {
 			switch {
@@ -150,7 +150,7 @@ func (m *monitor) update(update *evalState) {
 				// Allocation status has changed
 				m.ui.Output(fmt.Sprintf(
 					"Allocation %q status changed: %q -> %q (%s)",
-					alloc.id[:m.length], existing.client, alloc.client, alloc.clientDesc))
+					limit(alloc.id, m.length), existing.client, alloc.client, alloc.clientDesc))
 			}
 		}
 	}
@@ -221,7 +221,7 @@ func (m *monitor) monitor(evalID string, allowPrefix bool) int {
 				out[0] = "ID|Priority|Type|Triggered By|Status"
 				for i, eval := range evals {
 					out[i+1] = fmt.Sprintf("%s|%d|%s|%s|%s",
-						eval.ID[:m.length],
+						limit(eval.ID, m.length),
 						eval.Priority,
 						eval.Type,
 						eval.TriggeredBy,
@@ -238,7 +238,7 @@ func (m *monitor) monitor(evalID string, allowPrefix bool) int {
 		}
 
 		if !headerWritten {
-			m.ui.Info(fmt.Sprintf("Monitoring evaluation %q", eval.ID[:m.length]))
+			m.ui.Info(fmt.Sprintf("Monitoring evaluation %q", limit(eval.ID, m.length)))
 			headerWritten = true
 		}
 
@@ -290,7 +290,7 @@ func (m *monitor) monitor(evalID string, allowPrefix bool) int {
 		switch eval.Status {
 		case structs.EvalStatusComplete, structs.EvalStatusFailed:
 			m.ui.Info(fmt.Sprintf("Evaluation %q finished with status %q",
-				eval.ID[:m.length], eval.Status))
+				limit(eval.ID, m.length), eval.Status))
 		default:
 			// Wait for the next update
 			time.Sleep(updateWait)
@@ -328,7 +328,7 @@ func (m *monitor) monitor(evalID string, allowPrefix bool) int {
 func dumpAllocStatus(ui cli.Ui, alloc *api.Allocation, length int) {
 	// Print filter stats
 	ui.Output(fmt.Sprintf("Allocation %q status %q (%d/%d nodes filtered)",
-		alloc.ID[:length], alloc.ClientStatus,
+		limit(alloc.ID, length), alloc.ClientStatus,
 		alloc.Metrics.NodesFiltered, alloc.Metrics.NodesEvaluated))
 
 	// Print a helpful message if we have an eligibility problem
