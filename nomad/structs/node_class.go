@@ -54,7 +54,7 @@ func (n Node) HashInclude(field string, v interface{}) (bool, error) {
 func (n Node) HashIncludeMap(field string, k, v interface{}) (bool, error) {
 	key, ok := k.(string)
 	if !ok {
-		return false, fmt.Errorf("map key %v not a string")
+		return false, fmt.Errorf("map key %v not a string", k)
 	}
 
 	switch field {
