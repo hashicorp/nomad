@@ -220,7 +220,7 @@ func (c *AllocStatusCommand) taskStatus(alloc *api.Allocation) {
 // formatUnixNanoTime is a helper for formating time for output.
 func (c *AllocStatusCommand) formatUnixNanoTime(nano int64) string {
 	t := time.Unix(0, nano)
-	return t.Format("15:04:05 01/02/06")
+	return formatTime(t)
 }
 
 // sortedTaskStateIterator is a helper that takes the task state map and returns a

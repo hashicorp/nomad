@@ -125,7 +125,8 @@ func (f *FSStatCommand) Run(args []string) int {
 		if file.IsDir {
 			fn = fmt.Sprintf("%s/", fn)
 		}
-		out[1] = fmt.Sprintf("%s|%d|%s|%s", file.FileMode, file.Size, file.ModTime, fn)
+		out[1] = fmt.Sprintf("%s|%d|%s|%s", file.FileMode, file.Size,
+			formatTime(file.ModTime), fn)
 	}
 	f.Ui.Output(formatList(out))
 	return 0

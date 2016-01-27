@@ -129,7 +129,7 @@ func (f *FSListCommand) Run(args []string) int {
 		out[i+1] = fmt.Sprintf("%s|%d|%s|%s",
 			file.FileMode,
 			file.Size,
-			file.ModTime,
+			formatTime(file.ModTime),
 			fn,
 		)
 	}
