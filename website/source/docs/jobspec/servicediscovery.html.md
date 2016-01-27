@@ -40,9 +40,9 @@ Nomad does not currently run Consul for you.
 
 ## Service Definition Syntax
 
-The service blocks in a Task definition defines a service which Nomad will
-register with Consul. Multiple Service blocks are allowed in a Task definition,
-which allow registering multiple services for a task that exposes multiple
+The service block in a Task definition defines a service which Nomad will
+register with Consul. Multiple service blocks are allowed in a Task definition,
+which allow registering multiple services for a Task that exposes multiple
 ports.
 
 ### Example
@@ -86,7 +86,7 @@ group "database" {
 
 * `tags`: A list of tags associated with this Service.
 
-* `port`: The port indicates the port associated with the Service. Users are
+* `port`: The port indicates the port associated with the service. Users are
   required to specify a valid port label here which they have defined in the
   resources block. This could be a label to either a dynamic or a static port.
   If an incorrect port label is specified, Nomad doesn't register the service
@@ -102,15 +102,15 @@ group "database" {
   currently `http` and `tcp`. In the future Nomad will add support for more
   Consul checks.
 
-* `delay`: This indicates the frequency of the health checks that Consul with
+* `delay`: This indicates the frequency of the health checks that Consul will
   perform.
 
 * `timeout`: This indicates how long Consul will wait for a health check query
   to succeed.
 
 * `path`: The path of the http endpoint which Consul will query to query the
-  health of a service if the type of the check is `http`. Nomad will add the ip
-  of the service and the port, users are only required to add the relative url
+  health of a service if the type of the check is `http`. Nomad will add the IP
+  of the service and the port, users are only required to add the relative URL
   of the health check endpoint.
 
 * `protocol`: This indicates the protocol for the http checks. Valid options
@@ -118,19 +118,19 @@ group "database" {
 
 ## Assumptions
 
-* Consul 0.6 is needed for using the TCP checks.
+* Consul 0.6.0 or later is needed for using the TCP checks.
 
-* The Service Discovery feature in Nomad depends on Operators making sure that
-  the Nomad client can reach the consul agent.
+* The service discovery feature in Nomad depends on operators making sure that
+  the Nomad client can reach the Consul agent.
 
 * Nomad assumes that it controls the life cycle of all the externally
   discoverable services running on a host.
 
-* Tasks running inside Nomad also needs to reach out to the Consul agent if
+* Tasks running inside Nomad also need to reach out to the Consul agent if
   they want to use any of the Consul APIs. Ex: A task running inside a docker
   container in the bridge mode won't be able to talk to a Consul Agent running
   on the loopback interface of the host since the container in the bridge mode
   has it's own network interface and doesn't see interfaces on the global
   network namespace of the host. There are a couple of ways to solve this, one
   way is to run the container in the host networking mode, or make the Consul
-  agent listen on an interface on the network namespace of the container.
+  agent listen on an interface in the network namespace of the container.
