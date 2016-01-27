@@ -661,7 +661,7 @@ func TestFeasibilityWrapper_JobEscapes(t *testing.T) {
 
 	// Set the job to escaped
 	cc := nodes[0].ComputedClass
-	ctx.Eligibility().Job[cc] = EvalComputedClassEscaped
+	ctx.Eligibility().job[cc] = EvalComputedClassEscaped
 
 	// Run the wrapper.
 	out := collectFeasible(wrapper)
@@ -687,7 +687,7 @@ func TestFeasibilityWrapper_JobAndTg_Eligible(t *testing.T) {
 
 	// Set the job to escaped
 	cc := nodes[0].ComputedClass
-	ctx.Eligibility().Job[cc] = EvalComputedClassEligible
+	ctx.Eligibility().job[cc] = EvalComputedClassEligible
 	ctx.Eligibility().SetTaskGroupEligibility(true, "foo", cc)
 	wrapper.SetTaskGroup("foo")
 
@@ -709,7 +709,7 @@ func TestFeasibilityWrapper_JobEligible_TgIneligible(t *testing.T) {
 
 	// Set the job to escaped
 	cc := nodes[0].ComputedClass
-	ctx.Eligibility().Job[cc] = EvalComputedClassEligible
+	ctx.Eligibility().job[cc] = EvalComputedClassEligible
 	ctx.Eligibility().SetTaskGroupEligibility(false, "foo", cc)
 	wrapper.SetTaskGroup("foo")
 
@@ -731,9 +731,9 @@ func TestFeasibilityWrapper_JobEligible_TgEscaped(t *testing.T) {
 
 	// Set the job to escaped
 	cc := nodes[0].ComputedClass
-	ctx.Eligibility().Job[cc] = EvalComputedClassEligible
-	ctx.Eligibility().TaskGroups["foo"] =
-		map[uint64]ComputedClassEligibility{cc: EvalComputedClassEscaped}
+	ctx.Eligibility().job[cc] = EvalComputedClassEligible
+	ctx.Eligibility().taskGroups["foo"] =
+		map[uint64]ComputedClassFeasibility{cc: EvalComputedClassEscaped}
 	wrapper.SetTaskGroup("foo")
 
 	// Run the wrapper.
@@ -743,7 +743,7 @@ func TestFeasibilityWrapper_JobEligible_TgEscaped(t *testing.T) {
 		t.Fatalf("bad: %#v %v", out, tgMock.calls())
 	}
 
-	if e, ok := ctx.Eligibility().TaskGroups["foo"][cc]; !ok || e != EvalComputedClassEscaped {
+	if e, ok := ctx.Eligibility().taskGroups["foo"][cc]; !ok || e != EvalComputedClassEscaped {
 		t.Fatalf("bad: %v %v", e, ok)
 	}
 }

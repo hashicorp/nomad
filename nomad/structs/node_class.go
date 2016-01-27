@@ -84,15 +84,10 @@ func constraintTargetEscapes(target string) bool {
 	switch {
 	case strings.HasPrefix(target, "$node.unique."):
 		return true
-
-	case strings.HasPrefix(target, "$attr."):
-		attr := strings.TrimPrefix(target, "$attr.")
-		return strings.HasPrefix(attr, NodeUniqueNamespace)
-
-	case strings.HasPrefix(target, "$meta."):
-		meta := strings.TrimPrefix(target, "$meta.")
-		return strings.HasPrefix(meta, NodeUniqueNamespace)
-
+	case strings.HasPrefix(target, "$attr.unique."):
+		return true
+	case strings.HasPrefix(target, "$meta.unique."):
+		return true
 	default:
 		return false
 	}

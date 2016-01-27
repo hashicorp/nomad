@@ -497,7 +497,7 @@ OUTER:
 		}
 
 		// Check if the job has been marked as eligible or ineligible.
-		jobEscaped := false
+		jobEscaped, jobUnknown := false, false
 		switch evalElig.JobStatus(option.ComputedClass) {
 		case EvalComputedClassIneligible:
 			// Fast path the ineligible case
@@ -505,6 +505,8 @@ OUTER:
 			continue
 		case EvalComputedClassEscaped:
 			jobEscaped = true
+		case EvalComputedClassUnknown:
+			jobUnknown = true
 		}
 
 		// Run the job feasibility checks.
@@ -520,13 +522,14 @@ OUTER:
 			}
 		}
 
-		// Set the job eligibility if the constraints weren't escaped.
-		if !jobEscaped {
+		// Set the job eligibility if the constraints weren't escaped and it
+		// hasn't been set before.
+		if !jobEscaped && jobUnknown {
 			evalElig.SetJobEligibility(true, option.ComputedClass)
 		}
 
 		// Check if the task group has been marked as eligible or ineligible.
-		tgEscaped := false
+		tgEscaped, tgUnknown := false, false
 		switch evalElig.TaskGroupStatus(w.tg, option.ComputedClass) {
 		case EvalComputedClassIneligible:
 			// Fast path the ineligible case
@@ -537,6 +540,8 @@ OUTER:
 			return option
 		case EvalComputedClassEscaped:
 			tgEscaped = true
+		case EvalComputedClassUnknown:
+			tgUnknown = true
 		}
 
 		// Run the task group feasibility checks.
@@ -552,8 +557,9 @@ OUTER:
 			}
 		}
 
-		// Set the task group eligibility if the constraints weren't escaped.
-		if !tgEscaped {
+		// Set the task group eligibility if the constraints weren't escaped and
+		// it hasn't been set before.
+		if !tgEscaped && tgUnknown {
 			evalElig.SetTaskGroupEligibility(true, w.tg, option.ComputedClass)
 		}
 

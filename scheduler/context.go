@@ -138,41 +138,51 @@ func (e *EvalContext) Eligibility() *EvalEligibility {
 	return e.eligibility
 }
 
-type ComputedClassEligibility byte
+type ComputedClassFeasibility byte
 
 const (
-	// The EvalComputedClass enums denote the eligibility of the computed class
-	// for the evaluation.
-	EvalComputedClassUnknown ComputedClassEligibility = iota
+	// EvalComputedClassUnknown is the initial state until the eligibility has
+	// been explicitely marked to eligible/ineligible or escaped.
+	EvalComputedClassUnknown ComputedClassFeasibility = iota
+
+	// EvalComputedClassIneligible is used to mark the computed class as
+	// ineligible for the evaluation.
 	EvalComputedClassIneligible
+
+	// EvalComputedClassIneligible is used to mark the computed class as
+	// eligible for the evaluation.
 	EvalComputedClassEligible
+
+	// EvalComputedClassEscaped signals that computed class can not determine
+	// eligibility because a constraint exists that is not captured by computed
+	// node classes.
 	EvalComputedClassEscaped
 )
 
 // EvalEligibility tracks eligibility of nodes by computed node class over the
 // course of an evaluation.
 type EvalEligibility struct {
-	// Job tracks the eligibility at the job level per computed node class.
-	Job map[uint64]ComputedClassEligibility
+	// job tracks the eligibility at the job level per computed node class.
+	job map[uint64]ComputedClassFeasibility
 
-	// JobEscapedConstraints tracks escaped constraints at the job level.
-	JobEscapedConstraints []*structs.Constraint
+	// jobEscapedConstraints tracks escaped constraints at the job level.
+	jobEscapedConstraints []*structs.Constraint
 
-	// TaskGroups tracks the eligibility at the task group level per computed
+	// taskGroups tracks the eligibility at the task group level per computed
 	// node class.
-	TaskGroups map[string]map[uint64]ComputedClassEligibility
+	taskGroups map[string]map[uint64]ComputedClassFeasibility
 
-	// TgEscapedConstraints is a map of task groups to a set of constraints that
+	// tgEscapedConstraints is a map of task groups to a set of constraints that
 	// have escaped.
-	TgEscapedConstraints map[string][]*structs.Constraint
+	tgEscapedConstraints map[string][]*structs.Constraint
 }
 
 // NewEvalEligibility returns an eligibility tracker for the context of an evaluation.
 func NewEvalEligibility() *EvalEligibility {
 	return &EvalEligibility{
-		Job:                  make(map[uint64]ComputedClassEligibility),
-		TaskGroups:           make(map[string]map[uint64]ComputedClassEligibility),
-		TgEscapedConstraints: make(map[string][]*structs.Constraint),
+		job:                  make(map[uint64]ComputedClassFeasibility),
+		taskGroups:           make(map[string]map[uint64]ComputedClassFeasibility),
+		tgEscapedConstraints: make(map[string][]*structs.Constraint),
 	}
 }
 
@@ -180,7 +190,7 @@ func NewEvalEligibility() *EvalEligibility {
 // at the job and task group level.
 func (e *EvalEligibility) SetJob(job *structs.Job) {
 	// Determine the escaped constraints for the job.
-	e.JobEscapedConstraints = structs.EscapedConstraints(job.Constraints)
+	e.jobEscapedConstraints = structs.EscapedConstraints(job.Constraints)
 
 	// Determine the escaped constraints per task group.
 	for _, tg := range job.TaskGroups {
@@ -189,17 +199,20 @@ func (e *EvalEligibility) SetJob(job *structs.Job) {
 			constraints = append(constraints, task.Constraints...)
 		}
 
-		e.TgEscapedConstraints[tg.Name] = structs.EscapedConstraints(constraints)
+		e.tgEscapedConstraints[tg.Name] = structs.EscapedConstraints(constraints)
 	}
 }
 
 // JobStatus returns the eligibility status of the job.
-func (e *EvalEligibility) JobStatus(class uint64) ComputedClassEligibility {
-	if len(e.JobEscapedConstraints) != 0 {
+func (e *EvalEligibility) JobStatus(class uint64) ComputedClassFeasibility {
+	// COMPAT: Computed node class was introduced in 0.3. Clients running < 0.3
+	// will not have a computed class. The safest value to return is the escaped
+	// case, since it disables any optimization.
+	if len(e.jobEscapedConstraints) != 0 || class == 0 {
 		return EvalComputedClassEscaped
 	}
 
-	if status, ok := e.Job[class]; ok {
+	if status, ok := e.job[class]; ok {
 		return status
 	}
 	return EvalComputedClassUnknown
@@ -209,21 +222,28 @@ func (e *EvalEligibility) JobStatus(class uint64) ComputedClassEligibility {
 // node class.
 func (e *EvalEligibility) SetJobEligibility(eligible bool, class uint64) {
 	if eligible {
-		e.Job[class] = EvalComputedClassEligible
+		e.job[class] = EvalComputedClassEligible
 	} else {
-		e.Job[class] = EvalComputedClassIneligible
+		e.job[class] = EvalComputedClassIneligible
 	}
 }
 
 // TaskGroupStatus returns the eligibility status of the task group.
-func (e *EvalEligibility) TaskGroupStatus(tg string, class uint64) ComputedClassEligibility {
-	if escaped, ok := e.TgEscapedConstraints[tg]; ok {
+func (e *EvalEligibility) TaskGroupStatus(tg string, class uint64) ComputedClassFeasibility {
+	// COMPAT: Computed node class was introduced in 0.3. Clients running < 0.3
+	// will not have a computed class. The safest value to return is the escaped
+	// case, since it disables any optimization.
+	if class == 0 {
+		return EvalComputedClassEscaped
+	}
+
+	if escaped, ok := e.tgEscapedConstraints[tg]; ok {
 		if len(escaped) != 0 {
 			return EvalComputedClassEscaped
 		}
 	}
 
-	if classes, ok := e.TaskGroups[tg]; ok {
+	if classes, ok := e.taskGroups[tg]; ok {
 		if status, ok := classes[class]; ok {
 			return status
 		}
@@ -234,16 +254,16 @@ func (e *EvalEligibility) TaskGroupStatus(tg string, class uint64) ComputedClass
 // SetTaskGroupEligibility sets the eligibility status of the task group for the
 // computed node class.
 func (e *EvalEligibility) SetTaskGroupEligibility(eligible bool, tg string, class uint64) {
-	var eligibility ComputedClassEligibility
+	var eligibility ComputedClassFeasibility
 	if eligible {
 		eligibility = EvalComputedClassEligible
 	} else {
 		eligibility = EvalComputedClassIneligible
 	}
 
-	if classes, ok := e.TaskGroups[tg]; ok {
+	if classes, ok := e.taskGroups[tg]; ok {
 		classes[class] = eligibility
 	} else {
-		e.TaskGroups[tg] = map[uint64]ComputedClassEligibility{class: eligibility}
+		e.taskGroups[tg] = map[uint64]ComputedClassFeasibility{class: eligibility}
 	}
 }

@@ -73,7 +73,10 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 	// Filter on task group constraints second
 	s.taskGroupConstraint = NewConstraintChecker(ctx, nil)
 
-	// Create the feasibility wrapper.
+	// Create the feasibility wrapper which wraps all feasibility checks in
+	// which feasibility checking can be skipped if the computed node class has
+	// previously been marked as eligible or ineligible. Generally this will be
+	// checks that only needs to examine the single node to determine feasibility.
 	jobs := []FeasibilityChecker{s.jobConstraint}
 	tgs := []FeasibilityChecker{s.taskGroupDrivers, s.taskGroupConstraint}
 	s.wrappedChecks = NewFeasibilityWrapper(ctx, s.source, jobs, tgs)
@@ -197,7 +200,10 @@ func NewSystemStack(ctx Context) *SystemStack {
 	// Filter on task group constraints second
 	s.taskGroupConstraint = NewConstraintChecker(ctx, nil)
 
-	// Create the feasibility wrapper.
+	// Create the feasibility wrapper which wraps all feasibility checks in
+	// which feasibility checking can be skipped if the computed node class has
+	// previously been marked as eligible or ineligible. Generally this will be
+	// checks that only needs to examine the single node to determine feasibility.
 	jobs := []FeasibilityChecker{s.jobConstraint}
 	tgs := []FeasibilityChecker{s.taskGroupDrivers, s.taskGroupConstraint}
 	s.wrappedChecks = NewFeasibilityWrapper(ctx, s.source, jobs, tgs)
