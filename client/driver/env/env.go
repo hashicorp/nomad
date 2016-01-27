@@ -39,9 +39,9 @@ const (
 
 // The node values that can be interpreted.
 const (
-	nodeIdKey    = "node.id"
+	nodeIdKey    = "node.unique.id"
 	nodeDcKey    = "node.datacenter"
-	nodeNameKey  = "node.name"
+	nodeNameKey  = "node.unique.name"
 	nodeClassKey = "node.class"
 
 	// Prefixes used for lookups.
