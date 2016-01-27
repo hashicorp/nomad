@@ -11,9 +11,9 @@ type FSListCommand struct {
 
 func (f *FSListCommand) Help() string {
 	helpText := `
-Usage: nomad fs-list <alloc-id> <path>
+Usage: nomad fs-ls <alloc-id> <path>
 
-	List displays the contents of the allocation directory for the passed allocation. The path 
+	Ls displays the contents of the allocation directory for the passed allocation. The path 
 	is relative to the root of the alloc dir and defaults to root if unspecified.
     
 	General Options:
