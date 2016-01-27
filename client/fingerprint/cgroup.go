@@ -22,12 +22,12 @@ type CGroupFingerprint struct {
 
 // An interface to isolate calls to the cgroup library
 // This facilitates testing where we can implement
-// fake mount points to test varios code paths
+// fake mount points to test various code paths
 type MountPointDetector interface {
 	MountPoint() (string, error)
 }
 
-// Implements the interface detector which calls net directly
+// Implements the interface detector which calls the cgroups library directly
 type DefaultMountPointDetector struct {
 }
 
