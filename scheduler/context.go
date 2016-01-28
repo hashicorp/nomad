@@ -220,6 +220,36 @@ func (e *EvalEligibility) HasEscaped() bool {
 	return false
 }
 
+// GetClasses returns the eligible classes and the ineligible classes,
+// respectively, across the job and task groups.
+func (e *EvalEligibility) GetClasses() ([]uint64, []uint64) {
+	var elig, inelig []uint64
+
+	// Go through the job.
+	for class, feas := range e.job {
+		switch feas {
+		case EvalComputedClassEligible:
+			elig = append(elig, class)
+		case EvalComputedClassIneligible:
+			inelig = append(inelig, class)
+		}
+	}
+
+	// Go through the task groups.
+	for _, classes := range e.taskGroups {
+		for class, feas := range classes {
+			switch feas {
+			case EvalComputedClassEligible:
+				elig = append(elig, class)
+			case EvalComputedClassIneligible:
+				inelig = append(inelig, class)
+			}
+		}
+	}
+
+	return elig, inelig
+}
+
 // JobStatus returns the eligibility status of the job.
 func (e *EvalEligibility) JobStatus(class uint64) ComputedClassFeasibility {
 	// COMPAT: Computed node class was introduced in 0.3. Clients running < 0.3

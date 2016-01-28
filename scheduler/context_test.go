@@ -3,6 +3,8 @@ package scheduler
 import (
 	"log"
 	"os"
+	"reflect"
+	"sort"
 	"testing"
 
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -204,5 +206,33 @@ func TestEvalEligibility_SetJob(t *testing.T) {
 	}
 	if escaped, ok := e.tgEscapedConstraints[tg.Name]; !ok || !escaped {
 		t.Fatalf("SetJob() should mark task group as escaped")
+	}
+}
+
+type uint64Array []uint64
+
+func (u uint64Array) Len() int           { return len(u) }
+func (u uint64Array) Less(i, j int) bool { return u[i] <= u[j] }
+func (u uint64Array) Swap(i, j int)      { u[i], u[j] = u[j], u[i] }
+
+func TestEvalEligibility_GetClasses(t *testing.T) {
+	e := NewEvalEligibility()
+	e.SetJobEligibility(true, 1)
+	e.SetJobEligibility(false, 2)
+	e.SetTaskGroupEligibility(true, "foo", 3)
+	e.SetTaskGroupEligibility(false, "bar", 4)
+	e.SetTaskGroupEligibility(true, "bar", 5)
+	expElig := []uint64{1, 3, 5}
+	expInelig := []uint64{2, 4}
+
+	actElig, actInelig := e.GetClasses()
+	sort.Sort(uint64Array(actElig))
+	sort.Sort(uint64Array(actInelig))
+
+	if !reflect.DeepEqual(actElig, expElig) {
+		t.Fatalf("GetClasses() returned %#v; want %#v", actElig, expElig)
+	}
+	if !reflect.DeepEqual(actInelig, expInelig) {
+		t.Fatalf("GetClasses() returned %#v; want %#v", actInelig, expInelig)
 	}
 }

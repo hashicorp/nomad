@@ -1824,6 +1824,7 @@ func (a *AllocMetric) ScoreNode(node *Node, name string, score float64) {
 }
 
 const (
+	EvalStatusBlocked  = "blocked"
 	EvalStatusPending  = "pending"
 	EvalStatusComplete = "complete"
 	EvalStatusFailed   = "failed"
@@ -1912,6 +1913,18 @@ type Evaluation struct {
 	// This is used to support rolling upgrades, where we need a chain of evaluations.
 	PreviousEval string
 
+	// EligibleClasses are the computed node classes that have explicitely been
+	// marked as eligible for placement for some task groups of the job.
+	EligibleClasses []uint64
+
+	// IneligibleClasses are the computed node classes that have explicitely been
+	// marked as ineligible for placement for some task groups of the job.
+	IneligibleClasses []uint64
+
+	// EscapedComputedClass marks whether the job has constraints that are not
+	// captured by computed node classes.
+	EscapedComputedClass bool
+
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
@@ -1977,6 +1990,25 @@ func (e *Evaluation) NextRollingEval(wait time.Duration) *Evaluation {
 		Status:         EvalStatusPending,
 		Wait:           wait,
 		PreviousEval:   e.ID,
+	}
+}
+
+// BlockedEval creates a blocked evaluation to followup this eval to place any
+// failed allocations. It takes the classes marked explicitely eligible or
+// ineligible and whether the job has escaped computed node classes.
+func (e *Evaluation) BlockedEval(elig, inelig []uint64, escaped bool) *Evaluation {
+	return &Evaluation{
+		ID:                   GenerateUUID(),
+		Priority:             e.Priority,
+		Type:                 e.Type,
+		TriggeredBy:          e.TriggeredBy,
+		JobID:                e.JobID,
+		JobModifyIndex:       e.JobModifyIndex,
+		Status:               EvalStatusBlocked,
+		PreviousEval:         e.ID,
+		EligibleClasses:      elig,
+		IneligibleClasses:    inelig,
+		EscapedComputedClass: escaped,
 	}
 }
 

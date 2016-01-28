@@ -104,6 +104,11 @@ func TestServiceSched_JobRegister_AllocFail(t *testing.T) {
 	}
 	plan := h.Plans[0]
 
+	// Ensure the plan has created a follow up eval.
+	if len(h.CreateEvals) != 1 || h.CreateEvals[0].Status != structs.EvalStatusBlocked {
+		t.Fatalf("bad: %#v", h.CreateEvals)
+	}
+
 	// Ensure the plan failed to alloc
 	if len(plan.FailedAllocs) != 1 {
 		t.Fatalf("bad: %#v", plan)
@@ -125,6 +130,93 @@ func TestServiceSched_JobRegister_AllocFail(t *testing.T) {
 
 	// Check the available nodes
 	if count, ok := out[0].Metrics.NodesAvailable["dc1"]; !ok || count != 0 {
+		t.Fatalf("bad: %#v", out[0].Metrics)
+	}
+
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+}
+
+func TestServiceSched_JobRegister_BlockedEval(t *testing.T) {
+	h := NewHarness(t)
+
+	// Create a full node
+	node := mock.Node()
+	node.Reserved = node.Resources
+	node.ComputeClass()
+	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+
+	// Create an ineligible node
+	node2 := mock.Node()
+	node2.Attributes["kernel.name"] = "windows"
+	node2.ComputeClass()
+	noErr(t, h.State.UpsertNode(h.NextIndex(), node2))
+
+	// Create a jobs
+	job := mock.Job()
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	// Create a mock evaluation to register the job
+	eval := &structs.Evaluation{
+		ID:          structs.GenerateUUID(),
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+	}
+
+	// Process the evaluation
+	err := h.Process(NewServiceScheduler, eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure a single plan
+	if len(h.Plans) != 1 {
+		t.Fatalf("bad: %#v", h.Plans)
+	}
+	plan := h.Plans[0]
+
+	// Ensure the plan has created a follow up eval.
+	if len(h.CreateEvals) != 1 {
+		t.Fatalf("bad: %#v", h.CreateEvals)
+	}
+
+	created := h.CreateEvals[0]
+	if created.Status != structs.EvalStatusBlocked {
+		t.Fatalf("bad: %#v", created)
+	}
+
+	if len(created.EligibleClasses) != 1 && len(created.IneligibleClasses) != 1 {
+		t.Fatalf("bad: %#v", created)
+	}
+
+	if created.EscapedComputedClass {
+		t.Fatalf("bad: %#v", created)
+	}
+
+	// Ensure the plan failed to alloc
+	if len(plan.FailedAllocs) != 1 {
+		t.Fatalf("bad: %#v", plan)
+	}
+
+	// Lookup the allocations by JobID
+	out, err := h.State.AllocsByJob(job.ID)
+	noErr(t, err)
+
+	// Ensure all allocations placed
+	if len(out) != 1 {
+		for _, a := range out {
+			t.Logf("%#v", a)
+		}
+		t.Fatalf("bad: %#v", out)
+	}
+
+	// Check the coalesced failures
+	if out[0].Metrics.CoalescedFailures != 9 {
+		t.Fatalf("bad: %#v", out[0].Metrics)
+	}
+
+	// Check the available nodes
+	if count, ok := out[0].Metrics.NodesAvailable["dc1"]; !ok || count != 2 {
 		t.Fatalf("bad: %#v", out[0].Metrics)
 	}
 

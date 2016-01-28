@@ -35,6 +35,8 @@ type SystemScheduler struct {
 
 	limitReached bool
 	nextEval     *structs.Evaluation
+
+	blocked *structs.Evaluation
 }
 
 // NewSystemScheduler is a factory function to instantiate a new system
@@ -125,6 +127,19 @@ func (s *SystemScheduler) process() (bool, error) {
 			return false, err
 		}
 		s.logger.Printf("[DEBUG] sched: %#v: rolling update limit reached, next eval '%s' created", s.eval, s.nextEval.ID)
+	}
+
+	// If there are failed allocations, we need to create a blocked evaluation
+	// to place the failed allocations when resources become available.
+	if len(s.plan.FailedAllocs) != 0 && s.blocked == nil {
+		e := s.ctx.Eligibility()
+		elig, inelig := e.GetClasses()
+		s.blocked = s.eval.BlockedEval(elig, inelig, e.HasEscaped())
+		if err := s.planner.CreateEval(s.blocked); err != nil {
+			s.logger.Printf("[ERR] sched: %#v failed to make blocked eval: %v", s.eval, err)
+			return false, err
+		}
+		s.logger.Printf("[DEBUG] sched: %#v: failed to place all allocations, blocked eval '%s' created", s.eval, s.blocked.ID)
 	}
 
 	// Submit the plan
