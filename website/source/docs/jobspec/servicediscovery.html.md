@@ -58,7 +58,7 @@ group "database" {
             port = "db"
             check {
                 type = "tcp"
-                delay = "10s"
+                interval = "10s"
                 timeout = "2s"
             }
         }
@@ -102,7 +102,7 @@ group "database" {
   currently `http` and `tcp`. In the future Nomad will add support for more
   Consul checks.
 
-* `delay`: This indicates the frequency of the health checks that Consul will
+* `interval`: This indicates the frequency of the health checks that Consul will
   perform.
 
 * `timeout`: This indicates how long Consul will wait for a health check query
