@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -56,6 +57,9 @@ func (a *AllocFS) List(alloc *Allocation, path string, q *QueryOptions) ([]*Allo
 	if err != nil {
 		return nil, nil, err
 	}
+	if resp.StatusCode != 200 {
+		return nil, nil, a.getErrorMsg(resp)
+	}
 	decoder := json.NewDecoder(resp.Body)
 	var files []*AllocFileInfo
 	if err := decoder.Decode(&files); err != nil {
@@ -90,6 +94,9 @@ func (a *AllocFS) Stat(alloc *Allocation, path string, q *QueryOptions) (*AllocF
 	resp, err := c.Do(req)
 	if err != nil {
 		return nil, nil, err
+	}
+	if resp.StatusCode != 200 {
+		return nil, nil, a.getErrorMsg(resp)
 	}
 	decoder := json.NewDecoder(resp.Body)
 	var file *AllocFileInfo
@@ -130,4 +137,12 @@ func (a *AllocFS) ReadAt(alloc *Allocation, path string, offset int64, limit int
 		return nil, nil, err
 	}
 	return resp.Body, nil, nil
+}
+
+func (a *AllocFS) getErrorMsg(resp *http.Response) error {
+	if errMsg, err := ioutil.ReadAll(resp.Body); err == nil {
+		return fmt.Errorf(string(errMsg))
+	} else {
+		return err
+	}
 }
