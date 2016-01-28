@@ -13,7 +13,7 @@ func (f *FSListCommand) Help() string {
 	helpText := `
 Usage: nomad fs-ls <alloc-id> <path>
 
-	Ls displays the contents of the allocation directory for the passed allocation. The path 
+	ls displays the contents of the allocation directory for the passed allocation. The path 
 	is relative to the root of the alloc dir and defaults to root if unspecified.
     
 	General Options:
