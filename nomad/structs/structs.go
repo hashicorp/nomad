@@ -470,6 +470,10 @@ type Node struct {
 	// Node name
 	Name string
 
+	// HTTPAddr is the address on which the Nomad client is listening for http
+	// requests
+	HTTPAddr string
+
 	// Attributes is an arbitrary set of key/value
 	// data that can be used for constraints. Examples
 	// include "kernel.name=linux", "arch=386", "driver.docker=1",

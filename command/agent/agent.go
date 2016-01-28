@@ -222,6 +222,21 @@ func (a *Agent) setupClient() error {
 	conf.Node.Name = a.config.NodeName
 	conf.Node.Meta = a.config.Client.Meta
 	conf.Node.NodeClass = a.config.Client.NodeClass
+	httpAddr := fmt.Sprintf("%s:%d", a.config.BindAddr, a.config.Ports.HTTP)
+	if a.config.Addresses.HTTP != "" && a.config.AdvertiseAddrs.HTTP == "" {
+		addr, err := net.ResolveTCPAddr("tcp", a.config.Addresses.HTTP)
+		if err != nil {
+			return fmt.Errorf("error resolving http addr: %v:", err)
+		}
+		httpAddr = fmt.Sprintf("%s:%d", addr.IP.String(), addr.Port)
+	} else if a.config.AdvertiseAddrs.HTTP != "" {
+		addr, err := net.ResolveTCPAddr("tcp", a.config.AdvertiseAddrs.HTTP)
+		if err != nil {
+			return fmt.Errorf("error resolving advertise http addr: %v", err)
+		}
+		httpAddr = fmt.Sprintf("%s:%d", addr.IP.String(), addr.Port)
+	}
+	conf.Node.HTTPAddr = httpAddr
 
 	// Create the client
 	client, err := client.NewClient(conf)
