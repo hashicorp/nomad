@@ -36,6 +36,9 @@ func (s *HTTPServer) NodeSpecificRequest(resp http.ResponseWriter, req *http.Req
 	case strings.HasSuffix(path, "/evaluate"):
 		nodeName := strings.TrimSuffix(path, "/evaluate")
 		return s.nodeForceEvaluate(resp, req, nodeName)
+	case strings.HasSuffix(path, "/clientallocations"):
+		nodeName := strings.TrimSuffix(path, "/clientallocations")
+		return s.nodeClientAllocations(resp, req, nodeName)
 	case strings.HasSuffix(path, "/allocations"):
 		nodeName := strings.TrimSuffix(path, "/allocations")
 		return s.nodeAllocations(resp, req, nodeName)
@@ -86,6 +89,27 @@ func (s *HTTPServer) nodeAllocations(resp http.ResponseWriter, req *http.Request
 	if out.Allocs == nil {
 		out.Allocs = make([]*structs.Allocation, 0)
 	}
+	return out.Allocs, nil
+}
+
+func (s *HTTPServer) nodeClientAllocations(resp http.ResponseWriter, req *http.Request,
+	nodeID string) (interface{}, error) {
+	if req.Method != "GET" {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+	args := structs.NodeSpecificRequest{
+		NodeID: nodeID,
+	}
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
+
+	var out structs.NodeClientAllocsResponse
+	if err := s.agent.RPC("Node.GetClientAllocs", &args, &out); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &out.QueryMeta)
 	return out.Allocs, nil
 }
 
