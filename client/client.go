@@ -338,12 +338,12 @@ func (c *Client) SetServers(servers []string) {
 				c.logger.Printf("[WARN] client: port not specified, using default port")
 				setServers[i] = fmt.Sprintf("%s:4647", setServers[i])
 			} else {
-				c.logger.Printf("[ERR] client: error in server address %s", err)
+				c.logger.Printf("[WARN] client: server address %q invalid: %v", setServers[i], err)
 			}
 		}
 	}
 
-	c.logger.Printf("[INFO] client: adding servers '%s'", setServers)
+	c.logger.Printf("[INFO] client: adding servers: %s", setServers)
 	c.servers = setServers
 }
 

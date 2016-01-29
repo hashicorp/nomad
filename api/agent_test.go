@@ -152,7 +152,7 @@ func TestAgent_SetServers(t *testing.T) {
 	if n := len(out); n != 2 {
 		t.Fatalf("expected 2 servers, got: %d", n)
 	}
-	if out[0] != "foo" || out[1] != "bar" {
+	if out[0] != "foo:4647" || out[1] != "bar:4647" {
 		t.Fatalf("bad server list: %v", out)
 	}
 }
