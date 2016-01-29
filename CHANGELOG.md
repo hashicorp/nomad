@@ -21,6 +21,7 @@ IMPROVEMENTS:
   * core/api: Allow users to set arbitrary headers via agent config [GH-699]
   * core: Computed node class and stack optimization [GH-691, GH-708]
   * cli: Ability to navigate allocation directories [GH-709]
+  * core: Cgroup fingerprinter [GH-712]
 
 BUG FIXES:
   * cli: Handle parsing of un-named ports [GH-604]
