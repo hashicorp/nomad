@@ -89,10 +89,10 @@ port "http" {}
 ```
 
 When the task is started, it is passed an environment variable named
-`NOMAD_PORT_http` which indicates the port.
+`NOMAD_ADDR_http` which indicates a combination of the interface IP and port.
 
 ```
-NOMAD_PORT_http=53423 ./start-command
+NOMAD_ADDR_http=127.0.0.1:53423 ./start-command
 ```
 
 ### Mapped Ports
@@ -117,5 +117,9 @@ config {
 The above example is for the Docker driver. The service is listening on port
 `8080` inside the container. The driver will automatically map the dynamic port
 to this service.
+
+When the task is started, it is passed an additional environment variable named
+`NOMAD_HOST_PORT_http` which indicates the host port that the http service is
+bound to.
 
 Please refer to the [Docker](/docs/drivers/docker.html) and [QEMU](/docs/drivers/qemu.html) drivers for additional information.
