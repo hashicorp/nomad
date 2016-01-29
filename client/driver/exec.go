@@ -46,7 +46,7 @@ func NewExecDriver(ctx *DriverContext) Driver {
 
 func (d *ExecDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
 	// Only enable if cgroups are available and we are root
-	if _, ok := node.Attributes["cgroup.mountpoint"]; !ok {
+	if _, ok := node.Attributes["unique.cgroup.mountpoint"]; !ok {
 		d.logger.Printf("[DEBUG] driver.exec: cgroups unavailable, disabling")
 		return false, nil
 	} else if syscall.Geteuid() != 0 {

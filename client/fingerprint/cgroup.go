@@ -12,6 +12,7 @@ import (
 const (
 	cgroupAvailable   = "available"
 	cgroupUnavailable = "unavailable"
+	interval          = 15
 )
 
 type CGroupFingerprint struct {
@@ -36,6 +37,7 @@ func (b *DefaultMountPointDetector) MountPoint() (string, error) {
 	return FindCgroupMountpointDir()
 }
 
+// NewCGroupFingerprint returns a new cgroup fingerprinter
 func NewCGroupFingerprint(logger *log.Logger) Fingerprint {
 	f := &CGroupFingerprint{
 		logger:             logger,
@@ -45,10 +47,11 @@ func NewCGroupFingerprint(logger *log.Logger) Fingerprint {
 	return f
 }
 
+// Fingerprint tries to find a valid cgroup moint point
 func (f *CGroupFingerprint) Fingerprint(cfg *client.Config, node *structs.Node) (bool, error) {
-	// Try to find a valid cgroup mount point
 	mount, err := f.mountPointDetector.MountPoint()
 	if err != nil {
+		f.clearCGroupAttributes(node)
 		return false, fmt.Errorf("Failed to discover cgroup mount point: %s", err)
 	}
 
@@ -64,7 +67,7 @@ func (f *CGroupFingerprint) Fingerprint(cfg *client.Config, node *structs.Node) 
 		return true, nil
 	}
 
-	node.Attributes["cgroup.mountpoint"] = mount
+	node.Attributes["unique.cgroup.mountpoint"] = mount
 
 	if f.lastState == cgroupUnavailable {
 		f.logger.Printf("[INFO] fingerprint.cgroups: cgroups are available")
@@ -73,10 +76,13 @@ func (f *CGroupFingerprint) Fingerprint(cfg *client.Config, node *structs.Node) 
 	return true, nil
 }
 
+// clearCGroupAttributes clears any node attributes related to cgroups that might
+// have been set in a previous fingerprint run.
 func (f *CGroupFingerprint) clearCGroupAttributes(n *structs.Node) {
-	delete(n.Attributes, "cgroup.mountpoint")
+	delete(n.Attributes, "unique.cgroup.mountpoint")
 }
 
+// Periodic determines the interval at which the periodic fingerprinter will run.
 func (f *CGroupFingerprint) Periodic() (bool, time.Duration) {
-	return true, 15 * time.Second
+	return true, interval * time.Second
 }

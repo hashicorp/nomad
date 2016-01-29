@@ -12,7 +12,7 @@ import (
 // EmptyDuration is to be used by fingerprinters that are not periodic.
 const EmptyDuration = time.Duration(0)
 
-// BuiltinFingerprints is a slice containing the key names of all regestered
+// BuiltinFingerprints is a slice containing the key names of all registered
 // fingerprints available, to provided an ordered iteration
 var BuiltinFingerprints = []string{
 	"arch",
@@ -43,7 +43,6 @@ var builtinFingerprintMap = map[string]Factory{
 }
 
 // NewFingerprint is used to instantiate and return a new fingerprint
-
 // given the name and a logger
 func NewFingerprint(name string, logger *log.Logger) (Fingerprint, error) {
 	// Lookup the factory function

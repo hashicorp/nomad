@@ -54,7 +54,7 @@ func TestCGroupFingerprint(t *testing.T) {
 	if ok {
 		t.Fatalf("should not apply")
 	}
-	if a, ok := node.Attributes["cgroup.mountpoint"]; ok {
+	if a, ok := node.Attributes["unique.cgroup.mountpoint"]; ok {
 		t.Fatalf("unexpected attribute found, %s", a)
 	}
 
@@ -75,7 +75,7 @@ func TestCGroupFingerprint(t *testing.T) {
 	if !ok {
 		t.Fatalf("should apply")
 	}
-	assertNodeAttributeContains(t, node, "cgroup.mountpoint")
+	assertNodeAttributeContains(t, node, "unique.cgroup.mountpoint")
 
 	f = &CGroupFingerprint{
 		logger:             testLogger(),
@@ -94,7 +94,7 @@ func TestCGroupFingerprint(t *testing.T) {
 	if !ok {
 		t.Fatalf("should apply")
 	}
-	if a, ok := node.Attributes["cgroup.mountpoint"]; ok {
+	if a, ok := node.Attributes["unique.cgroup.mountpoint"]; ok {
 		t.Fatalf("unexpected attribute found, %s", a)
 	}
 }

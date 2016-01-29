@@ -6,6 +6,8 @@ import (
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 )
 
+// FindCgroupMountpointDir is used to find the cgroup mount point on a Linux
+// system.
 func FindCgroupMountpointDir() (string, error) {
 	mount, err := cgroups.FindCgroupMountpointDir()
 	if err != nil {
