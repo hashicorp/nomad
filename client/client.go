@@ -333,7 +333,7 @@ func (c *Client) SetServers(servers []string) {
 	copy(setServers, servers)
 	for i := 0; i < len(setServers); i++ {
 		if _, _, err := net.SplitHostPort(setServers[i]); err != nil {
-			// multiple errors can be returned here, only searching for mising
+			// multiple errors can be returned here, only searching for missing
 			if strings.Contains(err.Error(), "missing port") {
 				c.logger.Printf("[WARN] client: port not specified, using default port")
 				setServers[i] = fmt.Sprintf("%s:4647", setServers[i])
