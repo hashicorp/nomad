@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -324,7 +325,26 @@ func (c *Client) SetServers(servers []string) {
 	if servers == nil {
 		servers = make([]string, 0)
 	}
-	c.servers = servers
+	// net.ResolveTCPAddr requires port to be set, if one is not provided, supply default port
+	// Using net.SplitHostPort in the event of IPv6 addresses with multiple colons.
+	// IPv6 addresses must be passed in with brackets,
+	// i.e: [::1]:4647 or [::1]
+	setServers := make([]string, len(servers))
+	copy(setServers, servers)
+	for i := 0; i < len(setServers); i++ {
+		if _, _, err := net.SplitHostPort(setServers[i]); err != nil {
+			// multiple errors can be returned here, only searching for mising
+			if strings.Contains(err.Error(), "missing port") {
+				c.logger.Printf("[WARN] client: port not specified, using default port")
+				setServers[i] = fmt.Sprintf("%s:4647", setServers[i])
+			} else {
+				c.logger.Printf("[ERR] client: error in server address %s", err)
+			}
+		}
+	}
+
+	c.logger.Printf("[INFO] client: adding servers '%s'", setServers)
+	c.servers = setServers
 }
 
 // Stats is used to return statistics for debugging and insight
