@@ -37,7 +37,8 @@ description below for specific usage information and requirements.
   arguments. Multiple server addresses may be passed using multiple arguments.
   When updating the servers list, you must specify ALL of the server nodes you
   wish to configure. The set is updated atomically. It is an error to specify
-  this flag without any server addresses.
+  this flag without any server addresses. If you do _not_ specify a port for each
+  server address, the default port `4647` will be used.
 
 ## Examples
 
@@ -52,5 +53,5 @@ server2:4647
 Update the list of servers:
 
 ```
-$ nomad client-config -update-servers server1:4647 server2:4647 server3:4647
+$ nomad client-config -update-servers server1:4647 server2:4647 server3:4647 server4
 ```
