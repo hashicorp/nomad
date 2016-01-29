@@ -18,15 +18,6 @@ on a port. Batch jobs or services that only make outbound connections do not
 need to allocate ports, since they will use any available interface to make an
 outbound connection.
 
-## IP Address
-
-Hosts in Nomad may have multiple network interfaces attached to them. This
-allows you to have a higher density of services, or bind to interfaces on
-different subnets (for example public vs. private subnets).
-
-Each task will receive port allocations on a single interface. The IP is passed
-to your job via the `NOMAD_IP` environment variable.
-
 ## Ports
 
 In addition to allocating an interface, Nomad can allocate static or dynamic

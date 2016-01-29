@@ -3,6 +3,8 @@
 BACKWARDS INCOMPATIBILITIES:
   * core: Improved restart policy with more user configuration [GH-594]
   * core/cli: Print short identifiers [GH-675]
+  * client: Environment variable containing address for each allocated port
+    [GH-704]
 
 IMPROVEMENTS:
   * core: Periodic specification for jobs [GH-540, GH-657, GH-659, GH-668]
