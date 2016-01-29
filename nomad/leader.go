@@ -113,8 +113,11 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	// Enable the eval broker, since we are now the leader
 	s.evalBroker.SetEnabled(true)
 
+	// Enable the blocked eval tracker, since we are now the leader
+	s.blockedEvals.SetEnabled(true)
+
 	// Restore the eval broker state
-	if err := s.restoreEvalBroker(); err != nil {
+	if err := s.restoreEvals(); err != nil {
 		return err
 	}
 
@@ -149,10 +152,11 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	return nil
 }
 
-// restoreEvalBroker is used to restore all pending evaluations
-// into the eval broker. The broker is maintained only by the leader,
-// so it must be restored anytime a leadership transition takes place.
-func (s *Server) restoreEvalBroker() error {
+// restoreEvals is used to restore pending evaluations into the eval broker and
+// blocked evaluations into the blocked eval tracker. The broker and blocked
+// eval tracker is maintained only by the leader, so it must be restored anytime
+// a leadership transition takes place.
+func (s *Server) restoreEvals() error {
 	// Get an iterator over every evaluation
 	iter, err := s.fsm.State().Evals()
 	if err != nil {
@@ -166,12 +170,12 @@ func (s *Server) restoreEvalBroker() error {
 		}
 		eval := raw.(*structs.Evaluation)
 
-		if !eval.ShouldEnqueue() {
-			continue
-		}
-
-		if err := s.evalBroker.Enqueue(eval); err != nil {
-			return fmt.Errorf("failed to enqueue evaluation %s: %v", eval.ID, err)
+		if eval.ShouldEnqueue() {
+			if err := s.evalBroker.Enqueue(eval); err != nil {
+				return fmt.Errorf("failed to enqueue evaluation %s: %v", eval.ID, err)
+			}
+		} else if eval.ShouldBlock() {
+			s.blockedEvals.Block(eval)
 		}
 	}
 	return nil

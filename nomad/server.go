@@ -109,6 +109,10 @@ type Server struct {
 	// that are waiting to be brokered to a sub-scheduler
 	evalBroker *EvalBroker
 
+	// BlockedEvals is used to manage evaluations that are blocked on node
+	// capacity changes.
+	blockedEvals *BlockedEvals
+
 	// planQueue is used to manage the submitted allocation
 	// plans that are waiting to be assessed by the leader
 	planQueue *PlanQueue
@@ -164,6 +168,9 @@ func NewServer(config *Config) (*Server, error) {
 		return nil, err
 	}
 
+	// Create a new blocked eval tracker.
+	blockedEvals := NewBlockedEvals(evalBroker)
+
 	// Create a plan queue
 	planQueue, err := NewPlanQueue()
 	if err != nil {
@@ -172,17 +179,18 @@ func NewServer(config *Config) (*Server, error) {
 
 	// Create the server
 	s := &Server{
-		config:      config,
-		connPool:    NewPool(config.LogOutput, serverRPCCache, serverMaxStreams, nil),
-		logger:      logger,
-		rpcServer:   rpc.NewServer(),
-		peers:       make(map[string][]*serverParts),
-		localPeers:  make(map[string]*serverParts),
-		reconcileCh: make(chan serf.Member, 32),
-		eventCh:     make(chan serf.Event, 256),
-		evalBroker:  evalBroker,
-		planQueue:   planQueue,
-		shutdownCh:  make(chan struct{}),
+		config:       config,
+		connPool:     NewPool(config.LogOutput, serverRPCCache, serverMaxStreams, nil),
+		logger:       logger,
+		rpcServer:    rpc.NewServer(),
+		peers:        make(map[string][]*serverParts),
+		localPeers:   make(map[string]*serverParts),
+		reconcileCh:  make(chan serf.Member, 32),
+		eventCh:      make(chan serf.Event, 256),
+		evalBroker:   evalBroker,
+		blockedEvals: blockedEvals,
+		planQueue:    planQueue,
+		shutdownCh:   make(chan struct{}),
 	}
 
 	// Create the periodic dispatcher for launching periodic jobs.
@@ -415,7 +423,7 @@ func (s *Server) setupRaft() error {
 
 	// Create the FSM
 	var err error
-	s.fsm, err = NewFSM(s.evalBroker, s.periodicDispatcher, s.config.LogOutput)
+	s.fsm, err = NewFSM(s.evalBroker, s.periodicDispatcher, s.blockedEvals, s.config.LogOutput)
 	if err != nil {
 		return err
 	}

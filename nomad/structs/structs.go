@@ -1915,15 +1915,15 @@ type Evaluation struct {
 
 	// EligibleClasses are the computed node classes that have explicitely been
 	// marked as eligible for placement for some task groups of the job.
-	EligibleClasses []uint64
+	EligibleClasses map[uint64]struct{} `json:"-"`
 
 	// IneligibleClasses are the computed node classes that have explicitely been
 	// marked as ineligible for placement for some task groups of the job.
-	IneligibleClasses []uint64
+	IneligibleClasses map[uint64]struct{} `json:"-"`
 
 	// EscapedComputedClass marks whether the job has constraints that are not
 	// captured by computed node classes.
-	EscapedComputedClass bool
+	EscapedComputedClass bool `json:"-"`
 
 	// Raft Indexes
 	CreateIndex uint64
@@ -1951,12 +1951,26 @@ func (e *Evaluation) Copy() *Evaluation {
 	return ne
 }
 
-// ShouldEnqueue checks if a given evaluation should be enqueued
+// ShouldEnqueue checks if a given evaluation should be enqueued into the
+// eval_broker
 func (e *Evaluation) ShouldEnqueue() bool {
 	switch e.Status {
 	case EvalStatusPending:
 		return true
-	case EvalStatusComplete, EvalStatusFailed:
+	case EvalStatusComplete, EvalStatusFailed, EvalStatusBlocked:
+		return false
+	default:
+		panic(fmt.Sprintf("unhandled evaluation (%s) status %s", e.ID, e.Status))
+	}
+}
+
+// ShouldBlock checks if a given evaluation should be entered into the blocked
+// eval tracker.
+func (e *Evaluation) ShouldBlock() bool {
+	switch e.Status {
+	case EvalStatusBlocked:
+		return true
+	case EvalStatusComplete, EvalStatusFailed, EvalStatusPending:
 		return false
 	default:
 		panic(fmt.Sprintf("unhandled evaluation (%s) status %s", e.ID, e.Status))
@@ -1997,6 +2011,15 @@ func (e *Evaluation) NextRollingEval(wait time.Duration) *Evaluation {
 // failed allocations. It takes the classes marked explicitely eligible or
 // ineligible and whether the job has escaped computed node classes.
 func (e *Evaluation) BlockedEval(elig, inelig []uint64, escaped bool) *Evaluation {
+	eligSet := make(map[uint64]struct{}, len(elig))
+	ineligSet := make(map[uint64]struct{}, len(inelig))
+	for _, e := range elig {
+		eligSet[e] = struct{}{}
+	}
+	for _, i := range inelig {
+		ineligSet[i] = struct{}{}
+	}
+
 	return &Evaluation{
 		ID:                   GenerateUUID(),
 		Priority:             e.Priority,
@@ -2006,8 +2029,8 @@ func (e *Evaluation) BlockedEval(elig, inelig []uint64, escaped bool) *Evaluatio
 		JobModifyIndex:       e.JobModifyIndex,
 		Status:               EvalStatusBlocked,
 		PreviousEval:         e.ID,
-		EligibleClasses:      elig,
-		IneligibleClasses:    inelig,
+		EligibleClasses:      eligSet,
+		IneligibleClasses:    ineligSet,
 		EscapedComputedClass: escaped,
 	}
 }

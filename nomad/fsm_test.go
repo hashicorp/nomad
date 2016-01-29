@@ -44,7 +44,9 @@ func testStateStore(t *testing.T) *state.StateStore {
 
 func testFSM(t *testing.T) *nomadFSM {
 	p, _ := testPeriodicDispatcher()
-	fsm, err := NewFSM(testBroker(t, 0), p, os.Stderr)
+	broker := testBroker(t, 0)
+	blocked := NewBlockedEvals(broker)
+	fsm, err := NewFSM(broker, p, blocked, os.Stderr)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -140,6 +142,7 @@ func TestFSM_DeregisterNode(t *testing.T) {
 
 func TestFSM_UpdateNodeStatus(t *testing.T) {
 	fsm := testFSM(t)
+	fsm.blockedEvals.SetEnabled(true)
 
 	node := mock.Node()
 	req := structs.NodeRegisterRequest{
@@ -155,6 +158,11 @@ func TestFSM_UpdateNodeStatus(t *testing.T) {
 		t.Fatalf("resp: %v", resp)
 	}
 
+	// Mark an eval as blocked.
+	eval := mock.Eval()
+	eval.EligibleClasses = map[uint64]struct{}{node.ComputedClass: struct{}{}}
+	fsm.blockedEvals.Block(eval)
+
 	req2 := structs.NodeUpdateStatusRequest{
 		NodeID: node.ID,
 		Status: structs.NodeStatusReady,
@@ -169,13 +177,19 @@ func TestFSM_UpdateNodeStatus(t *testing.T) {
 		t.Fatalf("resp: %v", resp)
 	}
 
-	// Verify we are NOT registered
+	// Verify the status is ready.
 	node, err = fsm.State().NodeByID(req.Node.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if node.Status != structs.NodeStatusReady {
 		t.Fatalf("bad node: %#v", node)
+	}
+
+	// Verify the eval was unblocked.
+	bStats := fsm.blockedEvals.Stats()
+	if bStats.TotalCaptured != 0 {
+		t.Fatalf("bad: %#v", bStats)
 	}
 }
 
@@ -357,6 +371,53 @@ func TestFSM_UpdateEval(t *testing.T) {
 	}
 }
 
+func TestFSM_UpdateEval_Blocked(t *testing.T) {
+	fsm := testFSM(t)
+	fsm.evalBroker.SetEnabled(true)
+	fsm.blockedEvals.SetEnabled(true)
+
+	// Create a blocked eval.
+	eval := mock.Eval()
+	eval.Status = structs.EvalStatusBlocked
+
+	req := structs.EvalUpdateRequest{
+		Evals: []*structs.Evaluation{eval},
+	}
+	buf, err := structs.Encode(structs.EvalUpdateRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp := fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	// Verify we are registered
+	out, err := fsm.State().EvalByID(eval.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out == nil {
+		t.Fatalf("not found!")
+	}
+	if out.CreateIndex != 1 {
+		t.Fatalf("bad index: %d", out.CreateIndex)
+	}
+
+	// Verify the eval wasn't enqueued
+	stats := fsm.evalBroker.Stats()
+	if stats.TotalReady != 0 {
+		t.Fatalf("bad: %#v %#v", stats, out)
+	}
+
+	// Verify the eval was added to the blocked tracker.
+	bStats := fsm.blockedEvals.Stats()
+	if bStats.TotalCaptured != 1 {
+		t.Fatalf("bad: %#v %#v", bStats, out)
+	}
+}
+
 func TestFSM_DeleteEval(t *testing.T) {
 	fsm := testFSM(t)
 
@@ -452,6 +513,64 @@ func TestFSM_UpsertAllocs(t *testing.T) {
 }
 
 func TestFSM_UpdateAllocFromClient(t *testing.T) {
+	fsm := testFSM(t)
+	fsm.blockedEvals.SetEnabled(true)
+	state := fsm.State()
+
+	node := mock.Node()
+	state.UpsertNode(1, node)
+
+	// Mark an eval as blocked.
+	eval := mock.Eval()
+	eval.EligibleClasses = map[uint64]struct{}{node.ComputedClass: struct{}{}}
+	fsm.blockedEvals.Block(eval)
+
+	bStats := fsm.blockedEvals.Stats()
+	if bStats.TotalCaptured != 1 {
+		t.Fatalf("bad: %#v", bStats)
+	}
+
+	// Create a completed eval
+	alloc := mock.Alloc()
+	alloc.NodeID = node.ID
+	state.UpsertAllocs(1, []*structs.Allocation{alloc})
+
+	clientAlloc := new(structs.Allocation)
+	*clientAlloc = *alloc
+	clientAlloc.ClientStatus = structs.AllocClientStatusDead
+
+	req := structs.AllocUpdateRequest{
+		Alloc: []*structs.Allocation{clientAlloc},
+	}
+	buf, err := structs.Encode(structs.AllocClientUpdateRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp := fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	// Verify we are registered
+	out, err := fsm.State().AllocByID(alloc.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	clientAlloc.CreateIndex = out.CreateIndex
+	clientAlloc.ModifyIndex = out.ModifyIndex
+	if !reflect.DeepEqual(clientAlloc, out) {
+		t.Fatalf("bad: %#v %#v", clientAlloc, out)
+	}
+
+	// Verify the eval was unblocked.
+	bStats = fsm.blockedEvals.Stats()
+	if bStats.TotalCaptured != 0 {
+		t.Fatalf("bad: %#v %#v", bStats, out)
+	}
+}
+
+func TestFSM_UpdateAllocFromClient_Unblock(t *testing.T) {
 	fsm := testFSM(t)
 	state := fsm.State()
 

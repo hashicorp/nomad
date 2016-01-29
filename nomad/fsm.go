@@ -40,6 +40,7 @@ const (
 // this outside the Server to avoid exposing this outside the package.
 type nomadFSM struct {
 	evalBroker         *EvalBroker
+	blockedEvals       *BlockedEvals
 	periodicDispatcher *PeriodicDispatch
 	logOutput          io.Writer
 	logger             *log.Logger
@@ -60,7 +61,8 @@ type snapshotHeader struct {
 }
 
 // NewFSMPath is used to construct a new FSM with a blank state
-func NewFSM(evalBroker *EvalBroker, periodic *PeriodicDispatch, logOutput io.Writer) (*nomadFSM, error) {
+func NewFSM(evalBroker *EvalBroker, periodic *PeriodicDispatch,
+	blocked *BlockedEvals, logOutput io.Writer) (*nomadFSM, error) {
 	// Create a state store
 	state, err := state.NewStateStore(logOutput)
 	if err != nil {
@@ -70,6 +72,7 @@ func NewFSM(evalBroker *EvalBroker, periodic *PeriodicDispatch, logOutput io.Wri
 	fsm := &nomadFSM{
 		evalBroker:         evalBroker,
 		periodicDispatcher: periodic,
+		blockedEvals:       blocked,
 		logOutput:          logOutput,
 		logger:             log.New(logOutput, "", log.LstdFlags),
 		state:              state,
@@ -179,6 +182,19 @@ func (n *nomadFSM) applyStatusUpdate(buf []byte, index uint64) interface{} {
 		n.logger.Printf("[ERR] nomad.fsm: UpdateNodeStatus failed: %v", err)
 		return err
 	}
+
+	// Unblock evals for the nodes computed node class if it is in a ready
+	// state.
+	if req.Status == structs.NodeStatusReady {
+		node, err := n.state.NodeByID(req.NodeID)
+		if err != nil {
+			n.logger.Printf("[ERR] nomad.fsm: looking up node %q failed: %v", req.NodeID, err)
+			return err
+
+		}
+		n.blockedEvals.Unblock(node.ComputedClass)
+	}
+
 	return nil
 }
 
@@ -312,6 +328,8 @@ func (n *nomadFSM) applyUpdateEval(buf []byte, index uint64) interface{} {
 				n.logger.Printf("[ERR] nomad.fsm: failed to enqueue evaluation %s: %v", eval.ID, err)
 				return err
 			}
+		} else if eval.ShouldBlock() {
+			n.blockedEvals.Block(eval)
 		}
 	}
 	return nil
@@ -355,10 +373,26 @@ func (n *nomadFSM) applyAllocClientUpdate(buf []byte, index uint64) interface{} 
 		return nil
 	}
 
-	if err := n.state.UpdateAllocFromClient(index, req.Alloc[0]); err != nil {
+	alloc := req.Alloc[0]
+	if err := n.state.UpdateAllocFromClient(index, alloc); err != nil {
 		n.logger.Printf("[ERR] nomad.fsm: UpdateAllocFromClient failed: %v", err)
 		return err
 	}
+
+	// Unblock evals for the nodes computed node class if the client has
+	// finished running an allocation.
+	if alloc.ClientStatus == structs.AllocClientStatusDead ||
+		alloc.ClientStatus == structs.AllocClientStatusFailed {
+		nodeID := alloc.NodeID
+		node, err := n.state.NodeByID(nodeID)
+		if err != nil || node == nil {
+			n.logger.Printf("[ERR] nomad.fsm: looking up node %q failed: %v", nodeID, err)
+			return err
+
+		}
+		n.blockedEvals.Unblock(node.ComputedClass)
+	}
+
 	return nil
 }
 
