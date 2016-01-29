@@ -22,7 +22,9 @@ func TestExecDriver_Fingerprint(t *testing.T) {
 	driverCtx, _ := testDriverContexts(&structs.Task{Name: "foo"})
 	d := NewExecDriver(driverCtx)
 	node := &structs.Node{
-		Attributes: make(map[string]string),
+		Attributes: map[string]string{
+			"unique.cgroup.mountpoint": "/sys/fs/cgroup",
+		},
 	}
 	apply, err := d.Fingerprint(&config.Config{}, node)
 	if err != nil {

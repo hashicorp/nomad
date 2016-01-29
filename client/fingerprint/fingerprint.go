@@ -12,10 +12,11 @@ import (
 // EmptyDuration is to be used by fingerprinters that are not periodic.
 const EmptyDuration = time.Duration(0)
 
-// BuiltinFingerprints is a slice containing the key names of all regestered
+// BuiltinFingerprints is a slice containing the key names of all registered
 // fingerprints available, to provided an ordered iteration
 var BuiltinFingerprints = []string{
 	"arch",
+	"cgroup",
 	"consul",
 	"cpu",
 	"env_aws",
@@ -30,6 +31,7 @@ var BuiltinFingerprints = []string{
 // which are available, corresponding to a key found in BuiltinFingerprints
 var builtinFingerprintMap = map[string]Factory{
 	"arch":    NewArchFingerprint,
+	"cgroup":  NewCGroupFingerprint,
 	"consul":  NewConsulFingerprint,
 	"cpu":     NewCPUFingerprint,
 	"env_aws": NewEnvAWSFingerprint,
