@@ -272,7 +272,8 @@ configured on server nodes.
     "alloc" sub-path. It must be specified as an absolute path.
   * <a id="servers">`servers`</a>: An array of server addresses. This list is
     used to register the client with the server nodes and advertise the
-    available resources so that the agent can receive work.
+    available resources so that the agent can receive work. If a port is not specified
+    in the array of server addresses, the default port `4647` will be used.
   * <a id="node_id">`node_id`</a>: This is the value used to uniquely identify
     the local agent's node registration with the servers. This can be any
     arbitrary string but must be unique to the cluster. By default, if not
