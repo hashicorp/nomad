@@ -336,14 +336,14 @@ func (c *Client) SetServers(servers []string) {
 			// multiple errors can be returned here, only searching for missing
 			if strings.Contains(err.Error(), "missing port") {
 				c.logger.Printf("[WARN] client: port not specified, using default port")
-				setServers[i] = fmt.Sprintf("%s:4647", setServers[i])
+				setServers[i] = net.JoinHostPort(setServers[i], "4647")
 			} else {
 				c.logger.Printf("[WARN] client: server address %q invalid: %v", setServers[i], err)
 			}
 		}
 	}
 
-	c.logger.Printf("[INFO] client: adding servers: %s", setServers)
+	c.logger.Printf("[INFO] client: setting server address list: %s", setServers)
 	c.servers = setServers
 }
 
