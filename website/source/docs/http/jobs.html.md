@@ -9,7 +9,7 @@ description: |-
 # /v1/jobs
 
 The `jobs` endpoint is used to query the status of existing jobs in Nomad
-and to to register new jobs. By default, the agent's local region is used;
+and to register new jobs. By default, the agent's local region is used;
 another region can be specified using the `?region=` query parameter.
 
 ## GET
