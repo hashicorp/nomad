@@ -342,6 +342,12 @@ type NodeAllocsResponse struct {
 	QueryMeta
 }
 
+// NodeClientAllocsResponse is used to return allocs meta data for a single node
+type NodeClientAllocsResponse struct {
+	Allocs map[string]uint64
+	QueryMeta
+}
+
 // SingleNodeResponse is used to return a single node
 type SingleNodeResponse struct {
 	Node *Node

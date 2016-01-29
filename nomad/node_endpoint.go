@@ -382,6 +382,63 @@ func (n *Node) GetAllocs(args *structs.NodeSpecificRequest,
 	return n.srv.blockingRPC(&opts)
 }
 
+// GetClientAllocs is used to request a lightweight list of modify indexes
+// per allocation.
+func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
+	reply *structs.NodeClientAllocsResponse) error {
+	if done, err := n.srv.forward("Node.GetClientAllocs", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "client", "get_client_allocs"}, time.Now())
+
+	// Verify the arguments
+	if args.NodeID == "" {
+		return fmt.Errorf("missing node ID")
+	}
+
+	// Setup the blocking query
+	opts := blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		watch:     watch.NewItems(watch.Item{AllocNode: args.NodeID}),
+		run: func() error {
+			// Look for the node
+			snap, err := n.srv.fsm.State().Snapshot()
+			if err != nil {
+				return err
+			}
+			allocs, err := snap.AllocsByNode(args.NodeID)
+			if err != nil {
+				return err
+			}
+
+			reply.Allocs = make(map[string]uint64)
+			// Setup the output
+			if len(allocs) != 0 {
+				for _, alloc := range allocs {
+					reply.Allocs[alloc.ID] = alloc.ModifyIndex
+					reply.Index = maxUint64(reply.Index, alloc.ModifyIndex)
+				}
+			} else {
+				// Use the last index that affected the nodes table
+				index, err := snap.Index("allocs")
+				if err != nil {
+					return err
+				}
+
+				// Must provide non-zero index to prevent blocking
+				// Index 1 is impossible anyways (due to Raft internals)
+				if index == 0 {
+					reply.Index = 1
+				} else {
+					reply.Index = index
+				}
+			}
+			return nil
+		}}
+	return n.srv.blockingRPC(&opts)
+}
+
 // UpdateAlloc is used to update the client status of an allocation
 func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.GenericResponse) error {
 	if done, err := n.srv.forward("Node.UpdateAlloc", args, args, reply); done {
