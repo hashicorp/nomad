@@ -475,28 +475,28 @@ func TestClient_SetServers(t *testing.T) {
 	}
 
 	// Set the initial servers list
-	expect := []string{"foo"}
+	expect := []string{"foo:4647"}
 	client.SetServers(expect)
 	if !reflect.DeepEqual(client.servers, expect) {
 		t.Fatalf("expect %v, got %v", expect, client.servers)
 	}
 
 	// Add a server
-	expect = []string{"foo", "bar"}
+	expect = []string{"foo:5445", "bar:8080"}
 	client.SetServers(expect)
 	if !reflect.DeepEqual(client.servers, expect) {
 		t.Fatalf("expect %v, got %v", expect, client.servers)
 	}
 
 	// Remove a server
-	expect = []string{"bar"}
+	expect = []string{"bar:8080"}
 	client.SetServers(expect)
 	if !reflect.DeepEqual(client.servers, expect) {
 		t.Fatalf("expect %v, got %v", expect, client.servers)
 	}
 
 	// Add and remove a server
-	expect = []string{"baz", "zip"}
+	expect = []string{"baz:9090", "zip:4545"}
 	client.SetServers(expect)
 	if !reflect.DeepEqual(client.servers, expect) {
 		t.Fatalf("expect %v, got %v", expect, client.servers)
@@ -505,5 +505,13 @@ func TestClient_SetServers(t *testing.T) {
 	// Query the servers list
 	if servers := client.Servers(); !reflect.DeepEqual(servers, expect) {
 		t.Fatalf("expect %v, got %v", expect, servers)
+	}
+
+	// Add servers without ports, and remove old servers
+	servers := []string{"foo", "bar", "baz"}
+	expect = []string{"foo:4647", "bar:4647", "baz:4647"}
+	client.SetServers(servers)
+	if !reflect.DeepEqual(client.servers, expect) {
+		t.Fatalf("expect %v, got %v", expect, client.servers)
 	}
 }
