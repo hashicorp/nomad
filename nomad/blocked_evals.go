@@ -8,6 +8,11 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+const (
+	// unblockBuffer is the buffer size for the unblock channel.
+	unblockBuffer = 8096
+)
+
 // BlockedEvals is used to track evaluations that shouldn't be queued until a
 // certain class of nodes becomes available. An evaluation is put into the
 // blocked state when it is run through the scheduler and produced failed
@@ -16,7 +21,9 @@ import (
 type BlockedEvals struct {
 	evalBroker *EvalBroker
 	enabled    bool
+	running    bool
 	stats      *BlockedStats
+	l          sync.RWMutex
 
 	// captured is the set of evaluations that are captured by computed node
 	// classes.
@@ -26,7 +33,11 @@ type BlockedEvals struct {
 	// classes.
 	escaped map[string]*structs.Evaluation
 
-	l sync.RWMutex
+	// unblockCh is used to buffer unblocking of evaluations.
+	unblockCh chan string
+
+	// stopCh is used to stop any created goroutines.
+	stopCh chan struct{}
 }
 
 // BlockedStats returns all the stats about the blocked eval tracker.
@@ -46,6 +57,8 @@ func NewBlockedEvals(evalBroker *EvalBroker) *BlockedEvals {
 		evalBroker: evalBroker,
 		captured:   make(map[string]*structs.Evaluation),
 		escaped:    make(map[string]*structs.Evaluation),
+		unblockCh:  make(chan string, unblockBuffer),
+		stopCh:     make(chan struct{}),
 		stats:      new(BlockedStats),
 	}
 }
@@ -62,6 +75,10 @@ func (b *BlockedEvals) Enabled() bool {
 func (b *BlockedEvals) SetEnabled(enabled bool) {
 	b.l.Lock()
 	b.enabled = enabled
+	if !b.running {
+		b.running = true
+		go b.unblock()
+	}
 	b.l.Unlock()
 	if !enabled {
 		b.Flush()
@@ -101,54 +118,63 @@ func (b *BlockedEvals) Unblock(computedClass string) {
 		return
 	}
 
-	// Every eval that has escaped computed node class has to be unblocked
-	// because any node could potentially be feasible.
-	i := 0
-	var unblocked []*structs.Evaluation
-	if l := len(b.escaped); l != 0 {
-		unblocked = make([]*structs.Evaluation, l)
-		for id, eval := range b.escaped {
-			unblocked[i] = eval
-			delete(b.escaped, id)
-			i++
-		}
-	}
+	b.unblockCh <- computedClass
+}
 
-	// We unblock any eval that is explicitely eligible for the computed class
-	// and also any eval that is not eligible or uneligible. This signifies that
-	// when the evaluation was originally run through the scheduler, that it
-	// never saw a node with the given computed class and thus needs to be
-	// unblocked for correctness.
-	var untrack []string
-	for id, eval := range b.captured {
-		if elig, ok := eval.ClassEligibility[computedClass]; ok {
-			if !elig {
-				// Can skip because the eval has explicitely marked the node class
-				// as ineligible.
-				continue
+func (b *BlockedEvals) unblock() {
+	select {
+	case <-b.stopCh:
+		return
+	case computedClass := <-b.unblockCh:
+		// Every eval that has escaped computed node class has to be unblocked
+		// because any node could potentially be feasible.
+		i := 0
+		var unblocked []*structs.Evaluation
+		if l := len(b.escaped); l != 0 {
+			unblocked = make([]*structs.Evaluation, l)
+			for id, eval := range b.escaped {
+				unblocked[i] = eval
+				delete(b.escaped, id)
+				i++
 			}
 		}
 
-		// The computed node class has never been seen by the eval so we unblock
-		// it.
-		unblocked = append(unblocked, eval)
-		untrack = append(untrack, id)
-	}
+		// We unblock any eval that is explicitely eligible for the computed class
+		// and also any eval that is not eligible or uneligible. This signifies that
+		// when the evaluation was originally run through the scheduler, that it
+		// never saw a node with the given computed class and thus needs to be
+		// unblocked for correctness.
+		var untrack []string
+		for id, eval := range b.captured {
+			if elig, ok := eval.ClassEligibility[computedClass]; ok {
+				if !elig {
+					// Can skip because the eval has explicitely marked the node class
+					// as ineligible.
+					continue
+				}
+			}
 
-	// Untrack the unblocked evals.
-	if l := len(untrack); l != 0 {
-		for _, id := range untrack {
-			delete(b.captured, id)
+			// The computed node class has never been seen by the eval so we unblock
+			// it.
+			unblocked = append(unblocked, eval)
+			untrack = append(untrack, id)
 		}
-	}
 
-	if l := len(unblocked); l != 0 {
-		// Update the counters
-		b.stats.TotalEscaped = 0
-		b.stats.TotalBlocked -= l
+		// Untrack the unblocked evals.
+		if l := len(untrack); l != 0 {
+			for _, id := range untrack {
+				delete(b.captured, id)
+			}
+		}
 
-		// Enqueue all the unblocked evals into the broker.
-		b.evalBroker.EnqueueAll(unblocked)
+		if l := len(unblocked); l != 0 {
+			// Update the counters
+			b.stats.TotalEscaped = 0
+			b.stats.TotalBlocked -= l
+
+			// Enqueue all the unblocked evals into the broker.
+			b.evalBroker.EnqueueAll(unblocked)
+		}
 	}
 }
 
@@ -157,11 +183,19 @@ func (b *BlockedEvals) Flush() {
 	b.l.Lock()
 	defer b.l.Unlock()
 
+	// Kill any running goroutines
+	if b.running {
+		close(b.stopCh)
+		b.running = false
+	}
+
 	// Reset the blocked eval tracker.
 	b.stats.TotalEscaped = 0
 	b.stats.TotalBlocked = 0
 	b.captured = make(map[string]*structs.Evaluation)
 	b.escaped = make(map[string]*structs.Evaluation)
+	b.unblockCh = make(chan string, unblockBuffer)
+	b.stopCh = make(chan struct{})
 }
 
 // Stats is used to query the state of the blocked eval tracker.

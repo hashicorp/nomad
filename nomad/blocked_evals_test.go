@@ -1,10 +1,12 @@
 package nomad
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/testutil"
 )
 
 func testBlockedEvals(t *testing.T) (*BlockedEvals, *EvalBroker) {
@@ -26,11 +28,10 @@ func TestBlockedEvals_Block_Disabled(t *testing.T) {
 	blocked.Block(e)
 
 	// Verify block did nothing
-	blockedStats := blocked.Stats()
-	if blockedStats.TotalBlocked != 0 || blockedStats.TotalEscaped != 0 {
-		t.Fatalf("bad: %#v", blockedStats)
+	bStats := blocked.Stats()
+	if bStats.TotalBlocked != 0 || bStats.TotalEscaped != 0 {
+		t.Fatalf("bad: %#v", bStats)
 	}
-
 }
 
 func TestBlockedEvals_UnblockEscaped(t *testing.T) {
@@ -43,24 +44,29 @@ func TestBlockedEvals_UnblockEscaped(t *testing.T) {
 	blocked.Block(e)
 
 	// Verify block caused the eval to be tracked
-	blockedStats := blocked.Stats()
-	if blockedStats.TotalEscaped != 1 {
-		t.Fatalf("bad: %#v", blockedStats)
+	bStats := blocked.Stats()
+	if bStats.TotalBlocked != 1 || bStats.TotalEscaped != 1 {
+		t.Fatalf("bad: %#v", bStats)
 	}
 
 	blocked.Unblock("v1:123")
 
-	// Verify Unblock caused an enqueue
-	brokerStats := broker.Stats()
-	if brokerStats.TotalReady != 1 {
-		t.Fatalf("bad: %#v", brokerStats)
-	}
+	testutil.WaitForResult(func() (bool, error) {
+		// Verify Unblock caused an enqueue
+		brokerStats := broker.Stats()
+		if brokerStats.TotalReady != 1 {
+			return false, fmt.Errorf("bad: %#v", brokerStats)
+		}
 
-	// Verify Unblock updates the stats
-	blockedStats = blocked.Stats()
-	if blockedStats.TotalEscaped != 0 {
-		t.Fatalf("bad: %#v", blockedStats)
-	}
+		// Verify Unblock updates the stats
+		bStats := blocked.Stats()
+		if bStats.TotalBlocked != 0 || bStats.TotalEscaped != 0 {
+			return false, fmt.Errorf("bad: %#v", bStats)
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %s", err)
+	})
 }
 
 func TestBlockedEvals_UnblockEligible(t *testing.T) {
@@ -81,17 +87,22 @@ func TestBlockedEvals_UnblockEligible(t *testing.T) {
 
 	blocked.Unblock("v1:123")
 
-	// Verify Unblock caused an enqueue
-	brokerStats := broker.Stats()
-	if brokerStats.TotalReady != 1 {
-		t.Fatalf("bad: %#v", brokerStats)
-	}
+	testutil.WaitForResult(func() (bool, error) {
+		// Verify Unblock caused an enqueue
+		brokerStats := broker.Stats()
+		if brokerStats.TotalReady != 1 {
+			return false, fmt.Errorf("bad: %#v", brokerStats)
+		}
 
-	// Verify Unblock updates the stats
-	blockedStats = blocked.Stats()
-	if blockedStats.TotalBlocked != 0 {
-		t.Fatalf("bad: %#v", blockedStats)
-	}
+		// Verify Unblock updates the stats
+		bStats := blocked.Stats()
+		if bStats.TotalBlocked != 0 || bStats.TotalEscaped != 0 {
+			return false, fmt.Errorf("bad: %#v", bStats)
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %s", err)
+	})
 }
 
 func TestBlockedEvals_UnblockIneligible(t *testing.T) {
@@ -113,17 +124,21 @@ func TestBlockedEvals_UnblockIneligible(t *testing.T) {
 	// Should do nothing
 	blocked.Unblock("v1:123")
 
-	// Verify Unblock didn't cause an enqueue
-	brokerStats := broker.Stats()
-	if brokerStats.TotalReady != 0 {
-		t.Fatalf("bad: %#v", brokerStats)
-	}
+	testutil.WaitForResult(func() (bool, error) {
+		// Verify Unblock didn't cause an enqueue
+		brokerStats := broker.Stats()
+		if brokerStats.TotalReady != 0 {
+			return false, fmt.Errorf("bad: %#v", brokerStats)
+		}
 
-	// Verify Unblock updates the stats
-	blockedStats = blocked.Stats()
-	if blockedStats.TotalBlocked != 1 {
-		t.Fatalf("bad: %#v", blockedStats)
-	}
+		bStats := blocked.Stats()
+		if bStats.TotalBlocked != 1 || bStats.TotalEscaped != 0 {
+			return false, fmt.Errorf("bad: %#v", bStats)
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %s", err)
+	})
 }
 
 func TestBlockedEvals_UnblockUnknown(t *testing.T) {
@@ -145,15 +160,20 @@ func TestBlockedEvals_UnblockUnknown(t *testing.T) {
 	// Should unblock because the eval hasn't seen this node class.
 	blocked.Unblock("v1:789")
 
-	// Verify Unblock didn't cause an enqueue
-	brokerStats := broker.Stats()
-	if brokerStats.TotalReady != 1 {
-		t.Fatalf("bad: %#v", brokerStats)
-	}
+	testutil.WaitForResult(func() (bool, error) {
+		// Verify Unblock causes an enqueue
+		brokerStats := broker.Stats()
+		if brokerStats.TotalReady != 1 {
+			return false, fmt.Errorf("bad: %#v", brokerStats)
+		}
 
-	// Verify Unblock updates the stats
-	blockedStats = blocked.Stats()
-	if blockedStats.TotalBlocked != 0 {
-		t.Fatalf("bad: %#v", blockedStats)
-	}
+		// Verify Unblock updates the stats
+		bStats := blocked.Stats()
+		if bStats.TotalBlocked != 0 || bStats.TotalEscaped != 0 {
+			return false, fmt.Errorf("bad: %#v", bStats)
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %s", err)
+	})
 }

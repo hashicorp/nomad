@@ -2,6 +2,7 @@ package nomad
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"reflect"
 	"testing"
@@ -10,6 +11,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/hashicorp/raft"
 )
 
@@ -187,10 +189,15 @@ func TestFSM_UpdateNodeStatus(t *testing.T) {
 	}
 
 	// Verify the eval was unblocked.
-	bStats := fsm.blockedEvals.Stats()
-	if bStats.TotalBlocked != 0 {
-		t.Fatalf("bad: %#v", bStats)
-	}
+	testutil.WaitForResult(func() (bool, error) {
+		bStats := fsm.blockedEvals.Stats()
+		if bStats.TotalBlocked != 0 {
+			return false, fmt.Errorf("bad: %#v", bStats)
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %s", err)
+	})
 }
 
 func TestFSM_UpdateNodeDrain(t *testing.T) {
@@ -564,10 +571,15 @@ func TestFSM_UpdateAllocFromClient(t *testing.T) {
 	}
 
 	// Verify the eval was unblocked.
-	bStats = fsm.blockedEvals.Stats()
-	if bStats.TotalBlocked != 0 {
-		t.Fatalf("bad: %#v %#v", bStats, out)
-	}
+	testutil.WaitForResult(func() (bool, error) {
+		bStats = fsm.blockedEvals.Stats()
+		if bStats.TotalBlocked != 0 {
+			return false, fmt.Errorf("bad: %#v %#v", bStats, out)
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %s", err)
+	})
 }
 
 func TestFSM_UpdateAllocFromClient_Unblock(t *testing.T) {
