@@ -160,7 +160,7 @@ func TestFSM_UpdateNodeStatus(t *testing.T) {
 
 	// Mark an eval as blocked.
 	eval := mock.Eval()
-	eval.EligibleClasses = map[uint64]struct{}{node.ComputedClass: struct{}{}}
+	eval.ClassEligibility = map[string]bool{node.ComputedClass: true}
 	fsm.blockedEvals.Block(eval)
 
 	req2 := structs.NodeUpdateStatusRequest{
@@ -522,7 +522,7 @@ func TestFSM_UpdateAllocFromClient(t *testing.T) {
 
 	// Mark an eval as blocked.
 	eval := mock.Eval()
-	eval.EligibleClasses = map[uint64]struct{}{node.ComputedClass: struct{}{}}
+	eval.ClassEligibility = map[string]bool{node.ComputedClass: true}
 	fsm.blockedEvals.Block(eval)
 
 	bStats := fsm.blockedEvals.Stats()

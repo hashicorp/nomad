@@ -4,7 +4,6 @@ import (
 	"log"
 	"os"
 	"reflect"
-	"sort"
 	"testing"
 
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -113,7 +112,7 @@ func TestEvalContext_ProposedAlloc(t *testing.T) {
 
 func TestEvalEligibility_JobStatus(t *testing.T) {
 	e := NewEvalEligibility()
-	cc := uint64(100)
+	cc := "v1:100"
 
 	// Get the job before its been set.
 	if status := e.JobStatus(cc); status != EvalComputedClassUnknown {
@@ -131,15 +130,15 @@ func TestEvalEligibility_JobStatus(t *testing.T) {
 		t.Fatalf("JobStatus() returned %v; want %v", status, EvalComputedClassEligible)
 	}
 
-	// Check that if I pass class zero it returns escaped
-	if status := e.JobStatus(0); status != EvalComputedClassEscaped {
+	// Check that if I pass an empty class it returns escaped
+	if status := e.JobStatus(""); status != EvalComputedClassEscaped {
 		t.Fatalf("JobStatus() returned %v; want %v", status, EvalComputedClassEscaped)
 	}
 }
 
 func TestEvalEligibility_TaskGroupStatus(t *testing.T) {
 	e := NewEvalEligibility()
-	cc := uint64(100)
+	cc := "v1:100"
 	tg := "foo"
 
 	// Get the tg before its been set.
@@ -158,8 +157,8 @@ func TestEvalEligibility_TaskGroupStatus(t *testing.T) {
 		t.Fatalf("TaskGroupStatus() returned %v; want %v", status, EvalComputedClassEligible)
 	}
 
-	// Check that if I pass class zero it returns escaped
-	if status := e.TaskGroupStatus(tg, 0); status != EvalComputedClassEscaped {
+	// Check that if I pass an empty class it returns escaped
+	if status := e.TaskGroupStatus(tg, ""); status != EvalComputedClassEscaped {
 		t.Fatalf("TaskGroupStatus() returned %v; want %v", status, EvalComputedClassEscaped)
 	}
 }
@@ -209,30 +208,24 @@ func TestEvalEligibility_SetJob(t *testing.T) {
 	}
 }
 
-type uint64Array []uint64
-
-func (u uint64Array) Len() int           { return len(u) }
-func (u uint64Array) Less(i, j int) bool { return u[i] <= u[j] }
-func (u uint64Array) Swap(i, j int)      { u[i], u[j] = u[j], u[i] }
-
 func TestEvalEligibility_GetClasses(t *testing.T) {
 	e := NewEvalEligibility()
-	e.SetJobEligibility(true, 1)
-	e.SetJobEligibility(false, 2)
-	e.SetTaskGroupEligibility(true, "foo", 3)
-	e.SetTaskGroupEligibility(false, "bar", 4)
-	e.SetTaskGroupEligibility(true, "bar", 5)
-	expElig := []uint64{1, 3, 5}
-	expInelig := []uint64{2, 4}
+	e.SetJobEligibility(true, "v1:1")
+	e.SetJobEligibility(false, "v1:2")
+	e.SetTaskGroupEligibility(true, "foo", "v1:3")
+	e.SetTaskGroupEligibility(false, "bar", "v1:4")
+	e.SetTaskGroupEligibility(true, "bar", "v1:5")
 
-	actElig, actInelig := e.GetClasses()
-	sort.Sort(uint64Array(actElig))
-	sort.Sort(uint64Array(actInelig))
-
-	if !reflect.DeepEqual(actElig, expElig) {
-		t.Fatalf("GetClasses() returned %#v; want %#v", actElig, expElig)
+	expClasses := map[string]bool{
+		"v1:1": true,
+		"v1:2": false,
+		"v1:3": true,
+		"v1:4": false,
+		"v1:5": true,
 	}
-	if !reflect.DeepEqual(actInelig, expInelig) {
-		t.Fatalf("GetClasses() returned %#v; want %#v", actInelig, expInelig)
+
+	actClasses := e.GetClasses()
+	if !reflect.DeepEqual(actClasses, expClasses) {
+		t.Fatalf("GetClasses() returned %#v; want %#v", actClasses, expClasses)
 	}
 }

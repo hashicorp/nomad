@@ -164,14 +164,14 @@ const (
 // course of an evaluation.
 type EvalEligibility struct {
 	// job tracks the eligibility at the job level per computed node class.
-	job map[uint64]ComputedClassFeasibility
+	job map[string]ComputedClassFeasibility
 
 	// jobEscaped marks whether constraints have escaped at the job level.
 	jobEscaped bool
 
 	// taskGroups tracks the eligibility at the task group level per computed
 	// node class.
-	taskGroups map[string]map[uint64]ComputedClassFeasibility
+	taskGroups map[string]map[string]ComputedClassFeasibility
 
 	// tgEscapedConstraints is a map of task groups to whether constraints have
 	// escaped.
@@ -181,8 +181,8 @@ type EvalEligibility struct {
 // NewEvalEligibility returns an eligibility tracker for the context of an evaluation.
 func NewEvalEligibility() *EvalEligibility {
 	return &EvalEligibility{
-		job:                  make(map[uint64]ComputedClassFeasibility),
-		taskGroups:           make(map[string]map[uint64]ComputedClassFeasibility),
+		job:                  make(map[string]ComputedClassFeasibility),
+		taskGroups:           make(map[string]map[string]ComputedClassFeasibility),
 		tgEscapedConstraints: make(map[string]bool),
 	}
 }
@@ -220,18 +220,18 @@ func (e *EvalEligibility) HasEscaped() bool {
 	return false
 }
 
-// GetClasses returns the eligible classes and the ineligible classes,
-// respectively, across the job and task groups.
-func (e *EvalEligibility) GetClasses() ([]uint64, []uint64) {
-	var elig, inelig []uint64
+// GetClasses returns the tracked classes to their eligibility, across the job
+// and task groups.
+func (e *EvalEligibility) GetClasses() map[string]bool {
+	elig := make(map[string]bool)
 
 	// Go through the job.
 	for class, feas := range e.job {
 		switch feas {
 		case EvalComputedClassEligible:
-			elig = append(elig, class)
+			elig[class] = true
 		case EvalComputedClassIneligible:
-			inelig = append(inelig, class)
+			elig[class] = false
 		}
 	}
 
@@ -240,22 +240,22 @@ func (e *EvalEligibility) GetClasses() ([]uint64, []uint64) {
 		for class, feas := range classes {
 			switch feas {
 			case EvalComputedClassEligible:
-				elig = append(elig, class)
+				elig[class] = true
 			case EvalComputedClassIneligible:
-				inelig = append(inelig, class)
+				elig[class] = false
 			}
 		}
 	}
 
-	return elig, inelig
+	return elig
 }
 
 // JobStatus returns the eligibility status of the job.
-func (e *EvalEligibility) JobStatus(class uint64) ComputedClassFeasibility {
+func (e *EvalEligibility) JobStatus(class string) ComputedClassFeasibility {
 	// COMPAT: Computed node class was introduced in 0.3. Clients running < 0.3
 	// will not have a computed class. The safest value to return is the escaped
 	// case, since it disables any optimization.
-	if e.jobEscaped || class == 0 {
+	if e.jobEscaped || class == "" {
 		fmt.Println(e.jobEscaped, class)
 		return EvalComputedClassEscaped
 	}
@@ -268,7 +268,7 @@ func (e *EvalEligibility) JobStatus(class uint64) ComputedClassFeasibility {
 
 // SetJobEligibility sets the eligibility status of the job for the computed
 // node class.
-func (e *EvalEligibility) SetJobEligibility(eligible bool, class uint64) {
+func (e *EvalEligibility) SetJobEligibility(eligible bool, class string) {
 	if eligible {
 		e.job[class] = EvalComputedClassEligible
 	} else {
@@ -277,11 +277,11 @@ func (e *EvalEligibility) SetJobEligibility(eligible bool, class uint64) {
 }
 
 // TaskGroupStatus returns the eligibility status of the task group.
-func (e *EvalEligibility) TaskGroupStatus(tg string, class uint64) ComputedClassFeasibility {
+func (e *EvalEligibility) TaskGroupStatus(tg, class string) ComputedClassFeasibility {
 	// COMPAT: Computed node class was introduced in 0.3. Clients running < 0.3
 	// will not have a computed class. The safest value to return is the escaped
 	// case, since it disables any optimization.
-	if class == 0 {
+	if class == "" {
 		return EvalComputedClassEscaped
 	}
 
@@ -301,7 +301,7 @@ func (e *EvalEligibility) TaskGroupStatus(tg string, class uint64) ComputedClass
 
 // SetTaskGroupEligibility sets the eligibility status of the task group for the
 // computed node class.
-func (e *EvalEligibility) SetTaskGroupEligibility(eligible bool, tg string, class uint64) {
+func (e *EvalEligibility) SetTaskGroupEligibility(eligible bool, tg, class string) {
 	var eligibility ComputedClassFeasibility
 	if eligible {
 		eligibility = EvalComputedClassEligible
@@ -312,6 +312,6 @@ func (e *EvalEligibility) SetTaskGroupEligibility(eligible bool, tg string, clas
 	if classes, ok := e.taskGroups[tg]; ok {
 		classes[class] = eligibility
 	} else {
-		e.taskGroups[tg] = map[uint64]ComputedClassFeasibility{class: eligibility}
+		e.taskGroups[tg] = map[string]ComputedClassFeasibility{class: eligibility}
 	}
 }

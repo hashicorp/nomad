@@ -92,7 +92,7 @@ func (b *BlockedEvals) Block(eval *structs.Evaluation) {
 // Unblock causes any evaluation that could potentially make progress on a
 // capacity change on the passed computed node class to be enqueued into the
 // eval broker.
-func (b *BlockedEvals) Unblock(computedClass uint64) {
+func (b *BlockedEvals) Unblock(computedClass string) {
 	b.l.Lock()
 	defer b.l.Unlock()
 
@@ -121,15 +121,14 @@ func (b *BlockedEvals) Unblock(computedClass uint64) {
 	// unblocked for correctness.
 	var untrack []string
 	for id, eval := range b.captured {
-		if _, ok := eval.EligibleClasses[computedClass]; ok {
-			goto UNBLOCK
-		} else if _, ok := eval.IneligibleClasses[computedClass]; ok {
-			// Can skip because the eval has explicitely marked the node class
-			// as ineligible.
-			continue
+		if elig, ok := eval.ClassEligibility[computedClass]; ok {
+			if !elig {
+				// Can skip because the eval has explicitely marked the node class
+				// as ineligible.
+				continue
+			}
 		}
 
-	UNBLOCK:
 		// The computed node class has never been seen by the eval so we unblock
 		// it.
 		unblocked = append(unblocked, eval)

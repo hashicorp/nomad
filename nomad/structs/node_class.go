@@ -34,7 +34,7 @@ func (n *Node) ComputeClass() error {
 		return err
 	}
 
-	n.ComputedClass = hash
+	n.ComputedClass = fmt.Sprintf("v1:%d", hash)
 	return nil
 }
 

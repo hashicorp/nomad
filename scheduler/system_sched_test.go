@@ -233,8 +233,9 @@ func TestSystemSched_JobRegister_BlockedEval(t *testing.T) {
 		t.Fatalf("bad: %#v", created)
 	}
 
-	if len(created.EligibleClasses) != 1 && len(created.IneligibleClasses) != 1 {
-		t.Fatalf("bad: %#v", created)
+	classes := created.ClassEligibility
+	if len(classes) != 2 || !classes[node.ComputedClass] || classes[node2.ComputedClass] {
+		t.Fatalf("bad: %#v", classes)
 	}
 
 	if created.EscapedComputedClass {

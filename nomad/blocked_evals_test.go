@@ -48,7 +48,7 @@ func TestBlockedEvals_UnblockEscaped(t *testing.T) {
 		t.Fatalf("bad: %#v", blockedStats)
 	}
 
-	blocked.Unblock(123)
+	blocked.Unblock("v1:123")
 
 	// Verify Unblock caused an enqueue
 	brokerStats := broker.Stats()
@@ -70,7 +70,7 @@ func TestBlockedEvals_UnblockEligible(t *testing.T) {
 	// it to the blocked tracker.
 	e := mock.Eval()
 	e.Status = structs.EvalStatusBlocked
-	e.EligibleClasses = map[uint64]struct{}{123: struct{}{}}
+	e.ClassEligibility = map[string]bool{"v1:123": true}
 	blocked.Block(e)
 
 	// Verify block caused the eval to be tracked
@@ -79,7 +79,7 @@ func TestBlockedEvals_UnblockEligible(t *testing.T) {
 		t.Fatalf("bad: %#v", blockedStats)
 	}
 
-	blocked.Unblock(123)
+	blocked.Unblock("v1:123")
 
 	// Verify Unblock caused an enqueue
 	brokerStats := broker.Stats()
@@ -101,7 +101,7 @@ func TestBlockedEvals_UnblockIneligible(t *testing.T) {
 	// it to the blocked tracker.
 	e := mock.Eval()
 	e.Status = structs.EvalStatusBlocked
-	e.IneligibleClasses = map[uint64]struct{}{123: struct{}{}}
+	e.ClassEligibility = map[string]bool{"v1:123": false}
 	blocked.Block(e)
 
 	// Verify block caused the eval to be tracked
@@ -111,7 +111,7 @@ func TestBlockedEvals_UnblockIneligible(t *testing.T) {
 	}
 
 	// Should do nothing
-	blocked.Unblock(123)
+	blocked.Unblock("v1:123")
 
 	// Verify Unblock didn't cause an enqueue
 	brokerStats := broker.Stats()
@@ -133,8 +133,7 @@ func TestBlockedEvals_UnblockUnknown(t *testing.T) {
 	// it to the blocked tracker.
 	e := mock.Eval()
 	e.Status = structs.EvalStatusBlocked
-	e.EligibleClasses = map[uint64]struct{}{123: struct{}{}}
-	e.IneligibleClasses = map[uint64]struct{}{456: struct{}{}}
+	e.ClassEligibility = map[string]bool{"v1:123": true, "v1:456": false}
 	blocked.Block(e)
 
 	// Verify block caused the eval to be tracked
@@ -144,7 +143,7 @@ func TestBlockedEvals_UnblockUnknown(t *testing.T) {
 	}
 
 	// Should unblock because the eval hasn't seen this node class.
-	blocked.Unblock(789)
+	blocked.Unblock("v1:789")
 
 	// Verify Unblock didn't cause an enqueue
 	brokerStats := broker.Stats()

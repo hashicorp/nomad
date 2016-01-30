@@ -133,8 +133,8 @@ func (s *SystemScheduler) process() (bool, error) {
 	// to place the failed allocations when resources become available.
 	if len(s.plan.FailedAllocs) != 0 && s.blocked == nil {
 		e := s.ctx.Eligibility()
-		elig, inelig := e.GetClasses()
-		s.blocked = s.eval.BlockedEval(elig, inelig, e.HasEscaped())
+		classes := e.GetClasses()
+		s.blocked = s.eval.BlockedEval(classes, e.HasEscaped())
 		if err := s.planner.CreateEval(s.blocked); err != nil {
 			s.logger.Printf("[ERR] sched: %#v failed to make blocked eval: %v", s.eval, err)
 			return false, err

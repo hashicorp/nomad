@@ -512,7 +512,7 @@ type Node struct {
 
 	// ComputedClass is a unique id that identifies nodes with a common set of
 	// attributes and capabilities.
-	ComputedClass uint64
+	ComputedClass string
 
 	// Drain is controlled by the servers, and not the client.
 	// If true, no jobs will be scheduled to this node, and existing
@@ -1913,17 +1913,13 @@ type Evaluation struct {
 	// This is used to support rolling upgrades, where we need a chain of evaluations.
 	PreviousEval string
 
-	// EligibleClasses are the computed node classes that have explicitely been
-	// marked as eligible for placement for some task groups of the job.
-	EligibleClasses map[uint64]struct{} `json:"-"`
-
-	// IneligibleClasses are the computed node classes that have explicitely been
-	// marked as ineligible for placement for some task groups of the job.
-	IneligibleClasses map[uint64]struct{} `json:"-"`
+	// ClassEligibility tracks computed node classes that have been explicitely
+	// marked as eligible or ineligible.
+	ClassEligibility map[string]bool
 
 	// EscapedComputedClass marks whether the job has constraints that are not
 	// captured by computed node classes.
-	EscapedComputedClass bool `json:"-"`
+	EscapedComputedClass bool
 
 	// Raft Indexes
 	CreateIndex uint64
@@ -2010,16 +2006,7 @@ func (e *Evaluation) NextRollingEval(wait time.Duration) *Evaluation {
 // BlockedEval creates a blocked evaluation to followup this eval to place any
 // failed allocations. It takes the classes marked explicitely eligible or
 // ineligible and whether the job has escaped computed node classes.
-func (e *Evaluation) BlockedEval(elig, inelig []uint64, escaped bool) *Evaluation {
-	eligSet := make(map[uint64]struct{}, len(elig))
-	ineligSet := make(map[uint64]struct{}, len(inelig))
-	for _, e := range elig {
-		eligSet[e] = struct{}{}
-	}
-	for _, i := range inelig {
-		ineligSet[i] = struct{}{}
-	}
-
+func (e *Evaluation) BlockedEval(classEligibility map[string]bool, escaped bool) *Evaluation {
 	return &Evaluation{
 		ID:                   GenerateUUID(),
 		Priority:             e.Priority,
@@ -2029,8 +2016,7 @@ func (e *Evaluation) BlockedEval(elig, inelig []uint64, escaped bool) *Evaluatio
 		JobModifyIndex:       e.JobModifyIndex,
 		Status:               EvalStatusBlocked,
 		PreviousEval:         e.ID,
-		EligibleClasses:      eligSet,
-		IneligibleClasses:    ineligSet,
+		ClassEligibility:     classEligibility,
 		EscapedComputedClass: escaped,
 	}
 }
