@@ -36,6 +36,20 @@ type BlockedEvals struct {
 	// unblockCh is used to buffer unblocking of evaluations.
 	unblockCh chan string
 
+	// jobs is the map of blocked job and is used to ensure that only one
+	// blocked eval exists for each job.
+	jobs map[string]struct{}
+
+	// duplicates is the set of evaluations for jobs that had pre-existing
+	// blocked evaluations. These should be marked as cancelled since only one
+	// blocked eval is neeeded bper job.
+	duplicates []*structs.Evaluation
+
+	// duplicateCh is used to signal that a duplicate eval was added to the
+	// duplicate set. It can be used to unblock waiting callers looking for
+	// duplicates.
+	duplicateCh chan struct{}
+
 	// stopCh is used to stop any created goroutines.
 	stopCh chan struct{}
 }
@@ -54,12 +68,14 @@ type BlockedStats struct {
 // unblocked evals into the passed broker.
 func NewBlockedEvals(evalBroker *EvalBroker) *BlockedEvals {
 	return &BlockedEvals{
-		evalBroker: evalBroker,
-		captured:   make(map[string]*structs.Evaluation),
-		escaped:    make(map[string]*structs.Evaluation),
-		unblockCh:  make(chan string, unblockBuffer),
-		stopCh:     make(chan struct{}),
-		stats:      new(BlockedStats),
+		evalBroker:  evalBroker,
+		captured:    make(map[string]*structs.Evaluation),
+		escaped:     make(map[string]*structs.Evaluation),
+		jobs:        make(map[string]struct{}),
+		unblockCh:   make(chan string, unblockBuffer),
+		duplicateCh: make(chan struct{}),
+		stopCh:      make(chan struct{}),
+		stats:       new(BlockedStats),
 	}
 }
 
@@ -96,7 +112,21 @@ func (b *BlockedEvals) Block(eval *structs.Evaluation) {
 		return
 	}
 
+	// Check if the job already has a blocked evaluation
+	if _, existing := b.jobs[eval.JobID]; existing {
+		b.duplicates = append(b.duplicates, eval)
+
+		// Unblock any waiter.
+		select {
+		case b.duplicateCh <- struct{}{}:
+		default:
+		}
+
+		return
+	}
+
 	b.stats.TotalBlocked++
+	b.jobs[eval.JobID] = struct{}{}
 	if eval.EscapedComputedClass {
 		b.escaped[eval.ID] = eval
 		b.stats.TotalEscaped++
@@ -110,9 +140,6 @@ func (b *BlockedEvals) Block(eval *structs.Evaluation) {
 // capacity change on the passed computed node class to be enqueued into the
 // eval broker.
 func (b *BlockedEvals) Unblock(computedClass string) {
-	b.l.Lock()
-	defer b.l.Unlock()
-
 	// Do nothing if not enabled
 	if !b.enabled {
 		return
@@ -122,60 +149,106 @@ func (b *BlockedEvals) Unblock(computedClass string) {
 }
 
 func (b *BlockedEvals) unblock() {
-	select {
-	case <-b.stopCh:
-		return
-	case computedClass := <-b.unblockCh:
-		// Every eval that has escaped computed node class has to be unblocked
-		// because any node could potentially be feasible.
-		i := 0
-		var unblocked []*structs.Evaluation
-		if l := len(b.escaped); l != 0 {
-			unblocked = make([]*structs.Evaluation, l)
-			for id, eval := range b.escaped {
-				unblocked[i] = eval
-				delete(b.escaped, id)
-				i++
-			}
-		}
+	for {
+		select {
+		case <-b.stopCh:
+			return
+		case computedClass := <-b.unblockCh:
+			b.l.Lock()
 
-		// We unblock any eval that is explicitely eligible for the computed class
-		// and also any eval that is not eligible or uneligible. This signifies that
-		// when the evaluation was originally run through the scheduler, that it
-		// never saw a node with the given computed class and thus needs to be
-		// unblocked for correctness.
-		var untrack []string
-		for id, eval := range b.captured {
-			if elig, ok := eval.ClassEligibility[computedClass]; ok {
-				if !elig {
-					// Can skip because the eval has explicitely marked the node class
-					// as ineligible.
-					continue
+			// Protect against the case of a flush.
+			if !b.running {
+				return
+			}
+
+			// Every eval that has escaped computed node class has to be unblocked
+			// because any node could potentially be feasible.
+			i := 0
+			var unblocked []*structs.Evaluation
+			if l := len(b.escaped); l != 0 {
+				unblocked = make([]*structs.Evaluation, l)
+				for id, eval := range b.escaped {
+					unblocked[i] = eval
+					delete(b.escaped, id)
+					delete(b.jobs, eval.JobID)
+					i++
 				}
 			}
 
-			// The computed node class has never been seen by the eval so we unblock
-			// it.
-			unblocked = append(unblocked, eval)
-			untrack = append(untrack, id)
-		}
+			// We unblock any eval that is explicitely eligible for the computed class
+			// and also any eval that is not eligible or uneligible. This signifies that
+			// when the evaluation was originally run through the scheduler, that it
+			// never saw a node with the given computed class and thus needs to be
+			// unblocked for correctness.
+			var untrack []string
+			for id, eval := range b.captured {
+				if elig, ok := eval.ClassEligibility[computedClass]; ok {
+					if !elig {
+						// Can skip because the eval has explicitely marked the node class
+						// as ineligible.
+						continue
+					}
+				}
 
-		// Untrack the unblocked evals.
-		if l := len(untrack); l != 0 {
-			for _, id := range untrack {
-				delete(b.captured, id)
+				// The computed node class has never been seen by the eval so we unblock
+				// it.
+				unblocked = append(unblocked, eval)
+				untrack = append(untrack, id)
+				delete(b.jobs, eval.JobID)
 			}
-		}
 
-		if l := len(unblocked); l != 0 {
-			// Update the counters
-			b.stats.TotalEscaped = 0
-			b.stats.TotalBlocked -= l
+			// Untrack the unblocked evals.
+			if l := len(untrack); l != 0 {
+				for _, id := range untrack {
+					delete(b.captured, id)
+				}
+			}
 
-			// Enqueue all the unblocked evals into the broker.
-			b.evalBroker.EnqueueAll(unblocked)
+			if l := len(unblocked); l != 0 {
+				// Update the counters
+				b.stats.TotalEscaped = 0
+				b.stats.TotalBlocked -= l
+
+				// Enqueue all the unblocked evals into the broker.
+				b.evalBroker.EnqueueAll(unblocked)
+			}
+			b.l.Unlock()
 		}
 	}
+}
+
+// GetDuplicates returns all the duplicate evaluations and blocks until the
+// passed timeout.
+func (b *BlockedEvals) GetDuplicates(timeout time.Duration) []*structs.Evaluation {
+	var timeoutTimer *time.Timer
+	var timeoutCh <-chan time.Time
+SCAN:
+	b.l.Lock()
+	if len(b.duplicates) != 0 {
+		dups := b.duplicates
+		b.duplicates = nil
+		b.l.Unlock()
+		return dups
+	}
+	b.l.Unlock()
+
+	// Create the timer
+	if timeoutTimer == nil && timeout != 0 {
+		timeoutTimer = time.NewTimer(timeout)
+		timeoutCh = timeoutTimer.C
+		defer timeoutTimer.Stop()
+	}
+
+	select {
+	case <-b.stopCh:
+		return nil
+	case <-timeoutCh:
+		return nil
+	case <-b.duplicateCh:
+		goto SCAN
+	}
+
+	return nil
 }
 
 // Flush is used to clear the state of blocked evaluations.
@@ -194,8 +267,11 @@ func (b *BlockedEvals) Flush() {
 	b.stats.TotalBlocked = 0
 	b.captured = make(map[string]*structs.Evaluation)
 	b.escaped = make(map[string]*structs.Evaluation)
+	b.jobs = make(map[string]struct{})
+	b.duplicates = nil
 	b.unblockCh = make(chan string, unblockBuffer)
 	b.stopCh = make(chan struct{})
+	b.duplicateCh = make(chan struct{})
 }
 
 // Stats is used to query the state of the blocked eval tracker.

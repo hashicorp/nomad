@@ -2,7 +2,9 @@ package nomad
 
 import (
 	"fmt"
+	"reflect"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -31,6 +33,60 @@ func TestBlockedEvals_Block_Disabled(t *testing.T) {
 	bStats := blocked.Stats()
 	if bStats.TotalBlocked != 0 || bStats.TotalEscaped != 0 {
 		t.Fatalf("bad: %#v", bStats)
+	}
+}
+
+func TestBlockedEvals_Block_SameJob(t *testing.T) {
+	blocked, _ := testBlockedEvals(t)
+
+	// Create two blocked evals and add them to the blocked tracker.
+	e := mock.Eval()
+	e2 := mock.Eval()
+	e2.JobID = e.JobID
+	blocked.Block(e)
+	blocked.Block(e2)
+
+	// Verify block did track both
+	bStats := blocked.Stats()
+	if bStats.TotalBlocked != 1 || bStats.TotalEscaped != 0 {
+		t.Fatalf("bad: %#v", bStats)
+	}
+}
+
+func TestBlockedEvals_GetDuplicates(t *testing.T) {
+	blocked, _ := testBlockedEvals(t)
+
+	// Create duplicate blocked evals and add them to the blocked tracker.
+	e := mock.Eval()
+	e2 := mock.Eval()
+	e2.JobID = e.JobID
+	e3 := mock.Eval()
+	e3.JobID = e.JobID
+	blocked.Block(e)
+	blocked.Block(e2)
+
+	// Verify block did track both
+	bStats := blocked.Stats()
+	if bStats.TotalBlocked != 1 || bStats.TotalEscaped != 0 {
+		t.Fatalf("bad: %#v", bStats)
+	}
+
+	// Get the duplicates.
+	out := blocked.GetDuplicates(0)
+	if len(out) != 1 || !reflect.DeepEqual(out[0], e2) {
+		t.Fatalf("bad: %#v %#v", out, e2)
+	}
+
+	// Call block again after a small sleep.
+	go func() {
+		time.Sleep(500 * time.Millisecond)
+		blocked.Block(e3)
+	}()
+
+	// Get the duplicates.
+	out = blocked.GetDuplicates(1 * time.Second)
+	if len(out) != 1 || !reflect.DeepEqual(out[0], e3) {
+		t.Fatalf("bad: %#v %#v", out, e2)
 	}
 }
 
