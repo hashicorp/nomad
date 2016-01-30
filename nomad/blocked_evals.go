@@ -31,13 +31,12 @@ type BlockedEvals struct {
 
 // BlockedStats returns all the stats about the blocked eval tracker.
 type BlockedStats struct {
-	// The number of blocked evaluations that have escaped computed node
-	// classses.
+	// TotalEscaped is the total number of blocked evaluations that have escaped
+	// computed node classes.
 	TotalEscaped int
 
-	// The number of blocked evaluations that are captured by computed node
-	// classses.
-	TotalCaptured int
+	// TotalBlocked is the total number of blocked evaluations.
+	TotalBlocked int
 }
 
 // NewBlockedEvals creates a new blocked eval tracker that will enqueue
@@ -80,6 +79,7 @@ func (b *BlockedEvals) Block(eval *structs.Evaluation) {
 		return
 	}
 
+	b.stats.TotalBlocked++
 	if eval.EscapedComputedClass {
 		b.escaped[eval.ID] = eval
 		b.stats.TotalEscaped++
@@ -87,7 +87,6 @@ func (b *BlockedEvals) Block(eval *structs.Evaluation) {
 	}
 
 	b.captured[eval.ID] = eval
-	b.stats.TotalCaptured++
 }
 
 // Unblock causes any evaluation that could potentially make progress on a
@@ -105,9 +104,8 @@ func (b *BlockedEvals) Unblock(computedClass uint64) {
 	// Every eval that has escaped computed node class has to be unblocked
 	// because any node could potentially be feasible.
 	i := 0
-	l := len(b.escaped)
 	var unblocked []*structs.Evaluation
-	if l != 0 {
+	if l := len(b.escaped); l != 0 {
 		unblocked = make([]*structs.Evaluation, l)
 		for id, eval := range b.escaped {
 			unblocked[i] = eval
@@ -115,9 +113,6 @@ func (b *BlockedEvals) Unblock(computedClass uint64) {
 			i++
 		}
 	}
-
-	// Reset the escaped
-	b.stats.TotalEscaped = 0
 
 	// We unblock any eval that is explicitely eligible for the computed class
 	// and also any eval that is not eligible or uneligible. This signifies that
@@ -146,12 +141,13 @@ func (b *BlockedEvals) Unblock(computedClass uint64) {
 		for _, id := range untrack {
 			delete(b.captured, id)
 		}
-
-		// Update the stats on captured evals.
-		b.stats.TotalCaptured -= len(untrack)
 	}
 
-	if len(unblocked) != 0 {
+	if l := len(unblocked); l != 0 {
+		// Update the counters
+		b.stats.TotalEscaped = 0
+		b.stats.TotalBlocked -= l
+
 		// Enqueue all the unblocked evals into the broker.
 		b.evalBroker.EnqueueAll(unblocked)
 	}
@@ -164,7 +160,7 @@ func (b *BlockedEvals) Flush() {
 
 	// Reset the blocked eval tracker.
 	b.stats.TotalEscaped = 0
-	b.stats.TotalCaptured = 0
+	b.stats.TotalBlocked = 0
 	b.captured = make(map[string]*structs.Evaluation)
 	b.escaped = make(map[string]*structs.Evaluation)
 }
@@ -179,7 +175,7 @@ func (b *BlockedEvals) Stats() *BlockedStats {
 
 	// Copy all the stats
 	stats.TotalEscaped = b.stats.TotalEscaped
-	stats.TotalCaptured = b.stats.TotalCaptured
+	stats.TotalBlocked = b.stats.TotalBlocked
 	return stats
 }
 
@@ -189,7 +185,7 @@ func (b *BlockedEvals) EmitStats(period time.Duration, stopCh chan struct{}) {
 		select {
 		case <-time.After(period):
 			stats := b.Stats()
-			metrics.SetGauge([]string{"nomad", "blocked_evals", "total_captured"}, float32(stats.TotalCaptured))
+			metrics.SetGauge([]string{"nomad", "blocked_evals", "total_blocked"}, float32(stats.TotalBlocked))
 			metrics.SetGauge([]string{"nomad", "blocked_evals", "total_escaped"}, float32(stats.TotalEscaped))
 		case <-stopCh:
 			return

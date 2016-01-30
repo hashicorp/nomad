@@ -188,7 +188,7 @@ func TestFSM_UpdateNodeStatus(t *testing.T) {
 
 	// Verify the eval was unblocked.
 	bStats := fsm.blockedEvals.Stats()
-	if bStats.TotalCaptured != 0 {
+	if bStats.TotalBlocked != 0 {
 		t.Fatalf("bad: %#v", bStats)
 	}
 }
@@ -413,7 +413,7 @@ func TestFSM_UpdateEval_Blocked(t *testing.T) {
 
 	// Verify the eval was added to the blocked tracker.
 	bStats := fsm.blockedEvals.Stats()
-	if bStats.TotalCaptured != 1 {
+	if bStats.TotalBlocked != 1 {
 		t.Fatalf("bad: %#v %#v", bStats, out)
 	}
 }
@@ -526,7 +526,7 @@ func TestFSM_UpdateAllocFromClient(t *testing.T) {
 	fsm.blockedEvals.Block(eval)
 
 	bStats := fsm.blockedEvals.Stats()
-	if bStats.TotalCaptured != 1 {
+	if bStats.TotalBlocked != 1 {
 		t.Fatalf("bad: %#v", bStats)
 	}
 
@@ -565,7 +565,7 @@ func TestFSM_UpdateAllocFromClient(t *testing.T) {
 
 	// Verify the eval was unblocked.
 	bStats = fsm.blockedEvals.Stats()
-	if bStats.TotalCaptured != 0 {
+	if bStats.TotalBlocked != 0 {
 		t.Fatalf("bad: %#v %#v", bStats, out)
 	}
 }
