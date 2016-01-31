@@ -348,6 +348,9 @@ func (s *Server) revokeLeadership() error {
 	// Disable the eval broker, since it is only useful as a leader
 	s.evalBroker.SetEnabled(false)
 
+	// Disable the blocked eval tracker, since it is only useful as a leader
+	s.blockedEvals.SetEnabled(false)
+
 	// Disable the periodic dispatcher, since it is only useful as a leader
 	s.periodicDispatcher.SetEnabled(false)
 
