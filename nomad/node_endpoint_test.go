@@ -539,6 +539,156 @@ func TestClientEndpoint_GetAllocs(t *testing.T) {
 	}
 }
 
+func TestClientEndpoint_GetClientAllocs(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	node := mock.Node()
+	reg := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.GenericResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	node.CreateIndex = resp.Index
+	node.ModifyIndex = resp.Index
+
+	// Inject fake evaluations
+	alloc := mock.Alloc()
+	alloc.NodeID = node.ID
+	state := s1.fsm.State()
+	err := state.UpsertAllocs(100, []*structs.Allocation{alloc})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Lookup the allocs
+	get := &structs.NodeSpecificRequest{
+		NodeID:       node.ID,
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+	var resp2 structs.NodeClientAllocsResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Node.GetClientAllocs", get, &resp2); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp2.Index != 100 {
+		t.Fatalf("Bad index: %d %d", resp2.Index, 100)
+	}
+
+	if len(resp2.Allocs) != 1 || resp2.Allocs[alloc.ID] != 100 {
+		t.Fatalf("bad: %#v", resp2.Allocs)
+	}
+
+	// Lookup non-existing node
+	get.NodeID = "foobarbaz"
+	var resp3 structs.NodeClientAllocsResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Node.GetClientAllocs", get, &resp3); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp3.Index != 100 {
+		t.Fatalf("Bad index: %d %d", resp3.Index, 100)
+	}
+	if len(resp3.Allocs) != 0 {
+		t.Fatalf("unexpected node %#v", resp3.Allocs)
+	}
+}
+
+func TestClientEndpoint_GetClientAllocs_Blocking(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	node := mock.Node()
+	reg := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.GenericResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	node.CreateIndex = resp.Index
+	node.ModifyIndex = resp.Index
+
+	// Inject fake evaluations async
+	alloc := mock.Alloc()
+	alloc.NodeID = node.ID
+	state := s1.fsm.State()
+	start := time.Now()
+	time.AfterFunc(100*time.Millisecond, func() {
+		err := state.UpsertAllocs(100, []*structs.Allocation{alloc})
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	})
+
+	// Lookup the allocs in a blocking query
+	req := &structs.NodeSpecificRequest{
+		NodeID: node.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:        "global",
+			MinQueryIndex: 50,
+			MaxQueryTime:  time.Second,
+		},
+	}
+	var resp2 structs.NodeClientAllocsResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Node.GetClientAllocs", req, &resp2); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Should block at least 100ms
+	if time.Since(start) < 100*time.Millisecond {
+		t.Fatalf("too fast")
+	}
+
+	if resp2.Index != 100 {
+		t.Fatalf("Bad index: %d %d", resp2.Index, 100)
+	}
+
+	if len(resp2.Allocs) != 1 || resp2.Allocs[alloc.ID] != 100 {
+		t.Fatalf("bad: %#v", resp2.Allocs)
+	}
+
+	// Alloc updates fire watches
+	time.AfterFunc(100*time.Millisecond, func() {
+		allocUpdate := mock.Alloc()
+		allocUpdate.NodeID = alloc.NodeID
+		allocUpdate.ID = alloc.ID
+		allocUpdate.ClientStatus = structs.AllocClientStatusRunning
+		err := state.UpdateAllocFromClient(200, allocUpdate)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	})
+
+	req.QueryOptions.MinQueryIndex = 150
+	var resp3 structs.NodeClientAllocsResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Node.GetClientAllocs", req, &resp3); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if time.Since(start) < 100*time.Millisecond {
+		t.Fatalf("too fast")
+	}
+	if resp3.Index != 200 {
+		t.Fatalf("Bad index: %d %d", resp3.Index, 200)
+	}
+	if len(resp3.Allocs) != 1 || resp3.Allocs[alloc.ID] != 200 {
+		t.Fatalf("bad: %#v", resp3.Allocs)
+	}
+}
+
 func TestClientEndpoint_GetAllocs_Blocking(t *testing.T) {
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()

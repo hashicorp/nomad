@@ -61,6 +61,18 @@ func (n *Nodes) Allocations(nodeID string, q *QueryOptions) ([]*Allocation, *Que
 	return resp, qm, nil
 }
 
+// ClientAllocations is used to return a lightweight list of allocations associated with a node.
+// It is primarily used by the client in order to determine which allocations actually need
+// an update.
+func (n *Nodes) ClientAllocations(nodeID string, q *QueryOptions) (map[string]uint64, *QueryMeta, error) {
+	var resp map[string]uint64
+	qm, err := n.client.query("/v1/node/"+nodeID+"/clientallocations", &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return resp, qm, nil
+}
+
 // ForceEvaluate is used to force-evaluate an existing node.
 func (n *Nodes) ForceEvaluate(nodeID string, q *WriteOptions) (string, *WriteMeta, error) {
 	var resp nodeEvalResponse
