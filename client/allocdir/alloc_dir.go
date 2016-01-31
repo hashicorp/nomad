@@ -76,7 +76,7 @@ func (d *AllocDir) Destroy() error {
 // Given a list of a task build the correct alloc structure.
 func (d *AllocDir) Build(tasks []*structs.Task) error {
 	// Make the alloc directory, owned by the nomad process.
-	if err := os.MkdirAll(d.AllocDir, 0700); err != nil {
+	if err := os.MkdirAll(d.AllocDir, 0755); err != nil {
 		return fmt.Errorf("Failed to make the alloc directory %v: %v", d.AllocDir, err)
 	}
 

@@ -196,7 +196,7 @@ func (c *Client) init() error {
 
 	// Ensure the alloc dir exists if we have one
 	if c.config.AllocDir != "" {
-		if err := os.MkdirAll(c.config.AllocDir, 0700); err != nil {
+		if err := os.MkdirAll(c.config.AllocDir, 0755); err != nil {
 			return fmt.Errorf("failed creating alloc dir: %s", err)
 		}
 	} else {
