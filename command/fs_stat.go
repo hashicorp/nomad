@@ -11,7 +11,7 @@ type FSStatCommand struct {
 
 func (f *FSStatCommand) Help() string {
 	helpText := `
-Usage: nomad fs-stat <alloc-id> <path>
+Usage: nomad fs stat <alloc-id> <path>
 	
 	Displays information about an entry in an allocation directory at the given path.
 	The path is relative to the allocation directory and defaults to root if unspecified.
