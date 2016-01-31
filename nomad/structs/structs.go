@@ -1824,10 +1824,11 @@ func (a *AllocMetric) ScoreNode(node *Node, name string, score float64) {
 }
 
 const (
-	EvalStatusBlocked  = "blocked"
-	EvalStatusPending  = "pending"
-	EvalStatusComplete = "complete"
-	EvalStatusFailed   = "failed"
+	EvalStatusBlocked   = "blocked"
+	EvalStatusPending   = "pending"
+	EvalStatusComplete  = "complete"
+	EvalStatusFailed    = "failed"
+	EvalStatusCancelled = "cancelled"
 )
 
 const (
@@ -1930,7 +1931,7 @@ type Evaluation struct {
 // will no longer transition.
 func (e *Evaluation) TerminalStatus() bool {
 	switch e.Status {
-	case EvalStatusComplete, EvalStatusFailed:
+	case EvalStatusComplete, EvalStatusFailed, EvalStatusCancelled:
 		return true
 	default:
 		return false
@@ -1953,7 +1954,7 @@ func (e *Evaluation) ShouldEnqueue() bool {
 	switch e.Status {
 	case EvalStatusPending:
 		return true
-	case EvalStatusComplete, EvalStatusFailed, EvalStatusBlocked:
+	case EvalStatusComplete, EvalStatusFailed, EvalStatusBlocked, EvalStatusCancelled:
 		return false
 	default:
 		panic(fmt.Sprintf("unhandled evaluation (%s) status %s", e.ID, e.Status))
@@ -1966,7 +1967,7 @@ func (e *Evaluation) ShouldBlock() bool {
 	switch e.Status {
 	case EvalStatusBlocked:
 		return true
-	case EvalStatusComplete, EvalStatusFailed, EvalStatusPending:
+	case EvalStatusComplete, EvalStatusFailed, EvalStatusPending, EvalStatusCancelled:
 		return false
 	default:
 		panic(fmt.Sprintf("unhandled evaluation (%s) status %s", e.ID, e.Status))

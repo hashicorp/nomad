@@ -522,3 +522,30 @@ func TestLeader_ReapFailedEval(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	})
 }
+
+func TestLeader_ReapDuplicateEval(t *testing.T) {
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+	})
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create a duplicate blocked eval
+	eval := mock.Eval()
+	eval2 := mock.Eval()
+	eval2.JobID = eval.JobID
+	s1.blockedEvals.Block(eval)
+	s1.blockedEvals.Block(eval2)
+
+	// Wait for the evaluation to marked as cancelled
+	state := s1.fsm.State()
+	testutil.WaitForResult(func() (bool, error) {
+		out, err := state.EvalByID(eval2.ID)
+		if err != nil {
+			return false, err
+		}
+		return out != nil && out.Status == structs.EvalStatusCancelled, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+}

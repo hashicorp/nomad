@@ -136,6 +136,9 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	// Reap any failed evaluations
 	go s.reapFailedEvaluations(stopCh)
 
+	// Reap any duplicate blocked evaluations
+	go s.reapDupBlockedEvaluations(stopCh)
+
 	// Setup the heartbeat timers. This is done both when starting up or when
 	// a leader fail over happens. Since the timers are maintained by the leader
 	// node, effectively this means all the timers are renewed at the time of failover.
@@ -297,6 +300,41 @@ func (s *Server) reapFailedEvaluations(stopCh chan struct{}) {
 
 			// Ack completion
 			s.evalBroker.Ack(eval.ID, token)
+		}
+	}
+}
+
+// reapDupBlockedEvaluations is used to reap duplicate blocked evaluations and
+// should be cancelled.
+func (s *Server) reapDupBlockedEvaluations(stopCh chan struct{}) {
+	for {
+		select {
+		case <-stopCh:
+			return
+		default:
+			// Scan for duplicate blocked evals.
+			dups := s.blockedEvals.GetDuplicates(time.Second)
+			if dups == nil {
+				continue
+			}
+
+			cancel := make([]*structs.Evaluation, len(dups))
+			for i, dup := range dups {
+				// Update the status to cancelled
+				newEval := dup.Copy()
+				newEval.Status = structs.EvalStatusCancelled
+				newEval.StatusDescription = fmt.Sprintf("existing blocked evaluation exists for job %q", newEval.JobID)
+				cancel[i] = newEval
+			}
+
+			// Update via Raft
+			req := structs.EvalUpdateRequest{
+				Evals: cancel,
+			}
+			if _, _, err := s.raftApply(structs.EvalUpdateRequestType, &req); err != nil {
+				s.logger.Printf("[ERR] nomad: failed to update duplicate evals %#v: %v", cancel, err)
+				continue
+			}
 		}
 	}
 }
