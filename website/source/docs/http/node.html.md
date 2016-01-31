@@ -315,7 +315,7 @@ be specified using the `?region=` query parameter.
   <dt>Description</dt>
   <dd>
     Query the allocations belonging to a single node. This endpoint only returns
-    a map from allocation id to modifyindex and is primarily used by the client
+    a map from allocation id to its modify index and is primarily used by the client
     to determine which allocations need to be updated.
   </dd>
 
