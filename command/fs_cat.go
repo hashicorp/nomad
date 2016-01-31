@@ -13,7 +13,7 @@ type FSCatCommand struct {
 
 func (f *FSCatCommand) Help() string {
 	helpText := `
-	Usage: nomad fs-cat <alloc-id> <path>
+	Usage: nomad fs cat <alloc-id> <path>
 
 	Dispays a file in an allocation directory at the given path.
 	The path is relative to the allocation directory and defaults to root if unspecified.
