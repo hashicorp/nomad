@@ -512,7 +512,7 @@ type Node struct {
 
 	// ComputedClass is a unique id that identifies nodes with a common set of
 	// attributes and capabilities.
-	ComputedClass uint64
+	ComputedClass string
 
 	// Drain is controlled by the servers, and not the client.
 	// If true, no jobs will be scheduled to this node, and existing
@@ -1824,9 +1824,11 @@ func (a *AllocMetric) ScoreNode(node *Node, name string, score float64) {
 }
 
 const (
-	EvalStatusPending  = "pending"
-	EvalStatusComplete = "complete"
-	EvalStatusFailed   = "failed"
+	EvalStatusBlocked   = "blocked"
+	EvalStatusPending   = "pending"
+	EvalStatusComplete  = "complete"
+	EvalStatusFailed    = "failed"
+	EvalStatusCancelled = "canceled"
 )
 
 const (
@@ -1912,6 +1914,14 @@ type Evaluation struct {
 	// This is used to support rolling upgrades, where we need a chain of evaluations.
 	PreviousEval string
 
+	// ClassEligibility tracks computed node classes that have been explicitely
+	// marked as eligible or ineligible.
+	ClassEligibility map[string]bool
+
+	// EscapedComputedClass marks whether the job has constraints that are not
+	// captured by computed node classes.
+	EscapedComputedClass bool
+
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
@@ -1921,7 +1931,7 @@ type Evaluation struct {
 // will no longer transition.
 func (e *Evaluation) TerminalStatus() bool {
 	switch e.Status {
-	case EvalStatusComplete, EvalStatusFailed:
+	case EvalStatusComplete, EvalStatusFailed, EvalStatusCancelled:
 		return true
 	default:
 		return false
@@ -1938,12 +1948,26 @@ func (e *Evaluation) Copy() *Evaluation {
 	return ne
 }
 
-// ShouldEnqueue checks if a given evaluation should be enqueued
+// ShouldEnqueue checks if a given evaluation should be enqueued into the
+// eval_broker
 func (e *Evaluation) ShouldEnqueue() bool {
 	switch e.Status {
 	case EvalStatusPending:
 		return true
-	case EvalStatusComplete, EvalStatusFailed:
+	case EvalStatusComplete, EvalStatusFailed, EvalStatusBlocked, EvalStatusCancelled:
+		return false
+	default:
+		panic(fmt.Sprintf("unhandled evaluation (%s) status %s", e.ID, e.Status))
+	}
+}
+
+// ShouldBlock checks if a given evaluation should be entered into the blocked
+// eval tracker.
+func (e *Evaluation) ShouldBlock() bool {
+	switch e.Status {
+	case EvalStatusBlocked:
+		return true
+	case EvalStatusComplete, EvalStatusFailed, EvalStatusPending, EvalStatusCancelled:
 		return false
 	default:
 		panic(fmt.Sprintf("unhandled evaluation (%s) status %s", e.ID, e.Status))
@@ -1977,6 +2001,24 @@ func (e *Evaluation) NextRollingEval(wait time.Duration) *Evaluation {
 		Status:         EvalStatusPending,
 		Wait:           wait,
 		PreviousEval:   e.ID,
+	}
+}
+
+// BlockedEval creates a blocked evaluation to followup this eval to place any
+// failed allocations. It takes the classes marked explicitely eligible or
+// ineligible and whether the job has escaped computed node classes.
+func (e *Evaluation) BlockedEval(classEligibility map[string]bool, escaped bool) *Evaluation {
+	return &Evaluation{
+		ID:                   GenerateUUID(),
+		Priority:             e.Priority,
+		Type:                 e.Type,
+		TriggeredBy:          e.TriggeredBy,
+		JobID:                e.JobID,
+		JobModifyIndex:       e.JobModifyIndex,
+		Status:               EvalStatusBlocked,
+		PreviousEval:         e.ID,
+		ClassEligibility:     classEligibility,
+		EscapedComputedClass: escaped,
 	}
 }
 

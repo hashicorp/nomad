@@ -15,7 +15,7 @@ client {
 
     # Set ourselves as thing one
     meta {
-        thing = "two"
+        ssd = "true"
     }
 }
 

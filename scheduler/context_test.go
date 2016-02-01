@@ -3,6 +3,7 @@ package scheduler
 import (
 	"log"
 	"os"
+	"reflect"
 	"testing"
 
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -111,7 +112,7 @@ func TestEvalContext_ProposedAlloc(t *testing.T) {
 
 func TestEvalEligibility_JobStatus(t *testing.T) {
 	e := NewEvalEligibility()
-	cc := uint64(100)
+	cc := "v1:100"
 
 	// Get the job before its been set.
 	if status := e.JobStatus(cc); status != EvalComputedClassUnknown {
@@ -129,15 +130,15 @@ func TestEvalEligibility_JobStatus(t *testing.T) {
 		t.Fatalf("JobStatus() returned %v; want %v", status, EvalComputedClassEligible)
 	}
 
-	// Check that if I pass class zero it returns escaped
-	if status := e.JobStatus(0); status != EvalComputedClassEscaped {
+	// Check that if I pass an empty class it returns escaped
+	if status := e.JobStatus(""); status != EvalComputedClassEscaped {
 		t.Fatalf("JobStatus() returned %v; want %v", status, EvalComputedClassEscaped)
 	}
 }
 
 func TestEvalEligibility_TaskGroupStatus(t *testing.T) {
 	e := NewEvalEligibility()
-	cc := uint64(100)
+	cc := "v1:100"
 	tg := "foo"
 
 	// Get the tg before its been set.
@@ -156,8 +157,8 @@ func TestEvalEligibility_TaskGroupStatus(t *testing.T) {
 		t.Fatalf("TaskGroupStatus() returned %v; want %v", status, EvalComputedClassEligible)
 	}
 
-	// Check that if I pass class zero it returns escaped
-	if status := e.TaskGroupStatus(tg, 0); status != EvalComputedClassEscaped {
+	// Check that if I pass an empty class it returns escaped
+	if status := e.TaskGroupStatus(tg, ""); status != EvalComputedClassEscaped {
 		t.Fatalf("TaskGroupStatus() returned %v; want %v", status, EvalComputedClassEscaped)
 	}
 }
@@ -204,5 +205,31 @@ func TestEvalEligibility_SetJob(t *testing.T) {
 	}
 	if escaped, ok := e.tgEscapedConstraints[tg.Name]; !ok || !escaped {
 		t.Fatalf("SetJob() should mark task group as escaped")
+	}
+}
+
+func TestEvalEligibility_GetClasses(t *testing.T) {
+	e := NewEvalEligibility()
+	e.SetJobEligibility(true, "v1:1")
+	e.SetJobEligibility(false, "v1:2")
+	e.SetTaskGroupEligibility(true, "foo", "v1:3")
+	e.SetTaskGroupEligibility(false, "bar", "v1:4")
+	e.SetTaskGroupEligibility(true, "bar", "v1:5")
+
+	// Mark an existing eligible class as ineligible in the TG.
+	e.SetTaskGroupEligibility(false, "fizz", "v1:1")
+	e.SetTaskGroupEligibility(false, "fizz", "v1:3")
+
+	expClasses := map[string]bool{
+		"v1:1": true,
+		"v1:2": false,
+		"v1:3": true,
+		"v1:4": false,
+		"v1:5": true,
+	}
+
+	actClasses := e.GetClasses()
+	if !reflect.DeepEqual(actClasses, expClasses) {
+		t.Fatalf("GetClasses() returned %#v; want %#v", actClasses, expClasses)
 	}
 }

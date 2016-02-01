@@ -733,7 +733,7 @@ func TestFeasibilityWrapper_JobEligible_TgEscaped(t *testing.T) {
 	cc := nodes[0].ComputedClass
 	ctx.Eligibility().job[cc] = EvalComputedClassEligible
 	ctx.Eligibility().taskGroups["foo"] =
-		map[uint64]ComputedClassFeasibility{cc: EvalComputedClassEscaped}
+		map[string]ComputedClassFeasibility{cc: EvalComputedClassEscaped}
 	wrapper.SetTaskGroup("foo")
 
 	// Run the wrapper.
