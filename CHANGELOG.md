@@ -7,41 +7,42 @@ BACKWARDS INCOMPATIBILITIES:
     [GH-704]
 
 IMPROVEMENTS:
-  * core: Periodic specification for jobs [GH-540, GH-657, GH-659, GH-668]
-  * core: Batch jobs are garbage collected from the Nomad Servers [GH-586]
-  * core: Improved restart policy with more user configuration [GH-594]
-  * driver/rkt: Add support for CPU/Memory isolation [GH-610]
-  * cli: Output of agent-info is sorted [GH-617]
+  * core: Populate job status [GH-663]
+  * core: Cgroup fingerprinter [GH-712]
   * core: Node class constraint [GH-618]
   * core: User specifiable kill timeout [GH-624]
+  * core: Job queueing via blocked evaluations  [GH-726]
   * core: Add available nodes by DC to AllocMetrics [GH-619]
-  * driver/rkt: Add support for mounting alloc/task directory [GH-645]
-  * core/cli: Prefix based lookups of allocs/nodes/evals/jobs [GH-575]
-  * drivers: Interpret Nomad variables in environment variables/args [GH-653]
-  * core: Populate job status [GH-663]
-  * core/cli: Print short identifiers and UX cleanup [GH-675, GH-693, GH-692]
-  * core/api: Allow users to set arbitrary headers via agent config [GH-699]
   * core: Computed node class and stack optimization [GH-691, GH-708]
+  * core: Improved restart policy with more user configuration [GH-594]
+  * core: Periodic specification for jobs [GH-540, GH-657, GH-659, GH-668]
+  * core: Batch jobs are garbage collected from the Nomad Servers [GH-586]
+  * core/api: Allow users to set arbitrary headers via agent config [GH-699]
+  * core/cli: Prefix based lookups of allocs/nodes/evals/jobs [GH-575]
+  * core/cli: Print short identifiers and UX cleanup [GH-675, GH-693, GH-692]
+  * cli: Output of agent-info is sorted [GH-617]
   * cli: Ability to navigate allocation directories [GH-709]
-  * core: Cgroup fingerprinter [GH-712]
+  * drivers: Interpret Nomad variables in environment variables/args [GH-653]
+  * driver/rkt: Add support for CPU/Memory isolation [GH-610]
+  * driver/rkt: Add support for mounting alloc/task directory [GH-645]
 
 BUG FIXES:
   * cli: Handle parsing of un-named ports [GH-604]
-  * client: Handle non-200 codes when parsing AWS metadata [GH-614]
   * cli: Enforce absolute paths for data directories [GH-622]
+  * client: Handle non-200 codes when parsing AWS metadata [GH-614]
   * driver/qemu: failed to load image and kvm accelerator fixes [GH-656]
 
 ## 0.2.3 (December 17, 2015)
 
 BUG FIXES:
+  * core: Task States not being properly updated [GH-600]
   * client: Fixes for user lookup to support CoreOS [GH-591]
-  * discovery: Fixes for service registration when multiple allocations are bin
-    packed on a node [GH-583]
+  * discovery: Using a random prefix for nomad managed services [GH-579]
   * discovery: De-Registering Tasks while Nomad sleeps before failed tasks are
     restarted.
-  * discovery: Using a random prefix for nomad managed services [GH-579]
+  * discovery: Fixes for service registration when multiple allocations are bin
+    packed on a node [GH-583]
   * configuration: Sort configuration files [GH-588]
-  * core: Task States not being properly updated [GH-600]
   * cli: RetryInterval was not being applied properly [GH-601]
 
 ## 0.2.2 (December 11, 2015)
@@ -54,14 +55,14 @@ IMPROVEMENTS:
 
 BUG FIXES:
   * core: Send syslog to `LOCAL0` by default as previously documented [GH-547]
+  * client: remove all calls to default logger [GH-570]
   * consul: Nomad is less noisy when Consul is not running [GH-567]
   * consul: Nomad only deregisters services that it created [GH-568]
-  * driver/docker: Docker driver no longer leaks unix domain socket connections
-    [GH-556]
   * driver/exec: Shutdown a task now sends the interrupt signal first to the
     process before forcefully killing it. [GH-543]
+  * driver/docker: Docker driver no longer leaks unix domain socket connections
+    [GH-556]
   * fingerprint/network: Now correctly detects interfaces on Windows [GH-382]
-  * client: remove all calls to default logger [GH-570]
 
 ## 0.2.1 (November 28, 2015)
 
@@ -69,25 +70,25 @@ IMPROVEMENTS:
 
   * core: Can specify a whitelist for activating drivers [GH-467]
   * core: Can specify a whitelist for activating fingerprinters [GH-488]
+  * core/api: Can list all known regions in the cluster [GH-495]
   * client/spawn: spawn package tests made portable (work on Windows) [GH-442]
   * client/executor: executor package tests made portable (work on Windows) [GH-497]
   * client/driver: driver package tests made portable (work on windows) [GH-502]
-  * driver/docker: Added TLS client options to the config file [GH-480]
-  * core/api: Can list all known regions in the cluster [GH-495]
   * client/discovery: Added more consul client api configuration options [GH-503]
+  * driver/docker: Added TLS client options to the config file [GH-480]
   * jobspec: More flexibility in naming Services [GH-509]
 
 BUG FIXES:
 
+  * core: Shared reference to DynamicPorts caused port conflicts when scheduling
+    count > 1 [GH-494]
+  * client/restart policy: Not restarting Batch Jobs if the exit code is 0 [GH-491]
+  * client/service discovery: Make Service IDs unique [GH-479]
+  * client/service: Fixes update to check definitions and services which are already registered [GH-498]
   * driver/docker: Expose the container port instead of the host port [GH-466]
   * driver/docker: Support `port_map` for static ports [GH-476]
   * driver/docker: Pass 0.2.0-style port environment variables to the docker container [GH-476]
-  * client/service discovery: Make Service IDs unique [GH-479]
-  * client/restart policy: Not restarting Batch Jobs if the exit code is 0 [GH-491]
-  * core: Shared reference to DynamicPorts caused port conflicts when scheduling
-    count > 1 [GH-494]
-  * distinct_hosts constraint can be specified as a boolean (previously panicked) [GH-501]
-  * client/service: Fixes update to check definitions and services which are already registered [GH-498]
+  * jobspec: distinct_hosts constraint can be specified as a boolean (previously panicked) [GH-501]
 
 ## 0.2.0 (November 18, 2015)
 
@@ -98,19 +99,19 @@ BACKWARDS INCOMPATIBILITIES:
   * core: Removed weight and hard/soft fields in constraints [GH-351]
   * drivers: Qemu and Java driver configurations have been updated to both use
     `artifact_source` as the source for external images/jars to be ran
-  * New reserved and dynamic port specification [GH-415]
-  * jobspec and drivers: Driver configuration supports arbitrary struct to be
+  * jobspec: New reserved and dynamic port specification [GH-415]
+  * jobspec/drivers: Driver configuration supports arbitrary struct to be
     passed in jobspec [GH-415]
 
 FEATURES:
 
-  * core: Service block definition with Consul registration [GH-463, GH-460,
-    GH-458, GH-455, GH-446, GH-425]
   * core: Blocking queries supported in API [GH-366]
+  * core: System Scheduler that runs tasks on every node [GH-287]
+  * core: Regexp, version and lexical ordering constraints [GH-271]
   * core: distinctHost constraint ensures Task Groups are running on distinct
     clients [GH-321]
-  * core: Regexp, version and lexical ordering constraints [GH-271]
-  * core: System Scheduler that runs tasks on every node [GH-287]
+  * core: Service block definition with Consul registration [GH-463, GH-460,
+    GH-458, GH-455, GH-446, GH-425]
   * client: GCE Fingerprinting [GH-215]
   * client: Restart policy for task groups enforced by the client [GH-369,
     GH-393]
