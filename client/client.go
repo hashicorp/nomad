@@ -795,8 +795,9 @@ func (c *Client) watchAllocations(updates chan *allocUpdates) {
 			runner, ok := c.allocs[allocID]
 			if !ok || runner.shouldUpdate(modifyIndex) {
 				pull = append(pull, allocID)
+			} else {
+				filtered[allocID] = struct{}{}
 			}
-			filtered[allocID] = struct{}{}
 		}
 		c.allocLock.Unlock()
 		c.logger.Printf("[DEBUG] client: updated allocations at index %d (pulled %d) (filtered %d)",

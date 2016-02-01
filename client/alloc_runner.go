@@ -156,6 +156,8 @@ func (r *AllocRunner) SaveState() error {
 func (r *AllocRunner) saveAllocRunnerState() error {
 	r.taskStatusLock.RLock()
 	defer r.taskStatusLock.RUnlock()
+	r.allocLock.Lock()
+	defer r.allocLock.Unlock()
 	snap := allocRunnerState{
 		Alloc:         r.alloc,
 		RestartPolicy: r.RestartPolicy,
@@ -224,7 +226,8 @@ func (r *AllocRunner) syncStatus() error {
 	// Scan the task states to determine the status of the alloc
 	var pending, running, dead, failed bool
 	r.taskStatusLock.RLock()
-	for _, state := range r.alloc.TaskStates {
+	for _, tr := range r.tasks {
+		state := tr.state
 		switch state.State {
 		case structs.TaskStateRunning:
 			running = true
@@ -239,13 +242,17 @@ func (r *AllocRunner) syncStatus() error {
 			}
 		}
 	}
+	r.taskStatusLock.RUnlock()
+
+	// Determine the alloc status
+	r.allocLock.Lock()
+	defer r.allocLock.Unlock()
+
 	if len(r.alloc.TaskStates) > 0 {
 		taskDesc, _ := json.Marshal(r.alloc.TaskStates)
 		r.alloc.ClientDescription = string(taskDesc)
 	}
-	r.taskStatusLock.RUnlock()
 
-	// Determine the alloc status
 	if failed {
 		r.alloc.ClientStatus = structs.AllocClientStatusFailed
 	} else if running {
@@ -379,8 +386,8 @@ OUTER:
 	}
 
 	// Destroy each sub-task
-	r.taskLock.RLock()
-	defer r.taskLock.RUnlock()
+	r.taskLock.Lock()
+	defer r.taskLock.Unlock()
 	for _, tr := range r.tasks {
 		tr.Destroy()
 	}
