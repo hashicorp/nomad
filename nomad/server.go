@@ -241,6 +241,9 @@ func NewServer(config *Config) (*Server, error) {
 	// Emit metrics for the plan queue
 	go planQueue.EmitStats(time.Second, s.shutdownCh)
 
+	// Emit metrics for the blocked eval tracker.
+	go blockedEvals.EmitStats(time.Second, s.shutdownCh)
+
 	// Emit metrics
 	go s.heartbeatStats()
 

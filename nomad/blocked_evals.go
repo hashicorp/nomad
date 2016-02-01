@@ -9,7 +9,9 @@ import (
 )
 
 const (
-	// unblockBuffer is the buffer size for the unblock channel.
+	// unblockBuffer is the buffer size for the unblock channel. The buffer
+	// should be large to ensure that the FSM doesn't block when calling Unblock
+	// as this would apply back-pressure on Raft.
 	unblockBuffer = 8096
 )
 
@@ -34,7 +36,7 @@ type BlockedEvals struct {
 	escaped map[string]*structs.Evaluation
 
 	// unblockCh is used to buffer unblocking of evaluations.
-	unblockCh chan string
+	capacityChangeCh chan string
 
 	// jobs is the map of blocked job and is used to ensure that only one
 	// blocked eval exists for each job.
@@ -68,14 +70,14 @@ type BlockedStats struct {
 // unblocked evals into the passed broker.
 func NewBlockedEvals(evalBroker *EvalBroker) *BlockedEvals {
 	return &BlockedEvals{
-		evalBroker:  evalBroker,
-		captured:    make(map[string]*structs.Evaluation),
-		escaped:     make(map[string]*structs.Evaluation),
-		jobs:        make(map[string]struct{}),
-		unblockCh:   make(chan string, unblockBuffer),
-		duplicateCh: make(chan struct{}),
-		stopCh:      make(chan struct{}),
-		stats:       new(BlockedStats),
+		evalBroker:       evalBroker,
+		captured:         make(map[string]*structs.Evaluation),
+		escaped:          make(map[string]*structs.Evaluation),
+		jobs:             make(map[string]struct{}),
+		capacityChangeCh: make(chan string, unblockBuffer),
+		duplicateCh:      make(chan struct{}, 1),
+		stopCh:           make(chan struct{}),
+		stats:            new(BlockedStats),
 	}
 }
 
@@ -93,7 +95,7 @@ func (b *BlockedEvals) SetEnabled(enabled bool) {
 	b.enabled = enabled
 	if !b.running {
 		b.running = true
-		go b.unblock()
+		go b.watchCapacity()
 	}
 	b.l.Unlock()
 	if !enabled {
@@ -112,7 +114,10 @@ func (b *BlockedEvals) Block(eval *structs.Evaluation) {
 		return
 	}
 
-	// Check if the job already has a blocked evaluation
+	// Check if the job already has a blocked evaluation. If it does add it to
+	// the list of duplicates. We omly ever want one blocked evaluation per job,
+	// otherwise we would create unnecessary work for the scheduler as multiple
+	// evals for the same job would be run, all producing the same outcome.
 	if _, existing := b.jobs[eval.JobID]; existing {
 		b.duplicates = append(b.duplicates, eval)
 
@@ -125,14 +130,22 @@ func (b *BlockedEvals) Block(eval *structs.Evaluation) {
 		return
 	}
 
+	// Mark the job as tracked.
 	b.stats.TotalBlocked++
 	b.jobs[eval.JobID] = struct{}{}
+
+	// If the eval has escaped, meaning computed node classes could not capture
+	// the constraints of the job, we store the eval separately as we have to
+	// unblock it whenever node capacity changes. This is because we don't know
+	// what node class is feasible for the jobs constraints.
 	if eval.EscapedComputedClass {
 		b.escaped[eval.ID] = eval
 		b.stats.TotalEscaped++
 		return
 	}
 
+	// Add the eval to the set of blocked evals whose jobs constraints are
+	// captured by computed node class.
 	b.captured[eval.ID] = eval
 }
 
@@ -145,75 +158,71 @@ func (b *BlockedEvals) Unblock(computedClass string) {
 		return
 	}
 
-	b.unblockCh <- computedClass
+	b.capacityChangeCh <- computedClass
 }
 
-func (b *BlockedEvals) unblock() {
+// watchCapacity is a long lived function that watches for capacity changes in
+// nodes and unblocks the correct set of evals.
+func (b *BlockedEvals) watchCapacity() {
 	for {
 		select {
 		case <-b.stopCh:
 			return
-		case computedClass := <-b.unblockCh:
-			b.l.Lock()
-
-			// Protect against the case of a flush.
-			if !b.running {
-				return
-			}
-
-			// Every eval that has escaped computed node class has to be unblocked
-			// because any node could potentially be feasible.
-			i := 0
-			var unblocked []*structs.Evaluation
-			if l := len(b.escaped); l != 0 {
-				unblocked = make([]*structs.Evaluation, l)
-				for id, eval := range b.escaped {
-					unblocked[i] = eval
-					delete(b.escaped, id)
-					delete(b.jobs, eval.JobID)
-					i++
-				}
-			}
-
-			// We unblock any eval that is explicitely eligible for the computed class
-			// and also any eval that is not eligible or uneligible. This signifies that
-			// when the evaluation was originally run through the scheduler, that it
-			// never saw a node with the given computed class and thus needs to be
-			// unblocked for correctness.
-			var untrack []string
-			for id, eval := range b.captured {
-				if elig, ok := eval.ClassEligibility[computedClass]; ok {
-					if !elig {
-						// Can skip because the eval has explicitely marked the node class
-						// as ineligible.
-						continue
-					}
-				}
-
-				// The computed node class has never been seen by the eval so we unblock
-				// it.
-				unblocked = append(unblocked, eval)
-				untrack = append(untrack, id)
-				delete(b.jobs, eval.JobID)
-			}
-
-			// Untrack the unblocked evals.
-			if l := len(untrack); l != 0 {
-				for _, id := range untrack {
-					delete(b.captured, id)
-				}
-			}
-
-			if l := len(unblocked); l != 0 {
-				// Update the counters
-				b.stats.TotalEscaped = 0
-				b.stats.TotalBlocked -= l
-
-				// Enqueue all the unblocked evals into the broker.
-				b.evalBroker.EnqueueAll(unblocked)
-			}
-			b.l.Unlock()
+		case computedClass := <-b.capacityChangeCh:
+			b.unblock(computedClass)
 		}
+	}
+}
+
+// unblock unblocks all blocked evals that could run on the passed computed node
+// class.
+func (b *BlockedEvals) unblock(computedClass string) {
+	b.l.Lock()
+	defer b.l.Unlock()
+
+	// Protect against the case of a flush.
+	if !b.running {
+		return
+	}
+
+	// Every eval that has escaped computed node class has to be unblocked
+	// because any node could potentially be feasible.
+	var unblocked []*structs.Evaluation
+	if l := len(b.escaped); l != 0 {
+		unblocked = make([]*structs.Evaluation, 0, l)
+		for id, eval := range b.escaped {
+			unblocked = append(unblocked, eval)
+			delete(b.escaped, id)
+			delete(b.jobs, eval.JobID)
+		}
+	}
+
+	// We unblock any eval that is explicitely eligible for the computed class
+	// and also any eval that is not eligible or uneligible. This signifies that
+	// when the evaluation was originally run through the scheduler, that it
+	// never saw a node with the given computed class and thus needs to be
+	// unblocked for correctness.
+	for id, eval := range b.captured {
+		if elig, ok := eval.ClassEligibility[computedClass]; ok && !elig {
+			// Can skip because the eval has explicitely marked the node class
+			// as ineligible.
+			continue
+		}
+
+		// The computed node class has never been seen by the eval so we unblock
+		// it.
+		unblocked = append(unblocked, eval)
+		delete(b.jobs, eval.JobID)
+		delete(b.captured, id)
+	}
+
+	if l := len(unblocked); l != 0 {
+		// Update the counters
+		b.stats.TotalEscaped = 0
+		b.stats.TotalBlocked -= l
+
+		// Enqueue all the unblocked evals into the broker.
+		b.evalBroker.EnqueueAll(unblocked)
 	}
 }
 
@@ -269,9 +278,9 @@ func (b *BlockedEvals) Flush() {
 	b.escaped = make(map[string]*structs.Evaluation)
 	b.jobs = make(map[string]struct{})
 	b.duplicates = nil
-	b.unblockCh = make(chan string, unblockBuffer)
+	b.capacityChangeCh = make(chan string, unblockBuffer)
 	b.stopCh = make(chan struct{})
-	b.duplicateCh = make(chan struct{})
+	b.duplicateCh = make(chan struct{}, 1)
 }
 
 // Stats is used to query the state of the blocked eval tracker.

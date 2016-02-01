@@ -1828,7 +1828,7 @@ const (
 	EvalStatusPending   = "pending"
 	EvalStatusComplete  = "complete"
 	EvalStatusFailed    = "failed"
-	EvalStatusCancelled = "cancelled"
+	EvalStatusCancelled = "canceled"
 )
 
 const (
