@@ -216,6 +216,10 @@ func TestEvalEligibility_GetClasses(t *testing.T) {
 	e.SetTaskGroupEligibility(false, "bar", "v1:4")
 	e.SetTaskGroupEligibility(true, "bar", "v1:5")
 
+	// Mark an existing eligible class as ineligible in the TG.
+	e.SetTaskGroupEligibility(false, "fizz", "v1:1")
+	e.SetTaskGroupEligibility(false, "fizz", "v1:3")
+
 	expClasses := map[string]bool{
 		"v1:1": true,
 		"v1:2": false,

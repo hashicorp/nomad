@@ -23,7 +23,6 @@ const (
 type BlockedEvals struct {
 	evalBroker *EvalBroker
 	enabled    bool
-	running    bool
 	stats      *BlockedStats
 	l          sync.RWMutex
 
@@ -92,11 +91,15 @@ func (b *BlockedEvals) Enabled() bool {
 // should only be enabled on the active leader.
 func (b *BlockedEvals) SetEnabled(enabled bool) {
 	b.l.Lock()
-	b.enabled = enabled
-	if !b.running {
-		b.running = true
+	if b.enabled == enabled {
+		// No-op
+		return
+	} else if enabled {
 		go b.watchCapacity()
+	} else {
+		close(b.stopCh)
 	}
+	b.enabled = enabled
 	b.l.Unlock()
 	if !enabled {
 		b.Flush()
@@ -181,7 +184,7 @@ func (b *BlockedEvals) unblock(computedClass string) {
 	defer b.l.Unlock()
 
 	// Protect against the case of a flush.
-	if !b.running {
+	if !b.enabled {
 		return
 	}
 
@@ -264,12 +267,6 @@ SCAN:
 func (b *BlockedEvals) Flush() {
 	b.l.Lock()
 	defer b.l.Unlock()
-
-	// Kill any running goroutines
-	if b.running {
-		close(b.stopCh)
-		b.running = false
-	}
 
 	// Reset the blocked eval tracker.
 	b.stats.TotalEscaped = 0

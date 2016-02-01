@@ -242,7 +242,12 @@ func (e *EvalEligibility) GetClasses() map[string]bool {
 			case EvalComputedClassEligible:
 				elig[class] = true
 			case EvalComputedClassIneligible:
-				elig[class] = false
+				// Only mark as ineligible if it hasn't been marked before. This
+				// prevents one task group marking a class as ineligible when it
+				// is eligible on another task group.
+				if _, ok := elig[class]; !ok {
+					elig[class] = false
+				}
 			}
 		}
 	}
