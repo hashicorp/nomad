@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/armon/go-metrics"
@@ -109,4 +110,40 @@ func (a *Alloc) GetAlloc(args *structs.AllocSpecificRequest,
 			return nil
 		}}
 	return a.srv.blockingRPC(&opts)
+}
+
+// GetAllocs is used to lookup a set of allocations
+func (a *Alloc) GetAllocs(args *structs.AllocsGetRequest,
+	reply *structs.AllocsGetResponse) error {
+	if done, err := a.srv.forward("Alloc.GetAllocs", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "alloc", "get_alloc"}, time.Now())
+
+	// Lookup the allocations
+	snap, err := a.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
+	allocs := make([]*structs.Allocation, len(args.AllocIDs))
+	for i, alloc := range args.AllocIDs {
+		out, err := snap.AllocByID(alloc)
+		if err != nil {
+			return err
+		}
+		if out == nil {
+			return fmt.Errorf("unknown alloc id %q", alloc)
+		}
+
+		allocs[i] = out
+		if reply.Index < out.ModifyIndex {
+			reply.Index = out.ModifyIndex
+		}
+	}
+
+	// Set the response
+	a.srv.setQueryMeta(&reply.QueryMeta)
+	reply.Allocs = allocs
+	return nil
 }

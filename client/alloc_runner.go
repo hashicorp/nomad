@@ -38,7 +38,8 @@ type AllocRunner struct {
 	logger        *log.Logger
 	consulService *ConsulService
 
-	alloc *structs.Allocation
+	alloc     *structs.Allocation
+	allocLock sync.Mutex
 
 	dirtyCh chan struct{}
 
@@ -184,6 +185,8 @@ func (r *AllocRunner) DestroyContext() error {
 
 // Alloc returns the associated allocation
 func (r *AllocRunner) Alloc() *structs.Allocation {
+	r.allocLock.Lock()
+	defer r.allocLock.Unlock()
 	return r.alloc
 }
 
@@ -336,6 +339,11 @@ OUTER:
 	for {
 		select {
 		case update := <-r.updateCh:
+			// Store the updated allocation.
+			r.allocLock.Lock()
+			r.alloc = update
+			r.allocLock.Unlock()
+
 			// Check if we're in a terminal status
 			if update.TerminalStatus() {
 				break OUTER
@@ -406,6 +414,14 @@ func (r *AllocRunner) Update(update *structs.Allocation) {
 	default:
 		r.logger.Printf("[ERR] client: dropping update to alloc '%s'", update.ID)
 	}
+}
+
+// shouldUpdate takes the AllocModifyIndex of an allocation sent from the server and
+// checks if the current running allocation is behind and should be updated.
+func (r *AllocRunner) shouldUpdate(serverIndex uint64) bool {
+	r.allocLock.Lock()
+	defer r.allocLock.Unlock()
+	return r.alloc.AllocModifyIndex < serverIndex
 }
 
 // Destroy is used to indicate that the allocation context should be destroyed

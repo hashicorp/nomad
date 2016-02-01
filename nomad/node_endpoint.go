@@ -387,7 +387,7 @@ func (n *Node) GetAllocs(args *structs.NodeSpecificRequest,
 	return n.srv.blockingRPC(&opts)
 }
 
-// GetClientAllocs is used to request a lightweight list of modify indexes
+// GetClientAllocs is used to request a lightweight list of alloc modify indexes
 // per allocation.
 func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 	reply *structs.NodeClientAllocsResponse) error {
@@ -421,7 +421,7 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 			// Setup the output
 			if len(allocs) != 0 {
 				for _, alloc := range allocs {
-					reply.Allocs[alloc.ID] = alloc.ModifyIndex
+					reply.Allocs[alloc.ID] = alloc.AllocModifyIndex
 					reply.Index = maxUint64(reply.Index, alloc.ModifyIndex)
 				}
 			} else {

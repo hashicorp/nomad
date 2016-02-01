@@ -192,7 +192,7 @@ func TestAllocEndpoint_GetAlloc_Blocking(t *testing.T) {
 		}
 	})
 
-	// Lookup the jobs
+	// Lookup the allocs
 	get := &structs.AllocSpecificRequest{
 		AllocID: alloc2.ID,
 		QueryOptions: structs.QueryOptions{
@@ -214,5 +214,47 @@ func TestAllocEndpoint_GetAlloc_Blocking(t *testing.T) {
 	}
 	if resp.Alloc == nil || resp.Alloc.ID != alloc2.ID {
 		t.Fatalf("bad: %#v", resp.Alloc)
+	}
+}
+
+func TestAllocEndpoint_GetAllocs(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	alloc := mock.Alloc()
+	alloc2 := mock.Alloc()
+	state := s1.fsm.State()
+	err := state.UpsertAllocs(1000, []*structs.Allocation{alloc, alloc2})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Lookup the allocs
+	get := &structs.AllocsGetRequest{
+		AllocIDs:     []string{alloc.ID, alloc2.ID},
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+	var resp structs.AllocsGetResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Alloc.GetAllocs", get, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp.Index != 1000 {
+		t.Fatalf("Bad index: %d %d", resp.Index, 1000)
+	}
+
+	if len(resp.Allocs) != 2 {
+		t.Fatalf("bad: %#v", resp.Allocs)
+	}
+
+	// Lookup non-existent allocs.
+	get = &structs.AllocsGetRequest{
+		AllocIDs:     []string{"foo"},
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+	if err := msgpackrpc.CallWithCodec(codec, "Alloc.GetAllocs", get, &resp); err == nil {
+		t.Fatalf("expect error")
 	}
 }

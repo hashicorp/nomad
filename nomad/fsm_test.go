@@ -421,6 +421,7 @@ func TestFSM_UpsertAllocs(t *testing.T) {
 	}
 	alloc.CreateIndex = out.CreateIndex
 	alloc.ModifyIndex = out.ModifyIndex
+	alloc.AllocModifyIndex = out.AllocModifyIndex
 	if !reflect.DeepEqual(alloc, out) {
 		t.Fatalf("bad: %#v %#v", alloc, out)
 	}

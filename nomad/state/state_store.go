@@ -793,10 +793,12 @@ func (s *StateStore) UpsertAllocs(index uint64, allocs []*structs.Allocation) er
 		if existing == nil {
 			alloc.CreateIndex = index
 			alloc.ModifyIndex = index
+			alloc.AllocModifyIndex = index
 		} else {
 			exist := existing.(*structs.Allocation)
 			alloc.CreateIndex = exist.CreateIndex
 			alloc.ModifyIndex = index
+			alloc.AllocModifyIndex = index
 			alloc.ClientStatus = exist.ClientStatus
 			alloc.ClientDescription = exist.ClientDescription
 		}

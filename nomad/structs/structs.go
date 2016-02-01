@@ -272,6 +272,12 @@ type AllocSpecificRequest struct {
 	QueryOptions
 }
 
+// AllocsGetcRequest is used to query a set of allocations
+type AllocsGetRequest struct {
+	AllocIDs []string
+	QueryOptions
+}
+
 // PeriodicForceReqeuest is used to force a specific periodic job.
 type PeriodicForceRequest struct {
 	JobID string
@@ -375,6 +381,12 @@ type JobListResponse struct {
 // SingleAllocResponse is used to return a single allocation
 type SingleAllocResponse struct {
 	Alloc *Allocation
+	QueryMeta
+}
+
+// AllocsGetResponse is used to return a set of allocations
+type AllocsGetResponse struct {
+	Allocs []*Allocation
 	QueryMeta
 }
 
@@ -1647,8 +1659,9 @@ type Allocation struct {
 	TaskStates map[string]*TaskState
 
 	// Raft Indexes
-	CreateIndex uint64
-	ModifyIndex uint64
+	CreateIndex      uint64
+	ModifyIndex      uint64
+	AllocModifyIndex uint64
 }
 
 // TerminalStatus returns if the desired or actual status is terminal and
