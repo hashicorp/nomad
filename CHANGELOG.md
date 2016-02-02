@@ -21,6 +21,7 @@ IMPROVEMENTS:
   * core/cli: Prefix based lookups of allocs/nodes/evals/jobs [GH-575]
   * core/cli: Print short identifiers and UX cleanup [GH-675, GH-693, GH-692]
   * core/client: Client pulls minimum set of required allocations [GH-731]
+  * core/jobspec: Default task resources and validation [GH-739]
   * cli: Output of agent-info is sorted [GH-617]
   * cli: Ability to navigate allocation directories [GH-709]
   * drivers: Interpret Nomad variables in environment variables/args [GH-653]
