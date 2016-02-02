@@ -21,12 +21,6 @@ const (
 	allocSyncRetryIntv = 15 * time.Second
 )
 
-// taskStatus is used to track the status of a task
-type taskStatus struct {
-	Status      string
-	Description string
-}
-
 // AllocStateUpdater is used to update the status of an allocation
 type AllocStateUpdater func(alloc *structs.Allocation) error
 
@@ -40,10 +34,15 @@ type AllocRunner struct {
 	alloc     *structs.Allocation
 	allocLock sync.Mutex
 
+	// Explicit status of allocation. Set when there are failures
+	allocClientStatus      string
+	allocClientDescription string
+
 	dirtyCh chan struct{}
 
 	ctx           *driver.ExecContext
 	tasks         map[string]*TaskRunner
+	taskStates    map[string]*structs.TaskState
 	restored      map[string]struct{}
 	RestartPolicy *structs.RestartPolicy
 	taskLock      sync.RWMutex
@@ -60,10 +59,12 @@ type AllocRunner struct {
 
 // allocRunnerState is used to snapshot the state of the alloc runner
 type allocRunnerState struct {
-	Alloc         *structs.Allocation
-	RestartPolicy *structs.RestartPolicy
-	TaskStatus    map[string]taskStatus
-	Context       *driver.ExecContext
+	Alloc                  *structs.Allocation
+	AllocClientStatus      string
+	AllocClientDescription string
+	RestartPolicy          *structs.RestartPolicy
+	TaskStates             map[string]*structs.TaskState
+	Context                *driver.ExecContext
 }
 
 // NewAllocRunner is used to create a new allocation context
@@ -77,6 +78,7 @@ func NewAllocRunner(logger *log.Logger, config *config.Config, updater AllocStat
 		consulService: consulService,
 		dirtyCh:       make(chan struct{}, 1),
 		tasks:         make(map[string]*TaskRunner),
+		taskStates:    alloc.TaskStates,
 		restored:      make(map[string]struct{}),
 		updateCh:      make(chan *structs.Allocation, 8),
 		destroyCh:     make(chan struct{}),
@@ -102,10 +104,13 @@ func (r *AllocRunner) RestoreState() error {
 	r.alloc = snap.Alloc
 	r.RestartPolicy = snap.RestartPolicy
 	r.ctx = snap.Context
+	r.allocClientStatus = snap.AllocClientStatus
+	r.allocClientDescription = snap.AllocClientDescription
+	r.taskStates = snap.TaskStates
 
 	// Restore the task runners
 	var mErr multierror.Error
-	for name, state := range r.alloc.TaskStates {
+	for name, state := range r.taskStates {
 		// Mark the task as restored.
 		r.restored[name] = struct{}{}
 
@@ -157,9 +162,12 @@ func (r *AllocRunner) saveAllocRunnerState() error {
 	r.allocLock.Lock()
 	defer r.allocLock.Unlock()
 	snap := allocRunnerState{
-		Alloc:         r.alloc,
-		RestartPolicy: r.RestartPolicy,
-		Context:       r.ctx,
+		Alloc:                  r.alloc,
+		RestartPolicy:          r.RestartPolicy,
+		Context:                r.ctx,
+		AllocClientStatus:      r.allocClientStatus,
+		AllocClientDescription: r.allocClientDescription,
+		TaskStates:             r.taskStates,
 	}
 	return persistState(r.stateFilePath(), &snap)
 }
@@ -186,8 +194,46 @@ func (r *AllocRunner) DestroyContext() error {
 // Alloc returns the associated allocation
 func (r *AllocRunner) Alloc() *structs.Allocation {
 	r.allocLock.Lock()
-	defer r.allocLock.Unlock()
-	return r.alloc.Copy()
+	alloc := r.alloc.Copy()
+	r.allocLock.Unlock()
+
+	// Scan the task states to determine the status of the alloc
+	var pending, running, dead, failed bool
+	r.taskStatusLock.RLock()
+	alloc.TaskStates = r.taskStates
+	for _, state := range r.taskStates {
+		switch state.State {
+		case structs.TaskStateRunning:
+			running = true
+		case structs.TaskStatePending:
+			pending = true
+		case structs.TaskStateDead:
+			last := len(state.Events) - 1
+			if state.Events[last].Type == structs.TaskDriverFailure {
+				failed = true
+			} else {
+				dead = true
+			}
+		}
+	}
+	r.taskStatusLock.RUnlock()
+
+	// The status has explicitely been set.
+	if r.allocClientStatus != "" || r.allocClientDescription != "" {
+		alloc.ClientStatus = r.allocClientStatus
+		alloc.ClientDescription = r.allocClientDescription
+		return alloc
+	}
+
+	// Determine the alloc status
+	if failed {
+		alloc.ClientStatus = structs.AllocClientStatusFailed
+	} else if running {
+		alloc.ClientStatus = structs.AllocClientStatusRunning
+	} else if dead && !pending {
+		alloc.ClientStatus = structs.AllocClientStatusDead
+	}
+	return alloc
 }
 
 // dirtySyncState is used to watch for state being marked dirty to sync
@@ -224,39 +270,6 @@ func (r *AllocRunner) syncStatus() error {
 	// Get a copy of our alloc.
 	alloc := r.Alloc()
 
-	// Scan the task states to determine the status of the alloc
-	var pending, running, dead, failed bool
-	r.taskStatusLock.RLock()
-	for name, tr := range r.tasks {
-		// Store the state of each task in the copied alloc.
-		state := tr.getState()
-		alloc.TaskStates[name] = state
-
-		switch state.State {
-		case structs.TaskStateRunning:
-			running = true
-		case structs.TaskStatePending:
-			pending = true
-		case structs.TaskStateDead:
-			last := len(state.Events) - 1
-			if state.Events[last].Type == structs.TaskDriverFailure {
-				failed = true
-			} else {
-				dead = true
-			}
-		}
-	}
-	r.taskStatusLock.RUnlock()
-
-	// Determine the alloc status
-	if failed {
-		alloc.ClientStatus = structs.AllocClientStatusFailed
-	} else if running {
-		alloc.ClientStatus = structs.AllocClientStatusRunning
-	} else if dead && !pending {
-		alloc.ClientStatus = structs.AllocClientStatusDead
-	}
-
 	// Attempt to update the status
 	if err := r.updater(alloc); err != nil {
 		r.logger.Printf("[ERR] client: failed to update alloc '%s' status to %s: %s",
@@ -277,11 +290,40 @@ func (r *AllocRunner) setStatus(status, desc string) {
 }
 
 // setTaskState is used to set the status of a task
-func (r *AllocRunner) setTaskState(taskName string) {
+func (r *AllocRunner) setTaskState(taskName, state string, event *structs.TaskEvent) {
+	r.taskStatusLock.Lock()
+	defer r.taskStatusLock.Unlock()
+	taskState, ok := r.taskStates[taskName]
+	if !ok {
+		r.logger.Printf("[ERR] client: setting task state for unknown task %q", taskName)
+		return
+	}
+
+	// Set the tasks state.
+	taskState.State = state
+	r.appendTaskEvent(taskState, event)
+
 	select {
 	case r.dirtyCh <- struct{}{}:
 	default:
 	}
+}
+
+// appendTaskEvent updates the task status by appending the new event.
+func (r *AllocRunner) appendTaskEvent(state *structs.TaskState, event *structs.TaskEvent) {
+	capacity := 10
+	if state.Events == nil {
+		state.Events = make([]*structs.TaskEvent, 0, capacity)
+	}
+
+	// If we hit capacity, then shift it.
+	if len(state.Events) == capacity {
+		old := state.Events
+		state.Events = make([]*structs.TaskEvent, 0, capacity)
+		state.Events = append(state.Events, old[1:]...)
+	}
+
+	state.Events = append(state.Events, event)
 }
 
 // Run is a long running goroutine used to manage an allocation
