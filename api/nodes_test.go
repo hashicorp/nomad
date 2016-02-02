@@ -207,24 +207,6 @@ func TestNodes_Allocations(t *testing.T) {
 	}
 }
 
-func TestNodes_ClientAllocations(t *testing.T) {
-	c, s := makeClient(t, nil, nil)
-	defer s.Stop()
-	nodes := c.Nodes()
-
-	// Looking up by a non-existent node returns nothing. We
-	// don't check the index here because it's possible the node
-	// has already registered, in which case we will get a non-
-	// zero result anyways.
-	allocs, _, err := nodes.ClientAllocations("nope", nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if n := len(allocs); n != 0 {
-		t.Fatalf("expected 0 allocs, got: %d", n)
-	}
-}
-
 func TestNodes_ForceEvaluate(t *testing.T) {
 	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
 		c.DevMode = true

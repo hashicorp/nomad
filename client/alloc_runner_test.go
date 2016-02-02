@@ -91,7 +91,7 @@ func TestAllocRunner_Destroy(t *testing.T) {
 
 func TestAllocRunner_Update(t *testing.T) {
 	ctestutil.ExecCompatible(t)
-	upd, ar := testAllocRunner(false)
+	_, ar := testAllocRunner(false)
 
 	// Ensure task takes some time
 	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
@@ -99,27 +99,20 @@ func TestAllocRunner_Update(t *testing.T) {
 	task.Config["args"] = []string{"10"}
 	go ar.Run()
 	defer ar.Destroy()
-	start := time.Now()
 
 	// Update the alloc definition
 	newAlloc := new(structs.Allocation)
 	*newAlloc = *ar.alloc
-	newAlloc.DesiredStatus = structs.AllocDesiredStatusStop
+	newAlloc.Name = "FOO"
+	newAlloc.AllocModifyIndex++
 	ar.Update(newAlloc)
 
+	// Check the alloc runner stores the update allocation.
 	testutil.WaitForResult(func() (bool, error) {
-		if upd.Count == 0 {
-			return false, nil
-		}
-		last := upd.Allocs[upd.Count-1]
-		return last.ClientStatus == structs.AllocClientStatusDead, nil
+		return ar.Alloc().Name == "FOO", nil
 	}, func(err error) {
-		t.Fatalf("err: %v %#v %#v", err, upd.Allocs[0], ar.alloc.TaskStates)
+		t.Fatalf("err: %v %#v", err, ar.Alloc())
 	})
-
-	if time.Since(start) > 15*time.Second {
-		t.Fatalf("took too long to terminate")
-	}
 }
 
 func TestAllocRunner_SaveRestoreState(t *testing.T) {

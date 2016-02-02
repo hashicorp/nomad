@@ -355,10 +355,14 @@ func TestClient_WatchAllocs(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	// Update the other allocation
-	alloc2.DesiredStatus = structs.AllocDesiredStatusStop
+	// Update the other allocation. Have to make a copy because the allocs are
+	// shared in memory in the test and the modify index would be updated in the
+	// alloc runner.
+	alloc2_2 := new(structs.Allocation)
+	*alloc2_2 = *alloc2
+	alloc2_2.DesiredStatus = structs.AllocDesiredStatusStop
 	err = state.UpsertAllocs(102,
-		[]*structs.Allocation{alloc2})
+		[]*structs.Allocation{alloc2_2})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

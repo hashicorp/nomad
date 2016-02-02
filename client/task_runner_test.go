@@ -21,9 +21,15 @@ func testLogger() *log.Logger {
 	return log.New(os.Stderr, "", log.LstdFlags)
 }
 
-type MockTaskStateUpdater struct{}
+type MockTaskStateUpdater struct {
+	state  string
+	events []*structs.TaskEvent
+}
 
-func (m *MockTaskStateUpdater) Update(name string) {}
+func (m *MockTaskStateUpdater) Update(name, state string, event *structs.TaskEvent) {
+	m.state = state
+	m.events = append(m.events, event)
+}
 
 func testTaskRunner(restarts bool) (*MockTaskStateUpdater, *TaskRunner) {
 	logger := testLogger()
@@ -48,14 +54,13 @@ func testTaskRunner(restarts bool) (*MockTaskStateUpdater, *TaskRunner) {
 		restartTracker = noRestartsTracker()
 	}
 
-	state := alloc.TaskStates[task.Name]
-	tr := NewTaskRunner(logger, conf, upd.Update, ctx, mock.Alloc(), task, state, restartTracker, consulClient)
+	tr := NewTaskRunner(logger, conf, upd.Update, ctx, mock.Alloc(), task, restartTracker, consulClient)
 	return upd, tr
 }
 
 func TestTaskRunner_SimpleRun(t *testing.T) {
 	ctestutil.ExecCompatible(t)
-	_, tr := testTaskRunner(false)
+	upd, tr := testTaskRunner(false)
 	go tr.Run()
 	defer tr.Destroy()
 	defer tr.ctx.AllocDir.Destroy()
@@ -66,26 +71,26 @@ func TestTaskRunner_SimpleRun(t *testing.T) {
 		t.Fatalf("timeout")
 	}
 
-	if len(tr.state.Events) != 2 {
-		t.Fatalf("should have 2 updates: %#v", tr.state.Events)
+	if len(upd.events) != 2 {
+		t.Fatalf("should have 2 updates: %#v", upd.events)
 	}
 
-	if tr.state.State != structs.TaskStateDead {
-		t.Fatalf("TaskState %v; want %v", tr.state.State, structs.TaskStateDead)
+	if upd.state != structs.TaskStateDead {
+		t.Fatalf("TaskState %v; want %v", upd.state, structs.TaskStateDead)
 	}
 
-	if tr.state.Events[0].Type != structs.TaskStarted {
-		t.Fatalf("First Event was %v; want %v", tr.state.Events[0].Type, structs.TaskStarted)
+	if upd.events[0].Type != structs.TaskStarted {
+		t.Fatalf("First Event was %v; want %v", upd.events[0].Type, structs.TaskStarted)
 	}
 
-	if tr.state.Events[1].Type != structs.TaskTerminated {
-		t.Fatalf("First Event was %v; want %v", tr.state.Events[1].Type, structs.TaskTerminated)
+	if upd.events[1].Type != structs.TaskTerminated {
+		t.Fatalf("First Event was %v; want %v", upd.events[1].Type, structs.TaskTerminated)
 	}
 }
 
 func TestTaskRunner_Destroy(t *testing.T) {
 	ctestutil.ExecCompatible(t)
-	_, tr := testTaskRunner(true)
+	upd, tr := testTaskRunner(true)
 	defer tr.ctx.AllocDir.Destroy()
 
 	// Change command to ensure we run for a bit
@@ -105,20 +110,20 @@ func TestTaskRunner_Destroy(t *testing.T) {
 		t.Fatalf("timeout")
 	}
 
-	if len(tr.state.Events) != 2 {
-		t.Fatalf("should have 2 updates: %#v", tr.state.Events)
+	if len(upd.events) != 2 {
+		t.Fatalf("should have 2 updates: %#v", upd.events)
 	}
 
-	if tr.state.State != structs.TaskStateDead {
-		t.Fatalf("TaskState %v; want %v", tr.state.State, structs.TaskStateDead)
+	if upd.state != structs.TaskStateDead {
+		t.Fatalf("TaskState %v; want %v", upd.state, structs.TaskStateDead)
 	}
 
-	if tr.state.Events[0].Type != structs.TaskStarted {
-		t.Fatalf("First Event was %v; want %v", tr.state.Events[0].Type, structs.TaskStarted)
+	if upd.events[0].Type != structs.TaskStarted {
+		t.Fatalf("First Event was %v; want %v", upd.events[0].Type, structs.TaskStarted)
 	}
 
-	if tr.state.Events[1].Type != structs.TaskKilled {
-		t.Fatalf("First Event was %v; want %v", tr.state.Events[1].Type, structs.TaskKilled)
+	if upd.events[1].Type != structs.TaskKilled {
+		t.Fatalf("First Event was %v; want %v", upd.events[1].Type, structs.TaskKilled)
 	}
 
 }
@@ -167,7 +172,7 @@ func TestTaskRunner_SaveRestoreState(t *testing.T) {
 	// Create a new task runner
 	consulClient, _ := NewConsulService(&consulServiceConfig{tr.logger, "127.0.0.1:8500", "", "", false, false, &structs.Node{}})
 	tr2 := NewTaskRunner(tr.logger, tr.config, upd.Update,
-		tr.ctx, tr.alloc, &structs.Task{Name: tr.task.Name}, tr.state, tr.restartTracker,
+		tr.ctx, tr.alloc, &structs.Task{Name: tr.task.Name}, tr.restartTracker,
 		consulClient)
 	if err := tr2.RestoreState(); err != nil {
 		t.Fatalf("err: %v", err)

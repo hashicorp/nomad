@@ -627,7 +627,7 @@ func (c *Client) run() {
 	}
 
 	// Watch for changes in allocations
-	allocUpdates := make(chan []*structs.Allocation, 1)
+	allocUpdates := make(chan *allocUpdates, 1)
 	go c.watchAllocations(allocUpdates)
 
 	// Create a snapshot timer
@@ -642,8 +642,8 @@ func (c *Client) run() {
 				c.logger.Printf("[ERR] client: failed to save state: %v", err)
 			}
 
-		case allocs := <-allocUpdates:
-			c.runAllocs(allocs)
+		case update := <-allocUpdates:
+			c.runAllocs(update)
 
 		case <-heartbeat:
 			if err := c.updateNodeStatus(); err != nil {
@@ -722,8 +722,22 @@ func (c *Client) updateAllocStatus(alloc *structs.Allocation) error {
 	return nil
 }
 
+// allocUpdates holds the results of receiving updated allocations from the
+// servers.
+type allocUpdates struct {
+	// pulled is the set of allocations that were downloaded from the servers.
+	pulled map[string]*structs.Allocation
+
+	// filtered is the set of allocations that were not pulled because their
+	// AllocModifyIndex didn't change.
+	filtered map[string]struct{}
+}
+
 // watchAllocations is used to scan for updates to allocations
-func (c *Client) watchAllocations(allocUpdates chan []*structs.Allocation) {
+func (c *Client) watchAllocations(updates chan *allocUpdates) {
+	// The request and response for getting the map of allocations that should
+	// be running on the Node to their AllocModifyIndex which is incremented
+	// when the allocation is updated by the servers.
 	req := structs.NodeSpecificRequest{
 		NodeID: c.Node().ID,
 		QueryOptions: structs.QueryOptions{
@@ -731,12 +745,24 @@ func (c *Client) watchAllocations(allocUpdates chan []*structs.Allocation) {
 			AllowStale: true,
 		},
 	}
-	var resp structs.NodeAllocsResponse
+	var resp structs.NodeClientAllocsResponse
+
+	// The request and response for pulling down the set of allocations that are
+	// new, or updated server side.
+	allocsReq := structs.AllocsGetRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:     c.config.Region,
+			AllowStale: true,
+		},
+	}
+	var allocsResp structs.AllocsGetResponse
 
 	for {
-		// Get the allocations, blocking for updates
-		resp = structs.NodeAllocsResponse{}
-		err := c.RPC("Node.GetAllocs", &req, &resp)
+		// Get the allocation modify index map, blocking for updates. We will
+		// use this to determine exactly what allocations need to be downloaded
+		// in full.
+		resp = structs.NodeClientAllocsResponse{}
+		err := c.RPC("Node.GetClientAllocs", &req, &resp)
 		if err != nil {
 			c.logger.Printf("[ERR] client: failed to query for node allocations: %v", err)
 			retry := c.retryIntv(getAllocRetryIntv)
@@ -755,16 +781,70 @@ func (c *Client) watchAllocations(allocUpdates chan []*structs.Allocation) {
 		default:
 		}
 
-		// Check for updates
+		// Filter all allocations whose AllocModifyIndex was not incremented.
+		// These are the allocations who have either not been updated, or whose
+		// updates are a result of the client sending an update for the alloc.
+		// This lets us reduce the network traffic to the server as we don't
+		// need to pull all the allocations.
+		var pull []string
+		filtered := make(map[string]struct{})
+		c.allocLock.Lock()
+		for allocID, modifyIndex := range resp.Allocs {
+			// Pull the allocation if we don't have an alloc runner for the
+			// allocation or if the alloc runner requires an updated allocation.
+			runner, ok := c.allocs[allocID]
+			if !ok || runner.shouldUpdate(modifyIndex) {
+				pull = append(pull, allocID)
+			} else {
+				filtered[allocID] = struct{}{}
+			}
+		}
+		c.allocLock.Unlock()
+		c.logger.Printf("[DEBUG] client: updated allocations at index %d (pulled %d) (filtered %d)",
+			resp.Index, len(pull), len(filtered))
+
+		// Pull the allocations that passed filtering.
+		allocsResp.Allocs = nil
+		if len(pull) != 0 {
+			// Pull the allocations that need to be updated.
+			allocsReq.AllocIDs = pull
+			allocsResp = structs.AllocsGetResponse{}
+			if err := c.RPC("Alloc.GetAllocs", &allocsReq, &allocsResp); err != nil {
+				c.logger.Printf("[ERR] client: failed to query updated allocations: %v", err)
+				retry := c.retryIntv(getAllocRetryIntv)
+				select {
+				case <-time.After(retry):
+					continue
+				case <-c.shutdownCh:
+					return
+				}
+			}
+
+			// Check for shutdown
+			select {
+			case <-c.shutdownCh:
+				return
+			default:
+			}
+		}
+
+		// Update the query index.
 		if resp.Index <= req.MinQueryIndex {
 			continue
 		}
 		req.MinQueryIndex = resp.Index
-		c.logger.Printf("[DEBUG] client: updated allocations at index %d (%d allocs)", resp.Index, len(resp.Allocs))
 
-		// Push the updates
+		// Push the updates.
+		pulled := make(map[string]*structs.Allocation, len(allocsResp.Allocs))
+		for _, alloc := range allocsResp.Allocs {
+			pulled[alloc.ID] = alloc
+		}
+		update := &allocUpdates{
+			filtered: filtered,
+			pulled:   pulled,
+		}
 		select {
-		case allocUpdates <- resp.Allocs:
+		case updates <- update:
 		case <-c.shutdownCh:
 			return
 		}
@@ -772,7 +852,7 @@ func (c *Client) watchAllocations(allocUpdates chan []*structs.Allocation) {
 }
 
 // runAllocs is invoked when we get an updated set of allocations
-func (c *Client) runAllocs(updated []*structs.Allocation) {
+func (c *Client) runAllocs(update *allocUpdates) {
 	// Get the existing allocs
 	c.allocLock.RLock()
 	exist := make([]*structs.Allocation, 0, len(c.allocs))
@@ -782,7 +862,7 @@ func (c *Client) runAllocs(updated []*structs.Allocation) {
 	c.allocLock.RUnlock()
 
 	// Diff the existing and updated allocations
-	diff := diffAllocs(exist, updated)
+	diff := diffAllocs(exist, update)
 	c.logger.Printf("[DEBUG] client: %#v", diff)
 
 	// Remove the old allocations

@@ -214,60 +214,6 @@ func TestHTTP_NodeAllocations(t *testing.T) {
 	})
 }
 
-func TestHTTP_NodeClientAllocations(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
-		// Create the job
-		node := mock.Node()
-		args := structs.NodeRegisterRequest{
-			Node:         node,
-			WriteRequest: structs.WriteRequest{Region: "global"},
-		}
-		var resp structs.NodeUpdateResponse
-		if err := s.Agent.RPC("Node.Register", &args, &resp); err != nil {
-			t.Fatalf("err: %v", err)
-		}
-
-		// Directly manipulate the state
-		state := s.Agent.server.State()
-		alloc1 := mock.Alloc()
-		alloc1.NodeID = node.ID
-		err := state.UpsertAllocs(1000, []*structs.Allocation{alloc1})
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
-
-		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/node/"+node.ID+"/clientallocations", nil)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
-		respW := httptest.NewRecorder()
-
-		// Make the request
-		obj, err := s.Server.NodeSpecificRequest(respW, req)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
-
-		// Check for the index
-		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
-			t.Fatalf("missing index")
-		}
-		if respW.HeaderMap.Get("X-Nomad-KnownLeader") != "true" {
-			t.Fatalf("missing known leader")
-		}
-		if respW.HeaderMap.Get("X-Nomad-LastContact") == "" {
-			t.Fatalf("missing last contact")
-		}
-
-		// Check the node
-		allocs := obj.(map[string]uint64)
-		if len(allocs) != 1 || allocs[alloc1.ID] != 1000 {
-			t.Fatalf("bad: %#v", allocs)
-		}
-	})
-}
-
 func TestHTTP_NodeDrain(t *testing.T) {
 	httpTest(t, nil, func(s *TestServer) {
 		// Create the node

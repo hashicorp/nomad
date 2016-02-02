@@ -31,33 +31,28 @@ func (d *diffResult) GoString() string {
 
 // diffAllocs is used to diff the existing and updated allocations
 // to see what has happened.
-func diffAllocs(existing, updated []*structs.Allocation) *diffResult {
-	result := &diffResult{}
-
-	// Index the updated allocations by id
-	idx := make(map[string]*structs.Allocation)
-	for _, update := range updated {
-		idx[update.ID] = update
-	}
-
+func diffAllocs(existing []*structs.Allocation, allocs *allocUpdates) *diffResult {
 	// Scan the existing allocations
+	result := &diffResult{}
 	existIdx := make(map[string]struct{})
 	for _, exist := range existing {
 		// Mark this as existing
 		existIdx[exist.ID] = struct{}{}
 
-		// Check for presence in the new set
-		update, ok := idx[exist.ID]
+		// Check if the alloc was updated or filtered because an update wasn't
+		// needed.
+		alloc, pulled := allocs.pulled[exist.ID]
+		_, filtered := allocs.filtered[exist.ID]
 
-		// If not present, removed
-		if !ok {
+		// If not updated or filtered, removed
+		if !pulled && !filtered {
 			result.removed = append(result.removed, exist)
 			continue
 		}
 
 		// Check for an update
-		if update.ModifyIndex > exist.ModifyIndex {
-			result.updated = append(result.updated, allocTuple{exist, update})
+		if pulled && alloc.AllocModifyIndex > exist.AllocModifyIndex {
+			result.updated = append(result.updated, allocTuple{exist, alloc})
 			continue
 		}
 
@@ -66,9 +61,9 @@ func diffAllocs(existing, updated []*structs.Allocation) *diffResult {
 	}
 
 	// Scan the updated allocations for any that are new
-	for _, update := range updated {
-		if _, ok := existIdx[update.ID]; !ok {
-			result.added = append(result.added, update)
+	for id, pulled := range allocs.pulled {
+		if _, ok := existIdx[id]; !ok {
+			result.added = append(result.added, pulled)
 		}
 	}
 	return result

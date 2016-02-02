@@ -272,6 +272,12 @@ type AllocSpecificRequest struct {
 	QueryOptions
 }
 
+// AllocsGetcRequest is used to query a set of allocations
+type AllocsGetRequest struct {
+	AllocIDs []string
+	QueryOptions
+}
+
 // PeriodicForceReqeuest is used to force a specific periodic job.
 type PeriodicForceRequest struct {
 	JobID string
@@ -375,6 +381,12 @@ type JobListResponse struct {
 // SingleAllocResponse is used to return a single allocation
 type SingleAllocResponse struct {
 	Alloc *Allocation
+	QueryMeta
+}
+
+// AllocsGetResponse is used to return a set of allocations
+type AllocsGetResponse struct {
+	Allocs []*Allocation
 	QueryMeta
 }
 
@@ -1436,6 +1448,16 @@ type TaskState struct {
 	Events []*TaskEvent
 }
 
+func (ts *TaskState) Copy() *TaskState {
+	copy := new(TaskState)
+	copy.State = ts.State
+	copy.Events = make([]*TaskEvent, len(ts.Events))
+	for i, e := range ts.Events {
+		copy.Events[i] = e.Copy()
+	}
+	return copy
+}
+
 const (
 	// A Driver failure indicates that the task could not be started due to a
 	// failure in the driver.
@@ -1468,6 +1490,12 @@ type TaskEvent struct {
 
 	// Task Killed Fields.
 	KillError string // Error killing the task.
+}
+
+func (te *TaskEvent) Copy() *TaskEvent {
+	copy := new(TaskEvent)
+	*copy = *te
+	return copy
 }
 
 func NewTaskEvent(event string) *TaskEvent {
@@ -1649,6 +1677,19 @@ type Allocation struct {
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
+
+	// AllocModifyIndex is not updated when the client updates allocations. This
+	// lets the client pull only the allocs updated by the server.
+	AllocModifyIndex uint64
+}
+
+func (a *Allocation) Copy() *Allocation {
+	i, err := copystructure.Copy(a)
+	if err != nil {
+		panic(err)
+	}
+
+	return i.(*Allocation)
 }
 
 // TerminalStatus returns if the desired or actual status is terminal and

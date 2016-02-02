@@ -28,7 +28,6 @@ type TaskRunner struct {
 	consulService  *ConsulService
 
 	task     *structs.Task
-	state    *structs.TaskState
 	updateCh chan *structs.Task
 	handle   driver.DriverHandle
 
@@ -47,12 +46,12 @@ type taskRunnerState struct {
 }
 
 // TaskStateUpdater is used to signal that tasks state has changed.
-type TaskStateUpdater func(taskName string)
+type TaskStateUpdater func(taskName, state string, event *structs.TaskEvent)
 
 // NewTaskRunner is used to create a new task context
 func NewTaskRunner(logger *log.Logger, config *config.Config,
 	updater TaskStateUpdater, ctx *driver.ExecContext,
-	alloc *structs.Allocation, task *structs.Task, state *structs.TaskState,
+	alloc *structs.Allocation, task *structs.Task,
 	restartTracker *RestartTracker, consulService *ConsulService) *TaskRunner {
 
 	tc := &TaskRunner{
@@ -64,7 +63,6 @@ func NewTaskRunner(logger *log.Logger, config *config.Config,
 		ctx:            ctx,
 		alloc:          alloc,
 		task:           task,
-		state:          state,
 		updateCh:       make(chan *structs.Task, 8),
 		destroyCh:      make(chan struct{}),
 		waitCh:         make(chan struct{}),
@@ -139,35 +137,15 @@ func (r *TaskRunner) DestroyState() error {
 	return os.RemoveAll(r.stateFilePath())
 }
 
-func (r *TaskRunner) appendEvent(event *structs.TaskEvent) {
-	capacity := 10
-	if r.state.Events == nil {
-		r.state.Events = make([]*structs.TaskEvent, 0, capacity)
-	}
-
-	// If we hit capacity, then shift it.
-	if len(r.state.Events) == capacity {
-		old := r.state.Events
-		r.state.Events = make([]*structs.TaskEvent, 0, capacity)
-		r.state.Events = append(r.state.Events, old[1:]...)
-	}
-
-	r.state.Events = append(r.state.Events, event)
-}
-
 // setState is used to update the state of the task runner
 func (r *TaskRunner) setState(state string, event *structs.TaskEvent) {
-	// Update the task.
-	r.state.State = state
-	r.appendEvent(event)
-
 	// Persist our state to disk.
 	if err := r.SaveState(); err != nil {
 		r.logger.Printf("[ERR] client: failed to save state of Task Runner: %v", r.task.Name)
 	}
 
 	// Indicate the task has been updated.
-	r.updater(r.task.Name)
+	r.updater(r.task.Name, state, event)
 }
 
 // createDriver makes a driver for the task

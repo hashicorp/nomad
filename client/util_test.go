@@ -17,7 +17,7 @@ func TestDiffAllocs(t *testing.T) {
 	alloc2 := mock.Alloc() // Update
 	alloc2u := new(structs.Allocation)
 	*alloc2u = *alloc2
-	alloc2u.ModifyIndex += 1
+	alloc2u.AllocModifyIndex += 1
 	alloc3 := mock.Alloc() // Remove
 	alloc4 := mock.Alloc() // Add
 
@@ -26,13 +26,17 @@ func TestDiffAllocs(t *testing.T) {
 		alloc2,
 		alloc3,
 	}
-	updated := []*structs.Allocation{
-		alloc1,
-		alloc2u,
-		alloc4,
+	update := &allocUpdates{
+		pulled: map[string]*structs.Allocation{
+			alloc2u.ID: alloc2u,
+			alloc4.ID:  alloc4,
+		},
+		filtered: map[string]struct{}{
+			alloc1.ID: struct{}{},
+		},
 	}
 
-	result := diffAllocs(exist, updated)
+	result := diffAllocs(exist, update)
 
 	if len(result.ignore) != 1 || result.ignore[0] != alloc1 {
 		t.Fatalf("Bad: %#v", result.ignore)

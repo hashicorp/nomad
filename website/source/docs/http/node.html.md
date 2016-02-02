@@ -311,44 +311,6 @@ be specified using the `?region=` query parameter.
   </dd>
 </dl>
 
-<dl>
-  <dt>Description</dt>
-  <dd>
-    Query the allocations belonging to a single node. This endpoint only returns
-    a map from allocation id to its modify index and is primarily used by the client
-    to determine which allocations need to be updated.
-  </dd>
-
-  <dt>Method</dt>
-  <dd>GET</dd>
-
-  <dt>URL</dt>
-  <dd>`/v1/node/<id>/clientallocations`</dd>
-
-  <dt>Parameters</dt>
-  <dd>
-    None
-  </dd>
-
-  <dt>Blocking Queries</dt>
-  <dd>
-    [Supported](/docs/http/index.html#blocking-queries)
-  </dd>
-
-  <dt>Returns</dt>
-  <dd>
-
-    ```javascript
-    {
-        "d66ea8d7-1d4c-119e-46b3-e23713a4ab72": 9,
-        "abf34c35-1d4c-119e-46b3-e23713a4ab72": 10
-    }
-    ```
-
-  </dd>
-</dl>
-
-
 ## PUT / POST
 
 <dl>
