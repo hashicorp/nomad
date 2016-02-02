@@ -592,6 +592,52 @@ type Resources struct {
 	Networks []*NetworkResource
 }
 
+// DefaultResources returns the minimum resources a task can use and be valid.
+func DefaultResources() *Resources {
+	return &Resources{
+		CPU:      100,
+		MemoryMB: 10,
+		DiskMB:   10,
+		IOPS:     1,
+	}
+}
+
+func (r *Resources) Merge(other *Resources) {
+	if other.CPU != 0 {
+		r.CPU = other.CPU
+	}
+	if other.MemoryMB != 0 {
+		r.MemoryMB = other.MemoryMB
+	}
+	if other.DiskMB != 0 {
+		r.DiskMB = other.DiskMB
+	}
+	if other.IOPS != 0 {
+		r.IOPS = other.IOPS
+	}
+	if len(other.Networks) != 0 {
+		r.Networks = other.Networks
+	}
+}
+
+func (r *Resources) MeetsMinResources() error {
+	var mErr multierror.Error
+	if r.CPU < 100 {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum CPU value is 100; got %d", r.CPU))
+	}
+	if r.MemoryMB < 10 {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum MemoryMB value is 10; got %d", r.MemoryMB))
+	}
+	if r.DiskMB < 10 {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum DiskMB value is 10; got %d", r.DiskMB))
+	}
+	if r.IOPS < 1 {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum IOPS value is 1; got %d", r.IOPS))
+	}
+
+	return mErr.ErrorOrNil()
+}
+
 // Copy returns a deep copy of the resources
 func (r *Resources) Copy() *Resources {
 	newR := new(Resources)
@@ -1545,12 +1591,18 @@ func (t *Task) Validate() error {
 	if t.Driver == "" {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing task driver"))
 	}
-	if t.Resources == nil {
-		mErr.Errors = append(mErr.Errors, errors.New("Missing task resources"))
-	}
 	if t.KillTimeout.Nanoseconds() < 0 {
 		mErr.Errors = append(mErr.Errors, errors.New("KillTimeout must be a positive value"))
 	}
+
+	// Validate the resources.
+	if t.Resources == nil {
+		mErr.Errors = append(mErr.Errors, errors.New("Missing task resources"))
+	}
+	if err := t.Resources.MeetsMinResources(); err != nil {
+		mErr.Errors = append(mErr.Errors, err)
+	}
+
 	for idx, constr := range t.Constraints {
 		if err := constr.Validate(); err != nil {
 			outer := fmt.Errorf("Constraint %d validation failed: %s", idx+1, err)

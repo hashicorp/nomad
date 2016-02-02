@@ -619,6 +619,10 @@ func parseResources(result *structs.Resources, list *ast.ObjectList) error {
 		result.Networks = []*structs.NetworkResource{&r}
 	}
 
+	// Combine the parsed resources with a default resource block.
+	min := structs.DefaultResources()
+	min.Merge(result)
+	*result = *min
 	return nil
 }
 
