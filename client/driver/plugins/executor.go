@@ -9,7 +9,9 @@ import (
 )
 
 var HandshakeConfig = plugin.HandshakeConfig{
-	ProtocolVersion: 1,
+	ProtocolVersion:  1,
+	MagicCookieKey:   "executor_plugin",
+	MagicCookieValue: "value",
 }
 
 var PluginMap = map[string]plugin.Plugin{

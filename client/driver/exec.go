@@ -18,6 +18,8 @@ import (
 	//"github.com/hashicorp/nomad/client/getter"
 	"github.com/hashicorp/nomad/nomad/structs"
 	//"github.com/mitchellh/mapstructure"
+
+	"github.com/hashicorp/nomad/helper/discover"
 )
 
 // ExecDriver fork/execs tasks using as many of the underlying OS's isolation
@@ -117,10 +119,15 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	//		return nil, fmt.Errorf("failed to start command: %v", err)
 	//	}
 	//
+
+	bin, err := discover.NomadExecutable()
+	if err != nil {
+		return nil, fmt.Errorf("unable to find the nomad binary: %v", err)
+	}
 	executorClient := plugin.NewClient(&plugin.ClientConfig{
 		HandshakeConfig: plugins.HandshakeConfig,
 		Plugins:         plugins.PluginMap,
-		Cmd:             exec.Command("/home/diptanuc/Projects/gocode/bin/nomad"),
+		Cmd:             exec.Command(bin, "executor"),
 	})
 
 	rpcClient, err := executorClient.Client()

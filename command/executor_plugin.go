@@ -8,22 +8,22 @@ import (
 	"github.com/hashicorp/nomad/client/driver/plugins"
 )
 
-type ExecutorPlugin struct {
+type ExecutorPluginCommand struct {
 	Meta
 }
 
-func (e *ExecutorPlugin) Help() string {
+func (e *ExecutorPluginCommand) Help() string {
 	helpText := `
 	This is a command used by Nomad internally to launch an executor plugin"
 	`
 	return strings.TrimSpace(helpText)
 }
 
-func (e *ExecutorPlugin) Synopsis() string {
+func (e *ExecutorPluginCommand) Synopsis() string {
 	return "internal - launch an executor plugin"
 }
 
-func (e *ExecutorPlugin) Run(args []string) int {
+func (e *ExecutorPluginCommand) Run(args []string) int {
 	plugin.Serve(&plugin.ServeConfig{
 		HandshakeConfig: plugins.HandshakeConfig,
 		Plugins:         plugins.PluginMap,
