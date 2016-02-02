@@ -26,6 +26,11 @@ type RestartTracker struct {
 }
 
 func (r *RestartTracker) NextRestart(exitCode int) (bool, time.Duration) {
+	// Hot path if no attempts are expected
+	if r.policy.Attempts == 0 {
+		return false, 0
+	}
+
 	// Check if we have entered a new interval.
 	end := r.startTime.Add(r.policy.Interval)
 	now := time.Now()
