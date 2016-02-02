@@ -1199,6 +1199,11 @@ func (r *RestartPolicy) Validate() error {
 		return fmt.Errorf("Unsupported restart mode: %q", r.Mode)
 	}
 
+	// Check for ambiguous/confusing settings
+	if r.Attempts == 0 && r.Mode != RestartPolicyModeFail {
+		return fmt.Errorf("Restart policy %q with %d attempts is ambiguous", r.Mode, r.Attempts)
+	}
+
 	if r.Interval == 0 {
 		return nil
 	}

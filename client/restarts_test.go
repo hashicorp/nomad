@@ -77,5 +77,14 @@ func TestClient_RestartTracker_NoRestartOnSuccess(t *testing.T) {
 	if shouldRestart, _ := rt.NextRestart(0); shouldRestart {
 		t.Fatalf("NextRestart() returned %v, expected: %v", shouldRestart, false)
 	}
+}
 
+func TestClient_RestartTracker_ZeroAttempts(t *testing.T) {
+	t.Parallel()
+	p := testPolicy(true, structs.RestartPolicyModeFail)
+	p.Attempts = 0
+	rt := newRestartTracker(p)
+	if actual, when := rt.NextRestart(1); actual {
+		t.Fatalf("expect no restart, got restart/delay: %v", when)
+	}
 }
