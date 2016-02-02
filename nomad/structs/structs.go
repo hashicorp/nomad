@@ -602,6 +602,7 @@ func DefaultResources() *Resources {
 	}
 }
 
+// Merge merges this resource with another resource.
 func (r *Resources) Merge(other *Resources) {
 	if other.CPU != 0 {
 		r.CPU = other.CPU
@@ -620,6 +621,8 @@ func (r *Resources) Merge(other *Resources) {
 	}
 }
 
+// MeetsMinResources returns an error if the resources specified are less than
+// the minimum allowed.
 func (r *Resources) MeetsMinResources() error {
 	var mErr multierror.Error
 	if r.CPU < 100 {
@@ -633,6 +636,11 @@ func (r *Resources) MeetsMinResources() error {
 	}
 	if r.IOPS < 1 {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum IOPS value is 1; got %d", r.IOPS))
+	}
+	for i, n := range r.Networks {
+		if err := n.MeetsMinResources(); err != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("network resource at index %d failed: %v", i, err))
+		}
 	}
 
 	return mErr.ErrorOrNil()
@@ -720,6 +728,16 @@ type NetworkResource struct {
 	MBits         int    // Throughput
 	ReservedPorts []Port // Reserved ports
 	DynamicPorts  []Port // Dynamically assigned ports
+}
+
+// MeetsMinResources returns an error if the resources specified are less than
+// the minimum allowed.
+func (n *NetworkResource) MeetsMinResources() error {
+	var mErr multierror.Error
+	if n.MBits < 1 {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum MBits value is 1; got %d", n.MBits))
+	}
+	return mErr.ErrorOrNil()
 }
 
 // Copy returns a deep copy of the network resource
