@@ -89,6 +89,7 @@ job "binstore-storagelocker" {
             resources {
                 cpu = 500
                 memory = 128
+                IOPS = 30
             }
             constraint {
                 attribute = "kernel.arch"

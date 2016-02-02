@@ -252,9 +252,14 @@ func TestTask_Validate(t *testing.T) {
 	}
 
 	task = &Task{
-		Name:      "web",
-		Driver:    "docker",
-		Resources: &Resources{},
+		Name:   "web",
+		Driver: "docker",
+		Resources: &Resources{
+			CPU:      100,
+			DiskMB:   100,
+			MemoryMB: 100,
+			IOPS:     10,
+		},
 	}
 	err = task.Validate()
 	if err != nil {
