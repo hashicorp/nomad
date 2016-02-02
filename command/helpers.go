@@ -35,5 +35,5 @@ func limit(s string, length int) string {
 
 // formatTime formats the time to string based on RFC822
 func formatTime(t time.Time) string {
-	return t.Format(time.RFC822)
+	return t.Format("02/01/06 15:04:05 MST")
 }
