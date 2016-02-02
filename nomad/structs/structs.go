@@ -1616,8 +1616,7 @@ func (t *Task) Validate() error {
 	// Validate the resources.
 	if t.Resources == nil {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing task resources"))
-	}
-	if err := t.Resources.MeetsMinResources(); err != nil {
+	} else if err := t.Resources.MeetsMinResources(); err != nil {
 		mErr.Errors = append(mErr.Errors, err)
 	}
 
