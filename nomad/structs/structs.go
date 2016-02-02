@@ -1146,18 +1146,16 @@ type PeriodicLaunch struct {
 
 var (
 	defaultServiceJobRestartPolicy = RestartPolicy{
-		Delay:            15 * time.Second,
-		Attempts:         2,
-		Interval:         1 * time.Minute,
-		RestartOnSuccess: true,
-		Mode:             RestartPolicyModeDelay,
+		Delay:    15 * time.Second,
+		Attempts: 2,
+		Interval: 1 * time.Minute,
+		Mode:     RestartPolicyModeDelay,
 	}
 	defaultBatchJobRestartPolicy = RestartPolicy{
-		Delay:            15 * time.Second,
-		Attempts:         15,
-		Interval:         7 * 24 * time.Hour,
-		RestartOnSuccess: false,
-		Mode:             RestartPolicyModeDelay,
+		Delay:    15 * time.Second,
+		Attempts: 15,
+		Interval: 7 * 24 * time.Hour,
+		Mode:     RestartPolicyModeDelay,
 	}
 )
 
@@ -1182,10 +1180,6 @@ type RestartPolicy struct {
 
 	// Delay is the time between a failure and a restart.
 	Delay time.Duration
-
-	// RestartOnSuccess determines whether a task should be restarted if it
-	// exited successfully.
-	RestartOnSuccess bool `mapstructure:"on_success"`
 
 	// Mode controls what happens when the task restarts more than attempt times
 	// in an interval.

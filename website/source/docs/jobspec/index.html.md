@@ -309,9 +309,6 @@ The `restart` object supports the following keys:
   time duration using the `s`, `m`, and `h` suffixes, such as `30s`. A random
   jitter of up to 25% is added to the the delay.
 
-* `on_success` - `on_success` controls whether a task is restarted when the
-  task exits successfully.
-
 *   `mode` - Controls the behavior when the task fails more than `attempts`
     times in an interval. Possible values are listed below:
 
@@ -327,7 +324,6 @@ restart {
     attempts = 15
     delay = "15s"
     interval = "168h" # 7 days
-    on_success = false
     mode = "delay"
 }
 ```
@@ -339,7 +335,6 @@ restart {
     interval = "1m"
     attempts = 2
     delay = "15s"
-    on_success = true
     mode = "delay"
 }
 ```

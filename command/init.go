@@ -114,9 +114,6 @@ job "example" {
 			# A delay between a task failing and a restart occuring.
 			delay = "25s"
 
-			# Whether the tasks should be restarted if the exit successfully.
-			on_success = true
-
 			# Mode controls what happens when a task has restarted "attempts"
 			# times within the interval. "delay" mode delays the next restart
 			# till the next interval. "fail" mode does not restart the task if

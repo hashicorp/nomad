@@ -115,7 +115,7 @@ func (r *AllocRunner) RestoreState() error {
 		r.restored[name] = struct{}{}
 
 		task := &structs.Task{Name: name}
-		restartTracker := newRestartTracker(r.RestartPolicy)
+		restartTracker := newRestartTracker(r.RestartPolicy, r.alloc.Job.Type)
 		tr := NewTaskRunner(r.logger, r.config, r.setTaskState, r.ctx,
 			r.alloc, task, restartTracker, r.consulService)
 		r.tasks[name] = tr
@@ -370,7 +370,7 @@ func (r *AllocRunner) Run() {
 
 		// Merge in the task resources
 		task.Resources = alloc.TaskResources[task.Name]
-		restartTracker := newRestartTracker(r.RestartPolicy)
+		restartTracker := newRestartTracker(r.RestartPolicy, r.alloc.Job.Type)
 		tr := NewTaskRunner(r.logger, r.config, r.setTaskState, r.ctx,
 			r.alloc, task, restartTracker, r.consulService)
 		r.tasks[task.Name] = tr
