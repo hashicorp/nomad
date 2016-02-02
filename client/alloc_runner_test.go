@@ -34,6 +34,7 @@ func testAllocRunner(restarts bool) (*MockAllocStateUpdater, *AllocRunner) {
 	consulClient, _ := NewConsulService(&consulServiceConfig{logger, "127.0.0.1:8500", "", "", false, false, &structs.Node{}})
 	if !restarts {
 		*alloc.Job.LookupTaskGroup(alloc.TaskGroup).RestartPolicy = structs.RestartPolicy{Attempts: 0}
+		alloc.Job.Type = structs.JobTypeBatch
 	}
 
 	ar := NewAllocRunner(logger, conf, upd.Update, alloc, consulClient)
