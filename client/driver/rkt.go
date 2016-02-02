@@ -147,8 +147,9 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		cmdArgs = append(cmdArgs, "--insecure-options=all")
 	}
 
-	d.taskEnv.SetAllocDir(filepath.Join("/", allocdir.SharedAllocName)).
-		SetTaskLocalDir(filepath.Join("/", allocdir.TaskLocal)).Build()
+	d.taskEnv.Build()
+	d.taskEnv.SetAllocDir(filepath.Join("/", allocdir.SharedAllocName))
+	d.taskEnv.SetTaskLocalDir(filepath.Join("/", allocdir.TaskLocal))
 
 	for k, v := range d.taskEnv.EnvMap() {
 		cmdArgs = append(cmdArgs, fmt.Sprintf("--set-env=%v=%v", k, v))
