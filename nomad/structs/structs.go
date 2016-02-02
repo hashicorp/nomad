@@ -1675,8 +1675,11 @@ type Allocation struct {
 	TaskStates map[string]*TaskState
 
 	// Raft Indexes
-	CreateIndex      uint64
-	ModifyIndex      uint64
+	CreateIndex uint64
+	ModifyIndex uint64
+
+	// AllocModifyIndex is not updated when the client updates allocations. This
+	// lets the client pull only the allocs updated by the server.
 	AllocModifyIndex uint64
 }
 
