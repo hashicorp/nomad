@@ -1,7 +1,6 @@
 package client
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -113,8 +112,7 @@ func (r *AllocRunner) RestoreState() error {
 		task := &structs.Task{Name: name}
 		restartTracker := newRestartTracker(r.RestartPolicy)
 		tr := NewTaskRunner(r.logger, r.config, r.setTaskState, r.ctx,
-			r.alloc, task, r.alloc.TaskStates[task.Name], restartTracker,
-			r.consulService)
+			r.alloc, task, restartTracker, r.consulService)
 		r.tasks[name] = tr
 
 		// Skip tasks in terminal states.
@@ -189,7 +187,7 @@ func (r *AllocRunner) DestroyContext() error {
 func (r *AllocRunner) Alloc() *structs.Allocation {
 	r.allocLock.Lock()
 	defer r.allocLock.Unlock()
-	return r.alloc
+	return r.alloc.Copy()
 }
 
 // dirtySyncState is used to watch for state being marked dirty to sync
@@ -223,11 +221,17 @@ func (r *AllocRunner) retrySyncState(stopCh chan struct{}) {
 
 // syncStatus is used to run and sync the status when it changes
 func (r *AllocRunner) syncStatus() error {
+	// Get a copy of our alloc.
+	alloc := r.Alloc()
+
 	// Scan the task states to determine the status of the alloc
 	var pending, running, dead, failed bool
 	r.taskStatusLock.RLock()
-	for _, tr := range r.tasks {
-		state := tr.state
+	for name, tr := range r.tasks {
+		// Store the state of each task in the copied alloc.
+		state := tr.getState()
+		alloc.TaskStates[name] = state
+
 		switch state.State {
 		case structs.TaskStateRunning:
 			running = true
@@ -245,26 +249,18 @@ func (r *AllocRunner) syncStatus() error {
 	r.taskStatusLock.RUnlock()
 
 	// Determine the alloc status
-	r.allocLock.Lock()
-	defer r.allocLock.Unlock()
-
-	if len(r.alloc.TaskStates) > 0 {
-		taskDesc, _ := json.Marshal(r.alloc.TaskStates)
-		r.alloc.ClientDescription = string(taskDesc)
-	}
-
 	if failed {
-		r.alloc.ClientStatus = structs.AllocClientStatusFailed
+		alloc.ClientStatus = structs.AllocClientStatusFailed
 	} else if running {
-		r.alloc.ClientStatus = structs.AllocClientStatusRunning
+		alloc.ClientStatus = structs.AllocClientStatusRunning
 	} else if dead && !pending {
-		r.alloc.ClientStatus = structs.AllocClientStatusDead
+		alloc.ClientStatus = structs.AllocClientStatusDead
 	}
 
 	// Attempt to update the status
-	if err := r.updater(r.alloc); err != nil {
+	if err := r.updater(alloc); err != nil {
 		r.logger.Printf("[ERR] client: failed to update alloc '%s' status to %s: %s",
-			r.alloc.ID, r.alloc.ClientStatus, err)
+			alloc.ID, alloc.ClientStatus, err)
 		return err
 	}
 	return nil
@@ -334,8 +330,7 @@ func (r *AllocRunner) Run() {
 		task.Resources = alloc.TaskResources[task.Name]
 		restartTracker := newRestartTracker(r.RestartPolicy)
 		tr := NewTaskRunner(r.logger, r.config, r.setTaskState, r.ctx,
-			r.alloc, task, r.alloc.TaskStates[task.Name], restartTracker,
-			r.consulService)
+			r.alloc, task, restartTracker, r.consulService)
 		r.tasks[task.Name] = tr
 		go tr.Run()
 	}

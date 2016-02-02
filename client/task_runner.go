@@ -27,10 +27,11 @@ type TaskRunner struct {
 	restartTracker *RestartTracker
 	consulService  *ConsulService
 
-	task     *structs.Task
-	state    *structs.TaskState
-	updateCh chan *structs.Task
-	handle   driver.DriverHandle
+	task      *structs.Task
+	state     *structs.TaskState
+	stateLock sync.RWMutex
+	updateCh  chan *structs.Task
+	handle    driver.DriverHandle
 
 	destroy     bool
 	destroyCh   chan struct{}
@@ -43,6 +44,7 @@ type TaskRunner struct {
 // taskRunnerState is used to snapshot the state of the task runner
 type taskRunnerState struct {
 	Task     *structs.Task
+	State    *structs.TaskState
 	HandleID string
 }
 
@@ -52,7 +54,7 @@ type TaskStateUpdater func(taskName string)
 // NewTaskRunner is used to create a new task context
 func NewTaskRunner(logger *log.Logger, config *config.Config,
 	updater TaskStateUpdater, ctx *driver.ExecContext,
-	alloc *structs.Allocation, task *structs.Task, state *structs.TaskState,
+	alloc *structs.Allocation, task *structs.Task,
 	restartTracker *RestartTracker, consulService *ConsulService) *TaskRunner {
 
 	tc := &TaskRunner{
@@ -64,7 +66,7 @@ func NewTaskRunner(logger *log.Logger, config *config.Config,
 		ctx:            ctx,
 		alloc:          alloc,
 		task:           task,
-		state:          state,
+		state:          new(structs.TaskState),
 		updateCh:       make(chan *structs.Task, 8),
 		destroyCh:      make(chan struct{}),
 		waitCh:         make(chan struct{}),
@@ -100,6 +102,7 @@ func (r *TaskRunner) RestoreState() error {
 
 	// Restore fields
 	r.task = snap.Task
+	r.state = snap.State
 
 	// Restore the driver
 	if snap.HandleID != "" {
@@ -126,7 +129,8 @@ func (r *TaskRunner) SaveState() error {
 	r.snapshotLock.Lock()
 	defer r.snapshotLock.Unlock()
 	snap := taskRunnerState{
-		Task: r.task,
+		Task:  r.task,
+		State: r.getState(),
 	}
 	if r.handle != nil {
 		snap.HandleID = r.handle.ID()
@@ -158,8 +162,10 @@ func (r *TaskRunner) appendEvent(event *structs.TaskEvent) {
 // setState is used to update the state of the task runner
 func (r *TaskRunner) setState(state string, event *structs.TaskEvent) {
 	// Update the task.
+	r.stateLock.Lock()
 	r.state.State = state
 	r.appendEvent(event)
+	r.stateLock.Unlock()
 
 	// Persist our state to disk.
 	if err := r.SaveState(); err != nil {
@@ -168,6 +174,13 @@ func (r *TaskRunner) setState(state string, event *structs.TaskEvent) {
 
 	// Indicate the task has been updated.
 	r.updater(r.task.Name)
+}
+
+// Get state returns a copy of our state.
+func (r *TaskRunner) getState() *structs.TaskState {
+	r.stateLock.RLock()
+	r.stateLock.RUnlock()
+	return r.state.Copy()
 }
 
 // createDriver makes a driver for the task
