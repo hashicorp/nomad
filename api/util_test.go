@@ -21,7 +21,12 @@ func assertWriteMeta(t *testing.T, wm *WriteMeta) {
 
 func testJob() *Job {
 	task := NewTask("task1", "exec").
-		Require(&Resources{MemoryMB: 256})
+		Require(&Resources{
+		CPU:      100,
+		MemoryMB: 256,
+		DiskMB:   25,
+		IOPS:     10,
+	})
 
 	group := NewTaskGroup("group1", 1).
 		AddTask(task)

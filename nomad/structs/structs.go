@@ -634,8 +634,8 @@ func (r *Resources) MeetsMinResources() error {
 	if r.DiskMB < 10 {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum DiskMB value is 10; got %d", r.DiskMB))
 	}
-	if r.IOPS < 1 {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum IOPS value is 1; got %d", r.IOPS))
+	if r.IOPS < 0 {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum IOPS value is 0; got %d", r.IOPS))
 	}
 	for i, n := range r.Networks {
 		if err := n.MeetsMinResources(); err != nil {
