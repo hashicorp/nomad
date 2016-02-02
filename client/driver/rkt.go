@@ -24,8 +24,8 @@ import (
 )
 
 var (
-	reRktVersion  = regexp.MustCompile(`rkt version (\d[.\d]+)`)
-	reAppcVersion = regexp.MustCompile(`appc version (\d[.\d]+)`)
+	reRktVersion  = regexp.MustCompile(`rkt [vV]ersion[:]? (\d[.\d]+)`)
+	reAppcVersion = regexp.MustCompile(`appc [vV]ersion[:]? (\d[.\d]+)`)
 )
 
 const (
