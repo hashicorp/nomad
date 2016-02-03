@@ -70,14 +70,14 @@ func (e *LinuxExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext) (*
 	}
 	e.cmd.Env = ctx.TaskEnv.EnvList()
 
-	stdoPath := filepath.Join(e.cmd.Dir, allocdir.TaskLocal, fmt.Sprintf("%v.stdout", ctx.Task.Name))
+	stdoPath := filepath.Join(e.taskDir, allocdir.TaskLocal, fmt.Sprintf("%v.stdout", ctx.Task.Name))
 	stdo, err := os.OpenFile(stdoPath, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
 	if err != nil {
 		return nil, err
 	}
 	e.cmd.Stdout = stdo
 
-	stdePath := filepath.Join(e.cmd.Dir, allocdir.TaskLocal, fmt.Sprintf("%v.stderr", ctx.Task.Name))
+	stdePath := filepath.Join(e.taskDir, allocdir.TaskLocal, fmt.Sprintf("%v.stderr", ctx.Task.Name))
 	stde, err := os.OpenFile(stdePath, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
 	if err != nil {
 		return nil, err

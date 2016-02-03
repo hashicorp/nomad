@@ -18,6 +18,8 @@ import (
 type BasicExecutor struct {
 	logger *log.Logger
 	cmd    exec.Cmd
+
+	taskDir string
 }
 
 func NewExecutor(logger *log.Logger) Executor {
@@ -38,14 +40,14 @@ func (e *BasicExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext) (*
 	}
 	e.configureTaskDir(ctx.Task.Name, ctx.AllocDir)
 	e.cmd.Env = ctx.TaskEnv.EnvList()
-	stdoPath := filepath.Join(e.cmd.Dir, allocdir.TaskLocal, fmt.Sprintf("%v.stdout", ctx.Task.Name))
+	stdoPath := filepath.Join(e.taskDir, allocdir.TaskLocal, fmt.Sprintf("%v.stdout", ctx.Task.Name))
 	stdo, err := os.OpenFile(stdoPath, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
 	if err != nil {
 		return nil, err
 	}
 	e.cmd.Stdout = stdo
 
-	stdePath := filepath.Join(e.cmd.Dir, allocdir.TaskLocal, fmt.Sprintf("%v.stderr", ctx.Task.Name))
+	stdePath := filepath.Join(e.taskDir, allocdir.TaskLocal, fmt.Sprintf("%v.stderr", ctx.Task.Name))
 	stde, err := os.OpenFile(stdePath, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
 	if err != nil {
 		return nil, err
@@ -93,6 +95,7 @@ func (e *BasicExecutor) ShutDown() error {
 
 func (e *BasicExecutor) configureTaskDir(taskName string, allocDir *allocdir.AllocDir) error {
 	taskDir, ok := allocDir.TaskDirs[taskName]
+	e.taskDir = taskDir
 	if !ok {
 		return fmt.Errorf("Couldn't find task directory for task %v", taskName)
 	}
