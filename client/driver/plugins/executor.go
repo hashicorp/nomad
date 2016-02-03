@@ -1,11 +1,16 @@
 package plugins
 
 import (
+	"log"
 	"net/rpc"
-	"os/exec"
+	"os"
 	"time"
 
 	"github.com/hashicorp/go-plugin"
+
+	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/client/driver/env"
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 var HandshakeConfig = plugin.HandshakeConfig{
@@ -19,6 +24,16 @@ var PluginMap = map[string]plugin.Plugin{
 }
 
 type ExecutorContext struct {
+	TaskEnv  *env.TaskEnvironment
+	AllocDir *allocdir.AllocDir
+	Task     *structs.Task
+	Chroot   bool
+	Limits   bool
+}
+
+type ExecCommand struct {
+	Cmd  string
+	Args []string
 }
 
 type ProcessState struct {
@@ -28,10 +43,10 @@ type ProcessState struct {
 }
 
 type Executor interface {
-	LaunchCmd(cmd *exec.Cmd, ctx *ExecutorContext) (*ProcessState, error)
+	LaunchCmd(cmd *ExecCommand, ctx *ExecutorContext) (*ProcessState, error)
 	Wait() (*ProcessState, error)
-	ShutDown() (*ProcessState, error)
-	Exit() (*ProcessState, error)
+	ShutDown() error
+	Exit() error
 }
 
 type ExecutorRPC struct {
@@ -39,11 +54,11 @@ type ExecutorRPC struct {
 }
 
 type LaunchCmdArgs struct {
-	Cmd *exec.Cmd
+	Cmd *ExecCommand
 	Ctx *ExecutorContext
 }
 
-func (e *ExecutorRPC) LaunchCmd(cmd *exec.Cmd, ctx *ExecutorContext) (*ProcessState, error) {
+func (e *ExecutorRPC) LaunchCmd(cmd *ExecCommand, ctx *ExecutorContext) (*ProcessState, error) {
 	var ps ProcessState
 	err := e.client.Call("Plugin.LaunchCmd", LaunchCmdArgs{Cmd: cmd, Ctx: ctx}, &ps)
 	return &ps, err
@@ -55,16 +70,16 @@ func (e *ExecutorRPC) Wait() (*ProcessState, error) {
 	return &ps, err
 }
 
-func (e *ExecutorRPC) ShutDown() (*ProcessState, error) {
+func (e *ExecutorRPC) ShutDown() error {
 	var ps ProcessState
 	err := e.client.Call("Plugin.ShutDown", new(interface{}), &ps)
-	return &ps, err
+	return err
 }
 
-func (e *ExecutorRPC) Exit() (*ProcessState, error) {
+func (e *ExecutorRPC) Exit() error {
 	var ps ProcessState
 	err := e.client.Call("Plugin.Exit", new(interface{}), &ps)
-	return &ps, err
+	return err
 }
 
 type ExecutorRPCServer struct {
@@ -85,22 +100,26 @@ func (e *ExecutorRPCServer) Wait(args interface{}, ps *ProcessState) error {
 
 func (e *ExecutorRPCServer) ShutDown(args interface{}, ps *ProcessState) error {
 	var err error
-	ps, err = e.Impl.ShutDown()
+	err = e.Impl.ShutDown()
 	return err
 }
 
 func (e *ExecutorRPCServer) Exit(args interface{}, ps *ProcessState) error {
 	var err error
-	ps, err = e.Impl.Exit()
+	err = e.Impl.Exit()
 	return err
 }
 
-type ExecutorPlugin struct{}
+type ExecutorPlugin struct {
+	logger *log.Logger
+}
 
 func (p *ExecutorPlugin) Server(*plugin.MuxBroker) (interface{}, error) {
-	return &ExecutorRPCServer{Impl: NewExecutor()}, nil
+	p.logger = log.New(os.Stdout, "executor-plugin-server:", log.LstdFlags)
+	return &ExecutorRPCServer{Impl: NewExecutor(p.logger)}, nil
 }
 
 func (p *ExecutorPlugin) Client(b *plugin.MuxBroker, c *rpc.Client) (interface{}, error) {
+	p.logger = log.New(os.Stdout, "executor-plugin-client:", log.LstdFlags)
 	return &ExecutorRPC{client: c}, nil
 }

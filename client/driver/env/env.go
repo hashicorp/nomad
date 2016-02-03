@@ -55,26 +55,26 @@ const (
 // TaskEnvironment is used to expose information to a task via environment
 // variables and provide interpolation of Nomad variables.
 type TaskEnvironment struct {
-	env      map[string]string
-	meta     map[string]string
-	allocDir string
-	taskDir  string
-	cpuLimit int
-	memLimit int
-	node     *structs.Node
-	networks []*structs.NetworkResource
-	portMap  map[string]int
+	Env      map[string]string
+	Meta     map[string]string
+	AllocDir string
+	TaskDir  string
+	CpuLimit int
+	MemLimit int
+	Node     *structs.Node
+	Networks []*structs.NetworkResource
+	PortMap  map[string]int
 
 	// taskEnv is the variables that will be set in the tasks environment
-	taskEnv map[string]string
+	TaskEnv map[string]string
 
 	// nodeValues is the values that are allowed for interprolation from the
 	// node.
-	nodeValues map[string]string
+	NodeValues map[string]string
 }
 
 func NewTaskEnvironment(node *structs.Node) *TaskEnvironment {
-	return &TaskEnvironment{node: node}
+	return &TaskEnvironment{Node: node}
 }
 
 // ParseAndReplace takes the user supplied args replaces any instance of an
@@ -82,7 +82,7 @@ func NewTaskEnvironment(node *structs.Node) *TaskEnvironment {
 func (t *TaskEnvironment) ParseAndReplace(args []string) []string {
 	replaced := make([]string, len(args))
 	for i, arg := range args {
-		replaced[i] = hargs.ReplaceEnv(arg, t.taskEnv, t.nodeValues)
+		replaced[i] = hargs.ReplaceEnv(arg, t.TaskEnv, t.NodeValues)
 	}
 
 	return replaced
@@ -92,75 +92,75 @@ func (t *TaskEnvironment) ParseAndReplace(args []string) []string {
 // and nomad variables.  If the variable is found in the passed map it is
 // replaced, otherwise the original string is returned.
 func (t *TaskEnvironment) ReplaceEnv(arg string) string {
-	return hargs.ReplaceEnv(arg, t.taskEnv, t.nodeValues)
+	return hargs.ReplaceEnv(arg, t.TaskEnv, t.NodeValues)
 }
 
 // Build must be called after all the tasks environment values have been set.
 func (t *TaskEnvironment) Build() *TaskEnvironment {
-	t.nodeValues = make(map[string]string)
-	t.taskEnv = make(map[string]string)
+	t.NodeValues = make(map[string]string)
+	t.TaskEnv = make(map[string]string)
 
 	// Build the task metadata
-	for k, v := range t.meta {
-		t.taskEnv[fmt.Sprintf("%s%s", MetaPrefix, strings.ToUpper(k))] = v
+	for k, v := range t.Meta {
+		t.TaskEnv[fmt.Sprintf("%s%s", MetaPrefix, strings.ToUpper(k))] = v
 	}
 
 	// Build the ports
-	for _, network := range t.networks {
-		for label, value := range network.MapLabelToValues(t.portMap) {
+	for _, network := range t.Networks {
+		for label, value := range network.MapLabelToValues(t.PortMap) {
 			IPPort := fmt.Sprintf("%s:%d", network.IP, value)
-			t.taskEnv[fmt.Sprintf("%s%s", AddrPrefix, label)] = IPPort
+			t.TaskEnv[fmt.Sprintf("%s%s", AddrPrefix, label)] = IPPort
 
 			// Pass an explicit port mapping to the environment
-			if port, ok := t.portMap[label]; ok {
-				t.taskEnv[fmt.Sprintf("%s%s", HostPortPrefix, label)] = strconv.Itoa(port)
+			if port, ok := t.PortMap[label]; ok {
+				t.TaskEnv[fmt.Sprintf("%s%s", HostPortPrefix, label)] = strconv.Itoa(port)
 			}
 		}
 	}
 
 	// Build the directories
-	if t.allocDir != "" {
-		t.taskEnv[AllocDir] = t.allocDir
+	if t.AllocDir != "" {
+		t.TaskEnv[AllocDir] = t.AllocDir
 	}
-	if t.taskDir != "" {
-		t.taskEnv[TaskLocalDir] = t.taskDir
+	if t.TaskDir != "" {
+		t.TaskEnv[TaskLocalDir] = t.TaskDir
 	}
 
 	// Build the resource limits
-	if t.memLimit != 0 {
-		t.taskEnv[MemLimit] = strconv.Itoa(t.memLimit)
+	if t.MemLimit != 0 {
+		t.TaskEnv[MemLimit] = strconv.Itoa(t.MemLimit)
 	}
-	if t.cpuLimit != 0 {
-		t.taskEnv[CpuLimit] = strconv.Itoa(t.cpuLimit)
+	if t.CpuLimit != 0 {
+		t.TaskEnv[CpuLimit] = strconv.Itoa(t.CpuLimit)
 	}
 
 	// Build the node
-	if t.node != nil {
+	if t.Node != nil {
 		// Set up the node values.
-		t.nodeValues[nodeIdKey] = t.node.ID
-		t.nodeValues[nodeDcKey] = t.node.Datacenter
-		t.nodeValues[nodeNameKey] = t.node.Name
-		t.nodeValues[nodeClassKey] = t.node.NodeClass
+		t.NodeValues[nodeIdKey] = t.Node.ID
+		t.NodeValues[nodeDcKey] = t.Node.Datacenter
+		t.NodeValues[nodeNameKey] = t.Node.Name
+		t.NodeValues[nodeClassKey] = t.Node.NodeClass
 
 		// Set up the attributes.
-		for k, v := range t.node.Attributes {
-			t.nodeValues[fmt.Sprintf("%s%s", nodeAttributePrefix, k)] = v
+		for k, v := range t.Node.Attributes {
+			t.NodeValues[fmt.Sprintf("%s%s", nodeAttributePrefix, k)] = v
 		}
 
 		// Set up the meta.
-		for k, v := range t.node.Meta {
-			t.nodeValues[fmt.Sprintf("%s%s", nodeMetaPrefix, k)] = v
+		for k, v := range t.Node.Meta {
+			t.NodeValues[fmt.Sprintf("%s%s", nodeMetaPrefix, k)] = v
 		}
 	}
 
 	// Interpret the environment variables
-	interpreted := make(map[string]string, len(t.env))
-	for k, v := range t.env {
-		interpreted[k] = hargs.ReplaceEnv(v, t.nodeValues, t.taskEnv)
+	interpreted := make(map[string]string, len(t.Env))
+	for k, v := range t.Env {
+		interpreted[k] = hargs.ReplaceEnv(v, t.NodeValues, t.TaskEnv)
 	}
 
 	for k, v := range interpreted {
-		t.taskEnv[k] = v
+		t.TaskEnv[k] = v
 	}
 
 	return t
@@ -169,7 +169,7 @@ func (t *TaskEnvironment) Build() *TaskEnvironment {
 // EnvList returns a list of strings with NAME=value pairs.
 func (t *TaskEnvironment) EnvList() []string {
 	env := []string{}
-	for k, v := range t.taskEnv {
+	for k, v := range t.TaskEnv {
 		env = append(env, fmt.Sprintf("%s=%s", k, v))
 	}
 
@@ -178,8 +178,8 @@ func (t *TaskEnvironment) EnvList() []string {
 
 // EnvMap returns a copy of the tasks environment variables.
 func (t *TaskEnvironment) EnvMap() map[string]string {
-	m := make(map[string]string, len(t.taskEnv))
-	for k, v := range t.taskEnv {
+	m := make(map[string]string, len(t.TaskEnv))
+	for k, v := range t.TaskEnv {
 		m[k] = v
 	}
 
@@ -188,95 +188,95 @@ func (t *TaskEnvironment) EnvMap() map[string]string {
 
 // Builder methods to build the TaskEnvironment
 func (t *TaskEnvironment) SetAllocDir(dir string) *TaskEnvironment {
-	t.allocDir = dir
+	t.AllocDir = dir
 	return t
 }
 
 func (t *TaskEnvironment) ClearAllocDir() *TaskEnvironment {
-	t.allocDir = ""
+	t.AllocDir = ""
 	return t
 }
 
 func (t *TaskEnvironment) SetTaskLocalDir(dir string) *TaskEnvironment {
-	t.taskDir = dir
+	t.TaskDir = dir
 	return t
 }
 
 func (t *TaskEnvironment) ClearTaskLocalDir() *TaskEnvironment {
-	t.taskDir = ""
+	t.TaskDir = ""
 	return t
 }
 
 func (t *TaskEnvironment) SetMemLimit(limit int) *TaskEnvironment {
-	t.memLimit = limit
+	t.MemLimit = limit
 	return t
 }
 
 func (t *TaskEnvironment) ClearMemLimit() *TaskEnvironment {
-	t.memLimit = 0
+	t.MemLimit = 0
 	return t
 }
 
 func (t *TaskEnvironment) SetCpuLimit(limit int) *TaskEnvironment {
-	t.cpuLimit = limit
+	t.CpuLimit = limit
 	return t
 }
 
 func (t *TaskEnvironment) ClearCpuLimit() *TaskEnvironment {
-	t.cpuLimit = 0
+	t.CpuLimit = 0
 	return t
 }
 
 func (t *TaskEnvironment) SetNetworks(networks []*structs.NetworkResource) *TaskEnvironment {
-	t.networks = networks
+	t.Networks = networks
 	return t
 }
 
 func (t *TaskEnvironment) clearNetworks() *TaskEnvironment {
-	t.networks = nil
+	t.Networks = nil
 	return t
 }
 
 func (t *TaskEnvironment) SetPortMap(portMap map[string]int) *TaskEnvironment {
-	t.portMap = portMap
+	t.PortMap = portMap
 	return t
 }
 
 func (t *TaskEnvironment) clearPortMap() *TaskEnvironment {
-	t.portMap = nil
+	t.PortMap = nil
 	return t
 }
 
 // Takes a map of meta values to be passed to the task. The keys are capatilized
 // when the environent variable is set.
 func (t *TaskEnvironment) SetMeta(m map[string]string) *TaskEnvironment {
-	t.meta = m
+	t.Meta = m
 	return t
 }
 
 func (t *TaskEnvironment) ClearMeta() *TaskEnvironment {
-	t.meta = nil
+	t.Meta = nil
 	return t
 }
 
 func (t *TaskEnvironment) SetEnvvars(m map[string]string) *TaskEnvironment {
-	t.env = m
+	t.Env = m
 	return t
 }
 
 // Appends the given environment variables.
 func (t *TaskEnvironment) AppendEnvvars(m map[string]string) *TaskEnvironment {
-	if t.env == nil {
-		t.env = make(map[string]string, len(m))
+	if t.Env == nil {
+		t.Env = make(map[string]string, len(m))
 	}
 
 	for k, v := range m {
-		t.env[k] = v
+		t.Env[k] = v
 	}
 	return t
 }
 
 func (t *TaskEnvironment) ClearEnvvars() *TaskEnvironment {
-	t.env = nil
+	t.Env = nil
 	return t
 }
