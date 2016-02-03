@@ -7,11 +7,10 @@ import (
 // RestartPolicy defines how the Nomad client restarts
 // tasks in a taskgroup when they fail
 type RestartPolicy struct {
-	Interval         time.Duration
-	Attempts         int
-	Delay            time.Duration
-	RestartOnSuccess bool
-	Mode             string
+	Interval time.Duration
+	Attempts int
+	Delay    time.Duration
+	Mode     string
 }
 
 // The ServiceCheck data model represents the consul health check that

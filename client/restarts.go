@@ -10,9 +10,14 @@ import (
 // jitter is the percent of jitter added to restart delays.
 const jitter = 0.25
 
-func newRestartTracker(policy *structs.RestartPolicy) *RestartTracker {
+func newRestartTracker(policy *structs.RestartPolicy, jobType string) *RestartTracker {
+	onSuccess := true
+	if jobType == structs.JobTypeBatch {
+		onSuccess = false
+	}
 	return &RestartTracker{
 		startTime: time.Now(),
+		onSuccess: onSuccess,
 		policy:    policy,
 		rand:      rand.New(rand.NewSource(time.Now().Unix())),
 	}
@@ -20,6 +25,7 @@ func newRestartTracker(policy *structs.RestartPolicy) *RestartTracker {
 
 type RestartTracker struct {
 	count     int       // Current number of attempts.
+	onSuccess bool      // Whether to restart on successful exit code.
 	startTime time.Time // When the interval began
 	policy    *structs.RestartPolicy
 	rand      *rand.Rand
@@ -57,9 +63,9 @@ func (r *RestartTracker) NextRestart(exitCode int) (bool, time.Duration) {
 }
 
 // shouldRestart returns whether a restart should occur based on the exit code
-// and the RestartOnSuccess configuration.
+// and job type.
 func (r *RestartTracker) shouldRestart(exitCode int) bool {
-	return exitCode != 0 || r.policy.RestartOnSuccess
+	return exitCode != 0 || r.onSuccess
 }
 
 // jitter returns the delay time plus a jitter.
@@ -77,5 +83,5 @@ func (r *RestartTracker) jitter() time.Duration {
 // Returns a tracker that never restarts.
 func noRestartsTracker() *RestartTracker {
 	policy := &structs.RestartPolicy{Attempts: 0, Mode: structs.RestartPolicyModeFail}
-	return newRestartTracker(policy)
+	return newRestartTracker(policy, structs.JobTypeBatch)
 }

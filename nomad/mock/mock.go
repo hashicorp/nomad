@@ -77,11 +77,10 @@ func Job() *structs.Job {
 				Name:  "web",
 				Count: 10,
 				RestartPolicy: &structs.RestartPolicy{
-					Attempts:         3,
-					Interval:         10 * time.Minute,
-					Delay:            1 * time.Minute,
-					RestartOnSuccess: true,
-					Mode:             structs.RestartPolicyModeDelay,
+					Attempts: 3,
+					Interval: 10 * time.Minute,
+					Delay:    1 * time.Minute,
+					Mode:     structs.RestartPolicyModeDelay,
 				},
 				Tasks: []*structs.Task{
 					&structs.Task{
@@ -156,11 +155,10 @@ func SystemJob() *structs.Job {
 				Name:  "web",
 				Count: 1,
 				RestartPolicy: &structs.RestartPolicy{
-					Attempts:         3,
-					Interval:         10 * time.Minute,
-					Delay:            1 * time.Minute,
-					RestartOnSuccess: true,
-					Mode:             structs.RestartPolicyModeDelay,
+					Attempts: 3,
+					Interval: 10 * time.Minute,
+					Delay:    1 * time.Minute,
+					Mode:     structs.RestartPolicyModeDelay,
 				},
 				Tasks: []*structs.Task{
 					&structs.Task{

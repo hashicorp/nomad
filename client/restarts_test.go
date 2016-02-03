@@ -9,11 +9,10 @@ import (
 
 func testPolicy(success bool, mode string) *structs.RestartPolicy {
 	return &structs.RestartPolicy{
-		Interval:         2 * time.Minute,
-		Delay:            1 * time.Second,
-		Attempts:         3,
-		Mode:             mode,
-		RestartOnSuccess: success,
+		Interval: 2 * time.Minute,
+		Delay:    1 * time.Second,
+		Attempts: 3,
+		Mode:     mode,
 	}
 }
 
@@ -27,7 +26,7 @@ func withinJitter(expected, actual time.Duration) bool {
 func TestClient_RestartTracker_ModeDelay(t *testing.T) {
 	t.Parallel()
 	p := testPolicy(true, structs.RestartPolicyModeDelay)
-	rt := newRestartTracker(p)
+	rt := newRestartTracker(p, structs.JobTypeService)
 	for i := 0; i < p.Attempts; i++ {
 		actual, when := rt.NextRestart(127)
 		if !actual {
@@ -53,7 +52,7 @@ func TestClient_RestartTracker_ModeDelay(t *testing.T) {
 func TestClient_RestartTracker_ModeFail(t *testing.T) {
 	t.Parallel()
 	p := testPolicy(true, structs.RestartPolicyModeFail)
-	rt := newRestartTracker(p)
+	rt := newRestartTracker(p, structs.JobTypeSystem)
 	for i := 0; i < p.Attempts; i++ {
 		actual, when := rt.NextRestart(127)
 		if !actual {
@@ -73,7 +72,7 @@ func TestClient_RestartTracker_ModeFail(t *testing.T) {
 func TestClient_RestartTracker_NoRestartOnSuccess(t *testing.T) {
 	t.Parallel()
 	p := testPolicy(false, structs.RestartPolicyModeDelay)
-	rt := newRestartTracker(p)
+	rt := newRestartTracker(p, structs.JobTypeBatch)
 	if shouldRestart, _ := rt.NextRestart(0); shouldRestart {
 		t.Fatalf("NextRestart() returned %v, expected: %v", shouldRestart, false)
 	}
@@ -83,7 +82,7 @@ func TestClient_RestartTracker_ZeroAttempts(t *testing.T) {
 	t.Parallel()
 	p := testPolicy(true, structs.RestartPolicyModeFail)
 	p.Attempts = 0
-	rt := newRestartTracker(p)
+	rt := newRestartTracker(p, structs.JobTypeService)
 	if actual, when := rt.NextRestart(1); actual {
 		t.Fatalf("expect no restart, got restart/delay: %v", when)
 	}
