@@ -19,6 +19,7 @@ import (
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/mitchellh/hashstructure"
 )
 
 const (
@@ -53,6 +54,10 @@ const (
 	// starting and the intial heartbeat. After the intial heartbeat,
 	// we switch to using the TTL specified by the servers.
 	initialHeartbeatStagger = 10 * time.Second
+
+	// nodeUpdateRetryIntv is how often the client checks for updates to the
+	// node attributes or meta map.
+	nodeUpdateRetryIntv = 30 * time.Second
 )
 
 // DefaultConfig returns the default configuration
@@ -604,17 +609,10 @@ func (c *Client) retryIntv(base time.Duration) time.Duration {
 
 // run is a long lived goroutine used to run the client
 func (c *Client) run() {
-	// Register the client
-	for {
-		if err := c.registerNode(); err == nil {
-			break
-		}
-		select {
-		case <-time.After(c.retryIntv(registerRetryIntv)):
-		case <-c.shutdownCh:
-			return
-		}
-	}
+	c.retryRegisterNode()
+
+	// Watch for node changes
+	go c.watchNodeUpdates()
 
 	// Setup the heartbeat timer, for the initial registration
 	// we want to do this quickly. We want to do it extra quickly
@@ -652,6 +650,39 @@ func (c *Client) run() {
 				heartbeat = time.After(c.heartbeatTTL)
 			}
 
+		case <-c.shutdownCh:
+			return
+		}
+	}
+}
+
+func (c *Client) hasNodeChanged(oldAttrHash uint64, oldMetaHash uint64) (bool, uint64, uint64) {
+	newAttrHash, err := hashstructure.Hash(c.config.Node.Attributes, nil)
+	if err != nil {
+		c.logger.Printf("[DEBUG] client: unable to calculate node attributes hash: %v", err)
+	}
+	// Calculate node meta map hash
+	newMetaHash, err := hashstructure.Hash(c.config.Node.Meta, nil)
+	if err != nil {
+		c.logger.Printf("[DEBUG] client: unable to calculate node meta hash: %v", err)
+	}
+	if newAttrHash != oldAttrHash || newMetaHash != oldMetaHash {
+		return true, newAttrHash, newMetaHash
+	} else {
+		return false, oldAttrHash, oldMetaHash
+	}
+}
+
+// retryRegisterNode is used to register the node or update the registration and
+// retry in case of failure.
+func (c *Client) retryRegisterNode() {
+	// Register the client
+	for {
+		if err := c.registerNode(); err == nil {
+			break
+		}
+		select {
+		case <-time.After(c.retryIntv(registerRetryIntv)):
 		case <-c.shutdownCh:
 			return
 		}
@@ -845,6 +876,25 @@ func (c *Client) watchAllocations(updates chan *allocUpdates) {
 		}
 		select {
 		case updates <- update:
+		case <-c.shutdownCh:
+			return
+		}
+	}
+}
+
+// watchNodeUpdates periodically checks for changes to the node attributes or meta map
+func (c *Client) watchNodeUpdates() {
+	c.logger.Printf("[DEBUG] client: periodically checking for node changes at duration %v", nodeUpdateRetryIntv)
+	var attrHash, metaHash uint64
+	var changed bool
+	for {
+		select {
+		case <-time.After(nodeUpdateRetryIntv):
+			changed, attrHash, metaHash = c.hasNodeChanged(attrHash, metaHash)
+			if changed {
+				c.logger.Printf("[DEBUG] client: state changed, updating node.")
+				c.retryRegisterNode()
+			}
 		case <-c.shutdownCh:
 			return
 		}

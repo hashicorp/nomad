@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/mitchellh/hashstructure"
 
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
 )
@@ -137,6 +138,37 @@ func TestClient_Fingerprint(t *testing.T) {
 	}
 	if node.Attributes["arch"] == "" {
 		t.Fatalf("missing arch")
+	}
+}
+
+func TestClient_HasNodeChanged(t *testing.T) {
+	c := testClient(t, nil)
+	defer c.Shutdown()
+
+	node := c.Node()
+	attrHash, err := hashstructure.Hash(node.Attributes, nil)
+	if err != nil {
+		c.logger.Printf("[DEBUG] client: unable to calculate node attributes hash: %v", err)
+	}
+	// Calculate node meta map hash
+	metaHash, err := hashstructure.Hash(node.Meta, nil)
+	if err != nil {
+		c.logger.Printf("[DEBUG] client: unable to calculate node meta hash: %v", err)
+	}
+	if changed, _, _ := c.hasNodeChanged(attrHash, metaHash); changed {
+		t.Fatalf("Unexpected hash change.")
+	}
+
+	// Change node attribute
+	node.Attributes["arch"] = "xyz_86"
+	if changed, newAttrHash, _ := c.hasNodeChanged(attrHash, metaHash); !changed {
+		t.Fatalf("Expected hash change in attributes: %d vs %d", attrHash, newAttrHash)
+	}
+
+	// Change node meta map
+	node.Meta["foo"] = "bar"
+	if changed, _, newMetaHash := c.hasNodeChanged(attrHash, metaHash); !changed {
+		t.Fatalf("Expected hash change in meta map: %d vs %d", metaHash, newMetaHash)
 	}
 }
 
