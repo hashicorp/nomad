@@ -198,6 +198,32 @@ func (s *GenericScheduler) process() (bool, error) {
 	return true, nil
 }
 
+// filterCompleteAllocs filters allocations that are terminal and should be
+// re-placed.
+func (s *GenericScheduler) filterCompleteAllocs(allocs []*structs.Allocation) []*structs.Allocation {
+	filter := func(a *structs.Allocation) bool {
+		// Allocs from batch jobs should be filtered when their status is failed so that
+		// they will be replaced. If they are dead but not failed, they
+		// shouldn't be replaced.
+		if s.batch {
+			return a.ClientStatus == structs.AllocClientStatusFailed
+		}
+
+		// Filter terminal, non batch allocations
+		return a.TerminalStatus()
+	}
+
+	n := len(allocs)
+	for i := 0; i < n; i++ {
+		if filter(allocs[i]) {
+			allocs[i], allocs[n-1] = allocs[n-1], nil
+			i--
+			n--
+		}
+	}
+	return allocs[:n]
+}
+
 // computeJobAllocs is used to reconcile differences between the job,
 // existing allocations and node status to update the allocations.
 func (s *GenericScheduler) computeJobAllocs() error {
@@ -215,7 +241,7 @@ func (s *GenericScheduler) computeJobAllocs() error {
 	}
 
 	// Filter out the allocations in a terminal state
-	allocs = structs.FilterTerminalAllocs(allocs)
+	allocs = s.filterCompleteAllocs(allocs)
 
 	// Determine the tainted nodes containing job allocs
 	tainted, err := taintedNodes(s.state, allocs)
