@@ -654,3 +654,43 @@ func TestPeriodicConfig_NextCron(t *testing.T) {
 		}
 	}
 }
+
+func TestRestartPolicy_Validate(t *testing.T) {
+	// Policy with acceptable restart options passes
+	p := &RestartPolicy{
+		Mode:     RestartPolicyModeFail,
+		Attempts: 0,
+	}
+	if err := p.Validate(); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Policy with ambiguous restart options fails
+	p = &RestartPolicy{
+		Mode:     RestartPolicyModeDelay,
+		Attempts: 0,
+	}
+	if err := p.Validate(); err == nil || !strings.Contains(err.Error(), "ambiguous") {
+		t.Fatalf("expect ambiguity error, got: %v", err)
+	}
+
+	// Bad policy mode fails
+	p = &RestartPolicy{
+		Mode:     "nope",
+		Attempts: 1,
+	}
+	if err := p.Validate(); err == nil || !strings.Contains(err.Error(), "mode") {
+		t.Fatalf("expect mode error, got: %v", err)
+	}
+
+	// Fails when attempts*delay does not fit inside interval
+	p = &RestartPolicy{
+		Mode:     RestartPolicyModeDelay,
+		Attempts: 3,
+		Delay:    5 * time.Second,
+		Interval: time.Second,
+	}
+	if err := p.Validate(); err == nil || !strings.Contains(err.Error(), "can't restart") {
+		t.Fatalf("expect restart interval error, got: %v", err)
+	}
+}
