@@ -151,13 +151,6 @@ func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		return nil, fmt.Errorf("Failed to parse handle '%s': %v", handleID, err)
 	}
 
-	// Find the process
-	//	execCtx := executor.NewExecutorContext(d.taskEnv)
-	//	cmd, err := executor.OpenId(execCtx, id.ExecutorId)
-	//	if err != nil {
-	//		return nil, fmt.Errorf("failed to open ID %v: %v", id.ExecutorId, err)
-	//	}
-
 	bin, err := discover.NomadExecutable()
 	if err != nil {
 		return nil, fmt.Errorf("unable to find the nomad binary: %v", err)
@@ -244,4 +237,5 @@ func (h *execHandle) run() {
 	close(h.doneCh)
 	h.waitCh <- &cstructs.WaitResult{ExitCode: ps.ExitCode, Signal: 0, Err: err}
 	close(h.waitCh)
+	h.pluginClient.Kill()
 }
