@@ -588,7 +588,7 @@ func TestServiceSched_NodeDrain(t *testing.T) {
 		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
 	}
 
-	// Generate a fake job with allocations
+	// Generate a fake job with allocations and an update policy.
 	job := mock.Job()
 	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
 
@@ -646,6 +646,84 @@ func TestServiceSched_NodeDrain(t *testing.T) {
 	out = structs.FilterTerminalAllocs(out)
 	if len(out) != 10 {
 		t.Fatalf("bad: %#v", out)
+	}
+
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+}
+
+func TestServiceSched_NodeDrain_UpdateStrategy(t *testing.T) {
+	h := NewHarness(t)
+
+	// Register a draining node
+	node := mock.Node()
+	node.Drain = true
+	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+
+	// Create some nodes
+	for i := 0; i < 10; i++ {
+		node := mock.Node()
+		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+	}
+
+	// Generate a fake job with allocations and an update policy.
+	job := mock.Job()
+	mp := 5
+	job.Update = structs.UpdateStrategy{
+		Stagger:     time.Second,
+		MaxParallel: mp,
+	}
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	var allocs []*structs.Allocation
+	for i := 0; i < 10; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = node.ID
+		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
+		allocs = append(allocs, alloc)
+	}
+	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+
+	// Create a mock evaluation to deal with drain
+	eval := &structs.Evaluation{
+		ID:          structs.GenerateUUID(),
+		Priority:    50,
+		TriggeredBy: structs.EvalTriggerNodeUpdate,
+		JobID:       job.ID,
+		NodeID:      node.ID,
+	}
+
+	// Process the evaluation
+	err := h.Process(NewServiceScheduler, eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure a single plan
+	if len(h.Plans) != 1 {
+		t.Fatalf("bad: %#v", h.Plans)
+	}
+	plan := h.Plans[0]
+
+	// Ensure the plan evicted all allocs
+	if len(plan.NodeUpdate[node.ID]) != mp {
+		t.Fatalf("bad: %#v", plan)
+	}
+
+	// Ensure the plan allocated
+	var planned []*structs.Allocation
+	for _, allocList := range plan.NodeAllocation {
+		planned = append(planned, allocList...)
+	}
+	if len(planned) != mp {
+		t.Fatalf("bad: %#v", plan)
+	}
+
+	// Ensure there is a followup eval.
+	if len(h.CreateEvals) != 1 ||
+		h.CreateEvals[0].TriggeredBy != structs.EvalTriggerRollingUpdate {
+		t.Fatalf("bad: %#v", h.CreateEvals)
 	}
 
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
