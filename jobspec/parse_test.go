@@ -113,7 +113,7 @@ func TestParse(t *testing.T) {
 									CPU:      500,
 									MemoryMB: 128,
 									DiskMB:   10,
-									IOPS:     1,
+									IOPS:     0,
 									Networks: []*structs.NetworkResource{
 										&structs.NetworkResource{
 											MBits:         100,
