@@ -60,6 +60,9 @@ func (e *BasicExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext) (*
 
 func (e *BasicExecutor) Wait() (*ProcessState, error) {
 	err := e.cmd.Wait()
+	if err == nil {
+		return &ProcessState{Pid: 0, ExitCode: 0, Time: time.Now()}, nil
+	}
 	exitCode := 1
 	if exitErr, ok := err.(*exec.ExitError); ok {
 		if status, ok := exitErr.Sys().(syscall.WaitStatus); ok {
