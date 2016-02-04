@@ -117,6 +117,7 @@ func (e *UniversalExecutor) Wait() (*ProcessState, error) {
 }
 
 func (e *UniversalExecutor) wait() {
+	defer close(e.processExited)
 	err := e.cmd.Wait()
 	if err == nil {
 		e.exitState = &ProcessState{Pid: 0, ExitCode: 0, Time: time.Now()}
@@ -135,7 +136,6 @@ func (e *UniversalExecutor) wait() {
 		e.destroyCgroup()
 	}
 	e.exitState = &ProcessState{Pid: 0, ExitCode: exitCode, Time: time.Now()}
-	close(e.processExited)
 }
 
 func (e *UniversalExecutor) Exit() error {
