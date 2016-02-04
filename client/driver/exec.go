@@ -12,7 +12,6 @@ import (
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/driver/executor"
 	"github.com/hashicorp/nomad/client/driver/plugins"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/client/getter"
@@ -38,7 +37,6 @@ type ExecDriverConfig struct {
 type execHandle struct {
 	pluginClient *plugin.Client
 	executor     plugins.Executor
-	cmd          executor.Executor
 	killTimeout  time.Duration
 	logger       *log.Logger
 	waitCh       chan *cstructs.WaitResult
