@@ -27,6 +27,7 @@ IMPROVEMENTS:
   * cli: Ability to navigate allocation directories [GH-709]
   * client: Send Node to server when periodic fingerprinters change Node
     attributes/metadata [GH-749]
+  * client: Handle updates to tasks Restart Policy and KillTimeout [GH-751]
   * drivers: Interpret Nomad variables in environment variables/args [GH-653]
   * driver/rkt: Add support for CPU/Memory isolation [GH-610]
   * driver/rkt: Add support for mounting alloc/task directory [GH-645]
