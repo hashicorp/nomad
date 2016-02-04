@@ -656,6 +656,10 @@ func (c *Client) run() {
 	}
 }
 
+// hasNodeChanged calculates a hash for the node attributes- and meta map.
+// The new hash values are compared against the old (passed-in) hash values to
+// determine if the node properties have changed. It returns the new hash values
+// in case they are different from the old hash values.
 func (c *Client) hasNodeChanged(oldAttrHash uint64, oldMetaHash uint64) (bool, uint64, uint64) {
 	newAttrHash, err := hashstructure.Hash(c.config.Node.Attributes, nil)
 	if err != nil {
@@ -668,9 +672,8 @@ func (c *Client) hasNodeChanged(oldAttrHash uint64, oldMetaHash uint64) (bool, u
 	}
 	if newAttrHash != oldAttrHash || newMetaHash != oldMetaHash {
 		return true, newAttrHash, newMetaHash
-	} else {
-		return false, oldAttrHash, oldMetaHash
 	}
+	return false, oldAttrHash, oldMetaHash
 }
 
 // retryRegisterNode is used to register the node or update the registration and
