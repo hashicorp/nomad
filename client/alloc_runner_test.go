@@ -1,6 +1,7 @@
 package client
 
 import (
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -49,10 +50,13 @@ func TestAllocRunner_SimpleRun(t *testing.T) {
 
 	testutil.WaitForResult(func() (bool, error) {
 		if upd.Count == 0 {
-			return false, nil
+			return false, fmt.Errorf("No updates")
 		}
 		last := upd.Allocs[upd.Count-1]
-		return last.ClientStatus == structs.AllocClientStatusDead, nil
+		if last.ClientStatus == structs.AllocClientStatusDead {
+			return false, fmt.Errorf("got status %v; want %v", last.ClientStatus, structs.AllocClientStatusDead)
+		}
+		return true, nil
 	}, func(err error) {
 		t.Fatalf("err: %v", err)
 	})

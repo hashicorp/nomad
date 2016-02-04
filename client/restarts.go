@@ -2,6 +2,7 @@ package client
 
 import (
 	"math/rand"
+	"sync"
 	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -29,9 +30,22 @@ type RestartTracker struct {
 	startTime time.Time // When the interval began
 	policy    *structs.RestartPolicy
 	rand      *rand.Rand
+	lock      sync.Mutex
 }
 
+// SetPolicy updates the policy used to determine restarts.
+func (r *RestartTracker) SetPolicy(policy *structs.RestartPolicy) {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	r.policy = policy
+}
+
+// NextRestart takes the exit code from the last attempt and returns whether the
+// task should be restarted and the duration to wait.
 func (r *RestartTracker) NextRestart(exitCode int) (bool, time.Duration) {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+
 	// Hot path if no attempts are expected
 	if r.policy.Attempts == 0 {
 		return false, 0

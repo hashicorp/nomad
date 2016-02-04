@@ -173,6 +173,9 @@ func (h *execHandle) WaitCh() chan *cstructs.WaitResult {
 }
 
 func (h *execHandle) Update(task *structs.Task) error {
+	// Store the updated kill timeout.
+	h.killTimeout = task.KillTimeout
+
 	// Update is not possible
 	return nil
 }

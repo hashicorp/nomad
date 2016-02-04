@@ -48,13 +48,10 @@ func testTaskRunner(restarts bool) (*MockTaskStateUpdater, *TaskRunner) {
 	allocDir.Build([]*structs.Task{task})
 
 	ctx := driver.NewExecContext(allocDir, alloc.ID)
-	rp := structs.NewRestartPolicy(structs.JobTypeService)
-	restartTracker := newRestartTracker(rp, alloc.Job.Type)
+	tr := NewTaskRunner(logger, conf, upd.Update, ctx, mock.Alloc(), task, consulClient)
 	if !restarts {
-		restartTracker = noRestartsTracker()
+		tr.restartTracker = noRestartsTracker()
 	}
-
-	tr := NewTaskRunner(logger, conf, upd.Update, ctx, mock.Alloc(), task, restartTracker, consulClient)
 	return upd, tr
 }
 
@@ -134,20 +131,49 @@ func TestTaskRunner_Update(t *testing.T) {
 
 	// Change command to ensure we run for a bit
 	tr.task.Config["command"] = "/bin/sleep"
-	tr.task.Config["args"] = []string{"10"}
+	tr.task.Config["args"] = []string{"100"}
 	go tr.Run()
 	defer tr.Destroy()
 	defer tr.ctx.AllocDir.Destroy()
 
 	// Update the task definition
-	newTask := new(structs.Task)
-	*newTask = *tr.task
+	updateAlloc := tr.alloc.Copy()
+
+	// Update the restart policy
+	newTG := updateAlloc.Job.TaskGroups[0]
+	newMode := "foo"
+	newTG.RestartPolicy.Mode = newMode
+
+	newTask := updateAlloc.Job.TaskGroups[0].Tasks[0]
 	newTask.Driver = "foobar"
-	tr.Update(newTask)
+
+	// Update the kill timeout
+	testutil.WaitForResult(func() (bool, error) {
+		if tr.handle == nil {
+			return false, fmt.Errorf("task not started")
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	oldHandle := tr.handle.ID()
+	newTask.KillTimeout = time.Hour
+
+	tr.Update(updateAlloc)
 
 	// Wait for update to take place
 	testutil.WaitForResult(func() (bool, error) {
-		return tr.task == newTask, nil
+		if tr.task != newTask {
+			return false, fmt.Errorf("task not updated")
+		}
+		if tr.restartTracker.policy.Mode != newMode {
+			return false, fmt.Errorf("restart policy not updated")
+		}
+		if tr.handle.ID() == oldHandle {
+			return false, fmt.Errorf("handle not updated")
+		}
+		return true, nil
 	}, func(err error) {
 		t.Fatalf("err: %v", err)
 	})
@@ -172,8 +198,7 @@ func TestTaskRunner_SaveRestoreState(t *testing.T) {
 	// Create a new task runner
 	consulClient, _ := NewConsulService(&consulServiceConfig{tr.logger, "127.0.0.1:8500", "", "", false, false, &structs.Node{}})
 	tr2 := NewTaskRunner(tr.logger, tr.config, upd.Update,
-		tr.ctx, tr.alloc, &structs.Task{Name: tr.task.Name}, tr.restartTracker,
-		consulClient)
+		tr.ctx, tr.alloc, &structs.Task{Name: tr.task.Name}, consulClient)
 	if err := tr2.RestoreState(); err != nil {
 		t.Fatalf("err: %v", err)
 	}
