@@ -4,13 +4,8 @@ import (
 	"log"
 	"net/rpc"
 	"os"
-	"time"
 
 	"github.com/hashicorp/go-plugin"
-
-	"github.com/hashicorp/nomad/client/allocdir"
-	"github.com/hashicorp/nomad/client/driver/env"
-	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 var HandshakeConfig = plugin.HandshakeConfig{
@@ -21,32 +16,6 @@ var HandshakeConfig = plugin.HandshakeConfig{
 
 var PluginMap = map[string]plugin.Plugin{
 	"executor": new(ExecutorPlugin),
-}
-
-type ExecutorContext struct {
-	TaskEnv  *env.TaskEnvironment
-	AllocDir *allocdir.AllocDir
-	Task     *structs.Task
-	Chroot   bool
-	Limits   bool
-}
-
-type ExecCommand struct {
-	Cmd  string
-	Args []string
-}
-
-type ProcessState struct {
-	Pid      int
-	ExitCode int
-	Time     time.Time
-}
-
-type Executor interface {
-	LaunchCmd(cmd *ExecCommand, ctx *ExecutorContext) (*ProcessState, error)
-	Wait() (*ProcessState, error)
-	ShutDown() error
-	Exit() error
 }
 
 type ExecutorRPC struct {
