@@ -614,6 +614,9 @@ func (h *DockerHandle) WaitCh() chan *cstructs.WaitResult {
 }
 
 func (h *DockerHandle) Update(task *structs.Task) error {
+	// Store the updated kill timeout.
+	h.killTimeout = task.KillTimeout
+
 	// Update is not possible
 	return nil
 }

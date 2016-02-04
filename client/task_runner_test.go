@@ -137,14 +137,34 @@ func TestTaskRunner_Update(t *testing.T) {
 	defer tr.ctx.AllocDir.Destroy()
 
 	// Update the task definition
-	newTask := new(structs.Task)
-	*newTask = *tr.task
+	updateAlloc := tr.alloc.Copy()
+
+	// Update the restart policy
+	newTG := updateAlloc.Job.TaskGroups[0]
+	newMode := "foo"
+	newTG.RestartPolicy.Mode = newMode
+
+	newTask := updateAlloc.Job.TaskGroups[0].Tasks[0]
 	newTask.Driver = "foobar"
-	tr.Update(newTask)
+
+	// Update the kill timeout
+	oldHandle := tr.handle.ID()
+	newTask.KillTimeout = time.Hour
+
+	tr.Update(updateAlloc)
 
 	// Wait for update to take place
 	testutil.WaitForResult(func() (bool, error) {
-		return tr.task == newTask, nil
+		if tr.task != newTask {
+			return false, fmt.Errorf("task not updated")
+		}
+		if tr.restartTracker.policy.Mode != newMode {
+			return false, fmt.Errorf("restart policy not updated")
+		}
+		if tr.handle.ID() == oldHandle {
+			return false, fmt.Errorf("handle not updated")
+		}
+		return true, nil
 	}, func(err error) {
 		t.Fatalf("err: %v", err)
 	})

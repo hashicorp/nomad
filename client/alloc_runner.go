@@ -404,7 +404,7 @@ OUTER:
 						break FOUND
 					}
 				}
-				tr.Update(task)
+				tr.Update(update)
 			}
 			r.taskLock.RUnlock()
 

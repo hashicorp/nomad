@@ -28,7 +28,7 @@ type TaskRunner struct {
 	consulService  *ConsulService
 
 	task     *structs.Task
-	updateCh chan *structs.Task
+	updateCh chan *structs.Allocation
 	handle   driver.DriverHandle
 
 	destroy     bool
@@ -71,7 +71,7 @@ func NewTaskRunner(logger *log.Logger, config *config.Config,
 		ctx:            ctx,
 		alloc:          alloc,
 		task:           task,
-		updateCh:       make(chan *structs.Task, 8),
+		updateCh:       make(chan *structs.Allocation, 8),
 		destroyCh:      make(chan struct{}),
 		waitCh:         make(chan struct{}),
 	}
@@ -239,10 +239,8 @@ func (r *TaskRunner) run() {
 			case waitRes = <-r.handle.WaitCh():
 				break OUTER
 			case update := <-r.updateCh:
-				// Update
-				r.task = update
-				if err := r.handle.Update(update); err != nil {
-					r.logger.Printf("[ERR] client: failed to update task '%s' for alloc '%s': %v", r.task.Name, r.alloc.ID, err)
+				if err := r.handleUpdate(update); err != nil {
+					r.logger.Printf("[ERR] client: update to task %q failed: %v", r.task.Name, err)
 				}
 			case <-r.destroyCh:
 				// Avoid destroying twice
@@ -311,6 +309,49 @@ func (r *TaskRunner) run() {
 	return
 }
 
+// handleUpdate takes an updated allocation and updates internal state to
+// reflect the new config for the task.
+func (r *TaskRunner) handleUpdate(update *structs.Allocation) error {
+	// Extract the task group from the alloc.
+	tg := update.Job.LookupTaskGroup(update.TaskGroup)
+	if tg == nil {
+		return fmt.Errorf("alloc '%s' missing task group '%s'", update.ID, update.TaskGroup)
+	}
+
+	// Extract the task.
+	var task *structs.Task
+	for _, t := range tg.Tasks {
+		if t.Name == r.task.Name {
+			task = t
+		}
+	}
+	if task == nil {
+		return fmt.Errorf("task group %q doesn't contain task %q", tg.Name, r.task.Name)
+	}
+	r.task = task
+
+	// Update will update resources and store the new kill timeout.
+	if r.handle != nil {
+		if err := r.handle.Update(task); err != nil {
+			r.logger.Printf("[ERR] client: failed to update task '%s' for alloc '%s': %v", r.task.Name, r.alloc.ID, err)
+		}
+	}
+
+	// Update the restart policy.
+	if r.restartTracker != nil {
+		r.restartTracker.SetPolicy(tg.RestartPolicy)
+	}
+
+	/* TODO
+	// Re-register the task to consul and store the updated alloc.
+	r.consulService.Deregister(r.task, r.alloc)
+	r.alloc = update
+	r.consulService.Register(r.task, r.alloc)
+	*/
+
+	return nil
+}
+
 // Helper function for converting a WaitResult into a TaskTerminated event.
 func (r *TaskRunner) waitErrorToEvent(res *cstructs.WaitResult) *structs.TaskEvent {
 	return structs.NewTaskEvent(structs.TaskTerminated).
@@ -320,12 +361,12 @@ func (r *TaskRunner) waitErrorToEvent(res *cstructs.WaitResult) *structs.TaskEve
 }
 
 // Update is used to update the task of the context
-func (r *TaskRunner) Update(update *structs.Task) {
+func (r *TaskRunner) Update(update *structs.Allocation) {
 	select {
 	case r.updateCh <- update:
 	default:
 		r.logger.Printf("[ERR] client: dropping task update '%s' (alloc '%s')",
-			update.Name, r.alloc.ID)
+			r.task.Name, r.alloc.ID)
 	}
 }
 

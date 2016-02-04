@@ -278,6 +278,9 @@ func (h *rktHandle) WaitCh() chan *cstructs.WaitResult {
 }
 
 func (h *rktHandle) Update(task *structs.Task) error {
+	// Store the updated kill timeout.
+	h.killTimeout = task.KillTimeout
+
 	// Update is not possible
 	return nil
 }
