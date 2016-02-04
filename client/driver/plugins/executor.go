@@ -49,15 +49,17 @@ type UniversalExecutor struct {
 	cmd exec.Cmd
 	ctx *ExecutorContext
 
-	taskDir string
-	groups  *cgroupConfig.Cgroup
+	taskDir       string
+	groups        *cgroupConfig.Cgroup
+	exitState     *ProcessState
+	processExited chan interface{}
 
 	logger *log.Logger
 	lock   sync.Mutex
 }
 
 func NewExecutor(logger *log.Logger) Executor {
-	return &UniversalExecutor{logger: logger}
+	return &UniversalExecutor{logger: logger, processExited: make(chan interface{})}
 }
 
 func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext) (*ProcessState, error) {
@@ -105,13 +107,20 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext
 	}
 
 	e.applyLimits()
+	go e.wait()
 	return &ProcessState{Pid: e.cmd.Process.Pid, ExitCode: -1, Time: time.Now()}, nil
 }
 
 func (e *UniversalExecutor) Wait() (*ProcessState, error) {
+	<-e.processExited
+	return e.exitState, nil
+}
+
+func (e *UniversalExecutor) wait() {
 	err := e.cmd.Wait()
 	if err == nil {
-		return &ProcessState{Pid: 0, ExitCode: 0, Time: time.Now()}, nil
+		e.exitState = &ProcessState{Pid: 0, ExitCode: 0, Time: time.Now()}
+		return
 	}
 	exitCode := 1
 	if exitErr, ok := err.(*exec.ExitError); ok {
@@ -125,7 +134,8 @@ func (e *UniversalExecutor) Wait() (*ProcessState, error) {
 	if e.ctx.ResourceLimits {
 		e.destroyCgroup()
 	}
-	return &ProcessState{Pid: 0, ExitCode: exitCode, Time: time.Now()}, nil
+	e.exitState = &ProcessState{Pid: 0, ExitCode: exitCode, Time: time.Now()}
+	close(e.processExited)
 }
 
 func (e *UniversalExecutor) Exit() error {
