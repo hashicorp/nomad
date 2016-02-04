@@ -224,6 +224,75 @@ func TestServiceSched_JobRegister_BlockedEval(t *testing.T) {
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
 
+func TestServiceSched_JobRegister_FeasibleAndInfeasibleTG(t *testing.T) {
+	h := NewHarness(t)
+
+	// Create one node
+	node := mock.Node()
+	node.NodeClass = "class_0"
+	noErr(t, node.ComputeClass())
+	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+
+	// Create a job that constrains on a node class
+	job := mock.Job()
+	job.TaskGroups[0].Count = 2
+	job.TaskGroups[0].Constraints = append(job.Constraints,
+		&structs.Constraint{
+			LTarget: "$node.class",
+			RTarget: "class_0",
+			Operand: "=",
+		},
+	)
+	tg2 := job.TaskGroups[0].Copy()
+	tg2.Name = "web2"
+	tg2.Constraints[1].RTarget = "class_1"
+	job.TaskGroups = append(job.TaskGroups, tg2)
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	// Create a mock evaluation to register the job
+	eval := &structs.Evaluation{
+		ID:          structs.GenerateUUID(),
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+	}
+
+	// Process the evaluation
+	err := h.Process(NewServiceScheduler, eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure a single plan
+	if len(h.Plans) != 1 {
+		t.Fatalf("bad: %#v", h.Plans)
+	}
+	plan := h.Plans[0]
+
+	// Ensure the plan allocated
+	var planned []*structs.Allocation
+	for _, allocList := range plan.NodeAllocation {
+		planned = append(planned, allocList...)
+	}
+	if len(planned) != 2 {
+		t.Fatalf("bad: %#v", plan)
+	}
+	if len(plan.FailedAllocs) != 1 {
+		t.Fatalf("bad: %#v", plan)
+	}
+
+	// Lookup the allocations by JobID
+	out, err := h.State.AllocsByJob(job.ID)
+	noErr(t, err)
+
+	// Ensure all allocations placed
+	if len(out) != 3 {
+		t.Fatalf("bad: %#v", out)
+	}
+
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+}
+
 func TestServiceSched_JobModify(t *testing.T) {
 	h := NewHarness(t)
 

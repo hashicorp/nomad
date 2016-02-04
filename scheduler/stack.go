@@ -153,6 +153,7 @@ func (s *GenericStack) Select(tg *structs.TaskGroup) (*RankedNode, *structs.Reso
 	s.taskGroupDrivers.SetDrivers(tgConstr.drivers)
 	s.taskGroupConstraint.SetConstraints(tgConstr.constraints)
 	s.proposedAllocConstraint.SetTaskGroup(tg)
+	s.wrappedChecks.SetTaskGroup(tg.Name)
 	s.binPack.SetTasks(tg.Tasks)
 
 	// Find the node with the max score
@@ -242,6 +243,7 @@ func (s *SystemStack) Select(tg *structs.TaskGroup) (*RankedNode, *structs.Resou
 	s.taskGroupDrivers.SetDrivers(tgConstr.drivers)
 	s.taskGroupConstraint.SetConstraints(tgConstr.constraints)
 	s.binPack.SetTasks(tg.Tasks)
+	s.wrappedChecks.SetTaskGroup(tg.Name)
 
 	// Get the next option that satisfies the constraints.
 	option := s.binPack.Next()
