@@ -272,7 +272,7 @@ func (s *GenericScheduler) computeJobAllocs() error {
 	s.limitReached = evictAndPlace(s.ctx, diff, diff.migrate, allocMigrating, &limit)
 
 	// Treat non in-place updates as an eviction and new placement.
-	s.limitReached = evictAndPlace(s.ctx, diff, diff.update, allocUpdating, &limit)
+	s.limitReached = s.limitReached || evictAndPlace(s.ctx, diff, diff.update, allocUpdating, &limit)
 
 	// Nothing remaining to do if placement is not required
 	if len(diff.place) == 0 {
