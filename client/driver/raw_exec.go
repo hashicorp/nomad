@@ -121,7 +121,7 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 		pluginClient.Kill()
 		return nil, fmt.Errorf("error starting process via the plugin: %v", err)
 	}
-	d.logger.Printf("DIPTANU Started process via plugin: %#v", ps)
+	d.logger.Printf("[INFO] started process with pid: %v", ps.Pid)
 
 	// Return a driver handle
 	h := &rawExecHandle{
@@ -183,9 +183,10 @@ func (d *RawExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, e
 	}
 
 	// Return a driver handle
-	h := &execHandle{
+	h := &rawExecHandle{
 		pluginClient: client,
 		executor:     executor,
+		userPid:      id.UserPid,
 		logger:       d.logger,
 		killTimeout:  id.KillTimeout,
 		doneCh:       make(chan struct{}),

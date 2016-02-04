@@ -12,14 +12,17 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/hashicorp/go-plugin"
+	"github.com/mitchellh/mapstructure"
+
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/driver/executor"
+	"github.com/hashicorp/nomad/client/driver/plugins"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/client/getter"
+	"github.com/hashicorp/nomad/helper/discover"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/mitchellh/mapstructure"
 )
 
 // JavaDriver is a simple driver to execute applications packaged in Jars.
@@ -38,7 +41,10 @@ type JavaDriverConfig struct {
 
 // javaHandle is returned from Start/Open as a handle to the PID
 type javaHandle struct {
-	cmd         executor.Executor
+	pluginClient *plugin.Client
+	userPid      int
+	executor     plugins.Executor
+
 	killTimeout time.Duration
 	logger      *log.Logger
 	waitCh      chan *cstructs.WaitResult
@@ -138,42 +144,69 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		args = append(args, driverConfig.Args...)
 	}
 
-	// Setup the command
-	// Assumes Java is in the $PATH, but could probably be detected
-	execCtx := executor.NewExecutorContext(d.taskEnv)
-	cmd := executor.Command(execCtx, "java", args...)
-
-	// Populate environment variables
-	cmd.Command().Env = d.taskEnv.EnvList()
-
-	if err := cmd.Limit(task.Resources); err != nil {
-		return nil, fmt.Errorf("failed to constrain resources: %s", err)
+	bin, err := discover.NomadExecutable()
+	if err != nil {
+		return nil, fmt.Errorf("unable to find the nomad binary: %v", err)
+	}
+	pluginConfig := &plugin.ClientConfig{
+		HandshakeConfig: plugins.HandshakeConfig,
+		Plugins:         plugins.PluginMap,
+		Cmd:             exec.Command(bin, "executor"),
+		SyncStdout:      d.config.LogOutput,
+		SyncStderr:      d.config.LogOutput,
 	}
 
-	if err := cmd.ConfigureTaskDir(d.taskName, ctx.AllocDir); err != nil {
-		return nil, fmt.Errorf("failed to configure task directory: %v", err)
+	executor, pluginClient, err := d.executor(pluginConfig)
+	if err != nil {
+		return nil, err
 	}
-
-	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("failed to start source: %v", err)
+	executorCtx := &plugins.ExecutorContext{
+		TaskEnv:  d.taskEnv,
+		AllocDir: ctx.AllocDir,
+		Task:     task,
 	}
+	ps, err := executor.LaunchCmd(&plugins.ExecCommand{Cmd: "java", Args: args}, executorCtx)
+	if err != nil {
+		pluginClient.Kill()
+		return nil, fmt.Errorf("error starting process via the plugin: %v", err)
+	}
+	d.logger.Printf("[INFO] started process with pid: %v", ps.Pid)
 
 	// Return a driver handle
 	h := &javaHandle{
-		cmd:         cmd,
-		killTimeout: d.DriverContext.KillTimeout(task),
-		logger:      d.logger,
-		doneCh:      make(chan struct{}),
-		waitCh:      make(chan *cstructs.WaitResult, 1),
+		pluginClient: pluginClient,
+		executor:     executor,
+		userPid:      ps.Pid,
+		killTimeout:  d.DriverContext.KillTimeout(task),
+		logger:       d.logger,
+		doneCh:       make(chan struct{}),
+		waitCh:       make(chan *cstructs.WaitResult, 1),
 	}
 
 	go h.run()
 	return h, nil
 }
 
+func (d *JavaDriver) executor(config *plugin.ClientConfig) (plugins.Executor, *plugin.Client, error) {
+	executorClient := plugin.NewClient(config)
+	rpcClient, err := executorClient.Client()
+	if err != nil {
+		return nil, nil, fmt.Errorf("error creating rpc client for executor plugin: %v", err)
+	}
+	rpcClient.SyncStreams(d.config.LogOutput, d.config.LogOutput)
+
+	raw, err := rpcClient.Dispense("executor")
+	if err != nil {
+		return nil, nil, fmt.Errorf("unable to dispense the executor plugin: %v", err)
+	}
+	executorPlugin := raw.(plugins.Executor)
+	return executorPlugin, executorClient, nil
+}
+
 type javaId struct {
-	ExecutorId  string
-	KillTimeout time.Duration
+	KillTimeout  time.Duration
+	PluginConfig *plugin.ReattachConfig
+	UserPid      int
 }
 
 func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {
@@ -182,20 +215,33 @@ func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		return nil, fmt.Errorf("Failed to parse handle '%s': %v", handleID, err)
 	}
 
-	// Find the process
-	execCtx := executor.NewExecutorContext(d.taskEnv)
-	cmd, err := executor.OpenId(execCtx, id.ExecutorId)
+	bin, err := discover.NomadExecutable()
 	if err != nil {
-		return nil, fmt.Errorf("failed to open ID %v: %v", id.ExecutorId, err)
+		return nil, fmt.Errorf("unable to find the nomad binary: %v", err)
+	}
+
+	pluginConfig := &plugin.ClientConfig{
+		HandshakeConfig: plugins.HandshakeConfig,
+		Plugins:         plugins.PluginMap,
+		Cmd:             exec.Command(bin, "executor"),
+		Reattach:        id.PluginConfig,
+		SyncStdout:      d.config.LogOutput,
+		SyncStderr:      d.config.LogOutput,
+	}
+	executor, client, err := d.executor(pluginConfig)
+	if err != nil {
+		return nil, fmt.Errorf("error connecting to plugin: %v", err)
 	}
 
 	// Return a driver handle
 	h := &javaHandle{
-		cmd:         cmd,
-		logger:      d.logger,
-		killTimeout: id.KillTimeout,
-		doneCh:      make(chan struct{}),
-		waitCh:      make(chan *cstructs.WaitResult, 1),
+		pluginClient: client,
+		executor:     executor,
+		userPid:      id.UserPid,
+		logger:       d.logger,
+		killTimeout:  id.KillTimeout,
+		doneCh:       make(chan struct{}),
+		waitCh:       make(chan *cstructs.WaitResult, 1),
 	}
 
 	go h.run()
@@ -203,10 +249,10 @@ func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 }
 
 func (h *javaHandle) ID() string {
-	executorId, _ := h.cmd.ID()
 	id := javaId{
-		ExecutorId:  executorId,
-		KillTimeout: h.killTimeout,
+		KillTimeout:  h.killTimeout,
+		PluginConfig: h.pluginClient.ReattachConfig(),
+		UserPid:      h.userPid,
 	}
 
 	data, err := json.Marshal(id)
@@ -229,18 +275,19 @@ func (h *javaHandle) Update(task *structs.Task) error {
 }
 
 func (h *javaHandle) Kill() error {
-	h.cmd.Shutdown()
+	h.executor.ShutDown()
 	select {
 	case <-h.doneCh:
 		return nil
 	case <-time.After(h.killTimeout):
-		return h.cmd.ForceStop()
+		return h.executor.Exit()
 	}
 }
 
 func (h *javaHandle) run() {
-	res := h.cmd.Wait()
+	ps, err := h.executor.Wait()
 	close(h.doneCh)
-	h.waitCh <- res
+	h.waitCh <- &cstructs.WaitResult{ExitCode: ps.ExitCode, Signal: 0, Err: err}
 	close(h.waitCh)
+	h.pluginClient.Kill()
 }
