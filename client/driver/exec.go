@@ -103,9 +103,7 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		return nil, fmt.Errorf("unable to find the nomad binary: %v", err)
 	}
 	pluginConfig := &plugin.ClientConfig{
-		HandshakeConfig: plugins.HandshakeConfig,
-		Plugins:         plugins.PluginMap,
-		Cmd:             exec.Command(bin, "executor"),
+		Cmd: exec.Command(bin, "executor"),
 	}
 
 	executor, pluginClient, err := d.executor(pluginConfig)
@@ -132,11 +130,10 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	h := &execHandle{
 		pluginClient: pluginClient,
 		executor:     executor,
-		//cmd:          cmd,
-		killTimeout: d.DriverContext.KillTimeout(task),
-		logger:      d.logger,
-		doneCh:      make(chan struct{}),
-		waitCh:      make(chan *cstructs.WaitResult, 1),
+		killTimeout:  d.DriverContext.KillTimeout(task),
+		logger:       d.logger,
+		doneCh:       make(chan struct{}),
+		waitCh:       make(chan *cstructs.WaitResult, 1),
 	}
 	go h.run()
 	return h, nil
@@ -156,9 +153,7 @@ func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 	reattachConfig := id.PluginConfig.PluginConfig()
 
 	pluginConfig := &plugin.ClientConfig{
-		HandshakeConfig: plugins.HandshakeConfig,
-		Plugins:         plugins.PluginMap,
-		Reattach:        reattachConfig,
+		Reattach: reattachConfig,
 	}
 	executor, client, err := d.executor(pluginConfig)
 	if err != nil {
@@ -179,6 +174,8 @@ func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 }
 
 func (d *ExecDriver) executor(config *plugin.ClientConfig) (plugins.Executor, *plugin.Client, error) {
+	config.HandshakeConfig = plugins.HandshakeConfig
+	config.Plugins = plugins.PluginMap
 	config.SyncStdout = d.config.LogOutput
 	config.SyncStderr = d.config.LogOutput
 	executorClient := plugin.NewClient(config)

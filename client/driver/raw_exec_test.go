@@ -91,6 +91,8 @@ func TestRawExecDriver_StartOpen_Wait(t *testing.T) {
 	case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
 		t.Fatalf("timeout")
 	}
+	handle.Kill()
+	handle2.Kill()
 }
 
 func TestRawExecDriver_Start_Artifact_basic(t *testing.T) {
