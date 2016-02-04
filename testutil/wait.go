@@ -18,7 +18,7 @@ type testFn func() (bool, error)
 type errorFn func(error)
 
 func WaitForResult(test testFn, error errorFn) {
-	WaitForResultRetries(1000*TestMultiplier(), test, error)
+	WaitForResultRetries(2000*TestMultiplier(), test, error)
 }
 
 func WaitForResultRetries(retries int64, test testFn, error errorFn) {

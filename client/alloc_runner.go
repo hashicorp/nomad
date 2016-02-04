@@ -326,15 +326,8 @@ func (r *AllocRunner) Run() {
 	defer close(r.waitCh)
 	go r.dirtySyncState()
 
-	// Check if the allocation is in a terminal status
-	alloc := r.alloc
-	if alloc.TerminalStatus() {
-		r.logger.Printf("[DEBUG] client: aborting runner for alloc '%s', terminal status", r.alloc.ID)
-		return
-	}
-	r.logger.Printf("[DEBUG] client: starting runner for alloc '%s'", r.alloc.ID)
-
 	// Find the task group to run in the allocation
+	alloc := r.alloc
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 	if tg == nil {
 		r.logger.Printf("[ERR] client: alloc '%s' for missing task group '%s'", alloc.ID, alloc.TaskGroup)
@@ -353,7 +346,18 @@ func (r *AllocRunner) Run() {
 		r.ctx = driver.NewExecContext(allocDir, r.alloc.ID)
 	}
 
+	// Check if the allocation is in a terminal status. In this case, we don't
+	// start any of the task runners and directly wait for the destroy signal to
+	// clean up the allocation.
+	if alloc.TerminalStatus() {
+		r.logger.Printf("[DEBUG] client: alloc %q in terminal status, waiting for destroy", r.alloc.ID)
+		r.handleDestroy()
+		r.logger.Printf("[DEBUG] client: terminating runner for alloc '%s'", r.alloc.ID)
+		return
+	}
+
 	// Start the task runners
+	r.logger.Printf("[DEBUG] client: starting task runners for alloc '%s'", r.alloc.ID)
 	r.taskLock.Lock()
 	for _, task := range tg.Tasks {
 		if _, ok := r.restored[task.Name]; ok {
@@ -415,7 +419,6 @@ OUTER:
 
 	// Destroy each sub-task
 	r.taskLock.Lock()
-	defer r.taskLock.Unlock()
 	for _, tr := range r.tasks {
 		tr.Destroy()
 	}
@@ -424,12 +427,21 @@ OUTER:
 	for _, tr := range r.tasks {
 		<-tr.WaitCh()
 	}
+	r.taskLock.Unlock()
 
 	// Final state sync
 	r.retrySyncState(nil)
 
-	// Check if we should destroy our state
-	if r.destroy {
+	// Block until we should destroy the state of the alloc
+	r.handleDestroy()
+	r.logger.Printf("[DEBUG] client: terminating runner for alloc '%s'", r.alloc.ID)
+}
+
+// handleDestroy blocks till the AllocRunner should be destroyed and does the
+// necessary cleanup.
+func (r *AllocRunner) handleDestroy() {
+	select {
+	case <-r.destroyCh:
 		if err := r.DestroyContext(); err != nil {
 			r.logger.Printf("[ERR] client: failed to destroy context for alloc '%s': %v",
 				r.alloc.ID, err)
@@ -439,7 +451,6 @@ OUTER:
 				r.alloc.ID, err)
 		}
 	}
-	r.logger.Printf("[DEBUG] client: terminating runner for alloc '%s'", r.alloc.ID)
 }
 
 // Update is used to update the allocation of the context

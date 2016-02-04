@@ -36,7 +36,7 @@ type AllocDir struct {
 	TaskDirs map[string]string
 
 	// A list of locations the shared alloc has been mounted to.
-	mounted []string
+	Mounted []string
 }
 
 // AllocFileInfo holds information about a file inside the AllocDir
@@ -64,7 +64,7 @@ func NewAllocDir(allocDir string) *AllocDir {
 // Tears down previously build directory structure.
 func (d *AllocDir) Destroy() error {
 	// Unmount all mounted shared alloc dirs.
-	for _, m := range d.mounted {
+	for _, m := range d.Mounted {
 		if err := d.unmountSharedDir(m); err != nil {
 			return fmt.Errorf("Failed to unmount shared directory: %v", err)
 		}
@@ -233,7 +233,7 @@ func (d *AllocDir) MountSharedDir(task string) error {
 		return fmt.Errorf("Failed to mount shared directory for task %v: %v", task, err)
 	}
 
-	d.mounted = append(d.mounted, taskLoc)
+	d.Mounted = append(d.Mounted, taskLoc)
 	return nil
 }
 
