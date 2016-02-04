@@ -114,7 +114,7 @@ func TestAllocRunner_TerminalUpdate_Destroy(t *testing.T) {
 
 		return true, nil
 	}, func(err error) {
-		t.Fatalf("err: %v %#v %#v", err, upd.Allocs[0], ar.alloc.TaskStates)
+		t.Fatalf("err: %v", err)
 	})
 
 	// Send the destroy signal and ensure the AllocRunner cleans up.
@@ -147,7 +147,7 @@ func TestAllocRunner_TerminalUpdate_Destroy(t *testing.T) {
 
 		return true, nil
 	}, func(err error) {
-		t.Fatalf("err: %v %#v %#v", err, upd.Allocs[0], ar.alloc.TaskStates)
+		t.Fatalf("err: %v", err)
 	})
 }
 
@@ -195,7 +195,7 @@ func TestAllocRunner_Destroy(t *testing.T) {
 
 		return true, nil
 	}, func(err error) {
-		t.Fatalf("err: %v %#v %#v", err, upd.Allocs[0], ar.alloc.TaskStates)
+		t.Fatalf("err: %v", err)
 	})
 
 	if time.Since(start) > 15*time.Second {
@@ -320,6 +320,9 @@ func TestAllocRunner_SaveRestoreState_TerminalAlloc(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
+	// Ensure both alloc runners don't destroy
+	ar.destroy = true
+
 	// Create a new alloc runner
 	consulClient, err := NewConsulService(&consulServiceConfig{ar.logger, "127.0.0.1:8500", "", "", false, false, &structs.Node{}})
 	ar2 := NewAllocRunner(ar.logger, ar.config, upd.Update,
@@ -376,6 +379,6 @@ func TestAllocRunner_SaveRestoreState_TerminalAlloc(t *testing.T) {
 
 		return true, nil
 	}, func(err error) {
-		t.Fatalf("err: %v %#v %#v", err, upd.Allocs[0], ar.alloc.TaskStates)
+		t.Fatalf("err: %v", err)
 	})
 }

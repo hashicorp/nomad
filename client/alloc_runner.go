@@ -353,10 +353,11 @@ func (r *AllocRunner) Run() {
 		r.logger.Printf("[DEBUG] client: alloc %q in terminal status, waiting for destroy", r.alloc.ID)
 		r.handleDestroy()
 		r.logger.Printf("[DEBUG] client: terminating runner for alloc '%s'", r.alloc.ID)
+		return
 	}
 
 	// Start the task runners
-	r.logger.Printf("[DEBUG] client: starting runner for alloc '%s'", r.alloc.ID)
+	r.logger.Printf("[DEBUG] client: starting task runners for alloc '%s'", r.alloc.ID)
 	r.taskLock.Lock()
 	for _, task := range tg.Tasks {
 		if _, ok := r.restored[task.Name]; ok {
@@ -418,7 +419,6 @@ OUTER:
 
 	// Destroy each sub-task
 	r.taskLock.Lock()
-	defer r.taskLock.Unlock()
 	for _, tr := range r.tasks {
 		tr.Destroy()
 	}
@@ -427,6 +427,7 @@ OUTER:
 	for _, tr := range r.tasks {
 		<-tr.WaitCh()
 	}
+	r.taskLock.Unlock()
 
 	// Final state sync
 	r.retrySyncState(nil)
