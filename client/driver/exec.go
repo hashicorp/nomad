@@ -161,7 +161,7 @@ func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 	if err != nil {
 		d.logger.Println("[ERROR] error connecting to plugin so destroying plugin pid and user pid")
 		if e := destroyPlugin(id.PluginConfig.Pid, id.UserPid); e != nil {
-			d.logger.Printf("[ERROR] error destrouing plugin and userpid: %v", e)
+			d.logger.Printf("[ERROR] error destroying plugin and userpid: %v", e)
 		}
 		return nil, fmt.Errorf("error connecting to plugin: %v", err)
 	}
