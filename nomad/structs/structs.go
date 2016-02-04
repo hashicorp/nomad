@@ -1245,6 +1245,15 @@ type TaskGroup struct {
 	Meta map[string]string
 }
 
+func (tg *TaskGroup) Copy() *TaskGroup {
+	i, err := copystructure.Copy(tg)
+	if err != nil {
+		panic(err)
+	}
+
+	return i.(*TaskGroup)
+}
+
 // InitFields is used to initialize fields in the TaskGroup.
 func (tg *TaskGroup) InitFields(job *Job) {
 	// Set the default restart policy.
