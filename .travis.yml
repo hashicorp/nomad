@@ -11,7 +11,7 @@ go:
   - tip
 
 env:
-  - TRAVIS_RUN=true
+  - TRAVIS_RUN=true DOCKER_VERSION=1.9.1
 
 matrix:
   allow_failures:
@@ -22,6 +22,7 @@ branches:
     - master
 
 install:
+  - make prepare_docker
   - make bootstrap
 
 script:
