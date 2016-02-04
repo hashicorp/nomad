@@ -179,6 +179,8 @@ func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 }
 
 func (d *ExecDriver) executor(config *plugin.ClientConfig) (plugins.Executor, *plugin.Client, error) {
+	config.SyncStdout = d.config.LogOutput
+	config.SyncStderr = d.config.LogOutput
 	executorClient := plugin.NewClient(config)
 	rpcClient, err := executorClient.Client()
 	if err != nil {

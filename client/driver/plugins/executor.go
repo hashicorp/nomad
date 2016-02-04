@@ -65,14 +65,7 @@ func NewExecutor(logger *log.Logger) Executor {
 
 func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext) (*ProcessState, error) {
 	e.ctx = ctx
-	e.cmd.Path = command.Cmd
-	e.cmd.Args = append([]string{command.Cmd}, command.Args...)
-	if filepath.Base(command.Cmd) == command.Cmd {
-		if lp, err := exec.LookPath(command.Cmd); err != nil {
-		} else {
-			e.cmd.Path = lp
-		}
-	}
+
 	if err := e.configureTaskDir(); err != nil {
 		return nil, err
 	}
@@ -101,6 +94,15 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext
 	e.cmd.Stderr = stde
 
 	e.cmd.Env = ctx.TaskEnv.EnvList()
+
+	e.cmd.Path = ctx.TaskEnv.ReplaceEnv(command.Cmd)
+	e.cmd.Args = ctx.TaskEnv.ParseAndReplace(command.Args)
+	if filepath.Base(command.Cmd) == command.Cmd {
+		if lp, err := exec.LookPath(command.Cmd); err != nil {
+		} else {
+			e.cmd.Path = lp
+		}
+	}
 
 	if err := e.cmd.Start(); err != nil {
 		return nil, fmt.Errorf("error starting command: %v", err)

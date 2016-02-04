@@ -79,13 +79,17 @@ type ExecutorRPCServer struct {
 
 func (e *ExecutorRPCServer) LaunchCmd(args LaunchCmdArgs, ps *ProcessState) error {
 	state, err := e.Impl.LaunchCmd(args.Cmd, args.Ctx)
-	*ps = *state
+	if state != nil {
+		*ps = *state
+	}
 	return err
 }
 
 func (e *ExecutorRPCServer) Wait(args interface{}, ps *ProcessState) error {
-	var err error
-	ps, err = e.Impl.Wait()
+	state, err := e.Impl.Wait()
+	if state != nil {
+		*ps = *state
+	}
 	return err
 }
 
