@@ -21,6 +21,9 @@ var (
 	// The name of the directory that exists inside each task directory
 	// regardless of driver.
 	TaskLocal = "local"
+
+	// TaskDirs is the set of directories created in each tasks directory.
+	TaskDirs = []string{"tmp"}
 )
 
 type AllocDir struct {
@@ -120,6 +123,18 @@ func (d *AllocDir) Build(tasks []*structs.Task) error {
 		}
 
 		d.TaskDirs[t.Name] = taskDir
+
+		// Create the directories that should be in every task.
+		for _, dir := range TaskDirs {
+			local := filepath.Join(taskDir, dir)
+			if err := os.Mkdir(local, 0777); err != nil {
+				return err
+			}
+
+			if err := d.dropDirPermissions(local); err != nil {
+				return err
+			}
+		}
 	}
 
 	return nil
