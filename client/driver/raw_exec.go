@@ -103,7 +103,7 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 		Cmd: exec.Command(bin, "executor"),
 	}
 
-	executor, pluginClient, err := d.executor(pluginConfig)
+	executor, pluginClient, err := createExecutor(pluginConfig, d.config.LogOutput)
 	if err != nil {
 		return nil, err
 	}
@@ -133,24 +133,6 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 	go h.run()
 	return h, nil
 }
-func (d *RawExecDriver) executor(config *plugin.ClientConfig) (plugins.Executor, *plugin.Client, error) {
-	config.HandshakeConfig = plugins.HandshakeConfig
-	config.Plugins = plugins.PluginMap
-	config.SyncStdout = d.config.LogOutput
-	config.SyncStderr = d.config.LogOutput
-	executorClient := plugin.NewClient(config)
-	rpcClient, err := executorClient.Client()
-	if err != nil {
-		return nil, nil, fmt.Errorf("error creating rpc client for executor plugin: %v", err)
-	}
-
-	raw, err := rpcClient.Dispense("executor")
-	if err != nil {
-		return nil, nil, fmt.Errorf("unable to dispense the executor plugin: %v", err)
-	}
-	executorPlugin := raw.(plugins.Executor)
-	return executorPlugin, executorClient, nil
-}
 
 type rawExecId struct {
 	KillTimeout  time.Duration
@@ -167,14 +149,14 @@ func (d *RawExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, e
 	pluginConfig := &plugin.ClientConfig{
 		Reattach: id.PluginConfig.PluginConfig(),
 	}
-	executor, client, err := d.executor(pluginConfig)
+	executor, pluginClient, err := createExecutor(pluginConfig, d.config.LogOutput)
 	if err != nil {
 		return nil, fmt.Errorf("error connecting to plugin: %v", err)
 	}
 
 	// Return a driver handle
 	h := &rawExecHandle{
-		pluginClient: client,
+		pluginClient: pluginClient,
 		executor:     executor,
 		userPid:      id.UserPid,
 		logger:       d.logger,

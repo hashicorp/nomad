@@ -196,7 +196,7 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		Cmd: exec.Command(bin, "executor"),
 	}
 
-	executor, pluginClient, err := d.executor(pluginConfig)
+	executor, pluginClient, err := createExecutor(pluginConfig, d.config.LogOutput)
 	if err != nil {
 		return nil, err
 	}
@@ -229,26 +229,6 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	return h, nil
 }
 
-func (d *QemuDriver) executor(config *plugin.ClientConfig) (plugins.Executor, *plugin.Client, error) {
-	config.HandshakeConfig = plugins.HandshakeConfig
-	config.Plugins = plugins.PluginMap
-	config.SyncStdout = d.config.LogOutput
-	config.SyncStderr = d.config.LogOutput
-	executorClient := plugin.NewClient(config)
-	rpcClient, err := executorClient.Client()
-	if err != nil {
-		return nil, nil, fmt.Errorf("error creating rpc client for executor plugin: %v", err)
-	}
-	rpcClient.SyncStreams(d.config.LogOutput, d.config.LogOutput)
-
-	raw, err := rpcClient.Dispense("executor")
-	if err != nil {
-		return nil, nil, fmt.Errorf("unable to dispense the executor plugin: %v", err)
-	}
-	executorPlugin := raw.(plugins.Executor)
-	return executorPlugin, executorClient, nil
-}
-
 type qemuId struct {
 	KillTimeout  time.Duration
 	UserPid      int
@@ -266,14 +246,14 @@ func (d *QemuDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		Reattach: reattachConfig,
 	}
 
-	executor, client, err := d.executor(pluginConfig)
+	executor, pluginClient, err := createExecutor(pluginConfig, d.config.LogOutput)
 	if err != nil {
 		return nil, fmt.Errorf("error connecting to plugin: %v", err)
 	}
 
 	// Return a driver handle
 	h := &qemuHandle{
-		pluginClient: client,
+		pluginClient: pluginClient,
 		executor:     executor,
 		userPid:      id.UserPid,
 		logger:       d.logger,

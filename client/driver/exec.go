@@ -106,7 +106,7 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		Cmd: exec.Command(bin, "executor"),
 	}
 
-	executor, pluginClient, err := d.executor(pluginConfig)
+	executor, pluginClient, err := createExecutor(pluginConfig, d.config.LogOutput)
 	if err != nil {
 		return nil, err
 	}
@@ -154,7 +154,7 @@ func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 	pluginConfig := &plugin.ClientConfig{
 		Reattach: reattachConfig,
 	}
-	executor, client, err := d.executor(pluginConfig)
+	executor, client, err := createExecutor(pluginConfig, d.config.LogOutput)
 	if err != nil {
 		return nil, fmt.Errorf("error connecting to plugin: %v", err)
 	}
@@ -170,25 +170,6 @@ func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 	}
 	go h.run()
 	return h, nil
-}
-
-func (d *ExecDriver) executor(config *plugin.ClientConfig) (plugins.Executor, *plugin.Client, error) {
-	config.HandshakeConfig = plugins.HandshakeConfig
-	config.Plugins = plugins.PluginMap
-	config.SyncStdout = d.config.LogOutput
-	config.SyncStderr = d.config.LogOutput
-	executorClient := plugin.NewClient(config)
-	rpcClient, err := executorClient.Client()
-	if err != nil {
-		return nil, nil, fmt.Errorf("error creating rpc client for executor plugin: %v", err)
-	}
-
-	raw, err := rpcClient.Dispense("executor")
-	if err != nil {
-		return nil, nil, fmt.Errorf("unable to dispense the executor plugin: %v", err)
-	}
-	executorPlugin := raw.(plugins.Executor)
-	return executorPlugin, executorClient, nil
 }
 
 func (h *execHandle) ID() string {
