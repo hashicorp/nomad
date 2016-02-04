@@ -385,7 +385,7 @@ OUTER:
 		case update := <-r.updateCh:
 			// Store the updated allocation.
 			r.allocLock.Lock()
-			r.alloc = update
+			*r.alloc = *update
 			r.allocLock.Unlock()
 
 			// Check if we're in a terminal status
