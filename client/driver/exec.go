@@ -37,6 +37,7 @@ type ExecDriverConfig struct {
 type execHandle struct {
 	pluginClient *plugin.Client
 	executor     plugins.Executor
+	userPid      int
 	killTimeout  time.Duration
 	logger       *log.Logger
 	waitCh       chan *cstructs.WaitResult
@@ -129,6 +130,7 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	// Return a driver handle
 	h := &execHandle{
 		pluginClient: pluginClient,
+		userPid:      ps.Pid,
 		executor:     executor,
 		killTimeout:  d.DriverContext.KillTimeout(task),
 		logger:       d.logger,
@@ -141,6 +143,7 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 
 type execId struct {
 	KillTimeout  time.Duration
+	UserPid      int
 	PluginConfig *plugins.ExecutorReattachConfig
 }
 
@@ -156,6 +159,10 @@ func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 	}
 	executor, client, err := createExecutor(pluginConfig, d.config.LogOutput)
 	if err != nil {
+		d.logger.Println("[ERROR] error connecting to plugin so destroying plugin pid and user pid")
+		if e := destroyPlugin(id.PluginConfig.Pid, id.UserPid); e != nil {
+			d.logger.Printf("[ERROR] error destrouing plugin and userpid: %v", e)
+		}
 		return nil, fmt.Errorf("error connecting to plugin: %v", err)
 	}
 
@@ -163,6 +170,7 @@ func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 	h := &execHandle{
 		pluginClient: client,
 		executor:     executor,
+		userPid:      id.UserPid,
 		logger:       d.logger,
 		killTimeout:  id.KillTimeout,
 		doneCh:       make(chan struct{}),
@@ -176,6 +184,7 @@ func (h *execHandle) ID() string {
 	id := execId{
 		KillTimeout:  h.killTimeout,
 		PluginConfig: plugins.NewExecutorReattachConfig(h.pluginClient.ReattachConfig()),
+		UserPid:      h.userPid,
 	}
 
 	data, err := json.Marshal(id)
