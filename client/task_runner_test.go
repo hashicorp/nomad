@@ -48,13 +48,10 @@ func testTaskRunner(restarts bool) (*MockTaskStateUpdater, *TaskRunner) {
 	allocDir.Build([]*structs.Task{task})
 
 	ctx := driver.NewExecContext(allocDir, alloc.ID)
-	rp := structs.NewRestartPolicy(structs.JobTypeService)
-	restartTracker := newRestartTracker(rp, alloc.Job.Type)
+	tr := NewTaskRunner(logger, conf, upd.Update, ctx, mock.Alloc(), task, consulClient)
 	if !restarts {
-		restartTracker = noRestartsTracker()
+		tr.restartTracker = noRestartsTracker()
 	}
-
-	tr := NewTaskRunner(logger, conf, upd.Update, ctx, mock.Alloc(), task, restartTracker, consulClient)
 	return upd, tr
 }
 
@@ -172,8 +169,7 @@ func TestTaskRunner_SaveRestoreState(t *testing.T) {
 	// Create a new task runner
 	consulClient, _ := NewConsulService(&consulServiceConfig{tr.logger, "127.0.0.1:8500", "", "", false, false, &structs.Node{}})
 	tr2 := NewTaskRunner(tr.logger, tr.config, upd.Update,
-		tr.ctx, tr.alloc, &structs.Task{Name: tr.task.Name}, tr.restartTracker,
-		consulClient)
+		tr.ctx, tr.alloc, &structs.Task{Name: tr.task.Name}, consulClient)
 	if err := tr2.RestoreState(); err != nil {
 		t.Fatalf("err: %v", err)
 	}

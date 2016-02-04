@@ -52,7 +52,15 @@ type TaskStateUpdater func(taskName, state string, event *structs.TaskEvent)
 func NewTaskRunner(logger *log.Logger, config *config.Config,
 	updater TaskStateUpdater, ctx *driver.ExecContext,
 	alloc *structs.Allocation, task *structs.Task,
-	restartTracker *RestartTracker, consulService *ConsulService) *TaskRunner {
+	consulService *ConsulService) *TaskRunner {
+
+	// Build the restart tracker.
+	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+	if tg == nil {
+		logger.Printf("[ERR] client: alloc '%s' for missing task group '%s'", alloc.ID, alloc.TaskGroup)
+		return nil
+	}
+	restartTracker := newRestartTracker(tg.RestartPolicy, alloc.Job.Type)
 
 	tc := &TaskRunner{
 		config:         config,
