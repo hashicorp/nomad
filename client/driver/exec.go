@@ -226,6 +226,9 @@ func (h *execHandle) Kill() error {
 	case <-h.doneCh:
 		return nil
 	case <-time.After(h.killTimeout):
+		if h.pluginClient.Exited() {
+			return nil
+		}
 		err := h.executor.Exit()
 		return err
 	}

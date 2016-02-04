@@ -152,18 +152,24 @@ func (e *UniversalExecutor) Exit() error {
 	if e.ctx.ResourceLimits {
 		e.destroyCgroup()
 	}
-	return proc.Kill()
+	if err = proc.Kill(); err != nil {
+		e.logger.Printf("[DEBUG] executor.exit error: %v", err)
+	}
+	return nil
 }
 
 func (e *UniversalExecutor) ShutDown() error {
 	proc, err := os.FindProcess(e.cmd.Process.Pid)
 	if err != nil {
-		return err
+		return fmt.Errorf("executor.shutdown error: %v", err)
 	}
 	if runtime.GOOS == "windows" {
 		return proc.Kill()
 	}
-	return proc.Signal(os.Interrupt)
+	if err = proc.Signal(os.Interrupt); err != nil {
+		return fmt.Errorf("executor.shutdown error: %v", err)
+	}
+	return nil
 }
 
 func (e *UniversalExecutor) configureTaskDir() error {
