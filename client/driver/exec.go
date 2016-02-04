@@ -115,9 +115,12 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		return nil, err
 	}
 	executorCtx := &plugins.ExecutorContext{
-		TaskEnv:  d.taskEnv,
-		AllocDir: ctx.AllocDir,
-		Task:     task,
+		TaskEnv:          d.taskEnv,
+		AllocDir:         ctx.AllocDir,
+		Task:             task,
+		ResourceLimits:   true,
+		FSIsolation:      true,
+		UnprivilegedUser: false,
 	}
 	ps, err := executor.LaunchCmd(&plugins.ExecCommand{Cmd: command, Args: driverConfig.Args}, executorCtx)
 	if err != nil {
