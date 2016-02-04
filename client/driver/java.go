@@ -114,7 +114,7 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 
 	// Proceed to download an artifact to be executed.
 	path, err := getter.GetArtifact(
-		filepath.Join(taskDir, allocdir.TaskLocal),
+		taskDir,
 		driverConfig.ArtifactSource,
 		driverConfig.Checksum,
 		d.logger,

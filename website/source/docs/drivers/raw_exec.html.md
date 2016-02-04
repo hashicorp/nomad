@@ -75,7 +75,7 @@ To execute a binary specified by `artifact_source`:
   config {
     artifact_source = "https://dl.dropboxusercontent.com/u/1234/binary.bin"
     checksum = "sha256:133jifjiofu9090fsadjofsdjlk"
-    command = "$NOMAD_TASK_DIR/binary.bin"
+    command = "binary.bin"
   }
 ```
 

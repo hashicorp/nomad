@@ -4,10 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"path/filepath"
 	"time"
 
-	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/executor"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
@@ -80,7 +78,7 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 	if ok && source != "" {
 		// Proceed to download an artifact to be executed.
 		_, err := getter.GetArtifact(
-			filepath.Join(taskDir, allocdir.TaskLocal),
+			taskDir,
 			driverConfig.ArtifactSource,
 			driverConfig.Checksum,
 			d.logger,
