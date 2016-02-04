@@ -228,8 +228,7 @@ func (h *rawExecHandle) Kill() error {
 	case <-h.doneCh:
 		return nil
 	case <-time.After(h.killTimeout):
-		err := h.executor.Exit()
-		return err
+		return h.executor.Exit()
 	}
 }
 

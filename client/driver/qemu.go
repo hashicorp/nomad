@@ -11,12 +11,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/driver/executor"
+	"github.com/hashicorp/nomad/client/driver/plugins"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/client/getter"
+	"github.com/hashicorp/nomad/helper/discover"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/mapstructure"
 )
@@ -42,11 +44,13 @@ type QemuDriverConfig struct {
 
 // qemuHandle is returned from Start/Open as a handle to the PID
 type qemuHandle struct {
-	cmd         executor.Executor
-	killTimeout time.Duration
-	logger      *log.Logger
-	waitCh      chan *cstructs.WaitResult
-	doneCh      chan struct{}
+	pluginClient *plugin.Client
+	userPid      int
+	executor     plugins.Executor
+	killTimeout  time.Duration
+	logger       *log.Logger
+	waitCh       chan *cstructs.WaitResult
+	doneCh       chan struct{}
 }
 
 // NewQemuDriver is used to create a new exec driver
@@ -183,39 +187,71 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		)
 	}
 
-	// Setup the command
-	execCtx := executor.NewExecutorContext(d.taskEnv)
-	cmd := executor.Command(execCtx, args[0], args[1:]...)
-	if err := cmd.Limit(task.Resources); err != nil {
-		return nil, fmt.Errorf("failed to constrain resources: %s", err)
-	}
-
-	if err := cmd.ConfigureTaskDir(d.taskName, ctx.AllocDir); err != nil {
-		return nil, fmt.Errorf("failed to configure task directory: %v", err)
-	}
-
 	d.logger.Printf("[DEBUG] Starting QemuVM command: %q", strings.Join(args, " "))
-	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("failed to start command: %v", err)
+	bin, err := discover.NomadExecutable()
+	if err != nil {
+		return nil, fmt.Errorf("unable to find the nomad binary: %v", err)
 	}
+	pluginConfig := &plugin.ClientConfig{
+		HandshakeConfig: plugins.HandshakeConfig,
+		Plugins:         plugins.PluginMap,
+		Cmd:             exec.Command(bin, "executor"),
+		SyncStdout:      d.config.LogOutput,
+		SyncStderr:      d.config.LogOutput,
+	}
+
+	executor, pluginClient, err := d.executor(pluginConfig)
+	if err != nil {
+		return nil, err
+	}
+	executorCtx := &plugins.ExecutorContext{
+		TaskEnv:  d.taskEnv,
+		AllocDir: ctx.AllocDir,
+		Task:     task,
+	}
+	ps, err := executor.LaunchCmd(&plugins.ExecCommand{Cmd: args[0], Args: args[1:]}, executorCtx)
+	if err != nil {
+		pluginClient.Kill()
+		return nil, fmt.Errorf("error starting process via the plugin: %v", err)
+	}
+	d.logger.Printf("[INFO] started process with pid: %v", ps.Pid)
 	d.logger.Printf("[INFO] Started new QemuVM: %s", vmID)
 
 	// Create and Return Handle
 	h := &qemuHandle{
-		cmd:         cmd,
-		killTimeout: d.DriverContext.KillTimeout(task),
-		logger:      d.logger,
-		doneCh:      make(chan struct{}),
-		waitCh:      make(chan *cstructs.WaitResult, 1),
+		pluginClient: pluginClient,
+		executor:     executor,
+		userPid:      ps.Pid,
+		killTimeout:  d.DriverContext.KillTimeout(task),
+		logger:       d.logger,
+		doneCh:       make(chan struct{}),
+		waitCh:       make(chan *cstructs.WaitResult, 1),
 	}
 
 	go h.run()
 	return h, nil
 }
 
+func (d *QemuDriver) executor(config *plugin.ClientConfig) (plugins.Executor, *plugin.Client, error) {
+	executorClient := plugin.NewClient(config)
+	rpcClient, err := executorClient.Client()
+	if err != nil {
+		return nil, nil, fmt.Errorf("error creating rpc client for executor plugin: %v", err)
+	}
+	rpcClient.SyncStreams(d.config.LogOutput, d.config.LogOutput)
+
+	raw, err := rpcClient.Dispense("executor")
+	if err != nil {
+		return nil, nil, fmt.Errorf("unable to dispense the executor plugin: %v", err)
+	}
+	executorPlugin := raw.(plugins.Executor)
+	return executorPlugin, executorClient, nil
+}
+
 type qemuId struct {
-	ExecutorId  string
-	KillTimeout time.Duration
+	KillTimeout  time.Duration
+	PluginConfig *plugin.ReattachConfig
+	UserPid      int
 }
 
 func (d *QemuDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {
@@ -224,30 +260,42 @@ func (d *QemuDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		return nil, fmt.Errorf("Failed to parse handle '%s': %v", handleID, err)
 	}
 
-	// Find the process
-	execCtx := executor.NewExecutorContext(d.taskEnv)
-	cmd, err := executor.OpenId(execCtx, id.ExecutorId)
+	bin, err := discover.NomadExecutable()
 	if err != nil {
-		return nil, fmt.Errorf("failed to open ID %v: %v", id.ExecutorId, err)
+		return nil, fmt.Errorf("unable to find the nomad binary: %v", err)
+	}
+	pluginConfig := &plugin.ClientConfig{
+		HandshakeConfig: plugins.HandshakeConfig,
+		Plugins:         plugins.PluginMap,
+		Cmd:             exec.Command(bin, "executor"),
+		Reattach:        id.PluginConfig,
+		SyncStdout:      d.config.LogOutput,
+		SyncStderr:      d.config.LogOutput,
+	}
+	executor, client, err := d.executor(pluginConfig)
+	if err != nil {
+		return nil, fmt.Errorf("error connecting to plugin: %v", err)
 	}
 
 	// Return a driver handle
-	h := &execHandle{
-		cmd:         cmd,
-		logger:      d.logger,
-		killTimeout: id.KillTimeout,
-		doneCh:      make(chan struct{}),
-		waitCh:      make(chan *cstructs.WaitResult, 1),
+	h := &qemuHandle{
+		pluginClient: client,
+		executor:     executor,
+		userPid:      id.UserPid,
+		logger:       d.logger,
+		killTimeout:  id.KillTimeout,
+		doneCh:       make(chan struct{}),
+		waitCh:       make(chan *cstructs.WaitResult, 1),
 	}
 	go h.run()
 	return h, nil
 }
 
 func (h *qemuHandle) ID() string {
-	executorId, _ := h.cmd.ID()
 	id := qemuId{
-		ExecutorId:  executorId,
-		KillTimeout: h.killTimeout,
+		KillTimeout:  h.killTimeout,
+		PluginConfig: h.pluginClient.ReattachConfig(),
+		UserPid:      h.userPid,
 	}
 
 	data, err := json.Marshal(id)
@@ -272,18 +320,19 @@ func (h *qemuHandle) Update(task *structs.Task) error {
 // TODO: allow a 'shutdown_command' that can be executed over a ssh connection
 // to the VM
 func (h *qemuHandle) Kill() error {
-	h.cmd.Shutdown()
+	h.executor.ShutDown()
 	select {
 	case <-h.doneCh:
 		return nil
 	case <-time.After(h.killTimeout):
-		return h.cmd.ForceStop()
+		return h.executor.Exit()
 	}
 }
 
 func (h *qemuHandle) run() {
-	res := h.cmd.Wait()
+	ps, err := h.executor.Wait()
 	close(h.doneCh)
-	h.waitCh <- res
+	h.waitCh <- &cstructs.WaitResult{ExitCode: ps.ExitCode, Signal: 0, Err: err}
 	close(h.waitCh)
+	h.pluginClient.Kill()
 }
