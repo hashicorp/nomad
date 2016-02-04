@@ -131,7 +131,7 @@ func TestTaskRunner_Update(t *testing.T) {
 
 	// Change command to ensure we run for a bit
 	tr.task.Config["command"] = "/bin/sleep"
-	tr.task.Config["args"] = []string{"10"}
+	tr.task.Config["args"] = []string{"100"}
 	go tr.Run()
 	defer tr.Destroy()
 	defer tr.ctx.AllocDir.Destroy()
@@ -148,6 +148,15 @@ func TestTaskRunner_Update(t *testing.T) {
 	newTask.Driver = "foobar"
 
 	// Update the kill timeout
+	testutil.WaitForResult(func() (bool, error) {
+		if tr.handle == nil {
+			return false, fmt.Errorf("task not started")
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
 	oldHandle := tr.handle.ID()
 	newTask.KillTimeout = time.Hour
 
