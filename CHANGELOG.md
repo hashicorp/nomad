@@ -30,6 +30,7 @@ IMPROVEMENTS:
   * driver/rkt: Add support for mounting alloc/task directory [GH-645]
 
 BUG FIXES:
+  * core: Node drain could only be partially applied [GH-750]
   * cli: Handle parsing of un-named ports [GH-604]
   * cli: Enforce absolute paths for data directories [GH-622]
   * client: Handle non-200 codes when parsing AWS metadata [GH-614]
