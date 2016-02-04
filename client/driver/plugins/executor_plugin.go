@@ -2,6 +2,7 @@ package plugins
 
 import (
 	"log"
+	"net"
 	"net/rpc"
 	"os"
 
@@ -16,6 +17,27 @@ var HandshakeConfig = plugin.HandshakeConfig{
 
 var PluginMap = map[string]plugin.Plugin{
 	"executor": new(ExecutorPlugin),
+}
+
+type ExecutorReattachConfig struct {
+	Pid      int
+	AddrNet  string
+	AddrName string
+}
+
+func (c *ExecutorReattachConfig) PluginConfig() *plugin.ReattachConfig {
+	var addr net.Addr
+	switch c.AddrNet {
+	case "unix", "unixgram", "unixpacket":
+		addr, _ = net.ResolveUnixAddr(c.AddrNet, c.AddrName)
+	case "tcp", "tcp4", "tcp6":
+		addr, _ = net.ResolveTCPAddr(c.AddrNet, c.AddrName)
+	}
+	return &plugin.ReattachConfig{Pid: c.Pid, Addr: addr}
+}
+
+func NewExecutorReattachConfig(c *plugin.ReattachConfig) *ExecutorReattachConfig {
+	return &ExecutorReattachConfig{Pid: c.Pid, AddrNet: c.Addr.Network(), AddrName: c.Addr.String()}
 }
 
 type ExecutorRPC struct {

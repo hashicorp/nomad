@@ -115,7 +115,8 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	executorCtx := &plugins.ExecutorContext{
 		TaskEnv:          d.taskEnv,
 		AllocDir:         ctx.AllocDir,
-		Task:             task,
+		TaskName:         task.Name,
+		TaskResources:    task.Resources,
 		ResourceLimits:   true,
 		FSIsolation:      true,
 		UnprivilegedUser: false,
@@ -143,7 +144,7 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 
 type execId struct {
 	KillTimeout  time.Duration
-	PluginConfig *plugin.ReattachConfig
+	PluginConfig *plugins.ExecutorReattachConfig
 }
 
 func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {
@@ -152,16 +153,12 @@ func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		return nil, fmt.Errorf("Failed to parse handle '%s': %v", handleID, err)
 	}
 
-	bin, err := discover.NomadExecutable()
-	if err != nil {
-		return nil, fmt.Errorf("unable to find the nomad binary: %v", err)
-	}
+	reattachConfig := id.PluginConfig.PluginConfig()
 
 	pluginConfig := &plugin.ClientConfig{
 		HandshakeConfig: plugins.HandshakeConfig,
 		Plugins:         plugins.PluginMap,
-		Cmd:             exec.Command(bin, "executor"),
-		Reattach:        id.PluginConfig,
+		Reattach:        reattachConfig,
 	}
 	executor, client, err := d.executor(pluginConfig)
 	if err != nil {
@@ -199,7 +196,7 @@ func (d *ExecDriver) executor(config *plugin.ClientConfig) (plugins.Executor, *p
 func (h *execHandle) ID() string {
 	id := execId{
 		KillTimeout:  h.killTimeout,
-		PluginConfig: h.pluginClient.ReattachConfig(),
+		PluginConfig: plugins.NewExecutorReattachConfig(h.pluginClient.ReattachConfig()),
 	}
 
 	data, err := json.Marshal(id)

@@ -205,9 +205,10 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		return nil, err
 	}
 	executorCtx := &plugins.ExecutorContext{
-		TaskEnv:  d.taskEnv,
-		AllocDir: ctx.AllocDir,
-		Task:     task,
+		TaskEnv:       d.taskEnv,
+		AllocDir:      ctx.AllocDir,
+		TaskName:      task.Name,
+		TaskResources: task.Resources,
 	}
 	ps, err := executor.LaunchCmd(&plugins.ExecCommand{Cmd: args[0], Args: args[1:]}, executorCtx)
 	if err != nil {

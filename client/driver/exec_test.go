@@ -70,6 +70,9 @@ func TestExecDriver_StartOpen_Wait(t *testing.T) {
 	if handle2 == nil {
 		t.Fatalf("missing handle")
 	}
+
+	handle.Kill()
+	handle2.Kill()
 }
 
 func TestExecDriver_Start_Wait(t *testing.T) {

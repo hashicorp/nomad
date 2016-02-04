@@ -21,7 +21,8 @@ import (
 type ExecutorContext struct {
 	TaskEnv          *env.TaskEnvironment
 	AllocDir         *allocdir.AllocDir
-	Task             *structs.Task
+	TaskName         string
+	TaskResources    *structs.Resources
 	FSIsolation      bool
 	ResourceLimits   bool
 	UnprivilegedUser bool
@@ -85,14 +86,14 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext
 		}
 	}
 
-	stdoPath := filepath.Join(e.taskDir, allocdir.TaskLocal, fmt.Sprintf("%v.stdout", ctx.Task.Name))
+	stdoPath := filepath.Join(e.taskDir, allocdir.TaskLocal, fmt.Sprintf("%v.stdout", ctx.TaskName))
 	stdo, err := os.OpenFile(stdoPath, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
 	if err != nil {
 		return nil, err
 	}
 	e.cmd.Stdout = stdo
 
-	stdePath := filepath.Join(e.taskDir, allocdir.TaskLocal, fmt.Sprintf("%v.stderr", ctx.Task.Name))
+	stdePath := filepath.Join(e.taskDir, allocdir.TaskLocal, fmt.Sprintf("%v.stderr", ctx.TaskName))
 	stde, err := os.OpenFile(stdePath, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
 	if err != nil {
 		return nil, err
@@ -138,7 +139,7 @@ func (e *UniversalExecutor) wait() {
 }
 
 func (e *UniversalExecutor) Exit() error {
-	e.logger.Printf("[INFO] Exiting plugin for task %q", e.ctx.Task.Name)
+	e.logger.Printf("[INFO] Exiting plugin for task %q", e.ctx.TaskName)
 	proc, err := os.FindProcess(e.cmd.Process.Pid)
 	if err != nil {
 		return fmt.Errorf("failied to find user process %v: %v", e.cmd.Process.Pid, err)
@@ -164,10 +165,10 @@ func (e *UniversalExecutor) ShutDown() error {
 }
 
 func (e *UniversalExecutor) configureTaskDir() error {
-	taskDir, ok := e.ctx.AllocDir.TaskDirs[e.ctx.Task.Name]
+	taskDir, ok := e.ctx.AllocDir.TaskDirs[e.ctx.TaskName]
 	e.taskDir = taskDir
 	if !ok {
-		return fmt.Errorf("Couldn't find task directory for task %v", e.ctx.Task.Name)
+		return fmt.Errorf("Couldn't find task directory for task %v", e.ctx.TaskName)
 	}
 	e.cmd.Dir = taskDir
 	return nil

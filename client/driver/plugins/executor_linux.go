@@ -41,7 +41,7 @@ func (e *UniversalExecutor) configureIsolation() error {
 	}
 
 	if e.ctx.ResourceLimits {
-		if err := e.configureCgroups(e.ctx.Task.Resources); err != nil {
+		if err := e.configureCgroups(e.ctx.TaskResources); err != nil {
 			return fmt.Errorf("error creating cgroups: %v", err)
 		}
 	}
@@ -142,11 +142,11 @@ func (e *UniversalExecutor) pathExists(path string) bool {
 
 func (e *UniversalExecutor) configureChroot() error {
 	allocDir := e.ctx.AllocDir
-	if err := allocDir.MountSharedDir(e.ctx.Task.Name); err != nil {
+	if err := allocDir.MountSharedDir(e.ctx.TaskName); err != nil {
 		return err
 	}
 
-	if err := allocDir.Embed(e.ctx.Task.Name, chrootEnv); err != nil {
+	if err := allocDir.Embed(e.ctx.TaskName, chrootEnv); err != nil {
 		return err
 	}
 
