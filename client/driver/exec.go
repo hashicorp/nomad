@@ -151,7 +151,6 @@ func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 	}
 
 	reattachConfig := id.PluginConfig.PluginConfig()
-
 	pluginConfig := &plugin.ClientConfig{
 		Reattach: reattachConfig,
 	}

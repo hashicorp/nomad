@@ -149,11 +149,7 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		return nil, fmt.Errorf("unable to find the nomad binary: %v", err)
 	}
 	pluginConfig := &plugin.ClientConfig{
-		HandshakeConfig: plugins.HandshakeConfig,
-		Plugins:         plugins.PluginMap,
-		Cmd:             exec.Command(bin, "executor"),
-		SyncStdout:      d.config.LogOutput,
-		SyncStderr:      d.config.LogOutput,
+		Cmd: exec.Command(bin, "executor"),
 	}
 
 	executor, pluginClient, err := d.executor(pluginConfig)
@@ -189,12 +185,16 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 }
 
 func (d *JavaDriver) executor(config *plugin.ClientConfig) (plugins.Executor, *plugin.Client, error) {
+	config.HandshakeConfig = plugins.HandshakeConfig
+	config.Plugins = plugins.PluginMap
+	config.SyncStdout = d.config.LogOutput
+	config.SyncStderr = d.config.LogOutput
+
 	executorClient := plugin.NewClient(config)
 	rpcClient, err := executorClient.Client()
 	if err != nil {
 		return nil, nil, fmt.Errorf("error creating rpc client for executor plugin: %v", err)
 	}
-	rpcClient.SyncStreams(d.config.LogOutput, d.config.LogOutput)
 
 	raw, err := rpcClient.Dispense("executor")
 	if err != nil {
@@ -206,7 +206,7 @@ func (d *JavaDriver) executor(config *plugin.ClientConfig) (plugins.Executor, *p
 
 type javaId struct {
 	KillTimeout  time.Duration
-	PluginConfig *plugin.ReattachConfig
+	PluginConfig *plugins.ExecutorReattachConfig
 	UserPid      int
 }
 
@@ -216,18 +216,9 @@ func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		return nil, fmt.Errorf("Failed to parse handle '%s': %v", handleID, err)
 	}
 
-	bin, err := discover.NomadExecutable()
-	if err != nil {
-		return nil, fmt.Errorf("unable to find the nomad binary: %v", err)
-	}
-
+	reattachConfig := id.PluginConfig.PluginConfig()
 	pluginConfig := &plugin.ClientConfig{
-		HandshakeConfig: plugins.HandshakeConfig,
-		Plugins:         plugins.PluginMap,
-		Cmd:             exec.Command(bin, "executor"),
-		Reattach:        id.PluginConfig,
-		SyncStdout:      d.config.LogOutput,
-		SyncStderr:      d.config.LogOutput,
+		Reattach: reattachConfig,
 	}
 	executor, client, err := d.executor(pluginConfig)
 	if err != nil {
@@ -252,7 +243,7 @@ func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 func (h *javaHandle) ID() string {
 	id := javaId{
 		KillTimeout:  h.killTimeout,
-		PluginConfig: h.pluginClient.ReattachConfig(),
+		PluginConfig: plugins.NewExecutorReattachConfig(h.pluginClient.ReattachConfig()),
 		UserPid:      h.userPid,
 	}
 

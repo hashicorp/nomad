@@ -193,11 +193,7 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		return nil, fmt.Errorf("unable to find the nomad binary: %v", err)
 	}
 	pluginConfig := &plugin.ClientConfig{
-		HandshakeConfig: plugins.HandshakeConfig,
-		Plugins:         plugins.PluginMap,
-		Cmd:             exec.Command(bin, "executor"),
-		SyncStdout:      d.config.LogOutput,
-		SyncStderr:      d.config.LogOutput,
+		Cmd: exec.Command(bin, "executor"),
 	}
 
 	executor, pluginClient, err := d.executor(pluginConfig)
@@ -234,6 +230,10 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 }
 
 func (d *QemuDriver) executor(config *plugin.ClientConfig) (plugins.Executor, *plugin.Client, error) {
+	config.HandshakeConfig = plugins.HandshakeConfig
+	config.Plugins = plugins.PluginMap
+	config.SyncStdout = d.config.LogOutput
+	config.SyncStderr = d.config.LogOutput
 	executorClient := plugin.NewClient(config)
 	rpcClient, err := executorClient.Client()
 	if err != nil {
@@ -251,8 +251,8 @@ func (d *QemuDriver) executor(config *plugin.ClientConfig) (plugins.Executor, *p
 
 type qemuId struct {
 	KillTimeout  time.Duration
-	PluginConfig *plugin.ReattachConfig
 	UserPid      int
+	PluginConfig *plugins.ExecutorReattachConfig
 }
 
 func (d *QemuDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {
@@ -261,18 +261,11 @@ func (d *QemuDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		return nil, fmt.Errorf("Failed to parse handle '%s': %v", handleID, err)
 	}
 
-	bin, err := discover.NomadExecutable()
-	if err != nil {
-		return nil, fmt.Errorf("unable to find the nomad binary: %v", err)
-	}
+	reattachConfig := id.PluginConfig.PluginConfig()
 	pluginConfig := &plugin.ClientConfig{
-		HandshakeConfig: plugins.HandshakeConfig,
-		Plugins:         plugins.PluginMap,
-		Cmd:             exec.Command(bin, "executor"),
-		Reattach:        id.PluginConfig,
-		SyncStdout:      d.config.LogOutput,
-		SyncStderr:      d.config.LogOutput,
+		Reattach: reattachConfig,
 	}
+
 	executor, client, err := d.executor(pluginConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error connecting to plugin: %v", err)
@@ -295,7 +288,7 @@ func (d *QemuDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 func (h *qemuHandle) ID() string {
 	id := qemuId{
 		KillTimeout:  h.killTimeout,
-		PluginConfig: h.pluginClient.ReattachConfig(),
+		PluginConfig: plugins.NewExecutorReattachConfig(h.pluginClient.ReattachConfig()),
 		UserPid:      h.userPid,
 	}
 

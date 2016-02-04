@@ -142,6 +142,9 @@ func (e *UniversalExecutor) wait() {
 
 func (e *UniversalExecutor) Exit() error {
 	e.logger.Printf("[INFO] Exiting plugin for task %q", e.ctx.TaskName)
+	if e.cmd.Process == nil {
+		return fmt.Errorf("executor.exit error: no process found")
+	}
 	proc, err := os.FindProcess(e.cmd.Process.Pid)
 	if err != nil {
 		return fmt.Errorf("failied to find user process %v: %v", e.cmd.Process.Pid, err)
@@ -159,6 +162,9 @@ func (e *UniversalExecutor) Exit() error {
 }
 
 func (e *UniversalExecutor) ShutDown() error {
+	if e.cmd.Process == nil {
+		return fmt.Errorf("executor.shutdown error: no process found")
+	}
 	proc, err := os.FindProcess(e.cmd.Process.Pid)
 	if err != nil {
 		return fmt.Errorf("executor.shutdown error: %v", err)
