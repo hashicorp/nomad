@@ -19,11 +19,12 @@ import (
 )
 
 type ExecutorContext struct {
-	TaskEnv  *env.TaskEnvironment
-	AllocDir *allocdir.AllocDir
-	Task     *structs.Task
-	Chroot   bool
-	Limits   bool
+	TaskEnv          *env.TaskEnvironment
+	AllocDir         *allocdir.AllocDir
+	Task             *structs.Task
+	FSIsolation      bool
+	ResourceLimits   bool
+	UnprivilegedUser bool
 }
 
 type ExecCommand struct {
@@ -77,8 +78,10 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext
 		return nil, err
 	}
 
-	if err := e.runAs("nobody"); err != nil {
-		return nil, err
+	if e.ctx.UnprivilegedUser {
+		if err := e.runAs("nobody"); err != nil {
+			return nil, err
+		}
 	}
 
 	stdoPath := filepath.Join(e.taskDir, allocdir.TaskLocal, fmt.Sprintf("%v.stdout", ctx.Task.Name))
@@ -116,10 +119,10 @@ func (e *UniversalExecutor) Wait() (*ProcessState, error) {
 			exitCode = status.ExitStatus()
 		}
 	}
-	if e.ctx.Chroot {
+	if e.ctx.FSIsolation {
 		e.removeChrootMounts()
 	}
-	if e.ctx.Limits {
+	if e.ctx.ResourceLimits {
 		e.destroyCgroup()
 	}
 	return &ProcessState{Pid: 0, ExitCode: exitCode, Time: time.Now()}, nil
@@ -131,10 +134,10 @@ func (e *UniversalExecutor) Exit() error {
 	if err != nil {
 		return fmt.Errorf("failied to find user process %v: %v", e.cmd.Process.Pid, err)
 	}
-	if e.ctx.Chroot {
+	if e.ctx.FSIsolation {
 		e.removeChrootMounts()
 	}
-	if e.ctx.Limits {
+	if e.ctx.ResourceLimits {
 		e.destroyCgroup()
 	}
 	return proc.Kill()

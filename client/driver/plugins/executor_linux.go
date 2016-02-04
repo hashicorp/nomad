@@ -34,13 +34,13 @@ var (
 )
 
 func (e *UniversalExecutor) configureIsolation() error {
-	if e.ctx.Chroot {
+	if e.ctx.FSIsolation {
 		if err := e.configureChroot(); err != nil {
 			return err
 		}
 	}
 
-	if e.ctx.Limits {
+	if e.ctx.ResourceLimits {
 		if err := e.configureCgroups(e.ctx.Task.Resources); err != nil {
 			return fmt.Errorf("error creating cgroups: %v", err)
 		}
@@ -49,7 +49,7 @@ func (e *UniversalExecutor) configureIsolation() error {
 }
 
 func (e *UniversalExecutor) applyLimits() error {
-	if !e.ctx.Limits {
+	if !e.ctx.ResourceLimits {
 		return nil
 	}
 	manager := e.getCgroupManager(e.groups)
