@@ -37,6 +37,8 @@ BUG FIXES:
   * cli: Handle parsing of un-named ports [GH-604]
   * cli: Enforce absolute paths for data directories [GH-622]
   * client: Handle non-200 codes when parsing AWS metadata [GH-614]
+  * client: Cleanup of the allocation directory [GH-755]
+  * client: Unmounted of shared alloc dir when client is rebooted [GH-755]
   * driver/rkt: handle broader format of rkt version outputs [GH-745]
   * driver/qemu: failed to load image and kvm accelerator fixes [GH-656]
 
