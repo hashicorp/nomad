@@ -142,7 +142,6 @@ func (d *RawExecDriver) executor(config *plugin.ClientConfig) (plugins.Executor,
 	if err != nil {
 		return nil, nil, fmt.Errorf("error creating rpc client for executor plugin: %v", err)
 	}
-	rpcClient.SyncStreams(d.config.LogOutput, d.config.LogOutput)
 
 	raw, err := rpcClient.Dispense("executor")
 	if err != nil {

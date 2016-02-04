@@ -142,7 +142,6 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 }
 
 type execId struct {
-	//ExecutorId   string
 	KillTimeout  time.Duration
 	PluginConfig *plugin.ReattachConfig
 }
@@ -188,7 +187,6 @@ func (d *ExecDriver) executor(config *plugin.ClientConfig) (plugins.Executor, *p
 	if err != nil {
 		return nil, nil, fmt.Errorf("error creating rpc client for executor plugin: %v", err)
 	}
-	rpcClient.SyncStreams(d.config.LogOutput, d.config.LogOutput)
 
 	raw, err := rpcClient.Dispense("executor")
 	if err != nil {
