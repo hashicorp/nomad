@@ -36,6 +36,7 @@ type RawExecDriver struct {
 // rawExecHandle is returned from Start/Open as a handle to the PID
 type rawExecHandle struct {
 	pluginClient *plugin.Client
+	userPid      int
 	executor     plugins.Executor
 	killTimeout  time.Duration
 	logger       *log.Logger
@@ -102,6 +103,8 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 		HandshakeConfig: plugins.HandshakeConfig,
 		Plugins:         plugins.PluginMap,
 		Cmd:             exec.Command(bin, "executor"),
+		SyncStdout:      d.config.LogOutput,
+		SyncStderr:      d.config.LogOutput,
 	}
 
 	executor, pluginClient, err := d.executor(pluginConfig)
@@ -115,6 +118,7 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 	}
 	ps, err := executor.LaunchCmd(&plugins.ExecCommand{Cmd: command, Args: driverConfig.Args}, executorCtx)
 	if err != nil {
+		pluginClient.Kill()
 		return nil, fmt.Errorf("error starting process via the plugin: %v", err)
 	}
 	d.logger.Printf("DIPTANU Started process via plugin: %#v", ps)
@@ -123,6 +127,7 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 	h := &rawExecHandle{
 		pluginClient: pluginClient,
 		executor:     executor,
+		userPid:      ps.Pid,
 		killTimeout:  d.DriverContext.KillTimeout(task),
 		logger:       d.logger,
 		doneCh:       make(chan struct{}),
@@ -150,6 +155,7 @@ func (d *RawExecDriver) executor(config *plugin.ClientConfig) (plugins.Executor,
 type rawExecId struct {
 	KillTimeout  time.Duration
 	PluginConfig *plugin.ReattachConfig
+	UserPid      int
 }
 
 func (d *RawExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {
@@ -168,6 +174,8 @@ func (d *RawExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, e
 		Plugins:         plugins.PluginMap,
 		Cmd:             exec.Command(bin, "executor"),
 		Reattach:        id.PluginConfig,
+		SyncStdout:      d.config.LogOutput,
+		SyncStderr:      d.config.LogOutput,
 	}
 	executor, client, err := d.executor(pluginConfig)
 	if err != nil {
@@ -191,6 +199,7 @@ func (h *rawExecHandle) ID() string {
 	id := rawExecId{
 		KillTimeout:  h.killTimeout,
 		PluginConfig: h.pluginClient.ReattachConfig(),
+		UserPid:      h.userPid,
 	}
 
 	data, err := json.Marshal(id)

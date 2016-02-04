@@ -63,7 +63,6 @@ func NewExecutor(logger *log.Logger) Executor {
 }
 
 func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext) (*ProcessState, error) {
-	e.logger.Printf("LAUNCH COMMAND")
 	e.ctx = ctx
 	e.cmd.Path = command.Cmd
 	e.cmd.Args = append([]string{command.Cmd}, command.Args...)
@@ -165,9 +164,7 @@ func (e *UniversalExecutor) ShutDown() error {
 }
 
 func (e *UniversalExecutor) configureTaskDir() error {
-	e.logger.Printf("DIPTANNUUUU CONDIFURE")
 	taskDir, ok := e.ctx.AllocDir.TaskDirs[e.ctx.Task.Name]
-	fmt.Printf("DIPTANU TASKDIR : %v", taskDir)
 	e.taskDir = taskDir
 	if !ok {
 		return fmt.Errorf("Couldn't find task directory for task %v", e.ctx.Task.Name)

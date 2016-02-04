@@ -1,6 +1,7 @@
 package plugins
 
 import (
+	"fmt"
 	"log"
 	"net/rpc"
 	"os"
@@ -28,9 +29,9 @@ type LaunchCmdArgs struct {
 }
 
 func (e *ExecutorRPC) LaunchCmd(cmd *ExecCommand, ctx *ExecutorContext) (*ProcessState, error) {
-	var ps ProcessState
-	err := e.client.Call("Plugin.LaunchCmd", LaunchCmdArgs{Cmd: cmd, Ctx: ctx}, &ps)
-	return &ps, err
+	ps := new(ProcessState)
+	err := e.client.Call("Plugin.LaunchCmd", LaunchCmdArgs{Cmd: cmd, Ctx: ctx}, ps)
+	return ps, err
 }
 
 func (e *ExecutorRPC) Wait() (*ProcessState, error) {
@@ -58,6 +59,7 @@ type ExecutorRPCServer struct {
 func (e *ExecutorRPCServer) LaunchCmd(args LaunchCmdArgs, ps *ProcessState) error {
 	var err error
 	ps, err = e.Impl.LaunchCmd(args.Cmd, args.Ctx)
+	fmt.Printf("DIPTANU PS Server : %#v", ps)
 	return err
 }
 
