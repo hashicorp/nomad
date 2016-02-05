@@ -1,10 +1,10 @@
 package driver
 
 import (
+	"io"
 	"log"
 	"net"
 	"net/rpc"
-	"os"
 
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/driver/executor"
@@ -16,8 +16,10 @@ var HandshakeConfig = plugin.HandshakeConfig{
 	MagicCookieValue: "e4327c2e01eabfd75a8a67adb114fb34a757d57eee7728d857a8cec6e91a7255",
 }
 
-var PluginMap = map[string]plugin.Plugin{
-	"executor": new(ExecutorPlugin),
+func GetPluginMap(w io.Writer) map[string]plugin.Plugin {
+	p := new(ExecutorPlugin)
+	p.logger = log.New(w, "executor-plugin-server:", log.LstdFlags)
+	return map[string]plugin.Plugin{"executor": p}
 }
 
 // ExecutorReattachConfig is the config that we seralize and de-serialize and
@@ -107,11 +109,9 @@ type ExecutorPlugin struct {
 }
 
 func (p *ExecutorPlugin) Server(*plugin.MuxBroker) (interface{}, error) {
-	p.logger = log.New(os.Stdout, "executor-plugin-server:", log.LstdFlags)
 	return &ExecutorRPCServer{Impl: executor.NewExecutor(p.logger)}, nil
 }
 
 func (p *ExecutorPlugin) Client(b *plugin.MuxBroker, c *rpc.Client) (interface{}, error) {
-	p.logger = log.New(os.Stdout, "executor-plugin-client:", log.LstdFlags)
 	return &ExecutorRPC{client: c}, nil
 }

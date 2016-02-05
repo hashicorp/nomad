@@ -77,6 +77,8 @@ func NewExecutor(logger *log.Logger) Executor {
 // LaunchCmd launches a process and returns it's state. It also configures an
 // applies isolation on certain platforms.
 func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext) (*ProcessState, error) {
+	e.logger.Printf("[INFO] executor: launching command %v", command.Cmd)
+
 	e.ctx = ctx
 
 	if err := e.configureTaskDir(); err != nil {

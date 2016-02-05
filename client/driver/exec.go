@@ -103,8 +103,9 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	if err != nil {
 		return nil, fmt.Errorf("unable to find the nomad binary: %v", err)
 	}
+	pluginLogFile := filepath.Join(ctx.AllocDir.AllocDir, "plugin.out")
 	pluginConfig := &plugin.ClientConfig{
-		Cmd: exec.Command(bin, "executor"),
+		Cmd: exec.Command(bin, "executor", pluginLogFile),
 	}
 
 	exec, pluginClient, err := createExecutor(pluginConfig, d.config.LogOutput)
