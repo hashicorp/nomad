@@ -166,22 +166,22 @@ func TestEvalEligibility_TaskGroupStatus(t *testing.T) {
 func TestEvalEligibility_SetJob(t *testing.T) {
 	e := NewEvalEligibility()
 	ne1 := &structs.Constraint{
-		LTarget: "$attr.kernel.name",
+		LTarget: "${attr.kernel.name}",
 		RTarget: "linux",
 		Operand: "=",
 	}
 	e1 := &structs.Constraint{
-		LTarget: "$attr.unique.kernel.name",
+		LTarget: "${attr.unique.kernel.name}",
 		RTarget: "linux",
 		Operand: "=",
 	}
 	e2 := &structs.Constraint{
-		LTarget: "$meta.unique.key_foo",
+		LTarget: "${meta.unique.key_foo}",
 		RTarget: "linux",
 		Operand: "<",
 	}
 	e3 := &structs.Constraint{
-		LTarget: "$meta.unique.key_foo",
+		LTarget: "${meta.unique.key_foo}",
 		RTarget: "Windows",
 		Operand: "<",
 	}

@@ -67,7 +67,7 @@ func Job() *structs.Job {
 		Datacenters: []string{"dc1"},
 		Constraints: []*structs.Constraint{
 			&structs.Constraint{
-				LTarget: "$attr.kernel.name",
+				LTarget: "${attr.kernel.name}",
 				RTarget: "linux",
 				Operand: "=",
 			},
@@ -145,7 +145,7 @@ func SystemJob() *structs.Job {
 		Datacenters: []string{"dc1"},
 		Constraints: []*structs.Constraint{
 			&structs.Constraint{
-				LTarget: "$attr.kernel.name",
+				LTarget: "${attr.kernel.name}",
 				RTarget: "linux",
 				Operand: "=",
 			},

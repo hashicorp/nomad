@@ -238,7 +238,7 @@ func TestServiceSched_JobRegister_FeasibleAndInfeasibleTG(t *testing.T) {
 	job.TaskGroups[0].Count = 2
 	job.TaskGroups[0].Constraints = append(job.Constraints,
 		&structs.Constraint{
-			LTarget: "$node.class",
+			LTarget: "${node.class}",
 			RTarget: "class_0",
 			Operand: "=",
 		},

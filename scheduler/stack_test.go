@@ -40,7 +40,7 @@ func benchmarkServiceStack_MetaKeyConstraint(b *testing.B, key string, numNodes,
 	// Create a job whose constraint meets two node classes.
 	job := mock.Job()
 	job.Constraints[0] = &structs.Constraint{
-		LTarget: "$meta." + key,
+		LTarget: fmt.Sprintf("${meta.%v}", key),
 		RTarget: "1",
 		Operand: "<",
 	}
@@ -224,7 +224,7 @@ func TestServiceStack_Select_ConstraintFilter(t *testing.T) {
 	if met.ClassFiltered["linux-medium-pci"] != 1 {
 		t.Fatalf("bad: %#v", met)
 	}
-	if met.ConstraintFiltered["$attr.kernel.name = freebsd"] != 1 {
+	if met.ConstraintFiltered["${attr.kernel.name} = freebsd"] != 1 {
 		t.Fatalf("bad: %#v", met)
 	}
 }
@@ -440,7 +440,7 @@ func TestSystemStack_Select_ConstraintFilter(t *testing.T) {
 	if met.ClassFiltered["linux-medium-pci"] != 1 {
 		t.Fatalf("bad: %#v", met)
 	}
-	if met.ConstraintFiltered["$attr.kernel.name = freebsd"] != 1 {
+	if met.ConstraintFiltered["${attr.kernel.name} = freebsd"] != 1 {
 		t.Fatalf("bad: %#v", met)
 	}
 }
