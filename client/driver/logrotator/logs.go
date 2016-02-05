@@ -1,4 +1,4 @@
-package driver
+package logrotator
 
 import (
 	"fmt"

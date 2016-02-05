@@ -74,6 +74,12 @@ func (g *TaskGroup) AddTask(t *Task) *TaskGroup {
 	return g
 }
 
+// LogConfig provides configuration for log rotation
+type LogConfig struct {
+	MaxFiles      int `mapstructure:"max_files"`
+	MaxFileSizeMB int `mapstructure:"max_file_size"`
+}
+
 // Task is a single process in a task group.
 type Task struct {
 	Name        string
@@ -85,6 +91,7 @@ type Task struct {
 	Resources   *Resources
 	Meta        map[string]string
 	KillTimeout time.Duration
+	LogConfig   *LogConfig
 }
 
 // NewTask creates and initializes a new Task.

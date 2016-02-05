@@ -162,6 +162,7 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		AllocDir:      ctx.AllocDir,
 		TaskName:      task.Name,
 		TaskResources: task.Resources,
+		LogConfig:     task.LogConfig,
 	}
 	ps, err := exec.LaunchCmd(&executor.ExecCommand{Cmd: "java", Args: args}, executorCtx)
 	if err != nil {

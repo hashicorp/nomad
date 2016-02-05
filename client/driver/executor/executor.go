@@ -2,6 +2,7 @@ package executor
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/driver/env"
+	"github.com/hashicorp/nomad/client/driver/logrotator"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -25,6 +27,7 @@ type ExecutorContext struct {
 	AllocDir         *allocdir.AllocDir
 	TaskName         string
 	TaskResources    *structs.Resources
+	LogConfig        *structs.LogConfig
 	FSIsolation      bool
 	ResourceLimits   bool
 	UnprivilegedUser bool
@@ -94,19 +97,23 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext
 		}
 	}
 
-	stdoPath := filepath.Join(e.taskDir, allocdir.TaskLocal, fmt.Sprintf("%v.stdout", ctx.TaskName))
-	stdo, err := os.OpenFile(stdoPath, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
-	if err != nil {
-		return nil, err
-	}
-	e.cmd.Stdout = stdo
+	logFileSize := int64(ctx.LogConfig.MaxFileSizeMB * 1024 * 1024)
 
-	stdePath := filepath.Join(e.taskDir, allocdir.TaskLocal, fmt.Sprintf("%v.stderr", ctx.TaskName))
-	stde, err := os.OpenFile(stdePath, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
+	stdor, stdow := io.Pipe()
+	lro, err := logrotator.NewLogRotator(filepath.Join(e.taskDir, allocdir.TaskLocal), fmt.Sprintf("%v.stdout", ctx.TaskName), ctx.LogConfig.MaxFiles, logFileSize, e.logger)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error creating log rotator for stdout of task %v", err)
 	}
-	e.cmd.Stderr = stde
+	e.cmd.Stdout = stdow
+	go lro.Start(stdor)
+
+	stder, stdew := io.Pipe()
+	lre, err := logrotator.NewLogRotator(filepath.Join(e.taskDir, allocdir.TaskLocal), fmt.Sprintf("%v.stderr", ctx.TaskName), ctx.LogConfig.MaxFiles, logFileSize, e.logger)
+	if err != nil {
+		return nil, fmt.Errorf("error creating log rotator for stderr of task %v", err)
+	}
+	e.cmd.Stderr = stdew
+	go lre.Start(stder)
 
 	e.cmd.Env = ctx.TaskEnv.EnvList()
 
