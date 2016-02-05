@@ -21,7 +21,7 @@ branches:
     - master
 
 install:
-  - make prepare_docker
+  - make travis
   - make bootstrap
 
 script:
