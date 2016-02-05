@@ -104,7 +104,7 @@ func TestRawExecDriver_Start_Artifact_basic(t *testing.T) {
 		Name: "sleep",
 		Config: map[string]interface{}{
 			"artifact_source": fmt.Sprintf("%s/%s", ts.URL, file),
-			"command":         filepath.Join("$NOMAD_TASK_DIR", file),
+			"command":         file,
 			"args":            []string{"sleep", "1s"},
 		},
 		Resources: basicResources,
@@ -151,7 +151,7 @@ func TestRawExecDriver_Start_Artifact_expanded(t *testing.T) {
 		Name: "sleep",
 		Config: map[string]interface{}{
 			"artifact_source": fmt.Sprintf("%s/%s", ts.URL, file),
-			"command":         filepath.Join("$NOMAD_TASK_DIR", file),
+			"command":         file,
 			"args":            []string{"sleep", "1s"},
 		},
 		Resources: basicResources,
