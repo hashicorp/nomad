@@ -12,20 +12,23 @@ import (
 
 var HandshakeConfig = plugin.HandshakeConfig{
 	ProtocolVersion:  1,
-	MagicCookieKey:   "executor_plugin",
-	MagicCookieValue: "value",
+	MagicCookieKey:   "NOMAD_PLUGIN_MAGIC_COOKIE",
+	MagicCookieValue: "e4327c2e01eabfd75a8a67adb114fb34a757d57eee7728d857a8cec6e91a7255",
 }
 
 var PluginMap = map[string]plugin.Plugin{
 	"executor": new(ExecutorPlugin),
 }
 
+// ExecutorReattachConfig is the config that we seralize and de-serialize and
+// store in disk
 type ExecutorReattachConfig struct {
 	Pid      int
 	AddrNet  string
 	AddrName string
 }
 
+// PluginConfig returns a config from an ExecutorReattachConfig
 func (c *ExecutorReattachConfig) PluginConfig() *plugin.ReattachConfig {
 	var addr net.Addr
 	switch c.AddrNet {
@@ -45,6 +48,7 @@ type ExecutorRPC struct {
 	client *rpc.Client
 }
 
+// LaunchCmdArgs wraps a user command and the args for the purposes of RPC
 type LaunchCmdArgs struct {
 	Cmd *executor.ExecCommand
 	Ctx *executor.ExecutorContext
