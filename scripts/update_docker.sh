@@ -1,3 +1,7 @@
+#!/bin/bash
+
+set -ex
+
 sudo stop docker
 sudo rm -rf /var/lib/docker
 sudo rm -f `which docker`
