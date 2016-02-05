@@ -33,7 +33,7 @@ The `java` driver supports the following configuration in the job spec:
     before launching the task. For example:
 
     ```
-        args = ["$nomad.ip", "$MY_ENV", "$meta.foo"]
+        args = ["${nomad.ip}", "${MY_ENV}", "${meta.foo}"]
     ```
 
 * `jvm_options` - (Optional) A list of JVM options to be passed while invoking

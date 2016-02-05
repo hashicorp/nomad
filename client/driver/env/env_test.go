@@ -61,7 +61,7 @@ func testTaskEnvironment() *TaskEnvironment {
 func TestEnvironment_ParseAndReplace_Env(t *testing.T) {
 	env := testTaskEnvironment()
 
-	input := []string{fmt.Sprintf(`"$%v"!`, envOneKey), fmt.Sprintf("$%s$%s", envOneKey, envTwoKey)}
+	input := []string{fmt.Sprintf(`"${%v}"!`, envOneKey), fmt.Sprintf("${%s}${%s}", envOneKey, envTwoKey)}
 	act := env.ParseAndReplace(input)
 	exp := []string{fmt.Sprintf(`"%s"!`, envOneVal), fmt.Sprintf("%s%s", envOneVal, envTwoVal)}
 
@@ -71,7 +71,7 @@ func TestEnvironment_ParseAndReplace_Env(t *testing.T) {
 }
 
 func TestEnvironment_ParseAndReplace_Meta(t *testing.T) {
-	input := []string{fmt.Sprintf("$%v%v", nodeMetaPrefix, metaKey)}
+	input := []string{fmt.Sprintf("${%v%v}", nodeMetaPrefix, metaKey)}
 	exp := []string{metaVal}
 	env := testTaskEnvironment()
 	act := env.ParseAndReplace(input)
@@ -82,7 +82,7 @@ func TestEnvironment_ParseAndReplace_Meta(t *testing.T) {
 }
 
 func TestEnvironment_ParseAndReplace_Attr(t *testing.T) {
-	input := []string{fmt.Sprintf("$%v%v", nodeAttributePrefix, attrKey)}
+	input := []string{fmt.Sprintf("${%v%v}", nodeAttributePrefix, attrKey)}
 	exp := []string{attrVal}
 	env := testTaskEnvironment()
 	act := env.ParseAndReplace(input)
@@ -93,7 +93,7 @@ func TestEnvironment_ParseAndReplace_Attr(t *testing.T) {
 }
 
 func TestEnvironment_ParseAndReplace_Node(t *testing.T) {
-	input := []string{fmt.Sprintf("$%v", nodeNameKey), fmt.Sprintf("$%v", nodeClassKey)}
+	input := []string{fmt.Sprintf("${%v}", nodeNameKey), fmt.Sprintf("${%v}", nodeClassKey)}
 	exp := []string{nodeName, nodeClass}
 	env := testTaskEnvironment()
 	act := env.ParseAndReplace(input)
@@ -105,9 +105,9 @@ func TestEnvironment_ParseAndReplace_Node(t *testing.T) {
 
 func TestEnvironment_ParseAndReplace_Mixed(t *testing.T) {
 	input := []string{
-		fmt.Sprintf("$%v$%v%v", nodeNameKey, nodeAttributePrefix, attrKey),
-		fmt.Sprintf("$%v$%v%v", nodeClassKey, nodeMetaPrefix, metaKey),
-		fmt.Sprintf("$%v$%v", envTwoKey, nodeClassKey),
+		fmt.Sprintf("${%v}${%v%v}", nodeNameKey, nodeAttributePrefix, attrKey),
+		fmt.Sprintf("${%v}${%v%v}", nodeClassKey, nodeMetaPrefix, metaKey),
+		fmt.Sprintf("${%v}${%v}", envTwoKey, nodeClassKey),
 	}
 	exp := []string{
 		fmt.Sprintf("%v%v", nodeName, attrVal),
@@ -123,7 +123,7 @@ func TestEnvironment_ParseAndReplace_Mixed(t *testing.T) {
 }
 
 func TestEnvironment_ReplaceEnv_Mixed(t *testing.T) {
-	input := fmt.Sprintf("$%v$%v%v", nodeNameKey, nodeAttributePrefix, attrKey)
+	input := fmt.Sprintf("${%v}${%v%v}", nodeNameKey, nodeAttributePrefix, attrKey)
 	exp := fmt.Sprintf("%v%v", nodeName, attrVal)
 	env := testTaskEnvironment()
 	act := env.ReplaceEnv(input)
@@ -193,7 +193,7 @@ func TestEnvironment_ClearEnvvars(t *testing.T) {
 
 func TestEnvironment_Interprolate(t *testing.T) {
 	env := testTaskEnvironment().
-		SetEnvvars(map[string]string{"test": "$node.class", "test2": "$attr.arch"}).
+		SetEnvvars(map[string]string{"test": "${node.class}", "test2": "${attr.arch}"}).
 		Build()
 
 	act := env.EnvList()

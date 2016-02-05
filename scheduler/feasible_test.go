@@ -139,17 +139,17 @@ func TestConstraintChecker(t *testing.T) {
 	constraints := []*structs.Constraint{
 		&structs.Constraint{
 			Operand: "=",
-			LTarget: "$node.datacenter",
+			LTarget: "${node.datacenter}",
 			RTarget: "dc1",
 		},
 		&structs.Constraint{
 			Operand: "is",
-			LTarget: "$attr.kernel.name",
+			LTarget: "${attr.kernel.name}",
 			RTarget: "linux",
 		},
 		&structs.Constraint{
 			Operand: "is",
-			LTarget: "$node.class",
+			LTarget: "${node.class}",
 			RTarget: "large",
 		},
 	}
@@ -189,53 +189,53 @@ func TestResolveConstraintTarget(t *testing.T) {
 	node := mock.Node()
 	cases := []tcase{
 		{
-			target: "$node.unique.id",
+			target: "${node.unique.id}",
 			node:   node,
 			val:    node.ID,
 			result: true,
 		},
 		{
-			target: "$node.datacenter",
+			target: "${node.datacenter}",
 			node:   node,
 			val:    node.Datacenter,
 			result: true,
 		},
 		{
-			target: "$node.unique.name",
+			target: "${node.unique.name}",
 			node:   node,
 			val:    node.Name,
 			result: true,
 		},
 		{
-			target: "$node.class",
+			target: "${node.class}",
 			node:   node,
 			val:    node.NodeClass,
 			result: true,
 		},
 		{
-			target: "$node.foo",
+			target: "${node.foo}",
 			node:   node,
 			result: false,
 		},
 		{
-			target: "$attr.kernel.name",
+			target: "${attr.kernel.name}",
 			node:   node,
 			val:    node.Attributes["kernel.name"],
 			result: true,
 		},
 		{
-			target: "$attr.rand",
+			target: "${attr.rand}",
 			node:   node,
 			result: false,
 		},
 		{
-			target: "$meta.pci-dss",
+			target: "${meta.pci-dss}",
 			node:   node,
 			val:    node.Meta["pci-dss"],
 			result: true,
 		},
 		{
-			target: "$meta.rand",
+			target: "${meta.rand}",
 			node:   node,
 			result: false,
 		},

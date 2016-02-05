@@ -52,7 +52,7 @@ region is used; another region can be specified using the `?region=` query param
     ],
     "Constraints": [
         {
-            "LTarget": "kernel.os",
+            "LTarget": "${attr.kernel.os}",
             "RTarget": "windows",
             "Operand": "=",
         }
@@ -63,7 +63,7 @@ region is used; another region can be specified using the `?region=` query param
             "Count": 5,
             "Constraints": [
                 {
-                    "LTarget": "kernel.os",
+                    "LTarget": "${attr.kernel.os}",
                     "RTarget": "linux",
                     "Operand": "=",
                 }
@@ -102,7 +102,7 @@ region is used; another region can be specified using the `?region=` query param
                     },
                     "Constraints": [
                         {
-                            "LTarget": "kernel.arch",
+                            "LTarget": "${attr.kernel.arch}",
                             "RTarget": "amd64",
                             "Operand": "=",
                         }

@@ -3,7 +3,7 @@ package args
 import "regexp"
 
 var (
-	envRe = regexp.MustCompile(`\$({[a-zA-Z0-9_\.]+}|[a-zA-Z0-9_\.]+)`)
+	envRe = regexp.MustCompile(`\${[a-zA-Z0-9_\.]+}`)
 )
 
 // ReplaceEnv takes an arg and replaces all occurences of environment variables.
@@ -11,11 +11,7 @@ var (
 // original string is returned.
 func ReplaceEnv(arg string, environents ...map[string]string) string {
 	return envRe.ReplaceAllStringFunc(arg, func(arg string) string {
-		stripped := arg[1:]
-		if stripped[0] == '{' {
-			stripped = stripped[1 : len(stripped)-1]
-		}
-
+		stripped := arg[2 : len(arg)-1]
 		for _, env := range environents {
 			if value, ok := env[stripped]; ok {
 				return value
