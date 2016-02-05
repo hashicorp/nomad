@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-plugin"
-	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/executor"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
@@ -114,7 +113,7 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 
 	// Proceed to download an artifact to be executed.
 	vmPath, err := getter.GetArtifact(
-		filepath.Join(taskDir, allocdir.TaskLocal),
+		taskDir,
 		driverConfig.ArtifactSource,
 		driverConfig.Checksum,
 		d.logger,

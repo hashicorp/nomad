@@ -126,7 +126,7 @@ func TestExecDriver_Start_Artifact_basic(t *testing.T) {
 		Name: "sleep",
 		Config: map[string]interface{}{
 			"artifact_source": fmt.Sprintf("https://dl.dropboxusercontent.com/u/47675/jar_thing/%s?checksum=%s", file, checksum),
-			"command":         filepath.Join("$NOMAD_TASK_DIR", file),
+			"command":         file,
 		},
 		Resources: basicResources,
 	}
@@ -170,10 +170,7 @@ func TestExecDriver_Start_Artifact_expanded(t *testing.T) {
 		Config: map[string]interface{}{
 			"artifact_source": fmt.Sprintf("https://dl.dropboxusercontent.com/u/47675/jar_thing/%s", file),
 			"command":         "/bin/bash",
-			"args": []string{
-				"-c",
-				fmt.Sprintf(`/bin/sleep 1 && %s`, filepath.Join("$NOMAD_TASK_DIR", file)),
-			},
+			"args":            []string{"-c", fmt.Sprintf("/bin/sleep 1 && %s", file)},
 		},
 		Resources: basicResources,
 	}
@@ -218,7 +215,7 @@ func TestExecDriver_Start_Wait_AllocDir(t *testing.T) {
 			"command": "/bin/bash",
 			"args": []string{
 				"-c",
-				fmt.Sprintf(`sleep 1; echo -n %s > $%s/%s`, string(exp), env.AllocDir, file),
+				fmt.Sprintf(`sleep 1; echo -n %s > ${%s}/%s`, string(exp), env.AllocDir, file),
 			},
 		},
 		Resources: basicResources,

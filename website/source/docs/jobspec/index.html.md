@@ -93,7 +93,7 @@ where a task is eligible for running. An example constraint looks like:
 ```
 # Restrict to only nodes running linux
 constraint {
-    attribute = "$attr.kernel.name"
+    attribute = "${attr.kernel.name}"
     value = "linux"
 }
 ```
@@ -252,7 +252,7 @@ The `task` object supports the following keys:
         env {
             // The value will be interpreted by the client and set to the
             // correct value.
-            NODE_CLASS = "$nomad.class"
+            NODE_CLASS = "${nomad.class}"
         }
     ```
 
@@ -388,27 +388,27 @@ variables that can be interpreted:
     <th>Description</th>
   </tr>
   <tr>
-    <td>$node.id</td>
+    <td>${node.id}</td>
     <td>The client node identifier</td>
   </tr>
   <tr>
-    <td>$node.datacenter</td>
+    <td>${node.datacenter}</td>
     <td>The client node datacenter</td>
   </tr>
   <tr>
-    <td>$node.name</td>
+    <td>${node.name}</td>
     <td>The client node name</td>
   </tr>
   <tr>
-    <td>$node.class</td>
+    <td>${node.class}</td>
     <td>The client node class</td>
   </tr>
   <tr>
-    <td>$attr.\<key\></td>
+    <td>${attr.\<key\}></td>
     <td>The attribute given by `key` on the client node.</td>
   </tr>
   <tr>
-    <td>$meta.\<key\></td>
+    <td>${meta.\<key\>}</td>
     <td>The metadata value given by `key` on the client node.</td>
   </tr>
 </table>

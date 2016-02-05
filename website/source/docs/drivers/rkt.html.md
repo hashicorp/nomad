@@ -30,7 +30,7 @@ The `rkt` driver supports the following configuration in the job spec:
     before launching the task. For example:
 
     ```
-        args = ["$nomad.ip", "$MY_ENV", $meta.foo"]
+        args = ["${nomad.ip}", "${MY_ENV}", ${meta.foo}"]
     ```
 
 * `trust_prefix` - (Optional) The trust prefix to be passed to rkt. Must be

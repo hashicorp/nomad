@@ -24,8 +24,8 @@ var (
 )
 
 func TestArgs_ReplaceEnv_Invalid(t *testing.T) {
-	input := "$FOO"
-	exp := "$FOO"
+	input := "${FOO}"
+	exp := input
 	act := ReplaceEnv(input, envVars)
 
 	if !reflect.DeepEqual(act, exp) {
@@ -34,7 +34,7 @@ func TestArgs_ReplaceEnv_Invalid(t *testing.T) {
 }
 
 func TestArgs_ReplaceEnv_Valid(t *testing.T) {
-	input := fmt.Sprintf(`"$%v"!`, ipKey)
+	input := fmt.Sprintf(`"${%v}"!`, ipKey)
 	exp := fmt.Sprintf("\"%s\"!", ipVal)
 	act := ReplaceEnv(input, envVars)
 
@@ -44,7 +44,7 @@ func TestArgs_ReplaceEnv_Valid(t *testing.T) {
 }
 
 func TestArgs_ReplaceEnv_Period(t *testing.T) {
-	input := fmt.Sprintf(`"$%v"!`, periodKey)
+	input := fmt.Sprintf(`"${%v}"!`, periodKey)
 	exp := fmt.Sprintf("\"%s\"!", periodVal)
 	act := ReplaceEnv(input, envVars)
 
@@ -54,7 +54,7 @@ func TestArgs_ReplaceEnv_Period(t *testing.T) {
 }
 
 func TestArgs_ReplaceEnv_Chained(t *testing.T) {
-	input := fmt.Sprintf("$%s$%s", ipKey, portKey)
+	input := fmt.Sprintf("${%s}${%s}", ipKey, portKey)
 	exp := fmt.Sprintf("%s%s", ipVal, portVal)
 	act := ReplaceEnv(input, envVars)
 

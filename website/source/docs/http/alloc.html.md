@@ -166,7 +166,7 @@ be specified using the `?region=` query parameter.
           {
             "Operand": "=",
             "RTarget": "linux",
-            "LTarget": "$attr.kernel.name"
+            "LTarget": "${attr.kernel.name}"
           }
         ]
       },

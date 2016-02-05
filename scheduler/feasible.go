@@ -296,25 +296,25 @@ func resolveConstraintTarget(target string, node *structs.Node) (interface{}, bo
 
 	// Handle the interpolations
 	switch {
-	case "$node.unique.id" == target:
+	case "${node.unique.id}" == target:
 		return node.ID, true
 
-	case "$node.datacenter" == target:
+	case "${node.datacenter}" == target:
 		return node.Datacenter, true
 
-	case "$node.unique.name" == target:
+	case "${node.unique.name}" == target:
 		return node.Name, true
 
-	case "$node.class" == target:
+	case "${node.class}" == target:
 		return node.NodeClass, true
 
-	case strings.HasPrefix(target, "$attr."):
-		attr := strings.TrimPrefix(target, "$attr.")
+	case strings.HasPrefix(target, "${attr."):
+		attr := strings.TrimSuffix(strings.TrimPrefix(target, "${attr."), "}")
 		val, ok := node.Attributes[attr]
 		return val, ok
 
-	case strings.HasPrefix(target, "$meta."):
-		meta := strings.TrimPrefix(target, "$meta.")
+	case strings.HasPrefix(target, "${meta."):
+		meta := strings.TrimSuffix(strings.TrimPrefix(target, "${meta."), "}")
 		val, ok := node.Meta[meta]
 		return val, ok
 

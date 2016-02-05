@@ -44,7 +44,7 @@ The following options are available for use in the job specification.
     before launching the task. For example:
 
     ```
-        args = ["$nomad.ip", "$MY_ENV", "$meta.foo"]
+        args = ["${nomad.ip}", "${MY_ENV}", "${meta.foo}"]
     ```
 
 * `labels` - (Optional) A key/value map of labels to set to the containers on

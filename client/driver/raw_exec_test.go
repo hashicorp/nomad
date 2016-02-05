@@ -106,7 +106,7 @@ func TestRawExecDriver_Start_Artifact_basic(t *testing.T) {
 		Name: "sleep",
 		Config: map[string]interface{}{
 			"artifact_source": fmt.Sprintf("%s/%s", ts.URL, file),
-			"command":         filepath.Join("$NOMAD_TASK_DIR", file),
+			"command":         file,
 			"args":            []string{"sleep", "1s"},
 		},
 		Resources: basicResources,
@@ -153,7 +153,7 @@ func TestRawExecDriver_Start_Artifact_expanded(t *testing.T) {
 		Name: "sleep",
 		Config: map[string]interface{}{
 			"artifact_source": fmt.Sprintf("%s/%s", ts.URL, file),
-			"command":         filepath.Join("$NOMAD_TASK_DIR", file),
+			"command":         file,
 			"args":            []string{"sleep", "1s"},
 		},
 		Resources: basicResources,
@@ -233,7 +233,7 @@ func TestRawExecDriver_Start_Wait_AllocDir(t *testing.T) {
 	t.Parallel()
 	exp := []byte{'w', 'i', 'n'}
 	file := "output.txt"
-	outPath := fmt.Sprintf(`$%s/%s`, env.AllocDir, file)
+	outPath := fmt.Sprintf(`${%s}/%s`, env.AllocDir, file)
 	task := &structs.Task{
 		Name: "sleep",
 		Config: map[string]interface{}{

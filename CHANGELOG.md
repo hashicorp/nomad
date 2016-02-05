@@ -3,8 +3,10 @@
 BACKWARDS INCOMPATIBILITIES:
   * core: Improved restart policy with more user configuration [GH-594]
   * core/cli: Print short identifiers [GH-675]
+  * core/jobspec: Variables/constraints interpreted using ${} notation [GH-675]
   * client: Environment variable containing address for each allocated port
     [GH-704]
+  * client: Extract artifacts into the root of the task directory [GH-756]
 
 IMPROVEMENTS:
   * core: Populate job status [GH-663]
@@ -25,9 +27,10 @@ IMPROVEMENTS:
   * core/jobspec: Default task resources and validation [GH-739]
   * cli: Output of agent-info is sorted [GH-617]
   * cli: Ability to navigate allocation directories [GH-709]
+  * client: Handle updates to tasks Restart Policy and KillTimeout [GH-751]
+  * client: Create a tmp/ directory inside each task directory [GH-757]
   * client: Send Node to server when periodic fingerprinters change Node
     attributes/metadata [GH-749]
-  * client: Handle updates to tasks Restart Policy and KillTimeout [GH-751]
   * drivers: Interpret Nomad variables in environment variables/args [GH-653]
   * driver/rkt: Add support for CPU/Memory isolation [GH-610]
   * driver/rkt: Add support for mounting alloc/task directory [GH-645]

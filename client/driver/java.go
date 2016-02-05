@@ -15,7 +15,6 @@ import (
 	"github.com/hashicorp/go-plugin"
 	"github.com/mitchellh/mapstructure"
 
-	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/executor"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
@@ -120,7 +119,7 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 
 	// Proceed to download an artifact to be executed.
 	path, err := getter.GetArtifact(
-		filepath.Join(taskDir, allocdir.TaskLocal),
+		taskDir,
 		driverConfig.ArtifactSource,
 		driverConfig.Checksum,
 		d.logger,
@@ -139,7 +138,7 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	}
 
 	// Build the argument list.
-	args = append(args, "-jar", filepath.Join(allocdir.TaskLocal, jarName))
+	args = append(args, "-jar", jarName)
 	if len(driverConfig.Args) != 0 {
 		args = append(args, driverConfig.Args...)
 	}

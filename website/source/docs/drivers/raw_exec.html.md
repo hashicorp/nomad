@@ -36,7 +36,7 @@ The `raw_exec` driver supports the following configuration in the job spec:
     before launching the task. For example:
 
     ```
-        args = ["$nomad.ip", "$MY_ENV", "$meta.foo"]
+        args = ["${nomad.ip}", "${MY_ENV}", "${meta.foo}"]
     ```
 
 ## Client Requirements
@@ -75,7 +75,7 @@ To execute a binary specified by `artifact_source`:
   config {
     artifact_source = "https://dl.dropboxusercontent.com/u/1234/binary.bin"
     checksum = "sha256:133jifjiofu9090fsadjofsdjlk"
-    command = "$NOMAD_TASK_DIR/binary.bin"
+    command = "binary.bin"
   }
 ```
 
