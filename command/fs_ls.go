@@ -28,7 +28,7 @@ Usage: nomad fs ls <alloc-id> <path>
 }
 
 func (f *FSListCommand) Synopsis() string {
-	return "Lists list of files of an allocation directory"
+	return "List files in an allocation directory"
 }
 
 func (f *FSListCommand) Run(args []string) int {
