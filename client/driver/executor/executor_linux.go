@@ -50,18 +50,21 @@ func (e *UniversalExecutor) configureIsolation() error {
 }
 
 // applyLimits puts a process in a pre-configured cgroup
-func (e *UniversalExecutor) applyLimits() error {
+func (e *UniversalExecutor) applyLimits(pid int) error {
 	if !e.ctx.ResourceLimits {
 		return nil
 	}
+
+	// Entering the process in the cgroup
 	manager := e.getCgroupManager(e.groups)
-	if err := manager.Apply(e.cmd.Process.Pid); err != nil {
+	if err := manager.Apply(pid); err != nil {
 		e.logger.Printf("[ERROR] unable to join cgroup: %v", err)
 		if err := e.Exit(); err != nil {
 			e.logger.Printf("[ERROR] unable to kill process: %v", err)
 		}
 		return err
 	}
+
 	return nil
 }
 

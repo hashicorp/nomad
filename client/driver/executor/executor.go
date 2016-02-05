@@ -81,19 +81,24 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext
 
 	e.ctx = ctx
 
+	// configuring the task dir
 	if err := e.configureTaskDir(); err != nil {
 		return nil, err
 	}
+
+	// confiuguring the chroot
 	if err := e.configureIsolation(); err != nil {
 		return nil, err
 	}
 
+	// setting the user of the process
 	if e.ctx.UnprivilegedUser {
 		if err := e.runAs("nobody"); err != nil {
 			return nil, err
 		}
 	}
 
+	// configuring log rotate
 	stdoPath := filepath.Join(e.taskDir, allocdir.TaskLocal, fmt.Sprintf("%v.stdout", ctx.TaskName))
 	stdo, err := os.OpenFile(stdoPath, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
 	if err != nil {
@@ -108,8 +113,8 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext
 	}
 	e.cmd.Stderr = stde
 
+	// setting the env, path and args for the command
 	e.cmd.Env = ctx.TaskEnv.EnvList()
-
 	e.cmd.Path = ctx.TaskEnv.ReplaceEnv(command.Cmd)
 	e.cmd.Args = append([]string{e.cmd.Path}, ctx.TaskEnv.ParseAndReplace(command.Args)...)
 	if filepath.Base(command.Cmd) == command.Cmd {
@@ -119,11 +124,15 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext
 		}
 	}
 
+	// starting the process
 	if err := e.cmd.Start(); err != nil {
 		return nil, fmt.Errorf("error starting command: %v", err)
 	}
 
-	e.applyLimits()
+	// entering the user process in the cgroup
+	e.applyLimits(e.cmd.Process.Pid)
+	// entering the plugin process in cgroup
+	e.applyLimits(os.Getpid())
 	go e.wait()
 	return &ProcessState{Pid: e.cmd.Process.Pid, ExitCode: -1, Time: time.Now()}, nil
 }
@@ -167,14 +176,14 @@ func (e *UniversalExecutor) Exit() error {
 	if err != nil {
 		return fmt.Errorf("failied to find user process %v: %v", e.cmd.Process.Pid, err)
 	}
+	if err = proc.Kill(); err != nil {
+		e.logger.Printf("[DEBUG] executor.exit error: %v", err)
+	}
 	if e.ctx.FSIsolation {
 		e.removeChrootMounts()
 	}
 	if e.ctx.ResourceLimits {
 		e.destroyCgroup()
-	}
-	if err = proc.Kill(); err != nil {
-		e.logger.Printf("[DEBUG] executor.exit error: %v", err)
 	}
 	return nil
 }
