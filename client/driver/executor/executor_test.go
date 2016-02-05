@@ -11,9 +11,10 @@ import (
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/driver/env"
+	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/testutil"
+	tu "github.com/hashicorp/nomad/testutil"
 )
 
 var (
@@ -117,6 +118,50 @@ func TestExecutor_Start_Wait(t *testing.T) {
 	}
 }
 
+func TestExecutor_IsolationAndConstraints(t *testing.T) {
+	testutil.ExecCompatible(t)
+
+	execCmd := ExecCommand{Cmd: "/bin/echo", Args: []string{"hello world"}}
+	ctx := testExecutorContext(t)
+	defer ctx.AllocDir.Destroy()
+
+	ctx.FSIsolation = true
+	ctx.ResourceLimits = true
+	ctx.UnprivilegedUser = true
+
+	executor := NewExecutor(log.New(os.Stdout, "", log.LstdFlags))
+	ps, err := executor.LaunchCmd(&execCmd, ctx)
+	if err != nil {
+		t.Fatalf("error in launching command: %v", err)
+	}
+	if ps.Pid == 0 {
+		t.Fatalf("expected process to start and have non zero pid")
+	}
+	ps, err = executor.Wait()
+	if err != nil {
+		t.Fatalf("error in waiting for command: %v", err)
+	}
+
+	task := "web"
+	taskDir, ok := ctx.AllocDir.TaskDirs[task]
+	if !ok {
+		log.Panicf("No task directory found for task %v", task)
+	}
+
+	expected := "hello world"
+	file := filepath.Join(allocdir.TaskLocal, "web.stdout")
+	absFilePath := filepath.Join(taskDir, file)
+	output, err := ioutil.ReadFile(absFilePath)
+	if err != nil {
+		t.Fatalf("Couldn't read file %v", absFilePath)
+	}
+
+	act := strings.TrimSpace(string(output))
+	if act != expected {
+		t.Fatalf("Command output incorrectly: want %v; got %v", expected, act)
+	}
+}
+
 func TestExecutor_Start_Kill(t *testing.T) {
 	execCmd := ExecCommand{Cmd: "/bin/sleep", Args: []string{"10 && hello world"}}
 	ctx := testExecutorContext(t)
@@ -143,7 +188,7 @@ func TestExecutor_Start_Kill(t *testing.T) {
 	file := filepath.Join(allocdir.TaskLocal, "web.stdout")
 	absFilePath := filepath.Join(taskDir, file)
 
-	time.Sleep(time.Duration(testutil.TestMultiplier()*2) * time.Second)
+	time.Sleep(time.Duration(tu.TestMultiplier()*2) * time.Second)
 
 	output, err := ioutil.ReadFile(absFilePath)
 	if err != nil {
