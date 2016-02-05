@@ -33,6 +33,7 @@ var (
 	}
 )
 
+// configureIsolation configures chroot and creates cgroups
 func (e *UniversalExecutor) configureIsolation() error {
 	if e.ctx.FSIsolation {
 		if err := e.configureChroot(); err != nil {
@@ -48,6 +49,7 @@ func (e *UniversalExecutor) configureIsolation() error {
 	return nil
 }
 
+// applyLimits puts a process in a pre-configured cgroup
 func (e *UniversalExecutor) applyLimits() error {
 	if !e.ctx.ResourceLimits {
 		return nil
@@ -140,6 +142,7 @@ func (e *UniversalExecutor) pathExists(path string) bool {
 	return true
 }
 
+// configureChroot configures a chroot
 func (e *UniversalExecutor) configureChroot() error {
 	allocDir := e.ctx.AllocDir
 	if err := allocDir.MountSharedDir(e.ctx.TaskName); err != nil {

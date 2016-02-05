@@ -18,6 +18,8 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+// ExecutorContext is a wrapper to hold context to configure the command user
+// wants to run
 type ExecutorContext struct {
 	TaskEnv          *env.TaskEnvironment
 	AllocDir         *allocdir.AllocDir
@@ -28,17 +30,22 @@ type ExecutorContext struct {
 	UnprivilegedUser bool
 }
 
+// ExecCommand is a wrapper to hold the user command
 type ExecCommand struct {
 	Cmd  string
 	Args []string
 }
 
+// ProcessState holds information about the state of
+// a user process
 type ProcessState struct {
 	Pid      int
 	ExitCode int
 	Time     time.Time
 }
 
+// Executor is the interface which allows a driver to launch and supervise
+// a process user wants to run
 type Executor interface {
 	LaunchCmd(command *ExecCommand, ctx *ExecutorContext) (*ProcessState, error)
 	Wait() (*ProcessState, error)
@@ -46,6 +53,9 @@ type Executor interface {
 	Exit() error
 }
 
+// UniversalExecutor is an implementation of the Executor which launches and
+// supervises processes. In addition to process supervision it provides resource
+// and file system isolation
 type UniversalExecutor struct {
 	cmd exec.Cmd
 	ctx *ExecutorContext
@@ -59,10 +69,13 @@ type UniversalExecutor struct {
 	lock   sync.Mutex
 }
 
+// NewExecutor returns an Executor
 func NewExecutor(logger *log.Logger) Executor {
 	return &UniversalExecutor{logger: logger, processExited: make(chan interface{})}
 }
 
+// LaunchCmd launches a process and returns it's state. It also configures an
+// applies isolation on certain platforms.
 func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext) (*ProcessState, error) {
 	e.ctx = ctx
 
@@ -113,6 +126,7 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext
 	return &ProcessState{Pid: e.cmd.Process.Pid, ExitCode: -1, Time: time.Now()}, nil
 }
 
+// Wait waits until a process has exited and returns it's exitcode and errors
 func (e *UniversalExecutor) Wait() (*ProcessState, error) {
 	<-e.processExited
 	return e.exitState, nil
@@ -140,6 +154,8 @@ func (e *UniversalExecutor) wait() {
 	e.exitState = &ProcessState{Pid: 0, ExitCode: exitCode, Time: time.Now()}
 }
 
+// Exit cleans up the alloc directory, destroys cgroups and kills the user
+// process
 func (e *UniversalExecutor) Exit() error {
 	e.logger.Printf("[INFO] Exiting plugin for task %q", e.ctx.TaskName)
 	if e.cmd.Process == nil {
@@ -161,6 +177,7 @@ func (e *UniversalExecutor) Exit() error {
 	return nil
 }
 
+// Shutdown sends an interrupt signal to the user process
 func (e *UniversalExecutor) ShutDown() error {
 	if e.cmd.Process == nil {
 		return fmt.Errorf("executor.shutdown error: no process found")
