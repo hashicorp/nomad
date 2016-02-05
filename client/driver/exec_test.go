@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"syscall"
 	"testing"
 	"time"
 
@@ -117,13 +118,19 @@ func TestExecDriver_KillUserPid_OnPluginReconnectFailure(t *testing.T) {
 
 	// Attempt to open
 	handle2, err := d.Open(execCtx, handle.ID())
-	userProc, err := os.FindProcess(id.UserPid)
-	if err := userProc.Kill(); err == nil {
-		t.Fatalf("user process is supposed to be killed when plugin exits")
+	if err == nil {
+		t.Fatalf("expected error")
 	}
 	if handle2 != nil {
 		defer handle2.Kill()
 		t.Fatalf("expected handle2 to be nil")
+	}
+	// Test if the userpid is still present
+	userProc, err := os.FindProcess(id.UserPid)
+
+	err = userProc.Signal(syscall.Signal(0))
+	if err != nil {
+		t.Fatalf("expected user process to die")
 	}
 }
 
