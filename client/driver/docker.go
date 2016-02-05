@@ -229,6 +229,13 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, dri
 		// local directory for storage and a shared alloc directory that can be
 		// used to share data between different tasks in the same task group.
 		Binds: binds,
+		LogConfig: docker.LogConfig{
+			Type: "json-file",
+			Config: map[string]string{
+				"max-size": fmt.Sprintf("%dm", task.LogConfig.MaxFileSizeMB),
+				"max-file": strconv.Itoa(task.LogConfig.MaxFiles),
+			},
+		},
 	}
 
 	d.logger.Printf("[DEBUG] driver.docker: using %d bytes memory for %s", hostConfig.Memory, task.Config["image"])
