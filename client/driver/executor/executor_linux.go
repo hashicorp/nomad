@@ -45,6 +45,15 @@ func (e *UniversalExecutor) configureIsolation() error {
 		if err := e.configureCgroups(e.ctx.TaskResources); err != nil {
 			return fmt.Errorf("error creating cgroups: %v", err)
 		}
+		if err := e.applyLimits(os.Getpid()); err != nil {
+			if er := e.destroyCgroup(); er != nil {
+				e.logger.Printf("[ERROR] error destroying cgroup: %v", er)
+			}
+			if er := e.removeChrootMounts(); er != nil {
+				e.logger.Printf("[ERROR] error removing chroot: %v", er)
+			}
+			return fmt.Errorf("error entering the plugin process in the cgroup: %v:", err)
+		}
 	}
 	return nil
 }

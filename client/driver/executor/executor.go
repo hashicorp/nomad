@@ -94,9 +94,6 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext
 		return nil, err
 	}
 
-	// entering the plugin process in cgroup
-	e.applyLimits(os.Getpid())
-
 	// setting the user of the process
 	if e.ctx.UnprivilegedUser {
 		if err := e.runAs("nobody"); err != nil {
