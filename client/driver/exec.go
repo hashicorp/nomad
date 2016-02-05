@@ -119,7 +119,7 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		TaskResources:    task.Resources,
 		ResourceLimits:   true,
 		FSIsolation:      true,
-		UnprivilegedUser: false,
+		UnprivilegedUser: true,
 	}
 	ps, err := exec.LaunchCmd(&executor.ExecCommand{Cmd: command, Args: driverConfig.Args}, executorCtx)
 	if err != nil {
