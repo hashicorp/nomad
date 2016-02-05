@@ -54,6 +54,9 @@ func NewTaskRunner(logger *log.Logger, config *config.Config,
 	alloc *structs.Allocation, task *structs.Task,
 	consulService *ConsulService) *TaskRunner {
 
+	// Merge in the task resources
+	task.Resources = alloc.TaskResources[task.Name]
+
 	// Build the restart tracker.
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 	if tg == nil {
@@ -328,6 +331,9 @@ func (r *TaskRunner) handleUpdate(update *structs.Allocation) error {
 	if task == nil {
 		return fmt.Errorf("task group %q doesn't contain task %q", tg.Name, r.task.Name)
 	}
+
+	// Merge in the task resources
+	task.Resources = update.TaskResources[task.Name]
 	r.task = task
 
 	// Update will update resources and store the new kill timeout.
@@ -342,14 +348,9 @@ func (r *TaskRunner) handleUpdate(update *structs.Allocation) error {
 		r.restartTracker.SetPolicy(tg.RestartPolicy)
 	}
 
-	/* TODO
 	// Re-register the task to consul and store the updated alloc.
-	r.consulService.Deregister(r.task, r.alloc)
 	r.alloc = update
-	r.consulService.Register(r.task, r.alloc)
-	*/
-
-	return nil
+	return r.consulService.Register(r.task, r.alloc)
 }
 
 // Helper function for converting a WaitResult into a TaskTerminated event.
