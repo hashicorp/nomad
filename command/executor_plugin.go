@@ -5,7 +5,7 @@ import (
 
 	"github.com/hashicorp/go-plugin"
 
-	"github.com/hashicorp/nomad/client/driver/plugins"
+	"github.com/hashicorp/nomad/client/driver"
 )
 
 type ExecutorPluginCommand struct {
@@ -25,8 +25,8 @@ func (e *ExecutorPluginCommand) Synopsis() string {
 
 func (e *ExecutorPluginCommand) Run(args []string) int {
 	plugin.Serve(&plugin.ServeConfig{
-		HandshakeConfig: plugins.HandshakeConfig,
-		Plugins:         plugins.PluginMap,
+		HandshakeConfig: driver.HandshakeConfig,
+		Plugins:         driver.PluginMap,
 	})
 	return 0
 }

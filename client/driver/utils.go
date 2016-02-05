@@ -7,12 +7,12 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-plugin"
-	"github.com/hashicorp/nomad/client/driver/plugins"
+	"github.com/hashicorp/nomad/client/driver/executor"
 )
 
-func createExecutor(config *plugin.ClientConfig, w io.Writer) (plugins.Executor, *plugin.Client, error) {
-	config.HandshakeConfig = plugins.HandshakeConfig
-	config.Plugins = plugins.PluginMap
+func createExecutor(config *plugin.ClientConfig, w io.Writer) (executor.Executor, *plugin.Client, error) {
+	config.HandshakeConfig = HandshakeConfig
+	config.Plugins = PluginMap
 	config.SyncStdout = w
 	config.SyncStderr = w
 	executorClient := plugin.NewClient(config)
@@ -25,7 +25,7 @@ func createExecutor(config *plugin.ClientConfig, w io.Writer) (plugins.Executor,
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to dispense the executor plugin: %v", err)
 	}
-	executorPlugin := raw.(plugins.Executor)
+	executorPlugin := raw.(executor.Executor)
 	return executorPlugin, executorClient, nil
 }
 

@@ -14,7 +14,7 @@ import (
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/driver/plugins"
+	"github.com/hashicorp/nomad/client/driver/executor"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/client/getter"
@@ -46,7 +46,7 @@ type QemuDriverConfig struct {
 type qemuHandle struct {
 	pluginClient *plugin.Client
 	userPid      int
-	executor     plugins.Executor
+	executor     executor.Executor
 	killTimeout  time.Duration
 	logger       *log.Logger
 	waitCh       chan *cstructs.WaitResult
@@ -196,17 +196,17 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		Cmd: exec.Command(bin, "executor"),
 	}
 
-	executor, pluginClient, err := createExecutor(pluginConfig, d.config.LogOutput)
+	exec, pluginClient, err := createExecutor(pluginConfig, d.config.LogOutput)
 	if err != nil {
 		return nil, err
 	}
-	executorCtx := &plugins.ExecutorContext{
+	executorCtx := &executor.ExecutorContext{
 		TaskEnv:       d.taskEnv,
 		AllocDir:      ctx.AllocDir,
 		TaskName:      task.Name,
 		TaskResources: task.Resources,
 	}
-	ps, err := executor.LaunchCmd(&plugins.ExecCommand{Cmd: args[0], Args: args[1:]}, executorCtx)
+	ps, err := exec.LaunchCmd(&executor.ExecCommand{Cmd: args[0], Args: args[1:]}, executorCtx)
 	if err != nil {
 		pluginClient.Kill()
 		return nil, fmt.Errorf("error starting process via the plugin: %v", err)
@@ -217,7 +217,7 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	// Create and Return Handle
 	h := &qemuHandle{
 		pluginClient: pluginClient,
-		executor:     executor,
+		executor:     exec,
 		userPid:      ps.Pid,
 		killTimeout:  d.DriverContext.KillTimeout(task),
 		logger:       d.logger,
@@ -232,7 +232,7 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 type qemuId struct {
 	KillTimeout  time.Duration
 	UserPid      int
-	PluginConfig *plugins.ExecutorReattachConfig
+	PluginConfig *ExecutorReattachConfig
 }
 
 func (d *QemuDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {
@@ -272,7 +272,7 @@ func (d *QemuDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 func (h *qemuHandle) ID() string {
 	id := qemuId{
 		KillTimeout:  h.killTimeout,
-		PluginConfig: plugins.NewExecutorReattachConfig(h.pluginClient.ReattachConfig()),
+		PluginConfig: NewExecutorReattachConfig(h.pluginClient.ReattachConfig()),
 		UserPid:      h.userPid,
 	}
 

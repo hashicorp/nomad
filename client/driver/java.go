@@ -17,7 +17,7 @@ import (
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/driver/plugins"
+	"github.com/hashicorp/nomad/client/driver/executor"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/client/getter"
@@ -43,7 +43,7 @@ type JavaDriverConfig struct {
 type javaHandle struct {
 	pluginClient *plugin.Client
 	userPid      int
-	executor     plugins.Executor
+	executor     executor.Executor
 
 	killTimeout time.Duration
 	logger      *log.Logger
@@ -152,17 +152,17 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		Cmd: exec.Command(bin, "executor"),
 	}
 
-	executor, pluginClient, err := createExecutor(pluginConfig, d.config.LogOutput)
+	exec, pluginClient, err := createExecutor(pluginConfig, d.config.LogOutput)
 	if err != nil {
 		return nil, err
 	}
-	executorCtx := &plugins.ExecutorContext{
+	executorCtx := &executor.ExecutorContext{
 		TaskEnv:       d.taskEnv,
 		AllocDir:      ctx.AllocDir,
 		TaskName:      task.Name,
 		TaskResources: task.Resources,
 	}
-	ps, err := executor.LaunchCmd(&plugins.ExecCommand{Cmd: "java", Args: args}, executorCtx)
+	ps, err := exec.LaunchCmd(&executor.ExecCommand{Cmd: "java", Args: args}, executorCtx)
 	if err != nil {
 		pluginClient.Kill()
 		return nil, fmt.Errorf("error starting process via the plugin: %v", err)
@@ -172,7 +172,7 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	// Return a driver handle
 	h := &javaHandle{
 		pluginClient: pluginClient,
-		executor:     executor,
+		executor:     exec,
 		userPid:      ps.Pid,
 		killTimeout:  d.DriverContext.KillTimeout(task),
 		logger:       d.logger,
@@ -186,7 +186,7 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 
 type javaId struct {
 	KillTimeout  time.Duration
-	PluginConfig *plugins.ExecutorReattachConfig
+	PluginConfig *ExecutorReattachConfig
 	UserPid      int
 }
 
@@ -227,7 +227,7 @@ func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 func (h *javaHandle) ID() string {
 	id := javaId{
 		KillTimeout:  h.killTimeout,
-		PluginConfig: plugins.NewExecutorReattachConfig(h.pluginClient.ReattachConfig()),
+		PluginConfig: NewExecutorReattachConfig(h.pluginClient.ReattachConfig()),
 		UserPid:      h.userPid,
 	}
 

@@ -12,7 +12,7 @@ import (
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/driver/plugins"
+	"github.com/hashicorp/nomad/client/driver/executor"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/client/getter"
 	"github.com/hashicorp/nomad/helper/discover"
@@ -36,7 +36,7 @@ type ExecDriverConfig struct {
 // execHandle is returned from Start/Open as a handle to the PID
 type execHandle struct {
 	pluginClient *plugin.Client
-	executor     plugins.Executor
+	executor     executor.Executor
 	userPid      int
 	killTimeout  time.Duration
 	logger       *log.Logger
@@ -107,11 +107,11 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		Cmd: exec.Command(bin, "executor"),
 	}
 
-	executor, pluginClient, err := createExecutor(pluginConfig, d.config.LogOutput)
+	exec, pluginClient, err := createExecutor(pluginConfig, d.config.LogOutput)
 	if err != nil {
 		return nil, err
 	}
-	executorCtx := &plugins.ExecutorContext{
+	executorCtx := &executor.ExecutorContext{
 		TaskEnv:          d.taskEnv,
 		AllocDir:         ctx.AllocDir,
 		TaskName:         task.Name,
@@ -120,7 +120,7 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		FSIsolation:      true,
 		UnprivilegedUser: false,
 	}
-	ps, err := executor.LaunchCmd(&plugins.ExecCommand{Cmd: command, Args: driverConfig.Args}, executorCtx)
+	ps, err := exec.LaunchCmd(&executor.ExecCommand{Cmd: command, Args: driverConfig.Args}, executorCtx)
 	if err != nil {
 		pluginClient.Kill()
 		return nil, fmt.Errorf("error starting process via the plugin: %v", err)
@@ -131,7 +131,7 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	h := &execHandle{
 		pluginClient: pluginClient,
 		userPid:      ps.Pid,
-		executor:     executor,
+		executor:     exec,
 		killTimeout:  d.DriverContext.KillTimeout(task),
 		logger:       d.logger,
 		doneCh:       make(chan struct{}),
@@ -144,7 +144,7 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 type execId struct {
 	KillTimeout  time.Duration
 	UserPid      int
-	PluginConfig *plugins.ExecutorReattachConfig
+	PluginConfig *ExecutorReattachConfig
 }
 
 func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {
@@ -183,7 +183,7 @@ func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 func (h *execHandle) ID() string {
 	id := execId{
 		KillTimeout:  h.killTimeout,
-		PluginConfig: plugins.NewExecutorReattachConfig(h.pluginClient.ReattachConfig()),
+		PluginConfig: NewExecutorReattachConfig(h.pluginClient.ReattachConfig()),
 		UserPid:      h.userPid,
 	}
 

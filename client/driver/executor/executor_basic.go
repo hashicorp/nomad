@@ -1,6 +1,6 @@
 // +build !linux
 
-package plugins
+package executor
 
 func (e *UniversalExecutor) configureChroot() error {
 	return nil
