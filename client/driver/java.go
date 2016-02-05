@@ -158,10 +158,13 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		return nil, err
 	}
 	executorCtx := &executor.ExecutorContext{
-		TaskEnv:       d.taskEnv,
-		AllocDir:      ctx.AllocDir,
-		TaskName:      task.Name,
-		TaskResources: task.Resources,
+		TaskEnv:          d.taskEnv,
+		AllocDir:         ctx.AllocDir,
+		TaskName:         task.Name,
+		TaskResources:    task.Resources,
+		FSIsolation:      true,
+		ResourceLimits:   true,
+		UnprivilegedUser: true,
 	}
 	ps, err := exec.LaunchCmd(&executor.ExecCommand{Cmd: "java", Args: args}, executorCtx)
 	if err != nil {
