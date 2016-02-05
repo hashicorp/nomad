@@ -132,9 +132,10 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 
 	// Add the given trust prefix
 	trustPrefix, trustCmd := task.Config["trust_prefix"]
+	insecure := false
 	if trustCmd {
 		var outBuf, errBuf bytes.Buffer
-		cmd := exec.Command("rkt", "trust", fmt.Sprintf("--prefix=%s", trustPrefix))
+		cmd := exec.Command("rkt", "trust", "--skip-fingerprint-review=true", fmt.Sprintf("--prefix=%s", trustPrefix))
 		cmd.Stdout = &outBuf
 		cmd.Stderr = &errBuf
 		if err := cmd.Run(); err != nil {
@@ -144,26 +145,31 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		d.logger.Printf("[DEBUG] driver.rkt: added trust prefix: %q", trustPrefix)
 	} else {
 		// Disble signature verification if the trust command was not run.
+		insecure = true
+	}
+
+        local, ok := ctx.AllocDir.TaskDirs[task.Name]
+        if !ok {
+                return nil, fmt.Errorf("Failed to find task local directory: %v", task.Name)
+        }
+
+	cmdArgs = append(cmdArgs, "run")
+	cmdArgs = append(cmdArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s", task.Name, local))
+	cmdArgs = append(cmdArgs, fmt.Sprintf("--mount=volume=%s,target=%s", task.Name, ctx.AllocDir.SharedDir))
+	cmdArgs = append(cmdArgs, img)
+	if insecure == true {
 		cmdArgs = append(cmdArgs, "--insecure-options=all")
 	}
 
+	// Build task and alloc dirs
 	d.taskEnv.Build()
 	d.taskEnv.SetAllocDir(filepath.Join("/", allocdir.SharedAllocName))
 	d.taskEnv.SetTaskLocalDir(filepath.Join("/", allocdir.TaskLocal))
 
+	// Inject enviornment variables
 	for k, v := range d.taskEnv.EnvMap() {
 		cmdArgs = append(cmdArgs, fmt.Sprintf("--set-env=%v=%v", k, v))
 	}
-
-	// Append the run command.
-	cmdArgs = append(cmdArgs, "run", "--mds-register=false", img)
-
-	// Mount allc and task dirs
-	local, ok := ctx.AllocDir.TaskDirs[task.Name]
-	if !ok {
-		return nil, fmt.Errorf("Failed to find task local directory: %v", task.Name)
-	}
-	cmdArgs = append(cmdArgs, fmt.Sprintf("--volume %s,kind=host,readOnly=false,source=%s --mount volume=%s,target=%s", task.Name, local, task.Name, ctx.AllocDir.SharedDir))
 
 	// Check if the user has overriden the exec command.
 	if execCmd, ok := task.Config["command"]; ok {

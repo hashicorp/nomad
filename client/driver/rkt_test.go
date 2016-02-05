@@ -91,7 +91,6 @@ func TestRktDriver_Start(t *testing.T) {
 	}
 
 	driverCtx, execCtx := testDriverContexts(task)
-	defer execCtx.AllocDir.Destroy()
 	d := NewRktDriver(driverCtx)
 
 	handle, err := d.Start(execCtx, task)
@@ -109,11 +108,6 @@ func TestRktDriver_Start(t *testing.T) {
 	}
 	if handle2 == nil {
 		t.Fatalf("missing handle")
-	}
-
-	// Clean up
-	if err := handle.Kill(); err != nil {
-		fmt.Printf("\nError killing Rkt test: %s", err)
 	}
 }
 
