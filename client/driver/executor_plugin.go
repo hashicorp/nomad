@@ -63,15 +63,11 @@ func (e *ExecutorRPC) Wait() (*executor.ProcessState, error) {
 }
 
 func (e *ExecutorRPC) ShutDown() error {
-	var ps executor.ProcessState
-	err := e.client.Call("Plugin.ShutDown", new(interface{}), &ps)
-	return err
+	return e.client.Call("Plugin.ShutDown", new(interface{}), new(interface{}))
 }
 
 func (e *ExecutorRPC) Exit() error {
-	var ps executor.ProcessState
-	err := e.client.Call("Plugin.Exit", new(interface{}), &ps)
-	return err
+	return e.client.Call("Plugin.Exit", new(interface{}), new(interface{}))
 }
 
 type ExecutorRPCServer struct {
@@ -94,16 +90,12 @@ func (e *ExecutorRPCServer) Wait(args interface{}, ps *executor.ProcessState) er
 	return err
 }
 
-func (e *ExecutorRPCServer) ShutDown(args interface{}, ps *executor.ProcessState) error {
-	var err error
-	err = e.Impl.ShutDown()
-	return err
+func (e *ExecutorRPCServer) ShutDown(args interface{}, resp *interface{}) error {
+	return e.Impl.ShutDown()
 }
 
-func (e *ExecutorRPCServer) Exit(args interface{}, ps *executor.ProcessState) error {
-	var err error
-	err = e.Impl.Exit()
-	return err
+func (e *ExecutorRPCServer) Exit(args interface{}, resp *interface{}) error {
+	return e.Impl.Exit()
 }
 
 type ExecutorPlugin struct {
