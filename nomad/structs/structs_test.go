@@ -490,7 +490,7 @@ func TestInvalidServiceCheck(t *testing.T) {
 		Name:      "service.name",
 		PortLabel: "bar",
 	}
-	if err := s.Validate(); err != nil {
+	if err := s.Validate(); err == nil {
 		t.Fatalf("Service should be invalid: %v", err)
 	}
 }
