@@ -57,17 +57,18 @@ func TestExecutor_Start_Invalid(t *testing.T) {
 	invalid := "/bin/foobar"
 	execCmd := ExecCommand{Cmd: invalid, Args: []string{"1"}}
 	ctx := testExecutorContext(t)
+	defer ctx.AllocDir.Destroy()
 	executor := NewExecutor(log.New(os.Stdout, "", log.LstdFlags))
 	_, err := executor.LaunchCmd(&execCmd, ctx)
 	if err == nil {
 		t.Fatalf("Expected error")
 	}
-	defer ctx.AllocDir.Destroy()
 }
 
 func TestExecutor_Start_Wait_Failure_Code(t *testing.T) {
 	execCmd := ExecCommand{Cmd: "/bin/sleep", Args: []string{"fail"}}
 	ctx := testExecutorContext(t)
+	defer ctx.AllocDir.Destroy()
 	executor := NewExecutor(log.New(os.Stdout, "", log.LstdFlags))
 	ps, _ := executor.LaunchCmd(&execCmd, ctx)
 	if ps.Pid == 0 {
@@ -77,12 +78,12 @@ func TestExecutor_Start_Wait_Failure_Code(t *testing.T) {
 	if ps.ExitCode < 1 {
 		t.Fatalf("expected exit code to be non zero, actual: %v", ps.ExitCode)
 	}
-	defer ctx.AllocDir.Destroy()
 }
 
 func TestExecutor_Start_Wait(t *testing.T) {
 	execCmd := ExecCommand{Cmd: "/bin/echo", Args: []string{"hello world"}}
 	ctx := testExecutorContext(t)
+	defer ctx.AllocDir.Destroy()
 	executor := NewExecutor(log.New(os.Stdout, "", log.LstdFlags))
 	ps, err := executor.LaunchCmd(&execCmd, ctx)
 	if err != nil {
@@ -95,7 +96,6 @@ func TestExecutor_Start_Wait(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in waiting for command: %v", err)
 	}
-	defer ctx.AllocDir.Destroy()
 
 	task := "web"
 	taskDir, ok := ctx.AllocDir.TaskDirs[task]
@@ -120,6 +120,7 @@ func TestExecutor_Start_Wait(t *testing.T) {
 func TestExecutor_Start_Kill(t *testing.T) {
 	execCmd := ExecCommand{Cmd: "/bin/sleep", Args: []string{"10 && hello world"}}
 	ctx := testExecutorContext(t)
+	defer ctx.AllocDir.Destroy()
 	executor := NewExecutor(log.New(os.Stdout, "", log.LstdFlags))
 	ps, err := executor.LaunchCmd(&execCmd, ctx)
 	if err != nil {
@@ -132,7 +133,6 @@ func TestExecutor_Start_Kill(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in waiting for command: %v", err)
 	}
-	defer ctx.AllocDir.Destroy()
 
 	task := "web"
 	taskDir, ok := ctx.AllocDir.TaskDirs[task]

@@ -98,7 +98,7 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 	if err != nil {
 		return nil, fmt.Errorf("unable to find the nomad binary: %v", err)
 	}
-	pluginLogFile := filepath.Join(ctx.AllocDir.AllocDir, "plugin.out")
+	pluginLogFile := filepath.Join(ctx.AllocDir.AllocDir, fmt.Sprintf("%s-plugin.out", task.Name))
 	pluginConfig := &plugin.ClientConfig{
 		Cmd: exec.Command(bin, "executor", pluginLogFile),
 	}
@@ -118,7 +118,7 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 		pluginClient.Kill()
 		return nil, fmt.Errorf("error starting process via the plugin: %v", err)
 	}
-	d.logger.Printf("[INFO] started process with pid: %v", ps.Pid)
+	d.logger.Printf("[INFO] driver.raw_exec: started process with pid: %v", ps.Pid)
 
 	// Return a driver handle
 	h := &rawExecHandle{
@@ -151,9 +151,9 @@ func (d *RawExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, e
 	}
 	executor, pluginClient, err := createExecutor(pluginConfig, d.config.LogOutput)
 	if err != nil {
-		d.logger.Println("[ERROR] error connecting to plugin so destroying plugin pid and user pid")
+		d.logger.Println("[ERROR] driver.raw_exec: error connecting to plugin so destroying plugin pid and user pid")
 		if e := destroyPlugin(id.PluginConfig.Pid, id.UserPid); e != nil {
-			d.logger.Printf("[ERROR] error destroying plugin and userpid: %v", e)
+			d.logger.Printf("[ERROR] driver.raw_exec: error destroying plugin and userpid: %v", e)
 		}
 		return nil, fmt.Errorf("error connecting to plugin: %v", err)
 	}

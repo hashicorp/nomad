@@ -213,8 +213,7 @@ func (e *UniversalExecutor) removeChrootMounts() error {
 		}
 	}
 
-	// Unmount
-	// proc.
+	// Unmount proc.
 	proc := filepath.Join(e.taskDir, "proc")
 	if e.pathExists(proc) {
 		if err := syscall.Unmount(proc, 0); err != nil {

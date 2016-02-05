@@ -7,10 +7,12 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
 
+	"github.com/hashicorp/go-multierror"
 	cgroupConfig "github.com/opencontainers/runc/libcontainer/configs"
 
 	"github.com/hashicorp/nomad/client/allocdir"
@@ -18,34 +20,35 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// ExecutorContext is a wrapper to hold context to configure the command user
-// wants to run
+// ExecutorContext holds context to configure the command user
+// wants to run and isolate it
 type ExecutorContext struct {
-	TaskEnv          *env.TaskEnvironment
-	AllocDir         *allocdir.AllocDir
-	TaskName         string
-	TaskResources    *structs.Resources
-	FSIsolation      bool
-	ResourceLimits   bool
-	UnprivilegedUser bool
+	TaskEnv          *env.TaskEnvironment //TaskEnv holds information about the environment of a Task
+	AllocDir         *allocdir.AllocDir   //AllocDir is the handle to do operations on the alloc dir of the Task
+	TaskName         string               // TaskName is the name of the Task
+	TaskResources    *structs.Resources   // TaskResources are the resource constraints for the Task
+	FSIsolation      bool                 // FSIsolation is a flag for drivers to impose file system isolation on certain platforms
+	ResourceLimits   bool                 // ResourceLimits is a flag for drivers to impose resource contraints on a Task on certain platforms
+	UnprivilegedUser bool                 // UnprivilegedUser is a flag for drivers to make the process run as nobody
 }
 
-// ExecCommand is a wrapper to hold the user command
+// ExecCommand holds the user command and args. It's a lightweight replacement
+// of exec.Cmd for serialization purposes.
 type ExecCommand struct {
 	Cmd  string
 	Args []string
 }
 
-// ProcessState holds information about the state of
-// a user process
+// ProcessState holds information about the state of a user process.
 type ProcessState struct {
 	Pid      int
 	ExitCode int
+	Signal   int
 	Time     time.Time
 }
 
 // Executor is the interface which allows a driver to launch and supervise
-// a process user wants to run
+// a process
 type Executor interface {
 	LaunchCmd(command *ExecCommand, ctx *ExecutorContext) (*ProcessState, error)
 	Wait() (*ProcessState, error)
@@ -77,7 +80,7 @@ func NewExecutor(logger *log.Logger) Executor {
 // LaunchCmd launches a process and returns it's state. It also configures an
 // applies isolation on certain platforms.
 func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext) (*ProcessState, error) {
-	e.logger.Printf("[INFO] executor: launching command %v", command.Cmd)
+	e.logger.Printf("[DEBUG] executor: launching command %v %v", command.Cmd, strings.Join(command.Args, ""))
 
 	e.ctx = ctx
 
@@ -86,10 +89,13 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext
 		return nil, err
 	}
 
-	// confiuguring the chroot
+	// configuring the chroot
 	if err := e.configureIsolation(); err != nil {
 		return nil, err
 	}
+
+	// entering the plugin process in cgroup
+	e.applyLimits(os.Getpid())
 
 	// setting the user of the process
 	if e.ctx.UnprivilegedUser {
@@ -114,6 +120,7 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext
 	e.cmd.Stderr = stde
 
 	// setting the env, path and args for the command
+	e.ctx.TaskEnv.Build()
 	e.cmd.Env = ctx.TaskEnv.EnvList()
 	e.cmd.Path = ctx.TaskEnv.ReplaceEnv(command.Cmd)
 	e.cmd.Args = append([]string{e.cmd.Path}, ctx.TaskEnv.ParseAndReplace(command.Args)...)
@@ -129,10 +136,6 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext
 		return nil, fmt.Errorf("error starting command: %v", err)
 	}
 
-	// entering the user process in the cgroup
-	e.applyLimits(e.cmd.Process.Pid)
-	// entering the plugin process in cgroup
-	e.applyLimits(os.Getpid())
 	go e.wait()
 	return &ProcessState{Pid: e.cmd.Process.Pid, ExitCode: -1, Time: time.Now()}, nil
 }
@@ -168,24 +171,28 @@ func (e *UniversalExecutor) wait() {
 // Exit cleans up the alloc directory, destroys cgroups and kills the user
 // process
 func (e *UniversalExecutor) Exit() error {
-	e.logger.Printf("[INFO] Exiting plugin for task %q", e.ctx.TaskName)
-	if e.cmd.Process == nil {
-		return fmt.Errorf("executor.exit error: no process found")
+	var merr multierror.Error
+	if e.cmd.Process != nil {
+		proc, err := os.FindProcess(e.cmd.Process.Pid)
+		if err != nil {
+			e.logger.Printf("[ERROR] can't find process with pid: %v, err: %v", e.cmd.Process.Pid, err)
+		}
+		if err := proc.Kill(); err != nil {
+			e.logger.Printf("[ERROR] can't kill process with pid: %v, err: %v", e.cmd.Process.Pid, err)
+		}
 	}
-	proc, err := os.FindProcess(e.cmd.Process.Pid)
-	if err != nil {
-		return fmt.Errorf("failied to find user process %v: %v", e.cmd.Process.Pid, err)
-	}
-	if err = proc.Kill(); err != nil {
-		e.logger.Printf("[DEBUG] executor.exit error: %v", err)
-	}
+
 	if e.ctx.FSIsolation {
-		e.removeChrootMounts()
+		if err := e.removeChrootMounts(); err != nil {
+			merr.Errors = append(merr.Errors, err)
+		}
 	}
 	if e.ctx.ResourceLimits {
-		e.destroyCgroup()
+		if err := e.destroyCgroup(); err != nil {
+			merr.Errors = append(merr.Errors, err)
+		}
 	}
-	return nil
+	return merr.ErrorOrNil()
 }
 
 // Shutdown sends an interrupt signal to the user process

@@ -10,6 +10,8 @@ import (
 	"github.com/hashicorp/nomad/client/driver/executor"
 )
 
+// createExecutor launches an executor plugin and returns an instance of the
+// Executor interface
 func createExecutor(config *plugin.ClientConfig, w io.Writer) (executor.Executor, *plugin.Client, error) {
 	config.HandshakeConfig = HandshakeConfig
 	config.Plugins = GetPluginMap(w)
@@ -27,6 +29,7 @@ func createExecutor(config *plugin.ClientConfig, w io.Writer) (executor.Executor
 	return executorPlugin, executorClient, nil
 }
 
+// killProcess kills a process with the given pid
 func killProcess(pid int) error {
 	proc, err := os.FindProcess(pid)
 	if err != nil {
@@ -35,6 +38,8 @@ func killProcess(pid int) error {
 	return proc.Kill()
 }
 
+// destroyPlugin kills the plugin with the given pid and also kills the user
+// process
 func destroyPlugin(pluginPid int, userPid int) error {
 	var merr error
 	if err := killProcess(pluginPid); err != nil {
