@@ -9,9 +9,6 @@ language: go
 go:
   - 1.6
 
-env:
-  - DOCKER_VERSION=1.9.1
-
 matrix:
   allow_failures:
     - go: tip
