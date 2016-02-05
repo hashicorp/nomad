@@ -1438,6 +1438,25 @@ const (
 	DefaultKillTimeout = 5 * time.Second
 )
 
+// LogConfig provides configuration for log rotation
+type LogConfig struct {
+	MaxFiles      int `mapstructure:"max_files"`
+	MaxFileSizeMB int `mapstructure:"max_file_size"`
+}
+
+// MeetsMinResources returns an error if the log config specified are less than
+// the minimum allowed.
+func (l *LogConfig) MeetsMinResources() error {
+	var mErr multierror.Error
+	if l.MaxFiles < 10 {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum number of files is 10; got %d", l.MaxFiles))
+	}
+	if l.MaxFileSizeMB < 10 {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum file size is 10MB; got %d", l.MaxFileSizeMB))
+	}
+	return mErr.ErrorOrNil()
+}
+
 // Task is a single process typically that is executed as part of a task group.
 type Task struct {
 	// Name of the task
@@ -1469,6 +1488,9 @@ type Task struct {
 	// KillTimeout is the time between signaling a task that it will be
 	// killed and killing it.
 	KillTimeout time.Duration `mapstructure:"kill_timeout"`
+
+	// LogConfig provides configuration for log rotation
+	LogConfig *LogConfig `mapstructure:"logs"`
 }
 
 // InitFields initializes fields in the task.
@@ -1625,6 +1647,13 @@ func (t *Task) Validate() error {
 	if t.Resources == nil {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing task resources"))
 	} else if err := t.Resources.MeetsMinResources(); err != nil {
+		mErr.Errors = append(mErr.Errors, err)
+	}
+
+	// Validate the log config
+	if t.LogConfig == nil {
+		mErr.Errors = append(mErr.Errors, errors.New("Missing Log Config"))
+	} else if err := t.LogConfig.MeetsMinResources(); err != nil {
 		mErr.Errors = append(mErr.Errors, err)
 	}
 

@@ -42,6 +42,10 @@ job "binstore-storagelocker" {
             config {
                 image = "hashicorp/binstore"
             }
+            logs {
+                max_files = 10
+                max_file_size = 100
+            }
             env {
               HELLO = "world"
               LOREM = "ipsum"
