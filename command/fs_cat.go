@@ -29,7 +29,7 @@ func (f *FSCatCommand) Help() string {
 }
 
 func (f *FSCatCommand) Synopsis() string {
-	return "displays a file at a given location"
+	return "Cat a file in an allocation directory"
 }
 
 func (f *FSCatCommand) Run(args []string) int {
