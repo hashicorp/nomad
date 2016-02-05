@@ -32,7 +32,7 @@ func RunCustom(args []string, commands map[string]cli.CommandFactory) int {
 	commandsInclude := make([]string, 0, len(commands))
 	for k, _ := range commands {
 		switch k {
-		case "spawn-daemon":
+		case "executor":
 		default:
 			commandsInclude = append(commandsInclude, k)
 		}
