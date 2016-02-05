@@ -231,7 +231,7 @@ func TestRawExecDriver_Start_Wait_AllocDir(t *testing.T) {
 	t.Parallel()
 	exp := []byte{'w', 'i', 'n'}
 	file := "output.txt"
-	outPath := fmt.Sprintf(`$%s/%s`, env.AllocDir, file)
+	outPath := fmt.Sprintf(`${%s}/%s`, env.AllocDir, file)
 	task := &structs.Task{
 		Name: "sleep",
 		Config: map[string]interface{}{
