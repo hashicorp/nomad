@@ -244,7 +244,7 @@ The `task` object supports the following keys:
 *   `env` - A map of key/value representing environment variables that
     will be passed along to the running process. Nomad variables are
     interpreted when set in the environment variable values. See the table of
-    interpreted variables [here](#interpreted_vars).
+    interpreted variables [here](/docs/jobspec/interpreted.html).
 
     For example the below environment map will be reinterpreted:
 
@@ -344,7 +344,7 @@ restart {
 The `constraint` object supports the following keys:
 
 * `attribute` - Specifies the attribute to examine for the
-  constraint. See the table of attributes [below](#interpreted_vars).
+  constraint. See the table of attributes [here](/docs/jobspec/interpreted.html#interpreted_node_vars).
 
 * `operator` - Specifies the comparison operator. Defaults to equality,
   and can be `=`, `==`, `is`, `!=`, `not`, `>`, `>=`, `<`, `<=`. The
@@ -375,96 +375,6 @@ The `constraint` object supports the following keys:
     the same job _may_ be co-scheduled.
 
     Tasks within a task group are always co-scheduled.
-
-### Interpreted Variables <a id="interpreted_vars"></a>
-
-Certain Nomad variables are interpretable for use in constraints, task
-environment variables and task arguments. Below is a table documenting the
-variables that can be interpreted:
-
-<table class="table table-bordered table-striped">
-  <tr>
-    <th>Variable</th>
-    <th>Description</th>
-  </tr>
-  <tr>
-    <td>${node.id}</td>
-    <td>The client node identifier</td>
-  </tr>
-  <tr>
-    <td>${node.datacenter}</td>
-    <td>The client node datacenter</td>
-  </tr>
-  <tr>
-    <td>${node.name}</td>
-    <td>The client node name</td>
-  </tr>
-  <tr>
-    <td>${node.class}</td>
-    <td>The client node class</td>
-  </tr>
-  <tr>
-    <td>${attr.\<key\}></td>
-    <td>The attribute given by `key` on the client node.</td>
-  </tr>
-  <tr>
-    <td>${meta.\<key\>}</td>
-    <td>The metadata value given by `key` on the client node.</td>
-  </tr>
-</table>
-
-Below is a table documenting common node attributes:
-
-<table class="table table-bordered table-striped">
-  <tr>
-    <th>Attribute</th>
-    <th>Description</th>
-  </tr>
-  <tr>
-    <td>arch</td>
-    <td>CPU architecture of the client. Examples: `amd64`, `386`</td>
-  </tr>
-  <tr>
-    <td>consul.datacenter</td>
-    <td>The Consul datacenter of the client node if Consul found</td>
-  </tr>
-  <tr>
-    <td>cpu.numcores</td>
-    <td>Number of CPU cores on the client</td>
-  </tr>
-  <tr>
-    <td>driver.\<key\></td>
-    <td>See the [task drivers](/docs/drivers/index.html) for attribute documentation</td>
-  </tr>
-  <tr>
-    <td>hostname</td>
-    <td>Hostname of the client</td>
-  </tr>
-  <tr>
-    <td>kernel.name</td>
-    <td>Kernel of the client. Examples: `linux`, `darwin`</td>
-  </tr>
-  <tr>
-    <td>kernel.version</td>
-    <td>Version of the client kernel. Examples: `3.19.0-25-generic`, `15.0.0`</td>
-  </tr>
-  <tr>
-    <td>platform.aws.ami-id</td>
-    <td>On EC2, the AMI ID of the client node</td>
-  </tr>
-  <tr>
-    <td>platform.aws.instance-type</td>
-    <td>On EC2, the instance type of the client node</td>
-  </tr>
-  <tr>
-    <td>os.name</td>
-    <td>Operating system of the client. Examples: `ubuntu`, `windows`, `darwin`</td>
-  </tr>
-  <tr>
-    <td>os.version</td>
-    <td>Version of the client OS</td>
-  </tr>
-</table>
 
 ## JSON Syntax
 

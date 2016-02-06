@@ -26,11 +26,11 @@ The `rkt` driver supports the following configuration in the job spec:
 
 *   `args` - (Optional) A list of arguments to the optional `command`.
     References to environment variables or any [intepretable Nomad
-    variables](/docs/jobspec/index.html#interpreted_vars) will be interpreted
+    variables](/docs/jobspec/interpreted.html) will be interpreted
     before launching the task. For example:
 
     ```
-        args = ["${nomad.ip}", "${MY_ENV}", ${meta.foo}"]
+        args = ["${nomad.datacenter}", "${MY_ENV}", ${meta.foo}"]
     ```
 
 * `trust_prefix` - (Optional) The trust prefix to be passed to rkt. Must be
