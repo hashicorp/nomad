@@ -122,7 +122,7 @@ func TestExecDriver_KillUserPid_OnPluginReconnectFailure(t *testing.T) {
 		t.Fatalf("expected error")
 	}
 	if handle2 != nil {
-		defer handle2.Kill()
+		handle2.Kill()
 		t.Fatalf("expected handle2 to be nil")
 	}
 	// Test if the userpid is still present

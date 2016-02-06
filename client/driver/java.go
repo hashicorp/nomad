@@ -171,7 +171,7 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		pluginClient.Kill()
 		return nil, fmt.Errorf("error starting process via the plugin: %v", err)
 	}
-	d.logger.Printf("[INFO] driver.java: started process with pid: %v", ps.Pid)
+	d.logger.Printf("[DEBUG] driver.java: started process with pid: %v", ps.Pid)
 
 	// Return a driver handle
 	h := &javaHandle{
