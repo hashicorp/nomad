@@ -50,6 +50,7 @@ Available commands are:
     alloc-status          Display allocation status information and metadata
     client-config         View or modify client configuration details
     eval-monitor          Monitor an evaluation interactively
+    fs                    Inspect the contents of an allocation directory
     init                  Create an example job file
     node-drain            Toggle drain mode on a given node
     node-status           Display status information about nodes
