@@ -85,8 +85,8 @@ func TestRktDriver_Start(t *testing.T) {
 			"command":      "/etcd",
 		},
 		Resources: &structs.Resources{
-			MemoryMB: 256,
-			CPU:      512,
+			MemoryMB: 128,
+			CPU:      100,
 		},
 	}
 
@@ -122,8 +122,8 @@ func TestRktDriver_Start_Wait(t *testing.T) {
 			"args":         []string{"--version"},
 		},
 		Resources: &structs.Resources{
-			MemoryMB: 256,
-			CPU:      512,
+			MemoryMB: 128,
+			CPU:      100,
 		},
 	}
 
@@ -166,8 +166,8 @@ func TestRktDriver_Start_Wait_Skip_Trust(t *testing.T) {
 			"args":    []string{"--version"},
 		},
 		Resources: &structs.Resources{
-			MemoryMB: 256,
-			CPU:      512,
+			MemoryMB: 128,
+			CPU:      100,
 		},
 	}
 
@@ -211,8 +211,8 @@ func TestRktDriver_Start_Wait_Logs(t *testing.T) {
 			"args":         []string{"--version"},
 		},
 		Resources: &structs.Resources{
-			MemoryMB: 256,
-			CPU:      512,
+			MemoryMB: 128,
+			CPU:      100,
 		},
 	}
 
