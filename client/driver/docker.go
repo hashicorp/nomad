@@ -442,7 +442,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 			}
 		}
 
-		if authConfig := d.config.Read("docker.auth_config"); authConfig != "" {
+		if authConfig := d.config.Read("docker.auth.config"); authConfig != "" {
 			if f, err := os.Open(authConfig); err == nil {
 				defer f.Close()
 				if authConfigurations, err := docker.NewAuthConfigurations(f); err == nil {

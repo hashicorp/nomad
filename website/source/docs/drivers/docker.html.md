@@ -247,7 +247,7 @@ The `docker` driver has the following host-level configuration options:
   to customize this if you use a non-standard socket (http or another
   location).
 
-* `docker.auth_config` - Allows an operator to specify a json file which is in
+* `docker.auth.config` - Allows an operator to specify a json file which is in
   the dockercfg format containing authentication information for private registry. 
 
 * `docker.tls.cert` - Path to the server's certificate file (`.pem`). Specify
