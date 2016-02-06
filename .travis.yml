@@ -11,7 +11,7 @@ go:
   - tip
 
 env:
-  - TRAVIS_RUN=true DOCKER_VERSION=1.9.1
+  - DOCKER_VERSION=1.9.1
 
 matrix:
   allow_failures:
