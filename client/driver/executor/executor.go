@@ -23,13 +23,31 @@ import (
 // ExecutorContext holds context to configure the command user
 // wants to run and isolate it
 type ExecutorContext struct {
-	TaskEnv          *env.TaskEnvironment //TaskEnv holds information about the environment of a Task
-	AllocDir         *allocdir.AllocDir   //AllocDir is the handle to do operations on the alloc dir of the Task
-	TaskName         string               // TaskName is the name of the Task
-	TaskResources    *structs.Resources   // TaskResources are the resource constraints for the Task
-	FSIsolation      bool                 // FSIsolation is a flag for drivers to impose file system isolation on certain platforms
-	ResourceLimits   bool                 // ResourceLimits is a flag for drivers to impose resource contraints on a Task on certain platforms
-	UnprivilegedUser bool                 // UnprivilegedUser is a flag for drivers to make the process run as nobody
+
+	// TaskEnv holds information about the environment of a Task
+	TaskEnv *env.TaskEnvironment
+
+	// AllocDir is the handle to do operations on the alloc dir of
+	// the task
+	AllocDir *allocdir.AllocDir
+
+	// TaskName is the name of the Task
+	TaskName string
+
+	// TaskResources are the resource constraints for the Task
+	TaskResources *structs.Resources
+
+	// FSIsolation is a flag for drivers to impose file system
+	// isolation on certain platforms
+	FSIsolation bool
+
+	// ResourceLimits is a flag for drivers to impose resource
+	// contraints on a Task on certain platforms
+	ResourceLimits bool
+
+	// UnprivilegedUser is a flag for drivers to make the process
+	// run as nobody
+	UnprivilegedUser bool
 }
 
 // ExecCommand holds the user command and args. It's a lightweight replacement
