@@ -46,11 +46,11 @@ We can register our example job now:
 
 ```
 $ nomad run example.nomad
-==> Monitoring evaluation "3d823c52-929a-fa8b-c50d-1ac4d00cf6b7"
+==> Monitoring evaluation "26cfc69e"
     Evaluation triggered by job "example"
-    Allocation "85b839d7-f67a-72a4-5a13-104020ae4807" created: node "2512929f-5b7c-a959-dfd9-bf8a8eb022a6", group "cache"
+    Allocation "8ba85cef" created: node "171a583b", group "cache"
     Evaluation status changed: "pending" -> "complete"
-==> Evaluation "3d823c52-929a-fa8b-c50d-1ac4d00cf6b7" finished with status "complete"
+==> Evaluation "26cfc69e" finished with status "complete"
 ```
 
 Anytime a job is updated, Nomad creates an evaluation to determine what
@@ -67,15 +67,16 @@ Name        = example
 Type        = service
 Priority    = 50
 Datacenters = dc1
-Status      = <none>
+Status      = running
+Periodic    = false
 
 ==> Evaluations
-ID                                    Priority  TriggeredBy   Status
-3d823c52-929a-fa8b-c50d-1ac4d00cf6b7  50        job-register  complete
+ID        Priority  Triggered By  Status
+26cfc69e  50        job-register  complete
 
 ==> Allocations
-ID                                    EvalID                                NodeID                                TaskGroup  Desired  Status
-85b839d7-f67a-72a4-5a13-104020ae4807  3d823c52-929a-fa8b-c50d-1ac4d00cf6b7  2512929f-5b7c-a959-dfd9-bf8a8eb022a6  cache      run      running
+ID        Eval ID   Node ID   Task Group  Desired  Status
+8ba85cef  26cfc69e  171a583b  cache       run      running
 ```
 
 Here we can see that our evaluation that was created has completed, and that
@@ -100,13 +101,13 @@ push the updated version of the job:
 
 ```
 $ nomad run example.nomad
-==> Monitoring evaluation "ec199c63-2022-f5c7-328d-1cf85e61bf66"
+==> Monitoring evaluation "127a49d0"
     Evaluation triggered by job "example"
-    Allocation "21551679-5224-cb6b-80a2-d0b091612d2e" created: node "2512929f-5b7c-a959-dfd9-bf8a8eb022a6", group "cache"
-    Allocation "b1be1410-a01c-20ad-80ff-96750ec0f1da" created: node "2512929f-5b7c-a959-dfd9-bf8a8eb022a6", group "cache"
-    Allocation "ed32a35d-8086-3f04-e299-4432e562cbf2" created: node "2512929f-5b7c-a959-dfd9-bf8a8eb022a6", group "cache"
+    Allocation "8ab24eef" created: node "171a583b", group "cache"
+    Allocation "f6c29874" created: node "171a583b", group "cache"
+    Allocation "8ba85cef" modified: node "171a583b", group "cache"
     Evaluation status changed: "pending" -> "complete"
-==> Evaluation "ec199c63-2022-f5c7-328d-1cf85e61bf66" finished with status "complete"
+==> Evaluation "127a49d0" finished with status "complete"
 ```
 
 Because we set the count of the task group to three, Nomad created two
@@ -132,13 +133,23 @@ specification now:
 
 ```
 $ nomad run example.nomad
-==> Monitoring evaluation "d34d37f4-19b1-f4c0-b2da-c949e6ade82d"
+==> Monitoring evaluation "ebcc3e14"
     Evaluation triggered by job "example"
-    Allocation "5614feb0-212d-21e5-ccfb-56a394fc41d5" created: node "2512929f-5b7c-a959-dfd9-bf8a8eb022a6", group "cache"
-    Allocation "bf7e3ad5-b217-14fe-f3f8-2b83af9dbb42" created: node "2512929f-5b7c-a959-dfd9-bf8a8eb022a6", group "cache"
-    Allocation "e3978af2-f61e-c601-7aa1-90aea9b23cf6" created: node "2512929f-5b7c-a959-dfd9-bf8a8eb022a6", group "cache"
+    Allocation "9a3743f4" created: node "171a583b", group "cache"
     Evaluation status changed: "pending" -> "complete"
-==> Evaluation "d34d37f4-19b1-f4c0-b2da-c949e6ade82d" finished with status "complete"
+==> Evaluation "ebcc3e14" finished with status "complete"
+==> Monitoring next evaluation "b508d8f0-7f21-8d66-ec59-7f5b2573435a" in 0
+==> Monitoring evaluation "b508d8f0"
+    Evaluation triggered by job "example"
+    Allocation "926e5876" created: node "171a583b", group "cache"
+    Evaluation status changed: "pending" -> "complete"
+==> Evaluation "b508d8f0" finished with status "complete"
+==> Monitoring next evaluation "ea78c05a-a15f-92ae-8c3d-59f4a1edd091" in 10s
+==> Monitoring evaluation "ea78c05a"
+    Evaluation triggered by job "example"
+    Allocation "3c8589d5" created: node "171a583b", group "cache"
+    Evaluation status changed: "pending" -> "complete"
+==> Evaluation "ea78c05a" finished with status "complete"
 ```
 
 We can see that Nomad handled the update in three phases, only updating a single task
@@ -152,10 +163,10 @@ is stopping the job. This is done with the [`stop` command](/docs/commands/stop.
 
 ```
 $ nomad stop example
-==> Monitoring evaluation "bb407de4-02cb-f009-d986-646d6c11366d"
+==> Monitoring evaluation "fd03c9f8"
     Evaluation triggered by job "example"
     Evaluation status changed: "pending" -> "complete"
-==> Evaluation "bb407de4-02cb-f009-d986-646d6c11366d" finished with status "complete"
+==> Evaluation "fd03c9f8" finished with status "complete"
 ```
 
 When we stop a job, it creates an evaluation which is used to stop all
@@ -164,7 +175,7 @@ If we try to query the job status, we can see it is no longer registered:
 
 ```
 $ nomad status example
-Error querying job: Unexpected response code: 404 (job not found)
+No job(s) with prefix or id "example" found
 ```
 
 If we wanted to start the job again, we could simply `run` it again.
