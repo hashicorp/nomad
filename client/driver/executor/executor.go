@@ -107,7 +107,8 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext
 		return nil, err
 	}
 
-	// configuring the chroot
+	// configuring the chroot, cgroup and enters the plugin process in the
+	// chroot
 	if err := e.configureIsolation(); err != nil {
 		return nil, err
 	}
