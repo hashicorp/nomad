@@ -485,6 +485,14 @@ func TestInvalidServiceCheck(t *testing.T) {
 	if err := s.Validate(); err == nil {
 		t.Fatalf("Service should be invalid")
 	}
+
+	s = Service{
+		Name:      "service.name",
+		PortLabel: "bar",
+	}
+	if err := s.Validate(); err == nil {
+		t.Fatalf("Service should be invalid: %v", err)
+	}
 }
 
 func TestDistinctCheckID(t *testing.T) {

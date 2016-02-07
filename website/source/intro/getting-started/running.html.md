@@ -83,8 +83,8 @@ $ vagrant ssh
 ...
 
 $ nomad node-status
-ID                                    DC   Name   Class   Drain  Status
-72d3af97-144f-1e5f-94e5-df1516fe4add  dc1  nomad  <none>  false  ready
+ID        Datacenter  Name   Class   Drain  Status
+171a583b  dc1         nomad  <none>  false  ready
 ```
 
 The output shows our Node ID, which is a randomly generated UUID,
@@ -99,8 +99,8 @@ ring using the [`server-members`](/docs/commands/server-members.html) command:
 
 ```text
 $ nomad server-members
-Name          Addr       Port  Status  Proto  Build     DC   Region
-nomad.global  127.0.0.1  4648  alive   2      0.1.0dev  dc1  global
+Name          Address    Port  Status  Protocol  Build     Datacenter  Region
+nomad.global  127.0.0.1  4648  alive   2         0.3.0dev  dc1         global
 ```
 
 The output shows our own agent, the address it is running on, its

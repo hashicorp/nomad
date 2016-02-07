@@ -338,7 +338,7 @@ be specified using the `?region=` query parameter.
     {
     "EvalIDs": ["d092fdc0-e1fd-2536-67d8-43af8ca798ac"],
     "EvalCreateIndex": 35,
-    "NodeModifyIndex": 34,
+    "NodeModifyIndex": 34
     }
     ```
 
@@ -378,7 +378,7 @@ be specified using the `?region=` query parameter.
     {
     "EvalID": "d092fdc0-e1fd-2536-67d8-43af8ca798ac",
     "EvalCreateIndex": 35,
-    "NodeModifyIndex": 34,
+    "NodeModifyIndex": 34
     }
     ```
 

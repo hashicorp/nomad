@@ -3,6 +3,7 @@
 BACKWARDS INCOMPATIBILITIES:
   * core: Improved restart policy with more user configuration [GH-594]
   * core/cli: Print short identifiers [GH-675]
+  * core/consul: Validate service name doesn't include period [GH-770]
   * core/jobspec: Variables/constraints interpreted using ${} notation [GH-675]
   * client: Environment variable containing address for each allocated port
     [GH-704]
@@ -26,6 +27,7 @@ IMPROVEMENTS:
   * core/client: Client pulls minimum set of required allocations [GH-731]
   * core/jobspec: Default task resources and validation [GH-739]
   * cli: Output of agent-info is sorted [GH-617]
+  * cli: Eval monitor detects zero wait condition [GH-776]
   * cli: Ability to navigate allocation directories [GH-709]
   * client: Handle updates to tasks Restart Policy and KillTimeout [GH-751]
   * client: Create a tmp/ directory inside each task directory [GH-757]
@@ -34,6 +36,8 @@ IMPROVEMENTS:
   * drivers: Interpret Nomad variables in environment variables/args [GH-653]
   * driver/rkt: Add support for CPU/Memory isolation [GH-610]
   * driver/rkt: Add support for mounting alloc/task directory [GH-645]
+  * driver/docker: Support for .dockercfg based auth for private registries
+    [GH-773]
 
 BUG FIXES:
   * core: Node drain could only be partially applied [GH-750]
@@ -42,6 +46,7 @@ BUG FIXES:
   * client: Handle non-200 codes when parsing AWS metadata [GH-614]
   * client: Cleanup of the allocation directory [GH-755]
   * client: Unmounted of shared alloc dir when client is rebooted [GH-755]
+  * client/consul: Service name changes handled properly [GH-766]
   * driver/rkt: handle broader format of rkt version outputs [GH-745]
   * driver/qemu: failed to load image and kvm accelerator fixes [GH-656]
 

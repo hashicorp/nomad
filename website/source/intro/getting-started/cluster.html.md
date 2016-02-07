@@ -140,9 +140,9 @@ we should see both nodes in the `ready` state:
 
 ```
 $ nomad node-status
-ID                                    DC   Name   Class   Drain  Status
-f7780117-2cae-8ee9-4b36-f34dd796ab02  dc1  nomad  <none>  false  ready
-ffb5b55a-6059-9ec7-6108-23a2bbba95da  dc1  nomad  <none>  false  ready
+ID        Datacenter  Name   Class   Drain  Status
+fca62612  dc1         nomad  <none>  false  ready
+c887deef  dc1         nomad  <none>  false  ready
 ```
 
 We now have a simple three node cluster running. The only difference
@@ -159,13 +159,13 @@ Then, use the [`run` command](/docs/commands/run.html) to submit the job:
 
 ```
 $ nomad run example.nomad
-==> Monitoring evaluation "77e5075f-2a1b-9cce-d14e-fe98cca9e17f"
+==> Monitoring evaluation "8e0a7cf9"
     Evaluation triggered by job "example"
-    Allocation "711edd85-f183-99ea-910a-6445b23d79e4" created: node "ffb5b55a-6059-9ec7-6108-23a2bbba95da", group "cache"
-    Allocation "98218a8a-627c-308f-8941-acdbffe1940c" created: node "f7780117-2cae-8ee9-4b36-f34dd796ab02", group "cache"
-    Allocation "e8957a7f-6fff-f61f-2878-57715c26725d" created: node "f7780117-2cae-8ee9-4b36-f34dd796ab02", group "cache"
+    Allocation "501154ac" created: node "c887deef", group "cache"
+    Allocation "7e2b3900" created: node "fca62612", group "cache"
+    Allocation "9c66fcaf" created: node "c887deef", group "cache"
     Evaluation status changed: "pending" -> "complete"
-==> Evaluation "77e5075f-2a1b-9cce-d14e-fe98cca9e17f" finished with status "complete"
+==> Evaluation "8e0a7cf9" finished with status "complete"
 ```
 
 We can see in the output that the scheduler assigned two of the
@@ -181,17 +181,19 @@ Name        = example
 Type        = service
 Priority    = 50
 Datacenters = dc1
-Status      = <none>
+Status      = running
+Periodic    = false
 
 ==> Evaluations
-ID                                    Priority  TriggeredBy   Status
-77e5075f-2a1b-9cce-d14e-fe98cca9e17f  50        job-register  complete
+ID        Priority  Triggered By  Status
+54dd2ae3  50        job-register  complete
 
 ==> Allocations
-ID                                    EvalID                                NodeID                                TaskGroup  Desired  Status
-711edd85-f183-99ea-910a-6445b23d79e4  77e5075f-2a1b-9cce-d14e-fe98cca9e17f  ffb5b55a-6059-9ec7-6108-23a2bbba95da  cache      run      running
-98218a8a-627c-308f-8941-acdbffe1940c  77e5075f-2a1b-9cce-d14e-fe98cca9e17f  f7780117-2cae-8ee9-4b36-f34dd796ab02  cache      run      running
-e8957a7f-6fff-f61f-2878-57715c26725d  77e5075f-2a1b-9cce-d14e-fe98cca9e17f  f7780117-2cae-8ee9-4b36-f34dd796ab02  cache      run      running
+ID        Eval ID   Node ID   Task Group  Desired  Status
+102225ab  54dd2ae3  56b590e6  cache       run      running
+f327d2b1  54dd2ae3  e4235508  cache       run      running
+f91137f8  54dd2ae3  56b590e6  cache       run      running
+
 ```
 
 We can see that all our tasks have been allocated and are running.
