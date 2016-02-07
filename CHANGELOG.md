@@ -44,6 +44,7 @@ BUG FIXES:
   * client: Handle non-200 codes when parsing AWS metadata [GH-614]
   * client: Cleanup of the allocation directory [GH-755]
   * client: Unmounted of shared alloc dir when client is rebooted [GH-755]
+  * client/consul: Service name changes handled properly [GH-766]
   * driver/rkt: handle broader format of rkt version outputs [GH-745]
   * driver/qemu: failed to load image and kvm accelerator fixes [GH-656]
 
