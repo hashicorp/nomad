@@ -62,6 +62,8 @@ sudo usermod -aG docker vagrant
 
 # Setup Nomad for development
 cd /opt/gopath/src/github.com/hashicorp/nomad && make updatedeps
+# Install gox
+go get github.com/mitchellh/gox
 
 # CD into the nomad working directory when we login to the VM
 grep "cd /opt/gopath/src/github.com/hashicorp/nomad" ~/.profile || echo "cd /opt/gopath/src/github.com/hashicorp/nomad" >> ~/.profile
