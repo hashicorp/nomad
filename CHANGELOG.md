@@ -36,6 +36,8 @@ IMPROVEMENTS:
   * drivers: Interpret Nomad variables in environment variables/args [GH-653]
   * driver/rkt: Add support for CPU/Memory isolation [GH-610]
   * driver/rkt: Add support for mounting alloc/task directory [GH-645]
+  * driver/docker: Support for .dockercfg based auth for private registries
+    [GH-773]
 
 BUG FIXES:
   * core: Node drain could only be partially applied [GH-750]

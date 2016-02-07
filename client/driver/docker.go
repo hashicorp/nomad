@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -438,6 +439,17 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 				Password:      driverConfig.Auth[0].Password,
 				Email:         driverConfig.Auth[0].Email,
 				ServerAddress: driverConfig.Auth[0].ServerAddress,
+			}
+		}
+
+		if authConfig := d.config.Read("docker.auth.config"); authConfig != "" {
+			if f, err := os.Open(authConfig); err == nil {
+				defer f.Close()
+				if authConfigurations, err := docker.NewAuthConfigurations(f); err == nil {
+					if authConfiguration, ok := authConfigurations.Configs[repo]; ok {
+						authOptions = authConfiguration
+					}
+				}
 			}
 		}
 
