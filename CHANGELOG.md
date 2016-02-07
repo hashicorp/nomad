@@ -27,6 +27,7 @@ IMPROVEMENTS:
   * core/client: Client pulls minimum set of required allocations [GH-731]
   * core/jobspec: Default task resources and validation [GH-739]
   * cli: Output of agent-info is sorted [GH-617]
+  * cli: Eval monitor detects zero wait condition [GH-776]
   * cli: Ability to navigate allocation directories [GH-709]
   * client: Handle updates to tasks Restart Policy and KillTimeout [GH-751]
   * client: Create a tmp/ directory inside each task directory [GH-757]
