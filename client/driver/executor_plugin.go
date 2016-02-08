@@ -8,6 +8,7 @@ import (
 
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/driver/executor"
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 var HandshakeConfig = plugin.HandshakeConfig{
@@ -76,6 +77,10 @@ func (e *ExecutorRPC) Exit() error {
 	return e.client.Call("Plugin.Exit", new(interface{}), new(interface{}))
 }
 
+func (e *ExecutorRPC) UpdateLogConfig(logConfig *structs.LogConfig) error {
+	return e.client.Call("Plugin.UpdateLogConfig", logConfig, new(interface{}))
+}
+
 type ExecutorRPCServer struct {
 	Impl executor.Executor
 }
@@ -102,6 +107,10 @@ func (e *ExecutorRPCServer) ShutDown(args interface{}, resp *interface{}) error 
 
 func (e *ExecutorRPCServer) Exit(args interface{}, resp *interface{}) error {
 	return e.Impl.Exit()
+}
+
+func (e *ExecutorRPCServer) UpdateLogConfig(args *structs.LogConfig, resp *interface{}) error {
+	return e.Impl.UpdateLogConfig(args)
 }
 
 type ExecutorPlugin struct {

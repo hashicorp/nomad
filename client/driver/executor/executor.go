@@ -54,6 +54,7 @@ type Executor interface {
 	Wait() (*ProcessState, error)
 	ShutDown() error
 	Exit() error
+	UpdateLogConfig(logConfig *structs.LogConfig) error
 }
 
 // UniversalExecutor is an implementation of the Executor which launches and
@@ -67,6 +68,8 @@ type UniversalExecutor struct {
 	groups        *cgroupConfig.Cgroup
 	exitState     *ProcessState
 	processExited chan interface{}
+	lre           *logrotator.LogRotator
+	lro           *logrotator.LogRotator
 
 	logger *log.Logger
 	lock   sync.Mutex
@@ -105,6 +108,7 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext
 		return nil, fmt.Errorf("error creating log rotator for stdout of task %v", err)
 	}
 	e.cmd.Stdout = stdow
+	e.lro = lro
 	go lro.Start(stdor)
 
 	stder, stdew := io.Pipe()
@@ -113,6 +117,7 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext
 		return nil, fmt.Errorf("error creating log rotator for stderr of task %v", err)
 	}
 	e.cmd.Stderr = stdew
+	e.lre = lre
 	go lre.Start(stder)
 
 	e.cmd.Env = ctx.TaskEnv.EnvList()
@@ -139,6 +144,22 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext
 func (e *UniversalExecutor) Wait() (*ProcessState, error) {
 	<-e.processExited
 	return e.exitState, nil
+}
+
+func (e *UniversalExecutor) UpdateLogConfig(logConfig *structs.LogConfig) error {
+	e.ctx.LogConfig = logConfig
+	if e.lro == nil {
+		return fmt.Errorf("log rotator for stdout doesn't exist")
+	}
+	e.lro.MaxFiles = logConfig.MaxFiles
+	e.lro.FileSize = int64(logConfig.MaxFileSizeMB * 1024 * 1024)
+
+	if e.lre == nil {
+		return fmt.Errorf("log rotator for stderr doesn't exist")
+	}
+	e.lre.MaxFiles = logConfig.MaxFiles
+	e.lre.FileSize = int64(logConfig.MaxFileSizeMB * 1024 * 1024)
+	return nil
 }
 
 func (e *UniversalExecutor) wait() {

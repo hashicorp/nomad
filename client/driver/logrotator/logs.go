@@ -18,8 +18,8 @@ const (
 
 // LogRotator ingests data and writes out to a rotated set of files
 type LogRotator struct {
-	maxFiles int    // maximum number of rotated files retained by the log rotator
-	fileSize int64  // maximum file size of a rotated file
+	MaxFiles int    // maximum number of rotated files retained by the log rotator
+	FileSize int64  // maximum file size of a rotated file
 	path     string // path where the rotated files are created
 	fileName string // base file name of the rotated files
 
@@ -52,8 +52,8 @@ func NewLogRotator(path string, fileName string, maxFiles int, fileSize int64, l
 	}
 
 	return &LogRotator{
-		maxFiles:   maxFiles,
-		fileSize:   fileSize,
+		MaxFiles:   maxFiles,
+		FileSize:   fileSize,
 		path:       path,
 		fileName:   fileName,
 		logFileIdx: logFileIdx,
@@ -67,7 +67,7 @@ func (l *LogRotator) Start(r io.Reader) error {
 	buf := make([]byte, bufSize)
 	for {
 		logFileName := filepath.Join(l.path, fmt.Sprintf("%s.%d", l.fileName, l.logFileIdx))
-		remainingSize := l.fileSize
+		remainingSize := l.FileSize
 		if f, err := os.Stat(logFileName); err == nil {
 			// Skipping the current file if it happens to be a directory
 			if f.IsDir() {
@@ -75,7 +75,7 @@ func (l *LogRotator) Start(r io.Reader) error {
 				continue
 			}
 			// Calculating the remaining capacity of the log file
-			remainingSize = l.fileSize - f.Size()
+			remainingSize = l.FileSize - f.Size()
 		}
 		f, err := os.OpenFile(logFileName, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 		if err != nil {
@@ -147,7 +147,7 @@ func (l *LogRotator) PurgeOldFiles() {
 	// Sorting the file indexes so that we can purge the older files and keep
 	// only the number of files as configured by the user
 	sort.Sort(sort.IntSlice(fIndexes))
-	toDelete := fIndexes[l.maxFiles-1 : len(fIndexes)-1]
+	toDelete := fIndexes[l.MaxFiles-1 : len(fIndexes)-1]
 	for _, fIndex := range toDelete {
 		fname := filepath.Join(l.path, fmt.Sprintf("%s.%d", l.fileName, fIndex))
 		os.RemoveAll(fname)
