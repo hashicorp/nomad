@@ -45,6 +45,7 @@ type javaHandle struct {
 	executor        executor.Executor
 	isolationConfig *executor.IsolationConfig
 
+	taskDir     string
 	killTimeout time.Duration
 	logger      *log.Logger
 	waitCh      chan *cstructs.WaitResult
@@ -180,6 +181,7 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		executor:        exec,
 		userPid:         ps.Pid,
 		isolationConfig: ps.IsolationConfig,
+		taskDir:         taskDir,
 		killTimeout:     d.DriverContext.KillTimeout(task),
 		logger:          d.logger,
 		doneCh:          make(chan struct{}),
@@ -194,6 +196,7 @@ type javaId struct {
 	KillTimeout     time.Duration
 	PluginConfig    *ExecutorReattachConfig
 	IsolationConfig *executor.IsolationConfig
+	TaskDir         string
 	UserPid         int
 }
 
@@ -217,6 +220,9 @@ func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 				d.logger.Printf("[ERROR] driver.exec: %v", e)
 			}
 		}
+		if e := ctx.AllocDir.UnmountSpecialDirs(id.TaskDir); e != nil {
+			d.logger.Printf("[ERROR] driver.exec: error unmounting dev and proc fs: %v", e)
+		}
 
 		return nil, fmt.Errorf("error connecting to plugin: %v", err)
 	}
@@ -227,6 +233,7 @@ func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		executor:        executor,
 		userPid:         id.UserPid,
 		isolationConfig: id.IsolationConfig,
+		taskDir:         id.TaskDir,
 		logger:          d.logger,
 		killTimeout:     id.KillTimeout,
 		doneCh:          make(chan struct{}),
@@ -242,6 +249,7 @@ func (h *javaHandle) ID() string {
 		KillTimeout:     h.killTimeout,
 		PluginConfig:    NewExecutorReattachConfig(h.pluginClient.ReattachConfig()),
 		UserPid:         h.userPid,
+		TaskDir:         h.taskDir,
 		IsolationConfig: h.isolationConfig,
 	}
 

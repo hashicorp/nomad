@@ -38,6 +38,7 @@ type execHandle struct {
 	executor        executor.Executor
 	isolationConfig *executor.IsolationConfig
 	userPid         int
+	taskDir         string
 	killTimeout     time.Duration
 	logger          *log.Logger
 	waitCh          chan *cstructs.WaitResult
@@ -133,6 +134,7 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		pluginClient:    pluginClient,
 		userPid:         ps.Pid,
 		executor:        exec,
+		taskDir:         taskDir,
 		isolationConfig: ps.IsolationConfig,
 		killTimeout:     d.DriverContext.KillTimeout(task),
 		logger:          d.logger,
@@ -146,6 +148,7 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 type execId struct {
 	KillTimeout     time.Duration
 	UserPid         int
+	TaskDir         string
 	IsolationConfig *executor.IsolationConfig
 	PluginConfig    *ExecutorReattachConfig
 }
@@ -170,6 +173,9 @@ func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 				d.logger.Printf("[ERROR] driver.exec: %v", e)
 			}
 		}
+		if e := ctx.AllocDir.UnmountSpecialDirs(id.TaskDir); e != nil {
+			d.logger.Printf("[ERROR] driver.exec: error unmounting dev and proc fs: %v", e)
+		}
 		return nil, fmt.Errorf("error connecting to plugin: %v", err)
 	}
 
@@ -178,6 +184,7 @@ func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		pluginClient:    client,
 		executor:        executor,
 		userPid:         id.UserPid,
+		taskDir:         id.TaskDir,
 		isolationConfig: id.IsolationConfig,
 		logger:          d.logger,
 		killTimeout:     id.KillTimeout,
@@ -193,6 +200,7 @@ func (h *execHandle) ID() string {
 		KillTimeout:     h.killTimeout,
 		PluginConfig:    NewExecutorReattachConfig(h.pluginClient.ReattachConfig()),
 		UserPid:         h.userPid,
+		TaskDir:         h.taskDir,
 		IsolationConfig: h.isolationConfig,
 	}
 
