@@ -18,7 +18,7 @@ var HandshakeConfig = plugin.HandshakeConfig{
 
 func GetPluginMap(w io.Writer) map[string]plugin.Plugin {
 	p := new(ExecutorPlugin)
-	p.logger = log.New(w, "executor-plugin-server:", log.LstdFlags)
+	p.logger = log.New(w, "", log.LstdFlags)
 	return map[string]plugin.Plugin{"executor": p}
 }
 
