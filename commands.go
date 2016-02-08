@@ -57,6 +57,11 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"executor": func() (cli.Command, error) {
+			return &command.ExecutorPluginCommand{
+				Meta: meta,
+			}, nil
+		},
 		"fs": func() (cli.Command, error) {
 			return &command.FSCommand{
 				Meta: meta,
