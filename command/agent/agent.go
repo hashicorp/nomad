@@ -241,12 +241,16 @@ func (a *Agent) setupClient() error {
 
 	// Reserve some ports for the plugins
 	if runtime.GOOS == "windows" {
-		deviceName, err := a.findInterfaceNameForIP("127.0.0.1")
+		deviceName, err := a.findLoopbackDevice()
+		if conf.ExecutorMaxPort == 0 {
+			conf.ExecutorMaxPort = 15000
+		}
+		if conf.ExecutorMinPort == 0 {
+			conf.ExecutorMinPort = 14000
+		}
 		if err != nil {
 			return fmt.Errorf("error finding the device name for the ip 127.0.0.1: %v", err)
 		}
-		conf.PluginMinPort = 14000
-		conf.PluginMaxPort = 15000
 		var nr *structs.NetworkResource
 		for _, n := range conf.Node.Reserved.Networks {
 			if n.Device == deviceName {
@@ -259,7 +263,7 @@ func (a *Agent) setupClient() error {
 				ReservedPorts: make([]structs.Port, 0),
 			}
 		}
-		for i := conf.PluginMinPort; i <= conf.PluginMaxPort; i++ {
+		for i := conf.ExecutorMinPort; i <= conf.ExecutorMaxPort; i++ {
 			nr.ReservedPorts = append(nr.ReservedPorts, structs.Port{Label: fmt.Sprintf("plugin-%d", i), Value: i})
 		}
 
@@ -274,7 +278,7 @@ func (a *Agent) setupClient() error {
 	return nil
 }
 
-func (a *Agent) findInterfaceNameForIP(ip string) (string, error) {
+func (a *Agent) findLoopbackDevice() (string, error) {
 	var ifcs []net.Interface
 	var err error
 	var deviceName string
@@ -288,7 +292,7 @@ func (a *Agent) findInterfaceNameForIP(ip string) (string, error) {
 			return deviceName, err
 		}
 		for _, addr := range addrs {
-			if addr.String() == "127.0.0.1" {
+			if net.ParseIP(addr.String()).IsLoopback() {
 				return ifc.Name, nil
 			}
 		}
