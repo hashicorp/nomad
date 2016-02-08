@@ -47,10 +47,10 @@ func (e *UniversalExecutor) configureIsolation() error {
 		}
 		if err := e.applyLimits(os.Getpid()); err != nil {
 			if er := e.destroyCgroup(); er != nil {
-				e.logger.Printf("[ERROR] error destroying cgroup: %v", er)
+				e.logger.Printf("[ERROR] executor: error destroying cgroup: %v", er)
 			}
 			if er := e.removeChrootMounts(); er != nil {
-				e.logger.Printf("[ERROR] error removing chroot: %v", er)
+				e.logger.Printf("[ERROR] executor: error removing chroot: %v", er)
 			}
 			return fmt.Errorf("error entering the plugin process in the cgroup: %v:", err)
 		}
@@ -67,9 +67,9 @@ func (e *UniversalExecutor) applyLimits(pid int) error {
 	// Entering the process in the cgroup
 	manager := e.getCgroupManager(e.groups)
 	if err := manager.Apply(pid); err != nil {
-		e.logger.Printf("[ERROR] unable to join cgroup: %v", err)
+		e.logger.Printf("[ERROR] executor: unable to join cgroup: %v", err)
 		if err := e.Exit(); err != nil {
-			e.logger.Printf("[ERROR] unable to kill process: %v", err)
+			e.logger.Printf("[ERROR] executor: unable to kill process: %v", err)
 		}
 		return err
 	}
