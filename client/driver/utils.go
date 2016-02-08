@@ -15,6 +15,9 @@ import (
 func createExecutor(config *plugin.ClientConfig, w io.Writer) (executor.Executor, *plugin.Client, error) {
 	config.HandshakeConfig = HandshakeConfig
 	config.Plugins = GetPluginMap(w)
+	if config.Cmd != nil {
+		isolateCommand(config.Cmd)
+	}
 	executorClient := plugin.NewClient(config)
 	rpcClient, err := executorClient.Client()
 	if err != nil {
