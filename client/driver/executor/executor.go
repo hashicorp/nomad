@@ -57,12 +57,18 @@ type ExecCommand struct {
 	Args []string
 }
 
+// IsolationConfig has information about the isolation mechanism the executor
+// uses to put resource constraints and isolation on the user process
+type IsolationConfig struct {
+	Cgroup *cgroupConfig.Cgroup
+}
+
 // ProcessState holds information about the state of a user process.
 type ProcessState struct {
 	Pid             int
 	ExitCode        int
 	Signal          int
-	IsolationConfig cgroupConfig.Cgroup
+	IsolationConfig *IsolationConfig
 	Time            time.Time
 }
 
@@ -152,9 +158,9 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext
 	if err := e.cmd.Start(); err != nil {
 		return nil, fmt.Errorf("error starting command: %v", err)
 	}
-
 	go e.wait()
-	return &ProcessState{Pid: e.cmd.Process.Pid, ExitCode: -1, IsolationConfig: *e.groups, Time: time.Now()}, nil
+	ic := &IsolationConfig{Cgroup: e.groups}
+	return &ProcessState{Pid: e.cmd.Process.Pid, ExitCode: -1, IsolationConfig: ic, Time: time.Now()}, nil
 }
 
 // Wait waits until a process has exited and returns it's exitcode and errors

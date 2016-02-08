@@ -17,8 +17,6 @@ import (
 	"github.com/hashicorp/nomad/helper/discover"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/mapstructure"
-
-	cgroupConfig "github.com/opencontainers/runc/libcontainer/configs"
 )
 
 // ExecDriver fork/execs tasks using as many of the underlying OS's isolation
@@ -36,14 +34,14 @@ type ExecDriverConfig struct {
 
 // execHandle is returned from Start/Open as a handle to the PID
 type execHandle struct {
-	pluginClient *plugin.Client
-	executor     executor.Executor
-	groups       *cgroupConfig.Cgroup
-	userPid      int
-	killTimeout  time.Duration
-	logger       *log.Logger
-	waitCh       chan *cstructs.WaitResult
-	doneCh       chan struct{}
+	pluginClient    *plugin.Client
+	executor        executor.Executor
+	isolationConfig *executor.IsolationConfig
+	userPid         int
+	killTimeout     time.Duration
+	logger          *log.Logger
+	waitCh          chan *cstructs.WaitResult
+	doneCh          chan struct{}
 }
 
 // NewExecDriver is used to create a new exec driver
@@ -132,24 +130,24 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 
 	// Return a driver handle
 	h := &execHandle{
-		pluginClient: pluginClient,
-		userPid:      ps.Pid,
-		executor:     exec,
-		groups:       &ps.IsolationConfig,
-		killTimeout:  d.DriverContext.KillTimeout(task),
-		logger:       d.logger,
-		doneCh:       make(chan struct{}),
-		waitCh:       make(chan *cstructs.WaitResult, 1),
+		pluginClient:    pluginClient,
+		userPid:         ps.Pid,
+		executor:        exec,
+		isolationConfig: ps.IsolationConfig,
+		killTimeout:     d.DriverContext.KillTimeout(task),
+		logger:          d.logger,
+		doneCh:          make(chan struct{}),
+		waitCh:          make(chan *cstructs.WaitResult, 1),
 	}
 	go h.run()
 	return h, nil
 }
 
 type execId struct {
-	KillTimeout  time.Duration
-	UserPid      int
-	Groups       *cgroupConfig.Cgroup
-	PluginConfig *ExecutorReattachConfig
+	KillTimeout     time.Duration
+	UserPid         int
+	IsolationConfig *executor.IsolationConfig
+	PluginConfig    *ExecutorReattachConfig
 }
 
 func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {
@@ -167,22 +165,24 @@ func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		if e := destroyPlugin(id.PluginConfig.Pid, id.UserPid); e != nil {
 			d.logger.Printf("[ERROR] driver.exec: error destroying plugin and userpid: %v", e)
 		}
-		if e := destroyCgroup(id.Groups); e != nil {
-			d.logger.Printf("[ERROR] driver.exec: %v", e)
+		if id.IsolationConfig != nil {
+			if e := destroyCgroup(id.IsolationConfig.Cgroup); e != nil {
+				d.logger.Printf("[ERROR] driver.exec: %v", e)
+			}
 		}
 		return nil, fmt.Errorf("error connecting to plugin: %v", err)
 	}
 
 	// Return a driver handle
 	h := &execHandle{
-		pluginClient: client,
-		executor:     executor,
-		userPid:      id.UserPid,
-		groups:       id.Groups,
-		logger:       d.logger,
-		killTimeout:  id.KillTimeout,
-		doneCh:       make(chan struct{}),
-		waitCh:       make(chan *cstructs.WaitResult, 1),
+		pluginClient:    client,
+		executor:        executor,
+		userPid:         id.UserPid,
+		isolationConfig: id.IsolationConfig,
+		logger:          d.logger,
+		killTimeout:     id.KillTimeout,
+		doneCh:          make(chan struct{}),
+		waitCh:          make(chan *cstructs.WaitResult, 1),
 	}
 	go h.run()
 	return h, nil
@@ -190,10 +190,10 @@ func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 
 func (h *execHandle) ID() string {
 	id := execId{
-		KillTimeout:  h.killTimeout,
-		PluginConfig: NewExecutorReattachConfig(h.pluginClient.ReattachConfig()),
-		UserPid:      h.userPid,
-		Groups:       h.groups,
+		KillTimeout:     h.killTimeout,
+		PluginConfig:    NewExecutorReattachConfig(h.pluginClient.ReattachConfig()),
+		UserPid:         h.userPid,
+		IsolationConfig: h.isolationConfig,
 	}
 
 	data, err := json.Marshal(id)

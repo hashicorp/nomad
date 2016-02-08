@@ -216,8 +216,8 @@ func (a *Agent) setupClient() error {
 		}
 		conf.MaxKillTimeout = dur
 	}
-	conf.ClientMaxPort = a.config.ClientConfig.ClientMaxPort
-	conf.ClientMinPort = a.config.ClientConfig.ClientMinPort
+	conf.ClientMaxPort = a.config.Client.ClientMaxPort
+	conf.ClientMinPort = a.config.Client.ClientMinPort
 
 	// Setup the node
 	conf.Node = new(structs.Node)
@@ -245,7 +245,7 @@ func (a *Agent) setupClient() error {
 	if runtime.GOOS == "windows" {
 		deviceName, err := a.findLoopbackDevice()
 		if err != nil {
-			return fmt.Errorf("error finding the device name for the ip 127.0.0.1: %v", err)
+			return fmt.Errorf("error finding the device name for loopback: %v", err)
 		}
 		var nr *structs.NetworkResource
 		for _, n := range conf.Node.Reserved.Networks {
@@ -262,7 +262,6 @@ func (a *Agent) setupClient() error {
 		for i := conf.ClientMinPort; i <= conf.ClientMaxPort; i++ {
 			nr.ReservedPorts = append(nr.ReservedPorts, structs.Port{Label: fmt.Sprintf("plugin-%d", i), Value: int(i)})
 		}
-
 	}
 
 	// Create the client

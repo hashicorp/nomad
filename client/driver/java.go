@@ -14,7 +14,6 @@ import (
 
 	"github.com/hashicorp/go-plugin"
 	"github.com/mitchellh/mapstructure"
-	cgroupConfig "github.com/opencontainers/runc/libcontainer/configs"
 
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/executor"
@@ -41,10 +40,10 @@ type JavaDriverConfig struct {
 
 // javaHandle is returned from Start/Open as a handle to the PID
 type javaHandle struct {
-	pluginClient *plugin.Client
-	userPid      int
-	executor     executor.Executor
-	groups       *cgroupConfig.Cgroup
+	pluginClient    *plugin.Client
+	userPid         int
+	executor        executor.Executor
+	isolationConfig *executor.IsolationConfig
 
 	killTimeout time.Duration
 	logger      *log.Logger
@@ -177,14 +176,14 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 
 	// Return a driver handle
 	h := &javaHandle{
-		pluginClient: pluginClient,
-		executor:     exec,
-		userPid:      ps.Pid,
-		groups:       &ps.IsolationConfig,
-		killTimeout:  d.DriverContext.KillTimeout(task),
-		logger:       d.logger,
-		doneCh:       make(chan struct{}),
-		waitCh:       make(chan *cstructs.WaitResult, 1),
+		pluginClient:    pluginClient,
+		executor:        exec,
+		userPid:         ps.Pid,
+		isolationConfig: ps.IsolationConfig,
+		killTimeout:     d.DriverContext.KillTimeout(task),
+		logger:          d.logger,
+		doneCh:          make(chan struct{}),
+		waitCh:          make(chan *cstructs.WaitResult, 1),
 	}
 
 	go h.run()
@@ -192,10 +191,10 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 }
 
 type javaId struct {
-	KillTimeout  time.Duration
-	PluginConfig *ExecutorReattachConfig
-	Groups       *cgroupConfig.Cgroup
-	UserPid      int
+	KillTimeout     time.Duration
+	PluginConfig    *ExecutorReattachConfig
+	IsolationConfig *executor.IsolationConfig
+	UserPid         int
 }
 
 func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {
@@ -213,8 +212,10 @@ func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		if e := destroyPlugin(id.PluginConfig.Pid, id.UserPid); e != nil {
 			d.logger.Printf("[ERROR] driver.java: error destroying plugin and userpid: %v", e)
 		}
-		if e := destroyCgroup(id.Groups); e != nil {
-			d.logger.Printf("[ERROR] driver.exec: %v", e)
+		if id.IsolationConfig != nil {
+			if e := destroyCgroup(id.IsolationConfig.Cgroup); e != nil {
+				d.logger.Printf("[ERROR] driver.exec: %v", e)
+			}
 		}
 
 		return nil, fmt.Errorf("error connecting to plugin: %v", err)
@@ -222,14 +223,14 @@ func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 
 	// Return a driver handle
 	h := &javaHandle{
-		pluginClient: pluginClient,
-		executor:     executor,
-		userPid:      id.UserPid,
-		groups:       id.Groups,
-		logger:       d.logger,
-		killTimeout:  id.KillTimeout,
-		doneCh:       make(chan struct{}),
-		waitCh:       make(chan *cstructs.WaitResult, 1),
+		pluginClient:    pluginClient,
+		executor:        executor,
+		userPid:         id.UserPid,
+		isolationConfig: id.IsolationConfig,
+		logger:          d.logger,
+		killTimeout:     id.KillTimeout,
+		doneCh:          make(chan struct{}),
+		waitCh:          make(chan *cstructs.WaitResult, 1),
 	}
 
 	go h.run()
@@ -238,10 +239,10 @@ func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 
 func (h *javaHandle) ID() string {
 	id := javaId{
-		KillTimeout:  h.killTimeout,
-		PluginConfig: NewExecutorReattachConfig(h.pluginClient.ReattachConfig()),
-		UserPid:      h.userPid,
-		Groups:       h.groups,
+		KillTimeout:     h.killTimeout,
+		PluginConfig:    NewExecutorReattachConfig(h.pluginClient.ReattachConfig()),
+		UserPid:         h.userPid,
+		IsolationConfig: h.isolationConfig,
 	}
 
 	data, err := json.Marshal(id)
