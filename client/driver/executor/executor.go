@@ -192,10 +192,11 @@ func (e *UniversalExecutor) Exit() error {
 	if e.cmd.Process != nil {
 		proc, err := os.FindProcess(e.cmd.Process.Pid)
 		if err != nil {
-			e.logger.Printf("[ERROR] can't find process with pid: %v, err: %v", e.cmd.Process.Pid, err)
-		}
-		if err := proc.Kill(); err != nil {
-			e.logger.Printf("[ERROR] can't kill process with pid: %v, err: %v", e.cmd.Process.Pid, err)
+			e.logger.Printf("[ERROR] executor: can't find process with pid: %v, err: %v",
+				e.cmd.Process.Pid, err)
+		} else if err := proc.Kill(); err != nil {
+			merr.Errors = append(merr.Errors,
+				fmt.Errorf("can't kill process with pid: %v, err: %v", e.cmd.Process.Pid, err))
 		}
 	}
 
@@ -230,11 +231,12 @@ func (e *UniversalExecutor) ShutDown() error {
 	return nil
 }
 
+// configureTaskDir sets the task dir in the executor
 func (e *UniversalExecutor) configureTaskDir() error {
 	taskDir, ok := e.ctx.AllocDir.TaskDirs[e.ctx.TaskName]
 	e.taskDir = taskDir
 	if !ok {
-		return fmt.Errorf("Couldn't find task directory for task %v", e.ctx.TaskName)
+		return fmt.Errorf("couldn't find task directory for task %v", e.ctx.TaskName)
 	}
 	e.cmd.Dir = taskDir
 	return nil

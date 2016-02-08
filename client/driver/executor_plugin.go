@@ -106,10 +106,14 @@ func (e *ExecutorRPCServer) Exit(args interface{}, resp *interface{}) error {
 
 type ExecutorPlugin struct {
 	logger *log.Logger
+	Impl   *ExecutorRPCServer
 }
 
 func (p *ExecutorPlugin) Server(*plugin.MuxBroker) (interface{}, error) {
-	return &ExecutorRPCServer{Impl: executor.NewExecutor(p.logger)}, nil
+	if p.Impl == nil {
+		p.Impl = &ExecutorRPCServer{Impl: executor.NewExecutor(p.logger)}
+	}
+	return p.Impl, nil
 }
 
 func (p *ExecutorPlugin) Client(b *plugin.MuxBroker, c *rpc.Client) (interface{}, error) {
