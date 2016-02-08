@@ -144,16 +144,6 @@ func (e *UniversalExecutor) runAs(userid string) error {
 	return nil
 }
 
-// pathExists is a helper function to check if the path exists.
-func (e *UniversalExecutor) pathExists(path string) bool {
-	if _, err := os.Stat(path); err != nil {
-		if os.IsNotExist(err) {
-			return false
-		}
-	}
-	return true
-}
-
 // configureChroot configures a chroot
 func (e *UniversalExecutor) configureChroot() error {
 	allocDir := e.ctx.AllocDir
