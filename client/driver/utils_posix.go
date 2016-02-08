@@ -1,8 +1,12 @@
+// +build !linux
+
 package driver
 
 import (
 	"os/exec"
 	"syscall"
+
+	cgroupConfig "github.com/opencontainers/runc/libcontainer/configs"
 )
 
 // isolateCommand sets the setsid flag in exec.Cmd to true so that the process
@@ -13,4 +17,8 @@ func isolateCommand(cmd *exec.Cmd) {
 		cmd.SysProcAttr = &syscall.SysProcAttr{}
 	}
 	cmd.SysProcAttr.Setsid = true
+}
+
+func destroyCgroup(group *cgroupConfig.Cgroup) error {
+	return nil
 }

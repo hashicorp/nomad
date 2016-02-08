@@ -14,6 +14,7 @@ import (
 
 	"github.com/hashicorp/go-plugin"
 	"github.com/mitchellh/mapstructure"
+	cgroupConfig "github.com/opencontainers/runc/libcontainer/configs"
 
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/executor"
@@ -43,6 +44,7 @@ type javaHandle struct {
 	pluginClient *plugin.Client
 	userPid      int
 	executor     executor.Executor
+	groups       *cgroupConfig.Cgroup
 
 	killTimeout time.Duration
 	logger      *log.Logger
@@ -178,6 +180,7 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		pluginClient: pluginClient,
 		executor:     exec,
 		userPid:      ps.Pid,
+		groups:       &ps.IsolationConfig,
 		killTimeout:  d.DriverContext.KillTimeout(task),
 		logger:       d.logger,
 		doneCh:       make(chan struct{}),
@@ -191,6 +194,7 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 type javaId struct {
 	KillTimeout  time.Duration
 	PluginConfig *ExecutorReattachConfig
+	Groups       *cgroupConfig.Cgroup
 	UserPid      int
 }
 
@@ -209,6 +213,10 @@ func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		if e := destroyPlugin(id.PluginConfig.Pid, id.UserPid); e != nil {
 			d.logger.Printf("[ERROR] driver.java: error destroying plugin and userpid: %v", e)
 		}
+		if e := destroyCgroup(id.Groups); e != nil {
+			d.logger.Printf("[ERROR] driver.exec: %v", e)
+		}
+
 		return nil, fmt.Errorf("error connecting to plugin: %v", err)
 	}
 
@@ -217,6 +225,7 @@ func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		pluginClient: pluginClient,
 		executor:     executor,
 		userPid:      id.UserPid,
+		groups:       id.Groups,
 		logger:       d.logger,
 		killTimeout:  id.KillTimeout,
 		doneCh:       make(chan struct{}),
@@ -232,6 +241,7 @@ func (h *javaHandle) ID() string {
 		KillTimeout:  h.killTimeout,
 		PluginConfig: NewExecutorReattachConfig(h.pluginClient.ReattachConfig()),
 		UserPid:      h.userPid,
+		Groups:       h.groups,
 	}
 
 	data, err := json.Marshal(id)

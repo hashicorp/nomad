@@ -17,6 +17,8 @@ import (
 	"github.com/hashicorp/nomad/helper/discover"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/mapstructure"
+
+	cgroupConfig "github.com/opencontainers/runc/libcontainer/configs"
 )
 
 // ExecDriver fork/execs tasks using as many of the underlying OS's isolation
@@ -36,6 +38,7 @@ type ExecDriverConfig struct {
 type execHandle struct {
 	pluginClient *plugin.Client
 	executor     executor.Executor
+	groups       *cgroupConfig.Cgroup
 	userPid      int
 	killTimeout  time.Duration
 	logger       *log.Logger
@@ -132,6 +135,7 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		pluginClient: pluginClient,
 		userPid:      ps.Pid,
 		executor:     exec,
+		groups:       &ps.IsolationConfig,
 		killTimeout:  d.DriverContext.KillTimeout(task),
 		logger:       d.logger,
 		doneCh:       make(chan struct{}),
@@ -144,6 +148,7 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 type execId struct {
 	KillTimeout  time.Duration
 	UserPid      int
+	Groups       *cgroupConfig.Cgroup
 	PluginConfig *ExecutorReattachConfig
 }
 
@@ -162,6 +167,9 @@ func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		if e := destroyPlugin(id.PluginConfig.Pid, id.UserPid); e != nil {
 			d.logger.Printf("[ERROR] driver.exec: error destroying plugin and userpid: %v", e)
 		}
+		if e := destroyCgroup(id.Groups); e != nil {
+			d.logger.Printf("[ERROR] driver.exec: %v", e)
+		}
 		return nil, fmt.Errorf("error connecting to plugin: %v", err)
 	}
 
@@ -170,6 +178,7 @@ func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		pluginClient: client,
 		executor:     executor,
 		userPid:      id.UserPid,
+		groups:       id.Groups,
 		logger:       d.logger,
 		killTimeout:  id.KillTimeout,
 		doneCh:       make(chan struct{}),
@@ -184,6 +193,7 @@ func (h *execHandle) ID() string {
 		KillTimeout:  h.killTimeout,
 		PluginConfig: NewExecutorReattachConfig(h.pluginClient.ReattachConfig()),
 		UserPid:      h.userPid,
+		Groups:       h.groups,
 	}
 
 	data, err := json.Marshal(id)

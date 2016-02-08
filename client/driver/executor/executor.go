@@ -59,10 +59,11 @@ type ExecCommand struct {
 
 // ProcessState holds information about the state of a user process.
 type ProcessState struct {
-	Pid      int
-	ExitCode int
-	Signal   int
-	Time     time.Time
+	Pid             int
+	ExitCode        int
+	Signal          int
+	IsolationConfig cgroupConfig.Cgroup
+	Time            time.Time
 }
 
 // Executor is the interface which allows a driver to launch and supervise
@@ -153,7 +154,7 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext
 	}
 
 	go e.wait()
-	return &ProcessState{Pid: e.cmd.Process.Pid, ExitCode: -1, Time: time.Now()}, nil
+	return &ProcessState{Pid: e.cmd.Process.Pid, ExitCode: -1, IsolationConfig: *e.groups, Time: time.Now()}, nil
 }
 
 // Wait waits until a process has exited and returns it's exitcode and errors
