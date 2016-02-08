@@ -297,7 +297,7 @@ func DefaultConfig() *Config {
 			NetworkSpeed:   100,
 			MaxKillTimeout: "30s",
 			ClientMinPort:  14000,
-			ClientMaxPort:  15000,
+			ClientMaxPort:  19000,
 		},
 		Server: &ServerConfig{
 			Enabled:          false,

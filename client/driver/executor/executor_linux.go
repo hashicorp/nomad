@@ -165,39 +165,18 @@ func (e *UniversalExecutor) configureChroot() error {
 		return err
 	}
 
-	// Mount dev
-	dev := filepath.Join(e.taskDir, "dev")
-	if !e.pathExists(dev) {
-		if err := os.Mkdir(dev, 0777); err != nil {
-			return fmt.Errorf("Mkdir(%v) failed: %v", dev, err)
-		}
-
-		if err := syscall.Mount("none", dev, "devtmpfs", syscall.MS_RDONLY, ""); err != nil {
-			return fmt.Errorf("Couldn't mount /dev to %v: %v", dev, err)
-		}
-	}
-
-	// Mount proc
-	proc := filepath.Join(e.taskDir, "proc")
-	if !e.pathExists(proc) {
-		if err := os.Mkdir(proc, 0777); err != nil {
-			return fmt.Errorf("Mkdir(%v) failed: %v", proc, err)
-		}
-
-		if err := syscall.Mount("none", proc, "proc", syscall.MS_RDONLY, ""); err != nil {
-			return fmt.Errorf("Couldn't mount /proc to %v: %v", proc, err)
-		}
-	}
-
 	// Set the tasks AllocDir environment variable.
 	e.ctx.TaskEnv.SetAllocDir(filepath.Join("/", allocdir.SharedAllocName)).SetTaskLocalDir(filepath.Join("/", allocdir.TaskLocal)).Build()
 
 	if e.cmd.SysProcAttr == nil {
 		e.cmd.SysProcAttr = &syscall.SysProcAttr{}
 	}
-
 	e.cmd.SysProcAttr.Chroot = e.taskDir
 	e.cmd.Dir = "/"
+
+	if err := allocDir.MountSpecialDirs(e.taskDir); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -209,32 +188,7 @@ func (e *UniversalExecutor) removeChrootMounts() error {
 	e.lock.Lock()
 	defer e.lock.Unlock()
 
-	// Unmount dev.
-	errs := new(multierror.Error)
-	dev := filepath.Join(e.taskDir, "dev")
-	if e.pathExists(dev) {
-		if err := syscall.Unmount(dev, 0); err != nil {
-			errs = multierror.Append(errs, fmt.Errorf("Failed to unmount dev (%v): %v", dev, err))
-		}
-
-		if err := os.RemoveAll(dev); err != nil {
-			errs = multierror.Append(errs, fmt.Errorf("Failed to delete dev directory (%v): %v", dev, err))
-		}
-	}
-
-	// Unmount proc.
-	proc := filepath.Join(e.taskDir, "proc")
-	if e.pathExists(proc) {
-		if err := syscall.Unmount(proc, 0); err != nil {
-			errs = multierror.Append(errs, fmt.Errorf("Failed to unmount proc (%v): %v", proc, err))
-		}
-
-		if err := os.RemoveAll(proc); err != nil {
-			errs = multierror.Append(errs, fmt.Errorf("Failed to delete proc directory (%v): %v", dev, err))
-		}
-	}
-
-	return errs.ErrorOrNil()
+	return e.ctx.AllocDir.UnmountSpecialDirs(e.taskDir)
 }
 
 // destroyCgroup kills all processes in the cgroup and removes the cgroup
