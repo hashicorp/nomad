@@ -27,7 +27,7 @@ Usage: nomad fs stat <alloc-id> <path>
 }
 
 func (f *FSStatCommand) Synopsis() string {
-	return "Stats an entry in an allocation directory"
+	return "Stat an entry in an allocation directory"
 }
 
 func (f *FSStatCommand) Run(args []string) int {

@@ -14,6 +14,7 @@ import (
 
 	"github.com/hashicorp/go-plugin"
 	"github.com/mitchellh/mapstructure"
+	cgroupConfig "github.com/opencontainers/runc/libcontainer/configs"
 
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/executor"
@@ -43,6 +44,7 @@ type javaHandle struct {
 	pluginClient *plugin.Client
 	userPid      int
 	executor     executor.Executor
+	groups       *cgroupConfig.Cgroup
 
 	killTimeout time.Duration
 	logger      *log.Logger
@@ -148,7 +150,7 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		return nil, fmt.Errorf("unable to find the nomad binary: %v", err)
 	}
 
-	pluginLogFile := filepath.Join(ctx.AllocDir.AllocDir, "plugin.out")
+	pluginLogFile := filepath.Join(taskDir, fmt.Sprintf("%s-executor.out", task.Name))
 	pluginConfig := &plugin.ClientConfig{
 		Cmd: exec.Command(bin, "executor", pluginLogFile),
 	}
@@ -158,24 +160,26 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		return nil, err
 	}
 	executorCtx := &executor.ExecutorContext{
-		TaskEnv:       d.taskEnv,
-		AllocDir:      ctx.AllocDir,
-		TaskName:      task.Name,
-		TaskResources: task.Resources,
-		LogConfig:     task.LogConfig,
+		TaskEnv:          d.taskEnv,
+		AllocDir:         ctx.AllocDir,
+		TaskName:         task.Name,
+		TaskResources:    task.Resources,
+		UnprivilegedUser: true,
+		LogConfig:        task.LogConfig,
 	}
 	ps, err := exec.LaunchCmd(&executor.ExecCommand{Cmd: "java", Args: args}, executorCtx)
 	if err != nil {
 		pluginClient.Kill()
 		return nil, fmt.Errorf("error starting process via the plugin: %v", err)
 	}
-	d.logger.Printf("[INFO] started process with pid: %v", ps.Pid)
+	d.logger.Printf("[DEBUG] driver.java: started process with pid: %v", ps.Pid)
 
 	// Return a driver handle
 	h := &javaHandle{
 		pluginClient: pluginClient,
 		executor:     exec,
 		userPid:      ps.Pid,
+		groups:       &ps.IsolationConfig,
 		killTimeout:  d.DriverContext.KillTimeout(task),
 		logger:       d.logger,
 		doneCh:       make(chan struct{}),
@@ -189,6 +193,7 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 type javaId struct {
 	KillTimeout  time.Duration
 	PluginConfig *ExecutorReattachConfig
+	Groups       *cgroupConfig.Cgroup
 	UserPid      int
 }
 
@@ -198,16 +203,19 @@ func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		return nil, fmt.Errorf("Failed to parse handle '%s': %v", handleID, err)
 	}
 
-	reattachConfig := id.PluginConfig.PluginConfig()
 	pluginConfig := &plugin.ClientConfig{
-		Reattach: reattachConfig,
+		Reattach: id.PluginConfig.PluginConfig(),
 	}
 	executor, pluginClient, err := createExecutor(pluginConfig, d.config.LogOutput)
 	if err != nil {
-		d.logger.Println("[ERROR] error connecting to plugin so destroying plugin pid and user pid")
+		d.logger.Println("[ERROR] driver.java: error connecting to plugin so destroying plugin pid and user pid")
 		if e := destroyPlugin(id.PluginConfig.Pid, id.UserPid); e != nil {
-			d.logger.Printf("[ERROR] error destroying plugin and userpid: %v", e)
+			d.logger.Printf("[ERROR] driver.java: error destroying plugin and userpid: %v", e)
 		}
+		if e := destroyCgroup(id.Groups); e != nil {
+			d.logger.Printf("[ERROR] driver.exec: %v", e)
+		}
+
 		return nil, fmt.Errorf("error connecting to plugin: %v", err)
 	}
 
@@ -216,6 +224,7 @@ func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		pluginClient: pluginClient,
 		executor:     executor,
 		userPid:      id.UserPid,
+		groups:       id.Groups,
 		logger:       d.logger,
 		killTimeout:  id.KillTimeout,
 		doneCh:       make(chan struct{}),
@@ -231,6 +240,7 @@ func (h *javaHandle) ID() string {
 		KillTimeout:  h.killTimeout,
 		PluginConfig: NewExecutorReattachConfig(h.pluginClient.ReattachConfig()),
 		UserPid:      h.userPid,
+		Groups:       h.groups,
 	}
 
 	data, err := json.Marshal(id)

@@ -192,7 +192,7 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		return nil, fmt.Errorf("unable to find the nomad binary: %v", err)
 	}
 
-	pluginLogFile := filepath.Join(ctx.AllocDir.AllocDir, "plugin.out")
+	pluginLogFile := filepath.Join(taskDir, fmt.Sprintf("%s-executor.out", task.Name))
 	pluginConfig := &plugin.ClientConfig{
 		Cmd: exec.Command(bin, "executor", pluginLogFile),
 	}
@@ -213,7 +213,6 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		pluginClient.Kill()
 		return nil, fmt.Errorf("error starting process via the plugin: %v", err)
 	}
-	d.logger.Printf("[INFO] started process with pid: %v", ps.Pid)
 	d.logger.Printf("[INFO] Started new QemuVM: %s", vmID)
 
 	// Create and Return Handle
@@ -243,16 +242,15 @@ func (d *QemuDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		return nil, fmt.Errorf("Failed to parse handle '%s': %v", handleID, err)
 	}
 
-	reattachConfig := id.PluginConfig.PluginConfig()
 	pluginConfig := &plugin.ClientConfig{
-		Reattach: reattachConfig,
+		Reattach: id.PluginConfig.PluginConfig(),
 	}
 
 	executor, pluginClient, err := createExecutor(pluginConfig, d.config.LogOutput)
 	if err != nil {
-		d.logger.Println("[ERROR] error connecting to plugin so destroying plugin pid and user pid")
+		d.logger.Println("[ERROR] driver.qemu: error connecting to plugin so destroying plugin pid and user pid")
 		if e := destroyPlugin(id.PluginConfig.Pid, id.UserPid); e != nil {
-			d.logger.Printf("[ERROR] error destroying plugin and userpid: %v", e)
+			d.logger.Printf("[ERROR] driver.qemu: error destroying plugin and userpid: %v", e)
 		}
 		return nil, fmt.Errorf("error connecting to plugin: %v", err)
 	}

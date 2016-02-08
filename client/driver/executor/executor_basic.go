@@ -18,7 +18,7 @@ func (e *UniversalExecutor) runAs(userid string) error {
 	return nil
 }
 
-func (e *UniversalExecutor) applyLimits() error {
+func (e *UniversalExecutor) applyLimits(pid int) error {
 	return nil
 }
 

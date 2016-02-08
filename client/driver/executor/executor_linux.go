@@ -45,23 +45,35 @@ func (e *UniversalExecutor) configureIsolation() error {
 		if err := e.configureCgroups(e.ctx.TaskResources); err != nil {
 			return fmt.Errorf("error creating cgroups: %v", err)
 		}
+		if err := e.applyLimits(os.Getpid()); err != nil {
+			if er := e.destroyCgroup(); er != nil {
+				e.logger.Printf("[ERROR] error destroying cgroup: %v", er)
+			}
+			if er := e.removeChrootMounts(); er != nil {
+				e.logger.Printf("[ERROR] error removing chroot: %v", er)
+			}
+			return fmt.Errorf("error entering the plugin process in the cgroup: %v:", err)
+		}
 	}
 	return nil
 }
 
 // applyLimits puts a process in a pre-configured cgroup
-func (e *UniversalExecutor) applyLimits() error {
+func (e *UniversalExecutor) applyLimits(pid int) error {
 	if !e.ctx.ResourceLimits {
 		return nil
 	}
+
+	// Entering the process in the cgroup
 	manager := e.getCgroupManager(e.groups)
-	if err := manager.Apply(e.cmd.Process.Pid); err != nil {
+	if err := manager.Apply(pid); err != nil {
 		e.logger.Printf("[ERROR] unable to join cgroup: %v", err)
 		if err := e.Exit(); err != nil {
 			e.logger.Printf("[ERROR] unable to kill process: %v", err)
 		}
 		return err
 	}
+
 	return nil
 }
 
@@ -210,8 +222,7 @@ func (e *UniversalExecutor) removeChrootMounts() error {
 		}
 	}
 
-	// Unmount
-	// proc.
+	// Unmount proc.
 	proc := filepath.Join(e.taskDir, "proc")
 	if e.pathExists(proc) {
 		if err := syscall.Unmount(proc, 0); err != nil {

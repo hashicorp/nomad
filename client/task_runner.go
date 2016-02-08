@@ -10,9 +10,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/mitchellh/hashstructure"
 
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 )
@@ -53,6 +55,9 @@ func NewTaskRunner(logger *log.Logger, config *config.Config,
 	updater TaskStateUpdater, ctx *driver.ExecContext,
 	alloc *structs.Allocation, task *structs.Task,
 	consulService *ConsulService) *TaskRunner {
+
+	// Merge in the task resources
+	task.Resources = alloc.TaskResources[task.Name]
 
 	// Build the restart tracker.
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
@@ -319,21 +324,24 @@ func (r *TaskRunner) handleUpdate(update *structs.Allocation) error {
 	}
 
 	// Extract the task.
-	var task *structs.Task
+	var updatedTask *structs.Task
 	for _, t := range tg.Tasks {
 		if t.Name == r.task.Name {
-			task = t
+			updatedTask = t
 		}
 	}
-	if task == nil {
+	if updatedTask == nil {
 		return fmt.Errorf("task group %q doesn't contain task %q", tg.Name, r.task.Name)
 	}
-	r.task = task
+
+	// Merge in the task resources
+	updatedTask.Resources = update.TaskResources[updatedTask.Name]
 
 	// Update will update resources and store the new kill timeout.
+	var mErr multierror.Error
 	if r.handle != nil {
-		if err := r.handle.Update(task); err != nil {
-			r.logger.Printf("[ERR] client: failed to update task '%s' for alloc '%s': %v", r.task.Name, r.alloc.ID, err)
+		if err := r.handle.Update(updatedTask); err != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("updating task resources failed: %v", err))
 		}
 	}
 
@@ -342,14 +350,26 @@ func (r *TaskRunner) handleUpdate(update *structs.Allocation) error {
 		r.restartTracker.SetPolicy(tg.RestartPolicy)
 	}
 
-	/* TODO
-	// Re-register the task to consul and store the updated alloc.
-	r.consulService.Deregister(r.task, r.alloc)
-	r.alloc = update
-	r.consulService.Register(r.task, r.alloc)
-	*/
+	// Hash services returns the hash of the task's services
+	hashServices := func(task *structs.Task) uint64 {
+		h, err := hashstructure.Hash(task.Services, nil)
+		if err != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("hashing services failed %#v: %v", task.Services, err))
+		}
+		return h
+	}
 
-	return nil
+	// Re-register the task to consul if any of the services have changed.
+	if hashServices(updatedTask) != hashServices(r.task) {
+		if err := r.consulService.Register(updatedTask, update); err != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("updating services with consul failed: %v", err))
+		}
+	}
+
+	// Store the updated alloc.
+	r.alloc = update
+	r.task = updatedTask
+	return mErr.ErrorOrNil()
 }
 
 // Helper function for converting a WaitResult into a TaskTerminated event.

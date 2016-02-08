@@ -299,12 +299,14 @@ func (m *monitor) monitor(evalID string, allowPrefix bool) int {
 
 		// Monitor the next eval in the chain, if present
 		if eval.NextEval != "" {
-			m.ui.Info(fmt.Sprintf(
-				"Monitoring next evaluation %q in %s",
-				eval.NextEval, eval.Wait))
+			if eval.Wait.Nanoseconds() != 0 {
+				m.ui.Info(fmt.Sprintf(
+					"Monitoring next evaluation %q in %s",
+					limit(eval.NextEval, m.length), eval.Wait))
 
-			// Skip some unnecessary polling
-			time.Sleep(eval.Wait)
+				// Skip some unnecessary polling
+				time.Sleep(eval.Wait)
+			}
 
 			// Reset the state and monitor the new eval
 			m.state = newEvalState()

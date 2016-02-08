@@ -11,7 +11,7 @@ import (
 const (
 	// TravisRunEnv is an environment variable that is set if being run by
 	// Travis.
-	TravisRunEnv = "TRAVIS_RUN"
+	TravisRunEnv = "CI"
 )
 
 type testFn func() (bool, error)
