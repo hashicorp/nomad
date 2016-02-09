@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"time"
 
@@ -215,6 +216,8 @@ func (a *Agent) setupClient() error {
 		}
 		conf.MaxKillTimeout = dur
 	}
+	conf.ClientMaxPort = a.config.Client.ClientMaxPort
+	conf.ClientMinPort = a.config.Client.ClientMinPort
 
 	// Setup the node
 	conf.Node = new(structs.Node)
@@ -238,6 +241,29 @@ func (a *Agent) setupClient() error {
 	}
 	conf.Node.HTTPAddr = httpAddr
 
+	// Reserve some ports for the plugins
+	if runtime.GOOS == "windows" {
+		deviceName, err := a.findLoopbackDevice()
+		if err != nil {
+			return fmt.Errorf("error finding the device name for loopback: %v", err)
+		}
+		var nr *structs.NetworkResource
+		for _, n := range conf.Node.Reserved.Networks {
+			if n.Device == deviceName {
+				nr = n
+			}
+		}
+		if nr == nil {
+			nr = &structs.NetworkResource{
+				Device:        deviceName,
+				ReservedPorts: make([]structs.Port, 0),
+			}
+		}
+		for i := conf.ClientMinPort; i <= conf.ClientMaxPort; i++ {
+			nr.ReservedPorts = append(nr.ReservedPorts, structs.Port{Label: fmt.Sprintf("plugin-%d", i), Value: int(i)})
+		}
+	}
+
 	// Create the client
 	client, err := client.NewClient(conf)
 	if err != nil {
@@ -245,6 +271,28 @@ func (a *Agent) setupClient() error {
 	}
 	a.client = client
 	return nil
+}
+
+func (a *Agent) findLoopbackDevice() (string, error) {
+	var ifcs []net.Interface
+	var err error
+	var deviceName string
+	ifcs, err = net.Interfaces()
+	if err != nil {
+		return "", err
+	}
+	for _, ifc := range ifcs {
+		addrs, err := ifc.Addrs()
+		if err != nil {
+			return deviceName, err
+		}
+		for _, addr := range addrs {
+			if net.ParseIP(addr.String()).IsLoopback() {
+				return ifc.Name, nil
+			}
+		}
+	}
+	return deviceName, err
 }
 
 // Leave is used gracefully exit. Clients will inform servers

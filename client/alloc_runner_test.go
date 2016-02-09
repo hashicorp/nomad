@@ -53,7 +53,7 @@ func TestAllocRunner_SimpleRun(t *testing.T) {
 			return false, fmt.Errorf("No updates")
 		}
 		last := upd.Allocs[upd.Count-1]
-		if last.ClientStatus == structs.AllocClientStatusDead {
+		if last.ClientStatus != structs.AllocClientStatusDead {
 			return false, fmt.Errorf("got status %v; want %v", last.ClientStatus, structs.AllocClientStatusDead)
 		}
 		return true, nil
@@ -77,7 +77,7 @@ func TestAllocRunner_TerminalUpdate_Destroy(t *testing.T) {
 			return false, fmt.Errorf("No updates")
 		}
 		last := upd.Allocs[upd.Count-1]
-		if last.ClientStatus == structs.AllocClientStatusRunning {
+		if last.ClientStatus != structs.AllocClientStatusRunning {
 			return false, fmt.Errorf("got status %v; want %v", last.ClientStatus, structs.AllocClientStatusRunning)
 		}
 		return true, nil

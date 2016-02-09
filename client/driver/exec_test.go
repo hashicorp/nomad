@@ -1,10 +1,13 @@
 package driver
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"reflect"
+	"syscall"
 	"testing"
 	"time"
 
@@ -69,6 +72,66 @@ func TestExecDriver_StartOpen_Wait(t *testing.T) {
 	}
 	if handle2 == nil {
 		t.Fatalf("missing handle")
+	}
+
+	handle.Kill()
+	handle2.Kill()
+}
+
+func TestExecDriver_KillUserPid_OnPluginReconnectFailure(t *testing.T) {
+	t.Parallel()
+	ctestutils.ExecCompatible(t)
+	task := &structs.Task{
+		Name: "sleep",
+		Config: map[string]interface{}{
+			"command": "/bin/sleep",
+			"args":    []string{"1000000"},
+		},
+		Resources: basicResources,
+	}
+
+	driverCtx, execCtx := testDriverContexts(task)
+	defer execCtx.AllocDir.Destroy()
+	d := NewExecDriver(driverCtx)
+
+	handle, err := d.Start(execCtx, task)
+	defer handle.Kill()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if handle == nil {
+		t.Fatalf("missing handle")
+	}
+
+	id := &execId{}
+	if err := json.Unmarshal([]byte(handle.ID()), id); err != nil {
+		t.Fatalf("Failed to parse handle '%s': %v", handle.ID(), err)
+	}
+	pluginPid := id.PluginConfig.Pid
+	proc, err := os.FindProcess(pluginPid)
+	if err != nil {
+		t.Fatalf("can't find plugin pid: %v", pluginPid)
+	}
+	if err := proc.Kill(); err != nil {
+		t.Fatalf("can't kill plugin pid: %v", err)
+	}
+
+	// Attempt to open
+	handle2, err := d.Open(execCtx, handle.ID())
+	if err == nil {
+		t.Fatalf("expected error")
+	}
+	if handle2 != nil {
+		handle2.Kill()
+		t.Fatalf("expected handle2 to be nil")
+	}
+	// Test if the userpid is still present
+	userProc, err := os.FindProcess(id.UserPid)
+
+	err = userProc.Signal(syscall.Signal(0))
+
+	if err == nil {
+		t.Fatalf("expected user process to die")
 	}
 }
 
@@ -259,9 +322,10 @@ func TestExecDriver_Start_Kill_Wait(t *testing.T) {
 		Name: "sleep",
 		Config: map[string]interface{}{
 			"command": "/bin/sleep",
-			"args":    []string{"1"},
+			"args":    []string{"100"},
 		},
-		Resources: basicResources,
+		Resources:   basicResources,
+		KillTimeout: 10 * time.Second,
 	}
 
 	driverCtx, execCtx := testDriverContexts(task)

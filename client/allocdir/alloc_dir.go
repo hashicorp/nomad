@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -37,9 +38,6 @@ type AllocDir struct {
 
 	// TaskDirs is a mapping of task names to their non-shared directory.
 	TaskDirs map[string]string
-
-	// A list of locations the shared alloc has been mounted to.
-	Mounted []string
 }
 
 // AllocFileInfo holds information about a file inside the AllocDir
@@ -67,13 +65,39 @@ func NewAllocDir(allocDir string) *AllocDir {
 // Tears down previously build directory structure.
 func (d *AllocDir) Destroy() error {
 	// Unmount all mounted shared alloc dirs.
-	for _, m := range d.Mounted {
-		if err := d.unmountSharedDir(m); err != nil {
-			return fmt.Errorf("Failed to unmount shared directory: %v", err)
-		}
+	var mErr multierror.Error
+	if err := d.UnmountAll(); err != nil {
+		mErr.Errors = append(mErr.Errors, err)
 	}
 
-	return os.RemoveAll(d.AllocDir)
+	if err := os.RemoveAll(d.AllocDir); err != nil {
+		mErr.Errors = append(mErr.Errors, err)
+	}
+
+	return mErr.ErrorOrNil()
+}
+
+func (d *AllocDir) UnmountAll() error {
+	var mErr multierror.Error
+	for _, dir := range d.TaskDirs {
+		// Check if the directory has the shared alloc mounted.
+		taskAlloc := filepath.Join(dir, SharedAllocName)
+		if d.pathExists(taskAlloc) {
+			if err := d.unmountSharedDir(taskAlloc); err != nil {
+				mErr.Errors = append(mErr.Errors,
+					fmt.Errorf("failed to unmount shared alloc dir %q: %v", taskAlloc, err))
+			}
+			if err := os.RemoveAll(taskAlloc); err != nil {
+				mErr.Errors = append(mErr.Errors,
+					fmt.Errorf("failed to delete shared alloc dir %q: %v", taskAlloc, err))
+			}
+		}
+
+		// Unmount dev/ and proc/ have been mounted.
+		d.unmountSpecialDirs(dir)
+	}
+
+	return mErr.ErrorOrNil()
 }
 
 // Given a list of a task build the correct alloc structure.
@@ -248,7 +272,6 @@ func (d *AllocDir) MountSharedDir(task string) error {
 		return fmt.Errorf("Failed to mount shared directory for task %v: %v", task, err)
 	}
 
-	d.Mounted = append(d.Mounted, taskLoc)
 	return nil
 }
 
@@ -324,4 +347,14 @@ func fileCopy(src, dst string, perm os.FileMode) error {
 	}
 
 	return nil
+}
+
+// pathExists is a helper function to check if the path exists.
+func (d *AllocDir) pathExists(path string) bool {
+	if _, err := os.Stat(path); err != nil {
+		if os.IsNotExist(err) {
+			return false
+		}
+	}
+	return true
 }

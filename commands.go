@@ -57,6 +57,11 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"executor": func() (cli.Command, error) {
+			return &command.ExecutorPluginCommand{
+				Meta: meta,
+			}, nil
+		},
 		"fs": func() (cli.Command, error) {
 			return &command.FSCommand{
 				Meta: meta,
@@ -118,13 +123,6 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
-
-		"spawn-daemon": func() (cli.Command, error) {
-			return &command.SpawnDaemonCommand{
-				Meta: meta,
-			}, nil
-		},
-
 		"status": func() (cli.Command, error) {
 			return &command.StatusCommand{
 				Meta: meta,

@@ -89,8 +89,14 @@ func NewDriverContext(taskName string, config *config.Config, node *structs.Node
 func (d *DriverContext) KillTimeout(task *structs.Task) time.Duration {
 	max := d.config.MaxKillTimeout.Nanoseconds()
 	desired := task.KillTimeout.Nanoseconds()
+
+	// Make the minimum time between signal and kill, 1 second.
+	if desired == 0 {
+		desired = (1 * time.Second).Nanoseconds()
+	}
+
 	if desired < max {
-		return task.KillTimeout
+		return time.Duration(desired)
 	}
 
 	return d.config.MaxKillTimeout

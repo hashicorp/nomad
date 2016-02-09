@@ -87,6 +87,7 @@ func TestJavaDriver_StartOpen_Wait(t *testing.T) {
 	// There is a race condition between the handle waiting and killing. One
 	// will return an error.
 	handle.Kill()
+	handle2.Kill()
 }
 
 func TestJavaDriver_Start_Wait(t *testing.T) {

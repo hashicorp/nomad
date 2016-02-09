@@ -57,6 +57,14 @@ type Config struct {
 	// Node provides the base node
 	Node *structs.Node
 
+	// ClientMaxPort is the upper range of the ports that the client uses for
+	// communicating with plugin subsystems
+	ClientMaxPort uint
+
+	// ClientMinPort is the lower range of the ports that the client uses for
+	// communicating with plugin subsystems
+	ClientMinPort uint
+
 	// Options provides arbitrary key-value configuration for nomad internals,
 	// like fingerprinters and drivers. The format is:
 	//
