@@ -162,15 +162,15 @@ func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 	pluginConfig := &plugin.ClientConfig{
 		Reattach: id.PluginConfig.PluginConfig(),
 	}
-	executor, client, err := createExecutor(pluginConfig, d.config.LogOutput, d.config)
+	exec, client, err := createExecutor(pluginConfig, d.config.LogOutput, d.config)
 	if err != nil {
 		d.logger.Println("[ERROR] driver.exec: error connecting to plugin so destroying plugin pid and user pid")
 		if e := destroyPlugin(id.PluginConfig.Pid, id.UserPid); e != nil {
 			d.logger.Printf("[ERROR] driver.exec: error destroying plugin and userpid: %v", e)
 		}
 		if id.IsolationConfig != nil {
-			if e := destroyCgroup(id.IsolationConfig.Cgroup); e != nil {
-				d.logger.Printf("[ERROR] driver.exec: %v", e)
+			if e := executor.DestroyCgroup(id.IsolationConfig.Cgroup); e != nil {
+				d.logger.Printf("[ERROR] driver.exec: destroying cgroup failed: %v", e)
 			}
 		}
 		if e := ctx.AllocDir.UnmountSpecialDirs(id.TaskDir); e != nil {
@@ -182,7 +182,7 @@ func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 	// Return a driver handle
 	h := &execHandle{
 		pluginClient:    client,
-		executor:        executor,
+		executor:        exec,
 		userPid:         id.UserPid,
 		taskDir:         id.TaskDir,
 		isolationConfig: id.IsolationConfig,

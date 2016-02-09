@@ -46,7 +46,7 @@ func (e *UniversalExecutor) configureIsolation() error {
 			return fmt.Errorf("error creating cgroups: %v", err)
 		}
 		if err := e.applyLimits(os.Getpid()); err != nil {
-			if er := e.destroyCgroup(); er != nil {
+			if er := DestroyCgroup(e.groups); er != nil {
 				e.logger.Printf("[ERROR] executor: error destroying cgroup: %v", er)
 			}
 			if er := e.removeChrootMounts(); er != nil {
@@ -65,7 +65,7 @@ func (e *UniversalExecutor) applyLimits(pid int) error {
 	}
 
 	// Entering the process in the cgroup
-	manager := e.getCgroupManager(e.groups)
+	manager := getCgroupManager(e.groups)
 	if err := manager.Apply(pid); err != nil {
 		e.logger.Printf("[ERROR] executor: unable to join cgroup: %v", err)
 		if err := e.Exit(); err != nil {
@@ -183,49 +183,39 @@ func (e *UniversalExecutor) removeChrootMounts() error {
 
 // destroyCgroup kills all processes in the cgroup and removes the cgroup
 // configuration from the host.
-func (e *UniversalExecutor) destroyCgroup() error {
-	if e.groups == nil {
+func DestroyCgroup(groups *cgroupConfig.Cgroup) error {
+	merrs := new(multierror.Error)
+	if groups == nil {
 		return fmt.Errorf("Can't destroy: cgroup configuration empty")
 	}
 
-	// Prevent a race between Wait/ForceStop
-	e.lock.Lock()
-	defer e.lock.Unlock()
-
-	manager := e.getCgroupManager(e.groups)
-	pids, err := manager.GetPids()
-	if err != nil {
-		return fmt.Errorf("Failed to get pids in the cgroup %v: %v", e.groups.Name, err)
-	}
-
-	errs := new(multierror.Error)
-	for _, pid := range pids {
-		process, err := os.FindProcess(pid)
-		if err != nil {
-			multierror.Append(errs, fmt.Errorf("Failed to find Pid %v: %v", pid, err))
-			continue
-		}
-
-		if err := process.Kill(); err != nil && err.Error() != "os: process already finished" {
-			multierror.Append(errs, fmt.Errorf("Failed to kill Pid %v: %v", pid, err))
-			continue
+	manager := getCgroupManager(groups)
+	if pids, perr := manager.GetPids(); perr == nil {
+		for _, pid := range pids {
+			proc, err := os.FindProcess(pid)
+			if err != nil {
+				merrs.Errors = append(merrs.Errors, fmt.Errorf("error finding process %v: %v", pid, err))
+			} else {
+				if e := proc.Kill(); e != nil {
+					merrs.Errors = append(merrs.Errors, fmt.Errorf("error killing process %v: %v", pid, e))
+				}
+			}
 		}
 	}
 
 	// Remove the cgroup.
 	if err := manager.Destroy(); err != nil {
-		multierror.Append(errs, fmt.Errorf("Failed to delete the cgroup directories: %v", err))
+		multierror.Append(merrs, fmt.Errorf("Failed to delete the cgroup directories: %v", err))
 	}
 
-	if len(errs.Errors) != 0 {
-		return fmt.Errorf("Failed to destroy cgroup: %v", errs)
+	if len(merrs.Errors) != 0 {
+		return fmt.Errorf("errors while destroying cgroup: %v", merrs)
 	}
-
 	return nil
 }
 
 // getCgroupManager returns the correct libcontainer cgroup manager.
-func (e *UniversalExecutor) getCgroupManager(groups *cgroupConfig.Cgroup) cgroups.Manager {
+func getCgroupManager(groups *cgroupConfig.Cgroup) cgroups.Manager {
 	var manager cgroups.Manager
 	manager = &cgroupFs.Manager{Cgroups: groups}
 	if systemd.UseSystemd() {

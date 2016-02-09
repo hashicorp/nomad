@@ -186,7 +186,9 @@ func (e *UniversalExecutor) wait() {
 		e.removeChrootMounts()
 	}
 	if e.ctx.ResourceLimits {
-		e.destroyCgroup()
+		e.lock.Lock()
+		DestroyCgroup(e.groups)
+		e.lock.Unlock()
 	}
 	e.exitState = &ProcessState{Pid: 0, ExitCode: exitCode, Time: time.Now()}
 }
@@ -212,9 +214,11 @@ func (e *UniversalExecutor) Exit() error {
 		}
 	}
 	if e.ctx.ResourceLimits {
-		if err := e.destroyCgroup(); err != nil {
+		e.lock.Lock()
+		if err := DestroyCgroup(e.groups); err != nil {
 			merr.Errors = append(merr.Errors, err)
 		}
+		e.lock.Unlock()
 	}
 	return merr.ErrorOrNil()
 }
