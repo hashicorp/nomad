@@ -129,7 +129,8 @@ func TestExecDriver_KillUserPid_OnPluginReconnectFailure(t *testing.T) {
 	userProc, err := os.FindProcess(id.UserPid)
 
 	err = userProc.Signal(syscall.Signal(0))
-	if err != nil {
+
+	if err == nil {
 		t.Fatalf("expected user process to die")
 	}
 }
