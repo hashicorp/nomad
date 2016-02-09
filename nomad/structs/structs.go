@@ -1765,6 +1765,10 @@ type Allocation struct {
 	// AllocModifyIndex is not updated when the client updates allocations. This
 	// lets the client pull only the allocs updated by the server.
 	AllocModifyIndex uint64
+
+	// CreateTime is the time the allocation has finished scheduling and been
+	// verified by the plan applier.
+	CreateTime int64
 }
 
 func (a *Allocation) Copy() *Allocation {
@@ -1811,6 +1815,7 @@ func (a *Allocation) Stub() *AllocListStub {
 		TaskStates:         a.TaskStates,
 		CreateIndex:        a.CreateIndex,
 		ModifyIndex:        a.ModifyIndex,
+		CreateTime:         a.CreateTime,
 	}
 }
 
@@ -1858,6 +1863,7 @@ type AllocListStub struct {
 	TaskStates         map[string]*TaskState
 	CreateIndex        uint64
 	ModifyIndex        uint64
+	CreateTime         int64
 }
 
 // AllocMetric is used to track various metrics while attempting
