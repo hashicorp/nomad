@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/go-plugin"
 	"github.com/mitchellh/mapstructure"
 
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/executor"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
@@ -47,6 +48,7 @@ type javaHandle struct {
 	isolationConfig *executor.IsolationConfig
 
 	taskDir     string
+	allocDir    *allocdir.AllocDir
 	killTimeout time.Duration
 	logger      *log.Logger
 	waitCh      chan *cstructs.WaitResult
@@ -183,6 +185,7 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		userPid:         ps.Pid,
 		isolationConfig: ps.IsolationConfig,
 		taskDir:         taskDir,
+		allocDir:        ctx.AllocDir,
 		killTimeout:     d.DriverContext.KillTimeout(task),
 		logger:          d.logger,
 		doneCh:          make(chan struct{}),
@@ -198,6 +201,7 @@ type javaId struct {
 	PluginConfig    *ExecutorReattachConfig
 	IsolationConfig *executor.IsolationConfig
 	TaskDir         string
+	AllocDir        *allocdir.AllocDir
 	UserPid         int
 }
 
@@ -237,6 +241,7 @@ func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		userPid:         id.UserPid,
 		isolationConfig: id.IsolationConfig,
 		taskDir:         id.TaskDir,
+		allocDir:        id.AllocDir,
 		logger:          d.logger,
 		killTimeout:     id.KillTimeout,
 		doneCh:          make(chan struct{}),
@@ -253,6 +258,7 @@ func (h *javaHandle) ID() string {
 		PluginConfig:    NewExecutorReattachConfig(h.pluginClient.ReattachConfig()),
 		UserPid:         h.userPid,
 		TaskDir:         h.taskDir,
+		AllocDir:        h.allocDir,
 		IsolationConfig: h.isolationConfig,
 	}
 
@@ -288,6 +294,20 @@ func (h *javaHandle) Kill() error {
 func (h *javaHandle) run() {
 	ps, err := h.executor.Wait()
 	close(h.doneCh)
+	if ps.ExitCode == 0 && err != nil {
+		if h.isolationConfig != nil {
+			if e := executor.DestroyCgroup(h.isolationConfig.Cgroup); e != nil {
+				h.logger.Printf("[ERROR] driver.java: destroying cgroup failed while killing cgroup: %v", e)
+			}
+		} else {
+			if e := killProcess(h.userPid); e != nil {
+				h.logger.Printf("[ERROR] driver.java: error killing user process: %v", e)
+			}
+		}
+		if e := h.allocDir.UnmountAll(); e != nil {
+			h.logger.Printf("[ERROR] driver.java: unmounting dev,proc and alloc dirs failed: %v", e)
+		}
+	}
 	h.waitCh <- &cstructs.WaitResult{ExitCode: ps.ExitCode, Signal: 0, Err: err}
 	close(h.waitCh)
 	h.pluginClient.Kill()

@@ -1,10 +1,12 @@
 package driver
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -93,6 +95,52 @@ func TestRawExecDriver_StartOpen_Wait(t *testing.T) {
 	}
 	handle.Kill()
 	handle2.Kill()
+}
+
+func TestRawExecDriver_KillExecutorPid(t *testing.T) {
+	t.Parallel()
+	task := &structs.Task{
+		Name: "sleep",
+		Config: map[string]interface{}{
+			"command": "/bin/sleep",
+			"args":    []string{"1000000"},
+		},
+		Resources: basicResources,
+	}
+
+	driverCtx, execCtx := testDriverContexts(task)
+	defer execCtx.AllocDir.Destroy()
+	d := NewExecDriver(driverCtx)
+
+	handle, err := d.Start(execCtx, task)
+	defer handle.Kill()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if handle == nil {
+		t.Fatalf("missing handle")
+	}
+
+	id := &rawExecId{}
+	if err := json.Unmarshal([]byte(handle.ID()), id); err != nil {
+		t.Fatalf("Failed to parse handle '%s': %v", handle.ID(), err)
+	}
+	pluginPid := id.PluginConfig.Pid
+	userPid := id.UserPid
+	proc, err := os.FindProcess(pluginPid)
+	if err != nil {
+		t.Fatalf("got err: %v", err)
+	}
+	if err = proc.Kill(); err != nil {
+		t.Fatalf("got err: %v", err)
+	}
+	time.Sleep(1 * time.Second)
+	procUser, err := os.FindProcess(userPid)
+	if err != nil {
+		if err = procUser.Kill(); err != nil {
+			t.Fatalf("expected process to be dead")
+		}
+	}
 }
 
 func TestRawExecDriver_Start_Artifact_basic(t *testing.T) {

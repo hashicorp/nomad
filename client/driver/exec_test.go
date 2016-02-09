@@ -135,6 +135,53 @@ func TestExecDriver_KillUserPid_OnPluginReconnectFailure(t *testing.T) {
 	}
 }
 
+func TestExecDriver_KillExecutorPid(t *testing.T) {
+	t.Parallel()
+	ctestutils.ExecCompatible(t)
+	task := &structs.Task{
+		Name: "sleep",
+		Config: map[string]interface{}{
+			"command": "/bin/sleep",
+			"args":    []string{"1000000"},
+		},
+		Resources: basicResources,
+	}
+
+	driverCtx, execCtx := testDriverContexts(task)
+	defer execCtx.AllocDir.Destroy()
+	d := NewExecDriver(driverCtx)
+
+	handle, err := d.Start(execCtx, task)
+	defer handle.Kill()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if handle == nil {
+		t.Fatalf("missing handle")
+	}
+
+	id := &execId{}
+	if err := json.Unmarshal([]byte(handle.ID()), id); err != nil {
+		t.Fatalf("Failed to parse handle '%s': %v", handle.ID(), err)
+	}
+	pluginPid := id.PluginConfig.Pid
+	userPid := id.UserPid
+	proc, err := os.FindProcess(pluginPid)
+	if err != nil {
+		t.Fatalf("got err: %v", err)
+	}
+	if err = proc.Kill(); err != nil {
+		t.Fatalf("got err: %v", err)
+	}
+	procUser, _ := os.FindProcess(userPid)
+	if procUser != nil {
+		time.Sleep(1 * time.Second)
+		if e := procUser.Signal(syscall.Signal(0)); e == nil {
+			t.Fatalf("Expected process to be dead")
+		}
+	}
+}
+
 func TestExecDriver_Start_Wait(t *testing.T) {
 	t.Parallel()
 	ctestutils.ExecCompatible(t)

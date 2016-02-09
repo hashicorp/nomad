@@ -11,6 +11,7 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-plugin"
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/executor"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
@@ -40,6 +41,7 @@ type execHandle struct {
 	isolationConfig *executor.IsolationConfig
 	userPid         int
 	taskDir         string
+	allocDir        *allocdir.AllocDir
 	killTimeout     time.Duration
 	logger          *log.Logger
 	waitCh          chan *cstructs.WaitResult
@@ -136,6 +138,7 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		userPid:         ps.Pid,
 		executor:        exec,
 		taskDir:         taskDir,
+		allocDir:        ctx.AllocDir,
 		isolationConfig: ps.IsolationConfig,
 		killTimeout:     d.DriverContext.KillTimeout(task),
 		logger:          d.logger,
@@ -150,6 +153,7 @@ type execId struct {
 	KillTimeout     time.Duration
 	UserPid         int
 	TaskDir         string
+	AllocDir        *allocdir.AllocDir
 	IsolationConfig *executor.IsolationConfig
 	PluginConfig    *ExecutorReattachConfig
 }
@@ -188,6 +192,7 @@ func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		executor:        exec,
 		userPid:         id.UserPid,
 		taskDir:         id.TaskDir,
+		allocDir:        id.AllocDir,
 		isolationConfig: id.IsolationConfig,
 		logger:          d.logger,
 		killTimeout:     id.KillTimeout,
@@ -204,6 +209,7 @@ func (h *execHandle) ID() string {
 		PluginConfig:    NewExecutorReattachConfig(h.pluginClient.ReattachConfig()),
 		UserPid:         h.userPid,
 		TaskDir:         h.taskDir,
+		AllocDir:        h.allocDir,
 		IsolationConfig: h.isolationConfig,
 	}
 
@@ -249,7 +255,24 @@ func (h *execHandle) Kill() error {
 func (h *execHandle) run() {
 	ps, err := h.executor.Wait()
 	close(h.doneCh)
-	h.waitCh <- &cstructs.WaitResult{ExitCode: ps.ExitCode, Signal: 0, Err: err}
+
+	// If the exitcode is 0 and we had an error that means the plugin didn't
+	// connect and doesn't know the state of the user process so we are killing
+	// the user process so that when we create a new executor on restarting the
+	// new user process doesn't have collisions with resources that the older
+	// user pid might be holding onto.
+	if ps.ExitCode == 0 && err != nil {
+		if h.isolationConfig != nil {
+			if e := executor.DestroyCgroup(h.isolationConfig.Cgroup); e != nil {
+				h.logger.Printf("[ERROR] driver.exec: destroying cgroup failed while killing cgroup: %v", e)
+			}
+		}
+		if e := h.allocDir.UnmountAll(); e != nil {
+			h.logger.Printf("[ERROR] driver.exec: unmounting dev,proc and alloc dirs failed: %v", e)
+		}
+	}
+	h.waitCh <- &cstructs.WaitResult{ExitCode: ps.ExitCode, Signal: 0,
+		Err: err}
 	close(h.waitCh)
 	h.pluginClient.Kill()
 }

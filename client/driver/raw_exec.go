@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-plugin"
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/executor"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
@@ -38,6 +39,7 @@ type rawExecHandle struct {
 	userPid      int
 	executor     executor.Executor
 	killTimeout  time.Duration
+	allocDir     *allocdir.AllocDir
 	logger       *log.Logger
 	waitCh       chan *cstructs.WaitResult
 	doneCh       chan struct{}
@@ -126,6 +128,7 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 		executor:     exec,
 		userPid:      ps.Pid,
 		killTimeout:  d.DriverContext.KillTimeout(task),
+		allocDir:     ctx.AllocDir,
 		logger:       d.logger,
 		doneCh:       make(chan struct{}),
 		waitCh:       make(chan *cstructs.WaitResult, 1),
@@ -138,6 +141,7 @@ type rawExecId struct {
 	KillTimeout  time.Duration
 	UserPid      int
 	PluginConfig *ExecutorReattachConfig
+	AllocDir     *allocdir.AllocDir
 }
 
 func (d *RawExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {
@@ -165,6 +169,7 @@ func (d *RawExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, e
 		userPid:      id.UserPid,
 		logger:       d.logger,
 		killTimeout:  id.KillTimeout,
+		allocDir:     id.AllocDir,
 		doneCh:       make(chan struct{}),
 		waitCh:       make(chan *cstructs.WaitResult, 1),
 	}
@@ -177,6 +182,7 @@ func (h *rawExecHandle) ID() string {
 		KillTimeout:  h.killTimeout,
 		PluginConfig: NewExecutorReattachConfig(h.pluginClient.ReattachConfig()),
 		UserPid:      h.userPid,
+		AllocDir:     h.allocDir,
 	}
 
 	data, err := json.Marshal(id)
@@ -211,6 +217,14 @@ func (h *rawExecHandle) Kill() error {
 func (h *rawExecHandle) run() {
 	ps, err := h.executor.Wait()
 	close(h.doneCh)
+	if ps.ExitCode == 0 && err != nil {
+		if e := killProcess(h.userPid); e != nil {
+			h.logger.Printf("[ERROR] driver.raw_exec: error killing user process: %v", e)
+		}
+		if e := h.allocDir.UnmountAll(); e != nil {
+			h.logger.Printf("[ERROR] driver.raw_exec: unmounting dev,proc and alloc dirs failed: %v", e)
+		}
+	}
 	h.waitCh <- &cstructs.WaitResult{ExitCode: ps.ExitCode, Signal: 0, Err: err}
 	close(h.waitCh)
 	h.pluginClient.Kill()
