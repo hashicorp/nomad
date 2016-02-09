@@ -60,6 +60,7 @@ type Allocation struct {
 	TaskStates         map[string]*TaskState
 	CreateIndex        uint64
 	ModifyIndex        uint64
+	CreateTime         int64
 }
 
 // AllocationMetric is used to deserialize allocation metrics.
@@ -93,6 +94,7 @@ type AllocationListStub struct {
 	TaskStates         map[string]*TaskState
 	CreateIndex        uint64
 	ModifyIndex        uint64
+	CreateTime         int64
 }
 
 // AllocIndexSort reverse sorts allocs by CreateIndex.
