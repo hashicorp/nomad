@@ -40,7 +40,6 @@ type execHandle struct {
 	executor        executor.Executor
 	isolationConfig *executor.IsolationConfig
 	userPid         int
-	taskDir         string
 	allocDir        *allocdir.AllocDir
 	killTimeout     time.Duration
 	logger          *log.Logger
@@ -137,7 +136,6 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		pluginClient:    pluginClient,
 		userPid:         ps.Pid,
 		executor:        exec,
-		taskDir:         taskDir,
 		allocDir:        ctx.AllocDir,
 		isolationConfig: ps.IsolationConfig,
 		killTimeout:     d.DriverContext.KillTimeout(task),
@@ -191,7 +189,6 @@ func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		pluginClient:    client,
 		executor:        exec,
 		userPid:         id.UserPid,
-		taskDir:         id.TaskDir,
 		allocDir:        id.AllocDir,
 		isolationConfig: id.IsolationConfig,
 		logger:          d.logger,
@@ -208,7 +205,6 @@ func (h *execHandle) ID() string {
 		KillTimeout:     h.killTimeout,
 		PluginConfig:    NewExecutorReattachConfig(h.pluginClient.ReattachConfig()),
 		UserPid:         h.userPid,
-		TaskDir:         h.taskDir,
 		AllocDir:        h.allocDir,
 		IsolationConfig: h.isolationConfig,
 	}
