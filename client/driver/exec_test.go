@@ -322,7 +322,7 @@ func TestExecDriver_Start_Kill_Wait(t *testing.T) {
 		Name: "sleep",
 		Config: map[string]interface{}{
 			"command": "/bin/sleep",
-			"args":    []string{"10"},
+			"args":    []string{"45"},
 		},
 		Resources: basicResources,
 	}

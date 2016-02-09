@@ -227,7 +227,10 @@ func (h *execHandle) Update(task *structs.Task) error {
 }
 
 func (h *execHandle) Kill() error {
-	h.executor.ShutDown()
+	if err := h.executor.ShutDown(); err != nil {
+		return fmt.Errorf("executor Shutdown failed: %v", err)
+	}
+
 	select {
 	case <-h.doneCh:
 		return nil
@@ -235,8 +238,11 @@ func (h *execHandle) Kill() error {
 		if h.pluginClient.Exited() {
 			return nil
 		}
-		err := h.executor.Exit()
-		return err
+		if err := h.executor.Exit(); err != nil {
+			return fmt.Errorf("executor Exit failed: %v", err)
+		}
+
+		return nil
 	}
 }
 
