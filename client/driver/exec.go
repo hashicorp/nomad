@@ -154,7 +154,7 @@ type execId struct {
 	TaskDir         string
 	AllocDir        *allocdir.AllocDir
 	IsolationConfig *executor.IsolationConfig
-	PluginConfig    *ExecutorReattachConfig
+	PluginConfig    *PluginReattachConfig
 }
 
 func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {
@@ -204,7 +204,7 @@ func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 func (h *execHandle) ID() string {
 	id := execId{
 		KillTimeout:     h.killTimeout,
-		PluginConfig:    NewExecutorReattachConfig(h.pluginClient.ReattachConfig()),
+		PluginConfig:    NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
 		UserPid:         h.userPid,
 		AllocDir:        h.allocDir,
 		IsolationConfig: h.isolationConfig,

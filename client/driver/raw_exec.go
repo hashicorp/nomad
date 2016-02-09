@@ -141,7 +141,7 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 type rawExecId struct {
 	KillTimeout  time.Duration
 	UserPid      int
-	PluginConfig *ExecutorReattachConfig
+	PluginConfig *PluginReattachConfig
 	AllocDir     *allocdir.AllocDir
 }
 
@@ -181,7 +181,7 @@ func (d *RawExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, e
 func (h *rawExecHandle) ID() string {
 	id := rawExecId{
 		KillTimeout:  h.killTimeout,
-		PluginConfig: NewExecutorReattachConfig(h.pluginClient.ReattachConfig()),
+		PluginConfig: NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
 		UserPid:      h.userPid,
 		AllocDir:     h.allocDir,
 	}

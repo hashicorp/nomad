@@ -197,7 +197,7 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 
 type javaId struct {
 	KillTimeout     time.Duration
-	PluginConfig    *ExecutorReattachConfig
+	PluginConfig    *PluginReattachConfig
 	IsolationConfig *executor.IsolationConfig
 	TaskDir         string
 	AllocDir        *allocdir.AllocDir
@@ -254,7 +254,7 @@ func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 func (h *javaHandle) ID() string {
 	id := javaId{
 		KillTimeout:     h.killTimeout,
-		PluginConfig:    NewExecutorReattachConfig(h.pluginClient.ReattachConfig()),
+		PluginConfig:    NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
 		UserPid:         h.userPid,
 		TaskDir:         h.taskDir,
 		AllocDir:        h.allocDir,

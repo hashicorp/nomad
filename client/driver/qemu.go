@@ -236,7 +236,7 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 type qemuId struct {
 	KillTimeout  time.Duration
 	UserPid      int
-	PluginConfig *ExecutorReattachConfig
+	PluginConfig *PluginReattachConfig
 	AllocDir     *allocdir.AllocDir
 }
 
@@ -277,7 +277,7 @@ func (d *QemuDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 func (h *qemuHandle) ID() string {
 	id := qemuId{
 		KillTimeout:  h.killTimeout,
-		PluginConfig: NewExecutorReattachConfig(h.pluginClient.ReattachConfig()),
+		PluginConfig: NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
 		UserPid:      h.userPid,
 		AllocDir:     h.allocDir,
 	}
