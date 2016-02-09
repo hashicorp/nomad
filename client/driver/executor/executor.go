@@ -193,6 +193,12 @@ func (e *UniversalExecutor) wait() {
 	e.exitState = &ProcessState{Pid: 0, ExitCode: exitCode, Time: time.Now()}
 }
 
+var (
+	// finishedErr is the error message received when trying to kill and already
+	// exited process.
+	finishedErr = "os: process already finished"
+)
+
 // Exit cleans up the alloc directory, destroys cgroups and kills the user
 // process
 func (e *UniversalExecutor) Exit() error {
@@ -202,7 +208,7 @@ func (e *UniversalExecutor) Exit() error {
 		if err != nil {
 			e.logger.Printf("[ERROR] executor: can't find process with pid: %v, err: %v",
 				e.cmd.Process.Pid, err)
-		} else if err := proc.Kill(); err != nil {
+		} else if err := proc.Kill(); err != nil && err.Error() != finishedErr {
 			merr.Errors = append(merr.Errors,
 				fmt.Errorf("can't kill process with pid: %v, err: %v", e.cmd.Process.Pid, err))
 		}
