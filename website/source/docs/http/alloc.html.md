@@ -246,7 +246,7 @@ be specified using the `?region=` query parameter.
     * `TaskStateRunning` - The task is currently running.
     * `TaskStateDead` - The task is dead and will not run again.
 
-    <p>The latest 10 events are stored per task. Each event is timestamped (unix seconds)
+    <p>The latest 10 events are stored per task. Each event is timestamped (unix nano-seconds)
     and has one of the following types:</p>
 
     * `Driver Failure` - The task could not be started due to a failure in the
