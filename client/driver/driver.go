@@ -96,7 +96,7 @@ func (d *DriverContext) KillTimeout(task *structs.Task) time.Duration {
 	}
 
 	if desired < max {
-		return task.KillTimeout
+		return time.Duration(desired)
 	}
 
 	return d.config.MaxKillTimeout
