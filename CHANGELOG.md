@@ -2,9 +2,9 @@
 
 BACKWARDS INCOMPATIBILITIES:
   * core: Improved restart policy with more user configuration [GH-594]
-  * core/cli: Print short identifiers [GH-760]
+  * core/cli: Print short identifiers [GH-675]
   * core/consul: Validate service name doesn't include period [GH-770]
-  * core/jobspec: Variables/constraints interpreted using ${} notation [GH-675]
+  * core/jobspec: Variables/constraints interpreted using ${} notation [GH-760]
   * client: Environment variable containing address for each allocated port
     [GH-704]
   * client: Extract artifacts into the root of the task directory [GH-756]
