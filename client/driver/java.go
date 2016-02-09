@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-plugin"
 	"github.com/mitchellh/mapstructure"
 
@@ -211,20 +212,22 @@ func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 	}
 	exec, pluginClient, err := createExecutor(pluginConfig, d.config.LogOutput, d.config)
 	if err != nil {
+		merrs := new(multierror.Error)
+		merrs.Errors = append(merrs.Errors, err)
 		d.logger.Println("[ERROR] driver.java: error connecting to plugin so destroying plugin pid and user pid")
 		if e := destroyPlugin(id.PluginConfig.Pid, id.UserPid); e != nil {
-			d.logger.Printf("[ERROR] driver.java: error destroying plugin and userpid: %v", e)
+			merrs.Errors = append(merrs.Errors, fmt.Errorf("error destroying plugin and userpid: %v", e))
 		}
 		if id.IsolationConfig != nil {
 			if e := executor.DestroyCgroup(id.IsolationConfig.Cgroup); e != nil {
-				d.logger.Printf("[ERROR] driver.exec: destroying cgroup failed: %v", e)
+				merrs.Errors = append(merrs.Errors, fmt.Errorf("destroying cgroup failed: %v", e))
 			}
 		}
-		if e := ctx.AllocDir.UnmountSpecialDirs(id.TaskDir); e != nil {
-			d.logger.Printf("[ERROR] driver.exec: error unmounting dev and proc fs: %v", e)
+		if e := ctx.AllocDir.UnmountAll(); e != nil {
+			merrs.Errors = append(merrs.Errors, e)
 		}
 
-		return nil, fmt.Errorf("error connecting to plugin: %v", err)
+		return nil, fmt.Errorf("error connecting to plugin: %v", merrs.ErrorOrNil())
 	}
 
 	// Return a driver handle

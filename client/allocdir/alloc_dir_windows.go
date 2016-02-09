@@ -30,7 +30,7 @@ func (d *AllocDir) MountSpecialDirs(taskDir string) error {
 	return nil
 }
 
-// UnmountSpecialDirs unmounts the dev and proc file system from the chroot
-func (d *AllocDir) UnmountSpecialDirs(taskDir string) error {
+// unmountSpecialDirs unmounts the dev and proc file system from the chroot
+func (d *AllocDir) unmountSpecialDirs(taskDir string) error {
 	return nil
 }

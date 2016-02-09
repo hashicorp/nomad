@@ -176,10 +176,10 @@ func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 				merrs.Errors = append(merrs.Errors, fmt.Errorf("destroying cgroup failed: %v", e))
 			}
 		}
-		if e := ctx.AllocDir.UnmountSpecialDirs(id.TaskDir); e != nil {
-			merrs.Errors = append(merrs.Errors, fmt.Errorf("error unmounting dev and proc fs: %v", e))
+		if e := ctx.AllocDir.UnmountAll(); e != nil {
+			merrs.Errors = append(merrs.Errors, e)
 		}
-		return nil, fmt.Errorf("error connecting to plugin: %v", merrs.Error())
+		return nil, fmt.Errorf("error connecting to plugin: %v", merrs.ErrorOrNil())
 	}
 
 	// Return a driver handle

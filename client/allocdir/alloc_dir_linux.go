@@ -53,8 +53,8 @@ func (d *AllocDir) MountSpecialDirs(taskDir string) error {
 	return nil
 }
 
-// UnmountSpecialDirs unmounts the dev and proc file system from the chroot
-func (d *AllocDir) UnmountSpecialDirs(taskDir string) error {
+// unmountSpecialDirs unmounts the dev and proc file system from the chroot
+func (d *AllocDir) unmountSpecialDirs(taskDir string) error {
 	errs := new(multierror.Error)
 	dev := filepath.Join(taskDir, "dev")
 	if d.pathExists(dev) {
@@ -80,14 +80,4 @@ func (d *AllocDir) UnmountSpecialDirs(taskDir string) error {
 	}
 
 	return errs.ErrorOrNil()
-}
-
-// pathExists is a helper function to check if the path exists.
-func (d *AllocDir) pathExists(path string) bool {
-	if _, err := os.Stat(path); err != nil {
-		if os.IsNotExist(err) {
-			return false
-		}
-	}
-	return true
 }

@@ -177,8 +177,7 @@ func (e *UniversalExecutor) removeChrootMounts() error {
 	// Prevent a race between Wait/ForceStop
 	e.lock.Lock()
 	defer e.lock.Unlock()
-
-	return e.ctx.AllocDir.UnmountSpecialDirs(e.taskDir)
+	return e.ctx.AllocDir.UnmountAll()
 }
 
 // destroyCgroup kills all processes in the cgroup and removes the cgroup
