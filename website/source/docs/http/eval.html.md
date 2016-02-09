@@ -24,7 +24,7 @@ be specified using the `?region=` query parameter.
   <dd>GET</dd>
 
   <dt>URL</dt>
-  <dd>`/v1/evaluations`</dd>
+  <dd>`/v1/evaluation/<id>`</dd>
 
   <dt>Parameters</dt>
   <dd>
