@@ -127,6 +127,15 @@ func (s *Server) applyPlan(result *structs.PlanResult, snap *state.StateSnapshot
 	}
 	req.Alloc = append(req.Alloc, result.FailedAllocs...)
 
+	// Set the time the alloc was applied for the first time. This can be used
+	// to approximate the scheduling time.
+	now := time.Now().UTC().UnixNano()
+	for _, alloc := range req.Alloc {
+		if alloc.CreateTime == 0 {
+			alloc.CreateTime = now
+		}
+	}
+
 	// Dispatch the Raft transaction
 	future, err := s.raftApplyFuture(structs.AllocUpdateRequestType, &req)
 	if err != nil {

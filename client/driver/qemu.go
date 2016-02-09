@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-plugin"
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/executor"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
@@ -46,6 +47,7 @@ type qemuHandle struct {
 	pluginClient *plugin.Client
 	userPid      int
 	executor     executor.Executor
+	allocDir     *allocdir.AllocDir
 	killTimeout  time.Duration
 	logger       *log.Logger
 	waitCh       chan *cstructs.WaitResult
@@ -197,7 +199,7 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		Cmd: exec.Command(bin, "executor", pluginLogFile),
 	}
 
-	exec, pluginClient, err := createExecutor(pluginConfig, d.config.LogOutput)
+	exec, pluginClient, err := createExecutor(pluginConfig, d.config.LogOutput, d.config)
 	if err != nil {
 		return nil, err
 	}
@@ -220,6 +222,7 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		pluginClient: pluginClient,
 		executor:     exec,
 		userPid:      ps.Pid,
+		allocDir:     ctx.AllocDir,
 		killTimeout:  d.DriverContext.KillTimeout(task),
 		logger:       d.logger,
 		doneCh:       make(chan struct{}),
@@ -234,6 +237,7 @@ type qemuId struct {
 	KillTimeout  time.Duration
 	UserPid      int
 	PluginConfig *ExecutorReattachConfig
+	AllocDir     *allocdir.AllocDir
 }
 
 func (d *QemuDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {
@@ -246,7 +250,7 @@ func (d *QemuDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		Reattach: id.PluginConfig.PluginConfig(),
 	}
 
-	executor, pluginClient, err := createExecutor(pluginConfig, d.config.LogOutput)
+	executor, pluginClient, err := createExecutor(pluginConfig, d.config.LogOutput, d.config)
 	if err != nil {
 		d.logger.Println("[ERROR] driver.qemu: error connecting to plugin so destroying plugin pid and user pid")
 		if e := destroyPlugin(id.PluginConfig.Pid, id.UserPid); e != nil {
@@ -260,6 +264,7 @@ func (d *QemuDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		pluginClient: pluginClient,
 		executor:     executor,
 		userPid:      id.UserPid,
+		allocDir:     id.AllocDir,
 		logger:       d.logger,
 		killTimeout:  id.KillTimeout,
 		doneCh:       make(chan struct{}),
@@ -274,6 +279,7 @@ func (h *qemuHandle) ID() string {
 		KillTimeout:  h.killTimeout,
 		PluginConfig: NewExecutorReattachConfig(h.pluginClient.ReattachConfig()),
 		UserPid:      h.userPid,
+		AllocDir:     h.allocDir,
 	}
 
 	data, err := json.Marshal(id)
@@ -309,6 +315,14 @@ func (h *qemuHandle) Kill() error {
 
 func (h *qemuHandle) run() {
 	ps, err := h.executor.Wait()
+	if ps.ExitCode == 0 && err != nil {
+		if e := killProcess(h.userPid); e != nil {
+			h.logger.Printf("[ERROR] driver.qemu: error killing user process: %v", e)
+		}
+		if e := h.allocDir.UnmountAll(); e != nil {
+			h.logger.Printf("[ERROR] driver.qemu: unmounting dev,proc and alloc dirs failed: %v", e)
+		}
+	}
 	close(h.doneCh)
 	h.waitCh <- &cstructs.WaitResult{ExitCode: ps.ExitCode, Signal: 0, Err: err}
 	close(h.waitCh)

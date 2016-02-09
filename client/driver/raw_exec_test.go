@@ -1,10 +1,12 @@
 package driver
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -287,7 +289,7 @@ func TestRawExecDriver_Start_Kill_Wait(t *testing.T) {
 		Name: "sleep",
 		Config: map[string]interface{}{
 			"command": testtask.Path(),
-			"args":    []string{"sleep", "15s"},
+			"args":    []string{"sleep", "45s"},
 		},
 		Resources: basicResources,
 	}

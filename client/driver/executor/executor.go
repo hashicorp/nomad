@@ -61,12 +61,18 @@ type ExecCommand struct {
 	Args []string
 }
 
+// IsolationConfig has information about the isolation mechanism the executor
+// uses to put resource constraints and isolation on the user process
+type IsolationConfig struct {
+	Cgroup *cgroupConfig.Cgroup
+}
+
 // ProcessState holds information about the state of a user process.
 type ProcessState struct {
 	Pid             int
 	ExitCode        int
 	Signal          int
-	IsolationConfig cgroupConfig.Cgroup
+	IsolationConfig *IsolationConfig
 	Time            time.Time
 }
 
@@ -168,9 +174,9 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext
 	if err := e.cmd.Start(); err != nil {
 		return nil, fmt.Errorf("error starting command: %v", err)
 	}
-
 	go e.wait()
-	return &ProcessState{Pid: e.cmd.Process.Pid, ExitCode: -1, IsolationConfig: *e.groups, Time: time.Now()}, nil
+	ic := &IsolationConfig{Cgroup: e.groups}
+	return &ProcessState{Pid: e.cmd.Process.Pid, ExitCode: -1, IsolationConfig: ic, Time: time.Now()}, nil
 }
 
 // Wait waits until a process has exited and returns it's exitcode and errors
@@ -212,10 +218,18 @@ func (e *UniversalExecutor) wait() {
 		e.removeChrootMounts()
 	}
 	if e.ctx.ResourceLimits {
-		e.destroyCgroup()
+		e.lock.Lock()
+		DestroyCgroup(e.groups)
+		e.lock.Unlock()
 	}
 	e.exitState = &ProcessState{Pid: 0, ExitCode: exitCode, Time: time.Now()}
 }
+
+var (
+	// finishedErr is the error message received when trying to kill and already
+	// exited process.
+	finishedErr = "os: process already finished"
+)
 
 // Exit cleans up the alloc directory, destroys cgroups and kills the user
 // process
@@ -224,10 +238,11 @@ func (e *UniversalExecutor) Exit() error {
 	if e.cmd.Process != nil {
 		proc, err := os.FindProcess(e.cmd.Process.Pid)
 		if err != nil {
-			e.logger.Printf("[ERROR] can't find process with pid: %v, err: %v", e.cmd.Process.Pid, err)
-		}
-		if err := proc.Kill(); err != nil {
-			e.logger.Printf("[ERROR] can't kill process with pid: %v, err: %v", e.cmd.Process.Pid, err)
+			e.logger.Printf("[ERROR] executor: can't find process with pid: %v, err: %v",
+				e.cmd.Process.Pid, err)
+		} else if err := proc.Kill(); err != nil && err.Error() != finishedErr {
+			merr.Errors = append(merr.Errors,
+				fmt.Errorf("can't kill process with pid: %v, err: %v", e.cmd.Process.Pid, err))
 		}
 	}
 
@@ -237,9 +252,11 @@ func (e *UniversalExecutor) Exit() error {
 		}
 	}
 	if e.ctx.ResourceLimits {
-		if err := e.destroyCgroup(); err != nil {
+		e.lock.Lock()
+		if err := DestroyCgroup(e.groups); err != nil {
 			merr.Errors = append(merr.Errors, err)
 		}
+		e.lock.Unlock()
 	}
 	return merr.ErrorOrNil()
 }
@@ -262,11 +279,12 @@ func (e *UniversalExecutor) ShutDown() error {
 	return nil
 }
 
+// configureTaskDir sets the task dir in the executor
 func (e *UniversalExecutor) configureTaskDir() error {
 	taskDir, ok := e.ctx.AllocDir.TaskDirs[e.ctx.TaskName]
 	e.taskDir = taskDir
 	if !ok {
-		return fmt.Errorf("Couldn't find task directory for task %v", e.ctx.TaskName)
+		return fmt.Errorf("couldn't find task directory for task %v", e.ctx.TaskName)
 	}
 	e.cmd.Dir = taskDir
 	return nil

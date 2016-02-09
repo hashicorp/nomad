@@ -129,7 +129,8 @@ func TestExecDriver_KillUserPid_OnPluginReconnectFailure(t *testing.T) {
 	userProc, err := os.FindProcess(id.UserPid)
 
 	err = userProc.Signal(syscall.Signal(0))
-	if err != nil {
+
+	if err == nil {
 		t.Fatalf("expected user process to die")
 	}
 }
@@ -321,9 +322,10 @@ func TestExecDriver_Start_Kill_Wait(t *testing.T) {
 		Name: "sleep",
 		Config: map[string]interface{}{
 			"command": "/bin/sleep",
-			"args":    []string{"10"},
+			"args":    []string{"100"},
 		},
-		Resources: basicResources,
+		Resources:   basicResources,
+		KillTimeout: 10 * time.Second,
 	}
 
 	driverCtx, execCtx := testDriverContexts(task)

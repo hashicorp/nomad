@@ -7,17 +7,24 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-plugin"
+	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/executor"
 )
 
 // createExecutor launches an executor plugin and returns an instance of the
 // Executor interface
-func createExecutor(config *plugin.ClientConfig, w io.Writer) (executor.Executor, *plugin.Client, error) {
+func createExecutor(config *plugin.ClientConfig, w io.Writer, clientConfig *config.Config) (executor.Executor, *plugin.Client, error) {
 	config.HandshakeConfig = HandshakeConfig
 	config.Plugins = GetPluginMap(w)
+	config.MaxPort = clientConfig.ClientMaxPort
+	config.MinPort = clientConfig.ClientMinPort
+
+	// setting the setsid of the plugin process so that it doesn't get signals sent to
+	// the nomad client.
 	if config.Cmd != nil {
 		isolateCommand(config.Cmd)
 	}
+
 	executorClient := plugin.NewClient(config)
 	rpcClient, err := executorClient.Client()
 	if err != nil {

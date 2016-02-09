@@ -57,11 +57,13 @@ type Config struct {
 	// Node provides the base node
 	Node *structs.Node
 
-	// ExecutorMaxPort defines the highest port a plugin process can use
-	ExecutorMaxPort int
+	// ClientMaxPort is the upper range of the ports that the client uses for
+	// communicating with plugin subsystems
+	ClientMaxPort uint
 
-	// ExecutorMinPort defines the lowest port a plugin process can use
-	ExecutorMinPort int
+	// ClientMinPort is the lower range of the ports that the client uses for
+	// communicating with plugin subsystems
+	ClientMinPort uint
 
 	// Options provides arbitrary key-value configuration for nomad internals,
 	// like fingerprinters and drivers. The format is:

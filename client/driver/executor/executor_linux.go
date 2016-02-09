@@ -46,11 +46,11 @@ func (e *UniversalExecutor) configureIsolation() error {
 			return fmt.Errorf("error creating cgroups: %v", err)
 		}
 		if err := e.applyLimits(os.Getpid()); err != nil {
-			if er := e.destroyCgroup(); er != nil {
-				e.logger.Printf("[ERROR] error destroying cgroup: %v", er)
+			if er := DestroyCgroup(e.groups); er != nil {
+				e.logger.Printf("[ERROR] executor: error destroying cgroup: %v", er)
 			}
 			if er := e.removeChrootMounts(); er != nil {
-				e.logger.Printf("[ERROR] error removing chroot: %v", er)
+				e.logger.Printf("[ERROR] executor: error removing chroot: %v", er)
 			}
 			return fmt.Errorf("error entering the plugin process in the cgroup: %v:", err)
 		}
@@ -65,11 +65,11 @@ func (e *UniversalExecutor) applyLimits(pid int) error {
 	}
 
 	// Entering the process in the cgroup
-	manager := e.getCgroupManager(e.groups)
+	manager := getCgroupManager(e.groups)
 	if err := manager.Apply(pid); err != nil {
-		e.logger.Printf("[ERROR] unable to join cgroup: %v", err)
+		e.logger.Printf("[ERROR] executor: unable to join cgroup: %v", err)
 		if err := e.Exit(); err != nil {
-			e.logger.Printf("[ERROR] unable to kill process: %v", err)
+			e.logger.Printf("[ERROR] executor: unable to kill process: %v", err)
 		}
 		return err
 	}
@@ -144,16 +144,6 @@ func (e *UniversalExecutor) runAs(userid string) error {
 	return nil
 }
 
-// pathExists is a helper function to check if the path exists.
-func (e *UniversalExecutor) pathExists(path string) bool {
-	if _, err := os.Stat(path); err != nil {
-		if os.IsNotExist(err) {
-			return false
-		}
-	}
-	return true
-}
-
 // configureChroot configures a chroot
 func (e *UniversalExecutor) configureChroot() error {
 	allocDir := e.ctx.AllocDir
@@ -165,39 +155,18 @@ func (e *UniversalExecutor) configureChroot() error {
 		return err
 	}
 
-	// Mount dev
-	dev := filepath.Join(e.taskDir, "dev")
-	if !e.pathExists(dev) {
-		if err := os.Mkdir(dev, 0777); err != nil {
-			return fmt.Errorf("Mkdir(%v) failed: %v", dev, err)
-		}
-
-		if err := syscall.Mount("none", dev, "devtmpfs", syscall.MS_RDONLY, ""); err != nil {
-			return fmt.Errorf("Couldn't mount /dev to %v: %v", dev, err)
-		}
-	}
-
-	// Mount proc
-	proc := filepath.Join(e.taskDir, "proc")
-	if !e.pathExists(proc) {
-		if err := os.Mkdir(proc, 0777); err != nil {
-			return fmt.Errorf("Mkdir(%v) failed: %v", proc, err)
-		}
-
-		if err := syscall.Mount("none", proc, "proc", syscall.MS_RDONLY, ""); err != nil {
-			return fmt.Errorf("Couldn't mount /proc to %v: %v", proc, err)
-		}
-	}
-
 	// Set the tasks AllocDir environment variable.
 	e.ctx.TaskEnv.SetAllocDir(filepath.Join("/", allocdir.SharedAllocName)).SetTaskLocalDir(filepath.Join("/", allocdir.TaskLocal)).Build()
 
 	if e.cmd.SysProcAttr == nil {
 		e.cmd.SysProcAttr = &syscall.SysProcAttr{}
 	}
-
 	e.cmd.SysProcAttr.Chroot = e.taskDir
 	e.cmd.Dir = "/"
+
+	if err := allocDir.MountSpecialDirs(e.taskDir); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -208,80 +177,44 @@ func (e *UniversalExecutor) removeChrootMounts() error {
 	// Prevent a race between Wait/ForceStop
 	e.lock.Lock()
 	defer e.lock.Unlock()
-
-	// Unmount dev.
-	errs := new(multierror.Error)
-	dev := filepath.Join(e.taskDir, "dev")
-	if e.pathExists(dev) {
-		if err := syscall.Unmount(dev, 0); err != nil {
-			errs = multierror.Append(errs, fmt.Errorf("Failed to unmount dev (%v): %v", dev, err))
-		}
-
-		if err := os.RemoveAll(dev); err != nil {
-			errs = multierror.Append(errs, fmt.Errorf("Failed to delete dev directory (%v): %v", dev, err))
-		}
-	}
-
-	// Unmount proc.
-	proc := filepath.Join(e.taskDir, "proc")
-	if e.pathExists(proc) {
-		if err := syscall.Unmount(proc, 0); err != nil {
-			errs = multierror.Append(errs, fmt.Errorf("Failed to unmount proc (%v): %v", proc, err))
-		}
-
-		if err := os.RemoveAll(proc); err != nil {
-			errs = multierror.Append(errs, fmt.Errorf("Failed to delete proc directory (%v): %v", dev, err))
-		}
-	}
-
-	return errs.ErrorOrNil()
+	return e.ctx.AllocDir.UnmountAll()
 }
 
 // destroyCgroup kills all processes in the cgroup and removes the cgroup
 // configuration from the host.
-func (e *UniversalExecutor) destroyCgroup() error {
-	if e.groups == nil {
+func DestroyCgroup(groups *cgroupConfig.Cgroup) error {
+	merrs := new(multierror.Error)
+	if groups == nil {
 		return fmt.Errorf("Can't destroy: cgroup configuration empty")
 	}
 
-	// Prevent a race between Wait/ForceStop
-	e.lock.Lock()
-	defer e.lock.Unlock()
-
-	manager := e.getCgroupManager(e.groups)
-	pids, err := manager.GetPids()
-	if err != nil {
-		return fmt.Errorf("Failed to get pids in the cgroup %v: %v", e.groups.Name, err)
-	}
-
-	errs := new(multierror.Error)
-	for _, pid := range pids {
-		process, err := os.FindProcess(pid)
-		if err != nil {
-			multierror.Append(errs, fmt.Errorf("Failed to find Pid %v: %v", pid, err))
-			continue
-		}
-
-		if err := process.Kill(); err != nil && err.Error() != "os: process already finished" {
-			multierror.Append(errs, fmt.Errorf("Failed to kill Pid %v: %v", pid, err))
-			continue
+	manager := getCgroupManager(groups)
+	if pids, perr := manager.GetPids(); perr == nil {
+		for _, pid := range pids {
+			proc, err := os.FindProcess(pid)
+			if err != nil {
+				merrs.Errors = append(merrs.Errors, fmt.Errorf("error finding process %v: %v", pid, err))
+			} else {
+				if e := proc.Kill(); e != nil {
+					merrs.Errors = append(merrs.Errors, fmt.Errorf("error killing process %v: %v", pid, e))
+				}
+			}
 		}
 	}
 
 	// Remove the cgroup.
 	if err := manager.Destroy(); err != nil {
-		multierror.Append(errs, fmt.Errorf("Failed to delete the cgroup directories: %v", err))
+		multierror.Append(merrs, fmt.Errorf("Failed to delete the cgroup directories: %v", err))
 	}
 
-	if len(errs.Errors) != 0 {
-		return fmt.Errorf("Failed to destroy cgroup: %v", errs)
+	if len(merrs.Errors) != 0 {
+		return fmt.Errorf("errors while destroying cgroup: %v", merrs)
 	}
-
 	return nil
 }
 
 // getCgroupManager returns the correct libcontainer cgroup manager.
-func (e *UniversalExecutor) getCgroupManager(groups *cgroupConfig.Cgroup) cgroups.Manager {
+func getCgroupManager(groups *cgroupConfig.Cgroup) cgroups.Manager {
 	var manager cgroups.Manager
 	manager = &cgroupFs.Manager{Cgroups: groups}
 	if systemd.UseSystemd() {

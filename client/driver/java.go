@@ -12,10 +12,11 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-plugin"
 	"github.com/mitchellh/mapstructure"
-	cgroupConfig "github.com/opencontainers/runc/libcontainer/configs"
 
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/executor"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
@@ -41,11 +42,13 @@ type JavaDriverConfig struct {
 
 // javaHandle is returned from Start/Open as a handle to the PID
 type javaHandle struct {
-	pluginClient *plugin.Client
-	userPid      int
-	executor     executor.Executor
-	groups       *cgroupConfig.Cgroup
+	pluginClient    *plugin.Client
+	userPid         int
+	executor        executor.Executor
+	isolationConfig *executor.IsolationConfig
 
+	taskDir     string
+	allocDir    *allocdir.AllocDir
 	killTimeout time.Duration
 	logger      *log.Logger
 	waitCh      chan *cstructs.WaitResult
@@ -155,7 +158,7 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		Cmd: exec.Command(bin, "executor", pluginLogFile),
 	}
 
-	exec, pluginClient, err := createExecutor(pluginConfig, d.config.LogOutput)
+	exec, pluginClient, err := createExecutor(pluginConfig, d.config.LogOutput, d.config)
 	if err != nil {
 		return nil, err
 	}
@@ -176,14 +179,16 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 
 	// Return a driver handle
 	h := &javaHandle{
-		pluginClient: pluginClient,
-		executor:     exec,
-		userPid:      ps.Pid,
-		groups:       &ps.IsolationConfig,
-		killTimeout:  d.DriverContext.KillTimeout(task),
-		logger:       d.logger,
-		doneCh:       make(chan struct{}),
-		waitCh:       make(chan *cstructs.WaitResult, 1),
+		pluginClient:    pluginClient,
+		executor:        exec,
+		userPid:         ps.Pid,
+		isolationConfig: ps.IsolationConfig,
+		taskDir:         taskDir,
+		allocDir:        ctx.AllocDir,
+		killTimeout:     d.DriverContext.KillTimeout(task),
+		logger:          d.logger,
+		doneCh:          make(chan struct{}),
+		waitCh:          make(chan *cstructs.WaitResult, 1),
 	}
 
 	go h.run()
@@ -191,10 +196,12 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 }
 
 type javaId struct {
-	KillTimeout  time.Duration
-	PluginConfig *ExecutorReattachConfig
-	Groups       *cgroupConfig.Cgroup
-	UserPid      int
+	KillTimeout     time.Duration
+	PluginConfig    *ExecutorReattachConfig
+	IsolationConfig *executor.IsolationConfig
+	TaskDir         string
+	AllocDir        *allocdir.AllocDir
+	UserPid         int
 }
 
 func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {
@@ -206,29 +213,38 @@ func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 	pluginConfig := &plugin.ClientConfig{
 		Reattach: id.PluginConfig.PluginConfig(),
 	}
-	executor, pluginClient, err := createExecutor(pluginConfig, d.config.LogOutput)
+	exec, pluginClient, err := createExecutor(pluginConfig, d.config.LogOutput, d.config)
 	if err != nil {
+		merrs := new(multierror.Error)
+		merrs.Errors = append(merrs.Errors, err)
 		d.logger.Println("[ERROR] driver.java: error connecting to plugin so destroying plugin pid and user pid")
 		if e := destroyPlugin(id.PluginConfig.Pid, id.UserPid); e != nil {
-			d.logger.Printf("[ERROR] driver.java: error destroying plugin and userpid: %v", e)
+			merrs.Errors = append(merrs.Errors, fmt.Errorf("error destroying plugin and userpid: %v", e))
 		}
-		if e := destroyCgroup(id.Groups); e != nil {
-			d.logger.Printf("[ERROR] driver.exec: %v", e)
+		if id.IsolationConfig != nil {
+			if e := executor.DestroyCgroup(id.IsolationConfig.Cgroup); e != nil {
+				merrs.Errors = append(merrs.Errors, fmt.Errorf("destroying cgroup failed: %v", e))
+			}
+		}
+		if e := ctx.AllocDir.UnmountAll(); e != nil {
+			merrs.Errors = append(merrs.Errors, e)
 		}
 
-		return nil, fmt.Errorf("error connecting to plugin: %v", err)
+		return nil, fmt.Errorf("error connecting to plugin: %v", merrs.ErrorOrNil())
 	}
 
 	// Return a driver handle
 	h := &javaHandle{
-		pluginClient: pluginClient,
-		executor:     executor,
-		userPid:      id.UserPid,
-		groups:       id.Groups,
-		logger:       d.logger,
-		killTimeout:  id.KillTimeout,
-		doneCh:       make(chan struct{}),
-		waitCh:       make(chan *cstructs.WaitResult, 1),
+		pluginClient:    pluginClient,
+		executor:        exec,
+		userPid:         id.UserPid,
+		isolationConfig: id.IsolationConfig,
+		taskDir:         id.TaskDir,
+		allocDir:        id.AllocDir,
+		logger:          d.logger,
+		killTimeout:     id.KillTimeout,
+		doneCh:          make(chan struct{}),
+		waitCh:          make(chan *cstructs.WaitResult, 1),
 	}
 
 	go h.run()
@@ -237,10 +253,12 @@ func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 
 func (h *javaHandle) ID() string {
 	id := javaId{
-		KillTimeout:  h.killTimeout,
-		PluginConfig: NewExecutorReattachConfig(h.pluginClient.ReattachConfig()),
-		UserPid:      h.userPid,
-		Groups:       h.groups,
+		KillTimeout:     h.killTimeout,
+		PluginConfig:    NewExecutorReattachConfig(h.pluginClient.ReattachConfig()),
+		UserPid:         h.userPid,
+		TaskDir:         h.taskDir,
+		AllocDir:        h.allocDir,
+		IsolationConfig: h.isolationConfig,
 	}
 
 	data, err := json.Marshal(id)
@@ -275,6 +293,20 @@ func (h *javaHandle) Kill() error {
 func (h *javaHandle) run() {
 	ps, err := h.executor.Wait()
 	close(h.doneCh)
+	if ps.ExitCode == 0 && err != nil {
+		if h.isolationConfig != nil {
+			if e := executor.DestroyCgroup(h.isolationConfig.Cgroup); e != nil {
+				h.logger.Printf("[ERROR] driver.java: destroying cgroup failed while killing cgroup: %v", e)
+			}
+		} else {
+			if e := killProcess(h.userPid); e != nil {
+				h.logger.Printf("[ERROR] driver.java: error killing user process: %v", e)
+			}
+		}
+		if e := h.allocDir.UnmountAll(); e != nil {
+			h.logger.Printf("[ERROR] driver.java: unmounting dev,proc and alloc dirs failed: %v", e)
+		}
+	}
 	h.waitCh <- &cstructs.WaitResult{ExitCode: ps.ExitCode, Signal: 0, Err: err}
 	close(h.waitCh)
 	h.pluginClient.Kill()
