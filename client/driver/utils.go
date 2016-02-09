@@ -18,9 +18,13 @@ func createExecutor(config *plugin.ClientConfig, w io.Writer, clientConfig *conf
 	config.Plugins = GetPluginMap(w)
 	config.MaxPort = clientConfig.ClientMaxPort
 	config.MinPort = clientConfig.ClientMinPort
+
+	// setting the setsid of the plugin process so that it doesn't get signals sent to
+	// the nomad client.
 	if config.Cmd != nil {
 		isolateCommand(config.Cmd)
 	}
+
 	executorClient := plugin.NewClient(config)
 	rpcClient, err := executorClient.Client()
 	if err != nil {

@@ -104,6 +104,8 @@ func TestConfig_Merge(t *testing.T) {
 				"foo": "bar",
 				"baz": "zip",
 			},
+			ClientMaxPort:  20000,
+			ClientMinPort:  22000,
 			NetworkSpeed:   105,
 			MaxKillTimeout: "50s",
 		},
