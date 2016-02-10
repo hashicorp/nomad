@@ -2,10 +2,10 @@ package syslog
 
 import (
 	"fmt"
-	//	"io"
+	"io"
 	"log"
 	"net"
-	//	"path/filepath"
+	"path/filepath"
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/driver/logrotator"
@@ -14,17 +14,20 @@ import (
 )
 
 type LogCollectorContext struct {
-	TaskName  string
-	AllocDir  *allocdir.AllocDir
-	LogConfig *structs.LogConfig
+	TaskName       string
+	AllocDir       *allocdir.AllocDir
+	LogConfig      *structs.LogConfig
+	PortUpperBound uint
+	PortLowerBound uint
 }
 
 type SyslogCollectorState struct {
 	IsolationConfig *IsolationConfig
+	Addr            string
 }
 
 type LogCollector interface {
-	LaunchCollector(addr net.Addr, ctx *LogCollectorContext) (*SyslogCollectorState, error)
+	LaunchCollector(ctx *LogCollectorContext) (*SyslogCollectorState, error)
 	Exit() error
 	UpdateLogConfig(logConfig *structs.LogConfig) error
 }
@@ -49,7 +52,11 @@ func NewSyslogCollector(logger *log.Logger) *SyslogCollector {
 	return &SyslogCollector{logger: logger}
 }
 
-func (s *SyslogCollector) LaunchCollector(addr net.Addr, ctx *LogCollectorContext) (*SyslogCollectorState, error) {
+func (s *SyslogCollector) LaunchCollector(ctx *LogCollectorContext) (*SyslogCollectorState, error) {
+	addr, err := s.getFreePort(ctx.PortLowerBound, ctx.PortUpperBound)
+	if err != nil {
+		return nil, err
+	}
 	s.logger.Printf("sylog-server: launching syslog server on addr: %v", addr)
 	s.ctx = ctx
 	// configuring the task dir
@@ -61,30 +68,30 @@ func (s *SyslogCollector) LaunchCollector(addr net.Addr, ctx *LogCollectorContex
 	handler := syslog.NewChannelHandler(channel)
 
 	s.server = syslog.NewServer()
-	s.server.SetFormat(syslog.RFC5424)
+	s.server.SetFormat(&CustomParser{logger: s.logger})
 	s.server.SetHandler(handler)
 	s.server.ListenTCP(addr.String())
 	if err := s.server.Boot(); err != nil {
 		return nil, err
 	}
-	//	r, w := io.Pipe()
-	//	logFileSize := int64(ctx.LogConfig.MaxFileSizeMB * 1024 * 1024)
-	//	lro, err := logrotator.NewLogRotator(filepath.Join(s.taskDir, allocdir.TaskLocal),
-	//		fmt.Sprintf("%v.stdout", ctx.TaskName), ctx.LogConfig.MaxFiles,
-	//		logFileSize, s.logger)
-	//	if err != nil {
-	//		return err
-	//	}
-	//	go lro.Start(r)
+	r, w := io.Pipe()
+	logFileSize := int64(ctx.LogConfig.MaxFileSizeMB * 1024 * 1024)
+	lro, err := logrotator.NewLogRotator(filepath.Join(s.taskDir, allocdir.TaskLocal),
+		fmt.Sprintf("%v.stdout", ctx.TaskName), ctx.LogConfig.MaxFiles,
+		logFileSize, s.logger)
+	if err != nil {
+		return nil, err
+	}
+	go lro.Start(r)
 
 	go func(channel syslog.LogPartsChannel) {
 		for logParts := range channel {
-			s.logger.Printf("logparts: %v", logParts)
-			//			w.Write([]byte(logParts))
+			message := logParts["content"].(string)
+			w.Write([]byte(message))
 		}
 	}(channel)
 	go s.server.Wait()
-	return &SyslogCollectorState{}, nil
+	return &SyslogCollectorState{Addr: addr.String()}, nil
 }
 
 func (s *SyslogCollector) Exit() error {
@@ -103,4 +110,22 @@ func (s *SyslogCollector) configureTaskDir() error {
 	}
 	s.taskDir = taskDir
 	return nil
+}
+
+// getFreePort returns a free port ready to be listened on between upper and
+// lower bounds
+func (s *SyslogCollector) getFreePort(lowerBound uint, upperBound uint) (net.Addr, error) {
+	for i := lowerBound; i <= upperBound; i++ {
+		addr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("localhost:%v", i))
+		if err != nil {
+			return nil, err
+		}
+		l, err := net.ListenTCP("tcp", addr)
+		if err != nil {
+			continue
+		}
+		defer l.Close()
+		return l.Addr(), nil
+	}
+	return nil, fmt.Errorf("No free port found")
 }

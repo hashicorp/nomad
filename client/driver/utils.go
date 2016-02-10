@@ -3,7 +3,6 @@ package driver
 import (
 	"fmt"
 	"io"
-	"net"
 	"os"
 
 	"github.com/hashicorp/go-multierror"
@@ -64,24 +63,6 @@ func createLogCollector(config *plugin.ClientConfig, w io.Writer,
 	}
 	logCollector := raw.(syslog.LogCollector)
 	return logCollector, syslogClient, nil
-}
-
-// getFreePort returns a free port ready to be listened on between upper and
-// lower bounds
-func getFreePort(lowerBound uint, upperBound uint) (net.Addr, error) {
-	for i := lowerBound; i <= upperBound; i++ {
-		addr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("localhost:%v", i))
-		if err != nil {
-			return nil, err
-		}
-		l, err := net.ListenTCP("tcp", addr)
-		if err != nil {
-			continue
-		}
-		defer l.Close()
-		return l.Addr(), nil
-	}
-	return nil, fmt.Errorf("No free port found")
 }
 
 // killProcess kills a process with the given pid

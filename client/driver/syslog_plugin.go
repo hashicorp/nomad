@@ -2,7 +2,6 @@ package driver
 
 import (
 	"log"
-	"net"
 	"net/rpc"
 
 	"github.com/hashicorp/go-plugin"
@@ -15,16 +14,12 @@ type SyslogCollectorRPC struct {
 }
 
 type LaunchCollectorArgs struct {
-	AddrNet  string
-	AddrName string
-	Ctx      *syslog.LogCollectorContext
+	Ctx *syslog.LogCollectorContext
 }
 
-func (e *SyslogCollectorRPC) LaunchCollector(addr net.Addr,
-	ctx *syslog.LogCollectorContext) (*syslog.SyslogCollectorState, error) {
+func (e *SyslogCollectorRPC) LaunchCollector(ctx *syslog.LogCollectorContext) (*syslog.SyslogCollectorState, error) {
 	var ss *syslog.SyslogCollectorState
-	err := e.client.Call("Plugin.LaunchCollector",
-		LaunchCollectorArgs{AddrNet: addr.Network(), AddrName: addr.String(), Ctx: ctx}, &ss)
+	err := e.client.Call("Plugin.LaunchCollector", LaunchCollectorArgs{Ctx: ctx}, &ss)
 	return ss, err
 }
 
@@ -42,9 +37,8 @@ type SyslogCollectorRPCServer struct {
 
 func (s *SyslogCollectorRPCServer) LaunchCollector(args LaunchCollectorArgs,
 	resp *syslog.SyslogCollectorState) error {
-	addr, _ := net.ResolveTCPAddr(args.AddrNet, args.AddrName)
-	ss, err := s.Impl.LaunchCollector(addr, args.Ctx)
-	if err != nil {
+	ss, err := s.Impl.LaunchCollector(args.Ctx)
+	if ss != nil {
 		*resp = *ss
 	}
 	return err

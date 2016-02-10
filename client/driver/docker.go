@@ -180,7 +180,8 @@ func (d *DockerDriver) containerBinds(alloc *allocdir.AllocDir, task *structs.Ta
 }
 
 // createContainer initializes a struct needed to call docker.client.CreateContainer()
-func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, driverConfig *DockerDriverConfig) (docker.CreateContainerOptions, error) {
+func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task,
+	driverConfig *DockerDriverConfig, syslogAddr string) (docker.CreateContainerOptions, error) {
 	var c docker.CreateContainerOptions
 	if task.Resources == nil {
 		// Guard against missing resources. We should never have been able to
@@ -238,10 +239,9 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task, dri
 		// used to share data between different tasks in the same task group.
 		Binds: binds,
 		LogConfig: docker.LogConfig{
-			Type: "json-file",
+			Type: "syslog",
 			Config: map[string]string{
-				"max-size": fmt.Sprintf("%dm", task.LogConfig.MaxFileSizeMB),
-				"max-file": strconv.Itoa(task.LogConfig.MaxFiles),
+				"syslog-address": fmt.Sprintf("tcp://%v", syslogAddr),
 			},
 		},
 	}
@@ -489,11 +489,6 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 
 	d.logger.Printf("[DEBUG] driver.docker: identified image %s as %s", image, dockerImage.ID)
 
-	syslogAddr, err := getFreePort(d.config.ClientMinPort, d.config.ClientMaxPort)
-	if err != nil {
-		return nil, fmt.Errorf("error creating the syslog plugin: %v", err)
-	}
-
 	bin, err := discover.NomadExecutable()
 	if err != nil {
 		return nil, fmt.Errorf("unable to find the nomad binary: %v", err)
@@ -508,15 +503,19 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 		return nil, err
 	}
 	logCollectorCtx := &syslog.LogCollectorContext{
-		TaskName:  task.Name,
-		AllocDir:  ctx.AllocDir,
-		LogConfig: task.LogConfig,
+		TaskName:       task.Name,
+		AllocDir:       ctx.AllocDir,
+		LogConfig:      task.LogConfig,
+		PortLowerBound: d.config.ClientMinPort,
+		PortUpperBound: d.config.ClientMaxPort,
 	}
-	if _, err := logCollector.LaunchCollector(syslogAddr, logCollectorCtx); err != nil {
+	ss, err := logCollector.LaunchCollector(logCollectorCtx)
+	if err != nil {
 		return nil, fmt.Errorf("failed to start syslog collector: %v", err)
 	}
+	d.logger.Printf("Started the syslog server at %v", ss.Addr)
 
-	config, err := d.createContainer(ctx, task, &driverConfig)
+	config, err := d.createContainer(ctx, task, &driverConfig, ss.Addr)
 	if err != nil {
 		d.logger.Printf("[ERR] driver.docker: failed to create container configuration for image %s: %s", image, err)
 		return nil, fmt.Errorf("Failed to create container configuration for image %s: %s", image, err)
