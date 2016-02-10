@@ -46,11 +46,33 @@ func (d *DockerLogParser) Parse() error {
 }
 
 func (d *DockerLogParser) Dump() syslogparser.LogParts {
-	severity, idx, _ := d.parsePriority(d.line)
+	severity, _, _ := d.parsePriority(d.line)
+	msgIdx := d.logContentIndex(d.line)
 	return map[string]interface{}{
-		"content":  d.line[idx:],
+		"content":  d.line[msgIdx:],
 		"severity": severity.S,
 	}
+}
+
+func (d *DockerLogParser) logContentIndex(line []byte) int {
+	cursor := 0
+	numSpace := 0
+	for i := 0; i < len(line); i++ {
+		if line[i] == ' ' {
+			numSpace += 1
+			if numSpace == 1 {
+				cursor = i
+				break
+			}
+		}
+	}
+	for i := cursor; i < len(line); i++ {
+		if line[i] == ':' {
+			cursor = i
+			break
+		}
+	}
+	return cursor + 1
 }
 
 func (d *DockerLogParser) parsePriority(line []byte) (Priority, int, error) {
