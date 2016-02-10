@@ -31,16 +31,15 @@ type AllocRunner struct {
 	logger        *log.Logger
 	consulService *ConsulService
 
-	alloc     *structs.Allocation
-	allocLock sync.Mutex
-
-	// Explicit status of allocation. Set when there are failures
-	allocClientStatus      string
+	alloc                  *structs.Allocation
+	allocClientStatus      string // Explicit status of allocation. Set when there are failures
 	allocClientDescription string
+	allocLock              sync.Mutex
 
 	dirtyCh chan struct{}
 
 	ctx        *driver.ExecContext
+	ctxLock    sync.Mutex
 	tasks      map[string]*TaskRunner
 	taskStates map[string]*structs.TaskState
 	restored   map[string]struct{}
@@ -76,7 +75,7 @@ func NewAllocRunner(logger *log.Logger, config *config.Config, updater AllocStat
 		consulService: consulService,
 		dirtyCh:       make(chan struct{}, 1),
 		tasks:         make(map[string]*TaskRunner),
-		taskStates:    alloc.TaskStates,
+		taskStates:    copyTaskStates(alloc.TaskStates),
 		restored:      make(map[string]struct{}),
 		updateCh:      make(chan *structs.Allocation, 8),
 		destroyCh:     make(chan struct{}),
@@ -112,7 +111,7 @@ func (r *AllocRunner) RestoreState() error {
 		r.restored[name] = struct{}{}
 
 		task := &structs.Task{Name: name}
-		tr := NewTaskRunner(r.logger, r.config, r.setTaskState, r.ctx, r.alloc,
+		tr := NewTaskRunner(r.logger, r.config, r.setTaskState, r.ctx, r.Alloc(),
 			task, r.consulService)
 		r.tasks[name] = tr
 
@@ -153,16 +152,27 @@ func (r *AllocRunner) SaveState() error {
 }
 
 func (r *AllocRunner) saveAllocRunnerState() error {
+	// Create the snapshot.
 	r.taskStatusLock.RLock()
-	defer r.taskStatusLock.RUnlock()
+	states := copyTaskStates(r.taskStates)
+	r.taskStatusLock.RUnlock()
+
+	alloc := r.Alloc()
 	r.allocLock.Lock()
-	defer r.allocLock.Unlock()
+	allocClientStatus := r.allocClientStatus
+	allocClientDescription := r.allocClientDescription
+	r.allocLock.Unlock()
+
+	r.ctxLock.Lock()
+	ctx := r.ctx
+	r.ctxLock.Unlock()
+
 	snap := allocRunnerState{
-		Alloc:                  r.alloc,
-		Context:                r.ctx,
-		AllocClientStatus:      r.allocClientStatus,
-		AllocClientDescription: r.allocClientDescription,
-		TaskStates:             r.taskStates,
+		Alloc:                  alloc,
+		Context:                ctx,
+		AllocClientStatus:      allocClientStatus,
+		AllocClientDescription: allocClientDescription,
+		TaskStates:             states,
 	}
 	return persistState(r.stateFilePath(), &snap)
 }
@@ -186,16 +196,33 @@ func (r *AllocRunner) DestroyContext() error {
 	return r.ctx.AllocDir.Destroy()
 }
 
+// copyTaskStates returns a copy of the passed task states.
+func copyTaskStates(states map[string]*structs.TaskState) map[string]*structs.TaskState {
+	copy := make(map[string]*structs.TaskState, len(states))
+	for task, state := range states {
+		copy[task] = state.Copy()
+	}
+	return copy
+}
+
 // Alloc returns the associated allocation
 func (r *AllocRunner) Alloc() *structs.Allocation {
 	r.allocLock.Lock()
 	alloc := r.alloc.Copy()
+
+	// The status has explicitely been set.
+	if r.allocClientStatus != "" || r.allocClientDescription != "" {
+		alloc.ClientStatus = r.allocClientStatus
+		alloc.ClientDescription = r.allocClientDescription
+		r.allocLock.Unlock()
+		return alloc
+	}
 	r.allocLock.Unlock()
 
 	// Scan the task states to determine the status of the alloc
 	var pending, running, dead, failed bool
 	r.taskStatusLock.RLock()
-	alloc.TaskStates = r.taskStates
+	alloc.TaskStates = copyTaskStates(r.taskStates)
 	for _, state := range r.taskStates {
 		switch state.State {
 		case structs.TaskStateRunning:
@@ -212,13 +239,6 @@ func (r *AllocRunner) Alloc() *structs.Allocation {
 		}
 	}
 	r.taskStatusLock.RUnlock()
-
-	// The status has explicitely been set.
-	if r.allocClientStatus != "" || r.allocClientDescription != "" {
-		alloc.ClientStatus = r.allocClientStatus
-		alloc.ClientDescription = r.allocClientDescription
-		return alloc
-	}
 
 	// Determine the alloc status
 	if failed {
@@ -276,8 +296,10 @@ func (r *AllocRunner) syncStatus() error {
 
 // setStatus is used to update the allocation status
 func (r *AllocRunner) setStatus(status, desc string) {
-	r.alloc.ClientStatus = status
-	r.alloc.ClientDescription = desc
+	r.allocLock.Lock()
+	r.allocClientStatus = status
+	r.allocClientDescription = desc
+	r.allocLock.Unlock()
 	select {
 	case r.dirtyCh <- struct{}{}:
 	default:
@@ -336,6 +358,7 @@ func (r *AllocRunner) Run() {
 	}
 
 	// Create the execution context
+	r.ctxLock.Lock()
 	if r.ctx == nil {
 		allocDir := allocdir.NewAllocDir(filepath.Join(r.config.AllocDir, r.alloc.ID))
 		if err := allocDir.Build(tg.Tasks); err != nil {
@@ -345,6 +368,7 @@ func (r *AllocRunner) Run() {
 		}
 		r.ctx = driver.NewExecContext(allocDir, r.alloc.ID)
 	}
+	r.ctxLock.Unlock()
 
 	// Check if the allocation is in a terminal status. In this case, we don't
 	// start any of the task runners and directly wait for the destroy signal to
@@ -364,8 +388,8 @@ func (r *AllocRunner) Run() {
 			continue
 		}
 
-		tr := NewTaskRunner(r.logger, r.config, r.setTaskState, r.ctx, r.alloc,
-			task, r.consulService)
+		tr := NewTaskRunner(r.logger, r.config, r.setTaskState, r.ctx, r.Alloc(),
+			task.Copy(), r.consulService)
 		r.tasks[task.Name] = tr
 		go tr.Run()
 	}

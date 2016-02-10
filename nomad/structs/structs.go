@@ -542,6 +542,14 @@ type Node struct {
 	ModifyIndex uint64
 }
 
+func (n *Node) Copy() *Node {
+	i, err := copystructure.Copy(n)
+	if err != nil {
+		return nil
+	}
+	return i.(*Node)
+}
+
 // TerminalStatus returns if the current status is terminal and
 // will no longer transition.
 func (n *Node) TerminalStatus() bool {
@@ -1476,6 +1484,14 @@ type Task struct {
 	// KillTimeout is the time between signaling a task that it will be
 	// killed and killing it.
 	KillTimeout time.Duration `mapstructure:"kill_timeout"`
+}
+
+func (t *Task) Copy() *Task {
+	i, err := copystructure.Copy(t)
+	if err != nil {
+		return nil
+	}
+	return i.(*Task)
 }
 
 // InitFields initializes fields in the task.

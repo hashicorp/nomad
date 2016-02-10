@@ -72,8 +72,9 @@ func DefaultConfig() *config.Config {
 // are expected to register as a schedulable node to the servers, and to
 // run allocations as determined by the servers.
 type Client struct {
-	config *config.Config
-	start  time.Time
+	config     *config.Config
+	configLock sync.RWMutex
+	start      time.Time
 
 	logger *log.Logger
 
@@ -409,7 +410,9 @@ func (c *Client) restoreState() error {
 	for _, entry := range list {
 		id := entry.Name()
 		alloc := &structs.Allocation{ID: id}
-		ar := NewAllocRunner(c.logger, c.config, c.updateAllocStatus, alloc, c.consulService)
+		c.configLock.RLock()
+		ar := NewAllocRunner(c.logger, c.config.Copy(), c.updateAllocStatus, alloc, c.consulService)
+		c.configLock.RUnlock()
 		c.allocs[id] = ar
 		if err := ar.RestoreState(); err != nil {
 			c.logger.Printf("[ERR] client: failed to restore state for alloc %s: %v", id, err)
@@ -524,7 +527,10 @@ func (c *Client) fingerprint() error {
 		if err != nil {
 			return err
 		}
-		applies, err := fingerprint.FingerprintLocked(f, c.config, c.config.Node)
+
+		c.configLock.Lock()
+		applies, err := f.Fingerprint(c.config, c.config.Node)
+		c.configLock.Unlock()
 		if err != nil {
 			return err
 		}
@@ -552,9 +558,11 @@ func (c *Client) fingerprintPeriodic(name string, f fingerprint.Fingerprint, d t
 	for {
 		select {
 		case <-time.After(d):
-			if _, err := fingerprint.FingerprintLocked(f, c.config, c.config.Node); err != nil {
+			c.configLock.Lock()
+			if _, err := f.Fingerprint(c.config, c.config.Node); err != nil {
 				c.logger.Printf("[DEBUG] client: periodic fingerprinting for %v failed: %v", name, err)
 			}
+			c.configLock.Unlock()
 		case <-c.shutdownCh:
 			return
 		}
@@ -582,7 +590,9 @@ func (c *Client) setupDrivers() error {
 		if err != nil {
 			return err
 		}
-		applies, err := fingerprint.FingerprintLocked(d, c.config, c.config.Node)
+		c.configLock.Lock()
+		applies, err := d.Fingerprint(c.config, c.config.Node)
+		c.configLock.Unlock()
 		if err != nil {
 			return err
 		}
@@ -664,6 +674,8 @@ func (c *Client) run() {
 // determine if the node properties have changed. It returns the new hash values
 // in case they are different from the old hash values.
 func (c *Client) hasNodeChanged(oldAttrHash uint64, oldMetaHash uint64) (bool, uint64, uint64) {
+	c.configLock.RLock()
+	defer c.configLock.RUnlock()
 	newAttrHash, err := hashstructure.Hash(c.config.Node.Attributes, nil)
 	if err != nil {
 		c.logger.Printf("[DEBUG] client: unable to calculate node attributes hash: %v", err)
@@ -919,7 +931,7 @@ func (c *Client) runAllocs(update *allocUpdates) {
 	c.allocLock.RLock()
 	exist := make([]*structs.Allocation, 0, len(c.allocs))
 	for _, ar := range c.allocs {
-		exist = append(exist, ar.Alloc())
+		exist = append(exist, ar.alloc)
 	}
 	c.allocLock.RUnlock()
 
@@ -988,7 +1000,9 @@ func (c *Client) updateAlloc(exist, update *structs.Allocation) error {
 func (c *Client) addAlloc(alloc *structs.Allocation) error {
 	c.allocLock.Lock()
 	defer c.allocLock.Unlock()
-	ar := NewAllocRunner(c.logger, c.config, c.updateAllocStatus, alloc, c.consulService)
+	c.configLock.RLock()
+	ar := NewAllocRunner(c.logger, c.config.Copy(), c.updateAllocStatus, alloc, c.consulService)
+	c.configLock.RUnlock()
 	c.allocs[alloc.ID] = ar
 	go ar.Run()
 	return nil

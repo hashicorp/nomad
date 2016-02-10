@@ -29,9 +29,10 @@ type TaskRunner struct {
 	restartTracker *RestartTracker
 	consulService  *ConsulService
 
-	task     *structs.Task
-	updateCh chan *structs.Allocation
-	handle   driver.DriverHandle
+	task       *structs.Task
+	updateCh   chan *structs.Allocation
+	handle     driver.DriverHandle
+	handleLock sync.Mutex
 
 	destroy     bool
 	destroyCh   chan struct{}
@@ -127,7 +128,9 @@ func (r *TaskRunner) RestoreState() error {
 				r.task.Name, r.alloc.ID, err)
 			return nil
 		}
+		r.handleLock.Lock()
 		r.handle = handle
+		r.handleLock.Unlock()
 	}
 	return nil
 }
@@ -139,9 +142,11 @@ func (r *TaskRunner) SaveState() error {
 	snap := taskRunnerState{
 		Task: r.task,
 	}
+	r.handleLock.Lock()
 	if r.handle != nil {
 		snap.HandleID = r.handle.ID()
 	}
+	r.handleLock.Unlock()
 	return persistState(r.stateFilePath(), &snap)
 }
 
@@ -163,7 +168,10 @@ func (r *TaskRunner) setState(state string, event *structs.TaskEvent) {
 
 // createDriver makes a driver for the task
 func (r *TaskRunner) createDriver() (driver.Driver, error) {
-	taskEnv, err := driver.GetTaskEnv(r.ctx.AllocDir, r.config.Node, r.task)
+	// Create a copy of the node.
+	// TODO REMOVE
+	node := r.config.Node.Copy()
+	taskEnv, err := driver.GetTaskEnv(r.ctx.AllocDir, node, r.task)
 	if err != nil {
 		err = fmt.Errorf("failed to create driver '%s' for alloc %s: %v",
 			r.task.Driver, r.alloc.ID, err)
@@ -203,7 +211,9 @@ func (r *TaskRunner) startTask() error {
 		r.setState(structs.TaskStateDead, e)
 		return err
 	}
+	r.handleLock.Lock()
 	r.handle = handle
+	r.handleLock.Unlock()
 	r.setState(structs.TaskStateRunning, structs.NewTaskEvent(structs.TaskStarted))
 	return nil
 }
@@ -222,7 +232,10 @@ func (r *TaskRunner) run() {
 	var forceStart bool
 	for {
 		// Start the task if not yet started or it is being forced.
-		if r.handle == nil || forceStart {
+		r.handleLock.Lock()
+		handleEmpty := r.handle == nil
+		r.handleLock.Unlock()
+		if handleEmpty || forceStart {
 			forceStart = false
 			if err := r.startTask(); err != nil {
 				return
@@ -339,11 +352,13 @@ func (r *TaskRunner) handleUpdate(update *structs.Allocation) error {
 
 	// Update will update resources and store the new kill timeout.
 	var mErr multierror.Error
+	r.handleLock.Lock()
 	if r.handle != nil {
 		if err := r.handle.Update(updatedTask); err != nil {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("updating task resources failed: %v", err))
 		}
 	}
+	r.handleLock.Unlock()
 
 	// Update the restart policy.
 	if r.restartTracker != nil {
