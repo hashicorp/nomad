@@ -25,13 +25,14 @@ type SystemScheduler struct {
 	state   State
 	planner Planner
 
-	eval      *structs.Evaluation
-	job       *structs.Job
-	plan      *structs.Plan
-	ctx       *EvalContext
-	stack     *SystemStack
-	nodes     []*structs.Node
-	nodesByDC map[string]int
+	eval       *structs.Evaluation
+	job        *structs.Job
+	plan       *structs.Plan
+	planResult *structs.PlanResult
+	ctx        *EvalContext
+	stack      *SystemStack
+	nodes      []*structs.Node
+	nodesByDC  map[string]int
 
 	limitReached bool
 	nextEval     *structs.Evaluation
@@ -62,8 +63,9 @@ func (s *SystemScheduler) Process(eval *structs.Evaluation) error {
 		return setStatus(s.logger, s.planner, s.eval, s.nextEval, structs.EvalStatusFailed, desc)
 	}
 
-	// Retry up to the maxSystemScheduleAttempts
-	if err := retryMax(maxSystemScheduleAttempts, s.process); err != nil {
+	// Retry up to the maxSystemScheduleAttempts and reset if progress is made.
+	progress := func() bool { return progressMade(s.planResult) }
+	if err := retryMax(maxSystemScheduleAttempts, s.process, progress); err != nil {
 		if statusErr, ok := err.(*SetStatusError); ok {
 			return setStatus(s.logger, s.planner, s.eval, s.nextEval, statusErr.EvalStatus, err.Error())
 		}
@@ -129,6 +131,7 @@ func (s *SystemScheduler) process() (bool, error) {
 
 	// Submit the plan
 	result, newState, err := s.planner.SubmitPlan(s.plan)
+	s.planResult = result
 	if err != nil {
 		return false, err
 	}
