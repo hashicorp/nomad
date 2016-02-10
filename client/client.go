@@ -57,7 +57,7 @@ const (
 
 	// nodeUpdateRetryIntv is how often the client checks for updates to the
 	// node attributes or meta map.
-	nodeUpdateRetryIntv = 30 * time.Second
+	nodeUpdateRetryIntv = 5 * time.Second
 )
 
 // DefaultConfig returns the default configuration
@@ -72,9 +72,12 @@ func DefaultConfig() *config.Config {
 // are expected to register as a schedulable node to the servers, and to
 // run allocations as determined by the servers.
 type Client struct {
-	config     *config.Config
+	config *config.Config
+	start  time.Time
+
+	// configCopy is a copy that should be passed to alloc-runners.
+	configCopy *config.Config
 	configLock sync.RWMutex
-	start      time.Time
 
 	logger *log.Logger
 
@@ -110,6 +113,7 @@ func NewClient(cfg *config.Config) (*Client, error) {
 	// Create the client
 	c := &Client{
 		config:     cfg,
+		configCopy: cfg.Copy(),
 		start:      time.Now(),
 		connPool:   nomad.NewPool(cfg.LogOutput, clientRPCCache, clientMaxStreams, nil),
 		logger:     logger,
@@ -411,7 +415,7 @@ func (c *Client) restoreState() error {
 		id := entry.Name()
 		alloc := &structs.Allocation{ID: id}
 		c.configLock.RLock()
-		ar := NewAllocRunner(c.logger, c.config.Copy(), c.updateAllocStatus, alloc, c.consulService)
+		ar := NewAllocRunner(c.logger, c.configCopy, c.updateAllocStatus, alloc, c.consulService)
 		c.configLock.RUnlock()
 		c.allocs[id] = ar
 		if err := ar.RestoreState(); err != nil {
@@ -917,6 +921,13 @@ func (c *Client) watchNodeUpdates() {
 			changed, attrHash, metaHash = c.hasNodeChanged(attrHash, metaHash)
 			if changed {
 				c.logger.Printf("[DEBUG] client: state changed, updating node.")
+
+				// Update the config copy.
+				c.configLock.Lock()
+				node := c.config.Node.Copy()
+				c.configCopy.Node = node
+				c.configLock.Unlock()
+
 				c.retryRegisterNode()
 			}
 		case <-c.shutdownCh:
@@ -1001,7 +1012,7 @@ func (c *Client) addAlloc(alloc *structs.Allocation) error {
 	c.allocLock.Lock()
 	defer c.allocLock.Unlock()
 	c.configLock.RLock()
-	ar := NewAllocRunner(c.logger, c.config.Copy(), c.updateAllocStatus, alloc, c.consulService)
+	ar := NewAllocRunner(c.logger, c.configCopy, c.updateAllocStatus, alloc, c.consulService)
 	c.configLock.RUnlock()
 	c.allocs[alloc.ID] = ar
 	go ar.Run()
