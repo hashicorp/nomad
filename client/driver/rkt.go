@@ -312,6 +312,6 @@ func (h *rktHandle) run() {
 		// TODO: Better exit code parsing.
 		code = 1
 	}
-	h.waitCh <- cstructs.NewWaitResult(code, 0, err)
+	h.waitCh <- &cstructs.WaitResult{ExitCode: code, Signal: 0, Err: err}
 	close(h.waitCh)
 }
