@@ -200,6 +200,7 @@ func (h *rawExecHandle) WaitCh() chan *cstructs.WaitResult {
 func (h *rawExecHandle) Update(task *structs.Task) error {
 	// Store the updated kill timeout.
 	h.killTimeout = task.KillTimeout
+	h.executor.UpdateLogConfig(task.LogConfig)
 
 	// Update is not possible
 	return nil
