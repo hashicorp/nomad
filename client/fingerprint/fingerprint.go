@@ -3,6 +3,7 @@ package fingerprint
 import (
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/hashicorp/nomad/client/config"
@@ -26,6 +27,12 @@ var BuiltinFingerprints = []string{
 	"network",
 	"storage",
 }
+
+var (
+	// NodeLock ensures that only a single fingerprinter is running at a time
+	// when using the FingerprintLocked method.
+	NodeLock sync.Mutex
+)
 
 // builtinFingerprintMap contains the built in registered fingerprints
 // which are available, corresponding to a key found in BuiltinFingerprints
@@ -80,4 +87,11 @@ type StaticFingerprinter struct{}
 
 func (s *StaticFingerprinter) Periodic() (bool, time.Duration) {
 	return false, EmptyDuration
+}
+
+// FingerprintLocked is used to fingerprint in a thread-safe manner.
+func FingerprintLocked(f Fingerprint, config *config.Config, node *structs.Node) (bool, error) {
+	NodeLock.Lock()
+	defer NodeLock.Unlock()
+	return f.Fingerprint(config, node)
 }

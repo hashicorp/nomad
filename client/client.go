@@ -523,7 +523,7 @@ func (c *Client) fingerprint() error {
 		if err != nil {
 			return err
 		}
-		applies, err := f.Fingerprint(c.config, c.config.Node)
+		applies, err := fingerprint.FingerprintLocked(f, c.config, c.config.Node)
 		if err != nil {
 			return err
 		}
@@ -551,7 +551,7 @@ func (c *Client) fingerprintPeriodic(name string, f fingerprint.Fingerprint, d t
 	for {
 		select {
 		case <-time.After(d):
-			if _, err := f.Fingerprint(c.config, c.config.Node); err != nil {
+			if _, err := fingerprint.FingerprintLocked(f, c.config, c.config.Node); err != nil {
 				c.logger.Printf("[DEBUG] client: periodic fingerprinting for %v failed: %v", name, err)
 			}
 		case <-c.shutdownCh:
@@ -581,7 +581,7 @@ func (c *Client) setupDrivers() error {
 		if err != nil {
 			return err
 		}
-		applies, err := d.Fingerprint(c.config, c.config.Node)
+		applies, err := fingerprint.FingerprintLocked(d, c.config, c.config.Node)
 		if err != nil {
 			return err
 		}
