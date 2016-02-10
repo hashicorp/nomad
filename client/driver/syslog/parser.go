@@ -24,7 +24,7 @@ func (d *DockerLogParser) Parse() error {
 
 func (d *DockerLogParser) Dump() syslogparser.LogParts {
 	return map[string]interface{}{
-		"content": string(d.line),
+		"content": d.line,
 	}
 }
 
