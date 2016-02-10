@@ -1,6 +1,8 @@
 package syslog
 
 import (
+	"bytes"
+	"encoding/gob"
 	"fmt"
 	"io"
 	"log"
@@ -86,8 +88,11 @@ func (s *SyslogCollector) LaunchCollector(ctx *LogCollectorContext) (*SyslogColl
 
 	go func(channel syslog.LogPartsChannel) {
 		for logParts := range channel {
-			message := logParts["content"].(string)
-			w.Write([]byte(message))
+			var buf bytes.Buffer
+			enc := gob.NewEncoder(&buf)
+			if err := enc.Encode(logParts["content"]); err == nil {
+				w.Write(buf.Bytes())
+			}
 		}
 	}(channel)
 	go s.server.Wait()
