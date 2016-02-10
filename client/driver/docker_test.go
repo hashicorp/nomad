@@ -71,6 +71,10 @@ func dockerTask() (*structs.Task, int, int) {
 		Config: map[string]interface{}{
 			"image": "redis",
 		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
 		Resources: &structs.Resources{
 			MemoryMB: 256,
 			CPU:      512,
@@ -197,6 +201,10 @@ func TestDockerDriver_StartOpen_Wait(t *testing.T) {
 		Config: map[string]interface{}{
 			"image": "redis",
 		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
 		Resources: basicResources,
 	}
 
@@ -235,6 +243,10 @@ func TestDockerDriver_Start_Wait(t *testing.T) {
 		Resources: &structs.Resources{
 			MemoryMB: 256,
 			CPU:      512,
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
 		},
 	}
 
@@ -278,6 +290,10 @@ func TestDockerDriver_Start_Wait_AllocDir(t *testing.T) {
 				fmt.Sprintf(`sleep 1; echo -n %s > $%s/%s`,
 					string(exp), env.AllocDir, file),
 			},
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
 		},
 		Resources: &structs.Resources{
 			MemoryMB: 256,
@@ -327,6 +343,10 @@ func TestDockerDriver_Start_Kill_Wait(t *testing.T) {
 			"image":   "redis",
 			"command": "/bin/sleep",
 			"args":    []string{"10"},
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
 		},
 		Resources: basicResources,
 	}
@@ -461,6 +481,10 @@ func TestDockerHostNet(t *testing.T) {
 		Resources: &structs.Resources{
 			MemoryMB: 256,
 			CPU:      512,
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
 		},
 	}
 
