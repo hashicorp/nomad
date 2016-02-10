@@ -15,9 +15,15 @@ var HandshakeConfig = plugin.HandshakeConfig{
 }
 
 func GetPluginMap(w io.Writer) map[string]plugin.Plugin {
-	p := new(ExecutorPlugin)
-	p.logger = log.New(w, "", log.LstdFlags)
-	return map[string]plugin.Plugin{"executor": p}
+	e := new(ExecutorPlugin)
+	e.logger = log.New(w, "", log.LstdFlags)
+
+	s := new(SyslogCollectorPlugin)
+	s.logger = log.New(w, "", log.LstdFlags)
+	return map[string]plugin.Plugin{
+		"executor":        e,
+		"syslogcollector": s,
+	}
 }
 
 // ExecutorReattachConfig is the config that we seralize and de-serialize and

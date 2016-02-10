@@ -33,6 +33,7 @@ func RunCustom(args []string, commands map[string]cli.CommandFactory) int {
 	for k, _ := range commands {
 		switch k {
 		case "executor":
+		case "syslog":
 		default:
 			commandsInclude = append(commandsInclude, k)
 		}

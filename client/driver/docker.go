@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -14,10 +15,14 @@ import (
 
 	docker "github.com/fsouza/go-dockerclient"
 
+	"github.com/hashicorp/go-plugin"
+
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
+	"github.com/hashicorp/nomad/client/driver/syslog"
 	"github.com/hashicorp/nomad/client/fingerprint"
+	"github.com/hashicorp/nomad/helper/discover"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/mapstructure"
 )
@@ -75,6 +80,8 @@ type dockerPID struct {
 }
 
 type DockerHandle struct {
+	pluginClient     *plugin.Client
+	logCollector     syslog.LogCollector
 	client           *docker.Client
 	logger           *log.Logger
 	cleanupContainer bool
@@ -474,7 +481,40 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 			return nil, fmt.Errorf("Failed to determine image id for `%s`: %s", image, err)
 		}
 	}
+
+	taskDir, ok := ctx.AllocDir.TaskDirs[d.DriverContext.taskName]
+	if !ok {
+		return nil, fmt.Errorf("Could not find task directory for task: %v", d.DriverContext.taskName)
+	}
+
 	d.logger.Printf("[DEBUG] driver.docker: identified image %s as %s", image, dockerImage.ID)
+
+	syslogAddr, err := getFreePort(d.config.ClientMinPort, d.config.ClientMaxPort)
+	if err != nil {
+		return nil, fmt.Errorf("error creating the syslog plugin: %v", err)
+	}
+
+	bin, err := discover.NomadExecutable()
+	if err != nil {
+		return nil, fmt.Errorf("unable to find the nomad binary: %v", err)
+	}
+	pluginLogFile := filepath.Join(taskDir, fmt.Sprintf("%s-executor.out", task.Name))
+	pluginConfig := &plugin.ClientConfig{
+		Cmd: exec.Command(bin, "syslog", pluginLogFile),
+	}
+
+	logCollector, pluginClient, err := createLogCollector(pluginConfig, d.config.LogOutput, d.config)
+	if err != nil {
+		return nil, err
+	}
+	logCollectorCtx := &syslog.LogCollectorContext{
+		TaskName:  task.Name,
+		AllocDir:  ctx.AllocDir,
+		LogConfig: task.LogConfig,
+	}
+	if _, err := logCollector.LaunchCollector(syslogAddr, logCollectorCtx); err != nil {
+		return nil, fmt.Errorf("failed to start syslog collector: %v", err)
+	}
 
 	config, err := d.createContainer(ctx, task, &driverConfig)
 	if err != nil {
@@ -543,6 +583,8 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	// Return a driver handle
 	h := &DockerHandle{
 		client:           client,
+		logCollector:     logCollector,
+		pluginClient:     pluginClient,
 		cleanupContainer: cleanupContainer,
 		cleanupImage:     cleanupImage,
 		logger:           d.logger,
@@ -706,4 +748,10 @@ func (h *DockerHandle) run() {
 	close(h.doneCh)
 	h.waitCh <- cstructs.NewWaitResult(exitCode, 0, err)
 	close(h.waitCh)
+
+	// Shutdown the syslog collector
+	if err := h.logCollector.Exit(); err != nil {
+		h.logger.Printf("[ERR] driver.docker: failed to kill the syslog collector: %v", err)
+	}
+	h.pluginClient.Kill()
 }
