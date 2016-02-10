@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	s1 "log/syslog"
 	"net"
 	"path/filepath"
 
@@ -97,21 +98,35 @@ func (s *SyslogCollector) LaunchCollector(ctx *LogCollectorContext) (*SyslogColl
 	if err := s.server.Boot(); err != nil {
 		return nil, err
 	}
-	r, w := io.Pipe()
 	logFileSize := int64(ctx.LogConfig.MaxFileSizeMB * 1024 * 1024)
+
+	ro, wo := io.Pipe()
 	lro, err := logrotator.NewLogRotator(filepath.Join(s.taskDir, allocdir.TaskLocal),
 		fmt.Sprintf("%v.stdout", ctx.TaskName), ctx.LogConfig.MaxFiles,
 		logFileSize, s.logger)
 	if err != nil {
 		return nil, err
 	}
-	go lro.Start(r)
+	go lro.Start(ro)
 
-	// map[string]interface{}
+	re, we := io.Pipe()
+	lre, err := logrotator.NewLogRotator(filepath.Join(s.taskDir, allocdir.TaskLocal),
+		fmt.Sprintf("%v.stderr", ctx.TaskName), ctx.LogConfig.MaxFiles,
+		logFileSize, s.logger)
+	if err != nil {
+		return nil, err
+	}
+	go lre.Start(re)
+
 	go func(channel syslog.LogPartsChannel) {
 		for logParts := range channel {
-			w.Write(logParts["content"].([]byte))
-			w.Write([]byte("\n"))
+			s := logParts["severity"].(s1.Priority)
+			if s == s1.LOG_ERR {
+				we.Write(logParts["content"].([]byte))
+			} else {
+				wo.Write(logParts["content"].([]byte))
+			}
+			wo.Write([]byte("\n"))
 		}
 	}(channel)
 	go s.server.Wait()
