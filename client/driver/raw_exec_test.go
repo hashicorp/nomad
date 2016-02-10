@@ -61,6 +61,10 @@ func TestRawExecDriver_StartOpen_Wait(t *testing.T) {
 			"command": testtask.Path(),
 			"args":    []string{"sleep", "1s"},
 		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
 		Resources: basicResources,
 	}
 	testtask.SetTaskEnv(task)
@@ -109,6 +113,10 @@ func TestRawExecDriver_Start_Artifact_basic(t *testing.T) {
 			"command":         file,
 			"args":            []string{"sleep", "1s"},
 		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
 		Resources: basicResources,
 	}
 	testtask.SetTaskEnv(task)
@@ -156,6 +164,10 @@ func TestRawExecDriver_Start_Artifact_expanded(t *testing.T) {
 			"command":         file,
 			"args":            []string{"sleep", "1s"},
 		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
 		Resources: basicResources,
 	}
 	testtask.SetTaskEnv(task)
@@ -196,6 +208,10 @@ func TestRawExecDriver_Start_Wait(t *testing.T) {
 		Config: map[string]interface{}{
 			"command": testtask.Path(),
 			"args":    []string{"sleep", "1s"},
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
 		},
 		Resources: basicResources,
 	}
@@ -243,6 +259,10 @@ func TestRawExecDriver_Start_Wait_AllocDir(t *testing.T) {
 				"write", string(exp), outPath,
 			},
 		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
 		Resources: basicResources,
 	}
 	testtask.SetTaskEnv(task)
@@ -288,6 +308,10 @@ func TestRawExecDriver_Start_Kill_Wait(t *testing.T) {
 		Config: map[string]interface{}{
 			"command": testtask.Path(),
 			"args":    []string{"sleep", "45s"},
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
 		},
 		Resources: basicResources,
 	}
