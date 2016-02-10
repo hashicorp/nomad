@@ -185,6 +185,7 @@ func (e *UniversalExecutor) Wait() (*ProcessState, error) {
 	return e.exitState, nil
 }
 
+// UpdateLogConfig updates the log configuration
 func (e *UniversalExecutor) UpdateLogConfig(logConfig *structs.LogConfig) error {
 	e.ctx.LogConfig = logConfig
 	if e.lro == nil {

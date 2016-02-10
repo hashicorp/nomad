@@ -15,28 +15,48 @@ import (
 	"github.com/mcuadros/go-syslog"
 )
 
+// LogCollectorContext holds context to configure the syslog server
 type LogCollectorContext struct {
-	TaskName       string
-	AllocDir       *allocdir.AllocDir
-	LogConfig      *structs.LogConfig
+	// TaskName is the name of the Task
+	TaskName string
+
+	// AllocDir is the handle to do operations on the alloc dir of
+	// the task
+	AllocDir *allocdir.AllocDir
+
+	// LogConfig provides configuration related to log rotation
+	LogConfig *structs.LogConfig
+
+	// PortUpperBound is the upper bound of the ports that we can use to start
+	// the syslog server
 	PortUpperBound uint
+
+	// PortLowerBound is the lower bound of the ports that we can use to start
+	// the syslog server
 	PortLowerBound uint
 }
 
+// SyslogCollectorState holds the address and islation information of a launched
+// syslog server
 type SyslogCollectorState struct {
 	IsolationConfig *IsolationConfig
 	Addr            string
 }
 
+// LogCollector is an interface which allows a driver to launch a log server
+// and update log configuration
 type LogCollector interface {
 	LaunchCollector(ctx *LogCollectorContext) (*SyslogCollectorState, error)
 	Exit() error
 	UpdateLogConfig(logConfig *structs.LogConfig) error
 }
 
+// IsolationConfig has the cgroup related information of a syslog server
 type IsolationConfig struct {
 }
 
+// SyslogCollector is a LogCollector which starts a syslog server and does
+// rotation to incoming stream
 type SyslogCollector struct {
 	addr      net.Addr
 	logConfig *structs.LogConfig
@@ -50,10 +70,13 @@ type SyslogCollector struct {
 	logger *log.Logger
 }
 
+// NewSyslogCollector returns an implementation of the SyslogCollector
 func NewSyslogCollector(logger *log.Logger) *SyslogCollector {
 	return &SyslogCollector{logger: logger}
 }
 
+// LaunchCollector launches a new syslog server and starts writing log lines to
+// files and rotates them
 func (s *SyslogCollector) LaunchCollector(ctx *LogCollectorContext) (*SyslogCollectorState, error) {
 	addr, err := s.getFreePort(ctx.PortLowerBound, ctx.PortUpperBound)
 	if err != nil {
@@ -99,12 +122,27 @@ func (s *SyslogCollector) LaunchCollector(ctx *LogCollectorContext) (*SyslogColl
 	return &SyslogCollectorState{Addr: addr.String()}, nil
 }
 
+// Exit kills the syslog server
 func (s *SyslogCollector) Exit() error {
-	return nil
+	return s.server.Kill()
 }
 
+// UpdateLogConfig updates the log configuration
 func (s *SyslogCollector) UpdateLogConfig(logConfig *structs.LogConfig) error {
+	s.ctx.LogConfig = logConfig
+	if s.lro == nil {
+		return fmt.Errorf("log rotator for stdout doesn't exist")
+	}
+	s.lro.MaxFiles = logConfig.MaxFiles
+	s.lro.FileSize = int64(logConfig.MaxFileSizeMB * 1024 * 1024)
+
+	if s.lre == nil {
+		return fmt.Errorf("log rotator for stderr doesn't exist")
+	}
+	s.lre.MaxFiles = logConfig.MaxFiles
+	s.lre.FileSize = int64(logConfig.MaxFileSizeMB * 1024 * 1024)
 	return nil
+
 }
 
 // configureTaskDir sets the task dir in the executor
