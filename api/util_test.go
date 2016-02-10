@@ -26,6 +26,10 @@ func testJob() *Job {
 		MemoryMB: 256,
 		DiskMB:   25,
 		IOPS:     10,
+	}).
+		SetLogConfig(&LogConfig{
+		MaxFiles:      10,
+		MaxFileSizeMB: 10,
 	})
 
 	group := NewTaskGroup("group1", 1).

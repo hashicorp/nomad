@@ -133,6 +133,12 @@ func (t *Task) Constrain(c *Constraint) *Task {
 	return t
 }
 
+// SetLogConfig sets a log config to a task
+func (t *Task) SetLogConfig(l *LogConfig) *Task {
+	t.LogConfig = l
+	return t
+}
+
 // TaskState tracks the current state of a task and events that caused state
 // transistions.
 type TaskState struct {
