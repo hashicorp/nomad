@@ -91,6 +91,8 @@ func TestRktDriver_Start(t *testing.T) {
 	}
 
 	driverCtx, execCtx := testDriverContexts(task)
+	defer execCtx.AllocDir.Destroy()
+
 	d := NewRktDriver(driverCtx)
 
 	handle, err := d.Start(execCtx, task)
@@ -100,6 +102,7 @@ func TestRktDriver_Start(t *testing.T) {
 	if handle == nil {
 		t.Fatalf("missing handle")
 	}
+	defer handle.Kill()
 
 	// Attempt to open
 	handle2, err := d.Open(execCtx, handle.ID())
@@ -249,6 +252,6 @@ func TestRktDriver_Start_Wait_Logs(t *testing.T) {
 	}
 
 	if len(data) == 0 {
-		t.Fatal("Task's stdout is empty")
+		t.Fatal("Task's stdout is empty: %q", stdout)
 	}
 }
