@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 
 	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/client/driver/executor"
 	"github.com/hashicorp/nomad/client/driver/logrotator"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mcuadros/go-syslog"
@@ -38,7 +39,7 @@ type LogCollectorContext struct {
 // SyslogCollectorState holds the address and islation information of a launched
 // syslog server
 type SyslogCollectorState struct {
-	IsolationConfig *IsolationConfig
+	IsolationConfig *executor.IsolationConfig
 	Addr            string
 }
 
@@ -48,10 +49,6 @@ type LogCollector interface {
 	LaunchCollector(ctx *LogCollectorContext) (*SyslogCollectorState, error)
 	Exit() error
 	UpdateLogConfig(logConfig *structs.LogConfig) error
-}
-
-// IsolationConfig has the cgroup related information of a syslog server
-type IsolationConfig struct {
 }
 
 // SyslogCollector is a LogCollector which starts a syslog server and does
