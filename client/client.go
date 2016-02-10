@@ -90,6 +90,7 @@ type Client struct {
 
 	lastHeartbeat time.Time
 	heartbeatTTL  time.Duration
+	heartbeatLock sync.Mutex
 
 	// allocs is the current set of allocations
 	allocs    map[string]*AllocRunner
@@ -647,7 +648,9 @@ func (c *Client) run() {
 			if err := c.updateNodeStatus(); err != nil {
 				heartbeat = time.After(c.retryIntv(registerRetryIntv))
 			} else {
+				c.heartbeatLock.Lock()
 				heartbeat = time.After(c.heartbeatTTL)
+				c.heartbeatLock.Unlock()
 			}
 
 		case <-c.shutdownCh:
@@ -711,6 +714,9 @@ func (c *Client) registerNode() error {
 	if len(resp.EvalIDs) != 0 {
 		c.logger.Printf("[DEBUG] client: %d evaluations triggered by node registration", len(resp.EvalIDs))
 	}
+
+	c.heartbeatLock.Lock()
+	defer c.heartbeatLock.Unlock()
 	c.lastHeartbeat = time.Now()
 	c.heartbeatTTL = resp.HeartbeatTTL
 	return nil
@@ -736,6 +742,9 @@ func (c *Client) updateNodeStatus() error {
 	if resp.Index != 0 {
 		c.logger.Printf("[DEBUG] client: state updated to %s", req.Status)
 	}
+
+	c.heartbeatLock.Lock()
+	defer c.heartbeatLock.Unlock()
 	c.lastHeartbeat = time.Now()
 	c.heartbeatTTL = resp.HeartbeatTTL
 	return nil
