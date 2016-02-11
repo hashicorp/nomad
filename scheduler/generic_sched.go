@@ -129,13 +129,16 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 
 // createBlockedEval creates a blocked eval and stores it.
 func (s *GenericScheduler) createBlockedEval() error {
-	if s.eval == nil {
-		return fmt.Errorf("eval must be set to create blocked eval")
+	e := s.ctx.Eligibility()
+	escaped := e.HasEscaped()
+
+	// Only store the eligible classes if the eval hasn't escaped.
+	var classEligibility map[string]bool
+	if !escaped {
+		classEligibility = e.GetClasses()
 	}
 
-	e := s.ctx.Eligibility()
-	classes := e.GetClasses()
-	s.blocked = s.eval.BlockedEval(classes, e.HasEscaped())
+	s.blocked = s.eval.BlockedEval(classEligibility, escaped)
 	return s.planner.CreateEval(s.blocked)
 }
 
