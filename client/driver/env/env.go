@@ -25,9 +25,6 @@ const (
 	// The tasks limit in MHz.
 	CpuLimit = "NOMAD_CPU_LIMIT"
 
-	// The IP address for the task.
-	TaskIP = "NOMAD_IP"
-
 	// Prefix for passing both dynamic and static port allocations to
 	// tasks.
 	// E.g. $NOMAD_IP_1=127.0.0.1:1 or $NOMAD_IP_http=127.0.0.1:80

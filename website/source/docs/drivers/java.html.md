@@ -29,11 +29,11 @@ The `java` driver supports the following configuration in the job spec:
 
 *   `args` - (Optional) A list of arguments to the optional `command`.
     References to environment variables or any [intepretable Nomad
-    variables](/docs/jobspec/index.html#interpreted_vars) will be interpreted
+    variables](/docs/jobspec/interpreted.html) will be interpreted
     before launching the task. For example:
 
     ```
-        args = ["${nomad.ip}", "${MY_ENV}", "${meta.foo}"]
+        args = ["${nomad.datacenter}", "${MY_ENV}", "${meta.foo}"]
     ```
 
 * `jvm_options` - (Optional) A list of JVM options to be passed while invoking

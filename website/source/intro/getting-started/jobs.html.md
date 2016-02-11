@@ -138,13 +138,12 @@ $ nomad run example.nomad
     Allocation "9a3743f4" created: node "171a583b", group "cache"
     Evaluation status changed: "pending" -> "complete"
 ==> Evaluation "ebcc3e14" finished with status "complete"
-==> Monitoring next evaluation "b508d8f0-7f21-8d66-ec59-7f5b2573435a" in 0
 ==> Monitoring evaluation "b508d8f0"
     Evaluation triggered by job "example"
     Allocation "926e5876" created: node "171a583b", group "cache"
     Evaluation status changed: "pending" -> "complete"
 ==> Evaluation "b508d8f0" finished with status "complete"
-==> Monitoring next evaluation "ea78c05a-a15f-92ae-8c3d-59f4a1edd091" in 10s
+==> Monitoring next evaluation "ea78c05a" in 10s
 ==> Monitoring evaluation "ea78c05a"
     Evaluation triggered by job "example"
     Allocation "3c8589d5" created: node "171a583b", group "cache"
