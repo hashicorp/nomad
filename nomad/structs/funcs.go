@@ -140,7 +140,12 @@ func GenerateUUID() string {
 
 // Helpers for copying generic structures.
 func CopyMapStringString(m map[string]string) map[string]string {
-	c := make(map[string]string, len(m))
+	l := len(m)
+	if l == 0 {
+		return nil
+	}
+
+	c := make(map[string]string, l)
 	for k, v := range m {
 		c[k] = v
 	}
@@ -148,7 +153,12 @@ func CopyMapStringString(m map[string]string) map[string]string {
 }
 
 func CopyMapStringInt(m map[string]int) map[string]int {
-	c := make(map[string]int, len(m))
+	l := len(m)
+	if l == 0 {
+		return nil
+	}
+
+	c := make(map[string]int, l)
 	for k, v := range m {
 		c[k] = v
 	}
@@ -156,7 +166,12 @@ func CopyMapStringInt(m map[string]int) map[string]int {
 }
 
 func CopyMapStringFloat64(m map[string]float64) map[string]float64 {
-	c := make(map[string]float64, len(m))
+	l := len(m)
+	if l == 0 {
+		return nil
+	}
+
+	c := make(map[string]float64, l)
 	for k, v := range m {
 		c[k] = v
 	}
@@ -164,9 +179,27 @@ func CopyMapStringFloat64(m map[string]float64) map[string]float64 {
 }
 
 func CopySliceString(s []string) []string {
-	c := make([]string, len(s))
+	l := len(s)
+	if l == 0 {
+		return nil
+	}
+
+	c := make([]string, l)
 	for i, v := range s {
 		c[i] = v
+	}
+	return c
+}
+
+func CopySliceConstraints(s []*Constraint) []*Constraint {
+	l := len(s)
+	if l == 0 {
+		return nil
+	}
+
+	c := make([]*Constraint, l)
+	for i, v := range s {
+		c[i] = v.Copy()
 	}
 	return c
 }

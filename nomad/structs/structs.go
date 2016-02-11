@@ -927,12 +927,7 @@ func (j *Job) Copy() *Job {
 	nj := new(Job)
 	*nj = *j
 	nj.Datacenters = CopySliceString(nj.Datacenters)
-
-	con := make([]*Constraint, len(nj.Constraints))
-	for i, c := range nj.Constraints {
-		con[i] = c.Copy()
-	}
-	nj.Constraints = con
+	nj.Constraints = CopySliceConstraints(nj.Constraints)
 
 	tgs := make([]*TaskGroup, len(nj.TaskGroups))
 	for i, tg := range nj.TaskGroups {
@@ -1305,12 +1300,7 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 	}
 	ntg := new(TaskGroup)
 	*ntg = *tg
-
-	con := make([]*Constraint, len(ntg.Constraints))
-	for i, c := range ntg.Constraints {
-		con[i] = c.Copy()
-	}
-	ntg.Constraints = con
+	ntg.Constraints = CopySliceConstraints(ntg.Constraints)
 
 	ntg.RestartPolicy = ntg.RestartPolicy.Copy()
 
@@ -1480,9 +1470,12 @@ func (s *Service) Copy() *Service {
 	*ns = *s
 	ns.Tags = CopySliceString(ns.Tags)
 
-	checks := make([]*ServiceCheck, len(ns.Checks))
-	for i, c := range ns.Checks {
-		checks[i] = c.Copy()
+	var checks []*ServiceCheck
+	if l := len(ns.Checks); l != 0 {
+		checks = make([]*ServiceCheck, len(ns.Checks))
+		for i, c := range ns.Checks {
+			checks[i] = c.Copy()
+		}
 	}
 	ns.Checks = checks
 	return ns
@@ -1586,12 +1579,7 @@ func (t *Task) Copy() *Task {
 		services[i] = s.Copy()
 	}
 	nt.Services = services
-
-	con := make([]*Constraint, len(nt.Constraints))
-	for i, s := range nt.Constraints {
-		con[i] = s.Copy()
-	}
-	nt.Constraints = con
+	nt.Constraints = CopySliceConstraints(nt.Constraints)
 
 	nt.Resources = nt.Resources.Copy()
 	nt.Meta = CopyMapStringString(nt.Meta)
