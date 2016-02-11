@@ -486,7 +486,7 @@ func parseTasks(jobName string, taskGroupName string, result *[]*structs.Task, l
 		}
 
 		// If we have logs then parse that
-		logConfig := &structs.LogConfig{MaxFiles: 10, MaxFileSizeMB: 10}
+		logConfig := structs.DefaultLogConfig()
 		if o := listVal.Filter("logs"); len(o.Items) > 0 {
 			if len(o.Items) > 1 {
 				return fmt.Errorf("only one logs block is allowed in a Task. Number of logs block found: %d", len(o.Items))

@@ -1451,6 +1451,13 @@ type LogConfig struct {
 	MaxFileSizeMB int `mapstructure:"max_file_size"`
 }
 
+func DefaultLogConfig() *LogConfig {
+	return &LogConfig{
+		MaxFiles:      10,
+		MaxFileSizeMB: 10,
+	}
+}
+
 // MeetsMinResources returns an error if the log config specified are less than
 // the minimum allowed.
 func (l *LogConfig) MeetsMinResources() error {
