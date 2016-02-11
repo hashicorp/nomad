@@ -67,15 +67,15 @@ func (l *LogRotator) Start(r io.Reader) error {
 	buf := make([]byte, bufSize)
 	for {
 		logFileName := filepath.Join(l.path, fmt.Sprintf("%s.%d", l.fileName, l.logFileIdx))
-		remainingSize := l.FileSize
+		var fileSize int64
 		if f, err := os.Stat(logFileName); err == nil {
 			// Skipping the current file if it happens to be a directory
 			if f.IsDir() {
 				l.logFileIdx += 1
 				continue
 			}
+			fileSize = f.Size()
 			// Calculating the remaining capacity of the log file
-			remainingSize = l.FileSize - f.Size()
 		}
 		f, err := os.OpenFile(logFileName, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 		if err != nil {
@@ -84,17 +84,19 @@ func (l *LogRotator) Start(r io.Reader) error {
 		l.logger.Printf("[DEBUG] client.logrotator: opened a new file: %s", logFileName)
 
 		// Closing the current log file if it doesn't have any more capacity
-		if remainingSize <= 0 {
-			l.logFileIdx = l.logFileIdx + 1
+		if fileSize >= l.FileSize {
+			l.logFileIdx += 1
 			f.Close()
 			continue
 		}
 
 		// Reading from the reader and writing into the current log file as long
 		// as it has capacity or the reader closes
+		totalWritten := 0
 		for {
 			var nr int
 			var err error
+			remainingSize := l.FileSize - (int64(totalWritten) + fileSize)
 			if remainingSize < bufSize {
 				nr, err = r.Read(buf[0:remainingSize])
 			} else {
@@ -113,8 +115,8 @@ func (l *LogRotator) Start(r io.Reader) error {
 				f.Close()
 				return fmt.Errorf("failed to write data read from the reader into file, R: %d W: %d", nr, nw)
 			}
-			remainingSize -= int64(nr)
-			if remainingSize < 1 {
+			totalWritten += nw
+			if l.FileSize-(fileSize+int64(totalWritten)) < 1 {
 				f.Close()
 				break
 			}

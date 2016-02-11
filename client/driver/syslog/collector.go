@@ -153,7 +153,7 @@ func (s *SyslogCollector) UpdateLogConfig(logConfig *structs.LogConfig) error {
 
 }
 
-// configureTaskDir sets the task dir in the executor
+// configureTaskDir sets the task dir in the SyslogCollector
 func (s *SyslogCollector) configureTaskDir() error {
 	taskDir, ok := s.ctx.AllocDir.TaskDirs[s.ctx.TaskName]
 	if !ok {
