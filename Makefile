@@ -14,7 +14,7 @@ all: test
 dev: deps format
 	@NOMAD_DEV=1 sh -c "'$(PWD)/scripts/build.sh'"
 
-bin:
+bin:	deps
 	@sh -c "'$(PWD)/scripts/build.sh'"
 
 release: updatedeps
