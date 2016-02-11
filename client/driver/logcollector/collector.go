@@ -1,4 +1,4 @@
-package syslog
+package logcollector
 
 import (
 	"fmt"
@@ -119,8 +119,8 @@ func (s *SyslogCollector) LaunchCollector(ctx *LogCollectorContext) (*SyslogColl
 		for logParts := range channel {
 			// If the severity of the log line is err then we write to stderr
 			// otherwise all messages go to stdout
-			s := logParts["severity"].(s1.Priority)
-			if s == s1.LOG_ERR {
+			s := logParts["severity"].(Priority)
+			if s.Severity == s1.LOG_ERR {
 				we.Write(logParts["content"].([]byte))
 			} else {
 				wo.Write(logParts["content"].([]byte))

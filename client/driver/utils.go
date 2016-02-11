@@ -9,7 +9,7 @@ import (
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/executor"
-	"github.com/hashicorp/nomad/client/driver/syslog"
+	"github.com/hashicorp/nomad/client/driver/logcollector"
 )
 
 // createExecutor launches an executor plugin and returns an instance of the
@@ -42,7 +42,7 @@ func createExecutor(config *plugin.ClientConfig, w io.Writer,
 }
 
 func createLogCollector(config *plugin.ClientConfig, w io.Writer,
-	clientConfig *config.Config) (syslog.LogCollector, *plugin.Client, error) {
+	clientConfig *config.Config) (logcollector.LogCollector, *plugin.Client, error) {
 	config.HandshakeConfig = HandshakeConfig
 	config.Plugins = GetPluginMap(w)
 	config.MaxPort = clientConfig.ClientMaxPort
@@ -61,7 +61,7 @@ func createLogCollector(config *plugin.ClientConfig, w io.Writer,
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to dispense the syslog plugin: %v", err)
 	}
-	logCollector := raw.(syslog.LogCollector)
+	logCollector := raw.(logcollector.LogCollector)
 	return logCollector, syslogClient, nil
 }
 

@@ -1,4 +1,4 @@
-package syslog
+package logcollector
 
 import (
 	"log/syslog"
@@ -12,8 +12,8 @@ func TestLogParser_Priority(t *testing.T) {
 	if err != nil {
 		t.Fatalf("got an err: %v", err)
 	}
-	if p.S != syslog.LOG_INFO {
-		t.Fatalf("expected serverity: %v, got: %v", syslog.LOG_INFO, p.S)
+	if p.Severity != syslog.LOG_INFO {
+		t.Fatalf("expected serverity: %v, got: %v", syslog.LOG_INFO, p.Severity)
 	}
 
 	idx := d.logContentIndex(line)

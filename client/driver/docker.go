@@ -19,8 +19,8 @@ import (
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/driver/logcollector"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
-	"github.com/hashicorp/nomad/client/driver/syslog"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/helper/discover"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -82,7 +82,7 @@ type dockerPID struct {
 
 type DockerHandle struct {
 	pluginClient     *plugin.Client
-	logCollector     syslog.LogCollector
+	logCollector     logcollector.LogCollector
 	client           *docker.Client
 	logger           *log.Logger
 	cleanupContainer bool
@@ -503,7 +503,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	if err != nil {
 		return nil, err
 	}
-	logCollectorCtx := &syslog.LogCollectorContext{
+	logCollectorCtx := &logcollector.LogCollectorContext{
 		TaskName:       task.Name,
 		AllocDir:       ctx.AllocDir,
 		LogConfig:      task.LogConfig,
