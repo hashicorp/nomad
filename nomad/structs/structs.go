@@ -1683,6 +1683,10 @@ func (t *Task) Validate() error {
 			mErr.Errors = append(mErr.Errors, err)
 		}
 	}
+
+	if t.Resources.DiskMB <= (t.LogConfig.MaxFiles * t.LogConfig.MaxFileSizeMB) {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("log storage exceeds requested disk capacity"))
+	}
 	return mErr.ErrorOrNil()
 }
 

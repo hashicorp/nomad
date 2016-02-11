@@ -266,6 +266,21 @@ func TestTask_Validate(t *testing.T) {
 	}
 }
 
+func TestTask_Validate_LogConfig(t *testing.T) {
+	task := &Task{
+		LogConfig: DefaultLogConfig(),
+		Resources: &Resources{
+			DiskMB: 1,
+		},
+	}
+
+	err := task.Validate()
+	mErr := err.(*multierror.Error)
+	if !strings.Contains(mErr.Errors[3].Error(), "log storage") {
+		t.Fatalf("err: %s", err)
+	}
+}
+
 func TestConstraint_Validate(t *testing.T) {
 	c := &Constraint{}
 	err := c.Validate()
