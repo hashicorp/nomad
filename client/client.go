@@ -113,7 +113,6 @@ func NewClient(cfg *config.Config) (*Client, error) {
 	// Create the client
 	c := &Client{
 		config:     cfg,
-		configCopy: cfg.Copy(),
 		start:      time.Now(),
 		connPool:   nomad.NewPool(cfg.LogOutput, clientRPCCache, clientMaxStreams, nil),
 		logger:     logger,
@@ -148,6 +147,10 @@ func NewClient(cfg *config.Config) (*Client, error) {
 
 	// Set up the known servers list
 	c.SetServers(c.config.Servers)
+
+	// Store the config copy before restoring state but after it has been
+	// initialized.
+	c.configCopy = c.config.Copy()
 
 	// Restore the state
 	if err := c.restoreState(); err != nil {
