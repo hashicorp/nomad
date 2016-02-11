@@ -542,6 +542,20 @@ type Node struct {
 	ModifyIndex uint64
 }
 
+func (n *Node) Copy() *Node {
+	if n == nil {
+		return nil
+	}
+	nn := new(Node)
+	*nn = *n
+	nn.Attributes = CopyMapStringString(nn.Attributes)
+	nn.Resources = nn.Resources.Copy()
+	nn.Reserved = nn.Reserved.Copy()
+	nn.Links = CopyMapStringString(nn.Links)
+	nn.Meta = CopyMapStringString(nn.Meta)
+	return nn
+}
+
 // TerminalStatus returns if the current status is terminal and
 // will no longer transition.
 func (n *Node) TerminalStatus() bool {
@@ -648,6 +662,9 @@ func (r *Resources) MeetsMinResources() error {
 
 // Copy returns a deep copy of the resources
 func (r *Resources) Copy() *Resources {
+	if r == nil {
+		return nil
+	}
 	newR := new(Resources)
 	*newR = *r
 	n := len(r.Networks)
@@ -742,6 +759,9 @@ func (n *NetworkResource) MeetsMinResources() error {
 
 // Copy returns a deep copy of the network resource
 func (n *NetworkResource) Copy() *NetworkResource {
+	if n == nil {
+		return nil
+	}
 	newR := new(NetworkResource)
 	*newR = *n
 	if n.ReservedPorts != nil {
@@ -901,12 +921,23 @@ func (j *Job) InitFields() {
 // Copy returns a deep copy of the Job. It is expected that callers use recover.
 // This job can panic if the deep copy failed as it uses reflection.
 func (j *Job) Copy() *Job {
-	i, err := copystructure.Copy(j)
-	if err != nil {
-		panic(err)
+	if j == nil {
+		return nil
 	}
+	nj := new(Job)
+	*nj = *j
+	nj.Datacenters = CopySliceString(nj.Datacenters)
+	nj.Constraints = CopySliceConstraints(nj.Constraints)
 
-	return i.(*Job)
+	tgs := make([]*TaskGroup, len(nj.TaskGroups))
+	for i, tg := range nj.TaskGroups {
+		tgs[i] = tg.Copy()
+	}
+	nj.TaskGroups = tgs
+
+	nj.Periodic = nj.Periodic.Copy()
+	nj.Meta = CopyMapStringString(nj.Meta)
+	return nj
 }
 
 // Validate is used to sanity check a job input
@@ -1066,6 +1097,15 @@ type PeriodicConfig struct {
 	ProhibitOverlap bool `mapstructure:"prohibit_overlap"`
 }
 
+func (p *PeriodicConfig) Copy() *PeriodicConfig {
+	if p == nil {
+		return nil
+	}
+	np := new(PeriodicConfig)
+	*np = *p
+	return np
+}
+
 func (p *PeriodicConfig) Validate() error {
 	if !p.Enabled {
 		return nil
@@ -1186,6 +1226,15 @@ type RestartPolicy struct {
 	Mode string
 }
 
+func (r *RestartPolicy) Copy() *RestartPolicy {
+	if r == nil {
+		return nil
+	}
+	nrp := new(RestartPolicy)
+	*nrp = *r
+	return nrp
+}
+
 func (r *RestartPolicy) Validate() error {
 	switch r.Mode {
 	case RestartPolicyModeDelay, RestartPolicyModeFail:
@@ -1246,12 +1295,23 @@ type TaskGroup struct {
 }
 
 func (tg *TaskGroup) Copy() *TaskGroup {
-	i, err := copystructure.Copy(tg)
-	if err != nil {
-		panic(err)
+	if tg == nil {
+		return nil
 	}
+	ntg := new(TaskGroup)
+	*ntg = *tg
+	ntg.Constraints = CopySliceConstraints(ntg.Constraints)
 
-	return i.(*TaskGroup)
+	ntg.RestartPolicy = ntg.RestartPolicy.Copy()
+
+	tasks := make([]*Task, len(ntg.Tasks))
+	for i, t := range ntg.Tasks {
+		tasks[i] = t.Copy()
+	}
+	ntg.Tasks = tasks
+
+	ntg.Meta = CopyMapStringString(ntg.Meta)
+	return ntg
 }
 
 // InitFields is used to initialize fields in the TaskGroup.
@@ -1348,6 +1408,15 @@ type ServiceCheck struct {
 	Timeout  time.Duration // Timeout of the response from the check before consul fails the check
 }
 
+func (sc *ServiceCheck) Copy() *ServiceCheck {
+	if sc == nil {
+		return nil
+	}
+	nsc := new(ServiceCheck)
+	*nsc = *sc
+	return nsc
+}
+
 func (sc *ServiceCheck) Validate() error {
 	t := strings.ToLower(sc.Type)
 	if t != ServiceCheckTCP && t != ServiceCheckHTTP {
@@ -1391,6 +1460,25 @@ type Service struct {
 	Tags      []string        // List of tags for the service
 	PortLabel string          `mapstructure:"port"` // port for the service
 	Checks    []*ServiceCheck // List of checks associated with the service
+}
+
+func (s *Service) Copy() *Service {
+	if s == nil {
+		return nil
+	}
+	ns := new(Service)
+	*ns = *s
+	ns.Tags = CopySliceString(ns.Tags)
+
+	var checks []*ServiceCheck
+	if l := len(ns.Checks); l != 0 {
+		checks = make([]*ServiceCheck, len(ns.Checks))
+		for i, c := range ns.Checks {
+			checks[i] = c.Copy()
+		}
+	}
+	ns.Checks = checks
+	return ns
 }
 
 // InitFields interpolates values of Job, Task Group and Task in the Service
@@ -1478,6 +1566,31 @@ type Task struct {
 	KillTimeout time.Duration `mapstructure:"kill_timeout"`
 }
 
+func (t *Task) Copy() *Task {
+	if t == nil {
+		return nil
+	}
+	nt := new(Task)
+	*nt = *t
+	nt.Env = CopyMapStringString(nt.Env)
+
+	services := make([]*Service, len(nt.Services))
+	for i, s := range nt.Services {
+		services[i] = s.Copy()
+	}
+	nt.Services = services
+	nt.Constraints = CopySliceConstraints(nt.Constraints)
+
+	nt.Resources = nt.Resources.Copy()
+	nt.Meta = CopyMapStringString(nt.Meta)
+
+	if i, err := copystructure.Copy(nt.Config); err != nil {
+		nt.Config = i.(map[string]interface{})
+	}
+
+	return nt
+}
+
 // InitFields initializes fields in the task.
 func (t *Task) InitFields(job *Job, tg *TaskGroup) {
 	t.InitServiceFields(job.Name, tg.Name)
@@ -1528,6 +1641,9 @@ type TaskState struct {
 }
 
 func (ts *TaskState) Copy() *TaskState {
+	if ts == nil {
+		return nil
+	}
 	copy := new(TaskState)
 	copy.State = ts.State
 	copy.Events = make([]*TaskEvent, len(ts.Events))
@@ -1572,6 +1688,9 @@ type TaskEvent struct {
 }
 
 func (te *TaskEvent) Copy() *TaskEvent {
+	if te == nil {
+		return nil
+	}
 	copy := new(TaskEvent)
 	*copy = *te
 	return copy
@@ -1662,6 +1781,15 @@ type Constraint struct {
 	RTarget string // Right-hand target
 	Operand string // Constraint operand (<=, <, =, !=, >, >=), contains, near
 	str     string // Memoized string
+}
+
+func (c *Constraint) Copy() *Constraint {
+	if c == nil {
+		return nil
+	}
+	nc := new(Constraint)
+	*nc = *c
+	return nc
 }
 
 func (c *Constraint) String() string {
@@ -1772,12 +1900,35 @@ type Allocation struct {
 }
 
 func (a *Allocation) Copy() *Allocation {
-	i, err := copystructure.Copy(a)
-	if err != nil {
-		panic(err)
+	if a == nil {
+		return nil
 	}
+	na := new(Allocation)
+	*na = *a
 
-	return i.(*Allocation)
+	na.Job = na.Job.Copy()
+	na.Resources = na.Resources.Copy()
+
+	tr := make(map[string]*Resources, len(na.TaskResources))
+	for task, resource := range na.TaskResources {
+		tr[task] = resource.Copy()
+	}
+	na.TaskResources = tr
+
+	s := make(map[string]string, len(na.Services))
+	for service, id := range na.Services {
+		s[service] = id
+	}
+	na.Services = s
+
+	na.Metrics = na.Metrics.Copy()
+
+	ts := make(map[string]*TaskState, len(na.TaskStates))
+	for task, state := range na.TaskStates {
+		ts[task] = state.Copy()
+	}
+	na.TaskStates = ts
+	return na
 }
 
 // TerminalStatus returns if the desired or actual status is terminal and
@@ -1908,6 +2059,21 @@ type AllocMetric struct {
 	// This is to prevent creating many failed allocations for a
 	// single task group.
 	CoalescedFailures int
+}
+
+func (a *AllocMetric) Copy() *AllocMetric {
+	if a == nil {
+		return nil
+	}
+	na := new(AllocMetric)
+	*na = *a
+	na.NodesAvailable = CopyMapStringInt(na.NodesAvailable)
+	na.ClassFiltered = CopyMapStringInt(na.ClassFiltered)
+	na.ConstraintFiltered = CopyMapStringInt(na.ConstraintFiltered)
+	na.ClassExhausted = CopyMapStringInt(na.ClassExhausted)
+	na.DimensionExhausted = CopyMapStringInt(na.DimensionExhausted)
+	na.Scores = CopyMapStringFloat64(na.Scores)
+	return na
 }
 
 func (a *AllocMetric) EvaluateNode() {
@@ -2074,6 +2240,9 @@ func (e *Evaluation) GoString() string {
 }
 
 func (e *Evaluation) Copy() *Evaluation {
+	if e == nil {
+		return nil
+	}
 	ne := new(Evaluation)
 	*ne = *e
 	return ne

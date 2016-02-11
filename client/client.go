@@ -57,7 +57,7 @@ const (
 
 	// nodeUpdateRetryIntv is how often the client checks for updates to the
 	// node attributes or meta map.
-	nodeUpdateRetryIntv = 30 * time.Second
+	nodeUpdateRetryIntv = 5 * time.Second
 )
 
 // DefaultConfig returns the default configuration
@@ -75,6 +75,10 @@ type Client struct {
 	config *config.Config
 	start  time.Time
 
+	// configCopy is a copy that should be passed to alloc-runners.
+	configCopy *config.Config
+	configLock sync.RWMutex
+
 	logger *log.Logger
 
 	consulService *ConsulService
@@ -90,6 +94,7 @@ type Client struct {
 
 	lastHeartbeat time.Time
 	heartbeatTTL  time.Duration
+	heartbeatLock sync.Mutex
 
 	// allocs is the current set of allocations
 	allocs    map[string]*AllocRunner
@@ -142,6 +147,10 @@ func NewClient(cfg *config.Config) (*Client, error) {
 
 	// Set up the known servers list
 	c.SetServers(c.config.Servers)
+
+	// Store the config copy before restoring state but after it has been
+	// initialized.
+	c.configCopy = c.config.Copy()
 
 	// Restore the state
 	if err := c.restoreState(); err != nil {
@@ -408,7 +417,9 @@ func (c *Client) restoreState() error {
 	for _, entry := range list {
 		id := entry.Name()
 		alloc := &structs.Allocation{ID: id}
-		ar := NewAllocRunner(c.logger, c.config, c.updateAllocStatus, alloc, c.consulService)
+		c.configLock.RLock()
+		ar := NewAllocRunner(c.logger, c.configCopy, c.updateAllocStatus, alloc, c.consulService)
+		c.configLock.RUnlock()
 		c.allocs[id] = ar
 		if err := ar.RestoreState(); err != nil {
 			c.logger.Printf("[ERR] client: failed to restore state for alloc %s: %v", id, err)
@@ -523,7 +534,10 @@ func (c *Client) fingerprint() error {
 		if err != nil {
 			return err
 		}
+
+		c.configLock.Lock()
 		applies, err := f.Fingerprint(c.config, c.config.Node)
+		c.configLock.Unlock()
 		if err != nil {
 			return err
 		}
@@ -551,9 +565,11 @@ func (c *Client) fingerprintPeriodic(name string, f fingerprint.Fingerprint, d t
 	for {
 		select {
 		case <-time.After(d):
+			c.configLock.Lock()
 			if _, err := f.Fingerprint(c.config, c.config.Node); err != nil {
 				c.logger.Printf("[DEBUG] client: periodic fingerprinting for %v failed: %v", name, err)
 			}
+			c.configLock.Unlock()
 		case <-c.shutdownCh:
 			return
 		}
@@ -581,7 +597,9 @@ func (c *Client) setupDrivers() error {
 		if err != nil {
 			return err
 		}
+		c.configLock.Lock()
 		applies, err := d.Fingerprint(c.config, c.config.Node)
+		c.configLock.Unlock()
 		if err != nil {
 			return err
 		}
@@ -647,7 +665,9 @@ func (c *Client) run() {
 			if err := c.updateNodeStatus(); err != nil {
 				heartbeat = time.After(c.retryIntv(registerRetryIntv))
 			} else {
+				c.heartbeatLock.Lock()
 				heartbeat = time.After(c.heartbeatTTL)
+				c.heartbeatLock.Unlock()
 			}
 
 		case <-c.shutdownCh:
@@ -661,6 +681,8 @@ func (c *Client) run() {
 // determine if the node properties have changed. It returns the new hash values
 // in case they are different from the old hash values.
 func (c *Client) hasNodeChanged(oldAttrHash uint64, oldMetaHash uint64) (bool, uint64, uint64) {
+	c.configLock.RLock()
+	defer c.configLock.RUnlock()
 	newAttrHash, err := hashstructure.Hash(c.config.Node.Attributes, nil)
 	if err != nil {
 		c.logger.Printf("[DEBUG] client: unable to calculate node attributes hash: %v", err)
@@ -711,6 +733,9 @@ func (c *Client) registerNode() error {
 	if len(resp.EvalIDs) != 0 {
 		c.logger.Printf("[DEBUG] client: %d evaluations triggered by node registration", len(resp.EvalIDs))
 	}
+
+	c.heartbeatLock.Lock()
+	defer c.heartbeatLock.Unlock()
 	c.lastHeartbeat = time.Now()
 	c.heartbeatTTL = resp.HeartbeatTTL
 	return nil
@@ -736,6 +761,9 @@ func (c *Client) updateNodeStatus() error {
 	if resp.Index != 0 {
 		c.logger.Printf("[DEBUG] client: state updated to %s", req.Status)
 	}
+
+	c.heartbeatLock.Lock()
+	defer c.heartbeatLock.Unlock()
 	c.lastHeartbeat = time.Now()
 	c.heartbeatTTL = resp.HeartbeatTTL
 	return nil
@@ -896,6 +924,13 @@ func (c *Client) watchNodeUpdates() {
 			changed, attrHash, metaHash = c.hasNodeChanged(attrHash, metaHash)
 			if changed {
 				c.logger.Printf("[DEBUG] client: state changed, updating node.")
+
+				// Update the config copy.
+				c.configLock.Lock()
+				node := c.config.Node.Copy()
+				c.configCopy.Node = node
+				c.configLock.Unlock()
+
 				c.retryRegisterNode()
 			}
 		case <-c.shutdownCh:
@@ -910,7 +945,7 @@ func (c *Client) runAllocs(update *allocUpdates) {
 	c.allocLock.RLock()
 	exist := make([]*structs.Allocation, 0, len(c.allocs))
 	for _, ar := range c.allocs {
-		exist = append(exist, ar.Alloc())
+		exist = append(exist, ar.alloc)
 	}
 	c.allocLock.RUnlock()
 
@@ -979,7 +1014,9 @@ func (c *Client) updateAlloc(exist, update *structs.Allocation) error {
 func (c *Client) addAlloc(alloc *structs.Allocation) error {
 	c.allocLock.Lock()
 	defer c.allocLock.Unlock()
-	ar := NewAllocRunner(c.logger, c.config, c.updateAllocStatus, alloc, c.consulService)
+	c.configLock.RLock()
+	ar := NewAllocRunner(c.logger, c.configCopy, c.updateAllocStatus, alloc, c.consulService)
+	c.configLock.RUnlock()
 	c.allocs[alloc.ID] = ar
 	go ar.Run()
 	return nil

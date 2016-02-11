@@ -163,7 +163,7 @@ func TestJob_Copy(t *testing.T) {
 
 	c := j.Copy()
 	if !reflect.DeepEqual(j, c) {
-		t.Fatalf("Copy() returned an unequal Job; got %v; want %v", c, j)
+		t.Fatalf("Copy() returned an unequal Job; got %#v; want %#v", c, j)
 	}
 }
 

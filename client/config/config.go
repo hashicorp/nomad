@@ -72,6 +72,15 @@ type Config struct {
 	Options map[string]string
 }
 
+func (c *Config) Copy() *Config {
+	nc := new(Config)
+	*nc = *c
+	nc.Node = nc.Node.Copy()
+	nc.Servers = structs.CopySliceString(nc.Servers)
+	nc.Options = structs.CopyMapStringString(nc.Options)
+	return nc
+}
+
 // Read returns the specified configuration value or "".
 func (c *Config) Read(id string) string {
 	val, ok := c.Options[id]
