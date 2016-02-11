@@ -94,6 +94,10 @@ func (l *LogRotator) Start(r io.Reader) error {
 		// as it has capacity or the reader closes
 		totalWritten := 0
 		for {
+			if l.FileSize-(fileSize+int64(totalWritten)) < 1 {
+				f.Close()
+				break
+			}
 			var nr int
 			var err error
 			remainingSize := l.FileSize - (int64(totalWritten) + fileSize)
@@ -115,11 +119,7 @@ func (l *LogRotator) Start(r io.Reader) error {
 				f.Close()
 				return fmt.Errorf("failed to write data read from the reader into file, R: %d W: %d", nr, nw)
 			}
-			totalWritten += nw
-			if l.FileSize-(fileSize+int64(totalWritten)) < 1 {
-				f.Close()
-				break
-			}
+			totalWritten += nr
 		}
 		l.logFileIdx = l.logFileIdx + 1
 	}

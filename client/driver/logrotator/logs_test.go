@@ -246,3 +246,44 @@ func TestLogRotator_PurgeDirs(t *testing.T) {
 		t.Fatalf("expected number of files: %v, actual: %v", 2, len(files))
 	}
 }
+
+func TestLogRotator_UpdateConfig(t *testing.T) {
+	var path string
+	var err error
+	defer os.RemoveAll(path)
+	if path, err = ioutil.TempDir("", pathPrefix); err != nil {
+		t.Fatalf("test setup err: %v", err)
+	}
+
+	l, err := NewLogRotator(path, "redis.stdout", 10, 10, logger)
+	if err != nil {
+		t.Fatalf("test setup err: %v", err)
+	}
+
+	r, w := io.Pipe()
+	go func() {
+		w.Write([]byte("abcdefg"))
+		l.FileSize = 5
+		w.Write([]byte("hijklmnojkp"))
+		w.Close()
+	}()
+	err = l.Start(r)
+	if err != nil && err != io.EOF {
+		t.Fatalf("Failure in logrotator start %v", err)
+	}
+
+	finfo, err := os.Stat(filepath.Join(path, "redis.stdout.0"))
+	finfo1, err1 := os.Stat(filepath.Join(path, "redis.stdout.1"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if finfo.Size() != 10 {
+		t.Fatalf("expected size of file: %v, actual: %v", 7, finfo.Size())
+	}
+	if err1 != nil {
+		t.Fatal(err)
+	}
+	if finfo1.Size() != 5 {
+		t.Fatalf("expected size of file: %v, actual: %v", 5, finfo.Size())
+	}
+}
