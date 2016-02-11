@@ -78,7 +78,7 @@ func (s *SyslogCollector) LaunchCollector(ctx *LogCollectorContext) (*SyslogColl
 	if err != nil {
 		return nil, err
 	}
-	s.logger.Printf("sylog-server: launching syslog server on addr: %v", addr)
+	s.logger.Printf("[DEBUG] sylog-server: launching syslog server on addr: %v", addr)
 	s.ctx = ctx
 	// configuring the task dir
 	if err := s.configureTaskDir(); err != nil {
@@ -117,6 +117,8 @@ func (s *SyslogCollector) LaunchCollector(ctx *LogCollectorContext) (*SyslogColl
 
 	go func(channel syslog.LogPartsChannel) {
 		for logParts := range channel {
+			// If the severity of the log line is err then we write to stderr
+			// otherwise all messages go to stdout
 			s := logParts["severity"].(s1.Priority)
 			if s == s1.LOG_ERR {
 				we.Write(logParts["content"].([]byte))

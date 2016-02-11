@@ -76,8 +76,8 @@ func (g *TaskGroup) AddTask(t *Task) *TaskGroup {
 
 // LogConfig provides configuration for log rotation
 type LogConfig struct {
-	MaxFiles      int `mapstructure:"max_files"`
-	MaxFileSizeMB int `mapstructure:"max_file_size"`
+	MaxFiles      int
+	MaxFileSizeMB int
 }
 
 // Task is a single process in a task group.

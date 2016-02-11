@@ -29,9 +29,9 @@ const (
 
 // Priority holds all the priority bits in a syslog log line
 type Priority struct {
-	P syslog.Priority
-	F syslog.Priority
-	S syslog.Priority
+	Pri      int
+	Facility syslog.Priority
+	Severity syslog.Priority
 }
 
 // DockerLogParser parses a line of log message that the docker daemon ships
@@ -136,9 +136,9 @@ func (d *DockerLogParser) newPriority(p int) Priority {
 	// The Priority value is calculated by first multiplying the Facility
 	// number by 8 and then adding the numerical value of the Severity.
 	return Priority{
-		P: syslog.Priority(p),
-		F: syslog.Priority(p / 8),
-		S: syslog.Priority(p % 8),
+		Pri:      p,
+		Facility: syslog.Priority(p / 8),
+		Severity: syslog.Priority(p % 8),
 	}
 }
 

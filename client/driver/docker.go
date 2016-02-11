@@ -620,7 +620,6 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 		Reattach: pid.PluginConfig.PluginConfig(),
 	}
 
-	logCollector, pluginClient, err := createLogCollector(pluginConfig, d.config.LogOutput, d.config)
 	client, err := d.dockerClient()
 	if err != nil {
 		return nil, fmt.Errorf("Failed to connect to docker daemon: %s", err)
@@ -644,6 +643,14 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 	}
 	if !found {
 		return nil, fmt.Errorf("Failed to find container %s: %v", pid.ContainerID, err)
+	}
+	logCollector, pluginClient, err := createLogCollector(pluginConfig, d.config.LogOutput, d.config)
+	if err != nil {
+		d.logger.Printf("[INFO] driver.docker: couldn't re-attach to the plugin process: %v", err)
+		if e := client.StopContainer(pid.ContainerID, uint(pid.KillTimeout*time.Second)); e != nil {
+			d.logger.Printf("[DEBUG] driver.docker: couldn't stop container: %v", e)
+		}
+		return nil, err
 	}
 
 	// Return a driver handle
