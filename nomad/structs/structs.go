@@ -1458,15 +1458,15 @@ func DefaultLogConfig() *LogConfig {
 	}
 }
 
-// MeetsMinResources returns an error if the log config specified are less than
+// Validate returns an error if the log config specified are less than
 // the minimum allowed.
-func (l *LogConfig) MeetsMinResources() error {
+func (l *LogConfig) Validate() error {
 	var mErr multierror.Error
-	if l.MaxFiles < 10 {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum number of files is 10; got %d", l.MaxFiles))
+	if l.MaxFiles < 1 {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum number of files is 1; got %d", l.MaxFiles))
 	}
-	if l.MaxFileSizeMB < 10 {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum file size is 10MB; got %d", l.MaxFileSizeMB))
+	if l.MaxFileSizeMB < 1 {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum file size is 1MB; got %d", l.MaxFileSizeMB))
 	}
 	return mErr.ErrorOrNil()
 }
@@ -1667,7 +1667,7 @@ func (t *Task) Validate() error {
 	// Validate the log config
 	if t.LogConfig == nil {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing Log Config"))
-	} else if err := t.LogConfig.MeetsMinResources(); err != nil {
+	} else if err := t.LogConfig.Validate(); err != nil {
 		mErr.Errors = append(mErr.Errors, err)
 	}
 

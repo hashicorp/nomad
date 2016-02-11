@@ -697,7 +697,9 @@ func (h *DockerHandle) WaitCh() chan *cstructs.WaitResult {
 func (h *DockerHandle) Update(task *structs.Task) error {
 	// Store the updated kill timeout.
 	h.killTimeout = task.KillTimeout
-	h.logCollector.UpdateLogConfig(task.LogConfig)
+	if err := h.logCollector.UpdateLogConfig(task.LogConfig); err != nil {
+		h.logger.Printf("[DEBUG] driver.docker: failed to update log config: %v", err)
+	}
 
 	// Update is not possible
 	return nil

@@ -104,6 +104,7 @@ func (s *SyslogCollector) LaunchCollector(ctx *LogCollectorContext) (*SyslogColl
 	if err != nil {
 		return nil, err
 	}
+	s.lro = lro
 	go lro.Start(ro)
 
 	re, we := io.Pipe()
@@ -113,6 +114,7 @@ func (s *SyslogCollector) LaunchCollector(ctx *LogCollectorContext) (*SyslogColl
 	if err != nil {
 		return nil, err
 	}
+	s.lre = lre
 	go lre.Start(re)
 
 	go func(channel syslog.LogPartsChannel) {

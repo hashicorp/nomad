@@ -23,9 +23,11 @@ type LogRotator struct {
 	path     string // path where the rotated files are created
 	fileName string // base file name of the rotated files
 
-	logFileIdx int // index to the current file
+	logFileIdx       int // index to the current file
+	oldestLogFileIdx int // index to the oldest log file
 
-	logger *log.Logger
+	logger  *log.Logger
+	purgeCh chan struct{}
 }
 
 // NewLogRotator configures and returns a new LogRotator
@@ -51,14 +53,18 @@ func NewLogRotator(path string, fileName string, maxFiles int, fileSize int64, l
 		}
 	}
 
-	return &LogRotator{
+	lr := &LogRotator{
 		MaxFiles:   maxFiles,
 		FileSize:   fileSize,
 		path:       path,
 		fileName:   fileName,
 		logFileIdx: logFileIdx,
 		logger:     logger,
-	}, nil
+		purgeCh:    make(chan struct{}, 1),
+	}
+	go lr.PurgeOldFiles()
+
+	return lr, nil
 }
 
 // Start reads from a Reader and writes them to files and rotates them when the
@@ -122,6 +128,13 @@ func (l *LogRotator) Start(r io.Reader) error {
 			totalWritten += nr
 		}
 		l.logFileIdx = l.logFileIdx + 1
+		// Purge old files if we have more files than MaxFiles
+		if l.logFileIdx-l.oldestLogFileIdx >= l.MaxFiles {
+			select {
+			case l.purgeCh <- struct{}{}:
+			default:
+			}
+		}
 	}
 	return nil
 }
@@ -129,29 +142,36 @@ func (l *LogRotator) Start(r io.Reader) error {
 // PurgeOldFiles removes older files and keeps only the last N files rotated for
 // a file
 func (l *LogRotator) PurgeOldFiles() {
-	var fIndexes []int
-	files, err := ioutil.ReadDir(l.path)
-	if err != nil {
-		return
-	}
-	// Inserting all the rotated files in a slice
-	for _, f := range files {
-		if strings.HasPrefix(f.Name(), l.fileName) {
-			fileIdx := strings.TrimPrefix(f.Name(), fmt.Sprintf("%s.", l.fileName))
-			n, err := strconv.Atoi(fileIdx)
+	for {
+		select {
+		case <-l.purgeCh:
+			var fIndexes []int
+			files, err := ioutil.ReadDir(l.path)
 			if err != nil {
-				continue
+				return
 			}
-			fIndexes = append(fIndexes, n)
-		}
-	}
+			// Inserting all the rotated files in a slice
+			for _, f := range files {
+				if strings.HasPrefix(f.Name(), l.fileName) {
+					fileIdx := strings.TrimPrefix(f.Name(), fmt.Sprintf("%s.", l.fileName))
+					n, err := strconv.Atoi(fileIdx)
+					if err != nil {
+						continue
+					}
+					fIndexes = append(fIndexes, n)
+				}
+			}
 
-	// Sorting the file indexes so that we can purge the older files and keep
-	// only the number of files as configured by the user
-	sort.Sort(sort.IntSlice(fIndexes))
-	toDelete := fIndexes[l.MaxFiles-1 : len(fIndexes)-1]
-	for _, fIndex := range toDelete {
-		fname := filepath.Join(l.path, fmt.Sprintf("%s.%d", l.fileName, fIndex))
-		os.RemoveAll(fname)
+			// Sorting the file indexes so that we can purge the older files and keep
+			// only the number of files as configured by the user
+			sort.Sort(sort.IntSlice(fIndexes))
+			var toDelete []int
+			toDelete = fIndexes[0 : len(fIndexes)-l.MaxFiles]
+			for _, fIndex := range toDelete {
+				fname := filepath.Join(l.path, fmt.Sprintf("%s.%d", l.fileName, fIndex))
+				os.RemoveAll(fname)
+			}
+			l.oldestLogFileIdx = fIndexes[0]
+		}
 	}
 }

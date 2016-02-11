@@ -1,12 +1,14 @@
 package logrotator
 
 import (
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 var (
@@ -228,7 +230,10 @@ func TestLogRotator_PurgeDirs(t *testing.T) {
 
 	r, w := io.Pipe()
 	go func() {
-		w.Write([]byte("abcdefghijklmno"))
+		w.Write([]byte("abcdefghijklmnopqrxyz"))
+		time.Sleep(1 * time.Second)
+		l.MaxFiles = 1
+		w.Write([]byte("abcdefghijklmnopqrxyz"))
 		w.Close()
 	}()
 
@@ -236,14 +241,16 @@ func TestLogRotator_PurgeDirs(t *testing.T) {
 	if err != nil && err != io.EOF {
 		t.Fatalf("failure in logrotator start: %v", err)
 	}
-	l.PurgeOldFiles()
 
+	// sleeping for a second because purging is async
+	time.Sleep(1 * time.Second)
 	files, err := ioutil.ReadDir(path)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if len(files) != 2 {
-		t.Fatalf("expected number of files: %v, actual: %v", 2, len(files))
+	expected := 1
+	if len(files) != expected {
+		t.Fatalf("expected number of files: %v, actual: %v", expected, len(files))
 	}
 }
 
