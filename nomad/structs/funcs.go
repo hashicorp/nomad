@@ -137,3 +137,36 @@ func GenerateUUID() string {
 		buf[8:10],
 		buf[10:16])
 }
+
+// Helpers for copying generic structures.
+func CopyMapStringString(m map[string]string) map[string]string {
+	c := make(map[string]string, len(m))
+	for k, v := range m {
+		c[k] = v
+	}
+	return c
+}
+
+func CopyMapStringInt(m map[string]int) map[string]int {
+	c := make(map[string]int, len(m))
+	for k, v := range m {
+		c[k] = v
+	}
+	return c
+}
+
+func CopyMapStringFloat64(m map[string]float64) map[string]float64 {
+	c := make(map[string]float64, len(m))
+	for k, v := range m {
+		c[k] = v
+	}
+	return c
+}
+
+func CopySliceString(s []string) []string {
+	c := make([]string, len(s))
+	for i, v := range s {
+		c[i] = v
+	}
+	return c
+}

@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/mitchellh/copystructure"
 )
 
 // RPCHandler can be provided to the Client if there is a local server
@@ -74,16 +73,12 @@ type Config struct {
 }
 
 func (c *Config) Copy() *Config {
-	log := c.LogOutput
-	c.LogOutput = nil
-	i, err := copystructure.Copy(c)
-	c.LogOutput = log
-	if err != nil {
-		return nil
-	}
-	copy := i.(*Config)
-	copy.LogOutput = log
-	return copy
+	nc := new(Config)
+	*nc = *c
+	nc.Node = nc.Node.Copy()
+	nc.Servers = structs.CopySliceString(nc.Servers)
+	nc.Options = structs.CopyMapStringString(nc.Options)
+	return nc
 }
 
 // Read returns the specified configuration value or "".

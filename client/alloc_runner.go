@@ -86,7 +86,10 @@ func NewAllocRunner(logger *log.Logger, config *config.Config, updater AllocStat
 
 // stateFilePath returns the path to our state file
 func (r *AllocRunner) stateFilePath() string {
-	return filepath.Join(r.config.StateDir, "alloc", r.alloc.ID, "state.json")
+	r.allocLock.Lock()
+	defer r.allocLock.Unlock()
+	path := filepath.Join(r.config.StateDir, "alloc", r.alloc.ID, "state.json")
+	return path
 }
 
 // RestoreState is used to restore the state of the alloc runner

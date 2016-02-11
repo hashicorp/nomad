@@ -168,10 +168,7 @@ func (r *TaskRunner) setState(state string, event *structs.TaskEvent) {
 
 // createDriver makes a driver for the task
 func (r *TaskRunner) createDriver() (driver.Driver, error) {
-	// Create a copy of the node.
-	// TODO REMOVE
-	node := r.config.Node.Copy()
-	taskEnv, err := driver.GetTaskEnv(r.ctx.AllocDir, node, r.task)
+	taskEnv, err := driver.GetTaskEnv(r.ctx.AllocDir, r.config.Node, r.task)
 	if err != nil {
 		err = fmt.Errorf("failed to create driver '%s' for alloc %s: %v",
 			r.task.Driver, r.alloc.ID, err)
