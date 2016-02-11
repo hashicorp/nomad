@@ -152,7 +152,6 @@ func (s *SyslogCollector) UpdateLogConfig(logConfig *structs.LogConfig) error {
 	s.lre.MaxFiles = logConfig.MaxFiles
 	s.lre.FileSize = int64(logConfig.MaxFileSizeMB * 1024 * 1024)
 	return nil
-
 }
 
 // configureTaskDir sets the task dir in the SyslogCollector

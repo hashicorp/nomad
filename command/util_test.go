@@ -44,6 +44,10 @@ func testJob(jobID string) *api.Job {
 		MemoryMB: 256,
 		DiskMB:   20,
 		CPU:      100,
+	}).
+		SetLogConfig(&api.LogConfig{
+		MaxFiles:      10,
+		MaxFileSizeMB: 10,
 	})
 
 	group := api.NewTaskGroup("group1", 1).

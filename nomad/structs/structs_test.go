@@ -258,6 +258,7 @@ func TestTask_Validate(t *testing.T) {
 			MemoryMB: 100,
 			IOPS:     10,
 		},
+		LogConfig: DefaultLogConfig(),
 	}
 	err = task.Validate()
 	if err != nil {
