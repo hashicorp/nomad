@@ -58,6 +58,10 @@ func TestParse(t *testing.T) {
 								Meta: map[string]string{
 									"my-cool-key": "foobar",
 								},
+								LogConfig: &structs.LogConfig{
+									MaxFiles:      10,
+									MaxFileSizeMB: 10,
+								},
 							},
 						},
 					},
@@ -123,6 +127,10 @@ func TestParse(t *testing.T) {
 									},
 								},
 								KillTimeout: 22 * time.Second,
+								LogConfig: &structs.LogConfig{
+									MaxFiles:      10,
+									MaxFileSizeMB: 100,
+								},
 							},
 							&structs.Task{
 								Name:   "storagelocker",
@@ -142,6 +150,10 @@ func TestParse(t *testing.T) {
 										RTarget: "amd64",
 										Operand: "=",
 									},
+								},
+								LogConfig: &structs.LogConfig{
+									MaxFiles:      10,
+									MaxFileSizeMB: 10,
 								},
 							},
 						},
@@ -283,6 +295,10 @@ func TestParse(t *testing.T) {
 											"db": 1234,
 										},
 									},
+								},
+								LogConfig: &structs.LogConfig{
+									MaxFiles:      10,
+									MaxFileSizeMB: 10,
 								},
 							},
 						},

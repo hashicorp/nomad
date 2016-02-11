@@ -208,6 +208,7 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		AllocDir:      ctx.AllocDir,
 		TaskName:      task.Name,
 		TaskResources: task.Resources,
+		LogConfig:     task.LogConfig,
 	}
 	ps, err := exec.LaunchCmd(&executor.ExecCommand{Cmd: args[0], Args: args[1:]}, executorCtx)
 	if err != nil {
@@ -235,7 +236,7 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 type qemuId struct {
 	KillTimeout  time.Duration
 	UserPid      int
-	PluginConfig *ExecutorReattachConfig
+	PluginConfig *PluginReattachConfig
 	AllocDir     *allocdir.AllocDir
 }
 
@@ -276,7 +277,7 @@ func (d *QemuDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 func (h *qemuHandle) ID() string {
 	id := qemuId{
 		KillTimeout:  h.killTimeout,
-		PluginConfig: NewExecutorReattachConfig(h.pluginClient.ReattachConfig()),
+		PluginConfig: NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
 		UserPid:      h.userPid,
 		AllocDir:     h.allocDir,
 	}
@@ -295,6 +296,7 @@ func (h *qemuHandle) WaitCh() chan *cstructs.WaitResult {
 func (h *qemuHandle) Update(task *structs.Task) error {
 	// Store the updated kill timeout.
 	h.killTimeout = task.KillTimeout
+	h.executor.UpdateLogConfig(task.LogConfig)
 
 	// Update is not possible
 	return nil

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/rand"
+	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"runtime/debug"
@@ -11,9 +13,11 @@ import (
 	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
+	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/env"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
+	"github.com/hashicorp/nomad/helper/discover"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 )
@@ -66,6 +70,10 @@ func dockerTask() (*structs.Task, int, int) {
 		Name: "redis-demo",
 		Config: map[string]interface{}{
 			"image": "redis",
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
 		},
 		Resources: &structs.Resources{
 			MemoryMB: 256,
@@ -125,16 +133,37 @@ func dockerSetup(t *testing.T, task *structs.Task) (*docker.Client, DriverHandle
 
 func TestDockerDriver_Handle(t *testing.T) {
 	t.Parallel()
+
+	bin, err := discover.NomadExecutable()
+	if err != nil {
+		t.Fatalf("got an err: %v", err)
+	}
+
+	f, _ := ioutil.TempFile(os.TempDir(), "")
+	defer f.Close()
+	defer os.Remove(f.Name())
+	pluginConfig := &plugin.ClientConfig{
+		Cmd: exec.Command(bin, "syslog", f.Name()),
+	}
+	logCollector, pluginClient, err := createLogCollector(pluginConfig, os.Stdout, &config.Config{})
+	if err != nil {
+		t.Fatalf("got an err: %v", err)
+	}
+	defer pluginClient.Kill()
+
 	h := &DockerHandle{
-		imageID:     "imageid",
-		containerID: "containerid",
-		killTimeout: 5 * time.Nanosecond,
-		doneCh:      make(chan struct{}),
-		waitCh:      make(chan *cstructs.WaitResult, 1),
+		imageID:      "imageid",
+		logCollector: logCollector,
+		pluginClient: pluginClient,
+		containerID:  "containerid",
+		killTimeout:  5 * time.Nanosecond,
+		doneCh:       make(chan struct{}),
+		waitCh:       make(chan *cstructs.WaitResult, 1),
 	}
 
 	actual := h.ID()
-	expected := `DOCKER:{"ImageID":"imageid","ContainerID":"containerid","KillTimeout":5}`
+	expected := fmt.Sprintf("DOCKER:{\"ImageID\":\"imageid\",\"ContainerID\":\"containerid\",\"KillTimeout\":5,\"PluginConfig\":{\"Pid\":%d,\"AddrNet\":\"unix\",\"AddrName\":\"%s\"}}",
+		pluginClient.ReattachConfig().Pid, pluginClient.ReattachConfig().Addr.String())
 	if actual != expected {
 		t.Errorf("Expected `%s`, found `%s`", expected, actual)
 	}
@@ -171,6 +200,10 @@ func TestDockerDriver_StartOpen_Wait(t *testing.T) {
 		Name: "redis-demo",
 		Config: map[string]interface{}{
 			"image": "redis",
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
 		},
 		Resources: basicResources,
 	}
@@ -210,6 +243,10 @@ func TestDockerDriver_Start_Wait(t *testing.T) {
 		Resources: &structs.Resources{
 			MemoryMB: 256,
 			CPU:      512,
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
 		},
 	}
 
@@ -253,6 +290,10 @@ func TestDockerDriver_Start_Wait_AllocDir(t *testing.T) {
 				fmt.Sprintf(`sleep 1; echo -n %s > $%s/%s`,
 					string(exp), env.AllocDir, file),
 			},
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
 		},
 		Resources: &structs.Resources{
 			MemoryMB: 256,
@@ -302,6 +343,10 @@ func TestDockerDriver_Start_Kill_Wait(t *testing.T) {
 			"image":   "redis",
 			"command": "/bin/sleep",
 			"args":    []string{"10"},
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
 		},
 		Resources: basicResources,
 	}
@@ -436,6 +481,10 @@ func TestDockerHostNet(t *testing.T) {
 		Resources: &structs.Resources{
 			MemoryMB: 256,
 			CPU:      512,
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
 		},
 	}
 

@@ -401,6 +401,7 @@ func parseTasks(jobName string, taskGroupName string, result *[]*structs.Task, l
 		delete(m, "service")
 		delete(m, "meta")
 		delete(m, "resources")
+		delete(m, "logs")
 
 		// Build the task
 		var t structs.Task
@@ -483,6 +484,24 @@ func parseTasks(jobName string, taskGroupName string, result *[]*structs.Task, l
 
 			t.Resources = &r
 		}
+
+		// If we have logs then parse that
+		logConfig := structs.DefaultLogConfig()
+		if o := listVal.Filter("logs"); len(o.Items) > 0 {
+			if len(o.Items) > 1 {
+				return fmt.Errorf("only one logs block is allowed in a Task. Number of logs block found: %d", len(o.Items))
+			}
+			var m map[string]interface{}
+			logsBlock := o.Items[0]
+			if err := hcl.DecodeObject(&m, logsBlock.Val); err != nil {
+				return err
+			}
+
+			if err := mapstructure.WeakDecode(m, &logConfig); err != nil {
+				return err
+			}
+		}
+		t.LogConfig = logConfig
 
 		*result = append(*result, &t)
 	}

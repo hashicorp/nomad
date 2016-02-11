@@ -102,6 +102,7 @@ func Job() *structs.Job {
 								PortLabel: "admin",
 							},
 						},
+						LogConfig: structs.DefaultLogConfig(),
 						Resources: &structs.Resources{
 							CPU:      500,
 							MemoryMB: 256,
@@ -177,6 +178,7 @@ func SystemJob() *structs.Job {
 								},
 							},
 						},
+						LogConfig: structs.DefaultLogConfig(),
 					},
 				},
 			},

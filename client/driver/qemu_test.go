@@ -49,6 +49,10 @@ func TestQemuDriver_StartOpen_Wait(t *testing.T) {
 				"web":  8080,
 			}},
 		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
 		Resources: &structs.Resources{
 			CPU:      500,
 			MemoryMB: 512,
@@ -100,6 +104,10 @@ func TestQemuDriver_RequiresMemory(t *testing.T) {
 			"guest_port":      "8081",
 			"checksum":        "sha256:a5e836985934c3392cbbd9b26db55a7d35a8d7ae1deb7ca559dd9c0159572544",
 			// ssh u/p would be here
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
 		},
 	}
 

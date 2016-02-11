@@ -50,6 +50,10 @@ func TestExecDriver_StartOpen_Wait(t *testing.T) {
 			"command": "/bin/sleep",
 			"args":    []string{"5"},
 		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
 		Resources: basicResources,
 	}
 
@@ -86,6 +90,10 @@ func TestExecDriver_KillUserPid_OnPluginReconnectFailure(t *testing.T) {
 		Config: map[string]interface{}{
 			"command": "/bin/sleep",
 			"args":    []string{"1000000"},
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
 		},
 		Resources: basicResources,
 	}
@@ -144,6 +152,10 @@ func TestExecDriver_Start_Wait(t *testing.T) {
 			"command": "/bin/sleep",
 			"args":    []string{"2"},
 		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
 		Resources: basicResources,
 	}
 
@@ -188,6 +200,10 @@ func TestExecDriver_Start_Artifact_basic(t *testing.T) {
 			"artifact_source": fmt.Sprintf("https://dl.dropboxusercontent.com/u/47675/jar_thing/%s?checksum=%s", file, checksum),
 			"command":         file,
 		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
 		Resources: basicResources,
 	}
 
@@ -231,6 +247,10 @@ func TestExecDriver_Start_Artifact_expanded(t *testing.T) {
 			"artifact_source": fmt.Sprintf("https://dl.dropboxusercontent.com/u/47675/jar_thing/%s", file),
 			"command":         "/bin/bash",
 			"args":            []string{"-c", fmt.Sprintf("/bin/sleep 1 && %s", file)},
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
 		},
 		Resources: basicResources,
 	}
@@ -278,6 +298,10 @@ func TestExecDriver_Start_Wait_AllocDir(t *testing.T) {
 				fmt.Sprintf(`sleep 1; echo -n %s > ${%s}/%s`, string(exp), env.AllocDir, file),
 			},
 		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
 		Resources: basicResources,
 	}
 
@@ -323,6 +347,10 @@ func TestExecDriver_Start_Kill_Wait(t *testing.T) {
 		Config: map[string]interface{}{
 			"command": "/bin/sleep",
 			"args":    []string{"100"},
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
 		},
 		Resources:   basicResources,
 		KillTimeout: 10 * time.Second,

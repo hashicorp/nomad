@@ -1533,6 +1533,32 @@ const (
 	DefaultKillTimeout = 5 * time.Second
 )
 
+// LogConfig provides configuration for log rotation
+type LogConfig struct {
+	MaxFiles      int `mapstructure:"max_files"`
+	MaxFileSizeMB int `mapstructure:"max_file_size"`
+}
+
+func DefaultLogConfig() *LogConfig {
+	return &LogConfig{
+		MaxFiles:      10,
+		MaxFileSizeMB: 10,
+	}
+}
+
+// Validate returns an error if the log config specified are less than
+// the minimum allowed.
+func (l *LogConfig) Validate() error {
+	var mErr multierror.Error
+	if l.MaxFiles < 1 {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum number of files is 1; got %d", l.MaxFiles))
+	}
+	if l.MaxFileSizeMB < 1 {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum file size is 1MB; got %d", l.MaxFileSizeMB))
+	}
+	return mErr.ErrorOrNil()
+}
+
 // Task is a single process typically that is executed as part of a task group.
 type Task struct {
 	// Name of the task
@@ -1564,6 +1590,9 @@ type Task struct {
 	// KillTimeout is the time between signaling a task that it will be
 	// killed and killing it.
 	KillTimeout time.Duration `mapstructure:"kill_timeout"`
+
+	// LogConfig provides configuration for log rotation
+	LogConfig *LogConfig `mapstructure:"logs"`
 }
 
 func (t *Task) Copy() *Task {
@@ -1754,6 +1783,13 @@ func (t *Task) Validate() error {
 		mErr.Errors = append(mErr.Errors, err)
 	}
 
+	// Validate the log config
+	if t.LogConfig == nil {
+		mErr.Errors = append(mErr.Errors, errors.New("Missing Log Config"))
+	} else if err := t.LogConfig.Validate(); err != nil {
+		mErr.Errors = append(mErr.Errors, err)
+	}
+
 	for idx, constr := range t.Constraints {
 		if err := constr.Validate(); err != nil {
 			outer := fmt.Errorf("Constraint %d validation failed: %s", idx+1, err)
@@ -1765,6 +1801,10 @@ func (t *Task) Validate() error {
 		if err := service.Validate(); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 		}
+	}
+
+	if t.Resources.DiskMB <= (t.LogConfig.MaxFiles * t.LogConfig.MaxFileSizeMB) {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("log storage exceeds requested disk capacity"))
 	}
 	return mErr.ErrorOrNil()
 }

@@ -120,6 +120,7 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		AllocDir:         ctx.AllocDir,
 		TaskName:         task.Name,
 		TaskResources:    task.Resources,
+		LogConfig:        task.LogConfig,
 		ResourceLimits:   true,
 		FSIsolation:      true,
 		UnprivilegedUser: true,
@@ -153,7 +154,7 @@ type execId struct {
 	TaskDir         string
 	AllocDir        *allocdir.AllocDir
 	IsolationConfig *executor.IsolationConfig
-	PluginConfig    *ExecutorReattachConfig
+	PluginConfig    *PluginReattachConfig
 }
 
 func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {
@@ -203,7 +204,7 @@ func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 func (h *execHandle) ID() string {
 	id := execId{
 		KillTimeout:     h.killTimeout,
-		PluginConfig:    NewExecutorReattachConfig(h.pluginClient.ReattachConfig()),
+		PluginConfig:    NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
 		UserPid:         h.userPid,
 		AllocDir:        h.allocDir,
 		IsolationConfig: h.isolationConfig,
@@ -223,6 +224,7 @@ func (h *execHandle) WaitCh() chan *cstructs.WaitResult {
 func (h *execHandle) Update(task *structs.Task) error {
 	// Store the updated kill timeout.
 	h.killTimeout = task.KillTimeout
+	h.executor.UpdateLogConfig(task.LogConfig)
 
 	// Update is not possible
 	return nil

@@ -167,9 +167,8 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		AllocDir:         ctx.AllocDir,
 		TaskName:         task.Name,
 		TaskResources:    task.Resources,
-		FSIsolation:      true,
-		ResourceLimits:   true,
 		UnprivilegedUser: true,
+		LogConfig:        task.LogConfig,
 	}
 	ps, err := exec.LaunchCmd(&executor.ExecCommand{Cmd: "java", Args: args}, executorCtx)
 	if err != nil {
@@ -198,7 +197,7 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 
 type javaId struct {
 	KillTimeout     time.Duration
-	PluginConfig    *ExecutorReattachConfig
+	PluginConfig    *PluginReattachConfig
 	IsolationConfig *executor.IsolationConfig
 	TaskDir         string
 	AllocDir        *allocdir.AllocDir
@@ -255,7 +254,7 @@ func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 func (h *javaHandle) ID() string {
 	id := javaId{
 		KillTimeout:     h.killTimeout,
-		PluginConfig:    NewExecutorReattachConfig(h.pluginClient.ReattachConfig()),
+		PluginConfig:    NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
 		UserPid:         h.userPid,
 		TaskDir:         h.taskDir,
 		AllocDir:        h.allocDir,
@@ -276,6 +275,7 @@ func (h *javaHandle) WaitCh() chan *cstructs.WaitResult {
 func (h *javaHandle) Update(task *structs.Task) error {
 	// Store the updated kill timeout.
 	h.killTimeout = task.KillTimeout
+	h.executor.UpdateLogConfig(task.LogConfig)
 
 	// Update is not possible
 	return nil

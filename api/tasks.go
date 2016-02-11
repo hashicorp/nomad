@@ -74,6 +74,12 @@ func (g *TaskGroup) AddTask(t *Task) *TaskGroup {
 	return g
 }
 
+// LogConfig provides configuration for log rotation
+type LogConfig struct {
+	MaxFiles      int
+	MaxFileSizeMB int
+}
+
 // Task is a single process in a task group.
 type Task struct {
 	Name        string
@@ -85,6 +91,7 @@ type Task struct {
 	Resources   *Resources
 	Meta        map[string]string
 	KillTimeout time.Duration
+	LogConfig   *LogConfig
 }
 
 // NewTask creates and initializes a new Task.
@@ -123,6 +130,12 @@ func (t *Task) Require(r *Resources) *Task {
 // Constraint adds a new constraints to a single task.
 func (t *Task) Constrain(c *Constraint) *Task {
 	t.Constraints = append(t.Constraints, c)
+	return t
+}
+
+// SetLogConfig sets a log config to a task
+func (t *Task) SetLogConfig(l *LogConfig) *Task {
+	t.LogConfig = l
 	return t
 }
 

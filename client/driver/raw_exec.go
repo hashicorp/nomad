@@ -114,6 +114,7 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 		AllocDir:      ctx.AllocDir,
 		TaskName:      task.Name,
 		TaskResources: task.Resources,
+		LogConfig:     task.LogConfig,
 	}
 	ps, err := exec.LaunchCmd(&executor.ExecCommand{Cmd: command, Args: driverConfig.Args}, executorCtx)
 	if err != nil {
@@ -140,7 +141,7 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 type rawExecId struct {
 	KillTimeout  time.Duration
 	UserPid      int
-	PluginConfig *ExecutorReattachConfig
+	PluginConfig *PluginReattachConfig
 	AllocDir     *allocdir.AllocDir
 }
 
@@ -180,7 +181,7 @@ func (d *RawExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, e
 func (h *rawExecHandle) ID() string {
 	id := rawExecId{
 		KillTimeout:  h.killTimeout,
-		PluginConfig: NewExecutorReattachConfig(h.pluginClient.ReattachConfig()),
+		PluginConfig: NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
 		UserPid:      h.userPid,
 		AllocDir:     h.allocDir,
 	}
@@ -199,6 +200,7 @@ func (h *rawExecHandle) WaitCh() chan *cstructs.WaitResult {
 func (h *rawExecHandle) Update(task *structs.Task) error {
 	// Store the updated kill timeout.
 	h.killTimeout = task.KillTimeout
+	h.executor.UpdateLogConfig(task.LogConfig)
 
 	// Update is not possible
 	return nil
