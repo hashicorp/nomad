@@ -448,7 +448,7 @@ func (b *EvalBroker) Ack(evalID, token string) error {
 	// Update the stats
 	b.stats.TotalUnacked -= 1
 	queue := unack.Eval.Type
-	if b.evals[evalID] >= b.deliveryLimit {
+	if b.evals[evalID] > b.deliveryLimit {
 		queue = failedQueue
 	}
 	bySched := b.stats.ByScheduler[queue]
