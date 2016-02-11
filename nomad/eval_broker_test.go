@@ -748,6 +748,50 @@ func TestEvalBroker_DeliveryLimit(t *testing.T) {
 	}
 }
 
+func TestEvalBroker_AckAtDeliveryLimit(t *testing.T) {
+	b := testBroker(t, 0)
+	b.SetEnabled(true)
+
+	eval := mock.Eval()
+	err := b.Enqueue(eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	for i := 0; i < 3; i++ {
+		// Dequeue should work
+		out, token, err := b.Dequeue(defaultSched, time.Second)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		if out != eval {
+			t.Fatalf("bad : %#v", out)
+		}
+
+		if i == 2 {
+			b.Ack(eval.ID, token)
+		} else {
+			// Nack with wrong token should fail
+			err = b.Nack(eval.ID, token)
+			if err != nil {
+				t.Fatalf("err: %v", err)
+			}
+		}
+	}
+
+	// Check the stats
+	stats := b.Stats()
+	if stats.TotalReady != 0 {
+		t.Fatalf("bad: %#v", stats)
+	}
+	if stats.TotalUnacked != 0 {
+		t.Fatalf("bad: %#v", stats)
+	}
+	if _, ok := stats.ByScheduler[failedQueue]; ok {
+		t.Fatalf("bad: %#v", stats)
+	}
+}
+
 // Ensure fairness between schedulers
 func TestEvalBroker_Wait(t *testing.T) {
 	b := testBroker(t, 0)
