@@ -50,6 +50,7 @@ func testExecutorContext(t *testing.T) *ExecutorContext {
 		TaskName:      taskName,
 		AllocDir:      allocDir,
 		TaskResources: constraint,
+		LogConfig:     structs.DefaultLogConfig(),
 	}
 	return ctx
 }
