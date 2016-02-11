@@ -5,9 +5,9 @@ BACKWARDS INCOMPATIBILITIES:
   * core/cli: Print short identifiers [GH-675]
   * core/consul: Validate service name doesn't include period [GH-770]
   * core/jobspec: Variables/constraints interpreted using ${} notation [GH-760]
+  * client: Extract artifacts into the root of the task directory [GH-756]
   * client: Environment variable containing address for each allocated port
     [GH-704]
-  * client: Extract artifacts into the root of the task directory [GH-756]
 
 IMPROVEMENTS:
   * core: Populate job status [GH-663]
@@ -15,12 +15,13 @@ IMPROVEMENTS:
   * core: Node class constraint [GH-618]
   * core: User specifiable kill timeout [GH-624]
   * core: Job queueing via blocked evaluations  [GH-726]
+  * core: Only reschedule failed batch allocations [GH-746]
   * core: Add available nodes by DC to AllocMetrics [GH-619]
+  * core: Improve scheduler retry logic under contention [GH-787]
   * core: Computed node class and stack optimization [GH-691, GH-708]
   * core: Improved restart policy with more user configuration [GH-594]
   * core: Periodic specification for jobs [GH-540, GH-657, GH-659, GH-668]
   * core: Batch jobs are garbage collected from the Nomad Servers [GH-586]
-  * core: Only reschedule failed batch allocations [GH-746]
   * core/api: Allow users to set arbitrary headers via agent config [GH-699]
   * core/cli: Prefix based lookups of allocs/nodes/evals/jobs [GH-575]
   * core/cli: Print short identifiers and UX cleanup [GH-675, GH-693, GH-692]
@@ -29,8 +30,8 @@ IMPROVEMENTS:
   * cli: Output of agent-info is sorted [GH-617]
   * cli: Eval monitor detects zero wait condition [GH-776]
   * cli: Ability to navigate allocation directories [GH-709]
-  * client: Handle updates to tasks Restart Policy and KillTimeout [GH-751]
   * client: Create a tmp/ directory inside each task directory [GH-757]
+  * client: Handle updates to tasks Restart Policy and KillTimeout [GH-751]
   * client: Send Node to server when periodic fingerprinters change Node
     attributes/metadata [GH-749]
   * drivers: Interpret Nomad variables in environment variables/args [GH-653]
