@@ -229,7 +229,7 @@ func TestRetryMax(t *testing.T) {
 		calls += 1
 		return false, nil
 	}
-	err := retryMax(3, bad)
+	err := retryMax(3, bad, nil)
 	if err == nil {
 		t.Fatalf("should fail")
 	}
@@ -238,11 +238,28 @@ func TestRetryMax(t *testing.T) {
 	}
 
 	calls = 0
+	first := true
+	reset := func() bool {
+		if calls == 3 && first {
+			first = false
+			return true
+		}
+		return false
+	}
+	err = retryMax(3, bad, reset)
+	if err == nil {
+		t.Fatalf("should fail")
+	}
+	if calls != 6 {
+		t.Fatalf("mis match")
+	}
+
+	calls = 0
 	good := func() (bool, error) {
 		calls += 1
 		return true, nil
 	}
-	err = retryMax(3, good)
+	err = retryMax(3, good, nil)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -50,11 +51,12 @@ type GenericScheduler struct {
 	planner Planner
 	batch   bool
 
-	eval  *structs.Evaluation
-	job   *structs.Job
-	plan  *structs.Plan
-	ctx   *EvalContext
-	stack *GenericStack
+	eval       *structs.Evaluation
+	job        *structs.Job
+	plan       *structs.Plan
+	planResult *structs.PlanResult
+	ctx        *EvalContext
+	stack      *GenericStack
 
 	limitReached bool
 	nextEval     *structs.Evaluation
@@ -99,20 +101,45 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 		return setStatus(s.logger, s.planner, s.eval, s.nextEval, structs.EvalStatusFailed, desc)
 	}
 
-	// Retry up to the maxScheduleAttempts
+	// Retry up to the maxScheduleAttempts and reset if progress is made.
+	progress := func() bool { return progressMade(s.planResult) }
 	limit := maxServiceScheduleAttempts
 	if s.batch {
 		limit = maxBatchScheduleAttempts
 	}
-	if err := retryMax(limit, s.process); err != nil {
+	if err := retryMax(limit, s.process, progress); err != nil {
 		if statusErr, ok := err.(*SetStatusError); ok {
-			return setStatus(s.logger, s.planner, s.eval, s.nextEval, statusErr.EvalStatus, err.Error())
+			// Scheduling was tried but made no forward progress so create a
+			// blocked eval to retry once resources become available.
+			var mErr multierror.Error
+			if err := s.createBlockedEval(); err != nil {
+				mErr.Errors = append(mErr.Errors, err)
+			}
+			if err := setStatus(s.logger, s.planner, s.eval, s.nextEval, statusErr.EvalStatus, err.Error()); err != nil {
+				mErr.Errors = append(mErr.Errors, err)
+			}
+			return mErr.ErrorOrNil()
 		}
 		return err
 	}
 
 	// Update the status to complete
 	return setStatus(s.logger, s.planner, s.eval, s.nextEval, structs.EvalStatusComplete, "")
+}
+
+// createBlockedEval creates a blocked eval and stores it.
+func (s *GenericScheduler) createBlockedEval() error {
+	e := s.ctx.Eligibility()
+	escaped := e.HasEscaped()
+
+	// Only store the eligible classes if the eval hasn't escaped.
+	var classEligibility map[string]bool
+	if !escaped {
+		classEligibility = e.GetClasses()
+	}
+
+	s.blocked = s.eval.BlockedEval(classEligibility, escaped)
+	return s.planner.CreateEval(s.blocked)
 }
 
 // process is wrapped in retryMax to iteratively run the handler until we have no
@@ -163,18 +190,16 @@ func (s *GenericScheduler) process() (bool, error) {
 	// If there are failed allocations, we need to create a blocked evaluation
 	// to place the failed allocations when resources become available.
 	if len(s.plan.FailedAllocs) != 0 && s.blocked == nil {
-		e := s.ctx.Eligibility()
-		classes := e.GetClasses()
-		s.blocked = s.eval.BlockedEval(classes, e.HasEscaped())
-		if err := s.planner.CreateEval(s.blocked); err != nil {
+		if err := s.createBlockedEval(); err != nil {
 			s.logger.Printf("[ERR] sched: %#v failed to make blocked eval: %v", s.eval, err)
 			return false, err
 		}
 		s.logger.Printf("[DEBUG] sched: %#v: failed to place all allocations, blocked eval '%s' created", s.eval, s.blocked.ID)
 	}
 
-	// Submit the plan
+	// Submit the plan and store the results.
 	result, newState, err := s.planner.SubmitPlan(s.plan)
+	s.planResult = result
 	if err != nil {
 		return false, err
 	}
