@@ -85,7 +85,7 @@ func TestExecutor_Start_Wait_Failure_Code(t *testing.T) {
 func TestExecutor_Start_Wait(t *testing.T) {
 	execCmd := ExecCommand{Cmd: "/bin/echo", Args: []string{"hello world"}}
 	ctx := testExecutorContext(t)
-	defer ctx.AllocDir.Destroy()
+	//defer ctx.AllocDir.Destroy()
 	executor := NewExecutor(log.New(os.Stdout, "", log.LstdFlags))
 	ps, err := executor.LaunchCmd(&execCmd, ctx)
 	if err != nil {
@@ -106,7 +106,7 @@ func TestExecutor_Start_Wait(t *testing.T) {
 	}
 
 	expected := "hello world"
-	file := filepath.Join(allocdir.TaskLocal, "web.stdout")
+	file := filepath.Join(allocdir.TaskLocal, "web.stdout.0")
 	absFilePath := filepath.Join(taskDir, file)
 	output, err := ioutil.ReadFile(absFilePath)
 	if err != nil {
@@ -150,7 +150,7 @@ func TestExecutor_IsolationAndConstraints(t *testing.T) {
 	}
 
 	expected := "hello world"
-	file := filepath.Join(allocdir.TaskLocal, "web.stdout")
+	file := filepath.Join(allocdir.TaskLocal, "web.stdout.0")
 	absFilePath := filepath.Join(taskDir, file)
 	output, err := ioutil.ReadFile(absFilePath)
 	if err != nil {
@@ -186,7 +186,7 @@ func TestExecutor_Start_Kill(t *testing.T) {
 		t.Fatalf("No task directory found for task %v", task)
 	}
 
-	file := filepath.Join(allocdir.TaskLocal, "web.stdout")
+	file := filepath.Join(allocdir.TaskLocal, "web.stdout.0")
 	absFilePath := filepath.Join(taskDir, file)
 
 	time.Sleep(time.Duration(tu.TestMultiplier()*2) * time.Second)
