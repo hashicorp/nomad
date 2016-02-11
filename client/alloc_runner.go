@@ -367,6 +367,7 @@ func (r *AllocRunner) Run() {
 		if err := allocDir.Build(tg.Tasks); err != nil {
 			r.logger.Printf("[WARN] client: failed to build task directories: %v", err)
 			r.setStatus(structs.AllocClientStatusFailed, fmt.Sprintf("failed to build task dirs for '%s'", alloc.TaskGroup))
+			r.ctxLock.Unlock()
 			return
 		}
 		r.ctx = driver.NewExecContext(allocDir, r.alloc.ID)
