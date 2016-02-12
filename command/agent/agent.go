@@ -255,11 +255,16 @@ func (a *Agent) setupClient() error {
 	return nil
 }
 
+// reservePortsForClient reservers a range of ports for the client to use when
+// it creates various plugins for log collection, executors, drivers, etc
 func (a *Agent) reservePortsForClient(conf *clientconfig.Config) error {
+	// finding the device name for loopback
 	deviceName, addr, mask, err := a.findLoopbackDevice()
 	if err != nil {
 		return fmt.Errorf("error finding the device name for loopback: %v", err)
 	}
+
+	// seeing if the user has already reserved some resources on this device
 	var nr *structs.NetworkResource
 	if conf.Node.Reserved == nil {
 		conf.Node.Reserved = &structs.Resources{}
@@ -269,6 +274,7 @@ func (a *Agent) reservePortsForClient(conf *clientconfig.Config) error {
 			nr = n
 		}
 	}
+	// If the user hasn't already created the device, we create it
 	if nr == nil {
 		nr = &structs.NetworkResource{
 			Device:        deviceName,
@@ -277,6 +283,8 @@ func (a *Agent) reservePortsForClient(conf *clientconfig.Config) error {
 			ReservedPorts: make([]structs.Port, 0),
 		}
 	}
+	// appending the port ranges we want to use for the client to the list of
+	// reserved ports for this device
 	for i := conf.ClientMinPort; i <= conf.ClientMaxPort; i++ {
 		nr.ReservedPorts = append(nr.ReservedPorts, structs.Port{Label: fmt.Sprintf("plugin-%d", i), Value: int(i)})
 	}
@@ -284,10 +292,11 @@ func (a *Agent) reservePortsForClient(conf *clientconfig.Config) error {
 	return nil
 }
 
+// findLoopbackDevice iterates through all the interfaces on a machine and
+// returns the ip addr, mask of the loopback device
 func (a *Agent) findLoopbackDevice() (string, string, string, error) {
 	var ifcs []net.Interface
 	var err error
-	var deviceName string
 	ifcs, err = net.Interfaces()
 	if err != nil {
 		return "", "", "", err
@@ -295,7 +304,7 @@ func (a *Agent) findLoopbackDevice() (string, string, string, error) {
 	for _, ifc := range ifcs {
 		addrs, err := ifc.Addrs()
 		if err != nil {
-			return deviceName, "", "", err
+			return "", "", "", err
 		}
 		for _, addr := range addrs {
 			var ip net.IP
@@ -306,12 +315,15 @@ func (a *Agent) findLoopbackDevice() (string, string, string, error) {
 				ip = v.IP
 			}
 			if ip.IsLoopback() {
+				if ip.To4() == nil {
+					continue
+				}
 				return ifc.Name, ip.String(), addr.String(), nil
 			}
 		}
 	}
 
-	return deviceName, "", "", err
+	return "", "", "", fmt.Errorf("no loopback devices with IPV4 addr found")
 }
 
 // Leave is used gracefully exit. Clients will inform servers
