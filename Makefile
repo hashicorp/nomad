@@ -11,35 +11,27 @@ EXTERNAL_TOOLS=\
 
 all: test
 
-dev: deps format
+dev: format
 	@NOMAD_DEV=1 sh -c "'$(PWD)/scripts/build.sh'"
 
 bin:
 	@sh -c "'$(PWD)/scripts/build.sh'"
 
-release: updatedeps
+release: 
 	@$(MAKE) bin
 
 cov:
 	gocov test ./... | gocov-html > /tmp/coverage.html
 	open /tmp/coverage.html
 
-deps:
-	@echo "--> Installing build dependencies"
-	@DEP_ARGS="-d -v" sh -c "'$(PWD)/scripts/deps.sh'"
-
-updatedeps: deps
-	@echo "--> Updating build dependencies"
-	@DEP_ARGS="-d -f -u" sh -c "'$(PWD)/scripts/deps.sh'"
-
-test: deps
+test: 
 	@sh -c "'$(PWD)/scripts/test.sh'"
 	@$(MAKE) vet
 
-cover: deps
+cover: 
 	go list ./... | xargs -n1 go test --cover
 
-format: deps
+format:
 	@echo "--> Running go fmt"
 	@go fmt $(PACKAGES)
 
@@ -80,4 +72,4 @@ prepare_docker:
 	sudo apt-get update
 	sudo apt-get install docker-engine=$(DOCKER_VERSION)-0~$(shell lsb_release -cs) -y --force-yes
 
-.PHONY: all bin cov deps integ test vet web web-push test-nodep
+.PHONY: all bin cov integ test vet web web-push test-nodep
