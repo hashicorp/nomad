@@ -611,7 +611,7 @@ func DefaultResources() *Resources {
 	return &Resources{
 		CPU:      100,
 		MemoryMB: 10,
-		DiskMB:   10,
+		DiskMB:   300,
 		IOPS:     0,
 	}
 }
