@@ -85,6 +85,7 @@ job "job1" {
 			driver = "exec"
 			resources = {
 				cpu = 1000
+				disk = 150
 				mem = 512
 			}
 		}

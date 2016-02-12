@@ -1,7 +1,6 @@
 package logrotator
 
 import (
-	"fmt"
 	"io"
 	"io/ioutil"
 	"log"

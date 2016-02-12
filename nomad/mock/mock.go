@@ -106,7 +106,7 @@ func Job() *structs.Job {
 						Resources: &structs.Resources{
 							CPU:      500,
 							MemoryMB: 256,
-							DiskMB:   100,
+							DiskMB:   150,
 							Networks: []*structs.NetworkResource{
 								&structs.NetworkResource{
 									MBits:        50,
