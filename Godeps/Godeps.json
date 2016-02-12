@@ -6,6 +6,10 @@
 	],
 	"Deps": [
 		{
+			"ImportPath": "github.com/DataDog/datadog-go/statsd",
+			"Rev": "bc97e0770ad4edae1c9dc14beb40b79b2dde32f8"
+		},
+		{
 			"ImportPath": "github.com/StackExchange/wmi",
 			"Rev": "f3e2bae1e0cb5aef83e319133eabfee30013a4a5"
 		},
@@ -63,6 +67,15 @@
 			"Rev": "80dd4951fdb3f711d31843b8d87871130ef2df67"
 		},
 		{
+			"ImportPath": "github.com/aws/aws-sdk-go/service/sts",
+			"Comment": "v1.0.6-2-g80dd495",
+			"Rev": "80dd4951fdb3f711d31843b8d87871130ef2df67"
+		},
+		{
+			"ImportPath": "github.com/beorn7/perks/quantile",
+			"Rev": "b965b613227fddccbfffe13eae360ed3fa822f8d"
+		},
+		{
 			"ImportPath": "github.com/bgentry/speakeasy",
 			"Rev": "36e9cfdd690967f4f690c6edcc9ffacd006014a0"
 		},
@@ -92,6 +105,10 @@
 			"Rev": "5d2041e26a699eaca682e2ea41c8f891e1060444"
 		},
 		{
+			"ImportPath": "github.com/dustin/go-humanize",
+			"Rev": "8929fe90cee4b2cb9deb468b51fb34eba64d1bf0"
+		},
+		{
 			"ImportPath": "github.com/fsouza/go-dockerclient",
 			"Rev": "02a8beb401b20e112cff3ea740545960b667eab1"
 		},
@@ -109,6 +126,10 @@
 			"ImportPath": "github.com/godbus/dbus",
 			"Comment": "v3-10-ge4593d6",
 			"Rev": "e4593d66e29678c26f84166fe231a03e0268ced5"
+		},
+		{
+			"ImportPath": "github.com/golang/protobuf/proto",
+			"Rev": "0dfe8f37844c14cb32c7247925270e0f7ba90973"
 		},
 		{
 			"ImportPath": "github.com/gorhill/cronexpr",
@@ -229,6 +250,10 @@
 			"Rev": "56b76bdf51f7708750eac80fa38b952bb9f32639"
 		},
 		{
+			"ImportPath": "github.com/matttproud/golang_protobuf_extensions/pbutil",
+			"Rev": "d0c3fe89de86839aecf2e0579c40ba3bb336a453"
+		},
+		{
 			"ImportPath": "github.com/mcuadros/go-syslog",
 			"Comment": "v2.1.0-7-ge079f55",
 			"Rev": "e079f554382028527e4509d7bb58793b5e98194e"
@@ -267,6 +292,32 @@
 			"ImportPath": "github.com/opencontainers/runc/libcontainer/system",
 			"Comment": "v0.0.7-13-g86454a0",
 			"Rev": "86454a044712a702dc85ef1d18d4eef846e31f7a"
+		},
+		{
+			"ImportPath": "github.com/prometheus/client_golang/prometheus",
+			"Comment": "0.7.0-70-g15006a7",
+			"Rev": "15006a7ed88e73201c4e6142a2e66b54ae5fdf00"
+		},
+		{
+			"ImportPath": "github.com/prometheus/client_model/go",
+			"Comment": "model-0.0.2-12-gfa8ad6f",
+			"Rev": "fa8ad6fec33561be4280a8f0514318c79d7f6cb6"
+		},
+		{
+			"ImportPath": "github.com/prometheus/common/expfmt",
+			"Rev": "23070236b1ebff452f494ae831569545c2b61d26"
+		},
+		{
+			"ImportPath": "github.com/prometheus/common/internal/bitbucket.org/ww/goautoneg",
+			"Rev": "23070236b1ebff452f494ae831569545c2b61d26"
+		},
+		{
+			"ImportPath": "github.com/prometheus/common/model",
+			"Rev": "23070236b1ebff452f494ae831569545c2b61d26"
+		},
+		{
+			"ImportPath": "github.com/prometheus/procfs",
+			"Rev": "406e5b7bfd8201a36e2bb5f7bdae0b03380c2ce8"
 		},
 		{
 			"ImportPath": "github.com/ryanuber/columnize",
@@ -312,7 +363,7 @@
 			"Rev": "50c6bc5e4292a1d4e65c6e9be5f53be28bcbe28e"
 		},
 		{
-			"ImportPath": "gopkg.in/mcuadros/go-syslog.v2/format",
+			"ImportPath": "gopkg.in/mcuadros/go-syslog.v2",
 			"Comment": "v2.1.0",
 			"Rev": "6cba2bfcf64a025c899aa3be061161d2b89d8b54"
 		}
