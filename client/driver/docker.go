@@ -514,7 +514,6 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	if err != nil {
 		return nil, fmt.Errorf("failed to start syslog collector: %v", err)
 	}
-	d.logger.Printf("Started the syslog server at %v", ss.Addr)
 
 	config, err := d.createContainer(ctx, task, &driverConfig, ss.Addr)
 	if err != nil {

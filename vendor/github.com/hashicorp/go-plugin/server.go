@@ -93,7 +93,7 @@ func Serve(opts *ServeConfig) {
 	// Register a listener so we can accept a connection
 	listener, err := serverListener()
 	if err != nil {
-		log.Printf("[ERR] plugin init: %s", err)
+		log.Printf("[ERR] plugin: plugin init: %s", err)
 		return
 	}
 	defer listener.Close()
@@ -106,7 +106,7 @@ func Serve(opts *ServeConfig) {
 	}
 
 	// Output the address and service name to stdout so that core can bring it up.
-	log.Printf("Plugin address: %s %s\n",
+	log.Printf("[DEBUG] plugin: plugin address: %s %s\n",
 		listener.Addr().Network(), listener.Addr().String())
 	fmt.Printf("%d|%d|%s|%s\n",
 		CoreProtocolVersion,
@@ -124,7 +124,7 @@ func Serve(opts *ServeConfig) {
 			<-ch
 			newCount := atomic.AddInt32(&count, 1)
 			log.Printf(
-				"Received interrupt signal (count: %d). Ignoring.",
+				"[DEBUG] plugin: received interrupt signal (count: %d). Ignoring.",
 				newCount)
 		}
 	}()

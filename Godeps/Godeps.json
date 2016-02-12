@@ -159,7 +159,7 @@
 		},
 		{
 			"ImportPath": "github.com/hashicorp/go-plugin",
-			"Rev": "cc3c5ac3d07e36800f72045831637635dd1751e6"
+			"Rev": "cccb4a1328abbb89898f3ecf4311a05bddc4de6d"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/go-syslog",

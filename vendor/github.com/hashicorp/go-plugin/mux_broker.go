@@ -80,7 +80,7 @@ func (m *MuxBroker) Accept(id uint32) (net.Conn, error) {
 func (m *MuxBroker) AcceptAndServe(id uint32, v interface{}) {
 	conn, err := m.Accept(id)
 	if err != nil {
-		log.Printf("[ERR] Plugin acceptAndServe: %s", err)
+		log.Printf("[ERR] plugin: plugin acceptAndServe error: %s", err)
 		return
 	}
 

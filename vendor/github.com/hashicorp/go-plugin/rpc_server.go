@@ -31,7 +31,7 @@ func (s *RPCServer) Accept(lis net.Listener) {
 	for {
 		conn, err := lis.Accept()
 		if err != nil {
-			log.Printf("[ERR] plugin server: %s", err)
+			log.Printf("[ERR] plugin: plugin server: %s", err)
 			return
 		}
 
@@ -47,7 +47,7 @@ func (s *RPCServer) ServeConn(conn io.ReadWriteCloser) {
 	mux, err := yamux.Server(conn, nil)
 	if err != nil {
 		conn.Close()
-		log.Printf("[ERR] plugin: %s", err)
+		log.Printf("[ERR] plugin: error creating yamux server: %s", err)
 		return
 	}
 
@@ -56,7 +56,7 @@ func (s *RPCServer) ServeConn(conn io.ReadWriteCloser) {
 	if err != nil {
 		mux.Close()
 		if err != io.EOF {
-			log.Printf("[ERR] plugin: %s", err)
+			log.Printf("[ERR] plugin: error accepting control connection: %s", err)
 		}
 
 		return
@@ -122,7 +122,7 @@ func (d *dispenseServer) Dispense(
 	go func() {
 		conn, err := d.broker.Accept(id)
 		if err != nil {
-			log.Printf("[ERR] Plugin dispense %s: %s", name, err)
+			log.Printf("[ERR] go-plugin: plugin dispense error: %s: %s", name, err)
 			return
 		}
 
@@ -135,7 +135,7 @@ func (d *dispenseServer) Dispense(
 func serve(conn io.ReadWriteCloser, name string, v interface{}) {
 	server := rpc.NewServer()
 	if err := server.RegisterName(name, v); err != nil {
-		log.Printf("[ERR] Plugin dispense: %s", err)
+		log.Printf("[ERR] go-plugin: plugin dispense error: %s", err)
 		return
 	}
 

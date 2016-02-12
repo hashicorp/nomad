@@ -1,7 +1,6 @@
 package plugin
 
 import (
-	"os"
 	"syscall"
 )
 
@@ -22,8 +21,7 @@ func _pidAlive(pid int) bool {
 	}
 
 	var ec uint32
-	e = syscall.GetExitCodeProcess(h, &ec)
-	if e != nil {
+	if e := syscall.GetExitCodeProcess(h, &ec); e != nil {
 		return false
 	}
 
