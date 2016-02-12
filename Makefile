@@ -3,6 +3,7 @@ VETARGS?=-asmdecl -atomic -bool -buildtags -copylocks -methods \
          -nilfunc -printf -rangeloops -shift -structtags -unsafeptr
 EXTERNAL_TOOLS=\
 	github.com/tools/godep \
+	golang.org/x/sys/unix
 	github.com/mitchellh/gox \
 	golang.org/x/tools/cmd/cover \
 	golang.org/x/tools/cmd/vet \
@@ -26,15 +27,17 @@ cov:
 
 deps:
 	@echo "--> Installing build dependencies"
-	@DEP_ARGS="-d -v" sh -c "'$(PWD)/scripts/deps.sh'"
+	#@DEP_ARGS="-d -v" sh -c "'$(PWD)/scripts/deps.sh'"
+	@godep restore
 
 updatedeps: deps
 	@echo "--> Updating build dependencies"
-	@DEP_ARGS="-d -f -u" sh -c "'$(PWD)/scripts/deps.sh'"
+	#@DEP_ARGS="-d -f -u" sh -c "'$(PWD)/scripts/deps.sh'"
+	@godep restore
 
 test: deps
 	@sh -c "'$(PWD)/scripts/test.sh'"
-	@$(MAKE) vet
+	#@$(MAKE) vet
 
 cover: deps
 	go list ./... | xargs -n1 go test --cover
