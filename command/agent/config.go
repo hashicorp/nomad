@@ -602,6 +602,9 @@ func (a *AdvertiseAddrs) Merge(b *AdvertiseAddrs) *AdvertiseAddrs {
 	if b.Serf != "" {
 		result.Serf = b.Serf
 	}
+	if b.HTTP != "" {
+		result.HTTP = b.HTTP
+	}
 	return &result
 }
 
