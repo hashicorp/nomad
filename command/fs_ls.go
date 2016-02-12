@@ -3,6 +3,8 @@ package command
 import (
 	"fmt"
 	"strings"
+
+	"github.com/dustin/go-humanize"
 )
 
 type FSListCommand struct {
@@ -20,6 +22,11 @@ Usage: nomad fs ls <alloc-id> <path>
 
   ` + generalOptionsUsage() + `
 
+Ls Options:
+
+  -H
+    Machine friendly output.
+
   -verbose
     Show full information.
 
@@ -33,9 +40,11 @@ func (f *FSListCommand) Synopsis() string {
 
 func (f *FSListCommand) Run(args []string) int {
 	var verbose bool
+	var machine bool
 	flags := f.Meta.FlagSet("fs-list", FlagSetClient)
 	flags.Usage = func() { f.Ui.Output(f.Help()) }
 	flags.BoolVar(&verbose, "verbose", false, "")
+	flags.BoolVar(&machine, "H", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -126,9 +135,15 @@ func (f *FSListCommand) Run(args []string) int {
 		if file.IsDir {
 			fn = fmt.Sprintf("%s/", fn)
 		}
-		out[i+1] = fmt.Sprintf("%s|%d|%s|%s",
+		var size string
+		if machine {
+			size = fmt.Sprintf("%d", file.Size)
+		} else {
+			size = humanize.Bytes(uint64(file.Size))
+		}
+		out[i+1] = fmt.Sprintf("%s|%s|%s|%s",
 			file.FileMode,
-			file.Size,
+			size,
 			formatTime(file.ModTime),
 			fn,
 		)

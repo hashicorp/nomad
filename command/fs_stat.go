@@ -3,6 +3,8 @@ package command
 import (
 	"fmt"
 	"strings"
+
+	"github.com/dustin/go-humanize"
 )
 
 type FSStatCommand struct {
@@ -12,13 +14,18 @@ type FSStatCommand struct {
 func (f *FSStatCommand) Help() string {
 	helpText := `
 Usage: nomad fs stat <alloc-id> <path>
-	
+
 	Displays information about an entry in an allocation directory at the given path.
 	The path is relative to the allocation directory and defaults to root if unspecified.
-	
+
 	General Options:
 
   ` + generalOptionsUsage() + `
+
+Stat Options:
+
+  -H
+    Machine friendly output.
 
   -verbose
     Show full information.
@@ -32,9 +39,11 @@ func (f *FSStatCommand) Synopsis() string {
 
 func (f *FSStatCommand) Run(args []string) int {
 	var verbose bool
+	var machine bool
 	flags := f.Meta.FlagSet("fs-list", FlagSetClient)
 	flags.Usage = func() { f.Ui.Output(f.Help()) }
 	flags.BoolVar(&verbose, "verbose", false, "")
+	flags.BoolVar(&machine, "H", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -125,7 +134,13 @@ func (f *FSStatCommand) Run(args []string) int {
 		if file.IsDir {
 			fn = fmt.Sprintf("%s/", fn)
 		}
-		out[1] = fmt.Sprintf("%s|%d|%s|%s", file.FileMode, file.Size,
+		var size string
+		if machine {
+			size = fmt.Sprintf("%d", file.Size)
+		} else {
+			size = humanize.Bytes(uint64(file.Size))
+		}
+		out[1] = fmt.Sprintf("%s|%s|%s|%s", file.FileMode, size,
 			formatTime(file.ModTime), fn)
 	}
 	f.Ui.Output(formatList(out))
