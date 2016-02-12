@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -275,6 +276,7 @@ func (c *Command) setupLoggers(config *Config) (*gatedwriter.Writer, *logWriter,
 		logOutput = io.MultiWriter(c.logFilter, logWriter)
 	}
 	c.logOutput = logOutput
+	log.SetOutput(logOutput)
 	return logGate, logWriter, logOutput
 }
 
