@@ -254,7 +254,7 @@ func TestTask_Validate(t *testing.T) {
 		Driver: "docker",
 		Resources: &Resources{
 			CPU:      100,
-			DiskMB:   100,
+			DiskMB:   200,
 			MemoryMB: 100,
 			IOPS:     10,
 		},
