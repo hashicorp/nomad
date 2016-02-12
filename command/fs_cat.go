@@ -22,6 +22,8 @@ func (f *FSCatCommand) Help() string {
 
   ` + generalOptionsUsage() + `
 
+Cat Options:
+
   -verbose
     Show full information.
 `
