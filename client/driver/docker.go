@@ -614,7 +614,8 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 	if err := json.Unmarshal(pidBytes, pid); err != nil {
 		return nil, fmt.Errorf("Failed to parse handle '%s': %v", handleID, err)
 	}
-	d.logger.Printf("[INFO] driver.docker: re-attaching to docker process: %s", handleID)
+	d.logger.Printf("[INFO] driver.docker: re-attaching to docker process: %s", pid.ContainerID)
+	d.logger.Printf("[DEBUG] driver.docker: re-attached to handle: %s", handleID)
 	pluginConfig := &plugin.ClientConfig{
 		Reattach: pid.PluginConfig.PluginConfig(),
 	}
