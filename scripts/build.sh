@@ -3,6 +3,8 @@
 # This script builds the application from source for multiple platforms.
 set -e
 
+export GO15VENDOREXPERIMENT=1
+
 # Get the parent directory of where this script is.
 SOURCE="${BASH_SOURCE[0]}"
 while [ -h "$SOURCE" ] ; do SOURCE="$(readlink "$SOURCE")"; done
@@ -18,10 +20,6 @@ GIT_DIRTY=$(test -n "`git status --porcelain`" && echo "+CHANGES" || true)
 # Determine the arch/os combos we're building for
 XC_ARCH=${XC_ARCH:-"386 amd64 arm"}
 XC_OS=${XC_OS:-linux darwin windows freebsd openbsd}
-
-# Install dependencies
-echo "==> Getting dependencies..."
-go get ./...
 
 # Delete the old dir
 echo "==> Removing old directory..."

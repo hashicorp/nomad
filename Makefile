@@ -1,4 +1,4 @@
-PACKAGES = $(shell go list ./...)
+PACKAGES = $(shell go list ./... | grep -v '/vendor/')
 VETARGS?=-asmdecl -atomic -bool -buildtags -copylocks -methods \
          -nilfunc -printf -rangeloops -shift -structtags -unsafeptr
 EXTERNAL_TOOLS=\
