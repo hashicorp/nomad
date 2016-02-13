@@ -580,7 +580,7 @@ func TestServiceSched_JobModify_InPlace(t *testing.T) {
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 
 	// Verify the network did not change
-	rp := structs.Port{"main", 5000}
+	rp := structs.Port{Label: "main", Value: 5000}
 	for _, alloc := range out {
 		for _, resources := range alloc.TaskResources {
 			if resources.Networks[0].ReservedPorts[0] != rp {
