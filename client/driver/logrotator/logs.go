@@ -136,7 +136,6 @@ func (l *LogRotator) Start(r io.Reader) error {
 			}
 		}
 	}
-	return nil
 }
 
 // PurgeOldFiles removes older files and keeps only the last N files rotated for

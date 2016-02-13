@@ -320,8 +320,6 @@ func (r *TaskRunner) run() {
 		// Set force start because we are restarting the task.
 		forceStart = true
 	}
-
-	return
 }
 
 // handleUpdate takes an updated allocation and updates internal state to

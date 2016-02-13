@@ -259,8 +259,6 @@ SCAN:
 	case <-b.duplicateCh:
 		goto SCAN
 	}
-
-	return nil
 }
 
 // Flush is used to clear the state of blocked evaluations.
