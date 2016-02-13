@@ -1,13 +1,21 @@
 ## 0.3.0 (UNRELEASED)
 
-BACKWARDS INCOMPATIBILITIES:
-  * core: Improved restart policy with more user configuration [GH-594]
-  * core/cli: Print short identifiers [GH-675]
-  * core/consul: Validate service name doesn't include period [GH-770]
-  * core/jobspec: Variables/constraints interpreted using ${} notation [GH-760]
-  * client: Extract artifacts into the root of the task directory [GH-756]
-  * client: Environment variable containing address for each allocated port
-    [GH-704]
+__BACKWARDS INCOMPATIBILITIES:__
+  * Any users of the runtime environment variable `$NOMAD_PORT_` will need to
+    update to the new `$NOMAD_ADDR_` varriable [GH-704]
+  * Service names that include periods will fail validation. To fix, remove any
+    periods from the service name before running the job [GH-770]
+  * Task resources are now validated and enforce minimum resources. If a job
+    specifies resources below the minimum they will need to be updated [GH-739]
+  * Node ID is no longer specifiable. For users who have set a custom Node
+    ID, the node should be drained before Nomad is updated and the data_dir
+    should be deleted before starting for the first time [GH-675]
+  * Users of custom restart policies should update to the new syntax which adds
+    a `mode` field. The `mode` can be either `fail` or `delay`. The default for
+    `batch` and `service` jobs is `fail` and `delay` respectively [GH-594]
+  * All jobs that interpret variables in constraints or driver configurations
+    will need to be updated to the new syntax which wraps the interpreted
+    variable in curly braces. ($node.class becomes ${node.class}) [GH-760]
 
 IMPROVEMENTS:
   * core: Populate job status [GH-663]
@@ -26,14 +34,15 @@ IMPROVEMENTS:
   * core/cli: Prefix based lookups of allocs/nodes/evals/jobs [GH-575]
   * core/cli: Print short identifiers and UX cleanup [GH-675, GH-693, GH-692]
   * core/client: Client pulls minimum set of required allocations [GH-731]
-  * core/jobspec: Default task resources and validation [GH-739]
   * cli: Output of agent-info is sorted [GH-617]
   * cli: Eval monitor detects zero wait condition [GH-776]
-  * cli: Ability to navigate allocation directories [GH-709]
+  * cli: Ability to navigate allocation directories [GH-709, GH-798]
+  * client: Log rotation for all drivers [GH-685, GH-763]
   * client: Create a tmp/ directory inside each task directory [GH-757]
   * client: Handle updates to tasks Restart Policy and KillTimeout [GH-751]
   * client: Send Node to server when periodic fingerprinters change Node
     attributes/metadata [GH-749]
+  * client/api: File-system access to allocation directories [GH-669]
   * drivers: Interpret Nomad variables in environment variables/args [GH-653]
   * driver/rkt: Add support for CPU/Memory isolation [GH-610]
   * driver/rkt: Add support for mounting alloc/task directory [GH-645]
@@ -113,7 +122,7 @@ BUG FIXES:
 
 ## 0.2.0 (November 18, 2015)
 
-BACKWARDS INCOMPATIBILITIES:
+__BACKWARDS INCOMPATIBILITIES:__
 
   * core: HTTP API `/v1/node/<id>/allocations` returns full Allocation and not
     stub [GH-402]
