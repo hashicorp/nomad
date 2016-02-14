@@ -39,7 +39,7 @@ The following options are available for use in the job specification.
 
 *   `args` - (Optional) A list of arguments to the optional `command`. If no
     `command` is present, `args` are ignored. References to environment variables
-    or any [intepretable Nomad
+    or any [interpretable Nomad
     variables](/docs/jobspec/interpreted.html) will be interpreted
     before launching the task. For example:
 
