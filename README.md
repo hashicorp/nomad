@@ -78,7 +78,8 @@ needed dependencies.
 
 **Developing locally**
 For local dev first make sure Go is properly installed, including setting up a
-[GOPATH](https://golang.org/doc/code.html#GOPATH). After setting up Go, you can
+[GOPATH](https://golang.org/doc/code.html#GOPATH). After setting up Go, clone this 
+repository into `$GOPATH/src/github.com/hashicorp/nomad`. Then you can
 download the required build tools such as vet, cover, godep etc by bootstrapping
 your environment.
 
@@ -87,8 +88,7 @@ $ make bootstrap
 ...
 ```
 
-Next, clone this repository into `$GOPATH/src/github.com/hashicorp/nomad`.
-Then type `make test`. This will run the tests. If this exits with exit status 0,
+Afterwards type `make test`. This will run the tests. If this exits with exit status 0,
 then everything is working!
 
 ```sh
