@@ -290,7 +290,7 @@ func (c *ConstraintChecker) meetsConstraint(constraint *structs.Constraint, opti
 // resolveConstraintTarget is used to resolve the LTarget and RTarget of a Constraint
 func resolveConstraintTarget(target string, node *structs.Node) (interface{}, bool) {
 	// If no prefix, this must be a literal value
-	if !strings.HasPrefix(target, "$") {
+	if !strings.HasPrefix(target, "${") {
 		return target, true
 	}
 
