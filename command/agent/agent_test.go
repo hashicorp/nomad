@@ -198,3 +198,21 @@ func TestAgent_ServerConfig(t *testing.T) {
 		t.Fatalf("should have bootstrap-expect = 3")
 	}
 }
+
+func TestAgent_ClientConfig(t *testing.T) {
+	conf := DefaultConfig()
+	a := &Agent{config: conf}
+	conf.Client.Enabled = true
+	conf.Addresses.HTTP = "127.0.0.1"
+	conf.Ports.HTTP = 5678
+
+	c, err := a.clientConfig()
+	if err != nil {
+		t.Fatalf("got err: %v", err)
+	}
+
+	expectedHttpAddr := "127.0.0.1:5678"
+	if c.Node.HTTPAddr != expectedHttpAddr {
+		t.Fatalf("Expected http addr: %v, got: %v", expectedHttpAddr, c.Node.HTTPAddr)
+	}
+}
