@@ -29,6 +29,10 @@ type AppendEntriesResponse struct {
 
 	// We may not succeed if we have a conflicting entry
 	Success bool
+
+	// There are scenarios where this request didn't succeed
+	// but there's no need to wait/back-off the next attempt.
+	NoRetryBackoff bool
 }
 
 // RequestVoteRequest is the command used by a candidate to ask a Raft peer

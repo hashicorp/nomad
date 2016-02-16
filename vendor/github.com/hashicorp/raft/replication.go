@@ -181,7 +181,11 @@ START:
 	} else {
 		s.nextIndex = max(min(s.nextIndex-1, resp.LastLog+1), 1)
 		s.matchIndex = s.nextIndex - 1
-		s.failures++
+		if resp.NoRetryBackoff {
+			s.failures = 0
+		} else {
+			s.failures++
+		}
 		r.logger.Printf("[WARN] raft: AppendEntries to %v rejected, sending older logs (next: %d)", s.peer, s.nextIndex)
 	}
 

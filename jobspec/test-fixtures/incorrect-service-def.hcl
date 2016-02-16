@@ -74,4 +74,5 @@ job "binstore-storagelocker" {
                 }
             }
         }
+    }
 }

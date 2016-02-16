@@ -107,3 +107,45 @@ is shown below:
 
 The checksum query parameter is never sent to the backend protocol
 implementation. It is used at a higher level by go-getter itself.
+
+### Unarchiving
+
+go-getter will automatically unarchive files into a file or directory
+based on the extension of the file being requested (over any protocol).
+This works for both file and directory downloads.
+
+go-getter looks for an `archive` query parameter to specify the format of
+the archive. If this isn't specified, go-getter will use the extension of
+the path to see if it appears archived. Unarchiving can be explicitly
+disabled by setting the `archive` query parameter to `false`.
+
+The following archive formats are supported:
+
+  * `tar.gz` and `tgz`
+  * `tar.bz2` and `tbz2`
+  * `zip`
+  * `gz`
+  * `bz2`
+
+For example, an example URL is shown below:
+
+```
+./foo.zip
+```
+
+This will automatically be inferred to be a ZIP file and will be extracted.
+You can also be explicit about the archive type:
+
+```
+./some/other/path?archive=zip
+```
+
+And finally, you can disable archiving completely:
+
+```
+./some/path?archive=false
+```
+
+You can combine unarchiving with the other features of go-getter such
+as checksumming. The special `archive` query parameter will be removed
+from the URL before going to the final protocol downloader.

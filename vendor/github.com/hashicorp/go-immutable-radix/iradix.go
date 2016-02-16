@@ -1,6 +1,19 @@
 package iradix
 
-import "bytes"
+import (
+	"bytes"
+
+	"github.com/hashicorp/golang-lru/simplelru"
+)
+
+const (
+	// defaultModifiedCache is the default size of the modified node
+	// cache used per transaction. This is used to cache the updates
+	// to the nodes near the root, while the leaves do not need to be
+	// cached. This is important for very large transactions to prevent
+	// the modified cache from growing to be enormous.
+	defaultModifiedCache = 8192
+)
 
 // Tree implements an immutable radix tree. This can be treated as a
 // Dictionary abstract data type. The main advantage over a standard
@@ -29,7 +42,7 @@ func (t *Tree) Len() int {
 type Txn struct {
 	root     *Node
 	size     int
-	modified map[*Node]struct{}
+	modified *simplelru.LRU
 }
 
 // Txn starts a new transaction that can be used to mutate the tree
@@ -41,18 +54,22 @@ func (t *Tree) Txn() *Txn {
 	return txn
 }
 
-// writeNode returns a ndoe to be modified, if the current
+// writeNode returns a node to be modified, if the current
 // node as already been modified during the course of
 // the transaction, it is used in-place.
 func (t *Txn) writeNode(n *Node) *Node {
 	// Ensure the modified set exists
 	if t.modified == nil {
-		t.modified = make(map[*Node]struct{})
+		lru, err := simplelru.NewLRU(defaultModifiedCache, nil)
+		if err != nil {
+			panic(err)
+		}
+		t.modified = lru
 	}
 
 	// If this node has already been modified, we can
 	// continue to use it during this transaction.
-	if _, ok := t.modified[n]; ok {
+	if _, ok := t.modified.Get(n); ok {
 		return n
 	}
 
@@ -72,7 +89,7 @@ func (t *Txn) writeNode(n *Node) *Node {
 	}
 
 	// Mark this node as modified
-	t.modified[nc] = struct{}{}
+	t.modified.Add(n, nil)
 	return nc
 }
 

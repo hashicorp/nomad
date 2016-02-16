@@ -14,7 +14,7 @@ var versionRegexp *regexp.Regexp
 
 // The raw regular expression string used for testing the validity
 // of a version.
-const VersionRegexpRaw string = `([0-9]+(\.[0-9]+){0,2})` +
+const VersionRegexpRaw string = `v?([0-9]+(\.[0-9]+){0,2})` +
 	`(-([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?` +
 	`(\+([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?` +
 	`?`

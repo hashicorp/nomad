@@ -138,13 +138,13 @@
 		},
 		{
 			"ImportPath": "github.com/hashicorp/consul/api",
-			"Comment": "v0.6.3-28-g3215b87",
-			"Rev": "3215b8727f44c778dd7045dcfd5ac42735c581a9"
+			"Comment": "v0.6.3-119-g0562b95",
+			"Rev": "0562b95a551568e8dd2f93af6c60982f1a252a3a"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/consul/tlsutil",
-			"Comment": "v0.6.3-28-g3215b87",
-			"Rev": "3215b8727f44c778dd7045dcfd5ac42735c581a9"
+			"Comment": "v0.6.3-119-g0562b95",
+			"Rev": "0562b95a551568e8dd2f93af6c60982f1a252a3a"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/errwrap",
@@ -160,15 +160,15 @@
 		},
 		{
 			"ImportPath": "github.com/hashicorp/go-getter",
-			"Rev": "c5e245982bdb4708f89578c8e0054d82b5197401"
+			"Rev": "848242c76c346ef0aeb34787753b068f5f6f92fe"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/go-immutable-radix",
-			"Rev": "aca1bd0689e10884f20d114aff148ddb849ece80"
+			"Rev": "12e90058b2897552deea141eff51bb7a07a09e63"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/go-memdb",
-			"Rev": "31949d523ade8a236956c6f1761e9dcf902d1638"
+			"Rev": "e16093a4c7dd00f7ce4c2452ded2c7e37d8df8be"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/go-msgpack/codec",
@@ -188,11 +188,11 @@
 		},
 		{
 			"ImportPath": "github.com/hashicorp/go-version",
-			"Rev": "7e3c02b30806fa5779d3bdfc152ce4c6f40e7b38"
+			"Rev": "2e7f5ea8e27bb3fdf9baa0881d16757ac4637332"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/hcl",
-			"Rev": "578dd9746824a54637686b51a41bad457a56bcef"
+			"Rev": "1c284ec98f4b398443cbabb0d9197f7f4cc0077c"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/logutils",
@@ -208,7 +208,7 @@
 		},
 		{
 			"ImportPath": "github.com/hashicorp/raft",
-			"Rev": "d136cd15dfb7876fd7c89cad1995bc4f19ceb294"
+			"Rev": "057b893fd996696719e98b6c44649ea14968c811"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/raft-boltdb",
@@ -220,13 +220,13 @@
 		},
 		{
 			"ImportPath": "github.com/hashicorp/serf/coordinate",
-			"Comment": "v0.7.0-12-ge4ec8cc",
-			"Rev": "e4ec8cc423bbe20d26584b96efbeb9102e16d05f"
+			"Comment": "v0.7.0-18-gc4c55f1",
+			"Rev": "c4c55f16bae1aed9b355ad655d3ebf0215734461"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/serf/serf",
-			"Comment": "v0.7.0-12-ge4ec8cc",
-			"Rev": "e4ec8cc423bbe20d26584b96efbeb9102e16d05f"
+			"Comment": "v0.7.0-18-gc4c55f1",
+			"Rev": "c4c55f16bae1aed9b355ad655d3ebf0215734461"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/yamux",

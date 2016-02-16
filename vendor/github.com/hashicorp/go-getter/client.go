@@ -13,6 +13,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	urlhelper "github.com/hashicorp/go-getter/helper/url"
@@ -47,6 +48,10 @@ type Client struct {
 	// If this is nil, then the default Detectors will be used.
 	Detectors []Detector
 
+	// Decompressors is the map of decompressors supported by this client.
+	// If this is nil, then the default value is the Decompressors global.
+	Decompressors map[string]Decompressor
+
 	// Getters is the map of protocols supported by this client. If this
 	// is nil, then the default Getters variable will be used.
 	Getters map[string]Getter
@@ -54,6 +59,15 @@ type Client struct {
 
 // Get downloads the configured source to the destination.
 func (c *Client) Get() error {
+	// Store this locally since there are cases we swap this
+	dir := c.Dir
+
+	// Default decompressor value
+	decompressors := c.Decompressors
+	if decompressors == nil {
+		decompressors = Decompressors
+	}
+
 	// Detect the URL. This is safe if it is already detected.
 	detectors := c.Detectors
 	if detectors == nil {
@@ -105,10 +119,61 @@ func (c *Client) Get() error {
 			"download not supported for scheme '%s'", force)
 	}
 
+	// We have magic query parameters that we use to signal different features
+	q := u.Query()
+
+	// Determine if we have an archive type
+	archiveV := q.Get("archive")
+	if archiveV != "" {
+		// Delete the paramter since it is a magic parameter we don't
+		// want to pass on to the Getter
+		q.Del("archive")
+		u.RawQuery = q.Encode()
+
+		// If we can parse the value as a bool and it is false, then
+		// set the archive to "-" which should never map to a decompressor
+		if b, err := strconv.ParseBool(archiveV); err == nil && !b {
+			archiveV = "-"
+		}
+	}
+	if archiveV == "" {
+		// We don't appear to... but is it part of the filename?
+		matchingLen := 0
+		for k, _ := range decompressors {
+			if strings.HasSuffix(u.Path, k) && len(k) > matchingLen {
+				archiveV = k
+				matchingLen = len(k)
+			}
+		}
+	}
+
+	// If we have a decompressor, then we need to change the destination
+	// to download to a temporary path. We unarchive this into the final,
+	// real path.
+	var decompressDst string
+	var decompressDir bool
+	decompressor := decompressors[archiveV]
+	if decompressor != nil {
+		// Create a temporary directory to store our archive. We delete
+		// this at the end of everything.
+		td, err := ioutil.TempDir("", "getter")
+		if err != nil {
+			return fmt.Errorf(
+				"Error creating temporary directory for archive: %s", err)
+		}
+		defer os.RemoveAll(td)
+
+		// Swap the download directory to be our temporary path and
+		// store the old values.
+		decompressDst = dst
+		decompressDir = dir
+		dst = filepath.Join(td, "archive")
+		dir = false
+	}
+
 	// Determine if we have a checksum
 	var checksumHash hash.Hash
 	var checksumValue []byte
-	q := u.Query()
 	if v := q.Get("checksum"); v != "" {
 		// Delete the query parameter if we have it.
 		q.Del("checksum")
@@ -116,7 +181,7 @@ func (c *Client) Get() error {
 
 		// If we're getting a directory, then this is an error. You cannot
 		// checksum a directory. TODO: test
-		if c.Dir {
+		if dir {
 			return fmt.Errorf(
 				"checksum cannot be specified for directory download")
 		}
@@ -153,25 +218,51 @@ func (c *Client) Get() error {
 
 	// If we're not downloading a directory, then just download the file
 	// and return.
-	if !c.Dir {
+	if !dir {
 		err := g.GetFile(dst, u)
 		if err != nil {
 			return err
 		}
 
 		if checksumHash != nil {
-			return checksum(dst, checksumHash, checksumValue)
+			if err := checksum(dst, checksumHash, checksumValue); err != nil {
+				return err
+			}
 		}
 
-		return nil
+		if decompressor != nil {
+			// We have a decompressor, so decompress the current destination
+			// into the final destination with the proper mode.
+			err := decompressor.Decompress(decompressDst, dst, decompressDir)
+			if err != nil {
+				return err
+			}
+
+			// Swap the information back
+			dst = decompressDst
+			dir = decompressDir
+		}
+
+		// We check the dir value again because it can be switched back
+		// if we were unarchiving. If we're still only Get-ing a file, then
+		// we're done.
+		if !dir {
+			return nil
+		}
 	}
 
-	// We're downloading a directory, which might require a bit more work
-	// if we're specifying a subdir.
-	err = g.Get(dst, u)
-	if err != nil {
-		err = fmt.Errorf("error downloading '%s': %s", src, err)
-		return err
+	// If we're at this point we're either downloading a directory or we've
+	// downloaded and unarchived a directory and we're just checking subdir.
+	// In the case we have a decompressor we don't Get because it was Get
+	// above.
+	if decompressor == nil {
+		// We're downloading a directory, which might require a bit more work
+		// if we're specifying a subdir.
+		err := g.Get(dst, u)
+		if err != nil {
+			err = fmt.Errorf("error downloading '%s': %s", src, err)
+			return err
+		}
 	}
 
 	// If we have a subdir, copy that over
