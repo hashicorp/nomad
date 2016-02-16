@@ -639,8 +639,8 @@ func (r *Resources) Merge(other *Resources) {
 // the minimum allowed.
 func (r *Resources) MeetsMinResources() error {
 	var mErr multierror.Error
-	if r.CPU < 100 {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum CPU value is 100; got %d", r.CPU))
+	if r.CPU < 20 {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum CPU value is 20; got %d", r.CPU))
 	}
 	if r.MemoryMB < 10 {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum MemoryMB value is 10; got %d", r.MemoryMB))
