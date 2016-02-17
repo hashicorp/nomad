@@ -30,6 +30,10 @@ IMPROVEMENTS:
   * core: Improved restart policy with more user configuration [GH-594]
   * core: Periodic specification for jobs [GH-540, GH-657, GH-659, GH-668]
   * core: Batch jobs are garbage collected from the Nomad Servers [GH-586]
+  * core: Free half the CPUs on leader node for use in plan queue and evaluation
+    broker [GH-812]
+  * core: Seed random number generator used to randomize node traversal order
+    during scheduling [GH-808]
   * core/api: Allow users to set arbitrary headers via agent config [GH-699]
   * core/cli: Prefix based lookups of allocs/nodes/evals/jobs [GH-575]
   * core/cli: Print short identifiers and UX cleanup [GH-675, GH-693, GH-692]
@@ -39,7 +43,10 @@ IMPROVEMENTS:
   * cli: Ability to navigate allocation directories [GH-709, GH-798]
   * client: Log rotation for all drivers [GH-685, GH-763]
   * client: Create a tmp/ directory inside each task directory [GH-757]
+  * client: Heartbeating and saving state resilient under high load [GH-811]
   * client: Handle updates to tasks Restart Policy and KillTimeout [GH-751]
+  * client: Killing a driver handle is retried with an exponential backoff
+    [GH-809]
   * client: Send Node to server when periodic fingerprinters change Node
     attributes/metadata [GH-749]
   * client/api: File-system access to allocation directories [GH-669]
