@@ -232,6 +232,9 @@ func (h *execHandle) Update(task *structs.Task) error {
 
 func (h *execHandle) Kill() error {
 	if err := h.executor.ShutDown(); err != nil {
+		if h.pluginClient.Exited() {
+			return nil
+		}
 		return fmt.Errorf("executor Shutdown failed: %v", err)
 	}
 
