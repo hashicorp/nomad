@@ -243,7 +243,7 @@ func TestRktDriver_Start_Wait_Logs(t *testing.T) {
 	if !ok {
 		t.Fatalf("Could not find task directory for task: %v", task)
 	}
-	stdout := filepath.Join(taskDir, allocdir.TaskLocal, fmt.Sprintf("%v.stdout", task.Name))
+	stdout := filepath.Join(taskDir, allocdir.TaskLocal, fmt.Sprintf("%v.stdout.0", task.Name))
 	data, err := ioutil.ReadFile(stdout)
 	if err != nil {
 		t.Fatalf("Failed to read tasks stdout: %v", err)
