@@ -150,34 +150,9 @@ func (a *Agent) serverConfig() (*nomad.Config, error) {
 	return conf, nil
 }
 
-// setupServer is used to setup the server if enabled
-func (a *Agent) setupServer() error {
-	if !a.config.Server.Enabled {
-		return nil
-	}
-
-	// Setup the configuration
-	conf, err := a.serverConfig()
-	if err != nil {
-		return fmt.Errorf("server config setup failed: %s", err)
-	}
-
-	// Create the server
-	server, err := nomad.NewServer(conf)
-	if err != nil {
-		return fmt.Errorf("server setup failed: %v", err)
-	}
-
-	a.server = server
-	return nil
-}
-
-// setupClient is used to setup the client if enabled
-func (a *Agent) setupClient() error {
-	if !a.config.Client.Enabled {
-		return nil
-	}
-
+// clientConfig is used to generate a new client configuration struct
+// for initializing a nomad client.
+func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	// Setup the configuration
 	conf := a.config.ClientConfig
 	if conf == nil {
@@ -212,7 +187,7 @@ func (a *Agent) setupClient() error {
 	if a.config.Client.MaxKillTimeout != "" {
 		dur, err := time.ParseDuration(a.config.Client.MaxKillTimeout)
 		if err != nil {
-			return fmt.Errorf("Error parsing retry interval: %s", err)
+			return nil, fmt.Errorf("Error parsing retry interval: %s", err)
 		}
 		conf.MaxKillTimeout = dur
 	}
@@ -227,19 +202,54 @@ func (a *Agent) setupClient() error {
 	conf.Node.NodeClass = a.config.Client.NodeClass
 	httpAddr := fmt.Sprintf("%s:%d", a.config.BindAddr, a.config.Ports.HTTP)
 	if a.config.Addresses.HTTP != "" && a.config.AdvertiseAddrs.HTTP == "" {
-		addr, err := net.ResolveTCPAddr("tcp", a.config.Addresses.HTTP)
-		if err != nil {
-			return fmt.Errorf("error resolving http addr: %v:", err)
+		httpAddr = fmt.Sprintf("%s:%d", a.config.Addresses.HTTP, a.config.Ports.HTTP)
+		if _, err := net.ResolveTCPAddr("tcp", httpAddr); err != nil {
+			return nil, fmt.Errorf("error resolving http addr: %v:", err)
 		}
-		httpAddr = fmt.Sprintf("%s:%d", addr.IP.String(), addr.Port)
 	} else if a.config.AdvertiseAddrs.HTTP != "" {
 		addr, err := net.ResolveTCPAddr("tcp", a.config.AdvertiseAddrs.HTTP)
 		if err != nil {
-			return fmt.Errorf("error resolving advertise http addr: %v", err)
+			return nil, fmt.Errorf("error resolving advertise http addr: %v", err)
 		}
 		httpAddr = fmt.Sprintf("%s:%d", addr.IP.String(), addr.Port)
 	}
 	conf.Node.HTTPAddr = httpAddr
+	return conf, nil
+}
+
+// setupServer is used to setup the server if enabled
+func (a *Agent) setupServer() error {
+	if !a.config.Server.Enabled {
+		return nil
+	}
+
+	// Setup the configuration
+	conf, err := a.serverConfig()
+	if err != nil {
+		return fmt.Errorf("server config setup failed: %s", err)
+	}
+
+	// Create the server
+	server, err := nomad.NewServer(conf)
+	if err != nil {
+		return fmt.Errorf("server setup failed: %v", err)
+	}
+
+	a.server = server
+	return nil
+}
+
+// setupClient is used to setup the client if enabled
+func (a *Agent) setupClient() error {
+	if !a.config.Client.Enabled {
+		return nil
+	}
+
+	// Setup the configuration
+	conf, err := a.clientConfig()
+	if err != nil {
+		return fmt.Errorf("client setup failed: %v", err)
+	}
 
 	// Reserve some ports for the plugins
 	if err := a.reservePortsForClient(conf); err != nil {
