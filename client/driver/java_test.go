@@ -191,11 +191,10 @@ func TestJavaDriver_Start_Kill_Wait(t *testing.T) {
 		}
 	case <-time.After(time.Duration(testutil.TestMultiplier()*10) * time.Second):
 		t.Fatalf("timeout")
-	}
 
-	// need to kill long lived process
-	err = handle.Kill()
-	if err != nil {
-		t.Fatalf("Error: %s", err)
+		// Need to kill long lived process
+		if err = handle.Kill(); err != nil {
+			t.Fatalf("Error: %s", err)
+		}
 	}
 }

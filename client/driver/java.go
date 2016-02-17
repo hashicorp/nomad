@@ -282,12 +282,25 @@ func (h *javaHandle) Update(task *structs.Task) error {
 }
 
 func (h *javaHandle) Kill() error {
-	h.executor.ShutDown()
+	if err := h.executor.ShutDown(); err != nil {
+		if h.pluginClient.Exited() {
+			return nil
+		}
+		return fmt.Errorf("executor Shutdown failed: %v", err)
+	}
+
 	select {
 	case <-h.doneCh:
 		return nil
 	case <-time.After(h.killTimeout):
-		return h.executor.Exit()
+		if h.pluginClient.Exited() {
+			return nil
+		}
+		if err := h.executor.Exit(); err != nil {
+			return fmt.Errorf("executor Exit failed: %v", err)
+		}
+
+		return nil
 	}
 }
 

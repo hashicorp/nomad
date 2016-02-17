@@ -19,6 +19,20 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 )
 
+const (
+	// killBackoffBaseline is the baseline time for exponential backoff while
+	// killing a task.
+	killBackoffBaseline = 5 * time.Second
+
+	// killBackoffLimit is the the limit of the exponential backoff for killing
+	// the task.
+	killBackoffLimit = 5 * time.Minute
+
+	// killFailureLimit is how many times we will attempt to kill a task before
+	// giving up and potentially leaking resources.
+	killFailureLimit = 10
+)
+
 // TaskRunner is used to wrap a task within an allocation and provide the execution context.
 type TaskRunner struct {
 	config         *config.Config
@@ -258,17 +272,23 @@ func (r *TaskRunner) run() {
 					r.logger.Printf("[ERR] client: update to task %q failed: %v", r.task.Name, err)
 				}
 			case <-r.destroyCh:
-				// Avoid destroying twice
-				if destroyed {
-					continue
+				// Kill the task using an exponential backoff in-case of failures.
+				destroySuccess, err := r.handleDestroy()
+				if !destroySuccess {
+					// We couldn't successfully destroy the resource created.
+					r.logger.Printf("[ERR] client: failed to kill task %q. Resources may have been leaked: %v", r.task.Name, err)
+				} else {
+					// Wait for the task to exit but cap the time to ensure we don't block.
+					select {
+					case waitRes = <-r.handle.WaitCh():
+					case <-time.After(3 * time.Second):
+					}
 				}
 
-				// Send the kill signal, and use the WaitCh to block until complete
-				if err := r.handle.Kill(); err != nil {
-					r.logger.Printf("[ERR] client: failed to kill task '%s' for alloc '%s': %v", r.task.Name, r.alloc.ID, err)
-					destroyErr = err
-				}
+				// Store that the task has been destroyed and any associated error.
 				destroyed = true
+				destroyErr = err
+				break OUTER
 			}
 		}
 
@@ -380,6 +400,31 @@ func (r *TaskRunner) handleUpdate(update *structs.Allocation) error {
 	r.alloc = update
 	r.task = updatedTask
 	return mErr.ErrorOrNil()
+}
+
+// handleDestroy kills the task handle. In the case that killing fails,
+// handleDestroy will retry with an exponential backoff and will give up at a
+// given limit. It returns whether the task was destroyed and the error
+// associated with the last kill attempt.
+func (r *TaskRunner) handleDestroy() (destroyed bool, err error) {
+	// Cap the number of times we attempt to kill the task.
+	for i := 0; i < killFailureLimit; i++ {
+		if err = r.handle.Kill(); err != nil {
+			// Calculate the new backoff
+			backoff := (1 << (2 * uint64(i))) * killBackoffBaseline
+			if backoff > killBackoffLimit {
+				backoff = killBackoffLimit
+			}
+
+			r.logger.Printf("[ERR] client: failed to kill task '%s' for alloc %q. Retrying in %v: %v",
+				r.task.Name, r.alloc.ID, backoff, err)
+			time.Sleep(time.Duration(backoff))
+		} else {
+			// Kill was successful
+			return true, nil
+		}
+	}
+	return
 }
 
 // Helper function for converting a WaitResult into a TaskTerminated event.
