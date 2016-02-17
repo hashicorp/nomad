@@ -142,4 +142,3 @@ func seedRandom() error {
 	rand.Seed(n.Int64())
 	return nil
 }
-
