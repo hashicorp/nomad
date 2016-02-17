@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math/rand"
 	"net"
 	"net/rpc"
 	"os"
@@ -246,6 +247,9 @@ func NewServer(config *Config) (*Server, error) {
 
 	// Emit metrics
 	go s.heartbeatStats()
+
+	// Seed the global random.
+	rand.Seed(time.Now().UnixNano())
 
 	// Done
 	return s, nil
