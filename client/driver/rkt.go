@@ -229,7 +229,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		LogConfig:        task.LogConfig,
 	}
 
-	ps, err := exec.LaunchCmd(&executor.ExecCommand{Cmd: "/usr/bin/rkt", Args: cmdArgs}, executorCtx)
+	ps, err := exec.LaunchCmd(&executor.ExecCommand{Cmd: "rkt", Args: cmdArgs}, executorCtx)
 	if err != nil {
 		pluginClient.Kill()
 		return nil, fmt.Errorf("error starting process via the plugin: %v", err)
