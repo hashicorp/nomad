@@ -18,8 +18,8 @@ ARCH=`uname -m | sed 's|i686|386|' | sed 's|x86_64|amd64|'`
 
 # Install Go
 cd /tmp
-wget -q https://storage.googleapis.com/golang/go1.5.2.linux-${ARCH}.tar.gz
-tar -xf go1.5.2.linux-${ARCH}.tar.gz
+wget -q https://storage.googleapis.com/golang/go1.6.linux-${ARCH}.tar.gz
+tar -xf go1.6.linux-${ARCH}.tar.gz
 sudo mv go $SRCROOT
 sudo chmod 775 $SRCROOT
 sudo chown vagrant:vagrant $SRCROOT
