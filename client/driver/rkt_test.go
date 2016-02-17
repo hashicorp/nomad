@@ -3,7 +3,6 @@ package driver
 import (
 	"fmt"
 	"io/ioutil"
-	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -13,7 +12,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 
-	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	ctestutils "github.com/hashicorp/nomad/client/testutil"
 )
 
@@ -29,22 +27,6 @@ func TestRktVersionRegex(t *testing.T) {
 	}
 	if appcMatches[1] != expected_appc {
 		fmt.Printf("Test failed; got %q; want %q\n", appcMatches[1], expected_appc)
-	}
-}
-
-func TestRktDriver_Handle(t *testing.T) {
-	h := &rktHandle{
-		proc:        &os.Process{Pid: 123},
-		image:       "foo",
-		killTimeout: 5 * time.Nanosecond,
-		doneCh:      make(chan struct{}),
-		waitCh:      make(chan *cstructs.WaitResult, 1),
-	}
-
-	actual := h.ID()
-	expected := `Rkt:{"Pid":123,"Image":"foo","KillTimeout":5}`
-	if actual != expected {
-		t.Errorf("Expected `%s`, found `%s`", expected, actual)
 	}
 }
 
@@ -84,6 +66,10 @@ func TestRktDriver_Start(t *testing.T) {
 			"image":        "coreos.com/etcd:v2.0.4",
 			"command":      "/etcd",
 		},
+                LogConfig: &structs.LogConfig{
+                        MaxFiles:      10,
+                        MaxFileSizeMB: 10,
+                },
 		Resources: &structs.Resources{
 			MemoryMB: 128,
 			CPU:      100,
@@ -124,6 +110,10 @@ func TestRktDriver_Start_Wait(t *testing.T) {
 			"command":      "/etcd",
 			"args":         []string{"--version"},
 		},
+                LogConfig: &structs.LogConfig{
+                        MaxFiles:      10,
+                        MaxFileSizeMB: 10,
+                },
 		Resources: &structs.Resources{
 			MemoryMB: 128,
 			CPU:      100,
@@ -168,6 +158,10 @@ func TestRktDriver_Start_Wait_Skip_Trust(t *testing.T) {
 			"command": "/etcd",
 			"args":    []string{"--version"},
 		},
+                LogConfig: &structs.LogConfig{
+                        MaxFiles:      10,
+                        MaxFileSizeMB: 10,
+                },
 		Resources: &structs.Resources{
 			MemoryMB: 128,
 			CPU:      100,
@@ -213,6 +207,10 @@ func TestRktDriver_Start_Wait_Logs(t *testing.T) {
 			"command":      "/etcd",
 			"args":         []string{"--version"},
 		},
+                LogConfig: &structs.LogConfig{
+                        MaxFiles:      10,
+                        MaxFileSizeMB: 10,
+                },
 		Resources: &structs.Resources{
 			MemoryMB: 128,
 			CPU:      100,
