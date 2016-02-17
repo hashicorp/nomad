@@ -3,14 +3,10 @@
 package logcollector
 
 import (
-	"bufio"
 	"fmt"
 	"log"
 	"log/syslog"
 	"strconv"
-	"time"
-
-	"github.com/jeromer/syslogparser"
 )
 
 // Errors related to parsing priority
@@ -29,6 +25,12 @@ const (
 	PRI_PART_END   = '>'
 )
 
+// SyslogMessage represents a log line received
+type SyslogMessage struct {
+	Message  []byte
+	Severity syslog.Priority
+}
+
 // Priority holds all the priority bits in a syslog log line
 type Priority struct {
 	Pri      int
@@ -38,32 +40,21 @@ type Priority struct {
 
 // DockerLogParser parses a line of log message that the docker daemon ships
 type DockerLogParser struct {
-	line     []byte
-	content  []byte
-	severity Priority
-
-	log *log.Logger
+	logger *log.Logger
 }
 
 // NewDockerLogParser creates a new DockerLogParser
-func NewDockerLogParser(line []byte) *DockerLogParser {
-	return &DockerLogParser{line: line}
+func NewDockerLogParser(logger *log.Logger) *DockerLogParser {
+	return &DockerLogParser{logger: logger}
 }
 
 // Parse parses a syslog log line
-func (d *DockerLogParser) Parse() error {
-	severity, _, _ := d.parsePriority(d.line)
-	msgIdx := d.logContentIndex(d.line)
-	d.severity = severity
-	d.content = d.line[msgIdx:]
-	return nil
-}
-
-// Dump creates a map of the parsed log line and severity
-func (d *DockerLogParser) Dump() syslogparser.LogParts {
-	return map[string]interface{}{
-		"content":  d.content,
-		"severity": d.severity,
+func (d *DockerLogParser) Parse(line []byte) *SyslogMessage {
+	pri, _, _ := d.parsePriority(line)
+	msgIdx := d.logContentIndex(line)
+	return &SyslogMessage{
+		Severity: pri.Severity,
+		Message:  line[msgIdx:],
 	}
 }
 
@@ -142,20 +133,4 @@ func (d *DockerLogParser) newPriority(p int) Priority {
 		Facility: syslog.Priority(p / 8),
 		Severity: syslog.Priority(p % 8),
 	}
-}
-
-func (d *DockerLogParser) Location(location *time.Location) {
-}
-
-// CustomParser is a parser to parse docker syslog lines
-type CustomParser struct {
-	logger *log.Logger
-}
-
-func (c *CustomParser) GetParser(line []byte) syslogparser.LogParser {
-	return NewDockerLogParser(line)
-}
-
-func (c *CustomParser) GetSplitFunc() bufio.SplitFunc {
-	return nil
 }

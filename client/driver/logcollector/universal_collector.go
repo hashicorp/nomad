@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
-	s1 "log/syslog"
+	"log/syslog"
 	"net"
 	"path/filepath"
 
@@ -14,7 +14,6 @@ import (
 	"github.com/hashicorp/nomad/client/driver/executor"
 	"github.com/hashicorp/nomad/client/driver/logrotator"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/mcuadros/go-syslog"
 )
 
 // LogCollectorContext holds context to configure the syslog server
@@ -62,7 +61,7 @@ type SyslogCollector struct {
 
 	lro     *logrotator.LogRotator
 	lre     *logrotator.LogRotator
-	server  *syslog.Server
+	server  *SyslogServer
 	taskDir string
 
 	logger *log.Logger
@@ -76,27 +75,21 @@ func NewSyslogCollector(logger *log.Logger) *SyslogCollector {
 // LaunchCollector launches a new syslog server and starts writing log lines to
 // files and rotates them
 func (s *SyslogCollector) LaunchCollector(ctx *LogCollectorContext) (*SyslogCollectorState, error) {
-	addr, err := s.getFreePort(ctx.PortLowerBound, ctx.PortUpperBound)
+	l, err := s.getListener(ctx.PortLowerBound, ctx.PortUpperBound)
 	if err != nil {
 		return nil, err
 	}
-	s.logger.Printf("[DEBUG] sylog-server: launching syslog server on addr: %v", addr)
+	s.logger.Printf("[DEBUG] sylog-server: launching syslog server on addr: %v", l.Addr().String())
 	s.ctx = ctx
 	// configuring the task dir
 	if err := s.configureTaskDir(); err != nil {
 		return nil, err
 	}
 
-	channel := make(syslog.LogPartsChannel)
-	handler := syslog.NewChannelHandler(channel)
-
-	s.server = syslog.NewServer()
-	s.server.SetFormat(&CustomParser{logger: s.logger})
-	s.server.SetHandler(handler)
-	s.server.ListenTCP(addr.String())
-	if err := s.server.Boot(); err != nil {
-		return nil, err
-	}
+	channel := make(chan *SyslogMessage)
+	syslogServer := NewSyslogServer(l, channel, s.logger)
+	s.server = syslogServer
+	go syslogServer.Start()
 	logFileSize := int64(ctx.LogConfig.MaxFileSizeMB * 1024 * 1024)
 
 	ro, wo := io.Pipe()
@@ -119,26 +112,26 @@ func (s *SyslogCollector) LaunchCollector(ctx *LogCollectorContext) (*SyslogColl
 	s.lre = lre
 	go lre.Start(re)
 
-	go func(channel syslog.LogPartsChannel) {
+	go func(channel chan *SyslogMessage) {
 		for logParts := range channel {
 			// If the severity of the log line is err then we write to stderr
 			// otherwise all messages go to stdout
-			s := logParts["severity"].(Priority)
-			if s.Severity == s1.LOG_ERR {
-				we.Write(logParts["content"].([]byte))
+			if logParts.Severity == syslog.LOG_ERR {
+				we.Write(logParts.Message)
+				we.Write([]byte("\n"))
 			} else {
-				wo.Write(logParts["content"].([]byte))
+				wo.Write(logParts.Message)
+				wo.Write([]byte("\n"))
 			}
-			wo.Write([]byte("\n"))
 		}
 	}(channel)
-	go s.server.Wait()
-	return &SyslogCollectorState{Addr: addr.String()}, nil
+	return &SyslogCollectorState{Addr: l.Addr().String()}, nil
 }
 
 // Exit kills the syslog server
 func (s *SyslogCollector) Exit() error {
-	return s.server.Kill()
+	s.server.Shutdown()
+	return nil
 }
 
 // UpdateLogConfig updates the log configuration
@@ -170,7 +163,7 @@ func (s *SyslogCollector) configureTaskDir() error {
 
 // getFreePort returns a free port ready to be listened on between upper and
 // lower bounds
-func (s *SyslogCollector) getFreePort(lowerBound uint, upperBound uint) (net.Addr, error) {
+func (s *SyslogCollector) getListener(lowerBound uint, upperBound uint) (net.Listener, error) {
 	for i := lowerBound; i <= upperBound; i++ {
 		addr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("localhost:%v", i))
 		if err != nil {
@@ -180,8 +173,7 @@ func (s *SyslogCollector) getFreePort(lowerBound uint, upperBound uint) (net.Add
 		if err != nil {
 			continue
 		}
-		defer l.Close()
-		return l.Addr(), nil
+		return l, nil
 	}
 	return nil, fmt.Errorf("No free port found")
 }
