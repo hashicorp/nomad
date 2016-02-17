@@ -98,10 +98,13 @@ WAIT:
 // previously inflight transactions have been commited and that our
 // state is up-to-date.
 func (s *Server) establishLeadership(stopCh chan struct{}) error {
-	// If we have multiple workers, disable one to free processing
-	// for the plan queue and evaluation broker
-	if len(s.workers) > 1 {
-		s.workers[0].SetPause(true)
+	// Disable workers to free half the cores for use in the plan queue and
+	// evaluation broker
+	if numWorkers := len(s.workers); numWorkers > 1 {
+		// Disabling half the workers frees half the CPUs.
+		for i := 0; i < numWorkers / 2; i++ {
+			s.workers[i].SetPause(true)
+		}
 	}
 
 	// Enable the plan queue, since we are now the leader
@@ -363,7 +366,9 @@ func (s *Server) revokeLeadership() error {
 
 	// Unpause our worker if we paused previously
 	if len(s.workers) > 1 {
-		s.workers[0].SetPause(false)
+		for i := 0; i < len(s.workers) / 2; i++ {
+			s.workers[i].SetPause(false)
+		}
 	}
 	return nil
 }
