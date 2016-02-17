@@ -2,6 +2,8 @@ package nomad
 
 import (
 	"fmt"
+	"math"
+	"math/big"
 	"math/rand"
 	"net"
 	"os"
@@ -9,6 +11,8 @@ import (
 	"runtime"
 	"strconv"
 	"time"
+
+	crand "crypto/rand"
 
 	"github.com/hashicorp/serf/serf"
 )
@@ -126,4 +130,15 @@ func rateScaledInterval(rate float64, min time.Duration, n int) time.Duration {
 		return min
 	}
 	return interval
+}
+
+// seedRandom seeds the global random variable using a cryptographically random
+// seed. It returns an error if determing the random seed fails.
+func seedRandom() error {
+	n, err := crand.Int(crand.Reader, big.NewInt(math.MaxInt64))
+	if err != nil {
+		return err
+	}
+	rand.Seed(n.Int64())
+	return nil
 }
