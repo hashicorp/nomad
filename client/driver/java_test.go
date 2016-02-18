@@ -28,7 +28,9 @@ func TestJavaDriver_Fingerprint(t *testing.T) {
 	driverCtx, _ := testDriverContexts(&structs.Task{Name: "foo"})
 	d := NewJavaDriver(driverCtx)
 	node := &structs.Node{
-		Attributes: make(map[string]string),
+		Attributes: map[string]string{
+			"unique.cgroup.mountpoint": "/sys/fs/cgroups",
+		},
 	}
 	apply, err := d.Fingerprint(&config.Config{}, node)
 	if err != nil {
