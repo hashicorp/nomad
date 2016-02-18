@@ -61,8 +61,8 @@ func NewJavaDriver(ctx *DriverContext) Driver {
 }
 
 func (d *JavaDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
-	// Only enable if we are root when running on non-windows systems.
-	if runtime.GOOS == "linux" && syscall.Geteuid() != 0 {
+	// Only enable if we are root and cgroups are mounted when running on linux systems.
+	if runtime.GOOS == "linux" && (syscall.Geteuid() != 0 || !d.cgroupsMounted(node)) {
 		d.logger.Printf("[DEBUG] driver.java: must run as root user on linux, disabling")
 		return false, nil
 	}
@@ -167,9 +167,12 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		AllocDir:         ctx.AllocDir,
 		TaskName:         task.Name,
 		TaskResources:    task.Resources,
-		UnprivilegedUser: true,
 		LogConfig:        task.LogConfig,
+		FSIsolation:      true,
+		UnprivilegedUser: true,
+		ResourceLimits:   true,
 	}
+
 	ps, err := exec.LaunchCmd(&executor.ExecCommand{Cmd: "java", Args: args}, executorCtx)
 	if err != nil {
 		pluginClient.Kill()
@@ -193,6 +196,13 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 
 	go h.run()
 	return h, nil
+}
+
+// cgroupsMounted returns true if the cgroups are mounted on a system otherwise
+// returns false
+func (d *JavaDriver) cgroupsMounted(node *structs.Node) bool {
+	_, ok := node.Attributes["unique.cgroup.mountpoint"]
+	return ok
 }
 
 type javaId struct {
