@@ -393,6 +393,8 @@ func (c *Client) Stats() map[string]map[string]string {
 
 // Node returns the locally registered node
 func (c *Client) Node() *structs.Node {
+	c.configLock.RLock()
+	defer c.configLock.RUnlock()
 	return c.config.Node
 }
 
@@ -758,6 +760,12 @@ func (c *Client) registerNode() error {
 		}
 		return err
 	}
+
+	// Update the node status to ready after we register.
+	c.configLock.Lock()
+	node.Status = structs.NodeStatusReady
+	c.configLock.Unlock()
+
 	c.logger.Printf("[DEBUG] client: node registration complete")
 	if len(resp.EvalIDs) != 0 {
 		c.logger.Printf("[DEBUG] client: %d evaluations triggered by node registration", len(resp.EvalIDs))
