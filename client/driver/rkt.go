@@ -56,11 +56,9 @@ type RktDriverConfig struct {
 // rktHandle is returned from Start/Open as a handle to the PID
 type rktHandle struct {
 	pluginClient *plugin.Client
-	userPid      int
+	executorPid  int
 	executor     executor.Executor
-	taskDir      string
 	allocDir     *allocdir.AllocDir
-	image        string
 	logger       *log.Logger
 	killTimeout  time.Duration
 	waitCh       chan *cstructs.WaitResult
@@ -71,10 +69,8 @@ type rktHandle struct {
 // disk
 type rktPID struct {
 	PluginConfig *PluginReattachConfig
-	TaskDir      string
 	AllocDir     *allocdir.AllocDir
-	UserPid      int
-	Image        string
+	ExecutorPid  int
 	KillTimeout  time.Duration
 }
 
@@ -239,8 +235,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	h := &rktHandle{
 		pluginClient: pluginClient,
 		executor:     exec,
-		image:        img,
-		userPid:      ps.Pid,
+		executorPid:  ps.Pid,
 		logger:       d.logger,
 		killTimeout:  d.DriverContext.KillTimeout(task),
 		doneCh:       make(chan struct{}),
@@ -264,8 +259,8 @@ func (d *RktDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error
 	executor, pluginClient, err := createExecutor(pluginConfig, d.config.LogOutput, d.config)
 	if err != nil {
 		d.logger.Println("[ERROR] driver.rkt: error connecting to plugin so destroying plugin pid and user pid")
-		if e := destroyPlugin(qpid.PluginConfig.Pid, qpid.UserPid); e != nil {
-			d.logger.Printf("[ERROR] driver.rkt: error destroying plugin and userpid: %v", e)
+		if e := destroyPlugin(qpid.PluginConfig.Pid, qpid.ExecutorPid); e != nil {
+			d.logger.Printf("[ERROR] driver.rkt: error destroying plugin and executor pid: %v", e)
 		}
 		return nil, fmt.Errorf("error connecting to plugin: %v", err)
 	}
@@ -273,11 +268,9 @@ func (d *RktDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error
 	// Return a driver handle
 	h := &rktHandle{
 		pluginClient: pluginClient,
-		userPid:      qpid.UserPid,
-		taskDir:      qpid.TaskDir,
+		executorPid:  qpid.ExecutorPid,
 		allocDir:     qpid.AllocDir,
 		executor:     executor,
-		image:        qpid.Image,
 		logger:       d.logger,
 		killTimeout:  qpid.KillTimeout,
 		doneCh:       make(chan struct{}),
@@ -292,10 +285,8 @@ func (h *rktHandle) ID() string {
 	// Return a handle to the PID
 	pid := &rktPID{
 		PluginConfig: NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
-		Image:        h.image,
 		KillTimeout:  h.killTimeout,
-		UserPid:      h.userPid,
-		TaskDir:      h.taskDir,
+		ExecutorPid:  h.executorPid,
 		AllocDir:     h.allocDir,
 	}
 	data, err := json.Marshal(pid)

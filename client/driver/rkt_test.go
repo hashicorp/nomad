@@ -66,10 +66,10 @@ func TestRktDriver_Start(t *testing.T) {
 			"image":        "coreos.com/etcd:v2.0.4",
 			"command":      "/etcd",
 		},
-                LogConfig: &structs.LogConfig{
-                        MaxFiles:      10,
-                        MaxFileSizeMB: 10,
-                },
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
 		Resources: &structs.Resources{
 			MemoryMB: 128,
 			CPU:      100,
@@ -110,10 +110,10 @@ func TestRktDriver_Start_Wait(t *testing.T) {
 			"command":      "/etcd",
 			"args":         []string{"--version"},
 		},
-                LogConfig: &structs.LogConfig{
-                        MaxFiles:      10,
-                        MaxFileSizeMB: 10,
-                },
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
 		Resources: &structs.Resources{
 			MemoryMB: 128,
 			CPU:      100,
@@ -158,10 +158,10 @@ func TestRktDriver_Start_Wait_Skip_Trust(t *testing.T) {
 			"command": "/etcd",
 			"args":    []string{"--version"},
 		},
-                LogConfig: &structs.LogConfig{
-                        MaxFiles:      10,
-                        MaxFileSizeMB: 10,
-                },
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
 		Resources: &structs.Resources{
 			MemoryMB: 128,
 			CPU:      100,
@@ -207,10 +207,10 @@ func TestRktDriver_Start_Wait_Logs(t *testing.T) {
 			"command":      "/etcd",
 			"args":         []string{"--version"},
 		},
-                LogConfig: &structs.LogConfig{
-                        MaxFiles:      10,
-                        MaxFileSizeMB: 10,
-                },
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
 		Resources: &structs.Resources{
 			MemoryMB: 128,
 			CPU:      100,
