@@ -12,18 +12,18 @@ func TestCompose(t *testing.T) {
 		SetMeta("foo", "bar").
 		Constrain(NewConstraint("kernel.name", "=", "linux")).
 		Require(&Resources{
-		CPU:      1250,
-		MemoryMB: 1024,
-		DiskMB:   2048,
-		IOPS:     500,
-		Networks: []*NetworkResource{
-			&NetworkResource{
-				CIDR:          "0.0.0.0/0",
-				MBits:         100,
-				ReservedPorts: []Port{{"", 80}, {"", 443}},
+			CPU:      1250,
+			MemoryMB: 1024,
+			DiskMB:   2048,
+			IOPS:     500,
+			Networks: []*NetworkResource{
+				&NetworkResource{
+					CIDR:          "0.0.0.0/0",
+					MBits:         100,
+					ReservedPorts: []Port{{"", 80}, {"", 443}},
+				},
 			},
-		},
-	})
+		})
 
 	// Compose a task group
 	grp := NewTaskGroup("grp1", 2).

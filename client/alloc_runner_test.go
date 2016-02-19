@@ -324,6 +324,7 @@ func TestAllocRunner_SaveRestoreState_TerminalAlloc(t *testing.T) {
 	ar.destroy = true
 
 	// Create a new alloc runner
+	fmt.Println("CREATING NEW")
 	consulClient, err := NewConsulService(&consulServiceConfig{ar.logger, "127.0.0.1:8500", "", "", false, false, &structs.Node{}})
 	ar2 := NewAllocRunner(ar.logger, ar.config, upd.Update,
 		&structs.Allocation{ID: ar.alloc.ID}, consulClient)
@@ -350,6 +351,7 @@ func TestAllocRunner_SaveRestoreState_TerminalAlloc(t *testing.T) {
 	})
 
 	// Send the destroy signal and ensure the AllocRunner cleans up.
+	fmt.Println("DESTROYING")
 	ar2.Destroy()
 
 	testutil.WaitForResult(func() (bool, error) {

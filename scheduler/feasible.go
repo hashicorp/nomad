@@ -131,7 +131,7 @@ func (c *DriverChecker) hasDrivers(option *structs.Node) bool {
 		if err != nil {
 			c.ctx.Logger().
 				Printf("[WARN] scheduler.DriverChecker: node %v has invalid driver setting %v: %v",
-				option.ID, driverStr, value)
+					option.ID, driverStr, value)
 			return false
 		}
 
