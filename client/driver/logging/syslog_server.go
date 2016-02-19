@@ -6,6 +6,7 @@ import (
 	"net"
 )
 
+// SyslogServer is a server which listens to syslog messages and parses them
 type SyslogServer struct {
 	listener net.Listener
 	messages chan *SyslogMessage
@@ -15,6 +16,7 @@ type SyslogServer struct {
 	logger *log.Logger
 }
 
+// NewSyslogServer creates a new syslog server
 func NewSyslogServer(l net.Listener, messages chan *SyslogMessage, logger *log.Logger) *SyslogServer {
 	parser := NewDockerLogParser(logger)
 	return &SyslogServer{
@@ -26,10 +28,12 @@ func NewSyslogServer(l net.Listener, messages chan *SyslogMessage, logger *log.L
 	}
 }
 
+// Start starts accepting syslog connections
 func (s *SyslogServer) Start() {
 	for {
 		select {
 		case <-s.doneCh:
+			s.listener.Close()
 			return
 		default:
 			connection, err := s.listener.Accept()
@@ -38,12 +42,13 @@ func (s *SyslogServer) Start() {
 				s.logger.Printf("[ERROR] logcollector.server: error in accepting connection: %v", err)
 				continue
 			}
-			go s.Read(connection)
+			go s.read(connection)
 		}
 	}
 }
 
-func (s *SyslogServer) Read(connection net.Conn) {
+// read reads the bytes from a connection
+func (s *SyslogServer) read(connection net.Conn) {
 	defer connection.Close()
 	scanner := bufio.NewScanner(bufio.NewReader(connection))
 
@@ -65,6 +70,7 @@ LOOP:
 	}
 }
 
+// Shutdown shutsdown the syslog server
 func (s *SyslogServer) Shutdown() {
 	close(s.doneCh)
 }
