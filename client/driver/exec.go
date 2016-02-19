@@ -38,7 +38,7 @@ type ExecDriverConfig struct {
 type execHandle struct {
 	pluginClient    *plugin.Client
 	executor        executor.Executor
-	isolationConfig *executor.IsolationConfig
+	isolationConfig *cstructs.IsolationConfig
 	userPid         int
 	allocDir        *allocdir.AllocDir
 	killTimeout     time.Duration
@@ -153,7 +153,7 @@ type execId struct {
 	UserPid         int
 	TaskDir         string
 	AllocDir        *allocdir.AllocDir
-	IsolationConfig *executor.IsolationConfig
+	IsolationConfig *cstructs.IsolationConfig
 	PluginConfig    *PluginReattachConfig
 }
 

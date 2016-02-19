@@ -33,7 +33,8 @@ type FileRotator struct {
 	purgeCh chan interface{}
 }
 
-func NewFileRotator(path string, baseFile string, maxFiles int, fileSize int64, logger *log.Logger) (*FileRotator, error) {
+func NewFileRotator(path string, baseFile string, maxFiles int,
+	fileSize int64, logger *log.Logger) (*FileRotator, error) {
 	rotator := &FileRotator{
 		MaxFiles: maxFiles,
 		FileSize: fileSize,

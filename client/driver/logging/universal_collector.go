@@ -4,15 +4,13 @@ package logging
 
 import (
 	"fmt"
-	"io"
 	"log"
 	"log/syslog"
 	"net"
 	"path/filepath"
 
 	"github.com/hashicorp/nomad/client/allocdir"
-	"github.com/hashicorp/nomad/client/driver/executor"
-	"github.com/hashicorp/nomad/client/driver/logrotator"
+	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -40,7 +38,7 @@ type LogCollectorContext struct {
 // SyslogCollectorState holds the address and islation information of a launched
 // syslog server
 type SyslogCollectorState struct {
-	IsolationConfig *executor.IsolationConfig
+	IsolationConfig *cstructs.IsolationConfig
 	Addr            string
 }
 
@@ -59,8 +57,8 @@ type SyslogCollector struct {
 	logConfig *structs.LogConfig
 	ctx       *LogCollectorContext
 
-	lro     *logrotator.LogRotator
-	lre     *logrotator.LogRotator
+	lro     *FileRotator
+	lre     *FileRotator
 	server  *SyslogServer
 	taskDir string
 
@@ -92,36 +90,32 @@ func (s *SyslogCollector) LaunchCollector(ctx *LogCollectorContext) (*SyslogColl
 	go syslogServer.Start()
 	logFileSize := int64(ctx.LogConfig.MaxFileSizeMB * 1024 * 1024)
 
-	ro, wo := io.Pipe()
-	lro, err := logrotator.NewLogRotator(filepath.Join(s.taskDir, allocdir.TaskLocal),
-		fmt.Sprintf("%v.stdout", ctx.TaskName), ctx.LogConfig.MaxFiles,
-		logFileSize, s.logger)
+	path := filepath.Join(s.taskDir, allocdir.TaskLocal)
+	lro, err := NewFileRotator(path, fmt.Sprintf("%v.stdout", ctx.TaskName),
+		ctx.LogConfig.MaxFiles, logFileSize, s.logger)
+
 	if err != nil {
 		return nil, err
 	}
 	s.lro = lro
-	go lro.Start(ro)
 
-	re, we := io.Pipe()
-	lre, err := logrotator.NewLogRotator(filepath.Join(s.taskDir, allocdir.TaskLocal),
-		fmt.Sprintf("%v.stderr", ctx.TaskName), ctx.LogConfig.MaxFiles,
-		logFileSize, s.logger)
+	lre, err := NewFileRotator(path, fmt.Sprintf("%v.stderr", ctx.TaskName),
+		ctx.LogConfig.MaxFiles, logFileSize, s.logger)
 	if err != nil {
 		return nil, err
 	}
 	s.lre = lre
-	go lre.Start(re)
 
 	go func(channel chan *SyslogMessage) {
 		for logParts := range channel {
 			// If the severity of the log line is err then we write to stderr
 			// otherwise all messages go to stdout
 			if logParts.Severity == syslog.LOG_ERR {
-				we.Write(logParts.Message)
-				we.Write([]byte("\n"))
+				s.lre.Write(logParts.Message)
+				s.lre.Write([]byte("\n"))
 			} else {
-				wo.Write(logParts.Message)
-				wo.Write([]byte("\n"))
+				s.lro.Write(logParts.Message)
+				s.lro.Write([]byte("\n"))
 			}
 		}
 	}(channel)

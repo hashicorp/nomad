@@ -45,7 +45,7 @@ type javaHandle struct {
 	pluginClient    *plugin.Client
 	userPid         int
 	executor        executor.Executor
-	isolationConfig *executor.IsolationConfig
+	isolationConfig *cstructs.IsolationConfig
 
 	taskDir     string
 	allocDir    *allocdir.AllocDir
@@ -198,7 +198,7 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 type javaId struct {
 	KillTimeout     time.Duration
 	PluginConfig    *PluginReattachConfig
-	IsolationConfig *executor.IsolationConfig
+	IsolationConfig *cstructs.IsolationConfig
 	TaskDir         string
 	AllocDir        *allocdir.AllocDir
 	UserPid         int
