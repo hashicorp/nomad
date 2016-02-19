@@ -1,6 +1,6 @@
 // +build !windows
 
-package logcollector
+package logging
 
 import (
 	"log/syslog"
