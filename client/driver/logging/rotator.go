@@ -16,23 +16,34 @@ var (
 	buf     = make([]byte, bufSize)
 )
 
+// FileRotator writes bytes to a rotated set of files
 type FileRotator struct {
+	// MaxFiles is the maximum number of rotated files allowed in a path
 	MaxFiles int
+	// FileSize is the size a rotated file is allowed to grow
 	FileSize int64
 
-	path         string
+	// path is the path on the file system where the rotated set of files are
+	// opened
+	path string
+	// baseFileName is the base file name of the rotated files
 	baseFileName string
 
-	logFileIdx       int
+	// logFileIdx is the current index of the rotated files
+	logFileIdx int
+	// oldestLogFileIdx is the index of the oldest log file in a path
 	oldestLogFileIdx int
 
+	// currentFile is the file that is currently getting written
 	currentFile *os.File
-	currentWr   int64
+	// currentWr is the number of bytes written to the current file
+	currentWr int64
 
 	logger  *log.Logger
 	purgeCh chan interface{}
 }
 
+// NewFileRotator returns a new file rotator
 func NewFileRotator(path string, baseFile string, maxFiles int,
 	fileSize int64, logger *log.Logger) (*FileRotator, error) {
 	rotator := &FileRotator{
@@ -52,25 +63,38 @@ func NewFileRotator(path string, baseFile string, maxFiles int,
 	return rotator, nil
 }
 
+// Write writes a byte array to a file and rotates the file if it's size becomes
+// equal to the maximum size the user has defined.
 func (f *FileRotator) Write(p []byte) (n int, err error) {
 	n = 0
 	var nw int
 
 	for n < len(p) {
+		// check if we still have space in the current file, otherwise close and
+		// open the next file
 		if f.currentWr >= f.FileSize {
 			f.currentFile.Close()
 			if err := f.nextFile(); err != nil {
 				return 0, err
 			}
 		}
+		// calculate the remaining size on this file
 		remainingSize := f.FileSize - f.currentWr
+		// check if the number of bytes that we have to write is less than the
+		// remaining size of the file
 		if remainingSize < int64(len(p[n:])) {
+			// write the number of bytes that we can write on the current file
 			li := int64(n) + remainingSize
 			nw, err = f.currentFile.Write(p[n:li])
 		} else {
+			// write all the bytes in the current file
 			nw, err = f.currentFile.Write(p[n:])
 		}
+
+		// increment the number of bytes written to the current file in this
+		// session
 		n += nw
+		// increment the total number of bytes in the file
 		f.currentWr += int64(n)
 		if err != nil {
 			return
@@ -79,6 +103,8 @@ func (f *FileRotator) Write(p []byte) (n int, err error) {
 	return
 }
 
+// nextFile opens the next file and purges older files if the number of rotated
+// files is larger than the maximum files configured by the user
 func (f *FileRotator) nextFile() error {
 	nextFileIdx := f.logFileIdx
 	for {
@@ -109,6 +135,7 @@ func (f *FileRotator) nextFile() error {
 	return nil
 }
 
+// lastFile finds out the roated file with the largest index in a path.
 func (f *FileRotator) lastFile() error {
 	finfos, err := ioutil.ReadDir(f.path)
 	if err != nil {
@@ -137,6 +164,7 @@ func (f *FileRotator) lastFile() error {
 	return nil
 }
 
+// createFile opens a new or existing file for writing
 func (f *FileRotator) createFile() error {
 	logFileName := filepath.Join(f.path, fmt.Sprintf("%s.%d", f.baseFileName, f.logFileIdx))
 	cFile, err := os.OpenFile(logFileName, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
@@ -152,7 +180,7 @@ func (f *FileRotator) createFile() error {
 	return nil
 }
 
-// PurgeOldFiles removes older files and keeps only the last N files rotated for
+// purgeOldFiles removes older files and keeps only the last N files rotated for
 // a file
 func (f *FileRotator) purgeOldFiles() {
 	for {
