@@ -71,6 +71,7 @@ func newTask() *structs.Task {
 }
 
 func TestConsul_MakeChecks(t *testing.T) {
+	t.Parallel()
 	service := &structs.Service{
 		Name: "Bar",
 		Checks: []*structs.ServiceCheck{
@@ -116,6 +117,7 @@ func TestConsul_MakeChecks(t *testing.T) {
 }
 
 func TestConsul_InvalidPortLabelForService(t *testing.T) {
+	t.Parallel()
 	task := &structs.Task{
 		Name:   "foo",
 		Driver: "docker",
@@ -157,6 +159,7 @@ func TestConsul_InvalidPortLabelForService(t *testing.T) {
 }
 
 func TestConsul_Services_Deleted_From_Task(t *testing.T) {
+	t.Parallel()
 	c := newConsulService()
 	task := structs.Task{
 		Name: "redis",
@@ -189,6 +192,7 @@ func TestConsul_Services_Deleted_From_Task(t *testing.T) {
 }
 
 func TestConsul_Service_Should_Be_Re_Reregistered_On_Change(t *testing.T) {
+	t.Parallel()
 	c := newConsulService()
 	task := newTask()
 	s1 := structs.Service{
@@ -215,6 +219,7 @@ func TestConsul_Service_Should_Be_Re_Reregistered_On_Change(t *testing.T) {
 }
 
 func TestConsul_AddCheck_To_Service(t *testing.T) {
+	t.Parallel()
 	apiClient := &mockConsulApiClient{}
 	c := newConsulService()
 	c.client = apiClient
@@ -245,6 +250,7 @@ func TestConsul_AddCheck_To_Service(t *testing.T) {
 }
 
 func TestConsul_ModifyCheck(t *testing.T) {
+	t.Parallel()
 	apiClient := &mockConsulApiClient{}
 	c := newConsulService()
 	c.client = apiClient
@@ -281,6 +287,7 @@ func TestConsul_ModifyCheck(t *testing.T) {
 }
 
 func TestConsul_FilterNomadServicesAndChecks(t *testing.T) {
+	t.Parallel()
 	c := newConsulService()
 	srvs := map[string]*consul.AgentService{
 		"foo-bar": {
