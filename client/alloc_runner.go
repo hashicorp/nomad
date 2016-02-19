@@ -19,6 +19,12 @@ const (
 	// allocSyncRetryIntv is the interval on which we retry updating
 	// the status of the allocation
 	allocSyncRetryIntv = 15 * time.Second
+
+	// taskPendingSyncLimit is how long the client will wait before sending that
+	// a task was received to the server. If the task was received transitions
+	// to any other state the server will receive the update. This limit is just
+	// then for the pathological case in which no other transistion occurs.
+	taskPendingSyncLimit = 30 * time.Second
 )
 
 // AllocStateUpdater is used to update the status of an allocation
@@ -45,7 +51,12 @@ type AllocRunner struct {
 	restored   map[string]struct{}
 	taskLock   sync.RWMutex
 
-	taskStatusLock sync.RWMutex
+	// taskPendingTimer is used to mitigate updates sent to the server because
+	// we expect that shortly after receiving an alloc it will transistion
+	// state. We use a timer to send the update if this hasn't happened after a
+	// reasonable time.
+	taskPendingTimer *time.Timer
+	taskStatusLock   sync.RWMutex
 
 	updateCh chan *structs.Allocation
 
@@ -322,6 +333,24 @@ func (r *AllocRunner) setTaskState(taskName, state string, event *structs.TaskEv
 	// Set the tasks state.
 	taskState.State = state
 	r.appendTaskEvent(taskState, event)
+
+	// We don't immediately mark ourselves as dirty, since in most cases there
+	// will immediately be another state transistion. This reduces traffic to
+	// the server.
+	if state == structs.TaskStatePending {
+		if r.taskPendingTimer == nil {
+			r.taskPendingTimer = time.AfterFunc(taskPendingSyncLimit, func() {
+				// Send a dirty signal to sync our state.
+				r.dirtyCh <- struct{}{}
+			})
+		}
+		return
+	}
+
+	// Cancel any existing pending state timer.
+	if r.taskPendingTimer != nil {
+		r.taskPendingTimer.Stop()
+	}
 
 	select {
 	case r.dirtyCh <- struct{}{}:

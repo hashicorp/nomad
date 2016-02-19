@@ -68,20 +68,24 @@ func TestTaskRunner_SimpleRun(t *testing.T) {
 		t.Fatalf("timeout")
 	}
 
-	if len(upd.events) != 2 {
-		t.Fatalf("should have 2 updates: %#v", upd.events)
+	if len(upd.events) != 3 {
+		t.Fatalf("should have 3 updates: %#v", upd.events)
 	}
 
 	if upd.state != structs.TaskStateDead {
 		t.Fatalf("TaskState %v; want %v", upd.state, structs.TaskStateDead)
 	}
 
-	if upd.events[0].Type != structs.TaskStarted {
-		t.Fatalf("First Event was %v; want %v", upd.events[0].Type, structs.TaskStarted)
+	if upd.events[0].Type != structs.TaskReceived {
+		t.Fatalf("First Event was %v; want %v", upd.events[0].Type, structs.TaskReceived)
 	}
 
-	if upd.events[1].Type != structs.TaskTerminated {
-		t.Fatalf("First Event was %v; want %v", upd.events[1].Type, structs.TaskTerminated)
+	if upd.events[1].Type != structs.TaskStarted {
+		t.Fatalf("Second Event was %v; want %v", upd.events[1].Type, structs.TaskStarted)
+	}
+
+	if upd.events[2].Type != structs.TaskTerminated {
+		t.Fatalf("Third Event was %v; want %v", upd.events[2].Type, structs.TaskTerminated)
 	}
 }
 
@@ -107,20 +111,24 @@ func TestTaskRunner_Destroy(t *testing.T) {
 		t.Fatalf("timeout")
 	}
 
-	if len(upd.events) != 2 {
-		t.Fatalf("should have 2 updates: %#v", upd.events)
+	if len(upd.events) != 3 {
+		t.Fatalf("should have 3 updates: %#v", upd.events)
 	}
 
 	if upd.state != structs.TaskStateDead {
 		t.Fatalf("TaskState %v; want %v", upd.state, structs.TaskStateDead)
 	}
 
-	if upd.events[0].Type != structs.TaskStarted {
-		t.Fatalf("First Event was %v; want %v", upd.events[0].Type, structs.TaskStarted)
+	if upd.events[0].Type != structs.TaskReceived {
+		t.Fatalf("First Event was %v; want %v", upd.events[0].Type, structs.TaskReceived)
 	}
 
-	if upd.events[1].Type != structs.TaskKilled {
-		t.Fatalf("First Event was %v; want %v", upd.events[1].Type, structs.TaskKilled)
+	if upd.events[1].Type != structs.TaskStarted {
+		t.Fatalf("Second Event was %v; want %v", upd.events[1].Type, structs.TaskStarted)
+	}
+
+	if upd.events[2].Type != structs.TaskKilled {
+		t.Fatalf("Third Event was %v; want %v", upd.events[2].Type, structs.TaskKilled)
 	}
 
 }
