@@ -1,10 +1,13 @@
 package driver
 
 import (
+	"os"
 	"os/exec"
+	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -25,7 +28,9 @@ func TestJavaDriver_Fingerprint(t *testing.T) {
 	driverCtx, _ := testDriverContexts(&structs.Task{Name: "foo"})
 	d := NewJavaDriver(driverCtx)
 	node := &structs.Node{
-		Attributes: make(map[string]string),
+		Attributes: map[string]string{
+			"unique.cgroup.mountpoint": "/sys/fs/cgroups",
+		},
 	}
 	apply, err := d.Fingerprint(&config.Config{}, node)
 	if err != nil {
@@ -135,6 +140,17 @@ func TestJavaDriver_Start_Wait(t *testing.T) {
 	case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
 		// expect the timeout b/c it's a long lived process
 		break
+	}
+
+	// Get the stdout of the process and assrt that it's not empty
+	taskDir := execCtx.AllocDir.TaskDirs["demo-app"]
+	stdout := filepath.Join(taskDir, allocdir.TaskLocal, "demo-app.stdout.0")
+	fInfo, err := os.Stat(stdout)
+	if err != nil {
+		t.Fatalf("failed to get stdout of process: %v", err)
+	}
+	if fInfo.Size() == 0 {
+		t.Fatalf("stdout of process is empty")
 	}
 
 	// need to kill long lived process
