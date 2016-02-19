@@ -691,7 +691,7 @@ func (c *Client) run() {
 	go c.watchNodeUpdates()
 
 	// Watch for changes in allocations
-	allocUpdates := make(chan *allocUpdates, 1)
+	allocUpdates := make(chan *allocUpdates, 8)
 	go c.watchAllocations(allocUpdates)
 
 	for {

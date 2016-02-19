@@ -77,7 +77,7 @@ func NewAllocRunner(logger *log.Logger, config *config.Config, updater AllocStat
 		tasks:         make(map[string]*TaskRunner),
 		taskStates:    copyTaskStates(alloc.TaskStates),
 		restored:      make(map[string]struct{}),
-		updateCh:      make(chan *structs.Allocation, 8),
+		updateCh:      make(chan *structs.Allocation, 64),
 		destroyCh:     make(chan struct{}),
 		waitCh:        make(chan struct{}),
 	}
