@@ -324,6 +324,14 @@ func (h *rktHandle) Kill() error {
 func (h *rktHandle) run() {
 	ps, err := h.executor.Wait()
 	close(h.doneCh)
+	if ps.ExitCode == 0 && err != nil {
+		if e := killProcess(h.executorPid); e != nil {
+			h.logger.Printf("[ERROR] driver.rkt: error killing user process: %v", e)
+		}
+		if e := h.allocDir.UnmountAll(); e != nil {
+			h.logger.Printf("[ERROR] driver.rkt: unmounting dev,proc and alloc dirs failed: %v", e)
+		}
+	}
 	h.waitCh <- &cstructs.WaitResult{ExitCode: ps.ExitCode, Signal: 0, Err: err}
 	close(h.waitCh)
 	h.pluginClient.Kill()
