@@ -40,7 +40,7 @@ type FileRotator struct {
 	currentWr int64
 
 	logger  *log.Logger
-	purgeCh chan interface{}
+	purgeCh chan struct{}
 }
 
 // NewFileRotator returns a new file rotator
@@ -54,7 +54,7 @@ func NewFileRotator(path string, baseFile string, maxFiles int,
 		baseFileName: baseFile,
 
 		logger:  logger,
-		purgeCh: make(chan interface{}),
+		purgeCh: make(chan struct{}, 1),
 	}
 	if err := rotator.lastFile(); err != nil {
 		return nil, err
@@ -128,7 +128,7 @@ func (f *FileRotator) nextFile() error {
 	// Purge old files if we have more files than MaxFiles
 	if f.logFileIdx-f.oldestLogFileIdx >= f.MaxFiles {
 		select {
-		case f.purgeCh <- new(interface{}):
+		case f.purgeCh <- struct{}{}:
 		default:
 		}
 	}
