@@ -1581,6 +1581,54 @@ func TestStateStore_AllocsByNode(t *testing.T) {
 	}
 }
 
+func TestStateStore_AllocsByNodeTerminal(t *testing.T) {
+	state := testStateStore(t)
+	var allocs, term, nonterm []*structs.Allocation
+
+	for i := 0; i < 10; i++ {
+		alloc := mock.Alloc()
+		alloc.NodeID = "foo"
+		if i%2 == 0 {
+			alloc.DesiredStatus = structs.AllocDesiredStatusStop
+			term = append(term, alloc)
+		} else {
+			nonterm = append(nonterm, alloc)
+		}
+		allocs = append(allocs, alloc)
+	}
+
+	err := state.UpsertAllocs(1000, allocs)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Verify the terminal allocs
+	out, err := state.AllocsByNodeTerminal("foo", true)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	sort.Sort(AllocIDSort(term))
+	sort.Sort(AllocIDSort(out))
+
+	if !reflect.DeepEqual(term, out) {
+		t.Fatalf("bad: %#v %#v", term, out)
+	}
+
+	// Verify the non-terminal allocs
+	out, err = state.AllocsByNodeTerminal("foo", false)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	sort.Sort(AllocIDSort(nonterm))
+	sort.Sort(AllocIDSort(out))
+
+	if !reflect.DeepEqual(nonterm, out) {
+		t.Fatalf("bad: %#v %#v", nonterm, out)
+	}
+}
+
 func TestStateStore_AllocsByJob(t *testing.T) {
 	state := testStateStore(t)
 	var allocs []*structs.Allocation
