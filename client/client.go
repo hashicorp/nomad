@@ -817,19 +817,16 @@ func (c *Client) updateNodeStatus() error {
 
 // updateAllocStatus is used to update the status of an allocation
 func (c *Client) updateAllocStatus(alloc *structs.Allocation) error {
-	// XXX: For testing ONLY. Do not use this commit!!!
-	go func() {
-		args := structs.AllocUpdateRequest{
-			Alloc:        []*structs.Allocation{alloc},
-			WriteRequest: structs.WriteRequest{Region: c.config.Region},
-		}
-		var resp structs.GenericResponse
-		err := c.RPC("Node.UpdateAlloc", &args, &resp)
-		if err != nil {
-			c.logger.Printf("[ERR] client: failed to update allocation: %v", err)
-			//return err
-		}
-	}()
+	args := structs.AllocUpdateRequest{
+		Alloc:        []*structs.Allocation{alloc},
+		WriteRequest: structs.WriteRequest{Region: c.config.Region},
+	}
+	var resp structs.GenericResponse
+	err := c.RPC("Node.UpdateAlloc", &args, &resp)
+	if err != nil {
+		c.logger.Printf("[ERR] client: failed to update allocation: %v", err)
+		return err
+	}
 
 	return nil
 }
