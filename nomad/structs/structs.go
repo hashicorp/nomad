@@ -1687,6 +1687,10 @@ const (
 	// failure in the driver.
 	TaskDriverFailure = "Driver Failure"
 
+	// Task Received signals that the task has been pulled by the client at the
+	// given timestamp.
+	TaskReceived = "Received"
+
 	// Task Started signals that the task was started and its timestamp can be
 	// used to determine the running length of the task.
 	TaskStarted = "Started"

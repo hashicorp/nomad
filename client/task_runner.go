@@ -95,6 +95,9 @@ func NewTaskRunner(logger *log.Logger, config *config.Config,
 		destroyCh:      make(chan struct{}),
 		waitCh:         make(chan struct{}),
 	}
+
+	// Set the state to pending.
+	tc.updater(task.Name, structs.TaskStatePending, structs.NewTaskEvent(structs.TaskReceived))
 	return tc
 }
 

@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver"
@@ -19,6 +18,14 @@ const (
 	// allocSyncRetryIntv is the interval on which we retry updating
 	// the status of the allocation
 	allocSyncRetryIntv = 15 * time.Second
+
+	// taskReceivedSyncLimit is how long the client will wait before sending
+	// that a task was received to the server. The client does not immediately
+	// send that the task was received to the server because another transistion
+	// to running or failed is likely to occur immediately after and a single
+	// update will transfer all past state information. If not other transistion
+	// has occured up to this limit, we will send to the server.
+	taskReceivedSyncLimit = 30 * time.Second
 )
 
 // AllocStateUpdater is used to update the status of an allocation
@@ -45,7 +52,12 @@ type AllocRunner struct {
 	restored   map[string]struct{}
 	taskLock   sync.RWMutex
 
-	taskStatusLock sync.RWMutex
+	// taskReceivedTimer is used to mitigate updates sent to the server because
+	// we expect that shortly after receiving an alloc it will transistion
+	// state. We use a timer to send the update if this hasn't happened after a
+	// reasonable time.
+	taskReceivedTimer *time.Timer
+	taskStatusLock    sync.RWMutex
 
 	updateCh chan *structs.Allocation
 
@@ -126,7 +138,8 @@ func (r *AllocRunner) RestoreState() error {
 		if err := tr.RestoreState(); err != nil {
 			r.logger.Printf("[ERR] client: failed to restore state for alloc %s task '%s': %v", r.alloc.ID, name, err)
 			mErr.Errors = append(mErr.Errors, err)
-		} else {
+		} else if !r.alloc.TerminalStatus() {
+			// Only start if the alloc isn't in a terminal status.
 			go tr.Run()
 		}
 	}
@@ -322,6 +335,24 @@ func (r *AllocRunner) setTaskState(taskName, state string, event *structs.TaskEv
 	// Set the tasks state.
 	taskState.State = state
 	r.appendTaskEvent(taskState, event)
+
+	// We don't immediately mark ourselves as dirty, since in most cases there
+	// will immediately be another state transistion. This reduces traffic to
+	// the server.
+	if event != nil && event.Type == structs.TaskReceived {
+		if r.taskReceivedTimer == nil {
+			r.taskReceivedTimer = time.AfterFunc(taskReceivedSyncLimit, func() {
+				// Send a dirty signal to sync our state.
+				r.dirtyCh <- struct{}{}
+			})
+		}
+		return
+	}
+
+	// Cancel any existing received state timer.
+	if r.taskReceivedTimer != nil {
+		r.taskReceivedTimer.Stop()
+	}
 
 	select {
 	case r.dirtyCh <- struct{}{}:
