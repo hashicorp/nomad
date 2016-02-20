@@ -102,7 +102,7 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	// evaluation broker
 	if numWorkers := len(s.workers); numWorkers > 1 {
 		// Disabling half the workers frees half the CPUs.
-		for i := 0; i < numWorkers / 2; i++ {
+		for i := 0; i < numWorkers/2; i++ {
 			s.workers[i].SetPause(true)
 		}
 	}
@@ -366,7 +366,7 @@ func (s *Server) revokeLeadership() error {
 
 	// Unpause our worker if we paused previously
 	if len(s.workers) > 1 {
-		for i := 0; i < len(s.workers) / 2; i++ {
+		for i := 0; i < len(s.workers)/2; i++ {
 			s.workers[i].SetPause(false)
 		}
 	}
