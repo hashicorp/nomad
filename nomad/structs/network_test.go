@@ -85,7 +85,7 @@ func TestNetworkIndex_SetNode(t *testing.T) {
 	if idx.UsedBandwidth["eth0"] != 1 {
 		t.Fatalf("Bad")
 	}
-	if _, ok := idx.UsedPorts["192.168.0.100"][22]; !ok {
+	if !idx.UsedPorts["192.168.0.100"].Check(22) {
 		t.Fatalf("Bad")
 	}
 }
@@ -130,13 +130,13 @@ func TestNetworkIndex_AddAllocs(t *testing.T) {
 	if idx.UsedBandwidth["eth0"] != 70 {
 		t.Fatalf("Bad")
 	}
-	if _, ok := idx.UsedPorts["192.168.0.100"][8000]; !ok {
+	if !idx.UsedPorts["192.168.0.100"].Check(8000) {
 		t.Fatalf("Bad")
 	}
-	if _, ok := idx.UsedPorts["192.168.0.100"][9000]; !ok {
+	if !idx.UsedPorts["192.168.0.100"].Check(9000) {
 		t.Fatalf("Bad")
 	}
-	if _, ok := idx.UsedPorts["192.168.0.100"][10000]; !ok {
+	if !idx.UsedPorts["192.168.0.100"].Check(10000) {
 		t.Fatalf("Bad")
 	}
 }
@@ -158,10 +158,10 @@ func TestNetworkIndex_AddReserved(t *testing.T) {
 	if idx.UsedBandwidth["eth0"] != 20 {
 		t.Fatalf("Bad")
 	}
-	if _, ok := idx.UsedPorts["192.168.0.100"][8000]; !ok {
+	if !idx.UsedPorts["192.168.0.100"].Check(8000) {
 		t.Fatalf("Bad")
 	}
-	if _, ok := idx.UsedPorts["192.168.0.100"][9000]; !ok {
+	if !idx.UsedPorts["192.168.0.100"].Check(9000) {
 		t.Fatalf("Bad")
 	}
 

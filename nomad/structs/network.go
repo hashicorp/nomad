@@ -16,22 +16,25 @@ const (
 	// maxRandPortAttempts is the maximum number of attempt
 	// to assign a random port
 	maxRandPortAttempts = 20
+
+	// maxValidPort is the max valid port number
+	maxValidPort = 65536
 )
 
 // NetworkIndex is used to index the available network resources
 // and the used network resources on a machine given allocations
 type NetworkIndex struct {
-	AvailNetworks  []*NetworkResource          // List of available networks
-	AvailBandwidth map[string]int              // Bandwidth by device
-	UsedPorts      map[string]map[int]struct{} // Ports by IP
-	UsedBandwidth  map[string]int              // Bandwidth by device
+	AvailNetworks  []*NetworkResource // List of available networks
+	AvailBandwidth map[string]int     // Bandwidth by device
+	UsedPorts      map[string]Bitmap  // Ports by IP
+	UsedBandwidth  map[string]int     // Bandwidth by device
 }
 
 // NewNetworkIndex is used to construct a new network index
 func NewNetworkIndex() *NetworkIndex {
 	return &NetworkIndex{
 		AvailBandwidth: make(map[string]int),
-		UsedPorts:      make(map[string]map[int]struct{}),
+		UsedPorts:      make(map[string]Bitmap),
 		UsedBandwidth:  make(map[string]int),
 	}
 }
@@ -92,16 +95,20 @@ func (idx *NetworkIndex) AddReserved(n *NetworkResource) (collide bool) {
 	// Add the port usage
 	used := idx.UsedPorts[n.IP]
 	if used == nil {
-		used = make(map[int]struct{})
+		used, _ = NewBitmap(maxValidPort)
 		idx.UsedPorts[n.IP] = used
 	}
 
 	for _, ports := range [][]Port{n.ReservedPorts, n.DynamicPorts} {
 		for _, port := range ports {
-			if _, ok := used[port.Value]; ok {
+			// Guard against invalid port
+			if port.Value < 0 || port.Value >= maxValidPort {
+				return true
+			}
+			if used.Check(uint(port.Value)) {
 				collide = true
 			} else {
-				used[port.Value] = struct{}{}
+				used.Set(uint(port.Value))
 			}
 		}
 	}
@@ -154,7 +161,15 @@ func (idx *NetworkIndex) AssignNetwork(ask *NetworkResource) (out *NetworkResour
 
 		// Check if any of the reserved ports are in use
 		for _, port := range ask.ReservedPorts {
-			if _, ok := idx.UsedPorts[ipStr][port.Value]; ok {
+			// Guard against invalid port
+			if port.Value < 0 || port.Value >= maxValidPort {
+				err = fmt.Errorf("invalid port %d (out of range)", port.Value)
+				return
+			}
+
+			// Check if in use
+			used := idx.UsedPorts[ipStr]
+			if used != nil && used.Check(uint(port.Value)) {
 				err = fmt.Errorf("reserved port collision")
 				return
 			}
@@ -179,7 +194,8 @@ func (idx *NetworkIndex) AssignNetwork(ask *NetworkResource) (out *NetworkResour
 			}
 
 			randPort := MinDynamicPort + rand.Intn(MaxDynamicPort-MinDynamicPort)
-			if _, ok := idx.UsedPorts[ipStr][randPort]; ok {
+			used := idx.UsedPorts[ipStr]
+			if used != nil && used.Check(uint(randPort)) {
 				goto PICK
 			}
 
