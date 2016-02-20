@@ -107,14 +107,11 @@ func (e *EvalContext) Reset() {
 }
 
 func (e *EvalContext) ProposedAllocs(nodeID string) ([]*structs.Allocation, error) {
-	// Get the existing allocations
-	existingAlloc, err := e.state.AllocsByNode(nodeID)
+	// Get the existing allocations that are non-terminal
+	existingAlloc, err := e.state.AllocsByNodeTerminal(nodeID, false)
 	if err != nil {
 		return nil, err
 	}
-
-	// Filter on alloc state
-	existingAlloc = structs.FilterTerminalAllocs(existingAlloc)
 
 	// Determine the proposed allocation by first removing allocations
 	// that are planned evictions and adding the new allocations.
