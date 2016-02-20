@@ -53,6 +53,11 @@ func NewEvaluatePool(workers, bufSize int) *EvaluatePool {
 	return p
 }
 
+// Size returns the current size
+func (p *EvaluatePool) Size() int {
+	return p.workers
+}
+
 // SetSize is used to resize the worker pool
 func (p *EvaluatePool) SetSize(size int) {
 	// Handle an upwards resize
