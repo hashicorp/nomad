@@ -112,6 +112,7 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		ignoreUnknown = true
 	}
 
+PARSE_TYPE:
 	switch msgType {
 	case structs.NodeRegisterRequestType:
 		return n.applyUpsertNode(buf[1:], log.Index)
@@ -133,6 +134,16 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyAllocUpdate(buf[1:], log.Index)
 	case structs.AllocClientUpdateRequestType:
 		return n.applyAllocClientUpdate(buf[1:], log.Index)
+	case structs.CompressedRequestType:
+		decomp, err := structs.Uncompress(buf[1:])
+		if err != nil {
+			panic(fmt.Errorf("failed to decompress request: %#v", buf))
+		}
+
+		// Store the inner message type and buffer and re-enter switch
+		msgType = structs.MessageType(decomp[0])
+		buf = decomp
+		goto PARSE_TYPE
 	default:
 		if ignoreUnknown {
 			n.logger.Printf("[WARN] nomad.fsm: ignoring unknown message type (%d), upgrade to newer version", msgType)

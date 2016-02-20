@@ -9,6 +9,76 @@ import (
 	"github.com/hashicorp/go-multierror"
 )
 
+func testJob() *Job {
+	return &Job{
+		Region:      "global",
+		ID:          GenerateUUID(),
+		Name:        "my-job",
+		Type:        JobTypeService,
+		Priority:    50,
+		AllAtOnce:   false,
+		Datacenters: []string{"dc1"},
+		Constraints: []*Constraint{
+			&Constraint{
+				LTarget: "$attr.kernel.name",
+				RTarget: "linux",
+				Operand: "=",
+			},
+		},
+		Periodic: &PeriodicConfig{
+			Enabled: false,
+		},
+		TaskGroups: []*TaskGroup{
+			&TaskGroup{
+				Name:  "web",
+				Count: 10,
+				RestartPolicy: &RestartPolicy{
+					Attempts: 3,
+					Interval: 10 * time.Minute,
+					Delay:    1 * time.Minute,
+				},
+				Tasks: []*Task{
+					&Task{
+						Name:   "web",
+						Driver: "exec",
+						Config: map[string]interface{}{
+							"command": "/bin/date",
+						},
+						Env: map[string]string{
+							"FOO": "bar",
+						},
+						Services: []*Service{
+							{
+								Name:      "${TASK}-frontend",
+								PortLabel: "http",
+							},
+						},
+						Resources: &Resources{
+							CPU:      500,
+							MemoryMB: 256,
+							Networks: []*NetworkResource{
+								&NetworkResource{
+									MBits:        50,
+									DynamicPorts: []Port{{Label: "http"}},
+								},
+							},
+						},
+					},
+				},
+				Meta: map[string]string{
+					"elb_check_type":     "http",
+					"elb_check_interval": "30s",
+					"elb_check_min":      "3",
+				},
+			},
+		},
+		Meta: map[string]string{
+			"owner": "armon",
+		},
+	}
+
+}
+
 func TestJob_Validate(t *testing.T) {
 	j := &Job{}
 	err := j.Validate()
@@ -94,73 +164,7 @@ func TestJob_Validate(t *testing.T) {
 }
 
 func TestJob_Copy(t *testing.T) {
-	j := &Job{
-		Region:      "global",
-		ID:          GenerateUUID(),
-		Name:        "my-job",
-		Type:        JobTypeService,
-		Priority:    50,
-		AllAtOnce:   false,
-		Datacenters: []string{"dc1"},
-		Constraints: []*Constraint{
-			&Constraint{
-				LTarget: "$attr.kernel.name",
-				RTarget: "linux",
-				Operand: "=",
-			},
-		},
-		Periodic: &PeriodicConfig{
-			Enabled: false,
-		},
-		TaskGroups: []*TaskGroup{
-			&TaskGroup{
-				Name:  "web",
-				Count: 10,
-				RestartPolicy: &RestartPolicy{
-					Attempts: 3,
-					Interval: 10 * time.Minute,
-					Delay:    1 * time.Minute,
-				},
-				Tasks: []*Task{
-					&Task{
-						Name:   "web",
-						Driver: "exec",
-						Config: map[string]interface{}{
-							"command": "/bin/date",
-						},
-						Env: map[string]string{
-							"FOO": "bar",
-						},
-						Services: []*Service{
-							{
-								Name:      "${TASK}-frontend",
-								PortLabel: "http",
-							},
-						},
-						Resources: &Resources{
-							CPU:      500,
-							MemoryMB: 256,
-							Networks: []*NetworkResource{
-								&NetworkResource{
-									MBits:        50,
-									DynamicPorts: []Port{{Label: "http"}},
-								},
-							},
-						},
-					},
-				},
-				Meta: map[string]string{
-					"elb_check_type":     "http",
-					"elb_check_interval": "30s",
-					"elb_check_min":      "3",
-				},
-			},
-		},
-		Meta: map[string]string{
-			"owner": "armon",
-		},
-	}
-
+	j := testJob()
 	c := j.Copy()
 	if !reflect.DeepEqual(j, c) {
 		t.Fatalf("Copy() returned an unequal Job; got %#v; want %#v", c, j)
@@ -714,5 +718,42 @@ func TestRestartPolicy_Validate(t *testing.T) {
 	}
 	if err := p.Validate(); err == nil || !strings.Contains(err.Error(), "can't restart") {
 		t.Fatalf("expect restart interval error, got: %v", err)
+	}
+}
+
+func TestEncodeCompressed(t *testing.T) {
+	// Create an input payload
+	msgType := JobRegisterRequestType
+	req := JobRegisterRequest{Job: testJob()}
+
+	// Encode and compress it
+	buf, err := EncodeCompressed(msgType, req)
+	if err != nil {
+		t.Fatalf("EncodeCompressed(%v, %#v) failed: %v", msgType, req, err)
+	}
+	if len(buf) == 0 {
+		t.Fatalf("EncodeCompressed(%v, %#v) returned empty", msgType, req)
+	}
+
+	// Uncompress and check data
+	decomp, err := Uncompress(buf[1:])
+	if err != nil {
+		t.Fatalf("Uncompress(%#v) errored: %v", decomp, err)
+	}
+	if len(decomp) < 2 {
+		t.Fatalf("Uncompress(%#v) returned too little: %#v", buf, decomp)
+	}
+	if act := MessageType(decomp[0]); act != msgType {
+		t.Fatalf("bad: received incorrect MessageType: %v", act)
+	}
+
+	// Decode payload
+	var decodedJob JobRegisterRequest
+	if err := Decode(decomp[1:], &decodedJob); err != nil {
+		t.Fatalf("Decode of uncompressed payload failed: %v", err)
+	}
+
+	if !reflect.DeepEqual(decodedJob, req) {
+		t.Fatalf("Decode failed: got %#v; want %#v", decodedJob, req)
 	}
 }

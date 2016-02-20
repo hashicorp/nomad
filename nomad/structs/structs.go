@@ -2,6 +2,7 @@ package structs
 
 import (
 	"bytes"
+	"compress/lzw"
 	"crypto/sha1"
 	"errors"
 	"fmt"
@@ -38,6 +39,7 @@ const (
 	EvalDeleteRequestType
 	AllocUpdateRequestType
 	AllocClientUpdateRequestType
+	CompressedRequestType
 )
 
 const (
@@ -2499,6 +2501,53 @@ var MsgpackHandle = func() *codec.MsgpackHandle {
 	h.MapType = reflect.TypeOf(map[string]interface{}(nil))
 	return h
 }()
+
+// EncodeCompressed encodes and compresses the passed payload. The compressed
+// payload is prefixed with the CompressedRequestType header byte.
+func EncodeCompressed(t MessageType, msg interface{}) ([]byte, error) {
+	// Create a buffer that will store in its first byte the compressed
+	// header type and in its following bytes the compressed payload.
+	var buf bytes.Buffer
+	buf.WriteByte(uint8(CompressedRequestType))
+
+	// Create the compressed writer to compress the user payload.
+	compWriter := lzw.NewWriter(&buf, lzw.LSB, 8)
+
+	// Encode the input.
+	encoded, err := Encode(t, msg)
+	if err != nil {
+		return nil, err
+	}
+
+	// Compress the encoded data.
+	if _, err := compWriter.Write(encoded); err != nil {
+		return nil, err
+	}
+
+	// Close the writer to ensure the data gets flushed.
+	if err := compWriter.Close(); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
+}
+
+// Uncompress uncompresses the compressed payload returned by EncodeCompressed
+// stripped of the header byte. The decompressed payload can be decoded by
+// calling Decode with the original message type.
+func Uncompress(buf []byte) ([]byte, error) {
+	uncomp := lzw.NewReader(bytes.NewReader(buf), lzw.LSB, 8)
+	defer uncomp.Close()
+
+	// Read all the data
+	var b bytes.Buffer
+	if _, err := io.Copy(&b, uncomp); err != nil {
+		return nil, err
+	}
+
+	// Return the uncompressed bytes
+	return b.Bytes(), nil
+}
 
 // Decode is used to decode a MsgPack encoded object
 func Decode(buf []byte, out interface{}) error {
