@@ -37,7 +37,6 @@ func (s *SyslogServer) Start() {
 			return
 		default:
 			connection, err := s.listener.Accept()
-			s.logger.Printf("DIPTANU ACCEPTED CON")
 			if err != nil {
 				s.logger.Printf("[ERROR] logcollector.server: error in accepting connection: %v", err)
 				continue
@@ -52,20 +51,18 @@ func (s *SyslogServer) read(connection net.Conn) {
 	defer connection.Close()
 	scanner := bufio.NewScanner(bufio.NewReader(connection))
 
-LOOP:
 	for {
 		select {
 		case <-s.doneCh:
-			break LOOP
+			return
 		default:
 		}
 		if scanner.Scan() {
 			b := scanner.Bytes()
-			s.logger.Printf("DIPTANU READ BYTES %v", b)
 			msg := s.parser.Parse(b)
 			s.messages <- msg
 		} else {
-			break LOOP
+			return
 		}
 	}
 }

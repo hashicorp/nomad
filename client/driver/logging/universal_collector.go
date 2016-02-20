@@ -112,10 +112,10 @@ func (s *SyslogCollector) LaunchCollector(ctx *LogCollectorContext) (*SyslogColl
 			// otherwise all messages go to stdout
 			if logParts.Severity == syslog.LOG_ERR {
 				s.lre.Write(logParts.Message)
-				s.lre.Write([]byte("\n"))
+				s.lre.Write([]byte{'\n'})
 			} else {
 				s.lro.Write(logParts.Message)
-				s.lro.Write([]byte("\n"))
+				s.lro.Write([]byte{'\n'})
 			}
 		}
 	}(channel)
