@@ -57,6 +57,11 @@ func (p *EvaluatePool) Size() int {
 
 // SetSize is used to resize the worker pool
 func (p *EvaluatePool) SetSize(size int) {
+	// Protect against a negative size
+	if size < 0 {
+		size = 0
+	}
+
 	// Handle an upwards resize
 	if size >= p.workers {
 		for i := p.workers; i < size; i++ {
