@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/armon/go-metrics"
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
@@ -41,6 +42,8 @@ func (s *Server) planApply() {
 	// holds an optimistic state which includes that plan application.
 	var waitCh chan struct{}
 	var snap *state.StateSnapshot
+	pool := NewEvaluatePool(workerPoolSize, workerPoolBufferSize)
+	defer pool.Shutdown()
 
 	for {
 		// Pull the next pending plan, exit if we are no longer leader
@@ -77,7 +80,7 @@ func (s *Server) planApply() {
 		}
 
 		// Evaluate the plan
-		result, err := evaluatePlan(snap, pending.plan)
+		result, err := evaluatePlan(pool, snap, pending.plan)
 		if err != nil {
 			s.logger.Printf("[ERR] nomad: failed to evaluate plan: %v", err)
 			pending.respond(nil, err)
@@ -173,7 +176,7 @@ func (s *Server) asyncPlanWait(waitCh chan struct{}, future raft.ApplyFuture,
 // evaluatePlan is used to determine what portions of a plan
 // can be applied if any. Returns if there should be a plan application
 // which may be partial or if there was an error
-func evaluatePlan(snap *state.StateSnapshot, plan *structs.Plan) (*structs.PlanResult, error) {
+func evaluatePlan(pool *EvaluatePool, snap *state.StateSnapshot, plan *structs.Plan) (*structs.PlanResult, error) {
 	defer metrics.MeasureSince([]string{"nomad", "plan", "evaluate"}, time.Now())
 
 	// Create a result holder for the plan
@@ -192,23 +195,29 @@ func evaluatePlan(snap *state.StateSnapshot, plan *structs.Plan) (*structs.PlanR
 		nodeIDs[nodeID] = struct{}{}
 	}
 
-	// Check each allocation to see if it should be allowed
-	for nodeID := range nodeIDs {
+	// Setup a multierror to handle potentially getting many
+	// errors since we are processing in parallel.
+	var mErr multierror.Error
+
+	// handleResult is used to process the result of evaluateNodePlan
+	handleResult := func(nodeID string, fit bool, err error) (cancel bool) {
 		// Evaluate the plan for this node
-		fit, err := evaluateNodePlan(snap, plan, nodeID)
 		if err != nil {
-			return nil, err
+			mErr.Errors = append(mErr.Errors, err)
+			return true
 		}
 		if !fit {
 			// Scheduler must have stale data, RefreshIndex should force
 			// the latest view of allocations and nodes
 			allocIndex, err := snap.Index("allocs")
 			if err != nil {
-				return nil, err
+				mErr.Errors = append(mErr.Errors, err)
+				return true
 			}
 			nodeIndex, err := snap.Index("nodes")
 			if err != nil {
-				return nil, err
+				mErr.Errors = append(mErr.Errors, err)
+				return true
 			}
 			result.RefreshIndex = maxUint64(nodeIndex, allocIndex)
 
@@ -217,11 +226,11 @@ func evaluatePlan(snap *state.StateSnapshot, plan *structs.Plan) (*structs.PlanR
 			if plan.AllAtOnce {
 				result.NodeUpdate = nil
 				result.NodeAllocation = nil
-				return result, nil
+				return true
 			}
 
 			// Skip this node, since it cannot be used.
-			continue
+			return
 		}
 
 		// Add this to the plan result
@@ -231,8 +240,41 @@ func evaluatePlan(snap *state.StateSnapshot, plan *structs.Plan) (*structs.PlanR
 		if nodeAlloc := plan.NodeAllocation[nodeID]; len(nodeAlloc) > 0 {
 			result.NodeAllocation[nodeID] = nodeAlloc
 		}
+		return
 	}
-	return result, nil
+
+	// Get the pool channels
+	req := pool.RequestCh()
+	resp := pool.ResultCh()
+	outstanding := 0
+	didCancel := false
+
+	// Evalute each node in the plan, handling results as
+	// they are ready to avoid blocking.
+	for nodeID := range nodeIDs {
+		select {
+		case req <- evaluateRequest{snap, plan, nodeID}:
+			outstanding++
+		case r := <-resp:
+			outstanding--
+			if cancel := handleResult(r.nodeID, r.fit, r.err); cancel {
+				didCancel = true
+				break
+			}
+		}
+	}
+
+	// Drain the remaining results
+	for outstanding > 0 {
+		r := <-resp
+		if !didCancel {
+			if cancel := handleResult(r.nodeID, r.fit, r.err); cancel {
+				didCancel = true
+			}
+		}
+		outstanding--
+	}
+	return result, mErr.ErrorOrNil()
 }
 
 // evaluateNodePlan is used to evalute the plan for a single node,

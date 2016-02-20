@@ -172,7 +172,10 @@ func TestPlanApply_EvalPlan_Simple(t *testing.T) {
 		FailedAllocs: []*structs.Allocation{allocFail},
 	}
 
-	result, err := evaluatePlan(snap, plan)
+	pool := NewEvaluatePool(workerPoolSize, workerPoolBufferSize)
+	defer pool.Shutdown()
+
+	result, err := evaluatePlan(pool, snap, plan)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -202,7 +205,10 @@ func TestPlanApply_EvalPlan_Partial(t *testing.T) {
 		},
 	}
 
-	result, err := evaluatePlan(snap, plan)
+	pool := NewEvaluatePool(workerPoolSize, workerPoolBufferSize)
+	defer pool.Shutdown()
+
+	result, err := evaluatePlan(pool, snap, plan)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -237,7 +243,10 @@ func TestPlanApply_EvalPlan_Partial_AllAtOnce(t *testing.T) {
 		},
 	}
 
-	result, err := evaluatePlan(snap, plan)
+	pool := NewEvaluatePool(workerPoolSize, workerPoolBufferSize)
+	defer pool.Shutdown()
+
+	result, err := evaluatePlan(pool, snap, plan)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
