@@ -38,3 +38,14 @@ func TestEvaluatePool(t *testing.T) {
 		t.Fatalf("bad")
 	}
 }
+
+func TestEvaluatePool_Resize(t *testing.T) {
+	pool := NewEvaluatePool(1, 4)
+	defer pool.Shutdown()
+
+	// Scale up
+	pool.SetSize(4)
+
+	// Scale down
+	pool.SetSize(2)
+}
