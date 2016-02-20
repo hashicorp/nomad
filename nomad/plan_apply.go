@@ -2,6 +2,7 @@ package nomad
 
 import (
 	"fmt"
+	"runtime"
 	"time"
 
 	"github.com/armon/go-metrics"
@@ -42,7 +43,13 @@ func (s *Server) planApply() {
 	// holds an optimistic state which includes that plan application.
 	var waitCh chan struct{}
 	var snap *state.StateSnapshot
-	pool := NewEvaluatePool(workerPoolSize, workerPoolBufferSize)
+
+	// Setup a worker pool with half the cores, with at least 1
+	poolSize := runtime.NumCPU() / 2
+	if poolSize == 0 {
+		poolSize = 1
+	}
+	pool := NewEvaluatePool(poolSize, workerPoolBufferSize)
 	defer pool.Shutdown()
 
 	for {

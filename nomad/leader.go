@@ -101,8 +101,9 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	// Disable workers to free half the cores for use in the plan queue and
 	// evaluation broker
 	if numWorkers := len(s.workers); numWorkers > 1 {
-		// Disabling half the workers frees half the CPUs.
-		for i := 0; i < numWorkers/2; i++ {
+		// Disabling 3/4 of the workers frees CPU for raft and the
+		// plan applier which uses 1/2 the cores.
+		for i := 0; i < (3 * numWorkers / 4); i++ {
 			s.workers[i].SetPause(true)
 		}
 	}
