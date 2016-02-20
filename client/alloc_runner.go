@@ -344,7 +344,10 @@ func (r *AllocRunner) setTaskState(taskName, state string, event *structs.TaskEv
 		if r.taskReceivedTimer == nil {
 			r.taskReceivedTimer = time.AfterFunc(taskReceivedSyncLimit, func() {
 				// Send a dirty signal to sync our state.
-				r.dirtyCh <- struct{}{}
+				select {
+				case r.dirtyCh <- struct{}{}:
+				default:
+				}
 			})
 		}
 		return
