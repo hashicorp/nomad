@@ -257,6 +257,9 @@ func evaluatePlan(pool *EvaluatePool, snap *state.StateSnapshot, plan *structs.P
 			outstanding++
 		case r := <-resp:
 			outstanding--
+
+			// Handle a result that allows us to cancel evaluation,
+			// which may save time processing additional entries.
 			if cancel := handleResult(r.nodeID, r.fit, r.err); cancel {
 				didCancel = true
 				break
