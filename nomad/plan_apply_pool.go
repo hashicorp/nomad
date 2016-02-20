@@ -6,9 +6,6 @@ import (
 )
 
 const (
-	// workerPoolSize is the size of the worker pool
-	workerPoolSize = 2
-
 	// workerPoolBufferSize is the size of the buffers used to push
 	// request to the workers and to collect the responses. It should
 	// be large enough just to keep things busy

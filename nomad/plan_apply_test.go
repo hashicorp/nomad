@@ -10,6 +10,11 @@ import (
 	"github.com/hashicorp/raft"
 )
 
+const (
+	// workerPoolSize is the size of the worker pool
+	workerPoolSize = 2
+)
+
 // planWaitFuture is used to wait for the Raft future to complete
 func planWaitFuture(future raft.ApplyFuture) (uint64, error) {
 	if err := future.Error(); err != nil {
