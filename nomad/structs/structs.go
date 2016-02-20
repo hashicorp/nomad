@@ -2183,6 +2183,7 @@ const (
 	EvalTriggerPeriodicJob   = "periodic-job"
 	EvalTriggerNodeUpdate    = "node-update"
 	EvalTriggerScheduled     = "scheduled"
+	EvalTriggerForceGC       = "force-gc"
 	EvalTriggerRollingUpdate = "rolling-update"
 )
 
