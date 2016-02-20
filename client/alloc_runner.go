@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver"
@@ -20,10 +19,12 @@ const (
 	// the status of the allocation
 	allocSyncRetryIntv = 15 * time.Second
 
-	// taskReceivedSyncLimit is how long the client will wait before sending that
-	// a task was received to the server. If the task was received transitions
-	// to any other state the server will receive the update. This limit is just
-	// then for the pathological case in which no other transistion occurs.
+	// taskReceivedSyncLimit is how long the client will wait before sending
+	// that a task was received to the server. The client does not immediately
+	// send that the task was received to the server because another transistion
+	// to running or failed is likely to occur immediately after and a single
+	// update will transfer all past state information. If not other transistion
+	// has occured up to this limit, we will send to the server.
 	taskReceivedSyncLimit = 30 * time.Second
 )
 
