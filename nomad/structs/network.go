@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	"sync"
 )
 
 const (
@@ -21,6 +22,14 @@ const (
 	maxValidPort = 65536
 )
 
+var (
+	// bitmapPool is used to pool the bitmaps used for port collision
+	// checking. They are fairly large (8K) so we can re-use them to
+	// avoid GC pressure. Care should be taken to call Clear() on any
+	// bitmap coming from the pool.
+	bitmapPool = new(sync.Pool)
+)
+
 // NetworkIndex is used to index the available network resources
 // and the used network resources on a machine given allocations
 type NetworkIndex struct {
@@ -36,6 +45,14 @@ func NewNetworkIndex() *NetworkIndex {
 		AvailBandwidth: make(map[string]int),
 		UsedPorts:      make(map[string]Bitmap),
 		UsedBandwidth:  make(map[string]int),
+	}
+}
+
+// Release is called when the network index is no longer needed
+// to attempt to re-use some of the memory it has allocated
+func (idx *NetworkIndex) Release() {
+	for _, b := range idx.UsedPorts {
+		bitmapPool.Put(b)
 	}
 }
 
@@ -95,7 +112,14 @@ func (idx *NetworkIndex) AddReserved(n *NetworkResource) (collide bool) {
 	// Add the port usage
 	used := idx.UsedPorts[n.IP]
 	if used == nil {
-		used, _ = NewBitmap(maxValidPort)
+		// Try to get a bitmap from the pool, else create
+		raw := bitmapPool.Get()
+		if raw != nil {
+			used = raw.(Bitmap)
+			used.Clear()
+		} else {
+			used, _ = NewBitmap(maxValidPort)
+		}
 		idx.UsedPorts[n.IP] = used
 	}
 
