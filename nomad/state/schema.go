@@ -222,9 +222,27 @@ func allocTableSchema() *memdb.TableSchema {
 				Name:         "node",
 				AllowMissing: true, // Missing is allow for failed allocations
 				Unique:       false,
-				Indexer: &memdb.StringFieldIndex{
-					Field:     "NodeID",
-					Lowercase: true,
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{
+							Field:     "NodeID",
+							Lowercase: true,
+						},
+
+						// Conditional indexer on if allocation is terminal
+						&memdb.ConditionalIndex{
+							Conditional: func(obj interface{}) (bool, error) {
+								// Cast to allocation
+								alloc, ok := obj.(*structs.Allocation)
+								if !ok {
+									return false, fmt.Errorf("wrong type, got %t should be Allocation", obj)
+								}
+
+								// Check if the allocation is terminal
+								return alloc.TerminalStatus(), nil
+							},
+						},
+					},
 				},
 			},
 

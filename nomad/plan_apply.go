@@ -256,14 +256,11 @@ func evaluateNodePlan(snap *state.StateSnapshot, plan *structs.Plan, nodeID stri
 		return false, nil
 	}
 
-	// Get the existing allocations
-	existingAlloc, err := snap.AllocsByNode(nodeID)
+	// Get the existing allocations that are non-terminal
+	existingAlloc, err := snap.AllocsByNodeTerminal(nodeID, false)
 	if err != nil {
 		return false, fmt.Errorf("failed to get existing allocations for '%s': %v", nodeID, err)
 	}
-
-	// Filter on alloc state
-	existingAlloc = structs.FilterTerminalAllocs(existingAlloc)
 
 	// Determine the proposed allocation by first removing allocations
 	// that are planned evictions and adding the new allocations.

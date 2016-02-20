@@ -63,6 +63,9 @@ type State interface {
 	// AllocsByNode returns all the allocations by node
 	AllocsByNode(node string) ([]*structs.Allocation, error)
 
+	// AllocsByNodeTerminal returns all the allocations by node filtering by terminal status
+	AllocsByNodeTerminal(node string, terminal bool) ([]*structs.Allocation, error)
+
 	// GetNodeByID is used to lookup a node by ID
 	NodeByID(nodeID string) (*structs.Node, error)
 

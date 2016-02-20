@@ -865,8 +865,30 @@ func (s *StateStore) AllocsByIDPrefix(id string) (memdb.ResultIterator, error) {
 func (s *StateStore) AllocsByNode(node string) ([]*structs.Allocation, error) {
 	txn := s.db.Txn(false)
 
+	// Get an iterator over the node allocations, using only the
+	// node prefix which ignores the terminal status
+	iter, err := txn.Get("allocs", "node_prefix", node)
+	if err != nil {
+		return nil, err
+	}
+
+	var out []*structs.Allocation
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		out = append(out, raw.(*structs.Allocation))
+	}
+	return out, nil
+}
+
+// AllocsByNode returns all the allocations by node and terminal status
+func (s *StateStore) AllocsByNodeTerminal(node string, terminal bool) ([]*structs.Allocation, error) {
+	txn := s.db.Txn(false)
+
 	// Get an iterator over the node allocations
-	iter, err := txn.Get("allocs", "node", node)
+	iter, err := txn.Get("allocs", "node", node, terminal)
 	if err != nil {
 		return nil, err
 	}
