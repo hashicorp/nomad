@@ -575,7 +575,7 @@ func TestInplaceUpdate_Success(t *testing.T) {
 		DesiredStatus: structs.AllocDesiredStatusRun,
 	}
 	alloc.TaskResources = map[string]*structs.Resources{"web": alloc.Resources}
-	alloc.PopulateServiceIDs()
+	alloc.PopulateServiceIDs(job.TaskGroups[0])
 	noErr(t, state.UpsertAllocs(1001, []*structs.Allocation{alloc}))
 
 	webFeSrvID := alloc.Services["web-frontend"]
