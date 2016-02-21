@@ -11,7 +11,7 @@ go:
   - 1.6
 
 env:
-  - DOCKER_VERSION=1.9.1 GOVENDOREXPERIMENT=1
+  - DOCKER_VERSION=1.9.1 GO15VENDOREXPERIMENT=1
 
 matrix:
   allow_failures:
