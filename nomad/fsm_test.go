@@ -73,7 +73,7 @@ func TestFSM_UpsertNode(t *testing.T) {
 	req := structs.NodeRegisterRequest{
 		Node: mock.Node(),
 	}
-	buf, err := structs.EncodeCompressed(structs.NodeRegisterRequestType, req)
+	buf, err := structs.Encode(structs.NodeRegisterRequestType, req)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -109,7 +109,7 @@ func TestFSM_DeregisterNode(t *testing.T) {
 	req := structs.NodeRegisterRequest{
 		Node: node,
 	}
-	buf, err := structs.EncodeCompressed(structs.NodeRegisterRequestType, req)
+	buf, err := structs.Encode(structs.NodeRegisterRequestType, req)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -122,7 +122,7 @@ func TestFSM_DeregisterNode(t *testing.T) {
 	req2 := structs.NodeDeregisterRequest{
 		NodeID: node.ID,
 	}
-	buf, err = structs.EncodeCompressed(structs.NodeDeregisterRequestType, req2)
+	buf, err = structs.Encode(structs.NodeDeregisterRequestType, req2)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -150,7 +150,7 @@ func TestFSM_UpdateNodeStatus(t *testing.T) {
 	req := structs.NodeRegisterRequest{
 		Node: node,
 	}
-	buf, err := structs.EncodeCompressed(structs.NodeRegisterRequestType, req)
+	buf, err := structs.Encode(structs.NodeRegisterRequestType, req)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -169,7 +169,7 @@ func TestFSM_UpdateNodeStatus(t *testing.T) {
 		NodeID: node.ID,
 		Status: structs.NodeStatusReady,
 	}
-	buf, err = structs.EncodeCompressed(structs.NodeUpdateStatusRequestType, req2)
+	buf, err = structs.Encode(structs.NodeUpdateStatusRequestType, req2)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -207,7 +207,7 @@ func TestFSM_UpdateNodeDrain(t *testing.T) {
 	req := structs.NodeRegisterRequest{
 		Node: node,
 	}
-	buf, err := structs.EncodeCompressed(structs.NodeRegisterRequestType, req)
+	buf, err := structs.Encode(structs.NodeRegisterRequestType, req)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -221,7 +221,7 @@ func TestFSM_UpdateNodeDrain(t *testing.T) {
 		NodeID: node.ID,
 		Drain:  true,
 	}
-	buf, err = structs.EncodeCompressed(structs.NodeUpdateDrainRequestType, req2)
+	buf, err = structs.Encode(structs.NodeUpdateDrainRequestType, req2)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -248,7 +248,7 @@ func TestFSM_RegisterJob(t *testing.T) {
 	req := structs.JobRegisterRequest{
 		Job: job,
 	}
-	buf, err := structs.EncodeCompressed(structs.JobRegisterRequestType, req)
+	buf, err := structs.Encode(structs.JobRegisterRequestType, req)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -295,7 +295,7 @@ func TestFSM_DeregisterJob(t *testing.T) {
 	req := structs.JobRegisterRequest{
 		Job: job,
 	}
-	buf, err := structs.EncodeCompressed(structs.JobRegisterRequestType, req)
+	buf, err := structs.Encode(structs.JobRegisterRequestType, req)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -308,7 +308,7 @@ func TestFSM_DeregisterJob(t *testing.T) {
 	req2 := structs.JobDeregisterRequest{
 		JobID: job.ID,
 	}
-	buf, err = structs.EncodeCompressed(structs.JobDeregisterRequestType, req2)
+	buf, err = structs.Encode(structs.JobDeregisterRequestType, req2)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -349,7 +349,7 @@ func TestFSM_UpdateEval(t *testing.T) {
 	req := structs.EvalUpdateRequest{
 		Evals: []*structs.Evaluation{mock.Eval()},
 	}
-	buf, err := structs.EncodeCompressed(structs.EvalUpdateRequestType, req)
+	buf, err := structs.Encode(structs.EvalUpdateRequestType, req)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -390,7 +390,7 @@ func TestFSM_UpdateEval_Blocked(t *testing.T) {
 	req := structs.EvalUpdateRequest{
 		Evals: []*structs.Evaluation{eval},
 	}
-	buf, err := structs.EncodeCompressed(structs.EvalUpdateRequestType, req)
+	buf, err := structs.Encode(structs.EvalUpdateRequestType, req)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -432,7 +432,7 @@ func TestFSM_DeleteEval(t *testing.T) {
 	req := structs.EvalUpdateRequest{
 		Evals: []*structs.Evaluation{eval},
 	}
-	buf, err := structs.EncodeCompressed(structs.EvalUpdateRequestType, req)
+	buf, err := structs.Encode(structs.EvalUpdateRequestType, req)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -445,7 +445,7 @@ func TestFSM_DeleteEval(t *testing.T) {
 	req2 := structs.EvalDeleteRequest{
 		Evals: []string{eval.ID},
 	}
-	buf, err = structs.EncodeCompressed(structs.EvalDeleteRequestType, req2)
+	buf, err = structs.Encode(structs.EvalDeleteRequestType, req2)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -472,7 +472,7 @@ func TestFSM_UpsertAllocs(t *testing.T) {
 	req := structs.AllocUpdateRequest{
 		Alloc: []*structs.Allocation{alloc},
 	}
-	buf, err := structs.EncodeCompressed(structs.AllocUpdateRequestType, req)
+	buf, err := structs.Encode(structs.AllocUpdateRequestType, req)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -500,7 +500,7 @@ func TestFSM_UpsertAllocs(t *testing.T) {
 	req2 := structs.AllocUpdateRequest{
 		Alloc: []*structs.Allocation{evictAlloc},
 	}
-	buf, err = structs.EncodeCompressed(structs.AllocUpdateRequestType, req2)
+	buf, err = structs.Encode(structs.AllocUpdateRequestType, req2)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -550,7 +550,7 @@ func TestFSM_UpdateAllocFromClient(t *testing.T) {
 	req := structs.AllocUpdateRequest{
 		Alloc: []*structs.Allocation{clientAlloc},
 	}
-	buf, err := structs.EncodeCompressed(structs.AllocClientUpdateRequestType, req)
+	buf, err := structs.Encode(structs.AllocClientUpdateRequestType, req)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -597,7 +597,7 @@ func TestFSM_UpdateAllocFromClient_Unblock(t *testing.T) {
 	req := structs.AllocUpdateRequest{
 		Alloc: []*structs.Allocation{clientAlloc},
 	}
-	buf, err := structs.EncodeCompressed(structs.AllocClientUpdateRequestType, req)
+	buf, err := structs.Encode(structs.AllocClientUpdateRequestType, req)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
