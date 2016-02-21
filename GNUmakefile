@@ -7,16 +7,17 @@ EXTERNAL_TOOLS=\
 	golang.org/x/tools/cmd/cover \
 	golang.org/x/tools/cmd/vet \
 	github.com/axw/gocov/gocov \
-	gopkg.in/matm/v1/gocov-html
+	gopkg.in/matm/v1/gocov-html \
+	github.com/ugorji/go/codec/codecgen
 
 GOFILES_NOVENDOR = $(shell find . -type f -name '*.go' -not -path "./vendor/*")
 
 all: test
 
-dev: format
+dev: format generate
 	@NOMAD_DEV=1 sh -c "'$(PWD)/scripts/build.sh'"
 
-bin:
+bin: generate
 	@sh -c "'$(PWD)/scripts/build.sh'"
 
 release: 
@@ -26,7 +27,7 @@ cov:
 	gocov test ./... | gocov-html > /tmp/coverage.html
 	open /tmp/coverage.html
 
-test: 
+test: generate
 	@sh -c "'$(PWD)/scripts/test.sh'"
 	@$(MAKE) vet
 
@@ -36,6 +37,12 @@ cover:
 format:
 	@echo "--> Running go fmt"
 	@go fmt $(PACKAGES)
+
+generate:
+	@echo "--> Running go generate"
+	@go generate $(PACKAGES)
+	@sed -e 's|github.com/hashicorp/nomad/vendor/github.com/ugorji/go/codec|github.com/ugorji/go/codec|' nomad/structs/structs.generated.go >> structs.gen.tmp
+	@mv structs.gen.tmp nomad/structs/structs.generated.go
 
 vet:
 	@go tool vet 2>/dev/null ; if [ $$? -eq 3 ]; then \

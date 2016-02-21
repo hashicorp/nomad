@@ -13,11 +13,13 @@ import (
 	"time"
 
 	"github.com/gorhill/cronexpr"
-	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/helper/args"
 	"github.com/mitchellh/copystructure"
+	"github.com/ugorji/go/codec"
+
+	hcodec "github.com/hashicorp/go-msgpack/codec"
 )
 
 var (
@@ -2493,6 +2495,16 @@ func (p *PlanResult) FullCommit(plan *Plan) (bool, int, int) {
 // msgpackHandle is a shared handle for encoding/decoding of structs
 var MsgpackHandle = func() *codec.MsgpackHandle {
 	h := &codec.MsgpackHandle{RawToString: true}
+
+	// Sets the default type for decoding a map into a nil interface{}.
+	// This is necessary in particular because we store the driver configs as a
+	// nil interface{}.
+	h.MapType = reflect.TypeOf(map[string]interface{}(nil))
+	return h
+}()
+
+var HashiMsgpackHandle = func() *hcodec.MsgpackHandle {
+	h := &hcodec.MsgpackHandle{RawToString: true}
 
 	// Sets the default type for decoding a map into a nil interface{}.
 	// This is necessary in particular because we store the driver configs as a

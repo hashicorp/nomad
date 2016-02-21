@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/ugorji/go/codec"
 )
 
 // TimeTable is used to associate a Raft index with a timestamp.

@@ -55,13 +55,13 @@ const (
 // NewClientCodec returns a new rpc.ClientCodec to be used to make RPC calls to
 // the Nomad Server.
 func NewClientCodec(conn io.ReadWriteCloser) rpc.ClientCodec {
-	return msgpackrpc.NewCodecFromHandle(true, true, conn, structs.MsgpackHandle)
+	return msgpackrpc.NewCodecFromHandle(true, true, conn, structs.HashiMsgpackHandle)
 }
 
 // NewServerCodec returns a new rpc.ServerCodec to be used by the Nomad Server
 // to handle rpcs.
 func NewServerCodec(conn io.ReadWriteCloser) rpc.ServerCodec {
-	return msgpackrpc.NewCodecFromHandle(true, true, conn, structs.MsgpackHandle)
+	return msgpackrpc.NewCodecFromHandle(true, true, conn, structs.HashiMsgpackHandle)
 }
 
 // listen is used to listen for incoming RPC connections
