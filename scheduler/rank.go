@@ -193,6 +193,7 @@ OUTER:
 				if offer == nil {
 					iter.ctx.Metrics().ExhaustedNode(option.Node,
 						fmt.Sprintf("network: %s", err))
+					netIdx.Release()
 					continue OUTER
 				}
 
@@ -215,6 +216,7 @@ OUTER:
 
 		// Check if these allocations fit, if they do not, simply skip this node
 		fit, dim, util, _ := structs.AllocsFit(option.Node, proposed, netIdx)
+		netIdx.Release()
 		if !fit {
 			iter.ctx.Metrics().ExhaustedNode(option.Node, dim)
 			continue
