@@ -12,6 +12,7 @@ go:
 
 env:
   - DOCKER_VERSION=1.9.1
+  - GOVENDOREXPERIMENT=1
 
 matrix:
   allow_failures:
