@@ -244,7 +244,6 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 			EvalID:    s.eval.ID,
 			Name:      missing.Name,
 			JobID:     s.job.ID,
-			Job:       s.job,
 			TaskGroup: missing.TaskGroup.Name,
 			Resources: size,
 			Metrics:   s.ctx.Metrics(),
