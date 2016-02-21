@@ -190,7 +190,6 @@ func TestCoreScheduler_NodeGC_Force(t *testing.T) {
 
 	// Attempt the GC
 	gc := s1.forceCoreJobEval(structs.CoreJobNodeGC)
-	gc.ModifyIndex = 2000
 	err = core.Process(gc)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -377,7 +376,6 @@ func TestCoreScheduler_JobGC_Force(t *testing.T) {
 
 		// Attempt the GC
 		gc := s1.forceCoreJobEval(structs.CoreJobJobGC)
-		gc.ModifyIndex = 2000
 		err = core.Process(gc)
 		if err != nil {
 			t.Fatalf("test(%s) err: %v", test.test, err)

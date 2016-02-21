@@ -240,12 +240,20 @@ func (c *CoreScheduler) nodeGC(eval *structs.Evaluation) error {
 		return err
 	}
 
-	// Compute the old threshold limit for GC using the FSM
-	// time table.  This is a rough mapping of a time to the
-	// Raft index it belongs to.
-	tt := c.srv.fsm.TimeTable()
-	cutoff := time.Now().UTC().Add(-1 * c.srv.config.NodeGCThreshold)
-	oldThreshold := tt.NearestIndex(cutoff)
+	var oldThreshold uint64
+	if eval.TriggeredBy == structs.EvalTriggerForceGC {
+		// The GC was forced, so set the threshold to its maximum so everything
+		// will GC.
+		oldThreshold = math.MaxUint64
+		c.srv.logger.Println("[DEBUG] sched.core: forced node GC")
+	} else {
+		// Compute the old threshold limit for GC using the FSM
+		// time table.  This is a rough mapping of a time to the
+		// Raft index it belongs to.
+		tt := c.srv.fsm.TimeTable()
+		cutoff := time.Now().UTC().Add(-1 * c.srv.config.NodeGCThreshold)
+		oldThreshold = tt.NearestIndex(cutoff)
+	}
 	c.srv.logger.Printf("[DEBUG] sched.core: node GC: scanning before index %d (%v)",
 		oldThreshold, c.srv.config.NodeGCThreshold)
 
