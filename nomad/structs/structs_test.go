@@ -93,8 +93,8 @@ func TestJob_Validate(t *testing.T) {
 	}
 }
 
-func TestJob_Copy(t *testing.T) {
-	j := &Job{
+func testJob() *Job {
+	return &Job{
 		Region:      "global",
 		ID:          GenerateUUID(),
 		Name:        "my-job",
@@ -160,7 +160,10 @@ func TestJob_Copy(t *testing.T) {
 			"owner": "armon",
 		},
 	}
+}
 
+func TestJob_Copy(t *testing.T) {
+	j := testJob()
 	c := j.Copy()
 	if !reflect.DeepEqual(j, c) {
 		t.Fatalf("Copy() returned an unequal Job; got %#v; want %#v", c, j)
@@ -483,6 +486,23 @@ func TestEncodeDecode(t *testing.T) {
 
 	if !reflect.DeepEqual(arg, &out) {
 		t.Fatalf("bad: %#v %#v", arg, out)
+	}
+}
+
+func BenchmarkEncodeDecode(b *testing.B) {
+	job := testJob()
+
+	for i := 0; i < b.N; i++ {
+		buf, err := Encode(1, job)
+		if err != nil {
+			b.Fatalf("err: %v", err)
+		}
+
+		var out Job
+		err = Decode(buf[1:], &out)
+		if err != nil {
+			b.Fatalf("err: %v", err)
+		}
 	}
 }
 
