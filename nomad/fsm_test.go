@@ -520,6 +520,73 @@ func TestFSM_UpsertAllocs(t *testing.T) {
 	}
 }
 
+func TestFSM_UpsertAllocs_SharedJob(t *testing.T) {
+	fsm := testFSM(t)
+
+	alloc := mock.Alloc()
+	job := alloc.Job
+	alloc.Job = nil
+	req := structs.AllocUpdateRequest{
+		Job:   job,
+		Alloc: []*structs.Allocation{alloc},
+	}
+	buf, err := structs.Encode(structs.AllocUpdateRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp := fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	// Verify we are registered
+	out, err := fsm.State().AllocByID(alloc.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	alloc.CreateIndex = out.CreateIndex
+	alloc.ModifyIndex = out.ModifyIndex
+	alloc.AllocModifyIndex = out.AllocModifyIndex
+
+	// Job should be re-attached
+	alloc.Job = job
+	if !reflect.DeepEqual(alloc, out) {
+		t.Fatalf("bad: %#v %#v", alloc, out)
+	}
+
+	evictAlloc := new(structs.Allocation)
+	*evictAlloc = *alloc
+	job = evictAlloc.Job
+	evictAlloc.Job = nil
+	evictAlloc.DesiredStatus = structs.AllocDesiredStatusEvict
+	req2 := structs.AllocUpdateRequest{
+		Job:   job,
+		Alloc: []*structs.Allocation{evictAlloc},
+	}
+	buf, err = structs.Encode(structs.AllocUpdateRequestType, req2)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp = fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	// Verify we are evicted
+	out, err = fsm.State().AllocByID(alloc.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out.DesiredStatus != structs.AllocDesiredStatusEvict {
+		t.Fatalf("alloc found!")
+	}
+	if out.Job == nil {
+		t.Fatalf("missing job")
+	}
+}
+
 func TestFSM_UpdateAllocFromClient(t *testing.T) {
 	fsm := testFSM(t)
 	fsm.blockedEvals.SetEnabled(true)

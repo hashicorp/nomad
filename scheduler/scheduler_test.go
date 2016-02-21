@@ -93,6 +93,17 @@ func (h *Harness) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State, er
 	}
 	allocs = append(allocs, plan.FailedAllocs...)
 
+	// Attach the plan to all the allocations. It is pulled out in the
+	// payload to avoid the redundancy of encoding, but should be denormalized
+	// prior to being inserted into MemDB.
+	if j := plan.Job; j != nil {
+		for _, alloc := range allocs {
+			if alloc.Job == nil {
+				alloc.Job = j
+			}
+		}
+	}
+
 	// Apply the full plan
 	err := h.State.UpsertAllocs(index, allocs)
 	return result, nil, err

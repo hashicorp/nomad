@@ -356,6 +356,17 @@ func (n *nomadFSM) applyAllocUpdate(buf []byte, index uint64) interface{} {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
+	// Attach the plan to all the allocations. It is pulled out in the
+	// payload to avoid the redundancy of encoding, but should be denormalized
+	// prior to being inserted into MemDB.
+	if j := req.Job; j != nil {
+		for _, alloc := range req.Alloc {
+			if alloc.Job == nil {
+				alloc.Job = j
+			}
+		}
+	}
+
 	if err := n.state.UpsertAllocs(index, req.Alloc); err != nil {
 		n.logger.Printf("[ERR] nomad.fsm: UpsertAllocs failed: %v", err)
 		return err

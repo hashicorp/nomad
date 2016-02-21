@@ -113,7 +113,7 @@ func (s *Server) planApply() {
 		}
 
 		// Dispatch the Raft transaction for the plan
-		future, err := s.applyPlan(result, snap)
+		future, err := s.applyPlan(pending.plan.Job, result, snap)
 		if err != nil {
 			s.logger.Printf("[ERR] nomad: failed to submit plan: %v", err)
 			pending.respond(nil, err)
@@ -127,8 +127,18 @@ func (s *Server) planApply() {
 }
 
 // applyPlan is used to apply the plan result and to return the alloc index
-func (s *Server) applyPlan(result *structs.PlanResult, snap *state.StateSnapshot) (raft.ApplyFuture, error) {
-	req := structs.AllocUpdateRequest{}
+func (s *Server) applyPlan(job *structs.Job, result *structs.PlanResult, snap *state.StateSnapshot) (raft.ApplyFuture, error) {
+	// Determine the miniumum number of updates, could be more if there
+	// are multiple updates per node
+	minUpdates := len(result.NodeUpdate)
+	minUpdates += len(result.NodeAllocation)
+	minUpdates += len(result.FailedAllocs)
+
+	// Setup the update request
+	req := structs.AllocUpdateRequest{
+		Job:   job,
+		Alloc: make([]*structs.Allocation, 0, minUpdates),
+	}
 	for _, updateList := range result.NodeUpdate {
 		req.Alloc = append(req.Alloc, updateList...)
 	}

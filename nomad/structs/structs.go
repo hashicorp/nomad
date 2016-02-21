@@ -260,6 +260,11 @@ type PlanRequest struct {
 type AllocUpdateRequest struct {
 	// Alloc is the list of new allocations to assign
 	Alloc []*Allocation
+
+	// Job is the shared parent job of the allocations.
+	// It is pulled out since it is common to reduce payload size.
+	Job *Job
+
 	WriteRequest
 }
 
@@ -2023,29 +2028,25 @@ func (a *Allocation) Stub() *AllocListStub {
 
 // PopulateServiceIDs generates the service IDs for all the service definitions
 // in that Allocation
-func (a *Allocation) PopulateServiceIDs() {
-	// Make a copy of the old map which contains the service names and their
-	// generated IDs
-	oldIDs := make(map[string]string)
-	for k, v := range a.Services {
-		oldIDs[k] = v
-	}
-
+func (a *Allocation) PopulateServiceIDs(tg *TaskGroup) {
+	// Retain the old services, and re-initialize. We may be removing
+	// services, so we cannot update the existing map.
+	previous := a.Services
 	a.Services = make(map[string]string)
-	tg := a.Job.LookupTaskGroup(a.TaskGroup)
+
 	for _, task := range tg.Tasks {
 		for _, service := range task.Services {
-			// If the ID for a service name is already generated then we re-use
-			// it
-			if ID, ok := oldIDs[service.Name]; ok {
-				a.Services[service.Name] = ID
-			} else {
-				// If the service hasn't been generated an ID, we generate one.
-				// We add a prefix to the Service ID so that we can know that this service
-				// is managed by Nomad since Consul can also have service which are not
-				// managed by Nomad
-				a.Services[service.Name] = fmt.Sprintf("%s-%s", NomadConsulPrefix, GenerateUUID())
+			// Retain the service if an ID is already generated
+			if id, ok := previous[service.Name]; ok {
+				a.Services[service.Name] = id
+				continue
 			}
+
+			// If the service hasn't been generated an ID, we generate one.
+			// We add a prefix to the Service ID so that we can know that this service
+			// is managed by Nomad since Consul can also have service which are not
+			// managed by Nomad
+			a.Services[service.Name] = fmt.Sprintf("%s-%s", NomadConsulPrefix, GenerateUUID())
 		}
 	}
 }
@@ -2332,6 +2333,7 @@ func (e *Evaluation) MakePlan(j *Job) *Plan {
 	p := &Plan{
 		EvalID:         e.ID,
 		Priority:       e.Priority,
+		Job:            j,
 		NodeUpdate:     make(map[string][]*Allocation),
 		NodeAllocation: make(map[string][]*Allocation),
 	}
@@ -2397,6 +2399,11 @@ type Plan struct {
 	// entire plan must be able to make progress.
 	AllAtOnce bool
 
+	// Job is the parent job of all the allocations in the Plan.
+	// Since a Plan only involves a single Job, we can reduce the size
+	// of the plan by only including it once.
+	Job *Job
+
 	// NodeUpdate contains all the allocations for each node. For each node,
 	// this is a list of the allocations to update to either stop or evict.
 	NodeUpdate map[string][]*Allocation
@@ -2414,6 +2421,7 @@ type Plan struct {
 func (p *Plan) AppendUpdate(alloc *Allocation, status, desc string) {
 	newAlloc := new(Allocation)
 	*newAlloc = *alloc
+	newAlloc.Job = nil // Normalize the job
 	newAlloc.DesiredStatus = status
 	newAlloc.DesiredDescription = desc
 	node := alloc.NodeID
