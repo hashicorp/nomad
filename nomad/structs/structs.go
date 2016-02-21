@@ -2421,9 +2421,7 @@ type Plan struct {
 func (p *Plan) AppendUpdate(alloc *Allocation, status, desc string) {
 	newAlloc := new(Allocation)
 	*newAlloc = *alloc
-	if p.Job != nil {
-		newAlloc.Job = nil // Normalize the job
-	}
+	newAlloc.Job = nil // Normalize the job
 	newAlloc.DesiredStatus = status
 	newAlloc.DesiredDescription = desc
 	node := alloc.NodeID
