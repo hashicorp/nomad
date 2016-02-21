@@ -242,7 +242,7 @@ func (s *Server) forwardRegion(region, method string, args interface{}, reply in
 
 // raftApplyFuture is used to encode a message, run it through raft, and return the Raft future.
 func (s *Server) raftApplyFuture(t structs.MessageType, msg interface{}) (raft.ApplyFuture, error) {
-	buf, err := structs.Encode(t, msg)
+	buf, err := structs.EncodeCompressed(t, msg)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to encode request: %v", err)
 	}
