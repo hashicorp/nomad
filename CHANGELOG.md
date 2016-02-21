@@ -16,11 +16,6 @@ __BACKWARDS INCOMPATIBILITIES:__
   * All jobs that interpret variables in constraints or driver configurations
     will need to be updated to the new syntax which wraps the interpreted
     variable in curly braces. ($node.class becomes ${node.class}) [GH-760]
-  * All users who have multiple servers need to upgrade non-leaders first before
-    upgrading their leader server. Alternatively, all servers could be shutdown,
-    upgraded and brought back up. This upgrade path is necessary because Raft
-    logs are now LZW compressed and all followers must know how to handle the
-    new format [GH-826]
 
 IMPROVEMENTS:
   * core: Populate job status [GH-663]
