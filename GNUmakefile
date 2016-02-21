@@ -41,6 +41,8 @@ format:
 generate:
 	@echo "--> Running go generate"
 	@go generate $(PACKAGES)
+	@sed -e 's|github.com/hashicorp/nomad/vendor/github.com/ugorji/go/codec|github.com/ugorji/go/codec|' nomad/structs/structs.generated.go >> structs.gen.tmp
+	@mv structs.gen.tmp nomad/structs/structs.generated.go
 
 vet:
 	@go tool vet 2>/dev/null ; if [ $$? -eq 3 ]; then \
