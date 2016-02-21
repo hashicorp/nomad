@@ -407,4 +407,3 @@ func TestCoreScheduler_JobGC_Force(t *testing.T) {
 		}
 	}
 }
-

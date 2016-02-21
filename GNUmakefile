@@ -13,10 +13,10 @@ GOFILES_NOVENDOR = $(shell find . -type f -name '*.go' -not -path "./vendor/*")
 
 all: test
 
-dev: format
+dev: format generate
 	@NOMAD_DEV=1 sh -c "'$(PWD)/scripts/build.sh'"
 
-bin:
+bin: generate
 	@sh -c "'$(PWD)/scripts/build.sh'"
 
 release: 
@@ -26,7 +26,7 @@ cov:
 	gocov test ./... | gocov-html > /tmp/coverage.html
 	open /tmp/coverage.html
 
-test: 
+test: generate
 	@sh -c "'$(PWD)/scripts/test.sh'"
 	@$(MAKE) vet
 
@@ -36,6 +36,10 @@ cover:
 format:
 	@echo "--> Running go fmt"
 	@go fmt $(PACKAGES)
+
+generate:
+	@echo "--> Running go generate"
+	@go generate $(PACKAGES)
 
 vet:
 	@go tool vet 2>/dev/null ; if [ $$? -eq 3 ]; then \
