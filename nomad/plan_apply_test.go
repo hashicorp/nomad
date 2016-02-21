@@ -66,7 +66,7 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	}
 
 	// Apply the plan
-	future, err := s1.applyPlan(plan, snap)
+	future, err := s1.applyPlan(alloc.Job, plan, snap)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -107,7 +107,10 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	allocEvict := new(structs.Allocation)
 	*allocEvict = *alloc
 	allocEvict.DesiredStatus = structs.AllocDesiredStatusEvict
+	job := allocEvict.Job
+	allocEvict.Job = nil
 	alloc2 := mock.Alloc()
+	alloc2.Job = nil
 	plan = &structs.PlanResult{
 		NodeUpdate: map[string][]*structs.Allocation{
 			node.ID: []*structs.Allocation{allocEvict},
@@ -124,7 +127,7 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	}
 
 	// Apply the plan
-	future, err = s1.applyPlan(plan, snap)
+	future, err = s1.applyPlan(job, plan, snap)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -151,6 +154,9 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	if out.DesiredStatus != structs.AllocDesiredStatusEvict {
 		t.Fatalf("should be evicted alloc: %#v", out)
 	}
+	if out.Job == nil {
+		t.Fatalf("missing job")
+	}
 
 	// Lookup the allocation
 	out, err = s1.fsm.State().AllocByID(alloc2.ID)
@@ -159,6 +165,9 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	}
 	if out == nil {
 		t.Fatalf("missing alloc")
+	}
+	if out.Job == nil {
+		t.Fatalf("missing job")
 	}
 }
 
