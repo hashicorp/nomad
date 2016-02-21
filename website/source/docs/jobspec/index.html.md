@@ -238,7 +238,7 @@ The `task` object supports the following keys:
 * `service` - Nomad integrates with Consul for service discovery. A service
   block represents a routable and discoverable service on the network. Nomad
   automatically registers when a task is started and de-registers it when the
-  task transitons to the dead state. [Click
+  task transitions to the dead state. [Click
   here](/docs/jobspec/servicediscovery.html) to learn more about services.
 
 *   `env` - A map of key/value representing environment variables that
@@ -264,6 +264,9 @@ The `task` object supports the following keys:
 * `kill_timeout` - `kill_timeout` is a time duration that can be specified using
   the `s`, `m`, and `h` suffixes, such as `30s`. It can be used to configure the
   time between signaling a task it will be killed and actually killing it.
+
+* `logs` - Logs allows configuring log rotation for the `stdout` and `stderr`
+  buffers of a Task. See the log rotation reference below for more details.
 
 ### Resources
 
@@ -307,7 +310,7 @@ The `restart` object supports the following keys:
 
 * `delay` - A duration to wait before restarting a task. It is specified as a
   time duration using the `s`, `m`, and `h` suffixes, such as `30s`. A random
-  jitter of up to 25% is added to the the delay.
+  jitter of up to 25% is added to the delay.
 
 *   `mode` - Controls the behavior when the task fails more than `attempts`
     times in an interval. Possible values are listed below:
@@ -375,6 +378,32 @@ The `constraint` object supports the following keys:
     the same job _may_ be co-scheduled.
 
     Tasks within a task group are always co-scheduled.
+
+### Log Rotation
+
+The `logs` object configures how Nomad does log rotation of the `stdout` and
+`stderr` buffers of a Task. The `logs` object supports the following keys -
+
+* `max_files` - Determines the maximum number of rotated files Nomad
+  is going to retain for the `stdout` and the `stderr` buffers.
+
+* `max_file_size` - Determines the size of each rotated file. The
+  size is specified in `MB`.
+
+If the amount of disk resource requested for the task is less than the total
+amount of disk space needed to retain the rotated set of files, Nomad will return 
+a validation error when a job is submitted.
+
+```
+logs {
+    max_files = 3
+    max_file_size = 100
+}
+```
+
+In the above example we have asked Nomad to retain 3 rotated files and size of
+each file is 100MB. And so the minimum amount of disk space that would be
+required for the task would be 300MB
 
 ## JSON Syntax
 
