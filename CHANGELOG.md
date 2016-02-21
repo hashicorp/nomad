@@ -16,6 +16,11 @@ __BACKWARDS INCOMPATIBILITIES:__
   * All jobs that interpret variables in constraints or driver configurations
     will need to be updated to the new syntax which wraps the interpreted
     variable in curly braces. ($node.class becomes ${node.class}) [GH-760]
+  * All users who have multiple servers need to upgrade non-leaders first before
+    upgrading their leader server. Alternatively, all servers could be shutdown,
+    upgraded and brought back up. This upgrade path is necessary because Raft
+    logs are now LZW compressed and all followers must know how to handle the
+    new format [GH-826]
 
 IMPROVEMENTS:
   * core: Populate job status [GH-663]
@@ -34,6 +39,7 @@ IMPROVEMENTS:
     broker [GH-812]
   * core: Seed random number generator used to randomize node traversal order
     during scheduling [GH-808]
+  * core/api: System garbage collection endpoint [GH-828]
   * core/api: Allow users to set arbitrary headers via agent config [GH-699]
   * core/cli: Prefix based lookups of allocs/nodes/evals/jobs [GH-575]
   * core/cli: Print short identifiers and UX cleanup [GH-675, GH-693, GH-692]
