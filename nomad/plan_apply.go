@@ -306,6 +306,11 @@ func evaluatePlan(pool *EvaluatePool, snap *state.StateSnapshot, plan *structs.P
 			mErr.Errors = append(mErr.Errors, err)
 		}
 		result.RefreshIndex = maxUint64(nodeIndex, allocIndex)
+
+		if result.RefreshIndex == 0 {
+			err := fmt.Errorf("partialCommit with RefreshIndex of 0 (%d node, %d alloc)", nodeIndex, allocIndex)
+			mErr.Errors = append(mErr.Errors, err)
+		}
 	}
 	return result, mErr.ErrorOrNil()
 }
