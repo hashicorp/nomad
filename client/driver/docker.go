@@ -457,18 +457,18 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 			}
 		}
 
-		if authConfig := d.config.Read("docker.auth.config"); authConfig != "" {
-			if f, err := os.Open(authConfig); err == nil {
+		if authConfigFile := d.config.Read("docker.auth.config"); authConfigFile != "" {
+			if f, err := os.Open(authConfigFile); err == nil {
 				defer f.Close()
-				if authConfigurations, err := docker.NewAuthConfigurations(f); err == nil {
-					if authConfiguration, ok := authConfigurations.Configs[repo]; ok {
-						authOptions = authConfiguration
-					}
-				} else {
+				var authConfigurations *docker.AuthConfigurations
+				if authConfigurations, err = docker.NewAuthConfigurations(f); err != nil {
 					return nil, fmt.Errorf("Failed to create docker auth object: %v", err)
 				}
+				if authConfiguration, ok := authConfigurations.Configs[repo]; ok {
+					authOptions = authConfiguration
+				}
 			} else {
-				return nil, fmt.Errorf("Failed to create auth object from file: %v, error: %v", authConfig, err)
+				return nil, fmt.Errorf("Failed to open auth config file: %v, error: %v", authConfigFile, err)
 			}
 		}
 
