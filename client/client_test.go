@@ -440,8 +440,7 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	task.Config["args"] = []string{"10"}
 
 	state := s1.State()
-	err := state.UpsertAllocs(100,
-		[]*structs.Allocation{alloc1})
+	err := state.UpsertAllocs(100, []*structs.Allocation{alloc1})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -470,12 +469,20 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	defer c2.Shutdown()
 
 	// Ensure the allocation is running
-	c2.allocLock.RLock()
-	ar := c2.allocs[alloc1.ID]
-	c2.allocLock.RUnlock()
-	if ar.Alloc().ClientStatus != structs.AllocClientStatusRunning {
-		t.Fatalf("bad: %#v", ar.Alloc())
-	}
+	testutil.WaitForResult(func() (bool, error) {
+		c2.allocLock.RLock()
+		ar := c2.allocs[alloc1.ID]
+		c2.allocLock.RUnlock()
+		status := ar.Alloc().ClientStatus
+		alive := status != structs.AllocClientStatusRunning ||
+			status != structs.AllocClientStatusPending
+		if !alive {
+			return false, fmt.Errorf("incorrect client status: %#v", ar.Alloc())
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
 }
 
 func TestClient_Init(t *testing.T) {
