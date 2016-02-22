@@ -464,7 +464,11 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 					if authConfiguration, ok := authConfigurations.Configs[repo]; ok {
 						authOptions = authConfiguration
 					}
+				} else {
+					return nil, fmt.Errorf("Failed to create docker auth object: %v", err)
 				}
+			} else {
+				return nil, fmt.Errorf("Failed to create auth object from file: %v, error: %v", authConfig, err)
 			}
 		}
 
