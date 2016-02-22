@@ -62,6 +62,10 @@ const (
 	// allocSyncIntv is the batching period of allocation updates before they
 	// are synced with the server.
 	allocSyncIntv = 200 * time.Millisecond
+
+	// allocSyncRetryIntv is the interval on which we retry updating
+	// the status of the allocation
+	allocSyncRetryIntv = 5 * time.Second
 )
 
 // DefaultConfig returns the default configuration
@@ -834,26 +838,27 @@ func (c *Client) updateAllocStatus(alloc *structs.Allocation) {
 	stripped.TaskStates = alloc.TaskStates
 	stripped.ClientStatus = alloc.ClientStatus
 	stripped.ClientDescription = alloc.ClientDescription
-	c.allocUpdates <- stripped
+	select {
+	case c.allocUpdates <- stripped:
+	case <-c.shutdownCh:
+	}
 }
 
 // allocSync is a long lived function that batches allocation updates to the
 // server.
 func (c *Client) allocSync() {
-	timeoutTimer := time.NewTimer(allocSyncIntv)
-	timeoutCh := timeoutTimer.C
+	staggered := false
+	syncTicker := time.NewTicker(allocSyncIntv)
 	updates := make(map[string]*structs.Allocation)
 	for {
 		select {
 		case <-c.shutdownCh:
+			syncTicker.Stop()
 			return
 		case alloc := <-c.allocUpdates:
 			// Batch the allocation updates until the timer triggers.
 			updates[alloc.ID] = alloc
-		case <-timeoutCh:
-			// Reset the timer
-			timeoutTimer.Reset(allocSyncIntv)
-
+		case <-syncTicker.C:
 			// Fast path if there are no updates
 			if len(updates) == 0 {
 				continue
@@ -873,8 +878,16 @@ func (c *Client) allocSync() {
 			var resp structs.GenericResponse
 			if err := c.RPC("Node.UpdateAlloc", &args, &resp); err != nil {
 				c.logger.Printf("[ERR] client: failed to update allocations: %v", err)
+				syncTicker.Stop()
+				syncTicker = time.NewTicker(c.retryIntv(allocSyncRetryIntv))
+				staggered = true
 			} else {
 				updates = make(map[string]*structs.Allocation)
+				if staggered {
+					syncTicker.Stop()
+					syncTicker = time.NewTicker(allocSyncIntv)
+					staggered = false
+				}
 			}
 		}
 	}

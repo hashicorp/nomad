@@ -16,10 +16,6 @@ import (
 )
 
 const (
-	// allocSyncRetryIntv is the interval on which we retry updating
-	// the status of the allocation
-	allocSyncRetryIntv = 15 * time.Second
-
 	// taskReceivedSyncLimit is how long the client will wait before sending
 	// that a task was received to the server. The client does not immediately
 	// send that the task was received to the server because another transistion
