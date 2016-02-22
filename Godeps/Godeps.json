@@ -164,7 +164,7 @@
 		},
 		{
 			"ImportPath": "github.com/hashicorp/go-immutable-radix",
-			"Rev": "12e90058b2897552deea141eff51bb7a07a09e63"
+			"Rev": "8e8ed81f8f0bf1bdd829593fdd5c29922c1ea990"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/go-memdb",
