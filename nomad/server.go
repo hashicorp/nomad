@@ -374,7 +374,7 @@ func (s *Server) Leave() error {
 func (s *Server) setupRPC(tlsWrap tlsutil.DCWrapper) error {
 	// Create endpoints
 	s.endpoints.Status = &Status{s}
-	s.endpoints.Node = &Node{s}
+	s.endpoints.Node = &Node{srv: s}
 	s.endpoints.Job = &Job{s}
 	s.endpoints.Eval = &Eval{s}
 	s.endpoints.Plan = &Plan{s}
