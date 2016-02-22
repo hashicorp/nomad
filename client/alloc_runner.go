@@ -16,10 +16,6 @@ import (
 )
 
 const (
-	// allocSyncRetryIntv is the interval on which we retry updating
-	// the status of the allocation
-	allocSyncRetryIntv = 15 * time.Second
-
 	// taskReceivedSyncLimit is how long the client will wait before sending
 	// that a task was received to the server. The client does not immediately
 	// send that the task was received to the server because another transistion
@@ -30,7 +26,7 @@ const (
 )
 
 // AllocStateUpdater is used to update the status of an allocation
-type AllocStateUpdater func(alloc *structs.Allocation) error
+type AllocStateUpdater func(alloc *structs.Allocation)
 
 // AllocRunner is used to wrap an allocation and provide the execution context.
 type AllocRunner struct {
@@ -262,9 +258,12 @@ func (r *AllocRunner) Alloc() *structs.Allocation {
 		alloc.ClientStatus = structs.AllocClientStatusFailed
 	} else if running {
 		alloc.ClientStatus = structs.AllocClientStatusRunning
-	} else if dead && !pending {
+	} else if pending {
+		alloc.ClientStatus = structs.AllocClientStatusPending
+	} else if dead {
 		alloc.ClientStatus = structs.AllocClientStatusDead
 	}
+
 	return alloc
 }
 
@@ -273,25 +272,8 @@ func (r *AllocRunner) dirtySyncState() {
 	for {
 		select {
 		case <-r.dirtyCh:
-			r.retrySyncState(r.destroyCh)
+			r.syncStatus()
 		case <-r.destroyCh:
-			return
-		}
-	}
-}
-
-// retrySyncState is used to retry the state sync until success
-func (r *AllocRunner) retrySyncState(stopCh chan struct{}) {
-	for {
-		if err := r.syncStatus(); err == nil {
-			// The Alloc State might have been re-computed so we are
-			// snapshoting only the alloc runner
-			r.saveAllocRunnerState()
-			return
-		}
-		select {
-		case <-time.After(allocSyncRetryIntv + randomStagger(allocSyncRetryIntv)):
-		case <-stopCh:
 			return
 		}
 	}
@@ -299,16 +281,10 @@ func (r *AllocRunner) retrySyncState(stopCh chan struct{}) {
 
 // syncStatus is used to run and sync the status when it changes
 func (r *AllocRunner) syncStatus() error {
-	// Get a copy of our alloc.
+	// Get a copy of our alloc, update status server side and sync to disk
 	alloc := r.Alloc()
-
-	// Attempt to update the status
-	if err := r.updater(alloc); err != nil {
-		r.logger.Printf("[ERR] client: failed to update alloc '%s' status to %s: %s",
-			alloc.ID, alloc.ClientStatus, err)
-		return err
-	}
-	return nil
+	r.updater(alloc)
+	return r.saveAllocRunnerState()
 }
 
 // setStatus is used to update the allocation status
@@ -475,7 +451,7 @@ OUTER:
 	r.taskLock.Unlock()
 
 	// Final state sync
-	r.retrySyncState(nil)
+	r.syncStatus()
 
 	// Block until we should destroy the state of the alloc
 	r.handleDestroy()

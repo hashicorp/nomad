@@ -58,6 +58,14 @@ const (
 	// nodeUpdateRetryIntv is how often the client checks for updates to the
 	// node attributes or meta map.
 	nodeUpdateRetryIntv = 5 * time.Second
+
+	// allocSyncIntv is the batching period of allocation updates before they
+	// are synced with the server.
+	allocSyncIntv = 200 * time.Millisecond
+
+	// allocSyncRetryIntv is the interval on which we retry updating
+	// the status of the allocation
+	allocSyncRetryIntv = 5 * time.Second
 )
 
 // DefaultConfig returns the default configuration
@@ -100,6 +108,9 @@ type Client struct {
 	allocs    map[string]*AllocRunner
 	allocLock sync.RWMutex
 
+	// allocUpdates stores allocations that need to be synced to the server.
+	allocUpdates chan *structs.Allocation
+
 	shutdown     bool
 	shutdownCh   chan struct{}
 	shutdownLock sync.Mutex
@@ -112,12 +123,13 @@ func NewClient(cfg *config.Config) (*Client, error) {
 
 	// Create the client
 	c := &Client{
-		config:     cfg,
-		start:      time.Now(),
-		connPool:   nomad.NewPool(cfg.LogOutput, clientRPCCache, clientMaxStreams, nil),
-		logger:     logger,
-		allocs:     make(map[string]*AllocRunner),
-		shutdownCh: make(chan struct{}),
+		config:       cfg,
+		start:        time.Now(),
+		connPool:     nomad.NewPool(cfg.LogOutput, clientRPCCache, clientMaxStreams, nil),
+		logger:       logger,
+		allocs:       make(map[string]*AllocRunner),
+		allocUpdates: make(chan *structs.Allocation, 64),
+		shutdownCh:   make(chan struct{}),
 	}
 
 	// Setup the Consul Service
@@ -165,6 +177,9 @@ func NewClient(cfg *config.Config) (*Client, error) {
 
 	// Begin periodic snapshotting of state.
 	go c.periodicSnapshot()
+
+	// Begin syncing allocations to the server
+	go c.allocSync()
 
 	// Start the client!
 	go c.run()
@@ -816,19 +831,66 @@ func (c *Client) updateNodeStatus() error {
 }
 
 // updateAllocStatus is used to update the status of an allocation
-func (c *Client) updateAllocStatus(alloc *structs.Allocation) error {
-	args := structs.AllocUpdateRequest{
-		Alloc:        []*structs.Allocation{alloc},
-		WriteRequest: structs.WriteRequest{Region: c.config.Region},
+func (c *Client) updateAllocStatus(alloc *structs.Allocation) {
+	// Only send the fields that are updatable by the client.
+	stripped := new(structs.Allocation)
+	stripped.ID = alloc.ID
+	stripped.TaskStates = alloc.TaskStates
+	stripped.ClientStatus = alloc.ClientStatus
+	stripped.ClientDescription = alloc.ClientDescription
+	select {
+	case c.allocUpdates <- stripped:
+	case <-c.shutdownCh:
 	}
-	var resp structs.GenericResponse
-	err := c.RPC("Node.UpdateAlloc", &args, &resp)
-	if err != nil {
-		c.logger.Printf("[ERR] client: failed to update allocation: %v", err)
-		return err
-	}
+}
 
-	return nil
+// allocSync is a long lived function that batches allocation updates to the
+// server.
+func (c *Client) allocSync() {
+	staggered := false
+	syncTicker := time.NewTicker(allocSyncIntv)
+	updates := make(map[string]*structs.Allocation)
+	for {
+		select {
+		case <-c.shutdownCh:
+			syncTicker.Stop()
+			return
+		case alloc := <-c.allocUpdates:
+			// Batch the allocation updates until the timer triggers.
+			updates[alloc.ID] = alloc
+		case <-syncTicker.C:
+			// Fast path if there are no updates
+			if len(updates) == 0 {
+				continue
+			}
+
+			sync := make([]*structs.Allocation, 0, len(updates))
+			for _, alloc := range updates {
+				sync = append(sync, alloc)
+			}
+
+			// Send to server.
+			args := structs.AllocUpdateRequest{
+				Alloc:        sync,
+				WriteRequest: structs.WriteRequest{Region: c.config.Region},
+			}
+
+			var resp structs.GenericResponse
+			if err := c.RPC("Node.UpdateAlloc", &args, &resp); err != nil {
+				c.logger.Printf("[ERR] client: failed to update allocations: %v", err)
+				syncTicker.Stop()
+				syncTicker = time.NewTicker(c.retryIntv(allocSyncRetryIntv))
+				staggered = true
+			} else {
+				updates = make(map[string]*structs.Allocation)
+				if staggered {
+					syncTicker.Stop()
+					syncTicker = time.NewTicker(allocSyncIntv)
+					staggered = false
+				}
+			}
+		}
+	}
 }
 
 // allocUpdates holds the results of receiving updated allocations from the
