@@ -216,6 +216,9 @@ func (s *GenericScheduler) process() (bool, error) {
 	if !fullCommit {
 		s.logger.Printf("[DEBUG] sched: %#v: attempted %d placements, %d placed",
 			s.eval, expected, actual)
+		if newState == nil {
+			return false, fmt.Errorf("missing state refresh after partial commit")
+		}
 		return false, nil
 	}
 
