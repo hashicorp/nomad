@@ -238,8 +238,8 @@ func retryMax(max int, cb func() (bool, error), reset func() bool) error {
 // progressMade checks to see if the plan result made allocations or updates.
 // If the result is nil, false is returned.
 func progressMade(result *structs.PlanResult) bool {
-	return result != nil && len(result.NodeUpdate) != 0 &&
-		len(result.NodeAllocation) != 0
+	return result != nil && (len(result.NodeUpdate) != 0 ||
+		len(result.NodeAllocation) != 0)
 }
 
 // taintedNodes is used to scan the allocations and then check if the

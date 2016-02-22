@@ -736,3 +736,23 @@ func TestInitTaskState(t *testing.T) {
 		t.Fatal("Expected and actual not equal")
 	}
 }
+
+func TestProgressMade(t *testing.T) {
+	noopPlan := &structs.PlanResult{}
+	if progressMade(nil) || progressMade(noopPlan) {
+		t.Fatal("no progress plan marked as making progress")
+	}
+
+	m := map[string][]*structs.Allocation{
+		"foo": []*structs.Allocation{mock.Alloc()},
+	}
+	both := &structs.PlanResult{
+		NodeAllocation: m,
+		NodeUpdate: m,
+	}
+	update := &structs.PlanResult{ NodeUpdate: m }
+	alloc := &structs.PlanResult{ NodeAllocation: m }
+	if !(progressMade(both) && progressMade(update) && progressMade(alloc)) {
+		t.Fatal("bad")
+	}
+}
