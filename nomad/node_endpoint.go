@@ -451,7 +451,7 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "update_alloc"}, time.Now())
 
-	// Ensure only a single alloc
+	// Ensure at least a single alloc
 	if len(args.Alloc) == 0 {
 		return fmt.Errorf("must update at least one allocation")
 	}
