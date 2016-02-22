@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-export GO15VENDOREXPERIMENT=1
-
 # Create a temp dir and clean it up on exit
 TEMPDIR=`mktemp -d -t nomad-test.XXX`
 trap "rm -rf $TEMPDIR" EXIT HUP INT QUIT TERM

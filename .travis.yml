@@ -7,11 +7,11 @@ services:
 language: go
 
 go:
-  - 1.5.3
   - 1.6
+  - tip
 
 env:
-  - DOCKER_VERSION=1.9.1 GO15VENDOREXPERIMENT=1
+  - DOCKER_VERSION=1.9.1
 
 matrix:
   allow_failures:
