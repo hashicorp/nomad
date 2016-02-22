@@ -587,7 +587,7 @@ func TestFSM_UpsertAllocs_SharedJob(t *testing.T) {
 	}
 }
 
-func TestFSM_UpdateAllocFromClient(t *testing.T) {
+func TestFSM_UpdateAllocFromClient_Unblock(t *testing.T) {
 	fsm := testFSM(t)
 	fsm.blockedEvals.SetEnabled(true)
 	state := fsm.State()
@@ -608,14 +608,20 @@ func TestFSM_UpdateAllocFromClient(t *testing.T) {
 	// Create a completed eval
 	alloc := mock.Alloc()
 	alloc.NodeID = node.ID
-	state.UpsertAllocs(1, []*structs.Allocation{alloc})
+	alloc2 := mock.Alloc()
+	alloc2.NodeID = node.ID
+	state.UpsertAllocs(1, []*structs.Allocation{alloc, alloc2})
 
 	clientAlloc := new(structs.Allocation)
 	*clientAlloc = *alloc
 	clientAlloc.ClientStatus = structs.AllocClientStatusDead
+	update2 := &structs.Allocation{
+		ID:           alloc2.ID,
+		ClientStatus: structs.AllocClientStatusRunning,
+	}
 
 	req := structs.AllocUpdateRequest{
-		Alloc: []*structs.Allocation{clientAlloc},
+		Alloc: []*structs.Allocation{clientAlloc, update2},
 	}
 	buf, err := structs.Encode(structs.AllocClientUpdateRequestType, req)
 	if err != nil {
@@ -627,7 +633,7 @@ func TestFSM_UpdateAllocFromClient(t *testing.T) {
 		t.Fatalf("resp: %v", resp)
 	}
 
-	// Verify we are registered
+	// Verify we are updated
 	out, err := fsm.State().AllocByID(alloc.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -636,6 +642,18 @@ func TestFSM_UpdateAllocFromClient(t *testing.T) {
 	clientAlloc.ModifyIndex = out.ModifyIndex
 	if !reflect.DeepEqual(clientAlloc, out) {
 		t.Fatalf("bad: %#v %#v", clientAlloc, out)
+	}
+
+	out, err = fsm.State().AllocByID(alloc2.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	alloc2.CreateIndex = out.CreateIndex
+	alloc2.ModifyIndex = out.ModifyIndex
+	alloc2.ClientStatus = structs.AllocClientStatusRunning
+	alloc2.TaskStates = nil
+	if !reflect.DeepEqual(alloc2, out) {
+		t.Fatalf("bad: %#v %#v", alloc2, out)
 	}
 
 	// Verify the eval was unblocked.
@@ -650,7 +668,7 @@ func TestFSM_UpdateAllocFromClient(t *testing.T) {
 	})
 }
 
-func TestFSM_UpdateAllocFromClient_Unblock(t *testing.T) {
+func TestFSM_UpdateAllocFromClient(t *testing.T) {
 	fsm := testFSM(t)
 	state := fsm.State()
 

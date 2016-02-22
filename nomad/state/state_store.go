@@ -713,17 +713,33 @@ func (s *StateStore) Evals() (memdb.ResultIterator, error) {
 // most things, some updates are authoritative from the client. Specifically,
 // the desired state comes from the schedulers, while the actual state comes
 // from clients.
-func (s *StateStore) UpdateAllocFromClient(index uint64, alloc *structs.Allocation) error {
+func (s *StateStore) UpdateAllocsFromClient(index uint64, allocs []*structs.Allocation) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
+	// Setup the watcher
 	watcher := watch.NewItems()
 	watcher.Add(watch.Item{Table: "allocs"})
-	watcher.Add(watch.Item{Alloc: alloc.ID})
-	watcher.Add(watch.Item{AllocEval: alloc.EvalID})
-	watcher.Add(watch.Item{AllocJob: alloc.JobID})
-	watcher.Add(watch.Item{AllocNode: alloc.NodeID})
 
+	// Handle each of the updated allocations
+	for _, alloc := range allocs {
+		if err := s.nestedUpdateAllocFromClient(txn, watcher, index, alloc); err != nil {
+			return err
+		}
+	}
+
+	// Update the indexes
+	if err := txn.Insert("index", &IndexEntry{"allocs", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	txn.Defer(func() { s.watch.notify(watcher) })
+	txn.Commit()
+	return nil
+}
+
+// nestedUpdateAllocFromClient is used to nest an update of an allocation with client status
+func (s *StateStore) nestedUpdateAllocFromClient(txn *memdb.Txn, watcher watch.Items, index uint64, alloc *structs.Allocation) error {
 	// Look for existing alloc
 	existing, err := txn.First("allocs", "id", alloc.ID)
 	if err != nil {
@@ -735,6 +751,12 @@ func (s *StateStore) UpdateAllocFromClient(index uint64, alloc *structs.Allocati
 		return nil
 	}
 	exist := existing.(*structs.Allocation)
+
+	// Trigger the watcher
+	watcher.Add(watch.Item{Alloc: alloc.ID})
+	watcher.Add(watch.Item{AllocEval: exist.EvalID})
+	watcher.Add(watch.Item{AllocJob: exist.JobID})
+	watcher.Add(watch.Item{AllocNode: exist.NodeID})
 
 	// Copy everything from the existing allocation
 	copyAlloc := new(structs.Allocation)
@@ -753,23 +775,15 @@ func (s *StateStore) UpdateAllocFromClient(index uint64, alloc *structs.Allocati
 		return fmt.Errorf("alloc insert failed: %v", err)
 	}
 
-	// Update the indexes
-	if err := txn.Insert("index", &IndexEntry{"allocs", index}); err != nil {
-		return fmt.Errorf("index update failed: %v", err)
-	}
-
 	// Set the job's status
 	forceStatus := ""
 	if !copyAlloc.TerminalStatus() {
 		forceStatus = structs.JobStatusRunning
 	}
-	jobs := map[string]string{alloc.JobID: forceStatus}
+	jobs := map[string]string{exist.JobID: forceStatus}
 	if err := s.setJobStatuses(index, watcher, txn, jobs, false); err != nil {
 		return fmt.Errorf("setting job status failed: %v", err)
 	}
-
-	txn.Defer(func() { s.watch.notify(watcher) })
-	txn.Commit()
 	return nil
 }
 

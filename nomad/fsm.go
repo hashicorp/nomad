@@ -384,24 +384,26 @@ func (n *nomadFSM) applyAllocClientUpdate(buf []byte, index uint64) interface{} 
 		return nil
 	}
 
-	alloc := req.Alloc[0]
-	if err := n.state.UpdateAllocFromClient(index, alloc); err != nil {
+	// Update all the client allocations
+	if err := n.state.UpdateAllocsFromClient(index, req.Alloc); err != nil {
 		n.logger.Printf("[ERR] nomad.fsm: UpdateAllocFromClient failed: %v", err)
 		return err
 	}
 
 	// Unblock evals for the nodes computed node class if the client has
 	// finished running an allocation.
-	if alloc.ClientStatus == structs.AllocClientStatusDead ||
-		alloc.ClientStatus == structs.AllocClientStatusFailed {
-		nodeID := alloc.NodeID
-		node, err := n.state.NodeByID(nodeID)
-		if err != nil || node == nil {
-			n.logger.Printf("[ERR] nomad.fsm: looking up node %q failed: %v", nodeID, err)
-			return err
+	for _, alloc := range req.Alloc {
+		if alloc.ClientStatus == structs.AllocClientStatusDead ||
+			alloc.ClientStatus == structs.AllocClientStatusFailed {
+			nodeID := alloc.NodeID
+			node, err := n.state.NodeByID(nodeID)
+			if err != nil || node == nil {
+				n.logger.Printf("[ERR] nomad.fsm: looking up node %q failed: %v", nodeID, err)
+				return err
 
+			}
+			n.blockedEvals.Unblock(node.ComputedClass)
 		}
-		n.blockedEvals.Unblock(node.ComputedClass)
 	}
 
 	return nil

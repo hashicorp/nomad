@@ -1381,9 +1381,10 @@ func TestStateStore_RestoreEval(t *testing.T) {
 	notify.verify(t)
 }
 
-func TestStateStore_UpdateAllocFromClient(t *testing.T) {
+func TestStateStore_UpdateAllocsFromClient(t *testing.T) {
 	state := testStateStore(t)
 	alloc := mock.Alloc()
+	alloc2 := mock.Alloc()
 
 	notify := setupNotifyTest(
 		state,
@@ -1391,18 +1392,38 @@ func TestStateStore_UpdateAllocFromClient(t *testing.T) {
 		watch.Item{Alloc: alloc.ID},
 		watch.Item{AllocEval: alloc.EvalID},
 		watch.Item{AllocJob: alloc.JobID},
-		watch.Item{AllocNode: alloc.NodeID})
+		watch.Item{AllocNode: alloc.NodeID},
+		watch.Item{Alloc: alloc2.ID},
+		watch.Item{AllocEval: alloc2.EvalID},
+		watch.Item{AllocJob: alloc2.JobID},
+		watch.Item{AllocNode: alloc2.NodeID})
 
-	err := state.UpsertAllocs(1000, []*structs.Allocation{alloc})
+	err := state.UpsertAllocs(1000, []*structs.Allocation{alloc, alloc2})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	update := new(structs.Allocation)
-	*update = *alloc
-	update.ClientStatus = structs.AllocClientStatusFailed
+	// Create the delta updates
+	update := &structs.Allocation{
+		ID:           alloc.ID,
+		ClientStatus: structs.AllocClientStatusFailed,
+		TaskStates: map[string]*structs.TaskState{
+			"web": &structs.TaskState{
+				State: structs.TaskStatePending,
+			},
+		},
+	}
+	update2 := &structs.Allocation{
+		ID:           alloc2.ID,
+		ClientStatus: structs.AllocClientStatusRunning,
+		TaskStates: map[string]*structs.TaskState{
+			"web": &structs.TaskState{
+				State: structs.TaskStatePending,
+			},
+		},
+	}
 
-	err = state.UpdateAllocFromClient(1001, update)
+	err = state.UpdateAllocsFromClient(1001, []*structs.Allocation{update, update2})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1412,9 +1433,23 @@ func TestStateStore_UpdateAllocFromClient(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	update.ModifyIndex = 1001
-	if !reflect.DeepEqual(update, out) {
-		t.Fatalf("bad: %#v %#v", update, out)
+	alloc.CreateIndex = 1000
+	alloc.ModifyIndex = 1001
+	alloc.ClientStatus = structs.AllocClientStatusFailed
+	if !reflect.DeepEqual(alloc, out) {
+		t.Fatalf("bad: %#v %#v", alloc, out)
+	}
+
+	out, err = state.AllocByID(alloc2.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	alloc2.ModifyIndex = 1000
+	alloc2.ModifyIndex = 1001
+	alloc2.ClientStatus = structs.AllocClientStatusRunning
+	if !reflect.DeepEqual(alloc2, out) {
+		t.Fatalf("bad: %#v %#v", alloc2, out)
 	}
 
 	index, err := state.Index("allocs")

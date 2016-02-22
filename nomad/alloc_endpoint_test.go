@@ -109,7 +109,7 @@ func TestAllocEndpoint_List_Blocking(t *testing.T) {
 	alloc2.ID = alloc.ID
 	alloc2.ClientStatus = structs.AllocClientStatusRunning
 	time.AfterFunc(100*time.Millisecond, func() {
-		if err := state.UpdateAllocFromClient(3, alloc2); err != nil {
+		if err := state.UpdateAllocsFromClient(3, []*structs.Allocation{alloc2}); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 	})

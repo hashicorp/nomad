@@ -755,7 +755,7 @@ func TestClientEndpoint_GetAllocs_Blocking(t *testing.T) {
 		allocUpdate.NodeID = alloc.NodeID
 		allocUpdate.ID = alloc.ID
 		allocUpdate.ClientStatus = structs.AllocClientStatusRunning
-		err := state.UpdateAllocFromClient(200, allocUpdate)
+		err := state.UpdateAllocsFromClient(200, []*structs.Allocation{allocUpdate})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
