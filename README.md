@@ -81,7 +81,8 @@ For local dev first make sure Go is properly installed, including setting up a
 [GOPATH](https://golang.org/doc/code.html#GOPATH). After setting up Go, clone this 
 repository into `$GOPATH/src/github.com/hashicorp/nomad`. Then you can
 download the required build tools such as vet, cover, godep etc by bootstrapping
-your environment.
+your environment. Note that the variable `GO15VENDOREXPERIMENT` must be set to `1`
+for building on go version `1.5.3`.
 
 ```sh
 $ make bootstrap
