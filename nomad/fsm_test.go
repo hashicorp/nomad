@@ -587,7 +587,7 @@ func TestFSM_UpsertAllocs_SharedJob(t *testing.T) {
 	}
 }
 
-func TestFSM_UpdateAllocFromClient(t *testing.T) {
+func TestFSM_UpdateAllocFromClient_Unblock(t *testing.T) {
 	fsm := testFSM(t)
 	fsm.blockedEvals.SetEnabled(true)
 	state := fsm.State()
@@ -668,7 +668,7 @@ func TestFSM_UpdateAllocFromClient(t *testing.T) {
 	})
 }
 
-func TestFSM_UpdateAllocFromClient_Unblock(t *testing.T) {
+func TestFSM_UpdateAllocFromClient(t *testing.T) {
 	fsm := testFSM(t)
 	state := fsm.State()
 
