@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -817,11 +818,69 @@ func TestClientEndpoint_UpdateAlloc(t *testing.T) {
 		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 	var resp2 structs.NodeAllocsResponse
+	start := time.Now()
 	if err := msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", update, &resp2); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if resp2.Index == 0 {
 		t.Fatalf("Bad index: %d", resp2.Index)
+	}
+	if diff := time.Since(start); diff < batchUpdateInterval {
+		t.Fatalf("too fast: %v", diff)
+	}
+
+	// Lookup the alloc
+	out, err := state.AllocByID(alloc.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out.ClientStatus != structs.AllocClientStatusFailed {
+		t.Fatalf("Bad: %#v", out)
+	}
+}
+
+func TestClientEndpoint_BatchUpdate(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	node := mock.Node()
+	reg := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.GenericResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Inject fake evaluations
+	alloc := mock.Alloc()
+	alloc.NodeID = node.ID
+	state := s1.fsm.State()
+	err := state.UpsertAllocs(100, []*structs.Allocation{alloc})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Attempt update
+	clientAlloc := new(structs.Allocation)
+	*clientAlloc = *alloc
+	clientAlloc.ClientStatus = structs.AllocClientStatusFailed
+
+	// Call to do the batch update
+	bf := NewBatchFuture()
+	endpoint := s1.endpoints.Node
+	endpoint.batchUpdate(bf, []*structs.Allocation{clientAlloc})
+	if err := bf.Wait(); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if bf.Index() == 0 {
+		t.Fatalf("Bad index: %d", bf.Index())
 	}
 
 	// Lookup the alloc
@@ -1166,5 +1225,32 @@ func TestClientEndpoint_ListNodes_Blocking(t *testing.T) {
 	}
 	if len(resp4.Nodes) != 0 {
 		t.Fatalf("bad: %#v", resp4.Nodes)
+	}
+}
+
+func TestBatchFuture(t *testing.T) {
+	bf := NewBatchFuture()
+
+	// Async respond to the future
+	expect := fmt.Errorf("testing")
+	go func() {
+		time.Sleep(10 * time.Millisecond)
+		bf.Respond(1000, expect)
+	}()
+
+	// Block for the result
+	start := time.Now()
+	err := bf.Wait()
+	diff := time.Since(start)
+	if diff < 5*time.Millisecond {
+		t.Fatalf("too fast")
+	}
+
+	// Check the results
+	if err != expect {
+		t.Fatalf("bad: %s", err)
+	}
+	if bf.Index() != 1000 {
+		t.Fatalf("bad: %d", bf.Index())
 	}
 }

@@ -324,27 +324,27 @@ func TestClient_UpdateAllocStatus(t *testing.T) {
 
 	alloc := mock.Alloc()
 	alloc.NodeID = c1.Node().ID
+	originalStatus := "foo"
+	alloc.ClientStatus = originalStatus
 
 	state := s1.State()
 	state.UpsertAllocs(100, []*structs.Allocation{alloc})
 
-	newAlloc := new(structs.Allocation)
-	*newAlloc = *alloc
-	newAlloc.ClientStatus = structs.AllocClientStatusRunning
-
-	err := c1.updateAllocStatus(newAlloc)
-	if err != nil {
+	testutil.WaitForResult(func() (bool, error) {
+		out, err := state.AllocByID(alloc.ID)
+		if err != nil {
+			return false, err
+		}
+		if out == nil {
+			return false, fmt.Errorf("no such alloc")
+		}
+		if out.ClientStatus == originalStatus {
+			return false, fmt.Errorf("Alloc client status not updated; got %v", out.ClientStatus)
+		}
+		return true, nil
+	}, func(err error) {
 		t.Fatalf("err: %v", err)
-	}
-
-	out, err := state.AllocByID(alloc.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if out == nil || out.ClientStatus != structs.AllocClientStatusRunning {
-		t.Fatalf("bad: %#v", out)
-	}
+	})
 }
 
 func TestClient_WatchAllocs(t *testing.T) {
@@ -440,8 +440,7 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	task.Config["args"] = []string{"10"}
 
 	state := s1.State()
-	err := state.UpsertAllocs(100,
-		[]*structs.Allocation{alloc1})
+	err := state.UpsertAllocs(100, []*structs.Allocation{alloc1})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -470,12 +469,20 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	defer c2.Shutdown()
 
 	// Ensure the allocation is running
-	c2.allocLock.RLock()
-	ar := c2.allocs[alloc1.ID]
-	c2.allocLock.RUnlock()
-	if ar.Alloc().ClientStatus != structs.AllocClientStatusRunning {
-		t.Fatalf("bad: %#v", ar.Alloc())
-	}
+	testutil.WaitForResult(func() (bool, error) {
+		c2.allocLock.RLock()
+		ar := c2.allocs[alloc1.ID]
+		c2.allocLock.RUnlock()
+		status := ar.Alloc().ClientStatus
+		alive := status != structs.AllocClientStatusRunning ||
+			status != structs.AllocClientStatusPending
+		if !alive {
+			return false, fmt.Errorf("incorrect client status: %#v", ar.Alloc())
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
 }
 
 func TestClient_Init(t *testing.T) {

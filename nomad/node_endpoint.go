@@ -2,6 +2,7 @@ package nomad
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/armon/go-metrics"
@@ -10,9 +11,29 @@ import (
 	"github.com/hashicorp/nomad/nomad/watch"
 )
 
+const (
+	// batchUpdateInterval is how long we wait to batch updates
+	batchUpdateInterval = 50 * time.Millisecond
+)
+
 // Node endpoint is used for client interactions
 type Node struct {
 	srv *Server
+
+	// updates holds pending client status updates for allocations
+	updates []*structs.Allocation
+
+	// updateFuture is used to wait for the pending batch update
+	// to complete. This may be nil if no batch is pending.
+	updateFuture *batchFuture
+
+	// updateTimer is the timer that will trigger the next batch
+	// update, and may be nil if there is no batch pending.
+	updateTimer *time.Timer
+
+	// updatesLock synchronizes access to the updates list,
+	// the future and the timer.
+	updatesLock sync.Mutex
 }
 
 // Register is used to upsert a client that is available for scheduling
@@ -456,16 +477,57 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 		return fmt.Errorf("must update at least one allocation")
 	}
 
-	// Commit this update via Raft
-	_, index, err := n.srv.raftApply(structs.AllocClientUpdateRequestType, args)
-	if err != nil {
-		n.srv.logger.Printf("[ERR] nomad.client: alloc update failed: %v", err)
+	// Add this to the batch
+	n.updatesLock.Lock()
+	n.updates = append(n.updates, args.Alloc...)
+
+	// Start a new batch if none
+	future := n.updateFuture
+	if future == nil {
+		future = NewBatchFuture()
+		n.updateFuture = future
+		n.updateTimer = time.AfterFunc(batchUpdateInterval, func() {
+			// Get the pending updates
+			n.updatesLock.Lock()
+			updates := n.updates
+			future := n.updateFuture
+			n.updates = nil
+			n.updateFuture = nil
+			n.updateTimer = nil
+			n.updatesLock.Unlock()
+
+			// Perform the batch update
+			n.batchUpdate(future, updates)
+		})
+	}
+	n.updatesLock.Unlock()
+
+	// Wait for the future
+	if err := future.Wait(); err != nil {
 		return err
 	}
 
 	// Setup the response
-	reply.Index = index
+	reply.Index = future.Index()
 	return nil
+}
+
+// batchUpdate is used to update all the allocations
+func (n *Node) batchUpdate(future *batchFuture, updates []*structs.Allocation) {
+	// Prepare the batch update
+	batch := &structs.AllocUpdateRequest{
+		Alloc:        updates,
+		WriteRequest: structs.WriteRequest{Region: n.srv.config.Region},
+	}
+
+	// Commit this update via Raft
+	_, index, err := n.srv.raftApply(structs.AllocClientUpdateRequestType, batch)
+	if err != nil {
+		n.srv.logger.Printf("[ERR] nomad.client: alloc update failed: %v", err)
+	}
+
+	// Respond to the future
+	future.Respond(index, err)
 }
 
 // List is used to list the available nodes
@@ -616,4 +678,36 @@ func (n *Node) createNodeEvals(nodeID string, nodeIndex uint64) ([]string, uint6
 		return nil, 0, err
 	}
 	return evalIDs, evalIndex, nil
+}
+
+// batchFuture is used to wait on a batch update to complete
+type batchFuture struct {
+	doneCh chan struct{}
+	err    error
+	index  uint64
+}
+
+// NewBatchFuture creates a new batch future
+func NewBatchFuture() *batchFuture {
+	return &batchFuture{
+		doneCh: make(chan struct{}),
+	}
+}
+
+// Wait is used to block for the future to complete and returns the error
+func (b *batchFuture) Wait() error {
+	<-b.doneCh
+	return b.err
+}
+
+// Index is used to return the index of the batch, only after Wait()
+func (b *batchFuture) Index() uint64 {
+	return b.index
+}
+
+// Respond is used to unblock the future
+func (b *batchFuture) Respond(index uint64, err error) {
+	b.index = index
+	b.err = err
+	close(b.doneCh)
 }
