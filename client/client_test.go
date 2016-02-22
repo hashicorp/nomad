@@ -324,27 +324,27 @@ func TestClient_UpdateAllocStatus(t *testing.T) {
 
 	alloc := mock.Alloc()
 	alloc.NodeID = c1.Node().ID
+	originalStatus := "foo"
+	alloc.ClientStatus = originalStatus
 
 	state := s1.State()
 	state.UpsertAllocs(100, []*structs.Allocation{alloc})
 
-	newAlloc := new(structs.Allocation)
-	*newAlloc = *alloc
-	newAlloc.ClientStatus = structs.AllocClientStatusRunning
-
-	err := c1.updateAllocStatus(newAlloc)
-	if err != nil {
+	testutil.WaitForResult(func() (bool, error) {
+		out, err := state.AllocByID(alloc.ID)
+		if err != nil {
+			return false, err
+		}
+		if out == nil {
+			return false, fmt.Errorf("no such alloc")
+		}
+		if out.ClientStatus == originalStatus {
+			return false, fmt.Errorf("Alloc client status not updated; got %v", out.ClientStatus)
+		}
+		return true, nil
+	}, func(err error) {
 		t.Fatalf("err: %v", err)
-	}
-
-	out, err := state.AllocByID(alloc.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if out == nil || out.ClientStatus != structs.AllocClientStatusRunning {
-		t.Fatalf("bad: %#v", out)
-	}
+	})
 }
 
 func TestClient_WatchAllocs(t *testing.T) {

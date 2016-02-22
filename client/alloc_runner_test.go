@@ -16,13 +16,11 @@ import (
 type MockAllocStateUpdater struct {
 	Count  int
 	Allocs []*structs.Allocation
-	Err    error
 }
 
-func (m *MockAllocStateUpdater) Update(alloc *structs.Allocation) error {
+func (m *MockAllocStateUpdater) Update(alloc *structs.Allocation) {
 	m.Count += 1
 	m.Allocs = append(m.Allocs, alloc)
-	return m.Err
 }
 
 func testAllocRunner(restarts bool) (*MockAllocStateUpdater, *AllocRunner) {
