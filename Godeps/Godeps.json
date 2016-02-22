@@ -168,7 +168,7 @@
 		},
 		{
 			"ImportPath": "github.com/hashicorp/go-memdb",
-			"Rev": "e16093a4c7dd00f7ce4c2452ded2c7e37d8df8be"
+			"Rev": "2cc5518f24b906e7cccfc808817ba479f5489821"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/go-msgpack/codec",

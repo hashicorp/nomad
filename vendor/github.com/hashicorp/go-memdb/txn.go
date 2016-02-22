@@ -1,6 +1,7 @@
 package memdb
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 	"sync/atomic"
@@ -165,28 +166,44 @@ func (txn *Txn) Insert(table string, obj interface{}) error {
 	for name, indexSchema := range tableSchema.Indexes {
 		indexTxn := txn.writableIndex(table, name)
 
-		// Handle the update by deleting from the index first
-		if update {
-			ok, val, err := indexSchema.Indexer.FromObject(existing)
-			if err != nil {
-				return fmt.Errorf("failed to build index '%s': %v", name, err)
-			}
-			if ok {
-				// Handle non-unique index by computing a unique index.
-				// This is done by appending the primary key which must
-				// be unique anyways.
-				if !indexSchema.Unique {
-					val = append(val, idVal...)
-				}
-				indexTxn.Delete(val)
-			}
-		}
-
-		// Handle the insert after the update
+		// Determine the new index value
 		ok, val, err := indexSchema.Indexer.FromObject(obj)
 		if err != nil {
 			return fmt.Errorf("failed to build index '%s': %v", name, err)
 		}
+
+		// Handle non-unique index by computing a unique index.
+		// This is done by appending the primary key which must
+		// be unique anyways.
+		if ok && !indexSchema.Unique {
+			val = append(val, idVal...)
+		}
+
+		// Handle the update by deleting from the index first
+		if update {
+			okExist, valExist, err := indexSchema.Indexer.FromObject(existing)
+			if err != nil {
+				return fmt.Errorf("failed to build index '%s': %v", name, err)
+			}
+			if okExist {
+				// Handle non-unique index by computing a unique index.
+				// This is done by appending the primary key which must
+				// be unique anyways.
+				if !indexSchema.Unique {
+					valExist = append(valExist, idVal...)
+				}
+
+				// If we are writing to the same index with the same value,
+				// we can avoid the delete as the insert will overwrite the
+				// value anyways.
+				if !bytes.Equal(valExist, val) {
+					indexTxn.Delete(valExist)
+				}
+			}
+		}
+
+		// If there is no index value, either this is an error or an expected
+		// case and we can skip updating
 		if !ok {
 			if indexSchema.AllowMissing {
 				continue
@@ -195,12 +212,7 @@ func (txn *Txn) Insert(table string, obj interface{}) error {
 			}
 		}
 
-		// Handle non-unique index by computing a unique index.
-		// This is done by appending the primary key which must
-		// be unique anyways.
-		if !indexSchema.Unique {
-			val = append(val, idVal...)
-		}
+		// Update the value of the index
 		indexTxn.Insert(val, obj)
 	}
 	return nil
