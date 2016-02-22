@@ -236,6 +236,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		pluginClient: pluginClient,
 		executor:     exec,
 		executorPid:  ps.Pid,
+		allocDir:     ctx.AllocDir,
 		logger:       d.logger,
 		killTimeout:  d.DriverContext.KillTimeout(task),
 		doneCh:       make(chan struct{}),
