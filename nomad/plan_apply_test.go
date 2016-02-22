@@ -236,6 +236,9 @@ func TestPlanApply_EvalPlan_Partial(t *testing.T) {
 	if _, ok := result.NodeAllocation[node2.ID]; ok {
 		t.Fatalf("should not allow alloc2")
 	}
+	if result.RefreshIndex != 1001 {
+		t.Fatalf("bad: %d", result.RefreshIndex)
+	}
 }
 
 func TestPlanApply_EvalPlan_Partial_AllAtOnce(t *testing.T) {
@@ -270,6 +273,9 @@ func TestPlanApply_EvalPlan_Partial_AllAtOnce(t *testing.T) {
 
 	if len(result.NodeAllocation) != 0 {
 		t.Fatalf("should not alloc: %v", result.NodeAllocation)
+	}
+	if result.RefreshIndex != 1001 {
+		t.Fatalf("bad: %d", result.RefreshIndex)
 	}
 }
 
