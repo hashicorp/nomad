@@ -748,10 +748,10 @@ func TestProgressMade(t *testing.T) {
 	}
 	both := &structs.PlanResult{
 		NodeAllocation: m,
-		NodeUpdate: m,
+		NodeUpdate:     m,
 	}
-	update := &structs.PlanResult{ NodeUpdate: m }
-	alloc := &structs.PlanResult{ NodeAllocation: m }
+	update := &structs.PlanResult{NodeUpdate: m}
+	alloc := &structs.PlanResult{NodeAllocation: m}
 	if !(progressMade(both) && progressMade(update) && progressMade(alloc)) {
 		t.Fatal("bad")
 	}
