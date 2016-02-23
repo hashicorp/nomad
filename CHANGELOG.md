@@ -43,6 +43,7 @@ IMPROVEMENTS:
   * cli: Eval monitor detects zero wait condition [GH-776]
   * cli: Ability to navigate allocation directories [GH-709, GH-798]
   * client: Log rotation for all drivers [GH-685, GH-763, GH-819]
+  * client: Only download artifacts from http, https, and S3 [GH-841]
   * client: Create a tmp/ directory inside each task directory [GH-757]
   * client: Store when an allocation was received by the client [GH-821]
   * client: Heartbeating and saving state resilient under high load [GH-811]
@@ -52,6 +53,7 @@ IMPROVEMENTS:
   * client: Send Node to server when periodic fingerprinters change Node
     attributes/metadata [GH-749]
   * client/api: File-system access to allocation directories [GH-669]
+  * drivers: Validate the "command" field contains a single value [GH-842]
   * drivers: Interpret Nomad variables in environment variables/args [GH-653]
   * driver/rkt: Add support for CPU/Memory isolation [GH-610]
   * driver/rkt: Add support for mounting alloc/task directory [GH-645]
