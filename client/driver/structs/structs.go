@@ -1,6 +1,9 @@
 package structs
 
-import "fmt"
+import (
+	"fmt"
+	cgroupConfig "github.com/opencontainers/runc/libcontainer/configs"
+)
 
 // WaitResult stores the result of a Wait operation.
 type WaitResult struct {
@@ -24,4 +27,10 @@ func (r *WaitResult) Successful() bool {
 func (r *WaitResult) String() string {
 	return fmt.Sprintf("Wait returned exit code %v, signal %v, and error %v",
 		r.ExitCode, r.Signal, r.Err)
+}
+
+// IsolationConfig has information about the isolation mechanism the executor
+// uses to put resource constraints and isolation on the user process
+type IsolationConfig struct {
+	Cgroup *cgroupConfig.Cgroup
 }

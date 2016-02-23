@@ -2,7 +2,6 @@ package executor
 
 import (
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -18,7 +17,8 @@ import (
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/driver/env"
-	"github.com/hashicorp/nomad/client/driver/logrotator"
+	"github.com/hashicorp/nomad/client/driver/logging"
+	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -61,18 +61,12 @@ type ExecCommand struct {
 	Args []string
 }
 
-// IsolationConfig has information about the isolation mechanism the executor
-// uses to put resource constraints and isolation on the user process
-type IsolationConfig struct {
-	Cgroup *cgroupConfig.Cgroup
-}
-
 // ProcessState holds information about the state of a user process.
 type ProcessState struct {
 	Pid             int
 	ExitCode        int
 	Signal          int
-	IsolationConfig *IsolationConfig
+	IsolationConfig *cstructs.IsolationConfig
 	Time            time.Time
 }
 
@@ -97,8 +91,8 @@ type UniversalExecutor struct {
 	groups        *cgroupConfig.Cgroup
 	exitState     *ProcessState
 	processExited chan interface{}
-	lre           *logrotator.LogRotator
-	lro           *logrotator.LogRotator
+	lre           *logging.FileRotator
+	lro           *logging.FileRotator
 
 	logger *log.Logger
 	lock   sync.Mutex
@@ -135,28 +129,23 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext
 	}
 
 	logFileSize := int64(ctx.LogConfig.MaxFileSizeMB * 1024 * 1024)
+	path := filepath.Join(e.taskDir, allocdir.TaskLocal)
+	lro, err := logging.NewFileRotator(path, fmt.Sprintf("%v.stdout", ctx.TaskName),
+		ctx.LogConfig.MaxFiles, logFileSize, e.logger)
 
-	stdor, stdow := io.Pipe()
-	lro, err := logrotator.NewLogRotator(filepath.Join(e.taskDir, allocdir.TaskLocal),
-		fmt.Sprintf("%v.stdout", ctx.TaskName), ctx.LogConfig.MaxFiles,
-		logFileSize, e.logger)
 	if err != nil {
 		return nil, fmt.Errorf("error creating log rotator for stdout of task %v", err)
 	}
-	e.cmd.Stdout = stdow
+	e.cmd.Stdout = lro
 	e.lro = lro
-	go lro.Start(stdor)
 
-	stder, stdew := io.Pipe()
-	lre, err := logrotator.NewLogRotator(filepath.Join(e.taskDir, allocdir.TaskLocal),
-		fmt.Sprintf("%v.stderr", ctx.TaskName), ctx.LogConfig.MaxFiles,
-		logFileSize, e.logger)
+	lre, err := logging.NewFileRotator(path, fmt.Sprintf("%v.stderr", ctx.TaskName),
+		ctx.LogConfig.MaxFiles, logFileSize, e.logger)
 	if err != nil {
 		return nil, fmt.Errorf("error creating log rotator for stderr of task %v", err)
 	}
-	e.cmd.Stderr = stdew
+	e.cmd.Stderr = lre
 	e.lre = lre
-	go lre.Start(stder)
 
 	// setting the env, path and args for the command
 	e.ctx.TaskEnv.Build()
@@ -175,7 +164,7 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext
 		return nil, fmt.Errorf("error starting command: %v", err)
 	}
 	go e.wait()
-	ic := &IsolationConfig{Cgroup: e.groups}
+	ic := &cstructs.IsolationConfig{Cgroup: e.groups}
 	return &ProcessState{Pid: e.cmd.Process.Pid, ExitCode: -1, IsolationConfig: ic, Time: time.Now()}, nil
 }
 
