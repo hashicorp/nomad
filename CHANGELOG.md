@@ -34,6 +34,8 @@ IMPROVEMENTS:
     broker [GH-812]
   * core: Seed random number generator used to randomize node traversal order
     during scheduling [GH-808]
+  * core: Performance improvements [GH-823, GH-825, GH-827, GH-830, GH-832,
+    GH-833, GH-834, GH-839]
   * core/api: System garbage collection endpoint [GH-828]
   * core/api: Allow users to set arbitrary headers via agent config [GH-699]
   * core/cli: Prefix based lookups of allocs/nodes/evals/jobs [GH-575]
@@ -42,6 +44,7 @@ IMPROVEMENTS:
   * cli: Output of agent-info is sorted [GH-617]
   * cli: Eval monitor detects zero wait condition [GH-776]
   * cli: Ability to navigate allocation directories [GH-709, GH-798]
+  * client: Batch allocation updates to the server [GH-835]
   * client: Log rotation for all drivers [GH-685, GH-763, GH-819]
   * client: Only download artifacts from http, https, and S3 [GH-841]
   * client: Create a tmp/ directory inside each task directory [GH-757]
