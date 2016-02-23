@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-plugin"
@@ -86,4 +87,25 @@ func destroyPlugin(pluginPid int, userPid int) error {
 		merr = multierror.Append(merr, err)
 	}
 	return merr
+}
+
+// validateCommand validates that the command only has a single value and
+// returns a user friendly error message telling them to use the passed
+// argField.
+func validateCommand(command, argField string) error {
+	trimmed := strings.TrimSpace(command)
+	if len(trimmed) == 0 {
+		return fmt.Errorf("command empty: %q", command)
+	}
+
+	if len(trimmed) != len(command) {
+		return fmt.Errorf("command contains extra white space: %q", command)
+	}
+
+	split := strings.Split(trimmed, " ")
+	if len(split) != 1 {
+		return fmt.Errorf("command contained more than one input. Use %q field to pass arguments", argField)
+	}
+
+	return nil
 }
