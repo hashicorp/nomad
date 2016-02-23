@@ -4,7 +4,7 @@ import (
 	"log"
 
 	"github.com/hashicorp/nomad/client/allocdir"
-	"github.com/hashicorp/nomad/client/driver/executor"
+	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -32,7 +32,7 @@ type LogCollectorContext struct {
 // SyslogCollectorState holds the address and islation information of a launched
 // syslog server
 type SyslogCollectorState struct {
-	IsolationConfig *executor.IsolationConfig
+	IsolationConfig *cstructs.IsolationConfig
 	Addr            string
 }
 
