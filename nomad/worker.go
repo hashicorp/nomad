@@ -255,7 +255,6 @@ func (w *Worker) invokeScheduler(eval *structs.Evaluation, token string) error {
 	// Process the evaluation
 	err = sched.Process(eval)
 	if err != nil {
-		w.logger.Printf("[ERR] worker: scheduler for evaluation %q errored: %v", eval.ID, err)
 		return fmt.Errorf("failed to process evaluation: %v", err)
 	}
 	return nil

@@ -201,7 +201,6 @@ func (s *GenericScheduler) process() (bool, error) {
 	result, newState, err := s.planner.SubmitPlan(s.plan)
 	s.planResult = result
 	if err != nil {
-		s.logger.Printf("[ERR] sched: %#v: SubmitPlan failed: %v", s.eval, err)
 		return false, err
 	}
 
