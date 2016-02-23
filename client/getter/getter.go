@@ -19,6 +19,9 @@ var (
 	// and the lock is used to guard access to it.
 	getters map[string]gg.Getter
 	lock    sync.Mutex
+
+	// supported is the set of download schemes supported by Nomad
+	supported = []string{"http", "https", "s3"}
 )
 
 // getClient returns a client that is suitable for Nomad.
@@ -28,12 +31,12 @@ func getClient(src, dst string) *gg.Client {
 
 	// Return the pre-initialized client
 	if getters == nil {
-		getters = make(map[string]gg.Getter, len(gg.Getters))
-		for k, v := range gg.Getters {
-			getters[k] = v
+		getters = make(map[string]gg.Getter, len(supported))
+		for _, getter := range supported {
+			if impl, ok := gg.Getters[getter]; ok {
+				getters[getter] = impl
+			}
 		}
-
-		getters["file"] = &gg.FileGetter{Copy: true}
 	}
 
 	return &gg.Client{
