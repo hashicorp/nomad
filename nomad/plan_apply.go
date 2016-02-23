@@ -2,7 +2,6 @@ package nomad
 
 import (
 	"fmt"
-	"log"
 	"runtime"
 	"time"
 
@@ -317,9 +316,6 @@ func evaluatePlan(pool *EvaluatePool, snap *state.StateSnapshot, plan *structs.P
 			mErr.Errors = append(mErr.Errors, err)
 		}
 	}
-
-	// XXX: Remove! Only for debugging
-	log.Printf("[DEBUG] plan_apply: eval %q; partial commit %v; allocs %d; updates %d", plan.EvalID, partialCommit, len(result.NodeAllocation), len(result.NodeUpdate))
 	return result, mErr.ErrorOrNil()
 }
 
