@@ -835,6 +835,7 @@ func (c *Client) updateAllocStatus(alloc *structs.Allocation) {
 	// Only send the fields that are updatable by the client.
 	stripped := new(structs.Allocation)
 	stripped.ID = alloc.ID
+	stripped.NodeID = alloc.NodeID
 	stripped.TaskStates = alloc.TaskStates
 	stripped.ClientStatus = alloc.ClientStatus
 	stripped.ClientDescription = alloc.ClientDescription
