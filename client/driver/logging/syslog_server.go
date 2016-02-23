@@ -70,4 +70,5 @@ func (s *SyslogServer) read(connection net.Conn) {
 // Shutdown shutsdown the syslog server
 func (s *SyslogServer) Shutdown() {
 	close(s.doneCh)
+	close(s.messages)
 }

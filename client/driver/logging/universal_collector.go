@@ -127,7 +127,6 @@ func (s *SyslogCollector) collectLogs(we io.Writer, wo io.Writer) {
 // Exit kills the syslog server
 func (s *SyslogCollector) Exit() error {
 	s.server.Shutdown()
-	close(s.syslogChan)
 	s.lre.Close()
 	s.lro.Close()
 	return nil

@@ -14,9 +14,7 @@ import (
 )
 
 var (
-	bufSize  = 32
 	flushDur = 100 * time.Millisecond
-	buf      = make([]byte, bufSize)
 )
 
 // FileRotator writes bytes to a rotated set of files
@@ -31,7 +29,7 @@ type FileRotator struct {
 
 	currentFile *os.File // currentFile is the file that is currently getting written
 	currentWr   int64    // currentWr is the number of bytes written to the current file
-	fw          *bufio.Writer
+	bufw        *bufio.Writer
 
 	flushTicker *time.Ticker
 	logger      *log.Logger
@@ -72,7 +70,7 @@ func (f *FileRotator) Write(p []byte) (n int, err error) {
 		// Check if we still have space in the current file, otherwise close and
 		// open the next file
 		if f.currentWr >= f.FileSize {
-			f.fw.Flush()
+			f.bufw.Flush()
 			f.currentFile.Close()
 			if err := f.nextFile(); err != nil {
 				return 0, err
@@ -86,11 +84,11 @@ func (f *FileRotator) Write(p []byte) (n int, err error) {
 		if remainingSize < int64(len(p[n:])) {
 			// Write the number of bytes that we can write on the current file
 			li := int64(n) + remainingSize
-			nw, err = f.fw.Write(p[n:li])
+			nw, err = f.bufw.Write(p[n:li])
 			//nw, err = f.currentFile.Write(p[n:li])
 		} else {
 			// Write all the bytes in the current file
-			nw, err = f.fw.Write(p[n:])
+			nw, err = f.bufw.Write(p[n:])
 			//nw, err = f.currentFile.Write(p[n:])
 		}
 
@@ -177,10 +175,10 @@ func (f *FileRotator) createFile() error {
 		return err
 	}
 	f.currentWr = fi.Size()
-	if f.fw == nil {
-		f.fw = bufio.NewWriter(f.currentFile)
+	if f.bufw == nil {
+		f.bufw = bufio.NewWriter(f.currentFile)
 	} else {
-		f.fw.Reset(f.currentFile)
+		f.bufw.Reset(f.currentFile)
 	}
 	return nil
 }
@@ -189,8 +187,8 @@ func (f *FileRotator) createFile() error {
 // file
 func (f *FileRotator) flushPeriodically() {
 	for _ = range f.flushTicker.C {
-		if f.fw != nil {
-			f.fw.Flush()
+		if f.bufw != nil {
+			f.bufw.Flush()
 		}
 	}
 }
@@ -198,8 +196,8 @@ func (f *FileRotator) flushPeriodically() {
 func (f *FileRotator) Close() {
 	// Stop the ticker and flush for one last time
 	f.flushTicker.Stop()
-	if f.fw != nil {
-		f.fw.Flush()
+	if f.bufw != nil {
+		f.bufw.Flush()
 	}
 
 	// Stop the purge go routine
@@ -244,5 +242,4 @@ func (f *FileRotator) purgeOldFiles() {
 			return
 		}
 	}
-	f.logger.Printf("DIPTANU RETURNING FROM PURGE")
 }
