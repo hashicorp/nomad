@@ -213,11 +213,18 @@ func evaluatePlan(pool *EvaluatePool, snap *state.StateSnapshot, plan *structs.P
 
 	// Collect all the nodeIDs
 	nodeIDs := make(map[string]struct{})
+	nodeIDList := make([]string, 0, len(plan.NodeUpdate)+len(plan.NodeAllocation))
 	for nodeID := range plan.NodeUpdate {
-		nodeIDs[nodeID] = struct{}{}
+		if _, ok := nodeIDs[nodeID]; !ok {
+			nodeIDs[nodeID] = struct{}{}
+			nodeIDList = append(nodeIDList, nodeID)
+		}
 	}
 	for nodeID := range plan.NodeAllocation {
-		nodeIDs[nodeID] = struct{}{}
+		if _, ok := nodeIDs[nodeID]; !ok {
+			nodeIDs[nodeID] = struct{}{}
+			nodeIDList = append(nodeIDList, nodeID)
+		}
 	}
 
 	// Setup a multierror to handle potentially getting many
@@ -264,12 +271,14 @@ func evaluatePlan(pool *EvaluatePool, snap *state.StateSnapshot, plan *structs.P
 	outstanding := 0
 	didCancel := false
 
-	// Evalute each node in the plan, handling results as
-	// they are ready to avoid blocking.
-	for nodeID := range nodeIDs {
+	// Evalute each node in the plan, handling results as they are ready to
+	// avoid blocking.
+	for len(nodeIDList) > 0 {
+		nodeID := nodeIDList[0]
 		select {
 		case req <- evaluateRequest{snap, plan, nodeID}:
 			outstanding++
+			nodeIDList = nodeIDList[1:]
 		case r := <-resp:
 			outstanding--
 
