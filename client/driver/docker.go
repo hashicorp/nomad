@@ -369,6 +369,11 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task,
 	// If the user specified a custom command to run as their entrypoint, we'll
 	// inject it here.
 	if driverConfig.Command != "" {
+		// Validate command
+		if err := validateCommand(driverConfig.Command, "args"); err != nil {
+			return c, err
+		}
+
 		cmd := []string{driverConfig.Command}
 		if len(driverConfig.Args) != 0 {
 			cmd = append(cmd, parsedArgs...)

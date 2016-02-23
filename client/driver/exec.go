@@ -77,8 +77,8 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	}
 	// Get the command to be ran
 	command := driverConfig.Command
-	if command == "" {
-		return nil, fmt.Errorf("missing command for exec driver")
+	if err := validateCommand(command, "args"); err != nil {
+		return nil, err
 	}
 
 	// Create a location to download the artifact.

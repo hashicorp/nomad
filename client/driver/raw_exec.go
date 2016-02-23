@@ -77,8 +77,8 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 
 	// Get the command to be ran
 	command := driverConfig.Command
-	if command == "" {
-		return nil, fmt.Errorf("missing command for Raw Exec driver")
+	if err := validateCommand(command, "args"); err != nil {
+		return nil, err
 	}
 
 	// Check if an artificat is specified and attempt to download it
