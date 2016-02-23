@@ -281,8 +281,6 @@ func (w *Worker) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, scheduler.
 	}
 	var resp structs.PlanResponse
 
-	w.logger.Printf("[DEBUG] worker.SubmitPlan request: %#v", plan)
-
 SUBMIT:
 	// Make the RPC call
 	if err := w.srv.RPC("Plan.Submit", &req, &resp); err != nil {
@@ -302,8 +300,6 @@ SUBMIT:
 	if result == nil {
 		return nil, nil, fmt.Errorf("missing result")
 	}
-
-	w.logger.Printf("[DEBUG] worker.SubmitPlan eval %q result: %#v", plan.EvalID, result)
 
 	// Check if a state update is required. This could be required if we
 	// planning based on stale data, which is causing issues. For example, a

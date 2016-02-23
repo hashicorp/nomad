@@ -2457,18 +2457,6 @@ func (p *Plan) IsNoOp() bool {
 	return len(p.NodeUpdate) == 0 && len(p.NodeAllocation) == 0 && len(p.FailedAllocs) == 0
 }
 
-func (p *Plan) GoString() string {
-	planNodeUpdate := 0
-	planNodeAlloc := 0
-	for _, updates := range p.NodeUpdate {
-		planNodeUpdate += len(updates)
-	}
-	for _, allocs := range p.NodeAllocation {
-		planNodeAlloc += len(allocs)
-	}
-	return fmt.Sprintf("plan; eval %q; allocs %v; updates %v", p.EvalID, planNodeAlloc, planNodeUpdate)
-}
-
 // PlanResult is the result of a plan submitted to the leader.
 type PlanResult struct {
 	// NodeUpdate contains all the updates that were committed.
@@ -2510,19 +2498,6 @@ func (p *PlanResult) FullCommit(plan *Plan) (bool, int, int) {
 		actual += len(didAlloc)
 	}
 	return actual == expected, expected, actual
-}
-
-func (p *PlanResult) GoString() string {
-	planNodeUpdate := 0
-	planNodeAlloc := 0
-	for _, updates := range p.NodeUpdate {
-		planNodeUpdate += len(updates)
-	}
-	for _, allocs := range p.NodeAllocation {
-		planNodeAlloc += len(allocs)
-	}
-	return fmt.Sprintf("planresult allocs %v; updates %v; refresh %v; alloc index %v",
-		planNodeAlloc, planNodeUpdate, p.RefreshIndex, p.AllocIndex)
 }
 
 // msgpackHandle is a shared handle for encoding/decoding of structs

@@ -58,7 +58,6 @@ func (s *Server) planApply() {
 		if err != nil {
 			return
 		}
-		s.logger.Printf("[DEBUG] plan_apply: dequeued plan: %#v", pending.plan)
 
 		// Verify the evaluation is outstanding, and that the tokens match.
 		if err := s.evalBroker.OutstandingReset(pending.plan.EvalID, pending.plan.EvalToken); err != nil {
@@ -89,7 +88,6 @@ func (s *Server) planApply() {
 
 		// Evaluate the plan
 		result, err := evaluatePlan(pool, snap, pending.plan)
-		s.logger.Printf("[DEBUG] plan_apply: plan result for eval %q: %#v", pending.plan.EvalID, result)
 		if err != nil {
 			s.logger.Printf("[ERR] nomad: failed to evaluate plan: %v", err)
 			pending.respond(nil, err)
@@ -235,8 +233,6 @@ func evaluatePlan(pool *EvaluatePool, snap *state.StateSnapshot, plan *structs.P
 			return true
 		}
 		if !fit {
-			log.Printf("[DEBUG] plan_apply: eval %q no fit on node %q", plan.EvalID, nodeID)
-
 			// Set that this is a partial commit
 			partialCommit = true
 
