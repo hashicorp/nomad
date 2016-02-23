@@ -19,6 +19,8 @@ func (p *Plan) Submit(args *structs.PlanRequest, reply *structs.PlanResponse) er
 	}
 	defer metrics.MeasureSince([]string{"nomad", "plan", "submit"}, time.Now())
 
+	p.srv.logger.Printf("[DEBUG] plan_endpoint.Submit request: %#v", args.Plan)
+
 	// Submit the plan to the queue
 	future, err := p.srv.planQueue.Enqueue(args.Plan)
 	if err != nil {
@@ -34,5 +36,6 @@ func (p *Plan) Submit(args *structs.PlanRequest, reply *structs.PlanResponse) er
 	// Package the result
 	reply.Result = result
 	reply.Index = result.AllocIndex
+	p.srv.logger.Printf("[DEBUG] plan_endpoint.Submit eval %q response: %#v", args.Plan.EvalID, reply.Result)
 	return nil
 }
