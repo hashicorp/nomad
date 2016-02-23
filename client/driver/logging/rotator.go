@@ -36,6 +36,7 @@ type FileRotator struct {
 	flushTicker *time.Ticker
 	logger      *log.Logger
 	purgeCh     chan struct{}
+	doneCh      chan struct{}
 }
 
 // NewFileRotator returns a new file rotator
@@ -51,6 +52,7 @@ func NewFileRotator(path string, baseFile string, maxFiles int,
 		flushTicker: time.NewTicker(flushDur),
 		logger:      logger,
 		purgeCh:     make(chan struct{}, 1),
+		doneCh:      make(chan struct{}, 1),
 	}
 	if err := rotator.lastFile(); err != nil {
 		return nil, err
@@ -183,12 +185,26 @@ func (f *FileRotator) createFile() error {
 	return nil
 }
 
+// flushPeriodically flushes the buffered writer every 100ms to the underlying
+// file
 func (f *FileRotator) flushPeriodically() {
 	for _ = range f.flushTicker.C {
 		if f.fw != nil {
 			f.fw.Flush()
 		}
 	}
+}
+
+func (f *FileRotator) Close() {
+	// Stop the ticker and flush for one last time
+	f.flushTicker.Stop()
+	if f.fw != nil {
+		f.fw.Flush()
+	}
+
+	// Stop the purge go routine
+	f.doneCh <- struct{}{}
+	close(f.purgeCh)
 }
 
 // purgeOldFiles removes older files and keeps only the last N files rotated for
@@ -224,6 +240,9 @@ func (f *FileRotator) purgeOldFiles() {
 				os.RemoveAll(fname)
 			}
 			f.oldestLogFileIdx = fIndexes[0]
+		case <-f.doneCh:
+			return
 		}
 	}
+	f.logger.Printf("DIPTANU RETURNING FROM PURGE")
 }

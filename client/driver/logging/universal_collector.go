@@ -128,6 +128,8 @@ func (s *SyslogCollector) collectLogs(we io.Writer, wo io.Writer) {
 func (s *SyslogCollector) Exit() error {
 	s.server.Shutdown()
 	close(s.syslogChan)
+	s.lre.Close()
+	s.lro.Close()
 	return nil
 }
 
