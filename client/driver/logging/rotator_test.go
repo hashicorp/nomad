@@ -85,6 +85,7 @@ func TestFileRotator_WriteToCurrentFile(t *testing.T) {
 	}
 
 	fr.Write([]byte("abcde"))
+	time.Sleep(200 * time.Millisecond)
 	fi, err := os.Stat(fname1)
 	if err != nil {
 		t.Fatalf("error getting the file info: %v", err)
@@ -109,6 +110,7 @@ func TestFileRotator_RotateFiles(t *testing.T) {
 
 	str := "abcdefgh"
 	nw, err := fr.Write([]byte(str))
+	time.Sleep(200 * time.Millisecond)
 	if err != nil {
 		t.Fatalf("got error while writing: %v", err)
 	}
@@ -163,6 +165,7 @@ func TestFileRotator_WriteRemaining(t *testing.T) {
 	if err != nil {
 		t.Fatalf("got error while writing: %v", err)
 	}
+	time.Sleep(200 * time.Millisecond)
 	if nw != len(str) {
 		t.Fatalf("expected %v, got %v", len(str), nw)
 	}

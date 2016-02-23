@@ -1,6 +1,7 @@
 package logging
 
 import (
+	"bufio"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -9,11 +10,13 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 var (
-	bufSize = 32
-	buf     = make([]byte, bufSize)
+	bufSize  = 32
+	flushDur = 100 * time.Millisecond
+	buf      = make([]byte, bufSize)
 )
 
 // FileRotator writes bytes to a rotated set of files
@@ -28,9 +31,11 @@ type FileRotator struct {
 
 	currentFile *os.File // currentFile is the file that is currently getting written
 	currentWr   int64    // currentWr is the number of bytes written to the current file
+	fw          *bufio.Writer
 
-	logger  *log.Logger
-	purgeCh chan struct{}
+	flushTicker *time.Ticker
+	logger      *log.Logger
+	purgeCh     chan struct{}
 }
 
 // NewFileRotator returns a new file rotator
@@ -43,13 +48,15 @@ func NewFileRotator(path string, baseFile string, maxFiles int,
 		path:         path,
 		baseFileName: baseFile,
 
-		logger:  logger,
-		purgeCh: make(chan struct{}, 1),
+		flushTicker: time.NewTicker(flushDur),
+		logger:      logger,
+		purgeCh:     make(chan struct{}, 1),
 	}
 	if err := rotator.lastFile(); err != nil {
 		return nil, err
 	}
 	go rotator.purgeOldFiles()
+	go rotator.flushPeriodically()
 	return rotator, nil
 }
 
@@ -63,6 +70,7 @@ func (f *FileRotator) Write(p []byte) (n int, err error) {
 		// Check if we still have space in the current file, otherwise close and
 		// open the next file
 		if f.currentWr >= f.FileSize {
+			f.fw.Flush()
 			f.currentFile.Close()
 			if err := f.nextFile(); err != nil {
 				return 0, err
@@ -76,10 +84,12 @@ func (f *FileRotator) Write(p []byte) (n int, err error) {
 		if remainingSize < int64(len(p[n:])) {
 			// Write the number of bytes that we can write on the current file
 			li := int64(n) + remainingSize
-			nw, err = f.currentFile.Write(p[n:li])
+			nw, err = f.fw.Write(p[n:li])
+			//nw, err = f.currentFile.Write(p[n:li])
 		} else {
 			// Write all the bytes in the current file
-			nw, err = f.currentFile.Write(p[n:])
+			nw, err = f.fw.Write(p[n:])
+			//nw, err = f.currentFile.Write(p[n:])
 		}
 
 		// Increment the number of bytes written so far in this method
@@ -165,7 +175,20 @@ func (f *FileRotator) createFile() error {
 		return err
 	}
 	f.currentWr = fi.Size()
+	if f.fw == nil {
+		f.fw = bufio.NewWriter(f.currentFile)
+	} else {
+		f.fw.Reset(f.currentFile)
+	}
 	return nil
+}
+
+func (f *FileRotator) flushPeriodically() {
+	for _ = range f.flushTicker.C {
+		if f.fw != nil {
+			f.fw.Flush()
+		}
+	}
 }
 
 // purgeOldFiles removes older files and keeps only the last N files rotated for
