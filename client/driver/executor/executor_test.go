@@ -85,7 +85,7 @@ func TestExecutor_Start_Wait_Failure_Code(t *testing.T) {
 func TestExecutor_Start_Wait(t *testing.T) {
 	execCmd := ExecCommand{Cmd: "/bin/echo", Args: []string{"hello world"}}
 	ctx := testExecutorContext(t)
-	//defer ctx.AllocDir.Destroy()
+	defer ctx.AllocDir.Destroy()
 	executor := NewExecutor(log.New(os.Stdout, "", log.LstdFlags))
 	ps, err := executor.LaunchCmd(&execCmd, ctx)
 	if err != nil {

@@ -194,6 +194,8 @@ func (e *UniversalExecutor) UpdateLogConfig(logConfig *structs.LogConfig) error 
 func (e *UniversalExecutor) wait() {
 	defer close(e.processExited)
 	err := e.cmd.Wait()
+	e.lre.Close()
+	e.lro.Close()
 	if err == nil {
 		e.exitState = &ProcessState{Pid: 0, ExitCode: 0, Time: time.Now()}
 		return
