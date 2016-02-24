@@ -230,7 +230,7 @@ func (e *UniversalExecutor) Exit() error {
 	if e.cmd.Process != nil {
 		proc, err := os.FindProcess(e.cmd.Process.Pid)
 		if err != nil {
-			e.logger.Printf("[ERROR] executor: can't find process with pid: %v, err: %v",
+			e.logger.Printf("[ERR] executor: can't find process with pid: %v, err: %v",
 				e.cmd.Process.Pid, err)
 		} else if err := proc.Kill(); err != nil && err.Error() != finishedErr {
 			merr.Errors = append(merr.Errors,

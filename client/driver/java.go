@@ -227,7 +227,7 @@ func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 	if err != nil {
 		merrs := new(multierror.Error)
 		merrs.Errors = append(merrs.Errors, err)
-		d.logger.Println("[ERROR] driver.java: error connecting to plugin so destroying plugin pid and user pid")
+		d.logger.Println("[ERR] driver.java: error connecting to plugin so destroying plugin pid and user pid")
 		if e := destroyPlugin(id.PluginConfig.Pid, id.UserPid); e != nil {
 			merrs.Errors = append(merrs.Errors, fmt.Errorf("error destroying plugin and userpid: %v", e))
 		}
@@ -320,15 +320,15 @@ func (h *javaHandle) run() {
 	if ps.ExitCode == 0 && err != nil {
 		if h.isolationConfig != nil {
 			if e := executor.DestroyCgroup(h.isolationConfig.Cgroup); e != nil {
-				h.logger.Printf("[ERROR] driver.java: destroying cgroup failed while killing cgroup: %v", e)
+				h.logger.Printf("[ERR] driver.java: destroying cgroup failed while killing cgroup: %v", e)
 			}
 		} else {
 			if e := killProcess(h.userPid); e != nil {
-				h.logger.Printf("[ERROR] driver.java: error killing user process: %v", e)
+				h.logger.Printf("[ERR] driver.java: error killing user process: %v", e)
 			}
 		}
 		if e := h.allocDir.UnmountAll(); e != nil {
-			h.logger.Printf("[ERROR] driver.java: unmounting dev,proc and alloc dirs failed: %v", e)
+			h.logger.Printf("[ERR] driver.java: unmounting dev,proc and alloc dirs failed: %v", e)
 		}
 	}
 	h.waitCh <- &cstructs.WaitResult{ExitCode: ps.ExitCode, Signal: 0, Err: err}

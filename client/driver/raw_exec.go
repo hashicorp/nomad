@@ -156,9 +156,9 @@ func (d *RawExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, e
 	}
 	executor, pluginClient, err := createExecutor(pluginConfig, d.config.LogOutput, d.config)
 	if err != nil {
-		d.logger.Println("[ERROR] driver.raw_exec: error connecting to plugin so destroying plugin pid and user pid")
+		d.logger.Println("[ERR] driver.raw_exec: error connecting to plugin so destroying plugin pid and user pid")
 		if e := destroyPlugin(id.PluginConfig.Pid, id.UserPid); e != nil {
-			d.logger.Printf("[ERROR] driver.raw_exec: error destroying plugin and userpid: %v", e)
+			d.logger.Printf("[ERR] driver.raw_exec: error destroying plugin and userpid: %v", e)
 		}
 		return nil, fmt.Errorf("error connecting to plugin: %v", err)
 	}
@@ -234,10 +234,10 @@ func (h *rawExecHandle) run() {
 	close(h.doneCh)
 	if ps.ExitCode == 0 && err != nil {
 		if e := killProcess(h.userPid); e != nil {
-			h.logger.Printf("[ERROR] driver.raw_exec: error killing user process: %v", e)
+			h.logger.Printf("[ERR] driver.raw_exec: error killing user process: %v", e)
 		}
 		if e := h.allocDir.UnmountAll(); e != nil {
-			h.logger.Printf("[ERROR] driver.raw_exec: unmounting dev,proc and alloc dirs failed: %v", e)
+			h.logger.Printf("[ERR] driver.raw_exec: unmounting dev,proc and alloc dirs failed: %v", e)
 		}
 	}
 	h.waitCh <- &cstructs.WaitResult{ExitCode: ps.ExitCode, Signal: 0, Err: err}

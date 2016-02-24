@@ -40,7 +40,7 @@ func (s *SyslogServer) Start() {
 		default:
 			connection, err := s.listener.Accept()
 			if err != nil {
-				s.logger.Printf("[ERROR] logcollector.server: error in accepting connection: %v", err)
+				s.logger.Printf("[ERR] logcollector.server: error in accepting connection: %v", err)
 				continue
 			}
 			go s.read(connection)

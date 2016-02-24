@@ -652,7 +652,7 @@ func (c *Command) retryJoin(config *Config) {
 
 		attempt++
 		if config.Server.RetryMaxAttempts > 0 && attempt > config.Server.RetryMaxAttempts {
-			logger.Printf("[ERROR] agent: max join retry exhausted, exiting")
+			logger.Printf("[ERR] agent: max join retry exhausted, exiting")
 			close(c.retryJoinErrCh)
 			return
 		}
