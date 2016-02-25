@@ -16,8 +16,11 @@ var (
 	// The name of the directory that is shared across tasks in a task group.
 	SharedAllocName = "alloc"
 
+	// Name of the directory where logs of Tasks are written
+	LogDirName = "logs"
+
 	// The set of directories that exist inside eache shared alloc directory.
-	SharedAllocDirs = []string{"logs", "tmp", "data"}
+	SharedAllocDirs = []string{LogDirName, "tmp", "data"}
 
 	// The name of the directory that exists inside each task directory
 	// regardless of driver.
@@ -273,6 +276,11 @@ func (d *AllocDir) MountSharedDir(task string) error {
 	}
 
 	return nil
+}
+
+// LogDir returns the log dir in the current allocation directory
+func (d *AllocDir) LogDir() string {
+	return filepath.Join(d.AllocDir, SharedAllocName, LogDirName)
 }
 
 // List returns the list of files at a path relative to the alloc dir

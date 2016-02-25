@@ -8,7 +8,6 @@ import (
 	"log"
 	"log/syslog"
 	"net"
-	"path/filepath"
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
@@ -90,8 +89,7 @@ func (s *SyslogCollector) LaunchCollector(ctx *LogCollectorContext) (*SyslogColl
 	go s.server.Start()
 	logFileSize := int64(ctx.LogConfig.MaxFileSizeMB * 1024 * 1024)
 
-	path := filepath.Join(s.taskDir, allocdir.TaskLocal)
-	lro, err := NewFileRotator(path, fmt.Sprintf("%v.stdout", ctx.TaskName),
+	lro, err := NewFileRotator(ctx.AllocDir.LogDir(), fmt.Sprintf("%v.stdout", ctx.TaskName),
 		ctx.LogConfig.MaxFiles, logFileSize, s.logger)
 
 	if err != nil {
@@ -99,7 +97,7 @@ func (s *SyslogCollector) LaunchCollector(ctx *LogCollectorContext) (*SyslogColl
 	}
 	s.lro = lro
 
-	lre, err := NewFileRotator(path, fmt.Sprintf("%v.stderr", ctx.TaskName),
+	lre, err := NewFileRotator(ctx.AllocDir.LogDir(), fmt.Sprintf("%v.stderr", ctx.TaskName),
 		ctx.LogConfig.MaxFiles, logFileSize, s.logger)
 	if err != nil {
 		return nil, err

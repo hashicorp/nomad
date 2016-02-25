@@ -103,13 +103,13 @@ func TestExecDriver_KillUserPid_OnPluginReconnectFailure(t *testing.T) {
 	d := NewExecDriver(driverCtx)
 
 	handle, err := d.Start(execCtx, task)
-	defer handle.Kill()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if handle == nil {
 		t.Fatalf("missing handle")
 	}
+	defer handle.Kill()
 
 	id := &execId{}
 	if err := json.Unmarshal([]byte(handle.ID()), id); err != nil {
