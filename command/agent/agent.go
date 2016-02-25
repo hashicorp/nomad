@@ -214,6 +214,7 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 		httpAddr = fmt.Sprintf("%s:%d", addr.IP.String(), addr.Port)
 	}
 	conf.Node.HTTPAddr = httpAddr
+	conf.Version = a.config.Version
 	return conf, nil
 }
 

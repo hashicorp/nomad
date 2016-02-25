@@ -45,6 +45,7 @@ type execHandle struct {
 	logger          *log.Logger
 	waitCh          chan *cstructs.WaitResult
 	doneCh          chan struct{}
+	version         string
 }
 
 // NewExecDriver is used to create a new exec driver
@@ -141,6 +142,7 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		isolationConfig: ps.IsolationConfig,
 		killTimeout:     d.DriverContext.KillTimeout(task),
 		logger:          d.logger,
+		version:         d.config.Version,
 		doneCh:          make(chan struct{}),
 		waitCh:          make(chan *cstructs.WaitResult, 1),
 	}
@@ -149,6 +151,7 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 }
 
 type execId struct {
+	Version         string
 	KillTimeout     time.Duration
 	UserPid         int
 	TaskDir         string
@@ -193,6 +196,7 @@ func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		allocDir:        id.AllocDir,
 		isolationConfig: id.IsolationConfig,
 		logger:          d.logger,
+		version:         id.Version,
 		killTimeout:     id.KillTimeout,
 		doneCh:          make(chan struct{}),
 		waitCh:          make(chan *cstructs.WaitResult, 1),
@@ -203,6 +207,7 @@ func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 
 func (h *execHandle) ID() string {
 	id := execId{
+		Version:         h.version,
 		KillTimeout:     h.killTimeout,
 		PluginConfig:    NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
 		UserPid:         h.userPid,

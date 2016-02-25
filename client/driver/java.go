@@ -50,6 +50,7 @@ type javaHandle struct {
 	taskDir     string
 	allocDir    *allocdir.AllocDir
 	killTimeout time.Duration
+	version     string
 	logger      *log.Logger
 	waitCh      chan *cstructs.WaitResult
 	doneCh      chan struct{}
@@ -189,6 +190,7 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		taskDir:         taskDir,
 		allocDir:        ctx.AllocDir,
 		killTimeout:     d.DriverContext.KillTimeout(task),
+		version:         d.config.Version,
 		logger:          d.logger,
 		doneCh:          make(chan struct{}),
 		waitCh:          make(chan *cstructs.WaitResult, 1),
@@ -206,6 +208,7 @@ func (d *JavaDriver) cgroupsMounted(node *structs.Node) bool {
 }
 
 type javaId struct {
+	Version         string
 	KillTimeout     time.Duration
 	PluginConfig    *PluginReattachConfig
 	IsolationConfig *cstructs.IsolationConfig
@@ -252,6 +255,7 @@ func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		taskDir:         id.TaskDir,
 		allocDir:        id.AllocDir,
 		logger:          d.logger,
+		version:         id.Version,
 		killTimeout:     id.KillTimeout,
 		doneCh:          make(chan struct{}),
 		waitCh:          make(chan *cstructs.WaitResult, 1),
@@ -263,6 +267,7 @@ func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 
 func (h *javaHandle) ID() string {
 	id := javaId{
+		Version:         h.version,
 		KillTimeout:     h.killTimeout,
 		PluginConfig:    NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
 		UserPid:         h.userPid,
