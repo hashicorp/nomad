@@ -15,7 +15,7 @@ __BACKWARDS INCOMPATIBILITIES:__
     `batch` and `service` jobs is `fail` and `delay` respectively [GH-594]
   * All jobs that interpret variables in constraints or driver configurations
     will need to be updated to the new syntax which wraps the interpreted
-    variable in curly braces. ($node.class becomes ${node.class}) [GH-760]
+    variable in curly braces. (`$node.class` becomes `${node.class}`) [GH-760]
 
 IMPROVEMENTS:
   * core: Populate job status [GH-663]
