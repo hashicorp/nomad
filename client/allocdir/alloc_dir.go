@@ -125,6 +125,9 @@ func (d *AllocDir) Build(tasks []*structs.Task) error {
 		if err := os.Mkdir(p, 0777); err != nil {
 			return err
 		}
+		if err := d.dropDirPermissions(p); err != nil {
+			return err
+		}
 	}
 
 	// Make the task directories.
