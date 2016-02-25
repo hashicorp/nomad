@@ -56,6 +56,7 @@ type TaskRunner struct {
 
 // taskRunnerState is used to snapshot the state of the task runner
 type taskRunnerState struct {
+	Version  string
 	Task     *structs.Task
 	HandleID string
 }
@@ -153,7 +154,8 @@ func (r *TaskRunner) RestoreState() error {
 // SaveState is used to snapshot our state
 func (r *TaskRunner) SaveState() error {
 	snap := taskRunnerState{
-		Task: r.task,
+		Task:    r.task,
+		Version: r.config.Version,
 	}
 	r.handleLock.Lock()
 	if r.handle != nil {

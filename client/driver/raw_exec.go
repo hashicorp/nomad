@@ -35,6 +35,7 @@ type RawExecDriver struct {
 
 // rawExecHandle is returned from Start/Open as a handle to the PID
 type rawExecHandle struct {
+	version      string
 	pluginClient *plugin.Client
 	userPid      int
 	executor     executor.Executor
@@ -130,6 +131,7 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 		userPid:      ps.Pid,
 		killTimeout:  d.DriverContext.KillTimeout(task),
 		allocDir:     ctx.AllocDir,
+		version:      d.config.Version,
 		logger:       d.logger,
 		doneCh:       make(chan struct{}),
 		waitCh:       make(chan *cstructs.WaitResult, 1),
@@ -139,6 +141,7 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 }
 
 type rawExecId struct {
+	Version      string
 	KillTimeout  time.Duration
 	UserPid      int
 	PluginConfig *PluginReattachConfig
@@ -171,6 +174,7 @@ func (d *RawExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, e
 		logger:       d.logger,
 		killTimeout:  id.KillTimeout,
 		allocDir:     id.AllocDir,
+		version:      id.Version,
 		doneCh:       make(chan struct{}),
 		waitCh:       make(chan *cstructs.WaitResult, 1),
 	}
@@ -180,6 +184,7 @@ func (d *RawExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, e
 
 func (h *rawExecHandle) ID() string {
 	id := rawExecId{
+		Version:      h.version,
 		KillTimeout:  h.killTimeout,
 		PluginConfig: NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
 		UserPid:      h.userPid,

@@ -152,6 +152,7 @@ func TestDockerDriver_Handle(t *testing.T) {
 	defer pluginClient.Kill()
 
 	h := &DockerHandle{
+		version:      "version",
 		imageID:      "imageid",
 		logCollector: logCollector,
 		pluginClient: pluginClient,
@@ -162,7 +163,7 @@ func TestDockerDriver_Handle(t *testing.T) {
 	}
 
 	actual := h.ID()
-	expected := fmt.Sprintf("DOCKER:{\"ImageID\":\"imageid\",\"ContainerID\":\"containerid\",\"KillTimeout\":5,\"PluginConfig\":{\"Pid\":%d,\"AddrNet\":\"unix\",\"AddrName\":\"%s\"}}",
+	expected := fmt.Sprintf("DOCKER:{\"Version\":\"version\",\"ImageID\":\"imageid\",\"ContainerID\":\"containerid\",\"KillTimeout\":5,\"PluginConfig\":{\"Pid\":%d,\"AddrNet\":\"unix\",\"AddrName\":\"%s\"}}",
 		pluginClient.ReattachConfig().Pid, pluginClient.ReattachConfig().Addr.String())
 	if actual != expected {
 		t.Errorf("Expected `%s`, found `%s`", expected, actual)
