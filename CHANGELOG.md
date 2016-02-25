@@ -2,7 +2,7 @@
 
 __BACKWARDS INCOMPATIBILITIES:__
   * Any users of the runtime environment variable `$NOMAD_PORT_` will need to
-    update to the new `$NOMAD_ADDR_` varriable [GH-704]
+    update to the new `${NOMAD_ADDR_}` varriable [GH-704]
   * Service names that include periods will fail validation. To fix, remove any
     periods from the service name before running the job [GH-770]
   * Task resources are now validated and enforce minimum resources. If a job
