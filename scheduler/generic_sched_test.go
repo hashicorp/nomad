@@ -634,6 +634,13 @@ func TestServiceSched_JobDeregister(t *testing.T) {
 	out, err := h.State.AllocsByJob(job.ID)
 	noErr(t, err)
 
+	// Ensure that the job field on the allocation is still populated
+	for _, alloc := range out {
+		if alloc.Job == nil {
+			t.Fatalf("bad: %#v", alloc)
+		}
+	}
+
 	// Ensure no remaining allocations
 	out = structs.FilterTerminalAllocs(out)
 	if len(out) != 0 {
