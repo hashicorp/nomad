@@ -381,29 +381,29 @@ The `constraint` object supports the following keys:
 
 ### Log Rotation
 
-The `logs` object configures how Nomad does log rotation of the `stdout` and
-`stderr` buffers of a Task. The `logs` object supports the following keys -
+The `logs` object configures the log rotation policy for a task's `stdout` and
+`stderr`. The `logs` object supports the following keys:
 
-* `max_files` - Determines the maximum number of rotated files Nomad
-  is going to retain for the `stdout` and the `stderr` buffers.
+* `max_files` - The maximum number of rotated files Nomad will retain for
+  `stdout` and `stderr`, each tracked individually.
 
-* `max_file_size` - Determines the size of each rotated file. The
-  size is specified in `MB`.
+* `max_file_size` - The size of each rotated file. The size is specified in
+  `MB`.
 
 If the amount of disk resource requested for the task is less than the total
-amount of disk space needed to retain the rotated set of files, Nomad will return 
+amount of disk space needed to retain the rotated set of files, Nomad will return
 a validation error when a job is submitted.
 
 ```
 logs {
     max_files = 3
-    max_file_size = 100
+    max_file_size = 10
 }
 ```
 
-In the above example we have asked Nomad to retain 3 rotated files and size of
-each file is 100MB. And so the minimum amount of disk space that would be
-required for the task would be 300MB
+In the above example we have asked Nomad to retain 3 rotated files for both
+`stderr` and `stdout` and size of each file is 10MB. The minimum disk space that
+would be required for the task would be 60MB.
 
 ## JSON Syntax
 
