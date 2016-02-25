@@ -70,6 +70,22 @@ func TestAllocDir_BuildAlloc(t *testing.T) {
 	}
 }
 
+func TestAllocDir_LogDir(t *testing.T) {
+	tmp, err := ioutil.TempDir("", "AllocDir")
+	if err != nil {
+		t.Fatalf("Couldn't create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmp)
+
+	d := NewAllocDir(tmp)
+	defer d.Destroy()
+
+	expected := filepath.Join(d.AllocDir, SharedAllocName, LogDirName)
+	if d.LogDir() != expected {
+		t.Fatalf("expected: %v, got: %v", expected, d.LogDir())
+	}
+}
+
 func TestAllocDir_EmbedNonExistent(t *testing.T) {
 	tmp, err := ioutil.TempDir("", "AllocDir")
 	if err != nil {
