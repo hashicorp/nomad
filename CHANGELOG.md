@@ -1,6 +1,8 @@
 ## 0.3.0 (UNRELEASED)
 
 __BACKWARDS INCOMPATIBILITIES:__
+  * Stdout and Stderr log files of tasks have moved from task/local to
+    alloc/logs [GH-851]
   * Any users of the runtime environment variable `$NOMAD_PORT_` will need to
     update to the new `${NOMAD_ADDR_}` varriable [GH-704]
   * Service names that include periods will fail validation. To fix, remove any

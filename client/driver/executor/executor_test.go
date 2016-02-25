@@ -99,18 +99,11 @@ func TestExecutor_Start_Wait(t *testing.T) {
 		t.Fatalf("error in waiting for command: %v", err)
 	}
 
-	task := "web"
-	taskDir, ok := ctx.AllocDir.TaskDirs[task]
-	if !ok {
-		log.Panicf("No task directory found for task %v", task)
-	}
-
 	expected := "hello world"
-	file := filepath.Join(allocdir.TaskLocal, "web.stdout.0")
-	absFilePath := filepath.Join(taskDir, file)
-	output, err := ioutil.ReadFile(absFilePath)
+	file := filepath.Join(ctx.AllocDir.LogDir(), "web.stdout.0")
+	output, err := ioutil.ReadFile(file)
 	if err != nil {
-		t.Fatalf("Couldn't read file %v", absFilePath)
+		t.Fatalf("Couldn't read file %v", file)
 	}
 
 	act := strings.TrimSpace(string(output))
@@ -143,18 +136,11 @@ func TestExecutor_IsolationAndConstraints(t *testing.T) {
 		t.Fatalf("error in waiting for command: %v", err)
 	}
 
-	task := "web"
-	taskDir, ok := ctx.AllocDir.TaskDirs[task]
-	if !ok {
-		log.Panicf("No task directory found for task %v", task)
-	}
-
 	expected := "hello world"
-	file := filepath.Join(allocdir.TaskLocal, "web.stdout.0")
-	absFilePath := filepath.Join(taskDir, file)
-	output, err := ioutil.ReadFile(absFilePath)
+	file := filepath.Join(ctx.AllocDir.LogDir(), "web.stdout.0")
+	output, err := ioutil.ReadFile(file)
 	if err != nil {
-		t.Fatalf("Couldn't read file %v", absFilePath)
+		t.Fatalf("Couldn't read file %v", file)
 	}
 
 	act := strings.TrimSpace(string(output))
@@ -180,20 +166,12 @@ func TestExecutor_Start_Kill(t *testing.T) {
 		t.Fatalf("error in waiting for command: %v", err)
 	}
 
-	task := "web"
-	taskDir, ok := ctx.AllocDir.TaskDirs[task]
-	if !ok {
-		t.Fatalf("No task directory found for task %v", task)
-	}
-
-	file := filepath.Join(allocdir.TaskLocal, "web.stdout.0")
-	absFilePath := filepath.Join(taskDir, file)
-
+	file := filepath.Join(ctx.AllocDir.LogDir(), "web.stdout.0")
 	time.Sleep(time.Duration(tu.TestMultiplier()*2) * time.Second)
 
-	output, err := ioutil.ReadFile(absFilePath)
+	output, err := ioutil.ReadFile(file)
 	if err != nil {
-		t.Fatalf("Couldn't read file %v", absFilePath)
+		t.Fatalf("Couldn't read file %v", file)
 	}
 
 	expected := ""

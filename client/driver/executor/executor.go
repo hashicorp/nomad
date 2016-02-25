@@ -129,8 +129,7 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext
 	}
 
 	logFileSize := int64(ctx.LogConfig.MaxFileSizeMB * 1024 * 1024)
-	path := filepath.Join(e.taskDir, allocdir.TaskLocal)
-	lro, err := logging.NewFileRotator(path, fmt.Sprintf("%v.stdout", ctx.TaskName),
+	lro, err := logging.NewFileRotator(ctx.AllocDir.LogDir(), fmt.Sprintf("%v.stdout", ctx.TaskName),
 		ctx.LogConfig.MaxFiles, logFileSize, e.logger)
 
 	if err != nil {
@@ -139,7 +138,7 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext
 	e.cmd.Stdout = lro
 	e.lro = lro
 
-	lre, err := logging.NewFileRotator(path, fmt.Sprintf("%v.stderr", ctx.TaskName),
+	lre, err := logging.NewFileRotator(ctx.AllocDir.LogDir(), fmt.Sprintf("%v.stderr", ctx.TaskName),
 		ctx.LogConfig.MaxFiles, logFileSize, e.logger)
 	if err != nil {
 		return nil, fmt.Errorf("error creating log rotator for stderr of task %v", err)
