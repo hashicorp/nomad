@@ -74,6 +74,7 @@ func (c *DockerDriverConfig) Validate() error {
 }
 
 type dockerPID struct {
+	Version      string
 	ImageID      string
 	ContainerID  string
 	KillTimeout  time.Duration
@@ -89,6 +90,7 @@ type DockerHandle struct {
 	cleanupImage     bool
 	imageID          string
 	containerID      string
+	version          string
 	killTimeout      time.Duration
 	waitCh           chan *cstructs.WaitResult
 	doneCh           chan struct{}
@@ -605,6 +607,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 		logger:           d.logger,
 		imageID:          dockerImage.ID,
 		containerID:      container.ID,
+		version:          d.config.Version,
 		killTimeout:      d.DriverContext.KillTimeout(task),
 		doneCh:           make(chan struct{}),
 		waitCh:           make(chan *cstructs.WaitResult, 1),
@@ -672,6 +675,7 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 		logger:           d.logger,
 		imageID:          pid.ImageID,
 		containerID:      pid.ContainerID,
+		version:          pid.Version,
 		killTimeout:      pid.KillTimeout,
 		doneCh:           make(chan struct{}),
 		waitCh:           make(chan *cstructs.WaitResult, 1),
@@ -683,6 +687,7 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 func (h *DockerHandle) ID() string {
 	// Return a handle to the PID
 	pid := dockerPID{
+		Version:      h.version,
 		ImageID:      h.imageID,
 		ContainerID:  h.containerID,
 		KillTimeout:  h.killTimeout,

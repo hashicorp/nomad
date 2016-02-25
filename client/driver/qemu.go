@@ -50,6 +50,7 @@ type qemuHandle struct {
 	allocDir     *allocdir.AllocDir
 	killTimeout  time.Duration
 	logger       *log.Logger
+	version      string
 	waitCh       chan *cstructs.WaitResult
 	doneCh       chan struct{}
 }
@@ -224,6 +225,7 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		userPid:      ps.Pid,
 		allocDir:     ctx.AllocDir,
 		killTimeout:  d.DriverContext.KillTimeout(task),
+		version:      d.config.Version,
 		logger:       d.logger,
 		doneCh:       make(chan struct{}),
 		waitCh:       make(chan *cstructs.WaitResult, 1),
@@ -234,6 +236,7 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 }
 
 type qemuId struct {
+	Version      string
 	KillTimeout  time.Duration
 	UserPid      int
 	PluginConfig *PluginReattachConfig
@@ -267,6 +270,7 @@ func (d *QemuDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		allocDir:     id.AllocDir,
 		logger:       d.logger,
 		killTimeout:  id.KillTimeout,
+		version:      id.Version,
 		doneCh:       make(chan struct{}),
 		waitCh:       make(chan *cstructs.WaitResult, 1),
 	}
@@ -276,6 +280,7 @@ func (d *QemuDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 
 func (h *qemuHandle) ID() string {
 	id := qemuId{
+		Version:      h.version,
 		KillTimeout:  h.killTimeout,
 		PluginConfig: NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
 		UserPid:      h.userPid,

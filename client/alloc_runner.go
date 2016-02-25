@@ -66,6 +66,7 @@ type AllocRunner struct {
 
 // allocRunnerState is used to snapshot the state of the alloc runner
 type allocRunnerState struct {
+	Version                string
 	Alloc                  *structs.Allocation
 	AllocClientStatus      string
 	AllocClientDescription string
@@ -181,6 +182,7 @@ func (r *AllocRunner) saveAllocRunnerState() error {
 	r.ctxLock.Unlock()
 
 	snap := allocRunnerState{
+		Version:                r.config.Version,
 		Alloc:                  alloc,
 		Context:                ctx,
 		AllocClientStatus:      allocClientStatus,

@@ -1,4 +1,4 @@
-## 0.3.0 (UNRELEASED)
+## 0.3.0
 
 __BACKWARDS INCOMPATIBILITIES:__
   * Stdout and Stderr log files of tasks have moved from task/local to
