@@ -13,6 +13,8 @@ const (
 	portVal   = ":80"
 	periodKey = "NOMAD.PERIOD"
 	periodVal = "period"
+	dashKey   = "NOMAD-DASH"
+	dashVal   = "dash"
 )
 
 var (
@@ -20,6 +22,7 @@ var (
 		ipKey:     ipVal,
 		portKey:   portVal,
 		periodKey: periodVal,
+		dashKey:   dashVal,
 	}
 )
 
@@ -46,6 +49,16 @@ func TestArgs_ReplaceEnv_Valid(t *testing.T) {
 func TestArgs_ReplaceEnv_Period(t *testing.T) {
 	input := fmt.Sprintf(`"${%v}"!`, periodKey)
 	exp := fmt.Sprintf("\"%s\"!", periodVal)
+	act := ReplaceEnv(input, envVars)
+
+	if !reflect.DeepEqual(act, exp) {
+		t.Fatalf("ReplaceEnv(%v, %v) returned %#v; want %#v", input, envVars, act, exp)
+	}
+}
+
+func TestArgs_ReplaceEnv_Dash(t *testing.T) {
+	input := fmt.Sprintf(`"${%v}"!`, dashKey)
+	exp := fmt.Sprintf("\"%s\"!", dashVal)
 	act := ReplaceEnv(input, envVars)
 
 	if !reflect.DeepEqual(act, exp) {
