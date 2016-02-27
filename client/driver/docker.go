@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -61,6 +60,7 @@ type DockerDriverConfig struct {
 	LabelsRaw        []map[string]string `mapstructure:"labels"`             //
 	Labels           map[string]string   `mapstructure:"-"`                  // Labels to set when the container starts up
 	Auth             []DockerDriverAuth  `mapstructure:"auth"`               // Authentication credentials for a private Docker registry
+	SSL              bool                `mapstructure:"ssl"`
 }
 
 func (c *DockerDriverConfig) Validate() error {
@@ -409,6 +409,14 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	if err := mapstructure.WeakDecode(task.Config, &driverConfig); err != nil {
 		return nil, err
 	}
+
+	if strings.Contains(driverConfig.ImageName, "https://") {
+		driverConfig.SSL = true
+		driverConfig.ImageName = strings.Replace(driverConfig.ImageName, "https://", "", 1)
+	} else {
+		driverConfig.SSL = false
+	}
+
 	image := driverConfig.ImageName
 
 	if err := driverConfig.Validate(); err != nil {
@@ -472,19 +480,13 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 				if authConfigurations, err = docker.NewAuthConfigurations(f); err != nil {
 					return nil, fmt.Errorf("Failed to create docker auth object: %v", err)
 				}
+
 				authConfigurationKey := ""
-
-				if parsedUrl, err := url.Parse(repo); err == nil {
-					if parsedUrl.Scheme != "" {
-						authConfigurationKey += parsedUrl.Scheme + "://"
-					}
-
-					authConfigurationKey += parsedUrl.Host
-					pullOptions.Repository = parsedUrl.Host + parsedUrl.Path
-				} else {
-					return nil, fmt.Errorf("Failed to parse image repo: %v", err)
+				if driverConfig.SSL {
+					authConfigurationKey += "https://"
 				}
 
+				authConfigurationKey += strings.Split(driverConfig.ImageName, "/")[0]
 				if authConfiguration, ok := authConfigurations.Configs[authConfigurationKey]; ok {
 					authOptions = authConfiguration
 				}
@@ -501,8 +503,6 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 		d.logger.Printf("[DEBUG] driver.docker: docker pull %s:%s succeeded", repo, tag)
 
 		// Now that we have the image we can get the image id
-		driverConfig.ImageName = strings.Replace(driverConfig.ImageName, "https://", "", 1)
-		image = driverConfig.ImageName
 		dockerImage, err = client.InspectImage(image)
 		if err != nil {
 			d.logger.Printf("[ERR] driver.docker: failed getting image id for %s: %s", image, err)
