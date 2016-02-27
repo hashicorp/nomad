@@ -5,6 +5,10 @@
 VAGRANTFILE_API_VERSION = "2"
 
 $script = <<SCRIPT
+# Set docker version from available versions at
+# https://apt.dockerproject.org/repo/pool/main/d/docker-engine/
+DOCKER_VERSION="1.10.1-0~trusty"
+
 # Install Prereq Packages
 sudo apt-get update
 sudo apt-get install -y build-essential curl git-core mercurial bzr libpcre3-dev pkg-config zip default-jre qemu libc6-dev-i386 silversearcher-ag jq htop vim unzip
@@ -52,7 +56,7 @@ sudo mv consul /usr/bin/consul
 echo deb https://apt.dockerproject.org/repo ubuntu-`lsb_release -c | awk '{print $2}'` main | sudo tee /etc/apt/sources.list.d/docker.list
 sudo apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D
 sudo apt-get update
-sudo apt-get install -y docker-engine
+sudo apt-get install -y docker-engine=$DOCKER_VERSION
 
 # Restart docker to make sure we get the latest version of the daemon if there is an upgrade
 sudo service docker restart
