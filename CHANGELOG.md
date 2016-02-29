@@ -1,3 +1,8 @@
+## 0.3.1 (UNRELEASED)
+
+BUG FIXES:
+  * client: Allow dashes in variable names during interprelation [GH-857]
+
 ## 0.3.0
 
 __BACKWARDS INCOMPATIBILITIES:__
