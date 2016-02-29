@@ -190,10 +190,22 @@ func (c *AllocStatusCommand) taskStatus(alloc *api.Allocation) {
 			// Build up the description based on the event type.
 			var desc string
 			switch event.Type {
+			case api.TaskStarted:
+				desc = "Task started by client"
+			case api.TaskReceived:
+				desc = "Task received by client"
 			case api.TaskDriverFailure:
-				desc = event.DriverError
+				if event.DriverError != "" {
+					desc = event.DriverError
+				} else {
+					desc = "Failed to start task"
+				}
 			case api.TaskKilled:
-				desc = event.KillError
+				if event.KillError != "" {
+					desc = event.KillError
+				} else {
+					desc = "Task successfully killed"
+				}
 			case api.TaskTerminated:
 				var parts []string
 				parts = append(parts, fmt.Sprintf("Exit Code: %d", event.ExitCode))
@@ -206,6 +218,10 @@ func (c *AllocStatusCommand) taskStatus(alloc *api.Allocation) {
 					parts = append(parts, fmt.Sprintf("Exit Message: %q", event.Message))
 				}
 				desc = strings.Join(parts, ", ")
+			case api.TaskRestarting:
+				desc = fmt.Sprintf("Task restarting in %v", time.Duration(event.StartDelay))
+			case api.TaskNotRestarting:
+				desc = "Task exceeded restart policy"
 			}
 
 			// Reverse order so we are sorted by time

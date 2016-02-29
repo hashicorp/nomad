@@ -245,8 +245,7 @@ func (r *AllocRunner) Alloc() *structs.Allocation {
 		case structs.TaskStatePending:
 			pending = true
 		case structs.TaskStateDead:
-			last := len(state.Events) - 1
-			if state.Events[last].Type == structs.TaskDriverFailure {
+			if state.Failed() {
 				failed = true
 			} else {
 				dead = true
