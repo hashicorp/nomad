@@ -60,7 +60,7 @@ type DockerDriverConfig struct {
 	LabelsRaw        []map[string]string `mapstructure:"labels"`             //
 	Labels           map[string]string   `mapstructure:"-"`                  // Labels to set when the container starts up
 	Auth             []DockerDriverAuth  `mapstructure:"auth"`               // Authentication credentials for a private Docker registry
-	SSL              bool                `mapstructure:"ssl"`
+	SSL              bool                `mapstructure:"ssl"`                // Flag indicating repository is served via https
 }
 
 func (c *DockerDriverConfig) Validate() error {
@@ -413,8 +413,6 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	if strings.Contains(driverConfig.ImageName, "https://") {
 		driverConfig.SSL = true
 		driverConfig.ImageName = strings.Replace(driverConfig.ImageName, "https://", "", 1)
-	} else {
-		driverConfig.SSL = false
 	}
 
 	image := driverConfig.ImageName
