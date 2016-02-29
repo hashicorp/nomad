@@ -309,7 +309,9 @@ func (r *TaskRunner) run() {
 		}
 
 		// Clear the handle so a new driver will be created.
+		r.handleLock.Lock()
 		r.handle = nil
+		r.handleLock.Unlock()
 	}
 }
 
