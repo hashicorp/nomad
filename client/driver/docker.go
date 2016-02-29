@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -209,32 +210,9 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task,
 
 	hostConfig := &docker.HostConfig{
 		// Convert MB to bytes. This is an absolute value.
-		//
-		// This value represents the total amount of memory a process can use.
-		// Swap is added to total memory and is managed by the OS, not docker.
-		// Since this may cause other processes to swap and cause system
-		// instability, we will simply not use swap.
-		//
-		// See: https://www.kernel.org/doc/Documentation/cgroups/memory.txt
 		Memory:     int64(task.Resources.MemoryMB) * 1024 * 1024,
 		MemorySwap: -1,
 		// Convert Mhz to shares. This is a relative value.
-		//
-		// There are two types of CPU limiters available: Shares and Quotas. A
-		// Share allows a particular process to have a proportion of CPU time
-		// relative to other processes; 1024 by default. A CPU Quota is enforced
-		// over a Period of time and is a HARD limit on the amount of CPU time a
-		// process can use. Processes with quotas cannot burst, while processes
-		// with shares can, so we'll use shares.
-		//
-		// The simplest scale is 1 share to 1 MHz so 1024 = 1GHz. This means any
-		// given process will have at least that amount of resources, but likely
-		// more since it is (probably) rare that the machine will run at 100%
-		// CPU. This scale will cease to work if a node is overprovisioned.
-		//
-		// See:
-		//  - https://www.kernel.org/doc/Documentation/scheduler/sched-bwc.txt
-		//  - https://www.kernel.org/doc/Documentation/scheduler/sched-design-CFS.txt
 		CPUShares: int64(task.Resources.CPU),
 
 		// Binds are used to mount a host volume into the container. We mount a
@@ -403,6 +381,22 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task,
 	}, nil
 }
 
+var (
+	// imageNotFoundMatcher is a regex expression that matches the image not
+	// found error Docker returns.
+	imageNotFoundMatcher = regexp.MustCompile(`Error: image .+ not found`)
+)
+
+// recoverablePullError wraps the error gotten when trying to pull and image if
+// the error is recoverable.
+func (d *DockerDriver) recoverablePullError(err error, image string) error {
+	recoverable := true
+	if imageNotFoundMatcher.MatchString(err.Error()) {
+		recoverable = false
+	}
+	return cstructs.NewRecoverableError(fmt.Errorf("Failed to pull `%s`: %s", image, err), recoverable)
+}
+
 func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
 	var driverConfig DockerDriverConfig
 	if err := mapstructure.WeakDecode(task.Config, &driverConfig); err != nil {
@@ -482,7 +476,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 		err = client.PullImage(pullOptions, authOptions)
 		if err != nil {
 			d.logger.Printf("[ERR] driver.docker: failed pulling container %s:%s: %s", repo, tag, err)
-			return nil, fmt.Errorf("Failed to pull `%s`: %s", image, err)
+			return nil, d.recoverablePullError(err, image)
 		}
 		d.logger.Printf("[DEBUG] driver.docker: docker pull %s:%s succeeded", repo, tag)
 
