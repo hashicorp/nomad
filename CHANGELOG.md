@@ -1,5 +1,9 @@
 ## 0.3.1 (UNRELEASED)
 
+IMPROVEMENTS:
+  * client: Starting task is retried under the restart policy if the error is
+    recoverable [GH-859]
+
 BUG FIXES:
   * client: Allow dashes in variable names during interprelation [GH-857]
 
