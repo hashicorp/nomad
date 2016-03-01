@@ -21,7 +21,7 @@ region can be specified using the `?region=` query parameter.
   </dd>
 
   <dt>Method</dt>
-  <dd>GET</dd>
+  <dd>PUT</dd>
 
   <dt>URL</dt>
   <dd>`/v1/system/gc`</dd>
