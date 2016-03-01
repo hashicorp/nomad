@@ -224,12 +224,13 @@ func Alloc() *structs.Allocation {
 		Resources: &structs.Resources{
 			CPU:      500,
 			MemoryMB: 256,
+			DiskMB:   10,
 			Networks: []*structs.NetworkResource{
 				&structs.NetworkResource{
 					Device:        "eth0",
 					IP:            "192.168.0.100",
-					ReservedPorts: []structs.Port{{Label: "main", Value: 12345}},
-					MBits:         100,
+					ReservedPorts: []structs.Port{{Label: "main", Value: 5000}},
+					MBits:         50,
 					DynamicPorts:  []structs.Port{{Label: "http"}},
 				},
 			},
@@ -238,6 +239,7 @@ func Alloc() *structs.Allocation {
 			"web": &structs.Resources{
 				CPU:      500,
 				MemoryMB: 256,
+				DiskMB:   10,
 				Networks: []*structs.NetworkResource{
 					&structs.NetworkResource{
 						Device:        "eth0",
@@ -247,11 +249,6 @@ func Alloc() *structs.Allocation {
 						DynamicPorts:  []structs.Port{{Label: "http"}},
 					},
 				},
-			},
-		},
-		TaskStates: map[string]*structs.TaskState{
-			"web": &structs.TaskState{
-				State: structs.TaskStatePending,
 			},
 		},
 		Job:           Job(),

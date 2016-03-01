@@ -366,7 +366,7 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 			allocInPlace)
 
 		// Attempt to match the task group
-		option, size := stack.Select(update.TaskGroup)
+		option, _ := stack.Select(update.TaskGroup)
 
 		// Pop the allocation
 		ctx.Plan().PopUpdate(update.Alloc)
@@ -391,8 +391,8 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 
 		// Update the allocation
 		newAlloc.EvalID = eval.ID
-		newAlloc.Job = nil // Use the Job in the Plan
-		newAlloc.Resources = size
+		newAlloc.Job = nil       // Use the Job in the Plan
+		newAlloc.Resources = nil // Computed in Plan Apply
 		newAlloc.TaskResources = option.TaskResources
 		newAlloc.Metrics = ctx.Metrics()
 		newAlloc.DesiredStatus = structs.AllocDesiredStatusRun
@@ -459,12 +459,4 @@ func taskGroupConstraints(tg *structs.TaskGroup) tgConstrainTuple {
 	}
 
 	return c
-}
-
-func initTaskState(tg *structs.TaskGroup, state string) map[string]*structs.TaskState {
-	states := make(map[string]*structs.TaskState, len(tg.Tasks))
-	for _, task := range tg.Tasks {
-		states[task.Name] = &structs.TaskState{State: state}
-	}
-	return states
 }

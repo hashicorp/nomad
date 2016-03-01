@@ -2459,6 +2459,10 @@ func (p *Plan) AppendUpdate(alloc *Allocation, status, desc string) {
 
 	// Normalize the job
 	newAlloc.Job = nil
+
+	// Strip the resources as it can be rebuilt.
+	newAlloc.Resources = nil
+
 	newAlloc.DesiredStatus = status
 	newAlloc.DesiredDescription = desc
 	node := alloc.NodeID
