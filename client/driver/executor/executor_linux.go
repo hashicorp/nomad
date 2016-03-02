@@ -196,6 +196,9 @@ func DestroyCgroup(groups *cgroupConfig.Cgroup) error {
 	manager := getCgroupManager(groups)
 	if pids, perr := manager.GetPids(); perr == nil {
 		for _, pid := range pids {
+			if pid == os.Getpid() {
+				continue
+			}
 			proc, err := os.FindProcess(pid)
 			if err != nil {
 				merrs.Errors = append(merrs.Errors, fmt.Errorf("error finding process %v: %v", pid, err))
@@ -205,6 +208,8 @@ func DestroyCgroup(groups *cgroupConfig.Cgroup) error {
 				}
 			}
 		}
+	} else {
+		merrs.Errors = append(merrs.Errors, fmt.Errorf("error getting pids: %v", perr))
 	}
 
 	// Remove the cgroup.
