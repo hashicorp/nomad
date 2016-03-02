@@ -443,6 +443,11 @@
 			"Comment": "v0.0.8-59-g53e4dd6",
 			"Rev": "53e4dd65f5de928ae6deaf2de2c0596e741cbaaa"
 		},
+        {
+            "ImportPath": "github.com/opencontainers/runc/libcontainer/utils",
+            "Comment": "v0.0.8-59-g53e4dd6",
+            "Rev": "53e4dd65f5de928ae6deaf2de2c0596e741cbaaa"
+        },
 		{
 			"ImportPath": "github.com/ryanuber/columnize",
 			"Comment": "v2.0.1-8-g983d3a5",

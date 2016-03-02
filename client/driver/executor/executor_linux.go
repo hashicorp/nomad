@@ -82,7 +82,12 @@ func (e *UniversalExecutor) applyLimits(pid int) error {
 func (e *UniversalExecutor) configureCgroups(resources *structs.Resources) error {
 	e.groups = &cgroupConfig.Cgroup{}
 	e.groups.Resources = &cgroupConfig.Resources{}
-	e.groups.Name = structs.GenerateUUID()
+	cgroupName := structs.GenerateUUID()
+	cgPath, err := cgroups.GetThisCgroupDir("devices")
+	if err != nil {
+		return fmt.Errorf("unable to get mount point for devices sub-system: %v", err)
+	}
+	e.groups.Path = filepath.Join(cgPath, cgroupName)
 
 	// TODO: verify this is needed for things like network access
 	e.groups.Resources.AllowAllDevices = true
