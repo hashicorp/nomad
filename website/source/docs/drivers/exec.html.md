@@ -54,7 +54,7 @@ running client, or a downloaded artifact.
 
 If you are receiving the error `* Constraint "missing drivers" filtered <> nodes`
 and using the exec driver, check to ensure that you are running Nomad as root. This
-also applies for running nomad in -dev mode.
+also applies for running Nomad in -dev mode.
 
 ## Examples
 
