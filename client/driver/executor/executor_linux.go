@@ -196,6 +196,9 @@ func DestroyCgroup(groups *cgroupConfig.Cgroup) error {
 	manager := getCgroupManager(groups)
 	if pids, perr := manager.GetPids(); perr == nil {
 		for _, pid := range pids {
+			// If the pid is the pid of the executor then we don't kill it, the
+			// executor is going to be killed by the driver once the Wait
+			// returns
 			if pid == os.Getpid() {
 				continue
 			}

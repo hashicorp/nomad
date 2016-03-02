@@ -156,7 +156,7 @@ func TestExecutor_DestroyCgroup(t *testing.T) {
 	ctx := testExecutorContext(t)
 	ctx.LogConfig.MaxFiles = 1
 	ctx.LogConfig.MaxFileSizeMB = 300
-	//defer ctx.AllocDir.Destroy()
+	defer ctx.AllocDir.Destroy()
 
 	ctx.FSIsolation = true
 	ctx.ResourceLimits = true
@@ -170,12 +170,6 @@ func TestExecutor_DestroyCgroup(t *testing.T) {
 	if ps.Pid == 0 {
 		t.Fatalf("expected process to start and have non zero pid")
 	}
-	go func() {
-		_, err = executor.Wait()
-		if err != nil {
-			t.Fatalf("error in waiting for command: %v", err)
-		}
-	}()
 	time.Sleep(200 * time.Millisecond)
 	executor.Exit()
 	file := filepath.Join(ctx.AllocDir.LogDir(), "web.stdout.0")
