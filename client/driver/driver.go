@@ -135,16 +135,19 @@ func NewExecContext(alloc *allocdir.AllocDir, allocID string) *ExecContext {
 	return &ExecContext{AllocDir: alloc, AllocID: allocID}
 }
 
-// GetTaskEnv converts the alloc dir, the node and task configuration into a
+// GetTaskEnv converts the alloc dir, the node, task and alloc into a
 // TaskEnvironment.
-func GetTaskEnv(alloc *allocdir.AllocDir, node *structs.Node, task *structs.Task) (*env.TaskEnvironment, error) {
+func GetTaskEnv(allocDir *allocdir.AllocDir, node *structs.Node,
+	task *structs.Task, alloc *structs.Allocation) (*env.TaskEnvironment, error) {
+
 	env := env.NewTaskEnvironment(node).
 		SetMeta(task.Meta).
-		SetEnvvars(task.Env)
+		SetEnvvars(task.Env).
+		SetTaskName(task.Name)
 
-	if alloc != nil {
-		env.SetAllocDir(alloc.SharedDir)
-		taskdir, ok := alloc.TaskDirs[task.Name]
+	if allocDir != nil {
+		env.SetAllocDir(allocDir.SharedDir)
+		taskdir, ok := allocDir.TaskDirs[task.Name]
 		if !ok {
 			return nil, fmt.Errorf("failed to get task directory for task %q", task.Name)
 		}
@@ -153,9 +156,13 @@ func GetTaskEnv(alloc *allocdir.AllocDir, node *structs.Node, task *structs.Task
 	}
 
 	if task.Resources != nil {
-		env.SetMemLimit(task.Resources.MemoryMB)
-		env.SetCpuLimit(task.Resources.CPU)
-		env.SetNetworks(task.Resources.Networks)
+		env.SetMemLimit(task.Resources.MemoryMB).
+			SetCpuLimit(task.Resources.CPU).
+			SetNetworks(task.Resources.Networks)
+	}
+
+	if alloc != nil {
+		env.SetAllocId(alloc.ID).SetAllocName(alloc.Name)
 	}
 
 	return env.Build(), nil

@@ -83,7 +83,7 @@ driver.
     <td>The client node class</td>
   </tr>
   <tr>
-    <td>${attr.\<key\}></td>
+    <td>${attr.\<key\>}</td>
     <td>The attribute given by `key` on the client node.</td>
   </tr>
   <tr>
