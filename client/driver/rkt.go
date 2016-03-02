@@ -152,13 +152,8 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		insecure = true
 	}
 
-	local, ok := ctx.AllocDir.TaskDirs[task.Name]
-	if !ok {
-		return nil, fmt.Errorf("Failed to find task local directory: %v", task.Name)
-	}
-
 	cmdArgs = append(cmdArgs, "run", "--interactive")
-	cmdArgs = append(cmdArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s", task.Name, local))
+	cmdArgs = append(cmdArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s", task.Name, ctx.AllocDir.SharedDir))
 	cmdArgs = append(cmdArgs, fmt.Sprintf("--mount=volume=%s,target=%s", task.Name, ctx.AllocDir.SharedDir))
 	cmdArgs = append(cmdArgs, img)
 	if insecure == true {

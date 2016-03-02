@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
+	"reflect"
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/driver/env"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 
@@ -197,15 +198,21 @@ func TestRktDriver_Start_Wait_Skip_Trust(t *testing.T) {
 	}
 }
 
-func TestRktDriver_Start_Wait_Logs(t *testing.T) {
+func TestRktDriver_Start_Wait_AllocDir(t *testing.T) {
 	ctestutils.RktCompatible(t)
+
+	exp := []byte{'w', 'i', 'n'}
+	file := "output.txt"
+
 	task := &structs.Task{
-		Name: "etcd",
+		Name: "alpine",
 		Config: map[string]interface{}{
-			"trust_prefix": "coreos.com/etcd",
-			"image":        "coreos.com/etcd:v2.0.4",
-			"command":      "/etcd",
-			"args":         []string{"--version"},
+			"image":        "docker://alpine",
+			"command":      "/bin/sh",
+			"args":         []string{
+					"-c",
+					fmt.Sprintf(`echo -n %s > ${%s}/%s`, string(exp), env.AllocDir, file),
+			},
 		},
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
@@ -239,17 +246,14 @@ func TestRktDriver_Start_Wait_Logs(t *testing.T) {
 		t.Fatalf("timeout")
 	}
 
-	taskDir, ok := execCtx.AllocDir.TaskDirs[task.Name]
-	if !ok {
-		t.Fatalf("Could not find task directory for task: %v", task)
-	}
-	stdout := filepath.Join(taskDir, allocdir.TaskLocal, fmt.Sprintf("%v.stdout.0", task.Name))
-	data, err := ioutil.ReadFile(stdout)
-	if err != nil {
-		t.Fatalf("Failed to read tasks stdout: %v", err)
-	}
+	// Check that data was written to the shared alloc directory.
+        outputFile := filepath.Join(execCtx.AllocDir.SharedDir, file)
+        act, err := ioutil.ReadFile(outputFile)
+        if err != nil {
+                t.Fatalf("Couldn't read expected output: %v", err)
+        }
 
-	if len(data) == 0 {
-		t.Fatal("Task's stdout is empty: %q", stdout)
-	}
+        if !reflect.DeepEqual(act, exp) {
+                t.Fatalf("Command output is %v; expected %v", act, exp)
+        }
 }
