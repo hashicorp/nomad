@@ -1,6 +1,7 @@
 ## 0.3.1 (UNRELEASED)
 
 IMPROVEMENTS:
+  * client: Add environment variables for task name, allocation ID/Name [GH-869]
   * client: Starting task is retried under the restart policy if the error is
     recoverable [GH-859]
 
