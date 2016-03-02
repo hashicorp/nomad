@@ -224,7 +224,7 @@ through Nomad plugins or dynamic job configuration.
 ## Host Requirements
 
 Nomad requires Docker to be installed and running on the host alongside the
-Nomad agent. Nomad was developed against Docker `1.8.2` and `1.9`.
+Nomad agent. Nomad was developed against Docker `1.8.2`, `1.9`, and `1.10.1`.
 
 By default Nomad communicates with the Docker daemon using the daemon's unix
 socket. Nomad will need to be able to read/write to this socket. If you do not
