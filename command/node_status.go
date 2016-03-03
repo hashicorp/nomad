@@ -2,6 +2,7 @@ package command
 
 import (
 	"fmt"
+	"github.com/hashicorp/nomad/api"
 	"sort"
 	"strings"
 )
@@ -43,12 +44,13 @@ func (c *NodeStatusCommand) Synopsis() string {
 }
 
 func (c *NodeStatusCommand) Run(args []string) int {
-	var short, verbose bool
+	var short, verbose, list_allocs bool
 
 	flags := c.Meta.FlagSet("node-status", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&short, "short", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
+	flags.BoolVar(&list_allocs, "allocs", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -90,24 +92,35 @@ func (c *NodeStatusCommand) Run(args []string) int {
 
 		// Format the nodes list
 		out := make([]string, len(nodes)+1)
-		out[0] = "ID|Datacenter|Name|Class|Drain|Status|Allocations"
+		if list_allocs {
+			out[0] = "ID|DC|Name|Class|Drain|Status|Running Allocs"
+		} else {
+			out[0] = "ID|DC|Name|Class|Drain|Status"
+		}
 		for i, node := range nodes {
-			// Fetch number of allocations per node
-			nodeAllocs, _, err := client.Nodes().Allocations(node.ID, nil)
-			if err != nil {
-				c.Ui.Error(fmt.Sprintf("Error querying node allocations: %s", err))
-				return 1
+			if list_allocs {
+				numAllocs, err := getRunningAllocs(client, node)
+				if err != nil {
+					c.Ui.Error(fmt.Sprintf("Error querying node allocations: %s", err))
+					return 1
+				}
+				out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%v|%s|%v",
+					limit(node.ID, length),
+					node.Datacenter,
+					node.Name,
+					node.NodeClass,
+					node.Drain,
+					node.Status,
+					numAllocs)
+			} else {
+				out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%v|%s",
+					limit(node.ID, length),
+					node.Datacenter,
+					node.Name,
+					node.NodeClass,
+					node.Drain,
+					node.Status)
 			}
-			numAllocs := len(nodeAllocs)
-
-			out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%v|%s|%v",
-				limit(node.ID, length),
-				node.Datacenter,
-				node.Name,
-				node.NodeClass,
-				node.Drain,
-				node.Status,
-				numAllocs)
 		}
 
 		// Dump the output
@@ -144,7 +157,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 			// Format the nodes list that matches the prefix so that the user
 			// can create a more specific request
 			out := make([]string, len(nodes)+1)
-			out[0] = "ID|Datacenter|Name|Class|Drain|Status"
+			out[0] = "ID|DC|Name|Class|Drain|Status"
 			for i, node := range nodes {
 				out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%v|%s",
 					limit(node.ID, length),
@@ -185,7 +198,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		fmt.Sprintf("ID|%s", limit(node.ID, length)),
 		fmt.Sprintf("Name|%s", node.Name),
 		fmt.Sprintf("Class|%s", node.NodeClass),
-		fmt.Sprintf("Datacenter|%s", node.Datacenter),
+		fmt.Sprintf("DC|%s", node.Datacenter),
 		fmt.Sprintf("Drain|%v", node.Drain),
 		fmt.Sprintf("Status|%s", node.Status),
 		fmt.Sprintf("Attributes|%s", strings.Join(attributes, ", ")),
@@ -221,4 +234,16 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		c.Ui.Output(formatList(allocs))
 	}
 	return 0
+}
+
+func getRunningAllocs(client *api.Client, node *api.NodeListStub) (int, error) {
+	// Fetch number of running allocations per node
+	numAllocs := 0
+	nodeAllocs, _, err := client.Nodes().Allocations(node.ID, nil)
+	for _, alloc := range nodeAllocs {
+		if alloc.ClientStatus == "running" {
+			numAllocs += 1
+		}
+	}
+	return numAllocs, err
 }
