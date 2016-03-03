@@ -7,6 +7,7 @@ IMPROVEMENTS:
 
 BUG FIXES:
   * client: Allow dashes in variable names during interprelation [GH-857]
+  * driver/exec: Stopping tasks with more than one pid in a cgroup [GH-855]
 
 ## 0.3.0
 
