@@ -5,7 +5,6 @@ import (
 	"log"
 	"path/filepath"
 	"sync"
-	"time"
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
@@ -82,24 +81,6 @@ func NewDriverContext(taskName string, config *config.Config, node *structs.Node
 		logger:   logger,
 		taskEnv:  taskEnv,
 	}
-}
-
-// KillTimeout returns the timeout that should be used for the task between
-// signaling and killing the task.
-func (d *DriverContext) KillTimeout(task *structs.Task) time.Duration {
-	max := d.config.MaxKillTimeout.Nanoseconds()
-	desired := task.KillTimeout.Nanoseconds()
-
-	// Make the minimum time between signal and kill, 1 second.
-	if desired == 0 {
-		desired = (1 * time.Second).Nanoseconds()
-	}
-
-	if desired < max {
-		return time.Duration(desired)
-	}
-
-	return d.config.MaxKillTimeout
 }
 
 // DriverHandle is an opaque handle into a driver used for task

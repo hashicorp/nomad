@@ -55,23 +55,25 @@ type RktDriverConfig struct {
 
 // rktHandle is returned from Start/Open as a handle to the PID
 type rktHandle struct {
-	pluginClient *plugin.Client
-	executorPid  int
-	executor     executor.Executor
-	allocDir     *allocdir.AllocDir
-	logger       *log.Logger
-	killTimeout  time.Duration
-	waitCh       chan *cstructs.WaitResult
-	doneCh       chan struct{}
+	pluginClient   *plugin.Client
+	executorPid    int
+	executor       executor.Executor
+	allocDir       *allocdir.AllocDir
+	logger         *log.Logger
+	killTimeout    time.Duration
+	maxKillTimeout time.Duration
+	waitCh         chan *cstructs.WaitResult
+	doneCh         chan struct{}
 }
 
 // rktPID is a struct to map the pid running the process to the vm image on
 // disk
 type rktPID struct {
-	PluginConfig *PluginReattachConfig
-	AllocDir     *allocdir.AllocDir
-	ExecutorPid  int
-	KillTimeout  time.Duration
+	PluginConfig   *PluginReattachConfig
+	AllocDir       *allocdir.AllocDir
+	ExecutorPid    int
+	KillTimeout    time.Duration
+	MaxKillTimeout time.Duration
 }
 
 // NewRktDriver is used to create a new exec driver
@@ -227,15 +229,17 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	}
 
 	d.logger.Printf("[DEBUG] driver.rkt: started ACI %q with: %v", img, cmdArgs)
+	maxKill := d.DriverContext.config.MaxKillTimeout
 	h := &rktHandle{
-		pluginClient: pluginClient,
-		executor:     exec,
-		executorPid:  ps.Pid,
-		allocDir:     ctx.AllocDir,
-		logger:       d.logger,
-		killTimeout:  d.DriverContext.KillTimeout(task),
-		doneCh:       make(chan struct{}),
-		waitCh:       make(chan *cstructs.WaitResult, 1),
+		pluginClient:   pluginClient,
+		executor:       exec,
+		executorPid:    ps.Pid,
+		allocDir:       ctx.AllocDir,
+		logger:         d.logger,
+		killTimeout:    GetKillTimeout(task.KillTimeout, maxKill),
+		maxKillTimeout: maxKill,
+		doneCh:         make(chan struct{}),
+		waitCh:         make(chan *cstructs.WaitResult, 1),
 	}
 	go h.run()
 	return h, nil
@@ -244,18 +248,18 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 func (d *RktDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {
 	// Parse the handle
 	pidBytes := []byte(strings.TrimPrefix(handleID, "Rkt:"))
-	qpid := &rktPID{}
-	if err := json.Unmarshal(pidBytes, qpid); err != nil {
+	id := &rktPID{}
+	if err := json.Unmarshal(pidBytes, id); err != nil {
 		return nil, fmt.Errorf("failed to parse Rkt handle '%s': %v", handleID, err)
 	}
 
 	pluginConfig := &plugin.ClientConfig{
-		Reattach: qpid.PluginConfig.PluginConfig(),
+		Reattach: id.PluginConfig.PluginConfig(),
 	}
 	executor, pluginClient, err := createExecutor(pluginConfig, d.config.LogOutput, d.config)
 	if err != nil {
 		d.logger.Println("[ERROR] driver.rkt: error connecting to plugin so destroying plugin pid and user pid")
-		if e := destroyPlugin(qpid.PluginConfig.Pid, qpid.ExecutorPid); e != nil {
+		if e := destroyPlugin(id.PluginConfig.Pid, id.ExecutorPid); e != nil {
 			d.logger.Printf("[ERROR] driver.rkt: error destroying plugin and executor pid: %v", e)
 		}
 		return nil, fmt.Errorf("error connecting to plugin: %v", err)
@@ -263,14 +267,15 @@ func (d *RktDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error
 
 	// Return a driver handle
 	h := &rktHandle{
-		pluginClient: pluginClient,
-		executorPid:  qpid.ExecutorPid,
-		allocDir:     qpid.AllocDir,
-		executor:     executor,
-		logger:       d.logger,
-		killTimeout:  qpid.KillTimeout,
-		doneCh:       make(chan struct{}),
-		waitCh:       make(chan *cstructs.WaitResult, 1),
+		pluginClient:   pluginClient,
+		executorPid:    id.ExecutorPid,
+		allocDir:       id.AllocDir,
+		executor:       executor,
+		logger:         d.logger,
+		killTimeout:    id.KillTimeout,
+		maxKillTimeout: id.MaxKillTimeout,
+		doneCh:         make(chan struct{}),
+		waitCh:         make(chan *cstructs.WaitResult, 1),
 	}
 
 	go h.run()
@@ -280,10 +285,11 @@ func (d *RktDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error
 func (h *rktHandle) ID() string {
 	// Return a handle to the PID
 	pid := &rktPID{
-		PluginConfig: NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
-		KillTimeout:  h.killTimeout,
-		ExecutorPid:  h.executorPid,
-		AllocDir:     h.allocDir,
+		PluginConfig:   NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
+		KillTimeout:    h.killTimeout,
+		MaxKillTimeout: h.maxKillTimeout,
+		ExecutorPid:    h.executorPid,
+		AllocDir:       h.allocDir,
 	}
 	data, err := json.Marshal(pid)
 	if err != nil {
@@ -298,7 +304,7 @@ func (h *rktHandle) WaitCh() chan *cstructs.WaitResult {
 
 func (h *rktHandle) Update(task *structs.Task) error {
 	// Store the updated kill timeout.
-	h.killTimeout = task.KillTimeout
+	h.killTimeout = GetKillTimeout(task.KillTimeout, h.maxKillTimeout)
 	h.executor.UpdateLogConfig(task.LogConfig)
 
 	// Update is not possible

@@ -35,15 +35,16 @@ type RawExecDriver struct {
 
 // rawExecHandle is returned from Start/Open as a handle to the PID
 type rawExecHandle struct {
-	version      string
-	pluginClient *plugin.Client
-	userPid      int
-	executor     executor.Executor
-	killTimeout  time.Duration
-	allocDir     *allocdir.AllocDir
-	logger       *log.Logger
-	waitCh       chan *cstructs.WaitResult
-	doneCh       chan struct{}
+	version        string
+	pluginClient   *plugin.Client
+	userPid        int
+	executor       executor.Executor
+	killTimeout    time.Duration
+	maxKillTimeout time.Duration
+	allocDir       *allocdir.AllocDir
+	logger         *log.Logger
+	waitCh         chan *cstructs.WaitResult
+	doneCh         chan struct{}
 }
 
 // NewRawExecDriver is used to create a new raw exec driver
@@ -125,27 +126,30 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 	d.logger.Printf("[DEBUG] driver.raw_exec: started process with pid: %v", ps.Pid)
 
 	// Return a driver handle
+	maxKill := d.DriverContext.config.MaxKillTimeout
 	h := &rawExecHandle{
-		pluginClient: pluginClient,
-		executor:     exec,
-		userPid:      ps.Pid,
-		killTimeout:  d.DriverContext.KillTimeout(task),
-		allocDir:     ctx.AllocDir,
-		version:      d.config.Version,
-		logger:       d.logger,
-		doneCh:       make(chan struct{}),
-		waitCh:       make(chan *cstructs.WaitResult, 1),
+		pluginClient:   pluginClient,
+		executor:       exec,
+		userPid:        ps.Pid,
+		killTimeout:    GetKillTimeout(task.KillTimeout, maxKill),
+		maxKillTimeout: maxKill,
+		allocDir:       ctx.AllocDir,
+		version:        d.config.Version,
+		logger:         d.logger,
+		doneCh:         make(chan struct{}),
+		waitCh:         make(chan *cstructs.WaitResult, 1),
 	}
 	go h.run()
 	return h, nil
 }
 
 type rawExecId struct {
-	Version      string
-	KillTimeout  time.Duration
-	UserPid      int
-	PluginConfig *PluginReattachConfig
-	AllocDir     *allocdir.AllocDir
+	Version        string
+	KillTimeout    time.Duration
+	MaxKillTimeout time.Duration
+	UserPid        int
+	PluginConfig   *PluginReattachConfig
+	AllocDir       *allocdir.AllocDir
 }
 
 func (d *RawExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {
@@ -168,15 +172,16 @@ func (d *RawExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, e
 
 	// Return a driver handle
 	h := &rawExecHandle{
-		pluginClient: pluginClient,
-		executor:     executor,
-		userPid:      id.UserPid,
-		logger:       d.logger,
-		killTimeout:  id.KillTimeout,
-		allocDir:     id.AllocDir,
-		version:      id.Version,
-		doneCh:       make(chan struct{}),
-		waitCh:       make(chan *cstructs.WaitResult, 1),
+		pluginClient:   pluginClient,
+		executor:       executor,
+		userPid:        id.UserPid,
+		logger:         d.logger,
+		killTimeout:    id.KillTimeout,
+		maxKillTimeout: id.MaxKillTimeout,
+		allocDir:       id.AllocDir,
+		version:        id.Version,
+		doneCh:         make(chan struct{}),
+		waitCh:         make(chan *cstructs.WaitResult, 1),
 	}
 	go h.run()
 	return h, nil
@@ -184,11 +189,12 @@ func (d *RawExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, e
 
 func (h *rawExecHandle) ID() string {
 	id := rawExecId{
-		Version:      h.version,
-		KillTimeout:  h.killTimeout,
-		PluginConfig: NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
-		UserPid:      h.userPid,
-		AllocDir:     h.allocDir,
+		Version:        h.version,
+		KillTimeout:    h.killTimeout,
+		MaxKillTimeout: h.maxKillTimeout,
+		PluginConfig:   NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
+		UserPid:        h.userPid,
+		AllocDir:       h.allocDir,
 	}
 
 	data, err := json.Marshal(id)
@@ -204,7 +210,7 @@ func (h *rawExecHandle) WaitCh() chan *cstructs.WaitResult {
 
 func (h *rawExecHandle) Update(task *structs.Task) error {
 	// Store the updated kill timeout.
-	h.killTimeout = task.KillTimeout
+	h.killTimeout = GetKillTimeout(task.KillTimeout, h.maxKillTimeout)
 	h.executor.UpdateLogConfig(task.LogConfig)
 
 	// Update is not possible

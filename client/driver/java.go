@@ -47,13 +47,14 @@ type javaHandle struct {
 	executor        executor.Executor
 	isolationConfig *cstructs.IsolationConfig
 
-	taskDir     string
-	allocDir    *allocdir.AllocDir
-	killTimeout time.Duration
-	version     string
-	logger      *log.Logger
-	waitCh      chan *cstructs.WaitResult
-	doneCh      chan struct{}
+	taskDir        string
+	allocDir       *allocdir.AllocDir
+	killTimeout    time.Duration
+	maxKillTimeout time.Duration
+	version        string
+	logger         *log.Logger
+	waitCh         chan *cstructs.WaitResult
+	doneCh         chan struct{}
 }
 
 // NewJavaDriver is used to create a new exec driver
@@ -182,6 +183,7 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	d.logger.Printf("[DEBUG] driver.java: started process with pid: %v", ps.Pid)
 
 	// Return a driver handle
+	maxKill := d.DriverContext.config.MaxKillTimeout
 	h := &javaHandle{
 		pluginClient:    pluginClient,
 		executor:        exec,
@@ -189,7 +191,8 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		isolationConfig: ps.IsolationConfig,
 		taskDir:         taskDir,
 		allocDir:        ctx.AllocDir,
-		killTimeout:     d.DriverContext.KillTimeout(task),
+		killTimeout:     GetKillTimeout(task.KillTimeout, maxKill),
+		maxKillTimeout:  maxKill,
 		version:         d.config.Version,
 		logger:          d.logger,
 		doneCh:          make(chan struct{}),
@@ -210,6 +213,7 @@ func (d *JavaDriver) cgroupsMounted(node *structs.Node) bool {
 type javaId struct {
 	Version         string
 	KillTimeout     time.Duration
+	MaxKillTimeout  time.Duration
 	PluginConfig    *PluginReattachConfig
 	IsolationConfig *cstructs.IsolationConfig
 	TaskDir         string
@@ -257,6 +261,7 @@ func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		logger:          d.logger,
 		version:         id.Version,
 		killTimeout:     id.KillTimeout,
+		maxKillTimeout:  id.MaxKillTimeout,
 		doneCh:          make(chan struct{}),
 		waitCh:          make(chan *cstructs.WaitResult, 1),
 	}
@@ -269,6 +274,7 @@ func (h *javaHandle) ID() string {
 	id := javaId{
 		Version:         h.version,
 		KillTimeout:     h.killTimeout,
+		MaxKillTimeout:  h.maxKillTimeout,
 		PluginConfig:    NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
 		UserPid:         h.userPid,
 		TaskDir:         h.taskDir,
@@ -289,7 +295,7 @@ func (h *javaHandle) WaitCh() chan *cstructs.WaitResult {
 
 func (h *javaHandle) Update(task *structs.Task) error {
 	// Store the updated kill timeout.
-	h.killTimeout = task.KillTimeout
+	h.killTimeout = GetKillTimeout(task.KillTimeout, h.maxKillTimeout)
 	h.executor.UpdateLogConfig(task.LogConfig)
 
 	// Update is not possible
