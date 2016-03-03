@@ -20,7 +20,7 @@ dev: format generate
 bin: generate
 	@sh -c "'$(PWD)/scripts/build.sh'"
 
-release: 
+release:
 	@$(MAKE) bin
 
 cov:
@@ -31,7 +31,7 @@ test: generate
 	@sh -c "'$(PWD)/scripts/test.sh'"
 	@$(MAKE) vet
 
-cover: 
+cover:
 	go list ./... | xargs -n1 go test --cover
 
 format:

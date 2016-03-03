@@ -90,15 +90,24 @@ func (c *NodeStatusCommand) Run(args []string) int {
 
 		// Format the nodes list
 		out := make([]string, len(nodes)+1)
-		out[0] = "ID|Datacenter|Name|Class|Drain|Status"
+		out[0] = "ID|Datacenter|Name|Class|Drain|Status|Allocations"
 		for i, node := range nodes {
-			out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%v|%s",
+			// Fetch number of allocations per node
+			nodeAllocs, _, err := client.Nodes().Allocations(node.ID, nil)
+			if err != nil {
+				c.Ui.Error(fmt.Sprintf("Error querying node allocations: %s", err))
+				return 1
+			}
+			numAllocs := len(nodeAllocs)
+
+			out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%v|%s|%v",
 				limit(node.ID, length),
 				node.Datacenter,
 				node.Name,
 				node.NodeClass,
 				node.Drain,
-				node.Status)
+				node.Status,
+				numAllocs)
 		}
 
 		// Dump the output
