@@ -28,9 +28,17 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
-// We store the client globally to cache the connection to the docker daemon.
-var createClient sync.Once
-var client *docker.Client
+var (
+	// We store the client globally to cache the connection to the docker daemon.
+	createClient sync.Once
+	client       *docker.Client
+)
+
+const (
+	// NoSuchContainerError is returned by the docker daemon if the container
+	// does not exist.
+	NoSuchContainerError = "No such container"
+)
 
 type DockerDriver struct {
 	DriverContext
@@ -718,6 +726,11 @@ func (h *DockerHandle) Kill() error {
 	// Stop the container
 	err := h.client.StopContainer(h.containerID, uint(h.killTimeout.Seconds()))
 	if err != nil {
+		// Container has already been removed.
+		if strings.Contains(err.Error(), NoSuchContainerError) {
+			h.logger.Printf("[DEBUG] driver.docker: attempted to stop non-existent container %s", h.containerID)
+			return nil
+		}
 		h.logger.Printf("[ERR] driver.docker: failed to stop container %s: %v", h.containerID, err)
 		return fmt.Errorf("Failed to stop container %s: %s", h.containerID, err)
 	}

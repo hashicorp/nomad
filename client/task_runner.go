@@ -26,11 +26,11 @@ const (
 
 	// killBackoffLimit is the the limit of the exponential backoff for killing
 	// the task.
-	killBackoffLimit = 5 * time.Minute
+	killBackoffLimit = 2 * time.Minute
 
 	// killFailureLimit is how many times we will attempt to kill a task before
 	// giving up and potentially leaking resources.
-	killFailureLimit = 10
+	killFailureLimit = 5
 )
 
 // TaskRunner is used to wrap a task within an allocation and provide the execution context.
@@ -90,7 +90,7 @@ func NewTaskRunner(logger *log.Logger, config *config.Config,
 		ctx:            ctx,
 		alloc:          alloc,
 		task:           task,
-		updateCh:       make(chan *structs.Allocation, 8),
+		updateCh:       make(chan *structs.Allocation, 64),
 		destroyCh:      make(chan struct{}),
 		waitCh:         make(chan struct{}),
 	}
