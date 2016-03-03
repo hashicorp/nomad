@@ -72,13 +72,8 @@ bootstrap:
     go get $$tool; \
 	done
 
-prepare_docker:
-	sudo stop docker
-	sudo rm -rf /var/lib/docker
-	sudo rm -f `which docker`
-	sudo apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D
-	echo "deb https://apt.dockerproject.org/repo ubuntu-trusty main" | sudo tee /etc/apt/sources.list.d/docker.list
-	sudo apt-get update
-	sudo apt-get install docker-engine=$(DOCKER_VERSION)-0~$(shell lsb_release -cs) -y --force-yes
+travis:
+	@sh -c "'$(PWD)/scripts/update_docker.sh'"
+	@sh -c "'$(PWD)/scripts/install_rkt.sh'"
 
 .PHONY: all bin cov integ test vet web web-push test-nodep
