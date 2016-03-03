@@ -35,6 +35,9 @@ Node Status Options:
 
   -verbose
     Display full information.
+
+  -allocs
+    Display a count of running allocations for each node.
 `
 	return strings.TrimSpace(helpText)
 }
