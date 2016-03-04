@@ -389,7 +389,6 @@ via CLI arguments. The `agent` command accepts the following arguments:
 * `-node=<name>`: Equivalent to the [name](#name) config option.
 * `-node-class=<class>`: Equivalent to the Client [node_class](#node_class)
   config option.
-* `-node-id=<uuid>`: Equivalent to the Client [node_id](#node_id) config option.
 * `-region=<region>`: Equivalent to the [region](#region) config option.
 * `-rejoin`: Equivalent to the [rejoin_after_leave](#rejoin_after_leave) config option.
 * `-retry-interval`: Equivalent to the [retry_interval](#retry_interval) config option.
