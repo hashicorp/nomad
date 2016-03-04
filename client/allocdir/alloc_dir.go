@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+	"strings"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -174,7 +175,7 @@ func (d *AllocDir) Build(tasks []*structs.Task) error {
 // their intended, relative location within the task directory. Embed attempts
 // hardlink and then defaults to copying. If the path exists on the host and
 // can't be embeded an error is returned.
-func (d *AllocDir) Embed(task string, entries map[string]string) error {
+func (d *AllocDir) Embed(task string, entries map[string]string, roots map[string]string) error {
 	taskdir, ok := d.TaskDirs[task]
 	if !ok {
 		return fmt.Errorf("Task directory doesn't exist for task %v", task)
@@ -216,6 +217,7 @@ func (d *AllocDir) Embed(task string, entries map[string]string) error {
 			return fmt.Errorf("Couldn't read directory %v: %v", source, err)
 		}
 
+EachDirEntry:
 		for _, entry := range dirEntries {
 			hostEntry := filepath.Join(source, entry.Name())
 			taskEntry := filepath.Join(destDir, filepath.Base(hostEntry))
@@ -236,18 +238,39 @@ func (d *AllocDir) Embed(task string, entries map[string]string) error {
 					continue
 				}
 
-				link, err := os.Readlink(hostEntry)
+				link, err := filepath.EvalSymlinks(hostEntry)
 				if err != nil {
-					return fmt.Errorf("Couldn't resolve symlink for %v: %v", source, err)
-				}
-
-				if err := os.Symlink(link, taskEntry); err != nil {
-					// Symlinking twice
-					if err.(*os.LinkError).Err.Error() != "file exists" {
-						return fmt.Errorf("Couldn't create symlink: %v", err)
+					link, err = os.Readlink(hostEntry)
+					if err != nil {
+						return fmt.Errorf("Couldn't resolve symlink for %v: %v", source, err)
 					}
 				}
-				continue
+
+				// Only symlink when the destination is being embedded.
+				for root, _ := range roots {
+					if !filepath.IsAbs(link) || strings.HasPrefix(link, root) {
+						if err := os.Symlink(link, taskEntry); err != nil {
+							// Symlinking twice
+							if err.(*os.LinkError).Err.Error() != "file exists" {
+								return fmt.Errorf("Couldn't create symlink: %v", err)
+							}
+						}
+						continue EachDirEntry
+					}
+				}
+
+				// Hard link or copy unreachable symlinks.
+				hostEntry = link
+
+				stat, err := os.Lstat(hostEntry)
+				if err != nil {
+					// Destination file is missing; give up.
+					continue
+				}
+				if stat.IsDir() {
+					subdirs[hostEntry] = filepath.Join(dest, filepath.Base(hostEntry))
+					continue
+				}
 			}
 
 			if err := d.linkOrCopy(hostEntry, taskEntry, entry.Mode().Perm()); err != nil {
@@ -258,7 +281,7 @@ func (d *AllocDir) Embed(task string, entries map[string]string) error {
 
 	// Recurse on self to copy subdirectories.
 	if len(subdirs) != 0 {
-		return d.Embed(task, subdirs)
+		return d.Embed(task, subdirs, entries)
 	}
 
 	return nil
