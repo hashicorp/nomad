@@ -510,6 +510,40 @@ func (b *EvalBroker) Nack(evalID, token string) error {
 	return nil
 }
 
+// PauseNackTimeout is used to pause the Nack timeout for an eval that is making
+// progress but is in a potentially unbounded operation such as the plan queue.
+func (b *EvalBroker) PauseNackTimeout(evalID, token string) error {
+	b.l.RLock()
+	defer b.l.RUnlock()
+	unack, ok := b.unack[evalID]
+	if !ok {
+		return ErrNotOutstanding
+	}
+	if unack.Token != token {
+		return ErrTokenMismatch
+	}
+	if !unack.NackTimer.Stop() {
+		return ErrNackTimeoutReached
+	}
+	return nil
+}
+
+// ResumeNackTimeout is used to resume the Nack timeout for an eval that was
+// paused. It should be resumed after leaving an unbounded operation.
+func (b *EvalBroker) ResumeNackTimeout(evalID, token string) error {
+	b.l.Lock()
+	defer b.l.Unlock()
+	unack, ok := b.unack[evalID]
+	if !ok {
+		return ErrNotOutstanding
+	}
+	if unack.Token != token {
+		return ErrTokenMismatch
+	}
+	unack.NackTimer.Reset(b.nackTimeout)
+	return nil
+}
+
 // Flush is used to clear the state of the broker
 func (b *EvalBroker) Flush() {
 	b.l.Lock()
