@@ -656,6 +656,56 @@ func TestEvalBroker_Nack_TimeoutReset(t *testing.T) {
 	}
 }
 
+func TestEvalBroker_PauseResumeNackTimeout(t *testing.T) {
+	b := testBroker(t, 5*time.Millisecond)
+	b.SetEnabled(true)
+
+	// Enqueue
+	eval := mock.Eval()
+	err := b.Enqueue(eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Dequeue
+	out, token, err := b.Dequeue(defaultSched, time.Second)
+	start := time.Now()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out != eval {
+		t.Fatalf("bad: %v", out)
+	}
+
+	// Pause in 2 milliseconds
+	time.Sleep(2 * time.Millisecond)
+	if err := b.PauseNackTimeout(out.ID, token); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	go func() {
+		time.Sleep(2 * time.Millisecond)
+		if err := b.ResumeNackTimeout(out.ID, token); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	}()
+
+	// Dequeue, should block until the timer is resumed
+	out, _, err = b.Dequeue(defaultSched, time.Second)
+	end := time.Now()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out != eval {
+		t.Fatalf("bad: %v", out)
+	}
+
+	// Check the nack timer
+	if diff := end.Sub(start); diff < 9*time.Millisecond {
+		t.Fatalf("bad: %#v", diff)
+	}
+}
+
 func TestEvalBroker_DeliveryLimit(t *testing.T) {
 	b := testBroker(t, 0)
 	b.SetEnabled(true)
