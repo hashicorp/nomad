@@ -102,7 +102,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		}
 		for i, node := range nodes {
 			if list_allocs {
-				numAllocs, err := getNumRunningAllocs(client, node)
+				numAllocs, err := getRunningAllocs(client, node.ID)
 				if err != nil {
 					c.Ui.Error(fmt.Sprintf("Error querying node allocations: %s", err))
 					return 1
@@ -114,7 +114,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 					node.NodeClass,
 					node.Drain,
 					node.Status,
-					numAllocs)
+					len(numAllocs))
 			} else {
 				out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%v|%s",
 					limit(node.ID, length),
@@ -228,25 +228,12 @@ func (c *NodeStatusCommand) Run(args []string) int {
 	return 0
 }
 
-// getNumRunningAllocs fetches the number of running allocations on the node
-func getNumRunningAllocs(client *api.Client, node *api.NodeListStub) (int, error) {
-	// Fetch number of running allocations per node
-	numAllocs := 0
-	nodeAllocs, _, err := client.Nodes().Allocations(node.ID, nil)
-	for _, alloc := range nodeAllocs {
-		if alloc.ClientStatus == "running" {
-			numAllocs += 1
-		}
-	}
-	return numAllocs, err
-}
-
 // getRunningAllocs returns a slice of allocation id's running on the node
-func getRunningAllocs(client *api.Client, node *api.Node) ([]*api.Allocation, error) {
+func getRunningAllocs(client *api.Client, nodeID string) ([]*api.Allocation, error) {
 	var allocs []*api.Allocation
 
 	// Query the node allocations
-	nodeAllocs, _, err := client.Nodes().Allocations(node.ID, nil)
+	nodeAllocs, _, err := client.Nodes().Allocations(nodeID, nil)
 	// Filter list to only running allocations
 	for _, alloc := range nodeAllocs {
 		if alloc.ClientStatus == "running" {
@@ -281,7 +268,7 @@ func getResources(client *api.Client, node *api.Node) ([]string, error) {
 	var cpu, mem, disk, iops int
 
 	// Get list of running allocations on the node
-	runningAllocs, err := getRunningAllocs(client, node)
+	runningAllocs, err := getRunningAllocs(client, node.ID)
 
 	// Get Resources
 	for _, alloc := range runningAllocs {
@@ -292,7 +279,7 @@ func getResources(client *api.Client, node *api.Node) ([]string, error) {
 	}
 
 	resources = make([]string, 2)
-	resources[0] = "CPU|MemoryMB|DiskMB|IOPS"
+	resources[0] = "CPU|Memory MB|Disk MB|IOPS"
 	resources[1] = fmt.Sprintf("%v|%v|%v|%v",
 		cpu,
 		mem,

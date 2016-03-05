@@ -267,7 +267,7 @@ func (c *AllocStatusCommand) sortedTaskStateIterator(m map[string]*api.TaskState
 // taskResources prints out the tasks current resource usage
 func (c *AllocStatusCommand) taskResources(alloc *api.Allocation) {
 	resources := make([]string, 2)
-	resources[0] = "CPU|MemoryMB|DiskMB|IOPS"
+	resources[0] = "CPU|Memory MB|Disk MB|IOPS"
 	resources[1] = fmt.Sprintf("%v|%v|%v|%v",
 		alloc.Resources.CPU,
 		alloc.Resources.MemoryMB,
