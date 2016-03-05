@@ -207,11 +207,11 @@ func TestRktDriver_Start_Wait_AllocDir(t *testing.T) {
 	task := &structs.Task{
 		Name: "alpine",
 		Config: map[string]interface{}{
-			"image":        "docker://alpine",
-			"command":      "/bin/sh",
-			"args":         []string{
-					"-c",
-					fmt.Sprintf(`echo -n %s > ${%s}/%s`, string(exp), env.AllocDir, file),
+			"image":   "docker://alpine",
+			"command": "/bin/sh",
+			"args": []string{
+				"-c",
+				fmt.Sprintf(`echo -n %s > ${%s}/%s`, string(exp), env.AllocDir, file),
 			},
 		},
 		LogConfig: &structs.LogConfig{
@@ -247,13 +247,13 @@ func TestRktDriver_Start_Wait_AllocDir(t *testing.T) {
 	}
 
 	// Check that data was written to the shared alloc directory.
-        outputFile := filepath.Join(execCtx.AllocDir.SharedDir, file)
-        act, err := ioutil.ReadFile(outputFile)
-        if err != nil {
-                t.Fatalf("Couldn't read expected output: %v", err)
-        }
+	outputFile := filepath.Join(execCtx.AllocDir.SharedDir, file)
+	act, err := ioutil.ReadFile(outputFile)
+	if err != nil {
+		t.Fatalf("Couldn't read expected output: %v", err)
+	}
 
-        if !reflect.DeepEqual(act, exp) {
-                t.Fatalf("Command output is %v; expected %v", act, exp)
-        }
+	if !reflect.DeepEqual(act, exp) {
+		t.Fatalf("Command output is %v; expected %v", act, exp)
+	}
 }

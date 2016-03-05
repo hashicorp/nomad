@@ -78,6 +78,7 @@ type unackEval struct {
 	Eval      *structs.Evaluation
 	Token     string
 	NackTimer *time.Timer
+	Paused    bool
 }
 
 // PendingEvaluations is a list of waiting evaluations.
@@ -419,7 +420,7 @@ func (b *EvalBroker) OutstandingReset(evalID, token string) error {
 	if unack.Token != token {
 		return ErrTokenMismatch
 	}
-	if !unack.NackTimer.Reset(b.nackTimeout) {
+	if !unack.Paused && !unack.NackTimer.Reset(b.nackTimeout) {
 		return ErrNackTimeoutReached
 	}
 	return nil
@@ -525,6 +526,7 @@ func (b *EvalBroker) PauseNackTimeout(evalID, token string) error {
 	if !unack.NackTimer.Stop() {
 		return ErrNackTimeoutReached
 	}
+	unack.Paused = true
 	return nil
 }
 
@@ -541,6 +543,7 @@ func (b *EvalBroker) ResumeNackTimeout(evalID, token string) error {
 		return ErrTokenMismatch
 	}
 	unack.NackTimer.Reset(b.nackTimeout)
+	unack.Paused = false
 	return nil
 }
 
