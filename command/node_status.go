@@ -102,7 +102,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		}
 		for i, node := range nodes {
 			if list_allocs {
-				numAllocs, err := getRunningAllocs(client, node)
+				numAllocs, err := getNumRunningAllocs(client, node)
 				if err != nil {
 					c.Ui.Error(fmt.Sprintf("Error querying node allocations: %s", err))
 					return 1
@@ -207,39 +207,29 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		fmt.Sprintf("Attributes|%s", strings.Join(attributes, ", ")),
 	}
 
-	var allocs []string
+	// Dump the output
+	c.Ui.Output(formatKV(basic))
 	if !short {
-		// Query the node allocations
-		nodeAllocs, _, err := client.Nodes().Allocations(node.ID, nil)
+		allocs, err := getAllocs(client, node, length)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error querying node allocations: %s", err))
 			return 1
 		}
-
-		// Format the allocations
-		allocs = make([]string, len(nodeAllocs)+1)
-		allocs[0] = "ID|Eval ID|Job ID|Task Group|Desired Status|Client Status"
-		for i, alloc := range nodeAllocs {
-			allocs[i+1] = fmt.Sprintf("%s|%s|%s|%s|%s|%s",
-				limit(alloc.ID, length),
-				limit(alloc.EvalID, length),
-				alloc.JobID,
-				alloc.TaskGroup,
-				alloc.DesiredStatus,
-				alloc.ClientStatus)
-		}
-	}
-
-	// Dump the output
-	c.Ui.Output(formatKV(basic))
-	if !short {
 		c.Ui.Output("\n==> Allocations")
 		c.Ui.Output(formatList(allocs))
+		resources, err := getResources(client, node)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error querying node resources: %s", err))
+			return 1
+		}
+		c.Ui.Output("\n==> Resource Utilization")
+		c.Ui.Output(formatList(resources))
 	}
 	return 0
 }
 
-func getRunningAllocs(client *api.Client, node *api.NodeListStub) (int, error) {
+// getNumRunningAllocs fetches the number of running allocations on the node
+func getNumRunningAllocs(client *api.Client, node *api.NodeListStub) (int, error) {
 	// Fetch number of running allocations per node
 	numAllocs := 0
 	nodeAllocs, _, err := client.Nodes().Allocations(node.ID, nil)
@@ -249,4 +239,65 @@ func getRunningAllocs(client *api.Client, node *api.NodeListStub) (int, error) {
 		}
 	}
 	return numAllocs, err
+}
+
+// getRunningAllocs returns a slice of allocation id's running on the node
+func getRunningAllocs(client *api.Client, node *api.Node) ([]*api.Allocation, error) {
+	var allocs []*api.Allocation
+
+	// Query the node allocations
+	nodeAllocs, _, err := client.Nodes().Allocations(node.ID, nil)
+	// Filter list to only running allocations
+	for _, alloc := range nodeAllocs {
+		if alloc.ClientStatus == "running" {
+			allocs = append(allocs, alloc)
+		}
+	}
+	return allocs, err
+}
+
+// getAllocs returns information about every running allocation on the node
+func getAllocs(client *api.Client, node *api.Node, length int) ([]string, error) {
+	var allocs []string
+	// Query the node allocations
+	nodeAllocs, _, err := client.Nodes().Allocations(node.ID, nil)
+	// Format the allocations
+	allocs = make([]string, len(nodeAllocs)+1)
+	allocs[0] = "ID|Eval ID|Job ID|Task Group|Desired Status|Client Status"
+	for i, alloc := range nodeAllocs {
+		allocs[i+1] = fmt.Sprintf("%s|%s|%s|%s|%s|%s",
+			limit(alloc.ID, length),
+			limit(alloc.EvalID, length),
+			alloc.JobID,
+			alloc.TaskGroup,
+			alloc.DesiredStatus,
+			alloc.ClientStatus)
+	}
+	return allocs, err
+}
+
+func getResources(client *api.Client, node *api.Node) ([]string, error) {
+	var resources []string
+	var cpu, mem, disk, iops int
+
+	// Get list of running allocations on the node
+	runningAllocs, err := getRunningAllocs(client, node)
+
+	// Get Resources
+	for _, alloc := range runningAllocs {
+		cpu += alloc.Resources.CPU
+		mem += alloc.Resources.MemoryMB
+		disk += alloc.Resources.DiskMB
+		iops += alloc.Resources.IOPS
+	}
+
+	resources = make([]string, 2)
+	resources[0] = "CPU|MemoryMB|DiskMB|IOPS"
+	resources[1] = fmt.Sprintf("%v|%v|%v|%v",
+		cpu,
+		mem,
+		disk,
+		iops)
+
+	return resources, err
 }
