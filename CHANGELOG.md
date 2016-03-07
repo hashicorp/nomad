@@ -8,6 +8,7 @@ IMPROVEMENTS:
 BUG FIXES:
   * core: No longer cancel evaluations that are delayed in the plan queue
     [GH-884]
+  * api: Guard client/fs/ APIs from being accessed on a non-client node [GH-890]
   * client: Allow dashes in variable names during interprelation [GH-857]
   * consul: Remove concurrent map access [GH-874]
   * driver/exec: Stopping tasks with more than one pid in a cgroup [GH-855]
