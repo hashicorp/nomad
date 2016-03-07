@@ -245,8 +245,7 @@ func (r *AllocRunner) Alloc() *structs.Allocation {
 		case structs.TaskStatePending:
 			pending = true
 		case structs.TaskStateDead:
-			last := len(state.Events) - 1
-			if state.Events[last].Type == structs.TaskDriverFailure {
+			if state.Failed() {
 				failed = true
 			} else {
 				dead = true
@@ -307,8 +306,8 @@ func (r *AllocRunner) setTaskState(taskName, state string, event *structs.TaskEv
 	defer r.taskStatusLock.Unlock()
 	taskState, ok := r.taskStates[taskName]
 	if !ok {
-		r.logger.Printf("[ERR] client: setting task state for unknown task %q", taskName)
-		return
+		taskState = &structs.TaskState{}
+		r.taskStates[taskName] = taskState
 	}
 
 	// Set the tasks state.

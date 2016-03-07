@@ -159,6 +159,17 @@ func TestAgent_ServerConfig(t *testing.T) {
 		t.Fatalf("expect 10s, got: %s", threshold)
 	}
 
+	conf.Server.HeartbeatGrace = "42g"
+	out, err = a.serverConfig()
+	if err == nil || !strings.Contains(err.Error(), "unknown unit") {
+		t.Fatalf("expected unknown unit error, got: %#v", err)
+	}
+	conf.Server.HeartbeatGrace = "37s"
+	out, err = a.serverConfig()
+	if threshold := out.HeartbeatGrace; threshold != time.Second*37 {
+		t.Fatalf("expect 37s, got: %s", threshold)
+	}
+
 	// Defaults to the global bind addr
 	conf.Addresses.RPC = ""
 	conf.Addresses.Serf = ""

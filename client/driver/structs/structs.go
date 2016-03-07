@@ -2,6 +2,7 @@ package structs
 
 import (
 	"fmt"
+
 	cgroupConfig "github.com/opencontainers/runc/libcontainer/configs"
 )
 
@@ -33,4 +34,24 @@ func (r *WaitResult) String() string {
 // uses to put resource constraints and isolation on the user process
 type IsolationConfig struct {
 	Cgroup *cgroupConfig.Cgroup
+}
+
+// RecoverableError wraps an error and marks whether it is recoverable and could
+// be retried or it is fatal.
+type RecoverableError struct {
+	Err         error
+	Recoverable bool
+}
+
+// NewRecoverableError is used to wrap an error and mark it as recoverable or
+// not.
+func NewRecoverableError(e error, recoverable bool) *RecoverableError {
+	return &RecoverableError{
+		Err:         e,
+		Recoverable: recoverable,
+	}
+}
+
+func (r *RecoverableError) Error() string {
+	return r.Err.Error()
 }

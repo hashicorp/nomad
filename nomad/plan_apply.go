@@ -59,14 +59,6 @@ func (s *Server) planApply() {
 			return
 		}
 
-		// Verify the evaluation is outstanding, and that the tokens match.
-		if err := s.evalBroker.OutstandingReset(pending.plan.EvalID, pending.plan.EvalToken); err != nil {
-			s.logger.Printf("[ERR] nomad: plan rejected for evaluation %s: %v",
-				pending.plan.EvalID, err)
-			pending.respond(nil, err)
-			continue
-		}
-
 		// Check if out last plan has completed
 		select {
 		case <-waitCh:

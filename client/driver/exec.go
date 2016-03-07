@@ -277,8 +277,7 @@ func (h *execHandle) run() {
 			h.logger.Printf("[ERR] driver.exec: unmounting dev,proc and alloc dirs failed: %v", e)
 		}
 	}
-	h.waitCh <- &cstructs.WaitResult{ExitCode: ps.ExitCode, Signal: 0,
-		Err: err}
+	h.waitCh <- cstructs.NewWaitResult(ps.ExitCode, 0, err)
 	close(h.waitCh)
 	h.pluginClient.Kill()
 }

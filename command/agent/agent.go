@@ -147,6 +147,14 @@ func (a *Agent) serverConfig() (*nomad.Config, error) {
 		conf.NodeGCThreshold = dur
 	}
 
+	if heartbeatGrace := a.config.Server.HeartbeatGrace; heartbeatGrace != "" {
+		dur, err := time.ParseDuration(heartbeatGrace)
+		if err != nil {
+			return nil, err
+		}
+		conf.HeartbeatGrace = dur
+	}
+
 	return conf, nil
 }
 

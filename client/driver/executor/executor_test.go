@@ -149,6 +149,44 @@ func TestExecutor_IsolationAndConstraints(t *testing.T) {
 	}
 }
 
+func TestExecutor_DestroyCgroup(t *testing.T) {
+	testutil.ExecCompatible(t)
+
+	execCmd := ExecCommand{Cmd: "/bin/bash", Args: []string{"-c", "/usr/bin/yes"}}
+	ctx := testExecutorContext(t)
+	ctx.LogConfig.MaxFiles = 1
+	ctx.LogConfig.MaxFileSizeMB = 300
+	defer ctx.AllocDir.Destroy()
+
+	ctx.FSIsolation = true
+	ctx.ResourceLimits = true
+	ctx.UnprivilegedUser = true
+
+	executor := NewExecutor(log.New(os.Stdout, "", log.LstdFlags))
+	ps, err := executor.LaunchCmd(&execCmd, ctx)
+	if err != nil {
+		t.Fatalf("error in launching command: %v", err)
+	}
+	if ps.Pid == 0 {
+		t.Fatalf("expected process to start and have non zero pid")
+	}
+	time.Sleep(200 * time.Millisecond)
+	executor.Exit()
+	file := filepath.Join(ctx.AllocDir.LogDir(), "web.stdout.0")
+	finfo, err := os.Stat(file)
+	if err != nil {
+		t.Fatalf("error stating stdout file: %v", err)
+	}
+	time.Sleep(1 * time.Second)
+	finfo1, err := os.Stat(file)
+	if err != nil {
+		t.Fatalf("error stating stdout file: %v", err)
+	}
+	if finfo.Size() != finfo1.Size() {
+		t.Fatalf("Expected size: %v, actual: %v", finfo.Size(), finfo1.Size())
+	}
+}
+
 func TestExecutor_Start_Kill(t *testing.T) {
 	execCmd := ExecCommand{Cmd: "/bin/sleep", Args: []string{"10 && hello world"}}
 	ctx := testExecutorContext(t)

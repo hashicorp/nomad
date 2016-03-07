@@ -774,10 +774,6 @@ Client Options:
     A list of known server addresses to connect to given as "host:port" and
     delimited by commas.
 
-  -node-id
-    A unique identifier for the node to use. If not provided, a UUID is
-    generated.
-
   -node-class
     Mark this node as a member of a node-class. This can be used to label
     similiar node types.

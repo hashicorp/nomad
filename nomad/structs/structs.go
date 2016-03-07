@@ -1689,6 +1689,16 @@ func (ts *TaskState) Copy() *TaskState {
 	return copy
 }
 
+// Failed returns if the task has has failed.
+func (ts *TaskState) Failed() bool {
+	l := len(ts.Events)
+	if ts.State != TaskStateDead || l == 0 {
+		return false
+	}
+
+	return ts.Events[l-1].Type == TaskNotRestarting
+}
+
 const (
 	// A Driver failure indicates that the task could not be started due to a
 	// failure in the driver.
@@ -1707,6 +1717,13 @@ const (
 
 	// Task Killed indicates a user has killed the task.
 	TaskKilled = "Killed"
+
+	// TaskRestarting indicates that task terminated and is being restarted.
+	TaskRestarting = "Restarting"
+
+	// TaskNotRestarting indicates that the task has failed and is not being
+	// restarted because it has exceeded its restart policy.
+	TaskNotRestarting = "Restarts Exceeded"
 )
 
 // TaskEvent is an event that effects the state of a task and contains meta-data
@@ -1725,6 +1742,13 @@ type TaskEvent struct {
 
 	// Task Killed Fields.
 	KillError string // Error killing the task.
+
+	// TaskRestarting fields.
+	StartDelay int64 // The sleep period before restarting the task in unix nanoseconds.
+}
+
+func (te *TaskEvent) GoString() string {
+	return fmt.Sprintf("%v at %v", te.Type, te.Time)
 }
 
 func (te *TaskEvent) Copy() *TaskEvent {
@@ -1771,6 +1795,11 @@ func (e *TaskEvent) SetKillError(err error) *TaskEvent {
 	if err != nil {
 		e.KillError = err.Error()
 	}
+	return e
+}
+
+func (e *TaskEvent) SetRestartDelay(delay time.Duration) *TaskEvent {
+	e.StartDelay = int64(delay)
 	return e
 }
 
@@ -2430,6 +2459,10 @@ func (p *Plan) AppendUpdate(alloc *Allocation, status, desc string) {
 
 	// Normalize the job
 	newAlloc.Job = nil
+
+	// Strip the resources as it can be rebuilt.
+	newAlloc.Resources = nil
+
 	newAlloc.DesiredStatus = status
 	newAlloc.DesiredDescription = desc
 	node := alloc.NodeID

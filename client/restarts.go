@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -25,6 +26,8 @@ func newRestartTracker(policy *structs.RestartPolicy, jobType string) *RestartTr
 }
 
 type RestartTracker struct {
+	waitRes   *cstructs.WaitResult
+	startErr  error
 	count     int       // Current number of attempts.
 	onSuccess bool      // Whether to restart on successful exit code.
 	startTime time.Time // When the interval began
@@ -40,16 +43,47 @@ func (r *RestartTracker) SetPolicy(policy *structs.RestartPolicy) {
 	r.policy = policy
 }
 
-// NextRestart takes the exit code from the last attempt and returns whether the
-// task should be restarted and the duration to wait.
-func (r *RestartTracker) NextRestart(exitCode int) (bool, time.Duration) {
+// SetStartError is used to mark the most recent start error. If starting was
+// successful the error should be nil.
+func (r *RestartTracker) SetStartError(err error) *RestartTracker {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	r.startErr = err
+	return r
+}
+
+// SetWaitResult is used to mark the most recent wait result.
+func (r *RestartTracker) SetWaitResult(res *cstructs.WaitResult) *RestartTracker {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	r.waitRes = res
+	return r
+}
+
+// GetState returns the tasks next state given the set exit code and start
+// error. One of the following states are returned:
+// * TaskRestarting - Task should be restarted
+// * TaskNotRestarting - Task should not be restarted and has exceeded its
+//   restart policy.
+// * TaskTerminated - Task has terminated successfully and does not need a
+//   restart.
+//
+// If TaskRestarting is returned, the duration is how long to wait until
+// starting the task again.
+func (r *RestartTracker) GetState() (string, time.Duration) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
 	// Hot path if no attempts are expected
 	if r.policy.Attempts == 0 {
-		return false, 0
+		if r.waitRes != nil && r.waitRes.Successful() {
+			return structs.TaskTerminated, 0
+		}
+
+		return structs.TaskNotRestarting, 0
 	}
+
+	r.count++
 
 	// Check if we have entered a new interval.
 	end := r.startTime.Add(r.policy.Interval)
@@ -57,29 +91,59 @@ func (r *RestartTracker) NextRestart(exitCode int) (bool, time.Duration) {
 	if now.After(end) {
 		r.count = 0
 		r.startTime = now
-		return r.shouldRestart(exitCode), r.jitter()
 	}
 
-	r.count++
-
-	// If we are under the attempts, restart with delay.
-	if r.count <= r.policy.Attempts {
-		return r.shouldRestart(exitCode), r.jitter()
+	if r.startErr != nil {
+		return r.handleStartError()
+	} else if r.waitRes != nil {
+		return r.handleWaitResult()
+	} else {
+		return "", 0
 	}
-
-	// Don't restart since mode is "fail"
-	if r.policy.Mode == structs.RestartPolicyModeFail {
-		return false, 0
-	}
-
-	// Apply an artifical wait to enter the next interval
-	return r.shouldRestart(exitCode), end.Sub(now)
 }
 
-// shouldRestart returns whether a restart should occur based on the exit code
-// and job type.
-func (r *RestartTracker) shouldRestart(exitCode int) bool {
-	return exitCode != 0 || r.onSuccess
+// handleStartError returns the new state and potential wait duration for
+// restarting the task after it was not successfully started. On start errors,
+// the restart policy is always treated as fail mode to ensure we don't
+// infinitely try to start a task.
+func (r *RestartTracker) handleStartError() (string, time.Duration) {
+	// If the error is not recoverable, do not restart.
+	if rerr, ok := r.startErr.(*cstructs.RecoverableError); !(ok && rerr.Recoverable) {
+		return structs.TaskNotRestarting, 0
+	}
+
+	if r.count > r.policy.Attempts {
+		return structs.TaskNotRestarting, 0
+	}
+
+	return structs.TaskRestarting, r.jitter()
+}
+
+// handleWaitResult returns the new state and potential wait duration for
+// restarting the task after it has exited.
+func (r *RestartTracker) handleWaitResult() (string, time.Duration) {
+	// If the task started successfully and restart on success isn't specified,
+	// don't restart but don't mark as failed.
+	if r.waitRes.Successful() && !r.onSuccess {
+		return structs.TaskTerminated, 0
+	}
+
+	if r.count > r.policy.Attempts {
+		if r.policy.Mode == structs.RestartPolicyModeFail {
+			return structs.TaskNotRestarting, 0
+		} else {
+			return structs.TaskRestarting, r.getDelay()
+		}
+	}
+
+	return structs.TaskRestarting, r.jitter()
+}
+
+// getDelay returns the delay time to enter the next interval.
+func (r *RestartTracker) getDelay() time.Duration {
+	end := r.startTime.Add(r.policy.Interval)
+	now := time.Now()
+	return end.Sub(now)
 }
 
 // jitter returns the delay time plus a jitter.

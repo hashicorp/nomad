@@ -1,7 +1,16 @@
 ## 0.3.1 (UNRELEASED)
 
+IMPROVEMENTS:
+  * client: Add environment variables for task name, allocation ID/Name [GH-869]
+  * client: Starting task is retried under the restart policy if the error is
+    recoverable [GH-859]
+
 BUG FIXES:
+  * core: No longer cancel evaluations that are delayed in the plan queue
+    [GH-884]
   * client: Allow dashes in variable names during interprelation [GH-857]
+  * consul: Remove concurrent map access [GH-874]
+  * driver/exec: Stopping tasks with more than one pid in a cgroup [GH-855]
 
 ## 0.3.0
 
