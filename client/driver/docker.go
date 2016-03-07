@@ -72,6 +72,15 @@ type DockerDriverConfig struct {
 	SSL              bool                `mapstructure:"ssl"`                // Flag indicating repository is served via https
 }
 
+func (c *DockerDriverConfig) Init() error {
+	if strings.Contains(c.ImageName, "https://") {
+		c.SSL = true
+		c.ImageName = strings.Replace(c.ImageName, "https://", "", 1)
+	}
+
+	return nil
+}
+
 func (c *DockerDriverConfig) Validate() error {
 	if c.ImageName == "" {
 		return fmt.Errorf("Docker Driver needs an image name")
@@ -412,9 +421,8 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 		return nil, err
 	}
 
-	if strings.Contains(driverConfig.ImageName, "https://") {
-		driverConfig.SSL = true
-		driverConfig.ImageName = strings.Replace(driverConfig.ImageName, "https://", "", 1)
+	if err := driverConfig.Init(); err != nil {
+		return nil, err
 	}
 
 	image := driverConfig.ImageName
