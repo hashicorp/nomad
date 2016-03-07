@@ -148,6 +148,11 @@ func (c *AllocStatusCommand) Run(args []string) int {
 	c.Ui.Output("\n==> Status")
 	dumpAllocStatus(c.Ui, alloc, length)
 
+	if !short {
+		c.Ui.Output("\n==> Resources")
+		c.taskResources(alloc)
+	}
+
 	return 0
 }
 
@@ -257,4 +262,16 @@ func (c *AllocStatusCommand) sortedTaskStateIterator(m map[string]*api.TaskState
 
 	close(output)
 	return output
+}
+
+// taskResources prints out the tasks current resource usage
+func (c *AllocStatusCommand) taskResources(alloc *api.Allocation) {
+	resources := make([]string, 2)
+	resources[0] = "CPU|Memory MB|Disk MB|IOPS"
+	resources[1] = fmt.Sprintf("%v|%v|%v|%v",
+		alloc.Resources.CPU,
+		alloc.Resources.MemoryMB,
+		alloc.Resources.DiskMB,
+		alloc.Resources.IOPS)
+	c.Ui.Output(formatList(resources))
 }
