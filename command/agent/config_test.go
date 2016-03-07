@@ -516,6 +516,7 @@ server {
 	num_schedulers = 2
 	enabled_schedulers = ["test"]
 	node_gc_threshold = "12h"
+	heartbeat_grace   = "30s"
 	retry_join = [ "1.1.1.1", "2.2.2.2" ]
 	start_join = [ "1.1.1.1", "2.2.2.2" ]
 	retry_max = 3
