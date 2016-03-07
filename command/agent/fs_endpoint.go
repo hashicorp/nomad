@@ -11,7 +11,26 @@ import (
 var (
 	allocIDNotPresentErr  = fmt.Errorf("must provide a valid alloc id")
 	fileNameNotPresentErr = fmt.Errorf("must provide a file name")
+	clientNotRunning      = fmt.Errorf("node is not running a Nomad Client")
 )
+
+func (s *HTTPServer) FsRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	if s.agent.client == nil {
+		return nil, clientNotRunning
+	}
+
+	path := strings.TrimPrefix(req.URL.Path, "/v1/client/fs/")
+	switch {
+	case strings.HasPrefix(path, "ls/"):
+		return s.DirectoryListRequest(resp, req)
+	case strings.HasPrefix(path, "stat/"):
+		return s.FileStatRequest(resp, req)
+	case strings.HasPrefix(path, "readat/"):
+		return s.FileReadAtRequest(resp, req)
+	default:
+		return nil, CodedError(404, ErrInvalidMethod)
+	}
+}
 
 func (s *HTTPServer) DirectoryListRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	var allocID, path string
