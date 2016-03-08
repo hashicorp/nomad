@@ -37,6 +37,11 @@ The `rkt` driver supports the following configuration in the job spec:
   reachable from the box running the nomad agent. If not specified, the image is
   run without verifying the image signature.
 
+* `dns_servers` - (Optional) A list of DNS servers to be used in the containers
+
+* `dns_search_domains` - (Optional) A list of DNS search domains to be used in
+   the containers
+
 ## Task Directories
 
 The `rkt` driver currently does not support mounting of the `alloc/` and `local/` directory. 
