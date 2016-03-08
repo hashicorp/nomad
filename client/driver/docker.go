@@ -22,7 +22,6 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/logging"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
-	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/helper/discover"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/mapstructure"
@@ -42,7 +41,6 @@ const (
 
 type DockerDriver struct {
 	DriverContext
-	fingerprint.StaticFingerprinter
 }
 
 type DockerDriverAuth struct {
@@ -413,6 +411,10 @@ func (d *DockerDriver) recoverablePullError(err error, image string) error {
 		recoverable = false
 	}
 	return cstructs.NewRecoverableError(fmt.Errorf("Failed to pull `%s`: %s", image, err), recoverable)
+}
+
+func (d *DockerDriver) Periodic() (bool, time.Duration) {
+	return true, 15 * time.Second
 }
 
 func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
