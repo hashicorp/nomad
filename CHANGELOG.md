@@ -5,6 +5,7 @@ IMPROVEMENTS:
   * client: Starting task is retried under the restart policy if the error is
     recoverable [GH-859]
   * driver/docker: Support for ECR [GH-858]
+  * driver/docker: Periodic Fingerprinting [GH-893]
 
 BUG FIXES:
   * core: No longer cancel evaluations that are delayed in the plan queue
