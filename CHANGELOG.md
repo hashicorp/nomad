@@ -4,6 +4,7 @@ IMPROVEMENTS:
   * client: Add environment variables for task name, allocation ID/Name [GH-869]
   * client: Starting task is retried under the restart policy if the error is
     recoverable [GH-859]
+  * driver/docker: Support for ECR [GH-858]
 
 BUG FIXES:
   * core: No longer cancel evaluations that are delayed in the plan queue
