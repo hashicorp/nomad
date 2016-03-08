@@ -32,7 +32,7 @@ task "webservice" {
 
 The following options are available for use in the job specification.
 
-* `image` - The Docker image to run. The image may include a tag or custom URL.
+* `image` - The Docker image to run. The image may include a tag or custom URL and should include `https://` if required.
   By default it will be fetched from Docker Hub.
 
 * `command` - (Optional) The command to run when starting the container.
@@ -248,7 +248,7 @@ The `docker` driver has the following host-level configuration options:
   location).
 
 * `docker.auth.config` - Allows an operator to specify a json file which is in
-  the dockercfg format containing authentication information for private registry. 
+  the dockercfg format containing authentication information for private registry.
 
 * `docker.tls.cert` - Path to the server's certificate file (`.pem`). Specify
   this along with `docker.tls.key` and `docker.tls.ca` to use a TLS client to

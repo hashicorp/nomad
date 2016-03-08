@@ -69,6 +69,16 @@ type DockerDriverConfig struct {
 	LabelsRaw        []map[string]string `mapstructure:"labels"`             //
 	Labels           map[string]string   `mapstructure:"-"`                  // Labels to set when the container starts up
 	Auth             []DockerDriverAuth  `mapstructure:"auth"`               // Authentication credentials for a private Docker registry
+	SSL              bool                `mapstructure:"ssl"`                // Flag indicating repository is served via https
+}
+
+func (c *DockerDriverConfig) Init() error {
+	if strings.Contains(c.ImageName, "https://") {
+		c.SSL = true
+		c.ImageName = strings.Replace(c.ImageName, "https://", "", 1)
+	}
+
+	return nil
 }
 
 func (c *DockerDriverConfig) Validate() error {
@@ -410,6 +420,11 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	if err := mapstructure.WeakDecode(task.Config, &driverConfig); err != nil {
 		return nil, err
 	}
+
+	if err := driverConfig.Init(); err != nil {
+		return nil, err
+	}
+
 	image := driverConfig.ImageName
 
 	if err := driverConfig.Validate(); err != nil {
@@ -473,7 +488,14 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 				if authConfigurations, err = docker.NewAuthConfigurations(f); err != nil {
 					return nil, fmt.Errorf("Failed to create docker auth object: %v", err)
 				}
-				if authConfiguration, ok := authConfigurations.Configs[repo]; ok {
+
+				authConfigurationKey := ""
+				if driverConfig.SSL {
+					authConfigurationKey += "https://"
+				}
+
+				authConfigurationKey += strings.Split(driverConfig.ImageName, "/")[0]
+				if authConfiguration, ok := authConfigurations.Configs[authConfigurationKey]; ok {
 					authOptions = authConfiguration
 				}
 			} else {
