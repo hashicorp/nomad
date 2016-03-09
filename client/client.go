@@ -25,7 +25,7 @@ import (
 const (
 	// clientRPCCache controls how long we keep an idle connection
 	// open to a server
-	clientRPCCache = 30 * time.Second
+	clientRPCCache = 5 * time.Minute
 
 	// clientMaxStreams controsl how many idle streams we keep
 	// open to a server
