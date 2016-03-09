@@ -162,11 +162,11 @@ type ClientConfig struct {
 
 	// ClientMaxPort is the upper range of the ports that the client uses for
 	// communicating with plugin subsystems
-	ClientMaxPort uint `hcl:"client_max_port"`
+	ClientMaxPort int `hcl:"client_max_port"`
 
 	// ClientMinPort is the lower range of the ports that the client uses for
 	// communicating with plugin subsystems
-	ClientMinPort uint `hcl:"client_min_port"`
+	ClientMinPort int `hcl:"client_min_port"`
 }
 
 // ServerConfig is configuration specific to the server mode

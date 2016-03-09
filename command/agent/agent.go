@@ -199,8 +199,8 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 		}
 		conf.MaxKillTimeout = dur
 	}
-	conf.ClientMaxPort = a.config.Client.ClientMaxPort
-	conf.ClientMinPort = a.config.Client.ClientMinPort
+	conf.ClientMaxPort = uint(a.config.Client.ClientMaxPort)
+	conf.ClientMinPort = uint(a.config.Client.ClientMinPort)
 
 	// Setup the node
 	conf.Node = new(structs.Node)
