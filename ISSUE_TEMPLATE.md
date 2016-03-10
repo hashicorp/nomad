@@ -1,4 +1,4 @@
-If you have a question, prepend your issue with `[question]` or consider using the nomad mailing list or IRC channel.
+If you have a question, prepend your issue with `[question]` or consider using the nomad mailing list.
 
 If filing a bug please include the following:
 
