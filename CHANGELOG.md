@@ -1,12 +1,13 @@
 ## 0.3.1 (UNRELEASED)
 
 IMPROVEMENTS:
-  * client: Added the allocation index environment variable [GH-896]
-  * client: Add environment variables for task name, allocation ID/Name [GH-869]
+  * client: Add environment variables for task name, allocation ID/Name/Index
+    [GH-869, GH-896]
   * client: Starting task is retried under the restart policy if the error is
     recoverable [GH-859]
   * driver/docker: Support for ECR [GH-858]
   * driver/docker: Periodic Fingerprinting [GH-893]
+  * driver/rkt: Pass DNS information to rkt driver [GH-892]
 
 BUG FIXES:
   * core: No longer cancel evaluations that are delayed in the plan queue
