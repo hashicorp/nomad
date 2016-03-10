@@ -177,6 +177,22 @@ a particular node and as such can not be used in constraints.
     <td>The CPU limit in MHz for the task</td>
   </tr>
   <tr>
+    <td>NOMAD_ALLOC_ID</td>
+    <td>The allocation ID of the task</td>
+  </tr>
+  <tr>
+    <td>NOMAD_ALLOC_NAME</td>
+    <td>The allocation name of the task</td>
+  </tr>
+  <tr>
+    <td>NOMAD_ALLOC_INDEX</td>
+    <td>The allocation index; useful to distinguish instances of task groups</td>
+  </tr>
+  <tr>
+    <td>NOMAD_TASK_NAME</td>
+    <td>The task's name</td>
+  </tr>
+  <tr>
     <td>${NOMAD_ADDR_"label"}></td>
     <td>The `ip:port` pair for the given port `label`. See
     [here](/docs/jobspec/networking.html) for more information.</td>

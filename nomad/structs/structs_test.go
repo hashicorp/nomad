@@ -736,3 +736,14 @@ func TestRestartPolicy_Validate(t *testing.T) {
 		t.Fatalf("expect restart interval error, got: %v", err)
 	}
 }
+
+func TestAllocation_Index(t *testing.T) {
+	a1 := Allocation{Name: "example.cache[0]"}
+	e1 := 0
+	a2 := Allocation{Name: "ex[123]am123ple.c311ac[123]he12[1][77]"}
+	e2 := 77
+
+	if a1.Index() != e1 || a2.Index() != e2 {
+		t.Fatal()
+	}
+}

@@ -45,6 +45,10 @@ environment variables.
     <td>The allocation name of the task</td>
   </tr>
   <tr>
+    <td>NOMAD_ALLOC_INDEX</td>
+    <td>The allocation index; useful to distinguish instances of task groups</td>
+  </tr>
+  <tr>
     <td>NOMAD_TASK_NAME</td>
     <td>The task's name</td>
   </tr>
@@ -64,9 +68,9 @@ environment variables.
 
 ## Task Identifiers
 
-Nomad will pass both the allocation ID and name as well as the task's
-name. These are given as `NOMAD_ALLOC_ID`, `NOMAD_ALLOC_NAME`,
-`NOMAD_TASK_NAME`. The allocation ID and name can be useful when the task being
+Nomad will pass both the allocation ID and name as well as the task's name.
+These are given as `NOMAD_ALLOC_ID`, `NOMAD_ALLOC_NAME`, `NOMAD_ALLOC_INDEX` and
+`NOMAD_TASK_NAME`. The allocation ID and index can be useful when the task being
 run needs a unique identifier or to know its instance count.
 
 ## Resources
