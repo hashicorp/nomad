@@ -114,6 +114,13 @@ func (f *FSCatCommand) Run(args []string) int {
 		}
 	}
 
+	if alloc.DesiredStatus == "failed" {
+		allocID := limit(alloc.ID, length)
+		msg := fmt.Sprintf(`The allocation %q failed to be placed. To see the cause, run: 
+nomad alloc-status %s`, allocID, allocID)
+		f.Ui.Error(msg)
+		return 0
+	}
 	// Stat the file to find it's size
 	file, _, err := client.AllocFS().Stat(alloc, path, nil)
 	if err != nil {
