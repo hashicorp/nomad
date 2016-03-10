@@ -8,6 +8,7 @@ IMPROVEMENTS:
     recoverable [GH-859]
   * driver/docker: Support for ECR [GH-858]
   * driver/docker: Periodic Fingerprinting [GH-893]
+  * driver/docker: Preventing port reservation for log collection on Unix platforms [GH-897]
   * driver/rkt: Pass DNS information to rkt driver [GH-892]
 
 BUG FIXES:
