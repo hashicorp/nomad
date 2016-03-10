@@ -19,6 +19,7 @@ BUG FIXES:
   * client: Updating kill timeout adheres to operator specified maximum value [GH-878]
   * consul: Remove concurrent map access [GH-874]
   * driver/exec: Stopping tasks with more than one pid in a cgroup [GH-855]
+  * executor/linux: Add /run/resolvconf/ to chroot so DNS works [GH-905]
 
 ## 0.3.0
 
