@@ -63,11 +63,11 @@ func TestRktDriver_Start_DNS(t *testing.T) {
 	task := &structs.Task{
 		Name: "etcd",
 		Config: map[string]interface{}{
-			"trust_prefix":		"coreos.com/etcd",
-			"image":		"coreos.com/etcd:v2.0.4",
-			"command":		"/etcd",
-			"dns_servers":          []string{"8.8.8.8", "8.8.4.4"},
-			"dns_search_domains":   []string{"example.com", "example.org", "example.net"},
+			"trust_prefix":       "coreos.com/etcd",
+			"image":              "coreos.com/etcd:v2.0.4",
+			"command":            "/etcd",
+			"dns_servers":        []string{"8.8.8.8", "8.8.4.4"},
+			"dns_search_domains": []string{"example.com", "example.org", "example.net"},
 		},
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
