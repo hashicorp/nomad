@@ -10,13 +10,14 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/mapstructure"
 )
 
-var reDynamicPorts *regexp.Regexp = regexp.MustCompile("^[a-zA-Z0-9_]+$")
+var reDynamicPorts = regexp.MustCompile("^[a-zA-Z0-9_]+$")
 var errPortLabel = fmt.Errorf("Port label does not conform to naming requirements %s", reDynamicPorts.String())
 
 // Parse parses the job spec from the given io.Reader.
@@ -41,6 +42,14 @@ func Parse(r io.Reader) (*structs.Job, error) {
 	list, ok := root.Node.(*ast.ObjectList)
 	if !ok {
 		return nil, fmt.Errorf("error parsing: root should be an object")
+	}
+
+	// Check for invalid keys
+	valid := []string{
+		"job",
+	}
+	if err := checkHCLKeys(list, valid); err != nil {
+		return nil, err
 	}
 
 	var job structs.Job
@@ -114,24 +123,44 @@ func parseJob(result *structs.Job, list *ast.ObjectList) error {
 		return fmt.Errorf("job '%s' value: should be an object", result.ID)
 	}
 
+	// Check for invalid keys
+	valid := []string{
+		"id",
+		"name",
+		"region",
+		"all_at_once",
+		"type",
+		"priority",
+		"datacenters",
+		"constraint",
+		"update",
+		"periodic",
+		"meta",
+		"task",
+		"group",
+	}
+	if err := checkHCLKeys(listVal, valid); err != nil {
+		return multierror.Prefix(err, "job:")
+	}
+
 	// Parse constraints
 	if o := listVal.Filter("constraint"); len(o.Items) > 0 {
 		if err := parseConstraints(&result.Constraints, o); err != nil {
-			return err
+			return multierror.Prefix(err, "constraint ->")
 		}
 	}
 
 	// If we have an update strategy, then parse that
 	if o := listVal.Filter("update"); len(o.Items) > 0 {
 		if err := parseUpdate(&result.Update, o); err != nil {
-			return err
+			return multierror.Prefix(err, "update ->")
 		}
 	}
 
 	// If we have a periodic definition, then parse that
 	if o := listVal.Filter("periodic"); len(o.Items) > 0 {
 		if err := parsePeriodic(&result.Periodic, o); err != nil {
-			return err
+			return multierror.Prefix(err, "periodic ->")
 		}
 	}
 
@@ -153,7 +182,7 @@ func parseJob(result *structs.Job, list *ast.ObjectList) error {
 	if o := listVal.Filter("task"); len(o.Items) > 0 {
 		var tasks []*structs.Task
 		if err := parseTasks(result.Name, "", &tasks, o); err != nil {
-			return err
+			return multierror.Prefix(err, "task:")
 		}
 
 		result.TaskGroups = make([]*structs.TaskGroup, len(tasks), len(tasks)*2)
@@ -169,7 +198,7 @@ func parseJob(result *structs.Job, list *ast.ObjectList) error {
 	// Parse the task groups
 	if o := listVal.Filter("group"); len(o.Items) > 0 {
 		if err := parseGroups(result, o); err != nil {
-			return fmt.Errorf("error parsing 'group': %s", err)
+			return multierror.Prefix(err, "group:")
 		}
 	}
 
@@ -202,6 +231,18 @@ func parseGroups(result *structs.Job, list *ast.ObjectList) error {
 			return fmt.Errorf("group '%s': should be an object", n)
 		}
 
+		// Check for invalid keys
+		valid := []string{
+			"count",
+			"constraint",
+			"restart",
+			"meta",
+			"task",
+		}
+		if err := checkHCLKeys(listVal, valid); err != nil {
+			return multierror.Prefix(err, fmt.Sprintf("'%s' ->", n))
+		}
+
 		var m map[string]interface{}
 		if err := hcl.DecodeObject(&m, item.Val); err != nil {
 			return err
@@ -226,14 +267,14 @@ func parseGroups(result *structs.Job, list *ast.ObjectList) error {
 		// Parse constraints
 		if o := listVal.Filter("constraint"); len(o.Items) > 0 {
 			if err := parseConstraints(&g.Constraints, o); err != nil {
-				return err
+				return multierror.Prefix(err, fmt.Sprintf("'%s', constraint ->", n))
 			}
 		}
 
 		// Parse restart policy
 		if o := listVal.Filter("restart"); len(o.Items) > 0 {
 			if err := parseRestartPolicy(&g.RestartPolicy, o); err != nil {
-				return err
+				return multierror.Prefix(err, fmt.Sprintf("'%s', restart ->", n))
 			}
 		}
 
@@ -254,7 +295,7 @@ func parseGroups(result *structs.Job, list *ast.ObjectList) error {
 		// Parse tasks
 		if o := listVal.Filter("task"); len(o.Items) > 0 {
 			if err := parseTasks(result.Name, g.Name, &g.Tasks, o); err != nil {
-				return err
+				return multierror.Prefix(err, fmt.Sprintf("'%s', task:", n))
 			}
 		}
 
@@ -273,6 +314,17 @@ func parseRestartPolicy(final **structs.RestartPolicy, list *ast.ObjectList) err
 
 	// Get our job object
 	obj := list.Items[0]
+
+	// Check for invalid keys
+	valid := []string{
+		"attempts",
+		"interval",
+		"delay",
+		"mode",
+	}
+	if err := checkHCLKeys(obj.Val, valid); err != nil {
+		return err
+	}
 
 	var m map[string]interface{}
 	if err := hcl.DecodeObject(&m, obj.Val); err != nil {
@@ -298,10 +350,24 @@ func parseRestartPolicy(final **structs.RestartPolicy, list *ast.ObjectList) err
 
 func parseConstraints(result *[]*structs.Constraint, list *ast.ObjectList) error {
 	for _, o := range list.Elem().Items {
+		// Check for invalid keys
+		valid := []string{
+			"attribute",
+			"operator",
+			"value",
+			"version",
+			"regexp",
+			"distinct_hosts",
+		}
+		if err := checkHCLKeys(o.Val, valid); err != nil {
+			return err
+		}
+
 		var m map[string]interface{}
 		if err := hcl.DecodeObject(&m, o.Val); err != nil {
 			return err
 		}
+
 		m["LTarget"] = m["attribute"]
 		m["RTarget"] = m["value"]
 		m["Operand"] = m["operator"]
@@ -391,6 +457,22 @@ func parseTasks(jobName string, taskGroupName string, result *[]*structs.Task, l
 			return fmt.Errorf("group '%s': should be an object", n)
 		}
 
+		// Check for invalid keys
+		valid := []string{
+			"driver",
+			"env",
+			"service",
+			"config",
+			"constraint",
+			"meta",
+			"resources",
+			"logs",
+			"kill_timeout",
+		}
+		if err := checkHCLKeys(listVal, valid); err != nil {
+			return multierror.Prefix(err, fmt.Sprintf("'%s' ->", n))
+		}
+
 		var m map[string]interface{}
 		if err := hcl.DecodeObject(&m, item.Val); err != nil {
 			return err
@@ -436,7 +518,7 @@ func parseTasks(jobName string, taskGroupName string, result *[]*structs.Task, l
 
 		if o := listVal.Filter("service"); len(o.Items) > 0 {
 			if err := parseServices(jobName, taskGroupName, &t, o); err != nil {
-				return err
+				return multierror.Prefix(err, fmt.Sprintf("'%s',", n))
 			}
 		}
 
@@ -457,7 +539,8 @@ func parseTasks(jobName string, taskGroupName string, result *[]*structs.Task, l
 		// Parse constraints
 		if o := listVal.Filter("constraint"); len(o.Items) > 0 {
 			if err := parseConstraints(&t.Constraints, o); err != nil {
-				return err
+				return multierror.Prefix(err, fmt.Sprintf(
+					"'%s', constraint ->", n))
 			}
 		}
 
@@ -479,7 +562,7 @@ func parseTasks(jobName string, taskGroupName string, result *[]*structs.Task, l
 		if o := listVal.Filter("resources"); len(o.Items) > 0 {
 			var r structs.Resources
 			if err := parseResources(&r, o); err != nil {
-				return fmt.Errorf("task '%s': %s", t.Name, err)
+				return multierror.Prefix(err, fmt.Sprintf("'%s',", n))
 			}
 
 			t.Resources = &r
@@ -493,6 +576,16 @@ func parseTasks(jobName string, taskGroupName string, result *[]*structs.Task, l
 			}
 			var m map[string]interface{}
 			logsBlock := o.Items[0]
+
+			// Check for invalid keys
+			valid := []string{
+				"max_files",
+				"max_file_size",
+			}
+			if err := checkHCLKeys(logsBlock.Val, valid); err != nil {
+				return multierror.Prefix(err, fmt.Sprintf("'%s', logs ->", n))
+			}
+
 			if err := hcl.DecodeObject(&m, logsBlock.Val); err != nil {
 				return err
 			}
@@ -513,6 +606,17 @@ func parseServices(jobName string, taskGroupName string, task *structs.Task, ser
 	task.Services = make([]*structs.Service, len(serviceObjs.Items))
 	var defaultServiceName bool
 	for idx, o := range serviceObjs.Items {
+		// Check for invalid keys
+		valid := []string{
+			"name",
+			"tags",
+			"port",
+			"check",
+		}
+		if err := checkHCLKeys(o.Val, valid); err != nil {
+			return multierror.Prefix(err, fmt.Sprintf("service (%d) ->", idx))
+		}
+
 		var service structs.Service
 		var m map[string]interface{}
 		if err := hcl.DecodeObject(&m, o.Val); err != nil {
@@ -534,7 +638,7 @@ func parseServices(jobName string, taskGroupName string, task *structs.Task, ser
 			service.Name = fmt.Sprintf("%s-%s-%s", jobName, taskGroupName, task.Name)
 		}
 
-		// Fileter checks
+		// Filter checks
 		var checkList *ast.ObjectList
 		if ot, ok := o.Val.(*ast.ObjectType); ok {
 			checkList = ot.List
@@ -544,7 +648,7 @@ func parseServices(jobName string, taskGroupName string, task *structs.Task, ser
 
 		if co := checkList.Filter("check"); len(co.Items) > 0 {
 			if err := parseChecks(&service, co); err != nil {
-				return err
+				return multierror.Prefix(err, fmt.Sprintf("service: '%s',", service.Name))
 			}
 		}
 
@@ -557,6 +661,19 @@ func parseServices(jobName string, taskGroupName string, task *structs.Task, ser
 func parseChecks(service *structs.Service, checkObjs *ast.ObjectList) error {
 	service.Checks = make([]*structs.ServiceCheck, len(checkObjs.Items))
 	for idx, co := range checkObjs.Items {
+		// Check for invalid keys
+		valid := []string{
+			"name",
+			"type",
+			"interval",
+			"timeout",
+			"path",
+			"protocol",
+		}
+		if err := checkHCLKeys(co.Val, valid); err != nil {
+			return multierror.Prefix(err, "check ->")
+		}
+
 		var check structs.ServiceCheck
 		var cm map[string]interface{}
 		if err := hcl.DecodeObject(&cm, co.Val); err != nil {
@@ -600,6 +717,18 @@ func parseResources(result *structs.Resources, list *ast.ObjectList) error {
 		return fmt.Errorf("resource: should be an object")
 	}
 
+	// Check for invalid keys
+	valid := []string{
+		"cpu",
+		"disk",
+		"iops",
+		"memory",
+		"network",
+	}
+	if err := checkHCLKeys(listVal, valid); err != nil {
+		return multierror.Prefix(err, "resources ->")
+	}
+
 	var m map[string]interface{}
 	if err := hcl.DecodeObject(&m, o.Val); err != nil {
 		return err
@@ -614,6 +743,15 @@ func parseResources(result *structs.Resources, list *ast.ObjectList) error {
 	if o := listVal.Filter("network"); len(o.Items) > 0 {
 		if len(o.Items) > 1 {
 			return fmt.Errorf("only one 'network' resource allowed")
+		}
+
+		// Check for invalid keys
+		valid := []string{
+			"mbits",
+			"port",
+		}
+		if err := checkHCLKeys(o.Items[0].Val, valid); err != nil {
+			return multierror.Prefix(err, "resources, network ->")
 		}
 
 		var r structs.NetworkResource
@@ -632,7 +770,7 @@ func parseResources(result *structs.Resources, list *ast.ObjectList) error {
 			return fmt.Errorf("resource: should be an object")
 		}
 		if err := parsePorts(networkObj, &r); err != nil {
-			return err
+			return multierror.Prefix(err, "resources, network, ports ->")
 		}
 
 		result.Networks = []*structs.NetworkResource{&r}
@@ -646,6 +784,15 @@ func parseResources(result *structs.Resources, list *ast.ObjectList) error {
 }
 
 func parsePorts(networkObj *ast.ObjectList, nw *structs.NetworkResource) error {
+	// Check for invalid keys
+	valid := []string{
+		"mbits",
+		"port",
+	}
+	if err := checkHCLKeys(networkObj, valid); err != nil {
+		return err
+	}
+
 	portsObjList := networkObj.Filter("port")
 	knownPortLabels := make(map[string]bool)
 	for _, port := range portsObjList.Items {
@@ -693,6 +840,15 @@ func parseUpdate(result *structs.UpdateStrategy, list *ast.ObjectList) error {
 		return err
 	}
 
+	// Check for invalid keys
+	valid := []string{
+		"stagger",
+		"max_parallel",
+	}
+	if err := checkHCLKeys(o.Val, valid); err != nil {
+		return err
+	}
+
 	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
 		DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
 		WeaklyTypedInput: true,
@@ -715,6 +871,16 @@ func parsePeriodic(result **structs.PeriodicConfig, list *ast.ObjectList) error 
 
 	var m map[string]interface{}
 	if err := hcl.DecodeObject(&m, o.Val); err != nil {
+		return err
+	}
+
+	// Check for invalid keys
+	valid := []string{
+		"enabled",
+		"cron",
+		"prohibit_overlap",
+	}
+	if err := checkHCLKeys(o.Val, valid); err != nil {
 		return err
 	}
 
@@ -742,4 +908,32 @@ func parsePeriodic(result **structs.PeriodicConfig, list *ast.ObjectList) error 
 	}
 	*result = &p
 	return nil
+}
+
+func checkHCLKeys(node ast.Node, valid []string) error {
+	var list *ast.ObjectList
+	switch n := node.(type) {
+	case *ast.ObjectList:
+		list = n
+	case *ast.ObjectType:
+		list = n.List
+	default:
+		return fmt.Errorf("cannot check HCL keys of type %T", n)
+	}
+
+	validMap := make(map[string]struct{}, len(valid))
+	for _, v := range valid {
+		validMap[v] = struct{}{}
+	}
+
+	var result error
+	for _, item := range list.Items {
+		key := item.Keys[0].Token.Value().(string)
+		if _, ok := validMap[key]; !ok {
+			result = multierror.Append(result, fmt.Errorf(
+				"invalid key: %s", key))
+		}
+	}
+
+	return result
 }

@@ -370,3 +370,20 @@ func TestIncompleteServiceDefn(t *testing.T) {
 		t.Fatalf("Expected collision error; got %v", err)
 	}
 }
+
+func TestIncorrectKey(t *testing.T) {
+	path, err := filepath.Abs(filepath.Join("./test-fixtures", "basic_wrong_key.hcl"))
+	if err != nil {
+		t.Fatalf("Can't get absolute path for file: %s", err)
+	}
+
+	_, err = ParseFile(path)
+
+	if err == nil {
+		t.Fatalf("Expected an error")
+	}
+
+	if !strings.Contains(err.Error(), "* group: 'binsl', task: 'binstore', service: 'binstore-storagelocker-binsl-binstore', check -> invalid key: nterval") {
+		t.Fatalf("Expected collision error; got %v", err)
+	}
+}
