@@ -86,7 +86,7 @@ job "job1" {
 			resources = {
 				cpu = 1000
 				disk = 150
-				mem = 512
+				memory = 512
 			}
 		}
 	}

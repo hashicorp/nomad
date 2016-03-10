@@ -56,7 +56,7 @@ job "binstore-storagelocker" {
                 check {
                     name = "check-name"
                     type = "tcp"
-                    interval = "10s"
+                    nterval = "10s"
                     timeout = "2s"
                 }
             }
