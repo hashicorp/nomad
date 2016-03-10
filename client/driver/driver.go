@@ -162,7 +162,7 @@ func GetTaskEnv(allocDir *allocdir.AllocDir, node *structs.Node,
 	}
 
 	if alloc != nil {
-		env.SetAllocId(alloc.ID).SetAllocName(alloc.Name)
+		env.SetAlloc(alloc)
 	}
 
 	return env.Build(), nil

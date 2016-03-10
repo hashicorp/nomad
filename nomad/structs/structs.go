@@ -2080,6 +2080,27 @@ func (a *Allocation) PopulateServiceIDs(tg *TaskGroup) {
 	}
 }
 
+var (
+	// AllocationIndexRegex is a regular expression to find the allocation index.
+	AllocationIndexRegex = regexp.MustCompile(".+\\[(\\d+)\\]$")
+)
+
+// Index returns the index of the allocation. If the allocation is from a task
+// group with count greater than 1, there will be multiple allocations for it.
+func (a *Allocation) Index() int {
+	matches := AllocationIndexRegex.FindStringSubmatch(a.Name)
+	if len(matches) != 2 {
+		return -1
+	}
+
+	index, err := strconv.Atoi(matches[1])
+	if err != nil {
+		return -1
+	}
+
+	return index
+}
+
 // AllocListStub is used to return a subset of alloc information
 type AllocListStub struct {
 	ID                 string

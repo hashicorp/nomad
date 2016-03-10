@@ -32,8 +32,11 @@ const (
 	// AllocName is the enviroment variable for passing the allocation name.
 	AllocName = "NOMAD_ALLOC_NAME"
 
-	// TaskName is the enviroment variable for passing the allocation ID.
+	// TaskName is the enviroment variable for passing the task name.
 	TaskName = "NOMAD_TASK_NAME"
+
+	// AllocIndex is the enviroment variable for passing the allocation index.
+	AllocIndex = "NOMAD_ALLOC_INDEX"
 
 	// AddrPrefix is the prefix for passing both dynamic and static port
 	// allocations to tasks.
@@ -63,18 +66,19 @@ const (
 // TaskEnvironment is used to expose information to a task via environment
 // variables and provide interpolation of Nomad variables.
 type TaskEnvironment struct {
-	Env       map[string]string
-	Meta      map[string]string
-	AllocDir  string
-	TaskDir   string
-	CpuLimit  int
-	MemLimit  int
-	TaskName  string
-	AllocId   string
-	AllocName string
-	Node      *structs.Node
-	Networks  []*structs.NetworkResource
-	PortMap   map[string]int
+	Env        map[string]string
+	Meta       map[string]string
+	AllocDir   string
+	TaskDir    string
+	CpuLimit   int
+	MemLimit   int
+	TaskName   string
+	AllocIndex int
+	AllocId    string
+	AllocName  string
+	Node       *structs.Node
+	Networks   []*structs.NetworkResource
+	PortMap    map[string]int
 
 	// taskEnv is the variables that will be set in the tasks environment
 	TaskEnv map[string]string
@@ -85,7 +89,7 @@ type TaskEnvironment struct {
 }
 
 func NewTaskEnvironment(node *structs.Node) *TaskEnvironment {
-	return &TaskEnvironment{Node: node}
+	return &TaskEnvironment{Node: node, AllocIndex: -1}
 }
 
 // ParseAndReplace takes the user supplied args replaces any instance of an
@@ -151,6 +155,9 @@ func (t *TaskEnvironment) Build() *TaskEnvironment {
 	}
 	if t.AllocName != "" {
 		t.TaskEnv[AllocName] = t.AllocName
+	}
+	if t.AllocIndex != -1 {
+		t.TaskEnv[AllocIndex] = strconv.Itoa(t.AllocIndex)
 	}
 	if t.TaskName != "" {
 		t.TaskEnv[TaskName] = t.TaskName
@@ -300,6 +307,29 @@ func (t *TaskEnvironment) AppendEnvvars(m map[string]string) *TaskEnvironment {
 
 func (t *TaskEnvironment) ClearEnvvars() *TaskEnvironment {
 	t.Env = nil
+	return t
+}
+
+// Helper method for setting all fields from an allocation.
+func (t *TaskEnvironment) SetAlloc(alloc *structs.Allocation) *TaskEnvironment {
+	t.AllocId = alloc.ID
+	t.AllocName = alloc.Name
+	t.AllocIndex = alloc.Index()
+	return t
+}
+
+// Helper method for clearing all fields from an allocation.
+func (t *TaskEnvironment) ClearAlloc(alloc *structs.Allocation) *TaskEnvironment {
+	return t.ClearAllocId().ClearAllocName().ClearAllocIndex()
+}
+
+func (t *TaskEnvironment) SetAllocIndex(index int) *TaskEnvironment {
+	t.AllocIndex = index
+	return t
+}
+
+func (t *TaskEnvironment) ClearAllocIndex() *TaskEnvironment {
+	t.AllocIndex = -1
 	return t
 }
 
