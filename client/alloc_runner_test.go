@@ -46,7 +46,7 @@ func TestAllocRunner_SimpleRun(t *testing.T) {
 	go ar.Run()
 	defer ar.Destroy()
 
-	testutil.WaitForResult(func() (bool, error) {
+	testutil.WeightedWaitForResult(4000, func() (bool, error) {
 		if upd.Count == 0 {
 			return false, fmt.Errorf("No updates")
 		}
@@ -70,7 +70,7 @@ func TestAllocRunner_TerminalUpdate_Destroy(t *testing.T) {
 	task.Config["args"] = []string{"10"}
 	go ar.Run()
 
-	testutil.WaitForResult(func() (bool, error) {
+	testutil.WeightedWaitForResult(4000, func() (bool, error) {
 		if upd.Count == 0 {
 			return false, fmt.Errorf("No updates")
 		}
@@ -166,7 +166,7 @@ func TestAllocRunner_Destroy(t *testing.T) {
 		ar.Destroy()
 	}()
 
-	testutil.WaitForResult(func() (bool, error) {
+	testutil.WeightedWaitForResult(4000, func() (bool, error) {
 		if upd.Count == 0 {
 			return false, nil
 		}
@@ -238,7 +238,7 @@ func TestAllocRunner_SaveRestoreState(t *testing.T) {
 	go ar.Run()
 
 	// Snapshot state
-	testutil.WaitForResult(func() (bool, error) {
+	testutil.WeightedWaitForResult(4000, func() (bool, error) {
 		return len(ar.tasks) == 1, nil
 	}, func(err error) {
 		t.Fatalf("task never started: %v", err)
@@ -263,7 +263,7 @@ func TestAllocRunner_SaveRestoreState(t *testing.T) {
 	ar2.Destroy()
 	start := time.Now()
 
-	testutil.WaitForResult(func() (bool, error) {
+	testutil.WeightedWaitForResult(4000, func() (bool, error) {
 		if upd.Count == 0 {
 			return false, nil
 		}
@@ -288,7 +288,7 @@ func TestAllocRunner_SaveRestoreState_TerminalAlloc(t *testing.T) {
 	task.Config["args"] = []string{"10"}
 	go ar.Run()
 
-	testutil.WaitForResult(func() (bool, error) {
+	testutil.WeightedWaitForResult(4000, func() (bool, error) {
 		if upd.Count == 0 {
 			return false, fmt.Errorf("No updates")
 		}
