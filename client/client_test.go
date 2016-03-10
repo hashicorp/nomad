@@ -330,7 +330,7 @@ func TestClient_UpdateAllocStatus(t *testing.T) {
 	state := s1.State()
 	state.UpsertAllocs(100, []*structs.Allocation{alloc})
 
-	testutil.WaitForResult(func() (bool, error) {
+	testutil.WeightedWaitForResult(4000, func() (bool, error) {
 		out, err := state.AllocByID(alloc.ID)
 		if err != nil {
 			return false, err
@@ -446,7 +446,7 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	}
 
 	// Allocations should get registered
-	testutil.WaitForResult(func() (bool, error) {
+	testutil.WeightedWaitForResult(4000, func() (bool, error) {
 		c1.allocLock.RLock()
 		ar := c1.allocs[alloc1.ID]
 		c1.allocLock.RUnlock()
