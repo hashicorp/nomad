@@ -13,6 +13,7 @@ type Member struct {
 	Port        uint16
 	Tags        map[string]string
 	Status      string
+	Leader      bool
 	ProtocolMin uint8
 	ProtocolMax uint8
 	ProtocolCur uint8
@@ -21,13 +22,14 @@ type Member struct {
 	DelegateCur uint8
 }
 
-func nomadMember(m serf.Member) Member {
+func nomadMember(m serf.Member, leader bool) Member {
 	return Member{
 		Name:        m.Name,
 		Addr:        m.Addr,
 		Port:        m.Port,
 		Tags:        m.Tags,
 		Status:      m.Status.String(),
+		Leader:      leader,
 		ProtocolMin: m.ProtocolMin,
 		ProtocolMax: m.ProtocolMax,
 		ProtocolCur: m.ProtocolCur,
@@ -51,7 +53,7 @@ func (s *HTTPServer) AgentSelfRequest(resp http.ResponseWriter, req *http.Reques
 
 	self := agentSelf{
 		Config: s.agent.config,
-		Member: nomadMember(member),
+		Member: nomadMember(member, srv.IsLeader()),
 		Stats:  s.agent.Stats(),
 	}
 	return self, nil
@@ -94,7 +96,7 @@ func (s *HTTPServer) AgentMembersRequest(resp http.ResponseWriter, req *http.Req
 	serfMembers := srv.Members()
 	members := make([]Member, len(serfMembers))
 	for i, mem := range serfMembers {
-		members[i] = nomadMember(mem)
+		members[i] = nomadMember(mem, srv.IsLeader())
 	}
 	return members, nil
 }
