@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"time"
 
@@ -260,9 +261,11 @@ func (a *Agent) setupClient() error {
 		return fmt.Errorf("client setup failed: %v", err)
 	}
 
-	// Reserve some ports for the plugins
-	if err := a.reservePortsForClient(conf); err != nil {
-		return err
+	// Reserve some ports for the plugins if we are on Windows
+	if runtime.GOOS == "windows" {
+		if err := a.reservePortsForClient(conf); err != nil {
+			return err
+		}
 	}
 
 	// Create the client
