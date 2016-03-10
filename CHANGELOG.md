@@ -1,6 +1,7 @@
 ## 0.3.1 (UNRELEASED)
 
 IMPROVEMENTS:
+  * cli: Validate job file schemas [GH-900]
   * client: Add environment variables for task name, allocation ID/Name/Index
     [GH-869, GH-896]
   * client: Starting task is retried under the restart policy if the error is
