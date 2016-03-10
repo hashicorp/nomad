@@ -44,15 +44,16 @@ type QemuDriverConfig struct {
 
 // qemuHandle is returned from Start/Open as a handle to the PID
 type qemuHandle struct {
-	pluginClient *plugin.Client
-	userPid      int
-	executor     executor.Executor
-	allocDir     *allocdir.AllocDir
-	killTimeout  time.Duration
-	logger       *log.Logger
-	version      string
-	waitCh       chan *cstructs.WaitResult
-	doneCh       chan struct{}
+	pluginClient   *plugin.Client
+	userPid        int
+	executor       executor.Executor
+	allocDir       *allocdir.AllocDir
+	killTimeout    time.Duration
+	maxKillTimeout time.Duration
+	logger         *log.Logger
+	version        string
+	waitCh         chan *cstructs.WaitResult
+	doneCh         chan struct{}
 }
 
 // NewQemuDriver is used to create a new exec driver
@@ -219,16 +220,18 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	d.logger.Printf("[INFO] Started new QemuVM: %s", vmID)
 
 	// Create and Return Handle
+	maxKill := d.DriverContext.config.MaxKillTimeout
 	h := &qemuHandle{
-		pluginClient: pluginClient,
-		executor:     exec,
-		userPid:      ps.Pid,
-		allocDir:     ctx.AllocDir,
-		killTimeout:  d.DriverContext.KillTimeout(task),
-		version:      d.config.Version,
-		logger:       d.logger,
-		doneCh:       make(chan struct{}),
-		waitCh:       make(chan *cstructs.WaitResult, 1),
+		pluginClient:   pluginClient,
+		executor:       exec,
+		userPid:        ps.Pid,
+		allocDir:       ctx.AllocDir,
+		killTimeout:    GetKillTimeout(task.KillTimeout, maxKill),
+		maxKillTimeout: maxKill,
+		version:        d.config.Version,
+		logger:         d.logger,
+		doneCh:         make(chan struct{}),
+		waitCh:         make(chan *cstructs.WaitResult, 1),
 	}
 
 	go h.run()
@@ -236,11 +239,12 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 }
 
 type qemuId struct {
-	Version      string
-	KillTimeout  time.Duration
-	UserPid      int
-	PluginConfig *PluginReattachConfig
-	AllocDir     *allocdir.AllocDir
+	Version        string
+	KillTimeout    time.Duration
+	MaxKillTimeout time.Duration
+	UserPid        int
+	PluginConfig   *PluginReattachConfig
+	AllocDir       *allocdir.AllocDir
 }
 
 func (d *QemuDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {
@@ -264,15 +268,16 @@ func (d *QemuDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 
 	// Return a driver handle
 	h := &qemuHandle{
-		pluginClient: pluginClient,
-		executor:     executor,
-		userPid:      id.UserPid,
-		allocDir:     id.AllocDir,
-		logger:       d.logger,
-		killTimeout:  id.KillTimeout,
-		version:      id.Version,
-		doneCh:       make(chan struct{}),
-		waitCh:       make(chan *cstructs.WaitResult, 1),
+		pluginClient:   pluginClient,
+		executor:       executor,
+		userPid:        id.UserPid,
+		allocDir:       id.AllocDir,
+		logger:         d.logger,
+		killTimeout:    id.KillTimeout,
+		maxKillTimeout: id.MaxKillTimeout,
+		version:        id.Version,
+		doneCh:         make(chan struct{}),
+		waitCh:         make(chan *cstructs.WaitResult, 1),
 	}
 	go h.run()
 	return h, nil
@@ -280,11 +285,12 @@ func (d *QemuDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 
 func (h *qemuHandle) ID() string {
 	id := qemuId{
-		Version:      h.version,
-		KillTimeout:  h.killTimeout,
-		PluginConfig: NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
-		UserPid:      h.userPid,
-		AllocDir:     h.allocDir,
+		Version:        h.version,
+		KillTimeout:    h.killTimeout,
+		MaxKillTimeout: h.maxKillTimeout,
+		PluginConfig:   NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
+		UserPid:        h.userPid,
+		AllocDir:       h.allocDir,
 	}
 
 	data, err := json.Marshal(id)
@@ -300,7 +306,7 @@ func (h *qemuHandle) WaitCh() chan *cstructs.WaitResult {
 
 func (h *qemuHandle) Update(task *structs.Task) error {
 	// Store the updated kill timeout.
-	h.killTimeout = task.KillTimeout
+	h.killTimeout = GetKillTimeout(task.KillTimeout, h.maxKillTimeout)
 	h.executor.UpdateLogConfig(task.LogConfig)
 
 	// Update is not possible

@@ -91,11 +91,12 @@ func (c *DockerDriverConfig) Validate() error {
 }
 
 type dockerPID struct {
-	Version      string
-	ImageID      string
-	ContainerID  string
-	KillTimeout  time.Duration
-	PluginConfig *PluginReattachConfig
+	Version        string
+	ImageID        string
+	ContainerID    string
+	KillTimeout    time.Duration
+	MaxKillTimeout time.Duration
+	PluginConfig   *PluginReattachConfig
 }
 
 type DockerHandle struct {
@@ -109,6 +110,7 @@ type DockerHandle struct {
 	containerID      string
 	version          string
 	killTimeout      time.Duration
+	maxKillTimeout   time.Duration
 	waitCh           chan *cstructs.WaitResult
 	doneCh           chan struct{}
 }
@@ -624,6 +626,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	d.logger.Printf("[INFO] driver.docker: started container %s", container.ID)
 
 	// Return a driver handle
+	maxKill := d.DriverContext.config.MaxKillTimeout
 	h := &DockerHandle{
 		client:           client,
 		logCollector:     logCollector,
@@ -634,7 +637,8 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 		imageID:          dockerImage.ID,
 		containerID:      container.ID,
 		version:          d.config.Version,
-		killTimeout:      d.DriverContext.KillTimeout(task),
+		killTimeout:      GetKillTimeout(task.KillTimeout, maxKill),
+		maxKillTimeout:   maxKill,
 		doneCh:           make(chan struct{}),
 		waitCh:           make(chan *cstructs.WaitResult, 1),
 	}
@@ -703,6 +707,7 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 		containerID:      pid.ContainerID,
 		version:          pid.Version,
 		killTimeout:      pid.KillTimeout,
+		maxKillTimeout:   pid.MaxKillTimeout,
 		doneCh:           make(chan struct{}),
 		waitCh:           make(chan *cstructs.WaitResult, 1),
 	}
@@ -713,11 +718,12 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 func (h *DockerHandle) ID() string {
 	// Return a handle to the PID
 	pid := dockerPID{
-		Version:      h.version,
-		ImageID:      h.imageID,
-		ContainerID:  h.containerID,
-		KillTimeout:  h.killTimeout,
-		PluginConfig: NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
+		Version:        h.version,
+		ImageID:        h.imageID,
+		ContainerID:    h.containerID,
+		KillTimeout:    h.killTimeout,
+		MaxKillTimeout: h.maxKillTimeout,
+		PluginConfig:   NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
 	}
 	data, err := json.Marshal(pid)
 	if err != nil {
@@ -736,7 +742,7 @@ func (h *DockerHandle) WaitCh() chan *cstructs.WaitResult {
 
 func (h *DockerHandle) Update(task *structs.Task) error {
 	// Store the updated kill timeout.
-	h.killTimeout = task.KillTimeout
+	h.killTimeout = GetKillTimeout(task.KillTimeout, h.maxKillTimeout)
 	if err := h.logCollector.UpdateLogConfig(task.LogConfig); err != nil {
 		h.logger.Printf("[DEBUG] driver.docker: failed to update log config: %v", err)
 	}

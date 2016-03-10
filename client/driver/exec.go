@@ -42,6 +42,7 @@ type execHandle struct {
 	userPid         int
 	allocDir        *allocdir.AllocDir
 	killTimeout     time.Duration
+	maxKillTimeout  time.Duration
 	logger          *log.Logger
 	waitCh          chan *cstructs.WaitResult
 	doneCh          chan struct{}
@@ -134,13 +135,15 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	d.logger.Printf("[DEBUG] driver.exec: started process via plugin with pid: %v", ps.Pid)
 
 	// Return a driver handle
+	maxKill := d.DriverContext.config.MaxKillTimeout
 	h := &execHandle{
 		pluginClient:    pluginClient,
 		userPid:         ps.Pid,
 		executor:        exec,
 		allocDir:        ctx.AllocDir,
 		isolationConfig: ps.IsolationConfig,
-		killTimeout:     d.DriverContext.KillTimeout(task),
+		killTimeout:     GetKillTimeout(task.KillTimeout, maxKill),
+		maxKillTimeout:  maxKill,
 		logger:          d.logger,
 		version:         d.config.Version,
 		doneCh:          make(chan struct{}),
@@ -153,6 +156,7 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 type execId struct {
 	Version         string
 	KillTimeout     time.Duration
+	MaxKillTimeout  time.Duration
 	UserPid         int
 	TaskDir         string
 	AllocDir        *allocdir.AllocDir
@@ -198,6 +202,7 @@ func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		logger:          d.logger,
 		version:         id.Version,
 		killTimeout:     id.KillTimeout,
+		maxKillTimeout:  id.MaxKillTimeout,
 		doneCh:          make(chan struct{}),
 		waitCh:          make(chan *cstructs.WaitResult, 1),
 	}
@@ -209,6 +214,7 @@ func (h *execHandle) ID() string {
 	id := execId{
 		Version:         h.version,
 		KillTimeout:     h.killTimeout,
+		MaxKillTimeout:  h.maxKillTimeout,
 		PluginConfig:    NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
 		UserPid:         h.userPid,
 		AllocDir:        h.allocDir,
@@ -228,7 +234,7 @@ func (h *execHandle) WaitCh() chan *cstructs.WaitResult {
 
 func (h *execHandle) Update(task *structs.Task) error {
 	// Store the updated kill timeout.
-	h.killTimeout = task.KillTimeout
+	h.killTimeout = GetKillTimeout(task.KillTimeout, h.maxKillTimeout)
 	h.executor.UpdateLogConfig(task.LogConfig)
 
 	// Update is not possible

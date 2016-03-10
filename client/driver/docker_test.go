@@ -152,18 +152,19 @@ func TestDockerDriver_Handle(t *testing.T) {
 	defer pluginClient.Kill()
 
 	h := &DockerHandle{
-		version:      "version",
-		imageID:      "imageid",
-		logCollector: logCollector,
-		pluginClient: pluginClient,
-		containerID:  "containerid",
-		killTimeout:  5 * time.Nanosecond,
-		doneCh:       make(chan struct{}),
-		waitCh:       make(chan *cstructs.WaitResult, 1),
+		version:        "version",
+		imageID:        "imageid",
+		logCollector:   logCollector,
+		pluginClient:   pluginClient,
+		containerID:    "containerid",
+		killTimeout:    5 * time.Nanosecond,
+		maxKillTimeout: 15 * time.Nanosecond,
+		doneCh:         make(chan struct{}),
+		waitCh:         make(chan *cstructs.WaitResult, 1),
 	}
 
 	actual := h.ID()
-	expected := fmt.Sprintf("DOCKER:{\"Version\":\"version\",\"ImageID\":\"imageid\",\"ContainerID\":\"containerid\",\"KillTimeout\":5,\"PluginConfig\":{\"Pid\":%d,\"AddrNet\":\"unix\",\"AddrName\":\"%s\"}}",
+	expected := fmt.Sprintf("DOCKER:{\"Version\":\"version\",\"ImageID\":\"imageid\",\"ContainerID\":\"containerid\",\"KillTimeout\":5,\"MaxKillTimeout\":15,\"PluginConfig\":{\"Pid\":%d,\"AddrNet\":\"unix\",\"AddrName\":\"%s\"}}",
 		pluginClient.ReattachConfig().Pid, pluginClient.ReattachConfig().Addr.String())
 	if actual != expected {
 		t.Errorf("Expected `%s`, found `%s`", expected, actual)

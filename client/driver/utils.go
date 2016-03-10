@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-plugin"
@@ -108,4 +109,27 @@ func validateCommand(command, argField string) error {
 	}
 
 	return nil
+}
+
+// GetKillTimeout returns the kill timeout to use given the tasks desired kill
+// timeout and the operator configured max kill timeout.
+func GetKillTimeout(desired, max time.Duration) time.Duration {
+	maxNanos := max.Nanoseconds()
+	desiredNanos := desired.Nanoseconds()
+
+	// Make the minimum time between signal and kill, 1 second.
+	if desiredNanos <= 0 {
+		desiredNanos = (1 * time.Second).Nanoseconds()
+	}
+
+	// Protect against max not being set properly.
+	if maxNanos <= 0 {
+		maxNanos = (10 * time.Second).Nanoseconds()
+	}
+
+	if desiredNanos < maxNanos {
+		return time.Duration(desiredNanos)
+	}
+
+	return max
 }

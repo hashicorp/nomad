@@ -66,24 +66,6 @@ func testDriverContexts(task *structs.Task) (*DriverContext, *ExecContext) {
 	return driverCtx, execCtx
 }
 
-func TestDriver_KillTimeout(t *testing.T) {
-	expected := 1 * time.Second
-	task := &structs.Task{Name: "foo", KillTimeout: expected}
-	ctx, _ := testDriverContexts(task)
-	ctx.config.MaxKillTimeout = 10 * time.Second
-
-	if actual := ctx.KillTimeout(task); expected != actual {
-		t.Fatalf("KillTimeout(%v) returned %v; want %v", task, actual, expected)
-	}
-
-	expected = 10 * time.Second
-	task = &structs.Task{KillTimeout: 11 * time.Second}
-
-	if actual := ctx.KillTimeout(task); expected != actual {
-		t.Fatalf("KillTimeout(%v) returned %v; want %v", task, actual, expected)
-	}
-}
-
 func TestDriver_GetTaskEnv(t *testing.T) {
 	t.Parallel()
 	task := &structs.Task{
