@@ -22,16 +22,17 @@ var (
 	// A mapping of directories on the host OS to attempt to embed inside each
 	// task's chroot.
 	chrootEnv = map[string]string{
-		"/bin":       "/bin",
-		"/etc":       "/etc",
-		"/lib":       "/lib",
-		"/lib32":     "/lib32",
-		"/lib64":     "/lib64",
-		"/sbin":      "/sbin",
-		"/usr/bin":   "/usr/bin",
-		"/usr/sbin":  "/usr/sbin",
-		"/usr/lib":   "/usr/lib",
-		"/usr/share": "/usr/share",
+		"/bin":            "/bin",
+		"/etc":            "/etc",
+		"/lib":            "/lib",
+		"/lib32":          "/lib32",
+		"/lib64":          "/lib64",
+		"/sbin":           "/sbin",
+		"/usr/bin":        "/usr/bin",
+		"/usr/sbin":       "/usr/sbin",
+		"/usr/lib":        "/usr/lib",
+		"/usr/share":      "/usr/share",
+		"/run/resolvconf": "/run/resolvconf",
 	}
 )
 
