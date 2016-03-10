@@ -87,7 +87,7 @@ func (s *Server) invalidateHeartbeat(id string) {
 	s.heartbeatTimersLock.Lock()
 	delete(s.heartbeatTimers, id)
 	s.heartbeatTimersLock.Unlock()
-	s.logger.Printf("[DEBUG] nomad.heartbeat: node '%s' TTL expired", id)
+	s.logger.Printf("[WARN] nomad.heartbeat: node '%s' TTL expired", id)
 
 	// Make a request to update the node status
 	req := structs.NodeUpdateStatusRequest{
