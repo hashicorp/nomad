@@ -5,9 +5,12 @@ package logging
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"log/syslog"
 	"net"
+	"os"
+	"runtime"
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
@@ -105,7 +108,8 @@ func (s *SyslogCollector) LaunchCollector(ctx *LogCollectorContext) (*SyslogColl
 	s.lre = lre
 
 	go s.collectLogs(lre, lro)
-	return &SyslogCollectorState{Addr: l.Addr().String()}, nil
+	syslogAddr := fmt.Sprintf("%s://%s", l.Addr().Network(), l.Addr().String())
+	return &SyslogCollectorState{Addr: syslogAddr}, nil
 }
 
 func (s *SyslogCollector) collectLogs(we io.Writer, wo io.Writer) {
@@ -160,6 +164,16 @@ func (s *SyslogCollector) configureTaskDir() error {
 // getFreePort returns a free port ready to be listened on between upper and
 // lower bounds
 func (s *SyslogCollector) getListener(lowerBound uint, upperBound uint) (net.Listener, error) {
+	if runtime.GOOS == "windows" {
+		return s.listenerTCP(lowerBound, upperBound)
+	}
+
+	return s.listenerUnix()
+}
+
+// listenerTCP creates a TCP listener using an unused port between an upper and
+// lower bound
+func (s *SyslogCollector) listenerTCP(lowerBound uint, upperBound uint) (net.Listener, error) {
 	for i := lowerBound; i <= upperBound; i++ {
 		addr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("localhost:%v", i))
 		if err != nil {
@@ -172,4 +186,22 @@ func (s *SyslogCollector) getListener(lowerBound uint, upperBound uint) (net.Lis
 		return l, nil
 	}
 	return nil, fmt.Errorf("No free port found")
+}
+
+// listenerUnix creates a Unix domain socket
+func (s *SyslogCollector) listenerUnix() (net.Listener, error) {
+	f, err := ioutil.TempFile("", "plugin")
+	if err != nil {
+		return nil, err
+	}
+	path := f.Name()
+
+	if err := f.Close(); err != nil {
+		return nil, err
+	}
+	if err := os.Remove(path); err != nil {
+		return nil, err
+	}
+
+	return net.Listen("unix", path)
 }

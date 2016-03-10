@@ -240,7 +240,7 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task,
 		LogConfig: docker.LogConfig{
 			Type: "syslog",
 			Config: map[string]string{
-				"syslog-address": fmt.Sprintf("tcp://%v", syslogAddr),
+				"syslog-address": syslogAddr,
 			},
 		},
 	}
