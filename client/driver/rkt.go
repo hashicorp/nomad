@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -49,8 +50,10 @@ type RktDriver struct {
 }
 
 type RktDriverConfig struct {
-	ImageName string   `mapstructure:"image"`
-	Args      []string `mapstructure:"args"`
+	ImageName        string   `mapstructure:"image"`
+	Args             []string `mapstructure:"args"`
+	DNSServers       []string `mapstructure:"dns_servers"`        // DNS Server for containers
+	DNSSearchDomains []string `mapstructure:"dns_search_domains"` // DNS Search domains for containers
 }
 
 // rktHandle is returned from Start/Open as a handle to the PID
@@ -184,6 +187,22 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 
 	// Add CPU isolator
 	cmdArgs = append(cmdArgs, fmt.Sprintf("--cpu=%vm", int64(task.Resources.CPU)))
+
+	// Add DNS servers
+	for _, ip := range driverConfig.DNSServers {
+		if err := net.ParseIP(ip); err == nil {
+			msg := fmt.Errorf("invalid ip address for container dns server %q", ip)
+			d.logger.Printf("[DEBUG] driver.rkt: %v", msg)
+			return nil, msg
+		} else {
+			cmdArgs = append(cmdArgs, fmt.Sprintf("--dns=%s", ip))
+		}
+	}
+
+	// set DNS search domains
+	for _, domain := range driverConfig.DNSSearchDomains {
+		cmdArgs = append(cmdArgs, fmt.Sprintf("--dns-search=%s", domain))
+	}
 
 	// Add user passed arguments.
 	if len(driverConfig.Args) != 0 {
