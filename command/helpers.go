@@ -27,7 +27,7 @@ func formatList(in []string) string {
 // Limits the length of the string.
 func limit(s string, length int) string {
 	if len(s) < length {
-		return s[:len(s)]
+		return s
 	}
 
 	return s[:length]
