@@ -1001,10 +1001,9 @@ func (c *Client) watchAllocations(updates chan *allocUpdates) {
 		}
 
 		// Update the query index.
-		if resp.Index <= req.MinQueryIndex {
-			continue
+		if resp.Index > req.MinQueryIndex {
+			req.MinQueryIndex = resp.Index
 		}
-		req.MinQueryIndex = resp.Index
 
 		// Push the updates.
 		pulled := make(map[string]*structs.Allocation, len(allocsResp.Allocs))
