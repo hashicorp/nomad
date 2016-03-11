@@ -17,6 +17,8 @@ BUG FIXES:
   * api: Guard client/fs/ APIs from being accessed on a non-client node [GH-890]
   * client: Allow dashes in variable names during interprelation [GH-857]
   * client: Updating kill timeout adheres to operator specified maximum value [GH-878]
+  * client: Fix a case in which clients would pull but not run allocations
+    [GH-906]
   * consul: Remove concurrent map access [GH-874]
   * driver/exec: Stopping tasks with more than one pid in a cgroup [GH-855]
   * executor/linux: Add /run/resolvconf/ to chroot so DNS works [GH-905]
