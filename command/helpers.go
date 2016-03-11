@@ -24,6 +24,14 @@ func formatList(in []string) string {
 	return columnize.Format(in, columnConf)
 }
 
+// formatListWithSpaces takes a set of strings and formats them into properly
+// aligned output. It should be used sparingly since it doesn't replace empty
+// values and hence not awk/sed friendly
+func formatListWithSpaces(in []string) string {
+	columnConf := columnize.DefaultConfig()
+	return columnize.Format(in, columnConf)
+}
+
 // Limits the length of the string.
 func limit(s string, length int) string {
 	if len(s) < length {
