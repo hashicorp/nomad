@@ -389,7 +389,7 @@ func parseReserved(result **Resources, list *ast.ObjectList) error {
 		"memory",
 		"disk",
 		"iops",
-		"network",
+		"reserved_ports",
 	}
 	if err := checkHCLKeys(listVal, valid); err != nil {
 		return err
@@ -400,74 +400,15 @@ func parseReserved(result **Resources, list *ast.ObjectList) error {
 		return err
 	}
 
-	delete(m, "network")
-
 	var reserved Resources
 	if err := mapstructure.WeakDecode(m, &reserved); err != nil {
 		return err
 	}
-
-	// Parse network config
-	if o := listVal.Filter("network"); len(o.Items) > 0 {
-		if err := parseReservedNetworks(&reserved.Networks, o); err != nil {
-			return multierror.Prefix(err, "network ->")
-		}
+	if err := reserved.ParseReserved(); err != nil {
+		return err
 	}
 
 	*result = &reserved
-	return nil
-}
-
-func parseReservedNetworks(result *[]*NetworkResource, list *ast.ObjectList) error {
-	if len(list.Items) == 0 {
-		return nil
-	}
-
-	// Go through each object and turn it into an actual result.
-	collection := make([]*NetworkResource, 0, len(list.Items))
-	seen := make(map[string]struct{})
-	for _, item := range list.Items {
-		var listVal *ast.ObjectList
-		if ot, ok := item.Val.(*ast.ObjectType); ok {
-			listVal = ot.List
-		} else {
-			return fmt.Errorf("network should be an object")
-		}
-
-		// Check for invalid keys
-		valid := []string{
-			"device",
-			"ip",
-			"mbits",
-			"reserved_ports",
-		}
-		if err := checkHCLKeys(listVal, valid); err != nil {
-			return err
-		}
-
-		var m map[string]interface{}
-		if err := hcl.DecodeObject(&m, item.Val); err != nil {
-			return err
-		}
-
-		var network NetworkResource
-		if err := mapstructure.WeakDecode(m, &network); err != nil {
-			return err
-		}
-		if err := network.ParseReserved(); err != nil {
-			return fmt.Errorf("failed to parse \"reserved_ports\": %v", err)
-		}
-
-		collection = append(collection, &network)
-
-		// Make sure we haven't already found this
-		if _, ok := seen[network.IP]; ok {
-			return fmt.Errorf("network for IP %q defined more than once", network.IP)
-		}
-		seen[network.IP] = struct{}{}
-	}
-
-	*result = append(*result, collection...)
 	return nil
 }
 

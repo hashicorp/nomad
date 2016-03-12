@@ -43,18 +43,12 @@ func TestConfig_Merge(t *testing.T) {
 			MaxKillTimeout: "20s",
 			ClientMaxPort:  19996,
 			Reserved: &Resources{
-				CPU:      10,
-				MemoryMB: 10,
-				DiskMB:   10,
-				IOPS:     10,
-				Networks: []*NetworkResource{
-					{
-						Device:        "eth0",
-						IP:            "10.105.0.6",
-						MBits:         100,
-						ReservedPorts: "1,10-30,55",
-					},
-				},
+				CPU:                 10,
+				MemoryMB:            10,
+				DiskMB:              10,
+				IOPS:                10,
+				ReservedPorts:       "1,10-30,55",
+				ParsedReservedPorts: []int{1, 2, 4},
 			},
 		},
 		Server: &ServerConfig{
@@ -125,18 +119,12 @@ func TestConfig_Merge(t *testing.T) {
 			NetworkSpeed:   105,
 			MaxKillTimeout: "50s",
 			Reserved: &Resources{
-				CPU:      15,
-				MemoryMB: 15,
-				DiskMB:   15,
-				IOPS:     15,
-				Networks: []*NetworkResource{
-					{
-						Device:        "eth0",
-						IP:            "10.105.0.6",
-						MBits:         105,
-						ReservedPorts: "1,10-30,55",
-					},
-				},
+				CPU:                 15,
+				MemoryMB:            15,
+				DiskMB:              15,
+				IOPS:                15,
+				ReservedPorts:       "2,10-30,55",
+				ParsedReservedPorts: []int{1, 2, 3},
 			},
 		},
 		Server: &ServerConfig{
@@ -409,7 +397,7 @@ func TestConfig_Listener(t *testing.T) {
 	}
 }
 
-func TestNetworkResources_ParseReserved(t *testing.T) {
+func TestResources_ParseReserved(t *testing.T) {
 	cases := []struct {
 		Input  string
 		Parsed []int
@@ -443,15 +431,15 @@ func TestNetworkResources_ParseReserved(t *testing.T) {
 	}
 
 	for i, tc := range cases {
-		n := &NetworkResource{ReservedPorts: tc.Input}
-		err := n.ParseReserved()
+		r := &Resources{ReservedPorts: tc.Input}
+		err := r.ParseReserved()
 		if (err != nil) != tc.Err {
 			t.Fatalf("test case %d: %v", i, err)
 			continue
 		}
 
-		if !reflect.DeepEqual(n.ParsedReservedPorts, tc.Parsed) {
-			t.Fatalf("test case %d: \n\n%#v\n\n%#v", i, n.ParsedReservedPorts, tc.Parsed)
+		if !reflect.DeepEqual(r.ParsedReservedPorts, tc.Parsed) {
+			t.Fatalf("test case %d: \n\n%#v\n\n%#v", i, r.ParsedReservedPorts, tc.Parsed)
 		}
 
 	}

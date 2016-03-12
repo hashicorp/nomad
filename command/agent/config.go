@@ -265,17 +265,10 @@ type AdvertiseAddrs struct {
 }
 
 type Resources struct {
-	CPU      int                `mapstructure:"cpu"`
-	MemoryMB int                `mapstructure:"memory"`
-	DiskMB   int                `mapstructure:"disk"`
-	IOPS     int                `mapstructure:"iops"`
-	Networks []*NetworkResource `mapstructure:"network"`
-}
-
-type NetworkResource struct {
-	Device              string `mapstructure:"device"`
-	IP                  string `mapstructure:"ip"`
-	MBits               int    `mapstructure:"mbits"`
+	CPU                 int    `mapstructure:"cpu"`
+	MemoryMB            int    `mapstructure:"memory"`
+	DiskMB              int    `mapstructure:"disk"`
+	IOPS                int    `mapstructure:"iops"`
 	ReservedPorts       string `mapstructure:"reserved_ports"`
 	ParsedReservedPorts []int  `mapstructure:"-"`
 }
@@ -283,8 +276,8 @@ type NetworkResource struct {
 // ParseReserved expands the ReservedPorts string into a slice of port numbers.
 // The supported syntax is comma seperated integers or ranges seperated by
 // hyphens. For example, "80,120-150,160"
-func (n *NetworkResource) ParseReserved() error {
-	parts := strings.Split(n.ReservedPorts, ",")
+func (r *Resources) ParseReserved() error {
+	parts := strings.Split(r.ReservedPorts, ",")
 
 	// Hot path the empty case
 	if len(parts) == 1 && parts[0] == "" {
@@ -332,10 +325,10 @@ func (n *NetworkResource) ParseReserved() error {
 	}
 
 	for port := range ports {
-		n.ParsedReservedPorts = append(n.ParsedReservedPorts, port)
+		r.ParsedReservedPorts = append(r.ParsedReservedPorts, port)
 	}
 
-	sort.Ints(n.ParsedReservedPorts)
+	sort.Ints(r.ParsedReservedPorts)
 	return nil
 }
 
@@ -730,20 +723,12 @@ func (r *Resources) Merge(b *Resources) *Resources {
 	if b.IOPS != 0 {
 		result.IOPS = b.IOPS
 	}
-
-	// Merge the networks.
-	networks := make(map[string]*NetworkResource, len(result.Networks))
-	for _, n := range result.Networks {
-		networks[n.IP] = n
+	if b.ReservedPorts != "" {
+		result.ReservedPorts = b.ReservedPorts
 	}
-	for _, n := range b.Networks {
-		networks[n.IP] = n
+	if len(b.ParsedReservedPorts) != 0 {
+		result.ParsedReservedPorts = b.ParsedReservedPorts
 	}
-	result.Networks = make([]*NetworkResource, 0, len(networks))
-	for _, n := range networks {
-		result.Networks = append(result.Networks, n)
-	}
-
 	return &result
 }
 

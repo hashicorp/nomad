@@ -56,19 +56,12 @@ func TestConfig_Parse(t *testing.T) {
 					ClientMinPort:    1000,
 					ClientMaxPort:    2000,
 					Reserved: &Resources{
-						CPU:      10,
-						MemoryMB: 10,
-						DiskMB:   10,
-						IOPS:     10,
-						Networks: []*NetworkResource{
-							{
-								Device:              "eth0",
-								IP:                  "127.0.0.1",
-								MBits:               100,
-								ReservedPorts:       "1,100,10-12",
-								ParsedReservedPorts: []int{1, 100, 10, 11, 12},
-							},
-						},
+						CPU:                 10,
+						MemoryMB:            10,
+						DiskMB:              10,
+						IOPS:                10,
+						ReservedPorts:       "1,100,10-12",
+						ParsedReservedPorts: []int{1, 10, 11, 12, 100},
 					},
 				},
 				Server: &ServerConfig{
@@ -108,37 +101,6 @@ func TestConfig_Parse(t *testing.T) {
 				},
 			},
 			false,
-		},
-		{
-			"multiple-reserved-networks.hcl",
-			&Config{
-				Client: &ClientConfig{
-					Reserved: &Resources{
-						Networks: []*NetworkResource{
-							{
-								Device:              "eth0",
-								IP:                  "127.0.0.1",
-								MBits:               100,
-								ReservedPorts:       "1,100,10-12",
-								ParsedReservedPorts: []int{1, 100, 10, 11, 12},
-							},
-							{
-								Device:              "eth1",
-								IP:                  "128.0.0.1",
-								MBits:               105,
-								ReservedPorts:       "1-1,2-4,100,102,10-12",
-								ParsedReservedPorts: []int{1, 2, 3, 4, 100, 102, 10, 11, 12},
-							},
-						},
-					},
-				},
-			},
-			false,
-		},
-		{
-			"conflicting-reserved-networks.hcl",
-			nil,
-			true,
 		},
 	}
 

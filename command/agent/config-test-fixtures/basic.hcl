@@ -40,12 +40,7 @@ client {
 		memory = 10
 		disk = 10
 		iops = 10
-		network {
-			device = "eth0"
-			ip = "127.0.0.1"
-			mbits = 100
-			reserved_ports = "1,100,10-12"
-		}
+		reserved_ports = "1,100,10-12"
 	}
 	client_min_port = 1000
 	client_max_port = 2000
