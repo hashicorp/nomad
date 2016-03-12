@@ -3,16 +3,15 @@ package agent
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
-	"github.com/hashicorp/hcl"
 	client "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad"
 )
@@ -20,79 +19,79 @@ import (
 // Config is the configuration for the Nomad agent.
 type Config struct {
 	// Region is the region this agent is in. Defaults to global.
-	Region string `hcl:"region"`
+	Region string `mapstructure:"region"`
 
 	// Datacenter is the datacenter this agent is in. Defaults to dc1
-	Datacenter string `hcl:"datacenter"`
+	Datacenter string `mapstructure:"datacenter"`
 
 	// NodeName is the name we register as. Defaults to hostname.
-	NodeName string `hcl:"name"`
+	NodeName string `mapstructure:"name"`
 
 	// DataDir is the directory to store our state in
-	DataDir string `hcl:"data_dir"`
+	DataDir string `mapstructure:"data_dir"`
 
 	// LogLevel is the level of the logs to putout
-	LogLevel string `hcl:"log_level"`
+	LogLevel string `mapstructure:"log_level"`
 
 	// BindAddr is the address on which all of nomad's services will
 	// be bound. If not specified, this defaults to 127.0.0.1.
-	BindAddr string `hcl:"bind_addr"`
+	BindAddr string `mapstructure:"bind_addr"`
 
 	// EnableDebug is used to enable debugging HTTP endpoints
-	EnableDebug bool `hcl:"enable_debug"`
+	EnableDebug bool `mapstructure:"enable_debug"`
 
 	// Ports is used to control the network ports we bind to.
-	Ports *Ports `hcl:"ports"`
+	Ports *Ports `mapstructure:"ports"`
 
 	// Addresses is used to override the network addresses we bind to.
-	Addresses *Addresses `hcl:"addresses"`
+	Addresses *Addresses `mapstructure:"addresses"`
 
 	// AdvertiseAddrs is used to control the addresses we advertise.
-	AdvertiseAddrs *AdvertiseAddrs `hcl:"advertise"`
+	AdvertiseAddrs *AdvertiseAddrs `mapstructure:"advertise"`
 
 	// Client has our client related settings
-	Client *ClientConfig `hcl:"client"`
+	Client *ClientConfig `mapstructure:"client"`
 
 	// Server has our server related settings
-	Server *ServerConfig `hcl:"server"`
+	Server *ServerConfig `mapstructure:"server"`
 
 	// Telemetry is used to configure sending telemetry
-	Telemetry *Telemetry `hcl:"telemetry"`
+	Telemetry *Telemetry `mapstructure:"telemetry"`
 
 	// LeaveOnInt is used to gracefully leave on the interrupt signal
-	LeaveOnInt bool `hcl:"leave_on_interrupt"`
+	LeaveOnInt bool `mapstructure:"leave_on_interrupt"`
 
 	// LeaveOnTerm is used to gracefully leave on the terminate signal
-	LeaveOnTerm bool `hcl:"leave_on_terminate"`
+	LeaveOnTerm bool `mapstructure:"leave_on_terminate"`
 
 	// EnableSyslog is used to enable sending logs to syslog
-	EnableSyslog bool `hcl:"enable_syslog"`
+	EnableSyslog bool `mapstructure:"enable_syslog"`
 
 	// SyslogFacility is used to control the syslog facility used.
-	SyslogFacility string `hcl:"syslog_facility"`
+	SyslogFacility string `mapstructure:"syslog_facility"`
 
 	// DisableUpdateCheck is used to disable the periodic update
 	// and security bulletin checking.
-	DisableUpdateCheck bool `hcl:"disable_update_check"`
+	DisableUpdateCheck bool `mapstructure:"disable_update_check"`
 
 	// DisableAnonymousSignature is used to disable setting the
 	// anonymous signature when doing the update check and looking
 	// for security bulletins
-	DisableAnonymousSignature bool `hcl:"disable_anonymous_signature"`
+	DisableAnonymousSignature bool `mapstructure:"disable_anonymous_signature"`
 
 	// AtlasConfig is used to configure Atlas
-	Atlas *AtlasConfig `hcl:"atlas"`
+	Atlas *AtlasConfig `mapstructure:"atlas"`
 
 	// NomadConfig is used to override the default config.
 	// This is largly used for testing purposes.
-	NomadConfig *nomad.Config `hcl:"-" json:"-"`
+	NomadConfig *nomad.Config `mapstructure:"-" json:"-"`
 
 	// ClientConfig is used to override the default config.
 	// This is largly used for testing purposes.
-	ClientConfig *client.Config `hcl:"-" json:"-"`
+	ClientConfig *client.Config `mapstructure:"-" json:"-"`
 
 	// DevMode is set by the -dev CLI flag.
-	DevMode bool `hcl:"-"`
+	DevMode bool `mapstructure:"-"`
 
 	// Version information is set at compilation time
 	Revision          string
@@ -100,164 +99,244 @@ type Config struct {
 	VersionPrerelease string
 
 	// List of config files that have been loaded (in order)
-	Files []string
+	Files []string `mapstructure:"-"`
 
 	// HTTPAPIResponseHeaders allows users to configure the Nomad http agent to
 	// set arbritrary headers on API responses
-	HTTPAPIResponseHeaders map[string]string `hcl:"http_api_response_headers"`
+	HTTPAPIResponseHeaders map[string]string `mapstructure:"http_api_response_headers"`
 }
 
 // AtlasConfig is used to enable an parameterize the Atlas integration
 type AtlasConfig struct {
 	// Infrastructure is the name of the infrastructure
 	// we belong to. e.g. hashicorp/stage
-	Infrastructure string `hcl:"infrastructure"`
+	Infrastructure string `mapstructure:"infrastructure"`
 
 	// Token is our authentication token from Atlas
-	Token string `hcl:"token" json:"-"`
+	Token string `mapstructure:"token" json:"-"`
 
 	// Join controls if Atlas will attempt to auto-join the node
 	// to it's cluster. Requires Atlas integration.
-	Join bool `hcl:"join"`
+	Join bool `mapstructure:"join"`
 
 	// Endpoint is the SCADA endpoint used for Atlas integration. If
 	// empty, the defaults from the provider are used.
-	Endpoint string `hcl:"endpoint"`
+	Endpoint string `mapstructure:"endpoint"`
 }
 
 // ClientConfig is configuration specific to the client mode
 type ClientConfig struct {
 	// Enabled controls if we are a client
-	Enabled bool `hcl:"enabled"`
+	Enabled bool `mapstructure:"enabled"`
 
 	// StateDir is the state directory
-	StateDir string `hcl:"state_dir"`
+	StateDir string `mapstructure:"state_dir"`
 
 	// AllocDir is the directory for storing allocation data
-	AllocDir string `hcl:"alloc_dir"`
+	AllocDir string `mapstructure:"alloc_dir"`
 
 	// Servers is a list of known server addresses. These are as "host:port"
-	Servers []string `hcl:"servers"`
+	Servers []string `mapstructure:"servers"`
 
 	// NodeClass is used to group the node by class
-	NodeClass string `hcl:"node_class"`
+	NodeClass string `mapstructure:"node_class"`
 
 	// Options is used for configuration of nomad internals,
 	// like fingerprinters and drivers. The format is:
 	//
 	//  namespace.option = value
-	Options map[string]string `hcl:"options"`
+	Options map[string]string `mapstructure:"options"`
 
 	// Metadata associated with the node
-	Meta map[string]string `hcl:"meta"`
+	Meta map[string]string `mapstructure:"meta"`
 
 	// Interface to use for network fingerprinting
-	NetworkInterface string `hcl:"network_interface"`
+	NetworkInterface string `mapstructure:"network_interface"`
 
 	// The network link speed to use if it can not be determined dynamically.
-	NetworkSpeed int `hcl:"network_speed"`
+	NetworkSpeed int `mapstructure:"network_speed"`
 
 	// MaxKillTimeout allows capping the user-specifiable KillTimeout.
-	MaxKillTimeout string `hcl:"max_kill_timeout"`
+	MaxKillTimeout string `mapstructure:"max_kill_timeout"`
 
 	// ClientMaxPort is the upper range of the ports that the client uses for
 	// communicating with plugin subsystems
-	ClientMaxPort int `hcl:"client_max_port"`
+	ClientMaxPort int `mapstructure:"client_max_port"`
 
 	// ClientMinPort is the lower range of the ports that the client uses for
 	// communicating with plugin subsystems
-	ClientMinPort int `hcl:"client_min_port"`
+	ClientMinPort int `mapstructure:"client_min_port"`
+
+	// Reserved is used to reserve resources from being used by Nomad. This can
+	// be used to target a certain utilization or to prevent Nomad from using a
+	// particular set of ports.
+	Reserved *Resources `mapstructure:"reserved"`
 }
 
 // ServerConfig is configuration specific to the server mode
 type ServerConfig struct {
 	// Enabled controls if we are a server
-	Enabled bool `hcl:"enabled"`
+	Enabled bool `mapstructure:"enabled"`
 
 	// BootstrapExpect tries to automatically bootstrap the Consul cluster,
 	// by witholding peers until enough servers join.
-	BootstrapExpect int `hcl:"bootstrap_expect"`
+	BootstrapExpect int `mapstructure:"bootstrap_expect"`
 
 	// DataDir is the directory to store our state in
-	DataDir string `hcl:"data_dir"`
+	DataDir string `mapstructure:"data_dir"`
 
 	// ProtocolVersion is the protocol version to speak. This must be between
 	// ProtocolVersionMin and ProtocolVersionMax.
-	ProtocolVersion int `hcl:"protocol_version"`
+	ProtocolVersion int `mapstructure:"protocol_version"`
 
 	// NumSchedulers is the number of scheduler thread that are run.
 	// This can be as many as one per core, or zero to disable this server
 	// from doing any scheduling work.
-	NumSchedulers int `hcl:"num_schedulers"`
+	NumSchedulers int `mapstructure:"num_schedulers"`
 
 	// EnabledSchedulers controls the set of sub-schedulers that are
 	// enabled for this server to handle. This will restrict the evaluations
 	// that the workers dequeue for processing.
-	EnabledSchedulers []string `hcl:"enabled_schedulers"`
+	EnabledSchedulers []string `mapstructure:"enabled_schedulers"`
 
 	// NodeGCThreshold controls how "old" a node must be to be collected by GC.
-	NodeGCThreshold string `hcl:"node_gc_threshold"`
+	NodeGCThreshold string `mapstructure:"node_gc_threshold"`
 
 	// HeartbeatGrace is the grace period beyond the TTL to account for network,
 	// processing delays and clock skew before marking a node as "down".
-	HeartbeatGrace string `hcl:"heartbeat_grace"`
+	HeartbeatGrace string `mapstructure:"heartbeat_grace"`
 
 	// StartJoin is a list of addresses to attempt to join when the
 	// agent starts. If Serf is unable to communicate with any of these
 	// addresses, then the agent will error and exit.
-	StartJoin []string `hcl:"start_join"`
+	StartJoin []string `mapstructure:"start_join"`
 
 	// RetryJoin is a list of addresses to join with retry enabled.
-	RetryJoin []string `hcl:"retry_join"`
+	RetryJoin []string `mapstructure:"retry_join"`
 
 	// RetryMaxAttempts specifies the maximum number of times to retry joining a
 	// host on startup. This is useful for cases where we know the node will be
 	// online eventually.
-	RetryMaxAttempts int `hcl:"retry_max"`
+	RetryMaxAttempts int `mapstructure:"retry_max"`
 
 	// RetryInterval specifies the amount of time to wait in between join
 	// attempts on agent start. The minimum allowed value is 1 second and
 	// the default is 30s.
-	RetryInterval string        `hcl:"retry_interval"`
-	retryInterval time.Duration `hcl:"-"`
+	RetryInterval string        `mapstructure:"retry_interval"`
+	retryInterval time.Duration `mapstructure:"-"`
 
 	// RejoinAfterLeave controls our interaction with the cluster after leave.
 	// When set to false (default), a leave causes Consul to not rejoin
 	// the cluster until an explicit join is received. If this is set to
 	// true, we ignore the leave, and rejoin the cluster on start.
-	RejoinAfterLeave bool `hcl:"rejoin_after_leave"`
+	RejoinAfterLeave bool `mapstructure:"rejoin_after_leave"`
 }
 
 // Telemetry is the telemetry configuration for the server
 type Telemetry struct {
-	StatsiteAddr    string `hcl:"statsite_address"`
-	StatsdAddr      string `hcl:"statsd_address"`
-	DisableHostname bool   `hcl:"disable_hostname"`
+	StatsiteAddr    string `mapstructure:"statsite_address"`
+	StatsdAddr      string `mapstructure:"statsd_address"`
+	DisableHostname bool   `mapstructure:"disable_hostname"`
 }
 
 // Ports is used to encapsulate the various ports we bind to for network
 // services. If any are not specified then the defaults are used instead.
 type Ports struct {
-	HTTP int `hcl:"http"`
-	RPC  int `hcl:"rpc"`
-	Serf int `hcl:"serf"`
+	HTTP int `mapstructure:"http"`
+	RPC  int `mapstructure:"rpc"`
+	Serf int `mapstructure:"serf"`
 }
 
 // Addresses encapsulates all of the addresses we bind to for various
 // network services. Everything is optional and defaults to BindAddr.
 type Addresses struct {
-	HTTP string `hcl:"http"`
-	RPC  string `hcl:"rpc"`
-	Serf string `hcl:"serf"`
+	HTTP string `mapstructure:"http"`
+	RPC  string `mapstructure:"rpc"`
+	Serf string `mapstructure:"serf"`
 }
 
 // AdvertiseAddrs is used to control the addresses we advertise out for
 // different network services. Not all network services support an
 // advertise address. All are optional and default to BindAddr.
 type AdvertiseAddrs struct {
-	HTTP string `hcl:"http"`
-	RPC  string `hcl:"rpc"`
-	Serf string `hcl:"serf"`
+	HTTP string `mapstructure:"http"`
+	RPC  string `mapstructure:"rpc"`
+	Serf string `mapstructure:"serf"`
+}
+
+type Resources struct {
+	CPU      int                `mapstructure:"cpu"`
+	MemoryMB int                `mapstructure:"memory"`
+	DiskMB   int                `mapstructure:"disk"`
+	IOPS     int                `mapstructure:"iops"`
+	Networks []*NetworkResource `mapstructure:"network"`
+}
+
+type NetworkResource struct {
+	Device              string `mapstructure:"device"`
+	IP                  string `mapstructure:"ip"`
+	MBits               int    `mapstructure:"mbits"`
+	ReservedPorts       string `mapstructure:"reserved_ports"`
+	ParsedReservedPorts []int  `mapstructure:"-"`
+}
+
+// ParseReserved expands the ReservedPorts string into a slice of port numbers.
+// The supported syntax is comma seperated integers or ranges seperated by
+// hyphens. For example, "80,120-150,160"
+func (n *NetworkResource) ParseReserved() error {
+	parts := strings.Split(n.ReservedPorts, ",")
+
+	// Hot path the empty case
+	if len(parts) == 1 && parts[0] == "" {
+		return nil
+	}
+
+	ports := make(map[int]struct{})
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		rangeParts := strings.Split(part, "-")
+		l := len(rangeParts)
+		switch l {
+		case 1:
+			if val := rangeParts[0]; val == "" {
+				return fmt.Errorf("can't specify empty port")
+			} else {
+				port, err := strconv.Atoi(val)
+				if err != nil {
+					return err
+				}
+				ports[port] = struct{}{}
+			}
+		case 2:
+			// We are parsing a range
+			start, err := strconv.Atoi(rangeParts[0])
+			if err != nil {
+				return err
+			}
+
+			end, err := strconv.Atoi(rangeParts[1])
+			if err != nil {
+				return err
+			}
+
+			if end < start {
+				return fmt.Errorf("invalid range: starting value (%v) less than ending (%v) value", end, start)
+			}
+
+			for i := start; i <= end; i++ {
+				ports[i] = struct{}{}
+			}
+		default:
+			return fmt.Errorf("can only parse single port numbers or port ranges (ex. 80,100-120,150)")
+		}
+	}
+
+	for port := range ports {
+		n.ParsedReservedPorts = append(n.ParsedReservedPorts, port)
+	}
+
+	sort.Ints(n.ParsedReservedPorts)
+	return nil
 }
 
 // DevConfig is a Config that is used for dev mode of Nomad.
@@ -528,6 +607,9 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	if b.ClientMinPort != 0 {
 		result.ClientMinPort = b.ClientMinPort
 	}
+	if b.Reserved != nil {
+		result.Reserved = result.Reserved.Merge(b.Reserved)
+	}
 
 	// Add the servers
 	result.Servers = append(result.Servers, b.Servers...)
@@ -634,6 +716,37 @@ func (a *AtlasConfig) Merge(b *AtlasConfig) *AtlasConfig {
 	return &result
 }
 
+func (r *Resources) Merge(b *Resources) *Resources {
+	result := *r
+	if b.CPU != 0 {
+		result.CPU = b.CPU
+	}
+	if b.MemoryMB != 0 {
+		result.MemoryMB = b.MemoryMB
+	}
+	if b.DiskMB != 0 {
+		result.DiskMB = b.DiskMB
+	}
+	if b.IOPS != 0 {
+		result.IOPS = b.IOPS
+	}
+
+	// Merge the networks.
+	networks := make(map[string]*NetworkResource, len(result.Networks))
+	for _, n := range result.Networks {
+		networks[n.IP] = n
+	}
+	for _, n := range b.Networks {
+		networks[n.IP] = n
+	}
+	result.Networks = make([]*NetworkResource, 0, len(networks))
+	for _, n := range networks {
+		result.Networks = append(result.Networks, n)
+	}
+
+	return &result
+}
+
 // LoadConfig loads the configuration at the given path, regardless if
 // its a file or directory.
 func LoadConfig(path string) (*Config, error) {
@@ -645,40 +758,15 @@ func LoadConfig(path string) (*Config, error) {
 	if fi.IsDir() {
 		return LoadConfigDir(path)
 	}
-	return LoadConfigFile(filepath.Clean(path))
-}
 
-// LoadConfigString is used to parse a config string
-func LoadConfigString(s string) (*Config, error) {
-	// Parse!
-	obj, err := hcl.Parse(s)
+	cleaned := filepath.Clean(path)
+	config, err := ParseConfigFile(cleaned)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Error loading %s: %s", cleaned, err)
 	}
 
-	// Start building the result
-	var result Config
-	if err := hcl.DecodeObject(&result, obj); err != nil {
-		return nil, err
-	}
-
-	return &result, nil
-}
-
-// LoadConfigFile loads the configuration from the given file.
-func LoadConfigFile(path string) (*Config, error) {
-	// Read the file
-	d, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-
-	config, err := LoadConfigString(string(d))
-	if err == nil {
-		config.Files = append(config.Files, path)
-	}
-
-	return config, err
+	config.Files = append(config.Files, cleaned)
+	return config, nil
 }
 
 // LoadConfigDir loads all the configurations in the given directory
@@ -696,8 +784,7 @@ func LoadConfigDir(dir string) (*Config, error) {
 	}
 	if !fi.IsDir() {
 		return nil, fmt.Errorf(
-			"configuration path must be a directory: %s",
-			dir)
+			"configuration path must be a directory: %s", dir)
 	}
 
 	var files []string
@@ -741,10 +828,11 @@ func LoadConfigDir(dir string) (*Config, error) {
 
 	var result *Config
 	for _, f := range files {
-		config, err := LoadConfigFile(f)
+		config, err := ParseConfigFile(f)
 		if err != nil {
 			return nil, fmt.Errorf("Error loading %s: %s", f, err)
 		}
+		config.Files = append(config.Files, f)
 
 		if result == nil {
 			result = config
