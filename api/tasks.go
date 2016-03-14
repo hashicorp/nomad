@@ -92,6 +92,7 @@ type Task struct {
 	Meta        map[string]string
 	KillTimeout time.Duration
 	LogConfig   *LogConfig
+	Artifacts   []string
 }
 
 // NewTask creates and initializes a new Task.

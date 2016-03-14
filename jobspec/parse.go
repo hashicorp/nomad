@@ -468,6 +468,7 @@ func parseTasks(jobName string, taskGroupName string, result *[]*structs.Task, l
 			"resources",
 			"logs",
 			"kill_timeout",
+			"artifact",
 		}
 		if err := checkHCLKeys(listVal, valid); err != nil {
 			return multierror.Prefix(err, fmt.Sprintf("'%s' ->", n))
@@ -484,6 +485,7 @@ func parseTasks(jobName string, taskGroupName string, result *[]*structs.Task, l
 		delete(m, "meta")
 		delete(m, "resources")
 		delete(m, "logs")
+		delete(m, "artifact")
 
 		// Build the task
 		var t structs.Task
@@ -596,7 +598,97 @@ func parseTasks(jobName string, taskGroupName string, result *[]*structs.Task, l
 		}
 		t.LogConfig = logConfig
 
+		// Parse artifacts
+		if o := listVal.Filter("artifact"); len(o.Items) > 0 {
+			if err := parseArtifacts(&t.Artifacts, o); err != nil {
+				return multierror.Prefix(err, fmt.Sprintf("'%s', artifact ->", n))
+			}
+		}
+
 		*result = append(*result, &t)
+	}
+
+	return nil
+}
+
+func parseArtifacts(result *[]string, list *ast.ObjectList) error {
+	for _, o := range list.Elem().Items {
+		// Check for invalid keys
+		valid := []string{
+			"source",
+			"options",
+		}
+		if err := checkHCLKeys(o.Val, valid); err != nil {
+			return err
+		}
+
+		var m map[string]interface{}
+		if err := hcl.DecodeObject(&m, o.Val); err != nil {
+			return err
+		}
+
+		baseI, ok := m["source"]
+		if !ok {
+			return fmt.Errorf("artifact source must be supplied")
+		}
+		base, ok := baseI.(string)
+		if !ok {
+			return fmt.Errorf("artifact source must be a string. Got %v", baseI)
+		}
+
+		base = strings.TrimSpace(base)
+		if base == "" {
+			return fmt.Errorf("artifact source can not be empty")
+		}
+
+		var optionList *ast.ObjectList
+		if ot, ok := o.Val.(*ast.ObjectType); ok {
+			optionList = ot.List
+		} else {
+			return fmt.Errorf("artifact should be an object")
+		}
+
+		options := make(map[string]string)
+		if oo := optionList.Filter("options"); len(oo.Items) > 0 {
+			if err := parseArtifactOption(options, oo); err != nil {
+				return multierror.Prefix(err, "options: ")
+			}
+		}
+
+		for k, v := range options {
+			base = fmt.Sprintf("%s?%s=%s", base, k, v)
+		}
+
+		*result = append(*result, base)
+	}
+
+	return nil
+}
+
+func parseArtifactOption(options map[string]string, list *ast.ObjectList) error {
+	list = list.Elem()
+	if len(list.Items) > 1 {
+		return fmt.Errorf("only one 'options' block allowed per artifact")
+	}
+
+	// Get our resource object
+	o := list.Items[0]
+
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, o.Val); err != nil {
+		return err
+	}
+
+	// Check for invalid keys
+	valid := []string{
+		"checksum",
+	}
+	if err := checkHCLKeys(o.Val, valid); err != nil {
+		return err
+	}
+
+	if err := mapstructure.WeakDecode(m, &options); err != nil {
+		return err
 	}
 
 	return nil

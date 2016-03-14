@@ -1603,6 +1603,10 @@ type Task struct {
 
 	// LogConfig provides configuration for log rotation
 	LogConfig *LogConfig `mapstructure:"logs"`
+
+	// Artifacts is a list of artifacts to download and extract before running
+	// the task.
+	Artifacts []string
 }
 
 func (t *Task) Copy() *Task {
