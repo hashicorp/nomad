@@ -374,6 +374,7 @@ func DefaultConfig() *Config {
 			MaxKillTimeout: "30s",
 			ClientMinPort:  14000,
 			ClientMaxPort:  14512,
+			Reserved:       &Resources{},
 		},
 		Server: &ServerConfig{
 			Enabled:          false,

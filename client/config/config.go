@@ -58,12 +58,16 @@ type Config struct {
 	Node *structs.Node
 
 	// ClientMaxPort is the upper range of the ports that the client uses for
-	// communicating with plugin subsystems
+	// communicating with plugin subsystems over loopback
 	ClientMaxPort uint
 
 	// ClientMinPort is the lower range of the ports that the client uses for
-	// communicating with plugin subsystems
+	// communicating with plugin subsystems over loopback
 	ClientMinPort uint
+
+	// GloballyReservedPorts are ports that are reserved across all network
+	// devices and IPs.
+	GloballyReservedPorts []int
 
 	// Options provides arbitrary key-value configuration for nomad internals,
 	// like fingerprinters and drivers. The format is:

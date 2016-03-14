@@ -157,6 +157,9 @@ func NewClient(cfg *config.Config) (*Client, error) {
 		return nil, fmt.Errorf("driver setup failed: %v", err)
 	}
 
+	// Setup the reserved resources
+	c.reservePorts()
+
 	// Set up the known servers list
 	c.SetServers(c.config.Servers)
 
@@ -537,6 +540,9 @@ func (c *Client) setupNode() error {
 	if node.Resources == nil {
 		node.Resources = &structs.Resources{}
 	}
+	if node.Reserved == nil {
+		node.Reserved = &structs.Resources{}
+	}
 	if node.Datacenter == "" {
 		node.Datacenter = "dc1"
 	}
@@ -548,6 +554,49 @@ func (c *Client) setupNode() error {
 	}
 	node.Status = structs.NodeStatusInit
 	return nil
+}
+
+// reservePorts is used to reserve ports on the fingerprinted network devices.
+func (c *Client) reservePorts() {
+	c.configLock.RLock()
+	defer c.configLock.RUnlock()
+	global := c.config.GloballyReservedPorts
+	if len(global) == 0 {
+		return
+	}
+
+	node := c.config.Node
+	networks := node.Resources.Networks
+	reservedIndex := make(map[string]*structs.NetworkResource, len(networks))
+	for _, resNet := range node.Reserved.Networks {
+		reservedIndex[resNet.IP] = resNet
+	}
+
+	// Go through each network device and reserve ports on it.
+	for _, net := range networks {
+		res, ok := reservedIndex[net.IP]
+		if !ok {
+			res = net.Copy()
+			reservedIndex[net.IP] = res
+		}
+
+		for _, portVal := range global {
+			p := structs.Port{Value: portVal}
+			res.ReservedPorts = append(res.ReservedPorts, p)
+		}
+	}
+
+	// Clear the reserved networks.
+	if node.Reserved == nil {
+		node.Reserved = new(structs.Resources)
+	} else {
+		node.Reserved.Networks = nil
+	}
+
+	// Restore the reserved networks
+	for _, net := range reservedIndex {
+		node.Reserved.Networks = append(node.Reserved.Networks, net)
+	}
 }
 
 // fingerprint is used to fingerprint the client and setup the node
