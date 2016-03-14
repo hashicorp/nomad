@@ -9,7 +9,7 @@ sudo apt-get install -y unzip curl wget vim
 # Download Nomad
 echo Fetching Nomad...
 cd /tmp/
-curl -sSL https://releases.hashicorp.com/nomad/0.2.3/nomad_0.2.3_linux_amd64.zip -o nomad.zip
+curl -sSL https://releases.hashicorp.com/nomad/0.3.0/nomad_0.3.0_linux_amd64.zip -o nomad.zip
 
 echo Installing Nomad...
 unzip nomad.zip
