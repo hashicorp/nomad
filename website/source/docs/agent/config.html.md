@@ -315,8 +315,8 @@ configured on server nodes.
     ```
 
     * `cpu`: `cpu` is given as MHz to reserve.
-    * `memory`: `memory` is given as bytes to reserve.
-    * `disk`: `disk` is given as bytes to reserve.
+    * `memory`: `memory` is given as MB to reserve.
+    * `disk`: `disk` is given as MB to reserve.
     * `reserved_ports`: `reserved_ports` is a comma seperated list of ports
       to reserve on all fingerprinted network devices. Ranges can be
       specified by using a hyphen seperated the two inclusive ends.
