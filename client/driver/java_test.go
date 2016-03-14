@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -143,8 +142,7 @@ func TestJavaDriver_Start_Wait(t *testing.T) {
 	}
 
 	// Get the stdout of the process and assrt that it's not empty
-	taskDir := execCtx.AllocDir.TaskDirs["demo-app"]
-	stdout := filepath.Join(taskDir, allocdir.TaskLocal, "demo-app.stdout.0")
+	stdout := filepath.Join(execCtx.AllocDir.LogDir(), "demo-app.stdout.0")
 	fInfo, err := os.Stat(stdout)
 	if err != nil {
 		t.Fatalf("failed to get stdout of process: %v", err)

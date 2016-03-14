@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -19,21 +20,27 @@ import (
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/driver/logcollector"
+	"github.com/hashicorp/nomad/client/driver/logging"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
-	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/helper/discover"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/mapstructure"
 )
 
-// We store the client globally to cache the connection to the docker daemon.
-var createClient sync.Once
-var client *docker.Client
+var (
+	// We store the client globally to cache the connection to the docker daemon.
+	createClient sync.Once
+	client       *docker.Client
+)
+
+const (
+	// NoSuchContainerError is returned by the docker daemon if the container
+	// does not exist.
+	NoSuchContainerError = "No such container"
+)
 
 type DockerDriver struct {
 	DriverContext
-	fingerprint.StaticFingerprinter
 }
 
 type DockerDriverAuth struct {
@@ -60,6 +67,16 @@ type DockerDriverConfig struct {
 	LabelsRaw        []map[string]string `mapstructure:"labels"`             //
 	Labels           map[string]string   `mapstructure:"-"`                  // Labels to set when the container starts up
 	Auth             []DockerDriverAuth  `mapstructure:"auth"`               // Authentication credentials for a private Docker registry
+	SSL              bool                `mapstructure:"ssl"`                // Flag indicating repository is served via https
+}
+
+func (c *DockerDriverConfig) Init() error {
+	if strings.Contains(c.ImageName, "https://") {
+		c.SSL = true
+		c.ImageName = strings.Replace(c.ImageName, "https://", "", 1)
+	}
+
+	return nil
 }
 
 func (c *DockerDriverConfig) Validate() error {
@@ -74,22 +91,26 @@ func (c *DockerDriverConfig) Validate() error {
 }
 
 type dockerPID struct {
-	ImageID      string
-	ContainerID  string
-	KillTimeout  time.Duration
-	PluginConfig *PluginReattachConfig
+	Version        string
+	ImageID        string
+	ContainerID    string
+	KillTimeout    time.Duration
+	MaxKillTimeout time.Duration
+	PluginConfig   *PluginReattachConfig
 }
 
 type DockerHandle struct {
 	pluginClient     *plugin.Client
-	logCollector     logcollector.LogCollector
+	logCollector     logging.LogCollector
 	client           *docker.Client
 	logger           *log.Logger
 	cleanupContainer bool
 	cleanupImage     bool
 	imageID          string
 	containerID      string
+	version          string
 	killTimeout      time.Duration
+	maxKillTimeout   time.Duration
 	waitCh           chan *cstructs.WaitResult
 	doneCh           chan struct{}
 }
@@ -207,32 +228,9 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task,
 
 	hostConfig := &docker.HostConfig{
 		// Convert MB to bytes. This is an absolute value.
-		//
-		// This value represents the total amount of memory a process can use.
-		// Swap is added to total memory and is managed by the OS, not docker.
-		// Since this may cause other processes to swap and cause system
-		// instability, we will simply not use swap.
-		//
-		// See: https://www.kernel.org/doc/Documentation/cgroups/memory.txt
 		Memory:     int64(task.Resources.MemoryMB) * 1024 * 1024,
 		MemorySwap: -1,
 		// Convert Mhz to shares. This is a relative value.
-		//
-		// There are two types of CPU limiters available: Shares and Quotas. A
-		// Share allows a particular process to have a proportion of CPU time
-		// relative to other processes; 1024 by default. A CPU Quota is enforced
-		// over a Period of time and is a HARD limit on the amount of CPU time a
-		// process can use. Processes with quotas cannot burst, while processes
-		// with shares can, so we'll use shares.
-		//
-		// The simplest scale is 1 share to 1 MHz so 1024 = 1GHz. This means any
-		// given process will have at least that amount of resources, but likely
-		// more since it is (probably) rare that the machine will run at 100%
-		// CPU. This scale will cease to work if a node is overprovisioned.
-		//
-		// See:
-		//  - https://www.kernel.org/doc/Documentation/scheduler/sched-bwc.txt
-		//  - https://www.kernel.org/doc/Documentation/scheduler/sched-design-CFS.txt
 		CPUShares: int64(task.Resources.CPU),
 
 		// Binds are used to mount a host volume into the container. We mount a
@@ -242,7 +240,7 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task,
 		LogConfig: docker.LogConfig{
 			Type: "syslog",
 			Config: map[string]string{
-				"syslog-address": fmt.Sprintf("tcp://%v", syslogAddr),
+				"syslog-address": syslogAddr,
 			},
 		},
 	}
@@ -369,6 +367,11 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task,
 	// If the user specified a custom command to run as their entrypoint, we'll
 	// inject it here.
 	if driverConfig.Command != "" {
+		// Validate command
+		if err := validateCommand(driverConfig.Command, "args"); err != nil {
+			return c, err
+		}
+
 		cmd := []string{driverConfig.Command}
 		if len(driverConfig.Args) != 0 {
 			cmd = append(cmd, parsedArgs...)
@@ -396,11 +399,36 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task,
 	}, nil
 }
 
+var (
+	// imageNotFoundMatcher is a regex expression that matches the image not
+	// found error Docker returns.
+	imageNotFoundMatcher = regexp.MustCompile(`Error: image .+ not found`)
+)
+
+// recoverablePullError wraps the error gotten when trying to pull and image if
+// the error is recoverable.
+func (d *DockerDriver) recoverablePullError(err error, image string) error {
+	recoverable := true
+	if imageNotFoundMatcher.MatchString(err.Error()) {
+		recoverable = false
+	}
+	return cstructs.NewRecoverableError(fmt.Errorf("Failed to pull `%s`: %s", image, err), recoverable)
+}
+
+func (d *DockerDriver) Periodic() (bool, time.Duration) {
+	return true, 15 * time.Second
+}
+
 func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
 	var driverConfig DockerDriverConfig
 	if err := mapstructure.WeakDecode(task.Config, &driverConfig); err != nil {
 		return nil, err
 	}
+
+	if err := driverConfig.Init(); err != nil {
+		return nil, err
+	}
+
 	image := driverConfig.ImageName
 
 	if err := driverConfig.Validate(); err != nil {
@@ -464,7 +492,14 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 				if authConfigurations, err = docker.NewAuthConfigurations(f); err != nil {
 					return nil, fmt.Errorf("Failed to create docker auth object: %v", err)
 				}
-				if authConfiguration, ok := authConfigurations.Configs[repo]; ok {
+
+				authConfigurationKey := ""
+				if driverConfig.SSL {
+					authConfigurationKey += "https://"
+				}
+
+				authConfigurationKey += strings.Split(driverConfig.ImageName, "/")[0]
+				if authConfiguration, ok := authConfigurations.Configs[authConfigurationKey]; ok {
 					authOptions = authConfiguration
 				}
 			} else {
@@ -475,7 +510,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 		err = client.PullImage(pullOptions, authOptions)
 		if err != nil {
 			d.logger.Printf("[ERR] driver.docker: failed pulling container %s:%s: %s", repo, tag, err)
-			return nil, fmt.Errorf("Failed to pull `%s`: %s", image, err)
+			return nil, d.recoverablePullError(err, image)
 		}
 		d.logger.Printf("[DEBUG] driver.docker: docker pull %s:%s succeeded", repo, tag)
 
@@ -507,7 +542,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	if err != nil {
 		return nil, err
 	}
-	logCollectorCtx := &logcollector.LogCollectorContext{
+	logCollectorCtx := &logging.LogCollectorContext{
 		TaskName:       task.Name,
 		AllocDir:       ctx.AllocDir,
 		LogConfig:      task.LogConfig,
@@ -591,6 +626,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	d.logger.Printf("[INFO] driver.docker: started container %s", container.ID)
 
 	// Return a driver handle
+	maxKill := d.DriverContext.config.MaxKillTimeout
 	h := &DockerHandle{
 		client:           client,
 		logCollector:     logCollector,
@@ -600,7 +636,9 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 		logger:           d.logger,
 		imageID:          dockerImage.ID,
 		containerID:      container.ID,
-		killTimeout:      d.DriverContext.KillTimeout(task),
+		version:          d.config.Version,
+		killTimeout:      GetKillTimeout(task.KillTimeout, maxKill),
+		maxKillTimeout:   maxKill,
 		doneCh:           make(chan struct{}),
 		waitCh:           make(chan *cstructs.WaitResult, 1),
 	}
@@ -667,7 +705,9 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 		logger:           d.logger,
 		imageID:          pid.ImageID,
 		containerID:      pid.ContainerID,
+		version:          pid.Version,
 		killTimeout:      pid.KillTimeout,
+		maxKillTimeout:   pid.MaxKillTimeout,
 		doneCh:           make(chan struct{}),
 		waitCh:           make(chan *cstructs.WaitResult, 1),
 	}
@@ -678,10 +718,12 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 func (h *DockerHandle) ID() string {
 	// Return a handle to the PID
 	pid := dockerPID{
-		ImageID:      h.imageID,
-		ContainerID:  h.containerID,
-		KillTimeout:  h.killTimeout,
-		PluginConfig: NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
+		Version:        h.version,
+		ImageID:        h.imageID,
+		ContainerID:    h.containerID,
+		KillTimeout:    h.killTimeout,
+		MaxKillTimeout: h.maxKillTimeout,
+		PluginConfig:   NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
 	}
 	data, err := json.Marshal(pid)
 	if err != nil {
@@ -700,7 +742,7 @@ func (h *DockerHandle) WaitCh() chan *cstructs.WaitResult {
 
 func (h *DockerHandle) Update(task *structs.Task) error {
 	// Store the updated kill timeout.
-	h.killTimeout = task.KillTimeout
+	h.killTimeout = GetKillTimeout(task.KillTimeout, h.maxKillTimeout)
 	if err := h.logCollector.UpdateLogConfig(task.LogConfig); err != nil {
 		h.logger.Printf("[DEBUG] driver.docker: failed to update log config: %v", err)
 	}
@@ -714,6 +756,11 @@ func (h *DockerHandle) Kill() error {
 	// Stop the container
 	err := h.client.StopContainer(h.containerID, uint(h.killTimeout.Seconds()))
 	if err != nil {
+		// Container has already been removed.
+		if strings.Contains(err.Error(), NoSuchContainerError) {
+			h.logger.Printf("[DEBUG] driver.docker: attempted to stop non-existent container %s", h.containerID)
+			return nil
+		}
 		h.logger.Printf("[ERR] driver.docker: failed to stop container %s: %v", h.containerID, err)
 		return fmt.Errorf("Failed to stop container %s: %s", h.containerID, err)
 	}

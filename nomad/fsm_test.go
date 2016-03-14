@@ -587,6 +587,43 @@ func TestFSM_UpsertAllocs_SharedJob(t *testing.T) {
 	}
 }
 
+func TestFSM_UpsertAllocs_StrippedResources(t *testing.T) {
+	fsm := testFSM(t)
+
+	alloc := mock.Alloc()
+	job := alloc.Job
+	resources := alloc.Resources
+	alloc.Resources = nil
+	req := structs.AllocUpdateRequest{
+		Job:   job,
+		Alloc: []*structs.Allocation{alloc},
+	}
+	buf, err := structs.Encode(structs.AllocUpdateRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp := fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	// Verify we are registered
+	out, err := fsm.State().AllocByID(alloc.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	alloc.CreateIndex = out.CreateIndex
+	alloc.ModifyIndex = out.ModifyIndex
+	alloc.AllocModifyIndex = out.AllocModifyIndex
+
+	// Resources should be recomputed
+	alloc.Resources = resources
+	if !reflect.DeepEqual(alloc, out) {
+		t.Fatalf("bad: %#v %#v", alloc, out)
+	}
+}
+
 func TestFSM_UpdateAllocFromClient_Unblock(t *testing.T) {
 	fsm := testFSM(t)
 	fsm.blockedEvals.SetEnabled(true)

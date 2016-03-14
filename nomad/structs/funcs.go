@@ -58,8 +58,20 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex) (bool, st
 
 	// For each alloc, add the resources
 	for _, alloc := range allocs {
-		if err := used.Add(alloc.Resources); err != nil {
-			return false, "", nil, err
+		if alloc.Resources != nil {
+			if err := used.Add(alloc.Resources); err != nil {
+				return false, "", nil, err
+			}
+		} else if alloc.TaskResources != nil {
+			// Allocations within the plan have the combined resources stripped
+			// to save space, so sum up the individual task resources.
+			for _, taskResource := range alloc.TaskResources {
+				if err := used.Add(taskResource); err != nil {
+					return false, "", nil, err
+				}
+			}
+		} else {
+			return false, "", nil, fmt.Errorf("allocation %q has no resources set", alloc.ID)
 		}
 	}
 

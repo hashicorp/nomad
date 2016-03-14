@@ -652,7 +652,7 @@ func (c *Command) retryJoin(config *Config) {
 
 		attempt++
 		if config.Server.RetryMaxAttempts > 0 && attempt > config.Server.RetryMaxAttempts {
-			logger.Printf("[ERROR] agent: max join retry exhausted, exiting")
+			logger.Printf("[ERR] agent: max join retry exhausted, exiting")
 			close(c.retryJoinErrCh)
 			return
 		}
@@ -773,10 +773,6 @@ Client Options:
   -servers
     A list of known server addresses to connect to given as "host:port" and
     delimited by commas.
-
-  -node-id
-    A unique identifier for the node to use. If not provided, a UUID is
-    generated.
 
   -node-class
     Mark this node as a member of a node-class. This can be used to label

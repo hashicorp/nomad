@@ -356,7 +356,7 @@ func (n *nomadFSM) applyAllocUpdate(buf []byte, index uint64) interface{} {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	// Attach the plan to all the allocations. It is pulled out in the
+	// Attach the job to all the allocations. It is pulled out in the
 	// payload to avoid the redundancy of encoding, but should be denormalized
 	// prior to being inserted into MemDB.
 	if j := req.Job; j != nil {
@@ -364,6 +364,20 @@ func (n *nomadFSM) applyAllocUpdate(buf []byte, index uint64) interface{} {
 			if alloc.Job == nil {
 				alloc.Job = j
 			}
+		}
+	}
+
+	// Calculate the total resources of allocations. It is pulled out in the
+	// payload to avoid encoding something that can be computed, but should be
+	// denormalized prior to being inserted into MemDB.
+	for _, alloc := range req.Alloc {
+		if alloc.Resources != nil {
+			continue
+		}
+
+		alloc.Resources = new(structs.Resources)
+		for _, task := range alloc.TaskResources {
+			alloc.Resources.Add(task)
 		}
 	}
 

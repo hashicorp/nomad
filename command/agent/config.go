@@ -162,11 +162,11 @@ type ClientConfig struct {
 
 	// ClientMaxPort is the upper range of the ports that the client uses for
 	// communicating with plugin subsystems
-	ClientMaxPort uint `hcl:"client_max_port"`
+	ClientMaxPort int `hcl:"client_max_port"`
 
 	// ClientMinPort is the lower range of the ports that the client uses for
 	// communicating with plugin subsystems
-	ClientMinPort uint `hcl:"client_min_port"`
+	ClientMinPort int `hcl:"client_min_port"`
 }
 
 // ServerConfig is configuration specific to the server mode
@@ -195,8 +195,12 @@ type ServerConfig struct {
 	// that the workers dequeue for processing.
 	EnabledSchedulers []string `hcl:"enabled_schedulers"`
 
-	// NodeGCThreshold contros how "old" a node must be to be collected by GC.
+	// NodeGCThreshold controls how "old" a node must be to be collected by GC.
 	NodeGCThreshold string `hcl:"node_gc_threshold"`
+
+	// HeartbeatGrace is the grace period beyond the TTL to account for network,
+	// processing delays and clock skew before marking a node as "down".
+	HeartbeatGrace string `hcl:"heartbeat_grace"`
 
 	// StartJoin is a list of addresses to attempt to join when the
 	// agent starts. If Serf is unable to communicate with any of these
@@ -462,6 +466,9 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	}
 	if b.NodeGCThreshold != "" {
 		result.NodeGCThreshold = b.NodeGCThreshold
+	}
+	if b.HeartbeatGrace != "" {
+		result.HeartbeatGrace = b.HeartbeatGrace
 	}
 	if b.RetryMaxAttempts != 0 {
 		result.RetryMaxAttempts = b.RetryMaxAttempts

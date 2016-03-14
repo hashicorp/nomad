@@ -66,6 +66,7 @@ type AllocRunner struct {
 
 // allocRunnerState is used to snapshot the state of the alloc runner
 type allocRunnerState struct {
+	Version                string
 	Alloc                  *structs.Allocation
 	AllocClientStatus      string
 	AllocClientDescription string
@@ -181,6 +182,7 @@ func (r *AllocRunner) saveAllocRunnerState() error {
 	r.ctxLock.Unlock()
 
 	snap := allocRunnerState{
+		Version:                r.config.Version,
 		Alloc:                  alloc,
 		Context:                ctx,
 		AllocClientStatus:      allocClientStatus,
@@ -243,8 +245,7 @@ func (r *AllocRunner) Alloc() *structs.Allocation {
 		case structs.TaskStatePending:
 			pending = true
 		case structs.TaskStateDead:
-			last := len(state.Events) - 1
-			if state.Events[last].Type == structs.TaskDriverFailure {
+			if state.Failed() {
 				failed = true
 			} else {
 				dead = true
@@ -305,8 +306,8 @@ func (r *AllocRunner) setTaskState(taskName, state string, event *structs.TaskEv
 	defer r.taskStatusLock.Unlock()
 	taskState, ok := r.taskStates[taskName]
 	if !ok {
-		r.logger.Printf("[ERR] client: setting task state for unknown task %q", taskName)
-		return
+		taskState = &structs.TaskState{}
+		r.taskStates[taskName] = taskState
 	}
 
 	// Set the tasks state.

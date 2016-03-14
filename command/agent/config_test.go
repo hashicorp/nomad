@@ -49,6 +49,7 @@ func TestConfig_Merge(t *testing.T) {
 			ProtocolVersion: 1,
 			NumSchedulers:   1,
 			NodeGCThreshold: "1h",
+			HeartbeatGrace:  "30s",
 		},
 		Ports: &Ports{
 			HTTP: 4646,
@@ -117,6 +118,7 @@ func TestConfig_Merge(t *testing.T) {
 			NumSchedulers:     2,
 			EnabledSchedulers: []string{structs.JobTypeBatch},
 			NodeGCThreshold:   "12h",
+			HeartbeatGrace:    "2m",
 			RejoinAfterLeave:  true,
 			StartJoin:         []string{"1.1.1.1"},
 			RetryJoin:         []string{"1.1.1.1"},
@@ -432,6 +434,7 @@ func TestConfig_LoadConfigString(t *testing.T) {
 			NumSchedulers:     2,
 			EnabledSchedulers: []string{"test"},
 			NodeGCThreshold:   "12h",
+			HeartbeatGrace:    "30s",
 			RetryJoin:         []string{"1.1.1.1", "2.2.2.2"},
 			StartJoin:         []string{"1.1.1.1", "2.2.2.2"},
 			RetryInterval:     "15s",
@@ -513,6 +516,7 @@ server {
 	num_schedulers = 2
 	enabled_schedulers = ["test"]
 	node_gc_threshold = "12h"
+	heartbeat_grace   = "30s"
 	retry_join = [ "1.1.1.1", "2.2.2.2" ]
 	start_join = [ "1.1.1.1", "2.2.2.2" ]
 	retry_max = 3

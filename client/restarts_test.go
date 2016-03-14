@@ -1,9 +1,11 @@
 package client
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
+	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -23,14 +25,18 @@ func withinJitter(expected, actual time.Duration) bool {
 		expected.Nanoseconds()) <= jitter
 }
 
+func testWaitResult(exit int) *cstructs.WaitResult {
+	return cstructs.NewWaitResult(exit, 0, nil)
+}
+
 func TestClient_RestartTracker_ModeDelay(t *testing.T) {
 	t.Parallel()
 	p := testPolicy(true, structs.RestartPolicyModeDelay)
 	rt := newRestartTracker(p, structs.JobTypeService)
 	for i := 0; i < p.Attempts; i++ {
-		actual, when := rt.NextRestart(127)
-		if !actual {
-			t.Fatalf("NextRestart() returned %v, want %v", actual, true)
+		state, when := rt.SetWaitResult(testWaitResult(127)).GetState()
+		if state != structs.TaskRestarting {
+			t.Fatalf("NextRestart() returned %v, want %v", state, structs.TaskRestarting)
 		}
 		if !withinJitter(p.Delay, when) {
 			t.Fatalf("NextRestart() returned %v; want %v+jitter", when, p.Delay)
@@ -39,8 +45,8 @@ func TestClient_RestartTracker_ModeDelay(t *testing.T) {
 
 	// Follow up restarts should cause delay.
 	for i := 0; i < 3; i++ {
-		actual, when := rt.NextRestart(127)
-		if !actual {
+		state, when := rt.SetWaitResult(testWaitResult(127)).GetState()
+		if state != structs.TaskRestarting {
 			t.Fail()
 		}
 		if !(when > p.Delay && when <= p.Interval) {
@@ -54,9 +60,9 @@ func TestClient_RestartTracker_ModeFail(t *testing.T) {
 	p := testPolicy(true, structs.RestartPolicyModeFail)
 	rt := newRestartTracker(p, structs.JobTypeSystem)
 	for i := 0; i < p.Attempts; i++ {
-		actual, when := rt.NextRestart(127)
-		if !actual {
-			t.Fatalf("NextRestart() returned %v, want %v", actual, true)
+		state, when := rt.SetWaitResult(testWaitResult(127)).GetState()
+		if state != structs.TaskRestarting {
+			t.Fatalf("NextRestart() returned %v, want %v", state, structs.TaskRestarting)
 		}
 		if !withinJitter(p.Delay, when) {
 			t.Fatalf("NextRestart() returned %v; want %v+jitter", when, p.Delay)
@@ -64,8 +70,8 @@ func TestClient_RestartTracker_ModeFail(t *testing.T) {
 	}
 
 	// Next restart should cause fail
-	if actual, _ := rt.NextRestart(127); actual {
-		t.Fail()
+	if state, _ := rt.SetWaitResult(testWaitResult(127)).GetState(); state != structs.TaskNotRestarting {
+		t.Fatalf("NextRestart() returned %v; want %v", state, structs.TaskNotRestarting)
 	}
 }
 
@@ -73,8 +79,8 @@ func TestClient_RestartTracker_NoRestartOnSuccess(t *testing.T) {
 	t.Parallel()
 	p := testPolicy(false, structs.RestartPolicyModeDelay)
 	rt := newRestartTracker(p, structs.JobTypeBatch)
-	if shouldRestart, _ := rt.NextRestart(0); shouldRestart {
-		t.Fatalf("NextRestart() returned %v, expected: %v", shouldRestart, false)
+	if state, _ := rt.SetWaitResult(testWaitResult(0)).GetState(); state != structs.TaskTerminated {
+		t.Fatalf("NextRestart() returned %v, expected: %v", state, structs.TaskTerminated)
 	}
 }
 
@@ -83,7 +89,28 @@ func TestClient_RestartTracker_ZeroAttempts(t *testing.T) {
 	p := testPolicy(true, structs.RestartPolicyModeFail)
 	p.Attempts = 0
 	rt := newRestartTracker(p, structs.JobTypeService)
-	if actual, when := rt.NextRestart(1); actual {
+	if state, when := rt.SetWaitResult(testWaitResult(1)).GetState(); state != structs.TaskNotRestarting {
 		t.Fatalf("expect no restart, got restart/delay: %v", when)
+	}
+}
+
+func TestClient_RestartTracker_StartError_Recoverable(t *testing.T) {
+	t.Parallel()
+	p := testPolicy(true, structs.RestartPolicyModeDelay)
+	rt := newRestartTracker(p, structs.JobTypeSystem)
+	recErr := cstructs.NewRecoverableError(fmt.Errorf("foo"), true)
+	for i := 0; i < p.Attempts; i++ {
+		state, when := rt.SetStartError(recErr).GetState()
+		if state != structs.TaskRestarting {
+			t.Fatalf("NextRestart() returned %v, want %v", state, structs.TaskRestarting)
+		}
+		if !withinJitter(p.Delay, when) {
+			t.Fatalf("NextRestart() returned %v; want %v+jitter", when, p.Delay)
+		}
+	}
+
+	// Next restart should cause fail
+	if state, _ := rt.SetStartError(recErr).GetState(); state != structs.TaskNotRestarting {
+		t.Fatalf("NextRestart() returned %v; want %v", state, structs.TaskNotRestarting)
 	}
 }

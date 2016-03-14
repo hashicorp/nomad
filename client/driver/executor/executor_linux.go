@@ -22,14 +22,17 @@ var (
 	// A mapping of directories on the host OS to attempt to embed inside each
 	// task's chroot.
 	chrootEnv = map[string]string{
-		"/bin":       "/bin",
-		"/etc":       "/etc",
-		"/lib":       "/lib",
-		"/lib32":     "/lib32",
-		"/lib64":     "/lib64",
-		"/usr/bin":   "/usr/bin",
-		"/usr/lib":   "/usr/lib",
-		"/usr/share": "/usr/share",
+		"/bin":            "/bin",
+		"/etc":            "/etc",
+		"/lib":            "/lib",
+		"/lib32":          "/lib32",
+		"/lib64":          "/lib64",
+		"/sbin":           "/sbin",
+		"/usr/bin":        "/usr/bin",
+		"/usr/sbin":       "/usr/sbin",
+		"/usr/lib":        "/usr/lib",
+		"/usr/share":      "/usr/share",
+		"/run/resolvconf": "/run/resolvconf",
 	}
 )
 
@@ -47,10 +50,10 @@ func (e *UniversalExecutor) configureIsolation() error {
 		}
 		if err := e.applyLimits(os.Getpid()); err != nil {
 			if er := DestroyCgroup(e.groups); er != nil {
-				e.logger.Printf("[ERROR] executor: error destroying cgroup: %v", er)
+				e.logger.Printf("[ERR] executor: error destroying cgroup: %v", er)
 			}
 			if er := e.removeChrootMounts(); er != nil {
-				e.logger.Printf("[ERROR] executor: error removing chroot: %v", er)
+				e.logger.Printf("[ERR] executor: error removing chroot: %v", er)
 			}
 			return fmt.Errorf("error entering the plugin process in the cgroup: %v:", err)
 		}
@@ -67,9 +70,9 @@ func (e *UniversalExecutor) applyLimits(pid int) error {
 	// Entering the process in the cgroup
 	manager := getCgroupManager(e.groups)
 	if err := manager.Apply(pid); err != nil {
-		e.logger.Printf("[ERROR] executor: unable to join cgroup: %v", err)
+		e.logger.Printf("[ERR] executor: unable to join cgroup: %v", err)
 		if err := e.Exit(); err != nil {
-			e.logger.Printf("[ERROR] executor: unable to kill process: %v", err)
+			e.logger.Printf("[ERR] executor: unable to kill process: %v", err)
 		}
 		return err
 	}
@@ -82,7 +85,12 @@ func (e *UniversalExecutor) applyLimits(pid int) error {
 func (e *UniversalExecutor) configureCgroups(resources *structs.Resources) error {
 	e.groups = &cgroupConfig.Cgroup{}
 	e.groups.Resources = &cgroupConfig.Resources{}
-	e.groups.Name = structs.GenerateUUID()
+	cgroupName := structs.GenerateUUID()
+	cgPath, err := cgroups.GetThisCgroupDir("devices")
+	if err != nil {
+		return fmt.Errorf("unable to get mount point for devices sub-system: %v", err)
+	}
+	e.groups.Path = filepath.Join(cgPath, cgroupName)
 
 	// TODO: verify this is needed for things like network access
 	e.groups.Resources.AllowAllDevices = true
@@ -191,6 +199,12 @@ func DestroyCgroup(groups *cgroupConfig.Cgroup) error {
 	manager := getCgroupManager(groups)
 	if pids, perr := manager.GetPids(); perr == nil {
 		for _, pid := range pids {
+			// If the pid is the pid of the executor then we don't kill it, the
+			// executor is going to be killed by the driver once the Wait
+			// returns
+			if pid == os.Getpid() {
+				continue
+			}
 			proc, err := os.FindProcess(pid)
 			if err != nil {
 				merrs.Errors = append(merrs.Errors, fmt.Errorf("error finding process %v: %v", pid, err))
@@ -200,6 +214,8 @@ func DestroyCgroup(groups *cgroupConfig.Cgroup) error {
 				}
 			}
 		}
+	} else {
+		merrs.Errors = append(merrs.Errors, fmt.Errorf("error getting pids: %v", perr))
 	}
 
 	// Remove the cgroup.

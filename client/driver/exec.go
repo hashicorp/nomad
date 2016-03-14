@@ -38,13 +38,15 @@ type ExecDriverConfig struct {
 type execHandle struct {
 	pluginClient    *plugin.Client
 	executor        executor.Executor
-	isolationConfig *executor.IsolationConfig
+	isolationConfig *cstructs.IsolationConfig
 	userPid         int
 	allocDir        *allocdir.AllocDir
 	killTimeout     time.Duration
+	maxKillTimeout  time.Duration
 	logger          *log.Logger
 	waitCh          chan *cstructs.WaitResult
 	doneCh          chan struct{}
+	version         string
 }
 
 // NewExecDriver is used to create a new exec driver
@@ -77,8 +79,8 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	}
 	// Get the command to be ran
 	command := driverConfig.Command
-	if command == "" {
-		return nil, fmt.Errorf("missing command for exec driver")
+	if err := validateCommand(command, "args"); err != nil {
+		return nil, err
 	}
 
 	// Create a location to download the artifact.
@@ -133,14 +135,17 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	d.logger.Printf("[DEBUG] driver.exec: started process via plugin with pid: %v", ps.Pid)
 
 	// Return a driver handle
+	maxKill := d.DriverContext.config.MaxKillTimeout
 	h := &execHandle{
 		pluginClient:    pluginClient,
 		userPid:         ps.Pid,
 		executor:        exec,
 		allocDir:        ctx.AllocDir,
 		isolationConfig: ps.IsolationConfig,
-		killTimeout:     d.DriverContext.KillTimeout(task),
+		killTimeout:     GetKillTimeout(task.KillTimeout, maxKill),
+		maxKillTimeout:  maxKill,
 		logger:          d.logger,
+		version:         d.config.Version,
 		doneCh:          make(chan struct{}),
 		waitCh:          make(chan *cstructs.WaitResult, 1),
 	}
@@ -149,11 +154,13 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 }
 
 type execId struct {
+	Version         string
 	KillTimeout     time.Duration
+	MaxKillTimeout  time.Duration
 	UserPid         int
 	TaskDir         string
 	AllocDir        *allocdir.AllocDir
-	IsolationConfig *executor.IsolationConfig
+	IsolationConfig *cstructs.IsolationConfig
 	PluginConfig    *PluginReattachConfig
 }
 
@@ -170,7 +177,7 @@ func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 	if err != nil {
 		merrs := new(multierror.Error)
 		merrs.Errors = append(merrs.Errors, err)
-		d.logger.Println("[ERROR] driver.exec: error connecting to plugin so destroying plugin pid and user pid")
+		d.logger.Println("[ERR] driver.exec: error connecting to plugin so destroying plugin pid and user pid")
 		if e := destroyPlugin(id.PluginConfig.Pid, id.UserPid); e != nil {
 			merrs.Errors = append(merrs.Errors, fmt.Errorf("error destroying plugin and userpid: %v", e))
 		}
@@ -193,7 +200,9 @@ func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		allocDir:        id.AllocDir,
 		isolationConfig: id.IsolationConfig,
 		logger:          d.logger,
+		version:         id.Version,
 		killTimeout:     id.KillTimeout,
+		maxKillTimeout:  id.MaxKillTimeout,
 		doneCh:          make(chan struct{}),
 		waitCh:          make(chan *cstructs.WaitResult, 1),
 	}
@@ -203,7 +212,9 @@ func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 
 func (h *execHandle) ID() string {
 	id := execId{
+		Version:         h.version,
 		KillTimeout:     h.killTimeout,
+		MaxKillTimeout:  h.maxKillTimeout,
 		PluginConfig:    NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
 		UserPid:         h.userPid,
 		AllocDir:        h.allocDir,
@@ -223,7 +234,7 @@ func (h *execHandle) WaitCh() chan *cstructs.WaitResult {
 
 func (h *execHandle) Update(task *structs.Task) error {
 	// Store the updated kill timeout.
-	h.killTimeout = task.KillTimeout
+	h.killTimeout = GetKillTimeout(task.KillTimeout, h.maxKillTimeout)
 	h.executor.UpdateLogConfig(task.LogConfig)
 
 	// Update is not possible
@@ -265,15 +276,14 @@ func (h *execHandle) run() {
 	if ps.ExitCode == 0 && err != nil {
 		if h.isolationConfig != nil {
 			if e := executor.DestroyCgroup(h.isolationConfig.Cgroup); e != nil {
-				h.logger.Printf("[ERROR] driver.exec: destroying cgroup failed while killing cgroup: %v", e)
+				h.logger.Printf("[ERR] driver.exec: destroying cgroup failed while killing cgroup: %v", e)
 			}
 		}
 		if e := h.allocDir.UnmountAll(); e != nil {
-			h.logger.Printf("[ERROR] driver.exec: unmounting dev,proc and alloc dirs failed: %v", e)
+			h.logger.Printf("[ERR] driver.exec: unmounting dev,proc and alloc dirs failed: %v", e)
 		}
 	}
-	h.waitCh <- &cstructs.WaitResult{ExitCode: ps.ExitCode, Signal: 0,
-		Err: err}
+	h.waitCh <- cstructs.NewWaitResult(ps.ExitCode, 0, err)
 	close(h.waitCh)
 	h.pluginClient.Kill()
 }

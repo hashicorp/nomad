@@ -8,10 +8,44 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"syscall"
 
 	gg "github.com/hashicorp/go-getter"
 )
+
+var (
+	// getters is the map of getters suitable for Nomad. It is initialized once
+	// and the lock is used to guard access to it.
+	getters map[string]gg.Getter
+	lock    sync.Mutex
+
+	// supported is the set of download schemes supported by Nomad
+	supported = []string{"http", "https", "s3"}
+)
+
+// getClient returns a client that is suitable for Nomad.
+func getClient(src, dst string) *gg.Client {
+	lock.Lock()
+	defer lock.Unlock()
+
+	// Return the pre-initialized client
+	if getters == nil {
+		getters = make(map[string]gg.Getter, len(supported))
+		for _, getter := range supported {
+			if impl, ok := gg.Getters[getter]; ok {
+				getters[getter] = impl
+			}
+		}
+	}
+
+	return &gg.Client{
+		Src:     src,
+		Dst:     dst,
+		Dir:     false, // Only support a single file for now.
+		Getters: getters,
+	}
+}
 
 func GetArtifact(destDir, source, checksum string, logger *log.Logger) (string, error) {
 	if source == "" {
@@ -29,7 +63,7 @@ func GetArtifact(destDir, source, checksum string, logger *log.Logger) (string, 
 	}
 
 	artifactFile := filepath.Join(destDir, path.Base(u.Path))
-	if err := gg.GetFile(artifactFile, source); err != nil {
+	if err := getClient(source, artifactFile).Get(); err != nil {
 		return "", fmt.Errorf("Error downloading artifact: %s", err)
 	}
 

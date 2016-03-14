@@ -3,7 +3,7 @@ package args
 import "regexp"
 
 var (
-	envRe = regexp.MustCompile(`\${[a-zA-Z0-9_\.]+}`)
+	envRe = regexp.MustCompile(`\${[a-zA-Z0-9_\-\.]+}`)
 )
 
 // ReplaceEnv takes an arg and replaces all occurences of environment variables.

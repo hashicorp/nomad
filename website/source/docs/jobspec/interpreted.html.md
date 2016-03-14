@@ -83,7 +83,7 @@ driver.
     <td>The client node class</td>
   </tr>
   <tr>
-    <td>${attr.\<key\}></td>
+    <td>${attr.\<key\>}</td>
     <td>The attribute given by `key` on the client node.</td>
   </tr>
   <tr>
@@ -175,6 +175,22 @@ a particular node and as such can not be used in constraints.
   <tr>
     <td>${NOMAD_CPU_LIMIT}</td>
     <td>The CPU limit in MHz for the task</td>
+  </tr>
+  <tr>
+    <td>NOMAD_ALLOC_ID</td>
+    <td>The allocation ID of the task</td>
+  </tr>
+  <tr>
+    <td>NOMAD_ALLOC_NAME</td>
+    <td>The allocation name of the task</td>
+  </tr>
+  <tr>
+    <td>NOMAD_ALLOC_INDEX</td>
+    <td>The allocation index; useful to distinguish instances of task groups</td>
+  </tr>
+  <tr>
+    <td>NOMAD_TASK_NAME</td>
+    <td>The task's name</td>
   </tr>
   <tr>
     <td>${NOMAD_ADDR_"label"}></td>

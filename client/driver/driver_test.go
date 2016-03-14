@@ -1,7 +1,6 @@
 package driver
 
 import (
-	"fmt"
 	"log"
 	"math/rand"
 	"os"
@@ -13,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper/testtask"
+	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -54,9 +54,10 @@ func testDriverContexts(task *structs.Task) (*DriverContext, *ExecContext) {
 	cfg := testConfig()
 	allocDir := allocdir.NewAllocDir(filepath.Join(cfg.AllocDir, structs.GenerateUUID()))
 	allocDir.Build([]*structs.Task{task})
-	execCtx := NewExecContext(allocDir, fmt.Sprintf("alloc-id-%d", int(rand.Int31())))
+	alloc := mock.Alloc()
+	execCtx := NewExecContext(allocDir, alloc.ID)
 
-	taskEnv, err := GetTaskEnv(allocDir, cfg.Node, task)
+	taskEnv, err := GetTaskEnv(allocDir, cfg.Node, task, alloc)
 	if err != nil {
 		return nil, nil
 	}
@@ -65,27 +66,10 @@ func testDriverContexts(task *structs.Task) (*DriverContext, *ExecContext) {
 	return driverCtx, execCtx
 }
 
-func TestDriver_KillTimeout(t *testing.T) {
-	expected := 1 * time.Second
-	task := &structs.Task{Name: "foo", KillTimeout: expected}
-	ctx, _ := testDriverContexts(task)
-	ctx.config.MaxKillTimeout = 10 * time.Second
-
-	if actual := ctx.KillTimeout(task); expected != actual {
-		t.Fatalf("KillTimeout(%v) returned %v; want %v", task, actual, expected)
-	}
-
-	expected = 10 * time.Second
-	task = &structs.Task{KillTimeout: 11 * time.Second}
-
-	if actual := ctx.KillTimeout(task); expected != actual {
-		t.Fatalf("KillTimeout(%v) returned %v; want %v", task, actual, expected)
-	}
-}
-
 func TestDriver_GetTaskEnv(t *testing.T) {
 	t.Parallel()
 	task := &structs.Task{
+		Name: "Foo",
 		Env: map[string]string{
 			"HELLO": "world",
 			"lorem": "ipsum",
@@ -107,7 +91,9 @@ func TestDriver_GetTaskEnv(t *testing.T) {
 		},
 	}
 
-	env, err := GetTaskEnv(nil, nil, task)
+	alloc := mock.Alloc()
+	alloc.Name = "Bar"
+	env, err := GetTaskEnv(nil, nil, task, alloc)
 	if err != nil {
 		t.Fatalf("GetTaskEnv() failed: %v", err)
 	}
@@ -124,6 +110,9 @@ func TestDriver_GetTaskEnv(t *testing.T) {
 		"NOMAD_META_STRAWBERRY": "icecream",
 		"HELLO":                 "world",
 		"lorem":                 "ipsum",
+		"NOMAD_ALLOC_ID":        alloc.ID,
+		"NOMAD_ALLOC_NAME":      alloc.Name,
+		"NOMAD_TASK_NAME":       task.Name,
 	}
 
 	act := env.EnvMap()

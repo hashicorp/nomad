@@ -26,11 +26,11 @@ const (
 
 	// killBackoffLimit is the the limit of the exponential backoff for killing
 	// the task.
-	killBackoffLimit = 5 * time.Minute
+	killBackoffLimit = 2 * time.Minute
 
 	// killFailureLimit is how many times we will attempt to kill a task before
 	// giving up and potentially leaking resources.
-	killFailureLimit = 10
+	killFailureLimit = 5
 )
 
 // TaskRunner is used to wrap a task within an allocation and provide the execution context.
@@ -56,6 +56,7 @@ type TaskRunner struct {
 
 // taskRunnerState is used to snapshot the state of the task runner
 type taskRunnerState struct {
+	Version  string
 	Task     *structs.Task
 	HandleID string
 }
@@ -89,7 +90,7 @@ func NewTaskRunner(logger *log.Logger, config *config.Config,
 		ctx:            ctx,
 		alloc:          alloc,
 		task:           task,
-		updateCh:       make(chan *structs.Allocation, 8),
+		updateCh:       make(chan *structs.Allocation, 64),
 		destroyCh:      make(chan struct{}),
 		waitCh:         make(chan struct{}),
 	}
@@ -153,7 +154,8 @@ func (r *TaskRunner) RestoreState() error {
 // SaveState is used to snapshot our state
 func (r *TaskRunner) SaveState() error {
 	snap := taskRunnerState{
-		Task: r.task,
+		Task:    r.task,
+		Version: r.config.Version,
 	}
 	r.handleLock.Lock()
 	if r.handle != nil {
@@ -181,7 +183,7 @@ func (r *TaskRunner) setState(state string, event *structs.TaskEvent) {
 
 // createDriver makes a driver for the task
 func (r *TaskRunner) createDriver() (driver.Driver, error) {
-	taskEnv, err := driver.GetTaskEnv(r.ctx.AllocDir, r.config.Node, r.task)
+	taskEnv, err := driver.GetTaskEnv(r.ctx.AllocDir, r.config.Node, r.task, r.alloc)
 	if err != nil {
 		err = fmt.Errorf("failed to create driver '%s' for alloc %s: %v",
 			r.task.Driver, r.alloc.ID, err)
@@ -201,33 +203,6 @@ func (r *TaskRunner) createDriver() (driver.Driver, error) {
 	return driver, err
 }
 
-// startTask is used to start the task if there is no handle
-func (r *TaskRunner) startTask() error {
-	// Create a driver
-	driver, err := r.createDriver()
-	if err != nil {
-		e := structs.NewTaskEvent(structs.TaskDriverFailure).SetDriverError(err)
-		r.setState(structs.TaskStateDead, e)
-		return err
-	}
-
-	// Start the job
-	handle, err := driver.Start(r.ctx, r.task)
-	if err != nil {
-		r.logger.Printf("[ERR] client: failed to start task '%s' for alloc '%s': %v",
-			r.task.Name, r.alloc.ID, err)
-		e := structs.NewTaskEvent(structs.TaskDriverFailure).
-			SetDriverError(fmt.Errorf("failed to start: %v", err))
-		r.setState(structs.TaskStateDead, e)
-		return err
-	}
-	r.handleLock.Lock()
-	r.handle = handle
-	r.handleLock.Unlock()
-	r.setState(structs.TaskStateRunning, structs.NewTaskEvent(structs.TaskStarted))
-	return nil
-}
-
 // Run is a long running routine used to manage the task
 func (r *TaskRunner) Run() {
 	defer close(r.waitCh)
@@ -239,33 +214,48 @@ func (r *TaskRunner) Run() {
 }
 
 func (r *TaskRunner) run() {
-	var forceStart bool
 	for {
-		// Start the task if not yet started or it is being forced.
+		// Start the task if not yet started or it is being forced. This logic
+		// is necessary because in the case of a restore the handle already
+		// exists.
 		r.handleLock.Lock()
 		handleEmpty := r.handle == nil
 		r.handleLock.Unlock()
-		if handleEmpty || forceStart {
-			forceStart = false
-			if err := r.startTask(); err != nil {
-				return
+		if handleEmpty {
+			startErr := r.startTask()
+			r.restartTracker.SetStartError(startErr)
+			if startErr != nil {
+				r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskDriverFailure).SetDriverError(startErr))
+				goto RESTART
 			}
 		}
 
-		// Store the errors that caused use to stop waiting for updates.
-		var waitRes *cstructs.WaitResult
-		var destroyErr error
-		destroyed := false
-
-		// Register the services defined by the task with Consil
+		// Mark the task as started and register it with Consul.
+		r.setState(structs.TaskStateRunning, structs.NewTaskEvent(structs.TaskStarted))
 		r.consulService.Register(r.task, r.alloc)
 
-	OUTER:
 		// Wait for updates
+	WAIT:
 		for {
 			select {
-			case waitRes = <-r.handle.WaitCh():
-				break OUTER
+			case waitRes := <-r.handle.WaitCh():
+				// De-Register the services belonging to the task from consul
+				r.consulService.Deregister(r.task, r.alloc)
+
+				if waitRes == nil {
+					panic("nil wait")
+				}
+
+				// Log whether the task was successful or not.
+				r.restartTracker.SetWaitResult(waitRes)
+				r.setState(structs.TaskStateDead, r.waitErrorToEvent(waitRes))
+				if !waitRes.Successful() {
+					r.logger.Printf("[INFO] client: task %q for alloc %q failed: %v", r.task.Name, r.alloc.ID, waitRes)
+				} else {
+					r.logger.Printf("[INFO] client: task %q for alloc %q completed successfully", r.task.Name, r.alloc.ID)
+				}
+
+				break WAIT
 			case update := <-r.updateCh:
 				if err := r.handleUpdate(update); err != nil {
 					r.logger.Printf("[ERR] client: update to task %q failed: %v", r.task.Name, err)
@@ -276,49 +266,31 @@ func (r *TaskRunner) run() {
 				if !destroySuccess {
 					// We couldn't successfully destroy the resource created.
 					r.logger.Printf("[ERR] client: failed to kill task %q. Resources may have been leaked: %v", r.task.Name, err)
-				} else {
-					// Wait for the task to exit but cap the time to ensure we don't block.
-					select {
-					case waitRes = <-r.handle.WaitCh():
-					case <-time.After(3 * time.Second):
-					}
 				}
 
 				// Store that the task has been destroyed and any associated error.
-				destroyed = true
-				destroyErr = err
-				break OUTER
+				r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskKilled).SetKillError(err))
+				r.consulService.Deregister(r.task, r.alloc)
+				return
 			}
 		}
 
-		// De-Register the services belonging to the task from consul
-		r.consulService.Deregister(r.task, r.alloc)
-
-		// If the user destroyed the task, we do not attempt to do any restarts.
-		if destroyed {
-			r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskKilled).SetKillError(destroyErr))
-			return
-		}
-
-		// Log whether the task was successful or not.
-		if !waitRes.Successful() {
-			r.logger.Printf("[ERR] client: failed to complete task '%s' for alloc '%s': %v", r.task.Name, r.alloc.ID, waitRes)
-		} else {
-			r.logger.Printf("[INFO] client: completed task '%s' for alloc '%s'", r.task.Name, r.alloc.ID)
-		}
-
-		// Check if we should restart. If not mark task as dead and exit.
-		shouldRestart, when := r.restartTracker.NextRestart(waitRes.ExitCode)
-		waitEvent := r.waitErrorToEvent(waitRes)
-		if !shouldRestart {
+	RESTART:
+		state, when := r.restartTracker.GetState()
+		switch state {
+		case structs.TaskNotRestarting, structs.TaskTerminated:
 			r.logger.Printf("[INFO] client: Not restarting task: %v for alloc: %v ", r.task.Name, r.alloc.ID)
-			r.setState(structs.TaskStateDead, waitEvent)
+			if state == structs.TaskNotRestarting {
+				r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskNotRestarting))
+			}
+			return
+		case structs.TaskRestarting:
+			r.logger.Printf("[INFO] client: Restarting task %q for alloc %q in %v", r.task.Name, r.alloc.ID, when)
+			r.setState(structs.TaskStatePending, structs.NewTaskEvent(structs.TaskRestarting).SetRestartDelay(when))
+		default:
+			r.logger.Printf("[ERR] client: restart tracker returned unknown state: %q", state)
 			return
 		}
-
-		r.logger.Printf("[INFO] client: Restarting Task: %v", r.task.Name)
-		r.logger.Printf("[DEBUG] client: Sleeping for %v before restarting Task %v", when, r.task.Name)
-		r.setState(structs.TaskStatePending, waitEvent)
 
 		// Sleep but watch for destroy events.
 		select {
@@ -328,7 +300,7 @@ func (r *TaskRunner) run() {
 
 		// Destroyed while we were waiting to restart, so abort.
 		r.destroyLock.Lock()
-		destroyed = r.destroy
+		destroyed := r.destroy
 		r.destroyLock.Unlock()
 		if destroyed {
 			r.logger.Printf("[DEBUG] client: Not restarting task: %v because it's destroyed by user", r.task.Name)
@@ -336,9 +308,34 @@ func (r *TaskRunner) run() {
 			return
 		}
 
-		// Set force start because we are restarting the task.
-		forceStart = true
+		// Clear the handle so a new driver will be created.
+		r.handleLock.Lock()
+		r.handle = nil
+		r.handleLock.Unlock()
 	}
+}
+
+func (r *TaskRunner) startTask() error {
+	// Create a driver
+	driver, err := r.createDriver()
+	if err != nil {
+		r.logger.Printf("[ERR] client: failed to create driver of task '%s' for alloc '%s': %v",
+			r.task.Name, r.alloc.ID, err)
+		return err
+	}
+
+	// Start the job
+	handle, err := driver.Start(r.ctx, r.task)
+	if err != nil {
+		r.logger.Printf("[ERR] client: failed to start task '%s' for alloc '%s': %v",
+			r.task.Name, r.alloc.ID, err)
+		return err
+	}
+
+	r.handleLock.Lock()
+	r.handle = handle
+	r.handleLock.Unlock()
+	return nil
 }
 
 // handleUpdate takes an updated allocation and updates internal state to

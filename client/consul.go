@@ -74,10 +74,10 @@ type ConsulService struct {
 	shutdownCh chan struct{}
 	node       *structs.Node
 
-	trackedTasks   map[string]*trackedTask
-	serviceStates  map[string]string
-	allocToService map[string][]string
-	trackedTskLock sync.Mutex
+	trackedTasks    map[string]*trackedTask
+	serviceStates   map[string]string
+	allocToService  map[string][]string
+	trackedTaskLock sync.Mutex
 }
 
 type consulServiceConfig struct {
@@ -147,7 +147,7 @@ func NewConsulService(config *consulServiceConfig) (*ConsulService, error) {
 // adds/removes services and checks associated with it.
 func (c *ConsulService) Register(task *structs.Task, alloc *structs.Allocation) error {
 	var mErr multierror.Error
-	c.trackedTskLock.Lock()
+	c.trackedTaskLock.Lock()
 	tt := &trackedTask{task: task, alloc: alloc}
 	c.trackedTasks[fmt.Sprintf("%s-%s", alloc.ID, task.Name)] = tt
 
@@ -156,7 +156,7 @@ func (c *ConsulService) Register(task *structs.Task, alloc *structs.Allocation) 
 	for _, service := range c.allocToService[alloc.ID] {
 		delete(c.serviceStates, service)
 	}
-	c.trackedTskLock.Unlock()
+	c.trackedTaskLock.Unlock()
 
 	for _, service := range task.Services {
 		// Track the services this alloc is registering.
@@ -175,10 +175,10 @@ func (c *ConsulService) Register(task *structs.Task, alloc *structs.Allocation) 
 // removes all the services and checks associated with the Task
 func (c *ConsulService) Deregister(task *structs.Task, alloc *structs.Allocation) error {
 	var mErr multierror.Error
-	c.trackedTskLock.Lock()
+	c.trackedTaskLock.Lock()
 	delete(c.trackedTasks, fmt.Sprintf("%s-%s", alloc.ID, task.Name))
 	delete(c.allocToService, alloc.ID)
-	c.trackedTskLock.Unlock()
+	c.trackedTaskLock.Unlock()
 	for _, service := range task.Services {
 		serviceID := alloc.Services[service.Name]
 		if serviceID == "" {
@@ -234,8 +234,15 @@ func (c *ConsulService) performSync() {
 	knownChecks := make(map[string]struct{})
 	knownServices := make(map[string]struct{})
 
-	// Add services and checks which Consul doesn't know about
+	c.trackedTaskLock.Lock()
+	tasks := make([]*trackedTask, 0, len(c.trackedTasks))
 	for _, trackedTask := range c.trackedTasks {
+		tasks = append(tasks, trackedTask)
+	}
+	c.trackedTaskLock.Unlock()
+
+	// Add services and checks which Consul doesn't know about
+	for _, trackedTask := range tasks {
 		for _, service := range trackedTask.task.Services {
 			serviceID := trackedTask.alloc.Services[service.Name]
 

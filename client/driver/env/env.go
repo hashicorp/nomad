@@ -11,29 +11,43 @@ import (
 
 // A set of environment variables that are exported by each driver.
 const (
-	// The path to the alloc directory that is shared across tasks within a task
-	// group.
+	// AllocDir is the environment variable with the path to the alloc directory
+	// that is shared across tasks within a task group.
 	AllocDir = "NOMAD_ALLOC_DIR"
 
-	// The path to the tasks local directory where it can store data that is
-	// persisted to the alloc is removed.
+	// TaskLocalDir is the environment variable with the path to the tasks local
+	// directory where it can store data that is persisted to the alloc is
+	// removed.
 	TaskLocalDir = "NOMAD_TASK_DIR"
 
-	// The tasks memory limit in MBs.
+	// MemLimit is the environment variable with the tasks memory limit in MBs.
 	MemLimit = "NOMAD_MEMORY_LIMIT"
 
-	// The tasks limit in MHz.
+	// CpuLimit is the enviroment variable with the tasks CPU limit in MHz.
 	CpuLimit = "NOMAD_CPU_LIMIT"
 
-	// Prefix for passing both dynamic and static port allocations to
-	// tasks.
+	// AllocID is the enviroment variable for passing the allocation ID.
+	AllocID = "NOMAD_ALLOC_ID"
+
+	// AllocName is the enviroment variable for passing the allocation name.
+	AllocName = "NOMAD_ALLOC_NAME"
+
+	// TaskName is the enviroment variable for passing the task name.
+	TaskName = "NOMAD_TASK_NAME"
+
+	// AllocIndex is the enviroment variable for passing the allocation index.
+	AllocIndex = "NOMAD_ALLOC_INDEX"
+
+	// AddrPrefix is the prefix for passing both dynamic and static port
+	// allocations to tasks.
 	// E.g. $NOMAD_IP_1=127.0.0.1:1 or $NOMAD_IP_http=127.0.0.1:80
 	AddrPrefix = "NOMAD_ADDR_"
 
-	// Prefix for passing the host port when a portmap is specified.
+	// HostPortPrefix is the prefix for passing the host port when a portmap is
+	// specified.
 	HostPortPrefix = "NOMAD_HOST_PORT_"
 
-	// Prefix for passing task meta data.
+	// MetaPrefix is the prefix for passing task meta data.
 	MetaPrefix = "NOMAD_META_"
 )
 
@@ -52,15 +66,19 @@ const (
 // TaskEnvironment is used to expose information to a task via environment
 // variables and provide interpolation of Nomad variables.
 type TaskEnvironment struct {
-	Env      map[string]string
-	Meta     map[string]string
-	AllocDir string
-	TaskDir  string
-	CpuLimit int
-	MemLimit int
-	Node     *structs.Node
-	Networks []*structs.NetworkResource
-	PortMap  map[string]int
+	Env        map[string]string
+	Meta       map[string]string
+	AllocDir   string
+	TaskDir    string
+	CpuLimit   int
+	MemLimit   int
+	TaskName   string
+	AllocIndex int
+	AllocId    string
+	AllocName  string
+	Node       *structs.Node
+	Networks   []*structs.NetworkResource
+	PortMap    map[string]int
 
 	// taskEnv is the variables that will be set in the tasks environment
 	TaskEnv map[string]string
@@ -71,7 +89,7 @@ type TaskEnvironment struct {
 }
 
 func NewTaskEnvironment(node *structs.Node) *TaskEnvironment {
-	return &TaskEnvironment{Node: node}
+	return &TaskEnvironment{Node: node, AllocIndex: -1}
 }
 
 // ParseAndReplace takes the user supplied args replaces any instance of an
@@ -129,6 +147,20 @@ func (t *TaskEnvironment) Build() *TaskEnvironment {
 	}
 	if t.CpuLimit != 0 {
 		t.TaskEnv[CpuLimit] = strconv.Itoa(t.CpuLimit)
+	}
+
+	// Build the tasks ids
+	if t.AllocId != "" {
+		t.TaskEnv[AllocID] = t.AllocId
+	}
+	if t.AllocName != "" {
+		t.TaskEnv[AllocName] = t.AllocName
+	}
+	if t.AllocIndex != -1 {
+		t.TaskEnv[AllocIndex] = strconv.Itoa(t.AllocIndex)
+	}
+	if t.TaskName != "" {
+		t.TaskEnv[TaskName] = t.TaskName
 	}
 
 	// Build the node
@@ -275,5 +307,58 @@ func (t *TaskEnvironment) AppendEnvvars(m map[string]string) *TaskEnvironment {
 
 func (t *TaskEnvironment) ClearEnvvars() *TaskEnvironment {
 	t.Env = nil
+	return t
+}
+
+// Helper method for setting all fields from an allocation.
+func (t *TaskEnvironment) SetAlloc(alloc *structs.Allocation) *TaskEnvironment {
+	t.AllocId = alloc.ID
+	t.AllocName = alloc.Name
+	t.AllocIndex = alloc.Index()
+	return t
+}
+
+// Helper method for clearing all fields from an allocation.
+func (t *TaskEnvironment) ClearAlloc(alloc *structs.Allocation) *TaskEnvironment {
+	return t.ClearAllocId().ClearAllocName().ClearAllocIndex()
+}
+
+func (t *TaskEnvironment) SetAllocIndex(index int) *TaskEnvironment {
+	t.AllocIndex = index
+	return t
+}
+
+func (t *TaskEnvironment) ClearAllocIndex() *TaskEnvironment {
+	t.AllocIndex = -1
+	return t
+}
+
+func (t *TaskEnvironment) SetAllocId(id string) *TaskEnvironment {
+	t.AllocId = id
+	return t
+}
+
+func (t *TaskEnvironment) ClearAllocId() *TaskEnvironment {
+	t.AllocId = ""
+	return t
+}
+
+func (t *TaskEnvironment) SetAllocName(name string) *TaskEnvironment {
+	t.AllocName = name
+	return t
+}
+
+func (t *TaskEnvironment) ClearAllocName() *TaskEnvironment {
+	t.AllocName = ""
+	return t
+}
+
+func (t *TaskEnvironment) SetTaskName(name string) *TaskEnvironment {
+	t.TaskName = name
+	return t
+}
+
+func (t *TaskEnvironment) ClearTaskName() *TaskEnvironment {
+	t.TaskName = ""
 	return t
 }

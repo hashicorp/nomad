@@ -94,7 +94,8 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 	// Verify the evaluation trigger reason is understood
 	switch eval.TriggeredBy {
 	case structs.EvalTriggerJobRegister, structs.EvalTriggerNodeUpdate,
-		structs.EvalTriggerJobDeregister, structs.EvalTriggerRollingUpdate:
+		structs.EvalTriggerJobDeregister, structs.EvalTriggerRollingUpdate,
+		structs.EvalTriggerPeriodicJob:
 	default:
 		desc := fmt.Sprintf("scheduler cannot handle '%s' evaluation reason",
 			eval.TriggeredBy)
@@ -334,7 +335,7 @@ func (s *GenericScheduler) computePlacements(place []allocTuple) error {
 		}
 
 		// Attempt to match the task group
-		option, size := s.stack.Select(missing.TaskGroup)
+		option, _ := s.stack.Select(missing.TaskGroup)
 
 		// Create an allocation for this
 		alloc := &structs.Allocation{
@@ -343,7 +344,6 @@ func (s *GenericScheduler) computePlacements(place []allocTuple) error {
 			Name:      missing.Name,
 			JobID:     s.job.ID,
 			TaskGroup: missing.TaskGroup.Name,
-			Resources: size,
 			Metrics:   s.ctx.Metrics(),
 		}
 
@@ -359,13 +359,11 @@ func (s *GenericScheduler) computePlacements(place []allocTuple) error {
 			alloc.TaskResources = option.TaskResources
 			alloc.DesiredStatus = structs.AllocDesiredStatusRun
 			alloc.ClientStatus = structs.AllocClientStatusPending
-			alloc.TaskStates = initTaskState(missing.TaskGroup, structs.TaskStatePending)
 			s.plan.AppendAlloc(alloc)
 		} else {
 			alloc.DesiredStatus = structs.AllocDesiredStatusFailed
 			alloc.DesiredDescription = "failed to find a node for placement"
 			alloc.ClientStatus = structs.AllocClientStatusFailed
-			alloc.TaskStates = initTaskState(missing.TaskGroup, structs.TaskStateDead)
 			s.plan.AppendFailed(alloc)
 			failedTG[missing.TaskGroup] = alloc
 		}

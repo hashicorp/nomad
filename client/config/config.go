@@ -70,6 +70,9 @@ type Config struct {
 	//
 	//	namespace.option = value
 	Options map[string]string
+
+	// Version is the version of the Nomad client
+	Version string
 }
 
 func (c *Config) Copy() *Config {

@@ -148,6 +148,11 @@ func (c *AllocStatusCommand) Run(args []string) int {
 	c.Ui.Output("\n==> Status")
 	dumpAllocStatus(c.Ui, alloc, length)
 
+	if !short {
+		c.Ui.Output("\n==> Task Resources")
+		c.taskResources(alloc)
+	}
+
 	return 0
 }
 
@@ -190,10 +195,22 @@ func (c *AllocStatusCommand) taskStatus(alloc *api.Allocation) {
 			// Build up the description based on the event type.
 			var desc string
 			switch event.Type {
+			case api.TaskStarted:
+				desc = "Task started by client"
+			case api.TaskReceived:
+				desc = "Task received by client"
 			case api.TaskDriverFailure:
-				desc = event.DriverError
+				if event.DriverError != "" {
+					desc = event.DriverError
+				} else {
+					desc = "Failed to start task"
+				}
 			case api.TaskKilled:
-				desc = event.KillError
+				if event.KillError != "" {
+					desc = event.KillError
+				} else {
+					desc = "Task successfully killed"
+				}
 			case api.TaskTerminated:
 				var parts []string
 				parts = append(parts, fmt.Sprintf("Exit Code: %d", event.ExitCode))
@@ -206,6 +223,10 @@ func (c *AllocStatusCommand) taskStatus(alloc *api.Allocation) {
 					parts = append(parts, fmt.Sprintf("Exit Message: %q", event.Message))
 				}
 				desc = strings.Join(parts, ", ")
+			case api.TaskRestarting:
+				desc = fmt.Sprintf("Task restarting in %v", time.Duration(event.StartDelay))
+			case api.TaskNotRestarting:
+				desc = "Task exceeded restart policy"
 			}
 
 			// Reverse order so we are sorted by time
@@ -241,4 +262,52 @@ func (c *AllocStatusCommand) sortedTaskStateIterator(m map[string]*api.TaskState
 
 	close(output)
 	return output
+}
+
+// allocResources prints out the allocation current resource usage
+func (c *AllocStatusCommand) allocResources(alloc *api.Allocation) {
+	resources := make([]string, 2)
+	resources[0] = "CPU|Memory MB|Disk MB|IOPS"
+	resources[1] = fmt.Sprintf("%v|%v|%v|%v",
+		alloc.Resources.CPU,
+		alloc.Resources.MemoryMB,
+		alloc.Resources.DiskMB,
+		alloc.Resources.IOPS)
+	c.Ui.Output(formatList(resources))
+}
+
+// taskResources prints out the tasks current resource usage
+func (c *AllocStatusCommand) taskResources(alloc *api.Allocation) {
+	firstLine := true
+	for task, resource := range alloc.TaskResources {
+		header := fmt.Sprintf("\nTask: %q", task)
+		if firstLine {
+			header = fmt.Sprintf("Task: %q", task)
+			firstLine = false
+		}
+		c.Ui.Output(header)
+		var addr []string
+		for _, nw := range resource.Networks {
+			ports := append(nw.DynamicPorts, nw.ReservedPorts...)
+			for _, port := range ports {
+				addr = append(addr, fmt.Sprintf("%v: %v:%v\n", port.Label, nw.IP, port.Value))
+			}
+		}
+		var resourcesOutput []string
+		resourcesOutput = append(resourcesOutput, "CPU|Memory MB|Disk MB|IOPS|Addresses")
+		firstAddr := ""
+		if len(addr) > 0 {
+			firstAddr = addr[0]
+		}
+		resourcesOutput = append(resourcesOutput, fmt.Sprintf("%v|%v|%v|%v|%v",
+			resource.CPU,
+			resource.MemoryMB,
+			resource.DiskMB,
+			resource.IOPS,
+			firstAddr))
+		for i := 1; i < len(addr); i++ {
+			resourcesOutput = append(resourcesOutput, fmt.Sprintf("||||%v", addr[i]))
+		}
+		c.Ui.Output(formatListWithSpaces(resourcesOutput))
+	}
 }

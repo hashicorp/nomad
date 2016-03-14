@@ -13,6 +13,66 @@ when they start. Other settings are dynamically allocated when your job is
 scheduled. Both types of values are made available to your job through
 environment variables.
 
+## Summary
+
+<table class="table table-bordered table-striped">
+  <tr>
+    <th>Variable</th>
+    <th>Description</th>
+  </tr>
+  <tr>
+    <td>NOMAD_ALLOC_DIR</td>
+    <td>Path to the shared alloc directory</td>
+  </tr>
+  <tr>
+    <td>NOMAD_TASK_DIR</td>
+    <td>Path to the local task directory</td>
+  </tr>
+  <tr>
+    <td>NOMAD_MEMORY_LIMIT</td>
+    <td>The task's memory limit in MB</td>
+  </tr>
+  <tr>
+    <td>NOMAD_CPU_LIMIT</td>
+    <td>The task's CPU limit in MHz</td>
+  </tr>
+  <tr>
+    <td>NOMAD_ALLOC_ID</td>
+    <td>The allocation ID of the task</td>
+  </tr>
+  <tr>
+    <td>NOMAD_ALLOC_NAME</td>
+    <td>The allocation name of the task</td>
+  </tr>
+  <tr>
+    <td>NOMAD_ALLOC_INDEX</td>
+    <td>The allocation index; useful to distinguish instances of task groups</td>
+  </tr>
+  <tr>
+    <td>NOMAD_TASK_NAME</td>
+    <td>The task's name</td>
+  </tr>
+  <tr>
+    <td>NOMAD_ADDR_\<label\></td>
+    <td>The IP:Port pair of the the port with the given label</td>
+  </tr>
+  <tr>
+    <td>NOMAD_HOST_PORT_\<label\></td>
+    <td>The host port for the given label if the port is port mapped</td>
+  </tr>
+  <tr>
+    <td>NOMAD_META_\<key\></td>
+    <td>The metadata of the task</td>
+  </tr>
+</table>
+
+## Task Identifiers
+
+Nomad will pass both the allocation ID and name as well as the task's name.
+These are given as `NOMAD_ALLOC_ID`, `NOMAD_ALLOC_NAME`, `NOMAD_ALLOC_INDEX` and
+`NOMAD_TASK_NAME`. The allocation ID and index can be useful when the task being
+run needs a unique identifier or to know its instance count.
+
 ## Resources
 
 When you request resources for a job, Nomad creates a resource offer. The final

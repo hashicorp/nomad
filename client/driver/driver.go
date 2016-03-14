@@ -5,7 +5,6 @@ import (
 	"log"
 	"path/filepath"
 	"sync"
-	"time"
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
@@ -84,24 +83,6 @@ func NewDriverContext(taskName string, config *config.Config, node *structs.Node
 	}
 }
 
-// KillTimeout returns the timeout that should be used for the task between
-// signaling and killing the task.
-func (d *DriverContext) KillTimeout(task *structs.Task) time.Duration {
-	max := d.config.MaxKillTimeout.Nanoseconds()
-	desired := task.KillTimeout.Nanoseconds()
-
-	// Make the minimum time between signal and kill, 1 second.
-	if desired == 0 {
-		desired = (1 * time.Second).Nanoseconds()
-	}
-
-	if desired < max {
-		return time.Duration(desired)
-	}
-
-	return d.config.MaxKillTimeout
-}
-
 // DriverHandle is an opaque handle into a driver used for task
 // manipulation
 type DriverHandle interface {
@@ -135,16 +116,19 @@ func NewExecContext(alloc *allocdir.AllocDir, allocID string) *ExecContext {
 	return &ExecContext{AllocDir: alloc, AllocID: allocID}
 }
 
-// GetTaskEnv converts the alloc dir, the node and task configuration into a
+// GetTaskEnv converts the alloc dir, the node, task and alloc into a
 // TaskEnvironment.
-func GetTaskEnv(alloc *allocdir.AllocDir, node *structs.Node, task *structs.Task) (*env.TaskEnvironment, error) {
+func GetTaskEnv(allocDir *allocdir.AllocDir, node *structs.Node,
+	task *structs.Task, alloc *structs.Allocation) (*env.TaskEnvironment, error) {
+
 	env := env.NewTaskEnvironment(node).
 		SetMeta(task.Meta).
-		SetEnvvars(task.Env)
+		SetEnvvars(task.Env).
+		SetTaskName(task.Name)
 
-	if alloc != nil {
-		env.SetAllocDir(alloc.SharedDir)
-		taskdir, ok := alloc.TaskDirs[task.Name]
+	if allocDir != nil {
+		env.SetAllocDir(allocDir.SharedDir)
+		taskdir, ok := allocDir.TaskDirs[task.Name]
 		if !ok {
 			return nil, fmt.Errorf("failed to get task directory for task %q", task.Name)
 		}
@@ -153,9 +137,13 @@ func GetTaskEnv(alloc *allocdir.AllocDir, node *structs.Node, task *structs.Task
 	}
 
 	if task.Resources != nil {
-		env.SetMemLimit(task.Resources.MemoryMB)
-		env.SetCpuLimit(task.Resources.CPU)
-		env.SetNetworks(task.Resources.Networks)
+		env.SetMemLimit(task.Resources.MemoryMB).
+			SetCpuLimit(task.Resources.CPU).
+			SetNetworks(task.Resources.Networks)
+	}
+
+	if alloc != nil {
+		env.SetAlloc(alloc)
 	}
 
 	return env.Build(), nil

@@ -96,14 +96,29 @@ func TestTaskRunner_Destroy(t *testing.T) {
 
 	// Change command to ensure we run for a bit
 	tr.task.Config["command"] = "/bin/sleep"
-	tr.task.Config["args"] = []string{"10"}
+	tr.task.Config["args"] = []string{"1000"}
 	go tr.Run()
 
+	testutil.WaitForResult(func() (bool, error) {
+		if l := len(upd.events); l != 2 {
+			return false, fmt.Errorf("Expect two events; got %v", l)
+		}
+
+		if upd.events[0].Type != structs.TaskReceived {
+			return false, fmt.Errorf("First Event was %v; want %v", upd.events[0].Type, structs.TaskReceived)
+		}
+
+		if upd.events[1].Type != structs.TaskStarted {
+			return false, fmt.Errorf("Second Event was %v; want %v", upd.events[1].Type, structs.TaskStarted)
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
 	// Begin the tear down
-	go func() {
-		time.Sleep(100 * time.Millisecond)
-		tr.Destroy()
-	}()
+	tr.Destroy()
 
 	select {
 	case <-tr.WaitCh():
@@ -117,14 +132,6 @@ func TestTaskRunner_Destroy(t *testing.T) {
 
 	if upd.state != structs.TaskStateDead {
 		t.Fatalf("TaskState %v; want %v", upd.state, structs.TaskStateDead)
-	}
-
-	if upd.events[0].Type != structs.TaskReceived {
-		t.Fatalf("First Event was %v; want %v", upd.events[0].Type, structs.TaskReceived)
-	}
-
-	if upd.events[1].Type != structs.TaskStarted {
-		t.Fatalf("Second Event was %v; want %v", upd.events[1].Type, structs.TaskStarted)
 	}
 
 	if upd.events[2].Type != structs.TaskKilled {

@@ -1,8 +1,35 @@
-## 0.3.0 (UNRELEASED)
+## 0.3.1 (UNRELEASED)
+
+IMPROVEMENTS:
+  * cli: Validate job file schemas [GH-900]
+  * client: Add environment variables for task name, allocation ID/Name/Index
+    [GH-869, GH-896]
+  * client: Starting task is retried under the restart policy if the error is
+    recoverable [GH-859]
+  * driver/docker: Support for ECR [GH-858]
+  * driver/docker: Periodic Fingerprinting [GH-893]
+  * driver/docker: Preventing port reservation for log collection on Unix platforms [GH-897]
+  * driver/rkt: Pass DNS information to rkt driver [GH-892]
+
+BUG FIXES:
+  * core: No longer cancel evaluations that are delayed in the plan queue
+    [GH-884]
+  * api: Guard client/fs/ APIs from being accessed on a non-client node [GH-890]
+  * client: Allow dashes in variable names during interprelation [GH-857]
+  * client: Updating kill timeout adheres to operator specified maximum value [GH-878]
+  * client: Fix a case in which clients would pull but not run allocations
+    [GH-906]
+  * consul: Remove concurrent map access [GH-874]
+  * driver/exec: Stopping tasks with more than one pid in a cgroup [GH-855]
+  * executor/linux: Add /run/resolvconf/ to chroot so DNS works [GH-905]
+
+## 0.3.0
 
 __BACKWARDS INCOMPATIBILITIES:__
+  * Stdout and Stderr log files of tasks have moved from task/local to
+    alloc/logs [GH-851]
   * Any users of the runtime environment variable `$NOMAD_PORT_` will need to
-    update to the new `$NOMAD_ADDR_` varriable [GH-704]
+    update to the new `${NOMAD_ADDR_}` varriable [GH-704]
   * Service names that include periods will fail validation. To fix, remove any
     periods from the service name before running the job [GH-770]
   * Task resources are now validated and enforce minimum resources. If a job
@@ -15,7 +42,7 @@ __BACKWARDS INCOMPATIBILITIES:__
     `batch` and `service` jobs is `fail` and `delay` respectively [GH-594]
   * All jobs that interpret variables in constraints or driver configurations
     will need to be updated to the new syntax which wraps the interpreted
-    variable in curly braces. ($node.class becomes ${node.class}) [GH-760]
+    variable in curly braces. (`$node.class` becomes `${node.class}`) [GH-760]
 
 IMPROVEMENTS:
   * core: Populate job status [GH-663]
@@ -34,6 +61,8 @@ IMPROVEMENTS:
     broker [GH-812]
   * core: Seed random number generator used to randomize node traversal order
     during scheduling [GH-808]
+  * core: Performance improvements [GH-823, GH-825, GH-827, GH-830, GH-832,
+    GH-833, GH-834, GH-839]
   * core/api: System garbage collection endpoint [GH-828]
   * core/api: Allow users to set arbitrary headers via agent config [GH-699]
   * core/cli: Prefix based lookups of allocs/nodes/evals/jobs [GH-575]
@@ -42,7 +71,9 @@ IMPROVEMENTS:
   * cli: Output of agent-info is sorted [GH-617]
   * cli: Eval monitor detects zero wait condition [GH-776]
   * cli: Ability to navigate allocation directories [GH-709, GH-798]
-  * client: Log rotation for all drivers [GH-685, GH-763]
+  * client: Batch allocation updates to the server [GH-835]
+  * client: Log rotation for all drivers [GH-685, GH-763, GH-819]
+  * client: Only download artifacts from http, https, and S3 [GH-841]
   * client: Create a tmp/ directory inside each task directory [GH-757]
   * client: Store when an allocation was received by the client [GH-821]
   * client: Heartbeating and saving state resilient under high load [GH-811]
@@ -52,6 +83,7 @@ IMPROVEMENTS:
   * client: Send Node to server when periodic fingerprinters change Node
     attributes/metadata [GH-749]
   * client/api: File-system access to allocation directories [GH-669]
+  * drivers: Validate the "command" field contains a single value [GH-842]
   * drivers: Interpret Nomad variables in environment variables/args [GH-653]
   * driver/rkt: Add support for CPU/Memory isolation [GH-610]
   * driver/rkt: Add support for mounting alloc/task directory [GH-645]

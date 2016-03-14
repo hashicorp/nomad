@@ -120,6 +120,13 @@ func (f *FSListCommand) Run(args []string) int {
 		}
 	}
 
+	if alloc.DesiredStatus == "failed" {
+		allocID := limit(alloc.ID, length)
+		msg := fmt.Sprintf(`The allocation %q failed to be placed. To see the cause, run: 
+nomad alloc-status %s`, allocID, allocID)
+		f.Ui.Error(msg)
+		return 0
+	}
 	// Get the file at the given path
 	files, _, err := client.AllocFS().List(alloc, path, nil)
 	if err != nil {

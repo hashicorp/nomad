@@ -5,7 +5,7 @@ import (
 	"net/rpc"
 
 	"github.com/hashicorp/go-plugin"
-	"github.com/hashicorp/nomad/client/driver/logcollector"
+	"github.com/hashicorp/nomad/client/driver/logging"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -14,11 +14,11 @@ type SyslogCollectorRPC struct {
 }
 
 type LaunchCollectorArgs struct {
-	Ctx *logcollector.LogCollectorContext
+	Ctx *logging.LogCollectorContext
 }
 
-func (e *SyslogCollectorRPC) LaunchCollector(ctx *logcollector.LogCollectorContext) (*logcollector.SyslogCollectorState, error) {
-	var ss *logcollector.SyslogCollectorState
+func (e *SyslogCollectorRPC) LaunchCollector(ctx *logging.LogCollectorContext) (*logging.SyslogCollectorState, error) {
+	var ss *logging.SyslogCollectorState
 	err := e.client.Call("Plugin.LaunchCollector", LaunchCollectorArgs{Ctx: ctx}, &ss)
 	return ss, err
 }
@@ -32,11 +32,11 @@ func (e *SyslogCollectorRPC) UpdateLogConfig(logConfig *structs.LogConfig) error
 }
 
 type SyslogCollectorRPCServer struct {
-	Impl logcollector.LogCollector
+	Impl logging.LogCollector
 }
 
 func (s *SyslogCollectorRPCServer) LaunchCollector(args LaunchCollectorArgs,
-	resp *logcollector.SyslogCollectorState) error {
+	resp *logging.SyslogCollectorState) error {
 	ss, err := s.Impl.LaunchCollector(args.Ctx)
 	if ss != nil {
 		*resp = *ss
@@ -59,7 +59,7 @@ type SyslogCollectorPlugin struct {
 
 func (p *SyslogCollectorPlugin) Server(*plugin.MuxBroker) (interface{}, error) {
 	if p.Impl == nil {
-		p.Impl = &SyslogCollectorRPCServer{Impl: logcollector.NewSyslogCollector(p.logger)}
+		p.Impl = &SyslogCollectorRPCServer{Impl: logging.NewSyslogCollector(p.logger)}
 	}
 	return p.Impl, nil
 }

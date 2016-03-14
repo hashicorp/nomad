@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
+	"time"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/executor"
-	"github.com/hashicorp/nomad/client/driver/logcollector"
+	"github.com/hashicorp/nomad/client/driver/logging"
 )
 
 // createExecutor launches an executor plugin and returns an instance of the
@@ -42,7 +44,7 @@ func createExecutor(config *plugin.ClientConfig, w io.Writer,
 }
 
 func createLogCollector(config *plugin.ClientConfig, w io.Writer,
-	clientConfig *config.Config) (logcollector.LogCollector, *plugin.Client, error) {
+	clientConfig *config.Config) (logging.LogCollector, *plugin.Client, error) {
 	config.HandshakeConfig = HandshakeConfig
 	config.Plugins = GetPluginMap(w)
 	config.MaxPort = clientConfig.ClientMaxPort
@@ -61,7 +63,7 @@ func createLogCollector(config *plugin.ClientConfig, w io.Writer,
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to dispense the syslog plugin: %v", err)
 	}
-	logCollector := raw.(logcollector.LogCollector)
+	logCollector := raw.(logging.LogCollector)
 	return logCollector, syslogClient, nil
 }
 
@@ -86,4 +88,48 @@ func destroyPlugin(pluginPid int, userPid int) error {
 		merr = multierror.Append(merr, err)
 	}
 	return merr
+}
+
+// validateCommand validates that the command only has a single value and
+// returns a user friendly error message telling them to use the passed
+// argField.
+func validateCommand(command, argField string) error {
+	trimmed := strings.TrimSpace(command)
+	if len(trimmed) == 0 {
+		return fmt.Errorf("command empty: %q", command)
+	}
+
+	if len(trimmed) != len(command) {
+		return fmt.Errorf("command contains extra white space: %q", command)
+	}
+
+	split := strings.Split(trimmed, " ")
+	if len(split) != 1 {
+		return fmt.Errorf("command contained more than one input. Use %q field to pass arguments", argField)
+	}
+
+	return nil
+}
+
+// GetKillTimeout returns the kill timeout to use given the tasks desired kill
+// timeout and the operator configured max kill timeout.
+func GetKillTimeout(desired, max time.Duration) time.Duration {
+	maxNanos := max.Nanoseconds()
+	desiredNanos := desired.Nanoseconds()
+
+	// Make the minimum time between signal and kill, 1 second.
+	if desiredNanos <= 0 {
+		desiredNanos = (1 * time.Second).Nanoseconds()
+	}
+
+	// Protect against max not being set properly.
+	if maxNanos <= 0 {
+		maxNanos = (10 * time.Second).Nanoseconds()
+	}
+
+	if desiredNanos < maxNanos {
+		return time.Duration(desiredNanos)
+	}
+
+	return max
 }

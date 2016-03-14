@@ -45,14 +45,16 @@ type javaHandle struct {
 	pluginClient    *plugin.Client
 	userPid         int
 	executor        executor.Executor
-	isolationConfig *executor.IsolationConfig
+	isolationConfig *cstructs.IsolationConfig
 
-	taskDir     string
-	allocDir    *allocdir.AllocDir
-	killTimeout time.Duration
-	logger      *log.Logger
-	waitCh      chan *cstructs.WaitResult
-	doneCh      chan struct{}
+	taskDir        string
+	allocDir       *allocdir.AllocDir
+	killTimeout    time.Duration
+	maxKillTimeout time.Duration
+	version        string
+	logger         *log.Logger
+	waitCh         chan *cstructs.WaitResult
+	doneCh         chan struct{}
 }
 
 // NewJavaDriver is used to create a new exec driver
@@ -181,6 +183,7 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	d.logger.Printf("[DEBUG] driver.java: started process with pid: %v", ps.Pid)
 
 	// Return a driver handle
+	maxKill := d.DriverContext.config.MaxKillTimeout
 	h := &javaHandle{
 		pluginClient:    pluginClient,
 		executor:        exec,
@@ -188,7 +191,9 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		isolationConfig: ps.IsolationConfig,
 		taskDir:         taskDir,
 		allocDir:        ctx.AllocDir,
-		killTimeout:     d.DriverContext.KillTimeout(task),
+		killTimeout:     GetKillTimeout(task.KillTimeout, maxKill),
+		maxKillTimeout:  maxKill,
+		version:         d.config.Version,
 		logger:          d.logger,
 		doneCh:          make(chan struct{}),
 		waitCh:          make(chan *cstructs.WaitResult, 1),
@@ -206,9 +211,11 @@ func (d *JavaDriver) cgroupsMounted(node *structs.Node) bool {
 }
 
 type javaId struct {
+	Version         string
 	KillTimeout     time.Duration
+	MaxKillTimeout  time.Duration
 	PluginConfig    *PluginReattachConfig
-	IsolationConfig *executor.IsolationConfig
+	IsolationConfig *cstructs.IsolationConfig
 	TaskDir         string
 	AllocDir        *allocdir.AllocDir
 	UserPid         int
@@ -227,7 +234,7 @@ func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 	if err != nil {
 		merrs := new(multierror.Error)
 		merrs.Errors = append(merrs.Errors, err)
-		d.logger.Println("[ERROR] driver.java: error connecting to plugin so destroying plugin pid and user pid")
+		d.logger.Println("[ERR] driver.java: error connecting to plugin so destroying plugin pid and user pid")
 		if e := destroyPlugin(id.PluginConfig.Pid, id.UserPid); e != nil {
 			merrs.Errors = append(merrs.Errors, fmt.Errorf("error destroying plugin and userpid: %v", e))
 		}
@@ -252,7 +259,9 @@ func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		taskDir:         id.TaskDir,
 		allocDir:        id.AllocDir,
 		logger:          d.logger,
+		version:         id.Version,
 		killTimeout:     id.KillTimeout,
+		maxKillTimeout:  id.MaxKillTimeout,
 		doneCh:          make(chan struct{}),
 		waitCh:          make(chan *cstructs.WaitResult, 1),
 	}
@@ -263,7 +272,9 @@ func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 
 func (h *javaHandle) ID() string {
 	id := javaId{
+		Version:         h.version,
 		KillTimeout:     h.killTimeout,
+		MaxKillTimeout:  h.maxKillTimeout,
 		PluginConfig:    NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
 		UserPid:         h.userPid,
 		TaskDir:         h.taskDir,
@@ -284,7 +295,7 @@ func (h *javaHandle) WaitCh() chan *cstructs.WaitResult {
 
 func (h *javaHandle) Update(task *structs.Task) error {
 	// Store the updated kill timeout.
-	h.killTimeout = task.KillTimeout
+	h.killTimeout = GetKillTimeout(task.KillTimeout, h.maxKillTimeout)
 	h.executor.UpdateLogConfig(task.LogConfig)
 
 	// Update is not possible
@@ -320,15 +331,15 @@ func (h *javaHandle) run() {
 	if ps.ExitCode == 0 && err != nil {
 		if h.isolationConfig != nil {
 			if e := executor.DestroyCgroup(h.isolationConfig.Cgroup); e != nil {
-				h.logger.Printf("[ERROR] driver.java: destroying cgroup failed while killing cgroup: %v", e)
+				h.logger.Printf("[ERR] driver.java: destroying cgroup failed while killing cgroup: %v", e)
 			}
 		} else {
 			if e := killProcess(h.userPid); e != nil {
-				h.logger.Printf("[ERROR] driver.java: error killing user process: %v", e)
+				h.logger.Printf("[ERR] driver.java: error killing user process: %v", e)
 			}
 		}
 		if e := h.allocDir.UnmountAll(); e != nil {
-			h.logger.Printf("[ERROR] driver.java: unmounting dev,proc and alloc dirs failed: %v", e)
+			h.logger.Printf("[ERR] driver.java: unmounting dev,proc and alloc dirs failed: %v", e)
 		}
 	}
 	h.waitCh <- &cstructs.WaitResult{ExitCode: ps.ExitCode, Signal: 0, Err: err}

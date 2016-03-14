@@ -36,7 +36,9 @@ type MemoryData struct {
 	Usage    uint64 `json:"usage,omitempty"`
 	MaxUsage uint64 `json:"max_usage,omitempty"`
 	Failcnt  uint64 `json:"failcnt"`
+	Limit    uint64 `json:"limit"`
 }
+
 type MemoryStats struct {
 	// memory used for cache
 	Cache uint64 `json:"cache,omitempty"`

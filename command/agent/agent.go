@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"time"
 
@@ -147,6 +148,14 @@ func (a *Agent) serverConfig() (*nomad.Config, error) {
 		conf.NodeGCThreshold = dur
 	}
 
+	if heartbeatGrace := a.config.Server.HeartbeatGrace; heartbeatGrace != "" {
+		dur, err := time.ParseDuration(heartbeatGrace)
+		if err != nil {
+			return nil, err
+		}
+		conf.HeartbeatGrace = dur
+	}
+
 	return conf, nil
 }
 
@@ -191,8 +200,8 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 		}
 		conf.MaxKillTimeout = dur
 	}
-	conf.ClientMaxPort = a.config.Client.ClientMaxPort
-	conf.ClientMinPort = a.config.Client.ClientMinPort
+	conf.ClientMaxPort = uint(a.config.Client.ClientMaxPort)
+	conf.ClientMinPort = uint(a.config.Client.ClientMinPort)
 
 	// Setup the node
 	conf.Node = new(structs.Node)
@@ -214,6 +223,7 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 		httpAddr = fmt.Sprintf("%s:%d", addr.IP.String(), addr.Port)
 	}
 	conf.Node.HTTPAddr = httpAddr
+	conf.Version = a.config.Version
 	return conf, nil
 }
 
@@ -251,9 +261,11 @@ func (a *Agent) setupClient() error {
 		return fmt.Errorf("client setup failed: %v", err)
 	}
 
-	// Reserve some ports for the plugins
-	if err := a.reservePortsForClient(conf); err != nil {
-		return err
+	// Reserve some ports for the plugins if we are on Windows
+	if runtime.GOOS == "windows" {
+		if err := a.reservePortsForClient(conf); err != nil {
+			return err
+		}
 	}
 
 	// Create the client

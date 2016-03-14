@@ -1404,23 +1404,16 @@ func TestStateStore_UpdateAllocsFromClient(t *testing.T) {
 	}
 
 	// Create the delta updates
+	ts := map[string]*structs.TaskState{"web": &structs.TaskState{State: structs.TaskStatePending}}
 	update := &structs.Allocation{
 		ID:           alloc.ID,
 		ClientStatus: structs.AllocClientStatusFailed,
-		TaskStates: map[string]*structs.TaskState{
-			"web": &structs.TaskState{
-				State: structs.TaskStatePending,
-			},
-		},
+		TaskStates:   ts,
 	}
 	update2 := &structs.Allocation{
 		ID:           alloc2.ID,
 		ClientStatus: structs.AllocClientStatusRunning,
-		TaskStates: map[string]*structs.TaskState{
-			"web": &structs.TaskState{
-				State: structs.TaskStatePending,
-			},
-		},
+		TaskStates:   ts,
 	}
 
 	err = state.UpdateAllocsFromClient(1001, []*structs.Allocation{update, update2})
@@ -1435,6 +1428,7 @@ func TestStateStore_UpdateAllocsFromClient(t *testing.T) {
 
 	alloc.CreateIndex = 1000
 	alloc.ModifyIndex = 1001
+	alloc.TaskStates = ts
 	alloc.ClientStatus = structs.AllocClientStatusFailed
 	if !reflect.DeepEqual(alloc, out) {
 		t.Fatalf("bad: %#v %#v", alloc, out)
@@ -1448,6 +1442,7 @@ func TestStateStore_UpdateAllocsFromClient(t *testing.T) {
 	alloc2.ModifyIndex = 1000
 	alloc2.ModifyIndex = 1001
 	alloc2.ClientStatus = structs.AllocClientStatusRunning
+	alloc2.TaskStates = ts
 	if !reflect.DeepEqual(alloc2, out) {
 		t.Fatalf("bad: %#v %#v", alloc2, out)
 	}

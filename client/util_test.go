@@ -13,6 +13,7 @@ import (
 )
 
 func TestDiffAllocs(t *testing.T) {
+	t.Parallel()
 	alloc1 := mock.Alloc() // Ignore
 	alloc2 := mock.Alloc() // Update
 	alloc2u := new(structs.Allocation)
@@ -56,6 +57,7 @@ func TestDiffAllocs(t *testing.T) {
 }
 
 func TestRandomStagger(t *testing.T) {
+	t.Parallel()
 	intv := time.Minute
 	for i := 0; i < 10; i++ {
 		stagger := randomStagger(intv)
@@ -66,6 +68,7 @@ func TestRandomStagger(t *testing.T) {
 }
 
 func TestShuffleStrings(t *testing.T) {
+	t.Parallel()
 	// Generate input
 	inp := make([]string, 10)
 	for idx := range inp {
@@ -86,6 +89,7 @@ func TestShuffleStrings(t *testing.T) {
 }
 
 func TestPersistRestoreState(t *testing.T) {
+	t.Parallel()
 	dir, err := ioutil.TempDir("", "nomad")
 	if err != nil {
 		t.Fatalf("err: %s", err)

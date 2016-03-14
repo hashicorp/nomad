@@ -85,7 +85,7 @@ func TestExecutor_Start_Wait_Failure_Code(t *testing.T) {
 func TestExecutor_Start_Wait(t *testing.T) {
 	execCmd := ExecCommand{Cmd: "/bin/echo", Args: []string{"hello world"}}
 	ctx := testExecutorContext(t)
-	//defer ctx.AllocDir.Destroy()
+	defer ctx.AllocDir.Destroy()
 	executor := NewExecutor(log.New(os.Stdout, "", log.LstdFlags))
 	ps, err := executor.LaunchCmd(&execCmd, ctx)
 	if err != nil {
@@ -99,18 +99,11 @@ func TestExecutor_Start_Wait(t *testing.T) {
 		t.Fatalf("error in waiting for command: %v", err)
 	}
 
-	task := "web"
-	taskDir, ok := ctx.AllocDir.TaskDirs[task]
-	if !ok {
-		log.Panicf("No task directory found for task %v", task)
-	}
-
 	expected := "hello world"
-	file := filepath.Join(allocdir.TaskLocal, "web.stdout.0")
-	absFilePath := filepath.Join(taskDir, file)
-	output, err := ioutil.ReadFile(absFilePath)
+	file := filepath.Join(ctx.AllocDir.LogDir(), "web.stdout.0")
+	output, err := ioutil.ReadFile(file)
 	if err != nil {
-		t.Fatalf("Couldn't read file %v", absFilePath)
+		t.Fatalf("Couldn't read file %v", file)
 	}
 
 	act := strings.TrimSpace(string(output))
@@ -143,23 +136,54 @@ func TestExecutor_IsolationAndConstraints(t *testing.T) {
 		t.Fatalf("error in waiting for command: %v", err)
 	}
 
-	task := "web"
-	taskDir, ok := ctx.AllocDir.TaskDirs[task]
-	if !ok {
-		log.Panicf("No task directory found for task %v", task)
-	}
-
 	expected := "hello world"
-	file := filepath.Join(allocdir.TaskLocal, "web.stdout.0")
-	absFilePath := filepath.Join(taskDir, file)
-	output, err := ioutil.ReadFile(absFilePath)
+	file := filepath.Join(ctx.AllocDir.LogDir(), "web.stdout.0")
+	output, err := ioutil.ReadFile(file)
 	if err != nil {
-		t.Fatalf("Couldn't read file %v", absFilePath)
+		t.Fatalf("Couldn't read file %v", file)
 	}
 
 	act := strings.TrimSpace(string(output))
 	if act != expected {
 		t.Fatalf("Command output incorrectly: want %v; got %v", expected, act)
+	}
+}
+
+func TestExecutor_DestroyCgroup(t *testing.T) {
+	testutil.ExecCompatible(t)
+
+	execCmd := ExecCommand{Cmd: "/bin/bash", Args: []string{"-c", "/usr/bin/yes"}}
+	ctx := testExecutorContext(t)
+	ctx.LogConfig.MaxFiles = 1
+	ctx.LogConfig.MaxFileSizeMB = 300
+	defer ctx.AllocDir.Destroy()
+
+	ctx.FSIsolation = true
+	ctx.ResourceLimits = true
+	ctx.UnprivilegedUser = true
+
+	executor := NewExecutor(log.New(os.Stdout, "", log.LstdFlags))
+	ps, err := executor.LaunchCmd(&execCmd, ctx)
+	if err != nil {
+		t.Fatalf("error in launching command: %v", err)
+	}
+	if ps.Pid == 0 {
+		t.Fatalf("expected process to start and have non zero pid")
+	}
+	time.Sleep(200 * time.Millisecond)
+	executor.Exit()
+	file := filepath.Join(ctx.AllocDir.LogDir(), "web.stdout.0")
+	finfo, err := os.Stat(file)
+	if err != nil {
+		t.Fatalf("error stating stdout file: %v", err)
+	}
+	time.Sleep(1 * time.Second)
+	finfo1, err := os.Stat(file)
+	if err != nil {
+		t.Fatalf("error stating stdout file: %v", err)
+	}
+	if finfo.Size() != finfo1.Size() {
+		t.Fatalf("Expected size: %v, actual: %v", finfo.Size(), finfo1.Size())
 	}
 }
 
@@ -180,20 +204,12 @@ func TestExecutor_Start_Kill(t *testing.T) {
 		t.Fatalf("error in waiting for command: %v", err)
 	}
 
-	task := "web"
-	taskDir, ok := ctx.AllocDir.TaskDirs[task]
-	if !ok {
-		t.Fatalf("No task directory found for task %v", task)
-	}
-
-	file := filepath.Join(allocdir.TaskLocal, "web.stdout.0")
-	absFilePath := filepath.Join(taskDir, file)
-
+	file := filepath.Join(ctx.AllocDir.LogDir(), "web.stdout.0")
 	time.Sleep(time.Duration(tu.TestMultiplier()*2) * time.Second)
 
-	output, err := ioutil.ReadFile(absFilePath)
+	output, err := ioutil.ReadFile(file)
 	if err != nil {
-		t.Fatalf("Couldn't read file %v", absFilePath)
+		t.Fatalf("Couldn't read file %v", file)
 	}
 
 	expected := ""

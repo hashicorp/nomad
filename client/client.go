@@ -25,7 +25,7 @@ import (
 const (
 	// clientRPCCache controls how long we keep an idle connection
 	// open to a server
-	clientRPCCache = 30 * time.Second
+	clientRPCCache = 5 * time.Minute
 
 	// clientMaxStreams controsl how many idle streams we keep
 	// open to a server
@@ -1001,10 +1001,9 @@ func (c *Client) watchAllocations(updates chan *allocUpdates) {
 		}
 
 		// Update the query index.
-		if resp.Index <= req.MinQueryIndex {
-			continue
+		if resp.Index > req.MinQueryIndex {
+			req.MinQueryIndex = resp.Index
 		}
-		req.MinQueryIndex = resp.Index
 
 		// Push the updates.
 		pulled := make(map[string]*structs.Allocation, len(allocsResp.Allocs))
