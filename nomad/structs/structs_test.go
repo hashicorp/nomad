@@ -763,3 +763,46 @@ func TestAllocation_Index(t *testing.T) {
 		t.Fatal()
 	}
 }
+
+func TestTaskArtifact_Validate_Checksum(t *testing.T) {
+	cases := []struct {
+		Input *TaskArtifact
+		Err   bool
+	}{
+		{
+			&TaskArtifact{
+				GetterSource: "foo.com",
+				GetterOptions: map[string]string{
+					"checksum": "no-type",
+				},
+			},
+			true,
+		},
+		{
+			&TaskArtifact{
+				GetterSource: "foo.com",
+				GetterOptions: map[string]string{
+					"checksum": "md5:toosmall",
+				},
+			},
+			true,
+		},
+		{
+			&TaskArtifact{
+				GetterSource: "foo.com",
+				GetterOptions: map[string]string{
+					"checksum": "invalid:type",
+				},
+			},
+			true,
+		},
+	}
+
+	for i, tc := range cases {
+		err := tc.Input.Validate()
+		if (err != nil) != tc.Err {
+			t.Fatalf("case %d: %v", i, err)
+			continue
+		}
+	}
+}

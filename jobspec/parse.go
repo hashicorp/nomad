@@ -641,19 +641,21 @@ func parseArtifacts(result *[]*structs.TaskArtifact, list *ast.ObjectList) error
 			return fmt.Errorf("artifact should be an object")
 		}
 
+		options := make(map[string]string)
 		if oo := optionList.Filter("options"); len(oo.Items) > 0 {
-			if err := parseArtifactOption(&ta.GetterOptions, oo); err != nil {
+			if err := parseArtifactOption(options, oo); err != nil {
 				return multierror.Prefix(err, "options: ")
 			}
 		}
 
+		ta.GetterOptions = options
 		*result = append(*result, &ta)
 	}
 
 	return nil
 }
 
-func parseArtifactOption(result **structs.GetterOptions, list *ast.ObjectList) error {
+func parseArtifactOption(result map[string]string, list *ast.ObjectList) error {
 	list = list.Elem()
 	if len(list.Items) > 1 {
 		return fmt.Errorf("only one 'options' block allowed per artifact")
@@ -667,20 +669,10 @@ func parseArtifactOption(result **structs.GetterOptions, list *ast.ObjectList) e
 		return err
 	}
 
-	// Check for invalid keys
-	valid := []string{
-		"checksum",
-	}
-	if err := checkHCLKeys(o.Val, valid); err != nil {
+	if err := mapstructure.WeakDecode(m, &result); err != nil {
 		return err
 	}
 
-	var options structs.GetterOptions
-	if err := mapstructure.WeakDecode(m, &options); err != nil {
-		return err
-	}
-
-	*result = &options
 	return nil
 }
 

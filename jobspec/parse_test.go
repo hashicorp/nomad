@@ -131,14 +131,14 @@ func TestParse(t *testing.T) {
 								Artifacts: []*structs.TaskArtifact{
 									{
 										GetterSource: "http://foo.com/artifact",
-										GetterOptions: &structs.GetterOptions{
-											Checksum: "md5:b8a4f3f72ecab0510a6a31e997461c5f",
+										GetterOptions: map[string]string{
+											"checksum": "md5:b8a4f3f72ecab0510a6a31e997461c5f",
 										},
 									},
 									{
 										GetterSource: "http://bar.com/artifact",
-										GetterOptions: &structs.GetterOptions{
-											Checksum: "md5:ff1cc0d3432dad54d607c1505fb7245c",
+										GetterOptions: map[string]string{
+											"checksum": "md5:ff1cc0d3432dad54d607c1505fb7245c",
 										},
 									},
 								},
