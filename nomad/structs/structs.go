@@ -1606,7 +1606,25 @@ type Task struct {
 
 	// Artifacts is a list of artifacts to download and extract before running
 	// the task.
-	Artifacts []string
+	Artifacts []*TaskArtifact
+}
+
+// TaskArtifact is an artifact to download before running the task.
+type TaskArtifact struct {
+	// GetterSource is the source to download an artifact using go-getter
+	GetterSource string `mapstructure:"source"`
+
+	// GetterOptions are options to use when downloading the artifact using
+	// go-getter.
+	GetterOptions *GetterOptions `mapstructure:"options"`
+}
+
+// GetterOptions are options to apply when downloading an artifact using
+// go-getter
+type GetterOptions struct {
+	// Checksum is the checksum to use to validate the downloaded artifact. It
+	// is given as 'type:value' such as 'md5:1a2b...'
+	Checksum string `mapstructure:"checksum"`
 }
 
 func (t *Task) Copy() *Task {

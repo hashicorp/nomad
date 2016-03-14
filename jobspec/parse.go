@@ -611,7 +611,7 @@ func parseTasks(jobName string, taskGroupName string, result *[]*structs.Task, l
 	return nil
 }
 
-func parseArtifacts(result *[]string, list *ast.ObjectList) error {
+func parseArtifacts(result *[]*structs.TaskArtifact, list *ast.ObjectList) error {
 	for _, o := range list.Elem().Items {
 		// Check for invalid keys
 		valid := []string{
@@ -627,18 +627,11 @@ func parseArtifacts(result *[]string, list *ast.ObjectList) error {
 			return err
 		}
 
-		baseI, ok := m["source"]
-		if !ok {
-			return fmt.Errorf("artifact source must be supplied")
-		}
-		base, ok := baseI.(string)
-		if !ok {
-			return fmt.Errorf("artifact source must be a string. Got %v", baseI)
-		}
+		delete(m, "options")
 
-		base = strings.TrimSpace(base)
-		if base == "" {
-			return fmt.Errorf("artifact source can not be empty")
+		var ta structs.TaskArtifact
+		if err := mapstructure.WeakDecode(m, &ta); err != nil {
+			return err
 		}
 
 		var optionList *ast.ObjectList
@@ -648,24 +641,19 @@ func parseArtifacts(result *[]string, list *ast.ObjectList) error {
 			return fmt.Errorf("artifact should be an object")
 		}
 
-		options := make(map[string]string)
 		if oo := optionList.Filter("options"); len(oo.Items) > 0 {
-			if err := parseArtifactOption(options, oo); err != nil {
+			if err := parseArtifactOption(&ta.GetterOptions, oo); err != nil {
 				return multierror.Prefix(err, "options: ")
 			}
 		}
 
-		for k, v := range options {
-			base = fmt.Sprintf("%s?%s=%s", base, k, v)
-		}
-
-		*result = append(*result, base)
+		*result = append(*result, &ta)
 	}
 
 	return nil
 }
 
-func parseArtifactOption(options map[string]string, list *ast.ObjectList) error {
+func parseArtifactOption(result **structs.GetterOptions, list *ast.ObjectList) error {
 	list = list.Elem()
 	if len(list.Items) > 1 {
 		return fmt.Errorf("only one 'options' block allowed per artifact")
@@ -687,10 +675,12 @@ func parseArtifactOption(options map[string]string, list *ast.ObjectList) error 
 		return err
 	}
 
+	var options structs.GetterOptions
 	if err := mapstructure.WeakDecode(m, &options); err != nil {
 		return err
 	}
 
+	*result = &options
 	return nil
 }
 
