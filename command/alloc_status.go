@@ -149,7 +149,7 @@ func (c *AllocStatusCommand) Run(args []string) int {
 	dumpAllocStatus(c.Ui, alloc, length)
 
 	if !short {
-		c.Ui.Output("\n==> Resources")
+		c.Ui.Output("\n==> Task Resources")
 		c.taskResources(alloc)
 	}
 
@@ -264,8 +264,8 @@ func (c *AllocStatusCommand) sortedTaskStateIterator(m map[string]*api.TaskState
 	return output
 }
 
-// taskResources prints out the tasks current resource usage
-func (c *AllocStatusCommand) taskResources(alloc *api.Allocation) {
+// allocResources prints out the allocation current resource usage
+func (c *AllocStatusCommand) allocResources(alloc *api.Allocation) {
 	resources := make([]string, 2)
 	resources[0] = "CPU|Memory MB|Disk MB|IOPS"
 	resources[1] = fmt.Sprintf("%v|%v|%v|%v",
@@ -274,4 +274,40 @@ func (c *AllocStatusCommand) taskResources(alloc *api.Allocation) {
 		alloc.Resources.DiskMB,
 		alloc.Resources.IOPS)
 	c.Ui.Output(formatList(resources))
+}
+
+// taskResources prints out the tasks current resource usage
+func (c *AllocStatusCommand) taskResources(alloc *api.Allocation) {
+	firstLine := true
+	for task, resource := range alloc.TaskResources {
+		header := fmt.Sprintf("\nTask: %q", task)
+		if firstLine {
+			header = fmt.Sprintf("Task: %q", task)
+			firstLine = false
+		}
+		c.Ui.Output(header)
+		var addr []string
+		for _, nw := range resource.Networks {
+			ports := append(nw.DynamicPorts, nw.ReservedPorts...)
+			for _, port := range ports {
+				addr = append(addr, fmt.Sprintf("%v: %v:%v\n", port.Label, nw.IP, port.Value))
+			}
+		}
+		var resourcesOutput []string
+		resourcesOutput = append(resourcesOutput, "CPU|Memory MB|Disk MB|IOPS|Addresses")
+		firstAddr := ""
+		if len(addr) > 0 {
+			firstAddr = addr[0]
+		}
+		resourcesOutput = append(resourcesOutput, fmt.Sprintf("%v|%v|%v|%v|%v",
+			resource.CPU,
+			resource.MemoryMB,
+			resource.DiskMB,
+			resource.IOPS,
+			firstAddr))
+		for i := 1; i < len(addr); i++ {
+			resourcesOutput = append(resourcesOutput, fmt.Sprintf("||||%v", addr[i]))
+		}
+		c.Ui.Output(formatListWithSpaces(resourcesOutput))
+	}
 }

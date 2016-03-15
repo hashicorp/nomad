@@ -67,7 +67,7 @@ The following options are available for use in the job specification.
   to be configured to allow privileged containers.
 
 * `uts_mode` - (Optional) `host` or not set (default). Set to `host` to share
-  the UTS namsepce with the host. Note that this also requires the Nomad agent
+  the UTS namespace with the host. Note that this also requires the Nomad agent
   to be configured to allow privileged containers.
 
 * `network_mode` - (Optional) The network mode to be used for the container. In
