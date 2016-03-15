@@ -139,7 +139,7 @@ func NewClient(cfg *config.Config) (*Client, error) {
 
 	// Initialize the client
 	if err := c.init(); err != nil {
-		return nil, fmt.Errorf("failed intializing client: %v", err)
+		return nil, fmt.Errorf("failed to initialize client: %v", err)
 	}
 
 	// Setup the node
