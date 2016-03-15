@@ -1510,10 +1510,13 @@ func (s *Service) InitFields(job string, taskGroup string, task string) {
 func (s *Service) Validate() error {
 	var mErr multierror.Error
 
-	// Ensure the name does not have a period in it.
-	// RFC-2782: https://tools.ietf.org/html/rfc2782
-	if strings.Contains(s.Name, ".") {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("service name can't contain periods: %q", s.Name))
+	// Ensure the service name is valid per RFC-952 §1
+	// (https://tools.ietf.org/html/rfc952), RFC-1123 §2.1
+	// (https://tools.ietf.org/html/rfc1123), and RFC-2782
+	// (https://tools.ietf.org/html/rfc2782).
+	re := regexp.MustCompile(`^(?i:[a-z0-9]|[a-z0-9][a-z0-9\-]{0,61}[a-z0-9])$`)
+	if !re.MatchString(s.Name) {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("service name must be valid per RFC 1123 and can contain only alphanumeric characters or dashes and must be less than 63 characters long: %q", s.Name))
 	}
 
 	for _, c := range s.Checks {
