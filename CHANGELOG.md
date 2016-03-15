@@ -1,5 +1,8 @@
 ## 0.3.1 (UNRELEASED)
 
+__BACKWARDS INCOMPATIBILITIES:__
+  * jobspec: Require RFC-1123 and RFC-2782 valid service names [GH-915]
+
 IMPROVEMENTS:
   * cli: Validate job file schemas [GH-900]
   * client: Add environment variables for task name, allocation ID/Name/Index
