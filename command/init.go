@@ -111,7 +111,7 @@ job "example" {
 			attempts = 10
 			interval = "5m"
 			
-			# A delay between a task failing and a restart occuring.
+			# A delay between a task failing and a restart occurring.
 			delay = "25s"
 
 			# Mode controls what happens when a task has restarted "attempts"

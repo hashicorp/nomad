@@ -776,7 +776,7 @@ Client Options:
 
   -node-class
     Mark this node as a member of a node-class. This can be used to label
-    similiar node types.
+    similar node types.
 
   -meta
     User specified metadata to associated with the node. Each instance of -meta
