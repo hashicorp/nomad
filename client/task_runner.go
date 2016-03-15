@@ -314,6 +314,7 @@ func (r *TaskRunner) run() {
 
 	RESTART:
 		state, when := r.restartTracker.GetState()
+		r.restartTracker.SetStartError(nil).SetWaitResult(nil)
 		switch state {
 		case structs.TaskNotRestarting, structs.TaskTerminated:
 			r.logger.Printf("[INFO] client: Not restarting task: %v for alloc: %v ", r.task.Name, r.alloc.ID)
