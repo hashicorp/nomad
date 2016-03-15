@@ -519,7 +519,7 @@ func TestInvalidServiceCheck(t *testing.T) {
 		},
 	}
 	if err := s.Validate(); err == nil {
-		t.Fatalf("Service should be invalid")
+		t.Fatalf("Service should be invalid (invalid type)")
 	}
 
 	s = Service{
@@ -527,7 +527,23 @@ func TestInvalidServiceCheck(t *testing.T) {
 		PortLabel: "bar",
 	}
 	if err := s.Validate(); err == nil {
-		t.Fatalf("Service should be invalid: %v", err)
+		t.Fatalf("Service should be invalid (contains a dot): %v", err)
+	}
+
+	s = Service{
+		Name:      "-my-service",
+		PortLabel: "bar",
+	}
+	if err := s.Validate(); err == nil {
+		t.Fatalf("Service should be invalid (begins with a hyphen): %v", err)
+	}
+
+	s = Service{
+		Name:      "abcdef0123456789-abcdef0123456789-abcdef0123456789-abcdef0123456",
+		PortLabel: "bar",
+	}
+	if err := s.Validate(); err == nil {
+		t.Fatalf("Service should be invalid (too long): %v", err)
 	}
 }
 
