@@ -34,6 +34,18 @@ Installation can be done with a normal `go get`:
 $ go get github.com/hashicorp/go-getter
 ```
 
+go-getter also has a command you can use to test URL strings:
+
+```
+$ go install github.com/hashicorp/go-getter/cmd/go-getter
+...
+
+$ go-getter github.com/foo/bar ./foo
+...
+```
+
+The command is useful for verifying URL structures.
+
 ## URL Format
 
 go-getter uses a single string URL as input to downlaod from a variety of

@@ -273,11 +273,11 @@
 		},
 		{
 			"ImportPath": "github.com/hashicorp/go-getter",
-			"Rev": "848242c76c346ef0aeb34787753b068f5f6f92fe"
+			"Rev": "cd92db7af9118d920be4f1b95680ba75ad91d1c6"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/go-getter/helper/url",
-			"Rev": "848242c76c346ef0aeb34787753b068f5f6f92fe"
+			"Rev": "cd92db7af9118d920be4f1b95680ba75ad91d1c6"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/go-immutable-radix",
@@ -443,11 +443,11 @@
 			"Comment": "v0.0.8-59-g53e4dd6",
 			"Rev": "53e4dd65f5de928ae6deaf2de2c0596e741cbaaa"
 		},
-        {
-            "ImportPath": "github.com/opencontainers/runc/libcontainer/utils",
-            "Comment": "v0.0.8-59-g53e4dd6",
-            "Rev": "53e4dd65f5de928ae6deaf2de2c0596e741cbaaa"
-        },
+		{
+			"ImportPath": "github.com/opencontainers/runc/libcontainer/utils",
+			"Comment": "v0.0.8-59-g53e4dd6",
+			"Rev": "53e4dd65f5de928ae6deaf2de2c0596e741cbaaa"
+		},
 		{
 			"ImportPath": "github.com/ryanuber/columnize",
 			"Comment": "v2.0.1-8-g983d3a5",
