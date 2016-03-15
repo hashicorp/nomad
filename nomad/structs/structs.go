@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -1900,6 +1901,12 @@ func (ta *TaskArtifact) Copy() *TaskArtifact {
 }
 
 func (ta *TaskArtifact) Validate() error {
+	// Verify the source
+	_, err := url.Parse(ta.GetterSource)
+	if err != nil {
+		return fmt.Errorf("invalid source URL %q: %v", ta.GetterSource, err)
+	}
+
 	// Verify the checksum
 	if check, ok := ta.GetterOptions["checksum"]; ok {
 		check = strings.TrimSpace(check)

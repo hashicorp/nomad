@@ -764,6 +764,13 @@ func TestAllocation_Index(t *testing.T) {
 	}
 }
 
+func TestTaskArtifact_Validate_Source(t *testing.T) {
+	valid := &TaskArtifact{GetterSource: "google.com"}
+	if err := valid.Validate(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestTaskArtifact_Validate_Checksum(t *testing.T) {
 	cases := []struct {
 		Input *TaskArtifact
