@@ -1733,6 +1733,13 @@ func (t *Task) Validate() error {
 		}
 	}
 
+	// If the driver is java or qemu ensure that they have specified an
+	// artifact.
+	if (t.Driver == "qemu" || t.Driver == "java") && len(t.Artifacts) == 0 {
+		err := fmt.Errorf("must specify at least one artifact when using %q driver", t.Driver)
+		mErr.Errors = append(mErr.Errors, err)
+	}
+
 	return mErr.ErrorOrNil()
 }
 
@@ -1920,27 +1927,35 @@ func (ta *TaskArtifact) Copy() *TaskArtifact {
 
 func (ta *TaskArtifact) Validate() error {
 	// Verify the source
+	var mErr multierror.Error
+	if ta.GetterSource == "" {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("source must be specified"))
+	}
+
 	_, err := url.Parse(ta.GetterSource)
 	if err != nil {
-		return fmt.Errorf("invalid source URL %q: %v", ta.GetterSource, err)
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid source URL %q: %v", ta.GetterSource, err))
 	}
 
 	// Verify the checksum
 	if check, ok := ta.GetterOptions["checksum"]; ok {
 		check = strings.TrimSpace(check)
 		if check == "" {
-			return fmt.Errorf("checksum value can not be empty")
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("checksum value can not be empty"))
+			return mErr.ErrorOrNil()
 		}
 
 		parts := strings.Split(check, ":")
 		if l := len(parts); l != 2 {
-			return fmt.Errorf(`checksum must be given as "type:value"; got %q`, check)
+			mErr.Errors = append(mErr.Errors, fmt.Errorf(`checksum must be given as "type:value"; got %q`, check))
+			return mErr.ErrorOrNil()
 		}
 
 		checksumVal := parts[1]
 		checksumBytes, err := hex.DecodeString(checksumVal)
 		if err != nil {
-			return fmt.Errorf("invalid checksum: %v", err)
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid checksum: %v", err))
+			return mErr.ErrorOrNil()
 		}
 
 		checksumType := parts[0]
@@ -1955,15 +1970,17 @@ func (ta *TaskArtifact) Validate() error {
 		case "sha512":
 			expectedLength = sha512.Size
 		default:
-			return fmt.Errorf("unsupported checksum type: %s", checksumType)
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("unsupported checksum type: %s", checksumType))
+			return mErr.ErrorOrNil()
 		}
 
 		if len(checksumBytes) != expectedLength {
-			return fmt.Errorf("invalid %s checksum: %v", checksumType, checksumVal)
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid %s checksum: %v", checksumType, checksumVal))
+			return mErr.ErrorOrNil()
 		}
 	}
 
-	return nil
+	return mErr.ErrorOrNil()
 }
 
 const (
