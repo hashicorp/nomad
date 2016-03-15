@@ -14,7 +14,6 @@ import (
 	"github.com/hashicorp/nomad/client/driver/executor"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/client/fingerprint"
-	"github.com/hashicorp/nomad/client/getter"
 	"github.com/hashicorp/nomad/helper/discover"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/mapstructure"
@@ -81,21 +80,6 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 	command := driverConfig.Command
 	if err := validateCommand(command, "args"); err != nil {
 		return nil, err
-	}
-
-	// Check if an artificat is specified and attempt to download it
-	source, ok := task.Config["artifact_source"]
-	if ok && source != "" {
-		// Proceed to download an artifact to be executed.
-		_, err := getter.GetArtifact(
-			taskDir,
-			driverConfig.ArtifactSource,
-			driverConfig.Checksum,
-			d.logger,
-		)
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	bin, err := discover.NomadExecutable()

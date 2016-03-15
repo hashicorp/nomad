@@ -21,7 +21,6 @@ import (
 	"github.com/hashicorp/nomad/client/driver/executor"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/client/fingerprint"
-	"github.com/hashicorp/nomad/client/getter"
 	"github.com/hashicorp/nomad/helper/discover"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -34,10 +33,9 @@ type JavaDriver struct {
 }
 
 type JavaDriverConfig struct {
-	JvmOpts        []string `mapstructure:"jvm_options"`
-	ArtifactSource string   `mapstructure:"artifact_source"`
-	Checksum       string   `mapstructure:"checksum"`
-	Args           []string `mapstructure:"args"`
+	JarPath string   `mapstructure:"jar_path"`
+	JvmOpts []string `mapstructure:"jvm_options"`
+	Args    []string `mapstructure:"args"`
 }
 
 // javaHandle is returned from Start/Open as a handle to the PID
@@ -124,18 +122,9 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		return nil, fmt.Errorf("Could not find task directory for task: %v", d.DriverContext.taskName)
 	}
 
-	// Proceed to download an artifact to be executed.
-	path, err := getter.GetArtifact(
-		taskDir,
-		driverConfig.ArtifactSource,
-		driverConfig.Checksum,
-		d.logger,
-	)
-	if err != nil {
-		return nil, err
+	if driverConfig.JarPath == "" {
+		return nil, fmt.Errorf("jar_path must be specified")
 	}
-
-	jarName := filepath.Base(path)
 
 	args := []string{}
 	// Look for jvm options
@@ -145,7 +134,7 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	}
 
 	// Build the argument list.
-	args = append(args, "-jar", jarName)
+	args = append(args, "-jar", driverConfig.JarPath)
 	if len(driverConfig.Args) != 0 {
 		args = append(args, driverConfig.Args...)
 	}

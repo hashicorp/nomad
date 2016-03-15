@@ -1801,6 +1801,14 @@ const (
 	// TaskNotRestarting indicates that the task has failed and is not being
 	// restarted because it has exceeded its restart policy.
 	TaskNotRestarting = "Restarts Exceeded"
+
+	// Task Downloading Artifacts means the task is downloading the artifacts
+	// specified in the task.
+	TaskDownloadingArtifacts = "Downloading Artifacts"
+
+	// TaskArtifactDownloadFailed indicates that downloading the artifacts
+	// failed.
+	TaskArtifactDownloadFailed = "Failed Artifact Download"
 )
 
 // TaskEvent is an event that effects the state of a task and contains meta-data
@@ -1822,6 +1830,9 @@ type TaskEvent struct {
 
 	// TaskRestarting fields.
 	StartDelay int64 // The sleep period before restarting the task in unix nanoseconds.
+
+	// Artifact Download fields
+	DownloadError string // Error downloading artifacts
 }
 
 func (te *TaskEvent) GoString() string {
@@ -1877,6 +1888,13 @@ func (e *TaskEvent) SetKillError(err error) *TaskEvent {
 
 func (e *TaskEvent) SetRestartDelay(delay time.Duration) *TaskEvent {
 	e.StartDelay = int64(delay)
+	return e
+}
+
+func (e *TaskEvent) SetDownloadError(err error) *TaskEvent {
+	if err != nil {
+		e.DownloadError = err.Error()
+	}
 	return e
 }
 

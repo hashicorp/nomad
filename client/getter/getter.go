@@ -68,7 +68,7 @@ func GetArtifact(artifact *structs.TaskArtifact, destDir string, logger *log.Log
 
 	// Download the artifact
 	if err := getClient(url, destDir).Get(); err != nil {
-		return fmt.Errorf("error downloading artifact (url: %q): %v", url, err)
+		return err
 	}
 
 	return nil
