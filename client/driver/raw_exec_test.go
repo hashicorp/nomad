@@ -3,8 +3,6 @@ package driver
 import (
 	"fmt"
 	"io/ioutil"
-	"net/http"
-	"net/http/httptest"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -97,57 +95,6 @@ func TestRawExecDriver_StartOpen_Wait(t *testing.T) {
 	}
 	handle.Kill()
 	handle2.Kill()
-}
-
-func TestRawExecDriver_Start_Artifact_basic(t *testing.T) {
-	t.Parallel()
-	path := testtask.Path()
-	ts := httptest.NewServer(http.FileServer(http.Dir(filepath.Dir(path))))
-	defer ts.Close()
-
-	file := filepath.Base(path)
-	task := &structs.Task{
-		Name: "sleep",
-		Config: map[string]interface{}{
-			"artifact_source": fmt.Sprintf("%s/%s", ts.URL, file),
-			"command":         file,
-			"args":            []string{"sleep", "1s"},
-		},
-		LogConfig: &structs.LogConfig{
-			MaxFiles:      10,
-			MaxFileSizeMB: 10,
-		},
-		Resources: basicResources,
-	}
-	testtask.SetTaskEnv(task)
-
-	driverCtx, execCtx := testDriverContexts(task)
-	defer execCtx.AllocDir.Destroy()
-	d := NewRawExecDriver(driverCtx)
-
-	handle, err := d.Start(execCtx, task)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if handle == nil {
-		t.Fatalf("missing handle")
-	}
-
-	// Attempt to open
-	handle2, err := d.Open(execCtx, handle.ID())
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if handle2 == nil {
-		t.Fatalf("missing handle")
-	}
-
-	// Task should terminate quickly
-	select {
-	case <-handle2.WaitCh():
-	case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
-		t.Fatalf("timeout")
-	}
 }
 
 func TestRawExecDriver_Start_Wait(t *testing.T) {

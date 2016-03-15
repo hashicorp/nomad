@@ -228,7 +228,7 @@ func (r *TaskRunner) run() {
 
 	for {
 		// Download the task's artifacts
-		if !r.artifactsDownloaded {
+		if !r.artifactsDownloaded && len(r.task.Artifacts) > 0 {
 			r.setState(structs.TaskStatePending, structs.NewTaskEvent(structs.TaskDownloadingArtifacts))
 			taskDir, ok := r.ctx.AllocDir.TaskDirs[r.task.Name]
 			if !ok {
