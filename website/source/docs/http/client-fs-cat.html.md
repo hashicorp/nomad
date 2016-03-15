@@ -9,9 +9,9 @@ description: |-
 
 # /v1/client/fs/cat
 
-The `fs/cat` endpoint is used to read the contents of a file in an allocation
+The `/fs/cat` endpoint is used to read the contents of a file in an allocation
 directory. This API endpoint is hosted by the Nomad client and requests have to
-be made to the Nomad client where the particular allocation is running.
+be made to the Nomad client where the particular allocation was placed.
 
 ## GET
 
@@ -25,21 +25,29 @@ be made to the Nomad client where the particular allocation is running.
   <dd>GET</dd>
 
   <dt>URL</dt>
-  <dd>`/v1/client/fs/cat`</dd>
+  <dd>`/v1/client/fs/cat/<ALLOCATION-ID>`</dd>
 
   <dt>Parameters</dt>
   <dd>
-    Path - The path relative to the root of the allocation directory. It
-    defaults to `/`
+    <ul>
+      <li>
+        <span class="param">path</span>
+        <span class="param-flags">required</span>
+         The path relative to the root of the allocation directory. It 
+         defaults to `/`
+      </li>
+    </ul>
   </dd>
 
   <dt>Returns</dt>
   <dd>
+
     ```
     2016/03/15 15:40:56 [DEBUG] sylog-server: launching syslog server on addr:
     /tmp/plugin096499590
 
     ```
+
   </dd>
 
 </dl>

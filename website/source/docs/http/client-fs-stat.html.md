@@ -9,9 +9,9 @@ description: |-
 
 # /v1/client/fs/stat
 
-The `fs/stat` endpoint is used to stat a file in an allocation directory. This
+The `/fs/stat` endpoint is used to stat a file in an allocation directory. This
 API endpoint is hosted by the Nomad client and requests have to be made to the
-Nomad client where the particular allocation is running.
+Nomad client where the particular allocation was placed.
 
 ## GET
 
@@ -25,15 +25,22 @@ Nomad client where the particular allocation is running.
   <dd>GET</dd>
 
   <dt>URL</dt>
-  <dd>`/v1/client/fs/stat`</dd>
+  <dd>`/v1/client/fs/stat/<ALLOCATION-ID>`</dd>
 
   <dt>Parameters</dt>
   <dd>
-    Path - The path of the file relative to the root of the allocation directory.
+    <ul>
+      <li>
+        <span class="param">path</span>
+        <span class="param-flags">required</span>
+        The path of the file relative to the root of the allocation directory.
+      </li>
+    </ul>
   </dd>
 
   <dt>Returns</dt>
   <dd>
+
     ```javascript
     {
       "Name": "redis-syslog-collector.out",
@@ -43,6 +50,7 @@ Nomad client where the particular allocation is running.
       "ModTime": "2016-03-15T15:40:56.822238153-07:00"
     }
     ```
+
   </dd>
 
 </dl>

@@ -9,9 +9,9 @@ description: |-
 
 # /v1/client/fs/ls
 
-The `fs/ls` endpoint is used to list files in an allocation directory. This API
+The `/fs/ls` endpoint is used to list files in an allocation directory. This API
 endpoint is hosted by the Nomad client and requests have to be made to the Nomad
-client where the particular allocation is running.
+client where the particular allocation was placed.
 
 ## GET
 
@@ -25,16 +25,23 @@ client where the particular allocation is running.
   <dd>GET</dd>
 
   <dt>URL</dt>
-  <dd>`/v1/client/fs/ls`</dd>
+  <dd>`/v1/client/fs/ls/<ALLOCATION-ID>`</dd>
 
   <dt>Parameters</dt>
   <dd>
-    Path - The path relative to the root of the allocation directory. It
-    defaults to `/`
+    <ul>
+      <li>
+        <span class="param">path</span>
+        <span class="param-flags">required</span>
+        The path relative to the root of the allocation directory. It 
+        defaults to `/`, the root of the allocation directory.
+      </li>
+    </ul>
   </dd>
 
   <dt>Returns</dt>
   <dd>
+
     ```javascript
     [
       {
@@ -53,6 +60,7 @@ client where the particular allocation is running.
       }
     ]
     ```
+
   </dd>
 
 </dl>

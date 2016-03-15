@@ -91,6 +91,3 @@ appropriate region.
 
 By default, the output of all HTTP API requests is minimized JSON.  If the client passes `pretty`
 on the query string, formatted JSON will be returned.
-
-
-
