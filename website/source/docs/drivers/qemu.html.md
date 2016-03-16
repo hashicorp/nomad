@@ -19,17 +19,17 @@ resource allocation.
 The `Qemu` driver can execute any regular `qemu` image (e.g. `qcow`, `img`,
 `iso`), and is currently invoked with `qemu-system-x86_64`.
 
+The driver requires the image to be accessible from the Nomad client via the
+[`artifact` downloader](/docs/jobspec/index.html#artifact_doc). 
+
 ## Task Configuration
 
 The `Qemu` driver supports the following configuration in the job spec:
 
-* `artifact_source` - The hosted location of the source Qemu image. Must be accessible
-  from the Nomad client, via HTTP.
-
-* `checksum` - (Optional) The checksum type and value for the `artifact_source` image.
-  The format is `type:value`, where type is any of `md5`, `sha1`, `sha256`, or `sha512`,
-  and the value is the computed checksum. If a checksum is supplied and does not
-  match the downloaded artifact, the driver will fail to start
+* `image_path` - The path to the downloaded image. In most cases this will just be
+  the name of the image. However, if the supplied artifact is an archive that
+  contains the image in a subfolder, the path will need to be the relative path
+  (`subdir/from_archive/my.img`).
 
 * `accelerator` - (Optional) The type of accelerator to use in the invocation.
   If the host machine has `Qemu` installed with KVM support, users can specify
@@ -40,12 +40,35 @@ The `Qemu` driver supports the following configuration in the job spec:
   `port_map { db = 6539 }` would forward the host port with label `db` to the
   guest vm's port 6539.
 
+## Examples
+
+A simple config block to run a `Qemu` image:
+
+```
+task "virtual" {
+  driver = "qemu"
+
+  config {
+    image_path = "linux.img"
+    accelerator = "kvm"
+  }
+
+  # Specifying an artifact is required with the "qemu"
+  # driver. This is the # mechanism to ship the image to be run.
+  artifact {
+    source = "https://dl.dropboxusercontent.com/u/1234/linux.img"
+
+    options {
+      checksum = "md5:123445555555555"
+    }
+  }
+```
+
 ## Client Requirements
 
 The `Qemu` driver requires Qemu to be installed and in your system's `$PATH`.
-The `artifact_source` must be accessible by the node running Nomad. This can be an
-internal source, private to your cluster, but it must be reachable by the client
-over HTTP.
+The task must also specify at least one artifact to download as this is the only
+way to retrieve the image being run.
 
 ## Client Attributes
 

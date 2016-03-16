@@ -411,6 +411,8 @@ would be required for the task would be 60MB.
 
 ### Artifact
 
+<a id="artifact_doc"></a>
+
 Nomad downloads artifacts using
 [`go-getter`](https://github.com/hashicorp/go-getter). The `go-getter` library
 allows downloading of artifacts from various sources using a URL as the input
@@ -440,6 +442,20 @@ options {
     aws_access_key_id     = "<id>"
     aws_access_key_secret = "<secret>"
     aws_access_token      = "<token>"
+}
+```
+
+An example of downloading and unzipping an archive is as simple as:
+
+```
+artifact {
+  # The archive will be extracted before the task is run, making 
+  # it easy to ship configurations with your binary.
+  source = "https://example.com/my.zip"
+
+  options {
+    checksum = "md5:7f4b3e3b4dd5150d4e5aaaa5efada4c3"
+  }
 }
 ```
 

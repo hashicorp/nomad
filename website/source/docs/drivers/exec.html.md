@@ -20,17 +20,10 @@ scripts or other wrappers which provide higher level features.
 
 The `exec` driver supports the following configuration in the job spec:
 
-* `command` - The command to execute. Must be provided.
-
-* `artifact_source` – (Optional) Source location of an executable artifact. Must
-  be accessible from the Nomad client. If you specify an `artifact_source` to be
-  executed, you must reference it in the `command` as show in the examples below
-
-* `checksum` - (Optional) The checksum type and value for the `artifact_source`
-  image.  The format is `type:value`, where type is any of `md5`, `sha1`,
-  `sha256`, or `sha512`, and the value is the computed checksum. If a checksum
-  is supplied and does not match the downloaded artifact, the driver will fail
-  to start
+* `command` - The command to execute. Must be provided. If executing a binary
+  that exists on the host, the path must be absolute. If executing a binary that
+  is download from an [`artifact`](/docs/jobspec/index.html#artifact_doc), the
+  path can be relative from the allocations's root directory.
 
 *   `args` - (Optional) A list of arguments to the optional `command`.
     References to environment variables or any [intepretable Nomad
@@ -41,6 +34,41 @@ The `exec` driver supports the following configuration in the job spec:
         args = ["${nomad.datacenter}", "${MY_ENV}", "${meta.foo}"]
     ```
 
+## Examples
+
+To run a binary present on the Node:
+
+```
+  task "example" {
+    driver = "exec"
+
+    config {
+      # When running a binary that exists on the host, the path must be absolute
+      command = "/bin/sleep"
+      args = ["1"]
+    }
+  }
+```
+
+To execute a binary downloaded from an [`artifact`](/docs/jobspec/index.html#artifact_doc):
+
+```
+  task "example" {
+    driver = "exec"
+
+    config {
+      command = "binary.bin"
+    }
+
+    artifact {
+      source = "https://dl.dropboxusercontent.com/u/1234/binary.bin"
+      options {
+        checksum = "sha256:abd123445ds4555555555"
+      }
+    }
+  }
+```
+
 ## Client Requirements
 
 The `exec` driver can only be run when on Linux and running Nomad as root.
@@ -48,34 +76,10 @@ The `exec` driver can only be run when on Linux and running Nomad as root.
 is only guaranteed on Linux. Further the host must have cgroups mounted properly
 in order for the driver to work.
 
-You must specify a `command` to be executed. Optionally you can specify an
-`artifact_source` to be downloaded as well. Any `command` is assumed to be present on the 
-running client, or a downloaded artifact.
-
 If you are receiving the error `* Constraint "missing drivers" filtered <> nodes`
 and using the exec driver, check to ensure that you are running Nomad as root. This
 also applies for running Nomad in -dev mode.
 
-## Examples
-
-To run a binary present on the Node:
-
-```
-  config {
-    command = "/bin/sleep"
-    args = 1
-  }
-```
-
-To execute a binary specified by `artifact_source`:
-
-```
-  config {
-    artifact_source = "https://dl.dropboxusercontent.com/u/1234/binary.bin"
-    checksum = "sha256:abd123445ds4555555555"
-    command = "binary.bin"
-  }
-```
 
 ## Client Attributes
 
@@ -96,4 +100,5 @@ resources of a process and as such the Nomad agent must be run as root.
 The chroot is populated with data in the following folders from the host
 machine:
 
-`["/bin", "/etc", "/lib", "/lib32", "/lib64", "/usr/bin", "/usr/lib", "/usr/share"]`
+`["/bin", "/etc", "/lib", "/lib32", "/lib64", "/run/resolvconf", "/sbin",
+"/usr/bin", "/usr/lib", "/usr/sbin", "/usr/share"]`
