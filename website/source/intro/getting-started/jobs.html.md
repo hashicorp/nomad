@@ -82,6 +82,52 @@ ID        Eval ID   Node ID   Task Group  Desired  Status
 Here we can see that our evaluation that was created has completed, and that
 it resulted in the creation of an allocation that is now running on the local node.
 
+An allocation represents an instance of Task Group placed on a node. To inspect
+an Allocation we use the [`alloc-status` command](/docs/commands/alloc-status.html):
+
+```
+$ nomad alloc-status 8ba85cef
+ID              = 8ba85cef
+Eval ID         = 26cfc69e
+Name            = example.cache[0]
+Node ID         = 58d69d9d
+Job ID          = example
+Client Status   = running
+Evaluated Nodes = 1
+Filtered Nodes  = 0
+Exhausted Nodes = 0
+Allocation Time = 27.704µs
+Failures        = 0
+
+==> Task "redis" is "running"
+Recent Events:
+Time                   Type      Description
+15/03/16 15:40:57 PDT  Started   Task started by client
+15/03/16 15:40:00 PDT  Received  Task received by client
+
+==> Status
+Allocation "4b5f832c" status "running" (0/1 nodes filtered)
+  * Score "58d69d9d-0015-2c69-e9ba-cc9ee476bb6d.binpack" = 1.580850
+
+==> Task Resources
+Task: "redis"
+CPU  Memory MB  Disk MB  IOPS  Addresses
+500  256        300      0     db: 127.0.0.1:52004
+```
+
+To inspect the file system of a running allocation, we can use the [`fs ls`
+command(/docs/commands/fs.html):
+
+```
+$ nomad fs ls 8ba85cef alloc/logs
+Mode        Size    Modfied Time           Name
+-rw-rw-r--  0 B     15/03/16 15:40:56 PDT  redis.stderr.0
+-rw-rw-r--  2.3 kB  15/03/16 15:40:57 PDT  redis.stdout.0
+
+$ nomad fs cat 8ba85cef alloc/logs/redis.stdout.0
+ 1:C 15 Mar 22:40:57.188 # Warning: no config file specified, using the default config. In order to specify a config file use redis-server /path/to/redis.conf
+```
+
 ## Modifying a Job
 
 The definition of a job is not static, and is meant to be updated over time.
