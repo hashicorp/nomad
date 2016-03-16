@@ -228,7 +228,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		Cmd: exec.Command(bin, "executor", pluginLogFile),
 	}
 
-	exec, pluginClient, err := createExecutor(pluginConfig, d.config.LogOutput, d.config)
+	execImpl, pluginClient, err := createExecutor(pluginConfig, d.config.LogOutput, d.config)
 	if err != nil {
 		return nil, err
 	}
@@ -241,7 +241,12 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		LogConfig:        task.LogConfig,
 	}
 
-	ps, err := exec.LaunchCmd(&executor.ExecCommand{Cmd: "rkt", Args: cmdArgs}, executorCtx)
+	absPath, err := GetAbsolutePath("rkt")
+	if err != nil {
+		return nil, err
+	}
+
+	ps, err := execImpl.LaunchCmd(&executor.ExecCommand{Cmd: absPath, Args: cmdArgs}, executorCtx)
 	if err != nil {
 		pluginClient.Kill()
 		return nil, fmt.Errorf("error starting process via the plugin: %v", err)
@@ -251,7 +256,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	maxKill := d.DriverContext.config.MaxKillTimeout
 	h := &rktHandle{
 		pluginClient:   pluginClient,
-		executor:       exec,
+		executor:       execImpl,
 		executorPid:    ps.Pid,
 		allocDir:       ctx.AllocDir,
 		logger:         d.logger,

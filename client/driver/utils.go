@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -132,4 +134,15 @@ func GetKillTimeout(desired, max time.Duration) time.Duration {
 	}
 
 	return max
+}
+
+// GetAbsolutePath returns the absolute path of the passed binary by resolving
+// it in the path and following symlinks.
+func GetAbsolutePath(bin string) (string, error) {
+	lp, err := exec.LookPath(bin)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve path to %q executable: %v", bin, err)
+	}
+
+	return filepath.EvalSymlinks(lp)
 }

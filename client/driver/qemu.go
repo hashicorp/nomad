@@ -118,8 +118,13 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	// TODO: Check a lower bounds, e.g. the default 128 of Qemu
 	mem := fmt.Sprintf("%dM", task.Resources.MemoryMB)
 
+	absPath, err := GetAbsolutePath("qemu-system-x86_64")
+	if err != nil {
+		return nil, err
+	}
+
 	args := []string{
-		"qemu-system-x86_64",
+		absPath,
 		"-machine", "type=pc,accel=" + accelerator,
 		"-name", vmID,
 		"-m", mem,
