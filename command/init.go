@@ -160,8 +160,8 @@ job "example" {
 			}
 
 			# The artifact block can be specified one or more times to download
-			$ artifacts prior to the task being started. This is convenient for
-			$ shipping configs or data needed by the task.
+			# artifacts prior to the task being started. This is convenient for
+			# shipping configs or data needed by the task.
 			# artifact {
 			#   source = "http://foo.com/artifact.tar.gz"
 			#   options {
