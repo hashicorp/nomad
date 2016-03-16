@@ -1,4 +1,4 @@
-## 0.3.1 (UNRELEASED)
+## 0.3.1
 
 __BACKWARDS INCOMPATIBILITIES:__
   * Service names that dont conform to RFC-1123 and RFC-2782 will fail
