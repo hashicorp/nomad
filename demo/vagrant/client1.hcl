@@ -18,14 +18,6 @@ client {
     options {
         "driver.raw_exec.enable" = "1"
     }
-    
-    reserved {
-       cpu = 300
-       memory = 301
-       disk = 302
-       iops = 303
-       reserved_ports = "1-3,80,81-83"
-    }
 }
 
 # Modify our port to avoid a collision with server1

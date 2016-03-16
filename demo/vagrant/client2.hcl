@@ -1,5 +1,5 @@
 # Increase log verbosity
-log_level = "INFO"
+log_level = "DEBUG"
 
 # Setup data dir
 data_dir = "/tmp/client2"
