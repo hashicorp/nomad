@@ -224,6 +224,19 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	}
 	conf.Node.HTTPAddr = httpAddr
 	conf.Version = a.config.Version
+
+	// Reserve resources on the node.
+	r := conf.Node.Reserved
+	if r == nil {
+		r = new(structs.Resources)
+		conf.Node.Reserved = r
+	}
+	r.CPU = a.config.Client.Reserved.CPU
+	r.MemoryMB = a.config.Client.Reserved.MemoryMB
+	r.DiskMB = a.config.Client.Reserved.DiskMB
+	r.IOPS = a.config.Client.Reserved.IOPS
+	conf.GloballyReservedPorts = a.config.Client.Reserved.ParsedReservedPorts
+
 	return conf, nil
 }
 

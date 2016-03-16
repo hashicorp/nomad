@@ -41,6 +41,15 @@ func TestConfig_Merge(t *testing.T) {
 			},
 			NetworkSpeed:   100,
 			MaxKillTimeout: "20s",
+			ClientMaxPort:  19996,
+			Reserved: &Resources{
+				CPU:                 10,
+				MemoryMB:            10,
+				DiskMB:              10,
+				IOPS:                10,
+				ReservedPorts:       "1,10-30,55",
+				ParsedReservedPorts: []int{1, 2, 4},
+			},
 		},
 		Server: &ServerConfig{
 			Enabled:         false,
@@ -109,6 +118,14 @@ func TestConfig_Merge(t *testing.T) {
 			ClientMinPort:  22000,
 			NetworkSpeed:   105,
 			MaxKillTimeout: "50s",
+			Reserved: &Resources{
+				CPU:                 15,
+				MemoryMB:            15,
+				DiskMB:              15,
+				IOPS:                15,
+				ReservedPorts:       "2,10-30,55",
+				ParsedReservedPorts: []int{1, 2, 3},
+			},
 		},
 		Server: &ServerConfig{
 			Enabled:           true,
@@ -149,13 +166,13 @@ func TestConfig_Merge(t *testing.T) {
 
 	result := c1.Merge(c2)
 	if !reflect.DeepEqual(result, c2) {
-		t.Fatalf("bad:\n%#v\n%#v", result.Server, c2.Server)
+		t.Fatalf("bad:\n%#v\n%#v", result, c2)
 	}
 }
 
-func TestConfig_LoadConfigFile(t *testing.T) {
+func TestConfig_ParseConfigFile(t *testing.T) {
 	// Fails if the file doesn't exist
-	if _, err := LoadConfigFile("/unicorns/leprechauns"); err == nil {
+	if _, err := ParseConfigFile("/unicorns/leprechauns"); err == nil {
 		t.Fatalf("expected error, got nothing")
 	}
 
@@ -169,7 +186,7 @@ func TestConfig_LoadConfigFile(t *testing.T) {
 	if _, err := fh.WriteString("nope;!!!"); err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	if _, err := LoadConfigFile(fh.Name()); err == nil {
+	if _, err := ParseConfigFile(fh.Name()); err == nil {
 		t.Fatalf("expected load error, got nothing")
 	}
 
@@ -184,7 +201,7 @@ func TestConfig_LoadConfigFile(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 
-	config, err := LoadConfigFile(fh.Name())
+	config, err := ParseConfigFile(fh.Name())
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -380,167 +397,50 @@ func TestConfig_Listener(t *testing.T) {
 	}
 }
 
-func TestConfig_LoadConfigString(t *testing.T) {
-	// Load the config
-	config, err := LoadConfigString(testConfig)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-
-	// Expected output
-	expect := &Config{
-		Region:      "foobar",
-		Datacenter:  "dc2",
-		NodeName:    "my-web",
-		DataDir:     "/tmp/nomad",
-		LogLevel:    "ERR",
-		BindAddr:    "192.168.0.1",
-		EnableDebug: true,
-		Ports: &Ports{
-			HTTP: 1234,
-			RPC:  2345,
-			Serf: 3456,
+func TestResources_ParseReserved(t *testing.T) {
+	cases := []struct {
+		Input  string
+		Parsed []int
+		Err    bool
+	}{
+		{
+			"1,2,3",
+			[]int{1, 2, 3},
+			false,
 		},
-		Addresses: &Addresses{
-			HTTP: "127.0.0.1",
-			RPC:  "127.0.0.2",
-			Serf: "127.0.0.3",
+		{
+			"3,1,2,1,2,3,1-3",
+			[]int{1, 2, 3},
+			false,
 		},
-		AdvertiseAddrs: &AdvertiseAddrs{
-			RPC:  "127.0.0.3",
-			Serf: "127.0.0.4",
+		{
+			"3-1",
+			nil,
+			true,
 		},
-		Client: &ClientConfig{
-			Enabled:   true,
-			StateDir:  "/tmp/client-state",
-			AllocDir:  "/tmp/alloc",
-			Servers:   []string{"a.b.c:80", "127.0.0.1:1234"},
-			NodeClass: "linux-medium-64bit",
-			Meta: map[string]string{
-				"foo": "bar",
-				"baz": "zip",
-			},
-			Options: map[string]string{
-				"foo": "bar",
-				"baz": "zip",
-			},
-			NetworkSpeed: 100,
+		{
+			"1-3,2-4",
+			[]int{1, 2, 3, 4},
+			false,
 		},
-		Server: &ServerConfig{
-			Enabled:           true,
-			BootstrapExpect:   5,
-			DataDir:           "/tmp/data",
-			ProtocolVersion:   3,
-			NumSchedulers:     2,
-			EnabledSchedulers: []string{"test"},
-			NodeGCThreshold:   "12h",
-			HeartbeatGrace:    "30s",
-			RetryJoin:         []string{"1.1.1.1", "2.2.2.2"},
-			StartJoin:         []string{"1.1.1.1", "2.2.2.2"},
-			RetryInterval:     "15s",
-			RejoinAfterLeave:  true,
-			RetryMaxAttempts:  3,
-		},
-		Telemetry: &Telemetry{
-			StatsiteAddr:    "127.0.0.1:1234",
-			StatsdAddr:      "127.0.0.1:2345",
-			DisableHostname: true,
-		},
-		LeaveOnInt:                true,
-		LeaveOnTerm:               true,
-		EnableSyslog:              true,
-		SyslogFacility:            "LOCAL1",
-		DisableUpdateCheck:        true,
-		DisableAnonymousSignature: true,
-		Atlas: &AtlasConfig{
-			Infrastructure: "armon/test",
-			Token:          "abcd",
-			Join:           true,
-			Endpoint:       "127.0.0.1:1234",
-		},
-		HTTPAPIResponseHeaders: map[string]string{
-			"Access-Control-Allow-Origin": "*",
+		{
+			"1-3,4,5-5,6,7,8-10",
+			[]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+			false,
 		},
 	}
 
-	// Check parsing
-	if !reflect.DeepEqual(config, expect) {
-		t.Fatalf("bad: got: %#v\nexpect: %#v", config, expect)
-	}
-}
+	for i, tc := range cases {
+		r := &Resources{ReservedPorts: tc.Input}
+		err := r.ParseReserved()
+		if (err != nil) != tc.Err {
+			t.Fatalf("test case %d: %v", i, err)
+			continue
+		}
 
-const testConfig = `
-region = "foobar"
-datacenter = "dc2"
-name = "my-web"
-data_dir = "/tmp/nomad"
-log_level = "ERR"
-bind_addr = "192.168.0.1"
-enable_debug = true
-ports {
-	http = 1234
-	rpc = 2345
-	serf = 3456
-}
-addresses {
-	http = "127.0.0.1"
-	rpc = "127.0.0.2"
-	serf = "127.0.0.3"
-}
-advertise {
-	rpc = "127.0.0.3"
-	serf = "127.0.0.4"
-}
-client {
-	enabled = true
-	state_dir = "/tmp/client-state"
-	alloc_dir = "/tmp/alloc"
-	servers = ["a.b.c:80", "127.0.0.1:1234"]
-	node_id = "xyz123"
-	node_class = "linux-medium-64bit"
-	meta {
-		foo = "bar"
-		baz = "zip"
+		if !reflect.DeepEqual(r.ParsedReservedPorts, tc.Parsed) {
+			t.Fatalf("test case %d: \n\n%#v\n\n%#v", i, r.ParsedReservedPorts, tc.Parsed)
+		}
+
 	}
-	options {
-		foo = "bar"
-		baz = "zip"
-	}
-	network_speed = 100
 }
-server {
-	enabled = true
-	bootstrap_expect = 5
-	data_dir = "/tmp/data"
-	protocol_version = 3
-	num_schedulers = 2
-	enabled_schedulers = ["test"]
-	node_gc_threshold = "12h"
-	heartbeat_grace   = "30s"
-	retry_join = [ "1.1.1.1", "2.2.2.2" ]
-	start_join = [ "1.1.1.1", "2.2.2.2" ]
-	retry_max = 3
-	retry_interval = "15s"
-	rejoin_after_leave = true
-}
-telemetry {
-	statsite_address = "127.0.0.1:1234"
-	statsd_address = "127.0.0.1:2345"
-	disable_hostname = true
-}
-leave_on_interrupt = true
-leave_on_terminate = true
-enable_syslog = true
-syslog_facility = "LOCAL1"
-disable_update_check = true
-disable_anonymous_signature = true
-atlas {
-	infrastructure = "armon/test"
-	token = "abcd"
-	join = true
-	endpoint = "127.0.0.1:1234"
-}
-http_api_response_headers {
-	Access-Control-Allow-Origin = "*"
-}
-`

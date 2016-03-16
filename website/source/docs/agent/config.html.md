@@ -62,6 +62,9 @@ server {
 client {
   enabled = true
   network_speed = 10
+  options {
+    "driver.raw_exec.enable" = "1"
+  }
 }
 
 atlas {
@@ -190,7 +193,7 @@ nodes, unless otherwise specified:
 * `disable_anonymous_signature`: Disables providing an anonymous signature
   for de-duplication with the update check. See `disable_update_check`.
 
-* `http_api_response_headers`: This object allows adding headers to the 
+* `http_api_response_headers`: This object allows adding headers to the
   HTTP API responses. For example, the following config can be used to enable
   CORS on the HTTP API endpoints:
   ```
@@ -296,6 +299,27 @@ configured on server nodes.
     task specifies a `kill_timeout` greater than `max_kill_timeout`,
     `max_kill_timeout` is used. This is to prevent a user being able to set an
     unreasonable timeout. If unset, a default is used.
+  * `reserved`: `reserved` is used to reserve a portion of the nodes resources
+    from being used by Nomad when placing tasks.  It can be used to target
+    a certain capacity usage for the node. For example, 20% of the nodes CPU
+    could be reserved to target a CPU utilization of 80%. The block has the
+    following format:
+
+    ```
+    reserved {
+        cpu = 500
+        memory = 512
+        disk = 1024
+        reserved_ports = "22,80,8500-8600"
+    }
+    ```
+
+    * `cpu`: `cpu` is given as MHz to reserve.
+    * `memory`: `memory` is given as MB to reserve.
+    * `disk`: `disk` is given as MB to reserve.
+    * `reserved_ports`: `reserved_ports` is a comma seperated list of ports
+      to reserve on all fingerprinted network devices. Ranges can be
+      specified by using a hyphen seperated the two inclusive ends.
 
 ### Client Options Map <a id="options_map"></a>
 
