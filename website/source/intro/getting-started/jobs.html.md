@@ -116,7 +116,7 @@ CPU  Memory MB  Disk MB  IOPS  Addresses
 ```
 
 To inspect the file system of a running allocation, we can use the [`fs ls`
-command(/docs/commands/fs.html):
+command](/docs/commands/fs.html):
 
 ```
 $ nomad fs ls 8ba85cef alloc/logs
