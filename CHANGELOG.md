@@ -1,7 +1,12 @@
 ## 0.3.1 (UNRELEASED)
 
 __BACKWARDS INCOMPATIBILITIES:__
-  * jobspec: Require RFC-1123 and RFC-2782 valid service names [GH-915]
+  * Service names that dont conform to RFC-1123 and RFC-2782 will fail
+    validation. To fix, change service name to conform to the RFCs before
+    running the job [GH-915]
+  * Jobs that downloaded artifacts will have to be updated to the new syntax and
+    be resubmitted. The new syntax consolidates artifacts to the `task` rather
+    than being duplicated inside each driver config [GH-921]
 
 IMPROVEMENTS:
   * cli: Validate job file schemas [GH-900]
@@ -9,10 +14,15 @@ IMPROVEMENTS:
     [GH-869, GH-896]
   * client: Starting task is retried under the restart policy if the error is
     recoverable [GH-859]
+  * client: Allow tasks to download artifacts, which can be archives, prior to
+    starting [GH-921]
+  * config: Validate Nomad configuration files [GH-910]
+  * config: Client config allows reserving resources [GH-910]
   * driver/docker: Support for ECR [GH-858]
   * driver/docker: Periodic Fingerprinting [GH-893]
   * driver/docker: Preventing port reservation for log collection on Unix platforms [GH-897]
   * driver/rkt: Pass DNS information to rkt driver [GH-892]
+  * jobspec: Require RFC-1123 and RFC-2782 valid service names [GH-915]
 
 BUG FIXES:
   * core: No longer cancel evaluations that are delayed in the plan queue
