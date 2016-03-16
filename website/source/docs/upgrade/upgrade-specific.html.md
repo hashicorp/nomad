@@ -15,6 +15,14 @@ details provided for their upgrades as a result of new features or changed
 behavior. This page is used to document those details separately from the
 standard upgrade flow.
 
+## Nomad 0.3.1
+
+Nomad 0.3.1 removes artifact downloading from driver configs and places them as
+a first class element of the task. As such, jobs will have to be rewritten in
+the proper format and resubmitted to Nomad. Nomad clients will properly
+re-attach to existing tasks but job definitions must be updated before they can
+be dispatched to clients running 0.3.1.
+
 ## Nomad 0.3.0
 
 Nomad 0.3.0 has made several substantial changes to job files included a new

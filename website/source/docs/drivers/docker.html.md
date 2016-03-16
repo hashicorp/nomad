@@ -121,8 +121,10 @@ Example:
 ```
 task "secretservice" {
     driver = "docker"
+
     config {
         image = "secret/service"
+
         auth {
             username = "dockerhub_user"
             password = "dockerhub_password"
@@ -194,6 +196,7 @@ task "redis" {
 
     config {
       image = "redis"
+
       port_map {
         redis = 6379
       }

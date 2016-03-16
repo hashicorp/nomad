@@ -27,12 +27,12 @@ var (
 		"/lib":            "/lib",
 		"/lib32":          "/lib32",
 		"/lib64":          "/lib64",
+		"/run/resolvconf": "/run/resolvconf",
 		"/sbin":           "/sbin",
 		"/usr/bin":        "/usr/bin",
-		"/usr/sbin":       "/usr/sbin",
 		"/usr/lib":        "/usr/lib",
+		"/usr/sbin":       "/usr/sbin",
 		"/usr/share":      "/usr/share",
-		"/run/resolvconf": "/run/resolvconf",
 	}
 )
 
