@@ -205,6 +205,14 @@ func (c *AllocStatusCommand) taskStatus(alloc *api.Allocation) {
 				} else {
 					desc = "Failed to start task"
 				}
+			case api.TaskDownloadingArtifacts:
+				desc = "Client is downloading artifacts"
+			case api.TaskArtifactDownloadFailed:
+				if event.DownloadError != "" {
+					desc = event.DownloadError
+				} else {
+					desc = "Failed to download artifacts"
+				}
 			case api.TaskKilled:
 				if event.KillError != "" {
 					desc = event.KillError

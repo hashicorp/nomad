@@ -268,6 +268,10 @@ The `task` object supports the following keys:
 * `logs` - Logs allows configuring log rotation for the `stdout` and `stderr`
   buffers of a Task. See the log rotation reference below for more details.
 
+* `artifact` - Defines an artifact to be downloaded before the task is run. This
+  can be provided multiple times to define additional artifacts to download. See
+  the artifacts reference for more details.
+
 ### Resources
 
 The `resources` object supports the following keys:
@@ -404,6 +408,40 @@ logs {
 In the above example we have asked Nomad to retain 3 rotated files for both
 `stderr` and `stdout` and size of each file is 10MB. The minimum disk space that
 would be required for the task would be 60MB.
+
+### Artifact
+
+Nomad downloads artifacts using
+[`go-getter`](https://github.com/hashicorp/go-getter). The `go-getter` library
+allows downloading of artifacts from various sources using a URL as the input
+source. The key/value pairs given in the `options` block map directly to
+parameters appended to the supplied `source` url. These are then used by
+`go-getter` to appropriately download the artifact. `go-getter` also has a CLI
+tool to validate its URL and can be used to check if the Nomad `artifact` is
+valid.
+
+Nomad allows downloading `http`, `https`, and `S3` artifacts. If these artifacts
+are archives (zip, tar.gz, bz2, etc.), these will be unarchived before the task
+is started.
+
+The `artifact` object maps supports the following keys:
+
+* `source` - The path to the artifact to download.
+
+* `options` - The `options` block allows setting parameters for `go-getter`. An
+  example is given below: 
+
+```
+options {
+    # Validate the downloaded artifact
+    checksum = "md5:c4aa853ad2215426eb7d70a21922e794"
+
+    # S3 options for downloading artifacts from S3
+    aws_access_key_id     = "<id>"
+    aws_access_key_secret = "<secret>"
+    aws_access_token      = "<token>"
+}
+```
 
 ## JSON Syntax
 

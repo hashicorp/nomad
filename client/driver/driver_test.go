@@ -1,6 +1,7 @@
 package driver
 
 import (
+	"io"
 	"log"
 	"math/rand"
 	"os"
@@ -36,6 +37,31 @@ func TestMain(m *testing.M) {
 	if !testtask.Run() {
 		os.Exit(m.Run())
 	}
+}
+
+// copyFile moves an existing file to the destination
+func copyFile(src, dst string, t *testing.T) {
+	in, err := os.Open(src)
+	if err != nil {
+		t.Fatalf("copying %v -> %v failed: %v", src, dst, err)
+	}
+	defer in.Close()
+	out, err := os.Create(dst)
+	if err != nil {
+		t.Fatalf("copying %v -> %v failed: %v", src, dst, err)
+	}
+	defer func() {
+		if err := out.Close(); err != nil {
+			t.Fatalf("copying %v -> %v failed: %v", src, dst, err)
+		}
+	}()
+	if _, err = io.Copy(out, in); err != nil {
+		t.Fatalf("copying %v -> %v failed: %v", src, dst, err)
+	}
+	if err := out.Sync(); err != nil {
+		t.Fatalf("copying %v -> %v failed: %v", src, dst, err)
+	}
+	return
 }
 
 func testLogger() *log.Logger {

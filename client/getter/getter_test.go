@@ -4,108 +4,149 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"os"
+	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-func TestGetArtifact_basic(t *testing.T) {
+func TestGetArtifact_FileAndChecksum(t *testing.T) {
+	// Create the test server hosting the file to download
+	ts := httptest.NewServer(http.FileServer(http.Dir(filepath.Dir("./test-fixtures/"))))
+	defer ts.Close()
 
-	logger := log.New(os.Stderr, "", log.LstdFlags)
+	// Create a temp directory to download into
+	destDir, err := ioutil.TempDir("", "nomad-test")
+	if err != nil {
+		t.Fatalf("failed to make temp directory: %v", err)
+	}
+	defer os.RemoveAll(destDir)
 
-	// TODO: Use http.TestServer to serve these files from fixtures dir
-	passing := []struct {
-		Source, Checksum string
-	}{
-		{
-			"https://dl.dropboxusercontent.com/u/47675/jar_thing/hi_darwin_amd64",
-			"sha256:66aa0f05fc0cfcf1e5ed8cc5307b5df51e33871d6b295a60e0f9f6dd573da977",
-		},
-		{
-			"https://dl.dropboxusercontent.com/u/47675/jar_thing/hi_linux_amd64",
-			"sha256:6f99b4c5184726e601ecb062500aeb9537862434dfe1898dbe5c68d9f50c179c",
-		},
-		{
-			"https://dl.dropboxusercontent.com/u/47675/jar_thing/hi_linux_amd64",
-			"md5:a9b14903a8942748e4f8474e11f795d3",
-		},
-		{
-			"https://dl.dropboxusercontent.com/u/47675/jar_thing/hi_linux_amd64?checksum=sha256:6f99b4c5184726e601ecb062500aeb9537862434dfe1898dbe5c68d9f50c179c",
-			"",
-		},
-		{
-			"https://dl.dropboxusercontent.com/u/47675/jar_thing/hi_linux_amd64",
-			"",
+	// Create the artifact
+	file := "test.sh"
+	artifact := &structs.TaskArtifact{
+		GetterSource: fmt.Sprintf("%s/%s", ts.URL, file),
+		GetterOptions: map[string]string{
+			"checksum": "md5:bce963762aa2dbfed13caf492a45fb72",
 		},
 	}
 
-	for i, p := range passing {
-		destDir, err := ioutil.TempDir("", fmt.Sprintf("nomad-test-%d", i))
-		if err != nil {
-			t.Fatalf("Error in TestGetArtifact_basic makeing TempDir: %s", err)
-		}
+	// Download the artifact
+	logger := log.New(os.Stderr, "", log.LstdFlags)
+	if err := GetArtifact(artifact, destDir, logger); err != nil {
+		t.Fatalf("GetArtifact failed: %v", err)
+	}
 
-		path, err := GetArtifact(destDir, p.Source, p.Checksum, logger)
-		if err != nil {
-			t.Fatalf("TestGetArtifact_basic unexpected failure here: %s", err)
-		}
+	// Verify artifact exists
+	if _, err := os.Stat(filepath.Join(destDir, file)); err != nil {
+		t.Fatalf("source path error: %s", err)
+	}
+}
 
-		if p.Checksum != "" {
-			if ok := strings.Contains(path, p.Checksum); ok {
-				t.Fatalf("path result should not contain the checksum, got: %s", path)
+func TestGetArtifact_InvalidChecksum(t *testing.T) {
+	// Create the test server hosting the file to download
+	ts := httptest.NewServer(http.FileServer(http.Dir(filepath.Dir("./test-fixtures/"))))
+	defer ts.Close()
+
+	// Create a temp directory to download into
+	destDir, err := ioutil.TempDir("", "nomad-test")
+	if err != nil {
+		t.Fatalf("failed to make temp directory: %v", err)
+	}
+	defer os.RemoveAll(destDir)
+
+	// Create the artifact with an incorrect checksum
+	file := "test.sh"
+	artifact := &structs.TaskArtifact{
+		GetterSource: fmt.Sprintf("%s/%s", ts.URL, file),
+		GetterOptions: map[string]string{
+			"checksum": "md5:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		},
+	}
+
+	// Download the artifact and expect an error
+	logger := log.New(os.Stderr, "", log.LstdFlags)
+	if err := GetArtifact(artifact, destDir, logger); err == nil {
+		t.Fatalf("GetArtifact should have failed")
+	}
+}
+
+func createContents(basedir string, fileContents map[string]string, t *testing.T) {
+	for relPath, content := range fileContents {
+		folder := basedir
+		if strings.Index(relPath, "/") != -1 {
+			// Create the folder.
+			folder = filepath.Join(basedir, filepath.Dir(relPath))
+			if err := os.Mkdir(folder, 0777); err != nil {
+				t.Fatalf("failed to make directory: %v", err)
 			}
 		}
 
-		// verify artifact exists
-		if _, err := os.Stat(path); err != nil {
-			t.Fatalf("source path error: %s", err)
+		// Create a file in the existing folder.
+		file := filepath.Join(folder, filepath.Base(relPath))
+		if err := ioutil.WriteFile(file, []byte(content), 0777); err != nil {
+			t.Fatalf("failed to write data to file %v: %v", file, err)
 		}
 	}
 }
 
-func TestGetArtifact_fails(t *testing.T) {
+func checkContents(basedir string, fileContents map[string]string, t *testing.T) {
+	for relPath, content := range fileContents {
+		path := filepath.Join(basedir, relPath)
+		actual, err := ioutil.ReadFile(path)
+		if err != nil {
+			t.Fatalf("failed to read file %q: %v", path, err)
+		}
+
+		if !reflect.DeepEqual(actual, []byte(content)) {
+			t.Fatalf("%q: expected %q; got %q", path, content, string(actual))
+		}
+	}
+}
+
+func TestGetArtifact_Archive(t *testing.T) {
+	// Create the test server hosting the file to download
+	ts := httptest.NewServer(http.FileServer(http.Dir(filepath.Dir("./test-fixtures/"))))
+	defer ts.Close()
+
+	// Create a temp directory to download into and create some of the same
+	// files that exist in the artifact to ensure they are overriden
+	destDir, err := ioutil.TempDir("", "nomad-test")
+	if err != nil {
+		t.Fatalf("failed to make temp directory: %v", err)
+	}
+	defer os.RemoveAll(destDir)
+
+	create := map[string]string{
+		"exist/my.config": "to be replaced",
+		"untouched":       "existing top-level",
+	}
+	createContents(destDir, create, t)
+
+	file := "archive.tar.gz"
+	artifact := &structs.TaskArtifact{
+		GetterSource: fmt.Sprintf("%s/%s", ts.URL, file),
+		GetterOptions: map[string]string{
+			"checksum": "sha1:20bab73c72c56490856f913cf594bad9a4d730f6",
+		},
+	}
 
 	logger := log.New(os.Stderr, "", log.LstdFlags)
-
-	failing := []struct {
-		Source, Checksum string
-	}{
-		{
-			"",
-			"sha256:66aa0f05fc0cfcf1e5ed8cc5307b5d",
-		},
-		{
-			"/u/47675/jar_thing/hi_darwin_amd64",
-			"sha256:66aa0f05fc0cfcf1e5ed8cc5307b5d",
-		},
-		{
-			"https://dl.dropboxusercontent.com/u/47675/jar_thing/hi_darwin_amd64",
-			"sha256:66aa0f05fc0cfcf1e5ed8cc5307b5d",
-		},
-		{
-			"https://dl.dropboxusercontent.com/u/47675/jar_thing/hi_linux_amd64",
-			"sha257:6f99b4c5184726e601ecb062500aeb9537862434dfe1898dbe5c68d9f50c179c",
-		},
-		// malformed checksum
-		{
-			"https://dl.dropboxusercontent.com/u/47675/jar_thing/hi_linux_amd64",
-			"6f99b4c5184726e601ecb062500aeb9537862434dfe1898dbe5c68d9f50c179c",
-		},
-		// 404
-		{
-			"https://dl.dropboxusercontent.com/u/47675/jar_thing/hi_linux_amd86",
-			"",
-		},
+	if err := GetArtifact(artifact, destDir, logger); err != nil {
+		t.Fatalf("GetArtifact failed: %v", err)
 	}
-	for i, p := range failing {
-		destDir, err := ioutil.TempDir("", fmt.Sprintf("nomad-test-%d", i))
-		if err != nil {
-			t.Fatalf("Error in TestGetArtifact_basic makeing TempDir: %s", err)
-		}
 
-		_, err = GetArtifact(destDir, p.Source, p.Checksum, logger)
-		if err == nil {
-			t.Fatalf("TestGetArtifact_basic expected failure, but got none")
-		}
+	// Verify the unarchiving overrode files properly.
+	expected := map[string]string{
+		"untouched":       "existing top-level",
+		"exist/my.config": "hello world\n",
+		"new/my.config":   "hello world\n",
+		"test.sh":         "sleep 1\n",
 	}
+	checkContents(destDir, expected, t)
 }

@@ -15,7 +15,6 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/executor"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
-	"github.com/hashicorp/nomad/client/getter"
 	"github.com/hashicorp/nomad/helper/discover"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/mapstructure"
@@ -28,10 +27,8 @@ type ExecDriver struct {
 }
 
 type ExecDriverConfig struct {
-	ArtifactSource string   `mapstructure:"artifact_source"`
-	Checksum       string   `mapstructure:"checksum"`
-	Command        string   `mapstructure:"command"`
-	Args           []string `mapstructure:"args"`
+	Command string   `mapstructure:"command"`
+	Args    []string `mapstructure:"args"`
 }
 
 // execHandle is returned from Start/Open as a handle to the PID
@@ -87,21 +84,6 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	taskDir, ok := ctx.AllocDir.TaskDirs[d.DriverContext.taskName]
 	if !ok {
 		return nil, fmt.Errorf("Could not find task directory for task: %v", d.DriverContext.taskName)
-	}
-
-	// Check if an artificat is specified and attempt to download it
-	source, ok := task.Config["artifact_source"]
-	if ok && source != "" {
-		// Proceed to download an artifact to be executed.
-		_, err := getter.GetArtifact(
-			taskDir,
-			driverConfig.ArtifactSource,
-			driverConfig.Checksum,
-			d.logger,
-		)
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	bin, err := discover.NomadExecutable()

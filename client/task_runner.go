@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver"
+	"github.com/hashicorp/nomad/client/getter"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/hashstructure"
 
@@ -47,6 +48,10 @@ type TaskRunner struct {
 	updateCh   chan *structs.Allocation
 	handle     driver.DriverHandle
 	handleLock sync.Mutex
+
+	// artifactsDownloaded tracks whether the tasks artifacts have been
+	// downloaded
+	artifactsDownloaded bool
 
 	destroy     bool
 	destroyCh   chan struct{}
@@ -146,6 +151,10 @@ func (r *TaskRunner) RestoreState() error {
 		}
 		r.handleLock.Lock()
 		r.handle = handle
+
+		// If we have previously created the driver, the artifacts have been
+		// downloaded.
+		r.artifactsDownloaded = true
 		r.handleLock.Unlock()
 	}
 	return nil
@@ -214,12 +223,40 @@ func (r *TaskRunner) Run() {
 }
 
 func (r *TaskRunner) run() {
+	// Predeclare things so we an jump to the RESTART
+	var handleEmpty bool
+
 	for {
+		// Download the task's artifacts
+		if !r.artifactsDownloaded && len(r.task.Artifacts) > 0 {
+			r.setState(structs.TaskStatePending, structs.NewTaskEvent(structs.TaskDownloadingArtifacts))
+			taskDir, ok := r.ctx.AllocDir.TaskDirs[r.task.Name]
+			if !ok {
+				err := fmt.Errorf("task directory couldn't be found")
+				r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskDriverFailure).SetDriverError(err))
+				r.logger.Printf("[ERR] client: task directory for alloc %q task %q couldn't be found", r.alloc.ID, r.task.Name)
+
+				// Non-restartable error
+				return
+			}
+
+			for _, artifact := range r.task.Artifacts {
+				if err := getter.GetArtifact(artifact, taskDir, r.logger); err != nil {
+					r.setState(structs.TaskStateDead,
+						structs.NewTaskEvent(structs.TaskArtifactDownloadFailed).SetDownloadError(err))
+					r.restartTracker.SetStartError(cstructs.NewRecoverableError(err, true))
+					goto RESTART
+				}
+			}
+
+			r.artifactsDownloaded = true
+		}
+
 		// Start the task if not yet started or it is being forced. This logic
 		// is necessary because in the case of a restore the handle already
 		// exists.
 		r.handleLock.Lock()
-		handleEmpty := r.handle == nil
+		handleEmpty = r.handle == nil
 		r.handleLock.Unlock()
 		if handleEmpty {
 			startErr := r.startTask()
@@ -277,6 +314,7 @@ func (r *TaskRunner) run() {
 
 	RESTART:
 		state, when := r.restartTracker.GetState()
+		r.restartTracker.SetStartError(nil).SetWaitResult(nil)
 		switch state {
 		case structs.TaskNotRestarting, structs.TaskTerminated:
 			r.logger.Printf("[INFO] client: Not restarting task: %v for alloc: %v ", r.task.Name, r.alloc.ID)

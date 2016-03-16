@@ -2,10 +2,15 @@ package structs
 
 import (
 	"bytes"
+	"crypto/md5"
 	"crypto/sha1"
+	"crypto/sha256"
+	"crypto/sha512"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -1603,6 +1608,10 @@ type Task struct {
 
 	// LogConfig provides configuration for log rotation
 	LogConfig *LogConfig `mapstructure:"logs"`
+
+	// Artifacts is a list of artifacts to download and extract before running
+	// the task.
+	Artifacts []*TaskArtifact
 }
 
 func (t *Task) Copy() *Task {
@@ -1622,6 +1631,12 @@ func (t *Task) Copy() *Task {
 
 	nt.Resources = nt.Resources.Copy()
 	nt.Meta = CopyMapStringString(nt.Meta)
+
+	artifacts := make([]*TaskArtifact, len(nt.Artifacts))
+	for i, a := range nt.Artifacts {
+		artifacts[i] = a.Copy()
+	}
+	nt.Artifacts = artifacts
 
 	if i, err := copystructure.Copy(nt.Config); err != nil {
 		nt.Config = i.(map[string]interface{})
@@ -1660,6 +1675,72 @@ func (t *Task) FindHostAndPortFor(portLabel string) (string, int) {
 		}
 	}
 	return "", 0
+}
+
+// Validate is used to sanity check a task
+func (t *Task) Validate() error {
+	var mErr multierror.Error
+	if t.Name == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("Missing task name"))
+	}
+	if t.Driver == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("Missing task driver"))
+	}
+	if t.KillTimeout.Nanoseconds() < 0 {
+		mErr.Errors = append(mErr.Errors, errors.New("KillTimeout must be a positive value"))
+	}
+
+	// Validate the resources.
+	if t.Resources == nil {
+		mErr.Errors = append(mErr.Errors, errors.New("Missing task resources"))
+	} else if err := t.Resources.MeetsMinResources(); err != nil {
+		mErr.Errors = append(mErr.Errors, err)
+	}
+
+	// Validate the log config
+	if t.LogConfig == nil {
+		mErr.Errors = append(mErr.Errors, errors.New("Missing Log Config"))
+	} else if err := t.LogConfig.Validate(); err != nil {
+		mErr.Errors = append(mErr.Errors, err)
+	}
+
+	for idx, constr := range t.Constraints {
+		if err := constr.Validate(); err != nil {
+			outer := fmt.Errorf("Constraint %d validation failed: %s", idx+1, err)
+			mErr.Errors = append(mErr.Errors, outer)
+		}
+	}
+
+	for _, service := range t.Services {
+		if err := service.Validate(); err != nil {
+			mErr.Errors = append(mErr.Errors, err)
+		}
+	}
+
+	if t.LogConfig != nil && t.Resources != nil {
+		logUsage := (t.LogConfig.MaxFiles * t.LogConfig.MaxFileSizeMB)
+		if t.Resources.DiskMB <= logUsage {
+			mErr.Errors = append(mErr.Errors,
+				fmt.Errorf("log storage (%d MB) exceeds requested disk capacity (%d MB)",
+					logUsage, t.Resources.DiskMB))
+		}
+	}
+
+	for idx, artifact := range t.Artifacts {
+		if err := artifact.Validate(); err != nil {
+			outer := fmt.Errorf("Artifact %d validation failed: %v", idx+1, err)
+			mErr.Errors = append(mErr.Errors, outer)
+		}
+	}
+
+	// If the driver is java or qemu ensure that they have specified an
+	// artifact.
+	if (t.Driver == "qemu" || t.Driver == "java") && len(t.Artifacts) == 0 {
+		err := fmt.Errorf("must specify at least one artifact when using %q driver", t.Driver)
+		mErr.Errors = append(mErr.Errors, err)
+	}
+
+	return mErr.ErrorOrNil()
 }
 
 // Set of possible states for a task.
@@ -1727,6 +1808,14 @@ const (
 	// TaskNotRestarting indicates that the task has failed and is not being
 	// restarted because it has exceeded its restart policy.
 	TaskNotRestarting = "Restarts Exceeded"
+
+	// Task Downloading Artifacts means the task is downloading the artifacts
+	// specified in the task.
+	TaskDownloadingArtifacts = "Downloading Artifacts"
+
+	// TaskArtifactDownloadFailed indicates that downloading the artifacts
+	// failed.
+	TaskArtifactDownloadFailed = "Failed Artifact Download"
 )
 
 // TaskEvent is an event that effects the state of a task and contains meta-data
@@ -1748,6 +1837,9 @@ type TaskEvent struct {
 
 	// TaskRestarting fields.
 	StartDelay int64 // The sleep period before restarting the task in unix nanoseconds.
+
+	// Artifact Download fields
+	DownloadError string // Error downloading artifacts
 }
 
 func (te *TaskEvent) GoString() string {
@@ -1806,54 +1898,88 @@ func (e *TaskEvent) SetRestartDelay(delay time.Duration) *TaskEvent {
 	return e
 }
 
-// Validate is used to sanity check a task group
-func (t *Task) Validate() error {
+func (e *TaskEvent) SetDownloadError(err error) *TaskEvent {
+	if err != nil {
+		e.DownloadError = err.Error()
+	}
+	return e
+}
+
+// TaskArtifact is an artifact to download before running the task.
+type TaskArtifact struct {
+	// GetterSource is the source to download an artifact using go-getter
+	GetterSource string `mapstructure:"source"`
+
+	// GetterOptions are options to use when downloading the artifact using
+	// go-getter.
+	GetterOptions map[string]string `mapstructure:"options"`
+}
+
+func (ta *TaskArtifact) Copy() *TaskArtifact {
+	if ta == nil {
+		return nil
+	}
+	nta := new(TaskArtifact)
+	*nta = *ta
+	nta.GetterOptions = CopyMapStringString(ta.GetterOptions)
+	return nta
+}
+
+func (ta *TaskArtifact) Validate() error {
+	// Verify the source
 	var mErr multierror.Error
-	if t.Name == "" {
-		mErr.Errors = append(mErr.Errors, errors.New("Missing task name"))
-	}
-	if t.Driver == "" {
-		mErr.Errors = append(mErr.Errors, errors.New("Missing task driver"))
-	}
-	if t.KillTimeout.Nanoseconds() < 0 {
-		mErr.Errors = append(mErr.Errors, errors.New("KillTimeout must be a positive value"))
+	if ta.GetterSource == "" {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("source must be specified"))
 	}
 
-	// Validate the resources.
-	if t.Resources == nil {
-		mErr.Errors = append(mErr.Errors, errors.New("Missing task resources"))
-	} else if err := t.Resources.MeetsMinResources(); err != nil {
-		mErr.Errors = append(mErr.Errors, err)
+	_, err := url.Parse(ta.GetterSource)
+	if err != nil {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid source URL %q: %v", ta.GetterSource, err))
 	}
 
-	// Validate the log config
-	if t.LogConfig == nil {
-		mErr.Errors = append(mErr.Errors, errors.New("Missing Log Config"))
-	} else if err := t.LogConfig.Validate(); err != nil {
-		mErr.Errors = append(mErr.Errors, err)
-	}
+	// Verify the checksum
+	if check, ok := ta.GetterOptions["checksum"]; ok {
+		check = strings.TrimSpace(check)
+		if check == "" {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("checksum value can not be empty"))
+			return mErr.ErrorOrNil()
+		}
 
-	for idx, constr := range t.Constraints {
-		if err := constr.Validate(); err != nil {
-			outer := fmt.Errorf("Constraint %d validation failed: %s", idx+1, err)
-			mErr.Errors = append(mErr.Errors, outer)
+		parts := strings.Split(check, ":")
+		if l := len(parts); l != 2 {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf(`checksum must be given as "type:value"; got %q`, check))
+			return mErr.ErrorOrNil()
+		}
+
+		checksumVal := parts[1]
+		checksumBytes, err := hex.DecodeString(checksumVal)
+		if err != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid checksum: %v", err))
+			return mErr.ErrorOrNil()
+		}
+
+		checksumType := parts[0]
+		expectedLength := 0
+		switch checksumType {
+		case "md5":
+			expectedLength = md5.Size
+		case "sha1":
+			expectedLength = sha1.Size
+		case "sha256":
+			expectedLength = sha256.Size
+		case "sha512":
+			expectedLength = sha512.Size
+		default:
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("unsupported checksum type: %s", checksumType))
+			return mErr.ErrorOrNil()
+		}
+
+		if len(checksumBytes) != expectedLength {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid %s checksum: %v", checksumType, checksumVal))
+			return mErr.ErrorOrNil()
 		}
 	}
 
-	for _, service := range t.Services {
-		if err := service.Validate(); err != nil {
-			mErr.Errors = append(mErr.Errors, err)
-		}
-	}
-
-	if t.LogConfig != nil && t.Resources != nil {
-		logUsage := (t.LogConfig.MaxFiles * t.LogConfig.MaxFileSizeMB)
-		if t.Resources.DiskMB <= logUsage {
-			mErr.Errors = append(mErr.Errors,
-				fmt.Errorf("log storage (%d MB) exceeds requested disk capacity (%d MB)",
-					logUsage, t.Resources.DiskMB))
-		}
-	}
 	return mErr.ErrorOrNil()
 }
 

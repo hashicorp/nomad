@@ -131,6 +131,11 @@ func testJob() *Job {
 						Env: map[string]string{
 							"FOO": "bar",
 						},
+						Artifacts: []*TaskArtifact{
+							{
+								GetterSource: "http://foo.com",
+							},
+						},
 						Services: []*Service{
 							{
 								Name:      "${TASK}-frontend",
@@ -761,5 +766,55 @@ func TestAllocation_Index(t *testing.T) {
 
 	if a1.Index() != e1 || a2.Index() != e2 {
 		t.Fatal()
+	}
+}
+
+func TestTaskArtifact_Validate_Source(t *testing.T) {
+	valid := &TaskArtifact{GetterSource: "google.com"}
+	if err := valid.Validate(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestTaskArtifact_Validate_Checksum(t *testing.T) {
+	cases := []struct {
+		Input *TaskArtifact
+		Err   bool
+	}{
+		{
+			&TaskArtifact{
+				GetterSource: "foo.com",
+				GetterOptions: map[string]string{
+					"checksum": "no-type",
+				},
+			},
+			true,
+		},
+		{
+			&TaskArtifact{
+				GetterSource: "foo.com",
+				GetterOptions: map[string]string{
+					"checksum": "md5:toosmall",
+				},
+			},
+			true,
+		},
+		{
+			&TaskArtifact{
+				GetterSource: "foo.com",
+				GetterOptions: map[string]string{
+					"checksum": "invalid:type",
+				},
+			},
+			true,
+		},
+	}
+
+	for i, tc := range cases {
+		err := tc.Input.Validate()
+		if (err != nil) != tc.Err {
+			t.Fatalf("case %d: %v", i, err)
+			continue
+		}
 	}
 }

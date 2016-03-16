@@ -36,6 +36,18 @@ var (
 	}
 )
 
+func (e *UniversalExecutor) makeExecutable(binPath string) error {
+	path := binPath
+	if e.ctx.FSIsolation {
+		// The path must be relative the chroot
+		path = filepath.Join(e.taskDir, binPath)
+	} else if !filepath.IsAbs(binPath) {
+		// The path must be relative the allocations directory.
+		path = filepath.Join(e.taskDir, binPath)
+	}
+	return e.makeExecutablePosix(path)
+}
+
 // configureIsolation configures chroot and creates cgroups
 func (e *UniversalExecutor) configureIsolation() error {
 	if e.ctx.FSIsolation {

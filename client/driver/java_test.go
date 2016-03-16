@@ -58,9 +58,8 @@ func TestJavaDriver_StartOpen_Wait(t *testing.T) {
 	task := &structs.Task{
 		Name: "demo-app",
 		Config: map[string]interface{}{
-			"artifact_source": "https://dl.dropboxusercontent.com/u/47675/jar_thing/demoapp.jar",
-			"jvm_options":     []string{"-Xmx64m", "-Xms32m"},
-			"checksum":        "sha256:58d6e8130308d32e197c5108edd4f56ddf1417408f743097c2e662df0f0b17c8",
+			"jar_path":    "demoapp.jar",
+			"jvm_options": []string{"-Xmx64m", "-Xms32m"},
 		},
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
@@ -72,6 +71,10 @@ func TestJavaDriver_StartOpen_Wait(t *testing.T) {
 	driverCtx, execCtx := testDriverContexts(task)
 	defer execCtx.AllocDir.Destroy()
 	d := NewJavaDriver(driverCtx)
+
+	// Copy the test jar into the task's directory
+	dst, _ := execCtx.AllocDir.TaskDirs[task.Name]
+	copyFile("./test-resources/java/demoapp.jar", filepath.Join(dst, "demoapp.jar"), t)
 
 	handle, err := d.Start(execCtx, task)
 	if err != nil {
@@ -108,8 +111,7 @@ func TestJavaDriver_Start_Wait(t *testing.T) {
 	task := &structs.Task{
 		Name: "demo-app",
 		Config: map[string]interface{}{
-			"artifact_source": "https://dl.dropboxusercontent.com/u/47675/jar_thing/demoapp.jar",
-			"checksum":        "sha256:58d6e8130308d32e197c5108edd4f56ddf1417408f743097c2e662df0f0b17c8",
+			"jar_path": "demoapp.jar",
 		},
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
@@ -119,8 +121,11 @@ func TestJavaDriver_Start_Wait(t *testing.T) {
 	}
 
 	driverCtx, execCtx := testDriverContexts(task)
-	defer execCtx.AllocDir.Destroy()
 	d := NewJavaDriver(driverCtx)
+
+	// Copy the test jar into the task's directory
+	dst, _ := execCtx.AllocDir.TaskDirs[task.Name]
+	copyFile("./test-resources/java/demoapp.jar", filepath.Join(dst, "demoapp.jar"), t)
 
 	handle, err := d.Start(execCtx, task)
 	if err != nil {
@@ -168,7 +173,7 @@ func TestJavaDriver_Start_Kill_Wait(t *testing.T) {
 	task := &structs.Task{
 		Name: "demo-app",
 		Config: map[string]interface{}{
-			"artifact_source": "https://dl.dropboxusercontent.com/u/47675/jar_thing/demoapp.jar",
+			"jar_path": "demoapp.jar",
 		},
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
@@ -180,6 +185,10 @@ func TestJavaDriver_Start_Kill_Wait(t *testing.T) {
 	driverCtx, execCtx := testDriverContexts(task)
 	defer execCtx.AllocDir.Destroy()
 	d := NewJavaDriver(driverCtx)
+
+	// Copy the test jar into the task's directory
+	dst, _ := execCtx.AllocDir.TaskDirs[task.Name]
+	copyFile("./test-resources/java/demoapp.jar", filepath.Join(dst, "demoapp.jar"), t)
 
 	handle, err := d.Start(execCtx, task)
 	if err != nil {

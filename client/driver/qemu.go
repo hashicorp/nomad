@@ -17,7 +17,6 @@ import (
 	"github.com/hashicorp/nomad/client/driver/executor"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/client/fingerprint"
-	"github.com/hashicorp/nomad/client/getter"
 	"github.com/hashicorp/nomad/helper/discover"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/mapstructure"
@@ -36,10 +35,9 @@ type QemuDriver struct {
 }
 
 type QemuDriverConfig struct {
-	ArtifactSource string           `mapstructure:"artifact_source"`
-	Checksum       string           `mapstructure:"checksum"`
-	Accelerator    string           `mapstructure:"accelerator"`
-	PortMap        []map[string]int `mapstructure:"port_map"` // A map of host port labels and to guest ports.
+	ImagePath   string           `mapstructure:"image_path"`
+	Accelerator string           `mapstructure:"accelerator"`
+	PortMap     []map[string]int `mapstructure:"port_map"` // A map of host port labels and to guest ports.
 }
 
 // qemuHandle is returned from Start/Open as a handle to the PID
@@ -98,35 +96,17 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	}
 
 	// Get the image source
-	source, ok := task.Config["artifact_source"]
-	if !ok || source == "" {
-		return nil, fmt.Errorf("Missing source image Qemu driver")
+	vmPath := driverConfig.ImagePath
+	if vmPath == "" {
+		return nil, fmt.Errorf("image_path must be set")
 	}
-
-	// Qemu defaults to 128M of RAM for a given VM. Instead, we force users to
-	// supply a memory size in the tasks resources
-	if task.Resources == nil || task.Resources.MemoryMB == 0 {
-		return nil, fmt.Errorf("Missing required Task Resource: Memory")
-	}
+	vmID := filepath.Base(vmPath)
 
 	// Get the tasks local directory.
 	taskDir, ok := ctx.AllocDir.TaskDirs[d.DriverContext.taskName]
 	if !ok {
 		return nil, fmt.Errorf("Could not find task directory for task: %v", d.DriverContext.taskName)
 	}
-
-	// Proceed to download an artifact to be executed.
-	vmPath, err := getter.GetArtifact(
-		taskDir,
-		driverConfig.ArtifactSource,
-		driverConfig.Checksum,
-		d.logger,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	vmID := filepath.Base(vmPath)
 
 	// Parse configuration arguments
 	// Create the base arguments
@@ -137,8 +117,13 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	// TODO: Check a lower bounds, e.g. the default 128 of Qemu
 	mem := fmt.Sprintf("%dM", task.Resources.MemoryMB)
 
+	absPath, err := GetAbsolutePath("qemu-system-x86_64")
+	if err != nil {
+		return nil, err
+	}
+
 	args := []string{
-		"qemu-system-x86_64",
+		absPath,
 		"-machine", "type=pc,accel=" + accelerator,
 		"-name", vmID,
 		"-m", mem,

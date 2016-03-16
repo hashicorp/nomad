@@ -188,54 +188,6 @@ func TestExecDriver_Start_Wait(t *testing.T) {
 	}
 }
 
-func TestExecDriver_Start_Artifact_basic(t *testing.T) {
-	t.Parallel()
-	ctestutils.ExecCompatible(t)
-	file := "hi_linux_amd64"
-	checksum := "sha256:6f99b4c5184726e601ecb062500aeb9537862434dfe1898dbe5c68d9f50c179c"
-
-	task := &structs.Task{
-		Name: "sleep",
-		Config: map[string]interface{}{
-			"artifact_source": fmt.Sprintf("https://dl.dropboxusercontent.com/u/47675/jar_thing/%s?checksum=%s", file, checksum),
-			"command":         file,
-		},
-		LogConfig: &structs.LogConfig{
-			MaxFiles:      10,
-			MaxFileSizeMB: 10,
-		},
-		Resources: basicResources,
-	}
-
-	driverCtx, execCtx := testDriverContexts(task)
-	defer execCtx.AllocDir.Destroy()
-	d := NewExecDriver(driverCtx)
-
-	handle, err := d.Start(execCtx, task)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if handle == nil {
-		t.Fatalf("missing handle")
-	}
-
-	// Update should be a no-op
-	err = handle.Update(task)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Task should terminate quickly
-	select {
-	case res := <-handle.WaitCh():
-		if !res.Successful() {
-			t.Fatalf("err: %v", res)
-		}
-	case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
-		t.Fatalf("timeout")
-	}
-}
-
 func TestExecDriver_Start_Wait_AllocDir(t *testing.T) {
 	t.Parallel()
 	ctestutils.ExecCompatible(t)

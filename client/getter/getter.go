@@ -4,14 +4,10 @@ import (
 	"fmt"
 	"log"
 	"net/url"
-	"path"
-	"path/filepath"
-	"runtime"
-	"strings"
 	"sync"
-	"syscall"
 
 	gg "github.com/hashicorp/go-getter"
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 var (
@@ -24,7 +20,7 @@ var (
 	supported = []string{"http", "https", "s3"}
 )
 
-// getClient returns a client that is suitable for Nomad.
+// getClient returns a client that is suitable for Nomad downloading artifacts.
 func getClient(src, dst string) *gg.Client {
 	lock.Lock()
 	defer lock.Unlock()
@@ -42,36 +38,38 @@ func getClient(src, dst string) *gg.Client {
 	return &gg.Client{
 		Src:     src,
 		Dst:     dst,
-		Dir:     false, // Only support a single file for now.
+		Mode:    gg.ClientModeAny,
 		Getters: getters,
 	}
 }
 
-func GetArtifact(destDir, source, checksum string, logger *log.Logger) (string, error) {
-	if source == "" {
-		return "", fmt.Errorf("Source url is empty in Artifact Getter")
-	}
-	u, err := url.Parse(source)
+// getGetterUrl returns the go-getter URL to download the artifact.
+func getGetterUrl(artifact *structs.TaskArtifact) (string, error) {
+	u, err := url.Parse(artifact.GetterSource)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to parse source URL %q: %v", artifact.GetterSource, err)
 	}
 
-	// if checksum is seperate, apply to source
-	if checksum != "" {
-		source = strings.Join([]string{source, fmt.Sprintf("checksum=%s", checksum)}, "?")
-		logger.Printf("[DEBUG] client.getter: Applying checksum to Artifact Source URL, new url: %s", source)
+	// Build the url
+	q := u.Query()
+	for k, v := range artifact.GetterOptions {
+		q.Add(k, v)
+	}
+	u.RawQuery = q.Encode()
+	return u.String(), nil
+}
+
+// GetArtifact downloads an artifact into the specified destination directory.
+func GetArtifact(artifact *structs.TaskArtifact, destDir string, logger *log.Logger) error {
+	url, err := getGetterUrl(artifact)
+	if err != nil {
+		return err
 	}
 
-	artifactFile := filepath.Join(destDir, path.Base(u.Path))
-	if err := getClient(source, artifactFile).Get(); err != nil {
-		return "", fmt.Errorf("Error downloading artifact: %s", err)
+	// Download the artifact
+	if err := getClient(url, destDir).Get(); err != nil {
+		return err
 	}
 
-	// Add execution permissions to the newly downloaded artifact
-	if runtime.GOOS != "windows" {
-		if err := syscall.Chmod(artifactFile, 0755); err != nil {
-			logger.Printf("[ERR] driver.raw_exec: Error making artifact executable: %s", err)
-		}
-	}
-	return artifactFile, nil
+	return nil
 }

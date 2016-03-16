@@ -2,6 +2,7 @@ package driver
 
 import (
 	"fmt"
+	"path/filepath"
 	"testing"
 
 	"github.com/hashicorp/nomad/client/config"
@@ -37,13 +38,11 @@ func TestQemuDriver_Fingerprint(t *testing.T) {
 func TestQemuDriver_StartOpen_Wait(t *testing.T) {
 	t.Parallel()
 	ctestutils.QemuCompatible(t)
-	// TODO: use test server to load from a fixture
 	task := &structs.Task{
 		Name: "linux",
 		Config: map[string]interface{}{
-			"artifact_source": "https://dl.dropboxusercontent.com/u/47675/jar_thing/linux-0.2.img",
-			"checksum":        "sha256:a5e836985934c3392cbbd9b26db55a7d35a8d7ae1deb7ca559dd9c0159572544",
-			"accelerator":     "tcg",
+			"image_path":  "linux-0.2.img",
+			"accelerator": "tcg",
 			"port_map": []map[string]int{{
 				"main": 22,
 				"web":  8080,
@@ -68,6 +67,10 @@ func TestQemuDriver_StartOpen_Wait(t *testing.T) {
 	defer execCtx.AllocDir.Destroy()
 	d := NewQemuDriver(driverCtx)
 
+	// Copy the test image into the task's directory
+	dst, _ := execCtx.AllocDir.TaskDirs[task.Name]
+	copyFile("./test-resources/qemu/linux-0.2.img", filepath.Join(dst, "linux-0.2.img"), t)
+
 	handle, err := d.Start(execCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -88,35 +91,5 @@ func TestQemuDriver_StartOpen_Wait(t *testing.T) {
 	// Clean up
 	if err := handle.Kill(); err != nil {
 		fmt.Printf("\nError killing Qemu test: %s", err)
-	}
-}
-
-func TestQemuDriver_RequiresMemory(t *testing.T) {
-	t.Parallel()
-	ctestutils.QemuCompatible(t)
-	// TODO: use test server to load from a fixture
-	task := &structs.Task{
-		Name: "linux",
-		Config: map[string]interface{}{
-			"artifact_source": "https://dl.dropboxusercontent.com/u/47675/jar_thing/linux-0.2.img",
-			"accelerator":     "tcg",
-			"host_port":       "8080",
-			"guest_port":      "8081",
-			"checksum":        "sha256:a5e836985934c3392cbbd9b26db55a7d35a8d7ae1deb7ca559dd9c0159572544",
-			// ssh u/p would be here
-		},
-		LogConfig: &structs.LogConfig{
-			MaxFiles:      10,
-			MaxFileSizeMB: 10,
-		},
-	}
-
-	driverCtx, execCtx := testDriverContexts(task)
-	defer execCtx.AllocDir.Destroy()
-	d := NewQemuDriver(driverCtx)
-
-	_, err := d.Start(execCtx, task)
-	if err == nil {
-		t.Fatalf("Expected error when not specifying memory")
 	}
 }

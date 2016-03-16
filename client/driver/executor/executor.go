@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
@@ -151,11 +150,10 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext
 	e.cmd.Env = ctx.TaskEnv.EnvList()
 	e.cmd.Path = ctx.TaskEnv.ReplaceEnv(command.Cmd)
 	e.cmd.Args = append([]string{e.cmd.Path}, ctx.TaskEnv.ParseAndReplace(command.Args)...)
-	if filepath.Base(command.Cmd) == command.Cmd {
-		if lp, err := exec.LookPath(command.Cmd); err != nil {
-		} else {
-			e.cmd.Path = lp
-		}
+
+	// Ensure that the binary being started is executable.
+	if err := e.makeExecutable(e.cmd.Path); err != nil {
+		return nil, err
 	}
 
 	// starting the process
@@ -278,5 +276,26 @@ func (e *UniversalExecutor) configureTaskDir() error {
 		return fmt.Errorf("couldn't find task directory for task %v", e.ctx.TaskName)
 	}
 	e.cmd.Dir = taskDir
+	return nil
+}
+
+// makeExecutablePosix makes the given file executable for root,group,others.
+func (e *UniversalExecutor) makeExecutablePosix(binPath string) error {
+	fi, err := os.Stat(binPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("binary %q does not exist", binPath)
+		}
+		return fmt.Errorf("specified binary is invalid: %v", err)
+	}
+
+	// If it is not executable, make it so.
+	perm := fi.Mode().Perm()
+	req := os.FileMode(0555)
+	if perm&req != req {
+		if err := os.Chmod(binPath, perm|req); err != nil {
+			return fmt.Errorf("error making %q executable: %s", binPath, err)
+		}
+	}
 	return nil
 }

@@ -82,6 +82,20 @@ job "binstore-storagelocker" {
             }
 
             kill_timeout = "22s"
+
+            artifact {
+                source = "http://foo.com/artifact"
+                options {
+                    checksum = "md5:b8a4f3f72ecab0510a6a31e997461c5f"
+                }
+            }
+
+            artifact {
+                source = "http://bar.com/artifact"
+                options {
+                    checksum = "md5:ff1cc0d3432dad54d607c1505fb7245c"
+                }
+            }
         }
 
         task "storagelocker" {

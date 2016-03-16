@@ -3,6 +3,8 @@ package client
 import (
 	"fmt"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -32,12 +34,17 @@ func (m *MockTaskStateUpdater) Update(name, state string, event *structs.TaskEve
 }
 
 func testTaskRunner(restarts bool) (*MockTaskStateUpdater, *TaskRunner) {
+	return testTaskRunnerFromAlloc(restarts, mock.Alloc())
+}
+
+// Creates a mock task runner using the first task in the first task group of
+// the passed allocation.
+func testTaskRunnerFromAlloc(restarts bool, alloc *structs.Allocation) (*MockTaskStateUpdater, *TaskRunner) {
 	logger := testLogger()
 	conf := DefaultConfig()
 	conf.StateDir = os.TempDir()
 	conf.AllocDir = os.TempDir()
 	upd := &MockTaskStateUpdater{}
-	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	consulClient, _ := NewConsulService(&consulServiceConfig{logger, "127.0.0.1:8500", "", "", false, false, &structs.Node{}})
 	// Initialize the port listing. This should be done by the offer process but
@@ -48,7 +55,7 @@ func testTaskRunner(restarts bool) (*MockTaskStateUpdater, *TaskRunner) {
 	allocDir.Build([]*structs.Task{task})
 
 	ctx := driver.NewExecContext(allocDir, alloc.ID)
-	tr := NewTaskRunner(logger, conf, upd.Update, ctx, mock.Alloc(), task, consulClient)
+	tr := NewTaskRunner(logger, conf, upd.Update, ctx, alloc, task, consulClient)
 	if !restarts {
 		tr.restartTracker = noRestartsTracker()
 	}
@@ -226,4 +233,135 @@ func TestTaskRunner_SaveRestoreState(t *testing.T) {
 	}, func(err error) {
 		t.Fatalf("err: %v", err)
 	})
+}
+
+func TestTaskRunner_Download_List(t *testing.T) {
+	ctestutil.ExecCompatible(t)
+
+	ts := httptest.NewServer(http.FileServer(http.Dir(filepath.Dir("."))))
+	defer ts.Close()
+
+	// Create an allocation that has a task with a list of artifacts.
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	f1 := "task_runner_test.go"
+	f2 := "task_runner.go"
+	artifact1 := structs.TaskArtifact{
+		GetterSource: fmt.Sprintf("%s/%s", ts.URL, f1),
+	}
+	artifact2 := structs.TaskArtifact{
+		GetterSource: fmt.Sprintf("%s/%s", ts.URL, f2),
+	}
+	task.Artifacts = []*structs.TaskArtifact{&artifact1, &artifact2}
+
+	upd, tr := testTaskRunnerFromAlloc(false, alloc)
+	go tr.Run()
+	defer tr.Destroy()
+	defer tr.ctx.AllocDir.Destroy()
+
+	select {
+	case <-tr.WaitCh():
+	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
+		t.Fatalf("timeout")
+	}
+
+	if len(upd.events) != 4 {
+		t.Fatalf("should have 4 updates: %#v", upd.events)
+	}
+
+	if upd.state != structs.TaskStateDead {
+		t.Fatalf("TaskState %v; want %v", upd.state, structs.TaskStateDead)
+	}
+
+	if upd.events[0].Type != structs.TaskReceived {
+		t.Fatalf("First Event was %v; want %v", upd.events[0].Type, structs.TaskReceived)
+	}
+
+	if upd.events[1].Type != structs.TaskDownloadingArtifacts {
+		t.Fatalf("Second Event was %v; want %v", upd.events[1].Type, structs.TaskDownloadingArtifacts)
+	}
+
+	if upd.events[2].Type != structs.TaskStarted {
+		t.Fatalf("Third Event was %v; want %v", upd.events[2].Type, structs.TaskStarted)
+	}
+
+	if upd.events[3].Type != structs.TaskTerminated {
+		t.Fatalf("Fourth Event was %v; want %v", upd.events[3].Type, structs.TaskTerminated)
+	}
+
+	// Check that both files exist.
+	taskDir := tr.ctx.AllocDir.TaskDirs[task.Name]
+	if _, err := os.Stat(filepath.Join(taskDir, f1)); err != nil {
+		t.Fatalf("%v not downloaded", f1)
+	}
+	if _, err := os.Stat(filepath.Join(taskDir, f2)); err != nil {
+		t.Fatalf("%v not downloaded", f2)
+	}
+}
+
+func TestTaskRunner_Download_Retries(t *testing.T) {
+	ctestutil.ExecCompatible(t)
+
+	// Create an allocation that has a task with bad artifacts.
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	artifact := structs.TaskArtifact{
+		GetterSource: "http://127.1.1.111:12315/foo/bar/baz",
+	}
+	task.Artifacts = []*structs.TaskArtifact{&artifact}
+
+	// Make the restart policy try one update
+	alloc.Job.TaskGroups[0].RestartPolicy = &structs.RestartPolicy{
+		Attempts: 1,
+		Interval: 10 * time.Minute,
+		Delay:    1 * time.Second,
+		Mode:     structs.RestartPolicyModeFail,
+	}
+
+	upd, tr := testTaskRunnerFromAlloc(true, alloc)
+	go tr.Run()
+	defer tr.Destroy()
+	defer tr.ctx.AllocDir.Destroy()
+
+	select {
+	case <-tr.WaitCh():
+	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
+		t.Fatalf("timeout")
+	}
+
+	if len(upd.events) != 7 {
+		t.Fatalf("should have 7 updates: %#v", upd.events)
+	}
+
+	if upd.state != structs.TaskStateDead {
+		t.Fatalf("TaskState %v; want %v", upd.state, structs.TaskStateDead)
+	}
+
+	if upd.events[0].Type != structs.TaskReceived {
+		t.Fatalf("First Event was %v; want %v", upd.events[0].Type, structs.TaskReceived)
+	}
+
+	if upd.events[1].Type != structs.TaskDownloadingArtifacts {
+		t.Fatalf("Second Event was %v; want %v", upd.events[1].Type, structs.TaskDownloadingArtifacts)
+	}
+
+	if upd.events[2].Type != structs.TaskArtifactDownloadFailed {
+		t.Fatalf("Third Event was %v; want %v", upd.events[2].Type, structs.TaskArtifactDownloadFailed)
+	}
+
+	if upd.events[3].Type != structs.TaskRestarting {
+		t.Fatalf("Fourth Event was %v; want %v", upd.events[3].Type, structs.TaskRestarting)
+	}
+
+	if upd.events[4].Type != structs.TaskDownloadingArtifacts {
+		t.Fatalf("Fifth Event was %v; want %v", upd.events[4].Type, structs.TaskDownloadingArtifacts)
+	}
+
+	if upd.events[5].Type != structs.TaskArtifactDownloadFailed {
+		t.Fatalf("Sixth Event was %v; want %v", upd.events[5].Type, structs.TaskArtifactDownloadFailed)
+	}
+
+	if upd.events[6].Type != structs.TaskNotRestarting {
+		t.Fatalf("Seventh Event was %v; want %v", upd.events[6].Type, structs.TaskNotRestarting)
+	}
 }
