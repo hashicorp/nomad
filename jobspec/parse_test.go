@@ -315,6 +315,11 @@ func TestParse(t *testing.T) {
 			},
 			false,
 		},
+		{
+			"bad-artifact.hcl",
+			nil,
+			true,
+		},
 	}
 
 	for _, tc := range cases {

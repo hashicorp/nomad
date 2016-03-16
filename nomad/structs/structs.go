@@ -1677,7 +1677,7 @@ func (t *Task) FindHostAndPortFor(portLabel string) (string, int) {
 	return "", 0
 }
 
-// Validate is used to sanity check a task group
+// Validate is used to sanity check a task
 func (t *Task) Validate() error {
 	var mErr multierror.Error
 	if t.Name == "" {

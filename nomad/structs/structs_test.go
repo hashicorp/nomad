@@ -131,6 +131,11 @@ func testJob() *Job {
 						Env: map[string]string{
 							"FOO": "bar",
 						},
+						Artifacts: []*TaskArtifact{
+							{
+								GetterSource: "http://foo.com",
+							},
+						},
 						Services: []*Service{
 							{
 								Name:      "${TASK}-frontend",

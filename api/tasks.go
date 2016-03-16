@@ -95,6 +95,7 @@ type Task struct {
 	Artifacts   []*TaskArtifact
 }
 
+// TaskArtifact is used to download artifacts before running a task.
 type TaskArtifact struct {
 	GetterSource  string
 	GetterOptions map[string]string
