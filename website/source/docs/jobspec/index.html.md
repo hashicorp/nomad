@@ -465,6 +465,7 @@ Job files can also be specified in JSON. The conversion is straightforward
 and self-documented. The downsides of JSON are less human readability and
 the lack of comments. Otherwise, the two are completely interoperable.
 
-See the API documentation for more details on the JSON structure.
+See the [JSON API documentation](/docs/jobspec/json.html) for more details on
+the JSON structure.
 
 

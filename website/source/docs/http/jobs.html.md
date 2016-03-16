@@ -85,12 +85,10 @@ another region can be specified using the `?region=` query parameter.
         <span class="param">Job</span>
         <span class="param-flags">required</span>
         The JSON definition of the job. The general structure is given
-        by the [job specification](/docs/jobspec/index.html), and matches
-        the return response of [GET against `/v1/job/<ID>`](/docs/http/job.html).
+        by the [job specification](/docs/jobspec/json.html).
       </li>
     </ul>
   </dd>
-
   <dt>Returns</dt>
   <dd>
 
