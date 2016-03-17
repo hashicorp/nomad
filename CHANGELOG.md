@@ -2,6 +2,7 @@
 
 IMPROVEMENTS:
   * core: Allow count zero task groups to enable blue/green deploys [GH-931]
+  * cli: `server-members` displays the current leader in each region [GH-935]
 
 ## 0.3.1
 
