@@ -72,12 +72,19 @@ func (c *ServerMembersCommand) Run(args []string) int {
 	// Sort the members
 	sort.Sort(api.AgentMembersNameSort(mem))
 
+	// Determine the leaders per region.
+	leaders, err := regionLeaders(client, mem)
+	if err != nil && !strings.Contains(err.Error(), "No cluster leader") {
+		c.Ui.Error(fmt.Sprintf("Error determining leaders: %s", err))
+		return 1
+	}
+
 	// Format the list
 	var out []string
 	if detailed {
 		out = detailedOutput(mem)
 	} else {
-		out = standardOutput(mem)
+		out = standardOutput(mem, leaders)
 	}
 
 	// Dump the list
@@ -85,16 +92,27 @@ func (c *ServerMembersCommand) Run(args []string) int {
 	return 0
 }
 
-func standardOutput(mem []*api.AgentMember) []string {
+func standardOutput(mem []*api.AgentMember, leaders map[string]string) []string {
 	// Format the members list
 	members := make([]string, len(mem)+1)
-	members[0] = "Name|Address|Port|Status|Protocol|Build|Datacenter|Region"
+	members[0] = "Name|Address|Port|Status|Leader|Protocol|Build|Datacenter|Region"
 	for i, member := range mem {
-		members[i+1] = fmt.Sprintf("%s|%s|%d|%s|%d|%s|%s|%s",
+		reg := member.Tags["region"]
+		regLeader, ok := leaders[reg]
+		isLeader := false
+		if ok {
+			if regLeader == fmt.Sprintf("%s:%s", member.Addr, member.Tags["port"]) {
+
+				isLeader = true
+			}
+		}
+
+		members[i+1] = fmt.Sprintf("%s|%s|%d|%s|%t|%d|%s|%s|%s",
 			member.Name,
 			member.Addr,
 			member.Port,
 			member.Status,
+			isLeader,
 			member.ProtocolCur,
 			member.Tags["build"],
 			member.Tags["dc"],
@@ -122,4 +140,30 @@ func detailedOutput(mem []*api.AgentMember) []string {
 			tags)
 	}
 	return members
+}
+
+// regionLeaders returns a map of regions to the IP of the member that is the
+// leader.
+func regionLeaders(client *api.Client, mem []*api.AgentMember) (map[string]string, error) {
+	// Determine the unique regions.
+	leaders := make(map[string]string)
+	regions := make(map[string]struct{})
+	for _, m := range mem {
+		regions[m.Tags["region"]] = struct{}{}
+	}
+
+	if len(regions) == 0 {
+		return leaders, nil
+	}
+
+	status := client.Status()
+	for reg := range regions {
+		l, err := status.RegionLeader(reg)
+		if err != nil {
+			return leaders, err
+		}
+		leaders[reg] = l
+	}
+
+	return leaders, nil
 }

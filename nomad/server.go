@@ -591,7 +591,7 @@ func (s *Server) setupWorkers() error {
 }
 
 // numOtherPeers is used to check on the number of known peers
-// excluding the local ndoe
+// excluding the local node
 func (s *Server) numOtherPeers() (int, error) {
 	peers, err := s.raftPeers.Peers()
 	if err != nil {
