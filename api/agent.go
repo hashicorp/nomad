@@ -171,6 +171,7 @@ type AgentMember struct {
 	Port        uint16
 	Tags        map[string]string
 	Status      string
+	Leader      bool
 	ProtocolMin uint8
 	ProtocolMax uint8
 	ProtocolCur uint8
