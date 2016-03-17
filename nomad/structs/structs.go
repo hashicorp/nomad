@@ -1344,8 +1344,8 @@ func (tg *TaskGroup) Validate() error {
 	if tg.Name == "" {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing task group name"))
 	}
-	if tg.Count <= 0 {
-		mErr.Errors = append(mErr.Errors, errors.New("Task group count must be positive"))
+	if tg.Count < 0 {
+		mErr.Errors = append(mErr.Errors, errors.New("Task group count can't be negative"))
 	}
 	if len(tg.Tasks) == 0 {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing tasks for task group"))
