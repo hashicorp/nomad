@@ -1,3 +1,8 @@
+## 0.3.2 (UNRELEASED)
+
+IMPROVEMENTS:
+  * core: Allow count zero task groups to enable blue/green deploys [GH-931]
+
 ## 0.3.1
 
 __BACKWARDS INCOMPATIBILITIES:__
