@@ -30,7 +30,7 @@ var (
 	}
 )
 
-func mockAllocDir(t *testing.T) (string, *allocdir.AllocDir) {
+func mockAllocDir(t *testing.T) (*structs.Task, *allocdir.AllocDir) {
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 
@@ -39,18 +39,16 @@ func mockAllocDir(t *testing.T) (string, *allocdir.AllocDir) {
 		log.Panicf("allocDir.Build() failed: %v", err)
 	}
 
-	return task.Name, allocDir
+	return task, allocDir
 }
 
 func testExecutorContext(t *testing.T) *ExecutorContext {
 	taskEnv := env.NewTaskEnvironment(mock.Node())
-	taskName, allocDir := mockAllocDir(t)
+	task, allocDir := mockAllocDir(t)
 	ctx := &ExecutorContext{
-		TaskEnv:       taskEnv,
-		TaskName:      taskName,
-		AllocDir:      allocDir,
-		TaskResources: constraint,
-		LogConfig:     structs.DefaultLogConfig(),
+		TaskEnv:  taskEnv,
+		Task:     task,
+		AllocDir: allocDir,
 	}
 	return ctx
 }
@@ -80,6 +78,9 @@ func TestExecutor_Start_Wait_Failure_Code(t *testing.T) {
 	if ps.ExitCode < 1 {
 		t.Fatalf("expected exit code to be non zero, actual: %v", ps.ExitCode)
 	}
+	if err := executor.Exit(); err != nil {
+		t.Fatalf("error: %v", err)
+	}
 }
 
 func TestExecutor_Start_Wait(t *testing.T) {
@@ -97,6 +98,9 @@ func TestExecutor_Start_Wait(t *testing.T) {
 	ps, err = executor.Wait()
 	if err != nil {
 		t.Fatalf("error in waiting for command: %v", err)
+	}
+	if err := executor.Exit(); err != nil {
+		t.Fatalf("error: %v", err)
 	}
 
 	expected := "hello world"
@@ -119,9 +123,9 @@ func TestExecutor_IsolationAndConstraints(t *testing.T) {
 	ctx := testExecutorContext(t)
 	defer ctx.AllocDir.Destroy()
 
-	ctx.FSIsolation = true
-	ctx.ResourceLimits = true
-	ctx.UnprivilegedUser = true
+	execCmd.FSIsolation = true
+	execCmd.ResourceLimits = true
+	execCmd.User = "nobody"
 
 	executor := NewExecutor(log.New(os.Stdout, "", log.LstdFlags))
 	ps, err := executor.LaunchCmd(&execCmd, ctx)
@@ -134,6 +138,9 @@ func TestExecutor_IsolationAndConstraints(t *testing.T) {
 	ps, err = executor.Wait()
 	if err != nil {
 		t.Fatalf("error in waiting for command: %v", err)
+	}
+	if err := executor.Exit(); err != nil {
+		t.Fatalf("error: %v", err)
 	}
 
 	expected := "hello world"
@@ -154,13 +161,13 @@ func TestExecutor_DestroyCgroup(t *testing.T) {
 
 	execCmd := ExecCommand{Cmd: "/bin/bash", Args: []string{"-c", "/usr/bin/yes"}}
 	ctx := testExecutorContext(t)
-	ctx.LogConfig.MaxFiles = 1
-	ctx.LogConfig.MaxFileSizeMB = 300
+	ctx.Task.LogConfig.MaxFiles = 1
+	ctx.Task.LogConfig.MaxFileSizeMB = 300
 	defer ctx.AllocDir.Destroy()
 
-	ctx.FSIsolation = true
-	ctx.ResourceLimits = true
-	ctx.UnprivilegedUser = true
+	execCmd.FSIsolation = true
+	execCmd.ResourceLimits = true
+	execCmd.User = "nobody"
 
 	executor := NewExecutor(log.New(os.Stdout, "", log.LstdFlags))
 	ps, err := executor.LaunchCmd(&execCmd, ctx)
@@ -171,7 +178,10 @@ func TestExecutor_DestroyCgroup(t *testing.T) {
 		t.Fatalf("expected process to start and have non zero pid")
 	}
 	time.Sleep(200 * time.Millisecond)
-	executor.Exit()
+	if err := executor.Exit(); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
 	file := filepath.Join(ctx.AllocDir.LogDir(), "web.stdout.0")
 	finfo, err := os.Stat(file)
 	if err != nil {
@@ -202,6 +212,9 @@ func TestExecutor_Start_Kill(t *testing.T) {
 	ps, err = executor.Wait()
 	if err != nil {
 		t.Fatalf("error in waiting for command: %v", err)
+	}
+	if err := executor.Exit(); err != nil {
+		t.Fatalf("error: %v", err)
 	}
 
 	file := filepath.Join(ctx.AllocDir.LogDir(), "web.stdout.0")

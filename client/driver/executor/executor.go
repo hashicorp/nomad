@@ -2,7 +2,9 @@ package executor
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
+	"net"
 	"os"
 	"os/exec"
 	"runtime"
@@ -21,6 +23,18 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+// Executor is the interface which allows a driver to launch and supervise
+// a process
+type Executor interface {
+	LaunchCmd(command *ExecCommand, ctx *ExecutorContext) (*ProcessState, error)
+	LaunchSyslogServer(ctx *ExecutorContext) (*SyslogServerState, error)
+	Wait() (*ProcessState, error)
+	ShutDown() error
+	Exit() error
+	UpdateLogConfig(logConfig *structs.LogConfig) error
+	UpdateTask(task *structs.Task) error
+}
+
 // ExecutorContext holds context to configure the command user
 // wants to run and isolate it
 type ExecutorContext struct {
@@ -31,33 +45,36 @@ type ExecutorContext struct {
 	// the task
 	AllocDir *allocdir.AllocDir
 
-	// TaskName is the name of the Task
-	TaskName string
+	// Task is the task whose executor is being launched
+	Task *structs.Task
 
-	// TaskResources are the resource constraints for the Task
-	TaskResources *structs.Resources
+	// PortUpperBound is the upper bound of the ports that we can use to start
+	// the syslog server
+	PortUpperBound uint
 
-	// FSIsolation is a flag for drivers to impose file system
-	// isolation on certain platforms
-	FSIsolation bool
-
-	// ResourceLimits is a flag for drivers to impose resource
-	// contraints on a Task on certain platforms
-	ResourceLimits bool
-
-	// UnprivilegedUser is a flag for drivers to make the process
-	// run as nobody
-	UnprivilegedUser bool
-
-	// LogConfig provides the configuration related to log rotation
-	LogConfig *structs.LogConfig
+	// PortLowerBound is the lower bound of the ports that we can use to start
+	// the syslog server
+	PortLowerBound uint
 }
 
-// ExecCommand holds the user command and args. It's a lightweight replacement
-// of exec.Cmd for serialization purposes.
+// ExecCommand holds the user command, args, and other isolation related
+// settings.
 type ExecCommand struct {
-	Cmd  string
+	// Cmd is the command that the user wants to run.
+	Cmd string
+
+	// Args is the args of the command that the user wants to run.
 	Args []string
+
+	// FSIsolation determines whether the command would be run in a chroot.
+	FSIsolation bool
+
+	// User is the user which the executor uses to run the command.
+	User string
+
+	// ResourceLimits determines whether resource limits are enforced by the
+	// executor.
+	ResourceLimits bool
 }
 
 // ProcessState holds information about the state of a user process.
@@ -69,37 +86,44 @@ type ProcessState struct {
 	Time            time.Time
 }
 
-// Executor is the interface which allows a driver to launch and supervise
-// a process
-type Executor interface {
-	LaunchCmd(command *ExecCommand, ctx *ExecutorContext) (*ProcessState, error)
-	Wait() (*ProcessState, error)
-	ShutDown() error
-	Exit() error
-	UpdateLogConfig(logConfig *structs.LogConfig) error
+// SyslogServerState holds the address and islation information of a launched
+// syslog server
+type SyslogServerState struct {
+	IsolationConfig *cstructs.IsolationConfig
+	Addr            string
 }
 
 // UniversalExecutor is an implementation of the Executor which launches and
 // supervises processes. In addition to process supervision it provides resource
 // and file system isolation
 type UniversalExecutor struct {
-	cmd exec.Cmd
-	ctx *ExecutorContext
+	cmd     exec.Cmd
+	ctx     *ExecutorContext
+	command *ExecCommand
 
 	taskDir       string
-	groups        *cgroupConfig.Cgroup
 	exitState     *ProcessState
 	processExited chan interface{}
-	lre           *logging.FileRotator
-	lro           *logging.FileRotator
+
+	lre         *logging.FileRotator
+	lro         *logging.FileRotator
+	rotatorLock sync.Mutex
+
+	syslogServer *logging.SyslogServer
+	syslogChan   chan *logging.SyslogMessage
+
+	groups *cgroupConfig.Cgroup
+	cgLock sync.Mutex
 
 	logger *log.Logger
-	lock   sync.Mutex
 }
 
 // NewExecutor returns an Executor
 func NewExecutor(logger *log.Logger) Executor {
-	return &UniversalExecutor{logger: logger, processExited: make(chan interface{})}
+	return &UniversalExecutor{
+		logger:        logger,
+		processExited: make(chan interface{}),
+	}
 }
 
 // LaunchCmd launches a process and returns it's state. It also configures an
@@ -108,6 +132,7 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext
 	e.logger.Printf("[DEBUG] executor: launching command %v %v", command.Cmd, strings.Join(command.Args, " "))
 
 	e.ctx = ctx
+	e.command = command
 
 	// configuring the task dir
 	if err := e.configureTaskDir(); err != nil {
@@ -121,29 +146,18 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext
 	}
 
 	// setting the user of the process
-	if e.ctx.UnprivilegedUser {
-		if err := e.runAs("nobody"); err != nil {
+	if command.User != "" {
+		if err := e.runAs(command.User); err != nil {
 			return nil, err
 		}
 	}
 
-	logFileSize := int64(ctx.LogConfig.MaxFileSizeMB * 1024 * 1024)
-	lro, err := logging.NewFileRotator(ctx.AllocDir.LogDir(), fmt.Sprintf("%v.stdout", ctx.TaskName),
-		ctx.LogConfig.MaxFiles, logFileSize, e.logger)
-
-	if err != nil {
-		return nil, fmt.Errorf("error creating log rotator for stdout of task %v", err)
+	// Setup the loggers
+	if err := e.configureLoggers(); err != nil {
+		return nil, err
 	}
-	e.cmd.Stdout = lro
-	e.lro = lro
-
-	lre, err := logging.NewFileRotator(ctx.AllocDir.LogDir(), fmt.Sprintf("%v.stderr", ctx.TaskName),
-		ctx.LogConfig.MaxFiles, logFileSize, e.logger)
-	if err != nil {
-		return nil, fmt.Errorf("error creating log rotator for stderr of task %v", err)
-	}
-	e.cmd.Stderr = lre
-	e.lre = lre
+	e.cmd.Stdout = e.lro
+	e.cmd.Stderr = e.lre
 
 	// setting the env, path and args for the command
 	e.ctx.TaskEnv.Build()
@@ -165,6 +179,32 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext
 	return &ProcessState{Pid: e.cmd.Process.Pid, ExitCode: -1, IsolationConfig: ic, Time: time.Now()}, nil
 }
 
+// configureLoggers sets up the standard out/error file rotators
+func (e *UniversalExecutor) configureLoggers() error {
+	e.rotatorLock.Lock()
+	defer e.rotatorLock.Unlock()
+
+	logFileSize := int64(e.ctx.Task.LogConfig.MaxFileSizeMB * 1024 * 1024)
+	if e.lro == nil {
+		lro, err := logging.NewFileRotator(e.ctx.AllocDir.LogDir(), fmt.Sprintf("%v.stdout", e.ctx.Task.Name),
+			e.ctx.Task.LogConfig.MaxFiles, logFileSize, e.logger)
+		if err != nil {
+			return err
+		}
+		e.lro = lro
+	}
+
+	if e.lre == nil {
+		lre, err := logging.NewFileRotator(e.ctx.AllocDir.LogDir(), fmt.Sprintf("%v.stderr", e.ctx.Task.Name),
+			e.ctx.Task.LogConfig.MaxFiles, logFileSize, e.logger)
+		if err != nil {
+			return err
+		}
+		e.lre = lre
+	}
+	return nil
+}
+
 // Wait waits until a process has exited and returns it's exitcode and errors
 func (e *UniversalExecutor) Wait() (*ProcessState, error) {
 	<-e.processExited
@@ -173,7 +213,7 @@ func (e *UniversalExecutor) Wait() (*ProcessState, error) {
 
 // UpdateLogConfig updates the log configuration
 func (e *UniversalExecutor) UpdateLogConfig(logConfig *structs.LogConfig) error {
-	e.ctx.LogConfig = logConfig
+	e.ctx.Task.LogConfig = logConfig
 	if e.lro == nil {
 		return fmt.Errorf("log rotator for stdout doesn't exist")
 	}
@@ -188,9 +228,22 @@ func (e *UniversalExecutor) UpdateLogConfig(logConfig *structs.LogConfig) error 
 	return nil
 }
 
+func (e *UniversalExecutor) UpdateTask(task *structs.Task) error {
+	e.ctx.Task = task
+	fileSize := int64(task.LogConfig.MaxFileSizeMB * 1024 * 1024)
+	e.lro.MaxFiles = task.LogConfig.MaxFiles
+	e.lro.FileSize = fileSize
+	e.lre.MaxFiles = task.LogConfig.MaxFiles
+	e.lre.FileSize = fileSize
+	return nil
+}
+
 func (e *UniversalExecutor) wait() {
 	defer close(e.processExited)
 	err := e.cmd.Wait()
+	if e.syslogServer != nil {
+		e.syslogServer.Shutdown()
+	}
 	e.lre.Close()
 	e.lro.Close()
 	if err == nil {
@@ -202,14 +255,6 @@ func (e *UniversalExecutor) wait() {
 		if status, ok := exitErr.Sys().(syscall.WaitStatus); ok {
 			exitCode = status.ExitStatus()
 		}
-	}
-	if e.ctx.FSIsolation {
-		e.removeChrootMounts()
-	}
-	if e.ctx.ResourceLimits {
-		e.lock.Lock()
-		DestroyCgroup(e.groups)
-		e.lock.Unlock()
 	}
 	e.exitState = &ProcessState{Pid: 0, ExitCode: exitCode, Time: time.Now()}
 }
@@ -224,7 +269,7 @@ var (
 // process
 func (e *UniversalExecutor) Exit() error {
 	var merr multierror.Error
-	if e.cmd.Process != nil {
+	if e.command != nil && e.cmd.Process != nil {
 		proc, err := os.FindProcess(e.cmd.Process.Pid)
 		if err != nil {
 			e.logger.Printf("[ERR] executor: can't find process with pid: %v, err: %v",
@@ -235,17 +280,17 @@ func (e *UniversalExecutor) Exit() error {
 		}
 	}
 
-	if e.ctx.FSIsolation {
+	if e.command != nil && e.command.FSIsolation {
 		if err := e.removeChrootMounts(); err != nil {
 			merr.Errors = append(merr.Errors, err)
 		}
 	}
-	if e.ctx.ResourceLimits {
-		e.lock.Lock()
+	if e.command != nil && e.command.ResourceLimits {
+		e.cgLock.Lock()
 		if err := DestroyCgroup(e.groups); err != nil {
 			merr.Errors = append(merr.Errors, err)
 		}
-		e.lock.Unlock()
+		e.cgLock.Unlock()
 	}
 	return merr.ErrorOrNil()
 }
@@ -270,10 +315,10 @@ func (e *UniversalExecutor) ShutDown() error {
 
 // configureTaskDir sets the task dir in the executor
 func (e *UniversalExecutor) configureTaskDir() error {
-	taskDir, ok := e.ctx.AllocDir.TaskDirs[e.ctx.TaskName]
+	taskDir, ok := e.ctx.AllocDir.TaskDirs[e.ctx.Task.Name]
 	e.taskDir = taskDir
 	if !ok {
-		return fmt.Errorf("couldn't find task directory for task %v", e.ctx.TaskName)
+		return fmt.Errorf("couldn't find task directory for task %v", e.ctx.Task.Name)
 	}
 	e.cmd.Dir = taskDir
 	return nil
@@ -298,4 +343,49 @@ func (e *UniversalExecutor) makeExecutablePosix(binPath string) error {
 		}
 	}
 	return nil
+}
+
+// getFreePort returns a free port ready to be listened on between upper and
+// lower bounds
+func (e *UniversalExecutor) getListener(lowerBound uint, upperBound uint) (net.Listener, error) {
+	if runtime.GOOS == "windows" {
+		return e.listenerTCP(lowerBound, upperBound)
+	}
+
+	return e.listenerUnix()
+}
+
+// listenerTCP creates a TCP listener using an unused port between an upper and
+// lower bound
+func (e *UniversalExecutor) listenerTCP(lowerBound uint, upperBound uint) (net.Listener, error) {
+	for i := lowerBound; i <= upperBound; i++ {
+		addr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("localhost:%v", i))
+		if err != nil {
+			return nil, err
+		}
+		l, err := net.ListenTCP("tcp", addr)
+		if err != nil {
+			continue
+		}
+		return l, nil
+	}
+	return nil, fmt.Errorf("No free port found")
+}
+
+// listenerUnix creates a Unix domain socket
+func (e *UniversalExecutor) listenerUnix() (net.Listener, error) {
+	f, err := ioutil.TempFile("", "plugin")
+	if err != nil {
+		return nil, err
+	}
+	path := f.Name()
+
+	if err := f.Close(); err != nil {
+		return nil, err
+	}
+	if err := os.Remove(path); err != nil {
+		return nil, err
+	}
+
+	return net.Listen("unix", path)
 }

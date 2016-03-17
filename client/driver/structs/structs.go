@@ -6,6 +6,10 @@ import (
 	cgroupConfig "github.com/opencontainers/runc/libcontainer/configs"
 )
 
+const (
+	DefaultUnpriviledgedUser = "nobody"
+)
+
 // WaitResult stores the result of a Wait operation.
 type WaitResult struct {
 	ExitCode int

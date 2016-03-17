@@ -20,7 +20,7 @@ import (
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/driver/logging"
+	"github.com/hashicorp/nomad/client/driver/executor"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/helper/discover"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -101,7 +101,7 @@ type dockerPID struct {
 
 type DockerHandle struct {
 	pluginClient     *plugin.Client
-	logCollector     logging.LogCollector
+	executor         executor.Executor
 	client           *docker.Client
 	logger           *log.Logger
 	cleanupContainer bool
@@ -533,23 +533,23 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	if err != nil {
 		return nil, fmt.Errorf("unable to find the nomad binary: %v", err)
 	}
-	pluginLogFile := filepath.Join(taskDir, fmt.Sprintf("%s-syslog-collector.out", task.Name))
+	pluginLogFile := filepath.Join(taskDir, fmt.Sprintf("%s-executor.out", task.Name))
 	pluginConfig := &plugin.ClientConfig{
-		Cmd: exec.Command(bin, "syslog", pluginLogFile),
+		Cmd: exec.Command(bin, "executor", pluginLogFile),
 	}
 
-	logCollector, pluginClient, err := createLogCollector(pluginConfig, d.config.LogOutput, d.config)
+	exec, pluginClient, err := createExecutor(pluginConfig, d.config.LogOutput, d.config)
 	if err != nil {
 		return nil, err
 	}
-	logCollectorCtx := &logging.LogCollectorContext{
-		TaskName:       task.Name,
+	executorCtx := &executor.ExecutorContext{
+		TaskEnv:        d.taskEnv,
+		Task:           task,
 		AllocDir:       ctx.AllocDir,
-		LogConfig:      task.LogConfig,
 		PortLowerBound: d.config.ClientMinPort,
 		PortUpperBound: d.config.ClientMaxPort,
 	}
-	ss, err := logCollector.LaunchCollector(logCollectorCtx)
+	ss, err := exec.LaunchSyslogServer(executorCtx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to start syslog collector: %v", err)
 	}
@@ -629,7 +629,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	maxKill := d.DriverContext.config.MaxKillTimeout
 	h := &DockerHandle{
 		client:           client,
-		logCollector:     logCollector,
+		executor:         exec,
 		pluginClient:     pluginClient,
 		cleanupContainer: cleanupContainer,
 		cleanupImage:     cleanupImage,
@@ -686,7 +686,7 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 	if !found {
 		return nil, fmt.Errorf("Failed to find container %s: %v", pid.ContainerID, err)
 	}
-	logCollector, pluginClient, err := createLogCollector(pluginConfig, d.config.LogOutput, d.config)
+	exec, pluginClient, err := createExecutor(pluginConfig, d.config.LogOutput, d.config)
 	if err != nil {
 		d.logger.Printf("[INFO] driver.docker: couldn't re-attach to the plugin process: %v", err)
 		if e := client.StopContainer(pid.ContainerID, uint(pid.KillTimeout*time.Second)); e != nil {
@@ -698,7 +698,7 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 	// Return a driver handle
 	h := &DockerHandle{
 		client:           client,
-		logCollector:     logCollector,
+		executor:         exec,
 		pluginClient:     pluginClient,
 		cleanupContainer: cleanupContainer,
 		cleanupImage:     cleanupImage,
@@ -743,7 +743,7 @@ func (h *DockerHandle) WaitCh() chan *cstructs.WaitResult {
 func (h *DockerHandle) Update(task *structs.Task) error {
 	// Store the updated kill timeout.
 	h.killTimeout = GetKillTimeout(task.KillTimeout, h.maxKillTimeout)
-	if err := h.logCollector.UpdateLogConfig(task.LogConfig); err != nil {
+	if err := h.executor.UpdateTask(task); err != nil {
 		h.logger.Printf("[DEBUG] driver.docker: failed to update log config: %v", err)
 	}
 
@@ -824,7 +824,7 @@ func (h *DockerHandle) run() {
 	close(h.waitCh)
 
 	// Shutdown the syslog collector
-	if err := h.logCollector.Exit(); err != nil {
+	if err := h.executor.Exit(); err != nil {
 		h.logger.Printf("[ERR] driver.docker: failed to kill the syslog collector: %v", err)
 	}
 	h.pluginClient.Kill()

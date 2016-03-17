@@ -154,14 +154,9 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		return nil, err
 	}
 	executorCtx := &executor.ExecutorContext{
-		TaskEnv:          d.taskEnv,
-		AllocDir:         ctx.AllocDir,
-		TaskName:         task.Name,
-		TaskResources:    task.Resources,
-		LogConfig:        task.LogConfig,
-		FSIsolation:      true,
-		UnprivilegedUser: true,
-		ResourceLimits:   true,
+		TaskEnv:  d.taskEnv,
+		AllocDir: ctx.AllocDir,
+		Task:     task,
 	}
 
 	absPath, err := GetAbsolutePath("java")
@@ -169,7 +164,13 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		return nil, err
 	}
 
-	ps, err := execIntf.LaunchCmd(&executor.ExecCommand{Cmd: absPath, Args: args}, executorCtx)
+	ps, err := execIntf.LaunchCmd(&executor.ExecCommand{
+		Cmd:            absPath,
+		Args:           args,
+		FSIsolation:    true,
+		ResourceLimits: true,
+		User:           cstructs.DefaultUnpriviledgedUser,
+	}, executorCtx)
 	if err != nil {
 		pluginClient.Kill()
 		return nil, fmt.Errorf("error starting process via the plugin: %v", err)
@@ -290,7 +291,7 @@ func (h *javaHandle) WaitCh() chan *cstructs.WaitResult {
 func (h *javaHandle) Update(task *structs.Task) error {
 	// Store the updated kill timeout.
 	h.killTimeout = GetKillTimeout(task.KillTimeout, h.maxKillTimeout)
-	h.executor.UpdateLogConfig(task.LogConfig)
+	h.executor.UpdateTask(task)
 
 	// Update is not possible
 	return nil

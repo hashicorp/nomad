@@ -96,11 +96,9 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 		return nil, err
 	}
 	executorCtx := &executor.ExecutorContext{
-		TaskEnv:       d.taskEnv,
-		AllocDir:      ctx.AllocDir,
-		TaskName:      task.Name,
-		TaskResources: task.Resources,
-		LogConfig:     task.LogConfig,
+		TaskEnv:  d.taskEnv,
+		AllocDir: ctx.AllocDir,
+		Task:     task,
 	}
 	ps, err := exec.LaunchCmd(&executor.ExecCommand{Cmd: command, Args: driverConfig.Args}, executorCtx)
 	if err != nil {
@@ -195,7 +193,7 @@ func (h *rawExecHandle) WaitCh() chan *cstructs.WaitResult {
 func (h *rawExecHandle) Update(task *structs.Task) error {
 	// Store the updated kill timeout.
 	h.killTimeout = GetKillTimeout(task.KillTimeout, h.maxKillTimeout)
-	h.executor.UpdateLogConfig(task.LogConfig)
+	h.executor.UpdateTask(task)
 
 	// Update is not possible
 	return nil
