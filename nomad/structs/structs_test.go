@@ -196,6 +196,7 @@ func TestJob_IsPeriodic(t *testing.T) {
 
 func TestTaskGroup_Validate(t *testing.T) {
 	tg := &TaskGroup{
+		Count: -1,
 		RestartPolicy: &RestartPolicy{
 			Interval: 5 * time.Minute,
 			Delay:    10 * time.Second,
@@ -208,7 +209,7 @@ func TestTaskGroup_Validate(t *testing.T) {
 	if !strings.Contains(mErr.Errors[0].Error(), "group name") {
 		t.Fatalf("err: %s", err)
 	}
-	if !strings.Contains(mErr.Errors[1].Error(), "count must be positive") {
+	if !strings.Contains(mErr.Errors[1].Error(), "count can't be negative") {
 		t.Fatalf("err: %s", err)
 	}
 	if !strings.Contains(mErr.Errors[2].Error(), "Missing tasks") {
