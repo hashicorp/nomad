@@ -20,6 +20,17 @@ func (s *Status) Leader() (string, error) {
 	return resp, nil
 }
 
+// RegionLeader is used to query for the leader in the passed region.
+func (s *Status) RegionLeader(region string) (string, error) {
+	var resp string
+	q := QueryOptions{Region: region}
+	_, err := s.client.query("/v1/status/leader", &resp, &q)
+	if err != nil {
+		return "", err
+	}
+	return resp, nil
+}
+
 // Peers is used to query the addresses of the server peers
 // in the cluster.
 func (s *Status) Peers() ([]string, error) {
