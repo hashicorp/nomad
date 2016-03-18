@@ -26,6 +26,9 @@ Cat Options:
 
   -verbose
     Show full information.
+
+  -job <job-id>
+    Use a random allocation from a specified job-id.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -35,10 +38,11 @@ func (f *FSCatCommand) Synopsis() string {
 }
 
 func (f *FSCatCommand) Run(args []string) int {
-	var verbose bool
+	var verbose, job bool
 	flags := f.Meta.FlagSet("fs-list", FlagSetClient)
 	flags.Usage = func() { f.Ui.Output(f.Help()) }
 	flags.BoolVar(&verbose, "verbose", false, "")
+	flags.BoolVar(&job, "job", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -50,7 +54,6 @@ func (f *FSCatCommand) Run(args []string) int {
 		return 1
 	}
 
-	allocID := args[0]
 	path := "/"
 	if len(args) == 2 {
 		path = args[1]
@@ -58,8 +61,17 @@ func (f *FSCatCommand) Run(args []string) int {
 
 	client, err := f.Meta.Client()
 	if err != nil {
-		f.Ui.Error(fmt.Sprintf("Error inititalizing client: %v", err))
+		f.Ui.Error(fmt.Sprintf("Error initializing client: %v", err))
 		return 1
+	}
+
+	// If -job is specified, use random allocation, otherwise use provided allocation
+	allocID := args[0]
+	if job {
+		allocID, err = getRandomJobAlloc(client, args[0])
+		if err != nil {
+			f.Ui.Error(fmt.Sprintf("Error querying API: %v", err))
+		}
 	}
 
 	// Truncate the id unless full length is requested
