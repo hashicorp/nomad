@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/dustin/go-humanize"
+	humanize "github.com/dustin/go-humanize"
 )
 
 type FSStatCommand struct {
@@ -29,6 +29,9 @@ Stat Options:
 
   -verbose
     Show full information.
+
+  -job <job-id>
+    Use a random allocation from a specified job-id.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -40,10 +43,12 @@ func (f *FSStatCommand) Synopsis() string {
 func (f *FSStatCommand) Run(args []string) int {
 	var verbose bool
 	var machine bool
+	var job bool
 	flags := f.Meta.FlagSet("fs-list", FlagSetClient)
 	flags.Usage = func() { f.Ui.Output(f.Help()) }
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.BoolVar(&machine, "H", false, "")
+	flags.BoolVar(&job, "job", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -55,7 +60,6 @@ func (f *FSStatCommand) Run(args []string) int {
 		return 1
 	}
 
-	allocID := args[0]
 	path := "/"
 	if len(args) == 2 {
 		path = args[1]
@@ -63,8 +67,16 @@ func (f *FSStatCommand) Run(args []string) int {
 
 	client, err := f.Meta.Client()
 	if err != nil {
-		f.Ui.Error(fmt.Sprintf("Error inititalizing client: %v", err))
+		f.Ui.Error(fmt.Sprintf("Error initializing client: %v", err))
 		return 1
+	}
+
+	allocID := args[0]
+	if job {
+		allocID, err = getRandomJobAlloc(client, args[0])
+		if err != nil {
+			f.Ui.Error(fmt.Sprintf("Error querying API: %v", err))
+		}
 	}
 
 	// Truncate the id unless full length is requested
