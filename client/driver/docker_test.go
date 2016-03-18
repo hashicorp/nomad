@@ -145,7 +145,7 @@ func TestDockerDriver_Handle(t *testing.T) {
 	pluginConfig := &plugin.ClientConfig{
 		Cmd: exec.Command(bin, "syslog", f.Name()),
 	}
-	logCollector, pluginClient, err := createLogCollector(pluginConfig, os.Stdout, &config.Config{})
+	exec, pluginClient, err := createExecutor(pluginConfig, os.Stdout, &config.Config{})
 	if err != nil {
 		t.Fatalf("got an err: %v", err)
 	}
@@ -154,7 +154,7 @@ func TestDockerDriver_Handle(t *testing.T) {
 	h := &DockerHandle{
 		version:        "version",
 		imageID:        "imageid",
-		logCollector:   logCollector,
+		executor:       exec,
 		pluginClient:   pluginClient,
 		containerID:    "containerid",
 		killTimeout:    5 * time.Nanosecond,
