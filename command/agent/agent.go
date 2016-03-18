@@ -71,7 +71,7 @@ func (a *Agent) serverConfig() (*nomad.Config, error) {
 	conf.LogOutput = a.logOutput
 	conf.DevMode = a.config.DevMode
 	conf.Build = fmt.Sprintf("%s%s", a.config.Version, a.config.VersionPrerelease)
-	if a.config.Region != "" {
+	if i.config.Region != "" {
 		conf.Region = a.config.Region
 	}
 	if a.config.Datacenter != "" {
