@@ -759,9 +759,13 @@ func (h *DockerHandle) Kill() error {
 		// Container has already been removed.
 		if strings.Contains(err.Error(), NoSuchContainerError) {
 			h.logger.Printf("[DEBUG] driver.docker: attempted to stop non-existent container %s", h.containerID)
+			h.executor.Exit()
+			h.pluginClient.Kill()
 			return nil
 		}
 		h.logger.Printf("[ERR] driver.docker: failed to stop container %s: %v", h.containerID, err)
+		h.executor.Exit()
+		h.pluginClient.Kill()
 		return fmt.Errorf("Failed to stop container %s: %s", h.containerID, err)
 	}
 	h.logger.Printf("[INFO] driver.docker: stopped container %s", h.containerID)
