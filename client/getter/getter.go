@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/url"
+	"path/filepath"
 	"sync"
 
 	gg "github.com/hashicorp/go-getter"
@@ -59,16 +60,17 @@ func getGetterUrl(artifact *structs.TaskArtifact) (string, error) {
 	return u.String(), nil
 }
 
-// GetArtifact downloads an artifact into the specified destination directory.
-func GetArtifact(artifact *structs.TaskArtifact, destDir string, logger *log.Logger) error {
+// GetArtifact downloads an artifact into the specified task directory.
+func GetArtifact(artifact *structs.TaskArtifact, taskDir string, logger *log.Logger) error {
 	url, err := getGetterUrl(artifact)
 	if err != nil {
 		return err
 	}
 
 	// Download the artifact
-	if err := getClient(url, destDir).Get(); err != nil {
-		return err
+	dest := filepath.Join(taskDir, artifact.RelativeDest)
+	if err := getClient(url, dest).Get(); err != nil {
+		return fmt.Errorf("GET error: %v", err)
 	}
 
 	return nil
