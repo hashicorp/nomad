@@ -211,6 +211,7 @@ func (e *UniversalExecutor) Wait() (*ProcessState, error) {
 	return e.exitState, nil
 }
 
+// COMPAT: prior to Nomad 0.3.2, UpdateTask didn't exist.
 // UpdateLogConfig updates the log configuration
 func (e *UniversalExecutor) UpdateLogConfig(logConfig *structs.LogConfig) error {
 	e.ctx.Task.LogConfig = logConfig
@@ -230,6 +231,8 @@ func (e *UniversalExecutor) UpdateLogConfig(logConfig *structs.LogConfig) error 
 
 func (e *UniversalExecutor) UpdateTask(task *structs.Task) error {
 	e.ctx.Task = task
+
+	// Updating Log Config
 	fileSize := int64(task.LogConfig.MaxFileSizeMB * 1024 * 1024)
 	e.lro.MaxFiles = task.LogConfig.MaxFiles
 	e.lro.FileSize = fileSize

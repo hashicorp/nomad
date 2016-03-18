@@ -7,6 +7,7 @@ import (
 )
 
 const (
+	// The default user that the executor uses to run tasks
 	DefaultUnpriviledgedUser = "nobody"
 )
 

@@ -125,7 +125,7 @@ func TestExecutor_IsolationAndConstraints(t *testing.T) {
 
 	execCmd.FSIsolation = true
 	execCmd.ResourceLimits = true
-	execCmd.User = "nobody"
+	execCmd.User = cstructs.DefaultUnpriviledgedUser
 
 	executor := NewExecutor(log.New(os.Stdout, "", log.LstdFlags))
 	ps, err := executor.LaunchCmd(&execCmd, ctx)
