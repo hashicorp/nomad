@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -1913,6 +1914,10 @@ type TaskArtifact struct {
 	// GetterOptions are options to use when downloading the artifact using
 	// go-getter.
 	GetterOptions map[string]string `mapstructure:"options"`
+
+	// RelativeDest is the download destination given relative to the task's
+	// directory.
+	RelativeDest string `mapstructure:"destination"`
 }
 
 func (ta *TaskArtifact) Copy() *TaskArtifact {
@@ -1925,16 +1930,36 @@ func (ta *TaskArtifact) Copy() *TaskArtifact {
 	return nta
 }
 
+func (ta *TaskArtifact) GoString() string {
+	return fmt.Sprintf("%+v", ta)
+}
+
 func (ta *TaskArtifact) Validate() error {
 	// Verify the source
 	var mErr multierror.Error
 	if ta.GetterSource == "" {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("source must be specified"))
+	} else {
+		_, err := url.Parse(ta.GetterSource)
+		if err != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid source URL %q: %v", ta.GetterSource, err))
+		}
 	}
 
-	_, err := url.Parse(ta.GetterSource)
+	// Verify the destination doesn't escape the tasks directory
+	alloc := "/foo/bar/"
+	abs, err := filepath.Abs(filepath.Join(alloc, ta.RelativeDest))
 	if err != nil {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid source URL %q: %v", ta.GetterSource, err))
+		mErr.Errors = append(mErr.Errors, err)
+		return mErr.ErrorOrNil()
+	}
+	rel, err := filepath.Rel(alloc, abs)
+	if err != nil {
+		mErr.Errors = append(mErr.Errors, err)
+		return mErr.ErrorOrNil()
+	}
+	if strings.HasPrefix(rel, "..") {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("destination escapes task's directory"))
 	}
 
 	// Verify the checksum
