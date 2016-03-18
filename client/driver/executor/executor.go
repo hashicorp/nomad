@@ -241,11 +241,6 @@ func (e *UniversalExecutor) UpdateTask(task *structs.Task) error {
 func (e *UniversalExecutor) wait() {
 	defer close(e.processExited)
 	err := e.cmd.Wait()
-	if e.syslogServer != nil {
-		e.syslogServer.Shutdown()
-	}
-	e.lre.Close()
-	e.lro.Close()
 	if err == nil {
 		e.exitState = &ProcessState{Pid: 0, ExitCode: 0, Time: time.Now()}
 		return
@@ -269,6 +264,12 @@ var (
 // process
 func (e *UniversalExecutor) Exit() error {
 	var merr multierror.Error
+	if e.syslogServer != nil {
+		e.syslogServer.Shutdown()
+	}
+	e.lre.Close()
+	e.lro.Close()
+
 	if e.command != nil && e.cmd.Process != nil {
 		proc, err := os.FindProcess(e.cmd.Process.Pid)
 		if err != nil {

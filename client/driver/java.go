@@ -339,5 +339,6 @@ func (h *javaHandle) run() {
 	}
 	h.waitCh <- &cstructs.WaitResult{ExitCode: ps.ExitCode, Signal: 0, Err: err}
 	close(h.waitCh)
+	h.executor.Exit()
 	h.pluginClient.Kill()
 }

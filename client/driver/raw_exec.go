@@ -235,5 +235,8 @@ func (h *rawExecHandle) run() {
 	}
 	h.waitCh <- &cstructs.WaitResult{ExitCode: ps.ExitCode, Signal: 0, Err: err}
 	close(h.waitCh)
+	if err := h.executor.Exit(); err != nil {
+		h.logger.Printf("[ERR] driver.raw_exec: error killing executor: %v", err)
+	}
 	h.pluginClient.Kill()
 }

@@ -357,5 +357,8 @@ func (h *rktHandle) run() {
 	}
 	h.waitCh <- cstructs.NewWaitResult(ps.ExitCode, 0, err)
 	close(h.waitCh)
+	if err := h.executor.Exit(); err != nil {
+		h.logger.Printf("[ERR] driver.rkt: error killing executor: %v", err)
+	}
 	h.pluginClient.Kill()
 }

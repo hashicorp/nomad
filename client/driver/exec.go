@@ -268,5 +268,8 @@ func (h *execHandle) run() {
 	}
 	h.waitCh <- cstructs.NewWaitResult(ps.ExitCode, 0, err)
 	close(h.waitCh)
+	if err := h.executor.Exit(); err != nil {
+		h.logger.Printf("[ERR] driver.exec: error destroying executor: %v", err)
+	}
 	h.pluginClient.Kill()
 }
