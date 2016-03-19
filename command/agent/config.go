@@ -46,6 +46,8 @@ type Config struct {
 	// Addresses is used to override the network addresses we bind to.
 	Addresses *Addresses `mapstructure:"addresses"`
 
+	// Interfaces is used to override the network addresses we bind to by
+	// providing device names
 	Interfaces *Interfaces `mapstructure:"interfaces"`
 
 	// AdvertiseAddrs is used to control the addresses we advertise.
