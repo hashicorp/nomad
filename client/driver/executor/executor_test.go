@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	tu "github.com/hashicorp/nomad/testutil"
+	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 )
 
 var (
