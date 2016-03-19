@@ -71,7 +71,7 @@ func (a *Agent) serverConfig() (*nomad.Config, error) {
 	conf.LogOutput = a.logOutput
 	conf.DevMode = a.config.DevMode
 	conf.Build = fmt.Sprintf("%s%s", a.config.Version, a.config.VersionPrerelease)
-	if i.config.Region != "" {
+	if a.config.Region != "" {
 		conf.Region = a.config.Region
 	}
 	if a.config.Datacenter != "" {
@@ -210,11 +210,17 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	conf.Node.Meta = a.config.Client.Meta
 	conf.Node.NodeClass = a.config.Client.NodeClass
 	httpAddr := fmt.Sprintf("%s:%d", a.config.BindAddr, a.config.Ports.HTTP)
-	if a.config.Addresses.HTTP != "" && a.config.AdvertiseAddrs.HTTP == "" {
+	if a.config.Addresses.HTTP != "" && a.config.AdvertiseAddrs.HTTP == "" && a.config.Interfaces.HTTP == "" {
 		httpAddr = fmt.Sprintf("%s:%d", a.config.Addresses.HTTP, a.config.Ports.HTTP)
 		if _, err := net.ResolveTCPAddr("tcp", httpAddr); err != nil {
 			return nil, fmt.Errorf("error resolving http addr: %v:", err)
 		}
+	} else if a.config.Interfaces.HTTP != "" && a.config.AdvertiseAddrs.HTTP == "" {
+		ip, err := ipOfDevice(a.config.Interfaces.HTTP)
+		if err != nil {
+			return nil, fmt.Errorf("error finding ip address from interface %q: %v", a.config.Interfaces.HTTP, err)
+		}
+		httpAddr = fmt.Sprintf("%s:%d", ip.String(), a.config.Ports.HTTP)
 	} else if a.config.AdvertiseAddrs.HTTP != "" {
 		addr, err := net.ResolveTCPAddr("tcp", a.config.AdvertiseAddrs.HTTP)
 		if err != nil {
