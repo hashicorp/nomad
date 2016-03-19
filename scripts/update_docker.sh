@@ -2,7 +2,7 @@
 
 set -ex
 
-DOCKER_VERSION="1.10.2"
+DOCKER_VERSION="1.10.3"
 
 sudo stop docker
 sudo rm -rf /var/lib/docker
