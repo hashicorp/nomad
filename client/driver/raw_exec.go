@@ -103,7 +103,7 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 	ps, err := exec.LaunchCmd(&executor.ExecCommand{Cmd: command, Args: driverConfig.Args}, executorCtx)
 	if err != nil {
 		pluginClient.Kill()
-		return nil, fmt.Errorf("error starting process via the plugin: %v", err)
+		return nil, err
 	}
 	d.logger.Printf("[DEBUG] driver.raw_exec: started process with pid: %v", ps.Pid)
 

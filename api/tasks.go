@@ -99,6 +99,7 @@ type Task struct {
 type TaskArtifact struct {
 	GetterSource  string
 	GetterOptions map[string]string
+	RelativeDest  string
 }
 
 // NewTask creates and initializes a new Task.

@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
@@ -159,20 +160,36 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext
 	e.cmd.Stdout = e.lro
 	e.cmd.Stderr = e.lre
 
-	// setting the env, path and args for the command
 	e.ctx.TaskEnv.Build()
-	e.cmd.Env = ctx.TaskEnv.EnvList()
-	e.cmd.Path = ctx.TaskEnv.ReplaceEnv(command.Cmd)
-	e.cmd.Args = append([]string{e.cmd.Path}, ctx.TaskEnv.ParseAndReplace(command.Args)...)
 
-	// Ensure that the binary being started is executable.
-	if err := e.makeExecutable(e.cmd.Path); err != nil {
+	// Look up the binary path and make it executable
+	absPath, err := e.lookupBin(ctx.TaskEnv.ReplaceEnv(command.Cmd))
+	if err != nil {
 		return nil, err
 	}
 
-	// starting the process
+	if err := e.makeExecutable(absPath); err != nil {
+		return nil, err
+	}
+
+	// Determine the path to run as it may have to be relative to the chroot.
+	path := absPath
+	if e.command.FSIsolation {
+		rel, err := filepath.Rel(e.taskDir, absPath)
+		if err != nil {
+			return nil, err
+		}
+		path = rel
+	}
+
+	// Set the commands arguments
+	e.cmd.Path = path
+	e.cmd.Args = append([]string{path}, ctx.TaskEnv.ParseAndReplace(command.Args)...)
+	e.cmd.Env = ctx.TaskEnv.EnvList()
+
+	// Start the process
 	if err := e.cmd.Start(); err != nil {
-		return nil, fmt.Errorf("error starting command: %v", err)
+		return nil, err
 	}
 	go e.wait()
 	ic := &cstructs.IsolationConfig{Cgroup: e.groups}
@@ -328,8 +345,36 @@ func (e *UniversalExecutor) configureTaskDir() error {
 	return nil
 }
 
-// makeExecutablePosix makes the given file executable for root,group,others.
-func (e *UniversalExecutor) makeExecutablePosix(binPath string) error {
+// lookupBin looks for path to the binary to run by looking for the binary in
+// the following locations, in-order: task/local/, task/, based on host $PATH.
+// The return path is absolute.
+func (e *UniversalExecutor) lookupBin(bin string) (string, error) {
+	// Check in the local directory
+	local := filepath.Join(e.taskDir, allocdir.TaskLocal, bin)
+	if _, err := os.Stat(local); err == nil {
+		return local, nil
+	}
+
+	// Check at the root of the task's directory
+	root := filepath.Join(e.taskDir, bin)
+	if _, err := os.Stat(root); err == nil {
+		return root, nil
+	}
+
+	// Check the $PATH
+	if host, err := exec.LookPath(bin); err == nil {
+		return host, nil
+	}
+
+	return "", fmt.Errorf("binary %q could not be found", bin)
+}
+
+// makeExecutable makes the given file executable for root,group,others.
+func (e *UniversalExecutor) makeExecutable(binPath string) error {
+	if runtime.GOOS == "windows" {
+		return nil
+	}
+
 	fi, err := os.Stat(binPath)
 	if err != nil {
 		if os.IsNotExist(err) {
