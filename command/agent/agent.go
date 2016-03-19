@@ -127,9 +127,29 @@ func (a *Agent) serverConfig() (*nomad.Config, error) {
 	}
 	if addr := a.config.Addresses.RPC; addr != "" {
 		conf.RPCAddr.IP = net.ParseIP(addr)
+	} else if device := a.config.Interfaces.RPC; device != "" {
+		ip, err := ipOfDevice(device)
+		if err != nil {
+			return nil, err
+		}
+		conf.RPCAddr.IP = ip
 	}
 	if addr := a.config.Addresses.Serf; addr != "" {
 		conf.SerfConfig.MemberlistConfig.BindAddr = addr
+	} else if device := a.config.Interfaces.Serf; device != "" {
+		ip, err := ipOfDevice(device)
+		if err != nil {
+			return nil, err
+		}
+		conf.SerfConfig.MemberlistConfig.BindAddr = ip.String()
+	}
+
+	if device := a.config.Interfaces.HTTP; device != "" {
+		ip, err := ipOfDevice(device)
+		if err != nil {
+			return nil, err
+		}
+		a.config.Addresses.HTTP = ip.String()
 	}
 
 	// Set up the ports
@@ -209,6 +229,8 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	conf.Node.Name = a.config.NodeName
 	conf.Node.Meta = a.config.Client.Meta
 	conf.Node.NodeClass = a.config.Client.NodeClass
+
+	// Setting the proper HTTP Addr
 	httpAddr := fmt.Sprintf("%s:%d", a.config.BindAddr, a.config.Ports.HTTP)
 	if a.config.Addresses.HTTP != "" && a.config.AdvertiseAddrs.HTTP == "" && a.config.Interfaces.HTTP == "" {
 		httpAddr = fmt.Sprintf("%s:%d", a.config.Addresses.HTTP, a.config.Ports.HTTP)
@@ -230,7 +252,6 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 		httpAddr = fmt.Sprintf("%s:%d", addr.IP.String(), addr.Port)
 	}
 	conf.Node.HTTPAddr = httpAddr
-	conf.Version = a.config.Version
 
 	// Reserve resources on the node.
 	r := conf.Node.Reserved
@@ -243,6 +264,8 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	r.DiskMB = a.config.Client.Reserved.DiskMB
 	r.IOPS = a.config.Client.Reserved.IOPS
 	conf.GloballyReservedPorts = a.config.Client.Reserved.ParsedReservedPorts
+
+	conf.Version = a.config.Version
 
 	return conf, nil
 }
