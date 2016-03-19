@@ -414,13 +414,16 @@ is started.
 
 The `Artifact` object maps supports the following keys:
 
-* `Source` - The path to the artifact to download.
+* `GetterSource` - The path to the artifact to download.
 
-* `Options` - The `options` block allows setting parameters for `go-getter`. An
-  example is given below: 
+* `RelativeDest` - The destination to download the artifact relative the task's
+  directory.
+
+* `GetterOptions` - A `map[string]string` block of options for  `go-getter`. An
+  example is given below:
 
 ```
-"Options": {
+"GetterOptions": {
     "checksum": "md5:c4aa853ad2215426eb7d70a21922e794",
 
     "aws_access_key_id": "<id>",
