@@ -240,7 +240,18 @@ func (r *TaskRunner) run() {
 				return
 			}
 
-			for _, artifact := range r.task.Artifacts {
+			for i, artifact := range r.task.Artifacts {
+				// Verify the artifact doesn't escape the task directory.
+				if err := artifact.Validate(); err != nil {
+					// If this error occurs there is potentially a server bug or
+					// mallicious, server spoofing.
+					r.setState(structs.TaskStateDead,
+						structs.NewTaskEvent(structs.TaskArtifactDownloadFailed).SetDownloadError(err))
+					r.logger.Printf("[ERR] client: allocation %q, task %v, artifact %v (%v) fails validation",
+						r.alloc.ID, r.task.Name, artifact, i)
+					return
+				}
+
 				if err := getter.GetArtifact(artifact, taskDir, r.logger); err != nil {
 					r.setState(structs.TaskStateDead,
 						structs.NewTaskEvent(structs.TaskArtifactDownloadFailed).SetDownloadError(err))
