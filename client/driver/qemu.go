@@ -191,11 +191,9 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		return nil, err
 	}
 	executorCtx := &executor.ExecutorContext{
-		TaskEnv:       d.taskEnv,
-		AllocDir:      ctx.AllocDir,
-		TaskName:      task.Name,
-		TaskResources: task.Resources,
-		LogConfig:     task.LogConfig,
+		TaskEnv:  d.taskEnv,
+		AllocDir: ctx.AllocDir,
+		Task:     task,
 	}
 	ps, err := exec.LaunchCmd(&executor.ExecCommand{Cmd: args[0], Args: args[1:]}, executorCtx)
 	if err != nil {
@@ -292,7 +290,7 @@ func (h *qemuHandle) WaitCh() chan *cstructs.WaitResult {
 func (h *qemuHandle) Update(task *structs.Task) error {
 	// Store the updated kill timeout.
 	h.killTimeout = GetKillTimeout(task.KillTimeout, h.maxKillTimeout)
-	h.executor.UpdateLogConfig(task.LogConfig)
+	h.executor.UpdateTask(task)
 
 	// Update is not possible
 	return nil
@@ -336,5 +334,6 @@ func (h *qemuHandle) run() {
 	close(h.doneCh)
 	h.waitCh <- &cstructs.WaitResult{ExitCode: ps.ExitCode, Signal: 0, Err: err}
 	close(h.waitCh)
+	h.executor.Exit()
 	h.pluginClient.Kill()
 }

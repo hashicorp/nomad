@@ -38,14 +38,14 @@ var (
 
 // configureIsolation configures chroot and creates cgroups
 func (e *UniversalExecutor) configureIsolation() error {
-	if e.ctx.FSIsolation {
+	if e.command.FSIsolation {
 		if err := e.configureChroot(); err != nil {
 			return err
 		}
 	}
 
-	if e.ctx.ResourceLimits {
-		if err := e.configureCgroups(e.ctx.TaskResources); err != nil {
+	if e.command.ResourceLimits {
+		if err := e.configureCgroups(e.ctx.Task.Resources); err != nil {
 			return fmt.Errorf("error creating cgroups: %v", err)
 		}
 		if err := e.applyLimits(os.Getpid()); err != nil {
@@ -63,7 +63,7 @@ func (e *UniversalExecutor) configureIsolation() error {
 
 // applyLimits puts a process in a pre-configured cgroup
 func (e *UniversalExecutor) applyLimits(pid int) error {
-	if !e.ctx.ResourceLimits {
+	if !e.command.ResourceLimits {
 		return nil
 	}
 
@@ -155,11 +155,11 @@ func (e *UniversalExecutor) runAs(userid string) error {
 // configureChroot configures a chroot
 func (e *UniversalExecutor) configureChroot() error {
 	allocDir := e.ctx.AllocDir
-	if err := allocDir.MountSharedDir(e.ctx.TaskName); err != nil {
+	if err := allocDir.MountSharedDir(e.ctx.Task.Name); err != nil {
 		return err
 	}
 
-	if err := allocDir.Embed(e.ctx.TaskName, chrootEnv); err != nil {
+	if err := allocDir.Embed(e.ctx.Task.Name, chrootEnv); err != nil {
 		return err
 	}
 
@@ -183,8 +183,8 @@ func (e *UniversalExecutor) configureChroot() error {
 // should be called when tearing down the task.
 func (e *UniversalExecutor) removeChrootMounts() error {
 	// Prevent a race between Wait/ForceStop
-	e.lock.Lock()
-	defer e.lock.Unlock()
+	e.cgLock.Lock()
+	defer e.cgLock.Unlock()
 	return e.ctx.AllocDir.UnmountAll()
 }
 

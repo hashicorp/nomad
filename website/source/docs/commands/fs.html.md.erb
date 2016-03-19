@@ -23,7 +23,7 @@ nomad fs stat <alloc-id> <path>
 nomad fs cat <alloc-id> <path>
 ```
 
-A valid allocation id is necessary and the path is relative to the root of the allocation directory.
+A valid allocation id is necessary unless `-job` is specified and the path is relative to the root of the allocation directory.
 The path is optional and it defaults to `/` of the allocation directory
 
 ## Examples
@@ -50,3 +50,14 @@ $ nomad fs cat redis/local/redis.stdout
 6710:C 27 Jan 22:04:03.794 # Warning: no config file specified, using the default config. In order to specify a config file use redis-server /path/to/redis.conf
 6710:M 27 Jan 22:04:03.795 * Increased maximum number of open files to 10032 (it was originally set to 256).
 
+## Using Job-ID instead of Alloc-ID
+
+Passing `-job` into one of the `fs` commands will allow the `fs` command to randomly select an allocation ID from the specified job.
+
+```
+nomad fs ls -job <job-id> <path>
+```
+
+Nomad will prefer to select a running allocation ID for the job, but if no running allocations for the job are found, Nomad will use a dead allocation.
+
+This can be useful for debugging a job that has multiple allocations, and it's not really required to use a specific allocation ID.

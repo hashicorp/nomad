@@ -65,30 +65,37 @@ driver.
   <tr>
     <th>Variable</th>
     <th>Description</th>
+    <th>Example</th>
   </tr>
   <tr>
     <td>${node.unique.id}</td>
-    <td>The client node identifier</td>
+    <td>The 36 character unique client node identifier</td>
+    <td>9afa5da1-8f39-25a2-48dc-ba31fd7c0023</td>
   </tr>
   <tr>
     <td>${node.datacenter}</td>
-    <td>The client node datacenter</td>
+    <td>The client node's datacenter</td>
+    <td>dc1</td>
   </tr>
   <tr>
     <td>${node.unique.name}</td>
-    <td>The client node name</td>
+    <td>The client node's name</td>
+    <td>nomad-client-10-1-2-4</td>
   </tr>
   <tr>
     <td>${node.class}</td>
-    <td>The client node class</td>
+    <td>The client node's class</td>
+    <td>linux-64bit</td>
   </tr>
   <tr>
     <td>${attr.\<key\>}</td>
     <td>The attribute given by `key` on the client node.</td>
+    <td>platform.aws.instance-type:r3.large</td>
   </tr>
   <tr>
     <td>${meta.\<key\>}</td>
     <td>The metadata value given by `key` on the client node.</td>
+    <td></td>
   </tr>
 </table>
 
@@ -177,19 +184,19 @@ a particular node and as such can not be used in constraints.
     <td>The CPU limit in MHz for the task</td>
   </tr>
   <tr>
-    <td>NOMAD_ALLOC_ID</td>
+    <td>${NOMAD_ALLOC_ID}</td>
     <td>The allocation ID of the task</td>
   </tr>
   <tr>
-    <td>NOMAD_ALLOC_NAME</td>
+    <td>${NOMAD_ALLOC_NAME}</td>
     <td>The allocation name of the task</td>
   </tr>
   <tr>
-    <td>NOMAD_ALLOC_INDEX</td>
+    <td>${NOMAD_ALLOC_INDEX}</td>
     <td>The allocation index; useful to distinguish instances of task groups</td>
   </tr>
   <tr>
-    <td>NOMAD_TASK_NAME</td>
+    <td>${NOMAD_TASK_NAME}</td>
     <td>The task's name</td>
   </tr>
   <tr>
