@@ -2,7 +2,7 @@
 
 set -ex
 
-RKT_VERSION="v1.0.0"
+RKT_VERSION="v1.2.0"
 DEST_DIR="/usr/local/bin"
 
 sudo mkdir -p /etc/rkt/net.d
