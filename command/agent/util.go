@@ -31,8 +31,6 @@ func ipOfDevice(name string) (net.IP, error) {
 		var ip net.IP
 		switch v := (addr).(type) {
 		case *net.IPNet:
-			continue
-		case *net.IPAddr:
 			ip = v.IP
 			if ip.To4() != nil {
 				ipv4Addrs = append(ipv4Addrs, ip)
@@ -42,6 +40,8 @@ func ipOfDevice(name string) (net.IP, error) {
 				ipv6Addrs = append(ipv6Addrs, ip)
 				continue
 			}
+		case *net.IPAddr:
+			continue
 		}
 	}
 	if len(ipv4Addrs) > 0 {

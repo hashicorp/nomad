@@ -220,6 +220,7 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 		if err != nil {
 			return nil, fmt.Errorf("error finding ip address from interface %q: %v", a.config.Interfaces.HTTP, err)
 		}
+		a.config.Addresses.HTTP = ip.String()
 		httpAddr = fmt.Sprintf("%s:%d", ip.String(), a.config.Ports.HTTP)
 	} else if a.config.AdvertiseAddrs.HTTP != "" {
 		addr, err := net.ResolveTCPAddr("tcp", a.config.AdvertiseAddrs.HTTP)
