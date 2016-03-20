@@ -57,6 +57,9 @@ sudo apt-get install -y docker-engine
 # Restart docker to make sure we get the latest version of the daemon if there is an upgrade
 sudo service docker restart
 
+# Install rkt
+bash /opt/gopath/src/github.com/hashicorp/nomad/scripts/install_rkt.sh
+
 # Make sure we can actually use docker as the vagrant user
 sudo usermod -aG docker vagrant
 
