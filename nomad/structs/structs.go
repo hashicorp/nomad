@@ -680,10 +680,12 @@ func (r *Resources) Copy() *Resources {
 	}
 	newR := new(Resources)
 	*newR = *r
-	n := len(r.Networks)
-	newR.Networks = make([]*NetworkResource, n)
-	for i := 0; i < n; i++ {
-		newR.Networks[i] = r.Networks[i].Copy()
+	if r.Networks != nil {
+		n := len(r.Networks)
+		newR.Networks = make([]*NetworkResource, n)
+		for i := 0; i < n; i++ {
+			newR.Networks[i] = r.Networks[i].Copy()
+		}
 	}
 	return newR
 }
@@ -942,11 +944,13 @@ func (j *Job) Copy() *Job {
 	nj.Datacenters = CopySliceString(nj.Datacenters)
 	nj.Constraints = CopySliceConstraints(nj.Constraints)
 
-	tgs := make([]*TaskGroup, len(nj.TaskGroups))
-	for i, tg := range nj.TaskGroups {
-		tgs[i] = tg.Copy()
+	if j.TaskGroups != nil {
+		tgs := make([]*TaskGroup, len(nj.TaskGroups))
+		for i, tg := range nj.TaskGroups {
+			tgs[i] = tg.Copy()
+		}
+		nj.TaskGroups = tgs
 	}
-	nj.TaskGroups = tgs
 
 	nj.Periodic = nj.Periodic.Copy()
 	nj.Meta = CopyMapStringString(nj.Meta)
@@ -1317,11 +1321,13 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 
 	ntg.RestartPolicy = ntg.RestartPolicy.Copy()
 
-	tasks := make([]*Task, len(ntg.Tasks))
-	for i, t := range ntg.Tasks {
-		tasks[i] = t.Copy()
+	if tg.Tasks != nil {
+		tasks := make([]*Task, len(ntg.Tasks))
+		for i, t := range ntg.Tasks {
+			tasks[i] = t.Copy()
+		}
+		ntg.Tasks = tasks
 	}
-	ntg.Tasks = tasks
 
 	ntg.Meta = CopyMapStringString(ntg.Meta)
 	return ntg
@@ -1483,14 +1489,14 @@ func (s *Service) Copy() *Service {
 	*ns = *s
 	ns.Tags = CopySliceString(ns.Tags)
 
-	var checks []*ServiceCheck
-	if l := len(ns.Checks); l != 0 {
-		checks = make([]*ServiceCheck, len(ns.Checks))
+	if s.Checks != nil {
+		checks := make([]*ServiceCheck, len(ns.Checks))
 		for i, c := range ns.Checks {
 			checks[i] = c.Copy()
 		}
+		ns.Checks = checks
 	}
-	ns.Checks = checks
+
 	return ns
 }
 
@@ -1623,21 +1629,26 @@ func (t *Task) Copy() *Task {
 	*nt = *t
 	nt.Env = CopyMapStringString(nt.Env)
 
-	services := make([]*Service, len(nt.Services))
-	for i, s := range nt.Services {
-		services[i] = s.Copy()
+	if t.Services != nil {
+		services := make([]*Service, len(nt.Services))
+		for i, s := range nt.Services {
+			services[i] = s.Copy()
+		}
+		nt.Services = services
 	}
-	nt.Services = services
+
 	nt.Constraints = CopySliceConstraints(nt.Constraints)
 
 	nt.Resources = nt.Resources.Copy()
 	nt.Meta = CopyMapStringString(nt.Meta)
 
-	artifacts := make([]*TaskArtifact, len(nt.Artifacts))
-	for i, a := range nt.Artifacts {
-		artifacts[i] = a.Copy()
+	if t.Artifacts != nil {
+		artifacts := make([]*TaskArtifact, len(t.Artifacts))
+		for _, a := range nt.Artifacts {
+			artifacts = append(artifacts, a.Copy())
+		}
+		nt.Artifacts = artifacts
 	}
-	nt.Artifacts = artifacts
 
 	if i, err := copystructure.Copy(nt.Config); err != nil {
 		nt.Config = i.(map[string]interface{})
@@ -1767,9 +1778,12 @@ func (ts *TaskState) Copy() *TaskState {
 	}
 	copy := new(TaskState)
 	copy.State = ts.State
-	copy.Events = make([]*TaskEvent, len(ts.Events))
-	for i, e := range ts.Events {
-		copy.Events[i] = e.Copy()
+
+	if ts.Events != nil {
+		copy.Events = make([]*TaskEvent, len(ts.Events))
+		for i, e := range ts.Events {
+			copy.Events[i] = e.Copy()
+		}
 	}
 	return copy
 }
@@ -2148,25 +2162,31 @@ func (a *Allocation) Copy() *Allocation {
 	na.Job = na.Job.Copy()
 	na.Resources = na.Resources.Copy()
 
-	tr := make(map[string]*Resources, len(na.TaskResources))
-	for task, resource := range na.TaskResources {
-		tr[task] = resource.Copy()
+	if a.TaskResources != nil {
+		tr := make(map[string]*Resources, len(na.TaskResources))
+		for task, resource := range na.TaskResources {
+			tr[task] = resource.Copy()
+		}
+		na.TaskResources = tr
 	}
-	na.TaskResources = tr
 
-	s := make(map[string]string, len(na.Services))
-	for service, id := range na.Services {
-		s[service] = id
+	if a.Services != nil {
+		s := make(map[string]string, len(na.Services))
+		for service, id := range na.Services {
+			s[service] = id
+		}
+		na.Services = s
 	}
-	na.Services = s
 
 	na.Metrics = na.Metrics.Copy()
 
-	ts := make(map[string]*TaskState, len(na.TaskStates))
-	for task, state := range na.TaskStates {
-		ts[task] = state.Copy()
+	if a.TaskStates != nil {
+		ts := make(map[string]*TaskState, len(na.TaskStates))
+		for task, state := range na.TaskStates {
+			ts[task] = state.Copy()
+		}
+		na.TaskStates = ts
 	}
-	na.TaskStates = ts
 	return na
 }
 
