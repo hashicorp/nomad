@@ -2,6 +2,7 @@
 
 IMPROVEMENTS:
   * core: Allow count zero task groups to enable blue/green deploys [GH-931]
+  * cli: `alloc-status` display is less verbose by default [GH-946]
   * cli: `server-members` displays the current leader in each region [GH-935]
   * client: `artifact` block now supports downloading paths relative to the
     task's directory [GH-944]
