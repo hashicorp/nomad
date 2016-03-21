@@ -2,9 +2,10 @@ package command
 
 import (
 	"fmt"
-	"github.com/hashicorp/nomad/api"
 	"sort"
 	"strings"
+
+	"github.com/hashicorp/nomad/api"
 )
 
 type NodeStatusCommand struct {
@@ -179,20 +180,6 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		return 1
 	}
 
-	m := node.Attributes
-	keys := make([]string, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-
-	var attributes []string
-	for _, k := range keys {
-		if k != "" {
-			attributes = append(attributes, fmt.Sprintf("%s:%s", k, m[k]))
-		}
-	}
-
 	// Format the output
 	basic := []string{
 		fmt.Sprintf("ID|%s", limit(node.ID, length)),
@@ -201,19 +188,10 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		fmt.Sprintf("DC|%s", node.Datacenter),
 		fmt.Sprintf("Drain|%v", node.Drain),
 		fmt.Sprintf("Status|%s", node.Status),
-		fmt.Sprintf("Attributes|%s", strings.Join(attributes, ", ")),
 	}
-
-	// Dump the output
 	c.Ui.Output(formatKV(basic))
+
 	if !short {
-		allocs, err := getAllocs(client, node, length)
-		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error querying node allocations: %s", err))
-			return 1
-		}
-		c.Ui.Output("\n==> Allocations")
-		c.Ui.Output(formatList(allocs))
 		resources, err := getResources(client, node)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error querying node resources: %s", err))
@@ -221,7 +199,37 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		}
 		c.Ui.Output("\n==> Resource Utilization")
 		c.Ui.Output(formatList(resources))
+
+		allocs, err := getAllocs(client, node, length)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error querying node allocations: %s", err))
+			return 1
+		}
+
+		if len(allocs) > 1 {
+			c.Ui.Output("\n==> Allocations")
+			c.Ui.Output(formatList(allocs))
+		}
 	}
+
+	if verbose {
+		// Print the attributes
+		keys := make([]string, len(node.Attributes))
+		for k := range node.Attributes {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+
+		var attributes []string
+		for _, k := range keys {
+			if k != "" {
+				attributes = append(attributes, fmt.Sprintf("%s|%s", k, node.Attributes[k]))
+			}
+		}
+		c.Ui.Output("\n==> Attributes")
+		c.Ui.Output(formatKV(attributes))
+	}
+
 	return 0
 }
 
@@ -260,9 +268,19 @@ func getAllocs(client *api.Client, node *api.Node, length int) ([]string, error)
 	return allocs, err
 }
 
+// getResources returns the resource usage of the node.
 func getResources(client *api.Client, node *api.Node) ([]string, error) {
 	var resources []string
 	var cpu, mem, disk, iops int
+	var totalCpu, totalMem, totalDisk, totalIops int
+
+	// Compute the total
+	r := node.Resources
+	res := node.Reserved
+	totalCpu = r.CPU - res.CPU
+	totalMem = r.MemoryMB - res.MemoryMB
+	totalDisk = r.DiskMB - res.DiskMB
+	totalIops = r.IOPS - res.IOPS
 
 	// Get list of running allocations on the node
 	runningAllocs, err := getRunningAllocs(client, node.ID)
@@ -277,11 +295,15 @@ func getResources(client *api.Client, node *api.Node) ([]string, error) {
 
 	resources = make([]string, 2)
 	resources[0] = "CPU|Memory MB|Disk MB|IOPS"
-	resources[1] = fmt.Sprintf("%v|%v|%v|%v",
+	resources[1] = fmt.Sprintf("%v/%v|%v/%v|%v/%v|%v/%v",
 		cpu,
+		totalCpu,
 		mem,
+		totalMem,
 		disk,
-		iops)
+		totalDisk,
+		iops,
+		totalIops)
 
 	return resources, err
 }
