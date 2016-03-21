@@ -78,6 +78,7 @@ func parseConfig(result *Config, list *ast.ObjectList) error {
 		"enable_debug",
 		"ports",
 		"addresses",
+		"interfaces",
 		"advertise",
 		"client",
 		"server",
@@ -102,6 +103,7 @@ func parseConfig(result *Config, list *ast.ObjectList) error {
 	}
 	delete(m, "ports")
 	delete(m, "addresses")
+	delete(m, "interfaces")
 	delete(m, "advertise")
 	delete(m, "client")
 	delete(m, "server")
@@ -125,6 +127,13 @@ func parseConfig(result *Config, list *ast.ObjectList) error {
 	if o := list.Filter("addresses"); len(o.Items) > 0 {
 		if err := parseAddresses(&result.Addresses, o); err != nil {
 			return multierror.Prefix(err, "addresses ->")
+		}
+	}
+
+	// Parse interfaces
+	if o := list.Filter("interfaces"); len(o.Items) > 0 {
+		if err := parseInterfaces(&result.Interfaces, o); err != nil {
+			return multierror.Prefix(err, "interfaces ->")
 		}
 	}
 
@@ -241,6 +250,38 @@ func parseAddresses(result **Addresses, list *ast.ObjectList) error {
 		return err
 	}
 	*result = &addresses
+	return nil
+}
+
+func parseInterfaces(result **Interfaces, list *ast.ObjectList) error {
+	list = list.Elem()
+	if len(list.Items) > 1 {
+		return fmt.Errorf("only one 'interfaces' block allowed")
+	}
+
+	// Get our interfaces object
+	listVal := list.Items[0].Val
+
+	// Check for the invalid keys
+	valid := []string{
+		"http",
+		"rpc",
+		"serf",
+	}
+	if err := checkHCLKeys(listVal, valid); err != nil {
+		return err
+	}
+
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, listVal); err != nil {
+		return err
+	}
+
+	var interfaces Interfaces
+	if err := mapstructure.WeakDecode(m, &interfaces); err != nil {
+		return err
+	}
+	*result = &interfaces
 	return nil
 }
 

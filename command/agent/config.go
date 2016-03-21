@@ -46,6 +46,10 @@ type Config struct {
 	// Addresses is used to override the network addresses we bind to.
 	Addresses *Addresses `mapstructure:"addresses"`
 
+	// Interfaces is used to override the network addresses we bind to by
+	// providing device names
+	Interfaces *Interfaces `mapstructure:"interfaces"`
+
 	// AdvertiseAddrs is used to control the addresses we advertise.
 	AdvertiseAddrs *AdvertiseAddrs `mapstructure:"advertise"`
 
@@ -255,6 +259,14 @@ type Addresses struct {
 	Serf string `mapstructure:"serf"`
 }
 
+// Interfaces provides an alternative to the Addresses configuration. We pick an
+// ip configured on the devide specified and use that to bind.
+type Interfaces struct {
+	HTTP string `mapstructure:"http"`
+	RPC  string `mapstructure:"rpc"`
+	Serf string `mapstructure:"serf"`
+}
+
 // AdvertiseAddrs is used to control the addresses we advertise out for
 // different network services. Not all network services support an
 // advertise address. All are optional and default to BindAddr.
@@ -366,6 +378,7 @@ func DefaultConfig() *Config {
 			Serf: 4648,
 		},
 		Addresses:      &Addresses{},
+		Interfaces:     &Interfaces{},
 		AdvertiseAddrs: &AdvertiseAddrs{},
 		Atlas:          &AtlasConfig{},
 		Client: &ClientConfig{
@@ -494,6 +507,14 @@ func (c *Config) Merge(b *Config) *Config {
 		result.Addresses = &addrs
 	} else if b.Addresses != nil {
 		result.Addresses = result.Addresses.Merge(b.Addresses)
+	}
+
+	// Apply the interfaces config
+	if result.Interfaces == nil && b.Interfaces != nil {
+		interfaces := *b.Interfaces
+		result.Interfaces = &interfaces
+	} else if b.Interfaces != nil {
+		result.Interfaces = result.Interfaces.Merge(b.Interfaces)
 	}
 
 	// Apply the advertise addrs config
@@ -662,6 +683,22 @@ func (a *Ports) Merge(b *Ports) *Ports {
 // Merge is used to merge two address configs together.
 func (a *Addresses) Merge(b *Addresses) *Addresses {
 	result := *a
+
+	if b.HTTP != "" {
+		result.HTTP = b.HTTP
+	}
+	if b.RPC != "" {
+		result.RPC = b.RPC
+	}
+	if b.Serf != "" {
+		result.Serf = b.Serf
+	}
+	return &result
+}
+
+// Merge is used to merge two interfaces configs together.
+func (i *Interfaces) Merge(b *Interfaces) *Interfaces {
+	result := *i
 
 	if b.HTTP != "" {
 		result.HTTP = b.HTTP
