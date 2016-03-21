@@ -144,7 +144,7 @@ func (a *Agent) serverConfig() (*nomad.Config, error) {
 		conf.SerfConfig.MemberlistConfig.BindAddr = ip.String()
 	}
 
-	if device := a.config.Interfaces.HTTP; device != "" {
+	if device := a.config.Interfaces.HTTP; device != "" && a.config.Addresses.HTTP == "" {
 		ip, err := ipOfDevice(device)
 		if err != nil {
 			return nil, err
