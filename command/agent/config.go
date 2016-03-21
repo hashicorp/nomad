@@ -259,6 +259,8 @@ type Addresses struct {
 	Serf string `mapstructure:"serf"`
 }
 
+// Interfaces provides an alternative to the Addresses configuration. We pick an
+// ip configured on the devide specified and use that to bind.
 type Interfaces struct {
 	HTTP string `mapstructure:"http"`
 	RPC  string `mapstructure:"rpc"`

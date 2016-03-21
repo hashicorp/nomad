@@ -25,7 +25,10 @@ func ipOfDevice(name string) (net.IP, error) {
 	if len(addrs) == 0 {
 		return nil, fmt.Errorf("no ips were detected on the interface: %v", name)
 	}
-	var ipv4Addrs []net.IP
+
+	// Iterating through the IPs configured for that device and returning the
+	// the first ipv4 address configured. If no ipv4 addresses are configured,
+	// we return the first ipv6 addr if any ipv6 addr is configured.
 	var ipv6Addrs []net.IP
 	for _, addr := range addrs {
 		var ip net.IP
@@ -33,8 +36,7 @@ func ipOfDevice(name string) (net.IP, error) {
 		case *net.IPNet:
 			ip = v.IP
 			if ip.To4() != nil {
-				ipv4Addrs = append(ipv4Addrs, ip)
-				continue
+				return ip, nil
 			}
 			if ip.To16() != nil {
 				ipv6Addrs = append(ipv6Addrs, ip)
@@ -43,9 +45,6 @@ func ipOfDevice(name string) (net.IP, error) {
 		case *net.IPAddr:
 			continue
 		}
-	}
-	if len(ipv4Addrs) > 0 {
-		return ipv4Addrs[0], nil
 	}
 	if len(ipv6Addrs) > 0 {
 		return ipv6Addrs[0], nil
