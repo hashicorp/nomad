@@ -264,9 +264,12 @@ configured on client nodes.
   * <a id="retry_max">`retry_max`</a> The maximum number of join attempts to be made before exiting
     with a return code of 1. By default, this is set to 0 which is interpreted
     as infinite retries.
-  * <a id="start_join">`start_join`</a> An array of strings specifying addresses of nodes to join upon startup.
-    If Nomad is unable to join with any of the specified addresses, agent startup will
-    fail. By default, the agent won't join any nodes when it starts up.
+  * <a id="start_join">`start_join`</a> An array of strings specifying addresses
+    of nodes to join upon startup. If Nomad is unable to join with any of the
+    specified addresses, agent startup will fail. By default, the agent won't
+    join any nodes when it starts up. Addresses can be given as an IP, a domain
+    name, or an IP:Port pair. If the port isn't specified the default Serf port,
+    4648, is used.
 
 ## Client-specific Options
 
