@@ -277,6 +277,9 @@ func getResources(client *api.Client, node *api.Node) ([]string, error) {
 	// Compute the total
 	r := node.Resources
 	res := node.Reserved
+	if res == nil {
+		res = &api.Resources{}
+	}
 	totalCpu = r.CPU - res.CPU
 	totalMem = r.MemoryMB - res.MemoryMB
 	totalDisk = r.DiskMB - res.DiskMB
