@@ -119,12 +119,23 @@ func (e *EvalContext) ProposedAllocs(nodeID string) ([]*structs.Allocation, erro
 	if update := e.plan.NodeUpdate[nodeID]; len(update) > 0 {
 		proposed = structs.RemoveAllocs(existingAlloc, update)
 	}
-	proposed = append(proposed, e.plan.NodeAllocation[nodeID]...)
 
-	// Ensure the return is not nil
-	if proposed == nil {
-		proposed = make([]*structs.Allocation, 0)
+	// We create an index of the existing allocations so that if an inplace
+	// update occurs, we do not double count and we override the old allocation.
+	proposedIDs := make(map[string]*structs.Allocation, len(proposed))
+	for _, alloc := range proposed {
+		proposedIDs[alloc.ID] = alloc
 	}
+	for _, alloc := range e.plan.NodeAllocation[nodeID] {
+		proposedIDs[alloc.ID] = alloc
+	}
+
+	// Materialize the proposed slice
+	proposed = make([]*structs.Allocation, 0, len(proposedIDs))
+	for _, alloc := range proposedIDs {
+		proposed = append(proposed, alloc)
+	}
+
 	return proposed, nil
 }
 
