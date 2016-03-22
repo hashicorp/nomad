@@ -374,17 +374,15 @@ The `constraint` object supports the following keys:
   the attribute. This sets the operator to "regexp" and the `value`
   to the regular expression.
 
-*   `distinct_hosts` - `distinct_hosts` accepts a boolean `true`. The default is
-    `false`.
-
-    When `distinct_hosts` is `true` at the Job level, each instance of all task
-    Groups specified in the job is placed on a separate host.
-
-    When `distinct_hosts` is `true` at the task group level with count > 1, each
-    instance of a task group is placed on a separate host. Different task groups in
-    the same job _may_ be co-scheduled.
-
-    Tasks within a task group are always co-scheduled.
+*   `distinct_hosts` - `distinct_hosts` accepts a boolean value and defaults to
+    `false`. If set, the scheduler will not co-locate any task groups on the same
+    machine. This can be specified as a job constraint which applies the
+    constraint to all task groups in the job, or as a task group constraint which
+    scopes the effect to just that group.
+  
+    Placing the constraint at both the job level and at the task group level is
+    redundant since when placed at the job level, the constraint will be applied
+    to all task groups.
 
 ### Log Rotation
 
