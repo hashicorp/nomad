@@ -1643,7 +1643,7 @@ func (t *Task) Copy() *Task {
 	nt.Meta = CopyMapStringString(nt.Meta)
 
 	if t.Artifacts != nil {
-		artifacts := make([]*TaskArtifact, len(t.Artifacts))
+		artifacts := make([]*TaskArtifact, 0, len(t.Artifacts))
 		for _, a := range nt.Artifacts {
 			artifacts = append(artifacts, a.Copy())
 		}

@@ -501,7 +501,7 @@ func TestServiceSched_JobModify_IncrCount_NodeLimit(t *testing.T) {
 	for _, allocList := range plan.NodeAllocation {
 		planned = append(planned, allocList...)
 	}
-	if len(planned) != 2 {
+	if len(planned) != 3 {
 		t.Fatalf("bad: %#v", plan)
 	}
 
@@ -516,7 +516,7 @@ func TestServiceSched_JobModify_IncrCount_NodeLimit(t *testing.T) {
 
 	// Ensure all allocations placed
 	out = structs.FilterTerminalAllocs(out)
-	if len(out) != 2 {
+	if len(out) != 3 {
 		t.Fatalf("bad: %#v", out)
 	}
 

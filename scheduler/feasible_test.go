@@ -487,24 +487,28 @@ func TestProposedAllocConstraint_JobDistinctHosts_Infeasible(t *testing.T) {
 		&structs.Allocation{
 			TaskGroup: tg1.Name,
 			JobID:     job.ID,
+			ID:        structs.GenerateUUID(),
 		},
 
 		// Should be ignored as it is a different job.
 		&structs.Allocation{
 			TaskGroup: tg2.Name,
 			JobID:     "ignore 2",
+			ID:        structs.GenerateUUID(),
 		},
 	}
 	plan.NodeAllocation[nodes[1].ID] = []*structs.Allocation{
 		&structs.Allocation{
 			TaskGroup: tg2.Name,
 			JobID:     job.ID,
+			ID:        structs.GenerateUUID(),
 		},
 
 		// Should be ignored as it is a different job.
 		&structs.Allocation{
 			TaskGroup: tg1.Name,
 			JobID:     "ignore 2",
+			ID:        structs.GenerateUUID(),
 		},
 	}
 

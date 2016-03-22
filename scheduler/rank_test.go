@@ -345,9 +345,11 @@ func TestJobAntiAffinity_PlannedAlloc(t *testing.T) {
 	plan := ctx.Plan()
 	plan.NodeAllocation[nodes[0].Node.ID] = []*structs.Allocation{
 		&structs.Allocation{
+			ID:    structs.GenerateUUID(),
 			JobID: "foo",
 		},
 		&structs.Allocation{
+			ID:    structs.GenerateUUID(),
 			JobID: "foo",
 		},
 	}
@@ -369,7 +371,7 @@ func TestJobAntiAffinity_PlannedAlloc(t *testing.T) {
 		t.Fatalf("Bad: %v", out)
 	}
 	if out[0].Score != -10.0 {
-		t.Fatalf("Bad: %v", out[0])
+		t.Fatalf("Bad: %#v", out[0])
 	}
 
 	if out[1] != nodes[1] {
