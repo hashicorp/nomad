@@ -1,6 +1,7 @@
 {
 	"ImportPath": "github.com/hashicorp/nomad",
 	"GoVersion": "go1.6",
+	"GodepVersion": "v60",
 	"Deps": [
 		{
 			"ImportPath": "github.com/StackExchange/wmi",
@@ -125,8 +126,8 @@
 		},
 		{
 			"ImportPath": "github.com/boltdb/bolt",
-			"Comment": "v1.1.0-32-g827f56d",
-			"Rev": "827f56dfb2091be2edb284ffb6113c198f27b033"
+			"Comment": "v1.2.0",
+			"Rev": "c6ba97b89e0454fec9aa92e1d33a4e2c5fc1f631"
 		},
 		{
 			"ImportPath": "github.com/coreos/go-systemd/dbus",
