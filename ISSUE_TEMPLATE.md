@@ -11,4 +11,8 @@ Output from `nomad version`
 
 ### Reproduction steps
 
-### Job file if appropriate
+### Nomad Server logs (if appropriate)
+
+### Nomad Client logs (if appropriate)
+
+### Job file (if appropriate)
