@@ -353,9 +353,12 @@ The `constraint` object supports the following keys:
 * `attribute` - Specifies the attribute to examine for the
   constraint. See the table of attributes [here](/docs/jobspec/interpreted.html#interpreted_node_vars).
 
-* `operator` - Specifies the comparison operator. Defaults to equality,
-  and can be `=`, `==`, `is`, `!=`, `not`, `>`, `>=`, `<`, `<=`. The
-  ordering is compared lexically.
+*   `operator` - Specifies the comparison operator. Defaults to equality,
+    and can be `=`, `==`, `is`, `!=`, `not`, `>`, `>=`, `<`, `<=`. The
+    ordering is compared lexically. The following are equivalent:
+
+      * `=`, `==` and `is`
+      * `!=` and `not`
 
 * `value` - Specifies the value to compare the attribute against.
   This can be a literal value or another attribute.
