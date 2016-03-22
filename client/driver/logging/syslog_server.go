@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"log"
 	"net"
+	"sync"
 )
 
 // SyslogServer is a server which listens to syslog messages and parses them
@@ -14,7 +15,10 @@ type SyslogServer struct {
 	messages chan *SyslogMessage
 	parser   *DockerLogParser
 
-	doneCh chan interface{}
+	doneCh   chan interface{}
+	done     bool
+	doneLock sync.Mutex
+
 	logger *log.Logger
 }
 
@@ -71,6 +75,12 @@ func (s *SyslogServer) read(connection net.Conn) {
 
 // Shutdown shutsdown the syslog server
 func (s *SyslogServer) Shutdown() {
-	close(s.doneCh)
-	close(s.messages)
+	s.doneLock.Lock()
+	s.doneLock.Unlock()
+
+	if !s.done {
+		close(s.doneCh)
+		close(s.messages)
+		s.done = true
+	}
 }
