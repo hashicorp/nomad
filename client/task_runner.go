@@ -270,9 +270,8 @@ func (r *TaskRunner) run() {
 				err := fmt.Errorf("task directory couldn't be found")
 				r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskDriverFailure).SetDriverError(err))
 				r.logger.Printf("[ERR] client: task directory for alloc %q task %q couldn't be found", r.alloc.ID, r.task.Name)
-
-				// Non-restartable error
-				return
+				r.restartTracker.SetStartError(err)
+				goto RESTART
 			}
 
 			for _, artifact := range r.task.Artifacts {

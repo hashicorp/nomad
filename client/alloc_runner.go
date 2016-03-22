@@ -48,12 +48,7 @@ type AllocRunner struct {
 	restored   map[string]struct{}
 	taskLock   sync.RWMutex
 
-	// taskReceivedTimer is used to mitigate updates sent to the server because
-	// we expect that shortly after receiving an alloc it will transistion
-	// state. We use a timer to send the update if this hasn't happened after a
-	// reasonable time.
-	taskReceivedTimer *time.Timer
-	taskStatusLock    sync.RWMutex
+	taskStatusLock sync.RWMutex
 
 	updateCh chan *structs.Allocation
 
@@ -312,25 +307,13 @@ func (r *AllocRunner) setTaskState(taskName, state string, event *structs.TaskEv
 	taskState.State = state
 	r.appendTaskEvent(taskState, event)
 
-	// We don't immediately mark ourselves as dirty, since in most cases there
-	// will immediately be another state transistion. This reduces traffic to
-	// the server.
-	if event != nil && event.Type == structs.TaskReceived {
-		if r.taskReceivedTimer == nil {
-			r.taskReceivedTimer = time.AfterFunc(taskReceivedSyncLimit, func() {
-				// Send a dirty signal to sync our state.
-				select {
-				case r.dirtyCh <- struct{}{}:
-				default:
-				}
-			})
+	// If the task failed, we should kill all the other tasks in the task group.
+	if state == structs.TaskStateDead && taskState.Failed() {
+		for task, tr := range r.tasks {
+			if task != taskName {
+				tr.Destroy()
+			}
 		}
-		return
-	}
-
-	// Cancel any existing received state timer.
-	if r.taskReceivedTimer != nil {
-		r.taskReceivedTimer.Stop()
 	}
 
 	select {

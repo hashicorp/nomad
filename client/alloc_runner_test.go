@@ -283,7 +283,7 @@ func TestAllocRunner_SaveRestoreState_TerminalAlloc(t *testing.T) {
 	// Ensure task takes some time
 	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
 	task.Config["command"] = "/bin/sleep"
-	task.Config["args"] = []string{"10"}
+	task.Config["args"] = []string{"1000"}
 	go ar.Run()
 
 	testutil.WaitForResult(func() (bool, error) {

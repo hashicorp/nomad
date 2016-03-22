@@ -36,9 +36,8 @@ type FileRotator struct {
 	logger      *log.Logger
 	purgeCh     chan struct{}
 	doneCh      chan struct{}
-
-	closed     bool
-	closedLock sync.Mutex
+	closed      bool
+	closedLock  sync.Mutex
 }
 
 // NewFileRotator returns a new file rotator
@@ -208,6 +207,8 @@ func (f *FileRotator) Close() {
 	}
 
 	// Stop the purge go routine
+	f.closedLock.Lock()
+	defer f.closedLock.Unlock()
 	if !f.closed {
 		f.doneCh <- struct{}{}
 		close(f.purgeCh)
