@@ -11,6 +11,10 @@ IMPROVEMENTS:
   * client: `artifact` block now supports downloading paths relative to the
     task's directory [GH-944]
 
+BUG FIXES:
+  * core: Fix issue where in-place updated allocation double counted resources
+    [GH-957]
+
 ## 0.3.1
 
 __BACKWARDS INCOMPATIBILITIES:__
