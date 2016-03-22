@@ -11,11 +11,11 @@ import (
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/driver/env"
+	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	tu "github.com/hashicorp/nomad/testutil"
-	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 )
 
 var (
@@ -230,5 +230,40 @@ func TestExecutor_Start_Kill(t *testing.T) {
 	act := strings.TrimSpace(string(output))
 	if act != expected {
 		t.Fatalf("Command output incorrectly: want %v; got %v", expected, act)
+	}
+}
+
+func TestExecutor_MakeExecutable(t *testing.T) {
+	// Create a temp file
+	f, err := ioutil.TempFile("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	defer os.Remove(f.Name())
+
+	// Set its permissions to be non-executable
+	f.Chmod(os.FileMode(0610))
+
+	// Make a fake exececutor
+	ctx := testExecutorContext(t)
+	defer ctx.AllocDir.Destroy()
+	executor := NewExecutor(log.New(os.Stdout, "", log.LstdFlags))
+
+	err = executor.(*UniversalExecutor).makeExecutable(f.Name())
+	if err != nil {
+		t.Fatalf("makeExecutable() failed: %v", err)
+	}
+
+	// Check the permissions
+	stat, err := f.Stat()
+	if err != nil {
+		t.Fatalf("Stat() failed: %v", err)
+	}
+
+	act := stat.Mode().Perm()
+	exp := os.FileMode(0755)
+	if act != exp {
+		t.Fatalf("expected permissions %v; got %v", err)
 	}
 }

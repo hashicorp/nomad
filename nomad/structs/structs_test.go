@@ -777,6 +777,28 @@ func TestTaskArtifact_Validate_Source(t *testing.T) {
 	}
 }
 
+func TestTaskArtifact_Validate_Dest(t *testing.T) {
+	valid := &TaskArtifact{GetterSource: "google.com"}
+	if err := valid.Validate(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	valid.RelativeDest = "local/"
+	if err := valid.Validate(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	valid.RelativeDest = "local/.."
+	if err := valid.Validate(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	valid.RelativeDest = "local/../.."
+	if err := valid.Validate(); err == nil {
+		t.Fatalf("expected error: %v", err)
+	}
+}
+
 func TestTaskArtifact_Validate_Checksum(t *testing.T) {
 	cases := []struct {
 		Input *TaskArtifact

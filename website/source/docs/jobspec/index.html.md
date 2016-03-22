@@ -430,6 +430,10 @@ The `artifact` object maps supports the following keys:
 
 * `source` - The path to the artifact to download.
 
+* `destination` - An optional path to download the artifact into relative to the
+  root of the task's directory. If the `destination` key is omitted, it will
+  default to `local/`.
+
 * `options` - The `options` block allows setting parameters for `go-getter`. An
   example is given below: 
 

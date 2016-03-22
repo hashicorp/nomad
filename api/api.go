@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -34,6 +35,9 @@ type QueryOptions struct {
 
 	// If set, used as prefix for resource list searches
 	Prefix string
+
+	// If set, pretty print the response json.
+	Pretty bool
 }
 
 // WriteOptions are used to parameterize a write
@@ -156,6 +160,9 @@ func (r *request) setQueryOptions(q *QueryOptions) {
 	if q.Prefix != "" {
 		r.params.Set("prefix", q.Prefix)
 	}
+	if q.Pretty {
+		r.params.Set("pretty", "true")
+	}
 }
 
 // durToMsec converts a duration to a millisecond specified string
@@ -263,6 +270,29 @@ func (c *Client) query(endpoint string, out interface{}, q *QueryOptions) (*Quer
 		return nil, err
 	}
 	return qm, nil
+}
+
+// rawQuery is used to do a GET request against an endpoint and return the raw
+// string result.
+func (c *Client) rawQuery(endpoint string, q *QueryOptions) (string, *QueryMeta, error) {
+	r := c.newRequest("GET", endpoint)
+	r.setQueryOptions(q)
+	rtt, resp, err := requireOK(c.doRequest(r))
+	if err != nil {
+		return "", nil, err
+	}
+	defer resp.Body.Close()
+
+	qm := &QueryMeta{}
+	parseQueryMeta(resp, qm)
+	qm.RequestTime = rtt
+
+	raw, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", nil, err
+	}
+
+	return string(raw), qm, nil
 }
 
 // write is used to do a PUT request against an endpoint

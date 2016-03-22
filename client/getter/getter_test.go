@@ -21,11 +21,11 @@ func TestGetArtifact_FileAndChecksum(t *testing.T) {
 	defer ts.Close()
 
 	// Create a temp directory to download into
-	destDir, err := ioutil.TempDir("", "nomad-test")
+	taskDir, err := ioutil.TempDir("", "nomad-test")
 	if err != nil {
 		t.Fatalf("failed to make temp directory: %v", err)
 	}
-	defer os.RemoveAll(destDir)
+	defer os.RemoveAll(taskDir)
 
 	// Create the artifact
 	file := "test.sh"
@@ -38,13 +38,48 @@ func TestGetArtifact_FileAndChecksum(t *testing.T) {
 
 	// Download the artifact
 	logger := log.New(os.Stderr, "", log.LstdFlags)
-	if err := GetArtifact(artifact, destDir, logger); err != nil {
+	if err := GetArtifact(artifact, taskDir, logger); err != nil {
 		t.Fatalf("GetArtifact failed: %v", err)
 	}
 
 	// Verify artifact exists
-	if _, err := os.Stat(filepath.Join(destDir, file)); err != nil {
-		t.Fatalf("source path error: %s", err)
+	if _, err := os.Stat(filepath.Join(taskDir, file)); err != nil {
+		t.Fatalf("file not found: %s", err)
+	}
+}
+
+func TestGetArtifact_File_RelativeDest(t *testing.T) {
+	// Create the test server hosting the file to download
+	ts := httptest.NewServer(http.FileServer(http.Dir(filepath.Dir("./test-fixtures/"))))
+	defer ts.Close()
+
+	// Create a temp directory to download into
+	taskDir, err := ioutil.TempDir("", "nomad-test")
+	if err != nil {
+		t.Fatalf("failed to make temp directory: %v", err)
+	}
+	defer os.RemoveAll(taskDir)
+
+	// Create the artifact
+	file := "test.sh"
+	relative := "foo/"
+	artifact := &structs.TaskArtifact{
+		GetterSource: fmt.Sprintf("%s/%s", ts.URL, file),
+		GetterOptions: map[string]string{
+			"checksum": "md5:bce963762aa2dbfed13caf492a45fb72",
+		},
+		RelativeDest: relative,
+	}
+
+	// Download the artifact
+	logger := log.New(os.Stderr, "", log.LstdFlags)
+	if err := GetArtifact(artifact, taskDir, logger); err != nil {
+		t.Fatalf("GetArtifact failed: %v", err)
+	}
+
+	// Verify artifact was downloaded to the correct path
+	if _, err := os.Stat(filepath.Join(taskDir, relative, file)); err != nil {
+		t.Fatalf("file not found: %s", err)
 	}
 }
 
@@ -54,11 +89,11 @@ func TestGetArtifact_InvalidChecksum(t *testing.T) {
 	defer ts.Close()
 
 	// Create a temp directory to download into
-	destDir, err := ioutil.TempDir("", "nomad-test")
+	taskDir, err := ioutil.TempDir("", "nomad-test")
 	if err != nil {
 		t.Fatalf("failed to make temp directory: %v", err)
 	}
-	defer os.RemoveAll(destDir)
+	defer os.RemoveAll(taskDir)
 
 	// Create the artifact with an incorrect checksum
 	file := "test.sh"
@@ -71,7 +106,7 @@ func TestGetArtifact_InvalidChecksum(t *testing.T) {
 
 	// Download the artifact and expect an error
 	logger := log.New(os.Stderr, "", log.LstdFlags)
-	if err := GetArtifact(artifact, destDir, logger); err == nil {
+	if err := GetArtifact(artifact, taskDir, logger); err == nil {
 		t.Fatalf("GetArtifact should have failed")
 	}
 }
@@ -116,17 +151,17 @@ func TestGetArtifact_Archive(t *testing.T) {
 
 	// Create a temp directory to download into and create some of the same
 	// files that exist in the artifact to ensure they are overriden
-	destDir, err := ioutil.TempDir("", "nomad-test")
+	taskDir, err := ioutil.TempDir("", "nomad-test")
 	if err != nil {
 		t.Fatalf("failed to make temp directory: %v", err)
 	}
-	defer os.RemoveAll(destDir)
+	defer os.RemoveAll(taskDir)
 
 	create := map[string]string{
 		"exist/my.config": "to be replaced",
 		"untouched":       "existing top-level",
 	}
-	createContents(destDir, create, t)
+	createContents(taskDir, create, t)
 
 	file := "archive.tar.gz"
 	artifact := &structs.TaskArtifact{
@@ -137,7 +172,7 @@ func TestGetArtifact_Archive(t *testing.T) {
 	}
 
 	logger := log.New(os.Stderr, "", log.LstdFlags)
-	if err := GetArtifact(artifact, destDir, logger); err != nil {
+	if err := GetArtifact(artifact, taskDir, logger); err != nil {
 		t.Fatalf("GetArtifact failed: %v", err)
 	}
 
@@ -148,5 +183,5 @@ func TestGetArtifact_Archive(t *testing.T) {
 		"new/my.config":   "hello world\n",
 		"test.sh":         "sleep 1\n",
 	}
-	checkContents(destDir, expected, t)
+	checkContents(taskDir, expected, t)
 }

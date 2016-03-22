@@ -131,12 +131,14 @@ func TestParse(t *testing.T) {
 								Artifacts: []*structs.TaskArtifact{
 									{
 										GetterSource: "http://foo.com/artifact",
+										RelativeDest: "local/",
 										GetterOptions: map[string]string{
 											"checksum": "md5:b8a4f3f72ecab0510a6a31e997461c5f",
 										},
 									},
 									{
 										GetterSource: "http://bar.com/artifact",
+										RelativeDest: "local/",
 										GetterOptions: map[string]string{
 											"checksum": "md5:ff1cc0d3432dad54d607c1505fb7245c",
 										},
@@ -319,6 +321,58 @@ func TestParse(t *testing.T) {
 			"bad-artifact.hcl",
 			nil,
 			true,
+		},
+
+		{
+			"artifacts.hcl",
+			&structs.Job{
+				ID:       "binstore-storagelocker",
+				Name:     "binstore-storagelocker",
+				Type:     "service",
+				Priority: 50,
+				Region:   "global",
+
+				TaskGroups: []*structs.TaskGroup{
+					&structs.TaskGroup{
+						Name:  "binsl",
+						Count: 1,
+						Tasks: []*structs.Task{
+							&structs.Task{
+								Name:   "binstore",
+								Driver: "docker",
+								Resources: &structs.Resources{
+									CPU:      100,
+									MemoryMB: 10,
+									DiskMB:   300,
+									IOPS:     0,
+								},
+								LogConfig: &structs.LogConfig{
+									MaxFiles:      10,
+									MaxFileSizeMB: 10,
+								},
+								Artifacts: []*structs.TaskArtifact{
+									{
+										GetterSource:  "http://foo.com/bar",
+										GetterOptions: map[string]string{},
+										RelativeDest:  "",
+									},
+									{
+										GetterSource:  "http://foo.com/baz",
+										GetterOptions: map[string]string{},
+										RelativeDest:  "local/",
+									},
+									{
+										GetterSource:  "http://foo.com/bam",
+										GetterOptions: map[string]string{},
+										RelativeDest:  "var/foo",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			false,
 		},
 	}
 

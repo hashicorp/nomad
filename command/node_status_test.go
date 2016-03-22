@@ -58,9 +58,6 @@ func TestNodeStatusCommand_Run(t *testing.T) {
 	if !strings.Contains(out, "mynode") {
 		t.Fatalf("expect to find mynode, got: %s", out)
 	}
-	if !strings.Contains(out, "Allocations") {
-		t.Fatalf("expected allocations, got: %s", out)
-	}
 	ui.OutputWriter.Reset()
 
 	// Query single node in short view
@@ -82,9 +79,6 @@ func TestNodeStatusCommand_Run(t *testing.T) {
 	out = ui.OutputWriter.String()
 	if !strings.Contains(out, "mynode") {
 		t.Fatalf("expect to find mynode, got: %s", out)
-	}
-	if !strings.Contains(out, "Allocations") {
-		t.Fatalf("expected allocations, got: %s", out)
 	}
 	if strings.Contains(out, nodeID) {
 		t.Fatalf("expected truncated node id, got: %s", out)
