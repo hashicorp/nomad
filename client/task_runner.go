@@ -96,9 +96,12 @@ func NewTaskRunner(logger *log.Logger, config *config.Config,
 		waitCh:         make(chan struct{}),
 	}
 
-	// Set the state to pending.
-	tc.updater(task.Name, structs.TaskStatePending, structs.NewTaskEvent(structs.TaskReceived))
 	return tc
+}
+
+// MarkReceived marks the task as received.
+func (r *TaskRunner) MarkReceived() {
+	r.updater(r.task.Name, structs.TaskStatePending, structs.NewTaskEvent(structs.TaskReceived))
 }
 
 // WaitCh returns a channel to wait for termination

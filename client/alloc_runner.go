@@ -309,10 +309,15 @@ func (r *AllocRunner) setTaskState(taskName, state string, event *structs.TaskEv
 
 	// If the task failed, we should kill all the other tasks in the task group.
 	if state == structs.TaskStateDead && taskState.Failed() {
+		var destroyingTasks []string
 		for task, tr := range r.tasks {
 			if task != taskName {
+				destroyingTasks = append(destroyingTasks, task)
 				tr.Destroy()
 			}
+		}
+		if len(destroyingTasks) > 0 {
+			r.logger.Printf("[DEBUG] client: task %q failed, destroying other tasks in task group: %v", taskName, destroyingTasks)
 		}
 	}
 
@@ -388,6 +393,7 @@ func (r *AllocRunner) Run() {
 		tr := NewTaskRunner(r.logger, r.config, r.setTaskState, r.ctx, r.Alloc(),
 			task.Copy())
 		r.tasks[task.Name] = tr
+		tr.MarkReceived()
 		go tr.Run()
 	}
 	r.taskLock.Unlock()
