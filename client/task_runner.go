@@ -247,8 +247,8 @@ func (r *TaskRunner) run() {
 					// mallicious, server spoofing.
 					r.setState(structs.TaskStateDead,
 						structs.NewTaskEvent(structs.TaskArtifactDownloadFailed).SetDownloadError(err))
-					r.logger.Printf("[ERR] client: allocation %q, task %v, artifact %v (%v) fails validation",
-						r.alloc.ID, r.task.Name, artifact, i)
+					r.logger.Printf("[ERR] client: allocation %q, task %v, artifact %#v (%v) fails validation: %v",
+						r.alloc.ID, r.task.Name, artifact, i, err)
 					return
 				}
 
