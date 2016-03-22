@@ -72,14 +72,14 @@ To execute a binary downloaded from an [`artifact`](/docs/jobspec/index.html#art
 The `raw_exec` driver can run on all supported operating systems. It is however
 disabled by default. In order to be enabled, the Nomad client configuration must
 explicitly enable the `raw_exec` driver in the client's
-[options](../agent/config.html#options) field:
+[options](/docs/agent/config.html#options) field:
 
 ```
-  client {
-    options = {
-        "driver.raw_exec.enable" = "1"
+    client {
+        options = {
+            "driver.raw_exec.enable" = "1"
+        }
     }
-  }
 ```
 
 ## Client Attributes

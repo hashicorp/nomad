@@ -244,7 +244,8 @@ of the Linux Kernel and Docker daemon.
 
 ## Agent Configuration
 
-The `docker` driver has the following host-level configuration options:
+The `docker` driver has the following [client configuration
+options](/docs/agent/config.html#options):
 
 * `docker.endpoint` - Defaults to `unix:///var/run/docker.sock`. You will need
   to customize this if you use a non-standard socket (http or another
@@ -290,6 +291,17 @@ Note: When testing or using the `-dev` flag you can use `DOCKER_HOST`,
 `DOCKER_TLS_VERIFY`, and `DOCKER_CERT_PATH` to customize Nomad's behavior. If
 `docker.endpoint` is set Nomad will **only** read client configuration from the
 config filie.
+
+An example is given below: 
+
+```
+    client {
+        options = {
+            "docker.cleanup.container" = "false"
+            "docker.cleanup.image" = "false"
+        }
+    }
+```
 
 ## Agent Attributes
 
