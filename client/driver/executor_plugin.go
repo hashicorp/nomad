@@ -16,6 +16,7 @@ func init() {
 	gob.Register([]interface{}{})
 	gob.Register(map[string]interface{}{})
 	gob.Register([]map[string]string{})
+	gob.Register([]map[string]int{})
 }
 
 type ExecutorRPC struct {
