@@ -1961,7 +1961,11 @@ func (ta *TaskArtifact) Validate() error {
 	}
 
 	// Verify the destination doesn't escape the tasks directory
-	alloc := "/foo/bar/"
+	alloc, err := filepath.Abs(filepath.Join("/", "foo/", "bar/"))
+	if err != nil {
+		mErr.Errors = append(mErr.Errors, err)
+		return mErr.ErrorOrNil()
+	}
 	abs, err := filepath.Abs(filepath.Join(alloc, ta.RelativeDest))
 	if err != nil {
 		mErr.Errors = append(mErr.Errors, err)
