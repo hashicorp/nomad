@@ -306,6 +306,9 @@ func (t *TaskEnvironment) AppendEnvvars(m map[string]string) *TaskEnvironment {
 	return t
 }
 
+// AppendHostEnvvars adds the host environment variables to the tasks. The
+// filter parameter can be use to filter host environment from entering the
+// tasks.
 func (t *TaskEnvironment) AppendHostEnvvars(filter []string) *TaskEnvironment {
 	hostEnv := os.Environ()
 	if t.Env == nil {
@@ -321,7 +324,14 @@ func (t *TaskEnvironment) AppendHostEnvvars(filter []string) *TaskEnvironment {
 	for _, e := range hostEnv {
 		parts := strings.Split(e, "=")
 		key, value := parts[0], parts[1]
-		if _, filtered := index[key]; !filtered {
+
+		// Skip filtered environment variables
+		if _, filtered := index[key]; filtered {
+			continue
+		}
+
+		// Don't override the tasks environment variables.
+		if _, existing := t.Env[key]; !existing {
 			t.Env[key] = value
 		}
 	}
