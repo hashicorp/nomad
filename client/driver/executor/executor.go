@@ -354,7 +354,7 @@ func (e *UniversalExecutor) RegisterServices() error {
 	if err != nil {
 		e.logger.Printf("executor: error registering services: %v", err)
 	}
-	//go e.consulService.SyncWithConsul()
+	go e.consulService.SyncWithConsul()
 	return err
 }
 
