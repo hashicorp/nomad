@@ -243,7 +243,11 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		return nil, err
 	}
 
-	ps, err := execIntf.LaunchCmd(&executor.ExecCommand{Cmd: absPath, Args: cmdArgs}, executorCtx)
+	ps, err := execIntf.LaunchCmd(&executor.ExecCommand{
+		Cmd:  absPath,
+		Args: cmdArgs,
+		User: task.User,
+	}, executorCtx)
 	if err != nil {
 		pluginClient.Kill()
 		return nil, err

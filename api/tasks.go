@@ -84,6 +84,7 @@ type LogConfig struct {
 type Task struct {
 	Name        string
 	Driver      string
+	User        string
 	Config      map[string]interface{}
 	Constraints []*Constraint
 	Env         map[string]string

@@ -74,6 +74,7 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	if err := mapstructure.WeakDecode(task.Config, &driverConfig); err != nil {
 		return nil, err
 	}
+
 	// Get the command to be ran
 	command := driverConfig.Command
 	if err := validateCommand(command, "args"); err != nil {
@@ -104,12 +105,13 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		AllocDir: ctx.AllocDir,
 		Task:     task,
 	}
+
 	ps, err := exec.LaunchCmd(&executor.ExecCommand{
 		Cmd:            command,
 		Args:           driverConfig.Args,
 		FSIsolation:    true,
 		ResourceLimits: true,
-		User:           cstructs.DefaultUnpriviledgedUser,
+		User:           getExecutorUser(task),
 	}, executorCtx)
 	if err != nil {
 		pluginClient.Kill()

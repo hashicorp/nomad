@@ -148,6 +148,7 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext
 
 	// setting the user of the process
 	if command.User != "" {
+		e.logger.Printf("[DEBUG] executor: running command as %s", command.User)
 		if err := e.runAs(command.User); err != nil {
 			return nil, err
 		}

@@ -460,6 +460,7 @@ func parseTasks(jobName string, taskGroupName string, result *[]*structs.Task, l
 		// Check for invalid keys
 		valid := []string{
 			"driver",
+			"user",
 			"env",
 			"service",
 			"config",

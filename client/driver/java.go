@@ -169,7 +169,7 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		Args:           args,
 		FSIsolation:    true,
 		ResourceLimits: true,
-		User:           cstructs.DefaultUnpriviledgedUser,
+		User:           getExecutorUser(task),
 	}, executorCtx)
 	if err != nil {
 		pluginClient.Kill()
