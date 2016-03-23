@@ -117,6 +117,11 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	if err := mapstructure.WeakDecode(task.Config, &driverConfig); err != nil {
 		return nil, err
 	}
+
+	// Set the host environment variables.
+	filter := strings.Split(d.config.ReadDefault("env.blacklist", config.DefaultEnvBlacklist), ",")
+	d.taskEnv.AppendHostEnvvars(filter)
+
 	taskDir, ok := ctx.AllocDir.TaskDirs[d.DriverContext.taskName]
 	if !ok {
 		return nil, fmt.Errorf("Could not find task directory for task: %v", d.DriverContext.taskName)
