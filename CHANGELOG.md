@@ -8,6 +8,7 @@ IMPROVEMENTS:
     [GH-952]
   * cli: `node-status` display is less verbose by default and shows a node's
     total resources [GH-946]
+  * client: Nomad fingerprinter to detect client's version [GH-965]
   * client: `artifact` block now supports downloading paths relative to the
     task's directory [GH-944]
 
