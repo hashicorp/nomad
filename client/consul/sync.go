@@ -110,12 +110,11 @@ func (c *ConsulService) SyncTask(task *structs.Task) error {
 		services[srv.ID] = srv
 
 		for _, chk := range service.Checks {
-			hash := chk.Hash(service.ID)
-			if _, ok := c.checks[hash]; !ok {
+			if _, ok := c.checks[chk.ID]; !ok {
 				c.registerCheck(chk, srv)
 			}
-			c.checks[hash] = chk
-			checks[hash] = chk
+			c.checks[chk.ID] = chk
+			checks[chk.ID] = chk
 		}
 	}
 
@@ -244,22 +243,6 @@ func (c *ConsulService) performSync() error {
 		return err
 	}
 	cChecks = c.filterConsulChecks(cChecks)
-
-	// Remove services and checks that consul has but we don't have anymore
-	for serviceID, _ := range cServices {
-		if _, ok := c.services[serviceID]; !ok {
-			if err := c.deregisterService(serviceID); err != nil {
-				mErr.Errors = append(mErr.Errors, err)
-			}
-		}
-	}
-	for checkID, _ := range cChecks {
-		if _, ok := c.checks[checkID]; !ok {
-			if err := c.deregisterCheck(checkID); err != nil {
-				mErr.Errors = append(mErr.Errors, err)
-			}
-		}
-	}
 
 	// Add services and checks that consul doesn't have but we do
 	for serviceID, service := range c.services {

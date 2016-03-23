@@ -1512,11 +1512,13 @@ func (s *Service) InitFields(job string, taskGroup string, task string) {
 		"BASE":      fmt.Sprintf("%s-%s-%s", job, taskGroup, task),
 	},
 	)
+	s.ID = fmt.Sprintf("%s-%s", NomadConsulPrefix, s.Hash())
 
 	for _, check := range s.Checks {
 		if check.Name == "" {
 			check.Name = fmt.Sprintf("service: %q check", s.Name)
 		}
+		check.ID = check.Hash(s.ID)
 	}
 }
 

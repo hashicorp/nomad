@@ -120,11 +120,11 @@ func (e *ExecutorRPCServer) UpdateTask(args *structs.Task, resp *interface{}) er
 	return e.Impl.UpdateTask(args)
 }
 
-func (e *ExecutorRPCServer) RegisterServices() error {
+func (e *ExecutorRPCServer) RegisterServices(args interface{}, resp *interface{}) error {
 	return e.Impl.RegisterServices()
 }
 
-func (e *ExecutorRPCServer) DeregisterServices() error {
+func (e *ExecutorRPCServer) DeregisterServices(args interface{}, resp *interface{}) error {
 	return e.Impl.DeregisterServices()
 }
 
