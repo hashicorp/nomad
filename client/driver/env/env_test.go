@@ -2,8 +2,10 @@ package env
 
 import (
 	"fmt"
+	"os"
 	"reflect"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -202,5 +204,24 @@ func TestEnvironment_Interprolate(t *testing.T) {
 	sort.Strings(exp)
 	if !reflect.DeepEqual(act, exp) {
 		t.Fatalf("env.List() returned %v; want %v", act, exp)
+	}
+}
+
+func TestEnvironment_AppendHostEnvVars(t *testing.T) {
+	host := os.Environ()
+	if len(host) < 2 {
+		t.Skip("No host environment variables. Can't test")
+	}
+	skip := strings.Split(host[0], "=")[0]
+	env := testTaskEnvironment().
+		AppendHostEnvvars([]string{skip}).
+		Build()
+
+	act := env.EnvMap()
+	if len(act) < 1 {
+		t.Fatalf("Host environment variables not properly set")
+	}
+	if _, ok := act[skip]; ok {
+		t.Fatalf("Didn't filter environment variable %q", skip)
 	}
 }
