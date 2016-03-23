@@ -6,6 +6,7 @@ import (
 	"log"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -74,13 +75,18 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	if err := mapstructure.WeakDecode(task.Config, &driverConfig); err != nil {
 		return nil, err
 	}
+
 	// Get the command to be ran
 	command := driverConfig.Command
 	if err := validateCommand(command, "args"); err != nil {
 		return nil, err
 	}
 
-	// Create a location to download the artifact.
+	// Set the host environment variables.
+	filter := strings.Split(d.config.ReadDefault("env.blacklist", config.DefaultEnvBlacklist), ",")
+	d.taskEnv.AppendHostEnvvars(filter)
+
+	// Get the task directory for storing the executor logs.
 	taskDir, ok := ctx.AllocDir.TaskDirs[d.DriverContext.taskName]
 	if !ok {
 		return nil, fmt.Errorf("Could not find task directory for task: %v", d.DriverContext.taskName)

@@ -370,6 +370,17 @@ documentation [here](/docs/drivers/index.html)
   If the whitelist is empty, all drivers are fingerprinted and enabled where
   applicable.
 
+*   `env.blacklist`: Nomad passes the host environment variables to `exec`,
+    `raw_exec` and `java` tasks. `env.blacklist` is a comma seperated list of
+    environment variable keys not to pass to these tasks. If specified, the
+    defaults are overriden. The following are the default:
+    
+    * `CONSUL_TOKEN`
+    * `VAULT_TOKEN`
+    * `ATLAS_TOKEN`
+    * `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`
+    * `GOOGLE_APPLICATION_CREDENTIALS`
+
 * `fingerprint.whitelist`: A comma separated list of whitelisted fingerprinters.
   If specified, fingerprinters not in the whitelist will be disabled. If the
   whitelist is empty, all fingerprinters are used.

@@ -10,6 +10,18 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+var (
+	// DefaultEnvBlacklist is the default set of environment variables that are
+	// filtered when passing the environment variables of the host to a task.
+	DefaultEnvBlacklist = strings.Join([]string{
+		"CONSUL_TOKEN",
+		"VAULT_TOKEN",
+		"ATLAS_TOKEN",
+		"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN",
+		"GOOGLE_APPLICATION_CREDENTIALS",
+	}, ",")
+)
+
 // RPCHandler can be provided to the Client if there is a local server
 // to avoid going over the network. If not provided, the Client will
 // maintain a connection pool to the servers

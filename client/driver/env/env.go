@@ -2,6 +2,7 @@ package env
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
@@ -302,6 +303,29 @@ func (t *TaskEnvironment) AppendEnvvars(m map[string]string) *TaskEnvironment {
 	for k, v := range m {
 		t.Env[k] = v
 	}
+	return t
+}
+
+func (t *TaskEnvironment) AppendHostEnvvars(filter []string) *TaskEnvironment {
+	hostEnv := os.Environ()
+	if t.Env == nil {
+		t.Env = make(map[string]string, len(hostEnv))
+	}
+
+	// Index the filtered environment variables.
+	index := make(map[string]struct{}, len(filter))
+	for _, f := range filter {
+		index[f] = struct{}{}
+	}
+
+	for _, e := range hostEnv {
+		parts := strings.Split(e, "=")
+		key, value := parts[0], parts[1]
+		if _, filtered := index[key]; !filtered {
+			t.Env[key] = value
+		}
+	}
+
 	return t
 }
 

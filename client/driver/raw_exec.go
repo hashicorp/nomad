@@ -6,6 +6,7 @@ import (
 	"log"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/go-plugin"
@@ -81,6 +82,10 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 	if err := validateCommand(command, "args"); err != nil {
 		return nil, err
 	}
+
+	// Set the host environment variables.
+	filter := strings.Split(d.config.ReadDefault("env.blacklist", config.DefaultEnvBlacklist), ",")
+	d.taskEnv.AppendHostEnvvars(filter)
 
 	bin, err := discover.NomadExecutable()
 	if err != nil {
