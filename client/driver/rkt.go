@@ -33,9 +33,10 @@ var (
 
 const (
 	// minRktVersion is the earliest supported version of rkt. rkt added support
-	// for CPU and memory isolators in 0.14.0. We cannot support an earlier
-	// version to maintain an uniform interface across all drivers
-	minRktVersion = "0.14.0"
+	// for features like CPU and memory isolators, setting hostname etc. recently.
+	// We cannot support an earlier version to maintain an uniform interface across
+	// all drivers
+	minRktVersion = "1.2.0"
 
 	// bytesToMB is the conversion from bytes to megabytes.
 	bytesToMB = 1024 * 1024
@@ -111,7 +112,7 @@ func (d *RktDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, e
 	minVersion, _ := version.NewVersion(minRktVersion)
 	currentVersion, _ := version.NewVersion(node.Attributes["driver.rkt.version"])
 	if currentVersion.LessThan(minVersion) {
-		// Do not allow rkt < 0.14.0
+		// Do not allow rkt < 1.2.0
 		d.logger.Printf("[WARN] driver.rkt: please upgrade rkt to a version >= %s", minVersion)
 		node.Attributes["driver.rkt"] = "0"
 	}
