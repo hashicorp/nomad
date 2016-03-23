@@ -54,6 +54,7 @@ type RktDriverConfig struct {
 	Args             []string `mapstructure:"args"`
 	DNSServers       []string `mapstructure:"dns_servers"`        // DNS Server for containers
 	DNSSearchDomains []string `mapstructure:"dns_search_domains"` // DNS Search domains for containers
+	Hostname         string   `mapstructure:"hostname"`           // Hostname for containers
 }
 
 // rktHandle is returned from Start/Open as a handle to the PID
@@ -203,6 +204,9 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	for _, domain := range driverConfig.DNSSearchDomains {
 		cmdArgs = append(cmdArgs, fmt.Sprintf("--dns-search=%s", domain))
 	}
+
+	// Add hostname
+	cmdArgs = append(cmdArgs, fmt.Sprintf("--hostname=%s", driverConfig.Hostname))
 
 	// Add user passed arguments.
 	if len(driverConfig.Args) != 0 {

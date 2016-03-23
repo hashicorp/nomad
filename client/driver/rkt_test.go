@@ -68,6 +68,7 @@ func TestRktDriver_Start_DNS(t *testing.T) {
 			"command":            "/etcd",
 			"dns_servers":        []string{"8.8.8.8", "8.8.4.4"},
 			"dns_search_domains": []string{"example.com", "example.org", "example.net"},
+			"hostname":	      "etcd-container",
 		},
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
