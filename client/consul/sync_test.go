@@ -1,11 +1,14 @@
 package consul
 
 import (
+	"fmt"
 	"log"
 	"os"
+	"reflect"
 	"testing"
 	"time"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -28,6 +31,15 @@ func TestConsulServiceRegisterServices(t *testing.T) {
 				Name:      "foo-1",
 				Tags:      []string{"tag1", "tag2"},
 				PortLabel: "port1",
+				Checks: []*structs.ServiceCheck{
+					&structs.ServiceCheck{
+						ID:       "100",
+						Name:     "check-foo-1",
+						Type:     structs.ServiceCheckTCP,
+						Interval: 30 * time.Second,
+						Timeout:  5 * time.Second,
+					},
+				},
 			},
 			&structs.Service{
 				ID:        "2",
@@ -58,39 +70,124 @@ func TestConsulServiceRegisterServices(t *testing.T) {
 	if err := cs.SyncTask(&task); err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	go cs.SyncWithConsul()
-	time.Sleep(1 * time.Second)
-	services, _ := cs.client.Agent().Services()
-	if _, ok := services[task.Services[0].ID]; !ok {
-		t.Fatalf("Service with ID 1 not registered")
+	defer cs.Shutdown()
+	if err := servicesPresent(t, []string{"1", "2"}, cs); err != nil {
+		t.Fatalf("err : %v", err)
 	}
+	if err := checksPresent(t, []string{"100"}, cs); err != nil {
+		t.Fatalf("err : %v", err)
+	}
+}
 
-	task.Services = []*structs.Service{
-		&structs.Service{
-			ID:        "1",
-			Name:      "foo-1",
-			Tags:      []string{"tag1"},
-			PortLabel: "port1",
+func TestConsulServiceUpdateService(t *testing.T) {
+	cs, err := NewConsulService(&ConsulConfig{}, logger)
+	if err != nil {
+		t.Fatalf("Err: %v", err)
+	}
+	// Skipping the test if consul isn't present
+	if !cs.consulPresent() {
+		return
+	}
+	task := structs.Task{
+		Name: "foo",
+		Services: []*structs.Service{
+			&structs.Service{
+				ID:        "1",
+				Name:      "foo-1",
+				Tags:      []string{"tag1", "tag2"},
+				PortLabel: "port1",
+				Checks: []*structs.ServiceCheck{
+					&structs.ServiceCheck{
+						ID:       "100",
+						Name:     "check-foo-1",
+						Type:     structs.ServiceCheckTCP,
+						Interval: 30 * time.Second,
+						Timeout:  5 * time.Second,
+					},
+				},
+			},
+			&structs.Service{
+				ID:        "2",
+				Name:      "foo-2",
+				Tags:      []string{"tag1", "tag2"},
+				PortLabel: "port2",
+			},
+		},
+		Resources: &structs.Resources{
+			Networks: []*structs.NetworkResource{
+				&structs.NetworkResource{
+					IP: "10.10.11.5",
+					DynamicPorts: []structs.Port{
+						structs.Port{
+							Label: "port1",
+							Value: 20002,
+						},
+						structs.Port{
+							Label: "port2",
+							Value: 20003,
+						},
+					},
+				},
+			},
 		},
 	}
+
 	if err := cs.SyncTask(&task); err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	services, _ = cs.client.Agent().Services()
-	if _, ok := services["2"]; ok {
-		t.Fatalf("Service with ID 2 should not be registered")
-	}
-	if err := cs.Shutdown(); err != nil {
+	defer cs.Shutdown()
+
+	//Update Service defn 1
+	newTags := []string{"tag3"}
+	task.Services[0].Tags = newTags
+	if err := cs.SyncTask(&task); err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	time.Sleep(1 * time.Second)
-
-	services, _ = cs.client.Agent().Services()
-	if _, ok := services["2"]; ok {
-		t.Fatalf("Service with ID 2 should not be registered")
+	// Make sure all the services and checks are still present
+	if err := servicesPresent(t, []string{"1", "2"}, cs); err != nil {
+		t.Fatalf("err : %v", err)
 	}
-	if _, ok := services["1"]; ok {
-		t.Fatalf("Service with ID 1 should not be registered")
+	if err := checksPresent(t, []string{"100"}, cs); err != nil {
+		t.Fatalf("err : %v", err)
 	}
 
+	// check if service defn 1 has been updated
+	services, err := cs.client.Agent().Services()
+	if err != nil {
+		t.Fatalf("errL: %v", err)
+	}
+	srv, _ := services["1"]
+	if !reflect.DeepEqual(srv.Tags, newTags) {
+		t.Fatalf("expected tags: %v, actual: %v", newTags, srv.Tags)
+	}
+}
+
+func servicesPresent(t *testing.T, serviceIDs []string, consulService *ConsulService) error {
+	var mErr multierror.Error
+	services, err := consulService.client.Agent().Services()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	for _, serviceID := range serviceIDs {
+		if _, ok := services[serviceID]; !ok {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("service ID %q not synced", serviceID))
+		}
+	}
+	return mErr.ErrorOrNil()
+}
+
+func checksPresent(t *testing.T, checkIDs []string, consulService *ConsulService) error {
+	var mErr multierror.Error
+	checks, err := consulService.client.Agent().Checks()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	for _, checkID := range checkIDs {
+		if _, ok := checks[checkID]; !ok {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("check ID %q not synced", checkID))
+		}
+	}
+	return mErr.ErrorOrNil()
 }
