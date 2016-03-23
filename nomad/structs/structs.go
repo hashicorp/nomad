@@ -1475,6 +1475,7 @@ const (
 
 // The Service model represents a Consul service defintion
 type Service struct {
+	ID        string          // ID of the service
 	Name      string          // Name of the service, defaults to id
 	Tags      []string        // List of tags for the service
 	PortLabel string          `mapstructure:"port"` // port for the service
