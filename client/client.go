@@ -1163,6 +1163,7 @@ func (c *Client) addAlloc(alloc *structs.Allocation) error {
 	return nil
 }
 
+// setupConsulClient creates a ConsulService
 func (c *Client) setupConsulClient() error {
 	cfg := consul.ConsulConfig{
 		Addr:      c.config.ReadDefault("consul.address", "127.0.0.1:8500"),
@@ -1177,6 +1178,7 @@ func (c *Client) setupConsulClient() error {
 	return err
 }
 
+// syncConsul removes services of tasks which are no longer in running state
 func (c *Client) syncConsul() {
 	sync := time.After(consulSyncInterval)
 	for {
