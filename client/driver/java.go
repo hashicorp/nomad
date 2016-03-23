@@ -194,7 +194,9 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		doneCh:          make(chan struct{}),
 		waitCh:          make(chan *cstructs.WaitResult, 1),
 	}
-
+	if err := h.executor.RegisterServices(); err != nil {
+		d.logger.Printf("[ERR] driver.java: error registering services with consul for task: %v", task)
+	}
 	go h.run()
 	return h, nil
 }
@@ -340,6 +342,12 @@ func (h *javaHandle) run() {
 	}
 	h.waitCh <- &cstructs.WaitResult{ExitCode: ps.ExitCode, Signal: 0, Err: err}
 	close(h.waitCh)
+
+	// Remove services
+	if err := h.executor.DeregisterServices(); err != nil {
+		h.logger.Printf("[ERR] driver.java: failed to kill the deregister services: %v", err)
+	}
+
 	h.executor.Exit()
 	h.pluginClient.Kill()
 }

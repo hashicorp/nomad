@@ -263,6 +263,9 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		doneCh:         make(chan struct{}),
 		waitCh:         make(chan *cstructs.WaitResult, 1),
 	}
+	if h.executor.RegisterServices(); err != nil {
+		h.logger.Printf("[ERR] driver.rkt: error registering services: %v", err)
+	}
 	go h.run()
 	return h, nil
 }
@@ -358,6 +361,11 @@ func (h *rktHandle) run() {
 	}
 	h.waitCh <- cstructs.NewWaitResult(ps.ExitCode, 0, err)
 	close(h.waitCh)
+	// Remove services
+	if err := h.executor.DeregisterServices(); err != nil {
+		h.logger.Printf("[ERR] driver.rkt: failed to deregister services: %v", err)
+	}
+
 	if err := h.executor.Exit(); err != nil {
 		h.logger.Printf("[ERR] driver.rkt: error killing executor: %v", err)
 	}

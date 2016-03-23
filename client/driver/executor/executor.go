@@ -342,7 +342,7 @@ func (e *UniversalExecutor) ShutDown() error {
 }
 
 func (e *UniversalExecutor) RegisterServices() error {
-	e.logger.Printf("registering services")
+	e.logger.Printf("executor: registering services")
 	if e.consulService == nil {
 		cs, err := consul.NewConsulService(e.ctx.ConsulConfig, e.logger)
 		if err != nil {
@@ -351,11 +351,11 @@ func (e *UniversalExecutor) RegisterServices() error {
 		e.consulService = cs
 	}
 	err := e.consulService.SyncTask(e.ctx.Task)
-	e.logger.Printf("Finished registering services")
 	return err
 }
 
 func (e *UniversalExecutor) DeregisterServices() error {
+	e.logger.Printf("executor: de-registering services and shutting down consul service")
 	if e.consulService != nil {
 		return e.consulService.Shutdown()
 	}

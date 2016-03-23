@@ -122,6 +122,9 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 		doneCh:         make(chan struct{}),
 		waitCh:         make(chan *cstructs.WaitResult, 1),
 	}
+	if err := h.executor.RegisterServices(); err != nil {
+		h.logger.Printf("[ERR] driver.raw_exec: error registering services with consul: %v", err)
+	}
 	go h.run()
 	return h, nil
 }
@@ -236,6 +239,11 @@ func (h *rawExecHandle) run() {
 	}
 	h.waitCh <- &cstructs.WaitResult{ExitCode: ps.ExitCode, Signal: 0, Err: err}
 	close(h.waitCh)
+	// Remove services
+	if err := h.executor.DeregisterServices(); err != nil {
+		h.logger.Printf("[ERR] driver.raw_exec: failed to deregister services: %v", err)
+	}
+
 	if err := h.executor.Exit(); err != nil {
 		h.logger.Printf("[ERR] driver.raw_exec: error killing executor: %v", err)
 	}
