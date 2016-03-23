@@ -77,6 +77,9 @@ type Config struct {
 
 	// Version is the version of the Nomad client
 	Version string
+
+	// Revision is the commit number of the Nomad client
+	Revision string
 }
 
 func (c *Config) Copy() *Config {

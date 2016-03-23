@@ -24,6 +24,7 @@ var BuiltinFingerprints = []string{
 	"host",
 	"memory",
 	"network",
+	"nomad",
 	"storage",
 }
 
@@ -38,7 +39,8 @@ var builtinFingerprintMap = map[string]Factory{
 	"env_gce": NewEnvGCEFingerprint,
 	"host":    NewHostFingerprint,
 	"memory":  NewMemoryFingerprint,
-	"network": NewNetworkFingerprinter,
+	"network": NewNetworkFingerprint,
+	"nomad":   NewNomadFingerprint,
 	"storage": NewStorageFingerprint,
 }
 

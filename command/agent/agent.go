@@ -265,7 +265,8 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	r.IOPS = a.config.Client.Reserved.IOPS
 	conf.GloballyReservedPorts = a.config.Client.Reserved.ParsedReservedPorts
 
-	conf.Version = a.config.Version
+	conf.Version = fmt.Sprintf("%s%s", a.config.Version, a.config.VersionPrerelease)
+	conf.Revision = a.config.Revision
 
 	return conf, nil
 }
