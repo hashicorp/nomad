@@ -1418,6 +1418,7 @@ const (
 // The ServiceCheck data model represents the consul health check that
 // Nomad registers for a Task
 type ServiceCheck struct {
+	ID       string
 	Name     string        // Name of the check, defaults to id
 	Type     string        // Type of the check - tcp, http, docker and script
 	Script   string        // Script to invoke for script check
