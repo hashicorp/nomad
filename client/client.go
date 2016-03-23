@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/nomad"
@@ -66,6 +67,10 @@ const (
 	// allocSyncRetryIntv is the interval on which we retry updating
 	// the status of the allocation
 	allocSyncRetryIntv = 5 * time.Second
+
+	// consulSyncInterval is the interval at which the client syncs with consul
+	// to remove services and checks which are no longer valid
+	consulSyncInterval = 15 * time.Second
 )
 
 // DefaultConfig returns the default configuration
@@ -108,6 +113,8 @@ type Client struct {
 
 	// allocUpdates stores allocations that need to be synced to the server.
 	allocUpdates chan *structs.Allocation
+
+	consulService *consul.ConsulService
 
 	shutdown     bool
 	shutdownCh   chan struct{}
@@ -165,6 +172,11 @@ func NewClient(cfg *config.Config) (*Client, error) {
 		return nil, fmt.Errorf("failed to restore state: %v", err)
 	}
 
+	err := c.setupConsulClient()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create consul client: %v")
+	}
+
 	// Register and then start heartbeating to the servers.
 	go c.registerAndHeartbeat()
 
@@ -176,6 +188,9 @@ func NewClient(cfg *config.Config) (*Client, error) {
 
 	// Start the client!
 	go c.run()
+
+	// Start the consul sync
+	go c.syncConsul()
 
 	return c, nil
 }
@@ -1146,4 +1161,44 @@ func (c *Client) addAlloc(alloc *structs.Allocation) error {
 	c.allocs[alloc.ID] = ar
 	c.allocLock.Unlock()
 	return nil
+}
+
+func (c *Client) setupConsulClient() error {
+	cfg := consul.ConsulConfig{
+		Addr:      c.config.ReadDefault("consul.address", "127.0.0.1:8500"),
+		Token:     c.config.Read("consul.token"),
+		Auth:      c.config.Read("consul.auth"),
+		EnableSSL: c.config.ReadBoolDefault("consul.ssl", false),
+		VerifySSL: c.config.ReadBoolDefault("consul.verifyssl", true),
+	}
+
+	cs, err := consul.NewConsulService(&cfg, c.logger)
+	c.consulService = cs
+	return err
+}
+
+func (c *Client) syncConsul() {
+	sync := time.After(consulSyncInterval)
+	for {
+		select {
+		case <-sync:
+			var runningTasks []*structs.Task
+			for _, ar := range c.allocs {
+				for taskName, taskState := range ar.taskStates {
+					if taskState.State == structs.TaskStateRunning {
+						if tr, ok := ar.tasks[taskName]; ok {
+							runningTasks = append(runningTasks, tr.task)
+						}
+					}
+				}
+			}
+			if err := c.consulService.RemoveServices(runningTasks); err != nil {
+				c.logger.Printf("[DEBUG] error removing services: %v", err)
+			}
+		case <-c.shutdownCh:
+			c.logger.Printf("[INFO] client: shutting down consul sync")
+			return
+		}
+
+	}
 }

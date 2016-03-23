@@ -164,6 +164,31 @@ func (c *ConsulService) Shutdown() error {
 	return mErr.ErrorOrNil()
 }
 
+func (c *ConsulService) RemoveServices(tasks []*structs.Task) error {
+	var mErr multierror.Error
+	var services map[string]struct{}
+	for _, task := range tasks {
+		for _, service := range task.Services {
+			services[service.ID] = struct{}{}
+		}
+	}
+
+	cServices, err := c.client.Agent().Services()
+	if err != nil {
+		return err
+	}
+	cServices = c.filterConsulServices(cServices)
+
+	for _, service := range cServices {
+		if _, validService := services[service.ID]; !validService {
+			if err := c.deregisterService(service.ID); err != nil {
+				mErr.Errors = append(mErr.Errors, err)
+			}
+		}
+	}
+	return mErr.ErrorOrNil()
+}
+
 // registerCheck registers a check definition with Consul
 func (c *ConsulService) registerCheck(check *structs.ServiceCheck, service *consul.AgentService) error {
 	chkReg := consul.AgentCheckRegistration{
@@ -258,13 +283,11 @@ func (c *ConsulService) performSync() error {
 	if err != nil {
 		return err
 	}
-	cServices = c.filterConsulServices(cServices)
 
 	cChecks, err := c.client.Agent().Checks()
 	if err != nil {
 		return err
 	}
-	cChecks = c.filterConsulChecks(cChecks)
 
 	// Add services and checks that consul doesn't have but we do
 	for serviceID, service := range c.services {
