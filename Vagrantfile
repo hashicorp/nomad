@@ -57,14 +57,14 @@ sudo apt-get install -y docker-engine
 # Restart docker to make sure we get the latest version of the daemon if there is an upgrade
 sudo service docker restart
 
-# Install rkt
-bash /opt/gopath/src/github.com/hashicorp/nomad/scripts/install_rkt.sh
-
 # Make sure we can actually use docker as the vagrant user
 sudo usermod -aG docker vagrant
 
 # Setup Nomad for development
 cd /opt/gopath/src/github.com/hashicorp/nomad && make bootstrap
+
+# Install rkt
+bash scripts/install_rkt.sh
 
 # CD into the nomad working directory when we login to the VM
 grep "cd /opt/gopath/src/github.com/hashicorp/nomad" ~/.profile || echo "cd /opt/gopath/src/github.com/hashicorp/nomad" >> ~/.profile
