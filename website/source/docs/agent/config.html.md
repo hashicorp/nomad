@@ -259,7 +259,8 @@ configured on client nodes.
     cluster.
   * <a id="retry_join">`retry_join`</a> Similar to [`start_join`](#start_join) but allows retrying a join
     if the first attempt fails. This is useful for cases where we know the
-    address will become available eventually.
+    address will become available eventually. Use `retry_join` with an array as a replacement for 
+    `start_join`, do not use both options.
   * <a id="retry_interval">`retry_interval`</a> The time to wait between join attempts. Defaults to 30s.
   * <a id="retry_max">`retry_max`</a> The maximum number of join attempts to be made before exiting
     with a return code of 1. By default, this is set to 0 which is interpreted
@@ -269,7 +270,7 @@ configured on client nodes.
     specified addresses, agent startup will fail. By default, the agent won't
     join any nodes when it starts up. Addresses can be given as an IP, a domain
     name, or an IP:Port pair. If the port isn't specified the default Serf port,
-    4648, is used.
+    4648, is used.  DNS names may also be used.
 
 ## Client-specific Options
 
