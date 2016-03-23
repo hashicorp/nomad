@@ -2229,12 +2229,6 @@ func (a *Allocation) TerminalStatus() bool {
 	case AllocDesiredStatusStop, AllocDesiredStatusEvict, AllocDesiredStatusFailed:
 		return true
 	default:
-	}
-
-	switch a.ClientStatus {
-	case AllocClientStatusComplete, AllocClientStatusFailed:
-		return true
-	default:
 		return false
 	}
 }
