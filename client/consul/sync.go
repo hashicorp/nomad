@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+// ConsulService allows syncing of services and checks with Consul
 type ConsulService struct {
 	client *consul.Client
 
@@ -28,6 +29,7 @@ type ConsulService struct {
 	shutdownCh chan struct{}
 }
 
+// ConsulConfig is the configuration used to create a new ConsulService client
 type ConsulConfig struct {
 	Addr      string
 	Token     string
@@ -37,9 +39,11 @@ type ConsulConfig struct {
 }
 
 const (
+	// The periodic time interval for syncing services and checks with Consul
 	syncInterval = 5 * time.Second
 )
 
+// NewConsulService returns a new ConsulService
 func NewConsulService(config *ConsulConfig, logger *log.Logger) (*ConsulService, error) {
 	var err error
 	var c *consul.Client
@@ -89,6 +93,7 @@ func NewConsulService(config *ConsulConfig, logger *log.Logger) (*ConsulService,
 	return &consulService, nil
 }
 
+// SyncTask sync the services and task with consul
 func (c *ConsulService) SyncTask(task *structs.Task) error {
 	var mErr multierror.Error
 	c.task = task
@@ -144,6 +149,7 @@ func (c *ConsulService) SyncTask(task *structs.Task) error {
 	return mErr.ErrorOrNil()
 }
 
+// Shutdown de-registers the services and checks and shuts down periodic syncing
 func (c *ConsulService) Shutdown() error {
 	var mErr multierror.Error
 	select {
@@ -158,6 +164,7 @@ func (c *ConsulService) Shutdown() error {
 	return mErr.ErrorOrNil()
 }
 
+// registerCheck registers a check definition with Consul
 func (c *ConsulService) registerCheck(check *structs.ServiceCheck, service *consul.AgentService) error {
 	chkReg := consul.AgentCheckRegistration{
 		ID:        check.ID,
@@ -222,10 +229,12 @@ func (c *ConsulService) deregisterService(ID string) error {
 	return c.client.Agent().ServiceDeregister(ID)
 }
 
+// deregisterCheck de-registers a check with a given ID from Consul.
 func (c *ConsulService) deregisterCheck(ID string) error {
 	return c.client.Agent().CheckDeregister(ID)
 }
 
+// SyncWithConsul triggers periodic syncing of services and checks with Consul
 func (c *ConsulService) SyncWithConsul() {
 	sync := time.After(syncInterval)
 	for {
@@ -242,6 +251,7 @@ func (c *ConsulService) SyncWithConsul() {
 	}
 }
 
+// performSync sync the services and checks we are tracking with Consul.
 func (c *ConsulService) performSync() error {
 	var mErr multierror.Error
 	cServices, err := c.client.Agent().Services()

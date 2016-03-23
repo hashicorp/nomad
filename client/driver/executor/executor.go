@@ -262,6 +262,11 @@ func (e *UniversalExecutor) UpdateTask(task *structs.Task) error {
 	e.lro.FileSize = fileSize
 	e.lre.MaxFiles = task.LogConfig.MaxFiles
 	e.lre.FileSize = fileSize
+
+	// Re-syncing task with consul service
+	if e.consulService != nil {
+		e.consulService.SyncTask(task)
+	}
 	return nil
 }
 
