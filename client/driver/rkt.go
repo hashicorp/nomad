@@ -233,9 +233,10 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		return nil, err
 	}
 	executorCtx := &executor.ExecutorContext{
-		TaskEnv:  d.taskEnv,
-		AllocDir: ctx.AllocDir,
-		Task:     task,
+		TaskEnv:      d.taskEnv,
+		AllocDir:     ctx.AllocDir,
+		Task:         task,
+		ConsulConfig: consulConfig(d.config),
 	}
 
 	absPath, err := GetAbsolutePath("rkt")

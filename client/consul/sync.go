@@ -137,7 +137,7 @@ func (c *ConsulService) SyncTask(task *structs.Task) error {
 	return mErr.ErrorOrNil()
 }
 
-func (c *ConsulService) Deregister() error {
+func (c *ConsulService) Shutdown() error {
 	var mErr multierror.Error
 	c.shutdownCh <- struct{}{}
 	for _, service := range c.services {

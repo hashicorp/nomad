@@ -89,8 +89,6 @@ type Client struct {
 
 	logger *log.Logger
 
-	consulService *ConsulService
-
 	lastServer     net.Addr
 	lastRPCTime    time.Time
 	lastServerLock sync.Mutex
@@ -132,11 +130,6 @@ func NewClient(cfg *config.Config) (*Client, error) {
 		shutdownCh:   make(chan struct{}),
 	}
 
-	// Setup the Consul Service
-	if err := c.setupConsulService(); err != nil {
-		return nil, fmt.Errorf("failed to create the consul service: %v", err)
-	}
-
 	// Initialize the client
 	if err := c.init(); err != nil {
 		return nil, fmt.Errorf("failed to initialize client: %v", err)
@@ -167,9 +160,6 @@ func NewClient(cfg *config.Config) (*Client, error) {
 	// initialized.
 	c.configCopy = c.config.Copy()
 
-	// Start the consul service
-	go c.consulService.SyncWithConsul()
-
 	// Restore the state
 	if err := c.restoreState(); err != nil {
 		return nil, fmt.Errorf("failed to restore state: %v", err)
@@ -188,30 +178,6 @@ func NewClient(cfg *config.Config) (*Client, error) {
 	go c.run()
 
 	return c, nil
-}
-
-func (c *Client) setupConsulService() error {
-	var consulService *ConsulService
-	var err error
-	addr := c.config.ReadDefault("consul.address", "127.0.0.1:8500")
-	token := c.config.Read("consul.token")
-	auth := c.config.Read("consul.auth")
-	enableSSL := c.config.ReadBoolDefault("consul.ssl", false)
-	verifySSL := c.config.ReadBoolDefault("consul.verifyssl", true)
-	consulServiceCfg := &consulServiceConfig{
-		logger:     c.logger,
-		consulAddr: addr,
-		token:      token,
-		auth:       auth,
-		enableSSL:  enableSSL,
-		verifySSL:  verifySSL,
-		node:       c.config.Node,
-	}
-	if consulService, err = NewConsulService(consulServiceCfg); err != nil {
-		return err
-	}
-	c.consulService = consulService
-	return nil
 }
 
 // init is used to initialize the client and perform any setup
@@ -274,9 +240,6 @@ func (c *Client) Shutdown() error {
 			<-ar.WaitCh()
 		}
 	}
-
-	// Stop the consul service
-	c.consulService.ShutDown()
 
 	c.shutdown = true
 	close(c.shutdownCh)
@@ -445,7 +408,7 @@ func (c *Client) restoreState() error {
 		id := entry.Name()
 		alloc := &structs.Allocation{ID: id}
 		c.configLock.RLock()
-		ar := NewAllocRunner(c.logger, c.configCopy, c.updateAllocStatus, alloc, c.consulService)
+		ar := NewAllocRunner(c.logger, c.configCopy, c.updateAllocStatus, alloc)
 		c.configLock.RUnlock()
 		c.allocs[id] = ar
 		if err := ar.RestoreState(); err != nil {
@@ -1174,7 +1137,7 @@ func (c *Client) updateAlloc(exist, update *structs.Allocation) error {
 // addAlloc is invoked when we should add an allocation
 func (c *Client) addAlloc(alloc *structs.Allocation) error {
 	c.configLock.RLock()
-	ar := NewAllocRunner(c.logger, c.configCopy, c.updateAllocStatus, alloc, c.consulService)
+	ar := NewAllocRunner(c.logger, c.configCopy, c.updateAllocStatus, alloc)
 	c.configLock.RUnlock()
 	go ar.Run()
 

@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/driver/executor"
 	"github.com/hashicorp/nomad/client/driver/logging"
 )
@@ -67,6 +68,17 @@ func createLogCollector(config *plugin.ClientConfig, w io.Writer,
 	}
 	logCollector := raw.(logging.LogCollector)
 	return logCollector, syslogClient, nil
+}
+
+func consulConfig(clientConfig *config.Config) *consul.ConsulConfig {
+	cfg := consul.ConsulConfig{
+		Addr:      clientConfig.ReadDefault("consul.address", "127.0.0.1:8500"),
+		Token:     clientConfig.Read("consul.token"),
+		Auth:      clientConfig.Read("consul.auth"),
+		EnableSSL: clientConfig.ReadBoolDefault("consul.ssl", false),
+		VerifySSL: clientConfig.ReadBoolDefault("consul.verifyssl", true),
+	}
+	return &cfg
 }
 
 // killProcess kills a process with the given pid

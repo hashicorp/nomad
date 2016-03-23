@@ -100,9 +100,10 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		return nil, err
 	}
 	executorCtx := &executor.ExecutorContext{
-		TaskEnv:  d.taskEnv,
-		AllocDir: ctx.AllocDir,
-		Task:     task,
+		TaskEnv:      d.taskEnv,
+		AllocDir:     ctx.AllocDir,
+		Task:         task,
+		ConsulConfig: consulConfig(d.config),
 	}
 	ps, err := exec.LaunchCmd(&executor.ExecCommand{
 		Cmd:            command,

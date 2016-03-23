@@ -18,6 +18,7 @@ import (
 	cgroupConfig "github.com/opencontainers/runc/libcontainer/configs"
 
 	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/driver/env"
 	"github.com/hashicorp/nomad/client/driver/logging"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
@@ -34,6 +35,8 @@ type Executor interface {
 	Exit() error
 	UpdateLogConfig(logConfig *structs.LogConfig) error
 	UpdateTask(task *structs.Task) error
+	RegisterServices() error
+	DeregisterServices() error
 }
 
 // ExecutorContext holds context to configure the command user
@@ -56,6 +59,9 @@ type ExecutorContext struct {
 	// PortLowerBound is the lower bound of the ports that we can use to start
 	// the syslog server
 	PortLowerBound uint
+
+	// ConsulConfig is the configuration used to create a consul client
+	ConsulConfig *consul.ConsulConfig
 }
 
 // ExecCommand holds the user command, args, and other isolation related
@@ -116,7 +122,8 @@ type UniversalExecutor struct {
 	groups *cgroupConfig.Cgroup
 	cgLock sync.Mutex
 
-	logger *log.Logger
+	consulService *consul.ConsulService
+	logger        *log.Logger
 }
 
 // NewExecutor returns an Executor
@@ -330,6 +337,26 @@ func (e *UniversalExecutor) ShutDown() error {
 	}
 	if err = proc.Signal(os.Interrupt); err != nil {
 		return fmt.Errorf("executor.shutdown error: %v", err)
+	}
+	return nil
+}
+
+func (e *UniversalExecutor) RegisterServices() error {
+	if e.consulService == nil {
+		cs, err := consul.NewConsulService(e.ctx.ConsulConfig, e.logger)
+		if err != nil {
+			return err
+		}
+		e.consulService = cs
+	}
+	e.consulService.SyncTask(e.ctx.Task)
+	go e.consulService.SyncWithConsul()
+	return nil
+}
+
+func (e *UniversalExecutor) DeregisterServices() error {
+	if e.consulService != nil {
+		return e.consulService.Shutdown()
 	}
 	return nil
 }

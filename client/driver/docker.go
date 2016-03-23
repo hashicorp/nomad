@@ -548,6 +548,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 		AllocDir:       ctx.AllocDir,
 		PortLowerBound: d.config.ClientMinPort,
 		PortUpperBound: d.config.ClientMaxPort,
+		ConsulConfig:   consulConfig(d.config),
 	}
 	ss, err := exec.LaunchSyslogServer(executorCtx)
 	if err != nil {

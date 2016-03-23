@@ -15,7 +15,6 @@ import (
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/client/getter"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/mitchellh/hashstructure"
 
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 )
@@ -42,7 +41,6 @@ type TaskRunner struct {
 	ctx            *driver.ExecContext
 	alloc          *structs.Allocation
 	restartTracker *RestartTracker
-	consulService  *ConsulService
 
 	task       *structs.Task
 	updateCh   chan *structs.Allocation
@@ -72,8 +70,7 @@ type TaskStateUpdater func(taskName, state string, event *structs.TaskEvent)
 // NewTaskRunner is used to create a new task context
 func NewTaskRunner(logger *log.Logger, config *config.Config,
 	updater TaskStateUpdater, ctx *driver.ExecContext,
-	alloc *structs.Allocation, task *structs.Task,
-	consulService *ConsulService) *TaskRunner {
+	alloc *structs.Allocation, task *structs.Task) *TaskRunner {
 
 	// Merge in the task resources
 	task.Resources = alloc.TaskResources[task.Name]
@@ -91,7 +88,6 @@ func NewTaskRunner(logger *log.Logger, config *config.Config,
 		updater:        updater,
 		logger:         logger,
 		restartTracker: restartTracker,
-		consulService:  consulService,
 		ctx:            ctx,
 		alloc:          alloc,
 		task:           task,
@@ -278,18 +274,14 @@ func (r *TaskRunner) run() {
 			}
 		}
 
-		// Mark the task as started and register it with Consul.
+		// Mark the task as started
 		r.setState(structs.TaskStateRunning, structs.NewTaskEvent(structs.TaskStarted))
-		r.consulService.Register(r.task, r.alloc)
 
 		// Wait for updates
 	WAIT:
 		for {
 			select {
 			case waitRes := <-r.handle.WaitCh():
-				// De-Register the services belonging to the task from consul
-				r.consulService.Deregister(r.task, r.alloc)
-
 				if waitRes == nil {
 					panic("nil wait")
 				}
@@ -318,7 +310,6 @@ func (r *TaskRunner) run() {
 
 				// Store that the task has been destroyed and any associated error.
 				r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskKilled).SetKillError(err))
-				r.consulService.Deregister(r.task, r.alloc)
 				return
 			}
 		}
@@ -423,22 +414,6 @@ func (r *TaskRunner) handleUpdate(update *structs.Allocation) error {
 	// Update the restart policy.
 	if r.restartTracker != nil {
 		r.restartTracker.SetPolicy(tg.RestartPolicy)
-	}
-
-	// Hash services returns the hash of the task's services
-	hashServices := func(task *structs.Task) uint64 {
-		h, err := hashstructure.Hash(task.Services, nil)
-		if err != nil {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("hashing services failed %#v: %v", task.Services, err))
-		}
-		return h
-	}
-
-	// Re-register the task to consul if any of the services have changed.
-	if hashServices(updatedTask) != hashServices(r.task) {
-		if err := r.consulService.Register(updatedTask, update); err != nil {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("updating services with consul failed: %v", err))
-		}
 	}
 
 	// Store the updated alloc.

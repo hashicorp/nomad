@@ -30,13 +30,12 @@ func testAllocRunner(restarts bool) (*MockAllocStateUpdater, *AllocRunner) {
 	conf.AllocDir = os.TempDir()
 	upd := &MockAllocStateUpdater{}
 	alloc := mock.Alloc()
-	consulClient, _ := NewConsulService(&consulServiceConfig{logger, "127.0.0.1:8500", "", "", false, false, &structs.Node{}})
 	if !restarts {
 		*alloc.Job.LookupTaskGroup(alloc.TaskGroup).RestartPolicy = structs.RestartPolicy{Attempts: 0}
 		alloc.Job.Type = structs.JobTypeBatch
 	}
 
-	ar := NewAllocRunner(logger, conf, upd.Update, alloc, consulClient)
+	ar := NewAllocRunner(logger, conf, upd.Update, alloc)
 	return upd, ar
 }
 
@@ -250,9 +249,8 @@ func TestAllocRunner_SaveRestoreState(t *testing.T) {
 	}
 
 	// Create a new alloc runner
-	consulClient, err := NewConsulService(&consulServiceConfig{ar.logger, "127.0.0.1:8500", "", "", false, false, &structs.Node{}})
 	ar2 := NewAllocRunner(ar.logger, ar.config, upd.Update,
-		&structs.Allocation{ID: ar.alloc.ID}, consulClient)
+		&structs.Allocation{ID: ar.alloc.ID})
 	err = ar2.RestoreState()
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -322,9 +320,8 @@ func TestAllocRunner_SaveRestoreState_TerminalAlloc(t *testing.T) {
 	ar.destroy = true
 
 	// Create a new alloc runner
-	consulClient, err := NewConsulService(&consulServiceConfig{ar.logger, "127.0.0.1:8500", "", "", false, false, &structs.Node{}})
 	ar2 := NewAllocRunner(ar.logger, ar.config, upd.Update,
-		&structs.Allocation{ID: ar.alloc.ID}, consulClient)
+		&structs.Allocation{ID: ar.alloc.ID})
 	err = ar2.RestoreState()
 	if err != nil {
 		t.Fatalf("err: %v", err)

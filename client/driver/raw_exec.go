@@ -96,9 +96,10 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 		return nil, err
 	}
 	executorCtx := &executor.ExecutorContext{
-		TaskEnv:  d.taskEnv,
-		AllocDir: ctx.AllocDir,
-		Task:     task,
+		TaskEnv:      d.taskEnv,
+		AllocDir:     ctx.AllocDir,
+		Task:         task,
+		ConsulConfig: consulConfig(d.config),
 	}
 	ps, err := exec.LaunchCmd(&executor.ExecCommand{Cmd: command, Args: driverConfig.Args}, executorCtx)
 	if err != nil {
