@@ -334,3 +334,8 @@ func (c *ConsulService) filterConsulChecks(chks map[string]*consul.AgentCheck) m
 	return nomadChecks
 
 }
+
+func (c *ConsulService) consulPresent() bool {
+	_, err := c.client.Agent().Self()
+	return err == nil
+}

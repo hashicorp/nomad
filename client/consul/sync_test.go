@@ -16,6 +16,10 @@ func TestConsulServiceRegisterServices(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Err: %v", err)
 	}
+	// Skipping the test if consul isn't present
+	if !cs.consulPresent() {
+		return
+	}
 	task := structs.Task{
 		Name: "foo",
 		Services: []*structs.Service{
@@ -76,7 +80,7 @@ func TestConsulServiceRegisterServices(t *testing.T) {
 	if _, ok := services["2"]; ok {
 		t.Fatalf("Service with ID 2 should not be registered")
 	}
-	if err := cs.Deregister(); err != nil {
+	if err := cs.Shutdown(); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	time.Sleep(1 * time.Second)
