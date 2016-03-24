@@ -134,7 +134,7 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 		waitCh:         make(chan *cstructs.WaitResult, 1),
 	}
 	if err := h.executor.RegisterServices(); err != nil {
-		h.logger.Printf("[ERR] driver.raw_exec: error registering services with consul: %v", err)
+		h.logger.Printf("[ERR] driver.raw_exec: error registering services with consul for task: %q: %v", task.Name, err)
 	}
 	go h.run()
 	return h, nil

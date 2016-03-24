@@ -224,7 +224,7 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	}
 
 	if err := h.executor.RegisterServices(); err != nil {
-		h.logger.Printf("[ERR] driver.qemu: error registering services: %v", err)
+		h.logger.Printf("[ERR] driver.qemu: error registering services for task: %q: %v", task.Name, err)
 	}
 	go h.run()
 	return h, nil

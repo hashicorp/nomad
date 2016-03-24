@@ -142,7 +142,7 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		waitCh:          make(chan *cstructs.WaitResult, 1),
 	}
 	if err := exec.RegisterServices(); err != nil {
-		d.logger.Printf("[ERR] driver.exec: error registering services with consul for task: %v", task)
+		d.logger.Printf("[ERR] driver.exec: error registering services with consul for task: %q: %v", task.Name, err)
 	}
 	go h.run()
 	return h, nil

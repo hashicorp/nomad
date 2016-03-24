@@ -25,7 +25,7 @@ type ConsulService struct {
 	allocID string
 
 	trackedServices map[string]*consul.AgentService
-	trackedChecks   map[string]*structs.ServiceCheck
+	trackedChecks   map[string]*consul.AgentCheckRegistration
 
 	logger *log.Logger
 
@@ -92,7 +92,7 @@ func NewConsulService(config *ConsulConfig, logger *log.Logger, allocID string) 
 		allocID:         allocID,
 		logger:          logger,
 		trackedServices: make(map[string]*consul.AgentService),
-		trackedChecks:   make(map[string]*structs.ServiceCheck),
+		trackedChecks:   make(map[string]*consul.AgentCheckRegistration),
 
 		shutdownCh: make(chan struct{}),
 	}
@@ -104,7 +104,7 @@ func (c *ConsulService) SyncTask(task *structs.Task) error {
 	var mErr multierror.Error
 	c.task = task
 	taskServices := make(map[string]*consul.AgentService)
-	taskChecks := make(map[string]*structs.ServiceCheck)
+	taskChecks := make(map[string]*consul.AgentCheckRegistration)
 
 	// Register Services and Checks that we don't know about or has changed
 	for _, service := range task.Services {
@@ -123,14 +123,14 @@ func (c *ConsulService) SyncTask(task *structs.Task) error {
 		taskServices[srv.ID] = srv
 
 		for _, chk := range service.Checks {
-			checkID := chk.Hash(srv.ID)
-			if _, ok := c.trackedChecks[checkID]; !ok {
-				if err := c.registerCheck(chk, srv); err != nil {
+			chkReg := c.createCheck(chk, srv)
+			if _, ok := c.trackedChecks[chkReg.ID]; !ok {
+				if err := c.registerCheck(chkReg); err != nil {
 					mErr.Errors = append(mErr.Errors, err)
 				}
 			}
-			c.trackedChecks[checkID] = chk
-			taskChecks[checkID] = chk
+			c.trackedChecks[chkReg.ID] = chkReg
+			taskChecks[chkReg.ID] = chkReg
 		}
 	}
 
@@ -206,7 +206,11 @@ func (c *ConsulService) KeepServices(tasks []*structs.Task) error {
 }
 
 // registerCheck registers a check definition with Consul
-func (c *ConsulService) registerCheck(check *structs.ServiceCheck, service *consul.AgentService) error {
+func (c *ConsulService) registerCheck(chkReg *consul.AgentCheckRegistration) error {
+	return c.client.Agent().CheckRegister(chkReg)
+}
+
+func (c *ConsulService) createCheck(check *structs.ServiceCheck, service *consul.AgentService) *consul.AgentCheckRegistration {
 	chkReg := consul.AgentCheckRegistration{
 		ID:        check.Hash(service.ID),
 		Name:      check.Name,
@@ -230,7 +234,7 @@ func (c *ConsulService) registerCheck(check *structs.ServiceCheck, service *cons
 	case structs.ServiceCheckScript:
 		chkReg.TTL = check.Interval.String()
 	}
-	return c.client.Agent().CheckRegister(&chkReg)
+	return &chkReg
 }
 
 // createService creates a Consul AgentService from a Nomad Service
@@ -315,8 +319,8 @@ func (c *ConsulService) performSync() error {
 		}
 	}
 	for checkID, check := range c.trackedChecks {
-		if chk, ok := cChecks[checkID]; !ok {
-			if err := c.registerCheck(check, c.trackedServices[chk.ServiceID]); err != nil {
+		if _, ok := cChecks[checkID]; !ok {
+			if err := c.registerCheck(check); err != nil {
 				mErr.Errors = append(mErr.Errors, err)
 			}
 		}
