@@ -27,6 +27,9 @@ Node Drain Options:
 
   -enable
     Enable draining for the specified node.
+
+  -yes
+    Automatic yes to prompts.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -36,12 +39,13 @@ func (c *NodeDrainCommand) Synopsis() string {
 }
 
 func (c *NodeDrainCommand) Run(args []string) int {
-	var enable, disable bool
+	var enable, disable, autoYes bool
 
 	flags := c.Meta.FlagSet("node-drain", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&enable, "enable", false, "Enable drain mode")
 	flags.BoolVar(&disable, "disable", false, "Disable drain mode")
+	flags.BoolVar(&autoYes, "yes", false, "Automatic yes to prompts.")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -108,11 +112,39 @@ func (c *NodeDrainCommand) Run(args []string) int {
 		c.Ui.Output(fmt.Sprintf("Prefix matched multiple nodes\n\n%s", formatList(out)))
 		return 0
 	}
+
 	// Prefix lookup matched a single node
 	node, _, err := client.Nodes().Info(nodes[0].ID, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error toggling drain mode: %s", err))
 		return 1
+	}
+
+	// Confirm drain if the node was a prefix match.
+	if nodeID != node.ID && !autoYes {
+		verb := "enable"
+		if disable {
+			verb = "disable"
+		}
+		question := fmt.Sprintf("Are you sure you want to %s drain mode for node %q? [y/N]", verb, node.ID)
+		answer, err := c.Ui.Ask(question)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Failed to parse answer: %v", err))
+			return 1
+		}
+
+		if answer == "" || strings.ToLower(answer)[0] == 'n' {
+			// No case
+			c.Ui.Output("Canceling drain toggle")
+			return 0
+		} else if strings.ToLower(answer)[0] == 'y' {
+			// Non exact match yes
+			c.Ui.Output("For confirmation, an exact ‘y’ is required.")
+			return 0
+		} else if answer != "y" {
+			c.Ui.Output("No confirmation detected. For confirmation, an exact 'y' is required.")
+			return 1
+		}
 	}
 
 	// Toggle node draining

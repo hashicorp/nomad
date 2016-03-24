@@ -18,6 +18,7 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 	meta := *metaPtr
 	if meta.Ui == nil {
 		meta.Ui = &cli.BasicUi{
+			Reader:      os.Stdin,
 			Writer:      os.Stdout,
 			ErrorWriter: os.Stderr,
 		}
