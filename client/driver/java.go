@@ -159,12 +159,11 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		return nil, err
 	}
 	executorCtx := &executor.ExecutorContext{
-		TaskEnv:      d.taskEnv,
-		Driver:       "java",
-		AllocDir:     ctx.AllocDir,
-		AllocID:      ctx.AllocID,
-		Task:         task,
-		ConsulConfig: consulConfig(d.config),
+		TaskEnv:  d.taskEnv,
+		Driver:   "java",
+		AllocDir: ctx.AllocDir,
+		AllocID:  ctx.AllocID,
+		Task:     task,
 	}
 
 	absPath, err := GetAbsolutePath("java")
@@ -201,7 +200,7 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		doneCh:          make(chan struct{}),
 		waitCh:          make(chan *cstructs.WaitResult, 1),
 	}
-	if err := h.executor.RegisterServices(); err != nil {
+	if err := h.executor.SyncServices(consulContext(d.config, "")); err != nil {
 		d.logger.Printf("[ERR] driver.java: error registering services with consul for task: %q: %v", task.Name, err)
 	}
 	go h.run()
@@ -269,6 +268,9 @@ func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		maxKillTimeout:  id.MaxKillTimeout,
 		doneCh:          make(chan struct{}),
 		waitCh:          make(chan *cstructs.WaitResult, 1),
+	}
+	if err := h.executor.SyncServices(consulContext(d.config, "")); err != nil {
+		d.logger.Printf("[ERR] driver.java: error registering services with consul: %v", err)
 	}
 
 	go h.run()

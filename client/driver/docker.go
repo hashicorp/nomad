@@ -550,7 +550,6 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 		AllocID:        ctx.AllocID,
 		PortLowerBound: d.config.ClientMinPort,
 		PortUpperBound: d.config.ClientMaxPort,
-		ConsulConfig:   consulConfig(d.config),
 	}
 	ss, err := exec.LaunchSyslogServer(executorCtx)
 	if err != nil {
@@ -645,7 +644,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 		doneCh:           make(chan struct{}),
 		waitCh:           make(chan *cstructs.WaitResult, 1),
 	}
-	if err := exec.RegisterServices(); err != nil {
+	if err := exec.SyncServices(consulContext(d.config, container.ID)); err != nil {
 		d.logger.Printf("[ERR] driver.docker: error registering services with consul for task: %q: %v", task.Name, err)
 	}
 	go h.run()
@@ -717,6 +716,10 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 		doneCh:           make(chan struct{}),
 		waitCh:           make(chan *cstructs.WaitResult, 1),
 	}
+	if err := exec.SyncServices(consulContext(d.config, pid.ContainerID)); err != nil {
+		h.logger.Printf("[ERR] driver.docker: error registering services with consul: %v", err)
+	}
+
 	go h.run()
 	return h, nil
 }

@@ -191,12 +191,11 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		return nil, err
 	}
 	executorCtx := &executor.ExecutorContext{
-		TaskEnv:      d.taskEnv,
-		Driver:       "qemu",
-		AllocDir:     ctx.AllocDir,
-		AllocID:      ctx.AllocID,
-		Task:         task,
-		ConsulConfig: consulConfig(d.config),
+		TaskEnv:  d.taskEnv,
+		Driver:   "qemu",
+		AllocDir: ctx.AllocDir,
+		AllocID:  ctx.AllocID,
+		Task:     task,
 	}
 	ps, err := exec.LaunchCmd(&executor.ExecCommand{
 		Cmd:  args[0],
@@ -224,7 +223,7 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		waitCh:         make(chan *cstructs.WaitResult, 1),
 	}
 
-	if err := h.executor.RegisterServices(); err != nil {
+	if err := h.executor.SyncServices(consulContext(d.config, "")); err != nil {
 		h.logger.Printf("[ERR] driver.qemu: error registering services for task: %q: %v", task.Name, err)
 	}
 	go h.run()
@@ -271,6 +270,9 @@ func (d *QemuDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		version:        id.Version,
 		doneCh:         make(chan struct{}),
 		waitCh:         make(chan *cstructs.WaitResult, 1),
+	}
+	if err := h.executor.SyncServices(consulContext(d.config, "")); err != nil {
+		h.logger.Printf("[ERR] driver.qemu: error registering services: %v", err)
 	}
 	go h.run()
 	return h, nil

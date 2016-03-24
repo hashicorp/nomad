@@ -34,6 +34,11 @@ type LaunchSyslogServerArgs struct {
 	Ctx *executor.ExecutorContext
 }
 
+// SyncServicesArgs wraps the consul context for the purposes of RPC
+type SyncServicesArgs struct {
+	Ctx *executor.ConsulContext
+}
+
 func (e *ExecutorRPC) LaunchCmd(cmd *executor.ExecCommand, ctx *executor.ExecutorContext) (*executor.ProcessState, error) {
 	var ps *executor.ProcessState
 	err := e.client.Call("Plugin.LaunchCmd", LaunchCmdArgs{Cmd: cmd, Ctx: ctx}, &ps)
@@ -68,8 +73,8 @@ func (e *ExecutorRPC) UpdateTask(task *structs.Task) error {
 	return e.client.Call("Plugin.UpdateTask", task, new(interface{}))
 }
 
-func (e *ExecutorRPC) RegisterServices() error {
-	return e.client.Call("Plugin.RegisterServices", new(interface{}), new(interface{}))
+func (e *ExecutorRPC) SyncServices(ctx *executor.ConsulContext) error {
+	return e.client.Call("Plugin.SyncServices", SyncServicesArgs{Ctx: ctx}, new(interface{}))
 }
 
 func (e *ExecutorRPC) DeregisterServices() error {
@@ -120,8 +125,8 @@ func (e *ExecutorRPCServer) UpdateTask(args *structs.Task, resp *interface{}) er
 	return e.Impl.UpdateTask(args)
 }
 
-func (e *ExecutorRPCServer) RegisterServices(args interface{}, resp *interface{}) error {
-	return e.Impl.RegisterServices()
+func (e *ExecutorRPCServer) SyncServices(args SyncServicesArgs, resp *interface{}) error {
+	return e.Impl.SyncServices(args.Ctx)
 }
 
 func (e *ExecutorRPCServer) DeregisterServices(args interface{}, resp *interface{}) error {

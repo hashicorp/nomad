@@ -35,8 +35,17 @@ type Executor interface {
 	Exit() error
 	UpdateLogConfig(logConfig *structs.LogConfig) error
 	UpdateTask(task *structs.Task) error
-	RegisterServices() error
+	SyncServices(ctx *ConsulContext) error
 	DeregisterServices() error
+}
+
+// ConsulContext holds context to configure the consul client and run checks
+type ConsulContext struct {
+	// ConsulConfig is the configuration used to create a consul client
+	ConsulConfig *consul.ConsulConfig
+
+	// ContainerID is the ID of the container
+	ContainerID string
 }
 
 // ExecutorContext holds context to configure the command user
@@ -58,9 +67,6 @@ type ExecutorContext struct {
 	// Driver is the name of the driver that invoked the executor
 	Driver string
 
-	// ContainerID is the ID of the container
-	ContainerID string
-
 	// PortUpperBound is the upper bound of the ports that we can use to start
 	// the syslog server
 	PortUpperBound uint
@@ -68,9 +74,6 @@ type ExecutorContext struct {
 	// PortLowerBound is the lower bound of the ports that we can use to start
 	// the syslog server
 	PortLowerBound uint
-
-	// ConsulConfig is the configuration used to create a consul client
-	ConsulConfig *consul.ConsulConfig
 }
 
 // ExecCommand holds the user command, args, and other isolation related
@@ -132,6 +135,7 @@ type UniversalExecutor struct {
 	cgLock sync.Mutex
 
 	consulService *consul.ConsulService
+	consulCtx     *ConsulContext
 	logger        *log.Logger
 }
 
@@ -358,10 +362,11 @@ func (e *UniversalExecutor) ShutDown() error {
 	return nil
 }
 
-func (e *UniversalExecutor) RegisterServices() error {
+func (e *UniversalExecutor) SyncServices(ctx *ConsulContext) error {
 	e.logger.Printf("[INFO] executor: registering services")
+	e.consulCtx = ctx
 	if e.consulService == nil {
-		cs, err := consul.NewConsulService(e.ctx.ConsulConfig, e.logger, e.ctx.AllocID)
+		cs, err := consul.NewConsulService(ctx.ConsulConfig, e.logger, e.ctx.AllocID)
 		if err != nil {
 			return err
 		}
@@ -497,7 +502,7 @@ func (e *UniversalExecutor) createCheck(check *structs.ServiceCheck, checkID str
 	if check.Type == structs.ServiceCheckScript && e.ctx.Driver == "docker" {
 		return &DockerScriptCheck{
 			id:          checkID,
-			containerID: e.ctx.ContainerID,
+			containerID: e.consulCtx.ContainerID,
 			logger:      e.logger,
 			cmd:         check.Cmd,
 			args:        check.Args,

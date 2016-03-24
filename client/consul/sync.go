@@ -194,7 +194,7 @@ func (c *ConsulService) Shutdown() error {
 // of tasks passed to it
 func (c *ConsulService) KeepServices(tasks []*structs.Task) error {
 	var mErr multierror.Error
-	var services map[string]struct{}
+	services := make(map[string]struct{})
 
 	// Indexing the services in the tasks
 	for _, task := range tasks {
@@ -252,7 +252,7 @@ func (c *ConsulService) createCheckReg(check *structs.ServiceCheck, service *con
 	default:
 		return nil, fmt.Errorf("check type %q not valid", check.Type)
 	}
-	if _, ok := c.delegateChecks[check.Type]; !ok {
+	if _, ok := c.delegateChecks[check.Type]; ok {
 		chk, err := c.createCheck(check, chkReg.ID)
 		if err != nil {
 			return nil, err
