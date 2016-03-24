@@ -1803,26 +1803,35 @@ func (ts *TaskState) Failed() bool {
 		return false
 	}
 
-	return ts.Events[l-1].Type == TaskNotRestarting
+	switch ts.Events[l-1].Type {
+	case TaskNotRestarting, TaskArtifactDownloadFailed, TaskFailedValidation:
+		return true
+	default:
+		return false
+	}
 }
 
 const (
-	// A Driver failure indicates that the task could not be started due to a
+	// TaskDriveFailure indicates that the task could not be started due to a
 	// failure in the driver.
 	TaskDriverFailure = "Driver Failure"
 
-	// Task Received signals that the task has been pulled by the client at the
+	// TaskReceived signals that the task has been pulled by the client at the
 	// given timestamp.
 	TaskReceived = "Received"
 
-	// Task Started signals that the task was started and its timestamp can be
+	// TaskFailedValidation indicates the task was invalid and as such was not
+	// run.
+	TaskFailedValidation = "Failed Validation"
+
+	// TaskStarted signals that the task was started and its timestamp can be
 	// used to determine the running length of the task.
 	TaskStarted = "Started"
 
-	// Task terminated indicates that the task was started and exited.
+	// TaskTerminated indicates that the task was started and exited.
 	TaskTerminated = "Terminated"
 
-	// Task Killed indicates a user has killed the task.
+	// TaskKilled indicates a user has killed the task.
 	TaskKilled = "Killed"
 
 	// TaskRestarting indicates that task terminated and is being restarted.
@@ -1832,7 +1841,7 @@ const (
 	// restarted because it has exceeded its restart policy.
 	TaskNotRestarting = "Restarts Exceeded"
 
-	// Task Downloading Artifacts means the task is downloading the artifacts
+	// TaskDownloadingArtifacts means the task is downloading the artifacts
 	// specified in the task.
 	TaskDownloadingArtifacts = "Downloading Artifacts"
 
@@ -1863,6 +1872,9 @@ type TaskEvent struct {
 
 	// Artifact Download fields
 	DownloadError string // Error downloading artifacts
+
+	// Validation fields
+	ValidationError string // Validation error
 }
 
 func (te *TaskEvent) GoString() string {
@@ -1924,6 +1936,13 @@ func (e *TaskEvent) SetRestartDelay(delay time.Duration) *TaskEvent {
 func (e *TaskEvent) SetDownloadError(err error) *TaskEvent {
 	if err != nil {
 		e.DownloadError = err.Error()
+	}
+	return e
+}
+
+func (e *TaskEvent) SetValidationError(err error) *TaskEvent {
+	if err != nil {
+		e.ValidationError = err.Error()
 	}
 	return e
 }

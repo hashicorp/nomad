@@ -214,8 +214,47 @@ func (r *TaskRunner) Run() {
 	r.logger.Printf("[DEBUG] client: starting task context for '%s' (alloc '%s')",
 		r.task.Name, r.alloc.ID)
 
+	if err := r.validateTask(); err != nil {
+		r.setState(
+			structs.TaskStateDead,
+			structs.NewTaskEvent(structs.TaskFailedValidation).SetValidationError(err))
+		return
+	}
+
 	r.run()
 	return
+}
+
+// validateTask validates the fields of the task and returns an error if the
+// task is invalid.
+func (r *TaskRunner) validateTask() error {
+	var mErr multierror.Error
+
+	// Validate the user.
+	unallowedUsers := r.config.ReadStringListToMapDefault("user.blacklist", config.DefaultUserBlacklist)
+	checkDrivers := r.config.ReadStringListToMapDefault("user.checked_drivers", config.DefaultUserCheckedDrivers)
+	if _, driverMatch := checkDrivers[r.task.Driver]; driverMatch {
+		if _, unallowed := unallowedUsers[r.task.User]; unallowed {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("running as user %q is disallowed", r.task.User))
+		}
+	}
+
+	// Validate the artifacts
+	for i, artifact := range r.task.Artifacts {
+		// Verify the artifact doesn't escape the task directory.
+		if err := artifact.Validate(); err != nil {
+			// If this error occurs there is potentially a server bug or
+			// mallicious, server spoofing.
+			r.logger.Printf("[ERR] client: allocation %q, task %v, artifact %#v (%v) fails validation: %v",
+				r.alloc.ID, r.task.Name, artifact, i, err)
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("artifact (%d) failed validation: %v", i, err))
+		}
+	}
+
+	if len(mErr.Errors) == 1 {
+		return mErr.Errors[0]
+	}
+	return mErr.ErrorOrNil()
 }
 
 func (r *TaskRunner) run() {
@@ -236,18 +275,7 @@ func (r *TaskRunner) run() {
 				return
 			}
 
-			for i, artifact := range r.task.Artifacts {
-				// Verify the artifact doesn't escape the task directory.
-				if err := artifact.Validate(); err != nil {
-					// If this error occurs there is potentially a server bug or
-					// mallicious, server spoofing.
-					r.setState(structs.TaskStateDead,
-						structs.NewTaskEvent(structs.TaskArtifactDownloadFailed).SetDownloadError(err))
-					r.logger.Printf("[ERR] client: allocation %q, task %v, artifact %#v (%v) fails validation: %v",
-						r.alloc.ID, r.task.Name, artifact, i, err)
-					return
-				}
-
+			for _, artifact := range r.task.Artifacts {
 				if err := getter.GetArtifact(artifact, taskDir, r.logger); err != nil {
 					r.setState(structs.TaskStateDead,
 						structs.NewTaskEvent(structs.TaskArtifactDownloadFailed).SetDownloadError(err))

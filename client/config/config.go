@@ -20,6 +20,22 @@ var (
 		"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN",
 		"GOOGLE_APPLICATION_CREDENTIALS",
 	}, ",")
+
+	// DefaulUserBlacklist is the default set of users that tasks are not
+	// allowed to run as when using a driver in "user.checked_drivers"
+	DefaultUserBlacklist = strings.Join([]string{
+		"root",
+		"Administrator",
+	}, ",")
+
+	// DefaultUserCheckedDrivers is the set of drivers we apply the user
+	// blacklist onto. For virtualized drivers it often doesn't make sense to
+	// make this stipulation so by default they are ignored.
+	DefaultUserCheckedDrivers = strings.Join([]string{
+		"exec",
+		"raw_exec",
+		"java",
+	}, ",")
 )
 
 // RPCHandler can be provided to the Client if there is a local server
@@ -105,21 +121,17 @@ func (c *Config) Copy() *Config {
 
 // Read returns the specified configuration value or "".
 func (c *Config) Read(id string) string {
-	val, ok := c.Options[id]
-	if !ok {
-		return ""
-	}
-	return val
+	return c.Options[id]
 }
 
 // ReadDefault returns the specified configuration value, or the specified
 // default value if none is set.
 func (c *Config) ReadDefault(id string, defaultValue string) string {
-	val := c.Read(id)
-	if val != "" {
-		return val
+	val, ok := c.Options[id]
+	if !ok {
+		return defaultValue
 	}
-	return defaultValue
+	return val
 }
 
 // ReadBool parses the specified option as a boolean.
@@ -152,6 +164,24 @@ func (c *Config) ReadStringListToMap(key string) map[string]struct{} {
 	list := make(map[string]struct{})
 	if s != "" {
 		for _, e := range strings.Split(s, ",") {
+			trimmed := strings.TrimSpace(e)
+			list[trimmed] = struct{}{}
+		}
+	}
+	return list
+}
+
+// ReadStringListToMap tries to parse the specified option as a comma seperated list.
+// If there is an error in parsing, an empty list is returned.
+func (c *Config) ReadStringListToMapDefault(key, defaultValue string) map[string]struct{} {
+	val, ok := c.Options[key]
+	if !ok {
+		val = defaultValue
+	}
+
+	list := make(map[string]struct{})
+	if val != "" {
+		for _, e := range strings.Split(val, ",") {
 			trimmed := strings.TrimSpace(e)
 			list[trimmed] = struct{}{}
 		}

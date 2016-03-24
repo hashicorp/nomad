@@ -381,6 +381,21 @@ documentation [here](/docs/drivers/index.html)
     * `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`
     * `GOOGLE_APPLICATION_CREDENTIALS`
 
+*   `user.blacklist`: An operator specifiable blacklist of users which a task is
+    not allowed to run as when using a driver in `user.checked_drivers`.
+    Defaults to:
+    
+    * `root`
+    * `Administrator`
+
+*   `user.checked_drivers`: An operator specifiable list of drivers to enforce
+    the the `user.blacklist`. With virtualized drivers, this enforcement often
+    doesn't make sense and as such the default is set to:
+    
+    * `exec`
+    * `raw_exec`
+    * `java`
+
 * `fingerprint.whitelist`: A comma separated list of whitelisted fingerprinters.
   If specified, fingerprinters not in the whitelist will be disabled. If the
   whitelist is empty, all fingerprinters are used.
