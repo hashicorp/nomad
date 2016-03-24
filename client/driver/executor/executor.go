@@ -55,6 +55,12 @@ type ExecutorContext struct {
 	// AllocID is the allocation id to which the task belongs
 	AllocID string
 
+	// Driver is the name of the driver that invoked the executor
+	Driver string
+
+	// ContainerID is the ID of the container
+	ContainerID string
+
 	// PortUpperBound is the upper bound of the ports that we can use to start
 	// the syslog server
 	PortUpperBound uint
@@ -359,6 +365,7 @@ func (e *UniversalExecutor) RegisterServices() error {
 		if err != nil {
 			return err
 		}
+		cs.SetDelegatedChecks(e.createCheckMap(), e.createCheck)
 		e.consulService = cs
 	}
 	err := e.consulService.SyncTask(e.ctx.Task)
@@ -477,4 +484,35 @@ func (e *UniversalExecutor) listenerUnix() (net.Listener, error) {
 	}
 
 	return net.Listen("unix", path)
+}
+
+func (e *UniversalExecutor) createCheckMap() map[string]struct{} {
+	checks := map[string]struct{}{
+		"script": struct{}{},
+	}
+	return checks
+}
+
+func (e *UniversalExecutor) createCheck(check structs.ServiceCheck, checkID string) (consul.Check, error) {
+	if check.Type == structs.ServiceCheckScript && e.ctx.Driver == "docker" {
+		return &DockerScriptCheck{
+			id:          checkID,
+			containerID: e.ctx.ContainerID,
+			logger:      e.logger,
+			cmd:         check.Cmd,
+			args:        check.Args,
+		}, nil
+	}
+
+	if check.Type == structs.ServiceCheckScript && e.ctx.Driver == "exec" {
+		return &ExecScriptCheck{
+			id:          checkID,
+			cmd:         check.Cmd,
+			args:        check.Args,
+			taskDir:     e.taskDir,
+			FSIsolation: e.command.FSIsolation,
+		}, nil
+
+	}
+	return nil, fmt.Errorf("couldn't create check for %v", check.Name)
 }

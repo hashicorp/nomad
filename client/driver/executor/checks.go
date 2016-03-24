@@ -11,20 +11,17 @@ import (
 	"github.com/armon/circbuf"
 	docker "github.com/fsouza/go-dockerclient"
 
+	"github.com/hashicorp/nomad/client/consul"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 )
-
-type Check interface {
-	Run() *cstructs.CheckResult
-	ID() string
-}
 
 type DockerScriptCheck struct {
 	id          string
 	containerID string
 	client      *docker.Client
 	logger      *log.Logger
-	script      []string
+	cmd         string
+	args        []string
 }
 
 func (d *DockerScriptCheck) Run() *cstructs.CheckResult {
@@ -33,7 +30,7 @@ func (d *DockerScriptCheck) Run() *cstructs.CheckResult {
 		AttachStdout: true,
 		AttachStderr: true,
 		Tty:          false,
-		Cmd:          d.script,
+		Cmd:          append([]string{d.cmd}, d.args...),
 		Container:    d.containerID,
 	}
 	var (
@@ -77,7 +74,6 @@ type ExecScriptCheck struct {
 	args    []string
 	taskDir string
 
-	ctx         *ExecutorContext
 	FSIsolation bool
 }
 
@@ -120,7 +116,7 @@ func (e *ExecScriptCheck) ID() string {
 }
 
 type consulCheck struct {
-	check Check
+	check consul.Check
 	next  time.Time
 	index int
 }
@@ -137,7 +133,7 @@ func NewConsulChecksHeap() *checkHeap {
 	}
 }
 
-func (c *checkHeap) Push(check Check, next time.Time) error {
+func (c *checkHeap) Push(check consul.Check, next time.Time) error {
 	if _, ok := c.index[check.ID()]; ok {
 		return fmt.Errorf("check %v already exists", check.ID())
 	}
@@ -166,12 +162,12 @@ func (c *checkHeap) Peek() *consulCheck {
 	return c.heap[0]
 }
 
-func (c *checkHeap) Contains(check Check) bool {
+func (c *checkHeap) Contains(check consul.Check) bool {
 	_, ok := c.index[check.ID()]
 	return ok
 }
 
-func (c *checkHeap) Update(check Check, next time.Time) error {
+func (c *checkHeap) Update(check consul.Check, next time.Time) error {
 	if cCheck, ok := c.index[check.ID()]; ok {
 		cCheck.check = check
 		cCheck.next = next
@@ -182,7 +178,7 @@ func (c *checkHeap) Update(check Check, next time.Time) error {
 	return fmt.Errorf("heap doesn't contain check %v", check.ID())
 }
 
-func (c *checkHeap) Remove(check Check) error {
+func (c *checkHeap) Remove(check consul.Check) error {
 	if cCheck, ok := c.index[check.ID()]; ok {
 		heap.Remove(&c.heap, cCheck.index)
 		delete(c.index, check.ID())

@@ -545,6 +545,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	executorCtx := &executor.ExecutorContext{
 		TaskEnv:        d.taskEnv,
 		Task:           task,
+		Driver:         "docker",
 		AllocDir:       ctx.AllocDir,
 		AllocID:        ctx.AllocID,
 		PortLowerBound: d.config.ClientMinPort,

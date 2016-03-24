@@ -21,8 +21,10 @@ import (
 type ConsulService struct {
 	client *consul.Client
 
-	task    *structs.Task
-	allocID string
+	task           *structs.Task
+	allocID        string
+	delegateChecks map[string]struct{}
+	createCheck    func(structs.ServiceCheck, string) (Check, error)
 
 	trackedServices map[string]*consul.AgentService
 	trackedChecks   map[string]*structs.ServiceCheck
@@ -97,6 +99,12 @@ func NewConsulService(config *ConsulConfig, logger *log.Logger, allocID string) 
 		shutdownCh: make(chan struct{}),
 	}
 	return &consulService, nil
+}
+
+func (c *ConsulService) SetDelegatedChecks(delegateChecks map[string]struct{}, createCheck func(structs.ServiceCheck, string) (Check, error)) *ConsulService {
+	c.delegateChecks = delegateChecks
+	c.createCheck = createCheck
+	return c
 }
 
 // SyncTask sync the services and task with consul

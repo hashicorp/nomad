@@ -160,6 +160,7 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	}
 	executorCtx := &executor.ExecutorContext{
 		TaskEnv:      d.taskEnv,
+		Driver:       "java",
 		AllocDir:     ctx.AllocDir,
 		AllocID:      ctx.AllocID,
 		Task:         task,
