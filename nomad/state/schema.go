@@ -129,7 +129,10 @@ func jobIsGCable(obj interface{}) (bool, error) {
 		return false, fmt.Errorf("Unexpected type: %v", obj)
 	}
 
-	return j.GC, nil
+	// The job is GCable if it is batch and it is not periodic
+	periodic := j.Periodic != nil && j.Periodic.Enabled
+	gcable := j.Type == structs.JobTypeBatch && !periodic
+	return gcable, nil
 }
 
 // jobIsPeriodic satisfies the ConditionalIndexFunc interface and creates an index

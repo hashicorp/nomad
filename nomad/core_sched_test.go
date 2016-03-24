@@ -238,7 +238,7 @@ func TestCoreScheduler_JobGC(t *testing.T) {
 		// Insert job.
 		state := s1.fsm.State()
 		job := mock.Job()
-		job.GC = true
+		job.Type = structs.JobTypeBatch
 		err := state.UpsertJob(1000, job)
 		if err != nil {
 			t.Fatalf("test(%s) err: %v", test.test, err)
@@ -342,7 +342,7 @@ func TestCoreScheduler_JobGC_Force(t *testing.T) {
 		// Insert job.
 		state := s1.fsm.State()
 		job := mock.Job()
-		job.GC = true
+		job.Type = structs.JobTypeBatch
 		err := state.UpsertJob(1000, job)
 		if err != nil {
 			t.Fatalf("test(%s) err: %v", test.test, err)

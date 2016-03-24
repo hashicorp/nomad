@@ -413,7 +413,6 @@ func (p *PeriodicDispatch) deriveJob(periodicJob *structs.Job, time time.Time) (
 	derived.ID = p.derivedJobID(periodicJob, time)
 	derived.Name = derived.ID
 	derived.Periodic = nil
-	derived.GC = true
 	return
 }
 
