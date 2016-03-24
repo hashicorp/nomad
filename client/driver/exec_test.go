@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -289,5 +290,38 @@ func TestExecDriver_Start_Kill_Wait(t *testing.T) {
 		}
 	case <-time.After(time.Duration(testutil.TestMultiplier()*10) * time.Second):
 		t.Fatalf("timeout")
+	}
+}
+
+func TestExecDriverUser(t *testing.T) {
+	t.Parallel()
+	ctestutils.ExecCompatible(t)
+	task := &structs.Task{
+		Name: "sleep",
+		User: "alice",
+		Config: map[string]interface{}{
+			"command": "/bin/sleep",
+			"args":    []string{"100"},
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
+		Resources:   basicResources,
+		KillTimeout: 10 * time.Second,
+	}
+
+	driverCtx, execCtx := testDriverContexts(task)
+	defer execCtx.AllocDir.Destroy()
+	d := NewExecDriver(driverCtx)
+
+	handle, err := d.Start(execCtx, task)
+	if err == nil {
+		handle.Kill()
+		t.Fatalf("Should've failed")
+	}
+	msg := "user alice"
+	if !strings.Contains(err.Error(), msg) {
+		t.Fatalf("Expecting '%v' in '%v'", msg, err)
 	}
 }

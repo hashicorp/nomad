@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -243,5 +244,37 @@ func TestRawExecDriver_Start_Kill_Wait(t *testing.T) {
 		}
 	case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
 		t.Fatalf("timeout")
+	}
+}
+
+func TestRawExecDriverUser(t *testing.T) {
+	t.Parallel()
+	task := &structs.Task{
+		Name: "sleep",
+		User: "alice",
+		Config: map[string]interface{}{
+			"command": testtask.Path(),
+			"args":    []string{"sleep", "45s"},
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
+		Resources: basicResources,
+	}
+	testtask.SetTaskEnv(task)
+
+	driverCtx, execCtx := testDriverContexts(task)
+	defer execCtx.AllocDir.Destroy()
+	d := NewRawExecDriver(driverCtx)
+
+	handle, err := d.Start(execCtx, task)
+	if err == nil {
+		handle.Kill()
+		t.Fatalf("Should've failed")
+	}
+	msg := "unknown user alice"
+	if !strings.Contains(err.Error(), msg) {
+		t.Fatalf("Expecting '%v' in '%v'", msg, err)
 	}
 }

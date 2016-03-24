@@ -107,7 +107,12 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 		Task:         task,
 		ConsulConfig: consulConfig(d.config),
 	}
-	ps, err := exec.LaunchCmd(&executor.ExecCommand{Cmd: command, Args: driverConfig.Args}, executorCtx)
+
+	ps, err := exec.LaunchCmd(&executor.ExecCommand{
+		Cmd:  command,
+		Args: driverConfig.Args,
+		User: task.User,
+	}, executorCtx)
 	if err != nil {
 		pluginClient.Kill()
 		return nil, err

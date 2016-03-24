@@ -197,7 +197,11 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		Task:         task,
 		ConsulConfig: consulConfig(d.config),
 	}
-	ps, err := exec.LaunchCmd(&executor.ExecCommand{Cmd: args[0], Args: args[1:]}, executorCtx)
+	ps, err := exec.LaunchCmd(&executor.ExecCommand{
+		Cmd:  args[0],
+		Args: args[1:],
+		User: task.User,
+	}, executorCtx)
 	if err != nil {
 		pluginClient.Kill()
 		return nil, err

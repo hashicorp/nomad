@@ -15,6 +15,8 @@ import (
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/driver/executor"
 	"github.com/hashicorp/nomad/client/driver/logging"
+	cstructs "github.com/hashicorp/nomad/client/driver/structs"
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 // createExecutor launches an executor plugin and returns an instance of the
@@ -157,4 +159,13 @@ func GetAbsolutePath(bin string) (string, error) {
 	}
 
 	return filepath.EvalSymlinks(lp)
+}
+
+// getExecutorUser returns the user of the task, defaulting to
+// cstructs.DefaultUnprivilegedUser if none was given.
+func getExecutorUser(task *structs.Task) string {
+	if task.User == "" {
+		return cstructs.DefaultUnpriviledgedUser
+	}
+	return task.User
 }

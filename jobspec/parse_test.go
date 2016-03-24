@@ -88,6 +88,7 @@ func TestParse(t *testing.T) {
 							&structs.Task{
 								Name:   "binstore",
 								Driver: "docker",
+								User:   "bob",
 								Config: map[string]interface{}{
 									"image": "hashicorp/binstore",
 								},
@@ -148,6 +149,7 @@ func TestParse(t *testing.T) {
 							&structs.Task{
 								Name:   "storagelocker",
 								Driver: "java",
+								User:   "",
 								Config: map[string]interface{}{
 									"image": "hashicorp/storagelocker",
 								},

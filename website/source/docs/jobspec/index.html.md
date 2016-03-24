@@ -228,6 +228,9 @@ The `task` object supports the following keys:
   task. See the [driver documentation](/docs/drivers/index.html) for what
   is available. Examples include `docker`, `qemu`, `java`, and `exec`.
 
+* `user` - Set the user that will run the task. It defaults to the same user
+  the Nomad client is being run as.
+
 * `constraint` - This can be provided multiple times to define additional
   constraints. See the constraint reference for more details.
 
@@ -436,7 +439,7 @@ The `artifact` object maps supports the following keys:
   default to `local/`.
 
 * `options` - The `options` block allows setting parameters for `go-getter`. An
-  example is given below: 
+  example is given below:
 
 ```
 options {
@@ -454,7 +457,7 @@ An example of downloading and unzipping an archive is as simple as:
 
 ```
 artifact {
-  # The archive will be extracted before the task is run, making 
+  # The archive will be extracted before the task is run, making
   # it easy to ship configurations with your binary.
   source = "https://example.com/my.zip"
 

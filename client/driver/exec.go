@@ -112,12 +112,13 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		Task:         task,
 		ConsulConfig: consulConfig(d.config),
 	}
+
 	ps, err := exec.LaunchCmd(&executor.ExecCommand{
 		Cmd:            command,
 		Args:           driverConfig.Args,
 		FSIsolation:    true,
 		ResourceLimits: true,
-		User:           cstructs.DefaultUnpriviledgedUser,
+		User:           getExecutorUser(task),
 	}, executorCtx)
 	if err != nil {
 		pluginClient.Kill()

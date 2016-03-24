@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -219,5 +220,40 @@ func TestJavaDriver_Start_Kill_Wait(t *testing.T) {
 		if err = handle.Kill(); err != nil {
 			t.Fatalf("Error: %s", err)
 		}
+	}
+}
+
+func TestJavaDriverUser(t *testing.T) {
+	t.Parallel()
+	if !javaLocated() {
+		t.Skip("Java not found; skipping")
+	}
+
+	ctestutils.JavaCompatible(t)
+	task := &structs.Task{
+		Name: "demo-app",
+		User: "alice",
+		Config: map[string]interface{}{
+			"jar_path": "demoapp.jar",
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
+		Resources: basicResources,
+	}
+
+	driverCtx, execCtx := testDriverContexts(task)
+	defer execCtx.AllocDir.Destroy()
+	d := NewJavaDriver(driverCtx)
+
+	handle, err := d.Start(execCtx, task)
+	if err == nil {
+		handle.Kill()
+		t.Fatalf("Should've failed")
+	}
+	msg := "user alice"
+	if !strings.Contains(err.Error(), msg) {
+		t.Fatalf("Expecting '%v' in '%v'", msg, err)
 	}
 }

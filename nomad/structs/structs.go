@@ -1593,6 +1593,10 @@ type Task struct {
 	// Driver is used to control which driver is used
 	Driver string
 
+	// User is used to determine which user will run the task. It defaults to
+	// the same user the Nomad client is being run as.
+	User string
+
 	// Config is provided to the driver to initialize
 	Config map[string]interface{}
 

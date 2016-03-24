@@ -17,7 +17,6 @@ import (
 	docker "github.com/fsouza/go-dockerclient"
 
 	"github.com/hashicorp/go-plugin"
-
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/executor"
@@ -224,6 +223,7 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task,
 	config := &docker.Config{
 		Image:    driverConfig.ImageName,
 		Hostname: driverConfig.Hostname,
+		User:     task.User,
 	}
 
 	hostConfig := &docker.HostConfig{

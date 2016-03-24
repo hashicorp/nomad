@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime/debug"
+	"strings"
 	"testing"
 	"time"
 
@@ -667,5 +668,47 @@ func TestDockerPortsMapping(t *testing.T) {
 		if !inSlice(search, container.Config.Env) {
 			t.Errorf("Expected to find %s in container environment: %+v", search, container.Config.Env)
 		}
+	}
+}
+
+func TestDockerUser(t *testing.T) {
+	t.Parallel()
+
+	task := &structs.Task{
+		Name: "redis-demo",
+		User: "alice",
+		Config: map[string]interface{}{
+			"image":   "redis",
+			"command": "sleep",
+			"args":    []string{"10000"},
+		},
+		Resources: &structs.Resources{
+			MemoryMB: 256,
+			CPU:      512,
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
+	}
+
+	if !dockerIsConnected(t) {
+		t.SkipNow()
+	}
+
+	driverCtx, execCtx := testDriverContexts(task)
+	driver := NewDockerDriver(driverCtx)
+	defer execCtx.AllocDir.Destroy()
+
+	// It should fail because the user "alice" does not exist on the given
+	// image.
+	handle, err := driver.Start(execCtx, task)
+	if err == nil {
+		handle.Kill()
+		t.Fatalf("Should've failed")
+	}
+	msg := "System error: Unable to find user alice"
+	if !strings.Contains(err.Error(), msg) {
+		t.Fatalf("Expecting '%v' in '%v'", msg, err)
 	}
 }
