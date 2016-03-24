@@ -1194,10 +1194,7 @@ func (c *Client) syncConsul() {
 			c.allocLock.RUnlock()
 			for _, ar := range allocs {
 				ar.taskStatusLock.RLock()
-				taskStates := make(map[string]*structs.TaskState)
-				for taskName, ts := range ar.taskStates {
-					taskStates[taskName] = ts
-				}
+				taskStates := copyTaskStates(ar.taskStates)
 				ar.taskStatusLock.RUnlock()
 				for taskName, taskState := range taskStates {
 					if taskState.State == structs.TaskStateRunning {
