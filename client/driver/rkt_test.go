@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -257,5 +258,41 @@ func TestRktDriver_Start_Wait_AllocDir(t *testing.T) {
 
 	if !reflect.DeepEqual(act, exp) {
 		t.Fatalf("Command output is %v; expected %v", act, exp)
+	}
+}
+
+func TestRktDriverUser(t *testing.T) {
+	ctestutils.RktCompatible(t)
+	task := &structs.Task{
+		Name: "etcd",
+		User: "alice",
+		Config: map[string]interface{}{
+			"trust_prefix": "coreos.com/etcd",
+			"image":        "coreos.com/etcd:v2.0.4",
+			"command":      "/etcd",
+			"args":         []string{"--version"},
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
+		Resources: &structs.Resources{
+			MemoryMB: 128,
+			CPU:      100,
+		},
+	}
+
+	driverCtx, execCtx := testDriverContexts(task)
+	defer execCtx.AllocDir.Destroy()
+	d := NewRktDriver(driverCtx)
+
+	handle, err := d.Start(execCtx, task)
+	if err == nil {
+		handle.Kill()
+		t.Fatalf("Should've failed")
+	}
+	msg := "unknown user alice"
+	if !strings.Contains(err.Error(), msg) {
+		t.Fatalf("Expecting '%v' in '%v'", msg, err)
 	}
 }

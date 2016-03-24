@@ -3,6 +3,7 @@ package driver
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/nomad/client/config"
@@ -91,5 +92,49 @@ func TestQemuDriver_StartOpen_Wait(t *testing.T) {
 	// Clean up
 	if err := handle.Kill(); err != nil {
 		fmt.Printf("\nError killing Qemu test: %s", err)
+	}
+}
+
+func TestQemuDriverUser(t *testing.T) {
+	t.Parallel()
+	ctestutils.QemuCompatible(t)
+	task := &structs.Task{
+		Name: "linux",
+		User: "alice",
+		Config: map[string]interface{}{
+			"image_path":  "linux-0.2.img",
+			"accelerator": "tcg",
+			"port_map": []map[string]int{{
+				"main": 22,
+				"web":  8080,
+			}},
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
+		Resources: &structs.Resources{
+			CPU:      500,
+			MemoryMB: 512,
+			Networks: []*structs.NetworkResource{
+				&structs.NetworkResource{
+					ReservedPorts: []structs.Port{{"main", 22000}, {"web", 80}},
+				},
+			},
+		},
+	}
+
+	driverCtx, execCtx := testDriverContexts(task)
+	defer execCtx.AllocDir.Destroy()
+	d := NewQemuDriver(driverCtx)
+
+	handle, err := d.Start(execCtx, task)
+	if err == nil {
+		handle.Kill()
+		t.Fatalf("Should've failed")
+	}
+	msg := "unknown user alice"
+	if !strings.Contains(err.Error(), msg) {
+		t.Fatalf("Expecting '%v' in '%v'", msg, err)
 	}
 }
