@@ -52,6 +52,7 @@ type ExecutorContext struct {
 	// Task is the task whose executor is being launched
 	Task *structs.Task
 
+	// AllocID is the allocation id to which the task belongs
 	AllocID string
 
 	// PortUpperBound is the upper bound of the ports that we can use to start

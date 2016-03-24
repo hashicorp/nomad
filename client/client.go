@@ -172,8 +172,8 @@ func NewClient(cfg *config.Config) (*Client, error) {
 		return nil, fmt.Errorf("failed to restore state: %v", err)
 	}
 
-	err := c.setupConsulClient()
-	if err != nil {
+	// Setup the consul client
+	if err := c.setupConsulClient(); err != nil {
 		return nil, fmt.Errorf("failed to create consul client: %v")
 	}
 
@@ -1193,7 +1193,13 @@ func (c *Client) syncConsul() {
 			}
 			c.allocLock.RUnlock()
 			for _, ar := range allocs {
-				for taskName, taskState := range ar.taskStates {
+				ar.taskStatusLock.RLock()
+				taskStates := make(map[string]*structs.TaskState)
+				for taskName, ts := range ar.taskStates {
+					taskStates[taskName] = ts
+				}
+				ar.taskStatusLock.RUnlock()
+				for taskName, taskState := range taskStates {
 					if taskState.State == structs.TaskStateRunning {
 						if tr, ok := ar.tasks[taskName]; ok {
 							runningTasks = append(runningTasks, tr.task)
