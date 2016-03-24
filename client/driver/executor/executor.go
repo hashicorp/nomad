@@ -493,7 +493,7 @@ func (e *UniversalExecutor) createCheckMap() map[string]struct{} {
 	return checks
 }
 
-func (e *UniversalExecutor) createCheck(check structs.ServiceCheck, checkID string) (consul.Check, error) {
+func (e *UniversalExecutor) createCheck(check *structs.ServiceCheck, checkID string) (consul.Check, error) {
 	if check.Type == structs.ServiceCheckScript && e.ctx.Driver == "docker" {
 		return &DockerScriptCheck{
 			id:          checkID,
