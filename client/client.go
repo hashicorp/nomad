@@ -383,7 +383,6 @@ func (c *Client) SetServers(servers []string) {
 	}
 
 	c.logger.Printf("[INFO] client: setting server address list: %s", setServers)
-	fmt.Printf("Updated server address list: %s", setServers)
 	c.servers = setServers
 }
 
