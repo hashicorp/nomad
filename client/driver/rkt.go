@@ -270,7 +270,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		waitCh:         make(chan *cstructs.WaitResult, 1),
 	}
 	if h.executor.RegisterServices(); err != nil {
-		h.logger.Printf("[ERR] driver.rkt: error registering services: %v", err)
+		h.logger.Printf("[ERR] driver.rkt: error registering services for task: %q: %v", task.Name, err)
 	}
 	go h.run()
 	return h, nil
