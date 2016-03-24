@@ -73,6 +73,7 @@ bootstrap:
 	done
 
 travis:
+	@sudo apt-get install -y qemu
 	@sh -c "'$(PWD)/scripts/update_docker.sh'"
 	@sh -c "'$(PWD)/scripts/install_rkt.sh'"
 
