@@ -10,6 +10,7 @@ IMPROVEMENTS:
     total resources [GH-946]
   * client: Nomad fingerprinter to detect client's version [GH-965]
   * client: Pass environment variables from host to exec based tasks [GH-970]
+  * client: Allow task's to be run as particular user [GH-950]
   * client: `artifact` block now supports downloading paths relative to the
     task's directory [GH-944]
 
