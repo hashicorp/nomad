@@ -279,19 +279,19 @@ The `task` object supports the following keys:
 
 The `resources` object supports the following keys:
 
-* `cpu` - The CPU required in MHz.
+* `cpu` - The CPU required in MHz. Defaults to `100`.
 
-* `disk` - The disk required in MB.
+* `disk` - The disk required in MB. Defaults to `200`.
 
-* `iops` - The number of IOPS required given as a weight between 10-1000.
+* `iops` - The number of IOPS required given as a weight between 10-1000. Defaults to `0`.
 
-* `memory` - The memory required in MB.
+* `memory` - The memory required in MB. Defaults to `300`.
 
 * `network` - The network required. Details below.
 
 The `network` object supports the following keys:
 
-* `mbits` - The number of MBits in bandwidth required.
+* `mbits` (required) - The number of MBits in bandwidth required.
 
 *   `port` - `port` is a repeatable object that can be used to specify both
     dynamic ports and reserved ports. It has the following format:
@@ -382,7 +382,7 @@ The `constraint` object supports the following keys:
     machine. This can be specified as a job constraint which applies the
     constraint to all task groups in the job, or as a task group constraint which
     scopes the effect to just that group.
-  
+
     Placing the constraint at both the job level and at the task group level is
     redundant since when placed at the job level, the constraint will be applied
     to all task groups.
