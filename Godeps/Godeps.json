@@ -1,7 +1,6 @@
 {
 	"ImportPath": "github.com/hashicorp/nomad",
 	"GoVersion": "go1.6",
-	"GodepVersion": "v60",
 	"Deps": [
 		{
 			"ImportPath": "github.com/StackExchange/wmi",
@@ -252,13 +251,13 @@
 		},
 		{
 			"ImportPath": "github.com/hashicorp/consul/api",
-			"Comment": "v0.6.3-119-g0562b95",
-			"Rev": "0562b95a551568e8dd2f93af6c60982f1a252a3a"
+			"Comment": "v0.6.3-290-ge3f6c6a",
+			"Rev": "e3f6c6a7987ff879a1c138abcc4d14d8b65fc13f"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/consul/tlsutil",
-			"Comment": "v0.6.3-119-g0562b95",
-			"Rev": "0562b95a551568e8dd2f93af6c60982f1a252a3a"
+			"Comment": "v0.6.3-290-ge3f6c6a",
+			"Rev": "e3f6c6a7987ff879a1c138abcc4d14d8b65fc13f"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/errwrap",
