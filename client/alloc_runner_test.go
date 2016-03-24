@@ -51,8 +51,8 @@ func TestAllocRunner_SimpleRun(t *testing.T) {
 			return false, fmt.Errorf("No updates")
 		}
 		last := upd.Allocs[upd.Count-1]
-		if last.ClientStatus != structs.AllocClientStatusDead {
-			return false, fmt.Errorf("got status %v; want %v", last.ClientStatus, structs.AllocClientStatusDead)
+		if last.ClientStatus != structs.AllocClientStatusComplete {
+			return false, fmt.Errorf("got status %v; want %v", last.ClientStatus, structs.AllocClientStatusComplete)
 		}
 		return true, nil
 	}, func(err error) {
@@ -96,8 +96,8 @@ func TestAllocRunner_TerminalUpdate_Destroy(t *testing.T) {
 
 		// Check the status has changed.
 		last := upd.Allocs[upd.Count-1]
-		if last.ClientStatus != structs.AllocClientStatusDead {
-			return false, fmt.Errorf("got client status %v; want %v", last.ClientStatus, structs.AllocClientStatusDead)
+		if last.ClientStatus != structs.AllocClientStatusComplete {
+			return false, fmt.Errorf("got client status %v; want %v", last.ClientStatus, structs.AllocClientStatusComplete)
 		}
 
 		// Check the state still exists
@@ -125,8 +125,8 @@ func TestAllocRunner_TerminalUpdate_Destroy(t *testing.T) {
 
 		// Check the status has changed.
 		last := upd.Allocs[upd.Count-1]
-		if last.ClientStatus != structs.AllocClientStatusDead {
-			return false, fmt.Errorf("got client status %v; want %v", last.ClientStatus, structs.AllocClientStatusDead)
+		if last.ClientStatus != structs.AllocClientStatusComplete {
+			return false, fmt.Errorf("got client status %v; want %v", last.ClientStatus, structs.AllocClientStatusComplete)
 		}
 
 		// Check the state was cleaned
@@ -173,8 +173,8 @@ func TestAllocRunner_Destroy(t *testing.T) {
 
 		// Check the status has changed.
 		last := upd.Allocs[upd.Count-1]
-		if last.ClientStatus != structs.AllocClientStatusDead {
-			return false, fmt.Errorf("got client status %v; want %v", last.ClientStatus, structs.AllocClientStatusDead)
+		if last.ClientStatus != structs.AllocClientStatusComplete {
+			return false, fmt.Errorf("got client status %v; want %v", last.ClientStatus, structs.AllocClientStatusComplete)
 		}
 
 		// Check the state was cleaned
@@ -357,8 +357,8 @@ func TestAllocRunner_SaveRestoreState_TerminalAlloc(t *testing.T) {
 
 		// Check the status has changed.
 		last := upd.Allocs[upd.Count-1]
-		if last.ClientStatus != structs.AllocClientStatusDead {
-			return false, fmt.Errorf("got client status %v; want %v", last.ClientStatus, structs.AllocClientStatusDead)
+		if last.ClientStatus != structs.AllocClientStatusComplete {
+			return false, fmt.Errorf("got client status %v; want %v", last.ClientStatus, structs.AllocClientStatusComplete)
 		}
 
 		// Check the state was cleaned

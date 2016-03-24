@@ -2085,10 +2085,10 @@ const (
 )
 
 const (
-	AllocClientStatusPending = "pending"
-	AllocClientStatusRunning = "running"
-	AllocClientStatusDead    = "dead"
-	AllocClientStatusFailed  = "failed"
+	AllocClientStatusPending  = "pending"
+	AllocClientStatusRunning  = "running"
+	AllocClientStatusComplete = "complete"
+	AllocClientStatusFailed   = "failed"
 )
 
 // Allocation is used to allocate the placement of a task group to a node.
@@ -2206,7 +2206,7 @@ func (a *Allocation) TerminalStatus() bool {
 	}
 
 	switch a.ClientStatus {
-	case AllocClientStatusDead, AllocClientStatusFailed:
+	case AllocClientStatusComplete, AllocClientStatusFailed:
 		return true
 	default:
 		return false
