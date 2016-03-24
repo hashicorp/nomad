@@ -265,11 +265,12 @@ func (e *UniversalExecutor) UpdateTask(task *structs.Task) error {
 	e.lre.MaxFiles = task.LogConfig.MaxFiles
 	e.lre.FileSize = fileSize
 
+	var err error
 	// Re-syncing task with consul service
 	if e.consulService != nil {
-		e.consulService.SyncTask(task)
+		err = e.consulService.SyncTask(task)
 	}
-	return nil
+	return err
 }
 
 func (e *UniversalExecutor) wait() {
@@ -349,7 +350,7 @@ func (e *UniversalExecutor) ShutDown() error {
 }
 
 func (e *UniversalExecutor) RegisterServices() error {
-	e.logger.Printf("executor: registering services")
+	e.logger.Printf("[INFO] executor: registering services")
 	if e.consulService == nil {
 		cs, err := consul.NewConsulService(e.ctx.ConsulConfig, e.logger, e.ctx.AllocID)
 		if err != nil {
@@ -358,15 +359,12 @@ func (e *UniversalExecutor) RegisterServices() error {
 		e.consulService = cs
 	}
 	err := e.consulService.SyncTask(e.ctx.Task)
-	if err != nil {
-		e.logger.Printf("executor: error registering services: %v", err)
-	}
 	go e.consulService.SyncWithConsul()
 	return err
 }
 
 func (e *UniversalExecutor) DeregisterServices() error {
-	e.logger.Printf("executor: de-registering services and shutting down consul service")
+	e.logger.Printf("[ERR] executor: de-registering services and shutting down consul service")
 	if e.consulService != nil {
 		return e.consulService.Shutdown()
 	}
