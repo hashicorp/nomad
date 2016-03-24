@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"reflect"
 	"strings"
+	"sync"
 	"time"
 
 	consul "github.com/hashicorp/consul/api"
@@ -26,8 +27,11 @@ type ConsulService struct {
 	services map[string]*consul.AgentService
 	checks   map[string]*structs.ServiceCheck
 
-	logger     *log.Logger
-	shutdownCh chan struct{}
+	logger *log.Logger
+
+	shutdownCh   chan struct{}
+	shutdown     bool
+	shutdownLock sync.Mutex
 }
 
 // ConsulConfig is the configuration used to create a new ConsulService client
@@ -154,10 +158,13 @@ func (c *ConsulService) SyncTask(task *structs.Task) error {
 // Shutdown de-registers the services and checks and shuts down periodic syncing
 func (c *ConsulService) Shutdown() error {
 	var mErr multierror.Error
-	select {
-	case c.shutdownCh <- struct{}{}:
-	default:
+
+	c.shutdownLock.Lock()
+	if !c.shutdown {
+		close(c.shutdownCh)
+		c.shutdown = true
 	}
+	c.shutdownLock.Unlock()
 	for _, service := range c.services {
 		if err := c.client.Agent().ServiceDeregister(service.ID); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
