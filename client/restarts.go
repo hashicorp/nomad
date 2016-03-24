@@ -1,6 +1,7 @@
 package client
 
 import (
+	"fmt"
 	"math/rand"
 	"sync"
 	"time"
@@ -9,8 +10,15 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// jitter is the percent of jitter added to restart delays.
-const jitter = 0.25
+const (
+	// jitter is the percent of jitter added to restart delays.
+	jitter = 0.25
+
+	ReasonNoRestartsAllowed   = "Policy allows no restarts"
+	ReasonUnrecoverableErrror = "Error was unrecoverable"
+	ReasonWithinPolicy        = "Restart within policy"
+	ReasonDelay               = "Exceeded allowed attempts, applying a delay"
+)
 
 func newRestartTracker(policy *structs.RestartPolicy, jobType string) *RestartTracker {
 	onSuccess := true
@@ -31,6 +39,7 @@ type RestartTracker struct {
 	count     int       // Current number of attempts.
 	onSuccess bool      // Whether to restart on successful exit code.
 	startTime time.Time // When the interval began
+	reason    string    // The reason for the last state
 	policy    *structs.RestartPolicy
 	rand      *rand.Rand
 	lock      sync.Mutex
@@ -60,6 +69,14 @@ func (r *RestartTracker) SetWaitResult(res *cstructs.WaitResult) *RestartTracker
 	return r
 }
 
+// GetReason returns a human-readable description for the last state returned by
+// GetState.
+func (r *RestartTracker) GetReason() string {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	return r.reason
+}
+
 // GetState returns the tasks next state given the set exit code and start
 // error. One of the following states are returned:
 // * TaskRestarting - Task should be restarted
@@ -76,6 +93,7 @@ func (r *RestartTracker) GetState() (string, time.Duration) {
 
 	// Hot path if no attempts are expected
 	if r.policy.Attempts == 0 {
+		r.reason = ReasonNoRestartsAllowed
 		if r.waitRes != nil && r.waitRes.Successful() {
 			return structs.TaskTerminated, 0
 		}
@@ -109,13 +127,17 @@ func (r *RestartTracker) GetState() (string, time.Duration) {
 func (r *RestartTracker) handleStartError() (string, time.Duration) {
 	// If the error is not recoverable, do not restart.
 	if rerr, ok := r.startErr.(*cstructs.RecoverableError); !(ok && rerr.Recoverable) {
+		r.reason = ReasonUnrecoverableErrror
 		return structs.TaskNotRestarting, 0
 	}
 
 	if r.count > r.policy.Attempts {
+		r.reason = fmt.Sprintf("Exceeded allowed attempts %d in interval %v",
+			r.policy.Attempts, r.policy.Interval)
 		return structs.TaskNotRestarting, 0
 	}
 
+	r.reason = ReasonWithinPolicy
 	return structs.TaskRestarting, r.jitter()
 }
 
@@ -125,17 +147,23 @@ func (r *RestartTracker) handleWaitResult() (string, time.Duration) {
 	// If the task started successfully and restart on success isn't specified,
 	// don't restart but don't mark as failed.
 	if r.waitRes.Successful() && !r.onSuccess {
+		r.reason = "Restart unnecessary as task terminated successfully"
 		return structs.TaskTerminated, 0
 	}
 
 	if r.count > r.policy.Attempts {
 		if r.policy.Mode == structs.RestartPolicyModeFail {
+			r.reason = fmt.Sprintf(
+				`Exceeded allowed atttempts %d in interval %v and mode is "fail"`,
+				r.policy.Attempts, r.policy.Interval)
 			return structs.TaskNotRestarting, 0
 		} else {
+			r.reason = ReasonDelay
 			return structs.TaskRestarting, r.getDelay()
 		}
 	}
 
+	r.reason = ReasonWithinPolicy
 	return structs.TaskRestarting, r.jitter()
 }
 

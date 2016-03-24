@@ -163,7 +163,7 @@ const (
 	TaskTerminated             = "Terminated"
 	TaskKilled                 = "Killed"
 	TaskRestarting             = "Restarting"
-	TaskNotRestarting          = "Restarts Exceeded"
+	TaskNotRestarting          = "Not Restarting"
 	TaskDownloadingArtifacts   = "Downloading Artifacts"
 	TaskArtifactDownloadFailed = "Failed Artifact Download"
 )
@@ -173,6 +173,7 @@ const (
 type TaskEvent struct {
 	Type            string
 	Time            int64
+	RestartReason   string
 	DriverError     string
 	ExitCode        int
 	Signal          int

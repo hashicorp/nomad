@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/client"
 )
 
 type AllocStatusCommand struct {
@@ -240,9 +241,18 @@ func (c *AllocStatusCommand) taskStatus(alloc *api.Allocation) {
 				}
 				desc = strings.Join(parts, ", ")
 			case api.TaskRestarting:
-				desc = fmt.Sprintf("Task restarting in %v", time.Duration(event.StartDelay))
+				in := fmt.Sprintf("Task restarting in %v", time.Duration(event.StartDelay))
+				if event.RestartReason != "" && event.RestartReason != client.ReasonWithinPolicy {
+					desc = fmt.Sprintf("%s - %s", event.RestartReason, in)
+				} else {
+					desc = in
+				}
 			case api.TaskNotRestarting:
-				desc = "Task exceeded restart policy"
+				if event.RestartReason != "" {
+					desc = event.RestartReason
+				} else {
+					desc = "Task exceeded restart policy"
+				}
 			}
 
 			// Reverse order so we are sorted by time
