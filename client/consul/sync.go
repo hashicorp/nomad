@@ -179,18 +179,22 @@ func (c *ConsulService) Shutdown() error {
 func (c *ConsulService) KeepServices(tasks []*structs.Task) error {
 	var mErr multierror.Error
 	var services map[string]struct{}
+
+	// Indexing the services in the tasks
 	for _, task := range tasks {
 		for _, service := range task.Services {
 			services[service.ID(c.allocID, c.task.Name)] = struct{}{}
 		}
 	}
 
+	// Get the services from Consul
 	cServices, err := c.client.Agent().Services()
 	if err != nil {
 		return err
 	}
 	cServices = c.filterConsulServices(cServices)
 
+	// Remove the services from consul which are not in any of the tasks
 	for _, service := range cServices {
 		if _, validService := services[service.ID]; !validService {
 			if err := c.deregisterService(service.ID); err != nil {
