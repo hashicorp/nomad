@@ -268,8 +268,8 @@ func (c *ConsulService) deregisterCheck(ID string) error {
 	return c.client.Agent().CheckDeregister(ID)
 }
 
-// SyncWithConsul triggers periodic syncing of services and checks with Consul
-func (c *ConsulService) SyncWithConsul() {
+// PeriodicSync triggers periodic syncing of services and checks with Consul
+func (c *ConsulService) PeriodicSync() {
 	sync := time.After(syncInterval)
 	for {
 		select {

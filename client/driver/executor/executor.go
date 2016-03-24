@@ -359,7 +359,7 @@ func (e *UniversalExecutor) RegisterServices() error {
 		e.consulService = cs
 	}
 	err := e.consulService.SyncTask(e.ctx.Task)
-	go e.consulService.SyncWithConsul()
+	go e.consulService.PeriodicSync()
 	return err
 }
 
