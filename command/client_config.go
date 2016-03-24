@@ -86,6 +86,7 @@ func (c *ClientConfigCommand) Run(args []string) int {
 			c.Ui.Error(fmt.Sprintf("Error updating server list: %s", err))
 			return 1
 		}
+		c.Ui.Output(fmt.Sprint("Updated server list"))
 		return 0
 	}
 
