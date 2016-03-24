@@ -1418,7 +1418,6 @@ const (
 // The ServiceCheck data model represents the consul health check that
 // Nomad registers for a Task
 type ServiceCheck struct {
-	ID       string
 	Name     string        // Name of the check, defaults to id
 	Type     string        // Type of the check - tcp, http, docker and script
 	Script   string        // Script to invoke for script check
@@ -1476,7 +1475,6 @@ const (
 
 // The Service model represents a Consul service defintion
 type Service struct {
-	ID        string          // ID of the service
 	Name      string          // Name of the service, defaults to id
 	Tags      []string        // List of tags for the service
 	PortLabel string          `mapstructure:"port"` // port for the service
@@ -1512,14 +1510,16 @@ func (s *Service) InitFields(job string, taskGroup string, task string) {
 		"BASE":      fmt.Sprintf("%s-%s-%s", job, taskGroup, task),
 	},
 	)
-	s.ID = fmt.Sprintf("%s-%s", NomadConsulPrefix, s.Hash())
 
 	for _, check := range s.Checks {
 		if check.Name == "" {
 			check.Name = fmt.Sprintf("service: %q check", s.Name)
 		}
-		check.ID = check.Hash(s.ID)
 	}
+}
+
+func (s *Service) ID() string {
+	return fmt.Sprintf("%s-%s", NomadConsulPrefix, s.Hash())
 }
 
 // Validate checks if the Check definition is valid

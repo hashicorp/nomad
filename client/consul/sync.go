@@ -117,13 +117,14 @@ func (c *ConsulService) SyncTask(task *structs.Task) error {
 		services[srv.ID] = srv
 
 		for _, chk := range service.Checks {
-			if _, ok := c.checks[chk.ID]; !ok {
+			checkID := chk.Hash(srv.ID)
+			if _, ok := c.checks[checkID]; !ok {
 				if err := c.registerCheck(chk, srv); err != nil {
 					mErr.Errors = append(mErr.Errors, err)
 				}
 			}
-			c.checks[chk.ID] = chk
-			checks[chk.ID] = chk
+			c.checks[checkID] = chk
+			checks[checkID] = chk
 		}
 	}
 
@@ -138,12 +139,12 @@ func (c *ConsulService) SyncTask(task *structs.Task) error {
 	}
 
 	// Remove the checks that are not present anymore
-	for _, check := range c.checks {
-		if _, ok := checks[check.ID]; !ok {
-			if err := c.deregisterCheck(check.ID); err != nil {
+	for checkID, _ := range c.checks {
+		if _, ok := checks[checkID]; !ok {
+			if err := c.deregisterCheck(checkID); err != nil {
 				mErr.Errors = append(mErr.Errors, err)
 			}
-			delete(c.checks, check.ID)
+			delete(c.checks, checkID)
 		}
 	}
 	return mErr.ErrorOrNil()
@@ -169,7 +170,7 @@ func (c *ConsulService) RemoveServices(tasks []*structs.Task) error {
 	var services map[string]struct{}
 	for _, task := range tasks {
 		for _, service := range task.Services {
-			services[service.ID] = struct{}{}
+			services[service.ID()] = struct{}{}
 		}
 	}
 
@@ -192,7 +193,7 @@ func (c *ConsulService) RemoveServices(tasks []*structs.Task) error {
 // registerCheck registers a check definition with Consul
 func (c *ConsulService) registerCheck(check *structs.ServiceCheck, service *consul.AgentService) error {
 	chkReg := consul.AgentCheckRegistration{
-		ID:        check.ID,
+		ID:        check.Hash(service.ID),
 		Name:      check.Name,
 		ServiceID: service.ID,
 	}
@@ -228,7 +229,7 @@ func (c *ConsulService) createService(service *structs.Service) (*consul.AgentSe
 		return nil, fmt.Errorf("port for the service %q  couldn't be found", service.Name)
 	}
 	srv := consul.AgentService{
-		ID:      service.ID,
+		ID:      service.ID(),
 		Service: service.Name,
 		Tags:    service.Tags,
 		Address: host,
