@@ -1439,8 +1439,8 @@ func (sc *ServiceCheck) Copy() *ServiceCheck {
 
 func (sc *ServiceCheck) Validate() error {
 	t := strings.ToLower(sc.Type)
-	if t != ServiceCheckTCP && t != ServiceCheckHTTP {
-		return fmt.Errorf("service check must be either http or tcp type")
+	if t != ServiceCheckTCP && t != ServiceCheckHTTP && t != ServiceCheckScript {
+		return fmt.Errorf("service check must be either http, tcp or script type")
 	}
 	if sc.Type == ServiceCheckHTTP && sc.Path == "" {
 		return fmt.Errorf("service checks of http type must have a valid http path")
