@@ -193,6 +193,7 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	executorCtx := &executor.ExecutorContext{
 		TaskEnv:      d.taskEnv,
 		AllocDir:     ctx.AllocDir,
+		AllocID:      ctx.AllocID,
 		Task:         task,
 		ConsulConfig: consulConfig(d.config),
 	}

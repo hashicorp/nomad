@@ -546,6 +546,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 		TaskEnv:        d.taskEnv,
 		Task:           task,
 		AllocDir:       ctx.AllocDir,
+		AllocID:        ctx.AllocID,
 		PortLowerBound: d.config.ClientMinPort,
 		PortUpperBound: d.config.ClientMaxPort,
 		ConsulConfig:   consulConfig(d.config),

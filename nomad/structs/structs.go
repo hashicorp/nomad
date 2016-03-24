@@ -1518,8 +1518,8 @@ func (s *Service) InitFields(job string, taskGroup string, task string) {
 	}
 }
 
-func (s *Service) ID() string {
-	return fmt.Sprintf("%s-%s", NomadConsulPrefix, s.Hash())
+func (s *Service) ID(allocID string, taskName string) string {
+	return fmt.Sprintf("%s-%s-%s-%s", NomadConsulPrefix, allocID, taskName, s.Hash())
 }
 
 // Validate checks if the Check definition is valid

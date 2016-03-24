@@ -1173,7 +1173,7 @@ func (c *Client) setupConsulClient() error {
 		VerifySSL: c.config.ReadBoolDefault("consul.verifyssl", true),
 	}
 
-	cs, err := consul.NewConsulService(&cfg, c.logger)
+	cs, err := consul.NewConsulService(&cfg, c.logger, "")
 	c.consulService = cs
 	return err
 }

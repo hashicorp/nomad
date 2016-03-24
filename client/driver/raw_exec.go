@@ -98,6 +98,7 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 	executorCtx := &executor.ExecutorContext{
 		TaskEnv:      d.taskEnv,
 		AllocDir:     ctx.AllocDir,
+		AllocID:      ctx.AllocID,
 		Task:         task,
 		ConsulConfig: consulConfig(d.config),
 	}

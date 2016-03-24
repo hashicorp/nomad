@@ -15,7 +15,7 @@ import (
 var logger = log.New(os.Stdout, "", log.LstdFlags)
 
 func TestConsulServiceRegisterServices(t *testing.T) {
-	cs, err := NewConsulService(&ConsulConfig{}, logger)
+	cs, err := NewConsulService(&ConsulConfig{}, logger, "12")
 	if err != nil {
 		t.Fatalf("Err: %v", err)
 	}
@@ -27,13 +27,11 @@ func TestConsulServiceRegisterServices(t *testing.T) {
 		Name: "foo",
 		Services: []*structs.Service{
 			&structs.Service{
-				ID:        "1",
 				Name:      "foo-1",
 				Tags:      []string{"tag1", "tag2"},
 				PortLabel: "port1",
 				Checks: []*structs.ServiceCheck{
 					&structs.ServiceCheck{
-						ID:       "100",
 						Name:     "check-foo-1",
 						Type:     structs.ServiceCheckTCP,
 						Interval: 30 * time.Second,
@@ -42,7 +40,6 @@ func TestConsulServiceRegisterServices(t *testing.T) {
 				},
 			},
 			&structs.Service{
-				ID:        "2",
 				Name:      "foo-2",
 				Tags:      []string{"tag1", "tag2"},
 				PortLabel: "port2",
@@ -80,7 +77,7 @@ func TestConsulServiceRegisterServices(t *testing.T) {
 }
 
 func TestConsulServiceUpdateService(t *testing.T) {
-	cs, err := NewConsulService(&ConsulConfig{}, logger)
+	cs, err := NewConsulService(&ConsulConfig{}, logger, "12")
 	if err != nil {
 		t.Fatalf("Err: %v", err)
 	}
@@ -92,13 +89,11 @@ func TestConsulServiceUpdateService(t *testing.T) {
 		Name: "foo",
 		Services: []*structs.Service{
 			&structs.Service{
-				ID:        "1",
 				Name:      "foo-1",
 				Tags:      []string{"tag1", "tag2"},
 				PortLabel: "port1",
 				Checks: []*structs.ServiceCheck{
 					&structs.ServiceCheck{
-						ID:       "100",
 						Name:     "check-foo-1",
 						Type:     structs.ServiceCheckTCP,
 						Interval: 30 * time.Second,
@@ -107,7 +102,6 @@ func TestConsulServiceUpdateService(t *testing.T) {
 				},
 			},
 			&structs.Service{
-				ID:        "2",
 				Name:      "foo-2",
 				Tags:      []string{"tag1", "tag2"},
 				PortLabel: "port2",

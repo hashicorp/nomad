@@ -235,6 +235,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	executorCtx := &executor.ExecutorContext{
 		TaskEnv:      d.taskEnv,
 		AllocDir:     ctx.AllocDir,
+		AllocID:      ctx.AllocID,
 		Task:         task,
 		ConsulConfig: consulConfig(d.config),
 	}

@@ -20,7 +20,8 @@ import (
 type ConsulService struct {
 	client *consul.Client
 
-	task *structs.Task
+	task    *structs.Task
+	allocID string
 
 	services map[string]*consul.AgentService
 	checks   map[string]*structs.ServiceCheck
@@ -44,7 +45,7 @@ const (
 )
 
 // NewConsulService returns a new ConsulService
-func NewConsulService(config *ConsulConfig, logger *log.Logger) (*ConsulService, error) {
+func NewConsulService(config *ConsulConfig, logger *log.Logger, allocID string) (*ConsulService, error) {
 	var err error
 	var c *consul.Client
 	cfg := consul.DefaultConfig()
@@ -170,7 +171,7 @@ func (c *ConsulService) RemoveServices(tasks []*structs.Task) error {
 	var services map[string]struct{}
 	for _, task := range tasks {
 		for _, service := range task.Services {
-			services[service.ID()] = struct{}{}
+			services[service.ID(c.allocID, c.task.Name)] = struct{}{}
 		}
 	}
 
@@ -229,7 +230,7 @@ func (c *ConsulService) createService(service *structs.Service) (*consul.AgentSe
 		return nil, fmt.Errorf("port for the service %q  couldn't be found", service.Name)
 	}
 	srv := consul.AgentService{
-		ID:      service.ID(),
+		ID:      service.ID(c.allocID, c.task.Name),
 		Service: service.Name,
 		Tags:    service.Tags,
 		Address: host,
@@ -320,7 +321,6 @@ func (c *ConsulService) filterConsulServices(srvcs map[string]*consul.AgentServi
 		}
 	}
 	return nomadServices
-
 }
 
 // filterConsulChecks prunes out all the consul checks which do not have
@@ -333,7 +333,6 @@ func (c *ConsulService) filterConsulChecks(chks map[string]*consul.AgentCheck) m
 		}
 	}
 	return nomadChecks
-
 }
 
 func (c *ConsulService) consulPresent() bool {

@@ -52,6 +52,8 @@ type ExecutorContext struct {
 	// Task is the task whose executor is being launched
 	Task *structs.Task
 
+	AllocID string
+
 	// PortUpperBound is the upper bound of the ports that we can use to start
 	// the syslog server
 	PortUpperBound uint
@@ -349,7 +351,7 @@ func (e *UniversalExecutor) ShutDown() error {
 func (e *UniversalExecutor) RegisterServices() error {
 	e.logger.Printf("executor: registering services")
 	if e.consulService == nil {
-		cs, err := consul.NewConsulService(e.ctx.ConsulConfig, e.logger)
+		cs, err := consul.NewConsulService(e.ctx.ConsulConfig, e.logger, e.ctx.AllocID)
 		if err != nil {
 			return err
 		}
