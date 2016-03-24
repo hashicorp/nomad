@@ -24,8 +24,8 @@ type ConsulService struct {
 	task    *structs.Task
 	allocID string
 
-	services map[string]*consul.AgentService
-	checks   map[string]*structs.ServiceCheck
+	trackedServices map[string]*consul.AgentService
+	trackedChecks   map[string]*structs.ServiceCheck
 
 	logger *log.Logger
 
@@ -88,10 +88,10 @@ func NewConsulService(config *ConsulConfig, logger *log.Logger, allocID string) 
 		return nil, err
 	}
 	consulService := ConsulService{
-		client:   c,
-		logger:   logger,
-		services: make(map[string]*consul.AgentService),
-		checks:   make(map[string]*structs.ServiceCheck),
+		client:          c,
+		logger:          logger,
+		trackedServices: make(map[string]*consul.AgentService),
+		trackedChecks:   make(map[string]*structs.ServiceCheck),
 
 		shutdownCh: make(chan struct{}),
 	}
@@ -102,8 +102,8 @@ func NewConsulService(config *ConsulConfig, logger *log.Logger, allocID string) 
 func (c *ConsulService) SyncTask(task *structs.Task) error {
 	var mErr multierror.Error
 	c.task = task
-	services := make(map[string]*consul.AgentService)
-	checks := make(map[string]*structs.ServiceCheck)
+	taskServices := make(map[string]*consul.AgentService)
+	taskChecks := make(map[string]*structs.ServiceCheck)
 
 	// Register Services and Checks that we don't know about or has changed
 	for _, service := range task.Services {
@@ -112,44 +112,44 @@ func (c *ConsulService) SyncTask(task *structs.Task) error {
 			mErr.Errors = append(mErr.Errors, err)
 			continue
 		}
-		trackedService, ok := c.services[srv.ID]
+		trackedService, ok := c.trackedServices[srv.ID]
 		if (ok && !reflect.DeepEqual(trackedService, srv)) || !ok {
 			if err := c.registerService(srv); err != nil {
 				mErr.Errors = append(mErr.Errors, err)
 			}
 		}
-		c.services[srv.ID] = srv
-		services[srv.ID] = srv
+		c.trackedServices[srv.ID] = srv
+		taskServices[srv.ID] = srv
 
 		for _, chk := range service.Checks {
 			checkID := chk.Hash(srv.ID)
-			if _, ok := c.checks[checkID]; !ok {
+			if _, ok := c.trackedChecks[checkID]; !ok {
 				if err := c.registerCheck(chk, srv); err != nil {
 					mErr.Errors = append(mErr.Errors, err)
 				}
 			}
-			c.checks[checkID] = chk
-			checks[checkID] = chk
+			c.trackedChecks[checkID] = chk
+			taskChecks[checkID] = chk
 		}
 	}
 
 	// Remove services that are not present anymore
-	for _, service := range c.services {
-		if _, ok := services[service.ID]; !ok {
+	for _, service := range c.trackedServices {
+		if _, ok := taskServices[service.ID]; !ok {
 			if err := c.deregisterService(service.ID); err != nil {
 				mErr.Errors = append(mErr.Errors, err)
 			}
-			delete(c.services, service.ID)
+			delete(c.trackedServices, service.ID)
 		}
 	}
 
 	// Remove the checks that are not present anymore
-	for checkID, _ := range c.checks {
-		if _, ok := checks[checkID]; !ok {
+	for checkID, _ := range c.trackedChecks {
+		if _, ok := taskChecks[checkID]; !ok {
 			if err := c.deregisterCheck(checkID); err != nil {
 				mErr.Errors = append(mErr.Errors, err)
 			}
-			delete(c.checks, checkID)
+			delete(c.trackedChecks, checkID)
 		}
 	}
 	return mErr.ErrorOrNil()
@@ -165,7 +165,7 @@ func (c *ConsulService) Shutdown() error {
 		c.shutdown = true
 	}
 	c.shutdownLock.Unlock()
-	for _, service := range c.services {
+	for _, service := range c.trackedServices {
 		if err := c.client.Agent().ServiceDeregister(service.ID); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 		}
@@ -173,7 +173,9 @@ func (c *ConsulService) Shutdown() error {
 	return mErr.ErrorOrNil()
 }
 
-func (c *ConsulService) RemoveServices(tasks []*structs.Task) error {
+// KeepServices removes services from consul which are not present in the list
+// of tasks passed to it
+func (c *ConsulService) KeepServices(tasks []*structs.Task) error {
 	var mErr multierror.Error
 	var services map[string]struct{}
 	for _, task := range tasks {
@@ -299,16 +301,16 @@ func (c *ConsulService) performSync() error {
 	}
 
 	// Add services and checks that consul doesn't have but we do
-	for serviceID, service := range c.services {
+	for serviceID, service := range c.trackedServices {
 		if _, ok := cServices[serviceID]; !ok {
 			if err := c.registerService(service); err != nil {
 				mErr.Errors = append(mErr.Errors, err)
 			}
 		}
 	}
-	for checkID, check := range c.checks {
+	for checkID, check := range c.trackedChecks {
 		if chk, ok := cChecks[checkID]; !ok {
-			if err := c.registerCheck(check, c.services[chk.ServiceID]); err != nil {
+			if err := c.registerCheck(check, c.trackedServices[chk.ServiceID]); err != nil {
 				mErr.Errors = append(mErr.Errors, err)
 			}
 		}

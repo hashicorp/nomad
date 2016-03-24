@@ -1201,7 +1201,7 @@ func (c *Client) syncConsul() {
 					}
 				}
 			}
-			if err := c.consulService.RemoveServices(runningTasks); err != nil {
+			if err := c.consulService.KeepServices(runningTasks); err != nil {
 				c.logger.Printf("[DEBUG] error removing services: %v", err)
 			}
 		case <-c.shutdownCh:
