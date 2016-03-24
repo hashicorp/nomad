@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os/exec"
+	"sync"
 	"syscall"
 	"time"
 
@@ -13,16 +14,61 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 )
 
+var (
+	// We store the client globally to cache the connection to the docker daemon.
+	createClient sync.Once
+	client       *docker.Client
+)
+
 type DockerScriptCheck struct {
 	id          string
 	containerID string
-	client      *docker.Client
 	logger      *log.Logger
 	cmd         string
 	args        []string
+
+	dockerEndpoint string
+	tlsCert        string
+	tlsCa          string
+	tlsKey         string
+}
+
+func (d *DockerScriptCheck) dockerClient() (*docker.Client, error) {
+	if client != nil {
+		return client, nil
+	}
+
+	var err error
+	createClient.Do(func() {
+		if d.dockerEndpoint != "" {
+			if d.tlsCert+d.tlsKey+d.tlsCa != "" {
+				d.logger.Printf("[DEBUG] driver.docker: using TLS client connection to %s", d.dockerEndpoint)
+				client, err = docker.NewTLSClient(d.dockerEndpoint, d.tlsCert, d.tlsKey, d.tlsCa)
+			} else {
+				d.logger.Printf("[DEBUG] driver.docker: using standard client connection to %s", d.dockerEndpoint)
+				client, err = docker.NewClient(d.dockerEndpoint)
+			}
+			return
+		}
+
+		d.logger.Println("[DEBUG] driver.docker: using client connection initialized from environment")
+		client, err = docker.NewClientFromEnv()
+	})
+	return client, err
 }
 
 func (d *DockerScriptCheck) Run() *cstructs.CheckResult {
+	var (
+		exec    *docker.Exec
+		err     error
+		execRes *docker.ExecInspect
+		time    = time.Now()
+	)
+
+	if client, err = d.dockerClient(); err != nil {
+		return &cstructs.CheckResult{Err: err}
+	}
+	client = client
 	execOpts := docker.CreateExecOptions{
 		AttachStdin:  false,
 		AttachStdout: true,
@@ -31,13 +77,7 @@ func (d *DockerScriptCheck) Run() *cstructs.CheckResult {
 		Cmd:          append([]string{d.cmd}, d.args...),
 		Container:    d.containerID,
 	}
-	var (
-		exec    *docker.Exec
-		err     error
-		execRes *docker.ExecInspect
-		time    = time.Now()
-	)
-	if exec, err = d.client.CreateExec(execOpts); err != nil {
+	if exec, err = client.CreateExec(execOpts); err != nil {
 		return &cstructs.CheckResult{Err: err}
 	}
 
@@ -49,10 +89,10 @@ func (d *DockerScriptCheck) Run() *cstructs.CheckResult {
 		ErrorStream:  output,
 	}
 
-	if err = d.client.StartExec(exec.ID, startOpts); err != nil {
+	if err = client.StartExec(exec.ID, startOpts); err != nil {
 		return &cstructs.CheckResult{Err: err}
 	}
-	if execRes, err = d.client.InspectExec(exec.ID); err != nil {
+	if execRes, err = client.InspectExec(exec.ID); err != nil {
 		return &cstructs.CheckResult{Err: err}
 	}
 	return &cstructs.CheckResult{

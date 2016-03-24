@@ -46,6 +46,19 @@ type ConsulContext struct {
 
 	// ContainerID is the ID of the container
 	ContainerID string
+
+	// TLSCert is the cert which docker client uses while interactng with the docker
+	// daemon over TLS
+	TLSCert string
+
+	// TLSCa is the CA which the docker client uses while interacting with the docker
+	// daeemon over TLS
+	TLSCa string
+
+	TLSKey string
+
+	// DockerEndpoint is the endpoint of the docker daemon
+	DockerEndpoint string
 }
 
 // ExecutorContext holds context to configure the command user
