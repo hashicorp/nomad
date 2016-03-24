@@ -68,6 +68,14 @@ func (e *ExecutorRPC) UpdateTask(task *structs.Task) error {
 	return e.client.Call("Plugin.UpdateTask", task, new(interface{}))
 }
 
+func (e *ExecutorRPC) RegisterServices() error {
+	return e.client.Call("Plugin.RegisterServices", new(interface{}), new(interface{}))
+}
+
+func (e *ExecutorRPC) DeregisterServices() error {
+	return e.client.Call("Plugin.DeregisterServices", new(interface{}), new(interface{}))
+}
+
 type ExecutorRPCServer struct {
 	Impl executor.Executor
 }
@@ -110,6 +118,14 @@ func (e *ExecutorRPCServer) UpdateLogConfig(args *structs.LogConfig, resp *inter
 
 func (e *ExecutorRPCServer) UpdateTask(args *structs.Task, resp *interface{}) error {
 	return e.Impl.UpdateTask(args)
+}
+
+func (e *ExecutorRPCServer) RegisterServices(args interface{}, resp *interface{}) error {
+	return e.Impl.RegisterServices()
+}
+
+func (e *ExecutorRPCServer) DeregisterServices(args interface{}, resp *interface{}) error {
+	return e.Impl.DeregisterServices()
 }
 
 type ExecutorPlugin struct {

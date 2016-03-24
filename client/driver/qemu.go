@@ -191,9 +191,11 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		return nil, err
 	}
 	executorCtx := &executor.ExecutorContext{
-		TaskEnv:  d.taskEnv,
-		AllocDir: ctx.AllocDir,
-		Task:     task,
+		TaskEnv:      d.taskEnv,
+		AllocDir:     ctx.AllocDir,
+		AllocID:      ctx.AllocID,
+		Task:         task,
+		ConsulConfig: consulConfig(d.config),
 	}
 	ps, err := exec.LaunchCmd(&executor.ExecCommand{Cmd: args[0], Args: args[1:]}, executorCtx)
 	if err != nil {
@@ -217,6 +219,9 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		waitCh:         make(chan *cstructs.WaitResult, 1),
 	}
 
+	if err := h.executor.RegisterServices(); err != nil {
+		h.logger.Printf("[ERR] driver.qemu: error registering services: %v", err)
+	}
 	go h.run()
 	return h, nil
 }
@@ -334,6 +339,11 @@ func (h *qemuHandle) run() {
 	close(h.doneCh)
 	h.waitCh <- &cstructs.WaitResult{ExitCode: ps.ExitCode, Signal: 0, Err: err}
 	close(h.waitCh)
+	// Remove services
+	if err := h.executor.DeregisterServices(); err != nil {
+		h.logger.Printf("[ERR] driver.qemu: failed to deregister services: %v", err)
+	}
+
 	h.executor.Exit()
 	h.pluginClient.Kill()
 }

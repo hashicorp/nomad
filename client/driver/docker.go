@@ -546,8 +546,10 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 		TaskEnv:        d.taskEnv,
 		Task:           task,
 		AllocDir:       ctx.AllocDir,
+		AllocID:        ctx.AllocID,
 		PortLowerBound: d.config.ClientMinPort,
 		PortUpperBound: d.config.ClientMaxPort,
+		ConsulConfig:   consulConfig(d.config),
 	}
 	ss, err := exec.LaunchSyslogServer(executorCtx)
 	if err != nil {
@@ -641,6 +643,9 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 		maxKillTimeout:   maxKill,
 		doneCh:           make(chan struct{}),
 		waitCh:           make(chan *cstructs.WaitResult, 1),
+	}
+	if err := exec.RegisterServices(); err != nil {
+		d.logger.Printf("[ERR] driver.docker: error registering services with consul for task: %v", task)
 	}
 	go h.run()
 	return h, nil
@@ -826,6 +831,11 @@ func (h *DockerHandle) run() {
 	close(h.doneCh)
 	h.waitCh <- cstructs.NewWaitResult(exitCode, 0, err)
 	close(h.waitCh)
+
+	// Remove services
+	if err := h.executor.DeregisterServices(); err != nil {
+		h.logger.Printf("[ERR] driver.docker: error deregistering services: %v", err)
+	}
 
 	// Shutdown the syslog collector
 	if err := h.executor.Exit(); err != nil {

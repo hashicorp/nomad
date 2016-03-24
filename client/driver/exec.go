@@ -106,9 +106,11 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		return nil, err
 	}
 	executorCtx := &executor.ExecutorContext{
-		TaskEnv:  d.taskEnv,
-		AllocDir: ctx.AllocDir,
-		Task:     task,
+		TaskEnv:      d.taskEnv,
+		AllocDir:     ctx.AllocDir,
+		AllocID:      ctx.AllocID,
+		Task:         task,
+		ConsulConfig: consulConfig(d.config),
 	}
 	ps, err := exec.LaunchCmd(&executor.ExecCommand{
 		Cmd:            command,
@@ -137,6 +139,9 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		version:         d.config.Version,
 		doneCh:          make(chan struct{}),
 		waitCh:          make(chan *cstructs.WaitResult, 1),
+	}
+	if err := exec.RegisterServices(); err != nil {
+		d.logger.Printf("[ERR] driver.exec: error registering services with consul for task: %v", task)
 	}
 	go h.run()
 	return h, nil
@@ -274,6 +279,11 @@ func (h *execHandle) run() {
 	}
 	h.waitCh <- cstructs.NewWaitResult(ps.ExitCode, 0, err)
 	close(h.waitCh)
+	// Remove services
+	if err := h.executor.DeregisterServices(); err != nil {
+		h.logger.Printf("[ERR] driver.exec: failed to deregister services: %v", err)
+	}
+
 	if err := h.executor.Exit(); err != nil {
 		h.logger.Printf("[ERR] driver.exec: error destroying executor: %v", err)
 	}

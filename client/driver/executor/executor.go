@@ -18,6 +18,7 @@ import (
 	cgroupConfig "github.com/opencontainers/runc/libcontainer/configs"
 
 	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/driver/env"
 	"github.com/hashicorp/nomad/client/driver/logging"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
@@ -34,6 +35,8 @@ type Executor interface {
 	Exit() error
 	UpdateLogConfig(logConfig *structs.LogConfig) error
 	UpdateTask(task *structs.Task) error
+	RegisterServices() error
+	DeregisterServices() error
 }
 
 // ExecutorContext holds context to configure the command user
@@ -49,6 +52,9 @@ type ExecutorContext struct {
 	// Task is the task whose executor is being launched
 	Task *structs.Task
 
+	// AllocID is the allocation id to which the task belongs
+	AllocID string
+
 	// PortUpperBound is the upper bound of the ports that we can use to start
 	// the syslog server
 	PortUpperBound uint
@@ -56,6 +62,9 @@ type ExecutorContext struct {
 	// PortLowerBound is the lower bound of the ports that we can use to start
 	// the syslog server
 	PortLowerBound uint
+
+	// ConsulConfig is the configuration used to create a consul client
+	ConsulConfig *consul.ConsulConfig
 }
 
 // ExecCommand holds the user command, args, and other isolation related
@@ -116,7 +125,8 @@ type UniversalExecutor struct {
 	groups *cgroupConfig.Cgroup
 	cgLock sync.Mutex
 
-	logger *log.Logger
+	consulService *consul.ConsulService
+	logger        *log.Logger
 }
 
 // NewExecutor returns an Executor
@@ -255,6 +265,13 @@ func (e *UniversalExecutor) UpdateTask(task *structs.Task) error {
 	e.lro.FileSize = fileSize
 	e.lre.MaxFiles = task.LogConfig.MaxFiles
 	e.lre.FileSize = fileSize
+
+	// Re-syncing task with consul service
+	if e.consulService != nil {
+		if err := e.consulService.SyncTask(task); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -330,6 +347,28 @@ func (e *UniversalExecutor) ShutDown() error {
 	}
 	if err = proc.Signal(os.Interrupt); err != nil {
 		return fmt.Errorf("executor.shutdown error: %v", err)
+	}
+	return nil
+}
+
+func (e *UniversalExecutor) RegisterServices() error {
+	e.logger.Printf("[INFO] executor: registering services")
+	if e.consulService == nil {
+		cs, err := consul.NewConsulService(e.ctx.ConsulConfig, e.logger, e.ctx.AllocID)
+		if err != nil {
+			return err
+		}
+		e.consulService = cs
+	}
+	err := e.consulService.SyncTask(e.ctx.Task)
+	go e.consulService.PeriodicSync()
+	return err
+}
+
+func (e *UniversalExecutor) DeregisterServices() error {
+	e.logger.Printf("[INFO] executor: de-registering services and shutting down consul service")
+	if e.consulService != nil {
+		return e.consulService.Shutdown()
 	}
 	return nil
 }

@@ -30,10 +30,9 @@ type AllocStateUpdater func(alloc *structs.Allocation)
 
 // AllocRunner is used to wrap an allocation and provide the execution context.
 type AllocRunner struct {
-	config        *config.Config
-	updater       AllocStateUpdater
-	logger        *log.Logger
-	consulService *ConsulService
+	config  *config.Config
+	updater AllocStateUpdater
+	logger  *log.Logger
 
 	alloc                  *structs.Allocation
 	allocClientStatus      string // Explicit status of allocation. Set when there are failures
@@ -76,20 +75,19 @@ type allocRunnerState struct {
 
 // NewAllocRunner is used to create a new allocation context
 func NewAllocRunner(logger *log.Logger, config *config.Config, updater AllocStateUpdater,
-	alloc *structs.Allocation, consulService *ConsulService) *AllocRunner {
+	alloc *structs.Allocation) *AllocRunner {
 	ar := &AllocRunner{
-		config:        config,
-		updater:       updater,
-		logger:        logger,
-		alloc:         alloc,
-		consulService: consulService,
-		dirtyCh:       make(chan struct{}, 1),
-		tasks:         make(map[string]*TaskRunner),
-		taskStates:    copyTaskStates(alloc.TaskStates),
-		restored:      make(map[string]struct{}),
-		updateCh:      make(chan *structs.Allocation, 64),
-		destroyCh:     make(chan struct{}),
-		waitCh:        make(chan struct{}),
+		config:     config,
+		updater:    updater,
+		logger:     logger,
+		alloc:      alloc,
+		dirtyCh:    make(chan struct{}, 1),
+		tasks:      make(map[string]*TaskRunner),
+		taskStates: copyTaskStates(alloc.TaskStates),
+		restored:   make(map[string]struct{}),
+		updateCh:   make(chan *structs.Allocation, 64),
+		destroyCh:  make(chan struct{}),
+		waitCh:     make(chan struct{}),
 	}
 	return ar
 }
@@ -125,7 +123,7 @@ func (r *AllocRunner) RestoreState() error {
 
 		task := &structs.Task{Name: name}
 		tr := NewTaskRunner(r.logger, r.config, r.setTaskState, r.ctx, r.Alloc(),
-			task, r.consulService)
+			task)
 		r.tasks[name] = tr
 
 		// Skip tasks in terminal states.
@@ -405,7 +403,7 @@ func (r *AllocRunner) Run() {
 		}
 
 		tr := NewTaskRunner(r.logger, r.config, r.setTaskState, r.ctx, r.Alloc(),
-			task.Copy(), r.consulService)
+			task.Copy())
 		r.tasks[task.Name] = tr
 		go tr.Run()
 	}
