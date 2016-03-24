@@ -89,6 +89,7 @@ func NewConsulService(config *ConsulConfig, logger *log.Logger, allocID string) 
 	}
 	consulService := ConsulService{
 		client:          c,
+		allocID:         allocID,
 		logger:          logger,
 		trackedServices: make(map[string]*consul.AgentService),
 		trackedChecks:   make(map[string]*structs.ServiceCheck),
