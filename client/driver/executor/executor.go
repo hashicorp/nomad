@@ -266,12 +266,13 @@ func (e *UniversalExecutor) UpdateTask(task *structs.Task) error {
 	e.lre.MaxFiles = task.LogConfig.MaxFiles
 	e.lre.FileSize = fileSize
 
-	var err error
 	// Re-syncing task with consul service
 	if e.consulService != nil {
-		err = e.consulService.SyncTask(task)
+		if err := e.consulService.SyncTask(task); err != nil {
+			return err
+		}
 	}
-	return err
+	return nil
 }
 
 func (e *UniversalExecutor) wait() {
@@ -365,7 +366,7 @@ func (e *UniversalExecutor) RegisterServices() error {
 }
 
 func (e *UniversalExecutor) DeregisterServices() error {
-	e.logger.Printf("[ERR] executor: de-registering services and shutting down consul service")
+	e.logger.Printf("[INFO] executor: de-registering services and shutting down consul service")
 	if e.consulService != nil {
 		return e.consulService.Shutdown()
 	}

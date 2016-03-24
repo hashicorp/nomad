@@ -275,7 +275,8 @@ func (c *ConsulService) deregisterCheck(ID string) error {
 	return c.client.Agent().CheckDeregister(ID)
 }
 
-// PeriodicSync triggers periodic syncing of services and checks with Consul
+// PeriodicSync triggers periodic syncing of services and checks with Consul.
+// This is a long lived go-routine which is stopped during shutdown
 func (c *ConsulService) PeriodicSync() {
 	sync := time.After(syncInterval)
 	for {
