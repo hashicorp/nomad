@@ -1185,7 +1185,14 @@ func (c *Client) syncConsul() {
 		select {
 		case <-sync:
 			var runningTasks []*structs.Task
+			// Get the existing allocs
+			c.allocLock.RLock()
+			allocs := make([]*AllocRunner, 0, len(c.allocs))
 			for _, ar := range c.allocs {
+				allocs = append(allocs, ar)
+			}
+			c.allocLock.RUnlock()
+			for _, ar := range allocs {
 				for taskName, taskState := range ar.taskStates {
 					if taskState.State == structs.TaskStateRunning {
 						if tr, ok := ar.tasks[taskName]; ok {
