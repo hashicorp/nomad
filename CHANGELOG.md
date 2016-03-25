@@ -23,6 +23,7 @@ IMPROVEMENTS:
 BUG FIXES:
   * core: Fix issue where in-place updated allocation double counted resources
     [GH-957]
+  * core: Prevent garbage collection of running batch jobs [GH-989]
   * client: Tasks can interpret Meta set in the task group and job [GH-985]
 
 ## 0.3.1
