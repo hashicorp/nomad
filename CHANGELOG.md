@@ -2,6 +2,12 @@
 
 IMPROVEMENTS:
   * core: Allow count zero task groups to enable blue/green deploys [GH-931]
+  * core: Job Deregister forces an evaluation for the job even if it doesn't
+    exist [GH-981]
+  * core: Rename successfully finished allocations to "Complete" rather than
+    "Dead" for clarity [GH-975]
+  * cli: `alloc-status` explains restart decisions [GH-984]
+  * cli: Destructive commands now require confirmation [GH-983]
   * cli: `alloc-status` display is less verbose by default [GH-946]
   * cli: `server-members` displays the current leader in each region [GH-935]
   * cli: New `inspect` command to display a submitted job's specification
@@ -10,13 +16,14 @@ IMPROVEMENTS:
     total resources [GH-946]
   * client: Nomad fingerprinter to detect client's version [GH-965]
   * client: Pass environment variables from host to exec based tasks [GH-970]
-  * client: Allow task's to be run as particular user [GH-950]
+  * client: Allow task's to be run as particular user [GH-950, GH-978]
   * client: `artifact` block now supports downloading paths relative to the
     task's directory [GH-944]
 
 BUG FIXES:
   * core: Fix issue where in-place updated allocation double counted resources
     [GH-957]
+  * client: Tasks can interpret Meta set in the task group and job [GH-985]
 
 ## 0.3.1
 
