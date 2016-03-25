@@ -389,11 +389,11 @@ documentation [here](/docs/drivers/index.html)
     * `Administrator`
 
 *   `user.checked_drivers`: An operator specifiable list of drivers to enforce
-    the the `user.blacklist`. With virtualized drivers, this enforcement often
+    the the `user.blacklist`. For drivers using containers, this enforcement often
     doesn't make sense and as such the default is set to:
     
     * `exec`
-    * `raw_exec`
+    * `qemu`
     * `java`
 
 * `fingerprint.whitelist`: A comma separated list of whitelisted fingerprinters.

@@ -33,7 +33,7 @@ var (
 	// make this stipulation so by default they are ignored.
 	DefaultUserCheckedDrivers = strings.Join([]string{
 		"exec",
-		"raw_exec",
+		"qemu",
 		"java",
 	}, ",")
 )
