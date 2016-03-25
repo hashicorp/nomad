@@ -260,7 +260,7 @@ The `task` object supports the following keys:
     ```
 
 * `resources` - Provides the resource requirements of the task.
-  See the resources reference for more details.
+  See the [resources reference](#resources) for more details.
 
 * `meta` - Annotates the task group with opaque metadata.
 
