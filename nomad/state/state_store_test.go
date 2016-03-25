@@ -681,8 +681,13 @@ func TestStateStore_JobsByGC(t *testing.T) {
 	state := testStateStore(t)
 	var gc, nonGc []*structs.Job
 
-	for i := 0; i < 10; i++ {
-		job := mock.Job()
+	for i := 0; i < 20; i++ {
+		var job *structs.Job
+		if i%2 == 0 {
+			job = mock.Job()
+		} else {
+			job = mock.PeriodicJob()
+		}
 		nonGc = append(nonGc, job)
 
 		if err := state.UpsertJob(1000+uint64(i), job); err != nil {
@@ -692,7 +697,7 @@ func TestStateStore_JobsByGC(t *testing.T) {
 
 	for i := 0; i < 10; i++ {
 		job := mock.Job()
-		job.GC = true
+		job.Type = structs.JobTypeBatch
 		gc = append(gc, job)
 
 		if err := state.UpsertJob(2000+uint64(i), job); err != nil {

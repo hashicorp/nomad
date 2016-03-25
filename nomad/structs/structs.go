@@ -900,10 +900,6 @@ type Job struct {
 	// Periodic is used to define the interval the job is run at.
 	Periodic *PeriodicConfig
 
-	// GC is used to mark the job as available for garbage collection after it
-	// has no outstanding evaluations or allocations.
-	GC bool
-
 	// Meta is used to associate arbitrary metadata with this
 	// job. This is opaque to Nomad.
 	Meta map[string]string
@@ -925,11 +921,6 @@ type Job struct {
 func (j *Job) InitFields() {
 	for _, tg := range j.TaskGroups {
 		tg.InitFields(j)
-	}
-
-	// If the job is batch then make it GC.
-	if j.Type == JobTypeBatch {
-		j.GC = true
 	}
 }
 

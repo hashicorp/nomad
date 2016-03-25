@@ -1,7 +1,6 @@
 package nomad
 
 import (
-	"errors"
 	"fmt"
 	"time"
 
@@ -26,10 +25,6 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	// Validate the arguments
 	if args.Job == nil {
 		return fmt.Errorf("missing job for registration")
-	}
-
-	if err := j.checkBlacklist(args.Job); err != nil {
-		return err
 	}
 
 	// Initialize the job fields (sets defaults and any necessary init work).
@@ -86,16 +81,6 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	reply.EvalID = eval.ID
 	reply.EvalCreateIndex = evalIndex
 	reply.Index = evalIndex
-	return nil
-}
-
-// checkBlacklist returns an error if the user has set any blacklisted field in
-// the job.
-func (j *Job) checkBlacklist(job *structs.Job) error {
-	if job.GC {
-		return errors.New("GC field of a job is used only internally and should not be set by user")
-	}
-
 	return nil
 }
 

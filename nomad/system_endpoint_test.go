@@ -22,7 +22,7 @@ func TestSystemEndpoint_GarbageCollect(t *testing.T) {
 	// Insert a job that can be GC'd
 	state := s1.fsm.State()
 	job := mock.Job()
-	job.GC = true
+	job.Type = structs.JobTypeBatch
 	if err := state.UpsertJob(0, job); err != nil {
 		t.Fatalf("UpsertAllocs() failed: %v", err)
 	}
