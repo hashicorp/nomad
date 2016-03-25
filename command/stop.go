@@ -31,6 +31,9 @@ Stop Options:
     to the screen, which can be used to call up a monitor later if
     needed using the eval-monitor command.
 
+  -yes
+    Automatic yes to prompts.
+
   -verbose
     Display full information.
 `
@@ -42,12 +45,13 @@ func (c *StopCommand) Synopsis() string {
 }
 
 func (c *StopCommand) Run(args []string) int {
-	var detach, verbose bool
+	var detach, verbose, autoYes bool
 
 	flags := c.Meta.FlagSet("stop", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&detach, "detach", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
+	flags.BoolVar(&autoYes, "yes", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -102,6 +106,29 @@ func (c *StopCommand) Run(args []string) int {
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error deregistering job: %s", err))
 		return 1
+	}
+
+	// Confirm the stop if the job was a prefix match.
+	if jobID != job.ID && !autoYes {
+		question := fmt.Sprintf("Are you sure you want to stop job %q? [y/N]", job.ID)
+		answer, err := c.Ui.Ask(question)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Failed to parse answer: %v", err))
+			return 1
+		}
+
+		if answer == "" || strings.ToLower(answer)[0] == 'n' {
+			// No case
+			c.Ui.Output("Cancelling job stop")
+			return 0
+		} else if strings.ToLower(answer)[0] == 'y' {
+			// Non exact match yes
+			c.Ui.Output("For confirmation, an exact ‘y’ is required.")
+			return 0
+		} else if answer != "y" {
+			c.Ui.Output("No confirmation detected. For confirmation, an exact 'y' is required.")
+			return 1
+		}
 	}
 
 	// Invoke the stop
