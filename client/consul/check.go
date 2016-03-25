@@ -9,6 +9,8 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 )
 
+// NomadCheck runs a given check in a specific interval and update a
+// corresponding Consul TTL check
 type NomadCheck struct {
 	check    Check
 	runCheck func(Check)
@@ -21,6 +23,7 @@ type NomadCheck struct {
 	startedLock sync.Mutex
 }
 
+// NewNomadCheck configures and returns a NomadCheck
 func NewNomadCheck(check Check, runCheck func(Check), logger *log.Logger) *NomadCheck {
 	nc := NomadCheck{
 		check:    check,
@@ -31,7 +34,7 @@ func NewNomadCheck(check Check, runCheck func(Check), logger *log.Logger) *Nomad
 	return &nc
 }
 
-// Start is used to start a check monitor.  Monitor runs until stop is called
+// Start is used to start the check. The check runs until stop is called
 func (n *NomadCheck) Start() {
 	n.startedLock.Lock()
 	if n.started {
@@ -40,12 +43,11 @@ func (n *NomadCheck) Start() {
 	n.started = true
 	n.stopLock.Lock()
 	defer n.stopLock.Unlock()
-	n.stop = false
 	n.stopCh = make(chan struct{})
 	go n.run()
 }
 
-// Stop is used to stop a check monitor.
+// Stop is used to stop the check.
 func (n *NomadCheck) Stop() {
 	n.stopLock.Lock()
 	defer n.stopLock.Unlock()
@@ -72,6 +74,7 @@ func (n *NomadCheck) run() {
 	}
 }
 
+// Check is an interface which check providers can implement for Nomad to run
 type Check interface {
 	Run() *cstructs.CheckResult
 	ID() string

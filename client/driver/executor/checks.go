@@ -20,6 +20,8 @@ var (
 	client       *docker.Client
 )
 
+// DockerScriptCheck runs nagios compatible scripts in a docker container and
+// provides the check result
 type DockerScriptCheck struct {
 	id          string
 	interval    time.Duration
@@ -34,6 +36,7 @@ type DockerScriptCheck struct {
 	tlsKey         string
 }
 
+// dockerClient creates the client to interact with the docker daemon
 func (d *DockerScriptCheck) dockerClient() (*docker.Client, error) {
 	if client != nil {
 		return client, nil
@@ -58,6 +61,7 @@ func (d *DockerScriptCheck) dockerClient() (*docker.Client, error) {
 	return client, err
 }
 
+// Run runs a script check inside a docker container
 func (d *DockerScriptCheck) Run() *cstructs.CheckResult {
 	var (
 		exec    *docker.Exec
@@ -103,14 +107,17 @@ func (d *DockerScriptCheck) Run() *cstructs.CheckResult {
 	}
 }
 
+// ID returns the check id
 func (d *DockerScriptCheck) ID() string {
 	return d.id
 }
 
+// Interval returns the interval at which the check has to run
 func (d *DockerScriptCheck) Interval() time.Duration {
 	return d.interval
 }
 
+// ExecScriptCheck runs a nagios compatible script and returns the check result
 type ExecScriptCheck struct {
 	id       string
 	interval time.Duration
@@ -121,6 +128,7 @@ type ExecScriptCheck struct {
 	FSIsolation bool
 }
 
+// Run runs an exec script check
 func (e *ExecScriptCheck) Run() *cstructs.CheckResult {
 	buf, _ := circbuf.NewBuffer(int64(cstructs.CheckBufSize))
 	cmd := exec.Command(e.cmd, e.args...)
@@ -155,10 +163,12 @@ func (e *ExecScriptCheck) Run() *cstructs.CheckResult {
 	return nil
 }
 
+// ID returns the check id
 func (e *ExecScriptCheck) ID() string {
 	return e.id
 }
 
+// Interval returns the interval at which the check has to run
 func (e *ExecScriptCheck) Interval() time.Duration {
 	return e.interval
 }

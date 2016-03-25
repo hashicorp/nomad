@@ -49,6 +49,10 @@ type ConsulConfig struct {
 const (
 	// The periodic time interval for syncing services and checks with Consul
 	syncInterval = 5 * time.Second
+
+	// ttlCheckBuffer is the time interval that Nomad can take to report Consul
+	// the check result
+	ttlCheckBuffer = 31 * time.Second
 )
 
 // NewConsulService returns a new ConsulService
@@ -103,6 +107,8 @@ func NewConsulService(config *ConsulConfig, logger *log.Logger, allocID string) 
 	return &consulService, nil
 }
 
+// SetDelegatedChecks sets the checks that nomad is going to run and report the
+// result back to consul
 func (c *ConsulService) SetDelegatedChecks(delegateChecks map[string]struct{}, createCheck func(*structs.ServiceCheck, string) (Check, error)) *ConsulService {
 	c.delegateChecks = delegateChecks
 	c.createCheck = createCheck
@@ -226,6 +232,8 @@ func (c *ConsulService) registerCheck(chkReg *consul.AgentCheckRegistration) err
 	return c.client.Agent().CheckRegister(chkReg)
 }
 
+// createCheckReg creates a Check that can be registered with Nomad. It also
+// creates a Nomad check for the check types that it can handle.
 func (c *ConsulService) createCheckReg(check *structs.ServiceCheck, service *consul.AgentService) (*consul.AgentCheckRegistration, error) {
 	chkReg := consul.AgentCheckRegistration{
 		ID:        check.Hash(service.ID),
@@ -248,10 +256,12 @@ func (c *ConsulService) createCheckReg(check *structs.ServiceCheck, service *con
 	case structs.ServiceCheckTCP:
 		chkReg.TCP = fmt.Sprintf("%s:%d", service.Address, service.Port)
 	case structs.ServiceCheckScript:
-		chkReg.TTL = (check.Interval + 31*time.Second).String()
+		chkReg.TTL = (check.Interval + ttlCheckBuffer).String()
 	default:
 		return nil, fmt.Errorf("check type %q not valid", check.Type)
 	}
+
+	// creating a nomad check if we have to handle this particular check type
 	if _, ok := c.delegateChecks[check.Type]; ok {
 		chk, err := c.createCheck(check, chkReg.ID)
 		if err != nil {
