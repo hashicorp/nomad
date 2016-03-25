@@ -1830,7 +1830,7 @@ const (
 
 	// TaskNotRestarting indicates that the task has failed and is not being
 	// restarted because it has exceeded its restart policy.
-	TaskNotRestarting = "Restarts Exceeded"
+	TaskNotRestarting = "Not Restarting"
 
 	// TaskDownloadingArtifacts means the task is downloading the artifacts
 	// specified in the task.
@@ -1846,6 +1846,9 @@ const (
 type TaskEvent struct {
 	Type string
 	Time int64 // Unix Nanosecond timestamp
+
+	// Restart fields.
+	RestartReason string
 
 	// Driver Failure fields.
 	DriverError string // A driver error occured while starting the task.
@@ -1921,6 +1924,11 @@ func (e *TaskEvent) SetKillError(err error) *TaskEvent {
 
 func (e *TaskEvent) SetRestartDelay(delay time.Duration) *TaskEvent {
 	e.StartDelay = int64(delay)
+	return e
+}
+
+func (e *TaskEvent) SetRestartReason(reason string) *TaskEvent {
+	e.RestartReason = reason
 	return e
 }
 

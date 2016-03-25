@@ -345,16 +345,22 @@ func (r *TaskRunner) run() {
 	RESTART:
 		state, when := r.restartTracker.GetState()
 		r.restartTracker.SetStartError(nil).SetWaitResult(nil)
+		reason := r.restartTracker.GetReason()
 		switch state {
 		case structs.TaskNotRestarting, structs.TaskTerminated:
 			r.logger.Printf("[INFO] client: Not restarting task: %v for alloc: %v ", r.task.Name, r.alloc.ID)
 			if state == structs.TaskNotRestarting {
-				r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskNotRestarting))
+				r.setState(structs.TaskStateDead,
+					structs.NewTaskEvent(structs.TaskNotRestarting).
+						SetRestartReason(reason))
 			}
 			return
 		case structs.TaskRestarting:
 			r.logger.Printf("[INFO] client: Restarting task %q for alloc %q in %v", r.task.Name, r.alloc.ID, when)
-			r.setState(structs.TaskStatePending, structs.NewTaskEvent(structs.TaskRestarting).SetRestartDelay(when))
+			r.setState(structs.TaskStatePending,
+				structs.NewTaskEvent(structs.TaskRestarting).
+					SetRestartDelay(when).
+					SetRestartReason(reason))
 		default:
 			r.logger.Printf("[ERR] client: restart tracker returned unknown state: %q", state)
 			return
