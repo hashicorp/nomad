@@ -180,6 +180,13 @@ func (c *ConsulService) Shutdown() error {
 		c.shutdown = true
 	}
 	c.shutdownLock.Unlock()
+
+	// Stop all the checks that nomad is running
+	for _, nc := range c.nomadChecks {
+		nc.Stop()
+	}
+
+	// de-register all the services from consul
 	for _, service := range c.trackedServices {
 		if err := c.client.Agent().ServiceDeregister(service.ID); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
@@ -190,19 +197,8 @@ func (c *ConsulService) Shutdown() error {
 
 // KeepServices removes services from consul which are not present in the list
 // of tasks passed to it
-func (c *ConsulService) KeepServices(tasks []*structs.Task) error {
+func (c *ConsulService) KeepServices(services map[string]struct{}) error {
 	var mErr multierror.Error
-	services := make(map[string]struct{})
-
-	// Indexing the services in the tasks
-	for _, task := range tasks {
-		for _, service := range task.Services {
-			fmt.Printf("DIPTANU SERVICE %#v\n", service)
-			fmt.Printf("DIPTANU TASK %#v\n", c.task)
-			fmt.Printf("DIPTANU SERVICES %#v\n", services)
-			services[service.ID(c.allocID, c.task.Name)] = struct{}{}
-		}
-	}
 
 	// Get the services from Consul
 	cServices, err := c.client.Agent().Services()

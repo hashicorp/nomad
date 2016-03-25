@@ -1184,7 +1184,7 @@ func (c *Client) syncConsul() {
 	for {
 		select {
 		case <-sync:
-			var runningTasks []*structs.Task
+			services := make(map[string]struct{})
 			// Get the existing allocs
 			c.allocLock.RLock()
 			allocs := make([]*AllocRunner, 0, len(c.allocs))
@@ -1199,14 +1199,17 @@ func (c *Client) syncConsul() {
 				for taskName, taskState := range taskStates {
 					if taskState.State == structs.TaskStateRunning {
 						if tr, ok := ar.tasks[taskName]; ok {
-							runningTasks = append(runningTasks, tr.task)
+							for _, service := range tr.task.Services {
+								services[service.ID(ar.alloc.ID, tr.task.Name)] = struct{}{}
+							}
 						}
 					}
 				}
 			}
-			//if err := c.consulService.KeepServices(runningTasks); err != nil {
-			//	c.logger.Printf("[DEBUG] client: error removing services from non-running tasks: %v", err)
-			//}
+			if err := c.consulService.KeepServices(services); err != nil {
+				c.logger.Printf("[DEBUG] client: error removing services from non-running tasks: %v", err)
+			}
+			sync = time.After(consulSyncInterval)
 		case <-c.shutdownCh:
 			c.logger.Printf("[INFO] client: shutting down consul sync")
 			return
