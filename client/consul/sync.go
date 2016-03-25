@@ -28,7 +28,7 @@ type ConsulService struct {
 
 	trackedServices map[string]*consul.AgentService
 	trackedChecks   map[string]*consul.AgentCheckRegistration
-	nomadChecks     map[string]*NomadCheck
+	checkRunners    map[string]*CheckRunner
 
 	logger *log.Logger
 
@@ -188,8 +188,8 @@ func (c *ConsulService) Shutdown() error {
 	c.shutdownLock.Unlock()
 
 	// Stop all the checks that nomad is running
-	for _, nc := range c.nomadChecks {
-		nc.Stop()
+	for _, cr := range c.checkRunners {
+		cr.Stop()
 	}
 
 	// de-register all the services from consul
@@ -226,8 +226,8 @@ func (c *ConsulService) KeepServices(services map[string]struct{}) error {
 
 // registerCheck registers a check definition with Consul
 func (c *ConsulService) registerCheck(chkReg *consul.AgentCheckRegistration) error {
-	if nc, ok := c.nomadChecks[chkReg.ID]; ok {
-		nc.Start()
+	if cr, ok := c.checkRunners[chkReg.ID]; ok {
+		cr.Start()
 	}
 	return c.client.Agent().CheckRegister(chkReg)
 }
@@ -267,8 +267,8 @@ func (c *ConsulService) createCheckReg(check *structs.ServiceCheck, service *con
 		if err != nil {
 			return nil, err
 		}
-		nc := NewNomadCheck(chk, c.runCheck, c.logger)
-		c.nomadChecks[chk.ID()] = nc
+		cr := NewCheckRunner(chk, c.runCheck, c.logger)
+		c.checkRunners[chk.ID()] = cr
 	}
 	return &chkReg, nil
 }
@@ -313,9 +313,9 @@ func (c *ConsulService) deregisterService(ID string) error {
 // deregisterCheck de-registers a check with a given ID from Consul.
 func (c *ConsulService) deregisterCheck(ID string) error {
 	// Deleting the nomad check
-	if nc, ok := c.nomadChecks[ID]; ok {
-		nc.Stop()
-		delete(c.nomadChecks, ID)
+	if cr, ok := c.checkRunners[ID]; ok {
+		cr.Stop()
+		delete(c.checkRunners, ID)
 	}
 
 	// Deleteting from consul

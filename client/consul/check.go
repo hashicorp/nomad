@@ -9,9 +9,9 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 )
 
-// NomadCheck runs a given check in a specific interval and update a
+// CheckRunner runs a given check in a specific interval and update a
 // corresponding Consul TTL check
-type NomadCheck struct {
+type CheckRunner struct {
 	check    Check
 	runCheck func(Check)
 	logger   *log.Logger
@@ -23,8 +23,8 @@ type NomadCheck struct {
 	startedLock sync.Mutex
 }
 
-// NewNomadCheck configures and returns a NomadCheck
-func NewNomadCheck(check Check, runCheck func(Check), logger *log.Logger) *NomadCheck {
+// NewCheckRunner configures and returns a CheckRunner
+func NewCheckRunner(check Check, runCheck func(Check), logger *log.Logger) *CheckRunner {
 	nc := NomadCheck{
 		check:    check,
 		runCheck: runCheck,
@@ -35,40 +35,40 @@ func NewNomadCheck(check Check, runCheck func(Check), logger *log.Logger) *Nomad
 }
 
 // Start is used to start the check. The check runs until stop is called
-func (n *NomadCheck) Start() {
-	n.startedLock.Lock()
-	if n.started {
+func (r *CheckRunner) Start() {
+	r.startedLock.Lock()
+	if r.started {
 		return
 	}
-	n.started = true
-	n.stopLock.Lock()
-	defer n.stopLock.Unlock()
-	n.stopCh = make(chan struct{})
-	go n.run()
+	r.started = true
+	r.stopLock.Lock()
+	defer r.stopLock.Unlock()
+	r.stopCh = make(chan struct{})
+	go r.run()
 }
 
 // Stop is used to stop the check.
-func (n *NomadCheck) Stop() {
-	n.stopLock.Lock()
-	defer n.stopLock.Unlock()
-	if !n.stop {
-		n.stop = true
-		close(n.stopCh)
+func (r *CheckRunner) Stop() {
+	r.stopLock.Lock()
+	defer r.stopLock.Unlock()
+	if !r.stop {
+		r.stop = true
+		close(r.stopCh)
 	}
 }
 
 // run is invoked by a goroutine to run until Stop() is called
-func (n *NomadCheck) run() {
+func (r *CheckRunner) run() {
 	// Get the randomized initial pause time
-	initialPauseTime := randomStagger(n.check.Interval())
-	n.logger.Printf("[DEBUG] agent: pausing %v before first invocation of %s", initialPauseTime, n.check.ID())
+	initialPauseTime := randomStagger(r.check.Interval())
+	r.logger.Printf("[DEBUG] agent: pausing %v before first invocation of %s", initialPauseTime, r.check.ID())
 	next := time.After(initialPauseTime)
 	for {
 		select {
 		case <-next:
-			n.runCheck(n.check)
-			next = time.After(n.check.Interval())
-		case <-n.stopCh:
+			r.runCheck(r.check)
+			next = time.After(r.check.Interval())
+		case <-r.stopCh:
 			return
 		}
 	}
