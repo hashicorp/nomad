@@ -121,8 +121,11 @@ func NewExecContext(alloc *allocdir.AllocDir, allocID string) *ExecContext {
 func GetTaskEnv(allocDir *allocdir.AllocDir, node *structs.Node,
 	task *structs.Task, alloc *structs.Allocation) (*env.TaskEnvironment, error) {
 
+	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 	env := env.NewTaskEnvironment(node).
-		SetMeta(task.Meta).
+		SetTaskMeta(task.Meta).
+		SetTaskGroupMeta(tg.Meta).
+		SetJobMeta(alloc.Job.Meta).
 		SetEnvvars(task.Env).
 		SetTaskName(task.Name)
 
