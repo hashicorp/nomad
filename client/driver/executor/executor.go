@@ -515,6 +515,7 @@ func (e *UniversalExecutor) createCheck(check *structs.ServiceCheck, checkID str
 	if check.Type == structs.ServiceCheckScript && e.ctx.Driver == "docker" {
 		return &DockerScriptCheck{
 			id:          checkID,
+			interval:    check.Interval,
 			containerID: e.consulCtx.ContainerID,
 			logger:      e.logger,
 			cmd:         check.Cmd,
@@ -525,6 +526,7 @@ func (e *UniversalExecutor) createCheck(check *structs.ServiceCheck, checkID str
 	if check.Type == structs.ServiceCheckScript && e.ctx.Driver == "exec" {
 		return &ExecScriptCheck{
 			id:          checkID,
+			interval:    check.Interval,
 			cmd:         check.Cmd,
 			args:        check.Args,
 			taskDir:     e.taskDir,

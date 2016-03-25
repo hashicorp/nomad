@@ -22,6 +22,7 @@ var (
 
 type DockerScriptCheck struct {
 	id          string
+	interval    time.Duration
 	containerID string
 	logger      *log.Logger
 	cmd         string
@@ -42,16 +43,16 @@ func (d *DockerScriptCheck) dockerClient() (*docker.Client, error) {
 	createClient.Do(func() {
 		if d.dockerEndpoint != "" {
 			if d.tlsCert+d.tlsKey+d.tlsCa != "" {
-				d.logger.Printf("[DEBUG] driver.docker: using TLS client connection to %s", d.dockerEndpoint)
+				d.logger.Printf("[DEBUG] executor.checks: using TLS client connection to %s", d.dockerEndpoint)
 				client, err = docker.NewTLSClient(d.dockerEndpoint, d.tlsCert, d.tlsKey, d.tlsCa)
 			} else {
-				d.logger.Printf("[DEBUG] driver.docker: using standard client connection to %s", d.dockerEndpoint)
+				d.logger.Printf("[DEBUG] executor.checks: using standard client connection to %s", d.dockerEndpoint)
 				client, err = docker.NewClient(d.dockerEndpoint)
 			}
 			return
 		}
 
-		d.logger.Println("[DEBUG] driver.docker: using client connection initialized from environment")
+		d.logger.Println("[DEBUG] executor.checks: using client connection initialized from environment")
 		client, err = docker.NewClientFromEnv()
 	})
 	return client, err
@@ -106,11 +107,16 @@ func (d *DockerScriptCheck) ID() string {
 	return d.id
 }
 
+func (d *DockerScriptCheck) Interval() time.Duration {
+	return d.interval
+}
+
 type ExecScriptCheck struct {
-	id      string
-	cmd     string
-	args    []string
-	taskDir string
+	id       string
+	interval time.Duration
+	cmd      string
+	args     []string
+	taskDir  string
 
 	FSIsolation bool
 }
@@ -151,4 +157,8 @@ func (e *ExecScriptCheck) Run() *cstructs.CheckResult {
 
 func (e *ExecScriptCheck) ID() string {
 	return e.id
+}
+
+func (e *ExecScriptCheck) Interval() time.Duration {
+	return e.interval
 }

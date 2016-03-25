@@ -28,11 +28,10 @@ type ConsulService struct {
 
 	trackedServices map[string]*consul.AgentService
 	trackedChecks   map[string]*consul.AgentCheckRegistration
-	execChecks      *checkHeap
+	nomadChecks     map[string]*NomadCheck
 
 	logger *log.Logger
 
-	updateCh     chan struct{}
 	shutdownCh   chan struct{}
 	shutdown     bool
 	shutdownLock sync.Mutex
@@ -97,10 +96,9 @@ func NewConsulService(config *ConsulConfig, logger *log.Logger, allocID string) 
 		logger:          logger,
 		trackedServices: make(map[string]*consul.AgentService),
 		trackedChecks:   make(map[string]*consul.AgentCheckRegistration),
-		execChecks:      NewConsulChecksHeap(),
+		nomadChecks:     make(map[string]*NomadCheck),
 
 		shutdownCh: make(chan struct{}),
-		updateCh:   make(chan struct{}),
 	}
 	return &consulService, nil
 }
@@ -199,6 +197,9 @@ func (c *ConsulService) KeepServices(tasks []*structs.Task) error {
 	// Indexing the services in the tasks
 	for _, task := range tasks {
 		for _, service := range task.Services {
+			fmt.Printf("DIPTANU SERVICE %#v\n", service)
+			fmt.Printf("DIPTANU TASK %#v\n", c.task)
+			fmt.Printf("DIPTANU SERVICES %#v\n", services)
 			services[service.ID(c.allocID, c.task.Name)] = struct{}{}
 		}
 	}
@@ -223,6 +224,9 @@ func (c *ConsulService) KeepServices(tasks []*structs.Task) error {
 
 // registerCheck registers a check definition with Consul
 func (c *ConsulService) registerCheck(chkReg *consul.AgentCheckRegistration) error {
+	if nc, ok := c.nomadChecks[chkReg.ID]; ok {
+		nc.Start()
+	}
 	return c.client.Agent().CheckRegister(chkReg)
 }
 
@@ -257,13 +261,8 @@ func (c *ConsulService) createCheckReg(check *structs.ServiceCheck, service *con
 		if err != nil {
 			return nil, err
 		}
-		if err := c.execChecks.Push(chk, time.Now().Add(check.Interval)); err != nil {
-			c.logger.Printf("[ERR] consulservice: unable to add check %q to heap", chk.ID())
-		}
-		select {
-		case c.updateCh <- struct{}{}:
-		default:
-		}
+		nc := NewNomadCheck(chk, c.runCheck, c.logger)
+		c.nomadChecks[chk.ID()] = nc
 	}
 	return &chkReg, nil
 }
@@ -307,43 +306,32 @@ func (c *ConsulService) deregisterService(ID string) error {
 
 // deregisterCheck de-registers a check with a given ID from Consul.
 func (c *ConsulService) deregisterCheck(ID string) error {
-	if err := c.execChecks.Remove(ID); err != nil {
-		c.logger.Printf("[DEBUG] consulservice: unable to remove check with ID %q from heap", ID)
+	// Deleting the nomad check
+	if nc, ok := c.nomadChecks[ID]; ok {
+		nc.Stop()
+		delete(c.nomadChecks, ID)
 	}
+
+	// Deleteting from consul
 	return c.client.Agent().CheckDeregister(ID)
 }
 
 // PeriodicSync triggers periodic syncing of services and checks with Consul.
 // This is a long lived go-routine which is stopped during shutdown
 func (c *ConsulService) PeriodicSync() {
-	var runCheck <-chan time.Time
 	sync := time.After(syncInterval)
 	for {
-		runCheck = c.sleepBeforeRunningCheck()
 		select {
 		case <-sync:
 			if err := c.performSync(); err != nil {
 				c.logger.Printf("[DEBUG] consul: error in syncing task %q: %v", c.task.Name, err)
 			}
 			sync = time.After(syncInterval)
-		case <-c.updateCh:
-			continue
-		case <-runCheck:
-			chk := c.execChecks.heap.Pop().(consulCheck)
-			runCheck = c.sleepBeforeRunningCheck()
-			c.runCheck(chk.check)
 		case <-c.shutdownCh:
 			c.logger.Printf("[INFO] consul: shutting down sync for task %q", c.task.Name)
 			return
 		}
 	}
-}
-
-func (c *ConsulService) sleepBeforeRunningCheck() <-chan time.Time {
-	if c := c.execChecks.Peek(); c != nil {
-		return time.After(time.Now().Sub(c.next))
-	}
-	return nil
 }
 
 // performSync sync the services and checks we are tracking with Consul.
@@ -411,14 +399,19 @@ func (c *ConsulService) consulPresent() bool {
 // runCheck runs a check and updates the corresponding ttl check in consul
 func (c *ConsulService) runCheck(check Check) {
 	res := check.Run()
+	state := consul.HealthCritical
+	output := res.Output
 	if res.Err != nil {
-		c.client.Agent().UpdateTTL(check.ID(), res.Output, consul.HealthCritical)
+		output = res.Err.Error()
 	}
 	if res.ExitCode == 0 {
-		c.client.Agent().UpdateTTL(check.ID(), res.Output, consul.HealthPassing)
+		state = consul.HealthPassing
 	}
 	if res.ExitCode == 1 {
-		c.client.Agent().UpdateTTL(check.ID(), res.Output, consul.HealthWarning)
+		state = consul.HealthWarning
 	}
-	c.client.Agent().UpdateTTL(check.ID(), res.Output, consul.HealthCritical)
+
+	if err := c.client.Agent().UpdateTTL(check.ID(), output, state); err != nil {
+		c.logger.Printf("[DEBUG] error updating ttl check for check %q: %v", check.ID(), err)
+	}
 }

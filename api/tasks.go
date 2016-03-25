@@ -19,7 +19,8 @@ type ServiceCheck struct {
 	Id       string
 	Name     string
 	Type     string
-	Script   string
+	Cmd      string
+	Args     []string
 	Path     string
 	Protocol string
 	Interval time.Duration
