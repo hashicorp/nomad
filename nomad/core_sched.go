@@ -201,7 +201,7 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64) 
 		// TODO: This can go away once the scheduler marks an alloc as
 		// DesiredStatusStop when a client fails.
 		allocTerminal := alloc.TerminalStatus() ||
-			alloc.ClientStatus == structs.AllocClientStatusDead ||
+			alloc.ClientStatus == structs.AllocClientStatusComplete ||
 			alloc.ClientStatus == structs.AllocClientStatusFailed
 		if !allocTerminal || alloc.ModifyIndex > thresholdIndex {
 			return false, nil, nil
