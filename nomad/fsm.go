@@ -407,7 +407,7 @@ func (n *nomadFSM) applyAllocClientUpdate(buf []byte, index uint64) interface{} 
 	// Unblock evals for the nodes computed node class if the client has
 	// finished running an allocation.
 	for _, alloc := range req.Alloc {
-		if alloc.ClientStatus == structs.AllocClientStatusDead ||
+		if alloc.ClientStatus == structs.AllocClientStatusComplete ||
 			alloc.ClientStatus == structs.AllocClientStatusFailed {
 			nodeID := alloc.NodeID
 			node, err := n.state.NodeByID(nodeID)

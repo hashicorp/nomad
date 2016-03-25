@@ -260,7 +260,7 @@ func (r *AllocRunner) Alloc() *structs.Allocation {
 	} else if pending {
 		alloc.ClientStatus = structs.AllocClientStatusPending
 	} else if dead {
-		alloc.ClientStatus = structs.AllocClientStatusDead
+		alloc.ClientStatus = structs.AllocClientStatusComplete
 	}
 
 	return alloc

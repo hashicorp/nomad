@@ -1097,7 +1097,7 @@ func TestBatchSched_Run_DeadAlloc(t *testing.T) {
 	alloc.JobID = job.ID
 	alloc.NodeID = node.ID
 	alloc.Name = "my-job.web[0]"
-	alloc.ClientStatus = structs.AllocClientStatusDead
+	alloc.ClientStatus = structs.AllocClientStatusComplete
 	noErr(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
 
 	// Create a mock evaluation to register the job

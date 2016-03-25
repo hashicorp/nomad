@@ -34,7 +34,7 @@ func TestFilterTerminalAllocs(t *testing.T) {
 		&Allocation{
 			ID:            "bam",
 			DesiredStatus: AllocDesiredStatusRun,
-			ClientStatus:  AllocClientStatusDead,
+			ClientStatus:  AllocClientStatusComplete,
 		},
 	}
 
