@@ -1,10 +1,16 @@
 package executor
 
 import (
+	"log"
+	"os"
 	"strings"
 	"testing"
+	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
+
+	cstructs "github.com/hashicorp/nomad/client/driver/structs"
+	"github.com/hashicorp/nomad/client/testutil"
 )
 
 // dockerIsConnected checks to see if a docker daemon is available (local or remote)
@@ -33,6 +39,98 @@ func TestExecScriptCheckNoIsolation(t *testing.T) {
 		args:        []string{"hello", "world"},
 		taskDir:     "/tmp",
 		FSIsolation: false,
+	}
+
+	res := check.Run()
+	expectedOutput := "hello world"
+	expectedExitCode := 0
+	if res.Err != nil {
+		t.Fatalf("err: %v", res.Err)
+	}
+	if strings.TrimSpace(res.Output) != expectedOutput {
+		t.Fatalf("output expected: %v, actual: %v", expectedOutput, res.Output)
+	}
+
+	if res.ExitCode != expectedExitCode {
+		t.Fatalf("exitcode expected: %v, actual: %v", expectedExitCode, res.ExitCode)
+	}
+}
+
+func TestExecScriptCheckWithIsolation(t *testing.T) {
+	testutil.ExecCompatible(t)
+
+	execCmd := ExecCommand{Cmd: "/bin/echo", Args: []string{"hello world"}}
+	ctx := testExecutorContext(t)
+	defer ctx.AllocDir.Destroy()
+
+	execCmd.FSIsolation = true
+	execCmd.ResourceLimits = true
+	execCmd.User = cstructs.DefaultUnpriviledgedUser
+
+	executor := NewExecutor(log.New(os.Stdout, "", log.LstdFlags))
+	_, err := executor.LaunchCmd(&execCmd, ctx)
+	if err != nil {
+		t.Fatalf("error in launching command: %v", err)
+	}
+
+	check := &ExecScriptCheck{
+		id:          "foo",
+		cmd:         "/bin/echo",
+		args:        []string{"hello", "world"},
+		taskDir:     "/tmp",
+		FSIsolation: true,
+	}
+
+	res := check.Run()
+	expectedOutput := "hello world"
+	expectedExitCode := 0
+	if res.Err != nil {
+		t.Fatalf("err: %v", res.Err)
+	}
+	if strings.TrimSpace(res.Output) != expectedOutput {
+		t.Fatalf("output expected: %v, actual: %v", expectedOutput, res.Output)
+	}
+
+	if res.ExitCode != expectedExitCode {
+		t.Fatalf("exitcode expected: %v, actual: %v", expectedExitCode, res.ExitCode)
+	}
+}
+
+func TestDockerScriptCheck(t *testing.T) {
+	if !dockerIsConnected(t) {
+		return
+	}
+	client, err := docker.NewClientFromEnv()
+	if err != nil {
+		t.Fatalf("error creating docker client: %v", err)
+	}
+
+	if err := client.PullImage(docker.PullImageOptions{Repository: "busybox", Tag: "1-uclibc"},
+		docker.AuthConfiguration{}); err != nil {
+		t.Fatalf("error pulling redis: %v", err)
+	}
+
+	container, err := client.CreateContainer(docker.CreateContainerOptions{
+		Config: &docker.Config{
+			Image: "busybox",
+			Cmd:   []string{"/bin/sleep", "1000"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("error creating container: %v", err)
+	}
+
+	if err := client.StartContainer(container.ID, &docker.HostConfig{}); err != nil {
+		t.Fatalf("error starting container", err)
+	}
+
+	check := &DockerScriptCheck{
+		id:          "1",
+		interval:    5 * time.Second,
+		containerID: container.ID,
+		logger:      log.New(os.Stdout, "", log.LstdFlags),
+		cmd:         "/bin/echo",
+		args:        []string{"hello", "world"},
 	}
 
 	res := check.Run()

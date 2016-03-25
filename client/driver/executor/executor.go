@@ -55,6 +55,8 @@ type ConsulContext struct {
 	// daeemon over TLS
 	TLSCa string
 
+	// TLSKey is the TLS key which the docker client uses while interacting with
+	// the docker daemon
 	TLSKey string
 
 	// DockerEndpoint is the endpoint of the docker daemon
