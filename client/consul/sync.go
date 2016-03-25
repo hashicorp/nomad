@@ -327,15 +327,15 @@ func (c *ConsulService) deregisterCheck(ID string) error {
 // PeriodicSync triggers periodic syncing of services and checks with Consul.
 // This is a long lived go-routine which is stopped during shutdown
 func (c *ConsulService) PeriodicSync() {
-	sync := time.After(syncInterval)
+	sync := time.NewTicker(syncInterval)
 	for {
 		select {
-		case <-sync:
+		case <-sync.C:
 			if err := c.performSync(); err != nil {
 				c.logger.Printf("[DEBUG] consul: error in syncing task %q: %v", c.task.Name, err)
 			}
-			sync = time.After(syncInterval)
 		case <-c.shutdownCh:
+			sync.Stop()
 			c.logger.Printf("[INFO] consul: shutting down sync for task %q", c.task.Name)
 			return
 		}
