@@ -158,6 +158,7 @@ type TaskState struct {
 const (
 	TaskDriverFailure          = "Driver Failure"
 	TaskReceived               = "Received"
+	TaskFailedValidation       = "Failed Validation"
 	TaskStarted                = "Started"
 	TaskTerminated             = "Terminated"
 	TaskKilled                 = "Killed"
@@ -170,13 +171,14 @@ const (
 // TaskEvent is an event that effects the state of a task and contains meta-data
 // appropriate to the events type.
 type TaskEvent struct {
-	Type          string
-	Time          int64
-	DriverError   string
-	ExitCode      int
-	Signal        int
-	Message       string
-	KillError     string
-	StartDelay    int64
-	DownloadError string
+	Type            string
+	Time            int64
+	DriverError     string
+	ExitCode        int
+	Signal          int
+	Message         string
+	KillError       string
+	StartDelay      int64
+	DownloadError   string
+	ValidationError string
 }

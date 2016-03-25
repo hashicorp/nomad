@@ -201,6 +201,12 @@ func (c *AllocStatusCommand) taskStatus(alloc *api.Allocation) {
 				desc = "Task started by client"
 			case api.TaskReceived:
 				desc = "Task received by client"
+			case api.TaskFailedValidation:
+				if event.ValidationError != "" {
+					desc = event.ValidationError
+				} else {
+					desc = "Validation of task failed"
+				}
 			case api.TaskDriverFailure:
 				if event.DriverError != "" {
 					desc = event.DriverError

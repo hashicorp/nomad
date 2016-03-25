@@ -363,3 +363,29 @@ func TestTaskRunner_Download_Retries(t *testing.T) {
 		t.Fatalf("Seventh Event was %v; want %v", upd.events[6].Type, structs.TaskNotRestarting)
 	}
 }
+
+func TestTaskRunner_Validate_UserEnforcement(t *testing.T) {
+	_, tr := testTaskRunner(false)
+
+	// Try to run as root with exec.
+	tr.task.Driver = "exec"
+	tr.task.User = "root"
+	if err := tr.validateTask(); err == nil {
+		t.Fatalf("expected error running as root with exec")
+	}
+
+	// Try to run a non-blacklisted user with exec.
+	tr.task.Driver = "exec"
+	tr.task.User = "foobar"
+	if err := tr.validateTask(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Try to run as root with docker.
+	tr.task.Driver = "docker"
+	tr.task.User = "root"
+	if err := tr.validateTask(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+}
