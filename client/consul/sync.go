@@ -412,13 +412,14 @@ func (c *ConsulService) runCheck(check Check) {
 	if res.Err != nil {
 		output = res.Err.Error()
 	}
-	if res.ExitCode == 0 {
+	switch res.ExitCode {
+	case 0:
 		state = consul.HealthPassing
-	}
-	if res.ExitCode == 1 {
+	case 1:
 		state = consul.HealthWarning
+	default:
+		state = consul.HealthCritical
 	}
-
 	if err := c.client.Agent().UpdateTTL(check.ID(), output, state); err != nil {
 		c.logger.Printf("[DEBUG] error updating ttl check for check %q: %v", check.ID(), err)
 	}
