@@ -164,9 +164,6 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 	if err != nil {
 		return err
 	}
-	if job == nil {
-		return fmt.Errorf("job not found")
-	}
 
 	// Commit this update via Raft
 	_, index, err := j.srv.raftApply(structs.JobDeregisterRequestType, args)
@@ -179,7 +176,7 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 	reply.JobModifyIndex = index
 
 	// If the job is periodic, we don't create an eval.
-	if job.IsPeriodic() {
+	if job != nil && job.IsPeriodic() {
 		return nil
 	}
 
