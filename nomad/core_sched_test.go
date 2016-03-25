@@ -207,26 +207,36 @@ func TestCoreScheduler_NodeGC_Force(t *testing.T) {
 
 func TestCoreScheduler_JobGC(t *testing.T) {
 	tests := []struct {
-		test, evalStatus, allocStatus string
-		shouldExist                   bool
+		test, evalStatus, desiredAllocStatus, clientAllocStatus string
+		shouldExist                                             bool
 	}{
 		{
-			test:        "Terminal",
-			evalStatus:  structs.EvalStatusFailed,
-			allocStatus: structs.AllocDesiredStatusFailed,
-			shouldExist: false,
+			test:               "Terminal",
+			evalStatus:         structs.EvalStatusFailed,
+			desiredAllocStatus: structs.AllocDesiredStatusRun,
+			clientAllocStatus:  structs.AllocDesiredStatusFailed,
+			shouldExist:        false,
 		},
 		{
-			test:        "Has Alloc",
-			evalStatus:  structs.EvalStatusFailed,
-			allocStatus: structs.AllocDesiredStatusRun,
-			shouldExist: true,
+			test:               "Has Failed Alloc",
+			evalStatus:         structs.EvalStatusFailed,
+			desiredAllocStatus: structs.AllocDesiredStatusRun,
+			clientAllocStatus:  structs.AllocDesiredStatusFailed,
+			shouldExist:        false,
 		},
 		{
-			test:        "Has Eval",
-			evalStatus:  structs.EvalStatusPending,
-			allocStatus: structs.AllocDesiredStatusFailed,
-			shouldExist: true,
+			test:               "Has Running Alloc",
+			evalStatus:         structs.EvalStatusFailed,
+			desiredAllocStatus: structs.AllocDesiredStatusRun,
+			clientAllocStatus:  structs.AllocDesiredStatusRun,
+			shouldExist:        true,
+		},
+		{
+			test:               "Has Eval",
+			evalStatus:         structs.EvalStatusPending,
+			desiredAllocStatus: structs.AllocDesiredStatusRun,
+			clientAllocStatus:  structs.AllocDesiredStatusFailed,
+			shouldExist:        true,
 		},
 	}
 
@@ -257,7 +267,8 @@ func TestCoreScheduler_JobGC(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.JobID = job.ID
 		alloc.EvalID = eval.ID
-		alloc.DesiredStatus = test.allocStatus
+		alloc.DesiredStatus = test.desiredAllocStatus
+		alloc.ClientStatus = test.clientAllocStatus
 		err = state.UpsertAllocs(1002, []*structs.Allocation{alloc})
 		if err != nil {
 			t.Fatalf("test(%s) err: %v", test.test, err)
@@ -311,26 +322,36 @@ func TestCoreScheduler_JobGC(t *testing.T) {
 
 func TestCoreScheduler_JobGC_Force(t *testing.T) {
 	tests := []struct {
-		test, evalStatus, allocStatus string
-		shouldExist                   bool
+		test, evalStatus, desiredAllocStatus, clientAllocStatus string
+		shouldExist                                             bool
 	}{
 		{
-			test:        "Terminal",
-			evalStatus:  structs.EvalStatusFailed,
-			allocStatus: structs.AllocDesiredStatusFailed,
-			shouldExist: false,
+			test:               "Terminal",
+			evalStatus:         structs.EvalStatusFailed,
+			desiredAllocStatus: structs.AllocDesiredStatusRun,
+			clientAllocStatus:  structs.AllocDesiredStatusFailed,
+			shouldExist:        false,
 		},
 		{
-			test:        "Has Alloc",
-			evalStatus:  structs.EvalStatusFailed,
-			allocStatus: structs.AllocDesiredStatusRun,
-			shouldExist: true,
+			test:               "Has Failed Alloc",
+			evalStatus:         structs.EvalStatusFailed,
+			desiredAllocStatus: structs.AllocDesiredStatusRun,
+			clientAllocStatus:  structs.AllocDesiredStatusFailed,
+			shouldExist:        false,
 		},
 		{
-			test:        "Has Eval",
-			evalStatus:  structs.EvalStatusPending,
-			allocStatus: structs.AllocDesiredStatusFailed,
-			shouldExist: true,
+			test:               "Has Running Alloc",
+			evalStatus:         structs.EvalStatusFailed,
+			desiredAllocStatus: structs.AllocDesiredStatusRun,
+			clientAllocStatus:  structs.AllocDesiredStatusRun,
+			shouldExist:        true,
+		},
+		{
+			test:               "Has Eval",
+			evalStatus:         structs.EvalStatusPending,
+			desiredAllocStatus: structs.AllocDesiredStatusRun,
+			clientAllocStatus:  structs.AllocDesiredStatusFailed,
+			shouldExist:        true,
 		},
 	}
 
@@ -361,7 +382,8 @@ func TestCoreScheduler_JobGC_Force(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.JobID = job.ID
 		alloc.EvalID = eval.ID
-		alloc.DesiredStatus = test.allocStatus
+		alloc.DesiredStatus = test.desiredAllocStatus
+		alloc.ClientStatus = test.clientAllocStatus
 		err = state.UpsertAllocs(1002, []*structs.Allocation{alloc})
 		if err != nil {
 			t.Fatalf("test(%s) err: %v", test.test, err)
