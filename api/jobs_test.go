@@ -266,8 +266,9 @@ func TestJobs_Deregister(t *testing.T) {
 	assertWriteMeta(t, wm)
 
 	// Attempting delete on non-existing job returns an error
-	if _, _, err = jobs.Deregister("nope", nil); err == nil {
-		t.Fatalf("expected error deregistering job")
+	if _, _, err = jobs.Deregister("nope", nil); err != nil {
+		t.Fatalf("unexpected error deregistering job: %v", err)
+
 	}
 
 	// Deleting an existing job works

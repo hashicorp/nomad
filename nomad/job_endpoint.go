@@ -120,7 +120,7 @@ func (j *Job) Evaluate(args *structs.JobEvaluateRequest, reply *structs.JobRegis
 	if err != nil {
 		return err
 	}
-	if job != nil && job.IsPeriodic() {
+	if job == nil {
 		return fmt.Errorf("job not found")
 	}
 
