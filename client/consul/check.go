@@ -25,26 +25,26 @@ type CheckRunner struct {
 
 // NewCheckRunner configures and returns a CheckRunner
 func NewCheckRunner(check Check, runCheck func(Check), logger *log.Logger) *CheckRunner {
-	nc := NomadCheck{
+	cr := CheckRunner{
 		check:    check,
 		runCheck: runCheck,
 		logger:   logger,
 		stopCh:   make(chan struct{}),
 	}
-	return &nc
+	return &cr
 }
 
 // Start is used to start the check. The check runs until stop is called
 func (r *CheckRunner) Start() {
 	r.startedLock.Lock()
+	defer r.startedLock.Unlock()
 	if r.started {
 		return
 	}
-	r.started = true
 	r.stopLock.Lock()
 	defer r.stopLock.Unlock()
-	r.stopCh = make(chan struct{})
 	go r.run()
+	r.started = true
 }
 
 // Stop is used to stop the check.

@@ -100,7 +100,7 @@ func NewConsulService(config *ConsulConfig, logger *log.Logger, allocID string) 
 		logger:          logger,
 		trackedServices: make(map[string]*consul.AgentService),
 		trackedChecks:   make(map[string]*consul.AgentCheckRegistration),
-		nomadChecks:     make(map[string]*NomadCheck),
+		checkRunners:    make(map[string]*CheckRunner),
 
 		shutdownCh: make(chan struct{}),
 	}
@@ -139,11 +139,23 @@ func (c *ConsulService) SyncTask(task *structs.Task) error {
 		taskServices[srv.ID] = srv
 
 		for _, chk := range service.Checks {
+			// Create a consul check registration
 			chkReg, err := c.createCheckReg(chk, srv)
 			if err != nil {
 				mErr.Errors = append(mErr.Errors, err)
 				continue
 			}
+			// creating a nomad check if we have to handle this particular check type
+			if _, ok := c.delegateChecks[chk.Type]; ok {
+				nc, err := c.createCheck(chk, chkReg.ID)
+				if err != nil {
+					mErr.Errors = append(mErr.Errors, err)
+					continue
+				}
+				cr := NewCheckRunner(nc, c.runCheck, c.logger)
+				c.checkRunners[nc.ID()] = cr
+			}
+
 			if _, ok := c.trackedChecks[chkReg.ID]; !ok {
 				if err := c.registerCheck(chkReg); err != nil {
 					mErr.Errors = append(mErr.Errors, err)
@@ -259,16 +271,6 @@ func (c *ConsulService) createCheckReg(check *structs.ServiceCheck, service *con
 		chkReg.TTL = (check.Interval + ttlCheckBuffer).String()
 	default:
 		return nil, fmt.Errorf("check type %q not valid", check.Type)
-	}
-
-	// creating a nomad check if we have to handle this particular check type
-	if _, ok := c.delegateChecks[check.Type]; ok {
-		chk, err := c.createCheck(check, chkReg.ID)
-		if err != nil {
-			return nil, err
-		}
-		cr := NewCheckRunner(chk, c.runCheck, c.logger)
-		c.checkRunners[chk.ID()] = cr
 	}
 	return &chkReg, nil
 }
