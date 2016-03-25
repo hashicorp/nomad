@@ -62,13 +62,14 @@ func (r *CheckRunner) run() {
 	// Get the randomized initial pause time
 	initialPauseTime := randomStagger(r.check.Interval())
 	r.logger.Printf("[DEBUG] agent: pausing %v before first invocation of %s", initialPauseTime, r.check.ID())
-	next := time.After(initialPauseTime)
+	next := time.NewTimer(initialPauseTime)
 	for {
 		select {
-		case <-next:
+		case <-next.C:
 			r.runCheck(r.check)
-			next = time.After(r.check.Interval())
+			next.Reset(r.check.Interval())
 		case <-r.stopCh:
+			next.Stop()
 			return
 		}
 	}

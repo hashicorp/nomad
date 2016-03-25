@@ -147,7 +147,11 @@ func (e *ExecScriptCheck) Run() *cstructs.CheckResult {
 		select {
 		case err := <-errCh:
 			if err == nil {
-				return &cstructs.CheckResult{ExitCode: 0, Output: string(buf.Bytes()), Timestamp: ts}
+				return &cstructs.CheckResult{
+					ExitCode:  0,
+					Output:    string(buf.Bytes()),
+					Timestamp: ts,
+				}
 			}
 			exitCode := 1
 			if exitErr, ok := err.(*exec.ExitError); ok {
@@ -155,7 +159,11 @@ func (e *ExecScriptCheck) Run() *cstructs.CheckResult {
 					exitCode = status.ExitStatus()
 				}
 			}
-			return &cstructs.CheckResult{ExitCode: exitCode, Output: string(buf.Bytes()), Timestamp: ts}
+			return &cstructs.CheckResult{
+				ExitCode:  exitCode,
+				Output:    string(buf.Bytes()),
+				Timestamp: ts,
+			}
 		case <-time.After(30 * time.Second):
 			errCh <- fmt.Errorf("timed out after waiting 30s")
 		}

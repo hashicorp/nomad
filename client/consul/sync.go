@@ -204,7 +204,7 @@ func (c *ConsulService) Shutdown() error {
 		cr.Stop()
 	}
 
-	// de-register all the services from consul
+	// De-register all the services from consul
 	for _, service := range c.trackedServices {
 		if err := c.client.Agent().ServiceDeregister(service.ID); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
@@ -320,7 +320,7 @@ func (c *ConsulService) deregisterCheck(ID string) error {
 		delete(c.checkRunners, ID)
 	}
 
-	// Deleteting from consul
+	// Deleting from consul
 	return c.client.Agent().CheckDeregister(ID)
 }
 
