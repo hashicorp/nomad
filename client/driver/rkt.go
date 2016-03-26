@@ -233,11 +233,11 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		return nil, err
 	}
 	executorCtx := &executor.ExecutorContext{
-		TaskEnv:      d.taskEnv,
-		AllocDir:     ctx.AllocDir,
-		AllocID:      ctx.AllocID,
-		Task:         task,
-		ConsulConfig: consulConfig(d.config),
+		TaskEnv:  d.taskEnv,
+		Driver:   "rkt",
+		AllocDir: ctx.AllocDir,
+		AllocID:  ctx.AllocID,
+		Task:     task,
 	}
 
 	absPath, err := GetAbsolutePath("rkt")
@@ -268,7 +268,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		doneCh:         make(chan struct{}),
 		waitCh:         make(chan *cstructs.WaitResult, 1),
 	}
-	if h.executor.RegisterServices(); err != nil {
+	if h.executor.SyncServices(consulContext(d.config, "")); err != nil {
 		h.logger.Printf("[ERR] driver.rkt: error registering services for task: %q: %v", task.Name, err)
 	}
 	go h.run()
@@ -307,7 +307,9 @@ func (d *RktDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error
 		doneCh:         make(chan struct{}),
 		waitCh:         make(chan *cstructs.WaitResult, 1),
 	}
-
+	if h.executor.SyncServices(consulContext(d.config, "")); err != nil {
+		h.logger.Printf("[ERR] driver.rkt: error registering services: %v", err)
+	}
 	go h.run()
 	return h, nil
 }

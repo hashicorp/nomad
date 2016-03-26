@@ -12,6 +12,12 @@ import (
 
 func (e *UniversalExecutor) LaunchSyslogServer(ctx *ExecutorContext) (*SyslogServerState, error) {
 	e.ctx = ctx
+
+	// configuring the task dir
+	if err := e.configureTaskDir(); err != nil {
+		return nil, err
+	}
+
 	e.syslogChan = make(chan *logging.SyslogMessage, 2048)
 	l, err := e.getListener(e.ctx.PortLowerBound, e.ctx.PortUpperBound)
 	if err != nil {

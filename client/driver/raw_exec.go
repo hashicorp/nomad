@@ -101,11 +101,11 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 		return nil, err
 	}
 	executorCtx := &executor.ExecutorContext{
-		TaskEnv:      d.taskEnv,
-		AllocDir:     ctx.AllocDir,
-		AllocID:      ctx.AllocID,
-		Task:         task,
-		ConsulConfig: consulConfig(d.config),
+		TaskEnv:  d.taskEnv,
+		Driver:   "raw_exec",
+		AllocDir: ctx.AllocDir,
+		AllocID:  ctx.AllocID,
+		Task:     task,
 	}
 
 	ps, err := exec.LaunchCmd(&executor.ExecCommand{
@@ -133,7 +133,7 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 		doneCh:         make(chan struct{}),
 		waitCh:         make(chan *cstructs.WaitResult, 1),
 	}
-	if err := h.executor.RegisterServices(); err != nil {
+	if err := h.executor.SyncServices(consulContext(d.config, "")); err != nil {
 		h.logger.Printf("[ERR] driver.raw_exec: error registering services with consul for task: %q: %v", task.Name, err)
 	}
 	go h.run()
@@ -179,6 +179,9 @@ func (d *RawExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, e
 		version:        id.Version,
 		doneCh:         make(chan struct{}),
 		waitCh:         make(chan *cstructs.WaitResult, 1),
+	}
+	if err := h.executor.SyncServices(consulContext(d.config, "")); err != nil {
+		h.logger.Printf("[ERR] driver.raw_exec: error registering services with consul: %v", err)
 	}
 	go h.run()
 	return h, nil

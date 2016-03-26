@@ -18,29 +18,11 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/env"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
+	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/discover"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/testutil"
+	tu "github.com/hashicorp/nomad/testutil"
 )
-
-// dockerIsConnected checks to see if a docker daemon is available (local or remote)
-func dockerIsConnected(t *testing.T) bool {
-	client, err := docker.NewClientFromEnv()
-	if err != nil {
-		return false
-	}
-
-	// Creating a client doesn't actually connect, so make sure we do something
-	// like call Version() on it.
-	env, err := client.Version()
-	if err != nil {
-		t.Logf("Failed to connect to docker daemon: %s", err)
-		return false
-	}
-
-	t.Logf("Successfully connected to docker daemon running version %s", env.Get("Version"))
-	return true
-}
 
 func dockerIsRemote(t *testing.T) bool {
 	client, err := docker.NewClientFromEnv()
@@ -102,7 +84,7 @@ func dockerTask() (*structs.Task, int, int) {
 // If there is a problem during setup this function will abort or skip the test
 // and indicate the reason.
 func dockerSetup(t *testing.T, task *structs.Task) (*docker.Client, DriverHandle, func()) {
-	if !dockerIsConnected(t) {
+	if !testutil.DockerIsConnected(t) {
 		t.SkipNow()
 	}
 
@@ -184,7 +166,7 @@ func TestDockerDriver_Fingerprint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if apply != dockerIsConnected(t) {
+	if apply != testutil.DockerIsConnected(t) {
 		t.Fatalf("Fingerprinter should detect when docker is available")
 	}
 	if node.Attributes["driver.docker"] != "1" {
@@ -195,7 +177,7 @@ func TestDockerDriver_Fingerprint(t *testing.T) {
 
 func TestDockerDriver_StartOpen_Wait(t *testing.T) {
 	t.Parallel()
-	if !dockerIsConnected(t) {
+	if !testutil.DockerIsConnected(t) {
 		t.SkipNow()
 	}
 
@@ -267,7 +249,7 @@ func TestDockerDriver_Start_Wait(t *testing.T) {
 		if !res.Successful() {
 			t.Fatalf("err: %v", res)
 		}
-	case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
+	case <-time.After(time.Duration(tu.TestMultiplier()*5) * time.Second):
 		t.Fatalf("timeout")
 	}
 }
@@ -277,7 +259,7 @@ func TestDockerDriver_Start_Wait_AllocDir(t *testing.T) {
 	// This test requires that the alloc dir be mounted into docker as a volume.
 	// Because this cannot happen when docker is run remotely, e.g. when running
 	// docker in a VM, we skip this when we detect Docker is being run remotely.
-	if !dockerIsConnected(t) || dockerIsRemote(t) {
+	if !testutil.DockerIsConnected(t) || dockerIsRemote(t) {
 		t.SkipNow()
 	}
 
@@ -322,7 +304,7 @@ func TestDockerDriver_Start_Wait_AllocDir(t *testing.T) {
 		if !res.Successful() {
 			t.Fatalf("err: %v", res)
 		}
-	case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
+	case <-time.After(time.Duration(tu.TestMultiplier()*5) * time.Second):
 		t.Fatalf("timeout")
 	}
 
@@ -370,14 +352,14 @@ func TestDockerDriver_Start_Kill_Wait(t *testing.T) {
 		if res.Successful() {
 			t.Fatalf("should err: %v", res)
 		}
-	case <-time.After(time.Duration(testutil.TestMultiplier()*10) * time.Second):
+	case <-time.After(time.Duration(tu.TestMultiplier()*10) * time.Second):
 		t.Fatalf("timeout")
 	}
 }
 
 func TestDocker_StartN(t *testing.T) {
 	t.Parallel()
-	if !dockerIsConnected(t) {
+	if !testutil.DockerIsConnected(t) {
 		t.SkipNow()
 	}
 
@@ -422,7 +404,7 @@ func TestDocker_StartN(t *testing.T) {
 
 func TestDocker_StartNVersions(t *testing.T) {
 	t.Parallel()
-	if !dockerIsConnected(t) {
+	if !testutil.DockerIsConnected(t) {
 		t.SkipNow()
 	}
 
@@ -692,7 +674,7 @@ func TestDockerUser(t *testing.T) {
 		},
 	}
 
-	if !dockerIsConnected(t) {
+	if !testutil.DockerIsConnected(t) {
 		t.SkipNow()
 	}
 

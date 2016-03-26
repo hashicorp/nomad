@@ -1180,11 +1180,11 @@ func (c *Client) setupConsulClient() error {
 
 // syncConsul removes services of tasks which are no longer in running state
 func (c *Client) syncConsul() {
-	sync := time.After(consulSyncInterval)
+	sync := time.NewTicker(consulSyncInterval)
 	for {
 		select {
-		case <-sync:
-			var runningTasks []*structs.Task
+		case <-sync.C:
+			services := make(map[string]struct{})
 			// Get the existing allocs
 			c.allocLock.RLock()
 			allocs := make([]*AllocRunner, 0, len(c.allocs))
@@ -1199,15 +1199,18 @@ func (c *Client) syncConsul() {
 				for taskName, taskState := range taskStates {
 					if taskState.State == structs.TaskStateRunning {
 						if tr, ok := ar.tasks[taskName]; ok {
-							runningTasks = append(runningTasks, tr.task)
+							for _, service := range tr.task.Services {
+								services[service.ID(ar.alloc.ID, tr.task.Name)] = struct{}{}
+							}
 						}
 					}
 				}
 			}
-			if err := c.consulService.KeepServices(runningTasks); err != nil {
+			if err := c.consulService.KeepServices(services); err != nil {
 				c.logger.Printf("[DEBUG] client: error removing services from non-running tasks: %v", err)
 			}
 		case <-c.shutdownCh:
+			sync.Stop()
 			c.logger.Printf("[INFO] client: shutting down consul sync")
 			return
 		}

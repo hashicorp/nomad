@@ -21,11 +21,14 @@ import (
 type ConsulService struct {
 	client *consul.Client
 
-	task    *structs.Task
-	allocID string
+	task           *structs.Task
+	allocID        string
+	delegateChecks map[string]struct{}
+	createCheck    func(*structs.ServiceCheck, string) (Check, error)
 
 	trackedServices map[string]*consul.AgentService
 	trackedChecks   map[string]*consul.AgentCheckRegistration
+	checkRunners    map[string]*CheckRunner
 
 	logger *log.Logger
 
@@ -46,6 +49,10 @@ type ConsulConfig struct {
 const (
 	// The periodic time interval for syncing services and checks with Consul
 	syncInterval = 5 * time.Second
+
+	// ttlCheckBuffer is the time interval that Nomad can take to report Consul
+	// the check result
+	ttlCheckBuffer = 31 * time.Second
 )
 
 // NewConsulService returns a new ConsulService
@@ -93,10 +100,19 @@ func NewConsulService(config *ConsulConfig, logger *log.Logger, allocID string) 
 		logger:          logger,
 		trackedServices: make(map[string]*consul.AgentService),
 		trackedChecks:   make(map[string]*consul.AgentCheckRegistration),
+		checkRunners:    make(map[string]*CheckRunner),
 
 		shutdownCh: make(chan struct{}),
 	}
 	return &consulService, nil
+}
+
+// SetDelegatedChecks sets the checks that nomad is going to run and report the
+// result back to consul
+func (c *ConsulService) SetDelegatedChecks(delegateChecks map[string]struct{}, createCheck func(*structs.ServiceCheck, string) (Check, error)) *ConsulService {
+	c.delegateChecks = delegateChecks
+	c.createCheck = createCheck
+	return c
 }
 
 // SyncTask sync the services and task with consul
@@ -123,7 +139,23 @@ func (c *ConsulService) SyncTask(task *structs.Task) error {
 		taskServices[srv.ID] = srv
 
 		for _, chk := range service.Checks {
-			chkReg := c.createCheck(chk, srv)
+			// Create a consul check registration
+			chkReg, err := c.createCheckReg(chk, srv)
+			if err != nil {
+				mErr.Errors = append(mErr.Errors, err)
+				continue
+			}
+			// creating a nomad check if we have to handle this particular check type
+			if _, ok := c.delegateChecks[chk.Type]; ok {
+				nc, err := c.createCheck(chk, chkReg.ID)
+				if err != nil {
+					mErr.Errors = append(mErr.Errors, err)
+					continue
+				}
+				cr := NewCheckRunner(nc, c.runCheck, c.logger)
+				c.checkRunners[nc.ID()] = cr
+			}
+
 			if _, ok := c.trackedChecks[chkReg.ID]; !ok {
 				if err := c.registerCheck(chkReg); err != nil {
 					mErr.Errors = append(mErr.Errors, err)
@@ -166,6 +198,13 @@ func (c *ConsulService) Shutdown() error {
 		c.shutdown = true
 	}
 	c.shutdownLock.Unlock()
+
+	// Stop all the checks that nomad is running
+	for _, cr := range c.checkRunners {
+		cr.Stop()
+	}
+
+	// De-register all the services from consul
 	for _, service := range c.trackedServices {
 		if err := c.client.Agent().ServiceDeregister(service.ID); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
@@ -176,16 +215,8 @@ func (c *ConsulService) Shutdown() error {
 
 // KeepServices removes services from consul which are not present in the list
 // of tasks passed to it
-func (c *ConsulService) KeepServices(tasks []*structs.Task) error {
+func (c *ConsulService) KeepServices(services map[string]struct{}) error {
 	var mErr multierror.Error
-	var services map[string]struct{}
-
-	// Indexing the services in the tasks
-	for _, task := range tasks {
-		for _, service := range task.Services {
-			services[service.ID(c.allocID, c.task.Name)] = struct{}{}
-		}
-	}
 
 	// Get the services from Consul
 	cServices, err := c.client.Agent().Services()
@@ -207,10 +238,15 @@ func (c *ConsulService) KeepServices(tasks []*structs.Task) error {
 
 // registerCheck registers a check definition with Consul
 func (c *ConsulService) registerCheck(chkReg *consul.AgentCheckRegistration) error {
+	if cr, ok := c.checkRunners[chkReg.ID]; ok {
+		cr.Start()
+	}
 	return c.client.Agent().CheckRegister(chkReg)
 }
 
-func (c *ConsulService) createCheck(check *structs.ServiceCheck, service *consul.AgentService) *consul.AgentCheckRegistration {
+// createCheckReg creates a Check that can be registered with Nomad. It also
+// creates a Nomad check for the check types that it can handle.
+func (c *ConsulService) createCheckReg(check *structs.ServiceCheck, service *consul.AgentService) (*consul.AgentCheckRegistration, error) {
 	chkReg := consul.AgentCheckRegistration{
 		ID:        check.Hash(service.ID),
 		Name:      check.Name,
@@ -232,9 +268,11 @@ func (c *ConsulService) createCheck(check *structs.ServiceCheck, service *consul
 	case structs.ServiceCheckTCP:
 		chkReg.TCP = fmt.Sprintf("%s:%d", service.Address, service.Port)
 	case structs.ServiceCheckScript:
-		chkReg.TTL = check.Interval.String()
+		chkReg.TTL = (check.Interval + ttlCheckBuffer).String()
+	default:
+		return nil, fmt.Errorf("check type %q not valid", check.Type)
 	}
-	return &chkReg
+	return &chkReg, nil
 }
 
 // createService creates a Consul AgentService from a Nomad Service
@@ -276,21 +314,28 @@ func (c *ConsulService) deregisterService(ID string) error {
 
 // deregisterCheck de-registers a check with a given ID from Consul.
 func (c *ConsulService) deregisterCheck(ID string) error {
+	// Deleting the nomad check
+	if cr, ok := c.checkRunners[ID]; ok {
+		cr.Stop()
+		delete(c.checkRunners, ID)
+	}
+
+	// Deleting from consul
 	return c.client.Agent().CheckDeregister(ID)
 }
 
 // PeriodicSync triggers periodic syncing of services and checks with Consul.
 // This is a long lived go-routine which is stopped during shutdown
 func (c *ConsulService) PeriodicSync() {
-	sync := time.After(syncInterval)
+	sync := time.NewTicker(syncInterval)
 	for {
 		select {
-		case <-sync:
+		case <-sync.C:
 			if err := c.performSync(); err != nil {
 				c.logger.Printf("[DEBUG] consul: error in syncing task %q: %v", c.task.Name, err)
 			}
-			sync = time.After(syncInterval)
 		case <-c.shutdownCh:
+			sync.Stop()
 			c.logger.Printf("[INFO] consul: shutting down sync for task %q", c.task.Name)
 			return
 		}
@@ -353,7 +398,29 @@ func (c *ConsulService) filterConsulChecks(chks map[string]*consul.AgentCheck) m
 	return nomadChecks
 }
 
+// consulPresent indicates whether the consul agent is responding
 func (c *ConsulService) consulPresent() bool {
 	_, err := c.client.Agent().Self()
 	return err == nil
+}
+
+// runCheck runs a check and updates the corresponding ttl check in consul
+func (c *ConsulService) runCheck(check Check) {
+	res := check.Run()
+	state := consul.HealthCritical
+	output := res.Output
+	if res.Err != nil {
+		output = res.Err.Error()
+	}
+	switch res.ExitCode {
+	case 0:
+		state = consul.HealthPassing
+	case 1:
+		state = consul.HealthWarning
+	default:
+		state = consul.HealthCritical
+	}
+	if err := c.client.Agent().UpdateTTL(check.ID(), output, state); err != nil {
+		c.logger.Printf("[DEBUG] error updating ttl check for check %q: %v", check.ID(), err)
+	}
 }

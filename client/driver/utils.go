@@ -72,7 +72,7 @@ func createLogCollector(config *plugin.ClientConfig, w io.Writer,
 	return logCollector, syslogClient, nil
 }
 
-func consulConfig(clientConfig *config.Config) *consul.ConsulConfig {
+func consulContext(clientConfig *config.Config, containerID string) *executor.ConsulContext {
 	cfg := consul.ConsulConfig{
 		Addr:      clientConfig.ReadDefault("consul.address", "127.0.0.1:8500"),
 		Token:     clientConfig.Read("consul.token"),
@@ -80,7 +80,14 @@ func consulConfig(clientConfig *config.Config) *consul.ConsulConfig {
 		EnableSSL: clientConfig.ReadBoolDefault("consul.ssl", false),
 		VerifySSL: clientConfig.ReadBoolDefault("consul.verifyssl", true),
 	}
-	return &cfg
+	return &executor.ConsulContext{
+		ConsulConfig:   &cfg,
+		ContainerID:    containerID,
+		DockerEndpoint: clientConfig.Read("docker.endpoint"),
+		TLSCa:          clientConfig.Read("docker.tls.ca"),
+		TLSCert:        clientConfig.Read("docker.tls.cert"),
+		TLSKey:         clientConfig.Read("docker.tls.key"),
+	}
 }
 
 // killProcess kills a process with the given pid

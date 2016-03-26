@@ -750,6 +750,8 @@ func parseChecks(service *structs.Service, checkObjs *ast.ObjectList) error {
 			"timeout",
 			"path",
 			"protocol",
+			"cmd",
+			"args",
 		}
 		if err := checkHCLKeys(co.Val, valid); err != nil {
 			return multierror.Prefix(err, "check ->")

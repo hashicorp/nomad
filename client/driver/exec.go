@@ -106,11 +106,11 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		return nil, err
 	}
 	executorCtx := &executor.ExecutorContext{
-		TaskEnv:      d.taskEnv,
-		AllocDir:     ctx.AllocDir,
-		AllocID:      ctx.AllocID,
-		Task:         task,
-		ConsulConfig: consulConfig(d.config),
+		TaskEnv:  d.taskEnv,
+		Driver:   "exec",
+		AllocDir: ctx.AllocDir,
+		AllocID:  ctx.AllocID,
+		Task:     task,
 	}
 
 	ps, err := exec.LaunchCmd(&executor.ExecCommand{
@@ -141,7 +141,7 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		doneCh:          make(chan struct{}),
 		waitCh:          make(chan *cstructs.WaitResult, 1),
 	}
-	if err := exec.RegisterServices(); err != nil {
+	if err := exec.SyncServices(consulContext(d.config, "")); err != nil {
 		d.logger.Printf("[ERR] driver.exec: error registering services with consul for task: %q: %v", task.Name, err)
 	}
 	go h.run()
@@ -200,6 +200,9 @@ func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		maxKillTimeout:  id.MaxKillTimeout,
 		doneCh:          make(chan struct{}),
 		waitCh:          make(chan *cstructs.WaitResult, 1),
+	}
+	if err := exec.SyncServices(consulContext(d.config, "")); err != nil {
+		d.logger.Printf("[ERR] driver.exec: error registering services with consul: %v", err)
 	}
 	go h.run()
 	return h, nil

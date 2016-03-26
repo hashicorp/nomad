@@ -35,8 +35,32 @@ type Executor interface {
 	Exit() error
 	UpdateLogConfig(logConfig *structs.LogConfig) error
 	UpdateTask(task *structs.Task) error
-	RegisterServices() error
+	SyncServices(ctx *ConsulContext) error
 	DeregisterServices() error
+}
+
+// ConsulContext holds context to configure the consul client and run checks
+type ConsulContext struct {
+	// ConsulConfig is the configuration used to create a consul client
+	ConsulConfig *consul.ConsulConfig
+
+	// ContainerID is the ID of the container
+	ContainerID string
+
+	// TLSCert is the cert which docker client uses while interactng with the docker
+	// daemon over TLS
+	TLSCert string
+
+	// TLSCa is the CA which the docker client uses while interacting with the docker
+	// daeemon over TLS
+	TLSCa string
+
+	// TLSKey is the TLS key which the docker client uses while interacting with
+	// the docker daemon
+	TLSKey string
+
+	// DockerEndpoint is the endpoint of the docker daemon
+	DockerEndpoint string
 }
 
 // ExecutorContext holds context to configure the command user
@@ -55,6 +79,9 @@ type ExecutorContext struct {
 	// AllocID is the allocation id to which the task belongs
 	AllocID string
 
+	// Driver is the name of the driver that invoked the executor
+	Driver string
+
 	// PortUpperBound is the upper bound of the ports that we can use to start
 	// the syslog server
 	PortUpperBound uint
@@ -62,9 +89,6 @@ type ExecutorContext struct {
 	// PortLowerBound is the lower bound of the ports that we can use to start
 	// the syslog server
 	PortLowerBound uint
-
-	// ConsulConfig is the configuration used to create a consul client
-	ConsulConfig *consul.ConsulConfig
 }
 
 // ExecCommand holds the user command, args, and other isolation related
@@ -126,6 +150,7 @@ type UniversalExecutor struct {
 	cgLock sync.Mutex
 
 	consulService *consul.ConsulService
+	consulCtx     *ConsulContext
 	logger        *log.Logger
 }
 
@@ -352,13 +377,15 @@ func (e *UniversalExecutor) ShutDown() error {
 	return nil
 }
 
-func (e *UniversalExecutor) RegisterServices() error {
+func (e *UniversalExecutor) SyncServices(ctx *ConsulContext) error {
 	e.logger.Printf("[INFO] executor: registering services")
+	e.consulCtx = ctx
 	if e.consulService == nil {
-		cs, err := consul.NewConsulService(e.ctx.ConsulConfig, e.logger, e.ctx.AllocID)
+		cs, err := consul.NewConsulService(ctx.ConsulConfig, e.logger, e.ctx.AllocID)
 		if err != nil {
 			return err
 		}
+		cs.SetDelegatedChecks(e.createCheckMap(), e.createCheck)
 		e.consulService = cs
 	}
 	err := e.consulService.SyncTask(e.ctx.Task)
@@ -477,4 +504,40 @@ func (e *UniversalExecutor) listenerUnix() (net.Listener, error) {
 	}
 
 	return net.Listen("unix", path)
+}
+
+// createCheckMap creates a map of checks that the executor will handle on it's
+// own
+func (e *UniversalExecutor) createCheckMap() map[string]struct{} {
+	checks := map[string]struct{}{
+		"script": struct{}{},
+	}
+	return checks
+}
+
+// createCheck creates NomadCheck from a ServiceCheck
+func (e *UniversalExecutor) createCheck(check *structs.ServiceCheck, checkID string) (consul.Check, error) {
+	if check.Type == structs.ServiceCheckScript && e.ctx.Driver == "docker" {
+		return &DockerScriptCheck{
+			id:          checkID,
+			interval:    check.Interval,
+			containerID: e.consulCtx.ContainerID,
+			logger:      e.logger,
+			cmd:         check.Cmd,
+			args:        check.Args,
+		}, nil
+	}
+
+	if check.Type == structs.ServiceCheckScript && e.ctx.Driver == "exec" {
+		return &ExecScriptCheck{
+			id:          checkID,
+			interval:    check.Interval,
+			cmd:         check.Cmd,
+			args:        check.Args,
+			taskDir:     e.taskDir,
+			FSIsolation: e.command.FSIsolation,
+		}, nil
+
+	}
+	return nil, fmt.Errorf("couldn't create check for %v", check.Name)
 }

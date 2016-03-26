@@ -1411,7 +1411,8 @@ const (
 type ServiceCheck struct {
 	Name     string        // Name of the check, defaults to id
 	Type     string        // Type of the check - tcp, http, docker and script
-	Script   string        // Script to invoke for script check
+	Cmd      string        // Cmd is the command to run for script checks
+	Args     []string      // Args is a list of argumes for script checks
 	Path     string        // path of the health check url for http type check
 	Protocol string        // Protocol to use if check is http, defaults to http
 	Interval time.Duration // Interval of the check
@@ -1429,14 +1430,14 @@ func (sc *ServiceCheck) Copy() *ServiceCheck {
 
 func (sc *ServiceCheck) Validate() error {
 	t := strings.ToLower(sc.Type)
-	if t != ServiceCheckTCP && t != ServiceCheckHTTP {
-		return fmt.Errorf("service check must be either http or tcp type")
+	if t != ServiceCheckTCP && t != ServiceCheckHTTP && t != ServiceCheckScript {
+		return fmt.Errorf("service check must be either http, tcp or script type")
 	}
 	if sc.Type == ServiceCheckHTTP && sc.Path == "" {
 		return fmt.Errorf("service checks of http type must have a valid http path")
 	}
 
-	if sc.Type == ServiceCheckScript && sc.Script == "" {
+	if sc.Type == ServiceCheckScript && sc.Cmd == "" {
 		return fmt.Errorf("service checks of script type must have a valid script path")
 	}
 
@@ -1451,8 +1452,8 @@ func (sc *ServiceCheck) Hash(serviceID string) string {
 	io.WriteString(h, serviceID)
 	io.WriteString(h, sc.Name)
 	io.WriteString(h, sc.Type)
-	io.WriteString(h, sc.Script)
-	io.WriteString(h, sc.Path)
+	io.WriteString(h, sc.Cmd)
+	io.WriteString(h, strings.Join(sc.Args, ""))
 	io.WriteString(h, sc.Path)
 	io.WriteString(h, sc.Protocol)
 	io.WriteString(h, sc.Interval.String())
