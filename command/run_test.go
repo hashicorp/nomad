@@ -13,6 +13,42 @@ func TestRunCommand_Implements(t *testing.T) {
 	var _ cli.Command = &RunCommand{}
 }
 
+func TestRunCommand_Output_Json(t *testing.T) {
+	ui := new(cli.MockUi)
+	cmd := &RunCommand{Meta: Meta{Ui: ui}}
+
+	fh, err := ioutil.TempFile("", "nomad")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	defer os.Remove(fh.Name())
+	_, err = fh.WriteString(`
+job "job1" {
+	type = "service"
+	datacenters = [ "dc1" ]
+	group "group1" {
+		count = 1
+		task "task1" {
+			driver = "exec"
+			resources = {
+				cpu = 1000
+				disk = 150
+				memory = 512
+			}
+		}
+	}
+}`)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	if code := cmd.Run([]string{"-output", fh.Name()}); code != 0 {
+		t.Fatalf("expected exit code 0, got: %d", code)
+	}
+	if out := ui.OutputWriter.String(); !strings.Contains(out, `"Region": "global",`) {
+		t.Fatalf("Expected JSON output: %v", out)
+	}
+}
+
 func TestRunCommand_Fails(t *testing.T) {
 	ui := new(cli.MockUi)
 	cmd := &RunCommand{Meta: Meta{Ui: ui}}
