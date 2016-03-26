@@ -110,7 +110,8 @@ group "database" {
   limited to alphanumeric and hyphen characters (i.e. `[a-z0-9\-]`), and be
   less than 64 characters in length.
 
-* `tags`: A list of tags associated with this Service.
+* `tags`: A list of tags associated with this Service. String interpolation is
+  supported in tags.
 
 * `port`: The port indicates the port associated with the service. Users are
   required to specify a valid port label here which they have defined in the
