@@ -10,6 +10,7 @@ IMPROVEMENTS:
   * cli: Destructive commands now require confirmation [GH-983]
   * cli: `alloc-status` display is less verbose by default [GH-946]
   * cli: `server-members` displays the current leader in each region [GH-935]
+  * cli: `run` has an `-output` flag to emit a JSON version of the job [GH-990]
   * cli: New `inspect` command to display a submitted job's specification
     [GH-952]
   * cli: `node-status` display is less verbose by default and shows a node's
