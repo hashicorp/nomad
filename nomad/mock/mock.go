@@ -96,6 +96,7 @@ func Job() *structs.Job {
 							{
 								Name:      "${TASK}-frontend",
 								PortLabel: "http",
+								Tags:      []string{"pci:${meta.pci-dss}", "datacenter:${node.datacenter}"},
 							},
 							{
 								Name:      "${TASK}-admin",

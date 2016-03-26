@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -265,5 +266,20 @@ func TestExecutor_MakeExecutable(t *testing.T) {
 	exp := os.FileMode(0755)
 	if act != exp {
 		t.Fatalf("expected permissions %v; got %v", err)
+	}
+}
+
+func TestExecutorInterpolateServices(t *testing.T) {
+	task := mock.Job().TaskGroups[0].Tasks[0]
+	// Make a fake exececutor
+	ctx := testExecutorContext(t)
+	defer ctx.AllocDir.Destroy()
+	executor := NewExecutor(log.New(os.Stdout, "", log.LstdFlags))
+
+	executor.(*UniversalExecutor).ctx = ctx
+	executor.(*UniversalExecutor).interpolateServices(task)
+	expected := []string{"pci:true", "datacenter:dc1"}
+	if !reflect.DeepEqual(task.Services[0].Tags, expected) {
+		t.Fatalf("expected: %v, actual: %v", expected, task.Services[0].Tags)
 	}
 }
