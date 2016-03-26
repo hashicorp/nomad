@@ -545,6 +545,8 @@ func (e *UniversalExecutor) createCheck(check *structs.ServiceCheck, checkID str
 	return nil, fmt.Errorf("couldn't create check for %v", check.Name)
 }
 
+// interpolateServices interpolates tags in a service with values from the
+// task's environment.
 func (e *UniversalExecutor) interpolateServices(task *structs.Task) {
 	e.ctx.TaskEnv.Build()
 	for _, service := range task.Services {
