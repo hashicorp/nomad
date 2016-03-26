@@ -96,9 +96,12 @@ func NewTaskRunner(logger *log.Logger, config *config.Config,
 		waitCh:         make(chan struct{}),
 	}
 
-	// Set the state to pending.
-	tc.updater(task.Name, structs.TaskStatePending, structs.NewTaskEvent(structs.TaskReceived))
 	return tc
+}
+
+// MarkReceived marks the task as received.
+func (r *TaskRunner) MarkReceived() {
+	r.updater(r.task.Name, structs.TaskStatePending, structs.NewTaskEvent(structs.TaskReceived))
 }
 
 // WaitCh returns a channel to wait for termination
@@ -270,9 +273,8 @@ func (r *TaskRunner) run() {
 				err := fmt.Errorf("task directory couldn't be found")
 				r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskDriverFailure).SetDriverError(err))
 				r.logger.Printf("[ERR] client: task directory for alloc %q task %q couldn't be found", r.alloc.ID, r.task.Name)
-
-				// Non-restartable error
-				return
+				r.restartTracker.SetStartError(err)
+				goto RESTART
 			}
 
 			for _, artifact := range r.task.Artifacts {
