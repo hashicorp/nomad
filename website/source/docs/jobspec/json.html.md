@@ -9,7 +9,9 @@ description: |-
 # Job Specification
 
 Jobs can be specified either in [HCL](https://github.com/hashicorp/hcl) or JSON.
-This guide covers the json syntax for submitting jobs to Nomad.
+This guide covers the json syntax for submitting jobs to Nomad. A useful command
+for generating valid JSON versions of HCL jobs is `nomad run -output <job.nomad>`
+which will emit a JSON version of the job.
 
 ## JSON Syntax
 

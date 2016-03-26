@@ -3,6 +3,7 @@ package command
 import (
 	"bytes"
 	"encoding/gob"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -50,6 +51,10 @@ Run Options:
 
   -verbose
     Display full information.
+
+  -output
+    Output the JSON that would be submitted to the HTTP API without submitting
+    the job.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -59,12 +64,13 @@ func (c *RunCommand) Synopsis() string {
 }
 
 func (c *RunCommand) Run(args []string) int {
-	var detach, verbose bool
+	var detach, verbose, output bool
 
 	flags := c.Meta.FlagSet("run", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&detach, "detach", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
+	flags.BoolVar(&output, "output", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -108,6 +114,17 @@ func (c *RunCommand) Run(args []string) int {
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error converting job: %s", err))
 		return 1
+	}
+
+	if output {
+		buf, err := json.MarshalIndent(apiJob, "", "    ")
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error converting job: %s", err))
+			return 1
+		}
+
+		c.Ui.Output(string(buf))
+		return 0
 	}
 
 	// Get the HTTP client
