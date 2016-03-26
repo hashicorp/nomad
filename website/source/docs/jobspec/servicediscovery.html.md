@@ -61,6 +61,14 @@ group "database" {
                 interval = "10s"
                 timeout = "2s"
             }
+            check {
+                type = "script"
+                name = "check_table"
+                cmd = "/usr/local/bin/check_mysql_table_status"
+                agrs = ["--verbose"]
+                interval = "60s"
+                timeout = "5s"
+            }
         }
         resources {
             cpu = 500
@@ -97,8 +105,10 @@ group "database" {
   with Consul.
 
 * `check`: A check block defines a health check associated with the service.
-  Multiple check blocks are allowed for a service. Nomad currently supports
-  only the `http` and `tcp` Consul Checks.
+  Multiple check blocks are allowed for a service. Nomad supports the `script`,
+  `http` and `tcp` Consul Checks. Script checks are not supported for the qemu
+  driver since the Nomad client doesn't have access to the file system of a
+  tasks using the Qemu driver.
 
 ### Check Syntax
 
@@ -120,9 +130,14 @@ group "database" {
 * `protocol`: This indicates the protocol for the http checks. Valid options
   are `http` and `https`. We default it to `http`
 
+* `cmd`: This is the command that the Nomad client runs for doing script based
+  health check.
+
+* `args`: Additional arguments to the `cmd` for script based health checks.
+
 ## Assumptions
 
-* Consul 0.6.0 or later is needed for using the TCP checks.
+* Consul 0.6.4 or later is needed for using the TCP checks.
 
 * The service discovery feature in Nomad depends on operators making sure that
   the Nomad client can reach the Consul agent.

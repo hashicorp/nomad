@@ -20,6 +20,7 @@ IMPROVEMENTS:
   * client: Allow task's to be run as particular user [GH-950, GH-978]
   * client: `artifact` block now supports downloading paths relative to the
     task's directory [GH-944]
+  * discovery: Support script based health checks [GH-986]
 
 BUG FIXES:
   * core: Fix issue where in-place updated allocation double counted resources
