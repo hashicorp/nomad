@@ -58,7 +58,7 @@ func TestExecScriptCheckWithIsolation(t *testing.T) {
 		id:          "foo",
 		cmd:         "/bin/echo",
 		args:        []string{"hello", "world"},
-		taskDir:     "/tmp",
+		taskDir:     ctx.AllocDir.TaskDirs["web"],
 		FSIsolation: true,
 	}
 
