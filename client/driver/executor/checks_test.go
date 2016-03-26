@@ -86,7 +86,7 @@ func TestDockerScriptCheck(t *testing.T) {
 		t.Fatalf("error creating docker client: %v", err)
 	}
 
-	if err := client.PullImage(docker.PullImageOptions{Repository: "busybox", Tag: "1-uclibc"},
+	if err := client.PullImage(docker.PullImageOptions{Repository: "busybox", Tag: "latest"},
 		docker.AuthConfiguration{}); err != nil {
 		t.Fatalf("error pulling redis: %v", err)
 	}
