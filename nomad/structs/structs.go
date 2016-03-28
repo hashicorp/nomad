@@ -1411,7 +1411,7 @@ const (
 type ServiceCheck struct {
 	Name     string        // Name of the check, defaults to id
 	Type     string        // Type of the check - tcp, http, docker and script
-	Cmd      string        // Cmd is the command to run for script checks
+	Command  string        // Command is the command to run for script checks
 	Args     []string      // Args is a list of argumes for script checks
 	Path     string        // path of the health check url for http type check
 	Protocol string        // Protocol to use if check is http, defaults to http
@@ -1437,7 +1437,7 @@ func (sc *ServiceCheck) Validate() error {
 		return fmt.Errorf("service checks of http type must have a valid http path")
 	}
 
-	if sc.Type == ServiceCheckScript && sc.Cmd == "" {
+	if sc.Type == ServiceCheckScript && sc.Command == "" {
 		return fmt.Errorf("service checks of script type must have a valid script path")
 	}
 
@@ -1452,7 +1452,7 @@ func (sc *ServiceCheck) Hash(serviceID string) string {
 	io.WriteString(h, serviceID)
 	io.WriteString(h, sc.Name)
 	io.WriteString(h, sc.Type)
-	io.WriteString(h, sc.Cmd)
+	io.WriteString(h, sc.Command)
 	io.WriteString(h, strings.Join(sc.Args, ""))
 	io.WriteString(h, sc.Path)
 	io.WriteString(h, sc.Protocol)

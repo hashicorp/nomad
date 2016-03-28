@@ -37,6 +37,20 @@ Nomad does not currently run Consul for you.
 * `consul.verifyssl`: This option enables SSL verification when the transport
  scheme for the Consul API client is `https`. This is set to true by default.
 
+* `consul.tls_ca_file`: The path to the CA certificate used for Consul communication.
+  Set accordingly to the
+  [ca_file](https://www.consul.io/docs/agent/options.html#ca_file) setting in
+  Consul.
+
+* `consul.tls_cert_file`: The path to the certificate for Consul communication. Set
+  accordingly
+  [cert_file](https://www.consul.io/docs/agent/options.html#cert_file) in
+  Consul.
+
+* `consul.tls_key_file`: The path to the private key for Consul communication.
+  Set accordingly to the
+  [key_file](https://www.consul.io/docs/agent/options.html#key_file) setting in
+  Consul.
 
 ## Service Definition Syntax
 
@@ -60,6 +74,14 @@ group "database" {
                 type = "tcp"
                 interval = "10s"
                 timeout = "2s"
+            }
+            check {
+                type = "script"
+                name = "check_table"
+                cmd = "/usr/local/bin/check_mysql_table_status"
+                args = ["--verbose"]
+                interval = "60s"
+                timeout = "5s"
             }
         }
         resources {
@@ -97,8 +119,10 @@ group "database" {
   with Consul.
 
 * `check`: A check block defines a health check associated with the service.
-  Multiple check blocks are allowed for a service. Nomad currently supports
-  only the `http` and `tcp` Consul Checks.
+  Multiple check blocks are allowed for a service. Nomad supports the `script`,
+  `http` and `tcp` Consul Checks. Script checks are not supported for the qemu
+  driver since the Nomad client doesn't have access to the file system of a
+  tasks using the Qemu driver.
 
 ### Check Syntax
 
@@ -120,7 +144,14 @@ group "database" {
 * `protocol`: This indicates the protocol for the http checks. Valid options
   are `http` and `https`. We default it to `http`
 
+* `command`: This is the command that the Nomad client runs for doing script based
+  health check.
+
+* `args`: Additional arguments to the `command` for script based health checks.
+
 ## Assumptions
+
+* Consul 0.6.4 or later is needed for using the Script checks.
 
 * Consul 0.6.0 or later is needed for using the TCP checks.
 
