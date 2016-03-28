@@ -121,7 +121,7 @@ func (c *StopCommand) Run(args []string) int {
 			// No case
 			c.Ui.Output("Cancelling job stop")
 			return 0
-		} else if strings.ToLower(answer)[0] == 'y' {
+		} else if strings.ToLower(answer)[0] == 'y' && len(answer) > 1 {
 			// Non exact match yes
 			c.Ui.Output("For confirmation, an exact ‘y’ is required.")
 			return 0
