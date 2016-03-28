@@ -132,7 +132,7 @@ func TestAllocDir_EmbedDirs(t *testing.T) {
 
 	subDirName := "subdir"
 	subDir := filepath.Join(host, subDirName)
-	if err := os.Mkdir(subDir, 0777); err != nil {
+	if err := os.MkdirAll(subDir, 0777); err != nil {
 		t.Fatalf("Failed to make subdir %v: %v", subDir, err)
 	}
 
