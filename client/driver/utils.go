@@ -79,9 +79,9 @@ func consulContext(clientConfig *config.Config, containerID string) *executor.Co
 		Auth:      clientConfig.Read("consul.auth"),
 		EnableSSL: clientConfig.ReadBoolDefault("consul.ssl", false),
 		VerifySSL: clientConfig.ReadBoolDefault("consul.verifyssl", true),
-		CAFile:    clientConfig.Read("consul.cafile"),
-		CertFile:  clientConfig.Read("consul.certfile"),
-		KeyFile:   clientConfig.Read("consul.keyfile"),
+		CAFile:    clientConfig.Read("consul.tls_ca_file"),
+		CertFile:  clientConfig.Read("consul.tls_cert_file"),
+		KeyFile:   clientConfig.Read("consul.tls_key_file"),
 	}
 	return &executor.ConsulContext{
 		ConsulConfig:   &cfg,
