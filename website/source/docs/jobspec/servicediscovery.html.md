@@ -50,7 +50,7 @@ Nomad does not currently run Consul for you.
 * `consul.tls_key_file`: The path to the private key for Consul communication.
   Set accordingly to the
   [key_file](https://www.consul.io/docs/agent/options.html#key_file) setting in
-  Consul.j
+  Consul.
 
 ## Service Definition Syntax
 
