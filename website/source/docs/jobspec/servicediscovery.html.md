@@ -37,6 +37,20 @@ Nomad does not currently run Consul for you.
 * `consul.verifyssl`: This option enables SSL verification when the transport
  scheme for the Consul API client is `https`. This is set to true by default.
 
+* `consul.tls_ca_file`: The path to the CA certificate used for Consul communication.
+  Set accordingly to the
+  [ca_file](https://www.consul.io/docs/agent/options.html#ca_file) setting in
+  Consul.
+
+* `consul.tls_cert_file`: The path to the certificate for Consul communication. Set
+  accordingly
+  [cert_file](https://www.consul.io/docs/agent/options.html#cert_file) in
+  Consul.
+
+* `consul.tls_key_file`: The path to the private key for Consul communication.
+  Set accordingly to the
+  [key_file](https://www.consul.io/docs/agent/options.html#key_file) setting in
+  Consul.
 
 ## Service Definition Syntax
 
