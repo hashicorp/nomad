@@ -44,6 +44,9 @@ type ConsulConfig struct {
 	Auth      string
 	EnableSSL bool
 	VerifySSL bool
+	CAFile    string
+	CertFile  string
+	KeyFile   string
 }
 
 const (
@@ -83,6 +86,20 @@ func NewConsulService(config *ConsulConfig, logger *log.Logger, allocID string) 
 	}
 	if config.EnableSSL {
 		cfg.Scheme = "https"
+		tlsCfg := consul.TLSConfig{
+			Address:            cfg.Address,
+			CAFile:             config.CAFile,
+			CertFile:           config.CertFile,
+			KeyFile:            config.KeyFile,
+			InsecureSkipVerify: !config.VerifySSL,
+		}
+		tlsClientCfg, err := consul.SetupTLSConfig(&tlsCfg)
+		if err != nil {
+			return nil, fmt.Errorf("error creating tls client config for consul: %v", err)
+		}
+		cfg.HttpClient.Transport = &http.Transport{
+			TLSClientConfig: tlsClientCfg,
+		}
 	}
 	if config.EnableSSL && !config.VerifySSL {
 		cfg.HttpClient.Transport = &http.Transport{

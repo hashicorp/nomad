@@ -255,13 +255,13 @@
 		},
 		{
 			"ImportPath": "github.com/hashicorp/consul/api",
-			"Comment": "v0.6.3-290-ge3f6c6a",
-			"Rev": "e3f6c6a7987ff879a1c138abcc4d14d8b65fc13f"
+			"Comment": "v0.6.3-363-gae32a3c",
+			"Rev": "ae32a3ceae9fddb431b933ed7b2a82110e41e1bf"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/consul/tlsutil",
-			"Comment": "v0.6.3-290-ge3f6c6a",
-			"Rev": "e3f6c6a7987ff879a1c138abcc4d14d8b65fc13f"
+			"Comment": "v0.6.3-363-gae32a3c",
+			"Rev": "ae32a3ceae9fddb431b933ed7b2a82110e41e1bf"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/errwrap",
