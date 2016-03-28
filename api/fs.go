@@ -139,6 +139,37 @@ func (a *AllocFS) ReadAt(alloc *Allocation, path string, offset int64, limit int
 	return resp.Body, nil, nil
 }
 
+// Cat is used to read contents of a file at the given path in an allocation
+// directory
+func (a *AllocFS) Cat(alloc *Allocation, path string, q *QueryOptions) (io.Reader, *QueryMeta, error) {
+	node, _, err := a.client.Nodes().Info(alloc.NodeID, &QueryOptions{})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if node.HTTPAddr == "" {
+		return nil, nil, fmt.Errorf("http addr of the node where alloc %q is running is not advertised", alloc.ID)
+	}
+	u := &url.URL{
+		Scheme: "http",
+		Host:   node.HTTPAddr,
+		Path:   fmt.Sprintf("/v1/client/fs/cat/%s", alloc.ID),
+	}
+	v := url.Values{}
+	v.Set("path", path)
+	u.RawQuery = v.Encode()
+	req := &http.Request{
+		Method: "GET",
+		URL:    u,
+	}
+	c := http.Client{}
+	resp, err := c.Do(req)
+	if err != nil {
+		return nil, nil, err
+	}
+	return resp.Body, nil, nil
+}
+
 func (a *AllocFS) getErrorMsg(resp *http.Response) error {
 	if errMsg, err := ioutil.ReadAll(resp.Body); err == nil {
 		return fmt.Errorf(string(errMsg))

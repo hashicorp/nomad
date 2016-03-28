@@ -130,21 +130,9 @@ nomad alloc-status %s`, allocID, allocID)
 		f.Ui.Error(msg)
 		return 0
 	}
-	// Stat the file to find it's size
-	file, _, err := client.AllocFS().Stat(alloc, path, nil)
-	if err != nil {
-		f.Ui.Error(err.Error())
-		return 1
-	}
-	if file.IsDir {
-		f.Ui.Error(fmt.Sprintf("The file %q is a directory", file.Name))
-		return 1
-	}
 
 	// Get the contents of the file
-	offset := 0
-	limit := file.Size
-	r, _, err := client.AllocFS().ReadAt(alloc, path, int64(offset), limit, nil)
+	r, _, err := client.AllocFS().Cat(alloc, path, nil)
 	if err != nil {
 		f.Ui.Error(fmt.Sprintf("Error reading file: %v", err))
 		return 1
