@@ -254,6 +254,57 @@ func TestDockerDriver_Start_Wait(t *testing.T) {
 	}
 }
 
+func TestDockerDriver_RemoveContainerOnExit(t *testing.T) {
+	t.Parallel()
+	task := &structs.Task{
+		Name: "echo",
+		Config: map[string]interface{}{
+			"image":   "busybox",
+			"command": "/bin/echo",
+			"args":    []string{"hello"},
+		},
+		Resources: &structs.Resources{
+			MemoryMB: 256,
+			CPU:      512,
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
+	}
+
+	_, handle, cleanup := dockerSetup(t, task)
+	defer cleanup()
+
+	// Update should be a no-op
+	err := handle.Update(task)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	select {
+	case res := <-handle.WaitCh():
+		if !res.Successful() {
+			t.Fatalf("err: %v", res)
+		}
+	case <-time.After(time.Duration(tu.TestMultiplier()*5) * time.Second):
+		t.Fatalf("timeout")
+	}
+
+	dh := handle.(*DockerHandle)
+	containerID := dh.containerID
+	imageID := dh.imageID
+	containerInfo, err := client.InspectContainer(containerID)
+	if containerInfo != nil {
+		t.Fatalf("expected container %q to be not present", containerID)
+	}
+
+	imageInfo, err := client.InspectImage(imageID)
+	if imageInfo != nil {
+		t.Fatalf("expected image %q to be not present", imageID)
+	}
+}
+
 func TestDockerDriver_Start_Wait_AllocDir(t *testing.T) {
 	t.Parallel()
 	// This test requires that the alloc dir be mounted into docker as a volume.
