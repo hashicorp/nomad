@@ -130,10 +130,10 @@ group "database" {
 * `protocol`: This indicates the protocol for the http checks. Valid options
   are `http` and `https`. We default it to `http`
 
-* `cmd`: This is the command that the Nomad client runs for doing script based
+* `command`: This is the command that the Nomad client runs for doing script based
   health check.
 
-* `args`: Additional arguments to the `cmd` for script based health checks.
+* `args`: Additional arguments to the `command` for script based health checks.
 
 ## Assumptions
 
