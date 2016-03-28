@@ -27,6 +27,8 @@ func (s *HTTPServer) FsRequest(resp http.ResponseWriter, req *http.Request) (int
 		return s.FileStatRequest(resp, req)
 	case strings.HasPrefix(path, "readat/"):
 		return s.FileReadAtRequest(resp, req)
+	case strings.HasPrefix(path, "cat/"):
+		return s.FileCatRequest(resp, req)
 	default:
 		return nil, CodedError(404, ErrInvalidMethod)
 	}
@@ -91,6 +93,36 @@ func (s *HTTPServer) FileReadAtRequest(resp http.ResponseWriter, req *http.Reque
 	if err != nil {
 		return nil, err
 	}
+	io.Copy(resp, r)
+	return nil, nil
+}
+
+func (s *HTTPServer) FileCatRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	var allocID, path string
+	var err error
+
+	q := req.URL.Query()
+
+	if allocID = strings.TrimPrefix(req.URL.Path, "/v1/client/fs/cat/"); allocID == "" {
+		return nil, allocIDNotPresentErr
+	}
+	if path = q.Get("path"); path == "" {
+		return nil, fileNameNotPresentErr
+	}
+	fs, err := s.agent.client.GetAllocFS(allocID)
+	if err != nil {
+		return nil, err
+	}
+
+	fileInfo, err := fs.Stat(path)
+	if err != nil {
+		return nil, err
+	}
+	if fileInfo.IsDir {
+		return nil, fmt.Errorf("file %q is a directory")
+	}
+
+	r, err := fs.ReadAt(path, int64(0), fileInfo.Size)
 	io.Copy(resp, r)
 	return nil, nil
 }
