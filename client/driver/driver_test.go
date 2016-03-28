@@ -73,6 +73,9 @@ func testConfig() *config.Config {
 	conf.StateDir = os.TempDir()
 	conf.AllocDir = os.TempDir()
 	conf.MaxKillTimeout = 10 * time.Second
+	conf.Options = make(map[string]string)
+	conf.Options["docker.cleanup.container"] = "true"
+	conf.Options["docker.cleanup.image"] = "true"
 	return conf
 }
 

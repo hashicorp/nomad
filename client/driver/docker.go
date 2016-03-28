@@ -803,10 +803,6 @@ func (h *DockerHandle) run() {
 		err = fmt.Errorf("Docker container exited with non-zero exit code: %d", exitCode)
 	}
 
-	close(h.doneCh)
-	h.waitCh <- cstructs.NewWaitResult(exitCode, 0, err)
-	close(h.waitCh)
-
 	// Remove services
 	if err := h.executor.DeregisterServices(); err != nil {
 		h.logger.Printf("[ERR] driver.docker: error deregistering services: %v", err)
@@ -817,14 +813,16 @@ func (h *DockerHandle) run() {
 		h.logger.Printf("[ERR] driver.docker: failed to kill the syslog collector: %v", err)
 	}
 	h.pluginClient.Kill()
-
 	if err := h.removeContainer(); err != nil {
 		h.logger.Printf("[ERR] driver.docker: failed to remove container: %v", err)
 	}
-
 	if err := h.removeImage(); err != nil {
 		h.logger.Printf("[ERR] driver.docker: unable to remove image: %v", err)
 	}
+
+	close(h.doneCh)
+	h.waitCh <- cstructs.NewWaitResult(exitCode, 0, err)
+	close(h.waitCh)
 }
 
 // removeImage remvoes the image for the container being tracked by the
