@@ -65,7 +65,7 @@ group "database" {
                 type = "script"
                 name = "check_table"
                 cmd = "/usr/local/bin/check_mysql_table_status"
-                agrs = ["--verbose"]
+                args = ["--verbose"]
                 interval = "60s"
                 timeout = "5s"
             }
@@ -137,7 +137,9 @@ group "database" {
 
 ## Assumptions
 
-* Consul 0.6.4 or later is needed for using the TCP checks.
+* Consul 0.6.4 or later is needed for using the Script checks.
+
+* Consul 0.6.0 or later is needed for using the TCP checks.
 
 * The service discovery feature in Nomad depends on operators making sure that
   the Nomad client can reach the Consul agent.
