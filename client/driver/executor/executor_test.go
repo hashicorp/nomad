@@ -278,8 +278,18 @@ func TestExecutorInterpolateServices(t *testing.T) {
 
 	executor.(*UniversalExecutor).ctx = ctx
 	executor.(*UniversalExecutor).interpolateServices(task)
-	expected := []string{"pci:true", "datacenter:dc1"}
-	if !reflect.DeepEqual(task.Services[0].Tags, expected) {
-		t.Fatalf("expected: %v, actual: %v", expected, task.Services[0].Tags)
+	expectedTags := []string{"pci:true", "datacenter:dc1"}
+	if !reflect.DeepEqual(task.Services[0].Tags, expectedTags) {
+		t.Fatalf("expected: %v, actual: %v", expectedTags, task.Services[0].Tags)
+	}
+
+	expectedCheckCmd := "/usr/local/check-table-mysql"
+	expectedCheckArgs := []string{"5.6"}
+	if !reflect.DeepEqual(task.Services[0].Checks[0].Cmd, expectedCheckCmd) {
+		t.Fatalf("expected: %v, actual: %v", expectedCheckCmd, task.Services[0].Checks[0].Cmd)
+	}
+
+	if !reflect.DeepEqual(task.Services[0].Checks[0].Args, expectedCheckArgs) {
+		t.Fatalf("expected: %v, actual: %v", expectedCheckArgs, task.Services[0].Checks[0].Args)
 	}
 }
