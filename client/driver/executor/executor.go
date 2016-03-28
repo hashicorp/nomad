@@ -523,7 +523,7 @@ func (e *UniversalExecutor) createCheck(check *structs.ServiceCheck, checkID str
 			interval:    check.Interval,
 			containerID: e.consulCtx.ContainerID,
 			logger:      e.logger,
-			cmd:         check.Cmd,
+			cmd:         check.Command,
 			args:        check.Args,
 		}, nil
 	}
@@ -532,7 +532,7 @@ func (e *UniversalExecutor) createCheck(check *structs.ServiceCheck, checkID str
 		return &ExecScriptCheck{
 			id:          checkID,
 			interval:    check.Interval,
-			cmd:         check.Cmd,
+			cmd:         check.Command,
 			args:        check.Args,
 			taskDir:     e.taskDir,
 			FSIsolation: e.command.FSIsolation,
