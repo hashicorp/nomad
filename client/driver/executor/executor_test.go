@@ -285,8 +285,8 @@ func TestExecutorInterpolateServices(t *testing.T) {
 
 	expectedCheckCmd := "/usr/local/check-table-mysql"
 	expectedCheckArgs := []string{"5.6"}
-	if !reflect.DeepEqual(task.Services[0].Checks[0].Cmd, expectedCheckCmd) {
-		t.Fatalf("expected: %v, actual: %v", expectedCheckCmd, task.Services[0].Checks[0].Cmd)
+	if !reflect.DeepEqual(task.Services[0].Checks[0].Command, expectedCheckCmd) {
+		t.Fatalf("expected: %v, actual: %v", expectedCheckCmd, task.Services[0].Checks[0].Command)
 	}
 
 	if !reflect.DeepEqual(task.Services[0].Checks[0].Args, expectedCheckArgs) {

@@ -103,7 +103,7 @@ func Job() *structs.Job {
 									{
 										Name:     "check-table",
 										Type:     structs.ServiceCheckScript,
-										Cmd:      "/usr/local/check-table-${meta.database}",
+										Command:  "/usr/local/check-table-${meta.database}",
 										Args:     []string{"${meta.version}"},
 										Interval: 30 * time.Second,
 										Timeout:  5 * time.Second,

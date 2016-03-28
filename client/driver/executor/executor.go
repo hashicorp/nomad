@@ -552,10 +552,14 @@ func (e *UniversalExecutor) interpolateServices(task *structs.Task) {
 	for _, service := range task.Services {
 		for _, check := range service.Checks {
 			if check.Type == structs.ServiceCheckScript {
-				check.Cmd = e.ctx.TaskEnv.ReplaceEnv(check.Cmd)
+				check.Name = e.ctx.TaskEnv.ReplaceEnv(check.Name)
+				check.Command = e.ctx.TaskEnv.ReplaceEnv(check.Command)
 				check.Args = e.ctx.TaskEnv.ParseAndReplace(check.Args)
+				check.Path = e.ctx.TaskEnv.ReplaceEnv(check.Path)
+				check.Protocol = e.ctx.TaskEnv.ReplaceEnv(check.Protocol)
 			}
 		}
+		service.Name = e.ctx.TaskEnv.ReplaceEnv(service.Name)
 		service.Tags = e.ctx.TaskEnv.ParseAndReplace(service.Tags)
 	}
 }
