@@ -29,6 +29,13 @@ import (
 var (
 	reRktVersion  = regexp.MustCompile(`rkt [vV]ersion[:]? (\d[.\d]+)`)
 	reAppcVersion = regexp.MustCompile(`appc [vV]ersion[:]? (\d[.\d]+)`)
+
+	// A dictionary of rkt features mapped to the first version they
+	// were introduced on
+	features = map[string]string{
+		"hostname": "1.2.0",
+		"dns":      "1.0.0",
+	}
 )
 
 const (
@@ -82,6 +89,16 @@ type rktPID struct {
 // NewRktDriver is used to create a new exec driver
 func NewRktDriver(ctx *DriverContext) Driver {
 	return &RktDriver{DriverContext: *ctx}
+}
+
+func sanitizeFeature(name string, minVersion string) bool {
+	expectedVersion, _ := version.NewVersion(features[name])
+	currentVersion, _ := version.NewVersion(minVersion)
+
+	if currentVersion.LessThan(expectedVersion) {
+		return false
+	}
+	return true
 }
 
 func (d *RktDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
@@ -188,20 +205,34 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	// Add CPU isolator
 	cmdArgs = append(cmdArgs, fmt.Sprintf("--cpu=%vm", int64(task.Resources.CPU)))
 
-	// Add DNS servers
-	for _, ip := range driverConfig.DNSServers {
-		if err := net.ParseIP(ip); err == nil {
-			msg := fmt.Errorf("invalid ip address for container dns server %q", ip)
-			d.logger.Printf("[DEBUG] driver.rkt: %v", msg)
-			return nil, msg
-		} else {
-			cmdArgs = append(cmdArgs, fmt.Sprintf("--dns=%s", ip))
-		}
+	// Fingerprint
+	node := &structs.Node{
+		Attributes: make(map[string]string),
+	}
+	_, err := d.Fingerprint(&config.Config{}, node)
+	if err != nil {
+		d.logger.Printf("[ERR] driver.rkt: failed to fingerprint")
 	}
 
-	// set DNS search domains
-	for _, domain := range driverConfig.DNSSearchDomains {
-		cmdArgs = append(cmdArgs, fmt.Sprintf("--dns-search=%s", domain))
+	// Add DNS servers if the current rkt version supports it
+	if sanitizeFeature("dns", node.Attributes["driver.rkt.version"]) {
+		for _, ip := range driverConfig.DNSServers {
+			if err := net.ParseIP(ip); err == nil {
+				msg := fmt.Errorf("invalid ip address for container dns server %q", ip)
+				d.logger.Printf("[DEBUG] driver.rkt: %v", msg)
+				return nil, msg
+			} else {
+				cmdArgs = append(cmdArgs, fmt.Sprintf("--dns=%s", ip))
+			}
+		}
+
+		// set DNS search domains
+		for _, domain := range driverConfig.DNSSearchDomains {
+			cmdArgs = append(cmdArgs, fmt.Sprintf("--dns-search=%s", domain))
+		}
+	} else {
+		d.logger.Printf("[WARN] driver.rkt: Minimum required for DNS args is %s", features["dns"])
+		d.logger.Printf("[WARN] driver.rkt: DNS arguments will be ignored")
 	}
 
 	// Add user passed arguments.
