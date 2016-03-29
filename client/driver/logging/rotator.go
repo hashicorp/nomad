@@ -238,6 +238,12 @@ func (f *FileRotator) purgeOldFiles() {
 				}
 			}
 
+			// not continuing to delete files if the number of files is not more
+			// than MaxFiles
+			if len(fIndexes) <= f.MaxFiles {
+				continue
+			}
+
 			// Sorting the file indexes so that we can purge the older files and keep
 			// only the number of files as configured by the user
 			sort.Sort(sort.IntSlice(fIndexes))
