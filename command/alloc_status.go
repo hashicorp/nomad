@@ -164,7 +164,6 @@ func (c *AllocStatusCommand) shortTaskStatus(alloc *api.Allocation) {
 	tasks := make([]string, 0, len(alloc.TaskStates)+1)
 	tasks = append(tasks, "Name|State|Last Event|Time")
 	for task := range c.sortedTaskStateIterator(alloc.TaskStates) {
-		fmt.Println(task)
 		state := alloc.TaskStates[task]
 		lastState := state.State
 		var lastEvent, lastTime string
