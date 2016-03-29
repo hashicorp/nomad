@@ -59,9 +59,10 @@ type TaskRunner struct {
 
 // taskRunnerState is used to snapshot the state of the task runner
 type taskRunnerState struct {
-	Version  string
-	Task     *structs.Task
-	HandleID string
+	Version            string
+	Task               *structs.Task
+	HandleID           string
+	ArtifactDownloaded bool
 }
 
 // TaskStateUpdater is used to signal that tasks state has changed.
@@ -132,6 +133,7 @@ func (r *TaskRunner) RestoreState() error {
 
 	// Restore fields
 	r.task = snap.Task
+	r.artifactsDownloaded = snap.ArtifactDownloaded
 
 	// Restore the driver
 	if snap.HandleID != "" {
@@ -150,10 +152,6 @@ func (r *TaskRunner) RestoreState() error {
 		}
 		r.handleLock.Lock()
 		r.handle = handle
-
-		// If we have previously created the driver, the artifacts have been
-		// downloaded.
-		r.artifactsDownloaded = true
 		r.handleLock.Unlock()
 	}
 	return nil
@@ -162,8 +160,9 @@ func (r *TaskRunner) RestoreState() error {
 // SaveState is used to snapshot our state
 func (r *TaskRunner) SaveState() error {
 	snap := taskRunnerState{
-		Task:    r.task,
-		Version: r.config.Version,
+		Task:               r.task,
+		Version:            r.config.Version,
+		ArtifactDownloaded: r.artifactsDownloaded,
 	}
 	r.handleLock.Lock()
 	if r.handle != nil {

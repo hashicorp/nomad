@@ -164,7 +164,10 @@ func (e *UniversalExecutor) configureChroot() error {
 	}
 
 	// Set the tasks AllocDir environment variable.
-	e.ctx.TaskEnv.SetAllocDir(filepath.Join("/", allocdir.SharedAllocName)).SetTaskLocalDir(filepath.Join("/", allocdir.TaskLocal)).Build()
+	e.ctx.TaskEnv.
+		SetAllocDir(filepath.Join("/", allocdir.SharedAllocName)).
+		SetTaskLocalDir(filepath.Join("/", allocdir.TaskLocal)).
+		Build()
 
 	if e.cmd.SysProcAttr == nil {
 		e.cmd.SysProcAttr = &syscall.SysProcAttr{}
