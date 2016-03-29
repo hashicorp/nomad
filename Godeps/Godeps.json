@@ -1,6 +1,7 @@
 {
 	"ImportPath": "github.com/hashicorp/nomad",
 	"GoVersion": "go1.6",
+	"GodepVersion": "v60",
 	"Deps": [
 		{
 			"ImportPath": "github.com/StackExchange/wmi",
@@ -357,7 +358,7 @@
 		},
 		{
 			"ImportPath": "github.com/hashicorp/memberlist",
-			"Rev": "9888dc523910e5d22c5be4f6e34520943df21809"
+			"Rev": "88ac4de0d1a0ca6def284b571342db3b777a4c37"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/net-rpc-msgpackrpc",
@@ -401,6 +402,10 @@
 		{
 			"ImportPath": "github.com/mattn/go-isatty",
 			"Rev": "56b76bdf51f7708750eac80fa38b952bb9f32639"
+		},
+		{
+			"ImportPath": "github.com/miekg/dns",
+			"Rev": "7e024ce8ce18b21b475ac6baf8fa3c42536bf2fa"
 		},
 		{
 			"ImportPath": "github.com/mitchellh/cli",
