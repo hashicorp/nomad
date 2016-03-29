@@ -63,7 +63,7 @@ func NewJavaDriver(ctx *DriverContext) Driver {
 func (d *JavaDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
 	// Only enable if we are root and cgroups are mounted when running on linux systems.
 	if runtime.GOOS == "linux" && (syscall.Geteuid() != 0 || !d.cgroupsMounted(node)) {
-		d.logger.Printf("[DEBUG] driver.java: must run as root user on linux, disabling")
+		d.logger.Printf("[DEBUG] driver.java: root priviledges and mounted cgroups required on linux, disabling")
 		return false, nil
 	}
 
