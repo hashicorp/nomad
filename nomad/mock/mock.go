@@ -47,7 +47,9 @@ func Node() *structs.Node {
 			"consul": "foobar.dc1",
 		},
 		Meta: map[string]string{
-			"pci-dss": "true",
+			"pci-dss":  "true",
+			"database": "mysql",
+			"version":  "5.6",
 		},
 		NodeClass: "linux-medium-pci",
 		Status:    structs.NodeStatusReady,
@@ -96,6 +98,17 @@ func Job() *structs.Job {
 							{
 								Name:      "${TASK}-frontend",
 								PortLabel: "http",
+								Tags:      []string{"pci:${meta.pci-dss}", "datacenter:${node.datacenter}"},
+								Checks: []*structs.ServiceCheck{
+									{
+										Name:     "check-table",
+										Type:     structs.ServiceCheckScript,
+										Command:  "/usr/local/check-table-${meta.database}",
+										Args:     []string{"${meta.version}"},
+										Interval: 30 * time.Second,
+										Timeout:  5 * time.Second,
+									},
+								},
 							},
 							{
 								Name:      "${TASK}-admin",

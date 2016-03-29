@@ -388,6 +388,9 @@ func (e *UniversalExecutor) SyncServices(ctx *ConsulContext) error {
 		cs.SetDelegatedChecks(e.createCheckMap(), e.createCheck)
 		e.consulService = cs
 	}
+	if e.ctx != nil {
+		e.interpolateServices(e.ctx.Task)
+	}
 	err := e.consulService.SyncTask(e.ctx.Task)
 	go e.consulService.PeriodicSync()
 	return err
@@ -540,4 +543,23 @@ func (e *UniversalExecutor) createCheck(check *structs.ServiceCheck, checkID str
 
 	}
 	return nil, fmt.Errorf("couldn't create check for %v", check.Name)
+}
+
+// interpolateServices interpolates tags in a service and checks with values from the
+// task's environment.
+func (e *UniversalExecutor) interpolateServices(task *structs.Task) {
+	e.ctx.TaskEnv.Build()
+	for _, service := range task.Services {
+		for _, check := range service.Checks {
+			if check.Type == structs.ServiceCheckScript {
+				check.Name = e.ctx.TaskEnv.ReplaceEnv(check.Name)
+				check.Command = e.ctx.TaskEnv.ReplaceEnv(check.Command)
+				check.Args = e.ctx.TaskEnv.ParseAndReplace(check.Args)
+				check.Path = e.ctx.TaskEnv.ReplaceEnv(check.Path)
+				check.Protocol = e.ctx.TaskEnv.ReplaceEnv(check.Protocol)
+			}
+		}
+		service.Name = e.ctx.TaskEnv.ReplaceEnv(service.Name)
+		service.Tags = e.ctx.TaskEnv.ParseAndReplace(service.Tags)
+	}
 }
