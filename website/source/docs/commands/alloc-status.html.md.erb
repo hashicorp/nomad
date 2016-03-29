@@ -37,70 +37,96 @@ allocations and information will be displayed.
 Short status of an alloc:
 
 ```
-$ nomad alloc-status --short a7365fe4
-ID                = a7365fe4
-EvalID            = 44c2d9ed
-Name              = example.cache[0]
-NodeID            = e55859b1
-JobID             = example
-ClientStatus      = running
-NodesEvaluated    = 1
-NodesFiltered     = 0
-NodesExhausted    = 0
-AllocationTime    = 911.026µs
-CoalescedFailures = 0
-redis
-web
+$ nomad alloc-status --short 13901f26
+ID            = 13901f26
+Eval ID       = c3c9a1db
+Name          = example.cache[0]
+Node ID       = 1f029d38
+Job ID        = example
+Client Status = running
 
 ==> Tasks
-Name   State    LastEvent  Time
-redis  running  Started    02:29:40 11/17/15
-web    running  Started    02:30:41 11/17/15
-
-==> Status
-Allocation "a7365fe4" status "running" (0/1 nodes filtered)
-  * Score "e55859b1.binpack" = 10.334026
+Name   State    Last Event  Time
+redis  running  Started     29/03/16 03:04:53 UTC
+web    running  Started     29/03/16 03:04:53 UTC
 ```
 
 Full status of an alloc, which shows one of the tasks dying and then being restarted:
 
 ```
 $ nomad alloc-status a7365fe4
-ID                = a7365fe4
-EvalID            = 44c2d9ed
-Name              = example.cache[0]
-NodeID            = e55859b1
-JobID             = example
-ClientStatus      = running
-NodesEvaluated    = 1
-NodesFiltered     = 0
-NodesExhausted    = 0
-AllocationTime    = 911.026µs
-CoalescedFailures = 0
-
-==> Task "redis" is "running"
-Recent Events:
-Time               Type     Description
-02:29:40 11/17/15  Started  <none>
-
-==> Task "web" is "running"
-Recent Events:
-Time               Type        Description
-02:30:41 11/17/15  Started     <none>
-02:30:02 11/17/15  Terminated  Exit Code: 137, Exit Message: "Docker container exited with non-zero exit code: 137"
-02:29:40 11/17/15  Started     <none>
-
-==> Status
-Allocation "a7365fe4" status "running" (0/1 nodes filtered)
-* Score "e55859b1.binpack" = 10.334026
+ID            = a7365fe4
+Eval ID       = c3c9a1db
+Name          = example.cache[0]
+Node ID       = 1f029d38
+Job ID        = example
+Client Status = running
 
 ==> Task Resources
 Task: "redis"
 CPU  Memory MB  Disk MB  IOPS  Addresses
-500  256        300      0     db: 127.0.0.1:52004
+500  256        300      0     db: 127.0.0.1:46321
 
 Task: "web"
 CPU  Memory MB  Disk MB  IOPS  Addresses
-500  256        300      0     http: 127.0.0.1:52007
+500  256        300      0     db: 127.0.0.1:38537
 
+==> Task "redis" is "running"
+Recent Events:
+Time                   Type      Description
+29/03/16 03:04:53 UTC  Started   Task started by client
+29/03/16 03:04:51 UTC  Received  Task received by client
+
+==> Task "web" is "pending"
+Recent Events:
+Time                   Type        Description
+29/03/16 03:07:18 UTC  Restarting  Task restarting in 18.580059474s
+29/03/16 03:07:18 UTC  Terminated  Exit Code: 137, Exit Message: "Docker container exited with non-zero exit code: 137"
+29/03/16 03:04:53 UTC  Started     Task started by client
+29/03/16 03:04:51 UTC  Received    Task received by client
+```
+
+Verbose status can also be accessed:
+
+```
+$ nomad alloc-status a7365fe4
+ID              = a7365fe4-cb28-a6e9-f3d4-f99e49c89776
+Eval ID         = c3c9a1db-dbeb-8afa-0a83-4f1b8b5a03f5
+Name            = example.cache[0]
+Node ID         = 1f029d38-8d4b-a552-261f-e457b60f9b4b
+Job ID          = example
+Client Status   = running
+Evaluated Nodes = 1
+Filtered Nodes  = 0
+Exhausted Nodes = 0
+Allocation Time = 1.085001ms
+Failures        = 0
+
+==> Task Resources
+Task: "web"
+CPU  Memory MB  Disk MB  IOPS  Addresses
+500  256        300      0     db: 127.0.0.1:38537
+
+Task: "redis"
+CPU  Memory MB  Disk MB  IOPS  Addresses
+500  256        300      0     db: 127.0.0.1:46321
+
+==> Task "redis" is "running"
+Recent Events:
+Time                   Type      Description
+29/03/16 03:04:53 UTC  Started   Task started by client
+29/03/16 03:04:51 UTC  Received  Task received by client
+
+==> Task "web" is "running"
+Recent Events:
+Time                   Type        Description
+29/03/16 03:07:38 UTC  Started     Task started by client
+29/03/16 03:07:18 UTC  Restarting  Task restarting in 18.580059474s
+29/03/16 03:07:18 UTC  Terminated  Exit Code: 137, Exit Message: "Docker container exited with non-zero exit code: 137"
+29/03/16 03:04:53 UTC  Started     Task started by client
+29/03/16 03:04:51 UTC  Received    Task received by client
+
+==> Status
+Allocation "13901f26-cb28-a6e9-f3d4-f99e49c89776" status "running" (0/1 nodes filtered)
+  * Score "1f029d38-8d4b-a552-261f-e457b60f9b4b.binpack" = 10.334026
 ```

@@ -13,6 +13,57 @@ func TestNodeStatusCommand_Implements(t *testing.T) {
 	var _ cli.Command = &NodeStatusCommand{}
 }
 
+func TestNodeStatusCommand_Self(t *testing.T) {
+	// Start in dev mode so we get a node registration
+	srv, client, url := testServer(t, func(c *testutil.TestServerConfig) {
+		c.DevMode = true
+		c.NodeName = "mynode"
+	})
+	defer srv.Stop()
+
+	ui := new(cli.MockUi)
+	cmd := &NodeStatusCommand{Meta: Meta{Ui: ui}}
+
+	// Wait for a node to appear
+	var nodeID string
+	testutil.WaitForResult(func() (bool, error) {
+		nodes, _, err := client.Nodes().List(nil)
+		if err != nil {
+			return false, err
+		}
+		if len(nodes) == 0 {
+			return false, fmt.Errorf("missing node")
+		}
+		nodeID = nodes[0].ID
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %s", err)
+	})
+
+	// Query self node
+	if code := cmd.Run([]string{"-address=" + url, "-self"}); code != 0 {
+		t.Fatalf("expected exit 0, got: %d", code)
+	}
+	out := ui.OutputWriter.String()
+	if !strings.Contains(out, "mynode") {
+		t.Fatalf("expect to find mynode, got: %s", out)
+	}
+	if strings.Contains(out, "Allocations") {
+		t.Fatalf("should not dump allocations")
+	}
+	ui.OutputWriter.Reset()
+
+	// Request full id output
+	if code := cmd.Run([]string{"-address=" + url, "-self", "-verbose"}); code != 0 {
+		t.Fatalf("expected exit 0, got: %d", code)
+	}
+	out = ui.OutputWriter.String()
+	if !strings.Contains(out, nodeID) {
+		t.Fatalf("expected full node id %q, got: %s", nodeID, out)
+	}
+	ui.OutputWriter.Reset()
+}
+
 func TestNodeStatusCommand_Run(t *testing.T) {
 	// Start in dev mode so we get a node registration
 	srv, client, url := testServer(t, func(c *testutil.TestServerConfig) {
