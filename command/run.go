@@ -117,7 +117,8 @@ func (c *RunCommand) Run(args []string) int {
 	}
 
 	if output {
-		buf, err := json.MarshalIndent(apiJob, "", "    ")
+		req := api.RegisterJobRequest{apiJob}
+		buf, err := json.MarshalIndent(req, "", "    ")
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error converting job: %s", err))
 			return 1

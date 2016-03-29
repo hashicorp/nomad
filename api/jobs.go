@@ -28,7 +28,7 @@ func (c *Client) Jobs() *Jobs {
 func (j *Jobs) Register(job *Job, q *WriteOptions) (string, *WriteMeta, error) {
 	var resp registerJobResponse
 
-	req := &registerJobRequest{job}
+	req := &RegisterJobRequest{job}
 	wm, err := j.client.write("/v1/jobs", req, &resp, q)
 	if err != nil {
 		return "", nil, err
@@ -256,8 +256,8 @@ func (j *Job) AddPeriodicConfig(cfg *PeriodicConfig) *Job {
 	return j
 }
 
-// registerJobRequest is used to serialize a job registration
-type registerJobRequest struct {
+// RegisterJobRequest is used to serialize a job registration
+type RegisterJobRequest struct {
 	Job *Job
 }
 
