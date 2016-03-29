@@ -158,7 +158,7 @@ func (d *RawExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, e
 	pluginConfig := &plugin.ClientConfig{
 		Reattach: id.PluginConfig.PluginConfig(),
 	}
-	executor, pluginClient, err := createExecutor(pluginConfig, d.config.LogOutput, d.config)
+	exec, pluginClient, err := createExecutor(pluginConfig, d.config.LogOutput, d.config)
 	if err != nil {
 		d.logger.Println("[ERR] driver.raw_exec: error connecting to plugin so destroying plugin pid and user pid")
 		if e := destroyPlugin(id.PluginConfig.Pid, id.UserPid); e != nil {
@@ -167,10 +167,12 @@ func (d *RawExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, e
 		return nil, fmt.Errorf("error connecting to plugin: %v", err)
 	}
 
+	d.logger.Printf("[DEBUG] driver.raw_exec: version of executor: %v", exec.Version())
+
 	// Return a driver handle
 	h := &rawExecHandle{
 		pluginClient:   pluginClient,
-		executor:       executor,
+		executor:       exec,
 		userPid:        id.UserPid,
 		logger:         d.logger,
 		killTimeout:    id.KillTimeout,

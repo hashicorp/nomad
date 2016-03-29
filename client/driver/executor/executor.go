@@ -37,6 +37,7 @@ type Executor interface {
 	UpdateTask(task *structs.Task) error
 	SyncServices(ctx *ConsulContext) error
 	DeregisterServices() error
+	Version() string
 }
 
 // ConsulContext holds context to configure the consul client and run checks
@@ -160,6 +161,11 @@ func NewExecutor(logger *log.Logger) Executor {
 		logger:        logger,
 		processExited: make(chan interface{}),
 	}
+}
+
+// Version returns the api version of the executor
+func (e *UniversalExecutor) Version() string {
+	return "1"
 }
 
 // LaunchCmd launches a process and returns it's state. It also configures an
