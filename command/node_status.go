@@ -22,7 +22,8 @@ Usage: nomad node-status [options] <node>
 
   If a node ID is passed, information for that specific node will
   be displayed. If no node ID's are passed, then a short-hand
-  list of all nodes will be displayed.
+  list of all nodes will be displayed. The -self flag is useful to
+  quickly access the status of the local node.
 
 General Options:
 
@@ -37,6 +38,9 @@ Node Status Options:
   -verbose
     Display full information.
 
+  -self
+    Query the status of the local node.
+
   -allocs
     Display a count of running allocations for each node.
 `
@@ -48,13 +52,14 @@ func (c *NodeStatusCommand) Synopsis() string {
 }
 
 func (c *NodeStatusCommand) Run(args []string) int {
-	var short, verbose, list_allocs bool
+	var short, verbose, list_allocs, self bool
 
 	flags := c.Meta.FlagSet("node-status", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&short, "short", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.BoolVar(&list_allocs, "allocs", false, "")
+	flags.BoolVar(&self, "self", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -80,8 +85,32 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		return 1
 	}
 
+	// If -self flag is set then determine the current node.
+	nodeID := ""
+	if self {
+		info, err := client.Agent().Self()
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error querying agent info: %s", err))
+			return 1
+		}
+		var stats map[string]interface{}
+		stats, _ = info["stats"]
+		clientStats, ok := stats["client"].(map[string]interface{})
+		if !ok {
+			c.Ui.Error("Nomad not running in client mode")
+			return 1
+		}
+
+		nodeID, ok = clientStats["node_id"].(string)
+		if !ok {
+			c.Ui.Error("Failed to determine node ID")
+			return 1
+		}
+
+	}
+
 	// Use list mode if no node name was provided
-	if len(args) == 0 {
+	if len(args) == 0 && !self {
 		// Query the node info
 		nodes, _, err := client.Nodes().List(nil)
 		if err != nil {
@@ -133,7 +162,9 @@ func (c *NodeStatusCommand) Run(args []string) int {
 	}
 
 	// Query the specific node
-	nodeID := args[0]
+	if !self {
+		nodeID = args[0]
+	}
 	if len(nodeID) == 1 {
 		c.Ui.Error(fmt.Sprintf("Identifier must contain at least two characters."))
 		return 1

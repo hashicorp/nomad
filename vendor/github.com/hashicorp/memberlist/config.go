@@ -143,6 +143,10 @@ type Config struct {
 	Ping                    PingDelegate
 	Alive                   AliveDelegate
 
+	// DNSConfigPath points to the system's DNS config file, usually located
+	// at /etc/resolv.conf. It can be overridden via config for easier testing.
+	DNSConfigPath string
+
 	// LogOutput is the writer where logs should be sent. If this is not
 	// set, logging will go to stderr by default. You cannot specify both LogOutput
 	// and Logger at the same time.
@@ -185,8 +189,9 @@ func DefaultLANConfig() *Config {
 		EnableCompression: true, // Enable compression by default
 
 		SecretKey: nil,
+		Keyring:   nil,
 
-		Keyring: nil,
+		DNSConfigPath: "/etc/resolv.conf",
 	}
 }
 
