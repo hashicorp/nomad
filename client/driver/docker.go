@@ -420,6 +420,8 @@ func (d *DockerDriver) Periodic() (bool, time.Duration) {
 	return true, 15 * time.Second
 }
 
+// createImage creates a docker image either by pulling it from a registry or by
+// loading it from the file system
 func (d *DockerDriver) createImage(driverConfig *DockerDriverConfig, client *docker.Client, taskDir string) error {
 	image := driverConfig.ImageName
 	repo, tag := docker.ParseRepositoryTag(image)
@@ -449,6 +451,7 @@ func (d *DockerDriver) createImage(driverConfig *DockerDriverConfig, client *doc
 	return err
 }
 
+// pullImage creates an image by pulling it from a docker registry
 func (d *DockerDriver) pullImage(driverConfig *DockerDriverConfig, client *docker.Client, repo string, tag string) error {
 	pullOptions := docker.PullImageOptions{
 		Repository: repo,
@@ -496,6 +499,7 @@ func (d *DockerDriver) pullImage(driverConfig *DockerDriverConfig, client *docke
 	return nil
 }
 
+// loadImage creates an image by loading it from the file system
 func (d *DockerDriver) loadImage(driverConfig *DockerDriverConfig, client *docker.Client, taskDir string) error {
 	archive := filepath.Join(taskDir, allocdir.TaskLocal, driverConfig.LoadImage)
 	d.logger.Printf("[DEBUG] driver.docker: loading image from: %v", archive)
