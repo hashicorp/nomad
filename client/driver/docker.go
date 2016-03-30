@@ -442,11 +442,9 @@ func (d *DockerDriver) createImage(driverConfig *DockerDriverConfig, client *doc
 	if dockerImage == nil {
 		if driverConfig.LoadImage != "" {
 			return d.loadImage(driverConfig, client, taskDir)
-		} else if driverConfig.ImageName != "" {
-			return d.pullImage(driverConfig, client, repo, tag)
-		} else {
-			return fmt.Errorf("either image name or load image has to be specified")
 		}
+
+		return d.pullImage(driverConfig, client, repo, tag)
 	}
 	return err
 }
@@ -521,8 +519,6 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 		return nil, err
 	}
 
-	image := driverConfig.ImageName
-
 	if err := driverConfig.Validate(); err != nil {
 		return nil, err
 	}
@@ -545,6 +541,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 		return nil, fmt.Errorf("failed to create image: %v", err)
 	}
 
+	image := driverConfig.ImageName
 	// Now that we have the image we can get the image id
 	dockerImage, err := client.InspectImage(image)
 	if err != nil {
