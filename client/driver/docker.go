@@ -51,6 +51,7 @@ type DockerDriverAuth struct {
 
 type DockerDriverConfig struct {
 	ImageName        string              `mapstructure:"image"`              // Container's Image Name
+	LoadImage        string              `mapstructure:"load"`               // LoadImage is the path to the image archive
 	Command          string              `mapstructure:"command"`            // The Command/Entrypoint to run when the container starts up
 	Args             []string            `mapstructure:"args"`               // The arguments to the Command/Entrypoint
 	IpcMode          string              `mapstructure:"ipc_mode"`           // The IPC mode of the container - host and none
@@ -419,6 +420,93 @@ func (d *DockerDriver) Periodic() (bool, time.Duration) {
 	return true, 15 * time.Second
 }
 
+func (d *DockerDriver) createImage(driverConfig *DockerDriverConfig, client *docker.Client, taskDir string) error {
+	image := driverConfig.ImageName
+	repo, tag := docker.ParseRepositoryTag(image)
+	if tag == "" {
+		tag = "latest"
+	}
+
+	var dockerImage *docker.Image
+	var err error
+	// We're going to check whether the image is already downloaded. If the tag
+	// is "latest" we have to check for a new version every time so we don't
+	// bother to check and cache the id here. We'll download first, then cache.
+	if tag != "latest" {
+		dockerImage, err = client.InspectImage(image)
+	}
+
+	// Download the image
+	if dockerImage == nil {
+		if driverConfig.LoadImage != "" {
+			return d.loadImage(driverConfig, client, taskDir)
+		} else if driverConfig.ImageName != "" {
+			return d.pullImage(driverConfig, client, repo, tag)
+		} else {
+			return fmt.Errorf("either image name or load image has to be specified")
+		}
+	}
+	return err
+}
+
+func (d *DockerDriver) pullImage(driverConfig *DockerDriverConfig, client *docker.Client, repo string, tag string) error {
+	pullOptions := docker.PullImageOptions{
+		Repository: repo,
+		Tag:        tag,
+	}
+
+	authOptions := docker.AuthConfiguration{}
+	if len(driverConfig.Auth) != 0 {
+		authOptions = docker.AuthConfiguration{
+			Username:      driverConfig.Auth[0].Username,
+			Password:      driverConfig.Auth[0].Password,
+			Email:         driverConfig.Auth[0].Email,
+			ServerAddress: driverConfig.Auth[0].ServerAddress,
+		}
+	}
+
+	if authConfigFile := d.config.Read("docker.auth.config"); authConfigFile != "" {
+		if f, err := os.Open(authConfigFile); err == nil {
+			defer f.Close()
+			var authConfigurations *docker.AuthConfigurations
+			if authConfigurations, err = docker.NewAuthConfigurations(f); err != nil {
+				return fmt.Errorf("Failed to create docker auth object: %v", err)
+			}
+
+			authConfigurationKey := ""
+			if driverConfig.SSL {
+				authConfigurationKey += "https://"
+			}
+
+			authConfigurationKey += strings.Split(driverConfig.ImageName, "/")[0]
+			if authConfiguration, ok := authConfigurations.Configs[authConfigurationKey]; ok {
+				authOptions = authConfiguration
+			}
+		} else {
+			return fmt.Errorf("Failed to open auth config file: %v, error: %v", authConfigFile, err)
+		}
+	}
+
+	err := client.PullImage(pullOptions, authOptions)
+	if err != nil {
+		d.logger.Printf("[ERR] driver.docker: failed pulling container %s:%s: %s", repo, tag, err)
+		return d.recoverablePullError(err, driverConfig.ImageName)
+	}
+	d.logger.Printf("[DEBUG] driver.docker: docker pull %s:%s succeeded", repo, tag)
+	return nil
+}
+
+func (d *DockerDriver) loadImage(driverConfig *DockerDriverConfig, client *docker.Client, taskDir string) error {
+	archive := filepath.Join(taskDir, allocdir.TaskLocal, driverConfig.LoadImage)
+	d.logger.Printf("[DEBUG] driver.docker: loading image from: %v", archive)
+	f, err := os.Open(archive)
+	if err != nil {
+		return fmt.Errorf("unable to open image archive: %v", err)
+	}
+	defer f.Close()
+	return client.LoadImage(docker.LoadImageOptions{InputStream: f})
+}
+
 func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
 	var driverConfig DockerDriverConfig
 	if err := mapstructure.WeakDecode(task.Config, &driverConfig); err != nil {
@@ -434,18 +522,14 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	if err := driverConfig.Validate(); err != nil {
 		return nil, err
 	}
-	if task.Resources == nil {
-		return nil, fmt.Errorf("Resources are not specified")
-	}
-	if task.Resources.MemoryMB == 0 {
-		return nil, fmt.Errorf("Memory limit cannot be zero")
-	}
-	if task.Resources.CPU == 0 {
-		return nil, fmt.Errorf("CPU limit cannot be zero")
-	}
 
 	cleanupContainer := d.config.ReadBoolDefault("docker.cleanup.container", true)
 	cleanupImage := d.config.ReadBoolDefault("docker.cleanup.image", true)
+
+	taskDir, ok := ctx.AllocDir.TaskDirs[d.DriverContext.taskName]
+	if !ok {
+		return nil, fmt.Errorf("Could not find task directory for task: %v", d.DriverContext.taskName)
+	}
 
 	// Initialize docker API client
 	client, err := d.dockerClient()
@@ -453,80 +537,16 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 		return nil, fmt.Errorf("Failed to connect to docker daemon: %s", err)
 	}
 
-	repo, tag := docker.ParseRepositoryTag(image)
-	// Make sure tag is always explicitly set. We'll default to "latest" if it
-	// isn't, which is the expected behavior.
-	if tag == "" {
-		tag = "latest"
+	if err := d.createImage(&driverConfig, client, taskDir); err != nil {
+		return nil, fmt.Errorf("failed to pull image: %v", err)
 	}
 
-	var dockerImage *docker.Image
-	// We're going to check whether the image is already downloaded. If the tag
-	// is "latest" we have to check for a new version every time so we don't
-	// bother to check and cache the id here. We'll download first, then cache.
-	if tag != "latest" {
-		dockerImage, err = client.InspectImage(image)
+	// Now that we have the image we can get the image id
+	dockerImage, err := client.InspectImage(image)
+	if err != nil {
+		d.logger.Printf("[ERR] driver.docker: failed getting image id for %s: %s", image, err)
+		return nil, fmt.Errorf("Failed to determine image id for `%s`: %s", image, err)
 	}
-
-	// Download the image
-	if dockerImage == nil {
-		pullOptions := docker.PullImageOptions{
-			Repository: repo,
-			Tag:        tag,
-		}
-
-		authOptions := docker.AuthConfiguration{}
-		if len(driverConfig.Auth) != 0 {
-			authOptions = docker.AuthConfiguration{
-				Username:      driverConfig.Auth[0].Username,
-				Password:      driverConfig.Auth[0].Password,
-				Email:         driverConfig.Auth[0].Email,
-				ServerAddress: driverConfig.Auth[0].ServerAddress,
-			}
-		}
-
-		if authConfigFile := d.config.Read("docker.auth.config"); authConfigFile != "" {
-			if f, err := os.Open(authConfigFile); err == nil {
-				defer f.Close()
-				var authConfigurations *docker.AuthConfigurations
-				if authConfigurations, err = docker.NewAuthConfigurations(f); err != nil {
-					return nil, fmt.Errorf("Failed to create docker auth object: %v", err)
-				}
-
-				authConfigurationKey := ""
-				if driverConfig.SSL {
-					authConfigurationKey += "https://"
-				}
-
-				authConfigurationKey += strings.Split(driverConfig.ImageName, "/")[0]
-				if authConfiguration, ok := authConfigurations.Configs[authConfigurationKey]; ok {
-					authOptions = authConfiguration
-				}
-			} else {
-				return nil, fmt.Errorf("Failed to open auth config file: %v, error: %v", authConfigFile, err)
-			}
-		}
-
-		err = client.PullImage(pullOptions, authOptions)
-		if err != nil {
-			d.logger.Printf("[ERR] driver.docker: failed pulling container %s:%s: %s", repo, tag, err)
-			return nil, d.recoverablePullError(err, image)
-		}
-		d.logger.Printf("[DEBUG] driver.docker: docker pull %s:%s succeeded", repo, tag)
-
-		// Now that we have the image we can get the image id
-		dockerImage, err = client.InspectImage(image)
-		if err != nil {
-			d.logger.Printf("[ERR] driver.docker: failed getting image id for %s: %s", image, err)
-			return nil, fmt.Errorf("Failed to determine image id for `%s`: %s", image, err)
-		}
-	}
-
-	taskDir, ok := ctx.AllocDir.TaskDirs[d.DriverContext.taskName]
-	if !ok {
-		return nil, fmt.Errorf("Could not find task directory for task: %v", d.DriverContext.taskName)
-	}
-
 	d.logger.Printf("[DEBUG] driver.docker: identified image %s as %s", image, dockerImage.ID)
 
 	bin, err := discover.NomadExecutable()
