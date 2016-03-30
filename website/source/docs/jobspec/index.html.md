@@ -438,8 +438,10 @@ The `artifact` object maps supports the following keys:
   root of the task's directory. If the `destination` key is omitted, it will
   default to `local/`.
 
-* `options` - The `options` block allows setting parameters for `go-getter`. An
-  example is given below:
+* `options` - The `options` block allows setting parameters for `go-getter`.
+  Full documentation of supported options are available
+  [here](https://github.com/hashicorp/go-getter/tree/ef5edd3d8f6f482b775199be2f3734fd20e04d4a#protocol-specific-options-1).
+  An example is given below:
 
 ```
 options {

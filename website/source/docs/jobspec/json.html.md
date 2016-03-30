@@ -421,8 +421,10 @@ The `Artifact` object maps supports the following keys:
 * `RelativeDest` - The destination to download the artifact relative the task's
   directory.
 
-* `GetterOptions` - A `map[string]string` block of options for  `go-getter`. An
-  example is given below:
+* `GetterOptions` - A `map[string]string` block of options for `go-getter`.
+  Full documentation of supported options are available
+  [here](https://github.com/hashicorp/go-getter/tree/ef5edd3d8f6f482b775199be2f3734fd20e04d4a#protocol-specific-options-1).
+  An example is given below:
 
 ```
 "GetterOptions": {
