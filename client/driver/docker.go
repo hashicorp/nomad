@@ -700,6 +700,9 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 		return nil, err
 	}
 
+	ver, _ := exec.Version()
+	d.logger.Printf("[DEBUG] driver.docker: version of executor: %v", ver.Version)
+
 	// Return a driver handle
 	h := &DockerHandle{
 		client:           client,

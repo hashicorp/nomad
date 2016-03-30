@@ -249,7 +249,7 @@ func (d *QemuDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		Reattach: id.PluginConfig.PluginConfig(),
 	}
 
-	executor, pluginClient, err := createExecutor(pluginConfig, d.config.LogOutput, d.config)
+	exec, pluginClient, err := createExecutor(pluginConfig, d.config.LogOutput, d.config)
 	if err != nil {
 		d.logger.Println("[ERR] driver.qemu: error connecting to plugin so destroying plugin pid and user pid")
 		if e := destroyPlugin(id.PluginConfig.Pid, id.UserPid); e != nil {
@@ -258,10 +258,12 @@ func (d *QemuDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		return nil, fmt.Errorf("error connecting to plugin: %v", err)
 	}
 
+	ver, _ := exec.Version()
+	d.logger.Printf("[DEBUG] driver.qemu: version of executor: %v", ver.Version)
 	// Return a driver handle
 	h := &qemuHandle{
 		pluginClient:   pluginClient,
-		executor:       executor,
+		executor:       exec,
 		userPid:        id.UserPid,
 		allocDir:       id.AllocDir,
 		logger:         d.logger,

@@ -187,6 +187,8 @@ func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		return nil, fmt.Errorf("error connecting to plugin: %v", merrs.ErrorOrNil())
 	}
 
+	ver, _ := exec.Version()
+	d.logger.Printf("[DEBUG] driver.exec : version of executor: %v", ver.Version)
 	// Return a driver handle
 	h := &execHandle{
 		pluginClient:    client,

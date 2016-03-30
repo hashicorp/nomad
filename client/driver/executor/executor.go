@@ -37,6 +37,7 @@ type Executor interface {
 	UpdateTask(task *structs.Task) error
 	SyncServices(ctx *ConsulContext) error
 	DeregisterServices() error
+	Version() (*ExecutorVersion, error)
 }
 
 // ConsulContext holds context to configure the consul client and run checks
@@ -127,6 +128,15 @@ type SyslogServerState struct {
 	Addr            string
 }
 
+// ExecutorVersion is the version of the executor
+type ExecutorVersion struct {
+	Version string
+}
+
+func (v *ExecutorVersion) GoString() string {
+	return v.Version
+}
+
 // UniversalExecutor is an implementation of the Executor which launches and
 // supervises processes. In addition to process supervision it provides resource
 // and file system isolation
@@ -160,6 +170,11 @@ func NewExecutor(logger *log.Logger) Executor {
 		logger:        logger,
 		processExited: make(chan interface{}),
 	}
+}
+
+// Version returns the api version of the executor
+func (e *UniversalExecutor) Version() (*ExecutorVersion, error) {
+	return &ExecutorVersion{Version: "1.0.0"}, nil
 }
 
 // LaunchCmd launches a process and returns it's state. It also configures an

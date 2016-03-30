@@ -21,6 +21,7 @@ func init() {
 
 type ExecutorRPC struct {
 	client *rpc.Client
+	logger *log.Logger
 }
 
 // LaunchCmdArgs wraps a user command and the args for the purposes of RPC
@@ -81,8 +82,15 @@ func (e *ExecutorRPC) DeregisterServices() error {
 	return e.client.Call("Plugin.DeregisterServices", new(interface{}), new(interface{}))
 }
 
+func (e *ExecutorRPC) Version() (*executor.ExecutorVersion, error) {
+	var version executor.ExecutorVersion
+	err := e.client.Call("Plugin.Version", new(interface{}), &version)
+	return &version, err
+}
+
 type ExecutorRPCServer struct {
-	Impl executor.Executor
+	Impl   executor.Executor
+	logger *log.Logger
 }
 
 func (e *ExecutorRPCServer) LaunchCmd(args LaunchCmdArgs, ps *executor.ProcessState) error {
@@ -133,6 +141,14 @@ func (e *ExecutorRPCServer) DeregisterServices(args interface{}, resp *interface
 	return e.Impl.DeregisterServices()
 }
 
+func (e *ExecutorRPCServer) Version(args interface{}, version *executor.ExecutorVersion) error {
+	ver, err := e.Impl.Version()
+	if ver != nil {
+		*version = *ver
+	}
+	return err
+}
+
 type ExecutorPlugin struct {
 	logger *log.Logger
 	Impl   *ExecutorRPCServer
@@ -140,11 +156,11 @@ type ExecutorPlugin struct {
 
 func (p *ExecutorPlugin) Server(*plugin.MuxBroker) (interface{}, error) {
 	if p.Impl == nil {
-		p.Impl = &ExecutorRPCServer{Impl: executor.NewExecutor(p.logger)}
+		p.Impl = &ExecutorRPCServer{Impl: executor.NewExecutor(p.logger), logger: p.logger}
 	}
 	return p.Impl, nil
 }
 
 func (p *ExecutorPlugin) Client(b *plugin.MuxBroker, c *rpc.Client) (interface{}, error) {
-	return &ExecutorRPC{client: c}, nil
+	return &ExecutorRPC{client: c, logger: p.logger}, nil
 }
