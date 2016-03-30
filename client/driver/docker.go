@@ -538,7 +538,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	}
 
 	if err := d.createImage(&driverConfig, client, taskDir); err != nil {
-		return nil, fmt.Errorf("failed to pull image: %v", err)
+		return nil, fmt.Errorf("failed to create image: %v", err)
 	}
 
 	// Now that we have the image we can get the image id
