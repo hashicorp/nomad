@@ -167,7 +167,8 @@ func (d *RawExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, e
 		return nil, fmt.Errorf("error connecting to plugin: %v", err)
 	}
 
-	d.logger.Printf("[DEBUG] driver.raw_exec: version of executor: %v", exec.Version())
+	ver, _ := exec.Version()
+	d.logger.Printf("[DEBUG] driver.raw_exec: version of executor: %v", ver.Version)
 
 	// Return a driver handle
 	h := &rawExecHandle{

@@ -295,7 +295,8 @@ func (d *RktDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error
 		return nil, fmt.Errorf("error connecting to plugin: %v", err)
 	}
 
-	d.logger.Printf("[DEBUG] driver.rkt: version of executor: %v", exec.Version())
+	ver, _ := exec.Version()
+	d.logger.Printf("[DEBUG] driver.rkt: version of executor: %v", ver.Version)
 	// Return a driver handle
 	h := &rktHandle{
 		pluginClient:   pluginClient,

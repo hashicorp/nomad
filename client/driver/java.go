@@ -254,7 +254,8 @@ func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		return nil, fmt.Errorf("error connecting to plugin: %v", merrs.ErrorOrNil())
 	}
 
-	d.logger.Printf("[DEBUG] driver.java: version of executor: %v", exec.Version())
+	ver, _ := exec.Version()
+	d.logger.Printf("[DEBUG] driver.java: version of executor: %v", ver.Version)
 
 	// Return a driver handle
 	h := &javaHandle{
