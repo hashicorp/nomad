@@ -29,6 +29,7 @@ BUG FIXES:
   * core: Prevent garbage collection of running batch jobs [GH-989]
   * client: Tasks can interpret Meta set in the task group and job [GH-985]
   * client: All tasks in a task group are killed when a task fails [GH-962]
+  * client: Fix common exec failures on CentOS and Amazon Linux [GH-1009]
 
 ## 0.3.1
 
