@@ -534,3 +534,41 @@ func TestCoreScheduler_JobGC_Force(t *testing.T) {
 		}
 	}
 }
+
+func TestCoreScheduler_PartitionReap(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create a core scheduler
+	snap, err := s1.fsm.State().Snapshot()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	core := NewCoreScheduler(s1, snap)
+
+	// Set the max ids per reap to something lower.
+	maxIdsPerReap = 2
+
+	evals := []string{"a", "b", "c"}
+	allocs := []string{"1", "2", "3"}
+	requests := core.(*CoreScheduler).partitionReap(evals, allocs)
+	if len(requests) != 3 {
+		t.Fatalf("Expected 3 requests got: %v", requests)
+	}
+
+	first := requests[0]
+	if len(first.Evals) != 2 && len(first.Allocs) != 0 {
+		t.Fatalf("Unexpected first request: %v", first)
+	}
+
+	second := requests[1]
+	if len(second.Evals) != 1 && len(second.Allocs) != 1 {
+		t.Fatalf("Unexpected second request: %v", second)
+	}
+
+	third := requests[2]
+	if len(third.Evals) != 0 && len(third.Allocs) != 2 {
+		t.Fatalf("Unexpected third request: %v", third)
+	}
+}

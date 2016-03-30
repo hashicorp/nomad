@@ -10,6 +10,13 @@ import (
 	"github.com/hashicorp/nomad/scheduler"
 )
 
+var (
+	// maxIdsPerReap is the maximum number of evals and allocations to reap in a
+	// single Raft transaction. This is to ensure that the Raft message does not
+	// become too large.
+	maxIdsPerReap = (1024 * 512) / 36 // 0.5 MB of ids.
+)
+
 // CoreScheduler is a special "scheduler" that is registered
 // as "_core". It is used to run various administrative work
 // across the cluster.
@@ -232,20 +239,60 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64) 
 // allocs.
 func (c *CoreScheduler) evalReap(evals, allocs []string) error {
 	// Call to the leader to issue the reap
-	req := structs.EvalDeleteRequest{
-		Evals:  evals,
-		Allocs: allocs,
-		WriteRequest: structs.WriteRequest{
-			Region: c.srv.config.Region,
-		},
-	}
-	var resp structs.GenericResponse
-	if err := c.srv.RPC("Eval.Reap", &req, &resp); err != nil {
-		c.srv.logger.Printf("[ERR] sched.core: eval reap failed: %v", err)
-		return err
+	for _, req := range c.partitionReap(evals, allocs) {
+		var resp structs.GenericResponse
+		if err := c.srv.RPC("Eval.Reap", req, &resp); err != nil {
+			c.srv.logger.Printf("[ERR] sched.core: eval reap failed: %v", err)
+			return err
+		}
 	}
 
 	return nil
+}
+
+// partitionReap returns a list of EvalDeleteRequest to make, ensuring a single
+// request does not contain too many allocations and evaluations. This is
+// necessary to ensure that the Raft transaction does not become too large.
+func (c *CoreScheduler) partitionReap(evals, allocs []string) []*structs.EvalDeleteRequest {
+	var requests []*structs.EvalDeleteRequest
+	var submittedEvals, submittedAllocs int
+	for submittedEvals != len(evals) || submittedAllocs != len(allocs) {
+		req := &structs.EvalDeleteRequest{
+			WriteRequest: structs.WriteRequest{
+				Region: c.srv.config.Region,
+			},
+		}
+		requests = append(requests, req)
+		available := maxIdsPerReap
+
+		// Add the evals first
+		if remaining := len(evals) - submittedEvals; remaining > 0 {
+			if remaining <= available {
+				req.Evals = evals[submittedEvals:]
+				available -= remaining
+				submittedEvals += remaining
+			} else {
+				req.Evals = evals[submittedEvals : submittedEvals+available]
+				submittedEvals += available
+
+				// Exhausted space so skip adding allocs
+				continue
+			}
+		}
+
+		// Add the allocs
+		if remaining := len(allocs) - submittedAllocs; remaining > 0 {
+			if remaining <= available {
+				req.Allocs = allocs[submittedAllocs:]
+				submittedAllocs += remaining
+			} else {
+				req.Allocs = allocs[submittedAllocs : submittedAllocs+available]
+				submittedAllocs += available
+			}
+		}
+	}
+
+	return requests
 }
 
 // nodeGC is used to garbage collect old nodes
