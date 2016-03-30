@@ -238,7 +238,7 @@ func (f *FileRotator) purgeOldFiles() {
 				}
 			}
 
-			// not continuing to delete files if the number of files is not more
+			// Not continuing to delete files if the number of files is not more
 			// than MaxFiles
 			if len(fIndexes) <= f.MaxFiles {
 				continue
@@ -247,8 +247,7 @@ func (f *FileRotator) purgeOldFiles() {
 			// Sorting the file indexes so that we can purge the older files and keep
 			// only the number of files as configured by the user
 			sort.Sort(sort.IntSlice(fIndexes))
-			var toDelete []int
-			toDelete = fIndexes[0 : len(fIndexes)-f.MaxFiles]
+			toDelete := fIndexes[0 : len(fIndexes)-f.MaxFiles]
 			for _, fIndex := range toDelete {
 				fname := filepath.Join(f.path, fmt.Sprintf("%s.%d", f.baseFileName, fIndex))
 				os.RemoveAll(fname)
