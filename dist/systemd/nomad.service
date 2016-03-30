@@ -4,3 +4,7 @@ Documentation=https://nomadproject.io/docs/
 
 [Service]
 ExecStart=/usr/bin/nomad agent -config /etc/nomad
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
