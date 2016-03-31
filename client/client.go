@@ -666,6 +666,12 @@ func (c *Client) setupDrivers() error {
 		if applies {
 			avail = append(avail, name)
 		}
+
+		p, period := d.Periodic()
+		if p {
+			go c.fingerprintPeriodic(name, d, period)
+		}
+
 	}
 
 	c.logger.Printf("[DEBUG] client: available drivers %v", avail)
