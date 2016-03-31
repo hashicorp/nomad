@@ -115,7 +115,9 @@ func (s *Server) RunningChildren(job *structs.Job) (bool, error) {
 			}
 
 			for _, alloc := range allocs {
-				if !alloc.TerminalStatus() {
+				allocTerminal := alloc.TerminalStatus() || alloc.ClientStatus == structs.AllocClientStatusFailed ||
+					alloc.ClientStatus == structs.AllocClientStatusComplete
+				if !allocTerminal {
 					return true, nil
 				}
 			}
