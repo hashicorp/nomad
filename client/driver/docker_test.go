@@ -15,6 +15,7 @@ import (
 
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/hashicorp/go-plugin"
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/env"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
@@ -252,6 +253,68 @@ func TestDockerDriver_Start_Wait(t *testing.T) {
 	case <-time.After(time.Duration(tu.TestMultiplier()*5) * time.Second):
 		t.Fatalf("timeout")
 	}
+}
+
+func TestDockerDriver_Start_LoadImage(t *testing.T) {
+	task := &structs.Task{
+		Name: "busybox-demo",
+		Config: map[string]interface{}{
+			"image":   "busybox",
+			"load":    []string{"busybox.tar"},
+			"command": "/bin/echo",
+			"args": []string{
+				"hello",
+			},
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
+		Resources: &structs.Resources{
+			MemoryMB: 256,
+			CPU:      512,
+		},
+	}
+
+	driverCtx, execCtx := testDriverContexts(task)
+	defer execCtx.AllocDir.Destroy()
+	d := NewDockerDriver(driverCtx)
+
+	// Copy the test jar into the task's directory
+	taskDir, _ := execCtx.AllocDir.TaskDirs[task.Name]
+	dst := filepath.Join(taskDir, allocdir.TaskLocal, "busybox.tar")
+	copyFile("./test-resources/docker/busybox.tar", dst, t)
+
+	handle, err := d.Start(execCtx, task)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if handle == nil {
+		t.Fatalf("missing handle")
+	}
+	defer handle.Kill()
+
+	select {
+	case res := <-handle.WaitCh():
+		if !res.Successful() {
+			t.Fatalf("err: %v", res)
+		}
+	case <-time.After(time.Duration(tu.TestMultiplier()*5) * time.Second):
+		t.Fatalf("timeout")
+	}
+
+	// Check that data was written to the shared alloc directory.
+	outputFile := filepath.Join(execCtx.AllocDir.LogDir(), "busybox-demo.stdout.0")
+	act, err := ioutil.ReadFile(outputFile)
+	if err != nil {
+		t.Fatalf("Couldn't read expected output: %v", err)
+	}
+
+	exp := "hello"
+	if strings.TrimSpace(string(act)) != exp {
+		t.Fatalf("Command outputted %v; want %v", act, exp)
+	}
+
 }
 
 func TestDockerDriver_Start_Wait_AllocDir(t *testing.T) {
