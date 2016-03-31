@@ -35,6 +35,12 @@ The following options are available for use in the job specification.
 * `image` - The Docker image to run. The image may include a tag or custom URL and should include `https://` if required.
   By default it will be fetched from Docker Hub.
 
+* `load` - (Optional) A list of paths to image archive files. If
+  this key is not specified, Nomad assumes the `image` is hosted on a repository
+  and attempts to pull the image. The `artifact` blocks can be specified to
+  download each of the archive files. The equivalent of `docker load -i path`
+  would be run on each of the archive files.
+
 * `command` - (Optional) The command to run when starting the container.
 
 *   `args` - (Optional) A list of arguments to the optional `command`. If no

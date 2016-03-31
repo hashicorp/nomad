@@ -260,7 +260,7 @@ func TestDockerDriver_Start_LoadImage(t *testing.T) {
 		Name: "busybox-demo",
 		Config: map[string]interface{}{
 			"image":   "busybox",
-			"load":    "busybox.tar",
+			"load":    []string{"busybox.tar"},
 			"command": "/bin/echo",
 			"args": []string{
 				"hello",

@@ -16,6 +16,7 @@ import (
 
 	docker "github.com/fsouza/go-dockerclient"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
@@ -51,7 +52,7 @@ type DockerDriverAuth struct {
 
 type DockerDriverConfig struct {
 	ImageName        string              `mapstructure:"image"`              // Container's Image Name
-	LoadImage        string              `mapstructure:"load"`               // LoadImage is the path to the image archive
+	LoadImages       []string            `mapstructure:"load"`               // LoadImage is array of paths to image archive files
 	Command          string              `mapstructure:"command"`            // The Command/Entrypoint to run when the container starts up
 	Args             []string            `mapstructure:"args"`               // The arguments to the Command/Entrypoint
 	IpcMode          string              `mapstructure:"ipc_mode"`           // The IPC mode of the container - host and none
@@ -440,7 +441,7 @@ func (d *DockerDriver) createImage(driverConfig *DockerDriverConfig, client *doc
 
 	// Download the image
 	if dockerImage == nil {
-		if driverConfig.LoadImage != "" {
+		if len(driverConfig.LoadImages) > 0 {
 			return d.loadImage(driverConfig, client, taskDir)
 		}
 
@@ -499,14 +500,21 @@ func (d *DockerDriver) pullImage(driverConfig *DockerDriverConfig, client *docke
 
 // loadImage creates an image by loading it from the file system
 func (d *DockerDriver) loadImage(driverConfig *DockerDriverConfig, client *docker.Client, taskDir string) error {
-	archive := filepath.Join(taskDir, allocdir.TaskLocal, driverConfig.LoadImage)
-	d.logger.Printf("[DEBUG] driver.docker: loading image from: %v", archive)
-	f, err := os.Open(archive)
-	if err != nil {
-		return fmt.Errorf("unable to open image archive: %v", err)
+	var errors multierror.Error
+	for _, image := range driverConfig.LoadImages {
+		archive := filepath.Join(taskDir, allocdir.TaskLocal, image)
+		d.logger.Printf("[DEBUG] driver.docker: loading image from: %v", archive)
+		f, err := os.Open(archive)
+		if err != nil {
+			errors.Errors = append(errors.Errors, fmt.Errorf("unable to open image archive: %v", err))
+			continue
+		}
+		if err := client.LoadImage(docker.LoadImageOptions{InputStream: f}); err != nil {
+			errors.Errors = append(errors.Errors, err)
+		}
+		f.Close()
 	}
-	defer f.Close()
-	return client.LoadImage(docker.LoadImageOptions{InputStream: f})
+	return errors.ErrorOrNil()
 }
 
 func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
