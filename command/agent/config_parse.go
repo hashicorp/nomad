@@ -90,6 +90,7 @@ func parseConfig(result *Config, list *ast.ObjectList) error {
 		"disable_update_check",
 		"disable_anonymous_signature",
 		"atlas",
+		"consul",
 		"http_api_response_headers",
 	}
 	if err := checkHCLKeys(list, valid); err != nil {
@@ -109,6 +110,7 @@ func parseConfig(result *Config, list *ast.ObjectList) error {
 	delete(m, "server")
 	delete(m, "telemetry")
 	delete(m, "atlas")
+	delete(m, "consul")
 	delete(m, "http_api_response_headers")
 
 	// Decode the rest
@@ -162,6 +164,13 @@ func parseConfig(result *Config, list *ast.ObjectList) error {
 	if o := list.Filter("atlas"); len(o.Items) > 0 {
 		if err := parseAtlas(&result.Atlas, o); err != nil {
 			return multierror.Prefix(err, "atlas ->")
+		}
+	}
+
+	// Parse the consul config
+	if o := list.Filter("consul"); len(o.Items) > 0 {
+		if err := parseConsulConfig(&result.ConsulConfig, o); err != nil {
+			return multierror.Prefix(err, "consul ->")
 		}
 	}
 
@@ -527,6 +536,47 @@ func parseAtlas(result **AtlasConfig, list *ast.ObjectList) error {
 		return err
 	}
 	*result = &atlas
+	return nil
+}
+
+func parseConsulConfig(result **ConsulConfig, list *ast.ObjectList) error {
+	list = list.Elem()
+	if len(list.Items) > 1 {
+		return fmt.Errorf("only one 'consul' block allowed")
+	}
+
+	// Get our consul object
+	listVal := list.Items[0].Val
+
+	// Check for invalid keys
+	valid := []string{
+		"server_service_name",
+		"client_service_name",
+		"addr",
+		"token",
+		"auth",
+		"ssl",
+		"verify_ssl",
+		"ca_file",
+		"cert_file",
+		"key_file",
+	}
+
+	if err := checkHCLKeys(listVal, valid); err != nil {
+		return err
+	}
+
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, listVal); err != nil {
+		return err
+	}
+
+	var consulConfig ConsulConfig
+	if err := mapstructure.WeakDecode(m, &consulConfig); err != nil {
+		return err
+	}
+
+	*result = &consulConfig
 	return nil
 }
 
