@@ -19,7 +19,7 @@ type ServiceCheck struct {
 	Id       string
 	Name     string
 	Type     string
-	Cmd      string
+	Command  string
 	Args     []string
 	Path     string
 	Protocol string
