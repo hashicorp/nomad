@@ -1184,6 +1184,10 @@ func (c *Client) syncConsul() {
 	for {
 		select {
 		case <-sync.C:
+			// Give up pruning services if we can't fingerprint Consul
+			if _, ok := c.config.Node.Attributes["consul.server"]; !ok {
+				continue
+			}
 			services := make(map[string]struct{})
 			// Get the existing allocs
 			c.allocLock.RLock()
