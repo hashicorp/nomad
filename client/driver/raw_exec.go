@@ -254,7 +254,7 @@ func (h *rawExecHandle) run() {
 			h.logger.Printf("[ERR] driver.raw_exec: unmounting dev,proc and alloc dirs failed: %v", e)
 		}
 	}
-	h.waitCh <- &cstructs.WaitResult{ExitCode: ps.ExitCode, Signal: 0, Err: err}
+	h.waitCh <- &cstructs.WaitResult{ExitCode: ps.ExitCode, Signal: ps.Signal, Err: err}
 	close(h.waitCh)
 	// Remove services
 	if err := h.executor.DeregisterServices(); err != nil {

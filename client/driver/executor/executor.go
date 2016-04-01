@@ -324,12 +324,16 @@ func (e *UniversalExecutor) wait() {
 		return
 	}
 	exitCode := 1
+	var signal int
 	if exitErr, ok := err.(*exec.ExitError); ok {
 		if status, ok := exitErr.Sys().(syscall.WaitStatus); ok {
 			exitCode = status.ExitStatus()
+			if status.Signaled() {
+				signal = int(status.Signal())
+			}
 		}
 	}
-	e.exitState = &ProcessState{Pid: 0, ExitCode: exitCode, Time: time.Now()}
+	e.exitState = &ProcessState{Pid: 0, ExitCode: exitCode, Signal: signal, Time: time.Now()}
 }
 
 var (
