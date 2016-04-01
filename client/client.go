@@ -697,6 +697,9 @@ func (c *Client) registerAndHeartbeat() {
 	// Register the node
 	c.retryRegisterNode()
 
+	// Start watching changes for node changes
+	go c.watchNodeUpdates()
+
 	// Setup the heartbeat timer, for the initial registration
 	// we want to do this quickly. We want to do it extra quickly
 	// in development mode.
@@ -746,9 +749,6 @@ func (c *Client) periodicSnapshot() {
 
 // run is a long lived goroutine used to run the client
 func (c *Client) run() {
-	// Watch for node changes
-	go c.watchNodeUpdates()
-
 	// Watch for changes in allocations
 	allocUpdates := make(chan *allocUpdates, 8)
 	go c.watchAllocations(allocUpdates)
@@ -1062,7 +1062,7 @@ func (c *Client) watchNodeUpdates() {
 	var changed bool
 	for {
 		select {
-		case <-time.After(nodeUpdateRetryIntv):
+		case <-time.After(c.retryIntv(nodeUpdateRetryIntv)):
 			changed, attrHash, metaHash = c.hasNodeChanged(attrHash, metaHash)
 			if changed {
 				c.logger.Printf("[DEBUG] client: state changed, updating node.")
