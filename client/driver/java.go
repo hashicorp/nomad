@@ -67,9 +67,15 @@ func NewJavaDriver(ctx *DriverContext) Driver {
 }
 
 func (d *JavaDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
+	// Get the current status so that we can log any debug messages only if the
+	// state changes
+	_, currentlyEnabled := node.Attributes[javaDriverAttr]
+
 	// Only enable if we are root and cgroups are mounted when running on linux systems.
 	if runtime.GOOS == "linux" && (syscall.Geteuid() != 0 || !d.cgroupsMounted(node)) {
-		d.logger.Printf("[DEBUG] driver.java: root priviledges and mounted cgroups required on linux, disabling")
+		if currentlyEnabled {
+			d.logger.Printf("[DEBUG] driver.java: root priviledges and mounted cgroups required on linux, disabling")
+		}
 		delete(node.Attributes, "driver.java")
 		return false, nil
 	}
@@ -99,7 +105,9 @@ func (d *JavaDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, 
 	}
 
 	if infoString == "" {
-		d.logger.Println("[WARN] driver.java: error parsing Java version information, aborting")
+		if currentlyEnabled {
+			d.logger.Println("[WARN] driver.java: error parsing Java version information, aborting")
+		}
 		delete(node.Attributes, javaDriverAttr)
 		return false, nil
 	}

@@ -89,9 +89,15 @@ func NewRktDriver(ctx *DriverContext) Driver {
 }
 
 func (d *RktDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
+	// Get the current status so that we can log any debug messages only if the
+	// state changes
+	_, currentlyEnabled := node.Attributes[rktDriverAttr]
+
 	// Only enable if we are root when running on non-windows systems.
 	if runtime.GOOS != "windows" && syscall.Geteuid() != 0 {
-		d.logger.Printf("[DEBUG] driver.rkt: must run as root user, disabling")
+		if currentlyEnabled {
+			d.logger.Printf("[DEBUG] driver.rkt: must run as root user, disabling")
+		}
 		delete(node.Attributes, rktDriverAttr)
 		return false, nil
 	}
