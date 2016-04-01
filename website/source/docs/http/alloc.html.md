@@ -242,7 +242,7 @@ be specified using the `?region=` query parameter.
     A task can be in the following states:
 
     * `TaskStatePending` - The task is waiting to be run, either for the first
-      time or do to a restart.
+      time or due to a restart.
     * `TaskStateRunning` - The task is currently running.
     * `TaskStateDead` - The task is dead and will not run again.
 
@@ -251,7 +251,7 @@ be specified using the `?region=` query parameter.
 
     * `Driver Failure` - The task could not be started due to a failure in the
       driver.
-    * `Started` - The task was started; either for the first time or do to a
+    * `Started` - The task was started; either for the first time or due to a
       restart.
     * `Terminated` - The task terminated.
     * `Killed` - The task was killed by the user.
