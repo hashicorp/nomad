@@ -154,6 +154,19 @@ func (n *nomadFSM) applyUpsertNode(buf []byte, index uint64) interface{} {
 		n.logger.Printf("[ERR] nomad.fsm: UpsertNode failed: %v", err)
 		return err
 	}
+
+	// Unblock evals for the nodes computed node class if it is in a ready
+	// state.
+	if req.Node.Status == structs.NodeStatusReady {
+		node, err := n.state.NodeByID(req.Node.ID)
+		if err != nil {
+			n.logger.Printf("[ERR] nomad.fsm: looking up node %q failed: %v", req.Node.ID, err)
+			return err
+
+		}
+		n.blockedEvals.Unblock(node.ComputedClass)
+	}
+
 	return nil
 }
 

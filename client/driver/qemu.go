@@ -26,6 +26,12 @@ var (
 	reQemuVersion = regexp.MustCompile(`version (\d[\.\d+]+)`)
 )
 
+const (
+	// The key populated in Node Attributes to indicate presence of the Qemu
+	// driver
+	qemuDriverAttr = "driver.qemu"
+)
+
 // QemuDriver is a driver for running images via Qemu
 // We attempt to chose sane defaults for now, with more configuration available
 // planned in the future
@@ -68,16 +74,18 @@ func (d *QemuDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, 
 	}
 	outBytes, err := exec.Command(bin, "--version").Output()
 	if err != nil {
+		delete(node.Attributes, qemuDriverAttr)
 		return false, nil
 	}
 	out := strings.TrimSpace(string(outBytes))
 
 	matches := reQemuVersion.FindStringSubmatch(out)
 	if len(matches) != 2 {
+		delete(node.Attributes, qemuDriverAttr)
 		return false, fmt.Errorf("Unable to parse Qemu version string: %#v", matches)
 	}
 
-	node.Attributes["driver.qemu"] = "1"
+	node.Attributes[qemuDriverAttr] = "1"
 	node.Attributes["driver.qemu.version"] = matches[1]
 
 	return true, nil

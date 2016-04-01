@@ -37,6 +37,10 @@ const (
 	// NoSuchContainerError is returned by the docker daemon if the container
 	// does not exist.
 	NoSuchContainerError = "No such container"
+
+	// The key populated in Node Attributes to indicate presence of the Docker
+	// driver
+	dockerDriverAttr = "driver.docker"
 )
 
 type DockerDriver struct {
@@ -162,6 +166,7 @@ func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool
 	client, err := d.dockerClient()
 	if err != nil {
 		d.logger.Printf("[INFO] driver.docker: failed to initialize client: %s", err)
+		delete(node.Attributes, dockerDriverAttr)
 		return false, nil
 	}
 
@@ -179,9 +184,10 @@ func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool
 	env, err := client.Version()
 	if err != nil {
 		d.logger.Printf("[DEBUG] driver.docker: could not connect to docker daemon at %s: %s", client.Endpoint(), err)
+		delete(node.Attributes, dockerDriverAttr)
 		return false, nil
 	}
-	node.Attributes["driver.docker"] = "1"
+	node.Attributes[dockerDriverAttr] = "1"
 	node.Attributes["driver.docker.version"] = env.Get("Version")
 
 	return true, nil

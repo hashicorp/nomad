@@ -21,6 +21,12 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
+const (
+	// The key populated in Node Attributes to indicate the presence of the Exec
+	// driver
+	execDriverAttr = "driver.exec"
+)
+
 // ExecDriver fork/execs tasks using as many of the underlying OS's isolation
 // features.
 type ExecDriver struct {
@@ -56,13 +62,15 @@ func (d *ExecDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, 
 	// Only enable if cgroups are available and we are root
 	if _, ok := node.Attributes["unique.cgroup.mountpoint"]; !ok {
 		d.logger.Printf("[DEBUG] driver.exec: cgroups unavailable, disabling")
+		delete(node.Attributes, execDriverAttr)
 		return false, nil
 	} else if syscall.Geteuid() != 0 {
 		d.logger.Printf("[DEBUG] driver.exec: must run as root user, disabling")
+		delete(node.Attributes, execDriverAttr)
 		return false, nil
 	}
 
-	node.Attributes["driver.exec"] = "1"
+	node.Attributes[execDriverAttr] = "1"
 	return true, nil
 }
 
