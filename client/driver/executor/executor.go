@@ -330,6 +330,7 @@ func (e *UniversalExecutor) wait() {
 			exitCode = status.ExitStatus()
 			if status.Signaled() {
 				signal = int(status.Signal())
+				exitCode = 128 + signal
 			}
 		}
 	}
