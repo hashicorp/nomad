@@ -260,7 +260,7 @@ func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 			merrs.Errors = append(merrs.Errors, fmt.Errorf("error destroying plugin and userpid: %v", e))
 		}
 		if id.IsolationConfig != nil {
-			if e := executor.DestroyCgroup(id.IsolationConfig.Cgroup); e != nil {
+			if e := executor.DestroyCgroup(id.IsolationConfig.Cgroup, id.IsolationConfig.CgroupPaths); e != nil {
 				merrs.Errors = append(merrs.Errors, fmt.Errorf("destroying cgroup failed: %v", e))
 			}
 		}
@@ -357,7 +357,7 @@ func (h *javaHandle) run() {
 	close(h.doneCh)
 	if ps.ExitCode == 0 && err != nil {
 		if h.isolationConfig != nil {
-			if e := executor.DestroyCgroup(h.isolationConfig.Cgroup); e != nil {
+			if e := executor.DestroyCgroup(h.isolationConfig.Cgroup, h.isolationConfig.CgroupPaths); e != nil {
 				h.logger.Printf("[ERR] driver.java: destroying cgroup failed while killing cgroup: %v", e)
 			}
 		} else {

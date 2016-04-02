@@ -156,8 +156,9 @@ type UniversalExecutor struct {
 	syslogServer *logging.SyslogServer
 	syslogChan   chan *logging.SyslogMessage
 
-	groups *cgroupConfig.Cgroup
-	cgLock sync.Mutex
+	groups  *cgroupConfig.Cgroup
+	cgPaths map[string]string
+	cgLock  sync.Mutex
 
 	consulService *consul.ConsulService
 	consulCtx     *ConsulContext
@@ -242,8 +243,11 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext
 	if err := e.cmd.Start(); err != nil {
 		return nil, err
 	}
+	if err := e.applyLimits(e.cmd.Process.Pid); err != nil {
+		return nil, err
+	}
 	go e.wait()
-	ic := &cstructs.IsolationConfig{Cgroup: e.groups}
+	ic := &cstructs.IsolationConfig{Cgroup: e.groups, CgroupPaths: e.cgPaths}
 	return &ProcessState{Pid: e.cmd.Process.Pid, ExitCode: -1, IsolationConfig: ic, Time: time.Now()}, nil
 }
 
@@ -371,7 +375,8 @@ func (e *UniversalExecutor) Exit() error {
 	}
 	if e.command != nil && e.command.ResourceLimits {
 		e.cgLock.Lock()
-		if err := DestroyCgroup(e.groups); err != nil {
+		err := DestroyCgroup(e.groups, e.cgPaths)
+		if err != nil {
 			merr.Errors = append(merr.Errors, err)
 		}
 		e.cgLock.Unlock()
