@@ -129,7 +129,19 @@ func TestNode_ComputedClass_Attr(t *testing.T) {
 	if old == n.ComputedClass {
 		t.Fatal("ComputeClass() ignored attribute change")
 	}
+
+	// Remove and attribute and compute the class again.
 	old = n.ComputedClass
+	delete(n.Attributes, "driver.exec")
+	if err := n.ComputeClass(); err != nil {
+		t.Fatalf("ComputedClass() failed: %v", err)
+	}
+	if n.ComputedClass == "" {
+		t.Fatal("ComputeClass() didn't set computed class")
+	}
+	if old == n.ComputedClass {
+		t.Fatalf("ComputedClass() ignored removal of attribute key")
+	}
 }
 
 func TestNode_ComputedClass_Meta(t *testing.T) {

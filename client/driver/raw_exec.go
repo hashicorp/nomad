@@ -23,6 +23,10 @@ import (
 const (
 	// The option that enables this driver in the Config.Options map.
 	rawExecConfigOption = "driver.raw_exec.enable"
+
+	// The key populated in Node Attributes to indicate presence of the Raw Exec
+	// driver
+	rawExecDriverAttr = "driver.raw_exec"
 )
 
 // The RawExecDriver is a privileged version of the exec driver. It provides no
@@ -53,15 +57,22 @@ func NewRawExecDriver(ctx *DriverContext) Driver {
 }
 
 func (d *RawExecDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
+	// Get the current status so that we can log any debug messages only if the
+	// state changes
+	_, currentlyEnabled := node.Attributes[rawExecDriverAttr]
+
 	// Check that the user has explicitly enabled this executor.
 	enabled := cfg.ReadBoolDefault(rawExecConfigOption, false)
 
 	if enabled {
-		d.logger.Printf("[WARN] driver.raw_exec: raw exec is enabled. Only enable if needed")
-		node.Attributes["driver.raw_exec"] = "1"
+		if currentlyEnabled {
+			d.logger.Printf("[WARN] driver.raw_exec: raw exec is enabled. Only enable if needed")
+		}
+		node.Attributes[rawExecDriverAttr] = "1"
 		return true, nil
 	}
 
+	delete(node.Attributes, rawExecDriverAttr)
 	return false, nil
 }
 
