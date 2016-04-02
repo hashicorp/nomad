@@ -19,7 +19,8 @@ import (
 
 // ConsulService allows syncing of services and checks with Consul
 type ConsulService struct {
-	client *consul.Client
+	client   *consul.Client
+	availble bool
 
 	task           *structs.Task
 	allocID        string
@@ -349,7 +350,12 @@ func (c *ConsulService) PeriodicSync() {
 		select {
 		case <-sync.C:
 			if err := c.performSync(); err != nil {
-				c.logger.Printf("[DEBUG] consul: error in syncing task %q: %v", c.task.Name, err)
+				if c.availble {
+					c.logger.Printf("[DEBUG] consul: error in syncing task %q: %v", c.task.Name, err)
+				}
+				c.availble = false
+			} else {
+				c.availble = true
 			}
 		case <-c.shutdownCh:
 			sync.Stop()
@@ -438,6 +444,11 @@ func (c *ConsulService) runCheck(check Check) {
 		state = consul.HealthCritical
 	}
 	if err := c.client.Agent().UpdateTTL(check.ID(), output, state); err != nil {
-		c.logger.Printf("[DEBUG] error updating ttl check for check %q: %v", check.ID(), err)
+		if c.availble {
+			c.logger.Printf("[DEBUG] error updating ttl check for check %q: %v", check.ID(), err)
+			c.availble = false
+		} else {
+			c.availble = true
+		}
 	}
 }
