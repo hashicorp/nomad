@@ -21,6 +21,12 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
+const (
+	// The key populated in Node Attributes to indicate the presence of the Exec
+	// driver
+	execDriverAttr = "driver.exec"
+)
+
 // ExecDriver fork/execs tasks using as many of the underlying OS's isolation
 // features.
 type ExecDriver struct {
@@ -53,16 +59,29 @@ func NewExecDriver(ctx *DriverContext) Driver {
 }
 
 func (d *ExecDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
+	// Get the current status so that we can log any debug messages only if the
+	// state changes
+	_, currentlyEnabled := node.Attributes[execDriverAttr]
+
 	// Only enable if cgroups are available and we are root
 	if _, ok := node.Attributes["unique.cgroup.mountpoint"]; !ok {
-		d.logger.Printf("[DEBUG] driver.exec: cgroups unavailable, disabling")
+		if currentlyEnabled {
+			d.logger.Printf("[DEBUG] driver.exec: cgroups unavailable, disabling")
+		}
+		delete(node.Attributes, execDriverAttr)
 		return false, nil
 	} else if syscall.Geteuid() != 0 {
-		d.logger.Printf("[DEBUG] driver.exec: must run as root user, disabling")
+		if currentlyEnabled {
+			d.logger.Printf("[DEBUG] driver.exec: must run as root user, disabling")
+		}
+		delete(node.Attributes, execDriverAttr)
 		return false, nil
 	}
 
-	node.Attributes["driver.exec"] = "1"
+	if !currentlyEnabled {
+		d.logger.Printf("[DEBUG] driver.exec: exec driver is enabled")
+	}
+	node.Attributes[execDriverAttr] = "1"
 	return true, nil
 }
 
@@ -177,7 +196,7 @@ func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 			merrs.Errors = append(merrs.Errors, fmt.Errorf("error destroying plugin and userpid: %v", e))
 		}
 		if id.IsolationConfig != nil {
-			if e := executor.DestroyCgroup(id.IsolationConfig.Cgroup); e != nil {
+			if e := executor.DestroyCgroup(id.IsolationConfig.Cgroup, id.IsolationConfig.CgroupPaths); e != nil {
 				merrs.Errors = append(merrs.Errors, fmt.Errorf("destroying cgroup failed: %v", e))
 			}
 		}
@@ -275,7 +294,7 @@ func (h *execHandle) run() {
 	// user pid might be holding onto.
 	if ps.ExitCode == 0 && err != nil {
 		if h.isolationConfig != nil {
-			if e := executor.DestroyCgroup(h.isolationConfig.Cgroup); e != nil {
+			if e := executor.DestroyCgroup(h.isolationConfig.Cgroup, h.isolationConfig.CgroupPaths); e != nil {
 				h.logger.Printf("[ERR] driver.exec: destroying cgroup failed while killing cgroup: %v", e)
 			}
 		}
@@ -283,7 +302,7 @@ func (h *execHandle) run() {
 			h.logger.Printf("[ERR] driver.exec: unmounting dev,proc and alloc dirs failed: %v", e)
 		}
 	}
-	h.waitCh <- cstructs.NewWaitResult(ps.ExitCode, 0, err)
+	h.waitCh <- cstructs.NewWaitResult(ps.ExitCode, ps.Signal, err)
 	close(h.waitCh)
 	// Remove services
 	if err := h.executor.DeregisterServices(); err != nil {

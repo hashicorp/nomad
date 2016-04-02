@@ -25,6 +25,12 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+const (
+	// The key populated in Node Attributes to indicate presence of the Java
+	// driver
+	javaDriverAttr = "driver.java"
+)
+
 // JavaDriver is a simple driver to execute applications packaged in Jars.
 // It literally just fork/execs tasks with the java command.
 type JavaDriver struct {
@@ -61,9 +67,16 @@ func NewJavaDriver(ctx *DriverContext) Driver {
 }
 
 func (d *JavaDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
+	// Get the current status so that we can log any debug messages only if the
+	// state changes
+	_, currentlyEnabled := node.Attributes[javaDriverAttr]
+
 	// Only enable if we are root and cgroups are mounted when running on linux systems.
 	if runtime.GOOS == "linux" && (syscall.Geteuid() != 0 || !d.cgroupsMounted(node)) {
-		d.logger.Printf("[DEBUG] driver.java: root priviledges and mounted cgroups required on linux, disabling")
+		if currentlyEnabled {
+			d.logger.Printf("[DEBUG] driver.java: root priviledges and mounted cgroups required on linux, disabling")
+		}
+		delete(node.Attributes, "driver.java")
 		return false, nil
 	}
 
@@ -76,6 +89,7 @@ func (d *JavaDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, 
 	err := cmd.Run()
 	if err != nil {
 		// assume Java wasn't found
+		delete(node.Attributes, javaDriverAttr)
 		return false, nil
 	}
 
@@ -91,7 +105,10 @@ func (d *JavaDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, 
 	}
 
 	if infoString == "" {
-		d.logger.Println("[WARN] driver.java: error parsing Java version information, aborting")
+		if currentlyEnabled {
+			d.logger.Println("[WARN] driver.java: error parsing Java version information, aborting")
+		}
+		delete(node.Attributes, javaDriverAttr)
 		return false, nil
 	}
 
@@ -104,7 +121,7 @@ func (d *JavaDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, 
 	versionString := info[0]
 	versionString = strings.TrimPrefix(versionString, "java version ")
 	versionString = strings.Trim(versionString, "\"")
-	node.Attributes["driver.java"] = "1"
+	node.Attributes[javaDriverAttr] = "1"
 	node.Attributes["driver.java.version"] = versionString
 	node.Attributes["driver.java.runtime"] = info[1]
 	node.Attributes["driver.java.vm"] = info[2]
@@ -243,7 +260,7 @@ func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 			merrs.Errors = append(merrs.Errors, fmt.Errorf("error destroying plugin and userpid: %v", e))
 		}
 		if id.IsolationConfig != nil {
-			if e := executor.DestroyCgroup(id.IsolationConfig.Cgroup); e != nil {
+			if e := executor.DestroyCgroup(id.IsolationConfig.Cgroup, id.IsolationConfig.CgroupPaths); e != nil {
 				merrs.Errors = append(merrs.Errors, fmt.Errorf("destroying cgroup failed: %v", e))
 			}
 		}
@@ -340,7 +357,7 @@ func (h *javaHandle) run() {
 	close(h.doneCh)
 	if ps.ExitCode == 0 && err != nil {
 		if h.isolationConfig != nil {
-			if e := executor.DestroyCgroup(h.isolationConfig.Cgroup); e != nil {
+			if e := executor.DestroyCgroup(h.isolationConfig.Cgroup, h.isolationConfig.CgroupPaths); e != nil {
 				h.logger.Printf("[ERR] driver.java: destroying cgroup failed while killing cgroup: %v", e)
 			}
 		} else {
@@ -352,7 +369,7 @@ func (h *javaHandle) run() {
 			h.logger.Printf("[ERR] driver.java: unmounting dev,proc and alloc dirs failed: %v", e)
 		}
 	}
-	h.waitCh <- &cstructs.WaitResult{ExitCode: ps.ExitCode, Signal: 0, Err: err}
+	h.waitCh <- &cstructs.WaitResult{ExitCode: ps.ExitCode, Signal: ps.Signal, Err: err}
 	close(h.waitCh)
 
 	// Remove services

@@ -69,9 +69,17 @@ func makeLog(buf []byte) *raft.Log {
 
 func TestFSM_UpsertNode(t *testing.T) {
 	fsm := testFSM(t)
+	fsm.blockedEvals.SetEnabled(true)
+
+	node := mock.Node()
+
+	// Mark an eval as blocked.
+	eval := mock.Eval()
+	eval.ClassEligibility = map[string]bool{node.ComputedClass: true}
+	fsm.blockedEvals.Block(eval)
 
 	req := structs.NodeRegisterRequest{
-		Node: mock.Node(),
+		Node: node,
 	}
 	buf, err := structs.Encode(structs.NodeRegisterRequestType, req)
 	if err != nil {
@@ -84,14 +92,14 @@ func TestFSM_UpsertNode(t *testing.T) {
 	}
 
 	// Verify we are registered
-	node, err := fsm.State().NodeByID(req.Node.ID)
+	n, err := fsm.State().NodeByID(req.Node.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if node == nil {
+	if n == nil {
 		t.Fatalf("not found!")
 	}
-	if node.CreateIndex != 1 {
+	if n.CreateIndex != 1 {
 		t.Fatalf("bad index: %d", node.CreateIndex)
 	}
 
@@ -100,6 +108,18 @@ func TestFSM_UpsertNode(t *testing.T) {
 	if index != 1 {
 		t.Fatalf("bad: %d", index)
 	}
+
+	// Verify the eval was unblocked.
+	testutil.WaitForResult(func() (bool, error) {
+		bStats := fsm.blockedEvals.Stats()
+		if bStats.TotalBlocked != 0 {
+			return false, fmt.Errorf("bad: %#v", bStats)
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %s", err)
+	})
+
 }
 
 func TestFSM_DeregisterNode(t *testing.T) {

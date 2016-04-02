@@ -156,8 +156,9 @@ type UniversalExecutor struct {
 	syslogServer *logging.SyslogServer
 	syslogChan   chan *logging.SyslogMessage
 
-	groups *cgroupConfig.Cgroup
-	cgLock sync.Mutex
+	groups  *cgroupConfig.Cgroup
+	cgPaths map[string]string
+	cgLock  sync.Mutex
 
 	consulService *consul.ConsulService
 	consulCtx     *ConsulContext
@@ -242,8 +243,11 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext
 	if err := e.cmd.Start(); err != nil {
 		return nil, err
 	}
+	if err := e.applyLimits(e.cmd.Process.Pid); err != nil {
+		return nil, err
+	}
 	go e.wait()
-	ic := &cstructs.IsolationConfig{Cgroup: e.groups}
+	ic := &cstructs.IsolationConfig{Cgroup: e.groups, CgroupPaths: e.cgPaths}
 	return &ProcessState{Pid: e.cmd.Process.Pid, ExitCode: -1, IsolationConfig: ic, Time: time.Now()}, nil
 }
 
@@ -319,17 +323,23 @@ func (e *UniversalExecutor) UpdateTask(task *structs.Task) error {
 func (e *UniversalExecutor) wait() {
 	defer close(e.processExited)
 	err := e.cmd.Wait()
+	ic := &cstructs.IsolationConfig{Cgroup: e.groups, CgroupPaths: e.cgPaths}
 	if err == nil {
-		e.exitState = &ProcessState{Pid: 0, ExitCode: 0, Time: time.Now()}
+		e.exitState = &ProcessState{Pid: 0, ExitCode: 0, IsolationConfig: ic, Time: time.Now()}
 		return
 	}
 	exitCode := 1
+	var signal int
 	if exitErr, ok := err.(*exec.ExitError); ok {
 		if status, ok := exitErr.Sys().(syscall.WaitStatus); ok {
 			exitCode = status.ExitStatus()
+			if status.Signaled() {
+				signal = int(status.Signal())
+				exitCode = 128 + signal
+			}
 		}
 	}
-	e.exitState = &ProcessState{Pid: 0, ExitCode: exitCode, Time: time.Now()}
+	e.exitState = &ProcessState{Pid: 0, ExitCode: exitCode, Signal: signal, IsolationConfig: ic, Time: time.Now()}
 }
 
 var (
@@ -366,7 +376,7 @@ func (e *UniversalExecutor) Exit() error {
 	}
 	if e.command != nil && e.command.ResourceLimits {
 		e.cgLock.Lock()
-		if err := DestroyCgroup(e.groups); err != nil {
+		if err := DestroyCgroup(e.groups, e.cgPaths); err != nil {
 			merr.Errors = append(merr.Errors, err)
 		}
 		e.cgLock.Unlock()
