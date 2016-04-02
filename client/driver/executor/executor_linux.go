@@ -65,11 +65,14 @@ func (e *UniversalExecutor) applyLimits(pid int) error {
 		return err
 	}
 	e.cgPaths = manager.GetPaths()
-	cgConfig := cgroupConfig.Config{Cgroup: e.groups}
+	cgConfig := cgroupConfig.Config{Cgroups: e.groups}
 	if err := manager.Set(&cgConfig); err != nil {
 		e.logger.Printf("[ERR] executor: error setting cgroup config: %v", err)
 		if er := DestroyCgroup(e.groups, e.cgPaths); er != nil {
 			e.logger.Printf("[ERR] executor: error destroying cgroup: %v", er)
+		}
+		if er := e.removeChrootMounts(); er != nil {
+			e.logger.Printf("[ERR] executor: error removing chroot: %v", er)
 		}
 		return err
 	}

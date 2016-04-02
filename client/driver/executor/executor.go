@@ -375,8 +375,7 @@ func (e *UniversalExecutor) Exit() error {
 	}
 	if e.command != nil && e.command.ResourceLimits {
 		e.cgLock.Lock()
-		err := DestroyCgroup(e.groups, e.cgPaths)
-		if err != nil {
+		if err := DestroyCgroup(e.groups, e.cgPaths); err != nil {
 			merr.Errors = append(merr.Errors, err)
 		}
 		e.cgLock.Unlock()
