@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -115,6 +116,36 @@ func TestExecutor_Start_Wait(t *testing.T) {
 	act := strings.TrimSpace(string(output))
 	if act != expected {
 		t.Fatalf("Command output incorrectly: want %v; got %v", expected, act)
+	}
+}
+
+func TestExecutor_WaitExitSignal(t *testing.T) {
+	execCmd := ExecCommand{Cmd: "/bin/sleep", Args: []string{"10000"}}
+	ctx := testExecutorContext(t)
+	defer ctx.AllocDir.Destroy()
+	executor := NewExecutor(log.New(os.Stdout, "", log.LstdFlags))
+	ps, err := executor.LaunchCmd(&execCmd, ctx)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	go func() {
+		time.Sleep(1 * time.Second)
+		proc, err := os.FindProcess(ps.Pid)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		if err := proc.Signal(syscall.SIGKILL); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	}()
+
+	ps, err = executor.Wait()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if ps.Signal != int(syscall.SIGKILL) {
+		t.Fatalf("expected signal: %v, actual: %v", int(syscall.SIGKILL), ps.Signal)
 	}
 }
 

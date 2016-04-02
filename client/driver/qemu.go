@@ -360,7 +360,7 @@ func (h *qemuHandle) run() {
 		}
 	}
 	close(h.doneCh)
-	h.waitCh <- &cstructs.WaitResult{ExitCode: ps.ExitCode, Signal: 0, Err: err}
+	h.waitCh <- &cstructs.WaitResult{ExitCode: ps.ExitCode, Signal: ps.Signal, Err: err}
 	close(h.waitCh)
 	// Remove services
 	if err := h.executor.DeregisterServices(); err != nil {

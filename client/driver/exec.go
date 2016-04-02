@@ -302,7 +302,7 @@ func (h *execHandle) run() {
 			h.logger.Printf("[ERR] driver.exec: unmounting dev,proc and alloc dirs failed: %v", e)
 		}
 	}
-	h.waitCh <- cstructs.NewWaitResult(ps.ExitCode, 0, err)
+	h.waitCh <- cstructs.NewWaitResult(ps.ExitCode, ps.Signal, err)
 	close(h.waitCh)
 	// Remove services
 	if err := h.executor.DeregisterServices(); err != nil {
