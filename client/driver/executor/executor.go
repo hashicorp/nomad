@@ -323,8 +323,9 @@ func (e *UniversalExecutor) UpdateTask(task *structs.Task) error {
 func (e *UniversalExecutor) wait() {
 	defer close(e.processExited)
 	err := e.cmd.Wait()
+	ic := &cstructs.IsolationConfig{Cgroup: e.groups, CgroupPaths: e.cgPaths}
 	if err == nil {
-		e.exitState = &ProcessState{Pid: 0, ExitCode: 0, Time: time.Now()}
+		e.exitState = &ProcessState{Pid: 0, ExitCode: 0, IsolationConfig: ic, Time: time.Now()}
 		return
 	}
 	exitCode := 1
@@ -338,7 +339,7 @@ func (e *UniversalExecutor) wait() {
 			}
 		}
 	}
-	e.exitState = &ProcessState{Pid: 0, ExitCode: exitCode, Signal: signal, Time: time.Now()}
+	e.exitState = &ProcessState{Pid: 0, ExitCode: exitCode, Signal: signal, IsolationConfig: ic, Time: time.Now()}
 }
 
 var (
