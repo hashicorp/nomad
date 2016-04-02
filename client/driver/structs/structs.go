@@ -42,7 +42,8 @@ func (r *WaitResult) String() string {
 // IsolationConfig has information about the isolation mechanism the executor
 // uses to put resource constraints and isolation on the user process
 type IsolationConfig struct {
-	Cgroup *cgroupConfig.Cgroup
+	Cgroup      *cgroupConfig.Cgroup
+	CgroupPaths map[string]string
 }
 
 // RecoverableError wraps an error and marks whether it is recoverable and could
