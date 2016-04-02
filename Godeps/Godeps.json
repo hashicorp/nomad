@@ -429,33 +429,33 @@
 		},
 		{
 			"ImportPath": "github.com/opencontainers/runc/libcontainer/cgroups",
-			"Comment": "v0.0.8-59-g53e4dd6",
-			"Rev": "53e4dd65f5de928ae6deaf2de2c0596e741cbaaa"
+			"Comment": "v0.0.9-108-g89ab7f2",
+			"Rev": "89ab7f2ccc1e45ddf6485eaa802c35dcf321dfc8"
 		},
 		{
 			"ImportPath": "github.com/opencontainers/runc/libcontainer/cgroups/fs",
-			"Comment": "v0.0.8-59-g53e4dd6",
-			"Rev": "53e4dd65f5de928ae6deaf2de2c0596e741cbaaa"
+			"Comment": "v0.0.9-108-g89ab7f2",
+			"Rev": "89ab7f2ccc1e45ddf6485eaa802c35dcf321dfc8"
 		},
 		{
 			"ImportPath": "github.com/opencontainers/runc/libcontainer/cgroups/systemd",
-			"Comment": "v0.0.8-59-g53e4dd6",
-			"Rev": "53e4dd65f5de928ae6deaf2de2c0596e741cbaaa"
+			"Comment": "v0.0.9-108-g89ab7f2",
+			"Rev": "89ab7f2ccc1e45ddf6485eaa802c35dcf321dfc8"
 		},
 		{
 			"ImportPath": "github.com/opencontainers/runc/libcontainer/configs",
-			"Comment": "v0.0.8-59-g53e4dd6",
-			"Rev": "53e4dd65f5de928ae6deaf2de2c0596e741cbaaa"
+			"Comment": "v0.0.9-108-g89ab7f2",
+			"Rev": "89ab7f2ccc1e45ddf6485eaa802c35dcf321dfc8"
 		},
 		{
 			"ImportPath": "github.com/opencontainers/runc/libcontainer/system",
-			"Comment": "v0.0.8-59-g53e4dd6",
-			"Rev": "53e4dd65f5de928ae6deaf2de2c0596e741cbaaa"
+			"Comment": "v0.0.9-108-g89ab7f2",
+			"Rev": "89ab7f2ccc1e45ddf6485eaa802c35dcf321dfc8"
 		},
 		{
 			"ImportPath": "github.com/opencontainers/runc/libcontainer/utils",
-			"Comment": "v0.0.8-59-g53e4dd6",
-			"Rev": "53e4dd65f5de928ae6deaf2de2c0596e741cbaaa"
+			"Comment": "v0.0.9-108-g89ab7f2",
+			"Rev": "89ab7f2ccc1e45ddf6485eaa802c35dcf321dfc8"
 		},
 		{
 			"ImportPath": "github.com/ryanuber/columnize",
