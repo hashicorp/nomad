@@ -7,10 +7,11 @@
 			"ImportPath": "github.com/StackExchange/wmi",
 			"Rev": "f3e2bae1e0cb5aef83e319133eabfee30013a4a5"
 		},
-        {
-            "ImportPath": "github.com/Sirupsen/logrus",
-            "Rev": "4b6ea7319e214d98c938f12692336f7ca9348d6b"
-        },
+		{
+			"ImportPath": "github.com/Sirupsen/logrus",
+			"Comment": "v0.8.7-87-g4b6ea73",
+			"Rev": "4b6ea7319e214d98c938f12692336f7ca9348d6b"
+		},
 		{
 			"ImportPath": "github.com/armon/circbuf",
 			"Rev": "bbbad097214e2918d8543d5201d12bfd7bca254d"
