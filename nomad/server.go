@@ -715,6 +715,7 @@ func (s *Server) Stats() map[string]map[string]string {
 		"nomad": map[string]string{
 			"server":        "true",
 			"leader":        fmt.Sprintf("%v", s.IsLeader()),
+			"leader_addr":   s.raft.Leader(),
 			"bootstrap":     fmt.Sprintf("%v", s.config.Bootstrap),
 			"known_regions": toString(uint64(len(s.peers))),
 		},
