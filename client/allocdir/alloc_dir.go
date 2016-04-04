@@ -331,6 +331,9 @@ func (d *AllocDir) ReadAt(path string, offset int64, limit int64) (io.ReadCloser
 	if err != nil {
 		return nil, err
 	}
+	if _, err := f.Seek(offset, 0); err != nil {
+		return nil, fmt.Errorf("can't seek to offset %q: %v", offset, err)
+	}
 	return &ReadCloserWrapper{Reader: io.LimitReader(f, limit), Closer: f}, nil
 }
 
