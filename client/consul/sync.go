@@ -432,9 +432,6 @@ func (c *ConsulService) runCheck(check Check) {
 	res := check.Run()
 	state := consul.HealthCritical
 	output := res.Output
-	if res.Err != nil {
-		output = res.Err.Error()
-	}
 	switch res.ExitCode {
 	case 0:
 		state = consul.HealthPassing
@@ -442,6 +439,10 @@ func (c *ConsulService) runCheck(check Check) {
 		state = consul.HealthWarning
 	default:
 		state = consul.HealthCritical
+	}
+	if res.Err != nil {
+		state = consul.HealthCritical
+		output = res.Err.Error()
 	}
 	if err := c.client.Agent().UpdateTTL(check.ID(), output, state); err != nil {
 		if c.availble {
