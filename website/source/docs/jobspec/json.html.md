@@ -85,12 +85,13 @@ Below is an example of a json object that submits a `Periodic` job to Nomad:
               "Resources": {
                 "Networks": [
                   {
+                    "Mbits": 10,
                     "DynamicPorts": [
                       {
                         "Value": 0,
                         "Label": "db"
                       }
-                    ],
+                    ]
                   }
                 ],
                 "IOPS": 0,
