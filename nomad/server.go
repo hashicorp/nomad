@@ -12,6 +12,7 @@ import (
 	"reflect"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -722,6 +723,11 @@ func (s *Server) Stats() map[string]map[string]string {
 		"raft":    s.raft.Stats(),
 		"serf":    s.serf.Stats(),
 		"runtime": RuntimeStats(),
+	}
+	if peers, err := s.raftPeers.Peers(); err == nil {
+		stats["raft"]["raft_peers"] = strings.Join(peers, ",")
+	} else {
+		s.logger.Printf("[DEBUG] server: error getting raft peers: %v", err)
 	}
 	return stats
 }
