@@ -137,7 +137,7 @@ The `job` object supports the following keys:
 
 * `priority` - Specifies the job priority which is used to prioritize
   scheduling and access to resources. Must be between 1 and 100 inclusively,
-  and defaults to 50.
+  with a larger value corresponding to a higher priority. Defaults to 50.
 
 * `region` - The region to run the job in, defaults to "global".
 
