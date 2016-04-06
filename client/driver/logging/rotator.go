@@ -77,6 +77,7 @@ func (f *FileRotator) Write(p []byte) (n int, err error) {
 			f.bufw.Flush()
 			f.currentFile.Close()
 			if err := f.nextFile(); err != nil {
+				f.logger.Printf("[ERROR] driver.rotator: error creating next file: %v", err)
 				return 0, err
 			}
 		}
@@ -103,6 +104,7 @@ func (f *FileRotator) Write(p []byte) (n int, err error) {
 		// Increment the total number of bytes in the file
 		f.currentWr += int64(n)
 		if err != nil {
+			f.logger.Printf("[ERROR] driver.rotator: error writing to file: %v", err)
 			return
 		}
 	}
