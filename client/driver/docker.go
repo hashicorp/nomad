@@ -73,6 +73,7 @@ type DockerDriverConfig struct {
 	Labels           map[string]string   `mapstructure:"-"`                  // Labels to set when the container starts up
 	Auth             []DockerDriverAuth  `mapstructure:"auth"`               // Authentication credentials for a private Docker registry
 	SSL              bool                `mapstructure:"ssl"`                // Flag indicating repository is served via https
+	TTY              bool                `mapstructure:"tty"`
 }
 
 func (c *DockerDriverConfig) Init() error {
@@ -237,6 +238,7 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task,
 		Image:    driverConfig.ImageName,
 		Hostname: driverConfig.Hostname,
 		User:     task.User,
+		Tty:      driverConfig.TTY,
 	}
 
 	hostConfig := &docker.HostConfig{
