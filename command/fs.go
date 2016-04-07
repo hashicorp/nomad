@@ -1,6 +1,7 @@
 package command
 
 import (
+	"fmt"
 	"math/rand"
 	"time"
 
@@ -29,6 +30,12 @@ func (f *FSCommand) Run(args []string) int {
 func getRandomJobAlloc(client *api.Client, jobID string) (string, error) {
 	var runningAllocs []*api.AllocationListStub
 	allocs, _, err := client.Jobs().Allocations(jobID, nil)
+
+	// Check that the job actually has allocations
+	if len(allocs) == 0 {
+		return "", fmt.Errorf("job %q doesn't exist or it has no allocations", jobID)
+	}
+
 	for _, v := range allocs {
 		if v.ClientStatus == "running" {
 			runningAllocs = append(runningAllocs, v)
