@@ -307,9 +307,18 @@ func (c *AllocStatusCommand) taskResources(alloc *api.Allocation) {
 		return
 	}
 
+	// Sort the tasks.
+	tasks := make([]string, 0, len(alloc.TaskResources))
+	for task := range alloc.TaskResources {
+		tasks = append(tasks, task)
+	}
+	sort.Strings(tasks)
+
 	c.Ui.Output("\n==> Task Resources")
 	firstLine := true
-	for task, resource := range alloc.TaskResources {
+	for _, task := range tasks {
+		resource := alloc.TaskResources[task]
+
 		header := fmt.Sprintf("\nTask: %q", task)
 		if firstLine {
 			header = fmt.Sprintf("Task: %q", task)
