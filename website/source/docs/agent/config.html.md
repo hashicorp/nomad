@@ -144,22 +144,6 @@ nodes, unless otherwise specified:
     server nodes from the same datacenter if possible. Used only on server
     nodes.
 
-* <a id="interfaces">`interfaces`</a>: Provides an alternative to the
- `addresses` configuration. Operators can provide network device names to which
- Nomad binds individual network services. Nomad looks for the first IPv4
- address configured for the device and uses it, and if no IPv4 address is
- present then it looks for an IPv6 address. The value is a map of device names of
- network interfaces and supports the following keys:
-  <br>
-  * `http`: The device name the HTTP server is bound to. Applies to both clients and servers.
-  * `rpc`: The device name to bind the internal RPC interfaces to. Should be exposed
-    only to other cluster members if possible. Used only on server nodes, but
-    must be accessible from all agents.
-  * `serf`: The device name used to bind the gossip layer to. Both a TCP and UDP
-    listener will be exposed on this address. Should be restricted to only
-    server nodes from the same datacenter if possible. Used only on server
-    nodes.
-
 * `advertise`: Controls the advertise address for individual network services.
   This can be used to advertise a different address to the peers of a server
   node to support more complex network configurations such as NAT. This
