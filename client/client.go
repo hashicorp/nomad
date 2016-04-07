@@ -555,6 +555,7 @@ func (c *Client) reservePorts() {
 		res, ok := reservedIndex[net.IP]
 		if !ok {
 			res = net.Copy()
+			res.MBits = 0
 			reservedIndex[net.IP] = res
 		}
 
