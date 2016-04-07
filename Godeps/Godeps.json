@@ -1,7 +1,7 @@
 {
 	"ImportPath": "github.com/hashicorp/nomad",
 	"GoVersion": "go1.6",
-	"GodepVersion": "v60",
+	"GodepVersion": "v61",
 	"Deps": [
 		{
 			"ImportPath": "github.com/StackExchange/wmi",
@@ -283,11 +283,11 @@
 		},
 		{
 			"ImportPath": "github.com/hashicorp/go-getter",
-			"Rev": "cd92db7af9118d920be4f1b95680ba75ad91d1c6"
+			"Rev": "ef5edd3d8f6f482b775199be2f3734fd20e04d4a"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/go-getter/helper/url",
-			"Rev": "cd92db7af9118d920be4f1b95680ba75ad91d1c6"
+			"Rev": "ef5edd3d8f6f482b775199be2f3734fd20e04d4a"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/go-immutable-radix",

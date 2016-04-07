@@ -1,10 +1,12 @@
 # go-getter
 
 [![Build Status](http://img.shields.io/travis/hashicorp/go-getter.svg?style=flat-square)][travis]
+[![Build status](https://ci.appveyor.com/api/projects/status/ulq3qr43n62croyq/branch/master?svg=true)][appveyor]
 [![Go Documentation](http://img.shields.io/badge/go-documentation-blue.svg?style=flat-square)][godocs]
 
 [travis]: http://travis-ci.org/hashicorp/go-getter
 [godocs]: http://godoc.org/github.com/hashicorp/go-getter
+[appveyor]: https://ci.appveyor.com/project/hashicorp/go-getter/branch/master
 
 go-getter is a library for Go (golang) for downloading files or directories
 from various sources using a URL as the primary form of input.
@@ -48,7 +50,7 @@ The command is useful for verifying URL structures.
 
 ## URL Format
 
-go-getter uses a single string URL as input to downlaod from a variety of
+go-getter uses a single string URL as input to download from a variety of
 protocols. go-getter has various "tricks" with this URL to do certain things.
 This section documents the URL format.
 
@@ -99,6 +101,23 @@ Forced protocols will also override any detectors.
 In the absense of a forced protocol, detectors may be run on the URL, transforming
 the protocol anyways. The above example would've used the Git protocol either
 way since the Git detector would've detected it was a GitHub URL.
+
+### Protocol-Specific Options
+
+Each protocol can support protocol-specific options to configure that
+protocol. For example, the `git` protocol supports specifying a `ref`
+query parameter that tells it what ref to checkout for that Git
+repository.
+
+The options are specified as query parameters on the URL (or URL-like string)
+given to go-getter. Using the Git example above, the URL below is a valid
+input to go-getter:
+
+    github.com/hashicorp/go-getter?ref=abcd1234
+
+The protocol-specific options are documented below the URL format
+section. But because they are part of the URL, we point it out here so
+you know they exist.
 
 ### Checksumming
 
@@ -161,3 +180,50 @@ And finally, you can disable archiving completely:
 You can combine unarchiving with the other features of go-getter such
 as checksumming. The special `archive` query parameter will be removed
 from the URL before going to the final protocol downloader.
+
+## Protocol-Specific Options
+
+This section documents the protocol-specific options that can be specified
+for go-getter. These options should be appended to the input as normal query
+parameters. Depending on the usage of go-getter, applications may provide
+alternate ways of inputting options. For example, [Nomad](https://www.nomadproject.io)
+provides a nice options block for specifying options rather than in the URL.
+
+## General (All Protocols)
+
+The options below are available to all protocols:
+
+  * `archive` - The archive format to use to unarchive this file, or "" (empty
+    string) to disable unarchiving. For more details, see the complete section
+    on archive support above.
+
+  * `checksum` - Checksum to verify the downloaded file or archive. See
+    the entire section on checksumming above for format and more details.
+
+### Local Files (`file`)
+
+None
+
+### Git (`git`)
+
+  * `ref` - The Git ref to checkout. This is a ref, so it can point to
+    a commit SHA, a branch name, etc. If it is a named ref such as a branch
+    name, go-getter will update it to the latest on each get.
+
+### Mercurial (`hg`)
+
+  * `rev` - The Mercurial revision to checkout.
+
+### HTTP (`http`)
+
+None
+
+### S3 (`s3`)
+
+S3 takes various access configurations in the URL. Note that it will also
+read these from standard AWS environment variables if they're set. If
+the query parameters are present, these take priority.
+
+  * `aws_access_key_id` - AWS access key.
+  * `aws_access_key_secret` - AWS access key secret.
+  * `aws_access_token` - AWS access token if this is being used.
