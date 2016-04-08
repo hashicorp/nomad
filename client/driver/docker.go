@@ -73,7 +73,8 @@ type DockerDriverConfig struct {
 	Labels           map[string]string   `mapstructure:"-"`                  // Labels to set when the container starts up
 	Auth             []DockerDriverAuth  `mapstructure:"auth"`               // Authentication credentials for a private Docker registry
 	SSL              bool                `mapstructure:"ssl"`                // Flag indicating repository is served via https
-	TTY              bool                `mapstructure:"tty"`
+	TTY              bool                `mapstructure:"tty"`                // Allocate a Pseudo-TTY
+	Interactive      bool                `mapstructure:"interactive"`        // Keep STDIN open even if not attached
 }
 
 func (c *DockerDriverConfig) Init() error {
@@ -235,10 +236,11 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task,
 	d.taskEnv.SetTaskLocalDir(filepath.Join("/", allocdir.TaskLocal))
 
 	config := &docker.Config{
-		Image:    driverConfig.ImageName,
-		Hostname: driverConfig.Hostname,
-		User:     task.User,
-		Tty:      driverConfig.TTY,
+		Image:     driverConfig.ImageName,
+		Hostname:  driverConfig.Hostname,
+		User:      task.User,
+		Tty:       driverConfig.TTY,
+		OpenStdin: driverConfig.Interactive,
 	}
 
 	hostConfig := &docker.HostConfig{

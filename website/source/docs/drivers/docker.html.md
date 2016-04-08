@@ -97,6 +97,12 @@ The following options are available for use in the job specification.
 
 * `auth` - (Optional) Provide authentication for a private registry (see below).
 
+* `tty` - (Optional) `true` or `false` (default). Allocate a pseudo-TTY for the
+  container.
+
+* `interactive` - (Optional) `true` or `false` (default). Keep STDIN open on
+  the container.
+
 ### Container Name
 
 Nomad creates a container after pulling an image. Containers are named
