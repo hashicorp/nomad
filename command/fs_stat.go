@@ -76,6 +76,7 @@ func (f *FSStatCommand) Run(args []string) int {
 		allocID, err = getRandomJobAlloc(client, args[0])
 		if err != nil {
 			f.Ui.Error(fmt.Sprintf("Error querying API: %v", err))
+			return 1
 		}
 	}
 
