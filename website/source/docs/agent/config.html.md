@@ -297,10 +297,6 @@ configured on server nodes.
     used to register the client with the server nodes and advertise the
     available resources so that the agent can receive work. If a port is not specified
     in the array of server addresses, the default port `4647` will be used.
-  * <a id="node_id">`node_id`</a>: This is the value used to uniquely identify
-    the local agent's node registration with the servers. This can be any
-    arbitrary string but must be unique to the cluster. By default, if not
-    specified, a randomly- generate UUID will be used.
   * <a id="node_class">`node_class`</a>: A string used to logically group client
     nodes by class. This can be used during job placement as a filter. This
     option is not required and has no default.
