@@ -28,17 +28,33 @@ func NewCoreScheduler(srv *Server, snap *state.StateSnapshot) scheduler.Schedule
 }
 
 // Process is used to implement the scheduler.Scheduler interface
-func (s *CoreScheduler) Process(eval *structs.Evaluation) error {
+func (c *CoreScheduler) Process(eval *structs.Evaluation) error {
 	switch eval.JobID {
 	case structs.CoreJobEvalGC:
-		return s.evalGC(eval)
+		return c.evalGC(eval)
 	case structs.CoreJobNodeGC:
-		return s.nodeGC(eval)
+		return c.nodeGC(eval)
 	case structs.CoreJobJobGC:
-		return s.jobGC(eval)
+		return c.jobGC(eval)
+	case structs.CoreJobForceGC:
+		return c.forceGC(eval)
 	default:
 		return fmt.Errorf("core scheduler cannot handle job '%s'", eval.JobID)
 	}
+}
+
+// forceGC is used to garbage collect all eligible objects.
+func (c *CoreScheduler) forceGC(eval *structs.Evaluation) error {
+	if err := c.jobGC(eval); err != nil {
+		return err
+	}
+	if err := c.evalGC(eval); err != nil {
+		return err
+	}
+
+	// Node GC must occur after the others to ensure the allocations are
+	// cleared.
+	return c.nodeGC(eval)
 }
 
 // jobGC is used to garbage collect eligible jobs.
@@ -50,7 +66,7 @@ func (c *CoreScheduler) jobGC(eval *structs.Evaluation) error {
 	}
 
 	var oldThreshold uint64
-	if eval.TriggeredBy == structs.EvalTriggerForceGC {
+	if eval.JobID == structs.CoreJobForceGC {
 		// The GC was forced, so set the threshold to its maximum so everything
 		// will GC.
 		oldThreshold = math.MaxUint64
@@ -60,9 +76,9 @@ func (c *CoreScheduler) jobGC(eval *structs.Evaluation) error {
 		tt := c.srv.fsm.TimeTable()
 		cutoff := time.Now().UTC().Add(-1 * c.srv.config.JobGCThreshold)
 		oldThreshold = tt.NearestIndex(cutoff)
+		c.srv.logger.Printf("[DEBUG] sched.core: job GC: scanning before index %d (%v)",
+			oldThreshold, c.srv.config.JobGCThreshold)
 	}
-	c.srv.logger.Printf("[DEBUG] sched.core: job GC: scanning before index %d (%v)",
-		oldThreshold, c.srv.config.JobGCThreshold)
 
 	// Collect the allocations, evaluations and jobs to GC
 	var gcAlloc, gcEval, gcJob []string
@@ -137,7 +153,7 @@ func (c *CoreScheduler) evalGC(eval *structs.Evaluation) error {
 	}
 
 	var oldThreshold uint64
-	if eval.TriggeredBy == structs.EvalTriggerForceGC {
+	if eval.JobID == structs.CoreJobForceGC {
 		// The GC was forced, so set the threshold to its maximum so everything
 		// will GC.
 		oldThreshold = math.MaxUint64
@@ -149,9 +165,9 @@ func (c *CoreScheduler) evalGC(eval *structs.Evaluation) error {
 		tt := c.srv.fsm.TimeTable()
 		cutoff := time.Now().UTC().Add(-1 * c.srv.config.EvalGCThreshold)
 		oldThreshold = tt.NearestIndex(cutoff)
+		c.srv.logger.Printf("[DEBUG] sched.core: eval GC: scanning before index %d (%v)",
+			oldThreshold, c.srv.config.EvalGCThreshold)
 	}
-	c.srv.logger.Printf("[DEBUG] sched.core: eval GC: scanning before index %d (%v)",
-		oldThreshold, c.srv.config.EvalGCThreshold)
 
 	// Collect the allocations and evaluations to GC
 	var gcAlloc, gcEval []string
@@ -163,12 +179,22 @@ func (c *CoreScheduler) evalGC(eval *structs.Evaluation) error {
 			return err
 		}
 
-		// If the eval is from a "batch" job we don't want to garbage collect
-		// its allocations. If there is a long running batch job and its
+		// If the eval is from a running "batch" job we don't want to garbage
+		// collect its allocations. If there is a long running batch job and its
 		// terminal allocations get GC'd the scheduler would re-run the
 		// allocations.
-		if len(allocs) != 0 && eval.Type == structs.JobTypeBatch {
-			continue
+		if eval.Type == structs.JobTypeBatch {
+			// Check if the job is running
+			job, err := c.snap.JobByID(eval.JobID)
+			if err != nil {
+				return err
+			}
+
+			// If the job has been deregistered, we want to garbage collect the
+			// allocations and evaluations.
+			if job != nil && len(allocs) != 0 {
+				continue
+			}
 		}
 
 		if gc {
@@ -257,7 +283,7 @@ func (c *CoreScheduler) nodeGC(eval *structs.Evaluation) error {
 	}
 
 	var oldThreshold uint64
-	if eval.TriggeredBy == structs.EvalTriggerForceGC {
+	if eval.JobID == structs.CoreJobForceGC {
 		// The GC was forced, so set the threshold to its maximum so everything
 		// will GC.
 		oldThreshold = math.MaxUint64
@@ -269,9 +295,9 @@ func (c *CoreScheduler) nodeGC(eval *structs.Evaluation) error {
 		tt := c.srv.fsm.TimeTable()
 		cutoff := time.Now().UTC().Add(-1 * c.srv.config.NodeGCThreshold)
 		oldThreshold = tt.NearestIndex(cutoff)
+		c.srv.logger.Printf("[DEBUG] sched.core: node GC: scanning before index %d (%v)",
+			oldThreshold, c.srv.config.NodeGCThreshold)
 	}
-	c.srv.logger.Printf("[DEBUG] sched.core: node GC: scanning before index %d (%v)",
-		oldThreshold, c.srv.config.NodeGCThreshold)
 
 	// Collect the nodes to GC
 	var gcNode []string

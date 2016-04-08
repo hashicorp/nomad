@@ -2435,7 +2435,6 @@ const (
 	EvalTriggerPeriodicJob   = "periodic-job"
 	EvalTriggerNodeUpdate    = "node-update"
 	EvalTriggerScheduled     = "scheduled"
-	EvalTriggerForceGC       = "force-gc"
 	EvalTriggerRollingUpdate = "rolling-update"
 )
 
@@ -2456,6 +2455,9 @@ const (
 	// evaluations and allocations are terminal. If so, we delete these out of
 	// the system.
 	CoreJobJobGC = "job-gc"
+
+	// CoreJobForceGC is used to force garbage collection of all GCable objects.
+	CoreJobForceGC = "force-gc"
 )
 
 // Evaluation is used anytime we need to apply business logic as a result
