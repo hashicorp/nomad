@@ -56,6 +56,10 @@ func NewRawExecDriver(ctx *DriverContext) Driver {
 	return &RawExecDriver{DriverContext: *ctx}
 }
 
+func (d *RawExecDriver) Validate(config map[string]interface{}) error {
+	return nil
+}
+
 func (d *RawExecDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
 	// Get the current status so that we can log any debug messages only if the
 	// state changes

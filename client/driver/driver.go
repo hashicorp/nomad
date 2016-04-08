@@ -55,6 +55,9 @@ type Driver interface {
 
 	// Open is used to re-open a handle to a task
 	Open(ctx *ExecContext, handleID string) (DriverHandle, error)
+
+	// Drivers must validate their configuration
+	Validate(map[string]interface{}) error
 }
 
 // DriverContext is a means to inject dependencies such as loggers, configs, and

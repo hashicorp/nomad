@@ -126,6 +126,76 @@ func NewDockerDriver(ctx *DriverContext) Driver {
 	return &DockerDriver{DriverContext: *ctx}
 }
 
+func (d *DockerDriver) Validate(config map[string]interface{}) error {
+	fd := &FieldData{
+		Raw: config,
+		Schema: map[string]*FieldSchema{
+			"image": &FieldSchema{
+				Type: TypeString,
+			},
+			"load": &FieldSchema{
+				Type: TypeArray,
+			},
+			"command": &FieldSchema{
+				Type: TypeString,
+			},
+			"args": &FieldSchema{
+				Type: TypeArray,
+			},
+			"ipc_mode": &FieldSchema{
+				Type: TypeString,
+			},
+			"network_mode": &FieldSchema{
+				Type: TypeString,
+			},
+			"pid_mode": &FieldSchema{
+				Type: TypeString,
+			},
+			"uts_mode": &FieldSchema{
+				Type: TypeString,
+			},
+			"port_map": &FieldSchema{
+				Type: TypeArray,
+			},
+			"privileged": &FieldSchema{
+				Type: TypeBool,
+			},
+			"dns_servers": &FieldSchema{
+				Type: TypeArray,
+			},
+			"dns_search_domains": &FieldSchema{
+				Type: TypeArray,
+			},
+			"hostname": &FieldSchema{
+				Type: TypeString,
+			},
+			"labels": &FieldSchema{
+				Type: TypeMap,
+			},
+			"auth": &FieldSchema{
+				Type: TypeArray,
+			},
+			"ssl": &FieldSchema{
+				Type: TypeBool,
+			},
+			"tty": &FieldSchema{
+				Type: TypeBool,
+			},
+		},
+	}
+
+	if err := fd.Validate(); err != nil {
+		return err
+	}
+
+	result, ok := fd.GetOk("image")
+	if !ok || result == "" {
+		return fmt.Errorf("image is required")
+	}
+
+	return nil
+}
+
 // dockerClient creates *docker.Client. In test / dev mode we can use ENV vars
 // to connect to the docker daemon. In production mode we will read
 // docker.endpoint from the config file.

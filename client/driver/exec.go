@@ -58,6 +58,10 @@ func NewExecDriver(ctx *DriverContext) Driver {
 	return &ExecDriver{DriverContext: *ctx}
 }
 
+func (d *ExecDriver) Validate(config map[string]interface{}) error {
+	return nil
+}
+
 func (d *ExecDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
 	// Get the current status so that we can log any debug messages only if the
 	// state changes
