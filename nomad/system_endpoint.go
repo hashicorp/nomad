@@ -16,8 +16,6 @@ func (s *System) GarbageCollect(args *structs.GenericRequest, reply *structs.Gen
 		return err
 	}
 
-	s.srv.evalBroker.Enqueue(s.srv.forceCoreJobEval(structs.CoreJobEvalGC))
-	s.srv.evalBroker.Enqueue(s.srv.forceCoreJobEval(structs.CoreJobNodeGC))
-	s.srv.evalBroker.Enqueue(s.srv.forceCoreJobEval(structs.CoreJobJobGC))
+	s.srv.evalBroker.Enqueue(s.srv.coreJobEval(structs.CoreJobForceGC))
 	return nil
 }
