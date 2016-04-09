@@ -71,6 +71,18 @@ type DriverContext struct {
 	taskEnv  *env.TaskEnvironment
 }
 
+// NewEmptyDriverContext returns a DriverContext with all fields set to their
+// zero value.
+func NewEmptyDriverContext() *DriverContext {
+	return &DriverContext{
+		taskName: "",
+		config:   nil,
+		node:     nil,
+		logger:   nil,
+		taskEnv:  nil,
+	}
+}
+
 // NewDriverContext initializes a new DriverContext with the specified fields.
 // This enables other packages to create DriverContexts but keeps the fields
 // private to the driver. If we want to change this later we can gorename all of

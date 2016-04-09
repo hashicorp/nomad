@@ -22,6 +22,7 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/helper/discover"
+	"github.com/hashicorp/nomad/helper/fields"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/mapstructure"
 )
@@ -89,6 +90,29 @@ func NewRktDriver(ctx *DriverContext) Driver {
 }
 
 func (d *RktDriver) Validate(config map[string]interface{}) error {
+	fd := &fields.FieldData{
+		Raw: config,
+		Schema: map[string]*fields.FieldSchema{
+			"image": &fields.FieldSchema{
+				Type:     fields.TypeString,
+				Required: true,
+			},
+			"args": &fields.FieldSchema{
+				Type: fields.TypeArray,
+			},
+			"dns_servers": &fields.FieldSchema{
+				Type: fields.TypeArray,
+			},
+			"dns_search_domains": &fields.FieldSchema{
+				Type: fields.TypeArray,
+			},
+		},
+	}
+
+	if err := fd.Validate(); err != nil {
+		return err
+	}
+
 	return nil
 }
 

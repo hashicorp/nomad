@@ -539,10 +539,10 @@ func parseTasks(jobName string, taskGroupName string, result *[]*structs.Task, l
 				}
 			}
 
-			// Instantiate a dummy driver to validate to configuration
+			// Instantiate a driver to validate the configuration
 			d, err := driver.NewDriver(
 				t.Driver,
-				driver.NewDriverContext("", nil, nil, nil, nil),
+				driver.NewEmptyDriverContext(),
 			)
 
 			if err != nil {

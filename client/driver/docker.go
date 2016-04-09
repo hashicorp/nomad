@@ -23,6 +23,7 @@ import (
 	"github.com/hashicorp/nomad/client/driver/executor"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/helper/discover"
+	"github.com/hashicorp/nomad/helper/fields"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/mapstructure"
 )
@@ -126,71 +127,68 @@ func NewDockerDriver(ctx *DriverContext) Driver {
 	return &DockerDriver{DriverContext: *ctx}
 }
 
+// Validate is used to validate the driver configuration
 func (d *DockerDriver) Validate(config map[string]interface{}) error {
-	fd := &FieldData{
+	fd := &fields.FieldData{
 		Raw: config,
-		Schema: map[string]*FieldSchema{
-			"image": &FieldSchema{
-				Type: TypeString,
+		Schema: map[string]*fields.FieldSchema{
+			"image": &fields.FieldSchema{
+				Type:     fields.TypeString,
+				Required: true,
 			},
-			"load": &FieldSchema{
-				Type: TypeArray,
+			"load": &fields.FieldSchema{
+				Type: fields.TypeArray,
 			},
-			"command": &FieldSchema{
-				Type: TypeString,
+			"command": &fields.FieldSchema{
+				Type: fields.TypeString,
 			},
-			"args": &FieldSchema{
-				Type: TypeArray,
+			"args": &fields.FieldSchema{
+				Type: fields.TypeArray,
 			},
-			"ipc_mode": &FieldSchema{
-				Type: TypeString,
+			"ipc_mode": &fields.FieldSchema{
+				Type: fields.TypeString,
 			},
-			"network_mode": &FieldSchema{
-				Type: TypeString,
+			"network_mode": &fields.FieldSchema{
+				Type: fields.TypeString,
 			},
-			"pid_mode": &FieldSchema{
-				Type: TypeString,
+			"pid_mode": &fields.FieldSchema{
+				Type: fields.TypeString,
 			},
-			"uts_mode": &FieldSchema{
-				Type: TypeString,
+			"uts_mode": &fields.FieldSchema{
+				Type: fields.TypeString,
 			},
-			"port_map": &FieldSchema{
-				Type: TypeArray,
+			"port_map": &fields.FieldSchema{
+				Type: fields.TypeArray,
 			},
-			"privileged": &FieldSchema{
-				Type: TypeBool,
+			"privileged": &fields.FieldSchema{
+				Type: fields.TypeBool,
 			},
-			"dns_servers": &FieldSchema{
-				Type: TypeArray,
+			"dns_servers": &fields.FieldSchema{
+				Type: fields.TypeArray,
 			},
-			"dns_search_domains": &FieldSchema{
-				Type: TypeArray,
+			"dns_search_domains": &fields.FieldSchema{
+				Type: fields.TypeArray,
 			},
-			"hostname": &FieldSchema{
-				Type: TypeString,
+			"hostname": &fields.FieldSchema{
+				Type: fields.TypeString,
 			},
-			"labels": &FieldSchema{
-				Type: TypeMap,
+			"labels": &fields.FieldSchema{
+				Type: fields.TypeMap,
 			},
-			"auth": &FieldSchema{
-				Type: TypeArray,
+			"auth": &fields.FieldSchema{
+				Type: fields.TypeArray,
 			},
-			"ssl": &FieldSchema{
-				Type: TypeBool,
+			"ssl": &fields.FieldSchema{
+				Type: fields.TypeBool,
 			},
-			"tty": &FieldSchema{
-				Type: TypeBool,
+			"tty": &fields.FieldSchema{
+				Type: fields.TypeBool,
 			},
 		},
 	}
 
 	if err := fd.Validate(); err != nil {
 		return err
-	}
-
-	result, ok := fd.GetOk("image")
-	if !ok || result == "" {
-		return fmt.Errorf("image is required")
 	}
 
 	return nil
