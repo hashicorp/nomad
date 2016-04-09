@@ -57,6 +57,7 @@ func NewRawExecDriver(ctx *DriverContext) Driver {
 	return &RawExecDriver{DriverContext: *ctx}
 }
 
+// Validate is used to validate the driver configuration
 func (d *RawExecDriver) Validate(config map[string]interface{}) error {
 	fd := &fields.FieldData{
 		Raw: config,

@@ -89,6 +89,7 @@ func NewRktDriver(ctx *DriverContext) Driver {
 	return &RktDriver{DriverContext: *ctx}
 }
 
+// Validate is used to validate the driver configuration
 func (d *RktDriver) Validate(config map[string]interface{}) error {
 	fd := &fields.FieldData{
 		Raw: config,

@@ -66,6 +66,7 @@ func NewQemuDriver(ctx *DriverContext) Driver {
 	return &QemuDriver{DriverContext: *ctx}
 }
 
+// Validate is used to validate the driver configuration
 func (d *QemuDriver) Validate(config map[string]interface{}) error {
 	fd := &fields.FieldData{
 		Raw: config,
