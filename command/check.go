@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const (
-	HealthCritical = 1
-	HealthWarn     = 2
+	HealthCritical = 2
+	HealthWarn     = 1
 	HealthPass     = 0
+	HealthUnknown  = 3
 )
 
 type AgentCheckCommand struct {
@@ -31,6 +33,9 @@ Agent Check Options:
   
   -min-peers
      Minimum number of peers that a server is expected to know.
+
+  -min-servers
+     Minumum number of servers that a client is expected to know.
 `
 
 	return strings.TrimSpace(helpText)
@@ -41,11 +46,12 @@ func (c *AgentCheckCommand) Synopsis() string {
 }
 
 func (c *AgentCheckCommand) Run(args []string) int {
-	var minPeers int
+	var minPeers, minServers int
 
 	flags := c.Meta.FlagSet("check", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.IntVar(&minPeers, "min-peers", 0, "")
+	flags.IntVar(&minServers, "min-servers", 1, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -66,13 +72,14 @@ func (c *AgentCheckCommand) Run(args []string) int {
 		return c.checkServerHealth(info["stats"], minPeers)
 	}
 
-	if _, ok := info["client"]; ok {
-		return c.checkClientHealth(info)
+	if _, ok := info["stats"]["client"]; ok {
+		return c.checkClientHealth(info["stats"], minServers)
 	}
 	return HealthWarn
 }
 
-// checkServerHealth returns the health of a server
+// checkServerHealth returns the health of a server.
+// TODO Add more rules for determining server health
 func (c *AgentCheckCommand) checkServerHealth(info map[string]interface{}, minPeers int) int {
 	raft := info["raft"].(map[string]interface{})
 	knownPeers, err := strconv.Atoi(raft["num_peers"].(string))
@@ -88,6 +95,36 @@ func (c *AgentCheckCommand) checkServerHealth(info map[string]interface{}, minPe
 	return HealthPass
 }
 
-func (c *AgentCheckCommand) checkClientHealth(info map[string]map[string]interface{}) int {
+// checkClientHealth retuns the health of a client
+func (c *AgentCheckCommand) checkClientHealth(info map[string]interface{}, minServers int) int {
+	clientStats := info["client"].(map[string]interface{})
+	knownServers, err := strconv.Atoi(clientStats["known_servers"].(string))
+	if err != nil {
+		c.Ui.Output(fmt.Sprintf("unable to get known servers: %v", err))
+		return HealthCritical
+	}
+
+	heartbeatTTL, err := time.ParseDuration(clientStats["heartbeat_ttl"].(string))
+	if err != nil {
+		c.Ui.Output(fmt.Sprintf("unable to parse heartbeat TTL: %v", err))
+		return HealthCritical
+	}
+
+	lastHeartbeat, err := time.ParseDuration(clientStats["last_heartbeat"].(string))
+	if err != nil {
+		c.Ui.Output(fmt.Sprintf("unable to parse last heartbeat: %v", err))
+		return HealthCritical
+	}
+
+	if lastHeartbeat > heartbeatTTL {
+		c.Ui.Output(fmt.Sprintf("last heartbeat was %q time ago, expected heartbeat ttl: %q", lastHeartbeat, heartbeatTTL))
+		return HealthCritical
+	}
+
+	if knownServers < minServers {
+		c.Ui.Output(fmt.Sprintf("known servers: %v, is less than expected number of servers: %v", knownServers, minServers))
+		return HealthCritical
+	}
+
 	return HealthPass
 }
