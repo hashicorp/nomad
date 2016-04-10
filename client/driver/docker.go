@@ -184,6 +184,9 @@ func (d *DockerDriver) Validate(config map[string]interface{}) error {
 			"tty": &fields.FieldSchema{
 				Type: fields.TypeBool,
 			},
+			"interactive": &fields.FieldSchema{
+				Type: fields.TypeBool,
+			},
 		},
 	}
 
