@@ -270,14 +270,6 @@ func (s *Server) coreJobEval(job string) *structs.Evaluation {
 	}
 }
 
-// forceCoreJobEval returns an evaluation for a core job that will ignore GC
-// cutoffs.
-func (s *Server) forceCoreJobEval(job string) *structs.Evaluation {
-	eval := s.coreJobEval(job)
-	eval.TriggeredBy = structs.EvalTriggerForceGC
-	return eval
-}
-
 // reapFailedEvaluations is used to reap evaluations that
 // have reached their delivery limit and should be failed
 func (s *Server) reapFailedEvaluations(stopCh chan struct{}) {

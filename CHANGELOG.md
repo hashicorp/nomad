@@ -22,6 +22,7 @@ IMPROVEMENTS:
   * client: `artifact` block now supports downloading paths relative to the
     task's directory [GH-944]
   * discovery: Support script based health checks [GH-986]
+  * driver/docker: Support for `tty` and `interactive` options [GH-1059]
 
 BUG FIXES:
   * core: Fix issue where in-place updated allocation double counted resources
