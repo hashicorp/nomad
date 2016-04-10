@@ -30,7 +30,6 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
-
 		"agent": func() (cli.Command, error) {
 			return &agent.Command{
 				Revision:          GitCommit,
@@ -40,13 +39,16 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 				ShutdownCh:        make(chan struct{}),
 			}, nil
 		},
-
 		"agent-info": func() (cli.Command, error) {
 			return &command.AgentInfoCommand{
 				Meta: meta,
 			}, nil
 		},
-
+		"check": func() (cli.Command, error) {
+			return &command.AgentCheckCommand{
+				Meta: meta,
+			}, nil
+		},
 		"client-config": func() (cli.Command, error) {
 			return &command.ClientConfigCommand{
 				Meta: meta,
