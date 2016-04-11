@@ -235,12 +235,7 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64) 
 
 	// Scan the allocations to ensure they are terminal and old
 	for _, alloc := range allocs {
-		// TODO: This can go away once the scheduler marks an alloc as
-		// DesiredStatusStop when a client fails.
-		allocTerminal := alloc.TerminalStatus() ||
-			alloc.ClientStatus == structs.AllocClientStatusComplete ||
-			alloc.ClientStatus == structs.AllocClientStatusFailed
-		if !allocTerminal || alloc.ModifyIndex > thresholdIndex {
+		if !alloc.TerminalStatus() || alloc.ModifyIndex > thresholdIndex {
 			return false, nil, nil
 		}
 	}
