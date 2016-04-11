@@ -7,14 +7,14 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
-// FielData contains the raw data and the schema that the data should adhere to
+// FieldData contains the raw data and the schema that the data should adhere to
 type FieldData struct {
 	Raw    map[string]interface{}
 	Schema map[string]*FieldSchema
 }
 
-// Cycle through raw data and validate conversions in the schema. Also check
-// for the existence and value of required fields.
+// Validate cycles through the raw data and validates conversions in the schema.
+// It also checks for the existence and value of required fields.
 func (d *FieldData) Validate() error {
 	var result *multierror.Error
 
@@ -117,6 +117,9 @@ func (d *FieldData) GetOkErr(k string) (interface{}, bool, error) {
 	}
 }
 
+// getPrimitive tries to convert the raw value of a field to its data type as
+// defined in the schema. It does strict type checking, so the value will need
+// to be able to convert to the appropriate type directly.
 func (d *FieldData) getPrimitive(
 	k string, schema *FieldSchema) (interface{}, bool, error) {
 	raw, ok := d.Raw[k]
