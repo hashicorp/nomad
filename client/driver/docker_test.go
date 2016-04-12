@@ -791,13 +791,17 @@ func TestDockerDriver_CleanupContainer(t *testing.T) {
 		if !res.Successful() {
 			t.Fatalf("err: %v", res)
 		}
+
+		time.Sleep(3 * time.Second)
+
+		// Ensure that the container isn't present
+		_, err := client.InspectContainer(handle.(*DockerHandle).containerID)
+		if err == nil {
+			t.Fatalf("expected to not get container")
+		}
+
 	case <-time.After(time.Duration(tu.TestMultiplier()*5) * time.Second):
 		t.Fatalf("timeout")
-	}
-
-	// Ensure that the container isn't present
-	if _, err := client.InspectContainer(handle.(*DockerHandle).containerID); err == nil {
-		t.Fatalf("expected to not get container")
 	}
 
 }
