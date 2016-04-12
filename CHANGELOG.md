@@ -7,6 +7,7 @@ IMPROVEMENTS:
   * core: Rename successfully finished allocations to "Complete" rather than
     "Dead" for clarity [GH-975]
   * cli: `alloc-status` explains restart decisions [GH-984]
+  * cli: `node-drain -self` drains the local node [GH-1068]
   * cli: `node-status -self` queries the local node [GH-1004]
   * cli: Destructive commands now require confirmation [GH-983]
   * cli: `alloc-status` display is less verbose by default [GH-946]
