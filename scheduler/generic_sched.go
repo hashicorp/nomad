@@ -231,8 +231,16 @@ func (s *GenericScheduler) process() (bool, error) {
 // re-placed.
 func (s *GenericScheduler) filterCompleteAllocs(allocs []*structs.Allocation) []*structs.Allocation {
 	filter := func(a *structs.Allocation) bool {
-		// TODO: Limit the number of times we restart a failed allocation.
-		return a.TerminalStatus() || a.ClientStatus == structs.AllocClientStatusFailed
+		// Allocs from batch jobs should be filtered when their status is failed
+		// so that they will be replaced. If they are complete but not failed, they
+		// shouldn't be replaced.
+		if s.batch {
+			return a.TerminalStatus() &&
+				a.ClientStatus != structs.AllocClientStatusComplete
+		}
+
+		// Filter terminal, non batch allocations
+		return a.TerminalStatus()
 	}
 
 	n := len(allocs)

@@ -15,6 +15,7 @@ Usage: nomad node-drain [options] <node>
 
   Toggles node draining on a specified node. It is required
   that either -enable or -disable is specified, but not both.
+  The -self flag is useful to drain the local node.
 
 General Options:
 
@@ -28,6 +29,9 @@ Node Drain Options:
   -enable
     Enable draining for the specified node.
 
+  -self
+    Query the status of the local node.
+
   -yes
     Automatic yes to prompts.
 `
@@ -39,12 +43,13 @@ func (c *NodeDrainCommand) Synopsis() string {
 }
 
 func (c *NodeDrainCommand) Run(args []string) int {
-	var enable, disable, autoYes bool
+	var enable, disable, self, autoYes bool
 
 	flags := c.Meta.FlagSet("node-drain", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&enable, "enable", false, "Enable drain mode")
 	flags.BoolVar(&disable, "disable", false, "Disable drain mode")
+	flags.BoolVar(&self, "self", false, "")
 	flags.BoolVar(&autoYes, "yes", false, "Automatic yes to prompts.")
 
 	if err := flags.Parse(args); err != nil {
@@ -59,17 +64,28 @@ func (c *NodeDrainCommand) Run(args []string) int {
 
 	// Check that we got a node ID
 	args = flags.Args()
-	if len(args) != 1 {
+	if l := len(args); self && l != 0 || !self && l != 1 {
 		c.Ui.Error(c.Help())
 		return 1
 	}
-	nodeID := args[0]
 
 	// Get the HTTP client
 	client, err := c.Meta.Client()
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
 		return 1
+	}
+
+	// If -self flag is set then determine the current node.
+	nodeID := ""
+	if !self {
+		nodeID = args[0]
+	} else {
+		var err error
+		if nodeID, err = getLocalNodeID(client); err != nil {
+			c.Ui.Error(err.Error())
+			return 1
+		}
 	}
 
 	// Check if node exists
@@ -83,7 +99,6 @@ func (c *NodeDrainCommand) Run(args []string) int {
 		nodeID = nodeID[:len(nodeID)-1]
 	}
 
-	// Exact lookup failed, try with prefix based search
 	nodes, _, err := client.Nodes().PrefixList(nodeID)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error toggling drain mode: %s", err))

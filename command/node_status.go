@@ -85,30 +85,6 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		return 1
 	}
 
-	// If -self flag is set then determine the current node.
-	nodeID := ""
-	if self {
-		info, err := client.Agent().Self()
-		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error querying agent info: %s", err))
-			return 1
-		}
-		var stats map[string]interface{}
-		stats, _ = info["stats"]
-		clientStats, ok := stats["client"].(map[string]interface{})
-		if !ok {
-			c.Ui.Error("Nomad not running in client mode")
-			return 1
-		}
-
-		nodeID, ok = clientStats["node_id"].(string)
-		if !ok {
-			c.Ui.Error("Failed to determine node ID")
-			return 1
-		}
-
-	}
-
 	// Use list mode if no node name was provided
 	if len(args) == 0 && !self {
 		// Query the node info
@@ -162,8 +138,15 @@ func (c *NodeStatusCommand) Run(args []string) int {
 	}
 
 	// Query the specific node
+	nodeID := ""
 	if !self {
 		nodeID = args[0]
+	} else {
+		var err error
+		if nodeID, err = getLocalNodeID(client); err != nil {
+			c.Ui.Error(err.Error())
+			return 1
+		}
 	}
 	if len(nodeID) == 1 {
 		c.Ui.Error(fmt.Sprintf("Identifier must contain at least two characters."))
@@ -175,7 +158,6 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		nodeID = nodeID[:len(nodeID)-1]
 	}
 
-	// Exact lookup failed, try with prefix based search
 	nodes, _, err := client.Nodes().PrefixList(nodeID)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error querying node info: %s", err))

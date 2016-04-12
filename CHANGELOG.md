@@ -7,6 +7,7 @@ IMPROVEMENTS:
   * core: Rename successfully finished allocations to "Complete" rather than
     "Dead" for clarity [GH-975]
   * cli: `alloc-status` explains restart decisions [GH-984]
+  * cli: `node-drain -self` drains the local node [GH-1068]
   * cli: `node-status -self` queries the local node [GH-1004]
   * cli: Destructive commands now require confirmation [GH-983]
   * cli: `alloc-status` display is less verbose by default [GH-946]
@@ -32,7 +33,7 @@ BUG FIXES:
   * client: All tasks in a task group are killed when a task fails [GH-962]
   * client: Fix common exec failures on CentOS and Amazon Linux [GH-1009]
 
-## 0.3.1
+## 0.3.1 (Mars 16, 2016)
 
 __BACKWARDS INCOMPATIBILITIES:__
   * Service names that dont conform to RFC-1123 and RFC-2782 will fail
@@ -70,7 +71,7 @@ BUG FIXES:
   * driver/exec: Stopping tasks with more than one pid in a cgroup [GH-855]
   * executor/linux: Add /run/resolvconf/ to chroot so DNS works [GH-905]
 
-## 0.3.0
+## 0.3.0 (February 25, 2016)
 
 __BACKWARDS INCOMPATIBILITIES:__
   * Stdout and Stderr log files of tasks have moved from task/local to
