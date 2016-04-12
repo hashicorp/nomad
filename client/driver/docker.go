@@ -812,59 +812,18 @@ func (h *DockerHandle) Kill() error {
 	// Stop the container
 	err := h.client.StopContainer(h.containerID, uint(h.killTimeout.Seconds()))
 	if err != nil {
+		h.executor.Exit()
+		h.pluginClient.Kill()
+
 		// Container has already been removed.
 		if strings.Contains(err.Error(), NoSuchContainerError) {
 			h.logger.Printf("[DEBUG] driver.docker: attempted to stop non-existent container %s", h.containerID)
-			h.executor.Exit()
-			h.pluginClient.Kill()
 			return nil
 		}
 		h.logger.Printf("[ERR] driver.docker: failed to stop container %s: %v", h.containerID, err)
-		h.executor.Exit()
-		h.pluginClient.Kill()
 		return fmt.Errorf("Failed to stop container %s: %s", h.containerID, err)
 	}
 	h.logger.Printf("[INFO] driver.docker: stopped container %s", h.containerID)
-
-	// Cleanup container
-	if h.cleanupContainer {
-		err = h.client.RemoveContainer(docker.RemoveContainerOptions{
-			ID:            h.containerID,
-			RemoveVolumes: true,
-		})
-		if err != nil {
-			h.logger.Printf("[ERR] driver.docker: failed to remove container %s", h.containerID)
-			return fmt.Errorf("Failed to remove container %s: %s", h.containerID, err)
-		}
-		h.logger.Printf("[INFO] driver.docker: removed container %s", h.containerID)
-	}
-
-	// Cleanup image. This operation may fail if the image is in use by another
-	// job. That is OK. Will we log a message but continue.
-	if h.cleanupImage {
-		err = h.client.RemoveImage(h.imageID)
-		if err != nil {
-			containers, err := h.client.ListContainers(docker.ListContainersOptions{
-				// The image might be in use by a stopped container, so check everything
-				All: true,
-				Filters: map[string][]string{
-					"image": []string{h.imageID},
-				},
-			})
-			if err != nil {
-				h.logger.Printf("[ERR] driver.docker: failed to query list of containers matching image:%s", h.imageID)
-				return fmt.Errorf("Failed to query list of containers: %s", err)
-			}
-			inUse := len(containers)
-			if inUse > 0 {
-				h.logger.Printf("[INFO] driver.docker: image %s is still in use by %d container(s)", h.imageID, inUse)
-			} else {
-				return fmt.Errorf("Failed to remove image %s", h.imageID)
-			}
-		} else {
-			h.logger.Printf("[INFO] driver.docker: removed image %s", h.imageID)
-		}
-	}
 	return nil
 }
 
@@ -893,4 +852,22 @@ func (h *DockerHandle) run() {
 		h.logger.Printf("[ERR] driver.docker: failed to kill the syslog collector: %v", err)
 	}
 	h.pluginClient.Kill()
+
+	// Stop the container just incase the docker daemon's wait returned
+	// incorrectly
+	if err := h.client.StopContainer(h.containerID, 0); err != nil {
+		h.logger.Printf("[ERR] driver.docker: error stopping container: %v", err)
+	}
+
+	// Remove the container
+	if err := h.client.RemoveContainer(docker.RemoveContainerOptions{}); err != nil {
+		h.logger.Printf("[ERR] driver.docker: error removing container: %v", err)
+	}
+
+	// Cleanup the image
+	if h.cleanupImage {
+		if err := h.client.RemoveImage(h.imageID); err != nil {
+			h.logger.Printf("[ERR] driver.docker: error removing image: %v", err)
+		}
+	}
 }
