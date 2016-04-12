@@ -1,8 +1,10 @@
 package command
 
 import (
+	"fmt"
 	"time"
 
+	"github.com/hashicorp/nomad/api"
 	"github.com/ryanuber/columnize"
 )
 
@@ -44,4 +46,26 @@ func limit(s string, length int) string {
 // formatTime formats the time to string based on RFC822
 func formatTime(t time.Time) string {
 	return t.Format("02/01/06 15:04:05 MST")
+}
+
+// getLocalNodeID returns the node ID of the local Nomad Client and an error if
+// it couldn't be determined or the Agent is not running in Client mode.
+func getLocalNodeID(client *api.Client) (string, error) {
+	info, err := client.Agent().Self()
+	if err != nil {
+		return "", fmt.Errorf("Error querying agent info: %s", err)
+	}
+	var stats map[string]interface{}
+	stats, _ = info["stats"]
+	clientStats, ok := stats["client"].(map[string]interface{})
+	if !ok {
+		return "", fmt.Errorf("Nomad not running in client mode")
+	}
+
+	nodeID, ok := clientStats["node_id"].(string)
+	if !ok {
+		return "", fmt.Errorf("Failed to determine node ID")
+	}
+
+	return nodeID, nil
 }

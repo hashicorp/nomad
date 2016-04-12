@@ -21,9 +21,10 @@ nicely by providing the current drain status of a given node.
 nomad node-drain [options] <node>
 ```
 
-A node ID or prefix must be provided. If there is an exact match, the
-drain mode will be adjusted for that node. Otherwise, a list of matching
-nodes and information will be displayed.
+A `-self` flag can be used to drain the local node. If this is not supplied, a
+node ID or prefix must be provided. If there is an exact match, the drain mode
+will be adjusted for that node. Otherwise, a list of matching nodes and
+information will be displayed.
 
 It is also required to pass one of `-enable` or `-disable`, depending on which
 operation is desired.
@@ -36,11 +37,19 @@ operation is desired.
 
 * `-enable`: Enable node drain mode.
 * `-disable`: Disable node drain mode.
+* `-self`: Drain the local node.
+* `-yes`: Automtic yes to prompts.
 
 ## Examples
 
-Enable drain mode on node1:
+Enable drain mode on node with ID prefix "4d2ba53b":
 
 ```
-$ nomad node-drain -enable node1
+$ nomad node-drain -enable 4d2ba53b
+```
+
+Enable drain mode on the local node:
+
+```
+$ nomad node-drain -enable -self
 ```
