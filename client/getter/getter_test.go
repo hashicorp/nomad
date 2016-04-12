@@ -12,6 +12,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/client/driver/env"
+	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -37,8 +39,9 @@ func TestGetArtifact_FileAndChecksum(t *testing.T) {
 	}
 
 	// Download the artifact
+	taskEnv := env.NewTaskEnvironment(mock.Node())
 	logger := log.New(os.Stderr, "", log.LstdFlags)
-	if err := GetArtifact(artifact, taskDir, logger); err != nil {
+	if err := GetArtifact(taskEnv, artifact, taskDir, logger); err != nil {
 		t.Fatalf("GetArtifact failed: %v", err)
 	}
 
@@ -72,14 +75,33 @@ func TestGetArtifact_File_RelativeDest(t *testing.T) {
 	}
 
 	// Download the artifact
+	taskEnv := env.NewTaskEnvironment(mock.Node())
 	logger := log.New(os.Stderr, "", log.LstdFlags)
-	if err := GetArtifact(artifact, taskDir, logger); err != nil {
+	if err := GetArtifact(taskEnv, artifact, taskDir, logger); err != nil {
 		t.Fatalf("GetArtifact failed: %v", err)
 	}
 
 	// Verify artifact was downloaded to the correct path
 	if _, err := os.Stat(filepath.Join(taskDir, relative, file)); err != nil {
 		t.Fatalf("file not found: %s", err)
+	}
+}
+
+func TestGetGetterUrl_Interprolation(t *testing.T) {
+	// Create the artifact
+	artifact := &structs.TaskArtifact{
+		GetterSource: "${NOMAD_META_ARTIFACT}",
+	}
+
+	url := "foo.com"
+	taskEnv := env.NewTaskEnvironment(mock.Node()).SetTaskMeta(map[string]string{"artifact": url})
+	act, err := getGetterUrl(taskEnv, artifact)
+	if err != nil {
+		t.Fatalf("getGetterUrl() failed: %v", err)
+	}
+
+	if act != url {
+		t.Fatalf("getGetterUrl() returned %q; want %q", act, url)
 	}
 }
 
@@ -105,8 +127,9 @@ func TestGetArtifact_InvalidChecksum(t *testing.T) {
 	}
 
 	// Download the artifact and expect an error
+	taskEnv := env.NewTaskEnvironment(mock.Node())
 	logger := log.New(os.Stderr, "", log.LstdFlags)
-	if err := GetArtifact(artifact, taskDir, logger); err == nil {
+	if err := GetArtifact(taskEnv, artifact, taskDir, logger); err == nil {
 		t.Fatalf("GetArtifact should have failed")
 	}
 }
@@ -171,8 +194,9 @@ func TestGetArtifact_Archive(t *testing.T) {
 		},
 	}
 
+	taskEnv := env.NewTaskEnvironment(mock.Node())
 	logger := log.New(os.Stderr, "", log.LstdFlags)
-	if err := GetArtifact(artifact, taskDir, logger); err != nil {
+	if err := GetArtifact(taskEnv, artifact, taskDir, logger); err != nil {
 		t.Fatalf("GetArtifact failed: %v", err)
 	}
 
