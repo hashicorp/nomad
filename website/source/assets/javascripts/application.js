@@ -1,11 +1,11 @@
 //= require jquery
 //= require bootstrap
-//= require jquery.waypoints.min
 
-//= require lib/String.substitute
-//= require lib/Function.prototype.bind
-//= require lib/Base
+//= require lib/_jquery.waypoints
+//= require lib/_String.substitute
+//= require lib/_Function.prototype.bind
+//= require lib/_Base
 
-//= require app/Sidebar
-//= require app/CubeDraw
-//= require app/Init
+//= require app/_Sidebar
+//= require app/_CubeDraw
+//= require app/_Init
