@@ -12,6 +12,10 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+const (
+	allocID = "12"
+)
+
 var (
 	logger = log.New(os.Stdout, "", log.LstdFlags)
 	check1 = structs.ServiceCheck{
@@ -37,11 +41,11 @@ var (
 )
 
 func TestConsulServiceRegisterServices(t *testing.T) {
-	allocID := "12"
-	cs, err := NewConsulService(&ConsulConfig{}, logger, allocID)
+	cs, err := NewConsulService(&ConsulConfig{}, logger)
 	if err != nil {
 		t.Fatalf("Err: %v", err)
 	}
+	cs.SetAllocID(allocID)
 	// Skipping the test if consul isn't present
 	if !cs.consulPresent() {
 		return
@@ -63,11 +67,11 @@ func TestConsulServiceRegisterServices(t *testing.T) {
 }
 
 func TestConsulServiceUpdateService(t *testing.T) {
-	allocID := "12"
-	cs, err := NewConsulService(&ConsulConfig{}, logger, allocID)
+	cs, err := NewConsulService(&ConsulConfig{}, logger)
 	if err != nil {
 		t.Fatalf("Err: %v", err)
 	}
+	cs.SetAllocID(allocID)
 	// Skipping the test if consul isn't present
 	if !cs.consulPresent() {
 		return
