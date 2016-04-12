@@ -1192,7 +1192,11 @@ func (c *Client) syncConsul() {
 		select {
 		case <-sync.C:
 			// Give up pruning services if we can't fingerprint Consul
-			if _, ok := c.config.Node.Attributes["consul.server"]; !ok {
+
+			c.configLock.RLock()
+			_, ok := c.configCopy.Node.Attributes["consul.server"]
+			c.configLock.RUnlock()
+			if !ok {
 				continue
 			}
 			services := make(map[string]struct{})
