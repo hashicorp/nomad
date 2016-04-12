@@ -856,11 +856,15 @@ func (h *DockerHandle) run() {
 	// Stop the container just incase the docker daemon's wait returned
 	// incorrectly
 	if err := h.client.StopContainer(h.containerID, 0); err != nil {
-		h.logger.Printf("[ERR] driver.docker: error stopping container: %v", err)
+		_, noSuchContainer := err.(*docker.NoSuchContainer)
+		_, containerNotRunning := err.(*docker.ContainerNotRunning)
+		if !containerNotRunning && !noSuchContainer {
+			h.logger.Printf("[ERR] driver.docker: error stopping container: %v", err)
+		}
 	}
 
 	// Remove the container
-	if err := h.client.RemoveContainer(docker.RemoveContainerOptions{}); err != nil {
+	if err := h.client.RemoveContainer(docker.RemoveContainerOptions{ID: h.containerID, Force: true}); err != nil {
 		h.logger.Printf("[ERR] driver.docker: error removing container: %v", err)
 	}
 
