@@ -152,6 +152,14 @@ nodes, unless otherwise specified:
   on server nodes. The value is a map of IP addresses and ports and supports
   the following keys:
   <br>
+  * `http`: The address to advertise for the HTTP interface. This should be
+    reachable by all the nodes from which end users are going to use the Nomad
+    CLI tools.
+    ```
+    advertise {
+       http = "1.2.3.4:4646"
+    }
+    ```
   * `rpc`: The address to advertise for the RPC interface. This address should
     be reachable by all of the agents in the cluster. For example:
     ```
