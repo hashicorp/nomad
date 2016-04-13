@@ -6,6 +6,7 @@ IMPROVEMENTS:
     exist [GH-981]
   * core: Rename successfully finished allocations to "Complete" rather than
     "Dead" for clarity [GH-975]
+  * core: Validate driver configurations when submitting jobs [GH-1062]
   * cli: `alloc-status` explains restart decisions [GH-984]
   * cli: `node-drain -self` drains the local node [GH-1068]
   * cli: `node-status -self` queries the local node [GH-1004]
