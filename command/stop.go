@@ -88,7 +88,7 @@ func (c *StopCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("No job(s) with prefix or id %q found", jobID))
 		return 1
 	}
-	if len(jobs) > 1 {
+	if len(jobs) > 1 && strings.TrimSpace(jobID) != jobs[0].ID {
 		out := make([]string, len(jobs)+1)
 		out[0] = "ID|Type|Priority|Status"
 		for i, job := range jobs {
