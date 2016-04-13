@@ -231,12 +231,23 @@ func (s *GenericScheduler) process() (bool, error) {
 // re-placed.
 func (s *GenericScheduler) filterCompleteAllocs(allocs []*structs.Allocation) []*structs.Allocation {
 	filter := func(a *structs.Allocation) bool {
-		// Allocs from batch jobs should be filtered when their status is failed
-		// so that they will be replaced. If they are complete but not failed, they
-		// shouldn't be replaced.
 		if s.batch {
-			return a.TerminalStatus() &&
-				a.ClientStatus != structs.AllocClientStatusComplete
+			// Allocs from batch jobs should be filtered when the desired status
+			// is terminal or when the client status is failed so that they will
+			// be replaced. If they are complete but not failed, they shouldn't
+			// be replaced.
+			switch a.DesiredStatus {
+			case structs.AllocDesiredStatusStop, structs.AllocDesiredStatusEvict, structs.AllocDesiredStatusFailed:
+				return true
+			default:
+			}
+
+			switch a.ClientStatus {
+			case structs.AllocClientStatusFailed:
+				return true
+			default:
+				return false
+			}
 		}
 
 		// Filter terminal, non batch allocations
