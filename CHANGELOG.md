@@ -17,6 +17,7 @@ IMPROVEMENTS:
     [GH-952]
   * cli: `node-status` display is less verbose by default and shows a node's
     total resources [GH-946]
+  * client: `artifact` source can be interpreted [GH-1070]
   * client: Nomad fingerprinter to detect client's version [GH-965]
   * client: Pass environment variables from host to exec based tasks [GH-970]
   * client: Allow task's to be run as particular user [GH-950, GH-978]
