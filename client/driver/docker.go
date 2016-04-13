@@ -23,6 +23,7 @@ import (
 	"github.com/hashicorp/nomad/client/driver/executor"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/helper/discover"
+	"github.com/hashicorp/nomad/helper/fields"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/mapstructure"
 )
@@ -124,6 +125,76 @@ type DockerHandle struct {
 
 func NewDockerDriver(ctx *DriverContext) Driver {
 	return &DockerDriver{DriverContext: *ctx}
+}
+
+// Validate is used to validate the driver configuration
+func (d *DockerDriver) Validate(config map[string]interface{}) error {
+	fd := &fields.FieldData{
+		Raw: config,
+		Schema: map[string]*fields.FieldSchema{
+			"image": &fields.FieldSchema{
+				Type:     fields.TypeString,
+				Required: true,
+			},
+			"load": &fields.FieldSchema{
+				Type: fields.TypeArray,
+			},
+			"command": &fields.FieldSchema{
+				Type: fields.TypeString,
+			},
+			"args": &fields.FieldSchema{
+				Type: fields.TypeArray,
+			},
+			"ipc_mode": &fields.FieldSchema{
+				Type: fields.TypeString,
+			},
+			"network_mode": &fields.FieldSchema{
+				Type: fields.TypeString,
+			},
+			"pid_mode": &fields.FieldSchema{
+				Type: fields.TypeString,
+			},
+			"uts_mode": &fields.FieldSchema{
+				Type: fields.TypeString,
+			},
+			"port_map": &fields.FieldSchema{
+				Type: fields.TypeArray,
+			},
+			"privileged": &fields.FieldSchema{
+				Type: fields.TypeBool,
+			},
+			"dns_servers": &fields.FieldSchema{
+				Type: fields.TypeArray,
+			},
+			"dns_search_domains": &fields.FieldSchema{
+				Type: fields.TypeArray,
+			},
+			"hostname": &fields.FieldSchema{
+				Type: fields.TypeString,
+			},
+			"labels": &fields.FieldSchema{
+				Type: fields.TypeMap,
+			},
+			"auth": &fields.FieldSchema{
+				Type: fields.TypeArray,
+			},
+			"ssl": &fields.FieldSchema{
+				Type: fields.TypeBool,
+			},
+			"tty": &fields.FieldSchema{
+				Type: fields.TypeBool,
+			},
+			"interactive": &fields.FieldSchema{
+				Type: fields.TypeBool,
+			},
+		},
+	}
+
+	if err := fd.Validate(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // dockerClient creates *docker.Client. In test / dev mode we can use ENV vars

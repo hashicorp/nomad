@@ -22,6 +22,7 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/helper/discover"
+	"github.com/hashicorp/nomad/helper/fields"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -64,6 +65,31 @@ type javaHandle struct {
 // NewJavaDriver is used to create a new exec driver
 func NewJavaDriver(ctx *DriverContext) Driver {
 	return &JavaDriver{DriverContext: *ctx}
+}
+
+// Validate is used to validate the driver configuration
+func (d *JavaDriver) Validate(config map[string]interface{}) error {
+	fd := &fields.FieldData{
+		Raw: config,
+		Schema: map[string]*fields.FieldSchema{
+			"jar_path": &fields.FieldSchema{
+				Type:     fields.TypeString,
+				Required: true,
+			},
+			"jvm_options": &fields.FieldSchema{
+				Type: fields.TypeArray,
+			},
+			"args": &fields.FieldSchema{
+				Type: fields.TypeArray,
+			},
+		},
+	}
+
+	if err := fd.Validate(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (d *JavaDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {

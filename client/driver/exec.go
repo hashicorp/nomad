@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/nomad/client/driver/executor"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/helper/discover"
+	"github.com/hashicorp/nomad/helper/fields"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/mapstructure"
 )
@@ -56,6 +57,28 @@ type execHandle struct {
 // NewExecDriver is used to create a new exec driver
 func NewExecDriver(ctx *DriverContext) Driver {
 	return &ExecDriver{DriverContext: *ctx}
+}
+
+// Validate is used to validate the driver configuration
+func (d *ExecDriver) Validate(config map[string]interface{}) error {
+	fd := &fields.FieldData{
+		Raw: config,
+		Schema: map[string]*fields.FieldSchema{
+			"command": &fields.FieldSchema{
+				Type:     fields.TypeString,
+				Required: true,
+			},
+			"args": &fields.FieldSchema{
+				Type: fields.TypeArray,
+			},
+		},
+	}
+
+	if err := fd.Validate(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (d *ExecDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {

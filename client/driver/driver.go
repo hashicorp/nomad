@@ -55,6 +55,9 @@ type Driver interface {
 
 	// Open is used to re-open a handle to a task
 	Open(ctx *ExecContext, handleID string) (DriverHandle, error)
+
+	// Drivers must validate their configuration
+	Validate(map[string]interface{}) error
 }
 
 // DriverContext is a means to inject dependencies such as loggers, configs, and
@@ -66,6 +69,18 @@ type DriverContext struct {
 	logger   *log.Logger
 	node     *structs.Node
 	taskEnv  *env.TaskEnvironment
+}
+
+// NewEmptyDriverContext returns a DriverContext with all fields set to their
+// zero value.
+func NewEmptyDriverContext() *DriverContext {
+	return &DriverContext{
+		taskName: "",
+		config:   nil,
+		node:     nil,
+		logger:   nil,
+		taskEnv:  nil,
+	}
 }
 
 // NewDriverContext initializes a new DriverContext with the specified fields.

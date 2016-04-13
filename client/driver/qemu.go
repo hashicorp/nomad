@@ -18,6 +18,7 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/helper/discover"
+	"github.com/hashicorp/nomad/helper/fields"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/mapstructure"
 )
@@ -63,6 +64,31 @@ type qemuHandle struct {
 // NewQemuDriver is used to create a new exec driver
 func NewQemuDriver(ctx *DriverContext) Driver {
 	return &QemuDriver{DriverContext: *ctx}
+}
+
+// Validate is used to validate the driver configuration
+func (d *QemuDriver) Validate(config map[string]interface{}) error {
+	fd := &fields.FieldData{
+		Raw: config,
+		Schema: map[string]*fields.FieldSchema{
+			"image_path": &fields.FieldSchema{
+				Type:     fields.TypeString,
+				Required: true,
+			},
+			"accelerator": &fields.FieldSchema{
+				Type: fields.TypeString,
+			},
+			"port_map": &fields.FieldSchema{
+				Type: fields.TypeArray,
+			},
+		},
+	}
+
+	if err := fd.Validate(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (d *QemuDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
