@@ -24,6 +24,7 @@ IMPROVEMENTS:
     task's directory [GH-944]
   * discovery: Support script based health checks [GH-986]
   * driver/docker: Support for `tty` and `interactive` options [GH-1059]
+  * periodic: Periodic jobs are always evaluated in UTC timezone [GH-1074]
 
 BUG FIXES:
   * core: Fix issue where in-place updated allocation double counted resources
