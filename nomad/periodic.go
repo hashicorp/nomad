@@ -203,7 +203,7 @@ func (p *PeriodicDispatch) Add(job *structs.Job) error {
 
 	// Add or update the job.
 	p.tracked[job.ID] = job
-	next := job.Periodic.Next(time.Now())
+	next := job.Periodic.Next(time.Now().UTC())
 	if tracked {
 		if err := p.heap.Update(job, next); err != nil {
 			return fmt.Errorf("failed to update job %v launch time: %v", job.ID, err)
@@ -281,7 +281,7 @@ func (p *PeriodicDispatch) ForceRun(jobID string) (*structs.Evaluation, error) {
 	}
 
 	p.l.Unlock()
-	return p.createEval(job, time.Now())
+	return p.createEval(job, time.Now().UTC())
 }
 
 // shouldRun returns whether the long lived run function should run.
@@ -301,7 +301,7 @@ func (p *PeriodicDispatch) run() {
 		if launch.IsZero() {
 			launchCh = nil
 		} else {
-			launchDur := launch.Sub(time.Now())
+			launchDur := launch.Sub(time.Now().UTC())
 			launchCh = time.After(launchDur)
 			p.logger.Printf("[DEBUG] nomad.periodic: launching job %q in %s", job.ID, launchDur)
 		}
