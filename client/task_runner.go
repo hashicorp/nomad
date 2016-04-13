@@ -137,6 +137,13 @@ func (r *TaskRunner) RestoreState() error {
 	r.task = snap.Task
 	r.artifactsDownloaded = snap.ArtifactDownloaded
 
+	if err := r.setTaskEnv(); err != nil {
+		err := fmt.Errorf("failed to create task environment for task %q in allocation %q: %v",
+			r.task.Name, r.alloc.ID, err)
+		r.logger.Printf("[ERR] client: %s", err)
+		return err
+	}
+
 	// Restore the driver
 	if snap.HandleID != "" {
 		driver, err := r.createDriver()
@@ -204,12 +211,8 @@ func (r *TaskRunner) setTaskEnv() error {
 // createDriver makes a driver for the task
 func (r *TaskRunner) createDriver() (driver.Driver, error) {
 	if r.taskEnv == nil {
-		if err := r.setTaskEnv(); err != nil {
-			err := fmt.Errorf("failed to create driver '%s' for alloc %s: %v",
-				r.task.Driver, r.alloc.ID, err)
-			r.logger.Printf("[ERR] client: %s", err)
-			return nil, err
-		}
+		err := fmt.Errorf("task environment not made for task %q in allocation %q", r.task.Name, r.alloc.ID)
+		return nil, err
 	}
 
 	driverCtx := driver.NewDriverContext(r.task.Name, r.config, r.config.Node, r.logger, r.taskEnv)
