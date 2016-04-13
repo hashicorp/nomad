@@ -6,6 +6,8 @@ import (
 
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/watch"
 )
@@ -32,6 +34,31 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 
 	if err := args.Job.Validate(); err != nil {
 		return err
+	}
+
+	// Validate the driver configurations.
+	var driverErrors multierror.Error
+	for _, tg := range args.Job.TaskGroups {
+		for _, task := range tg.Tasks {
+			d, err := driver.NewDriver(
+				task.Driver,
+				driver.NewEmptyDriverContext(),
+			)
+			if err != nil {
+				msg := "failed to create driver for task %q in group %q for validation: %v"
+				driverErrors.Errors = append(driverErrors.Errors, fmt.Errorf(msg, tg.Name, task.Name, err))
+				continue
+			}
+
+			if err := d.Validate(task.Config); err != nil {
+				formatted := fmt.Errorf("group %q -> task %q -> config: %v", tg.Name, task.Name, err)
+				driverErrors.Errors = append(driverErrors.Errors, formatted)
+			}
+		}
+	}
+
+	if len(driverErrors.Errors) != 0 {
+		return driverErrors.ErrorOrNil()
 	}
 
 	if args.Job.Type == structs.JobTypeCore {
