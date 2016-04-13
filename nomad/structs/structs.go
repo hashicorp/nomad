@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/url"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -1980,11 +1979,6 @@ func (ta *TaskArtifact) Validate() error {
 	var mErr multierror.Error
 	if ta.GetterSource == "" {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("source must be specified"))
-	} else {
-		_, err := url.Parse(ta.GetterSource)
-		if err != nil {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid source URL %q: %v", ta.GetterSource, err))
-		}
 	}
 
 	// Verify the destination doesn't escape the tasks directory

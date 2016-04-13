@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/nomad/client/getter"
 	"github.com/hashicorp/nomad/nomad/structs"
 
+	"github.com/hashicorp/nomad/client/driver/env"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 )
 
@@ -43,6 +44,7 @@ type TaskRunner struct {
 	restartTracker *RestartTracker
 
 	task       *structs.Task
+	taskEnv    *env.TaskEnvironment
 	updateCh   chan *structs.Allocation
 	handle     driver.DriverHandle
 	handleLock sync.Mutex
@@ -135,6 +137,13 @@ func (r *TaskRunner) RestoreState() error {
 	r.task = snap.Task
 	r.artifactsDownloaded = snap.ArtifactDownloaded
 
+	if err := r.setTaskEnv(); err != nil {
+		err := fmt.Errorf("failed to create task environment for task %q in allocation %q: %v",
+			r.task.Name, r.alloc.ID, err)
+		r.logger.Printf("[ERR] client: %s", err)
+		return err
+	}
+
 	// Restore the driver
 	if snap.HandleID != "" {
 		driver, err := r.createDriver()
@@ -188,18 +197,25 @@ func (r *TaskRunner) setState(state string, event *structs.TaskEvent) {
 	r.updater(r.task.Name, state, event)
 }
 
-// createDriver makes a driver for the task
-func (r *TaskRunner) createDriver() (driver.Driver, error) {
+// setTaskEnv sets the task environment. It returns an error if it could not be
+// created.
+func (r *TaskRunner) setTaskEnv() error {
 	taskEnv, err := driver.GetTaskEnv(r.ctx.AllocDir, r.config.Node, r.task, r.alloc)
 	if err != nil {
-		err = fmt.Errorf("failed to create driver '%s' for alloc %s: %v",
-			r.task.Driver, r.alloc.ID, err)
-		r.logger.Printf("[ERR] client: %s", err)
-		return nil, err
+		return err
+	}
+	r.taskEnv = taskEnv
+	return nil
+}
 
+// createDriver makes a driver for the task
+func (r *TaskRunner) createDriver() (driver.Driver, error) {
+	if r.taskEnv == nil {
+		err := fmt.Errorf("task environment not made for task %q in allocation %q", r.task.Name, r.alloc.ID)
+		return nil, err
 	}
 
-	driverCtx := driver.NewDriverContext(r.task.Name, r.config, r.config.Node, r.logger, taskEnv)
+	driverCtx := driver.NewDriverContext(r.task.Name, r.config, r.config.Node, r.logger, r.taskEnv)
 	driver, err := driver.NewDriver(r.task.Driver, driverCtx)
 	if err != nil {
 		err = fmt.Errorf("failed to create driver '%s' for alloc %s: %v",
@@ -220,6 +236,13 @@ func (r *TaskRunner) Run() {
 		r.setState(
 			structs.TaskStateDead,
 			structs.NewTaskEvent(structs.TaskFailedValidation).SetValidationError(err))
+		return
+	}
+
+	if err := r.setTaskEnv(); err != nil {
+		r.setState(
+			structs.TaskStateDead,
+			structs.NewTaskEvent(structs.TaskDriverFailure).SetDriverError(err))
 		return
 	}
 
@@ -277,7 +300,7 @@ func (r *TaskRunner) run() {
 			}
 
 			for _, artifact := range r.task.Artifacts {
-				if err := getter.GetArtifact(artifact, taskDir, r.logger); err != nil {
+				if err := getter.GetArtifact(r.taskEnv, artifact, taskDir, r.logger); err != nil {
 					r.setState(structs.TaskStateDead,
 						structs.NewTaskEvent(structs.TaskArtifactDownloadFailed).SetDownloadError(err))
 					r.restartTracker.SetStartError(cstructs.NewRecoverableError(err, true))

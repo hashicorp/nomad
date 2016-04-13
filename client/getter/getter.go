@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	gg "github.com/hashicorp/go-getter"
+	"github.com/hashicorp/nomad/client/driver/env"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -45,8 +46,9 @@ func getClient(src, dst string) *gg.Client {
 }
 
 // getGetterUrl returns the go-getter URL to download the artifact.
-func getGetterUrl(artifact *structs.TaskArtifact) (string, error) {
-	u, err := url.Parse(artifact.GetterSource)
+func getGetterUrl(taskEnv *env.TaskEnvironment, artifact *structs.TaskArtifact) (string, error) {
+	taskEnv.Build()
+	u, err := url.Parse(taskEnv.ReplaceEnv(artifact.GetterSource))
 	if err != nil {
 		return "", fmt.Errorf("failed to parse source URL %q: %v", artifact.GetterSource, err)
 	}
@@ -54,15 +56,17 @@ func getGetterUrl(artifact *structs.TaskArtifact) (string, error) {
 	// Build the url
 	q := u.Query()
 	for k, v := range artifact.GetterOptions {
-		q.Add(k, v)
+		q.Add(k, taskEnv.ReplaceEnv(v))
 	}
 	u.RawQuery = q.Encode()
 	return u.String(), nil
 }
 
 // GetArtifact downloads an artifact into the specified task directory.
-func GetArtifact(artifact *structs.TaskArtifact, taskDir string, logger *log.Logger) error {
-	url, err := getGetterUrl(artifact)
+func GetArtifact(taskEnv *env.TaskEnvironment, artifact *structs.TaskArtifact,
+	taskDir string, logger *log.Logger) error {
+
+	url, err := getGetterUrl(taskEnv, artifact)
 	if err != nil {
 		return err
 	}
