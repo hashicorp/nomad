@@ -146,7 +146,7 @@ func (c *RunCommand) Run(args []string) int {
 	if detach || periodic {
 		c.Ui.Output("Job registration successful")
 		if periodic {
-			c.Ui.Output(fmt.Sprintf("Approximate next launch time: %v", job.Periodic.Next(time.Now())))
+			c.Ui.Output(fmt.Sprintf("Approximate next launch time: %v", job.Periodic.Next(time.Now().UTC())))
 		} else {
 			c.Ui.Output("Evaluation ID: " + evalID)
 		}
