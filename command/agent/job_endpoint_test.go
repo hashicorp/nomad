@@ -67,6 +67,7 @@ func TestHTTP_PrefixJobsList(t *testing.T) {
 			// Create the job
 			job := mock.Job()
 			job.ID = ids[i]
+			job.TaskGroups[0].Count = 1
 			args := structs.JobRegisterRequest{
 				Job:          job,
 				WriteRequest: structs.WriteRequest{Region: "global"},

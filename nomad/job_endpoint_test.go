@@ -2,6 +2,7 @@ package nomad
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -82,6 +83,35 @@ func TestJobEndpoint_Register(t *testing.T) {
 	}
 	if eval.Status != structs.EvalStatusPending {
 		t.Fatalf("bad: %#v", eval)
+	}
+}
+
+func TestJobEndpoint_Register_InvalidDriverConfig(t *testing.T) {
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request with a job containing an invalid driver
+	// config
+	job := mock.Job()
+	job.TaskGroups[0].Tasks[0].Config["foo"] = 1
+	req := &structs.JobRegisterRequest{
+		Job:          job,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
+	if err == nil {
+		t.Fatalf("expected a validation error")
+	}
+
+	if !strings.Contains(err.Error(), "-> config:") {
+		t.Fatalf("expected a driver config validation error but got: %v", err)
 	}
 }
 
