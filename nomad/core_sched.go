@@ -14,7 +14,7 @@ var (
 	// maxIdsPerReap is the maximum number of evals and allocations to reap in a
 	// single Raft transaction. This is to ensure that the Raft message does not
 	// become too large.
-	maxIdsPerReap = (1024 * 512) / 36 // 0.5 MB of ids.
+	maxIdsPerReap = (1024 * 256) / 36 // 0.25 MB of ids.
 )
 
 // CoreScheduler is a special "scheduler" that is registered
@@ -255,7 +255,7 @@ func (c *CoreScheduler) evalReap(evals, allocs []string) error {
 // necessary to ensure that the Raft transaction does not become too large.
 func (c *CoreScheduler) partitionReap(evals, allocs []string) []*structs.EvalDeleteRequest {
 	var requests []*structs.EvalDeleteRequest
-	var submittedEvals, submittedAllocs int
+	submittedEvals, submittedAllocs := 0, 0
 	for submittedEvals != len(evals) || submittedAllocs != len(allocs) {
 		req := &structs.EvalDeleteRequest{
 			WriteRequest: structs.WriteRequest{
@@ -265,29 +265,29 @@ func (c *CoreScheduler) partitionReap(evals, allocs []string) []*structs.EvalDel
 		requests = append(requests, req)
 		available := maxIdsPerReap
 
-		// Add the evals first
-		if remaining := len(evals) - submittedEvals; remaining > 0 {
-			if remaining <= available {
-				req.Evals = evals[submittedEvals:]
-				available -= remaining
-				submittedEvals += remaining
-			} else {
-				req.Evals = evals[submittedEvals : submittedEvals+available]
-				submittedEvals += available
-
-				// Exhausted space so skip adding allocs
-				continue
-			}
-		}
-
-		// Add the allocs
+		// Add the allocs first
 		if remaining := len(allocs) - submittedAllocs; remaining > 0 {
 			if remaining <= available {
 				req.Allocs = allocs[submittedAllocs:]
+				available -= remaining
 				submittedAllocs += remaining
 			} else {
 				req.Allocs = allocs[submittedAllocs : submittedAllocs+available]
 				submittedAllocs += available
+
+				// Exhausted space so skip adding evals
+				continue
+			}
+		}
+
+		// Add the evals
+		if remaining := len(evals) - submittedEvals; remaining > 0 {
+			if remaining <= available {
+				req.Evals = evals[submittedEvals:]
+				submittedEvals += remaining
+			} else {
+				req.Evals = evals[submittedEvals : submittedEvals+available]
+				submittedEvals += available
 			}
 		}
 	}

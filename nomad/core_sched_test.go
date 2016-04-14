@@ -558,17 +558,17 @@ func TestCoreScheduler_PartitionReap(t *testing.T) {
 	}
 
 	first := requests[0]
-	if len(first.Evals) != 2 && len(first.Allocs) != 0 {
+	if len(first.Allocs) != 2 && len(first.Evals) != 0 {
 		t.Fatalf("Unexpected first request: %v", first)
 	}
 
 	second := requests[1]
-	if len(second.Evals) != 1 && len(second.Allocs) != 1 {
+	if len(second.Allocs) != 1 && len(second.Evals) != 1 {
 		t.Fatalf("Unexpected second request: %v", second)
 	}
 
 	third := requests[2]
-	if len(third.Evals) != 0 && len(third.Allocs) != 2 {
+	if len(third.Allocs) != 0 && len(third.Evals) != 2 {
 		t.Fatalf("Unexpected third request: %v", third)
 	}
 }
