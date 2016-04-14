@@ -27,6 +27,8 @@ IMPROVEMENTS:
   * client: `artifact` block now supports downloading paths relative to the
     task's directory [GH-944]
   * discovery: Support script based health checks [GH-986]
+  * discovery: Allowing registration of services which don't expose ports
+    [GH-1092]
   * driver/docker: Support for `tty` and `interactive` options [GH-1059]
   * periodic: Periodic jobs are always evaluated in UTC timezone [GH-1074]
 
