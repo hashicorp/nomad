@@ -1,6 +1,6 @@
 GIT
   remote: git://github.com/hashicorp/middleman-hashicorp.git
-  revision: 92b553abc3eb26361328111db2ecb587717666b7
+  revision: 5f29fd16eae65f35034a66184305ea3089b6b0da
   specs:
     middleman-hashicorp (0.2.0)
       bootstrap-sass (~> 3.3)
@@ -27,7 +27,7 @@ GEM
       minitest (~> 5.1)
       thread_safe (~> 0.3, >= 0.3.4)
       tzinfo (~> 1.1)
-    autoprefixer-rails (6.3.4)
+    autoprefixer-rails (6.3.6)
       execjs
     bootstrap-sass (3.3.6)
       autoprefixer-rails (>= 5.2.1)
@@ -152,7 +152,7 @@ GEM
     redcarpet (3.3.4)
     ref (2.0.0)
     rouge (1.10.1)
-    sass (3.4.21)
+    sass (3.4.22)
     sprockets (2.12.4)
       hike (~> 1.2)
       multi_json (~> 1.0)
@@ -189,4 +189,4 @@ DEPENDENCIES
   middleman-hashicorp!
 
 BUNDLED WITH
-   1.10.3
+   1.11.2
