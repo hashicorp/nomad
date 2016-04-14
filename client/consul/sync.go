@@ -295,21 +295,20 @@ func (c *ConsulService) createCheckReg(check *structs.ServiceCheck, service *con
 
 // createService creates a Consul AgentService from a Nomad Service
 func (c *ConsulService) createService(service *structs.Service) (*consul.AgentService, error) {
-	host, port := c.task.FindHostAndPortFor(service.PortLabel)
-	if host == "" {
-		return nil, fmt.Errorf("host for the service %q  couldn't be found", service.Name)
-	}
-
-	if port == 0 {
-		return nil, fmt.Errorf("port for the service %q  couldn't be found", service.Name)
-	}
 	srv := consul.AgentService{
 		ID:      service.ID(c.allocID, c.task.Name),
 		Service: service.Name,
 		Tags:    service.Tags,
-		Address: host,
-		Port:    port,
 	}
+	host, port := c.task.FindHostAndPortFor(service.PortLabel)
+	if host != "" {
+		srv.Address = host
+	}
+
+	if port != 0 {
+		srv.Port = port
+	}
+
 	return &srv, nil
 }
 
