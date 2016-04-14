@@ -20,6 +20,8 @@ IMPROVEMENTS:
     total resources [GH-946]
   * client: `artifact` source can be interpreted [GH-1070]
   * client: Nomad fingerprinter to detect client's version [GH-965]
+  * client: Tasks can interpret Meta set in the task group and job [GH-985]
+  * client: All tasks in a task group are killed when a task fails [GH-962]
   * client: Pass environment variables from host to exec based tasks [GH-970]
   * client: Allow task's to be run as particular user [GH-950, GH-978]
   * client: `artifact` block now supports downloading paths relative to the
@@ -34,8 +36,6 @@ BUG FIXES:
   * core: Prevent garbage collection of running batch jobs [GH-989]
   * core: Fix drained, batched allocations from being migrated indefinitely
     [GH-1086]
-  * client: Tasks can interpret Meta set in the task group and job [GH-985]
-  * client: All tasks in a task group are killed when a task fails [GH-962]
   * client: Fix common exec failures on CentOS and Amazon Linux [GH-1009]
 
 ## 0.3.1 (Mars 16, 2016)
