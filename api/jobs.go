@@ -63,20 +63,6 @@ func (j *Jobs) Info(jobID string, q *QueryOptions) (*Job, *QueryMeta, error) {
 	return &resp, qm, nil
 }
 
-// RawJob is used to retrieve information about a particular
-// job given its unique ID and return the raw json.
-func (j *Jobs) RawJob(jobID string, q *QueryOptions) (string, *QueryMeta, error) {
-	if q == nil {
-		q = &QueryOptions{}
-	}
-	q.Pretty = true
-	raw, qm, err := j.client.rawQuery("/v1/job/"+jobID, q)
-	if err != nil {
-		return "", nil, err
-	}
-	return raw, qm, nil
-}
-
 // Allocations is used to return the allocs for a given job ID.
 func (j *Jobs) Allocations(jobID string, q *QueryOptions) ([]*AllocationListStub, *QueryMeta, error) {
 	var resp []*AllocationListStub

@@ -83,39 +83,6 @@ func TestJobs_Info(t *testing.T) {
 	}
 }
 
-func TestJobs_RawJob(t *testing.T) {
-	c, s := makeClient(t, nil, nil)
-	defer s.Stop()
-	jobs := c.Jobs()
-
-	// Trying to retrieve a job by ID before it exists
-	// returns an error
-	_, _, err := jobs.RawJob("job1", nil)
-	if err == nil || !strings.Contains(err.Error(), "not found") {
-		t.Fatalf("expected not found error, got: %#v", err)
-	}
-
-	// Register the job
-	job := testJob()
-	_, wm, err := jobs.Register(job, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	assertWriteMeta(t, wm)
-
-	// Query the job again and ensure it exists
-	result, qm, err := jobs.RawJob("job1", nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	assertQueryMeta(t, qm)
-
-	// Check that the result is what we expect
-	if result == "" || !strings.Contains(result, job.ID) {
-		t.Fatalf("expect: %#v, got: %#v", job, result)
-	}
-}
-
 func TestJobs_PrefixList(t *testing.T) {
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
