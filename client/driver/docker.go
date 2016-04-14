@@ -108,19 +108,18 @@ type dockerPID struct {
 }
 
 type DockerHandle struct {
-	pluginClient     *plugin.Client
-	executor         executor.Executor
-	client           *docker.Client
-	logger           *log.Logger
-	cleanupContainer bool
-	cleanupImage     bool
-	imageID          string
-	containerID      string
-	version          string
-	killTimeout      time.Duration
-	maxKillTimeout   time.Duration
-	waitCh           chan *cstructs.WaitResult
-	doneCh           chan struct{}
+	pluginClient   *plugin.Client
+	executor       executor.Executor
+	client         *docker.Client
+	logger         *log.Logger
+	cleanupImage   bool
+	imageID        string
+	containerID    string
+	version        string
+	killTimeout    time.Duration
+	maxKillTimeout time.Duration
+	waitCh         chan *cstructs.WaitResult
+	doneCh         chan struct{}
 }
 
 func NewDockerDriver(ctx *DriverContext) Driver {
@@ -617,7 +616,6 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 		return nil, err
 	}
 
-	cleanupContainer := d.config.ReadBoolDefault("docker.cleanup.container", true)
 	cleanupImage := d.config.ReadBoolDefault("docker.cleanup.image", true)
 
 	taskDir, ok := ctx.AllocDir.TaskDirs[d.DriverContext.taskName]
@@ -745,19 +743,18 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	// Return a driver handle
 	maxKill := d.DriverContext.config.MaxKillTimeout
 	h := &DockerHandle{
-		client:           client,
-		executor:         exec,
-		pluginClient:     pluginClient,
-		cleanupContainer: cleanupContainer,
-		cleanupImage:     cleanupImage,
-		logger:           d.logger,
-		imageID:          dockerImage.ID,
-		containerID:      container.ID,
-		version:          d.config.Version,
-		killTimeout:      GetKillTimeout(task.KillTimeout, maxKill),
-		maxKillTimeout:   maxKill,
-		doneCh:           make(chan struct{}),
-		waitCh:           make(chan *cstructs.WaitResult, 1),
+		client:         client,
+		executor:       exec,
+		pluginClient:   pluginClient,
+		cleanupImage:   cleanupImage,
+		logger:         d.logger,
+		imageID:        dockerImage.ID,
+		containerID:    container.ID,
+		version:        d.config.Version,
+		killTimeout:    GetKillTimeout(task.KillTimeout, maxKill),
+		maxKillTimeout: maxKill,
+		doneCh:         make(chan struct{}),
+		waitCh:         make(chan *cstructs.WaitResult, 1),
 	}
 	if err := exec.SyncServices(consulContext(d.config, container.ID)); err != nil {
 		d.logger.Printf("[ERR] driver.docker: error registering services with consul for task: %q: %v", task.Name, err)
@@ -767,7 +764,6 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 }
 
 func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {
-	cleanupContainer := d.config.ReadBoolDefault("docker.cleanup.container", true)
 	cleanupImage := d.config.ReadBoolDefault("docker.cleanup.image", true)
 
 	// Split the handle
@@ -942,7 +938,7 @@ func (h *DockerHandle) run() {
 	// Cleanup the image
 	if h.cleanupImage {
 		if err := h.client.RemoveImage(h.imageID); err != nil {
-			h.logger.Printf("[ERR] driver.docker: error removing image: %v", err)
+			h.logger.Printf("[DEBUG] driver.docker: error removing image: %v", err)
 		}
 	}
 }

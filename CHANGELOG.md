@@ -36,6 +36,7 @@ BUG FIXES:
   * core: Prevent garbage collection of running batch jobs [GH-989]
   * core: Fix drained, batched allocations from being migrated indefinitely
     [GH-1086]
+  * client: Garbage collect Docker containers on exit [GH-1071]
   * client: Fix common exec failures on CentOS and Amazon Linux [GH-1009]
 
 ## 0.3.1 (Mars 16, 2016)
