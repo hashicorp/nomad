@@ -113,11 +113,10 @@ group "database" {
 * `tags`: A list of tags associated with this Service. String interpolation is
   supported in tags.
 
-* `port`: The port indicates the port associated with the service. Users are
-  required to specify a valid port label here which they have defined in the
-  resources block. This could be a label to either a dynamic or a static port.
-  If an incorrect port label is specified, Nomad doesn't register the service
-  with Consul.
+* `port`: `port` is optional and is used to associate the port with the service.
+  If specified, the port label must match one defined in the resources block.
+  This could be a label to either a dynamic or a static port. If an incorrect
+  port label is specified, Nomad doesn't register the IP:Port with Consul.
 
 * `check`: A check block defines a health check associated with the service.
   Multiple check blocks are allowed for a service. Nomad supports the `script`,
