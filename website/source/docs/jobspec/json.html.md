@@ -9,127 +9,147 @@ description: |-
 # Job Specification
 
 Jobs can be specified either in [HCL](https://github.com/hashicorp/hcl) or JSON.
-This guide covers the json syntax for submitting jobs to Nomad. A useful command
+This guide covers the JSON syntax for submitting jobs to Nomad. A useful command
 for generating valid JSON versions of HCL jobs is `nomad run -output <job.nomad>`
 which will emit a JSON version of the job.
 
 ## JSON Syntax
 
-Below is an example of a json object that submits a `Periodic` job to Nomad:
+Below is an example of a JSON object that submits a `Periodic` job to Nomad:
 
 ```
 {
-"Job": {
-      "Datacenters": [
-        "dc1"
-      ],
-      "ID": "example1",
-      "AllAtOnce": false,
-      "Priority": 50,
-      "Type": "batch",
-      "Name": "example1",
-      "Region": "global",
-      "Constraints": [
-        {
-          "Operand": "=",
-          "RTarget": "linux",
-          "LTarget": "${attr.kernel.name}"
-        }
-      ],
-      "TaskGroups": [
-        {
-          "Meta": null,
-          "Tasks": [
+    "Job": {
+        "Region": "global",
+        "ID": "example",
+        "Name": "example",
+        "Type": "batch",
+        "Priority": 50,
+        "AllAtOnce": false,
+        "Datacenters": [
+            "dc1"
+        ],
+        "Constraints": [
             {
-              "LogConfig": {
-                "MaxFileSizeMB": 10,
-                "MaxFiles": 10
-              },
-              "KillTimeout": 5000000000,
-              "Name": "redis",
-              "Driver": "docker",
-              "Config": {
-                "Command": "/bin/date",
-                "port_map": [
-                  {
-                    "db": 6379
-                  }
-                ],
-                "image": "redis:latest"
-              },
-              "Env": {
-                  "foo": "bar"
-              },
-              "Services": [
-                {
-                  "Checks": [
-                    {
-                      "Timeout": 2000000000,
-                      "Interval": 10000000000,
-                      "Protocol": "",
-                      "Path": "",
-                      "Script": "",
-                      "Type": "tcp",
-                      "Name": "alive"
-                    }
-                  ],
-                  "PortLabel": "db",
-                  "Tags": [
-                    "global",
-                    "cache"
-                  ],
-                  "Name": "cache-redis"
-                }
-              ],
-              "Constraints": null,
-              "Resources": {
-                "Networks": [
-                  {
-                    "Mbits": 10,
-                    "DynamicPorts": [
-                      {
-                        "Value": 0,
-                        "Label": "db"
-                      }
-                    ]
-                  }
-                ],
-                "IOPS": 0,
-                "DiskMB": 300,
-                "MemoryMB": 256,
-                "CPU": 500
-              },
-              "Meta": {
-                  "foo": "bar",
-                  "baz": "pipe"
-              }
+                "LTarget": "${attr.kernel.name}",
+                "RTarget": "linux",
+                "Operand": "="
             }
-          ],
-          "RestartPolicy": {
-            "Mode": "delay",
-            "Delay": 25000000000,
-            "Interval": 300000000000,
-            "Attempts": 10
-          },
-          "Constraints": null,
-          "Count": 1,
-          "Name": "cache"
+        ],
+        "TaskGroups": [
+            {
+                "Name": "cache",
+                "Count": 1,
+                "Constraints": null,
+                "Tasks": [
+                    {
+                        "Name": "redis",
+                        "Driver": "docker",
+                        "User": "foo-user",
+                        "Config": {
+                            "image": "redis:latest",
+                            "port_map": [
+                                {
+                                    "db": 6379
+                                }
+                            ]
+                        },
+                        "Constraints": null,
+                        "Env": {
+                            "foo": "bar",
+                            "baz": "pipe"
+                        }
+                        "Services": [
+                            {
+                                "Name": "cache-redis",
+                                "Tags": [
+                                    "global",
+                                    "cache"
+                                ],
+                                "PortLabel": "db",
+                                "Checks": [
+                                    {
+                                        "Id": "",
+                                        "Name": "alive",
+                                        "Type": "tcp",
+                                        "Command": "",
+                                        "Args": null,
+                                        "Path": "",
+                                        "Protocol": "",
+                                        "Interval": 10000000000,
+                                        "Timeout": 2000000000
+                                    }
+                                ]
+                            }
+                        ],
+                        "Resources": {
+                            "CPU": 500,
+                            "MemoryMB": 256,
+                            "DiskMB": 300,
+                            "IOPS": 0,
+                            "Networks": [
+                                {
+                                    "ReservedPorts": [
+                                        {
+                                            "Label": "rpc",
+                                            "Value": 25566
+                                        }
+                                    ],
+                                    "DynamicPorts": [
+                                        {
+                                            "Label": "db",
+                                        }
+                                    ],
+                                    "MBits": 10
+                                }
+                            ]
+                        },
+                        "Meta": {
+                            "foo": "bar",
+                            "baz": "pipe"
+                        },
+                        "KillTimeout": 5000000000,
+                        "LogConfig": {
+                            "MaxFiles": 10,
+                            "MaxFileSizeMB": 10
+                        },
+                        "Artifacts": [
+                            {
+                                "GetterSource": "http://foo.com/artifact.tar.gz",
+                                "GetterOptions": {
+                                    "checksum": "md5:c4aa853ad2215426eb7d70a21922e794"
+                                },
+                                "RelativeDest": "local/"
+                            }
+                        ]
+                    }
+                ],
+                "RestartPolicy": {
+                    "Interval": 300000000000,
+                    "Attempts": 10,
+                    "Delay": 25000000000,
+                    "Mode": "delay"
+                },
+                "Meta": {
+                    "foo": "bar",
+                    "baz": "pipe"
+                }
+            }
+        ],
+        "Update": {
+            "Stagger": 10000000000,
+            "MaxParallel": 1
+        },
+        "Periodic": {
+            "Enabled": true,
+            "Spec": "* * * * *",
+            "SpecType": "cron",
+            "ProhibitOverlap": true
+        },
+        "Meta": {
+            "foo": "bar",
+            "baz": "pipe"
         }
-      ],
-      "Update": {
-        "MaxParallel": 1,
-        "Stagger": 10000000000
-      },
-      "Periodic": {
-          "Enabled": true,
-          "Spec": "* * * * *",
-          "SpecType": "cron",
-          "ProhibitOverlap": true
-      },
-      "Meta": {
-          "foo": "bar",
-          "baz": "pipe"
-      }
     }
 }
 ```
@@ -176,15 +196,14 @@ The `Job` object supports the following keys:
       the number of tasks that can be updated at the same time.
 
     * `Stagger` - `Stagger` introduces a delay between sets of task updates and
-      is given as an as a time duration. The value of stagger has to be in
-      nanoseconds.
+      is given in nanoseconds.
 
-    An example `update` block:
+    An example `Update` block:
 
     ```
     "Update": {
         "MaxParallel" : 3,
-        "Stagger" : 300000000
+        "Stagger" : 10000000000
     }
     ```
 
@@ -226,7 +245,7 @@ The `Job` object supports the following keys:
 attributes:
 
 * `Count` - Specifies the number of the task groups that should
-  be running. Must be positive, defaults to one.
+  be running. Must be non-negative, defaults to one.
 
 * `Constraints` - This is a list of `Constraint` objects. See the constraint
   reference for more details.
@@ -238,7 +257,7 @@ attributes:
 * `Tasks` - It's a list of `Task` object, allows adding tasks as
   part of the group.
 
-* `Meta` - Annotates the task group with opaque metadata.
+* `Meta` - A key/value map that annotates the task group with opaque metadata.
 
 ### Task
 
@@ -248,9 +267,11 @@ The `Task` object supports the following keys:
   task. See the [driver documentation](/docs/drivers/index.html) for what
   is available. Examples include `docker`, `qemu`, `java`, and `exec`.
 
+* `User` - Set the user that will run the task. It defaults to the same user
+  the Nomad client is being run as.
+
 * `Constraints` - This is a list of `Constraint` objects. See the constraint
   reference for more details.
-
 
 * `Config` - A map of key/value configuration passed into the driver
   to start the task. The details of configurations are specific to
@@ -289,6 +310,10 @@ The `Task` object supports the following keys:
 * `LogConfig` - This allows configuring log rotation for the `stdout` and `stderr`
   buffers of a Task. See the log rotation reference below for more details.
 
+* `Artifacts` - `Artifacts` is a list of `Artifact` objects which define
+  artifacts to be downloaded before the task is run. See the artifacts
+  reference for more details.
+
 ### Resources
 
 The `Resources` object supports the following keys:
@@ -308,7 +333,7 @@ The Network object supports the following keys:
 * `MBits` - The number of MBits in bandwidth required.
 
 Nomad can allocate two types of ports to a task - Dynamic and Static ports. A
-network object allows the user to specify a list of `DynamicPorts` orj
+network object allows the user to specify a list of `DynamicPorts` and
 `StaticPorts`. Each object supports the following attributes:
 
 * `Value` - The port number for static ports. If the port is dynamic, then this
@@ -320,19 +345,19 @@ network object allows the user to specify a list of `DynamicPorts` orj
 
 The `RestartPolicy` object supports the following keys:
 
-* `Attempts` - `attempts` is the number of restarts allowed in an `interval`.
+* `Attempts` - `Attempts` is the number of restarts allowed in an `Interval`.
 
-* `Interval` - `interval` is a time duration that can be specified using the
-  `s`, `m`, and `h` suffixes, such as `30s`.  The `interval` begins when the
-  first task starts and ensures that only `attempts` number of restarts happens
-  within it. If more than `attempts` number of failures happen, behavior is
-  controlled by `mode`.
+* `Interval` - `Interval` is a time duration that is specified in nanoseconds.
+  The `Interval` begins when the first task starts and ensures that only
+  `Attempts` number of restarts happens within it. If more than `Attempts`
+  number of failures happen, behavior is controlled by `Mode`.
 
 * `Delay` - A duration to wait before restarting a task. It is specified in
   nanoseconds. A random jitter of up to 25% is added to the delay.
 
-*   `Mode` - Controls the behavior when the task fails more than `Attempts`
-    times in an interval. Possible values are listed below:
+*   `Mode` - `Mode` is given as a string and controls the behavior when the task
+    fails more than `Attempts` times in an `Interval`. Possible values are listed
+    below:
 
     * `delay` - `delay` will delay the next restart until the next `Interval` is
       reached.
@@ -341,40 +366,32 @@ The `RestartPolicy` object supports the following keys:
 
 ### Constraint
 
-The Constraint object supports the following keys:
+The `Constraint` object supports the following keys:
 
-* `Attribute` - Specifies the attribute to examine for the
+* `LTarget` - Specifies the attribute to examine for the
   constraint. See the table of attributes [here](/docs/jobspec/interpreted.html#interpreted_node_vars).
 
-* `Operator` - Specifies the comparison operator. Defaults to equality,
-  and can be `=`, `==`, `is`, `!=`, `not`, `>`, `>=`, `<`, `<=`. The
-  ordering is compared lexically.
+* `RTarget` - Specifies the value to compare the attribute against.
+  This can be a literal value, another attribute or a regular expression if
+  the `Operator` is in "regexp" mode.
 
-* `Value` - Specifies the value to compare the attribute against.
-  This can be a literal value or another attribute.
+*   `Operator` - `Operator` if omitted defaults to `==` and an take on the
+    following values:
+  
+  * `regexp` - Allows the `RTarget` to be a regular expression to be matched.
 
-* `Version` - Specifies a version constraint against the attribute.
-  This sets the operator to `version` and the `value` to what is
-  specified. This supports a comma separated list of constraints,
-  including the pessimistic operator. See the
-  [go-version](https://github.com/hashicorp/go-version) repository
-  for examples.
+  * `distinct_host` - If set, the scheduler will not co-locate any task groups on the same
+        machine. This can be specified as a job constraint which applies the
+        constraint to all task groups in the job, or as a task group constraint which
+        scopes the effect to just that group.
 
-* `Regexp` - Specifies a regular expression constraint against
-  the attribute. This sets the operator to "regexp" and the `value`
-  to the regular expression.
+        Placing the constraint at both the job level and at the task group level is
+        redundant since when placed at the job level, the constraint will be applied
+        to all task groups. When specified, `LTarget` and `RTarget` should be
+        omitted.
 
-*   `DistinctHosts` - `DistinctHosts` accepts a boolean `true`. The default is
-    `false`.
-
-    When `DistinctHosts` is `true` at the Job level, each instance of all task
-    Groups specified in the job is placed on a separate host.
-
-    When `DistinctHosts` is `true` at the task group level with count > 1, each
-    instance of a task group is placed on a separate host. Different task groups in
-    the same job _may_ be co-scheduled.
-
-    Tasks within a task group are always co-scheduled.
+  * Comparison Operators - `=`, `==`, `is`, `!=`, `not`, `>`, `>=`, `<`, `<=`. The
+    ordering is compared lexically.
 
 ### Log Rotation
 
@@ -417,12 +434,12 @@ Nomad allows downloading `http`, `https`, and `S3` artifacts. If these artifacts
 are archives (zip, tar.gz, bz2, etc.), these will be unarchived before the task
 is started.
 
-The `Artifact` object maps supports the following keys:
+The `Artifact` object supports the following keys:
 
 * `GetterSource` - The path to the artifact to download.
 
-* `RelativeDest` - The destination to download the artifact relative the task's
-  directory.
+* `RelativeDest` - An optional path to download the artifact into relative to the
+  root of the task's directory. If omitted, it will default to `local/`.
 
 * `GetterOptions` - A `map[string]string` block of options for `go-getter`.
   Full documentation of supported options are available
@@ -439,3 +456,16 @@ The `Artifact` object maps supports the following keys:
 }
 ```
 
+An example of downloading and unzipping an archive is as simple as:
+
+```
+"Artifacts": {
+  # The archive will be extracted before the task is run, making
+  # it easy to ship configurations with your binary.
+  "GetterSource": "https://example.com/my.zip",
+
+  "GetterOptions": {
+    "checksum": "md5:7f4b3e3b4dd5150d4e5aaaa5efada4c3"
+  }
+}
+```
