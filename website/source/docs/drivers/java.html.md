@@ -44,7 +44,7 @@ task "web" {
   driver = "java"
 
   config {
-    jar_path = "hello.jar"
+    jar_path = "local/hello.jar"
     jvm_options = "-Xmx2048m -Xms256m"
   }
 

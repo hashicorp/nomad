@@ -49,7 +49,7 @@ task "virtual" {
   driver = "qemu"
 
   config {
-    image_path = "linux.img"
+    image_path = "local/linux.img"
     accelerator = "kvm"
   }
 
