@@ -816,19 +816,18 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 
 	// Return a driver handle
 	h := &DockerHandle{
-		client:           client,
-		executor:         exec,
-		pluginClient:     pluginClient,
-		cleanupContainer: cleanupContainer,
-		cleanupImage:     cleanupImage,
-		logger:           d.logger,
-		imageID:          pid.ImageID,
-		containerID:      pid.ContainerID,
-		version:          pid.Version,
-		killTimeout:      pid.KillTimeout,
-		maxKillTimeout:   pid.MaxKillTimeout,
-		doneCh:           make(chan struct{}),
-		waitCh:           make(chan *cstructs.WaitResult, 1),
+		client:         client,
+		executor:       exec,
+		pluginClient:   pluginClient,
+		cleanupImage:   cleanupImage,
+		logger:         d.logger,
+		imageID:        pid.ImageID,
+		containerID:    pid.ContainerID,
+		version:        pid.Version,
+		killTimeout:    pid.KillTimeout,
+		maxKillTimeout: pid.MaxKillTimeout,
+		doneCh:         make(chan struct{}),
+		waitCh:         make(chan *cstructs.WaitResult, 1),
 	}
 	if err := exec.SyncServices(consulContext(d.config, pid.ContainerID)); err != nil {
 		h.logger.Printf("[ERR] driver.docker: error registering services with consul: %v", err)
