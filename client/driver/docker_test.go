@@ -757,3 +757,51 @@ func TestDockerUser(t *testing.T) {
 		t.Fatalf("Expecting '%v' in '%v'", msg, err)
 	}
 }
+
+func TestDockerDriver_CleanupContainer(t *testing.T) {
+	t.Parallel()
+	task := &structs.Task{
+		Name: "redis-demo",
+		Config: map[string]interface{}{
+			"image":   "busybox",
+			"command": "/bin/echo",
+			"args":    []string{"hello"},
+		},
+		Resources: &structs.Resources{
+			MemoryMB: 256,
+			CPU:      512,
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
+	}
+
+	_, handle, cleanup := dockerSetup(t, task)
+	defer cleanup()
+
+	// Update should be a no-op
+	err := handle.Update(task)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	select {
+	case res := <-handle.WaitCh():
+		if !res.Successful() {
+			t.Fatalf("err: %v", res)
+		}
+
+		time.Sleep(3 * time.Second)
+
+		// Ensure that the container isn't present
+		_, err := client.InspectContainer(handle.(*DockerHandle).containerID)
+		if err == nil {
+			t.Fatalf("expected to not get container")
+		}
+
+	case <-time.After(time.Duration(tu.TestMultiplier()*5) * time.Second):
+		t.Fatalf("timeout")
+	}
+
+}
