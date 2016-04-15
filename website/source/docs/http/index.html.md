@@ -37,12 +37,12 @@ a specific agent and not the broader cluster used for administration.
 Certain endpoints support a feature called a "blocking query." A blocking query
 is used to wait for a potential change using long polling.
 
-Not all endpoints support blocking, but those that do are clearly designated in the
-documentation.  Any endpoint that supports blocking will also set the HTTP header
+Not all endpoints support blocking, but those that do are clearly designated in
+the documentation. Any endpoint that supports blocking will set the HTTP header
 `X-Nomad-Index`, a unique identifier representing the current state of the
-requested resource.  On subsequent requests for this resource, the client can set the `index`
-query string parameter to the value of `X-Nomad-Index`, indicating that the client wishes
-to wait for any changes subsequent to that index.
+requested resource. On subsequent requests for this resource, the client can set
+the `index` query string parameter to the value of `X-Nomad-Index`, indicating
+that the client wishes to wait for any changes subsequent to that index.
 
 In addition to `index`, endpoints that support blocking will also honor a `wait`
 parameter specifying a maximum duration for the blocking request. This is limited to
