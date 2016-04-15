@@ -11,7 +11,6 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	cgroupFs "github.com/opencontainers/runc/libcontainer/cgroups/fs"
-	"github.com/opencontainers/runc/libcontainer/cgroups/systemd"
 	cgroupConfig "github.com/opencontainers/runc/libcontainer/configs"
 
 	"github.com/hashicorp/nomad/client/allocdir"
@@ -219,10 +218,5 @@ func DestroyCgroup(groups *cgroupConfig.Cgroup, cgPaths map[string]string) error
 
 // getCgroupManager returns the correct libcontainer cgroup manager.
 func getCgroupManager(groups *cgroupConfig.Cgroup, paths map[string]string) cgroups.Manager {
-	var manager cgroups.Manager
-	manager = &cgroupFs.Manager{Cgroups: groups, Paths: paths}
-	if systemd.UseSystemd() {
-		manager = &systemd.Manager{Cgroups: groups, Paths: paths}
-	}
-	return manager
+	return &cgroupFs.Manager{Cgroups: groups, Paths: paths}
 }
