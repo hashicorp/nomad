@@ -20,6 +20,7 @@ IMPROVEMENTS:
   * cli: `node-status` display is less verbose by default and shows a node's
     total resources [GH-946]
   * client: `artifact` source can be interpreted [GH-1070]
+  * client: Add IP and Port environment variables [GH-1099]
   * client: Nomad fingerprinter to detect client's version [GH-965]
   * client: Tasks can interpret Meta set in the task group and job [GH-985]
   * client: All tasks in a task group are killed when a task fails [GH-962]
