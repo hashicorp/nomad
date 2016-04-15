@@ -53,15 +53,23 @@ environment variables.
     <td>The task's name</td>
   </tr>
   <tr>
-    <td>NOMAD_ADDR_\<label\></td>
+    <td>NOMAD_IP_"label"</td>
+    <td>The IP of the the port with the given label</td>
+  </tr>
+  <tr>
+    <td>NOMAD_PORT_"label"</td>
+    <td>The port value with the given label</td>
+  </tr>
+  <tr>
+    <td>NOMAD_ADDR_"label"</td>
     <td>The IP:Port pair of the the port with the given label</td>
   </tr>
   <tr>
-    <td>NOMAD_HOST_PORT_\<label\></td>
+    <td>NOMAD_HOST_PORT_"label"</td>
     <td>The host port for the given label if the port is port mapped</td>
   </tr>
   <tr>
-    <td>NOMAD_META_\<key\></td>
+    <td>NOMAD_META_"key"</td>
     <td>The metadata of the task</td>
   </tr>
 </table>
@@ -128,7 +136,7 @@ directories can be read through the following environment variables:
 The job specification also allows you to specify a `meta` block to supply arbitrary
 configuration to a task. This allows you to easily provide job-specific
 configuration even if you use the same executable unit in multiple jobs. These
-key-value pairs are passed through to the job as `NOMAD_META_{KEY}={value}`,
+key-value pairs are passed through to the job as `NOMAD_META_"key"={value}`,
 where `key` is UPPERCASED from the job specification.
 
 Currently there is no enforcement that the meta values be lowercase, but using

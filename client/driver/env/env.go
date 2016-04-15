@@ -41,8 +41,14 @@ const (
 
 	// AddrPrefix is the prefix for passing both dynamic and static port
 	// allocations to tasks.
-	// E.g. $NOMAD_IP_1=127.0.0.1:1 or $NOMAD_IP_http=127.0.0.1:80
+	// E.g$NOMAD_ADDR_http=127.0.0.1:80
 	AddrPrefix = "NOMAD_ADDR_"
+
+	// IpPrefix is the prefix for passing the IP of a port allocation to a task.
+	IpPrefix = "NOMAD_IP_"
+
+	// PortPrefix is the prefix for passing the port allocation to a task.
+	PortPrefix = "NOMAD_PORT_"
 
 	// HostPortPrefix is the prefix for passing the host port when a portmap is
 	// specified.
@@ -130,6 +136,8 @@ func (t *TaskEnvironment) Build() *TaskEnvironment {
 		for label, value := range network.MapLabelToValues(t.PortMap) {
 			IPPort := fmt.Sprintf("%s:%d", network.IP, value)
 			t.TaskEnv[fmt.Sprintf("%s%s", AddrPrefix, label)] = IPPort
+			t.TaskEnv[fmt.Sprintf("%s%s", IpPrefix, label)] = network.IP
+			t.TaskEnv[fmt.Sprintf("%s%s", PortPrefix, label)] = fmt.Sprintf("%d", value)
 
 			// Pass an explicit port mapping to the environment
 			if port, ok := t.PortMap[label]; ok {
