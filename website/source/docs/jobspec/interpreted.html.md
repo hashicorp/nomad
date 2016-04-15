@@ -88,12 +88,12 @@ driver.
     <td>linux-64bit</td>
   </tr>
   <tr>
-    <td>${attr.\<key\>}</td>
+    <td>${attr."key"}</td>
     <td>The attribute given by `key` on the client node.</td>
     <td>platform.aws.instance-type:r3.large</td>
   </tr>
   <tr>
-    <td>${meta.\<key\>}</td>
+    <td>${meta."key"}</td>
     <td>The metadata value given by `key` on the client node.</td>
     <td></td>
   </tr>
@@ -119,7 +119,7 @@ Below is a table documenting common node attributes:
     <td>Number of CPU cores on the client</td>
   </tr>
   <tr>
-    <td>driver.\<key\></td>
+    <td>driver."key"</td>
     <td>See the [task drivers](/docs/drivers/index.html) for attribute documentation</td>
   </tr>
   <tr>
@@ -200,7 +200,17 @@ a particular node and as such can not be used in constraints.
     <td>The task's name</td>
   </tr>
   <tr>
-    <td>${NOMAD_ADDR_"label"}></td>
+    <td>${NOMAD_IP_"label"}</td>
+    <td>The IP for the given port `label`. See
+    [here](/docs/jobspec/networking.html) for more information.</td>
+  </tr>
+  <tr>
+    <td>${NOMAD_PORT_"label"}</td>
+    <td>The port for the port `label`. See [here](/docs/jobspec/networking.html)
+    for more information.</td>
+  </tr>
+  <tr>
+    <td>${NOMAD_ADDR_"label"}</td>
     <td>The `ip:port` pair for the given port `label`. See
     [here](/docs/jobspec/networking.html) for more information.</td>
   </tr>

@@ -79,12 +79,13 @@ port `http`:
 port "http" {}
 ```
 
-When the task is started, it is passed an environment variable named
-`NOMAD_ADDR_http` which indicates a combination of the interface IP and port.
+When the task is started, it is passed the following environment variables:
 
-```
-NOMAD_ADDR_http=127.0.0.1:53423 ./start-command
-```
+* `NOMAD_IP_http` - The IP to bind on for the given port label.
+
+* `NOMAD_PORT_http` - The port value for the given port label.
+
+* `NOMAD_ADDR_http` - A combined `IP:Port` that can be used for convenience.
 
 ### Mapped Ports <a id="mapped_ports"></a>
 
