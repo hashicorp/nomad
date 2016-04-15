@@ -1527,6 +1527,10 @@ func (s *Service) Validate() error {
 	}
 
 	for _, c := range s.Checks {
+		if s.PortLabel == "" && (c.Type == ServiceCheckTCP || c.Type == ServiceCheckHTTP) {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("check %q is not valid since service %q doesn't have port", c.Name, s.Name))
+			continue
+		}
 		if err := c.Validate(); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 		}
