@@ -130,7 +130,9 @@ func (f *FileRotator) nextFile() error {
 		break
 	}
 	// Purge old files if we have more files than MaxFiles
-	if f.logFileIdx-f.oldestLogFileIdx >= f.MaxFiles {
+	f.closedLock.Lock()
+	defer f.closedLock.Unlock()
+	if f.logFileIdx-f.oldestLogFileIdx >= f.MaxFiles && !f.closed {
 		select {
 		case f.purgeCh <- struct{}{}:
 		default:
