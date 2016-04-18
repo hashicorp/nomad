@@ -145,13 +145,20 @@ nodes, unless otherwise specified:
     nodes.
 
 * `advertise`: Controls the advertise address for individual network services.
-  This can be used to advertise a different address to the peers of a server
-  node to support more complex network configurations such as NAT. This
+  This can be used to advertise a different address to the peers of a server or
+  a client node to support more complex network configurations such as NAT. This
   configuration is optional, and defaults to the bind address of the specific
-  network service if it is not provided. This configuration is only applicable
-  on server nodes. The value is a map of IP addresses and ports and supports
-  the following keys:
+  network service if it is not provided. The value is a map of IP addresses and
+  ports and supports the following keys:
   <br>
+  * `http`: The address to advertise for the HTTP interface. This should be
+    reachable by all the nodes from which end users are going to use the Nomad
+    CLI tools.
+    ```
+    advertise {
+       http = "1.2.3.4:4646"
+    }
+    ```
   * `rpc`: The address to advertise for the RPC interface. This address should
     be reachable by all of the agents in the cluster. For example:
     ```
