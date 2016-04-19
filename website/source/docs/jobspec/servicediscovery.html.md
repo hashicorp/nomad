@@ -78,7 +78,7 @@ group "database" {
             check {
                 type = "script"
                 name = "check_table"
-                cmd = "/usr/local/bin/check_mysql_table_status"
+                command = "/usr/local/bin/check_mysql_table_status"
                 args = ["--verbose"]
                 interval = "60s"
                 timeout = "5s"
@@ -127,8 +127,8 @@ group "database" {
 ### Check Syntax
 
 * `type`: This indicates the check types supported by Nomad. Valid options are
-  currently `http` and `tcp`. In the future Nomad will add support for more
-  Consul checks.
+  currently `http`, `tcp` and `script`. In the future Nomad will add support for
+  more Consul checks.
 
 * `interval`: This indicates the frequency of the health checks that Consul will
   perform.
