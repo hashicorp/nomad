@@ -247,16 +247,15 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 		reply.NodeModifyIndex = index
 	}
 
-	// Check if we should trigger evaluations
-	if args.Drain {
-		evalIDs, evalIndex, err := n.createNodeEvals(args.NodeID, index)
-		if err != nil {
-			n.srv.logger.Printf("[ERR] nomad.client: eval creation failed: %v", err)
-			return err
-		}
-		reply.EvalIDs = evalIDs
-		reply.EvalCreateIndex = evalIndex
+	// Always attempt to create Node evaluations because there may be a System
+	// job registered that should be evaluated.
+	evalIDs, evalIndex, err := n.createNodeEvals(args.NodeID, index)
+	if err != nil {
+		n.srv.logger.Printf("[ERR] nomad.client: eval creation failed: %v", err)
+		return err
 	}
+	reply.EvalIDs = evalIDs
+	reply.EvalCreateIndex = evalIndex
 
 	// Set the reply index
 	reply.Index = index
