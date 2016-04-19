@@ -275,6 +275,38 @@ func TestTask_Validate(t *testing.T) {
 	}
 }
 
+func TestTask_Validate_Services(t *testing.T) {
+	s := &Service{
+		Name:      "service-name",
+		PortLabel: "bar",
+		Checks: []*ServiceCheck{
+			{
+				Name: "check-name",
+				Type: ServiceCheckTCP,
+			},
+		},
+	}
+
+	task := &Task{
+		Name:   "web",
+		Driver: "docker",
+		Resources: &Resources{
+			CPU:      100,
+			DiskMB:   200,
+			MemoryMB: 100,
+			IOPS:     10,
+		},
+		Services: []*Service{s},
+	}
+	err := task.Validate()
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+	if !strings.Contains(err.Error(), "referenced by services service-name does not exist") {
+		t.Fatalf("err: %s", err)
+	}
+}
+
 func TestTask_Validate_LogConfig(t *testing.T) {
 	task := &Task{
 		LogConfig: DefaultLogConfig(),
@@ -518,7 +550,6 @@ func TestInvalidServiceCheck(t *testing.T) {
 		PortLabel: "bar",
 		Checks: []*ServiceCheck{
 			{
-
 				Name: "check-name",
 				Type: "lol",
 			},
