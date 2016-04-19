@@ -362,7 +362,13 @@ func (e *UniversalExecutor) Exit() error {
 	e.lre.Close()
 	e.lro.Close()
 
-	if e.command != nil && e.cmd.Process != nil {
+	// If the executor did not launch a process, return.
+	if e.command == nil {
+		return nil
+	}
+
+	// Prefer killing the process via cgroups.
+	if e.cmd.Process != nil && !e.command.ResourceLimits {
 		proc, err := os.FindProcess(e.cmd.Process.Pid)
 		if err != nil {
 			e.logger.Printf("[ERR] executor: can't find process with pid: %v, err: %v",
@@ -373,17 +379,18 @@ func (e *UniversalExecutor) Exit() error {
 		}
 	}
 
-	if e.command != nil && e.command.FSIsolation {
-		if err := e.removeChrootMounts(); err != nil {
-			merr.Errors = append(merr.Errors, err)
-		}
-	}
-	if e.command != nil && e.command.ResourceLimits {
+	if e.command.ResourceLimits {
 		e.cgLock.Lock()
 		if err := DestroyCgroup(e.groups, e.cgPaths, os.Getpid()); err != nil {
 			merr.Errors = append(merr.Errors, err)
 		}
 		e.cgLock.Unlock()
+	}
+
+	if e.command.FSIsolation {
+		if err := e.removeChrootMounts(); err != nil {
+			merr.Errors = append(merr.Errors, err)
+		}
 	}
 	return merr.ErrorOrNil()
 }
@@ -395,12 +402,15 @@ func (e *UniversalExecutor) ShutDown() error {
 	}
 	proc, err := os.FindProcess(e.cmd.Process.Pid)
 	if err != nil {
-		return fmt.Errorf("executor.shutdown error: %v", err)
+		return fmt.Errorf("executor.shutdown failed to find process: %v", err)
 	}
 	if runtime.GOOS == "windows" {
-		return proc.Kill()
+		if err := proc.Kill(); err != nil && err.Error() != finishedErr {
+			return err
+		}
+		return nil
 	}
-	if err = proc.Signal(os.Interrupt); err != nil {
+	if err = proc.Signal(os.Interrupt); err != nil && err.Error() != finishedErr {
 		return fmt.Errorf("executor.shutdown error: %v", err)
 	}
 	return nil

@@ -6,6 +6,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"syscall"
 
 	"github.com/hashicorp/go-multierror"
@@ -186,37 +187,11 @@ func (e *UniversalExecutor) removeChrootMounts() error {
 }
 
 // destroyCgroup kills all processes in the cgroup and removes the cgroup
-// configuration from the host.
+// configuration from the host. This function is idempotent.
 func DestroyCgroup(groups *cgroupConfig.Cgroup, cgPaths map[string]string, executorPid int) error {
-	merrs := new(multierror.Error)
+	mErrs := new(multierror.Error)
 	if groups == nil {
 		return fmt.Errorf("Can't destroy: cgroup configuration empty")
-	}
-	manager := getCgroupManager(groups, cgPaths)
-	if pids, perr := manager.GetAllPids(); perr == nil {
-		for _, pid := range pids {
-			// If the pid is the pid of the executor then we don't kill it, the
-			// executor is going to be killed by the driver once the Wait
-			// returns
-			if pid == executorPid {
-				continue
-			}
-
-			proc, err := os.FindProcess(pid)
-			if err != nil {
-				merrs.Errors = append(merrs.Errors, fmt.Errorf("error finding process %v: %v", pid, err))
-			} else {
-				if e := proc.Kill(); e != nil {
-					merrs.Errors = append(merrs.Errors, fmt.Errorf("error killing process %v: %v", pid, e))
-				}
-
-				// Don't capture the error because we expect this to fail for
-				// processes we didn't fork.
-				proc.Wait()
-			}
-		}
-	} else {
-		merrs.Errors = append(merrs.Errors, fmt.Errorf("error getting pids: %v", perr))
 	}
 
 	// Move the executor into the global cgroup so that the task specific
@@ -225,15 +200,63 @@ func DestroyCgroup(groups *cgroupConfig.Cgroup, cgPaths map[string]string, execu
 	nilGroup.Path = "/"
 	nilGroup.Resources = groups.Resources
 	nilManager := getCgroupManager(nilGroup, nil)
-	if err := nilManager.Apply(executorPid); err != nil {
-		multierror.Append(merrs, fmt.Errorf("failed to remove executor pid %d: %v", executorPid, err))
+	err := nilManager.Apply(executorPid)
+	if err != nil && !strings.Contains(err.Error(), "no such process") {
+		return fmt.Errorf("failed to remove executor pid %d: %v", executorPid, err)
+	}
+
+	// Freeze the Cgroup so that it can not continue to fork/exec.
+	manager := getCgroupManager(groups, cgPaths)
+	err = manager.Freeze(cgroupConfig.Frozen)
+	if err != nil && !strings.Contains(err.Error(), "no such file or directory") {
+		return fmt.Errorf("failed to freeze cgroup: %v", err)
+	}
+
+	var procs []*os.Process
+	pids, err := manager.GetAllPids()
+	if err != nil {
+		multierror.Append(mErrs, fmt.Errorf("error getting pids: %v", err))
+
+		// Unfreeze the cgroup.
+		err = manager.Freeze(cgroupConfig.Thawed)
+		if err != nil && !strings.Contains(err.Error(), "no such file or directory") {
+			multierror.Append(mErrs, fmt.Errorf("failed to unfreeze cgroup: %v", err))
+		}
+		return mErrs.ErrorOrNil()
+	}
+
+	// Kill the processes in the cgroup
+	for _, pid := range pids {
+		proc, err := os.FindProcess(pid)
+		if err != nil {
+			multierror.Append(mErrs, fmt.Errorf("error finding process %v: %v", pid, err))
+			continue
+		}
+
+		procs = append(procs, proc)
+		if e := proc.Kill(); e != nil {
+			multierror.Append(mErrs, fmt.Errorf("error killing process %v: %v", pid, e))
+		}
+	}
+
+	// Unfreeze the cgroug so we can wait.
+	err = manager.Freeze(cgroupConfig.Thawed)
+	if err != nil && !strings.Contains(err.Error(), "no such file or directory") {
+		multierror.Append(mErrs, fmt.Errorf("failed to unfreeze cgroup: %v", err))
+	}
+
+	// Wait on the killed processes to ensure they are cleaned up.
+	for _, proc := range procs {
+		// Don't capture the error because we expect this to fail for
+		// processes we didn't fork.
+		proc.Wait()
 	}
 
 	// Remove the cgroup.
 	if err := manager.Destroy(); err != nil {
-		multierror.Append(merrs, fmt.Errorf("failed to delete the cgroup directories: %v", err))
+		multierror.Append(mErrs, fmt.Errorf("failed to delete the cgroup directories: %v", err))
 	}
-	return merrs.ErrorOrNil()
+	return mErrs.ErrorOrNil()
 }
 
 // getCgroupManager returns the correct libcontainer cgroup manager.
