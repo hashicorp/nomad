@@ -239,11 +239,15 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext
 	e.cmd.Args = append([]string{path}, ctx.TaskEnv.ParseAndReplace(command.Args)...)
 	e.cmd.Env = ctx.TaskEnv.EnvList()
 
-	// Start the process
-	if err := e.cmd.Start(); err != nil {
+	// Apply ourselves into the cgroup. The executor MUST be in the cgroup
+	// before the user task is started, otherwise we are subject to a fork
+	// attack in which a process escapes isolation by immediately forking.
+	if err := e.applyLimits(os.Getpid()); err != nil {
 		return nil, err
 	}
-	if err := e.applyLimits(e.cmd.Process.Pid); err != nil {
+
+	// Start the process
+	if err := e.cmd.Start(); err != nil {
 		return nil, err
 	}
 	go e.wait()
@@ -376,7 +380,7 @@ func (e *UniversalExecutor) Exit() error {
 	}
 	if e.command != nil && e.command.ResourceLimits {
 		e.cgLock.Lock()
-		if err := DestroyCgroup(e.groups, e.cgPaths); err != nil {
+		if err := DestroyCgroup(e.groups, e.cgPaths, os.Getpid()); err != nil {
 			merr.Errors = append(merr.Errors, err)
 		}
 		e.cgLock.Unlock()

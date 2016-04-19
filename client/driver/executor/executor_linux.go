@@ -67,7 +67,7 @@ func (e *UniversalExecutor) applyLimits(pid int) error {
 	cgConfig := cgroupConfig.Config{Cgroups: e.groups}
 	if err := manager.Set(&cgConfig); err != nil {
 		e.logger.Printf("[ERR] executor: error setting cgroup config: %v", err)
-		if er := DestroyCgroup(e.groups, e.cgPaths); er != nil {
+		if er := DestroyCgroup(e.groups, e.cgPaths, os.Getpid()); er != nil {
 			e.logger.Printf("[ERR] executor: error destroying cgroup: %v", er)
 		}
 		if er := e.removeChrootMounts(); er != nil {
@@ -187,15 +187,21 @@ func (e *UniversalExecutor) removeChrootMounts() error {
 
 // destroyCgroup kills all processes in the cgroup and removes the cgroup
 // configuration from the host.
-func DestroyCgroup(groups *cgroupConfig.Cgroup, cgPaths map[string]string) error {
+func DestroyCgroup(groups *cgroupConfig.Cgroup, cgPaths map[string]string, executorPid int) error {
 	merrs := new(multierror.Error)
 	if groups == nil {
 		return fmt.Errorf("Can't destroy: cgroup configuration empty")
 	}
-
 	manager := getCgroupManager(groups, cgPaths)
-	if pids, perr := manager.GetPids(); perr == nil {
+	if pids, perr := manager.GetAllPids(); perr == nil {
 		for _, pid := range pids {
+			// If the pid is the pid of the executor then we don't kill it, the
+			// executor is going to be killed by the driver once the Wait
+			// returns
+			if pid == executorPid {
+				continue
+			}
+
 			proc, err := os.FindProcess(pid)
 			if err != nil {
 				merrs.Errors = append(merrs.Errors, fmt.Errorf("error finding process %v: %v", pid, err))
@@ -203,15 +209,29 @@ func DestroyCgroup(groups *cgroupConfig.Cgroup, cgPaths map[string]string) error
 				if e := proc.Kill(); e != nil {
 					merrs.Errors = append(merrs.Errors, fmt.Errorf("error killing process %v: %v", pid, e))
 				}
+
+				// Don't capture the error because we expect this to fail for
+				// processes we didn't fork.
+				proc.Wait()
 			}
 		}
 	} else {
 		merrs.Errors = append(merrs.Errors, fmt.Errorf("error getting pids: %v", perr))
 	}
 
+	// Move the executor into the global cgroup so that the task specific
+	// cgroup can be destroyed.
+	nilGroup := &cgroupConfig.Cgroup{}
+	nilGroup.Path = "/"
+	nilGroup.Resources = groups.Resources
+	nilManager := getCgroupManager(nilGroup, nil)
+	if err := nilManager.Apply(executorPid); err != nil {
+		multierror.Append(merrs, fmt.Errorf("failed to remove executor pid %d: %v", executorPid, err))
+	}
+
 	// Remove the cgroup.
 	if err := manager.Destroy(); err != nil {
-		multierror.Append(merrs, fmt.Errorf("Failed to delete the cgroup directories: %v", err))
+		multierror.Append(merrs, fmt.Errorf("failed to delete the cgroup directories: %v", err))
 	}
 	return merrs.ErrorOrNil()
 }
