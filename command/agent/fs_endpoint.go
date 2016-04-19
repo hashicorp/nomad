@@ -119,7 +119,7 @@ func (s *HTTPServer) FileCatRequest(resp http.ResponseWriter, req *http.Request)
 		return nil, err
 	}
 	if fileInfo.IsDir {
-		return nil, fmt.Errorf("file %q is a directory")
+		return nil, fmt.Errorf("file %q is a directory", path)
 	}
 
 	r, err := fs.ReadAt(path, int64(0), fileInfo.Size)
