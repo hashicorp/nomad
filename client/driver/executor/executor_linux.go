@@ -6,6 +6,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"syscall"
 
 	"github.com/hashicorp/go-multierror"
@@ -67,7 +68,7 @@ func (e *UniversalExecutor) applyLimits(pid int) error {
 	cgConfig := cgroupConfig.Config{Cgroups: e.groups}
 	if err := manager.Set(&cgConfig); err != nil {
 		e.logger.Printf("[ERR] executor: error setting cgroup config: %v", err)
-		if er := DestroyCgroup(e.groups, e.cgPaths); er != nil {
+		if er := DestroyCgroup(e.groups, e.cgPaths, os.Getpid()); er != nil {
 			e.logger.Printf("[ERR] executor: error destroying cgroup: %v", er)
 		}
 		if er := e.removeChrootMounts(); er != nil {
@@ -186,34 +187,76 @@ func (e *UniversalExecutor) removeChrootMounts() error {
 }
 
 // destroyCgroup kills all processes in the cgroup and removes the cgroup
-// configuration from the host.
-func DestroyCgroup(groups *cgroupConfig.Cgroup, cgPaths map[string]string) error {
-	merrs := new(multierror.Error)
+// configuration from the host. This function is idempotent.
+func DestroyCgroup(groups *cgroupConfig.Cgroup, cgPaths map[string]string, executorPid int) error {
+	mErrs := new(multierror.Error)
 	if groups == nil {
 		return fmt.Errorf("Can't destroy: cgroup configuration empty")
 	}
 
+	// Move the executor into the global cgroup so that the task specific
+	// cgroup can be destroyed.
+	nilGroup := &cgroupConfig.Cgroup{}
+	nilGroup.Path = "/"
+	nilGroup.Resources = groups.Resources
+	nilManager := getCgroupManager(nilGroup, nil)
+	err := nilManager.Apply(executorPid)
+	if err != nil && !strings.Contains(err.Error(), "no such process") {
+		return fmt.Errorf("failed to remove executor pid %d: %v", executorPid, err)
+	}
+
+	// Freeze the Cgroup so that it can not continue to fork/exec.
 	manager := getCgroupManager(groups, cgPaths)
-	if pids, perr := manager.GetPids(); perr == nil {
-		for _, pid := range pids {
-			proc, err := os.FindProcess(pid)
-			if err != nil {
-				merrs.Errors = append(merrs.Errors, fmt.Errorf("error finding process %v: %v", pid, err))
-			} else {
-				if e := proc.Kill(); e != nil {
-					merrs.Errors = append(merrs.Errors, fmt.Errorf("error killing process %v: %v", pid, e))
-				}
-			}
+	err = manager.Freeze(cgroupConfig.Frozen)
+	if err != nil && !strings.Contains(err.Error(), "no such file or directory") {
+		return fmt.Errorf("failed to freeze cgroup: %v", err)
+	}
+
+	var procs []*os.Process
+	pids, err := manager.GetAllPids()
+	if err != nil {
+		multierror.Append(mErrs, fmt.Errorf("error getting pids: %v", err))
+
+		// Unfreeze the cgroup.
+		err = manager.Freeze(cgroupConfig.Thawed)
+		if err != nil && !strings.Contains(err.Error(), "no such file or directory") {
+			multierror.Append(mErrs, fmt.Errorf("failed to unfreeze cgroup: %v", err))
 		}
-	} else {
-		merrs.Errors = append(merrs.Errors, fmt.Errorf("error getting pids: %v", perr))
+		return mErrs.ErrorOrNil()
+	}
+
+	// Kill the processes in the cgroup
+	for _, pid := range pids {
+		proc, err := os.FindProcess(pid)
+		if err != nil {
+			multierror.Append(mErrs, fmt.Errorf("error finding process %v: %v", pid, err))
+			continue
+		}
+
+		procs = append(procs, proc)
+		if e := proc.Kill(); e != nil {
+			multierror.Append(mErrs, fmt.Errorf("error killing process %v: %v", pid, e))
+		}
+	}
+
+	// Unfreeze the cgroug so we can wait.
+	err = manager.Freeze(cgroupConfig.Thawed)
+	if err != nil && !strings.Contains(err.Error(), "no such file or directory") {
+		multierror.Append(mErrs, fmt.Errorf("failed to unfreeze cgroup: %v", err))
+	}
+
+	// Wait on the killed processes to ensure they are cleaned up.
+	for _, proc := range procs {
+		// Don't capture the error because we expect this to fail for
+		// processes we didn't fork.
+		proc.Wait()
 	}
 
 	// Remove the cgroup.
 	if err := manager.Destroy(); err != nil {
-		multierror.Append(merrs, fmt.Errorf("Failed to delete the cgroup directories: %v", err))
+		multierror.Append(mErrs, fmt.Errorf("failed to delete the cgroup directories: %v", err))
 	}
-	return merrs.ErrorOrNil()
+	return mErrs.ErrorOrNil()
 }
 
 // getCgroupManager returns the correct libcontainer cgroup manager.

@@ -8,7 +8,7 @@ func (e *UniversalExecutor) configureChroot() error {
 	return nil
 }
 
-func DestroyCgroup(groups *cgroupConfig.Cgroup, paths map[string]string) error {
+func DestroyCgroup(groups *cgroupConfig.Cgroup, paths map[string]string, executorPid int) error {
 	return nil
 }
 
