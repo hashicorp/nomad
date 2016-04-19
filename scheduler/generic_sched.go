@@ -311,9 +311,11 @@ func (s *GenericScheduler) computeJobAllocs() error {
 		if err != nil {
 			return fmt.Errorf("failed to get allocs for job '%s': %v", s.eval.JobID, err)
 		}
-		s.logger.Printf("[DEBUG] sched: AllocsByJob(%q) returned: %#v", s.eval.JobID, spew.Sdump(jobAllocs))
-		s.logger.Printf("[DEBUG] sched: filterCompleteAllocs(): %#v", spew.Sdump(allocs))
-		s.logger.Printf("[DEBUG] sched: taintedNodes(): %#v", spew.Sdump(tainted))
+		s.logger.Printf("[DEBUG] sched: job: %s", spew.Sdump(s.job))
+		s.logger.Printf("[DEBUG] sched: materializeTaskGroups() returned: %s", spew.Sdump(groups))
+		s.logger.Printf("[DEBUG] sched: AllocsByJob(%q) returned: %s", s.eval.JobID, spew.Sdump(jobAllocs))
+		s.logger.Printf("[DEBUG] sched: filterCompleteAllocs(): %s", spew.Sdump(allocs))
+		s.logger.Printf("[DEBUG] sched: taintedNodes(): %s", spew.Sdump(tainted))
 	}
 
 	// Add all the allocs to stop
