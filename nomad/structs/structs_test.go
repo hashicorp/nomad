@@ -275,6 +275,38 @@ func TestTask_Validate(t *testing.T) {
 	}
 }
 
+func TestTask_Validate_Services(t *testing.T) {
+	s := &Service{
+		Name:      "service-name",
+		PortLabel: "bar",
+		Checks: []*ServiceCheck{
+			{
+				Name: "check-name",
+				Type: ServiceCheckTCP,
+			},
+		},
+	}
+
+	task := &Task{
+		Name:   "web",
+		Driver: "docker",
+		Resources: &Resources{
+			CPU:      100,
+			DiskMB:   200,
+			MemoryMB: 100,
+			IOPS:     10,
+		},
+		Services: []*Service{s},
+	}
+	err := task.Validate()
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+	if !strings.Contains(err.Error(), "referenced by services service-name does not exist") {
+		t.Fatalf("err: %s", err)
+	}
+}
+
 func TestTask_Validate_LogConfig(t *testing.T) {
 	task := &Task{
 		LogConfig: DefaultLogConfig(),
@@ -518,7 +550,6 @@ func TestInvalidServiceCheck(t *testing.T) {
 		PortLabel: "bar",
 		Checks: []*ServiceCheck{
 			{
-
 				Name: "check-name",
 				Type: "lol",
 			},
@@ -550,6 +581,44 @@ func TestInvalidServiceCheck(t *testing.T) {
 	}
 	if err := s.Validate(); err == nil {
 		t.Fatalf("Service should be invalid (too long): %v", err)
+	}
+
+	s = Service{
+		Name: "service-name",
+		Checks: []*ServiceCheck{
+			{
+				Name:     "check-tcp",
+				Type:     ServiceCheckTCP,
+				Interval: 5 * time.Second,
+				Timeout:  2 * time.Second,
+			},
+			{
+				Name:     "check-http",
+				Type:     ServiceCheckHTTP,
+				Path:     "/foo",
+				Interval: 5 * time.Second,
+				Timeout:  2 * time.Second,
+			},
+		},
+	}
+	if err := s.Validate(); err == nil {
+		t.Fatalf("service should be invalid (tcp/http checks with no port): %v", err)
+	}
+
+	s = Service{
+		Name: "service-name",
+		Checks: []*ServiceCheck{
+			{
+				Name:     "check-script",
+				Type:     ServiceCheckScript,
+				Command:  "/bin/date",
+				Interval: 5 * time.Second,
+				Timeout:  2 * time.Second,
+			},
+		},
+	}
+	if err := s.Validate(); err != nil {
+		t.Fatalf("un-expected error: %v", err)
 	}
 }
 

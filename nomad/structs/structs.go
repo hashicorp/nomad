@@ -1446,6 +1446,16 @@ func (sc *ServiceCheck) Validate() error {
 	return nil
 }
 
+// RequiresPort returns whether the service check requires the task has a port.
+func (sc *ServiceCheck) RequiresPort() bool {
+	switch sc.Type {
+	case ServiceCheckHTTP, ServiceCheckTCP:
+		return true
+	default:
+		return false
+	}
+}
+
 func (sc *ServiceCheck) Hash(serviceID string) string {
 	h := sha1.New()
 	io.WriteString(h, serviceID)
@@ -1527,6 +1537,10 @@ func (s *Service) Validate() error {
 	}
 
 	for _, c := range s.Checks {
+		if s.PortLabel == "" && c.RequiresPort() {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("check %q is not valid since service %q doesn't have port", c.Name, s.Name))
+			continue
+		}
 		if err := c.Validate(); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 		}
@@ -1722,10 +1736,9 @@ func (t *Task) Validate() error {
 		}
 	}
 
-	for _, service := range t.Services {
-		if err := service.Validate(); err != nil {
-			mErr.Errors = append(mErr.Errors, err)
-		}
+	// Validate Services
+	if err := validateServices(t); err != nil {
+		mErr.Errors = append(mErr.Errors, err)
 	}
 
 	if t.LogConfig != nil && t.Resources != nil {
@@ -1751,6 +1764,47 @@ func (t *Task) Validate() error {
 		mErr.Errors = append(mErr.Errors, err)
 	}
 
+	return mErr.ErrorOrNil()
+}
+
+// validateServices takes a task and validates the services within it are valid
+// and reference ports that exist.
+func validateServices(t *Task) error {
+	var mErr multierror.Error
+
+	// Ensure that services don't ask for non-existent ports.
+	servicePorts := make(map[string][]string)
+	for i, service := range t.Services {
+		if err := service.Validate(); err != nil {
+			outer := fmt.Errorf("service %d validation failed: %s", i, err)
+			mErr.Errors = append(mErr.Errors, outer)
+		}
+
+		if service.PortLabel != "" {
+			servicePorts[service.PortLabel] = append(servicePorts[service.PortLabel], service.Name)
+		}
+	}
+
+	// Get the set of port labels.
+	portLabels := make(map[string]struct{})
+	if t.Resources != nil {
+		for _, network := range t.Resources.Networks {
+			ports := network.MapLabelToValues(nil)
+			for portLabel, _ := range ports {
+				portLabels[portLabel] = struct{}{}
+			}
+		}
+	}
+
+	// Ensure all ports referenced in services exist.
+	for servicePort, services := range servicePorts {
+		_, ok := portLabels[servicePort]
+		if !ok {
+			joined := strings.Join(services, ", ")
+			err := fmt.Errorf("port label %q referenced by services %v does not exist", servicePort, joined)
+			mErr.Errors = append(mErr.Errors, err)
+		}
+	}
 	return mErr.ErrorOrNil()
 }
 
