@@ -38,6 +38,7 @@ BUG FIXES:
   * core: Fix issue where in-place updated allocation double counted resources
     [GH-957]
   * core: Prevent garbage collection of running batch jobs [GH-989]
+  * core: Trigger System scheduler when Node drain is disabled [GH-1106]
   * core: Fix drained, batched allocations from being migrated indefinitely
     [GH-1086]
   * client: Garbage collect Docker containers on exit [GH-1071]
