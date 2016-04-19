@@ -342,7 +342,10 @@ func (e *UniversalExecutor) wait() {
 				exitCode = 128 + signal
 			}
 		}
+	} else {
+		e.logger.Printf("[DEBUG] executor: unexpected Wait() error type: %v", err)
 	}
+
 	e.exitState = &ProcessState{Pid: 0, ExitCode: exitCode, Signal: signal, IsolationConfig: ic, Time: time.Now()}
 }
 
