@@ -32,6 +32,7 @@ IMPROVEMENTS:
   * discovery: Allowing registration of services which don't expose ports
     [GH-1092]
   * driver/docker: Support for `tty` and `interactive` options [GH-1059]
+  * jobspec: Improved validation of services referencing port labels [GH-1097]
   * periodic: Periodic jobs are always evaluated in UTC timezone [GH-1074]
 
 BUG FIXES:
