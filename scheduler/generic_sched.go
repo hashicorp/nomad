@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -294,6 +295,27 @@ func (s *GenericScheduler) computeJobAllocs() error {
 	// Diff the required and existing allocations
 	diff := diffAllocs(s.job, tainted, groups, allocs)
 	s.logger.Printf("[DEBUG] sched: %#v: %#v", s.eval, diff)
+
+	// XXX: For debugging purposes only. An issue was observed where a job had a
+	// task group with count > 0 that produced a diff where no action would be
+	// taken (every slice was empty). Below we dump debug information if this
+	// condition is hit.
+	diffSum := len(diff.stop) + len(diff.place) + len(diff.ignore) +
+		len(diff.update) + len(diff.migrate)
+	if diffSum == 0 && len(groups) != 0 {
+		s.logger.Printf("[ERR] sched: %d tasks to schedule but scheduler believes there is no work", len(groups))
+
+		// Get the original set of allocations for the job.
+		jobAllocs, err := s.state.AllocsByJob(s.eval.JobID)
+		if err != nil {
+			return fmt.Errorf("failed to get allocs for job '%s': %v", s.eval.JobID, err)
+		}
+		s.logger.Printf("[DEBUG] sched: job: %s", spew.Sdump(s.job))
+		s.logger.Printf("[DEBUG] sched: materializeTaskGroups() returned: %s", spew.Sdump(groups))
+		s.logger.Printf("[DEBUG] sched: AllocsByJob(%q) returned: %s", s.eval.JobID, spew.Sdump(jobAllocs))
+		s.logger.Printf("[DEBUG] sched: filterCompleteAllocs(): %s", spew.Sdump(allocs))
+		s.logger.Printf("[DEBUG] sched: taintedNodes(): %s", spew.Sdump(tainted))
+	}
 
 	// Add all the allocs to stop
 	for _, e := range diff.stop {
