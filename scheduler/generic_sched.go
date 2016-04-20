@@ -300,10 +300,9 @@ func (s *GenericScheduler) computeJobAllocs() error {
 	// task group with count > 0 that produced a diff where no action would be
 	// taken (every slice was empty). Below we dump debug information if this
 	// condition is hit.
-	//diffSum := len(diff.stop) + len(diff.place) + len(diff.ignore) +
-	//len(diff.update) + len(diff.migrate)
-	//if diffSum == 0 && len(groups) != 0 {
-	if true {
+	diffSum := len(diff.stop) + len(diff.place) + len(diff.ignore) +
+		len(diff.update) + len(diff.migrate)
+	if diffSum == 0 && len(groups) != 0 {
 		s.logger.Printf("[ERR] sched: %d tasks to schedule but scheduler believes there is no work", len(groups))
 
 		// Get the original set of allocations for the job.
