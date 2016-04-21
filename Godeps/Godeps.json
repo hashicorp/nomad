@@ -339,11 +339,11 @@
 		},
 		{
 			"ImportPath": "github.com/hashicorp/go-getter",
-			"Rev": "ef5edd3d8f6f482b775199be2f3734fd20e04d4a"
+			"Rev": "3142ddc1d627a166970ddd301bc09cb510c74edc"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/go-getter/helper/url",
-			"Rev": "ef5edd3d8f6f482b775199be2f3734fd20e04d4a"
+			"Rev": "3142ddc1d627a166970ddd301bc09cb510c74edc"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/go-immutable-radix",
