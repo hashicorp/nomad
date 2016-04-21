@@ -34,4 +34,4 @@ Nomad makes use of both a [consensus protocol](/docs/internals/consensus.html) a
 a [gossip protocol](/docs/internals/gossip.html). The consensus protocol is strongly
 consistent, and is used for all state replication and scheduling. The gossip protocol
 is used to manage the addresses of servers for automatic clustering and multi-region
-federation. This means all data that managed by Nomad is strongly consistent.
+federation. This means all data that is managed by Nomad is strongly consistent.
