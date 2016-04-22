@@ -45,6 +45,8 @@ BUG FIXES:
   * client: Garbage collect Docker containers on exit [GH-1071]
   * client: Fix common exec failures on CentOS and Amazon Linux [GH-1009]
   * client: Fix S3 artifact downloading with IAM credentials [GH-1113]
+  * client: Fix handling of environment variables containing multiple equal
+    signs [GH-1115]
 
 ## 0.3.1 (Mars 16, 2016)
 
