@@ -283,6 +283,60 @@ The `Task` object supports the following keys:
   task transitions to the dead state. [Click
   here](/docs/jobspec/servicediscovery.html) to learn more about services.
 
+     * `Name`: Nomad automatically determines the name of a Task. By default the
+       name of a service is `$(job-name)-$(task-group)-$(task-name)`. Users can
+       explicitly name the service by specifying this option. If multiple
+       services are defined for a Task then only one task can have the default
+       name, all the services have to be explicitly named.  Users can add the
+       following to the service names: `${JOB}`, `${TASKGROUP}`, `${TASK}`,
+       `${BASE}`.  Nomad will replace them with the appropriate value of the
+       Job, Task Group, and Task names while registering the Job. `${BASE}`
+       expands to `${JOB}-${TASKGROUP}-${TASK}`.  Names must be adhere to
+       [RFC-1123 §2.1](https://tools.ietf.org/html/rfc1123#section-2) and are
+       limited to alphanumeric and hyphen characters (i.e. `[a-z0-9\-]`), and be
+       less than 64 characters in length.
+
+     * `Tags`: A list of tags associated with this Service. String interpolation
+       is supported in tags.
+
+     * `PortLabel`: `PortLabel` is optional and is used to associate the port
+       with the service.  If specified, the port label must match one defined in
+       the resources block.  This could be a label to either a dynamic or a
+       static port. If an incorrect port label is specified, Nomad doesn't
+       register the IP:Port with Consul.
+
+     * `Checks`: `Checks` is an array of check objects.A check object defines a
+       health check associated with the service. Nomad supports the `script`,
+       `http` and `tcp` Consul Checks. Script checks are not supported for the
+       qemu driver since the Nomad client doesn't have access to the file system
+       of a tasks using the Qemu driver.
+
+         * `Type`:  This indicates the check types supported by Nomad. Valid
+           options are currently `script`, `http` and `tcp`.
+
+         * `Name`: The name of the health check.
+
+         * `Interval`: This indicates the frequency of the health checks that
+           Consul will perform.
+
+         * `Timeout`: This indicates how long Consul will wait for a health
+           check query to succeed.
+
+         * `Path`:The path of the http endpoint which Consul will query to query
+           the health of a service if the type of the check is `http`. Nomad
+           will add the IP of the service and the port, users are only required
+           to add the relative URL of the health check endpoint.
+
+         * `Protocol`: This indicates the protocol for the http checks. Valid
+           options are `http` and `https`. We default it to `http`
+
+         * `Command`: This is the command that the Nomad client runs for doing
+           script based health check.
+
+         * `Args`: Additional arguments to the `command` for script based health
+           checks.
+
+
 *   `Env` - A map of key/value representing environment variables that
     will be passed along to the running process. Nomad variables are
     interpreted when set in the environment variable values. See the table of

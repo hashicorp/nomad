@@ -127,8 +127,9 @@ group "database" {
 ### Check Syntax
 
 * `type`: This indicates the check types supported by Nomad. Valid options are
-  currently `http`, `tcp` and `script`. In the future Nomad will add support for
-  more Consul checks.
+  currently `script`, `http` and `tcp`.
+
+* `name`: The name of the health check.
 
 * `interval`: This indicates the frequency of the health checks that Consul will
   perform.
