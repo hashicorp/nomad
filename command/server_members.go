@@ -74,7 +74,7 @@ func (c *ServerMembersCommand) Run(args []string) int {
 
 	// Determine the leaders per region.
 	leaders, err := regionLeaders(client, mem)
-	if err != nil && !strings.Contains(err.Error(), "No cluster leader") {
+	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error determining leaders: %s", err))
 		return 1
 	}
@@ -160,8 +160,13 @@ func regionLeaders(client *api.Client, mem []*api.AgentMember) (map[string]strin
 	for reg := range regions {
 		l, err := status.RegionLeader(reg)
 		if err != nil {
-			return leaders, err
+			// This error means that region has no leader.
+			if strings.Contains(err.Error(), "No cluster leader") {
+				continue
+			}
+			return nil, err
 		}
+
 		leaders[reg] = l
 	}
 
