@@ -1,4 +1,4 @@
-## 0.3.2 (UNRELEASED)
+## 0.3.2 (April 22, 2016)
 
 IMPROVEMENTS:
   * core: Garbage collection partitioned to avoid system delays [GH-1012]
@@ -50,7 +50,7 @@ BUG FIXES:
   * client: Fix handling of environment variables containing multiple equal
     signs [GH-1115]
 
-## 0.3.1 (Mars 16, 2016)
+## 0.3.1 (March 16, 2016)
 
 __BACKWARDS INCOMPATIBILITIES:__
   * Service names that dont conform to RFC-1123 and RFC-2782 will fail
