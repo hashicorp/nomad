@@ -42,6 +42,10 @@ const (
 	// The key populated in Node Attributes to indicate presence of the Docker
 	// driver
 	dockerDriverAttr = "driver.docker"
+
+	// dockerTimeout is the length of time a request can be outstanding before
+	// it is timed out.
+	dockerTimeout = 1 * time.Minute
 )
 
 type DockerDriver struct {
@@ -224,11 +228,13 @@ func (d *DockerDriver) dockerClient() (*docker.Client, error) {
 				d.logger.Printf("[DEBUG] driver.docker: using standard client connection to %s", dockerEndpoint)
 				client, err = docker.NewClient(dockerEndpoint)
 			}
+			client.HTTPClient.Timeout = dockerTimeout
 			return
 		}
 
 		d.logger.Println("[DEBUG] driver.docker: using client connection initialized from environment")
 		client, err = docker.NewClientFromEnv()
+		client.HTTPClient.Timeout = dockerTimeout
 	})
 	return client, err
 }
