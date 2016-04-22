@@ -93,6 +93,9 @@ The following options are available for use in the job specification.
 * `dns_search_domains` - (Optional) A list of DNS search domains for the container
   to use.
 
+* `SSL` - (Optional) If this is set to true, Nomad uses SSL to talk to the
+  repository. The default value is `false`.
+
 * `port_map` - (Optional) A key/value map of port labels (see below).
 
 * `auth` - (Optional) Provide authentication for a private registry (see below).
