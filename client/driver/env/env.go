@@ -354,7 +354,7 @@ func (t *TaskEnvironment) AppendHostEnvvars(filter []string) *TaskEnvironment {
 	}
 
 	for _, e := range hostEnv {
-		parts := strings.Split(e, "=")
+		parts := strings.SplitN(e, "=", 2)
 		key, value := parts[0], parts[1]
 
 		// Skip filtered environment variables
