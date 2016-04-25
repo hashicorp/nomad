@@ -47,6 +47,10 @@ job "binstore-storagelocker" {
 
       config {
         image = "hashicorp/binstore"
+
+        labels {
+          FOO = "bar"
+        }
       }
 
       logs {

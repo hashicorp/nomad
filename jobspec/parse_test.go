@@ -91,6 +91,11 @@ func TestParse(t *testing.T) {
 								User:   "bob",
 								Config: map[string]interface{}{
 									"image": "hashicorp/binstore",
+									"labels": []map[string]interface{}{
+										map[string]interface{}{
+											"FOO": "bar",
+										},
+									},
 								},
 								Services: []*structs.Service{
 									{

@@ -176,7 +176,7 @@ func (d *DockerDriver) Validate(config map[string]interface{}) error {
 				Type: fields.TypeString,
 			},
 			"labels": &fields.FieldSchema{
-				Type: fields.TypeMap,
+				Type: fields.TypeArray,
 			},
 			"auth": &fields.FieldSchema{
 				Type: fields.TypeArray,
