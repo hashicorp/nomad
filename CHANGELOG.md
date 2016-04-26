@@ -1,3 +1,9 @@
+## 0.4.0 (UNRELEASED)
+
+BUG FIXES:
+  * core: Updated User, Meta or Resources in a task cause create/destroy updates
+    [GH-1128]
+
 ## 0.3.2 (April 22, 2016)
 
 IMPROVEMENTS:
