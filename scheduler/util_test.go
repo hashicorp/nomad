@@ -376,6 +376,34 @@ func TestTasksUpdated(t *testing.T) {
 	if !tasksUpdated(j1.TaskGroups[0], j7.TaskGroups[0]) {
 		t.Fatalf("bad")
 	}
+
+	j8 := mock.Job()
+	j8.TaskGroups[0].Tasks[0].User = "foo"
+	if !tasksUpdated(j1.TaskGroups[0], j8.TaskGroups[0]) {
+		t.Fatalf("bad")
+	}
+
+	j9 := mock.Job()
+	j9.TaskGroups[0].Tasks[0].Artifacts = []*structs.TaskArtifact{
+		{
+			GetterSource: "http://foo.com/bar",
+		},
+	}
+	if !tasksUpdated(j1.TaskGroups[0], j9.TaskGroups[0]) {
+		t.Fatalf("bad")
+	}
+
+	j10 := mock.Job()
+	j10.TaskGroups[0].Tasks[0].Meta["baz"] = "boom"
+	if !tasksUpdated(j1.TaskGroups[0], j10.TaskGroups[0]) {
+		t.Fatalf("bad")
+	}
+
+	j11 := mock.Job()
+	j11.TaskGroups[0].Tasks[0].Resources.CPU = 1337
+	if !tasksUpdated(j1.TaskGroups[0], j11.TaskGroups[0]) {
+		t.Fatalf("bad")
+	}
 }
 
 func TestEvictAndPlace_LimitLessThanAllocs(t *testing.T) {

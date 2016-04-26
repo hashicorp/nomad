@@ -293,26 +293,23 @@ func tasksUpdated(a, b *structs.TaskGroup) bool {
 		if at.Driver != bt.Driver {
 			return true
 		}
+		if at.User != bt.User {
+			return true
+		}
 		if !reflect.DeepEqual(at.Config, bt.Config) {
 			return true
 		}
 		if !reflect.DeepEqual(at.Env, bt.Env) {
 			return true
 		}
+		if !reflect.DeepEqual(at.Resources, bt.Resources) {
+			return true
+		}
+		if !reflect.DeepEqual(at.Meta, bt.Meta) {
+			return true
+		}
 		if !reflect.DeepEqual(at.Artifacts, bt.Artifacts) {
 			return true
-		}
-
-		// Inspect the network to see if the dynamic ports are different
-		if len(at.Resources.Networks) != len(bt.Resources.Networks) {
-			return true
-		}
-		for idx := range at.Resources.Networks {
-			an := at.Resources.Networks[idx]
-			bn := bt.Resources.Networks[idx]
-			if len(an.DynamicPorts) != len(bn.DynamicPorts) {
-				return true
-			}
 		}
 	}
 	return false

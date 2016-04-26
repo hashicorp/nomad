@@ -127,6 +127,9 @@ func Job() *structs.Job {
 								},
 							},
 						},
+						Meta: map[string]string{
+							"foo": "bar",
+						},
 					},
 				},
 				Meta: map[string]string{
