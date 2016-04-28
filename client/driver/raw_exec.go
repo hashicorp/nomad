@@ -277,6 +277,10 @@ func (h *rawExecHandle) Kill() error {
 	}
 }
 
+func (h *rawExecHandle) Stats() (*cstructs.TaskResourceUsage, error) {
+	return h.executor.Stats()
+}
+
 func (h *rawExecHandle) run() {
 	ps, err := h.executor.Wait()
 	close(h.doneCh)

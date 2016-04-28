@@ -399,6 +399,10 @@ func (h *rktHandle) Kill() error {
 	}
 }
 
+func (h *rktHandle) Stats() (*cstructs.TaskResourceUsage, error) {
+	return nil, fmt.Errorf("stats not implemented for rkt")
+}
+
 func (h *rktHandle) run() {
 	ps, err := h.executor.Wait()
 	close(h.doneCh)

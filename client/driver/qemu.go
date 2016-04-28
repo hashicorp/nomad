@@ -375,6 +375,10 @@ func (h *qemuHandle) Kill() error {
 	}
 }
 
+func (h *qemuHandle) Stats() (*cstructs.TaskResourceUsage, error) {
+	return h.executor.Stats()
+}
+
 func (h *qemuHandle) run() {
 	ps, err := h.executor.Wait()
 	if ps.ExitCode == 0 && err != nil {

@@ -38,6 +38,7 @@ type Executor interface {
 	SyncServices(ctx *ConsulContext) error
 	DeregisterServices() error
 	Version() (*ExecutorVersion, error)
+	Stats() (*cstructs.TaskResourceUsage, error)
 }
 
 // ConsulContext holds context to configure the consul client and run checks

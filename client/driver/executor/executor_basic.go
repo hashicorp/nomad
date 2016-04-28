@@ -2,7 +2,10 @@
 
 package executor
 
-import cgroupConfig "github.com/opencontainers/runc/libcontainer/configs"
+import (
+	cstructs "github.com/hashicorp/nomad/client/driver/structs"
+	cgroupConfig "github.com/opencontainers/runc/libcontainer/configs"
+)
 
 func (e *UniversalExecutor) configureChroot() error {
 	return nil
@@ -26,4 +29,8 @@ func (e *UniversalExecutor) applyLimits(pid int) error {
 
 func (e *UniversalExecutor) configureIsolation() error {
 	return nil
+}
+
+func (e *UniversalExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
+	return nil, nil
 }

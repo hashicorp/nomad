@@ -15,6 +15,7 @@ import (
 	cgroupConfig "github.com/opencontainers/runc/libcontainer/configs"
 
 	"github.com/hashicorp/nomad/client/allocdir"
+	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -114,6 +115,16 @@ func (e *UniversalExecutor) configureCgroups(resources *structs.Resources) error
 	}
 
 	return nil
+}
+
+func (e *UniversalExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
+	manager := getCgroupManager(e.groups, e.cgPaths)
+	stats, err := manager.GetStats()
+	if err != nil {
+		return nil, err
+	}
+	e.logger.Printf("DIPTANU stats %#v", stats.MemoryStats.Stats)
+	return &cstructs.TaskResourceUsage{}, nil
 }
 
 // runAs takes a user id as a string and looks up the user, and sets the command

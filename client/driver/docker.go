@@ -908,6 +908,19 @@ func (h *DockerHandle) Kill() error {
 	return nil
 }
 
+func (h *DockerHandle) Stats() (*cstructs.TaskResourceUsage, error) {
+	stats := make(chan *docker.Stats)
+	done := make(chan bool)
+	statsOpts := docker.StatsOptions{ID: h.containerID, Done: done, Stats: stats, Stream: false, Timeout: 2 * time.Second}
+	if err := h.client.Stats(statsOpts); err != nil {
+		return nil, err
+	}
+	containerStats := <-stats
+	close(done)
+	resourceUsage := cstructs.TaskResourceUsage{MemoryStats: &cstructs.MemoryStats{RSS: containerStats.MemoryStats.Stats.Rss}}
+	return &resourceUsage, nil
+}
+
 func (h *DockerHandle) run() {
 	// Wait for it...
 	exitCode, err := h.client.WaitContainer(h.containerID)
