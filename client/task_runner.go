@@ -43,6 +43,10 @@ type TaskRunner struct {
 	alloc          *structs.Allocation
 	restartTracker *RestartTracker
 
+	resourceUsage         *cstructs.TaskResourceUsage
+	resourceUsageLock     sync.RWMutex
+	stopResourceMonitorCh chan struct{}
+
 	task       *structs.Task
 	taskEnv    *env.TaskEnvironment
 	updateCh   chan *structs.Allocation
@@ -338,6 +342,9 @@ func (r *TaskRunner) run() {
 					panic("nil wait")
 				}
 
+				// Stop monitoring resource usage
+				close(r.stopResourceMonitorCh)
+
 				// Log whether the task was successful or not.
 				r.restartTracker.SetWaitResult(waitRes)
 				r.setState(structs.TaskStateDead, r.waitErrorToEvent(waitRes))
@@ -433,7 +440,35 @@ func (r *TaskRunner) startTask() error {
 	r.handleLock.Lock()
 	r.handle = handle
 	r.handleLock.Unlock()
+	r.stopResourceMonitorCh = make(chan struct{})
+	go r.monitorUsage()
 	return nil
+}
+
+func (r *TaskRunner) monitorUsage() {
+	for {
+		next := time.NewTimer(1 * time.Second)
+		select {
+		case <-next.C:
+			ru, err := r.handle.Stats()
+			if err != nil {
+				r.logger.Printf("[DEBUG] client.taskrunner: error fetching stats of task %v: %v", r.task.Name, err)
+			}
+			r.resourceUsageLock.RLock()
+			r.resourceUsage = ru
+			r.resourceUsageLock.RUnlock()
+			next.Reset(1 * time.Second)
+		case <-r.stopResourceMonitorCh:
+			next.Stop()
+			return
+		}
+	}
+}
+
+func (r *TaskRunner) ResourceUsage() *cstructs.TaskResourceUsage {
+	r.resourceUsageLock.RLock()
+	defer r.resourceUsageLock.RUnlock()
+	return r.resourceUsage
 }
 
 // handleUpdate takes an updated allocation and updates internal state to

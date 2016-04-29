@@ -123,8 +123,9 @@ func (e *UniversalExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
 	if err != nil {
 		return nil, err
 	}
-	e.logger.Printf("DIPTANU stats %#v", stats.MemoryStats.Stats)
-	return &cstructs.TaskResourceUsage{}, nil
+	rss := stats.MemoryStats.Stats["rss"]
+	cache := stats.MemoryStats.Stats["cache"]
+	return &cstructs.TaskResourceUsage{MemoryStats: &cstructs.MemoryStats{RSS: rss, Cache: cache}}, nil
 }
 
 // runAs takes a user id as a string and looks up the user, and sets the command

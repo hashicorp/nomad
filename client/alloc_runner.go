@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver"
+	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -469,6 +470,23 @@ func (r *AllocRunner) Update(update *structs.Allocation) {
 	default:
 		r.logger.Printf("[ERR] client: dropping update to alloc '%s'", update.ID)
 	}
+}
+
+func (r *AllocRunner) ResourceUsage() map[string]*cstructs.TaskResourceUsage {
+	res := make(map[string]*cstructs.TaskResourceUsage)
+	for task, tr := range r.tasks {
+		res[task] = tr.ResourceUsage()
+	}
+	return res
+}
+
+func (r *AllocRunner) ResourceUsageOfTask(task string) (*cstructs.TaskResourceUsage, error) {
+	tr, ok := r.tasks[task]
+	if !ok {
+		return nil, fmt.Errorf("task %q not running", task)
+	}
+
+	return tr.ResourceUsage(), nil
 }
 
 // shouldUpdate takes the AllocModifyIndex of an allocation sent from the server and

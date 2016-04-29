@@ -86,7 +86,8 @@ type CheckResult struct {
 }
 
 type MemoryStats struct {
-	RSS uint64
+	RSS   uint64
+	Cache uint64
 }
 
 type TaskResourceUsage struct {
