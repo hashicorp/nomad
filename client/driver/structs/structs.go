@@ -90,6 +90,12 @@ type MemoryStats struct {
 	Cache uint64
 }
 
+type CpuUsage struct {
+	SystemMode uint64
+	UserMode   uint64
+}
+
 type TaskResourceUsage struct {
 	MemoryStats *MemoryStats
+	CpuStats    *CpuUsage
 }

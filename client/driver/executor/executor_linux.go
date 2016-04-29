@@ -13,6 +13,7 @@ import (
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	cgroupFs "github.com/opencontainers/runc/libcontainer/cgroups/fs"
 	cgroupConfig "github.com/opencontainers/runc/libcontainer/configs"
+	"github.com/opencontainers/runc/libcontainer/system"
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
@@ -20,6 +21,7 @@ import (
 )
 
 var (
+
 	// A mapping of directories on the host OS to attempt to embed inside each
 	// task's chroot.
 	chrootEnv = map[string]string{
@@ -32,6 +34,10 @@ var (
 		"/sbin":           "/sbin",
 		"/usr":            "/usr",
 	}
+
+	clockTicks = uint64(system.GetClockTicks())
+
+	nanosecondsInSecond = uint64(1000000000)
 )
 
 // configureIsolation configures chroot and creates cgroups
@@ -123,9 +129,27 @@ func (e *UniversalExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Memory Related Stats
 	rss := stats.MemoryStats.Stats["rss"]
 	cache := stats.MemoryStats.Stats["cache"]
-	return &cstructs.TaskResourceUsage{MemoryStats: &cstructs.MemoryStats{RSS: rss, Cache: cache}}, nil
+	ms := &cstructs.MemoryStats{
+		RSS:   rss,
+		Cache: cache,
+	}
+
+	// CPU Related Stats
+	userModeTime := stats.CpuStats.CpuUsage.UsageInUsermode
+	kernelModeTime := stats.CpuStats.CpuUsage.UsageInKernelmode
+
+	umTicks := (userModeTime * clockTicks) / nanosecondsInSecond
+	kmTicks := (kernelModeTime * clockTicks) / nanosecondsInSecond
+
+	cs := &cstructs.CpuUsage{
+		SystemMode: kmTicks,
+		UserMode:   umTicks,
+	}
+	return &cstructs.TaskResourceUsage{MemoryStats: ms, CpuStats: cs}, nil
 }
 
 // runAs takes a user id as a string and looks up the user, and sets the command
