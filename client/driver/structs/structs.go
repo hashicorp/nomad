@@ -86,13 +86,19 @@ type CheckResult struct {
 }
 
 type MemoryStats struct {
-	RSS   uint64
-	Cache uint64
+	RSS            uint64
+	Cache          uint64
+	Swap           uint64
+	MaxUsage       uint64
+	KernelUsage    uint64
+	KernelMaxUsage uint64
 }
 
 type CpuUsage struct {
-	SystemMode uint64
-	UserMode   uint64
+	SystemMode       uint64
+	UserMode         uint64
+	ThrottledPeriods uint64
+	ThrottledTime    uint64
 }
 
 type TaskResourceUsage struct {

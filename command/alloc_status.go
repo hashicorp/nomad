@@ -3,6 +3,7 @@ package command
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -119,6 +120,11 @@ func (c *AllocStatusCommand) Run(args []string) int {
 		return 1
 	}
 
+	stats, err := client.Allocations().Stats(alloc, nil)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("couldn't retreive stats: %v", err))
+	}
+
 	// Format the allocation data
 	basic := []string{
 		fmt.Sprintf("ID|%s", limit(alloc.ID, length)),
@@ -140,7 +146,7 @@ func (c *AllocStatusCommand) Run(args []string) int {
 	c.Ui.Output(formatKV(basic))
 
 	if !short {
-		c.taskResources(alloc)
+		c.taskResources(alloc, stats)
 	}
 
 	// Print the state of each task.
@@ -302,7 +308,7 @@ func (c *AllocStatusCommand) allocResources(alloc *api.Allocation) {
 }
 
 // taskResources prints out the tasks current resource usage
-func (c *AllocStatusCommand) taskResources(alloc *api.Allocation) {
+func (c *AllocStatusCommand) taskResources(alloc *api.Allocation, stats map[string]*api.TaskResourceUsage) {
 	if len(alloc.TaskResources) == 0 {
 		return
 	}
@@ -338,9 +344,15 @@ func (c *AllocStatusCommand) taskResources(alloc *api.Allocation) {
 		if len(addr) > 0 {
 			firstAddr = addr[0]
 		}
+		cpuUsage := strconv.Itoa(resource.CPU)
+		memUsage := strconv.Itoa(resource.MemoryMB)
+		if ru, ok := stats[task]; ok {
+			cpuUsage = fmt.Sprintf("%v/%v", (ru.CpuStats.SystemMode + ru.CpuStats.UserMode), resource.CPU)
+			memUsage = fmt.Sprintf("%v/%v", ru.MemoryStats.RSS/(1024*1024), resource.MemoryMB)
+		}
 		resourcesOutput = append(resourcesOutput, fmt.Sprintf("%v|%v|%v|%v|%v",
-			resource.CPU,
-			resource.MemoryMB,
+			cpuUsage,
+			memUsage,
 			resource.DiskMB,
 			resource.IOPS,
 			firstAddr))

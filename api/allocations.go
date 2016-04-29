@@ -1,6 +1,11 @@
 package api
 
 import (
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"net/http"
+	"net/url"
 	"sort"
 	"time"
 )
@@ -38,6 +43,50 @@ func (a *Allocations) Info(allocID string, q *QueryOptions) (*Allocation, *Query
 		return nil, nil, err
 	}
 	return &resp, qm, nil
+}
+
+func (a *Allocations) Stats(alloc *Allocation, q *QueryOptions) (map[string]*TaskResourceUsage, error) {
+	node, _, err := a.client.Nodes().Info(alloc.NodeID, &QueryOptions{})
+	if err != nil {
+		return nil, err
+	}
+	if node.HTTPAddr == "" {
+		return nil, fmt.Errorf("http addr of the node where alloc %q is running is not advertised", alloc.ID)
+	}
+	u := &url.URL{
+		Scheme: "http",
+		Host:   node.HTTPAddr,
+		Path:   "/v1/client/stats/",
+	}
+	v := url.Values{}
+	v.Set("allocation", alloc.ID)
+	u.RawQuery = v.Encode()
+	req := &http.Request{
+		Method: "GET",
+		URL:    u,
+	}
+	c := http.Client{}
+	resp, err := c.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != 200 {
+		return nil, a.getErrorMsg(resp)
+	}
+	decoder := json.NewDecoder(resp.Body)
+	var stats map[string]*TaskResourceUsage
+	if err := decoder.Decode(&stats); err != nil {
+		return nil, err
+	}
+	return stats, nil
+}
+
+func (a *Allocations) getErrorMsg(resp *http.Response) error {
+	if errMsg, err := ioutil.ReadAll(resp.Body); err == nil {
+		return fmt.Errorf(string(errMsg))
+	} else {
+		return err
+	}
 }
 
 // Allocation is used for serialization of allocations.

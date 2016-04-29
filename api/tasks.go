@@ -4,6 +4,27 @@ import (
 	"time"
 )
 
+type MemoryStats struct {
+	RSS            uint64
+	Cache          uint64
+	Swap           uint64
+	MaxUsage       uint64
+	KernelUsage    uint64
+	KernelMaxUsage uint64
+}
+
+type CpuUsage struct {
+	SystemMode       uint64
+	UserMode         uint64
+	ThrottledPeriods uint64
+	ThrottledTime    uint64
+}
+
+type TaskResourceUsage struct {
+	MemoryStats *MemoryStats
+	CpuStats    *CpuUsage
+}
+
 // RestartPolicy defines how the Nomad client restarts
 // tasks in a taskgroup when they fail
 type RestartPolicy struct {

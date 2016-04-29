@@ -131,11 +131,17 @@ func (e *UniversalExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
 	}
 
 	// Memory Related Stats
+	swap := stats.MemoryStats.SwapUsage
+	maxUsage := stats.MemoryStats.Usage.MaxUsage
 	rss := stats.MemoryStats.Stats["rss"]
 	cache := stats.MemoryStats.Stats["cache"]
 	ms := &cstructs.MemoryStats{
-		RSS:   rss,
-		Cache: cache,
+		RSS:            rss,
+		Cache:          cache,
+		Swap:           swap.Usage,
+		MaxUsage:       maxUsage,
+		KernelUsage:    stats.MemoryStats.KernelUsage.Usage,
+		KernelMaxUsage: stats.MemoryStats.KernelUsage.MaxUsage,
 	}
 
 	// CPU Related Stats
@@ -146,8 +152,10 @@ func (e *UniversalExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
 	kmTicks := (kernelModeTime * clockTicks) / nanosecondsInSecond
 
 	cs := &cstructs.CpuUsage{
-		SystemMode: kmTicks,
-		UserMode:   umTicks,
+		SystemMode:       kmTicks,
+		UserMode:         umTicks,
+		ThrottledPeriods: stats.CpuStats.ThrottlingData.ThrottledPeriods,
+		ThrottledTime:    stats.CpuStats.ThrottlingData.ThrottledTime,
 	}
 	return &cstructs.TaskResourceUsage{MemoryStats: ms, CpuStats: cs}, nil
 }
