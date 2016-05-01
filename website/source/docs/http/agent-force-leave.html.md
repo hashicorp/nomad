@@ -8,7 +8,7 @@ description: |-
 
 # /v1/agent/force-leave
 
-The `foce-leave` endpoint is used to force a member of the gossip pool from
+The `force-leave` endpoint is used to force a member of the gossip pool from
 the "failed" state into the "left" state. This allows the consensus protocol to
 remove the peer and stop attempting replication. This is only applicable for
 servers.
