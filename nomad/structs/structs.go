@@ -1772,13 +1772,19 @@ func (t *Task) Validate() error {
 func validateServices(t *Task) error {
 	var mErr multierror.Error
 
-	// Ensure that services don't ask for non-existent ports.
+	// Ensure that services don't ask for non-existent ports and their names are
+	// unique.
 	servicePorts := make(map[string][]string)
+	knownServices := make(map[string]struct{})
 	for i, service := range t.Services {
 		if err := service.Validate(); err != nil {
 			outer := fmt.Errorf("service %d validation failed: %s", i, err)
 			mErr.Errors = append(mErr.Errors, outer)
 		}
+		if _, ok := knownServices[service.Name]; ok {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("service %q is duplicate", service.Name))
+		}
+		knownServices[service.Name] = struct{}{}
 
 		if service.PortLabel != "" {
 			servicePorts[service.PortLabel] = append(servicePorts[service.PortLabel], service.Name)
