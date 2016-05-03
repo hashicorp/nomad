@@ -7,7 +7,6 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -67,11 +66,6 @@ func diffAllocs(existing []*structs.Allocation, allocs *allocUpdates) *diffResul
 		}
 	}
 	return result
-}
-
-// Returns a random stagger interval between 0 and the duration
-func randomStagger(intv time.Duration) time.Duration {
-	return time.Duration(uint64(rand.Int63()) % uint64(intv))
 }
 
 // shuffleStrings randomly shuffles the list of strings

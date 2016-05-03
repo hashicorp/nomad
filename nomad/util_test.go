@@ -4,7 +4,6 @@ import (
 	"net"
 	"reflect"
 	"testing"
-	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/serf/serf"
@@ -54,16 +53,6 @@ func TestIsNomadServer(t *testing.T) {
 	valid, parts = isNomadServer(m)
 	if !valid || parts.Expect != 3 {
 		t.Fatalf("bad: %v", parts.Expect)
-	}
-}
-
-func TestRandomStagger(t *testing.T) {
-	intv := time.Minute
-	for i := 0; i < 10; i++ {
-		stagger := randomStagger(intv)
-		if stagger < 0 || stagger >= intv {
-			t.Fatalf("Bad: %v", stagger)
-		}
 	}
 }
 

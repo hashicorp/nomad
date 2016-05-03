@@ -51,7 +51,7 @@ func (s *Server) resetHeartbeatTimer(id string) (time.Duration, error) {
 	// Compute the target TTL value
 	n := len(s.heartbeatTimers)
 	ttl := lib.RateScaledInterval(s.config.MaxHeartbeatsPerSecond, s.config.MinHeartbeatTTL, n)
-	ttl += randomStagger(ttl)
+	ttl += lib.RandomStagger(ttl)
 
 	// Reset the TTL
 	s.resetHeartbeatTimerLocked(id, ttl+s.config.HeartbeatGrace)

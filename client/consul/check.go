@@ -2,10 +2,10 @@ package consul
 
 import (
 	"log"
-	"math/rand"
 	"sync"
 	"time"
 
+	"github.com/hashicorp/consul/lib"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 )
 
@@ -60,7 +60,7 @@ func (r *CheckRunner) Stop() {
 // run is invoked by a goroutine to run until Stop() is called
 func (r *CheckRunner) run() {
 	// Get the randomized initial pause time
-	initialPauseTime := randomStagger(r.check.Interval())
+	initialPauseTime := lib.RandomStagger(r.check.Interval())
 	r.logger.Printf("[DEBUG] agent: pausing %v before first invocation of %s", initialPauseTime, r.check.ID())
 	next := time.NewTimer(initialPauseTime)
 	for {
@@ -81,9 +81,4 @@ type Check interface {
 	ID() string
 	Interval() time.Duration
 	Timeout() time.Duration
-}
-
-// Returns a random stagger interval between 0 and the duration
-func randomStagger(intv time.Duration) time.Duration {
-	return time.Duration(uint64(rand.Int63()) % uint64(intv))
 }
