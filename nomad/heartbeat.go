@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/armon/go-metrics"
+	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -49,8 +50,7 @@ func (s *Server) resetHeartbeatTimer(id string) (time.Duration, error) {
 
 	// Compute the target TTL value
 	n := len(s.heartbeatTimers)
-	ttl := rateScaledInterval(s.config.MaxHeartbeatsPerSecond,
-		s.config.MinHeartbeatTTL, n)
+	ttl := lib.RateScaledInterval(s.config.MaxHeartbeatsPerSecond, s.config.MinHeartbeatTTL, n)
 	ttl += randomStagger(ttl)
 
 	// Reset the TTL
