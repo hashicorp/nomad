@@ -284,6 +284,10 @@ func TestTask_Validate_Services(t *testing.T) {
 				Name: "check-name",
 				Type: ServiceCheckTCP,
 			},
+			{
+				Name: "check-name",
+				Type: ServiceCheckTCP,
+			},
 		},
 	}
 
@@ -311,6 +315,10 @@ func TestTask_Validate_Services(t *testing.T) {
 	}
 
 	if !strings.Contains(err.Error(), "service \"service-name\" is duplicate") {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !strings.Contains(err.Error(), "check \"check-name\" is duplicate") {
 		t.Fatalf("err: %v", err)
 	}
 }
