@@ -72,7 +72,7 @@ func (s *Server) resetHeartbeatTimerLocked(id string, ttl time.Duration) {
 		return
 	}
 
-	// Create a new timer to track expiration of thi sheartbeat
+	// Create a new timer to track expiration of this heartbeat
 	timer := time.AfterFunc(ttl, func() {
 		s.invalidateHeartbeat(id)
 	})
