@@ -250,6 +250,8 @@ type PrimitiveStructDiff struct {
 	PrimitiveFields []*FieldDiff
 }
 
+// DiffFields performs the diff of the passed fields against the old and new
+// object.
 func (p *PrimitiveStructDiff) DiffFields(old, new interface{}, fields []string) {
 	for _, field := range fields {
 		oldV := getField(old, field)
