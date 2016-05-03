@@ -232,7 +232,7 @@ func (s *Server) forwardRegion(region, method string, args interface{}, reply in
 	}
 
 	// Select a random addr
-	offset := rand.Int31() % int32(len(servers))
+	offset := rand.Int31n(len(servers))
 	server := servers[offset]
 	s.peerLock.RUnlock()
 
