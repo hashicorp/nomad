@@ -249,11 +249,6 @@ func NewServer(config *Config) (*Server, error) {
 	// Emit metrics
 	go s.heartbeatStats()
 
-	// Seed the global random.
-	if err := seedRandom(); err != nil {
-		return nil, err
-	}
-
 	// Done
 	return s, nil
 }

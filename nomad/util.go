@@ -2,16 +2,12 @@ package nomad
 
 import (
 	"fmt"
-	"math"
-	"math/big"
 	"math/rand"
 	"net"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
-
-	crand "crypto/rand"
 
 	"github.com/hashicorp/serf/serf"
 )
@@ -114,15 +110,4 @@ func maxUint64(a, b uint64) uint64 {
 		return a
 	}
 	return b
-}
-
-// seedRandom seeds the global random variable using a cryptographically random
-// seed. It returns an error if determing the random seed fails.
-func seedRandom() error {
-	n, err := crand.Int(crand.Reader, big.NewInt(math.MaxInt64))
-	if err != nil {
-		return err
-	}
-	rand.Seed(n.Int64())
-	return nil
 }
