@@ -1789,6 +1789,15 @@ func validateServices(t *Task) error {
 		if service.PortLabel != "" {
 			servicePorts[service.PortLabel] = append(servicePorts[service.PortLabel], service.Name)
 		}
+
+		// Ensure that check names are unique.
+		knownChecks := make(map[string]struct{})
+		for _, check := range service.Checks {
+			if _, ok := knownChecks[check.Name]; ok {
+				mErr.Errors = append(mErr.Errors, fmt.Errorf("check %q is duplicate", check.Name))
+			}
+			knownChecks[check.Name] = struct{}{}
+		}
 	}
 
 	// Get the set of port labels.
