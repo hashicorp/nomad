@@ -137,7 +137,7 @@ func TestFlatMap(t *testing.T) {
 	for i, c := range cases {
 		act := Flatten(c.Input)
 		if !reflect.DeepEqual(act, c.Expected) {
-			t.Fatalf("case %d: got %#v; want %#v", i, act, c.Expected)
+			t.Fatalf("case %d: got %#v; want %#v", i+1, act, c.Expected)
 		}
 	}
 }

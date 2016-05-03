@@ -55,7 +55,7 @@ func flatten(prefix string, v reflect.Value, output map[string]string) {
 				panic(fmt.Sprintf("%q: map key is not string: %s", prefix, k))
 			}
 
-			flatten(fmt.Sprintf("%s.%s", prefix, k.String()), v.MapIndex(k), output)
+			flatten(getSubPrefix(prefix, k.String()), v.MapIndex(k), output)
 		}
 	case reflect.Struct:
 		t := v.Type()
@@ -65,14 +65,8 @@ func flatten(prefix string, v reflect.Value, output map[string]string) {
 			if val.Kind() == reflect.Interface && !val.IsNil() {
 				val = val.Elem()
 			}
-			newPrefix := ""
-			if prefix != "" {
-				newPrefix = fmt.Sprintf("%s.%s", prefix, name)
-			} else {
-				newPrefix = fmt.Sprintf("%s", name)
-			}
 
-			flatten(newPrefix, val, output)
+			flatten(getSubPrefix(prefix, name), val, output)
 		}
 	case reflect.Interface:
 		e := v.Elem()
@@ -92,4 +86,16 @@ func flatten(prefix string, v reflect.Value, output map[string]string) {
 	default:
 		panic(fmt.Sprintf("prefix %q; unsupported type %v", prefix, v.Kind()))
 	}
+}
+
+// getSubPrefix takes the current prefix and the next subfield and returns an
+// appropriate prefix.
+func getSubPrefix(curPrefix, subField string) string {
+	newPrefix := ""
+	if curPrefix != "" {
+		newPrefix = fmt.Sprintf("%s.%s", curPrefix, subField)
+	} else {
+		newPrefix = fmt.Sprintf("%s", subField)
+	}
+	return newPrefix
 }

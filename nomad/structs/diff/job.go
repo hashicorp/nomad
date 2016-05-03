@@ -119,12 +119,19 @@ type DiffEntry struct {
 	Annotations []string
 }
 
+// SetDiffType sets the diff type. The inputs must be a pointer.
 func (d *DiffEntry) SetDiffType(old, new interface{}) {
 	if reflect.DeepEqual(old, new) {
 		d.Type = DiffTypeNone
-	} else if old == nil {
+		return
+	}
+
+	oldV := reflect.ValueOf(old)
+	newV := reflect.ValueOf(new)
+
+	if oldV.IsNil() {
 		d.Type = DiffTypeAdded
-	} else if new == nil {
+	} else if newV.IsNil() {
 		d.Type = DiffTypeDeleted
 	} else {
 		d.Type = DiffTypeEdited
@@ -175,6 +182,7 @@ type TaskDiff struct {
 	Services    *ServicesDiff
 	Artifacts   *TaskArtifactsDiff
 	Resources   *ResourcesDiff
+	Config      *StringMapDiff
 }
 
 // ServicesDiff contains the set of Services that were changed.
@@ -258,7 +266,6 @@ func (p *PrimitiveStructDiff) DiffFields(old, new interface{}, fields []string) 
 		newV := getField(new, field)
 		pDiff := NewFieldDiff(field, oldV, newV)
 		if pDiff != nil {
-			p.Type = DiffTypeEdited
 			p.PrimitiveFields = append(p.PrimitiveFields, pDiff)
 		}
 	}
@@ -294,13 +301,23 @@ type StringValueDelta struct {
 // NewJobDiff returns the diff between two jobs. If there is no difference, nil
 // is returned.
 func NewJobDiff(old, new *structs.Job) *JobDiff {
-	if old == nil && new == nil || reflect.DeepEqual(old, new) {
+	diff := &JobDiff{}
+	diff.SetDiffType(old, new)
+	if diff.Type == DiffTypeNone {
 		return nil
 	}
 
 	// Get the diffs of the primitive fields
-	diff := &JobDiff{}
 	diff.DiffFields(old, new, jobPrimitiveFields)
+
+	// Protect accessing nil fields, this occurs after diffing the primitives so
+	// that we can properly detect Added/Deleted fields.
+	if old == nil {
+		old = &structs.Job{}
+	}
+	if new == nil {
+		new = &structs.Job{}
+	}
 
 	// Get the diff of the datacenters
 	diff.Datacenters = NewStringSetDiff(old.Datacenters, new.Datacenters)
@@ -333,20 +350,29 @@ func NewJobDiff(old, new *structs.Job) *JobDiff {
 		return nil
 	}
 
-	diff.SetDiffType(old, new)
 	return diff
 }
 
 // NewTaskGroupDiff returns the diff between two task groups. If there is no
 // difference, nil is returned.
 func NewTaskGroupDiff(old, new *structs.TaskGroup) *TaskGroupDiff {
-	if old == nil && new == nil || reflect.DeepEqual(old, new) {
+	diff := &TaskGroupDiff{}
+	diff.SetDiffType(old, new)
+	if diff.Type == DiffTypeNone {
 		return nil
 	}
 
 	// Get the diffs of the primitive fields
-	diff := &TaskGroupDiff{}
 	diff.DiffFields(old, new, taskGroupPrimitiveFields)
+
+	// Protect accessing nil fields, this occurs after diffing the primitives so
+	// that we can properly detect Added/Deleted fields.
+	if old == nil {
+		old = &structs.TaskGroup{}
+	}
+	if new == nil {
+		new = &structs.TaskGroup{}
+	}
 
 	// Get the diff of the constraints.
 	diff.Constraints = setDiffPrimitiveStructs(
@@ -371,20 +397,29 @@ func NewTaskGroupDiff(old, new *structs.TaskGroup) *TaskGroupDiff {
 		return nil
 	}
 
-	diff.SetDiffType(old, new)
 	return diff
 }
 
 // NewTaskDiff returns the diff between two tasks. If there is no difference,
 // nil is returned.
 func NewTaskDiff(old, new *structs.Task) *TaskDiff {
-	if old == nil && new == nil || reflect.DeepEqual(old, new) {
+	diff := &TaskDiff{}
+	diff.SetDiffType(old, new)
+	if diff.Type == DiffTypeNone {
 		return nil
 	}
 
 	// Get the diffs of the primitive fields
-	diff := &TaskDiff{}
 	diff.DiffFields(old, new, taskPrimitiveFields)
+
+	// Protect accessing nil fields, this occurs after diffing the primitives so
+	// that we can properly detect Added/Deleted fields.
+	if old == nil {
+		old = &structs.Task{}
+	}
+	if new == nil {
+		new = &structs.Task{}
+	}
 
 	// Get the diff of the constraints.
 	diff.Constraints = setDiffPrimitiveStructs(
@@ -409,10 +444,11 @@ func NewTaskDiff(old, new *structs.Task) *TaskDiff {
 	diff.Resources = NewResourcesDiff(old.Resources, new.Resources)
 
 	// Get the task config diff
-	// TODO: Flat map the config and diff it.
+	diff.Config = NewStringMapDiff(Flatten(old.Config), Flatten(new.Config))
 
 	// If there are no changes return nil
 	if len(diff.PrimitiveFields)+len(diff.Constraints) == 0 &&
+		diff.Config == nil &&
 		diff.Artifacts == nil &&
 		diff.LogConfig == nil &&
 		diff.Services == nil &&
@@ -421,20 +457,29 @@ func NewTaskDiff(old, new *structs.Task) *TaskDiff {
 		return nil
 	}
 
-	diff.SetDiffType(old, new)
 	return diff
 }
 
 // NewServiceDiff returns the diff between two services. If there is no
 // difference, nil is returned.
 func NewServiceDiff(old, new *structs.Service) *ServiceDiff {
-	if old == nil && new == nil || reflect.DeepEqual(old, new) {
+	diff := &ServiceDiff{}
+	diff.SetDiffType(old, new)
+	if diff.Type == DiffTypeNone {
 		return nil
 	}
 
 	// Get the diffs of the primitive fields
-	diff := &ServiceDiff{}
 	diff.DiffFields(old, new, servicePrimitiveFields)
+
+	// Protect accessing nil fields, this occurs after diffing the primitives so
+	// that we can properly detect Added/Deleted fields.
+	if old == nil {
+		old = &structs.Service{}
+	}
+	if new == nil {
+		new = &structs.Service{}
+	}
 
 	// Get the tags diff
 	diff.Tags = NewStringSetDiff(old.Tags, new.Tags)
@@ -449,20 +494,29 @@ func NewServiceDiff(old, new *structs.Service) *ServiceDiff {
 		return nil
 	}
 
-	diff.SetDiffType(old, new)
 	return diff
 }
 
 // NewServiceCheckDiff returns the diff between two service checks. If there is
 // no difference, nil is returned.
 func NewServiceCheckDiff(old, new *structs.ServiceCheck) *ServiceCheckDiff {
-	if old == nil && new == nil || reflect.DeepEqual(old, new) {
+	diff := &ServiceCheckDiff{}
+	diff.SetDiffType(old, new)
+	if diff.Type == DiffTypeNone {
 		return nil
 	}
 
 	// Get the diffs of the primitive fields
-	diff := &ServiceCheckDiff{}
 	diff.DiffFields(old, new, serviceCheckPrimitiveFields)
+
+	// Protect accessing nil fields, this occurs after diffing the primitives so
+	// that we can properly detect Added/Deleted fields.
+	if old == nil {
+		old = &structs.ServiceCheck{}
+	}
+	if new == nil {
+		new = &structs.ServiceCheck{}
+	}
 
 	// Get the args diff
 	diff.Args = NewStringSetDiff(old.Args, new.Args)
@@ -473,20 +527,29 @@ func NewServiceCheckDiff(old, new *structs.ServiceCheck) *ServiceCheckDiff {
 		return nil
 	}
 
-	diff.SetDiffType(old, new)
 	return diff
 }
 
 // NewTaskArtifactDiff returns the diff between two task artifacts. If there is
 // no difference, nil is returned.
 func NewTaskArtifactDiff(old, new *structs.TaskArtifact) *TaskArtifactDiff {
-	if old == nil && new == nil || reflect.DeepEqual(old, new) {
+	diff := &TaskArtifactDiff{}
+	diff.SetDiffType(old, new)
+	if diff.Type == DiffTypeNone {
 		return nil
 	}
 
 	// Get the diffs of the primitive fields
-	diff := &TaskArtifactDiff{}
 	diff.DiffFields(old, new, taskArtifactPrimitiveFields)
+
+	// Protect accessing nil fields, this occurs after diffing the primitives so
+	// that we can properly detect Added/Deleted fields.
+	if old == nil {
+		old = &structs.TaskArtifact{}
+	}
+	if new == nil {
+		new = &structs.TaskArtifact{}
+	}
 
 	// Get the args diff
 	diff.GetterOptions = NewStringMapDiff(old.GetterOptions, new.GetterOptions)
@@ -497,20 +560,29 @@ func NewTaskArtifactDiff(old, new *structs.TaskArtifact) *TaskArtifactDiff {
 		return nil
 	}
 
-	diff.SetDiffType(old, new)
 	return diff
 }
 
 // NewResourcesDiff returns the diff between two resources. If there is no
 // difference, nil is returned.
 func NewResourcesDiff(old, new *structs.Resources) *ResourcesDiff {
-	if old == nil && new == nil || reflect.DeepEqual(old, new) {
+	diff := &ResourcesDiff{}
+	diff.SetDiffType(old, new)
+	if diff.Type == DiffTypeNone {
 		return nil
 	}
 
 	// Get the diffs of the primitive fields
-	diff := &ResourcesDiff{}
 	diff.DiffFields(old, new, resourcesPrimitiveFields)
+
+	// Protect accessing nil fields, this occurs after diffing the primitives so
+	// that we can properly detect Added/Deleted fields.
+	if old == nil {
+		old = &structs.Resources{}
+	}
+	if new == nil {
+		new = &structs.Resources{}
+	}
 
 	// Get the network resource diff
 	diff.Networks = setDiffNetworkResources(old.Networks, new.Networks)
@@ -521,20 +593,29 @@ func NewResourcesDiff(old, new *structs.Resources) *ResourcesDiff {
 		return nil
 	}
 
-	diff.SetDiffType(old, new)
 	return diff
 }
 
 // NewNetworkResourceDiff returns the diff between two network resources. If
 // there is no difference, nil is returned.
 func NewNetworkResourceDiff(old, new *structs.NetworkResource) *NetworkResourceDiff {
-	if old == nil && new == nil || reflect.DeepEqual(old, new) {
+	diff := &NetworkResourceDiff{}
+	diff.SetDiffType(old, new)
+	if diff.Type == DiffTypeNone {
 		return nil
 	}
 
 	// Get the diffs of the primitive fields
-	diff := &NetworkResourceDiff{}
 	diff.DiffFields(old, new, networkResourcePrimitiveFields)
+
+	// Protect accessing nil fields, this occurs after diffing the primitives so
+	// that we can properly detect Added/Deleted fields.
+	if old == nil {
+		old = &structs.NetworkResource{}
+	}
+	if new == nil {
+		new = &structs.NetworkResource{}
+	}
 
 	// Get the port diffs
 	diff.ReservedPorts = setDiffPorts(old.ReservedPorts, new.ReservedPorts)
@@ -547,7 +628,6 @@ func NewNetworkResourceDiff(old, new *structs.NetworkResource) *NetworkResourceD
 		return nil
 	}
 
-	diff.SetDiffType(old, new)
 	return diff
 }
 
@@ -566,7 +646,27 @@ func NewPrimitiveStructDiff(old, new interface{}, fields []string) *PrimitiveStr
 		return nil
 	}
 
-	diff.SetDiffType(old, new)
+	var added, deleted bool
+	for _, f := range diff.PrimitiveFields {
+		switch f.Type {
+		case DiffTypeEdited:
+			diff.Type = DiffTypeEdited
+			return diff
+		case DiffTypeAdded:
+			added = true
+		case DiffTypeDeleted:
+			deleted = true
+		}
+	}
+
+	if added && deleted {
+		diff.Type = DiffTypeEdited
+	} else if added {
+		diff.Type = DiffTypeAdded
+	} else {
+		diff.Type = DiffTypeDeleted
+	}
+
 	return diff
 }
 
@@ -594,19 +694,11 @@ func NewFieldDiff(name string, old, new interface{}) *FieldDiff {
 // NewStringSetDiff returns the diff between two sets of strings. If there is no
 // difference, nil is returned.
 func NewStringSetDiff(old, new []string) *StringSetDiff {
-	diff := &StringSetDiff{}
-	lOld, lNew := len(old), len(new)
 	if reflect.DeepEqual(old, new) {
 		return nil
-	} else if lOld == 0 && lNew > 0 {
-		diff.Type = DiffTypeAdded
-		return diff
-	} else if lNew == 0 && lOld > 0 {
-		diff.Type = DiffTypeDeleted
-		return diff
 	}
 
-	diff.Type = DiffTypeEdited
+	diff := &StringSetDiff{}
 	makeMap := func(inputs []string) map[string]interface{} {
 		m := make(map[string]interface{})
 		for _, in := range inputs {
@@ -622,25 +714,29 @@ func NewStringSetDiff(old, new []string) *StringSetDiff {
 	for k := range deleted {
 		diff.Deleted = append(diff.Deleted, k)
 	}
+
+	la, ld := len(added), len(deleted)
+	if la+ld == 0 {
+		return nil
+	} else if ld == 0 {
+		diff.Type = DiffTypeAdded
+	} else if la == 0 {
+		diff.Type = DiffTypeDeleted
+	} else {
+		diff.Type = DiffTypeEdited
+	}
+
 	return diff
 }
 
 // NewStringMapDiff returns the diff between two maps of strings. If there is no
 // difference, nil is returned.
 func NewStringMapDiff(old, new map[string]string) *StringMapDiff {
-	diff := &StringMapDiff{}
-	lOld, lNew := len(old), len(new)
 	if reflect.DeepEqual(old, new) {
 		return nil
-	} else if lOld == 0 && lNew > 0 {
-		diff.Type = DiffTypeAdded
-		return diff
-	} else if lNew == 0 && lOld > 0 {
-		diff.Type = DiffTypeDeleted
-		return diff
 	}
 
-	diff.Type = DiffTypeEdited
+	diff := &StringMapDiff{}
 	diff.Added = make(map[string]string)
 	diff.Deleted = make(map[string]string)
 	diff.Edited = make(map[string]StringValueDelta)
@@ -665,8 +761,17 @@ func NewStringMapDiff(old, new map[string]string) *StringMapDiff {
 		}
 	}
 
-	if len(diff.Added)+len(diff.Deleted)+len(diff.Edited) == 0 {
+	la, ld, le := len(diff.Added), len(diff.Deleted), len(diff.Edited)
+	if la+ld+le == 0 {
 		return nil
+	}
+
+	if le != 0 || la > 0 && ld > 0 {
+		diff.Type = DiffTypeEdited
+	} else if ld == 0 {
+		diff.Type = DiffTypeAdded
+	} else if la == 0 {
+		diff.Type = DiffTypeDeleted
 	}
 	return diff
 }

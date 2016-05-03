@@ -21,6 +21,29 @@ func TestNewJobDiff_Same(t *testing.T) {
 	}
 }
 
+func TestNewJobDiff_NilCases(t *testing.T) {
+	j := mock.Job()
+
+	// Old job nil
+	diff := NewJobDiff(nil, j)
+	if diff == nil {
+		t.Fatalf("expected non-nil job diff")
+	}
+	if diff.Type != DiffTypeAdded {
+		//t.Fatalf("got diff type %v; want %v; %s", diff.Type, DiffTypeAdded, spew.Sdump(diff))
+		t.Fatalf("got diff type %v; want %v", diff.Type, DiffTypeAdded)
+	}
+
+	// New job nil
+	diff = NewJobDiff(j, nil)
+	if diff == nil {
+		t.Fatalf("expected non-nil job diff")
+	}
+	if diff.Type != DiffTypeDeleted {
+		t.Fatalf("got diff type %v; want %v", diff.Type, DiffTypeDeleted)
+	}
+}
+
 func TestNewJobDiff_Constraints(t *testing.T) {
 	c1 := &structs.Constraint{LTarget: "foo"}
 	c2 := &structs.Constraint{LTarget: "bar"}
@@ -136,7 +159,141 @@ func TestNewJobDiff_TaskGroups(t *testing.T) {
 	if e := tgd.Edited[0]; tgd.Type != DiffTypeEdited && len(e.PrimitiveFields) != 1 {
 		t.Fatalf("bad: %#v", e)
 	}
+}
 
+func TestNewTaskDiff_Config(t *testing.T) {
+	c1 := map[string]interface{}{
+		"command": "/bin/date",
+		"args":    []string{"1", "2"},
+	}
+
+	c2 := map[string]interface{}{
+		"args": []string{"1", "2"},
+	}
+
+	c3 := map[string]interface{}{
+		"command": "/bin/date",
+		"args":    []string{"1", "2"},
+		"nested": &structs.Port{
+			Label: "http",
+			Value: 80,
+		},
+	}
+
+	c4 := map[string]interface{}{
+		"command": "/bin/bash",
+		"args":    []string{"1", "2"},
+	}
+
+	// No old case
+	t1 := &structs.Task{Config: c1}
+	diff := NewTaskDiff(nil, t1)
+	if diff == nil {
+		t.Fatalf("expected non-nil diff")
+	}
+	if diff.Config == nil {
+		t.Fatalf("expected Config diff: %#v", diff)
+	}
+
+	cdiff := diff.Config
+	if cdiff.Type != DiffTypeAdded {
+		t.Fatalf("expected Config diff type %v; got %#v", DiffTypeAdded, cdiff.Type)
+	}
+
+	// No new case
+	diff = NewTaskDiff(t1, nil)
+	if diff == nil {
+		t.Fatalf("expected non-nil diff")
+	}
+	if diff.Config == nil {
+		t.Fatalf("expected Config diff: %#v", diff)
+	}
+
+	cdiff = diff.Config
+	if cdiff.Type != DiffTypeDeleted {
+		t.Fatalf("expected Config diff type %v; got %#v", DiffTypeDeleted, cdiff.Type)
+	}
+
+	// Same case
+	diff = NewTaskDiff(t1, t1)
+	if diff != nil {
+		t.Fatalf("expected nil diff")
+	}
+
+	// Deleted case
+	t2 := &structs.Task{Config: c2}
+	diff = NewTaskDiff(t1, t2)
+	if diff == nil {
+		t.Fatalf("expected non-nil diff")
+	}
+	if diff.Config == nil {
+		t.Fatalf("expected Config diff: %#v", diff)
+	}
+
+	cdiff = diff.Config
+	if cdiff.Type != DiffTypeDeleted {
+		t.Fatalf("expected Config diff type %v; got %#v", DiffTypeDeleted, cdiff.Type)
+	}
+
+	if len(cdiff.Added)+len(cdiff.Edited) != 0 && len(cdiff.Deleted) != 1 {
+		t.Fatalf("unexpected config diffs: %#v", cdiff)
+	}
+
+	if v, ok := cdiff.Deleted["command"]; !ok || v != "/bin/date" {
+		t.Fatalf("bad: %#v", cdiff.Deleted)
+	}
+
+	// Added case
+	t3 := &structs.Task{Config: c3}
+	diff = NewTaskDiff(t1, t3)
+	if diff == nil {
+		t.Fatalf("expected non-nil diff")
+	}
+	if diff.Config == nil {
+		t.Fatalf("expected Config diff: %#v", diff)
+	}
+
+	cdiff = diff.Config
+	if cdiff.Type != DiffTypeAdded {
+		t.Fatalf("expected Config diff type %v; got %#v", DiffTypeAdded, cdiff.Type)
+	}
+
+	if len(cdiff.Deleted)+len(cdiff.Edited) != 0 && len(cdiff.Added) != 2 {
+		t.Fatalf("unexpected config diffs: %#v", cdiff)
+	}
+
+	if v, ok := cdiff.Added["nested.Value"]; !ok || v != "80" {
+		t.Fatalf("bad: %#v", cdiff.Added)
+	}
+	if v, ok := cdiff.Added["nested.Label"]; !ok || v != "http" {
+		t.Fatalf("bad: %#v", cdiff.Added)
+	}
+
+	// Edited case
+	t4 := &structs.Task{Config: c4}
+	diff = NewTaskDiff(t1, t4)
+	if diff == nil {
+		t.Fatalf("expected non-nil diff")
+	}
+	if diff.Config == nil {
+		t.Fatalf("expected Config diff: %#v", diff)
+	}
+
+	cdiff = diff.Config
+	if cdiff.Type != DiffTypeEdited {
+		t.Fatalf("expected Config diff type %v; got %#v", DiffTypeEdited, cdiff.Type)
+	}
+
+	if len(cdiff.Deleted)+len(cdiff.Added) != 0 && len(cdiff.Edited) != 1 {
+		t.Fatalf("unexpected config diffs: %#v", cdiff)
+	}
+
+	exp := StringValueDelta{Old: "/bin/date", New: "/bin/bash"}
+	exp.Type = DiffTypeEdited
+	v, ok := cdiff.Edited["command"]
+	if !ok || !reflect.DeepEqual(v, exp) {
+		t.Fatalf("bad: %#v %#v %#v", cdiff.Edited, v, exp)
+	}
 }
 
 func TestNewPrimitiveStructDiff(t *testing.T) {
@@ -152,6 +309,24 @@ func TestNewPrimitiveStructDiff(t *testing.T) {
 	pdiff = NewPrimitiveStructDiff(p1, p1, portFields)
 	if pdiff != nil {
 		t.Fatalf("expected no diff: %#v", pdiff)
+	}
+
+	pdiff = NewPrimitiveStructDiff(nil, p1, portFields)
+	if pdiff == nil {
+		t.Fatalf("expected diff")
+	}
+
+	if pdiff.Type != DiffTypeAdded {
+		t.Fatalf("unexpected type: got %v; want %v", pdiff.Type, DiffTypeAdded)
+	}
+
+	pdiff = NewPrimitiveStructDiff(p1, nil, portFields)
+	if pdiff == nil {
+		t.Fatalf("expected diff")
+	}
+
+	if pdiff.Type != DiffTypeDeleted {
+		t.Fatalf("unexpected type: got %v; want %v", pdiff.Type, DiffTypeDeleted)
 	}
 
 	pdiff = NewPrimitiveStructDiff(p1, p2, portFields)
@@ -322,13 +497,13 @@ func TestNewFieldDiff(t *testing.T) {
 		diff := NewFieldDiff("foo", c.Old, c.New)
 		if diff == nil {
 			if !c.NilExpected {
-				t.Fatalf("case %d: diff was nil and unexpected", i)
+				t.Fatalf("case %d: diff was nil and unexpected", i+1)
 			}
 			continue
 		}
 
 		if diff.Type != c.Expected {
-			t.Fatalf("case %d: wanted type %v; got %v", diff.Type, c.Expected)
+			t.Fatalf("case %d: wanted type %v; got %v", i+1, diff.Type, c.Expected)
 		}
 	}
 }
@@ -336,9 +511,10 @@ func TestNewFieldDiff(t *testing.T) {
 func TestStringSetDiff(t *testing.T) {
 	values := []string{"1", "2", "3", "4", "5", "6"}
 
+	// Edited case
 	setDiff := NewStringSetDiff(values[:4], values[2:])
 	if setDiff.Type != DiffTypeEdited {
-		t.Fatalf("expected edited")
+		t.Fatalf("got type %v; want %v", setDiff.Type, DiffTypeEdited)
 	}
 
 	addedExp := []string{"5", "6"}
@@ -349,6 +525,18 @@ func TestStringSetDiff(t *testing.T) {
 	if !reflect.DeepEqual(addedExp, setDiff.Added) ||
 		!reflect.DeepEqual(deletedExp, setDiff.Deleted) {
 		t.Fatalf("bad: %#v", setDiff)
+	}
+
+	// Added case
+	setDiff = NewStringSetDiff(nil, values)
+	if setDiff.Type != DiffTypeAdded {
+		t.Fatalf("got type %v; want %v", setDiff.Type, DiffTypeAdded)
+	}
+
+	// Deleted case
+	setDiff = NewStringSetDiff(values, nil)
+	if setDiff.Type != DiffTypeDeleted {
+		t.Fatalf("got type %v; want %v", setDiff.Type, DiffTypeDeleted)
 	}
 }
 
@@ -361,6 +549,8 @@ func TestStringMapDiff(t *testing.T) {
 		"b": "bval2",
 		"c": "cval",
 	}
+
+	// Edited case
 	expected := &StringMapDiff{
 		DiffEntry: DiffEntry{
 			Type: DiffTypeEdited,
@@ -380,6 +570,18 @@ func TestStringMapDiff(t *testing.T) {
 	act := NewStringMapDiff(m1, m2)
 	if !reflect.DeepEqual(act, expected) {
 		t.Fatalf("got %#v; want %#v", act, expected)
+	}
+
+	// Added case
+	diff := NewStringMapDiff(nil, m1)
+	if diff.Type != DiffTypeAdded {
+		t.Fatalf("got type %v; want %v", diff.Type, DiffTypeAdded)
+	}
+
+	// Deleted case
+	diff = NewStringMapDiff(m1, nil)
+	if diff.Type != DiffTypeDeleted {
+		t.Fatalf("got type %v; want %v", diff.Type, DiffTypeDeleted)
 	}
 }
 
