@@ -337,7 +337,11 @@ func TestNewPrimitiveStructDiff(t *testing.T) {
 		t.Fatalf("unexpected number of field diffs: %#v", pdiff.PrimitiveFields)
 	}
 
-	f := pdiff.PrimitiveFields[0]
+	f, ok := pdiff.PrimitiveFields["Label"]
+	if !ok {
+		t.Fatalf("expected diff on field %q", "label")
+	}
+
 	if f.Type != DiffTypeEdited {
 		t.Fatalf("unexpected type: got %v; want %v", f.Type, DiffTypeEdited)
 	}
@@ -358,7 +362,10 @@ func TestNewPrimitiveStructDiff(t *testing.T) {
 		t.Fatalf("unexpected number of field diffs: %#v", pdiff.PrimitiveFields)
 	}
 
-	f = pdiff.PrimitiveFields[0]
+	f = pdiff.PrimitiveFields["Label"]
+	if !ok {
+		t.Fatalf("expected diff on field %q", "Label")
+	}
 	if f.Type != DiffTypeEdited {
 		t.Fatalf("unexpected type: got %v; want %v", f.Type, DiffTypeEdited)
 	}

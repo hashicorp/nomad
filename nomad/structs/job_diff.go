@@ -255,7 +255,7 @@ type PortsDiff struct {
 // primitive fields.
 type PrimitiveStructDiff struct {
 	DiffEntry
-	PrimitiveFields []*FieldDiff
+	PrimitiveFields map[string]*FieldDiff
 }
 
 // DiffFields performs the diff of the passed fields against the old and new
@@ -266,7 +266,11 @@ func (p *PrimitiveStructDiff) DiffFields(old, new interface{}, fields []string) 
 		newV := getField(new, field)
 		pDiff := NewFieldDiff(field, oldV, newV)
 		if pDiff != nil {
-			p.PrimitiveFields = append(p.PrimitiveFields, pDiff)
+			if p.PrimitiveFields == nil {
+				p.PrimitiveFields = make(map[string]*FieldDiff)
+			}
+
+			p.PrimitiveFields[field] = pDiff
 		}
 	}
 }
