@@ -1,4 +1,4 @@
-package diff
+package structs
 
 // JobVisitor is the set of types a visitor must implement to traverse a JobDiff
 // structure.

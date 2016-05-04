@@ -1,10 +1,10 @@
-package diff
+package structs
 
 import (
 	"fmt"
 	"reflect"
 
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/helper/flatmap"
 	"github.com/mitchellh/hashstructure"
 )
 
@@ -152,7 +152,7 @@ type JobDiff struct {
 // TaskGroupsDiff contains the set of Task Groups that were changed.
 type TaskGroupsDiff struct {
 	DiffEntry
-	Added, Deleted []*structs.TaskGroup
+	Added, Deleted []*TaskGroup
 	Edited         []*TaskGroupDiff
 }
 
@@ -168,7 +168,7 @@ type TaskGroupDiff struct {
 // TasksDiff contains the set of Tasks that were changed.
 type TasksDiff struct {
 	DiffEntry
-	Added, Deleted []*structs.Task
+	Added, Deleted []*Task
 	Edited         []*TaskDiff
 }
 
@@ -188,7 +188,7 @@ type TaskDiff struct {
 // ServicesDiff contains the set of Services that were changed.
 type ServicesDiff struct {
 	DiffEntry
-	Added, Deleted []*structs.Service
+	Added, Deleted []*Service
 	Edited         []*ServiceDiff
 }
 
@@ -202,7 +202,7 @@ type ServiceDiff struct {
 // ServiceChecksDiff contains the set of Service Checks that were changed.
 type ServiceChecksDiff struct {
 	DiffEntry
-	Added, Deleted []*structs.ServiceCheck
+	Added, Deleted []*ServiceCheck
 	Edited         []*ServiceCheckDiff
 }
 
@@ -215,7 +215,7 @@ type ServiceCheckDiff struct {
 // TaskArtifactsDiff contains the set of Task Artifacts that were changed.
 type TaskArtifactsDiff struct {
 	DiffEntry
-	Added, Deleted []*structs.TaskArtifact
+	Added, Deleted []*TaskArtifact
 	Edited         []*TaskArtifactDiff
 }
 
@@ -247,7 +247,7 @@ type NetworkResourceDiff struct {
 // PortsDiff contains the difference between two sets of Ports.
 type PortsDiff struct {
 	DiffEntry
-	Added, Deleted []structs.Port
+	Added, Deleted []Port
 	Edited         []*PrimitiveStructDiff
 }
 
@@ -300,7 +300,7 @@ type StringValueDelta struct {
 
 // NewJobDiff returns the diff between two jobs. If there is no difference, nil
 // is returned.
-func NewJobDiff(old, new *structs.Job) *JobDiff {
+func NewJobDiff(old, new *Job) *JobDiff {
 	diff := &JobDiff{}
 	diff.SetDiffType(old, new)
 	if diff.Type == DiffTypeNone {
@@ -313,10 +313,10 @@ func NewJobDiff(old, new *structs.Job) *JobDiff {
 	// Protect accessing nil fields, this occurs after diffing the primitives so
 	// that we can properly detect Added/Deleted fields.
 	if old == nil {
-		old = &structs.Job{}
+		old = &Job{}
 	}
 	if new == nil {
-		new = &structs.Job{}
+		new = &Job{}
 	}
 
 	// Get the diff of the datacenters
@@ -355,7 +355,7 @@ func NewJobDiff(old, new *structs.Job) *JobDiff {
 
 // NewTaskGroupDiff returns the diff between two task groups. If there is no
 // difference, nil is returned.
-func NewTaskGroupDiff(old, new *structs.TaskGroup) *TaskGroupDiff {
+func NewTaskGroupDiff(old, new *TaskGroup) *TaskGroupDiff {
 	diff := &TaskGroupDiff{}
 	diff.SetDiffType(old, new)
 	if diff.Type == DiffTypeNone {
@@ -368,10 +368,10 @@ func NewTaskGroupDiff(old, new *structs.TaskGroup) *TaskGroupDiff {
 	// Protect accessing nil fields, this occurs after diffing the primitives so
 	// that we can properly detect Added/Deleted fields.
 	if old == nil {
-		old = &structs.TaskGroup{}
+		old = &TaskGroup{}
 	}
 	if new == nil {
-		new = &structs.TaskGroup{}
+		new = &TaskGroup{}
 	}
 
 	// Get the diff of the constraints.
@@ -402,7 +402,7 @@ func NewTaskGroupDiff(old, new *structs.TaskGroup) *TaskGroupDiff {
 
 // NewTaskDiff returns the diff between two tasks. If there is no difference,
 // nil is returned.
-func NewTaskDiff(old, new *structs.Task) *TaskDiff {
+func NewTaskDiff(old, new *Task) *TaskDiff {
 	diff := &TaskDiff{}
 	diff.SetDiffType(old, new)
 	if diff.Type == DiffTypeNone {
@@ -415,10 +415,10 @@ func NewTaskDiff(old, new *structs.Task) *TaskDiff {
 	// Protect accessing nil fields, this occurs after diffing the primitives so
 	// that we can properly detect Added/Deleted fields.
 	if old == nil {
-		old = &structs.Task{}
+		old = &Task{}
 	}
 	if new == nil {
-		new = &structs.Task{}
+		new = &Task{}
 	}
 
 	// Get the diff of the constraints.
@@ -444,7 +444,7 @@ func NewTaskDiff(old, new *structs.Task) *TaskDiff {
 	diff.Resources = NewResourcesDiff(old.Resources, new.Resources)
 
 	// Get the task config diff
-	diff.Config = NewStringMapDiff(Flatten(old.Config), Flatten(new.Config))
+	diff.Config = NewStringMapDiff(flatmap.Flatten(old.Config), flatmap.Flatten(new.Config))
 
 	// If there are no changes return nil
 	if len(diff.PrimitiveFields)+len(diff.Constraints) == 0 &&
@@ -462,7 +462,7 @@ func NewTaskDiff(old, new *structs.Task) *TaskDiff {
 
 // NewServiceDiff returns the diff between two services. If there is no
 // difference, nil is returned.
-func NewServiceDiff(old, new *structs.Service) *ServiceDiff {
+func NewServiceDiff(old, new *Service) *ServiceDiff {
 	diff := &ServiceDiff{}
 	diff.SetDiffType(old, new)
 	if diff.Type == DiffTypeNone {
@@ -475,10 +475,10 @@ func NewServiceDiff(old, new *structs.Service) *ServiceDiff {
 	// Protect accessing nil fields, this occurs after diffing the primitives so
 	// that we can properly detect Added/Deleted fields.
 	if old == nil {
-		old = &structs.Service{}
+		old = &Service{}
 	}
 	if new == nil {
-		new = &structs.Service{}
+		new = &Service{}
 	}
 
 	// Get the tags diff
@@ -499,7 +499,7 @@ func NewServiceDiff(old, new *structs.Service) *ServiceDiff {
 
 // NewServiceCheckDiff returns the diff between two service checks. If there is
 // no difference, nil is returned.
-func NewServiceCheckDiff(old, new *structs.ServiceCheck) *ServiceCheckDiff {
+func NewServiceCheckDiff(old, new *ServiceCheck) *ServiceCheckDiff {
 	diff := &ServiceCheckDiff{}
 	diff.SetDiffType(old, new)
 	if diff.Type == DiffTypeNone {
@@ -512,10 +512,10 @@ func NewServiceCheckDiff(old, new *structs.ServiceCheck) *ServiceCheckDiff {
 	// Protect accessing nil fields, this occurs after diffing the primitives so
 	// that we can properly detect Added/Deleted fields.
 	if old == nil {
-		old = &structs.ServiceCheck{}
+		old = &ServiceCheck{}
 	}
 	if new == nil {
-		new = &structs.ServiceCheck{}
+		new = &ServiceCheck{}
 	}
 
 	// Get the args diff
@@ -532,7 +532,7 @@ func NewServiceCheckDiff(old, new *structs.ServiceCheck) *ServiceCheckDiff {
 
 // NewTaskArtifactDiff returns the diff between two task artifacts. If there is
 // no difference, nil is returned.
-func NewTaskArtifactDiff(old, new *structs.TaskArtifact) *TaskArtifactDiff {
+func NewTaskArtifactDiff(old, new *TaskArtifact) *TaskArtifactDiff {
 	diff := &TaskArtifactDiff{}
 	diff.SetDiffType(old, new)
 	if diff.Type == DiffTypeNone {
@@ -545,10 +545,10 @@ func NewTaskArtifactDiff(old, new *structs.TaskArtifact) *TaskArtifactDiff {
 	// Protect accessing nil fields, this occurs after diffing the primitives so
 	// that we can properly detect Added/Deleted fields.
 	if old == nil {
-		old = &structs.TaskArtifact{}
+		old = &TaskArtifact{}
 	}
 	if new == nil {
-		new = &structs.TaskArtifact{}
+		new = &TaskArtifact{}
 	}
 
 	// Get the args diff
@@ -565,7 +565,7 @@ func NewTaskArtifactDiff(old, new *structs.TaskArtifact) *TaskArtifactDiff {
 
 // NewResourcesDiff returns the diff between two resources. If there is no
 // difference, nil is returned.
-func NewResourcesDiff(old, new *structs.Resources) *ResourcesDiff {
+func NewResourcesDiff(old, new *Resources) *ResourcesDiff {
 	diff := &ResourcesDiff{}
 	diff.SetDiffType(old, new)
 	if diff.Type == DiffTypeNone {
@@ -578,10 +578,10 @@ func NewResourcesDiff(old, new *structs.Resources) *ResourcesDiff {
 	// Protect accessing nil fields, this occurs after diffing the primitives so
 	// that we can properly detect Added/Deleted fields.
 	if old == nil {
-		old = &structs.Resources{}
+		old = &Resources{}
 	}
 	if new == nil {
-		new = &structs.Resources{}
+		new = &Resources{}
 	}
 
 	// Get the network resource diff
@@ -598,7 +598,7 @@ func NewResourcesDiff(old, new *structs.Resources) *ResourcesDiff {
 
 // NewNetworkResourceDiff returns the diff between two network resources. If
 // there is no difference, nil is returned.
-func NewNetworkResourceDiff(old, new *structs.NetworkResource) *NetworkResourceDiff {
+func NewNetworkResourceDiff(old, new *NetworkResource) *NetworkResourceDiff {
 	diff := &NetworkResourceDiff{}
 	diff.SetDiffType(old, new)
 	if diff.Type == DiffTypeNone {
@@ -611,10 +611,10 @@ func NewNetworkResourceDiff(old, new *structs.NetworkResource) *NetworkResourceD
 	// Protect accessing nil fields, this occurs after diffing the primitives so
 	// that we can properly detect Added/Deleted fields.
 	if old == nil {
-		old = &structs.NetworkResource{}
+		old = &NetworkResource{}
 	}
 	if new == nil {
-		new = &structs.NetworkResource{}
+		new = &NetworkResource{}
 	}
 
 	// Get the port diffs
@@ -780,11 +780,11 @@ func NewStringMapDiff(old, new map[string]string) *StringMapDiff {
 
 // setDiffTaskGroups does a set difference of task groups using the task group
 // name as a key.
-func setDiffTaskGroups(old, new []*structs.TaskGroup) *TaskGroupsDiff {
+func setDiffTaskGroups(old, new []*TaskGroup) *TaskGroupsDiff {
 	diff := &TaskGroupsDiff{}
 
-	oldMap := make(map[string]*structs.TaskGroup)
-	newMap := make(map[string]*structs.TaskGroup)
+	oldMap := make(map[string]*TaskGroup)
+	newMap := make(map[string]*TaskGroup)
 	for _, tg := range old {
 		oldMap[tg.Name] = tg
 	}
@@ -818,11 +818,11 @@ func setDiffTaskGroups(old, new []*structs.TaskGroup) *TaskGroupsDiff {
 }
 
 // setDiffTasks does a set difference of tasks using the task name as a key.
-func setDiffTasks(old, new []*structs.Task) *TasksDiff {
+func setDiffTasks(old, new []*Task) *TasksDiff {
 	diff := &TasksDiff{}
 
-	oldMap := make(map[string]*structs.Task)
-	newMap := make(map[string]*structs.Task)
+	oldMap := make(map[string]*Task)
+	newMap := make(map[string]*Task)
 	for _, task := range old {
 		oldMap[task.Name] = task
 	}
@@ -857,11 +857,11 @@ func setDiffTasks(old, new []*structs.Task) *TasksDiff {
 
 // setDiffServices does a set difference of Services using the service name as a
 // key.
-func setDiffServices(old, new []*structs.Service) *ServicesDiff {
+func setDiffServices(old, new []*Service) *ServicesDiff {
 	diff := &ServicesDiff{}
 
-	oldMap := make(map[string]*structs.Service)
-	newMap := make(map[string]*structs.Service)
+	oldMap := make(map[string]*Service)
+	newMap := make(map[string]*Service)
 	for _, s := range old {
 		oldMap[s.Name] = s
 	}
@@ -896,11 +896,11 @@ func setDiffServices(old, new []*structs.Service) *ServicesDiff {
 
 // setDiffServiceChecks does a set difference of service checks using the check
 // name as a key.
-func setDiffServiceChecks(old, new []*structs.ServiceCheck) *ServiceChecksDiff {
+func setDiffServiceChecks(old, new []*ServiceCheck) *ServiceChecksDiff {
 	diff := &ServiceChecksDiff{}
 
-	oldMap := make(map[string]*structs.ServiceCheck)
-	newMap := make(map[string]*structs.ServiceCheck)
+	oldMap := make(map[string]*ServiceCheck)
+	newMap := make(map[string]*ServiceCheck)
 	for _, s := range old {
 		oldMap[s.Name] = s
 	}
@@ -935,11 +935,11 @@ func setDiffServiceChecks(old, new []*structs.ServiceCheck) *ServiceChecksDiff {
 
 // setDiffTaskArtifacts does a set difference of task artifacts using the geter
 // source as a key.
-func setDiffTaskArtifacts(old, new []*structs.TaskArtifact) *TaskArtifactsDiff {
+func setDiffTaskArtifacts(old, new []*TaskArtifact) *TaskArtifactsDiff {
 	diff := &TaskArtifactsDiff{}
 
-	oldMap := make(map[string]*structs.TaskArtifact)
-	newMap := make(map[string]*structs.TaskArtifact)
+	oldMap := make(map[string]*TaskArtifact)
+	newMap := make(map[string]*TaskArtifact)
 	for _, ta := range old {
 		oldMap[ta.GetterSource] = ta
 	}
@@ -973,16 +973,16 @@ func setDiffTaskArtifacts(old, new []*structs.TaskArtifact) *TaskArtifactsDiff {
 }
 
 // setDiffNetworkResources does a set difference of network resources.
-func setDiffNetworkResources(old, new []*structs.NetworkResource) *NetworkResourcesDiff {
+func setDiffNetworkResources(old, new []*NetworkResource) *NetworkResourcesDiff {
 	diff := &NetworkResourcesDiff{}
 
 	added, del := setDifference(interfaceSlice(old), interfaceSlice(new))
 	for _, a := range added {
-		nDiff := NewNetworkResourceDiff(nil, a.(*structs.NetworkResource))
+		nDiff := NewNetworkResourceDiff(nil, a.(*NetworkResource))
 		diff.Added = append(diff.Added, nDiff)
 	}
 	for _, d := range del {
-		nDiff := NewNetworkResourceDiff(d.(*structs.NetworkResource), nil)
+		nDiff := NewNetworkResourceDiff(d.(*NetworkResource), nil)
 		diff.Added = append(diff.Deleted, nDiff)
 	}
 
@@ -990,11 +990,11 @@ func setDiffNetworkResources(old, new []*structs.NetworkResource) *NetworkResour
 }
 
 // setDiffPorts does a set difference of ports using the label as a key.
-func setDiffPorts(old, new []structs.Port) *PortsDiff {
+func setDiffPorts(old, new []Port) *PortsDiff {
 	diff := &PortsDiff{}
 
-	oldMap := make(map[string]structs.Port)
-	newMap := make(map[string]structs.Port)
+	oldMap := make(map[string]Port)
+	newMap := make(map[string]Port)
 	for _, p := range old {
 		oldMap[p.Label] = p
 	}

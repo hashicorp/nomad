@@ -1,28 +1,24 @@
-package diff
+package structs
 
 import (
 	"reflect"
 	"sort"
 	"testing"
-
-	"github.com/davecgh/go-spew/spew"
-	"github.com/hashicorp/nomad/nomad/mock"
-	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 func TestNewJobDiff_Same(t *testing.T) {
-	job1 := mock.Job()
-	job2 := mock.Job()
+	job1 := TestJob()
+	job2 := TestJob()
 	job2.ID = job1.ID
 
 	diff := NewJobDiff(job1, job2)
 	if diff != nil {
-		t.Fatalf("expected nil job diff; got %s", spew.Sdump(diff))
+		t.Fatalf("expected nil job diff; got %#v", diff)
 	}
 }
 
 func TestNewJobDiff_NilCases(t *testing.T) {
-	j := mock.Job()
+	j := TestJob()
 
 	// Old job nil
 	diff := NewJobDiff(nil, j)
@@ -30,7 +26,6 @@ func TestNewJobDiff_NilCases(t *testing.T) {
 		t.Fatalf("expected non-nil job diff")
 	}
 	if diff.Type != DiffTypeAdded {
-		//t.Fatalf("got diff type %v; want %v; %s", diff.Type, DiffTypeAdded, spew.Sdump(diff))
 		t.Fatalf("got diff type %v; want %v", diff.Type, DiffTypeAdded)
 	}
 
@@ -45,13 +40,13 @@ func TestNewJobDiff_NilCases(t *testing.T) {
 }
 
 func TestNewJobDiff_Constraints(t *testing.T) {
-	c1 := &structs.Constraint{LTarget: "foo"}
-	c2 := &structs.Constraint{LTarget: "bar"}
-	c3 := &structs.Constraint{LTarget: "baz"}
+	c1 := &Constraint{LTarget: "foo"}
+	c2 := &Constraint{LTarget: "bar"}
+	c3 := &Constraint{LTarget: "baz"}
 
 	// Test the added case.
-	j1 := &structs.Job{Constraints: []*structs.Constraint{c1, c2}}
-	j2 := &structs.Job{Constraints: []*structs.Constraint{c1, c2, c3}}
+	j1 := &Job{Constraints: []*Constraint{c1, c2}}
+	j2 := &Job{Constraints: []*Constraint{c1, c2, c3}}
 
 	diff := NewJobDiff(j1, j2)
 	if diff == nil {
@@ -75,8 +70,8 @@ func TestNewJobDiff_Constraints(t *testing.T) {
 	}
 
 	// Test the deleted case.
-	j1 = &structs.Job{Constraints: []*structs.Constraint{c1, c2}}
-	j2 = &structs.Job{Constraints: []*structs.Constraint{c1}}
+	j1 = &Job{Constraints: []*Constraint{c1, c2}}
+	j2 = &Job{Constraints: []*Constraint{c1}}
 
 	diff = NewJobDiff(j1, j2)
 	if diff == nil {
@@ -101,8 +96,8 @@ func TestNewJobDiff_Constraints(t *testing.T) {
 }
 
 func TestNewJobDiff_Datacenters(t *testing.T) {
-	j1 := &structs.Job{Datacenters: []string{"a", "b"}}
-	j2 := &structs.Job{Datacenters: []string{"b", "c"}}
+	j1 := &Job{Datacenters: []string{"a", "b"}}
+	j2 := &Job{Datacenters: []string{"b", "c"}}
 
 	diff := NewJobDiff(j1, j2)
 	if diff == nil {
@@ -126,13 +121,13 @@ func TestNewJobDiff_Datacenters(t *testing.T) {
 }
 
 func TestNewJobDiff_TaskGroups(t *testing.T) {
-	tg1 := &structs.TaskGroup{Name: "foo"}
-	tg2 := &structs.TaskGroup{Name: "bar"}
-	tg2_2 := &structs.TaskGroup{Name: "bar", Count: 2}
-	tg3 := &structs.TaskGroup{Name: "baz"}
+	tg1 := &TaskGroup{Name: "foo"}
+	tg2 := &TaskGroup{Name: "bar"}
+	tg2_2 := &TaskGroup{Name: "bar", Count: 2}
+	tg3 := &TaskGroup{Name: "baz"}
 
-	j1 := &structs.Job{TaskGroups: []*structs.TaskGroup{tg1, tg2}}
-	j2 := &structs.Job{TaskGroups: []*structs.TaskGroup{tg2_2, tg3}}
+	j1 := &Job{TaskGroups: []*TaskGroup{tg1, tg2}}
+	j2 := &Job{TaskGroups: []*TaskGroup{tg2_2, tg3}}
 
 	diff := NewJobDiff(j1, j2)
 	if diff == nil {
@@ -148,8 +143,8 @@ func TestNewJobDiff_TaskGroups(t *testing.T) {
 		t.Fatalf("expected task group diff")
 	}
 
-	if !reflect.DeepEqual(tgd.Added, []*structs.TaskGroup{tg3}) ||
-		!reflect.DeepEqual(tgd.Deleted, []*structs.TaskGroup{tg1}) {
+	if !reflect.DeepEqual(tgd.Added, []*TaskGroup{tg3}) ||
+		!reflect.DeepEqual(tgd.Deleted, []*TaskGroup{tg1}) {
 		t.Fatalf("bad: %#v", tgd)
 	}
 
@@ -174,7 +169,7 @@ func TestNewTaskDiff_Config(t *testing.T) {
 	c3 := map[string]interface{}{
 		"command": "/bin/date",
 		"args":    []string{"1", "2"},
-		"nested": &structs.Port{
+		"nested": &Port{
 			Label: "http",
 			Value: 80,
 		},
@@ -186,7 +181,7 @@ func TestNewTaskDiff_Config(t *testing.T) {
 	}
 
 	// No old case
-	t1 := &structs.Task{Config: c1}
+	t1 := &Task{Config: c1}
 	diff := NewTaskDiff(nil, t1)
 	if diff == nil {
 		t.Fatalf("expected non-nil diff")
@@ -221,7 +216,7 @@ func TestNewTaskDiff_Config(t *testing.T) {
 	}
 
 	// Deleted case
-	t2 := &structs.Task{Config: c2}
+	t2 := &Task{Config: c2}
 	diff = NewTaskDiff(t1, t2)
 	if diff == nil {
 		t.Fatalf("expected non-nil diff")
@@ -244,7 +239,7 @@ func TestNewTaskDiff_Config(t *testing.T) {
 	}
 
 	// Added case
-	t3 := &structs.Task{Config: c3}
+	t3 := &Task{Config: c3}
 	diff = NewTaskDiff(t1, t3)
 	if diff == nil {
 		t.Fatalf("expected non-nil diff")
@@ -270,7 +265,7 @@ func TestNewTaskDiff_Config(t *testing.T) {
 	}
 
 	// Edited case
-	t4 := &structs.Task{Config: c4}
+	t4 := &Task{Config: c4}
 	diff = NewTaskDiff(t1, t4)
 	if diff == nil {
 		t.Fatalf("expected non-nil diff")
@@ -297,9 +292,9 @@ func TestNewTaskDiff_Config(t *testing.T) {
 }
 
 func TestNewPrimitiveStructDiff(t *testing.T) {
-	p1 := structs.Port{Label: "1"}
-	p2 := structs.Port{Label: "2"}
-	p3 := structs.Port{}
+	p1 := Port{Label: "1"}
+	p2 := Port{Label: "2"}
+	p3 := Port{}
 
 	pdiff := NewPrimitiveStructDiff(nil, nil, portFields)
 	if pdiff != nil {
@@ -373,15 +368,15 @@ func TestNewPrimitiveStructDiff(t *testing.T) {
 }
 
 func TestSetDiffPrimitiveStructs(t *testing.T) {
-	p1 := structs.Port{Label: "1"}
-	p2 := structs.Port{Label: "2"}
-	p3 := structs.Port{Label: "3"}
-	p4 := structs.Port{Label: "4"}
-	p5 := structs.Port{Label: "5"}
-	p6 := structs.Port{Label: "6"}
+	p1 := Port{Label: "1"}
+	p2 := Port{Label: "2"}
+	p3 := Port{Label: "3"}
+	p4 := Port{Label: "4"}
+	p5 := Port{Label: "5"}
+	p6 := Port{Label: "6"}
 
-	old := []structs.Port{p1, p2, p3, p4}
-	new := []structs.Port{p3, p4, p5, p6}
+	old := []Port{p1, p2, p3, p4}
+	new := []Port{p3, p4, p5, p6}
 
 	diffs := setDiffPrimitiveStructs(interfaceSlice(old), interfaceSlice(new), portFields)
 	if len(diffs) != 4 {
@@ -634,9 +629,9 @@ func TestKeyedSetDifference(t *testing.T) {
 }
 
 func TestInterfaceSlice(t *testing.T) {
-	j1 := mock.Job()
-	j2 := mock.Job()
-	jobs := []*structs.Job{j1, j2}
+	j1 := TestJob()
+	j2 := TestJob()
+	jobs := []*Job{j1, j2}
 
 	slice := interfaceSlice(jobs)
 	if len(slice) != 2 {
@@ -644,7 +639,7 @@ func TestInterfaceSlice(t *testing.T) {
 	}
 
 	f := slice[0]
-	actJob1, ok := f.(*structs.Job)
+	actJob1, ok := f.(*Job)
 	if !ok {
 		t.Fatalf("unexpected type: %v", actJob1)
 	}
@@ -655,7 +650,7 @@ func TestInterfaceSlice(t *testing.T) {
 }
 
 func TestGetField(t *testing.T) {
-	j := mock.Job()
+	j := TestJob()
 	exp := "foo"
 	j.Type = "foo"
 
