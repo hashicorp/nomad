@@ -80,6 +80,7 @@ type Check interface {
 	Run() *cstructs.CheckResult
 	ID() string
 	Interval() time.Duration
+	Timeout() time.Duration
 }
 
 // Returns a random stagger interval between 0 and the duration

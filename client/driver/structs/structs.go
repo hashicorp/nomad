@@ -68,8 +68,19 @@ func (r *RecoverableError) Error() string {
 
 // CheckResult encapsulates the result of a check
 type CheckResult struct {
-	ExitCode  int
-	Output    string
+
+	// ExitCode is the exit code of the check
+	ExitCode int
+
+	// Output is the output of the check script
+	Output string
+
+	// Timestamp is the time at which the check was executed
 	Timestamp time.Time
-	Err       error
+
+	// Duration is the time it took the check to run
+	Duration time.Duration
+
+	// Err is the error that a check returned
+	Err error
 }
