@@ -460,3 +460,79 @@ func taskGroupConstraints(tg *structs.TaskGroup) tgConstrainTuple {
 
 	return c
 }
+
+// desiredUpdates takes the diffResult as well as the set of inplace and
+// destructive updates and returns a map of task groups to their set of desired
+// updates.
+func desiredUpdates(diff *diffResult, inplaceUpdates,
+	destructiveUpdates []allocTuple) map[string]*structs.DesiredUpdates {
+	desiredTgs := make(map[string]*structs.DesiredUpdates)
+
+	for _, tuple := range diff.place {
+		name := tuple.TaskGroup.Name
+		des, ok := desiredTgs[name]
+		if !ok {
+			des = &structs.DesiredUpdates{}
+			desiredTgs[name] = des
+		}
+
+		des.Place++
+	}
+
+	for _, tuple := range diff.stop {
+		name := tuple.Alloc.TaskGroup
+		des, ok := desiredTgs[name]
+		if !ok {
+			des = &structs.DesiredUpdates{}
+			desiredTgs[name] = des
+		}
+
+		des.Stop++
+	}
+
+	for _, tuple := range diff.ignore {
+		name := tuple.TaskGroup.Name
+		des, ok := desiredTgs[name]
+		if !ok {
+			des = &structs.DesiredUpdates{}
+			desiredTgs[name] = des
+		}
+
+		des.Ignore++
+	}
+
+	for _, tuple := range diff.migrate {
+		name := tuple.TaskGroup.Name
+		des, ok := desiredTgs[name]
+		if !ok {
+			des = &structs.DesiredUpdates{}
+			desiredTgs[name] = des
+		}
+
+		des.Migrate++
+	}
+
+	for _, tuple := range inplaceUpdates {
+		name := tuple.TaskGroup.Name
+		des, ok := desiredTgs[name]
+		if !ok {
+			des = &structs.DesiredUpdates{}
+			desiredTgs[name] = des
+		}
+
+		des.InPlaceUpdate++
+	}
+
+	for _, tuple := range destructiveUpdates {
+		name := tuple.TaskGroup.Name
+		des, ok := desiredTgs[name]
+		if !ok {
+			des = &structs.DesiredUpdates{}
+			desiredTgs[name] = des
+		}
+
+		des.DestructiveUpdate++
+	}
+
+	return desiredTgs
+}

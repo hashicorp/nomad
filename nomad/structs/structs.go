@@ -209,6 +209,14 @@ type JobListRequest struct {
 	QueryOptions
 }
 
+// JobPlanRequest is used for the Job.Plan endpoint to trigger a dry-run
+// evaluation of the Job.
+type JobPlanRequest struct {
+	Job  *Job
+	Diff bool // Toggles an annotated diff
+	WriteRequest
+}
+
 // NodeListRequest is used to parameterize a list request
 type NodeListRequest struct {
 	QueryOptions
@@ -387,6 +395,27 @@ type SingleJobResponse struct {
 // JobListResponse is used for a list request
 type JobListResponse struct {
 	Jobs []*JobListStub
+	QueryMeta
+}
+
+// JobPlanResponse is used to respond to a job plan request
+type JobPlanResponse struct {
+	// Plan holds the decisions the scheduler made.
+	Plan *Plan
+
+	// The Cas value can be used when running `nomad run` to ensure that the Job
+	// wasn’t modified since the last plan. If the job is being created, the
+	// value is zero.
+	Cas uint64
+
+	// CreatedEvals is the set of evaluations created by the scheduler. The
+	// reasons for this can be rolling-updates or blocked evals.
+	CreatedEvals []*Evaluation
+
+	// Diff contains the diff of the job and annotations on whether the change
+	// causes an in-place update or create/destroy
+	Diff *JobDiff
+
 	QueryMeta
 }
 
@@ -2577,6 +2606,10 @@ type Evaluation struct {
 	// captured by computed node classes.
 	EscapedComputedClass bool
 
+	// AnnotatePlan triggers the scheduler to provide additional annotations
+	// during the evaluation. This should not be set during normal operations.
+	AnnotatePlan bool
+
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
@@ -2721,6 +2754,10 @@ type Plan struct {
 	// but are persisted so that the user can use the feedback
 	// to determine the cause.
 	FailedAllocs []*Allocation
+
+	// Annotations contains annotations by the scheduler to be used by operators
+	// to understand the decisions made by the scheduler.
+	Annotations *PlanAnnotations
 }
 
 func (p *Plan) AppendUpdate(alloc *Allocation, status, desc string) {
@@ -2815,6 +2852,24 @@ func (p *PlanResult) FullCommit(plan *Plan) (bool, int, int) {
 		actual += len(didAlloc)
 	}
 	return actual == expected, expected, actual
+}
+
+// PlanAnnotations holds annotations made by the scheduler to give further debug
+// information to operators.
+type PlanAnnotations struct {
+	// DesiredTGUpdates is the set of desired updates per task group.
+	DesiredTGUpdates map[string]*DesiredUpdates
+}
+
+// DesiredUpdates is the set of changes the scheduler would like to make given
+// sufficient resources and cluster capacity.
+type DesiredUpdates struct {
+	Ignore            uint64
+	Place             uint64
+	Migrate           uint64
+	Stop              uint64
+	InPlaceUpdate     uint64
+	DestructiveUpdate uint64
 }
 
 // msgpackHandle is a shared handle for encoding/decoding of structs

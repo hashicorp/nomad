@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"fmt"
+	"reflect"
 	"testing"
 	"time"
 
@@ -42,6 +43,11 @@ func TestServiceSched_JobRegister(t *testing.T) {
 	}
 	plan := h.Plans[0]
 
+	// Ensure the plan doesn't have annotations.
+	if plan.Annotations != nil {
+		t.Fatalf("expected no annotations")
+	}
+
 	// Ensure the plan allocated
 	var planned []*structs.Allocation
 	for _, allocList := range plan.NodeAllocation {
@@ -74,6 +80,81 @@ func TestServiceSched_JobRegister(t *testing.T) {
 	}
 
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+}
+
+func TestServiceSched_JobRegister_Annotate(t *testing.T) {
+	h := NewHarness(t)
+
+	// Create some nodes
+	for i := 0; i < 10; i++ {
+		node := mock.Node()
+		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+	}
+
+	// Create a job
+	job := mock.Job()
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	// Create a mock evaluation to register the job
+	eval := &structs.Evaluation{
+		ID:           structs.GenerateUUID(),
+		Priority:     job.Priority,
+		TriggeredBy:  structs.EvalTriggerJobRegister,
+		JobID:        job.ID,
+		AnnotatePlan: true,
+	}
+
+	// Process the evaluation
+	err := h.Process(NewServiceScheduler, eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure a single plan
+	if len(h.Plans) != 1 {
+		t.Fatalf("bad: %#v", h.Plans)
+	}
+	plan := h.Plans[0]
+
+	// Ensure the plan allocated
+	var planned []*structs.Allocation
+	for _, allocList := range plan.NodeAllocation {
+		planned = append(planned, allocList...)
+	}
+	if len(planned) != 10 {
+		t.Fatalf("bad: %#v", plan)
+	}
+
+	// Lookup the allocations by JobID
+	out, err := h.State.AllocsByJob(job.ID)
+	noErr(t, err)
+
+	// Ensure all allocations placed
+	if len(out) != 10 {
+		t.Fatalf("bad: %#v", out)
+	}
+
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+
+	// Ensure the plan had annotations.
+	if plan.Annotations == nil {
+		t.Fatalf("expected annotations")
+	}
+
+	desiredTGs := plan.Annotations.DesiredTGUpdates
+	if l := len(desiredTGs); l != 1 {
+		t.Fatalf("incorrect number of task groups; got %v; want %v", l, 1)
+	}
+
+	desiredChanges, ok := desiredTGs["web"]
+	if !ok {
+		t.Fatalf("expected task group web to have desired changes")
+	}
+
+	expected := &structs.DesiredUpdates{Place: 10}
+	if !reflect.DeepEqual(desiredChanges, expected) {
+		t.Fatalf("Unexpected desired updates; got %#v; want %#v", desiredChanges, expected)
+	}
 }
 
 func TestServiceSched_JobRegister_CountZero(t *testing.T) {

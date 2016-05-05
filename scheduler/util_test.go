@@ -761,3 +761,60 @@ func TestProgressMade(t *testing.T) {
 		t.Fatal("bad")
 	}
 }
+
+func TestDesiredUpdates(t *testing.T) {
+	tg1 := &structs.TaskGroup{Name: "foo"}
+	tg2 := &structs.TaskGroup{Name: "bar"}
+
+	place := []allocTuple{
+		allocTuple{TaskGroup: tg1},
+		allocTuple{TaskGroup: tg1},
+		allocTuple{TaskGroup: tg1},
+		allocTuple{TaskGroup: tg2},
+	}
+	stop := []allocTuple{
+		allocTuple{TaskGroup: tg2},
+		allocTuple{TaskGroup: tg2},
+	}
+	ignore := []allocTuple{
+		allocTuple{TaskGroup: tg1},
+	}
+	migrate := []allocTuple{
+		allocTuple{TaskGroup: tg2},
+	}
+	inplace := []allocTuple{
+		allocTuple{TaskGroup: tg1},
+		allocTuple{TaskGroup: tg1},
+	}
+	destructive := []allocTuple{
+		allocTuple{TaskGroup: tg1},
+		allocTuple{TaskGroup: tg2},
+		allocTuple{TaskGroup: tg2},
+	}
+	diff := &diffResult{
+		place:   place,
+		stop:    stop,
+		ignore:  ignore,
+		migrate: migrate,
+	}
+
+	expected := map[string]*structs.DesiredUpdates{
+		"foo": {
+			Place:             3,
+			Ignore:            1,
+			InPlaceUpdate:     2,
+			DestructiveUpdate: 1,
+		},
+		"bar": {
+			Place:             1,
+			Stop:              2,
+			Migrate:           1,
+			DestructiveUpdate: 2,
+		},
+	}
+
+	desired := desiredUpdates(diff, inplace, destructive)
+	if !reflect.DeepEqual(desired, expected) {
+		t.Fatalf("desiredUpdates() returned %#v; want %#v", desired, expected)
+	}
+}
