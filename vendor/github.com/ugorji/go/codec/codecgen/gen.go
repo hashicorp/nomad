@@ -82,7 +82,7 @@ func CodecGenTempWrite{{ .RandString }}() {
 // fout contains Codec(En|De)codeSelf implementations for every type T.
 //
 func Generate(outfile, buildTag, codecPkgPath string, uid int64, useUnsafe bool, goRunTag string,
-	st string, regexName *regexp.Regexp, deleteTempFile bool, infiles ...string) (err error) {
+	st string, regexName *regexp.Regexp, notRegexName *regexp.Regexp, deleteTempFile bool, infiles ...string) (err error) {
 	// For each file, grab AST, find each type, and write a call to it.
 	if len(infiles) == 0 {
 		return
@@ -180,7 +180,7 @@ func Generate(outfile, buildTag, codecPkgPath string, uid int64, useUnsafe bool,
 						//   FuncType, InterfaceType, StarExpr (ptr), etc
 						switch td.Type.(type) {
 						case *ast.StructType, *ast.Ident, *ast.MapType, *ast.ArrayType, *ast.ChanType:
-							if regexName.FindStringIndex(td.Name.Name) != nil {
+							if regexName.FindStringIndex(td.Name.Name) != nil && notRegexName.FindStringIndex(td.Name.Name) == nil {
 								tv.Types = append(tv.Types, td.Name.Name)
 							}
 						}
@@ -259,6 +259,7 @@ func main() {
 	c := flag.String("c", genCodecPath, "codec path")
 	t := flag.String("t", "", "build tag to put in file")
 	r := flag.String("r", ".*", "regex for type name to match")
+	nr := flag.String("nr", "^$", "regex for type name to exclude")
 	rt := flag.String("rt", "", "tags for go run")
 	st := flag.String("st", "codec,json", "struct tag keys to introspect")
 	x := flag.Bool("x", false, "keep temp file")
@@ -266,7 +267,7 @@ func main() {
 	d := flag.Int64("d", 0, "random identifier for use in generated code")
 	flag.Parse()
 	if err := Generate(*o, *t, *c, *d, *u, *rt, *st,
-		regexp.MustCompile(*r), !*x, flag.Args()...); err != nil {
+		regexp.MustCompile(*r), regexp.MustCompile(*nr), !*x, flag.Args()...); err != nil {
 		fmt.Fprintf(os.Stderr, "codecgen error: %v\n", err)
 		os.Exit(1)
 	}

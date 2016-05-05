@@ -664,12 +664,16 @@
 			"revision": "ada3ba68f000aa1b58580e45c9d308fe0b7fc5c5"
 		},
 		{
+			"checksumSHA1": "tHm2SMtuRfrwh6NnnymsuoJ6e0Q=",
 			"path": "github.com/ugorji/go/codec",
-			"revision": "03b46f3d7a8e0457836a5ecd906b4961a5815a63"
+			"revision": "a396ed22fc049df733440d90efe17475e3929ccb",
+			"revisionTime": "2016-03-28T06:07:40Z"
 		},
 		{
+			"checksumSHA1": "CjQp8RP9SgJGltsq01UVaU4UYK0=",
 			"path": "github.com/ugorji/go/codec/codecgen",
-			"revision": "03b46f3d7a8e0457836a5ecd906b4961a5815a63"
+			"revision": "a396ed22fc049df733440d90efe17475e3929ccb",
+			"revisionTime": "2016-03-28T06:07:40Z"
 		},
 		{
 			"path": "golang.org/x/sys/unix",

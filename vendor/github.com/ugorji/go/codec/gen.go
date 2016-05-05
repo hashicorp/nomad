@@ -12,7 +12,6 @@ import (
 	"io"
 	"io/ioutil"
 	"math/rand"
-	"os"
 	"reflect"
 	"regexp"
 	"sort"
@@ -126,6 +125,7 @@ var (
 	genExpectArrayOrMapErr = errors.New("unexpected type. Expecting array/map/slice")
 	genBase64enc           = base64.NewEncoding("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789__")
 	genQNameRegex          = regexp.MustCompile(`[A-Za-z_.]+`)
+	genCheckVendor         bool
 )
 
 // genRunner holds some state used during a Gen run.
@@ -1626,8 +1626,6 @@ func (x *genV) MethodNamePfx(prefix string, prim bool) string {
 
 }
 
-var genCheckVendor = os.Getenv("GO15VENDOREXPERIMENT") == "1"
-
 // genImportPath returns import path of a non-predeclared named typed, or an empty string otherwise.
 //
 // This handles the misbehaviour that occurs when 1.5-style vendoring is enabled,
@@ -1678,7 +1676,7 @@ func genNonPtr(t reflect.Type) reflect.Type {
 
 func genTitleCaseName(s string) string {
 	switch s {
-	case "interface{}":
+	case "interface{}", "interface {}":
 		return "Intf"
 	default:
 		return strings.ToUpper(s[0:1]) + s[1:]
@@ -1781,7 +1779,7 @@ func (x genInternal) FastpathLen() (l int) {
 
 func genInternalZeroValue(s string) string {
 	switch s {
-	case "interface{}":
+	case "interface{}", "interface {}":
 		return "nil"
 	case "bool":
 		return "false"
