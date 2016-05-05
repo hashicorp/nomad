@@ -71,5 +71,6 @@ type CheckResult struct {
 	ExitCode  int
 	Output    string
 	Timestamp time.Time
+	Duration  time.Duration
 	Err       error
 }

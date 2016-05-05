@@ -566,6 +566,7 @@ func (e *UniversalExecutor) createCheck(check *structs.ServiceCheck, checkID str
 		return &DockerScriptCheck{
 			id:          checkID,
 			interval:    check.Interval,
+			timeout:     check.Timeout,
 			containerID: e.consulCtx.ContainerID,
 			logger:      e.logger,
 			cmd:         check.Command,
@@ -577,6 +578,7 @@ func (e *UniversalExecutor) createCheck(check *structs.ServiceCheck, checkID str
 		return &ExecScriptCheck{
 			id:          checkID,
 			interval:    check.Interval,
+			timeout:     check.Timeout,
 			cmd:         check.Command,
 			args:        check.Args,
 			taskDir:     e.taskDir,

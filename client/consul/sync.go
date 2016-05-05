@@ -429,6 +429,9 @@ func (c *ConsulService) consulPresent() bool {
 // runCheck runs a check and updates the corresponding ttl check in consul
 func (c *ConsulService) runCheck(check Check) {
 	res := check.Run()
+	if res.Duration >= check.Timeout() {
+		c.logger.Printf("[DEBUG] check took time: %v, timeout: %v", res.Duration, check.Timeout())
+	}
 	state := consul.HealthCritical
 	output := res.Output
 	switch res.ExitCode {

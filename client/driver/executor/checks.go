@@ -20,11 +20,16 @@ var (
 	client       *docker.Client
 )
 
+const (
+	defaultCheckTimeout = 30 * time.Second
+)
+
 // DockerScriptCheck runs nagios compatible scripts in a docker container and
 // provides the check result
 type DockerScriptCheck struct {
 	id          string
 	interval    time.Duration
+	timeout     time.Duration
 	containerID string
 	logger      *log.Logger
 	cmd         string
@@ -117,10 +122,16 @@ func (d *DockerScriptCheck) Interval() time.Duration {
 	return d.interval
 }
 
+// Timeout returns the duration after which a check is timed out.
+func (d *DockerScriptCheck) Timeout() time.Duration {
+	return d.timeout
+}
+
 // ExecScriptCheck runs a nagios compatible script and returns the check result
 type ExecScriptCheck struct {
 	id       string
 	interval time.Duration
+	timeout  time.Duration
 	cmd      string
 	args     []string
 	taskDir  string
@@ -143,9 +154,14 @@ func (e *ExecScriptCheck) Run() *cstructs.CheckResult {
 	go func() {
 		errCh <- cmd.Wait()
 	}()
+	timeout := defaultCheckTimeout
+	if e.timeout != 0 {
+		timeout = e.timeout
+	}
 	for {
 		select {
 		case err := <-errCh:
+			endTime := time.Now()
 			if err == nil {
 				return &cstructs.CheckResult{
 					ExitCode:  0,
@@ -163,8 +179,9 @@ func (e *ExecScriptCheck) Run() *cstructs.CheckResult {
 				ExitCode:  exitCode,
 				Output:    string(buf.Bytes()),
 				Timestamp: ts,
+				Duration:  endTime.Sub(ts),
 			}
-		case <-time.After(30 * time.Second):
+		case <-time.After(timeout):
 			errCh <- fmt.Errorf("timed out after waiting 30s")
 		}
 	}
@@ -179,4 +196,9 @@ func (e *ExecScriptCheck) ID() string {
 // Interval returns the interval at which the check has to run
 func (e *ExecScriptCheck) Interval() time.Duration {
 	return e.interval
+}
+
+// Timeout returns the duration after which a check is timed out.
+func (e *ExecScriptCheck) Timeout() time.Duration {
+	return e.timeout
 }
