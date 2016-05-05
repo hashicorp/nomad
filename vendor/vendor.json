@@ -3,10 +3,6 @@
 	"ignore": "test",
 	"package": [
 		{
-			"path": "github.com/DataDog/datadog-go/statsd",
-			"revision": "bc97e0770ad4edae1c9dc14beb40b79b2dde32f8"
-		},
-		{
 			"comment": "v0.8.7-87-g4b6ea73",
 			"path": "github.com/Sirupsen/logrus",
 			"revision": "4b6ea7319e214d98c938f12692336f7ca9348d6b"
@@ -21,14 +17,6 @@
 		},
 		{
 			"path": "github.com/armon/go-metrics",
-			"revision": "06b60999766278efd6d2b5d8418a58c3d5b99e87"
-		},
-		{
-			"path": "github.com/armon/go-metrics/datadog",
-			"revision": "06b60999766278efd6d2b5d8418a58c3d5b99e87"
-		},
-		{
-			"path": "github.com/armon/go-metrics/prometheus",
 			"revision": "06b60999766278efd6d2b5d8418a58c3d5b99e87"
 		},
 		{
@@ -151,20 +139,6 @@
 			"revision": "80dd4951fdb3f711d31843b8d87871130ef2df67"
 		},
 		{
-			"comment": "v1.0.6-2-g80dd495",
-			"path": "github.com/aws/aws-sdk-go/service/s3/s3iface",
-			"revision": "80dd4951fdb3f711d31843b8d87871130ef2df67"
-		},
-		{
-			"comment": "v1.0.6-2-g80dd495",
-			"path": "github.com/aws/aws-sdk-go/service/s3/s3manager",
-			"revision": "80dd4951fdb3f711d31843b8d87871130ef2df67"
-		},
-		{
-			"path": "github.com/beorn7/perks/quantile",
-			"revision": "b965b613227fddccbfffe13eae360ed3fa822f8d"
-		},
-		{
 			"path": "github.com/bgentry/speakeasy",
 			"revision": "36e9cfdd690967f4f690c6edcc9ffacd006014a0"
 		},
@@ -178,27 +152,12 @@
 			"revision": "c6ba97b89e0454fec9aa92e1d33a4e2c5fc1f631"
 		},
 		{
-			"comment": "v4-40-g2ed5b50",
-			"path": "github.com/coreos/go-systemd/dbus",
-			"revision": "2ed5b5012ccde5f057c197890a2c801295941149"
-		},
-		{
-			"comment": "v4-40-g2ed5b50",
-			"path": "github.com/coreos/go-systemd/util",
-			"revision": "2ed5b5012ccde5f057c197890a2c801295941149"
-		},
-		{
 			"path": "github.com/davecgh/go-spew/spew",
 			"revision": "5215b55f46b2b919f50a1df0eaa5886afe4e3b3d"
 		},
 		{
 			"path": "github.com/davecgh/go-spew/spew/testdata",
 			"revision": "5215b55f46b2b919f50a1df0eaa5886afe4e3b3d"
-		},
-		{
-			"comment": "v1.4.1-9713-g35ef3ef",
-			"path": "github.com/docker/docker/pkg/mount",
-			"revision": "35ef3efe9af64c22c7efbe826f8f63b025639130"
 		},
 		{
 			"comment": "v0.1.0-23-g5d2041e",
@@ -344,25 +303,6 @@
 			"comment": "v1.2.0-4-g5005588",
 			"path": "github.com/go-ole/go-ole/oleutil",
 			"revision": "50055884d646dd9434f16bbb5c9801749b9bafe4"
-		},
-		{
-			"comment": "v3-10-ge4593d6",
-			"path": "github.com/godbus/dbus",
-			"revision": "e4593d66e29678c26f84166fe231a03e0268ced5"
-		},
-		{
-			"comment": "v3-10-ge4593d6",
-			"path": "github.com/godbus/dbus/introspect",
-			"revision": "e4593d66e29678c26f84166fe231a03e0268ced5"
-		},
-		{
-			"comment": "v3-10-ge4593d6",
-			"path": "github.com/godbus/dbus/prop",
-			"revision": "e4593d66e29678c26f84166fe231a03e0268ced5"
-		},
-		{
-			"path": "github.com/golang/protobuf/proto",
-			"revision": "0dfe8f37844c14cb32c7247925270e0f7ba90973"
 		},
 		{
 			"path": "github.com/golang/protobuf/proto/proto3_proto",
@@ -528,21 +468,12 @@
 			"revision": "c01cf91b011868172fdcd9f41838e80c9d716264"
 		},
 		{
-			"comment": "0.2.2-2-gc01cf91",
-			"path": "github.com/jmespath/go-jmespath/fuzz",
-			"revision": "c01cf91b011868172fdcd9f41838e80c9d716264"
-		},
-		{
 			"path": "github.com/kardianos/osext",
 			"revision": "29ae4ffbc9a6fe9fb2bc5029050ce6996ea1d3bc"
 		},
 		{
 			"path": "github.com/mattn/go-isatty",
 			"revision": "56b76bdf51f7708750eac80fa38b952bb9f32639"
-		},
-		{
-			"path": "github.com/matttproud/golang_protobuf_extensions/pbutil",
-			"revision": "d0c3fe89de86839aecf2e0579c40ba3bb336a453"
 		},
 		{
 			"path": "github.com/miekg/dns",
@@ -580,11 +511,6 @@
 		},
 		{
 			"comment": "v0.0.9-108-g89ab7f2",
-			"path": "github.com/opencontainers/runc/libcontainer/cgroups/systemd",
-			"revision": "89ab7f2ccc1e45ddf6485eaa802c35dcf321dfc8"
-		},
-		{
-			"comment": "v0.0.9-108-g89ab7f2",
 			"path": "github.com/opencontainers/runc/libcontainer/configs",
 			"revision": "89ab7f2ccc1e45ddf6485eaa802c35dcf321dfc8"
 		},
@@ -597,32 +523,6 @@
 			"comment": "v0.0.9-108-g89ab7f2",
 			"path": "github.com/opencontainers/runc/libcontainer/utils",
 			"revision": "89ab7f2ccc1e45ddf6485eaa802c35dcf321dfc8"
-		},
-		{
-			"comment": "0.7.0-70-g15006a7",
-			"path": "github.com/prometheus/client_golang/prometheus",
-			"revision": "15006a7ed88e73201c4e6142a2e66b54ae5fdf00"
-		},
-		{
-			"comment": "model-0.0.2-12-gfa8ad6f",
-			"path": "github.com/prometheus/client_model/go",
-			"revision": "fa8ad6fec33561be4280a8f0514318c79d7f6cb6"
-		},
-		{
-			"path": "github.com/prometheus/common/expfmt",
-			"revision": "23070236b1ebff452f494ae831569545c2b61d26"
-		},
-		{
-			"path": "github.com/prometheus/common/internal/bitbucket.org/ww/goautoneg",
-			"revision": "23070236b1ebff452f494ae831569545c2b61d26"
-		},
-		{
-			"path": "github.com/prometheus/common/model",
-			"revision": "23070236b1ebff452f494ae831569545c2b61d26"
-		},
-		{
-			"path": "github.com/prometheus/procfs",
-			"revision": "406e5b7bfd8201a36e2bb5f7bdae0b03380c2ce8"
 		},
 		{
 			"comment": "v2.0.1-8-g983d3a5",
