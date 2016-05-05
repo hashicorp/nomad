@@ -2,7 +2,7 @@ PACKAGES = $(shell go list ./... | grep -v '/vendor/')
 VETARGS?=-asmdecl -atomic -bool -buildtags -copylocks -methods \
          -nilfunc -printf -rangeloops -shift -structtags -unsafeptr
 EXTERNAL_TOOLS=\
-	github.com/tools/godep \
+	github.com/kardianos/govendor \
 	github.com/mitchellh/gox \
 	golang.org/x/tools/cmd/cover \
 	golang.org/x/tools/cmd/vet \
