@@ -21,24 +21,25 @@ var (
 )
 
 const (
+	// The default check timeout
 	defaultCheckTimeout = 30 * time.Second
 )
 
 // DockerScriptCheck runs nagios compatible scripts in a docker container and
 // provides the check result
 type DockerScriptCheck struct {
-	id          string
-	interval    time.Duration
-	timeout     time.Duration
-	containerID string
+	id          string        // id of the check
+	interval    time.Duration // interval of the check
+	timeout     time.Duration // timeout of the check
+	containerID string        // container id in which the check will be invoked
 	logger      *log.Logger
-	cmd         string
-	args        []string
+	cmd         string   // check command
+	args        []string // check command arguments
 
-	dockerEndpoint string
-	tlsCert        string
-	tlsCa          string
-	tlsKey         string
+	dockerEndpoint string // docker endpoint
+	tlsCert        string // path to tls certificate
+	tlsCa          string // path to tls ca
+	tlsKey         string // path to tls key
 }
 
 // dockerClient creates the client to interact with the docker daemon
@@ -124,19 +125,22 @@ func (d *DockerScriptCheck) Interval() time.Duration {
 
 // Timeout returns the duration after which a check is timed out.
 func (d *DockerScriptCheck) Timeout() time.Duration {
+	if d.timeout == 0 {
+		return defaultCheckTimeout
+	}
 	return d.timeout
 }
 
 // ExecScriptCheck runs a nagios compatible script and returns the check result
 type ExecScriptCheck struct {
-	id       string
-	interval time.Duration
-	timeout  time.Duration
-	cmd      string
-	args     []string
-	taskDir  string
+	id       string        // id of the script check
+	interval time.Duration // interval at which the check is invoked
+	timeout  time.Duration // timeout duration of the check
+	cmd      string        // command of the check
+	args     []string      // args passed to the check
+	taskDir  string        // the root directory of the check
 
-	FSIsolation bool
+	FSIsolation bool // indicates whether the check has to be run within a chroot
 }
 
 // Run runs an exec script check
@@ -154,10 +158,6 @@ func (e *ExecScriptCheck) Run() *cstructs.CheckResult {
 	go func() {
 		errCh <- cmd.Wait()
 	}()
-	timeout := defaultCheckTimeout
-	if e.timeout != 0 {
-		timeout = e.timeout
-	}
 	for {
 		select {
 		case err := <-errCh:
@@ -181,7 +181,7 @@ func (e *ExecScriptCheck) Run() *cstructs.CheckResult {
 				Timestamp: ts,
 				Duration:  endTime.Sub(ts),
 			}
-		case <-time.After(timeout):
+		case <-time.After(e.Timeout()):
 			errCh <- fmt.Errorf("timed out after waiting 30s")
 		}
 	}
@@ -200,5 +200,8 @@ func (e *ExecScriptCheck) Interval() time.Duration {
 
 // Timeout returns the duration after which a check is timed out.
 func (e *ExecScriptCheck) Timeout() time.Duration {
+	if e.timeout == 0 {
+		return defaultCheckTimeout
+	}
 	return e.timeout
 }

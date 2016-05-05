@@ -430,7 +430,7 @@ func (c *ConsulService) consulPresent() bool {
 func (c *ConsulService) runCheck(check Check) {
 	res := check.Run()
 	if res.Duration >= check.Timeout() {
-		c.logger.Printf("[DEBUG] check took time: %v, timeout: %v", res.Duration, check.Timeout())
+		c.logger.Printf("[DEBUG] consul.sync: check took time: %v, timeout: %v", res.Duration, check.Timeout())
 	}
 	state := consul.HealthCritical
 	output := res.Output
@@ -448,7 +448,7 @@ func (c *ConsulService) runCheck(check Check) {
 	}
 	if err := c.client.Agent().UpdateTTL(check.ID(), output, state); err != nil {
 		if c.availble {
-			c.logger.Printf("[DEBUG] error updating ttl check for check %q: %v", check.ID(), err)
+			c.logger.Printf("[DEBUG] consul.sync: error updating ttl check for check %q: %v", check.ID(), err)
 			c.availble = false
 		} else {
 			c.availble = true
