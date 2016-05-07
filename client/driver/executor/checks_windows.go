@@ -14,6 +14,9 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 )
 
+func (e *ExecScriptCheck) setChroot(cmd *exec.Cmd) {
+}
+
 // Run runs an exec script check
 func (e *ExecScriptCheck) Run() *cstructs.CheckResult {
 	buf, _ := circbuf.NewBuffer(int64(cstructs.CheckBufSize))
