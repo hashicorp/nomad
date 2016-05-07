@@ -7,8 +7,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
+
+	"golang.org/x/sys/unix"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-plugin"
@@ -93,7 +94,7 @@ func (d *ExecDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, 
 		}
 		delete(node.Attributes, execDriverAttr)
 		return false, nil
-	} else if syscall.Geteuid() != 0 {
+	} else if unix.Geteuid() != 0 {
 		if currentlyEnabled {
 			d.logger.Printf("[DEBUG] driver.exec: must run as root user, disabling")
 		}

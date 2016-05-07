@@ -8,7 +8,8 @@ import (
 	"os"
 	"os/user"
 	"strconv"
-	"syscall"
+
+	"golang.org/x/sys/unix"
 )
 
 func (d *AllocDir) linkOrCopy(src, dst string, perm os.FileMode) error {
@@ -22,7 +23,7 @@ func (d *AllocDir) linkOrCopy(src, dst string, perm os.FileMode) error {
 
 func (d *AllocDir) dropDirPermissions(path string) error {
 	// Can't do anything if not root.
-	if syscall.Geteuid() != 0 {
+	if unix.Geteuid() != 0 {
 		return nil
 	}
 

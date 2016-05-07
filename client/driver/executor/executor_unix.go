@@ -6,6 +6,10 @@ import (
 	"fmt"
 	"io"
 	"log/syslog"
+	"os/exec"
+	"time"
+
+	"golang.org/x/sys/unix"
 
 	"github.com/hashicorp/nomad/client/driver/logging"
 )
@@ -47,4 +51,29 @@ func (e *UniversalExecutor) collectLogs(we io.Writer, wo io.Writer) {
 			e.lro.Write([]byte{'\n'})
 		}
 	}
+}
+
+func (e *UniversalExecutor) wait() {
+	defer close(e.processExited)
+	err := e.cmd.Wait()
+	ic := &cstructs.IsolationConfig{Cgroup: e.groups, CgroupPaths: e.cgPaths}
+	if err == nil {
+		e.exitState = &ProcessState{Pid: 0, ExitCode: 0, IsolationConfig: ic, Time: time.Now()}
+		return
+	}
+	exitCode := 1
+	var signal int
+	if exitErr, ok := err.(*exec.ExitError); ok {
+		if status, ok := exitErr.Sys().(unix.WaitStatus); ok {
+			exitCode = status.ExitStatus()
+			if status.Signaled() {
+				signal = int(status.Signal())
+				exitCode = 128 + signal
+			}
+		}
+	} else {
+		e.logger.Printf("[DEBUG] executor: unexpected Wait() error type: %v", err)
+	}
+
+	e.exitState = &ProcessState{Pid: 0, ExitCode: exitCode, Signal: signal, IsolationConfig: ic, Time: time.Now()}
 }
