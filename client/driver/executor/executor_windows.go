@@ -4,6 +4,7 @@ import (
 	"os/exec"
 	"time"
 
+	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"golang.org/x/sys/windows"
 )
 
