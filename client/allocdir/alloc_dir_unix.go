@@ -1,4 +1,4 @@
-// +build !windows
+// +build darwin dragonfly freebsd linux netbsd openbsd solaris
 
 // Functions shared between linux/darwin.
 package allocdir

@@ -1,4 +1,4 @@
-// +build !linux,!windows
+// +build darwin dragonfly freebsd linux netbsd openbsd solaris
 
 package driver
 
