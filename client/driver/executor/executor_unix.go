@@ -12,6 +12,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/hashicorp/nomad/client/driver/logging"
+	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 )
 
 func (e *UniversalExecutor) LaunchSyslogServer(ctx *ExecutorContext) (*SyslogServerState, error) {

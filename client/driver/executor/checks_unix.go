@@ -1,0 +1,70 @@
+// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+
+package executor
+
+import (
+	"fmt"
+	"os/exec"
+	"syscall"
+	"time"
+
+	"golang.org/x/sys/unix"
+
+	"github.com/armon/circbuf"
+	cstructs "github.com/hashicorp/nomad/client/driver/structs"
+)
+
+func (e *ExecScriptCheck) setChroot(cmd *exec.Cmd) {
+	if e.FSIsolation {
+		if cmd.SysProcAttr == nil {
+			cmd.SysProcAttr = &syscall.SysProcAttr{}
+		}
+		cmd.SysProcAttr.Chroot = e.taskDir
+	}
+	cmd.Dir = "/"
+}
+
+// Run runs an exec script check
+func (e *ExecScriptCheck) Run() *cstructs.CheckResult {
+	buf, _ := circbuf.NewBuffer(int64(cstructs.CheckBufSize))
+	cmd := exec.Command(e.cmd, e.args...)
+	cmd.Stdout = buf
+	cmd.Stderr = buf
+	e.setChroot(cmd)
+	ts := time.Now()
+	if err := cmd.Start(); err != nil {
+		return &cstructs.CheckResult{Err: err}
+	}
+	errCh := make(chan error, 2)
+	go func() {
+		errCh <- cmd.Wait()
+	}()
+	for {
+		select {
+		case err := <-errCh:
+			endTime := time.Now()
+			if err == nil {
+				return &cstructs.CheckResult{
+					ExitCode:  0,
+					Output:    string(buf.Bytes()),
+					Timestamp: ts,
+				}
+			}
+			exitCode := 1
+			if exitErr, ok := err.(*exec.ExitError); ok {
+				if status, ok := exitErr.Sys().(unix.WaitStatus); ok {
+					exitCode = status.ExitStatus()
+				}
+			}
+			return &cstructs.CheckResult{
+				ExitCode:  exitCode,
+				Output:    string(buf.Bytes()),
+				Timestamp: ts,
+				Duration:  endTime.Sub(ts),
+			}
+		case <-time.After(e.Timeout()):
+			errCh <- fmt.Errorf("timed out after waiting 30s")
+		}
+	}
+	return nil
+}

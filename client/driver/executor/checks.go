@@ -1,16 +1,12 @@
 package executor
 
 import (
-	"fmt"
 	"log"
-	"os/exec"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/armon/circbuf"
 	docker "github.com/fsouza/go-dockerclient"
-
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 )
 
@@ -141,51 +137,6 @@ type ExecScriptCheck struct {
 	taskDir  string        // the root directory of the check
 
 	FSIsolation bool // indicates whether the check has to be run within a chroot
-}
-
-// Run runs an exec script check
-func (e *ExecScriptCheck) Run() *cstructs.CheckResult {
-	buf, _ := circbuf.NewBuffer(int64(cstructs.CheckBufSize))
-	cmd := exec.Command(e.cmd, e.args...)
-	cmd.Stdout = buf
-	cmd.Stderr = buf
-	e.setChroot(cmd)
-	ts := time.Now()
-	if err := cmd.Start(); err != nil {
-		return &cstructs.CheckResult{Err: err}
-	}
-	errCh := make(chan error, 2)
-	go func() {
-		errCh <- cmd.Wait()
-	}()
-	for {
-		select {
-		case err := <-errCh:
-			endTime := time.Now()
-			if err == nil {
-				return &cstructs.CheckResult{
-					ExitCode:  0,
-					Output:    string(buf.Bytes()),
-					Timestamp: ts,
-				}
-			}
-			exitCode := 1
-			if exitErr, ok := err.(*exec.ExitError); ok {
-				if status, ok := exitErr.Sys().(syscall.WaitStatus); ok {
-					exitCode = status.ExitStatus()
-				}
-			}
-			return &cstructs.CheckResult{
-				ExitCode:  exitCode,
-				Output:    string(buf.Bytes()),
-				Timestamp: ts,
-				Duration:  endTime.Sub(ts),
-			}
-		case <-time.After(e.Timeout()):
-			errCh <- fmt.Errorf("timed out after waiting 30s")
-		}
-	}
-	return nil
 }
 
 // ID returns the check id
