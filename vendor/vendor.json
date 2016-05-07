@@ -578,6 +578,12 @@
 		{
 			"path": "golang.org/x/sys/unix",
 			"revision": "50c6bc5e4292a1d4e65c6e9be5f53be28bcbe28e"
+		},
+		{
+			"checksumSHA1": "6aa7Y4gpUDxYNt48cOT95zMjp9E=",
+			"path": "golang.org/x/sys/windows",
+			"revision": "b776ec39b3e54652e09028aaaaac9757f4f8211a",
+			"revisionTime": "2016-04-21T02:29:30Z"
 		}
 	],
 	"rootPath": "github.com/hashicorp/nomad"
