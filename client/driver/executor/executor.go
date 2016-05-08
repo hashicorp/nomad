@@ -336,7 +336,6 @@ func (e *UniversalExecutor) wait() {
 	var signal int
 	if exitErr, ok := err.(*exec.ExitError); ok {
 		if status, ok := exitErr.Sys().(syscall.WaitStatus); ok {
-			fmt.Printf("Found unix wait status\n")
 			exitCode = status.ExitStatus()
 			if status.Signaled() {
 				// bash(1) uses the lower 7 bits of a uint8
