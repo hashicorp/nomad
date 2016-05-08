@@ -758,7 +758,7 @@ func TestDockerUser(t *testing.T) {
 		"linux spec user: Unable to find user alice",
 	}
 	var found bool
-	for msg := range msgs {
+	for _, msg := range msgs {
 		if strings.Contains(err.Error(), msg) {
 			found = true
 			break
