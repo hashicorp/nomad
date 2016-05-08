@@ -142,16 +142,6 @@ type ExecScriptCheck struct {
 	FSIsolation bool // indicates whether the check has to be run within a chroot
 }
 
-// ID returns the check id
-func (e *ExecScriptCheck) ID() string {
-	return e.id
-}
-
-// Interval returns the interval at which the check has to run
-func (e *ExecScriptCheck) Interval() time.Duration {
-	return e.interval
-}
-
 // Run runs an exec script check
 func (e *ExecScriptCheck) Run() *cstructs.CheckResult {
 	buf, _ := circbuf.NewBuffer(int64(cstructs.CheckBufSize))
@@ -195,6 +185,16 @@ func (e *ExecScriptCheck) Run() *cstructs.CheckResult {
 		}
 	}
 	return nil
+}
+
+// ID returns the check id
+func (e *ExecScriptCheck) ID() string {
+	return e.id
+}
+
+// Interval returns the interval at which the check has to run
+func (e *ExecScriptCheck) Interval() time.Duration {
+	return e.interval
 }
 
 // Timeout returns the duration after which a check is timed out.
