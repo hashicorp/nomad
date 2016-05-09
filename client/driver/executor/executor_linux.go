@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
@@ -157,7 +158,7 @@ func (e *UniversalExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
 		ThrottledPeriods: stats.CpuStats.ThrottlingData.ThrottledPeriods,
 		ThrottledTime:    stats.CpuStats.ThrottlingData.ThrottledTime,
 	}
-	return &cstructs.TaskResourceUsage{MemoryStats: ms, CpuStats: cs}, nil
+	return &cstructs.TaskResourceUsage{MemoryStats: ms, CpuStats: cs, Timestamp: time.Now()}, nil
 }
 
 // runAs takes a user id as a string and looks up the user, and sets the command

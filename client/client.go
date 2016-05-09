@@ -17,7 +17,6 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/driver"
-	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -395,20 +394,12 @@ func (c *Client) Node() *structs.Node {
 	return c.config.Node
 }
 
-func (c *Client) ResourceUsageOfAlloc(alloc string) (map[string]*cstructs.TaskResourceUsage, error) {
+func (c *Client) AllocStats(alloc string) (AllocStatsReporter, error) {
 	ar, ok := c.allocs[alloc]
 	if !ok {
 		return nil, fmt.Errorf("allocation: %q not running on this client", alloc)
 	}
-	return ar.ResourceUsage(), nil
-}
-
-func (c *Client) ResourceUsageOfTask(alloc string, task string) (*cstructs.TaskResourceUsage, error) {
-	ar, ok := c.allocs[alloc]
-	if !ok {
-		return nil, fmt.Errorf("allocation: %q not running on this client", alloc)
-	}
-	return ar.ResourceUsageOfTask(task)
+	return ar.StatsReporter(), nil
 }
 
 // GetAllocFS returns the AllocFS interface for the alloc dir of an allocation

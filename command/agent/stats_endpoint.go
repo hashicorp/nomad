@@ -13,8 +13,20 @@ func (s *HTTPServer) StatsRequest(resp http.ResponseWriter, req *http.Request) (
 	if allocID = req.URL.Query().Get("allocation"); allocID == "" {
 		return nil, fmt.Errorf("provide a valid alloc id")
 	}
-	if task = req.URL.Query().Get("task"); task != "" {
-		return s.agent.client.ResourceUsageOfTask(allocID, task)
+	statsReporter, err := s.agent.client.AllocStats(allocID)
+	if err != nil {
+		return nil, err
 	}
-	return s.agent.client.ResourceUsageOfAlloc(allocID)
+	if task = req.URL.Query().Get("task"); task != "" {
+		taskStatsReporter, err := statsReporter.TaskStats(task)
+		if err != nil {
+			return nil, err
+		}
+		return taskStatsReporter.ResourceUsage(), nil
+	}
+	res := make(map[string]interface{})
+	for task, sr := range statsReporter.AllocStats() {
+		res[task] = sr.ResourceUsage()
+	}
+	return res, nil
 }

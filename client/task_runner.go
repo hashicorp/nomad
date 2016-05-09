@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/client/getter"
+	"github.com/hashicorp/nomad/client/stats"
 	"github.com/hashicorp/nomad/nomad/structs"
 
 	"github.com/hashicorp/nomad/client/driver/env"
@@ -34,6 +35,11 @@ const (
 	killFailureLimit = 5
 )
 
+type TaskStatsReporter interface {
+	ResourceUsage() *cstructs.TaskResourceUsage
+	ResourceUsageTS() []*cstructs.TaskResourceUsage
+}
+
 // TaskRunner is used to wrap a task within an allocation and provide the execution context.
 type TaskRunner struct {
 	config         *config.Config
@@ -43,7 +49,7 @@ type TaskRunner struct {
 	alloc          *structs.Allocation
 	restartTracker *RestartTracker
 
-	resourceUsage         *cstructs.TaskResourceUsage
+	resourceUsage         *stats.RingBuff
 	resourceUsageLock     sync.RWMutex
 	stopResourceMonitorCh chan struct{}
 
@@ -90,11 +96,18 @@ func NewTaskRunner(logger *log.Logger, config *config.Config,
 	}
 	restartTracker := newRestartTracker(tg.RestartPolicy, alloc.Job.Type)
 
+	resourceUsage, err := stats.NewRingBuff(60)
+	if err != nil {
+		logger.Printf("[ERR] client: can't create resource usage buffer: %v", err)
+		return nil
+	}
+
 	tc := &TaskRunner{
 		config:         config,
 		updater:        updater,
 		logger:         logger,
 		restartTracker: restartTracker,
+		resourceUsage:  resourceUsage,
 		ctx:            ctx,
 		alloc:          alloc,
 		task:           task,
@@ -455,7 +468,7 @@ func (r *TaskRunner) monitorUsage() {
 				r.logger.Printf("[DEBUG] client.taskrunner: error fetching stats of task %v: %v", r.task.Name, err)
 			}
 			r.resourceUsageLock.RLock()
-			r.resourceUsage = ru
+			r.resourceUsage.Enqueue(ru)
 			r.resourceUsageLock.RUnlock()
 			next.Reset(1 * time.Second)
 		case <-r.stopResourceMonitorCh:
@@ -465,10 +478,29 @@ func (r *TaskRunner) monitorUsage() {
 	}
 }
 
+func (r *TaskRunner) StatsReporter() TaskStatsReporter {
+	return r
+}
+
 func (r *TaskRunner) ResourceUsage() *cstructs.TaskResourceUsage {
 	r.resourceUsageLock.RLock()
 	defer r.resourceUsageLock.RUnlock()
-	return r.resourceUsage
+	val := r.resourceUsage.Peek()
+	if val != nil {
+		return val.(*cstructs.TaskResourceUsage)
+	}
+	return nil
+}
+
+func (r *TaskRunner) ResourceUsageTS() []*cstructs.TaskResourceUsage {
+	r.resourceUsageLock.RLock()
+	defer r.resourceUsageLock.RUnlock()
+	values := r.resourceUsage.Values()
+	ts := make([]*cstructs.TaskResourceUsage, len(values))
+	for index, val := range values {
+		ts[index] = val.(*cstructs.TaskResourceUsage)
+	}
+	return ts
 }
 
 // handleUpdate takes an updated allocation and updates internal state to

@@ -104,4 +104,5 @@ type CpuUsage struct {
 type TaskResourceUsage struct {
 	MemoryStats *MemoryStats
 	CpuStats    *CpuUsage
+	Timestamp   time.Time
 }
