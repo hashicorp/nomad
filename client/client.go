@@ -82,6 +82,8 @@ func DefaultConfig() *config.Config {
 	}
 }
 
+// ClientStatsReporter exposes all the APIs related to resource usage of a Nomad
+// Client
 type ClientStatsReporter interface {
 	AllocStats() map[string]AllocStatsReporter
 	HostStats() *stats.HostStats
@@ -412,10 +414,14 @@ func (c *Client) Node() *structs.Node {
 	return c.config.Node
 }
 
+// StatsReporter exposes the various APIs related resource usage of a Nomad
+// client
 func (c *Client) StatsReporter() ClientStatsReporter {
 	return c
 }
 
+// AllocStats returns all the stats reporter of the allocations running on a
+// Nomad client
 func (c *Client) AllocStats() map[string]AllocStatsReporter {
 	res := make(map[string]AllocStatsReporter)
 	for alloc, ar := range c.allocs {
@@ -424,6 +430,7 @@ func (c *Client) AllocStats() map[string]AllocStatsReporter {
 	return res
 }
 
+// HostStats returns all the stats related to a Nomad client
 func (c *Client) HostStats() *stats.HostStats {
 	val := c.resourceUsage.Peek()
 	ru, _ := val.(*stats.HostStats)
