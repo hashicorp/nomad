@@ -51,6 +51,12 @@ func (f *CPUFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bo
 		f.logger.Printf("[DEBUG] fingerprint.cpu: frequency: %02.1fMHz", mhz)
 	}
 
+	if numCores <= 0 {
+		const defaultCPUCoreCount = 1
+		f.logger.Printf("[DEBUG] fingerprint.cpu: unable to find core count, defaulting to %d", defaultCPUCoreCount)
+		numCores = defaultCPUCoreCount
+	}
+
 	if numCores > 0 {
 		node.Attributes["cpu.numcores"] = fmt.Sprintf("%d", numCores)
 		f.logger.Printf("[DEBUG] fingerprint.cpu: core count: %d", numCores)
