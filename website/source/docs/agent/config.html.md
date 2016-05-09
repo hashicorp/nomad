@@ -19,7 +19,7 @@ the Nomad agent.
 When specifying multiple config file options on the command-line, the files are
 loaded in the order they are specified. For example:
 
-    nomad agent -config server.conf /etc/nomad extra.json
+    nomad agent -config server.conf -config /etc/nomad -config extra.json
 
 Will load configuration from `server.conf`, from `.hcl` and `.json` files under
 `/etc/nomad`, and finally from `extra.json`.
