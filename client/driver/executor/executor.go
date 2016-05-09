@@ -586,7 +586,6 @@ func (e *UniversalExecutor) createCheck(check *structs.ServiceCheck, checkID str
 		}, nil
 
 	}
-
 	return nil, fmt.Errorf("couldn't create check for %v", check.Name)
 }
 
