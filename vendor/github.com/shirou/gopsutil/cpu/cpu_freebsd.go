@@ -25,7 +25,11 @@ const (
 var ClocksPerSec = float64(128)
 
 func init() {
-	out, err := exec.Command("/usr/bin/getconf", "CLK_TCK").Output()
+	getconf, err := exec.LookPath("/usr/bin/getconf")
+	if err != nil {
+		return
+	}
+	out, err := exec.Command(getconf, "CLK_TCK").Output()
 	// ignore errors
 	if err == nil {
 		i, err := strconv.ParseFloat(strings.TrimSpace(string(out)), 64)
@@ -35,14 +39,14 @@ func init() {
 	}
 }
 
-func CPUTimes(percpu bool) ([]CPUTimesStat, error) {
-	var ret []CPUTimesStat
+func Times(percpu bool) ([]TimesStat, error) {
+	var ret []TimesStat
 
 	var sysctlCall string
 	var ncpu int
 	if percpu {
 		sysctlCall = "kern.cp_times"
-		ncpu, _ = CPUCounts(true)
+		ncpu, _ = Counts(true)
 	} else {
 		sysctlCall = "kern.cp_time"
 		ncpu = 1
@@ -76,7 +80,7 @@ func CPUTimes(percpu bool) ([]CPUTimesStat, error) {
 			return ret, err
 		}
 
-		c := CPUTimesStat{
+		c := TimesStat{
 			User:   float64(user / ClocksPerSec),
 			Nice:   float64(nice / ClocksPerSec),
 			System: float64(sys / ClocksPerSec),
@@ -96,13 +100,13 @@ func CPUTimes(percpu bool) ([]CPUTimesStat, error) {
 }
 
 // Returns only one CPUInfoStat on FreeBSD
-func CPUInfo() ([]CPUInfoStat, error) {
+func Info() ([]InfoStat, error) {
 	filename := "/var/run/dmesg.boot"
 	lines, _ := common.ReadLines(filename)
 
-	var ret []CPUInfoStat
+	var ret []InfoStat
 
-	c := CPUInfoStat{}
+	c := InfoStat{}
 	for _, line := range lines {
 		if matches := regexp.MustCompile(`CPU:\s+(.+) \(([\d.]+).+\)`).FindStringSubmatch(line); matches != nil {
 			c.ModelName = matches[1]

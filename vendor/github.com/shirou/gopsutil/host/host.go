@@ -6,17 +6,17 @@ import (
 
 // A HostInfoStat describes the host status.
 // This is not in the psutil but it useful.
-type HostInfoStat struct {
+type InfoStat struct {
 	Hostname             string `json:"hostname"`
 	Uptime               uint64 `json:"uptime"`
-	BootTime             uint64 `json:"boot_time"`
+	BootTime             uint64 `json:"bootTime"`
 	Procs                uint64 `json:"procs"`           // number of processes
 	OS                   string `json:"os"`              // ex: freebsd, linux
 	Platform             string `json:"platform"`        // ex: ubuntu, linuxmint
-	PlatformFamily       string `json:"platform_family"` // ex: debian, rhel
-	PlatformVersion      string `json:"platform_version"`
-	VirtualizationSystem string `json:"virtualization_system"`
-	VirtualizationRole   string `json:"virtualization_role"` // guest or host
+	PlatformFamily       string `json:"platformFamily"` // ex: debian, rhel
+	PlatformVersion      string `json:"platformVersion"`
+	VirtualizationSystem string `json:"virtualizationSystem"`
+	VirtualizationRole   string `json:"virtualizationRole"` // guest or host
 
 }
 
@@ -27,7 +27,7 @@ type UserStat struct {
 	Started  int    `json:"started"`
 }
 
-func (h HostInfoStat) String() string {
+func (h InfoStat) String() string {
 	s, _ := json.Marshal(h)
 	return string(s)
 }

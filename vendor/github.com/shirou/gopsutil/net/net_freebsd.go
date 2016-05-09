@@ -11,14 +11,18 @@ import (
 	"github.com/shirou/gopsutil/internal/common"
 )
 
-func NetIOCounters(pernic bool) ([]NetIOCountersStat, error) {
-	out, err := exec.Command("/usr/bin/netstat", "-ibdnW").Output()
+func IOCounters(pernic bool) ([]IOCountersStat, error) {
+	netstat, err := exec.LookPath("/usr/bin/netstat")
+	if err != nil {
+		return nil, err
+	}
+	out, err := exec.Command(netstat, "-ibdnW").Output()
 	if err != nil {
 		return nil, err
 	}
 
 	lines := strings.Split(string(out), "\n")
-	ret := make([]NetIOCountersStat, 0, len(lines)-1)
+	ret := make([]IOCountersStat, 0, len(lines)-1)
 	exists := make([]string, 0, len(ret))
 
 	for _, line := range lines {
@@ -65,7 +69,7 @@ func NetIOCounters(pernic bool) ([]NetIOCountersStat, error) {
 			parsed = append(parsed, t)
 		}
 
-		n := NetIOCountersStat{
+		n := IOCountersStat{
 			Name:        values[0],
 			PacketsRecv: parsed[0],
 			Errin:       parsed[1],
@@ -80,16 +84,25 @@ func NetIOCounters(pernic bool) ([]NetIOCountersStat, error) {
 	}
 
 	if pernic == false {
-		return getNetIOCountersAll(ret)
+		return getIOCountersAll(ret)
 	}
 
 	return ret, nil
+}
+
+// NetIOCountersByFile is an method which is added just a compatibility for linux.
+func IOCountersByFile(pernic bool, filename string) ([]IOCountersStat, error) {
+	return IOCounters(pernic)
+}
+
+func FilterCounters() ([]FilterStat, error) {
+	return nil, errors.New("NetFilterCounters not implemented for freebsd")
 }
 
 // NetProtoCounters returns network statistics for the entire system
 // If protocols is empty then all protocols are returned, otherwise
 // just the protocols in the list are returned.
 // Not Implemented for FreeBSD
-func NetProtoCounters(protocols []string) ([]NetProtoCountersStat, error) {
+func ProtoCounters(protocols []string) ([]ProtoCountersStat, error) {
 	return nil, errors.New("NetProtoCounters not implemented for freebsd")
 }

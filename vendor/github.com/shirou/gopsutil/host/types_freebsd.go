@@ -27,6 +27,7 @@ const (
 	sizeofInt      = C.sizeof_int
 	sizeofLong     = C.sizeof_long
 	sizeofLongLong = C.sizeof_longlong
+	sizeOfUtmpx    = C.sizeof_struct_utmpx
 )
 
 // Basic types

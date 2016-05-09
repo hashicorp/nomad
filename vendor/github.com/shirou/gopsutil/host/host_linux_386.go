@@ -11,6 +11,7 @@ const (
 	sizeofInt      = 0x4
 	sizeofLong     = 0x4
 	sizeofLongLong = 0x8
+	sizeOfUtmp     = 0x180
 )
 
 type (
@@ -25,7 +26,7 @@ type utmp struct {
 	Pad_cgo_0 [2]byte
 	Pid       int32
 	Line      [32]int8
-	Id        [4]int8
+	ID        [4]int8
 	User      [32]int8
 	Host      [256]int8
 	Exit      exit_status
@@ -39,6 +40,6 @@ type exit_status struct {
 	Exit        int16
 }
 type UtTv struct {
-	TvSec  int32
-	TvUsec int32
+	Sec  int32
+	Usec int32
 }

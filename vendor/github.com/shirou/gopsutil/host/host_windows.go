@@ -28,8 +28,8 @@ type Win32_OperatingSystem struct {
 	LastBootUpTime time.Time
 }
 
-func HostInfo() (*HostInfoStat, error) {
-	ret := &HostInfoStat{
+func Info() (*InfoStat, error) {
+	ret := &InfoStat{
 		OS: runtime.GOOS,
 	}
 
@@ -38,7 +38,7 @@ func HostInfo() (*HostInfoStat, error) {
 		ret.Hostname = hostname
 	}
 
-	platform, family, version, err := GetPlatformInformation()
+	platform, family, version, err := PlatformInformation()
 	if err == nil {
 		ret.Platform = platform
 		ret.PlatformFamily = family
@@ -100,7 +100,7 @@ func Uptime() (uint64, error) {
 	return uptime(boot), nil
 }
 
-func GetPlatformInformation() (platform string, family string, version string, err error) {
+func PlatformInformation() (platform string, family string, version string, err error) {
 	if osInfo == nil {
 		_, err = GetOSInfo()
 		if err != nil {

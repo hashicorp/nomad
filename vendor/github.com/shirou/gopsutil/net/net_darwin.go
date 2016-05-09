@@ -16,14 +16,18 @@ import (
 // lo0   16384 <Link#1>                        869107     0  169411755   869107     0  169411755     0   0
 // lo0   16384 ::1/128     ::1                 869107     -  169411755   869107     -  169411755     -   -
 // lo0   16384 127           127.0.0.1         869107     -  169411755   869107     -  169411755     -   -
-func NetIOCounters(pernic bool) ([]NetIOCountersStat, error) {
-	out, err := exec.Command("/usr/sbin/netstat", "-ibdnW").Output()
+func IOCounters(pernic bool) ([]IOCountersStat, error) {
+	netstat, err := exec.LookPath("/usr/sbin/netstat")
+	if err != nil {
+		return nil, err
+	}
+	out, err := exec.Command(netstat, "-ibdnW").Output()
 	if err != nil {
 		return nil, err
 	}
 
 	lines := strings.Split(string(out), "\n")
-	ret := make([]NetIOCountersStat, 0, len(lines)-1)
+	ret := make([]IOCountersStat, 0, len(lines)-1)
 	exists := make([]string, 0, len(ret))
 
 	for _, line := range lines {
@@ -70,7 +74,7 @@ func NetIOCounters(pernic bool) ([]NetIOCountersStat, error) {
 			parsed = append(parsed, t)
 		}
 
-		n := NetIOCountersStat{
+		n := IOCountersStat{
 			Name:        values[0],
 			PacketsRecv: parsed[0],
 			Errin:       parsed[1],
@@ -86,16 +90,25 @@ func NetIOCounters(pernic bool) ([]NetIOCountersStat, error) {
 	}
 
 	if pernic == false {
-		return getNetIOCountersAll(ret)
+		return getIOCountersAll(ret)
 	}
 
 	return ret, nil
+}
+
+// NetIOCountersByFile is an method which is added just a compatibility for linux.
+func IOCountersByFile(pernic bool, filename string) ([]IOCountersStat, error) {
+	return IOCounters(pernic)
+}
+
+func FilterCounters() ([]FilterStat, error) {
+	return nil, errors.New("NetFilterCounters not implemented for darwin")
 }
 
 // NetProtoCounters returns network statistics for the entire system
 // If protocols is empty then all protocols are returned, otherwise
 // just the protocols in the list are returned.
 // Not Implemented for Darwin
-func NetProtoCounters(protocols []string) ([]NetProtoCountersStat, error) {
+func ProtoCounters(protocols []string) ([]ProtoCountersStat, error) {
 	return nil, errors.New("NetProtoCounters not implemented for darwin")
 }

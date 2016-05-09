@@ -25,7 +25,7 @@ func NewHostFingerprint(logger *log.Logger) Fingerprint {
 }
 
 func (f *HostFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
-	hostInfo, err := host.HostInfo()
+	hostInfo, err := host.Info()
 	if err != nil {
 		f.logger.Println("[WARN] Error retrieving host information: ", err)
 		return false, err

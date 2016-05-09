@@ -14,8 +14,8 @@ import (
 
 var (
 	modiphlpapi             = syscall.NewLazyDLL("iphlpapi.dll")
-	procGetExtendedTcpTable = modiphlpapi.NewProc("GetExtendedTcpTable")
-	procGetExtendedUdpTable = modiphlpapi.NewProc("GetExtendedUdpTable")
+	procGetExtendedTCPTable = modiphlpapi.NewProc("GetExtendedTcpTable")
+	procGetExtendedUDPTable = modiphlpapi.NewProc("GetExtendedUdpTable")
 )
 
 const (
@@ -30,7 +30,7 @@ const (
 	TCPTableOwnerModuleAll
 )
 
-func NetIOCounters(pernic bool) ([]NetIOCountersStat, error) {
+func IOCounters(pernic bool) ([]IOCountersStat, error) {
 	ifs, err := net.Interfaces()
 	if err != nil {
 		return nil, err
@@ -40,13 +40,13 @@ func NetIOCounters(pernic bool) ([]NetIOCountersStat, error) {
 	if err != nil {
 		return nil, err
 	}
-	var ret []NetIOCountersStat
+	var ret []IOCountersStat
 
 	for _, ifi := range ifs {
 		name := ifi.Name
 		for ; ai != nil; ai = ai.Next {
 			name = common.BytePtrToString(&ai.Description[0])
-			c := NetIOCountersStat{
+			c := IOCountersStat{
 				Name: name,
 			}
 
@@ -69,16 +69,21 @@ func NetIOCounters(pernic bool) ([]NetIOCountersStat, error) {
 	}
 
 	if pernic == false {
-		return getNetIOCountersAll(ret)
+		return getIOCountersAll(ret)
 	}
 	return ret, nil
 }
 
-// Return a list of network connections opened by a process
-func NetConnections(kind string) ([]NetConnectionStat, error) {
-	var ret []NetConnectionStat
+// NetIOCountersByFile is an method which is added just a compatibility for linux.
+func IOCountersByFile(pernic bool, filename string) ([]IOCountersStat, error) {
+	return IOCounters(pernic)
+}
 
-	return ret, common.NotImplementedError
+// Return a list of network connections opened by a process
+func Connections(kind string) ([]ConnectionStat, error) {
+	var ret []ConnectionStat
+
+	return ret, common.ErrNotImplementedError
 }
 
 // borrowed from src/pkg/net/interface_windows.go
@@ -98,10 +103,14 @@ func getAdapterList() (*syscall.IpAdapterInfo, error) {
 	return a, nil
 }
 
+func FilterCounters() ([]FilterStat, error) {
+	return nil, errors.New("NetFilterCounters not implemented for windows")
+}
+
 // NetProtoCounters returns network statistics for the entire system
 // If protocols is empty then all protocols are returned, otherwise
 // just the protocols in the list are returned.
 // Not Implemented for Windows
-func NetProtoCounters(protocols []string) ([]NetProtoCountersStat, error) {
+func ProtoCounters(protocols []string) ([]ProtoCountersStat, error) {
 	return nil, errors.New("NetProtoCounters not implemented for windows")
 }
