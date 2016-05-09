@@ -16,14 +16,14 @@ func (f *NetworkFingerprint) linkSpeedSys(device string) int {
 	// Read contents of the device/speed file
 	content, err := ioutil.ReadFile(path)
 	if err != nil {
-		f.logger.Printf("[WARN] fingerprint.network: Unable to read link speed from %s", path)
+		f.logger.Printf("[DEBUG] fingerprint.network: Unable to read link speed from %s", path)
 		return 0
 	}
 
 	lines := strings.Split(string(content), "\n")
 	mbs, err := strconv.Atoi(lines[0])
 	if err != nil || mbs <= 0 {
-		f.logger.Printf("[WARN] fingerprint.network: Unable to parse link speed from %s", path)
+		f.logger.Printf("[DEBUG] fingerprint.network: Unable to parse link speed from %s", path)
 		return 0
 	}
 
