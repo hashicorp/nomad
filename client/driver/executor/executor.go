@@ -574,7 +574,8 @@ func (e *UniversalExecutor) createCheck(check *structs.ServiceCheck, checkID str
 		}, nil
 	}
 
-	if check.Type == structs.ServiceCheckScript && (e.ctx.Driver == "exec" || e.ctx.Driver == "raw_exec") {
+	if check.Type == structs.ServiceCheckScript && (e.ctx.Driver == "exec" ||
+		e.ctx.Driver == "raw_exec" || e.ctx.Driver == "java") {
 		return &ExecScriptCheck{
 			id:          checkID,
 			interval:    check.Interval,
