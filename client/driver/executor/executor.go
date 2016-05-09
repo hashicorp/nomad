@@ -338,8 +338,16 @@ func (e *UniversalExecutor) wait() {
 		if status, ok := exitErr.Sys().(syscall.WaitStatus); ok {
 			exitCode = status.ExitStatus()
 			if status.Signaled() {
+				// bash(1) uses the lower 7 bits of a uint8
+				// to indicate normal program failure (see
+				// <sysexits.h>). If a process terminates due
+				// to a signal, encode the signal number to
+				// indicate which signal caused the process
+				// to terminate.  Mirror this exit code
+				// encoding scheme.
+				const exitSignalBase = 128
 				signal = int(status.Signal())
-				exitCode = 128 + signal
+				exitCode = exitSignalBase + signal
 			}
 		}
 	} else {
