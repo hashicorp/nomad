@@ -18,6 +18,7 @@ import (
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/client/fingerprint"
+	"github.com/hashicorp/nomad/client/stats"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/hashstructure"
@@ -81,6 +82,11 @@ func DefaultConfig() *config.Config {
 	}
 }
 
+type ClientStatsReporter interface {
+	AllocStats() map[string]AllocStatsReporter
+	HostStats() *stats.HostStats
+}
+
 // Client is used to implement the client interaction with Nomad. Clients
 // are expected to register as a schedulable node to the servers, and to
 // run allocations as determined by the servers.
@@ -116,6 +122,9 @@ type Client struct {
 
 	consulService *consul.ConsulService
 
+	resourceUsage     *stats.RingBuff
+	resourceUsageLock sync.RWMutex
+
 	shutdown     bool
 	shutdownCh   chan struct{}
 	shutdownLock sync.Mutex
@@ -126,15 +135,21 @@ func NewClient(cfg *config.Config) (*Client, error) {
 	// Create a logger
 	logger := log.New(cfg.LogOutput, "", log.LstdFlags)
 
+	resourceUsage, err := stats.NewRingBuff(60)
+	if err != nil {
+		return nil, err
+	}
+
 	// Create the client
 	c := &Client{
-		config:       cfg,
-		start:        time.Now(),
-		connPool:     nomad.NewPool(cfg.LogOutput, clientRPCCache, clientMaxStreams, nil),
-		logger:       logger,
-		allocs:       make(map[string]*AllocRunner),
-		allocUpdates: make(chan *structs.Allocation, 64),
-		shutdownCh:   make(chan struct{}),
+		config:        cfg,
+		start:         time.Now(),
+		connPool:      nomad.NewPool(cfg.LogOutput, clientRPCCache, clientMaxStreams, nil),
+		logger:        logger,
+		resourceUsage: resourceUsage,
+		allocs:        make(map[string]*AllocRunner),
+		allocUpdates:  make(chan *structs.Allocation, 64),
+		shutdownCh:    make(chan struct{}),
 	}
 
 	// Initialize the client
@@ -188,6 +203,9 @@ func NewClient(cfg *config.Config) (*Client, error) {
 
 	// Start the client!
 	go c.run()
+
+	// Start collecting stats
+	go c.monitorUsage()
 
 	// Start the consul sync
 	go c.syncConsul()
@@ -394,12 +412,24 @@ func (c *Client) Node() *structs.Node {
 	return c.config.Node
 }
 
-func (c *Client) AllocStats(alloc string) (AllocStatsReporter, error) {
-	ar, ok := c.allocs[alloc]
-	if !ok {
-		return nil, fmt.Errorf("allocation: %q not running on this client", alloc)
+func (c *Client) StatsReporter() ClientStatsReporter {
+	return c
+}
+
+func (c *Client) AllocStats() map[string]AllocStatsReporter {
+	res := make(map[string]AllocStatsReporter)
+	for alloc, ar := range c.allocs {
+		res[alloc] = ar
 	}
-	return ar.StatsReporter(), nil
+	return res
+}
+
+func (c *Client) HostStats() *stats.HostStats {
+	val := c.resourceUsage.Peek()
+	if val != nil {
+		return val.(*stats.HostStats)
+	}
+	return nil
 }
 
 // GetAllocFS returns the AllocFS interface for the alloc dir of an allocation
@@ -1233,5 +1263,25 @@ func (c *Client) syncConsul() {
 			return
 		}
 
+	}
+}
+
+func (c *Client) monitorUsage() {
+	for {
+		next := time.NewTimer(1 * time.Second)
+		select {
+		case <-next.C:
+			ru, err := stats.CollectHostStats()
+			if err != nil {
+				c.logger.Printf("[DEBUG] client: error fetching stats of host: %v", err)
+			}
+			c.resourceUsageLock.RLock()
+			c.resourceUsage.Enqueue(ru)
+			c.resourceUsageLock.RUnlock()
+			next.Reset(1 * time.Second)
+		case <-c.shutdownCh:
+			next.Stop()
+			return
+		}
 	}
 }
