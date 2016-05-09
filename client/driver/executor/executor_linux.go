@@ -124,6 +124,7 @@ func (e *UniversalExecutor) configureCgroups(resources *structs.Resources) error
 	return nil
 }
 
+// Stats reports the resource utilization of the cgroup
 func (e *UniversalExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
 	manager := getCgroupManager(e.groups, e.cgPaths)
 	stats, err := manager.GetStats()

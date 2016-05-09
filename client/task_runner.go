@@ -35,6 +35,7 @@ const (
 	killFailureLimit = 5
 )
 
+// TaskStatsReporter exposes APIs to query resource usage of a Task
 type TaskStatsReporter interface {
 	ResourceUsage() *cstructs.TaskResourceUsage
 	ResourceUsageTS() []*cstructs.TaskResourceUsage
@@ -458,6 +459,7 @@ func (r *TaskRunner) startTask() error {
 	return nil
 }
 
+// monitorUsage starts collecting resource usage stats of a Task
 func (r *TaskRunner) monitorUsage() {
 	for {
 		next := time.NewTimer(1 * time.Second)
@@ -478,10 +480,12 @@ func (r *TaskRunner) monitorUsage() {
 	}
 }
 
+// TaskStatsReporter returns the stats reporter of the task
 func (r *TaskRunner) StatsReporter() TaskStatsReporter {
 	return r
 }
 
+// ResourceUsage returns the last resource utilization datapoint collected
 func (r *TaskRunner) ResourceUsage() *cstructs.TaskResourceUsage {
 	r.resourceUsageLock.RLock()
 	defer r.resourceUsageLock.RUnlock()
@@ -492,6 +496,8 @@ func (r *TaskRunner) ResourceUsage() *cstructs.TaskResourceUsage {
 	return nil
 }
 
+// ResourceUsageTS returns the list of all the resource utilization datapoints
+// collected
 func (r *TaskRunner) ResourceUsageTS() []*cstructs.TaskResourceUsage {
 	r.resourceUsageLock.RLock()
 	defer r.resourceUsageLock.RUnlock()

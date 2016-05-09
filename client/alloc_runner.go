@@ -28,6 +28,7 @@ const (
 // AllocStateUpdater is used to update the status of an allocation
 type AllocStateUpdater func(alloc *structs.Allocation)
 
+// AllocStatsReporter exposes stats related APIs of an allocation runner
 type AllocStatsReporter interface {
 	AllocStats() map[string]TaskStatsReporter
 	TaskStats(task string) (TaskStatsReporter, error)
@@ -476,10 +477,14 @@ func (r *AllocRunner) Update(update *structs.Allocation) {
 	}
 }
 
+// StatsReporter returns an interface to query resource usage statistics of an
+// allocation
 func (r *AllocRunner) StatsReporter() AllocStatsReporter {
 	return r
 }
 
+// AllocStats returns the stats reporter of all the tasks running in the
+// allocation
 func (r *AllocRunner) AllocStats() map[string]TaskStatsReporter {
 	res := make(map[string]TaskStatsReporter)
 	for task, tr := range r.tasks {
@@ -488,6 +493,8 @@ func (r *AllocRunner) AllocStats() map[string]TaskStatsReporter {
 	return res
 }
 
+// TaskStats returns the stats reporter for a specific task running in the
+// allocation
 func (r *AllocRunner) TaskStats(task string) (TaskStatsReporter, error) {
 	tr, ok := r.tasks[task]
 	if !ok {

@@ -5,11 +5,13 @@ import (
 	"github.com/shirou/gopsutil/mem"
 )
 
+// HostStats represents resource usage stats of the host running a Nomad client
 type HostStats struct {
 	Memory *MemoryStats
 	CPU    []*CPUStats
 }
 
+// MemoryStats represnts stats related to virtual memory usage
 type MemoryStats struct {
 	Total     uint64
 	Available uint64
@@ -17,6 +19,7 @@ type MemoryStats struct {
 	Free      uint64
 }
 
+// CPUStats represents stats related to cpu usage
 type CPUStats struct {
 	CPU    string
 	User   float64
@@ -24,6 +27,7 @@ type CPUStats struct {
 	Idle   float64
 }
 
+// CollectHostStats collects stats related to resource usage of a host
 func CollectHostStats() (*HostStats, error) {
 	memStats, err := mem.VirtualMemory()
 	if err != nil {
