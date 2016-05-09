@@ -35,6 +35,9 @@ func (r *RingBuff) Enqueue(value interface{}) {
 
 // Peek returns the last value enqueued in the ring buffer
 func (r *RingBuff) Peek() interface{} {
+	if r.head == -1 {
+		return nil
+	}
 	return r.buff[r.head]
 }
 
