@@ -426,10 +426,8 @@ func (c *Client) AllocStats() map[string]AllocStatsReporter {
 
 func (c *Client) HostStats() *stats.HostStats {
 	val := c.resourceUsage.Peek()
-	if val != nil {
-		return val.(*stats.HostStats)
-	}
-	return nil
+	ru, _ := val.(*stats.HostStats)
+	return ru
 }
 
 // GetAllocFS returns the AllocFS interface for the alloc dir of an allocation

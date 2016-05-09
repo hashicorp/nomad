@@ -490,10 +490,8 @@ func (r *TaskRunner) ResourceUsage() *cstructs.TaskResourceUsage {
 	r.resourceUsageLock.RLock()
 	defer r.resourceUsageLock.RUnlock()
 	val := r.resourceUsage.Peek()
-	if val != nil {
-		return val.(*cstructs.TaskResourceUsage)
-	}
-	return nil
+	ru, _ := val.(*cstructs.TaskResourceUsage)
+	return ru
 }
 
 // ResourceUsageTS returns the list of all the resource utilization datapoints
@@ -504,7 +502,8 @@ func (r *TaskRunner) ResourceUsageTS() []*cstructs.TaskResourceUsage {
 	values := r.resourceUsage.Values()
 	ts := make([]*cstructs.TaskResourceUsage, len(values))
 	for index, val := range values {
-		ts[index] = val.(*cstructs.TaskResourceUsage)
+		ru, _ := val.(*cstructs.TaskResourceUsage)
+		ts[index] = ru
 	}
 	return ts
 }
