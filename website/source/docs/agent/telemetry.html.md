@@ -61,3 +61,185 @@ Below is sample output of a telemetry dump:
 [2015-09-17 16:59:40 -0700 PDT][S] 'nomad.nomad.eval.dequeue': Count: 21 Min: 500.610 Mean: 501.753 Max: 503.361 Stddev: 1.030 Sum: 10536.813
 [2015-09-17 16:59:40 -0700 PDT][S] 'nomad.memberlist.gossip': Count: 12 Min: 0.009 Mean: 0.017 Max: 0.025 Stddev: 0.005 Sum: 0.204
 ```
+
+# Key Metrics
+
+When telemetry is being streamed to statsite or statsd, `interval` is defined to
+be their flush interval. Otherwise, the interval can be assumed to be 10 seconds
+when retrieving metrics using the above described signals.
+
+<table class="table table-bordered table-striped">
+  <tr>
+    <th>Metric</th>
+    <th>Description</th>
+    <th>Unit</th>
+    <th>Type</th>
+  </tr>
+  <tr>
+    <td>`nomad.runtime.num_goroutines`</td>
+    <td>Number of goroutines and general load pressure indicator</td>
+    <td># of goroutines</td>
+    <td>Gauge</td>
+  </tr>
+  <tr>
+    <td>`nomad.runtime.alloc_bytes`</td>
+    <td>Memory utilization</td>
+    <td># of bytes</td>
+    <td>Gauge</td>
+  </tr>
+  <tr>
+    <td>`nomad.runtime.heap_objects`</td>
+    <td>Number of objects on the heap. General memory pressure indicator</td>
+    <td># of heap objects</td>
+    <td>Gauge</td>
+  </tr>
+  <tr>
+    <td>`nomad.raft.apply`</td>
+    <td>Number of Raft transactions</td>
+    <td>Raft transactions / `interval`</td>
+    <td>Counter</td>
+  </tr>
+  <tr>
+    <td>`nomad.raft.replication.appendEntries`</td>
+    <td>Raft transaction commit time</td>
+    <td>ms / Raft Log Append</td>
+    <td>Timer</td>
+  </tr>
+  <tr>
+    <td>`nomad.raft.leader.lastContact`</td>
+    <td>Time since last contact to leader. General indicator of Raft latency</td>
+    <td>ms / Leader Contact</td>
+    <td>Timer</td>
+  </tr>
+  <tr>
+    <td>`nomad.broker.total_ready`</td>
+    <td>Number of evaluations ready to be processed</td>
+    <td># of evaluations</td>
+    <td>Gauge</td>
+  </tr>
+  <tr>
+    <td>`nomad.broker.total_unacked`</td>
+    <td>Evaluations dispatched for processing but incomplete</td>
+    <td># of evaluations</td>
+    <td>Gauge</td>
+  </tr>
+  <tr>
+    <td>`nomad.broker.total_blocked`</td>
+    <td>
+        Evaluations that are blocked til an existing evaluation for the same job
+        completes
+    </td>
+    <td># of evaluations</td>
+    <td>Gauge</td>
+  </tr>
+  <tr>
+    <td>`nomad.plan.queue_depth`</td>
+    <td>Number of scheduler Plans waiting to be evaluated</td>
+    <td># of plans</td>
+    <td>Gauge</td>
+  </tr>
+  <tr>
+    <td>`nomad.plan.submit`</td>
+    <td>
+        Time to submit a scheduler Plan. Higher values cause lower scheduling
+        throughput
+    </td>
+    <td>ms / Plan Submit</td>
+    <td>Timer</td>
+  </tr>
+  <tr>
+    <td>`nomad.plan.evaluate`</td>
+    <td>
+        Time to validate a scheduler Plan. Higher values cause lower scheduling
+        throughput. Similar to `nomad.plan.submit` but does not include RPC time
+        or time in the Plan Queue
+    </td>
+    <td>ms / Plan Evaluation</td>
+    <td>Timer</td>
+  </tr>
+  <tr>
+    <td>`nomad.worker.invoke_scheduler.<type>`</td>
+    <td>Time to run the scheduler of the given type</td>
+    <td>ms / Scheduler Run</td>
+    <td>Timer</td>
+  </tr>
+  <tr>
+    <td>`nomad.worker.wait_for_index`</td>
+    <td>
+        Time waiting for Raft log replication from leader. High delays result in
+        lower scheduling throughput
+    </td>
+    <td>ms / Raft Index Wait</td>
+    <td>Timer</td>
+  </tr>
+  <tr>
+    <td>`nomad.heartbeat.active`</td>
+    <td>
+        Number of active heartbeat timers. Each timer represents a Nomad Client
+        connection
+    </td>
+    <td># of heartbeat timers</td>
+    <td>Gauge</td>
+  </tr>
+  <tr>
+    <td>`nomad.heartbeat.invalidate`</td>
+    <td>
+        The length of time it takes to invalidate a Nomad Client due to failed
+        heartbeats
+    </td>
+    <td>ms / Heartbeat Invalidation</td>
+    <td>Timer</td>
+  </tr>
+  <tr>
+    <td>`nomad.rpc.query`</td>
+    <td>Number of RPC queries</td>
+    <td>RPC Queries / `interval`</td>
+    <td>Counter</td>
+  </tr>
+  <tr>
+    <td>`nomad.rpc.request`</td>
+    <td>Number of RPC requests being handled</td>
+    <td>RPC Requests / `interval`</td>
+    <td>Counter</td>
+  </tr>
+  <tr>
+    <td>`nomad.rpc.request_error`</td>
+    <td>Number of RPC requests being handled that result in an error</td>
+    <td>RPC Errors / `interval`</td>
+    <td>Counter</td>
+  </tr>
+</table>
+
+# Metric Types
+
+<table class="table table-bordered table-striped">
+  <tr>
+    <th>Type</th>
+    <th>Description</th>
+    <th>Quantiles</th>
+  </tr>
+  <tr>
+    <td>Gauge</td>
+    <td>
+        Gauge types report an absolute number at the end of the aggregation
+        interval
+    </td>
+    <td>false</td>
+  </tr>
+  <tr>
+    <td>Counter</td>
+    <td>
+        Counts are incremented and flushed at the end of the aggregation
+        interval and then are reset to zero
+    </td>
+    <td>true</td>
+  </tr>
+  <tr>
+    <td>Timer</td>
+    <td>
+        Timers measure the time to complete a task and will include quantiles,
+        means, standard deviation, etc per interval.
+    </td>
+    <td>true</td>
+  </tr>
+</table>
