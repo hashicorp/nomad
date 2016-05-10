@@ -203,6 +203,7 @@ func (idx *NetworkIndex) AssignNetwork(ask *NetworkResource) (out *NetworkResour
 		offer := &NetworkResource{
 			Device:        n.Device,
 			IP:            ipStr,
+			MBits:         ask.MBits,
 			ReservedPorts: ask.ReservedPorts,
 			DynamicPorts:  ask.DynamicPorts,
 		}

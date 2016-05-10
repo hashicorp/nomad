@@ -404,6 +404,24 @@ func TestTasksUpdated(t *testing.T) {
 	if !tasksUpdated(j1.TaskGroups[0], j11.TaskGroups[0]) {
 		t.Fatalf("bad")
 	}
+
+	j12 := mock.Job()
+	j12.TaskGroups[0].Tasks[0].Resources.Networks[0].MBits = 100
+	if !tasksUpdated(j1.TaskGroups[0], j12.TaskGroups[0]) {
+		t.Fatalf("bad")
+	}
+
+	j13 := mock.Job()
+	j13.TaskGroups[0].Tasks[0].Resources.Networks[0].DynamicPorts[0].Label = "foobar"
+	if !tasksUpdated(j1.TaskGroups[0], j13.TaskGroups[0]) {
+		t.Fatalf("bad")
+	}
+
+	j14 := mock.Job()
+	j14.TaskGroups[0].Tasks[0].Resources.Networks[0].ReservedPorts = []structs.Port{{Label: "foo", Value: 1312}}
+	if !tasksUpdated(j1.TaskGroups[0], j14.TaskGroups[0]) {
+		t.Fatalf("bad")
+	}
 }
 
 func TestEvictAndPlace_LimitLessThanAllocs(t *testing.T) {
