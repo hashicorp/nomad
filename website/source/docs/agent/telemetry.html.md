@@ -64,6 +64,10 @@ Below is sample output of a telemetry dump:
 
 # Key Metrics
 
+When telemetry is being streamed to statsite or statsd, `interval` is defined to
+be their flush interval. Otherwise, the interval can be assumed to be 10 seconds
+when retrieving metrics using the above described signals.
+
 <table class="table table-bordered table-striped">
   <tr>
     <th>Metric</th>
@@ -72,143 +76,141 @@ Below is sample output of a telemetry dump:
     <th>Type</th>
   </tr>
   <tr>
-    <td>nomad.runtime.num_goroutines</td>
+    <td>`nomad.runtime.num_goroutines`</td>
     <td>Number of goroutines and general load pressure indicator</td>
-    <td>Goroutines</td>
+    <td># of goroutines</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>nomad.runtime.alloc_bytes</td>
+    <td>`nomad.runtime.alloc_bytes`</td>
     <td>Memory utilization</td>
-    <td>Bytes</td>
+    <td># of bytes</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>nomad.runtime.heap_objects</td>
+    <td>`nomad.runtime.heap_objects`</td>
     <td>Number of objects on the heap. General memory pressure indicator</td>
-    <td>Heap Objects</td>
+    <td># of heap objects</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>nomad.raft.apply</td>
+    <td>`nomad.raft.apply`</td>
     <td>Number of Raft transactions</td>
-    <td>Raft transactions</td>
+    <td>Raft transactions / `interval`</td>
     <td>Counter</td>
   </tr>
   <tr>
-    <td>nomad.raft.replication.appendEntries</td>
+    <td>`nomad.raft.replication.appendEntries`</td>
     <td>Raft transaction commit time</td>
-    <td>Milliseconds</td>
+    <td>ms / Raft Log Append</td>
     <td>Timer</td>
   </tr>
   <tr>
-    <td>nomad.raft.leader.lastContact</td>
+    <td>`nomad.raft.leader.lastContact`</td>
     <td>Time since last contact to leader. General indicator of Raft latency</td>
-    <td>Milliseconds</td>
+    <td>ms / Leader Contact</td>
     <td>Timer</td>
   </tr>
   <tr>
-    <td>nomad.broker.total_ready</td>
+    <td>`nomad.broker.total_ready`</td>
     <td>Number of evaluations ready to be processed</td>
-    <td>Evaluations</td>
+    <td># of evaluations</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>nomad.broker.total_unacked</td>
+    <td>`nomad.broker.total_unacked`</td>
     <td>Evaluations dispatched for processing but incomplete</td>
-    <td>Evaluations</td>
+    <td># of evaluations</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>nomad.broker.total_blocked</td>
+    <td>`nomad.broker.total_blocked`</td>
     <td>
         Evaluations that are blocked til an existing evaluation for the same job
         completes
     </td>
-    <td>Evaluations</td>
+    <td># of evaluations</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>nomad.plan.queue_depth</td>
+    <td>`nomad.plan.queue_depth`</td>
     <td>Number of scheduler Plans waiting to be evaluated</td>
-    <td>Plans</td>
+    <td># of plans</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>nomad.plan.submit</td>
+    <td>`nomad.plan.submit`</td>
     <td>
         Time to submit a scheduler Plan. Higher values cause lower scheduling
         throughput
     </td>
-    <td>Milliseconds</td>
+    <td>ms / Plan Submit</td>
     <td>Timer</td>
   </tr>
   <tr>
-    <td>nomad.plan.evaluate</td>
+    <td>`nomad.plan.evaluate`</td>
     <td>
         Time to validate a scheduler Plan. Higher values cause lower scheduling
         throughput. Similar to `nomad.plan.submit` but does not include RPC time
         or time in the Plan Queue
     </td>
-    <td>Milliseconds</td>
+    <td>ms / Plan Evaluation</td>
     <td>Timer</td>
   </tr>
   <tr>
-    <td>nomad.worker.invoke_scheduler.<type></td>
+    <td>`nomad.worker.invoke_scheduler.<type>`</td>
     <td>Time to run the scheduler of the given type</td>
-    <td>Milliseconds</td>
+    <td>ms / Scheduler Run</td>
     <td>Timer</td>
   </tr>
   <tr>
-    <td>nomad.worker.wait_for_index</td>
+    <td>`nomad.worker.wait_for_index`</td>
     <td>
         Time waiting for Raft log replication from leader. High delays result in
         lower scheduling throughput
     </td>
-    <td>Milliseconds</td>
+    <td>ms / Raft Index Wait</td>
     <td>Timer</td>
   </tr>
   <tr>
-    <td>nomad.heartbeat.active</td>
+    <td>`nomad.heartbeat.active`</td>
     <td>
         Number of active heartbeat timers. Each timer represents a Nomad Client
         connection
     </td>
-    <td>Heartbeat timers</td>
+    <td># of heartbeat timers</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>nomad.heartbeat.invalidate</td>
+    <td>`nomad.heartbeat.invalidate`</td>
     <td>
         The length of time it takes to invalidate a Nomad Client due to failed
         heartbeats
     </td>
-    <td>Milliseconds</td>
+    <td>ms / Heartbeat Invalidation</td>
     <td>Timer</td>
   </tr>
   <tr>
-    <td>nomad.rpc.query</td>
+    <td>`nomad.rpc.query`</td>
     <td>Number of RPC queries</td>
-    <td>RPC Queries</td>
+    <td>RPC Queries / `interval`</td>
     <td>Counter</td>
   </tr>
   <tr>
-    <td>nomad.rpc.request</td>
+    <td>`nomad.rpc.request`</td>
     <td>Number of RPC requests being handled</td>
-    <td>RPC Requests</td>
+    <td>RPC Requests / `interval`</td>
     <td>Counter</td>
   </tr>
   <tr>
-    <td>nomad.rpc.request_error</td>
+    <td>`nomad.rpc.request_error`</td>
     <td>Number of RPC requests being handled that result in an error</td>
-    <td>RPC Errors</td>
+    <td>RPC Errors / `interval`</td>
     <td>Counter</td>
   </tr>
 </table>
 
 # Metric Types
-
-Metrics are aggregated on 10 second intervals for 1 minute.
 
 <table class="table table-bordered table-striped">
   <tr>
@@ -220,15 +222,15 @@ Metrics are aggregated on 10 second intervals for 1 minute.
     <td>Gauge</td>
     <td>
         Gauge types report an absolute number at the end of the aggregation
-        window
+        interval
     </td>
     <td>false</td>
   </tr>
   <tr>
     <td>Counter</td>
     <td>
-        Counts are incremented and flushed at the end of the aggregation window
-        and then are reset to zero
+        Counts are incremented and flushed at the end of the aggregation
+        interval and then are reset to zero
     </td>
     <td>true</td>
   </tr>
@@ -236,7 +238,7 @@ Metrics are aggregated on 10 second intervals for 1 minute.
     <td>Timer</td>
     <td>
         Timers measure the time to complete a task and will include quantiles,
-        means, standard deviation, etc
+        means, standard deviation, etc per interval.
     </td>
     <td>true</td>
   </tr>
