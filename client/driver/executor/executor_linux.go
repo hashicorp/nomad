@@ -126,6 +126,9 @@ func (e *UniversalExecutor) configureCgroups(resources *structs.Resources) error
 
 // Stats reports the resource utilization of the cgroup
 func (e *UniversalExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
+	if !e.command.ResourceLimits {
+		return e.resourceUsagePids()
+	}
 	manager := getCgroupManager(e.groups, e.cgPaths)
 	stats, err := manager.GetStats()
 	if err != nil {
@@ -154,8 +157,8 @@ func (e *UniversalExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
 	kmTicks := (kernelModeTime * clockTicks) / nanosecondsInSecond
 
 	cs := &cstructs.CpuUsage{
-		SystemMode:       kmTicks,
-		UserMode:         umTicks,
+		SystemMode:       float64(kmTicks),
+		UserMode:         float64(umTicks),
 		ThrottledPeriods: stats.CpuStats.ThrottlingData.ThrottledPeriods,
 		ThrottledTime:    stats.CpuStats.ThrottlingData.ThrottledTime,
 	}
@@ -230,6 +233,14 @@ func (e *UniversalExecutor) removeChrootMounts() error {
 	e.cgLock.Lock()
 	defer e.cgLock.Unlock()
 	return e.ctx.AllocDir.UnmountAll()
+}
+
+func (e *UniversalExecutor) getAllPids() ([]int, error) {
+	if e.command.ResourceLimits {
+		manager := getCgroupManager(e.groups, e.cgPaths)
+		return manager.GetAllPids()
+	}
+	return e.scanPids()
 }
 
 // destroyCgroup kills all processes in the cgroup and removes the cgroup

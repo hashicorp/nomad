@@ -32,5 +32,9 @@ func (e *UniversalExecutor) configureIsolation() error {
 }
 
 func (e *UniversalExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
-	return nil, nil
+	return e.resourceUsagePids()
+}
+
+func (e *UniversalExecutor) getAllPids() ([]int, error) {
+	return e.scanPids()
 }
