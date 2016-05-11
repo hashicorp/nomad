@@ -560,6 +560,8 @@ func parseConsulConfig(result **ConsulConfig, list *ast.ObjectList) error {
 		"ca_file",
 		"cert_file",
 		"key_file",
+		"client_auto_join",
+		"server_auto_join",
 	}
 
 	if err := checkHCLKeys(listVal, valid); err != nil {
