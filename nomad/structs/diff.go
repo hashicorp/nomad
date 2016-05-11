@@ -388,6 +388,11 @@ func (t *Task) Diff(other *Task, contextual bool) (*TaskDiff, error) {
 		diff.Objects = append(diff.Objects, diffs...)
 	}
 
+	// Services diff
+	if sDiffs := serviceDiffs(t.Services, other.Services, contextual); sDiffs != nil {
+		diff.Objects = append(diff.Objects, sDiffs...)
+	}
+
 	return diff, nil
 }
 
@@ -453,6 +458,133 @@ type TaskDiffs []*TaskDiff
 func (t TaskDiffs) Len() int           { return len(t) }
 func (t TaskDiffs) Swap(i, j int)      { t[i], t[j] = t[j], t[i] }
 func (t TaskDiffs) Less(i, j int) bool { return t[i].Name < t[j].Name }
+
+// serviceDiff returns the diff of two service objects. If contextual diff is
+// enabled, all fields will be returned, even if no diff occured.
+func serviceDiff(old, new *Service, contextual bool) *ObjectDiff {
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Service"}
+	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
+
+	if reflect.DeepEqual(old, new) {
+		return nil
+	} else if old == nil {
+		old = &Service{}
+		diff.Type = DiffTypeAdded
+		newPrimitiveFlat = flatmap.Flatten(new, nil, true)
+	} else if new == nil {
+		new = &Service{}
+		diff.Type = DiffTypeDeleted
+		oldPrimitiveFlat = flatmap.Flatten(old, nil, true)
+	} else {
+		diff.Type = DiffTypeEdited
+		oldPrimitiveFlat = flatmap.Flatten(old, nil, true)
+		newPrimitiveFlat = flatmap.Flatten(new, nil, true)
+	}
+
+	// Diff the primitive fields.
+	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
+
+	// Checks diffs
+	if cDiffs := serviceCheckDiffs(old.Checks, new.Checks, contextual); cDiffs != nil {
+		diff.Objects = append(diff.Objects, cDiffs...)
+	}
+
+	return diff
+}
+
+// serviceDiffs diffs a set of services. If contextual diff is enabled, unchanged
+// fields within objects nested in the tasks will be returned.
+func serviceDiffs(old, new []*Service, contextual bool) []*ObjectDiff {
+	oldMap := make(map[string]*Service, len(old))
+	newMap := make(map[string]*Service, len(new))
+	for _, o := range old {
+		oldMap[o.Name] = o
+	}
+	for _, n := range new {
+		newMap[n.Name] = n
+	}
+
+	var diffs []*ObjectDiff
+	for name, oldService := range oldMap {
+		// Diff the same, deleted and edited
+		if diff := serviceDiff(oldService, newMap[name], contextual); diff != nil {
+			diffs = append(diffs, diff)
+		}
+	}
+
+	for name, newService := range newMap {
+		// Diff the added
+		if old, ok := oldMap[name]; !ok {
+			if diff := serviceDiff(old, newService, contextual); diff != nil {
+				diffs = append(diffs, diff)
+			}
+		}
+	}
+
+	sort.Sort(ObjectDiffs(diffs))
+	return diffs
+}
+
+// serviceCheckDiff returns the diff of two service check objects. If contextual
+// diff is enabled, all fields will be returned, even if no diff occured.
+func serviceCheckDiff(old, new *ServiceCheck, contextual bool) *ObjectDiff {
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Check"}
+	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
+
+	if reflect.DeepEqual(old, new) {
+		return nil
+	} else if old == nil {
+		old = &ServiceCheck{}
+		diff.Type = DiffTypeAdded
+		newPrimitiveFlat = flatmap.Flatten(new, nil, true)
+	} else if new == nil {
+		new = &ServiceCheck{}
+		diff.Type = DiffTypeDeleted
+		oldPrimitiveFlat = flatmap.Flatten(old, nil, true)
+	} else {
+		diff.Type = DiffTypeEdited
+		oldPrimitiveFlat = flatmap.Flatten(old, nil, true)
+		newPrimitiveFlat = flatmap.Flatten(new, nil, true)
+	}
+
+	// Diff the primitive fields.
+	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
+	return diff
+}
+
+// serviceCheckDiffs diffs a set of service checks. If contextual diff is
+// enabled, unchanged fields within objects nested in the tasks will be
+// returned.
+func serviceCheckDiffs(old, new []*ServiceCheck, contextual bool) []*ObjectDiff {
+	oldMap := make(map[string]*ServiceCheck, len(old))
+	newMap := make(map[string]*ServiceCheck, len(new))
+	for _, o := range old {
+		oldMap[o.Name] = o
+	}
+	for _, n := range new {
+		newMap[n.Name] = n
+	}
+
+	var diffs []*ObjectDiff
+	for name, oldService := range oldMap {
+		// Diff the same, deleted and edited
+		if diff := serviceCheckDiff(oldService, newMap[name], contextual); diff != nil {
+			diffs = append(diffs, diff)
+		}
+	}
+
+	for name, newService := range newMap {
+		// Diff the added
+		if old, ok := oldMap[name]; !ok {
+			if diff := serviceCheckDiff(old, newService, contextual); diff != nil {
+				diffs = append(diffs, diff)
+			}
+		}
+	}
+
+	sort.Sort(ObjectDiffs(diffs))
+	return diffs
+}
 
 // Diff returns a diff of two resource objects. If contextual diff is enabled,
 // non-changed fields will still be returned.
