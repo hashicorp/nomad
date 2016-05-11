@@ -89,8 +89,7 @@ func (d *AllocDir) UnmountAll() error {
 			if err := d.unmountSharedDir(taskAlloc); err != nil {
 				mErr.Errors = append(mErr.Errors,
 					fmt.Errorf("failed to unmount shared alloc dir %q: %v", taskAlloc, err))
-			}
-			if err := os.RemoveAll(taskAlloc); err != nil {
+			} else if err := os.RemoveAll(taskAlloc); err != nil {
 				mErr.Errors = append(mErr.Errors,
 					fmt.Errorf("failed to delete shared alloc dir %q: %v", taskAlloc, err))
 			}

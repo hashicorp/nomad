@@ -752,9 +752,20 @@ func TestDockerUser(t *testing.T) {
 		handle.Kill()
 		t.Fatalf("Should've failed")
 	}
-	msg := "System error: Unable to find user alice"
-	if !strings.Contains(err.Error(), msg) {
-		t.Fatalf("Expecting '%v' in '%v'", msg, err)
+
+	msgs := []string{
+		"System error: Unable to find user alice",
+		"linux spec user: Unable to find user alice",
+	}
+	var found bool
+	for _, msg := range msgs {
+		if strings.Contains(err.Error(), msg) {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("Expected failure string not found, found %q instead", err.Error())
 	}
 }
 

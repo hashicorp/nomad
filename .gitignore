@@ -53,3 +53,4 @@ TODO.md
 
 .terraform
 *.tfstate*
+rkt-*

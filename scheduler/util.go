@@ -302,17 +302,57 @@ func tasksUpdated(a, b *structs.TaskGroup) bool {
 		if !reflect.DeepEqual(at.Env, bt.Env) {
 			return true
 		}
-		if !reflect.DeepEqual(at.Resources, bt.Resources) {
-			return true
-		}
 		if !reflect.DeepEqual(at.Meta, bt.Meta) {
 			return true
 		}
 		if !reflect.DeepEqual(at.Artifacts, bt.Artifacts) {
 			return true
 		}
+
+		// Inspect the network to see if the dynamic ports are different
+		if len(at.Resources.Networks) != len(bt.Resources.Networks) {
+			return true
+		}
+		for idx := range at.Resources.Networks {
+			an := at.Resources.Networks[idx]
+			bn := bt.Resources.Networks[idx]
+
+			if an.MBits != bn.MBits {
+				return true
+			}
+
+			aPorts, bPorts := networkPortMap(an), networkPortMap(bn)
+			if !reflect.DeepEqual(aPorts, bPorts) {
+				return true
+			}
+		}
+
+		// Inspect the non-network resources
+		if ar, br := at.Resources, bt.Resources; ar.CPU != br.CPU {
+			return true
+		} else if ar.MemoryMB != br.MemoryMB {
+			return true
+		} else if ar.DiskMB != br.DiskMB {
+			return true
+		} else if ar.IOPS != br.IOPS {
+			return true
+		}
 	}
 	return false
+}
+
+// networkPortMap takes a network resource and returns a map of port labels to
+// values. The value for dynamic ports is disregarded even if it is set. This
+// makes this function suitable for comparing two network resources for changes.
+func networkPortMap(n *structs.NetworkResource) map[string]int {
+	m := make(map[string]int, len(n.DynamicPorts)+len(n.ReservedPorts))
+	for _, p := range n.ReservedPorts {
+		m[p.Label] = p.Value
+	}
+	for _, p := range n.DynamicPorts {
+		m[p.Label] = -1
+	}
+	return m
 }
 
 // setStatus is used to update the status of the evaluation

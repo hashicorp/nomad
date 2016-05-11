@@ -2,7 +2,7 @@
 
 BUG FIXES:
   * core: Updated User, Meta or Resources in a task cause create/destroy updates
-    [GH-1128]
+    [GH-1128, GH-1153]
   * dicovery: Ensure service and check names are unique [GH-1143, GH-1144]
 
 ## 0.3.2 (April 22, 2016)
