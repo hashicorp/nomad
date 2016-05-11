@@ -7,6 +7,48 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+func TestAnnotateTaskGroup_Updates(t *testing.T) {
+	plan := &structs.Plan{
+		Annotations: &structs.PlanAnnotations{
+			DesiredTGUpdates: map[string]*structs.DesiredUpdates{
+				"foo": &structs.DesiredUpdates{
+					Ignore:            1,
+					Place:             2,
+					Migrate:           3,
+					Stop:              4,
+					InPlaceUpdate:     5,
+					DestructiveUpdate: 6,
+				},
+			},
+		},
+	}
+
+	tgDiff := &structs.TaskGroupDiff{
+		Type: structs.DiffTypeEdited,
+		Name: "foo",
+	}
+	expected := &structs.TaskGroupDiff{
+		Type: structs.DiffTypeEdited,
+		Name: "foo",
+		Updates: map[string]uint64{
+			UpdateTypeIgnore:            1,
+			UpdateTypeCreate:            2,
+			UpdateTypeMigrate:           3,
+			UpdateTypeDestroy:           4,
+			UpdateTypeInplaceUpdate:     5,
+			UpdateTypeDestructiveUpdate: 6,
+		},
+	}
+
+	if err := annotateTaskGroup(tgDiff, plan); err != nil {
+		t.Fatalf("annotateTaskGroup(%#v, %#v) failed: %#v", tgDiff, plan, err)
+	}
+
+	if !reflect.DeepEqual(tgDiff, expected) {
+		t.Fatalf("got %#v, want %#v", tgDiff, expected)
+	}
+}
+
 func TestAnnotateCountChange_NonEdited(t *testing.T) {
 	tg := &structs.TaskGroupDiff{}
 	tgOrig := &structs.TaskGroupDiff{}

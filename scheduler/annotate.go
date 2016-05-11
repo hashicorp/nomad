@@ -1,7 +1,6 @@
 package scheduler
 
 import (
-	"fmt"
 	"strconv"
 
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -129,7 +128,6 @@ func annotateCountChange(diff *structs.TaskGroupDiff) error {
 
 	// Didn't find
 	if countDiff == nil {
-		fmt.Println("NO COUNT")
 		return nil
 	}
 	oldV, err := strconv.Atoi(countDiff.Old)
