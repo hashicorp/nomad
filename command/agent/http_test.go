@@ -145,14 +145,18 @@ func TestContentTypeIsJSON(t *testing.T) {
 }
 
 func TestPrettyPrint(t *testing.T) {
-	testPrettyPrint("pretty=1", t)
+	testPrettyPrint("pretty=1", true, t)
+}
+
+func TestPrettyPrintOff(t *testing.T) {
+	testPrettyPrint("pretty=0", false, t)
 }
 
 func TestPrettyPrintBare(t *testing.T) {
-	testPrettyPrint("pretty", t)
+	testPrettyPrint("pretty", true, t)
 }
 
-func testPrettyPrint(pretty string, t *testing.T) {
+func testPrettyPrint(pretty string, prettyFmt bool, t *testing.T) {
 	s := makeHTTPServer(t, nil)
 	defer s.Cleanup()
 
@@ -168,6 +172,9 @@ func testPrettyPrint(pretty string, t *testing.T) {
 	s.Server.wrap(handler)(resp, req)
 
 	expected, _ := json.MarshalIndent(r, "", "    ")
+	if prettyFmt {
+		expected += "\n"
+	}
 	actual, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		t.Fatalf("err: %s", err)
