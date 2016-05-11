@@ -10,8 +10,6 @@ import (
 	"github.com/mitchellh/hashstructure"
 )
 
-// TODO: Support contextual diff
-
 const (
 	// AnnotationForcesDestructiveUpdate marks a diff as causing a destructive
 	// update.
@@ -76,13 +74,13 @@ type JobDiff struct {
 }
 
 // Diff returns a diff of two jobs and a potential error if the Jobs are not
-// diffable.
-func (j *Job) Diff(other *Job) (*JobDiff, error) {
+// diffable. If contextual diff is enabled, objects within the job will contain
+// field information even if unchanged.
+func (j *Job) Diff(other *Job, contextual bool) (*JobDiff, error) {
 	diff := &JobDiff{Type: DiffTypeNone}
 	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
 	filter := []string{"ID", "Status", "StatusDescription", "CreateIndex", "ModifyIndex", "JobModifyIndex"}
 
-	// TODO This logic is too complicated
 	if j == nil && other == nil {
 		return diff, nil
 	} else if j == nil {
@@ -110,7 +108,7 @@ func (j *Job) Diff(other *Job) (*JobDiff, error) {
 	}
 
 	// Diff the primitive fields.
-	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat)
+	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, false)
 
 	// Datacenters diff
 	if setDiff := stringSetDiff(j.Datacenters, other.Datacenters, "Datacenters"); setDiff != nil {
@@ -122,25 +120,26 @@ func (j *Job) Diff(other *Job) (*JobDiff, error) {
 		interfaceSlice(j.Constraints),
 		interfaceSlice(other.Constraints),
 		[]string{"str"},
-		"Constraint")
+		"Constraint",
+		contextual)
 	if conDiff != nil {
 		diff.Objects = append(diff.Objects, conDiff...)
 	}
 
 	// Task groups diff
-	tgs, err := taskGroupDiffs(j.TaskGroups, other.TaskGroups)
+	tgs, err := taskGroupDiffs(j.TaskGroups, other.TaskGroups, contextual)
 	if err != nil {
 		return nil, err
 	}
 	diff.TaskGroups = tgs
 
 	// Update diff
-	if uDiff := primitiveObjectDiff(j.Update, other.Update, nil, "Update"); uDiff != nil {
+	if uDiff := primitiveObjectDiff(j.Update, other.Update, nil, "Update", contextual); uDiff != nil {
 		diff.Objects = append(diff.Objects, uDiff)
 	}
 
 	// Periodic diff
-	if pDiff := primitiveObjectDiff(j.Periodic, other.Periodic, nil, "Periodic"); pDiff != nil {
+	if pDiff := primitiveObjectDiff(j.Periodic, other.Periodic, nil, "Periodic", contextual); pDiff != nil {
 		diff.Objects = append(diff.Objects, pDiff)
 	}
 
@@ -175,13 +174,14 @@ type TaskGroupDiff struct {
 	Updates map[string]int
 }
 
-// Diff returns a diff of two task groups.
-func (tg *TaskGroup) Diff(other *TaskGroup) (*TaskGroupDiff, error) {
+// Diff returns a diff of two task groups. If contextual diff is enabled,
+// objects' fields will be stored even if no diff occured as long as one field
+// changed.
+func (tg *TaskGroup) Diff(other *TaskGroup, contextual bool) (*TaskGroupDiff, error) {
 	diff := &TaskGroupDiff{Type: DiffTypeNone}
 	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
 	filter := []string{"Name"}
 
-	// TODO This logic is too complicated
 	if tg == nil && other == nil {
 		return diff, nil
 	} else if tg == nil {
@@ -207,25 +207,27 @@ func (tg *TaskGroup) Diff(other *TaskGroup) (*TaskGroupDiff, error) {
 	}
 
 	// Diff the primitive fields.
-	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat)
+	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, false)
 
 	// Constraints diff
 	conDiff := primitiveObjectSetDiff(
 		interfaceSlice(tg.Constraints),
 		interfaceSlice(other.Constraints),
 		[]string{"str"},
-		"Constraint")
+		"Constraint",
+		contextual)
 	if conDiff != nil {
 		diff.Objects = append(diff.Objects, conDiff...)
 	}
 
 	// Restart policy diff
-	if rDiff := primitiveObjectDiff(tg.RestartPolicy, other.RestartPolicy, nil, "RestartPolicy"); rDiff != nil {
+	rDiff := primitiveObjectDiff(tg.RestartPolicy, other.RestartPolicy, nil, "RestartPolicy", contextual)
+	if rDiff != nil {
 		diff.Objects = append(diff.Objects, rDiff)
 	}
 
 	// Tasks diff
-	tasks, err := taskDiffs(tg.Tasks, other.Tasks)
+	tasks, err := taskDiffs(tg.Tasks, other.Tasks, contextual)
 	if err != nil {
 		return nil, err
 	}
@@ -260,8 +262,10 @@ func (tg *TaskGroupDiff) GoString() string {
 	return out
 }
 
-// TaskGroupDiffs diffs two sets of task groups.
-func taskGroupDiffs(old, new []*TaskGroup) ([]*TaskGroupDiff, error) {
+// TaskGroupDiffs diffs two sets of task groups. If contextual diff is enabled,
+// objects' fields will be stored even if no diff occured as long as one field
+// changed.
+func taskGroupDiffs(old, new []*TaskGroup, contextual bool) ([]*TaskGroupDiff, error) {
 	oldMap := make(map[string]*TaskGroup, len(old))
 	newMap := make(map[string]*TaskGroup, len(new))
 	for _, o := range old {
@@ -274,7 +278,7 @@ func taskGroupDiffs(old, new []*TaskGroup) ([]*TaskGroupDiff, error) {
 	var diffs []*TaskGroupDiff
 	for name, oldGroup := range oldMap {
 		// Diff the same, deleted and edited
-		diff, err := oldGroup.Diff(newMap[name])
+		diff, err := oldGroup.Diff(newMap[name], contextual)
 		if err != nil {
 			return nil, err
 		}
@@ -284,7 +288,7 @@ func taskGroupDiffs(old, new []*TaskGroup) ([]*TaskGroupDiff, error) {
 	for name, newGroup := range newMap {
 		// Diff the added
 		if old, ok := oldMap[name]; !ok {
-			diff, err := old.Diff(newGroup)
+			diff, err := old.Diff(newGroup, contextual)
 			if err != nil {
 				return nil, err
 			}
@@ -312,13 +316,13 @@ type TaskDiff struct {
 	Annotations []string
 }
 
-// Diff returns a diff of two tasks.
-func (t *Task) Diff(other *Task) (*TaskDiff, error) {
+// Diff returns a diff of two tasks. If contextual diff is enabled, objects
+// within the task will contain field information even if unchanged.
+func (t *Task) Diff(other *Task, contextual bool) (*TaskDiff, error) {
 	diff := &TaskDiff{Type: DiffTypeNone}
 	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
 	filter := []string{"Name", "Config"}
 
-	// TODO This logic is too complicated
 	if t == nil && other == nil {
 		return diff, nil
 	} else if t == nil {
@@ -344,30 +348,32 @@ func (t *Task) Diff(other *Task) (*TaskDiff, error) {
 	}
 
 	// Diff the primitive fields.
-	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat)
+	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, false)
 
 	// Constraints diff
 	conDiff := primitiveObjectSetDiff(
 		interfaceSlice(t.Constraints),
 		interfaceSlice(other.Constraints),
 		[]string{"str"},
-		"Constraint")
+		"Constraint",
+		contextual)
 	if conDiff != nil {
 		diff.Objects = append(diff.Objects, conDiff...)
 	}
 
 	// Config diff
-	if cDiff := configDiff(t.Config, other.Config); cDiff != nil {
+	if cDiff := configDiff(t.Config, other.Config, contextual); cDiff != nil {
 		diff.Objects = append(diff.Objects, cDiff)
 	}
 
 	// Resources diff
-	if rDiff := t.Resources.Diff(other.Resources); rDiff != nil {
+	if rDiff := t.Resources.Diff(other.Resources, contextual); rDiff != nil {
 		diff.Objects = append(diff.Objects, rDiff)
 	}
 
 	// LogConfig diff
-	if lDiff := primitiveObjectDiff(t.LogConfig, other.LogConfig, nil, "LogConfig"); lDiff != nil {
+	lDiff := primitiveObjectDiff(t.LogConfig, other.LogConfig, nil, "LogConfig", contextual)
+	if lDiff != nil {
 		diff.Objects = append(diff.Objects, lDiff)
 	}
 
@@ -376,7 +382,8 @@ func (t *Task) Diff(other *Task) (*TaskDiff, error) {
 		interfaceSlice(t.Artifacts),
 		interfaceSlice(other.Artifacts),
 		nil,
-		"Artifact")
+		"Artifact",
+		contextual)
 	if diffs != nil {
 		diff.Objects = append(diff.Objects, diffs...)
 	}
@@ -403,8 +410,9 @@ func (t *TaskDiff) GoString() string {
 	return out
 }
 
-// taskDiffs diffs a set of tasks.
-func taskDiffs(old, new []*Task) ([]*TaskDiff, error) {
+// taskDiffs diffs a set of tasks. If contextual diff is enabled, unchanged
+// fields within objects nested in the tasks will be returned.
+func taskDiffs(old, new []*Task, contextual bool) ([]*TaskDiff, error) {
 	oldMap := make(map[string]*Task, len(old))
 	newMap := make(map[string]*Task, len(new))
 	for _, o := range old {
@@ -417,7 +425,7 @@ func taskDiffs(old, new []*Task) ([]*TaskDiff, error) {
 	var diffs []*TaskDiff
 	for name, oldGroup := range oldMap {
 		// Diff the same, deleted and edited
-		diff, err := oldGroup.Diff(newMap[name])
+		diff, err := oldGroup.Diff(newMap[name], contextual)
 		if err != nil {
 			return nil, err
 		}
@@ -427,7 +435,7 @@ func taskDiffs(old, new []*Task) ([]*TaskDiff, error) {
 	for name, newGroup := range newMap {
 		// Diff the added
 		if old, ok := oldMap[name]; !ok {
-			diff, err := old.Diff(newGroup)
+			diff, err := old.Diff(newGroup, contextual)
 			if err != nil {
 				return nil, err
 			}
@@ -446,8 +454,9 @@ func (t TaskDiffs) Len() int           { return len(t) }
 func (t TaskDiffs) Swap(i, j int)      { t[i], t[j] = t[j], t[i] }
 func (t TaskDiffs) Less(i, j int) bool { return t[i].Name < t[j].Name }
 
-// Diff returns a diff of two resource objects.
-func (r *Resources) Diff(other *Resources) *ObjectDiff {
+// Diff returns a diff of two resource objects. If contextual diff is enabled,
+// non-changed fields will still be returned.
+func (r *Resources) Diff(other *Resources, contextual bool) *ObjectDiff {
 	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Resources"}
 	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
 
@@ -468,18 +477,19 @@ func (r *Resources) Diff(other *Resources) *ObjectDiff {
 	}
 
 	// Diff the primitive fields.
-	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat)
+	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
 
 	// Network Resources diff
-	if nDiffs := networkResourceDiffs(r.Networks, other.Networks); nDiffs != nil {
+	if nDiffs := networkResourceDiffs(r.Networks, other.Networks, contextual); nDiffs != nil {
 		diff.Objects = append(diff.Objects, nDiffs...)
 	}
 
 	return diff
 }
 
-// Diff returns a diff of two network resources.
-func (r *NetworkResource) Diff(other *NetworkResource) *ObjectDiff {
+// Diff returns a diff of two network resources. If contextual diff is enabled,
+// non-changed fields will still be returned.
+func (r *NetworkResource) Diff(other *NetworkResource, contextual bool) *ObjectDiff {
 	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Network"}
 	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
 	filter := []string{"Device", "CIDR", "IP"}
@@ -501,21 +511,24 @@ func (r *NetworkResource) Diff(other *NetworkResource) *ObjectDiff {
 	}
 
 	// Diff the primitive fields.
-	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat)
+	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
 
 	// Port diffs
-	if resPorts := portDiffs(r.ReservedPorts, other.ReservedPorts, false); resPorts != nil {
+	resPorts := portDiffs(r.ReservedPorts, other.ReservedPorts, false, contextual)
+	dynPorts := portDiffs(r.DynamicPorts, other.DynamicPorts, true, contextual)
+	if resPorts != nil {
 		diff.Objects = append(diff.Objects, resPorts...)
 	}
-	if dynPorts := portDiffs(r.DynamicPorts, other.DynamicPorts, true); dynPorts != nil {
+	if dynPorts != nil {
 		diff.Objects = append(diff.Objects, dynPorts...)
 	}
 
 	return diff
 }
 
-// networkResourceDiffs diffs a set of NetworkResources.
-func networkResourceDiffs(old, new []*NetworkResource) []*ObjectDiff {
+// networkResourceDiffs diffs a set of NetworkResources. If contextual diff is enabled,
+// non-changed fields will still be returned.
+func networkResourceDiffs(old, new []*NetworkResource, contextual bool) []*ObjectDiff {
 	makeSet := func(objects []*NetworkResource) map[string]*NetworkResource {
 		objMap := make(map[string]*NetworkResource, len(objects))
 		for _, obj := range objects {
@@ -535,14 +548,14 @@ func networkResourceDiffs(old, new []*NetworkResource) []*ObjectDiff {
 	var diffs []*ObjectDiff
 	for k, oldV := range oldSet {
 		if newV, ok := newSet[k]; !ok {
-			if diff := oldV.Diff(newV); diff != nil {
+			if diff := oldV.Diff(newV, contextual); diff != nil {
 				diffs = append(diffs, diff)
 			}
 		}
 	}
 	for k, newV := range newSet {
 		if oldV, ok := oldSet[k]; !ok {
-			if diff := oldV.Diff(newV); diff != nil {
+			if diff := oldV.Diff(newV, contextual); diff != nil {
 				diffs = append(diffs, diff)
 			}
 		}
@@ -554,8 +567,9 @@ func networkResourceDiffs(old, new []*NetworkResource) []*ObjectDiff {
 }
 
 // portDiffs returns the diff of two sets of ports. The dynamic flag marks the
-// set of ports as being Dynamic ports versus Static ports.
-func portDiffs(old, new []Port, dynamic bool) []*ObjectDiff {
+// set of ports as being Dynamic ports versus Static ports. If contextual diff is enabled,
+// non-changed fields will still be returned.
+func portDiffs(old, new []Port, dynamic bool, contextual bool) []*ObjectDiff {
 	makeSet := func(ports []Port) map[string]Port {
 		portMap := make(map[string]Port, len(ports))
 		for _, port := range ports {
@@ -579,11 +593,13 @@ func portDiffs(old, new []Port, dynamic bool) []*ObjectDiff {
 	for portLabel, oldPort := range oldPorts {
 		// Diff the same, deleted and edited
 		if newPort, ok := newPorts[portLabel]; ok {
-			if diff := primitiveObjectDiff(oldPort, newPort, filter, name); diff != nil {
+			diff := primitiveObjectDiff(oldPort, newPort, filter, name, contextual)
+			if diff != nil {
 				diffs = append(diffs, diff)
 			}
 		} else {
-			if diff := primitiveObjectDiff(oldPort, nil, filter, name); diff != nil {
+			diff := primitiveObjectDiff(oldPort, nil, filter, name, contextual)
+			if diff != nil {
 				diffs = append(diffs, diff)
 			}
 		}
@@ -591,7 +607,8 @@ func portDiffs(old, new []Port, dynamic bool) []*ObjectDiff {
 	for label, newPort := range newPorts {
 		// Diff the added
 		if _, ok := oldPorts[label]; !ok {
-			if diff := primitiveObjectDiff(nil, newPort, filter, name); diff != nil {
+			diff := primitiveObjectDiff(nil, newPort, filter, name, contextual)
+			if diff != nil {
 				diffs = append(diffs, diff)
 			}
 		}
@@ -602,8 +619,9 @@ func portDiffs(old, new []Port, dynamic bool) []*ObjectDiff {
 
 }
 
-// configDiff returns the diff of two Task Config objects.
-func configDiff(old, new map[string]interface{}) *ObjectDiff {
+// configDiff returns the diff of two Task Config objects. If contextual diff is
+// enabled, all fields will be returned, even if no diff occured.
+func configDiff(old, new map[string]interface{}, contextual bool) *ObjectDiff {
 	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Config"}
 	if reflect.DeepEqual(old, new) {
 		return nil
@@ -618,7 +636,7 @@ func configDiff(old, new map[string]interface{}) *ObjectDiff {
 	// Diff the primitive fields.
 	oldPrimitiveFlat := flatmap.Flatten(old, nil, false)
 	newPrimitiveFlat := flatmap.Flatten(new, nil, false)
-	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat)
+	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
 	return diff
 }
 
@@ -702,14 +720,19 @@ type FieldDiff struct {
 	Old, New string
 }
 
-// NewFieldDiff returns a FieldDiff if old and new are different otherwise, it
-// returns nil.
-func NewFieldDiff(old, new, name string) *FieldDiff {
+// fieldDiff returns a FieldDiff if old and new are different otherwise, it
+// returns nil. If contextual diff is enabled, even non-changed fields will be
+// returned.
+func fieldDiff(old, new, name string, contextual bool) *FieldDiff {
+	diff := &FieldDiff{Name: name, Type: DiffTypeNone}
 	if old == new {
-		return nil
+		if !contextual {
+			return nil
+		}
+		diff.Old, diff.New = old, new
+		return diff
 	}
 
-	diff := &FieldDiff{Name: name}
 	if old == "" {
 		diff.Type = DiffTypeAdded
 		diff.New = new
@@ -754,21 +777,22 @@ func (f FieldDiffs) Swap(i, j int)      { f[i], f[j] = f[j], f[i] }
 func (f FieldDiffs) Less(i, j int) bool { return f[i].Less(f[j]) }
 
 // fieldDiffs takes a map of field names to their values and returns a set of
-// field diffs.
-func fieldDiffs(old, new map[string]string) []*FieldDiff {
+// field diffs. If contextual diff is enabled, even non-changed fields will be
+// returned.
+func fieldDiffs(old, new map[string]string, contextual bool) []*FieldDiff {
 	var diffs []*FieldDiff
 	visited := make(map[string]struct{})
 	for k, oldV := range old {
 		visited[k] = struct{}{}
 		newV := new[k]
-		if diff := NewFieldDiff(oldV, newV, k); diff != nil {
+		if diff := fieldDiff(oldV, newV, k, contextual); diff != nil {
 			diffs = append(diffs, diff)
 		}
 	}
 
 	for k, newV := range new {
 		if _, ok := visited[k]; !ok {
-			if diff := NewFieldDiff("", newV, k); diff != nil {
+			if diff := fieldDiff("", newV, k, contextual); diff != nil {
 				diffs = append(diffs, diff)
 			}
 		}
@@ -796,14 +820,14 @@ func stringSetDiff(old, new []string, name string) *ObjectDiff {
 	var added, removed bool
 	for k := range oldMap {
 		if _, ok := newMap[k]; !ok {
-			diff.Fields = append(diff.Fields, NewFieldDiff(k, "", name))
+			diff.Fields = append(diff.Fields, fieldDiff(k, "", name, false))
 			removed = true
 		}
 	}
 
 	for k := range newMap {
 		if _, ok := oldMap[k]; !ok {
-			diff.Fields = append(diff.Fields, NewFieldDiff("", k, name))
+			diff.Fields = append(diff.Fields, fieldDiff("", k, name, false))
 			added = true
 		}
 	}
@@ -824,15 +848,16 @@ func stringSetDiff(old, new []string, name string) *ObjectDiff {
 
 // primitiveObjectDiff returns a diff of the passed objects' primitive fields.
 // The filter field can be used to exclude fields from the diff. The name is the
-// name of the objects.
-func primitiveObjectDiff(old, new interface{}, filter []string, name string) *ObjectDiff {
+// name of the objects. If contextual is set, non-changed fields will also be
+// stored in the object diff.
+func primitiveObjectDiff(old, new interface{}, filter []string, name string, contextual bool) *ObjectDiff {
 	oldPrimitiveFlat := flatmap.Flatten(old, filter, true)
 	newPrimitiveFlat := flatmap.Flatten(new, filter, true)
 	delete(oldPrimitiveFlat, "")
 	delete(newPrimitiveFlat, "")
 
 	diff := &ObjectDiff{Name: name}
-	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat)
+	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
 
 	var added, deleted, edited bool
 	for _, f := range diff.Fields {
@@ -862,8 +887,10 @@ func primitiveObjectDiff(old, new interface{}, filter []string, name string) *Ob
 
 // primitiveObjectSetDiff does a set difference of the old and new sets. The
 // filter parameter can be used to filter a set of primitive fields in the
-// passed structs. The name corresponds to the name of the passed objects.
-func primitiveObjectSetDiff(old, new []interface{}, filter []string, name string) []*ObjectDiff {
+// passed structs. The name corresponds to the name of the passed objects. If
+// contextual diff is enabled, objects' primtive fields will be returned even if
+// no diff exists.
+func primitiveObjectSetDiff(old, new []interface{}, filter []string, name string, contextual bool) []*ObjectDiff {
 	makeSet := func(objects []interface{}) map[string]interface{} {
 		objMap := make(map[string]interface{}, len(objects))
 		for _, obj := range objects {
@@ -882,13 +909,15 @@ func primitiveObjectSetDiff(old, new []interface{}, filter []string, name string
 
 	var diffs []*ObjectDiff
 	for k, v := range oldSet {
+		// Deleted
 		if _, ok := newSet[k]; !ok {
-			diffs = append(diffs, primitiveObjectDiff(v, nil, filter, name))
+			diffs = append(diffs, primitiveObjectDiff(v, nil, filter, name, contextual))
 		}
 	}
 	for k, v := range newSet {
+		// Added
 		if _, ok := oldSet[k]; !ok {
-			diffs = append(diffs, primitiveObjectDiff(nil, v, filter, name))
+			diffs = append(diffs, primitiveObjectDiff(nil, v, filter, name, contextual))
 		}
 	}
 

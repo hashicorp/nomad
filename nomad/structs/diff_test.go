@@ -8,9 +8,10 @@ import (
 
 func TestJobDiff(t *testing.T) {
 	cases := []struct {
-		Old, New *Job
-		Expected *JobDiff
-		Error    bool
+		Old, New   *Job
+		Expected   *JobDiff
+		Error      bool
+		Contextual bool
 	}{
 		{
 			Old: nil,
@@ -337,6 +338,45 @@ func TestJobDiff(t *testing.T) {
 			},
 		},
 		{
+			// Update strategy edited with context
+			Contextual: true,
+			Old: &Job{
+				Update: UpdateStrategy{
+					Stagger:     10 * time.Second,
+					MaxParallel: 5,
+				},
+			},
+			New: &Job{
+				Update: UpdateStrategy{
+					Stagger:     60 * time.Second,
+					MaxParallel: 5,
+				},
+			},
+			Expected: &JobDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "Update",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeNone,
+								Name: "MaxParallel",
+								Old:  "5",
+								New:  "5",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "Stagger",
+								Old:  "10000000000",
+								New:  "60000000000",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
 			// Periodic added
 			Old: &Job{},
 			New: &Job{
@@ -478,6 +518,61 @@ func TestJobDiff(t *testing.T) {
 								Name: "SpecType",
 								Old:  "foo",
 								New:  "cron",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			// Periodic edited with context
+			Contextual: true,
+			Old: &Job{
+				Periodic: &PeriodicConfig{
+					Enabled:         false,
+					Spec:            "*/15 * * * * *",
+					SpecType:        "foo",
+					ProhibitOverlap: false,
+				},
+			},
+			New: &Job{
+				Periodic: &PeriodicConfig{
+					Enabled:         true,
+					Spec:            "* * * * * *",
+					SpecType:        "foo",
+					ProhibitOverlap: false,
+				},
+			},
+			Expected: &JobDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "Periodic",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "Enabled",
+								Old:  "false",
+								New:  "true",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "ProhibitOverlap",
+								Old:  "false",
+								New:  "false",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "Spec",
+								Old:  "*/15 * * * * *",
+								New:  "* * * * * *",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "SpecType",
+								Old:  "foo",
+								New:  "foo",
 							},
 						},
 					},
@@ -655,7 +750,7 @@ func TestJobDiff(t *testing.T) {
 	}
 
 	for i, c := range cases {
-		actual, err := c.Old.Diff(c.New)
+		actual, err := c.Old.Diff(c.New, c.Contextual)
 		if c.Error && err == nil {
 			t.Fatalf("case %d: expected errored")
 		} else if err != nil {
@@ -675,9 +770,10 @@ func TestJobDiff(t *testing.T) {
 
 func TestTaskGroupDiff(t *testing.T) {
 	cases := []struct {
-		Old, New *TaskGroup
-		Expected *TaskGroupDiff
-		Error    bool
+		Old, New   *TaskGroup
+		Expected   *TaskGroupDiff
+		Error      bool
+		Contextual bool
 	}{
 		{
 			Old: nil,
@@ -1029,6 +1125,61 @@ func TestTaskGroupDiff(t *testing.T) {
 			},
 		},
 		{
+			// RestartPolicy edited with context
+			Contextual: true,
+			Old: &TaskGroup{
+				RestartPolicy: &RestartPolicy{
+					Attempts: 1,
+					Interval: 1 * time.Second,
+					Delay:    1 * time.Second,
+					Mode:     "fail",
+				},
+			},
+			New: &TaskGroup{
+				RestartPolicy: &RestartPolicy{
+					Attempts: 2,
+					Interval: 2 * time.Second,
+					Delay:    1 * time.Second,
+					Mode:     "fail",
+				},
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "RestartPolicy",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "Attempts",
+								Old:  "1",
+								New:  "2",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "Delay",
+								Old:  "1000000000",
+								New:  "1000000000",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "Interval",
+								Old:  "1000000000",
+								New:  "2000000000",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "Mode",
+								Old:  "fail",
+								New:  "fail",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
 			// Tasks edited
 			Old: &TaskGroup{
 				Tasks: []*Task{
@@ -1123,7 +1274,7 @@ func TestTaskGroupDiff(t *testing.T) {
 	}
 
 	for i, c := range cases {
-		actual, err := c.Old.Diff(c.New)
+		actual, err := c.Old.Diff(c.New, c.Contextual)
 		if c.Error && err == nil {
 			t.Fatalf("case %d: expected errored")
 		} else if err != nil {
@@ -1143,9 +1294,10 @@ func TestTaskGroupDiff(t *testing.T) {
 
 func TestTaskDiff(t *testing.T) {
 	cases := []struct {
-		Old, New *Task
-		Expected *TaskDiff
-		Error    bool
+		Old, New   *Task
+		Expected   *TaskDiff
+		Error      bool
+		Contextual bool
 	}{
 		{
 			Old: nil,
@@ -1471,7 +1623,7 @@ func TestTaskDiff(t *testing.T) {
 			},
 		},
 		{
-			// RestartPolicy edited
+			// LogConfig edited
 			Old: &Task{
 				LogConfig: &LogConfig{
 					MaxFiles:      1,
@@ -1502,6 +1654,45 @@ func TestTaskDiff(t *testing.T) {
 								Name: "MaxFiles",
 								Old:  "1",
 								New:  "2",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			// LogConfig edited with context
+			Contextual: true,
+			Old: &Task{
+				LogConfig: &LogConfig{
+					MaxFiles:      1,
+					MaxFileSizeMB: 10,
+				},
+			},
+			New: &Task{
+				LogConfig: &LogConfig{
+					MaxFiles:      1,
+					MaxFileSizeMB: 20,
+				},
+			},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "LogConfig",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "MaxFileSizeMB",
+								Old:  "10",
+								New:  "20",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "MaxFiles",
+								Old:  "1",
+								New:  "1",
 							},
 						},
 					},
@@ -1648,6 +1839,61 @@ func TestTaskDiff(t *testing.T) {
 								Name: "MemoryMB",
 								Old:  "100",
 								New:  "200",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			// Resources edited (no networks) with context
+			Contextual: true,
+			Old: &Task{
+				Resources: &Resources{
+					CPU:      100,
+					MemoryMB: 100,
+					DiskMB:   100,
+					IOPS:     100,
+				},
+			},
+			New: &Task{
+				Resources: &Resources{
+					CPU:      200,
+					MemoryMB: 100,
+					DiskMB:   200,
+					IOPS:     100,
+				},
+			},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "Resources",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "CPU",
+								Old:  "100",
+								New:  "200",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "DiskMB",
+								Old:  "100",
+								New:  "200",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "IOPS",
+								Old:  "100",
+								New:  "100",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "MemoryMB",
+								Old:  "100",
+								New:  "100",
 							},
 						},
 					},
@@ -1920,10 +2166,107 @@ func TestTaskDiff(t *testing.T) {
 				},
 			},
 		},
+		{
+			// Config edited with context
+			Contextual: true,
+			Old: &Task{
+				Config: map[string]interface{}{
+					"foo": 1,
+					"bar": "baz",
+					"bam": []string{"a", "b"},
+					"baz": map[string]int{
+						"a": 1,
+						"b": 2,
+					},
+					"boom": &Port{
+						Label: "boom_port",
+					},
+				},
+			},
+			New: &Task{
+				Config: map[string]interface{}{
+					"foo": 2,
+					"bar": "baz",
+					"bam": []string{"a", "c", "d"},
+					"baz": map[string]int{
+						"a": 1,
+						"b": 2,
+					},
+					"boom": &Port{
+						Label: "boom_port",
+					},
+				},
+			},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "Config",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeNone,
+								Name: "bam[0]",
+								Old:  "a",
+								New:  "a",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "bam[1]",
+								Old:  "b",
+								New:  "c",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "bam[2]",
+								Old:  "",
+								New:  "d",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "bar",
+								Old:  "baz",
+								New:  "baz",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "baz[a]",
+								Old:  "1",
+								New:  "1",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "baz[b]",
+								Old:  "2",
+								New:  "2",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "boom.Label",
+								Old:  "boom_port",
+								New:  "boom_port",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "boom.Value",
+								Old:  "0",
+								New:  "0",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "foo",
+								Old:  "1",
+								New:  "2",
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for i, c := range cases {
-		actual, err := c.Old.Diff(c.New)
+		actual, err := c.Old.Diff(c.New, c.Contextual)
 		if c.Error && err == nil {
 			t.Fatalf("case %d: expected errored")
 		} else if err != nil {
