@@ -171,9 +171,12 @@ func testPrettyPrint(pretty string, prettyFmt bool, t *testing.T) {
 	req, _ := http.NewRequest("GET", urlStr, nil)
 	s.Server.wrap(handler)(resp, req)
 
-	expected, _ := json.MarshalIndent(r, "", "    ")
+	var expected []byte
 	if prettyFmt {
+		expected, _ = json.MarshalIndent(r, "", "    ")
 		expected = append(expected, "\n"...)
+	} else {
+		expected, _ = json.Marshal(r)
 	}
 	actual, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
@@ -181,7 +184,7 @@ func testPrettyPrint(pretty string, prettyFmt bool, t *testing.T) {
 	}
 
 	if !bytes.Equal(expected, actual) {
-		t.Fatalf("bad: %q", string(actual))
+		t.Fatalf("bad:\nexpected:\t%q\nactual:\t\t%q", string(expected), string(actual))
 	}
 }
 
