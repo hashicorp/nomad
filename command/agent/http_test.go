@@ -173,7 +173,7 @@ func testPrettyPrint(pretty string, prettyFmt bool, t *testing.T) {
 
 	expected, _ := json.MarshalIndent(r, "", "    ")
 	if prettyFmt {
-		expected += "\n"
+		expected = append(expected, "\n"...)
 	}
 	actual, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
