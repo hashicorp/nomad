@@ -484,6 +484,7 @@ func (a *Agent) createConsulConfig() {
 	a.consulConfig = cfg
 }
 
+// syncAgentServicesWithConsul syncs the client and server services with Consul
 func (a *Agent) syncAgentServicesWithConsul(clientHttpAddr string, serverHttpAddr string) error {
 	cs, err := consul.NewConsulService(a.consulConfig, a.logger)
 	if err != nil {
@@ -502,7 +503,7 @@ func (a *Agent) syncAgentServicesWithConsul(clientHttpAddr string, serverHttpAdd
 		}
 		addrs["clienthttpaddr"] = clientHttpAddr
 		services = append(services, clientService)
-		cs.SetTaskName("client")
+		cs.SetServiceIdentifier("agent-client")
 	}
 	if a.server != nil && a.config.ConsulConfig.ServerServiceName != "" {
 		serverService := &structs.Service{
@@ -511,7 +512,7 @@ func (a *Agent) syncAgentServicesWithConsul(clientHttpAddr string, serverHttpAdd
 		}
 		addrs["serverhttpaddr"] = serverHttpAddr
 		services = append(services, serverService)
-		cs.SetTaskName("server")
+		cs.SetServiceIdentifier("agent-server")
 	}
 
 	cs.SetAddrFinder(func(portLabel string) (string, int) {
@@ -529,8 +530,6 @@ func (a *Agent) syncAgentServicesWithConsul(clientHttpAddr string, serverHttpAdd
 		}
 		return host, p
 	})
-
-	cs.SetAllocID("agent")
 
 	return cs.SyncServices(services)
 }

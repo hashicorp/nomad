@@ -1208,7 +1208,8 @@ func (c *Client) syncConsul() {
 					if taskState.State == structs.TaskStateRunning {
 						if tr, ok := ar.tasks[taskName]; ok {
 							for _, service := range tr.task.Services {
-								services[service.ID(ar.alloc.ID, tr.task.Name)] = struct{}{}
+								svcIdentifier := fmt.Sprintf("%s-%s", ar.alloc.ID, tr.task.Name)
+								services[service.ID(svcIdentifier)] = struct{}{}
 							}
 						}
 					}
@@ -1220,7 +1221,8 @@ func (c *Client) syncConsul() {
 				Name:      c.config.ClientServiceName,
 				PortLabel: "clienthttpaddr",
 			}
-			services[clientService.ID("agent", "client")] = struct{}{}
+			svcIdentifier := fmt.Sprintf("%s-%s", "agent", "client")
+			services[clientService.ID(svcIdentifier)] = struct{}{}
 
 			if err := c.consulService.KeepServices(services); err != nil {
 				c.logger.Printf("[DEBUG] client: error removing services from non-running tasks: %v", err)

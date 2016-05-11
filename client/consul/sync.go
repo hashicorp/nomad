@@ -22,11 +22,10 @@ type ConsulService struct {
 	client   *consul.Client
 	availble bool
 
-	taskName       string
-	allocID        string
-	delegateChecks map[string]struct{}
-	createCheck    func(*structs.ServiceCheck, string) (Check, error)
-	addrFinder     func(string) (string, int)
+	serviceIdentifier string
+	delegateChecks    map[string]struct{}
+	createCheck       func(*structs.ServiceCheck, string) (Check, error)
+	addrFinder        func(string) (string, int)
 
 	trackedServices map[string]*consul.AgentService
 	trackedChecks   map[string]*consul.AgentCheckRegistration
@@ -133,21 +132,15 @@ func (c *ConsulService) SetDelegatedChecks(delegateChecks map[string]struct{}, c
 	return c
 }
 
-// SetAllocID sets the allocID
-func (c *ConsulService) SetAllocID(allocID string) *ConsulService {
-	c.allocID = allocID
-	return c
-}
-
 // SetAddrFinder sets a function to find the host and port for a Service
 func (c *ConsulService) SetAddrFinder(addrFinder func(string) (string, int)) *ConsulService {
 	c.addrFinder = addrFinder
 	return c
 }
 
-// SetTaskName sets the task name whose services we are syncing with Consul
-func (c *ConsulService) SetTaskName(taskName string) *ConsulService {
-	c.taskName = taskName
+// SetServiceIdentifier sets the identifier of the services we are syncing with Consul
+func (c *ConsulService) SetServiceIdentifier(serviceIdentifier string) *ConsulService {
+	c.serviceIdentifier = serviceIdentifier
 	return c
 }
 
@@ -313,7 +306,7 @@ func (c *ConsulService) createCheckReg(check *structs.ServiceCheck, service *con
 // createService creates a Consul AgentService from a Nomad Service
 func (c *ConsulService) createService(service *structs.Service) (*consul.AgentService, error) {
 	srv := consul.AgentService{
-		ID:      service.ID(c.allocID, c.taskName),
+		ID:      service.ID(c.serviceIdentifier),
 		Service: service.Name,
 		Tags:    service.Tags,
 	}
@@ -367,7 +360,7 @@ func (c *ConsulService) PeriodicSync() {
 		case <-sync.C:
 			if err := c.performSync(); err != nil {
 				if c.availble {
-					c.logger.Printf("[DEBUG] consul: error in syncing task %q: %v", c.taskName, err)
+					c.logger.Printf("[DEBUG] consul: error in syncing services for %q: %v", c.serviceIdentifier, err)
 				}
 				c.availble = false
 			} else {
@@ -375,7 +368,7 @@ func (c *ConsulService) PeriodicSync() {
 			}
 		case <-c.shutdownCh:
 			sync.Stop()
-			c.logger.Printf("[INFO] consul: shutting down sync for task %q", c.taskName)
+			c.logger.Printf("[INFO] consul: shutting down sync for %q", c.serviceIdentifier)
 			return
 		}
 	}
