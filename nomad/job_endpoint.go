@@ -460,8 +460,14 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 
 	// Annotate and store the diff
 	if args.Diff {
-		jobDiff := structs.NewJobDiff(oldJob, args.Job)
-		scheduler.Annotate(jobDiff)
+		jobDiff, err := oldJob.Diff(args.Job, true)
+		if err != nil {
+			return fmt.Errorf("failed to create job diff: %v", err)
+		}
+
+		if err := scheduler.Annotate(jobDiff, planner.Plan); err != nil {
+			return fmt.Errorf("failed to annotate job diff: %v", err)
+		}
 		reply.Diff = jobDiff
 	}
 

@@ -18,52 +18,40 @@ func TestAnnotateCountChange_NonEdited(t *testing.T) {
 
 func TestAnnotateCountChange(t *testing.T) {
 	up := &structs.FieldDiff{
-		DiffEntry: structs.DiffEntry{
-			Type: structs.DiffTypeEdited,
-		},
-		Name:     "Count",
-		OldValue: 1,
-		NewValue: 3,
+		Type: structs.DiffTypeEdited,
+		Name: "Count",
+		Old:  "1",
+		New:  "3",
 	}
 	down := &structs.FieldDiff{
-		DiffEntry: structs.DiffEntry{
-			Type: structs.DiffTypeEdited,
-		},
-		Name:     "Count",
-		OldValue: 3,
-		NewValue: 1,
+		Type: structs.DiffTypeEdited,
+		Name: "Count",
+		Old:  "3",
+		New:  "1",
 	}
 	tgUp := &structs.TaskGroupDiff{
-		PrimitiveStructDiff: structs.PrimitiveStructDiff{
-			DiffEntry: structs.DiffEntry{
-				Type: structs.DiffTypeEdited,
-			},
-			PrimitiveFields: map[string]*structs.FieldDiff{
-				"Count": up,
-			},
-		},
+		Type:   structs.DiffTypeEdited,
+		Fields: []*structs.FieldDiff{up},
 	}
 	tgDown := &structs.TaskGroupDiff{
-		PrimitiveStructDiff: structs.PrimitiveStructDiff{
-			DiffEntry: structs.DiffEntry{
-				Type: structs.DiffTypeEdited,
-			},
-			PrimitiveFields: map[string]*structs.FieldDiff{
-				"Count": down,
-			},
-		},
+		Type:   structs.DiffTypeEdited,
+		Fields: []*structs.FieldDiff{down},
 	}
 
 	// Test the up case
-	annotateCountChange(tgUp)
-	countDiff := tgUp.PrimitiveFields["Count"]
+	if err := annotateCountChange(tgUp); err != nil {
+		t.Fatalf("annotateCountChange(%#v) failed: %v", tgUp, err)
+	}
+	countDiff := tgUp.Fields[0]
 	if len(countDiff.Annotations) != 1 || countDiff.Annotations[0] != AnnotationForcesCreate {
 		t.Fatalf("incorrect annotation: %#v", tgUp)
 	}
 
 	// Test the down case
-	annotateCountChange(tgDown)
-	countDiff = tgDown.PrimitiveFields["Count"]
+	if err := annotateCountChange(tgDown); err != nil {
+		t.Fatalf("annotateCountChange(%#v) failed: %v", tgDown, err)
+	}
+	countDiff = tgDown.Fields[0]
 	if len(countDiff.Annotations) != 1 || countDiff.Annotations[0] != AnnotationForcesDestroy {
 		t.Fatalf("incorrect annotation: %#v", tgDown)
 	}
@@ -81,93 +69,126 @@ func TestAnnotateTask_NonEdited(t *testing.T) {
 func TestAnnotateTask_Destructive(t *testing.T) {
 	cases := []*structs.TaskDiff{
 		{
-			PrimitiveStructDiff: structs.PrimitiveStructDiff{
-				DiffEntry: structs.DiffEntry{
+			Type: structs.DiffTypeEdited,
+			Fields: []*structs.FieldDiff{
+				{
 					Type: structs.DiffTypeEdited,
-				},
-				PrimitiveFields: map[string]*structs.FieldDiff{
-					"Driver": &structs.FieldDiff{
-						Name:     "Driver",
-						OldValue: "docker",
-						NewValue: "exec",
-					},
+					Name: "Driver",
+					Old:  "docker",
+					New:  "exec",
 				},
 			},
 		},
 		{
-			PrimitiveStructDiff: structs.PrimitiveStructDiff{
-				DiffEntry: structs.DiffEntry{
+			Type: structs.DiffTypeEdited,
+			Fields: []*structs.FieldDiff{
+				{
 					Type: structs.DiffTypeEdited,
-				},
-				PrimitiveFields: map[string]*structs.FieldDiff{
-					"User": &structs.FieldDiff{
-						Name:     "User",
-						OldValue: "",
-						NewValue: "specific",
-					},
+					Name: "User",
+					Old:  "alice",
+					New:  "bob",
 				},
 			},
 		},
 		{
-			Env: &structs.StringMapDiff{
-				DiffEntry: structs.DiffEntry{
+			Type: structs.DiffTypeEdited,
+			Fields: []*structs.FieldDiff{
+				{
 					Type: structs.DiffTypeAdded,
-				},
-				Added: map[string]string{
-					"foo": "bar",
-				},
-			},
-		},
-		{
-			Meta: &structs.StringMapDiff{
-				DiffEntry: structs.DiffEntry{
-					Type: structs.DiffTypeEdited,
-				},
-				Edited: map[string]structs.StringValueDelta{
-					"foo": {
-						Old: "a",
-						New: "b",
-					},
+					Name: "Env[foo]",
+					Old:  "foo",
+					New:  "bar",
 				},
 			},
 		},
 		{
-			Artifacts: &structs.TaskArtifactsDiff{
-				DiffEntry: structs.DiffEntry{
+			Type: structs.DiffTypeEdited,
+			Fields: []*structs.FieldDiff{
+				{
 					Type: structs.DiffTypeAdded,
-				},
-				Added: []*structs.TaskArtifact{
-					{
-						GetterSource: "foo",
-					},
+					Name: "Meta[foo]",
+					Old:  "foo",
+					New:  "bar",
 				},
 			},
 		},
 		{
-			Resources: &structs.ResourcesDiff{
-				PrimitiveStructDiff: structs.PrimitiveStructDiff{
-					DiffEntry: structs.DiffEntry{
-						Type: structs.DiffTypeEdited,
-					},
-					PrimitiveFields: map[string]*structs.FieldDiff{
-						"CPU": &structs.FieldDiff{
-							Name:     "CPU",
-							OldValue: 500,
-							NewValue: 1000,
+			Type: structs.DiffTypeEdited,
+			Objects: []*structs.ObjectDiff{
+				{
+					Type: structs.DiffTypeAdded,
+					Name: "Artifact",
+					Fields: []*structs.FieldDiff{
+						{
+							Type: structs.DiffTypeAdded,
+							Name: "GetterOptions[bam]",
+							Old:  "",
+							New:  "baz",
+						},
+						{
+							Type: structs.DiffTypeAdded,
+							Name: "GetterSource",
+							Old:  "",
+							New:  "bam",
+						},
+						{
+							Type: structs.DiffTypeAdded,
+							Name: "RelativeDest",
+							Old:  "",
+							New:  "bam",
 						},
 					},
 				},
 			},
 		},
 		{
-			Config: &structs.StringMapDiff{
-				DiffEntry: structs.DiffEntry{
+			Type: structs.DiffTypeEdited,
+			Objects: []*structs.ObjectDiff{
+				{
 					Type: structs.DiffTypeEdited,
+					Name: "Resources",
+					Fields: []*structs.FieldDiff{
+						{
+							Type: structs.DiffTypeEdited,
+							Name: "CPU",
+							Old:  "100",
+							New:  "200",
+						},
+						{
+							Type: structs.DiffTypeEdited,
+							Name: "DiskMB",
+							Old:  "100",
+							New:  "200",
+						},
+						{
+							Type: structs.DiffTypeEdited,
+							Name: "IOPS",
+							Old:  "100",
+							New:  "200",
+						},
+						{
+							Type: structs.DiffTypeEdited,
+							Name: "MemoryMB",
+							Old:  "100",
+							New:  "200",
+						},
+					},
 				},
-				Edited: map[string]structs.StringValueDelta{
-					"command": {
-						Old: "/bin/date",
-						New: "/bin/bash",
+			},
+		},
+		{
+			Type: structs.DiffTypeEdited,
+			Objects: []*structs.ObjectDiff{
+				{
+					Type: structs.DiffTypeEdited,
+					Name: "Config",
+					Fields: []*structs.FieldDiff{
+						{
+							Type: structs.DiffTypeEdited,
+							Name: "bam[1]",
+							Old:  "b",
+							New:  "c",
+						},
 					},
 				},
 			},
@@ -186,44 +207,70 @@ func TestAnnotateTask_Destructive(t *testing.T) {
 func TestAnnotateTask_Inplace(t *testing.T) {
 	cases := []*structs.TaskDiff{
 		{
-			Constraints: []*structs.PrimitiveStructDiff{
+			Type: structs.DiffTypeEdited,
+			Objects: []*structs.ObjectDiff{
 				{
-					DiffEntry: structs.DiffEntry{
-						Type: structs.DiffTypeEdited,
-					},
-					PrimitiveFields: map[string]*structs.FieldDiff{
-						"RTarget": &structs.FieldDiff{
-							Name:     "RTarget",
-							OldValue: "linux",
-							NewValue: "windows",
+					Type: structs.DiffTypeAdded,
+					Name: "Constraint",
+					Fields: []*structs.FieldDiff{
+						{
+							Type: structs.DiffTypeAdded,
+							Name: "LTarget",
+							Old:  "",
+							New:  "baz",
+						},
+						{
+							Type: structs.DiffTypeAdded,
+							Name: "Operand",
+							Old:  "",
+							New:  "baz",
+						},
+						{
+							Type: structs.DiffTypeAdded,
+							Name: "RTarget",
+							Old:  "",
+							New:  "baz",
 						},
 					},
 				},
 			},
 		},
 		{
-			LogConfig: &structs.PrimitiveStructDiff{
-				DiffEntry: structs.DiffEntry{
-					Type: structs.DiffTypeEdited,
-				},
-				PrimitiveFields: map[string]*structs.FieldDiff{
-					"MaxFileSizeMB": &structs.FieldDiff{
-						Name:     "MaxFileSizeMB",
-						OldValue: 100,
-						NewValue: 128,
+			Type: structs.DiffTypeEdited,
+			Objects: []*structs.ObjectDiff{
+				{
+					Type: structs.DiffTypeAdded,
+					Name: "LogConfig",
+					Fields: []*structs.FieldDiff{
+						{
+							Type: structs.DiffTypeAdded,
+							Name: "MaxFileSizeMB",
+							Old:  "",
+							New:  "10",
+						},
+						{
+							Type: structs.DiffTypeAdded,
+							Name: "MaxFiles",
+							Old:  "",
+							New:  "1",
+						},
 					},
 				},
 			},
 		},
 		{
-			Services: &structs.ServicesDiff{
-				DiffEntry: structs.DiffEntry{
-					Type: structs.DiffTypeAdded,
-				},
-				Added: []*structs.Service{
-					{
-						Name:      "foo",
-						PortLabel: "rpc",
+			Type: structs.DiffTypeEdited,
+			Objects: []*structs.ObjectDiff{
+				{
+					Type: structs.DiffTypeEdited,
+					Name: "Service",
+					Fields: []*structs.FieldDiff{
+						{
+							Type: structs.DiffTypeEdited,
+							Name: "PortLabel",
+							Old:  "baz",
+							New:  "baz2",
+						},
 					},
 				},
 			},

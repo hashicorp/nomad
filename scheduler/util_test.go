@@ -765,6 +765,7 @@ func TestProgressMade(t *testing.T) {
 func TestDesiredUpdates(t *testing.T) {
 	tg1 := &structs.TaskGroup{Name: "foo"}
 	tg2 := &structs.TaskGroup{Name: "bar"}
+	a2 := &structs.Allocation{TaskGroup: "foo"}
 
 	place := []allocTuple{
 		allocTuple{TaskGroup: tg1},
@@ -773,8 +774,8 @@ func TestDesiredUpdates(t *testing.T) {
 		allocTuple{TaskGroup: tg2},
 	}
 	stop := []allocTuple{
-		allocTuple{TaskGroup: tg2},
-		allocTuple{TaskGroup: tg2},
+		allocTuple{TaskGroup: tg2, Alloc: a2},
+		allocTuple{TaskGroup: tg2, Alloc: a2},
 	}
 	ignore := []allocTuple{
 		allocTuple{TaskGroup: tg1},
