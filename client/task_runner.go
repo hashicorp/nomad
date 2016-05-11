@@ -200,7 +200,7 @@ func (r *TaskRunner) setState(state string, event *structs.TaskEvent) {
 // setTaskEnv sets the task environment. It returns an error if it could not be
 // created.
 func (r *TaskRunner) setTaskEnv() error {
-	taskEnv, err := driver.GetTaskEnv(r.ctx.AllocDir, r.config.Node, r.task, r.alloc)
+	taskEnv, err := driver.GetTaskEnv(r.ctx.AllocDir, r.config.Node, r.task.Copy(), r.alloc)
 	if err != nil {
 		return err
 	}

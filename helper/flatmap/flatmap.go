@@ -8,14 +8,19 @@ import (
 // Flatten takes an object and returns a flat map of the object. The keys of the
 // map is the path of the field names until a primitive field is reached and the
 // value is a string representation of the terminal field.
-func Flatten(obj interface{}) map[string]string {
+func Flatten(obj interface{}, filter []string, primitiveOnly bool) map[string]string {
 	flat := make(map[string]string)
 	v := reflect.ValueOf(obj)
 	if !v.IsValid() {
 		return nil
 	}
 
-	flatten("", v, flat)
+	flatten("", v, primitiveOnly, false, flat)
+	for _, f := range filter {
+		if _, ok := flat[f]; ok {
+			delete(flat, f)
+		}
+	}
 	return flat
 }
 
@@ -23,7 +28,7 @@ func Flatten(obj interface{}) map[string]string {
 // passed value. The results are stored into the output map and the keys are
 // the fields prepended with the passed prefix.
 // XXX: A current restriction is that maps only support string keys.
-func flatten(prefix string, v reflect.Value, output map[string]string) {
+func flatten(prefix string, v reflect.Value, primitiveOnly, enteredStruct bool, output map[string]string) {
 	switch v.Kind() {
 	case reflect.Bool:
 		output[prefix] = fmt.Sprintf("%v", v.Bool())
@@ -40,11 +45,15 @@ func flatten(prefix string, v reflect.Value, output map[string]string) {
 	case reflect.Invalid:
 		output[prefix] = "nil"
 	case reflect.Ptr:
+		if primitiveOnly && enteredStruct {
+			return
+		}
+
 		e := v.Elem()
 		if !e.IsValid() {
 			output[prefix] = "nil"
 		}
-		flatten(prefix, e, output)
+		flatten(prefix, e, primitiveOnly, enteredStruct, output)
 	case reflect.Map:
 		for _, k := range v.MapKeys() {
 			if k.Kind() == reflect.Interface {
@@ -55,9 +64,14 @@ func flatten(prefix string, v reflect.Value, output map[string]string) {
 				panic(fmt.Sprintf("%q: map key is not string: %s", prefix, k))
 			}
 
-			flatten(getSubPrefix(prefix, k.String()), v.MapIndex(k), output)
+			flatten(getSubKeyPrefix(prefix, k.String()), v.MapIndex(k), primitiveOnly, enteredStruct, output)
 		}
 	case reflect.Struct:
+		if primitiveOnly && enteredStruct {
+			return
+		}
+		enteredStruct = true
+
 		t := v.Type()
 		for i := 0; i < v.NumField(); i++ {
 			name := t.Field(i).Name
@@ -66,22 +80,30 @@ func flatten(prefix string, v reflect.Value, output map[string]string) {
 				val = val.Elem()
 			}
 
-			flatten(getSubPrefix(prefix, name), val, output)
+			flatten(getSubPrefix(prefix, name), val, primitiveOnly, enteredStruct, output)
 		}
 	case reflect.Interface:
+		if primitiveOnly {
+			return
+		}
+
 		e := v.Elem()
 		if !e.IsValid() {
 			output[prefix] = "nil"
 			return
 		}
-		flatten(prefix, e, output)
+		flatten(prefix, e, primitiveOnly, enteredStruct, output)
 	case reflect.Array, reflect.Slice:
+		if primitiveOnly {
+			return
+		}
+
 		if v.Kind() == reflect.Slice && v.IsNil() {
 			output[prefix] = "nil"
 			return
 		}
 		for i := 0; i < v.Len(); i++ {
-			flatten(fmt.Sprintf("%s[%d]", prefix, i), v.Index(i), output)
+			flatten(fmt.Sprintf("%s[%d]", prefix, i), v.Index(i), primitiveOnly, enteredStruct, output)
 		}
 	default:
 		panic(fmt.Sprintf("prefix %q; unsupported type %v", prefix, v.Kind()))
@@ -94,6 +116,18 @@ func getSubPrefix(curPrefix, subField string) string {
 	newPrefix := ""
 	if curPrefix != "" {
 		newPrefix = fmt.Sprintf("%s.%s", curPrefix, subField)
+	} else {
+		newPrefix = fmt.Sprintf("%s", subField)
+	}
+	return newPrefix
+}
+
+// getSubKeyPrefix takes the current prefix and the next subfield and returns an
+// appropriate prefix for a map field.
+func getSubKeyPrefix(curPrefix, subField string) string {
+	newPrefix := ""
+	if curPrefix != "" {
+		newPrefix = fmt.Sprintf("%s[%s]", curPrefix, subField)
 	} else {
 		newPrefix = fmt.Sprintf("%s", subField)
 	}
