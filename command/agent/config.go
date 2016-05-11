@@ -563,6 +563,14 @@ func (c *Config) Merge(b *Config) *Config {
 		result.Atlas = result.Atlas.Merge(b.Atlas)
 	}
 
+	// Apply the Consul Configuration
+	if result.ConsulConfig == nil && b.ConsulConfig != nil {
+		consulConfig := *b.ConsulConfig
+		result.ConsulConfig = &consulConfig
+	} else if b.ConsulConfig != nil {
+		result.ConsulConfig = result.ConsulConfig.Merge(b.ConsulConfig)
+	}
+
 	// Merge config files lists
 	result.Files = append(result.Files, b.Files...)
 
@@ -757,6 +765,49 @@ func (a *AtlasConfig) Merge(b *AtlasConfig) *AtlasConfig {
 	}
 	if b.Endpoint != "" {
 		result.Endpoint = b.Endpoint
+	}
+	return &result
+}
+
+// Merge merges two Consul Configurations together.
+func (a *ConsulConfig) Merge(b *ConsulConfig) *ConsulConfig {
+	result := *a
+
+	if b.ServerServiceName != "" {
+		result.ServerServiceName = b.ServerServiceName
+	}
+	if b.ClientServiceName != "" {
+		result.ClientServiceName = b.ClientServiceName
+	}
+	if b.Addr != "" {
+		result.Addr = b.Addr
+	}
+	if b.Token != "" {
+		result.Token = b.Token
+	}
+	if b.Auth != "" {
+		result.Auth = b.Auth
+	}
+	if b.EnableSSL {
+		result.EnableSSL = true
+	}
+	if b.VerifySSL {
+		result.VerifySSL = true
+	}
+	if b.CAFile != "" {
+		result.CAFile = b.CAFile
+	}
+	if b.CertFile != "" {
+		result.CertFile = b.CertFile
+	}
+	if b.KeyFile != "" {
+		result.KeyFile = b.KeyFile
+	}
+	if b.ServerAutoJoin {
+		result.ServerAutoJoin = true
+	}
+	if b.ClientAutoJoin {
+		result.ClientAutoJoin = true
 	}
 	return &result
 }

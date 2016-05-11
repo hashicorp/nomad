@@ -1186,7 +1186,7 @@ func (c *Client) setupConsulClient() error {
 	return err
 }
 
-// syncConsul removes services of tasks which are no longer in running state
+// syncConsul removes services of tasks which are no longer in running state and
 func (c *Client) syncConsul() {
 	sync := time.NewTicker(consulSyncInterval)
 	for {
@@ -1222,6 +1222,14 @@ func (c *Client) syncConsul() {
 					}
 				}
 			}
+
+			// Add the client service
+			clientService := &structs.Service{
+				Name:      c.config.ClientServiceName,
+				PortLabel: "clienthttpaddr",
+			}
+			services[clientService.ID("agent", "client")] = struct{}{}
+
 			if err := c.consulService.KeepServices(services); err != nil {
 				c.logger.Printf("[DEBUG] client: error removing services from non-running tasks: %v", err)
 			}

@@ -58,10 +58,11 @@ func (c *Command) readConfig() *Config {
 
 	// Make a new, empty config.
 	cmdConfig := &Config{
-		Atlas:  &AtlasConfig{},
-		Client: &ClientConfig{},
-		Ports:  &Ports{},
-		Server: &ServerConfig{},
+		Atlas:        &AtlasConfig{},
+		ConsulConfig: &ConsulConfig{},
+		Client:       &ClientConfig{},
+		Ports:        &Ports{},
+		Server:       &ServerConfig{},
 	}
 
 	flags := flag.NewFlagSet("agent", flag.ContinueOnError)

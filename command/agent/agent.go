@@ -8,11 +8,13 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"sync"
 	"time"
 
 	"github.com/hashicorp/nomad/client"
 	clientconfig "github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -26,6 +28,11 @@ type Agent struct {
 	config    *Config
 	logger    *log.Logger
 	logOutput io.Writer
+
+	consulService  *consul.ConsulService
+	consulConfig   *consul.ConsulConfig
+	serverHTTPAddr string
+	clientHTTPAddr string
 
 	server *nomad.Server
 	client *client.Client
@@ -49,6 +56,8 @@ func NewAgent(config *Config, logOutput io.Writer) (*Agent, error) {
 		shutdownCh: make(chan struct{}),
 	}
 
+	a.createConsulConfig()
+
 	if err := a.setupServer(); err != nil {
 		return nil, err
 	}
@@ -57,6 +66,11 @@ func NewAgent(config *Config, logOutput io.Writer) (*Agent, error) {
 	}
 	if a.client == nil && a.server == nil {
 		return nil, fmt.Errorf("must have at least client or server mode enabled")
+	}
+	if err := a.syncAgentServicesWithConsul(a.serverHTTPAddr, a.clientHTTPAddr); err != nil {
+		a.logger.Printf("[ERR] agent: unable to sync agent services with consul: %v", err)
+	} else {
+		go a.consulService.PeriodicSync()
 	}
 	return a, nil
 }
@@ -140,6 +154,7 @@ func (a *Agent) serverConfig() (*nomad.Config, error) {
 	if port := a.config.Ports.Serf; port != 0 {
 		conf.SerfConfig.MemberlistConfig.BindPort = port
 	}
+	a.serverHTTPAddr = fmt.Sprintf("%v:%v", a.config.Addresses.HTTP, a.config.Ports.HTTP)
 
 	if gcThreshold := a.config.Server.NodeGCThreshold; gcThreshold != "" {
 		dur, err := time.ParseDuration(gcThreshold)
@@ -226,6 +241,7 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 		httpAddr = fmt.Sprintf("%s:%d", addr.IP.String(), addr.Port)
 	}
 	conf.Node.HTTPAddr = httpAddr
+	a.clientHTTPAddr = httpAddr
 
 	// Reserve resources on the node.
 	r := conf.Node.Reserved
@@ -241,6 +257,8 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 
 	conf.Version = fmt.Sprintf("%s%s", a.config.Version, a.config.VersionPrerelease)
 	conf.Revision = a.config.Revision
+
+	conf.ConsulConfig = a.consulConfig
 
 	return conf, nil
 }
@@ -403,6 +421,12 @@ func (a *Agent) Shutdown() error {
 		}
 	}
 
+	if a.consulService != nil {
+		if err := a.consulService.Shutdown(); err != nil {
+			a.logger.Printf("[ERR] agent: shutting down consul service failed: %v", err)
+		}
+	}
+
 	a.logger.Println("[INFO] agent: shutdown complete")
 	a.shutdown = true
 	close(a.shutdownCh)
@@ -444,4 +468,69 @@ func (a *Agent) Stats() map[string]map[string]string {
 		}
 	}
 	return stats
+}
+
+func (a *Agent) createConsulConfig() {
+	cfg := &consul.ConsulConfig{
+		Addr:      a.config.ConsulConfig.Addr,
+		Token:     a.config.ConsulConfig.Token,
+		Auth:      a.config.ConsulConfig.Auth,
+		EnableSSL: a.config.ConsulConfig.EnableSSL,
+		VerifySSL: a.config.ConsulConfig.VerifySSL,
+		CAFile:    a.config.ConsulConfig.CAFile,
+		CertFile:  a.config.ConsulConfig.CertFile,
+		KeyFile:   a.config.ConsulConfig.KeyFile,
+	}
+	a.consulConfig = cfg
+}
+
+func (a *Agent) syncAgentServicesWithConsul(clientHttpAddr string, serverHttpAddr string) error {
+	cs, err := consul.NewConsulService(a.consulConfig, a.logger)
+	if err != nil {
+		return err
+	}
+	a.consulService = cs
+	var services []*structs.Service
+	addrs := make(map[string]string)
+	if a.client != nil && a.config.ConsulConfig.ClientServiceName != "" {
+		if err != nil {
+			return err
+		}
+		clientService := &structs.Service{
+			Name:      a.config.ConsulConfig.ClientServiceName,
+			PortLabel: "clienthttpaddr",
+		}
+		addrs["clienthttpaddr"] = clientHttpAddr
+		services = append(services, clientService)
+		cs.SetTaskName("client")
+	}
+	if a.server != nil && a.config.ConsulConfig.ServerServiceName != "" {
+		serverService := &structs.Service{
+			Name:      a.config.ConsulConfig.ServerServiceName,
+			PortLabel: "serverhttpaddr",
+		}
+		addrs["serverhttpaddr"] = serverHttpAddr
+		services = append(services, serverService)
+		cs.SetTaskName("server")
+	}
+
+	cs.SetAddrFinder(func(portLabel string) (string, int) {
+		addr := addrs[portLabel]
+		if addr == "" {
+			return "", 0
+		}
+		host, port, err := net.SplitHostPort(addr)
+		if err != nil {
+			return "", 0
+		}
+		p, err := strconv.Atoi(port)
+		if err != nil {
+			return "", 0
+		}
+		return host, p
+	})
+
+	cs.SetAllocID("agent")
+
+	return cs.SyncServices(services)
 }
