@@ -139,17 +139,19 @@ func (c *ConsulService) SetAllocID(allocID string) *ConsulService {
 	return c
 }
 
+// SetAddrFinder sets a function to find the host and port for a Service
 func (c *ConsulService) SetAddrFinder(addrFinder func(string) (string, int)) *ConsulService {
 	c.addrFinder = addrFinder
 	return c
 }
 
+// SetTaskName sets the task name whose services we are syncing with Consul
 func (c *ConsulService) SetTaskName(taskName string) *ConsulService {
 	c.taskName = taskName
 	return c
 }
 
-// SyncTask sync the services and task with consul
+// SyncServices sync the services with consul
 func (c *ConsulService) SyncServices(services []*structs.Service) error {
 	var mErr multierror.Error
 	taskServices := make(map[string]*consul.AgentService)
