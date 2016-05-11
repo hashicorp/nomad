@@ -76,6 +76,8 @@ type DockerDriverConfig struct {
 	Hostname         string              `mapstructure:"hostname"`           // Hostname for containers
 	LabelsRaw        []map[string]string `mapstructure:"labels"`             //
 	Labels           map[string]string   `mapstructure:"-"`                  // Labels to set when the container starts up
+	VolumesRaw       []map[string]string `mapstructure:"volumes"`            //
+	Volumes          map[string]string   `mapstructure:"-"`                  // Volumes to set when the container starts up
 	Auth             []DockerDriverAuth  `mapstructure:"auth"`               // Authentication credentials for a private Docker registry
 	SSL              bool                `mapstructure:"ssl"`                // Flag indicating repository is served via https
 	TTY              bool                `mapstructure:"tty"`                // Allocate a Pseudo-TTY
@@ -98,6 +100,7 @@ func (c *DockerDriverConfig) Validate() error {
 
 	c.PortMap = mapMergeStrInt(c.PortMapRaw...)
 	c.Labels = mapMergeStrStr(c.LabelsRaw...)
+	c.Volumes = mapMergeStrStr(c.VolumesRaw...)
 
 	return nil
 }
@@ -176,6 +179,9 @@ func (d *DockerDriver) Validate(config map[string]interface{}) error {
 				Type: fields.TypeString,
 			},
 			"labels": &fields.FieldSchema{
+				Type: fields.TypeArray,
+			},
+			"volumes": &fields.FieldSchema{
 				Type: fields.TypeArray,
 			},
 			"auth": &fields.FieldSchema{
@@ -291,6 +297,14 @@ func (d *DockerDriver) containerBinds(alloc *allocdir.AllocDir, task *structs.Ta
 	}, nil
 }
 
+func (d *DockerDriver) userVolumes(volumes map[string]string) []string {
+	bindings := []string{}
+	for source, destination := range volumes {
+		bindings = append(bindings, fmt.Sprintf("%s:%s", source, destination))
+	}
+	return bindings
+}
+
 // createContainer initializes a struct needed to call docker.client.CreateContainer()
 func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task,
 	driverConfig *DockerDriverConfig, syslogAddr string) (docker.CreateContainerOptions, error) {
@@ -306,6 +320,7 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task,
 	if err != nil {
 		return c, err
 	}
+	binds = append(binds, d.userVolumes(driverConfig.Volumes)...)
 
 	// Set environment variables.
 	d.taskEnv.SetAllocDir(filepath.Join("/", allocdir.SharedAllocName))
@@ -329,6 +344,7 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task,
 		// Binds are used to mount a host volume into the container. We mount a
 		// local directory for storage and a shared alloc directory that can be
 		// used to share data between different tasks in the same task group.
+		// Users can specify additional bindings via the "volumes" config
 		Binds: binds,
 		LogConfig: docker.LogConfig{
 			Type: "syslog",

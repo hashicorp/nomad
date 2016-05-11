@@ -577,6 +577,52 @@ func TestDockerLabels(t *testing.T) {
 	}
 }
 
+func TestDockerVolumes(t *testing.T) {
+	t.Parallel()
+	containerDest := "/data"
+	sourceDir, err := ioutil.TempDir("", "VolumeTest")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	defer os.Remove(sourceDir)
+
+	task, _, _ := dockerTask()
+	task.Config["volumes"] = []map[string]string{
+		map[string]string{
+			sourceDir: containerDest,
+		},
+	}
+
+	client, handle, cleanup := dockerSetup(t, task)
+	defer cleanup()
+
+	container, err := client.InspectContainer(handle.(*DockerHandle).ContainerID())
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	mounts := container.Mounts
+
+	if want, got := 3, len(mounts); want != got {
+		t.Errorf("Wrong count value docker job. Expect: %d, got: %d", want, got)
+	}
+
+	found := false
+	for _, mount := range mounts {
+		if mount.Destination == containerDest {
+			if want, got := sourceDir, mount.Source; want != got {
+				t.Errorf("Wrong directory mounted to %s. Expected: %s, got: %s", containerDest, sourceDir, got)
+			}
+			found = true
+			break
+		}
+	}
+
+	if found == false {
+		t.Errorf("No directory was mounted under %s in docker container", containerDest)
+	}
+}
+
 func TestDockerDNS(t *testing.T) {
 	t.Parallel()
 	task, _, _ := dockerTask()
