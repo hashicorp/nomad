@@ -60,9 +60,7 @@ func (d *AllocDir) unmountSpecialDirs(taskDir string) error {
 	if d.pathExists(dev) {
 		if err := syscall.Unmount(dev, 0); err != nil {
 			errs = multierror.Append(errs, fmt.Errorf("Failed to unmount dev (%v): %v", dev, err))
-		}
-
-		if err := os.RemoveAll(dev); err != nil {
+		} else if err := os.RemoveAll(dev); err != nil {
 			errs = multierror.Append(errs, fmt.Errorf("Failed to delete dev directory (%v): %v", dev, err))
 		}
 	}
@@ -72,9 +70,7 @@ func (d *AllocDir) unmountSpecialDirs(taskDir string) error {
 	if d.pathExists(proc) {
 		if err := syscall.Unmount(proc, 0); err != nil {
 			errs = multierror.Append(errs, fmt.Errorf("Failed to unmount proc (%v): %v", proc, err))
-		}
-
-		if err := os.RemoveAll(proc); err != nil {
+		} else if err := os.RemoveAll(proc); err != nil {
 			errs = multierror.Append(errs, fmt.Errorf("Failed to delete proc directory (%v): %v", dev, err))
 		}
 	}
