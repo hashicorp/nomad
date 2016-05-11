@@ -2263,6 +2263,452 @@ func TestTaskDiff(t *testing.T) {
 				},
 			},
 		},
+		{
+			// Services edited (no checks)
+			Old: &Task{
+				Services: []*Service{
+					{
+						Name:      "foo",
+						PortLabel: "foo",
+					},
+					{
+						Name:      "bar",
+						PortLabel: "bar",
+					},
+					{
+						Name:      "baz",
+						PortLabel: "baz",
+					},
+				},
+			},
+			New: &Task{
+				Services: []*Service{
+					{
+						Name:      "bar",
+						PortLabel: "bar",
+					},
+					{
+						Name:      "baz",
+						PortLabel: "baz2",
+					},
+					{
+						Name:      "bam",
+						PortLabel: "bam",
+					},
+				},
+			},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "Service",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "PortLabel",
+								Old:  "baz",
+								New:  "baz2",
+							},
+						},
+					},
+					{
+						Type: DiffTypeAdded,
+						Name: "Service",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "Name",
+								Old:  "",
+								New:  "bam",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "PortLabel",
+								Old:  "",
+								New:  "bam",
+							},
+						},
+					},
+					{
+						Type: DiffTypeDeleted,
+						Name: "Service",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeDeleted,
+								Name: "Name",
+								Old:  "foo",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "PortLabel",
+								Old:  "foo",
+								New:  "",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			// Services edited (no checks) with context
+			Contextual: true,
+			Old: &Task{
+				Services: []*Service{
+					{
+						Name:      "foo",
+						PortLabel: "foo",
+					},
+				},
+			},
+			New: &Task{
+				Services: []*Service{
+					{
+						Name:      "foo",
+						PortLabel: "bar",
+					},
+				},
+			},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "Service",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeNone,
+								Name: "Name",
+								Old:  "foo",
+								New:  "foo",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "PortLabel",
+								Old:  "foo",
+								New:  "bar",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			// Service Checks edited
+			Old: &Task{
+				Services: []*Service{
+					{
+						Name: "foo",
+						Checks: []*ServiceCheck{
+							{
+								Name:     "foo",
+								Type:     "http",
+								Command:  "foo",
+								Args:     []string{"foo"},
+								Path:     "foo",
+								Protocol: "http",
+								Interval: 1 * time.Second,
+								Timeout:  1 * time.Second,
+							},
+							{
+								Name:     "bar",
+								Type:     "http",
+								Command:  "foo",
+								Args:     []string{"foo"},
+								Path:     "foo",
+								Protocol: "http",
+								Interval: 1 * time.Second,
+								Timeout:  1 * time.Second,
+							},
+							{
+								Name:     "baz",
+								Type:     "http",
+								Command:  "foo",
+								Args:     []string{"foo"},
+								Path:     "foo",
+								Protocol: "http",
+								Interval: 1 * time.Second,
+								Timeout:  1 * time.Second,
+							},
+						},
+					},
+				},
+			},
+			New: &Task{
+				Services: []*Service{
+					{
+						Name: "foo",
+						Checks: []*ServiceCheck{
+							{
+								Name:     "bar",
+								Type:     "http",
+								Command:  "foo",
+								Args:     []string{"foo"},
+								Path:     "foo",
+								Protocol: "http",
+								Interval: 1 * time.Second,
+								Timeout:  1 * time.Second,
+							},
+							{
+								Name:     "baz",
+								Type:     "tcp",
+								Command:  "foo",
+								Args:     []string{"foo"},
+								Path:     "foo",
+								Protocol: "http",
+								Interval: 1 * time.Second,
+								Timeout:  1 * time.Second,
+							},
+							{
+								Name:     "bam",
+								Type:     "http",
+								Command:  "foo",
+								Args:     []string{"foo"},
+								Path:     "foo",
+								Protocol: "http",
+								Interval: 1 * time.Second,
+								Timeout:  1 * time.Second,
+							},
+						},
+					},
+				},
+			},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "Service",
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "Check",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeEdited,
+										Name: "Type",
+										Old:  "http",
+										New:  "tcp",
+									},
+								},
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Check",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "Command",
+										Old:  "",
+										New:  "foo",
+									},
+									{
+										Type: DiffTypeAdded,
+										Name: "Interval",
+										Old:  "",
+										New:  "1000000000",
+									},
+									{
+										Type: DiffTypeAdded,
+										Name: "Name",
+										Old:  "",
+										New:  "bam",
+									},
+									{
+										Type: DiffTypeAdded,
+										Name: "Path",
+										Old:  "",
+										New:  "foo",
+									},
+									{
+										Type: DiffTypeAdded,
+										Name: "Protocol",
+										Old:  "",
+										New:  "http",
+									},
+									{
+										Type: DiffTypeAdded,
+										Name: "Timeout",
+										Old:  "",
+										New:  "1000000000",
+									},
+									{
+										Type: DiffTypeAdded,
+										Name: "Type",
+										Old:  "",
+										New:  "http",
+									},
+								},
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Check",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeDeleted,
+										Name: "Command",
+										Old:  "foo",
+										New:  "",
+									},
+									{
+										Type: DiffTypeDeleted,
+										Name: "Interval",
+										Old:  "1000000000",
+										New:  "",
+									},
+									{
+										Type: DiffTypeDeleted,
+										Name: "Name",
+										Old:  "foo",
+										New:  "",
+									},
+									{
+										Type: DiffTypeDeleted,
+										Name: "Path",
+										Old:  "foo",
+										New:  "",
+									},
+									{
+										Type: DiffTypeDeleted,
+										Name: "Protocol",
+										Old:  "http",
+										New:  "",
+									},
+									{
+										Type: DiffTypeDeleted,
+										Name: "Timeout",
+										Old:  "1000000000",
+										New:  "",
+									},
+									{
+										Type: DiffTypeDeleted,
+										Name: "Type",
+										Old:  "http",
+										New:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			// Service Checks edited with context
+			Contextual: true,
+			Old: &Task{
+				Services: []*Service{
+					{
+						Name: "foo",
+						Checks: []*ServiceCheck{
+							{
+								Name:     "foo",
+								Type:     "http",
+								Command:  "foo",
+								Args:     []string{"foo"},
+								Path:     "foo",
+								Protocol: "http",
+								Interval: 1 * time.Second,
+								Timeout:  1 * time.Second,
+							},
+						},
+					},
+				},
+			},
+			New: &Task{
+				Services: []*Service{
+					{
+						Name: "foo",
+						Checks: []*ServiceCheck{
+							{
+								Name:     "foo",
+								Type:     "tcp",
+								Command:  "foo",
+								Args:     []string{"foo"},
+								Path:     "foo",
+								Protocol: "http",
+								Interval: 1 * time.Second,
+								Timeout:  1 * time.Second,
+							},
+						},
+					},
+				},
+			},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "Service",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeNone,
+								Name: "Name",
+								Old:  "foo",
+								New:  "foo",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "PortLabel",
+								Old:  "",
+								New:  "",
+							},
+						},
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "Check",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeNone,
+										Name: "Command",
+										Old:  "foo",
+										New:  "foo",
+									},
+									{
+										Type: DiffTypeNone,
+										Name: "Interval",
+										Old:  "1000000000",
+										New:  "1000000000",
+									},
+									{
+										Type: DiffTypeNone,
+										Name: "Name",
+										Old:  "foo",
+										New:  "foo",
+									},
+									{
+										Type: DiffTypeNone,
+										Name: "Path",
+										Old:  "foo",
+										New:  "foo",
+									},
+									{
+										Type: DiffTypeNone,
+										Name: "Protocol",
+										Old:  "http",
+										New:  "http",
+									},
+									{
+										Type: DiffTypeNone,
+										Name: "Timeout",
+										Old:  "1000000000",
+										New:  "1000000000",
+									},
+									{
+										Type: DiffTypeEdited,
+										Name: "Type",
+										Old:  "http",
+										New:  "tcp",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for i, c := range cases {
