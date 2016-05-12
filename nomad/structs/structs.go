@@ -400,8 +400,8 @@ type JobListResponse struct {
 
 // JobPlanResponse is used to respond to a job plan request
 type JobPlanResponse struct {
-	// Plan holds the decisions the scheduler made.
-	Plan *Plan
+	// Annotations stores annotations explaining decisions the scheduler made.
+	Annotations *PlanAnnotations
 
 	// The Cas value can be used when running `nomad run` to ensure that the Job
 	// wasn’t modified since the last plan. If the job is being created, the

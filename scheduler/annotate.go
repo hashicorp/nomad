@@ -24,8 +24,8 @@ const (
 )
 
 // Annotate takes the diff between the old and new version of a Job, the
-// scheduler plan and will add annotations to the diff to aide human
-// understanding of the plan.
+// scheduler's plan annotations and will add annotations to the diff to aide
+// human understanding of the plan.
 //
 // Currently the things that are annotated are:
 // * Task group changes will be annotated with:
@@ -34,7 +34,7 @@ const (
 // * Task changes will be annotated with:
 //    * forces create/destroy update
 //    * forces in-place update
-func Annotate(diff *structs.JobDiff, plan *structs.Plan) error {
+func Annotate(diff *structs.JobDiff, annotations *structs.PlanAnnotations) error {
 	// No annotation needed as the job was either just submitted or deleted.
 	if diff.Type != structs.DiffTypeEdited {
 		return nil
@@ -46,7 +46,7 @@ func Annotate(diff *structs.JobDiff, plan *structs.Plan) error {
 	}
 
 	for _, tgDiff := range tgDiffs {
-		if err := annotateTaskGroup(tgDiff, plan); err != nil {
+		if err := annotateTaskGroup(tgDiff, annotations); err != nil {
 			return err
 		}
 	}
@@ -55,7 +55,7 @@ func Annotate(diff *structs.JobDiff, plan *structs.Plan) error {
 }
 
 // annotateTaskGroup takes a task group diff and annotates it.
-func annotateTaskGroup(diff *structs.TaskGroupDiff, plan *structs.Plan) error {
+func annotateTaskGroup(diff *structs.TaskGroupDiff, annotations *structs.PlanAnnotations) error {
 	// Don't annotate unless the task group was edited. If it was a
 	// create/destroy it is not needed.
 	if diff.Type != structs.DiffTypeEdited {
@@ -63,8 +63,8 @@ func annotateTaskGroup(diff *structs.TaskGroupDiff, plan *structs.Plan) error {
 	}
 
 	// Annotate the updates
-	if plan != nil && plan.Annotations != nil {
-		tg, ok := plan.Annotations.DesiredTGUpdates[diff.Name]
+	if annotations != nil {
+		tg, ok := annotations.DesiredTGUpdates[diff.Name]
 		if ok {
 			if diff.Updates == nil {
 				diff.Updates = make(map[string]uint64, 6)

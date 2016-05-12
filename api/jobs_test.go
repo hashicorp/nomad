@@ -386,8 +386,8 @@ func TestJobs_Plan(t *testing.T) {
 	if planResp.Diff == nil {
 		t.Fatalf("got nil diff: %#v", planResp)
 	}
-	if planResp.SchedulerOutput == nil {
-		t.Fatalf("got nil scheduler output: %#v", planResp)
+	if planResp.Annotations == nil {
+		t.Fatalf("got nil annotations: %#v", planResp)
 	}
 	// Can make this assertion because there are no clients.
 	if len(planResp.CreatedEvals) == 0 {
@@ -411,8 +411,8 @@ func TestJobs_Plan(t *testing.T) {
 	if planResp.Diff != nil {
 		t.Fatalf("got non-nil diff: %#v", planResp)
 	}
-	if planResp.SchedulerOutput == nil {
-		t.Fatalf("got nil scheduler output: %#v", planResp)
+	if planResp.Annotations == nil {
+		t.Fatalf("got nil annotations: %#v", planResp)
 	}
 	// Can make this assertion because there are no clients.
 	if len(planResp.CreatedEvals) == 0 {

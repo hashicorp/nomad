@@ -455,24 +455,22 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 		return err
 	}
 
-	// Clear the job from the plan
-	planner.Plan.Job = nil
-
 	// Annotate and store the diff
+	annotations := planner.Plan.Annotations
 	if args.Diff {
 		jobDiff, err := oldJob.Diff(args.Job, true)
 		if err != nil {
 			return fmt.Errorf("failed to create job diff: %v", err)
 		}
 
-		if err := scheduler.Annotate(jobDiff, planner.Plan); err != nil {
+		if err := scheduler.Annotate(jobDiff, annotations); err != nil {
 			return fmt.Errorf("failed to annotate job diff: %v", err)
 		}
 		reply.Diff = jobDiff
 	}
 
 	reply.Cas = index
-	reply.Plan = planner.Plan
+	reply.Annotations = annotations
 	reply.CreatedEvals = planner.CreatedEvals
 	reply.Index = index
 	return nil

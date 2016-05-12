@@ -956,8 +956,8 @@ func TestJobEndpoint_Plan_WithDiff(t *testing.T) {
 	if planResp.Cas == 0 {
 		t.Fatalf("bad cas: %d", planResp.Cas)
 	}
-	if planResp.Plan == nil {
-		t.Fatalf("no plan")
+	if planResp.Annotations == nil {
+		t.Fatalf("no annotations")
 	}
 	if planResp.Diff == nil {
 		t.Fatalf("no diff")
@@ -1005,8 +1005,8 @@ func TestJobEndpoint_Plan_NoDiff(t *testing.T) {
 	if planResp.Cas == 0 {
 		t.Fatalf("bad cas: %d", planResp.Cas)
 	}
-	if planResp.Plan == nil {
-		t.Fatalf("no plan")
+	if planResp.Annotations == nil {
+		t.Fatalf("no annotations")
 	}
 	if planResp.Diff != nil {
 		t.Fatalf("got diff")

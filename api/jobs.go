@@ -282,10 +282,10 @@ type JobPlanRequest struct {
 }
 
 type JobPlanResponse struct {
-	Cas             uint64
-	CreatedEvals    []*Evaluation
-	Diff            *JobDiff
-	SchedulerOutput *SchedulerOutput `json:"Plan"`
+	Cas          uint64
+	CreatedEvals []*Evaluation
+	Diff         *JobDiff
+	Annotations  *PlanAnnotations
 }
 
 type JobDiff struct {
@@ -325,11 +325,6 @@ type ObjectDiff struct {
 	Name    string
 	Fields  []*FieldDiff
 	Objects []*ObjectDiff
-}
-
-type SchedulerOutput struct {
-	FailedAllocs []*Allocations
-	Annotations  *PlanAnnotations
 }
 
 type PlanAnnotations struct {

@@ -8,17 +8,15 @@ import (
 )
 
 func TestAnnotateTaskGroup_Updates(t *testing.T) {
-	plan := &structs.Plan{
-		Annotations: &structs.PlanAnnotations{
-			DesiredTGUpdates: map[string]*structs.DesiredUpdates{
-				"foo": &structs.DesiredUpdates{
-					Ignore:            1,
-					Place:             2,
-					Migrate:           3,
-					Stop:              4,
-					InPlaceUpdate:     5,
-					DestructiveUpdate: 6,
-				},
+	annotations := &structs.PlanAnnotations{
+		DesiredTGUpdates: map[string]*structs.DesiredUpdates{
+			"foo": &structs.DesiredUpdates{
+				Ignore:            1,
+				Place:             2,
+				Migrate:           3,
+				Stop:              4,
+				InPlaceUpdate:     5,
+				DestructiveUpdate: 6,
 			},
 		},
 	}
@@ -40,8 +38,8 @@ func TestAnnotateTaskGroup_Updates(t *testing.T) {
 		},
 	}
 
-	if err := annotateTaskGroup(tgDiff, plan); err != nil {
-		t.Fatalf("annotateTaskGroup(%#v, %#v) failed: %#v", tgDiff, plan, err)
+	if err := annotateTaskGroup(tgDiff, annotations); err != nil {
+		t.Fatalf("annotateTaskGroup(%#v, %#v) failed: %#v", tgDiff, annotations, err)
 	}
 
 	if !reflect.DeepEqual(tgDiff, expected) {
