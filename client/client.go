@@ -1178,7 +1178,7 @@ func (c *Client) setupConsulClient() error {
 	return err
 }
 
-// syncConsul removes services of tasks which are no longer in running state and
+// syncConsul removes services of tasks which are no longer in running state
 func (c *Client) syncConsul() {
 	sync := time.NewTicker(consulSyncInterval)
 	for {
