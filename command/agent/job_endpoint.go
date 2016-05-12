@@ -99,6 +99,7 @@ func (s *HTTPServer) jobPlan(resp http.ResponseWriter, req *http.Request,
 	if err := s.agent.RPC("Job.Plan", &args, &out); err != nil {
 		return nil, err
 	}
+	setIndex(resp, out.Index)
 	return out, nil
 }
 

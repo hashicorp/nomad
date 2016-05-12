@@ -474,6 +474,7 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 	reply.Cas = index
 	reply.Plan = planner.Plan
 	reply.CreatedEvals = planner.CreatedEvals
+	reply.Index = index
 	return nil
 }
 

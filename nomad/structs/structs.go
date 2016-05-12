@@ -416,7 +416,7 @@ type JobPlanResponse struct {
 	// causes an in-place update or create/destroy
 	Diff *JobDiff
 
-	QueryMeta
+	WriteMeta
 }
 
 // SingleAllocResponse is used to return a single allocation
