@@ -31,6 +31,10 @@ Run Options:
 
   -no-color
     Disable colored output.
+
+  -verbose
+    Increased diff verbosity
+
 `
 	return strings.TrimSpace(helpText)
 }
@@ -40,11 +44,12 @@ func (c *PlanCommand) Synopsis() string {
 }
 
 func (c *PlanCommand) Run(args []string) int {
-	var diff bool
+	var diff, verbose bool
 
 	flags := c.Meta.FlagSet("plan", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&diff, "diff", true, "")
+	flags.BoolVar(&verbose, "verbose", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -96,33 +101,33 @@ func (c *PlanCommand) Run(args []string) int {
 	}
 
 	if diff {
-		c.Ui.Output(c.Colorize().Color(strings.TrimSpace(formatJobDiff(resp.Diff))))
+		c.Ui.Output(c.Colorize().Color(strings.TrimSpace(formatJobDiff(resp.Diff, verbose))))
 	}
 
 	return 0
 }
 
-func formatJobDiff(job *api.JobDiff) string {
+func formatJobDiff(job *api.JobDiff, verbose bool) string {
 	out := fmt.Sprintf("%s[bold]Job: %q\n", getDiffString(job.Type), job.ID)
 
-	if job.Type == "Edited" {
+	if job.Type == "Edited" || verbose {
 		for _, field := range job.Fields {
-			out += fmt.Sprintf("%s\n", formatFieldDiff(field, ""))
+			out += fmt.Sprintf("%s\n", formatFieldDiff(field, "", verbose))
 		}
 
 		for _, object := range job.Objects {
-			out += fmt.Sprintf("%s\n", formatObjectDiff(object, ""))
+			out += fmt.Sprintf("%s\n", formatObjectDiff(object, "", verbose))
 		}
 	}
 
 	for _, tg := range job.TaskGroups {
-		out += fmt.Sprintf("%s\n", formatTaskGroupDiff(tg))
+		out += fmt.Sprintf("%s\n", formatTaskGroupDiff(tg, verbose))
 	}
 
 	return out
 }
 
-func formatTaskGroupDiff(tg *api.TaskGroupDiff) string {
+func formatTaskGroupDiff(tg *api.TaskGroupDiff, verbose bool) string {
 	out := fmt.Sprintf("%s[bold]Task Group: %q", getDiffString(tg.Type), tg.Name)
 
 	// Append the updates
@@ -139,7 +144,7 @@ func formatTaskGroupDiff(tg *api.TaskGroupDiff) string {
 			case scheduler.UpdateTypeMigrate:
 				color = "[blue]"
 			case scheduler.UpdateTypeInplaceUpdate:
-				color = "[light_yellow]"
+				color = "[cyan]"
 			case scheduler.UpdateTypeDestructiveUpdate:
 				color = "[yellow]"
 			}
@@ -150,49 +155,49 @@ func formatTaskGroupDiff(tg *api.TaskGroupDiff) string {
 		out += "[reset]\n"
 	}
 
-	if tg.Type == "Edited" {
+	if tg.Type == "Edited" || verbose {
 		for _, field := range tg.Fields {
-			out += fmt.Sprintf("%s\n", formatFieldDiff(field, "  "))
+			out += fmt.Sprintf("%s\n", formatFieldDiff(field, "  ", verbose))
 		}
 
 		for _, object := range tg.Objects {
-			out += fmt.Sprintf("%s\n", formatObjectDiff(object, "  "))
+			out += fmt.Sprintf("%s\n", formatObjectDiff(object, "  ", verbose))
 		}
 	}
 
 	for _, task := range tg.Tasks {
-		out += fmt.Sprintf("%s\n", formatTaskDiff(task))
+		out += fmt.Sprintf("%s\n", formatTaskDiff(task, verbose))
 	}
 
 	return out
 }
 
-func formatTaskDiff(task *api.TaskDiff) string {
+func formatTaskDiff(task *api.TaskDiff, verbose bool) string {
 	out := fmt.Sprintf("  %s[bold]Task: %q", getDiffString(task.Type), task.Name)
 	if len(task.Annotations) != 0 {
 		out += fmt.Sprintf(" [reset](%s)", strings.Join(task.Annotations, ", "))
 	}
 
-	if task.Type != "Edited" {
+	if task.Type == "None" {
+		return out
+	} else if (task.Type == "Deleted" || task.Type == "Added") && !verbose {
 		return out
 	} else {
 		out += "\n"
 	}
 
-	if task.Type == "Edited" {
-		for _, field := range task.Fields {
-			out += fmt.Sprintf("%s\n", formatFieldDiff(field, "    "))
-		}
+	for _, field := range task.Fields {
+		out += fmt.Sprintf("%s\n", formatFieldDiff(field, "    ", verbose))
+	}
 
-		for _, object := range task.Objects {
-			out += fmt.Sprintf("%s\n", formatObjectDiff(object, "    "))
-		}
+	for _, object := range task.Objects {
+		out += fmt.Sprintf("%s\n", formatObjectDiff(object, "    ", verbose))
 	}
 
 	return out
 }
 
-func formatFieldDiff(diff *api.FieldDiff, prefix string) string {
+func formatFieldDiff(diff *api.FieldDiff, prefix string, verbose bool) string {
 	out := prefix
 	switch diff.Type {
 	case "Added":
@@ -212,7 +217,7 @@ func formatFieldDiff(diff *api.FieldDiff, prefix string) string {
 	return out
 }
 
-func formatObjectDiff(diff *api.ObjectDiff, prefix string) string {
+func formatObjectDiff(diff *api.ObjectDiff, prefix string, verbose bool) string {
 	out := fmt.Sprintf("%s%s%s {\n", prefix, getDiffString(diff.Type), diff.Name)
 
 	newPrefix := prefix + "  "
@@ -220,14 +225,14 @@ func formatObjectDiff(diff *api.ObjectDiff, prefix string) string {
 	numObjects := len(diff.Objects)
 	haveObjects := numObjects != 0
 	for i, field := range diff.Fields {
-		out += formatFieldDiff(field, newPrefix)
+		out += formatFieldDiff(field, newPrefix, verbose)
 		if i+1 != numFields || haveObjects {
 			out += "\n"
 		}
 	}
 
 	for i, object := range diff.Objects {
-		out += formatObjectDiff(object, newPrefix)
+		out += formatObjectDiff(object, newPrefix, verbose)
 		if i+1 != numObjects {
 			out += "\n"
 		}
