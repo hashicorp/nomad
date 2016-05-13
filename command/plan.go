@@ -10,6 +10,16 @@ import (
 	"github.com/mitchellh/colorstring"
 )
 
+const (
+	casHelp = `To submit the job with version verification run:
+
+nomad run -verify %d %s
+
+When running the job with the verify flag, the job will only be run if the server side
+version matches the the verify index returned. If the index has changed, another user has
+modified the job and the plan's results are potentially invalid.`
+)
+
 type PlanCommand struct {
 	Meta
 	color *colorstring.Colorize
@@ -101,10 +111,48 @@ func (c *PlanCommand) Run(args []string) int {
 	}
 
 	if diff {
-		c.Ui.Output(c.Colorize().Color(strings.TrimSpace(formatJobDiff(resp.Diff, verbose))))
+		c.Ui.Output(fmt.Sprintf("%s\n",
+			c.Colorize().Color(strings.TrimSpace(formatJobDiff(resp.Diff, verbose)))))
 	}
 
+	c.Ui.Output(c.Colorize().Color("[bold]Scheduler dry-run:[reset]"))
+	c.Ui.Output(c.Colorize().Color(formatDryRun(resp.CreatedEvals)))
+
+	c.Ui.Output(c.Colorize().Color(formatCas(resp.Cas, file)))
 	return 0
+}
+
+func formatCas(cas uint64, jobName string) string {
+	help := fmt.Sprintf(casHelp, cas, jobName)
+	out := fmt.Sprintf("[reset][bold]Job Verify Index: %d[reset]\n%s", cas, help)
+	return out
+}
+
+func formatDryRun(evals []*api.Evaluation) string {
+	// "- All tasks successfully allocated." bold and green
+
+	var rolling *api.Evaluation
+	var blocked *api.Evaluation
+	for _, eval := range evals {
+		if eval.TriggeredBy == "rolling-update" {
+			rolling = eval
+		} else if eval.Status == "blocked" {
+			blocked = eval
+		}
+	}
+
+	var out string
+	if blocked == nil {
+		out = "[bold][green]  - All tasks successfully allocated.[reset]\n"
+	} else {
+		out = "[bold][yellow]  - WARNING: Failed to place all allocations.[reset]\n"
+	}
+
+	if rolling != nil {
+		out += fmt.Sprintf("[green]  - Rolling update, next evaluation will be in %s.\n", rolling.Wait)
+	}
+
+	return out
 }
 
 func formatJobDiff(job *api.JobDiff, verbose bool) string {
@@ -175,7 +223,7 @@ func formatTaskGroupDiff(tg *api.TaskGroupDiff, verbose bool) string {
 func formatTaskDiff(task *api.TaskDiff, verbose bool) string {
 	out := fmt.Sprintf("  %s[bold]Task: %q", getDiffString(task.Type), task.Name)
 	if len(task.Annotations) != 0 {
-		out += fmt.Sprintf(" [reset](%s)", strings.Join(task.Annotations, ", "))
+		out += fmt.Sprintf(" [reset](%s)", colorAnnotations(task.Annotations))
 	}
 
 	if task.Type == "None" {
@@ -210,11 +258,37 @@ func formatFieldDiff(diff *api.FieldDiff, prefix string, verbose bool) string {
 		out += fmt.Sprintf("%s: %q", diff.Name, diff.New)
 	}
 
-	if len(diff.Annotations) != 0 {
-		out += fmt.Sprintf(" (%s)", strings.Join(diff.Annotations, ", "))
+	// Color the annotations where possible
+	if l := len(diff.Annotations); l != 0 {
+		out += fmt.Sprintf(" (%s)", colorAnnotations(diff.Annotations))
 	}
 
 	return out
+}
+
+func colorAnnotations(annotations []string) string {
+	l := len(annotations)
+	if l == 0 {
+		return ""
+	}
+
+	colored := make([]string, l)
+	for i, annotation := range annotations {
+		switch annotation {
+		case "forces create":
+			colored[i] = fmt.Sprintf("[green]%s[reset]", annotation)
+		case "forces destroy":
+			colored[i] = fmt.Sprintf("[red]%s[reset]", annotation)
+		case "forces in-place update":
+			colored[i] = fmt.Sprintf("[cyan]%s[reset]", annotation)
+		case "forces create/destroy update":
+			colored[i] = fmt.Sprintf("[yellow]%s[reset]", annotation)
+		default:
+			colored[i] = annotation
+		}
+	}
+
+	return strings.Join(colored, ", ")
 }
 
 func formatObjectDiff(diff *api.ObjectDiff, prefix string, verbose bool) string {
