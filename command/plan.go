@@ -96,7 +96,7 @@ func (c *PlanCommand) Run(args []string) int {
 	}
 
 	if diff {
-		c.Ui.Output(c.Colorize().Color(formatJobDiff(resp.Diff)))
+		c.Ui.Output(c.Colorize().Color(strings.TrimSpace(formatJobDiff(resp.Diff))))
 	}
 
 	return 0
@@ -105,12 +105,14 @@ func (c *PlanCommand) Run(args []string) int {
 func formatJobDiff(job *api.JobDiff) string {
 	out := fmt.Sprintf("%s[bold]Job: %q\n", getDiffString(job.Type), job.ID)
 
-	for _, field := range job.Fields {
-		out += fmt.Sprintf("%s\n", formatFieldDiff(field, ""))
-	}
+	if job.Type == "Edited" {
+		for _, field := range job.Fields {
+			out += fmt.Sprintf("%s\n", formatFieldDiff(field, ""))
+		}
 
-	for _, object := range job.Objects {
-		out += fmt.Sprintf("%s\n", formatObjectDiff(object, ""))
+		for _, object := range job.Objects {
+			out += fmt.Sprintf("%s\n", formatObjectDiff(object, ""))
+		}
 	}
 
 	for _, tg := range job.TaskGroups {
@@ -148,12 +150,14 @@ func formatTaskGroupDiff(tg *api.TaskGroupDiff) string {
 		out += "[reset]\n"
 	}
 
-	for _, field := range tg.Fields {
-		out += fmt.Sprintf("%s\n", formatFieldDiff(field, "  "))
-	}
+	if tg.Type == "Edited" {
+		for _, field := range tg.Fields {
+			out += fmt.Sprintf("%s\n", formatFieldDiff(field, "  "))
+		}
 
-	for _, object := range tg.Objects {
-		out += fmt.Sprintf("%s\n", formatObjectDiff(object, "  "))
+		for _, object := range tg.Objects {
+			out += fmt.Sprintf("%s\n", formatObjectDiff(object, "  "))
+		}
 	}
 
 	for _, task := range tg.Tasks {
@@ -166,42 +170,50 @@ func formatTaskGroupDiff(tg *api.TaskGroupDiff) string {
 func formatTaskDiff(task *api.TaskDiff) string {
 	out := fmt.Sprintf("  %s[bold]Task: %q", getDiffString(task.Type), task.Name)
 	if len(task.Annotations) != 0 {
-		out += fmt.Sprintf(" [reset](%s)\n", strings.Join(task.Annotations, ", "))
-	} else {
-		out += "\n"
+		out += fmt.Sprintf(" [reset](%s)", strings.Join(task.Annotations, ", "))
 	}
 
 	if task.Type != "Edited" {
 		return out
+	} else {
+		out += "\n"
 	}
 
-	for _, field := range task.Fields {
-		out += fmt.Sprintf("%s\n", formatFieldDiff(field, "    "))
-	}
+	if task.Type == "Edited" {
+		for _, field := range task.Fields {
+			out += fmt.Sprintf("%s\n", formatFieldDiff(field, "    "))
+		}
 
-	for _, object := range task.Objects {
-		out += fmt.Sprintf("%s\n", formatObjectDiff(object, "    "))
+		for _, object := range task.Objects {
+			out += fmt.Sprintf("%s\n", formatObjectDiff(object, "    "))
+		}
 	}
 
 	return out
 }
 
 func formatFieldDiff(diff *api.FieldDiff, prefix string) string {
+	out := prefix
 	switch diff.Type {
 	case "Added":
-		return fmt.Sprintf("%s%s%s: %q", prefix, getDiffString(diff.Type), diff.Name, diff.New)
+		out += fmt.Sprintf("%s%s: %q", getDiffString(diff.Type), diff.Name, diff.New)
 	case "Deleted":
-		return fmt.Sprintf("%s%s%s: %q", prefix, getDiffString(diff.Type), diff.Name, diff.Old)
+		out += fmt.Sprintf("%s%s: %q", getDiffString(diff.Type), diff.Name, diff.Old)
 	case "Edited":
-		return fmt.Sprintf("%s%s%s: %q => %q", prefix, getDiffString(diff.Type), diff.Name, diff.Old, diff.New)
+		out += fmt.Sprintf("%s%s: %q => %q", getDiffString(diff.Type), diff.Name, diff.Old, diff.New)
 	default:
-		return fmt.Sprintf("%s%s: %q", prefix, diff.Name, diff.New)
+		out += fmt.Sprintf("%s: %q", diff.Name, diff.New)
 	}
+
+	if len(diff.Annotations) != 0 {
+		out += fmt.Sprintf(" (%s)", strings.Join(diff.Annotations, ", "))
+	}
+
+	return out
 }
 
 func formatObjectDiff(diff *api.ObjectDiff, prefix string) string {
-	diffChar := getDiffString(diff.Type)
-	out := fmt.Sprintf("%s%s%s {\n", prefix, diffChar, diff.Name)
+	out := fmt.Sprintf("%s%s%s {\n", prefix, getDiffString(diff.Type), diff.Name)
 
 	newPrefix := prefix + "  "
 	numFields := len(diff.Fields)
@@ -221,7 +233,7 @@ func formatObjectDiff(diff *api.ObjectDiff, prefix string) string {
 		}
 	}
 
-	return fmt.Sprintf("%s\n%s%s}", out, prefix, diffChar)
+	return fmt.Sprintf("%s\n%s}", out, prefix)
 }
 
 func getDiffString(diffType string) string {
