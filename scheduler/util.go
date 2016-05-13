@@ -520,7 +520,7 @@ func desiredUpdates(diff *diffResult, inplaceUpdates,
 	}
 
 	for _, tuple := range diff.stop {
-		name := tuple.TaskGroup.Name
+		name := tuple.Alloc.TaskGroup
 		des, ok := desiredTgs[name]
 		if !ok {
 			des = &structs.DesiredUpdates{}

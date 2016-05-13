@@ -35,11 +35,6 @@ const (
 //    * forces create/destroy update
 //    * forces in-place update
 func Annotate(diff *structs.JobDiff, annotations *structs.PlanAnnotations) error {
-	// No annotation needed as the job was either just submitted or deleted.
-	if diff.Type != structs.DiffTypeEdited {
-		return nil
-	}
-
 	tgDiffs := diff.TaskGroups
 	if len(tgDiffs) == 0 {
 		return nil
@@ -56,12 +51,6 @@ func Annotate(diff *structs.JobDiff, annotations *structs.PlanAnnotations) error
 
 // annotateTaskGroup takes a task group diff and annotates it.
 func annotateTaskGroup(diff *structs.TaskGroupDiff, annotations *structs.PlanAnnotations) error {
-	// Don't annotate unless the task group was edited. If it was a
-	// create/destroy it is not needed.
-	if diff.Type != structs.DiffTypeEdited {
-		return nil
-	}
-
 	// Annotate the updates
 	if annotations != nil {
 		tg, ok := annotations.DesiredTGUpdates[diff.Name]
@@ -103,7 +92,7 @@ func annotateTaskGroup(diff *structs.TaskGroupDiff, annotations *structs.PlanAnn
 	}
 
 	for _, taskDiff := range taskDiffs {
-		annotateTask(taskDiff)
+		annotateTask(taskDiff, diff)
 	}
 
 	return nil
@@ -112,12 +101,6 @@ func annotateTaskGroup(diff *structs.TaskGroupDiff, annotations *structs.PlanAnn
 // annotateCountChange takes a task group diff and annotates the count
 // parameter.
 func annotateCountChange(diff *structs.TaskGroupDiff) error {
-	// Don't annotate unless the task was edited. If it was a create/destroy it
-	// is not needed.
-	if diff.Type != structs.DiffTypeEdited {
-		return nil
-	}
-
 	var countDiff *structs.FieldDiff
 	for _, diff := range diff.Fields {
 		if diff.Name == "Count" {
@@ -130,14 +113,24 @@ func annotateCountChange(diff *structs.TaskGroupDiff) error {
 	if countDiff == nil {
 		return nil
 	}
-	oldV, err := strconv.Atoi(countDiff.Old)
-	if err != nil {
-		return err
+	var oldV, newV int
+	var err error
+	if countDiff.Old == "" {
+		oldV = 0
+	} else {
+		oldV, err = strconv.Atoi(countDiff.Old)
+		if err != nil {
+			return err
+		}
 	}
 
-	newV, err := strconv.Atoi(countDiff.New)
-	if err != nil {
-		return err
+	if countDiff.New == "" {
+		newV = 0
+	} else {
+		newV, err = strconv.Atoi(countDiff.New)
+		if err != nil {
+			return err
+		}
 	}
 
 	if oldV < newV {
@@ -150,11 +143,20 @@ func annotateCountChange(diff *structs.TaskGroupDiff) error {
 }
 
 // annotateCountChange takes a task diff and annotates it.
-func annotateTask(diff *structs.TaskDiff) {
-	// Don't annotate unless the task was edited. If it was a create/destroy it
-	// is not needed.
-	if diff.Type != structs.DiffTypeEdited {
+func annotateTask(diff *structs.TaskDiff, parent *structs.TaskGroupDiff) {
+	if diff.Type == structs.DiffTypeNone {
 		return
+	}
+
+	// The whole task group is changing
+	if parent.Type == structs.DiffTypeAdded || parent.Type == structs.DiffTypeDeleted {
+		if diff.Type == structs.DiffTypeAdded {
+			diff.Annotations = append(diff.Annotations, AnnotationForcesCreate)
+			return
+		} else if diff.Type == structs.DiffTypeDeleted {
+			diff.Annotations = append(diff.Annotations, AnnotationForcesDestroy)
+			return
+		}
 	}
 
 	// All changes to primitive fields result in a destructive update.

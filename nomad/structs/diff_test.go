@@ -181,6 +181,103 @@ func TestJobDiff(t *testing.T) {
 						New:  "",
 					},
 				},
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeDeleted,
+						Name: "Update",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeDeleted,
+								Name: "MaxParallel",
+								Old:  "0",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Stagger",
+								Old:  "0",
+								New:  "",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			// Primitive only added job
+			Old: nil,
+			New: &Job{
+				Region:    "foo",
+				ID:        "foo",
+				Name:      "foo",
+				Type:      "batch",
+				Priority:  10,
+				AllAtOnce: true,
+				Meta: map[string]string{
+					"foo": "bar",
+				},
+			},
+			Expected: &JobDiff{
+				Type: DiffTypeAdded,
+				ID:   "foo",
+				Fields: []*FieldDiff{
+					{
+						Type: DiffTypeAdded,
+						Name: "AllAtOnce",
+						Old:  "",
+						New:  "true",
+					},
+					{
+						Type: DiffTypeAdded,
+						Name: "Meta[foo]",
+						Old:  "",
+						New:  "bar",
+					},
+					{
+						Type: DiffTypeAdded,
+						Name: "Name",
+						Old:  "",
+						New:  "foo",
+					},
+					{
+						Type: DiffTypeAdded,
+						Name: "Priority",
+						Old:  "",
+						New:  "10",
+					},
+					{
+						Type: DiffTypeAdded,
+						Name: "Region",
+						Old:  "",
+						New:  "foo",
+					},
+					{
+						Type: DiffTypeAdded,
+						Name: "Type",
+						Old:  "",
+						New:  "batch",
+					},
+				},
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeAdded,
+						Name: "Update",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "MaxParallel",
+								Old:  "",
+								New:  "0",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Stagger",
+								Old:  "",
+								New:  "0",
+							},
+						},
+					},
+				},
 			},
 		},
 		{

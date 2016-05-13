@@ -783,7 +783,7 @@ func TestProgressMade(t *testing.T) {
 func TestDesiredUpdates(t *testing.T) {
 	tg1 := &structs.TaskGroup{Name: "foo"}
 	tg2 := &structs.TaskGroup{Name: "bar"}
-	a2 := &structs.Allocation{TaskGroup: "foo"}
+	a2 := &structs.Allocation{TaskGroup: "bar"}
 
 	place := []allocTuple{
 		allocTuple{TaskGroup: tg1},
