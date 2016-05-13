@@ -81,3 +81,17 @@ atlas {
 http_api_response_headers {
 	Access-Control-Allow-Origin = "*"
 }
+consul {
+    server_service_name = "nomad-server"
+    client_service_name = "nomad-client"
+    addr = "127.0.0.1:9500"
+    token = "token1"
+    auth = "username:pass"
+    ssl = true
+    verify_ssl = false
+    ca_file = "/path/to/ca/file"
+    cert_file = "/path/to/cert/file"
+    key_file = "/path/to/key/file"
+    server_auto_join = true
+    client_auto_join = true
+}
