@@ -411,7 +411,8 @@ func (c *ConsulService) performSync() error {
 func (c *ConsulService) filterConsulServices(srvcs map[string]*consul.AgentService) map[string]*consul.AgentService {
 	nomadServices := make(map[string]*consul.AgentService)
 	for _, srv := range srvcs {
-		if strings.HasPrefix(srv.ID, structs.NomadConsulPrefix) {
+		if strings.HasPrefix(srv.ID, structs.NomadConsulPrefix) &&
+			!strings.HasPrefix(srv.ID, fmt.Sprintf("%s-%s", structs.NomadConsulPrefix, "agent")) {
 			nomadServices[srv.ID] = srv
 		}
 	}

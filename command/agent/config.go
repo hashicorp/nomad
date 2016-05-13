@@ -140,6 +140,10 @@ type ConsulConfig struct {
 	// clients with Consul
 	ClientServiceName string `mapstructure:"client_service_name"`
 
+	// AutoRegister determines if Nomad will register the Nomad client and
+	// server agents with Consul
+	AutoRegister bool `mapstructure:"auto_register"`
+
 	// Addr is the address of the local Consul agent
 	Addr string `mapstructure:"addr"`
 
@@ -419,6 +423,11 @@ func DefaultConfig() *Config {
 		Addresses:      &Addresses{},
 		AdvertiseAddrs: &AdvertiseAddrs{},
 		Atlas:          &AtlasConfig{},
+		ConsulConfig: &ConsulConfig{
+			ServerServiceName: "nomad-server",
+			ClientServiceName: "nomad-client",
+			AutoRegister:      true,
+		},
 		Client: &ClientConfig{
 			Enabled:        false,
 			NetworkSpeed:   100,

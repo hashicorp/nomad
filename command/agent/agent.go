@@ -69,7 +69,8 @@ func NewAgent(config *Config, logOutput io.Writer) (*Agent, error) {
 	}
 	if err := a.syncAgentServicesWithConsul(a.serverHTTPAddr, a.clientHTTPAddr); err != nil {
 		a.logger.Printf("[ERR] agent: unable to sync agent services with consul: %v", err)
-	} else {
+	}
+	if a.consulService != nil {
 		go a.consulService.PeriodicSync()
 	}
 	return a, nil
