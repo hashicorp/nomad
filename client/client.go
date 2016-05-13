@@ -1216,14 +1216,6 @@ func (c *Client) syncConsul() {
 				}
 			}
 
-			// Add the client service
-			clientService := &structs.Service{
-				Name:      c.config.ClientServiceName,
-				PortLabel: "clienthttpaddr",
-			}
-			svcIdentifier := fmt.Sprintf("%s-%s", "agent", "client")
-			services[clientService.ID(svcIdentifier)] = struct{}{}
-
 			if err := c.consulService.KeepServices(services); err != nil {
 				c.logger.Printf("[DEBUG] client: error removing services from non-running tasks: %v", err)
 			}
