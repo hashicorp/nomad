@@ -2,6 +2,7 @@ package command
 
 import (
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -67,6 +68,10 @@ func (c *AgentCheckCommand) Run(args []string) int {
 	if err != nil {
 		c.Ui.Output(fmt.Sprintf("unable to query agent info: %v", err))
 		return HealthCritical
+	}
+	if stats, ok := info["stats"]; !ok && (reflect.TypeOf(stats).Kind() == reflect.Map) {
+		c.Ui.Error("error getting stats from the agent api")
+		return 1
 	}
 	if _, ok := info["stats"]["nomad"]; ok {
 		return c.checkServerHealth(info["stats"], minPeers)
