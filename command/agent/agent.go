@@ -158,6 +158,9 @@ func (a *Agent) serverConfig() (*nomad.Config, error) {
 		conf.SerfConfig.MemberlistConfig.BindPort = port
 	}
 	a.serverHTTPAddr = fmt.Sprintf("%v:%v", a.config.Addresses.HTTP, a.config.Ports.HTTP)
+	if a.config.AdvertiseAddrs.HTTP != "" {
+		a.serverHTTPAddr = a.config.AdvertiseAddrs.HTTP
+	}
 
 	if gcThreshold := a.config.Server.NodeGCThreshold; gcThreshold != "" {
 		dur, err := time.ParseDuration(gcThreshold)
