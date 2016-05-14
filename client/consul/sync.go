@@ -22,10 +22,10 @@ type ConsulService struct {
 	client   *consul.Client
 	availble bool
 
-	serviceIdentifier string
-	delegateChecks    map[string]struct{}
+	serviceIdentifier string              // serviceIdentifier is a token which identifies which task/alloc the service belongs to
+	delegateChecks    map[string]struct{} // delegateChecks are the checks that the Nomad client runs and reports to Consul
 	createCheck       func(*structs.ServiceCheck, string) (Check, error)
-	addrFinder        func(string) (string, int)
+	addrFinder        func(portLabel string) (string, int)
 
 	trackedServices map[string]*consul.AgentService
 	trackedChecks   map[string]*consul.AgentCheckRegistration
@@ -132,7 +132,7 @@ func (c *ConsulService) SetDelegatedChecks(delegateChecks map[string]struct{}, c
 	return c
 }
 
-// SetAddrFinder sets a function to find the host and port for a Service
+// SetAddrFinder sets a function to find the host and port for a Service given its port label
 func (c *ConsulService) SetAddrFinder(addrFinder func(string) (string, int)) *ConsulService {
 	c.addrFinder = addrFinder
 	return c
@@ -465,4 +465,10 @@ func (c *ConsulService) runCheck(check Check) {
 			c.availble = true
 		}
 	}
+}
+
+// generateServiceIdentifier returns a service identifier based on an allocation
+// id and task name
+func generateServiceIdentifier(allocID string, taskName string) string {
+	return fmt.Sprintf("%s-%s", taskName, allocID)
 }

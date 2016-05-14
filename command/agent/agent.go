@@ -29,8 +29,8 @@ type Agent struct {
 	logger    *log.Logger
 	logOutput io.Writer
 
-	consulService  *consul.ConsulService
-	consulConfig   *consul.ConsulConfig
+	consulService  *consul.ConsulService // consulService registers the Nomad agent with the consul agent
+	consulConfig   *consul.ConsulConfig  // consulConfig is the consul configuration the Nomad client uses to connect with Consul agent
 	serverHTTPAddr string
 	clientHTTPAddr string
 
@@ -56,6 +56,8 @@ func NewAgent(config *Config, logOutput io.Writer) (*Agent, error) {
 		shutdownCh: make(chan struct{}),
 	}
 
+	// creating the consul client configuration that both the server and client
+	// uses
 	a.createConsulConfig()
 
 	if err := a.setupServer(); err != nil {
@@ -493,35 +495,28 @@ func (a *Agent) syncAgentServicesWithConsul(clientHttpAddr string, serverHttpAdd
 	}
 	a.consulService = cs
 	var services []*structs.Service
-	addrs := make(map[string]string)
 	if a.client != nil && a.config.ConsulConfig.ClientServiceName != "" {
 		if err != nil {
 			return err
 		}
 		clientService := &structs.Service{
 			Name:      a.config.ConsulConfig.ClientServiceName,
-			PortLabel: "clienthttpaddr",
+			PortLabel: clientHttpAddr,
 		}
-		addrs["clienthttpaddr"] = clientHttpAddr
 		services = append(services, clientService)
 		cs.SetServiceIdentifier("agent-client")
 	}
 	if a.server != nil && a.config.ConsulConfig.ServerServiceName != "" {
 		serverService := &structs.Service{
 			Name:      a.config.ConsulConfig.ServerServiceName,
-			PortLabel: "serverhttpaddr",
+			PortLabel: serverHttpAddr,
 		}
-		addrs["serverhttpaddr"] = serverHttpAddr
 		services = append(services, serverService)
 		cs.SetServiceIdentifier("agent-server")
 	}
 
 	cs.SetAddrFinder(func(portLabel string) (string, int) {
-		addr := addrs[portLabel]
-		if addr == "" {
-			return "", 0
-		}
-		host, port, err := net.SplitHostPort(addr)
+		host, port, err := net.SplitHostPort(portLabel)
 		if err != nil {
 			return "", 0
 		}
