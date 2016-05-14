@@ -436,7 +436,7 @@ func (e *UniversalExecutor) SyncServices(ctx *ConsulContext) error {
 			return err
 		}
 		cs.SetDelegatedChecks(e.createCheckMap(), e.createCheck)
-		cs.SetServiceIdentifier(fmt.Sprintf("%s-%s", e.ctx.AllocID, e.ctx.Task.Name))
+		cs.SetServiceIdentifier(consul.GenerateServiceIdentifier(e.ctx.AllocID, e.ctx.Task.Name))
 		cs.SetAddrFinder(e.ctx.Task.FindHostAndPortFor)
 		e.consulService = cs
 	}

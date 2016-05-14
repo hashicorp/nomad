@@ -50,15 +50,15 @@ func TestConsulServiceRegisterServices(t *testing.T) {
 		return
 	}
 	task := mockTask()
-	cs.SetServiceIdentifier(fmt.Sprintf("%s-%s", allocID, task.Name))
+	cs.SetServiceIdentifier(GenerateServiceIdentifier(allocID, task.Name))
 	cs.SetAddrFinder(task.FindHostAndPortFor)
 	if err := cs.SyncServices(task.Services); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	defer cs.Shutdown()
 
-	service1ID := service1.ID(fmt.Sprintf("%s-%s", allocID, task.Name))
-	service2ID := service2.ID(fmt.Sprintf("%s-%s", allocID, task.Name))
+	service1ID := service1.ID(GenerateServiceIdentifier(allocID, task.Name))
+	service2ID := service2.ID(GenerateServiceIdentifier(allocID, task.Name))
 	if err := servicesPresent(t, []string{service1ID, service2ID}, cs); err != nil {
 		t.Fatalf("err : %v", err)
 	}
@@ -78,7 +78,7 @@ func TestConsulServiceUpdateService(t *testing.T) {
 	}
 
 	task := mockTask()
-	cs.SetServiceIdentifier(fmt.Sprintf("%s-%s", allocID, task.Name))
+	cs.SetServiceIdentifier(GenerateServiceIdentifier(allocID, task.Name))
 	cs.SetAddrFinder(task.FindHostAndPortFor)
 	if err := cs.SyncServices(task.Services); err != nil {
 		t.Fatalf("err: %v", err)
@@ -92,8 +92,8 @@ func TestConsulServiceUpdateService(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 	// Make sure all the services and checks are still present
-	service1ID := service1.ID(fmt.Sprintf("%s-%s", allocID, task.Name))
-	service2ID := service2.ID(fmt.Sprintf("%s-%s", allocID, task.Name))
+	service1ID := service1.ID(GenerateServiceIdentifier(allocID, task.Name))
+	service2ID := service2.ID(GenerateServiceIdentifier(allocID, task.Name))
 	if err := servicesPresent(t, []string{service1ID, service2ID}, cs); err != nil {
 		t.Fatalf("err : %v", err)
 	}

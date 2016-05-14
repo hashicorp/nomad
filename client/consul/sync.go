@@ -412,7 +412,7 @@ func (c *ConsulService) filterConsulServices(srvcs map[string]*consul.AgentServi
 	nomadServices := make(map[string]*consul.AgentService)
 	for _, srv := range srvcs {
 		if strings.HasPrefix(srv.ID, structs.NomadConsulPrefix) &&
-			!strings.HasPrefix(srv.ID, fmt.Sprintf("%s-%s", structs.NomadConsulPrefix, "agent")) {
+			!strings.HasPrefix(srv.ID, structs.AgentServicePrefix) {
 			nomadServices[srv.ID] = srv
 		}
 	}
@@ -467,8 +467,8 @@ func (c *ConsulService) runCheck(check Check) {
 	}
 }
 
-// generateServiceIdentifier returns a service identifier based on an allocation
+// GenerateServiceIdentifier returns a service identifier based on an allocation
 // id and task name
-func generateServiceIdentifier(allocID string, taskName string) string {
+func GenerateServiceIdentifier(allocID string, taskName string) string {
 	return fmt.Sprintf("%s-%s", taskName, allocID)
 }

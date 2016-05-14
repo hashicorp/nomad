@@ -1474,6 +1474,10 @@ const (
 	NomadConsulPrefix = "nomad-registered-service"
 )
 
+var (
+	AgentServicePrefix = fmt.Sprintf("%s-%s", NomadConsulPrefix, "agent")
+)
+
 // The Service model represents a Consul service defintion
 type Service struct {
 	Name      string          // Name of the service, defaults to id
