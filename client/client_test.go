@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -71,6 +72,7 @@ func testServer(t *testing.T, cb func(*nomad.Config)) (*nomad.Server, string) {
 func testClient(t *testing.T, cb func(c *config.Config)) *Client {
 	conf := DefaultConfig()
 	conf.DevMode = true
+	conf.ConsulConfig = &consul.ConsulConfig{}
 	if cb != nil {
 		cb(conf)
 	}

@@ -12,6 +12,10 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+const (
+	allocID = "12"
+)
+
 var (
 	logger = log.New(os.Stdout, "", log.LstdFlags)
 	check1 = structs.ServiceCheck{
@@ -37,8 +41,7 @@ var (
 )
 
 func TestConsulServiceRegisterServices(t *testing.T) {
-	allocID := "12"
-	cs, err := NewConsulService(&ConsulConfig{}, logger, allocID)
+	cs, err := NewConsulService(&ConsulConfig{}, logger)
 	if err != nil {
 		t.Fatalf("Err: %v", err)
 	}
@@ -47,13 +50,15 @@ func TestConsulServiceRegisterServices(t *testing.T) {
 		return
 	}
 	task := mockTask()
-	if err := cs.SyncTask(task); err != nil {
+	cs.SetServiceIdentifier(GenerateServiceIdentifier(allocID, task.Name))
+	cs.SetAddrFinder(task.FindHostAndPortFor)
+	if err := cs.SyncServices(task.Services); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	defer cs.Shutdown()
 
-	service1ID := service1.ID(allocID, task.Name)
-	service2ID := service2.ID(allocID, task.Name)
+	service1ID := service1.ID(GenerateServiceIdentifier(allocID, task.Name))
+	service2ID := service2.ID(GenerateServiceIdentifier(allocID, task.Name))
 	if err := servicesPresent(t, []string{service1ID, service2ID}, cs); err != nil {
 		t.Fatalf("err : %v", err)
 	}
@@ -63,8 +68,7 @@ func TestConsulServiceRegisterServices(t *testing.T) {
 }
 
 func TestConsulServiceUpdateService(t *testing.T) {
-	allocID := "12"
-	cs, err := NewConsulService(&ConsulConfig{}, logger, allocID)
+	cs, err := NewConsulService(&ConsulConfig{}, logger)
 	if err != nil {
 		t.Fatalf("Err: %v", err)
 	}
@@ -74,7 +78,9 @@ func TestConsulServiceUpdateService(t *testing.T) {
 	}
 
 	task := mockTask()
-	if err := cs.SyncTask(task); err != nil {
+	cs.SetServiceIdentifier(GenerateServiceIdentifier(allocID, task.Name))
+	cs.SetAddrFinder(task.FindHostAndPortFor)
+	if err := cs.SyncServices(task.Services); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	defer cs.Shutdown()
@@ -82,12 +88,12 @@ func TestConsulServiceUpdateService(t *testing.T) {
 	//Update Service defn 1
 	newTags := []string{"tag3"}
 	task.Services[0].Tags = newTags
-	if err := cs.SyncTask(task); err != nil {
+	if err := cs.SyncServices(task.Services); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	// Make sure all the services and checks are still present
-	service1ID := service1.ID(allocID, task.Name)
-	service2ID := service2.ID(allocID, task.Name)
+	service1ID := service1.ID(GenerateServiceIdentifier(allocID, task.Name))
+	service2ID := service2.ID(GenerateServiceIdentifier(allocID, task.Name))
 	if err := servicesPresent(t, []string{service1ID, service2ID}, cs); err != nil {
 		t.Fatalf("err : %v", err)
 	}

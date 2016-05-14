@@ -22,10 +22,10 @@ type ConsulService struct {
 	client   *consul.Client
 	availble bool
 
-	task           *structs.Task
-	allocID        string
-	delegateChecks map[string]struct{}
-	createCheck    func(*structs.ServiceCheck, string) (Check, error)
+	serviceIdentifier string              // serviceIdentifier is a token which identifies which task/alloc the service belongs to
+	delegateChecks    map[string]struct{} // delegateChecks are the checks that the Nomad client runs and reports to Consul
+	createCheck       func(*structs.ServiceCheck, string) (Check, error)
+	addrFinder        func(portLabel string) (string, int)
 
 	trackedServices map[string]*consul.AgentService
 	trackedChecks   map[string]*consul.AgentCheckRegistration
@@ -60,7 +60,7 @@ const (
 )
 
 // NewConsulService returns a new ConsulService
-func NewConsulService(config *ConsulConfig, logger *log.Logger, allocID string) (*ConsulService, error) {
+func NewConsulService(config *ConsulConfig, logger *log.Logger) (*ConsulService, error) {
 	var err error
 	var c *consul.Client
 	cfg := consul.DefaultConfig()
@@ -114,7 +114,6 @@ func NewConsulService(config *ConsulConfig, logger *log.Logger, allocID string) 
 	}
 	consulService := ConsulService{
 		client:          c,
-		allocID:         allocID,
 		logger:          logger,
 		trackedServices: make(map[string]*consul.AgentService),
 		trackedChecks:   make(map[string]*consul.AgentCheckRegistration),
@@ -133,15 +132,26 @@ func (c *ConsulService) SetDelegatedChecks(delegateChecks map[string]struct{}, c
 	return c
 }
 
-// SyncTask sync the services and task with consul
-func (c *ConsulService) SyncTask(task *structs.Task) error {
+// SetAddrFinder sets a function to find the host and port for a Service given its port label
+func (c *ConsulService) SetAddrFinder(addrFinder func(string) (string, int)) *ConsulService {
+	c.addrFinder = addrFinder
+	return c
+}
+
+// SetServiceIdentifier sets the identifier of the services we are syncing with Consul
+func (c *ConsulService) SetServiceIdentifier(serviceIdentifier string) *ConsulService {
+	c.serviceIdentifier = serviceIdentifier
+	return c
+}
+
+// SyncServices sync the services with consul
+func (c *ConsulService) SyncServices(services []*structs.Service) error {
 	var mErr multierror.Error
-	c.task = task
 	taskServices := make(map[string]*consul.AgentService)
 	taskChecks := make(map[string]*consul.AgentCheckRegistration)
 
 	// Register Services and Checks that we don't know about or has changed
-	for _, service := range task.Services {
+	for _, service := range services {
 		srv, err := c.createService(service)
 		if err != nil {
 			mErr.Errors = append(mErr.Errors, err)
@@ -296,11 +306,11 @@ func (c *ConsulService) createCheckReg(check *structs.ServiceCheck, service *con
 // createService creates a Consul AgentService from a Nomad Service
 func (c *ConsulService) createService(service *structs.Service) (*consul.AgentService, error) {
 	srv := consul.AgentService{
-		ID:      service.ID(c.allocID, c.task.Name),
+		ID:      service.ID(c.serviceIdentifier),
 		Service: service.Name,
 		Tags:    service.Tags,
 	}
-	host, port := c.task.FindHostAndPortFor(service.PortLabel)
+	host, port := c.addrFinder(service.PortLabel)
 	if host != "" {
 		srv.Address = host
 	}
@@ -350,7 +360,7 @@ func (c *ConsulService) PeriodicSync() {
 		case <-sync.C:
 			if err := c.performSync(); err != nil {
 				if c.availble {
-					c.logger.Printf("[DEBUG] consul: error in syncing task %q: %v", c.task.Name, err)
+					c.logger.Printf("[DEBUG] consul: error in syncing services for %q: %v", c.serviceIdentifier, err)
 				}
 				c.availble = false
 			} else {
@@ -358,7 +368,7 @@ func (c *ConsulService) PeriodicSync() {
 			}
 		case <-c.shutdownCh:
 			sync.Stop()
-			c.logger.Printf("[INFO] consul: shutting down sync for task %q", c.task.Name)
+			c.logger.Printf("[INFO] consul: shutting down sync for %q", c.serviceIdentifier)
 			return
 		}
 	}
@@ -401,7 +411,8 @@ func (c *ConsulService) performSync() error {
 func (c *ConsulService) filterConsulServices(srvcs map[string]*consul.AgentService) map[string]*consul.AgentService {
 	nomadServices := make(map[string]*consul.AgentService)
 	for _, srv := range srvcs {
-		if strings.HasPrefix(srv.ID, structs.NomadConsulPrefix) {
+		if strings.HasPrefix(srv.ID, structs.NomadConsulPrefix) &&
+			!strings.HasPrefix(srv.ID, structs.AgentServicePrefix) {
 			nomadServices[srv.ID] = srv
 		}
 	}
@@ -454,4 +465,10 @@ func (c *ConsulService) runCheck(check Check) {
 			c.availble = true
 		}
 	}
+}
+
+// GenerateServiceIdentifier returns a service identifier based on an allocation
+// id and task name
+func GenerateServiceIdentifier(allocID string, taskName string) string {
+	return fmt.Sprintf("%s-%s", taskName, allocID)
 }

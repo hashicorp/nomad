@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -108,6 +109,9 @@ type Config struct {
 
 	// Revision is the commit number of the Nomad client
 	Revision string
+
+	// ConsulConfig is the configuration to connect with Consul Agent
+	ConsulConfig *consul.ConsulConfig
 }
 
 func (c *Config) Copy() *Config {

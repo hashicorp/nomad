@@ -1474,6 +1474,10 @@ const (
 	NomadConsulPrefix = "nomad-registered-service"
 )
 
+var (
+	AgentServicePrefix = fmt.Sprintf("%s-%s", NomadConsulPrefix, "agent")
+)
+
 // The Service model represents a Consul service defintion
 type Service struct {
 	Name      string          // Name of the service, defaults to id
@@ -1519,8 +1523,8 @@ func (s *Service) InitFields(job string, taskGroup string, task string) {
 	}
 }
 
-func (s *Service) ID(allocID string, taskName string) string {
-	return fmt.Sprintf("%s-%s-%s-%s", NomadConsulPrefix, allocID, taskName, s.Hash())
+func (s *Service) ID(identifier string) string {
+	return fmt.Sprintf("%s-%s-%s", NomadConsulPrefix, identifier, s.Hash())
 }
 
 // Validate checks if the Check definition is valid
