@@ -109,7 +109,7 @@ func (d *AllocDir) Build(tasks []*structs.Task) error {
 		return fmt.Errorf("Failed to make the alloc directory %v: %v", d.AllocDir, err)
 	}
 
-	// Make the shared directory and make it availabe to all user/groups.
+	// Make the shared directory and make it available to all user/groups.
 	if err := os.MkdirAll(d.SharedDir, 0777); err != nil {
 		return err
 	}
@@ -172,7 +172,7 @@ func (d *AllocDir) Build(tasks []*structs.Task) error {
 // Embed takes a mapping of absolute directory or file paths on the host to
 // their intended, relative location within the task directory. Embed attempts
 // hardlink and then defaults to copying. If the path exists on the host and
-// can't be embeded an error is returned.
+// can't be embedded an error is returned.
 func (d *AllocDir) Embed(task string, entries map[string]string) error {
 	taskdir, ok := d.TaskDirs[task]
 	if !ok {

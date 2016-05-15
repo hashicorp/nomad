@@ -234,7 +234,7 @@ type ServerConfig struct {
 	Enabled bool `mapstructure:"enabled"`
 
 	// BootstrapExpect tries to automatically bootstrap the Consul cluster,
-	// by witholding peers until enough servers join.
+	// by withholding peers until enough servers join.
 	BootstrapExpect int `mapstructure:"bootstrap_expect"`
 
 	// DataDir is the directory to store our state in

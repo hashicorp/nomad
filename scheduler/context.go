@@ -151,7 +151,7 @@ type ComputedClassFeasibility byte
 
 const (
 	// EvalComputedClassUnknown is the initial state until the eligibility has
-	// been explicitely marked to eligible/ineligible or escaped.
+	// been explicitly marked to eligible/ineligible or escaped.
 	EvalComputedClassUnknown ComputedClassFeasibility = iota
 
 	// EvalComputedClassIneligible is used to mark the computed class as

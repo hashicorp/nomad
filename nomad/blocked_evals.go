@@ -200,14 +200,14 @@ func (b *BlockedEvals) unblock(computedClass string) {
 		}
 	}
 
-	// We unblock any eval that is explicitely eligible for the computed class
+	// We unblock any eval that is explicitly eligible for the computed class
 	// and also any eval that is not eligible or uneligible. This signifies that
 	// when the evaluation was originally run through the scheduler, that it
 	// never saw a node with the given computed class and thus needs to be
 	// unblocked for correctness.
 	for id, eval := range b.captured {
 		if elig, ok := eval.ClassEligibility[computedClass]; ok && !elig {
-			// Can skip because the eval has explicitely marked the node class
+			// Can skip because the eval has explicitly marked the node class
 			// as ineligible.
 			continue
 		}

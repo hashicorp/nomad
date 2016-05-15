@@ -29,7 +29,7 @@ type QueryOptions struct {
 	WaitIndex uint64
 
 	// WaitTime is used to bound the duration of a wait.
-	// Defaults to that of the Config, but can be overriden.
+	// Defaults to that of the Config, but can be overridden.
 	WaitTime time.Duration
 
 	// If set, used as prefix for resource list searches

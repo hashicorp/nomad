@@ -95,7 +95,7 @@ WAIT:
 
 // establishLeadership is invoked once we become leader and are able
 // to invoke an initial barrier. The barrier is used to ensure any
-// previously inflight transactions have been commited and that our
+// previously inflight transactions have been committed and that our
 // state is up-to-date.
 func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	// Disable workers to free half the cores for use in the plan queue and

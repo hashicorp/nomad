@@ -389,7 +389,7 @@ func checkVersionConstraint(ctx Context, lVal, rVal interface{}) bool {
 		return false
 	}
 
-	// Parse the verison
+	// Parse the version
 	vers, err := version.NewVersion(versionStr)
 	if err != nil {
 		return false

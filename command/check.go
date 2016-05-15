@@ -100,7 +100,7 @@ func (c *AgentCheckCommand) checkServerHealth(info map[string]interface{}, minPe
 	return HealthPass
 }
 
-// checkClientHealth retuns the health of a client
+// checkClientHealth returns the health of a client
 func (c *AgentCheckCommand) checkClientHealth(info map[string]interface{}, minServers int) int {
 	clientStats := info["client"].(map[string]interface{})
 	knownServers, err := strconv.Atoi(clientStats["known_servers"].(string))

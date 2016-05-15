@@ -161,7 +161,7 @@ func (c *Config) ReadBoolDefault(id string, defaultValue bool) bool {
 	return val
 }
 
-// ReadStringListToMap tries to parse the specified option as a comma seperated list.
+// ReadStringListToMap tries to parse the specified option as a comma separated list.
 // If there is an error in parsing, an empty list is returned.
 func (c *Config) ReadStringListToMap(key string) map[string]struct{} {
 	s := strings.TrimSpace(c.Read(key))
@@ -175,7 +175,7 @@ func (c *Config) ReadStringListToMap(key string) map[string]struct{} {
 	return list
 }
 
-// ReadStringListToMap tries to parse the specified option as a comma seperated list.
+// ReadStringListToMap tries to parse the specified option as a comma separated list.
 // If there is an error in parsing, an empty list is returned.
 func (c *Config) ReadStringListToMapDefault(key, defaultValue string) map[string]struct{} {
 	val, ok := c.Options[key]

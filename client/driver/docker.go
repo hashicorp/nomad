@@ -70,7 +70,7 @@ type DockerDriverConfig struct {
 	UTSMode          string              `mapstructure:"uts_mode"`           // The UTS mode of the container - host and none
 	PortMapRaw       []map[string]int    `mapstructure:"port_map"`           //
 	PortMap          map[string]int      `mapstructure:"-"`                  // A map of host port labels and the ports exposed on the container
-	Privileged       bool                `mapstructure:"privileged"`         // Flag to run the container in priviledged mode
+	Privileged       bool                `mapstructure:"privileged"`         // Flag to run the container in privileged mode
 	DNSServers       []string            `mapstructure:"dns_servers"`        // DNS Server for containers
 	DNSSearchDomains []string            `mapstructure:"dns_search_domains"` // DNS Search domains for containers
 	Hostname         string              `mapstructure:"hostname"`           // Hostname for containers

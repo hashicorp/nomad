@@ -1,7 +1,7 @@
 package scheduler
 
 // LimitIterator is a RankIterator used to limit the number of options
-// that are returned before we artifically end the stream.
+// that are returned before we artificially end the stream.
 type LimitIterator struct {
 	ctx    Context
 	source RankIterator

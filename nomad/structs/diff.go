@@ -175,7 +175,7 @@ type TaskGroupDiff struct {
 }
 
 // Diff returns a diff of two task groups. If contextual diff is enabled,
-// objects' fields will be stored even if no diff occured as long as one field
+// objects' fields will be stored even if no diff occurred as long as one field
 // changed.
 func (tg *TaskGroup) Diff(other *TaskGroup, contextual bool) (*TaskGroupDiff, error) {
 	diff := &TaskGroupDiff{Type: DiffTypeNone}
@@ -263,7 +263,7 @@ func (tg *TaskGroupDiff) GoString() string {
 }
 
 // TaskGroupDiffs diffs two sets of task groups. If contextual diff is enabled,
-// objects' fields will be stored even if no diff occured as long as one field
+// objects' fields will be stored even if no diff occurred as long as one field
 // changed.
 func taskGroupDiffs(old, new []*TaskGroup, contextual bool) ([]*TaskGroupDiff, error) {
 	oldMap := make(map[string]*TaskGroup, len(old))
@@ -460,7 +460,7 @@ func (t TaskDiffs) Swap(i, j int)      { t[i], t[j] = t[j], t[i] }
 func (t TaskDiffs) Less(i, j int) bool { return t[i].Name < t[j].Name }
 
 // serviceDiff returns the diff of two service objects. If contextual diff is
-// enabled, all fields will be returned, even if no diff occured.
+// enabled, all fields will be returned, even if no diff occurred.
 func serviceDiff(old, new *Service, contextual bool) *ObjectDiff {
 	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Service"}
 	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
@@ -526,7 +526,7 @@ func serviceDiffs(old, new []*Service, contextual bool) []*ObjectDiff {
 }
 
 // serviceCheckDiff returns the diff of two service check objects. If contextual
-// diff is enabled, all fields will be returned, even if no diff occured.
+// diff is enabled, all fields will be returned, even if no diff occurred.
 func serviceCheckDiff(old, new *ServiceCheck, contextual bool) *ObjectDiff {
 	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Check"}
 	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
@@ -752,7 +752,7 @@ func portDiffs(old, new []Port, dynamic bool, contextual bool) []*ObjectDiff {
 }
 
 // configDiff returns the diff of two Task Config objects. If contextual diff is
-// enabled, all fields will be returned, even if no diff occured.
+// enabled, all fields will be returned, even if no diff occurred.
 func configDiff(old, new map[string]interface{}, contextual bool) *ObjectDiff {
 	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Config"}
 	if reflect.DeepEqual(old, new) {

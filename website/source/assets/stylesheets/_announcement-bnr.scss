@@ -6,7 +6,7 @@ $enterprise-bnr-nomad-color: $green;
 $enterprise-color-dark-white: #A9B1B5;
 
 body{
-  // when _announcment-bnr.erb is being used in layout we need to push down content to accomodate
+  // when _announcment-bnr.erb is being used in layout we need to push down content to accommodate
   // add this class to body
   &.-displaying-bnr{
     #header{

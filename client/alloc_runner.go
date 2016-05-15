@@ -18,10 +18,10 @@ import (
 const (
 	// taskReceivedSyncLimit is how long the client will wait before sending
 	// that a task was received to the server. The client does not immediately
-	// send that the task was received to the server because another transistion
+	// send that the task was received to the server because another transition
 	// to running or failed is likely to occur immediately after and a single
-	// update will transfer all past state information. If not other transistion
-	// has occured up to this limit, we will send to the server.
+	// update will transfer all past state information. If not other transition
+	// has occurred up to this limit, we will send to the server.
 	taskReceivedSyncLimit = 30 * time.Second
 )
 
@@ -218,7 +218,7 @@ func (r *AllocRunner) Alloc() *structs.Allocation {
 	r.allocLock.Lock()
 	alloc := r.alloc.Copy()
 
-	// The status has explicitely been set.
+	// The status has explicitly been set.
 	if r.allocClientStatus != "" || r.allocClientDescription != "" {
 		alloc.ClientStatus = r.allocClientStatus
 		alloc.ClientDescription = r.allocClientDescription

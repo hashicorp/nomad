@@ -24,19 +24,19 @@ const (
 	// MemLimit is the environment variable with the tasks memory limit in MBs.
 	MemLimit = "NOMAD_MEMORY_LIMIT"
 
-	// CpuLimit is the enviroment variable with the tasks CPU limit in MHz.
+	// CpuLimit is the environment variable with the tasks CPU limit in MHz.
 	CpuLimit = "NOMAD_CPU_LIMIT"
 
-	// AllocID is the enviroment variable for passing the allocation ID.
+	// AllocID is the environment variable for passing the allocation ID.
 	AllocID = "NOMAD_ALLOC_ID"
 
-	// AllocName is the enviroment variable for passing the allocation name.
+	// AllocName is the environment variable for passing the allocation name.
 	AllocName = "NOMAD_ALLOC_NAME"
 
-	// TaskName is the enviroment variable for passing the task name.
+	// TaskName is the environment variable for passing the task name.
 	TaskName = "NOMAD_TASK_NAME"
 
-	// AllocIndex is the enviroment variable for passing the allocation index.
+	// AllocIndex is the environment variable for passing the allocation index.
 	AllocIndex = "NOMAD_ALLOC_INDEX"
 
 	// AddrPrefix is the prefix for passing both dynamic and static port
@@ -112,7 +112,7 @@ func (t *TaskEnvironment) ParseAndReplace(args []string) []string {
 	return replaced
 }
 
-// ReplaceEnv takes an arg and replaces all occurences of environment variables
+// ReplaceEnv takes an arg and replaces all occurrences of environment variables
 // and nomad variables.  If the variable is found in the passed map it is
 // replaced, otherwise the original string is returned.
 func (t *TaskEnvironment) ReplaceEnv(arg string) string {

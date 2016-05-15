@@ -35,7 +35,7 @@ const (
 	serverMaxStreams = 64
 
 	// raftLogCacheSize is the maximum number of logs to cache in-memory.
-	// This is used to reduce disk I/O for the recently commited entries.
+	// This is used to reduce disk I/O for the recently committed entries.
 	raftLogCacheSize = 512
 
 	// raftRemoveGracePeriod is how long we wait to allow a RemovePeer
@@ -221,7 +221,7 @@ func NewServer(config *Config) (*Server, error) {
 		return nil, fmt.Errorf("Failed to start serf: %v", err)
 	}
 
-	// Intialize the scheduling workers
+	// Initialize the scheduling workers
 	if err := s.setupWorkers(); err != nil {
 		s.Shutdown()
 		logger.Printf("[ERR] nomad: failed to start workers: %s", err)

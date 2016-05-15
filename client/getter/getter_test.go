@@ -173,7 +173,7 @@ func TestGetArtifact_Archive(t *testing.T) {
 	defer ts.Close()
 
 	// Create a temp directory to download into and create some of the same
-	// files that exist in the artifact to ensure they are overriden
+	// files that exist in the artifact to ensure they are overridden
 	taskDir, err := ioutil.TempDir("", "nomad-test")
 	if err != nil {
 		t.Fatalf("failed to make temp directory: %v", err)

@@ -207,12 +207,12 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		cmdArgs = append(cmdArgs, "--insecure-options=all")
 	}
 
-	// Inject enviornment variables
+	// Inject environment variables
 	for k, v := range d.taskEnv.EnvMap() {
 		cmdArgs = append(cmdArgs, fmt.Sprintf("--set-env=%v=%v", k, v))
 	}
 
-	// Check if the user has overriden the exec command.
+	// Check if the user has overridden the exec command.
 	if execCmd, ok := task.Config["command"]; ok {
 		cmdArgs = append(cmdArgs, fmt.Sprintf("--exec=%v", execCmd))
 	}

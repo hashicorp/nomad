@@ -1084,7 +1084,7 @@ const (
 	PeriodicSpecCron = "cron"
 
 	// PeriodicSpecTest is only used by unit tests. It is a sorted, comma
-	// seperated list of unix timestamps at which to launch.
+	// separated list of unix timestamps at which to launch.
 	PeriodicSpecTest = "_internal_test"
 )
 
@@ -1478,7 +1478,7 @@ var (
 	AgentServicePrefix = fmt.Sprintf("%s-%s", NomadConsulPrefix, "agent")
 )
 
-// The Service model represents a Consul service defintion
+// The Service model represents a Consul service definition
 type Service struct {
 	Name      string          // Name of the service, defaults to id
 	Tags      []string        // List of tags for the service
@@ -1835,12 +1835,12 @@ const (
 )
 
 // TaskState tracks the current state of a task and events that caused state
-// transistions.
+// transitions.
 type TaskState struct {
 	// The current state of the task.
 	State string
 
-	// Series of task events that transistion the state of the task.
+	// Series of task events that transition the state of the task.
 	Events []*TaskEvent
 }
 
@@ -1924,7 +1924,7 @@ type TaskEvent struct {
 	RestartReason string
 
 	// Driver Failure fields.
-	DriverError string // A driver error occured while starting the task.
+	DriverError string // A driver error occurred while starting the task.
 
 	// Task Terminated Fields.
 	ExitCode int    // The exit code of the task.
@@ -2588,7 +2588,7 @@ type Evaluation struct {
 	// This is used to support rolling upgrades, where we need a chain of evaluations.
 	PreviousEval string
 
-	// ClassEligibility tracks computed node classes that have been explicitely
+	// ClassEligibility tracks computed node classes that have been explicitly
 	// marked as eligible or ineligible.
 	ClassEligibility map[string]bool
 
@@ -2683,7 +2683,7 @@ func (e *Evaluation) NextRollingEval(wait time.Duration) *Evaluation {
 }
 
 // BlockedEval creates a blocked evaluation to followup this eval to place any
-// failed allocations. It takes the classes marked explicitely eligible or
+// failed allocations. It takes the classes marked explicitly eligible or
 // ineligible and whether the job has escaped computed node classes.
 func (e *Evaluation) BlockedEval(classEligibility map[string]bool, escaped bool) *Evaluation {
 	return &Evaluation{

@@ -105,7 +105,7 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 }
 
 // Deregister is used to remove a client from the client. If a client should
-// just be made unavailable for scheduling, a status update is prefered.
+// just be made unavailable for scheduling, a status update is preferred.
 func (n *Node) Deregister(args *structs.NodeDeregisterRequest, reply *structs.NodeUpdateResponse) error {
 	if done, err := n.srv.forward("Node.Deregister", args, args, reply); done {
 		return err

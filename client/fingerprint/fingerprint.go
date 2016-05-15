@@ -76,7 +76,7 @@ type Fingerprint interface {
 	Periodic() (bool, time.Duration)
 }
 
-// StaticFingerprinter can be embeded in a struct that has a Fingerprint method
+// StaticFingerprinter can be embedded in a struct that has a Fingerprint method
 // to make it non-periodic.
 type StaticFingerprinter struct{}
 

@@ -27,7 +27,7 @@ type ServiceCheck struct {
 	Timeout  time.Duration
 }
 
-// The Service model represents a Consul service defintion
+// The Service model represents a Consul service definition
 type Service struct {
 	Id        string
 	Name      string
@@ -150,7 +150,7 @@ func (t *Task) SetLogConfig(l *LogConfig) *Task {
 }
 
 // TaskState tracks the current state of a task and events that caused state
-// transistions.
+// transitions.
 type TaskState struct {
 	State  string
 	Events []*TaskEvent

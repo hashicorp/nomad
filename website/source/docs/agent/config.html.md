@@ -324,9 +324,9 @@ configured on server nodes.
     * `cpu`: `cpu` is given as MHz to reserve.
     * `memory`: `memory` is given as MB to reserve.
     * `disk`: `disk` is given as MB to reserve.
-    * `reserved_ports`: `reserved_ports` is a comma seperated list of ports
+    * `reserved_ports`: `reserved_ports` is a comma separated list of ports
       to reserve on all fingerprinted network devices. Ranges can be
-      specified by using a hyphen seperated the two inclusive ends.
+      specified by using a hyphen separated the two inclusive ends.
 
 ### Client Options Map <a id="options_map"></a>
 
@@ -358,9 +358,9 @@ documentation [here](/docs/drivers/index.html)
   applicable.
 
 *   `env.blacklist`: Nomad passes the host environment variables to `exec`,
-    `raw_exec` and `java` tasks. `env.blacklist` is a comma seperated list of
+    `raw_exec` and `java` tasks. `env.blacklist` is a comma separated list of
     environment variable keys not to pass to these tasks. If specified, the
-    defaults are overriden. The following are the default:
+    defaults are overridden. The following are the default:
     
     * `CONSUL_TOKEN`
     * `VAULT_TOKEN`
