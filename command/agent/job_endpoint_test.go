@@ -510,7 +510,7 @@ func TestHTTP_JobPlan(t *testing.T) {
 
 		// Check the response
 		plan := obj.(structs.JobPlanResponse)
-		if plan.Plan == nil {
+		if plan.Annotations == nil {
 			t.Fatalf("bad: %v", plan)
 		}
 

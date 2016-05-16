@@ -443,7 +443,9 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 
 	// Create an in-memory Planner that returns no errors and stores the
 	// submitted plan and created evals.
-	planner := scheduler.NewInMemoryPlanner()
+	planner := &scheduler.Harness{
+		State: &snap.StateStore,
+	}
 
 	// Create the scheduler and run it
 	sched, err := scheduler.NewScheduler(eval.Type, j.srv.logger, snap, planner)
@@ -456,7 +458,10 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 	}
 
 	// Annotate and store the diff
-	annotations := planner.Plan.Annotations
+	if plans := len(planner.Plans); plans != 1 {
+		return fmt.Errorf("scheduler resulted in an unexpected number of plans: %d", plans)
+	}
+	annotations := planner.Plans[0].Annotations
 	if args.Diff {
 		jobDiff, err := oldJob.Diff(args.Job, true)
 		if err != nil {
@@ -471,7 +476,7 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 
 	reply.JobModifyIndex = index
 	reply.Annotations = annotations
-	reply.CreatedEvals = planner.CreatedEvals
+	reply.CreatedEvals = planner.CreateEvals
 	reply.Index = index
 	return nil
 }

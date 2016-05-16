@@ -29,9 +29,9 @@ func (r *RejectPlan) CreateEval(*structs.Evaluation) error {
 	return nil
 }
 
-// Harness is a lightweight testing harness for schedulers.
-// It manages a state store copy and provides the planner
-// interface. It can be extended for various testing uses.
+// Harness is a lightweight testing harness for schedulers. It manages a state
+// store copy and provides the planner interface. It can be extended for various
+// testing uses or for invoking the scheduler without side effects.
 type Harness struct {
 	State *state.StateStore
 
@@ -176,12 +176,5 @@ func (h *Harness) AssertEvalStatus(t *testing.T, state string) {
 
 	if update.Status != state {
 		t.Fatalf("bad: %#v", update)
-	}
-}
-
-// noErr is used to assert there are no errors
-func noErr(t *testing.T, err error) {
-	if err != nil {
-		t.Fatalf("err: %v", err)
 	}
 }

@@ -282,10 +282,10 @@ type JobPlanRequest struct {
 }
 
 type JobPlanResponse struct {
-	Cas          uint64
-	CreatedEvals []*Evaluation
-	Diff         *JobDiff
-	Annotations  *PlanAnnotations
+	JobModifyIndex uint64
+	CreatedEvals   []*Evaluation
+	Diff           *JobDiff
+	Annotations    *PlanAnnotations
 }
 
 type JobDiff struct {

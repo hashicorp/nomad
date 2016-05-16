@@ -380,8 +380,8 @@ func TestJobs_Plan(t *testing.T) {
 		t.Fatalf("nil response")
 	}
 
-	if planResp.Cas == 0 {
-		t.Fatalf("bad Cas value: %#v", planResp)
+	if planResp.JobModifyIndex == 0 {
+		t.Fatalf("bad JobModifyIndex value: %#v", planResp)
 	}
 	if planResp.Diff == nil {
 		t.Fatalf("got nil diff: %#v", planResp)
@@ -405,8 +405,8 @@ func TestJobs_Plan(t *testing.T) {
 		t.Fatalf("nil response")
 	}
 
-	if planResp.Cas == 0 {
-		t.Fatalf("bad Cas value: %d", planResp.Cas)
+	if planResp.JobModifyIndex == 0 {
+		t.Fatalf("bad JobModifyIndex value: %d", planResp.JobModifyIndex)
 	}
 	if planResp.Diff != nil {
 		t.Fatalf("got non-nil diff: %#v", planResp)
