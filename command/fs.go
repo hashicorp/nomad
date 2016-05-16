@@ -63,7 +63,12 @@ func (f *FSCommand) Run(args []string) int {
 	args = flags.Args()
 
 	if len(args) < 1 {
-		f.Ui.Error("allocation id or -job is required")
+		if job {
+			f.Ui.Error("job ID is required")
+		} else {
+			f.Ui.Error("allocation ID is required")
+		}
+
 		return 1
 	}
 
