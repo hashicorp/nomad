@@ -20,15 +20,13 @@ func (f *FSCommand) Help() string {
 	helpText := `
 Usage: nomad fs <alloc-id> <path>
 
-	fs displays either the contents of an allocation directory for the passed allocation,
+  fs displays either the contents of an allocation directory for the passed allocation,
   or displays the file at the given path. The path is relative to the root of the alloc
   dir and defaults to root if unspecified.
 
-	General Options:
+General Options:
 
   ` + generalOptionsUsage() + `
-
-Fs Options:
 
   -H
     Machine friendly output.
@@ -65,7 +63,7 @@ func (f *FSCommand) Run(args []string) int {
 	args = flags.Args()
 
 	if len(args) < 1 {
-		f.Ui.Error("allocation id is a required parameter")
+		f.Ui.Error("allocation id or -job is required")
 		return 1
 	}
 
