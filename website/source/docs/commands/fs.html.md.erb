@@ -8,19 +8,18 @@ description: >
 
 # Command: fs
 
-The `fs` family of commands allows a user to navigate an allocation directory on a Nomad
-client. The following subcommands are available - `cat`, `ls` and `stat`
+The `fs` command allows a user to navigate an allocation directory on a Nomad
+client. The following functionalities are available - `cat`, `ls` and `stat`
 
-`cat`: Reads contents of files and writes them to the standard output.
-`ls`: Displays the name of a file and directories and their associated information.
-`stat`: Displays information about a file.
+`cat`: If the target path is a file, Nomad will cat the target path.
+`ls`: If the target path is a directory, Nomad displays the name of a file and directories and their associated information.
+`stat`: If the `-stat` flag is used, Nomad will Display information about a file.
 
 ## Usage 
 
 ```
-nomad fs ls <alloc-id> <path>
-nomad fs stat <alloc-id> <path>
-nomad fs cat <alloc-id> <path>
+nomad fs <alloc-id> <path>
+nomad fs -stat <alloc-id> <path>
 ```
 
 A valid allocation id is necessary unless `-job` is specified and the path is relative to the root of the allocation directory.
@@ -28,25 +27,25 @@ The path is optional and it defaults to `/` of the allocation directory
 
 ## Examples
 
-$ nomad fs ls eb17e557
+$ nomad fs eb17e557
 Mode        Size  Modfied Time         Name
 drwxrwxr-x  4096  28 Jan 16 05:39 UTC  alloc/
 drwxrwxr-x  4096  28 Jan 16 05:39 UTC  redis/
 -rw-rw-r--  0     28 Jan 16 05:39 UTC  redis_exit_status
 
 
-$ nomad fs ls redis/local
+$ nomad fs redis/local
 Mode        Size  Modfied Time         Name
 -rw-rw-rw-  0     28 Jan 16 05:39 UTC  redis.stderr
 -rw-rw-rw-  17    28 Jan 16 05:39 UTC  redis.stdout
 
 
-$ nomad fs stat redis/local/redis.stdout
+$ nomad fs -stat redis/local/redis.stdout
 Mode        Size  Modified Time        Name
 -rw-rw-rw-  17    28 Jan 16 05:39 UTC  redis.stdout
 
 
-$ nomad fs cat redis/local/redis.stdout 
+$ nomad fs redis/local/redis.stdout 
 6710:C 27 Jan 22:04:03.794 # Warning: no config file specified, using the default config. In order to specify a config file use redis-server /path/to/redis.conf
 6710:M 27 Jan 22:04:03.795 * Increased maximum number of open files to 10032 (it was originally set to 256).
 
@@ -55,7 +54,7 @@ $ nomad fs cat redis/local/redis.stdout
 Passing `-job` into one of the `fs` commands will allow the `fs` command to randomly select an allocation ID from the specified job.
 
 ```
-nomad fs ls -job <job-id> <path>
+nomad fs -job <job-id> <path>
 ```
 
 Nomad will prefer to select a running allocation ID for the job, but if no running allocations for the job are found, Nomad will use a dead allocation.
