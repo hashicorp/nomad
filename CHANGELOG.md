@@ -1,5 +1,8 @@
 ## 0.4.0 (UNRELEASED)
 
+IMPROVEMENTS:
+  * cli: Unify the `fs` family of commands to be a single command [GH-1150]
+
 BUG FIXES:
   * core: Updated User, Meta or Resources in a task cause create/destroy updates
     [GH-1128, GH-1153]
