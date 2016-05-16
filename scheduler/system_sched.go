@@ -113,8 +113,9 @@ func (s *SystemScheduler) process() (bool, error) {
 		return false, err
 	}
 
-	// If the plan is a no-op, we can bail
-	if s.plan.IsNoOp() {
+	// If the plan is a no-op, we can bail. If AnnotatePlan is set submit the plan
+	// anyways to get the annotations.
+	if s.plan.IsNoOp() && !s.eval.AnnotatePlan {
 		return true, nil
 	}
 
@@ -185,7 +186,15 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	}
 
 	// Attempt to do the upgrades in place
-	diff.update = inplaceUpdate(s.ctx, s.eval, s.job, s.stack, diff.update)
+	destructiveUpdates := inplaceUpdate(s.ctx, s.eval, s.job, s.stack, diff.update)
+	inplaceUpdates := diff.update[len(destructiveUpdates):]
+	diff.update = destructiveUpdates
+
+	if s.eval.AnnotatePlan {
+		s.plan.Annotations = &structs.PlanAnnotations{
+			DesiredTGUpdates: desiredUpdates(diff, inplaceUpdates, destructiveUpdates),
+		}
+	}
 
 	// Check if a rolling upgrade strategy is being used
 	limit := len(diff.update)

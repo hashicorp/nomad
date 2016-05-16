@@ -483,3 +483,39 @@ func TestHTTP_PeriodicForce(t *testing.T) {
 		}
 	})
 }
+
+func TestHTTP_JobPlan(t *testing.T) {
+	httpTest(t, nil, func(s *TestServer) {
+		// Create the job
+		job := mock.Job()
+		args := structs.JobPlanRequest{
+			Job:          job,
+			Diff:         true,
+			WriteRequest: structs.WriteRequest{Region: "global"},
+		}
+		buf := encodeReq(args)
+
+		// Make the HTTP request
+		req, err := http.NewRequest("PUT", "/v1/job/"+job.ID+"/plan", buf)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		respW := httptest.NewRecorder()
+
+		// Make the request
+		obj, err := s.Server.JobSpecificRequest(respW, req)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Check the response
+		plan := obj.(structs.JobPlanResponse)
+		if plan.Annotations == nil {
+			t.Fatalf("bad: %v", plan)
+		}
+
+		if plan.Diff == nil {
+			t.Fatalf("bad: %v", plan)
+		}
+	})
+}

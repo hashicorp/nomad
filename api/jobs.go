@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"sort"
 	"time"
 )
@@ -114,6 +115,24 @@ func (j *Jobs) PeriodicForce(jobID string, q *WriteOptions) (string, *WriteMeta,
 		return "", nil, err
 	}
 	return resp.EvalID, wm, nil
+}
+
+func (j *Jobs) Plan(job *Job, diff bool, q *WriteOptions) (*JobPlanResponse, *WriteMeta, error) {
+	if job == nil {
+		return nil, nil, fmt.Errorf("must pass non-nil job")
+	}
+
+	var resp JobPlanResponse
+	req := &JobPlanRequest{
+		Job:  job,
+		Diff: diff,
+	}
+	wm, err := j.client.write("/v1/job/"+job.ID+"/plan", req, &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return &resp, wm, nil
 }
 
 // periodicForceResponse is used to deserialize a force response
@@ -255,4 +274,68 @@ type registerJobResponse struct {
 // deregisterJobResponse is used to decode a deregister response
 type deregisterJobResponse struct {
 	EvalID string
+}
+
+type JobPlanRequest struct {
+	Job  *Job
+	Diff bool
+}
+
+type JobPlanResponse struct {
+	JobModifyIndex uint64
+	CreatedEvals   []*Evaluation
+	Diff           *JobDiff
+	Annotations    *PlanAnnotations
+}
+
+type JobDiff struct {
+	Type       string
+	ID         string
+	Fields     []*FieldDiff
+	Objects    []*ObjectDiff
+	TaskGroups []*TaskGroupDiff
+}
+
+type TaskGroupDiff struct {
+	Type    string
+	Name    string
+	Fields  []*FieldDiff
+	Objects []*ObjectDiff
+	Tasks   []*TaskDiff
+	Updates map[string]uint64
+}
+
+type TaskDiff struct {
+	Type        string
+	Name        string
+	Fields      []*FieldDiff
+	Objects     []*ObjectDiff
+	Annotations []string
+}
+
+type FieldDiff struct {
+	Type        string
+	Name        string
+	Old, New    string
+	Annotations []string
+}
+
+type ObjectDiff struct {
+	Type    string
+	Name    string
+	Fields  []*FieldDiff
+	Objects []*ObjectDiff
+}
+
+type PlanAnnotations struct {
+	DesiredTGUpdates map[string]*DesiredUpdates
+}
+
+type DesiredUpdates struct {
+	Ignore            uint64
+	Place             uint64
+	Migrate           uint64
+	Stop              uint64
+	InPlaceUpdate     uint64
+	DestructiveUpdate uint64
 }

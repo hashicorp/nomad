@@ -51,6 +51,9 @@ func (s *HTTPServer) JobSpecificRequest(resp http.ResponseWriter, req *http.Requ
 	case strings.HasSuffix(path, "/periodic/force"):
 		jobName := strings.TrimSuffix(path, "/periodic/force")
 		return s.periodicForceRequest(resp, req, jobName)
+	case strings.HasSuffix(path, "/plan"):
+		jobName := strings.TrimSuffix(path, "/plan")
+		return s.jobPlan(resp, req, jobName)
 	default:
 		return s.jobCRUD(resp, req, path)
 	}
@@ -68,6 +71,32 @@ func (s *HTTPServer) jobForceEvaluate(resp http.ResponseWriter, req *http.Reques
 
 	var out structs.JobRegisterResponse
 	if err := s.agent.RPC("Job.Evaluate", &args, &out); err != nil {
+		return nil, err
+	}
+	setIndex(resp, out.Index)
+	return out, nil
+}
+
+func (s *HTTPServer) jobPlan(resp http.ResponseWriter, req *http.Request,
+	jobName string) (interface{}, error) {
+	if req.Method != "PUT" && req.Method != "POST" {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+
+	var args structs.JobPlanRequest
+	if err := decodeBody(req, &args); err != nil {
+		return nil, CodedError(400, err.Error())
+	}
+	if args.Job == nil {
+		return nil, CodedError(400, "Job must be specified")
+	}
+	if jobName != "" && args.Job.ID != jobName {
+		return nil, CodedError(400, "Job ID does not match")
+	}
+	s.parseRegion(req, &args.Region)
+
+	var out structs.JobPlanResponse
+	if err := s.agent.RPC("Job.Plan", &args, &out); err != nil {
 		return nil, err
 	}
 	setIndex(resp, out.Index)

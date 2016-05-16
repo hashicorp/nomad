@@ -350,6 +350,76 @@ func TestJobs_PeriodicForce(t *testing.T) {
 	t.Fatalf("evaluation %q missing", evalID)
 }
 
+func TestJobs_Plan(t *testing.T) {
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	jobs := c.Jobs()
+
+	// Create a job and attempt to register it
+	job := testJob()
+	eval, wm, err := jobs.Register(job, nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	if eval == "" {
+		t.Fatalf("missing eval id")
+	}
+	assertWriteMeta(t, wm)
+
+	// Check that passing a nil job fails
+	if _, _, err := jobs.Plan(nil, true, nil); err == nil {
+		t.Fatalf("expect an error when job isn't provided")
+	}
+
+	// Make a plan request
+	planResp, wm, err := jobs.Plan(job, true, nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	if planResp == nil {
+		t.Fatalf("nil response")
+	}
+
+	if planResp.JobModifyIndex == 0 {
+		t.Fatalf("bad JobModifyIndex value: %#v", planResp)
+	}
+	if planResp.Diff == nil {
+		t.Fatalf("got nil diff: %#v", planResp)
+	}
+	if planResp.Annotations == nil {
+		t.Fatalf("got nil annotations: %#v", planResp)
+	}
+	// Can make this assertion because there are no clients.
+	if len(planResp.CreatedEvals) == 0 {
+		t.Fatalf("got no CreatedEvals: %#v", planResp)
+	}
+
+	// Make a plan request w/o the diff
+	planResp, wm, err = jobs.Plan(job, false, nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	assertWriteMeta(t, wm)
+
+	if planResp == nil {
+		t.Fatalf("nil response")
+	}
+
+	if planResp.JobModifyIndex == 0 {
+		t.Fatalf("bad JobModifyIndex value: %d", planResp.JobModifyIndex)
+	}
+	if planResp.Diff != nil {
+		t.Fatalf("got non-nil diff: %#v", planResp)
+	}
+	if planResp.Annotations == nil {
+		t.Fatalf("got nil annotations: %#v", planResp)
+	}
+	// Can make this assertion because there are no clients.
+	if len(planResp.CreatedEvals) == 0 {
+		t.Fatalf("got no CreatedEvals: %#v", planResp)
+	}
+}
+
 func TestJobs_NewBatchJob(t *testing.T) {
 	job := NewBatchJob("job1", "myjob", "region1", 5)
 	expect := &Job{

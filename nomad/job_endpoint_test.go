@@ -914,3 +914,101 @@ func TestJobEndpoint_Evaluations(t *testing.T) {
 		t.Fatalf("bad: %#v", resp2.Evaluations)
 	}
 }
+
+func TestJobEndpoint_Plan_WithDiff(t *testing.T) {
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	job := mock.Job()
+	req := &structs.JobRegisterRequest{
+		Job:          job,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp.Index == 0 {
+		t.Fatalf("bad index: %d", resp.Index)
+	}
+
+	// Create a plan request
+	planReq := &structs.JobPlanRequest{
+		Job:          job,
+		Diff:         true,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var planResp structs.JobPlanResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Plan", planReq, &planResp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Check the response
+	if planResp.JobModifyIndex == 0 {
+		t.Fatalf("bad cas: %d", planResp.JobModifyIndex)
+	}
+	if planResp.Annotations == nil {
+		t.Fatalf("no annotations")
+	}
+	if planResp.Diff == nil {
+		t.Fatalf("no diff")
+	}
+}
+
+func TestJobEndpoint_Plan_NoDiff(t *testing.T) {
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	job := mock.Job()
+	req := &structs.JobRegisterRequest{
+		Job:          job,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp.Index == 0 {
+		t.Fatalf("bad index: %d", resp.Index)
+	}
+
+	// Create a plan request
+	planReq := &structs.JobPlanRequest{
+		Job:          job,
+		Diff:         false,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var planResp structs.JobPlanResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Plan", planReq, &planResp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Check the response
+	if planResp.JobModifyIndex == 0 {
+		t.Fatalf("bad cas: %d", planResp.JobModifyIndex)
+	}
+	if planResp.Annotations == nil {
+		t.Fatalf("no annotations")
+	}
+	if planResp.Diff != nil {
+		t.Fatalf("got diff")
+	}
+}

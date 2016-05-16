@@ -10,26 +10,6 @@ import (
 	"github.com/mitchellh/hashstructure"
 )
 
-const (
-	// AnnotationForcesDestructiveUpdate marks a diff as causing a destructive
-	// update.
-	AnnotationForcesDestructiveUpdate = "forces create/destroy update"
-
-	// AnnotationForcesInplaceUpdate marks a diff as causing an in-place
-	// update.
-	AnnotationForcesInplaceUpdate = "forces in-place update"
-)
-
-// UpdateTypes denote the type of update to occur against the task group.
-const (
-	UpdateTypeIgnore            = "ignore"
-	UpdateTypeCreate            = "create"
-	UpdateTypeDestroy           = "destroy"
-	UpdateTypeMigrate           = "migrate"
-	UpdateTypeInplaceUpdate     = "in-place update"
-	UpdateTypeDestructiveUpdate = "create/destroy update"
-)
-
 // DiffType denotes the type of a diff object.
 type DiffType string
 
@@ -81,15 +61,20 @@ func (j *Job) Diff(other *Job, contextual bool) (*JobDiff, error) {
 	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
 	filter := []string{"ID", "Status", "StatusDescription", "CreateIndex", "ModifyIndex", "JobModifyIndex"}
 
+	// Have to treat this special since it is a struct literal, not a pointer
+	var jUpdate, otherUpdate *UpdateStrategy
+
 	if j == nil && other == nil {
 		return diff, nil
 	} else if j == nil {
 		j = &Job{}
+		otherUpdate = &other.Update
 		diff.Type = DiffTypeAdded
 		newPrimitiveFlat = flatmap.Flatten(other, filter, true)
 		diff.ID = other.ID
 	} else if other == nil {
 		other = &Job{}
+		jUpdate = &j.Update
 		diff.Type = DiffTypeDeleted
 		oldPrimitiveFlat = flatmap.Flatten(j, filter, true)
 		diff.ID = j.ID
@@ -102,6 +87,8 @@ func (j *Job) Diff(other *Job, contextual bool) (*JobDiff, error) {
 			return nil, fmt.Errorf("can not diff jobs with different IDs: %q and %q", j.ID, other.ID)
 		}
 
+		jUpdate = &j.Update
+		otherUpdate = &other.Update
 		oldPrimitiveFlat = flatmap.Flatten(j, filter, true)
 		newPrimitiveFlat = flatmap.Flatten(other, filter, true)
 		diff.ID = other.ID
@@ -134,7 +121,7 @@ func (j *Job) Diff(other *Job, contextual bool) (*JobDiff, error) {
 	diff.TaskGroups = tgs
 
 	// Update diff
-	if uDiff := primitiveObjectDiff(j.Update, other.Update, nil, "Update", contextual); uDiff != nil {
+	if uDiff := primitiveObjectDiff(jUpdate, otherUpdate, nil, "Update", contextual); uDiff != nil {
 		diff.Objects = append(diff.Objects, uDiff)
 	}
 
@@ -171,7 +158,7 @@ type TaskGroupDiff struct {
 	Fields  []*FieldDiff
 	Objects []*ObjectDiff
 	Tasks   []*TaskDiff
-	Updates map[string]int
+	Updates map[string]uint64
 }
 
 // Diff returns a diff of two task groups. If contextual diff is enabled,
@@ -847,9 +834,10 @@ func (o ObjectDiffs) Swap(i, j int)      { o[i], o[j] = o[j], o[i] }
 func (o ObjectDiffs) Less(i, j int) bool { return o[i].Less(o[j]) }
 
 type FieldDiff struct {
-	Type     DiffType
-	Name     string
-	Old, New string
+	Type        DiffType
+	Name        string
+	Old, New    string
+	Annotations []string
 }
 
 // fieldDiff returns a FieldDiff if old and new are different otherwise, it
@@ -880,7 +868,12 @@ func fieldDiff(old, new, name string, contextual bool) *FieldDiff {
 }
 
 func (f *FieldDiff) GoString() string {
-	return fmt.Sprintf("%q (%s): %q => %q", f.Name, f.Type, f.Old, f.New)
+	out := fmt.Sprintf("%q (%s): %q => %q", f.Name, f.Type, f.Old, f.New)
+	if len(f.Annotations) != 0 {
+		out += fmt.Sprintf(" (%s)", strings.Join(f.Annotations, ", "))
+	}
+
+	return out
 }
 
 func (f *FieldDiff) Less(other *FieldDiff) bool {
