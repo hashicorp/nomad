@@ -469,7 +469,7 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 		reply.Diff = jobDiff
 	}
 
-	reply.Cas = index
+	reply.JobModifyIndex = index
 	reply.Annotations = annotations
 	reply.CreatedEvals = planner.CreatedEvals
 	reply.Index = index

@@ -403,10 +403,10 @@ type JobPlanResponse struct {
 	// Annotations stores annotations explaining decisions the scheduler made.
 	Annotations *PlanAnnotations
 
-	// The Cas value can be used when running `nomad run` to ensure that the Job
-	// wasn’t modified since the last plan. If the job is being created, the
-	// value is zero.
-	Cas uint64
+	// JobModifyIndex is the modification index of the job. The value can be
+	// used when running `nomad run` to ensure that the Job wasn’t modified
+	// since the last plan. If the job is being created, the value is zero.
+	JobModifyIndex uint64
 
 	// CreatedEvals is the set of evaluations created by the scheduler. The
 	// reasons for this can be rolling-updates or blocked evals.

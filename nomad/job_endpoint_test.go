@@ -953,8 +953,8 @@ func TestJobEndpoint_Plan_WithDiff(t *testing.T) {
 	}
 
 	// Check the response
-	if planResp.Cas == 0 {
-		t.Fatalf("bad cas: %d", planResp.Cas)
+	if planResp.JobModifyIndex == 0 {
+		t.Fatalf("bad cas: %d", planResp.JobModifyIndex)
 	}
 	if planResp.Annotations == nil {
 		t.Fatalf("no annotations")
@@ -1002,8 +1002,8 @@ func TestJobEndpoint_Plan_NoDiff(t *testing.T) {
 	}
 
 	// Check the response
-	if planResp.Cas == 0 {
-		t.Fatalf("bad cas: %d", planResp.Cas)
+	if planResp.JobModifyIndex == 0 {
+		t.Fatalf("bad cas: %d", planResp.JobModifyIndex)
 	}
 	if planResp.Annotations == nil {
 		t.Fatalf("no annotations")
