@@ -11,13 +11,14 @@ import (
 )
 
 const (
-	casHelp = `To submit the job with version verification run:
+	jobModifyIndexHelp = `To submit the job with version verification run:
 
 nomad run -verify %d %s
 
-When running the job with the verify flag, the job will only be run if the server side
-version matches the the verify index returned. If the index has changed, another user has
-modified the job and the plan's results are potentially invalid.`
+When running the job with the verify flag, the job will only be run if the
+server side version matches the the job modify index returned. If the index has
+changed, another user has modified the job and the plan's results are
+potentially invalid.`
 )
 
 type PlanCommand struct {
@@ -118,13 +119,13 @@ func (c *PlanCommand) Run(args []string) int {
 	c.Ui.Output(c.Colorize().Color("[bold]Scheduler dry-run:[reset]"))
 	c.Ui.Output(c.Colorize().Color(formatDryRun(resp.CreatedEvals)))
 
-	c.Ui.Output(c.Colorize().Color(formatCas(resp.Cas, file)))
+	c.Ui.Output(c.Colorize().Color(formatJobModifyIndex(resp.JobModifyIndex, file)))
 	return 0
 }
 
-func formatCas(cas uint64, jobName string) string {
-	help := fmt.Sprintf(casHelp, cas, jobName)
-	out := fmt.Sprintf("[reset][bold]Job Verify Index: %d[reset]\n%s", cas, help)
+func formatJobModifyIndex(jobModifyIndex uint64, jobName string) string {
+	help := fmt.Sprintf(jobModifyIndexHelp, jobModifyIndex, jobName)
+	out := fmt.Sprintf("[reset][bold]Job Modify Index: %d[reset]\n%s", jobModifyIndex, help)
 	return out
 }
 
@@ -156,27 +157,51 @@ func formatDryRun(evals []*api.Evaluation) string {
 }
 
 func formatJobDiff(job *api.JobDiff, verbose bool) string {
-	out := fmt.Sprintf("%s[bold]Job: %q\n", getDiffString(job.Type), job.ID)
+	marker, _ := getDiffString(job.Type)
+	out := fmt.Sprintf("%s[bold]Job: %q\n", marker, job.ID)
 
+	longestField, longestMarker := getLongestPrefixes(job.Fields, job.Objects)
+	for _, tg := range job.TaskGroups {
+		if _, l := getDiffString(tg.Type); l > longestMarker {
+			longestMarker = l
+		}
+	}
+
+	subStartPrefix := ""
 	if job.Type == "Edited" || verbose {
 		for _, field := range job.Fields {
-			out += fmt.Sprintf("%s\n", formatFieldDiff(field, "", verbose))
+			_, mLength := getDiffString(field.Type)
+			kPrefix := longestMarker - mLength
+			vPrefix := longestField - len(field.Name)
+			out += fmt.Sprintf("%s\n", formatFieldDiff(
+				field,
+				subStartPrefix,
+				strings.Repeat(" ", kPrefix),
+				strings.Repeat(" ", vPrefix)))
 		}
 
 		for _, object := range job.Objects {
-			out += fmt.Sprintf("%s\n", formatObjectDiff(object, "", verbose))
+			_, mLength := getDiffString(object.Type)
+			kPrefix := longestMarker - mLength
+			out += fmt.Sprintf("%s\n", formatObjectDiff(
+				object,
+				subStartPrefix,
+				strings.Repeat(" ", kPrefix)))
 		}
 	}
 
 	for _, tg := range job.TaskGroups {
-		out += fmt.Sprintf("%s\n", formatTaskGroupDiff(tg, verbose))
+		_, mLength := getDiffString(tg.Type)
+		kPrefix := longestMarker - mLength
+		out += fmt.Sprintf("%s\n", formatTaskGroupDiff(tg, strings.Repeat(" ", kPrefix), verbose))
 	}
 
 	return out
 }
 
-func formatTaskGroupDiff(tg *api.TaskGroupDiff, verbose bool) string {
-	out := fmt.Sprintf("%s[bold]Task Group: %q", getDiffString(tg.Type), tg.Name)
+func formatTaskGroupDiff(tg *api.TaskGroupDiff, tgPrefix string, verbose bool) string {
+	marker, _ := getDiffString(tg.Type)
+	out := fmt.Sprintf("%s%s[bold]Task Group: %q[reset]", marker, tgPrefix, tg.Name)
 
 	// Append the updates
 	if l := len(tg.Updates); l > 0 {
@@ -203,25 +228,48 @@ func formatTaskGroupDiff(tg *api.TaskGroupDiff, verbose bool) string {
 		out += "[reset]\n"
 	}
 
+	longestField, longestMarker := getLongestPrefixes(tg.Fields, tg.Objects)
+	for _, task := range tg.Tasks {
+		if _, l := getDiffString(task.Type); l > longestMarker {
+			longestMarker = l
+		}
+	}
+
+	subStartPrefix := strings.Repeat(" ", len(tgPrefix)+2)
 	if tg.Type == "Edited" || verbose {
 		for _, field := range tg.Fields {
-			out += fmt.Sprintf("%s\n", formatFieldDiff(field, "  ", verbose))
+			_, mLength := getDiffString(field.Type)
+			kPrefix := longestMarker - mLength
+			vPrefix := longestField - len(field.Name)
+			out += fmt.Sprintf("%s\n", formatFieldDiff(
+				field,
+				subStartPrefix,
+				strings.Repeat(" ", kPrefix),
+				strings.Repeat(" ", vPrefix)))
 		}
 
 		for _, object := range tg.Objects {
-			out += fmt.Sprintf("%s\n", formatObjectDiff(object, "  ", verbose))
+			_, mLength := getDiffString(object.Type)
+			kPrefix := longestMarker - mLength
+			out += fmt.Sprintf("%s\n", formatObjectDiff(
+				object,
+				subStartPrefix,
+				strings.Repeat(" ", kPrefix)))
 		}
 	}
 
 	for _, task := range tg.Tasks {
-		out += fmt.Sprintf("%s\n", formatTaskDiff(task, verbose))
+		_, mLength := getDiffString(task.Type)
+		prefix := strings.Repeat(" ", (longestMarker - mLength))
+		out += fmt.Sprintf("%s\n", formatTaskDiff(task, subStartPrefix, prefix, verbose))
 	}
 
 	return out
 }
 
-func formatTaskDiff(task *api.TaskDiff, verbose bool) string {
-	out := fmt.Sprintf("  %s[bold]Task: %q", getDiffString(task.Type), task.Name)
+func formatTaskDiff(task *api.TaskDiff, startPrefix, taskPrefix string, verbose bool) string {
+	marker, _ := getDiffString(task.Type)
+	out := fmt.Sprintf("%s%s%s[bold]Task: %q", startPrefix, marker, taskPrefix, task.Name)
 	if len(task.Annotations) != 0 {
 		out += fmt.Sprintf(" [reset](%s)", colorAnnotations(task.Annotations))
 	}
@@ -234,28 +282,43 @@ func formatTaskDiff(task *api.TaskDiff, verbose bool) string {
 		out += "\n"
 	}
 
+	subStartPrefix := strings.Repeat(" ", len(startPrefix)+2)
+	longestField, longestMarker := getLongestPrefixes(task.Fields, task.Objects)
 	for _, field := range task.Fields {
-		out += fmt.Sprintf("%s\n", formatFieldDiff(field, "    ", verbose))
+		_, mLength := getDiffString(field.Type)
+		kPrefix := longestMarker - mLength
+		vPrefix := longestField - len(field.Name)
+		out += fmt.Sprintf("%s\n", formatFieldDiff(
+			field,
+			subStartPrefix,
+			strings.Repeat(" ", kPrefix),
+			strings.Repeat(" ", vPrefix)))
 	}
 
 	for _, object := range task.Objects {
-		out += fmt.Sprintf("%s\n", formatObjectDiff(object, "    ", verbose))
+		_, mLength := getDiffString(object.Type)
+		kPrefix := longestMarker - mLength
+		out += fmt.Sprintf("%s\n", formatObjectDiff(
+			object,
+			subStartPrefix,
+			strings.Repeat(" ", kPrefix)))
 	}
 
 	return out
 }
 
-func formatFieldDiff(diff *api.FieldDiff, prefix string, verbose bool) string {
-	out := prefix
+func formatFieldDiff(diff *api.FieldDiff, startPrefix, keyPrefix, valuePrefix string) string {
+	marker, _ := getDiffString(diff.Type)
+	out := fmt.Sprintf("%s%s%s%s: %s", startPrefix, marker, keyPrefix, diff.Name, valuePrefix)
 	switch diff.Type {
 	case "Added":
-		out += fmt.Sprintf("%s%s: %q", getDiffString(diff.Type), diff.Name, diff.New)
+		out += fmt.Sprintf("%q", diff.New)
 	case "Deleted":
-		out += fmt.Sprintf("%s%s: %q", getDiffString(diff.Type), diff.Name, diff.Old)
+		out += fmt.Sprintf("%q", diff.Old)
 	case "Edited":
-		out += fmt.Sprintf("%s%s: %q => %q", getDiffString(diff.Type), diff.Name, diff.Old, diff.New)
+		out += fmt.Sprintf("%q => %q", diff.Old, diff.New)
 	default:
-		out += fmt.Sprintf("%s: %q", diff.Name, diff.New)
+		out += fmt.Sprintf("%q", diff.New)
 	}
 
 	// Color the annotations where possible
@@ -264,6 +327,77 @@ func formatFieldDiff(diff *api.FieldDiff, prefix string, verbose bool) string {
 	}
 
 	return out
+}
+
+func getLongestPrefixes(fields []*api.FieldDiff, objects []*api.ObjectDiff) (longestField, longestMarker int) {
+	for _, field := range fields {
+		if l := len(field.Name); l > longestField {
+			longestField = l
+		}
+		if _, l := getDiffString(field.Type); l > longestMarker {
+			longestMarker = l
+		}
+	}
+	for _, obj := range objects {
+		if _, l := getDiffString(obj.Type); l > longestMarker {
+			longestMarker = l
+		}
+	}
+	return longestField, longestMarker
+}
+
+func formatObjectDiff(diff *api.ObjectDiff, startPrefix, keyPrefix string) string {
+	marker, _ := getDiffString(diff.Type)
+	out := fmt.Sprintf("%s%s%s%s {\n", startPrefix, marker, keyPrefix, diff.Name)
+
+	// Determine the length of the longest name and longest diff marker to
+	// properly align names and values
+	longestField, longestMarker := getLongestPrefixes(diff.Fields, diff.Objects)
+	subStartPrefix := strings.Repeat(" ", len(startPrefix)+2)
+	numFields := len(diff.Fields)
+	numObjects := len(diff.Objects)
+	haveObjects := numObjects != 0
+	for i, field := range diff.Fields {
+		_, mLength := getDiffString(field.Type)
+		kPrefix := longestMarker - mLength
+		vPrefix := longestField - len(field.Name)
+		out += formatFieldDiff(
+			field,
+			subStartPrefix,
+			strings.Repeat(" ", kPrefix),
+			strings.Repeat(" ", vPrefix))
+
+		// Avoid a dangling new line
+		if i+1 != numFields || haveObjects {
+			out += "\n"
+		}
+	}
+
+	for i, object := range diff.Objects {
+		_, mLength := getDiffString(object.Type)
+		kPrefix := longestMarker - mLength
+		out += formatObjectDiff(object, subStartPrefix, strings.Repeat(" ", kPrefix))
+
+		// Avoid a dangling new line
+		if i+1 != numObjects {
+			out += "\n"
+		}
+	}
+
+	return fmt.Sprintf("%s\n%s}", out, startPrefix)
+}
+
+func getDiffString(diffType string) (string, int) {
+	switch diffType {
+	case "Added":
+		return "[green]+[reset] ", 2
+	case "Deleted":
+		return "[red]-[reset] ", 2
+	case "Edited":
+		return "[light_yellow]+/-[reset] ", 4
+	default:
+		return "", 0
+	}
 }
 
 func colorAnnotations(annotations []string) string {
@@ -289,41 +423,4 @@ func colorAnnotations(annotations []string) string {
 	}
 
 	return strings.Join(colored, ", ")
-}
-
-func formatObjectDiff(diff *api.ObjectDiff, prefix string, verbose bool) string {
-	out := fmt.Sprintf("%s%s%s {\n", prefix, getDiffString(diff.Type), diff.Name)
-
-	newPrefix := prefix + "  "
-	numFields := len(diff.Fields)
-	numObjects := len(diff.Objects)
-	haveObjects := numObjects != 0
-	for i, field := range diff.Fields {
-		out += formatFieldDiff(field, newPrefix, verbose)
-		if i+1 != numFields || haveObjects {
-			out += "\n"
-		}
-	}
-
-	for i, object := range diff.Objects {
-		out += formatObjectDiff(object, newPrefix, verbose)
-		if i+1 != numObjects {
-			out += "\n"
-		}
-	}
-
-	return fmt.Sprintf("%s\n%s}", out, prefix)
-}
-
-func getDiffString(diffType string) string {
-	switch diffType {
-	case "Added":
-		return "[green]+[reset] "
-	case "Deleted":
-		return "[red]-[reset] "
-	case "Edited":
-		return "[light_yellow]+/-[reset] "
-	default:
-		return ""
-	}
 }
