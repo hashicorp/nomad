@@ -80,6 +80,9 @@ func TestConfig_Merge(t *testing.T) {
 			Join:           false,
 			Endpoint:       "foo",
 		},
+		HTTPAPIResponseHeaders: map[string]string{
+			"Access-Control-Allow-Origin": "*",
+		},
 	}
 
 	c2 := &Config{
@@ -161,6 +164,10 @@ func TestConfig_Merge(t *testing.T) {
 			Token:          "xyz",
 			Join:           true,
 			Endpoint:       "bar",
+		},
+		HTTPAPIResponseHeaders: map[string]string{
+			"Access-Control-Allow-Origin":  "*",
+			"Access-Control-Allow-Methods": "GET, POST, OPTIONS",
 		},
 	}
 
