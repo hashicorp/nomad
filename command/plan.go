@@ -13,9 +13,9 @@ import (
 const (
 	jobModifyIndexHelp = `To submit the job with version verification run:
 
-nomad run -verify %d %s
+nomad run -check-index %d %s
 
-When running the job with the verify flag, the job will only be run if the
+When running the job with the check-index flag, the job will only be run if the
 server side version matches the the job modify index returned. If the index has
 changed, another user has modified the job and the plan's results are
 potentially invalid.`
@@ -36,14 +36,12 @@ Usage: nomad plan [options] <file>
   successfully and how it would affect existing allocations.
 
   A job modify index is returned with the plan. This value can be used when
-  submitting the job using "nomad run -verify", which will check that the job
+  submitting the job using "nomad run -check-index", which will check that the job
   was not modified between the plan and run command before invoking the
-  scheduler. This ensures that the plan reflects the same modifications to the
-  job as the run.
+  scheduler. This ensures the job has not been modified since the plan.
 
-  An annotated diff between the submitted job and the remote state is also
-  displayed. This diff gives insight onto what the scheduler will attempt to do
-  and why.
+  A structured diff between the local and remote job is displayed to
+  give insight into what the scheduler will attempt to do and why.
 
 General Options:
 
@@ -59,7 +57,6 @@ Run Options:
 
   -verbose
     Increase diff verbosity.
-
 `
 	return strings.TrimSpace(helpText)
 }
