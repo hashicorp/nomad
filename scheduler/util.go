@@ -367,12 +367,13 @@ func setStatus(logger *log.Logger, planner Planner, eval, nextEval *structs.Eval
 	return planner.UpdateEval(newEval)
 }
 
-// inplaceUpdate attempts to update allocations in-place where possible.
+// inplaceUpdate attempts to update allocations in-place where possible. It
+// returns the allocs that couldn't be done inplace and then those that could.
 func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
-	stack Stack, updates []allocTuple) []allocTuple {
+	stack Stack, updates []allocTuple) (destructive, inplace []allocTuple) {
 
 	n := len(updates)
-	inplace := 0
+	inplaceCount := 0
 	for i := 0; i < n; i++ {
 		// Get the update
 		update := updates[i]
@@ -441,15 +442,15 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 		ctx.Plan().AppendAlloc(newAlloc)
 
 		// Remove this allocation from the slice
-		updates[i] = updates[n-1]
+		updates[i], updates[n-1] = updates[n-1], updates[i]
 		i--
 		n--
-		inplace++
+		inplaceCount++
 	}
 	if len(updates) > 0 {
-		ctx.Logger().Printf("[DEBUG] sched: %#v: %d in-place updates of %d", eval, inplace, len(updates))
+		ctx.Logger().Printf("[DEBUG] sched: %#v: %d in-place updates of %d", eval, inplaceCount, len(updates))
 	}
-	return updates[:n]
+	return updates[:n], updates[n:]
 }
 
 // evictAndPlace is used to mark allocations for evicts and add them to the

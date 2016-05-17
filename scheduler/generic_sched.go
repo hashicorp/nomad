@@ -324,8 +324,7 @@ func (s *GenericScheduler) computeJobAllocs() error {
 	}
 
 	// Attempt to do the upgrades in place
-	destructiveUpdates := inplaceUpdate(s.ctx, s.eval, s.job, s.stack, diff.update)
-	inplaceUpdates := diff.update[len(destructiveUpdates):]
+	destructiveUpdates, inplaceUpdates := inplaceUpdate(s.ctx, s.eval, s.job, s.stack, diff.update)
 	diff.update = destructiveUpdates
 
 	if s.eval.AnnotatePlan {

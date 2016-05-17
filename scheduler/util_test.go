@@ -549,9 +549,9 @@ func TestInplaceUpdate_ChangedTaskGroup(t *testing.T) {
 	stack := NewGenericStack(false, ctx)
 
 	// Do the inplace update.
-	unplaced := inplaceUpdate(ctx, eval, job, stack, updates)
+	unplaced, inplace := inplaceUpdate(ctx, eval, job, stack, updates)
 
-	if len(unplaced) != 1 {
+	if len(unplaced) != 1 || len(inplace) != 0 {
 		t.Fatal("inplaceUpdate incorrectly did an inplace update")
 	}
 
@@ -594,9 +594,9 @@ func TestInplaceUpdate_NoMatch(t *testing.T) {
 	stack := NewGenericStack(false, ctx)
 
 	// Do the inplace update.
-	unplaced := inplaceUpdate(ctx, eval, job, stack, updates)
+	unplaced, inplace := inplaceUpdate(ctx, eval, job, stack, updates)
 
-	if len(unplaced) != 1 {
+	if len(unplaced) != 1 || len(inplace) != 0 {
 		t.Fatal("inplaceUpdate incorrectly did an inplace update")
 	}
 
@@ -665,14 +665,18 @@ func TestInplaceUpdate_Success(t *testing.T) {
 	stack.SetJob(job)
 
 	// Do the inplace update.
-	unplaced := inplaceUpdate(ctx, eval, job, stack, updates)
+	unplaced, inplace := inplaceUpdate(ctx, eval, job, stack, updates)
 
-	if len(unplaced) != 0 {
+	if len(unplaced) != 0 || len(inplace) != 1 {
 		t.Fatal("inplaceUpdate did not do an inplace update")
 	}
 
 	if len(ctx.plan.NodeAllocation) != 1 {
 		t.Fatal("inplaceUpdate did not do an inplace update")
+	}
+
+	if inplace[0].Alloc.ID != alloc.ID {
+		t.Fatalf("inplaceUpdate returned the wrong, inplace updated alloc: %#v", inplace)
 	}
 
 	// Get the alloc we inserted.
