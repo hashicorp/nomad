@@ -79,10 +79,6 @@ func (j *Job) Diff(other *Job, contextual bool) (*JobDiff, error) {
 		oldPrimitiveFlat = flatmap.Flatten(j, filter, true)
 		diff.ID = j.ID
 	} else {
-		if !reflect.DeepEqual(j, other) {
-			diff.Type = DiffTypeEdited
-		}
-
 		if j.ID != other.ID {
 			return nil, fmt.Errorf("can not diff jobs with different IDs: %q and %q", j.ID, other.ID)
 		}
@@ -128,6 +124,20 @@ func (j *Job) Diff(other *Job, contextual bool) (*JobDiff, error) {
 	// Periodic diff
 	if pDiff := primitiveObjectDiff(j.Periodic, other.Periodic, nil, "Periodic", contextual); pDiff != nil {
 		diff.Objects = append(diff.Objects, pDiff)
+	}
+
+	// If the job is not a delete or add, determine if there are edits.
+	if diff.Type == DiffTypeNone {
+		tgEdit := false
+		for _, tg := range diff.TaskGroups {
+			if tg.Type != DiffTypeNone {
+				tgEdit = true
+				break
+			}
+		}
+		if tgEdit || len(diff.Fields)+len(diff.Objects) != 0 {
+			diff.Type = DiffTypeEdited
+		}
 	}
 
 	return diff, nil
