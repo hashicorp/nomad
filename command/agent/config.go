@@ -583,6 +583,14 @@ func (c *Config) Merge(b *Config) *Config {
 	// Merge config files lists
 	result.Files = append(result.Files, b.Files...)
 
+	// Add the http API response header map values
+	if result.HTTPAPIResponseHeaders == nil {
+		result.HTTPAPIResponseHeaders = make(map[string]string)
+	}
+	for k, v := range b.HTTPAPIResponseHeaders {
+		result.HTTPAPIResponseHeaders[k] = v
+	}
+
 	return &result
 }
 
