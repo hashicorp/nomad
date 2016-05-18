@@ -552,6 +552,7 @@ func parseConsulConfig(result **ConsulConfig, list *ast.ObjectList) error {
 	valid := []string{
 		"server_service_name",
 		"client_service_name",
+		"auto_register",
 		"addr",
 		"token",
 		"auth",

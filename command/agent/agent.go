@@ -69,11 +69,13 @@ func NewAgent(config *Config, logOutput io.Writer) (*Agent, error) {
 	if a.client == nil && a.server == nil {
 		return nil, fmt.Errorf("must have at least client or server mode enabled")
 	}
-	if err := a.syncAgentServicesWithConsul(a.serverHTTPAddr, a.clientHTTPAddr); err != nil {
-		a.logger.Printf("[ERR] agent: unable to sync agent services with consul: %v", err)
-	}
-	if a.consulService != nil {
-		go a.consulService.PeriodicSync()
+	if a.config.ConsulConfig.AutoRegister {
+		if err := a.syncAgentServicesWithConsul(a.serverHTTPAddr, a.clientHTTPAddr); err != nil {
+			a.logger.Printf("[ERR] agent: unable to sync agent services with consul: %v", err)
+		}
+		if a.consulService != nil {
+			go a.consulService.PeriodicSync()
+		}
 	}
 	return a, nil
 }
@@ -522,6 +524,12 @@ func (a *Agent) syncAgentServicesWithConsul(clientHttpAddr string, serverHttpAdd
 		host, port, err := net.SplitHostPort(portLabel)
 		if err != nil {
 			return "", 0
+		}
+
+		// if the addr for the service is ":port", then we default to
+		// registering the service with ip as the loopback addr
+		if host == "" {
+			host = "127.0.0.1"
 		}
 		p, err := strconv.Atoi(port)
 		if err != nil {

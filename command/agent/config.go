@@ -396,6 +396,7 @@ func DevConfig() *Config {
 	conf.DevMode = true
 	conf.EnableDebug = true
 	conf.DisableAnonymousSignature = true
+	conf.ConsulConfig.AutoRegister = true
 	if runtime.GOOS == "darwin" {
 		conf.Client.NetworkInterface = "lo0"
 	} else if runtime.GOOS == "linux" {
@@ -426,7 +427,6 @@ func DefaultConfig() *Config {
 		ConsulConfig: &ConsulConfig{
 			ServerServiceName: "nomad-server",
 			ClientServiceName: "nomad-client",
-			AutoRegister:      true,
 		},
 		Client: &ClientConfig{
 			Enabled:        false,
@@ -795,6 +795,9 @@ func (a *ConsulConfig) Merge(b *ConsulConfig) *ConsulConfig {
 	}
 	if b.ClientServiceName != "" {
 		result.ClientServiceName = b.ClientServiceName
+	}
+	if b.AutoRegister {
+		result.AutoRegister = true
 	}
 	if b.Addr != "" {
 		result.Addr = b.Addr
