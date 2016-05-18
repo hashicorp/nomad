@@ -18,7 +18,7 @@ func getPort() int {
 	return int(atomic.AddUint32(&nextPort, 1))
 }
 
-func tmpDir(t *testing.T) string {
+func tmpDir(t testing.TB) string {
 	dir, err := ioutil.TempDir("", "nomad")
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -26,7 +26,7 @@ func tmpDir(t *testing.T) string {
 	return dir
 }
 
-func makeAgent(t *testing.T, cb func(*Config)) (string, *Agent) {
+func makeAgent(t testing.TB, cb func(*Config)) (string, *Agent) {
 	dir := tmpDir(t)
 	conf := DevConfig()
 
