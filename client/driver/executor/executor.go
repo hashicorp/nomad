@@ -27,6 +27,10 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+const (
+	pidScanInterval = 5 * time.Second
+)
+
 // Executor is the interface which allows a driver to launch and supervise
 // a process
 type Executor interface {
@@ -631,7 +635,7 @@ func (e *UniversalExecutor) collectPids() {
 		case <-timer.C:
 			pids, err := e.getAllPids()
 			e.logger.Printf("DIPTANU PIDS %#v", pids)
-			timer.Reset(5 * time.Second)
+			timer.Reset(pidScanInterval)
 			if err != nil {
 				e.logger.Printf("[DEBUG] executor: error collecting pids: %v", err)
 			}
@@ -721,6 +725,5 @@ func (e *UniversalExecutor) resourceUsagePids() (*cstructs.TaskResourceUsage, er
 		Swap: totalSwap,
 	}
 
-	return &cstructs.TaskResourceUsage{MemoryStats: totalMemory, CpuStats: totalCPU}, nil
-
+	return &cstructs.TaskResourceUsage{MemoryStats: totalMemory, CpuStats: totalCPU, Timestamp: ts}, nil
 }

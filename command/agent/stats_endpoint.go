@@ -3,11 +3,23 @@ package agent
 import (
 	"fmt"
 	"net/http"
+	"strconv"
+
+	"github.com/hashicorp/nomad/client"
 )
 
 func (s *HTTPServer) StatsRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	if s.agent.client == nil {
 		return nil, clientNotRunning
+	}
+
+	var tsRequest bool
+
+	// Check if the user has requested time series
+	if qp := req.URL.Query().Get("ts"); qp != "" {
+		if tsReq, err := strconv.ParseBool(qp); err == nil {
+			tsRequest = tsReq
+		}
 	}
 
 	clientStats := s.agent.client.StatsReporter()
@@ -30,14 +42,21 @@ func (s *HTTPServer) StatsRequest(resp http.ResponseWriter, req *http.Request) (
 		if err != nil {
 			return nil, err
 		}
-		return taskStats.ResourceUsage(), nil
+		return s.getStats(tsRequest, taskStats), nil
 	}
 
 	// Return the resource usage of all the tasks in an allocation if task name
 	// is not specified
 	res := make(map[string]interface{})
 	for task, taskStats := range allocStats.AllocStats() {
-		res[task] = taskStats.ResourceUsage()
+		res[task] = s.getStats(tsRequest, taskStats)
 	}
 	return res, nil
+}
+
+func (s *HTTPServer) getStats(tsRequest bool, taskStats client.TaskStatsReporter) interface{} {
+	if tsRequest {
+		return taskStats.ResourceUsageTS()
+	}
+	return taskStats.ResourceUsage()
 }
