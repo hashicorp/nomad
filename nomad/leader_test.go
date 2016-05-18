@@ -496,12 +496,7 @@ func TestLeader_ReapFailedEval(t *testing.T) {
 
 	// Wait for a periodic dispatch
 	eval := mock.Eval()
-	testutil.WaitForResult(func() (bool, error) {
-		err := s1.evalBroker.Enqueue(eval)
-		return err == nil, err
-	}, func(err error) {
-		t.Fatalf("err: %v", err)
-	})
+	s1.evalBroker.Enqueue(eval)
 
 	// Dequeue and Nack
 	out, token, err := s1.evalBroker.Dequeue(defaultSched, time.Second)

@@ -20,12 +20,8 @@ func TestPlanEndpoint_Submit(t *testing.T) {
 
 	// Create the register request
 	eval1 := mock.Eval()
-	testutil.WaitForResult(func() (bool, error) {
-		err := s1.evalBroker.Enqueue(eval1)
-		return err == nil, err
-	}, func(err error) {
-		t.Fatalf("err: %v", err)
-	})
+	s1.evalBroker.Enqueue(eval1)
+
 	evalOut, token, err := s1.evalBroker.Dequeue([]string{eval1.Type}, time.Second)
 	if err != nil {
 		t.Fatalf("err: %v", err)

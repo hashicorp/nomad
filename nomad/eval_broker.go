@@ -140,14 +140,13 @@ func (b *EvalBroker) EnqueueAll(evals []*structs.Evaluation) {
 }
 
 // Enqueue is used to enqueue an evaluation
-// TODO: remove the error return value
-func (b *EvalBroker) Enqueue(eval *structs.Evaluation) error {
+func (b *EvalBroker) Enqueue(eval *structs.Evaluation) {
 	b.l.Lock()
 	defer b.l.Unlock()
 
 	// Check if already enqueued
 	if _, ok := b.evals[eval.ID]; ok {
-		return nil
+		return
 	} else if b.enabled {
 		b.evals[eval.ID] = 0
 	}
@@ -159,11 +158,10 @@ func (b *EvalBroker) Enqueue(eval *structs.Evaluation) error {
 		})
 		b.timeWait[eval.ID] = timer
 		b.stats.TotalWaiting += 1
-		return nil
+		return
 	}
 
 	b.enqueueLocked(eval, eval.Type)
-	return nil
 }
 
 // enqueueWaiting is used to enqueue a waiting evaluation

@@ -138,12 +138,7 @@ func TestEvalEndpoint_Dequeue(t *testing.T) {
 
 	// Create the register request
 	eval1 := mock.Eval()
-	testutil.WaitForResult(func() (bool, error) {
-		err := s1.evalBroker.Enqueue(eval1)
-		return err == nil, err
-	}, func(err error) {
-		t.Fatalf("err: %v", err)
-	})
+	s1.evalBroker.Enqueue(eval1)
 
 	// Dequeue the eval
 	get := &structs.EvalDequeueRequest{

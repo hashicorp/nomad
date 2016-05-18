@@ -52,12 +52,7 @@ func TestWorker_dequeueEvaluation(t *testing.T) {
 
 	// Create the evaluation
 	eval1 := mock.Eval()
-	testutil.WaitForResult(func() (bool, error) {
-		err := s1.evalBroker.Enqueue(eval1)
-		return err == nil, err
-	}, func(err error) {
-		t.Fatalf("err: %v", err)
-	})
+	s1.evalBroker.Enqueue(eval1)
 
 	// Create a worker
 	w := &Worker{srv: s1, logger: s1.logger}
@@ -87,12 +82,7 @@ func TestWorker_dequeueEvaluation_paused(t *testing.T) {
 
 	// Create the evaluation
 	eval1 := mock.Eval()
-	testutil.WaitForResult(func() (bool, error) {
-		err := s1.evalBroker.Enqueue(eval1)
-		return err == nil, err
-	}, func(err error) {
-		t.Fatalf("err: %v", err)
-	})
+	s1.evalBroker.Enqueue(eval1)
 
 	// Create a worker
 	w := &Worker{srv: s1, logger: s1.logger}
@@ -163,12 +153,7 @@ func TestWorker_sendAck(t *testing.T) {
 
 	// Create the evaluation
 	eval1 := mock.Eval()
-	testutil.WaitForResult(func() (bool, error) {
-		err := s1.evalBroker.Enqueue(eval1)
-		return err == nil, err
-	}, func(err error) {
-		t.Fatalf("err: %v", err)
-	})
+	s1.evalBroker.Enqueue(eval1)
 
 	// Create a worker
 	w := &Worker{srv: s1, logger: s1.logger}
@@ -266,12 +251,8 @@ func TestWorker_SubmitPlan(t *testing.T) {
 
 	// Create the register request
 	eval1 := mock.Eval()
-	testutil.WaitForResult(func() (bool, error) {
-		err := s1.evalBroker.Enqueue(eval1)
-		return err == nil, err
-	}, func(err error) {
-		t.Fatalf("err: %v", err)
-	})
+	s1.evalBroker.Enqueue(eval1)
+
 	evalOut, token, err := s1.evalBroker.Dequeue([]string{eval1.Type}, time.Second)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -328,12 +309,8 @@ func TestWorker_SubmitPlan_MissingNodeRefresh(t *testing.T) {
 
 	// Create the register request
 	eval1 := mock.Eval()
-	testutil.WaitForResult(func() (bool, error) {
-		err := s1.evalBroker.Enqueue(eval1)
-		return err == nil, err
-	}, func(err error) {
-		t.Fatalf("err: %v", err)
-	})
+	s1.evalBroker.Enqueue(eval1)
+
 	evalOut, token, err := s1.evalBroker.Dequeue([]string{eval1.Type}, time.Second)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -395,12 +372,7 @@ func TestWorker_UpdateEval(t *testing.T) {
 
 	// Create the register request
 	eval1 := mock.Eval()
-	testutil.WaitForResult(func() (bool, error) {
-		err := s1.evalBroker.Enqueue(eval1)
-		return err == nil, err
-	}, func(err error) {
-		t.Fatalf("err: %v", err)
-	})
+	s1.evalBroker.Enqueue(eval1)
 	evalOut, token, err := s1.evalBroker.Dequeue([]string{eval1.Type}, time.Second)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -442,12 +414,8 @@ func TestWorker_CreateEval(t *testing.T) {
 
 	// Create the register request
 	eval1 := mock.Eval()
-	testutil.WaitForResult(func() (bool, error) {
-		err := s1.evalBroker.Enqueue(eval1)
-		return err == nil, err
-	}, func(err error) {
-		t.Fatalf("err: %v", err)
-	})
+	s1.evalBroker.Enqueue(eval1)
+
 	evalOut, token, err := s1.evalBroker.Dequeue([]string{eval1.Type}, time.Second)
 	if err != nil {
 		t.Fatalf("err: %v", err)

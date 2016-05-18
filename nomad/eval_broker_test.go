@@ -31,10 +31,7 @@ func TestEvalBroker_Enqueue_Dequeue_Nack_Ack(t *testing.T) {
 
 	// Enqueue, but broker is disabled!
 	eval := mock.Eval()
-	err := b.Enqueue(eval)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	b.Enqueue(eval)
 
 	// Verify nothing was done
 	stats := b.Stats()
@@ -48,16 +45,10 @@ func TestEvalBroker_Enqueue_Dequeue_Nack_Ack(t *testing.T) {
 
 	// Enable the broker, and enqueue
 	b.SetEnabled(true)
-	err = b.Enqueue(eval)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	b.Enqueue(eval)
 
 	// Double enqueue is a no-op
-	err = b.Enqueue(eval)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	b.Enqueue(eval)
 
 	if !b.Enabled() {
 		t.Fatalf("should be enabled")
@@ -206,26 +197,17 @@ func TestEvalBroker_Serialize_DuplicateJobID(t *testing.T) {
 	b.SetEnabled(true)
 
 	eval := mock.Eval()
-	err := b.Enqueue(eval)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	b.Enqueue(eval)
 
 	eval2 := mock.Eval()
 	eval2.JobID = eval.JobID
 	eval2.CreateIndex = eval.CreateIndex + 1
-	err = b.Enqueue(eval2)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	b.Enqueue(eval2)
 
 	eval3 := mock.Eval()
 	eval3.JobID = eval.JobID
 	eval3.CreateIndex = eval.CreateIndex + 2
-	err = b.Enqueue(eval3)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	b.Enqueue(eval3)
 
 	stats := b.Stats()
 	if stats.TotalReady != 1 {
@@ -359,10 +341,7 @@ func TestEvalBroker_Enqueue_Disable(t *testing.T) {
 	// Enqueue
 	eval := mock.Eval()
 	b.SetEnabled(true)
-	err := b.Enqueue(eval)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	b.Enqueue(eval)
 
 	// Flush via SetEnabled
 	b.SetEnabled(false)
@@ -425,10 +404,7 @@ func TestEvalBroker_Dequeue_Empty_Timeout(t *testing.T) {
 
 	// Enqueue to unblock the dequeue.
 	eval := mock.Eval()
-	err := b.Enqueue(eval)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	b.Enqueue(eval)
 
 	select {
 	case <-doneCh:
@@ -558,10 +534,7 @@ func TestEvalBroker_Dequeue_Blocked(t *testing.T) {
 
 	// Enqueue
 	eval := mock.Eval()
-	err := b.Enqueue(eval)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	b.Enqueue(eval)
 
 	// Ensure dequeue
 	select {
@@ -581,10 +554,7 @@ func TestEvalBroker_Nack_Timeout(t *testing.T) {
 
 	// Enqueue
 	eval := mock.Eval()
-	err := b.Enqueue(eval)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	b.Enqueue(eval)
 
 	// Dequeue
 	out, _, err := b.Dequeue(defaultSched, time.Second)
@@ -619,10 +589,7 @@ func TestEvalBroker_Nack_TimeoutReset(t *testing.T) {
 
 	// Enqueue
 	eval := mock.Eval()
-	err := b.Enqueue(eval)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	b.Enqueue(eval)
 
 	// Dequeue
 	out, token, err := b.Dequeue(defaultSched, time.Second)
@@ -662,10 +629,7 @@ func TestEvalBroker_PauseResumeNackTimeout(t *testing.T) {
 
 	// Enqueue
 	eval := mock.Eval()
-	err := b.Enqueue(eval)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	b.Enqueue(eval)
 
 	// Dequeue
 	out, token, err := b.Dequeue(defaultSched, time.Second)
@@ -711,10 +675,7 @@ func TestEvalBroker_DeliveryLimit(t *testing.T) {
 	b.SetEnabled(true)
 
 	eval := mock.Eval()
-	err := b.Enqueue(eval)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	b.Enqueue(eval)
 
 	for i := 0; i < 3; i++ {
 		// Dequeue should work
@@ -803,10 +764,7 @@ func TestEvalBroker_AckAtDeliveryLimit(t *testing.T) {
 	b.SetEnabled(true)
 
 	eval := mock.Eval()
-	err := b.Enqueue(eval)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	b.Enqueue(eval)
 
 	for i := 0; i < 3; i++ {
 		// Dequeue should work
@@ -850,10 +808,7 @@ func TestEvalBroker_Wait(t *testing.T) {
 	// Create an eval that should wait
 	eval := mock.Eval()
 	eval.Wait = 10 * time.Millisecond
-	err := b.Enqueue(eval)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	b.Enqueue(eval)
 
 	// Verify waiting
 	stats := b.Stats()
