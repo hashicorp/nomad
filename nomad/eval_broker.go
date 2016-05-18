@@ -129,21 +129,21 @@ func (b *EvalBroker) SetEnabled(enabled bool) {
 }
 
 // EnqueueAll is used to enqueue many evaluations.
-// TODO: Update enqueueLocked to take a list and use heap.Fix instead of
-// heap.Push in order to make the running time O(log(n+m)) instead of
-// O(m*log(n)) where m is the size of the evals and n is the size of the
-// existing heap.
 func (b *EvalBroker) EnqueueAll(evals []*structs.Evaluation) {
-	for _, e := range evals {
-		b.Enqueue(e)
+	// The lock needs to be held until all evaluations are enqueued. This is so
+	// that when Dequeue operations are unblocked they will pick the highest
+	// priority evaluations.
+	b.l.Lock()
+	defer b.l.Unlock()
+	for _, eval := range evals {
+		b.processEnqueue(eval)
 	}
 }
 
-// Enqueue is used to enqueue an evaluation
-func (b *EvalBroker) Enqueue(eval *structs.Evaluation) {
-	b.l.Lock()
-	defer b.l.Unlock()
-
+// processEnqueue deduplicates evals and either enqueue immediately
+// or enforce the evals wait time. processEnqueue must be called with the lock
+// held.
+func (b *EvalBroker) processEnqueue(eval *structs.Evaluation) {
 	// Check if already enqueued
 	if _, ok := b.evals[eval.ID]; ok {
 		return
@@ -162,6 +162,13 @@ func (b *EvalBroker) Enqueue(eval *structs.Evaluation) {
 	}
 
 	b.enqueueLocked(eval, eval.Type)
+}
+
+// Enqueue is used to enqueue an evaluation
+func (b *EvalBroker) Enqueue(eval *structs.Evaluation) {
+	b.l.Lock()
+	defer b.l.Unlock()
+	b.processEnqueue(eval)
 }
 
 // enqueueWaiting is used to enqueue a waiting evaluation

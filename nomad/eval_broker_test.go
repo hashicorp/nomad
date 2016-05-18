@@ -840,3 +840,48 @@ func TestEvalBroker_Wait(t *testing.T) {
 		t.Fatalf("bad : %#v", out)
 	}
 }
+
+// Ensure that priority is taken into account when enqueueing many evaluations.
+func TestEvalBroker_EnqueueAll_Dequeue_Fair(t *testing.T) {
+	b := testBroker(t, 0)
+	b.SetEnabled(true)
+
+	// Start with a blocked dequeue
+	outCh := make(chan *structs.Evaluation, 1)
+	go func() {
+		start := time.Now()
+		out, _, err := b.Dequeue(defaultSched, time.Second)
+		end := time.Now()
+		outCh <- out
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		if d := end.Sub(start); d < 5*time.Millisecond {
+			t.Fatalf("bad: %v", d)
+		}
+	}()
+
+	// Wait for a bit
+	time.Sleep(5 * time.Millisecond)
+
+	// Enqueue
+	evals := make([]*structs.Evaluation, 0, 8)
+	expectedPriority := 90
+	for i := 10; i <= expectedPriority; i += 10 {
+		eval := mock.Eval()
+		eval.Priority = i
+		evals = append(evals, eval)
+
+	}
+	b.EnqueueAll(evals)
+
+	// Ensure dequeue
+	select {
+	case out := <-outCh:
+		if out.Priority != expectedPriority {
+			t.Fatalf("bad: %v", out)
+		}
+	case <-time.After(time.Second):
+		t.Fatalf("timeout")
+	}
+}
