@@ -124,7 +124,6 @@ func (s *Server) applyPlan(job *structs.Job, result *structs.PlanResult, snap *s
 	// are multiple updates per node
 	minUpdates := len(result.NodeUpdate)
 	minUpdates += len(result.NodeAllocation)
-	minUpdates += len(result.FailedAllocs)
 
 	// Setup the update request
 	req := structs.AllocUpdateRequest{
@@ -137,7 +136,6 @@ func (s *Server) applyPlan(job *structs.Job, result *structs.PlanResult, snap *s
 	for _, allocList := range result.NodeAllocation {
 		req.Alloc = append(req.Alloc, allocList...)
 	}
-	req.Alloc = append(req.Alloc, result.FailedAllocs...)
 
 	// Set the time the alloc was applied for the first time. This can be used
 	// to approximate the scheduling time.
@@ -200,7 +198,6 @@ func evaluatePlan(pool *EvaluatePool, snap *state.StateSnapshot, plan *structs.P
 	result := &structs.PlanResult{
 		NodeUpdate:     make(map[string][]*structs.Allocation),
 		NodeAllocation: make(map[string][]*structs.Allocation),
-		FailedAllocs:   plan.FailedAllocs,
 	}
 
 	// Collect all the nodeIDs

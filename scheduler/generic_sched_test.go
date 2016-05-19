@@ -224,39 +224,39 @@ func TestServiceSched_JobRegister_AllocFail(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	// Ensure a single plan
-	if len(h.Plans) != 1 {
+	// Ensure no plan
+	if len(h.Plans) != 0 {
 		t.Fatalf("bad: %#v", h.Plans)
 	}
-	plan := h.Plans[0]
 
-	// Ensure the plan has created a follow up eval.
+	// Ensure there is a follow up eval.
 	if len(h.CreateEvals) != 1 || h.CreateEvals[0].Status != structs.EvalStatusBlocked {
 		t.Fatalf("bad: %#v", h.CreateEvals)
 	}
 
+	if len(h.Evals) != 1 {
+		t.Fatalf("incorrect number of updated eval: %#v", h.Evals)
+	}
+	outEval := h.Evals[0]
+
 	// Ensure the plan failed to alloc
-	if len(plan.FailedAllocs) != 1 {
-		t.Fatalf("bad: %#v", plan)
+	if outEval == nil || len(outEval.FailedTGAllocs) != 1 {
+		t.Fatalf("bad: %#v", outEval)
 	}
 
-	// Lookup the allocations by JobID
-	out, err := h.State.AllocsByJob(job.ID)
-	noErr(t, err)
-
-	// Ensure all allocations placed
-	if len(out) != 1 {
-		t.Fatalf("bad: %#v", out)
+	metrics, ok := outEval.FailedTGAllocs[job.TaskGroups[0].Name]
+	if !ok {
+		t.Fatalf("no failed metrics: %#v", outEval.FailedTGAllocs)
 	}
 
 	// Check the coalesced failures
-	if out[0].Metrics.CoalescedFailures != 9 {
-		t.Fatalf("bad: %#v", out[0].Metrics)
+	if metrics.CoalescedFailures != 9 {
+		t.Fatalf("bad: %#v", metrics)
 	}
 
 	// Check the available nodes
-	if count, ok := out[0].Metrics.NodesAvailable["dc1"]; !ok || count != 0 {
-		t.Fatalf("bad: %#v", out[0].Metrics)
+	if count, ok := metrics.NodesAvailable["dc1"]; !ok || count != 0 {
+		t.Fatalf("bad: %#v", metrics)
 	}
 
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
@@ -295,11 +295,10 @@ func TestServiceSched_JobRegister_BlockedEval(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	// Ensure a single plan
-	if len(h.Plans) != 1 {
+	// Ensure no plan
+	if len(h.Plans) != 0 {
 		t.Fatalf("bad: %#v", h.Plans)
 	}
-	plan := h.Plans[0]
 
 	// Ensure the plan has created a follow up eval.
 	if len(h.CreateEvals) != 1 {
@@ -320,31 +319,34 @@ func TestServiceSched_JobRegister_BlockedEval(t *testing.T) {
 		t.Fatalf("bad: %#v", created)
 	}
 
-	// Ensure the plan failed to alloc
-	if len(plan.FailedAllocs) != 1 {
-		t.Fatalf("bad: %#v", plan)
+	// Ensure there is a follow up eval.
+	if len(h.CreateEvals) != 1 || h.CreateEvals[0].Status != structs.EvalStatusBlocked {
+		t.Fatalf("bad: %#v", h.CreateEvals)
 	}
 
-	// Lookup the allocations by JobID
-	out, err := h.State.AllocsByJob(job.ID)
-	noErr(t, err)
+	if len(h.Evals) != 1 {
+		t.Fatalf("incorrect number of updated eval: %#v", h.Evals)
+	}
+	outEval := h.Evals[0]
 
-	// Ensure all allocations placed
-	if len(out) != 1 {
-		for _, a := range out {
-			t.Logf("%#v", a)
-		}
-		t.Fatalf("bad: %#v", out)
+	// Ensure the plan failed to alloc
+	if outEval == nil || len(outEval.FailedTGAllocs) != 1 {
+		t.Fatalf("bad: %#v", outEval)
+	}
+
+	metrics, ok := outEval.FailedTGAllocs[job.TaskGroups[0].Name]
+	if !ok {
+		t.Fatalf("no failed metrics: %#v", outEval.FailedTGAllocs)
 	}
 
 	// Check the coalesced failures
-	if out[0].Metrics.CoalescedFailures != 9 {
-		t.Fatalf("bad: %#v", out[0].Metrics)
+	if metrics.CoalescedFailures != 9 {
+		t.Fatalf("bad: %#v", metrics)
 	}
 
 	// Check the available nodes
-	if count, ok := out[0].Metrics.NodesAvailable["dc1"]; !ok || count != 2 {
-		t.Fatalf("bad: %#v", out[0].Metrics)
+	if count, ok := metrics.NodesAvailable["dc1"]; !ok || count != 2 {
+		t.Fatalf("bad: %#v", metrics)
 	}
 
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
@@ -403,17 +405,32 @@ func TestServiceSched_JobRegister_FeasibleAndInfeasibleTG(t *testing.T) {
 	if len(planned) != 2 {
 		t.Fatalf("bad: %#v", plan)
 	}
-	if len(plan.FailedAllocs) != 1 {
-		t.Fatalf("bad: %#v", plan)
-	}
 
-	// Lookup the allocations by JobID
+	// Ensure two allocations placed
 	out, err := h.State.AllocsByJob(job.ID)
 	noErr(t, err)
-
-	// Ensure all allocations placed
-	if len(out) != 3 {
+	if len(out) != 2 {
 		t.Fatalf("bad: %#v", out)
+	}
+
+	// Ensure the plan failed to alloc one tg
+	if len(h.Evals) != 1 {
+		t.Fatalf("incorrect number of updated eval: %#v", h.Evals)
+	}
+	outEval := h.Evals[0]
+
+	if outEval == nil || len(outEval.FailedTGAllocs) != 1 {
+		t.Fatalf("bad: %#v", outEval)
+	}
+
+	metrics, ok := outEval.FailedTGAllocs[tg2.Name]
+	if !ok {
+		t.Fatalf("no failed metrics: %#v", outEval.FailedTGAllocs)
+	}
+
+	// Check the coalesced failures
+	if metrics.CoalescedFailures != tg2.Count-1 {
+		t.Fatalf("bad: %#v", metrics)
 	}
 
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
@@ -586,9 +603,13 @@ func TestServiceSched_JobModify_IncrCount_NodeLimit(t *testing.T) {
 		t.Fatalf("bad: %#v", plan)
 	}
 
-	// Ensure the plan didn't to alloc
-	if len(plan.FailedAllocs) != 0 {
-		t.Fatalf("bad: %#v", plan)
+	// Ensure the plan had no failures
+	if len(h.Evals) != 1 {
+		t.Fatalf("incorrect number of updated eval: %#v", h.Evals)
+	}
+	outEval := h.Evals[0]
+	if outEval == nil || len(outEval.FailedTGAllocs) != 0 {
+		t.Fatalf("bad: %#v", outEval)
 	}
 
 	// Lookup the allocations by JobID

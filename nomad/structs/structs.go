@@ -2617,6 +2617,11 @@ type Evaluation struct {
 	// This is used to support rolling upgrades, where we need a chain of evaluations.
 	PreviousEval string
 
+	// FailedTGAllocs are task groups which have allocations that could not be
+	// made, but the metrics are persisted so that the user can use the feedback
+	// to determine the cause.
+	FailedTGAllocs map[string]*AllocMetric
+
 	// ClassEligibility tracks computed node classes that have been explicitly
 	// marked as eligible or ineligible.
 	ClassEligibility map[string]bool
@@ -2655,6 +2660,25 @@ func (e *Evaluation) Copy() *Evaluation {
 	}
 	ne := new(Evaluation)
 	*ne = *e
+
+	// Copy ClassEligibility
+	if e.ClassEligibility != nil {
+		classes := make(map[string]bool, len(e.ClassEligibility))
+		for class, elig := range e.ClassEligibility {
+			classes[class] = elig
+		}
+		ne.ClassEligibility = classes
+	}
+
+	// Copy FailedTGAllocs
+	if e.FailedTGAllocs != nil {
+		failedTGs := make(map[string]*AllocMetric, len(e.FailedTGAllocs))
+		for tg, metric := range e.FailedTGAllocs {
+			failedTGs[tg] = metric.Copy()
+		}
+		ne.FailedTGAllocs = failedTGs
+	}
+
 	return ne
 }
 
@@ -2769,11 +2793,6 @@ type Plan struct {
 	// The evicts must be considered prior to the allocations.
 	NodeAllocation map[string][]*Allocation
 
-	// FailedAllocs are allocations that could not be made,
-	// but are persisted so that the user can use the feedback
-	// to determine the cause.
-	FailedAllocs []*Allocation
-
 	// Annotations contains annotations by the scheduler to be used by operators
 	// to understand the decisions made by the scheduler.
 	Annotations *PlanAnnotations
@@ -2821,13 +2840,9 @@ func (p *Plan) AppendAlloc(alloc *Allocation) {
 	p.NodeAllocation[node] = append(existing, alloc)
 }
 
-func (p *Plan) AppendFailed(alloc *Allocation) {
-	p.FailedAllocs = append(p.FailedAllocs, alloc)
-}
-
 // IsNoOp checks if this plan would do nothing
 func (p *Plan) IsNoOp() bool {
-	return len(p.NodeUpdate) == 0 && len(p.NodeAllocation) == 0 && len(p.FailedAllocs) == 0
+	return len(p.NodeUpdate) == 0 && len(p.NodeAllocation) == 0
 }
 
 // PlanResult is the result of a plan submitted to the leader.
@@ -2837,11 +2852,6 @@ type PlanResult struct {
 
 	// NodeAllocation contains all the allocations that were committed.
 	NodeAllocation map[string][]*Allocation
-
-	// FailedAllocs are allocations that could not be made,
-	// but are persisted so that the user can use the feedback
-	// to determine the cause.
-	FailedAllocs []*Allocation
 
 	// RefreshIndex is the index the worker should refresh state up to.
 	// This allows all evictions and allocations to be materialized.
@@ -2856,7 +2866,7 @@ type PlanResult struct {
 
 // IsNoOp checks if this plan result would do nothing
 func (p *PlanResult) IsNoOp() bool {
-	return len(p.NodeUpdate) == 0 && len(p.NodeAllocation) == 0 && len(p.FailedAllocs) == 0
+	return len(p.NodeUpdate) == 0 && len(p.NodeAllocation) == 0
 }
 
 // FullCommit is used to check if all the allocations in a plan

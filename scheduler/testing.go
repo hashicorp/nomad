@@ -91,7 +91,6 @@ func (h *Harness) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State, er
 	for _, allocList := range plan.NodeAllocation {
 		allocs = append(allocs, allocList...)
 	}
-	allocs = append(allocs, plan.FailedAllocs...)
 
 	// Attach the plan to all the allocations. It is pulled out in the
 	// payload to avoid the redundancy of encoding, but should be denormalized

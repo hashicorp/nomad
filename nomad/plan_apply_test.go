@@ -51,12 +51,10 @@ func TestPlanApply_applyPlan(t *testing.T) {
 
 	// Register alloc
 	alloc := mock.Alloc()
-	allocFail := mock.Alloc()
 	plan := &structs.PlanResult{
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: []*structs.Allocation{alloc},
 		},
-		FailedAllocs: []*structs.Allocation{allocFail},
 	}
 
 	// Snapshot the state
@@ -87,15 +85,6 @@ func TestPlanApply_applyPlan(t *testing.T) {
 
 	// Lookup the allocation
 	out, err := s1.fsm.State().AllocByID(alloc.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if out == nil {
-		t.Fatalf("missing alloc")
-	}
-
-	// Lookup the allocation
-	out, err = s1.fsm.State().AllocByID(allocFail.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -178,12 +167,10 @@ func TestPlanApply_EvalPlan_Simple(t *testing.T) {
 	snap, _ := state.Snapshot()
 
 	alloc := mock.Alloc()
-	allocFail := mock.Alloc()
 	plan := &structs.Plan{
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: []*structs.Allocation{alloc},
 		},
-		FailedAllocs: []*structs.Allocation{allocFail},
 	}
 
 	pool := NewEvaluatePool(workerPoolSize, workerPoolBufferSize)
@@ -196,8 +183,8 @@ func TestPlanApply_EvalPlan_Simple(t *testing.T) {
 	if result == nil {
 		t.Fatalf("missing result")
 	}
-	if !reflect.DeepEqual(result.FailedAllocs, plan.FailedAllocs) {
-		t.Fatalf("missing failed allocs")
+	if !reflect.DeepEqual(result.NodeAllocation, plan.NodeAllocation) {
+		t.Fatalf("incorrect node allocations")
 	}
 }
 
