@@ -178,9 +178,7 @@ func (s *Server) restoreEvals() error {
 		eval := raw.(*structs.Evaluation)
 
 		if eval.ShouldEnqueue() {
-			if err := s.evalBroker.Enqueue(eval); err != nil {
-				return fmt.Errorf("failed to enqueue evaluation %s: %v", eval.ID, err)
-			}
+			s.evalBroker.Enqueue(eval)
 		} else if eval.ShouldBlock() {
 			s.blockedEvals.Block(eval)
 		}

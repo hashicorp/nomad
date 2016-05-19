@@ -331,10 +331,7 @@ func (n *nomadFSM) applyUpdateEval(buf []byte, index uint64) interface{} {
 
 	for _, eval := range req.Evals {
 		if eval.ShouldEnqueue() {
-			if err := n.evalBroker.Enqueue(eval); err != nil {
-				n.logger.Printf("[ERR] nomad.fsm: failed to enqueue evaluation %s: %v", eval.ID, err)
-				return err
-			}
+			n.evalBroker.Enqueue(eval)
 		} else if eval.ShouldBlock() {
 			n.blockedEvals.Block(eval)
 		}
