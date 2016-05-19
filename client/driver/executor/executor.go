@@ -45,6 +45,7 @@ type Executor interface {
 	DeregisterServices() error
 	Version() (*ExecutorVersion, error)
 	Stats() (*cstructs.TaskResourceUsage, error)
+	PidStats() (map[int]*cstructs.TaskResourceUsage, error)
 }
 
 // ConsulContext holds context to configure the consul client and run checks
@@ -436,6 +437,8 @@ func (e *UniversalExecutor) ShutDown() error {
 	return nil
 }
 
+// SyncServices syncs the services of the task that the executor is running with
+// Consul
 func (e *UniversalExecutor) SyncServices(ctx *ConsulContext) error {
 	e.logger.Printf("[INFO] executor: registering services")
 	e.consulCtx = ctx
@@ -457,12 +460,49 @@ func (e *UniversalExecutor) SyncServices(ctx *ConsulContext) error {
 	return err
 }
 
+// DeregisterServices removes the services of the task that the executor is
+// running from Consul
 func (e *UniversalExecutor) DeregisterServices() error {
 	e.logger.Printf("[INFO] executor: de-registering services and shutting down consul service")
 	if e.consulService != nil {
 		return e.consulService.Shutdown()
 	}
 	return nil
+}
+
+// PidStats returns the resource usage stats per pid
+func (e *UniversalExecutor) PidStats() (map[int]*cstructs.TaskResourceUsage, error) {
+	stats := make(map[int]*cstructs.TaskResourceUsage)
+	ts := time.Now()
+	for _, pid := range e.pids {
+		p, err := process.NewProcess(int32(pid))
+		if err != nil {
+			e.logger.Printf("[DEBUG] executor: unable to create new process with pid: %v", pid)
+			continue
+		}
+		memInfo, err := p.MemoryInfo()
+		if err != nil {
+			e.logger.Printf("[DEBUG] executor: unable to get memory stats for process: %v", pid)
+		}
+		cpuStats, err := p.Times()
+		if err != nil {
+			e.logger.Printf("[DEBUG] executor: unable to get cpu stats for process: %v", pid)
+		}
+		ms := &cstructs.MemoryStats{
+			RSS:  memInfo.RSS,
+			Swap: memInfo.Swap,
+		}
+
+		percent, _ := p.Percent(0)
+		cs := &cstructs.CpuUsage{
+			SystemMode: cpuStats.System,
+			UserMode:   cpuStats.User,
+			Percent:    percent,
+		}
+		stats[pid] = &cstructs.TaskResourceUsage{MemoryStats: ms, CpuStats: cs, Timestamp: ts}
+	}
+
+	return stats, nil
 }
 
 // configureTaskDir sets the task dir in the executor
@@ -628,9 +668,11 @@ func (e *UniversalExecutor) interpolateServices(task *structs.Task) {
 	}
 }
 
+// collectPids collects the pids of the child processes that the executor is
+// running every 5 seconds
 func (e *UniversalExecutor) collectPids() {
 	for {
-		timer := time.NewTimer(5 * time.Second)
+		timer := time.NewTimer(pidScanInterval)
 		select {
 		case <-timer.C:
 			pids, err := e.getAllPids()
@@ -647,6 +689,8 @@ func (e *UniversalExecutor) collectPids() {
 	}
 }
 
+// scanPids scans all the pids on the machine running the current executor and
+// returns the child processes of the executor.
 func (e *UniversalExecutor) scanPids() ([]int, error) {
 	processFamily := make(map[int]struct{})
 	processFamily[os.Getpid()] = struct{}{}
@@ -668,41 +712,17 @@ func (e *UniversalExecutor) scanPids() ([]int, error) {
 	return res, nil
 }
 
+// resourceUsagePids aggreagates the resources used by all the pids that are
+// spawned by the executor and the user process.
 func (e *UniversalExecutor) resourceUsagePids() (*cstructs.TaskResourceUsage, error) {
-	resourceUsage := make(map[int]*cstructs.TaskResourceUsage)
 	ts := time.Now()
-	for _, pid := range e.pids {
-		p, err := process.NewProcess(int32(pid))
-		if err != nil {
-			e.logger.Printf("[DEBUG] executor: unable to create new process with pid: %v", pid)
-		}
-		memInfo, err := p.MemoryInfo()
-		if err != nil {
-			e.logger.Printf("[DEBUG] executor: unable to get memory stats for process: %v", pid)
-		}
-		cpuStats, err := p.Times()
-		if err != nil {
-			e.logger.Printf("[DEBUG] executor: unable to get cpu stats for process: %v", pid)
-		}
-		ms := &cstructs.MemoryStats{
-			RSS:  memInfo.RSS,
-			Swap: memInfo.Swap,
-		}
-
-		percent, _ := p.Percent(0)
-		cs := &cstructs.CpuUsage{
-			SystemMode: cpuStats.System,
-			UserMode:   cpuStats.User,
-			Percent:    percent,
-		}
-		resourceUsage[pid] = &cstructs.TaskResourceUsage{MemoryStats: ms, CpuStats: cs, Timestamp: ts}
-
+	resourceUsage, err := e.PidStats()
+	if err != nil {
+		return nil, err
 	}
-
 	var (
 		systemModeCPU, userModeCPU, percent float64
-
-		totalRSS, totalSwap uint64
+		totalRSS, totalSwap                 uint64
 	)
 
 	for _, rs := range resourceUsage {

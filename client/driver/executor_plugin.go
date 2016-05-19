@@ -95,6 +95,12 @@ func (e *ExecutorRPC) Stats() (*cstructs.TaskResourceUsage, error) {
 	return &resourceUsage, err
 }
 
+func (e *ExecutorRPC) PidStats() (map[int]*cstructs.TaskResourceUsage, error) {
+	stats := make(map[int]*cstructs.TaskResourceUsage)
+	err := e.client.Call("Plugin.PidStats", new(interface{}), &stats)
+	return stats, err
+}
+
 type ExecutorRPCServer struct {
 	Impl   executor.Executor
 	logger *log.Logger
@@ -160,6 +166,14 @@ func (e *ExecutorRPCServer) Stats(args interface{}, resourceUsage *cstructs.Task
 	ru, err := e.Impl.Stats()
 	if ru != nil {
 		*resourceUsage = *ru
+	}
+	return err
+}
+
+func (e *ExecutorRPCServer) PidStats(args interface{}, stats map[int]*cstructs.TaskResourceUsage) error {
+	ps, err := e.Impl.PidStats()
+	if ps != nil {
+		stats = ps
 	}
 	return err
 }

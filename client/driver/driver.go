@@ -114,6 +114,7 @@ type DriverHandle interface {
 	// Kill is used to stop the task
 	Kill() error
 
+	// Stats returns aggregated stats of the driver
 	Stats() (*cstructs.TaskResourceUsage, error)
 }
 
