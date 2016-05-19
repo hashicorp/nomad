@@ -14,10 +14,11 @@ type MemoryStats struct {
 }
 
 type CpuUsage struct {
-	SystemMode       uint64
-	UserMode         uint64
+	SystemMode       float64
+	UserMode         float64
 	ThrottledPeriods uint64
 	ThrottledTime    uint64
+	Percent          float64
 }
 
 type TaskResourceUsage struct {
