@@ -100,7 +100,7 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 	default:
 		desc := fmt.Sprintf("scheduler cannot handle '%s' evaluation reason",
 			eval.TriggeredBy)
-		return setStatus(s.logger, s.planner, s.eval, s.nextEval, structs.EvalStatusFailed, desc)
+		return setStatus(s.logger, s.planner, s.eval, s.nextEval, s.blocked, structs.EvalStatusFailed, desc)
 	}
 
 	// Retry up to the maxScheduleAttempts and reset if progress is made.
@@ -117,7 +117,7 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 			if err := s.createBlockedEval(); err != nil {
 				mErr.Errors = append(mErr.Errors, err)
 			}
-			if err := setStatus(s.logger, s.planner, s.eval, s.nextEval, statusErr.EvalStatus, err.Error()); err != nil {
+			if err := setStatus(s.logger, s.planner, s.eval, s.nextEval, s.blocked, statusErr.EvalStatus, err.Error()); err != nil {
 				mErr.Errors = append(mErr.Errors, err)
 			}
 			return mErr.ErrorOrNil()
@@ -126,7 +126,7 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 	}
 
 	// Update the status to complete
-	return setStatus(s.logger, s.planner, s.eval, s.nextEval, structs.EvalStatusComplete, "")
+	return setStatus(s.logger, s.planner, s.eval, s.nextEval, s.blocked, structs.EvalStatusComplete, "")
 }
 
 // createBlockedEval creates a blocked eval and stores it.

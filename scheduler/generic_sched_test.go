@@ -48,6 +48,14 @@ func TestServiceSched_JobRegister(t *testing.T) {
 		t.Fatalf("expected no annotations")
 	}
 
+	// Ensure the eval has no spawned blocked eval
+	if len(h.Evals) != 1 {
+		t.Fatalf("bad: %#v", h.Evals)
+		if h.Evals[0].SpawnedBlockedEval != "" {
+			t.Fatalf("bad: %#v", h.Evals[0])
+		}
+	}
+
 	// Ensure the plan allocated
 	var planned []*structs.Allocation
 	for _, allocList := range plan.NodeAllocation {
@@ -239,6 +247,11 @@ func TestServiceSched_JobRegister_AllocFail(t *testing.T) {
 	}
 	outEval := h.Evals[0]
 
+	// Ensure the eval has its spawned blocked eval
+	if outEval.SpawnedBlockedEval != h.CreateEvals[0].ID {
+		t.Fatalf("bad: %#v", outEval)
+	}
+
 	// Ensure the plan failed to alloc
 	if outEval == nil || len(outEval.FailedTGAllocs) != 1 {
 		t.Fatalf("bad: %#v", outEval)
@@ -413,12 +426,17 @@ func TestServiceSched_JobRegister_FeasibleAndInfeasibleTG(t *testing.T) {
 		t.Fatalf("bad: %#v", out)
 	}
 
-	// Ensure the plan failed to alloc one tg
 	if len(h.Evals) != 1 {
 		t.Fatalf("incorrect number of updated eval: %#v", h.Evals)
 	}
 	outEval := h.Evals[0]
 
+	// Ensure the eval has its spawned blocked eval
+	if outEval.SpawnedBlockedEval != h.CreateEvals[0].ID {
+		t.Fatalf("bad: %#v", outEval)
+	}
+
+	// Ensure the plan failed to alloc one tg
 	if outEval == nil || len(outEval.FailedTGAllocs) != 1 {
 		t.Fatalf("bad: %#v", outEval)
 	}

@@ -2617,6 +2617,11 @@ type Evaluation struct {
 	// This is used to support rolling upgrades, where we need a chain of evaluations.
 	PreviousEval string
 
+	// SpawnedBlockedEval is the evaluation ID for a created blocked eval. A
+	// blocked eval will be created if all allocations could not be placed due
+	// to constraints or lacking resources.
+	SpawnedBlockedEval string
+
 	// FailedTGAllocs are task groups which have allocations that could not be
 	// made, but the metrics are persisted so that the user can use the feedback
 	// to determine the cause.
