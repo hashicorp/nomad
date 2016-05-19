@@ -3,6 +3,7 @@ package command
 import (
 	"fmt"
 	"github.com/hashicorp/nomad/api"
+	"strconv"
 	"strings"
 )
 
@@ -131,8 +132,9 @@ func (f *StatsCommand) printTaskResourceUsage(task string, resourceUsage map[str
 
 	f.Ui.Output("CPU Stats")
 	out = make([]string, 2)
-	out[0] = "Kernel Mode|User Mode|Throttled Periods|Throttled Time"
-	out[1] = fmt.Sprintf("%v|%v|%v|%v", tu.CpuStats.SystemMode, tu.CpuStats.UserMode,
+	out[0] = "Percent|Throttled Periods|Throttled Time"
+	percent := strconv.FormatFloat(tu.CpuStats.Percent, 'f', 2, 64)
+	out[1] = fmt.Sprintf("%v|%v|%v|%v", percent,
 		tu.CpuStats.ThrottledPeriods, tu.CpuStats.ThrottledTime)
 	f.Ui.Output(formatList(out))
 }
