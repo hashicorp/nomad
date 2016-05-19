@@ -288,9 +288,25 @@ func (m *monitor) monitor(evalID string, allowPrefix bool) int {
 		m.update(state)
 
 		switch eval.Status {
-		case structs.EvalStatusComplete, structs.EvalStatusFailed:
-			m.ui.Info(fmt.Sprintf("Evaluation %q finished with status %q",
-				limit(eval.ID, m.length), eval.Status))
+		case structs.EvalStatusComplete, structs.EvalStatusFailed, structs.EvalStatusCancelled:
+			if len(eval.FailedTGAllocs) == 0 {
+				m.ui.Info(fmt.Sprintf("Evaluation %q finished with status %q",
+					limit(eval.ID, m.length), eval.Status))
+			} else {
+				// There were failures making the allocations
+				m.ui.Info(fmt.Sprintf("Evaluation %q finished with status %q but failed to place all allocations:",
+					limit(eval.ID, m.length), eval.Status))
+
+				// Print the failures per task group
+				for tg, metrics := range eval.FailedTGAllocs {
+					noun := "allocation"
+					if metrics.CoalescedFailures > 0 {
+						noun += "s"
+					}
+					m.ui.Output(fmt.Sprintf("Task Group %q (failed to place %d %s):", tg, metrics.CoalescedFailures+1, noun))
+					dumpAllocMetrics(m.ui, metrics, false)
+				}
+			}
 		default:
 			// Wait for the next update
 			time.Sleep(updateWait)
@@ -332,41 +348,46 @@ func dumpAllocStatus(ui cli.Ui, alloc *api.Allocation, length int) {
 	ui.Output(fmt.Sprintf("Allocation %q status %q (%d/%d nodes filtered)",
 		limit(alloc.ID, length), alloc.ClientStatus,
 		alloc.Metrics.NodesFiltered, alloc.Metrics.NodesEvaluated))
+	dumpAllocMetrics(ui, alloc.Metrics, true)
+}
 
+func dumpAllocMetrics(ui cli.Ui, metrics *api.AllocationMetric, scores bool) {
 	// Print a helpful message if we have an eligibility problem
-	if alloc.Metrics.NodesEvaluated == 0 {
+	if metrics.NodesEvaluated == 0 {
 		ui.Output("  * No nodes were eligible for evaluation")
 	}
 
 	// Print a helpful message if the user has asked for a DC that has no
 	// available nodes.
-	for dc, available := range alloc.Metrics.NodesAvailable {
+	for dc, available := range metrics.NodesAvailable {
 		if available == 0 {
 			ui.Output(fmt.Sprintf("  * No nodes are available in datacenter %q", dc))
 		}
 	}
 
 	// Print filter info
-	for class, num := range alloc.Metrics.ClassFiltered {
+	for class, num := range metrics.ClassFiltered {
 		ui.Output(fmt.Sprintf("  * Class %q filtered %d nodes", class, num))
 	}
-	for cs, num := range alloc.Metrics.ConstraintFiltered {
+	for cs, num := range metrics.ConstraintFiltered {
 		ui.Output(fmt.Sprintf("  * Constraint %q filtered %d nodes", cs, num))
 	}
 
 	// Print exhaustion info
-	if ne := alloc.Metrics.NodesExhausted; ne > 0 {
+	if ne := metrics.NodesExhausted; ne > 0 {
 		ui.Output(fmt.Sprintf("  * Resources exhausted on %d nodes", ne))
 	}
-	for class, num := range alloc.Metrics.ClassExhausted {
+	for class, num := range metrics.ClassExhausted {
 		ui.Output(fmt.Sprintf("  * Class %q exhausted on %d nodes", class, num))
 	}
-	for dim, num := range alloc.Metrics.DimensionExhausted {
+	for dim, num := range metrics.DimensionExhausted {
 		ui.Output(fmt.Sprintf("  * Dimension %q exhausted on %d nodes", dim, num))
 	}
 
 	// Print scores
-	for name, score := range alloc.Metrics.Scores {
-		ui.Output(fmt.Sprintf("  * Score %q = %f", name, score))
+	if scores {
+		for name, score := range metrics.Scores {
+			ui.Output(fmt.Sprintf("  * Score %q = %f", name, score))
+		}
 	}
 }
