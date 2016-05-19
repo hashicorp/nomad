@@ -2,9 +2,12 @@ package command
 
 import (
 	"fmt"
-	"github.com/hashicorp/nomad/api"
 	"strconv"
 	"strings"
+
+	"github.com/dustin/go-humanize"
+
+	"github.com/hashicorp/nomad/api"
 )
 
 type StatsCommand struct {
@@ -119,12 +122,12 @@ func (f *StatsCommand) printTaskResourceUsage(task string, resourceUsage map[str
 	out := make([]string, 2)
 	out[0] = "RSS|Cache|Swap|Max Usage|Kernel Usage|KernelMaxUsage"
 	out[1] = fmt.Sprintf("%v|%v|%v|%v|%v|%v",
-		f.inMB(tu.MemoryStats.RSS),
-		f.inMB(tu.MemoryStats.Cache),
-		f.inMB(tu.MemoryStats.Swap),
-		f.inMB(tu.MemoryStats.MaxUsage),
-		f.inMB(tu.MemoryStats.KernelUsage),
-		f.inMB(tu.MemoryStats.KernelMaxUsage),
+		humanize.Bytes(tu.MemoryStats.RSS),
+		humanize.Bytes(tu.MemoryStats.Cache),
+		humanize.Bytes(tu.MemoryStats.Swap),
+		humanize.Bytes(tu.MemoryStats.MaxUsage),
+		humanize.Bytes(tu.MemoryStats.KernelUsage),
+		humanize.Bytes(tu.MemoryStats.KernelMaxUsage),
 	)
 	f.Ui.Output(formatList(out))
 
@@ -144,8 +147,4 @@ func (f *StatsCommand) printAllocResourceUsage(alloc *api.Allocation, resourceUs
 	for task, _ := range alloc.TaskStates {
 		f.printTaskResourceUsage(task, resourceUsage)
 	}
-}
-
-func (f *StatsCommand) inMB(bytes uint64) uint64 {
-	return bytes
 }
