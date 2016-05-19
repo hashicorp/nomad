@@ -306,6 +306,11 @@ func (m *monitor) monitor(evalID string, allowPrefix bool) int {
 					m.ui.Output(fmt.Sprintf("Task Group %q (failed to place %d %s):", tg, metrics.CoalescedFailures+1, noun))
 					dumpAllocMetrics(m.ui, metrics, false)
 				}
+
+				if eval.SpawnedBlockedEval != "" {
+					m.ui.Output(fmt.Sprintf("Spawned follow up blocked evaluation %q to place remainder",
+						limit(eval.SpawnedBlockedEval, m.length)))
+				}
 			}
 		default:
 			// Wait for the next update
