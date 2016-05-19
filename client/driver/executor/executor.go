@@ -24,6 +24,7 @@ import (
 	"github.com/hashicorp/nomad/client/driver/env"
 	"github.com/hashicorp/nomad/client/driver/logging"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
+	"github.com/hashicorp/nomad/client/stats"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -171,15 +172,22 @@ type UniversalExecutor struct {
 
 	consulService *consul.ConsulService
 	consulCtx     *ConsulContext
+	cpuStats      *stats.CpuStats
 	logger        *log.Logger
 }
 
 // NewExecutor returns an Executor
 func NewExecutor(logger *log.Logger) Executor {
-	return &UniversalExecutor{
+	exec := &UniversalExecutor{
 		logger:        logger,
 		processExited: make(chan interface{}),
 	}
+
+	if cpuStats, err := stats.NewCpuStats(); err == nil {
+		exec.cpuStats = cpuStats
+	}
+
+	return exec
 }
 
 // Version returns the api version of the executor
@@ -676,7 +684,6 @@ func (e *UniversalExecutor) collectPids() {
 		select {
 		case <-timer.C:
 			pids, err := e.getAllPids()
-			e.logger.Printf("DIPTANU PIDS %#v", pids)
 			timer.Reset(pidScanInterval)
 			if err != nil {
 				e.logger.Printf("[DEBUG] executor: error collecting pids: %v", err)

@@ -990,7 +990,21 @@ func (h *DockerHandle) monitorUsage() {
 					Swap:     s.MemoryStats.Stats.Swap,
 					MaxUsage: s.MemoryStats.MaxUsage,
 				}
-				h.resourceUsage = &cstructs.TaskResourceUsage{MemoryStats: ms, Timestamp: s.Read}
+
+				cs := &cstructs.CpuUsage{
+					SystemMode:       float64(s.CPUStats.CPUUsage.UsageInKernelmode),
+					UserMode:         float64(s.CPUStats.CPUUsage.UsageInKernelmode),
+					ThrottledPeriods: s.CPUStats.ThrottlingData.ThrottledPeriods,
+					ThrottledTime:    s.CPUStats.ThrottlingData.ThrottledTime,
+				}
+				// Calculate percentage
+				cs.Percent = 0.0
+				cpuDelta := float64(s.CPUStats.CPUUsage.TotalUsage) - float64(s.PreCPUStats.CPUUsage.TotalUsage)
+				systemDelta := float64(s.CPUStats.SystemCPUUsage) - float64(s.PreCPUStats.SystemCPUUsage)
+				if cpuDelta > 0.0 && systemDelta > 0.0 {
+					cs.Percent = (cpuDelta / systemDelta) * float64(len(s.CPUStats.CPUUsage.PercpuUsage)) * 100.0
+				}
+				h.resourceUsage = &cstructs.TaskResourceUsage{MemoryStats: ms, CpuStats: cs, Timestamp: s.Read}
 			}
 		case <-h.doneMonitoring:
 		case <-h.doneCh:
