@@ -558,6 +558,12 @@
 			"revision": "80adcec1955ee4e97af357c30dee61aadcc02c10"
 		},
 		{
+			"checksumSHA1": "B791WoNcAY5+ElKZsCkHfym55O4=",
+			"path": "github.com/mitchellh/go-ps",
+			"revision": "e6c6068076470196af082b1ff896e24a51a87b2a",
+			"revisionTime": "2015-07-10T22:06:32Z"
+		},
+		{
 			"path": "github.com/mitchellh/hashstructure",
 			"revision": "1ef5c71b025aef149d12346356ac5973992860bc"
 		},
