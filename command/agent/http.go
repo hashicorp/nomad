@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/ugorji/go/codec"
 )
 
 const (
@@ -23,6 +25,13 @@ const (
 	// this is checked to switch between the ACLToken and
 	// AtlasACLToken
 	scadaHTTPAddr = "SCADA"
+)
+
+var (
+	// jsonHandle and jsonHandlePretty are the codec handles to JSON encode
+	// structs. The pretty handle will add indents for easier human consumption.
+	jsonHandle       = &codec.JsonHandle{}
+	jsonHandlePretty = &codec.JsonHandle{Indent: 4}
 )
 
 // HTTPServer is used to wrap an Agent and expose it over an HTTP interface
@@ -183,20 +192,22 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 
 		// Write out the JSON object
 		if obj != nil {
-			var buf []byte
+			var buf bytes.Buffer
 			if prettyPrint {
-				buf, err = json.MarshalIndent(obj, "", "    ")
+				enc := codec.NewEncoder(&buf, jsonHandlePretty)
+				err = enc.Encode(obj)
 				if err == nil {
-					buf = append(buf, "\n"...)
+					buf.Write([]byte("\n"))
 				}
 			} else {
-				buf, err = json.Marshal(obj)
+				enc := codec.NewEncoder(&buf, jsonHandle)
+				err = enc.Encode(obj)
 			}
 			if err != nil {
 				goto HAS_ERR
 			}
 			resp.Header().Set("Content-Type", "application/json")
-			resp.Write(buf)
+			resp.Write(buf.Bytes())
 		}
 	}
 	return f

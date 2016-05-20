@@ -13,12 +13,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 )
 
 type TestServer struct {
-	T      *testing.T
+	T      testing.TB
 	Dir    string
 	Agent  *Agent
 	Server *HTTPServer
@@ -30,9 +31,25 @@ func (s *TestServer) Cleanup() {
 	os.RemoveAll(s.Dir)
 }
 
-func makeHTTPServer(t *testing.T, cb func(c *Config)) *TestServer {
+// makeHTTPServerNoLogs returns a test server with full logging.
+func makeHTTPServer(t testing.TB, cb func(c *Config)) *TestServer {
+	return makeHTTPServerWithWriter(t, nil, cb)
+}
+
+// makeHTTPServerNoLogs returns a test server which only prints agent logs and
+// no http server logs
+func makeHTTPServerNoLogs(t testing.TB, cb func(c *Config)) *TestServer {
+	return makeHTTPServerWithWriter(t, ioutil.Discard, cb)
+}
+
+// makeHTTPServerWithWriter returns a test server whose logs will be written to
+// the passed writer. If the writer is nil, the logs are written to stderr.
+func makeHTTPServerWithWriter(t testing.TB, w io.Writer, cb func(c *Config)) *TestServer {
 	dir, agent := makeAgent(t, cb)
-	srv, err := NewHTTPServer(agent, agent.config, agent.logOutput)
+	if w == nil {
+		w = agent.logOutput
+	}
+	srv, err := NewHTTPServer(agent, agent.config, w)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -43,6 +60,37 @@ func makeHTTPServer(t *testing.T, cb func(c *Config)) *TestServer {
 		Server: srv,
 	}
 	return s
+}
+
+func BenchmarkHTTPRequests(b *testing.B) {
+	s := makeHTTPServerNoLogs(b, func(c *Config) {
+		c.Client.Enabled = false
+	})
+	defer s.Cleanup()
+
+	job := mock.Job()
+	var allocs []*structs.Allocation
+	count := 1000
+	for i := 0; i < count; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
+		allocs = append(allocs, alloc)
+	}
+
+	handler := func(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+		return allocs[:count], nil
+	}
+	b.ResetTimer()
+
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			resp := httptest.NewRecorder()
+			req, _ := http.NewRequest("GET", "/v1/kv/key", nil)
+			s.Server.wrap(handler)(resp, req)
+		}
+	})
 }
 
 func TestSetIndex(t *testing.T) {
