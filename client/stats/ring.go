@@ -2,6 +2,7 @@ package stats
 
 import (
 	"fmt"
+	"sync"
 )
 
 var (
@@ -13,6 +14,8 @@ var (
 type RingBuff struct {
 	head int
 	buff []interface{}
+
+	lock sync.RWMutex
 }
 
 // NewRingBuff creates a new ring buffer of the specified size
@@ -26,6 +29,8 @@ func NewRingBuff(capacity int) (*RingBuff, error) {
 // Enqueue queues a new value in the ring buffer. This operation would
 // over-write an older value if the list has reached it's capacity
 func (r *RingBuff) Enqueue(value interface{}) {
+	r.lock.Lock()
+	defer r.lock.Unlock()
 	r.head += 1
 	if r.head == len(r.buff) {
 		r.head = 0
@@ -35,6 +40,8 @@ func (r *RingBuff) Enqueue(value interface{}) {
 
 // Peek returns the last value enqueued in the ring buffer
 func (r *RingBuff) Peek() interface{} {
+	r.lock.RLock()
+	defer r.lock.RUnlock()
 	if r.head == -1 {
 		return nil
 	}
@@ -43,6 +50,8 @@ func (r *RingBuff) Peek() interface{} {
 
 // Values returns all the values in the buffer.
 func (r *RingBuff) Values() []interface{} {
+	r.lock.RLock()
+	defer r.lock.RUnlock()
 	if r.head == len(r.buff)-1 {
 		vals := make([]interface{}, len(r.buff))
 		copy(vals, r.buff)

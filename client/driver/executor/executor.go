@@ -503,7 +503,6 @@ func (e *UniversalExecutor) PidStats() (map[int]*cstructs.TaskResourceUsage, err
 
 			// calculate cpu usage percent
 			cs.Percent = pid.cpuStats.Percent(cpuStats.Total())
-			e.logger.Printf("DIPTANU CPU PERCENT for pid %v: %v", pid.pid, cs.Percent)
 		}
 		stats[pid.pid] = &cstructs.TaskResourceUsage{MemoryStats: ms, CpuStats: cs, Timestamp: ts}
 	}
