@@ -6,6 +6,7 @@ import (
 	"time"
 )
 
+// CpuStats calculates cpu usage percentage
 type CpuStats struct {
 	prevProcessUsage float64
 	prevTime         time.Time
@@ -14,11 +15,14 @@ type CpuStats struct {
 	logger    *log.Logger
 }
 
+// NewCpuStats returns a cpu stats calculator
 func NewCpuStats(logger *log.Logger) *CpuStats {
 	numCpus := runtime.NumCPU()
 	return &CpuStats{totalCpus: numCpus, logger: logger}
 }
 
+// Percent calculates the cpu usage percentage based on the current cpu usage
+// and the previous cpu usage
 func (c *CpuStats) Percent(currentProcessUsage float64) float64 {
 	now := time.Now()
 

@@ -130,6 +130,7 @@ type ProcessState struct {
 	Time            time.Time
 }
 
+// NomadPid holds a pid and it's cpu percentage calculator
 type NomadPid struct {
 	pid      int
 	cpuStats *stats.CpuStats
