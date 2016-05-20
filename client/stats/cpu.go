@@ -1,41 +1,29 @@
 package stats
 
 import (
-	"github.com/shirou/gopsutil/cpu"
+	"log"
+	"runtime"
+	"time"
 )
 
 type CpuStats struct {
-	prevSystemUsage  float64
-	prevProcessUsage uint64
+	prevProcessUsage float64
+	prevTime         time.Time
 
 	totalCpus int
+	logger    *log.Logger
 }
 
-func NewCpuStats() (*CpuStats, error) {
-	cpuInfo, err := cpu.Info()
-	if err != nil {
-		return nil, err
-	}
-	return &CpuStats{totalCpus: len(cpuInfo)}, nil
+func NewCpuStats(logger *log.Logger) *CpuStats {
+	numCpus := runtime.NumCPU()
+	return &CpuStats{totalCpus: numCpus, logger: logger}
 }
 
-func (c *CpuStats) Percent(currentProcessUsage uint64) float64 {
-	percent := 0.0
-
-	sysCPUStats, err := cpu.Times(false)
-	if err != nil {
-		return 0
-	}
-	currentSysUsage := 0.0
-	for _, cpuStat := range sysCPUStats {
-		currentSysUsage += cpuStat.Total() * 1000000000
-	}
-
-	delta := float64(currentProcessUsage) - float64(c.prevProcessUsage)
-	sysDelta := float64(currentSysUsage) - float64(c.prevSystemUsage)
-
-	percent = (delta / sysDelta) * float64(c.totalCpus) * 100.0
-	c.prevSystemUsage = currentSysUsage
+func (c *CpuStats) Percent(currentProcessUsage float64) float64 {
+	procDelta := float64(currentProcessUsage) - float64(c.prevProcessUsage)
+	delta := (time.Now().Sub(c.prevTime).Seconds()) * float64(c.totalCpus)
+	percent := ((procDelta / delta) * 1000) * float64(c.totalCpus)
 	c.prevProcessUsage = currentProcessUsage
 	return percent
+
 }

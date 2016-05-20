@@ -18,6 +18,7 @@ import (
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
+	"github.com/hashicorp/nomad/client/stats"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -164,7 +165,7 @@ func (e *UniversalExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
 		ThrottledTime:    stats.CpuStats.ThrottlingData.ThrottledTime,
 	}
 	if e.cpuStats != nil {
-		cs.Percent = e.cpuStats.Percent(totalProcessCPUUsage)
+		cs.Percent = e.cpuStats.Percent(float64(totalProcessCPUUsage))
 	}
 	return &cstructs.TaskResourceUsage{MemoryStats: ms, CpuStats: cs, Timestamp: time.Now()}, nil
 }
@@ -239,10 +240,18 @@ func (e *UniversalExecutor) removeChrootMounts() error {
 	return e.ctx.AllocDir.UnmountAll()
 }
 
-func (e *UniversalExecutor) getAllPids() ([]int, error) {
+func (e *UniversalExecutor) getAllPids() ([]*NomadPid, error) {
 	if e.command.ResourceLimits {
 		manager := getCgroupManager(e.groups, e.cgPaths)
-		return manager.GetAllPids()
+		pids, err := manager.GetAllPids()
+		if err != nil {
+			return nil, err
+		}
+		np := make([]*NomadPid, len(pids))
+		for idx, pid := range pids {
+			np[idx] = &NomadPid{pid, stats.NewCpuStats(e.logger)}
+		}
+		return np, nil
 	}
 	return e.scanPids()
 }

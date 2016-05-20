@@ -137,7 +137,7 @@ func (f *StatsCommand) printTaskResourceUsage(task string, resourceUsage map[str
 	out = make([]string, 2)
 	out[0] = "Percent|Throttled Periods|Throttled Time"
 	percent := strconv.FormatFloat(tu.CpuStats.Percent, 'f', 2, 64)
-	out[1] = fmt.Sprintf("%v|%v|%v|%v", percent,
+	out[1] = fmt.Sprintf("%v|%v|%v", percent,
 		tu.CpuStats.ThrottledPeriods, tu.CpuStats.ThrottledTime)
 	f.Ui.Output(formatList(out))
 }

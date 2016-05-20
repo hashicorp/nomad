@@ -130,6 +130,11 @@ type ProcessState struct {
 	Time            time.Time
 }
 
+type NomadPid struct {
+	pid      int
+	cpuStats *stats.CpuStats
+}
+
 // SyslogServerState holds the address and islation information of a launched
 // syslog server
 type SyslogServerState struct {
@@ -154,7 +159,7 @@ type UniversalExecutor struct {
 	ctx     *ExecutorContext
 	command *ExecCommand
 
-	pids          []int
+	pids          []*NomadPid
 	taskDir       string
 	exitState     *ProcessState
 	processExited chan interface{}
@@ -181,10 +186,7 @@ func NewExecutor(logger *log.Logger) Executor {
 	exec := &UniversalExecutor{
 		logger:        logger,
 		processExited: make(chan interface{}),
-	}
-
-	if cpuStats, err := stats.NewCpuStats(); err == nil {
-		exec.cpuStats = cpuStats
+		cpuStats:      stats.NewCpuStats(logger),
 	}
 
 	return exec
@@ -483,31 +485,27 @@ func (e *UniversalExecutor) PidStats() (map[int]*cstructs.TaskResourceUsage, err
 	stats := make(map[int]*cstructs.TaskResourceUsage)
 	ts := time.Now()
 	for _, pid := range e.pids {
-		p, err := process.NewProcess(int32(pid))
+		p, err := process.NewProcess(int32(pid.pid))
 		if err != nil {
-			e.logger.Printf("[DEBUG] executor: unable to create new process with pid: %v", pid)
+			e.logger.Printf("[DEBUG] executor: unable to create new process with pid: %v", pid.pid)
 			continue
 		}
-		memInfo, err := p.MemoryInfo()
-		if err != nil {
-			e.logger.Printf("[DEBUG] executor: unable to get memory stats for process: %v", pid)
-		}
-		cpuStats, err := p.Times()
-		if err != nil {
-			e.logger.Printf("[DEBUG] executor: unable to get cpu stats for process: %v", pid)
-		}
-		ms := &cstructs.MemoryStats{
-			RSS:  memInfo.RSS,
-			Swap: memInfo.Swap,
+		ms := &cstructs.MemoryStats{}
+		if memInfo, err := p.MemoryInfo(); err == nil {
+			ms.RSS = memInfo.RSS
+			ms.Swap = memInfo.Swap
 		}
 
-		percent, _ := p.Percent(0)
-		cs := &cstructs.CpuUsage{
-			SystemMode: cpuStats.System,
-			UserMode:   cpuStats.User,
-			Percent:    percent,
+		cs := &cstructs.CpuUsage{}
+		if cpuStats, err := p.Times(); err == nil {
+			cs.SystemMode = cpuStats.System
+			cs.UserMode = cpuStats.User
+
+			// calculate cpu usage percent
+			cs.Percent = pid.cpuStats.Percent(cpuStats.Total())
+			e.logger.Printf("DIPTANU CPU PERCENT for pid %v: %v", pid.pid, cs.Percent)
 		}
-		stats[pid] = &cstructs.TaskResourceUsage{MemoryStats: ms, CpuStats: cs, Timestamp: ts}
+		stats[pid.pid] = &cstructs.TaskResourceUsage{MemoryStats: ms, CpuStats: cs, Timestamp: ts}
 	}
 
 	return stats, nil
@@ -698,7 +696,7 @@ func (e *UniversalExecutor) collectPids() {
 
 // scanPids scans all the pids on the machine running the current executor and
 // returns the child processes of the executor.
-func (e *UniversalExecutor) scanPids() ([]int, error) {
+func (e *UniversalExecutor) scanPids() ([]*NomadPid, error) {
 	processFamily := make(map[int]struct{})
 	processFamily[os.Getpid()] = struct{}{}
 	pids, err := ps.Processes()
@@ -712,9 +710,9 @@ func (e *UniversalExecutor) scanPids() ([]int, error) {
 			processFamily[pid.Pid()] = struct{}{}
 		}
 	}
-	res := make([]int, 0, len(processFamily))
+	res := make([]*NomadPid, 0, len(processFamily))
 	for pid := range processFamily {
-		res = append(res, pid)
+		res = append(res, &NomadPid{pid, stats.NewCpuStats(e.logger)})
 	}
 	return res, nil
 }
