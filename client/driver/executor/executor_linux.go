@@ -165,7 +165,7 @@ func (e *UniversalExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
 		ThrottledTime:    stats.CpuStats.ThrottlingData.ThrottledTime,
 	}
 	if e.cpuStats != nil {
-		cs.Percent = e.cpuStats.Percent(float64(totalProcessCPUUsage))
+		cs.Percent = e.cpuStats.Percent(float64(totalProcessCPUUsage) / nanosecondsInSecond)
 	}
 	return &cstructs.TaskResourceUsage{MemoryStats: ms, CpuStats: cs, Timestamp: time.Now()}, nil
 }
