@@ -1,6 +1,7 @@
 ## 0.4.0 (UNRELEASED)
 
 IMPROVEMENTS:
+  * api: Faster JSON response encoding [GH-1182]
   * api: Plan api introduced for the Job endpoint [GH-1168]
   * cli: Unify the `fs` family of commands to be a single command [GH-1150]
 
