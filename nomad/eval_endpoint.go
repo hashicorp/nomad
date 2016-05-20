@@ -202,6 +202,46 @@ func (e *Eval) Create(args *structs.EvalUpdateRequest,
 	return nil
 }
 
+// Reblock is used to reinsert an existing blocked evaluation into the blocked
+// evaluation tracker.
+func (e *Eval) Reblock(args *structs.EvalUpdateRequest, reply *structs.GenericResponse) error {
+	if done, err := e.srv.forward("Eval.Reblock", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "eval", "reblock"}, time.Now())
+
+	// Ensure there is only a single update with token
+	if len(args.Evals) != 1 {
+		return fmt.Errorf("only a single eval can be reblocked")
+	}
+	eval := args.Evals[0]
+
+	// Verify the evaluation is outstanding, and that the tokens match.
+	if err := e.srv.evalBroker.OutstandingReset(eval.ID, args.EvalToken); err != nil {
+		return err
+	}
+
+	// Look for the eval
+	snap, err := e.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+	out, err := snap.EvalByID(eval.ID)
+	if err != nil {
+		return err
+	}
+	if out == nil {
+		return fmt.Errorf("evaluation does not exist")
+	}
+	if out.Status != structs.EvalStatusBlocked {
+		return fmt.Errorf("evaluation not blocked")
+	}
+
+	// Reblock the eval
+	e.srv.blockedEvals.Block(eval)
+	return nil
+}
+
 // Reap is used to cleanup dead evaluations and allocations
 func (e *Eval) Reap(args *structs.EvalDeleteRequest,
 	reply *structs.GenericResponse) error {

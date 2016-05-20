@@ -442,3 +442,51 @@ func TestWorker_CreateEval(t *testing.T) {
 		t.Fatalf("bad: %v", out)
 	}
 }
+
+func TestWorker_ReblockEval(t *testing.T) {
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+		c.EnabledSchedulers = []string{structs.JobTypeService}
+	})
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the blocked eval
+	eval1 := mock.Eval()
+	eval1.Status = structs.EvalStatusBlocked
+
+	// Insert it into the state store
+	if err := s1.fsm.State().UpsertEvals(1000, []*structs.Evaluation{eval1}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Enqueue the eval
+	testutil.WaitForResult(func() (bool, error) {
+		err := s1.evalBroker.Enqueue(eval1)
+		return err == nil, err
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+	evalOut, token, err := s1.evalBroker.Dequeue([]string{eval1.Type}, time.Second)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if evalOut != eval1 {
+		t.Fatalf("Bad eval")
+	}
+
+	eval2 := evalOut.Copy()
+
+	// Attempt to reblock eval
+	w := &Worker{srv: s1, logger: s1.logger, evalToken: token}
+	err = w.ReblockEval(eval2)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Check that it is blocked
+	bStats := s1.blockedEvals.Stats()
+	if bStats.TotalBlocked+bStats.TotalEscaped == 0 {
+		t.Fatalf("ReblockEval didn't insert eval into the blocked eval tracker")
+	}
+}

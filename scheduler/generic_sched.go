@@ -113,6 +113,11 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 		if statusErr, ok := err.(*SetStatusError); ok {
 			// Scheduling was tried but made no forward progress so create a
 			// blocked eval to retry once resources become available.
+
+			// TODO: Set the trigger by reason of the blocked eval here to
+			// something like "max-attempts"
+			// We can then periodically dequeue these from the blocked_eval
+			// tracker.
 			var mErr multierror.Error
 			if err := s.createBlockedEval(); err != nil {
 				mErr.Errors = append(mErr.Errors, err)
@@ -123,6 +128,12 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 			return mErr.ErrorOrNil()
 		}
 		return err
+	}
+
+	// If the current evaluation is a blocked evaluation and we didn't place
+	// everything, do not update the status to complete.
+	if s.eval.Status == structs.EvalStatusBlocked && len(s.eval.FailedTGAllocs) != 0 {
+		return s.planner.ReblockEval(s.eval)
 	}
 
 	// Update the status to complete
@@ -177,8 +188,9 @@ func (s *GenericScheduler) process() (bool, error) {
 	}
 
 	// If there are failed allocations, we need to create a blocked evaluation
-	// to place the failed allocations when resources become available.
-	if len(s.eval.FailedTGAllocs) != 0 && s.blocked == nil {
+	// to place the failed allocations when resources become available. If the
+	// current evaluation is already a blocked eval, we reuse it.
+	if s.eval.Status != structs.EvalStatusBlocked && len(s.eval.FailedTGAllocs) != 0 && s.blocked == nil {
 		if err := s.createBlockedEval(); err != nil {
 			s.logger.Printf("[ERR] sched: %#v failed to make blocked eval: %v", s.eval, err)
 			return false, err

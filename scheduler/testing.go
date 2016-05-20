@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"sync"
@@ -29,6 +30,10 @@ func (r *RejectPlan) CreateEval(*structs.Evaluation) error {
 	return nil
 }
 
+func (r *RejectPlan) ReblockEval(*structs.Evaluation) error {
+	return nil
+}
+
 // Harness is a lightweight testing harness for schedulers. It manages a state
 // store copy and provides the planner interface. It can be extended for various
 // testing uses or for invoking the scheduler without side effects.
@@ -38,9 +43,10 @@ type Harness struct {
 	Planner  Planner
 	planLock sync.Mutex
 
-	Plans       []*structs.Plan
-	Evals       []*structs.Evaluation
-	CreateEvals []*structs.Evaluation
+	Plans        []*structs.Plan
+	Evals        []*structs.Evaluation
+	CreateEvals  []*structs.Evaluation
+	ReblockEvals []*structs.Evaluation
 
 	nextIndex     uint64
 	nextIndexLock sync.Mutex
@@ -135,6 +141,28 @@ func (h *Harness) CreateEval(eval *structs.Evaluation) error {
 	if h.Planner != nil {
 		return h.Planner.CreateEval(eval)
 	}
+	return nil
+}
+
+func (h *Harness) ReblockEval(eval *structs.Evaluation) error {
+	// Ensure sequential plan application
+	h.planLock.Lock()
+	defer h.planLock.Unlock()
+
+	// Check that the evaluation was already blocked.
+	old, err := h.State.EvalByID(eval.ID)
+	if err != nil {
+		return err
+	}
+
+	if old == nil {
+		return fmt.Errorf("evaluation does not exist to be reblocked")
+	}
+	if old.Status != structs.EvalStatusBlocked {
+		return fmt.Errorf("evaluation %q is not already in a blocked state", old.ID)
+	}
+
+	h.ReblockEvals = append(h.ReblockEvals, eval)
 	return nil
 }
 
