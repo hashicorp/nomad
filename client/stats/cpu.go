@@ -1,7 +1,6 @@
 package stats
 
 import (
-	"log"
 	"runtime"
 	"time"
 )
@@ -12,13 +11,12 @@ type CpuStats struct {
 	prevTime         time.Time
 
 	totalCpus int
-	logger    *log.Logger
 }
 
 // NewCpuStats returns a cpu stats calculator
-func NewCpuStats(logger *log.Logger) *CpuStats {
+func NewCpuStats() *CpuStats {
 	numCpus := runtime.NumCPU()
-	return &CpuStats{totalCpus: numCpus, logger: logger}
+	return &CpuStats{totalCpus: numCpus}
 }
 
 // Percent calculates the cpu usage percentage based on the current cpu usage

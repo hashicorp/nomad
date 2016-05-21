@@ -187,7 +187,7 @@ func NewExecutor(logger *log.Logger) Executor {
 	exec := &UniversalExecutor{
 		logger:        logger,
 		processExited: make(chan interface{}),
-		cpuStats:      stats.NewCpuStats(logger),
+		cpuStats:      stats.NewCpuStats(),
 	}
 
 	return exec
@@ -712,7 +712,7 @@ func (e *UniversalExecutor) scanPids() ([]*NomadPid, error) {
 	}
 	res := make([]*NomadPid, 0, len(processFamily))
 	for pid := range processFamily {
-		res = append(res, &NomadPid{pid, stats.NewCpuStats(e.logger)})
+		res = append(res, &NomadPid{pid, stats.NewCpuStats()})
 	}
 	return res, nil
 }
