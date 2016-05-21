@@ -151,14 +151,14 @@ func (e *UniversalExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
 	}
 
 	// CPU Related Stats
-	totalProcessCPUUsage := stats.CpuStats.CpuUsage.TotalUsage
-	userModeTime := stats.CpuStats.CpuUsage.UsageInUsermode
-	kernelModeTime := stats.CpuStats.CpuUsage.UsageInKernelmode
+	totalProcessCPUUsage := stats.CpuStats.CpuStats.TotalUsage
+	userModeTime := stats.CpuStats.CpuStats.UsageInUsermode
+	kernelModeTime := stats.CpuStats.CpuStats.UsageInKernelmode
 
 	umTicks := (userModeTime * clockTicks) / nanosecondsInSecond
 	kmTicks := (kernelModeTime * clockTicks) / nanosecondsInSecond
 
-	cs := &cstructs.CpuUsage{
+	cs := &cstructs.CpuStats{
 		SystemMode:       float64(kmTicks),
 		UserMode:         float64(umTicks),
 		ThrottledPeriods: stats.CpuStats.ThrottlingData.ThrottledPeriods,

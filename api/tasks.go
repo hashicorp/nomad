@@ -13,7 +13,7 @@ type MemoryStats struct {
 	KernelMaxUsage uint64
 }
 
-type CpuUsage struct {
+type CpuStats struct {
 	SystemMode       float64
 	UserMode         float64
 	ThrottledPeriods uint64
@@ -23,7 +23,7 @@ type CpuUsage struct {
 
 type TaskResourceUsage struct {
 	MemoryStats *MemoryStats
-	CpuStats    *CpuUsage
+	CpuStats    *CpuStats
 }
 
 // RestartPolicy defines how the Nomad client restarts

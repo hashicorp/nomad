@@ -497,7 +497,7 @@ func (e *UniversalExecutor) PidStats() (map[int]*cstructs.TaskResourceUsage, err
 			ms.Swap = memInfo.Swap
 		}
 
-		cs := &cstructs.CpuUsage{}
+		cs := &cstructs.CpuStats{}
 		if cpuStats, err := p.Times(); err == nil {
 			cs.SystemMode = cpuStats.System
 			cs.UserMode = cpuStats.User
@@ -739,7 +739,7 @@ func (e *UniversalExecutor) resourceUsagePids() (*cstructs.TaskResourceUsage, er
 		totalSwap += rs.MemoryStats.Swap
 	}
 
-	totalCPU := &cstructs.CpuUsage{
+	totalCPU := &cstructs.CpuStats{
 		SystemMode: systemModeCPU,
 		UserMode:   userModeCPU,
 		Percent:    percent,

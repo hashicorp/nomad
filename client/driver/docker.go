@@ -991,7 +991,7 @@ func (h *DockerHandle) monitorUsage() {
 					MaxUsage: s.MemoryStats.MaxUsage,
 				}
 
-				cs := &cstructs.CpuUsage{
+				cs := &cstructs.CpuStats{
 					SystemMode:       float64(s.CPUStats.CPUUsage.UsageInKernelmode),
 					UserMode:         float64(s.CPUStats.CPUUsage.UsageInKernelmode),
 					ThrottledPeriods: s.CPUStats.ThrottlingData.ThrottledPeriods,

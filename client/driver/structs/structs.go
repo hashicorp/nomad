@@ -85,6 +85,7 @@ type CheckResult struct {
 	Err error
 }
 
+// MemoryStats holds memory usage related stats
 type MemoryStats struct {
 	RSS            uint64
 	Cache          uint64
@@ -94,7 +95,8 @@ type MemoryStats struct {
 	KernelMaxUsage uint64
 }
 
-type CpuUsage struct {
+// CpuStats holds cpu usage related stats
+type CpuStats struct {
 	SystemMode       float64
 	UserMode         float64
 	ThrottledPeriods uint64
@@ -102,8 +104,10 @@ type CpuUsage struct {
 	Percent          float64
 }
 
+// TaskResourceUsage holds aggregated resource usage of all processes in a Task
+// and the resource usage of the individual pids
 type TaskResourceUsage struct {
 	MemoryStats *MemoryStats
-	CpuStats    *CpuUsage
+	CpuStats    *CpuStats
 	Timestamp   time.Time
 }
