@@ -110,8 +110,9 @@ type Config struct {
 	// Revision is the commit number of the Nomad client
 	Revision string
 
-	// ConsulConfig is the configuration to connect with Consul Agent
-	ConsulConfig *consul.AgentConfig
+	// ConsulAgentConfig is the configuration to connect with Consul
+	// Agent
+	ConsulAgentConfig *consul.AgentConfig
 
 	// StatsDataPoints is the number of resource usage data points the Nomad
 	// client keeps in memory
