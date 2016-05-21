@@ -58,10 +58,11 @@ type Executor interface {
 	Stats() (*cstructs.TaskResourceUsage, error)
 }
 
-// ConsulContext holds context to configure the consul client and run checks
+// ConsulContext holds context to configure the Consul client and run checks
 type ConsulContext struct {
-	// ConsulConfig is the configuration used to create a consul client
-	ConsulConfig *consul.AgentConfig
+	// ConsulAgentConfig contains the configuration information for
+	// talking with this Nomad Agent's Consul Agent.
+	ConsulAgentConfig *consul.AgentConfig
 
 	// ContainerID is the ID of the container
 	ContainerID string
@@ -470,7 +471,7 @@ func (e *UniversalExecutor) SyncServices(ctx *ConsulContext) error {
 	e.logger.Printf("[INFO] executor: registering services")
 	e.consulCtx = ctx
 	if e.consulService == nil {
-		cs, err := consul.NewConsulService(ctx.ConsulConfig, e.logger)
+		cs, err := consul.NewConsulService(ctx.ConsulAgentConfig, e.logger)
 		if err != nil {
 			return err
 		}
