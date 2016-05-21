@@ -30,7 +30,7 @@ type Agent struct {
 	logOutput io.Writer
 
 	consulService  *consul.ConsulService // consulService registers the Nomad agent with the consul agent
-	consulConfig   *consul.AgentConfig   // consulConfig is the configuration the Nomad client uses to connect with Consul agent
+	consulAgentConfig *consul.AgentConfig   // consulAgentConfig is the configuration the Nomad client uses to connect with Consul agent
 	serverHTTPAddr string
 	clientHTTPAddr string
 
@@ -58,7 +58,7 @@ func NewAgent(config *Config, logOutput io.Writer) (*Agent, error) {
 
 	// creating the consul client configuration that both the server and client
 	// uses
-	a.createConsulConfig()
+	a.createAgentConfig()
 
 	if err := a.setupServer(); err != nil {
 		return nil, err
@@ -272,7 +272,7 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	conf.Version = fmt.Sprintf("%s%s", a.config.Version, a.config.VersionPrerelease)
 	conf.Revision = a.config.Revision
 
-	conf.ConsulAgentConfig = a.consulConfig
+	conf.ConsulAgentConfig = a.consulAgentConfig
 
 	conf.StatsDataPoints = a.config.Client.StatsConfig.DataPoints
 	conf.StatsCollectionInterval = a.config.Client.StatsConfig.collectionInterval
@@ -487,7 +487,7 @@ func (a *Agent) Stats() map[string]map[string]string {
 	return stats
 }
 
-func (a *Agent) createConsulConfig() {
+func (a *Agent) createAgentConfig() {
 	cfg := &consul.AgentConfig{
 		Addr:      a.config.ConsulConfig.Addr,
 		Token:     a.config.ConsulConfig.Token,
@@ -498,12 +498,12 @@ func (a *Agent) createConsulConfig() {
 		CertFile:  a.config.ConsulConfig.CertFile,
 		KeyFile:   a.config.ConsulConfig.KeyFile,
 	}
-	a.consulConfig = cfg
+	a.consulAgentConfig = cfg
 }
 
 // syncAgentServicesWithConsul syncs the client and server services with Consul
 func (a *Agent) syncAgentServicesWithConsul(clientHttpAddr string, serverHttpAddr string) error {
-	cs, err := consul.NewConsulService(a.consulConfig, a.logger)
+	cs, err := consul.NewConsulService(a.consulAgentConfig, a.logger)
 	if err != nil {
 		return err
 	}
