@@ -130,6 +130,7 @@ func (e *UniversalExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
 	if !e.command.ResourceLimits {
 		return e.resourceUsagePids()
 	}
+	ts := time.Now()
 	manager := getCgroupManager(e.groups, e.cgPaths)
 	stats, err := manager.GetStats()
 	if err != nil {
@@ -151,9 +152,9 @@ func (e *UniversalExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
 	}
 
 	// CPU Related Stats
-	totalProcessCPUUsage := stats.CpuStats.CpuStats.TotalUsage
-	userModeTime := stats.CpuStats.CpuStats.UsageInUsermode
-	kernelModeTime := stats.CpuStats.CpuStats.UsageInKernelmode
+	totalProcessCPUUsage := stats.CpuStats.CpuUsage.TotalUsage
+	userModeTime := stats.CpuStats.CpuUsage.UsageInUsermode
+	kernelModeTime := stats.CpuStats.CpuUsage.UsageInKernelmode
 
 	umTicks := (userModeTime * clockTicks) / nanosecondsInSecond
 	kmTicks := (kernelModeTime * clockTicks) / nanosecondsInSecond
@@ -165,9 +166,13 @@ func (e *UniversalExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
 		ThrottledTime:    stats.CpuStats.ThrottlingData.ThrottledTime,
 	}
 	if e.cpuStats != nil {
-		cs.Percent = e.cpuStats.Percent(float64(totalProcessCPUUsage) / nanosecondsInSecond)
+		cs.Percent = e.cpuStats.Percent(float64(totalProcessCPUUsage / nanosecondsInSecond))
 	}
-	return &cstructs.TaskResourceUsage{MemoryStats: ms, CpuStats: cs, Timestamp: time.Now()}, nil
+	taskResUsage := cstructs.TaskResourceUsage{ResourceUsage: &cstructs.ResourceUsage{MemoryStats: ms, CpuStats: cs, Timestamp: ts}, Timestamp: ts}
+	if pidStats, err := e.PidStats(); err == nil {
+		taskResUsage.Pids = pidStats
+	}
+	return &taskResUsage, nil
 }
 
 // runAs takes a user id as a string and looks up the user, and sets the command
@@ -249,7 +254,7 @@ func (e *UniversalExecutor) getAllPids() ([]*NomadPid, error) {
 		}
 		np := make([]*NomadPid, len(pids))
 		for idx, pid := range pids {
-			np[idx] = &NomadPid{pid, stats.NewCpuStats(e.logger)}
+			np[idx] = &NomadPid{pid, stats.NewCpuStats()}
 		}
 		return np, nil
 	}

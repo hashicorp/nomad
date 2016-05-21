@@ -347,8 +347,10 @@ func (c *AllocStatusCommand) taskResources(alloc *api.Allocation, stats map[stri
 		cpuUsage := strconv.Itoa(resource.CPU)
 		memUsage := strconv.Itoa(resource.MemoryMB)
 		if ru, ok := stats[task]; ok {
-			cpuUsage = fmt.Sprintf("%v/%v", (ru.CpuStats.SystemMode + ru.CpuStats.UserMode), resource.CPU)
-			memUsage = fmt.Sprintf("%v/%v", ru.MemoryStats.RSS/(1024*1024), resource.MemoryMB)
+			cpuStats := ru.ResourceUsage.CpuStats
+			memoryStats := ru.ResourceUsage.MemoryStats
+			cpuUsage = fmt.Sprintf("%v/%v", (cpuStats.SystemMode + cpuStats.UserMode), resource.CPU)
+			memUsage = fmt.Sprintf("%v/%v", memoryStats.RSS/(1024*1024), resource.MemoryMB)
 		}
 		resourcesOutput = append(resourcesOutput, fmt.Sprintf("%v|%v|%v|%v|%v",
 			cpuUsage,

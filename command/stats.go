@@ -117,17 +117,19 @@ func (f *StatsCommand) printTaskResourceUsage(task string, resourceUsage map[str
 	if !ok {
 		return
 	}
+	memoryStats := tu.ResourceUsage.MemoryStats
+	cpuStats := tu.ResourceUsage.CpuStats
 	f.Ui.Output(fmt.Sprintf("===> Task: %q", task))
 	f.Ui.Output("Memory Stats")
 	out := make([]string, 2)
 	out[0] = "RSS|Cache|Swap|Max Usage|Kernel Usage|KernelMaxUsage"
 	out[1] = fmt.Sprintf("%v|%v|%v|%v|%v|%v",
-		humanize.Bytes(tu.MemoryStats.RSS),
-		humanize.Bytes(tu.MemoryStats.Cache),
-		humanize.Bytes(tu.MemoryStats.Swap),
-		humanize.Bytes(tu.MemoryStats.MaxUsage),
-		humanize.Bytes(tu.MemoryStats.KernelUsage),
-		humanize.Bytes(tu.MemoryStats.KernelMaxUsage),
+		humanize.Bytes(memoryStats.RSS),
+		humanize.Bytes(memoryStats.Cache),
+		humanize.Bytes(memoryStats.Swap),
+		humanize.Bytes(memoryStats.MaxUsage),
+		humanize.Bytes(memoryStats.KernelUsage),
+		humanize.Bytes(memoryStats.KernelMaxUsage),
 	)
 	f.Ui.Output(formatList(out))
 
@@ -136,9 +138,9 @@ func (f *StatsCommand) printTaskResourceUsage(task string, resourceUsage map[str
 	f.Ui.Output("CPU Stats")
 	out = make([]string, 2)
 	out[0] = "Percent|Throttled Periods|Throttled Time"
-	percent := strconv.FormatFloat(tu.CpuStats.Percent, 'f', 2, 64)
+	percent := strconv.FormatFloat(cpuStats.Percent, 'f', 2, 64)
 	out[1] = fmt.Sprintf("%v|%v|%v", percent,
-		tu.CpuStats.ThrottledPeriods, tu.CpuStats.ThrottledTime)
+		cpuStats.ThrottledPeriods, cpuStats.ThrottledTime)
 	f.Ui.Output(formatList(out))
 }
 

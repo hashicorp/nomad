@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -46,7 +47,6 @@ type Executor interface {
 	DeregisterServices() error
 	Version() (*ExecutorVersion, error)
 	Stats() (*cstructs.TaskResourceUsage, error)
-	PidStats() (map[int]*cstructs.TaskResourceUsage, error)
 }
 
 // ConsulContext holds context to configure the consul client and run checks
@@ -482,8 +482,8 @@ func (e *UniversalExecutor) DeregisterServices() error {
 }
 
 // PidStats returns the resource usage stats per pid
-func (e *UniversalExecutor) PidStats() (map[int]*cstructs.TaskResourceUsage, error) {
-	stats := make(map[int]*cstructs.TaskResourceUsage)
+func (e *UniversalExecutor) PidStats() (map[string]*cstructs.ResourceUsage, error) {
+	stats := make(map[string]*cstructs.ResourceUsage)
 	ts := time.Now()
 	for _, pid := range e.pids {
 		p, err := process.NewProcess(int32(pid.pid))
@@ -505,7 +505,7 @@ func (e *UniversalExecutor) PidStats() (map[int]*cstructs.TaskResourceUsage, err
 			// calculate cpu usage percent
 			cs.Percent = pid.cpuStats.Percent(cpuStats.Total())
 		}
-		stats[pid.pid] = &cstructs.TaskResourceUsage{MemoryStats: ms, CpuStats: cs, Timestamp: ts}
+		stats[strconv.Itoa(pid.pid)] = &cstructs.ResourceUsage{MemoryStats: ms, CpuStats: cs, Timestamp: ts}
 	}
 
 	return stats, nil
@@ -721,7 +721,7 @@ func (e *UniversalExecutor) scanPids() ([]*NomadPid, error) {
 // spawned by the executor and the user process.
 func (e *UniversalExecutor) resourceUsagePids() (*cstructs.TaskResourceUsage, error) {
 	ts := time.Now()
-	resourceUsage, err := e.PidStats()
+	pidStats, err := e.PidStats()
 	if err != nil {
 		return nil, err
 	}
@@ -730,13 +730,13 @@ func (e *UniversalExecutor) resourceUsagePids() (*cstructs.TaskResourceUsage, er
 		totalRSS, totalSwap                 uint64
 	)
 
-	for _, rs := range resourceUsage {
-		systemModeCPU += rs.CpuStats.SystemMode
-		userModeCPU += rs.CpuStats.UserMode
-		percent += rs.CpuStats.Percent
+	for _, pidStat := range pidStats {
+		systemModeCPU += pidStat.CpuStats.SystemMode
+		userModeCPU += pidStat.CpuStats.UserMode
+		percent += pidStat.CpuStats.Percent
 
-		totalRSS += rs.MemoryStats.RSS
-		totalSwap += rs.MemoryStats.Swap
+		totalRSS += pidStat.MemoryStats.RSS
+		totalSwap += pidStat.MemoryStats.Swap
 	}
 
 	totalCPU := &cstructs.CpuStats{
@@ -750,5 +750,6 @@ func (e *UniversalExecutor) resourceUsagePids() (*cstructs.TaskResourceUsage, er
 		Swap: totalSwap,
 	}
 
-	return &cstructs.TaskResourceUsage{MemoryStats: totalMemory, CpuStats: totalCPU, Timestamp: ts}, nil
+	resourceUsage := cstructs.ResourceUsage{MemoryStats: totalMemory, CpuStats: totalCPU, Timestamp: ts}
+	return &cstructs.TaskResourceUsage{ResourceUsage: &resourceUsage, Timestamp: ts, Pids: pidStats}, nil
 }

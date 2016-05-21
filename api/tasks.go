@@ -21,9 +21,16 @@ type CpuStats struct {
 	Percent          float64
 }
 
-type TaskResourceUsage struct {
+type ResourceUsage struct {
 	MemoryStats *MemoryStats
 	CpuStats    *CpuStats
+	Timestamp   time.Time
+}
+
+type TaskResourceUsage struct {
+	ResourceUsage *ResourceUsage
+	Timestamp     time.Time
+	Pids          map[string]*ResourceUsage
 }
 
 // RestartPolicy defines how the Nomad client restarts

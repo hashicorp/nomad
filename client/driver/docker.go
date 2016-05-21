@@ -1004,7 +1004,13 @@ func (h *DockerHandle) monitorUsage() {
 				if cpuDelta > 0.0 && systemDelta > 0.0 {
 					cs.Percent = (cpuDelta / systemDelta) * float64(len(s.CPUStats.CPUUsage.PercpuUsage)) * 100.0
 				}
-				h.resourceUsage = &cstructs.TaskResourceUsage{MemoryStats: ms, CpuStats: cs, Timestamp: s.Read}
+				h.resourceUsage = &cstructs.TaskResourceUsage{
+					ResourceUsage: &cstructs.ResourceUsage{
+						MemoryStats: ms,
+						CpuStats:    cs,
+					},
+					Timestamp: s.Read,
+				}
 			}
 		case <-h.doneMonitoring:
 		case <-h.doneCh:
