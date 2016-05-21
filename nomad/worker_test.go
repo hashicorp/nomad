@@ -398,6 +398,9 @@ func TestWorker_UpdateEval(t *testing.T) {
 	if out.Status != structs.EvalStatusComplete {
 		t.Fatalf("bad: %v", out)
 	}
+	if out.SnapshotIndex != w.snapshotIndex {
+		t.Fatalf("bad: %v", out)
+	}
 }
 
 func TestWorker_CreateEval(t *testing.T) {
@@ -439,6 +442,9 @@ func TestWorker_CreateEval(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 	if out.PreviousEval != eval1.ID {
+		t.Fatalf("bad: %v", out)
+	}
+	if out.SnapshotIndex != w.snapshotIndex {
 		t.Fatalf("bad: %v", out)
 	}
 }
@@ -484,9 +490,33 @@ func TestWorker_ReblockEval(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
+	// Ack the eval
+	w.sendAck(evalOut.ID, token, true)
+
 	// Check that it is blocked
 	bStats := s1.blockedEvals.Stats()
-	if bStats.TotalBlocked+bStats.TotalEscaped == 0 {
-		t.Fatalf("ReblockEval didn't insert eval into the blocked eval tracker")
+	if bStats.TotalBlocked+bStats.TotalEscaped != 1 {
+		t.Fatalf("ReblockEval didn't insert eval into the blocked eval tracker: %#v", bStats)
+	}
+
+	// Check that the snapshot index was set properly by unblocking the eval and
+	// then dequeuing.
+	s1.blockedEvals.Unblock("foobar")
+
+	reblockedEval, _, err := s1.evalBroker.Dequeue([]string{eval1.Type}, 1*time.Second)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if reblockedEval == nil {
+		t.Fatalf("Nil eval")
+	}
+	if reblockedEval.ID != eval1.ID {
+		t.Fatalf("Bad eval")
+	}
+
+	// Check that the SnapshotIndex is set
+	if reblockedEval.SnapshotIndex != w.snapshotIndex {
+		t.Fatalf("incorrect snapshot index; got %d; want %d",
+			reblockedEval.SnapshotIndex, w.snapshotIndex)
 	}
 }

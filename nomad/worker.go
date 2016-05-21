@@ -58,7 +58,8 @@ type Worker struct {
 
 	failures uint
 
-	evalToken string
+	evalToken     string
+	snapshotIndex uint64
 }
 
 // NewWorker starts a new worker associated with the given server
@@ -241,6 +242,12 @@ func (w *Worker) invokeScheduler(eval *structs.Evaluation, token string) error {
 		return fmt.Errorf("failed to snapshot state: %v", err)
 	}
 
+	// Store the snapshot's index
+	w.snapshotIndex, err = snap.LatestIndex()
+	if err != nil {
+		return fmt.Errorf("failed to determine snapshot's index: %v", err)
+	}
+
 	// Create the scheduler, or use the special system scheduler
 	var sched scheduler.Scheduler
 	if eval.Type == structs.JobTypeCore {
@@ -319,6 +326,9 @@ SUBMIT:
 			return nil, nil, fmt.Errorf("failed to snapshot state: %v", err)
 		}
 		state = snap
+
+		// Store the snapshot's index
+		w.snapshotIndex = result.RefreshIndex
 	}
 
 	// Return the result and potential state update
@@ -333,6 +343,9 @@ func (w *Worker) UpdateEval(eval *structs.Evaluation) error {
 		return fmt.Errorf("shutdown while planning")
 	}
 	defer metrics.MeasureSince([]string{"nomad", "worker", "update_eval"}, time.Now())
+
+	// Store the snapshot index in the eval
+	eval.SnapshotIndex = w.snapshotIndex
 
 	// Setup the request
 	req := structs.EvalUpdateRequest{
@@ -369,6 +382,9 @@ func (w *Worker) CreateEval(eval *structs.Evaluation) error {
 	}
 	defer metrics.MeasureSince([]string{"nomad", "worker", "create_eval"}, time.Now())
 
+	// Store the snapshot index in the eval
+	eval.SnapshotIndex = w.snapshotIndex
+
 	// Setup the request
 	req := structs.EvalUpdateRequest{
 		Evals:     []*structs.Evaluation{eval},
@@ -404,7 +420,8 @@ func (w *Worker) ReblockEval(eval *structs.Evaluation) error {
 	}
 	defer metrics.MeasureSince([]string{"nomad", "worker", "reblock_eval"}, time.Now())
 
-	// TODO need to set the evaluations WorkerIndex
+	// Store the snapshot index in the eval
+	eval.SnapshotIndex = w.snapshotIndex
 
 	// Setup the request
 	req := structs.EvalUpdateRequest{

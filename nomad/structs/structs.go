@@ -2671,6 +2671,11 @@ type Evaluation struct {
 	// during the evaluation. This should not be set during normal operations.
 	AnnotatePlan bool
 
+	// SnapshotIndex is the Raft index of the snapshot used to process the
+	// evaluation. As such it will only be set once it has gone through the
+	// scheduler.
+	SnapshotIndex uint64
+
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
