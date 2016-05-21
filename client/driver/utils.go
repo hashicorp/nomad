@@ -86,7 +86,7 @@ func consulContext(clientConfig *config.Config, containerID string) *executor.Co
 		ClientServiceName: clientConfig.ReadDefault("consul.client_service_name", "nomad-client"),
 	}
 	return &executor.ConsulContext{
-		ConsulConfig:   &cfg,
+		ConsulAgentConfig: &cfg,
 		ContainerID:    containerID,
 		DockerEndpoint: clientConfig.Read("docker.endpoint"),
 		TLSCa:          clientConfig.Read("docker.tls.ca"),
