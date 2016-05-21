@@ -23,6 +23,10 @@ const (
 	// update will transfer all past state information. If not other transition
 	// has occurred up to this limit, we will send to the server.
 	taskReceivedSyncLimit = 30 * time.Second
+
+	// watchdogInterval is the interval at which resource constraints for the
+	// allocation are being checked and enforced.
+	watchdogInterval = 5 * time.Second
 )
 
 // AllocStateUpdater is used to update the status of an allocation
@@ -53,7 +57,8 @@ type AllocRunner struct {
 	restored   map[string]struct{}
 	taskLock   sync.RWMutex
 
-	taskStatusLock sync.RWMutex
+	taskStatusLock   sync.RWMutex
+	taskDestroyEvent string
 
 	updateCh chan *structs.Allocation
 
@@ -61,6 +66,9 @@ type AllocRunner struct {
 	destroyCh   chan struct{}
 	destroyLock sync.Mutex
 	waitCh      chan struct{}
+
+	// watchdog regularly checks if alloc resources are within bounds.
+	watchdog *time.Ticker
 }
 
 // allocRunnerState is used to snapshot the state of the alloc runner
@@ -77,17 +85,19 @@ type allocRunnerState struct {
 func NewAllocRunner(logger *log.Logger, config *config.Config, updater AllocStateUpdater,
 	alloc *structs.Allocation) *AllocRunner {
 	ar := &AllocRunner{
-		config:     config,
-		updater:    updater,
-		logger:     logger,
-		alloc:      alloc,
-		dirtyCh:    make(chan struct{}, 1),
-		tasks:      make(map[string]*TaskRunner),
-		taskStates: copyTaskStates(alloc.TaskStates),
-		restored:   make(map[string]struct{}),
-		updateCh:   make(chan *structs.Allocation, 64),
-		destroyCh:  make(chan struct{}),
-		waitCh:     make(chan struct{}),
+		config:           config,
+		updater:          updater,
+		logger:           logger,
+		alloc:            alloc,
+		dirtyCh:          make(chan struct{}, 1),
+		tasks:            make(map[string]*TaskRunner),
+		taskStates:       copyTaskStates(alloc.TaskStates),
+		taskDestroyEvent: structs.TaskKilled,
+		restored:         make(map[string]struct{}),
+		updateCh:         make(chan *structs.Allocation, 64),
+		destroyCh:        make(chan struct{}),
+		waitCh:           make(chan struct{}),
+		watchdog:         time.NewTicker(watchdogInterval),
 	}
 	return ar
 }
@@ -114,6 +124,9 @@ func (r *AllocRunner) RestoreState() error {
 	r.allocClientStatus = snap.AllocClientStatus
 	r.allocClientDescription = snap.AllocClientDescription
 	r.taskStates = snap.TaskStates
+
+	// Start tracking filesystem events for the shared alloc directory
+	go r.ctx.AllocDir.WatchSharedDir()
 
 	// Restore the task runners
 	var mErr multierror.Error
@@ -318,6 +331,7 @@ func (r *AllocRunner) setTaskState(taskName, state string, event *structs.TaskEv
 		for task, tr := range r.tasks {
 			if task != taskName {
 				destroyingTasks = append(destroyingTasks, task)
+				tr.SetDestroyEvent(r.taskDestroyEvent)
 				tr.Destroy()
 			}
 		}
@@ -390,6 +404,7 @@ func (r *AllocRunner) Run() {
 	// Start the task runners
 	r.logger.Printf("[DEBUG] client: starting task runners for alloc '%s'", r.alloc.ID)
 	r.taskLock.Lock()
+
 	for _, task := range tg.Tasks {
 		if _, ok := r.restored[task.Name]; ok {
 			continue
@@ -425,8 +440,10 @@ OUTER:
 				tr.Update(update)
 			}
 			r.taskLock.RUnlock()
-
+		case <-r.watchdog.C:
+			r.checkResources()
 		case <-r.destroyCh:
+			r.watchdog.Stop()
 			break OUTER
 		}
 	}
@@ -434,6 +451,7 @@ OUTER:
 	// Destroy each sub-task
 	r.taskLock.Lock()
 	for _, tr := range r.tasks {
+		tr.SetDestroyEvent(r.taskDestroyEvent)
 		tr.Destroy()
 	}
 
@@ -449,6 +467,15 @@ OUTER:
 	// Block until we should destroy the state of the alloc
 	r.handleDestroy()
 	r.logger.Printf("[DEBUG] client: terminating runner for alloc '%s'", r.alloc.ID)
+}
+
+// checkResources monitors and enforces alloc resource usage
+func (r *AllocRunner) checkResources() {
+	if r.ctx.AllocDir.Size >= r.Alloc().Resources.DiskInBytes() {
+		r.setStatus(structs.AllocClientStatusFailed, "Disk Resources Exceeded")
+		r.taskDestroyEvent = structs.TaskDiskExceeded
+		r.Destroy()
+	}
 }
 
 // handleDestroy blocks till the AllocRunner should be destroyed and does the

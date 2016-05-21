@@ -259,6 +259,8 @@ func (c *AllocStatusCommand) taskStatus(alloc *api.Allocation) {
 				} else {
 					desc = "Task exceeded restart policy"
 				}
+			case api.TaskDiskExceeded:
+				desc = "Disk resources were exceeded"
 			}
 
 			// Reverse order so we are sorted by time
