@@ -352,6 +352,7 @@ func (r *TaskRunner) run() {
 		for {
 			select {
 			case waitRes := <-r.handle.WaitCh():
+				r.logger.Printf("DIPTANU RETURNING FROM WAIT")
 				if waitRes == nil {
 					panic("nil wait")
 				}
@@ -374,6 +375,9 @@ func (r *TaskRunner) run() {
 					r.logger.Printf("[ERR] client: update to task %q failed: %v", r.task.Name, err)
 				}
 			case <-r.destroyCh:
+				// Stop monitoring resource usage
+				close(r.stopResourceMonitorCh)
+
 				// Kill the task using an exponential backoff in-case of failures.
 				destroySuccess, err := r.handleDestroy()
 				if !destroySuccess {

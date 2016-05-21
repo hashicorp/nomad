@@ -170,10 +170,10 @@ func (e *ExecutorRPCServer) Stats(args interface{}, resourceUsage *cstructs.Task
 	return err
 }
 
-func (e *ExecutorRPCServer) PidStats(args interface{}, stats map[int]*cstructs.TaskResourceUsage) error {
+func (e *ExecutorRPCServer) PidStats(args interface{}, stats *map[int]*cstructs.TaskResourceUsage) error {
 	ps, err := e.Impl.PidStats()
 	if ps != nil {
-		stats = ps
+		*stats = ps
 	}
 	return err
 }
