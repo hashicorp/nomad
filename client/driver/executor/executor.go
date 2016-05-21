@@ -61,7 +61,7 @@ type Executor interface {
 // ConsulContext holds context to configure the consul client and run checks
 type ConsulContext struct {
 	// ConsulConfig is the configuration used to create a consul client
-	ConsulConfig *consul.ConsulConfig
+	ConsulConfig *consul.AgentConfig
 
 	// ContainerID is the ID of the container
 	ContainerID string

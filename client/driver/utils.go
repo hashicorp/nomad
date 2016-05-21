@@ -73,7 +73,7 @@ func createLogCollector(config *plugin.ClientConfig, w io.Writer,
 }
 
 func consulContext(clientConfig *config.Config, containerID string) *executor.ConsulContext {
-	cfg := consul.ConsulConfig{
+	cfg := consul.AgentConfig{
 		Addr:      clientConfig.ReadDefault("consul.address", "127.0.0.1:8500"),
 		Token:     clientConfig.Read("consul.token"),
 		Auth:      clientConfig.Read("consul.auth"),

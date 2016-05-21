@@ -38,8 +38,8 @@ type ConsulService struct {
 	shutdownLock sync.Mutex
 }
 
-// ConsulConfig is the configuration used to create a new ConsulService client
-type ConsulConfig struct {
+// AgentConfig is the configuration used to create a new ConsulService client
+type AgentConfig struct {
 	Addr      string
 	Token     string
 	Auth      string
@@ -60,7 +60,7 @@ const (
 )
 
 // NewConsulService returns a new ConsulService
-func NewConsulService(config *ConsulConfig, logger *log.Logger) (*ConsulService, error) {
+func NewConsulService(config *AgentConfig, logger *log.Logger) (*ConsulService, error) {
 	var err error
 	var c *consul.Client
 	cfg := consul.DefaultConfig()

@@ -30,7 +30,7 @@ type Agent struct {
 	logOutput io.Writer
 
 	consulService  *consul.ConsulService // consulService registers the Nomad agent with the consul agent
-	consulConfig   *consul.ConsulConfig  // consulConfig is the consul configuration the Nomad client uses to connect with Consul agent
+	consulConfig   *consul.AgentConfig   // consulConfig is the configuration the Nomad client uses to connect with Consul agent
 	serverHTTPAddr string
 	clientHTTPAddr string
 
@@ -488,7 +488,7 @@ func (a *Agent) Stats() map[string]map[string]string {
 }
 
 func (a *Agent) createConsulConfig() {
-	cfg := &consul.ConsulConfig{
+	cfg := &consul.AgentConfig{
 		Addr:      a.config.ConsulConfig.Addr,
 		Token:     a.config.ConsulConfig.Token,
 		Auth:      a.config.ConsulConfig.Auth,

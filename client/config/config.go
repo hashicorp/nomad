@@ -111,7 +111,7 @@ type Config struct {
 	Revision string
 
 	// ConsulConfig is the configuration to connect with Consul Agent
-	ConsulConfig *consul.ConsulConfig
+	ConsulConfig *consul.AgentConfig
 
 	// StatsDataPoints is the number of resource usage data points the Nomad
 	// client keeps in memory
