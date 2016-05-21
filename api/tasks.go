@@ -212,6 +212,7 @@ const (
 	TaskNotRestarting          = "Not Restarting"
 	TaskDownloadingArtifacts   = "Downloading Artifacts"
 	TaskArtifactDownloadFailed = "Failed Artifact Download"
+	TaskDiskExceeded           = "Disk Exceeded"
 )
 
 // TaskEvent is an event that effects the state of a task and contains meta-data

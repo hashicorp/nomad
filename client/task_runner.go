@@ -65,10 +65,11 @@ type TaskRunner struct {
 	// downloaded
 	artifactsDownloaded bool
 
-	destroy     bool
-	destroyCh   chan struct{}
-	destroyLock sync.Mutex
-	waitCh      chan struct{}
+	destroy      bool
+	destroyCh    chan struct{}
+	destroyLock  sync.Mutex
+	destroyEvent string
+	waitCh       chan struct{}
 }
 
 // taskRunnerState is used to snapshot the state of the task runner
@@ -108,6 +109,7 @@ func NewTaskRunner(logger *log.Logger, config *config.Config,
 		task:           task,
 		updateCh:       make(chan *structs.Allocation, 64),
 		destroyCh:      make(chan struct{}),
+		destroyEvent:   structs.TaskKilled,
 		waitCh:         make(chan struct{}),
 	}
 
@@ -403,7 +405,7 @@ func (r *TaskRunner) run() {
 				close(stopCollection)
 
 				// Store that the task has been destroyed and any associated error.
-				r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskKilled).SetKillError(err))
+				r.setState(structs.TaskStateDead, structs.NewTaskEvent(r.destroyEvent).SetKillError(err))
 				return
 			}
 		}
@@ -613,6 +615,10 @@ func (r *TaskRunner) Update(update *structs.Allocation) {
 		r.logger.Printf("[ERR] client: dropping task update '%s' (alloc '%s')",
 			r.task.Name, r.alloc.ID)
 	}
+}
+
+func (r *TaskRunner) SetDestroyEvent(event string) {
+	r.destroyEvent = event
 }
 
 // Destroy is used to indicate that the task context should be destroyed
