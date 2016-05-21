@@ -96,7 +96,7 @@ Because we are relying on the reliable stream underneath, a connection
 can begin sending data once the SYN flag is sent. The corresponding
 ACK does not need to be received. This is particularly well suited
 for an RPC system where a client wants to open a stream and immediately
-fire a request without wiating for the RTT of the ACK.
+fire a request without waiting for the RTT of the ACK.
 
 This does introduce the possibility of a connection being rejected
 after data has been sent already. This is a slight semantic difference
