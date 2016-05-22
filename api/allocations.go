@@ -46,7 +46,7 @@ func (a *Allocations) Info(allocID string, q *QueryOptions) (*Allocation, *Query
 }
 
 func (a *Allocations) Stats(alloc *Allocation, q *QueryOptions) (map[string]*TaskResourceUsage, error) {
-	node, _, err := a.client.Nodes().Info(alloc.NodeID, &QueryOptions{})
+	node, _, err := a.client.Nodes().Info(alloc.NodeID, q)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +71,7 @@ func (a *Allocations) Stats(alloc *Allocation, q *QueryOptions) (map[string]*Tas
 		return nil, err
 	}
 	if resp.StatusCode != 200 {
-		return nil, a.getErrorMsg(resp)
+		return nil, getErrorMsg(resp)
 	}
 	decoder := json.NewDecoder(resp.Body)
 	var stats map[string]*TaskResourceUsage
@@ -81,7 +81,7 @@ func (a *Allocations) Stats(alloc *Allocation, q *QueryOptions) (map[string]*Tas
 	return stats, nil
 }
 
-func (a *Allocations) getErrorMsg(resp *http.Response) error {
+func getErrorMsg(resp *http.Response) error {
 	if errMsg, err := ioutil.ReadAll(resp.Body); err == nil {
 		return fmt.Errorf(string(errMsg))
 	} else {

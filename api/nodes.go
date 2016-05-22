@@ -1,6 +1,10 @@
 package api
 
 import (
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/url"
 	"sort"
 	"strconv"
 )
@@ -71,6 +75,39 @@ func (n *Nodes) ForceEvaluate(nodeID string, q *WriteOptions) (string, *WriteMet
 	return resp.EvalID, wm, nil
 }
 
+func (n *Nodes) Stats(nodeID string, q *QueryOptions) (*HostStats, error) {
+	node, _, err := n.client.Nodes().Info(nodeID, q)
+	if err != nil {
+		return nil, err
+	}
+	if node.HTTPAddr == "" {
+		return nil, fmt.Errorf("http addr of the node %q is running is not advertised", nodeID)
+	}
+	u := &url.URL{
+		Scheme: "http",
+		Host:   node.HTTPAddr,
+		Path:   "/v1/client/stats/",
+	}
+	req := &http.Request{
+		Method: "GET",
+		URL:    u,
+	}
+	c := http.Client{}
+	resp, err := c.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != 200 {
+		return nil, getErrorMsg(resp)
+	}
+	decoder := json.NewDecoder(resp.Body)
+	var stats *HostStats
+	if err := decoder.Decode(&stats); err != nil {
+		return nil, err
+	}
+	return stats, nil
+}
+
 // Node is used to deserialize a node entry.
 type Node struct {
 	ID                string
@@ -88,6 +125,26 @@ type Node struct {
 	StatusDescription string
 	CreateIndex       uint64
 	ModifyIndex       uint64
+}
+
+// HostStats represents resource usage stats of the host running a Nomad client
+type HostStats struct {
+	Memory *HostMemoryStats
+	CPU    []*HostCPUStats
+}
+
+type HostMemoryStats struct {
+	Total     uint64
+	Available uint64
+	Used      uint64
+	Free      uint64
+}
+
+type HostCPUStats struct {
+	CPU    string
+	User   float64
+	System float64
+	Idle   float64
 }
 
 // NodeListStub is a subset of information returned during
