@@ -327,7 +327,7 @@ func (s *Stream) processFlags(flags uint16) error {
 		if s.state == streamSYNSent {
 			s.state = streamEstablished
 		}
-		s.session.establishStream()
+		s.session.establishStream(s.id)
 	}
 	if flags&flagFIN == flagFIN {
 		switch s.state {
@@ -348,9 +348,6 @@ func (s *Stream) processFlags(flags uint16) error {
 		}
 	}
 	if flags&flagRST == flagRST {
-		if s.state == streamSYNSent {
-			s.session.establishStream()
-		}
 		s.state = streamReset
 		closeStream = true
 		s.notifyWaiting()
