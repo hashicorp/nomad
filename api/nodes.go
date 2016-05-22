@@ -131,6 +131,7 @@ type Node struct {
 type HostStats struct {
 	Memory *HostMemoryStats
 	CPU    []*HostCPUStats
+	Uptime uint64
 }
 
 type HostMemoryStats struct {

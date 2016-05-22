@@ -2,6 +2,7 @@ package stats
 
 import (
 	"github.com/shirou/gopsutil/cpu"
+	"github.com/shirou/gopsutil/host"
 	"github.com/shirou/gopsutil/mem"
 )
 
@@ -9,6 +10,7 @@ import (
 type HostStats struct {
 	Memory *MemoryStats
 	CPU    []*CPUStats
+	Uptime uint64
 }
 
 // MemoryStats represnts stats related to virtual memory usage
@@ -82,6 +84,9 @@ func (h *HostStatsCollector) Collect() (*HostStats, error) {
 	hs := &HostStats{
 		Memory: ms,
 		CPU:    cs,
+	}
+	if uptime, err := host.Uptime(); err == nil {
+		hs.Uptime = uptime
 	}
 	return hs, nil
 }

@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/dustin/go-humanize"
 
@@ -59,6 +60,7 @@ func (c *NodeStatusCommand) Synopsis() string {
 
 func (c *NodeStatusCommand) Run(args []string) int {
 	var short, verbose, list_allocs, self, stats bool
+	var hostStats *api.HostStats
 
 	flags := c.Meta.FlagSet("node-status", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
@@ -200,6 +202,12 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		return 1
 	}
 
+	if stats {
+		if hostStats, err = client.Nodes().Stats(node.ID, nil); err != nil {
+			c.Ui.Error(fmt.Sprintf("error fetching node resource utilization stats: %v", err))
+		}
+	}
+
 	// Format the output
 	basic := []string{
 		fmt.Sprintf("ID|%s", limit(node.ID, length)),
@@ -208,6 +216,10 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		fmt.Sprintf("DC|%s", node.Datacenter),
 		fmt.Sprintf("Drain|%v", node.Drain),
 		fmt.Sprintf("Status|%s", node.Status),
+	}
+	if stats && hostStats != nil {
+		uptime := time.Duration(hostStats.Uptime * uint64(time.Second))
+		basic = append(basic, fmt.Sprintf("Uptime|%s", uptime.String()))
 	}
 	c.Ui.Output(formatKV(basic))
 
@@ -219,15 +231,11 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		}
 		c.Ui.Output("\n==> Resource Utilization")
 		c.Ui.Output(formatList(resources))
-		if stats {
-			if hostStats, err := client.Nodes().Stats(node.ID, nil); err == nil {
-				c.Ui.Output("\n===> Node CPU Stats")
-				c.printCpuStats(hostStats)
-				c.Ui.Output("\n===> Node Memory Stats")
-				c.printMemoryStats(hostStats)
-			} else {
-				c.Ui.Output(fmt.Sprintf("error getting node stats", err))
-			}
+		if stats && hostStats != nil {
+			c.Ui.Output("\n===> Node CPU Stats")
+			c.printCpuStats(hostStats)
+			c.Ui.Output("\n===> Node Memory Stats")
+			c.printMemoryStats(hostStats)
 		}
 
 		allocs, err := getAllocs(client, node, length)
