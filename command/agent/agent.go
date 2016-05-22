@@ -489,14 +489,14 @@ func (a *Agent) Stats() map[string]map[string]string {
 
 func (a *Agent) createAgentConfig() {
 	cfg := &consul.AgentConfig{
-		Addr:      a.config.ConsulConfig.Addr,
-		Token:     a.config.ConsulConfig.Token,
-		Auth:      a.config.ConsulConfig.Auth,
-		EnableSSL: a.config.ConsulConfig.EnableSSL,
-		VerifySSL: a.config.ConsulConfig.VerifySSL,
-		CAFile:    a.config.ConsulConfig.CAFile,
-		CertFile:  a.config.ConsulConfig.CertFile,
-		KeyFile:   a.config.ConsulConfig.KeyFile,
+		Addr:      a.config.Consul.Addr,
+		Token:     a.config.Consul.Token,
+		Auth:      a.config.Consul.Auth,
+		EnableSSL: a.config.Consul.EnableSSL,
+		VerifySSL: a.config.Consul.VerifySSL,
+		CAFile:    a.config.Consul.CAFile,
+		CertFile:  a.config.Consul.CertFile,
+		KeyFile:   a.config.Consul.KeyFile,
 	}
 	a.consulAgentConfig = cfg
 }
@@ -509,20 +509,20 @@ func (a *Agent) syncAgentServicesWithConsul(clientHttpAddr string, serverHttpAdd
 	}
 	a.consulService = cs
 	var services []*structs.Service
-	if a.client != nil && a.config.ConsulConfig.ClientServiceName != "" {
+	if a.client != nil && a.config.Consul.ClientServiceName != "" {
 		if err != nil {
 			return err
 		}
 		clientService := &structs.Service{
-			Name:      a.config.ConsulConfig.ClientServiceName,
+			Name:      a.config.Consul.ClientServiceName,
 			PortLabel: clientHttpAddr,
 		}
 		services = append(services, clientService)
 		cs.SetServiceIdentifier("agent-client")
 	}
-	if a.server != nil && a.config.ConsulConfig.ServerServiceName != "" {
+	if a.server != nil && a.config.Consul.ServerServiceName != "" {
 		serverService := &structs.Service{
-			Name:      a.config.ConsulConfig.ServerServiceName,
+			Name:      a.config.Consul.ServerServiceName,
 			PortLabel: serverHttpAddr,
 		}
 		services = append(services, serverService)

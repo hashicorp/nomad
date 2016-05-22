@@ -100,7 +100,7 @@ func TestConfig_Parse(t *testing.T) {
 					Join:           true,
 					Endpoint:       "127.0.0.1:1234",
 				},
-				ConsulConfig: &ConsulConfig{
+				Consul: &ConsulConfig{
 					ServerServiceName: "nomad-server",
 					ClientServiceName: "nomad-client",
 					Addr:              "127.0.0.1:9500",

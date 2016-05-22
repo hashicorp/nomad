@@ -82,9 +82,10 @@ type Config struct {
 	// AtlasConfig is used to configure Atlas
 	Atlas *AtlasConfig `mapstructure:"atlas"`
 
-	// ConsulConfig is used to configure Consul clients and register the nomad
-	// server and client services with Consul
-	ConsulConfig *ConsulConfig `mapstructure:"consul"`
+	// Consul contains the configuration for the Consul Agent and
+	// parameters necessary to register services, their checks, and
+	// discover the current Nomad servers.
+	Consul *ConsulConfig `mapstructure:"consul"`
 
 	// NomadConfig is used to override the default config.
 	// This is largly used for testing purposes.
@@ -128,8 +129,13 @@ type AtlasConfig struct {
 	Endpoint string `mapstructure:"endpoint"`
 }
 
-// ConsulConfig is used to configure Consul clients and register the nomad
-// server and client services with Consul
+// ConsulConfig contains the configuration information necessary to
+// communicate with a Consul Agent in order to:
+//
+// - Register services and checks with Consul
+//
+// - Bootstrap this Nomad Client with the list of Nomad Servers registered
+//   with Consul
 type ConsulConfig struct {
 
 	// ServerServiceName is the name of the service that Nomad uses to register
@@ -439,7 +445,7 @@ func DefaultConfig() *Config {
 		Addresses:      &Addresses{},
 		AdvertiseAddrs: &AdvertiseAddrs{},
 		Atlas:          &AtlasConfig{},
-		ConsulConfig: &ConsulConfig{
+		Consul: &ConsulConfig{
 			ServerServiceName: "nomad-server",
 			ClientServiceName: "nomad-client",
 		},
@@ -593,11 +599,11 @@ func (c *Config) Merge(b *Config) *Config {
 	}
 
 	// Apply the Consul Configuration
-	if result.ConsulConfig == nil && b.ConsulConfig != nil {
-		consulConfig := *b.ConsulConfig
-		result.ConsulConfig = &consulConfig
-	} else if b.ConsulConfig != nil {
-		result.ConsulConfig = result.ConsulConfig.Merge(b.ConsulConfig)
+	if result.Consul == nil && b.Consul != nil {
+		consulConfig := *b.Consul
+		result.Consul = &consulConfig
+	} else if b.Consul != nil {
+		result.Consul = result.Consul.Merge(b.Consul)
 	}
 
 	// Merge config files lists

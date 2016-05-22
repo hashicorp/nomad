@@ -169,7 +169,7 @@ func parseConfig(result *Config, list *ast.ObjectList) error {
 
 	// Parse the consul config
 	if o := list.Filter("consul"); len(o.Items) > 0 {
-		if err := parseConsulConfig(&result.ConsulConfig, o); err != nil {
+		if err := parseConsulConfig(&result.Consul, o); err != nil {
 			return multierror.Prefix(err, "consul ->")
 		}
 	}

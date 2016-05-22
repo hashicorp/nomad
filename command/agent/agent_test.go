@@ -42,7 +42,7 @@ func makeAgent(t testing.TB, cb func(*Config)) (string, *Agent) {
 		Serf: getPort(),
 	}
 	conf.NodeName = fmt.Sprintf("Node %d", conf.Ports.RPC)
-	conf.ConsulConfig = &ConsulConfig{}
+	conf.Consul = &ConsulConfig{}
 
 	// Tighten the Serf timing
 	config.SerfConfig.MemberlistConfig.SuspicionMult = 2
