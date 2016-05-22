@@ -189,7 +189,7 @@ type UniversalExecutor struct {
 	cgPaths map[string]string
 	cgLock  sync.Mutex
 
-	consulService  *consul.ConsulService
+	consulSyncer   *consul.Syncer
 	consulCtx      *ConsulContext
 	totalCpuStats  *stats.CpuStats
 	userCpuStats   *stats.CpuStats
@@ -354,8 +354,8 @@ func (e *UniversalExecutor) UpdateTask(task *structs.Task) error {
 	e.lre.FileSize = fileSize
 
 	// Re-syncing task with consul service
-	if e.consulService != nil {
-		if err := e.consulService.SyncServices(task.Services); err != nil {
+	if e.consulSyncer != nil {
+		if err := e.consulSyncer.SyncServices(task.Services); err != nil {
 			return err
 		}
 	}
@@ -470,7 +470,7 @@ func (e *UniversalExecutor) ShutDown() error {
 func (e *UniversalExecutor) SyncServices(ctx *ConsulContext) error {
 	e.logger.Printf("[INFO] executor: registering services")
 	e.consulCtx = ctx
-	if e.consulService == nil {
+	if e.consulSyncer == nil {
 		cs, err := consul.NewConsulService(ctx.ConsulAgentConfig, e.logger)
 		if err != nil {
 			return err
@@ -478,13 +478,13 @@ func (e *UniversalExecutor) SyncServices(ctx *ConsulContext) error {
 		cs.SetDelegatedChecks(e.createCheckMap(), e.createCheck)
 		cs.SetServiceIdentifier(consul.GenerateServiceIdentifier(e.ctx.AllocID, e.ctx.Task.Name))
 		cs.SetAddrFinder(e.ctx.Task.FindHostAndPortFor)
-		e.consulService = cs
+		e.consulSyncer = cs
 	}
 	if e.ctx != nil {
 		e.interpolateServices(e.ctx.Task)
 	}
-	err := e.consulService.SyncServices(e.ctx.Task.Services)
-	go e.consulService.PeriodicSync()
+	err := e.consulSyncer.SyncServices(e.ctx.Task.Services)
+	go e.consulSyncer.PeriodicSync()
 	return err
 }
 
@@ -492,8 +492,8 @@ func (e *UniversalExecutor) SyncServices(ctx *ConsulContext) error {
 // running from Consul
 func (e *UniversalExecutor) DeregisterServices() error {
 	e.logger.Printf("[INFO] executor: de-registering services and shutting down consul service")
-	if e.consulService != nil {
-		return e.consulService.Shutdown()
+	if e.consulSyncer != nil {
+		return e.consulSyncer.Shutdown()
 	}
 	return nil
 }

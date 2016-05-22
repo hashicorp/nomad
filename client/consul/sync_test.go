@@ -112,9 +112,9 @@ func TestConsulServiceUpdateService(t *testing.T) {
 	}
 }
 
-func servicesPresent(t *testing.T, serviceIDs []string, consulService *ConsulService) error {
+func servicesPresent(t *testing.T, serviceIDs []string, syncer *Syncer) error {
 	var mErr multierror.Error
-	services, err := consulService.client.Agent().Services()
+	services, err := syncer.client.Agent().Services()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -127,9 +127,9 @@ func servicesPresent(t *testing.T, serviceIDs []string, consulService *ConsulSer
 	return mErr.ErrorOrNil()
 }
 
-func checksPresent(t *testing.T, checkIDs []string, consulService *ConsulService) error {
+func checksPresent(t *testing.T, checkIDs []string, syncer *Syncer) error {
 	var mErr multierror.Error
-	checks, err := consulService.client.Agent().Checks()
+	checks, err := syncer.client.Agent().Checks()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

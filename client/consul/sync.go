@@ -18,7 +18,7 @@ import (
 )
 
 // ConsulService allows syncing of services and checks with Consul
-type ConsulService struct {
+type Syncer struct {
 	client   *consul.Client
 	availble bool
 
@@ -60,7 +60,7 @@ const (
 )
 
 // NewConsulService returns a new ConsulService
-func NewConsulService(config *AgentConfig, logger *log.Logger) (*ConsulService, error) {
+func NewConsulService(config *AgentConfig, serverManager *servers.Manager, logger *log.Logger) (*Syncer, error) {
 	var err error
 	var c *consul.Client
 	cfg := consul.DefaultConfig()
@@ -112,7 +112,7 @@ func NewConsulService(config *AgentConfig, logger *log.Logger) (*ConsulService, 
 	if c, err = consul.NewClient(cfg); err != nil {
 		return nil, err
 	}
-	consulService := ConsulService{
+	consulService := Syncer{
 		client:          c,
 		logger:          logger,
 		trackedServices: make(map[string]*consul.AgentService),
@@ -126,26 +126,26 @@ func NewConsulService(config *AgentConfig, logger *log.Logger) (*ConsulService, 
 
 // SetDelegatedChecks sets the checks that nomad is going to run and report the
 // result back to consul
-func (c *ConsulService) SetDelegatedChecks(delegateChecks map[string]struct{}, createCheck func(*structs.ServiceCheck, string) (Check, error)) *ConsulService {
+func (c *Syncer) SetDelegatedChecks(delegateChecks map[string]struct{}, createCheck func(*structs.ServiceCheck, string) (Check, error)) *Syncer {
 	c.delegateChecks = delegateChecks
 	c.createCheck = createCheck
 	return c
 }
 
 // SetAddrFinder sets a function to find the host and port for a Service given its port label
-func (c *ConsulService) SetAddrFinder(addrFinder func(string) (string, int)) *ConsulService {
+func (c *Syncer) SetAddrFinder(addrFinder func(string) (string, int)) *Syncer {
 	c.addrFinder = addrFinder
 	return c
 }
 
 // SetServiceIdentifier sets the identifier of the services we are syncing with Consul
-func (c *ConsulService) SetServiceIdentifier(serviceIdentifier string) *ConsulService {
+func (c *Syncer) SetServiceIdentifier(serviceIdentifier string) *Syncer {
 	c.serviceIdentifier = serviceIdentifier
 	return c
 }
 
 // SyncServices sync the services with consul
-func (c *ConsulService) SyncServices(services []*structs.Service) error {
+func (c *Syncer) SyncServices(services []*structs.Service) error {
 	var mErr multierror.Error
 	taskServices := make(map[string]*consul.AgentService)
 	taskChecks := make(map[string]*consul.AgentCheckRegistration)
@@ -217,7 +217,7 @@ func (c *ConsulService) SyncServices(services []*structs.Service) error {
 }
 
 // Shutdown de-registers the services and checks and shuts down periodic syncing
-func (c *ConsulService) Shutdown() error {
+func (c *Syncer) Shutdown() error {
 	var mErr multierror.Error
 
 	c.shutdownLock.Lock()
@@ -243,7 +243,7 @@ func (c *ConsulService) Shutdown() error {
 
 // KeepServices removes services from consul which are not present in the list
 // of tasks passed to it
-func (c *ConsulService) KeepServices(services map[string]struct{}) error {
+func (c *Syncer) KeepServices(services map[string]struct{}) error {
 	var mErr multierror.Error
 
 	// Get the services from Consul
@@ -265,7 +265,7 @@ func (c *ConsulService) KeepServices(services map[string]struct{}) error {
 }
 
 // registerCheck registers a check definition with Consul
-func (c *ConsulService) registerCheck(chkReg *consul.AgentCheckRegistration) error {
+func (c *Syncer) registerCheck(chkReg *consul.AgentCheckRegistration) error {
 	if cr, ok := c.checkRunners[chkReg.ID]; ok {
 		cr.Start()
 	}
@@ -274,7 +274,7 @@ func (c *ConsulService) registerCheck(chkReg *consul.AgentCheckRegistration) err
 
 // createCheckReg creates a Check that can be registered with Nomad. It also
 // creates a Nomad check for the check types that it can handle.
-func (c *ConsulService) createCheckReg(check *structs.ServiceCheck, service *consul.AgentService) (*consul.AgentCheckRegistration, error) {
+func (c *Syncer) createCheckReg(check *structs.ServiceCheck, service *consul.AgentService) (*consul.AgentCheckRegistration, error) {
 	chkReg := consul.AgentCheckRegistration{
 		ID:        check.Hash(service.ID),
 		Name:      check.Name,
@@ -304,7 +304,7 @@ func (c *ConsulService) createCheckReg(check *structs.ServiceCheck, service *con
 }
 
 // createService creates a Consul AgentService from a Nomad Service
-func (c *ConsulService) createService(service *structs.Service) (*consul.AgentService, error) {
+func (c *Syncer) createService(service *structs.Service) (*consul.AgentService, error) {
 	srv := consul.AgentService{
 		ID:      service.ID(c.serviceIdentifier),
 		Service: service.Name,
@@ -323,7 +323,7 @@ func (c *ConsulService) createService(service *structs.Service) (*consul.AgentSe
 }
 
 // registerService registers a service with Consul
-func (c *ConsulService) registerService(service *consul.AgentService) error {
+func (c *Syncer) registerService(service *consul.AgentService) error {
 	srvReg := consul.AgentServiceRegistration{
 		ID:      service.ID,
 		Name:    service.Service,
@@ -335,12 +335,12 @@ func (c *ConsulService) registerService(service *consul.AgentService) error {
 }
 
 // deregisterService de-registers a service with the given ID from consul
-func (c *ConsulService) deregisterService(ID string) error {
+func (c *Syncer) deregisterService(ID string) error {
 	return c.client.Agent().ServiceDeregister(ID)
 }
 
 // deregisterCheck de-registers a check with a given ID from Consul.
-func (c *ConsulService) deregisterCheck(ID string) error {
+func (c *Syncer) deregisterCheck(ID string) error {
 	// Deleting the nomad check
 	if cr, ok := c.checkRunners[ID]; ok {
 		cr.Stop()
@@ -353,7 +353,7 @@ func (c *ConsulService) deregisterCheck(ID string) error {
 
 // PeriodicSync triggers periodic syncing of services and checks with Consul.
 // This is a long lived go-routine which is stopped during shutdown
-func (c *ConsulService) PeriodicSync() {
+func (c *Syncer) PeriodicSync() {
 	sync := time.NewTicker(syncInterval)
 	for {
 		select {
@@ -375,7 +375,7 @@ func (c *ConsulService) PeriodicSync() {
 }
 
 // performSync sync the services and checks we are tracking with Consul.
-func (c *ConsulService) performSync() error {
+func (c *Syncer) performSync() error {
 	var mErr multierror.Error
 	cServices, err := c.client.Agent().Services()
 	if err != nil {
@@ -408,7 +408,7 @@ func (c *ConsulService) performSync() error {
 
 // filterConsulServices prunes out all the service whose ids are not prefixed
 // with nomad-
-func (c *ConsulService) filterConsulServices(srvcs map[string]*consul.AgentService) map[string]*consul.AgentService {
+func (c *Syncer) filterConsulServices(srvcs map[string]*consul.AgentService) map[string]*consul.AgentService {
 	nomadServices := make(map[string]*consul.AgentService)
 	for _, srv := range srvcs {
 		if strings.HasPrefix(srv.ID, structs.NomadConsulPrefix) &&
@@ -421,7 +421,7 @@ func (c *ConsulService) filterConsulServices(srvcs map[string]*consul.AgentServi
 
 // filterConsulChecks prunes out all the consul checks which do not have
 // services with id prefixed with noamd-
-func (c *ConsulService) filterConsulChecks(chks map[string]*consul.AgentCheck) map[string]*consul.AgentCheck {
+func (c *Syncer) filterConsulChecks(chks map[string]*consul.AgentCheck) map[string]*consul.AgentCheck {
 	nomadChecks := make(map[string]*consul.AgentCheck)
 	for _, chk := range chks {
 		if strings.HasPrefix(chk.ServiceID, structs.NomadConsulPrefix) {
@@ -432,13 +432,13 @@ func (c *ConsulService) filterConsulChecks(chks map[string]*consul.AgentCheck) m
 }
 
 // consulPresent indicates whether the consul agent is responding
-func (c *ConsulService) consulPresent() bool {
+func (c *Syncer) consulPresent() bool {
 	_, err := c.client.Agent().Self()
 	return err == nil
 }
 
 // runCheck runs a check and updates the corresponding ttl check in consul
-func (c *ConsulService) runCheck(check Check) {
+func (c *Syncer) runCheck(check Check) {
 	res := check.Run()
 	if res.Duration >= check.Timeout() {
 		c.logger.Printf("[DEBUG] consul.sync: check took time: %v, timeout: %v", res.Duration, check.Timeout())

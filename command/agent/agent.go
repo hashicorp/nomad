@@ -29,10 +29,10 @@ type Agent struct {
 	logger    *log.Logger
 	logOutput io.Writer
 
-	consulService  *consul.ConsulService // consulService registers the Nomad agent with the consul agent
-	consulAgentConfig *consul.AgentConfig   // consulAgentConfig is the configuration the Nomad client uses to connect with Consul agent
-	serverHTTPAddr string
-	clientHTTPAddr string
+	consulSyncer      *consul.Syncer      // consulSyncer registers the Nomad agent with the Consul Agent
+	consulAgentConfig *consul.AgentConfig // consulAgentConfig is the configuration the Nomad client uses to connect with Consul agent
+	serverHTTPAddr    string
+	clientHTTPAddr    string
 
 	server *nomad.Server
 	client *client.Client
@@ -69,14 +69,15 @@ func NewAgent(config *Config, logOutput io.Writer) (*Agent, error) {
 	if a.client == nil && a.server == nil {
 		return nil, fmt.Errorf("must have at least client or server mode enabled")
 	}
-	if a.config.ConsulConfig.AutoRegister {
+	if a.config.Consul.AutoRegister {
 		if err := a.syncAgentServicesWithConsul(a.serverHTTPAddr, a.clientHTTPAddr); err != nil {
 			a.logger.Printf("[ERR] agent: unable to sync agent services with consul: %v", err)
 		}
-		if a.consulService != nil {
-			go a.consulService.PeriodicSync()
+		if a.consulSyncer != nil {
+			go a.consulSyncer.PeriodicSync()
 		}
 	}
+
 	return a, nil
 }
 
@@ -190,7 +191,7 @@ func (a *Agent) serverConfig() (*nomad.Config, error) {
 }
 
 // clientConfig is used to generate a new client configuration struct
-// for initializing a nomad client.
+// for initializing a Nomad client.
 func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	// Setup the configuration
 	conf := a.config.ClientConfig
@@ -438,8 +439,8 @@ func (a *Agent) Shutdown() error {
 		}
 	}
 
-	if a.consulService != nil {
-		if err := a.consulService.Shutdown(); err != nil {
+	if a.consulSyncer != nil {
+		if err := a.consulSyncer.Shutdown(); err != nil {
 			a.logger.Printf("[ERR] agent: shutting down consul service failed: %v", err)
 		}
 	}
@@ -501,13 +502,14 @@ func (a *Agent) createAgentConfig() {
 	a.consulAgentConfig = cfg
 }
 
-// syncAgentServicesWithConsul syncs the client and server services with Consul
+// syncAgentServicesWithConsul syncs this Nomad Agent's services with Consul
+// when running in either Client or Server mode.
 func (a *Agent) syncAgentServicesWithConsul(clientHttpAddr string, serverHttpAddr string) error {
 	cs, err := consul.NewConsulService(a.consulAgentConfig, a.logger)
 	if err != nil {
 		return err
 	}
-	a.consulService = cs
+	a.consulSyncer = cs
 	var services []*structs.Service
 	if a.client != nil && a.config.Consul.ClientServiceName != "" {
 		if err != nil {
