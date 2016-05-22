@@ -2,15 +2,17 @@ package stats
 
 import (
 	"github.com/shirou/gopsutil/cpu"
+	"github.com/shirou/gopsutil/disk"
 	"github.com/shirou/gopsutil/host"
 	"github.com/shirou/gopsutil/mem"
 )
 
 // HostStats represents resource usage stats of the host running a Nomad client
 type HostStats struct {
-	Memory *MemoryStats
-	CPU    []*CPUStats
-	Uptime uint64
+	Memory    *MemoryStats
+	CPU       []*CPUStats
+	DiskStats []*DiskStats
+	Uptime    uint64
 }
 
 // MemoryStats represnts stats related to virtual memory usage
@@ -28,6 +30,17 @@ type CPUStats struct {
 	System float64
 	Idle   float64
 	Total  float64
+}
+
+// DiskStats represents stats related to disk usage
+type DiskStats struct {
+	Device            string
+	Mountpoint        string
+	Size              uint64
+	Used              uint64
+	Available         uint64
+	UsedPercent       float64
+	InodesUsedPercent float64
 }
 
 // HostStatsCollector collects host resource usage stats
@@ -50,41 +63,58 @@ func NewHostStatsCollector() (*HostStatsCollector, error) {
 
 // Collect collects stats related to resource usage of a host
 func (h *HostStatsCollector) Collect() (*HostStats, error) {
-	memStats, err := mem.VirtualMemory()
-	if err != nil {
-		return nil, err
-	}
-	ms := &MemoryStats{
-		Total:     memStats.Total,
-		Available: memStats.Available,
-		Used:      memStats.Used,
-		Free:      memStats.Free,
+	hs := &HostStats{}
+	if memStats, err := mem.VirtualMemory(); err == nil {
+		ms := &MemoryStats{
+			Total:     memStats.Total,
+			Available: memStats.Available,
+			Used:      memStats.Used,
+			Free:      memStats.Free,
+		}
+		hs.Memory = ms
 	}
 
-	cpuStats, err := cpu.Times(true)
-	cs := make([]*CPUStats, len(cpuStats))
-	for idx, cpuStat := range cpuStats {
-		cs[idx] = &CPUStats{
-			CPU:    cpuStat.CPU,
-			User:   cpuStat.User,
-			System: cpuStat.System,
-			Idle:   cpuStat.Idle,
+	if cpuStats, err := cpu.Times(true); err == nil {
+		cs := make([]*CPUStats, len(cpuStats))
+		for idx, cpuStat := range cpuStats {
+			cs[idx] = &CPUStats{
+				CPU:    cpuStat.CPU,
+				User:   cpuStat.User,
+				System: cpuStat.System,
+				Idle:   cpuStat.Idle,
+			}
+			if percentCalculator, ok := h.statsCalculator[cpuStat.CPU]; ok {
+				idle, user, system, total := percentCalculator.Calculate(cpuStat)
+				cs[idx].Idle = idle
+				cs[idx].System = system
+				cs[idx].User = user
+				cs[idx].Total = total
+			} else {
+				h.statsCalculator[cpuStat.CPU] = NewHostCpuStatsCalculator()
+			}
 		}
-		if percentCalculator, ok := h.statsCalculator[cpuStat.CPU]; ok {
-			idle, user, system, total := percentCalculator.Calculate(cpuStat)
-			cs[idx].Idle = idle
-			cs[idx].System = system
-			cs[idx].User = user
-			cs[idx].Total = total
-		} else {
-			h.statsCalculator[cpuStat.CPU] = NewHostCpuStatsCalculator()
-		}
+		hs.CPU = cs
 	}
 
-	hs := &HostStats{
-		Memory: ms,
-		CPU:    cs,
+	if partitions, err := disk.Partitions(false); err == nil {
+		var diskStats []*DiskStats
+		for _, partition := range partitions {
+			if usage, err := disk.Usage(partition.Mountpoint); err == nil {
+				ds := DiskStats{
+					Device:            partition.Device,
+					Mountpoint:        partition.Mountpoint,
+					Size:              usage.Total,
+					Used:              usage.Used,
+					Available:         usage.Free,
+					UsedPercent:       usage.UsedPercent,
+					InodesUsedPercent: usage.InodesUsedPercent,
+				}
+				diskStats = append(diskStats, &ds)
+			}
+		}
+		hs.DiskStats = diskStats
 	}
+
 	if uptime, err := host.Uptime(); err == nil {
 		hs.Uptime = uptime
 	}

@@ -352,7 +352,6 @@ func (r *TaskRunner) run() {
 		for {
 			select {
 			case waitRes := <-r.handle.WaitCh():
-				r.logger.Printf("DIPTANU RETURNING FROM WAIT")
 				if waitRes == nil {
 					panic("nil wait")
 				}

@@ -129,9 +129,10 @@ type Node struct {
 
 // HostStats represents resource usage stats of the host running a Nomad client
 type HostStats struct {
-	Memory *HostMemoryStats
-	CPU    []*HostCPUStats
-	Uptime uint64
+	Memory    *HostMemoryStats
+	CPU       []*HostCPUStats
+	DiskStats []*HostDiskStats
+	Uptime    uint64
 }
 
 type HostMemoryStats struct {
@@ -146,6 +147,16 @@ type HostCPUStats struct {
 	User   float64
 	System float64
 	Idle   float64
+}
+
+type HostDiskStats struct {
+	Device            string
+	Mountpoint        string
+	Size              uint64
+	Used              uint64
+	Available         uint64
+	UsedPercent       float64
+	InodesUsedPercent float64
 }
 
 // NodeListStub is a subset of information returned during
