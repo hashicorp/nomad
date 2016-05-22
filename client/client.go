@@ -124,8 +124,9 @@ type Client struct {
 
 	consulService *consul.ConsulService
 
-	resourceUsage     *stats.RingBuff
-	resourceUsageLock sync.RWMutex
+	hostStatsCollector *stats.HostStatsCollector
+	resourceUsage      *stats.RingBuff
+	resourceUsageLock  sync.RWMutex
 
 	shutdown     bool
 	shutdownCh   chan struct{}
@@ -141,17 +142,22 @@ func NewClient(cfg *config.Config) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
+	hostStatsCollector, err := stats.NewHostStatsCollector()
+	if err != nil {
+		return nil, err
+	}
 
 	// Create the client
 	c := &Client{
-		config:        cfg,
-		start:         time.Now(),
-		connPool:      nomad.NewPool(cfg.LogOutput, clientRPCCache, clientMaxStreams, nil),
-		logger:        logger,
-		resourceUsage: resourceUsage,
-		allocs:        make(map[string]*AllocRunner),
-		allocUpdates:  make(chan *structs.Allocation, 64),
-		shutdownCh:    make(chan struct{}),
+		config:             cfg,
+		start:              time.Now(),
+		connPool:           nomad.NewPool(cfg.LogOutput, clientRPCCache, clientMaxStreams, nil),
+		logger:             logger,
+		hostStatsCollector: hostStatsCollector,
+		resourceUsage:      resourceUsage,
+		allocs:             make(map[string]*AllocRunner),
+		allocUpdates:       make(chan *structs.Allocation, 64),
+		shutdownCh:         make(chan struct{}),
 	}
 
 	// Initialize the client
@@ -1276,7 +1282,7 @@ func (c *Client) monitorUsage() {
 		next := time.NewTimer(1 * time.Second)
 		select {
 		case <-next.C:
-			ru, err := stats.CollectHostStats()
+			ru, err := c.hostStatsCollector.Collect()
 			if err != nil {
 				c.logger.Printf("[DEBUG] client: error fetching stats of host: %v", err)
 			}

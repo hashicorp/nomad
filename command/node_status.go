@@ -3,7 +3,10 @@ package command
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
+
+	"github.com/dustin/go-humanize"
 
 	"github.com/hashicorp/nomad/api"
 )
@@ -43,6 +46,9 @@ Node Status Options:
 
   -allocs
     Display a count of running allocations for each node.
+
+  -stats
+    Display the resource usage of the node.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -52,7 +58,7 @@ func (c *NodeStatusCommand) Synopsis() string {
 }
 
 func (c *NodeStatusCommand) Run(args []string) int {
-	var short, verbose, list_allocs, self bool
+	var short, verbose, list_allocs, self, stats bool
 
 	flags := c.Meta.FlagSet("node-status", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
@@ -60,6 +66,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.BoolVar(&list_allocs, "allocs", false, "")
 	flags.BoolVar(&self, "self", false, "")
+	flags.BoolVar(&stats, "stats", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -212,6 +219,16 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		}
 		c.Ui.Output("\n==> Resource Utilization")
 		c.Ui.Output(formatList(resources))
+		if stats {
+			if hostStats, err := client.Nodes().Stats(node.ID, nil); err == nil {
+				c.Ui.Output("\n===> Node CPU Stats")
+				c.printCpuStats(hostStats)
+				c.Ui.Output("\n===> Node Memory Stats")
+				c.printMemoryStats(hostStats)
+			} else {
+				c.Ui.Output(fmt.Sprintf("error getting node stats", err))
+			}
+		}
 
 		allocs, err := getAllocs(client, node, length)
 		if err != nil {
@@ -244,6 +261,28 @@ func (c *NodeStatusCommand) Run(args []string) int {
 	}
 
 	return 0
+}
+
+func (c *NodeStatusCommand) printCpuStats(hostStats *api.HostStats) {
+	for _, cpuStat := range hostStats.CPU {
+		cpuStatsAttr := make([]string, 4)
+		cpuStatsAttr[0] = fmt.Sprintf("CPU|%v", cpuStat.CPU)
+		cpuStatsAttr[1] = fmt.Sprintf("User|%v", formatFloat64(cpuStat.User))
+		cpuStatsAttr[2] = fmt.Sprintf("System|%v", formatFloat64(cpuStat.System))
+		cpuStatsAttr[3] = fmt.Sprintf("Idle|%v", formatFloat64(cpuStat.Idle))
+		c.Ui.Output(formatKV(cpuStatsAttr))
+		c.Ui.Output("")
+	}
+}
+
+func (c *NodeStatusCommand) printMemoryStats(hostStats *api.HostStats) {
+	memoryStat := hostStats.Memory
+	memStatsAttr := make([]string, 4)
+	memStatsAttr[0] = fmt.Sprintf("Total|%v", humanize.Bytes(memoryStat.Total))
+	memStatsAttr[1] = fmt.Sprintf("Available|%v", humanize.Bytes(memoryStat.Available))
+	memStatsAttr[2] = fmt.Sprintf("Used|%v", humanize.Bytes(memoryStat.Used))
+	memStatsAttr[3] = fmt.Sprintf("Free|%v", humanize.Bytes(memoryStat.Free))
+	c.Ui.Output(formatKV(memStatsAttr))
 }
 
 // getRunningAllocs returns a slice of allocation id's running on the node
@@ -322,4 +361,8 @@ func getResources(client *api.Client, node *api.Node) ([]string, error) {
 		totalIops)
 
 	return resources, err
+}
+
+func formatFloat64(val float64) string {
+	return strconv.FormatFloat(val, 'f', 2, 64)
 }
