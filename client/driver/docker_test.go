@@ -223,7 +223,7 @@ func TestDockerDriver_Start_Wait(t *testing.T) {
 		Name: "redis-demo",
 		Config: map[string]interface{}{
 			"image":   "redis",
-			"command": "redis-server",
+			"command": "/usr/local/bin/redis-server",
 			"args":    []string{"-v"},
 		},
 		Resources: &structs.Resources{
