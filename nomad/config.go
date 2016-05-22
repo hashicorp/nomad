@@ -44,14 +44,14 @@ var (
 
 // Config is used to parameterize the server
 type Config struct {
-	// Bootstrap mode is used to bring up the first Consul server.
-	// It is required so that it can elect a leader without any
-	// other nodes being present
+	// Bootstrap mode is used to bring up the first Nomad server.  It is
+	// required so that it can elect a leader without any other nodes
+	// being present
 	Bootstrap bool
 
-	// BootstrapExpect mode is used to automatically bring up a collection of
-	// Consul servers. This can be used to automatically bring up a collection
-	// of nodes.
+	// BootstrapExpect mode is used to automatically bring up a
+	// collection of Nomad servers. This can be used to automatically
+	// bring up a collection of nodes.
 	BootstrapExpect int
 
 	// DataDir is the directory to store our state in
