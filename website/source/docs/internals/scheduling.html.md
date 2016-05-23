@@ -45,7 +45,7 @@ This diagram shows the flow of an evaluation through Nomad:
 
 [![Nomad Evaluation Flow](/assets/images/nomad-evaluation-flow.png)](/assets/images/nomad-evaluation-flow.png)
 
-The lifecycle of an evaluation beings with an event causing the evaluation to be
+The lifecycle of an evaluation begins with an event causing the evaluation to be
 created. Evaluations are created in the `pending` state and are enqueued into the
 evaluation broker. There is a single evaluation broker which runs on the leader server.
 The evaluation broker is used to manage the queue of pending evaluations, provide priority ordering,
