@@ -484,7 +484,7 @@ func (e *UniversalExecutor) SyncServices(ctx *ConsulContext) error {
 		e.interpolateServices(e.ctx.Task)
 	}
 	err := e.consulSyncer.SyncServices(e.ctx.Task.Services)
-	go e.consulSyncer.PeriodicSync()
+	go e.consulSyncer.Run()
 	return err
 }
 

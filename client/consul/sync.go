@@ -351,10 +351,10 @@ func (c *Syncer) deregisterCheck(ID string) error {
 	return c.client.Agent().CheckDeregister(ID)
 }
 
-// PeriodicSync triggers periodic syncing of services and checks with Consul.
-// This is a long lived go-routine which is stopped during shutdown
-func (c *Syncer) PeriodicSync() {
 	sync := time.NewTicker(syncInterval)
+// Run triggers periodic syncing of services and checks with Consul.  This is
+// a long lived go-routine which is stopped during shutdown.
+func (c *Syncer) Run() {
 	for {
 		select {
 		case <-sync.C:
