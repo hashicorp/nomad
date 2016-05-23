@@ -501,7 +501,7 @@ func TestWorker_ReblockEval(t *testing.T) {
 
 	// Check that the snapshot index was set properly by unblocking the eval and
 	// then dequeuing.
-	s1.blockedEvals.Unblock("foobar")
+	s1.blockedEvals.Unblock("foobar", 1000)
 
 	reblockedEval, _, err := s1.evalBroker.Dequeue([]string{eval1.Type}, 1*time.Second)
 	if err != nil {

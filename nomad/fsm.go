@@ -158,7 +158,7 @@ func (n *nomadFSM) applyUpsertNode(buf []byte, index uint64) interface{} {
 	// Unblock evals for the nodes computed node class if it is in a ready
 	// state.
 	if req.Node.Status == structs.NodeStatusReady {
-		n.blockedEvals.Unblock(req.Node.ComputedClass)
+		n.blockedEvals.Unblock(req.Node.ComputedClass, index)
 	}
 
 	return nil
@@ -199,7 +199,7 @@ func (n *nomadFSM) applyStatusUpdate(buf []byte, index uint64) interface{} {
 			return err
 
 		}
-		n.blockedEvals.Unblock(node.ComputedClass)
+		n.blockedEvals.Unblock(node.ComputedClass, index)
 	}
 
 	return nil
@@ -420,7 +420,7 @@ func (n *nomadFSM) applyAllocClientUpdate(buf []byte, index uint64) interface{} 
 				return err
 
 			}
-			n.blockedEvals.Unblock(node.ComputedClass)
+			n.blockedEvals.Unblock(node.ComputedClass, index)
 		}
 	}
 

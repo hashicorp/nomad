@@ -58,7 +58,11 @@ type Worker struct {
 
 	failures uint
 
-	evalToken     string
+	evalToken string
+
+	// snapshotIndex is the index of the snapshot in which the scheduler was
+	// first envoked. It is used to mark the SnapshotIndex of evaluations
+	// Created, Updated or Reblocked.
 	snapshotIndex uint64
 }
 
@@ -326,9 +330,6 @@ SUBMIT:
 			return nil, nil, fmt.Errorf("failed to snapshot state: %v", err)
 		}
 		state = snap
-
-		// Store the snapshot's index
-		w.snapshotIndex = result.RefreshIndex
 	}
 
 	// Return the result and potential state update
