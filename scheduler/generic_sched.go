@@ -113,13 +113,8 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 		if statusErr, ok := err.(*SetStatusError); ok {
 			// Scheduling was tried but made no forward progress so create a
 			// blocked eval to retry once resources become available.
-
-			// TODO: Set the trigger by reason of the blocked eval here to
-			// something like "max-attempts"
-			// We can then periodically dequeue these from the blocked_eval
-			// tracker.
 			var mErr multierror.Error
-			if err := s.createBlockedEval(); err != nil {
+			if err := s.createBlockedEval(true); err != nil {
 				mErr.Errors = append(mErr.Errors, err)
 			}
 			if err := setStatus(s.logger, s.planner, s.eval, s.nextEval, s.blocked, statusErr.EvalStatus, err.Error()); err != nil {
@@ -140,8 +135,9 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 	return setStatus(s.logger, s.planner, s.eval, s.nextEval, s.blocked, structs.EvalStatusComplete, "")
 }
 
-// createBlockedEval creates a blocked eval and stores it.
-func (s *GenericScheduler) createBlockedEval() error {
+// createBlockedEval creates a blocked eval and submits it to the planner. If
+// failure is set to true, the eval's trigger reason reflects that.
+func (s *GenericScheduler) createBlockedEval(planFailure bool) error {
 	e := s.ctx.Eligibility()
 	escaped := e.HasEscaped()
 
@@ -152,6 +148,10 @@ func (s *GenericScheduler) createBlockedEval() error {
 	}
 
 	s.blocked = s.eval.CreateBlockedEval(classEligibility, escaped)
+	if planFailure {
+		s.blocked.TriggeredBy = structs.EvalTriggerMaxPlans
+	}
+
 	return s.planner.CreateEval(s.blocked)
 }
 
@@ -191,7 +191,7 @@ func (s *GenericScheduler) process() (bool, error) {
 	// to place the failed allocations when resources become available. If the
 	// current evaluation is already a blocked eval, we reuse it.
 	if s.eval.Status != structs.EvalStatusBlocked && len(s.eval.FailedTGAllocs) != 0 && s.blocked == nil {
-		if err := s.createBlockedEval(); err != nil {
+		if err := s.createBlockedEval(false); err != nil {
 			s.logger.Printf("[ERR] sched: %#v failed to make blocked eval: %v", s.eval, err)
 			return false, err
 		}

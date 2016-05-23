@@ -143,6 +143,9 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	// Reap any duplicate blocked evaluations
 	go s.reapDupBlockedEvaluations(stopCh)
 
+	// Periodically unblock failed allocations
+	go s.periodicUnblockFailedEvals(stopCh)
+
 	// Setup the heartbeat timers. This is done both when starting up or when
 	// a leader fail over happens. Since the timers are maintained by the leader
 	// node, effectively this means all the timers are renewed at the time of failover.
@@ -337,6 +340,21 @@ func (s *Server) reapDupBlockedEvaluations(stopCh chan struct{}) {
 				s.logger.Printf("[ERR] nomad: failed to update duplicate evals %#v: %v", cancel, err)
 				continue
 			}
+		}
+	}
+}
+
+// periodicUnblockFailedEvals periodically unblocks failed, blocked evaluations.
+func (s *Server) periodicUnblockFailedEvals(stopCh chan struct{}) {
+	ticker := time.NewTimer(1 * time.Minute)
+	for {
+		select {
+		case <-stopCh:
+			ticker.Stop()
+			return
+		case <-ticker.C:
+			// Unblock the failed allocations
+			s.blockedEvals.UnblockFailed()
 		}
 	}
 }

@@ -359,3 +359,34 @@ func TestBlockedEvals_Block_ImmediateUnblock_SeenClass(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	})
 }
+
+func TestBlockedEvals_UnblockFailed(t *testing.T) {
+	blocked, broker := testBlockedEvals(t)
+
+	// Create blocked evals that are due to failures
+	e := mock.Eval()
+	e.Status = structs.EvalStatusBlocked
+	e.TriggeredBy = structs.EvalTriggerMaxPlans
+	e.EscapedComputedClass = true
+	blocked.Block(e)
+
+	e2 := mock.Eval()
+	e2.Status = structs.EvalStatusBlocked
+	e2.TriggeredBy = structs.EvalTriggerMaxPlans
+	e2.ClassEligibility = map[string]bool{"v1:123": true, "v1:456": false}
+	blocked.Block(e2)
+
+	// Trigger an unblock fail
+	blocked.UnblockFailed()
+
+	testutil.WaitForResult(func() (bool, error) {
+		// Verify Unblock caused an enqueue
+		brokerStats := broker.Stats()
+		if brokerStats.TotalReady != 2 {
+			return false, fmt.Errorf("bad: %#v", brokerStats)
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %s", err)
+	})
+}

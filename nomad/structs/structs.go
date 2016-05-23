@@ -2570,6 +2570,7 @@ const (
 	EvalTriggerNodeUpdate    = "node-update"
 	EvalTriggerScheduled     = "scheduled"
 	EvalTriggerRollingUpdate = "rolling-update"
+	EvalTriggerMaxPlans      = "max-plan-attempts"
 )
 
 const (

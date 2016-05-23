@@ -304,6 +304,33 @@ func (b *BlockedEvals) unblock(computedClass string, index uint64) {
 	}
 }
 
+// UnblockFailed unblocks all blocked evaluation that were due to scheduler
+// failure.
+func (b *BlockedEvals) UnblockFailed() {
+	b.l.Lock()
+	defer b.l.Unlock()
+
+	// Do nothing if not enabled
+	if !b.enabled {
+		return
+	}
+
+	var unblock []*structs.Evaluation
+	for _, eval := range b.captured {
+		if eval.TriggeredBy == structs.EvalTriggerMaxPlans {
+			unblock = append(unblock, eval)
+		}
+	}
+
+	for _, eval := range b.escaped {
+		if eval.TriggeredBy == structs.EvalTriggerMaxPlans {
+			unblock = append(unblock, eval)
+		}
+	}
+
+	b.evalBroker.EnqueueAll(unblock)
+}
+
 // GetDuplicates returns all the duplicate evaluations and blocks until the
 // passed timeout.
 func (b *BlockedEvals) GetDuplicates(timeout time.Duration) []*structs.Evaluation {
