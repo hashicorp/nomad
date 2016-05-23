@@ -471,7 +471,7 @@ func (e *UniversalExecutor) SyncServices(ctx *ConsulContext) error {
 	e.logger.Printf("[INFO] executor: registering services")
 	e.consulCtx = ctx
 	if e.consulSyncer == nil {
-		cs, err := consul.NewConsulService(ctx.ConsulAgentConfig, e.logger)
+		cs, err := consul.NewSyncer(ctx.ConsulAgentConfig, e.logger)
 		if err != nil {
 			return err
 		}

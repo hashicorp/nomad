@@ -505,7 +505,7 @@ func (a *Agent) createAgentConfig() {
 // syncAgentServicesWithConsul syncs this Nomad Agent's services with Consul
 // when running in either Client or Server mode.
 func (a *Agent) syncAgentServicesWithConsul(clientHttpAddr string, serverHttpAddr string) error {
-	cs, err := consul.NewConsulService(a.consulAgentConfig, a.logger)
+	cs, err := consul.NewSyncer(a.consulAgentConfig, a.logger)
 	if err != nil {
 		return err
 	}

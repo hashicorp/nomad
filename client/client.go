@@ -1267,9 +1267,9 @@ func (c *Client) addAlloc(alloc *structs.Allocation) error {
 	return nil
 }
 
-// setupConsulClient creates a ConsulService
+// setupConsulClient creates a consul.Syncer
 func (c *Client) setupConsulClient() error {
-	cs, err := consul.NewConsulService(c.config.ConsulAgentConfig, c.logger)
+	cs, err := consul.NewSyncer(c.config.ConsulAgentConfig, c.logger)
 	c.consulSyncer = cs
 	return err
 }

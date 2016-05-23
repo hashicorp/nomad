@@ -59,8 +59,8 @@ const (
 	ttlCheckBuffer = 31 * time.Second
 )
 
-// NewConsulService returns a new ConsulService
-func NewConsulService(config *AgentConfig, serverManager *servers.Manager, logger *log.Logger) (*Syncer, error) {
+// NewSyncer returns a new consul.Syncer
+func NewSyncer(config *AgentConfig, logger *log.Logger) (*Syncer, error) {
 	var err error
 	var c *consul.Client
 	cfg := consul.DefaultConfig()
