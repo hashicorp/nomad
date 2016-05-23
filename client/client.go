@@ -4,11 +4,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"net"
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -20,6 +18,7 @@ import (
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/client/fingerprint"
+	"github.com/hashicorp/nomad/client/rpc_proxy"
 	"github.com/hashicorp/nomad/client/stats"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -45,6 +44,9 @@ const (
 
 	// devModeRetryIntv is the retry interval used for development
 	devModeRetryIntv = time.Second
+
+	// rpcVersion specifies the RPC version
+	rpcVersion = 1
 
 	// stateSnapshotIntv is how often the client snapshots state
 	stateSnapshotIntv = 60 * time.Second
@@ -113,12 +115,7 @@ type Client struct {
 
 	logger *log.Logger
 
-	lastServer     net.Addr
-	lastRPCTime    time.Time
-	lastServerLock sync.Mutex
-
-	servers    []string
-	serverLock sync.RWMutex
+	rpcProxy *rpc_proxy.RpcProxy
 
 	connPool *nomad.ConnPool
 
@@ -192,8 +189,12 @@ func NewClient(cfg *config.Config) (*Client, error) {
 	// Setup the reserved resources
 	c.reservePorts()
 
-	// Set up the known servers list
-	c.SetServers(c.config.Servers)
+	// Create the RPC Proxy and bootstrap with the preconfigured list of
+	// static servers
+	c.rpcProxy = rpc_proxy.NewRpcProxy(c.logger, c.shutdownCh, c, c.connPool)
+	for _, serverAddr := range c.config.Servers {
+		c.rpcProxy.AddPrimaryServer(serverAddr)
+	}
 
 	// Store the config copy before restoring state but after it has been
 	// initialized.
@@ -223,6 +224,9 @@ func NewClient(cfg *config.Config) (*Client, error) {
 
 	// Start collecting stats
 	go c.collectHostStats()
+
+	// Start maintenance task for servers
+	go c.rpcProxy.Run()
 
 	// Start the consul sync
 	go c.syncConsul()
@@ -273,6 +277,16 @@ func (c *Client) Leave() error {
 	return nil
 }
 
+// Region returns the region for the given client
+func (c *Client) Region() string {
+	return c.config.Region
+}
+
+// Region returns the rpcVersion in use by the client
+func (c *Client) RPCVersion() int {
+	return rpcVersion
+}
+
 // Shutdown is used to tear down the client
 func (c *Client) Shutdown() error {
 	c.logger.Printf("[INFO] client: shutting down")
@@ -299,104 +313,24 @@ func (c *Client) Shutdown() error {
 
 // RPC is used to forward an RPC call to a nomad server, or fail if no servers
 func (c *Client) RPC(method string, args interface{}, reply interface{}) error {
-	// Invoke the RPCHandle if it exists
+	// Invoke the RPCHandler if it exists
 	if c.config.RPCHandler != nil {
 		return c.config.RPCHandler.RPC(method, args, reply)
 	}
 
 	// Pick a server to request from
-	addr, err := c.pickServer()
-	if err != nil {
-		return err
+	server := c.rpcProxy.FindServer()
+	if server == nil {
+		return fmt.Errorf("no known servers")
 	}
 
 	// Make the RPC request
-	err = c.connPool.RPC(c.config.Region, addr, 1, method, args, reply)
-
-	// Update the last server information
-	c.lastServerLock.Lock()
-	if err != nil {
-		c.lastServer = nil
-		c.lastRPCTime = time.Time{}
-	} else {
-		c.lastServer = addr
-		c.lastRPCTime = time.Now()
+	if err := c.connPool.RPC(c.Region(), server.Addr, rpcVersion, method, args, reply); err != nil {
+		c.rpcProxy.NotifyFailedServer(server)
+		c.logger.Printf("[ERR] client: RPC failed to server %s: %v", server.Addr, err)
+		return err
 	}
-	c.lastServerLock.Unlock()
-	return err
-}
-
-// pickServer is used to pick a target RPC server
-func (c *Client) pickServer() (net.Addr, error) {
-	c.lastServerLock.Lock()
-	defer c.lastServerLock.Unlock()
-
-	// Check for a valid last-used server
-	if c.lastServer != nil && time.Now().Sub(c.lastRPCTime) < clientRPCCache {
-		return c.lastServer, nil
-	}
-
-	// Bail if we can't find any servers
-	servers := c.Servers()
-	if len(servers) == 0 {
-		return nil, fmt.Errorf("no known servers")
-	}
-
-	// Shuffle so we don't always use the same server
-	shuffleStrings(servers)
-
-	// Try to resolve each server
-	for i := 0; i < len(servers); i++ {
-		addr, err := net.ResolveTCPAddr("tcp", servers[i])
-		if err == nil {
-			c.lastServer = addr
-			c.lastRPCTime = time.Now()
-			return addr, nil
-		}
-		c.logger.Printf("[WARN] client: failed to resolve '%s': %s", servers[i], err)
-	}
-
-	// Bail if we reach this point
-	return nil, fmt.Errorf("failed to resolve any servers")
-}
-
-// Servers is used to return the current known servers list. When an agent
-// is first started, this list comes directly from configuration files.
-func (c *Client) Servers() []string {
-	c.serverLock.RLock()
-	defer c.serverLock.RUnlock()
-	return c.servers
-}
-
-// SetServers is used to modify the known servers list. This avoids forcing
-// a config rollout + rolling restart and enables auto-join features. The
-// full set of servers is passed to support adding and/or removing servers.
-func (c *Client) SetServers(servers []string) {
-	c.serverLock.Lock()
-	defer c.serverLock.Unlock()
-	if servers == nil {
-		servers = make([]string, 0)
-	}
-	// net.ResolveTCPAddr requires port to be set, if one is not provided, supply default port
-	// Using net.SplitHostPort in the event of IPv6 addresses with multiple colons.
-	// IPv6 addresses must be passed in with brackets,
-	// i.e: [::1]:4647 or [::1]
-	setServers := make([]string, len(servers))
-	copy(setServers, servers)
-	for i := 0; i < len(setServers); i++ {
-		if _, _, err := net.SplitHostPort(setServers[i]); err != nil {
-			// multiple errors can be returned here, only searching for missing
-			if strings.Contains(err.Error(), "missing port") {
-				c.logger.Printf("[WARN] client: port not specified, using default port")
-				setServers[i] = net.JoinHostPort(setServers[i], "4647")
-			} else {
-				c.logger.Printf("[WARN] client: server address %q invalid: %v", setServers[i], err)
-			}
-		}
-	}
-
-	c.logger.Printf("[INFO] client: setting server address list: %s", setServers)
-	c.servers = setServers
+	return nil
 }
 
 // Stats is used to return statistics for debugging and insight
@@ -412,7 +346,7 @@ func (c *Client) Stats() map[string]map[string]string {
 	stats := map[string]map[string]string{
 		"client": map[string]string{
 			"node_id":         c.Node().ID,
-			"known_servers":   toString(uint64(len(c.Servers()))),
+			"known_servers":   toString(uint64(c.rpcProxy.NumServers())),
 			"num_allocations": toString(uint64(numAllocs)),
 			"last_heartbeat":  fmt.Sprintf("%v", time.Since(c.lastHeartbeat)),
 			"heartbeat_ttl":   fmt.Sprintf("%v", c.heartbeatTTL),
@@ -497,6 +431,12 @@ func (c *Client) GetAllocFS(allocID string) (allocdir.AllocDirFS, error) {
 		return nil, fmt.Errorf("alloc not found")
 	}
 	return ar.ctx.AllocDir, nil
+}
+
+// AddPrimaryServerToRpcProxy adds serverAddr to the RPC Proxy's primary
+// server list.
+func (c *Client) AddPrimaryServerToRpcProxy(serverAddr string) {
+	c.rpcProxy.AddPrimaryServer(serverAddr)
 }
 
 // restoreState is used to restore our state from the data dir
@@ -905,7 +845,7 @@ func (c *Client) registerNode() error {
 	node := c.Node()
 	req := structs.NodeRegisterRequest{
 		Node:         node,
-		WriteRequest: structs.WriteRequest{Region: c.config.Region},
+		WriteRequest: structs.WriteRequest{Region: c.Region()},
 	}
 	var resp structs.NodeUpdateResponse
 	err := c.RPC("Node.Register", &req, &resp)
@@ -939,7 +879,7 @@ func (c *Client) updateNodeStatus() error {
 	req := structs.NodeUpdateStatusRequest{
 		NodeID:       node.ID,
 		Status:       structs.NodeStatusReady,
-		WriteRequest: structs.WriteRequest{Region: c.config.Region},
+		WriteRequest: structs.WriteRequest{Region: c.Region()},
 	}
 	var resp structs.NodeUpdateResponse
 	err := c.RPC("Node.UpdateStatus", &req, &resp)
@@ -958,6 +898,11 @@ func (c *Client) updateNodeStatus() error {
 	defer c.heartbeatLock.Unlock()
 	c.lastHeartbeat = time.Now()
 	c.heartbeatTTL = resp.HeartbeatTTL
+
+	if err := c.rpcProxy.UpdateFromNodeUpdateResponse(&resp); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -1004,7 +949,7 @@ func (c *Client) allocSync() {
 			// Send to server.
 			args := structs.AllocUpdateRequest{
 				Alloc:        sync,
-				WriteRequest: structs.WriteRequest{Region: c.config.Region},
+				WriteRequest: structs.WriteRequest{Region: c.Region()},
 			}
 
 			var resp structs.GenericResponse
@@ -1044,7 +989,7 @@ func (c *Client) watchAllocations(updates chan *allocUpdates) {
 	req := structs.NodeSpecificRequest{
 		NodeID: c.Node().ID,
 		QueryOptions: structs.QueryOptions{
-			Region:     c.config.Region,
+			Region:     c.Region(),
 			AllowStale: true,
 		},
 	}
@@ -1054,7 +999,7 @@ func (c *Client) watchAllocations(updates chan *allocUpdates) {
 	// new, or updated server side.
 	allocsReq := structs.AllocsGetRequest{
 		QueryOptions: structs.QueryOptions{
-			Region:     c.config.Region,
+			Region:     c.Region(),
 			AllowStale: true,
 		},
 	}
@@ -1373,4 +1318,8 @@ func (c *Client) emitStats(hStats *stats.HostStats) {
 		metrics.EmitKey([]string{"disk", disk.Device, "used_percent"}, float32(disk.UsedPercent))
 		metrics.EmitKey([]string{"disk", disk.Device, "inodes_percent"}, float32(disk.InodesUsedPercent))
 	}
+}
+
+func (c *Client) RpcProxy() *rpc_proxy.RpcProxy {
+	return c.rpcProxy
 }

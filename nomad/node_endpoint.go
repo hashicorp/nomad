@@ -205,8 +205,34 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 		reply.HeartbeatTTL = ttl
 	}
 
-	// Set the reply index
+	// Set the reply index and leader
+	n.srv.peerLock.RLock()
+	defer n.srv.peerLock.RUnlock()
 	reply.Index = index
+	reply.LeaderRPCAddr = n.srv.raft.Leader()
+
+	// Reply with config information required for future RPC requests
+	reply.Servers = make([]*structs.NodeServerInfo, 0, len(n.srv.localPeers))
+	for p := range n.srv.localPeers {
+		reply.Servers = append(reply.Servers,
+			&structs.NodeServerInfo{
+				RPCAdvertiseAddr: p,
+				RPCVersion:       apiMajorVersion,
+			})
+	}
+
+	// Capture all the nodes to obtain the node count
+	iter, err := snap.Nodes()
+	if err == nil {
+		for {
+			raw := iter.Next()
+			if raw == nil {
+				break
+			}
+			reply.NumNodes++
+		}
+	}
+
 	return nil
 }
 

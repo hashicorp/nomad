@@ -101,6 +101,18 @@ func (s *Server) invalidateHeartbeat(id string) {
 	if err := s.endpoints.Node.UpdateStatus(&req, &resp); err != nil {
 		s.logger.Printf("[ERR] nomad.heartbeat: update status failed: %v", err)
 	}
+
+	if resp.LeaderRPCAddr == "" {
+		s.logger.Printf("[TRACE] nomad.heartbeat: no leader address returned during heartbeat")
+	} else {
+		s.logger.Printf("[TRACE] nomad.heartbeat: current leader address according to server %q is %v", s.rpcAdvertise.String(), resp.LeaderRPCAddr)
+	}
+
+	if len(resp.Servers) == 0 {
+		s.logger.Printf("[TRACE] nomad.heartbeat: no servers returned during heartbeat")
+	} else {
+		s.logger.Printf("[TRACE] nomad.heartbeat: current servers according to server is %v", resp.Servers)
+	}
 }
 
 // clearHeartbeatTimer is used to clear the heartbeat time for

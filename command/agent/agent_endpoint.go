@@ -136,8 +136,17 @@ func (s *HTTPServer) listServers(resp http.ResponseWriter, req *http.Request) (i
 		return nil, CodedError(501, ErrInvalidMethod)
 	}
 
-	// Get the current list of servers
-	return client.Servers(), nil
+	// Get the current list of servers according to Raft.
+	//
+	// NOTE(sean@); This could be s.agent.server.localPeers instead.
+	var err error
+	var peers []string
+	peers, err = s.agent.server.RaftPeers()
+	if err != nil {
+		return nil, err
+	}
+
+	return peers, nil
 }
 
 func (s *HTTPServer) updateServers(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
@@ -153,7 +162,9 @@ func (s *HTTPServer) updateServers(resp http.ResponseWriter, req *http.Request) 
 	}
 
 	// Set the servers list into the client
-	client.SetServers(servers)
+	for _, s := range servers {
+		client.AddPrimaryServerToRpcProxy(s)
+	}
 	return nil, nil
 }
 

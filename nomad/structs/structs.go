@@ -151,6 +151,17 @@ type NodeDeregisterRequest struct {
 	WriteRequest
 }
 
+// NodeServerInfo is used to in NodeUpdateResponse to return Nomad server
+// information used in RPC server lists.
+type NodeServerInfo struct {
+	// RPCAdvertiseAddr is the IP endpoint that a Nomad Server wishes to
+	// be contacted at for RPCs.
+	RPCAdvertiseAddr string
+
+	// RPCVersion is the version number the Nomad Server supports
+	RPCVersion int32
+}
+
 // NodeUpdateStatusRequest is used for Node.UpdateStatus endpoint
 // to update the status of a node.
 type NodeUpdateStatusRequest struct {
@@ -351,6 +362,20 @@ type NodeUpdateResponse struct {
 	EvalIDs         []string
 	EvalCreateIndex uint64
 	NodeModifyIndex uint64
+
+	// LeaderRPCAddr is the RPC address of the current Raft Leader.  If
+	// empty, the current Nomad Server is in the minority of a partition.
+	LeaderRPCAddr string
+
+	// NumNodes is the number of Nomad nodes attached to this quorum of
+	// Nomad Servers at the time of the response.  This value can
+	// fluctuate based on the health of the cluster between heartbeats.
+	NumNodes int32
+
+	// Servers is the full list of known Nomad servers in the local
+	// region.
+	Servers []*NodeServerInfo
+
 	QueryMeta
 }
 

@@ -259,6 +259,12 @@ func TestClientEndpoint_UpdateStatus_HeartbeatOnly(t *testing.T) {
 		t.Fatalf("bad: %#v", ttl)
 	}
 
+	// Check for heartbeat servers
+	servers := resp.Servers
+	if len(servers) == 0 {
+		t.Fatalf("bad: %#v", servers)
+	}
+
 	// Update the status, static state
 	dereg := &structs.NodeUpdateStatusRequest{
 		NodeID:       node.ID,

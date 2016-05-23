@@ -701,6 +701,16 @@ func (s *Server) RPC(method string, args interface{}, reply interface{}) error {
 	return codec.err
 }
 
+// RaftPeers returns the current list of Raft peers
+func (s *Server) RaftPeers() ([]string, error) {
+	if peers, err := s.raftPeers.Peers(); err == nil {
+		return peers, nil
+	} else {
+		s.logger.Printf("[DEBUG] server: error getting raft peers: %v", err)
+		return nil, err
+	}
+}
+
 // Stats is used to return statistics for debugging and insight
 // for various sub-systems
 func (s *Server) Stats() map[string]map[string]string {
@@ -719,7 +729,7 @@ func (s *Server) Stats() map[string]map[string]string {
 		"serf":    s.serf.Stats(),
 		"runtime": RuntimeStats(),
 	}
-	if peers, err := s.raftPeers.Peers(); err == nil {
+	if peers, err := s.RaftPeers(); err == nil {
 		stats["raft"]["raft_peers"] = strings.Join(peers, ",")
 	} else {
 		s.logger.Printf("[DEBUG] server: error getting raft peers: %v", err)

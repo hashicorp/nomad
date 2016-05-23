@@ -85,11 +85,11 @@ func consulContext(clientConfig *config.Config, containerID string) *executor.Co
 	}
 	return &executor.ConsulContext{
 		ConsulAgentConfig: &cfg,
-		ContainerID:    containerID,
-		DockerEndpoint: clientConfig.Read("docker.endpoint"),
-		TLSCa:          clientConfig.Read("docker.tls.ca"),
-		TLSCert:        clientConfig.Read("docker.tls.cert"),
-		TLSKey:         clientConfig.Read("docker.tls.key"),
+		ContainerID:       containerID,
+		DockerEndpoint:    clientConfig.Read("docker.endpoint"),
+		TLSCa:             clientConfig.Read("docker.tls.ca"),
+		TLSCert:           clientConfig.Read("docker.tls.cert"),
+		TLSKey:            clientConfig.Read("docker.tls.key"),
 	}
 }
 

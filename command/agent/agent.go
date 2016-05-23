@@ -29,10 +29,15 @@ type Agent struct {
 	logger    *log.Logger
 	logOutput io.Writer
 
-	consulSyncer      *consul.Syncer      // consulSyncer registers the Nomad agent with the Consul Agent
-	consulAgentConfig *consul.AgentConfig // consulAgentConfig is the configuration the Nomad client uses to connect with Consul agent
-	serverHTTPAddr    string
-	clientHTTPAddr    string
+	// consulAgentConfig is a limited subset of the information necessary
+	// to establish a connection with a Consul agent
+	consulAgentConfig *consul.AgentConfig
+
+	// consulSyncer registers the Nomad agent with the Consul Agent
+	consulSyncer *consul.Syncer
+
+	serverHTTPAddr string
+	clientHTTPAddr string
 
 	server *nomad.Server
 	client *client.Client
@@ -56,10 +61,9 @@ func NewAgent(config *Config, logOutput io.Writer) (*Agent, error) {
 		shutdownCh: make(chan struct{}),
 	}
 
-	// creating the consul client configuration that both the server and client
-	// uses
-	a.createAgentConfig()
-
+	if err := a.setupConsulSyncer(shutdownCh); err != nil {
+		return nil, err
+	}
 	if err := a.setupServer(); err != nil {
 		return nil, err
 	}
@@ -488,7 +492,9 @@ func (a *Agent) Stats() map[string]map[string]string {
 	return stats
 }
 
-func (a *Agent) createAgentConfig() {
+// setupConsulSyncer creates the Consul task used by this Nomad Agent when
+// running in either Client and Server mode.
+func (a *Agent) setupConsulSyncer(shutdownCh types.ShutdownChannel) (err error) {
 	cfg := &consul.AgentConfig{
 		Addr:      a.config.Consul.Addr,
 		Token:     a.config.Consul.Token,
@@ -500,6 +506,10 @@ func (a *Agent) createAgentConfig() {
 		KeyFile:   a.config.Consul.KeyFile,
 	}
 	a.consulAgentConfig = cfg
+
+	a.consulSyncer, err = consul.NewSyncer(cfg, a.logger)
+
+	return nil
 }
 
 // syncAgentServicesWithConsul syncs this Nomad Agent's services with Consul

@@ -17,7 +17,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// ConsulService allows syncing of services and checks with Consul
+// Syncer allows syncing of services and checks with Consul
 type Syncer struct {
 	client   *consul.Client
 	availble bool
@@ -112,7 +112,7 @@ func NewSyncer(config *AgentConfig, logger *log.Logger) (*Syncer, error) {
 	if c, err = consul.NewClient(cfg); err != nil {
 		return nil, err
 	}
-	consulService := Syncer{
+	consulSyncer := Syncer{
 		client:          c,
 		logger:          logger,
 		trackedServices: make(map[string]*consul.AgentService),
@@ -121,7 +121,7 @@ func NewSyncer(config *AgentConfig, logger *log.Logger) (*Syncer, error) {
 
 		shutdownCh: make(chan struct{}),
 	}
-	return &consulService, nil
+	return &consulSyncer, nil
 }
 
 // SetDelegatedChecks sets the checks that nomad is going to run and report the

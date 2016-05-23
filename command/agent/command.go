@@ -22,6 +22,7 @@ import (
 	"github.com/hashicorp/logutils"
 	"github.com/hashicorp/nomad/helper/flag-slice"
 	"github.com/hashicorp/nomad/helper/gated-writer"
+	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/scada-client/scada"
 	"github.com/mitchellh/cli"
 )
@@ -59,11 +60,11 @@ func (c *Command) readConfig() *Config {
 
 	// Make a new, empty config.
 	cmdConfig := &Config{
-		Atlas:        &AtlasConfig{},
-		Consul: &Consul{},
-		Client:       &ClientConfig{},
-		Ports:        &Ports{},
-		Server:       &ServerConfig{},
+		Atlas:  &AtlasConfig{},
+		Consul: &config.ConsulConfig{},
+		Client: &ClientConfig{},
+		Ports:  &Ports{},
+		Server: &ServerConfig{},
 	}
 
 	flags := flag.NewFlagSet("agent", flag.ContinueOnError)
