@@ -2,6 +2,7 @@
 
 IMPROVEMENTS:
   * api: Faster JSON response encoding [GH-1182]
+  * api: Gzip compress HTTP API requests [GH-1203]
   * api: Plan api introduced for the Job endpoint [GH-1168]
   * cli: Unify the `fs` family of commands to be a single command [GH-1150]
 
