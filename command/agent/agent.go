@@ -278,7 +278,7 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	conf.Version = fmt.Sprintf("%s%s", a.config.Version, a.config.VersionPrerelease)
 	conf.Revision = a.config.Revision
 
-	conf.ConsulAgentConfig = a.consulAgentConfig
+	conf.ConsulConfig = a.consulConfig
 
 	conf.StatsDataPoints = a.config.Client.StatsConfig.DataPoints
 	conf.StatsCollectionInterval = a.config.Client.StatsConfig.collectionInterval
