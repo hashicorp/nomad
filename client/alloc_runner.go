@@ -486,6 +486,8 @@ func (r *AllocRunner) StatsReporter() AllocStatsReporter {
 // AllocStats returns the stats reporter of all the tasks running in the
 // allocation
 func (r *AllocRunner) AllocStats() map[string]TaskStatsReporter {
+	r.taskLock.Lock()
+	defer r.taskLock.RUnlock()
 	res := make(map[string]TaskStatsReporter)
 	for task, tr := range r.tasks {
 		res[task] = tr.StatsReporter()
@@ -498,7 +500,7 @@ func (r *AllocRunner) AllocStats() map[string]TaskStatsReporter {
 func (r *AllocRunner) TaskStats(task string) (TaskStatsReporter, error) {
 	tr, ok := r.tasks[task]
 	if !ok {
-		return nil, fmt.Errorf("task %q not running", task)
+		return nil, fmt.Errorf("task %q not running in allocation %v", task, r.alloc.ID)
 	}
 
 	return tr.StatsReporter(), nil

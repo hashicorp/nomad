@@ -72,6 +72,10 @@ const (
 	// consulSyncInterval is the interval at which the client syncs with consul
 	// to remove services and checks which are no longer valid
 	consulSyncInterval = 15 * time.Second
+
+	// hostStatsCollectorIntv is the interval on which we collect host resource
+	// usage stats
+	hostStatsCollectorIntv = 1 * time.Second
 )
 
 // DefaultConfig returns the default configuration
@@ -213,7 +217,7 @@ func NewClient(cfg *config.Config) (*Client, error) {
 	go c.run()
 
 	// Start collecting stats
-	go c.monitorUsage()
+	go c.monitorHostStats()
 
 	// Start the consul sync
 	go c.syncConsul()
@@ -430,7 +434,8 @@ func (c *Client) StatsReporter() ClientStatsReporter {
 // Nomad client
 func (c *Client) AllocStats() map[string]AllocStatsReporter {
 	res := make(map[string]AllocStatsReporter)
-	for alloc, ar := range c.allocs {
+	allocRunners := c.getAllocRunners()
+	for alloc, ar := range allocRunners {
 		res[alloc] = ar
 	}
 	return res
@@ -1277,9 +1282,10 @@ func (c *Client) syncConsul() {
 	}
 }
 
-func (c *Client) monitorUsage() {
+// monitorHostStats collects host resource usage stats periodically
+func (c *Client) monitorHostStats() {
+	next := time.NewTimer(hostStatsCollectorIntv)
 	for {
-		next := time.NewTimer(1 * time.Second)
 		select {
 		case <-next.C:
 			ru, err := c.hostStatsCollector.Collect()
