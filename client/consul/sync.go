@@ -12,10 +12,16 @@ import (
 	"time"
 
 	consul "github.com/hashicorp/consul/api"
+	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/go-multierror"
 
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/nomad/nomad/types"
 )
+
+type notifyEvent struct{}
+type notifyChannel chan notifyEvent
 
 // Syncer allows syncing of services and checks with Consul
 type Syncer struct {
@@ -37,11 +43,27 @@ type Syncer struct {
 	shutdown     bool
 	shutdownLock sync.Mutex
 
+	// periodicCallbacks is walked sequentially when the timer in Run
+	// fires.
+	periodicCallbacks map[string]types.PeriodicCallback
+	notifySyncCh      notifyChannel
+	periodicLock      sync.RWMutex
 }
 
 const (
+	// initialSyncBuffer is the max time an initial sync will sleep
+	// before syncing.
+	initialSyncBuffer = 30 * time.Second
+
+	// initialSyncDelay is the delay before an initial sync.
+	initialSyncDelay = 5 * time.Second
+
 	// The periodic time interval for syncing services and checks with Consul
 	syncInterval = 5 * time.Second
+
+	// syncJitter provides a little variance in the frequency at which
+	// Syncer polls Consul.
+	syncJitter = 8
 
 	// ttlCheckBuffer is the time interval that Nomad can take to report Consul
 	// the check result
@@ -102,13 +124,13 @@ func NewSyncer(config *config.ConsulConfig, logger *log.Logger) (*Syncer, error)
 		return nil, err
 	}
 	consulSyncer := Syncer{
-		client:          c,
-		logger:          logger,
-		trackedServices: make(map[string]*consul.AgentService),
-		trackedChecks:   make(map[string]*consul.AgentCheckRegistration),
-		checkRunners:    make(map[string]*CheckRunner),
-
+		client:            c,
+		logger:            logger,
+		trackedServices:   make(map[string]*consul.AgentService),
+		trackedChecks:     make(map[string]*consul.AgentCheckRegistration),
+		checkRunners:      make(map[string]*CheckRunner),
 		shutdownCh:        make(types.ShutdownChannel),
+		periodicCallbacks: make(map[string]types.PeriodicCallback),
 	}
 	return &consulSyncer, nil
 }
@@ -133,7 +155,16 @@ func (c *Syncer) SetServiceIdentifier(serviceIdentifier string) *Syncer {
 	return c
 }
 
-// SyncServices sync the services with consul
+// SyncNow expires the current timer forcing the list of periodic callbacks
+// to be synced immediately.
+func (c *Syncer) SyncNow() {
+	select {
+	case c.notifySyncCh <- notifyEvent{}:
+	default:
+	}
+}
+
+// SyncServices sync the services with the Consul Agent
 func (c *Syncer) SyncServices(services []*structs.Service) error {
 	var mErr multierror.Error
 	taskServices := make(map[string]*consul.AgentService)
@@ -340,31 +371,54 @@ func (c *Syncer) deregisterCheck(ID string) error {
 	return c.client.Agent().CheckDeregister(ID)
 }
 
-	sync := time.NewTicker(syncInterval)
 // Run triggers periodic syncing of services and checks with Consul.  This is
 // a long lived go-routine which is stopped during shutdown.
 func (c *Syncer) Run() {
+	d := initialSyncDelay + lib.RandomStagger(initialSyncBuffer-initialSyncDelay)
+	sync := time.NewTimer(d)
+	c.logger.Printf("[DEBUG] consul.sync: sleeping %v before first sync", d)
+
 	for {
 		select {
 		case <-sync.C:
+			d = syncInterval - lib.RandomStagger(syncInterval/syncJitter)
+			sync.Reset(d)
+
 			if err := c.performSync(); err != nil {
 				if c.runChecks {
-					c.logger.Printf("[DEBUG] consul: error in syncing services for %q: %v", c.serviceIdentifier, err)
+					c.logger.Printf("[DEBUG] consul.sync: disabling checks until Consul sync completes for %q: %v", c.serviceIdentifier, err)
 				}
 				c.runChecks = false
 			} else {
 				c.runChecks = true
 			}
+		case <-c.notifySyncCh:
+			sync.Reset(syncInterval)
 		case <-c.shutdownCh:
 			sync.Stop()
-			c.logger.Printf("[INFO] consul: shutting down sync for %q", c.serviceIdentifier)
+			c.logger.Printf("[INFO] consul.sync: shutting down sync for %q", c.serviceIdentifier)
 			return
 		}
 	}
 }
 
+// RunHandlers executes each handler (randomly)
+func (c *Syncer) RunHandlers() {
+	c.periodicLock.RLock()
+	handlers := make(map[string]types.PeriodicCallback, len(c.periodicCallbacks))
+	for name, fn := range c.periodicCallbacks {
+		handlers[name] = fn
+	}
+	c.periodicLock.RUnlock()
+	for name, fn := range handlers {
+		fn()
+	}
+}
+
 // performSync sync the services and checks we are tracking with Consul.
 func (c *Syncer) performSync() error {
+	c.RunHandlers()
+
 	var mErr multierror.Error
 	cServices, err := c.client.Agent().Services()
 	if err != nil {
@@ -448,7 +502,7 @@ func (c *Syncer) runCheck(check Check) {
 	}
 	if err := c.client.Agent().UpdateTTL(check.ID(), output, state); err != nil {
 		if c.runChecks {
-			c.logger.Printf("[DEBUG] consul.sync: error updating ttl check for check %q: %v", check.ID(), err)
+			c.logger.Printf("[DEBUG] consul.sync: check %q failed, disabling Consul checks until until next successful sync: %v", check.ID(), err)
 			c.runChecks = false
 		} else {
 			c.runChecks = true
@@ -460,4 +514,36 @@ func (c *Syncer) runCheck(check Check) {
 // id and task name
 func GenerateServiceIdentifier(allocID string, taskName string) string {
 	return fmt.Sprintf("%s-%s", taskName, allocID)
+}
+
+// AddPeriodicHandler adds a uniquely named callback.  Returns true if
+// successful, false if a handler with the same name already exists.
+func (c *Syncer) AddPeriodicHandler(name string, fn types.PeriodicCallback) bool {
+	c.periodicLock.Lock()
+	defer c.periodicLock.Unlock()
+	c.logger.Printf("[DEBUG] consul.sync: adding handler named %s", name)
+	if _, found := c.periodicCallbacks[name]; found {
+		c.logger.Printf("[ERROR] consul.sync: failed adding handler %q", name)
+		return false
+	}
+	c.periodicCallbacks[name] = fn
+	c.logger.Printf("[DEBUG] consul.sync: successfully added handler %q", name)
+	return true
+}
+
+func (c *Syncer) NumHandlers() int {
+	c.periodicLock.RLock()
+	defer c.periodicLock.RUnlock()
+	return len(c.periodicCallbacks)
+}
+
+// RemovePeriodicHandler removes a handler with a given name.
+func (c *Syncer) RemovePeriodicHandler(name string) {
+	c.periodicLock.Lock()
+	defer c.periodicLock.Unlock()
+	delete(c.periodicCallbacks, name)
+}
+
+func (c *Syncer) ConsulClient() *consul.Client {
+	return c.client
 }
