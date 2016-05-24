@@ -264,24 +264,26 @@ func (c *Client) doRequest(r *request) (time.Duration, *http.Response, error) {
 	diff := time.Now().Sub(start)
 
 	// If the response is compressed, we swap the body's reader.
-	var reader io.ReadCloser
-	switch resp.Header.Get("Content-Encoding") {
-	case "gzip":
-		greader, err := gzip.NewReader(resp.Body)
-		if err != nil {
-			return 0, nil, err
-		}
+	if resp != nil && resp.Header != nil {
+		var reader io.ReadCloser
+		switch resp.Header.Get("Content-Encoding") {
+		case "gzip":
+			greader, err := gzip.NewReader(resp.Body)
+			if err != nil {
+				return 0, nil, err
+			}
 
-		// The gzip reader doesn't close the wrapped reader so we use
-		// multiCloser.
-		reader = &multiCloser{
-			reader:       greader,
-			inorderClose: []io.Closer{greader, resp.Body},
+			// The gzip reader doesn't close the wrapped reader so we use
+			// multiCloser.
+			reader = &multiCloser{
+				reader:       greader,
+				inorderClose: []io.Closer{greader, resp.Body},
+			}
+		default:
+			reader = resp.Body
 		}
-	default:
-		reader = resp.Body
+		resp.Body = reader
 	}
-	resp.Body = reader
 
 	return diff, resp, err
 }
