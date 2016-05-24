@@ -132,10 +132,6 @@ type RpcProxy struct {
 	// notifyFailedBarrier is acts as a barrier to prevent queuing behind
 	// serverListLock and acts as a TryLock().
 	notifyFailedBarrier int32
-
-	// consulLock is the lock to prevent concurrent access to Consul from
-	// an RpcProxy instance.
-	consulLock int32
 }
 
 // activateEndpoint adds an endpoint to the RpcProxy's active serverList.
@@ -615,25 +611,6 @@ func (p *RpcProxy) Run() {
 			p.RebalanceServers()
 
 			p.refreshServerRebalanceTimer()
-
-			// Perform Consul operations asynchronously, but in a
-			// singleton to prevent this task from stacking
-			// during the next heartbeat if Consul is slow or
-			// unavailable.
-			if atomic.CompareAndSwapInt32(&p.consulLock, 0, 1) {
-				go func() {
-					// TODO(sean@): Talk w/ Consul and
-					// append any servers it has to our
-					// server list.  Need access to the
-					// Consul Config agent out of Client
-					// in order to poll (or create our
-					// own parallel client using the
-					// existing consul config).
-					p.logger.Printf("[DEBUG] Polling Consul for servers in the nomad-server list")
-					defer atomic.StoreInt32(&p.consulLock, 0)
-				}()
-			}
-
 		case <-p.shutdownCh:
 			p.logger.Printf("[INFO] RPC Proxy: shutting down")
 			return
