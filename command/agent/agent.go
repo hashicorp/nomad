@@ -17,6 +17,8 @@ import (
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/nomad/nomad/types"
 )
 
 // Agent is a long running daemon that is used to run both
@@ -29,9 +31,9 @@ type Agent struct {
 	logger    *log.Logger
 	logOutput io.Writer
 
-	// consulAgentConfig is a limited subset of the information necessary
-	// to establish a connection with a Consul agent
-	consulAgentConfig *consul.AgentConfig
+	// consulConfig is a limited subset of the information necessary to
+	// establish a connection with this Nomad Agent's Consul Agent.
+	consulConfig *config.ConsulConfig
 
 	// consulSyncer registers the Nomad agent with the Consul Agent
 	consulSyncer *consul.Syncer
@@ -278,7 +280,7 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	conf.Version = fmt.Sprintf("%s%s", a.config.Version, a.config.VersionPrerelease)
 	conf.Revision = a.config.Revision
 
-	conf.ConsulAgentConfig = a.consulAgentConfig
+	conf.ConsulConfig = a.consulConfig
 
 	conf.StatsDataPoints = a.config.Client.StatsConfig.DataPoints
 	conf.StatsCollectionInterval = a.config.Client.StatsConfig.collectionInterval
@@ -496,17 +498,19 @@ func (a *Agent) Stats() map[string]map[string]string {
 // setupConsulSyncer creates the Consul task used by this Nomad Agent when
 // running in either Client and Server mode.
 func (a *Agent) setupConsulSyncer(shutdownCh types.ShutdownChannel) (err error) {
-	cfg := &consul.AgentConfig{
-		Addr:      a.config.Consul.Addr,
-		Token:     a.config.Consul.Token,
-		Auth:      a.config.Consul.Auth,
-		EnableSSL: a.config.Consul.EnableSSL,
-		VerifySSL: a.config.Consul.VerifySSL,
-		CAFile:    a.config.Consul.CAFile,
-		CertFile:  a.config.Consul.CertFile,
-		KeyFile:   a.config.Consul.KeyFile,
+	cfg := &config.ConsulConfig{
+		Addr:              a.config.Consul.Addr,
+		Token:             a.config.Consul.Token,
+		Auth:              a.config.Consul.Auth,
+		EnableSSL:         a.config.Consul.EnableSSL,
+		VerifySSL:         a.config.Consul.VerifySSL,
+		CAFile:            a.config.Consul.CAFile,
+		CertFile:          a.config.Consul.CertFile,
+		KeyFile:           a.config.Consul.KeyFile,
+		ServerServiceName: a.config.Consul.ServerServiceName,
+		ClientServiceName: a.config.Consul.ClientServiceName,
 	}
-	a.consulAgentConfig = cfg
+	a.consulConfig = cfg
 
 	a.consulSyncer, err = consul.NewSyncer(cfg, a.logger)
 
@@ -516,7 +520,7 @@ func (a *Agent) setupConsulSyncer(shutdownCh types.ShutdownChannel) (err error) 
 // syncAgentServicesWithConsul syncs this Nomad Agent's services with Consul
 // when running in either Client or Server mode.
 func (a *Agent) syncAgentServicesWithConsul(clientHttpAddr string, serverHttpAddr string) error {
-	cs, err := consul.NewSyncer(a.consulAgentConfig, a.logger)
+	cs, err := consul.NewSyncer(a.consulConfig, a.logger)
 	if err != nil {
 		return err
 	}

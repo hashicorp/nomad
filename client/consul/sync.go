@@ -36,18 +36,7 @@ type Syncer struct {
 	shutdownCh   types.ShutdownChannel
 	shutdown     bool
 	shutdownLock sync.Mutex
-}
 
-// AgentConfig is the configuration used to create a new ConsulService client
-type AgentConfig struct {
-	Addr      string
-	Token     string
-	Auth      string
-	EnableSSL bool
-	VerifySSL bool
-	CAFile    string
-	CertFile  string
-	KeyFile   string
 }
 
 const (
@@ -60,7 +49,7 @@ const (
 )
 
 // NewSyncer returns a new consul.Syncer
-func NewSyncer(config *AgentConfig, logger *log.Logger) (*Syncer, error) {
+func NewSyncer(config *config.ConsulConfig, logger *log.Logger) (*Syncer, error) {
 	var err error
 	var c *consul.Client
 	cfg := consul.DefaultConfig()

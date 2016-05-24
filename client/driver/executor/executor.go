@@ -27,6 +27,7 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/client/stats"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/nomad/structs/config"
 )
 
 const (
@@ -60,9 +61,9 @@ type Executor interface {
 
 // ConsulContext holds context to configure the Consul client and run checks
 type ConsulContext struct {
-	// ConsulAgentConfig contains the configuration information for
-	// talking with this Nomad Agent's Consul Agent.
-	ConsulAgentConfig *consul.AgentConfig
+	// ConsulConfig contains the configuration information for talking
+	// with this Nomad Agent's Consul Agent.
+	ConsulConfig *config.ConsulConfig
 
 	// ContainerID is the ID of the container
 	ContainerID string
@@ -471,7 +472,7 @@ func (e *UniversalExecutor) SyncServices(ctx *ConsulContext) error {
 	e.logger.Printf("[INFO] executor: registering services")
 	e.consulCtx = ctx
 	if e.consulSyncer == nil {
-		cs, err := consul.NewSyncer(ctx.ConsulAgentConfig, e.logger)
+		cs, err := consul.NewSyncer(ctx.ConsulConfig, e.logger)
 		if err != nil {
 			return err
 		}

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/nomad/structs/config"
 )
 
 var (
@@ -110,9 +110,8 @@ type Config struct {
 	// Revision is the commit number of the Nomad client
 	Revision string
 
-	// ConsulAgentConfig is the configuration to connect with Consul
-	// Agent
-	ConsulAgentConfig *consul.AgentConfig
+	// ConsulConfig is this Agent's Consul configuration
+	ConsulConfig *config.ConsulConfig
 
 	// StatsDataPoints is the number of resource usage data points the Nomad
 	// client keeps in memory
