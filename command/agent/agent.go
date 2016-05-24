@@ -43,7 +43,7 @@ type Agent struct {
 	client *client.Client
 
 	shutdown     bool
-	shutdownCh   chan struct{}
+	shutdownCh   types.ShutdownChannel
 	shutdownLock sync.Mutex
 }
 
@@ -54,11 +54,12 @@ func NewAgent(config *Config, logOutput io.Writer) (*Agent, error) {
 		logOutput = os.Stderr
 	}
 
+	shutdownCh := make(types.ShutdownChannel)
 	a := &Agent{
 		config:     config,
 		logger:     log.New(logOutput, "", log.LstdFlags),
 		logOutput:  logOutput,
-		shutdownCh: make(chan struct{}),
+		shutdownCh: shutdownCh,
 	}
 
 	if err := a.setupConsulSyncer(shutdownCh); err != nil {
