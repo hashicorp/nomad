@@ -19,8 +19,8 @@ import (
 
 // Syncer allows syncing of services and checks with Consul
 type Syncer struct {
-	client   *consul.Client
-	availble bool
+	client    *consul.Client
+	runChecks bool
 
 	serviceIdentifier string              // serviceIdentifier is a token which identifies which task/alloc the service belongs to
 	delegateChecks    map[string]struct{} // delegateChecks are the checks that the Nomad client runs and reports to Consul
@@ -348,12 +348,12 @@ func (c *Syncer) Run() {
 		select {
 		case <-sync.C:
 			if err := c.performSync(); err != nil {
-				if c.availble {
+				if c.runChecks {
 					c.logger.Printf("[DEBUG] consul: error in syncing services for %q: %v", c.serviceIdentifier, err)
 				}
-				c.availble = false
+				c.runChecks = false
 			} else {
-				c.availble = true
+				c.runChecks = true
 			}
 		case <-c.shutdownCh:
 			sync.Stop()
@@ -447,11 +447,11 @@ func (c *Syncer) runCheck(check Check) {
 		output = res.Err.Error()
 	}
 	if err := c.client.Agent().UpdateTTL(check.ID(), output, state); err != nil {
-		if c.availble {
+		if c.runChecks {
 			c.logger.Printf("[DEBUG] consul.sync: error updating ttl check for check %q: %v", check.ID(), err)
-			c.availble = false
+			c.runChecks = false
 		} else {
-			c.availble = true
+			c.runChecks = true
 		}
 	}
 }
