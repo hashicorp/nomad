@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -194,6 +195,7 @@ func (r *request) toHTTP() (*http.Request, error) {
 		return nil, err
 	}
 
+	req.Header.Add("Accept-Encoding", "gzip")
 	req.URL.Host = r.url.Host
 	req.URL.Scheme = r.url.Scheme
 	req.Host = r.url.Host
@@ -231,6 +233,26 @@ func (c *Client) newRequest(method, path string) *request {
 	return r
 }
 
+// multiCloser is to wrap a ReadCloser such that when close is called, multiple
+// Closes occur.
+type multiCloser struct {
+	reader       io.Reader
+	inorderClose []io.Closer
+}
+
+func (m *multiCloser) Close() error {
+	for _, c := range m.inorderClose {
+		if err := c.Close(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (m *multiCloser) Read(p []byte) (int, error) {
+	return m.reader.Read(p)
+}
+
 // doRequest runs a request with our client
 func (c *Client) doRequest(r *request) (time.Duration, *http.Response, error) {
 	req, err := r.toHTTP()
@@ -240,6 +262,27 @@ func (c *Client) doRequest(r *request) (time.Duration, *http.Response, error) {
 	start := time.Now()
 	resp, err := c.config.HttpClient.Do(req)
 	diff := time.Now().Sub(start)
+
+	// If the response is compressed, we swap the body's reader.
+	var reader io.ReadCloser
+	switch resp.Header.Get("Content-Encoding") {
+	case "gzip":
+		greader, err := gzip.NewReader(resp.Body)
+		if err != nil {
+			return 0, nil, err
+		}
+
+		// The gzip reader doesn't close the wrapped reader so we use
+		// multiCloser.
+		reader = &multiCloser{
+			reader:       greader,
+			inorderClose: []io.Closer{greader, resp.Body},
+		}
+	default:
+		reader = resp.Body
+	}
+	resp.Body = reader
+
 	return diff, resp, err
 }
 
