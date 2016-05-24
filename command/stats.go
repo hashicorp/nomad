@@ -15,7 +15,24 @@ type StatsCommand struct {
 }
 
 func (f *StatsCommand) Help() string {
-	return "Dispalys stats of an allocation or a task running on a nomad client"
+	helpText := `
+Usage: nomad node-status [options] <alloc-id>
+
+  Displays statistics related to resource usage of tasks in an allocation.  Use
+  the -task flag to query statistics of an individual task running in an
+  allocation.
+
+General Options:
+
+  ` + generalOptionsUsage() + `
+
+Node Stats Options:
+
+  -task
+    Display statistics for a specific task in an allocation.
+`
+
+	return strings.TrimSpace(helpText)
 }
 
 func (f *StatsCommand) Synopsis() string {
@@ -24,8 +41,10 @@ func (f *StatsCommand) Synopsis() string {
 
 func (f *StatsCommand) Run(args []string) int {
 	var verbose bool
+	var task string
 	flags := f.Meta.FlagSet("fs-list", FlagSetClient)
 	flags.BoolVar(&verbose, "verbose", false, "")
+	flags.StringVar(&task, "task", "", "")
 	flags.Usage = func() { f.Ui.Output(f.Help()) }
 
 	if err := flags.Parse(args); err != nil {
@@ -43,11 +62,8 @@ func (f *StatsCommand) Run(args []string) int {
 		return 1
 	}
 
-	var allocID, task string
+	var allocID string
 	allocID = strings.TrimSpace(args[0])
-	if len(args) == 2 {
-		task = strings.TrimSpace(args[1])
-	}
 
 	// Truncate the id unless full length is requested
 	length := shortId
