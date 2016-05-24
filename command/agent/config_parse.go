@@ -598,19 +598,19 @@ func parseConsulConfig(result **config.ConsulConfig, list *ast.ObjectList) error
 
 	// Check for invalid keys
 	valid := []string{
-		"server_service_name",
-		"client_service_name",
-		"auto_register",
 		"addr",
-		"token",
 		"auth",
-		"ssl",
-		"verify_ssl",
+		"auto_register",
 		"ca_file",
 		"cert_file",
-		"key_file",
 		"client_auto_join",
+		"client_service_name",
+		"key_file",
 		"server_auto_join",
+		"server_service_name",
+		"ssl",
+		"token",
+		"verify_ssl",
 	}
 
 	if err := checkHCLKeys(listVal, valid); err != nil {
