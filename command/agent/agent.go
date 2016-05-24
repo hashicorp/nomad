@@ -80,10 +80,8 @@ func NewAgent(config *Config, logOutput io.Writer) (*Agent, error) {
 		if err := a.syncAgentServicesWithConsul(); err != nil {
 			a.logger.Printf("[ERR] agent: unable to sync agent services with consul: %v", err)
 		}
-		if a.consulSyncer != nil {
-			go a.consulSyncer.Run()
-		}
 	}
+	go a.consulSyncer.Run()
 
 	return a, nil
 }
