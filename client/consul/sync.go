@@ -410,7 +410,7 @@ func (c *Syncer) RunHandlers() {
 		handlers[name] = fn
 	}
 	c.periodicLock.RUnlock()
-	for name, fn := range handlers {
+	for _, fn := range handlers {
 		fn()
 	}
 }
