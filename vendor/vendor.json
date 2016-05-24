@@ -3,6 +3,12 @@
 	"ignore": "test",
 	"package": [
 		{
+			"checksumSHA1": "XeG94RjA9o/0wo9Fuw6NSRGYnjk=",
+			"path": "github.com/NYTimes/gziphandler",
+			"revision": "63027b26b87e2ae2ce3810393d4b81021cfd3a35",
+			"revisionTime": "2016-04-19T20:25:41Z"
+		},
+		{
 			"comment": "v0.8.7-87-g4b6ea73",
 			"path": "github.com/Sirupsen/logrus",
 			"revision": "4b6ea7319e214d98c938f12692336f7ca9348d6b"

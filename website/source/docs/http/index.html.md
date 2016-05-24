@@ -87,6 +87,11 @@ servicing the request. A target region can be explicitly specified with the `reg
 parameter. The request will be transparently forwarded and serviced by a server in the
 appropriate region.
 
+## Compressed Responses
+
+The HTTP API will gzip the response if the HTTP request denotes that the client accepts
+gzip compression. This is achieved via the standard, `Accept-Encoding: gzip`
+
 ## Formatted JSON Output
 
 By default, the output of all HTTP API requests is minimized JSON.  If the client passes `pretty`

@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/NYTimes/gziphandler"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/ugorji/go/codec"
 )
@@ -65,7 +66,7 @@ func NewHTTPServer(agent *Agent, config *Config, logOutput io.Writer) (*HTTPServ
 	srv.registerHandlers(config.EnableDebug)
 
 	// Start the server
-	go http.Serve(ln, mux)
+	go http.Serve(ln, gziphandler.GzipHandler(mux))
 	return srv, nil
 }
 
@@ -86,7 +87,7 @@ func newScadaHttp(agent *Agent, list net.Listener) *HTTPServer {
 	srv.registerHandlers(false) // Never allow debug for SCADA
 
 	// Start the server
-	go http.Serve(list, mux)
+	go http.Serve(list, gziphandler.GzipHandler(mux))
 	return srv
 }
 
