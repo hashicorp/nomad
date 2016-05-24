@@ -362,7 +362,7 @@ func DevConfig() *Config {
 	conf.DevMode = true
 	conf.EnableDebug = true
 	conf.DisableAnonymousSignature = true
-	conf.ConsulConfig.AutoRegister = true
+	conf.Consul.AutoRegister = true
 	if runtime.GOOS == "darwin" {
 		conf.Client.NetworkInterface = "lo0"
 	} else if runtime.GOOS == "linux" {
