@@ -217,7 +217,7 @@ func NewClient(cfg *config.Config) (*Client, error) {
 	go c.run()
 
 	// Start collecting stats
-	go c.monitorHostStats()
+	go c.collectHostStats()
 
 	// Start the consul sync
 	go c.syncConsul()
@@ -1282,15 +1282,16 @@ func (c *Client) syncConsul() {
 	}
 }
 
-// monitorHostStats collects host resource usage stats periodically
-func (c *Client) monitorHostStats() {
+// collectHostStats collects host resource usage stats periodically
+func (c *Client) collectHostStats() {
 	next := time.NewTimer(hostStatsCollectorIntv)
 	for {
 		select {
 		case <-next.C:
 			ru, err := c.hostStatsCollector.Collect()
 			if err != nil {
-				c.logger.Printf("[DEBUG] client: error fetching stats of host: %v", err)
+				c.logger.Printf("[DEBUG] client: error fetching host resource usage stats: %v", err)
+				continue
 			}
 			c.resourceUsageLock.RLock()
 			c.resourceUsage.Enqueue(ru)
