@@ -28,6 +28,8 @@ General Options:
 
   ` + generalOptionsUsage() + `
 
+FS Specific Options:
+
   -H
     Machine friendly output.
 

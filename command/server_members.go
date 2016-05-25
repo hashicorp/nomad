@@ -23,7 +23,7 @@ General Options:
 
   ` + generalOptionsUsage() + `
 
-Agent Members Options:
+Server Members Options:
 
   -detailed
     Show detailed information about each member. This dumps
