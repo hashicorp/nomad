@@ -307,9 +307,9 @@ func (m *monitor) monitor(evalID string, allowPrefix bool) int {
 					dumpAllocMetrics(m.ui, metrics, false)
 				}
 
-				if eval.SpawnedBlockedEval != "" {
-					m.ui.Output(fmt.Sprintf("Spawned follow up blocked evaluation %q to place remainder",
-						limit(eval.SpawnedBlockedEval, m.length)))
+				if eval.BlockedEval != "" {
+					m.ui.Output(fmt.Sprintf("Evaluation %q waiting for additional capacity to place remainder",
+						limit(eval.BlockedEval, m.length)))
 				}
 			}
 		default:

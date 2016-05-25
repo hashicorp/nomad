@@ -237,7 +237,7 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 		// Attempt to match the task group
 		option, _ := s.stack.Select(missing.TaskGroup)
 
-		if option == nil && s.eval.FailedTGAllocs != nil {
+		if option == nil {
 			// Check if this task group has already failed
 			if metric, ok := s.eval.FailedTGAllocs[missing.TaskGroup.Name]; ok {
 				metric.CoalescedFailures += 1

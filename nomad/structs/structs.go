@@ -2617,10 +2617,10 @@ type Evaluation struct {
 	// This is used to support rolling upgrades, where we need a chain of evaluations.
 	PreviousEval string
 
-	// SpawnedBlockedEval is the evaluation ID for a created blocked eval. A
+	// BlockedEval is the evaluation ID for a created blocked eval. A
 	// blocked eval will be created if all allocations could not be placed due
 	// to constraints or lacking resources.
-	SpawnedBlockedEval string
+	BlockedEval string
 
 	// FailedTGAllocs are task groups which have allocations that could not be
 	// made, but the metrics are persisted so that the user can use the feedback
@@ -2744,10 +2744,10 @@ func (e *Evaluation) NextRollingEval(wait time.Duration) *Evaluation {
 	}
 }
 
-// BlockedEval creates a blocked evaluation to followup this eval to place any
+// CreateBlockedEval creates a blocked evaluation to followup this eval to place any
 // failed allocations. It takes the classes marked explicitly eligible or
 // ineligible and whether the job has escaped computed node classes.
-func (e *Evaluation) BlockedEval(classEligibility map[string]bool, escaped bool) *Evaluation {
+func (e *Evaluation) CreateBlockedEval(classEligibility map[string]bool, escaped bool) *Evaluation {
 	return &Evaluation{
 		ID:                   GenerateUUID(),
 		Priority:             e.Priority,

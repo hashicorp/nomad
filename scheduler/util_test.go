@@ -526,8 +526,8 @@ func TestSetStatus(t *testing.T) {
 	}
 
 	newEval = h.Evals[0]
-	if newEval.SpawnedBlockedEval != blocked.ID {
-		t.Fatalf("setStatus() didn't set SpawnedBlockedEval correctly: %v", newEval)
+	if newEval.BlockedEval != blocked.ID {
+		t.Fatalf("setStatus() didn't set BlockedEval correctly: %v", newEval)
 	}
 }
 

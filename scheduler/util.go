@@ -365,7 +365,7 @@ func setStatus(logger *log.Logger, planner Planner, eval, nextEval, spawnedBlock
 		newEval.NextEval = nextEval.ID
 	}
 	if spawnedBlocked != nil {
-		newEval.SpawnedBlockedEval = spawnedBlocked.ID
+		newEval.BlockedEval = spawnedBlocked.ID
 	}
 	return planner.UpdateEval(newEval)
 }

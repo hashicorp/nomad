@@ -140,7 +140,7 @@ func (s *GenericScheduler) createBlockedEval() error {
 		classEligibility = e.GetClasses()
 	}
 
-	s.blocked = s.eval.BlockedEval(classEligibility, escaped)
+	s.blocked = s.eval.CreateBlockedEval(classEligibility, escaped)
 	return s.planner.CreateEval(s.blocked)
 }
 
@@ -370,11 +370,9 @@ func (s *GenericScheduler) computePlacements(place []allocTuple) error {
 
 	for _, missing := range place {
 		// Check if this task group has already failed
-		if s.eval.FailedTGAllocs != nil {
-			if metric, ok := s.eval.FailedTGAllocs[missing.TaskGroup.Name]; ok {
-				metric.CoalescedFailures += 1
-				continue
-			}
+		if metric, ok := s.eval.FailedTGAllocs[missing.TaskGroup.Name]; ok {
+			metric.CoalescedFailures += 1
+			continue
 		}
 
 		// Attempt to match the task group
