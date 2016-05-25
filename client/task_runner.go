@@ -37,7 +37,12 @@ const (
 
 // TaskStatsReporter exposes APIs to query resource usage of a Task
 type TaskStatsReporter interface {
+	// ResourceUsage returns the latest resource usage data point collected for
+	// the task
 	ResourceUsage() *cstructs.TaskResourceUsage
+
+	// ResourceUsageTS returns all the resource usage data points since a given
+	// time
 	ResourceUsageTS(since time.Time) []*cstructs.TaskResourceUsage
 }
 

@@ -31,7 +31,6 @@ type AllocStateUpdater func(alloc *structs.Allocation)
 // AllocStatsReporter exposes stats related APIs of an allocation runner
 type AllocStatsReporter interface {
 	AllocStats() map[string]TaskStatsReporter
-	TaskStats(task string) (TaskStatsReporter, error)
 }
 
 // AllocRunner is used to wrap an allocation and provide the execution context.

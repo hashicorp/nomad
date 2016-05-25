@@ -76,8 +76,8 @@ func (s *HTTPServer) ClientAllocRequest(resp http.ResponseWriter, req *http.Requ
 	}
 
 	if task := req.URL.Query().Get("task"); task != "" {
-		taskStats, err := allocStats.TaskStats(task)
-		if err != nil {
+		taskStats, ok := allocStats.AllocStats()[task]
+		if !ok {
 			return nil, CodedError(404, "task not present in allocation")
 		}
 		return taskStats.ResourceUsage(), nil
