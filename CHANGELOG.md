@@ -7,6 +7,8 @@ IMPROVEMENTS:
   * api: Gzip compress HTTP API requests [GH-1203]
   * api: Plan api introduced for the Job endpoint [GH-1168]
   * cli: Unify the `fs` family of commands to be a single command [GH-1150]
+  * cli: Introduce `nomad plan` to dry-run a job through the scheduler and
+    determine its effects [GH-1181]
 
 BUG FIXES:
   * core: Do not restart successful batch jobs when the node is removed/drained
