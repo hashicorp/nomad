@@ -7,6 +7,8 @@ IMPROVEMENTS:
   * cli: Unify the `fs` family of commands to be a single command [GH-1150]
 
 BUG FIXES:
+  * core: Do not restart successful batch jobs when the node is removed/drained
+    [GH-1205]
   * core: Updated User, Meta or Resources in a task cause create/destroy updates
     [GH-1128, GH-1153]
   * core: Fix blocked evaluations being run without properly accounting for
