@@ -59,6 +59,11 @@ type Worker struct {
 	failures uint
 
 	evalToken string
+
+	// snapshotIndex is the index of the snapshot in which the scheduler was
+	// first envoked. It is used to mark the SnapshotIndex of evaluations
+	// Created, Updated or Reblocked.
+	snapshotIndex uint64
 }
 
 // NewWorker starts a new worker associated with the given server
@@ -241,6 +246,12 @@ func (w *Worker) invokeScheduler(eval *structs.Evaluation, token string) error {
 		return fmt.Errorf("failed to snapshot state: %v", err)
 	}
 
+	// Store the snapshot's index
+	w.snapshotIndex, err = snap.LatestIndex()
+	if err != nil {
+		return fmt.Errorf("failed to determine snapshot's index: %v", err)
+	}
+
 	// Create the scheduler, or use the special system scheduler
 	var sched scheduler.Scheduler
 	if eval.Type == structs.JobTypeCore {
@@ -334,6 +345,9 @@ func (w *Worker) UpdateEval(eval *structs.Evaluation) error {
 	}
 	defer metrics.MeasureSince([]string{"nomad", "worker", "update_eval"}, time.Now())
 
+	// Store the snapshot index in the eval
+	eval.SnapshotIndex = w.snapshotIndex
+
 	// Setup the request
 	req := structs.EvalUpdateRequest{
 		Evals:     []*structs.Evaluation{eval},
@@ -369,6 +383,9 @@ func (w *Worker) CreateEval(eval *structs.Evaluation) error {
 	}
 	defer metrics.MeasureSince([]string{"nomad", "worker", "create_eval"}, time.Now())
 
+	// Store the snapshot index in the eval
+	eval.SnapshotIndex = w.snapshotIndex
+
 	// Setup the request
 	req := structs.EvalUpdateRequest{
 		Evals:     []*structs.Evaluation{eval},
@@ -390,6 +407,44 @@ SUBMIT:
 		return err
 	} else {
 		w.logger.Printf("[DEBUG] worker: created evaluation %#v", eval)
+		w.backoffReset()
+	}
+	return nil
+}
+
+// ReblockEval is used to reinsert a blocked evaluation into the blocked eval
+// tracker. This allows the worker to act as the planner for the scheduler.
+func (w *Worker) ReblockEval(eval *structs.Evaluation) error {
+	// Check for a shutdown before plan submission
+	if w.srv.IsShutdown() {
+		return fmt.Errorf("shutdown while planning")
+	}
+	defer metrics.MeasureSince([]string{"nomad", "worker", "reblock_eval"}, time.Now())
+
+	// Store the snapshot index in the eval
+	eval.SnapshotIndex = w.snapshotIndex
+
+	// Setup the request
+	req := structs.EvalUpdateRequest{
+		Evals:     []*structs.Evaluation{eval},
+		EvalToken: w.evalToken,
+		WriteRequest: structs.WriteRequest{
+			Region: w.srv.config.Region,
+		},
+	}
+	var resp structs.GenericResponse
+
+SUBMIT:
+	// Make the RPC call
+	if err := w.srv.RPC("Eval.Reblock", &req, &resp); err != nil {
+		w.logger.Printf("[ERR] worker: failed to reblock evaluation %#v: %v",
+			eval, err)
+		if w.shouldResubmit(err) && !w.backoffErr(backoffBaselineSlow, backoffLimitSlow) {
+			goto SUBMIT
+		}
+		return err
+	} else {
+		w.logger.Printf("[DEBUG] worker: reblocked evaluation %#v", eval)
 		w.backoffReset()
 	}
 	return nil

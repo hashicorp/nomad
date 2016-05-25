@@ -53,6 +53,27 @@ func TestBlockedEvals_Block_SameJob(t *testing.T) {
 	}
 }
 
+func TestBlockedEvals_Block_PriorUnblocks(t *testing.T) {
+	blocked, _ := testBlockedEvals(t)
+
+	// Do unblocks prior to blocking
+	blocked.Unblock("v1:123", 1000)
+	blocked.Unblock("v1:123", 1001)
+
+	// Create two blocked evals and add them to the blocked tracker.
+	e := mock.Eval()
+	e.Status = structs.EvalStatusBlocked
+	e.ClassEligibility = map[string]bool{"v1:123": false, "v1:456": false}
+	e.SnapshotIndex = 999
+	blocked.Block(e)
+
+	// Verify block did track both
+	bStats := blocked.Stats()
+	if bStats.TotalBlocked != 1 || bStats.TotalEscaped != 0 {
+		t.Fatalf("bad: %#v", bStats)
+	}
+}
+
 func TestBlockedEvals_GetDuplicates(t *testing.T) {
 	blocked, _ := testBlockedEvals(t)
 
@@ -105,7 +126,7 @@ func TestBlockedEvals_UnblockEscaped(t *testing.T) {
 		t.Fatalf("bad: %#v", bStats)
 	}
 
-	blocked.Unblock("v1:123")
+	blocked.Unblock("v1:123", 1000)
 
 	testutil.WaitForResult(func() (bool, error) {
 		// Verify Unblock caused an enqueue
@@ -141,7 +162,7 @@ func TestBlockedEvals_UnblockEligible(t *testing.T) {
 		t.Fatalf("bad: %#v", blockedStats)
 	}
 
-	blocked.Unblock("v1:123")
+	blocked.Unblock("v1:123", 1000)
 
 	testutil.WaitForResult(func() (bool, error) {
 		// Verify Unblock caused an enqueue
@@ -178,7 +199,7 @@ func TestBlockedEvals_UnblockIneligible(t *testing.T) {
 	}
 
 	// Should do nothing
-	blocked.Unblock("v1:123")
+	blocked.Unblock("v1:123", 1000)
 
 	testutil.WaitForResult(func() (bool, error) {
 		// Verify Unblock didn't cause an enqueue
@@ -214,7 +235,7 @@ func TestBlockedEvals_UnblockUnknown(t *testing.T) {
 	}
 
 	// Should unblock because the eval hasn't seen this node class.
-	blocked.Unblock("v1:789")
+	blocked.Unblock("v1:789", 1000)
 
 	testutil.WaitForResult(func() (bool, error) {
 		// Verify Unblock causes an enqueue
@@ -227,6 +248,142 @@ func TestBlockedEvals_UnblockUnknown(t *testing.T) {
 		bStats := blocked.Stats()
 		if bStats.TotalBlocked != 0 || bStats.TotalEscaped != 0 {
 			return false, fmt.Errorf("bad: %#v", bStats)
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %s", err)
+	})
+}
+
+// Test the block case in which the eval should be immediately unblocked since
+// it is escaped and old
+func TestBlockedEvals_Block_ImmediateUnblock_Escaped(t *testing.T) {
+	blocked, broker := testBlockedEvals(t)
+
+	// Do an unblock prior to blocking
+	blocked.Unblock("v1:123", 1000)
+
+	// Create a blocked eval that is eligible on a specific node class and add
+	// it to the blocked tracker.
+	e := mock.Eval()
+	e.Status = structs.EvalStatusBlocked
+	e.EscapedComputedClass = true
+	e.SnapshotIndex = 900
+	blocked.Block(e)
+
+	// Verify block caused the eval to be immediately unblocked
+	blockedStats := blocked.Stats()
+	if blockedStats.TotalBlocked != 0 && blockedStats.TotalEscaped != 0 {
+		t.Fatalf("bad: %#v", blockedStats)
+	}
+
+	testutil.WaitForResult(func() (bool, error) {
+		// Verify Unblock caused an enqueue
+		brokerStats := broker.Stats()
+		if brokerStats.TotalReady != 1 {
+			return false, fmt.Errorf("bad: %#v", brokerStats)
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %s", err)
+	})
+}
+
+// Test the block case in which the eval should be immediately unblocked since
+// it there is an unblock on an unseen class
+func TestBlockedEvals_Block_ImmediateUnblock_UnseenClass(t *testing.T) {
+	blocked, broker := testBlockedEvals(t)
+
+	// Do an unblock prior to blocking
+	blocked.Unblock("v1:123", 1000)
+
+	// Create a blocked eval that is eligible on a specific node class and add
+	// it to the blocked tracker.
+	e := mock.Eval()
+	e.Status = structs.EvalStatusBlocked
+	e.EscapedComputedClass = false
+	e.SnapshotIndex = 900
+	blocked.Block(e)
+
+	// Verify block caused the eval to be immediately unblocked
+	blockedStats := blocked.Stats()
+	if blockedStats.TotalBlocked != 0 && blockedStats.TotalEscaped != 0 {
+		t.Fatalf("bad: %#v", blockedStats)
+	}
+
+	testutil.WaitForResult(func() (bool, error) {
+		// Verify Unblock caused an enqueue
+		brokerStats := broker.Stats()
+		if brokerStats.TotalReady != 1 {
+			return false, fmt.Errorf("bad: %#v", brokerStats)
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %s", err)
+	})
+}
+
+// Test the block case in which the eval should be immediately unblocked since
+// it a class it is eligible for has been unblocked
+func TestBlockedEvals_Block_ImmediateUnblock_SeenClass(t *testing.T) {
+	blocked, broker := testBlockedEvals(t)
+
+	// Do an unblock prior to blocking
+	blocked.Unblock("v1:123", 1000)
+
+	// Create a blocked eval that is eligible on a specific node class and add
+	// it to the blocked tracker.
+	e := mock.Eval()
+	e.Status = structs.EvalStatusBlocked
+	e.ClassEligibility = map[string]bool{"v1:123": true, "v1:456": false}
+	e.SnapshotIndex = 900
+	blocked.Block(e)
+
+	// Verify block caused the eval to be immediately unblocked
+	blockedStats := blocked.Stats()
+	if blockedStats.TotalBlocked != 0 && blockedStats.TotalEscaped != 0 {
+		t.Fatalf("bad: %#v", blockedStats)
+	}
+
+	testutil.WaitForResult(func() (bool, error) {
+		// Verify Unblock caused an enqueue
+		brokerStats := broker.Stats()
+		if brokerStats.TotalReady != 1 {
+			return false, fmt.Errorf("bad: %#v", brokerStats)
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %s", err)
+	})
+}
+
+func TestBlockedEvals_UnblockFailed(t *testing.T) {
+	blocked, broker := testBlockedEvals(t)
+
+	// Create blocked evals that are due to failures
+	e := mock.Eval()
+	e.Status = structs.EvalStatusBlocked
+	e.TriggeredBy = structs.EvalTriggerMaxPlans
+	e.EscapedComputedClass = true
+	blocked.Block(e)
+
+	e2 := mock.Eval()
+	e2.Status = structs.EvalStatusBlocked
+	e2.TriggeredBy = structs.EvalTriggerMaxPlans
+	e2.ClassEligibility = map[string]bool{"v1:123": true, "v1:456": false}
+	blocked.Block(e2)
+
+	// Trigger an unblock fail
+	blocked.UnblockFailed()
+
+	testutil.WaitForResult(func() (bool, error) {
+		// Verify Unblock caused an enqueue
+		brokerStats := broker.Stats()
+		if brokerStats.TotalReady != 2 {
+			return false, fmt.Errorf("bad: %#v", brokerStats)
 		}
 		return true, nil
 	}, func(err error) {

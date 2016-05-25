@@ -575,3 +575,121 @@ func TestEvalEndpoint_Allocations_Blocking(t *testing.T) {
 		t.Fatalf("bad: %#v", resp.Allocations)
 	}
 }
+
+func TestEvalEndpoint_Reblock_NonExistent(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+
+	testutil.WaitForResult(func() (bool, error) {
+		return s1.evalBroker.Enabled(), nil
+	}, func(err error) {
+		t.Fatalf("should enable eval broker")
+	})
+
+	// Create the register request
+	eval1 := mock.Eval()
+	s1.evalBroker.Enqueue(eval1)
+	out, token, err := s1.evalBroker.Dequeue(defaultSched, time.Second)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out == nil {
+		t.Fatalf("missing eval")
+	}
+
+	get := &structs.EvalUpdateRequest{
+		Evals:        []*structs.Evaluation{eval1},
+		EvalToken:    token,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var resp structs.GenericResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Eval.Reblock", get, &resp); err == nil {
+		t.Fatalf("expect error since eval does not exist")
+	}
+}
+
+func TestEvalEndpoint_Reblock_NonBlocked(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+
+	testutil.WaitForResult(func() (bool, error) {
+		return s1.evalBroker.Enabled(), nil
+	}, func(err error) {
+		t.Fatalf("should enable eval broker")
+	})
+
+	// Create the eval
+	eval1 := mock.Eval()
+	s1.evalBroker.Enqueue(eval1)
+
+	// Insert it into the state store
+	if err := s1.fsm.State().UpsertEvals(1000, []*structs.Evaluation{eval1}); err != nil {
+		t.Fatal(err)
+	}
+
+	out, token, err := s1.evalBroker.Dequeue(defaultSched, time.Second)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out == nil {
+		t.Fatalf("missing eval")
+	}
+
+	get := &structs.EvalUpdateRequest{
+		Evals:        []*structs.Evaluation{eval1},
+		EvalToken:    token,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var resp structs.GenericResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Eval.Reblock", get, &resp); err == nil {
+		t.Fatalf("should error since eval was not in blocked state", err)
+	}
+}
+
+func TestEvalEndpoint_Reblock(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+
+	testutil.WaitForResult(func() (bool, error) {
+		return s1.evalBroker.Enabled(), nil
+	}, func(err error) {
+		t.Fatalf("should enable eval broker")
+	})
+
+	// Create the eval
+	eval1 := mock.Eval()
+	eval1.Status = structs.EvalStatusBlocked
+	s1.evalBroker.Enqueue(eval1)
+
+	// Insert it into the state store
+	if err := s1.fsm.State().UpsertEvals(1000, []*structs.Evaluation{eval1}); err != nil {
+		t.Fatal(err)
+	}
+
+	out, token, err := s1.evalBroker.Dequeue(defaultSched, time.Second)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out == nil {
+		t.Fatalf("missing eval")
+	}
+
+	get := &structs.EvalUpdateRequest{
+		Evals:        []*structs.Evaluation{eval1},
+		EvalToken:    token,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var resp structs.GenericResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Eval.Reblock", get, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Check that it is blocked
+	bStats := s1.blockedEvals.Stats()
+	if bStats.TotalBlocked+bStats.TotalEscaped == 0 {
+		t.Fatalf("ReblockEval didn't insert eval into the blocked eval tracker")
+	}
+}

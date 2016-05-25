@@ -972,6 +972,32 @@ func (s *StateStore) Allocs() (memdb.ResultIterator, error) {
 	return iter, nil
 }
 
+// LastIndex returns the greatest index value for all indexes
+func (s *StateStore) LatestIndex() (uint64, error) {
+	indexes, err := s.Indexes()
+	if err != nil {
+		return 0, err
+	}
+
+	var max uint64 = 0
+	for {
+		raw := indexes.Next()
+		if raw == nil {
+			break
+		}
+
+		// Prepare the request struct
+		idx := raw.(*IndexEntry)
+
+		// Determine the max
+		if idx.Value > max {
+			max = idx.Value
+		}
+	}
+
+	return max, nil
+}
+
 // Index finds the matching index value
 func (s *StateStore) Index(name string) (uint64, error) {
 	txn := s.db.Txn(false)

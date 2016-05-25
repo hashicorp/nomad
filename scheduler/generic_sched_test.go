@@ -275,7 +275,7 @@ func TestServiceSched_JobRegister_AllocFail(t *testing.T) {
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
 
-func TestServiceSched_JobRegister_BlockedEval(t *testing.T) {
+func TestServiceSched_JobRegister_CreateBlockedEval(t *testing.T) {
 	h := NewHarness(t)
 
 	// Create a full node
@@ -449,6 +449,126 @@ func TestServiceSched_JobRegister_FeasibleAndInfeasibleTG(t *testing.T) {
 	// Check the coalesced failures
 	if metrics.CoalescedFailures != tg2.Count-1 {
 		t.Fatalf("bad: %#v", metrics)
+	}
+
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+}
+
+func TestServiceSched_EvaluateBlockedEval(t *testing.T) {
+	h := NewHarness(t)
+
+	// Create a job and set the task group count to zero.
+	job := mock.Job()
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	// Create a mock blocked evaluation
+	eval := &structs.Evaluation{
+		ID:          structs.GenerateUUID(),
+		Status:      structs.EvalStatusBlocked,
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+	}
+
+	// Insert it into the state store
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+
+	// Process the evaluation
+	err := h.Process(NewServiceScheduler, eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure there was no plan
+	if len(h.Plans) != 0 {
+		t.Fatalf("bad: %#v", h.Plans)
+	}
+
+	// Ensure that the eval was reblocked
+	if len(h.ReblockEvals) != 1 {
+		t.Fatalf("bad: %#v", h.ReblockEvals)
+	}
+	if h.ReblockEvals[0].ID != eval.ID {
+		t.Fatalf("expect same eval to be reblocked; got %q; want %q", h.ReblockEvals[0].ID, eval.ID)
+	}
+
+	// Ensure the eval status was not updated
+	if len(h.Evals) != 0 {
+		t.Fatalf("Existing eval should not have status set")
+	}
+}
+
+func TestServiceSched_EvaluateBlockedEval_Finished(t *testing.T) {
+	h := NewHarness(t)
+
+	// Create some nodes
+	for i := 0; i < 10; i++ {
+		node := mock.Node()
+		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+	}
+
+	// Create a job and set the task group count to zero.
+	job := mock.Job()
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	// Create a mock blocked evaluation
+	eval := &structs.Evaluation{
+		ID:          structs.GenerateUUID(),
+		Status:      structs.EvalStatusBlocked,
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+	}
+
+	// Insert it into the state store
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+
+	// Process the evaluation
+	err := h.Process(NewServiceScheduler, eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure a single plan
+	if len(h.Plans) != 1 {
+		t.Fatalf("bad: %#v", h.Plans)
+	}
+	plan := h.Plans[0]
+
+	// Ensure the plan doesn't have annotations.
+	if plan.Annotations != nil {
+		t.Fatalf("expected no annotations")
+	}
+
+	// Ensure the eval has no spawned blocked eval
+	if len(h.Evals) != 1 {
+		t.Fatalf("bad: %#v", h.Evals)
+		if h.Evals[0].BlockedEval != "" {
+			t.Fatalf("bad: %#v", h.Evals[0])
+		}
+	}
+
+	// Ensure the plan allocated
+	var planned []*structs.Allocation
+	for _, allocList := range plan.NodeAllocation {
+		planned = append(planned, allocList...)
+	}
+	if len(planned) != 10 {
+		t.Fatalf("bad: %#v", plan)
+	}
+
+	// Lookup the allocations by JobID
+	out, err := h.State.AllocsByJob(job.ID)
+	noErr(t, err)
+
+	// Ensure all allocations placed
+	if len(out) != 10 {
+		t.Fatalf("bad: %#v", out)
+	}
+
+	// Ensure the eval was not reblocked
+	if len(h.ReblockEvals) != 0 {
+		t.Fatalf("Existing eval should not have been reblocked as it placed all allocations")
 	}
 
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)

@@ -87,4 +87,10 @@ type Planner interface {
 	// CreateEval is used to create an evaluation. This should set the
 	// PreviousEval to that of the current evaluation.
 	CreateEval(*structs.Evaluation) error
+
+	// ReblockEval takes a blocked evaluation and re-inserts it into the blocked
+	// evaluation tracker. This update occurs only in-memory on the leader. The
+	// evaluation must exist in a blocked state prior to this being called such
+	// that on leader changes, the evaluation will be reblocked properly.
+	ReblockEval(*structs.Evaluation) error
 }
