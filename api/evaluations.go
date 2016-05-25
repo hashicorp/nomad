@@ -67,6 +67,8 @@ type Evaluation struct {
 	Wait              time.Duration
 	NextEval          string
 	PreviousEval      string
+	BlockedEval       string
+	FailedTGAllocs    map[string]*AllocationMetric
 	CreateIndex       uint64
 	ModifyIndex       uint64
 }

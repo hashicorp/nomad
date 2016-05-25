@@ -60,20 +60,20 @@ func (s *SystemScheduler) Process(eval *structs.Evaluation) error {
 	default:
 		desc := fmt.Sprintf("scheduler cannot handle '%s' evaluation reason",
 			eval.TriggeredBy)
-		return setStatus(s.logger, s.planner, s.eval, s.nextEval, structs.EvalStatusFailed, desc)
+		return setStatus(s.logger, s.planner, s.eval, s.nextEval, nil, structs.EvalStatusFailed, desc)
 	}
 
 	// Retry up to the maxSystemScheduleAttempts and reset if progress is made.
 	progress := func() bool { return progressMade(s.planResult) }
 	if err := retryMax(maxSystemScheduleAttempts, s.process, progress); err != nil {
 		if statusErr, ok := err.(*SetStatusError); ok {
-			return setStatus(s.logger, s.planner, s.eval, s.nextEval, statusErr.EvalStatus, err.Error())
+			return setStatus(s.logger, s.planner, s.eval, s.nextEval, nil, statusErr.EvalStatus, err.Error())
 		}
 		return err
 	}
 
 	// Update the status to complete
-	return setStatus(s.logger, s.planner, s.eval, s.nextEval, structs.EvalStatusComplete, "")
+	return setStatus(s.logger, s.planner, s.eval, s.nextEval, nil, structs.EvalStatusComplete, "")
 }
 
 // process is wrapped in retryMax to iteratively run the handler until we have no
@@ -97,6 +97,9 @@ func (s *SystemScheduler) process() (bool, error) {
 
 	// Create a plan
 	s.plan = s.eval.MakePlan(s.job)
+
+	// Reset the failed allocations
+	s.eval.FailedTGAllocs = nil
 
 	// Create an evaluation context
 	s.ctx = NewEvalContext(s.state, s.plan, s.logger)
@@ -220,10 +223,6 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 		nodeByID[node.ID] = node
 	}
 
-	// Track the failed task groups so that we can coalesce
-	// the failures together to avoid creating many failed allocs.
-	failedTG := make(map[*structs.TaskGroup]*structs.Allocation)
-
 	nodes := make([]*structs.Node, 1)
 	for _, missing := range place {
 		node, ok := nodeByID[missing.Alloc.NodeID]
@@ -240,20 +239,10 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 
 		if option == nil {
 			// Check if this task group has already failed
-			if alloc, ok := failedTG[missing.TaskGroup]; ok {
-				alloc.Metrics.CoalescedFailures += 1
+			if metric, ok := s.eval.FailedTGAllocs[missing.TaskGroup.Name]; ok {
+				metric.CoalescedFailures += 1
 				continue
 			}
-		}
-
-		// Create an allocation for this
-		alloc := &structs.Allocation{
-			ID:        structs.GenerateUUID(),
-			EvalID:    s.eval.ID,
-			Name:      missing.Name,
-			JobID:     s.job.ID,
-			TaskGroup: missing.TaskGroup.Name,
-			Metrics:   s.ctx.Metrics(),
 		}
 
 		// Store the available nodes by datacenter
@@ -261,22 +250,34 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 
 		// Set fields based on if we found an allocation option
 		if option != nil {
+			// Create an allocation for this
+			alloc := &structs.Allocation{
+				ID:            structs.GenerateUUID(),
+				EvalID:        s.eval.ID,
+				Name:          missing.Name,
+				JobID:         s.job.ID,
+				TaskGroup:     missing.TaskGroup.Name,
+				Metrics:       s.ctx.Metrics(),
+				NodeID:        option.Node.ID,
+				TaskResources: option.TaskResources,
+				DesiredStatus: structs.AllocDesiredStatusRun,
+				ClientStatus:  structs.AllocClientStatusPending,
+			}
+
 			// Generate service IDs tasks in this allocation
 			// COMPAT - This is no longer required and would be removed in v0.4
 			alloc.PopulateServiceIDs(missing.TaskGroup)
 
-			alloc.NodeID = option.Node.ID
-			alloc.TaskResources = option.TaskResources
-			alloc.DesiredStatus = structs.AllocDesiredStatusRun
-			alloc.ClientStatus = structs.AllocClientStatusPending
 			s.plan.AppendAlloc(alloc)
 		} else {
-			alloc.DesiredStatus = structs.AllocDesiredStatusFailed
-			alloc.DesiredDescription = "failed to find a node for placement"
-			alloc.ClientStatus = structs.AllocClientStatusFailed
-			s.plan.AppendFailed(alloc)
-			failedTG[missing.TaskGroup] = alloc
+			// Lazy initialize the failed map
+			if s.eval.FailedTGAllocs == nil {
+				s.eval.FailedTGAllocs = make(map[string]*structs.AllocMetric)
+			}
+
+			s.eval.FailedTGAllocs[missing.TaskGroup.Name] = s.ctx.Metrics()
 		}
 	}
+
 	return nil
 }

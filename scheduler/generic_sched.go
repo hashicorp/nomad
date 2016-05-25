@@ -100,7 +100,7 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 	default:
 		desc := fmt.Sprintf("scheduler cannot handle '%s' evaluation reason",
 			eval.TriggeredBy)
-		return setStatus(s.logger, s.planner, s.eval, s.nextEval, structs.EvalStatusFailed, desc)
+		return setStatus(s.logger, s.planner, s.eval, s.nextEval, s.blocked, structs.EvalStatusFailed, desc)
 	}
 
 	// Retry up to the maxScheduleAttempts and reset if progress is made.
@@ -117,7 +117,7 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 			if err := s.createBlockedEval(); err != nil {
 				mErr.Errors = append(mErr.Errors, err)
 			}
-			if err := setStatus(s.logger, s.planner, s.eval, s.nextEval, statusErr.EvalStatus, err.Error()); err != nil {
+			if err := setStatus(s.logger, s.planner, s.eval, s.nextEval, s.blocked, statusErr.EvalStatus, err.Error()); err != nil {
 				mErr.Errors = append(mErr.Errors, err)
 			}
 			return mErr.ErrorOrNil()
@@ -126,7 +126,7 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 	}
 
 	// Update the status to complete
-	return setStatus(s.logger, s.planner, s.eval, s.nextEval, structs.EvalStatusComplete, "")
+	return setStatus(s.logger, s.planner, s.eval, s.nextEval, s.blocked, structs.EvalStatusComplete, "")
 }
 
 // createBlockedEval creates a blocked eval and stores it.
@@ -140,7 +140,7 @@ func (s *GenericScheduler) createBlockedEval() error {
 		classEligibility = e.GetClasses()
 	}
 
-	s.blocked = s.eval.BlockedEval(classEligibility, escaped)
+	s.blocked = s.eval.CreateBlockedEval(classEligibility, escaped)
 	return s.planner.CreateEval(s.blocked)
 }
 
@@ -158,6 +158,9 @@ func (s *GenericScheduler) process() (bool, error) {
 	// Create a plan
 	s.plan = s.eval.MakePlan(s.job)
 
+	// Reset the failed allocations
+	s.eval.FailedTGAllocs = nil
+
 	// Create an evaluation context
 	s.ctx = NewEvalContext(s.state, s.plan, s.logger)
 
@@ -171,6 +174,16 @@ func (s *GenericScheduler) process() (bool, error) {
 	if err := s.computeJobAllocs(); err != nil {
 		s.logger.Printf("[ERR] sched: %#v: %v", s.eval, err)
 		return false, err
+	}
+
+	// If there are failed allocations, we need to create a blocked evaluation
+	// to place the failed allocations when resources become available.
+	if len(s.eval.FailedTGAllocs) != 0 && s.blocked == nil {
+		if err := s.createBlockedEval(); err != nil {
+			s.logger.Printf("[ERR] sched: %#v failed to make blocked eval: %v", s.eval, err)
+			return false, err
+		}
+		s.logger.Printf("[DEBUG] sched: %#v: failed to place all allocations, blocked eval '%s' created", s.eval, s.blocked.ID)
 	}
 
 	// If the plan is a no-op, we can bail. If AnnotatePlan is set submit the plan
@@ -188,16 +201,6 @@ func (s *GenericScheduler) process() (bool, error) {
 			return false, err
 		}
 		s.logger.Printf("[DEBUG] sched: %#v: rolling update limit reached, next eval '%s' created", s.eval, s.nextEval.ID)
-	}
-
-	// If there are failed allocations, we need to create a blocked evaluation
-	// to place the failed allocations when resources become available.
-	if len(s.plan.FailedAllocs) != 0 && s.blocked == nil {
-		if err := s.createBlockedEval(); err != nil {
-			s.logger.Printf("[ERR] sched: %#v failed to make blocked eval: %v", s.eval, err)
-			return false, err
-		}
-		s.logger.Printf("[DEBUG] sched: %#v: failed to place all allocations, blocked eval '%s' created", s.eval, s.blocked.ID)
 	}
 
 	// Submit the plan and store the results.
@@ -365,50 +368,47 @@ func (s *GenericScheduler) computePlacements(place []allocTuple) error {
 	// Update the set of placement ndoes
 	s.stack.SetNodes(nodes)
 
-	// Track the failed task groups so that we can coalesce
-	// the failures together to avoid creating many failed allocs.
-	failedTG := make(map[*structs.TaskGroup]*structs.Allocation)
-
 	for _, missing := range place {
 		// Check if this task group has already failed
-		if alloc, ok := failedTG[missing.TaskGroup]; ok {
-			alloc.Metrics.CoalescedFailures += 1
+		if metric, ok := s.eval.FailedTGAllocs[missing.TaskGroup.Name]; ok {
+			metric.CoalescedFailures += 1
 			continue
 		}
 
 		// Attempt to match the task group
 		option, _ := s.stack.Select(missing.TaskGroup)
 
-		// Create an allocation for this
-		alloc := &structs.Allocation{
-			ID:        structs.GenerateUUID(),
-			EvalID:    s.eval.ID,
-			Name:      missing.Name,
-			JobID:     s.job.ID,
-			TaskGroup: missing.TaskGroup.Name,
-			Metrics:   s.ctx.Metrics(),
-		}
-
 		// Store the available nodes by datacenter
 		s.ctx.Metrics().NodesAvailable = byDC
 
 		// Set fields based on if we found an allocation option
 		if option != nil {
+			// Create an allocation for this
+			alloc := &structs.Allocation{
+				ID:            structs.GenerateUUID(),
+				EvalID:        s.eval.ID,
+				Name:          missing.Name,
+				JobID:         s.job.ID,
+				TaskGroup:     missing.TaskGroup.Name,
+				Metrics:       s.ctx.Metrics(),
+				NodeID:        option.Node.ID,
+				TaskResources: option.TaskResources,
+				DesiredStatus: structs.AllocDesiredStatusRun,
+				ClientStatus:  structs.AllocClientStatusPending,
+			}
+
 			// Generate service IDs tasks in this allocation
 			// COMPAT - This is no longer required and would be removed in v0.4
 			alloc.PopulateServiceIDs(missing.TaskGroup)
 
-			alloc.NodeID = option.Node.ID
-			alloc.TaskResources = option.TaskResources
-			alloc.DesiredStatus = structs.AllocDesiredStatusRun
-			alloc.ClientStatus = structs.AllocClientStatusPending
 			s.plan.AppendAlloc(alloc)
 		} else {
-			alloc.DesiredStatus = structs.AllocDesiredStatusFailed
-			alloc.DesiredDescription = "failed to find a node for placement"
-			alloc.ClientStatus = structs.AllocClientStatusFailed
-			s.plan.AppendFailed(alloc)
-			failedTG[missing.TaskGroup] = alloc
+			// Lazy initialize the failed map
+			if s.eval.FailedTGAllocs == nil {
+				s.eval.FailedTGAllocs = make(map[string]*structs.AllocMetric)
+			}
+
+			s.eval.FailedTGAllocs[missing.TaskGroup.Name] = s.ctx.Metrics()
 		}
 	}
 
