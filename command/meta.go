@@ -9,6 +9,7 @@ import (
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/mitchellh/cli"
+	"github.com/mitchellh/colorstring"
 )
 
 const (
@@ -38,6 +39,9 @@ type Meta struct {
 
 	// These are set by the command line flags.
 	flagAddress string
+
+	// Whether to not-colorize output
+	noColor bool
 }
 
 // FlagSet returns a FlagSet with the common flags that every
@@ -51,6 +55,7 @@ func (m *Meta) FlagSet(n string, fs FlagSetFlags) *flag.FlagSet {
 	// client connectivity options.
 	if fs&FlagSetClient != 0 {
 		f.StringVar(&m.flagAddress, "address", "", "")
+		f.BoolVar(&m.noColor, "no-color", false, "")
 	}
 
 	// Create an io.Writer that writes to our UI properly for errors.
@@ -80,6 +85,14 @@ func (m *Meta) Client() (*api.Client, error) {
 		config.Address = m.flagAddress
 	}
 	return api.NewClient(config)
+}
+
+func (m *Meta) Colorize() *colorstring.Colorize {
+	return &colorstring.Colorize{
+		Colors:  colorstring.DefaultColors,
+		Disable: m.noColor,
+		Reset:   true,
+	}
 }
 
 // generalOptionsUsage returns the help string for the global options.
