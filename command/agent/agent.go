@@ -159,9 +159,13 @@ func (a *Agent) serverConfig() (*nomad.Config, error) {
 	if port := a.config.Ports.Serf; port != 0 {
 		conf.SerfConfig.MemberlistConfig.BindPort = port
 	}
-	a.serverHTTPAddr = fmt.Sprintf("%v:%v", a.config.Addresses.HTTP, a.config.Ports.HTTP)
+
 	if a.config.AdvertiseAddrs.HTTP != "" {
 		a.serverHTTPAddr = a.config.AdvertiseAddrs.HTTP
+	} else if a.config.Addresses.HTTP != "" {
+		a.serverHTTPAddr = fmt.Sprintf("%v:%v", a.config.Addresses.HTTP, a.config.Ports.HTTP)
+	} else if a.config.BindAddr != "" {
+		a.serverHTTPAddr = fmt.Sprintf("%v:%v", a.config.BindAddr, a.config.Ports.HTTP)
 	}
 
 	if gcThreshold := a.config.Server.NodeGCThreshold; gcThreshold != "" {
