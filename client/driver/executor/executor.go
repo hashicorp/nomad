@@ -706,18 +706,35 @@ func (e *UniversalExecutor) collectPids() {
 
 // scanPids scans all the pids on the machine running the current executor and
 // returns the child processes of the executor.
-func (e *UniversalExecutor) scanPids() ([]*nomadPid, error) {
+func (e *UniversalExecutor) scanPids(parentPid int, allPids []ps.Process) ([]*nomadPid, error) {
 	processFamily := make(map[int]struct{})
-	processFamily[os.Getpid()] = struct{}{}
-	pids, err := ps.Processes()
-	if err != nil {
-		return nil, err
-	}
-	for _, pid := range pids {
-		_, parentPid := processFamily[pid.Pid()]
-		_, childPid := processFamily[pid.PPid()]
-		if parentPid || childPid {
-			processFamily[pid.Pid()] = struct{}{}
+	processFamily[parentPid] = struct{}{}
+
+	// A buffer for holding pids which haven't matched with any parent pid
+	var pidsRemaining []ps.Process
+	for {
+		// flag to indicate if we have found a match
+		foundNewPid := false
+
+		for _, pid := range allPids {
+			_, parentPid := processFamily[pid.Pid()]
+			_, childPid := processFamily[pid.PPid()]
+
+			// checking if the pid is a child of any of the parents
+			if parentPid || childPid {
+				processFamily[pid.Pid()] = struct{}{}
+				foundNewPid = true
+			} else {
+				// if it is not, then we add the pid to the buffer
+				pidsRemaining = append(pidsRemaining, pid)
+			}
+			// scan only the pids which are left in the buffer
+			allPids = pidsRemaining
+		}
+
+		// not scanning anymore if we couldn't find a single match
+		if !foundNewPid {
+			break
 		}
 	}
 	res := make([]*nomadPid, 0, len(processFamily))

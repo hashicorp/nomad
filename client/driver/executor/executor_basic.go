@@ -3,7 +3,11 @@
 package executor
 
 import (
+	"os"
+
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
+
+	"github.com/mitchellh/go-ps"
 	cgroupConfig "github.com/opencontainers/runc/libcontainer/configs"
 )
 
@@ -36,5 +40,9 @@ func (e *UniversalExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
 }
 
 func (e *UniversalExecutor) getAllPids() ([]*nomadPid, error) {
-	return e.scanPids()
+	allProcesses, err := ps.Processes()
+	if err != nil {
+		return nil, err
+	}
+	return e.scanPids(os.Getpid(), allProcesses)
 }
