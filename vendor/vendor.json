@@ -484,6 +484,12 @@
 			"revision": "cb6853d606ea4a12a15ac83cc43503df99fd28fb"
 		},
 		{
+			"checksumSHA1": "ttEN1Aupb7xpPMkQLqb3tzLFdXs=",
+			"path": "github.com/mitchellh/colorstring",
+			"revision": "8631ce90f28644f54aeedcb3e389a85174e067d1",
+			"revisionTime": "2015-09-17T21:48:07Z"
+		},
+		{
 			"path": "github.com/mitchellh/copystructure",
 			"revision": "80adcec1955ee4e97af357c30dee61aadcc02c10"
 		},
