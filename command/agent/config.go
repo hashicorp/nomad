@@ -179,6 +179,17 @@ type ConsulConfig struct {
 	ClientAutoJoin bool `mapstructure:"client_auto_join"`
 }
 
+// StatsConfig determines behavior of resource usage stats collections
+type StatsConfig struct {
+
+	// DataPoints is the number of data points Nomad client stores in-memory
+	DataPoints int `mapstructure:"data_points"`
+
+	// CollectionInterval is the interval of resource usage stats collection
+	CollectionInterval string        `mapstructure:"collection_interval"`
+	collectionInterval time.Duration `mapstructure:"_"`
+}
+
 // ClientConfig is configuration specific to the client mode
 type ClientConfig struct {
 	// Enabled controls if we are a client
@@ -226,6 +237,10 @@ type ClientConfig struct {
 	// be used to target a certain utilization or to prevent Nomad from using a
 	// particular set of ports.
 	Reserved *Resources `mapstructure:"reserved"`
+
+	// StatsConfig determines behavior of resource usage stats collection in
+	// Nomad client
+	StatsConfig *StatsConfig `mapstructure:"stats"`
 }
 
 // ServerConfig is configuration specific to the server mode
@@ -435,6 +450,10 @@ func DefaultConfig() *Config {
 			ClientMinPort:  14000,
 			ClientMaxPort:  14512,
 			Reserved:       &Resources{},
+			StatsConfig: &StatsConfig{
+				DataPoints:         60,
+				CollectionInterval: "1s",
+			},
 		},
 		Server: &ServerConfig{
 			Enabled:          false,
@@ -680,6 +699,9 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	if b.Reserved != nil {
 		result.Reserved = result.Reserved.Merge(b.Reserved)
 	}
+	if b.StatsConfig != nil {
+		result.StatsConfig = result.StatsConfig.Merge(b.StatsConfig)
+	}
 
 	// Add the servers
 	result.Servers = append(result.Servers, b.Servers...)
@@ -851,6 +873,18 @@ func (r *Resources) Merge(b *Resources) *Resources {
 	}
 	if len(b.ParsedReservedPorts) != 0 {
 		result.ParsedReservedPorts = b.ParsedReservedPorts
+	}
+	return &result
+}
+
+func (s *StatsConfig) Merge(b *StatsConfig) *StatsConfig {
+	result := *s
+	if b.DataPoints != 0 {
+		result.DataPoints = b.DataPoints
+	}
+	if b.CollectionInterval != "" {
+		result.CollectionInterval = b.CollectionInterval
+		result.collectionInterval = b.collectionInterval
 	}
 	return &result
 }

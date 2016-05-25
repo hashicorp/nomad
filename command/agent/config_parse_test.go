@@ -63,6 +63,10 @@ func TestConfig_Parse(t *testing.T) {
 						ReservedPorts:       "1,100,10-12",
 						ParsedReservedPorts: []int{1, 10, 11, 12, 100},
 					},
+					StatsConfig: &StatsConfig{
+						DataPoints:         35,
+						CollectionInterval: "5s",
+					},
 				},
 				Server: &ServerConfig{
 					Enabled:           true,

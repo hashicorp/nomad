@@ -274,6 +274,9 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 
 	conf.ConsulConfig = a.consulConfig
 
+	conf.StatsDataPoints = a.config.Client.StatsConfig.DataPoints
+	conf.StatsCollectionInterval = a.config.Client.StatsConfig.collectionInterval
+
 	return conf, nil
 }
 

@@ -72,10 +72,6 @@ const (
 	// consulSyncInterval is the interval at which the client syncs with consul
 	// to remove services and checks which are no longer valid
 	consulSyncInterval = 15 * time.Second
-
-	// hostStatsCollectorIntv is the interval on which we collect host resource
-	// usage stats
-	hostStatsCollectorIntv = 1 * time.Second
 )
 
 // DefaultConfig returns the default configuration
@@ -142,7 +138,7 @@ func NewClient(cfg *config.Config) (*Client, error) {
 	// Create a logger
 	logger := log.New(cfg.LogOutput, "", log.LstdFlags)
 
-	resourceUsage, err := stats.NewRingBuff(60)
+	resourceUsage, err := stats.NewRingBuff(cfg.StatsDataPoints)
 	if err != nil {
 		return nil, err
 	}
@@ -1284,7 +1280,7 @@ func (c *Client) syncConsul() {
 
 // collectHostStats collects host resource usage stats periodically
 func (c *Client) collectHostStats() {
-	next := time.NewTimer(hostStatsCollectorIntv)
+	next := time.NewTimer(c.config.StatsCollectionInterval)
 	for {
 		select {
 		case <-next.C:
@@ -1296,7 +1292,7 @@ func (c *Client) collectHostStats() {
 			c.resourceUsageLock.RLock()
 			c.resourceUsage.Enqueue(ru)
 			c.resourceUsageLock.RUnlock()
-			next.Reset(1 * time.Second)
+			next.Reset(c.config.StatsCollectionInterval)
 		case <-c.shutdownCh:
 			next.Stop()
 			return

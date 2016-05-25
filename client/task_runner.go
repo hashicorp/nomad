@@ -33,10 +33,6 @@ const (
 	// killFailureLimit is how many times we will attempt to kill a task before
 	// giving up and potentially leaking resources.
 	killFailureLimit = 5
-
-	// statsCollectionIntv is the time interval at which the task runner
-	// collects resource usage statistics from the driver
-	statsCollectionIntv = 1 * time.Second
 )
 
 // TaskStatsReporter exposes APIs to query resource usage of a Task
@@ -100,7 +96,7 @@ func NewTaskRunner(logger *log.Logger, config *config.Config,
 	}
 	restartTracker := newRestartTracker(tg.RestartPolicy, alloc.Job.Type)
 
-	resourceUsage, err := stats.NewRingBuff(60)
+	resourceUsage, err := stats.NewRingBuff(config.StatsDataPoints)
 	if err != nil {
 		logger.Printf("[ERR] client: can't create resource usage buffer: %v", err)
 		return nil
@@ -454,14 +450,14 @@ func (r *TaskRunner) startTask() error {
 	r.handleLock.Lock()
 	r.handle = handle
 	r.handleLock.Unlock()
-	go r.monitorResourceUsage()
+	go r.collectResourceUsageStats()
 	return nil
 }
 
-// monitorUsage starts collecting resource usage stats of a Task
-func (r *TaskRunner) monitorResourceUsage() {
+// collectResourceUsageStats starts collecting resource usage stats of a Task
+func (r *TaskRunner) collectResourceUsageStats() {
 	for {
-		next := time.NewTimer(statsCollectionIntv)
+		next := time.NewTimer(r.config.StatsCollectionInterval)
 		select {
 		case <-next.C:
 			ru, err := r.handle.Stats()
@@ -471,7 +467,7 @@ func (r *TaskRunner) monitorResourceUsage() {
 			r.resourceUsageLock.Lock()
 			r.resourceUsage.Enqueue(ru)
 			r.resourceUsageLock.Unlock()
-			next.Reset(statsCollectionIntv)
+			next.Reset(r.config.StatsCollectionInterval)
 		case <-r.handle.WaitCh():
 			next.Stop()
 			return
