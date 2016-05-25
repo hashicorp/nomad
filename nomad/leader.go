@@ -11,6 +11,13 @@ import (
 	"github.com/hashicorp/serf/serf"
 )
 
+const (
+	// failedEvalUnblockInterval is the interval at which failed evaluations are
+	// unblocked to re-enter the scheduler. A failed evaluation occurs under
+	// high contention when the schedulers plan does not make progress.
+	failedEvalUnblockInterval = 1 * time.Minute
+)
+
 // monitorLeadership is used to monitor if we acquire or lose our role
 // as the leader in the Raft cluster. There is some work the leader is
 // expected to do, so we must react to changes
@@ -346,11 +353,11 @@ func (s *Server) reapDupBlockedEvaluations(stopCh chan struct{}) {
 
 // periodicUnblockFailedEvals periodically unblocks failed, blocked evaluations.
 func (s *Server) periodicUnblockFailedEvals(stopCh chan struct{}) {
-	ticker := time.NewTimer(1 * time.Minute)
+	ticker := time.NewTimer(failedEvalUnblockInterval)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-stopCh:
-			ticker.Stop()
 			return
 		case <-ticker.C:
 			// Unblock the failed allocations

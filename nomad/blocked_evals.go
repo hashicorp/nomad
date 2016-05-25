@@ -147,7 +147,9 @@ func (b *BlockedEvals) Block(eval *structs.Evaluation) {
 	}
 
 	// Check if the eval missed an unblock while it was in the scheduler at an
-	// older index.
+	// older index. The scheduler could have been invoked with a snapshot of
+	// state that was prior to additional capacity being added or allocations
+	// becoming terminal.
 	if b.missedUnblock(eval) {
 		// Just re-enqueue the eval immediately
 		b.evalBroker.Enqueue(eval)
@@ -257,11 +259,6 @@ func (b *BlockedEvals) unblock(computedClass string, index uint64) {
 	if !b.enabled {
 		return
 	}
-
-	// Store the index in which the unblock happened. We use this on subsequent
-	// block calls in case the evaluation was in the scheduler when a trigger
-	// occured.
-	b.unblockIndexes[computedClass] = index
 
 	// Every eval that has escaped computed node class has to be unblocked
 	// because any node could potentially be feasible.

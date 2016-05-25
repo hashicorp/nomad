@@ -543,7 +543,7 @@ func TestServiceSched_EvaluateBlockedEval_Finished(t *testing.T) {
 	// Ensure the eval has no spawned blocked eval
 	if len(h.Evals) != 1 {
 		t.Fatalf("bad: %#v", h.Evals)
-		if h.Evals[0].SpawnedBlockedEval != "" {
+		if h.Evals[0].BlockedEval != "" {
 			t.Fatalf("bad: %#v", h.Evals[0])
 		}
 	}
