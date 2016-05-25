@@ -81,13 +81,16 @@ func diffAllocs(job *structs.Job, taintedNodes map[string]bool,
 			continue
 		}
 
-		// If we are on a tainted node, we must migrate
+		// If we are on a tainted node, we must migrate if we are a service or
+		// if the batch allocation did not finish
 		if taintedNodes[exist.NodeID] {
-			result.migrate = append(result.migrate, allocTuple{
-				Name:      name,
-				TaskGroup: tg,
-				Alloc:     exist,
-			})
+			if exist.Job.Type != structs.JobTypeBatch || !exist.RanSuccessfully() {
+				result.migrate = append(result.migrate, allocTuple{
+					Name:      name,
+					TaskGroup: tg,
+					Alloc:     exist,
+				})
+			}
 			continue
 		}
 
