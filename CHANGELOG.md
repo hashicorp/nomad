@@ -1,6 +1,8 @@
 ## 0.4.0 (UNRELEASED)
 
 IMPROVEMENTS:
+  * core: Scheduler reuses blocked evaluations to avoid unbounded creation of
+    evaluations under high contention [GH-1199]
   * core: Scheduler stores placement failures in evaluations, no longer
     generating failed allocations for debug information [GH-1188]
   * api: Faster JSON response encoding [GH-1182]
