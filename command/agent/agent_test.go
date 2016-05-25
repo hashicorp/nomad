@@ -100,6 +100,7 @@ func TestAgent_ServerConfig(t *testing.T) {
 		t.Fatalf("expected rpc address error, got: %#v", err)
 	}
 	conf.AdvertiseAddrs.RPC = "127.0.0.1:4001"
+	conf.AdvertiseAddrs.HTTP = "10.10.11.1:4005"
 
 	// Parses the advertise addrs correctly
 	out, err := a.serverConfig()
@@ -116,6 +117,9 @@ func TestAgent_ServerConfig(t *testing.T) {
 	}
 	if addr := out.RPCAdvertise; addr.IP.String() != "127.0.0.1" || addr.Port != 4001 {
 		t.Fatalf("bad rpc advertise addr: %#v", addr)
+	}
+	if addr := a.serverHTTPAddr; addr != "10.10.11.1:4005" {
+		t.Fatalf("expect 10.11.11.1:4005, got: %v", addr)
 	}
 
 	// Sets up the ports properly
@@ -137,6 +141,8 @@ func TestAgent_ServerConfig(t *testing.T) {
 	conf.BindAddr = "127.0.0.3"
 	conf.Addresses.RPC = "127.0.0.2"
 	conf.Addresses.Serf = "127.0.0.2"
+	conf.Addresses.HTTP = "127.0.0.2"
+	conf.AdvertiseAddrs.HTTP = ""
 
 	out, err = a.serverConfig()
 	if err != nil {
@@ -147,6 +153,9 @@ func TestAgent_ServerConfig(t *testing.T) {
 	}
 	if addr := out.SerfConfig.MemberlistConfig.BindAddr; addr != "127.0.0.2" {
 		t.Fatalf("expect 127.0.0.2, got: %s", addr)
+	}
+	if addr := a.serverHTTPAddr; addr != "127.0.0.2:4646" {
+		t.Fatalf("expect 127.0.0.3:4646, got: %s", addr)
 	}
 
 	conf.Server.NodeGCThreshold = "42g"
@@ -174,6 +183,7 @@ func TestAgent_ServerConfig(t *testing.T) {
 	// Defaults to the global bind addr
 	conf.Addresses.RPC = ""
 	conf.Addresses.Serf = ""
+	conf.Addresses.HTTP = ""
 	out, err = a.serverConfig()
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -183,6 +193,9 @@ func TestAgent_ServerConfig(t *testing.T) {
 	}
 	if addr := out.SerfConfig.MemberlistConfig.BindAddr; addr != "127.0.0.3" {
 		t.Fatalf("expect 127.0.0.3, got: %s", addr)
+	}
+	if addr := a.serverHTTPAddr; addr != "127.0.0.3:4646" {
+		t.Fatalf("expect 127.0.0.3:4646, got: %s", addr)
 	}
 
 	// Properly handles the bootstrap flags
