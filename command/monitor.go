@@ -147,10 +147,14 @@ func (m *monitor) update(update *evalState) {
 		} else {
 			switch {
 			case existing.client != alloc.client:
+				description := ""
+				if alloc.clientDesc != "" {
+					description = fmt.Sprintf(" (%s)", alloc.clientDesc)
+				}
 				// Allocation status has changed
 				m.ui.Output(fmt.Sprintf(
-					"Allocation %q status changed: %q -> %q (%s)",
-					limit(alloc.id, m.length), existing.client, alloc.client, alloc.clientDesc))
+					"Allocation %q status changed: %q -> %q%s",
+					limit(alloc.id, m.length), existing.client, alloc.client, description))
 			}
 		}
 	}
@@ -294,6 +298,7 @@ func (m *monitor) monitor(evalID string, allowPrefix bool) int {
 					limit(eval.ID, m.length), eval.Status))
 			} else {
 				// There were failures making the allocations
+				schedFailure = true
 				m.ui.Info(fmt.Sprintf("Evaluation %q finished with status %q but failed to place all allocations:",
 					limit(eval.ID, m.length), eval.Status))
 
