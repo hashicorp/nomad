@@ -1,6 +1,8 @@
 ## 0.4.0 (UNRELEASED)
 
 IMPROVEMENTS:
+  * core: Scheduler stores placement failures in evaluations, no longer
+    generating failed allocations for debug information [GH-1188]
   * api: Faster JSON response encoding [GH-1182]
   * api: Gzip compress HTTP API requests [GH-1203]
   * api: Plan api introduced for the Job endpoint [GH-1168]
