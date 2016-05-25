@@ -33,12 +33,16 @@ const (
 	// killFailureLimit is how many times we will attempt to kill a task before
 	// giving up and potentially leaking resources.
 	killFailureLimit = 5
+
+	// statsCollectionIntv is the time interval at which the task runner
+	// collects resource usage statistics from the driver
+	statsCollectionIntv = 1 * time.Second
 )
 
 // TaskStatsReporter exposes APIs to query resource usage of a Task
 type TaskStatsReporter interface {
 	ResourceUsage() *cstructs.TaskResourceUsage
-	ResourceUsageTS() []*cstructs.TaskResourceUsage
+	ResourceUsageTS(since time.Time) []*cstructs.TaskResourceUsage
 }
 
 // TaskRunner is used to wrap a task within an allocation and provide the execution context.
@@ -50,9 +54,8 @@ type TaskRunner struct {
 	alloc          *structs.Allocation
 	restartTracker *RestartTracker
 
-	resourceUsage         *stats.RingBuff
-	resourceUsageLock     sync.RWMutex
-	stopResourceMonitorCh chan struct{}
+	resourceUsage     *stats.RingBuff
+	resourceUsageLock sync.RWMutex
 
 	task       *structs.Task
 	taskEnv    *env.TaskEnvironment
@@ -356,9 +359,6 @@ func (r *TaskRunner) run() {
 					panic("nil wait")
 				}
 
-				// Stop monitoring resource usage
-				close(r.stopResourceMonitorCh)
-
 				// Log whether the task was successful or not.
 				r.restartTracker.SetWaitResult(waitRes)
 				r.setState(structs.TaskStateDead, r.waitErrorToEvent(waitRes))
@@ -374,9 +374,6 @@ func (r *TaskRunner) run() {
 					r.logger.Printf("[ERR] client: update to task %q failed: %v", r.task.Name, err)
 				}
 			case <-r.destroyCh:
-				// Stop monitoring resource usage
-				close(r.stopResourceMonitorCh)
-
 				// Kill the task using an exponential backoff in-case of failures.
 				destroySuccess, err := r.handleDestroy()
 				if !destroySuccess {
@@ -457,26 +454,25 @@ func (r *TaskRunner) startTask() error {
 	r.handleLock.Lock()
 	r.handle = handle
 	r.handleLock.Unlock()
-	r.stopResourceMonitorCh = make(chan struct{})
-	go r.monitorUsage()
+	go r.monitorResourceUsage()
 	return nil
 }
 
 // monitorUsage starts collecting resource usage stats of a Task
-func (r *TaskRunner) monitorUsage() {
+func (r *TaskRunner) monitorResourceUsage() {
 	for {
-		next := time.NewTimer(1 * time.Second)
+		next := time.NewTimer(statsCollectionIntv)
 		select {
 		case <-next.C:
 			ru, err := r.handle.Stats()
 			if err != nil {
-				r.logger.Printf("[DEBUG] client.taskrunner: error fetching stats of task %v: %v", r.task.Name, err)
+				r.logger.Printf("[DEBUG] client: error fetching stats of task %v: %v", r.task.Name, err)
 			}
-			r.resourceUsageLock.RLock()
+			r.resourceUsageLock.Lock()
 			r.resourceUsage.Enqueue(ru)
-			r.resourceUsageLock.RUnlock()
-			next.Reset(1 * time.Second)
-		case <-r.stopResourceMonitorCh:
+			r.resourceUsageLock.Unlock()
+			next.Reset(statsCollectionIntv)
+		case <-r.handle.WaitCh():
 			next.Stop()
 			return
 		}
@@ -499,7 +495,7 @@ func (r *TaskRunner) ResourceUsage() *cstructs.TaskResourceUsage {
 
 // ResourceUsageTS returns the list of all the resource utilization datapoints
 // collected
-func (r *TaskRunner) ResourceUsageTS() []*cstructs.TaskResourceUsage {
+func (r *TaskRunner) ResourceUsageTS(since time.Time) []*cstructs.TaskResourceUsage {
 	r.resourceUsageLock.RLock()
 	defer r.resourceUsageLock.RUnlock()
 	values := r.resourceUsage.Values()
