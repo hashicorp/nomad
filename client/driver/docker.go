@@ -113,21 +113,21 @@ type dockerPID struct {
 }
 
 type DockerHandle struct {
-	pluginClient   *plugin.Client
-	executor       executor.Executor
-	client         *docker.Client
-	logger         *log.Logger
-	cleanupImage   bool
-	imageID        string
-	containerID    string
-	version        string
-	killTimeout    time.Duration
-	maxKillTimeout time.Duration
-	stats          chan *docker.Stats
-	doneMonitoring chan bool
-	resourceUsage  *cstructs.TaskResourceUsage
-	waitCh         chan *cstructs.WaitResult
-	doneCh         chan struct{}
+	pluginClient      *plugin.Client
+	executor          executor.Executor
+	client            *docker.Client
+	logger            *log.Logger
+	cleanupImage      bool
+	imageID           string
+	containerID       string
+	version           string
+	killTimeout       time.Duration
+	maxKillTimeout    time.Duration
+	doneMonitoring    chan bool
+	resourceUsageLock sync.RWMutex
+	resourceUsage     *cstructs.TaskResourceUsage
+	waitCh            chan *cstructs.WaitResult
+	doneCh            chan struct{}
 }
 
 func NewDockerDriver(ctx *DriverContext) Driver {
@@ -771,7 +771,6 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 		version:        d.config.Version,
 		killTimeout:    GetKillTimeout(task.KillTimeout, maxKill),
 		maxKillTimeout: maxKill,
-		stats:          make(chan *docker.Stats),
 		doneMonitoring: make(chan bool),
 		doneCh:         make(chan struct{}),
 		waitCh:         make(chan *cstructs.WaitResult, 1),
@@ -779,8 +778,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	if err := exec.SyncServices(consulContext(d.config, container.ID)); err != nil {
 		d.logger.Printf("[ERR] driver.docker: error registering services with consul for task: %q: %v", task.Name, err)
 	}
-	go h.monitorUsage()
-	go h.startMonitoring()
+	go h.collectStats()
 	go h.run()
 	return h, nil
 }
@@ -848,7 +846,6 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 		version:        pid.Version,
 		killTimeout:    pid.KillTimeout,
 		maxKillTimeout: pid.MaxKillTimeout,
-		stats:          make(chan *docker.Stats),
 		doneMonitoring: make(chan bool),
 		doneCh:         make(chan struct{}),
 		waitCh:         make(chan *cstructs.WaitResult, 1),
@@ -918,6 +915,8 @@ func (h *DockerHandle) Kill() error {
 }
 
 func (h *DockerHandle) Stats() (*cstructs.TaskResourceUsage, error) {
+	h.resourceUsageLock.RLock()
+	defer h.resourceUsageLock.RUnlock()
 	return h.resourceUsage, nil
 }
 
@@ -972,17 +971,16 @@ func (h *DockerHandle) run() {
 	}
 }
 
-func (h *DockerHandle) startMonitoring() {
-	statsOpts := docker.StatsOptions{ID: h.containerID, Done: h.doneMonitoring, Stats: h.stats, Stream: true}
+// collectStats starts collecting resource usage stats of a docker container
+func (h *DockerHandle) collectStats() {
+	statsCh := make(chan *docker.Stats)
+	statsOpts := docker.StatsOptions{ID: h.containerID, Done: h.doneMonitoring, Stats: statsCh, Stream: true}
 	if err := h.client.Stats(statsOpts); err != nil {
 		h.logger.Printf("[DEBUG] driver.docker: error collecting stats from container %s: %v", h.containerID, err)
 	}
-}
-
-func (h *DockerHandle) monitorUsage() {
 	for {
 		select {
-		case s := <-h.stats:
+		case s := <-statsCh:
 			if s != nil {
 				ms := &cstructs.MemoryStats{
 					RSS:      s.MemoryStats.Stats.Rss,
@@ -1004,6 +1002,7 @@ func (h *DockerHandle) monitorUsage() {
 				if cpuDelta > 0.0 && systemDelta > 0.0 {
 					cs.Percent = (cpuDelta / systemDelta) * float64(len(s.CPUStats.CPUUsage.PercpuUsage)) * 100.0
 				}
+				h.resourceUsageLock.Lock()
 				h.resourceUsage = &cstructs.TaskResourceUsage{
 					ResourceUsage: &cstructs.ResourceUsage{
 						MemoryStats: ms,
@@ -1011,6 +1010,7 @@ func (h *DockerHandle) monitorUsage() {
 					},
 					Timestamp: s.Read,
 				}
+				h.resourceUsageLock.Unlock()
 			}
 		case <-h.doneMonitoring:
 		case <-h.doneCh:
