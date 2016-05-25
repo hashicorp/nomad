@@ -49,16 +49,9 @@ type HostStatsCollector struct {
 }
 
 // NewHostStatsCollector returns a HostStatsCollector
-func NewHostStatsCollector() (*HostStatsCollector, error) {
-	times, err := cpu.Times(true)
-	if err != nil {
-		return nil, err
-	}
+func NewHostStatsCollector() *HostStatsCollector {
 	statsCalculator := make(map[string]*HostCpuStatsCalculator)
-	for _, time := range times {
-		statsCalculator[time.CPU] = NewHostCpuStatsCalculator()
-	}
-	return &HostStatsCollector{statsCalculator: statsCalculator}, nil
+	return &HostStatsCollector{statsCalculator: statsCalculator}
 }
 
 // Collect collects stats related to resource usage of a host
@@ -83,15 +76,15 @@ func (h *HostStatsCollector) Collect() (*HostStats, error) {
 				System: cpuStat.System,
 				Idle:   cpuStat.Idle,
 			}
-			if percentCalculator, ok := h.statsCalculator[cpuStat.CPU]; ok {
-				idle, user, system, total := percentCalculator.Calculate(cpuStat)
-				cs[idx].Idle = idle
-				cs[idx].System = system
-				cs[idx].User = user
-				cs[idx].Total = total
-			} else {
+			percentCalculator, ok := h.statsCalculator[cpuStat.CPU]
+			if !ok {
 				h.statsCalculator[cpuStat.CPU] = NewHostCpuStatsCalculator()
 			}
+			idle, user, system, total := percentCalculator.Calculate(cpuStat)
+			cs[idx].Idle = idle
+			cs[idx].System = system
+			cs[idx].User = user
+			cs[idx].Total = total
 		}
 		hs.CPU = cs
 	}

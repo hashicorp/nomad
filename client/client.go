@@ -142,10 +142,6 @@ func NewClient(cfg *config.Config) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	hostStatsCollector, err := stats.NewHostStatsCollector()
-	if err != nil {
-		return nil, err
-	}
 
 	// Create the client
 	c := &Client{
@@ -153,7 +149,7 @@ func NewClient(cfg *config.Config) (*Client, error) {
 		start:              time.Now(),
 		connPool:           nomad.NewPool(cfg.LogOutput, clientRPCCache, clientMaxStreams, nil),
 		logger:             logger,
-		hostStatsCollector: hostStatsCollector,
+		hostStatsCollector: stats.NewHostStatsCollector(),
 		resourceUsage:      resourceUsage,
 		allocs:             make(map[string]*AllocRunner),
 		allocUpdates:       make(chan *structs.Allocation, 64),
