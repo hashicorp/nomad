@@ -74,6 +74,7 @@ func TestDiffAllocs(t *testing.T) {
 			ID:     structs.GenerateUUID(),
 			NodeID: "zip",
 			Name:   "my-job.web[10]",
+			Job:    oldJob,
 		},
 
 		// Migrate the 3rd
@@ -81,6 +82,7 @@ func TestDiffAllocs(t *testing.T) {
 			ID:     structs.GenerateUUID(),
 			NodeID: "dead",
 			Name:   "my-job.web[2]",
+			Job:    oldJob,
 		},
 	}
 
@@ -155,6 +157,7 @@ func TestDiffSystemAllocs(t *testing.T) {
 			ID:     structs.GenerateUUID(),
 			NodeID: "dead",
 			Name:   "my-job.web[0]",
+			Job:    oldJob,
 		},
 	}
 

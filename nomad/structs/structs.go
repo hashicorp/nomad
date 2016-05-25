@@ -1904,6 +1904,21 @@ func (ts *TaskState) Failed() bool {
 	}
 }
 
+// Successful returns whether a task finished successfully.
+func (ts *TaskState) Successful() bool {
+	l := len(ts.Events)
+	if ts.State != TaskStateDead || l == 0 {
+		return false
+	}
+
+	e := ts.Events[l-1]
+	if e.Type != TaskTerminated {
+		return false
+	}
+
+	return e.ExitCode == 0
+}
+
 const (
 	// TaskDriveFailure indicates that the task could not be started due to a
 	// failure in the driver.
@@ -2334,6 +2349,23 @@ func (a *Allocation) TerminalStatus() bool {
 	default:
 		return false
 	}
+}
+
+// RanSuccessfully returns whether the client has ran the allocation and all
+// tasks finished successfully
+func (a *Allocation) RanSuccessfully() bool {
+	// Handle the case the client hasn't started the allocation.
+	if len(a.TaskStates) == 0 {
+		return false
+	}
+
+	// Check to see if all the tasks finised successfully in the allocation
+	allSuccess := true
+	for _, state := range a.TaskStates {
+		allSuccess = allSuccess && state.Successful()
+	}
+
+	return allSuccess
 }
 
 // Stub returns a list stub for the allocation

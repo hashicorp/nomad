@@ -235,12 +235,12 @@ func (s *GenericScheduler) filterCompleteAllocs(allocs []*structs.Allocation) []
 	filter := func(a *structs.Allocation) bool {
 		if s.batch {
 			// Allocs from batch jobs should be filtered when the desired status
-			// is terminal or when the client status is failed so that they will
-			// be replaced. If they are complete but not failed, they shouldn't
-			// be replaced.
+			// is terminal and the client did not finish or when the client
+			// status is failed so that they will be replaced. If they are
+			// complete but not failed, they shouldn't be replaced.
 			switch a.DesiredStatus {
 			case structs.AllocDesiredStatusStop, structs.AllocDesiredStatusEvict, structs.AllocDesiredStatusFailed:
-				return true
+				return !a.RanSuccessfully()
 			default:
 			}
 
