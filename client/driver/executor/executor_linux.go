@@ -125,7 +125,9 @@ func (e *UniversalExecutor) configureCgroups(resources *structs.Resources) error
 	return nil
 }
 
-// Stats reports the resource utilization of the cgroup
+// Stats reports the resource utilization of the cgroup. If there is no resource
+// isolation we aggregate the resource utilization of all the pids launched by
+// the executor.
 func (e *UniversalExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
 	if !e.command.ResourceLimits {
 		return e.resourceUsagePids()
@@ -168,7 +170,14 @@ func (e *UniversalExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
 	if e.cpuStats != nil {
 		cs.Percent = e.cpuStats.Percent(float64(totalProcessCPUUsage / nanosecondsInSecond))
 	}
-	taskResUsage := cstructs.TaskResourceUsage{ResourceUsage: &cstructs.ResourceUsage{MemoryStats: ms, CpuStats: cs, Timestamp: ts}, Timestamp: ts}
+	taskResUsage := cstructs.TaskResourceUsage{
+		ResourceUsage: &cstructs.ResourceUsage{
+			MemoryStats: ms,
+			CpuStats:    cs,
+			Timestamp:   ts,
+		},
+		Timestamp: ts,
+	}
 	if pidStats, err := e.PidStats(); err == nil {
 		taskResUsage.Pids = pidStats
 	}

@@ -31,20 +31,19 @@ func (c *CpuStats) Percent(currentProcessUsage float64) float64 {
 		return 0.0
 	}
 
-	numcpu := runtime.NumCPU()
-	delta := (now.Sub(c.prevTime).Seconds()) * float64(numcpu)
-	ret := c.calculatePercent(c.prevProcessUsage, currentProcessUsage, delta, numcpu)
+	delta := (now.Sub(c.prevTime).Seconds()) * float64(c.totalCpus)
+	ret := c.calculatePercent(c.prevProcessUsage, currentProcessUsage, delta)
 	c.prevProcessUsage = currentProcessUsage
 	c.prevTime = now
 	return ret
 
 }
 
-func (c *CpuStats) calculatePercent(t1, t2 float64, delta float64, numcpu int) float64 {
+func (c *CpuStats) calculatePercent(t1, t2 float64, delta float64) float64 {
 	if delta == 0 {
 		return 0
 	}
 	delta_proc := t2 - t1
-	overall_percent := ((delta_proc / delta) * 100) * float64(numcpu)
+	overall_percent := ((delta_proc / delta) * 100) * float64(c.totalCpus)
 	return overall_percent
 }

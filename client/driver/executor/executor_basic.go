@@ -35,6 +35,6 @@ func (e *UniversalExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
 	return e.resourceUsagePids()
 }
 
-func (e *UniversalExecutor) getAllPids() ([]*NomadPid, error) {
+func (e *UniversalExecutor) getAllPids() ([]*nomadPid, error) {
 	return e.scanPids()
 }
