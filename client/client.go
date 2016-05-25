@@ -85,7 +85,11 @@ func DefaultConfig() *config.Config {
 // ClientStatsReporter exposes all the APIs related to resource usage of a Nomad
 // Client
 type ClientStatsReporter interface {
+	// AllocStats returns a map of alloc ids and their corresponding stats
+	// collector
 	AllocStats() map[string]AllocStatsReporter
+
+	// HostStats returns a stats collector for the host
 	HostStats() *stats.HostStats
 }
 
