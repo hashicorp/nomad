@@ -316,15 +316,17 @@ func (b *BlockedEvals) UnblockFailed() {
 	}
 
 	var unblock []*structs.Evaluation
-	for _, eval := range b.captured {
+	for id, eval := range b.captured {
 		if eval.TriggeredBy == structs.EvalTriggerMaxPlans {
 			unblock = append(unblock, eval)
+			delete(b.captured, id)
 		}
 	}
 
-	for _, eval := range b.escaped {
+	for id, eval := range b.escaped {
 		if eval.TriggeredBy == structs.EvalTriggerMaxPlans {
 			unblock = append(unblock, eval)
+			delete(b.escaped, id)
 		}
 	}
 

@@ -466,13 +466,8 @@ func TestWorker_ReblockEval(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Enqueue the eval
-	testutil.WaitForResult(func() (bool, error) {
-		err := s1.evalBroker.Enqueue(eval1)
-		return err == nil, err
-	}, func(err error) {
-		t.Fatalf("err: %v", err)
-	})
+	// Enqueue the eval and then dequeue
+	s1.evalBroker.Enqueue(eval1)
 	evalOut, token, err := s1.evalBroker.Dequeue([]string{eval1.Type}, time.Second)
 	if err != nil {
 		t.Fatalf("err: %v", err)
