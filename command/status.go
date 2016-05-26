@@ -259,7 +259,7 @@ func (c *StatusCommand) outputJobInfo(client *api.Client, job *api.Job) error {
 
 		// Check if created blocked eval is finished
 		if blocked, ok := evalsByID[eval.BlockedEval]; ok {
-			if blocked.Status == "complete" {
+			if blocked.Status != "blocked" {
 				continue
 			}
 		}
