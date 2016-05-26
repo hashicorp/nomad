@@ -399,8 +399,6 @@ func parseWriteMeta(resp *http.Response, q *WriteMeta) error {
 
 // decodeBody is used to JSON decode a body
 func decodeBody(resp *http.Response, out interface{}) error {
-	//res, _ := ioutil.ReadAll(resp.Body)
-	//fmt.Fprintf(os.Stdout, "DIPTANU BODY %v", res)
 	dec := json.NewDecoder(resp.Body)
 	return dec.Decode(out)
 }

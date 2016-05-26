@@ -72,7 +72,7 @@ func (s *HTTPServer) ClientAllocRequest(resp http.ResponseWriter, req *http.Requ
 	clientStats := s.agent.client.StatsReporter()
 	allocStats, ok := clientStats.AllocStats()[allocID]
 	if !ok {
-		return nil, CodedError(404, "alloc not running in node")
+		return nil, CodedError(404, "alloc not running on node")
 	}
 
 	if task := req.URL.Query().Get("task"); task != "" {

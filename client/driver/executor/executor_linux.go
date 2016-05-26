@@ -259,6 +259,10 @@ func (e *UniversalExecutor) removeChrootMounts() error {
 	return e.ctx.AllocDir.UnmountAll()
 }
 
+// getAllPids returns the pids of all the processes spun up by the executor. We
+// use the libcontainer apis to get the pids when the user is using cgroup
+// isolation and we scan the entire process table if the user is not using any
+// isolation
 func (e *UniversalExecutor) getAllPids() ([]*nomadPid, error) {
 	if e.command.ResourceLimits {
 		manager := getCgroupManager(e.groups, e.cgPaths)

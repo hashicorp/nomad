@@ -65,14 +65,6 @@ func (a *Allocations) Stats(alloc *Allocation, q *QueryOptions) (map[string]*Tas
 	return res, nil
 }
 
-func getErrorMsg(resp *http.Response) error {
-	if errMsg, err := ioutil.ReadAll(resp.Body); err == nil {
-		return fmt.Errorf(string(errMsg))
-	} else {
-		return err
-	}
-}
-
 // Allocation is used for serialization of allocations.
 type Allocation struct {
 	ID                 string

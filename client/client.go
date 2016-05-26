@@ -130,6 +130,7 @@ type Client struct {
 
 	consulService *consul.ConsulService
 
+	// HostStatsCollector collects host resource usage stats
 	hostStatsCollector *stats.HostStatsCollector
 	resourceUsage      *stats.RingBuff
 	resourceUsageLock  sync.RWMutex
