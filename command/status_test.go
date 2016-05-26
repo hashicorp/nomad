@@ -60,6 +60,35 @@ func TestStatusCommand_Run(t *testing.T) {
 	if strings.Contains(out, "job1_sfx") || !strings.Contains(out, "job2_sfx") {
 		t.Fatalf("expected only job2_sfx, got: %s", out)
 	}
+	if !strings.Contains(out, "Allocations") {
+		t.Fatalf("should dump allocations")
+	}
+	ui.OutputWriter.Reset()
+
+	// Query a single job showing evals
+	if code := cmd.Run([]string{"-address=" + url, "-evals", "job2_sfx"}); code != 0 {
+		t.Fatalf("expected exit 0, got: %d", code)
+	}
+	out = ui.OutputWriter.String()
+	if strings.Contains(out, "job1_sfx") || !strings.Contains(out, "job2_sfx") {
+		t.Fatalf("expected only job2_sfx, got: %s", out)
+	}
+	if !strings.Contains(out, "Evaluations") {
+		t.Fatalf("should dump evaluations")
+	}
+	if !strings.Contains(out, "Allocations") {
+		t.Fatalf("should dump allocations")
+	}
+	ui.OutputWriter.Reset()
+
+	// Query a single job in verbose mode
+	if code := cmd.Run([]string{"-address=" + url, "-verbose", "job2_sfx"}); code != 0 {
+		t.Fatalf("expected exit 0, got: %d", code)
+	}
+	out = ui.OutputWriter.String()
+	if strings.Contains(out, "job1_sfx") || !strings.Contains(out, "job2_sfx") {
+		t.Fatalf("expected only job2_sfx, got: %s", out)
+	}
 	if !strings.Contains(out, "Evaluations") {
 		t.Fatalf("should dump evaluations")
 	}
