@@ -1282,7 +1282,10 @@ func (c *Client) syncConsul() {
 
 // collectHostStats collects host resource usage stats periodically
 func (c *Client) collectHostStats() {
-	next := time.NewTimer(c.config.StatsCollectionInterval)
+	// Start collecting host stats right away and then keep collecting every
+	// collection interval
+	next := time.NewTimer(0)
+	defer next.Stop()
 	for {
 		select {
 		case <-next.C:
@@ -1296,7 +1299,6 @@ func (c *Client) collectHostStats() {
 			c.resourceUsageLock.RUnlock()
 			next.Reset(c.config.StatsCollectionInterval)
 		case <-c.shutdownCh:
-			next.Stop()
 			return
 		}
 	}

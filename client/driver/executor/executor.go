@@ -688,6 +688,7 @@ func (e *UniversalExecutor) collectPids() {
 	// Fire the timer right away when the executor starts from there on the pids
 	// are collected every scan interval
 	timer := time.NewTimer(0)
+	defer timer.Stop()
 	for {
 		select {
 		case <-timer.C:
@@ -700,7 +701,6 @@ func (e *UniversalExecutor) collectPids() {
 			e.pidLock.Unlock()
 			timer.Reset(pidScanInterval)
 		case <-e.processExited:
-			timer.Stop()
 			return
 		}
 	}
