@@ -49,11 +49,13 @@ Available commands are:
     agent-info            Display status information about the local agent
     alloc-status          Display allocation status information and metadata
     client-config         View or modify client configuration details
-    eval-monitor          Monitor an evaluation interactively
+    eval-status           Display evaluation status and placement failure reasons
     fs                    Inspect the contents of an allocation directory
     init                  Create an example job file
+    inspect               Inspect a submitted job
     node-drain            Toggle drain mode on a given node
     node-status           Display status information about nodes
+    plan                  Dry-run a job update to determine its effects
     run                   Run a new job or update an existing job
     server-force-leave    Force a server into the 'left' state
     server-join           Join server nodes together

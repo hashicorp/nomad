@@ -37,7 +37,7 @@ Eval Status Options:
 }
 
 func (c *EvalStatusCommand) Synopsis() string {
-	return "Display evaluation status information and placement failure reasons"
+	return "Display evaluation status and placement failure reasons"
 }
 
 func (c *EvalStatusCommand) Run(args []string) int {
