@@ -23,7 +23,7 @@ type ConsulConfig struct {
 	AutoRegister bool `mapstructure:"auto_register"`
 
 	// Addr is the address of the local Consul agent
-	Addr string `mapstructure:"addr"`
+	Addr string `mapstructure:"address"`
 
 	// Token is used to provide a per-request ACL token.This options overrides
 	// the agent's default token

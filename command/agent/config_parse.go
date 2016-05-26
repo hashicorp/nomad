@@ -598,7 +598,7 @@ func parseConsulConfig(result **config.ConsulConfig, list *ast.ObjectList) error
 
 	// Check for invalid keys
 	valid := []string{
-		"addr",
+		"address",
 		"auth",
 		"auto_register",
 		"ca_file",
