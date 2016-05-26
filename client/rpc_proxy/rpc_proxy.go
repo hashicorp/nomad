@@ -182,6 +182,7 @@ func (p *RpcProxy) SetBackupServers(addrs []string) error {
 			p.logger.Printf("[WARN] RPC Proxy: unable to create backup server %q: %v", s, err)
 			return fmt.Errorf("unable to create new backup server from %q: %v", s, err)
 		}
+		l = append(l, s)
 	}
 
 	p.serverListLock.Lock()
