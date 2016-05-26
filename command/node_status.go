@@ -47,9 +47,6 @@ Node Status Options:
 
   -allocs
     Display a count of running allocations for each node.
-
-  -stats
-    Display the resource usage of the node.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -59,7 +56,7 @@ func (c *NodeStatusCommand) Synopsis() string {
 }
 
 func (c *NodeStatusCommand) Run(args []string) int {
-	var short, verbose, list_allocs, self, stats bool
+	var short, verbose, list_allocs, self bool
 	var hostStats *api.HostStats
 
 	flags := c.Meta.FlagSet("node-status", FlagSetClient)
@@ -68,7 +65,6 @@ func (c *NodeStatusCommand) Run(args []string) int {
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.BoolVar(&list_allocs, "allocs", false, "")
 	flags.BoolVar(&self, "self", false, "")
-	flags.BoolVar(&stats, "stats", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -202,10 +198,8 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		return 1
 	}
 
-	if stats {
-		if hostStats, err = client.Nodes().Stats(node.ID, nil); err != nil {
-			c.Ui.Error(fmt.Sprintf("error fetching node resource utilization stats: %v", err))
-		}
+	if hostStats, err = client.Nodes().Stats(node.ID, nil); err != nil {
+		c.Ui.Error(fmt.Sprintf("error fetching node resource utilization stats: %v", err))
 	}
 
 	// Format the output
@@ -217,7 +211,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		fmt.Sprintf("Drain|%v", node.Drain),
 		fmt.Sprintf("Status|%s", node.Status),
 	}
-	if stats && hostStats != nil {
+	if hostStats != nil {
 		uptime := time.Duration(hostStats.Uptime * uint64(time.Second))
 		basic = append(basic, fmt.Sprintf("Uptime|%s", uptime.String()))
 	}
@@ -231,7 +225,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		}
 		c.Ui.Output("\n==> Resource Utilization")
 		c.Ui.Output(formatList(resources))
-		if stats && hostStats != nil {
+		if hostStats != nil {
 			c.Ui.Output("\n===> Node CPU Stats")
 			c.printCpuStats(hostStats)
 			c.Ui.Output("\n===> Node Memory Stats")

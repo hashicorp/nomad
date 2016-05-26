@@ -1,12 +1,11 @@
 package api
 
 import (
-	"encoding/json"
 	"fmt"
-	"net/http"
-	"net/url"
 	"sort"
 	"strconv"
+
+	"github.com/hashicorp/go-cleanhttp"
 )
 
 // Nodes is used to query node-related API endpoints
@@ -83,29 +82,18 @@ func (n *Nodes) Stats(nodeID string, q *QueryOptions) (*HostStats, error) {
 	if node.HTTPAddr == "" {
 		return nil, fmt.Errorf("http addr of the node %q is running is not advertised", nodeID)
 	}
-	u := &url.URL{
-		Scheme: "http",
-		Host:   node.HTTPAddr,
-		Path:   "/v1/client/stats/",
-	}
-	req := &http.Request{
-		Method: "GET",
-		URL:    u,
-	}
-	c := http.Client{}
-	resp, err := c.Do(req)
+	client, err := NewClient(&Config{
+		Address:    fmt.Sprintf("http://%s", node.HTTPAddr),
+		HttpClient: cleanhttp.DefaultClient(),
+	})
 	if err != nil {
 		return nil, err
 	}
-	if resp.StatusCode != 200 {
-		return nil, getErrorMsg(resp)
-	}
-	decoder := json.NewDecoder(resp.Body)
-	var stats *HostStats
-	if err := decoder.Decode(&stats); err != nil {
+	var hostStats HostStats
+	if _, err := client.query("/v1/client/stats/", &hostStats, nil); err != nil {
 		return nil, err
 	}
-	return stats, nil
+	return &hostStats, nil
 }
 
 // Node is used to deserialize a node entry.
