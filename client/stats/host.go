@@ -78,7 +78,8 @@ func (h *HostStatsCollector) Collect() (*HostStats, error) {
 			}
 			percentCalculator, ok := h.statsCalculator[cpuStat.CPU]
 			if !ok {
-				h.statsCalculator[cpuStat.CPU] = NewHostCpuStatsCalculator()
+				percentCalculator = NewHostCpuStatsCalculator()
+				h.statsCalculator[cpuStat.CPU] = percentCalculator
 			}
 			idle, user, system, total := percentCalculator.Calculate(cpuStat)
 			cs[idx].Idle = idle
