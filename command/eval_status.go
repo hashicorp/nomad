@@ -2,6 +2,7 @@ package command
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
@@ -151,14 +152,18 @@ func (c *EvalStatusCommand) Run(args []string) int {
 	c.Ui.Output(formatKV(basic))
 
 	if failures {
-		c.Ui.Output("\n==> Failed Allocations")
-		for tg, metrics := range eval.FailedTGAllocs {
+		c.Ui.Output("\n==> Failed Placements")
+		sorted := sortedTaskGroupFromMetrics(eval.FailedTGAllocs)
+		for _, tg := range sorted {
+			metrics := eval.FailedTGAllocs[tg]
+
 			noun := "allocation"
 			if metrics.CoalescedFailures > 0 {
 				noun += "s"
 			}
 			c.Ui.Output(fmt.Sprintf("Task Group %q (failed to place %d %s):", tg, metrics.CoalescedFailures+1, noun))
 			dumpAllocMetrics(c.Ui, metrics, false)
+			c.Ui.Output("")
 		}
 
 		if eval.BlockedEval != "" {
@@ -168,6 +173,15 @@ func (c *EvalStatusCommand) Run(args []string) int {
 	}
 
 	return 0
+}
+
+func sortedTaskGroupFromMetrics(groups map[string]*api.AllocationMetric) []string {
+	tgs := make([]string, 0, len(groups))
+	for tg, _ := range groups {
+		tgs = append(tgs, tg)
+	}
+	sort.Strings(tgs)
+	return tgs
 }
 
 func getTriggerDetails(eval *api.Evaluation) (noun, subject string) {

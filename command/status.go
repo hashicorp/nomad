@@ -11,9 +11,16 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+const (
+	// maxFailedTGs is the maximum number of task groups we show failure reasons
+	// for before defering to eval-status
+	maxFailedTGs = 5
+)
+
 type StatusCommand struct {
 	Meta
-	length int
+	length             int
+	showEvals, verbose bool
 }
 
 func (c *StatusCommand) Help() string {
@@ -31,8 +38,10 @@ Status Options:
 
   -short
     Display short output. Used only when a single job is being
-    queried, and drops verbose information about allocations
-    and evaluations.
+    queried, and drops verbose information about allocations.
+
+  -evals
+    Display the evaluations associated with the job.
 
   -verbose
     Display full information.
@@ -45,12 +54,13 @@ func (c *StatusCommand) Synopsis() string {
 }
 
 func (c *StatusCommand) Run(args []string) int {
-	var short, verbose bool
+	var short bool
 
 	flags := c.Meta.FlagSet("status", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&short, "short", false, "")
-	flags.BoolVar(&verbose, "verbose", false, "")
+	flags.BoolVar(&c.showEvals, "evals", false, "")
+	flags.BoolVar(&c.verbose, "verbose", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -65,7 +75,7 @@ func (c *StatusCommand) Run(args []string) int {
 
 	// Truncate the id unless full length is requested
 	c.length = shortId
-	if verbose {
+	if c.verbose {
 		c.length = fullId
 	}
 
@@ -221,27 +231,65 @@ func (c *StatusCommand) outputPeriodicInfo(client *api.Client, job *api.Job) err
 func (c *StatusCommand) outputJobInfo(client *api.Client, job *api.Job) error {
 	var evals, allocs []string
 
-	// Query the evaluations
-	jobEvals, _, err := client.Jobs().Evaluations(job.ID, nil)
-	if err != nil {
-		return fmt.Errorf("Error querying job evaluations: %s", err)
-	}
-
 	// Query the allocations
 	jobAllocs, _, err := client.Jobs().Allocations(job.ID, nil)
 	if err != nil {
 		return fmt.Errorf("Error querying job allocations: %s", err)
 	}
 
+	// Query the evaluations
+	jobEvals, _, err := client.Jobs().Evaluations(job.ID, nil)
+	if err != nil {
+		return fmt.Errorf("Error querying job evaluations: %s", err)
+	}
+
+	// Determine latest evaluation with failures whose follow up hasn't
+	// completed.
+	evalsByID := make(map[string]*api.Evaluation, len(jobEvals))
+	for _, eval := range jobEvals {
+		evalsByID[eval.ID] = eval
+	}
+
+	var latestFailedPlacement *api.Evaluation
+	for _, eval := range evalsByID {
+		if len(eval.FailedTGAllocs) == 0 {
+			// Skip evals without failures
+			continue
+		}
+
+		// Check if created blocked eval is finished
+		if blocked, ok := evalsByID[eval.BlockedEval]; ok {
+			if blocked.Status == "complete" {
+				continue
+			}
+		}
+
+		if latestFailedPlacement == nil || latestFailedPlacement.CreateIndex < eval.CreateIndex {
+			latestFailedPlacement = eval
+		}
+
+	}
+
 	// Format the evals
 	evals = make([]string, len(jobEvals)+1)
-	evals[0] = "ID|Priority|Triggered By|Status"
+	evals[0] = "ID|Priority|Triggered By|Status|Placement Failures"
 	for i, eval := range jobEvals {
-		evals[i+1] = fmt.Sprintf("%s|%d|%s|%s",
+		evals[i+1] = fmt.Sprintf("%s|%d|%s|%s|%t",
 			limit(eval.ID, c.length),
 			eval.Priority,
 			eval.TriggeredBy,
-			eval.Status)
+			eval.Status,
+			len(eval.FailedTGAllocs) != 0,
+		)
+	}
+
+	if c.verbose || c.showEvals {
+		c.Ui.Output("\n==> Evaluations")
+		c.Ui.Output(formatList(evals))
+	}
+
+	if latestFailedPlacement != nil {
+		c.outputFailedPlacements(latestFailedPlacement)
 	}
 
 	// Format the allocs
@@ -257,11 +305,39 @@ func (c *StatusCommand) outputJobInfo(client *api.Client, job *api.Job) error {
 			alloc.ClientStatus)
 	}
 
-	c.Ui.Output("\n==> Evaluations")
-	c.Ui.Output(formatList(evals))
 	c.Ui.Output("\n==> Allocations")
 	c.Ui.Output(formatList(allocs))
 	return nil
+}
+
+func (c *StatusCommand) outputFailedPlacements(failedEval *api.Evaluation) {
+	if failedEval == nil || len(failedEval.FailedTGAllocs) == 0 {
+		return
+	}
+
+	c.Ui.Output("\n==> Last Placement Failure")
+
+	sorted := sortedTaskGroupFromMetrics(failedEval.FailedTGAllocs)
+	for i, tg := range sorted {
+		if i >= maxFailedTGs {
+			break
+		}
+
+		metrics := failedEval.FailedTGAllocs[tg]
+
+		noun := "allocation"
+		if metrics.CoalescedFailures > 0 {
+			noun += "s"
+		}
+		c.Ui.Output(fmt.Sprintf("Task Group %q (failed to place %d %s):", tg, metrics.CoalescedFailures+1, noun))
+		dumpAllocMetrics(c.Ui, metrics, false)
+		c.Ui.Output("")
+	}
+
+	if len(sorted) > maxFailedTGs {
+		trunc := fmt.Sprintf("Placement failures truncated. To see remainder run:\nnomad eval-status %s", failedEval.ID)
+		c.Ui.Output(trunc)
+	}
 }
 
 // convertApiJob is used to take a *api.Job and convert it to an *struct.Job.
