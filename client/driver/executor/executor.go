@@ -717,11 +717,10 @@ func (e *UniversalExecutor) scanPids(parentPid int, allPids []ps.Process) ([]*no
 		foundNewPid := false
 
 		for _, pid := range allPids {
-			_, parentPid := processFamily[pid.Pid()]
 			_, childPid := processFamily[pid.PPid()]
 
 			// checking if the pid is a child of any of the parents
-			if parentPid || childPid {
+			if childPid {
 				processFamily[pid.Pid()] = struct{}{}
 				foundNewPid = true
 			} else {
@@ -742,49 +741,4 @@ func (e *UniversalExecutor) scanPids(parentPid int, allPids []ps.Process) ([]*no
 		res = append(res, &nomadPid{pid, stats.NewCpuStats()})
 	}
 	return res, nil
-}
-
-// resourceUsagePids aggregates the resources used by all the pids that are
-// spawned by the executor and the user process.
-func (e *UniversalExecutor) resourceUsagePids() (*cstructs.TaskResourceUsage, error) {
-	ts := time.Now()
-	pidStats, err := e.pidStats()
-	if err != nil {
-		return nil, err
-	}
-	var (
-		systemModeCPU, userModeCPU, percent float64
-		totalRSS, totalSwap                 uint64
-	)
-
-	for _, pidStat := range pidStats {
-		systemModeCPU += pidStat.CpuStats.SystemMode
-		userModeCPU += pidStat.CpuStats.UserMode
-		percent += pidStat.CpuStats.Percent
-
-		totalRSS += pidStat.MemoryStats.RSS
-		totalSwap += pidStat.MemoryStats.Swap
-	}
-
-	totalCPU := &cstructs.CpuStats{
-		SystemMode: systemModeCPU,
-		UserMode:   userModeCPU,
-		Percent:    percent,
-	}
-
-	totalMemory := &cstructs.MemoryStats{
-		RSS:  totalRSS,
-		Swap: totalSwap,
-	}
-
-	resourceUsage := cstructs.ResourceUsage{
-		MemoryStats: totalMemory,
-		CpuStats:    totalCPU,
-		Timestamp:   ts,
-	}
-	return &cstructs.TaskResourceUsage{
-		ResourceUsage: &resourceUsage,
-		Timestamp:     ts,
-		Pids:          pidStats,
-	}, nil
 }

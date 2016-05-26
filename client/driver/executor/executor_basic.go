@@ -4,6 +4,7 @@ package executor
 
 import (
 	"os"
+	"time"
 
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 
@@ -36,7 +37,46 @@ func (e *UniversalExecutor) configureIsolation() error {
 }
 
 func (e *UniversalExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
-	return e.resourceUsagePids()
+	ts := time.Now()
+	pidStats, err := e.pidStats()
+	if err != nil {
+		return nil, err
+	}
+	var (
+		systemModeCPU, userModeCPU, percent float64
+		totalRSS, totalSwap                 uint64
+	)
+
+	for _, pidStat := range pidStats {
+		systemModeCPU += pidStat.CpuStats.SystemMode
+		userModeCPU += pidStat.CpuStats.UserMode
+		percent += pidStat.CpuStats.Percent
+
+		totalRSS += pidStat.MemoryStats.RSS
+		totalSwap += pidStat.MemoryStats.Swap
+	}
+
+	totalCPU := &cstructs.CpuStats{
+		SystemMode: systemModeCPU,
+		UserMode:   userModeCPU,
+		Percent:    percent,
+	}
+
+	totalMemory := &cstructs.MemoryStats{
+		RSS:  totalRSS,
+		Swap: totalSwap,
+	}
+
+	resourceUsage := cstructs.ResourceUsage{
+		MemoryStats: totalMemory,
+		CpuStats:    totalCPU,
+		Timestamp:   ts,
+	}
+	return &cstructs.TaskResourceUsage{
+		ResourceUsage: &resourceUsage,
+		Timestamp:     ts,
+		Pids:          pidStats,
+	}, nil
 }
 
 func (e *UniversalExecutor) getAllPids() ([]*nomadPid, error) {
