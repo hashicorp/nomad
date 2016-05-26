@@ -119,7 +119,7 @@ func TestAgent_ServerConfig(t *testing.T) {
 	if addr := out.RPCAdvertise; addr.IP.String() != "127.0.0.1" || addr.Port != 4001 {
 		t.Fatalf("bad rpc advertise addr: %#v", addr)
 	}
-	if addr := a.serverHTTPAddr; addr != "10.10.11.1:4005" {
+	if addr := a.serverHttpAddr; addr != "10.10.11.1:4005" {
 		t.Fatalf("expect 10.11.11.1:4005, got: %v", addr)
 	}
 
@@ -155,7 +155,7 @@ func TestAgent_ServerConfig(t *testing.T) {
 	if addr := out.SerfConfig.MemberlistConfig.BindAddr; addr != "127.0.0.2" {
 		t.Fatalf("expect 127.0.0.2, got: %s", addr)
 	}
-	if addr := a.serverHTTPAddr; addr != "127.0.0.2:4646" {
+	if addr := a.serverHttpAddr; addr != "127.0.0.2:4646" {
 		t.Fatalf("expect 127.0.0.3:4646, got: %s", addr)
 	}
 
@@ -195,7 +195,7 @@ func TestAgent_ServerConfig(t *testing.T) {
 	if addr := out.SerfConfig.MemberlistConfig.BindAddr; addr != "127.0.0.3" {
 		t.Fatalf("expect 127.0.0.3, got: %s", addr)
 	}
-	if addr := a.serverHTTPAddr; addr != "127.0.0.3:4646" {
+	if addr := a.serverHttpAddr; addr != "127.0.0.3:4646" {
 		t.Fatalf("expect 127.0.0.3:4646, got: %s", addr)
 	}
 

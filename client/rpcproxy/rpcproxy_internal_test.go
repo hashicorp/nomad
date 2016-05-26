@@ -1,4 +1,4 @@
-package rpc_proxy
+package rpcproxy
 
 import (
 	"bytes"
@@ -57,7 +57,7 @@ func (s *fauxSerf) RPCVersion() int {
 func testManager() (p *RpcProxy) {
 	logger := GetBufferedLogger()
 	shutdownCh := make(chan struct{})
-	p = NewRpcProxy(logger, shutdownCh, &fauxSerf{numNodes: 16384}, &fauxConnPool{})
+	p = New(logger, shutdownCh, &fauxSerf{numNodes: 16384}, &fauxConnPool{})
 	return p
 }
 
@@ -65,7 +65,7 @@ func testManagerFailProb(failPct float64) (p *RpcProxy) {
 	logger := GetBufferedLogger()
 	logger = log.New(os.Stderr, "", log.LstdFlags)
 	shutdownCh := make(chan struct{})
-	p = NewRpcProxy(logger, shutdownCh, &fauxSerf{}, &fauxConnPool{failPct: failPct})
+	p = New(logger, shutdownCh, &fauxSerf{}, &fauxConnPool{failPct: failPct})
 	return p
 }
 
@@ -300,7 +300,7 @@ func TestManagerInternal_refreshServerRebalanceTimer(t *testing.T) {
 	shutdownCh := make(chan struct{})
 
 	for _, s := range clusters {
-		m := NewRpcProxy(logger, shutdownCh, &fauxSerf{numNodes: s.numNodes}, &fauxConnPool{})
+		m := New(logger, shutdownCh, &fauxSerf{numNodes: s.numNodes}, &fauxConnPool{})
 		for i := 0; i < s.numServers; i++ {
 			nodeName := fmt.Sprintf("s%02d", i)
 			m.activateEndpoint(&ServerEndpoint{Name: nodeName})

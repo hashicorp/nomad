@@ -6,7 +6,7 @@
 //
 // The servers package does not provide any external API guarantees and
 // should be called only by `hashicorp/nomad`.
-package rpc_proxy
+package rpcproxy
 
 import (
 	"fmt"
@@ -303,8 +303,8 @@ func (p *RpcProxy) LeaderAddr() string {
 	return p.leaderAddr
 }
 
-// NewRpcProxy is the only way to safely create a new RpcProxy.
-func NewRpcProxy(logger *log.Logger, shutdownCh chan struct{}, configInfo NomadConfigInfo, connPoolPinger Pinger) (p *RpcProxy) {
+// New is the only way to safely create a new RpcProxy.
+func New(logger *log.Logger, shutdownCh chan struct{}, configInfo NomadConfigInfo, connPoolPinger Pinger) (p *RpcProxy) {
 	p = new(RpcProxy)
 	p.logger = logger
 	p.configInfo = configInfo         // can't pass *nomad.Client: import cycle

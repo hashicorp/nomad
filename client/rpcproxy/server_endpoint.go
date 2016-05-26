@@ -1,4 +1,4 @@
-package rpc_proxy
+package rpcproxy
 
 import (
 	"fmt"

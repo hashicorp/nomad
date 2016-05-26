@@ -21,7 +21,7 @@ import (
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/client/fingerprint"
-	"github.com/hashicorp/nomad/client/rpc_proxy"
+	"github.com/hashicorp/nomad/client/rpcproxy"
 	"github.com/hashicorp/nomad/client/stats"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -131,7 +131,7 @@ type Client struct {
 
 	logger *log.Logger
 
-	rpcProxy *rpc_proxy.RpcProxy
+	rpcProxy *rpcproxy.RpcProxy
 
 	connPool *nomad.ConnPool
 
@@ -208,7 +208,7 @@ func NewClient(cfg *config.Config) (*Client, error) {
 
 	// Create the RPC Proxy and bootstrap with the preconfigured list of
 	// static servers
-	c.rpcProxy = rpc_proxy.NewRpcProxy(c.logger, c.shutdownCh, c, c.connPool)
+	c.rpcProxy = rpcproxy.New(c.logger, c.shutdownCh, c, c.connPool)
 	for _, serverAddr := range c.config.Servers {
 		c.rpcProxy.AddPrimaryServer(serverAddr)
 	}
@@ -1396,6 +1396,6 @@ func (c *Client) emitStats(hStats *stats.HostStats) {
 	}
 }
 
-func (c *Client) RpcProxy() *rpc_proxy.RpcProxy {
+func (c *Client) RpcProxy() *rpcproxy.RpcProxy {
 	return c.rpcProxy
 }

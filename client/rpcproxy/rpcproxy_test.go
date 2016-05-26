@@ -1,4 +1,4 @@
-package rpc_proxy_test
+package rpcproxy_test
 
 import (
 	"bytes"
