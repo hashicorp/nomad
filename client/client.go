@@ -77,8 +77,10 @@ const (
 // DefaultConfig returns the default configuration
 func DefaultConfig() *config.Config {
 	return &config.Config{
-		LogOutput: os.Stderr,
-		Region:    "global",
+		LogOutput:               os.Stderr,
+		Region:                  "global",
+		StatsDataPoints:         60,
+		StatsCollectionInterval: 1 * time.Second,
 	}
 }
 
