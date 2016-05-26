@@ -123,11 +123,10 @@ type DockerHandle struct {
 	version           string
 	killTimeout       time.Duration
 	maxKillTimeout    time.Duration
-	doneMonitoring    chan bool
 	resourceUsageLock sync.RWMutex
 	resourceUsage     *cstructs.TaskResourceUsage
 	waitCh            chan *cstructs.WaitResult
-	doneCh            chan struct{}
+	doneCh            chan bool
 }
 
 func NewDockerDriver(ctx *DriverContext) Driver {
@@ -771,8 +770,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 		version:        d.config.Version,
 		killTimeout:    GetKillTimeout(task.KillTimeout, maxKill),
 		maxKillTimeout: maxKill,
-		doneMonitoring: make(chan bool),
-		doneCh:         make(chan struct{}),
+		doneCh:         make(chan bool),
 		waitCh:         make(chan *cstructs.WaitResult, 1),
 	}
 	if err := exec.SyncServices(consulContext(d.config, container.ID)); err != nil {
@@ -846,8 +844,7 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 		version:        pid.Version,
 		killTimeout:    pid.KillTimeout,
 		maxKillTimeout: pid.MaxKillTimeout,
-		doneMonitoring: make(chan bool),
-		doneCh:         make(chan struct{}),
+		doneCh:         make(chan bool),
 		waitCh:         make(chan *cstructs.WaitResult, 1),
 	}
 	if err := exec.SyncServices(consulContext(d.config, pid.ContainerID)); err != nil {
@@ -932,8 +929,6 @@ func (h *DockerHandle) run() {
 	}
 
 	close(h.doneCh)
-	h.doneMonitoring <- true
-	close(h.doneMonitoring)
 	h.waitCh <- cstructs.NewWaitResult(exitCode, 0, err)
 	close(h.waitCh)
 
@@ -974,10 +969,13 @@ func (h *DockerHandle) run() {
 // collectStats starts collecting resource usage stats of a docker container
 func (h *DockerHandle) collectStats() {
 	statsCh := make(chan *docker.Stats)
-	statsOpts := docker.StatsOptions{ID: h.containerID, Done: h.doneMonitoring, Stats: statsCh, Stream: true}
-	if err := h.client.Stats(statsOpts); err != nil {
-		h.logger.Printf("[DEBUG] driver.docker: error collecting stats from container %s: %v", h.containerID, err)
-	}
+	statsOpts := docker.StatsOptions{ID: h.containerID, Done: h.doneCh, Stats: statsCh, Stream: true}
+	go func() {
+		//TODO handle Stats error
+		if err := h.client.Stats(statsOpts); err != nil {
+			h.logger.Printf("[DEBUG] driver.docker: error collecting stats from container %s: %v", h.containerID, err)
+		}
+	}()
 	for {
 		select {
 		case s := <-statsCh:
@@ -1012,7 +1010,6 @@ func (h *DockerHandle) collectStats() {
 				}
 				h.resourceUsageLock.Unlock()
 			}
-		case <-h.doneMonitoring:
 		case <-h.doneCh:
 			return
 		}
