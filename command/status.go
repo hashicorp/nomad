@@ -293,20 +293,24 @@ func (c *StatusCommand) outputJobInfo(client *api.Client, job *api.Job) error {
 	}
 
 	// Format the allocs
-	allocs = make([]string, len(jobAllocs)+1)
-	allocs[0] = "ID|Eval ID|Node ID|Task Group|Desired|Status"
-	for i, alloc := range jobAllocs {
-		allocs[i+1] = fmt.Sprintf("%s|%s|%s|%s|%s|%s",
-			limit(alloc.ID, c.length),
-			limit(alloc.EvalID, c.length),
-			limit(alloc.NodeID, c.length),
-			alloc.TaskGroup,
-			alloc.DesiredStatus,
-			alloc.ClientStatus)
-	}
-
 	c.Ui.Output("\n==> Allocations")
-	c.Ui.Output(formatList(allocs))
+	if len(jobAllocs) > 0 {
+		allocs = make([]string, len(jobAllocs)+1)
+		allocs[0] = "ID|Eval ID|Node ID|Task Group|Desired|Status"
+		for i, alloc := range jobAllocs {
+			allocs[i+1] = fmt.Sprintf("%s|%s|%s|%s|%s|%s",
+				limit(alloc.ID, c.length),
+				limit(alloc.EvalID, c.length),
+				limit(alloc.NodeID, c.length),
+				alloc.TaskGroup,
+				alloc.DesiredStatus,
+				alloc.ClientStatus)
+		}
+
+		c.Ui.Output(formatList(allocs))
+	} else {
+		c.Ui.Output("No allocations placed")
+	}
 	return nil
 }
 
