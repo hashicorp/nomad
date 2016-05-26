@@ -133,7 +133,14 @@ func TestExecutor_WaitExitSignal(t *testing.T) {
 	}
 
 	go func() {
-		time.Sleep(1 * time.Second)
+		time.Sleep(3 * time.Second)
+		ru, err := executor.Stats()
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		if len(ru.Pids) != 2 {
+			t.Fatalf("expected number of pids: 2, actual: %v", len(ru.Pids))
+		}
 		proc, err := os.FindProcess(ps.Pid)
 		if err != nil {
 			t.Fatalf("err: %v", err)

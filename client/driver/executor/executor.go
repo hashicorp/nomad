@@ -685,7 +685,9 @@ func (e *UniversalExecutor) interpolateServices(task *structs.Task) {
 // collectPids collects the pids of the child processes that the executor is
 // running every 5 seconds
 func (e *UniversalExecutor) collectPids() {
-	timer := time.NewTimer(pidScanInterval)
+	// Fire the timer right away when the executor starts from there on the pids
+	// are collected every scan interval
+	timer := time.NewTimer(0)
 	for {
 		select {
 		case <-timer.C:
