@@ -394,6 +394,7 @@ func DefaultConfig() *Config {
 			ServerServiceName: "nomad-server",
 			ClientServiceName: "nomad-client",
 			AutoRegister:      true,
+			Timeout:           500 * time.Millisecond,
 		},
 		Client: &ClientConfig{
 			Enabled:        false,

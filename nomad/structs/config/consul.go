@@ -1,5 +1,11 @@
 package config
 
+import (
+	"time"
+
+	consul "github.com/hashicorp/consul/api"
+)
+
 // ConsulConfig contains the configuration information necessary to
 // communicate with a Consul Agent in order to:
 //
@@ -24,6 +30,9 @@ type ConsulConfig struct {
 
 	// Addr is the address of the local Consul agent
 	Addr string `mapstructure:"address"`
+
+	// Timeout is used by Consul HTTP Client
+	Timeout time.Duration `mapstructure:"timeout"`
 
 	// Token is used to provide a per-request ACL token.This options overrides
 	// the agent's default token
@@ -73,6 +82,9 @@ func (a *ConsulConfig) Merge(b *ConsulConfig) *ConsulConfig {
 	if b.Addr != "" {
 		result.Addr = b.Addr
 	}
+	if b.Timeout != 0 {
+		result.Timeout = b.Timeout
+	}
 	if b.Token != "" {
 		result.Token = b.Token
 	}
@@ -101,4 +113,22 @@ func (a *ConsulConfig) Merge(b *ConsulConfig) *ConsulConfig {
 		result.ClientAutoJoin = true
 	}
 	return &result
+}
+
+// ApiConfig() returns a usable Consul config that can be passed directly to
+// hashicorp/consul/api.  NOTE: datacenter is not set
+func (c *ConsulConfig) ApiConfig() (*consul.Config, error) {
+	config := consul.DefaultConfig()
+	if c.Addr != "" {
+		config.Address = c.Addr
+	}
+	if c.Token != "" {
+		config.Token = c.Token
+	}
+
+	if c.Timeout != 0 {
+		config.HttpClient.Timeout = c.Timeout
+	}
+
+	return config, nil
 }
