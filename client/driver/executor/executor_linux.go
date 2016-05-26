@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-multierror"
+	"github.com/mitchellh/go-ps"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	cgroupFs "github.com/opencontainers/runc/libcontainer/cgroups/fs"
 	cgroupConfig "github.com/opencontainers/runc/libcontainer/configs"
@@ -130,7 +131,11 @@ func (e *UniversalExecutor) configureCgroups(resources *structs.Resources) error
 // the executor.
 func (e *UniversalExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
 	if !e.command.ResourceLimits {
-		return e.resourceUsagePids()
+		pidStats, err := e.pidStats()
+		if err != nil {
+			return nil, err
+		}
+		return e.aggregatedResourceUsage(pidStats), nil
 	}
 	ts := time.Now()
 	manager := getCgroupManager(e.groups, e.cgPaths)
@@ -178,7 +183,7 @@ func (e *UniversalExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
 		},
 		Timestamp: ts,
 	}
-	if pidStats, err := e.PidStats(); err == nil {
+	if pidStats, err := e.pidStats(); err == nil {
 		taskResUsage.Pids = pidStats
 	}
 	return &taskResUsage, nil
@@ -254,20 +259,24 @@ func (e *UniversalExecutor) removeChrootMounts() error {
 	return e.ctx.AllocDir.UnmountAll()
 }
 
-func (e *UniversalExecutor) getAllPids() ([]*NomadPid, error) {
+func (e *UniversalExecutor) getAllPids() ([]*nomadPid, error) {
 	if e.command.ResourceLimits {
 		manager := getCgroupManager(e.groups, e.cgPaths)
 		pids, err := manager.GetAllPids()
 		if err != nil {
 			return nil, err
 		}
-		np := make([]*NomadPid, len(pids))
+		np := make([]*nomadPid, len(pids))
 		for idx, pid := range pids {
-			np[idx] = &NomadPid{pid, stats.NewCpuStats()}
+			np[idx] = &nomadPid{pid, stats.NewCpuStats()}
 		}
 		return np, nil
 	}
-	return e.scanPids()
+	allProcesses, err := ps.Processes()
+	if err != nil {
+		return nil, err
+	}
+	return e.scanPids(os.Getpid(), allProcesses)
 }
 
 // destroyCgroup kills all processes in the cgroup and removes the cgroup

@@ -453,6 +453,7 @@ func DefaultConfig() *Config {
 			StatsConfig: &StatsConfig{
 				DataPoints:         60,
 				CollectionInterval: "1s",
+				collectionInterval: 1 * time.Second,
 			},
 		},
 		Server: &ServerConfig{

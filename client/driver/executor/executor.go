@@ -742,3 +742,44 @@ func (e *UniversalExecutor) scanPids(parentPid int, allPids []ps.Process) ([]*no
 	}
 	return res, nil
 }
+
+// aggregatedResourceUsage aggregates the resource usage of all the pids and
+// returns a TaskResourceUsage data point
+func (e *UniversalExecutor) aggregatedResourceUsage(pidStats map[string]*cstructs.ResourceUsage) *cstructs.TaskResourceUsage {
+	ts := time.Now()
+	var (
+		systemModeCPU, userModeCPU, percent float64
+		totalRSS, totalSwap                 uint64
+	)
+
+	for _, pidStat := range pidStats {
+		systemModeCPU += pidStat.CpuStats.SystemMode
+		userModeCPU += pidStat.CpuStats.UserMode
+		percent += pidStat.CpuStats.Percent
+
+		totalRSS += pidStat.MemoryStats.RSS
+		totalSwap += pidStat.MemoryStats.Swap
+	}
+
+	totalCPU := &cstructs.CpuStats{
+		SystemMode: systemModeCPU,
+		UserMode:   userModeCPU,
+		Percent:    percent,
+	}
+
+	totalMemory := &cstructs.MemoryStats{
+		RSS:  totalRSS,
+		Swap: totalSwap,
+	}
+
+	resourceUsage := cstructs.ResourceUsage{
+		MemoryStats: totalMemory,
+		CpuStats:    totalCPU,
+		Timestamp:   ts,
+	}
+	return &cstructs.TaskResourceUsage{
+		ResourceUsage: &resourceUsage,
+		Timestamp:     ts,
+		Pids:          pidStats,
+	}
+}
