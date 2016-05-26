@@ -1,13 +1,13 @@
 package api
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"net/url"
 	"sort"
 	"time"
+
+	"github.com/hashicorp/go-cleanhttp"
 )
 
 // Allocations is used to query the alloc-related endpoints.
@@ -53,32 +53,16 @@ func (a *Allocations) Stats(alloc *Allocation, q *QueryOptions) (map[string]*Tas
 	if node.HTTPAddr == "" {
 		return nil, fmt.Errorf("http addr of the node where alloc %q is running is not advertised", alloc.ID)
 	}
-	u := &url.URL{
-		Scheme: "http",
-		Host:   node.HTTPAddr,
-		Path:   "/v1/client/stats/",
-	}
-	v := url.Values{}
-	v.Set("allocation", alloc.ID)
-	u.RawQuery = v.Encode()
-	req := &http.Request{
-		Method: "GET",
-		URL:    u,
-	}
-	c := http.Client{}
-	resp, err := c.Do(req)
+	client, err := NewClient(&Config{
+		Address:    fmt.Sprintf("http://%s", node.HTTPAddr),
+		HttpClient: cleanhttp.DefaultClient(),
+	})
 	if err != nil {
 		return nil, err
 	}
-	if resp.StatusCode != 200 {
-		return nil, getErrorMsg(resp)
-	}
-	decoder := json.NewDecoder(resp.Body)
-	var stats map[string]*TaskResourceUsage
-	if err := decoder.Decode(&stats); err != nil {
-		return nil, err
-	}
-	return stats, nil
+	res := make(map[string]*TaskResourceUsage)
+	client.query("/v1/client/allocation/"+alloc.ID+"/stats", &res, nil)
+	return res, nil
 }
 
 func getErrorMsg(resp *http.Response) error {
