@@ -651,10 +651,10 @@ func (p *RpcProxy) UpdateFromNodeUpdateResponse(resp *structs.NodeUpdateResponse
 		//   'n' == new
 		state byte
 	}
-	mergedNomadMap := make(map[EndpointKey]*targetServer, len(p.primaryServers.L)+len(resp.Servers))
+	mergedPrimaryMap := make(map[EndpointKey]*targetServer, len(p.primaryServers.L)+len(resp.Servers))
 	numOldServers := 0
 	for _, s := range p.primaryServers.L {
-		mergedNomadMap[*s.Key()] = &targetServer{server: s, state: 'o'}
+		mergedPrimaryMap[*s.Key()] = &targetServer{server: s, state: 'o'}
 		numOldServers++
 	}
 	numBothServers := 0
@@ -685,12 +685,12 @@ func (p *RpcProxy) UpdateFromNodeUpdateResponse(resp *structs.NodeUpdateResponse
 		}
 
 		k := server.Key()
-		_, found := mergedNomadMap[*k]
+		_, found := mergedPrimaryMap[*k]
 		if found {
-			mergedNomadMap[*k].state = 'b'
+			mergedPrimaryMap[*k].state = 'b'
 			numBothServers++
 		} else {
-			mergedNomadMap[*k] = &targetServer{server: server, state: 'n'}
+			mergedPrimaryMap[*k] = &targetServer{server: server, state: 'n'}
 			newServers = true
 		}
 	}
@@ -703,7 +703,7 @@ func (p *RpcProxy) UpdateFromNodeUpdateResponse(resp *structs.NodeUpdateResponse
 	p.listLock.Lock()
 	defer p.listLock.Unlock()
 	newServerCfg := p.getServerList()
-	for k, v := range mergedNomadMap {
+	for k, v := range mergedPrimaryMap {
 		switch v.state {
 		case 'b':
 			// Do nothing, server exists in both
