@@ -16,7 +16,7 @@ type StatsCommand struct {
 
 func (f *StatsCommand) Help() string {
 	helpText := `
-Usage: nomad node-status [options] <alloc-id>
+Usage: nomad stats [options] <alloc-id>
 
   Displays statistics related to resource usage of tasks in an allocation.  Use
   the -task flag to query statistics of an individual task running in an
@@ -36,13 +36,13 @@ Node Stats Options:
 }
 
 func (f *StatsCommand) Synopsis() string {
-	return "Dispalys stats of an allocation or a task running on a nomad client"
+	return "Dispalys resource usage stats of an allocation or a task running on a nomad client"
 }
 
 func (f *StatsCommand) Run(args []string) int {
 	var verbose bool
 	var task string
-	flags := f.Meta.FlagSet("fs-list", FlagSetClient)
+	flags := f.Meta.FlagSet("stats", FlagSetClient)
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.StringVar(&task, "task", "", "")
 	flags.Usage = func() { f.Ui.Output(f.Help()) }
