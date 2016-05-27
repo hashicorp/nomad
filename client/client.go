@@ -1252,7 +1252,7 @@ func (c *Client) setupConsulSyncer() error {
 		c.configLock.RUnlock()
 
 		nomadServerServiceName := c.config.ConsulConfig.ServerServiceName
-		services, _, err := c.consulSyncer.ConsulClient().Catalog().Service(nomadServerServiceName, "", &consulapi.QueryOptions{AllowStale: true})
+		services, _, err := c.consulSyncer.ConsulClient().Catalog().Service(nomadServerServiceName, consul.ServiceTagRpc, &consulapi.QueryOptions{AllowStale: true})
 		if err != nil {
 			c.logger.Printf("[WARN] client: unable to query service %q: %v", nomadServerServiceName, err)
 			return

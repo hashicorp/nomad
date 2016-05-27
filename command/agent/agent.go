@@ -38,11 +38,13 @@ type Agent struct {
 	// consulSyncer registers the Nomad agent with the Consul Agent
 	consulSyncer *consul.Syncer
 
-	serverRpcAddr  string
+	client         *client.Client
 	clientHttpAddr string
+	clientRpcAddr  string
 
-	server *nomad.Server
-	client *client.Client
+	server         *nomad.Server
+	serverHttpAddr string
+	serverRpcAddr  string
 
 	shutdown     bool
 	shutdownCh   types.ShutdownChannel
@@ -166,6 +168,23 @@ func (a *Agent) serverConfig() (*nomad.Config, error) {
 		conf.SerfConfig.MemberlistConfig.BindPort = port
 	}
 
+	// Resolve the Server's HTTP Address
+	if a.config.AdvertiseAddrs.HTTP != "" {
+		a.serverHttpAddr = a.config.AdvertiseAddrs.HTTP
+	} else if a.config.Addresses.HTTP != "" {
+		a.serverHttpAddr = fmt.Sprintf("%v:%v", a.config.Addresses.HTTP, a.config.Ports.HTTP)
+	} else if a.config.BindAddr != "" {
+		a.serverHttpAddr = fmt.Sprintf("%v:%v", a.config.BindAddr, a.config.Ports.HTTP)
+	} else {
+		a.serverHttpAddr = fmt.Sprintf("%v:%v", "127.0.0.1", a.config.Ports.HTTP)
+	}
+	addr, err := net.ResolveTCPAddr("tcp", a.serverHttpAddr)
+	if err != nil {
+		return nil, fmt.Errorf("error resolving HTTP addr %q: %v:", a.serverHttpAddr, err)
+	}
+	a.serverHttpAddr = fmt.Sprintf("%s:%d", addr.IP.String(), addr.Port)
+
+	// Resolve the Server's RPC Address
 	if a.config.AdvertiseAddrs.RPC != "" {
 		a.serverRpcAddr = a.config.AdvertiseAddrs.RPC
 	} else if a.config.Addresses.RPC != "" {
@@ -175,7 +194,7 @@ func (a *Agent) serverConfig() (*nomad.Config, error) {
 	} else {
 		a.serverRpcAddr = fmt.Sprintf("%v:%v", "127.0.0.1", a.config.Ports.RPC)
 	}
-	addr, err := net.ResolveTCPAddr("tcp", a.serverRpcAddr)
+	addr, err = net.ResolveTCPAddr("tcp", a.serverRpcAddr)
 	if err != nil {
 		return nil, fmt.Errorf("error resolving RPC addr %q: %v:", a.serverRpcAddr, err)
 	}
@@ -251,22 +270,39 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	conf.Node.Meta = a.config.Client.Meta
 	conf.Node.NodeClass = a.config.Client.NodeClass
 
-	// Setting the proper HTTP Addr
-	httpAddr := fmt.Sprintf("%s:%d", a.config.BindAddr, a.config.Ports.HTTP)
-	if a.config.Addresses.HTTP != "" && a.config.AdvertiseAddrs.HTTP == "" {
-		httpAddr = fmt.Sprintf("%s:%d", a.config.Addresses.HTTP, a.config.Ports.HTTP)
-		if _, err := net.ResolveTCPAddr("tcp", httpAddr); err != nil {
-			return nil, fmt.Errorf("error resolving http addr: %v:", err)
-		}
-	} else if a.config.AdvertiseAddrs.HTTP != "" {
-		addr, err := net.ResolveTCPAddr("tcp", a.config.AdvertiseAddrs.HTTP)
-		if err != nil {
-			return nil, fmt.Errorf("error resolving advertise http addr: %v", err)
-		}
-		httpAddr = fmt.Sprintf("%s:%d", addr.IP.String(), addr.Port)
+	// Resolve the Client's HTTP address
+	if a.config.AdvertiseAddrs.HTTP != "" {
+		a.clientHttpAddr = a.config.AdvertiseAddrs.HTTP
+	} else if a.config.Addresses.HTTP != "" {
+		a.clientHttpAddr = fmt.Sprintf("%v:%v", a.config.Addresses.HTTP, a.config.Ports.HTTP)
+	} else if a.config.BindAddr != "" {
+		a.clientHttpAddr = fmt.Sprintf("%v:%v", a.config.BindAddr, a.config.Ports.HTTP)
+	} else {
+		a.clientHttpAddr = fmt.Sprintf("%v:%v", "127.0.0.1", a.config.Ports.HTTP)
 	}
+	addr, err := net.ResolveTCPAddr("tcp", a.clientHttpAddr)
+	if err != nil {
+		return nil, fmt.Errorf("error resolving HTTP addr %q: %v:", a.clientHttpAddr, err)
+	}
+	httpAddr := fmt.Sprintf("%s:%d", addr.IP.String(), addr.Port)
 	conf.Node.HTTPAddr = httpAddr
 	a.clientHttpAddr = httpAddr
+
+	// Resolve the Client's RPC address
+	if a.config.AdvertiseAddrs.RPC != "" {
+		a.clientRpcAddr = a.config.AdvertiseAddrs.RPC
+	} else if a.config.Addresses.RPC != "" {
+		a.clientRpcAddr = fmt.Sprintf("%v:%v", a.config.Addresses.RPC, a.config.Ports.RPC)
+	} else if a.config.BindAddr != "" {
+		a.clientRpcAddr = fmt.Sprintf("%v:%v", a.config.BindAddr, a.config.Ports.RPC)
+	} else {
+		a.clientRpcAddr = fmt.Sprintf("%v:%v", "127.0.0.1", a.config.Ports.RPC)
+	}
+	addr, err = net.ResolveTCPAddr("tcp", a.clientRpcAddr)
+	if err != nil {
+		return nil, fmt.Errorf("error resolving RPC addr %q: %v:", a.clientRpcAddr, err)
+	}
+	a.clientRpcAddr = fmt.Sprintf("%s:%d", addr.IP.String(), addr.Port)
 
 	// Reserve resources on the node.
 	r := conf.Node.Reserved
@@ -524,21 +560,44 @@ func (a *Agent) setupConsulSyncer(shutdownCh types.ShutdownChannel) (err error) 
 // when running in either Client or Server mode.
 func (a *Agent) syncAgentServicesWithConsul() error {
 	var services []*structs.Service
-	if a.client != nil && a.config.Consul.ClientServiceName != "" {
-		clientService := &structs.Service{
-			Name:      a.config.Consul.ClientServiceName,
-			PortLabel: a.clientHttpAddr,
+	if a.client != nil {
+		if a.config.Consul.ClientServiceName != "" {
+			clientRpcService := &structs.Service{
+				Name:      a.config.Consul.ClientServiceName,
+				PortLabel: a.clientRpcAddr,
+				Tags:      []string{consul.ServiceTagRpc},
+			}
+			services = append(services, clientRpcService)
+
+			clientHttpService := &structs.Service{
+				Name:      a.config.Consul.ClientServiceName,
+				PortLabel: a.clientHttpAddr,
+				Tags:      []string{consul.ServiceTagHttp},
+			}
+			services = append(services, clientHttpService)
+
+			a.consulSyncer.SetServiceIdentifier("agent-client")
 		}
-		services = append(services, clientService)
-		a.consulSyncer.SetServiceIdentifier("agent-client")
 	}
-	if a.server != nil && a.config.Consul.ServerServiceName != "" {
-		serverService := &structs.Service{
-			Name:      a.config.Consul.ServerServiceName,
-			PortLabel: a.serverRpcAddr,
+
+	if a.server != nil {
+		if a.config.Consul.ServerServiceName != "" {
+			serverRpcService := &structs.Service{
+				Name:      a.config.Consul.ServerServiceName,
+				Tags:      []string{consul.ServiceTagRpc},
+				PortLabel: a.serverRpcAddr,
+			}
+			services = append(services, serverRpcService)
+
+			serverHttpService := &structs.Service{
+				Name:      a.config.Consul.ServerServiceName,
+				Tags:      []string{consul.ServiceTagHttp},
+				PortLabel: a.serverHttpAddr,
+			}
+			services = append(services, serverHttpService)
+
+			a.consulSyncer.SetServiceIdentifier("agent-server")
 		}
-		services = append(services, serverService)
-		a.consulSyncer.SetServiceIdentifier("agent-server")
 	}
 
 	a.consulSyncer.SetAddrFinder(func(portLabel string) (string, int) {

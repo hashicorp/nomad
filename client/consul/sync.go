@@ -68,6 +68,12 @@ const (
 	// ttlCheckBuffer is the time interval that Nomad can take to report Consul
 	// the check result
 	ttlCheckBuffer = 31 * time.Second
+
+	// ServiceTagHttp is the tag assigned to HTTP services
+	ServiceTagHttp = "http"
+
+	// ServiceTagRpc is the tag assigned to RPC services
+	ServiceTagRpc = "rpc"
 )
 
 // NewSyncer returns a new consul.Syncer
