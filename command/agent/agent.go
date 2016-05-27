@@ -17,7 +17,6 @@ import (
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/nomad/structs/config"
 )
 
 // Agent is a long running daemon that is used to run both
@@ -29,10 +28,6 @@ type Agent struct {
 	config    *Config
 	logger    *log.Logger
 	logOutput io.Writer
-
-	// consulConfig is a limited subset of the information necessary to
-	// establish a connection with this Nomad Agent's Consul Agent.
-	consulConfig *config.ConsulConfig
 
 	// consulSyncer registers the Nomad agent with the Consul Agent
 	consulSyncer *consul.Syncer
@@ -318,7 +313,7 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	conf.Version = fmt.Sprintf("%s%s", a.config.Version, a.config.VersionPrerelease)
 	conf.Revision = a.config.Revision
 
-	conf.ConsulConfig = a.consulConfig
+	conf.ConsulConfig = a.config.Consul
 
 	conf.StatsDataPoints = a.config.Client.StatsConfig.DataPoints
 	conf.StatsCollectionInterval = a.config.Client.StatsConfig.collectionInterval
@@ -535,22 +530,8 @@ func (a *Agent) Stats() map[string]map[string]string {
 
 // setupConsulSyncer creates the Consul task used by this Nomad Agent when
 // running in either Client and Server mode.
-func (a *Agent) setupConsulSyncer(shutdownCh types.ShutdownChannel) (err error) {
-	cfg := &config.ConsulConfig{
-		Addr:              a.config.Consul.Addr,
-		Token:             a.config.Consul.Token,
-		Auth:              a.config.Consul.Auth,
-		EnableSSL:         a.config.Consul.EnableSSL,
-		VerifySSL:         a.config.Consul.VerifySSL,
-		CAFile:            a.config.Consul.CAFile,
-		CertFile:          a.config.Consul.CertFile,
-		KeyFile:           a.config.Consul.KeyFile,
-		ServerServiceName: a.config.Consul.ServerServiceName,
-		ClientServiceName: a.config.Consul.ClientServiceName,
-	}
-	a.consulConfig = cfg
-
-	a.consulSyncer, err = consul.NewSyncer(cfg, a.logger)
+func (a *Agent) setupConsulSyncer(shutdownCh chan struct{}) (err error) {
+	a.consulSyncer, err = consul.NewSyncer(a.config.Consul, a.logger)
 
 	return nil
 }
