@@ -123,13 +123,13 @@ type Client struct {
 	configCopy *config.Config
 	configLock sync.RWMutex
 
+	logger *log.Logger
+
 	// backupServerDeadline is the deadline at which this Nomad Agent
 	// will begin polling Consul for a list of Nomad Servers.  When Nomad
 	// Clients are heartbeating successfully with Nomad Servers, Nomad
 	// Clients do not poll Consul for a backup server list.
 	backupServerDeadline time.Time
-
-	logger *log.Logger
 
 	rpcProxy *rpcproxy.RpcProxy
 
@@ -342,7 +342,7 @@ func (c *Client) RPC(method string, args interface{}, reply interface{}) error {
 	}
 
 	// Make the RPC request
-	if err := c.connPool.RPC(c.Region(), server.Addr, rpcVersion, method, args, reply); err != nil {
+	if err := c.connPool.RPC(c.Region(), server.Addr, c.RpcVersion(), method, args, reply); err != nil {
 		c.rpcProxy.NotifyFailedServer(server)
 		c.logger.Printf("[ERR] client: RPC failed to server %s: %v", server.Addr, err)
 		return err
