@@ -39,7 +39,7 @@ type Syncer struct {
 
 	logger *log.Logger
 
-	shutdownCh   types.ShutdownChannel
+	shutdownCh   chan struct{}
 	shutdown     bool
 	shutdownLock sync.Mutex
 
@@ -135,7 +135,7 @@ func NewSyncer(config *config.ConsulConfig, logger *log.Logger) (*Syncer, error)
 		trackedServices:   make(map[string]*consul.AgentService),
 		trackedChecks:     make(map[string]*consul.AgentCheckRegistration),
 		checkRunners:      make(map[string]*CheckRunner),
-		shutdownCh:        make(types.ShutdownChannel),
+		shutdownCh:        make(chan struct{}),
 		periodicCallbacks: make(map[string]types.PeriodicCallback),
 	}
 	return &consulSyncer, nil

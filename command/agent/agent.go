@@ -18,7 +18,6 @@ import (
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
-	"github.com/hashicorp/nomad/nomad/types"
 )
 
 // Agent is a long running daemon that is used to run both
@@ -47,7 +46,7 @@ type Agent struct {
 	serverRpcAddr  string
 
 	shutdown     bool
-	shutdownCh   types.ShutdownChannel
+	shutdownCh   chan struct{}
 	shutdownLock sync.Mutex
 }
 
@@ -58,7 +57,7 @@ func NewAgent(config *Config, logOutput io.Writer) (*Agent, error) {
 		logOutput = os.Stderr
 	}
 
-	shutdownCh := make(types.ShutdownChannel)
+	shutdownCh := make(chan struct{})
 	a := &Agent{
 		config:     config,
 		logger:     log.New(logOutput, "", log.LstdFlags),
