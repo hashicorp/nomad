@@ -80,6 +80,7 @@ type DockerDriverConfig struct {
 	SSL              bool                `mapstructure:"ssl"`                // Flag indicating repository is served via https
 	TTY              bool                `mapstructure:"tty"`                // Allocate a Pseudo-TTY
 	Interactive      bool                `mapstructure:"interactive"`        // Keep STDIN open even if not attached
+	ShmSize          int64               `mapstructure:"shm_size"`           // Size of /dev/shm of the container in bytes
 }
 
 func (c *DockerDriverConfig) Init() error {
@@ -189,6 +190,9 @@ func (d *DockerDriver) Validate(config map[string]interface{}) error {
 			},
 			"interactive": &fields.FieldSchema{
 				Type: fields.TypeBool,
+			},
+			"shm_size": &fields.FieldSchema{
+				Type: fields.TypeInt,
 			},
 		},
 	}
@@ -348,6 +352,11 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task,
 		return c, fmt.Errorf(`Docker privileged mode is disabled on this Nomad agent`)
 	}
 	hostConfig.Privileged = hostPrivileged
+
+	// set SHM size
+	if driverConfig.ShmSize != 0 {
+		hostConfig.ShmSize = driverConfig.ShmSize
+	}
 
 	// set DNS servers
 	for _, ip := range driverConfig.DNSServers {

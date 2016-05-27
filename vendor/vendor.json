@@ -175,8 +175,10 @@
 			"revision": "8929fe90cee4b2cb9deb468b51fb34eba64d1bf0"
 		},
 		{
+			"checksumSHA1": "bA5kwt3jUUgTELOvV6yRg4fwn8c=",
 			"path": "github.com/fsouza/go-dockerclient",
-			"revision": "7c07ffce0f7e14a4da49ce92a2842d4e87be1c1e"
+			"revision": "ba4298ecf4cfa216f1cce2befbf653359f62c722",
+			"revisionTime": "2016-04-21T14:43:05Z"
 		},
 		{
 			"path": "github.com/fsouza/go-dockerclient/external/github.com/Sirupsen/logrus",
@@ -600,5 +602,5 @@
 			"revisionTime": "2016-04-21T02:29:30Z"
 		}
 	],
-	"rootPath": "github.com/hashicorp/nomad"
+	"rootPath": "github.com/dkerwin/nomad"
 }

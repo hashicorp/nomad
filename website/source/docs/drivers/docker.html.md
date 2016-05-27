@@ -105,6 +105,8 @@ The following options are available for use in the job specification.
 
 * `interactive` - (Optional) `true` or `false` (default). Keep STDIN open on
   the container.
+  
+* `shm_size` - (Optional) The size (bytes) of /dev/shm for the container.
 
 ### Container Name
 

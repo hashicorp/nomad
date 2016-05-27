@@ -334,8 +334,8 @@ func (c *Client) eventHijack(startTime int64, eventChan chan *APIEvents, errChan
 // transformEvent takes an event and determines what version it is from
 // then populates both versions of the event
 func transformEvent(event *APIEvents) {
-	// if <= 1.21, `status` and `ID` will be populated
-	if event.Status != "" && event.ID != "" {
+	// if event version is <= 1.21 there will be no Action and no Type
+	if event.Action == "" && event.Type == "" {
 		event.Action = event.Status
 		event.Actor.ID = event.ID
 		event.Actor.Attributes = map[string]string{}
@@ -349,16 +349,22 @@ func transformEvent(event *APIEvents) {
 			}
 		}
 	} else {
-		if event.Type == "image" || event.Type == "container" {
-			event.Status = event.Action
-		} else {
-			// Because just the Status has been overloaded with different Types
-			// if an event is not for an image or a container, we prepend the type
-			// to avoid problems for people relying on actions being only for
-			// images and containers
-			event.Status = event.Type + ":" + event.Action
+		if event.Status == "" {
+			if event.Type == "image" || event.Type == "container" {
+				event.Status = event.Action
+			} else {
+				// Because just the Status has been overloaded with different Types
+				// if an event is not for an image or a container, we prepend the type
+				// to avoid problems for people relying on actions being only for
+				// images and containers
+				event.Status = event.Type + ":" + event.Action
+			}
 		}
-		event.ID = event.Actor.ID
-		event.From = event.Actor.Attributes["image"]
+		if event.ID == "" {
+			event.ID = event.Actor.ID
+		}
+		if event.From == "" {
+			event.From = event.Actor.Attributes["image"]
+		}
 	}
 }
