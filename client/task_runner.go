@@ -461,8 +461,11 @@ func (r *TaskRunner) startTask() error {
 
 // collectResourceUsageStats starts collecting resource usage stats of a Task
 func (r *TaskRunner) collectResourceUsageStats() {
+	// start collecting the stats right away and then start collecting every
+	// collection interval
+	next := time.NewTimer(0)
+	defer next.Stop()
 	for {
-		next := time.NewTimer(r.config.StatsCollectionInterval)
 		select {
 		case <-next.C:
 			ru, err := r.handle.Stats()
@@ -474,7 +477,6 @@ func (r *TaskRunner) collectResourceUsageStats() {
 			r.resourceUsageLock.Unlock()
 			next.Reset(r.config.StatsCollectionInterval)
 		case <-r.handle.WaitCh():
-			next.Stop()
 			return
 		}
 	}
