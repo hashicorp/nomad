@@ -645,7 +645,7 @@ func (p *RpcProxy) UpdateFromNodeUpdateResponse(resp *structs.NodeUpdateResponse
 	// Clear the backup server list when a heartbeat contains at least
 	// one server.
 	if len(resp.Servers) > 0 && len(p.backupServers.L) > 0 {
-		p.backupServers.L = make([]*ServerEndpoint, len(resp.Servers))
+		p.backupServers.L = make([]*ServerEndpoint, 0, len(resp.Servers))
 	}
 
 	// 1) Create a map to reconcile the difference between
