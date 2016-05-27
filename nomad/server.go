@@ -703,12 +703,11 @@ func (s *Server) RPC(method string, args interface{}, reply interface{}) error {
 
 // RaftPeers returns the current list of Raft peers
 func (s *Server) RaftPeers() ([]string, error) {
-	if peers, err := s.raftPeers.Peers(); err == nil {
-		return peers, nil
-	} else {
+	if peers, err := s.raftPeers.Peers(); err != nil {
 		s.logger.Printf("[DEBUG] server: error getting raft peers: %v", err)
 		return nil, err
 	}
+	return peers, nil
 }
 
 // Stats is used to return statistics for debugging and insight
