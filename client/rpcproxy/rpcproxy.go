@@ -1,4 +1,4 @@
-// Package rpc_proxy provides a proxy interface for Nomad Servers.  The
+// Package rpcproxy provides a proxy interface for Nomad Servers.  The
 // RpcProxy periodically shuffles which server a Nomad Client communicates
 // with in order to redistribute load across Nomad Servers.  Nomad Servers
 // that fail an RPC request are automatically cycled to the end of the list
