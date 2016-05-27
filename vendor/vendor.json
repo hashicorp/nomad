@@ -602,5 +602,5 @@
 			"revisionTime": "2016-04-21T02:29:30Z"
 		}
 	],
-	"rootPath": "github.com/dkerwin/nomad"
+	"rootPath": "github.com/hashicorp/nomad"
 }
