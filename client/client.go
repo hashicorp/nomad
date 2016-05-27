@@ -678,7 +678,7 @@ func (c *Client) fingerprint() error {
 
 // fingerprintPeriodic runs a fingerprinter at the specified duration.
 func (c *Client) fingerprintPeriodic(name string, f fingerprint.Fingerprint, d time.Duration) {
-	c.logger.Printf("[DEBUG] client: periodically fingerprinting %v at duration %v", name, d)
+	c.logger.Printf("[DEBUG] client: fingerprinting %v every %v", name, d)
 	for {
 		select {
 		case <-time.After(d):
