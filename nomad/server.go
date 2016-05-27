@@ -703,7 +703,8 @@ func (s *Server) RPC(method string, args interface{}, reply interface{}) error {
 
 // RaftPeers returns the current list of Raft peers
 func (s *Server) RaftPeers() ([]string, error) {
-	if peers, err := s.raftPeers.Peers(); err != nil {
+	peers, err := s.raftPeers.Peers()
+	if err != nil {
 		s.logger.Printf("[DEBUG] server: error getting raft peers: %v", err)
 		return nil, err
 	}
