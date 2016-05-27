@@ -342,7 +342,7 @@ func (c *Client) RPC(method string, args interface{}, reply interface{}) error {
 	}
 
 	// Make the RPC request
-	if err := c.connPool.RPC(c.Region(), server.Addr, c.RpcVersion(), method, args, reply); err != nil {
+	if err := c.connPool.RPC(c.Region(), server.Addr, c.RPCVersion(), method, args, reply); err != nil {
 		c.rpcProxy.NotifyFailedServer(server)
 		c.logger.Printf("[ERR] client: RPC failed to server %s: %v", server.Addr, err)
 		return err
