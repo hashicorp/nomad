@@ -62,7 +62,8 @@ type GenericScheduler struct {
 	limitReached bool
 	nextEval     *structs.Evaluation
 
-	blocked *structs.Evaluation
+	blocked        *structs.Evaluation
+	failedTGAllocs map[string]*structs.AllocMetric
 }
 
 // NewServiceScheduler is a factory function to instantiate a new service scheduler
@@ -100,7 +101,8 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 	default:
 		desc := fmt.Sprintf("scheduler cannot handle '%s' evaluation reason",
 			eval.TriggeredBy)
-		return setStatus(s.logger, s.planner, s.eval, s.nextEval, s.blocked, structs.EvalStatusFailed, desc)
+		return setStatus(s.logger, s.planner, s.eval, s.nextEval, s.blocked,
+			s.failedTGAllocs, structs.EvalStatusFailed, desc)
 	}
 
 	// Retry up to the maxScheduleAttempts and reset if progress is made.
@@ -117,7 +119,8 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 			if err := s.createBlockedEval(true); err != nil {
 				mErr.Errors = append(mErr.Errors, err)
 			}
-			if err := setStatus(s.logger, s.planner, s.eval, s.nextEval, s.blocked, statusErr.EvalStatus, err.Error()); err != nil {
+			if err := setStatus(s.logger, s.planner, s.eval, s.nextEval, s.blocked,
+				s.failedTGAllocs, statusErr.EvalStatus, err.Error()); err != nil {
 				mErr.Errors = append(mErr.Errors, err)
 			}
 			return mErr.ErrorOrNil()
@@ -127,12 +130,13 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 
 	// If the current evaluation is a blocked evaluation and we didn't place
 	// everything, do not update the status to complete.
-	if s.eval.Status == structs.EvalStatusBlocked && len(s.eval.FailedTGAllocs) != 0 {
+	if s.eval.Status == structs.EvalStatusBlocked && len(s.failedTGAllocs) != 0 {
 		return s.planner.ReblockEval(s.eval)
 	}
 
 	// Update the status to complete
-	return setStatus(s.logger, s.planner, s.eval, s.nextEval, s.blocked, structs.EvalStatusComplete, "")
+	return setStatus(s.logger, s.planner, s.eval, s.nextEval, s.blocked,
+		s.failedTGAllocs, structs.EvalStatusComplete, "")
 }
 
 // createBlockedEval creates a blocked eval and submits it to the planner. If
@@ -170,7 +174,7 @@ func (s *GenericScheduler) process() (bool, error) {
 	s.plan = s.eval.MakePlan(s.job)
 
 	// Reset the failed allocations
-	s.eval.FailedTGAllocs = nil
+	s.failedTGAllocs = nil
 
 	// Create an evaluation context
 	s.ctx = NewEvalContext(s.state, s.plan, s.logger)
@@ -190,7 +194,7 @@ func (s *GenericScheduler) process() (bool, error) {
 	// If there are failed allocations, we need to create a blocked evaluation
 	// to place the failed allocations when resources become available. If the
 	// current evaluation is already a blocked eval, we reuse it.
-	if s.eval.Status != structs.EvalStatusBlocked && len(s.eval.FailedTGAllocs) != 0 && s.blocked == nil {
+	if s.eval.Status != structs.EvalStatusBlocked && len(s.failedTGAllocs) != 0 && s.blocked == nil {
 		if err := s.createBlockedEval(false); err != nil {
 			s.logger.Printf("[ERR] sched: %#v failed to make blocked eval: %v", s.eval, err)
 			return false, err
@@ -382,7 +386,7 @@ func (s *GenericScheduler) computePlacements(place []allocTuple) error {
 
 	for _, missing := range place {
 		// Check if this task group has already failed
-		if metric, ok := s.eval.FailedTGAllocs[missing.TaskGroup.Name]; ok {
+		if metric, ok := s.failedTGAllocs[missing.TaskGroup.Name]; ok {
 			metric.CoalescedFailures += 1
 			continue
 		}
@@ -416,11 +420,11 @@ func (s *GenericScheduler) computePlacements(place []allocTuple) error {
 			s.plan.AppendAlloc(alloc)
 		} else {
 			// Lazy initialize the failed map
-			if s.eval.FailedTGAllocs == nil {
-				s.eval.FailedTGAllocs = make(map[string]*structs.AllocMetric)
+			if s.failedTGAllocs == nil {
+				s.failedTGAllocs = make(map[string]*structs.AllocMetric)
 			}
 
-			s.eval.FailedTGAllocs[missing.TaskGroup.Name] = s.ctx.Metrics()
+			s.failedTGAllocs[missing.TaskGroup.Name] = s.ctx.Metrics()
 		}
 	}
 
