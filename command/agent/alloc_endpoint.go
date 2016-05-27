@@ -1,7 +1,9 @@
 package agent
 
 import (
+	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -75,10 +77,24 @@ func (s *HTTPServer) ClientAllocRequest(resp http.ResponseWriter, req *http.Requ
 		return nil, CodedError(404, "alloc not running on node")
 	}
 
+	var since int
+	var err error
+	ts := false
+	if sinceTime := req.URL.Query().Get("since"); sinceTime != "" {
+		ts = true
+		since, err = strconv.Atoi(sinceTime)
+		if err != nil {
+			return nil, CodedError(400, fmt.Sprintf("can't read the since query parameter: %v", err))
+		}
+	}
+
 	if task := req.URL.Query().Get("task"); task != "" {
 		taskStats, ok := allocStats.AllocStats()[task]
 		if !ok {
 			return nil, CodedError(404, "task not present in allocation")
+		}
+		if ts {
+			return taskStats.ResourceUsageTS(int64(since)), nil
 		}
 		return taskStats.ResourceUsage(), nil
 	}
@@ -87,7 +103,11 @@ func (s *HTTPServer) ClientAllocRequest(resp http.ResponseWriter, req *http.Requ
 	// is not specified
 	res := make(map[string]interface{})
 	for task, taskStats := range allocStats.AllocStats() {
-		res[task] = taskStats.ResourceUsage()
+		if ts {
+			res[task] = taskStats.ResourceUsageTS(int64(since))
+		} else {
+			res[task] = taskStats.ResourceUsage()
+		}
 	}
 	return res, nil
 }

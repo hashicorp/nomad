@@ -39,11 +39,11 @@ const (
 type TaskStatsReporter interface {
 	// ResourceUsage returns the latest resource usage data point collected for
 	// the task
-	ResourceUsage() *cstructs.TaskResourceUsage
+	ResourceUsage() []*cstructs.TaskResourceUsage
 
 	// ResourceUsageTS returns all the resource usage data points since a given
 	// time
-	ResourceUsageTS(since time.Time) []*cstructs.TaskResourceUsage
+	ResourceUsageTS(since int64) []*cstructs.TaskResourceUsage
 }
 
 // TaskRunner is used to wrap a task within an allocation and provide the execution context.
@@ -488,17 +488,17 @@ func (r *TaskRunner) StatsReporter() TaskStatsReporter {
 }
 
 // ResourceUsage returns the last resource utilization datapoint collected
-func (r *TaskRunner) ResourceUsage() *cstructs.TaskResourceUsage {
+func (r *TaskRunner) ResourceUsage() []*cstructs.TaskResourceUsage {
 	r.resourceUsageLock.RLock()
 	defer r.resourceUsageLock.RUnlock()
 	val := r.resourceUsage.Peek()
 	ru, _ := val.(*cstructs.TaskResourceUsage)
-	return ru
+	return []*cstructs.TaskResourceUsage{ru}
 }
 
 // ResourceUsageTS returns the list of all the resource utilization datapoints
 // collected
-func (r *TaskRunner) ResourceUsageTS(since time.Time) []*cstructs.TaskResourceUsage {
+func (r *TaskRunner) ResourceUsageTS(since int64) []*cstructs.TaskResourceUsage {
 	r.resourceUsageLock.RLock()
 	defer r.resourceUsageLock.RUnlock()
 
@@ -510,11 +510,11 @@ func (r *TaskRunner) ResourceUsageTS(since time.Time) []*cstructs.TaskResourceUs
 	for {
 		mid := (low + high) >> 1
 		midVal, _ := values[mid].(*cstructs.TaskResourceUsage)
-		if midVal.Timestamp.UnixNano() < since.UnixNano() {
+		if midVal.Timestamp < since {
 			low = mid + 1
-		} else if midVal.Timestamp.UnixNano() > since.UnixNano() {
+		} else if midVal.Timestamp > since {
 			high = mid - 1
-		} else if midVal.Timestamp.UnixNano() == since.UnixNano() {
+		} else if midVal.Timestamp == since {
 			idx = mid
 			break
 		}

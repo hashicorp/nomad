@@ -1,6 +1,8 @@
 package stats
 
 import (
+	"time"
+
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/disk"
 	"github.com/shirou/gopsutil/host"
@@ -13,6 +15,7 @@ type HostStats struct {
 	CPU       []*CPUStats
 	DiskStats []*DiskStats
 	Uptime    uint64
+	Timestamp int64
 }
 
 // MemoryStats represnts stats related to virtual memory usage
@@ -56,7 +59,7 @@ func NewHostStatsCollector() *HostStatsCollector {
 
 // Collect collects stats related to resource usage of a host
 func (h *HostStatsCollector) Collect() (*HostStats, error) {
-	hs := &HostStats{}
+	hs := &HostStats{Timestamp: time.Now().UTC().UnixNano()}
 	if memStats, err := mem.VirtualMemory(); err == nil {
 		ms := &MemoryStats{
 			Total:     memStats.Total,

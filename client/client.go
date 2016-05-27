@@ -91,8 +91,11 @@ type ClientStatsReporter interface {
 	// collector
 	AllocStats() map[string]AllocStatsReporter
 
-	// HostStats returns a stats collector for the host
-	HostStats() *stats.HostStats
+	// HostStats returns resource usage stats for the host
+	HostStats() []*stats.HostStats
+
+	// HostStatsTS returns a time series of host resource usage stats
+	HostStatsTS(since int64) []*stats.HostStats
 }
 
 // Client is used to implement the client interaction with Nomad. Clients
@@ -441,10 +444,47 @@ func (c *Client) AllocStats() map[string]AllocStatsReporter {
 }
 
 // HostStats returns all the stats related to a Nomad client
-func (c *Client) HostStats() *stats.HostStats {
+func (c *Client) HostStats() []*stats.HostStats {
+	c.resourceUsageLock.RLock()
+	defer c.resourceUsageLock.RUnlock()
 	val := c.resourceUsage.Peek()
 	ru, _ := val.(*stats.HostStats)
-	return ru
+	return []*stats.HostStats{ru}
+}
+
+func (c *Client) HostStatsTS(since int64) []*stats.HostStats {
+	c.resourceUsageLock.RLock()
+	defer c.resourceUsageLock.RUnlock()
+
+	values := c.resourceUsage.Values()
+	low := 0
+	high := len(values) - 1
+	var idx int
+
+	for {
+		mid := (low + high) >> 1
+		midVal, _ := values[mid].(*stats.HostStats)
+		if midVal.Timestamp < since {
+			low = mid + 1
+		} else if midVal.Timestamp > since {
+			high = mid - 1
+		} else if midVal.Timestamp == since {
+			idx = mid
+			break
+		}
+		if low > high {
+			idx = low
+			break
+		}
+	}
+	values = values[idx:]
+	ts := make([]*stats.HostStats, len(values))
+	for index, val := range values {
+		ru, _ := val.(*stats.HostStats)
+		ts[index] = ru
+	}
+	return ts
+
 }
 
 // GetAllocFS returns the AllocFS interface for the alloc dir of an allocation

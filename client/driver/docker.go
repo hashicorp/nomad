@@ -1006,7 +1006,7 @@ func (h *DockerHandle) collectStats() {
 						MemoryStats: ms,
 						CpuStats:    cs,
 					},
-					Timestamp: s.Read,
+					Timestamp: s.Read.UTC().UnixNano(),
 				}
 				h.resourceUsageLock.Unlock()
 			}

@@ -488,7 +488,6 @@ func (e *UniversalExecutor) DeregisterServices() error {
 // pidStats returns the resource usage stats per pid
 func (e *UniversalExecutor) pidStats() (map[string]*cstructs.ResourceUsage, error) {
 	stats := make(map[string]*cstructs.ResourceUsage)
-	ts := time.Now()
 	e.pidLock.RLock()
 	pids := make([]*nomadPid, len(e.pids))
 	copy(pids, e.pids)
@@ -513,7 +512,7 @@ func (e *UniversalExecutor) pidStats() (map[string]*cstructs.ResourceUsage, erro
 			// calculate cpu usage percent
 			cs.Percent = pid.cpuStats.Percent(cpuStats.Total())
 		}
-		stats[strconv.Itoa(pid.pid)] = &cstructs.ResourceUsage{MemoryStats: ms, CpuStats: cs, Timestamp: ts}
+		stats[strconv.Itoa(pid.pid)] = &cstructs.ResourceUsage{MemoryStats: ms, CpuStats: cs}
 	}
 
 	return stats, nil
@@ -748,7 +747,7 @@ func (e *UniversalExecutor) scanPids(parentPid int, allPids []ps.Process) ([]*no
 // aggregatedResourceUsage aggregates the resource usage of all the pids and
 // returns a TaskResourceUsage data point
 func (e *UniversalExecutor) aggregatedResourceUsage(pidStats map[string]*cstructs.ResourceUsage) *cstructs.TaskResourceUsage {
-	ts := time.Now()
+	ts := time.Now().UTC().UnixNano()
 	var (
 		systemModeCPU, userModeCPU, percent float64
 		totalRSS, totalSwap                 uint64
@@ -777,7 +776,6 @@ func (e *UniversalExecutor) aggregatedResourceUsage(pidStats map[string]*cstruct
 	resourceUsage := cstructs.ResourceUsage{
 		MemoryStats: totalMemory,
 		CpuStats:    totalCPU,
-		Timestamp:   ts,
 	}
 	return &cstructs.TaskResourceUsage{
 		ResourceUsage: &resourceUsage,
