@@ -4,6 +4,7 @@ import (
 	"time"
 )
 
+// MemoryStats holds memory usage related stats
 type MemoryStats struct {
 	RSS            uint64
 	Cache          uint64
@@ -13,6 +14,7 @@ type MemoryStats struct {
 	KernelMaxUsage uint64
 }
 
+// CpuStats holds cpu usage related stats
 type CpuStats struct {
 	SystemMode       float64
 	UserMode         float64
@@ -21,15 +23,17 @@ type CpuStats struct {
 	Percent          float64
 }
 
+// ResourceUsage holds information related to cpu and memory stats
 type ResourceUsage struct {
 	MemoryStats *MemoryStats
 	CpuStats    *CpuStats
-	Timestamp   time.Time
 }
 
+// TaskResourceUsage holds aggregated resource usage of all processes in a Task
+// and the resource usage of the individual pids
 type TaskResourceUsage struct {
 	ResourceUsage *ResourceUsage
-	Timestamp     time.Time
+	Timestamp     int64
 	Pids          map[string]*ResourceUsage
 }
 

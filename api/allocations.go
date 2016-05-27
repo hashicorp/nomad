@@ -58,8 +58,12 @@ func (a *Allocations) Stats(alloc *Allocation, q *QueryOptions) (map[string]*Tas
 	if err != nil {
 		return nil, err
 	}
+	resp := make(map[string][]*TaskResourceUsage)
+	client.query("/v1/client/allocation/"+alloc.ID+"/stats", &resp, nil)
 	res := make(map[string]*TaskResourceUsage)
-	client.query("/v1/client/allocation/"+alloc.ID+"/stats", &res, nil)
+	for task, ru := range resp {
+		res[task] = ru[0]
+	}
 	return res, nil
 }
 
