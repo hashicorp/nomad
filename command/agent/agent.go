@@ -369,7 +369,7 @@ func (a *Agent) setupClient() error {
 	}
 
 	// Create the client
-	client, err := client.NewClient(conf)
+	client, err := client.NewClient(conf, a.consulSyncer)
 	if err != nil {
 		return fmt.Errorf("client setup failed: %v", err)
 	}

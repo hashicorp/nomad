@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -76,7 +77,12 @@ func testClient(t *testing.T, cb func(c *config.Config)) *Client {
 		cb(conf)
 	}
 
-	client, err := NewClient(conf)
+	consulSyncer, err := consul.NewSyncer(conf, log.New(os.Stderr, "", log.LstdFlags))
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	client, err := NewClient(conf, consulSyncer)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -463,7 +469,12 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	}
 
 	// Create a new client
-	c2, err := NewClient(c1.config)
+	consulSyncer, err := consul.NewSyncer(c1.config, log.New(os.Stderr, "", log.LstdFlags))
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	c2, err := NewClient(c1.config, consulSyncer)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

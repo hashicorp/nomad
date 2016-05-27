@@ -527,13 +527,11 @@ func GenerateServiceIdentifier(allocID string, taskName string) string {
 func (c *Syncer) AddPeriodicHandler(name string, fn types.PeriodicCallback) bool {
 	c.periodicLock.Lock()
 	defer c.periodicLock.Unlock()
-	c.logger.Printf("[DEBUG] consul.sync: adding handler named %s", name)
 	if _, found := c.periodicCallbacks[name]; found {
 		c.logger.Printf("[ERROR] consul.sync: failed adding handler %q", name)
 		return false
 	}
 	c.periodicCallbacks[name] = fn
-	c.logger.Printf("[DEBUG] consul.sync: successfully added handler %q", name)
 	return true
 }
 
