@@ -393,14 +393,14 @@ func (p *RpcProxy) RebalanceServers() {
 	// Create a new merged serverList
 	type targetServer struct {
 		server *ServerEndpoint
-		// 'n' == Nomad Server
-		// 'c' == Consul Server
+		// 'p' == Primary Server
+		// 's' == Secondary/Backup Server
 		// 'b' == Both
 		state byte
 	}
 	mergedList := make(map[EndpointKey]*targetServer, len(p.primaryServers.L)+len(p.backupServers.L))
 	for _, s := range p.primaryServers.L {
-		mergedList[*s.Key()] = &targetServer{server: s, state: 'n'}
+		mergedList[*s.Key()] = &targetServer{server: s, state: 'p'}
 	}
 	for _, s := range p.backupServers.L {
 		k := s.Key()
@@ -408,7 +408,7 @@ func (p *RpcProxy) RebalanceServers() {
 		if found {
 			mergedList[*k].state = 'b'
 		} else {
-			mergedList[*k] = &targetServer{server: s, state: 'c'}
+			mergedList[*k] = &targetServer{server: s, state: 's'}
 		}
 	}
 
@@ -417,7 +417,7 @@ func (p *RpcProxy) RebalanceServers() {
 		l.L = append(l.L, s)
 	}
 	for _, v := range mergedList {
-		if v.state != 'c' {
+		if v.state != 's' {
 			continue
 		}
 		l.L = append(l.L, v.server)
