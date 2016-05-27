@@ -885,3 +885,105 @@ func TestEvalBroker_EnqueueAll_Dequeue_Fair(t *testing.T) {
 		t.Fatalf("timeout")
 	}
 }
+
+func TestEvalBroker_Reenqueue_Ack(t *testing.T) {
+	b := testBroker(t, 0)
+	b.SetEnabled(true)
+
+	// Create the evaluation, enqueue and dequeue
+	eval := mock.Eval()
+	b.Enqueue(eval)
+
+	out, token, err := b.Dequeue(defaultSched, time.Second)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out != eval {
+		t.Fatalf("bad : %#v", out)
+	}
+
+	// Requeue the same evaluation.
+	b.Requeue(eval, token)
+
+	// The stats should show one unacked
+	stats := b.Stats()
+	if stats.TotalReady != 0 {
+		t.Fatalf("bad: %#v", stats)
+	}
+	if stats.TotalUnacked != 1 {
+		t.Fatalf("bad: %#v", stats)
+	}
+
+	// Ack the evaluation.
+	if err := b.Ack(eval.ID, token); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Check stats again as this should cause the re-enqueued one to transition
+	// into the ready state
+	stats = b.Stats()
+	if stats.TotalReady != 1 {
+		t.Fatalf("bad: %#v", stats)
+	}
+	if stats.TotalUnacked != 0 {
+		t.Fatalf("bad: %#v", stats)
+	}
+
+	// Another dequeue should be successful
+	out2, token2, err := b.Dequeue(defaultSched, time.Second)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out2 != eval {
+		t.Fatalf("bad : %#v", out)
+	}
+	if token == token2 {
+		t.Fatalf("bad : %s and %s", token, token2)
+	}
+}
+
+func TestEvalBroker_Reenqueue_Nack(t *testing.T) {
+	b := testBroker(t, 0)
+	b.SetEnabled(true)
+
+	// Create the evaluation, enqueue and dequeue
+	eval := mock.Eval()
+	b.Enqueue(eval)
+
+	out, token, err := b.Dequeue(defaultSched, time.Second)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out != eval {
+		t.Fatalf("bad : %#v", out)
+	}
+
+	// Requeue the same evaluation.
+	b.Requeue(eval, token)
+
+	// The stats should show one unacked
+	stats := b.Stats()
+	if stats.TotalReady != 0 {
+		t.Fatalf("bad: %#v", stats)
+	}
+	if stats.TotalUnacked != 1 {
+		t.Fatalf("bad: %#v", stats)
+	}
+
+	// Nack the evaluation.
+	if err := b.Nack(eval.ID, token); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Check stats again as this should cause the re-enqueued one to be dropped
+	stats = b.Stats()
+	if stats.TotalReady != 1 {
+		t.Fatalf("bad: %#v", stats)
+	}
+	if stats.TotalUnacked != 0 {
+		t.Fatalf("bad: %#v", stats)
+	}
+	if len(b.requeue) != 0 {
+		t.Fatal("bad: %#v", b.requeue)
+	}
+}

@@ -76,7 +76,7 @@ func TestFSM_UpsertNode(t *testing.T) {
 	// Mark an eval as blocked.
 	eval := mock.Eval()
 	eval.ClassEligibility = map[string]bool{node.ComputedClass: true}
-	fsm.blockedEvals.Block(eval)
+	fsm.blockedEvals.Block(eval, "")
 
 	req := structs.NodeRegisterRequest{
 		Node: node,
@@ -183,7 +183,7 @@ func TestFSM_UpdateNodeStatus(t *testing.T) {
 	// Mark an eval as blocked.
 	eval := mock.Eval()
 	eval.ClassEligibility = map[string]bool{node.ComputedClass: true}
-	fsm.blockedEvals.Block(eval)
+	fsm.blockedEvals.Block(eval, "")
 
 	req2 := structs.NodeUpdateStatusRequest{
 		NodeID: node.ID,
@@ -655,7 +655,7 @@ func TestFSM_UpdateAllocFromClient_Unblock(t *testing.T) {
 	// Mark an eval as blocked.
 	eval := mock.Eval()
 	eval.ClassEligibility = map[string]bool{node.ComputedClass: true}
-	fsm.blockedEvals.Block(eval)
+	fsm.blockedEvals.Block(eval, "")
 
 	bStats := fsm.blockedEvals.Stats()
 	if bStats.TotalBlocked != 1 {

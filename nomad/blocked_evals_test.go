@@ -27,7 +27,7 @@ func TestBlockedEvals_Block_Disabled(t *testing.T) {
 	e := mock.Eval()
 	e.Status = structs.EvalStatusBlocked
 	e.EscapedComputedClass = true
-	blocked.Block(e)
+	blocked.Block(e, "")
 
 	// Verify block did nothing
 	bStats := blocked.Stats()
@@ -43,8 +43,8 @@ func TestBlockedEvals_Block_SameJob(t *testing.T) {
 	e := mock.Eval()
 	e2 := mock.Eval()
 	e2.JobID = e.JobID
-	blocked.Block(e)
-	blocked.Block(e2)
+	blocked.Block(e, "")
+	blocked.Block(e2, "")
 
 	// Verify block did track both
 	bStats := blocked.Stats()
@@ -65,7 +65,7 @@ func TestBlockedEvals_Block_PriorUnblocks(t *testing.T) {
 	e.Status = structs.EvalStatusBlocked
 	e.ClassEligibility = map[string]bool{"v1:123": false, "v1:456": false}
 	e.SnapshotIndex = 999
-	blocked.Block(e)
+	blocked.Block(e, "")
 
 	// Verify block did track both
 	bStats := blocked.Stats()
@@ -83,8 +83,8 @@ func TestBlockedEvals_GetDuplicates(t *testing.T) {
 	e2.JobID = e.JobID
 	e3 := mock.Eval()
 	e3.JobID = e.JobID
-	blocked.Block(e)
-	blocked.Block(e2)
+	blocked.Block(e, "")
+	blocked.Block(e2, "")
 
 	// Verify block did track both
 	bStats := blocked.Stats()
@@ -101,7 +101,7 @@ func TestBlockedEvals_GetDuplicates(t *testing.T) {
 	// Call block again after a small sleep.
 	go func() {
 		time.Sleep(500 * time.Millisecond)
-		blocked.Block(e3)
+		blocked.Block(e3, "")
 	}()
 
 	// Get the duplicates.
@@ -118,7 +118,7 @@ func TestBlockedEvals_UnblockEscaped(t *testing.T) {
 	e := mock.Eval()
 	e.Status = structs.EvalStatusBlocked
 	e.EscapedComputedClass = true
-	blocked.Block(e)
+	blocked.Block(e, "")
 
 	// Verify block caused the eval to be tracked
 	bStats := blocked.Stats()
@@ -154,7 +154,7 @@ func TestBlockedEvals_UnblockEligible(t *testing.T) {
 	e := mock.Eval()
 	e.Status = structs.EvalStatusBlocked
 	e.ClassEligibility = map[string]bool{"v1:123": true}
-	blocked.Block(e)
+	blocked.Block(e, "")
 
 	// Verify block caused the eval to be tracked
 	blockedStats := blocked.Stats()
@@ -190,7 +190,7 @@ func TestBlockedEvals_UnblockIneligible(t *testing.T) {
 	e := mock.Eval()
 	e.Status = structs.EvalStatusBlocked
 	e.ClassEligibility = map[string]bool{"v1:123": false}
-	blocked.Block(e)
+	blocked.Block(e, "")
 
 	// Verify block caused the eval to be tracked
 	blockedStats := blocked.Stats()
@@ -226,7 +226,7 @@ func TestBlockedEvals_UnblockUnknown(t *testing.T) {
 	e := mock.Eval()
 	e.Status = structs.EvalStatusBlocked
 	e.ClassEligibility = map[string]bool{"v1:123": true, "v1:456": false}
-	blocked.Block(e)
+	blocked.Block(e, "")
 
 	// Verify block caused the eval to be tracked
 	blockedStats := blocked.Stats()
@@ -269,7 +269,7 @@ func TestBlockedEvals_Block_ImmediateUnblock_Escaped(t *testing.T) {
 	e.Status = structs.EvalStatusBlocked
 	e.EscapedComputedClass = true
 	e.SnapshotIndex = 900
-	blocked.Block(e)
+	blocked.Block(e, "")
 
 	// Verify block caused the eval to be immediately unblocked
 	blockedStats := blocked.Stats()
@@ -304,7 +304,7 @@ func TestBlockedEvals_Block_ImmediateUnblock_UnseenClass(t *testing.T) {
 	e.Status = structs.EvalStatusBlocked
 	e.EscapedComputedClass = false
 	e.SnapshotIndex = 900
-	blocked.Block(e)
+	blocked.Block(e, "")
 
 	// Verify block caused the eval to be immediately unblocked
 	blockedStats := blocked.Stats()
@@ -339,7 +339,7 @@ func TestBlockedEvals_Block_ImmediateUnblock_SeenClass(t *testing.T) {
 	e.Status = structs.EvalStatusBlocked
 	e.ClassEligibility = map[string]bool{"v1:123": true, "v1:456": false}
 	e.SnapshotIndex = 900
-	blocked.Block(e)
+	blocked.Block(e, "")
 
 	// Verify block caused the eval to be immediately unblocked
 	blockedStats := blocked.Stats()
@@ -368,13 +368,13 @@ func TestBlockedEvals_UnblockFailed(t *testing.T) {
 	e.Status = structs.EvalStatusBlocked
 	e.TriggeredBy = structs.EvalTriggerMaxPlans
 	e.EscapedComputedClass = true
-	blocked.Block(e)
+	blocked.Block(e, "")
 
 	e2 := mock.Eval()
 	e2.Status = structs.EvalStatusBlocked
 	e2.TriggeredBy = structs.EvalTriggerMaxPlans
 	e2.ClassEligibility = map[string]bool{"v1:123": true, "v1:456": false}
-	blocked.Block(e2)
+	blocked.Block(e2, "")
 
 	// Trigger an unblock fail
 	blocked.UnblockFailed()

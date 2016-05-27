@@ -120,8 +120,9 @@ func (b *BlockedEvals) SetEnabled(enabled bool) {
 }
 
 // Block tracks the passed evaluation and enqueues it into the eval broker when
-// a suitable node calls unblock.
-func (b *BlockedEvals) Block(eval *structs.Evaluation) {
+// a suitable node calls unblock. If the block is occuring by an outstanding
+// evaluation, the evaluation's token should be passed.
+func (b *BlockedEvals) Block(eval *structs.Evaluation, token string) {
 	b.l.Lock()
 	defer b.l.Unlock()
 
@@ -151,8 +152,10 @@ func (b *BlockedEvals) Block(eval *structs.Evaluation) {
 	// state that was prior to additional capacity being added or allocations
 	// becoming terminal.
 	if b.missedUnblock(eval) {
-		// Just re-enqueue the eval immediately
-		b.evalBroker.Enqueue(eval)
+		// Just re-enqueue the eval immediately. We pass the token so that the
+		// eval_broker can properly handle the case in which the evaluation is
+		// still outstanding.
+		b.evalBroker.Requeue(eval, token)
 		return
 	}
 
