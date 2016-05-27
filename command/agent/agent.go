@@ -38,7 +38,7 @@ type Agent struct {
 	// consulSyncer registers the Nomad agent with the Consul Agent
 	consulSyncer *consul.Syncer
 
-	serverHttpAddr string
+	serverRpcAddr  string
 	clientHttpAddr string
 
 	server *nomad.Server
@@ -166,15 +166,20 @@ func (a *Agent) serverConfig() (*nomad.Config, error) {
 		conf.SerfConfig.MemberlistConfig.BindPort = port
 	}
 
-	if a.config.AdvertiseAddrs.HTTP != "" {
-		a.serverHttpAddr = a.config.AdvertiseAddrs.HTTP
-	} else if a.config.Addresses.HTTP != "" {
-		a.serverHttpAddr = fmt.Sprintf("%v:%v", a.config.Addresses.HTTP, a.config.Ports.HTTP)
+	if a.config.AdvertiseAddrs.RPC != "" {
+		a.serverRpcAddr = a.config.AdvertiseAddrs.RPC
+	} else if a.config.Addresses.RPC != "" {
+		a.serverRpcAddr = fmt.Sprintf("%v:%v", a.config.Addresses.RPC, a.config.Ports.RPC)
 	} else if a.config.BindAddr != "" {
-		a.serverHttpAddr = fmt.Sprintf("%v:%v", a.config.BindAddr, a.config.Ports.HTTP)
+		a.serverRpcAddr = fmt.Sprintf("%v:%v", a.config.BindAddr, a.config.Ports.RPC)
 	} else {
-		a.serverHttpAddr = fmt.Sprintf("%v:%v", "127.0.0.1", a.config.Ports.HTTP)
+		a.serverRpcAddr = fmt.Sprintf("%v:%v", "127.0.0.1", a.config.Ports.RPC)
 	}
+	addr, err := net.ResolveTCPAddr("tcp", a.serverRpcAddr)
+	if err != nil {
+		return nil, fmt.Errorf("error resolving RPC addr %q: %v:", a.serverRpcAddr, err)
+	}
+	a.serverRpcAddr = fmt.Sprintf("%s:%d", addr.IP.String(), addr.Port)
 
 	if gcThreshold := a.config.Server.NodeGCThreshold; gcThreshold != "" {
 		dur, err := time.ParseDuration(gcThreshold)
@@ -530,7 +535,7 @@ func (a *Agent) syncAgentServicesWithConsul() error {
 	if a.server != nil && a.config.Consul.ServerServiceName != "" {
 		serverService := &structs.Service{
 			Name:      a.config.Consul.ServerServiceName,
-			PortLabel: a.serverHttpAddr,
+			PortLabel: a.serverRpcAddr,
 		}
 		services = append(services, serverService)
 		a.consulSyncer.SetServiceIdentifier("agent-server")
