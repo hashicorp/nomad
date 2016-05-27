@@ -624,7 +624,15 @@ func parseConsulConfig(result **config.ConsulConfig, list *ast.ObjectList) error
 	}
 
 	var consulConfig config.ConsulConfig
-	if err := mapstructure.WeakDecode(m, &consulConfig); err != nil {
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
+		WeaklyTypedInput: true,
+		Result:           &consulConfig,
+	})
+	if err != nil {
+		return err
+	}
+	if err := dec.Decode(m); err != nil {
 		return err
 	}
 
