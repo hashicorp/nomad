@@ -23,7 +23,7 @@ func NewRingBuff(capacity int) (*RingBuff, error) {
 	if capacity < 1 {
 		return nil, fmt.Errorf("can not create a ring buffer with capacity: %v", capacity)
 	}
-	return &RingBuff{buff: make([]interface{}, capacity), head: -1}, nil
+	return &RingBuff{buff: make([]interface{}, 0, capacity), head: -1}, nil
 }
 
 // Enqueue queues a new value in the ring buffer. This operation would
@@ -31,8 +31,11 @@ func NewRingBuff(capacity int) (*RingBuff, error) {
 func (r *RingBuff) Enqueue(value interface{}) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
+	if len(r.buff) < cap(r.buff) {
+		r.buff = append(r.buff, struct{}{})
+	}
 	r.head += 1
-	if r.head == len(r.buff) {
+	if r.head == cap(r.buff) {
 		r.head = 0
 	}
 	r.buff[r.head] = value
