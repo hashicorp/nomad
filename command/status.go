@@ -244,31 +244,9 @@ func (c *StatusCommand) outputJobInfo(client *api.Client, job *api.Job) error {
 	}
 
 	// Determine latest evaluation with failures whose follow up hasn't
-	// completed.
-	evalsByID := make(map[string]*api.Evaluation, len(jobEvals))
-	for _, eval := range jobEvals {
-		evalsByID[eval.ID] = eval
-	}
-
+	// completed, this is done while formatting
 	var latestFailedPlacement *api.Evaluation
-	for _, eval := range evalsByID {
-		if len(eval.FailedTGAllocs) == 0 {
-			// Skip evals without failures
-			continue
-		}
-
-		// Check if created blocked eval is finished
-		if blocked, ok := evalsByID[eval.BlockedEval]; ok {
-			if blocked.Status != "blocked" {
-				continue
-			}
-		}
-
-		if latestFailedPlacement == nil || latestFailedPlacement.CreateIndex < eval.CreateIndex {
-			latestFailedPlacement = eval
-		}
-
-	}
+	blockedEval := false
 
 	// Format the evals
 	evals = make([]string, len(jobEvals)+1)
@@ -281,6 +259,19 @@ func (c *StatusCommand) outputJobInfo(client *api.Client, job *api.Job) error {
 			eval.Status,
 			len(eval.FailedTGAllocs) != 0,
 		)
+
+		if eval.Status == "blocked" {
+			blockedEval = true
+		}
+
+		if len(eval.FailedTGAllocs) == 0 {
+			// Skip evals without failures
+			continue
+		}
+
+		if latestFailedPlacement == nil || latestFailedPlacement.CreateIndex < eval.CreateIndex {
+			latestFailedPlacement = eval
+		}
 	}
 
 	if c.verbose || c.showEvals {
@@ -288,7 +279,7 @@ func (c *StatusCommand) outputJobInfo(client *api.Client, job *api.Job) error {
 		c.Ui.Output(formatList(evals))
 	}
 
-	if latestFailedPlacement != nil {
+	if blockedEval && latestFailedPlacement != nil {
 		c.outputFailedPlacements(latestFailedPlacement)
 	}
 
@@ -319,7 +310,7 @@ func (c *StatusCommand) outputFailedPlacements(failedEval *api.Evaluation) {
 		return
 	}
 
-	c.Ui.Output("\n==> Last Placement Failure")
+	c.Ui.Output("\n==> Placement Failure")
 
 	sorted := sortedTaskGroupFromMetrics(failedEval.FailedTGAllocs)
 	for i, tg := range sorted {
@@ -327,19 +318,16 @@ func (c *StatusCommand) outputFailedPlacements(failedEval *api.Evaluation) {
 			break
 		}
 
+		c.Ui.Output(fmt.Sprintf("Task Group %q:", tg))
 		metrics := failedEval.FailedTGAllocs[tg]
-
-		noun := "allocation"
-		if metrics.CoalescedFailures > 0 {
-			noun += "s"
-		}
-		c.Ui.Output(fmt.Sprintf("Task Group %q (failed to place %d %s):", tg, metrics.CoalescedFailures+1, noun))
 		dumpAllocMetrics(c.Ui, metrics, false)
-		c.Ui.Output("")
+		if i != len(sorted)-1 {
+			c.Ui.Output("")
+		}
 	}
 
 	if len(sorted) > maxFailedTGs {
-		trunc := fmt.Sprintf("Placement failures truncated. To see remainder run:\nnomad eval-status %s", failedEval.ID)
+		trunc := fmt.Sprintf("\nPlacement failures truncated. To see remainder run:\nnomad eval-status %s", failedEval.ID)
 		c.Ui.Output(trunc)
 	}
 }

@@ -130,7 +130,7 @@ func (c *EvalStatusCommand) Run(args []string) int {
 		statusDesc = eval.Status
 	}
 
-	// Format the allocation data
+	// Format the evaluation data
 	basic := []string{
 		fmt.Sprintf("ID|%s", limit(eval.ID, length)),
 		fmt.Sprintf("Status|%s", eval.Status),
@@ -167,7 +167,7 @@ func (c *EvalStatusCommand) Run(args []string) int {
 		}
 
 		if eval.BlockedEval != "" {
-			c.Ui.Output(fmt.Sprintf("\nEvaluation %q waiting for additional capacity to place remainder",
+			c.Ui.Output(fmt.Sprintf("Evaluation %q waiting for additional capacity to place remainder",
 				limit(eval.BlockedEval, length)))
 		}
 	}
