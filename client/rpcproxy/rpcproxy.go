@@ -42,7 +42,7 @@ const (
 
 	// clientRPCMinReuseDuration controls the minimum amount of time RPC
 	// queries are sent over an established connection to a single server
-	clientRPCMinReuseDuration = 120 * time.Second
+	clientRPCMinReuseDuration = 600 * time.Second
 
 	// Limit the number of new connections a server receives per second
 	// for connection rebalancing.  This limit caps the load caused by
