@@ -67,6 +67,7 @@ const (
 // NomadConfigInfo is an interface wrapper around this Nomad Agent's
 // configuration to prevents a cyclic import dependency.
 type NomadConfigInfo interface {
+	Datacenter() string
 	RPCVersion() int
 	Region() string
 }
@@ -666,21 +667,28 @@ func (p *RpcProxy) UpdateFromNodeUpdateResponse(resp *structs.NodeUpdateResponse
 		// TODO(sean@): Move the logging throttle logic into a
 		// dedicated logging package so RpcProxy does not have to
 		// perform this accounting.
-		if int32(p.configInfo.RPCVersion()) < s.RPCVersion {
+		if int32(p.configInfo.RPCVersion()) < s.RpcVersion {
 			now := time.Now()
-			t, ok := p.rpcAPIMismatchThrottle[s.RPCAdvertiseAddr]
+			t, ok := p.rpcAPIMismatchThrottle[s.RpcAdvertiseAddr]
 			if ok && t.After(now) {
 				continue
 			}
 
-			p.logger.Printf("[WARN] API mismatch between client (v%d) and server (v%d), ignoring server %q", apiMajorVersion, s.RPCVersion, s.RPCAdvertiseAddr)
-			p.rpcAPIMismatchThrottle[s.RPCAdvertiseAddr] = now.Add(rpcAPIMismatchLogRate)
+			p.logger.Printf("[WARN] API mismatch between client (v%d) and server (v%d), ignoring server %q", apiMajorVersion, s.RpcVersion, s.RpcAdvertiseAddr)
+			p.rpcAPIMismatchThrottle[s.RpcAdvertiseAddr] = now.Add(rpcAPIMismatchLogRate)
 			continue
 		}
 
-		server, err := newServer(s.RPCAdvertiseAddr)
+		server, err := newServer(s.RpcAdvertiseAddr)
 		if err != nil {
-			p.logger.Printf("[WARN] Unable to create a server from %q: %v", s.RPCAdvertiseAddr, err)
+			p.logger.Printf("[WARN] Unable to create a server from %q: %v", s.RpcAdvertiseAddr, err)
+			continue
+		}
+
+		// Nomad servers in different datacenters are automatically
+		// added to the backup server list.
+		if s.Datacenter != p.configInfo.Datacenter() {
+			p.backupServers.L = append(p.backupServers.L, server)
 			continue
 		}
 

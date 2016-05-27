@@ -156,10 +156,13 @@ type NodeDeregisterRequest struct {
 type NodeServerInfo struct {
 	// RPCAdvertiseAddr is the IP endpoint that a Nomad Server wishes to
 	// be contacted at for RPCs.
-	RPCAdvertiseAddr string
+	RpcAdvertiseAddr string
 
 	// RPCVersion is the version number the Nomad Server supports
-	RPCVersion int32
+	RpcVersion int32
+
+	// Datacenter is the datacenter that a Nomad server belongs to
+	Datacenter string
 }
 
 // NodeUpdateStatusRequest is used for Node.UpdateStatus endpoint

@@ -213,11 +213,12 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 
 	// Reply with config information required for future RPC requests
 	reply.Servers = make([]*structs.NodeServerInfo, 0, len(n.srv.localPeers))
-	for p := range n.srv.localPeers {
+	for k, v := range n.srv.localPeers {
 		reply.Servers = append(reply.Servers,
 			&structs.NodeServerInfo{
-				RPCAdvertiseAddr: p,
-				RPCVersion:       apiMajorVersion,
+				RpcAdvertiseAddr: k,
+				RpcVersion:       int32(v.Version),
+				Datacenter:       v.Datacenter,
 			})
 	}
 
