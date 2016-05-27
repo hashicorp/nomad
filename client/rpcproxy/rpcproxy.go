@@ -452,7 +452,7 @@ func (p *RpcProxy) RebalanceServers() {
 	// If no healthy servers were found, sleep and wait for the admin to
 	// join this node to a server and begin receiving heartbeats with an
 	// updated list of Nomad servers.  Or Consul will begin advertising a
-	// new server in the nomad-servers service.
+	// new server in the nomad service (Nomad server service).
 	if !foundHealthyServer {
 		p.logger.Printf("[DEBUG] RPC Proxy: No healthy servers during rebalance, aborting")
 		return

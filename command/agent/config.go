@@ -391,7 +391,7 @@ func DefaultConfig() *Config {
 		AdvertiseAddrs: &AdvertiseAddrs{},
 		Atlas:          &AtlasConfig{},
 		Consul: &config.ConsulConfig{
-			ServerServiceName: "nomad-server",
+			ServerServiceName: "nomad",
 			ClientServiceName: "nomad-client",
 			AutoRegister:      true,
 			Timeout:           500 * time.Millisecond,

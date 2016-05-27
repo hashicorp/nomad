@@ -103,7 +103,7 @@ func TestConfig_Parse(t *testing.T) {
 					Endpoint:       "127.0.0.1:1234",
 				},
 				Consul: &config.ConsulConfig{
-					ServerServiceName: "nomad-server",
+					ServerServiceName: "nomad",
 					ClientServiceName: "nomad-client",
 					Addr:              "127.0.0.1:9500",
 					Token:             "token1",

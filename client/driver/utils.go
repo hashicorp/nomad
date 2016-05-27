@@ -82,7 +82,7 @@ func consulContext(clientConfig *config.Config, containerID string) *executor.Co
 		CAFile:            clientConfig.Read("consul.tls_ca_file"),
 		CertFile:          clientConfig.Read("consul.tls_cert_file"),
 		KeyFile:           clientConfig.Read("consul.tls_key_file"),
-		ServerServiceName: clientConfig.ReadDefault("consul.server_service_name", "nomad-server"),
+		ServerServiceName: clientConfig.ReadDefault("consul.server_service_name", "nomad"),
 		ClientServiceName: clientConfig.ReadDefault("consul.client_service_name", "nomad-client"),
 	}
 	return &executor.ConsulContext{
