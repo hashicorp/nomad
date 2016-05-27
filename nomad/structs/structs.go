@@ -303,7 +303,7 @@ type AllocSpecificRequest struct {
 	QueryOptions
 }
 
-// AllocsGetcRequest is used to query a set of allocations
+// AllocsGetRequest is used to query a set of allocations
 type AllocsGetRequest struct {
 	AllocIDs []string
 	QueryOptions
