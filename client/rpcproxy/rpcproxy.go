@@ -642,6 +642,12 @@ func (p *RpcProxy) UpdateFromNodeUpdateResponse(resp *structs.NodeUpdateResponse
 	p.serverListLock.Lock()
 	defer p.serverListLock.Unlock()
 
+	// Clear the backup server list when a heartbeat contains at least
+	// one server.
+	if len(resp.Servers) > 0 && len(p.backupServers.L) > 0 {
+		p.backupServers.L = make([]*ServerEndpoint, len(resp.Servers))
+	}
+
 	// 1) Create a map to reconcile the difference between
 	// m.primaryServers and resp.Servers.
 	type targetServer struct {
