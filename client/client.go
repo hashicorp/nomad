@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/armon/go-metrics"
@@ -1230,9 +1229,11 @@ func (c *Client) addAlloc(alloc *structs.Allocation) error {
 
 // setupConsulSyncer creates a consul.Syncer
 func (c *Client) setupConsulSyncer() error {
-	// Callback handler used to periodically poll Consul to look up the
-	// Nomad Servers in Consul in the event the heartbeat deadline has
-	// been exceeded and this Agent is in a bootstrap situation.
+	// The bootstrapFn callback handler is used to periodically poll
+	// Consul to look up the Nomad Servers in Consul.  In the event the
+	// heartbeat deadline has been exceeded and this Agent is orphaned
+	// from its cluster, periodically poll Consul to reattach this Agent
+	// to its cluster and automatically recover from a detached state.
 	bootstrapFn := func() {
 		now := time.Now()
 		c.configLock.RLock()
@@ -1261,80 +1262,48 @@ func (c *Client) setupConsulSyncer() error {
 	}
 	c.consulSyncer.AddPeriodicHandler("Nomad Client Fallback Server Handler", bootstrapFn)
 
-	const handlerName = "Nomad Client Fallback Server Handler"
-	c.consulSyncer.AddPeriodicHandler(handlerName, fn)
-	return nil
-}
-
-// runClientConsulSyncer runs the consul.Syncer task in the Nomad Agent's
-// context.  This is primarily responsible for removing tasks which are no
-// longer in running state.
-func (c *Client) runClientConsulSyncer() {
-	d := consulSyncDelay + lib.RandomStagger(consulSyncInterval-consulSyncDelay)
-	c.logger.Printf("[DEBUG] consul.sync: sleeping %v before first sync", d)
-	sync := time.NewTimer(d)
-	for {
-		select {
-		case <-sync.C:
-			fn := func() {
-				defer atomic.StoreInt64(&c.consulLock, 0)
-
-				d = consulSyncInterval - lib.RandomStagger(consulSyncInterval/consulSyncJitter)
-				sync.Reset(d)
-
-				// Run syncer handlers regardless of this
-				// Agent's client or server status.
-				c.consulSyncer.RunHandlers()
-
-				// Give up pruning services if we can't
-				// fingerprint our Consul Agent.
-				c.configLock.RLock()
-				_, ok := c.configCopy.Node.Attributes["consul.version"]
-				c.configLock.RUnlock()
-				if !ok {
-					return
-				}
-
-				services := make(map[string]struct{})
-				// Get the existing allocs
-				c.allocLock.RLock()
-				allocs := make([]*AllocRunner, 0, len(c.allocs))
-				for _, ar := range c.allocs {
-					allocs = append(allocs, ar)
-				}
-				c.allocLock.RUnlock()
-
-				for _, ar := range allocs {
-					ar.taskStatusLock.RLock()
-					taskStates := copyTaskStates(ar.taskStates)
-					ar.taskStatusLock.RUnlock()
-					for taskName, taskState := range taskStates {
-						if taskState.State == structs.TaskStateRunning {
-							if tr, ok := ar.tasks[taskName]; ok {
-								for _, service := range tr.task.Services {
-									svcIdentifier := fmt.Sprintf("%s-%s", ar.alloc.ID, tr.task.Name)
-									services[service.ID(svcIdentifier)] = struct{}{}
-								}
-							}
-						}
-					}
-				}
-
-				if err := c.consulSyncer.KeepServices(services); err != nil {
-					c.logger.Printf("[DEBUG] client: error removing services from non-running tasks: %v", err)
-				}
-			}
-
-			if atomic.CompareAndSwapInt64(&c.consulLock, 0, 1) {
-				go fn()
-			}
-		case <-c.shutdownCh:
-			sync.Stop()
-			c.logger.Printf("[INFO] client: shutting down consul sync")
+	consulServicesSyncFn := func() {
+		// Give up pruning services if we can't fingerprint our
+		// Consul Agent.
+		c.configLock.RLock()
+		_, ok := c.configCopy.Node.Attributes["consul.version"]
+		c.configLock.RUnlock()
+		if !ok {
 			return
 		}
 
+		services := make(map[string]struct{})
+		// Get the existing allocs
+		c.allocLock.RLock()
+		allocs := make([]*AllocRunner, 0, len(c.allocs))
+		for _, ar := range c.allocs {
+			allocs = append(allocs, ar)
+		}
+		c.allocLock.RUnlock()
+
+		for _, ar := range allocs {
+			ar.taskStatusLock.RLock()
+			taskStates := copyTaskStates(ar.taskStates)
+			ar.taskStatusLock.RUnlock()
+			for taskName, taskState := range taskStates {
+				if taskState.State == structs.TaskStateRunning {
+					if tr, ok := ar.tasks[taskName]; ok {
+						for _, service := range tr.task.Services {
+							svcIdentifier := fmt.Sprintf("%s-%s", ar.alloc.ID, tr.task.Name)
+							services[service.ID(svcIdentifier)] = struct{}{}
+						}
+					}
+				}
+			}
+		}
+
+		if err := c.consulSyncer.KeepServices(services); err != nil {
+			c.logger.Printf("[DEBUG] client: error removing services from non-running tasks: %v", err)
+		}
 	}
+	c.consulSyncer.AddPeriodicHandler("Nomad Client Services Sync Handler", consulServicesSyncFn)
+
+	return nil
 }
 
 // collectHostStats collects host resource usage stats periodically
