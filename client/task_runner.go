@@ -501,7 +501,29 @@ func (r *TaskRunner) ResourceUsage() *cstructs.TaskResourceUsage {
 func (r *TaskRunner) ResourceUsageTS(since time.Time) []*cstructs.TaskResourceUsage {
 	r.resourceUsageLock.RLock()
 	defer r.resourceUsageLock.RUnlock()
+
 	values := r.resourceUsage.Values()
+	low := 0
+	high := len(values) - 1
+	var idx int
+
+	for {
+		mid := (low + high) >> 1
+		midVal, _ := values[mid].(*cstructs.TaskResourceUsage)
+		if midVal.Timestamp.UnixNano() < since.UnixNano() {
+			low = mid + 1
+		} else if midVal.Timestamp.UnixNano() > since.UnixNano() {
+			high = mid - 1
+		} else if midVal.Timestamp.UnixNano() == since.UnixNano() {
+			idx = mid
+			break
+		}
+		if low > high {
+			idx = low
+			break
+		}
+	}
+	values = values[idx:]
 	ts := make([]*cstructs.TaskResourceUsage, len(values))
 	for index, val := range values {
 		ru, _ := val.(*cstructs.TaskResourceUsage)
