@@ -39,6 +39,7 @@ type Agent struct {
 	server         *nomad.Server
 	serverHttpAddr string
 	serverRpcAddr  string
+	serverSerfAddr string
 
 	shutdown     bool
 	shutdownCh   chan struct{}
@@ -562,6 +563,13 @@ func (a *Agent) syncAgentServicesWithConsul() error {
 
 	if a.server != nil {
 		if a.config.Consul.ServerServiceName != "" {
+			serverHttpService := &structs.Service{
+				Name:      a.config.Consul.ServerServiceName,
+				Tags:      []string{consul.ServiceTagHttp},
+				PortLabel: a.serverHttpAddr,
+			}
+			services = append(services, serverHttpService)
+
 			serverRpcService := &structs.Service{
 				Name:      a.config.Consul.ServerServiceName,
 				Tags:      []string{consul.ServiceTagRpc},
@@ -569,12 +577,12 @@ func (a *Agent) syncAgentServicesWithConsul() error {
 			}
 			services = append(services, serverRpcService)
 
-			serverHttpService := &structs.Service{
+			serverSerfService := &structs.Service{
 				Name:      a.config.Consul.ServerServiceName,
-				Tags:      []string{consul.ServiceTagHttp},
-				PortLabel: a.serverHttpAddr,
+				Tags:      []string{consul.ServiceTagSerf},
+				PortLabel: a.serverSerfAddr,
 			}
-			services = append(services, serverHttpService)
+			services = append(services, serverSerfService)
 
 			a.consulSyncer.SetServiceIdentifier("agent-server")
 		}

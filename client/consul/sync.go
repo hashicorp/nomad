@@ -74,6 +74,9 @@ const (
 
 	// ServiceTagRpc is the tag assigned to RPC services
 	ServiceTagRpc = "rpc"
+
+	// ServiceTagSerf is the tag assigned to Serf services
+	ServiceTagSerf = "serf"
 )
 
 // NewSyncer returns a new consul.Syncer
