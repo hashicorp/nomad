@@ -258,6 +258,13 @@ func TestTask_Validate(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 
+	task = &Task{Name: "web/foo"}
+	err = task.Validate()
+	mErr = err.(*multierror.Error)
+	if !strings.Contains(mErr.Errors[0].Error(), "slashes") {
+		t.Fatalf("err: %s", err)
+	}
+
 	task = &Task{
 		Name:   "web",
 		Driver: "docker",
