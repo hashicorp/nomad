@@ -217,7 +217,8 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 		reply.Servers = append(reply.Servers,
 			&structs.NodeServerInfo{
 				RpcAdvertiseAddr: k,
-				RpcVersion:       int32(v.Version),
+				RpcMajorVersion:  int32(v.MajorVersion),
+				RpcMinorVersion:  int32(v.MinorVersion),
 				Datacenter:       v.Datacenter,
 			})
 	}

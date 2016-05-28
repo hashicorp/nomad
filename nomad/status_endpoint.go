@@ -18,8 +18,8 @@ func (s *Status) Version(args *structs.GenericRequest, reply *structs.VersionRes
 	reply.Build = conf.Build
 	reply.Versions = map[string]int{
 		structs.ProtocolVersion: int(conf.ProtocolVersion),
-		structs.APIMajorVersion: apiMajorVersion,
-		structs.APIMinorVersion: apiMinorVersion,
+		structs.APIMajorVersion: structs.ApiMajorVersion,
+		structs.APIMinorVersion: structs.ApiMinorVersion,
 	}
 	return nil
 }

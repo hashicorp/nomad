@@ -44,7 +44,7 @@ func TestIsNomadServer(t *testing.T) {
 	if parts.Addr.String() != "127.0.0.1:10000" {
 		t.Fatalf("bad addr: %v", parts.Addr)
 	}
-	if parts.Version != 1 {
+	if parts.MajorVersion != 1 {
 		t.Fatalf("bad: %v", parts)
 	}
 

@@ -21,12 +21,6 @@ import (
 )
 
 const (
-	// apiMajorVersion is synchronized with `nomad/server.go` and
-	// represents the API version supported by this client.
-	//
-	// TODO(sean@): This symbol should be exported somewhere.
-	apiMajorVersion = 1
-
 	// clientRPCJitterFraction determines the amount of jitter added to
 	// clientRPCMinReuseDuration before a connection is expired and a new
 	// connection is established in order to rebalance load across Nomad
@@ -68,14 +62,15 @@ const (
 // configuration to prevents a cyclic import dependency.
 type NomadConfigInfo interface {
 	Datacenter() string
-	RPCVersion() int
+	RpcMajorVersion() int
+	RpcMinorVersion() int
 	Region() string
 }
 
 // Pinger is an interface wrapping client.ConnPool to prevent a
 // cyclic import dependency
 type Pinger interface {
-	PingNomadServer(region string, version int, s *ServerEndpoint) (bool, error)
+	PingNomadServer(region string, apiMajorVersion int, s *ServerEndpoint) (bool, error)
 }
 
 // serverList is an array of Nomad Servers.  The first server in the list is
@@ -439,7 +434,7 @@ func (p *RpcProxy) RebalanceServers() {
 		// detect the failed node.
 		selectedServer := l.L[0]
 
-		ok, err := p.connPoolPinger.PingNomadServer(p.configInfo.Region(), p.configInfo.RPCVersion(), selectedServer)
+		ok, err := p.connPoolPinger.PingNomadServer(p.configInfo.Region(), p.configInfo.RpcMajorVersion(), selectedServer)
 		if ok {
 			foundHealthyServer = true
 			break
@@ -673,14 +668,16 @@ func (p *RpcProxy) UpdateFromNodeUpdateResponse(resp *structs.NodeUpdateResponse
 		// TODO(sean@): Move the logging throttle logic into a
 		// dedicated logging package so RpcProxy does not have to
 		// perform this accounting.
-		if int32(p.configInfo.RPCVersion()) < s.RpcVersion {
+		if int32(p.configInfo.RpcMajorVersion()) < s.RpcMajorVersion ||
+			(int32(p.configInfo.RpcMajorVersion()) == s.RpcMajorVersion &&
+				int32(p.configInfo.RpcMinorVersion()) < s.RpcMinorVersion) {
 			now := time.Now()
 			t, ok := p.rpcAPIMismatchThrottle[s.RpcAdvertiseAddr]
 			if ok && t.After(now) {
 				continue
 			}
 
-			p.logger.Printf("[WARN] API mismatch between client (v%d) and server (v%d), ignoring server %q", apiMajorVersion, s.RpcVersion, s.RpcAdvertiseAddr)
+			p.logger.Printf("[WARN] API mismatch between client version (v%d.%d) and server version (v%d.%d), ignoring server %q", p.configInfo.RpcMajorVersion(), p.configInfo.RpcMinorVersion(), s.RpcMajorVersion, s.RpcMinorVersion, s.RpcAdvertiseAddr)
 			p.rpcAPIMismatchThrottle[s.RpcAdvertiseAddr] = now.Add(rpcAPIMismatchLogRate)
 			continue
 		}

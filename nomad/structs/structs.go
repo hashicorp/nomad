@@ -54,6 +54,21 @@ const (
 	// that new commands can be added in a way that won't cause
 	// old servers to crash when the FSM attempts to process them.
 	IgnoreUnknownTypeFlag MessageType = 128
+
+	// ApiMajorVersion is returned as part of the Status.Version request.
+	// It should be incremented anytime the APIs are changed in a way
+	// that would break clients for sane client versioning.
+	ApiMajorVersion = 1
+
+	// ApiMinorVersion is returned as part of the Status.Version request.
+	// It should be incremented anytime the APIs are changed to allow
+	// for sane client versioning. Minor changes should be compatible
+	// within the major version.
+	ApiMinorVersion = 1
+
+	ProtocolVersion = "protocol"
+	APIMajorVersion = "api.major"
+	APIMinorVersion = "api.minor"
 )
 
 // RPCInfo is used to describe common information about query
@@ -158,8 +173,13 @@ type NodeServerInfo struct {
 	// be contacted at for RPCs.
 	RpcAdvertiseAddr string
 
-	// RPCVersion is the version number the Nomad Server supports
-	RpcVersion int32
+	// RpcMajorVersion is the major version number the Nomad Server
+	// supports
+	RpcMajorVersion int32
+
+	// RpcMinorVersion is the minor version number the Nomad Server
+	// supports
+	RpcMinorVersion int32
 
 	// Datacenter is the datacenter that a Nomad server belongs to
 	Datacenter string
@@ -329,12 +349,6 @@ type GenericRequest struct {
 type GenericResponse struct {
 	WriteMeta
 }
-
-const (
-	ProtocolVersion = "protocol"
-	APIMajorVersion = "api.major"
-	APIMinorVersion = "api.minor"
-)
 
 // VersionResponse is used for the Status.Version reseponse
 type VersionResponse struct {

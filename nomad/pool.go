@@ -376,9 +376,9 @@ func (p *ConnPool) RPC(region string, addr net.Addr, version int, method string,
 
 // PingNomadServer sends a Status.Ping message to the specified server and
 // returns true if healthy, false if an error occurred
-func (p *ConnPool) PingNomadServer(region string, version int, s *rpcproxy.ServerEndpoint) (bool, error) {
+func (p *ConnPool) PingNomadServer(region string, apiMajorVersion int, s *rpcproxy.ServerEndpoint) (bool, error) {
 	// Get a usable client
-	conn, sc, err := p.getClient(region, s.Addr, version)
+	conn, sc, err := p.getClient(region, s.Addr, apiMajorVersion)
 	if err != nil {
 		return false, err
 	}

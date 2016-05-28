@@ -216,7 +216,7 @@ func (s *Server) forwardLeader(method string, args interface{}, reply interface{
 	if server == nil {
 		return structs.ErrNoLeader
 	}
-	return s.connPool.RPC(s.config.Region, server.Addr, server.Version, method, args, reply)
+	return s.connPool.RPC(s.config.Region, server.Addr, server.MajorVersion, method, args, reply)
 }
 
 // forwardRegion is used to forward an RPC call to a remote region, or fail if no servers
@@ -238,7 +238,7 @@ func (s *Server) forwardRegion(region, method string, args interface{}, reply in
 
 	// Forward to remote Nomad
 	metrics.IncrCounter([]string{"nomad", "rpc", "cross-region", region}, 1)
-	return s.connPool.RPC(region, server.Addr, server.Version, method, args, reply)
+	return s.connPool.RPC(region, server.Addr, server.MajorVersion, method, args, reply)
 }
 
 // raftApplyFuture is used to encode a message, run it through raft, and return the Raft future.

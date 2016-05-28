@@ -151,9 +151,7 @@ const mockConsulResponse = `
       "expect": "3",
       "port": "8300",
       "role": "consul",
-      "vsn": "2",
-      "vsn_max": "2",
-      "vsn_min": "1"
+      "vsn": "2"
     },
     "Status": 1,
     "ProtocolMin": 1,

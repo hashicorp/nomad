@@ -30,10 +30,10 @@ func TestStatusVersion(t *testing.T) {
 	if out.Versions[structs.ProtocolVersion] != ProtocolVersionMax {
 		t.Fatalf("bad: %#v", out)
 	}
-	if out.Versions[structs.APIMajorVersion] != apiMajorVersion {
+	if out.Versions[structs.APIMajorVersion] != structs.ApiMajorVersion {
 		t.Fatalf("bad: %#v", out)
 	}
-	if out.Versions[structs.APIMinorVersion] != apiMinorVersion {
+	if out.Versions[structs.APIMinorVersion] != structs.ApiMinorVersion {
 		t.Fatalf("bad: %#v", out)
 	}
 }

@@ -8,6 +8,8 @@ import (
 	"os"
 	"testing"
 	"time"
+
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 var (
@@ -50,8 +52,16 @@ func (s *fauxSerf) Region() string {
 	return "global"
 }
 
-func (s *fauxSerf) RPCVersion() int {
-	return 1
+func (s *fauxSerf) Datacenter() string {
+	return "dc1"
+}
+
+func (s *fauxSerf) RpcMajorVersion() int {
+	return structs.ApiMajorVersion
+}
+
+func (s *fauxSerf) RpcMinorVersion() int {
+	return structs.ApiMinorVersion
 }
 
 func testManager() (p *RpcProxy) {
@@ -180,7 +190,7 @@ func test_reconcileServerList(maxServers int) (bool, error) {
 			// failPct of the servers for the reconcile.  This
 			// allows for the selected server to no longer be
 			// healthy for the reconcile below.
-			if ok, _ := m.connPoolPinger.PingNomadServer(m.configInfo.Region(), m.configInfo.RPCVersion(), node); ok {
+			if ok, _ := m.connPoolPinger.PingNomadServer(m.configInfo.Region(), m.configInfo.RpcMajorVersion(), node); ok {
 				// Will still be present
 				healthyServers = append(healthyServers, node)
 			} else {

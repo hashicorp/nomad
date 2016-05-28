@@ -47,9 +47,6 @@ const (
 	// devModeRetryIntv is the retry interval used for development
 	devModeRetryIntv = time.Second
 
-	// rpcVersion specifies the RPC version
-	rpcVersion = 1
-
 	// stateSnapshotIntv is how often the client snapshots state
 	stateSnapshotIntv = 60 * time.Second
 
@@ -301,9 +298,14 @@ func (c *Client) Region() string {
 	return c.config.Region
 }
 
-// Region returns the rpcVersion in use by the client
-func (c *Client) RPCVersion() int {
-	return rpcVersion
+// Region returns the structs.ApiMajorVersion in use by the client
+func (c *Client) RpcMajorVersion() int {
+	return structs.ApiMajorVersion
+}
+
+// Region returns the structs.ApiMinorVersion in use by the client
+func (c *Client) RpcMinorVersion() int {
+	return structs.ApiMinorVersion
 }
 
 // Shutdown is used to tear down the client
@@ -344,7 +346,7 @@ func (c *Client) RPC(method string, args interface{}, reply interface{}) error {
 	}
 
 	// Make the RPC request
-	if err := c.connPool.RPC(c.Region(), server.Addr, c.RPCVersion(), method, args, reply); err != nil {
+	if err := c.connPool.RPC(c.Region(), server.Addr, c.RpcMajorVersion(), method, args, reply); err != nil {
 		c.rpcProxy.NotifyFailedServer(server)
 		c.logger.Printf("[ERR] client: RPC failed to server %s: %v", server.Addr, err)
 		return err

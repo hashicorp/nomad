@@ -34,14 +34,15 @@ func RuntimeStats() map[string]string {
 
 // serverParts is used to return the parts of a server role
 type serverParts struct {
-	Name       string
-	Region     string
-	Datacenter string
-	Port       int
-	Bootstrap  bool
-	Expect     int
-	Version    int
-	Addr       net.Addr
+	Name         string
+	Region       string
+	Datacenter   string
+	Port         int
+	Bootstrap    bool
+	Expect       int
+	MajorVersion int
+	MinorVersion int
+	Addr         net.Addr
 }
 
 func (s *serverParts) String() string {
@@ -76,22 +77,32 @@ func isNomadServer(m serf.Member) (bool, *serverParts) {
 		return false, nil
 	}
 
-	vsn_str := m.Tags["vsn"]
-	vsn, err := strconv.Atoi(vsn_str)
+	// The "vsn" tag was Version, which is now the MajorVersion number.
+	majorVersionStr := m.Tags["vsn"]
+	majorVersion, err := strconv.Atoi(majorVersionStr)
 	if err != nil {
 		return false, nil
 	}
 
+	// To keep some semblance of convention, "mvn" is now the "Minor
+	// Version Number."
+	minorVersionStr := m.Tags["mvn"]
+	minorVersion, err := strconv.Atoi(minorVersionStr)
+	if err != nil {
+		minorVersion = 0
+	}
+
 	addr := &net.TCPAddr{IP: m.Addr, Port: port}
 	parts := &serverParts{
-		Name:       m.Name,
-		Region:     region,
-		Datacenter: datacenter,
-		Port:       port,
-		Bootstrap:  bootstrap,
-		Expect:     expect,
-		Addr:       addr,
-		Version:    vsn,
+		Name:         m.Name,
+		Region:       region,
+		Datacenter:   datacenter,
+		Port:         port,
+		Bootstrap:    bootstrap,
+		Expect:       expect,
+		Addr:         addr,
+		MajorVersion: majorVersion,
+		MinorVersion: minorVersion,
 	}
 	return true, parts
 }
