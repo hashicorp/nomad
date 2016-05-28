@@ -483,6 +483,12 @@ func (c *Syncer) filterConsulChecks(chks map[string]*consul.AgentCheck) map[stri
 	return nomadChecks
 }
 
+// consulPresent indicates whether the consul agent is responding
+func (c *Syncer) consulPresent() bool {
+	_, err := c.client.Agent().Self()
+	return err == nil
+}
+
 // runCheck runs a check and updates the corresponding ttl check in consul
 func (c *Syncer) runCheck(check Check) {
 	res := check.Run()
