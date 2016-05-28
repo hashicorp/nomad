@@ -30,10 +30,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/fsouza/go-dockerclient/external/github.com/docker/docker/opts"
-	"github.com/fsouza/go-dockerclient/external/github.com/docker/docker/pkg/homedir"
-	"github.com/fsouza/go-dockerclient/external/github.com/docker/docker/pkg/stdcopy"
-	"github.com/fsouza/go-dockerclient/external/github.com/hashicorp/go-cleanhttp"
+	"github.com/docker/docker/opts"
+	"github.com/docker/docker/pkg/homedir"
+	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/hashicorp/go-cleanhttp"
 )
 
 const userAgent = "go-dockerclient"
@@ -798,12 +798,10 @@ func (c *Client) unixClient() *http.Client {
 		return c.unixHTTPClient
 	}
 	socketPath := c.endpointURL.Path
-	tr := &http.Transport{
-		Dial: func(network, addr string) (net.Conn, error) {
-			return c.Dialer.Dial("unix", socketPath)
-		},
+	tr := cleanhttp.DefaultTransport()
+	tr.Dial = func(network, addr string) (net.Conn, error) {
+		return c.Dialer.Dial("unix", socketPath)
 	}
-	cleanhttp.SetTransportFinalizer(tr)
 	c.unixHTTPClient = &http.Client{Transport: tr}
 	return c.unixHTTPClient
 }

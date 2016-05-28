@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fsouza/go-dockerclient/external/github.com/docker/go-units"
+	"github.com/docker/go-units"
 )
 
 // ErrContainerAlreadyExists is the error returned by CreateContainer when the
@@ -275,7 +275,6 @@ type Config struct {
 	MemorySwap        int64               `json:"MemorySwap,omitempty" yaml:"MemorySwap,omitempty"`
 	MemoryReservation int64               `json:"MemoryReservation,omitempty" yaml:"MemoryReservation,omitempty"`
 	KernelMemory      int64               `json:"KernelMemory,omitempty" yaml:"KernelMemory,omitempty"`
-	PidsLimit         int64               `json:"PidsLimit,omitempty" yaml:"PidsLimit,omitempty"`
 	CPUShares         int64               `json:"CpuShares,omitempty" yaml:"CpuShares,omitempty"`
 	CPUSet            string              `json:"Cpuset,omitempty" yaml:"Cpuset,omitempty"`
 	AttachStdin       bool                `json:"AttachStdin,omitempty" yaml:"AttachStdin,omitempty"`
@@ -482,9 +481,10 @@ func (c *Client) ContainerChanges(id string) ([]Change, error) {
 //
 // See https://goo.gl/WxQzrr for more details.
 type CreateContainerOptions struct {
-	Name       string
-	Config     *Config     `qs:"-"`
-	HostConfig *HostConfig `qs:"-"`
+	Name             string
+	Config           *Config           `qs:"-"`
+	HostConfig       *HostConfig       `qs:"-"`
+	NetworkingConfig *NetworkingConfig `qs:"-"`
 }
 
 // CreateContainer creates a new container, returning the container instance,
@@ -499,10 +499,12 @@ func (c *Client) CreateContainer(opts CreateContainerOptions) (*Container, error
 		doOptions{
 			data: struct {
 				*Config
-				HostConfig *HostConfig `json:"HostConfig,omitempty" yaml:"HostConfig,omitempty"`
+				HostConfig       *HostConfig       `json:"HostConfig,omitempty" yaml:"HostConfig,omitempty"`
+				NetworkingConfig *NetworkingConfig `json:"NetworkingConfig,omitempty" yaml:"NetworkingConfig,omitempty"`
 			}{
 				opts.Config,
 				opts.HostConfig,
+				opts.NetworkingConfig,
 			},
 		},
 	)
@@ -624,6 +626,7 @@ type HostConfig struct {
 	SecurityOpt          []string               `json:"SecurityOpt,omitempty" yaml:"SecurityOpt,omitempty"`
 	CgroupParent         string                 `json:"CgroupParent,omitempty" yaml:"CgroupParent,omitempty"`
 	Memory               int64                  `json:"Memory,omitempty" yaml:"Memory,omitempty"`
+	MemoryReservation    int64                  `json:"MemoryReservation,omitempty" yaml:"MemoryReservation,omitempty"`
 	MemorySwap           int64                  `json:"MemorySwap,omitempty" yaml:"MemorySwap,omitempty"`
 	MemorySwappiness     int64                  `json:"MemorySwappiness,omitempty" yaml:"MemorySwappiness,omitempty"`
 	OOMKillDisable       bool                   `json:"OomKillDisable,omitempty" yaml:"OomKillDisable"`
@@ -642,7 +645,14 @@ type HostConfig struct {
 	Ulimits              []ULimit               `json:"Ulimits,omitempty" yaml:"Ulimits,omitempty"`
 	VolumeDriver         string                 `json:"VolumeDriver,omitempty" yaml:"VolumeDriver,omitempty"`
 	OomScoreAdj          int                    `json:"OomScoreAdj,omitempty" yaml:"OomScoreAdj,omitempty"`
+	PidsLimit            int64                  `json:"PidsLimit,omitempty" yaml:"PidsLimit,omitempty"`
 	ShmSize              int64                  `json:"ShmSize,omitempty" yaml:"ShmSize,omitempty"`
+}
+
+// NetworkingConfig represents the container's networking configuration for each of its interfaces
+// Carries the networking configs specified in the `docker run` and `docker network connect` commands
+type NetworkingConfig struct {
+	EndpointsConfig map[string]*EndpointConfig // Endpoint configs for each connecting network
 }
 
 // StartContainer starts a container, returning an error in case of failure.
