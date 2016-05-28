@@ -1742,6 +1742,8 @@ func (t *Task) Validate() error {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing task name"))
 	}
 	if strings.ContainsAny(t.Name, `/\`) {
+		// We enforce this so that when creating the directory on disk it will
+		// not have any slashes.
 		mErr.Errors = append(mErr.Errors, errors.New("Task name can not include slashes"))
 	}
 	if t.Driver == "" {
