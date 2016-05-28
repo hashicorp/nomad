@@ -9,6 +9,10 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+const (
+	urlNotFoundErr = "url not found"
+)
+
 func (s *HTTPServer) AllocsRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	if req.Method != "GET" {
 		return nil, CodedError(405, ErrInvalidMethod)
@@ -67,7 +71,7 @@ func (s *HTTPServer) ClientAllocRequest(resp http.ResponseWriter, req *http.Requ
 	// invoked on the alloc id
 	tokens := strings.Split(reqSuffix, "/")
 	if len(tokens) == 1 || tokens[1] != "stats" {
-		return nil, CodedError(404, "url not found")
+		return nil, CodedError(404, urlNotFoundErr)
 	}
 	allocID := tokens[0]
 
