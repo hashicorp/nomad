@@ -6,6 +6,10 @@ import (
 	"strconv"
 )
 
+const (
+	invalidSinceErrPrefix = "can't read the since query parameter"
+)
+
 func (s *HTTPServer) ClientStatsRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	if s.agent.client == nil {
 		return nil, clientNotRunning
@@ -18,7 +22,7 @@ func (s *HTTPServer) ClientStatsRequest(resp http.ResponseWriter, req *http.Requ
 		ts = true
 		since, err = strconv.Atoi(sinceTime)
 		if err != nil {
-			return nil, CodedError(400, fmt.Sprintf("can't read the since query parameter: %v", err))
+			return nil, CodedError(400, fmt.Sprintf("%s: %v", invalidSinceErrPrefix, err))
 		}
 	}
 
