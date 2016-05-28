@@ -179,9 +179,8 @@ func (e *UniversalExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
 		ResourceUsage: &cstructs.ResourceUsage{
 			MemoryStats: ms,
 			CpuStats:    cs,
-			Timestamp:   ts,
 		},
-		Timestamp: ts,
+		Timestamp: ts.UTC().UnixNano(),
 	}
 	if pidStats, err := e.pidStats(); err == nil {
 		taskResUsage.Pids = pidStats
