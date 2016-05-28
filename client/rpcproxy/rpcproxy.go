@@ -706,7 +706,7 @@ func (p *RpcProxy) UpdateFromNodeUpdateResponse(resp *structs.NodeUpdateResponse
 		}
 	}
 
-	// Short-circuit acquiring a lock if nothing changed
+	// Short-circuit acquiring listLock if nothing changed
 	if !newServers && numOldServers == numBothServers {
 		return nil
 	}
