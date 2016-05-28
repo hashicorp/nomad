@@ -1741,9 +1741,6 @@ func (t *Task) Validate() error {
 	if t.Name == "" {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing task name"))
 	}
-	if strings.ContainsAny(t.Name, `/\`) {
-		mErr.Errors = append(mErr.Errors, errors.New("Task name can not include slashes"))
-	}
 	if t.Driver == "" {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing task driver"))
 	}
