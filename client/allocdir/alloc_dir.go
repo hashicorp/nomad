@@ -66,7 +66,10 @@ type AllocDir struct {
 	// events
 	watcher *fsnotify.Watcher
 
-	// destroyCh tears down the filesystem watcher
+	// stop indicates if watching of the shared alloc dir should stop
+	stop bool
+
+	// destroyCh is used to indicate that the alloc dir can be destroyed
 	destroyCh chan struct{}
 }
 
@@ -97,10 +100,13 @@ func NewAllocDir(allocDir string) *AllocDir {
 	return d
 }
 
-// Tears down previously build directory structure.
+// Tears down previously built directory structure.
 func (d *AllocDir) Destroy() error {
-	// Signal to stop the filesystem watcher
-	close(d.destroyCh)
+	// Signal the watch go routine to stop
+	d.stop = true
+
+	// Wait until we are ready to destroy the alloc dir
+	<-d.destroyCh
 
 	// Unmount all mounted shared alloc dirs.
 	var mErr multierror.Error
@@ -154,9 +160,6 @@ func (d *AllocDir) Build(tasks []*structs.Task) error {
 		return err
 	}
 
-	// Start watching the shared alloc directory
-	go d.WatchSharedDir()
-
 	for _, dir := range SharedAllocDirs {
 		p := filepath.Join(d.SharedDir, dir)
 		if err := os.MkdirAll(p, 0777); err != nil {
@@ -203,6 +206,9 @@ func (d *AllocDir) Build(tasks []*structs.Task) error {
 			}
 		}
 	}
+
+	// Start watching the shared alloc directory
+	go d.WatchSharedDir()
 
 	return nil
 }
@@ -424,6 +430,7 @@ func (d *AllocDir) WatchSharedDir() {
 		log.Printf("[WARN] client: failed to create watcher: %v", err)
 		return
 	}
+	defer d.watcher.Close()
 
 	// Check if we have to initialize based on restored state
 	if len(d.DirCache) != 0 {
@@ -433,26 +440,23 @@ func (d *AllocDir) WatchSharedDir() {
 			d.DirCache[path].Dirty = true
 		}
 	} else {
-		// Add shared alloc directory to watcher
-		if err := d.watcher.Add(d.SharedDir); err != nil {
-			log.Printf("[WARN] client: failed to add watch: %v", err)
-			return
-		}
-
-		info, err := d.Stat(SharedAllocName)
-		if err != nil {
-			log.Printf("[WARN] client: could not stat: %v", err)
-			return
-		}
-
-		// Add the shared alloc directory to the cache to make sure it is checked.
-		d.DirCache[SharedAllocName] = &dirInfo{
-			Size:  info.Size,
-			Dirty: true,
-		}
+		// Find all directories in the shared alloc directory and add them
+		// to the directory cache and start watching them for filesystem events.
+		filepath.Walk(d.SharedDir,
+			func(path string, info os.FileInfo, err error) error {
+				name := strings.TrimPrefix(path, d.AllocDir+string(os.PathSeparator))
+				if _, ok := d.DirCache[name]; !ok && info.IsDir() {
+					d.DirCache[name] = &dirInfo{Dirty: true}
+					if err := d.watcher.Add(path); err != nil {
+						log.Printf("[WARN] client: failed to add watch: %v", err)
+						return err
+					}
+				}
+				return nil
+			})
 	}
 
-	// Do the initial disk sync
+	// Do the initial disk usage sync
 	d.syncDiskUsage()
 
 OUTER:
@@ -467,7 +471,7 @@ OUTER:
 			}
 
 			// Trim shared alloc directory path
-			path := strings.TrimPrefix(event.Name, d.AllocDir+"/")
+			path := strings.TrimPrefix(event.Name, d.AllocDir+string(os.PathSeparator))
 			parent := filepath.Dir(path)
 
 			if event.Op&fsnotify.Remove == fsnotify.Remove {
@@ -503,15 +507,16 @@ OUTER:
 			log.Printf("[WARN] client: filesystem watcher failed: %v", err)
 
 		case <-sync.C:
+			if d.stop {
+				break OUTER
+			}
 			if err := d.syncDiskUsage(); err != nil {
 				log.Printf("[WARN] client: failed to sync disk usage: %v", err)
 			}
-		case <-d.destroyCh:
-			break OUTER
 		}
 	}
 
-	d.watcher.Close()
+	close(d.destroyCh)
 }
 
 // syncDiskUsage iterates over all watched alloc directories and refreshes the
