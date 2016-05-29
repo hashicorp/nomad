@@ -253,7 +253,13 @@ be specified using the `?region=` query parameter.
       driver.
     * `Started` - The task was started; either for the first time or due to a
       restart.
-    * `Terminated` - The task terminated.
-    * `Killed` - The task was killed by the user.
+    * `Terminated` - The task was started and exited.
+    * `Killed` - The task was killed by an user.
+    * `Received` - The task has been pulled by the client at the given timestamp.
+    * `Failed Validation` - The task was invalid and as such it didn't run.
+    * `Restarting` - The task terminated and is being restarted.
+    * `Not Restarting` - the task has failed and is not being restarted because it has exceeded its restart policy.
+    * `Downloading Artifacts` - The task is downloading the artifact(s) specified in the task. 
+    * `Failed Artifact Download` - Artifact(s) specified in the task failed to download.
 
     Depending on the type the event will have applicable annotations.
