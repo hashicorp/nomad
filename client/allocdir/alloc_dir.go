@@ -102,14 +102,19 @@ func NewAllocDir(allocDir string) *AllocDir {
 
 // Tears down previously built directory structure.
 func (d *AllocDir) Destroy() error {
-	// Signal the watch go routine to stop
+	// Unmount all mounted shared alloc dirs.
+	var mErr multierror.Error
+
+	// Signal the watcher routine to stop
 	d.stop = true
 
 	// Wait until we are ready to destroy the alloc dir
-	<-d.destroyCh
+	select {
+	case <-d.destroyCh:
+	case <-time.After(time.Second * 30):
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("unclean destroy of alloc dir"))
+	}
 
-	// Unmount all mounted shared alloc dirs.
-	var mErr multierror.Error
 	if err := d.UnmountAll(); err != nil {
 		mErr.Errors = append(mErr.Errors, err)
 	}
