@@ -66,9 +66,6 @@ type AllocRunner struct {
 	destroyCh   chan struct{}
 	destroyLock sync.Mutex
 	waitCh      chan struct{}
-
-	// watchdog regularly checks if alloc resources are within bounds.
-	watchdog *time.Ticker
 }
 
 // allocRunnerState is used to snapshot the state of the alloc runner
@@ -97,7 +94,6 @@ func NewAllocRunner(logger *log.Logger, config *config.Config, updater AllocStat
 		updateCh:         make(chan *structs.Allocation, 64),
 		destroyCh:        make(chan struct{}),
 		waitCh:           make(chan struct{}),
-		watchdog:         time.NewTicker(watchdogInterval),
 	}
 	return ar
 }
@@ -418,6 +414,9 @@ func (r *AllocRunner) Run() {
 	}
 	r.taskLock.Unlock()
 
+	watchdog := time.NewTicker(watchdogInterval)
+	defer watchdog.Stop()
+
 OUTER:
 	// Wait for updates
 	for {
@@ -440,10 +439,9 @@ OUTER:
 				tr.Update(update)
 			}
 			r.taskLock.RUnlock()
-		case <-r.watchdog.C:
+		case <-watchdog.C:
 			r.checkResources()
 		case <-r.destroyCh:
-			r.watchdog.Stop()
 			break OUTER
 		}
 	}
