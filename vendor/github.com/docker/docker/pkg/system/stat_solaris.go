@@ -1,4 +1,3 @@
-<<<<<<< df68129e5afd485c281a9b7a3cd36d3ed32ffd83
 // +build solaris
 
 package system
@@ -33,23 +32,3 @@ func Stat(path string) (*StatT, error) {
 	}
 	return fromStatT(s)
 }
-||||||| merged common ancestors
-=======
-// +build solaris
-
-package system
-
-import (
-	"syscall"
-)
-
-// fromStatT creates a system.StatT type from a syscall.Stat_t type
-func fromStatT(s *syscall.Stat_t) (*StatT, error) {
-	return &StatT{size: s.Size,
-		mode: uint32(s.Mode),
-		uid:  s.Uid,
-		gid:  s.Gid,
-		rdev: uint64(s.Rdev),
-		mtim: s.Mtim}, nil
-}
->>>>>>> Added missing vendored dependencies
