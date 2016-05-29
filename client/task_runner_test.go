@@ -130,6 +130,13 @@ func TestTaskRunner_Destroy(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	})
 
+	// Make sure we are collecting  afew stats
+	time.Sleep(2 * time.Second)
+	stats := tr.StatsReporter().ResourceUsage()
+	if len(stats) == 0 {
+		t.Fatalf("expected task runner to have some stats")
+	}
+
 	// Begin the tear down
 	tr.Destroy()
 
@@ -408,11 +415,11 @@ func TestTaskRunnerResouseUsageTS(t *testing.T) {
 	t4, _ := time.Parse(time.RFC822, "02 Jan 06 15:07 MST")
 	t5, _ := time.Parse(time.RFC822, "02 Jan 06 15:08 MST")
 
-	ru1 := cstructs.TaskResourceUsage{Timestamp: t1}
-	ru2 := cstructs.TaskResourceUsage{Timestamp: t2}
-	ru3 := cstructs.TaskResourceUsage{Timestamp: t3}
-	ru4 := cstructs.TaskResourceUsage{Timestamp: t4}
-	ru5 := cstructs.TaskResourceUsage{Timestamp: t5}
+	ru1 := cstructs.TaskResourceUsage{Timestamp: t1.UnixNano()}
+	ru2 := cstructs.TaskResourceUsage{Timestamp: t2.UnixNano()}
+	ru3 := cstructs.TaskResourceUsage{Timestamp: t3.UnixNano()}
+	ru4 := cstructs.TaskResourceUsage{Timestamp: t4.UnixNano()}
+	ru5 := cstructs.TaskResourceUsage{Timestamp: t5.UnixNano()}
 
 	tr.resourceUsage.Enqueue(&ru1)
 	tr.resourceUsage.Enqueue(&ru2)
@@ -420,23 +427,23 @@ func TestTaskRunnerResouseUsageTS(t *testing.T) {
 	tr.resourceUsage.Enqueue(&ru4)
 	tr.resourceUsage.Enqueue(&ru5)
 
-	values := tr.ResourceUsageTS(t3.Add(-1 * time.Second))
+	values := tr.ResourceUsageTS(t3.Add(-1 * time.Second).UnixNano())
 	if len(values) != 3 {
 		t.Fatalf("expected values: 3, actual: %v", len(values))
 	}
 
-	values = tr.ResourceUsageTS(t3)
+	values = tr.ResourceUsageTS(t3.UnixNano())
 	if len(values) != 3 {
 		t.Fatalf("expected values: 3, actual: %v", len(values))
 	}
 
 	begenning, _ := time.Parse(time.RFC822, "01 Jan 1970 00:00 UTC")
-	values = tr.ResourceUsageTS(begenning)
+	values = tr.ResourceUsageTS(begenning.UnixNano())
 	if len(values) != 5 {
 		t.Fatalf("expected values: 5, actual: %v", len(values))
 	}
 
-	values = tr.ResourceUsageTS(t5.Add(1 * time.Second))
+	values = tr.ResourceUsageTS(t5.Add(1 * time.Second).UnixNano())
 	if len(values) != 0 {
 		t.Fatalf("expected values: 3, actual: %v", len(values))
 	}
