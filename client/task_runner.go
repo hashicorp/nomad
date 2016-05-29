@@ -508,7 +508,7 @@ func (r *TaskRunner) ResourceUsageTS(since int64) []*cstructs.TaskResourceUsage 
 	var idx int
 
 	for {
-		mid := (low + high) >> 1
+		mid := (low + high) / 2
 		midVal, _ := values[mid].(*cstructs.TaskResourceUsage)
 		if midVal.Timestamp < since {
 			low = mid + 1

@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	urlNotFoundErr = "url not found"
+	allocNotFoundErr = "allocation not found"
 )
 
 func (s *HTTPServer) AllocsRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
@@ -71,7 +71,7 @@ func (s *HTTPServer) ClientAllocRequest(resp http.ResponseWriter, req *http.Requ
 	// invoked on the alloc id
 	tokens := strings.Split(reqSuffix, "/")
 	if len(tokens) == 1 || tokens[1] != "stats" {
-		return nil, CodedError(404, urlNotFoundErr)
+		return nil, CodedError(404, allocNotFoundErr)
 	}
 	allocID := tokens[0]
 

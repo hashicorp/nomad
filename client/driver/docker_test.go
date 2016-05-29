@@ -837,11 +837,8 @@ func TestDockerDriver_Stats(t *testing.T) {
 	defer cleanup()
 
 	go func() {
-		fmt.Println("GOING TO SLEEP")
 		time.Sleep(3 * time.Second)
-		fmt.Println("COMING OUT OF SLEEP")
 		ru, err := handle.Stats()
-		fmt.Printf("STATS CALL OVER ru: %#v, err: %v", ru, err)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
