@@ -205,6 +205,57 @@ func TestHTTP_JobQuery(t *testing.T) {
 	})
 }
 
+func TestHTTP_JobStatus(t *testing.T) {
+	httpTest(t, nil, func(s *TestServer) {
+		// Create the job
+		job := mock.Job()
+		args := structs.JobRegisterRequest{
+			Job:          job,
+			WriteRequest: structs.WriteRequest{Region: "global"},
+		}
+		var resp structs.JobRegisterResponse
+		if err := s.Agent.RPC("Job.Register", &args, &resp); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Make the HTTP request
+		req, err := http.NewRequest("GET", "/v1/job/"+job.ID+"/status", nil)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		respW := httptest.NewRecorder()
+
+		// Make the request
+		obj, err := s.Server.JobSpecificRequest(respW, req)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Check for the index
+		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+			t.Fatalf("missing index")
+		}
+		if respW.HeaderMap.Get("X-Nomad-KnownLeader") != "true" {
+			t.Fatalf("missing known leader")
+		}
+		if respW.HeaderMap.Get("X-Nomad-LastContact") == "" {
+			t.Fatalf("missing last contact")
+		}
+
+		// Check the job
+		status := obj.(*structs.JobStatusResponse)
+		if status.Status == "" {
+			t.Fatalf("bad: %#v", status)
+		}
+		if status.Pending == 0 {
+			t.Fatalf("bad: %#v", status)
+		}
+		if len(status.TaskGroups) == 0 {
+			t.Fatalf("bad: %#v", status)
+		}
+	})
+}
+
 func TestHTTP_JobUpdate(t *testing.T) {
 	httpTest(t, nil, func(s *TestServer) {
 		// Create the job

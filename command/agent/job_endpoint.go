@@ -54,6 +54,9 @@ func (s *HTTPServer) JobSpecificRequest(resp http.ResponseWriter, req *http.Requ
 	case strings.HasSuffix(path, "/plan"):
 		jobName := strings.TrimSuffix(path, "/plan")
 		return s.jobPlan(resp, req, jobName)
+	case strings.HasSuffix(path, "/status"):
+		jobName := strings.TrimSuffix(path, "/status")
+		return s.jobStatus(resp, req, jobName)
 	default:
 		return s.jobCRUD(resp, req, path)
 	}
@@ -203,6 +206,24 @@ func (s *HTTPServer) jobQuery(resp http.ResponseWriter, req *http.Request,
 		return nil, CodedError(404, "job not found")
 	}
 	return out.Job, nil
+}
+
+func (s *HTTPServer) jobStatus(resp http.ResponseWriter, req *http.Request,
+	jobName string) (interface{}, error) {
+	args := structs.JobSpecificRequest{
+		JobID: jobName,
+	}
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
+
+	var out structs.JobStatusResponse
+	if err := s.agent.RPC("Job.Status", &args, &out); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &out.QueryMeta)
+	return &out, nil
 }
 
 func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,

@@ -64,6 +64,16 @@ func (j *Jobs) Info(jobID string, q *QueryOptions) (*Job, *QueryMeta, error) {
 	return &resp, qm, nil
 }
 
+// Status retrieves the current state of a particular job given its unique ID.
+func (j *Jobs) Status(jobID string, q *QueryOptions) (*JobStatus, *QueryMeta, error) {
+	var resp JobStatus
+	qm, err := j.client.query("/v1/job/"+jobID+"/status", &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, qm, nil
+}
+
 // Allocations is used to return the allocs for a given job ID.
 func (j *Jobs) Allocations(jobID string, q *QueryOptions) ([]*AllocationListStub, *QueryMeta, error) {
 	var resp []*AllocationListStub
@@ -182,6 +192,7 @@ type JobListStub struct {
 	Name              string
 	Type              string
 	Priority          int
+	Periodic          bool
 	Status            string
 	StatusDescription string
 	CreateIndex       uint64
@@ -338,4 +349,18 @@ type DesiredUpdates struct {
 	Stop              uint64
 	InPlaceUpdate     uint64
 	DestructiveUpdate uint64
+}
+
+type JobStatus struct {
+	AllocStateCounts
+	TaskGroups map[string]AllocStateCounts
+	Status     string
+}
+
+type AllocStateCounts struct {
+	Pending  uint64
+	Starting uint64
+	Running  uint64
+	Complete uint64
+	Failed   uint64
 }

@@ -419,6 +419,30 @@ type JobPlanResponse struct {
 	WriteMeta
 }
 
+// JobStatusResponse returns the status of the job and its allocations. This is
+// to get a quick overview of the job.
+type JobStatusResponse struct {
+	// Rolled up across all Task Groups
+	AllocStateCounts
+
+	// Per Task Group status
+	TaskGroups map[string]AllocStateCounts
+
+	// The status of the job.
+	Status string
+
+	QueryMeta
+}
+
+// AllocStateCounts counts the number of allocations in each state.
+type AllocStateCounts struct {
+	Pending  uint64
+	Starting uint64
+	Running  uint64
+	Complete uint64
+	Failed   uint64
+}
+
 // SingleAllocResponse is used to return a single allocation
 type SingleAllocResponse struct {
 	Alloc *Allocation
@@ -1068,6 +1092,7 @@ func (j *Job) Stub() *JobListStub {
 		Name:              j.Name,
 		Type:              j.Type,
 		Priority:          j.Priority,
+		Periodic:          j.IsPeriodic(),
 		Status:            j.Status,
 		StatusDescription: j.StatusDescription,
 		CreateIndex:       j.CreateIndex,
@@ -1088,6 +1113,7 @@ type JobListStub struct {
 	Name              string
 	Type              string
 	Priority          int
+	Periodic          bool
 	Status            string
 	StatusDescription string
 	CreateIndex       uint64

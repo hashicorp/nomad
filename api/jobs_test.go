@@ -83,6 +83,49 @@ func TestJobs_Info(t *testing.T) {
 	}
 }
 
+func TestJobs_Status(t *testing.T) {
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	jobs := c.Jobs()
+
+	// Trying to retrieve a job by ID before it exists
+	// returns an error
+	_, _, err := jobs.Status("job1", nil)
+	if err == nil || !strings.Contains(err.Error(), "not found") {
+		t.Fatalf("expected not found error, got: %#v", err)
+	}
+
+	// Register the job
+	job := testJob()
+	_, wm, err := jobs.Register(job, nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	assertWriteMeta(t, wm)
+
+	// Query the job again and ensure we can get its status
+	result, qm, err := jobs.Status("job1", nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	assertQueryMeta(t, qm)
+
+	// Check that the result is what we expect
+	if result == nil {
+		t.Fatalf("Got nil result")
+	}
+
+	if result.Status != "pending" {
+		t.Fatalf("incorrect status; got %s; want %s", result.Status, "pending")
+	}
+	if len(result.TaskGroups) == 0 {
+		t.Fatalf("got no task group status: %#v", result)
+	}
+	if result.Pending == 0 {
+		t.Fatalf("Got no pending count rolled up: %#v", result)
+	}
+}
+
 func TestJobs_PrefixList(t *testing.T) {
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
