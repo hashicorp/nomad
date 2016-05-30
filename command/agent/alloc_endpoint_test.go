@@ -159,7 +159,7 @@ func TestHTTP_AllocStats(t *testing.T) {
 
 		// Make the request
 		_, err = s.Server.ClientAllocRequest(respW, req)
-		if !strings.Contains(err.Error(), urlNotFoundErr) {
+		if !strings.Contains(err.Error(), allocNotFoundErr) {
 			t.Fatalf("err: %v", err)
 		}
 	})
