@@ -501,7 +501,6 @@ func (j *Job) Status(args *structs.JobSpecificRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "job", "status"}, time.Now())
 
-	// Setup the blocking query
 	snap, err := j.srv.fsm.State().Snapshot()
 	if err != nil {
 		return err
