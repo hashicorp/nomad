@@ -1012,3 +1012,273 @@ func TestJobEndpoint_Plan_NoDiff(t *testing.T) {
 		t.Fatalf("got diff")
 	}
 }
+
+func TestJobEndpoint_Status(t *testing.T) {
+	// All allocs can be on this node
+	node := mock.Node()
+
+	// Create the different types of jobs and give them all the same ID so the
+	// allocs can be reused
+	serviceJob := mock.Job()
+	serviceJob.ID = "foo"
+
+	serviceJobMultiTaskGroup := mock.Job()
+	serviceJobMultiTaskGroup.ID = "foo"
+	tg2 := serviceJobMultiTaskGroup.TaskGroups[0].Copy()
+	tg2.Name = "web2"
+	serviceJobMultiTaskGroup.TaskGroups = append(serviceJobMultiTaskGroup.TaskGroups, tg2)
+
+	batchJob := mock.Job()
+	batchJob.Type = structs.JobTypeBatch
+	batchJob.ID = "foo"
+
+	periodicJob := mock.PeriodicJob()
+	periodicJob.ID = "foo"
+
+	systemJob := mock.SystemJob()
+	systemJob.ID = "foo"
+
+	// Create some allocations in various states
+	starting := mock.Alloc()
+	starting.JobID = "foo"
+	starting.NodeID = node.ID
+	starting.Name = "my-job.web[0]"
+	starting.DesiredStatus = structs.AllocDesiredStatusRun
+	starting.ClientStatus = structs.AllocClientStatusPending
+
+	running := mock.Alloc()
+	running.JobID = "foo"
+	running.NodeID = node.ID
+	running.Name = "my-job.web[1]"
+	running.DesiredStatus = structs.AllocDesiredStatusRun
+	running.ClientStatus = structs.AllocClientStatusRunning
+
+	complete := mock.Alloc()
+	complete.JobID = "foo"
+	complete.NodeID = node.ID
+	complete.Name = "my-job.web[2]"
+	complete.DesiredStatus = structs.AllocDesiredStatusRun
+	complete.ClientStatus = structs.AllocClientStatusComplete
+	complete.TaskStates = map[string]*structs.TaskState{
+		"web": &structs.TaskState{
+			State: structs.TaskStateDead,
+			Events: []*structs.TaskEvent{
+				{
+					Type:     structs.TaskTerminated,
+					ExitCode: 0,
+				},
+			},
+		},
+	}
+
+	failed := mock.Alloc()
+	failed.JobID = "foo"
+	failed.NodeID = node.ID
+	failed.DesiredStatus = structs.AllocDesiredStatusRun
+	failed.ClientStatus = structs.AllocClientStatusFailed
+
+	schedFailed := mock.Alloc()
+	schedFailed.JobID = "foo"
+	schedFailed.NodeID = node.ID
+	schedFailed.DesiredStatus = structs.AllocDesiredStatusFailed
+	schedFailed.ClientStatus = structs.AllocClientStatusPending
+
+	stop := mock.Alloc()
+	stop.JobID = "foo"
+	stop.NodeID = node.ID
+	stop.DesiredStatus = structs.AllocDesiredStatusStop
+	stop.ClientStatus = structs.AllocClientStatusComplete
+
+	cases := []struct {
+		Job     *structs.Job
+		Allocs  []*structs.Allocation
+		Desired *structs.JobStatusResponse
+	}{
+		{
+			Job: serviceJob,
+			Allocs: []*structs.Allocation{
+				starting,
+				running,
+				failed,
+				schedFailed,
+				stop,
+			},
+			Desired: &structs.JobStatusResponse{
+				AllocStateCounts: structs.AllocStateCounts{
+					Pending:  8,
+					Starting: 1,
+					Running:  1,
+					Failed:   2,
+				},
+				TaskGroups: map[string]structs.AllocStateCounts{
+					"web": structs.AllocStateCounts{
+						Pending:  8,
+						Starting: 1,
+						Running:  1,
+						Failed:   2,
+					},
+				},
+			},
+		},
+		{
+			Job: serviceJob,
+			Allocs: []*structs.Allocation{
+				failed,
+				schedFailed,
+				stop,
+			},
+			Desired: &structs.JobStatusResponse{
+				AllocStateCounts: structs.AllocStateCounts{
+					Pending:  10,
+					Starting: 0,
+					Running:  0,
+					Failed:   2,
+				},
+				TaskGroups: map[string]structs.AllocStateCounts{
+					"web": structs.AllocStateCounts{
+						Pending:  10,
+						Starting: 0,
+						Running:  0,
+						Failed:   2,
+					},
+				},
+			},
+		},
+		{
+			Job: serviceJobMultiTaskGroup,
+			Allocs: []*structs.Allocation{
+				starting,
+				running,
+				failed,
+				schedFailed,
+				stop,
+			},
+			Desired: &structs.JobStatusResponse{
+				AllocStateCounts: structs.AllocStateCounts{
+					Pending:  18,
+					Starting: 1,
+					Running:  1,
+					Failed:   2,
+				},
+				TaskGroups: map[string]structs.AllocStateCounts{
+					"web": structs.AllocStateCounts{
+						Pending:  8,
+						Starting: 1,
+						Running:  1,
+						Failed:   2,
+					},
+					"web2": structs.AllocStateCounts{
+						Pending:  10,
+						Starting: 0,
+						Running:  0,
+						Failed:   0,
+					},
+				},
+			},
+		},
+		{
+			Job: batchJob,
+			Allocs: []*structs.Allocation{
+				starting,
+				running,
+				failed,
+				schedFailed,
+				stop,
+				complete,
+			},
+			Desired: &structs.JobStatusResponse{
+				AllocStateCounts: structs.AllocStateCounts{
+					Pending:  7,
+					Starting: 1,
+					Running:  1,
+					Complete: 1,
+					Failed:   2,
+				},
+				TaskGroups: map[string]structs.AllocStateCounts{
+					"web": structs.AllocStateCounts{
+						Pending:  7,
+						Starting: 1,
+						Running:  1,
+						Complete: 1,
+						Failed:   2,
+					},
+				},
+			},
+		},
+		{
+			Job: periodicJob,
+			Allocs: []*structs.Allocation{
+				starting,
+				running,
+				failed,
+				schedFailed,
+				stop,
+				complete,
+			},
+			Desired: &structs.JobStatusResponse{
+				TaskGroups: make(map[string]structs.AllocStateCounts, len(periodicJob.TaskGroups)),
+			},
+		},
+		{
+			Job: systemJob,
+			Allocs: []*structs.Allocation{
+				starting,
+				running,
+				failed,
+				schedFailed,
+				stop,
+				complete,
+			},
+			Desired: &structs.JobStatusResponse{
+				AllocStateCounts: structs.AllocStateCounts{
+					Starting: 1,
+					Running:  1,
+					Complete: 1,
+					Failed:   2,
+				},
+				TaskGroups: map[string]structs.AllocStateCounts{
+					"web": structs.AllocStateCounts{
+						Starting: 1,
+						Running:  1,
+						Complete: 1,
+						Failed:   2,
+					},
+				},
+			},
+		},
+	}
+
+	for i, c := range cases {
+		s1 := testServer(t, nil)
+		defer s1.Shutdown()
+		codec := rpcClient(t, s1)
+		testutil.WaitForLeader(t, s1.RPC)
+		state := s1.fsm.State()
+		if err := state.UpsertAllocs(1000, c.Allocs); err != nil {
+			t.Fatal("case %d: bad %#v", i, err)
+		}
+		if err := state.UpsertJob(1001, c.Job); err != nil {
+			t.Fatal("case %d: bad %#v", i, err)
+		}
+		if err := state.UpsertNode(1002, node); err != nil {
+			t.Fatal("case %d: bad %#v", i, err)
+		}
+
+		get := &structs.JobSpecificRequest{
+			JobID:        c.Job.ID,
+			QueryOptions: structs.QueryOptions{Region: "global"},
+		}
+		var resp structs.JobStatusResponse
+		if err := msgpackrpc.CallWithCodec(codec, "Job.Status", get, &resp); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Clear these as we are just testing for the correct numbers
+		resp.QueryMeta = structs.QueryMeta{}
+		resp.Status = ""
+
+		if !reflect.DeepEqual(&resp, c.Desired) {
+			t.Fatalf("case %d: got %+v; want %+v", i, resp, c.Desired)
+		}
+	}
+}

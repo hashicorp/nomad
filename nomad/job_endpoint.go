@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/driver"
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/watch"
 	"github.com/hashicorp/nomad/scheduler"
@@ -429,38 +430,12 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 	// Insert the updated Job into the snapshot
 	snap.UpsertJob(index, args.Job)
 
-	// Create an eval and mark it as requiring annotations and insert that as well
-	eval := &structs.Evaluation{
-		ID:             structs.GenerateUUID(),
-		Priority:       args.Job.Priority,
-		Type:           args.Job.Type,
-		TriggeredBy:    structs.EvalTriggerJobRegister,
-		JobID:          args.Job.ID,
-		JobModifyIndex: index,
-		Status:         structs.EvalStatusPending,
-		AnnotatePlan:   true,
-	}
-
-	// Create an in-memory Planner that returns no errors and stores the
-	// submitted plan and created evals.
-	planner := &scheduler.Harness{
-		State: &snap.StateStore,
-	}
-
-	// Create the scheduler and run it
-	sched, err := scheduler.NewScheduler(eval.Type, j.srv.logger, snap, planner)
+	// Do the dry run
+	planner, err := j.dryrunJob(args.Job, snap)
 	if err != nil {
 		return err
 	}
 
-	if err := sched.Process(eval); err != nil {
-		return err
-	}
-
-	// Annotate and store the diff
-	if plans := len(planner.Plans); plans != 1 {
-		return fmt.Errorf("scheduler resulted in an unexpected number of plans: %d", plans)
-	}
 	annotations := planner.Plans[0].Annotations
 	if args.Diff {
 		jobDiff, err := oldJob.Diff(args.Job, true)
@@ -515,4 +490,156 @@ func validateJob(job *structs.Job) error {
 	}
 
 	return validationErrors.ErrorOrNil()
+}
+
+// Status returns a summary of the status of the job's allocations (how many
+// pending, running, complete, failed).
+func (j *Job) Status(args *structs.JobSpecificRequest,
+	reply *structs.JobStatusResponse) error {
+	if done, err := j.srv.forward("Job.Status", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "job", "status"}, time.Now())
+
+	snap, err := j.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
+	out, err := snap.JobByID(args.JobID)
+	if err != nil {
+		return err
+	}
+
+	if out == nil {
+		return fmt.Errorf("job %q not found", args.JobID)
+	}
+
+	status, err := j.computeJobStatus(snap, out)
+	if err != nil {
+		return err
+	}
+
+	*reply = *status
+	reply.Index = out.ModifyIndex
+
+	// Set the query response
+	j.srv.setQueryMeta(&reply.QueryMeta)
+	return nil
+}
+
+// computeJobStatus takes a state snapshot and the job and computes is high
+// level status
+func (j *Job) computeJobStatus(snap *state.StateSnapshot, job *structs.Job) (*structs.JobStatusResponse, error) {
+	if job == nil {
+		return nil, fmt.Errorf("job can not be nil")
+	}
+
+	status := &structs.JobStatusResponse{
+		Status:     job.Status,
+		TaskGroups: make(map[string]structs.AllocStateCounts, len(job.TaskGroups)),
+	}
+	allocs, err := snap.AllocsByJob(job.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Periodic jobs can't have running instances
+	if job.IsPeriodic() {
+		return status, nil
+	}
+
+	var tgStat structs.AllocStateCounts
+	for _, alloc := range allocs {
+		// Starting =  Desired Running && Client Pending
+		// Running = Desired Running && Client Running
+		// Complete = Desired running && client complete
+		if alloc.DesiredStatus == structs.AllocDesiredStatusRun {
+			tgStat = status.TaskGroups[alloc.TaskGroup]
+
+			switch alloc.ClientStatus {
+			case structs.AllocClientStatusPending:
+				status.Starting++
+				tgStat.Starting++
+			case structs.AllocClientStatusRunning:
+				status.Running++
+				tgStat.Running++
+			case structs.AllocClientStatusComplete:
+				status.Complete++
+				tgStat.Complete++
+			}
+
+		}
+
+		// Failed = desired failed || client failed
+		if alloc.DesiredStatus == structs.AllocDesiredStatusFailed ||
+			alloc.ClientStatus == structs.AllocClientStatusFailed {
+			status.Failed++
+			tgStat.Failed++
+		}
+
+		status.TaskGroups[alloc.TaskGroup] = tgStat
+	}
+
+	// If the job is a system job, pending isn't applicable
+	if job.Type == structs.JobTypeSystem {
+		return status, nil
+	}
+
+	// Pending = Hasn't been scheduled
+	// Determine what is pending by dry-running the scheduler.
+	planner, err := j.dryrunJob(job, snap)
+	if err != nil {
+		return nil, err
+	}
+
+	annotations := planner.Plans[0].Annotations
+
+	for tg, update := range annotations.DesiredTGUpdates {
+		status.Pending += update.Place
+		tgStat = status.TaskGroups[tg]
+		tgStat.Pending += update.Place
+		status.TaskGroups[tg] = tgStat
+	}
+
+	return status, nil
+}
+
+// dryrunJob takes a job and a state snapshot and invokes the scheduler in
+// dryrun mode. The harness is returned which contains the created evaluation
+// and annotations
+func (j *Job) dryrunJob(job *structs.Job, snap *state.StateSnapshot) (*scheduler.Harness, error) {
+	eval := &structs.Evaluation{
+		ID:             structs.GenerateUUID(),
+		Priority:       job.Priority,
+		Type:           job.Type,
+		TriggeredBy:    structs.EvalTriggerJobRegister,
+		JobID:          job.ID,
+		JobModifyIndex: job.ModifyIndex,
+		Status:         structs.EvalStatusPending,
+		AnnotatePlan:   true,
+	}
+
+	// Create an in-memory Planner that returns no errors and stores the
+	// submitted plan and created evals.
+	planner := &scheduler.Harness{
+		State: &snap.StateStore,
+	}
+
+	// Create the scheduler and run it
+	sched, err := scheduler.NewScheduler(eval.Type, j.srv.logger, snap, planner)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := sched.Process(eval); err != nil {
+		return nil, err
+	}
+
+	// Annotate and store the diff
+	if plans := len(planner.Plans); plans != 1 {
+		return nil, fmt.Errorf("scheduler resulted in an unexpected number of plans: %d", plans)
+	}
+
+	return planner, nil
 }

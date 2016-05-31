@@ -240,6 +240,59 @@ region is used; another region can be specified using the `?region=` query param
   </dd>
 </dl>
 
+<dl>
+  <dt>Description</dt>
+  <dd>
+    Query the rolled up status of allocations belonging to a single job.
+  </dd>
+
+  <dt>Method</dt>
+  <dd>GET</dd>
+
+  <dt>URL</dt>
+  <dd>`/v1/job/<id>/status`</dd>
+
+  <dt>Parameters</dt>
+  <dd>
+    None
+  </dd>
+
+  <dt>Returns</dt>
+  <dd>
+
+    ```javascript
+	{
+	  "TaskGroups": {
+		"cache": {
+		  "Pending": 0,
+		  "Starting": 1,
+		  "Running": 2,
+		  "Complete": 0,
+		  "Failed": 0
+		},
+		"web": {
+		  "Pending": 4,
+		  "Starting": 0,
+		  "Running": 1,
+		  "Complete": 0,
+		  "Failed": 0
+		},
+	  },
+	  "Status": "running",
+	  "Pending": 4,
+	  "Starting": 1,
+	  "Running": 3,
+	  "Complete": 0,
+	  "Failed": 0,
+	  "Index": 14,
+	  "LastContact": 0,
+	  "KnownLeader": true
+	}
+    ```
+
+  </dd>
+</dl>
+
 ## PUT / POST
 
 <dl>
