@@ -162,7 +162,7 @@ func (c *EvalStatusCommand) Run(args []string) int {
 				noun += "s"
 			}
 			c.Ui.Output(fmt.Sprintf("Task Group %q (failed to place %d %s):", tg, metrics.CoalescedFailures+1, noun))
-			dumpAllocMetrics(c.Ui, metrics, false)
+			c.Ui.Output(formatAllocMetrics(metrics, false, "  "))
 			c.Ui.Output("")
 		}
 

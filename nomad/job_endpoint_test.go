@@ -962,6 +962,9 @@ func TestJobEndpoint_Plan_WithDiff(t *testing.T) {
 	if planResp.Diff == nil {
 		t.Fatalf("no diff")
 	}
+	if len(planResp.FailedTGAllocs) == 0 {
+		t.Fatalf("no failed task group alloc metrics")
+	}
 }
 
 func TestJobEndpoint_Plan_NoDiff(t *testing.T) {
@@ -1010,5 +1013,8 @@ func TestJobEndpoint_Plan_NoDiff(t *testing.T) {
 	}
 	if planResp.Diff != nil {
 		t.Fatalf("got diff")
+	}
+	if len(planResp.FailedTGAllocs) == 0 {
+		t.Fatalf("no failed task group alloc metrics")
 	}
 }

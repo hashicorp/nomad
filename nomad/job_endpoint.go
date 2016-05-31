@@ -459,7 +459,7 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 
 	// Annotate and store the diff
 	if plans := len(planner.Plans); plans != 1 {
-		return fmt.Errorf("scheduler resulted in an unexpected number of plans: %d", plans)
+		return fmt.Errorf("scheduler resulted in an unexpected number of plans: %v", plans)
 	}
 	annotations := planner.Plans[0].Annotations
 	if args.Diff {
@@ -474,6 +474,13 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 		reply.Diff = jobDiff
 	}
 
+	// Grab the failures
+	if len(planner.Evals) != 1 {
+		return fmt.Errorf("scheduler resulted in an unexpected number of eval updates: %v", planner.Evals)
+	}
+	updatedEval := planner.Evals[0]
+
+	reply.FailedTGAllocs = updatedEval.FailedTGAllocs
 	reply.JobModifyIndex = index
 	reply.Annotations = annotations
 	reply.CreatedEvals = planner.CreateEvals

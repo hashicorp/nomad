@@ -2,6 +2,7 @@ package command
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
@@ -130,7 +131,8 @@ func (c *PlanCommand) Run(args []string) int {
 
 	// Print the scheduler dry-run output
 	c.Ui.Output(c.Colorize().Color("[bold]Scheduler dry-run:[reset]"))
-	c.Ui.Output(c.Colorize().Color(formatDryRun(resp.CreatedEvals)))
+	c.Ui.Output(c.Colorize().Color(formatDryRun(resp.FailedTGAllocs, resp.CreatedEvals)))
+	c.Ui.Output("")
 
 	// Print the job index info
 	c.Ui.Output(c.Colorize().Color(formatJobModifyIndex(resp.JobModifyIndex, file)))
@@ -146,28 +148,40 @@ func formatJobModifyIndex(jobModifyIndex uint64, jobName string) string {
 }
 
 // formatDryRun produces a string explaining the results of the dry run.
-func formatDryRun(evals []*api.Evaluation) string {
+func formatDryRun(failedTGAllocs map[string]*api.AllocationMetric, evals []*api.Evaluation) string {
 	var rolling *api.Evaluation
-	var blocked *api.Evaluation
 	for _, eval := range evals {
 		if eval.TriggeredBy == "rolling-update" {
 			rolling = eval
-		} else if eval.Status == "blocked" {
-			blocked = eval
 		}
 	}
 
 	var out string
-	if blocked == nil {
-		out = "[bold][green]  - All tasks successfully allocated.[reset]\n"
+	if len(failedTGAllocs) == 0 {
+		out = "[bold][green]- All tasks successfully allocated.[reset]\n"
 	} else {
-		out = "[bold][yellow]  - WARNING: Failed to place all allocations.[reset]\n"
+		out = "[bold][yellow]- WARNING: Failed to place all allocations.[reset]\n"
+		sorted := sortedTaskGroupFromMetrics(failedTGAllocs)
+		for _, tg := range sorted {
+			metrics := failedTGAllocs[tg]
+
+			noun := "allocation"
+			if metrics.CoalescedFailures > 0 {
+				noun += "s"
+			}
+			out += fmt.Sprintf("%s[yellow]Task Group %q (failed to place %d %s):\n[reset]", strings.Repeat(" ", 2), tg, metrics.CoalescedFailures+1, noun)
+			out += fmt.Sprintf("[yellow]%s[reset]\n\n", formatAllocMetrics(metrics, false, strings.Repeat(" ", 4)))
+		}
+		if rolling == nil {
+			out = strings.TrimSuffix(out, "\n")
+		}
 	}
 
 	if rolling != nil {
-		out += fmt.Sprintf("[green]  - Rolling update, next evaluation will be in %s.\n", rolling.Wait)
+		out += fmt.Sprintf("[green]- Rolling update, next evaluation will be in %s.\n", rolling.Wait)
 	}
 
+	out = strings.TrimSuffix(out, "\n")
 	return out
 }
 
@@ -216,8 +230,15 @@ func formatTaskGroupDiff(tg *api.TaskGroupDiff, tgPrefix int, verbose bool) stri
 
 	// Append the updates and colorize them
 	if l := len(tg.Updates); l > 0 {
+		order := make([]string, 0, l)
+		for updateType := range tg.Updates {
+			order = append(order, updateType)
+		}
+
+		sort.Strings(order)
 		updates := make([]string, 0, l)
-		for updateType, count := range tg.Updates {
+		for _, updateType := range order {
+			count := tg.Updates[updateType]
 			var color string
 			switch updateType {
 			case scheduler.UpdateTypeIgnore:
