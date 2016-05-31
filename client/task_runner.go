@@ -307,6 +307,7 @@ func (r *TaskRunner) validateTask() error {
 func (r *TaskRunner) run() {
 	// Predeclare things so we an jump to the RESTART
 	var handleEmpty bool
+	var stopCollection chan struct{}
 
 	for {
 		// Download the task's artifacts
@@ -339,8 +340,10 @@ func (r *TaskRunner) run() {
 		r.handleLock.Lock()
 		handleEmpty = r.handle == nil
 		r.handleLock.Unlock()
+
 		if handleEmpty {
-			startErr := r.startTask()
+			stopCollection = make(chan struct{})
+			startErr := r.startTask(stopCollection)
 			r.restartTracker.SetStartError(startErr)
 			if startErr != nil {
 				r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskDriverFailure).SetDriverError(startErr))
@@ -359,6 +362,9 @@ func (r *TaskRunner) run() {
 				if waitRes == nil {
 					panic("nil wait")
 				}
+
+				// Stop collection the task's resource usage
+				close(stopCollection)
 
 				// Log whether the task was successful or not.
 				r.restartTracker.SetWaitResult(waitRes)
@@ -435,7 +441,10 @@ func (r *TaskRunner) run() {
 	}
 }
 
-func (r *TaskRunner) startTask() error {
+// startTask creates the driver and start the task. Resource usage is also
+// collect in a launched goroutine. Collection ends when the passed channel is
+// closed
+func (r *TaskRunner) startTask(stopCollection <-chan struct{}) error {
 	// Create a driver
 	driver, err := r.createDriver()
 	if err != nil {
@@ -455,12 +464,13 @@ func (r *TaskRunner) startTask() error {
 	r.handleLock.Lock()
 	r.handle = handle
 	r.handleLock.Unlock()
-	go r.collectResourceUsageStats()
+	go r.collectResourceUsageStats(stopCollection)
 	return nil
 }
 
-// collectResourceUsageStats starts collecting resource usage stats of a Task
-func (r *TaskRunner) collectResourceUsageStats() {
+// collectResourceUsageStats starts collecting resource usage stats of a Task.
+// Collection ends when the passed channel is closed
+func (r *TaskRunner) collectResourceUsageStats(stopCollection <-chan struct{}) {
 	// start collecting the stats right away and then start collecting every
 	// collection interval
 	next := time.NewTimer(0)
@@ -476,7 +486,7 @@ func (r *TaskRunner) collectResourceUsageStats() {
 			r.resourceUsage.Enqueue(ru)
 			r.resourceUsageLock.Unlock()
 			next.Reset(r.config.StatsCollectionInterval)
-		case <-r.handle.WaitCh():
+		case <-stopCollection:
 			return
 		}
 	}

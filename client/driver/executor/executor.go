@@ -492,7 +492,7 @@ func (e *UniversalExecutor) pidStats() (map[string]*cstructs.ResourceUsage, erro
 	pids := make([]*nomadPid, len(e.pids))
 	copy(pids, e.pids)
 	e.pidLock.RUnlock()
-	for _, pid := range e.pids {
+	for _, pid := range pids {
 		p, err := process.NewProcess(int32(pid.pid))
 		if err != nil {
 			e.logger.Printf("[DEBUG] executor: unable to create new process with pid: %v", pid.pid)
