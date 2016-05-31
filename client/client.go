@@ -12,6 +12,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/armon/go-metrics"
+	"github.com/mitchellh/hashstructure"
+
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
@@ -21,7 +24,6 @@ import (
 	"github.com/hashicorp/nomad/client/stats"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/mitchellh/hashstructure"
 )
 
 const (
@@ -1338,9 +1340,36 @@ func (c *Client) collectHostStats() {
 			c.resourceUsageLock.RLock()
 			c.resourceUsage.Enqueue(ru)
 			c.resourceUsageLock.RUnlock()
+			if ru != nil {
+				c.emitStats(ru)
+			}
 			next.Reset(c.config.StatsCollectionInterval)
 		case <-c.shutdownCh:
 			return
 		}
+	}
+}
+
+func (c *Client) emitStats(hStats *stats.HostStats) {
+	metrics.EmitKey([]string{"memory", "total"}, float32(hStats.Memory.Total))
+	metrics.EmitKey([]string{"memory", "available"}, float32(hStats.Memory.Available))
+	metrics.EmitKey([]string{"memory", "used"}, float32(hStats.Memory.Used))
+	metrics.EmitKey([]string{"memory", "free"}, float32(hStats.Memory.Free))
+
+	metrics.EmitKey([]string{"uptime"}, float32(hStats.Uptime))
+
+	for _, cpu := range hStats.CPU {
+		metrics.EmitKey([]string{"cpu", cpu.CPU, "total"}, float32(cpu.Total))
+		metrics.EmitKey([]string{"cpu", cpu.CPU, "user"}, float32(cpu.User))
+		metrics.EmitKey([]string{"cpu", cpu.CPU, "idle"}, float32(cpu.Idle))
+		metrics.EmitKey([]string{"cpu", cpu.CPU, "system"}, float32(cpu.System))
+	}
+
+	for _, disk := range hStats.DiskStats {
+		metrics.EmitKey([]string{"disk", disk.Device, "size"}, float32(disk.Size))
+		metrics.EmitKey([]string{"disk", disk.Device, "used"}, float32(disk.Used))
+		metrics.EmitKey([]string{"disk", disk.Device, "available"}, float32(disk.Available))
+		metrics.EmitKey([]string{"disk", disk.Device, "used_percent"}, float32(disk.UsedPercent))
+		metrics.EmitKey([]string{"disk", disk.Device, "inodes_percent"}, float32(disk.InodesUsedPercent))
 	}
 }
