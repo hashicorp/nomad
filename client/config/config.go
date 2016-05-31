@@ -135,6 +135,12 @@ func (c *Config) Copy() *Config {
 // DefaultConfig returns the default configuration
 func DefaultConfig() *Config {
 	return &Config{
+		ConsulConfig: &config.ConsulConfig{
+			ServerServiceName: "nomad",
+			ClientServiceName: "nomad-client",
+			AutoRegister:      true,
+			Timeout:           500 * time.Millisecond,
+		},
 		LogOutput:               os.Stderr,
 		Region:                  "global",
 		StatsDataPoints:         60,

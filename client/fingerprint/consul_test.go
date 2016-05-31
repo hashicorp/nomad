@@ -22,14 +22,9 @@ func TestConsulFingerprint(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	consulConfig := &config.Config{
-		Options: map[string]string{
-			// Split off "http://"
-			"consul.address": ts.URL[7:],
-		},
-	}
+	config := config.DefaultConfig()
 
-	ok, err := fp.Fingerprint(consulConfig, node)
+	ok, err := fp.Fingerprint(config, node)
 	if err != nil {
 		t.Fatalf("Failed to fingerprint: %s", err)
 	}
@@ -43,9 +38,8 @@ func TestConsulFingerprint(t *testing.T) {
 	assertNodeAttributeContains(t, node, "unique.consul.name")
 	assertNodeAttributeContains(t, node, "consul.datacenter")
 
-	expectedLink := "vagrant.consul2"
-	if node.Links["consul"] != expectedLink {
-		t.Errorf("Expected consul link: %s\nFound links: %#v", expectedLink, node.Links)
+	if _, ok := node.Links["consul"]; !ok {
+		t.Errorf("Expected a link to consul, none found")
 	}
 }
 
