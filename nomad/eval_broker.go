@@ -67,6 +67,12 @@ type EvalBroker struct {
 	// waiting is used to notify on a per-scheduler basis of ready work
 	waiting map[string]chan struct{}
 
+	// requeue tracks evaluations that need to be re-enqueued once the current
+	// evaluation finishes by token. If the token is Nacked or rejected the
+	// evaluation is dropped but if Acked successfully, the evaluation is
+	// queued.
+	requeue map[string]*structs.Evaluation
+
 	// timeWait has evaluations that are waiting for time to elapse
 	timeWait map[string]*time.Timer
 
@@ -104,6 +110,7 @@ func NewEvalBroker(timeout time.Duration, deliveryLimit int) (*EvalBroker, error
 		ready:         make(map[string]PendingEvaluations),
 		unack:         make(map[string]*unackEval),
 		waiting:       make(map[string]chan struct{}),
+		requeue:       make(map[string]*structs.Evaluation),
 		timeWait:      make(map[string]*time.Timer),
 	}
 	b.stats.ByScheduler = make(map[string]*SchedulerStats)
@@ -136,16 +143,27 @@ func (b *EvalBroker) EnqueueAll(evals []*structs.Evaluation) {
 	b.l.Lock()
 	defer b.l.Unlock()
 	for _, eval := range evals {
-		b.processEnqueue(eval)
+		b.processEnqueue(eval, "")
 	}
 }
 
-// processEnqueue deduplicates evals and either enqueue immediately
-// or enforce the evals wait time. processEnqueue must be called with the lock
-// held.
-func (b *EvalBroker) processEnqueue(eval *structs.Evaluation) {
+// processEnqueue deduplicates evals and either enqueue immediately or enforce
+// the evals wait time. If the token is passed, and the evaluation ID is
+// outstanding, the evaluation is blocked til an Ack/Nack is received.
+// processEnqueue must be called with the lock held.
+func (b *EvalBroker) processEnqueue(eval *structs.Evaluation, token string) {
 	// Check if already enqueued
 	if _, ok := b.evals[eval.ID]; ok {
+		if token == "" {
+			return
+		}
+
+		// If the token has been passed, the evaluation is being reblocked by
+		// the scheduler and should be processed once the outstanding evaluation
+		// is Acked or Nacked.
+		if unack, ok := b.unack[eval.ID]; ok && unack.Token == token {
+			b.requeue[token] = eval
+		}
 		return
 	} else if b.enabled {
 		b.evals[eval.ID] = 0
@@ -168,7 +186,20 @@ func (b *EvalBroker) processEnqueue(eval *structs.Evaluation) {
 func (b *EvalBroker) Enqueue(eval *structs.Evaluation) {
 	b.l.Lock()
 	defer b.l.Unlock()
-	b.processEnqueue(eval)
+	b.processEnqueue(eval, "")
+}
+
+// Requeue is used to requeue an evaluation that potentially may be already
+// enqueued. The evaluation is handled in one of the following ways:
+// * Evaluation not outstanding: Process as a normal Enqueue
+// * Evaluation outstanding: Do not allow the evaluation to be dequeued til:
+//    * Ack received:  Unblock the evaluation allowing it to be dequeued
+//    * Nack received: Drop the evaluation as it was created as a result of a
+//    scheduler run that was Nack'd
+func (b *EvalBroker) Requeue(eval *structs.Evaluation, token string) {
+	b.l.Lock()
+	defer b.l.Unlock()
+	b.processEnqueue(eval, token)
 }
 
 // enqueueWaiting is used to enqueue a waiting evaluation
@@ -435,6 +466,10 @@ func (b *EvalBroker) Ack(evalID, token string) error {
 	b.l.Lock()
 	defer b.l.Unlock()
 
+	// Always delete the requeued evaluation. Either the Ack is successful and
+	// we requeue it or it isn't and we want to remove it.
+	defer delete(b.requeue, token)
+
 	// Lookup the unack'd eval
 	unack, ok := b.unack[evalID]
 	if !ok {
@@ -475,8 +510,13 @@ func (b *EvalBroker) Ack(evalID, token string) error {
 		eval := raw.(*structs.Evaluation)
 		b.stats.TotalBlocked -= 1
 		b.enqueueLocked(eval, eval.Type)
-		return nil
 	}
+
+	// Re-enqueue the evaluation.
+	if eval, ok := b.requeue[token]; ok {
+		b.processEnqueue(eval, "")
+	}
+
 	return nil
 }
 
@@ -484,6 +524,10 @@ func (b *EvalBroker) Ack(evalID, token string) error {
 func (b *EvalBroker) Nack(evalID, token string) error {
 	b.l.Lock()
 	defer b.l.Unlock()
+
+	// Always delete the requeued evaluation since the Nack means the requeue is
+	// invalid.
+	delete(b.requeue, token)
 
 	// Lookup the unack'd eval
 	unack, ok := b.unack[evalID]
