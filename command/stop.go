@@ -27,9 +27,9 @@ Stop Options:
 
   -detach
     Return immediately instead of entering monitor mode. After the
-    deregister command is submitted, a new evaluation ID is printed
-    to the screen, which can be used to call up a monitor later if
-    needed using the eval-monitor command.
+	deregister command is submitted, a new evaluation ID is printed to the
+	screen, which can be used to examine the evaluation using the eval-status
+	command.
 
   -yes
     Automatic yes to prompts.

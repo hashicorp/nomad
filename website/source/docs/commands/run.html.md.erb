@@ -39,8 +39,8 @@ client connection issues or internal errors, are indicated by exit code 1.
 ## Run Options
 
 * `-detach`: Return immediately instead of monitoring. A new evaluation ID
-  will be output, which can be used to call the monitor later using the
-  [eval-monitor](/docs/commands/eval-monitor.html) command.
+  will be output, which can be used to examine the evaluation using the
+  [eval-status](/docs/commands/eval-status.html) command
 
 * `-output`: Output the JSON that would be submitted to the HTTP API without
   submitting the job.
@@ -69,15 +69,17 @@ $ nomad run -detach job1.nomad
 4947e728
 ```
 
-Schedule a job which cannot get placement. This results in a scheduling failure
-and the specifics of the placement are printed:
+Schedule a job which cannot be successfully placed. This results in a scheduling
+failure and the specifics of the placement are printed:
 
 ```
 $ nomad run failing.nomad
-==> Monitoring evaluation "0d7447d9"
-    Scheduling error for group "group1" (failed to find a node for placement)
-    Allocation "a739288e" status "failed" (1/1 nodes filtered)
-      * Constraint "$attr.kernel.name = linux" filtered 1 nodes
+==> Monitoring evaluation "2ae0e6a5"
+    Evaluation triggered by job "example"
     Evaluation status changed: "pending" -> "complete"
-==> Evaluation "0d7447d9" finished with status "complete"
+==> Evaluation "2ae0e6a5" finished with status "complete" but failed to place all allocations:
+    Task Group "cache" (failed to place 1 allocation):
+      * Class "foo" filtered 1 nodes
+      * Constraint "${attr.kernel.name} = linux" filtered 1 nodes
+    Evaluation "67493a64" waiting for additional capacity to place remainder
 ```

@@ -44,10 +44,9 @@ General Options:
 Run Options:
 
   -detach
-    Return immediately instead of entering monitor mode. After job
-    submission, the evaluation ID will be printed to the screen.
-    You can use this ID to start a monitor using the eval-monitor
-    command later if needed.
+	Return immediately instead of entering monitor mode. After job submission,
+	the evaluation ID will be printed to the screen, which can be used to
+	examine the evaluation using the eval-status command.
 
   -verbose
     Display full information.

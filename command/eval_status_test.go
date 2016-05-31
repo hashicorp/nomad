@@ -7,16 +7,16 @@ import (
 	"github.com/mitchellh/cli"
 )
 
-func TestEvalMonitorCommand_Implements(t *testing.T) {
-	var _ cli.Command = &EvalMonitorCommand{}
+func TestEvalStatusCommand_Implements(t *testing.T) {
+	var _ cli.Command = &EvalStatusCommand{}
 }
 
-func TestEvalMonitorCommand_Fails(t *testing.T) {
+func TestEvalStatusCommand_Fails(t *testing.T) {
 	srv, _, url := testServer(t, nil)
 	defer srv.Stop()
 
 	ui := new(cli.MockUi)
-	cmd := &EvalMonitorCommand{Meta: Meta{Ui: ui}}
+	cmd := &EvalStatusCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
 	if code := cmd.Run([]string{"some", "bad", "args"}); code != 1 {
@@ -40,7 +40,7 @@ func TestEvalMonitorCommand_Fails(t *testing.T) {
 	if code := cmd.Run([]string{"-address=nope", "12345678-abcd-efab-cdef-123456789abc"}); code != 1 {
 		t.Fatalf("expected exit code 1, got: %d", code)
 	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error reading evaluation") {
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error querying evaluation") {
 		t.Fatalf("expected failed query error, got: %s", out)
 	}
 }

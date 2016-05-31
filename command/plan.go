@@ -47,7 +47,7 @@ General Options:
 
   ` + generalOptionsUsage() + `
 
-Run Options:
+Plan Options:
 
   -diff
     Defaults to true, but can be toggled off to omit diff output.

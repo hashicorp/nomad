@@ -29,6 +29,14 @@ const (
 
 	// allocInPlace is the status used when speculating on an in-place update
 	allocInPlace = "alloc updating in-place"
+
+	// blockedEvalMaxPlanDesc is the description used for blocked evals that are
+	// a result of hitting the max number of plan attempts
+	blockedEvalMaxPlanDesc = "created due to placement conflicts"
+
+	// blockedEvalFailedPlacements is the description used for blocked evals
+	// that are a result of failing to place all allocations.
+	blockedEvalFailedPlacements = "created to place remaining allocations"
 )
 
 // SetStatusError is used to set the status of the evaluation to the given error
@@ -154,6 +162,9 @@ func (s *GenericScheduler) createBlockedEval(planFailure bool) error {
 	s.blocked = s.eval.CreateBlockedEval(classEligibility, escaped)
 	if planFailure {
 		s.blocked.TriggeredBy = structs.EvalTriggerMaxPlans
+		s.blocked.StatusDescription = blockedEvalMaxPlanDesc
+	} else {
+		s.blocked.StatusDescription = blockedEvalFailedPlacements
 	}
 
 	return s.planner.CreateEval(s.blocked)

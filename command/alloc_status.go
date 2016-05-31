@@ -28,6 +28,7 @@ General Options:
 
   ` + generalOptionsUsage() + `
 
+Alloc Status Options:
 
   -short
     Display short output. Shows only the most recent task event.
