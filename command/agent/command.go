@@ -188,6 +188,14 @@ func (c *Command) readConfig() *Config {
 	}
 	config.Server.retryInterval = dur
 
+	// Parse the stats collection interval
+	dur, err = time.ParseDuration(config.Client.StatsConfig.CollectionInterval)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error parsing stats collection interval: %s", err))
+		return nil
+	}
+	config.Client.StatsConfig.collectionInterval = dur
+
 	// Check that the server is running in at least one mode.
 	if !(config.Server.Enabled || config.Client.Enabled) {
 		c.Ui.Error("Must specify either server, client or dev mode for the agent.")

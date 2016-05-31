@@ -143,7 +143,7 @@ func TestDockerDriver_Handle(t *testing.T) {
 		containerID:    "containerid",
 		killTimeout:    5 * time.Nanosecond,
 		maxKillTimeout: 15 * time.Nanosecond,
-		doneCh:         make(chan struct{}),
+		doneCh:         make(chan bool),
 		waitCh:         make(chan *cstructs.WaitResult, 1),
 	}
 
@@ -812,6 +812,52 @@ func TestDockerDriver_CleanupContainer(t *testing.T) {
 		}
 
 	case <-time.After(time.Duration(tu.TestMultiplier()*5) * time.Second):
+		t.Fatalf("timeout")
+	}
+
+}
+
+func TestDockerDriver_Stats(t *testing.T) {
+	t.Parallel()
+	task := &structs.Task{
+		Name: "sleep",
+		Config: map[string]interface{}{
+			"image":   "busybox",
+			"command": "/bin/sleep",
+			"args":    []string{"100"},
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
+		Resources: basicResources,
+	}
+
+	_, handle, cleanup := dockerSetup(t, task)
+	defer cleanup()
+
+	go func() {
+		time.Sleep(3 * time.Second)
+		ru, err := handle.Stats()
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		if ru.ResourceUsage == nil {
+			handle.Kill()
+			t.Fatalf("expected resource usage")
+		}
+		err = handle.Kill()
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	}()
+
+	select {
+	case res := <-handle.WaitCh():
+		if res.Successful() {
+			t.Fatalf("should err: %v", res)
+		}
+	case <-time.After(time.Duration(tu.TestMultiplier()*10) * time.Second):
 		t.Fatalf("timeout")
 	}
 

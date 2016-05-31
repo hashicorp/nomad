@@ -8,17 +8,23 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/hashicorp/go-multierror"
+	"github.com/mitchellh/go-ps"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	cgroupFs "github.com/opencontainers/runc/libcontainer/cgroups/fs"
 	cgroupConfig "github.com/opencontainers/runc/libcontainer/configs"
+	"github.com/opencontainers/runc/libcontainer/system"
 
 	"github.com/hashicorp/nomad/client/allocdir"
+	cstructs "github.com/hashicorp/nomad/client/driver/structs"
+	"github.com/hashicorp/nomad/client/stats"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 var (
+
 	// A mapping of directories on the host OS to attempt to embed inside each
 	// task's chroot.
 	chrootEnv = map[string]string{
@@ -31,6 +37,10 @@ var (
 		"/sbin":           "/sbin",
 		"/usr":            "/usr",
 	}
+
+	clockTicks = uint64(system.GetClockTicks())
+
+	nanosecondsInSecond = uint64(1000000000)
 )
 
 // configureIsolation configures chroot and creates cgroups
@@ -116,6 +126,68 @@ func (e *UniversalExecutor) configureCgroups(resources *structs.Resources) error
 	return nil
 }
 
+// Stats reports the resource utilization of the cgroup. If there is no resource
+// isolation we aggregate the resource utilization of all the pids launched by
+// the executor.
+func (e *UniversalExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
+	if !e.command.ResourceLimits {
+		pidStats, err := e.pidStats()
+		if err != nil {
+			return nil, err
+		}
+		return e.aggregatedResourceUsage(pidStats), nil
+	}
+	ts := time.Now()
+	manager := getCgroupManager(e.groups, e.cgPaths)
+	stats, err := manager.GetStats()
+	if err != nil {
+		return nil, err
+	}
+
+	// Memory Related Stats
+	swap := stats.MemoryStats.SwapUsage
+	maxUsage := stats.MemoryStats.Usage.MaxUsage
+	rss := stats.MemoryStats.Stats["rss"]
+	cache := stats.MemoryStats.Stats["cache"]
+	ms := &cstructs.MemoryStats{
+		RSS:            rss,
+		Cache:          cache,
+		Swap:           swap.Usage,
+		MaxUsage:       maxUsage,
+		KernelUsage:    stats.MemoryStats.KernelUsage.Usage,
+		KernelMaxUsage: stats.MemoryStats.KernelUsage.MaxUsage,
+	}
+
+	// CPU Related Stats
+	totalProcessCPUUsage := stats.CpuStats.CpuUsage.TotalUsage
+	userModeTime := stats.CpuStats.CpuUsage.UsageInUsermode
+	kernelModeTime := stats.CpuStats.CpuUsage.UsageInKernelmode
+
+	umTicks := (userModeTime * clockTicks) / nanosecondsInSecond
+	kmTicks := (kernelModeTime * clockTicks) / nanosecondsInSecond
+
+	cs := &cstructs.CpuStats{
+		SystemMode:       float64(kmTicks),
+		UserMode:         float64(umTicks),
+		ThrottledPeriods: stats.CpuStats.ThrottlingData.ThrottledPeriods,
+		ThrottledTime:    stats.CpuStats.ThrottlingData.ThrottledTime,
+	}
+	if e.cpuStats != nil {
+		cs.Percent = e.cpuStats.Percent(float64(totalProcessCPUUsage / nanosecondsInSecond))
+	}
+	taskResUsage := cstructs.TaskResourceUsage{
+		ResourceUsage: &cstructs.ResourceUsage{
+			MemoryStats: ms,
+			CpuStats:    cs,
+		},
+		Timestamp: ts.UTC().UnixNano(),
+	}
+	if pidStats, err := e.pidStats(); err == nil {
+		taskResUsage.Pids = pidStats
+	}
+	return &taskResUsage, nil
+}
+
 // runAs takes a user id as a string and looks up the user, and sets the command
 // to execute as that user.
 func (e *UniversalExecutor) runAs(userid string) error {
@@ -184,6 +256,30 @@ func (e *UniversalExecutor) removeChrootMounts() error {
 	e.cgLock.Lock()
 	defer e.cgLock.Unlock()
 	return e.ctx.AllocDir.UnmountAll()
+}
+
+// getAllPids returns the pids of all the processes spun up by the executor. We
+// use the libcontainer apis to get the pids when the user is using cgroup
+// isolation and we scan the entire process table if the user is not using any
+// isolation
+func (e *UniversalExecutor) getAllPids() ([]*nomadPid, error) {
+	if e.command.ResourceLimits {
+		manager := getCgroupManager(e.groups, e.cgPaths)
+		pids, err := manager.GetAllPids()
+		if err != nil {
+			return nil, err
+		}
+		np := make([]*nomadPid, len(pids))
+		for idx, pid := range pids {
+			np[idx] = &nomadPid{pid, stats.NewCpuStats()}
+		}
+		return np, nil
+	}
+	allProcesses, err := ps.Processes()
+	if err != nil {
+		return nil, err
+	}
+	return e.scanPids(os.Getpid(), allProcesses)
 }
 
 // destroyCgroup kills all processes in the cgroup and removes the cgroup

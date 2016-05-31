@@ -196,14 +196,26 @@
 		{
 			"checksumSHA1": "iP5slJJPRZUm0rfdII8OiATAACA=",
 			"path": "github.com/docker/docker/pkg/idtools",
-			"revision": "da39e9a4f920a15683dd0f23923c302d4db6eed5",
-			"revisionTime": "2016-05-28T08:11:04Z"
+			"revision": "02caa73df411debed164f520a6a1304778f8b88c",
+			"revisionTime": "2016-05-28T10:48:36Z"
+		},
+		{
+			"checksumSHA1": "iP5slJJPRZUm0rfdII8OiATAACA=",
+			"path": "github.com/docker/docker/pkg/idtools",
+			"revision": "52debcd58ac91bf68503ce60561536911b74ff05",
+			"revisionTime": "2016-05-20T15:17:10Z"
 		},
 		{
 			"checksumSHA1": "tdhmIGUaoOMEDymMC23qTS7bt0g=",
 			"path": "github.com/docker/docker/pkg/ioutils",
 			"revision": "da39e9a4f920a15683dd0f23923c302d4db6eed5",
 			"revisionTime": "2016-05-28T08:11:04Z"
+		},
+		{
+			"checksumSHA1": "tdhmIGUaoOMEDymMC23qTS7bt0g=",
+			"path": "github.com/docker/docker/pkg/ioutils",
+			"revision": "52debcd58ac91bf68503ce60561536911b74ff05",
+			"revisionTime": "2016-05-20T15:17:10Z"
 		},
 		{
 			"checksumSHA1": "ndnAFCfsGC3upNQ6jAEwzxcurww=",
@@ -218,10 +230,22 @@
 			"revisionTime": "2016-05-28T08:11:04Z"
 		},
 		{
+			"checksumSHA1": "rArZ5mYIe9I1L5PRQOJu8BwafFw=",
+			"path": "github.com/docker/docker/pkg/pools",
+			"revision": "52debcd58ac91bf68503ce60561536911b74ff05",
+			"revisionTime": "2016-05-20T15:17:10Z"
+		},
+		{
 			"checksumSHA1": "txf3EORYff4hO6PEvwBm2lyh1MU=",
 			"path": "github.com/docker/docker/pkg/promise",
 			"revision": "da39e9a4f920a15683dd0f23923c302d4db6eed5",
 			"revisionTime": "2016-05-28T08:11:04Z"
+		},
+		{
+			"checksumSHA1": "txf3EORYff4hO6PEvwBm2lyh1MU=",
+			"path": "github.com/docker/docker/pkg/promise",
+			"revision": "52debcd58ac91bf68503ce60561536911b74ff05",
+			"revisionTime": "2016-05-20T15:17:10Z"
 		},
 		{
 			"checksumSHA1": "YDYbS5U2mDwfcOUJ6M09cP6Bubg=",
@@ -232,8 +256,14 @@
 		{
 			"checksumSHA1": "Eh3iu/9RzHzNY4vHHPKaZISAgBo=",
 			"path": "github.com/docker/docker/pkg/system",
-			"revision": "da39e9a4f920a15683dd0f23923c302d4db6eed5",
-			"revisionTime": "2016-05-28T08:11:04Z"
+			"revision": "02caa73df411debed164f520a6a1304778f8b88c",
+			"revisionTime": "2016-05-28T10:48:36Z"
+		},
+		{
+			"checksumSHA1": "QcztYNLTWLhamq8fPdk63hqIOMc=",
+			"path": "github.com/docker/docker/pkg/system",
+			"revision": "52debcd58ac91bf68503ce60561536911b74ff05",
+			"revisionTime": "2016-05-20T15:17:10Z"
 		},
 		{
 			"comment": "v0.1.0-23-g5d2041e",
@@ -558,6 +588,12 @@
 			"revision": "80adcec1955ee4e97af357c30dee61aadcc02c10"
 		},
 		{
+			"checksumSHA1": "B791WoNcAY5+ElKZsCkHfym55O4=",
+			"path": "github.com/mitchellh/go-ps",
+			"revision": "e6c6068076470196af082b1ff896e24a51a87b2a",
+			"revisionTime": "2015-07-10T22:06:32Z"
+		},
+		{
 			"path": "github.com/mitchellh/hashstructure",
 			"revision": "1ef5c71b025aef149d12346356ac5973992860bc"
 		},
@@ -606,34 +642,52 @@
 			"revision": "983d3a5fab1bf04d1b412465d2d9f8430e2e917e"
 		},
 		{
+			"checksumSHA1": "dtcffK/n1nDKPtvHg2GnU1C194s=",
 			"comment": "1.0.0-230-gf58654f",
 			"path": "github.com/shirou/gopsutil/cpu",
-			"revision": "f58654fa1c30aab9b8c503ecea4922e80abcd2bf"
+			"revision": "7b991b8135166c7fc81b65665a2f35c7a1966cfc",
+			"revisionTime": "2016-05-04T15:08:50Z"
 		},
 		{
+			"checksumSHA1": "zs7XTdxVVhxUUwA4kSdSJlNfVZc=",
+			"path": "github.com/shirou/gopsutil/disk",
+			"revision": "83c6e72cbdef6e8ada934549abf700ff0ba96776",
+			"revisionTime": "2016-05-20T22:39:10Z"
+		},
+		{
+			"checksumSHA1": "lpPewrgMOYaTKZ0wRZpmZJxnEBw=",
 			"comment": "1.0.0-230-gf58654f",
 			"path": "github.com/shirou/gopsutil/host",
-			"revision": "f58654fa1c30aab9b8c503ecea4922e80abcd2bf"
+			"revision": "7b991b8135166c7fc81b65665a2f35c7a1966cfc",
+			"revisionTime": "2016-05-04T15:08:50Z"
 		},
 		{
+			"checksumSHA1": "xrMuUxCr8UckY5oI2lwCerYwIhk=",
 			"comment": "1.0.0-230-gf58654f",
 			"path": "github.com/shirou/gopsutil/internal/common",
-			"revision": "f58654fa1c30aab9b8c503ecea4922e80abcd2bf"
+			"revision": "7b991b8135166c7fc81b65665a2f35c7a1966cfc",
+			"revisionTime": "2016-05-04T15:08:50Z"
 		},
 		{
+			"checksumSHA1": "bHTDi2QAN4SmdZpHOtyQ6fQeCnQ=",
 			"comment": "1.0.0-230-gf58654f",
 			"path": "github.com/shirou/gopsutil/mem",
-			"revision": "f58654fa1c30aab9b8c503ecea4922e80abcd2bf"
+			"revision": "7b991b8135166c7fc81b65665a2f35c7a1966cfc",
+			"revisionTime": "2016-05-04T15:08:50Z"
 		},
 		{
+			"checksumSHA1": "LHJDMUXWamoP/yje0R42k96OPG8=",
 			"comment": "1.0.0-230-gf58654f",
 			"path": "github.com/shirou/gopsutil/net",
-			"revision": "f58654fa1c30aab9b8c503ecea4922e80abcd2bf"
+			"revision": "7b991b8135166c7fc81b65665a2f35c7a1966cfc",
+			"revisionTime": "2016-05-04T15:08:50Z"
 		},
 		{
+			"checksumSHA1": "o544bXejDPLi6qpjHav8a91W4Ks=",
 			"comment": "1.0.0-230-gf58654f",
 			"path": "github.com/shirou/gopsutil/process",
-			"revision": "f58654fa1c30aab9b8c503ecea4922e80abcd2bf"
+			"revision": "7b991b8135166c7fc81b65665a2f35c7a1966cfc",
+			"revisionTime": "2016-05-04T15:08:50Z"
 		},
 		{
 			"path": "github.com/shirou/w32",

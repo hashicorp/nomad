@@ -101,7 +101,7 @@ type ucred struct {
 
 type Uucred struct {
 	Ref       int32
-	Uid       uint32
+	UID       uint32
 	Ngroups   int16
 	Pad_cgo_0 [2]byte
 	Groups    [16]uint32
@@ -197,7 +197,7 @@ type Au_session struct {
 }
 
 type Posix_cred struct {
-	Uid       uint32
+	UID       uint32
 	Ruid      uint32
 	Svuid     uint32
 	Ngroups   int16

@@ -7,14 +7,14 @@ import (
 	"time"
 )
 
-func CPUPercent(interval time.Duration, percpu bool) ([]float64, error) {
-	getAllBusy := func(t CPUTimesStat) (float64, float64) {
+func Percent(interval time.Duration, percpu bool) ([]float64, error) {
+	getAllBusy := func(t TimesStat) (float64, float64) {
 		busy := t.User + t.System + t.Nice + t.Iowait + t.Irq +
 			t.Softirq + t.Steal + t.Guest + t.GuestNice + t.Stolen
 		return busy + t.Idle, busy
 	}
 
-	calculate := func(t1, t2 CPUTimesStat) float64 {
+	calculate := func(t1, t2 TimesStat) float64 {
 		t1All, t1Busy := getAllBusy(t1)
 		t2All, t2Busy := getAllBusy(t2)
 
@@ -28,7 +28,7 @@ func CPUPercent(interval time.Duration, percpu bool) ([]float64, error) {
 	}
 
 	// Get CPU usage at the start of the interval.
-	cpuTimes1, err := CPUTimes(percpu)
+	cpuTimes1, err := Times(percpu)
 	if err != nil {
 		return nil, err
 	}
@@ -38,7 +38,7 @@ func CPUPercent(interval time.Duration, percpu bool) ([]float64, error) {
 	}
 
 	// And at the end of the interval.
-	cpuTimes2, err := CPUTimes(percpu)
+	cpuTimes2, err := Times(percpu)
 	if err != nil {
 		return nil, err
 	}

@@ -1,8 +1,11 @@
 package api
 
 import (
+	"fmt"
 	"sort"
 	"strconv"
+
+	"github.com/hashicorp/go-cleanhttp"
 )
 
 // Nodes is used to query node-related API endpoints
@@ -71,6 +74,29 @@ func (n *Nodes) ForceEvaluate(nodeID string, q *WriteOptions) (string, *WriteMet
 	return resp.EvalID, wm, nil
 }
 
+func (n *Nodes) Stats(nodeID string, q *QueryOptions) (*HostStats, error) {
+	node, _, err := n.client.Nodes().Info(nodeID, q)
+	if err != nil {
+		return nil, err
+	}
+	if node.HTTPAddr == "" {
+		return nil, fmt.Errorf("http addr of the node %q is running is not advertised", nodeID)
+	}
+	client, err := NewClient(&Config{
+		Address:    fmt.Sprintf("http://%s", node.HTTPAddr),
+		HttpClient: cleanhttp.DefaultClient(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	var resp []HostStats
+	if _, err := client.query("/v1/client/stats/", &resp, nil); err != nil {
+		return nil, err
+	}
+
+	return &resp[0], nil
+}
+
 // Node is used to deserialize a node entry.
 type Node struct {
 	ID                string
@@ -88,6 +114,38 @@ type Node struct {
 	StatusDescription string
 	CreateIndex       uint64
 	ModifyIndex       uint64
+}
+
+// HostStats represents resource usage stats of the host running a Nomad client
+type HostStats struct {
+	Memory    *HostMemoryStats
+	CPU       []*HostCPUStats
+	DiskStats []*HostDiskStats
+	Uptime    uint64
+}
+
+type HostMemoryStats struct {
+	Total     uint64
+	Available uint64
+	Used      uint64
+	Free      uint64
+}
+
+type HostCPUStats struct {
+	CPU    string
+	User   float64
+	System float64
+	Idle   float64
+}
+
+type HostDiskStats struct {
+	Device            string
+	Mountpoint        string
+	Size              uint64
+	Used              uint64
+	Available         uint64
+	UsedPercent       float64
+	InodesUsedPercent float64
 }
 
 // NodeListStub is a subset of information returned during

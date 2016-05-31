@@ -5,10 +5,10 @@ package cpu
 
 import "github.com/shirou/gopsutil/internal/common"
 
-func perCPUTimes() ([]CPUTimesStat, error) {
-	return []CPUTimesStat{}, common.NotImplementedError
+func perCPUTimes() ([]TimesStat, error) {
+	return []TimesStat{}, common.ErrNotImplementedError
 }
 
-func allCPUTimes() ([]CPUTimesStat, error) {
-	return []CPUTimesStat{}, common.NotImplementedError
+func allCPUTimes() ([]TimesStat, error) {
+	return []TimesStat{}, common.ErrNotImplementedError
 }

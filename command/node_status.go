@@ -3,7 +3,11 @@ package command
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
+	"time"
+
+	"github.com/dustin/go-humanize"
 
 	"github.com/hashicorp/nomad/api"
 )
@@ -53,6 +57,7 @@ func (c *NodeStatusCommand) Synopsis() string {
 
 func (c *NodeStatusCommand) Run(args []string) int {
 	var short, verbose, list_allocs, self bool
+	var hostStats *api.HostStats
 
 	flags := c.Meta.FlagSet("node-status", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
@@ -193,6 +198,10 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		return 1
 	}
 
+	if hostStats, err = client.Nodes().Stats(node.ID, nil); err != nil {
+		c.Ui.Error(fmt.Sprintf("error fetching node resource utilization stats: %v", err))
+	}
+
 	// Format the output
 	basic := []string{
 		fmt.Sprintf("ID|%s", limit(node.ID, length)),
@@ -201,6 +210,10 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		fmt.Sprintf("DC|%s", node.Datacenter),
 		fmt.Sprintf("Drain|%v", node.Drain),
 		fmt.Sprintf("Status|%s", node.Status),
+	}
+	if hostStats != nil {
+		uptime := time.Duration(hostStats.Uptime * uint64(time.Second))
+		basic = append(basic, fmt.Sprintf("Uptime|%s", uptime.String()))
 	}
 	c.Ui.Output(formatKV(basic))
 
@@ -212,6 +225,14 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		}
 		c.Ui.Output("\n==> Resource Utilization")
 		c.Ui.Output(formatList(resources))
+		if hostStats != nil {
+			c.Ui.Output("\n===> Node CPU Stats")
+			c.printCpuStats(hostStats)
+			c.Ui.Output("\n===> Node Memory Stats")
+			c.printMemoryStats(hostStats)
+			c.Ui.Output("\n===> Node Disk Stats")
+			c.printDiskStats(hostStats)
+		}
 
 		allocs, err := getAllocs(client, node, length)
 		if err != nil {
@@ -244,6 +265,43 @@ func (c *NodeStatusCommand) Run(args []string) int {
 	}
 
 	return 0
+}
+
+func (c *NodeStatusCommand) printCpuStats(hostStats *api.HostStats) {
+	for _, cpuStat := range hostStats.CPU {
+		cpuStatsAttr := make([]string, 4)
+		cpuStatsAttr[0] = fmt.Sprintf("CPU|%v", cpuStat.CPU)
+		cpuStatsAttr[1] = fmt.Sprintf("User|%v", formatFloat64(cpuStat.User))
+		cpuStatsAttr[2] = fmt.Sprintf("System|%v", formatFloat64(cpuStat.System))
+		cpuStatsAttr[3] = fmt.Sprintf("Idle|%v", formatFloat64(cpuStat.Idle))
+		c.Ui.Output(formatKV(cpuStatsAttr))
+		c.Ui.Output("")
+	}
+}
+
+func (c *NodeStatusCommand) printMemoryStats(hostStats *api.HostStats) {
+	memoryStat := hostStats.Memory
+	memStatsAttr := make([]string, 4)
+	memStatsAttr[0] = fmt.Sprintf("Total|%v", humanize.Bytes(memoryStat.Total))
+	memStatsAttr[1] = fmt.Sprintf("Available|%v", humanize.Bytes(memoryStat.Available))
+	memStatsAttr[2] = fmt.Sprintf("Used|%v", humanize.Bytes(memoryStat.Used))
+	memStatsAttr[3] = fmt.Sprintf("Free|%v", humanize.Bytes(memoryStat.Free))
+	c.Ui.Output(formatKV(memStatsAttr))
+}
+
+func (c *NodeStatusCommand) printDiskStats(hostStats *api.HostStats) {
+	for _, diskStat := range hostStats.DiskStats {
+		diskStatsAttr := make([]string, 7)
+		diskStatsAttr[0] = fmt.Sprintf("Device|%s", diskStat.Device)
+		diskStatsAttr[1] = fmt.Sprintf("MountPoint|%s", diskStat.Mountpoint)
+		diskStatsAttr[2] = fmt.Sprintf("Size|%s", humanize.Bytes(diskStat.Size))
+		diskStatsAttr[3] = fmt.Sprintf("Used|%s", humanize.Bytes(diskStat.Used))
+		diskStatsAttr[4] = fmt.Sprintf("Available|%s", humanize.Bytes(diskStat.Available))
+		diskStatsAttr[5] = fmt.Sprintf("Used Percent|%s", formatFloat64(diskStat.UsedPercent))
+		diskStatsAttr[6] = fmt.Sprintf("Inodes Percent|%s", formatFloat64(diskStat.InodesUsedPercent))
+		c.Ui.Output(formatKV(diskStatsAttr))
+		c.Ui.Output("")
+	}
 }
 
 // getRunningAllocs returns a slice of allocation id's running on the node
@@ -322,4 +380,8 @@ func getResources(client *api.Client, node *api.Node) ([]string, error) {
 		totalIops)
 
 	return resources, err
+}
+
+func formatFloat64(val float64) string {
+	return strconv.FormatFloat(val, 'f', 2, 64)
 }

@@ -45,6 +45,10 @@ client {
 	client_min_port = 1000
 	client_max_port = 2000
     max_kill_timeout = "10s"
+    stats {
+        data_points = 35
+        collection_interval = "5s"
+    }
 }
 server {
 	enabled = true

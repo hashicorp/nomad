@@ -3,6 +3,7 @@ package agent
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -143,6 +144,23 @@ func TestHTTP_AllocQuery(t *testing.T) {
 		a := obj.(*structs.Allocation)
 		if a.ID != alloc.ID {
 			t.Fatalf("bad: %#v", a)
+		}
+	})
+}
+
+func TestHTTP_AllocStats(t *testing.T) {
+	httpTest(t, nil, func(s *TestServer) {
+		// Make the HTTP request
+		req, err := http.NewRequest("GET", "/v1/client/allocation/123/foo", nil)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		respW := httptest.NewRecorder()
+
+		// Make the request
+		_, err = s.Server.ClientAllocRequest(respW, req)
+		if !strings.Contains(err.Error(), allocNotFoundErr) {
+			t.Fatalf("err: %v", err)
 		}
 	})
 }

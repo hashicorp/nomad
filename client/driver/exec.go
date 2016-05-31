@@ -280,6 +280,10 @@ func (h *execHandle) Kill() error {
 	}
 }
 
+func (h *execHandle) Stats() (*cstructs.TaskResourceUsage, error) {
+	return h.executor.Stats()
+}
+
 func (h *execHandle) run() {
 	ps, err := h.executor.Wait()
 	close(h.doneCh)

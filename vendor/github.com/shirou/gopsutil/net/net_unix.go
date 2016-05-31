@@ -1,4 +1,4 @@
-// +build linux freebsd darwin
+// +build freebsd darwin
 
 package net
 
@@ -9,13 +9,13 @@ import (
 )
 
 // Return a list of network connections opened.
-func NetConnections(kind string) ([]NetConnectionStat, error) {
-	return NetConnectionsPid(kind, 0)
+func Connections(kind string) ([]ConnectionStat, error) {
+	return ConnectionsPid(kind, 0)
 }
 
 // Return a list of network connections opened by a process.
-func NetConnectionsPid(kind string, pid int32) ([]NetConnectionStat, error) {
-	var ret []NetConnectionStat
+func ConnectionsPid(kind string, pid int32) ([]ConnectionStat, error) {
+	var ret []ConnectionStat
 
 	args := []string{"-i"}
 	switch strings.ToLower(kind) {
@@ -44,7 +44,7 @@ func NetConnectionsPid(kind string, pid int32) ([]NetConnectionStat, error) {
 	case "udp6":
 		args = append(args, "6udp")
 	case "unix":
-		return ret, common.NotImplementedError
+		return ret, common.ErrNotImplementedError
 	}
 
 	r, err := common.CallLsof(invoke, pid, args...)

@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-type CPUTimesStat struct {
+type TimesStat struct {
 	CPU       string  `json:"cpu"`
 	User      float64 `json:"user"`
 	System    float64 `json:"system"`
@@ -18,33 +18,33 @@ type CPUTimesStat struct {
 	Softirq   float64 `json:"softirq"`
 	Steal     float64 `json:"steal"`
 	Guest     float64 `json:"guest"`
-	GuestNice float64 `json:"guest_nice"`
+	GuestNice float64 `json:"guestNice"`
 	Stolen    float64 `json:"stolen"`
 }
 
-type CPUInfoStat struct {
+type InfoStat struct {
 	CPU        int32    `json:"cpu"`
-	VendorID   string   `json:"vendor_id"`
+	VendorID   string   `json:"vendorId"`
 	Family     string   `json:"family"`
 	Model      string   `json:"model"`
 	Stepping   int32    `json:"stepping"`
-	PhysicalID string   `json:"physical_id"`
-	CoreID     string   `json:"core_id"`
+	PhysicalID string   `json:"physicalId"`
+	CoreID     string   `json:"coreId"`
 	Cores      int32    `json:"cores"`
-	ModelName  string   `json:"model_name"`
+	ModelName  string   `json:"modelName"`
 	Mhz        float64  `json:"mhz"`
-	CacheSize  int32    `json:"cache_size"`
+	CacheSize  int32    `json:"cacheSize"`
 	Flags      []string `json:"flags"`
 }
 
-var lastCPUTimes []CPUTimesStat
-var lastPerCPUTimes []CPUTimesStat
+var lastCPUTimes []TimesStat
+var lastPerCPUTimes []TimesStat
 
-func CPUCounts(logical bool) (int, error) {
+func Counts(logical bool) (int, error) {
 	return runtime.NumCPU(), nil
 }
 
-func (c CPUTimesStat) String() string {
+func (c TimesStat) String() string {
 	v := []string{
 		`"cpu":"` + c.CPU + `"`,
 		`"user":` + strconv.FormatFloat(c.User, 'f', 1, 64),
@@ -56,14 +56,21 @@ func (c CPUTimesStat) String() string {
 		`"softirq":` + strconv.FormatFloat(c.Softirq, 'f', 1, 64),
 		`"steal":` + strconv.FormatFloat(c.Steal, 'f', 1, 64),
 		`"guest":` + strconv.FormatFloat(c.Guest, 'f', 1, 64),
-		`"guest_nice":` + strconv.FormatFloat(c.GuestNice, 'f', 1, 64),
+		`"guestNice":` + strconv.FormatFloat(c.GuestNice, 'f', 1, 64),
 		`"stolen":` + strconv.FormatFloat(c.Stolen, 'f', 1, 64),
 	}
 
 	return `{` + strings.Join(v, ",") + `}`
 }
 
-func (c CPUInfoStat) String() string {
+// Total returns the total number of seconds in a CPUTimesStat
+func (c TimesStat) Total() float64 {
+	total := c.User + c.System + c.Nice + c.Iowait + c.Irq + c.Softirq + c.Steal +
+		c.Guest + c.GuestNice + c.Idle + c.Stolen
+	return total
+}
+
+func (c InfoStat) String() string {
 	s, _ := json.Marshal(c)
 	return string(s)
 }

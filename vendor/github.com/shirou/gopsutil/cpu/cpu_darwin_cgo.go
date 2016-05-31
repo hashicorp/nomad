@@ -25,7 +25,7 @@ import (
 
 // these CPU times for darwin is borrowed from influxdb/telegraf.
 
-func perCPUTimes() ([]CPUTimesStat, error) {
+func perCPUTimes() ([]TimesStat, error) {
 	var (
 		count   C.mach_msg_type_number_t
 		cpuload *C.processor_cpu_load_info_data_t
@@ -59,7 +59,7 @@ func perCPUTimes() ([]CPUTimesStat, error) {
 
 	bbuf := bytes.NewBuffer(buf)
 
-	var ret []CPUTimesStat
+	var ret []TimesStat
 
 	for i := 0; i < int(ncpu); i++ {
 		err := binary.Read(bbuf, binary.LittleEndian, &cpu_ticks)
@@ -67,7 +67,7 @@ func perCPUTimes() ([]CPUTimesStat, error) {
 			return nil, err
 		}
 
-		c := CPUTimesStat{
+		c := TimesStat{
 			CPU:    fmt.Sprintf("cpu%d", i),
 			User:   float64(cpu_ticks[C.CPU_STATE_USER]) / ClocksPerSec,
 			System: float64(cpu_ticks[C.CPU_STATE_SYSTEM]) / ClocksPerSec,
@@ -81,7 +81,7 @@ func perCPUTimes() ([]CPUTimesStat, error) {
 	return ret, nil
 }
 
-func allCPUTimes() ([]CPUTimesStat, error) {
+func allCPUTimes() ([]TimesStat, error) {
 	var count C.mach_msg_type_number_t = C.HOST_CPU_LOAD_INFO_COUNT
 	var cpuload C.host_cpu_load_info_data_t
 
@@ -94,7 +94,7 @@ func allCPUTimes() ([]CPUTimesStat, error) {
 		return nil, fmt.Errorf("host_statistics error=%d", status)
 	}
 
-	c := CPUTimesStat{
+	c := TimesStat{
 		CPU:    "cpu-total",
 		User:   float64(cpuload.cpu_ticks[C.CPU_STATE_USER]) / ClocksPerSec,
 		System: float64(cpuload.cpu_ticks[C.CPU_STATE_SYSTEM]) / ClocksPerSec,
@@ -102,6 +102,6 @@ func allCPUTimes() ([]CPUTimesStat, error) {
 		Idle:   float64(cpuload.cpu_ticks[C.CPU_STATE_IDLE]) / ClocksPerSec,
 	}
 
-	return []CPUTimesStat{c}, nil
+	return []TimesStat{c}, nil
 
 }

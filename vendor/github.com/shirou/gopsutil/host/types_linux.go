@@ -7,12 +7,11 @@ Input to cgo -godefs.
 package host
 
 /*
-#define KERNEL
 #include <sys/types.h>
 #include <utmp.h>
 
 enum {
-	sizeofPtr = sizeof(void*),
+       sizeofPtr = sizeof(void*),
 };
 
 */
@@ -26,6 +25,7 @@ const (
 	sizeofInt      = C.sizeof_int
 	sizeofLong     = C.sizeof_long
 	sizeofLongLong = C.sizeof_longlong
+	sizeOfUtmp     = C.sizeof_struct_utmp
 )
 
 // Basic types
@@ -39,7 +39,4 @@ type (
 
 type utmp C.struct_utmp
 type exit_status C.struct_exit_status
-type UtTv struct {
-	TvSec  int32
-	TvUsec int32
-}
+type timeval C.struct_timeval

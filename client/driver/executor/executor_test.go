@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/mitchellh/go-ps"
+
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/driver/env"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
@@ -131,7 +133,14 @@ func TestExecutor_WaitExitSignal(t *testing.T) {
 	}
 
 	go func() {
-		time.Sleep(1 * time.Second)
+		time.Sleep(3 * time.Second)
+		ru, err := executor.Stats()
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		if len(ru.Pids) != 2 {
+			t.Fatalf("expected number of pids: 2, actual: %v", len(ru.Pids))
+		}
 		proc, err := os.FindProcess(ps.Pid)
 		if err != nil {
 			t.Fatalf("err: %v", err)
@@ -342,4 +351,46 @@ func TestExecutorInterpolateServices(t *testing.T) {
 	if !reflect.DeepEqual(task.Services[0].Checks[0].Args, expectedCheckArgs) {
 		t.Fatalf("expected: %v, actual: %v", expectedCheckArgs, task.Services[0].Checks[0].Args)
 	}
+}
+
+func TestScanPids(t *testing.T) {
+	p1 := NewFakeProcess(2, 5)
+	p2 := NewFakeProcess(10, 2)
+	p3 := NewFakeProcess(15, 6)
+	p4 := NewFakeProcess(3, 10)
+	p5 := NewFakeProcess(20, 18)
+
+	// Make a fake exececutor
+	ctx := testExecutorContext(t)
+	defer ctx.AllocDir.Destroy()
+	executor := NewExecutor(log.New(os.Stdout, "", log.LstdFlags)).(*UniversalExecutor)
+
+	nomadPids, err := executor.scanPids(5, []ps.Process{p1, p2, p3, p4, p5})
+	if err != nil {
+		t.Fatalf("error: %v", err)
+	}
+	if len(nomadPids) != 4 {
+		t.Fatalf("expected: 4, actual: %v", len(nomadPids))
+	}
+}
+
+type FakeProcess struct {
+	pid  int
+	ppid int
+}
+
+func (f FakeProcess) Pid() int {
+	return f.pid
+}
+
+func (f FakeProcess) PPid() int {
+	return f.ppid
+}
+
+func (f FakeProcess) Executable() string {
+	return "fake"
+}
+
+func NewFakeProcess(pid int, ppid int) ps.Process {
+	return FakeProcess{pid: pid, ppid: ppid}
 }

@@ -5,7 +5,7 @@ package host
 
 type Utmpx struct {
 	User      [256]int8
-	Id        [4]int8
+	ID        [4]int8
 	Line      [32]int8
 	Pid       int32
 	Type      int16

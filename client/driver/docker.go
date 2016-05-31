@@ -113,18 +113,20 @@ type dockerPID struct {
 }
 
 type DockerHandle struct {
-	pluginClient   *plugin.Client
-	executor       executor.Executor
-	client         *docker.Client
-	logger         *log.Logger
-	cleanupImage   bool
-	imageID        string
-	containerID    string
-	version        string
-	killTimeout    time.Duration
-	maxKillTimeout time.Duration
-	waitCh         chan *cstructs.WaitResult
-	doneCh         chan struct{}
+	pluginClient      *plugin.Client
+	executor          executor.Executor
+	client            *docker.Client
+	logger            *log.Logger
+	cleanupImage      bool
+	imageID           string
+	containerID       string
+	version           string
+	killTimeout       time.Duration
+	maxKillTimeout    time.Duration
+	resourceUsageLock sync.RWMutex
+	resourceUsage     *cstructs.TaskResourceUsage
+	waitCh            chan *cstructs.WaitResult
+	doneCh            chan bool
 }
 
 func NewDockerDriver(ctx *DriverContext) Driver {
@@ -768,12 +770,13 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 		version:        d.config.Version,
 		killTimeout:    GetKillTimeout(task.KillTimeout, maxKill),
 		maxKillTimeout: maxKill,
-		doneCh:         make(chan struct{}),
+		doneCh:         make(chan bool),
 		waitCh:         make(chan *cstructs.WaitResult, 1),
 	}
 	if err := exec.SyncServices(consulContext(d.config, container.ID)); err != nil {
 		d.logger.Printf("[ERR] driver.docker: error registering services with consul for task: %q: %v", task.Name, err)
 	}
+	go h.collectStats()
 	go h.run()
 	return h, nil
 }
@@ -841,7 +844,7 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 		version:        pid.Version,
 		killTimeout:    pid.KillTimeout,
 		maxKillTimeout: pid.MaxKillTimeout,
-		doneCh:         make(chan struct{}),
+		doneCh:         make(chan bool),
 		waitCh:         make(chan *cstructs.WaitResult, 1),
 	}
 	if err := exec.SyncServices(consulContext(d.config, pid.ContainerID)); err != nil {
@@ -908,6 +911,12 @@ func (h *DockerHandle) Kill() error {
 	return nil
 }
 
+func (h *DockerHandle) Stats() (*cstructs.TaskResourceUsage, error) {
+	h.resourceUsageLock.RLock()
+	defer h.resourceUsageLock.RUnlock()
+	return h.resourceUsage, nil
+}
+
 func (h *DockerHandle) run() {
 	// Wait for it...
 	exitCode, err := h.client.WaitContainer(h.containerID)
@@ -953,6 +962,56 @@ func (h *DockerHandle) run() {
 	if h.cleanupImage {
 		if err := h.client.RemoveImage(h.imageID); err != nil {
 			h.logger.Printf("[DEBUG] driver.docker: error removing image: %v", err)
+		}
+	}
+}
+
+// collectStats starts collecting resource usage stats of a docker container
+func (h *DockerHandle) collectStats() {
+	statsCh := make(chan *docker.Stats)
+	statsOpts := docker.StatsOptions{ID: h.containerID, Done: h.doneCh, Stats: statsCh, Stream: true}
+	go func() {
+		//TODO handle Stats error
+		if err := h.client.Stats(statsOpts); err != nil {
+			h.logger.Printf("[DEBUG] driver.docker: error collecting stats from container %s: %v", h.containerID, err)
+		}
+	}()
+	for {
+		select {
+		case s := <-statsCh:
+			if s != nil {
+				ms := &cstructs.MemoryStats{
+					RSS:      s.MemoryStats.Stats.Rss,
+					Cache:    s.MemoryStats.Stats.Cache,
+					Swap:     s.MemoryStats.Stats.Swap,
+					MaxUsage: s.MemoryStats.MaxUsage,
+				}
+
+				cs := &cstructs.CpuStats{
+					SystemMode:       float64(s.CPUStats.CPUUsage.UsageInKernelmode),
+					UserMode:         float64(s.CPUStats.CPUUsage.UsageInKernelmode),
+					ThrottledPeriods: s.CPUStats.ThrottlingData.ThrottledPeriods,
+					ThrottledTime:    s.CPUStats.ThrottlingData.ThrottledTime,
+				}
+				// Calculate percentage
+				cs.Percent = 0.0
+				cpuDelta := float64(s.CPUStats.CPUUsage.TotalUsage) - float64(s.PreCPUStats.CPUUsage.TotalUsage)
+				systemDelta := float64(s.CPUStats.SystemCPUUsage) - float64(s.PreCPUStats.SystemCPUUsage)
+				if cpuDelta > 0.0 && systemDelta > 0.0 {
+					cs.Percent = (cpuDelta / systemDelta) * float64(len(s.CPUStats.CPUUsage.PercpuUsage)) * 100.0
+				}
+				h.resourceUsageLock.Lock()
+				h.resourceUsage = &cstructs.TaskResourceUsage{
+					ResourceUsage: &cstructs.ResourceUsage{
+						MemoryStats: ms,
+						CpuStats:    cs,
+					},
+					Timestamp: s.Read.UTC().UnixNano(),
+				}
+				h.resourceUsageLock.Unlock()
+			}
+		case <-h.doneCh:
+			return
 		}
 	}
 }

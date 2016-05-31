@@ -380,6 +380,10 @@ func (h *javaHandle) Kill() error {
 	}
 }
 
+func (h *javaHandle) Stats() (*cstructs.TaskResourceUsage, error) {
+	return h.executor.Stats()
+}
+
 func (h *javaHandle) run() {
 	ps, err := h.executor.Wait()
 	close(h.doneCh)

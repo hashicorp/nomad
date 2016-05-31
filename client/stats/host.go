@@ -1,0 +1,159 @@
+package stats
+
+import (
+	"time"
+
+	"github.com/shirou/gopsutil/cpu"
+	"github.com/shirou/gopsutil/disk"
+	"github.com/shirou/gopsutil/host"
+	"github.com/shirou/gopsutil/mem"
+)
+
+// HostStats represents resource usage stats of the host running a Nomad client
+type HostStats struct {
+	Memory    *MemoryStats
+	CPU       []*CPUStats
+	DiskStats []*DiskStats
+	Uptime    uint64
+	Timestamp int64
+}
+
+// MemoryStats represnts stats related to virtual memory usage
+type MemoryStats struct {
+	Total     uint64
+	Available uint64
+	Used      uint64
+	Free      uint64
+}
+
+// CPUStats represents stats related to cpu usage
+type CPUStats struct {
+	CPU    string
+	User   float64
+	System float64
+	Idle   float64
+	Total  float64
+}
+
+// DiskStats represents stats related to disk usage
+type DiskStats struct {
+	Device            string
+	Mountpoint        string
+	Size              uint64
+	Used              uint64
+	Available         uint64
+	UsedPercent       float64
+	InodesUsedPercent float64
+}
+
+// HostStatsCollector collects host resource usage stats
+type HostStatsCollector struct {
+	statsCalculator map[string]*HostCpuStatsCalculator
+}
+
+// NewHostStatsCollector returns a HostStatsCollector
+func NewHostStatsCollector() *HostStatsCollector {
+	statsCalculator := make(map[string]*HostCpuStatsCalculator)
+	return &HostStatsCollector{statsCalculator: statsCalculator}
+}
+
+// Collect collects stats related to resource usage of a host
+func (h *HostStatsCollector) Collect() (*HostStats, error) {
+	hs := &HostStats{Timestamp: time.Now().UTC().UnixNano()}
+	if memStats, err := mem.VirtualMemory(); err == nil {
+		ms := &MemoryStats{
+			Total:     memStats.Total,
+			Available: memStats.Available,
+			Used:      memStats.Used,
+			Free:      memStats.Free,
+		}
+		hs.Memory = ms
+	}
+
+	if cpuStats, err := cpu.Times(true); err == nil {
+		cs := make([]*CPUStats, len(cpuStats))
+		for idx, cpuStat := range cpuStats {
+			cs[idx] = &CPUStats{
+				CPU:    cpuStat.CPU,
+				User:   cpuStat.User,
+				System: cpuStat.System,
+				Idle:   cpuStat.Idle,
+			}
+			percentCalculator, ok := h.statsCalculator[cpuStat.CPU]
+			if !ok {
+				percentCalculator = NewHostCpuStatsCalculator()
+				h.statsCalculator[cpuStat.CPU] = percentCalculator
+			}
+			idle, user, system, total := percentCalculator.Calculate(cpuStat)
+			cs[idx].Idle = idle
+			cs[idx].System = system
+			cs[idx].User = user
+			cs[idx].Total = total
+		}
+		hs.CPU = cs
+	}
+
+	if partitions, err := disk.Partitions(false); err == nil {
+		var diskStats []*DiskStats
+		for _, partition := range partitions {
+			if usage, err := disk.Usage(partition.Mountpoint); err == nil {
+				ds := DiskStats{
+					Device:            partition.Device,
+					Mountpoint:        partition.Mountpoint,
+					Size:              usage.Total,
+					Used:              usage.Used,
+					Available:         usage.Free,
+					UsedPercent:       usage.UsedPercent,
+					InodesUsedPercent: usage.InodesUsedPercent,
+				}
+				diskStats = append(diskStats, &ds)
+			}
+		}
+		hs.DiskStats = diskStats
+	}
+
+	if uptime, err := host.Uptime(); err == nil {
+		hs.Uptime = uptime
+	}
+	return hs, nil
+}
+
+// HostCpuStatsCalculator calculates cpu usage percentages
+type HostCpuStatsCalculator struct {
+	prevIdle   float64
+	prevUser   float64
+	prevSystem float64
+	prevBusy   float64
+	prevTotal  float64
+}
+
+// NewHostCpuStatsCalculator returns a HostCpuStatsCalculator
+func NewHostCpuStatsCalculator() *HostCpuStatsCalculator {
+	return &HostCpuStatsCalculator{}
+}
+
+// Calculate calculates the current cpu usage percentages
+func (h *HostCpuStatsCalculator) Calculate(times cpu.TimesStat) (idle float64, user float64, system float64, total float64) {
+	currentIdle := times.Idle
+	currentUser := times.User
+	currentSystem := times.System
+	currentTotal := times.Total()
+
+	deltaTotal := currentTotal - h.prevTotal
+	idle = ((currentIdle - h.prevIdle) / deltaTotal) * 100
+	user = ((currentUser - h.prevUser) / deltaTotal) * 100
+	system = ((currentSystem - h.prevSystem) / deltaTotal) * 100
+
+	currentBusy := times.User + times.System + times.Nice + times.Iowait + times.Irq +
+		times.Softirq + times.Steal + times.Guest + times.GuestNice + times.Stolen
+
+	total = ((currentBusy - h.prevBusy) / deltaTotal) * 100
+
+	h.prevIdle = currentIdle
+	h.prevUser = currentUser
+	h.prevSystem = currentSystem
+	h.prevTotal = currentTotal
+	h.prevBusy = currentBusy
+
+	return
+}

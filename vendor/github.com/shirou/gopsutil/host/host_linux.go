@@ -14,7 +14,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unsafe"
 
 	"github.com/shirou/gopsutil/internal/common"
 )
@@ -26,8 +25,11 @@ type LSB struct {
 	Description string
 }
 
-func HostInfo() (*HostInfoStat, error) {
-	ret := &HostInfoStat{
+// from utmp.h
+const USER_PROCESS = 7
+
+func Info() (*InfoStat, error) {
+	ret := &InfoStat{
 		OS: runtime.GOOS,
 	}
 
@@ -36,13 +38,13 @@ func HostInfo() (*HostInfoStat, error) {
 		ret.Hostname = hostname
 	}
 
-	platform, family, version, err := GetPlatformInformation()
+	platform, family, version, err := PlatformInformation()
 	if err == nil {
 		ret.Platform = platform
 		ret.PlatformFamily = family
 		ret.PlatformVersion = version
 	}
-	system, role, err := GetVirtualization()
+	system, role, err := Virtualization()
 	if err == nil {
 		ret.VirtualizationSystem = system
 		ret.VirtualizationRole = role
@@ -105,14 +107,12 @@ func Users() ([]UserStat, error) {
 		return nil, err
 	}
 
-	u := utmp{}
-	entrySize := int(unsafe.Sizeof(u))
-	count := len(buf) / entrySize
+	count := len(buf) / sizeOfUtmp
 
 	ret := make([]UserStat, 0, count)
 
 	for i := 0; i < count; i++ {
-		b := buf[i*entrySize : i*entrySize+entrySize]
+		b := buf[i*sizeOfUtmp : (i+1)*sizeOfUtmp]
 
 		var u utmp
 		br := bytes.NewReader(b)
@@ -120,11 +120,14 @@ func Users() ([]UserStat, error) {
 		if err != nil {
 			continue
 		}
+		if u.Type != USER_PROCESS {
+			continue
+		}
 		user := UserStat{
 			User:     common.IntToString(u.User[:]),
 			Terminal: common.IntToString(u.Line[:]),
 			Host:     common.IntToString(u.Host[:]),
-			Started:  int(u.Tv.TvSec),
+			Started:  int(u.Tv.Sec),
 		}
 		ret = append(ret, user)
 	}
@@ -135,8 +138,8 @@ func Users() ([]UserStat, error) {
 
 func getLSB() (*LSB, error) {
 	ret := &LSB{}
-	if common.PathExists("/etc/lsb-release") {
-		contents, err := common.ReadLines("/etc/lsb-release")
+	if common.PathExists(common.HostEtc("lsb-release")) {
+		contents, err := common.ReadLines(common.HostEtc("lsb-release"))
 		if err != nil {
 			return ret, err // return empty
 		}
@@ -157,7 +160,11 @@ func getLSB() (*LSB, error) {
 			}
 		}
 	} else if common.PathExists("/usr/bin/lsb_release") {
-		out, err := exec.Command("/usr/bin/lsb_release").Output()
+		lsb_release, err := exec.LookPath("/usr/bin/lsb_release")
+		if err != nil {
+			return ret, err
+		}
+		out, err := exec.Command(lsb_release).Output()
 		if err != nil {
 			return ret, err
 		}
@@ -183,26 +190,27 @@ func getLSB() (*LSB, error) {
 	return ret, nil
 }
 
-func GetPlatformInformation() (platform string, family string, version string, err error) {
+func PlatformInformation() (platform string, family string, version string, err error) {
 
 	lsb, err := getLSB()
 	if err != nil {
 		lsb = &LSB{}
 	}
 
-	if common.PathExists("/etc/oracle-release") {
+	if common.PathExists(common.HostEtc("oracle-release")) {
 		platform = "oracle"
-		contents, err := common.ReadLines("/etc/oracle-release")
+		contents, err := common.ReadLines(common.HostEtc("oracle-release"))
 		if err == nil {
 			version = getRedhatishVersion(contents)
 		}
-	} else if common.PathExists("/etc/enterprise-release") {
+
+	} else if common.PathExists(common.HostEtc("enterprise-release")) {
 		platform = "oracle"
-		contents, err := common.ReadLines("/etc/enterprise-release")
+		contents, err := common.ReadLines(common.HostEtc("enterprise-release"))
 		if err == nil {
 			version = getRedhatishVersion(contents)
 		}
-	} else if common.PathExists("/etc/debian_version") {
+	} else if common.PathExists(common.HostEtc("debian_version")) {
 		if lsb.ID == "Ubuntu" {
 			platform = "ubuntu"
 			version = lsb.Release
@@ -215,39 +223,39 @@ func GetPlatformInformation() (platform string, family string, version string, e
 			} else {
 				platform = "debian"
 			}
-			contents, err := common.ReadLines("/etc/debian_version")
+			contents, err := common.ReadLines(common.HostEtc("debian_version"))
 			if err == nil {
 				version = contents[0]
 			}
 		}
-	} else if common.PathExists("/etc/redhat-release") {
-		contents, err := common.ReadLines("/etc/redhat-release")
+	} else if common.PathExists(common.HostEtc("redhat-release")) {
+		contents, err := common.ReadLines(common.HostEtc("redhat-release"))
 		if err == nil {
 			version = getRedhatishVersion(contents)
 			platform = getRedhatishPlatform(contents)
 		}
-	} else if common.PathExists("/etc/system-release") {
-		contents, err := common.ReadLines("/etc/system-release")
+	} else if common.PathExists(common.HostEtc("system-release")) {
+		contents, err := common.ReadLines(common.HostEtc("system-release"))
 		if err == nil {
 			version = getRedhatishVersion(contents)
 			platform = getRedhatishPlatform(contents)
 		}
-	} else if common.PathExists("/etc/gentoo-release") {
+	} else if common.PathExists(common.HostEtc("gentoo-release")) {
 		platform = "gentoo"
-		contents, err := common.ReadLines("/etc/gentoo-release")
+		contents, err := common.ReadLines(common.HostEtc("gentoo-release"))
 		if err == nil {
 			version = getRedhatishVersion(contents)
 		}
-	} else if common.PathExists("/etc/SuSE-release") {
-		contents, err := common.ReadLines("/etc/SuSE-release")
+	} else if common.PathExists(common.HostEtc("SuSE-release")) {
+		contents, err := common.ReadLines(common.HostEtc("SuSE-release"))
 		if err == nil {
 			version = getSuseVersion(contents)
 			platform = getSusePlatform(contents)
 		}
 		// TODO: slackware detecion
-	} else if common.PathExists("/etc/arch-release") {
+	} else if common.PathExists(common.HostEtc("arch-release")) {
 		platform = "arch"
-		// TODO: exherbo detection
+		version = lsb.Release
 	} else if lsb.ID == "RedHat" {
 		platform = "redhat"
 		version = lsb.Release
@@ -331,7 +339,7 @@ func getSusePlatform(contents []string) string {
 	return "suse"
 }
 
-func GetVirtualization() (string, string, error) {
+func Virtualization() (string, string, error) {
 	var system string
 	var role string
 

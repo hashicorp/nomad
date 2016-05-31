@@ -22,7 +22,7 @@ func NewCPUFingerprint(logger *log.Logger) Fingerprint {
 }
 
 func (f *CPUFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
-	cpuInfo, err := cpu.CPUInfo()
+	cpuInfo, err := cpu.Info()
 	if err != nil {
 		f.logger.Println("[WARN] Error reading CPU information:", err)
 		return false, err

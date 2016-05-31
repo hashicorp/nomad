@@ -18,6 +18,7 @@ import (
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/client/fingerprint"
+	"github.com/hashicorp/nomad/client/stats"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/hashstructure"
@@ -76,9 +77,25 @@ const (
 // DefaultConfig returns the default configuration
 func DefaultConfig() *config.Config {
 	return &config.Config{
-		LogOutput: os.Stderr,
-		Region:    "global",
+		LogOutput:               os.Stderr,
+		Region:                  "global",
+		StatsDataPoints:         60,
+		StatsCollectionInterval: 1 * time.Second,
 	}
+}
+
+// ClientStatsReporter exposes all the APIs related to resource usage of a Nomad
+// Client
+type ClientStatsReporter interface {
+	// AllocStats returns a map of alloc ids and their corresponding stats
+	// collector
+	AllocStats() map[string]AllocStatsReporter
+
+	// HostStats returns resource usage stats for the host
+	HostStats() []*stats.HostStats
+
+	// HostStatsTS returns a time series of host resource usage stats
+	HostStatsTS(since int64) []*stats.HostStats
 }
 
 // Client is used to implement the client interaction with Nomad. Clients
@@ -116,6 +133,11 @@ type Client struct {
 
 	consulService *consul.ConsulService
 
+	// HostStatsCollector collects host resource usage stats
+	hostStatsCollector *stats.HostStatsCollector
+	resourceUsage      *stats.RingBuff
+	resourceUsageLock  sync.RWMutex
+
 	shutdown     bool
 	shutdownCh   chan struct{}
 	shutdownLock sync.Mutex
@@ -126,15 +148,22 @@ func NewClient(cfg *config.Config) (*Client, error) {
 	// Create a logger
 	logger := log.New(cfg.LogOutput, "", log.LstdFlags)
 
+	resourceUsage, err := stats.NewRingBuff(cfg.StatsDataPoints)
+	if err != nil {
+		return nil, err
+	}
+
 	// Create the client
 	c := &Client{
-		config:       cfg,
-		start:        time.Now(),
-		connPool:     nomad.NewPool(cfg.LogOutput, clientRPCCache, clientMaxStreams, nil),
-		logger:       logger,
-		allocs:       make(map[string]*AllocRunner),
-		allocUpdates: make(chan *structs.Allocation, 64),
-		shutdownCh:   make(chan struct{}),
+		config:             cfg,
+		start:              time.Now(),
+		connPool:           nomad.NewPool(cfg.LogOutput, clientRPCCache, clientMaxStreams, nil),
+		logger:             logger,
+		hostStatsCollector: stats.NewHostStatsCollector(),
+		resourceUsage:      resourceUsage,
+		allocs:             make(map[string]*AllocRunner),
+		allocUpdates:       make(chan *structs.Allocation, 64),
+		shutdownCh:         make(chan struct{}),
 	}
 
 	// Initialize the client
@@ -188,6 +217,9 @@ func NewClient(cfg *config.Config) (*Client, error) {
 
 	// Start the client!
 	go c.run()
+
+	// Start collecting stats
+	go c.collectHostStats()
 
 	// Start the consul sync
 	go c.syncConsul()
@@ -392,6 +424,67 @@ func (c *Client) Node() *structs.Node {
 	c.configLock.RLock()
 	defer c.configLock.RUnlock()
 	return c.config.Node
+}
+
+// StatsReporter exposes the various APIs related resource usage of a Nomad
+// client
+func (c *Client) StatsReporter() ClientStatsReporter {
+	return c
+}
+
+// AllocStats returns all the stats reporter of the allocations running on a
+// Nomad client
+func (c *Client) AllocStats() map[string]AllocStatsReporter {
+	res := make(map[string]AllocStatsReporter)
+	allocRunners := c.getAllocRunners()
+	for alloc, ar := range allocRunners {
+		res[alloc] = ar
+	}
+	return res
+}
+
+// HostStats returns all the stats related to a Nomad client
+func (c *Client) HostStats() []*stats.HostStats {
+	c.resourceUsageLock.RLock()
+	defer c.resourceUsageLock.RUnlock()
+	val := c.resourceUsage.Peek()
+	ru, _ := val.(*stats.HostStats)
+	return []*stats.HostStats{ru}
+}
+
+func (c *Client) HostStatsTS(since int64) []*stats.HostStats {
+	c.resourceUsageLock.RLock()
+	defer c.resourceUsageLock.RUnlock()
+
+	values := c.resourceUsage.Values()
+	low := 0
+	high := len(values) - 1
+	var idx int
+
+	for {
+		mid := (low + high) >> 1
+		midVal, _ := values[mid].(*stats.HostStats)
+		if midVal.Timestamp < since {
+			low = mid + 1
+		} else if midVal.Timestamp > since {
+			high = mid - 1
+		} else if midVal.Timestamp == since {
+			idx = mid
+			break
+		}
+		if low > high {
+			idx = low
+			break
+		}
+	}
+	values = values[idx:]
+	ts := make([]*stats.HostStats, len(values))
+	for index, val := range values {
+		ru, _ := val.(*stats.HostStats)
+		ts[index] = ru
+	}
+	return ts
+
 }
 
 // GetAllocFS returns the AllocFS interface for the alloc dir of an allocation
@@ -1225,5 +1318,29 @@ func (c *Client) syncConsul() {
 			return
 		}
 
+	}
+}
+
+// collectHostStats collects host resource usage stats periodically
+func (c *Client) collectHostStats() {
+	// Start collecting host stats right away and then keep collecting every
+	// collection interval
+	next := time.NewTimer(0)
+	defer next.Stop()
+	for {
+		select {
+		case <-next.C:
+			ru, err := c.hostStatsCollector.Collect()
+			if err != nil {
+				c.logger.Printf("[DEBUG] client: error fetching host resource usage stats: %v", err)
+				continue
+			}
+			c.resourceUsageLock.RLock()
+			c.resourceUsage.Enqueue(ru)
+			c.resourceUsageLock.RUnlock()
+			next.Reset(c.config.StatsCollectionInterval)
+		case <-c.shutdownCh:
+			return
+		}
 	}
 }

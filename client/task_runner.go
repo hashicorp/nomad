@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/client/getter"
+	"github.com/hashicorp/nomad/client/stats"
 	"github.com/hashicorp/nomad/nomad/structs"
 
 	"github.com/hashicorp/nomad/client/driver/env"
@@ -34,6 +35,17 @@ const (
 	killFailureLimit = 5
 )
 
+// TaskStatsReporter exposes APIs to query resource usage of a Task
+type TaskStatsReporter interface {
+	// ResourceUsage returns the latest resource usage data point collected for
+	// the task
+	ResourceUsage() []*cstructs.TaskResourceUsage
+
+	// ResourceUsageTS returns all the resource usage data points since a given
+	// time
+	ResourceUsageTS(since int64) []*cstructs.TaskResourceUsage
+}
+
 // TaskRunner is used to wrap a task within an allocation and provide the execution context.
 type TaskRunner struct {
 	config         *config.Config
@@ -42,6 +54,9 @@ type TaskRunner struct {
 	ctx            *driver.ExecContext
 	alloc          *structs.Allocation
 	restartTracker *RestartTracker
+
+	resourceUsage     *stats.RingBuff
+	resourceUsageLock sync.RWMutex
 
 	task       *structs.Task
 	taskEnv    *env.TaskEnvironment
@@ -86,11 +101,18 @@ func NewTaskRunner(logger *log.Logger, config *config.Config,
 	}
 	restartTracker := newRestartTracker(tg.RestartPolicy, alloc.Job.Type)
 
+	resourceUsage, err := stats.NewRingBuff(config.StatsDataPoints)
+	if err != nil {
+		logger.Printf("[ERR] client: can't create resource usage buffer: %v", err)
+		return nil
+	}
+
 	tc := &TaskRunner{
 		config:         config,
 		updater:        updater,
 		logger:         logger,
 		restartTracker: restartTracker,
+		resourceUsage:  resourceUsage,
 		ctx:            ctx,
 		alloc:          alloc,
 		task:           task,
@@ -433,7 +455,81 @@ func (r *TaskRunner) startTask() error {
 	r.handleLock.Lock()
 	r.handle = handle
 	r.handleLock.Unlock()
+	go r.collectResourceUsageStats()
 	return nil
+}
+
+// collectResourceUsageStats starts collecting resource usage stats of a Task
+func (r *TaskRunner) collectResourceUsageStats() {
+	// start collecting the stats right away and then start collecting every
+	// collection interval
+	next := time.NewTimer(0)
+	defer next.Stop()
+	for {
+		select {
+		case <-next.C:
+			ru, err := r.handle.Stats()
+			if err != nil {
+				r.logger.Printf("[DEBUG] client: error fetching stats of task %v: %v", r.task.Name, err)
+			}
+			r.resourceUsageLock.Lock()
+			r.resourceUsage.Enqueue(ru)
+			r.resourceUsageLock.Unlock()
+			next.Reset(r.config.StatsCollectionInterval)
+		case <-r.handle.WaitCh():
+			return
+		}
+	}
+}
+
+// TaskStatsReporter returns the stats reporter of the task
+func (r *TaskRunner) StatsReporter() TaskStatsReporter {
+	return r
+}
+
+// ResourceUsage returns the last resource utilization datapoint collected
+func (r *TaskRunner) ResourceUsage() []*cstructs.TaskResourceUsage {
+	r.resourceUsageLock.RLock()
+	defer r.resourceUsageLock.RUnlock()
+	val := r.resourceUsage.Peek()
+	ru, _ := val.(*cstructs.TaskResourceUsage)
+	return []*cstructs.TaskResourceUsage{ru}
+}
+
+// ResourceUsageTS returns the list of all the resource utilization datapoints
+// collected
+func (r *TaskRunner) ResourceUsageTS(since int64) []*cstructs.TaskResourceUsage {
+	r.resourceUsageLock.RLock()
+	defer r.resourceUsageLock.RUnlock()
+
+	values := r.resourceUsage.Values()
+	low := 0
+	high := len(values) - 1
+	var idx int
+
+	for {
+		mid := (low + high) / 2
+		midVal, _ := values[mid].(*cstructs.TaskResourceUsage)
+		if midVal.Timestamp < since {
+			low = mid + 1
+		} else if midVal.Timestamp > since {
+			high = mid - 1
+		} else if midVal.Timestamp == since {
+			idx = mid
+			break
+		}
+		if low > high {
+			idx = low
+			break
+		}
+	}
+	values = values[idx:]
+	ts := make([]*cstructs.TaskResourceUsage, len(values))
+	for index, val := range values {
+		ru, _ := val.(*cstructs.TaskResourceUsage)
+		ts[index] = ru
+	}
+	return ts
 }
 
 // handleUpdate takes an updated allocation and updates internal state to

@@ -112,6 +112,14 @@ type Config struct {
 
 	// ConsulConfig is the configuration to connect with Consul Agent
 	ConsulConfig *consul.ConsulConfig
+
+	// StatsDataPoints is the number of resource usage data points the Nomad
+	// client keeps in memory
+	StatsDataPoints int
+
+	// StatsCollectionInterval is the interval at which the Nomad client
+	// collects resource usage stats
+	StatsCollectionInterval time.Duration
 }
 
 func (c *Config) Copy() *Config {

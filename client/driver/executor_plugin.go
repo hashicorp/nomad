@@ -7,6 +7,7 @@ import (
 
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/driver/executor"
+	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -88,6 +89,12 @@ func (e *ExecutorRPC) Version() (*executor.ExecutorVersion, error) {
 	return &version, err
 }
 
+func (e *ExecutorRPC) Stats() (*cstructs.TaskResourceUsage, error) {
+	var resourceUsage cstructs.TaskResourceUsage
+	err := e.client.Call("Plugin.Stats", new(interface{}), &resourceUsage)
+	return &resourceUsage, err
+}
+
 type ExecutorRPCServer struct {
 	Impl   executor.Executor
 	logger *log.Logger
@@ -145,6 +152,14 @@ func (e *ExecutorRPCServer) Version(args interface{}, version *executor.Executor
 	ver, err := e.Impl.Version()
 	if ver != nil {
 		*version = *ver
+	}
+	return err
+}
+
+func (e *ExecutorRPCServer) Stats(args interface{}, resourceUsage *cstructs.TaskResourceUsage) error {
+	ru, err := e.Impl.Stats()
+	if ru != nil {
+		*resourceUsage = *ru
 	}
 	return err
 }

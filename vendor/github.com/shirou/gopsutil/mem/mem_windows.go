@@ -13,7 +13,7 @@ var (
 	procGlobalMemoryStatusEx = common.Modkernel32.NewProc("GlobalMemoryStatusEx")
 )
 
-type MEMORYSTATUSEX struct {
+type memoryStatusEx struct {
 	cbSize                  uint32
 	dwMemoryLoad            uint32
 	ullTotalPhys            uint64 // in bytes
@@ -26,7 +26,7 @@ type MEMORYSTATUSEX struct {
 }
 
 func VirtualMemory() (*VirtualMemoryStat, error) {
-	var memInfo MEMORYSTATUSEX
+	var memInfo memoryStatusEx
 	memInfo.cbSize = uint32(unsafe.Sizeof(memInfo))
 	mem, _, _ := procGlobalMemoryStatusEx.Call(uintptr(unsafe.Pointer(&memInfo)))
 	if mem == 0 {
