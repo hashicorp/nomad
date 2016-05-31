@@ -333,7 +333,7 @@ func (n *nomadFSM) applyUpdateEval(buf []byte, index uint64) interface{} {
 		if eval.ShouldEnqueue() {
 			n.evalBroker.Enqueue(eval)
 		} else if eval.ShouldBlock() {
-			n.blockedEvals.Block(eval, "")
+			n.blockedEvals.Block(eval)
 		}
 	}
 	return nil

@@ -161,7 +161,9 @@ func (b *EvalBroker) processEnqueue(eval *structs.Evaluation, token string) {
 		// If the token has been passed, the evaluation is being reblocked by
 		// the scheduler and should be processed once the outstanding evaluation
 		// is Acked or Nacked.
-		b.requeue[token] = eval
+		if unack, ok := b.unack[eval.ID]; ok && unack.Token == token {
+			b.requeue[token] = eval
+		}
 		return
 	} else if b.enabled {
 		b.evals[eval.ID] = 0

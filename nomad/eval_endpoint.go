@@ -238,7 +238,7 @@ func (e *Eval) Reblock(args *structs.EvalUpdateRequest, reply *structs.GenericRe
 	}
 
 	// Reblock the eval
-	e.srv.blockedEvals.Block(eval, args.EvalToken)
+	e.srv.blockedEvals.Reblock(eval, args.EvalToken)
 	return nil
 }
 

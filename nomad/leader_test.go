@@ -529,8 +529,8 @@ func TestLeader_ReapDuplicateEval(t *testing.T) {
 	eval := mock.Eval()
 	eval2 := mock.Eval()
 	eval2.JobID = eval.JobID
-	s1.blockedEvals.Block(eval, "")
-	s1.blockedEvals.Block(eval2, "")
+	s1.blockedEvals.Block(eval)
+	s1.blockedEvals.Block(eval2)
 
 	// Wait for the evaluation to marked as cancelled
 	state := s1.fsm.State()

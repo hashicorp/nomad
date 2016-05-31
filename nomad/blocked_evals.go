@@ -120,9 +120,23 @@ func (b *BlockedEvals) SetEnabled(enabled bool) {
 }
 
 // Block tracks the passed evaluation and enqueues it into the eval broker when
-// a suitable node calls unblock. If the block is occuring by an outstanding
-// evaluation, the evaluation's token should be passed.
-func (b *BlockedEvals) Block(eval *structs.Evaluation, token string) {
+// a suitable node calls unblock.
+func (b *BlockedEvals) Block(eval *structs.Evaluation) {
+	b.processBlock(eval, "")
+}
+
+// Reblock tracks the passed evaluation and enqueues it into the eval broker when
+// a suitable node calls unblock. Reblock should be used over Block when the
+// blocking is occuring by an outstanding evaluation. The token is the
+// evaluation's token.
+func (b *BlockedEvals) Reblock(eval *structs.Evaluation, token string) {
+	b.processBlock(eval, token)
+}
+
+// processBlock is the implementation of blocking an evaluation. It supports
+// taking an optional evaluation token to use when reblocking an evaluation that
+// may be outstanding.
+func (b *BlockedEvals) processBlock(eval *structs.Evaluation, token string) {
 	b.l.Lock()
 	defer b.l.Unlock()
 

@@ -190,7 +190,7 @@ func (s *Server) restoreEvals() error {
 		if eval.ShouldEnqueue() {
 			s.evalBroker.Enqueue(eval)
 		} else if eval.ShouldBlock() {
-			s.blockedEvals.Block(eval, "")
+			s.blockedEvals.Block(eval)
 		}
 	}
 	return nil
