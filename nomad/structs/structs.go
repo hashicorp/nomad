@@ -403,6 +403,9 @@ type JobPlanResponse struct {
 	// Annotations stores annotations explaining decisions the scheduler made.
 	Annotations *PlanAnnotations
 
+	// FailedTGAllocs is the placement failures per task group.
+	FailedTGAllocs map[string]*AllocMetric
+
 	// JobModifyIndex is the modification index of the job. The value can be
 	// used when running `nomad run` to ensure that the Job wasn’t modified
 	// since the last plan. If the job is being created, the value is zero.

@@ -2,6 +2,7 @@ package command
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -309,7 +310,10 @@ func (m *monitor) monitor(evalID string, allowPrefix bool) int {
 						noun += "s"
 					}
 					m.ui.Output(fmt.Sprintf("Task Group %q (failed to place %d %s):", tg, metrics.CoalescedFailures+1, noun))
-					dumpAllocMetrics(m.ui, metrics, false)
+					metrics := formatAllocMetrics(metrics, false, "  ")
+					for _, line := range strings.Split(metrics, "\n") {
+						m.ui.Output(line)
+					}
 				}
 
 				if eval.BlockedEval != "" {
@@ -358,46 +362,50 @@ func dumpAllocStatus(ui cli.Ui, alloc *api.Allocation, length int) {
 	ui.Output(fmt.Sprintf("Allocation %q status %q (%d/%d nodes filtered)",
 		limit(alloc.ID, length), alloc.ClientStatus,
 		alloc.Metrics.NodesFiltered, alloc.Metrics.NodesEvaluated))
-	dumpAllocMetrics(ui, alloc.Metrics, true)
+	ui.Output(formatAllocMetrics(alloc.Metrics, true, "  "))
 }
 
-func dumpAllocMetrics(ui cli.Ui, metrics *api.AllocationMetric, scores bool) {
+func formatAllocMetrics(metrics *api.AllocationMetric, scores bool, prefix string) string {
 	// Print a helpful message if we have an eligibility problem
+	var out string
 	if metrics.NodesEvaluated == 0 {
-		ui.Output("  * No nodes were eligible for evaluation")
+		out += fmt.Sprintf("%s* No nodes were eligible for evaluation\n", prefix)
 	}
 
 	// Print a helpful message if the user has asked for a DC that has no
 	// available nodes.
 	for dc, available := range metrics.NodesAvailable {
 		if available == 0 {
-			ui.Output(fmt.Sprintf("  * No nodes are available in datacenter %q", dc))
+			out += fmt.Sprintf("%s* No nodes are available in datacenter %q\n", prefix, dc)
 		}
 	}
 
 	// Print filter info
 	for class, num := range metrics.ClassFiltered {
-		ui.Output(fmt.Sprintf("  * Class %q filtered %d nodes", class, num))
+		out += fmt.Sprintf("%s* Class %q filtered %d nodes\n", prefix, class, num)
 	}
 	for cs, num := range metrics.ConstraintFiltered {
-		ui.Output(fmt.Sprintf("  * Constraint %q filtered %d nodes", cs, num))
+		out += fmt.Sprintf("%s* Constraint %q filtered %d nodes\n", prefix, cs, num)
 	}
 
 	// Print exhaustion info
 	if ne := metrics.NodesExhausted; ne > 0 {
-		ui.Output(fmt.Sprintf("  * Resources exhausted on %d nodes", ne))
+		out += fmt.Sprintf("%s* Resources exhausted on %d nodes\n", prefix, ne)
 	}
 	for class, num := range metrics.ClassExhausted {
-		ui.Output(fmt.Sprintf("  * Class %q exhausted on %d nodes", class, num))
+		out += fmt.Sprintf("%s* Class %q exhausted on %d nodes\n", prefix, class, num)
 	}
 	for dim, num := range metrics.DimensionExhausted {
-		ui.Output(fmt.Sprintf("  * Dimension %q exhausted on %d nodes", dim, num))
+		out += fmt.Sprintf("%s* Dimension %q exhausted on %d nodes\n", prefix, dim, num)
 	}
 
 	// Print scores
 	if scores {
 		for name, score := range metrics.Scores {
-			ui.Output(fmt.Sprintf("  * Score %q = %f", name, score))
+			out += fmt.Sprintf("%s* Score %q = %f\n", prefix, name, score)
 		}
 	}
+
+	out = strings.TrimSuffix(out, "\n")
+	return out
 }

@@ -286,6 +286,7 @@ type JobPlanResponse struct {
 	CreatedEvals   []*Evaluation
 	Diff           *JobDiff
 	Annotations    *PlanAnnotations
+	FailedTGAllocs map[string]*AllocationMetric
 }
 
 type JobDiff struct {
