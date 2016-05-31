@@ -2,6 +2,8 @@
 
 __BACKWARDS INCOMPATIBILITIES:__
   * api: Tasks are no longer allowed to have slashes in their name [GH-1210]
+  * cli: Remove the eval-monitor command. Users should switch to `nomad
+    eval-status -monitor`.
 
 IMPROVEMENTS:
   * core: Scheduler reuses blocked evaluations to avoid unbounded creation of
@@ -11,6 +13,7 @@ IMPROVEMENTS:
   * api: Faster JSON response encoding [GH-1182]
   * api: Gzip compress HTTP API requests [GH-1203]
   * api: Plan api introduced for the Job endpoint [GH-1168]
+  * cli: Deprecate `eval-monitor` and introduce `eval-status` [GH-1206]
   * cli: Unify the `fs` family of commands to be a single command [GH-1150]
   * cli: Introduce `nomad plan` to dry-run a job through the scheduler and
     determine its effects [GH-1181]
