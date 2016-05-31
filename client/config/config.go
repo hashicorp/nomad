@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"io"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -129,6 +130,16 @@ func (c *Config) Copy() *Config {
 	nc.Servers = structs.CopySliceString(nc.Servers)
 	nc.Options = structs.CopyMapStringString(nc.Options)
 	return nc
+}
+
+// DefaultConfig returns the default configuration
+func DefaultConfig() *Config {
+	return &Config{
+		LogOutput:               os.Stderr,
+		Region:                  "global",
+		StatsDataPoints:         60,
+		StatsCollectionInterval: 1 * time.Second,
+	}
 }
 
 // Read returns the specified configuration value or "".

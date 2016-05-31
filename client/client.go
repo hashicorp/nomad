@@ -84,16 +84,6 @@ const (
 	consulSyncJitter = 8
 )
 
-// DefaultConfig returns the default configuration
-func DefaultConfig() *config.Config {
-	return &config.Config{
-		LogOutput:               os.Stderr,
-		Region:                  "global",
-		StatsDataPoints:         60,
-		StatsCollectionInterval: 1 * time.Second,
-	}
-}
-
 // ClientStatsReporter exposes all the APIs related to resource usage of a Nomad
 // Client
 type ClientStatsReporter interface {

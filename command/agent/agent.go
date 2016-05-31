@@ -220,7 +220,7 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	// Setup the configuration
 	conf := a.config.ClientConfig
 	if conf == nil {
-		conf = client.DefaultConfig()
+		conf = clientconfig.DefaultConfig()
 	}
 	if a.server != nil {
 		conf.RPCHandler = a.server
