@@ -263,6 +263,20 @@ func (l *serverList) shuffleServers() {
 	}
 }
 
+// String returns a string representation of serverList
+func (l *serverList) String() string {
+	if len(l.L) == 0 {
+		return fmt.Sprintf("[empty server list]")
+	}
+
+	serverStrs := make([]string, 0, len(l.L))
+	for _, server := range l.L {
+		serverStrs = append(serverStrs, server.String())
+	}
+
+	return fmt.Sprintf("[%s]", strings.Join(serverStrs, ", "))
+}
+
 // FindServer takes out an internal "read lock" and searches through the list
 // of servers to find a "healthy" server.  If the server is actually
 // unhealthy, we rely on heartbeats to detect this and remove the node from
