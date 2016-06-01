@@ -11,7 +11,10 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 )
 
-var nextPort uint32 = 15000
+var (
+	nextPort   uint32 = 15000
+	nodeNumber uint32 = 0
+)
 
 func getPort() int {
 	return int(atomic.AddUint32(&nextPort, 1))
@@ -34,7 +37,8 @@ func testServer(t *testing.T, cb func(*Config)) *Server {
 		IP:   []byte{127, 0, 0, 1},
 		Port: getPort(),
 	}
-	config.NodeName = fmt.Sprintf("Node %d", config.RPCAddr.Port)
+	nodeNumber = atomic.AddUint32(&nodeNumber, 1)
+	config.NodeName = fmt.Sprintf("nomad-%03d", nodeNumber)
 
 	// Tighten the Serf timing
 	config.SerfConfig.MemberlistConfig.BindAddr = "127.0.0.1"
