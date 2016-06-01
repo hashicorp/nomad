@@ -7,6 +7,7 @@ import (
 
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/watch"
 )
@@ -101,6 +102,52 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 
 	// Set the reply index
 	reply.Index = index
+
+	n.srv.peerLock.RLock()
+	defer n.srv.peerLock.RUnlock()
+	if err := n.updateNodeUpdateResponse(nil, reply); err != nil {
+		n.srv.logger.Printf("[ERR] nomad.client: failed to populate NodeUpdateResponse: %v", err)
+		return err
+	}
+
+	return nil
+}
+
+// updateNodeUpdateResponse assumes the n.srv.peerLock is held for reading.
+func (n *Node) updateNodeUpdateResponse(snap *state.StateSnapshot, reply *structs.NodeUpdateResponse) error {
+	reply.LeaderRPCAddr = n.srv.raft.Leader()
+
+	// Reply with config information required for future RPC requests
+	reply.Servers = make([]*structs.NodeServerInfo, 0, len(n.srv.localPeers))
+	for k, v := range n.srv.localPeers {
+		reply.Servers = append(reply.Servers,
+			&structs.NodeServerInfo{
+				RpcAdvertiseAddr: k,
+				RpcMajorVersion:  int32(v.MajorVersion),
+				RpcMinorVersion:  int32(v.MinorVersion),
+				Datacenter:       v.Datacenter,
+			})
+	}
+
+	// Capture all the nodes to obtain the node count
+	if snap == nil {
+		ss, err := n.srv.fsm.State().Snapshot()
+		if err != nil {
+			return err
+		}
+		snap = ss
+	}
+	iter, err := snap.Nodes()
+	if err == nil {
+		for {
+			raw := iter.Next()
+			if raw == nil {
+				break
+			}
+			reply.NumNodes++
+		}
+	}
+
 	return nil
 }
 
@@ -206,33 +253,12 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 	}
 
 	// Set the reply index and leader
+	reply.Index = index
 	n.srv.peerLock.RLock()
 	defer n.srv.peerLock.RUnlock()
-	reply.Index = index
-	reply.LeaderRPCAddr = n.srv.raft.Leader()
-
-	// Reply with config information required for future RPC requests
-	reply.Servers = make([]*structs.NodeServerInfo, 0, len(n.srv.localPeers))
-	for k, v := range n.srv.localPeers {
-		reply.Servers = append(reply.Servers,
-			&structs.NodeServerInfo{
-				RpcAdvertiseAddr: k,
-				RpcMajorVersion:  int32(v.MajorVersion),
-				RpcMinorVersion:  int32(v.MinorVersion),
-				Datacenter:       v.Datacenter,
-			})
-	}
-
-	// Capture all the nodes to obtain the node count
-	iter, err := snap.Nodes()
-	if err == nil {
-		for {
-			raw := iter.Next()
-			if raw == nil {
-				break
-			}
-			reply.NumNodes++
-		}
+	if err := n.updateNodeUpdateResponse(snap, reply); err != nil {
+		n.srv.logger.Printf("[ERR] nomad.client: failed to populate NodeUpdateResponse: %v", err)
+		return err
 	}
 
 	return nil
@@ -326,6 +352,13 @@ func (n *Node) Evaluate(args *structs.NodeEvaluateRequest, reply *structs.NodeUp
 
 	// Set the reply index
 	reply.Index = evalIndex
+
+	n.srv.peerLock.RLock()
+	defer n.srv.peerLock.RUnlock()
+	if err := n.updateNodeUpdateResponse(snap, reply); err != nil {
+		n.srv.logger.Printf("[ERR] nomad.client: failed to populate NodeUpdateResponse: %v", err)
+		return err
+	}
 	return nil
 }
 
