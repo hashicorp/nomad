@@ -100,11 +100,12 @@ type Client struct {
 
 	logger *log.Logger
 
-	// backupServerDeadline is the deadline at which this Nomad Agent
-	// will begin polling Consul for a list of Nomad Servers.  When Nomad
-	// Clients are heartbeating successfully with Nomad Servers, Nomad
-	// Clients do not poll Consul for a backup server list.
-	backupServerDeadline time.Time
+	// consulPullHeartbeatDeadline is the deadline at which this Nomad
+	// Agent will begin polling Consul for a list of Nomad Servers.  When
+	// Nomad Clients are heartbeating successfully with Nomad Servers,
+	// Nomad Clients do not poll Consul to populate their backup server
+	// list.
+	consulPullHeartbeatDeadline time.Time
 
 	rpcProxy *rpcproxy.RpcProxy
 
@@ -901,7 +902,7 @@ func (c *Client) updateNodeStatus() error {
 	if err := c.rpcProxy.UpdateFromNodeUpdateResponse(&resp); err != nil {
 		return err
 	}
-	c.backupServerDeadline = time.Now().Add(2 * resp.HeartbeatTTL)
+	c.consulPullHeartbeatDeadline = time.Now().Add(2 * resp.HeartbeatTTL)
 
 	return nil
 }
@@ -1223,7 +1224,7 @@ func (c *Client) setupConsulSyncer() error {
 	bootstrapFn := func() {
 		now := time.Now()
 		c.configLock.RLock()
-		if now.Before(c.backupServerDeadline) {
+		if now.Before(c.consulPullHeartbeatDeadline) {
 			c.configLock.RUnlock()
 			return
 		}
