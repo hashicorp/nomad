@@ -33,7 +33,7 @@ func TestClientConfigCommand_UpdateServers(t *testing.T) {
 	ui.ErrorWriter.Reset()
 
 	// Set the servers list
-	code = cmd.Run([]string{"-address=" + url, "-update-servers", "foo", "bar"})
+	code = cmd.Run([]string{"-address=" + url, "-update-servers", "127.0.0.42", "198.18.5.5"})
 	if code != 0 {
 		t.Fatalf("expected exit 0, got: %d", code)
 	}
@@ -44,11 +44,11 @@ func TestClientConfigCommand_UpdateServers(t *testing.T) {
 		t.Fatalf("expect exit 0, got: %d", code)
 	}
 	out := ui.OutputWriter.String()
-	if !strings.Contains(out, "foo") {
-		t.Fatalf("missing foo")
+	if !strings.Contains(out, "127.0.0.42") {
+		t.Fatalf("missing 127.0.0.42")
 	}
-	if !strings.Contains(out, "bar") {
-		t.Fatalf("missing bar")
+	if !strings.Contains(out, "198.18.5.5") {
+		t.Fatalf("missing 198.18.5.5")
 	}
 }
 
