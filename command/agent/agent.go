@@ -388,7 +388,7 @@ func (a *Agent) setupClient() error {
 	return nil
 }
 
-// reservePortsForClient reservers a range of ports for the client to use when
+// reservePortsForClient reserves a range of ports for the client to use when
 // it creates various plugins for log collection, executors, drivers, etc
 func (a *Agent) reservePortsForClient(conf *clientconfig.Config) error {
 	// finding the device name for loopback
