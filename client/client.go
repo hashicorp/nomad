@@ -200,7 +200,7 @@ func NewClient(cfg *config.Config, consulSyncer *consul.Syncer) (*Client, error)
 
 	// Setup the Consul syncer
 	if err := c.setupConsulSyncer(); err != nil {
-		return nil, fmt.Errorf("failed to create Consul syncer: %v")
+		return nil, fmt.Errorf("failed to create client Consul syncer: %v")
 	}
 
 	// Register and then start heartbeating to the servers.
@@ -1213,12 +1213,13 @@ func (c *Client) addAlloc(alloc *structs.Allocation) error {
 	return nil
 }
 
-// setupConsulSyncer creates a consul.Syncer
+// setupConsulSyncer creates Client-mode consul.Syncer callbacks that are
+// executed periodically.
 func (c *Client) setupConsulSyncer() error {
 	// The bootstrapFn callback handler is used to periodically poll
 	// Consul to look up the Nomad Servers in Consul.  In the event the
-	// heartbeat deadline has been exceeded and this Agent is orphaned
-	// from its cluster, periodically poll Consul to reattach this Agent
+	// heartbeat deadline has been exceeded and this Client is orphaned
+	// from its servers, periodically poll Consul to reattach this Client
 	// to its cluster and automatically recover from a detached state.
 	bootstrapFn := func() {
 		now := time.Now()
