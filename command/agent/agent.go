@@ -195,6 +195,22 @@ func (a *Agent) serverConfig() (*nomad.Config, error) {
 	}
 	a.serverRpcAddr = fmt.Sprintf("%s:%d", addr.IP.String(), addr.Port)
 
+	// Resolve the Server's Serf Address
+	if a.config.AdvertiseAddrs.Serf != "" {
+		a.serverSerfAddr = a.config.AdvertiseAddrs.Serf
+	} else if a.config.Addresses.Serf != "" {
+		a.serverSerfAddr = fmt.Sprintf("%v:%v", a.config.Addresses.Serf, a.config.Ports.Serf)
+	} else if a.config.BindAddr != "" {
+		a.serverSerfAddr = fmt.Sprintf("%v:%v", a.config.BindAddr, a.config.Ports.Serf)
+	} else {
+		a.serverSerfAddr = fmt.Sprintf("%v:%v", "127.0.0.1", a.config.Ports.Serf)
+	}
+	addr, err = net.ResolveTCPAddr("tcp", a.serverSerfAddr)
+	if err != nil {
+		return nil, fmt.Errorf("error resolving Serf addr %q: %v:", a.serverSerfAddr, err)
+	}
+	a.serverSerfAddr = fmt.Sprintf("%s:%d", addr.IP.String(), addr.Port)
+
 	if gcThreshold := a.config.Server.NodeGCThreshold; gcThreshold != "" {
 		dur, err := time.ParseDuration(gcThreshold)
 		if err != nil {
