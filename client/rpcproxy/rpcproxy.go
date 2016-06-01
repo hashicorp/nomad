@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -99,7 +100,9 @@ type RpcProxy struct {
 	// by serverListLock.
 	backupServers serverList
 
-	// serverListLock covers both backupServers and primaryServers
+	// serverListLock covers both backupServers and primaryServers.  If
+	// it is necessary to hold serverListLock and listLock, obtain an
+	// exclusive lock on serverListLock before listLock.
 	serverListLock sync.RWMutex
 
 	leaderAddr string
@@ -204,7 +207,7 @@ func (p *RpcProxy) SetBackupServers(addrs []string) error {
 func (p *RpcProxy) AddPrimaryServer(rpcAddr string) *ServerEndpoint {
 	s, err := newServer(rpcAddr)
 	if err != nil {
-		p.logger.Printf("[WARN] RPC Proxy: unable to create new primary server from endpoint %q", rpcAddr)
+		p.logger.Printf("[WARN] RPC Proxy: unable to create new primary server from endpoint %q: %v", rpcAddr, err)
 		return nil
 	}
 
@@ -540,24 +543,22 @@ func (p *RpcProxy) reconcileServerList(l *serverList) bool {
 }
 
 // RemoveServer takes out an internal write lock and removes a server from
-// the server list.
+// the activated server list.
 func (p *RpcProxy) RemoveServer(s *ServerEndpoint) {
+	// Lock hierarchy protocol dictates serverListLock is acquired first.
+	p.serverListLock.Lock()
+	defer p.serverListLock.Unlock()
+
 	p.listLock.Lock()
 	defer p.listLock.Unlock()
 	l := p.getServerList()
 
-	// Remove the server if known
-	for i, _ := range l.L {
-		if l.L[i].Name == s.Name {
-			newServers := make([]*ServerEndpoint, 0, len(l.L)-1)
-			newServers = append(newServers, l.L[:i]...)
-			newServers = append(newServers, l.L[i+1:]...)
-			l.L = newServers
+	k := s.Key()
+	l.removeServerByKey(k)
+	p.saveServerList(l)
 
-			p.saveServerList(l)
-			return
-		}
-	}
+	p.primaryServers.removeServerByKey(k)
+	p.backupServers.removeServerByKey(k)
 }
 
 // refreshServerRebalanceTimer is only called once m.rebalanceTimer expires.

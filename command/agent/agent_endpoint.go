@@ -119,6 +119,9 @@ func (s *HTTPServer) AgentForceLeaveRequest(resp http.ResponseWriter, req *http.
 	return nil, err
 }
 
+// AgentServersRequest is used to query the list of servers used by the Nomad
+// Client for RPCs.  This endpoint can also be used to update the list of
+// servers for a given agent.
 func (s *HTTPServer) AgentServersRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	switch req.Method {
 	case "PUT", "POST":
@@ -136,14 +139,38 @@ func (s *HTTPServer) listServers(resp http.ResponseWriter, req *http.Request) (i
 		return nil, CodedError(501, ErrInvalidMethod)
 	}
 
-	// Get the current list of servers according to Raft.
-	//
-	// NOTE(sean@); This could be s.agent.server.localPeers instead.
-	var err error
-	var peers []string
-	peers, err = s.agent.server.RaftPeers()
-	if err != nil {
-		return nil, err
+	// Preallocate for at least 5x servers
+	const initialServerListSize = 8
+	peers := make([]string, 0, initialServerListSize)
+	uniquePeers := make(map[string]bool, initialServerListSize)
+	// When the agent has an active server, get the current list of
+	// servers according to Raft.
+	if s.agent.server != nil {
+		raftPeers, err := s.agent.server.RaftPeers()
+		if err != nil {
+			return nil, err
+		}
+		for _, peer := range raftPeers {
+			_, found := uniquePeers[peer]
+			if !found {
+				uniquePeers[peer] = true
+				peers = append(peers, peer)
+			}
+		}
+	}
+
+	// When the agent has an active client, return the union of the list
+	// of servers according to RpcProxy, which is possibly populated by
+	// Consul.
+	if s.agent.client != nil {
+		clientPeers := s.agent.client.RpcProxy().ServerRPCAddrs()
+		for _, peer := range clientPeers {
+			_, found := uniquePeers[peer]
+			if !found {
+				uniquePeers[peer] = true
+				peers = append(peers, peer)
+			}
+		}
 	}
 
 	return peers, nil
@@ -162,8 +189,11 @@ func (s *HTTPServer) updateServers(resp http.ResponseWriter, req *http.Request) 
 	}
 
 	// Set the servers list into the client
-	for _, s := range servers {
-		client.AddPrimaryServerToRpcProxy(s)
+	for _, server := range servers {
+		se := client.AddPrimaryServerToRpcProxy(server)
+		if se == nil {
+			s.agent.logger.Printf("[ERR] Attempt to add server %q to client failed", server)
+		}
 	}
 	return nil, nil
 }

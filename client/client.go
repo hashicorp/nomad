@@ -446,8 +446,8 @@ func (c *Client) GetAllocFS(allocID string) (allocdir.AllocDirFS, error) {
 
 // AddPrimaryServerToRpcProxy adds serverAddr to the RPC Proxy's primary
 // server list.
-func (c *Client) AddPrimaryServerToRpcProxy(serverAddr string) {
-	c.rpcProxy.AddPrimaryServer(serverAddr)
+func (c *Client) AddPrimaryServerToRpcProxy(serverAddr string) *rpcproxy.ServerEndpoint {
+	return c.rpcProxy.AddPrimaryServer(serverAddr)
 }
 
 // restoreState is used to restore our state from the data dir

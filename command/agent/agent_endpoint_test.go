@@ -107,21 +107,35 @@ func TestHTTP_AgentForceLeave(t *testing.T) {
 
 func TestHTTP_AgentSetServers(t *testing.T) {
 	httpTest(t, nil, func(s *TestServer) {
+		// Establish a baseline number of servers
+		req, err := http.NewRequest("GET", "/v1/agent/servers", nil)
+		if err != nil {
+			t.Fatalf("err: %s", err)
+		}
+		respW := httptest.NewRecorder()
+
+		// Make the request and check the result
+		out, err := s.Server.AgentServersRequest(respW, req)
+		if err != nil {
+			t.Fatalf("err: %s", err)
+		}
+		numServers := len(out.([]string))
+
 		// Create the request
-		req, err := http.NewRequest("PUT", "/v1/agent/servers", nil)
+		req, err = http.NewRequest("PUT", "/v1/agent/servers", nil)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
 
 		// Send the request
-		respW := httptest.NewRecorder()
+		respW = httptest.NewRecorder()
 		_, err = s.Server.AgentServersRequest(respW, req)
 		if err == nil || !strings.Contains(err.Error(), "missing server address") {
 			t.Fatalf("expected missing servers error, got: %#v", err)
 		}
 
 		// Create a valid request
-		req, err = http.NewRequest("PUT", "/v1/agent/servers?address=foo&address=bar", nil)
+		req, err = http.NewRequest("PUT", "/v1/agent/servers?address=127.0.0.1%3A4647&address=127.0.0.2%3A4647", nil)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -141,16 +155,31 @@ func TestHTTP_AgentSetServers(t *testing.T) {
 		respW = httptest.NewRecorder()
 
 		// Make the request and check the result
-		out, err := s.Server.AgentServersRequest(respW, req)
+		expected := map[string]bool{
+			"127.0.0.1:4647": true,
+			"127.0.0.2:4647": true,
+		}
+		out, err = s.Server.AgentServersRequest(respW, req)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
 		servers := out.([]string)
-		if n := len(servers); n != 2 {
-			t.Fatalf("expected 2 servers, got: %d", n)
+		if n := len(servers); n != numServers+2 {
+			t.Fatalf("expected %d servers, got: %d: %v", numServers+2, n, servers)
 		}
-		if servers[0] != "foo:4647" || servers[1] != "bar:4647" {
-			t.Fatalf("bad servers result: %v", servers)
+		received := make(map[string]bool, len(servers))
+		for _, server := range servers {
+			received[server] = true
+		}
+		foundCount := 0
+		for k, _ := range received {
+			_, found := expected[k]
+			if found {
+				foundCount++
+			}
+		}
+		if foundCount != len(expected) {
+			t.Fatalf("bad servers result")
 		}
 	})
 }
