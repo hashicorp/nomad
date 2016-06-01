@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 
+	"github.com/hashicorp/nomad/client/config"
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
 )
 
@@ -25,7 +26,7 @@ func (m *MockAllocStateUpdater) Update(alloc *structs.Allocation) {
 
 func testAllocRunner(restarts bool) (*MockAllocStateUpdater, *AllocRunner) {
 	logger := testLogger()
-	conf := DefaultConfig()
+	conf := config.DefaultConfig()
 	conf.StateDir = os.TempDir()
 	conf.AllocDir = os.TempDir()
 	upd := &MockAllocStateUpdater{}

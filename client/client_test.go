@@ -70,7 +70,7 @@ func testServer(t *testing.T, cb func(*nomad.Config)) (*nomad.Server, string) {
 }
 
 func testClient(t *testing.T, cb func(c *config.Config)) *Client {
-	conf := DefaultConfig()
+	conf := nomad.DefaultConfig()
 	conf.DevMode = true
 	conf.ConsulConfig = &sconfig.ConsulConfig{}
 	if cb != nil {
