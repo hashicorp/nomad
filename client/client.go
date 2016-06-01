@@ -123,7 +123,6 @@ type Client struct {
 
 	// consulSyncer advertises this Nomad Agent with Consul
 	consulSyncer *consul.Syncer
-	consulLock   int64
 
 	// HostStatsCollector collects host resource usage stats
 	hostStatsCollector *stats.HostStatsCollector
