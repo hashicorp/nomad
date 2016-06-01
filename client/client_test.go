@@ -16,7 +16,6 @@ import (
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
-	sconfig "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/hashstructure"
 
@@ -72,7 +71,6 @@ func testServer(t *testing.T, cb func(*nomad.Config)) (*nomad.Server, string) {
 func testClient(t *testing.T, cb func(c *config.Config)) *Client {
 	conf := config.DefaultConfig()
 	conf.DevMode = true
-	conf.ConsulConfig = &sconfig.ConsulConfig{}
 	if cb != nil {
 		cb(conf)
 	}
