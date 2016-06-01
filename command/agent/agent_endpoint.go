@@ -190,6 +190,7 @@ func (s *HTTPServer) updateServers(resp http.ResponseWriter, req *http.Request) 
 
 	// Set the servers list into the client
 	for _, server := range servers {
+		s.agent.logger.Printf("[TRACE] Adding server %s to the client's primary server list", server)
 		se := client.AddPrimaryServerToRpcProxy(server)
 		if se == nil {
 			s.agent.logger.Printf("[ERR] Attempt to add server %q to client failed", server)
