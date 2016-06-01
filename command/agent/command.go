@@ -21,7 +21,7 @@ import (
 	"github.com/hashicorp/logutils"
 	"github.com/hashicorp/nomad/helper/flag-slice"
 	"github.com/hashicorp/nomad/helper/gated-writer"
-	scada "github.com/hashicorp/scada-client"
+	"github.com/hashicorp/scada-client/scada"
 	"github.com/mitchellh/cli"
 )
 
@@ -622,7 +622,26 @@ func (c *Command) setupSCADA(config *Config) error {
 
 	// Create the new provider and listener
 	c.Ui.Output("Connecting to Atlas: " + config.Atlas.Infrastructure)
-	provider, list, err := NewProvider(config, c.logOutput)
+
+	scadaConfig := &scada.Config{
+		Service:      "nomad",
+		Version:      fmt.Sprintf("%s%s", config.Version, config.VersionPrerelease),
+		ResourceType: "nomad-cluster",
+		Meta: map[string]string{
+			"auto-join":  strconv.FormatBool(config.Atlas.Join),
+			"region":     config.Region,
+			"datacenter": config.Datacenter,
+			"client":     strconv.FormatBool(config.Client != nil && config.Client.Enabled),
+			"server":     strconv.FormatBool(config.Server != nil && config.Server.Enabled),
+		},
+		Atlas: scada.AtlasConfig{
+			Endpoint:       config.Atlas.Endpoint,
+			Infrastructure: config.Atlas.Infrastructure,
+			Token:          config.Atlas.Token,
+		},
+	}
+
+	provider, list, err := scada.NewHTTPProvider(scadaConfig, c.logOutput)
 	if err != nil {
 		return err
 	}

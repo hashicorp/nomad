@@ -541,6 +541,12 @@
 			"revision": "84989fd23ad4cc0e7ad44d6a871fd793eb9beb0a"
 		},
 		{
+			"checksumSHA1": "YQamL+KX0yqqM+aiwWaFy2FZEyE=",
+			"path": "github.com/hashicorp/scada-client/scada",
+			"revision": "225f7ae4780b59d1bd990de93cae7496bade95a0",
+			"revisionTime": "2016-06-01T18:41:54Z"
+		},
+		{
 			"comment": "v0.7.0-18-gc4c55f1",
 			"path": "github.com/hashicorp/serf/coordinate",
 			"revision": "c4c55f16bae1aed9b355ad655d3ebf0215734461"
