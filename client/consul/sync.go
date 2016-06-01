@@ -20,9 +20,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/types"
 )
 
-type notifyEvent struct{}
-type notifyChannel chan notifyEvent
-
 // Syncer allows syncing of services and checks with Consul
 type Syncer struct {
 	client    *consul.Client
@@ -46,7 +43,7 @@ type Syncer struct {
 	// periodicCallbacks is walked sequentially when the timer in Run
 	// fires.
 	periodicCallbacks map[string]types.PeriodicCallback
-	notifySyncCh      notifyChannel
+	notifySyncCh      chan struct{}
 	periodicLock      sync.RWMutex
 }
 
@@ -168,7 +165,7 @@ func (c *Syncer) SetServiceIdentifier(serviceIdentifier string) *Syncer {
 // to be synced immediately.
 func (c *Syncer) SyncNow() {
 	select {
-	case c.notifySyncCh <- notifyEvent{}:
+	case c.notifySyncCh <- struct{}{}:
 	default:
 	}
 }
