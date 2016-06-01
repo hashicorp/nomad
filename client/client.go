@@ -71,17 +71,6 @@ const (
 	// allocSyncRetryIntv is the interval on which we retry updating
 	// the status of the allocation
 	allocSyncRetryIntv = 5 * time.Second
-
-	// consulSyncInterval is the interval at which the client syncs with consul
-	// to remove services and checks which are no longer valid
-	consulSyncInterval = 15 * time.Second
-
-	// consulSyncDelay specifies the initial sync delay when starting the
-	// Nomad Agent's consul.Syncer.
-	consulSyncDelay = 5 * time.Second
-
-	// Add a little jitter to the agent's consul.Syncer task
-	consulSyncJitter = 8
 )
 
 // ClientStatsReporter exposes all the APIs related to resource usage of a Nomad
