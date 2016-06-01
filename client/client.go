@@ -1350,6 +1350,7 @@ func (c *Client) collectHostStats() {
 	}
 }
 
+// emitStats pushes host resource usage stats to remote metrics collection sinks
 func (c *Client) emitStats(hStats *stats.HostStats) {
 	metrics.EmitKey([]string{"memory", "total"}, float32(hStats.Memory.Total))
 	metrics.EmitKey([]string{"memory", "available"}, float32(hStats.Memory.Available))
