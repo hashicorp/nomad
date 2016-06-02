@@ -20,33 +20,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/types"
 )
 
-// Syncer allows syncing of services and checks with Consul
-type Syncer struct {
-	client    *consul.Client
-	runChecks bool
-
-	serviceIdentifier string              // serviceIdentifier is a token which identifies which task/alloc the service belongs to
-	delegateChecks    map[string]struct{} // delegateChecks are the checks that the Nomad client runs and reports to Consul
-	createCheck       func(*structs.ServiceCheck, string) (Check, error)
-	addrFinder        func(portLabel string) (string, int)
-
-	trackedServices map[string]*consul.AgentService
-	trackedChecks   map[string]*consul.AgentCheckRegistration
-	checkRunners    map[string]*CheckRunner
-
-	logger *log.Logger
-
-	shutdownCh   chan struct{}
-	shutdown     bool
-	shutdownLock sync.Mutex
-
-	// periodicCallbacks is walked sequentially when the timer in Run
-	// fires.
-	periodicCallbacks map[string]types.PeriodicCallback
-	notifySyncCh      chan struct{}
-	periodicLock      sync.RWMutex
-}
-
 const (
 	// initialSyncBuffer is the max time an initial sync will sleep
 	// before syncing.
@@ -75,6 +48,33 @@ const (
 	// ServiceTagSerf is the tag assigned to Serf services
 	ServiceTagSerf = "serf"
 )
+
+// Syncer allows syncing of services and checks with Consul
+type Syncer struct {
+	client    *consul.Client
+	runChecks bool
+
+	serviceIdentifier string              // serviceIdentifier is a token which identifies which task/alloc the service belongs to
+	delegateChecks    map[string]struct{} // delegateChecks are the checks that the Nomad client runs and reports to Consul
+	createCheck       func(*structs.ServiceCheck, string) (Check, error)
+	addrFinder        func(portLabel string) (string, int)
+
+	trackedServices map[string]*consul.AgentService
+	trackedChecks   map[string]*consul.AgentCheckRegistration
+	checkRunners    map[string]*CheckRunner
+
+	logger *log.Logger
+
+	shutdownCh   chan struct{}
+	shutdown     bool
+	shutdownLock sync.Mutex
+
+	// periodicCallbacks is walked sequentially when the timer in Run
+	// fires.
+	periodicCallbacks map[string]types.PeriodicCallback
+	notifySyncCh      chan struct{}
+	periodicLock      sync.RWMutex
+}
 
 // NewSyncer returns a new consul.Syncer
 func NewSyncer(config *config.ConsulConfig, logger *log.Logger) (*Syncer, error) {
