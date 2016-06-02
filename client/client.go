@@ -291,12 +291,14 @@ func (c *Client) Region() string {
 	return c.config.Region
 }
 
-// Region returns the structs.ApiMajorVersion in use by the client
+// RpcMajorVersion returns the structs.ApiMajorVersion supported by the
+// client.
 func (c *Client) RpcMajorVersion() int {
 	return structs.ApiMajorVersion
 }
 
-// Region returns the structs.ApiMinorVersion in use by the client
+// RpcMinorVersion returns the structs.ApiMinorVersion supported by the
+// client.
 func (c *Client) RpcMinorVersion() int {
 	return structs.ApiMinorVersion
 }
