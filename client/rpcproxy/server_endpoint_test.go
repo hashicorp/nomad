@@ -1,31 +1,29 @@
-package rpcproxy_test
+package rpcproxy
 
 import (
 	"fmt"
 	"net"
 	"testing"
-
-	"github.com/hashicorp/nomad/client/rpcproxy"
 )
 
-// func (k *rpcproxy.EndpointKey) Equal(x *rpcproxy.EndpointKey) {
+// func (k *EndpointKey) Equal(x *EndpointKey) {
 func TestServerEndpointKey_Equal(t *testing.T) {
 	tests := []struct {
 		name  string
-		s1    *rpcproxy.ServerEndpoint
-		s2    *rpcproxy.ServerEndpoint
+		s1    *ServerEndpoint
+		s2    *ServerEndpoint
 		equal bool
 	}{
 		{
 			name:  "equal",
-			s1:    &rpcproxy.ServerEndpoint{Name: "k1"},
-			s2:    &rpcproxy.ServerEndpoint{Name: "k1"},
+			s1:    &ServerEndpoint{Name: "k1"},
+			s2:    &ServerEndpoint{Name: "k1"},
 			equal: true,
 		},
 		{
 			name:  "not equal",
-			s1:    &rpcproxy.ServerEndpoint{Name: "k1"},
-			s2:    &rpcproxy.ServerEndpoint{Name: "k2"},
+			s1:    &ServerEndpoint{Name: "k1"},
+			s2:    &ServerEndpoint{Name: "k2"},
 			equal: false,
 		},
 	}
@@ -41,21 +39,21 @@ func TestServerEndpointKey_Equal(t *testing.T) {
 	}
 }
 
-// func (k *rpcproxy.ServerEndpoint) String() {
+// func (k *ServerEndpoint) String() {
 func TestServerEndpoint_String(t *testing.T) {
 	tests := []struct {
 		name string
-		s    *rpcproxy.ServerEndpoint
+		s    *ServerEndpoint
 		str  string
 	}{
 		{
 			name: "name",
-			s:    &rpcproxy.ServerEndpoint{Name: "s"},
+			s:    &ServerEndpoint{Name: "s"},
 			str:  "s (:)",
 		},
 		{
 			name: "name, host, port",
-			s: &rpcproxy.ServerEndpoint{
+			s: &ServerEndpoint{
 				Name: "s",
 				Host: "127.0.0.1",
 				Port: "4647",
