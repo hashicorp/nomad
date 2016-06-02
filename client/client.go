@@ -182,16 +182,20 @@ func NewClient(cfg *config.Config, consulSyncer *consul.Syncer) (*Client, error)
 	// Setup the reserved resources
 	c.reservePorts()
 
-	// Create the RPC Proxy and bootstrap with the preconfigured list of
-	// static servers
-	c.rpcProxy = rpcproxy.New(c.logger, c.shutdownCh, c, c.connPool)
-	for _, serverAddr := range c.config.Servers {
-		c.rpcProxy.AddPrimaryServer(serverAddr)
-	}
-
 	// Store the config copy before restoring state but after it has been
 	// initialized.
+	c.configLock.Lock()
 	c.configCopy = c.config.Copy()
+	c.configLock.Unlock()
+
+	// Create the RPC Proxy and bootstrap with the preconfigured list of
+	// static servers
+	c.configLock.RLock()
+	c.rpcProxy = rpcproxy.New(c.logger, c.shutdownCh, c, c.connPool)
+	for _, serverAddr := range c.configCopy.Servers {
+		c.rpcProxy.AddPrimaryServer(serverAddr)
+	}
+	c.configLock.RUnlock()
 
 	// Restore the state
 	if err := c.restoreState(); err != nil {
