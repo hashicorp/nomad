@@ -69,6 +69,12 @@ type Syncer struct {
 	shutdown     bool
 	shutdownLock sync.Mutex
 
+	// notifyShutdownCh is used to notify a Syncer it needs to shutdown.
+	// This can happen because there was an explicit call to the Syncer's
+	// Shutdown() method, or because the calling task signaled the
+	// program is going to exit by closing its shutdownCh.
+	notifyShutdownCh chan struct{}
+
 	// periodicCallbacks is walked sequentially when the timer in Run
 	// fires.
 	periodicCallbacks map[string]types.PeriodicCallback
@@ -77,7 +83,7 @@ type Syncer struct {
 }
 
 // NewSyncer returns a new consul.Syncer
-func NewSyncer(config *config.ConsulConfig, logger *log.Logger) (*Syncer, error) {
+func NewSyncer(config *config.ConsulConfig, shutdownCh chan struct{}, logger *log.Logger) (*Syncer, error) {
 	var err error
 	var c *consul.Client
 	cfg := consul.DefaultConfig()
@@ -132,10 +138,10 @@ func NewSyncer(config *config.ConsulConfig, logger *log.Logger) (*Syncer, error)
 	consulSyncer := Syncer{
 		client:            c,
 		logger:            logger,
+		shutdownCh:        shutdownCh,
 		trackedServices:   make(map[string]*consul.AgentService),
 		trackedChecks:     make(map[string]*consul.AgentCheckRegistration),
 		checkRunners:      make(map[string]*CheckRunner),
-		shutdownCh:        make(chan struct{}),
 		periodicCallbacks: make(map[string]types.PeriodicCallback),
 	}
 	return &consulSyncer, nil
@@ -242,16 +248,24 @@ func (c *Syncer) SyncServices(services []*structs.Service) error {
 	return mErr.ErrorOrNil()
 }
 
+func (c *Syncer) signalShutdown() {
+	select {
+	case c.notifyShutdownCh <- struct{}{}:
+	default:
+	}
+}
+
 // Shutdown de-registers the services and checks and shuts down periodic syncing
 func (c *Syncer) Shutdown() error {
 	var mErr multierror.Error
 
 	c.shutdownLock.Lock()
 	if !c.shutdown {
-		close(c.shutdownCh)
 		c.shutdown = true
 	}
 	c.shutdownLock.Unlock()
+
+	c.signalShutdown()
 
 	// Stop all the checks that nomad is running
 	for _, cr := range c.checkRunners {
@@ -401,6 +415,8 @@ func (c *Syncer) Run() {
 		case <-c.notifySyncCh:
 			sync.Reset(syncInterval)
 		case <-c.shutdownCh:
+			c.Shutdown()
+		case <-c.notifyShutdownCh:
 			sync.Stop()
 			c.logger.Printf("[INFO] consul.sync: shutting down sync for %q", c.serviceIdentifier)
 			return

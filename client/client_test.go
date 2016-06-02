@@ -75,7 +75,8 @@ func testClient(t *testing.T, cb func(c *config.Config)) *Client {
 		cb(conf)
 	}
 
-	consulSyncer, err := consul.NewSyncer(conf.ConsulConfig, log.New(os.Stderr, "", log.LstdFlags))
+	shutdownCh := make(chan struct{})
+	consulSyncer, err := consul.NewSyncer(conf.ConsulConfig, shutdownCh, log.New(os.Stderr, "", log.LstdFlags))
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -467,7 +468,8 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	}
 
 	// Create a new client
-	consulSyncer, err := consul.NewSyncer(c1.config.ConsulConfig, log.New(os.Stderr, "", log.LstdFlags))
+	shutdownCh := make(chan struct{})
+	consulSyncer, err := consul.NewSyncer(c1.config.ConsulConfig, shutdownCh, log.New(os.Stderr, "", log.LstdFlags))
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

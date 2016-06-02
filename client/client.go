@@ -1235,8 +1235,11 @@ func (c *Client) addAlloc(alloc *structs.Allocation) error {
 	return nil
 }
 
-// setupConsulSyncer creates Client-mode consul.Syncer callbacks that are
-// executed periodically.
+// setupConsulSyncer creates Client-mode consul.Syncer which periodically
+// executes callbacks on a fixed interval.
+//
+// TODO(sean@): this could eventually be moved to a priority queue and give
+// each task an interval, but that is not necessary at this time.
 func (c *Client) setupConsulSyncer() error {
 	// The bootstrapFn callback handler is used to periodically poll
 	// Consul to look up the Nomad Servers in Consul.  In the event the

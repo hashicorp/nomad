@@ -548,7 +548,7 @@ func (a *Agent) Stats() map[string]map[string]string {
 // setupConsulSyncer creates the Consul task used by this Nomad Agent when
 // running in either Client and Server mode.
 func (a *Agent) setupConsulSyncer(shutdownCh chan struct{}) (err error) {
-	a.consulSyncer, err = consul.NewSyncer(a.config.Consul, a.logger)
+	a.consulSyncer, err = consul.NewSyncer(a.config.Consul, shutdownCh, a.logger)
 
 	return nil
 }

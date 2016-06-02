@@ -183,6 +183,8 @@ type UniversalExecutor struct {
 	lro         *logging.FileRotator
 	rotatorLock sync.Mutex
 
+	shutdownCh chan struct{}
+
 	syslogServer *logging.SyslogServer
 	syslogChan   chan *logging.SyslogMessage
 
@@ -203,6 +205,7 @@ func NewExecutor(logger *log.Logger) Executor {
 	exec := &UniversalExecutor{
 		logger:         logger,
 		processExited:  make(chan interface{}),
+		shutdownCh:     make(chan struct{}),
 		totalCpuStats:  stats.NewCpuStats(),
 		userCpuStats:   stats.NewCpuStats(),
 		systemCpuStats: stats.NewCpuStats(),
@@ -412,6 +415,8 @@ func (e *UniversalExecutor) Exit() error {
 	e.lre.Close()
 	e.lro.Close()
 
+	e.consulSyncer.Shutdown()
+
 	// If the executor did not launch a process, return.
 	if e.command == nil {
 		return nil
@@ -472,7 +477,7 @@ func (e *UniversalExecutor) SyncServices(ctx *ConsulContext) error {
 	e.logger.Printf("[INFO] executor: registering services")
 	e.consulCtx = ctx
 	if e.consulSyncer == nil {
-		cs, err := consul.NewSyncer(ctx.ConsulConfig, e.logger)
+		cs, err := consul.NewSyncer(ctx.ConsulConfig, e.shutdownCh, e.logger)
 		if err != nil {
 			return err
 		}
