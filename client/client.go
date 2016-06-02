@@ -315,10 +315,12 @@ func (c *Client) Shutdown() error {
 
 	// Destroy all the running allocations.
 	if c.config.DevMode {
+		c.allocLock.Lock()
 		for _, ar := range c.allocs {
 			ar.Destroy()
 			<-ar.WaitCh()
 		}
+		c.allocLock.Unlock()
 	}
 
 	c.shutdown = true
@@ -441,6 +443,9 @@ func (c *Client) HostStatsTS(since int64) []*stats.HostStats {
 
 // GetAllocFS returns the AllocFS interface for the alloc dir of an allocation
 func (c *Client) GetAllocFS(allocID string) (allocdir.AllocDirFS, error) {
+	c.allocLock.RLock()
+	defer c.allocLock.RUnlock()
+
 	ar, ok := c.allocs[allocID]
 	if !ok {
 		return nil, fmt.Errorf("alloc not found")
@@ -476,7 +481,9 @@ func (c *Client) restoreState() error {
 		c.configLock.RLock()
 		ar := NewAllocRunner(c.logger, c.configCopy, c.updateAllocStatus, alloc)
 		c.configLock.RUnlock()
+		c.allocLock.Lock()
 		c.allocs[id] = ar
+		c.allocLock.Unlock()
 		if err := ar.RestoreState(); err != nil {
 			c.logger.Printf("[ERR] client: failed to restore state for alloc %s: %v", id, err)
 			mErr.Errors = append(mErr.Errors, err)
