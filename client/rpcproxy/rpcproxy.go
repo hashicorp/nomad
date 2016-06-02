@@ -1,10 +1,10 @@
-// Package rpcproxy provides a proxy interface for Nomad Servers.  The
+// Package rpcproxy provides a proxy interface to Nomad Servers.  The
 // RpcProxy periodically shuffles which server a Nomad Client communicates
 // with in order to redistribute load across Nomad Servers.  Nomad Servers
 // that fail an RPC request are automatically cycled to the end of the list
 // until the server list is reshuffled.
 //
-// The servers package does not provide any external API guarantees and
+// The rpcproxy package does not provide any external API guarantees and
 // should be called only by `hashicorp/nomad`.
 package rpcproxy
 
@@ -32,7 +32,7 @@ const (
 	//
 	// For example, in a 10K Nomad cluster with 5x servers, this default
 	// averages out to ~13 new connections from rebalancing per server
-	// per second (each connection is reused for 120s to 180s).
+	// per second.
 	clientRPCJitterFraction = 2
 
 	// clientRPCMinReuseDuration controls the minimum amount of time RPC
@@ -85,7 +85,7 @@ type serverList struct {
 
 type RpcProxy struct {
 	// activatedList manages the list of Nomad Servers that are eligible
-	// to be queried by the Agent
+	// to be queried by the Client agent.
 	activatedList atomic.Value
 	listLock      sync.Mutex
 
@@ -488,12 +488,13 @@ func (p *RpcProxy) RebalanceServers() {
 	return
 }
 
-// reconcileServerList returns true when the first server in serverList (l)
-// exists in the receiver's serverList (m).  If true, the merged serverList
-// (l) is stored as the receiver's serverList (m).  Returns false if the
-// first server in m does not exist in the passed in list (l) (i.e. was
-// removed by Nomad during a PingNomadServer() call.  Newly added servers are
-// appended to the list and other missing servers are removed from the list.
+// reconcileServerList returns true when the first server in serverList
+// (l) exists in the receiver's serverList (p).  If true, the merged
+// serverList (l) is stored as the receiver's serverList (p).  Returns
+// false if the first server in p does not exist in the passed in list (l)
+// (i.e. was removed by Nomad during a PingNomadServer() call.  Newly added
+// servers are appended to the list and other missing servers are removed
+// from the list.
 func (p *RpcProxy) reconcileServerList(l *serverList) bool {
 	p.listLock.Lock()
 	defer p.listLock.Unlock()
@@ -575,7 +576,7 @@ func (p *RpcProxy) RemoveServer(s *ServerEndpoint) {
 	p.backupServers.removeServerByKey(k)
 }
 
-// refreshServerRebalanceTimer is only called once m.rebalanceTimer expires.
+// refreshServerRebalanceTimer is only called once p.rebalanceTimer expires.
 func (p *RpcProxy) refreshServerRebalanceTimer() time.Duration {
 	l := p.getServerList()
 	numServers := len(l.L)
@@ -659,7 +660,7 @@ func (p *RpcProxy) UpdateFromNodeUpdateResponse(resp *structs.NodeUpdateResponse
 	}
 
 	// 1) Create a map to reconcile the difference between
-	// m.primaryServers and resp.Servers.
+	// p.primaryServers and resp.Servers.
 	type targetServer struct {
 		server *ServerEndpoint
 
