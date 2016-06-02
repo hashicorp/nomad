@@ -915,7 +915,7 @@ func (c *Client) updateNodeStatus() error {
 	c.lastHeartbeat = time.Now()
 	c.heartbeatTTL = resp.HeartbeatTTL
 
-	if err := c.rpcProxy.UpdateFromNodeUpdateResponse(&resp); err != nil {
+	if err := c.rpcProxy.RefreshServerLists(resp.Servers, resp.NumNodes, resp.LeaderRPCAddr); err != nil {
 		return err
 	}
 	c.consulPullHeartbeatDeadline = time.Now().Add(2 * resp.HeartbeatTTL)
