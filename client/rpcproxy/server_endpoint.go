@@ -45,13 +45,14 @@ func (s *ServerEndpoint) Key() *EndpointKey {
 // name, it must be resolvable to an IP address (most inputs are IP
 // addresses, not DNS names, but both work equally well when the name is
 // resolvable).
-func newServer(name string) (s *ServerEndpoint, err error) {
-	s = &ServerEndpoint{
+func newServer(name string) (*ServerEndpoint, error) {
+	s := &ServerEndpoint{
 		Name: name,
 	}
 
 	var (
 		host, port string
+		err        error
 	)
 	host, port, err = net.SplitHostPort(name)
 	if err == nil {
