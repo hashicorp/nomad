@@ -276,7 +276,10 @@ func (c *Client) Leave() error {
 
 // Datacenter returns the datacenter for the given client
 func (c *Client) Datacenter() string {
-	return c.config.Node.Datacenter
+	c.configLock.RLock()
+	dc := c.configCopy.Node.Datacenter
+	c.configLock.RUnlock()
+	return dc
 }
 
 // Region returns the region for the given client
