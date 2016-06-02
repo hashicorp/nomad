@@ -389,8 +389,7 @@ func (c *Client) StatsReporter() ClientStatsReporter {
 // Nomad client
 func (c *Client) AllocStats() map[string]AllocStatsReporter {
 	res := make(map[string]AllocStatsReporter)
-	allocRunners := c.getAllocRunners()
-	for alloc, ar := range allocRunners {
+	for alloc, ar := range c.getAllocRunners() {
 		res[alloc] = ar
 	}
 	return res
@@ -1278,15 +1277,7 @@ func (c *Client) setupConsulSyncer() error {
 		}
 
 		services := make(map[string]struct{})
-		// Get the existing allocs
-		c.allocLock.RLock()
-		allocs := make([]*AllocRunner, 0, len(c.allocs))
-		for _, ar := range c.allocs {
-			allocs = append(allocs, ar)
-		}
-		c.allocLock.RUnlock()
-
-		for _, ar := range allocs {
+		for allocId, ar := range c.getAllocRunners() {
 			ar.taskStatusLock.RLock()
 			taskStates := copyTaskStates(ar.taskStates)
 			ar.taskStatusLock.RUnlock()
@@ -1294,7 +1285,7 @@ func (c *Client) setupConsulSyncer() error {
 				if taskState.State == structs.TaskStateRunning {
 					if tr, ok := ar.tasks[taskName]; ok {
 						for _, service := range tr.task.Services {
-							svcIdentifier := fmt.Sprintf("%s-%s", ar.alloc.ID, tr.task.Name)
+							svcIdentifier := fmt.Sprintf("%s-%s", allocId, tr.task.Name)
 							services[service.ID(svcIdentifier)] = struct{}{}
 						}
 					}
