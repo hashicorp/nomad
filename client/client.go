@@ -1337,10 +1337,10 @@ func (c *Client) collectHostStats() {
 				c.logger.Printf("[DEBUG] client: error fetching host resource usage stats: %v", err)
 				continue
 			}
-			c.resourceUsageLock.RLock()
-			c.resourceUsage.Enqueue(ru)
-			c.resourceUsageLock.RUnlock()
 			if ru != nil {
+				c.resourceUsageLock.RLock()
+				c.resourceUsage.Enqueue(ru)
+				c.resourceUsageLock.RUnlock()
 				c.emitStats(ru)
 			}
 			next.Reset(c.config.StatsCollectionInterval)

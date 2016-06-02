@@ -474,10 +474,10 @@ func (r *TaskRunner) collectResourceUsageStats() {
 			if err != nil {
 				r.logger.Printf("[DEBUG] client: error fetching stats of task %v: %v", r.task.Name, err)
 			}
-			r.resourceUsageLock.Lock()
-			r.resourceUsage.Enqueue(ru)
-			r.resourceUsageLock.Unlock()
 			if ru != nil {
+				r.resourceUsageLock.Lock()
+				r.resourceUsage.Enqueue(ru)
+				r.resourceUsageLock.Unlock()
 				r.emitStats(ru)
 			}
 			next.Reset(r.config.StatsCollectionInterval)
