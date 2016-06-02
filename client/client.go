@@ -218,7 +218,14 @@ func NewClient(cfg *config.Config, consulSyncer *consul.Syncer) (*Client, error)
 	// Start collecting stats
 	go c.collectHostStats()
 
-	// Start maintenance task for servers
+	// Start the RpcProxy maintenance task.  This task periodically
+	// shuffles the list of Nomad Server Endpoints this Client will use
+	// when communicating with Nomad Servers via RPC.  This is done in
+	// order to prevent server fixation in stable Nomad clusters.  This
+	// task actively populates the active list of Nomad Server Endpoints
+	// from information from the Nomad Client heartbeats.  If a heartbeat
+	// times out and there are no Nomad servers available, this data is
+	// populated by periodically polling Consul, if available.
 	go c.rpcProxy.Run()
 
 	return c, nil
