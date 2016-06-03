@@ -343,6 +343,7 @@ func (c *CoreScheduler) nodeGC(eval *structs.Evaluation) error {
 
 	// Collect the nodes to GC
 	var gcNode []string
+OUTER:
 	for {
 		raw := iter.Next()
 		if raw == nil {
@@ -363,9 +364,14 @@ func (c *CoreScheduler) nodeGC(eval *structs.Evaluation) error {
 			continue
 		}
 
-		// If there are any allocations, skip the node
-		if len(allocs) > 0 {
-			continue
+		// If there are any non-terminal allocations, skip the node. If the node
+		// is terminal and the allocations are not, the scheduler may not have
+		// run yet to transistion the allocs on the node to terminal. We delay
+		// GC'ing until this happens.
+		for _, alloc := range allocs {
+			if !alloc.TerminalStatus() {
+				continue OUTER
+			}
 		}
 
 		// Node is eligible for garbage collection

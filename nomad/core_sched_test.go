@@ -334,6 +334,108 @@ func TestCoreScheduler_NodeGC(t *testing.T) {
 	}
 }
 
+func TestCoreScheduler_NodeGC_TerminalAllocs(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Insert "dead" node
+	state := s1.fsm.State()
+	node := mock.Node()
+	node.Status = structs.NodeStatusDown
+	err := state.UpsertNode(1000, node)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Insert a terminal alloc on that node
+	alloc := mock.Alloc()
+	alloc.DesiredStatus = structs.AllocDesiredStatusStop
+	if err := state.UpsertAllocs(1001, []*structs.Allocation{alloc}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Update the time tables to make this work
+	tt := s1.fsm.TimeTable()
+	tt.Witness(2000, time.Now().UTC().Add(-1*s1.config.NodeGCThreshold))
+
+	// Create a core scheduler
+	snap, err := state.Snapshot()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	core := NewCoreScheduler(s1, snap)
+
+	// Attempt the GC
+	gc := s1.coreJobEval(structs.CoreJobNodeGC)
+	gc.ModifyIndex = 2000
+	err = core.Process(gc)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Should be gone
+	out, err := state.NodeByID(node.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out != nil {
+		t.Fatalf("bad: %v", out)
+	}
+}
+
+func TestCoreScheduler_NodeGC_RunningAllocs(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Insert "dead" node
+	state := s1.fsm.State()
+	node := mock.Node()
+	node.Status = structs.NodeStatusDown
+	err := state.UpsertNode(1000, node)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Insert a running alloc on that node
+	alloc := mock.Alloc()
+	alloc.NodeID = node.ID
+	alloc.DesiredStatus = structs.AllocDesiredStatusRun
+	alloc.ClientStatus = structs.AllocClientStatusRunning
+	if err := state.UpsertAllocs(1001, []*structs.Allocation{alloc}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Update the time tables to make this work
+	tt := s1.fsm.TimeTable()
+	tt.Witness(2000, time.Now().UTC().Add(-1*s1.config.NodeGCThreshold))
+
+	// Create a core scheduler
+	snap, err := state.Snapshot()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	core := NewCoreScheduler(s1, snap)
+
+	// Attempt the GC
+	gc := s1.coreJobEval(structs.CoreJobNodeGC)
+	gc.ModifyIndex = 2000
+	err = core.Process(gc)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Should still be here
+	out, err := state.NodeByID(node.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out == nil {
+		t.Fatalf("bad: %v", out)
+	}
+}
+
 func TestCoreScheduler_NodeGC_Force(t *testing.T) {
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
