@@ -629,7 +629,7 @@ func TestEvalEndpoint_Reblock_NonBlocked(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	out, token, err := s1.evalBroker.Dequeue(defaultSched, time.Second)
+	out, token, err := s1.evalBroker.Dequeue(defaultSched, 2*time.Second)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
