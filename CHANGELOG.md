@@ -19,6 +19,8 @@ IMPROVEMENTS:
     determine its effects [GH-1181]
 
 BUG FIXES:
+  * core: Fix a potential deadlock if establishing leadership fails and is
+    retried [GH-1231]
   * core: Do not restart successful batch jobs when the node is removed/drained
     [GH-1205]
   * core: Updated User, Meta or Resources in a task cause create/destroy updates
