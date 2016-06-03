@@ -669,21 +669,13 @@ func TestEvalEndpoint_Reblock(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var out *structs.Evaluation
-	var token string
-	var err error
-	testutil.WaitForResult(func() (bool, error) {
-		out, token, err = s1.evalBroker.Dequeue(defaultSched, time.Second)
-		if err != nil {
-			return false, err
-		}
-		if out == nil {
-			return false, nil
-		}
-		return true, nil
-	}, func(err error) {
-		t.Fatal(err)
-	})
+	out, token, err := s1.evalBroker.Dequeue(defaultSched, 2*time.Second)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out == nil {
+		t.Fatalf("bad: %v", out)
+	}
 
 	get := &structs.EvalUpdateRequest{
 		Evals:        []*structs.Evaluation{eval1},
