@@ -106,6 +106,7 @@ func (b *BlockedEvals) SetEnabled(enabled bool) {
 	b.l.Lock()
 	if b.enabled == enabled {
 		// No-op
+		b.l.Unlock()
 		return
 	} else if enabled {
 		go b.watchCapacity()
