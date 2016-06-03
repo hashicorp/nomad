@@ -1333,17 +1333,16 @@ func (c *Client) collectHostStats() {
 		select {
 		case <-next.C:
 			ru, err := c.hostStatsCollector.Collect()
+			next.Reset(c.config.StatsCollectionInterval)
 			if err != nil {
-				c.logger.Printf("[DEBUG] client: error fetching host resource usage stats: %v", err)
+				c.logger.Printf("[WARN] client: error fetching host resource usage stats: %v", err)
 				continue
 			}
-			if ru != nil {
-				c.resourceUsageLock.RLock()
-				c.resourceUsage.Enqueue(ru)
-				c.resourceUsageLock.RUnlock()
-				c.emitStats(ru)
-			}
-			next.Reset(c.config.StatsCollectionInterval)
+
+			c.resourceUsageLock.RLock()
+			c.resourceUsage.Enqueue(ru)
+			c.resourceUsageLock.RUnlock()
+			c.emitStats(ru)
 		case <-c.shutdownCh:
 			return
 		}

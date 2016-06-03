@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -481,16 +482,22 @@ func (r *TaskRunner) collectResourceUsageStats(stopCollection <-chan struct{}) {
 		select {
 		case <-next.C:
 			ru, err := r.handle.Stats()
-			if err != nil {
-				r.logger.Printf("[DEBUG] client: error fetching stats of task %v: %v", r.task.Name, err)
-			}
-			if ru != nil {
-				r.resourceUsageLock.Lock()
-				r.resourceUsage.Enqueue(ru)
-				r.resourceUsageLock.Unlock()
-				r.emitStats(ru)
-			}
 			next.Reset(r.config.StatsCollectionInterval)
+
+			if err != nil {
+				// We do not log when the plugin is shutdown as this is simply a
+				// race between the stopCollection channel being closed and calling
+				// Stats on the handle.
+				if !strings.Contains(err.Error(), "connection is shut down") {
+					r.logger.Printf("[WARN] client: error fetching stats of task %v: %v", r.task.Name, err)
+				}
+				continue
+			}
+
+			r.resourceUsageLock.Lock()
+			r.resourceUsage.Enqueue(ru)
+			r.resourceUsageLock.Unlock()
+			r.emitStats(ru)
 		case <-stopCollection:
 			return
 		}
