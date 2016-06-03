@@ -44,6 +44,9 @@ Node Status Options:
   -verbose
     Display full information.
 
+  -stats 
+    Display detailed resource usage statistics
+
   -self
     Query the status of the local node.
 
@@ -58,7 +61,7 @@ func (c *NodeStatusCommand) Synopsis() string {
 }
 
 func (c *NodeStatusCommand) Run(args []string) int {
-	var short, verbose, list_allocs, self bool
+	var short, verbose, list_allocs, self, stats bool
 	var hostStats *api.HostStats
 
 	flags := c.Meta.FlagSet("node-status", FlagSetClient)
@@ -67,6 +70,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.BoolVar(&list_allocs, "allocs", false, "")
 	flags.BoolVar(&self, "self", false, "")
+	flags.BoolVar(&stats, "stats", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -227,12 +231,12 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		}
 		c.Ui.Output(c.Colorize().Color("\n[bold]==> Resource Utilization (Actual)[reset]"))
 		c.Ui.Output(formatList(resources))
-		if hostStats != nil {
-			c.Ui.Output("\n===> Node CPU Stats")
+		if hostStats != nil && stats {
+			c.Ui.Output(c.Colorize().Color("\n===> [bold]Detailed CPU Stats[reset]"))
 			c.printCpuStats(hostStats)
-			c.Ui.Output("\n===> Node Memory Stats")
+			c.Ui.Output(c.Colorize().Color("\n===> [bold]Detailed Memory Stats[reset]"))
 			c.printMemoryStats(hostStats)
-			c.Ui.Output("\n===> Node Disk Stats")
+			c.Ui.Output(c.Colorize().Color("\n===> [bold]Detailed Disk Stats[reset]"))
 			c.printDiskStats(hostStats)
 		}
 
