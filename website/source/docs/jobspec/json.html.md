@@ -529,3 +529,38 @@ An example of downloading and unzipping an archive is as simple as:
   }
 ]
 ```
+
+#### S3 examples
+
+S3 has several different types of addressing and more detail can be found
+[here](http://docs.aws.amazon.com/AmazonS3/latest/dev/UsingBucket.html#access-bucket-intro)
+
+S3 region specific endpoints can be found
+[here](http://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region)
+
+Path based style:
+```
+"Artifacts": [
+  {
+    "GetterSource": "https://s3-us-west-2.amazonaws.com/my-bucket-example/my_app.tar.gz",
+  }
+]
+```
+
+or to override automatic detection in the url, use the s3 specific syntax
+```
+"Artifacts": [
+  {
+    "GetterSource": "s3::https://s3-eu-west-1.amazonaws.com/my-bucket-example/my_app.tar.gz",
+  }
+]
+```
+
+Virtual hosted based style
+```
+"Artifacts": [
+  {
+    "GetterSource": "my-bucket-example.s3-eu-west-1.amazonaws.com/my_app.tar.gz",
+  }
+]
+```
