@@ -139,13 +139,12 @@ type HostCPUStats struct {
 }
 
 type HostDiskStats struct {
-	Device            string
-	Mountpoint        string
-	Size              uint64
-	Used              uint64
-	Available         uint64
-	UsedPercent       float64
-	InodesUsedPercent float64
+	Device      string
+	Mountpoint  string
+	Size        uint64
+	Used        uint64
+	Available   uint64
+	UsedPercent float64
 }
 
 // NodeListStub is a subset of information returned during

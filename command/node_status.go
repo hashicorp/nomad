@@ -8,12 +8,14 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
+	"github.com/mitchellh/colorstring"
 
 	"github.com/hashicorp/nomad/api"
 )
 
 type NodeStatusCommand struct {
 	Meta
+	color *colorstring.Colorize
 }
 
 func (c *NodeStatusCommand) Help() string {
@@ -199,12 +201,12 @@ func (c *NodeStatusCommand) Run(args []string) int {
 	}
 
 	if hostStats, err = client.Nodes().Stats(node.ID, nil); err != nil {
-		c.Ui.Error(fmt.Sprintf("error fetching node resource utilization stats: %v", err))
+		c.Ui.Error(fmt.Sprintf("error fetching node resource utilization stats: %#v", err))
 	}
 
 	// Format the output
 	basic := []string{
-		fmt.Sprintf("ID|%s", limit(node.ID, length)),
+		fmt.Sprintf("[bold]Node ID[reset]|%s", limit(node.ID, length)),
 		fmt.Sprintf("Name|%s", node.Name),
 		fmt.Sprintf("Class|%s", node.NodeClass),
 		fmt.Sprintf("DC|%s", node.Datacenter),
@@ -215,7 +217,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		uptime := time.Duration(hostStats.Uptime * uint64(time.Second))
 		basic = append(basic, fmt.Sprintf("Uptime|%s", uptime.String()))
 	}
-	c.Ui.Output(formatKV(basic))
+	c.Ui.Output(c.Colorize().Color(formatKV(basic)))
 
 	if !short {
 		resources, err := getResources(client, node)
@@ -223,7 +225,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 			c.Ui.Error(fmt.Sprintf("Error querying node resources: %s", err))
 			return 1
 		}
-		c.Ui.Output("\n==> Resource Utilization")
+		c.Ui.Output(c.Colorize().Color("\n[bold]==> Resource Utilization (Actual)[reset]"))
 		c.Ui.Output(formatList(resources))
 		if hostStats != nil {
 			c.Ui.Output("\n===> Node CPU Stats")
@@ -291,14 +293,13 @@ func (c *NodeStatusCommand) printMemoryStats(hostStats *api.HostStats) {
 
 func (c *NodeStatusCommand) printDiskStats(hostStats *api.HostStats) {
 	for _, diskStat := range hostStats.DiskStats {
-		diskStatsAttr := make([]string, 7)
+		diskStatsAttr := make([]string, 6)
 		diskStatsAttr[0] = fmt.Sprintf("Device|%s", diskStat.Device)
 		diskStatsAttr[1] = fmt.Sprintf("MountPoint|%s", diskStat.Mountpoint)
 		diskStatsAttr[2] = fmt.Sprintf("Size|%s", humanize.Bytes(diskStat.Size))
 		diskStatsAttr[3] = fmt.Sprintf("Used|%s", humanize.Bytes(diskStat.Used))
 		diskStatsAttr[4] = fmt.Sprintf("Available|%s", humanize.Bytes(diskStat.Available))
 		diskStatsAttr[5] = fmt.Sprintf("Used Percent|%s", formatFloat64(diskStat.UsedPercent))
-		diskStatsAttr[6] = fmt.Sprintf("Inodes Percent|%s", formatFloat64(diskStat.InodesUsedPercent))
 		c.Ui.Output(formatKV(diskStatsAttr))
 		c.Ui.Output("")
 	}
