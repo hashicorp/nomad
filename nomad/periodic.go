@@ -81,7 +81,11 @@ func (s *Server) DispatchJob(job *structs.Job) (*structs.Evaluation, error) {
 
 // RunningChildren checks whether the passed job has any running children.
 func (s *Server) RunningChildren(job *structs.Job) (bool, error) {
-	state := s.fsm.State()
+	state, err := s.fsm.State().Snapshot()
+	if err != nil {
+		return false, err
+	}
+
 	prefix := fmt.Sprintf("%s%s", job.ID, structs.PeriodicLaunchSuffix)
 	iter, err := state.JobsByIDPrefix(prefix)
 	if err != nil {
@@ -272,11 +276,13 @@ func (p *PeriodicDispatch) ForceRun(jobID string) (*structs.Evaluation, error) {
 
 	// Do nothing if not enabled
 	if !p.enabled {
+		p.l.Unlock()
 		return nil, fmt.Errorf("periodic dispatch disabled")
 	}
 
 	job, tracked := p.tracked[jobID]
 	if !tracked {
+		p.l.Unlock()
 		return nil, fmt.Errorf("can't force run non-tracked job %v", jobID)
 	}
 
