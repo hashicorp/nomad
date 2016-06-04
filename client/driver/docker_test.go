@@ -311,8 +311,8 @@ func TestDockerDriver_Start_LoadImage(t *testing.T) {
 	}
 
 	exp := "hello"
-	if strings.TrimSpace(string(act)) != exp {
-		t.Fatalf("Command outputted %v; want %v", act, exp)
+	if !strings.Contains(strings.TrimSpace(string(act)), exp) {
+		t.Fatalf("Command outputted %s; does not contain %v", act, exp)
 	}
 
 }

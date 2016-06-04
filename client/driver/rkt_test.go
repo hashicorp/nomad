@@ -148,7 +148,7 @@ func TestRktDriver_Start_Wait(t *testing.T) {
 		if !res.Successful() {
 			t.Fatalf("err: %v", res)
 		}
-	case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
+	case <-time.After(time.Duration(testutil.TestMultiplier()*10) * time.Second):
 		t.Fatalf("timeout")
 	}
 }
