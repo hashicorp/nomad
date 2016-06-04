@@ -650,6 +650,10 @@ type Resources struct {
 	Networks []*NetworkResource
 }
 
+const (
+	bytesInMegabyte = 1024 * 1024
+)
+
 // DefaultResources returns the minimum resources a task can use and be valid.
 func DefaultResources() *Resources {
 	return &Resources{
@@ -658,6 +662,10 @@ func DefaultResources() *Resources {
 		DiskMB:   300,
 		IOPS:     0,
 	}
+}
+
+func (r *Resources) DiskInBytes() int64 {
+	return int64(r.DiskMB * bytesInMegabyte)
 }
 
 // Merge merges this resource with another resource.
@@ -1964,6 +1972,10 @@ const (
 	// TaskArtifactDownloadFailed indicates that downloading the artifacts
 	// failed.
 	TaskArtifactDownloadFailed = "Failed Artifact Download"
+
+	// TaskDiskExceeded indicates that one of the tasks in a taskgroup has
+	// exceeded the requested disk resources.
+	TaskDiskExceeded = "Disk Exceeded"
 )
 
 // TaskEvent is an event that effects the state of a task and contains meta-data
