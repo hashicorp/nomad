@@ -10,4 +10,4 @@ go build -o $TEMPDIR/nomad || exit 1
 
 # Run the tests
 echo "--> Running tests"
-go list ./... | grep -v '/vendor/' | grep 'client/driver$' | sudo -E PATH=$TEMPDIR:$PATH xargs -n1 go test -cover -timeout=600s -v
+go list ./... | grep -v '/vendor/' | grep 'client/driver$' | sudo -E PATH=$TEMPDIR:$PATH xargs -n1 go test -cover -timeout=600s
