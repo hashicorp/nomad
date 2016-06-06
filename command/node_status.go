@@ -205,7 +205,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 	}
 
 	if hostStats, err = client.Nodes().Stats(node.ID, nil); err != nil {
-		c.Ui.Error(fmt.Sprintf("error fetching node resource utilization stats: %#v", err))
+		c.Ui.Error(fmt.Sprintf("error fetching node resource utilization stats: %v", err))
 	}
 
 	// Format the output
@@ -401,12 +401,14 @@ func getActualResources(hostStats *api.HostStats, node *api.Node) ([]string, err
 	}
 	var resources []string
 
+	// Calculate cpu usage
 	usedCPUPercent := 0.0
 	for _, cpu := range hostStats.CPU {
 		usedCPUPercent += (cpu.User + cpu.System)
 	}
 	usedCPUTicks := (usedCPUPercent / 100) * float64(node.Resources.CPU)
 
+	// calculate disk usage
 	storageDevice := node.Attributes["unique.storage.volume"]
 	var diskUsed, diskSize uint64
 	for _, disk := range hostStats.DiskStats {
