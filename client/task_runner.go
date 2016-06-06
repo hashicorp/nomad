@@ -656,30 +656,38 @@ func (r *TaskRunner) Destroy() {
 // emitStats emits resource usage stats of tasks to remote metrics collector
 // sinks
 func (r *TaskRunner) emitStats(ru *cstructs.TaskResourceUsage) {
-	metrics.EmitKey([]string{r.alloc.Job.Name, r.alloc.Name, r.alloc.ID, r.task.Name, "memory", "rss"}, float32(ru.ResourceUsage.MemoryStats.RSS))
-	metrics.EmitKey([]string{r.alloc.Job.Name, r.alloc.Name, r.alloc.ID, r.task.Name, "memory", "cache"}, float32(ru.ResourceUsage.MemoryStats.Cache))
-	metrics.EmitKey([]string{r.alloc.Job.Name, r.alloc.Name, r.alloc.ID, r.task.Name, "memory", "swap"}, float32(ru.ResourceUsage.MemoryStats.Swap))
-	metrics.EmitKey([]string{r.alloc.Job.Name, r.alloc.Name, r.alloc.ID, r.task.Name, "memory", "max_usage"}, float32(ru.ResourceUsage.MemoryStats.MaxUsage))
-	metrics.EmitKey([]string{r.alloc.Job.Name, r.alloc.Name, r.alloc.ID, r.task.Name, "memory", "kernel_usage"}, float32(ru.ResourceUsage.MemoryStats.KernelUsage))
-	metrics.EmitKey([]string{r.alloc.Job.Name, r.alloc.Name, r.alloc.ID, r.task.Name, "memory", "kernel_max_usage"}, float32(ru.ResourceUsage.MemoryStats.KernelMaxUsage))
+	if ru.ResourceUsage.MemoryStats != nil {
+		metrics.EmitKey([]string{r.alloc.Job.Name, r.alloc.Name, r.alloc.ID, r.task.Name, "memory", "rss"}, float32(ru.ResourceUsage.MemoryStats.RSS))
+		metrics.EmitKey([]string{r.alloc.Job.Name, r.alloc.Name, r.alloc.ID, r.task.Name, "memory", "cache"}, float32(ru.ResourceUsage.MemoryStats.Cache))
+		metrics.EmitKey([]string{r.alloc.Job.Name, r.alloc.Name, r.alloc.ID, r.task.Name, "memory", "swap"}, float32(ru.ResourceUsage.MemoryStats.Swap))
+		metrics.EmitKey([]string{r.alloc.Job.Name, r.alloc.Name, r.alloc.ID, r.task.Name, "memory", "max_usage"}, float32(ru.ResourceUsage.MemoryStats.MaxUsage))
+		metrics.EmitKey([]string{r.alloc.Job.Name, r.alloc.Name, r.alloc.ID, r.task.Name, "memory", "kernel_usage"}, float32(ru.ResourceUsage.MemoryStats.KernelUsage))
+		metrics.EmitKey([]string{r.alloc.Job.Name, r.alloc.Name, r.alloc.ID, r.task.Name, "memory", "kernel_max_usage"}, float32(ru.ResourceUsage.MemoryStats.KernelMaxUsage))
+	}
 
-	metrics.EmitKey([]string{r.alloc.Job.Name, r.alloc.Name, r.alloc.ID, r.task.Name, "cpu", "percent"}, float32(ru.ResourceUsage.CpuStats.Percent))
-	metrics.EmitKey([]string{r.alloc.Job.Name, r.alloc.Name, r.alloc.ID, r.task.Name, "cpu", "system"}, float32(ru.ResourceUsage.CpuStats.SystemMode))
-	metrics.EmitKey([]string{r.alloc.Job.Name, r.alloc.Name, r.alloc.ID, r.task.Name, "cpu", "user"}, float32(ru.ResourceUsage.CpuStats.UserMode))
-	metrics.EmitKey([]string{r.alloc.Job.Name, r.alloc.Name, r.alloc.ID, r.task.Name, "cpu", "throttled_time"}, float32(ru.ResourceUsage.CpuStats.ThrottledTime))
-	metrics.EmitKey([]string{r.alloc.Job.Name, r.alloc.Name, r.alloc.ID, r.task.Name, "cpu", "throttled_periods"}, float32(ru.ResourceUsage.CpuStats.ThrottledPeriods))
+	if ru.ResourceUsage.CpuStats != nil {
+		metrics.EmitKey([]string{r.alloc.Job.Name, r.alloc.Name, r.alloc.ID, r.task.Name, "cpu", "percent"}, float32(ru.ResourceUsage.CpuStats.Percent))
+		metrics.EmitKey([]string{r.alloc.Job.Name, r.alloc.Name, r.alloc.ID, r.task.Name, "cpu", "system"}, float32(ru.ResourceUsage.CpuStats.SystemMode))
+		metrics.EmitKey([]string{r.alloc.Job.Name, r.alloc.Name, r.alloc.ID, r.task.Name, "cpu", "user"}, float32(ru.ResourceUsage.CpuStats.UserMode))
+		metrics.EmitKey([]string{r.alloc.Job.Name, r.alloc.Name, r.alloc.ID, r.task.Name, "cpu", "throttled_time"}, float32(ru.ResourceUsage.CpuStats.ThrottledTime))
+		metrics.EmitKey([]string{r.alloc.Job.Name, r.alloc.Name, r.alloc.ID, r.task.Name, "cpu", "throttled_periods"}, float32(ru.ResourceUsage.CpuStats.ThrottledPeriods))
+	}
 
 	for pid, pidStats := range ru.Pids {
-		// Not emitting max, kernel usages since we never get them on a per-pid
-		// basis
-		metrics.EmitKey([]string{r.alloc.Job.Name, r.alloc.Name, r.alloc.ID, r.task.Name, pid, "memory", "rss"}, float32(pidStats.MemoryStats.RSS))
-		metrics.EmitKey([]string{r.alloc.Job.Name, r.alloc.Name, r.alloc.ID, r.task.Name, pid, "memory", "cache"}, float32(pidStats.MemoryStats.Cache))
-		metrics.EmitKey([]string{r.alloc.Job.Name, r.alloc.Name, r.alloc.ID, r.task.Name, pid, "memory", "swap"}, float32(pidStats.MemoryStats.Swap))
+		if pidStats.MemoryStats != nil {
+			// Not emitting max, kernel usages since we never get them on a per-pid
+			// basis
+			metrics.EmitKey([]string{r.alloc.Job.Name, r.alloc.Name, r.alloc.ID, r.task.Name, pid, "memory", "rss"}, float32(pidStats.MemoryStats.RSS))
+			metrics.EmitKey([]string{r.alloc.Job.Name, r.alloc.Name, r.alloc.ID, r.task.Name, pid, "memory", "cache"}, float32(pidStats.MemoryStats.Cache))
+			metrics.EmitKey([]string{r.alloc.Job.Name, r.alloc.Name, r.alloc.ID, r.task.Name, pid, "memory", "swap"}, float32(pidStats.MemoryStats.Swap))
+		}
 
-		// Not emitting throttled time and periods since we never get them on a
-		// per pid basis
-		metrics.EmitKey([]string{r.alloc.Job.Name, r.alloc.Name, r.alloc.ID, r.task.Name, pid, "cpu", "percent"}, float32(pidStats.CpuStats.Percent))
-		metrics.EmitKey([]string{r.alloc.Job.Name, r.alloc.Name, r.alloc.ID, r.task.Name, pid, "cpu", "system"}, float32(pidStats.CpuStats.SystemMode))
-		metrics.EmitKey([]string{r.alloc.Job.Name, r.alloc.Name, r.alloc.ID, r.task.Name, pid, "cpu", "user"}, float32(pidStats.CpuStats.UserMode))
+		if pidStats.CpuStats != nil {
+			// Not emitting throttled time and periods since we never get them on a
+			// per pid basis
+			metrics.EmitKey([]string{r.alloc.Job.Name, r.alloc.Name, r.alloc.ID, r.task.Name, pid, "cpu", "percent"}, float32(pidStats.CpuStats.Percent))
+			metrics.EmitKey([]string{r.alloc.Job.Name, r.alloc.Name, r.alloc.ID, r.task.Name, pid, "cpu", "system"}, float32(pidStats.CpuStats.SystemMode))
+			metrics.EmitKey([]string{r.alloc.Job.Name, r.alloc.Name, r.alloc.ID, r.task.Name, pid, "cpu", "user"}, float32(pidStats.CpuStats.UserMode))
+		}
 	}
 }

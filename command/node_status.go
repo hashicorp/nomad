@@ -8,12 +8,14 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
+	"github.com/mitchellh/colorstring"
 
 	"github.com/hashicorp/nomad/api"
 )
 
 type NodeStatusCommand struct {
 	Meta
+	color *colorstring.Colorize
 }
 
 func (c *NodeStatusCommand) Help() string {
@@ -42,6 +44,9 @@ Node Status Options:
   -verbose
     Display full information.
 
+  -stats 
+    Display detailed resource usage statistics
+
   -self
     Query the status of the local node.
 
@@ -56,7 +61,7 @@ func (c *NodeStatusCommand) Synopsis() string {
 }
 
 func (c *NodeStatusCommand) Run(args []string) int {
-	var short, verbose, list_allocs, self bool
+	var short, verbose, list_allocs, self, stats bool
 	var hostStats *api.HostStats
 
 	flags := c.Meta.FlagSet("node-status", FlagSetClient)
@@ -65,6 +70,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.BoolVar(&list_allocs, "allocs", false, "")
 	flags.BoolVar(&self, "self", false, "")
+	flags.BoolVar(&stats, "stats", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -204,7 +210,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 
 	// Format the output
 	basic := []string{
-		fmt.Sprintf("ID|%s", limit(node.ID, length)),
+		fmt.Sprintf("[bold]Node ID[reset]|%s", limit(node.ID, length)),
 		fmt.Sprintf("Name|%s", node.Name),
 		fmt.Sprintf("Class|%s", node.NodeClass),
 		fmt.Sprintf("DC|%s", node.Datacenter),
@@ -215,22 +221,29 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		uptime := time.Duration(hostStats.Uptime * uint64(time.Second))
 		basic = append(basic, fmt.Sprintf("Uptime|%s", uptime.String()))
 	}
-	c.Ui.Output(formatKV(basic))
+	c.Ui.Output(c.Colorize().Color(formatKV(basic)))
 
 	if !short {
-		resources, err := getResources(client, node)
+		allocatedResources, err := getAllocatedResources(client, node)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error querying node resources: %s", err))
 			return 1
 		}
-		c.Ui.Output("\n==> Resource Utilization")
-		c.Ui.Output(formatList(resources))
-		if hostStats != nil {
-			c.Ui.Output("\n===> Node CPU Stats")
+		c.Ui.Output(c.Colorize().Color("\n[bold]==> Resource Utilization (Allocated)[reset]"))
+		c.Ui.Output(formatList(allocatedResources))
+
+		actualResources, err := getActualResources(hostStats, node)
+		if err == nil {
+			c.Ui.Output(c.Colorize().Color("\n[bold]==> Resource Utilization (Actual)[reset]"))
+			c.Ui.Output(formatList(actualResources))
+		}
+
+		if hostStats != nil && stats {
+			c.Ui.Output(c.Colorize().Color("\n===> [bold]Detailed CPU Stats[reset]"))
 			c.printCpuStats(hostStats)
-			c.Ui.Output("\n===> Node Memory Stats")
+			c.Ui.Output(c.Colorize().Color("\n===> [bold]Detailed Memory Stats[reset]"))
 			c.printMemoryStats(hostStats)
-			c.Ui.Output("\n===> Node Disk Stats")
+			c.Ui.Output(c.Colorize().Color("\n===> [bold]Detailed Disk Stats[reset]"))
 			c.printDiskStats(hostStats)
 		}
 
@@ -271,9 +284,9 @@ func (c *NodeStatusCommand) printCpuStats(hostStats *api.HostStats) {
 	for _, cpuStat := range hostStats.CPU {
 		cpuStatsAttr := make([]string, 4)
 		cpuStatsAttr[0] = fmt.Sprintf("CPU|%v", cpuStat.CPU)
-		cpuStatsAttr[1] = fmt.Sprintf("User|%v", formatFloat64(cpuStat.User))
-		cpuStatsAttr[2] = fmt.Sprintf("System|%v", formatFloat64(cpuStat.System))
-		cpuStatsAttr[3] = fmt.Sprintf("Idle|%v", formatFloat64(cpuStat.Idle))
+		cpuStatsAttr[1] = fmt.Sprintf("User|%v %%", formatFloat64(cpuStat.User))
+		cpuStatsAttr[2] = fmt.Sprintf("System|%v %%", formatFloat64(cpuStat.System))
+		cpuStatsAttr[3] = fmt.Sprintf("Idle|%v %%", formatFloat64(cpuStat.Idle))
 		c.Ui.Output(formatKV(cpuStatsAttr))
 		c.Ui.Output("")
 	}
@@ -297,8 +310,8 @@ func (c *NodeStatusCommand) printDiskStats(hostStats *api.HostStats) {
 		diskStatsAttr[2] = fmt.Sprintf("Size|%s", humanize.Bytes(diskStat.Size))
 		diskStatsAttr[3] = fmt.Sprintf("Used|%s", humanize.Bytes(diskStat.Used))
 		diskStatsAttr[4] = fmt.Sprintf("Available|%s", humanize.Bytes(diskStat.Available))
-		diskStatsAttr[5] = fmt.Sprintf("Used Percent|%s", formatFloat64(diskStat.UsedPercent))
-		diskStatsAttr[6] = fmt.Sprintf("Inodes Percent|%s", formatFloat64(diskStat.InodesUsedPercent))
+		diskStatsAttr[5] = fmt.Sprintf("Used Percent|%v %%", formatFloat64(diskStat.UsedPercent))
+		diskStatsAttr[6] = fmt.Sprintf("Inodes Percent|%v %%", formatFloat64(diskStat.InodesUsedPercent))
 		c.Ui.Output(formatKV(diskStatsAttr))
 		c.Ui.Output("")
 	}
@@ -339,8 +352,8 @@ func getAllocs(client *api.Client, node *api.Node, length int) ([]string, error)
 	return allocs, err
 }
 
-// getResources returns the resource usage of the node.
-func getResources(client *api.Client, node *api.Node) ([]string, error) {
+// getAllocatedResources returns the resource usage of the node.
+func getAllocatedResources(client *api.Client, node *api.Node) ([]string, error) {
 	var resources []string
 	var cpu, mem, disk, iops int
 	var totalCpu, totalMem, totalDisk, totalIops int
@@ -380,6 +393,43 @@ func getResources(client *api.Client, node *api.Node) ([]string, error) {
 		totalIops)
 
 	return resources, err
+}
+
+// getActualResources returns the actual resource usage of the node.
+func getActualResources(hostStats *api.HostStats, node *api.Node) ([]string, error) {
+	if hostStats == nil {
+		return nil, fmt.Errorf("actual resource usage not present")
+	}
+	var resources []string
+
+	// Calculate cpu usage
+	usedCPUPercent := 0.0
+	for _, cpu := range hostStats.CPU {
+		usedCPUPercent += (cpu.User + cpu.System)
+	}
+	usedCPUTicks := (usedCPUPercent / 100) * float64(node.Resources.CPU)
+
+	// calculate disk usage
+	storageDevice := node.Attributes["unique.storage.volume"]
+	var diskUsed, diskSize uint64
+	for _, disk := range hostStats.DiskStats {
+		if disk.Device == storageDevice {
+			diskUsed = disk.Used
+			diskSize = disk.Size
+		}
+	}
+
+	resources = make([]string, 2)
+	resources[0] = "CPU|Memory|Disk"
+	resources[1] = fmt.Sprintf("%v/%v|%v/%v|%v/%v",
+		int64(usedCPUTicks),
+		node.Resources.CPU,
+		humanize.Bytes(hostStats.Memory.Used),
+		humanize.Bytes(hostStats.Memory.Total),
+		humanize.Bytes(diskUsed),
+		humanize.Bytes(diskSize),
+	)
+	return resources, nil
 }
 
 func formatFloat64(val float64) string {

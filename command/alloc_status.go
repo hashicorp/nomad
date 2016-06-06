@@ -2,10 +2,14 @@ package command
 
 import (
 	"fmt"
+	"math"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/dustin/go-humanize"
+	"github.com/mitchellh/colorstring"
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/client"
@@ -13,6 +17,7 @@ import (
 
 type AllocStatusCommand struct {
 	Meta
+	color *colorstring.Colorize
 }
 
 func (c *AllocStatusCommand) Help() string {
@@ -33,6 +38,9 @@ Alloc Status Options:
   -short
     Display short output. Shows only the most recent task event.
 
+  -stats 
+    Display detailed resource usage statistics
+
   -verbose
     Show full information.
 `
@@ -45,12 +53,13 @@ func (c *AllocStatusCommand) Synopsis() string {
 }
 
 func (c *AllocStatusCommand) Run(args []string) int {
-	var short, verbose bool
+	var short, displayStats, verbose bool
 
 	flags := c.Meta.FlagSet("alloc-status", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&short, "short", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
+	flags.BoolVar(&displayStats, "stats", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -147,7 +156,7 @@ func (c *AllocStatusCommand) Run(args []string) int {
 	c.Ui.Output(formatKV(basic))
 
 	if !short {
-		c.taskResources(alloc, stats)
+		c.taskResources(alloc, stats, displayStats)
 	}
 
 	// Print the state of each task.
@@ -309,7 +318,7 @@ func (c *AllocStatusCommand) allocResources(alloc *api.Allocation) {
 }
 
 // taskResources prints out the tasks current resource usage
-func (c *AllocStatusCommand) taskResources(alloc *api.Allocation, stats map[string]*api.TaskResourceUsage) {
+func (c *AllocStatusCommand) taskResources(alloc *api.Allocation, stats map[string]*api.TaskResourceUsage, displayStats bool) {
 	if len(alloc.TaskResources) == 0 {
 		return
 	}
@@ -326,12 +335,12 @@ func (c *AllocStatusCommand) taskResources(alloc *api.Allocation, stats map[stri
 	for _, task := range tasks {
 		resource := alloc.TaskResources[task]
 
-		header := fmt.Sprintf("\nTask: %q", task)
+		header := fmt.Sprintf("\n[bold]Task: %q[reset]", task)
 		if firstLine {
-			header = fmt.Sprintf("Task: %q", task)
+			header = fmt.Sprintf("[bold]Task: %q[reset]", task)
 			firstLine = false
 		}
-		c.Ui.Output(header)
+		c.Ui.Output(c.Colorize().Color(header))
 		var addr []string
 		for _, nw := range resource.Networks {
 			ports := append(nw.DynamicPorts, nw.ReservedPorts...)
@@ -340,7 +349,7 @@ func (c *AllocStatusCommand) taskResources(alloc *api.Allocation, stats map[stri
 			}
 		}
 		var resourcesOutput []string
-		resourcesOutput = append(resourcesOutput, "CPU|Memory MB|Disk MB|IOPS|Addresses")
+		resourcesOutput = append(resourcesOutput, "CPU|Memory|Disk|IOPS|Addresses")
 		firstAddr := ""
 		if len(addr) > 0 {
 			firstAddr = addr[0]
@@ -348,12 +357,12 @@ func (c *AllocStatusCommand) taskResources(alloc *api.Allocation, stats map[stri
 		cpuUsage := strconv.Itoa(resource.CPU)
 		memUsage := strconv.Itoa(resource.MemoryMB)
 		if ru, ok := stats[task]; ok && ru != nil && ru.ResourceUsage != nil {
-			cpuStats := ru.ResourceUsage.CpuStats
+			cpuTicksConsumed := (ru.ResourceUsage.CpuStats.Percent / 100) * float64(resource.CPU)
 			memoryStats := ru.ResourceUsage.MemoryStats
-			cpuUsage = fmt.Sprintf("%v/%v", (cpuStats.SystemMode + cpuStats.UserMode), resource.CPU)
+			cpuUsage = fmt.Sprintf("%v/%v", math.Floor(cpuTicksConsumed), resource.CPU)
 			memUsage = fmt.Sprintf("%v/%v", memoryStats.RSS/(1024*1024), resource.MemoryMB)
 		}
-		resourcesOutput = append(resourcesOutput, fmt.Sprintf("%v|%v|%v|%v|%v",
+		resourcesOutput = append(resourcesOutput, fmt.Sprintf("%v|%v MB|%v MB|%v|%v",
 			cpuUsage,
 			memUsage,
 			resource.DiskMB,
@@ -363,5 +372,37 @@ func (c *AllocStatusCommand) taskResources(alloc *api.Allocation, stats map[stri
 			resourcesOutput = append(resourcesOutput, fmt.Sprintf("||||%v", addr[i]))
 		}
 		c.Ui.Output(formatListWithSpaces(resourcesOutput))
+
+		if ru, ok := stats[task]; ok && ru != nil && displayStats && ru.ResourceUsage != nil {
+			c.Ui.Output("")
+			c.printTaskResourceUsage(task, ru.ResourceUsage)
+		}
 	}
+}
+
+func (c *AllocStatusCommand) printTaskResourceUsage(task string, resourceUsage *api.ResourceUsage) {
+	memoryStats := resourceUsage.MemoryStats
+	cpuStats := resourceUsage.CpuStats
+	c.Ui.Output("Memory Stats")
+	out := make([]string, 2)
+	out[0] = "RSS|Cache|Swap|Max Usage|Kernel Usage|Kernel Max Usage"
+	out[1] = fmt.Sprintf("%v|%v|%v|%v|%v|%v",
+		humanize.Bytes(memoryStats.RSS),
+		humanize.Bytes(memoryStats.Cache),
+		humanize.Bytes(memoryStats.Swap),
+		humanize.Bytes(memoryStats.MaxUsage),
+		humanize.Bytes(memoryStats.KernelUsage),
+		humanize.Bytes(memoryStats.KernelMaxUsage),
+	)
+	c.Ui.Output(formatList(out))
+
+	c.Ui.Output("")
+
+	c.Ui.Output("CPU Stats")
+	out = make([]string, 2)
+	out[0] = "Percent|Throttled Periods|Throttled Time"
+	percent := strconv.FormatFloat(cpuStats.Percent, 'f', 2, 64)
+	out[1] = fmt.Sprintf("%v %|%v|%v", percent,
+		cpuStats.ThrottledPeriods, cpuStats.ThrottledTime)
+	c.Ui.Output(formatList(out))
 }
