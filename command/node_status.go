@@ -284,9 +284,9 @@ func (c *NodeStatusCommand) printCpuStats(hostStats *api.HostStats) {
 	for _, cpuStat := range hostStats.CPU {
 		cpuStatsAttr := make([]string, 4)
 		cpuStatsAttr[0] = fmt.Sprintf("CPU|%v", cpuStat.CPU)
-		cpuStatsAttr[1] = fmt.Sprintf("User|%v", formatFloat64(cpuStat.User))
-		cpuStatsAttr[2] = fmt.Sprintf("System|%v", formatFloat64(cpuStat.System))
-		cpuStatsAttr[3] = fmt.Sprintf("Idle|%v", formatFloat64(cpuStat.Idle))
+		cpuStatsAttr[1] = fmt.Sprintf("User|%v %%", formatFloat64(cpuStat.User))
+		cpuStatsAttr[2] = fmt.Sprintf("System|%v %%", formatFloat64(cpuStat.System))
+		cpuStatsAttr[3] = fmt.Sprintf("Idle|%v %%", formatFloat64(cpuStat.Idle))
 		c.Ui.Output(formatKV(cpuStatsAttr))
 		c.Ui.Output("")
 	}
@@ -310,8 +310,8 @@ func (c *NodeStatusCommand) printDiskStats(hostStats *api.HostStats) {
 		diskStatsAttr[2] = fmt.Sprintf("Size|%s", humanize.Bytes(diskStat.Size))
 		diskStatsAttr[3] = fmt.Sprintf("Used|%s", humanize.Bytes(diskStat.Used))
 		diskStatsAttr[4] = fmt.Sprintf("Available|%s", humanize.Bytes(diskStat.Available))
-		diskStatsAttr[5] = fmt.Sprintf("Used Percent|%s", formatFloat64(diskStat.UsedPercent))
-		diskStatsAttr[6] = fmt.Sprintf("Inodes Percent|%s", formatFloat64(diskStat.InodesUsedPercent))
+		diskStatsAttr[5] = fmt.Sprintf("Used Percent|%v %%", formatFloat64(diskStat.UsedPercent))
+		diskStatsAttr[6] = fmt.Sprintf("Inodes Percent|%v %%", formatFloat64(diskStat.InodesUsedPercent))
 		c.Ui.Output(formatKV(diskStatsAttr))
 		c.Ui.Output("")
 	}
@@ -420,7 +420,7 @@ func getActualResources(hostStats *api.HostStats, node *api.Node) ([]string, err
 	}
 
 	resources = make([]string, 2)
-	resources[0] = "CPU|Memory MB|Disk MB"
+	resources[0] = "CPU|Memory|Disk"
 	resources[1] = fmt.Sprintf("%v/%v|%v/%v|%v/%v",
 		int64(usedCPUTicks),
 		node.Resources.CPU,

@@ -349,7 +349,7 @@ func (c *AllocStatusCommand) taskResources(alloc *api.Allocation, stats map[stri
 			}
 		}
 		var resourcesOutput []string
-		resourcesOutput = append(resourcesOutput, "CPU|Memory MB|Disk MB|IOPS|Addresses")
+		resourcesOutput = append(resourcesOutput, "CPU|Memory|Disk|IOPS|Addresses")
 		firstAddr := ""
 		if len(addr) > 0 {
 			firstAddr = addr[0]
@@ -362,7 +362,7 @@ func (c *AllocStatusCommand) taskResources(alloc *api.Allocation, stats map[stri
 			cpuUsage = fmt.Sprintf("%v/%v", math.Floor(cpuTicksConsumed), resource.CPU)
 			memUsage = fmt.Sprintf("%v/%v", memoryStats.RSS/(1024*1024), resource.MemoryMB)
 		}
-		resourcesOutput = append(resourcesOutput, fmt.Sprintf("%v|%v|%v|%v|%v",
+		resourcesOutput = append(resourcesOutput, fmt.Sprintf("%v|%v MB|%v MB|%v|%v",
 			cpuUsage,
 			memUsage,
 			resource.DiskMB,
@@ -373,7 +373,7 @@ func (c *AllocStatusCommand) taskResources(alloc *api.Allocation, stats map[stri
 		}
 		c.Ui.Output(formatListWithSpaces(resourcesOutput))
 
-		if ru, ok := stats[task]; ok && ru != nil && ru.ResourceUsage != nil {
+		if ru, ok := stats[task]; ok && ru != nil && displayStats && ru.ResourceUsage != nil {
 			c.Ui.Output("")
 			c.printTaskResourceUsage(task, ru.ResourceUsage)
 		}
@@ -385,7 +385,7 @@ func (c *AllocStatusCommand) printTaskResourceUsage(task string, resourceUsage *
 	cpuStats := resourceUsage.CpuStats
 	c.Ui.Output("Memory Stats")
 	out := make([]string, 2)
-	out[0] = "RSS|Cache|Swap|Max Usage|Kernel Usage|KernelMaxUsage"
+	out[0] = "RSS|Cache|Swap|Max Usage|Kernel Usage|Kernel Max Usage"
 	out[1] = fmt.Sprintf("%v|%v|%v|%v|%v|%v",
 		humanize.Bytes(memoryStats.RSS),
 		humanize.Bytes(memoryStats.Cache),
@@ -402,7 +402,7 @@ func (c *AllocStatusCommand) printTaskResourceUsage(task string, resourceUsage *
 	out = make([]string, 2)
 	out[0] = "Percent|Throttled Periods|Throttled Time"
 	percent := strconv.FormatFloat(cpuStats.Percent, 'f', 2, 64)
-	out[1] = fmt.Sprintf("%v|%v|%v", percent,
+	out[1] = fmt.Sprintf("%v %|%v|%v", percent,
 		cpuStats.ThrottledPeriods, cpuStats.ThrottledTime)
 	c.Ui.Output(formatList(out))
 }
