@@ -304,13 +304,14 @@ func (c *NodeStatusCommand) printMemoryStats(hostStats *api.HostStats) {
 
 func (c *NodeStatusCommand) printDiskStats(hostStats *api.HostStats) {
 	for _, diskStat := range hostStats.DiskStats {
-		diskStatsAttr := make([]string, 6)
+		diskStatsAttr := make([]string, 7)
 		diskStatsAttr[0] = fmt.Sprintf("Device|%s", diskStat.Device)
 		diskStatsAttr[1] = fmt.Sprintf("MountPoint|%s", diskStat.Mountpoint)
 		diskStatsAttr[2] = fmt.Sprintf("Size|%s", humanize.Bytes(diskStat.Size))
 		diskStatsAttr[3] = fmt.Sprintf("Used|%s", humanize.Bytes(diskStat.Used))
 		diskStatsAttr[4] = fmt.Sprintf("Available|%s", humanize.Bytes(diskStat.Available))
 		diskStatsAttr[5] = fmt.Sprintf("Used Percent|%s", formatFloat64(diskStat.UsedPercent))
+		diskStatsAttr[6] = fmt.Sprintf("Inodes Percent|%s", formatFloat64(diskStat.InodesUsedPercent))
 		c.Ui.Output(formatKV(diskStatsAttr))
 		c.Ui.Output("")
 	}

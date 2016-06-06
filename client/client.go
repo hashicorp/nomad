@@ -1370,5 +1370,6 @@ func (c *Client) emitStats(hStats *stats.HostStats) {
 		metrics.EmitKey([]string{"disk", disk.Device, "used"}, float32(disk.Used))
 		metrics.EmitKey([]string{"disk", disk.Device, "available"}, float32(disk.Available))
 		metrics.EmitKey([]string{"disk", disk.Device, "used_percent"}, float32(disk.UsedPercent))
+		metrics.EmitKey([]string{"disk", disk.Device, "inodes_percent"}, float32(disk.InodesUsedPercent))
 	}
 }

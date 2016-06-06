@@ -37,12 +37,13 @@ type CPUStats struct {
 
 // DiskStats represents stats related to disk usage
 type DiskStats struct {
-	Device      string
-	Mountpoint  string
-	Size        uint64
-	Used        uint64
-	Available   uint64
-	UsedPercent float64
+	Device            string
+	Mountpoint        string
+	Size              uint64
+	Used              uint64
+	Available         uint64
+	UsedPercent       float64
+	InodesUsedPercent float64
 }
 
 // HostStatsCollector collects host resource usage stats
@@ -97,12 +98,13 @@ func (h *HostStatsCollector) Collect() (*HostStats, error) {
 		for _, partition := range partitions {
 			if usage, err := disk.Usage(partition.Mountpoint); err == nil {
 				ds := DiskStats{
-					Device:      partition.Device,
-					Mountpoint:  partition.Mountpoint,
-					Size:        usage.Total,
-					Used:        usage.Used,
-					Available:   usage.Free,
-					UsedPercent: usage.UsedPercent,
+					Device:            partition.Device,
+					Mountpoint:        partition.Mountpoint,
+					Size:              usage.Total,
+					Used:              usage.Used,
+					Available:         usage.Free,
+					UsedPercent:       usage.UsedPercent,
+					InodesUsedPercent: usage.InodesUsedPercent,
 				}
 				diskStats = append(diskStats, &ds)
 			}
