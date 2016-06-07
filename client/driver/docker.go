@@ -914,7 +914,11 @@ func (h *DockerHandle) Kill() error {
 func (h *DockerHandle) Stats() (*cstructs.TaskResourceUsage, error) {
 	h.resourceUsageLock.RLock()
 	defer h.resourceUsageLock.RUnlock()
-	return h.resourceUsage, nil
+	var err error
+	if h.resourceUsage == nil {
+		err = fmt.Errorf("stats collection hasn't started yet")
+	}
+	return h.resourceUsage, err
 }
 
 func (h *DockerHandle) run() {
