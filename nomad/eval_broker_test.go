@@ -984,6 +984,6 @@ func TestEvalBroker_Reenqueue_Nack(t *testing.T) {
 		t.Fatalf("bad: %#v", stats)
 	}
 	if len(b.requeue) != 0 {
-		t.Fatal("bad: %#v", b.requeue)
+		t.Fatalf("bad: %#v", b.requeue)
 	}
 }
