@@ -1246,12 +1246,12 @@ func (c *Client) setupConsulSyncer() error {
 	// heartbeat deadline has been exceeded and this Client is orphaned
 	// from its servers, periodically poll Consul to reattach this Client
 	// to its cluster and automatically recover from a detached state.
-	bootstrapFn := func() {
+	bootstrapFn := func() error {
 		now := time.Now()
 		c.configLock.RLock()
 		if now.Before(c.consulPullHeartbeatDeadline) {
 			c.configLock.RUnlock()
-			return
+			return nil
 		}
 		c.configLock.RUnlock()
 
@@ -1261,7 +1261,7 @@ func (c *Client) setupConsulSyncer() error {
 				&consulapi.QueryOptions{AllowStale: true})
 		if err != nil {
 			c.logger.Printf("[WARN] client: unable to query service %q: %v", nomadServerServiceName, err)
-			return
+			return err
 		}
 		serverAddrs := make([]string, 0, len(services))
 		for _, s := range services {
@@ -1272,18 +1272,23 @@ func (c *Client) setupConsulSyncer() error {
 			}
 			serverAddrs = append(serverAddrs, net.JoinHostPort(addr, port))
 		}
-		c.rpcProxy.SetBackupServers(serverAddrs)
+
+		if err := c.rpcProxy.SetBackupServers(serverAddrs); err != nil {
+			return err
+		}
+
+		return nil
 	}
 	c.consulSyncer.AddPeriodicHandler("Nomad Client Fallback Server Handler", bootstrapFn)
 
-	consulServicesSyncFn := func() {
+	consulServicesSyncFn := func() error {
 		// Give up pruning services if we can't fingerprint our
 		// Consul Agent.
 		c.configLock.RLock()
 		_, ok := c.configCopy.Node.Attributes["consul.version"]
 		c.configLock.RUnlock()
 		if !ok {
-			return
+			return fmt.Errorf("Consul not running")
 		}
 
 		services := make(map[string]struct{})
@@ -1305,7 +1310,9 @@ func (c *Client) setupConsulSyncer() error {
 
 		if err := c.consulSyncer.KeepServices(services); err != nil {
 			c.logger.Printf("[DEBUG] client: error removing services from non-running tasks: %v", err)
+			return err
 		}
+		return nil
 	}
 	c.consulSyncer.AddPeriodicHandler("Nomad Client Services Sync Handler", consulServicesSyncFn)
 

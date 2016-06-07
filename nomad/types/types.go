@@ -1,3 +1,3 @@
 package types
 
-type PeriodicCallback func()
+type PeriodicCallback func() error

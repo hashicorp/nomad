@@ -426,47 +426,34 @@ func (c *Syncer) Run() {
 }
 
 // RunHandlers executes each handler (randomly)
-func (c *Syncer) RunHandlers() {
+func (c *Syncer) RunHandlers() error {
 	c.periodicLock.RLock()
 	handlers := make(map[string]types.PeriodicCallback, len(c.periodicCallbacks))
 	for name, fn := range c.periodicCallbacks {
 		handlers[name] = fn
 	}
 	c.periodicLock.RUnlock()
+
+	var mErr multierror.Error
 	for _, fn := range handlers {
-		fn()
+		if err := fn(); err != nil {
+			mErr.Errors = append(mErr.Errors, err)
+		}
 	}
+	return mErr.ErrorOrNil()
 }
 
 // performSync sync the services and checks we are tracking with Consul.
 func (c *Syncer) performSync() error {
-	c.RunHandlers()
-
 	var mErr multierror.Error
-	cServices, err := c.client.Agent().Services()
-	if err != nil {
-		return err
+	if err := c.RunHandlers(); err != nil {
+		mErr.Errors = append(mErr.Errors, err)
 	}
-
-	cChecks, err := c.client.Agent().Checks()
-	if err != nil {
-		return err
+	if err := c.syncServices(); err != nil {
+		mErr.Errors = append(mErr.Errors, err)
 	}
-
-	// Add services and checks that consul doesn't have but we do
-	for serviceID, service := range c.trackedServices {
-		if _, ok := cServices[serviceID]; !ok {
-			if err := c.registerService(service); err != nil {
-				mErr.Errors = append(mErr.Errors, err)
-			}
-		}
-	}
-	for checkID, check := range c.trackedChecks {
-		if _, ok := cChecks[checkID]; !ok {
-			if err := c.registerCheck(check); err != nil {
-				mErr.Errors = append(mErr.Errors, err)
-			}
-		}
+	if err := c.syncChecks(); err != nil {
+		mErr.Errors = append(mErr.Errors, err)
 	}
 
 	return mErr.ErrorOrNil()
