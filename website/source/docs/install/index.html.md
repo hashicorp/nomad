@@ -40,6 +40,9 @@ and configured properly. you will also need Git.
      exists. If it does not, then you did not clone Nomad into the proper
      path.
 
+  1. Run `make bootstrap`. This will download and compile libraries and tools needed
+     to compile Nomad.
+
   1. Run `make`. This will build Nomad for your current system
      and put the binary in `bin` (relative to the git checkout).
 
