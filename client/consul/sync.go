@@ -55,13 +55,13 @@ type Syncer struct {
 	runChecks bool
 
 	serviceIdentifier string              // serviceIdentifier is a token which identifies which task/alloc the service belongs to
-	delegateChecks    map[string]struct{} // delegateChecks are the checks that the Nomad client runs and reports to Consul
-	createCheck       func(*structs.ServiceCheck, string) (Check, error)
 	addrFinder        func(portLabel string) (string, int)
 
 	trackedServices map[string]*consul.AgentService
 	trackedChecks   map[string]*consul.AgentCheckRegistration
 	checkRunners    map[string]*CheckRunner
+	delegateChecks  map[string]struct{} // delegateChecks are the checks that the Nomad client runs and reports to Consul
+	createDelegatedCheck func(*structs.ServiceCheck, string) (Check, error)
 
 	logger *log.Logger
 
@@ -149,9 +149,9 @@ func NewSyncer(config *config.ConsulConfig, shutdownCh chan struct{}, logger *lo
 
 // SetDelegatedChecks sets the checks that nomad is going to run and report the
 // result back to consul
-func (c *Syncer) SetDelegatedChecks(delegateChecks map[string]struct{}, createCheck func(*structs.ServiceCheck, string) (Check, error)) *Syncer {
+func (c *Syncer) SetDelegatedChecks(delegateChecks map[string]struct{}, createDelegatedCheckFn func(*structs.ServiceCheck, string) (Check, error)) *Syncer {
 	c.delegateChecks = delegateChecks
-	c.createCheck = createCheck
+	c.createDelegatedCheck = createDelegatedCheckFn
 	return c
 }
 
@@ -200,14 +200,14 @@ func (c *Syncer) SyncServices(services []*structs.Service) error {
 
 		for _, chk := range service.Checks {
 			// Create a consul check registration
-			chkReg, err := c.createCheckReg(chk, srv)
+			chkReg, err := c.createDelegatedCheckReg(chk, srv)
 			if err != nil {
 				mErr.Errors = append(mErr.Errors, err)
 				continue
 			}
 			// creating a nomad check if we have to handle this particular check type
 			if _, ok := c.delegateChecks[chk.Type]; ok {
-				nc, err := c.createCheck(chk, chkReg.ID)
+				nc, err := c.createDelegatedCheck(chk, chkReg.ID)
 				if err != nil {
 					mErr.Errors = append(mErr.Errors, err)
 					continue
@@ -312,9 +312,10 @@ func (c *Syncer) registerCheck(chkReg *consul.AgentCheckRegistration) error {
 	return c.client.Agent().CheckRegister(chkReg)
 }
 
-// createCheckReg creates a Check that can be registered with Nomad. It also
-// creates a Nomad check for the check types that it can handle.
-func (c *Syncer) createCheckReg(check *structs.ServiceCheck, service *consul.AgentService) (*consul.AgentCheckRegistration, error) {
+// createDelegatedCheckReg creates a Check that can be registered with
+// Nomad. It also creates a Nomad check for the check types that it can
+// handle.
+func (c *Syncer) createDelegatedCheckReg(check *structs.ServiceCheck, service *consul.AgentService) (*consul.AgentCheckRegistration, error) {
 	chkReg := consul.AgentCheckRegistration{
 		ID:        check.Hash(service.ID),
 		Name:      check.Name,
