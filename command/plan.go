@@ -45,7 +45,7 @@ Usage: nomad plan [options] <file>
   give insight into what the scheduler will attempt to do and why.
 
   If the job has specified the region, the -region flag and NOMAD_REGION
-  environment variable are overridden to the job's region.
+  environment variable are overridden and the the job's region is used.
 
 General Options:
 

@@ -38,7 +38,7 @@ Usage: nomad run [options] <file>
   issues or internal errors, are indicated by exit code 1.
 
   If the job has specified the region, the -region flag and NOMAD_REGION
-  environment variable are overridden to the job's region.
+  environment variable are overridden and the the job's region is used.
 
 General Options:
 

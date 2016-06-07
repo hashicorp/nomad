@@ -115,7 +115,7 @@ func generalOptionsUsage() string {
     Default = http://127.0.0.1:4646
 
   -region=<region>
-    The region of the Nomad servers to forward commands too.
+    The region of the Nomad servers to forward commands to.
     Overrides the NOMAD_REGION environment variable if set.
     Defaults to the Agent's local region.
 `
