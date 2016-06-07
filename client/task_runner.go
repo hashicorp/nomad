@@ -345,17 +345,21 @@ func (r *TaskRunner) run() {
 		r.handleLock.Unlock()
 
 		if handleEmpty {
-			stopCollection = make(chan struct{})
-			startErr := r.startTask(stopCollection)
+			startErr := r.startTask()
 			r.restartTracker.SetStartError(startErr)
 			if startErr != nil {
 				r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskDriverFailure).SetDriverError(startErr))
 				goto RESTART
 			}
+
+			// Mark the task as started
+			r.setState(structs.TaskStateRunning, structs.NewTaskEvent(structs.TaskStarted))
 		}
 
-		// Mark the task as started
-		r.setState(structs.TaskStateRunning, structs.NewTaskEvent(structs.TaskStarted))
+		if stopCollection == nil {
+			stopCollection = make(chan struct{})
+			go r.collectResourceUsageStats(stopCollection)
+		}
 
 		// Wait for updates
 	WAIT:
@@ -366,7 +370,7 @@ func (r *TaskRunner) run() {
 					panic("nil wait")
 				}
 
-				// Stop collection the task's resource usage
+				// Stop collection of the task's resource usage
 				close(stopCollection)
 
 				// Log whether the task was successful or not.
@@ -390,6 +394,9 @@ func (r *TaskRunner) run() {
 					// We couldn't successfully destroy the resource created.
 					r.logger.Printf("[ERR] client: failed to kill task %q. Resources may have been leaked: %v", r.task.Name, err)
 				}
+
+				// Stop collection of the task's resource usage
+				close(stopCollection)
 
 				// Store that the task has been destroyed and any associated error.
 				r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskKilled).SetKillError(err))
@@ -440,14 +447,13 @@ func (r *TaskRunner) run() {
 		// Clear the handle so a new driver will be created.
 		r.handleLock.Lock()
 		r.handle = nil
+		stopCollection = nil
 		r.handleLock.Unlock()
 	}
 }
 
-// startTask creates the driver and start the task. Resource usage is also
-// collect in a launched goroutine. Collection ends when the passed channel is
-// closed
-func (r *TaskRunner) startTask(stopCollection <-chan struct{}) error {
+// startTask creates the driver and start the task.
+func (r *TaskRunner) startTask() error {
 	// Create a driver
 	driver, err := r.createDriver()
 	if err != nil {
@@ -467,7 +473,6 @@ func (r *TaskRunner) startTask(stopCollection <-chan struct{}) error {
 	r.handleLock.Lock()
 	r.handle = handle
 	r.handleLock.Unlock()
-	go r.collectResourceUsageStats(stopCollection)
 	return nil
 }
 
