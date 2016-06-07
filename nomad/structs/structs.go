@@ -1552,19 +1552,20 @@ var (
 	AgentServicePrefix = fmt.Sprintf("%s-%s", NomadConsulPrefix, "agent")
 )
 
-// The Service model represents a Consul service definition
-type Service struct {
 	Name      string          // Name of the service, defaults to id
 	Tags      []string        // List of tags for the service
+// The ConsulService model represents a Consul service definition in Nomad
+// Agent's Config.
+type ConsulService struct {
 	PortLabel string          `mapstructure:"port"` // port for the service
 	Checks    []*ServiceCheck // List of checks associated with the service
 }
 
-func (s *Service) Copy() *Service {
+func (s *ConsulService) Copy() *ConsulService {
 	if s == nil {
 		return nil
 	}
-	ns := new(Service)
+	ns := new(ConsulService)
 	*ns = *s
 	ns.Tags = CopySliceString(ns.Tags)
 
@@ -1581,7 +1582,7 @@ func (s *Service) Copy() *Service {
 
 // InitFields interpolates values of Job, Task Group and Task in the Service
 // Name. This also generates check names, service id and check ids.
-func (s *Service) InitFields(job string, taskGroup string, task string) {
+func (s *ConsulService) InitFields(job string, taskGroup string, task string) {
 	s.Name = args.ReplaceEnv(s.Name, map[string]string{
 		"JOB":       job,
 		"TASKGROUP": taskGroup,
@@ -1597,12 +1598,12 @@ func (s *Service) InitFields(job string, taskGroup string, task string) {
 	}
 }
 
-func (s *Service) ID(identifier string) string {
+func (s *ConsulService) ID(identifier string) string {
 	return fmt.Sprintf("%s-%s-%s", NomadConsulPrefix, identifier, s.Hash())
 }
 
 // Validate checks if the Check definition is valid
-func (s *Service) Validate() error {
+func (s *ConsulService) Validate() error {
 	var mErr multierror.Error
 
 	// Ensure the service name is valid per RFC-952 §1
@@ -1628,7 +1629,7 @@ func (s *Service) Validate() error {
 
 // Hash calculates the hash of the check based on it's content and the service
 // which owns it
-func (s *Service) Hash() string {
+func (s *ConsulService) Hash() string {
 	h := sha1.New()
 	io.WriteString(h, s.Name)
 	io.WriteString(h, strings.Join(s.Tags, ""))
@@ -1687,7 +1688,7 @@ type Task struct {
 	Env map[string]string
 
 	// List of service definitions exposed by the Task
-	Services []*Service
+	Services []*ConsulService
 
 	// Constraints can be specified at a task level and apply only to
 	// the particular task.
@@ -1721,7 +1722,7 @@ func (t *Task) Copy() *Task {
 	nt.Env = CopyMapStringString(nt.Env)
 
 	if t.Services != nil {
-		services := make([]*Service, len(nt.Services))
+		services := make([]*ConsulService, len(nt.Services))
 		for i, s := range nt.Services {
 			services[i] = s.Copy()
 		}

@@ -2363,7 +2363,7 @@ func TestTaskDiff(t *testing.T) {
 		{
 			// Services edited (no checks)
 			Old: &Task{
-				Services: []*Service{
+				Services: []*ConsulService{
 					{
 						Name:      "foo",
 						PortLabel: "foo",
@@ -2379,7 +2379,7 @@ func TestTaskDiff(t *testing.T) {
 				},
 			},
 			New: &Task{
-				Services: []*Service{
+				Services: []*ConsulService{
 					{
 						Name:      "bar",
 						PortLabel: "bar",
@@ -2452,7 +2452,7 @@ func TestTaskDiff(t *testing.T) {
 			// Services edited (no checks) with context
 			Contextual: true,
 			Old: &Task{
-				Services: []*Service{
+				Services: []*ConsulService{
 					{
 						Name:      "foo",
 						PortLabel: "foo",
@@ -2460,7 +2460,7 @@ func TestTaskDiff(t *testing.T) {
 				},
 			},
 			New: &Task{
-				Services: []*Service{
+				Services: []*ConsulService{
 					{
 						Name:      "foo",
 						PortLabel: "bar",
@@ -2494,7 +2494,7 @@ func TestTaskDiff(t *testing.T) {
 		{
 			// Service Checks edited
 			Old: &Task{
-				Services: []*Service{
+				Services: []*ConsulService{
 					{
 						Name: "foo",
 						Checks: []*ServiceCheck{
@@ -2533,7 +2533,7 @@ func TestTaskDiff(t *testing.T) {
 				},
 			},
 			New: &Task{
-				Services: []*Service{
+				Services: []*ConsulService{
 					{
 						Name: "foo",
 						Checks: []*ServiceCheck{
@@ -2695,7 +2695,7 @@ func TestTaskDiff(t *testing.T) {
 			// Service Checks edited with context
 			Contextual: true,
 			Old: &Task{
-				Services: []*Service{
+				Services: []*ConsulService{
 					{
 						Name: "foo",
 						Checks: []*ServiceCheck{
@@ -2714,7 +2714,7 @@ func TestTaskDiff(t *testing.T) {
 				},
 			},
 			New: &Task{
-				Services: []*Service{
+				Services: []*ConsulService{
 					{
 						Name: "foo",
 						Checks: []*ServiceCheck{

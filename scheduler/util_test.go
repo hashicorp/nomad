@@ -679,7 +679,7 @@ func TestInplaceUpdate_Success(t *testing.T) {
 	*tg = *job.TaskGroups[0]
 	resource := &structs.Resources{CPU: 737}
 	tg.Tasks[0].Resources = resource
-	newServices := []*structs.Service{
+	newServices := []*structs.ConsulService{
 		{
 			Name:      "dummy-service",
 			PortLabel: "http",

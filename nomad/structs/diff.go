@@ -458,18 +458,18 @@ func (t TaskDiffs) Less(i, j int) bool { return t[i].Name < t[j].Name }
 
 // serviceDiff returns the diff of two service objects. If contextual diff is
 // enabled, all fields will be returned, even if no diff occurred.
-func serviceDiff(old, new *Service, contextual bool) *ObjectDiff {
+func serviceDiff(old, new *ConsulService, contextual bool) *ObjectDiff {
 	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Service"}
 	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
 
 	if reflect.DeepEqual(old, new) {
 		return nil
 	} else if old == nil {
-		old = &Service{}
+		old = &ConsulService{}
 		diff.Type = DiffTypeAdded
 		newPrimitiveFlat = flatmap.Flatten(new, nil, true)
 	} else if new == nil {
-		new = &Service{}
+		new = &ConsulService{}
 		diff.Type = DiffTypeDeleted
 		oldPrimitiveFlat = flatmap.Flatten(old, nil, true)
 	} else {
@@ -491,9 +491,9 @@ func serviceDiff(old, new *Service, contextual bool) *ObjectDiff {
 
 // serviceDiffs diffs a set of services. If contextual diff is enabled, unchanged
 // fields within objects nested in the tasks will be returned.
-func serviceDiffs(old, new []*Service, contextual bool) []*ObjectDiff {
-	oldMap := make(map[string]*Service, len(old))
-	newMap := make(map[string]*Service, len(new))
+func serviceDiffs(old, new []*ConsulService, contextual bool) []*ObjectDiff {
+	oldMap := make(map[string]*ConsulService, len(old))
+	newMap := make(map[string]*ConsulService, len(new))
 	for _, o := range old {
 		oldMap[o.Name] = o
 	}

@@ -25,7 +25,7 @@ var (
 		Interval: 30 * time.Second,
 		Timeout:  5 * time.Second,
 	}
-	service1 = structs.Service{
+	service1 = structs.ConsulService{
 		Name:      "foo-1",
 		Tags:      []string{"tag1", "tag2"},
 		PortLabel: "port1",
@@ -34,7 +34,7 @@ var (
 		},
 	}
 
-	service2 = structs.Service{
+	service2 = structs.ConsulService{
 		Name:      "foo-2",
 		Tags:      []string{"tag1", "tag2"},
 		PortLabel: "port2",
@@ -148,7 +148,7 @@ func checksPresent(t *testing.T, checkIDs []string, syncer *Syncer) error {
 func mockTask() *structs.Task {
 	task := structs.Task{
 		Name:     "foo",
-		Services: []*structs.Service{&service1, &service2},
+		Services: []*structs.ConsulService{&service1, &service2},
 		Resources: &structs.Resources{
 			Networks: []*structs.NetworkResource{
 				&structs.NetworkResource{

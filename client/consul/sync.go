@@ -345,11 +345,11 @@ func (c *Syncer) createDelegatedCheckReg(check *structs.ServiceCheck, service *c
 }
 
 // createService creates a Consul AgentService from a Nomad Service
-func (c *Syncer) createService(service *structs.Service) (*consul.AgentService, error) {
 	srv := consul.AgentService{
 		ID:      service.ID(c.serviceIdentifier),
 		Service: service.Name,
 		Tags:    service.Tags,
+func (c *Syncer) createService(service *structs.ConsulService) (*consul.AgentServiceRegistration, error) {
 	}
 	host, port := c.addrFinder(service.PortLabel)
 	if host != "" {
