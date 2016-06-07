@@ -480,7 +480,7 @@ func (e *UniversalExecutor) SyncServices(ctx *ConsulContext) error {
 			return err
 		}
 		cs.SetDelegatedChecks(e.createCheckMap(), e.createCheck)
-		cs.SetServiceIdentifier(consul.GenerateServiceIdentifier(e.ctx.AllocID, e.ctx.Task.Name))
+		cs.SetServiceRegPrefix(consul.GenerateServicePrefix(e.ctx.AllocID, e.ctx.Task.Name))
 		cs.SetAddrFinder(e.ctx.Task.FindHostAndPortFor)
 		e.consulSyncer = cs
 	}
