@@ -16,6 +16,7 @@ const (
 	// Names of environment variables used to supply various
 	// config options to the Nomad CLI.
 	EnvNomadAddress = "NOMAD_ADDR"
+	EnvNomadRegion  = "NOMAD_REGION"
 
 	// Constants for CLI identifier length
 	shortId = 8
@@ -42,6 +43,9 @@ type Meta struct {
 
 	// Whether to not-colorize output
 	noColor bool
+
+	// The region to send API requests
+	region string
 }
 
 // FlagSet returns a FlagSet with the common flags that every
@@ -55,6 +59,7 @@ func (m *Meta) FlagSet(n string, fs FlagSetFlags) *flag.FlagSet {
 	// client connectivity options.
 	if fs&FlagSetClient != 0 {
 		f.StringVar(&m.flagAddress, "address", "", "")
+		f.StringVar(&m.region, "region", "", "")
 		f.BoolVar(&m.noColor, "no-color", false, "")
 	}
 
@@ -84,6 +89,12 @@ func (m *Meta) Client() (*api.Client, error) {
 	if m.flagAddress != "" {
 		config.Address = m.flagAddress
 	}
+	if v := os.Getenv(EnvNomadRegion); v != "" {
+		config.Region = v
+	}
+	if m.region != "" {
+		config.Region = m.region
+	}
 	return api.NewClient(config)
 }
 
@@ -102,6 +113,11 @@ func generalOptionsUsage() string {
     The address of the Nomad server.
     Overrides the NOMAD_ADDR environment variable if set.
     Default = http://127.0.0.1:4646
+
+  -region=<region>
+    The region of the Nomad servers to forward commands too.
+    Overrides the NOMAD_REGION environment variable if set.
+    Defaults to the Agent's local region.
 `
 	return strings.TrimSpace(helpText)
 }
