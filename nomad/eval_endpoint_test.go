@@ -577,7 +577,9 @@ func TestEvalEndpoint_Allocations_Blocking(t *testing.T) {
 }
 
 func TestEvalEndpoint_Reblock_NonExistent(t *testing.T) {
-	s1 := testServer(t, nil)
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 
@@ -610,7 +612,9 @@ func TestEvalEndpoint_Reblock_NonExistent(t *testing.T) {
 }
 
 func TestEvalEndpoint_Reblock_NonBlocked(t *testing.T) {
-	s1 := testServer(t, nil)
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 
@@ -649,7 +653,9 @@ func TestEvalEndpoint_Reblock_NonBlocked(t *testing.T) {
 }
 
 func TestEvalEndpoint_Reblock(t *testing.T) {
-	s1 := testServer(t, nil)
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 
@@ -669,7 +675,7 @@ func TestEvalEndpoint_Reblock(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	out, token, err := s1.evalBroker.Dequeue(defaultSched, 2*time.Second)
+	out, token, err := s1.evalBroker.Dequeue(defaultSched, 7*time.Second)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
