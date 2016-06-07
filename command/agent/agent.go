@@ -607,17 +607,31 @@ func (a *Agent) syncAgentServicesWithConsul() error {
 	a.consulSyncer.SetAddrFinder(func(portLabel string) (string, int) {
 		host, port, err := net.SplitHostPort(portLabel)
 		if err != nil {
-			return "", 0
+			p, err := strconv.Atoi(port)
+			if err != nil {
+				return "", 0
+			}
+			return "", p
 		}
 
-		// if the addr for the service is ":port", then we default to
-		// registering the service with ip as the loopback addr
+		// If the addr for the service is ":port", then we fall back
+		// to Nomad's default address resolution protocol.
+		//
+		// TODO(sean@): This should poll Consul to figure out what
+		// its advertise address is and use that in order to handle
+		// the case where there is something funky like NAT on this
+		// host.  For now we just use the BindAddr if set, otherwise
+		// we fall back to a loopback addr.
 		if host == "" {
-			host = "127.0.0.1"
+			if a.config.BindAddr != "" {
+				host = a.configBindAddr
+			} else {
+				host = "127.0.0.1"
+			}
 		}
 		p, err := strconv.Atoi(port)
 		if err != nil {
-			return "", 0
+			return host, 0
 		}
 		return host, p
 	})
