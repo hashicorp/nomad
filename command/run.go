@@ -37,6 +37,9 @@ Usage: nomad run [options] <file>
   exit code will be 2. Any other errors, including client connection
   issues or internal errors, are indicated by exit code 1.
 
+  If the job has specified the region, the -region flag and NOMAD_REGION
+  environment variable are overridden to the job's region.
+
 General Options:
 
   ` + generalOptionsUsage() + `
@@ -132,6 +135,11 @@ func (c *RunCommand) Run(args []string) int {
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
 		return 1
+	}
+
+	// Force the region to be that of the job.
+	if r := job.Region; r != "" {
+		client.SetRegion(r)
 	}
 
 	// Submit the job
