@@ -54,7 +54,7 @@ func TestConsulServiceRegisterServices(t *testing.T) {
 	task := mockTask()
 	cs.SetServiceIdentifier(GenerateServiceIdentifier(allocID, task.Name))
 	cs.SetAddrFinder(task.FindHostAndPortFor)
-	if err := cs.SyncServices(task.Services); err != nil {
+	if err := cs.SyncServices(); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	defer cs.Shutdown()
@@ -83,7 +83,7 @@ func TestConsulServiceUpdateService(t *testing.T) {
 	task := mockTask()
 	cs.SetServiceIdentifier(GenerateServiceIdentifier(allocID, task.Name))
 	cs.SetAddrFinder(task.FindHostAndPortFor)
-	if err := cs.SyncServices(task.Services); err != nil {
+	if err := cs.SyncServices(); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	defer cs.Shutdown()
@@ -91,7 +91,7 @@ func TestConsulServiceUpdateService(t *testing.T) {
 	//Update Service defn 1
 	newTags := []string{"tag3"}
 	task.Services[0].Tags = newTags
-	if err := cs.SyncServices(task.Services); err != nil {
+	if err := cs.SyncServices(); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	// Make sure all the services and checks are still present

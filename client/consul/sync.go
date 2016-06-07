@@ -177,9 +177,11 @@ func (c *Syncer) SyncNow() {
 }
 
 // SyncServices sync the services with the Consul Agent
-func (c *Syncer) SyncServices(services []*structs.Service) error {
+func (c *Syncer) SyncServices() error {
+	services := c.flattenedServices()
+
 	var mErr multierror.Error
-	taskServices := make(map[string]*consul.AgentService)
+	taskServices := make(map[string]*consul.AgentServiceRegistration)
 	taskChecks := make(map[string]*consul.AgentCheckRegistration)
 
 	// Register Services and Checks that we don't know about or has changed

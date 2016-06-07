@@ -636,5 +636,7 @@ func (a *Agent) syncAgentServicesWithConsul() error {
 		return host, p
 	})
 
-	return a.consulSyncer.SyncServices(services)
+	a.consulSyncer.SetServices("agent", agentServiceGroup)
+
+	return a.consulSyncer.SyncServices()
 }

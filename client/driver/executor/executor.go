@@ -357,11 +357,9 @@ func (e *UniversalExecutor) UpdateTask(task *structs.Task) error {
 	e.lre.MaxFiles = task.LogConfig.MaxFiles
 	e.lre.FileSize = fileSize
 
-	// Re-syncing task with consul service
+	// Re-syncing task with Consul agent
 	if e.consulSyncer != nil {
-		if err := e.consulSyncer.SyncServices(task.Services); err != nil {
-			return err
-		}
+		e.consulSyncer.SetServices(servicesGroupName, task.Services)
 	}
 	return nil
 }
@@ -487,10 +485,15 @@ func (e *UniversalExecutor) SyncServices(ctx *ConsulContext) error {
 		e.consulSyncer = cs
 	}
 	if e.ctx != nil {
-		e.interpolateServices(e.ctx.Task)
+		syncerFn := func() error {
+			e.interpolateServices(e.ctx.Task)
+			e.consulSyncer.SetServices(e.ctx.AllocID, e.ctx.Task.Services)
+			return nil
+		}
+		e.consulSyncer.AddPeriodicHandler(e.ctx.AllocID, syncerFn)
 	}
-	err := e.consulSyncer.SyncServices(e.ctx.Task.Services)
 	go e.consulSyncer.Run()
+	err := e.consulSyncer.SyncServices() // Attempt to register immediately
 	return err
 }
 
