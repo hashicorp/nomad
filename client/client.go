@@ -1303,7 +1303,7 @@ func (c *Client) syncConsul() {
 					if taskState.State == structs.TaskStateRunning {
 						if tr, ok := ar.tasks[taskName]; ok {
 							for _, service := range tr.task.Services {
-								svcIdentifier := fmt.Sprintf("%s-%s", ar.alloc.ID, tr.task.Name)
+								svcIdentifier := consul.GenerateServiceIdentifier(ar.alloc.ID, tr.task.Name)
 								services[service.ID(svcIdentifier)] = struct{}{}
 							}
 						}
