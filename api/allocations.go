@@ -59,12 +59,12 @@ func (a *Allocations) Stats(alloc *Allocation, q *QueryOptions) (map[string]*Tas
 		return nil, err
 	}
 	resp := make(map[string][]*TaskResourceUsage)
-	client.query("/v1/client/allocation/"+alloc.ID+"/stats", &resp, nil)
+	_, err = client.query("/v1/client/allocation/"+alloc.ID+"/stats", &resp, nil)
 	res := make(map[string]*TaskResourceUsage)
 	for task, ru := range resp {
 		res[task] = ru[0]
 	}
-	return res, nil
+	return res, err
 }
 
 // Allocation is used for serialization of allocations.

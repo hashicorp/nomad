@@ -130,10 +130,9 @@ func (c *AllocStatusCommand) Run(args []string) int {
 		return 1
 	}
 
-	stats, err := client.Allocations().Stats(alloc, nil)
-	if err != nil {
-		c.Ui.Error(fmt.Sprintf("couldn't retreive stats: %v", err))
-	}
+	var statsErr error
+	var stats map[string]*api.TaskResourceUsage
+	stats, statsErr = client.Allocations().Stats(alloc, nil)
 
 	// Format the allocation data
 	basic := []string{
@@ -170,6 +169,11 @@ func (c *AllocStatusCommand) Run(args []string) int {
 	if verbose || alloc.DesiredStatus == "failed" {
 		c.Ui.Output("\n==> Status")
 		dumpAllocStatus(c.Ui, alloc, length)
+	}
+
+	if statsErr != nil {
+		c.Ui.Output("")
+		c.Ui.Error(fmt.Sprintf("couldn't retreive stats: %v", statsErr))
 	}
 
 	return 0
