@@ -98,11 +98,15 @@ func Serve(opts *ServeConfig) {
 	}
 	defer listener.Close()
 
+	// Create the channel to tell us when we're done
+	doneCh := make(chan struct{})
+
 	// Create the RPC server to dispense
 	server := &RPCServer{
 		Plugins: opts.Plugins,
 		Stdout:  stdout_r,
 		Stderr:  stderr_r,
+		DoneCh:  doneCh,
 	}
 
 	// Output the address and service name to stdout so that core can bring it up.
@@ -134,7 +138,10 @@ func Serve(opts *ServeConfig) {
 	os.Stderr = stderr_w
 
 	// Serve
-	server.Accept(listener)
+	go server.Accept(listener)
+
+	// Wait for the graceful exit
+	<-doneCh
 }
 
 func serverListener() (net.Listener, error) {
