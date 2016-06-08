@@ -208,7 +208,7 @@ func (c *Syncer) SyncServices() error {
 		}
 		trackedService, ok := c.trackedServices[srv.ID]
 		if (ok && !reflect.DeepEqual(trackedService, srv)) || !ok {
-			if err := c.registerService(srv); err != nil {
+			if err := c.client.Agent().ServiceRegister(srv); err != nil {
 				mErr.Errors = append(mErr.Errors, err)
 			}
 		}
@@ -381,18 +381,6 @@ func (c *Syncer) createService(service *structs.ConsulService) (*consul.AgentSer
 	}
 
 	return &srv, nil
-}
-
-// registerService registers a service with Consul
-func (c *Syncer) registerService(service *consul.AgentService) error {
-	srvReg := consul.AgentServiceRegistration{
-		ID:      service.ID,
-		Name:    service.Service,
-		Tags:    service.Tags,
-		Port:    service.Port,
-		Address: service.Address,
-	}
-	return c.client.Agent().ServiceRegister(&srvReg)
 }
 
 // deregisterService de-registers a service with the given ID from consul
