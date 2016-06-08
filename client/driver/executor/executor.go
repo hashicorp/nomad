@@ -483,6 +483,7 @@ func (e *UniversalExecutor) SyncServices(ctx *ConsulContext) error {
 		cs.SetServiceRegPrefix(consul.GenerateServicePrefix(e.ctx.AllocID, e.ctx.Task.Name))
 		cs.SetAddrFinder(e.ctx.Task.FindHostAndPortFor)
 		e.consulSyncer = cs
+		go e.consulSyncer.Run()
 	}
 	if e.ctx != nil {
 		syncerFn := func() error {
@@ -492,7 +493,6 @@ func (e *UniversalExecutor) SyncServices(ctx *ConsulContext) error {
 		}
 		e.consulSyncer.AddPeriodicHandler(e.ctx.AllocID, syncerFn)
 	}
-	go e.consulSyncer.Run()
 	err := e.consulSyncer.SyncServices() // Attempt to register immediately
 	return err
 }
