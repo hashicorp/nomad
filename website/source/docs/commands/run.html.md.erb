@@ -32,6 +32,9 @@ there are job placement issues encountered (unsatisfiable constraints, resource
 exhaustion, etc), then the exit code will be 2. Any other errors, including
 client connection issues or internal errors, are indicated by exit code 1.
 
+If the job has specified the region, the -region flag and NOMAD_REGION
+environment variable are overridden and the the job's region is used.
+
 ## General Options
 
 <%= general_options_usage %>
