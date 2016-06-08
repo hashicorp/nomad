@@ -204,10 +204,8 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		return 1
 	}
 
-	if hostStats, err = client.Nodes().Stats(node.ID, nil); err != nil {
-		c.Ui.Error(fmt.Sprintf("error fetching node resource utilization stats: %v", err))
-	}
-
+	var nodeStatsErr error
+	hostStats, nodeStatsErr = client.Nodes().Stats(node.ID, nil)
 	// Format the output
 	basic := []string{
 		fmt.Sprintf("[bold]Node ID[reset]|%s", limit(node.ID, length)),
@@ -257,6 +255,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 			c.Ui.Output("\n==> Allocations")
 			c.Ui.Output(formatList(allocs))
 		}
+
 	}
 
 	if verbose {
@@ -277,6 +276,10 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		c.Ui.Output(formatKV(attributes))
 	}
 
+	if nodeStatsErr != nil {
+		c.Ui.Output("")
+		c.Ui.Error(fmt.Sprintf("error fetching node stats: %v", nodeStatsErr))
+	}
 	return 0
 }
 
