@@ -402,7 +402,7 @@ func (c *AllocStatusCommand) printTaskResourceUsage(task string, resourceUsage *
 	out = make([]string, 2)
 	out[0] = "Percent|Throttled Periods|Throttled Time"
 	percent := strconv.FormatFloat(cpuStats.Percent, 'f', 2, 64)
-	out[1] = fmt.Sprintf("%v %|%v|%v", percent,
+	out[1] = fmt.Sprintf("%v %%|%v|%v", percent,
 		cpuStats.ThrottledPeriods, cpuStats.ThrottledTime)
 	c.Ui.Output(formatList(out))
 }
