@@ -41,6 +41,13 @@ environment variable are overridden and the the job's region is used.
 
 ## Run Options
 
+* `-check-index`: If set, the job is only registered or updated if the the
+  passed job modify index matches the server side version. If a check-index value
+  of zero is passed, the job is only registered if it does not yet exist. If a
+  non-zero value is passed, it ensures that the job is being updated from a known
+  state. The use of this flag is most common in conjunction with [plan
+  command](/docs/commands/plan.html).
+
 * `-detach`: Return immediately instead of monitoring. A new evaluation ID
   will be output, which can be used to examine the evaluation using the
   [eval-status](/docs/commands/eval-status.html) command
@@ -63,6 +70,20 @@ $ nomad run job1.nomad
     Allocation "5e0b39f0" status changed: "pending" -> "running"
     Evaluation status changed: "pending" -> "complete"
 ==> Evaluation "52dee78a" finished with status "complete"
+```
+
+Update the job using check-index:
+```
+$ nomad run -check-index 5 example.nomad
+Enforcing job modify index 5: job exists with conflicting job modify index: 6
+Job not updated
+
+$ nomad run -check-index 6 example.nomad
+==> Monitoring evaluation "5ef16dff"
+    Evaluation triggered by job "example"
+    Allocation "6ec7d16f" modified: node "6e1f9bf6", group "cache"
+    Evaluation status changed: "pending" -> "complete"
+==> Evaluation "5ef16dff" finished with status "complete"
 ```
 
 Schedule the job contained in `job1.nomad` and return immediately:

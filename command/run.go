@@ -5,12 +5,19 @@ import (
 	"encoding/gob"
 	"encoding/json"
 	"fmt"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/jobspec"
 	"github.com/hashicorp/nomad/nomad/structs"
+)
+
+var (
+	// enforceIndexRegex is a regular expression which extracts the enforcement error
+	enforceIndexRegex = regexp.MustCompile(`\((Enforcing job modify index.*)\)`)
 )
 
 type RunCommand struct {
@@ -46,6 +53,14 @@ General Options:
 
 Run Options:
 
+  -check-index
+	If set, the job is only registered or updated if the the passed
+	job modify index matches the server side version. If a check-index value of
+	zero is passed, the job is only registered if it does not yet exist. If a
+	non-zero value is passed, it ensures that the job is being updated from a
+	known state. The use of this flag is most common in conjunction with plan
+	command.
+
   -detach
 	Return immediately instead of entering monitor mode. After job submission,
 	the evaluation ID will be printed to the screen, which can be used to
@@ -67,12 +82,14 @@ func (c *RunCommand) Synopsis() string {
 
 func (c *RunCommand) Run(args []string) int {
 	var detach, verbose, output bool
+	var checkIndexStr string
 
 	flags := c.Meta.FlagSet("run", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&detach, "detach", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.BoolVar(&output, "output", false, "")
+	flags.StringVar(&checkIndexStr, "check-index", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -119,7 +136,7 @@ func (c *RunCommand) Run(args []string) int {
 	}
 
 	if output {
-		req := api.RegisterJobRequest{apiJob}
+		req := api.RegisterJobRequest{Job: apiJob}
 		buf, err := json.MarshalIndent(req, "", "    ")
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error converting job: %s", err))
@@ -142,9 +159,32 @@ func (c *RunCommand) Run(args []string) int {
 		client.SetRegion(r)
 	}
 
-	// Submit the job
-	evalID, _, err := client.Jobs().Register(apiJob, nil)
+	// Parse the check-index
+	checkIndex, enforce, err := parseCheckIndex(checkIndexStr)
 	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error parsing check-index value %q: %v", checkIndexStr, err))
+		return 1
+	}
+
+	// Submit the job
+	var evalID string
+	if enforce {
+		evalID, _, err = client.Jobs().EnforceRegister(apiJob, checkIndex, nil)
+	} else {
+		evalID, _, err = client.Jobs().Register(apiJob, nil)
+	}
+	if err != nil {
+		if strings.Contains(err.Error(), api.RegisterEnforceIndexErrPrefix) {
+			// Format the error specially if the error is due to index
+			// enforcement
+			matches := enforceIndexRegex.FindStringSubmatch(err.Error())
+			if len(matches) == 2 {
+				c.Ui.Error(matches[1]) // The matched group
+				c.Ui.Error("Job not updated")
+				return 1
+			}
+		}
+
 		c.Ui.Error(fmt.Sprintf("Error submitting job: %s", err))
 		return 1
 	}
@@ -165,6 +205,17 @@ func (c *RunCommand) Run(args []string) int {
 	mon := newMonitor(c.Ui, client, length)
 	return mon.monitor(evalID, false)
 
+}
+
+// parseCheckIndex parses the check-index flag and returns the index, whether it
+// was set and potentially an error during parsing.
+func parseCheckIndex(input string) (uint64, bool, error) {
+	if input == "" {
+		return 0, false, nil
+	}
+
+	u, err := strconv.ParseUint(input, 10, 64)
+	return u, true, err
 }
 
 // convertStructJob is used to take a *structs.Job and convert it to an *api.Job.
