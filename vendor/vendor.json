@@ -461,8 +461,10 @@
 			"revision": "d30f09973e19c1dfcd120b2d9c4f168e68d6b5d5"
 		},
 		{
+			"checksumSHA1": "FK7oNTTXthoohAwDgVo/nmf1w9A=",
 			"path": "github.com/hashicorp/go-plugin",
-			"revision": "cccb4a1328abbb89898f3ecf4311a05bddc4de6d"
+			"revision": "6691772c4e872547b2e6cfc54c853a6d61bc0edb",
+			"revisionTime": "2016-06-02T23:01:53Z"
 		},
 		{
 			"path": "github.com/hashicorp/go-syslog",
