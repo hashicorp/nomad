@@ -90,7 +90,7 @@ func TestConsulServiceUpdateService(t *testing.T) {
 
 	//Update Service defn 1
 	newTags := []string{"tag3"}
-	task.Services[0].Tags = newTags
+	task.ConsulServices[0].Tags = newTags
 	if err := cs.SyncServices(); err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -147,8 +147,8 @@ func checksPresent(t *testing.T, checkIDs []string, syncer *Syncer) error {
 
 func mockTask() *structs.Task {
 	task := structs.Task{
-		Name:     "foo",
-		Services: []*structs.ConsulService{&service1, &service2},
+		Name:           "foo",
+		ConsulServices: []*structs.ConsulService{&service1, &service2},
 		Resources: &structs.Resources{
 			Networks: []*structs.NetworkResource{
 				&structs.NetworkResource{

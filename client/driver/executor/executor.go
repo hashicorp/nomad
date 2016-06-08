@@ -359,7 +359,7 @@ func (e *UniversalExecutor) UpdateTask(task *structs.Task) error {
 
 	// Re-syncing task with Consul agent
 	if e.consulSyncer != nil {
-		e.consulSyncer.SetServices(servicesGroupName, task.Services)
+		e.consulSyncer.SetServices(servicesGroupName, task.ConsulServices)
 	}
 	return nil
 }
@@ -487,7 +487,7 @@ func (e *UniversalExecutor) SyncServices(ctx *ConsulContext) error {
 	if e.ctx != nil {
 		syncerFn := func() error {
 			e.interpolateServices(e.ctx.Task)
-			e.consulSyncer.SetServices(e.ctx.AllocID, e.ctx.Task.Services)
+			e.consulSyncer.SetServices(e.ctx.AllocID, e.ctx.Task.ConsulServices)
 			return nil
 		}
 		e.consulSyncer.AddPeriodicHandler(e.ctx.AllocID, syncerFn)
@@ -690,7 +690,7 @@ func (e *UniversalExecutor) createCheck(check *structs.ServiceCheck, checkID str
 // task's environment.
 func (e *UniversalExecutor) interpolateServices(task *structs.Task) {
 	e.ctx.TaskEnv.Build()
-	for _, service := range task.Services {
+	for _, service := range task.ConsulServices {
 		for _, check := range service.Checks {
 			if check.Type == structs.ServiceCheckScript {
 				check.Name = e.ctx.TaskEnv.ReplaceEnv(check.Name)

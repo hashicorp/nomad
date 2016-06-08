@@ -386,7 +386,7 @@ func (t *Task) Diff(other *Task, contextual bool) (*TaskDiff, error) {
 	}
 
 	// Services diff
-	if sDiffs := serviceDiffs(t.Services, other.Services, contextual); sDiffs != nil {
+	if sDiffs := serviceDiffs(t.ConsulServices, other.ConsulServices, contextual); sDiffs != nil {
 		diff.Objects = append(diff.Objects, sDiffs...)
 	}
 

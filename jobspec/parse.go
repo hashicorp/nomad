@@ -701,7 +701,7 @@ func parseArtifactOption(result map[string]string, list *ast.ObjectList) error {
 }
 
 func parseServices(jobName string, taskGroupName string, task *structs.Task, serviceObjs *ast.ObjectList) error {
-	task.Services = make([]*structs.ConsulService, len(serviceObjs.Items))
+	task.ConsulServices = make([]*structs.ConsulService, len(serviceObjs.Items))
 	var defaultServiceName bool
 	for idx, o := range serviceObjs.Items {
 		// Check for invalid keys
@@ -750,7 +750,7 @@ func parseServices(jobName string, taskGroupName string, task *structs.Task, ser
 			}
 		}
 
-		task.Services[idx] = &service
+		task.ConsulServices[idx] = &service
 	}
 
 	return nil

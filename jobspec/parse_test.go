@@ -97,7 +97,7 @@ func TestParse(t *testing.T) {
 										},
 									},
 								},
-								Services: []*structs.ConsulService{
+								ConsulServices: []*structs.ConsulService{
 									{
 										Name:      "binstore-storagelocker-binsl-binstore",
 										Tags:      []string{"foo", "bar"},

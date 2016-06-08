@@ -1299,7 +1299,7 @@ func (c *Client) setupConsulSyncer() error {
 			for taskName, taskState := range taskStates {
 				if taskState.State == structs.TaskStateRunning {
 					if tr, ok := ar.tasks[taskName]; ok {
-						for _, service := range tr.task.Services {
+						for _, service := range tr.task.ConsulServices {
 							svcIdentifier := fmt.Sprintf("%s-%s", allocId, tr.task.Name)
 							services[service.ID(svcIdentifier)] = struct{}{}
 						}

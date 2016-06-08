@@ -1688,7 +1688,7 @@ type Task struct {
 	Env map[string]string
 
 	// List of service definitions exposed by the Task
-	Services []*ConsulService
+	ConsulServices []*ConsulService
 
 	// Constraints can be specified at a task level and apply only to
 	// the particular task.
@@ -1721,12 +1721,12 @@ func (t *Task) Copy() *Task {
 	*nt = *t
 	nt.Env = CopyMapStringString(nt.Env)
 
-	if t.Services != nil {
-		services := make([]*ConsulService, len(nt.Services))
-		for i, s := range nt.Services {
+	if t.ConsulServices != nil {
+		services := make([]*ConsulService, len(nt.ConsulServices))
+		for i, s := range nt.ConsulServices {
 			services[i] = s.Copy()
 		}
-		nt.Services = services
+		nt.ConsulServices = services
 	}
 
 	nt.Constraints = CopySliceConstraints(nt.Constraints)
@@ -1763,7 +1763,7 @@ func (t *Task) InitFields(job *Job, tg *TaskGroup) {
 // and Tasks in all the service Names of a Task. This also generates the service
 // id, check id and check names.
 func (t *Task) InitServiceFields(job string, taskGroup string) {
-	for _, service := range t.Services {
+	for _, service := range t.ConsulServices {
 		service.InitFields(job, taskGroup, t.Name)
 	}
 }
@@ -1860,7 +1860,7 @@ func validateServices(t *Task) error {
 	// unique.
 	servicePorts := make(map[string][]string)
 	knownServices := make(map[string]struct{})
-	for i, service := range t.Services {
+	for i, service := range t.ConsulServices {
 		if err := service.Validate(); err != nil {
 			outer := fmt.Errorf("service %d validation failed: %s", i, err)
 			mErr.Errors = append(mErr.Errors, outer)
@@ -2448,7 +2448,7 @@ func (a *Allocation) PopulateServiceIDs(tg *TaskGroup) {
 	a.Services = make(map[string]string)
 
 	for _, task := range tg.Tasks {
-		for _, service := range task.Services {
+		for _, service := range task.ConsulServices {
 			// Retain the service if an ID is already generated
 			if id, ok := previous[service.Name]; ok {
 				a.Services[service.Name] = id

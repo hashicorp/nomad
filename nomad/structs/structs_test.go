@@ -136,7 +136,7 @@ func testJob() *Job {
 								GetterSource: "http://foo.com",
 							},
 						},
-						Services: []*ConsulService{
+						ConsulServices: []*ConsulService{
 							{
 								Name:      "${TASK}-frontend",
 								PortLabel: "http",
@@ -311,7 +311,7 @@ func TestTask_Validate_Services(t *testing.T) {
 			MemoryMB: 100,
 			IOPS:     10,
 		},
-		Services: []*ConsulService{s1, s2},
+		ConsulServices: []*ConsulService{s1, s2},
 	}
 	err := task.Validate()
 	if err == nil {
@@ -722,7 +722,7 @@ func TestJob_ExpandServiceNames(t *testing.T) {
 				Tasks: []*Task{
 					{
 						Name: "frontend",
-						Services: []*ConsulService{
+						ConsulServices: []*ConsulService{
 							{
 								Name: "${BASE}-default",
 							},
@@ -746,12 +746,12 @@ func TestJob_ExpandServiceNames(t *testing.T) {
 
 	j.InitFields()
 
-	service1Name := j.TaskGroups[0].Tasks[0].Services[0].Name
+	service1Name := j.TaskGroups[0].Tasks[0].ConsulServices[0].Name
 	if service1Name != "my-job-web-frontend-default" {
 		t.Fatalf("Expected Service Name: %s, Actual: %s", "my-job-web-frontend-default", service1Name)
 	}
 
-	service2Name := j.TaskGroups[0].Tasks[0].Services[1].Name
+	service2Name := j.TaskGroups[0].Tasks[0].ConsulServices[1].Name
 	if service2Name != "jmx" {
 		t.Fatalf("Expected Service Name: %s, Actual: %s", "jmx", service2Name)
 	}

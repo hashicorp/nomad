@@ -691,10 +691,10 @@ func TestInplaceUpdate_Success(t *testing.T) {
 	}
 
 	// Delete service 2
-	tg.Tasks[0].Services = tg.Tasks[0].Services[:1]
+	tg.Tasks[0].ConsulServices = tg.Tasks[0].ConsulServices[:1]
 
 	// Add the new services
-	tg.Tasks[0].Services = append(tg.Tasks[0].Services, newServices...)
+	tg.Tasks[0].ConsulServices = append(tg.Tasks[0].ConsulServices, newServices...)
 
 	updates := []allocTuple{{Alloc: alloc, TaskGroup: tg}}
 	stack := NewGenericStack(false, ctx)
