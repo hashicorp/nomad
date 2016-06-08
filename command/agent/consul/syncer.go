@@ -427,7 +427,7 @@ func (c *Syncer) Run() {
 			c.Shutdown()
 		case <-c.notifyShutdownCh:
 			sync.Stop()
-			c.logger.Printf("[INFO] consul.sync: shutting down sync for %q", c.serviceRegPrefix)
+			c.logger.Printf("[INFO] consul.syncer: shutting down sync for %q", c.serviceRegPrefix)
 			return
 		}
 	}
@@ -503,7 +503,7 @@ func (c *Syncer) consulPresent() bool {
 func (c *Syncer) runCheck(check Check) {
 	res := check.Run()
 	if res.Duration >= check.Timeout() {
-		c.logger.Printf("[DEBUG] consul.sync: check took time: %v, timeout: %v", res.Duration, check.Timeout())
+		c.logger.Printf("[DEBUG] consul.syncer: check took time: %v, timeout: %v", res.Duration, check.Timeout())
 	}
 	state := consul.HealthCritical
 	output := res.Output
@@ -521,7 +521,7 @@ func (c *Syncer) runCheck(check Check) {
 	}
 	if err := c.client.Agent().UpdateTTL(check.ID(), output, state); err != nil {
 		if c.runChecks {
-			c.logger.Printf("[DEBUG] consul.sync: check %q failed, disabling Consul checks until until next successful sync: %v", check.ID(), err)
+			c.logger.Printf("[DEBUG] consul.syncer: check %q failed, disabling Consul checks until until next successful sync: %v", check.ID(), err)
 			c.runChecks = false
 		} else {
 			c.runChecks = true
@@ -541,7 +541,7 @@ func (c *Syncer) AddPeriodicHandler(name string, fn types.PeriodicCallback) bool
 	c.periodicLock.Lock()
 	defer c.periodicLock.Unlock()
 	if _, found := c.periodicCallbacks[name]; found {
-		c.logger.Printf("[ERROR] consul.sync: failed adding handler %q", name)
+		c.logger.Printf("[ERROR] consul.syncer: failed adding handler %q", name)
 		return false
 	}
 	c.periodicCallbacks[name] = fn
