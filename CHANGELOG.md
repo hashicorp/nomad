@@ -28,6 +28,7 @@ BUG FIXES:
   * core: Fix blocked evaluations being run without properly accounting for
     priority [GH-1183]
   * api: Tasks are no longer allowed to have slashes in their name [GH-1210]
+  * client: Delete temp files used to communicate with execcutor [GH-1241]
   * discovery: Ensure service and check names are unique [GH-1143, GH-1144]
 
 ## 0.3.2 (April 22, 2016)
