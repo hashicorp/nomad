@@ -264,10 +264,6 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 				ClientStatus:  structs.AllocClientStatusPending,
 			}
 
-			// Generate service IDs tasks in this allocation
-			// COMPAT - This is no longer required and would be removed in v0.4
-			alloc.PopulateServiceIDs(missing.TaskGroup)
-
 			s.plan.AppendAlloc(alloc)
 		} else {
 			// Lazy initialize the failed map

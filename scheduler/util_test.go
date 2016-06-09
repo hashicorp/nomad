@@ -664,15 +664,7 @@ func TestInplaceUpdate_Success(t *testing.T) {
 		DesiredStatus: structs.AllocDesiredStatusRun,
 	}
 	alloc.TaskResources = map[string]*structs.Resources{"web": alloc.Resources}
-	alloc.PopulateServiceIDs(job.TaskGroups[0])
 	noErr(t, state.UpsertAllocs(1001, []*structs.Allocation{alloc}))
-
-	webFeSrvID := alloc.Services["web-frontend"]
-	adminSrvID := alloc.Services["web-admin"]
-
-	if webFeSrvID == "" || adminSrvID == "" {
-		t.Fatal("Service ID needs to be generated for service")
-	}
 
 	// Create a new task group that updates the resources.
 	tg := &structs.TaskGroup{}
@@ -716,20 +708,35 @@ func TestInplaceUpdate_Success(t *testing.T) {
 	}
 
 	// Get the alloc we inserted.
-	a := ctx.plan.NodeAllocation[alloc.NodeID][0]
-	if len(a.Services) != 3 {
-		t.Fatalf("Expected number of services: %v, Actual: %v", 3, len(a.Services))
+	a := inplace[0].Alloc // TODO(sean@): Verify this is correct vs: ctx.plan.NodeAllocation[alloc.NodeID][0]
+	if a.Job == nil {
+		t.Fatalf("bad")
 	}
 
-	// Test that the service id for the old service is still the same
-	if a.Services["web-frontend"] != webFeSrvID {
-		t.Fatalf("Expected service ID: %v, Actual: %v", webFeSrvID, a.Services["web-frontend"])
+	if len(a.Job.TaskGroups) != 1 {
+		t.Fatalf("bad")
 	}
 
-	// Test that the map doesn't contain the service ID of the admin Service
-	// anymore
-	if _, ok := a.Services["web-admin"]; ok {
-		t.Fatal("Service shouldn't be present")
+	if len(a.Job.TaskGroups[0].Tasks) != 1 {
+		t.Fatalf("bad")
+	}
+
+	if len(a.Job.TaskGroups[0].Tasks[0].ConsulServices) != 3 {
+		t.Fatalf("Expected number of services: %v, Actual: %v", 3, len(a.Job.TaskGroups[0].Tasks[0].ConsulServices))
+	}
+
+	serviceNames := make(map[string]struct{}, 3)
+	for _, consulService := range a.Job.TaskGroups[0].Tasks[0].ConsulServices {
+		serviceNames[consulService.Name] = struct{}{}
+	}
+	if len(serviceNames) != 3 {
+		t.Fatalf("bad")
+	}
+
+	for _, name := range []string{"dummy-service", "dummy-service2", "web-frontend"} {
+		if _, found := serviceNames[name]; !found {
+			t.Errorf("Expected consul service name missing: %v", name)
+		}
 	}
 }
 

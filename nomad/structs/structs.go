@@ -2311,9 +2311,6 @@ type Allocation struct {
 	// task. These should sum to the total Resources.
 	TaskResources map[string]*Resources
 
-	// Services is a map of service names to service ids
-	Services map[string]string
-
 	// Metrics associated with this allocation
 	Metrics *AllocMetric
 
@@ -2361,14 +2358,6 @@ func (a *Allocation) Copy() *Allocation {
 			tr[task] = resource.Copy()
 		}
 		na.TaskResources = tr
-	}
-
-	if a.Services != nil {
-		s := make(map[string]string, len(na.Services))
-		for service, id := range na.Services {
-			s[service] = id
-		}
-		na.Services = s
 	}
 
 	na.Metrics = na.Metrics.Copy()
@@ -2436,31 +2425,6 @@ func (a *Allocation) Stub() *AllocListStub {
 		CreateIndex:        a.CreateIndex,
 		ModifyIndex:        a.ModifyIndex,
 		CreateTime:         a.CreateTime,
-	}
-}
-
-// PopulateServiceIDs generates the service IDs for all the service definitions
-// in that Allocation
-func (a *Allocation) PopulateServiceIDs(tg *TaskGroup) {
-	// Retain the old services, and re-initialize. We may be removing
-	// services, so we cannot update the existing map.
-	previous := a.Services
-	a.Services = make(map[string]string)
-
-	for _, task := range tg.Tasks {
-		for _, service := range task.ConsulServices {
-			// Retain the service if an ID is already generated
-			if id, ok := previous[service.Name]; ok {
-				a.Services[service.Name] = id
-				continue
-			}
-
-			// If the service hasn't been generated an ID, we generate one.
-			// We add a prefix to the Service ID so that we can know that this service
-			// is managed by Nomad since Consul can also have service which are not
-			// managed by Nomad
-			a.Services[service.Name] = fmt.Sprintf("%s-%s", NomadConsulPrefix, GenerateUUID())
-		}
 	}
 }
 
