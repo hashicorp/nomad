@@ -2486,6 +2486,12 @@ func TestTaskDiff(t *testing.T) {
 								Old:  "foo",
 								New:  "bar",
 							},
+							{
+								Type: DiffTypeNone,
+								Name: "ServiceID",
+								Old:  "",
+								New:  "",
+							},
 						},
 					},
 				},
@@ -2821,7 +2827,7 @@ func TestTaskDiff(t *testing.T) {
 		}
 
 		if !reflect.DeepEqual(actual, c.Expected) {
-			t.Fatalf("case %d: got:\n%#v\n want:\n%#v\n",
+			t.Errorf("case %d: got:\n%#v\n want:\n%#v\n",
 				i+1, actual, c.Expected)
 		}
 	}

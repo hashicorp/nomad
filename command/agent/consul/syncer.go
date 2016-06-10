@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/go-multierror"
 
+	cconfig "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/nomad/types"
@@ -108,31 +109,31 @@ type Syncer struct {
 }
 
 // NewSyncer returns a new consul.Syncer
-func NewSyncer(config *config.ConsulConfig, shutdownCh chan struct{}, logger *log.Logger) (*Syncer, error) {
+func NewSyncer(consulConfig *config.ConsulConfig, shutdownCh chan struct{}, logger *log.Logger) (*Syncer, error) {
 	var err error
 	var c *consul.Client
 
 	cfg := consul.DefaultConfig()
 
 	// If a nil config was provided, fall back to the default config
-	if config == nil {
-		config = cfg
+	if consulConfig == nil {
+		consulConfig = cconfig.DefaultConfig().ConsulConfig
 	}
 
-	if config.Addr != "" {
-		cfg.Address = config.Addr
+	if consulConfig.Addr != "" {
+		cfg.Address = consulConfig.Addr
 	}
-	if config.Token != "" {
-		cfg.Token = config.Token
+	if consulConfig.Token != "" {
+		cfg.Token = consulConfig.Token
 	}
-	if config.Auth != "" {
+	if consulConfig.Auth != "" {
 		var username, password string
-		if strings.Contains(config.Auth, ":") {
-			split := strings.SplitN(config.Auth, ":", 2)
+		if strings.Contains(consulConfig.Auth, ":") {
+			split := strings.SplitN(consulConfig.Auth, ":", 2)
 			username = split[0]
 			password = split[1]
 		} else {
-			username = config.Auth
+			username = consulConfig.Auth
 		}
 
 		cfg.HttpAuth = &consul.HttpBasicAuth{
@@ -140,14 +141,14 @@ func NewSyncer(config *config.ConsulConfig, shutdownCh chan struct{}, logger *lo
 			Password: password,
 		}
 	}
-	if config.EnableSSL {
+	if consulConfig.EnableSSL {
 		cfg.Scheme = "https"
 		tlsCfg := consul.TLSConfig{
 			Address:            cfg.Address,
-			CAFile:             config.CAFile,
-			CertFile:           config.CertFile,
-			KeyFile:            config.KeyFile,
-			InsecureSkipVerify: !config.VerifySSL,
+			CAFile:             consulConfig.CAFile,
+			CertFile:           consulConfig.CertFile,
+			KeyFile:            consulConfig.KeyFile,
+			InsecureSkipVerify: !consulConfig.VerifySSL,
 		}
 		tlsClientCfg, err := consul.SetupTLSConfig(&tlsCfg)
 		if err != nil {
@@ -157,7 +158,7 @@ func NewSyncer(config *config.ConsulConfig, shutdownCh chan struct{}, logger *lo
 			TLSClientConfig: tlsClientCfg,
 		}
 	}
-	if config.EnableSSL && !config.VerifySSL {
+	if consulConfig.EnableSSL && !consulConfig.VerifySSL {
 		cfg.HttpClient.Transport = &http.Transport{
 			TLSClientConfig: &tls.Config{
 				InsecureSkipVerify: true,

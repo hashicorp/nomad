@@ -208,7 +208,8 @@ func NewExecutor(logger *log.Logger) Executor {
 	shutdownCh := make(chan struct{})
 	cs, err := consul.NewSyncer(nil, shutdownCh, logger)
 	if err != nil {
-		return err
+		logger.Printf("[ERROR] executor: failed to allocate new Consul Syncer: %v", err)
+		return nil
 	}
 
 	exec := &UniversalExecutor{
