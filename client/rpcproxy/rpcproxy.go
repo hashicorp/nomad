@@ -229,7 +229,7 @@ func (p *RPCProxy) AddPrimaryServer(rpcAddr string) *ServerEndpoint {
 	p.serverListLock.Lock()
 	if serverExists := p.primaryServers.serverExistByKey(k); serverExists {
 		p.serverListLock.Unlock()
-		return nil
+		return s
 	}
 	p.primaryServers.L = append(p.primaryServers.L, s)
 	p.serverListLock.Unlock()
@@ -490,7 +490,7 @@ func (p *RPCProxy) RebalanceServers() {
 	// Verify that all servers are present.  Reconcile will save the
 	// final serverList.
 	if p.reconcileServerList(l) {
-		p.logger.Printf("[DEBUG] client.rpcproxy: Rebalanced %d servers, next active server is %s/%v", len(l.L), l.L[0].String(), l)
+		p.logger.Printf("[TRACE] client.rpcproxy: Rebalanced %d servers, next active server is %s", len(l.L), l.L[0].String())
 	} else {
 		// reconcileServerList failed because Nomad removed the
 		// server that was at the front of the list that had
