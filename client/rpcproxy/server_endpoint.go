@@ -50,10 +50,8 @@ func newServer(name string) (*ServerEndpoint, error) {
 		Name: name,
 	}
 
-	var (
-		host, port string
-		err        error
-	)
+	var host, port string
+	var err error
 	host, port, err = net.SplitHostPort(name)
 	if err == nil {
 		s.Host = host
