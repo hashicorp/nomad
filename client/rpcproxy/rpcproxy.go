@@ -88,8 +88,8 @@ type serverList struct {
 type RPCProxy struct {
 	// activatedList manages the list of Nomad Servers that are eligible
 	// to be queried by the Client agent.
-	activatedList atomic.Value
-	listLock      sync.Mutex
+	activatedList     atomic.Value
+	activatedListLock sync.Mutex
 
 	// primaryServers is a list of servers found in the last heartbeat.
 	// primaryServers are periodically reshuffled.  Covered by
@@ -202,8 +202,8 @@ func (p *RPCProxy) SetBackupServers(addrs []string) error {
 	p.backupServers.L = l
 	p.serverListLock.Unlock()
 
-	p.listLock.Lock()
-	defer p.listLock.Unlock()
+	p.activatedListLock.Lock()
+	defer p.activatedListLock.Unlock()
 	for _, s := range l {
 		p.activateEndpoint(s)
 	}
@@ -229,9 +229,9 @@ func (p *RPCProxy) AddPrimaryServer(rpcAddr string) *ServerEndpoint {
 	p.primaryServers.L = append(p.primaryServers.L, s)
 	p.serverListLock.Unlock()
 
-	p.listLock.Lock()
+	p.activatedListLock.Lock()
 	p.activateEndpoint(s)
-	p.listLock.Unlock()
+	p.activatedListLock.Unlock()
 
 	return s
 }
@@ -328,8 +328,8 @@ func (p *RPCProxy) saveServerList(l serverList) {
 // the Nomad Server for this Nomad Agent is in the minority or the Nomad
 // Servers are in the middle of an election.
 func (p *RPCProxy) LeaderAddr() string {
-	p.listLock.Lock()
-	defer p.listLock.Unlock()
+	p.activatedListLock.Lock()
+	defer p.activatedListLock.Unlock()
 	return p.leaderAddr
 }
 
@@ -347,8 +347,8 @@ func (p *RPCProxy) NotifyFailedServer(s *ServerEndpoint) {
 	if len(l.L) > 1 && l.L[0] == s {
 		// Grab a lock, retest, and take the hit of cycling the first
 		// server to the end.
-		p.listLock.Lock()
-		defer p.listLock.Unlock()
+		p.activatedListLock.Lock()
+		defer p.activatedListLock.Unlock()
 		l = p.getServerList()
 
 		if len(l.L) > 1 && l.L[0] == s {
@@ -496,8 +496,8 @@ func (p *RPCProxy) RebalanceServers() {
 // servers are appended to the list and other missing servers are removed
 // from the list.
 func (p *RPCProxy) reconcileServerList(l *serverList) bool {
-	p.listLock.Lock()
-	defer p.listLock.Unlock()
+	p.activatedListLock.Lock()
+	defer p.activatedListLock.Unlock()
 
 	// newServerList is a serverList that has been kept up-to-date with
 	// join and leave events.
@@ -564,8 +564,8 @@ func (p *RPCProxy) RemoveServer(s *ServerEndpoint) {
 	p.serverListLock.Lock()
 	defer p.serverListLock.Unlock()
 
-	p.listLock.Lock()
-	defer p.listLock.Unlock()
+	p.activatedListLock.Lock()
+	defer p.activatedListLock.Unlock()
 	l := p.getServerList()
 
 	k := s.Key()
@@ -596,8 +596,8 @@ func (p *RPCProxy) refreshServerRebalanceTimer() time.Duration {
 // ResetRebalanceTimer resets the rebalance timer.  This method exists for
 // testing and should not be used directly.
 func (p *RPCProxy) ResetRebalanceTimer() {
-	p.listLock.Lock()
-	defer p.listLock.Unlock()
+	p.activatedListLock.Lock()
+	defer p.activatedListLock.Unlock()
 	p.rebalanceTimer.Reset(clientRPCMinReuseDuration)
 }
 
@@ -723,8 +723,8 @@ func (p *RPCProxy) RefreshServerLists(servers []*structs.NodeServerInfo, numNode
 		return nil
 	}
 
-	p.listLock.Lock()
-	defer p.listLock.Unlock()
+	p.activatedListLock.Lock()
+	defer p.activatedListLock.Unlock()
 	newServerCfg := p.getServerList()
 	for k, v := range mergedPrimaryMap {
 		switch v.state {
