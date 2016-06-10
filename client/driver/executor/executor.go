@@ -34,9 +34,6 @@ const (
 	// tree for finding out the pids that the executor and it's child processes
 	// have forked
 	pidScanInterval = 5 * time.Second
-
-	// nanosecondsInSecond is the number of nanoseconds in a second.
-	nanosecondsInSecond float64 = 1000000000.0
 )
 
 var (
@@ -522,12 +519,12 @@ func (e *UniversalExecutor) pidStats() (map[string]*cstructs.ResourceUsage, erro
 
 		cs := &cstructs.CpuStats{}
 		if cpuStats, err := p.Times(); err == nil {
-			cs.SystemMode = pid.cpuStatsSys.Percent(cpuStats.System * nanosecondsInSecond)
-			cs.UserMode = pid.cpuStatsUser.Percent(cpuStats.User * nanosecondsInSecond)
+			cs.SystemMode = pid.cpuStatsSys.Percent(cpuStats.System * time.Second)
+			cs.UserMode = pid.cpuStatsUser.Percent(cpuStats.User * time.Second)
 			cs.Measured = ExecutorBasicMeasuredCpuStats
 
 			// calculate cpu usage percent
-			cs.Percent = pid.cpuStatsTotal.Percent(cpuStats.Total() * nanosecondsInSecond)
+			cs.Percent = pid.cpuStatsTotal.Percent(cpuStats.Total() * time.Second)
 		}
 		stats[strconv.Itoa(pid.pid)] = &cstructs.ResourceUsage{MemoryStats: ms, CpuStats: cs}
 	}
