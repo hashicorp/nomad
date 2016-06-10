@@ -1,5 +1,5 @@
 // Package rpcproxy provides a proxy interface to Nomad Servers.  The
-// RpcProxy periodically shuffles which server a Nomad Client communicates
+// RPCProxy periodically shuffles which server a Nomad Client communicates
 // with in order to redistribute load across Nomad Servers.  Nomad Servers
 // that fail an RPC request are automatically cycled to the end of the list
 // until the server list is reshuffled.
@@ -83,7 +83,9 @@ type serverList struct {
 	L []*ServerEndpoint
 }
 
-type RpcProxy struct {
+// RPCProxy is the manager type responsible for returning and managing Nomad
+// addresses.
+type RPCProxy struct {
 	// activatedList manages the list of Nomad Servers that are eligible
 	// to be queried by the Client agent.
 	activatedList atomic.Value
@@ -95,7 +97,7 @@ type RpcProxy struct {
 	primaryServers serverList
 
 	// backupServers is a list of fallback servers.  These servers are
-	// appended to the RpcProxy's serverList, but are never shuffled with
+	// appended to the RPCProxy's serverList, but are never shuffled with
 	// the list of servers discovered via the Nomad heartbeat.  Covered
 	// by serverListLock.
 	backupServers serverList
@@ -133,14 +135,15 @@ type RpcProxy struct {
 	notifyFailedBarrier int32
 }
 
-// New is the only way to safely create a new RpcProxy.
-func New(logger *log.Logger, shutdownCh chan struct{}, configInfo NomadConfigInfo, connPoolPinger Pinger) (p *RpcProxy) {
-	p = new(RpcProxy)
-	p.logger = logger
-	p.configInfo = configInfo         // can't pass *nomad.Client: import cycle
-	p.connPoolPinger = connPoolPinger // can't pass *nomad.ConnPool: import cycle
-	p.rebalanceTimer = time.NewTimer(clientRPCMinReuseDuration)
-	p.shutdownCh = shutdownCh
+// NewRPCProxy is the only way to safely create a new RPCProxy.
+func NewRPCProxy(logger *log.Logger, shutdownCh chan struct{}, configInfo NomadConfigInfo, connPoolPinger Pinger) *RPCProxy {
+	p := &RPCProxy{
+		logger:         logger,
+		configInfo:     configInfo,     // can't pass *nomad.Client: import cycle
+		connPoolPinger: connPoolPinger, // can't pass *nomad.ConnPool: import cycle
+		rebalanceTimer: time.NewTimer(clientRPCMinReuseDuration),
+		shutdownCh:     shutdownCh,
+	}
 
 	l := serverList{}
 	l.L = make([]*ServerEndpoint, 0)
@@ -148,10 +151,10 @@ func New(logger *log.Logger, shutdownCh chan struct{}, configInfo NomadConfigInf
 	return p
 }
 
-// activateEndpoint adds an endpoint to the RpcProxy's active serverList.
+// activateEndpoint adds an endpoint to the RPCProxy's active serverList.
 // Returns true if the server was added, returns false if the server already
-// existed in the RpcProxy's serverList.
-func (p *RpcProxy) activateEndpoint(s *ServerEndpoint) bool {
+// existed in the RPCProxy's serverList.
+func (p *RPCProxy) activateEndpoint(s *ServerEndpoint) bool {
 	l := p.getServerList()
 
 	// Check if this server is known
@@ -188,7 +191,7 @@ func (p *RpcProxy) activateEndpoint(s *ServerEndpoint) bool {
 // the Nomad Agent lost contact with the list of Nomad Servers provided via
 // the Nomad Agent's heartbeat.  If available, the backup servers are
 // populated via Consul.
-func (p *RpcProxy) SetBackupServers(addrs []string) error {
+func (p *RPCProxy) SetBackupServers(addrs []string) error {
 	l := make([]*ServerEndpoint, 0, len(addrs))
 	for _, s := range addrs {
 		s, err := newServer(s)
@@ -215,11 +218,11 @@ func (p *RpcProxy) SetBackupServers(addrs []string) error {
 // AddPrimaryServer takes the RPC address of a Nomad server, creates a new
 // endpoint, and adds it to both the primaryServers list and the active
 // serverList used in the RPC Proxy.  If the endpoint is not known by the
-// RpcProxy, appends the endpoint to the list.  The new endpoint will begin
+// RPCProxy, appends the endpoint to the list.  The new endpoint will begin
 // seeing use after the rebalance timer fires (or enough servers fail
 // organically).  Any values in the primary server list are overridden by the
 // next successful heartbeat.
-func (p *RpcProxy) AddPrimaryServer(rpcAddr string) *ServerEndpoint {
+func (p *RPCProxy) AddPrimaryServer(rpcAddr string) *ServerEndpoint {
 	s, err := newServer(rpcAddr)
 	if err != nil {
 		p.logger.Printf("[WARN] client.rpcproxy: unable to create new primary server from endpoint %q: %v", rpcAddr, err)
@@ -298,34 +301,37 @@ func (l *serverList) String() string {
 // the server list.  If the server at the front of the list has failed or
 // fails during an RPC call, it is rotated to the end of the list.  If there
 // are no servers available, return nil.
-func (p *RpcProxy) FindServer() *ServerEndpoint {
+func (p *RPCProxy) FindServer() *ServerEndpoint {
 	l := p.getServerList()
 	numServers := len(l.L)
 	if numServers == 0 {
 		p.logger.Printf("[WARN] client.rpcproxy: No servers available")
 		return nil
-	} else {
-		// Return whatever is at the front of the list because it is
-		// assumed to be the oldest in the server list (unless -
-		// hypothetically - the server list was rotated right after a
-		// server was added).
-		return l.L[0]
 	}
+
+	// Return whatever is at the front of the list because it is
+	// assumed to be the oldest in the server list (unless -
+	// hypothetically - the server list was rotated right after a
+	// server was added).
+	return l.L[0]
 }
 
 // getServerList is a convenience method which hides the locking semantics
 // of atomic.Value from the caller.
-func (p *RpcProxy) getServerList() serverList {
+func (p *RPCProxy) getServerList() serverList {
 	return p.activatedList.Load().(serverList)
 }
 
 // saveServerList is a convenience method which hides the locking semantics
 // of atomic.Value from the caller.
-func (p *RpcProxy) saveServerList(l serverList) {
+func (p *RPCProxy) saveServerList(l serverList) {
 	p.activatedList.Store(l)
 }
 
-func (p *RpcProxy) LeaderAddr() string {
+// LeaderAddr returns the current leader address.  If an empty string, then
+// the Nomad Server for this Nomad Agent is in the minority or the Nomad
+// Servers are in the middle of an election.
+func (p *RPCProxy) LeaderAddr() string {
 	p.listLock.Lock()
 	defer p.listLock.Unlock()
 	return p.leaderAddr
@@ -333,7 +339,7 @@ func (p *RpcProxy) LeaderAddr() string {
 
 // NotifyFailedServer marks the passed in server as "failed" by rotating it
 // to the end of the server list.
-func (p *RpcProxy) NotifyFailedServer(s *ServerEndpoint) {
+func (p *RPCProxy) NotifyFailedServer(s *ServerEndpoint) {
 	l := p.getServerList()
 
 	// If the server being failed is not the first server on the list,
@@ -360,13 +366,15 @@ func (p *RpcProxy) NotifyFailedServer(s *ServerEndpoint) {
 	}
 }
 
-func (p *RpcProxy) NumNodes() int {
+// NumNodes returns the estimated number of nodes according to the last Nomad
+// Heartbeat.
+func (p *RPCProxy) NumNodes() int {
 	return p.numNodes
 }
 
 // NumServers takes out an internal "read lock" and returns the number of
 // servers.  numServers includes both healthy and unhealthy servers.
-func (p *RpcProxy) NumServers() int {
+func (p *RPCProxy) NumServers() int {
 	l := p.getServerList()
 	return len(l.L)
 }
@@ -383,7 +391,7 @@ func (p *RpcProxy) NumServers() int {
 // Unhealthy servers are removed from the server list during the next client
 // heartbeat.  Before the newly shuffled server list is saved, the new remote
 // endpoint is tested to ensure its responsive.
-func (p *RpcProxy) RebalanceServers() {
+func (p *RPCProxy) RebalanceServers() {
 	var serverListLocked bool
 	p.serverListLock.Lock()
 	serverListLocked = true
@@ -495,7 +503,7 @@ func (p *RpcProxy) RebalanceServers() {
 // (i.e. was removed by Nomad during a PingNomadServer() call.  Newly added
 // servers are appended to the list and other missing servers are removed
 // from the list.
-func (p *RpcProxy) reconcileServerList(l *serverList) bool {
+func (p *RPCProxy) reconcileServerList(l *serverList) bool {
 	p.listLock.Lock()
 	defer p.listLock.Unlock()
 
@@ -559,7 +567,7 @@ func (p *RpcProxy) reconcileServerList(l *serverList) bool {
 
 // RemoveServer takes out an internal write lock and removes a server from
 // the activated server list.
-func (p *RpcProxy) RemoveServer(s *ServerEndpoint) {
+func (p *RPCProxy) RemoveServer(s *ServerEndpoint) {
 	// Lock hierarchy protocol dictates serverListLock is acquired first.
 	p.serverListLock.Lock()
 	defer p.serverListLock.Unlock()
@@ -577,7 +585,7 @@ func (p *RpcProxy) RemoveServer(s *ServerEndpoint) {
 }
 
 // refreshServerRebalanceTimer is only called once p.rebalanceTimer expires.
-func (p *RpcProxy) refreshServerRebalanceTimer() time.Duration {
+func (p *RPCProxy) refreshServerRebalanceTimer() time.Duration {
 	l := p.getServerList()
 	numServers := len(l.L)
 	// Limit this connection's life based on the size (and health) of the
@@ -595,14 +603,14 @@ func (p *RpcProxy) refreshServerRebalanceTimer() time.Duration {
 
 // ResetRebalanceTimer resets the rebalance timer.  This method exists for
 // testing and should not be used directly.
-func (p *RpcProxy) ResetRebalanceTimer() {
+func (p *RPCProxy) ResetRebalanceTimer() {
 	p.listLock.Lock()
 	defer p.listLock.Unlock()
 	p.rebalanceTimer.Reset(clientRPCMinReuseDuration)
 }
 
 // ServerRPCAddrs returns one RPC Address per server
-func (p *RpcProxy) ServerRPCAddrs() []string {
+func (p *RPCProxy) ServerRPCAddrs() []string {
 	l := p.getServerList()
 	serverAddrs := make([]string, 0, len(l.L))
 	for _, s := range l.L {
@@ -617,7 +625,7 @@ func (p *RpcProxy) ServerRPCAddrs() []string {
 // automatically cycled to the end of the list.  New servers are appended to
 // the list.  The order of the server list must be shuffled periodically to
 // distribute load across all known and available Nomad servers.
-func (p *RpcProxy) Run() {
+func (p *RPCProxy) Run() {
 	for {
 		select {
 		case <-p.rebalanceTimer.C:
@@ -636,15 +644,15 @@ func (p *RpcProxy) Run() {
 // Nomad Servers that the Nomad Client should use for RPC requests.
 // RefreshServerLists does not rebalance its serverLists (that is handled
 // elsewhere via a periodic timer).  New Nomad Servers learned via the
-// heartbeat are appended to the RpcProxy's activated serverList.  Servers
+// heartbeat are appended to the RPCProxy's activated serverList.  Servers
 // that are no longer present in the Heartbeat are removed immediately from
 // all server lists.  Nomad Servers speaking a newer major or minor API
 // version are filtered from the serverList.
-func (p *RpcProxy) RefreshServerLists(servers []*structs.NodeServerInfo, numNodes int32, leaderRpcAddr string) error {
+func (p *RPCProxy) RefreshServerLists(servers []*structs.NodeServerInfo, numNodes int32, leaderRPCAddr string) error {
 	// Merge all servers found in the response.  Servers in the response
 	// with newer API versions are filtered from the list.  If the list
-	// is missing an address found in the RpcProxy's server list, remove
-	// it from the RpcProxy.
+	// is missing an address found in the RPCProxy's server list, remove
+	// it from the RPCProxy.
 
 	p.serverListLock.Lock()
 	defer p.serverListLock.Unlock()
@@ -678,7 +686,7 @@ func (p *RpcProxy) RefreshServerLists(servers []*structs.NodeServerInfo, numNode
 		// spamming the logs every heartbeat.
 		//
 		// TODO(sean@): Move the logging throttle logic into a
-		// dedicated logging package so RpcProxy does not have to
+		// dedicated logging package so RPCProxy does not have to
 		// perform this accounting.
 		if int32(p.configInfo.RpcMajorVersion()) < s.RpcMajorVersion ||
 			(int32(p.configInfo.RpcMajorVersion()) == s.RpcMajorVersion &&
@@ -755,7 +763,7 @@ func (p *RpcProxy) RefreshServerLists(servers []*structs.NodeServerInfo, numNode
 	}
 
 	p.numNodes = int(numNodes)
-	p.leaderAddr = leaderRpcAddr
+	p.leaderAddr = leaderRPCAddr
 	p.saveServerList(newServerCfg)
 
 	return nil

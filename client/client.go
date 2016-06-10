@@ -101,7 +101,7 @@ type Client struct {
 
 	logger *log.Logger
 
-	rpcProxy *rpcproxy.RpcProxy
+	rpcProxy *rpcproxy.RPCProxy
 
 	connPool *nomad.ConnPool
 
@@ -198,7 +198,7 @@ func NewClient(cfg *config.Config, consulSyncer *consul.Syncer) (*Client, error)
 	// Create the RPC Proxy and bootstrap with the preconfigured list of
 	// static servers
 	c.configLock.RLock()
-	c.rpcProxy = rpcproxy.New(c.logger, c.shutdownCh, c, c.connPool)
+	c.rpcProxy = rpcproxy.NewRPCProxy(c.logger, c.shutdownCh, c, c.connPool)
 	for _, serverAddr := range c.configCopy.Servers {
 		c.rpcProxy.AddPrimaryServer(serverAddr)
 	}
@@ -229,7 +229,7 @@ func NewClient(cfg *config.Config, consulSyncer *consul.Syncer) (*Client, error)
 	// Start collecting stats
 	go c.collectHostStats()
 
-	// Start the RpcProxy maintenance task.  This task periodically
+	// Start the RPCProxy maintenance task.  This task periodically
 	// shuffles the list of Nomad Server Endpoints this Client will use
 	// when communicating with Nomad Servers via RPC.  This is done in
 	// order to prevent server fixation in stable Nomad clusters.  This
@@ -462,9 +462,9 @@ func (c *Client) GetAllocFS(allocID string) (allocdir.AllocDirFS, error) {
 	return ar.ctx.AllocDir, nil
 }
 
-// AddPrimaryServerToRpcProxy adds serverAddr to the RPC Proxy's primary
+// AddPrimaryServerToRPCProxy adds serverAddr to the RPC Proxy's primary
 // server list.
-func (c *Client) AddPrimaryServerToRpcProxy(serverAddr string) *rpcproxy.ServerEndpoint {
+func (c *Client) AddPrimaryServerToRPCProxy(serverAddr string) *rpcproxy.ServerEndpoint {
 	return c.rpcProxy.AddPrimaryServer(serverAddr)
 }
 
@@ -1415,6 +1415,6 @@ func (c *Client) emitStats(hStats *stats.HostStats) {
 	}
 }
 
-func (c *Client) RpcProxy() *rpcproxy.RpcProxy {
+func (c *Client) RPCProxy() *rpcproxy.RPCProxy {
 	return c.rpcProxy
 }
