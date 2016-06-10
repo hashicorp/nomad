@@ -787,7 +787,7 @@ func (e *UniversalExecutor) aggregatedResourceUsage(pidStats map[string]*cstruct
 		UserMode:   userModeCPU,
 		Percent:    percent,
 		Measured:   ExecutorBasicMeasuredCpuStats,
-		Ticks:      totalTicks,
+		TotalTicks: totalTicks,
 	}
 
 	totalMemory := &cstructs.MemoryStats{

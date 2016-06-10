@@ -24,6 +24,7 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/helper/discover"
 	"github.com/hashicorp/nomad/helper/fields"
+	shelpers "github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/mapstructure"
 )
@@ -125,6 +126,7 @@ type DockerHandle struct {
 	imageID           string
 	containerID       string
 	version           string
+	clkSpeed          float64
 	killTimeout       time.Duration
 	maxKillTimeout    time.Duration
 	resourceUsageLock sync.RWMutex
@@ -777,6 +779,9 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 		doneCh:         make(chan bool),
 		waitCh:         make(chan *cstructs.WaitResult, 1),
 	}
+	if clkSpeed, err := shelpers.TotalTicksAvailable(); err == nil {
+		h.clkSpeed = clkSpeed
+	}
 	if err := exec.SyncServices(consulContext(d.config, container.ID)); err != nil {
 		d.logger.Printf("[ERR] driver.docker: error registering services with consul for task: %q: %v", task.Name, err)
 	}
@@ -850,6 +855,9 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 		maxKillTimeout: pid.MaxKillTimeout,
 		doneCh:         make(chan bool),
 		waitCh:         make(chan *cstructs.WaitResult, 1),
+	}
+	if clkSpeed, err := shelpers.TotalTicksAvailable(); err == nil {
+		h.clkSpeed = clkSpeed
 	}
 	if err := exec.SyncServices(consulContext(d.config, pid.ContainerID)); err != nil {
 		h.logger.Printf("[ERR] driver.docker: error registering services with consul: %v", err)
@@ -1014,6 +1022,13 @@ func (h *DockerHandle) collectStats() {
 				cs.UserMode = calculatePercent(
 					s.CPUStats.CPUUsage.UsageInUsermode, s.PreCPUStats.CPUUsage.UsageInUsermode,
 					s.CPUStats.CPUUsage.TotalUsage, s.PreCPUStats.CPUUsage.TotalUsage, cores)
+
+				if h.clkSpeed == 0.0 {
+					if clkSpeed, err := shelpers.TotalTicksAvailable(); err != nil {
+						h.clkSpeed = clkSpeed
+					}
+				}
+				cs.TotalTicks = (cs.Percent / 100) * h.clkSpeed
 
 				h.resourceUsageLock.Lock()
 				h.resourceUsage = &cstructs.TaskResourceUsage{

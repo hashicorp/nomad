@@ -173,7 +173,7 @@ func (e *UniversalExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
 		Percent:          percent,
 		ThrottledPeriods: stats.CpuStats.ThrottlingData.ThrottledPeriods,
 		ThrottledTime:    stats.CpuStats.ThrottlingData.ThrottledTime,
-		Ticks:            e.systemCpuStats.TicksConsumed(percent),
+		TotalTicks:       e.systemCpuStats.TicksConsumed(percent),
 		Measured:         ExecutorCgroupMeasuredCpuStats,
 	}
 	taskResUsage := cstructs.TaskResourceUsage{
