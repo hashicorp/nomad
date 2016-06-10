@@ -28,6 +28,10 @@ const (
 	// initialSyncDelay is the delay before an initial sync.
 	initialSyncDelay = 5 * time.Second
 
+	// nomadServicePrefix is the prefix used when registering a service
+	// with consul
+	nomadServicePrefix = "nomad"
+
 	// The periodic time interval for syncing services and checks with Consul
 	syncInterval = 5 * time.Second
 
@@ -192,12 +196,25 @@ func (c *Syncer) SetServiceRegPrefix(servicePrefix string) *Syncer {
 	return c
 }
 
-// SyncNow expires the current timer forcing the list of periodic callbacks
-// to be synced immediately.
-func (c *Syncer) SyncNow() {
-	select {
-	case c.notifySyncCh <- struct{}{}:
+// filterPrefix generates a unique prefix that a Syncer can later filter on.
+func (c *Syncer) filterPrefix() string {
+	c.registryLock.RLock()
+	defer c.registryLock.RUnlock()
+	return fmt.Sprintf("%s-%s", nomadServicePrefix, c.serviceRegPrefix)
+}
+
+// GenerateServiceID creates a unique Consul ServiceID for a given
+// ConsulService.
+func (c *Syncer) GenerateServiceID(groupName string, service *structs.ConsulService) string {
+	numTags := len(service.Tags)
+	switch numTags {
+	case 0:
+		return fmt.Sprintf("%s-%s:%s", c.filterPrefix(), groupName, service.Name)
+	case 1:
+		return fmt.Sprintf("%s-%s:%s@%s", c.filterPrefix(), groupName, service.Tags[0], service.Name)
 	default:
+		tags := strings.Join(service.Tags, "|")
+		return fmt.Sprintf("%s-%s:(%s)@%s", c.filterPrefix(), groupName, tags, service.Name)
 	}
 }
 
@@ -310,10 +327,6 @@ func (c *Syncer) Shutdown() error {
 	return mErr.ErrorOrNil()
 }
 
-// KeepServices removes services from consul which are not present in the list
-// of tasks passed to it
-func (c *Syncer) KeepServices(services map[string]struct{}) error {
-	var mErr multierror.Error
 
 	// Get the services from Consul
 	cServices, err := c.client.Agent().Services()
@@ -379,7 +392,7 @@ func (c *Syncer) createService(service *structs.ConsulService) (*consul.AgentSer
 	defer c.registryLock.RUnlock()
 
 	srv := consul.AgentServiceRegistration{
-		ID:   service.ID(c.serviceRegPrefix),
+		ID:   service.ServiceID,
 		Name: service.Name,
 		Tags: service.Tags,
 	}
@@ -542,12 +555,6 @@ func (c *Syncer) runCheck(check Check) {
 			c.consulAvailable = true
 		}
 	}
-}
-
-// GenerateServicePrefix returns a service prefix based on an allocation id
-// and task name.
-func GenerateServicePrefix(allocID string, taskName string) string {
-	return fmt.Sprintf("%s-%s", taskName, allocID)
 }
 
 // AddPeriodicHandler adds a uniquely named callback.  Returns true if

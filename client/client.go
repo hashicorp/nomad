@@ -1282,16 +1282,9 @@ func (c *Client) setupConsulSyncer() error {
 	c.consulSyncer.AddPeriodicHandler("Nomad Client Fallback Server Handler", bootstrapFn)
 
 	consulServicesSyncFn := func() error {
-		// Give up pruning services if we can't fingerprint our
-		// Consul Agent.
-		c.configLock.RLock()
-		_, ok := c.configCopy.Node.Attributes["consul.version"]
-		c.configLock.RUnlock()
-		if !ok {
-			return fmt.Errorf("Consul not running")
-		}
-
-		services := make(map[string]struct{})
+		const estInitialConsulServices = 8
+		const serviceGroupName = "executor"
+		services := make([]*structs.ConsulService, 0, estInitialConsulServices)
 		for allocId, ar := range c.getAllocRunners() {
 			ar.taskStatusLock.RLock()
 			taskStates := copyTaskStates(ar.taskStates)
@@ -1300,18 +1293,20 @@ func (c *Client) setupConsulSyncer() error {
 				if taskState.State == structs.TaskStateRunning {
 					if tr, ok := ar.tasks[taskName]; ok {
 						for _, service := range tr.task.ConsulServices {
-							svcIdentifier := fmt.Sprintf("%s-%s", allocId, tr.task.Name)
-							services[service.ID(svcIdentifier)] = struct{}{}
+							if service.Name == "" {
+								service.Name = fmt.Sprintf("%s-%s", tr.task.Name, allocId)
+							}
+							if service.ServiceID == "" {
+								service.ServiceID = fmt.Sprintf("%s-%s:%s/%s", c.consulSyncer.GenerateServiceID(serviceGroupName, service), tr.task.Name, allocId)
+							}
+							services = append(services, service)
 						}
 					}
 				}
 			}
 		}
 
-		if err := c.consulSyncer.KeepServices(services); err != nil {
-			c.logger.Printf("[DEBUG] client: error removing services from non-running tasks: %v", err)
-			return err
-		}
+		c.consulSyncer.SetServices(serviceGroupName, services)
 		return nil
 	}
 	c.consulSyncer.AddPeriodicHandler("Nomad Client Services Sync Handler", consulServicesSyncFn)

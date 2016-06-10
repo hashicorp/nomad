@@ -1544,14 +1544,6 @@ func (sc *ServiceCheck) Hash(serviceID string) string {
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
-const (
-	NomadConsulPrefix = "nomad-registered-service"
-)
-
-var (
-	AgentServicePrefix = fmt.Sprintf("%s-%s", NomadConsulPrefix, "agent")
-)
-
 	Name      string          // Name of the service, defaults to id
 	Tags      []string        // List of tags for the service
 // The ConsulService model represents a Consul service definition in Nomad
@@ -1596,10 +1588,6 @@ func (s *ConsulService) InitFields(job string, taskGroup string, task string) {
 			check.Name = fmt.Sprintf("service: %q check", s.Name)
 		}
 	}
-}
-
-func (s *ConsulService) ID(identifier string) string {
-	return fmt.Sprintf("%s-%s-%s", NomadConsulPrefix, identifier, s.Hash())
 }
 
 // Validate checks if the Check definition is valid

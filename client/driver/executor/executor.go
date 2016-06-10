@@ -35,6 +35,9 @@ const (
 	// tree for finding out the pids that the executor and it's child processes
 	// have forked
 	pidScanInterval = 5 * time.Second
+
+	// serviceRegPrefix is the prefix the entire Executor should use
+	serviceRegPrefix = "executor"
 )
 
 var (
@@ -359,7 +362,8 @@ func (e *UniversalExecutor) UpdateTask(task *structs.Task) error {
 
 	// Re-syncing task with Consul agent
 	if e.consulSyncer != nil {
-		e.consulSyncer.SetServices(servicesGroupName, task.ConsulServices)
+		e.interpolateServices(e.ctx.Task)
+		e.consulSyncer.SetServices(e.ctx.AllocID, task.ConsulServices)
 	}
 	return nil
 }
@@ -480,7 +484,7 @@ func (e *UniversalExecutor) SyncServices(ctx *ConsulContext) error {
 			return err
 		}
 		cs.SetDelegatedChecks(e.createCheckMap(), e.createCheck)
-		cs.SetServiceRegPrefix(consul.GenerateServicePrefix(e.ctx.AllocID, e.ctx.Task.Name))
+		cs.SetServiceRegPrefix(serviceRegPrefix)
 		cs.SetAddrFinder(e.ctx.Task.FindHostAndPortFor)
 		e.consulSyncer = cs
 		go e.consulSyncer.Run()
