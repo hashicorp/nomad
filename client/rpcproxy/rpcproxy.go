@@ -281,7 +281,7 @@ func (l *serverList) shuffleServers() {
 // String returns a string representation of serverList
 func (l *serverList) String() string {
 	if len(l.L) == 0 {
-		return fmt.Sprintf("[empty server list]")
+		return fmt.Sprintf("empty server list")
 	}
 
 	serverStrs := make([]string, 0, len(l.L))
