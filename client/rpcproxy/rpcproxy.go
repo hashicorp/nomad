@@ -193,7 +193,7 @@ func (p *RpcProxy) SetBackupServers(addrs []string) error {
 	for _, s := range addrs {
 		s, err := newServer(s)
 		if err != nil {
-			p.logger.Printf("[WARN] RPC Proxy: unable to create backup server %q: %v", s, err)
+			p.logger.Printf("[WARN] client.rpcproxy: unable to create backup server %q: %v", s, err)
 			return fmt.Errorf("unable to create new backup server from %q: %v", s, err)
 		}
 		l = append(l, s)
@@ -222,7 +222,7 @@ func (p *RpcProxy) SetBackupServers(addrs []string) error {
 func (p *RpcProxy) AddPrimaryServer(rpcAddr string) *ServerEndpoint {
 	s, err := newServer(rpcAddr)
 	if err != nil {
-		p.logger.Printf("[WARN] RPC Proxy: unable to create new primary server from endpoint %q: %v", rpcAddr, err)
+		p.logger.Printf("[WARN] client.rpcproxy: unable to create new primary server from endpoint %q: %v", rpcAddr, err)
 		return nil
 	}
 
@@ -302,7 +302,7 @@ func (p *RpcProxy) FindServer() *ServerEndpoint {
 	l := p.getServerList()
 	numServers := len(l.L)
 	if numServers == 0 {
-		p.logger.Printf("[WARN] RPC Proxy: No servers available")
+		p.logger.Printf("[WARN] client.rpcproxy: No servers available")
 		return nil
 	} else {
 		// Return whatever is at the front of the list because it is
@@ -456,7 +456,7 @@ func (p *RpcProxy) RebalanceServers() {
 			foundHealthyServer = true
 			break
 		}
-		p.logger.Printf(`[DEBUG] RPC Proxy: pinging server "%s" failed: %s`, selectedServer.String(), err)
+		p.logger.Printf(`[DEBUG] client.rpcproxy: pinging server "%s" failed: %s`, selectedServer.String(), err)
 
 		l.cycleServer()
 	}
@@ -466,14 +466,14 @@ func (p *RpcProxy) RebalanceServers() {
 	// updated list of Nomad servers.  Or Consul will begin advertising a
 	// new server in the nomad service (Nomad server service).
 	if !foundHealthyServer {
-		p.logger.Printf("[DEBUG] RPC Proxy: No healthy servers during rebalance, aborting")
+		p.logger.Printf("[DEBUG] client.rpcproxy: No healthy servers during rebalance, aborting")
 		return
 	}
 
 	// Verify that all servers are present.  Reconcile will save the
 	// final serverList.
 	if p.reconcileServerList(l) {
-		p.logger.Printf("[DEBUG] RPC Proxy: Rebalanced %d servers, next active server is %s", len(l.L), l.L[0].String())
+		p.logger.Printf("[DEBUG] client.rpcproxy: Rebalanced %d servers, next active server is %s/%v", len(l.L), l.L[0].String(), l)
 	} else {
 		// reconcileServerList failed because Nomad removed the
 		// server that was at the front of the list that had
@@ -625,7 +625,7 @@ func (p *RpcProxy) Run() {
 
 			p.refreshServerRebalanceTimer()
 		case <-p.shutdownCh:
-			p.logger.Printf("[INFO] RPC Proxy: shutting down")
+			p.logger.Printf("[INFO] client.rpcproxy: shutting down")
 			return
 		}
 	}
@@ -689,14 +689,14 @@ func (p *RpcProxy) RefreshServerLists(servers []*structs.NodeServerInfo, numNode
 				continue
 			}
 
-			p.logger.Printf("[WARN] API mismatch between client version (v%d.%d) and server version (v%d.%d), ignoring server %q", p.configInfo.RpcMajorVersion(), p.configInfo.RpcMinorVersion(), s.RpcMajorVersion, s.RpcMinorVersion, s.RpcAdvertiseAddr)
+			p.logger.Printf("[WARN] client.rpcproxy: API mismatch between client version (v%d.%d) and server version (v%d.%d), ignoring server %q", p.configInfo.RpcMajorVersion(), p.configInfo.RpcMinorVersion(), s.RpcMajorVersion, s.RpcMinorVersion, s.RpcAdvertiseAddr)
 			p.rpcAPIMismatchThrottle[s.RpcAdvertiseAddr] = now.Add(rpcAPIMismatchLogRate)
 			continue
 		}
 
 		server, err := newServer(s.RpcAdvertiseAddr)
 		if err != nil {
-			p.logger.Printf("[WARN] Unable to create a server from %q: %v", s.RpcAdvertiseAddr, err)
+			p.logger.Printf("[WARN] client.rpcproxy: Unable to create a server from %q: %v", s.RpcAdvertiseAddr, err)
 			continue
 		}
 
