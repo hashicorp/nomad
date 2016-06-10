@@ -4,7 +4,7 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/shirou/gopsutil/cpu"
+	shelpers "github.com/hashicorp/nomad/helper/stats"
 )
 
 // CpuStats calculates cpu usage percentage
@@ -23,8 +23,9 @@ func NewCpuStats() *CpuStats {
 		totalCpus: numCpus,
 	}
 
-	// Caluclate the total cpu ticks available across all cores
-	cpuStats.totalTicks()
+	if clkSpeed, err := shelpers.TotalTicksAvailable(); err == nil {
+		cpuStats.clkSpeed = clkSpeed
+	}
 	return cpuStats
 }
 
@@ -52,7 +53,9 @@ func (c *CpuStats) Percent(cpuTime float64) float64 {
 // cpu cores
 func (c *CpuStats) TicksConsumed(percent float64) float64 {
 	if c.clkSpeed == 0.0 {
-		c.totalTicks()
+		if clkSpeed, err := shelpers.TotalTicksAvailable(); err == nil {
+			c.clkSpeed = clkSpeed
+		}
 	}
 	return (percent / 100) * c.clkSpeed
 }
@@ -65,15 +68,4 @@ func (c *CpuStats) calculatePercent(t1, t2 float64, timeDelta int64) float64 {
 
 	overall_percent := (vDelta / float64(timeDelta)) * 100.0
 	return overall_percent
-}
-
-// totalTicks calculates the total frequency available across all cores
-func (c *CpuStats) totalTicks() {
-	var clkSpeed float64
-	if cpuInfo, err := cpu.Info(); err == nil {
-		for _, cpu := range cpuInfo {
-			clkSpeed += cpu.Mhz
-		}
-	}
-	c.clkSpeed = clkSpeed
 }
