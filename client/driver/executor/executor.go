@@ -741,7 +741,12 @@ func (e *UniversalExecutor) scanPids(parentPid int, allPids []ps.Process) ([]*no
 	}
 	res := make([]*nomadPid, 0, len(processFamily))
 	for pid := range processFamily {
-		res = append(res, &nomadPid{pid, stats.NewCpuStats(), stats.NewCpuStats(), stats.NewCpuStats()})
+		res = append(res, &nomadPid{
+			pid:           pid,
+			cpuStatsTotal: stats.NewCpuStats(),
+			cpuStatsUser:  stats.NewCpuStats(),
+			cpuStatsSys:   stats.NewCpuStats(),
+		})
 	}
 	return res, nil
 }
