@@ -519,12 +519,12 @@ func (e *UniversalExecutor) pidStats() (map[string]*cstructs.ResourceUsage, erro
 
 		cs := &cstructs.CpuStats{}
 		if cpuStats, err := p.Times(); err == nil {
-			cs.SystemMode = pid.cpuStatsSys.Percent(cpuStats.System * time.Second)
-			cs.UserMode = pid.cpuStatsUser.Percent(cpuStats.User * time.Second)
+			cs.SystemMode = pid.cpuStatsSys.Percent(cpuStats.System * float64(time.Second))
+			cs.UserMode = pid.cpuStatsUser.Percent(cpuStats.User * float64(time.Second))
 			cs.Measured = ExecutorBasicMeasuredCpuStats
 
 			// calculate cpu usage percent
-			cs.Percent = pid.cpuStatsTotal.Percent(cpuStats.Total() * time.Second)
+			cs.Percent = pid.cpuStatsTotal.Percent(cpuStats.Total() * float64(time.Second))
 		}
 		stats[strconv.Itoa(pid.pid)] = &cstructs.ResourceUsage{MemoryStats: ms, CpuStats: cs}
 	}
