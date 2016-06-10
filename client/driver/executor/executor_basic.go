@@ -43,7 +43,7 @@ func (e *UniversalExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
 	return e.aggregatedResourceUsage(pidStats), nil
 }
 
-func (e *UniversalExecutor) getAllPids() ([]*nomadPid, error) {
+func (e *UniversalExecutor) getAllPids() (map[int]*nomadPid, error) {
 	allProcesses, err := ps.Processes()
 	if err != nil {
 		return nil, err

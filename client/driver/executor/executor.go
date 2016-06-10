@@ -713,9 +713,17 @@ func (e *UniversalExecutor) collectPids() {
 				e.logger.Printf("[DEBUG] executor: error collecting pids: %v", err)
 			}
 			e.pidLock.Lock()
-			for _, pid := range pids {
-				if _, ok := e.pids[pid.pid]; !ok {
-					e.pids[pid.pid] = pid
+
+			// Adding pids which are not being tracked
+			for pid, np := range pids {
+				if _, ok := e.pids[pid]; !ok {
+					e.pids[pid] = np
+				}
+			}
+			// Removing pids which are no longer present
+			for pid := range e.pids {
+				if _, ok := pids[pid]; !ok {
+					delete(e.pids, pid)
 				}
 			}
 			e.pidLock.Unlock()
@@ -728,7 +736,7 @@ func (e *UniversalExecutor) collectPids() {
 
 // scanPids scans all the pids on the machine running the current executor and
 // returns the child processes of the executor.
-func (e *UniversalExecutor) scanPids(parentPid int, allPids []ps.Process) ([]*nomadPid, error) {
+func (e *UniversalExecutor) scanPids(parentPid int, allPids []ps.Process) (map[int]*nomadPid, error) {
 	processFamily := make(map[int]struct{})
 	processFamily[parentPid] = struct{}{}
 
@@ -758,7 +766,7 @@ func (e *UniversalExecutor) scanPids(parentPid int, allPids []ps.Process) ([]*no
 			break
 		}
 	}
-	res := make([]*nomadPid, 0, len(processFamily))
+	res := make(map[int]*nomadPid)
 	for pid := range processFamily {
 		np := nomadPid{
 			pid:           pid,
@@ -766,7 +774,7 @@ func (e *UniversalExecutor) scanPids(parentPid int, allPids []ps.Process) ([]*no
 			cpuStatsUser:  stats.NewCpuStats(),
 			cpuStatsSys:   stats.NewCpuStats(),
 		}
-		res = append(res, &np)
+		res[pid] = &np
 	}
 	return res, nil
 }

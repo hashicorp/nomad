@@ -263,16 +263,16 @@ func (e *UniversalExecutor) removeChrootMounts() error {
 // use the libcontainer apis to get the pids when the user is using cgroup
 // isolation and we scan the entire process table if the user is not using any
 // isolation
-func (e *UniversalExecutor) getAllPids() ([]*nomadPid, error) {
+func (e *UniversalExecutor) getAllPids() (map[int]*nomadPid, error) {
 	if e.command.ResourceLimits {
 		manager := getCgroupManager(e.groups, e.cgPaths)
 		pids, err := manager.GetAllPids()
 		if err != nil {
 			return nil, err
 		}
-		np := make([]*nomadPid, len(pids))
-		for idx, pid := range pids {
-			np[idx] = &nomadPid{
+		np := make(map[int]*nomadPid, len(pids))
+		for _, pid := range pids {
+			np[pid] = &nomadPid{
 				pid:           pid,
 				cpuStatsTotal: stats.NewCpuStats(),
 				cpuStatsSys:   stats.NewCpuStats(),
