@@ -319,9 +319,14 @@ func (c *Syncer) Shutdown() error {
 		cr.Stop()
 	}
 
-	// De-register all the services from consul
-	for _, service := range c.trackedServices {
+	// De-register all the services from Consul
+	services, err := c.queryAgentServices()
+	if err != nil {
+		mErr.Errors = append(mErr.Errors, err)
+	}
+	for _, service := range services {
 		if err := c.client.Agent().ServiceDeregister(service.ID); err != nil {
+			c.logger.Printf("[WARN] consul.syncer: failed to deregister service ID %q: %v", service.ID, err)
 			mErr.Errors = append(mErr.Errors, err)
 		}
 	}
@@ -807,7 +812,7 @@ func (c *Syncer) filterConsulChecks(consulChecks map[string]*consul.AgentCheck) 
 	return localChecks
 }
 
-// consulPresent indicates whether the consul agent is responding
+// consulPresent indicates whether the Consul Agent is responding
 func (c *Syncer) consulPresent() bool {
 	_, err := c.client.Agent().Self()
 	return err == nil
