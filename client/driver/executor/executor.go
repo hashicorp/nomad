@@ -36,6 +36,12 @@ const (
 	pidScanInterval = 5 * time.Second
 )
 
+var (
+	// The statistics the basic executor exposes
+	ExecutorBasicMeasuredMemStats = []string{"RSS", "Swap"}
+	ExecutorBasicMeasuredCpuStats = []string{"SystemMode", "UserMode", "Percent"}
+)
+
 // Executor is the interface which allows a driver to launch and supervise
 // a process
 type Executor interface {
@@ -502,12 +508,14 @@ func (e *UniversalExecutor) pidStats() (map[string]*cstructs.ResourceUsage, erro
 		if memInfo, err := p.MemoryInfo(); err == nil {
 			ms.RSS = memInfo.RSS
 			ms.Swap = memInfo.Swap
+			ms.Measured = ExecutorBasicMeasuredMemStats
 		}
 
 		cs := &cstructs.CpuStats{}
 		if cpuStats, err := p.Times(); err == nil {
 			cs.SystemMode = cpuStats.System
 			cs.UserMode = cpuStats.User
+			cs.Measured = ExecutorBasicMeasuredCpuStats
 
 			// calculate cpu usage percent
 			cs.Percent = pid.cpuStats.Percent(cpuStats.Total())
@@ -766,11 +774,13 @@ func (e *UniversalExecutor) aggregatedResourceUsage(pidStats map[string]*cstruct
 		SystemMode: systemModeCPU,
 		UserMode:   userModeCPU,
 		Percent:    percent,
+		Measured:   ExecutorBasicMeasuredMemStats,
 	}
 
 	totalMemory := &cstructs.MemoryStats{
-		RSS:  totalRSS,
-		Swap: totalSwap,
+		RSS:      totalRSS,
+		Swap:     totalSwap,
+		Measured: ExecutorBasicMeasuredCpuStats,
 	}
 
 	resourceUsage := cstructs.ResourceUsage{

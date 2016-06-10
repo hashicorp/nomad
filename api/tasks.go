@@ -12,6 +12,7 @@ type MemoryStats struct {
 	MaxUsage       uint64
 	KernelUsage    uint64
 	KernelMaxUsage uint64
+	Measured       []string
 }
 
 // CpuStats holds cpu usage related stats
@@ -21,6 +22,7 @@ type CpuStats struct {
 	ThrottledPeriods uint64
 	ThrottledTime    uint64
 	Percent          float64
+	Measured         []string
 }
 
 // ResourceUsage holds information related to cpu and memory stats
