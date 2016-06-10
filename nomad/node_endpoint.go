@@ -105,7 +105,7 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 
 	n.srv.peerLock.RLock()
 	defer n.srv.peerLock.RUnlock()
-	if err := n.updateNodeUpdateResponse(nil, reply); err != nil {
+	if err := n.constructNodeServerInfoResponse(nil, reply); err != nil {
 		n.srv.logger.Printf("[ERR] nomad.client: failed to populate NodeUpdateResponse: %v", err)
 		return err
 	}
@@ -114,7 +114,7 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 }
 
 // updateNodeUpdateResponse assumes the n.srv.peerLock is held for reading.
-func (n *Node) updateNodeUpdateResponse(snap *state.StateSnapshot, reply *structs.NodeUpdateResponse) error {
+func (n *Node) constructNodeServerInfoResponse(snap *state.StateSnapshot, reply *structs.NodeUpdateResponse) error {
 	reply.LeaderRPCAddr = n.srv.raft.Leader()
 
 	// Reply with config information required for future RPC requests
@@ -256,7 +256,7 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 	reply.Index = index
 	n.srv.peerLock.RLock()
 	defer n.srv.peerLock.RUnlock()
-	if err := n.updateNodeUpdateResponse(snap, reply); err != nil {
+	if err := n.constructNodeServerInfoResponse(snap, reply); err != nil {
 		n.srv.logger.Printf("[ERR] nomad.client: failed to populate NodeUpdateResponse: %v", err)
 		return err
 	}
@@ -355,7 +355,7 @@ func (n *Node) Evaluate(args *structs.NodeEvaluateRequest, reply *structs.NodeUp
 
 	n.srv.peerLock.RLock()
 	defer n.srv.peerLock.RUnlock()
-	if err := n.updateNodeUpdateResponse(snap, reply); err != nil {
+	if err := n.constructNodeServerInfoResponse(snap, reply); err != nil {
 		n.srv.logger.Printf("[ERR] nomad.client: failed to populate NodeUpdateResponse: %v", err)
 		return err
 	}
