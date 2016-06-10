@@ -34,8 +34,8 @@ var (
 	client       *docker.Client
 
 	// The statistics the Docker driver exposes
-	DockerMeasuredMemStats = []string{"RSS", "Cache", "Swap", "MaxUsage"}
-	DockerMeasuredCpuStats = []string{"SystemMode", "UserMode", "ThrottledPeriods", "ThrottledTime", "Percent"}
+	DockerMeasuredMemStats = []string{"RSS", "Cache", "Swap", "Max Usage"}
+	DockerMeasuredCpuStats = []string{"Throttled Periods", "Throttled Time", "Percent"}
 )
 
 const (
@@ -487,7 +487,7 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task,
 		d.logger.Printf("[DEBUG] driver.docker: setting container startup command to: %s", strings.Join(cmd, " "))
 		config.Cmd = cmd
 	} else if len(driverConfig.Args) != 0 {
-		d.logger.Println("[DEBUG] driver.docker: ignoring command arguments because command is not specified")
+		config.Cmd = parsedArgs
 	}
 
 	if len(driverConfig.Labels) > 0 {
@@ -998,20 +998,22 @@ func (h *DockerHandle) collectStats() {
 				}
 
 				cs := &cstructs.CpuStats{
-					SystemMode:       float64(s.CPUStats.CPUUsage.UsageInKernelmode),
-					UserMode:         float64(s.CPUStats.CPUUsage.UsageInKernelmode),
 					ThrottledPeriods: s.CPUStats.ThrottlingData.ThrottledPeriods,
 					ThrottledTime:    s.CPUStats.ThrottlingData.ThrottledTime,
 					Measured:         DockerMeasuredCpuStats,
 				}
 
 				// Calculate percentage
-				cs.Percent = 0.0
-				cpuDelta := float64(s.CPUStats.CPUUsage.TotalUsage) - float64(s.PreCPUStats.CPUUsage.TotalUsage)
-				systemDelta := float64(s.CPUStats.SystemCPUUsage) - float64(s.PreCPUStats.SystemCPUUsage)
-				if cpuDelta > 0.0 && systemDelta > 0.0 {
-					cs.Percent = (cpuDelta / systemDelta) * float64(len(s.CPUStats.CPUUsage.PercpuUsage)) * 100.0
-				}
+				cores := len(s.CPUStats.CPUUsage.PercpuUsage)
+				cs.Percent = calculatePercent(
+					s.CPUStats.CPUUsage.TotalUsage, s.PreCPUStats.CPUUsage.TotalUsage,
+					s.CPUStats.SystemCPUUsage, s.PreCPUStats.SystemCPUUsage, cores)
+				cs.SystemMode = calculatePercent(
+					s.CPUStats.CPUUsage.UsageInKernelmode, s.PreCPUStats.CPUUsage.UsageInKernelmode,
+					s.CPUStats.CPUUsage.TotalUsage, s.PreCPUStats.CPUUsage.TotalUsage, cores)
+				cs.UserMode = calculatePercent(
+					s.CPUStats.CPUUsage.UsageInUsermode, s.PreCPUStats.CPUUsage.UsageInUsermode,
+					s.CPUStats.CPUUsage.TotalUsage, s.PreCPUStats.CPUUsage.TotalUsage, cores)
 
 				h.resourceUsageLock.Lock()
 				h.resourceUsage = &cstructs.TaskResourceUsage{
@@ -1027,4 +1029,14 @@ func (h *DockerHandle) collectStats() {
 			return
 		}
 	}
+}
+
+func calculatePercent(newSample, oldSample, newTotal, oldTotal uint64, cores int) float64 {
+	numerator := newSample - oldSample
+	denom := newTotal - oldTotal
+	if numerator <= 0 || denom <= 0 {
+		return 0.0
+	}
+
+	return (float64(numerator) / float64(denom)) * float64(cores) * 100.0
 }

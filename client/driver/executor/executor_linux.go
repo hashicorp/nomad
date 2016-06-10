@@ -40,12 +40,9 @@ var (
 	// clockTicks is the clocks per second of the machine
 	clockTicks = uint64(system.GetClockTicks())
 
-	// nanosecondsInSecond is the number of nanoseconds in a second.
-	nanosecondsInSecond = uint64(1000000000)
-
 	// The statistics the executor exposes when using cgroups
-	ExecutorCgroupMeasuredMemStats = []string{"RSS", "Cache", "Swap", "MaxUsage", "KernelUsage", "KernelMaxUsage"}
-	ExecutorCgroupMeasuredCpuStats = []string{"SystemMode", "UserMode", "ThrottledPeriods", "ThrottledTime", "Percent"}
+	ExecutorCgroupMeasuredMemStats = []string{"RSS", "Cache", "Swap", "Max Usage", "Kernel Usage", "Kernel Max Usage"}
+	ExecutorCgroupMeasuredCpuStats = []string{"System Mode", "User Mode", "Throttled Periods", "Throttled Time", "Percent"}
 )
 
 // configureIsolation configures chroot and creates cgroups
@@ -165,23 +162,19 @@ func (e *UniversalExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
 	}
 
 	// CPU Related Stats
-	totalProcessCPUUsage := stats.CpuStats.CpuUsage.TotalUsage
-	userModeTime := stats.CpuStats.CpuUsage.UsageInUsermode
-	kernelModeTime := stats.CpuStats.CpuUsage.UsageInKernelmode
-
-	umTicks := (userModeTime * clockTicks) / nanosecondsInSecond
-	kmTicks := (kernelModeTime * clockTicks) / nanosecondsInSecond
+	totalProcessCPUUsage := float64(stats.CpuStats.CpuUsage.TotalUsage)
+	userModeTime := float64(stats.CpuStats.CpuUsage.UsageInUsermode)
+	kernelModeTime := float64(stats.CpuStats.CpuUsage.UsageInKernelmode)
 
 	cs := &cstructs.CpuStats{
-		SystemMode:       float64(kmTicks),
-		UserMode:         float64(umTicks),
+		SystemMode:       e.systemCpuStats.Percent(kernelModeTime),
+		UserMode:         e.userCpuStats.Percent(userModeTime),
+		Percent:          e.totalCpuStats.Percent(totalProcessCPUUsage),
 		ThrottledPeriods: stats.CpuStats.ThrottlingData.ThrottledPeriods,
 		ThrottledTime:    stats.CpuStats.ThrottlingData.ThrottledTime,
 		Measured:         ExecutorCgroupMeasuredCpuStats,
 	}
-	if e.cpuStats != nil {
-		cs.Percent = e.cpuStats.Percent(float64(totalProcessCPUUsage / nanosecondsInSecond))
-	}
+
 	taskResUsage := cstructs.TaskResourceUsage{
 		ResourceUsage: &cstructs.ResourceUsage{
 			MemoryStats: ms,

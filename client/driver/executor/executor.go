@@ -39,7 +39,7 @@ const (
 var (
 	// The statistics the basic executor exposes
 	ExecutorBasicMeasuredMemStats = []string{"RSS", "Swap"}
-	ExecutorBasicMeasuredCpuStats = []string{"SystemMode", "UserMode", "Percent"}
+	ExecutorBasicMeasuredCpuStats = []string{"System Mode", "User Mode", "Percent"}
 )
 
 // Executor is the interface which allows a driver to launch and supervise
@@ -188,18 +188,22 @@ type UniversalExecutor struct {
 	cgPaths map[string]string
 	cgLock  sync.Mutex
 
-	consulService *consul.ConsulService
-	consulCtx     *ConsulContext
-	cpuStats      *stats.CpuStats
-	logger        *log.Logger
+	consulService  *consul.ConsulService
+	consulCtx      *ConsulContext
+	totalCpuStats  *stats.CpuStats
+	userCpuStats   *stats.CpuStats
+	systemCpuStats *stats.CpuStats
+	logger         *log.Logger
 }
 
 // NewExecutor returns an Executor
 func NewExecutor(logger *log.Logger) Executor {
 	exec := &UniversalExecutor{
-		logger:        logger,
-		processExited: make(chan interface{}),
-		cpuStats:      stats.NewCpuStats(),
+		logger:         logger,
+		processExited:  make(chan interface{}),
+		totalCpuStats:  stats.NewCpuStats(),
+		userCpuStats:   stats.NewCpuStats(),
+		systemCpuStats: stats.NewCpuStats(),
 	}
 
 	return exec
@@ -515,12 +519,12 @@ func (e *UniversalExecutor) pidStats() (map[string]*cstructs.ResourceUsage, erro
 
 		cs := &cstructs.CpuStats{}
 		if cpuStats, err := p.Times(); err == nil {
-			cs.SystemMode = pid.cpuStatsSys.Percent(cpuStats.System)
-			cs.UserMode = pid.cpuStatsUser.Percent(cpuStats.User)
+			cs.SystemMode = pid.cpuStatsSys.Percent(cpuStats.System * time.Second)
+			cs.UserMode = pid.cpuStatsUser.Percent(cpuStats.User * time.Second)
 			cs.Measured = ExecutorBasicMeasuredCpuStats
 
 			// calculate cpu usage percent
-			cs.Percent = pid.cpuStatsTotal.Percent(cpuStats.Total())
+			cs.Percent = pid.cpuStatsTotal.Percent(cpuStats.Total() * time.Second)
 		}
 		stats[strconv.Itoa(pid.pid)] = &cstructs.ResourceUsage{MemoryStats: ms, CpuStats: cs}
 	}
@@ -781,13 +785,13 @@ func (e *UniversalExecutor) aggregatedResourceUsage(pidStats map[string]*cstruct
 		SystemMode: systemModeCPU,
 		UserMode:   userModeCPU,
 		Percent:    percent,
-		Measured:   ExecutorBasicMeasuredMemStats,
+		Measured:   ExecutorBasicMeasuredCpuStats,
 	}
 
 	totalMemory := &cstructs.MemoryStats{
 		RSS:      totalRSS,
 		Swap:     totalSwap,
-		Measured: ExecutorBasicMeasuredCpuStats,
+		Measured: ExecutorBasicMeasuredMemStats,
 	}
 
 	resourceUsage := cstructs.ResourceUsage{
