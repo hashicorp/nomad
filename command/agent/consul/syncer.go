@@ -245,8 +245,11 @@ func (c *Syncer) SetServices(groupName string, services []*structs.ConsulService
 				continue
 			}
 			// creating a nomad check if we have to handle this particular check type
+			c.registryLock.RLock()
 			if _, ok := c.delegateChecks[chk.Type]; ok {
-				if _, ok := c.checkRunners[chkReg.ID]; ok {
+				_, ok := c.checkRunners[chkReg.ID]
+				c.registryLock.RUnlock()
+				if ok {
 					continue
 				}
 				nc, err := c.createDelegatedCheck(chk, chkReg.ID)
@@ -255,7 +258,11 @@ func (c *Syncer) SetServices(groupName string, services []*structs.ConsulService
 					continue
 				}
 				cr := NewCheckRunner(nc, c.runCheck, c.logger)
+				c.registryLock.Lock()
 				c.checkRunners[nc.ID()] = cr
+				c.registryLock.Unlock()
+			} else {
+				c.registryLock.RUnlock()
 			}
 		}
 	}
@@ -315,9 +322,11 @@ func (c *Syncer) Shutdown() error {
 	c.signalShutdown()
 
 	// Stop all the checks that nomad is running
+	c.registryLock.RLock()
 	for _, cr := range c.checkRunners {
 		cr.Stop()
 	}
+	c.registryLock.RUnlock()
 
 	// De-register all the services from Consul
 	services, err := c.queryAgentServices()
@@ -367,7 +376,9 @@ func (c *Syncer) syncChecks() error {
 		if err := c.registerCheck(check); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 		}
+		c.registryLock.Lock()
 		c.trackedChecks[check.ID] = check
+		c.registryLock.Unlock()
 	}
 	for _, check := range changedChecks {
 		// NOTE(sean@): Do we need to deregister the check before
@@ -386,7 +397,9 @@ func (c *Syncer) syncChecks() error {
 		if err := c.deregisterCheck(check.ID); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 		}
+		c.registryLock.Lock()
 		delete(c.trackedChecks, check.ID)
+		c.registryLock.Unlock()
 	}
 	return mErr.ErrorOrNil()
 }
@@ -435,11 +448,13 @@ func (c *Syncer) calcChecksDiff(consulChecks map[string]*consul.AgentCheck) (mis
 		changedChecksCount = 0
 		agentChecks        = 0
 	)
+	c.registryLock.RLock()
 	localChecks := make(map[string]*mergedCheck, len(c.trackedChecks)+len(consulChecks))
 	for _, localCheck := range c.trackedChecks {
 		localChecksCount++
 		localChecks[localCheck.ID] = &mergedCheck{localCheck, 'l'}
 	}
+	c.registryLock.RUnlock()
 	for _, consulCheck := range consulChecks {
 		if localCheck, found := localChecks[consulCheck.CheckID]; found {
 			localChecksCount--
@@ -546,7 +561,9 @@ func (c *Syncer) calcServicesDiff(consulServices map[string]*consul.AgentService
 		changedServicesCount = 0
 		agentServices        = 0
 	)
+	c.registryLock.RLock()
 	localServices := make(map[string]*mergedService, len(c.trackedServices)+len(consulServices))
+	c.registryLock.RUnlock()
 	for _, localService := range c.flattenedServices() {
 		localServicesCount++
 		localServices[localService.ID] = &mergedService{localService, 'l'}
@@ -609,7 +626,9 @@ func (c *Syncer) syncServices() error {
 		if err := c.client.Agent().ServiceRegister(service); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 		}
+		c.registryLock.Lock()
 		c.trackedServices[service.ID] = service
+		c.registryLock.Unlock()
 	}
 	for _, service := range changedServices {
 		// Re-register the local service
@@ -621,16 +640,20 @@ func (c *Syncer) syncServices() error {
 		if err := c.deregisterService(service.ID); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 		}
+		c.registryLock.Lock()
 		delete(c.trackedServices, service.ID)
+		c.registryLock.Unlock()
 	}
 	return mErr.ErrorOrNil()
 }
 
 // registerCheck registers a check definition with Consul
 func (c *Syncer) registerCheck(chkReg *consul.AgentCheckRegistration) error {
+	c.registryLock.RLock()
 	if cr, ok := c.checkRunners[chkReg.ID]; ok {
 		cr.Start()
 	}
+	c.registryLock.RUnlock()
 	return c.client.Agent().CheckRegister(chkReg)
 }
 
