@@ -416,7 +416,7 @@ func (c *Syncer) deregisterCheck(ID string) error {
 func (c *Syncer) Run() {
 	d := initialSyncDelay + lib.RandomStagger(initialSyncBuffer-initialSyncDelay)
 	sync := time.NewTimer(d)
-	c.logger.Printf("[DEBUG] consul.sync: sleeping %v before first sync", d)
+	c.logger.Printf("[DEBUG] consul.syncer: sleeping %v before first sync", d)
 
 	for {
 		select {
@@ -424,13 +424,17 @@ func (c *Syncer) Run() {
 			d = syncInterval - lib.RandomStagger(syncInterval/syncJitter)
 			sync.Reset(d)
 
-			if err := c.performSync(); err != nil {
-				if c.runChecks {
-					c.logger.Printf("[DEBUG] consul.sync: disabling checks until Consul sync completes for %q: %v", c.serviceRegPrefix, err)
+			if err := c.SyncServices(); err != nil {
+				if c.consulAvailable {
+					c.logger.Printf("[DEBUG] consul.syncer: disabling checks until successful sync for %q: %v", c.serviceRegPrefix, err)
+				} else {
+					c.consulAvailable = false
 				}
-				c.runChecks = false
 			} else {
-				c.runChecks = true
+				if !c.consulAvailable {
+					c.logger.Printf("[DEBUG] consul.syncer: re-enabling checks for for %q", c.serviceRegPrefix)
+				}
+				c.consulAvailable = true
 			}
 		case <-c.notifySyncCh:
 			sync.Reset(syncInterval)
@@ -462,20 +466,19 @@ func (c *Syncer) RunHandlers() error {
 	return mErr.ErrorOrNil()
 }
 
-// performSync sync the services and checks we are tracking with Consul.
-func (c *Syncer) performSync() error {
-	var mErr multierror.Error
+// SyncServices sync the services with the Consul Agent
+func (c *Syncer) SyncServices() error {
 	if err := c.RunHandlers(); err != nil {
-		mErr.Errors = append(mErr.Errors, err)
+		return err
 	}
 	if err := c.syncServices(); err != nil {
-		mErr.Errors = append(mErr.Errors, err)
+		return err
 	}
 	if err := c.syncChecks(); err != nil {
-		mErr.Errors = append(mErr.Errors, err)
+		return err
 	}
 
-	return mErr.ErrorOrNil()
+	return nil
 }
 
 // filterConsulServices prunes out all the service whose ids are not prefixed
