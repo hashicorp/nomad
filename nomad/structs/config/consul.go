@@ -9,7 +9,7 @@ import (
 // ConsulConfig contains the configuration information necessary to
 // communicate with a Consul Agent in order to:
 //
-// - Register services and checks with Consul
+// - Register services and their checks with Consul
 //
 // - Bootstrap this Nomad Client with the list of Nomad Servers registered
 //   with Consul
