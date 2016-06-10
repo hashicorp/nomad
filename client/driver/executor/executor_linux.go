@@ -24,7 +24,6 @@ import (
 )
 
 var (
-
 	// A mapping of directories on the host OS to attempt to embed inside each
 	// task's chroot.
 	chrootEnv = map[string]string{
@@ -38,9 +37,15 @@ var (
 		"/usr":            "/usr",
 	}
 
+	// clockTicks is the clocks per second of the machine
 	clockTicks = uint64(system.GetClockTicks())
 
+	// nanosecondsInSecond is the number of nanoseconds in a second.
 	nanosecondsInSecond = uint64(1000000000)
+
+	// The statistics the executor exposes when using cgroups
+	ExecutorCgroupMeasuredMemStats = []string{"RSS", "Cache", "Swap", "MaxUsage", "KernelUsage", "KernelMaxUsage"}
+	ExecutorCgroupMeasuredCpuStats = []string{"SystemMode", "UserMode", "ThrottledPeriods", "ThrottledTime", "Percent"}
 )
 
 // configureIsolation configures chroot and creates cgroups
@@ -156,6 +161,7 @@ func (e *UniversalExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
 		MaxUsage:       maxUsage,
 		KernelUsage:    stats.MemoryStats.KernelUsage.Usage,
 		KernelMaxUsage: stats.MemoryStats.KernelUsage.MaxUsage,
+		Measured:       ExecutorCgroupMeasuredMemStats,
 	}
 
 	// CPU Related Stats
@@ -171,6 +177,7 @@ func (e *UniversalExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
 		UserMode:         float64(umTicks),
 		ThrottledPeriods: stats.CpuStats.ThrottlingData.ThrottledPeriods,
 		ThrottledTime:    stats.CpuStats.ThrottlingData.ThrottledTime,
+		Measured:         ExecutorCgroupMeasuredCpuStats,
 	}
 	if e.cpuStats != nil {
 		cs.Percent = e.cpuStats.Percent(float64(totalProcessCPUUsage / nanosecondsInSecond))

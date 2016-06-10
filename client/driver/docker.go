@@ -32,6 +32,10 @@ var (
 	// We store the client globally to cache the connection to the docker daemon.
 	createClient sync.Once
 	client       *docker.Client
+
+	// The statistics the Docker driver exposes
+	DockerMeasuredMemStats = []string{"RSS", "Cache", "Swap", "MaxUsage"}
+	DockerMeasuredCpuStats = []string{"SystemMode", "UserMode", "ThrottledPeriods", "ThrottledTime", "Percent"}
 )
 
 const (
@@ -851,6 +855,7 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 		h.logger.Printf("[ERR] driver.docker: error registering services with consul: %v", err)
 	}
 
+	go h.collectStats()
 	go h.run()
 	return h, nil
 }
@@ -989,6 +994,7 @@ func (h *DockerHandle) collectStats() {
 					Cache:    s.MemoryStats.Stats.Cache,
 					Swap:     s.MemoryStats.Stats.Swap,
 					MaxUsage: s.MemoryStats.MaxUsage,
+					Measured: DockerMeasuredMemStats,
 				}
 
 				cs := &cstructs.CpuStats{
@@ -996,7 +1002,9 @@ func (h *DockerHandle) collectStats() {
 					UserMode:         float64(s.CPUStats.CPUUsage.UsageInKernelmode),
 					ThrottledPeriods: s.CPUStats.ThrottlingData.ThrottledPeriods,
 					ThrottledTime:    s.CPUStats.ThrottlingData.ThrottledTime,
+					Measured:         DockerMeasuredCpuStats,
 				}
+
 				// Calculate percentage
 				cs.Percent = 0.0
 				cpuDelta := float64(s.CPUStats.CPUUsage.TotalUsage) - float64(s.PreCPUStats.CPUUsage.TotalUsage)
@@ -1004,6 +1012,7 @@ func (h *DockerHandle) collectStats() {
 				if cpuDelta > 0.0 && systemDelta > 0.0 {
 					cs.Percent = (cpuDelta / systemDelta) * float64(len(s.CPUStats.CPUUsage.PercpuUsage)) * 100.0
 				}
+
 				h.resourceUsageLock.Lock()
 				h.resourceUsage = &cstructs.TaskResourceUsage{
 					ResourceUsage: &cstructs.ResourceUsage{
