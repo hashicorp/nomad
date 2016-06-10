@@ -111,7 +111,14 @@ type Syncer struct {
 func NewSyncer(config *config.ConsulConfig, shutdownCh chan struct{}, logger *log.Logger) (*Syncer, error) {
 	var err error
 	var c *consul.Client
+
 	cfg := consul.DefaultConfig()
+
+	// If a nil config was provided, fall back to the default config
+	if config == nil {
+		config = cfg
+	}
+
 	if config.Addr != "" {
 		cfg.Address = config.Addr
 	}

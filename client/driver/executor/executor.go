@@ -205,7 +205,14 @@ type UniversalExecutor struct {
 
 // NewExecutor returns an Executor
 func NewExecutor(logger *log.Logger) Executor {
+	shutdownCh := make(chan struct{})
+	cs, err := consul.NewSyncer(nil, shutdownCh, logger)
+	if err != nil {
+		return err
+	}
+
 	exec := &UniversalExecutor{
+		consulSyncer:   cs,
 		logger:         logger,
 		processExited:  make(chan interface{}),
 		shutdownCh:     make(chan struct{}),
