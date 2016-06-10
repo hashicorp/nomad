@@ -665,14 +665,14 @@ func parseArtifacts(result *[]*structs.TaskArtifact, list *ast.ObjectList) error
 			return fmt.Errorf("artifact should be an object")
 		}
 
-		options := make(map[string]string)
 		if oo := optionList.Filter("options"); len(oo.Items) > 0 {
+			options := make(map[string]string)
 			if err := parseArtifactOption(options, oo); err != nil {
 				return multierror.Prefix(err, "options: ")
 			}
+			ta.GetterOptions = options
 		}
 
-		ta.GetterOptions = options
 		*result = append(*result, &ta)
 	}
 
