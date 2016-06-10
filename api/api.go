@@ -126,6 +126,11 @@ func NewClient(config *Config) (*Client, error) {
 	return client, nil
 }
 
+// SetRegion sets the region to forward API requests to.
+func (c *Client) SetRegion(region string) {
+	c.config.Region = region
+}
+
 // request is used to help build up a request
 type request struct {
 	config *Config

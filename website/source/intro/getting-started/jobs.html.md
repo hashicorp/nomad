@@ -115,7 +115,7 @@ CPU  Memory MB  Disk MB  IOPS  Addresses
 500  256        300      0     db: 127.0.0.1:52004
 ```
 
-To inspect the file system of a running allocation, we can use the [`fs ls`
+To inspect the file system of a running allocation, we can use the [`fs`
 command](/docs/commands/fs.html):
 
 ```

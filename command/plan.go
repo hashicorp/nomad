@@ -44,6 +44,9 @@ Usage: nomad plan [options] <file>
   A structured diff between the local and remote job is displayed to
   give insight into what the scheduler will attempt to do and why.
 
+  If the job has specified the region, the -region flag and NOMAD_REGION
+  environment variable are overridden and the the job's region is used.
+
 General Options:
 
   ` + generalOptionsUsage() + `
@@ -114,6 +117,11 @@ func (c *PlanCommand) Run(args []string) int {
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
 		return 1
+	}
+
+	// Force the region to be that of the job.
+	if r := job.Region; r != "" {
+		client.SetRegion(r)
 	}
 
 	// Submit the job
