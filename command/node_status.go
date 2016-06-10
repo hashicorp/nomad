@@ -406,11 +406,16 @@ func getActualResources(hostStats *api.HostStats, node *api.Node) ([]string, err
 	var resources []string
 
 	// Calculate cpu usage
-	usedCPUPercent := 0.0
-	for _, cpu := range hostStats.CPU {
-		usedCPUPercent += (cpu.User + cpu.System)
+	usedCPUTicks := 0.0
+	if freq, ok := node.Attributes["cpu.frequency"]; ok {
+
+		if clkSpeed, err := strconv.ParseFloat(freq, 64); err == nil {
+			for _, cpu := range hostStats.CPU {
+				usedCPUPercent := (cpu.User + cpu.System)
+				usedCPUTicks += (clkSpeed * usedCPUPercent / 100)
+			}
+		}
 	}
-	usedCPUTicks := (usedCPUPercent / 100) * float64(node.Resources.CPU)
 
 	// calculate disk usage
 	storageDevice := node.Attributes["unique.storage.volume"]
