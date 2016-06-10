@@ -141,8 +141,10 @@ type ProcessState struct {
 
 // nomadPid holds a pid and it's cpu percentage calculator
 type nomadPid struct {
-	pid      int
-	cpuStats *stats.CpuStats
+	pid           int
+	cpuStatsTotal *stats.CpuStats
+	cpuStatsUser  *stats.CpuStats
+	cpuStatsSys   *stats.CpuStats
 }
 
 // SyslogServerState holds the address and islation information of a launched
@@ -513,12 +515,12 @@ func (e *UniversalExecutor) pidStats() (map[string]*cstructs.ResourceUsage, erro
 
 		cs := &cstructs.CpuStats{}
 		if cpuStats, err := p.Times(); err == nil {
-			cs.SystemMode = cpuStats.System
-			cs.UserMode = cpuStats.User
+			cs.SystemMode = pid.cpuStatsSys.Percent(cpuStats.System)
+			cs.UserMode = pid.cpuStatsUser.Percent(cpuStats.User)
 			cs.Measured = ExecutorBasicMeasuredCpuStats
 
 			// calculate cpu usage percent
-			cs.Percent = pid.cpuStats.Percent(cpuStats.Total())
+			cs.Percent = pid.cpuStatsTotal.Percent(cpuStats.Total())
 		}
 		stats[strconv.Itoa(pid.pid)] = &cstructs.ResourceUsage{MemoryStats: ms, CpuStats: cs}
 	}
@@ -747,7 +749,12 @@ func (e *UniversalExecutor) scanPids(parentPid int, allPids []ps.Process) ([]*no
 	}
 	res := make([]*nomadPid, 0, len(processFamily))
 	for pid := range processFamily {
-		res = append(res, &nomadPid{pid, stats.NewCpuStats()})
+		res = append(res, &nomadPid{
+			pid:           pid,
+			cpuStatsTotal: stats.NewCpuStats(),
+			cpuStatsUser:  stats.NewCpuStats(),
+			cpuStatsSys:   stats.NewCpuStats(),
+		})
 	}
 	return res, nil
 }
