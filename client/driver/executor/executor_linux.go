@@ -271,7 +271,7 @@ func (e *UniversalExecutor) getAllPids() ([]*nomadPid, error) {
 		}
 		np := make([]*nomadPid, len(pids))
 		for idx, pid := range pids {
-			np[idx] = &nomadPid{pid, stats.NewCpuStats()}
+			np[idx] = &nomadPid{pid, stats.NewCpuStats(), stats.NewCpuStats(), stats.NewCpuStats()}
 		}
 		return np, nil
 	}
