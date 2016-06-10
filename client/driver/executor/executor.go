@@ -171,7 +171,7 @@ type UniversalExecutor struct {
 	ctx     *ExecutorContext
 	command *ExecCommand
 
-	pids          []*nomadPid
+	pids          map[int]*nomadPid
 	pidLock       sync.RWMutex
 	taskDir       string
 	exitState     *ProcessState
@@ -204,6 +204,7 @@ func NewExecutor(logger *log.Logger) Executor {
 		totalCpuStats:  stats.NewCpuStats(),
 		userCpuStats:   stats.NewCpuStats(),
 		systemCpuStats: stats.NewCpuStats(),
+		pids:           make(map[int]*nomadPid),
 	}
 
 	return exec
@@ -501,13 +502,15 @@ func (e *UniversalExecutor) DeregisterServices() error {
 func (e *UniversalExecutor) pidStats() (map[string]*cstructs.ResourceUsage, error) {
 	stats := make(map[string]*cstructs.ResourceUsage)
 	e.pidLock.RLock()
-	pids := make([]*nomadPid, len(e.pids))
-	copy(pids, e.pids)
+	pids := make(map[int]*nomadPid, len(e.pids))
+	for k, v := range e.pids {
+		pids[k] = v
+	}
 	e.pidLock.RUnlock()
-	for _, pid := range pids {
-		p, err := process.NewProcess(int32(pid.pid))
+	for pid, np := range pids {
+		p, err := process.NewProcess(int32(pid))
 		if err != nil {
-			e.logger.Printf("[DEBUG] executor: unable to create new process with pid: %v", pid.pid)
+			e.logger.Printf("[DEBUG] executor: unable to create new process with pid: %v", pid)
 			continue
 		}
 		ms := &cstructs.MemoryStats{}
@@ -519,14 +522,14 @@ func (e *UniversalExecutor) pidStats() (map[string]*cstructs.ResourceUsage, erro
 
 		cs := &cstructs.CpuStats{}
 		if cpuStats, err := p.Times(); err == nil {
-			cs.SystemMode = pid.cpuStatsSys.Percent(cpuStats.System * float64(time.Second))
-			cs.UserMode = pid.cpuStatsUser.Percent(cpuStats.User * float64(time.Second))
+			cs.SystemMode = np.cpuStatsSys.Percent(cpuStats.System * float64(time.Second))
+			cs.UserMode = np.cpuStatsUser.Percent(cpuStats.User * float64(time.Second))
 			cs.Measured = ExecutorBasicMeasuredCpuStats
 
 			// calculate cpu usage percent
-			cs.Percent = pid.cpuStatsTotal.Percent(cpuStats.Total() * float64(time.Second))
+			cs.Percent = np.cpuStatsTotal.Percent(cpuStats.Total() * float64(time.Second))
 		}
-		stats[strconv.Itoa(pid.pid)] = &cstructs.ResourceUsage{MemoryStats: ms, CpuStats: cs}
+		stats[strconv.Itoa(pid)] = &cstructs.ResourceUsage{MemoryStats: ms, CpuStats: cs}
 	}
 
 	return stats, nil
@@ -710,7 +713,11 @@ func (e *UniversalExecutor) collectPids() {
 				e.logger.Printf("[DEBUG] executor: error collecting pids: %v", err)
 			}
 			e.pidLock.Lock()
-			e.pids = pids
+			for _, pid := range pids {
+				if _, ok := e.pids[pid.pid]; !ok {
+					e.pids[pid.pid] = pid
+				}
+			}
 			e.pidLock.Unlock()
 			timer.Reset(pidScanInterval)
 		case <-e.processExited:
@@ -753,12 +760,13 @@ func (e *UniversalExecutor) scanPids(parentPid int, allPids []ps.Process) ([]*no
 	}
 	res := make([]*nomadPid, 0, len(processFamily))
 	for pid := range processFamily {
-		res = append(res, &nomadPid{
+		np := nomadPid{
 			pid:           pid,
 			cpuStatsTotal: stats.NewCpuStats(),
 			cpuStatsUser:  stats.NewCpuStats(),
 			cpuStatsSys:   stats.NewCpuStats(),
-		})
+		}
+		res = append(res, &np)
 	}
 	return res, nil
 }
