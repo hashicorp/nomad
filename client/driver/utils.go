@@ -16,7 +16,6 @@ import (
 	"github.com/hashicorp/nomad/client/driver/logging"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
-	sconfig "github.com/hashicorp/nomad/nomad/structs/config"
 )
 
 // createExecutor launches an executor plugin and returns an instance of the
@@ -73,20 +72,8 @@ func createLogCollector(config *plugin.ClientConfig, w io.Writer,
 }
 
 func consulContext(clientConfig *config.Config, containerID string) *executor.ConsulContext {
-	cfg := sconfig.ConsulConfig{
-		Addr:              clientConfig.ReadDefault("consul.address", "127.0.0.1:8500"),
-		Token:             clientConfig.Read("consul.token"),
-		Auth:              clientConfig.Read("consul.auth"),
-		EnableSSL:         clientConfig.ReadBoolDefault("consul.ssl", false),
-		VerifySSL:         clientConfig.ReadBoolDefault("consul.verifyssl", true),
-		CAFile:            clientConfig.Read("consul.tls_ca_file"),
-		CertFile:          clientConfig.Read("consul.tls_cert_file"),
-		KeyFile:           clientConfig.Read("consul.tls_key_file"),
-		ServerServiceName: clientConfig.ReadDefault("consul.server_service_name", "nomad"),
-		ClientServiceName: clientConfig.ReadDefault("consul.client_service_name", "nomad-client"),
-	}
 	return &executor.ConsulContext{
-		ConsulConfig:   &cfg,
+		ConsulConfig:   clientConfig.ConsulConfig,
 		ContainerID:    containerID,
 		DockerEndpoint: clientConfig.Read("docker.endpoint"),
 		TLSCa:          clientConfig.Read("docker.tls.ca"),
