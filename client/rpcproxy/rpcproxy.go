@@ -129,10 +129,6 @@ type RPCProxy struct {
 	// connection pool.  Pinger is an interface that wraps
 	// client.ConnPool.
 	connPoolPinger Pinger
-
-	// notifyFailedBarrier is acts as a barrier to prevent queuing behind
-	// serverListLock and acts as a TryLock().
-	notifyFailedBarrier int32
 }
 
 // NewRPCProxy is the only way to safely create a new RPCProxy.
@@ -348,11 +344,7 @@ func (p *RPCProxy) NotifyFailedServer(s *ServerEndpoint) {
 	// the server to the end of the list.
 
 	// Only rotate the server list when there is more than one server
-	if len(l.L) > 1 && l.L[0] == s &&
-		// Use atomic.CAS to emulate a TryLock().
-		atomic.CompareAndSwapInt32(&p.notifyFailedBarrier, 0, 1) {
-		defer atomic.StoreInt32(&p.notifyFailedBarrier, 0)
-
+	if len(l.L) > 1 && l.L[0] == s {
 		// Grab a lock, retest, and take the hit of cycling the first
 		// server to the end.
 		p.listLock.Lock()
