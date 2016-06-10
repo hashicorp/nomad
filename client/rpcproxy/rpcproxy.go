@@ -645,12 +645,6 @@ func (p *RpcProxy) RefreshServerLists(servers []*structs.NodeServerInfo, numNode
 	// with newer API versions are filtered from the list.  If the list
 	// is missing an address found in the RpcProxy's server list, remove
 	// it from the RpcProxy.
-	//
-	// FIXME(sean@): This is not true.  We rely on an outside pump to set
-	// these values.  In order to catch the orphaned clients where all
-	// Nomad servers were rolled between the heartbeat interval, the
-	// rebalance task queries Consul and adds the servers found in Consul
-	// to the server list in order to reattach an orphan to a server.
 
 	p.serverListLock.Lock()
 	defer p.serverListLock.Unlock()
