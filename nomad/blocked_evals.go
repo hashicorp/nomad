@@ -207,9 +207,10 @@ func (b *BlockedEvals) missedUnblock(eval *structs.Evaluation) bool {
 		}
 
 		elig, ok := eval.ClassEligibility[class]
-		if !ok {
-			// The evaluation was processed and did not encounter this class.
-			// Thus for correctness we need to unblock it.
+		if !ok && eval.SnapshotIndex < index {
+			// The evaluation was processed and did not encounter this class
+			// because it was added after it was processed. Thus for correctness
+			// we need to unblock it.
 			return true
 		}
 
