@@ -133,6 +133,21 @@ type RpcProxy struct {
 	notifyFailedBarrier int32
 }
 
+// New is the only way to safely create a new RpcProxy.
+func New(logger *log.Logger, shutdownCh chan struct{}, configInfo NomadConfigInfo, connPoolPinger Pinger) (p *RpcProxy) {
+	p = new(RpcProxy)
+	p.logger = logger
+	p.configInfo = configInfo         // can't pass *nomad.Client: import cycle
+	p.connPoolPinger = connPoolPinger // can't pass *nomad.ConnPool: import cycle
+	p.rebalanceTimer = time.NewTimer(clientRPCMinReuseDuration)
+	p.shutdownCh = shutdownCh
+
+	l := serverList{}
+	l.L = make([]*ServerEndpoint, 0)
+	p.saveServerList(l)
+	return p
+}
+
 // activateEndpoint adds an endpoint to the RpcProxy's active serverList.
 // Returns true if the server was added, returns false if the server already
 // existed in the RpcProxy's serverList.
@@ -314,21 +329,6 @@ func (p *RpcProxy) LeaderAddr() string {
 	p.listLock.Lock()
 	defer p.listLock.Unlock()
 	return p.leaderAddr
-}
-
-// New is the only way to safely create a new RpcProxy.
-func New(logger *log.Logger, shutdownCh chan struct{}, configInfo NomadConfigInfo, connPoolPinger Pinger) (p *RpcProxy) {
-	p = new(RpcProxy)
-	p.logger = logger
-	p.configInfo = configInfo         // can't pass *nomad.Client: import cycle
-	p.connPoolPinger = connPoolPinger // can't pass *nomad.ConnPool: import cycle
-	p.rebalanceTimer = time.NewTimer(clientRPCMinReuseDuration)
-	p.shutdownCh = shutdownCh
-
-	l := serverList{}
-	l.L = make([]*ServerEndpoint, 0)
-	p.saveServerList(l)
-	return p
 }
 
 // NotifyFailedServer marks the passed in server as "failed" by rotating it
