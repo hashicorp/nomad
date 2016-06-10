@@ -84,6 +84,9 @@ func NewAgent(config *Config, logOutput io.Writer) (*Agent, error) {
 	// found in Consul.  The Syncer's handlers automatically deactivate
 	// when the Consul Fingerprinter has detected the local Consul Agent
 	// is missing.
+	if err := a.consulSyncer.SyncServices(); err != nil {
+		a.logger.Printf("[WARN] agent.consul: Initial sync of Consul failed: %v", err)
+	}
 	go a.consulSyncer.Run()
 
 	return a, nil
@@ -361,8 +364,30 @@ func (a *Agent) setupServer() error {
 	if err != nil {
 		return fmt.Errorf("server setup failed: %v", err)
 	}
-
 	a.server = server
+
+	// Create the Nomad Server services for Consul
+	if a.config.Consul.ServerServiceName != "" {
+		const serviceGroupName = "server"
+		a.consulSyncer.SetServices(serviceGroupName, []*structs.ConsulService{
+			&structs.ConsulService{
+				Name:      a.config.Consul.ServerServiceName,
+				PortLabel: a.serverHttpAddr,
+				Tags:      []string{consul.ServiceTagHttp},
+			},
+			&structs.ConsulService{
+				Name:      a.config.Consul.ServerServiceName,
+				PortLabel: a.serverRpcAddr,
+				Tags:      []string{consul.ServiceTagRpc},
+			},
+			&structs.ConsulService{
+				PortLabel: a.serverSerfAddr,
+				Name:      a.config.Consul.ServerServiceName,
+				Tags:      []string{consul.ServiceTagSerf},
+			},
+		})
+	}
+
 	return nil
 }
 
@@ -391,6 +416,24 @@ func (a *Agent) setupClient() error {
 		return fmt.Errorf("client setup failed: %v", err)
 	}
 	a.client = client
+
+	// Create the Nomad Server services for Consul
+	if a.config.Consul.ClientServiceName != "" {
+		const serviceGroupName = "client"
+		a.consulSyncer.SetServices(serviceGroupName, []*structs.ConsulService{
+			&structs.ConsulService{
+				Name:      a.config.Consul.ClientServiceName,
+				PortLabel: a.clientHttpAddr,
+				Tags:      []string{consul.ServiceTagHttp},
+			},
+			&structs.ConsulService{
+				Name:      a.config.Consul.ClientServiceName,
+				PortLabel: a.clientRpcAddr,
+				Tags:      []string{consul.ServiceTagRpc},
+			},
+		})
+	}
+
 	return nil
 }
 
@@ -551,7 +594,7 @@ func (a *Agent) Stats() map[string]map[string]string {
 	return stats
 }
 
-// setupAgentConsulSyncer creates the Consul tasks used by this Nomad Agent
+// setupConsulSyncer creates the Consul tasks used by this Nomad Agent
 // (either Client or Server mode).
 func (a *Agent) setupConsulSyncer(shutdownCh chan struct{}) error {
 	var err error
@@ -559,54 +602,7 @@ func (a *Agent) setupConsulSyncer(shutdownCh chan struct{}) error {
 	if err != nil {
 		return err
 	}
-
-	// Create the agent's group of services that this Nomad Agent should
-	// sync with Consul.  The list of services that this agent should
-	// sync depends on whether or not a node is in Client or Server mode,
-	// but doesn't change after initialization.
-	var agentServiceGroup []*structs.ConsulService
-	if a.client != nil && a.config.Consul.ClientServiceName != "" {
-		clientRpcService := &structs.ConsulService{
-			Name:      a.config.Consul.ClientServiceName,
-			PortLabel: a.clientRpcAddr,
-			Tags:      []string{consul.ServiceTagRpc},
-		}
-		agentServiceGroup = append(agentServiceGroup, clientRpcService)
-
-		clientHttpService := &structs.ConsulService{
-			Name:      a.config.Consul.ClientServiceName,
-			PortLabel: a.clientHttpAddr,
-			Tags:      []string{consul.ServiceTagHttp},
-		}
-		agentServiceGroup = append(agentServiceGroup, clientHttpService)
-
-		a.consulSyncer.SetServiceRegPrefix("agent-client")
-	}
-
-	if a.server != nil && a.config.Consul.ServerServiceName != "" {
-		serverHttpService := &structs.ConsulService{
-			Name:      a.config.Consul.ServerServiceName,
-			PortLabel: a.serverHttpAddr,
-			Tags:      []string{consul.ServiceTagHttp},
-		}
-		agentServiceGroup = append(agentServiceGroup, serverHttpService)
-
-		serverRpcService := &structs.ConsulService{
-			Name:      a.config.Consul.ServerServiceName,
-			PortLabel: a.serverRpcAddr,
-			Tags:      []string{consul.ServiceTagRpc},
-		}
-		agentServiceGroup = append(agentServiceGroup, serverRpcService)
-
-		serverSerfService := &structs.ConsulService{
-			Name:      a.config.Consul.ServerServiceName,
-			PortLabel: a.serverSerfAddr,
-			Tags:      []string{consul.ServiceTagSerf},
-		}
-		agentServiceGroup = append(agentServiceGroup, serverSerfService)
-
-		a.consulSyncer.SetServiceRegPrefix("agent-server")
-	}
+	a.consulSyncer.SetServiceRegPrefix("agent")
 
 	a.consulSyncer.SetAddrFinder(func(portLabel string) (string, int) {
 		host, port, err := net.SplitHostPort(portLabel)
@@ -640,7 +636,5 @@ func (a *Agent) setupConsulSyncer(shutdownCh chan struct{}) error {
 		return host, p
 	})
 
-	a.consulSyncer.SetServices("agent", agentServiceGroup)
-
-	return a.consulSyncer.SyncServices()
+	return nil
 }
