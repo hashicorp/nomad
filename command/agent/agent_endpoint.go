@@ -139,40 +139,7 @@ func (s *HTTPServer) listServers(resp http.ResponseWriter, req *http.Request) (i
 		return nil, CodedError(501, ErrInvalidMethod)
 	}
 
-	// Preallocate for at least 5x servers
-	const initialServerListSize = 8
-	peers := make([]string, 0, initialServerListSize)
-	uniquePeers := make(map[string]bool, initialServerListSize)
-	// When the agent has an active server, get the current list of
-	// servers according to Raft.
-	if s.agent.server != nil {
-		raftPeers, err := s.agent.server.RaftPeers()
-		if err != nil {
-			return nil, err
-		}
-		for _, peer := range raftPeers {
-			_, found := uniquePeers[peer]
-			if !found {
-				uniquePeers[peer] = true
-				peers = append(peers, peer)
-			}
-		}
-	}
-
-	// When the agent has an active client, return the union of the list
-	// of servers according to RpcProxy, which is possibly populated by
-	// Consul.
-	if s.agent.client != nil {
-		clientPeers := s.agent.client.RpcProxy().ServerRPCAddrs()
-		for _, peer := range clientPeers {
-			_, found := uniquePeers[peer]
-			if !found {
-				uniquePeers[peer] = true
-				peers = append(peers, peer)
-			}
-		}
-	}
-
+	peers := s.agent.client.RpcProxy().ServerRPCAddrs()
 	return peers, nil
 }
 
