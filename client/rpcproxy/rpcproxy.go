@@ -225,7 +225,12 @@ func (p *RPCProxy) AddPrimaryServer(rpcAddr string) *ServerEndpoint {
 		return nil
 	}
 
+	k := s.Key()
 	p.serverListLock.Lock()
+	if serverExists := p.primaryServers.serverExistByKey(k); serverExists {
+		p.serverListLock.Unlock()
+		return nil
+	}
 	p.primaryServers.L = append(p.primaryServers.L, s)
 	p.serverListLock.Unlock()
 
@@ -255,6 +260,18 @@ func (l *serverList) cycleServer() (servers []*ServerEndpoint) {
 	newServers = append(newServers, l.L[0])
 
 	return newServers
+}
+
+// serverExistByKey performs a search to see if a server exists in the
+// serverList.  Assumes the caller is holding at least a read lock.
+func (l *serverList) serverExistByKey(targetKey *EndpointKey) bool {
+	var found bool
+	for _, server := range l.L {
+		if targetKey.Equal(server.Key()) {
+			found = true
+		}
+	}
+	return found
 }
 
 // removeServerByKey performs an inline removal of the first matching server
