@@ -753,9 +753,8 @@ func (c *Syncer) Run() {
 			if err := c.SyncServices(); err != nil {
 				if c.consulAvailable {
 					c.logger.Printf("[DEBUG] consul.syncer: disabling checks until successful sync for %q: %v", c.serviceRegPrefix, err)
-				} else {
-					c.consulAvailable = false
 				}
+				c.consulAvailable = false
 			} else {
 				if !c.consulAvailable {
 					c.logger.Printf("[DEBUG] consul.syncer: re-enabling checks for for %q", c.serviceRegPrefix)
