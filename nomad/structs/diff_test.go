@@ -2757,6 +2757,12 @@ func TestTaskDiff(t *testing.T) {
 								Old:  "",
 								New:  "",
 							},
+							{
+								Type: DiffTypeNone,
+								Name: "ServiceID",
+								Old:  "",
+								New:  "",
+							},
 						},
 						Objects: []*ObjectDiff{
 							{
