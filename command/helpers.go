@@ -2,6 +2,7 @@ package command
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/hashicorp/nomad/api"
@@ -68,4 +69,20 @@ func getLocalNodeID(client *api.Client) (string, error) {
 	}
 
 	return nodeID, nil
+}
+
+// evalFailureStatus returns whether the evaluation has failures and a string to
+// display when presenting users with whether there are failures for the eval
+func evalFailureStatus(eval *api.Evaluation) (string, bool) {
+	if eval == nil {
+		return "", false
+	}
+
+	hasFailures := len(eval.FailedTGAllocs) != 0
+	text := strconv.FormatBool(hasFailures)
+	if eval.Status == "blocked" {
+		text = "N/A - In Progress"
+	}
+
+	return text, hasFailures
 }
