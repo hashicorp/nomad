@@ -1544,12 +1544,23 @@ func (sc *ServiceCheck) Hash(serviceID string) string {
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
-	Name      string          // Name of the service, defaults to id
-	Tags      []string        // List of tags for the service
 // The ConsulService model represents a Consul service definition in Nomad
 // Agent's Config.
 type ConsulService struct {
-	PortLabel string          `mapstructure:"port"` // port for the service
+	// ServiceID is the calculated Consul ServiceID used for a service.
+	// This value is not available to be set via configuration.
+	ServiceID string `mapstructure:"-"`
+
+	// Name of the service registered with Consul. Consul defaults the
+	// Name to ServiceID if not specified.  The Name if specified is used
+	// as one of the seed values when generating a Consul ServiceID.
+	Name string
+
+	// PortLabel is either the numeric port number or the `host:port`.
+	// To specify the port number using the host's Consul Advertise
+	// address, specify an empty host in the PortLabel (e.g. `:port`).
+	PortLabel string          `mapstructure:"port"`
+	Tags      []string        // List of tags for the service
 	Checks    []*ServiceCheck // List of checks associated with the service
 }
 
