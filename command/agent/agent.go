@@ -367,7 +367,7 @@ func (a *Agent) setupServer() error {
 	a.server = server
 
 	// Create the Nomad Server services for Consul
-	if a.config.Consul.ServerServiceName != "" {
+	if a.config.Consul.AutoRegister && a.config.Consul.ServerServiceName != "" {
 		const serviceGroupName = "server"
 		a.consulSyncer.SetServices(serviceGroupName, []*structs.ConsulService{
 			&structs.ConsulService{
@@ -418,7 +418,7 @@ func (a *Agent) setupClient() error {
 	a.client = client
 
 	// Create the Nomad Server services for Consul
-	if a.config.Consul.ClientServiceName != "" {
+	if a.config.Consul.AutoRegister && a.config.Consul.ClientServiceName != "" {
 		const serviceGroupName = "client"
 		a.consulSyncer.SetServices(serviceGroupName, []*structs.ConsulService{
 			&structs.ConsulService{
