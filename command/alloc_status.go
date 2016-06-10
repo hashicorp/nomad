@@ -361,10 +361,13 @@ func (c *AllocStatusCommand) taskResources(alloc *api.Allocation, stats map[stri
 		cpuUsage := strconv.Itoa(resource.CPU)
 		memUsage := strconv.Itoa(resource.MemoryMB)
 		if ru, ok := stats[task]; ok && ru != nil && ru.ResourceUsage != nil {
-			cpuTicksConsumed := (ru.ResourceUsage.CpuStats.Percent / 100) * float64(resource.CPU)
-			memoryStats := ru.ResourceUsage.MemoryStats
-			cpuUsage = fmt.Sprintf("%v/%v", math.Floor(cpuTicksConsumed), resource.CPU)
-			memUsage = fmt.Sprintf("%v/%v", memoryStats.RSS/(1024*1024), resource.MemoryMB)
+			if cs := ru.ResourceUsage.CpuStats; cs != nil {
+				cpuTicksConsumed := (cs.Percent / 100) * float64(resource.CPU)
+				cpuUsage = fmt.Sprintf("%v/%v", math.Floor(cpuTicksConsumed), resource.CPU)
+			}
+			if ms := ru.ResourceUsage.MemoryStats; ms != nil {
+				memUsage = fmt.Sprintf("%v/%v", ms.RSS/(1024*1024), resource.MemoryMB)
+			}
 		}
 		resourcesOutput = append(resourcesOutput, fmt.Sprintf("%v|%v MB|%v MB|%v|%v",
 			cpuUsage,
@@ -387,26 +390,65 @@ func (c *AllocStatusCommand) taskResources(alloc *api.Allocation, stats map[stri
 func (c *AllocStatusCommand) printTaskResourceUsage(task string, resourceUsage *api.ResourceUsage) {
 	memoryStats := resourceUsage.MemoryStats
 	cpuStats := resourceUsage.CpuStats
-	c.Ui.Output("Memory Stats")
-	out := make([]string, 2)
-	out[0] = "RSS|Cache|Swap|Max Usage|Kernel Usage|Kernel Max Usage"
-	out[1] = fmt.Sprintf("%v|%v|%v|%v|%v|%v",
-		humanize.Bytes(memoryStats.RSS),
-		humanize.Bytes(memoryStats.Cache),
-		humanize.Bytes(memoryStats.Swap),
-		humanize.Bytes(memoryStats.MaxUsage),
-		humanize.Bytes(memoryStats.KernelUsage),
-		humanize.Bytes(memoryStats.KernelMaxUsage),
-	)
-	c.Ui.Output(formatList(out))
+	if memoryStats != nil && len(memoryStats.Measured) > 0 {
+		c.Ui.Output("Memory Stats")
 
-	c.Ui.Output("")
+		// Sort the measured stats
+		sort.Strings(memoryStats.Measured)
 
-	c.Ui.Output("CPU Stats")
-	out = make([]string, 2)
-	out[0] = "Percent|Throttled Periods|Throttled Time"
-	percent := strconv.FormatFloat(cpuStats.Percent, 'f', 2, 64)
-	out[1] = fmt.Sprintf("%v %%|%v|%v", percent,
-		cpuStats.ThrottledPeriods, cpuStats.ThrottledTime)
-	c.Ui.Output(formatList(out))
+		var measuredStats []string
+		for _, measured := range memoryStats.Measured {
+			switch measured {
+			case "RSS":
+				measuredStats = append(measuredStats, humanize.Bytes(memoryStats.RSS))
+			case "Cache":
+				measuredStats = append(measuredStats, humanize.Bytes(memoryStats.Cache))
+			case "Swap":
+				measuredStats = append(measuredStats, humanize.Bytes(memoryStats.Swap))
+			case "Max Usage":
+				measuredStats = append(measuredStats, humanize.Bytes(memoryStats.MaxUsage))
+			case "Kernel Usage":
+				measuredStats = append(measuredStats, humanize.Bytes(memoryStats.KernelUsage))
+			case "Kernel Max Usage":
+				measuredStats = append(measuredStats, humanize.Bytes(memoryStats.KernelMaxUsage))
+			}
+		}
+
+		out := make([]string, 2)
+		out[0] = strings.Join(memoryStats.Measured, "|")
+		out[1] = strings.Join(measuredStats, "|")
+		c.Ui.Output(formatList(out))
+		c.Ui.Output("")
+	}
+
+	if cpuStats != nil && len(cpuStats.Measured) > 0 {
+		c.Ui.Output("CPU Stats")
+
+		// Sort the measured stats
+		sort.Strings(cpuStats.Measured)
+
+		var measuredStats []string
+		for _, measured := range cpuStats.Measured {
+			switch measured {
+			case "Percent":
+				percent := strconv.FormatFloat(cpuStats.Percent, 'f', 2, 64)
+				measuredStats = append(measuredStats, fmt.Sprintf("%v%%", percent))
+			case "Throttled Periods":
+				measuredStats = append(measuredStats, fmt.Sprintf("%v", cpuStats.ThrottledPeriods))
+			case "Throttled Time":
+				measuredStats = append(measuredStats, fmt.Sprintf("%v", cpuStats.ThrottledTime))
+			case "User Mode":
+				percent := strconv.FormatFloat(cpuStats.UserMode, 'f', 2, 64)
+				measuredStats = append(measuredStats, fmt.Sprintf("%v%%", percent))
+			case "System Mode":
+				percent := strconv.FormatFloat(cpuStats.SystemMode, 'f', 2, 64)
+				measuredStats = append(measuredStats, fmt.Sprintf("%v%%", percent))
+			}
+		}
+
+		out := make([]string, 2)
+		out[0] = strings.Join(cpuStats.Measured, "|")
+		out[1] = strings.Join(measuredStats, "|")
+		c.Ui.Output(formatList(out))
+	}
 }
