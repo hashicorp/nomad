@@ -3,6 +3,7 @@ package command
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
@@ -98,12 +99,16 @@ func (c *EvalStatusCommand) Run(args []string) int {
 		out := make([]string, len(evals)+1)
 		out[0] = "ID|Priority|Triggered By|Status|Placement Failures"
 		for i, eval := range evals {
-			out[i+1] = fmt.Sprintf("%s|%d|%s|%s|%t",
+			failures := strconv.FormatBool(len(eval.FailedTGAllocs) != 0)
+			if eval.Status == "blocked" {
+				failures = "N/A - In Progress"
+			}
+			out[i+1] = fmt.Sprintf("%s|%d|%s|%s|%s",
 				limit(eval.ID, length),
 				eval.Priority,
 				eval.TriggeredBy,
 				eval.Status,
-				len(eval.FailedTGAllocs) != 0,
+				failures,
 			)
 		}
 		c.Ui.Output(fmt.Sprintf("Prefix matched multiple evaluations\n\n%s", formatList(out)))
@@ -124,6 +129,10 @@ func (c *EvalStatusCommand) Run(args []string) int {
 	}
 
 	failures := len(eval.FailedTGAllocs) != 0
+	failureString := strconv.FormatBool(failures)
+	if eval.Status == "blocked" {
+		failureString = "N/A - In Progress"
+	}
 	triggerNoun, triggerSubj := getTriggerDetails(eval)
 	statusDesc := eval.StatusDescription
 	if statusDesc == "" {
@@ -139,7 +148,7 @@ func (c *EvalStatusCommand) Run(args []string) int {
 		fmt.Sprintf("TriggeredBy|%s", eval.TriggeredBy),
 		fmt.Sprintf("%s|%s", triggerNoun, triggerSubj),
 		fmt.Sprintf("Priority|%d", eval.Priority),
-		fmt.Sprintf("Placement Failures|%t", failures),
+		fmt.Sprintf("Placement Failures|%s", failureString),
 	}
 
 	if verbose {
