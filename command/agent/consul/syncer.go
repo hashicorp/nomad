@@ -51,8 +51,8 @@ const (
 
 // Syncer allows syncing of services and checks with Consul
 type Syncer struct {
-	client    *consul.Client
-	runChecks bool
+	client          *consul.Client
+	consulAvailable bool
 
 	// servicesGroups is a named group of services that will be flattened
 	// and reconciled with Consul when SyncServices() is called.  The key
@@ -158,6 +158,7 @@ func NewSyncer(config *config.ConsulConfig, shutdownCh chan struct{}, logger *lo
 	consulSyncer := Syncer{
 		client:            c,
 		logger:            logger,
+		consulAvailable:   true,
 		shutdownCh:        shutdownCh,
 		trackedServices:   make(map[string]*consul.AgentService),
 		servicesGroups:    make(map[string][]*consul.AgentServiceRegistration),
@@ -534,11 +535,11 @@ func (c *Syncer) runCheck(check Check) {
 		output = res.Err.Error()
 	}
 	if err := c.client.Agent().UpdateTTL(check.ID(), output, state); err != nil {
-		if c.runChecks {
+		if c.consulAvailable {
 			c.logger.Printf("[DEBUG] consul.syncer: check %q failed, disabling Consul checks until until next successful sync: %v", check.ID(), err)
-			c.runChecks = false
+			c.consulAvailable = false
 		} else {
-			c.runChecks = true
+			c.consulAvailable = true
 		}
 	}
 }
