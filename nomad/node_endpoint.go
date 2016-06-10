@@ -102,10 +102,14 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 
 	// Set the reply index
 	reply.Index = index
+	snap, err := n.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
 
 	n.srv.peerLock.RLock()
 	defer n.srv.peerLock.RUnlock()
-	if err := n.constructNodeServerInfoResponse(nil, reply); err != nil {
+	if err := n.constructNodeServerInfoResponse(snap, reply); err != nil {
 		n.srv.logger.Printf("[ERR] nomad.client: failed to populate NodeUpdateResponse: %v", err)
 		return err
 	}
@@ -129,14 +133,11 @@ func (n *Node) constructNodeServerInfoResponse(snap *state.StateSnapshot, reply 
 			})
 	}
 
-	// Capture all the nodes to obtain the node count
-	if snap == nil {
-		ss, err := n.srv.fsm.State().Snapshot()
-		if err != nil {
-			return err
-		}
-		snap = ss
-	}
+	// TODO(sean@): Use an indexed node count instead
+	//
+	// Snapshot is used only to iterate over all nodes to create a node
+	// count to send back to Nomad Clients in their heartbeat so Clients
+	// can estimate the size of the cluster.
 	iter, err := snap.Nodes()
 	if err == nil {
 		for {
