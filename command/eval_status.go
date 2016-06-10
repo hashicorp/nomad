@@ -3,7 +3,6 @@ package command
 import (
 	"fmt"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
@@ -99,10 +98,7 @@ func (c *EvalStatusCommand) Run(args []string) int {
 		out := make([]string, len(evals)+1)
 		out[0] = "ID|Priority|Triggered By|Status|Placement Failures"
 		for i, eval := range evals {
-			failures := strconv.FormatBool(len(eval.FailedTGAllocs) != 0)
-			if eval.Status == "blocked" {
-				failures = "N/A - In Progress"
-			}
+			failures, _ := evalFailureStatus(eval)
 			out[i+1] = fmt.Sprintf("%s|%d|%s|%s|%s",
 				limit(eval.ID, length),
 				eval.Priority,
@@ -128,11 +124,7 @@ func (c *EvalStatusCommand) Run(args []string) int {
 		return 1
 	}
 
-	failures := len(eval.FailedTGAllocs) != 0
-	failureString := strconv.FormatBool(failures)
-	if eval.Status == "blocked" {
-		failureString = "N/A - In Progress"
-	}
+	failureString, failures := evalFailureStatus(eval)
 	triggerNoun, triggerSubj := getTriggerDetails(eval)
 	statusDesc := eval.StatusDescription
 	if statusDesc == "" {

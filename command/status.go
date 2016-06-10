@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/gob"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -253,11 +252,7 @@ func (c *StatusCommand) outputJobInfo(client *api.Client, job *api.Job) error {
 	evals = make([]string, len(jobEvals)+1)
 	evals[0] = "ID|Priority|Triggered By|Status|Placement Failures"
 	for i, eval := range jobEvals {
-		failures := strconv.FormatBool(len(eval.FailedTGAllocs) != 0)
-		if eval.Status == "blocked" {
-			failures = "N/A - In Progress"
-		}
-
+		failures, _ := evalFailureStatus(eval)
 		evals[i+1] = fmt.Sprintf("%s|%d|%s|%s|%s",
 			limit(eval.ID, c.length),
 			eval.Priority,
