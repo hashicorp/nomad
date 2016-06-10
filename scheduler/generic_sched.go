@@ -139,7 +139,11 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 	// If the current evaluation is a blocked evaluation and we didn't place
 	// everything, do not update the status to complete.
 	if s.eval.Status == structs.EvalStatusBlocked && len(s.failedTGAllocs) != 0 {
-		return s.planner.ReblockEval(s.eval)
+		e := s.ctx.Eligibility()
+		newEval := s.eval.Copy()
+		newEval.EscapedComputedClass = e.HasEscaped()
+		newEval.ClassEligibility = e.GetClasses()
+		return s.planner.ReblockEval(newEval)
 	}
 
 	// Update the status to complete
