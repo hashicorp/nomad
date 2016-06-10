@@ -291,8 +291,9 @@ func TestBlockedEvals_Block_ImmediateUnblock_Escaped(t *testing.T) {
 }
 
 // Test the block case in which the eval should be immediately unblocked since
-// it there is an unblock on an unseen class
-func TestBlockedEvals_Block_ImmediateUnblock_UnseenClass(t *testing.T) {
+// there is an unblock on an unseen class that occured while it was in the
+// scheduler
+func TestBlockedEvals_Block_ImmediateUnblock_UnseenClass_After(t *testing.T) {
 	blocked, broker := testBlockedEvals(t)
 
 	// Do an unblock prior to blocking
@@ -323,6 +324,30 @@ func TestBlockedEvals_Block_ImmediateUnblock_UnseenClass(t *testing.T) {
 	}, func(err error) {
 		t.Fatalf("err: %s", err)
 	})
+}
+
+// Test the block case in which the eval should not immediately unblock since
+// there is an unblock on an unseen class that occured before it was in the
+// scheduler
+func TestBlockedEvals_Block_ImmediateUnblock_UnseenClass_Before(t *testing.T) {
+	blocked, _ := testBlockedEvals(t)
+
+	// Do an unblock prior to blocking
+	blocked.Unblock("v1:123", 500)
+
+	// Create a blocked eval that is eligible on a specific node class and add
+	// it to the blocked tracker.
+	e := mock.Eval()
+	e.Status = structs.EvalStatusBlocked
+	e.EscapedComputedClass = false
+	e.SnapshotIndex = 900
+	blocked.Block(e)
+
+	// Verify block caused the eval to be immediately unblocked
+	blockedStats := blocked.Stats()
+	if blockedStats.TotalBlocked != 1 && blockedStats.TotalEscaped != 0 {
+		t.Fatalf("bad: %#v", blockedStats)
+	}
 }
 
 // Test the block case in which the eval should be immediately unblocked since
