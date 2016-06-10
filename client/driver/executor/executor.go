@@ -781,11 +781,13 @@ func (e *UniversalExecutor) aggregatedResourceUsage(pidStats map[string]*cstruct
 		totalSwap += pidStat.MemoryStats.Swap
 	}
 
+	totalTicks := e.systemCpuStats.TicksConsumed(percent)
 	totalCPU := &cstructs.CpuStats{
 		SystemMode: systemModeCPU,
 		UserMode:   userModeCPU,
 		Percent:    percent,
 		Measured:   ExecutorBasicMeasuredCpuStats,
+		Ticks:      totalTicks,
 	}
 
 	totalMemory := &cstructs.MemoryStats{
