@@ -362,17 +362,17 @@ func TestParse(t *testing.T) {
 								Artifacts: []*structs.TaskArtifact{
 									{
 										GetterSource:  "http://foo.com/bar",
-										GetterOptions: map[string]string{},
+										GetterOptions: map[string]string{"foo": "bar"},
 										RelativeDest:  "",
 									},
 									{
 										GetterSource:  "http://foo.com/baz",
-										GetterOptions: map[string]string{},
+										GetterOptions: nil,
 										RelativeDest:  "local/",
 									},
 									{
 										GetterSource:  "http://foo.com/bam",
-										GetterOptions: map[string]string{},
+										GetterOptions: nil,
 										RelativeDest:  "var/foo",
 									},
 								},

@@ -6,6 +6,9 @@ job "binstore-storagelocker" {
             artifact {
                 source = "http://foo.com/bar"
                 destination = ""
+                options {
+                    foo = "bar"
+                }
             }
 
             artifact {
