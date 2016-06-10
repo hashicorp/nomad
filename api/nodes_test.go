@@ -60,7 +60,6 @@ func TestNodes_PrefixList(t *testing.T) {
 			return false, fmt.Errorf("expected 1 node, got: %d", n)
 		}
 		nodeID = out[0].ID
-		_ = out[0].Datacenter
 		return true, nil
 	}, func(err error) {
 		t.Fatalf("err: %s", err)
