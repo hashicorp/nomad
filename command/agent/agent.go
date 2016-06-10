@@ -545,10 +545,8 @@ func (a *Agent) Shutdown() error {
 		}
 	}
 
-	if a.consulSyncer != nil {
-		if err := a.consulSyncer.Shutdown(); err != nil {
-			a.logger.Printf("[ERR] agent: shutting down consul service failed: %v", err)
-		}
+	if err := a.consulSyncer.Shutdown(); err != nil {
+		a.logger.Printf("[ERR] agent: shutting down consul service failed: %v", err)
 	}
 
 	a.logger.Println("[INFO] agent: shutdown complete")
