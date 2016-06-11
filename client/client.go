@@ -1291,6 +1291,21 @@ func (c *Client) setupConsulSyncer() error {
 		if err != nil {
 			return fmt.Errorf("client.consul: unable to query Consul datacenters: %v", err)
 		}
+		if len(dcs) > 2 {
+			// Query the local DC first, then shuffle the
+			// remaining DCs.  Future heartbeats will cause Nomad
+			// Clients to fixate on their local datacenter so
+			// it's okay to talk with remote DCs.  If the no
+			// Nomad servers are available within
+			// datacenterQueryLimit, the next heartbeat will pick
+			// a new set of servers so it's okay.
+			nearestDC := dcs[0]
+			otherDCs := make([]string, 0, len(dcs))
+			otherDCs = dcs[1:lib.MinInt(len(dcs), datacenterQueryLimit)]
+			shuffleStrings(otherDCs)
+
+			dcs = append([]string{nearestDC}, otherDCs...)
+		}
 
 		nomadServerServiceName := c.config.ConsulConfig.ServerServiceName
 		var mErr multierror.Error
