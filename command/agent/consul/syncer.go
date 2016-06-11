@@ -43,6 +43,10 @@ const (
 	// the check result
 	ttlCheckBuffer = 31 * time.Second
 
+	// DefaultQueryWaitDuration is the max duration the Consul Agent will
+	// spend waiting for a response from a Consul Query.
+	DefaultQueryWaitDuration = 2 * time.Second
+
 	// ServiceTagHttp is the tag assigned to HTTP services
 	ServiceTagHttp = "http"
 
