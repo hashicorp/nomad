@@ -90,7 +90,7 @@ func (n *Nodes) Stats(nodeID string, q *QueryOptions) (*HostStats, error) {
 		return nil, err
 	}
 	var resp []HostStats
-	if _, err := client.query("/v1/client/stats/", &resp, nil); err != nil {
+	if _, err := client.query("/v1/client/stats", &resp, nil); err != nil {
 		return nil, err
 	}
 
