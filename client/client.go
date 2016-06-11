@@ -302,15 +302,15 @@ func (c *Client) Region() string {
 	return c.config.Region
 }
 
-// RpcMajorVersion returns the structs.ApiMajorVersion supported by the
+// RPCMajorVersion returns the structs.ApiMajorVersion supported by the
 // client.
-func (c *Client) RpcMajorVersion() int {
+func (c *Client) RPCMajorVersion() int {
 	return structs.ApiMajorVersion
 }
 
-// RpcMinorVersion returns the structs.ApiMinorVersion supported by the
+// RPCMinorVersion returns the structs.ApiMinorVersion supported by the
 // client.
-func (c *Client) RpcMinorVersion() int {
+func (c *Client) RPCMinorVersion() int {
 	return structs.ApiMinorVersion
 }
 
@@ -354,7 +354,7 @@ func (c *Client) RPC(method string, args interface{}, reply interface{}) error {
 	}
 
 	// Make the RPC request
-	if err := c.connPool.RPC(c.Region(), server.Addr, c.RpcMajorVersion(), method, args, reply); err != nil {
+	if err := c.connPool.RPC(c.Region(), server.Addr, c.RPCMajorVersion(), method, args, reply); err != nil {
 		c.rpcProxy.NotifyFailedServer(server)
 		c.logger.Printf("[ERR] client: RPC failed to server %s: %v", server.Addr, err)
 		return err
@@ -1307,7 +1307,7 @@ func (c *Client) setupConsulSyncer() error {
 				Near:       "_agent",
 				WaitTime:   consul.DefaultQueryWaitDuration,
 			}
-			consulServices, _, err := consulCatalog.Service(nomadServerServiceName, consul.ServiceTagRpc, opts)
+			consulServices, _, err := consulCatalog.Service(nomadServerServiceName, consul.ServiceTagRPC, opts)
 			if err != nil {
 				mErr.Errors = append(mErr.Errors, fmt.Errorf("unable to query service %q from Consul datacenter %q: %v", nomadServerServiceName, dc, err))
 				continue
@@ -1326,7 +1326,7 @@ func (c *Client) setupConsulSyncer() error {
 					continue
 				}
 				var ok bool
-				if ok, err = c.connPool.PingNomadServer(c.Region(), c.RpcMajorVersion(), serverEndpoint); err != nil {
+				if ok, err = c.connPool.PingNomadServer(c.Region(), c.RPCMajorVersion(), serverEndpoint); err != nil {
 					mErr.Errors = append(mErr.Errors, err)
 					continue
 				}
@@ -1344,7 +1344,7 @@ func (c *Client) setupConsulSyncer() error {
 				return mErr.ErrorOrNil()
 			}
 
-			for i, _ := range dcs {
+			for i := range dcs {
 				dcs[i] = fmt.Sprintf("%q", dcs[i])
 			}
 			return fmt.Errorf("no Nomad Servers advertising service %q in Consul datacenters: %s", nomadServerServiceName, dcs)
@@ -1381,7 +1381,7 @@ func (c *Client) setupConsulSyncer() error {
 		const estInitialConsulServices = 8
 		const serviceGroupName = "executor"
 		services := make([]*structs.ConsulService, 0, estInitialConsulServices)
-		for allocId, ar := range c.getAllocRunners() {
+		for allocID, ar := range c.getAllocRunners() {
 			ar.taskStatusLock.RLock()
 			taskStates := copyTaskStates(ar.taskStates)
 			ar.taskStatusLock.RUnlock()
@@ -1390,10 +1390,10 @@ func (c *Client) setupConsulSyncer() error {
 					if tr, ok := ar.tasks[taskName]; ok {
 						for _, service := range tr.task.ConsulServices {
 							if service.Name == "" {
-								service.Name = fmt.Sprintf("%s-%s", tr.task.Name, allocId)
+								service.Name = fmt.Sprintf("%s-%s", tr.task.Name, allocID)
 							}
 							if service.ServiceID == "" {
-								service.ServiceID = fmt.Sprintf("%s-%s:%s/%s", c.consulSyncer.GenerateServiceID(serviceGroupName, service), tr.task.Name, allocId)
+								service.ServiceID = fmt.Sprintf("%s-%s:%s/%s", c.consulSyncer.GenerateServiceID(serviceGroupName, service), tr.task.Name, allocID)
 							}
 							services = append(services, service)
 						}
@@ -1461,6 +1461,7 @@ func (c *Client) emitStats(hStats *stats.HostStats) {
 	}
 }
 
+// RPCProxy returns the Client's RPCProxy instance
 func (c *Client) RPCProxy() *rpcproxy.RPCProxy {
 	return c.rpcProxy
 }

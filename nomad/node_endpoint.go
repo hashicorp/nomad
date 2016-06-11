@@ -126,9 +126,9 @@ func (n *Node) constructNodeServerInfoResponse(snap *state.StateSnapshot, reply 
 	for k, v := range n.srv.localPeers {
 		reply.Servers = append(reply.Servers,
 			&structs.NodeServerInfo{
-				RpcAdvertiseAddr: k,
-				RpcMajorVersion:  int32(v.MajorVersion),
-				RpcMinorVersion:  int32(v.MinorVersion),
+				RPCAdvertiseAddr: k,
+				RPCMajorVersion:  int32(v.MajorVersion),
+				RPCMinorVersion:  int32(v.MinorVersion),
 				Datacenter:       v.Datacenter,
 			})
 	}

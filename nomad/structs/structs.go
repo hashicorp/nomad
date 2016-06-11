@@ -171,15 +171,15 @@ type NodeDeregisterRequest struct {
 type NodeServerInfo struct {
 	// RPCAdvertiseAddr is the IP endpoint that a Nomad Server wishes to
 	// be contacted at for RPCs.
-	RpcAdvertiseAddr string
+	RPCAdvertiseAddr string
 
 	// RpcMajorVersion is the major version number the Nomad Server
 	// supports
-	RpcMajorVersion int32
+	RPCMajorVersion int32
 
 	// RpcMinorVersion is the minor version number the Nomad Server
 	// supports
-	RpcMinorVersion int32
+	RPCMinorVersion int32
 
 	// Datacenter is the datacenter that a Nomad server belongs to
 	Datacenter string

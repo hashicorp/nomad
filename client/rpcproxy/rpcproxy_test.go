@@ -82,11 +82,11 @@ func (s *fauxSerf) Datacenter() string {
 	return s.datacenter
 }
 
-func (s *fauxSerf) RpcMajorVersion() int {
+func (s *fauxSerf) RPCMajorVersion() int {
 	return s.rpcMajorVersion
 }
 
-func (s *fauxSerf) RpcMinorVersion() int {
+func (s *fauxSerf) RPCMinorVersion() int {
 	return s.rpcMinorVersion
 }
 
@@ -645,7 +645,7 @@ func test_reconcileServerList(maxServers int) (bool, error) {
 			// failPct of the servers for the reconcile.  This
 			// allows for the selected server to no longer be
 			// healthy for the reconcile below.
-			if ok, _ := p.connPoolPinger.PingNomadServer(p.configInfo.Region(), p.configInfo.RpcMajorVersion(), node); ok {
+			if ok, _ := p.connPoolPinger.PingNomadServer(p.configInfo.Region(), p.configInfo.RPCMajorVersion(), node); ok {
 				// Will still be present
 				healthyServers = append(healthyServers, node)
 			} else {

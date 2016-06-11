@@ -63,8 +63,8 @@ const (
 // configuration to prevents a cyclic import dependency.
 type NomadConfigInfo interface {
 	Datacenter() string
-	RpcMajorVersion() int
-	RpcMinorVersion() int
+	RPCMajorVersion() int
+	RPCMinorVersion() int
 	Region() string
 }
 
@@ -468,7 +468,7 @@ func (p *RPCProxy) RebalanceServers() {
 		// detect the failed node.
 		selectedServer := l.L[0]
 
-		ok, err := p.connPoolPinger.PingNomadServer(p.configInfo.Region(), p.configInfo.RpcMajorVersion(), selectedServer)
+		ok, err := p.connPoolPinger.PingNomadServer(p.configInfo.Region(), p.configInfo.RPCMajorVersion(), selectedServer)
 		if ok {
 			foundHealthyServer = true
 			break
@@ -697,23 +697,23 @@ func (p *RPCProxy) RefreshServerLists(servers []*structs.NodeServerInfo, numNode
 		// TODO(sean@): Move the logging throttle logic into a
 		// dedicated logging package so RPCProxy does not have to
 		// perform this accounting.
-		if int32(p.configInfo.RpcMajorVersion()) < s.RpcMajorVersion ||
-			(int32(p.configInfo.RpcMajorVersion()) == s.RpcMajorVersion &&
-				int32(p.configInfo.RpcMinorVersion()) < s.RpcMinorVersion) {
+		if int32(p.configInfo.RPCMajorVersion()) < s.RPCMajorVersion ||
+			(int32(p.configInfo.RPCMajorVersion()) == s.RPCMajorVersion &&
+				int32(p.configInfo.RPCMinorVersion()) < s.RPCMinorVersion) {
 			now := time.Now()
-			t, ok := p.rpcAPIMismatchThrottle[s.RpcAdvertiseAddr]
+			t, ok := p.rpcAPIMismatchThrottle[s.RPCAdvertiseAddr]
 			if ok && t.After(now) {
 				continue
 			}
 
-			p.logger.Printf("[WARN] client.rpcproxy: API mismatch between client version (v%d.%d) and server version (v%d.%d), ignoring server %q", p.configInfo.RpcMajorVersion(), p.configInfo.RpcMinorVersion(), s.RpcMajorVersion, s.RpcMinorVersion, s.RpcAdvertiseAddr)
-			p.rpcAPIMismatchThrottle[s.RpcAdvertiseAddr] = now.Add(rpcAPIMismatchLogRate)
+			p.logger.Printf("[WARN] client.rpcproxy: API mismatch between client version (v%d.%d) and server version (v%d.%d), ignoring server %q", p.configInfo.RPCMajorVersion(), p.configInfo.RPCMinorVersion(), s.RPCMajorVersion, s.RPCMinorVersion, s.RPCAdvertiseAddr)
+			p.rpcAPIMismatchThrottle[s.RPCAdvertiseAddr] = now.Add(rpcAPIMismatchLogRate)
 			continue
 		}
 
-		server, err := NewServerEndpoint(s.RpcAdvertiseAddr)
+		server, err := NewServerEndpoint(s.RPCAdvertiseAddr)
 		if err != nil {
-			p.logger.Printf("[WARN] client.rpcproxy: Unable to create a server from %q: %v", s.RpcAdvertiseAddr, err)
+			p.logger.Printf("[WARN] client.rpcproxy: Unable to create a server from %q: %v", s.RPCAdvertiseAddr, err)
 			continue
 		}
 

@@ -47,11 +47,11 @@ const (
 	// spend waiting for a response from a Consul Query.
 	DefaultQueryWaitDuration = 2 * time.Second
 
-	// ServiceTagHttp is the tag assigned to HTTP services
-	ServiceTagHttp = "http"
+	// ServiceTagHTTP is the tag assigned to HTTP services
+	ServiceTagHTTP = "http"
 
-	// ServiceTagRpc is the tag assigned to RPC services
-	ServiceTagRpc = "rpc"
+	// ServiceTagRPC is the tag assigned to RPC services
+	ServiceTagRPC = "rpc"
 
 	// ServiceTagSerf is the tag assigned to Serf services
 	ServiceTagSerf = "serf"
@@ -895,6 +895,7 @@ func (c *Syncer) AddPeriodicHandler(name string, fn types.PeriodicCallback) bool
 	return true
 }
 
+// NumHandlers returns the number of callbacks registered with the syncer
 func (c *Syncer) NumHandlers() int {
 	c.periodicLock.RLock()
 	defer c.periodicLock.RUnlock()
@@ -908,6 +909,7 @@ func (c *Syncer) RemovePeriodicHandler(name string) {
 	delete(c.periodicCallbacks, name)
 }
 
+// ConsulClient returns the Consul client used by the Syncer.
 func (c *Syncer) ConsulClient() *consul.Client {
 	return c.client
 }
