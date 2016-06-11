@@ -425,7 +425,9 @@ func (e *UniversalExecutor) Exit() error {
 	e.lre.Close()
 	e.lro.Close()
 
-	e.consulSyncer.Shutdown()
+	if e.consulSyncer != nil {
+		e.consulSyncer.Shutdown()
+	}
 
 	// If the executor did not launch a process, return.
 	if e.command == nil {
