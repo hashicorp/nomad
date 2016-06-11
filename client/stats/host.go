@@ -101,7 +101,7 @@ func (h *HostStatsCollector) Collect() (*HostStats, error) {
 			cs[idx].System = system
 			cs[idx].User = user
 			cs[idx].Total = total
-			ticksConsumed += (total / 100) * shelpers.TotalTicksAvailable()
+			ticksConsumed += (total / 100) * (shelpers.TotalTicksAvailable() / float64(len(cpuStats)))
 		}
 		hs.CPU = cs
 		hs.CPUTicksConsumed = ticksConsumed
