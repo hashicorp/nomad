@@ -19,6 +19,9 @@ IMPROVEMENTS:
   * cli: Unify the `fs` family of commands to be a single command [GH-1150]
   * cli: Introduce `nomad plan` to dry-run a job through the scheduler and
     determine its effects [GH-1181]
+  * client: If Consul is available, automatically bootstrap Nomad Client
+    using the `nomad` service in Consul.  Nomad servers now register
+    themselves with Consul if Consul is available. [GH-1201]
 
 BUG FIXES:
   * core: Improve garbage collection of allocations and nodes [GH-1256]
