@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -14,9 +13,20 @@ import (
 	"github.com/hashicorp/nomad/api"
 )
 
+const (
+	// floatFormat is a format string for formatting floats.
+	floatFormat = "#,###.##"
+)
+
 type NodeStatusCommand struct {
 	Meta
-	color *colorstring.Colorize
+	color       *colorstring.Colorize
+	length      int
+	short       bool
+	verbose     bool
+	list_allocs bool
+	self        bool
+	stats       bool
 }
 
 func (c *NodeStatusCommand) Help() string {
@@ -62,16 +72,14 @@ func (c *NodeStatusCommand) Synopsis() string {
 }
 
 func (c *NodeStatusCommand) Run(args []string) int {
-	var short, verbose, list_allocs, self, stats bool
-	var hostStats *api.HostStats
 
 	flags := c.Meta.FlagSet("node-status", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	flags.BoolVar(&short, "short", false, "")
-	flags.BoolVar(&verbose, "verbose", false, "")
-	flags.BoolVar(&list_allocs, "allocs", false, "")
-	flags.BoolVar(&self, "self", false, "")
-	flags.BoolVar(&stats, "stats", false, "")
+	flags.BoolVar(&c.short, "short", false, "")
+	flags.BoolVar(&c.verbose, "verbose", false, "")
+	flags.BoolVar(&c.list_allocs, "allocs", false, "")
+	flags.BoolVar(&c.self, "self", false, "")
+	flags.BoolVar(&c.stats, "stats", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -85,9 +93,9 @@ func (c *NodeStatusCommand) Run(args []string) int {
 	}
 
 	// Truncate the id unless full length is requested
-	length := shortId
-	if verbose {
-		length = fullId
+	c.length = shortId
+	if c.verbose {
+		c.length = fullId
 	}
 
 	// Get the HTTP client
@@ -98,7 +106,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 	}
 
 	// Use list mode if no node name was provided
-	if len(args) == 0 && !self {
+	if len(args) == 0 && !c.self {
 		// Query the node info
 		nodes, _, err := client.Nodes().List(nil)
 		if err != nil {
@@ -113,20 +121,20 @@ func (c *NodeStatusCommand) Run(args []string) int {
 
 		// Format the nodes list
 		out := make([]string, len(nodes)+1)
-		if list_allocs {
+		if c.list_allocs {
 			out[0] = "ID|DC|Name|Class|Drain|Status|Running Allocs"
 		} else {
 			out[0] = "ID|DC|Name|Class|Drain|Status"
 		}
 		for i, node := range nodes {
-			if list_allocs {
+			if c.list_allocs {
 				numAllocs, err := getRunningAllocs(client, node.ID)
 				if err != nil {
 					c.Ui.Error(fmt.Sprintf("Error querying node allocations: %s", err))
 					return 1
 				}
 				out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%v|%s|%v",
-					limit(node.ID, length),
+					limit(node.ID, c.length),
 					node.Datacenter,
 					node.Name,
 					node.NodeClass,
@@ -135,7 +143,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 					len(numAllocs))
 			} else {
 				out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%v|%s",
-					limit(node.ID, length),
+					limit(node.ID, c.length),
 					node.Datacenter,
 					node.Name,
 					node.NodeClass,
@@ -151,7 +159,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 
 	// Query the specific node
 	nodeID := ""
-	if !self {
+	if !c.self {
 		nodeID = args[0]
 	} else {
 		var err error
@@ -187,7 +195,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		out[0] = "ID|DC|Name|Class|Drain|Status"
 		for i, node := range nodes {
 			out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%v|%s",
-				limit(node.ID, length),
+				limit(node.ID, c.length),
 				node.Datacenter,
 				node.Name,
 				node.NodeClass,
@@ -205,11 +213,16 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		return 1
 	}
 
-	var nodeStatsErr error
-	hostStats, nodeStatsErr = client.Nodes().Stats(node.ID, nil)
-	// Format the output
+	return c.formatNode(client, node)
+}
+
+func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
+	// Get the host stats
+	hostStats, nodeStatsErr := client.Nodes().Stats(node.ID, nil)
+
+	// Format the header output
 	basic := []string{
-		fmt.Sprintf("[bold]Node ID[reset]|%s", limit(node.ID, length)),
+		fmt.Sprintf("Node ID|%s", limit(node.ID, c.length)),
 		fmt.Sprintf("Name|%s", node.Name),
 		fmt.Sprintf("Class|%s", node.NodeClass),
 		fmt.Sprintf("DC|%s", node.Datacenter),
@@ -222,77 +235,88 @@ func (c *NodeStatusCommand) Run(args []string) int {
 	}
 	c.Ui.Output(c.Colorize().Color(formatKV(basic)))
 
-	if !short {
+	if !c.short {
 		allocatedResources, err := getAllocatedResources(client, node)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error querying node resources: %s", err))
 			return 1
 		}
-		c.Ui.Output(c.Colorize().Color("\n[bold]==> Resource Utilization (Allocated)[reset]"))
+		c.Ui.Output(c.Colorize().Color("\n[bold]Allocated Resources[reset]"))
 		c.Ui.Output(formatList(allocatedResources))
 
 		actualResources, err := getActualResources(hostStats, node)
 		if err == nil {
-			c.Ui.Output(c.Colorize().Color("\n[bold]==> Resource Utilization (Actual)[reset]"))
+			c.Ui.Output(c.Colorize().Color("\n[bold]Allocation Resource Utilization[reset]"))
 			c.Ui.Output(formatList(actualResources))
 		}
 
-		if hostStats != nil && stats {
-			c.Ui.Output(c.Colorize().Color("\n===> [bold]Detailed CPU Stats[reset]"))
+		if err == nil {
+			c.Ui.Output(c.Colorize().Color("\n[bold]Host Resource Utilization[reset]"))
+			c.Ui.Output(formatList(actualResources))
+		}
+
+		if hostStats != nil && c.stats {
+			c.Ui.Output(c.Colorize().Color("\n[bold]CPU Stats[reset]"))
 			c.printCpuStats(hostStats)
-			c.Ui.Output(c.Colorize().Color("\n===> [bold]Detailed Memory Stats[reset]"))
+			c.Ui.Output(c.Colorize().Color("\n[bold]Memory Stats[reset]"))
 			c.printMemoryStats(hostStats)
-			c.Ui.Output(c.Colorize().Color("\n===> [bold]Detailed Disk Stats[reset]"))
+			c.Ui.Output(c.Colorize().Color("\n[bold]Disk Stats[reset]"))
 			c.printDiskStats(hostStats)
 		}
-
-		allocs, err := getAllocs(client, node, length)
-		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error querying node allocations: %s", err))
-			return 1
-		}
-
-		if len(allocs) > 1 {
-			c.Ui.Output("\n==> Allocations")
-			c.Ui.Output(formatList(allocs))
-		}
-
 	}
 
-	if verbose {
-		// Print the attributes
-		keys := make([]string, len(node.Attributes))
-		for k := range node.Attributes {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-
-		var attributes []string
-		for _, k := range keys {
-			if k != "" {
-				attributes = append(attributes, fmt.Sprintf("%s|%s", k, node.Attributes[k]))
-			}
-		}
-		c.Ui.Output("\n==> Attributes")
-		c.Ui.Output(formatKV(attributes))
+	allocs, err := getAllocs(client, node, c.length)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error querying node allocations: %s", err))
+		return 1
 	}
 
+	if len(allocs) > 1 {
+		c.Ui.Output(c.Colorize().Color("\n[bold]Allocations[reset]"))
+		c.Ui.Output(formatList(allocs))
+	}
+
+	if c.verbose {
+		c.formatAttributes(node)
+	}
 	if nodeStatsErr != nil {
 		c.Ui.Output("")
 		c.Ui.Error(fmt.Sprintf("error fetching node stats: %v", nodeStatsErr))
 	}
 	return 0
+
+}
+
+func (c *NodeStatusCommand) formatAttributes(node *api.Node) {
+	// Print the attributes
+	keys := make([]string, len(node.Attributes))
+	for k := range node.Attributes {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	var attributes []string
+	for _, k := range keys {
+		if k != "" {
+			attributes = append(attributes, fmt.Sprintf("%s|%s", k, node.Attributes[k]))
+		}
+	}
+	c.Ui.Output(c.Colorize().Color("\n[bold]Attributes[reset]"))
+	c.Ui.Output(formatKV(attributes))
 }
 
 func (c *NodeStatusCommand) printCpuStats(hostStats *api.HostStats) {
-	for _, cpuStat := range hostStats.CPU {
+	l := len(hostStats.CPU)
+	for i, cpuStat := range hostStats.CPU {
 		cpuStatsAttr := make([]string, 4)
 		cpuStatsAttr[0] = fmt.Sprintf("CPU|%v", cpuStat.CPU)
-		cpuStatsAttr[1] = fmt.Sprintf("User|%v %%", formatFloat64(cpuStat.User))
-		cpuStatsAttr[2] = fmt.Sprintf("System|%v %%", formatFloat64(cpuStat.System))
-		cpuStatsAttr[3] = fmt.Sprintf("Idle|%v %%", formatFloat64(cpuStat.Idle))
+		cpuStatsAttr[1] = fmt.Sprintf("User|%v%%", humanize.FormatFloat(floatFormat, cpuStat.User))
+		cpuStatsAttr[2] = fmt.Sprintf("System|%v%%", humanize.FormatFloat(floatFormat, cpuStat.System))
+		cpuStatsAttr[3] = fmt.Sprintf("Idle|%v%%", humanize.FormatFloat(floatFormat, cpuStat.Idle))
 		c.Ui.Output(formatKV(cpuStatsAttr))
-		c.Ui.Output("")
+		if i+1 < l {
+			c.Ui.Output("")
+		}
 	}
 }
 
@@ -307,17 +331,20 @@ func (c *NodeStatusCommand) printMemoryStats(hostStats *api.HostStats) {
 }
 
 func (c *NodeStatusCommand) printDiskStats(hostStats *api.HostStats) {
-	for _, diskStat := range hostStats.DiskStats {
+	l := len(hostStats.DiskStats)
+	for i, diskStat := range hostStats.DiskStats {
 		diskStatsAttr := make([]string, 7)
 		diskStatsAttr[0] = fmt.Sprintf("Device|%s", diskStat.Device)
 		diskStatsAttr[1] = fmt.Sprintf("MountPoint|%s", diskStat.Mountpoint)
 		diskStatsAttr[2] = fmt.Sprintf("Size|%s", humanize.Bytes(diskStat.Size))
 		diskStatsAttr[3] = fmt.Sprintf("Used|%s", humanize.Bytes(diskStat.Used))
 		diskStatsAttr[4] = fmt.Sprintf("Available|%s", humanize.Bytes(diskStat.Available))
-		diskStatsAttr[5] = fmt.Sprintf("Used Percent|%v %%", formatFloat64(diskStat.UsedPercent))
-		diskStatsAttr[6] = fmt.Sprintf("Inodes Percent|%v %%", formatFloat64(diskStat.InodesUsedPercent))
+		diskStatsAttr[5] = fmt.Sprintf("Used Percent|%v%%", humanize.FormatFloat(floatFormat, diskStat.UsedPercent))
+		diskStatsAttr[6] = fmt.Sprintf("Inodes Percent|%v%%", humanize.FormatFloat(floatFormat, diskStat.InodesUsedPercent))
 		c.Ui.Output(formatKV(diskStatsAttr))
-		c.Ui.Output("")
+		if i+1 < l {
+			c.Ui.Output("")
+		}
 	}
 }
 
@@ -427,8 +454,4 @@ func getActualResources(hostStats *api.HostStats, node *api.Node) ([]string, err
 		humanize.Bytes(diskSize),
 	)
 	return resources, nil
-}
-
-func formatFloat64(val float64) string {
-	return strconv.FormatFloat(val, 'f', 2, 64)
 }

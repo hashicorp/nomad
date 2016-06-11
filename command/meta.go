@@ -118,6 +118,9 @@ func generalOptionsUsage() string {
     The region of the Nomad servers to forward commands to.
     Overrides the NOMAD_REGION environment variable if set.
     Defaults to the Agent's local region.
+  
+  -no-color
+    Disables colored command output.
 `
 	return strings.TrimSpace(helpText)
 }
