@@ -2,19 +2,29 @@ package stats
 
 import (
 	"github.com/shirou/gopsutil/cpu"
+	"sync"
+)
+
+var (
+	clkSpeed  float64
+	ticksLock sync.Mutex
 )
 
 // TotalTicksAvailable calculates the total frequency available across all cores
-func TotalTicksAvailable() (float64, error) {
-	var clkSpeed float64
-	var cpuInfo []cpu.InfoStat
-	var err error
+func TotalTicksAvailable() float64 {
+	ticksLock.Lock()
+	defer ticksLock.Unlock()
+	if clkSpeed == 0.0 {
+		var cpuInfo []cpu.InfoStat
+		var err error
 
-	if cpuInfo, err = cpu.Info(); err != nil {
-		return 0.0, err
+		var totalTicks float64
+		if cpuInfo, err = cpu.Info(); err == nil {
+			for _, cpu := range cpuInfo {
+				totalTicks += cpu.Mhz
+			}
+			clkSpeed = totalTicks
+		}
 	}
-	for _, cpu := range cpuInfo {
-		clkSpeed += cpu.Mhz
-	}
-	return clkSpeed, nil
+	return clkSpeed
 }

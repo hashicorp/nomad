@@ -48,7 +48,7 @@ func (c *CpuStats) Percent(cpuTime float64) float64 {
 // TicksConsumed calculates the total ticks consumes by the process across all
 // cpu cores
 func (c *CpuStats) TicksConsumed(percent float64) float64 {
-	return (percent / 100) * c.getClkSpeed()
+	return (percent / 100) * shelpers.TotalTicksAvailable()
 }
 
 func (c *CpuStats) calculatePercent(t1, t2 float64, timeDelta int64) float64 {
@@ -59,14 +59,4 @@ func (c *CpuStats) calculatePercent(t1, t2 float64, timeDelta int64) float64 {
 
 	overall_percent := (vDelta / float64(timeDelta)) * 100.0
 	return overall_percent
-}
-
-// getClkSpeed returns the total ticks available on a machine
-func (c *CpuStats) getClkSpeed() float64 {
-	if c.clkSpeed == 0.0 {
-		if clkSpeed, err := shelpers.TotalTicksAvailable(); err == nil {
-			c.clkSpeed = clkSpeed
-		}
-	}
-	return c.clkSpeed
 }
