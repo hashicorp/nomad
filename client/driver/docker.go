@@ -779,9 +779,6 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 		doneCh:         make(chan bool),
 		waitCh:         make(chan *cstructs.WaitResult, 1),
 	}
-	if clkSpeed, err := shelpers.TotalTicksAvailable(); err == nil {
-		h.clkSpeed = clkSpeed
-	}
 	if err := exec.SyncServices(consulContext(d.config, container.ID)); err != nil {
 		d.logger.Printf("[ERR] driver.docker: error registering services with consul for task: %q: %v", task.Name, err)
 	}
@@ -855,9 +852,6 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 		maxKillTimeout: pid.MaxKillTimeout,
 		doneCh:         make(chan bool),
 		waitCh:         make(chan *cstructs.WaitResult, 1),
-	}
-	if clkSpeed, err := shelpers.TotalTicksAvailable(); err == nil {
-		h.clkSpeed = clkSpeed
 	}
 	if err := exec.SyncServices(consulContext(d.config, pid.ContainerID)); err != nil {
 		h.logger.Printf("[ERR] driver.docker: error registering services with consul: %v", err)
@@ -1022,13 +1016,7 @@ func (h *DockerHandle) collectStats() {
 				cs.UserMode = calculatePercent(
 					s.CPUStats.CPUUsage.UsageInUsermode, s.PreCPUStats.CPUUsage.UsageInUsermode,
 					s.CPUStats.CPUUsage.TotalUsage, s.PreCPUStats.CPUUsage.TotalUsage, cores)
-
-				if h.clkSpeed == 0.0 {
-					if clkSpeed, err := shelpers.TotalTicksAvailable(); err != nil {
-						h.clkSpeed = clkSpeed
-					}
-				}
-				cs.TotalTicks = (cs.Percent / 100) * h.clkSpeed
+				cs.TotalTicks = (cs.Percent / 100) * h.getClkSpeed()
 
 				h.resourceUsageLock.Lock()
 				h.resourceUsage = &cstructs.TaskResourceUsage{
@@ -1044,6 +1032,16 @@ func (h *DockerHandle) collectStats() {
 			return
 		}
 	}
+}
+
+// getClkSpeed returns the total ticks available on a machine
+func (h *DockerHandle) getClkSpeed() float64 {
+	if h.clkSpeed == 0.0 {
+		if clkSpeed, err := shelpers.TotalTicksAvailable(); err == nil {
+			h.clkSpeed = clkSpeed
+		}
+	}
+	return h.clkSpeed
 }
 
 func calculatePercent(newSample, oldSample, newTotal, oldTotal uint64, cores int) float64 {

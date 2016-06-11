@@ -65,9 +65,6 @@ func NewHostStatsCollector() *HostStatsCollector {
 		statsCalculator: statsCalculator,
 		numCores:        numCores,
 	}
-	if clkSpeed, err := shelpers.TotalTicksAvailable(); err == nil {
-		collector.clkSpeed = clkSpeed
-	}
 	return collector
 }
 
@@ -85,11 +82,6 @@ func (h *HostStatsCollector) Collect() (*HostStats, error) {
 	}
 
 	ticksConsumed := 0.0
-	if h.clkSpeed == 0.0 {
-		if clkSpeed, err := shelpers.TotalTicksAvailable(); err == nil {
-			h.clkSpeed = clkSpeed
-		}
-	}
 	if cpuStats, err := cpu.Times(true); err == nil {
 		cs := make([]*CPUStats, len(cpuStats))
 		for idx, cpuStat := range cpuStats {
@@ -109,7 +101,7 @@ func (h *HostStatsCollector) Collect() (*HostStats, error) {
 			cs[idx].System = system
 			cs[idx].User = user
 			cs[idx].Total = total
-			ticksConsumed += (total / 100) * h.clkSpeed
+			ticksConsumed += (total / 100) * h.getClkSpeed()
 		}
 		hs.CPU = cs
 		hs.CPUTicksConsumed = ticksConsumed
@@ -138,6 +130,16 @@ func (h *HostStatsCollector) Collect() (*HostStats, error) {
 		hs.Uptime = uptime
 	}
 	return hs, nil
+}
+
+// getClkSpeed returns the total ticks available on a machine
+func (h *HostStatsCollector) getClkSpeed() float64 {
+	if h.clkSpeed == 0.0 {
+		if clkSpeed, err := shelpers.TotalTicksAvailable(); err == nil {
+			h.clkSpeed = clkSpeed
+		}
+	}
+	return h.clkSpeed
 }
 
 // HostCpuStatsCalculator calculates cpu usage percentages
