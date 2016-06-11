@@ -216,6 +216,13 @@ type NodeSpecificRequest struct {
 // to register a job as being a schedulable entity.
 type JobRegisterRequest struct {
 	Job *Job
+
+	// If EnforceIndex is set then the job will only be registered if the passed
+	// JobModifyIndex matches the current Jobs index. If the index is zero, the
+	// register only occurs if the job is new.
+	EnforceIndex   bool
+	JobModifyIndex uint64
+
 	WriteRequest
 }
 
@@ -1117,6 +1124,7 @@ func (j *Job) Stub() *JobListStub {
 		StatusDescription: j.StatusDescription,
 		CreateIndex:       j.CreateIndex,
 		ModifyIndex:       j.ModifyIndex,
+		JobModifyIndex:    j.JobModifyIndex,
 	}
 }
 
@@ -1137,6 +1145,7 @@ type JobListStub struct {
 	StatusDescription string
 	CreateIndex       uint64
 	ModifyIndex       uint64
+	JobModifyIndex    uint64
 }
 
 // UpdateStrategy is used to modify how updates are done

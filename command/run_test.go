@@ -136,4 +136,14 @@ job "job1" {
 	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error submitting job") {
 		t.Fatalf("expected failed query error, got: %s", out)
 	}
+
+	// Fails on invalid check-index (requires a valid job)
+	if code := cmd.Run([]string{"-check-index=bad", fh3.Name()}); code != 1 {
+		t.Fatalf("expected exit code 1, got: %d", code)
+	}
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, "parsing check-index") {
+		t.Fatalf("expected parse error, got: %s", out)
+	}
+	ui.ErrorWriter.Reset()
+
 }

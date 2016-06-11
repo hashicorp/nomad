@@ -84,7 +84,7 @@ func (c *InspectCommand) Run(args []string) int {
 	}
 
 	// Print the contents of the job
-	req := api.RegisterJobRequest{job}
+	req := api.RegisterJobRequest{Job: job}
 	buf, err := json.MarshalIndent(req, "", "    ")
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error converting job: %s", err))

@@ -50,6 +50,74 @@ func TestJobs_Register(t *testing.T) {
 	}
 }
 
+func TestJobs_EnforceRegister(t *testing.T) {
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	jobs := c.Jobs()
+
+	// Listing jobs before registering returns nothing
+	resp, qm, err := jobs.List(nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	if qm.LastIndex != 0 {
+		t.Fatalf("bad index: %d", qm.LastIndex)
+	}
+	if n := len(resp); n != 0 {
+		t.Fatalf("expected 0 jobs, got: %d", n)
+	}
+
+	// Create a job and attempt to register it with an incorrect index.
+	job := testJob()
+	eval, wm, err := jobs.EnforceRegister(job, 10, nil)
+	if err == nil || !strings.Contains(err.Error(), RegisterEnforceIndexErrPrefix) {
+		t.Fatalf("expected enforcement error: %v", err)
+	}
+
+	// Register
+	eval, wm, err = jobs.EnforceRegister(job, 0, nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	if eval == "" {
+		t.Fatalf("missing eval id")
+	}
+	assertWriteMeta(t, wm)
+
+	// Query the jobs back out again
+	resp, qm, err = jobs.List(nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	assertQueryMeta(t, qm)
+
+	// Check that we got the expected response
+	if len(resp) != 1 {
+		t.Fatalf("bad length: %d", len(resp))
+	}
+
+	if resp[0].ID != job.ID {
+		t.Fatalf("bad: %#v", resp[0])
+	}
+	curIndex := resp[0].JobModifyIndex
+
+	// Fail at incorrect index
+	eval, wm, err = jobs.EnforceRegister(job, 123456, nil)
+	if err == nil || !strings.Contains(err.Error(), RegisterEnforceIndexErrPrefix) {
+		t.Fatalf("expected enforcement error: %v", err)
+	}
+
+	// Works at correct index
+	eval, wm, err = jobs.EnforceRegister(job, curIndex, nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	if eval == "" {
+		t.Fatalf("missing eval id")
+	}
+	assertWriteMeta(t, wm)
+}
+
 func TestJobs_Info(t *testing.T) {
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
