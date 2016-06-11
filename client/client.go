@@ -1351,25 +1351,29 @@ func (c *Client) collectHostStats() {
 
 // emitStats pushes host resource usage stats to remote metrics collection sinks
 func (c *Client) emitStats(hStats *stats.HostStats) {
-	metrics.EmitKey([]string{"memory", "total"}, float32(hStats.Memory.Total))
-	metrics.EmitKey([]string{"memory", "available"}, float32(hStats.Memory.Available))
-	metrics.EmitKey([]string{"memory", "used"}, float32(hStats.Memory.Used))
-	metrics.EmitKey([]string{"memory", "free"}, float32(hStats.Memory.Free))
+	nodeID, err := c.nodeID()
+	if err != nil {
+		return
+	}
+	metrics.SetGauge([]string{"client", "host", "memory", nodeID, "total"}, float32(hStats.Memory.Total))
+	metrics.SetGauge([]string{"client", "host", "memory", nodeID, "available"}, float32(hStats.Memory.Available))
+	metrics.SetGauge([]string{"client", "host", "memory", nodeID, "used"}, float32(hStats.Memory.Used))
+	metrics.SetGauge([]string{"client", "host", "memory", nodeID, "free"}, float32(hStats.Memory.Free))
 
-	metrics.EmitKey([]string{"uptime"}, float32(hStats.Uptime))
+	metrics.SetGauge([]string{"uptime"}, float32(hStats.Uptime))
 
 	for _, cpu := range hStats.CPU {
-		metrics.EmitKey([]string{"cpu", cpu.CPU, "total"}, float32(cpu.Total))
-		metrics.EmitKey([]string{"cpu", cpu.CPU, "user"}, float32(cpu.User))
-		metrics.EmitKey([]string{"cpu", cpu.CPU, "idle"}, float32(cpu.Idle))
-		metrics.EmitKey([]string{"cpu", cpu.CPU, "system"}, float32(cpu.System))
+		metrics.SetGauge([]string{"client", "host", "cpu", nodeID, cpu.CPU, "total"}, float32(cpu.Total))
+		metrics.SetGauge([]string{"client", "host", "cpu", nodeID, cpu.CPU, "user"}, float32(cpu.User))
+		metrics.SetGauge([]string{"client", "host", "cpu", nodeID, cpu.CPU, "idle"}, float32(cpu.Idle))
+		metrics.SetGauge([]string{"client", "host", "cpu", nodeID, cpu.CPU, "system"}, float32(cpu.System))
 	}
 
 	for _, disk := range hStats.DiskStats {
-		metrics.EmitKey([]string{"disk", disk.Device, "size"}, float32(disk.Size))
-		metrics.EmitKey([]string{"disk", disk.Device, "used"}, float32(disk.Used))
-		metrics.EmitKey([]string{"disk", disk.Device, "available"}, float32(disk.Available))
-		metrics.EmitKey([]string{"disk", disk.Device, "used_percent"}, float32(disk.UsedPercent))
-		metrics.EmitKey([]string{"disk", disk.Device, "inodes_percent"}, float32(disk.InodesUsedPercent))
+		metrics.SetGauge([]string{"client", "host", "disk", nodeID, disk.Device, "size"}, float32(disk.Size))
+		metrics.SetGauge([]string{"client", "host", "disk", nodeID, disk.Device, "used"}, float32(disk.Used))
+		metrics.SetGauge([]string{"client", "host", "disk", nodeID, disk.Device, "available"}, float32(disk.Available))
+		metrics.SetGauge([]string{"client", "host", "disk", nodeID, disk.Device, "used_percent"}, float32(disk.UsedPercent))
+		metrics.SetGauge([]string{"client", "host", "disk", nodeID, disk.Device, "inodes_percent"}, float32(disk.InodesUsedPercent))
 	}
 }
