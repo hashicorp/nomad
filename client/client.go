@@ -1291,10 +1291,6 @@ func (c *Client) setupConsulSyncer() error {
 		if err != nil {
 			return fmt.Errorf("client.consul: unable to query Consul datacenters: %v", err)
 		}
-		dcs = dcs[0:lib.MinInt(len(dcs), datacenterQueryLimit)]
-		// Walk the list of Consul datacenters randomly in order to
-		// search for the Nomad server service.
-		shuffleStrings(dcs)
 
 		nomadServerServiceName := c.config.ConsulConfig.ServerServiceName
 		var mErr multierror.Error
