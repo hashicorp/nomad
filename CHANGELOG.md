@@ -19,6 +19,7 @@ IMPROVEMENTS:
     determine its effects [GH-1181]
 
 BUG FIXES:
+  * core: Improve garbage collection of allocations and nodes [GH-1256]
   * core: Fix a potential deadlock if establishing leadership fails and is
     retried [GH-1231]
   * core: Do not restart successful batch jobs when the node is removed/drained
