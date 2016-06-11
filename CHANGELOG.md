@@ -19,6 +19,7 @@ IMPROVEMENTS:
   * cli: Unify the `fs` family of commands to be a single command [GH-1150]
   * cli: Introduce `nomad plan` to dry-run a job through the scheduler and
     determine its effects [GH-1181]
+  * client: Add resource usage APIs. [GH-1189]
   * client: If Consul is available, automatically bootstrap Nomad Client
     using the `nomad` service in Consul.  Nomad servers now register
     themselves with Consul if Consul is available. [GH-1201]
@@ -34,8 +35,10 @@ BUG FIXES:
   * core: Fix blocked evaluations being run without properly accounting for
     priority [GH-1183]
   * api: Tasks are no longer allowed to have slashes in their name [GH-1210]
-  * client: Delete temp files used to communicate with execcutor [GH-1241]
+  * client: Delete tmp files used to communicate with execcutor [GH-1241]
   * discovery: Ensure service and check names are unique [GH-1143, GH-1144]
+  * driver/docker: Ensure docker client doesn't time out after a minute.
+    [GH-1184]
 
 ## 0.3.2 (April 22, 2016)
 
