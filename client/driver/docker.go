@@ -24,6 +24,7 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/helper/discover"
 	"github.com/hashicorp/nomad/helper/fields"
+	shelpers "github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/mapstructure"
 )
@@ -125,6 +126,7 @@ type DockerHandle struct {
 	imageID           string
 	containerID       string
 	version           string
+	clkSpeed          float64
 	killTimeout       time.Duration
 	maxKillTimeout    time.Duration
 	resourceUsageLock sync.RWMutex
@@ -1014,6 +1016,7 @@ func (h *DockerHandle) collectStats() {
 				cs.UserMode = calculatePercent(
 					s.CPUStats.CPUUsage.UsageInUsermode, s.PreCPUStats.CPUUsage.UsageInUsermode,
 					s.CPUStats.CPUUsage.TotalUsage, s.PreCPUStats.CPUUsage.TotalUsage, cores)
+				cs.TotalTicks = (cs.Percent / 100) * shelpers.TotalTicksAvailable()
 
 				h.resourceUsageLock.Lock()
 				h.resourceUsage = &cstructs.TaskResourceUsage{

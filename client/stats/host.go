@@ -1,21 +1,25 @@
 package stats
 
 import (
+	"runtime"
 	"time"
 
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/disk"
 	"github.com/shirou/gopsutil/host"
 	"github.com/shirou/gopsutil/mem"
+
+	shelpers "github.com/hashicorp/nomad/helper/stats"
 )
 
 // HostStats represents resource usage stats of the host running a Nomad client
 type HostStats struct {
-	Memory    *MemoryStats
-	CPU       []*CPUStats
-	DiskStats []*DiskStats
-	Uptime    uint64
-	Timestamp int64
+	Memory           *MemoryStats
+	CPU              []*CPUStats
+	DiskStats        []*DiskStats
+	Uptime           uint64
+	Timestamp        int64
+	CPUTicksConsumed float64
 }
 
 // MemoryStats represnts stats related to virtual memory usage
@@ -48,13 +52,20 @@ type DiskStats struct {
 
 // HostStatsCollector collects host resource usage stats
 type HostStatsCollector struct {
+	clkSpeed        float64
+	numCores        int
 	statsCalculator map[string]*HostCpuStatsCalculator
 }
 
 // NewHostStatsCollector returns a HostStatsCollector
 func NewHostStatsCollector() *HostStatsCollector {
+	numCores := runtime.NumCPU()
 	statsCalculator := make(map[string]*HostCpuStatsCalculator)
-	return &HostStatsCollector{statsCalculator: statsCalculator}
+	collector := &HostStatsCollector{
+		statsCalculator: statsCalculator,
+		numCores:        numCores,
+	}
+	return collector
 }
 
 // Collect collects stats related to resource usage of a host
@@ -70,6 +81,7 @@ func (h *HostStatsCollector) Collect() (*HostStats, error) {
 		hs.Memory = ms
 	}
 
+	ticksConsumed := 0.0
 	if cpuStats, err := cpu.Times(true); err == nil {
 		cs := make([]*CPUStats, len(cpuStats))
 		for idx, cpuStat := range cpuStats {
@@ -89,8 +101,10 @@ func (h *HostStatsCollector) Collect() (*HostStats, error) {
 			cs[idx].System = system
 			cs[idx].User = user
 			cs[idx].Total = total
+			ticksConsumed += (total / 100) * shelpers.TotalTicksAvailable()
 		}
 		hs.CPU = cs
+		hs.CPUTicksConsumed = ticksConsumed
 	}
 
 	if partitions, err := disk.Partitions(false); err == nil {

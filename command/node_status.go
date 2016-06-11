@@ -2,6 +2,7 @@ package command
 
 import (
 	"fmt"
+	"math"
 	"sort"
 	"strconv"
 	"strings"
@@ -405,18 +406,6 @@ func getActualResources(hostStats *api.HostStats, node *api.Node) ([]string, err
 	}
 	var resources []string
 
-	// Calculate cpu usage
-	usedCPUTicks := 0.0
-	if freq, ok := node.Attributes["cpu.frequency"]; ok {
-
-		if clkSpeed, err := strconv.ParseFloat(freq, 64); err == nil {
-			for _, cpu := range hostStats.CPU {
-				usedCPUPercent := (cpu.User + cpu.System)
-				usedCPUTicks += (clkSpeed * usedCPUPercent / 100)
-			}
-		}
-	}
-
 	// calculate disk usage
 	storageDevice := node.Attributes["unique.storage.volume"]
 	var diskUsed, diskSize uint64
@@ -430,7 +419,7 @@ func getActualResources(hostStats *api.HostStats, node *api.Node) ([]string, err
 	resources = make([]string, 2)
 	resources[0] = "CPU|Memory|Disk"
 	resources[1] = fmt.Sprintf("%v/%v|%v/%v|%v/%v",
-		int64(usedCPUTicks),
+		math.Floor(hostStats.CPUTicksConsumed),
 		node.Resources.CPU,
 		humanize.Bytes(hostStats.Memory.Used),
 		humanize.Bytes(hostStats.Memory.Total),

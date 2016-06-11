@@ -102,6 +102,7 @@ type MemoryStats struct {
 type CpuStats struct {
 	SystemMode       float64
 	UserMode         float64
+	TotalTicks       float64
 	ThrottledPeriods uint64
 	ThrottledTime    uint64
 	Percent          float64

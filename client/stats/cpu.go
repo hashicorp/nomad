@@ -3,12 +3,15 @@ package stats
 import (
 	"runtime"
 	"time"
+
+	shelpers "github.com/hashicorp/nomad/helper/stats"
 )
 
 // CpuStats calculates cpu usage percentage
 type CpuStats struct {
 	prevCpuTime float64
 	prevTime    time.Time
+	clkSpeed    float64
 
 	totalCpus int
 }
@@ -16,7 +19,10 @@ type CpuStats struct {
 // NewCpuStats returns a cpu stats calculator
 func NewCpuStats() *CpuStats {
 	numCpus := runtime.NumCPU()
-	return &CpuStats{totalCpus: numCpus}
+	cpuStats := &CpuStats{
+		totalCpus: numCpus,
+	}
+	return cpuStats
 }
 
 // Percent calculates the cpu usage percentage based on the current cpu usage
@@ -37,7 +43,12 @@ func (c *CpuStats) Percent(cpuTime float64) float64 {
 	c.prevCpuTime = cpuTime
 	c.prevTime = now
 	return ret
+}
 
+// TicksConsumed calculates the total ticks consumes by the process across all
+// cpu cores
+func (c *CpuStats) TicksConsumed(percent float64) float64 {
+	return (percent / 100) * shelpers.TotalTicksAvailable()
 }
 
 func (c *CpuStats) calculatePercent(t1, t2 float64, timeDelta int64) float64 {
