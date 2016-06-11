@@ -1309,7 +1309,7 @@ func (c *Client) setupConsulSyncer() error {
 			}
 			consulServices, _, err := consulCatalog.Service(nomadServerServiceName, consul.ServiceTagRPC, opts)
 			if err != nil {
-				mErr.Errors = append(mErr.Errors, fmt.Errorf("unable to query service %q from Consul datacenter %q: %v", nomadServerServiceName, dc, err))
+				mErr.Errors = append(mErr.Errors, fmt.Errorf("unable to query service %+q from Consul datacenter %+q: %v", nomadServerServiceName, dc, err))
 				continue
 			}
 
@@ -1345,9 +1345,9 @@ func (c *Client) setupConsulSyncer() error {
 			}
 
 			for i := range dcs {
-				dcs[i] = fmt.Sprintf("%q", dcs[i])
+				dcs[i] = fmt.Sprintf("%+q", dcs[i])
 			}
-			return fmt.Errorf("no Nomad Servers advertising service %q in Consul datacenters: %s", nomadServerServiceName, dcs)
+			return fmt.Errorf("no Nomad Servers advertising service %+q in Consul datacenters: %+q", nomadServerServiceName, dcs)
 		}
 
 		c.heartbeatLock.Lock()

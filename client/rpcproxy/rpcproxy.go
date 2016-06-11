@@ -192,8 +192,8 @@ func (p *RPCProxy) SetBackupServers(addrs []string) error {
 	for _, s := range addrs {
 		s, err := NewServerEndpoint(s)
 		if err != nil {
-			p.logger.Printf("[WARN] client.rpcproxy: unable to create backup server %q: %v", s, err)
-			return fmt.Errorf("unable to create new backup server from %q: %v", s, err)
+			p.logger.Printf("[WARN] client.rpcproxy: unable to create backup server %+q: %v", s, err)
+			return fmt.Errorf("unable to create new backup server from %+q: %v", s, err)
 		}
 		l = append(l, s)
 	}
@@ -221,7 +221,7 @@ func (p *RPCProxy) SetBackupServers(addrs []string) error {
 func (p *RPCProxy) AddPrimaryServer(rpcAddr string) *ServerEndpoint {
 	s, err := NewServerEndpoint(rpcAddr)
 	if err != nil {
-		p.logger.Printf("[WARN] client.rpcproxy: unable to create new primary server from endpoint %q: %v", rpcAddr, err)
+		p.logger.Printf("[WARN] client.rpcproxy: unable to create new primary server from endpoint %+q: %v", rpcAddr, err)
 		return nil
 	}
 
@@ -706,14 +706,14 @@ func (p *RPCProxy) RefreshServerLists(servers []*structs.NodeServerInfo, numNode
 				continue
 			}
 
-			p.logger.Printf("[WARN] client.rpcproxy: API mismatch between client version (v%d.%d) and server version (v%d.%d), ignoring server %q", p.configInfo.RPCMajorVersion(), p.configInfo.RPCMinorVersion(), s.RPCMajorVersion, s.RPCMinorVersion, s.RPCAdvertiseAddr)
+			p.logger.Printf("[WARN] client.rpcproxy: API mismatch between client version (v%d.%d) and server version (v%d.%d), ignoring server %+q", p.configInfo.RPCMajorVersion(), p.configInfo.RPCMinorVersion(), s.RPCMajorVersion, s.RPCMinorVersion, s.RPCAdvertiseAddr)
 			p.rpcAPIMismatchThrottle[s.RPCAdvertiseAddr] = now.Add(rpcAPIMismatchLogRate)
 			continue
 		}
 
 		server, err := NewServerEndpoint(s.RPCAdvertiseAddr)
 		if err != nil {
-			p.logger.Printf("[WARN] client.rpcproxy: Unable to create a server from %q: %v", s.RPCAdvertiseAddr, err)
+			p.logger.Printf("[WARN] client.rpcproxy: Unable to create a server from %+q: %v", s.RPCAdvertiseAddr, err)
 			continue
 		}
 

@@ -306,7 +306,7 @@ func TestRPCProxy_NumServers(t *testing.T) {
 		serverName := makeServerEndpointName()
 		s := p.AddPrimaryServer(serverName)
 		if s == nil {
-			t.Fatalf("Expected server from %q", serverName)
+			t.Fatalf("Expected server from %+q", serverName)
 		}
 		serverList = append(serverList, s)
 
@@ -380,11 +380,11 @@ func TestRPCProxy_RemoveServer(t *testing.T) {
 		t.Fatalf("bad")
 	}
 	if s1 == nil || s1.Name != s1Endpoint {
-		t.Fatalf("Expected s1 server: %q", s1.Name)
+		t.Fatalf("Expected s1 server: %+q", s1.Name)
 	}
 	s1 = p.FindServer()
 	if s1 == nil || s1.Name != s1Endpoint {
-		t.Fatalf("Expected s1 server: %q", s1.Name)
+		t.Fatalf("Expected s1 server: %+q", s1.Name)
 	}
 	p.RemoveServer(s1)
 	if p.NumServers() != 0 {
@@ -406,17 +406,17 @@ func TestRPCProxy_RemoveServer(t *testing.T) {
 		t.Fatalf("bad")
 	}
 	if s2 == nil || s2.Name != s2Endpoint {
-		t.Fatalf("Expected s2 server: %q", s2.Name)
+		t.Fatalf("Expected s2 server: %+q", s2.Name)
 	}
 	s1 = p.FindServer()
 	if s1 == nil || s1.Name != s1Endpoint {
-		t.Fatalf("Expected s1 to be the front of the list: %q==%q", s1.Name, s1Endpoint)
+		t.Fatalf("Expected s1 to be the front of the list: %+q==%+q", s1.Name, s1Endpoint)
 	}
 	// Move s1 to the back of the server list
 	p.NotifyFailedServer(s1)
 	s2 = p.FindServer()
 	if s2 == nil || s2.Name != s2Endpoint {
-		t.Fatalf("Expected s2 server: %q", s2Endpoint)
+		t.Fatalf("Expected s2 server: %+q", s2Endpoint)
 	}
 	p.RemoveServer(s2)
 	if p.NumServers() != 1 {

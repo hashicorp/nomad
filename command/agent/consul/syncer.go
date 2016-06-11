@@ -347,7 +347,7 @@ func (c *Syncer) Shutdown() error {
 	}
 	for _, service := range services {
 		if err := c.client.Agent().ServiceDeregister(service.ID); err != nil {
-			c.logger.Printf("[WARN] consul.syncer: failed to deregister service ID %q: %v", service.ID, err)
+			c.logger.Printf("[WARN] consul.syncer: failed to deregister service ID %+q: %v", service.ID, err)
 			mErr.Errors = append(mErr.Errors, err)
 		}
 	}
@@ -696,7 +696,7 @@ func (c *Syncer) createDelegatedCheckReg(check *structs.ServiceCheck, service *c
 	case structs.ServiceCheckScript:
 		chkReg.TTL = (check.Interval + ttlCheckBuffer).String()
 	default:
-		return nil, fmt.Errorf("check type %q not valid", check.Type)
+		return nil, fmt.Errorf("check type %+q not valid", check.Type)
 	}
 	return &chkReg, nil
 }
@@ -764,12 +764,12 @@ func (c *Syncer) Run() {
 
 			if err := c.SyncServices(); err != nil {
 				if c.consulAvailable {
-					c.logger.Printf("[DEBUG] consul.syncer: disabling checks until successful sync for %q: %v", c.serviceRegPrefix, err)
+					c.logger.Printf("[DEBUG] consul.syncer: disabling checks until successful sync for %+q: %v", c.serviceRegPrefix, err)
 				}
 				c.consulAvailable = false
 			} else {
 				if !c.consulAvailable {
-					c.logger.Printf("[DEBUG] consul.syncer: re-enabling checks for for %q", c.serviceRegPrefix)
+					c.logger.Printf("[DEBUG] consul.syncer: re-enabling checks for for %+q", c.serviceRegPrefix)
 				}
 				c.consulAvailable = true
 			}
@@ -779,7 +779,7 @@ func (c *Syncer) Run() {
 			c.Shutdown()
 		case <-c.notifyShutdownCh:
 			sync.Stop()
-			c.logger.Printf("[INFO] consul.syncer: shutting down sync for %q", c.serviceRegPrefix)
+			c.logger.Printf("[INFO] consul.syncer: shutting down sync for %+q", c.serviceRegPrefix)
 			return
 		}
 	}
@@ -874,7 +874,7 @@ func (c *Syncer) runCheck(check Check) {
 	}
 	if err := c.client.Agent().UpdateTTL(check.ID(), output, state); err != nil {
 		if c.consulAvailable {
-			c.logger.Printf("[DEBUG] consul.syncer: check %q failed, disabling Consul checks until until next successful sync: %v", check.ID(), err)
+			c.logger.Printf("[DEBUG] consul.syncer: check %+q failed, disabling Consul checks until until next successful sync: %v", check.ID(), err)
 			c.consulAvailable = false
 		} else {
 			c.consulAvailable = true
@@ -888,7 +888,7 @@ func (c *Syncer) AddPeriodicHandler(name string, fn types.PeriodicCallback) bool
 	c.periodicLock.Lock()
 	defer c.periodicLock.Unlock()
 	if _, found := c.periodicCallbacks[name]; found {
-		c.logger.Printf("[ERROR] consul.syncer: failed adding handler %q", name)
+		c.logger.Printf("[ERROR] consul.syncer: failed adding handler %+q", name)
 		return false
 	}
 	c.periodicCallbacks[name] = fn

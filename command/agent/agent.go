@@ -184,7 +184,7 @@ func (a *Agent) serverConfig() (*nomad.Config, error) {
 	}
 	addr, err := net.ResolveTCPAddr("tcp", a.serverHTTPAddr)
 	if err != nil {
-		return nil, fmt.Errorf("error resolving HTTP addr %q: %v", a.serverHTTPAddr, err)
+		return nil, fmt.Errorf("error resolving HTTP addr %+q: %v", a.serverHTTPAddr, err)
 	}
 	a.serverHTTPAddr = fmt.Sprintf("%s:%d", addr.IP.String(), addr.Port)
 
@@ -200,7 +200,7 @@ func (a *Agent) serverConfig() (*nomad.Config, error) {
 	}
 	addr, err = net.ResolveTCPAddr("tcp", a.serverRPCAddr)
 	if err != nil {
-		return nil, fmt.Errorf("error resolving RPC addr %q: %v", a.serverRPCAddr, err)
+		return nil, fmt.Errorf("error resolving RPC addr %+q: %v", a.serverRPCAddr, err)
 	}
 	a.serverRPCAddr = fmt.Sprintf("%s:%d", addr.IP.String(), addr.Port)
 
@@ -216,7 +216,7 @@ func (a *Agent) serverConfig() (*nomad.Config, error) {
 	}
 	addr, err = net.ResolveTCPAddr("tcp", a.serverSerfAddr)
 	if err != nil {
-		return nil, fmt.Errorf("error resolving Serf addr %q: %v", a.serverSerfAddr, err)
+		return nil, fmt.Errorf("error resolving Serf addr %+q: %v", a.serverSerfAddr, err)
 	}
 	a.serverSerfAddr = fmt.Sprintf("%s:%d", addr.IP.String(), addr.Port)
 
@@ -302,7 +302,7 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	}
 	addr, err := net.ResolveTCPAddr("tcp", a.clientHTTPAddr)
 	if err != nil {
-		return nil, fmt.Errorf("error resolving HTTP addr %q: %v", a.clientHTTPAddr, err)
+		return nil, fmt.Errorf("error resolving HTTP addr %+q: %v", a.clientHTTPAddr, err)
 	}
 	httpAddr := fmt.Sprintf("%s:%d", addr.IP.String(), addr.Port)
 	conf.Node.HTTPAddr = httpAddr
@@ -320,7 +320,7 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	}
 	addr, err = net.ResolveTCPAddr("tcp", a.clientRPCAddr)
 	if err != nil {
-		return nil, fmt.Errorf("error resolving RPC addr %q: %v", a.clientRPCAddr, err)
+		return nil, fmt.Errorf("error resolving RPC addr %+q: %v", a.clientRPCAddr, err)
 	}
 	a.clientRPCAddr = fmt.Sprintf("%s:%d", addr.IP.String(), addr.Port)
 
