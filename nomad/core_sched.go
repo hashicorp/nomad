@@ -105,20 +105,26 @@ OUTER:
 			continue
 		}
 
+		allEvalsGC := true
 		for _, eval := range evals {
 			gc, allocs, err := c.gcEval(eval, oldThreshold)
-			if err != nil || !gc {
-				// We skip the job because it is not finished if it has
-				// non-terminal allocations.
+			if err != nil {
 				continue OUTER
 			}
 
-			gcEval = append(gcEval, eval.ID)
+			// Update whether all evals GC'd so we know whether to GC the job.
+			allEvalsGC = allEvalsGC && gc
+
+			if gc {
+				gcEval = append(gcEval, eval.ID)
+			}
 			gcAlloc = append(gcAlloc, allocs...)
 		}
 
 		// Job is eligible for garbage collection
-		gcJob = append(gcJob, job.ID)
+		if allEvalsGC {
+			gcJob = append(gcJob, job.ID)
+		}
 	}
 
 	// Fast-path the nothing case
@@ -186,28 +192,10 @@ func (c *CoreScheduler) evalGC(eval *structs.Evaluation) error {
 			return err
 		}
 
-		// If the eval is from a running "batch" job we don't want to garbage
-		// collect its allocations. If there is a long running batch job and its
-		// terminal allocations get GC'd the scheduler would re-run the
-		// allocations.
-		if eval.Type == structs.JobTypeBatch {
-			// Check if the job is running
-			job, err := c.snap.JobByID(eval.JobID)
-			if err != nil {
-				return err
-			}
-
-			// If the job has been deregistered, we want to garbage collect the
-			// allocations and evaluations.
-			if job != nil && len(allocs) != 0 {
-				continue
-			}
-		}
-
 		if gc {
 			gcEval = append(gcEval, eval.ID)
-			gcAlloc = append(gcAlloc, allocs...)
 		}
+		gcAlloc = append(gcAlloc, allocs...)
 	}
 
 	// Fast-path the nothing case
@@ -232,6 +220,24 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64) 
 		return false, nil, nil
 	}
 
+	// If the eval is from a running "batch" job we don't want to garbage
+	// collect its allocations. If there is a long running batch job and its
+	// terminal allocations get GC'd the scheduler would re-run the
+	// allocations.
+	if eval.Type == structs.JobTypeBatch {
+		// Check if the job is running
+		job, err := c.snap.JobByID(eval.JobID)
+		if err != nil {
+			return false, nil, err
+		}
+
+		// If the job has been deregistered, we want to garbage collect the
+		// allocations and evaluations.
+		if job != nil {
+			return false, nil, nil
+		}
+	}
+
 	// Get the allocations by eval
 	allocs, err := c.snap.AllocsByEval(eval.ID)
 	if err != nil {
@@ -241,19 +247,20 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64) 
 	}
 
 	// Scan the allocations to ensure they are terminal and old
+	gcEval := true
+	var gcAllocIDs []string
 	for _, alloc := range allocs {
 		if !alloc.TerminalStatus() || alloc.ModifyIndex > thresholdIndex {
-			return false, nil, nil
+			// Can't GC the evaluation since not all of the allocations are
+			// terminal
+			gcEval = false
+		} else {
+			// The allocation is eligible to be GC'd
+			gcAllocIDs = append(gcAllocIDs, alloc.ID)
 		}
 	}
 
-	allocIds := make([]string, len(allocs))
-	for i, alloc := range allocs {
-		allocIds[i] = alloc.ID
-	}
-
-	// Evaluation is eligible for garbage collection
-	return true, allocIds, nil
+	return gcEval, gcAllocIDs, nil
 }
 
 // evalReap contacts the leader and issues a reap on the passed evals and
