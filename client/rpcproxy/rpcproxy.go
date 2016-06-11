@@ -190,7 +190,7 @@ func (p *RPCProxy) activateEndpoint(s *ServerEndpoint) bool {
 func (p *RPCProxy) SetBackupServers(addrs []string) error {
 	l := make([]*ServerEndpoint, 0, len(addrs))
 	for _, s := range addrs {
-		s, err := newServer(s)
+		s, err := NewServerEndpoint(s)
 		if err != nil {
 			p.logger.Printf("[WARN] client.rpcproxy: unable to create backup server %q: %v", s, err)
 			return fmt.Errorf("unable to create new backup server from %q: %v", s, err)
@@ -219,7 +219,7 @@ func (p *RPCProxy) SetBackupServers(addrs []string) error {
 // organically).  Any values in the primary server list are overridden by the
 // next successful heartbeat.
 func (p *RPCProxy) AddPrimaryServer(rpcAddr string) *ServerEndpoint {
-	s, err := newServer(rpcAddr)
+	s, err := NewServerEndpoint(rpcAddr)
 	if err != nil {
 		p.logger.Printf("[WARN] client.rpcproxy: unable to create new primary server from endpoint %q: %v", rpcAddr, err)
 		return nil
@@ -711,7 +711,7 @@ func (p *RPCProxy) RefreshServerLists(servers []*structs.NodeServerInfo, numNode
 			continue
 		}
 
-		server, err := newServer(s.RpcAdvertiseAddr)
+		server, err := NewServerEndpoint(s.RpcAdvertiseAddr)
 		if err != nil {
 			p.logger.Printf("[WARN] client.rpcproxy: Unable to create a server from %q: %v", s.RpcAdvertiseAddr, err)
 			continue

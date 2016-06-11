@@ -40,12 +40,12 @@ func (s *ServerEndpoint) Key() *EndpointKey {
 	}
 }
 
-// newServer creates a new Server instance with a resolvable endpoint.
-// `name` can be either an IP address or a DNS name.  If `name` is a DNS
-// name, it must be resolvable to an IP address (most inputs are IP
+// NewServerEndpoint creates a new Server instance with a resolvable
+// endpoint.  `name` can be either an IP address or a DNS name.  If `name` is
+// a DNS name, it must be resolvable to an IP address (most inputs are IP
 // addresses, not DNS names, but both work equally well when the name is
 // resolvable).
-func newServer(name string) (*ServerEndpoint, error) {
+func NewServerEndpoint(name string) (*ServerEndpoint, error) {
 	s := &ServerEndpoint{
 		Name: name,
 	}
