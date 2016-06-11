@@ -205,18 +205,9 @@ type UniversalExecutor struct {
 
 // NewExecutor returns an Executor
 func NewExecutor(logger *log.Logger) Executor {
-	shutdownCh := make(chan struct{})
-	cs, err := consul.NewSyncer(nil, shutdownCh, logger)
-	if err != nil {
-		logger.Printf("[ERROR] executor: failed to allocate new Consul Syncer: %v", err)
-		return nil
-	}
-
 	exec := &UniversalExecutor{
-		consulSyncer:   cs,
 		logger:         logger,
 		processExited:  make(chan interface{}),
-		shutdownCh:     make(chan struct{}),
 		totalCpuStats:  stats.NewCpuStats(),
 		userCpuStats:   stats.NewCpuStats(),
 		systemCpuStats: stats.NewCpuStats(),
