@@ -5,7 +5,6 @@ EXTERNAL_TOOLS=\
 	github.com/kardianos/govendor \
 	github.com/mitchellh/gox \
 	golang.org/x/tools/cmd/cover \
-	golang.org/x/tools/cmd/vet \
 	github.com/axw/gocov/gocov \
 	gopkg.in/matm/v1/gocov-html \
 	github.com/ugorji/go/codec/codecgen
