@@ -85,22 +85,19 @@ func (h *HostStatsCollector) Collect() (*HostStats, error) {
 	if cpuStats, err := cpu.Times(true); err == nil {
 		cs := make([]*CPUStats, len(cpuStats))
 		for idx, cpuStat := range cpuStats {
-			cs[idx] = &CPUStats{
-				CPU:    cpuStat.CPU,
-				User:   cpuStat.User,
-				System: cpuStat.System,
-				Idle:   cpuStat.Idle,
-			}
 			percentCalculator, ok := h.statsCalculator[cpuStat.CPU]
 			if !ok {
 				percentCalculator = NewHostCpuStatsCalculator()
 				h.statsCalculator[cpuStat.CPU] = percentCalculator
 			}
 			idle, user, system, total := percentCalculator.Calculate(cpuStat)
-			cs[idx].Idle = idle
-			cs[idx].System = system
-			cs[idx].User = user
-			cs[idx].Total = total
+			cs[idx] = &CPUStats{
+				CPU:    cpuStat.CPU,
+				User:   user,
+				System: system,
+				Idle:   idle,
+				Total:  total,
+			}
 			ticksConsumed += (total / 100) * (shelpers.TotalTicksAvailable() / float64(len(cpuStats)))
 		}
 		hs.CPU = cs
