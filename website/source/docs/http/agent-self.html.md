@@ -98,9 +98,7 @@ The `self` endpoint is used to query the state of the target agent.
             "port": "4647",
             "region": "global",
             "role": "nomad",
-            "vsn": "1",
-            "vsn_max": "1",
-            "vsn_min": "1"
+            "vsn": "1"
         },
         "Status": "alive",
         "ProtocolMin": 1,

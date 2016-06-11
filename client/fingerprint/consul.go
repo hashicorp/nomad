@@ -38,15 +38,10 @@ func (f *ConsulFingerprint) Fingerprint(config *client.Config, node *structs.Nod
 	// Only create the client once to avoid creating too many connections to
 	// Consul.
 	if f.client == nil {
-		address := config.ReadDefault("consul.address", "127.0.0.1:8500")
-		timeout, err := time.ParseDuration(config.ReadDefault("consul.timeout", "10ms"))
+		consulConfig, err := config.ConsulConfig.ApiConfig()
 		if err != nil {
-			return false, fmt.Errorf("Unable to parse consul.timeout: %s", err)
+			return false, fmt.Errorf("Failed to initialize the Consul client config: %v", err)
 		}
-
-		consulConfig := consul.DefaultConfig()
-		consulConfig.Address = address
-		consulConfig.HttpClient.Timeout = timeout
 
 		f.client, err = consul.NewClient(consulConfig)
 		if err != nil {

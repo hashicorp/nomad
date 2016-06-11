@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
-	"time"
 
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -53,17 +52,6 @@ func TestDiffAllocs(t *testing.T) {
 	}
 	if result.updated[0].exist != alloc2 || result.updated[0].updated != alloc2u {
 		t.Fatalf("Bad: %#v", result.updated)
-	}
-}
-
-func TestRandomStagger(t *testing.T) {
-	t.Parallel()
-	intv := time.Minute
-	for i := 0; i < 10; i++ {
-		stagger := randomStagger(intv)
-		if stagger < 0 || stagger >= intv {
-			t.Fatalf("Bad: %v", stagger)
-		}
 	}
 }
 

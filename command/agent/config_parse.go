@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
+	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -169,7 +170,7 @@ func parseConfig(result *Config, list *ast.ObjectList) error {
 
 	// Parse the consul config
 	if o := list.Filter("consul"); len(o.Items) > 0 {
-		if err := parseConsulConfig(&result.ConsulConfig, o); err != nil {
+		if err := parseConsulConfig(&result.Consul, o); err != nil {
 			return multierror.Prefix(err, "consul ->")
 		}
 	}
@@ -586,7 +587,7 @@ func parseAtlas(result **AtlasConfig, list *ast.ObjectList) error {
 	return nil
 }
 
-func parseConsulConfig(result **ConsulConfig, list *ast.ObjectList) error {
+func parseConsulConfig(result **config.ConsulConfig, list *ast.ObjectList) error {
 	list = list.Elem()
 	if len(list.Items) > 1 {
 		return fmt.Errorf("only one 'consul' block allowed")
@@ -597,19 +598,20 @@ func parseConsulConfig(result **ConsulConfig, list *ast.ObjectList) error {
 
 	// Check for invalid keys
 	valid := []string{
-		"server_service_name",
-		"client_service_name",
-		"auto_register",
-		"addr",
-		"token",
+		"address",
 		"auth",
-		"ssl",
-		"verify_ssl",
+		"auto_register",
 		"ca_file",
 		"cert_file",
-		"key_file",
 		"client_auto_join",
+		"client_service_name",
+		"key_file",
 		"server_auto_join",
+		"server_service_name",
+		"ssl",
+		"timeout",
+		"token",
+		"verify_ssl",
 	}
 
 	if err := checkHCLKeys(listVal, valid); err != nil {
@@ -621,8 +623,16 @@ func parseConsulConfig(result **ConsulConfig, list *ast.ObjectList) error {
 		return err
 	}
 
-	var consulConfig ConsulConfig
-	if err := mapstructure.WeakDecode(m, &consulConfig); err != nil {
+	var consulConfig config.ConsulConfig
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
+		WeaklyTypedInput: true,
+		Result:           &consulConfig,
+	})
+	if err != nil {
+		return err
+	}
+	if err := dec.Decode(m); err != nil {
 		return err
 	}
 

@@ -7,13 +7,12 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"reflect"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/consul"
+	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -70,14 +69,19 @@ func testServer(t *testing.T, cb func(*nomad.Config)) (*nomad.Server, string) {
 }
 
 func testClient(t *testing.T, cb func(c *config.Config)) *Client {
-	conf := DefaultConfig()
+	conf := config.DefaultConfig()
 	conf.DevMode = true
-	conf.ConsulConfig = &consul.ConsulConfig{}
 	if cb != nil {
 		cb(conf)
 	}
 
-	client, err := NewClient(conf)
+	shutdownCh := make(chan struct{})
+	consulSyncer, err := consul.NewSyncer(conf.ConsulConfig, shutdownCh, log.New(os.Stderr, "", log.LstdFlags))
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	client, err := NewClient(conf, consulSyncer)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -464,7 +468,13 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	}
 
 	// Create a new client
-	c2, err := NewClient(c1.config)
+	shutdownCh := make(chan struct{})
+	consulSyncer, err := consul.NewSyncer(c1.config.ConsulConfig, shutdownCh, log.New(os.Stderr, "", log.LstdFlags))
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	c2, err := NewClient(c1.config, consulSyncer)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -507,56 +517,5 @@ func TestClient_Init(t *testing.T) {
 
 	if _, err := os.Stat(allocDir); err != nil {
 		t.Fatalf("err: %s", err)
-	}
-}
-
-func TestClient_SetServers(t *testing.T) {
-	client := testClient(t, nil)
-
-	// Sets an empty list
-	client.SetServers(nil)
-	if client.servers == nil {
-		t.Fatalf("should not be nil")
-	}
-
-	// Set the initial servers list
-	expect := []string{"foo:4647"}
-	client.SetServers(expect)
-	if !reflect.DeepEqual(client.servers, expect) {
-		t.Fatalf("expect %v, got %v", expect, client.servers)
-	}
-
-	// Add a server
-	expect = []string{"foo:5445", "bar:8080"}
-	client.SetServers(expect)
-	if !reflect.DeepEqual(client.servers, expect) {
-		t.Fatalf("expect %v, got %v", expect, client.servers)
-	}
-
-	// Remove a server
-	expect = []string{"bar:8080"}
-	client.SetServers(expect)
-	if !reflect.DeepEqual(client.servers, expect) {
-		t.Fatalf("expect %v, got %v", expect, client.servers)
-	}
-
-	// Add and remove a server
-	expect = []string{"baz:9090", "zip:4545"}
-	client.SetServers(expect)
-	if !reflect.DeepEqual(client.servers, expect) {
-		t.Fatalf("expect %v, got %v", expect, client.servers)
-	}
-
-	// Query the servers list
-	if servers := client.Servers(); !reflect.DeepEqual(servers, expect) {
-		t.Fatalf("expect %v, got %v", expect, servers)
-	}
-
-	// Add servers without ports, and remove old servers
-	servers := []string{"foo", "bar", "baz"}
-	expect = []string{"foo:4647", "bar:4647", "baz:4647"}
-	client.SetServers(servers)
-	if !reflect.DeepEqual(client.servers, expect) {
-		t.Fatalf("expect %v, got %v", expect, client.servers)
 	}
 }

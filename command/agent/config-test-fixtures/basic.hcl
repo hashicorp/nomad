@@ -86,9 +86,9 @@ http_api_response_headers {
 	Access-Control-Allow-Origin = "*"
 }
 consul {
-    server_service_name = "nomad-server"
+    server_service_name = "nomad"
     client_service_name = "nomad-client"
-    addr = "127.0.0.1:9500"
+    address = "127.0.0.1:9500"
     token = "token1"
     auth = "username:pass"
     ssl = true

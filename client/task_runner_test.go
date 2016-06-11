@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -46,7 +47,7 @@ func testTaskRunner(restarts bool) (*MockTaskStateUpdater, *TaskRunner) {
 // the passed allocation.
 func testTaskRunnerFromAlloc(restarts bool, alloc *structs.Allocation) (*MockTaskStateUpdater, *TaskRunner) {
 	logger := testLogger()
-	conf := DefaultConfig()
+	conf := config.DefaultConfig()
 	conf.StateDir = os.TempDir()
 	conf.AllocDir = os.TempDir()
 	upd := &MockTaskStateUpdater{}

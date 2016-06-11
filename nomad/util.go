@@ -2,17 +2,12 @@ package nomad
 
 import (
 	"fmt"
-	"math"
-	"math/big"
 	"math/rand"
 	"net"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
-	"time"
-
-	crand "crypto/rand"
 
 	"github.com/hashicorp/serf/serf"
 )
@@ -39,14 +34,15 @@ func RuntimeStats() map[string]string {
 
 // serverParts is used to return the parts of a server role
 type serverParts struct {
-	Name       string
-	Region     string
-	Datacenter string
-	Port       int
-	Bootstrap  bool
-	Expect     int
-	Version    int
-	Addr       net.Addr
+	Name         string
+	Region       string
+	Datacenter   string
+	Port         int
+	Bootstrap    bool
+	Expect       int
+	MajorVersion int
+	MinorVersion int
+	Addr         net.Addr
 }
 
 func (s *serverParts) String() string {
@@ -81,29 +77,34 @@ func isNomadServer(m serf.Member) (bool, *serverParts) {
 		return false, nil
 	}
 
-	vsn_str := m.Tags["vsn"]
-	vsn, err := strconv.Atoi(vsn_str)
+	// The "vsn" tag was Version, which is now the MajorVersion number.
+	majorVersionStr := m.Tags["vsn"]
+	majorVersion, err := strconv.Atoi(majorVersionStr)
 	if err != nil {
 		return false, nil
 	}
 
+	// To keep some semblance of convention, "mvn" is now the "Minor
+	// Version Number."
+	minorVersionStr := m.Tags["mvn"]
+	minorVersion, err := strconv.Atoi(minorVersionStr)
+	if err != nil {
+		minorVersion = 0
+	}
+
 	addr := &net.TCPAddr{IP: m.Addr, Port: port}
 	parts := &serverParts{
-		Name:       m.Name,
-		Region:     region,
-		Datacenter: datacenter,
-		Port:       port,
-		Bootstrap:  bootstrap,
-		Expect:     expect,
-		Addr:       addr,
-		Version:    vsn,
+		Name:         m.Name,
+		Region:       region,
+		Datacenter:   datacenter,
+		Port:         port,
+		Bootstrap:    bootstrap,
+		Expect:       expect,
+		Addr:         addr,
+		MajorVersion: majorVersion,
+		MinorVersion: minorVersion,
 	}
 	return true, parts
-}
-
-// Returns a random stagger interval between 0 and the duration
-func randomStagger(intv time.Duration) time.Duration {
-	return time.Duration(uint64(rand.Int63()) % uint64(intv))
 }
 
 // shuffleStrings randomly shuffles the list of strings
@@ -120,25 +121,4 @@ func maxUint64(a, b uint64) uint64 {
 		return a
 	}
 	return b
-}
-
-// rateScaledInterval is used to choose an interval to perform an action in order
-// to target an aggregate number of actions per second across the whole cluster.
-func rateScaledInterval(rate float64, min time.Duration, n int) time.Duration {
-	interval := time.Duration(float64(time.Second) * float64(n) / rate)
-	if interval < min {
-		return min
-	}
-	return interval
-}
-
-// seedRandom seeds the global random variable using a cryptographically random
-// seed. It returns an error if determing the random seed fails.
-func seedRandom() error {
-	n, err := crand.Int(crand.Reader, big.NewInt(math.MaxInt64))
-	if err != nil {
-		return err
-	}
-	rand.Seed(n.Int64())
-	return nil
 }

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/armon/go-metrics"
+	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -215,7 +216,7 @@ func (s *Server) forwardLeader(method string, args interface{}, reply interface{
 	if server == nil {
 		return structs.ErrNoLeader
 	}
-	return s.connPool.RPC(s.config.Region, server.Addr, server.Version, method, args, reply)
+	return s.connPool.RPC(s.config.Region, server.Addr, server.MajorVersion, method, args, reply)
 }
 
 // forwardRegion is used to forward an RPC call to a remote region, or fail if no servers
@@ -231,13 +232,13 @@ func (s *Server) forwardRegion(region, method string, args interface{}, reply in
 	}
 
 	// Select a random addr
-	offset := rand.Int31() % int32(len(servers))
+	offset := rand.Intn(len(servers))
 	server := servers[offset]
 	s.peerLock.RUnlock()
 
 	// Forward to remote Nomad
 	metrics.IncrCounter([]string{"nomad", "rpc", "cross-region", region}, 1)
-	return s.connPool.RPC(region, server.Addr, server.Version, method, args, reply)
+	return s.connPool.RPC(region, server.Addr, server.MajorVersion, method, args, reply)
 }
 
 // raftApplyFuture is used to encode a message, run it through raft, and return the Raft future.
@@ -308,7 +309,7 @@ func (s *Server) blockingRPC(opts *blockingOptions) error {
 	}
 
 	// Apply a small amount of jitter to the request
-	opts.queryOpts.MaxQueryTime += randomStagger(opts.queryOpts.MaxQueryTime / jitterFraction)
+	opts.queryOpts.MaxQueryTime += lib.RandomStagger(opts.queryOpts.MaxQueryTime / jitterFraction)
 
 	// Setup a query timeout
 	timeout = time.NewTimer(opts.queryOpts.MaxQueryTime)

@@ -54,6 +54,21 @@ const (
 	// that new commands can be added in a way that won't cause
 	// old servers to crash when the FSM attempts to process them.
 	IgnoreUnknownTypeFlag MessageType = 128
+
+	// ApiMajorVersion is returned as part of the Status.Version request.
+	// It should be incremented anytime the APIs are changed in a way
+	// that would break clients for sane client versioning.
+	ApiMajorVersion = 1
+
+	// ApiMinorVersion is returned as part of the Status.Version request.
+	// It should be incremented anytime the APIs are changed to allow
+	// for sane client versioning. Minor changes should be compatible
+	// within the major version.
+	ApiMinorVersion = 1
+
+	ProtocolVersion = "protocol"
+	APIMajorVersion = "api.major"
+	APIMinorVersion = "api.minor"
 )
 
 // RPCInfo is used to describe common information about query
@@ -149,6 +164,25 @@ type NodeRegisterRequest struct {
 type NodeDeregisterRequest struct {
 	NodeID string
 	WriteRequest
+}
+
+// NodeServerInfo is used to in NodeUpdateResponse to return Nomad server
+// information used in RPC server lists.
+type NodeServerInfo struct {
+	// RPCAdvertiseAddr is the IP endpoint that a Nomad Server wishes to
+	// be contacted at for RPCs.
+	RPCAdvertiseAddr string
+
+	// RpcMajorVersion is the major version number the Nomad Server
+	// supports
+	RPCMajorVersion int32
+
+	// RpcMinorVersion is the minor version number the Nomad Server
+	// supports
+	RPCMinorVersion int32
+
+	// Datacenter is the datacenter that a Nomad server belongs to
+	Datacenter string
 }
 
 // NodeUpdateStatusRequest is used for Node.UpdateStatus endpoint
@@ -292,7 +326,7 @@ type AllocSpecificRequest struct {
 	QueryOptions
 }
 
-// AllocsGetcRequest is used to query a set of allocations
+// AllocsGetRequest is used to query a set of allocations
 type AllocsGetRequest struct {
 	AllocIDs []string
 	QueryOptions
@@ -315,12 +349,6 @@ type GenericRequest struct {
 type GenericResponse struct {
 	WriteMeta
 }
-
-const (
-	ProtocolVersion = "protocol"
-	APIMajorVersion = "api.major"
-	APIMinorVersion = "api.minor"
-)
 
 // VersionResponse is used for the Status.Version reseponse
 type VersionResponse struct {
@@ -351,6 +379,20 @@ type NodeUpdateResponse struct {
 	EvalIDs         []string
 	EvalCreateIndex uint64
 	NodeModifyIndex uint64
+
+	// LeaderRPCAddr is the RPC address of the current Raft Leader.  If
+	// empty, the current Nomad Server is in the minority of a partition.
+	LeaderRPCAddr string
+
+	// NumNodes is the number of Nomad nodes attached to this quorum of
+	// Nomad Servers at the time of the response.  This value can
+	// fluctuate based on the health of the cluster between heartbeats.
+	NumNodes int32
+
+	// Servers is the full list of known Nomad servers in the local
+	// region.
+	Servers []*NodeServerInfo
+
 	QueryMeta
 }
 
@@ -1502,27 +1544,31 @@ func (sc *ServiceCheck) Hash(serviceID string) string {
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
-const (
-	NomadConsulPrefix = "nomad-registered-service"
-)
+// The ConsulService model represents a Consul service definition in Nomad
+// Agent's Config.
+type ConsulService struct {
+	// ServiceID is the calculated Consul ServiceID used for a service.
+	// This value is not available to be set via configuration.
+	ServiceID string `mapstructure:"-"`
 
-var (
-	AgentServicePrefix = fmt.Sprintf("%s-%s", NomadConsulPrefix, "agent")
-)
+	// Name of the service registered with Consul. Consul defaults the
+	// Name to ServiceID if not specified.  The Name if specified is used
+	// as one of the seed values when generating a Consul ServiceID.
+	Name string
 
-// The Service model represents a Consul service definition
-type Service struct {
-	Name      string          // Name of the service, defaults to id
+	// PortLabel is either the numeric port number or the `host:port`.
+	// To specify the port number using the host's Consul Advertise
+	// address, specify an empty host in the PortLabel (e.g. `:port`).
+	PortLabel string          `mapstructure:"port"`
 	Tags      []string        // List of tags for the service
-	PortLabel string          `mapstructure:"port"` // port for the service
 	Checks    []*ServiceCheck // List of checks associated with the service
 }
 
-func (s *Service) Copy() *Service {
+func (s *ConsulService) Copy() *ConsulService {
 	if s == nil {
 		return nil
 	}
-	ns := new(Service)
+	ns := new(ConsulService)
 	*ns = *s
 	ns.Tags = CopySliceString(ns.Tags)
 
@@ -1539,7 +1585,7 @@ func (s *Service) Copy() *Service {
 
 // InitFields interpolates values of Job, Task Group and Task in the Service
 // Name. This also generates check names, service id and check ids.
-func (s *Service) InitFields(job string, taskGroup string, task string) {
+func (s *ConsulService) InitFields(job string, taskGroup string, task string) {
 	s.Name = args.ReplaceEnv(s.Name, map[string]string{
 		"JOB":       job,
 		"TASKGROUP": taskGroup,
@@ -1555,12 +1601,8 @@ func (s *Service) InitFields(job string, taskGroup string, task string) {
 	}
 }
 
-func (s *Service) ID(identifier string) string {
-	return fmt.Sprintf("%s-%s-%s", NomadConsulPrefix, identifier, s.Hash())
-}
-
 // Validate checks if the Check definition is valid
-func (s *Service) Validate() error {
+func (s *ConsulService) Validate() error {
 	var mErr multierror.Error
 
 	// Ensure the service name is valid per RFC-952 §1
@@ -1586,7 +1628,7 @@ func (s *Service) Validate() error {
 
 // Hash calculates the hash of the check based on it's content and the service
 // which owns it
-func (s *Service) Hash() string {
+func (s *ConsulService) Hash() string {
 	h := sha1.New()
 	io.WriteString(h, s.Name)
 	io.WriteString(h, strings.Join(s.Tags, ""))
@@ -1645,7 +1687,7 @@ type Task struct {
 	Env map[string]string
 
 	// List of service definitions exposed by the Task
-	Services []*Service
+	ConsulServices []*ConsulService
 
 	// Constraints can be specified at a task level and apply only to
 	// the particular task.
@@ -1678,12 +1720,12 @@ func (t *Task) Copy() *Task {
 	*nt = *t
 	nt.Env = CopyMapStringString(nt.Env)
 
-	if t.Services != nil {
-		services := make([]*Service, len(nt.Services))
-		for i, s := range nt.Services {
+	if t.ConsulServices != nil {
+		services := make([]*ConsulService, len(nt.ConsulServices))
+		for i, s := range nt.ConsulServices {
 			services[i] = s.Copy()
 		}
-		nt.Services = services
+		nt.ConsulServices = services
 	}
 
 	nt.Constraints = CopySliceConstraints(nt.Constraints)
@@ -1720,7 +1762,7 @@ func (t *Task) InitFields(job *Job, tg *TaskGroup) {
 // and Tasks in all the service Names of a Task. This also generates the service
 // id, check id and check names.
 func (t *Task) InitServiceFields(job string, taskGroup string) {
-	for _, service := range t.Services {
+	for _, service := range t.ConsulServices {
 		service.InitFields(job, taskGroup, t.Name)
 	}
 }
@@ -1817,7 +1859,7 @@ func validateServices(t *Task) error {
 	// unique.
 	servicePorts := make(map[string][]string)
 	knownServices := make(map[string]struct{})
-	for i, service := range t.Services {
+	for i, service := range t.ConsulServices {
 		if err := service.Validate(); err != nil {
 			outer := fmt.Errorf("service %d validation failed: %s", i, err)
 			mErr.Errors = append(mErr.Errors, outer)
@@ -2268,9 +2310,6 @@ type Allocation struct {
 	// task. These should sum to the total Resources.
 	TaskResources map[string]*Resources
 
-	// Services is a map of service names to service ids
-	Services map[string]string
-
 	// Metrics associated with this allocation
 	Metrics *AllocMetric
 
@@ -2318,14 +2357,6 @@ func (a *Allocation) Copy() *Allocation {
 			tr[task] = resource.Copy()
 		}
 		na.TaskResources = tr
-	}
-
-	if a.Services != nil {
-		s := make(map[string]string, len(na.Services))
-		for service, id := range na.Services {
-			s[service] = id
-		}
-		na.Services = s
 	}
 
 	na.Metrics = na.Metrics.Copy()
@@ -2393,31 +2424,6 @@ func (a *Allocation) Stub() *AllocListStub {
 		CreateIndex:        a.CreateIndex,
 		ModifyIndex:        a.ModifyIndex,
 		CreateTime:         a.CreateTime,
-	}
-}
-
-// PopulateServiceIDs generates the service IDs for all the service definitions
-// in that Allocation
-func (a *Allocation) PopulateServiceIDs(tg *TaskGroup) {
-	// Retain the old services, and re-initialize. We may be removing
-	// services, so we cannot update the existing map.
-	previous := a.Services
-	a.Services = make(map[string]string)
-
-	for _, task := range tg.Tasks {
-		for _, service := range task.Services {
-			// Retain the service if an ID is already generated
-			if id, ok := previous[service.Name]; ok {
-				a.Services[service.Name] = id
-				continue
-			}
-
-			// If the service hasn't been generated an ID, we generate one.
-			// We add a prefix to the Service ID so that we can know that this service
-			// is managed by Nomad since Consul can also have service which are not
-			// managed by Nomad
-			a.Services[service.Name] = fmt.Sprintf("%s-%s", NomadConsulPrefix, GenerateUUID())
-		}
 	}
 }
 

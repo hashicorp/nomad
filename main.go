@@ -4,8 +4,13 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/hashicorp/consul/lib"
 	"github.com/mitchellh/cli"
 )
+
+func init() {
+	lib.SeedMathRand()
+}
 
 func main() {
 	os.Exit(Run(os.Args[1:]))

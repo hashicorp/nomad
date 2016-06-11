@@ -237,6 +237,28 @@ func TestClientEndpoint_UpdateStatus_GetEvals(t *testing.T) {
 func TestClientEndpoint_UpdateStatus_HeartbeatOnly(t *testing.T) {
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
+
+	s2 := testServer(t, func(c *Config) {
+		c.DevDisableBootstrap = true
+	})
+	defer s2.Shutdown()
+
+	s3 := testServer(t, func(c *Config) {
+		c.DevDisableBootstrap = true
+	})
+	defer s3.Shutdown()
+	servers := []*Server{s1, s2, s3}
+	testJoin(t, s1, s2, s3)
+
+	for _, s := range servers {
+		testutil.WaitForResult(func() (bool, error) {
+			peers, _ := s.raftPeers.Peers()
+			return len(peers) == 3, nil
+		}, func(err error) {
+			t.Fatalf("should have 3 peers")
+		})
+	}
+
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -257,6 +279,12 @@ func TestClientEndpoint_UpdateStatus_HeartbeatOnly(t *testing.T) {
 	ttl := resp.HeartbeatTTL
 	if ttl < s1.config.MinHeartbeatTTL || ttl > 2*s1.config.MinHeartbeatTTL {
 		t.Fatalf("bad: %#v", ttl)
+	}
+
+	// Check for heartbeat servers
+	serverAddrs := resp.Servers
+	if len(serverAddrs) == 0 {
+		t.Fatalf("bad: %#v", serverAddrs)
 	}
 
 	// Update the status, static state

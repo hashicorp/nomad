@@ -50,7 +50,7 @@ func TestNodes_PrefixList(t *testing.T) {
 	var err error
 
 	// Get the node ID
-	var nodeID, dc string
+	var nodeID string
 	testutil.WaitForResult(func() (bool, error) {
 		out, _, err := nodes.List(nil)
 		if err != nil {
@@ -60,7 +60,6 @@ func TestNodes_PrefixList(t *testing.T) {
 			return false, fmt.Errorf("expected 1 node, got: %d", n)
 		}
 		nodeID = out[0].ID
-		dc = out[0].Datacenter
 		return true, nil
 	}, func(err error) {
 		t.Fatalf("err: %s", err)

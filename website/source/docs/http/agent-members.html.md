@@ -46,9 +46,7 @@ the gossip pool. This is only applicable to servers.
             "port": "4647",
             "region": "global",
             "role": "nomad",
-            "vsn": "1",
-            "vsn_max": "1",
-            "vsn_min": "1"
+            "vsn": "1"
         },
         "Status": "alive",
         "ProtocolMin": 1,

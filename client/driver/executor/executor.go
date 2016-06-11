@@ -21,12 +21,13 @@ import (
 	"github.com/shirou/gopsutil/process"
 
 	"github.com/hashicorp/nomad/client/allocdir"
-	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/driver/env"
 	"github.com/hashicorp/nomad/client/driver/logging"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/client/stats"
+	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/nomad/structs/config"
 )
 
 const (
@@ -34,6 +35,9 @@ const (
 	// tree for finding out the pids that the executor and it's child processes
 	// have forked
 	pidScanInterval = 5 * time.Second
+
+	// serviceRegPrefix is the prefix the entire Executor should use
+	serviceRegPrefix = "executor"
 )
 
 var (
@@ -58,10 +62,11 @@ type Executor interface {
 	Stats() (*cstructs.TaskResourceUsage, error)
 }
 
-// ConsulContext holds context to configure the consul client and run checks
+// ConsulContext holds context to configure the Consul client and run checks
 type ConsulContext struct {
-	// ConsulConfig is the configuration used to create a consul client
-	ConsulConfig *consul.ConsulConfig
+	// ConsulConfig contains the configuration information for talking
+	// with this Nomad Agent's Consul Agent.
+	ConsulConfig *config.ConsulConfig
 
 	// ContainerID is the ID of the container
 	ContainerID string
@@ -181,6 +186,8 @@ type UniversalExecutor struct {
 	lro         *logging.FileRotator
 	rotatorLock sync.Mutex
 
+	shutdownCh chan struct{}
+
 	syslogServer *logging.SyslogServer
 	syslogChan   chan *logging.SyslogMessage
 
@@ -188,7 +195,7 @@ type UniversalExecutor struct {
 	cgPaths map[string]string
 	cgLock  sync.Mutex
 
-	consulService  *consul.ConsulService
+	consulSyncer   *consul.Syncer
 	consulCtx      *ConsulContext
 	totalCpuStats  *stats.CpuStats
 	userCpuStats   *stats.CpuStats
@@ -353,11 +360,10 @@ func (e *UniversalExecutor) UpdateTask(task *structs.Task) error {
 	e.lre.MaxFiles = task.LogConfig.MaxFiles
 	e.lre.FileSize = fileSize
 
-	// Re-syncing task with consul service
-	if e.consulService != nil {
-		if err := e.consulService.SyncServices(task.Services); err != nil {
-			return err
-		}
+	// Re-syncing task with Consul agent
+	if e.consulSyncer != nil {
+		e.interpolateServices(e.ctx.Task)
+		e.consulSyncer.SetServices(e.ctx.AllocID, task.ConsulServices)
 	}
 	return nil
 }
@@ -410,6 +416,10 @@ func (e *UniversalExecutor) Exit() error {
 	}
 	e.lre.Close()
 	e.lro.Close()
+
+	if e.consulSyncer != nil {
+		e.consulSyncer.Shutdown()
+	}
 
 	// If the executor did not launch a process, return.
 	if e.command == nil {
@@ -470,21 +480,26 @@ func (e *UniversalExecutor) ShutDown() error {
 func (e *UniversalExecutor) SyncServices(ctx *ConsulContext) error {
 	e.logger.Printf("[INFO] executor: registering services")
 	e.consulCtx = ctx
-	if e.consulService == nil {
-		cs, err := consul.NewConsulService(ctx.ConsulConfig, e.logger)
+	if e.consulSyncer == nil {
+		cs, err := consul.NewSyncer(ctx.ConsulConfig, e.shutdownCh, e.logger)
 		if err != nil {
 			return err
 		}
 		cs.SetDelegatedChecks(e.createCheckMap(), e.createCheck)
-		cs.SetServiceIdentifier(consul.GenerateServiceIdentifier(e.ctx.AllocID, e.ctx.Task.Name))
+		cs.SetServiceRegPrefix(serviceRegPrefix)
 		cs.SetAddrFinder(e.ctx.Task.FindHostAndPortFor)
-		e.consulService = cs
+		e.consulSyncer = cs
+		go e.consulSyncer.Run()
 	}
 	if e.ctx != nil {
-		e.interpolateServices(e.ctx.Task)
+		syncerFn := func() error {
+			e.interpolateServices(e.ctx.Task)
+			e.consulSyncer.SetServices(e.ctx.AllocID, e.ctx.Task.ConsulServices)
+			return nil
+		}
+		e.consulSyncer.AddPeriodicHandler(e.ctx.AllocID, syncerFn)
 	}
-	err := e.consulService.SyncServices(e.ctx.Task.Services)
-	go e.consulService.PeriodicSync()
+	err := e.consulSyncer.SyncServices() // Attempt to register immediately
 	return err
 }
 
@@ -492,8 +507,8 @@ func (e *UniversalExecutor) SyncServices(ctx *ConsulContext) error {
 // running from Consul
 func (e *UniversalExecutor) DeregisterServices() error {
 	e.logger.Printf("[INFO] executor: de-registering services and shutting down consul service")
-	if e.consulService != nil {
-		return e.consulService.Shutdown()
+	if e.consulSyncer != nil {
+		return e.consulSyncer.Shutdown()
 	}
 	return nil
 }
@@ -683,7 +698,7 @@ func (e *UniversalExecutor) createCheck(check *structs.ServiceCheck, checkID str
 // task's environment.
 func (e *UniversalExecutor) interpolateServices(task *structs.Task) {
 	e.ctx.TaskEnv.Build()
-	for _, service := range task.Services {
+	for _, service := range task.ConsulServices {
 		for _, check := range service.Checks {
 			if check.Type == structs.ServiceCheckScript {
 				check.Name = e.ctx.TaskEnv.ReplaceEnv(check.Name)

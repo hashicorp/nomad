@@ -2,15 +2,8 @@ package agent
 
 import (
 	"fmt"
-	"math/rand"
 	"net"
-	"time"
 )
-
-// Returns a random stagger interval between 0 and the duration
-func randomStagger(intv time.Duration) time.Duration {
-	return time.Duration(uint64(rand.Int63()) % uint64(intv))
-}
 
 // IpOfDevice returns a routable ip addr of a device
 func ipOfDevice(name string) (net.IP, error) {

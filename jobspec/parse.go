@@ -701,7 +701,7 @@ func parseArtifactOption(result map[string]string, list *ast.ObjectList) error {
 }
 
 func parseServices(jobName string, taskGroupName string, task *structs.Task, serviceObjs *ast.ObjectList) error {
-	task.Services = make([]*structs.Service, len(serviceObjs.Items))
+	task.ConsulServices = make([]*structs.ConsulService, len(serviceObjs.Items))
 	var defaultServiceName bool
 	for idx, o := range serviceObjs.Items {
 		// Check for invalid keys
@@ -715,7 +715,7 @@ func parseServices(jobName string, taskGroupName string, task *structs.Task, ser
 			return multierror.Prefix(err, fmt.Sprintf("service (%d) ->", idx))
 		}
 
-		var service structs.Service
+		var service structs.ConsulService
 		var m map[string]interface{}
 		if err := hcl.DecodeObject(&m, o.Val); err != nil {
 			return err
@@ -750,13 +750,13 @@ func parseServices(jobName string, taskGroupName string, task *structs.Task, ser
 			}
 		}
 
-		task.Services[idx] = &service
+		task.ConsulServices[idx] = &service
 	}
 
 	return nil
 }
 
-func parseChecks(service *structs.Service, checkObjs *ast.ObjectList) error {
+func parseChecks(service *structs.ConsulService, checkObjs *ast.ObjectList) error {
 	service.Checks = make([]*structs.ServiceCheck, len(checkObjs.Items))
 	for idx, co := range checkObjs.Items {
 		// Check for invalid keys

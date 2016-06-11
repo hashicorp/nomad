@@ -348,7 +348,7 @@ func (b *EvalBroker) scanForSchedulers(schedulers []string) (*structs.Evaluation
 	default:
 		// Multiple tasks. We pick a random task so that we fairly
 		// distribute work.
-		offset := rand.Int63() % int64(n)
+		offset := rand.Intn(n)
 		return b.dequeueForSched(eligibleSched[offset])
 	}
 }

@@ -119,6 +119,9 @@ func (s *HTTPServer) AgentForceLeaveRequest(resp http.ResponseWriter, req *http.
 	return nil, err
 }
 
+// AgentServersRequest is used to query the list of servers used by the Nomad
+// Client for RPCs.  This endpoint can also be used to update the list of
+// servers for a given agent.
 func (s *HTTPServer) AgentServersRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	switch req.Method {
 	case "PUT", "POST":
@@ -136,8 +139,8 @@ func (s *HTTPServer) listServers(resp http.ResponseWriter, req *http.Request) (i
 		return nil, CodedError(501, ErrInvalidMethod)
 	}
 
-	// Get the current list of servers
-	return client.Servers(), nil
+	peers := s.agent.client.RPCProxy().ServerRPCAddrs()
+	return peers, nil
 }
 
 func (s *HTTPServer) updateServers(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
@@ -153,7 +156,13 @@ func (s *HTTPServer) updateServers(resp http.ResponseWriter, req *http.Request) 
 	}
 
 	// Set the servers list into the client
-	client.SetServers(servers)
+	for _, server := range servers {
+		s.agent.logger.Printf("[TRACE] Adding server %s to the client's primary server list", server)
+		se := client.AddPrimaryServerToRPCProxy(server)
+		if se == nil {
+			s.agent.logger.Printf("[ERR] Attempt to add server %q to client failed", server)
+		}
+	}
 	return nil, nil
 }
 

@@ -4,6 +4,8 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+
+	"github.com/hashicorp/nomad/nomad/structs/config"
 )
 
 func TestConfig_Parse(t *testing.T) {
@@ -100,8 +102,8 @@ func TestConfig_Parse(t *testing.T) {
 					Join:           true,
 					Endpoint:       "127.0.0.1:1234",
 				},
-				ConsulConfig: &ConsulConfig{
-					ServerServiceName: "nomad-server",
+				Consul: &config.ConsulConfig{
+					ServerServiceName: "nomad",
 					ClientServiceName: "nomad-client",
 					Addr:              "127.0.0.1:9500",
 					Token:             "token1",
