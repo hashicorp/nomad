@@ -370,7 +370,7 @@ The `Task` object supports the following keys:
 
 
 * `User` - Set the user that will run the task. It defaults to the same user
-  the Nomad client is being run as.
+  the Nomad client is being run as. This can only be set on Linux platforms.
 
 ### Resources
 

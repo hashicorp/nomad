@@ -231,7 +231,7 @@ The `task` object supports the following keys:
   is available. Examples include `docker`, `qemu`, `java`, and `exec`.
 
 * `user` - Set the user that will run the task. It defaults to the same user
-  the Nomad client is being run as.
+  the Nomad client is being run as. This can only be set on Linux platforms.
 
 * `constraint` - This can be provided multiple times to define additional
   constraints. See the constraint reference for more details.
