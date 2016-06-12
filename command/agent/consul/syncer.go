@@ -752,14 +752,11 @@ func (c *Syncer) deregisterCheck(checkID string) error {
 // Run triggers periodic syncing of services and checks with Consul.  This is
 // a long lived go-routine which is stopped during shutdown.
 func (c *Syncer) Run() {
-	d := initialSyncDelay + lib.RandomStagger(initialSyncBuffer-initialSyncDelay)
-	sync := time.NewTimer(d)
-	c.logger.Printf("[DEBUG] consul.syncer: sleeping %v before first sync", d)
-
+	sync := time.NewTimer(0)
 	for {
 		select {
 		case <-sync.C:
-			d = syncInterval - lib.RandomStagger(syncInterval/syncJitter)
+			d := syncInterval - lib.RandomStagger(syncInterval/syncJitter)
 			sync.Reset(d)
 
 			if err := c.SyncServices(); err != nil {
