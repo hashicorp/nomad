@@ -3,7 +3,6 @@ package agent
 import (
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 )
 
@@ -16,7 +15,7 @@ func TestClientStatsRequest(t *testing.T) {
 
 		respW := httptest.NewRecorder()
 		_, err = s.Server.ClientStatsRequest(respW, req)
-		if !strings.ContainsAny(err.Error(), invalidSinceErrPrefix) {
+		if err != nil {
 			t.Fatalf("unexpected err: %v", err)
 		}
 	})
