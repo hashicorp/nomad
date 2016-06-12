@@ -173,7 +173,7 @@ nomad alloc-status %s`, allocID, allocID)
 			if machine {
 				size = fmt.Sprintf("%d", file.Size)
 			} else {
-				size = humanize.Bytes(uint64(file.Size))
+				size = humanize.IBytes(uint64(file.Size))
 			}
 			out[1] = fmt.Sprintf("%s|%s|%s|%s", file.FileMode, size,
 				formatTime(file.ModTime), fn)
@@ -202,7 +202,7 @@ nomad alloc-status %s`, allocID, allocID)
 			if machine {
 				size = fmt.Sprintf("%d", file.Size)
 			} else {
-				size = humanize.Bytes(uint64(file.Size))
+				size = humanize.IBytes(uint64(file.Size))
 			}
 			out[i+1] = fmt.Sprintf("%s|%s|%s|%s",
 				file.FileMode,

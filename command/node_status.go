@@ -330,10 +330,10 @@ func (c *NodeStatusCommand) printCpuStats(hostStats *api.HostStats) {
 func (c *NodeStatusCommand) printMemoryStats(hostStats *api.HostStats) {
 	memoryStat := hostStats.Memory
 	memStatsAttr := make([]string, 4)
-	memStatsAttr[0] = fmt.Sprintf("Total|%v", humanize.Bytes(memoryStat.Total))
-	memStatsAttr[1] = fmt.Sprintf("Available|%v", humanize.Bytes(memoryStat.Available))
-	memStatsAttr[2] = fmt.Sprintf("Used|%v", humanize.Bytes(memoryStat.Used))
-	memStatsAttr[3] = fmt.Sprintf("Free|%v", humanize.Bytes(memoryStat.Free))
+	memStatsAttr[0] = fmt.Sprintf("Total|%v", humanize.IBytes(memoryStat.Total))
+	memStatsAttr[1] = fmt.Sprintf("Available|%v", humanize.IBytes(memoryStat.Available))
+	memStatsAttr[2] = fmt.Sprintf("Used|%v", humanize.IBytes(memoryStat.Used))
+	memStatsAttr[3] = fmt.Sprintf("Free|%v", humanize.IBytes(memoryStat.Free))
 	c.Ui.Output(formatKV(memStatsAttr))
 }
 
@@ -343,9 +343,9 @@ func (c *NodeStatusCommand) printDiskStats(hostStats *api.HostStats) {
 		diskStatsAttr := make([]string, 7)
 		diskStatsAttr[0] = fmt.Sprintf("Device|%s", diskStat.Device)
 		diskStatsAttr[1] = fmt.Sprintf("MountPoint|%s", diskStat.Mountpoint)
-		diskStatsAttr[2] = fmt.Sprintf("Size|%s", humanize.Bytes(diskStat.Size))
-		diskStatsAttr[3] = fmt.Sprintf("Used|%s", humanize.Bytes(diskStat.Used))
-		diskStatsAttr[4] = fmt.Sprintf("Available|%s", humanize.Bytes(diskStat.Available))
+		diskStatsAttr[2] = fmt.Sprintf("Size|%s", humanize.IBytes(diskStat.Size))
+		diskStatsAttr[3] = fmt.Sprintf("Used|%s", humanize.IBytes(diskStat.Used))
+		diskStatsAttr[4] = fmt.Sprintf("Available|%s", humanize.IBytes(diskStat.Available))
 		diskStatsAttr[5] = fmt.Sprintf("Used Percent|%v%%", humanize.FormatFloat(floatFormat, diskStat.UsedPercent))
 		diskStatsAttr[6] = fmt.Sprintf("Inodes Percent|%v%%", humanize.FormatFloat(floatFormat, diskStat.InodesUsedPercent))
 		c.Ui.Output(formatKV(diskStatsAttr))
@@ -409,10 +409,10 @@ func getAllocatedResources(client *api.Client, runningAllocs []*api.Allocation, 
 	resources[1] = fmt.Sprintf("%v/%v|%v/%v|%v/%v|%v/%v",
 		cpu,
 		total.CPU,
-		humanize.Bytes(uint64(mem*bytesPerMegabyte)),
-		humanize.Bytes(uint64(total.MemoryMB*bytesPerMegabyte)),
-		humanize.Bytes(uint64(disk*bytesPerMegabyte)),
-		humanize.Bytes(uint64(total.DiskMB*bytesPerMegabyte)),
+		humanize.IBytes(uint64(mem*bytesPerMegabyte)),
+		humanize.IBytes(uint64(total.MemoryMB*bytesPerMegabyte)),
+		humanize.IBytes(uint64(disk*bytesPerMegabyte)),
+		humanize.IBytes(uint64(total.DiskMB*bytesPerMegabyte)),
 		iops,
 		total.IOPS)
 
@@ -460,8 +460,8 @@ func getActualResources(client *api.Client, runningAllocs []*api.Allocation, nod
 	resources[1] = fmt.Sprintf("%v/%v|%v/%v",
 		math.Floor(cpu),
 		total.CPU,
-		humanize.Bytes(mem),
-		humanize.Bytes(uint64(total.MemoryMB*bytesPerMegabyte)))
+		humanize.IBytes(mem),
+		humanize.IBytes(uint64(total.MemoryMB*bytesPerMegabyte)))
 
 	return resources, nil
 }
@@ -488,10 +488,10 @@ func getHostResources(hostStats *api.HostStats, node *api.Node) ([]string, error
 	resources[1] = fmt.Sprintf("%v/%v|%v/%v|%v/%v",
 		math.Floor(hostStats.CPUTicksConsumed),
 		node.Resources.CPU,
-		humanize.Bytes(hostStats.Memory.Used),
-		humanize.Bytes(hostStats.Memory.Total),
-		humanize.Bytes(diskUsed),
-		humanize.Bytes(diskSize),
+		humanize.IBytes(hostStats.Memory.Used),
+		humanize.IBytes(hostStats.Memory.Total),
+		humanize.IBytes(diskUsed),
+		humanize.IBytes(diskSize),
 	)
 	return resources, nil
 }

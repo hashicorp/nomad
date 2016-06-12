@@ -288,19 +288,19 @@ func (c *AllocStatusCommand) outputTaskResources(alloc *api.Allocation, task str
 
 	// Display the rolled up stats. If possible prefer the live stastics
 	cpuUsage := strconv.Itoa(resource.CPU)
-	memUsage := strconv.Itoa(resource.MemoryMB)
+	memUsage := humanize.IBytes(uint64(resource.MemoryMB * bytesPerMegabyte))
 	if ru, ok := stats.Tasks[task]; ok && ru != nil && ru.ResourceUsage != nil {
 		if cs := ru.ResourceUsage.CpuStats; cs != nil {
 			cpuUsage = fmt.Sprintf("%v/%v", math.Floor(cs.TotalTicks), resource.CPU)
 		}
 		if ms := ru.ResourceUsage.MemoryStats; ms != nil {
-			memUsage = fmt.Sprintf("%v/%v", humanize.Bytes(ms.RSS), resource.MemoryMB)
+			memUsage = fmt.Sprintf("%v/%v", humanize.IBytes(ms.RSS), memUsage)
 		}
 	}
-	resourcesOutput = append(resourcesOutput, fmt.Sprintf("%v|%v MB|%v MB|%v|%v",
+	resourcesOutput = append(resourcesOutput, fmt.Sprintf("%v|%v|%v|%v|%v",
 		cpuUsage,
 		memUsage,
-		resource.DiskMB,
+		humanize.IBytes(uint64(resource.DiskMB*bytesPerMegabyte)),
 		resource.IOPS,
 		firstAddr))
 	for i := 1; i < len(addr); i++ {
@@ -329,17 +329,17 @@ func (c *AllocStatusCommand) outputVerboseResourceUsage(task string, resourceUsa
 		for _, measured := range memoryStats.Measured {
 			switch measured {
 			case "RSS":
-				measuredStats = append(measuredStats, humanize.Bytes(memoryStats.RSS))
+				measuredStats = append(measuredStats, humanize.IBytes(memoryStats.RSS))
 			case "Cache":
-				measuredStats = append(measuredStats, humanize.Bytes(memoryStats.Cache))
+				measuredStats = append(measuredStats, humanize.IBytes(memoryStats.Cache))
 			case "Swap":
-				measuredStats = append(measuredStats, humanize.Bytes(memoryStats.Swap))
+				measuredStats = append(measuredStats, humanize.IBytes(memoryStats.Swap))
 			case "Max Usage":
-				measuredStats = append(measuredStats, humanize.Bytes(memoryStats.MaxUsage))
+				measuredStats = append(measuredStats, humanize.IBytes(memoryStats.MaxUsage))
 			case "Kernel Usage":
-				measuredStats = append(measuredStats, humanize.Bytes(memoryStats.KernelUsage))
+				measuredStats = append(measuredStats, humanize.IBytes(memoryStats.KernelUsage))
 			case "Kernel Max Usage":
-				measuredStats = append(measuredStats, humanize.Bytes(memoryStats.KernelMaxUsage))
+				measuredStats = append(measuredStats, humanize.IBytes(memoryStats.KernelMaxUsage))
 			}
 		}
 
