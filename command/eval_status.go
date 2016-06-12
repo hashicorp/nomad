@@ -153,7 +153,7 @@ func (c *EvalStatusCommand) Run(args []string) int {
 	c.Ui.Output(formatKV(basic))
 
 	if failures {
-		c.Ui.Output("\n==> Failed Placements")
+		c.Ui.Output(c.Colorize().Color("\n[bold]Failed Placements[reset]"))
 		sorted := sortedTaskGroupFromMetrics(eval.FailedTGAllocs)
 		for _, tg := range sorted {
 			metrics := eval.FailedTGAllocs[tg]

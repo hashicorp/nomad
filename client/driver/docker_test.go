@@ -437,7 +437,7 @@ func TestDocker_StartN(t *testing.T) {
 
 	handles := make([]DriverHandle, len(taskList))
 
-	t.Logf("==> Starting %d tasks", len(taskList))
+	t.Logf("Starting %d tasks", len(taskList))
 
 	// Let's spin up a bunch of things
 	var err error
@@ -452,7 +452,7 @@ func TestDocker_StartN(t *testing.T) {
 		}
 	}
 
-	t.Log("==> All tasks are started. Terminating...")
+	t.Log("All tasks are started. Terminating...")
 
 	for idx, handle := range handles {
 		if handle == nil {
@@ -466,7 +466,7 @@ func TestDocker_StartN(t *testing.T) {
 		}
 	}
 
-	t.Log("==> Test complete!")
+	t.Log("Test complete!")
 }
 
 func TestDocker_StartNVersions(t *testing.T) {
@@ -488,7 +488,7 @@ func TestDocker_StartNVersions(t *testing.T) {
 
 	handles := make([]DriverHandle, len(taskList))
 
-	t.Logf("==> Starting %d tasks", len(taskList))
+	t.Logf("Starting %d tasks", len(taskList))
 
 	// Let's spin up a bunch of things
 	var err error
@@ -503,7 +503,7 @@ func TestDocker_StartNVersions(t *testing.T) {
 		}
 	}
 
-	t.Log("==> All tasks are started. Terminating...")
+	t.Log("All tasks are started. Terminating...")
 
 	for idx, handle := range handles {
 		if handle == nil {
@@ -517,7 +517,7 @@ func TestDocker_StartNVersions(t *testing.T) {
 		}
 	}
 
-	t.Log("==> Test complete!")
+	t.Log("Test complete!")
 }
 
 func TestDockerHostNet(t *testing.T) {

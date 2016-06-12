@@ -276,7 +276,7 @@ func (c *StatusCommand) outputJobInfo(client *api.Client, job *api.Job) error {
 	}
 
 	if c.verbose || c.showEvals {
-		c.Ui.Output("\n==> Evaluations")
+		c.Ui.Output(c.Colorize().Color("\n[bold]Evaluations[reset]"))
 		c.Ui.Output(formatList(evals))
 	}
 
@@ -285,7 +285,7 @@ func (c *StatusCommand) outputJobInfo(client *api.Client, job *api.Job) error {
 	}
 
 	// Format the allocs
-	c.Ui.Output("\n==> Allocations")
+	c.Ui.Output(c.Colorize().Color("\n[bold]Allocations[reset]"))
 	if len(jobAllocs) > 0 {
 		allocs = make([]string, len(jobAllocs)+1)
 		allocs[0] = "ID|Eval ID|Node ID|Task Group|Desired|Status"
@@ -311,7 +311,7 @@ func (c *StatusCommand) outputFailedPlacements(failedEval *api.Evaluation) {
 		return
 	}
 
-	c.Ui.Output("\n==> Placement Failure")
+	c.Ui.Output(c.Colorize().Color("\n[bold]Placement Failure[reset]"))
 
 	sorted := sortedTaskGroupFromMetrics(failedEval.FailedTGAllocs)
 	for i, tg := range sorted {

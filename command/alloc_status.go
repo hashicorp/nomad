@@ -167,7 +167,7 @@ func (c *AllocStatusCommand) Run(args []string) int {
 
 	// Format the detailed status
 	if verbose || alloc.DesiredStatus == "failed" {
-		c.Ui.Output("\n==> Status")
+		c.Ui.Output(c.Colorize().Color("\n[bold]Status[reset]"))
 		dumpAllocStatus(c.Ui, alloc, length)
 	}
 
@@ -199,7 +199,7 @@ func (c *AllocStatusCommand) shortTaskStatus(alloc *api.Allocation) {
 			task, lastState, lastEvent, lastTime))
 	}
 
-	c.Ui.Output("\n==> Tasks")
+	c.Ui.Output(c.Colorize().Color("\n[bold]Tasks[reset]"))
 	c.Ui.Output(formatList(tasks))
 }
 
@@ -278,7 +278,7 @@ func (c *AllocStatusCommand) taskStatus(alloc *api.Allocation) {
 			events[size-i] = fmt.Sprintf("%s|%s|%s", formatedTime, event.Type, desc)
 		}
 
-		c.Ui.Output(fmt.Sprintf("\n==> Task %q is %q\nRecent Events:", task, state.State))
+		c.Ui.Output(c.Colorize().Color(fmt.Sprintf("\n[bold]Task %q is %q[reset]\nRecent Events:", task, state.State)))
 		c.Ui.Output(formatList(events))
 	}
 }
@@ -334,7 +334,7 @@ func (c *AllocStatusCommand) taskResources(alloc *api.Allocation, stats *api.All
 	}
 	sort.Strings(tasks)
 
-	c.Ui.Output("\n==> Task Resources")
+	c.Ui.Output(c.Colorize().Color("\n[bold]Task Resources[reset]"))
 	firstLine := true
 	for _, task := range tasks {
 		resource := alloc.TaskResources[task]
