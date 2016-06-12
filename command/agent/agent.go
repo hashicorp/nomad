@@ -368,18 +368,18 @@ func (a *Agent) setupServer() error {
 	// Create the Nomad Server services for Consul
 	if a.config.Consul.AutoRegister && a.config.Consul.ServerServiceName != "" {
 		const serviceGroupName = "server"
-		a.consulSyncer.SetServices(serviceGroupName, []*structs.ConsulService{
-			&structs.ConsulService{
+		a.consulSyncer.SetServices(serviceGroupName, []*structs.Service{
+			&structs.Service{
 				Name:      a.config.Consul.ServerServiceName,
 				PortLabel: a.serverHTTPAddr,
 				Tags:      []string{consul.ServiceTagHTTP},
 			},
-			&structs.ConsulService{
+			&structs.Service{
 				Name:      a.config.Consul.ServerServiceName,
 				PortLabel: a.serverRPCAddr,
 				Tags:      []string{consul.ServiceTagRPC},
 			},
-			&structs.ConsulService{
+			&structs.Service{
 				PortLabel: a.serverSerfAddr,
 				Name:      a.config.Consul.ServerServiceName,
 				Tags:      []string{consul.ServiceTagSerf},
@@ -419,13 +419,13 @@ func (a *Agent) setupClient() error {
 	// Create the Nomad Server services for Consul
 	if a.config.Consul.AutoRegister && a.config.Consul.ClientServiceName != "" {
 		const serviceGroupName = "client"
-		a.consulSyncer.SetServices(serviceGroupName, []*structs.ConsulService{
-			&structs.ConsulService{
+		a.consulSyncer.SetServices(serviceGroupName, []*structs.Service{
+			&structs.Service{
 				Name:      a.config.Consul.ClientServiceName,
 				PortLabel: a.clientHTTPAddr,
 				Tags:      []string{consul.ServiceTagHTTP},
 			},
-			&structs.ConsulService{
+			&structs.Service{
 				Name:      a.config.Consul.ClientServiceName,
 				PortLabel: a.clientRPCAddr,
 				Tags:      []string{consul.ServiceTagRPC},

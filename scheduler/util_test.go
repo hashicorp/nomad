@@ -671,7 +671,7 @@ func TestInplaceUpdate_Success(t *testing.T) {
 	*tg = *job.TaskGroups[0]
 	resource := &structs.Resources{CPU: 737}
 	tg.Tasks[0].Resources = resource
-	newServices := []*structs.ConsulService{
+	newServices := []*structs.Service{
 		{
 			Name:      "dummy-service",
 			PortLabel: "http",
@@ -683,10 +683,10 @@ func TestInplaceUpdate_Success(t *testing.T) {
 	}
 
 	// Delete service 2
-	tg.Tasks[0].ConsulServices = tg.Tasks[0].ConsulServices[:1]
+	tg.Tasks[0].Services = tg.Tasks[0].Services[:1]
 
 	// Add the new services
-	tg.Tasks[0].ConsulServices = append(tg.Tasks[0].ConsulServices, newServices...)
+	tg.Tasks[0].Services = append(tg.Tasks[0].Services, newServices...)
 
 	updates := []allocTuple{{Alloc: alloc, TaskGroup: tg}}
 	stack := NewGenericStack(false, ctx)
@@ -721,12 +721,12 @@ func TestInplaceUpdate_Success(t *testing.T) {
 		t.Fatalf("bad")
 	}
 
-	if len(a.Job.TaskGroups[0].Tasks[0].ConsulServices) != 3 {
-		t.Fatalf("Expected number of services: %v, Actual: %v", 3, len(a.Job.TaskGroups[0].Tasks[0].ConsulServices))
+	if len(a.Job.TaskGroups[0].Tasks[0].Services) != 3 {
+		t.Fatalf("Expected number of services: %v, Actual: %v", 3, len(a.Job.TaskGroups[0].Tasks[0].Services))
 	}
 
 	serviceNames := make(map[string]struct{}, 3)
-	for _, consulService := range a.Job.TaskGroups[0].Tasks[0].ConsulServices {
+	for _, consulService := range a.Job.TaskGroups[0].Tasks[0].Services {
 		serviceNames[consulService.Name] = struct{}{}
 	}
 	if len(serviceNames) != 3 {

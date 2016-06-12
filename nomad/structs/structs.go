@@ -1553,9 +1553,8 @@ func (sc *ServiceCheck) Hash(serviceID string) string {
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
-// The ConsulService model represents a Consul service definition in Nomad
-// Agent's Config.
-type ConsulService struct {
+// Service represents a Consul service definition in Nomad
+type Service struct {
 	// ServiceID is the calculated Consul ServiceID used for a service.
 	// This value is not available to be set via configuration.
 	ServiceID string `mapstructure:"-"`
@@ -1573,11 +1572,11 @@ type ConsulService struct {
 	Checks    []*ServiceCheck // List of checks associated with the service
 }
 
-func (s *ConsulService) Copy() *ConsulService {
+func (s *Service) Copy() *Service {
 	if s == nil {
 		return nil
 	}
-	ns := new(ConsulService)
+	ns := new(Service)
 	*ns = *s
 	ns.Tags = CopySliceString(ns.Tags)
 
@@ -1594,7 +1593,7 @@ func (s *ConsulService) Copy() *ConsulService {
 
 // InitFields interpolates values of Job, Task Group and Task in the Service
 // Name. This also generates check names, service id and check ids.
-func (s *ConsulService) InitFields(job string, taskGroup string, task string) {
+func (s *Service) InitFields(job string, taskGroup string, task string) {
 	s.Name = args.ReplaceEnv(s.Name, map[string]string{
 		"JOB":       job,
 		"TASKGROUP": taskGroup,
@@ -1611,7 +1610,7 @@ func (s *ConsulService) InitFields(job string, taskGroup string, task string) {
 }
 
 // Validate checks if the Check definition is valid
-func (s *ConsulService) Validate() error {
+func (s *Service) Validate() error {
 	var mErr multierror.Error
 
 	// Ensure the service name is valid per RFC-952 §1
@@ -1637,7 +1636,7 @@ func (s *ConsulService) Validate() error {
 
 // Hash calculates the hash of the check based on it's content and the service
 // which owns it
-func (s *ConsulService) Hash() string {
+func (s *Service) Hash() string {
 	h := sha1.New()
 	io.WriteString(h, s.Name)
 	io.WriteString(h, strings.Join(s.Tags, ""))
@@ -1696,7 +1695,7 @@ type Task struct {
 	Env map[string]string
 
 	// List of service definitions exposed by the Task
-	ConsulServices []*ConsulService
+	Services []*Service
 
 	// Constraints can be specified at a task level and apply only to
 	// the particular task.
@@ -1729,12 +1728,12 @@ func (t *Task) Copy() *Task {
 	*nt = *t
 	nt.Env = CopyMapStringString(nt.Env)
 
-	if t.ConsulServices != nil {
-		services := make([]*ConsulService, len(nt.ConsulServices))
-		for i, s := range nt.ConsulServices {
+	if t.Services != nil {
+		services := make([]*Service, len(nt.Services))
+		for i, s := range nt.Services {
 			services[i] = s.Copy()
 		}
-		nt.ConsulServices = services
+		nt.Services = services
 	}
 
 	nt.Constraints = CopySliceConstraints(nt.Constraints)
@@ -1771,7 +1770,7 @@ func (t *Task) InitFields(job *Job, tg *TaskGroup) {
 // and Tasks in all the service Names of a Task. This also generates the service
 // id, check id and check names.
 func (t *Task) InitServiceFields(job string, taskGroup string) {
-	for _, service := range t.ConsulServices {
+	for _, service := range t.Services {
 		service.InitFields(job, taskGroup, t.Name)
 	}
 }
@@ -1861,7 +1860,7 @@ func validateServices(t *Task) error {
 	// unique.
 	servicePorts := make(map[string][]string)
 	knownServices := make(map[string]struct{})
-	for i, service := range t.ConsulServices {
+	for i, service := range t.Services {
 		if err := service.Validate(); err != nil {
 			outer := fmt.Errorf("service %d validation failed: %s", i, err)
 			mErr.Errors = append(mErr.Errors, outer)

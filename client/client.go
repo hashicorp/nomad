@@ -1345,7 +1345,7 @@ func (c *Client) setupConsulSyncer() error {
 	consulServicesSyncFn := func() error {
 		const estInitialConsulServices = 8
 		const serviceGroupName = "executor"
-		services := make([]*structs.ConsulService, 0, estInitialConsulServices)
+		services := make([]*structs.Service, 0, estInitialConsulServices)
 		for allocID, ar := range c.getAllocRunners() {
 			ar.taskStatusLock.RLock()
 			taskStates := copyTaskStates(ar.taskStates)
@@ -1353,7 +1353,7 @@ func (c *Client) setupConsulSyncer() error {
 			for taskName, taskState := range taskStates {
 				if taskState.State == structs.TaskStateRunning {
 					if tr, ok := ar.tasks[taskName]; ok {
-						for _, service := range tr.task.ConsulServices {
+						for _, service := range tr.task.Services {
 							if service.Name == "" {
 								service.Name = fmt.Sprintf("%s-%s", tr.task.Name, allocID)
 							}
