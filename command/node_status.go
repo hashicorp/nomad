@@ -16,6 +16,9 @@ import (
 const (
 	// floatFormat is a format string for formatting floats.
 	floatFormat = "#,###.##"
+
+	// bytesPerMegabyte is the number of bytes per MB
+	bytesPerMegabyte = 1024 * 1024
 )
 
 type NodeStatusCommand struct {
@@ -402,14 +405,14 @@ func getAllocatedResources(client *api.Client, runningAllocs []*api.Allocation, 
 	}
 
 	resources := make([]string, 2)
-	resources[0] = "CPU|Memory MB|Disk MB|IOPS"
+	resources[0] = "CPU|Memory|Disk|IOPS"
 	resources[1] = fmt.Sprintf("%v/%v|%v/%v|%v/%v|%v/%v",
 		cpu,
 		total.CPU,
-		mem,
-		total.MemoryMB,
-		disk,
-		total.DiskMB,
+		humanize.Bytes(uint64(mem*bytesPerMegabyte)),
+		humanize.Bytes(uint64(total.MemoryMB*bytesPerMegabyte)),
+		humanize.Bytes(uint64(disk*bytesPerMegabyte)),
+		humanize.Bytes(uint64(total.DiskMB*bytesPerMegabyte)),
 		iops,
 		total.IOPS)
 
@@ -452,14 +455,13 @@ func getActualResources(client *api.Client, runningAllocs []*api.Allocation, nod
 		mem += stats.ResourceUsage.MemoryStats.RSS
 	}
 
-	// TODO do humanized output for these
 	resources := make([]string, 2)
 	resources[0] = "CPU|Memory"
 	resources[1] = fmt.Sprintf("%v/%v|%v/%v",
 		math.Floor(cpu),
 		total.CPU,
 		humanize.Bytes(mem),
-		humanize.Bytes(uint64(total.MemoryMB*1024*1024)))
+		humanize.Bytes(uint64(total.MemoryMB*bytesPerMegabyte)))
 
 	return resources, nil
 }
