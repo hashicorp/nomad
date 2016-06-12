@@ -23,11 +23,13 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/driver/env"
 	"github.com/hashicorp/nomad/client/driver/logging"
-	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/client/stats"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+
+	dstructs "github.com/hashicorp/nomad/client/driver/structs"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 )
 
 const (
@@ -140,7 +142,7 @@ type ProcessState struct {
 	Pid             int
 	ExitCode        int
 	Signal          int
-	IsolationConfig *cstructs.IsolationConfig
+	IsolationConfig *dstructs.IsolationConfig
 	Time            time.Time
 }
 
@@ -155,7 +157,7 @@ type nomadPid struct {
 // SyslogServerState holds the address and islation information of a launched
 // syslog server
 type SyslogServerState struct {
-	IsolationConfig *cstructs.IsolationConfig
+	IsolationConfig *dstructs.IsolationConfig
 	Addr            string
 }
 
@@ -296,7 +298,7 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext
 	}
 	go e.collectPids()
 	go e.wait()
-	ic := &cstructs.IsolationConfig{Cgroup: e.groups, CgroupPaths: e.cgPaths}
+	ic := &dstructs.IsolationConfig{Cgroup: e.groups, CgroupPaths: e.cgPaths}
 	return &ProcessState{Pid: e.cmd.Process.Pid, ExitCode: -1, IsolationConfig: ic, Time: time.Now()}, nil
 }
 
@@ -371,7 +373,7 @@ func (e *UniversalExecutor) UpdateTask(task *structs.Task) error {
 func (e *UniversalExecutor) wait() {
 	defer close(e.processExited)
 	err := e.cmd.Wait()
-	ic := &cstructs.IsolationConfig{Cgroup: e.groups, CgroupPaths: e.cgPaths}
+	ic := &dstructs.IsolationConfig{Cgroup: e.groups, CgroupPaths: e.cgPaths}
 	if err == nil {
 		e.exitState = &ProcessState{Pid: 0, ExitCode: 0, IsolationConfig: ic, Time: time.Now()}
 		return

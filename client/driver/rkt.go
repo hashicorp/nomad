@@ -19,8 +19,9 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/executor"
-	cstructs "github.com/hashicorp/nomad/client/driver/structs"
+	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/client/fingerprint"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/discover"
 	"github.com/hashicorp/nomad/helper/fields"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -70,7 +71,7 @@ type rktHandle struct {
 	logger         *log.Logger
 	killTimeout    time.Duration
 	maxKillTimeout time.Duration
-	waitCh         chan *cstructs.WaitResult
+	waitCh         chan *dstructs.WaitResult
 	doneCh         chan struct{}
 }
 
@@ -308,7 +309,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		killTimeout:    GetKillTimeout(task.KillTimeout, maxKill),
 		maxKillTimeout: maxKill,
 		doneCh:         make(chan struct{}),
-		waitCh:         make(chan *cstructs.WaitResult, 1),
+		waitCh:         make(chan *dstructs.WaitResult, 1),
 	}
 	if h.executor.SyncServices(consulContext(d.config, "")); err != nil {
 		h.logger.Printf("[ERR] driver.rkt: error registering services for task: %q: %v", task.Name, err)
@@ -349,7 +350,7 @@ func (d *RktDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error
 		killTimeout:    id.KillTimeout,
 		maxKillTimeout: id.MaxKillTimeout,
 		doneCh:         make(chan struct{}),
-		waitCh:         make(chan *cstructs.WaitResult, 1),
+		waitCh:         make(chan *dstructs.WaitResult, 1),
 	}
 	if h.executor.SyncServices(consulContext(d.config, "")); err != nil {
 		h.logger.Printf("[ERR] driver.rkt: error registering services: %v", err)
@@ -374,7 +375,7 @@ func (h *rktHandle) ID() string {
 	return fmt.Sprintf("Rkt:%s", string(data))
 }
 
-func (h *rktHandle) WaitCh() chan *cstructs.WaitResult {
+func (h *rktHandle) WaitCh() chan *dstructs.WaitResult {
 	return h.waitCh
 }
 
@@ -414,7 +415,7 @@ func (h *rktHandle) run() {
 			h.logger.Printf("[ERROR] driver.rkt: unmounting dev,proc and alloc dirs failed: %v", e)
 		}
 	}
-	h.waitCh <- cstructs.NewWaitResult(ps.ExitCode, 0, err)
+	h.waitCh <- dstructs.NewWaitResult(ps.ExitCode, 0, err)
 	close(h.waitCh)
 	// Remove services
 	if err := h.executor.DeregisterServices(); err != nil {

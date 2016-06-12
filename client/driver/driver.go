@@ -12,7 +12,8 @@ import (
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/nomad/structs"
 
-	cstructs "github.com/hashicorp/nomad/client/driver/structs"
+	dstructs "github.com/hashicorp/nomad/client/driver/structs"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 )
 
 // BuiltinDrivers contains the built in registered drivers
@@ -105,7 +106,7 @@ type DriverHandle interface {
 	ID() string
 
 	// WaitCh is used to return a channel used wait for task completion
-	WaitCh() chan *cstructs.WaitResult
+	WaitCh() chan *dstructs.WaitResult
 
 	// Update is used to update the task if possible and update task related
 	// configurations.

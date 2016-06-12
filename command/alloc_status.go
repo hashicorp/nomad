@@ -131,7 +131,7 @@ func (c *AllocStatusCommand) Run(args []string) int {
 	}
 
 	var statsErr error
-	var stats map[string]*api.TaskResourceUsage
+	var stats *api.AllocResourceUsage
 	stats, statsErr = client.Allocations().Stats(alloc, nil)
 
 	// Format the allocation data
@@ -322,7 +322,7 @@ func (c *AllocStatusCommand) allocResources(alloc *api.Allocation) {
 }
 
 // taskResources prints out the tasks current resource usage
-func (c *AllocStatusCommand) taskResources(alloc *api.Allocation, stats map[string]*api.TaskResourceUsage, displayStats bool) {
+func (c *AllocStatusCommand) taskResources(alloc *api.Allocation, stats *api.AllocResourceUsage, displayStats bool) {
 	if len(alloc.TaskResources) == 0 {
 		return
 	}
@@ -358,9 +358,11 @@ func (c *AllocStatusCommand) taskResources(alloc *api.Allocation, stats map[stri
 		if len(addr) > 0 {
 			firstAddr = addr[0]
 		}
+
+		// Display the rolled up stats. If possible prefer the live stastics
 		cpuUsage := strconv.Itoa(resource.CPU)
 		memUsage := strconv.Itoa(resource.MemoryMB)
-		if ru, ok := stats[task]; ok && ru != nil && ru.ResourceUsage != nil {
+		if ru, ok := stats.Tasks[task]; ok && ru != nil && ru.ResourceUsage != nil {
 			if cs := ru.ResourceUsage.CpuStats; cs != nil {
 				cpuUsage = fmt.Sprintf("%v/%v", math.Floor(cs.TotalTicks), resource.CPU)
 			}
@@ -379,7 +381,7 @@ func (c *AllocStatusCommand) taskResources(alloc *api.Allocation, stats map[stri
 		}
 		c.Ui.Output(formatListWithSpaces(resourcesOutput))
 
-		if ru, ok := stats[task]; ok && ru != nil && displayStats && ru.ResourceUsage != nil {
+		if ru, ok := stats.Tasks[task]; ok && ru != nil && displayStats && ru.ResourceUsage != nil {
 			c.Ui.Output("")
 			c.printTaskResourceUsage(task, ru.ResourceUsage)
 		}

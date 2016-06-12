@@ -22,7 +22,8 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/executor"
-	cstructs "github.com/hashicorp/nomad/client/driver/structs"
+	dstructs "github.com/hashicorp/nomad/client/driver/structs"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/discover"
 	"github.com/hashicorp/nomad/helper/fields"
 	shelpers "github.com/hashicorp/nomad/helper/stats"
@@ -141,7 +142,7 @@ type DockerHandle struct {
 	maxKillTimeout    time.Duration
 	resourceUsageLock sync.RWMutex
 	resourceUsage     *cstructs.TaskResourceUsage
-	waitCh            chan *cstructs.WaitResult
+	waitCh            chan *dstructs.WaitResult
 	doneCh            chan bool
 }
 
@@ -542,7 +543,7 @@ func (d *DockerDriver) recoverablePullError(err error, image string) error {
 	if imageNotFoundMatcher.MatchString(err.Error()) {
 		recoverable = false
 	}
-	return cstructs.NewRecoverableError(fmt.Errorf("Failed to pull `%s`: %s", image, err), recoverable)
+	return dstructs.NewRecoverableError(fmt.Errorf("Failed to pull `%s`: %s", image, err), recoverable)
 }
 
 func (d *DockerDriver) Periodic() (bool, time.Duration) {
@@ -798,7 +799,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 		killTimeout:    GetKillTimeout(task.KillTimeout, maxKill),
 		maxKillTimeout: maxKill,
 		doneCh:         make(chan bool),
-		waitCh:         make(chan *cstructs.WaitResult, 1),
+		waitCh:         make(chan *dstructs.WaitResult, 1),
 	}
 	if err := exec.SyncServices(consulContext(d.config, container.ID)); err != nil {
 		d.logger.Printf("[ERR] driver.docker: error registering services with consul for task: %q: %v", task.Name, err)
@@ -873,7 +874,7 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 		killTimeout:    pid.KillTimeout,
 		maxKillTimeout: pid.MaxKillTimeout,
 		doneCh:         make(chan bool),
-		waitCh:         make(chan *cstructs.WaitResult, 1),
+		waitCh:         make(chan *dstructs.WaitResult, 1),
 	}
 	if err := exec.SyncServices(consulContext(d.config, pid.ContainerID)); err != nil {
 		h.logger.Printf("[ERR] driver.docker: error registering services with consul: %v", err)
@@ -905,7 +906,7 @@ func (h *DockerHandle) ContainerID() string {
 	return h.containerID
 }
 
-func (h *DockerHandle) WaitCh() chan *cstructs.WaitResult {
+func (h *DockerHandle) WaitCh() chan *dstructs.WaitResult {
 	return h.waitCh
 }
 
@@ -962,7 +963,7 @@ func (h *DockerHandle) run() {
 	}
 
 	close(h.doneCh)
-	h.waitCh <- cstructs.NewWaitResult(exitCode, 0, err)
+	h.waitCh <- dstructs.NewWaitResult(exitCode, 0, err)
 	close(h.waitCh)
 
 	// Remove services
