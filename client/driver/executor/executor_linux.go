@@ -247,6 +247,7 @@ func (e *UniversalExecutor) configureChroot() error {
 		return err
 	}
 
+	e.fsIsolationEnforced = true
 	return nil
 }
 

@@ -178,11 +178,12 @@ type UniversalExecutor struct {
 	ctx     *ExecutorContext
 	command *ExecCommand
 
-	pids          map[int]*nomadPid
-	pidLock       sync.RWMutex
-	taskDir       string
-	exitState     *ProcessState
-	processExited chan interface{}
+	pids                map[int]*nomadPid
+	pidLock             sync.RWMutex
+	taskDir             string
+	exitState           *ProcessState
+	processExited       chan interface{}
+	fsIsolationEnforced bool
 
 	lre         *logging.FileRotator
 	lro         *logging.FileRotator
@@ -232,17 +233,6 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext
 	e.ctx = ctx
 	e.command = command
 
-	// configuring the task dir
-	if err := e.configureTaskDir(); err != nil {
-		return nil, err
-	}
-
-	// configuring the chroot, cgroup and enters the plugin process in the
-	// chroot
-	if err := e.configureIsolation(); err != nil {
-		return nil, err
-	}
-
 	// setting the user of the process
 	if command.User != "" {
 		e.logger.Printf("[DEBUG] executor: running command as %s", command.User)
@@ -251,14 +241,30 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext
 		}
 	}
 
+	// configuring the task dir
+	if err := e.configureTaskDir(); err != nil {
+		return nil, err
+	}
+
+	e.ctx.TaskEnv.Build()
+	// configuring the chroot, cgroup and enters the plugin process in the
+	// chroot
+	if err := e.configureIsolation(); err != nil {
+		return nil, err
+	}
+	// Apply ourselves into the cgroup. The executor MUST be in the cgroup
+	// before the user task is started, otherwise we are subject to a fork
+	// attack in which a process escapes isolation by immediately forking.
+	if err := e.applyLimits(os.Getpid()); err != nil {
+		return nil, err
+	}
+
 	// Setup the loggers
 	if err := e.configureLoggers(); err != nil {
 		return nil, err
 	}
 	e.cmd.Stdout = e.lro
 	e.cmd.Stderr = e.lre
-
-	e.ctx.TaskEnv.Build()
 
 	// Look up the binary path and make it executable
 	absPath, err := e.lookupBin(ctx.TaskEnv.ReplaceEnv(command.Cmd))
@@ -270,10 +276,11 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext
 		return nil, err
 	}
 
-	// Determine the path to run as it may have to be relative to the chroot.
 	path := absPath
-	if e.command.FSIsolation {
-		rel, err := filepath.Rel(e.taskDir, absPath)
+
+	// Determine the path to run as it may have to be relative to the chroot.
+	if e.fsIsolationEnforced {
+		rel, err := filepath.Rel(e.taskDir, path)
 		if err != nil {
 			return nil, err
 		}
@@ -282,15 +289,8 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext
 
 	// Set the commands arguments
 	e.cmd.Path = path
-	e.cmd.Args = append([]string{path}, ctx.TaskEnv.ParseAndReplace(command.Args)...)
+	e.cmd.Args = append([]string{e.cmd.Path}, ctx.TaskEnv.ParseAndReplace(command.Args)...)
 	e.cmd.Env = ctx.TaskEnv.EnvList()
-
-	// Apply ourselves into the cgroup. The executor MUST be in the cgroup
-	// before the user task is started, otherwise we are subject to a fork
-	// attack in which a process escapes isolation by immediately forking.
-	if err := e.applyLimits(os.Getpid()); err != nil {
-		return nil, err
-	}
 
 	// Start the process
 	if err := e.cmd.Start(); err != nil {
