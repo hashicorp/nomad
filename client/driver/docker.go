@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -1008,6 +1009,7 @@ func (h *DockerHandle) collectStats() {
 			h.logger.Printf("[DEBUG] driver.docker: error collecting stats from container %s: %v", h.containerID, err)
 		}
 	}()
+	numCores := runtime.NumCPU()
 	for {
 		select {
 		case s := <-statsCh:
@@ -1037,7 +1039,7 @@ func (h *DockerHandle) collectStats() {
 				cs.UserMode = calculatePercent(
 					s.CPUStats.CPUUsage.UsageInUsermode, s.PreCPUStats.CPUUsage.UsageInUsermode,
 					s.CPUStats.CPUUsage.TotalUsage, s.PreCPUStats.CPUUsage.TotalUsage, cores)
-				cs.TotalTicks = (cs.Percent / 100) * shelpers.TotalTicksAvailable()
+				cs.TotalTicks = (cs.Percent / 100) * shelpers.TotalTicksAvailable() / float64(numCores)
 
 				h.resourceUsageLock.Lock()
 				h.resourceUsage = &cstructs.TaskResourceUsage{
