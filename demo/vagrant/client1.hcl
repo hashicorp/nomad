@@ -18,6 +18,9 @@ client {
     options {
         "driver.raw_exec.enable" = "1"
     }
+    reserved {
+       cpu = 500
+    }
 }
 
 # Modify our port to avoid a collision with server1

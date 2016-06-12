@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -14,9 +13,23 @@ import (
 	"github.com/hashicorp/nomad/api"
 )
 
+const (
+	// floatFormat is a format string for formatting floats.
+	floatFormat = "#,###.##"
+
+	// bytesPerMegabyte is the number of bytes per MB
+	bytesPerMegabyte = 1024 * 1024
+)
+
 type NodeStatusCommand struct {
 	Meta
-	color *colorstring.Colorize
+	color       *colorstring.Colorize
+	length      int
+	short       bool
+	verbose     bool
+	list_allocs bool
+	self        bool
+	stats       bool
 }
 
 func (c *NodeStatusCommand) Help() string {
@@ -62,16 +75,14 @@ func (c *NodeStatusCommand) Synopsis() string {
 }
 
 func (c *NodeStatusCommand) Run(args []string) int {
-	var short, verbose, list_allocs, self, stats bool
-	var hostStats *api.HostStats
 
 	flags := c.Meta.FlagSet("node-status", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	flags.BoolVar(&short, "short", false, "")
-	flags.BoolVar(&verbose, "verbose", false, "")
-	flags.BoolVar(&list_allocs, "allocs", false, "")
-	flags.BoolVar(&self, "self", false, "")
-	flags.BoolVar(&stats, "stats", false, "")
+	flags.BoolVar(&c.short, "short", false, "")
+	flags.BoolVar(&c.verbose, "verbose", false, "")
+	flags.BoolVar(&c.list_allocs, "allocs", false, "")
+	flags.BoolVar(&c.self, "self", false, "")
+	flags.BoolVar(&c.stats, "stats", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -85,9 +96,9 @@ func (c *NodeStatusCommand) Run(args []string) int {
 	}
 
 	// Truncate the id unless full length is requested
-	length := shortId
-	if verbose {
-		length = fullId
+	c.length = shortId
+	if c.verbose {
+		c.length = fullId
 	}
 
 	// Get the HTTP client
@@ -98,7 +109,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 	}
 
 	// Use list mode if no node name was provided
-	if len(args) == 0 && !self {
+	if len(args) == 0 && !c.self {
 		// Query the node info
 		nodes, _, err := client.Nodes().List(nil)
 		if err != nil {
@@ -113,20 +124,20 @@ func (c *NodeStatusCommand) Run(args []string) int {
 
 		// Format the nodes list
 		out := make([]string, len(nodes)+1)
-		if list_allocs {
+		if c.list_allocs {
 			out[0] = "ID|DC|Name|Class|Drain|Status|Running Allocs"
 		} else {
 			out[0] = "ID|DC|Name|Class|Drain|Status"
 		}
 		for i, node := range nodes {
-			if list_allocs {
+			if c.list_allocs {
 				numAllocs, err := getRunningAllocs(client, node.ID)
 				if err != nil {
 					c.Ui.Error(fmt.Sprintf("Error querying node allocations: %s", err))
 					return 1
 				}
 				out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%v|%s|%v",
-					limit(node.ID, length),
+					limit(node.ID, c.length),
 					node.Datacenter,
 					node.Name,
 					node.NodeClass,
@@ -135,7 +146,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 					len(numAllocs))
 			} else {
 				out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%v|%s",
-					limit(node.ID, length),
+					limit(node.ID, c.length),
 					node.Datacenter,
 					node.Name,
 					node.NodeClass,
@@ -151,7 +162,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 
 	// Query the specific node
 	nodeID := ""
-	if !self {
+	if !c.self {
 		nodeID = args[0]
 	} else {
 		var err error
@@ -187,7 +198,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		out[0] = "ID|DC|Name|Class|Drain|Status"
 		for i, node := range nodes {
 			out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%v|%s",
-				limit(node.ID, length),
+				limit(node.ID, c.length),
 				node.Datacenter,
 				node.Name,
 				node.NodeClass,
@@ -205,11 +216,16 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		return 1
 	}
 
-	var nodeStatsErr error
-	hostStats, nodeStatsErr = client.Nodes().Stats(node.ID, nil)
-	// Format the output
+	return c.formatNode(client, node)
+}
+
+func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
+	// Get the host stats
+	hostStats, nodeStatsErr := client.Nodes().Stats(node.ID, nil)
+
+	// Format the header output
 	basic := []string{
-		fmt.Sprintf("[bold]Node ID[reset]|%s", limit(node.ID, length)),
+		fmt.Sprintf("Node ID|%s", limit(node.ID, c.length)),
 		fmt.Sprintf("Name|%s", node.Name),
 		fmt.Sprintf("Class|%s", node.NodeClass),
 		fmt.Sprintf("DC|%s", node.Datacenter),
@@ -222,77 +238,92 @@ func (c *NodeStatusCommand) Run(args []string) int {
 	}
 	c.Ui.Output(c.Colorize().Color(formatKV(basic)))
 
-	if !short {
-		allocatedResources, err := getAllocatedResources(client, node)
+	if !c.short {
+		// Get list of running allocations on the node
+		runningAllocs, err := getRunningAllocs(client, node.ID)
 		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error querying node resources: %s", err))
+			c.Ui.Error(fmt.Sprintf("Error querying node for running allocations: %s", err))
 			return 1
 		}
-		c.Ui.Output(c.Colorize().Color("\n[bold]==> Resource Utilization (Allocated)[reset]"))
+
+		allocatedResources := getAllocatedResources(client, runningAllocs, node)
+		c.Ui.Output(c.Colorize().Color("\n[bold]Allocated Resources[reset]"))
 		c.Ui.Output(formatList(allocatedResources))
 
-		actualResources, err := getActualResources(hostStats, node)
+		actualResources, err := getActualResources(client, runningAllocs, node)
 		if err == nil {
-			c.Ui.Output(c.Colorize().Color("\n[bold]==> Resource Utilization (Actual)[reset]"))
+			c.Ui.Output(c.Colorize().Color("\n[bold]Allocation Resource Utilization[reset]"))
 			c.Ui.Output(formatList(actualResources))
 		}
 
-		if hostStats != nil && stats {
-			c.Ui.Output(c.Colorize().Color("\n===> [bold]Detailed CPU Stats[reset]"))
+		hostResources, err := getHostResources(hostStats, node)
+		if err == nil {
+			c.Ui.Output(c.Colorize().Color("\n[bold]Host Resource Utilization[reset]"))
+			c.Ui.Output(formatList(hostResources))
+		}
+
+		if hostStats != nil && c.stats {
+			c.Ui.Output(c.Colorize().Color("\n[bold]CPU Stats[reset]"))
 			c.printCpuStats(hostStats)
-			c.Ui.Output(c.Colorize().Color("\n===> [bold]Detailed Memory Stats[reset]"))
+			c.Ui.Output(c.Colorize().Color("\n[bold]Memory Stats[reset]"))
 			c.printMemoryStats(hostStats)
-			c.Ui.Output(c.Colorize().Color("\n===> [bold]Detailed Disk Stats[reset]"))
+			c.Ui.Output(c.Colorize().Color("\n[bold]Disk Stats[reset]"))
 			c.printDiskStats(hostStats)
 		}
-
-		allocs, err := getAllocs(client, node, length)
-		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error querying node allocations: %s", err))
-			return 1
-		}
-
-		if len(allocs) > 1 {
-			c.Ui.Output("\n==> Allocations")
-			c.Ui.Output(formatList(allocs))
-		}
-
 	}
 
-	if verbose {
-		// Print the attributes
-		keys := make([]string, len(node.Attributes))
-		for k := range node.Attributes {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-
-		var attributes []string
-		for _, k := range keys {
-			if k != "" {
-				attributes = append(attributes, fmt.Sprintf("%s|%s", k, node.Attributes[k]))
-			}
-		}
-		c.Ui.Output("\n==> Attributes")
-		c.Ui.Output(formatKV(attributes))
+	allocs, err := getAllocs(client, node, c.length)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error querying node allocations: %s", err))
+		return 1
 	}
 
+	if len(allocs) > 1 {
+		c.Ui.Output(c.Colorize().Color("\n[bold]Allocations[reset]"))
+		c.Ui.Output(formatList(allocs))
+	}
+
+	if c.verbose {
+		c.formatAttributes(node)
+	}
 	if nodeStatsErr != nil {
 		c.Ui.Output("")
 		c.Ui.Error(fmt.Sprintf("error fetching node stats: %v", nodeStatsErr))
 	}
 	return 0
+
+}
+
+func (c *NodeStatusCommand) formatAttributes(node *api.Node) {
+	// Print the attributes
+	keys := make([]string, len(node.Attributes))
+	for k := range node.Attributes {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	var attributes []string
+	for _, k := range keys {
+		if k != "" {
+			attributes = append(attributes, fmt.Sprintf("%s|%s", k, node.Attributes[k]))
+		}
+	}
+	c.Ui.Output(c.Colorize().Color("\n[bold]Attributes[reset]"))
+	c.Ui.Output(formatKV(attributes))
 }
 
 func (c *NodeStatusCommand) printCpuStats(hostStats *api.HostStats) {
-	for _, cpuStat := range hostStats.CPU {
+	l := len(hostStats.CPU)
+	for i, cpuStat := range hostStats.CPU {
 		cpuStatsAttr := make([]string, 4)
 		cpuStatsAttr[0] = fmt.Sprintf("CPU|%v", cpuStat.CPU)
-		cpuStatsAttr[1] = fmt.Sprintf("User|%v %%", formatFloat64(cpuStat.User))
-		cpuStatsAttr[2] = fmt.Sprintf("System|%v %%", formatFloat64(cpuStat.System))
-		cpuStatsAttr[3] = fmt.Sprintf("Idle|%v %%", formatFloat64(cpuStat.Idle))
+		cpuStatsAttr[1] = fmt.Sprintf("User|%v%%", humanize.FormatFloat(floatFormat, cpuStat.User))
+		cpuStatsAttr[2] = fmt.Sprintf("System|%v%%", humanize.FormatFloat(floatFormat, cpuStat.System))
+		cpuStatsAttr[3] = fmt.Sprintf("Idle|%v%%", humanize.FormatFloat(floatFormat, cpuStat.Idle))
 		c.Ui.Output(formatKV(cpuStatsAttr))
-		c.Ui.Output("")
+		if i+1 < l {
+			c.Ui.Output("")
+		}
 	}
 }
 
@@ -307,17 +338,20 @@ func (c *NodeStatusCommand) printMemoryStats(hostStats *api.HostStats) {
 }
 
 func (c *NodeStatusCommand) printDiskStats(hostStats *api.HostStats) {
-	for _, diskStat := range hostStats.DiskStats {
+	l := len(hostStats.DiskStats)
+	for i, diskStat := range hostStats.DiskStats {
 		diskStatsAttr := make([]string, 7)
 		diskStatsAttr[0] = fmt.Sprintf("Device|%s", diskStat.Device)
 		diskStatsAttr[1] = fmt.Sprintf("MountPoint|%s", diskStat.Mountpoint)
 		diskStatsAttr[2] = fmt.Sprintf("Size|%s", humanize.Bytes(diskStat.Size))
 		diskStatsAttr[3] = fmt.Sprintf("Used|%s", humanize.Bytes(diskStat.Used))
 		diskStatsAttr[4] = fmt.Sprintf("Available|%s", humanize.Bytes(diskStat.Available))
-		diskStatsAttr[5] = fmt.Sprintf("Used Percent|%v %%", formatFloat64(diskStat.UsedPercent))
-		diskStatsAttr[6] = fmt.Sprintf("Inodes Percent|%v %%", formatFloat64(diskStat.InodesUsedPercent))
+		diskStatsAttr[5] = fmt.Sprintf("Used Percent|%v%%", humanize.FormatFloat(floatFormat, diskStat.UsedPercent))
+		diskStatsAttr[6] = fmt.Sprintf("Inodes Percent|%v%%", humanize.FormatFloat(floatFormat, diskStat.InodesUsedPercent))
 		c.Ui.Output(formatKV(diskStatsAttr))
-		c.Ui.Output("")
+		if i+1 < l {
+			c.Ui.Output("")
+		}
 	}
 }
 
@@ -357,26 +391,12 @@ func getAllocs(client *api.Client, node *api.Node, length int) ([]string, error)
 }
 
 // getAllocatedResources returns the resource usage of the node.
-func getAllocatedResources(client *api.Client, node *api.Node) ([]string, error) {
-	var resources []string
-	var cpu, mem, disk, iops int
-	var totalCpu, totalMem, totalDisk, totalIops int
-
+func getAllocatedResources(client *api.Client, runningAllocs []*api.Allocation, node *api.Node) []string {
 	// Compute the total
-	r := node.Resources
-	res := node.Reserved
-	if res == nil {
-		res = &api.Resources{}
-	}
-	totalCpu = r.CPU - res.CPU
-	totalMem = r.MemoryMB - res.MemoryMB
-	totalDisk = r.DiskMB - res.DiskMB
-	totalIops = r.IOPS - res.IOPS
-
-	// Get list of running allocations on the node
-	runningAllocs, err := getRunningAllocs(client, node.ID)
+	total := computeNodeTotalResources(node)
 
 	// Get Resources
+	var cpu, mem, disk, iops int
 	for _, alloc := range runningAllocs {
 		cpu += alloc.Resources.CPU
 		mem += alloc.Resources.MemoryMB
@@ -384,23 +404,70 @@ func getAllocatedResources(client *api.Client, node *api.Node) ([]string, error)
 		iops += alloc.Resources.IOPS
 	}
 
-	resources = make([]string, 2)
-	resources[0] = "CPU|Memory MB|Disk MB|IOPS"
+	resources := make([]string, 2)
+	resources[0] = "CPU|Memory|Disk|IOPS"
 	resources[1] = fmt.Sprintf("%v/%v|%v/%v|%v/%v|%v/%v",
 		cpu,
-		totalCpu,
-		mem,
-		totalMem,
-		disk,
-		totalDisk,
+		total.CPU,
+		humanize.Bytes(uint64(mem*bytesPerMegabyte)),
+		humanize.Bytes(uint64(total.MemoryMB*bytesPerMegabyte)),
+		humanize.Bytes(uint64(disk*bytesPerMegabyte)),
+		humanize.Bytes(uint64(total.DiskMB*bytesPerMegabyte)),
 		iops,
-		totalIops)
+		total.IOPS)
 
-	return resources, err
+	return resources
 }
 
-// getActualResources returns the actual resource usage of the node.
-func getActualResources(hostStats *api.HostStats, node *api.Node) ([]string, error) {
+// computeNodeTotalResources returns the total allocatable resources (resources
+// minus reserved)
+func computeNodeTotalResources(node *api.Node) api.Resources {
+	total := api.Resources{}
+
+	r := node.Resources
+	res := node.Reserved
+	if res == nil {
+		res = &api.Resources{}
+	}
+	total.CPU = r.CPU - res.CPU
+	total.MemoryMB = r.MemoryMB - res.MemoryMB
+	total.DiskMB = r.DiskMB - res.DiskMB
+	total.IOPS = r.IOPS - res.IOPS
+	return total
+}
+
+// getActualResources returns the actual resource usage of the allocations.
+func getActualResources(client *api.Client, runningAllocs []*api.Allocation, node *api.Node) ([]string, error) {
+	// Compute the total
+	total := computeNodeTotalResources(node)
+
+	// Get Resources
+	var cpu float64
+	var mem uint64
+	for _, alloc := range runningAllocs {
+		// Make the call to the client to get the actual usage.
+		stats, err := client.Allocations().Stats(alloc, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		cpu += stats.ResourceUsage.CpuStats.TotalTicks
+		mem += stats.ResourceUsage.MemoryStats.RSS
+	}
+
+	resources := make([]string, 2)
+	resources[0] = "CPU|Memory"
+	resources[1] = fmt.Sprintf("%v/%v|%v/%v",
+		math.Floor(cpu),
+		total.CPU,
+		humanize.Bytes(mem),
+		humanize.Bytes(uint64(total.MemoryMB*bytesPerMegabyte)))
+
+	return resources, nil
+}
+
+// getHostResources returns the actual resource usage of the node.
+func getHostResources(hostStats *api.HostStats, node *api.Node) ([]string, error) {
 	if hostStats == nil {
 		return nil, fmt.Errorf("actual resource usage not present")
 	}
@@ -427,8 +494,4 @@ func getActualResources(hostStats *api.HostStats, node *api.Node) ([]string, err
 		humanize.Bytes(diskSize),
 	)
 	return resources, nil
-}
-
-func formatFloat64(val float64) string {
-	return strconv.FormatFloat(val, 'f', 2, 64)
 }
