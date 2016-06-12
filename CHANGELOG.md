@@ -26,6 +26,8 @@ IMPROVEMENTS:
   * client: If Consul is available, automatically bootstrap Nomad Client
     using the `nomad` service in Consul. Nomad servers now register
     themselves with Consul if Consul is available. [GH-1201]
+  * drivers: Qemu and Java can be run without an artifact being download. Useful
+    if the artifact exists inside a chrooted directory {GH-1262]
 
 BUG FIXES:
   * core: Improve garbage collection of allocations and nodes [GH-1256]
@@ -42,6 +44,7 @@ BUG FIXES:
   * discovery: Ensure service and check names are unique [GH-1143, GH-1144]
   * driver/docker: Ensure docker client doesn't time out after a minute.
     [GH-1184]
+  * driver/java: Fix issue in which Java on darwin attempted to chroot [GH-1262]
 
 ## 0.3.2 (April 22, 2016)
 
