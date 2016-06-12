@@ -236,23 +236,27 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 	c.Ui.Output(c.Colorize().Color(formatKV(basic)))
 
 	if !c.short {
-		allocatedResources, err := getAllocatedResources(client, node)
+		// Get list of running allocations on the node
+		runningAllocs, err := getRunningAllocs(client, node.ID)
 		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error querying node resources: %s", err))
+			c.Ui.Error(fmt.Sprintf("Error querying node for running allocations: %s", err))
 			return 1
 		}
+
+		allocatedResources := getAllocatedResources(client, runningAllocs, node)
 		c.Ui.Output(c.Colorize().Color("\n[bold]Allocated Resources[reset]"))
 		c.Ui.Output(formatList(allocatedResources))
 
-		actualResources, err := getActualResources(hostStats, node)
+		actualResources, err := getActualResources(client, runningAllocs, node)
 		if err == nil {
 			c.Ui.Output(c.Colorize().Color("\n[bold]Allocation Resource Utilization[reset]"))
 			c.Ui.Output(formatList(actualResources))
 		}
 
+		hostResources, err := getHostResources(hostStats, node)
 		if err == nil {
 			c.Ui.Output(c.Colorize().Color("\n[bold]Host Resource Utilization[reset]"))
-			c.Ui.Output(formatList(actualResources))
+			c.Ui.Output(formatList(hostResources))
 		}
 
 		if hostStats != nil && c.stats {
@@ -384,26 +388,12 @@ func getAllocs(client *api.Client, node *api.Node, length int) ([]string, error)
 }
 
 // getAllocatedResources returns the resource usage of the node.
-func getAllocatedResources(client *api.Client, node *api.Node) ([]string, error) {
-	var resources []string
-	var cpu, mem, disk, iops int
-	var totalCpu, totalMem, totalDisk, totalIops int
-
+func getAllocatedResources(client *api.Client, runningAllocs []*api.Allocation, node *api.Node) []string {
 	// Compute the total
-	r := node.Resources
-	res := node.Reserved
-	if res == nil {
-		res = &api.Resources{}
-	}
-	totalCpu = r.CPU - res.CPU
-	totalMem = r.MemoryMB - res.MemoryMB
-	totalDisk = r.DiskMB - res.DiskMB
-	totalIops = r.IOPS - res.IOPS
-
-	// Get list of running allocations on the node
-	runningAllocs, err := getRunningAllocs(client, node.ID)
+	total := computeNodeTotalResources(node)
 
 	// Get Resources
+	var cpu, mem, disk, iops int
 	for _, alloc := range runningAllocs {
 		cpu += alloc.Resources.CPU
 		mem += alloc.Resources.MemoryMB
@@ -411,23 +401,71 @@ func getAllocatedResources(client *api.Client, node *api.Node) ([]string, error)
 		iops += alloc.Resources.IOPS
 	}
 
-	resources = make([]string, 2)
+	resources := make([]string, 2)
 	resources[0] = "CPU|Memory MB|Disk MB|IOPS"
 	resources[1] = fmt.Sprintf("%v/%v|%v/%v|%v/%v|%v/%v",
 		cpu,
-		totalCpu,
+		total.CPU,
 		mem,
-		totalMem,
+		total.MemoryMB,
 		disk,
-		totalDisk,
+		total.DiskMB,
 		iops,
-		totalIops)
+		total.IOPS)
 
-	return resources, err
+	return resources
 }
 
-// getActualResources returns the actual resource usage of the node.
-func getActualResources(hostStats *api.HostStats, node *api.Node) ([]string, error) {
+// computeNodeTotalResources returns the total allocatable resources (resources
+// minus reserved)
+func computeNodeTotalResources(node *api.Node) api.Resources {
+	total := api.Resources{}
+
+	r := node.Resources
+	res := node.Reserved
+	if res == nil {
+		res = &api.Resources{}
+	}
+	total.CPU = r.CPU - res.CPU
+	total.MemoryMB = r.MemoryMB - res.MemoryMB
+	total.DiskMB = r.DiskMB - res.DiskMB
+	total.IOPS = r.IOPS - res.IOPS
+	return total
+}
+
+// getActualResources returns the actual resource usage of the allocations.
+func getActualResources(client *api.Client, runningAllocs []*api.Allocation, node *api.Node) ([]string, error) {
+	// Compute the total
+	total := computeNodeTotalResources(node)
+
+	// Get Resources
+	var cpu float64
+	var mem uint64
+	for _, alloc := range runningAllocs {
+		// Make the call to the client to get the actual usage.
+		stats, err := client.Allocations().Stats(alloc, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		cpu += stats.ResourceUsage.CpuStats.TotalTicks
+		mem += stats.ResourceUsage.MemoryStats.RSS
+	}
+
+	// TODO do humanized output for these
+	resources := make([]string, 2)
+	resources[0] = "CPU|Memory"
+	resources[1] = fmt.Sprintf("%v/%v|%v/%v",
+		math.Floor(cpu),
+		total.CPU,
+		humanize.Bytes(mem),
+		humanize.Bytes(uint64(total.MemoryMB*1024*1024)))
+
+	return resources, nil
+}
+
+// getHostResources returns the actual resource usage of the node.
+func getHostResources(hostStats *api.HostStats, node *api.Node) ([]string, error) {
 	if hostStats == nil {
 		return nil, fmt.Errorf("actual resource usage not present")
 	}
