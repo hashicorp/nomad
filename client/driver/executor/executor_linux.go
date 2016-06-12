@@ -247,12 +247,7 @@ func (e *UniversalExecutor) configureChroot() error {
 		return err
 	}
 
-	rel, err := filepath.Rel(e.taskDir, e.cmd.Path)
-	if err != nil {
-		return err
-	}
-	e.cmd.Path = rel
-
+	e.fsIsolationEnforced = true
 	return nil
 }
 
