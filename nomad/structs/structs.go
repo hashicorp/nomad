@@ -1849,13 +1849,6 @@ func (t *Task) Validate() error {
 		}
 	}
 
-	// If the driver is java or qemu ensure that they have specified an
-	// artifact.
-	if (t.Driver == "qemu" || t.Driver == "java") && len(t.Artifacts) == 0 {
-		err := fmt.Errorf("must specify at least one artifact when using %q driver", t.Driver)
-		mErr.Errors = append(mErr.Errors, err)
-	}
-
 	return mErr.ErrorOrNil()
 }
 
