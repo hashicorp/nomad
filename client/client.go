@@ -26,6 +26,8 @@ import (
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/hashstructure"
+
+	cstructs "github.com/hashicorp/nomad/client/structs"
 )
 
 const (
@@ -81,15 +83,20 @@ const (
 // ClientStatsReporter exposes all the APIs related to resource usage of a Nomad
 // Client
 type ClientStatsReporter interface {
-	// AllocStats returns a map of alloc ids and their corresponding stats
-	// collector
-	AllocStats() map[string]AllocStatsReporter
+	// LatestAllocStats returns the latest allocation resource usage optionally
+	// filtering by task name
+	LatestAllocStats(allocID, taskFilter string) (*cstructs.AllocResourceUsage, error)
 
-	// HostStats returns resource usage stats for the host
-	HostStats() []*stats.HostStats
+	// AllocStatsSince returns the allocation resource usage collected since the
+	// passed timestamp optionally filtering by task name.
+	AllocStatsSince(allocID, taskFilter string, since int64) ([]*cstructs.AllocResourceUsage, error)
 
-	// HostStatsTS returns a time series of host resource usage stats
-	HostStatsTS(since int64) []*stats.HostStats
+	// LatestHostStats returns the latest resource usage stats for the host
+	LatestHostStats() *stats.HostStats
+
+	// HostStatsSince returns the collect resource usage stats for the host
+	// since the passed unix nanosecond time stamp
+	HostStatsSince(since int64) []*stats.HostStats
 }
 
 // Client is used to implement the client interaction with Nomad. Clients
@@ -400,26 +407,40 @@ func (c *Client) StatsReporter() ClientStatsReporter {
 	return c
 }
 
-// AllocStats returns all the stats reporter of the allocations running on a
-// Nomad client
-func (c *Client) AllocStats() map[string]AllocStatsReporter {
-	res := make(map[string]AllocStatsReporter)
-	for alloc, ar := range c.getAllocRunners() {
-		res[alloc] = ar
+// LatestAllocStats returns the latest allocation resource usage optionally
+// filtering by task name
+func (c *Client) LatestAllocStats(allocID, taskFilter string) (*cstructs.AllocResourceUsage, error) {
+	c.allocLock.RLock()
+	ar, ok := c.allocs[allocID]
+	if !ok {
+		return nil, fmt.Errorf("unknown allocation ID %q", allocID)
 	}
-	return res
+	c.allocLock.RUnlock()
+	return ar.LatestAllocStats(taskFilter)
+}
+
+// AllocStatsSince returns the allocation resource usage collected since the
+// passed timestamp optionally filtering by task name.
+func (c *Client) AllocStatsSince(allocID, taskFilter string, since int64) ([]*cstructs.AllocResourceUsage, error) {
+	c.allocLock.RLock()
+	ar, ok := c.allocs[allocID]
+	if !ok {
+		return nil, fmt.Errorf("unknown allocation ID %q", allocID)
+	}
+	c.allocLock.RUnlock()
+	return ar.AllocStatsSince(taskFilter, since)
 }
 
 // HostStats returns all the stats related to a Nomad client
-func (c *Client) HostStats() []*stats.HostStats {
+func (c *Client) LatestHostStats() *stats.HostStats {
 	c.resourceUsageLock.RLock()
 	defer c.resourceUsageLock.RUnlock()
 	val := c.resourceUsage.Peek()
 	ru, _ := val.(*stats.HostStats)
-	return []*stats.HostStats{ru}
+	return ru
 }
 
-func (c *Client) HostStatsTS(since int64) []*stats.HostStats {
+func (c *Client) HostStatsSince(since int64) []*stats.HostStats {
 	c.resourceUsageLock.RLock()
 	defer c.resourceUsageLock.RUnlock()
 

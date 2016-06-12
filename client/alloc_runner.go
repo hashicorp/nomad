@@ -13,6 +13,8 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/nomad/structs"
+
+	cstructs "github.com/hashicorp/nomad/client/structs"
 )
 
 const (
@@ -27,11 +29,6 @@ const (
 
 // AllocStateUpdater is used to update the status of an allocation
 type AllocStateUpdater func(alloc *structs.Allocation)
-
-// AllocStatsReporter exposes stats related APIs of an allocation runner
-type AllocStatsReporter interface {
-	AllocStats() map[string]TaskStatsReporter
-}
 
 // AllocRunner is used to wrap an allocation and provide the execution context.
 type AllocRunner struct {
@@ -476,33 +473,62 @@ func (r *AllocRunner) Update(update *structs.Allocation) {
 	}
 }
 
-// StatsReporter returns an interface to query resource usage statistics of an
-// allocation
-func (r *AllocRunner) StatsReporter() AllocStatsReporter {
-	return r
-}
-
-// AllocStats returns the stats reporter of all the tasks running in the
-// allocation
-func (r *AllocRunner) AllocStats() map[string]TaskStatsReporter {
+// LatestAllocStats returns the latest allocation stats. If the optional taskFilter is set
+// the allocation stats will only include the given task.
+func (r *AllocRunner) LatestAllocStats(taskFilter string) (*cstructs.AllocResourceUsage, error) {
 	r.taskLock.RLock()
 	defer r.taskLock.RUnlock()
-	res := make(map[string]TaskStatsReporter)
-	for task, tr := range r.tasks {
-		res[task] = tr.StatsReporter()
+
+	astat := &cstructs.AllocResourceUsage{
+		Tasks: make(map[string]*cstructs.TaskResourceUsage),
 	}
-	return res
+
+	var flat []*cstructs.TaskResourceUsage
+	if taskFilter != "" {
+		tr, ok := r.tasks[taskFilter]
+		if !ok {
+			return nil, fmt.Errorf("allocation %q has no task %q", r.alloc.ID, taskFilter)
+		}
+		l := tr.LatestResourceUsage()
+		if l != nil {
+			astat.Tasks[taskFilter] = l
+			flat = []*cstructs.TaskResourceUsage{l}
+			astat.Timestamp = l.Timestamp
+		}
+	} else {
+		for task, tr := range r.tasks {
+			l := tr.LatestResourceUsage()
+			if l != nil {
+				astat.Tasks[task] = l
+				flat = append(flat, l)
+				if l.Timestamp > astat.Timestamp {
+					astat.Timestamp = l.Timestamp
+				}
+			}
+		}
+	}
+
+	astat.ResourceUsage = sumTaskResourceUsage(flat)
+	return astat, nil
 }
 
-// TaskStats returns the stats reporter for a specific task running in the
-// allocation
-func (r *AllocRunner) TaskStats(task string) (TaskStatsReporter, error) {
-	tr, ok := r.tasks[task]
-	if !ok {
-		return nil, fmt.Errorf("task %q not running in allocation %v", task, r.alloc.ID)
+// sumTaskResourceUsage takes a set of task resources and sums their resources
+func sumTaskResourceUsage(usages []*cstructs.TaskResourceUsage) *cstructs.ResourceUsage {
+	summed := &cstructs.ResourceUsage{
+		MemoryStats: &cstructs.MemoryStats{},
+		CpuStats:    &cstructs.CpuStats{},
 	}
+	for _, usage := range usages {
+		summed.Add(usage.ResourceUsage)
+	}
+	return summed
+}
 
-	return tr.StatsReporter(), nil
+// AllocStatsSince returns the allocation stats collected since the passed unix
+// nanosecond timestamp. If the optional taskFilter is set the allocation stats
+// will only include the given task.
+func (r *AllocRunner) AllocStatsSince(taskFilter string, since int64) ([]*cstructs.AllocResourceUsage, error) {
+	return nil, nil
 }
 
 // shouldUpdate takes the AllocModifyIndex of an allocation sent from the server and

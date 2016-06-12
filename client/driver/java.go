@@ -19,8 +19,9 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/executor"
-	cstructs "github.com/hashicorp/nomad/client/driver/structs"
+	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/client/fingerprint"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/discover"
 	"github.com/hashicorp/nomad/helper/fields"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -50,7 +51,7 @@ type javaHandle struct {
 	pluginClient    *plugin.Client
 	userPid         int
 	executor        executor.Executor
-	isolationConfig *cstructs.IsolationConfig
+	isolationConfig *dstructs.IsolationConfig
 
 	taskDir        string
 	allocDir       *allocdir.AllocDir
@@ -58,7 +59,7 @@ type javaHandle struct {
 	maxKillTimeout time.Duration
 	version        string
 	logger         *log.Logger
-	waitCh         chan *cstructs.WaitResult
+	waitCh         chan *dstructs.WaitResult
 	doneCh         chan struct{}
 }
 
@@ -241,7 +242,7 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		version:         d.config.Version,
 		logger:          d.logger,
 		doneCh:          make(chan struct{}),
-		waitCh:          make(chan *cstructs.WaitResult, 1),
+		waitCh:          make(chan *dstructs.WaitResult, 1),
 	}
 	if err := h.executor.SyncServices(consulContext(d.config, "")); err != nil {
 		d.logger.Printf("[ERR] driver.java: error registering services with consul for task: %q: %v", task.Name, err)
@@ -262,7 +263,7 @@ type javaId struct {
 	KillTimeout     time.Duration
 	MaxKillTimeout  time.Duration
 	PluginConfig    *PluginReattachConfig
-	IsolationConfig *cstructs.IsolationConfig
+	IsolationConfig *dstructs.IsolationConfig
 	TaskDir         string
 	AllocDir        *allocdir.AllocDir
 	UserPid         int
@@ -315,7 +316,7 @@ func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		killTimeout:     id.KillTimeout,
 		maxKillTimeout:  id.MaxKillTimeout,
 		doneCh:          make(chan struct{}),
-		waitCh:          make(chan *cstructs.WaitResult, 1),
+		waitCh:          make(chan *dstructs.WaitResult, 1),
 	}
 	if err := h.executor.SyncServices(consulContext(d.config, "")); err != nil {
 		d.logger.Printf("[ERR] driver.java: error registering services with consul: %v", err)
@@ -344,7 +345,7 @@ func (h *javaHandle) ID() string {
 	return string(data)
 }
 
-func (h *javaHandle) WaitCh() chan *cstructs.WaitResult {
+func (h *javaHandle) WaitCh() chan *dstructs.WaitResult {
 	return h.waitCh
 }
 
@@ -403,7 +404,7 @@ func (h *javaHandle) run() {
 			h.logger.Printf("[ERR] driver.java: unmounting dev,proc and alloc dirs failed: %v", e)
 		}
 	}
-	h.waitCh <- &cstructs.WaitResult{ExitCode: ps.ExitCode, Signal: ps.Signal, Err: err}
+	h.waitCh <- &dstructs.WaitResult{ExitCode: ps.ExitCode, Signal: ps.Signal, Err: err}
 	close(h.waitCh)
 
 	// Remove services

@@ -43,7 +43,7 @@ func (a *Allocations) Info(allocID string, q *QueryOptions) (*Allocation, *Query
 	return &resp, qm, nil
 }
 
-func (a *Allocations) Stats(alloc *Allocation, q *QueryOptions) (map[string]*TaskResourceUsage, error) {
+func (a *Allocations) Stats(alloc *Allocation, q *QueryOptions) (*AllocResourceUsage, error) {
 	node, _, err := a.client.Nodes().Info(alloc.NodeID, q)
 	if err != nil {
 		return nil, err
@@ -58,13 +58,9 @@ func (a *Allocations) Stats(alloc *Allocation, q *QueryOptions) (map[string]*Tas
 	if err != nil {
 		return nil, err
 	}
-	resp := make(map[string][]*TaskResourceUsage)
+	var resp AllocResourceUsage
 	_, err = client.query("/v1/client/allocation/"+alloc.ID+"/stats", &resp, nil)
-	res := make(map[string]*TaskResourceUsage)
-	for task, ru := range resp {
-		res[task] = ru[0]
-	}
-	return res, err
+	return &resp, err
 }
 
 // Allocation is used for serialization of allocations.

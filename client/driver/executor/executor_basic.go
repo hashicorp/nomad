@@ -5,9 +5,9 @@ package executor
 import (
 	"os"
 
-	cstructs "github.com/hashicorp/nomad/client/driver/structs"
-
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/mitchellh/go-ps"
+
 	cgroupConfig "github.com/opencontainers/runc/libcontainer/configs"
 )
 

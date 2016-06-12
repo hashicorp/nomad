@@ -15,8 +15,9 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/executor"
-	cstructs "github.com/hashicorp/nomad/client/driver/structs"
+	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/client/fingerprint"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/discover"
 	"github.com/hashicorp/nomad/helper/fields"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -57,7 +58,7 @@ type qemuHandle struct {
 	maxKillTimeout time.Duration
 	logger         *log.Logger
 	version        string
-	waitCh         chan *cstructs.WaitResult
+	waitCh         chan *dstructs.WaitResult
 	doneCh         chan struct{}
 }
 
@@ -260,7 +261,7 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		version:        d.config.Version,
 		logger:         d.logger,
 		doneCh:         make(chan struct{}),
-		waitCh:         make(chan *cstructs.WaitResult, 1),
+		waitCh:         make(chan *dstructs.WaitResult, 1),
 	}
 
 	if err := h.executor.SyncServices(consulContext(d.config, "")); err != nil {
@@ -311,7 +312,7 @@ func (d *QemuDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		maxKillTimeout: id.MaxKillTimeout,
 		version:        id.Version,
 		doneCh:         make(chan struct{}),
-		waitCh:         make(chan *cstructs.WaitResult, 1),
+		waitCh:         make(chan *dstructs.WaitResult, 1),
 	}
 	if err := h.executor.SyncServices(consulContext(d.config, "")); err != nil {
 		h.logger.Printf("[ERR] driver.qemu: error registering services: %v", err)
@@ -337,7 +338,7 @@ func (h *qemuHandle) ID() string {
 	return string(data)
 }
 
-func (h *qemuHandle) WaitCh() chan *cstructs.WaitResult {
+func (h *qemuHandle) WaitCh() chan *dstructs.WaitResult {
 	return h.waitCh
 }
 
@@ -390,7 +391,7 @@ func (h *qemuHandle) run() {
 		}
 	}
 	close(h.doneCh)
-	h.waitCh <- &cstructs.WaitResult{ExitCode: ps.ExitCode, Signal: ps.Signal, Err: err}
+	h.waitCh <- &dstructs.WaitResult{ExitCode: ps.ExitCode, Signal: ps.Signal, Err: err}
 	close(h.waitCh)
 	// Remove services
 	if err := h.executor.DeregisterServices(); err != nil {

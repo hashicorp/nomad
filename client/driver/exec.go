@@ -14,7 +14,8 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/executor"
-	cstructs "github.com/hashicorp/nomad/client/driver/structs"
+	dstructs "github.com/hashicorp/nomad/client/driver/structs"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/discover"
 	"github.com/hashicorp/nomad/helper/fields"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -42,13 +43,13 @@ type ExecDriverConfig struct {
 type execHandle struct {
 	pluginClient    *plugin.Client
 	executor        executor.Executor
-	isolationConfig *cstructs.IsolationConfig
+	isolationConfig *dstructs.IsolationConfig
 	userPid         int
 	allocDir        *allocdir.AllocDir
 	killTimeout     time.Duration
 	maxKillTimeout  time.Duration
 	logger          *log.Logger
-	waitCh          chan *cstructs.WaitResult
+	waitCh          chan *dstructs.WaitResult
 	doneCh          chan struct{}
 	version         string
 }
@@ -153,7 +154,7 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		logger:          d.logger,
 		version:         d.config.Version,
 		doneCh:          make(chan struct{}),
-		waitCh:          make(chan *cstructs.WaitResult, 1),
+		waitCh:          make(chan *dstructs.WaitResult, 1),
 	}
 	if err := exec.SyncServices(consulContext(d.config, "")); err != nil {
 		d.logger.Printf("[ERR] driver.exec: error registering services with consul for task: %q: %v", task.Name, err)
@@ -169,7 +170,7 @@ type execId struct {
 	UserPid         int
 	TaskDir         string
 	AllocDir        *allocdir.AllocDir
-	IsolationConfig *cstructs.IsolationConfig
+	IsolationConfig *dstructs.IsolationConfig
 	PluginConfig    *PluginReattachConfig
 }
 
@@ -217,7 +218,7 @@ func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		killTimeout:     id.KillTimeout,
 		maxKillTimeout:  id.MaxKillTimeout,
 		doneCh:          make(chan struct{}),
-		waitCh:          make(chan *cstructs.WaitResult, 1),
+		waitCh:          make(chan *dstructs.WaitResult, 1),
 	}
 	if err := exec.SyncServices(consulContext(d.config, "")); err != nil {
 		d.logger.Printf("[ERR] driver.exec: error registering services with consul: %v", err)
@@ -244,7 +245,7 @@ func (h *execHandle) ID() string {
 	return string(data)
 }
 
-func (h *execHandle) WaitCh() chan *cstructs.WaitResult {
+func (h *execHandle) WaitCh() chan *dstructs.WaitResult {
 	return h.waitCh
 }
 
@@ -305,7 +306,7 @@ func (h *execHandle) run() {
 			h.logger.Printf("[ERR] driver.exec: unmounting dev,proc and alloc dirs failed: %v", e)
 		}
 	}
-	h.waitCh <- cstructs.NewWaitResult(ps.ExitCode, ps.Signal, err)
+	h.waitCh <- dstructs.NewWaitResult(ps.ExitCode, ps.Signal, err)
 	close(h.waitCh)
 	// Remove services
 	if err := h.executor.DeregisterServices(); err != nil {

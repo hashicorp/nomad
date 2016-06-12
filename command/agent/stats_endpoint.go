@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+
+	"github.com/hashicorp/nomad/client/stats"
 )
 
 const (
@@ -28,7 +30,7 @@ func (s *HTTPServer) ClientStatsRequest(resp http.ResponseWriter, req *http.Requ
 
 	clientStats := s.agent.client.StatsReporter()
 	if ts {
-		return clientStats.HostStatsTS(int64(since)), nil
+		return clientStats.HostStatsSince(int64(since)), nil
 	}
-	return clientStats.HostStats(), nil
+	return []*stats.HostStats{clientStats.LatestHostStats()}, nil
 }

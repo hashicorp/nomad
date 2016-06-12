@@ -40,6 +40,14 @@ type TaskResourceUsage struct {
 	Pids          map[string]*ResourceUsage
 }
 
+// AllocResourceUsage holds the aggregated task resource usage of the
+// allocation.
+type AllocResourceUsage struct {
+	ResourceUsage *ResourceUsage
+	Tasks         map[string]*TaskResourceUsage
+	Timestamp     int64
+}
+
 // RestartPolicy defines how the Nomad client restarts
 // tasks in a taskgroup when they fail
 type RestartPolicy struct {

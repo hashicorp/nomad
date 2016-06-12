@@ -21,7 +21,8 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 
 	"github.com/hashicorp/nomad/client/driver/env"
-	cstructs "github.com/hashicorp/nomad/client/driver/structs"
+	dstructs "github.com/hashicorp/nomad/client/driver/structs"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 )
 
 const (
@@ -38,17 +39,6 @@ const (
 	killFailureLimit = 5
 )
 
-// TaskStatsReporter exposes APIs to query resource usage of a Task
-type TaskStatsReporter interface {
-	// ResourceUsage returns the latest resource usage data point collected for
-	// the task
-	ResourceUsage() []*cstructs.TaskResourceUsage
-
-	// ResourceUsageTS returns all the resource usage data points since a given
-	// time
-	ResourceUsageTS(since int64) []*cstructs.TaskResourceUsage
-}
-
 // TaskRunner is used to wrap a task within an allocation and provide the execution context.
 type TaskRunner struct {
 	config         *config.Config
@@ -58,12 +48,17 @@ type TaskRunner struct {
 	alloc          *structs.Allocation
 	restartTracker *RestartTracker
 
+	// running marks whether the task is running
+	running     bool
+	runningLock sync.Mutex
+
 	resourceUsage     *stats.RingBuff
 	resourceUsageLock sync.RWMutex
 
-	task       *structs.Task
-	taskEnv    *env.TaskEnvironment
-	updateCh   chan *structs.Allocation
+	task     *structs.Task
+	taskEnv  *env.TaskEnvironment
+	updateCh chan *structs.Allocation
+
 	handle     driver.DriverHandle
 	handleLock sync.Mutex
 
@@ -329,7 +324,7 @@ func (r *TaskRunner) run() {
 				if err := getter.GetArtifact(r.taskEnv, artifact, taskDir, r.logger); err != nil {
 					r.setState(structs.TaskStateDead,
 						structs.NewTaskEvent(structs.TaskArtifactDownloadFailed).SetDownloadError(err))
-					r.restartTracker.SetStartError(cstructs.NewRecoverableError(err, true))
+					r.restartTracker.SetStartError(dstructs.NewRecoverableError(err, true))
 					goto RESTART
 				}
 			}
@@ -354,6 +349,9 @@ func (r *TaskRunner) run() {
 
 			// Mark the task as started
 			r.setState(structs.TaskStateRunning, structs.NewTaskEvent(structs.TaskStarted))
+			r.runningLock.Lock()
+			r.running = true
+			r.runningLock.Unlock()
 		}
 
 		if stopCollection == nil {
@@ -369,6 +367,10 @@ func (r *TaskRunner) run() {
 				if waitRes == nil {
 					panic("nil wait")
 				}
+
+				r.runningLock.Lock()
+				r.running = false
+				r.runningLock.Unlock()
 
 				// Stop collection of the task's resource usage
 				close(stopCollection)
@@ -509,23 +511,26 @@ func (r *TaskRunner) collectResourceUsageStats(stopCollection <-chan struct{}) {
 	}
 }
 
-// TaskStatsReporter returns the stats reporter of the task
-func (r *TaskRunner) StatsReporter() TaskStatsReporter {
-	return r
-}
-
-// ResourceUsage returns the last resource utilization datapoint collected
-func (r *TaskRunner) ResourceUsage() []*cstructs.TaskResourceUsage {
+// LatestResourceUsage returns the last resource utilization datapoint collected
+func (r *TaskRunner) LatestResourceUsage() *cstructs.TaskResourceUsage {
 	r.resourceUsageLock.RLock()
 	defer r.resourceUsageLock.RUnlock()
+	r.runningLock.Lock()
+	defer r.runningLock.Unlock()
+
+	// If the task is not running there can be no latest resource
+	if !r.running {
+		return nil
+	}
+
 	val := r.resourceUsage.Peek()
 	ru, _ := val.(*cstructs.TaskResourceUsage)
-	return []*cstructs.TaskResourceUsage{ru}
+	return ru
 }
 
-// ResourceUsageTS returns the list of all the resource utilization datapoints
-// collected
-func (r *TaskRunner) ResourceUsageTS(since int64) []*cstructs.TaskResourceUsage {
+// ResourceUsageSince returns the list of all the resource utilization datapoints
+// collected since the given timestamp
+func (r *TaskRunner) ResourceUsageSince(since int64) []*cstructs.TaskResourceUsage {
 	r.resourceUsageLock.RLock()
 	defer r.resourceUsageLock.RUnlock()
 
@@ -629,7 +634,7 @@ func (r *TaskRunner) handleDestroy() (destroyed bool, err error) {
 }
 
 // Helper function for converting a WaitResult into a TaskTerminated event.
-func (r *TaskRunner) waitErrorToEvent(res *cstructs.WaitResult) *structs.TaskEvent {
+func (r *TaskRunner) waitErrorToEvent(res *dstructs.WaitResult) *structs.TaskEvent {
 	return structs.NewTaskEvent(structs.TaskTerminated).
 		SetExitCode(res.ExitCode).
 		SetSignal(res.Signal).
