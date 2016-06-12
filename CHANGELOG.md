@@ -15,13 +15,14 @@ IMPROVEMENTS:
   * api: Plan api introduced for the Job endpoint [GH-1168]
   * api: Job endpoint can enforce Job Modify Index to ensure job is being
     modified from a known state [GH-1243]
+  * api/client: Add resource usage APIs for retrieving tasks/allocations/host
+    resource usage [GH-1189]
   * cli: Deprecate `eval-monitor` and introduce `eval-status` [GH-1206]
   * cli: Unify the `fs` family of commands to be a single command [GH-1150]
   * cli: Introduce `nomad plan` to dry-run a job through the scheduler and
     determine its effects [GH-1181]
-  * client: Add resource usage APIs. [GH-1189]
   * client: If Consul is available, automatically bootstrap Nomad Client
-    using the `nomad` service in Consul.  Nomad servers now register
+    using the `nomad` service in Consul. Nomad servers now register
     themselves with Consul if Consul is available. [GH-1201]
 
 BUG FIXES:
