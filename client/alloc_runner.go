@@ -30,6 +30,10 @@ const (
 // AllocStateUpdater is used to update the status of an allocation
 type AllocStateUpdater func(alloc *structs.Allocation)
 
+type AllocStatsReporter interface {
+	LatestAllocStats(taskFilter string) (*cstructs.AllocResourceUsage, error)
+}
+
 // AllocRunner is used to wrap an allocation and provide the execution context.
 type AllocRunner struct {
 	config  *config.Config
@@ -473,6 +477,12 @@ func (r *AllocRunner) Update(update *structs.Allocation) {
 	}
 }
 
+// StatsReporter returns an interface to query resource usage statistics of an
+// allocation
+func (r *AllocRunner) StatsReporter() AllocStatsReporter {
+	return r
+}
+
 // LatestAllocStats returns the latest allocation stats. If the optional taskFilter is set
 // the allocation stats will only include the given task.
 func (r *AllocRunner) LatestAllocStats(taskFilter string) (*cstructs.AllocResourceUsage, error) {
@@ -522,13 +532,6 @@ func sumTaskResourceUsage(usages []*cstructs.TaskResourceUsage) *cstructs.Resour
 		summed.Add(usage.ResourceUsage)
 	}
 	return summed
-}
-
-// AllocStatsSince returns the allocation stats collected since the passed unix
-// nanosecond timestamp. If the optional taskFilter is set the allocation stats
-// will only include the given task.
-func (r *AllocRunner) AllocStatsSince(taskFilter string, since int64) ([]*cstructs.AllocResourceUsage, error) {
-	return nil, nil
 }
 
 // shouldUpdate takes the AllocModifyIndex of an allocation sent from the server and

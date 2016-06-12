@@ -1,9 +1,7 @@
 package agent
 
 import (
-	"fmt"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -75,19 +73,13 @@ func (s *HTTPServer) ClientAllocRequest(resp http.ResponseWriter, req *http.Requ
 	}
 	allocID := tokens[0]
 
+	// Get the stats reporter
 	clientStats := s.agent.client.StatsReporter()
-	task := req.URL.Query().Get("task")
-	var since int
-	var err error
-	if sinceTime := req.URL.Query().Get("since"); sinceTime != "" {
-		since, err = strconv.Atoi(sinceTime)
-		if err != nil {
-			return nil, CodedError(400, fmt.Sprintf("can't read the since query parameter: %v", err))
-		}
+	aStats, err := clientStats.GetAllocStats(allocID)
+	if err != nil {
+		return nil, err
 	}
 
-	if since > 0 {
-		return clientStats.AllocStatsSince(allocID, task, int64(since))
-	}
-	return clientStats.LatestAllocStats(allocID, task)
+	task := req.URL.Query().Get("task")
+	return aStats.LatestAllocStats(task)
 }

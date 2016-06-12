@@ -89,12 +89,11 @@ func (n *Nodes) Stats(nodeID string, q *QueryOptions) (*HostStats, error) {
 	if err != nil {
 		return nil, err
 	}
-	var resp []HostStats
+	var resp HostStats
 	if _, err := client.query("/v1/client/stats", &resp, nil); err != nil {
 		return nil, err
 	}
-
-	return &resp[0], nil
+	return &resp, nil
 }
 
 // Node is used to deserialize a node entry.

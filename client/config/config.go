@@ -114,10 +114,6 @@ type Config struct {
 	// ConsulConfig is this Agent's Consul configuration
 	ConsulConfig *config.ConsulConfig
 
-	// StatsDataPoints is the number of resource usage data points the Nomad
-	// client keeps in memory
-	StatsDataPoints int
-
 	// StatsCollectionInterval is the interval at which the Nomad client
 	// collects resource usage stats
 	StatsCollectionInterval time.Duration
@@ -143,7 +139,6 @@ func DefaultConfig() *Config {
 		},
 		LogOutput:               os.Stderr,
 		Region:                  "global",
-		StatsDataPoints:         60,
 		StatsCollectionInterval: 1 * time.Second,
 	}
 }

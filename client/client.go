@@ -26,8 +26,6 @@ import (
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/hashstructure"
-
-	cstructs "github.com/hashicorp/nomad/client/structs"
 )
 
 const (
@@ -83,20 +81,12 @@ const (
 // ClientStatsReporter exposes all the APIs related to resource usage of a Nomad
 // Client
 type ClientStatsReporter interface {
-	// LatestAllocStats returns the latest allocation resource usage optionally
-	// filtering by task name
-	LatestAllocStats(allocID, taskFilter string) (*cstructs.AllocResourceUsage, error)
-
-	// AllocStatsSince returns the allocation resource usage collected since the
-	// passed timestamp optionally filtering by task name.
-	AllocStatsSince(allocID, taskFilter string, since int64) ([]*cstructs.AllocResourceUsage, error)
+	// GetAllocStats returns the AllocStatsReporter for the passed allocation.
+	// If it does not exist an error is reported.
+	GetAllocStats(allocID string) (AllocStatsReporter, error)
 
 	// LatestHostStats returns the latest resource usage stats for the host
 	LatestHostStats() *stats.HostStats
-
-	// HostStatsSince returns the collect resource usage stats for the host
-	// since the passed unix nanosecond time stamp
-	HostStatsSince(since int64) []*stats.HostStats
 }
 
 // Client is used to implement the client interaction with Nomad. Clients
@@ -145,7 +135,7 @@ type Client struct {
 
 	// HostStatsCollector collects host resource usage stats
 	hostStatsCollector *stats.HostStatsCollector
-	resourceUsage      *stats.RingBuff
+	resourceUsage      *stats.HostStats
 	resourceUsageLock  sync.RWMutex
 
 	shutdown     bool
@@ -158,11 +148,6 @@ func NewClient(cfg *config.Config, consulSyncer *consul.Syncer) (*Client, error)
 	// Create a logger
 	logger := log.New(cfg.LogOutput, "", log.LstdFlags)
 
-	resourceUsage, err := stats.NewRingBuff(cfg.StatsDataPoints)
-	if err != nil {
-		return nil, err
-	}
-
 	// Create the client
 	c := &Client{
 		config:             cfg,
@@ -171,7 +156,6 @@ func NewClient(cfg *config.Config, consulSyncer *consul.Syncer) (*Client, error)
 		connPool:           nomad.NewPool(cfg.LogOutput, clientRPCCache, clientMaxStreams, nil),
 		logger:             logger,
 		hostStatsCollector: stats.NewHostStatsCollector(),
-		resourceUsage:      resourceUsage,
 		allocs:             make(map[string]*AllocRunner),
 		allocUpdates:       make(chan *structs.Allocation, 64),
 		shutdownCh:         make(chan struct{}),
@@ -407,72 +391,21 @@ func (c *Client) StatsReporter() ClientStatsReporter {
 	return c
 }
 
-// LatestAllocStats returns the latest allocation resource usage optionally
-// filtering by task name
-func (c *Client) LatestAllocStats(allocID, taskFilter string) (*cstructs.AllocResourceUsage, error) {
+func (c *Client) GetAllocStats(allocID string) (AllocStatsReporter, error) {
 	c.allocLock.RLock()
+	defer c.allocLock.RUnlock()
 	ar, ok := c.allocs[allocID]
 	if !ok {
 		return nil, fmt.Errorf("unknown allocation ID %q", allocID)
 	}
-	c.allocLock.RUnlock()
-	return ar.LatestAllocStats(taskFilter)
-}
-
-// AllocStatsSince returns the allocation resource usage collected since the
-// passed timestamp optionally filtering by task name.
-func (c *Client) AllocStatsSince(allocID, taskFilter string, since int64) ([]*cstructs.AllocResourceUsage, error) {
-	c.allocLock.RLock()
-	ar, ok := c.allocs[allocID]
-	if !ok {
-		return nil, fmt.Errorf("unknown allocation ID %q", allocID)
-	}
-	c.allocLock.RUnlock()
-	return ar.AllocStatsSince(taskFilter, since)
+	return ar.StatsReporter(), nil
 }
 
 // HostStats returns all the stats related to a Nomad client
 func (c *Client) LatestHostStats() *stats.HostStats {
 	c.resourceUsageLock.RLock()
 	defer c.resourceUsageLock.RUnlock()
-	val := c.resourceUsage.Peek()
-	ru, _ := val.(*stats.HostStats)
-	return ru
-}
-
-func (c *Client) HostStatsSince(since int64) []*stats.HostStats {
-	c.resourceUsageLock.RLock()
-	defer c.resourceUsageLock.RUnlock()
-
-	values := c.resourceUsage.Values()
-	low := 0
-	high := len(values) - 1
-	var idx int
-
-	for {
-		mid := (low + high) >> 1
-		midVal, _ := values[mid].(*stats.HostStats)
-		if midVal.Timestamp < since {
-			low = mid + 1
-		} else if midVal.Timestamp > since {
-			high = mid - 1
-		} else if midVal.Timestamp == since {
-			idx = mid
-			break
-		}
-		if low > high {
-			idx = low
-			break
-		}
-	}
-	values = values[idx:]
-	ts := make([]*stats.HostStats, len(values))
-	for index, val := range values {
-		ru, _ := val.(*stats.HostStats)
-		ts[index] = ru
-	}
-	return ts
-
+	return c.resourceUsage
 }
 
 // GetAllocFS returns the AllocFS interface for the alloc dir of an allocation
@@ -1458,9 +1391,9 @@ func (c *Client) collectHostStats() {
 				continue
 			}
 
-			c.resourceUsageLock.RLock()
-			c.resourceUsage.Enqueue(ru)
-			c.resourceUsageLock.RUnlock()
+			c.resourceUsageLock.Lock()
+			c.resourceUsage = ru
+			c.resourceUsageLock.Unlock()
 			c.emitStats(ru)
 		case <-c.shutdownCh:
 			return

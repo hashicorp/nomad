@@ -17,7 +17,6 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/client/getter"
-	"github.com/hashicorp/nomad/client/stats"
 	"github.com/hashicorp/nomad/nomad/structs"
 
 	"github.com/hashicorp/nomad/client/driver/env"
@@ -52,7 +51,7 @@ type TaskRunner struct {
 	running     bool
 	runningLock sync.Mutex
 
-	resourceUsage     *stats.RingBuff
+	resourceUsage     *cstructs.TaskResourceUsage
 	resourceUsageLock sync.RWMutex
 
 	task     *structs.Task
@@ -99,18 +98,11 @@ func NewTaskRunner(logger *log.Logger, config *config.Config,
 	}
 	restartTracker := newRestartTracker(tg.RestartPolicy, alloc.Job.Type)
 
-	resourceUsage, err := stats.NewRingBuff(config.StatsDataPoints)
-	if err != nil {
-		logger.Printf("[ERR] client: can't create resource usage buffer: %v", err)
-		return nil
-	}
-
 	tc := &TaskRunner{
 		config:         config,
 		updater:        updater,
 		logger:         logger,
 		restartTracker: restartTracker,
-		resourceUsage:  resourceUsage,
 		ctx:            ctx,
 		alloc:          alloc,
 		task:           task,
@@ -502,7 +494,7 @@ func (r *TaskRunner) collectResourceUsageStats(stopCollection <-chan struct{}) {
 			}
 
 			r.resourceUsageLock.Lock()
-			r.resourceUsage.Enqueue(ru)
+			r.resourceUsage = ru
 			r.resourceUsageLock.Unlock()
 			r.emitStats(ru)
 		case <-stopCollection:
@@ -523,45 +515,7 @@ func (r *TaskRunner) LatestResourceUsage() *cstructs.TaskResourceUsage {
 		return nil
 	}
 
-	val := r.resourceUsage.Peek()
-	ru, _ := val.(*cstructs.TaskResourceUsage)
-	return ru
-}
-
-// ResourceUsageSince returns the list of all the resource utilization datapoints
-// collected since the given timestamp
-func (r *TaskRunner) ResourceUsageSince(since int64) []*cstructs.TaskResourceUsage {
-	r.resourceUsageLock.RLock()
-	defer r.resourceUsageLock.RUnlock()
-
-	values := r.resourceUsage.Values()
-	low := 0
-	high := len(values) - 1
-	var idx int
-
-	for {
-		mid := (low + high) / 2
-		midVal, _ := values[mid].(*cstructs.TaskResourceUsage)
-		if midVal.Timestamp < since {
-			low = mid + 1
-		} else if midVal.Timestamp > since {
-			high = mid - 1
-		} else if midVal.Timestamp == since {
-			idx = mid
-			break
-		}
-		if low > high {
-			idx = low
-			break
-		}
-	}
-	values = values[idx:]
-	ts := make([]*cstructs.TaskResourceUsage, len(values))
-	for index, val := range values {
-		ru, _ := val.(*cstructs.TaskResourceUsage)
-		ts[index] = ru
-	}
-	return ts
+	return r.resourceUsage
 }
 
 // handleUpdate takes an updated allocation and updates internal state to
