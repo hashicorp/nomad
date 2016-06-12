@@ -48,7 +48,7 @@ func TestJobEndpoint_Register(t *testing.T) {
 	if out.CreateIndex != resp.JobModifyIndex {
 		t.Fatalf("index mis-match")
 	}
-	serviceName := out.TaskGroups[0].Tasks[0].ConsulServices[0].Name
+	serviceName := out.TaskGroups[0].Tasks[0].Services[0].Name
 	expectedServiceName := "web-frontend"
 	if serviceName != expectedServiceName {
 		t.Fatalf("Expected Service Name: %s, Actual: %s", expectedServiceName, serviceName)
@@ -237,7 +237,7 @@ func TestJobEndpoint_Register_Periodic(t *testing.T) {
 	if out.CreateIndex != resp.JobModifyIndex {
 		t.Fatalf("index mis-match")
 	}
-	serviceName := out.TaskGroups[0].Tasks[0].ConsulServices[0].Name
+	serviceName := out.TaskGroups[0].Tasks[0].Services[0].Name
 	expectedServiceName := "web-frontend"
 	if serviceName != expectedServiceName {
 		t.Fatalf("Expected Service Name: %s, Actual: %s", expectedServiceName, serviceName)
@@ -685,12 +685,12 @@ func TestJobEndpoint_GetJob(t *testing.T) {
 	// Make a copy of the origin job and change the service name so that we can
 	// do a deep equal with the response from the GET JOB Api
 	j := job
-	j.TaskGroups[0].Tasks[0].ConsulServices[0].Name = "web-frontend"
+	j.TaskGroups[0].Tasks[0].Services[0].Name = "web-frontend"
 	for tgix, tg := range j.TaskGroups {
 		for tidx, t := range tg.Tasks {
-			for sidx, service := range t.ConsulServices {
+			for sidx, service := range t.Services {
 				for cidx, check := range service.Checks {
-					check.Name = resp2.Job.TaskGroups[tgix].Tasks[tidx].ConsulServices[sidx].Checks[cidx].Name
+					check.Name = resp2.Job.TaskGroups[tgix].Tasks[tidx].Services[sidx].Checks[cidx].Name
 				}
 			}
 		}

@@ -217,8 +217,8 @@ func (c *Syncer) filterPrefix() string {
 }
 
 // GenerateServiceID creates a unique Consul ServiceID for a given
-// ConsulService.
-func (c *Syncer) GenerateServiceID(groupName string, service *structs.ConsulService) string {
+// Service.
+func (c *Syncer) GenerateServiceID(groupName string, service *structs.Service) string {
 	numTags := len(service.Tags)
 	switch numTags {
 	case 0:
@@ -233,7 +233,7 @@ func (c *Syncer) GenerateServiceID(groupName string, service *structs.ConsulServ
 
 // SetServices assigns the slice of Nomad Services to the provided services
 // group name.
-func (c *Syncer) SetServices(groupName string, services []*structs.ConsulService) error {
+func (c *Syncer) SetServices(groupName string, services []*structs.Service) error {
 	var mErr multierror.Error
 	registeredServices := make([]*consul.AgentServiceRegistration, 0, len(services))
 	for _, service := range services {
@@ -702,7 +702,7 @@ func (c *Syncer) createDelegatedCheckReg(check *structs.ServiceCheck, service *c
 }
 
 // createService creates a Consul AgentService from a Nomad ConsulService.
-func (c *Syncer) createService(service *structs.ConsulService) (*consul.AgentServiceRegistration, error) {
+func (c *Syncer) createService(service *structs.Service) (*consul.AgentServiceRegistration, error) {
 	c.registryLock.RLock()
 	defer c.registryLock.RUnlock()
 

@@ -94,7 +94,7 @@ func Job() *structs.Job {
 						Env: map[string]string{
 							"FOO": "bar",
 						},
-						ConsulServices: []*structs.ConsulService{
+						Services: []*structs.Service{
 							{
 								Name:      "${TASK}-frontend",
 								PortLabel: "http",

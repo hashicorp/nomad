@@ -136,7 +136,7 @@ func testJob() *Job {
 								GetterSource: "http://foo.com",
 							},
 						},
-						ConsulServices: []*ConsulService{
+						Services: []*Service{
 							{
 								Name:      "${TASK}-frontend",
 								PortLabel: "http",
@@ -283,7 +283,7 @@ func TestTask_Validate(t *testing.T) {
 }
 
 func TestTask_Validate_Services(t *testing.T) {
-	s1 := &ConsulService{
+	s1 := &Service{
 		Name:      "service-name",
 		PortLabel: "bar",
 		Checks: []*ServiceCheck{
@@ -298,7 +298,7 @@ func TestTask_Validate_Services(t *testing.T) {
 		},
 	}
 
-	s2 := &ConsulService{
+	s2 := &Service{
 		Name: "service-name",
 	}
 
@@ -311,7 +311,7 @@ func TestTask_Validate_Services(t *testing.T) {
 			MemoryMB: 100,
 			IOPS:     10,
 		},
-		ConsulServices: []*ConsulService{s1, s2},
+		Services: []*Service{s1, s2},
 	}
 	err := task.Validate()
 	if err == nil {
@@ -568,7 +568,7 @@ func BenchmarkEncodeDecode(b *testing.B) {
 }
 
 func TestInvalidServiceCheck(t *testing.T) {
-	s := ConsulService{
+	s := Service{
 		Name:      "service-name",
 		PortLabel: "bar",
 		Checks: []*ServiceCheck{
@@ -582,7 +582,7 @@ func TestInvalidServiceCheck(t *testing.T) {
 		t.Fatalf("Service should be invalid (invalid type)")
 	}
 
-	s = ConsulService{
+	s = Service{
 		Name:      "service.name",
 		PortLabel: "bar",
 	}
@@ -590,7 +590,7 @@ func TestInvalidServiceCheck(t *testing.T) {
 		t.Fatalf("Service should be invalid (contains a dot): %v", err)
 	}
 
-	s = ConsulService{
+	s = Service{
 		Name:      "-my-service",
 		PortLabel: "bar",
 	}
@@ -598,7 +598,7 @@ func TestInvalidServiceCheck(t *testing.T) {
 		t.Fatalf("Service should be invalid (begins with a hyphen): %v", err)
 	}
 
-	s = ConsulService{
+	s = Service{
 		Name:      "abcdef0123456789-abcdef0123456789-abcdef0123456789-abcdef0123456",
 		PortLabel: "bar",
 	}
@@ -606,7 +606,7 @@ func TestInvalidServiceCheck(t *testing.T) {
 		t.Fatalf("Service should be invalid (too long): %v", err)
 	}
 
-	s = ConsulService{
+	s = Service{
 		Name: "service-name",
 		Checks: []*ServiceCheck{
 			{
@@ -628,7 +628,7 @@ func TestInvalidServiceCheck(t *testing.T) {
 		t.Fatalf("service should be invalid (tcp/http checks with no port): %v", err)
 	}
 
-	s = ConsulService{
+	s = Service{
 		Name: "service-name",
 		Checks: []*ServiceCheck{
 			{
@@ -684,7 +684,7 @@ func TestService_InitFields(t *testing.T) {
 	taskGroup := "cache"
 	task := "redis"
 
-	s := ConsulService{
+	s := Service{
 		Name: "${TASK}-db",
 	}
 
@@ -722,7 +722,7 @@ func TestJob_ExpandServiceNames(t *testing.T) {
 				Tasks: []*Task{
 					{
 						Name: "frontend",
-						ConsulServices: []*ConsulService{
+						Services: []*Service{
 							{
 								Name: "${BASE}-default",
 							},
@@ -746,12 +746,12 @@ func TestJob_ExpandServiceNames(t *testing.T) {
 
 	j.InitFields()
 
-	service1Name := j.TaskGroups[0].Tasks[0].ConsulServices[0].Name
+	service1Name := j.TaskGroups[0].Tasks[0].Services[0].Name
 	if service1Name != "my-job-web-frontend-default" {
 		t.Fatalf("Expected Service Name: %s, Actual: %s", "my-job-web-frontend-default", service1Name)
 	}
 
-	service2Name := j.TaskGroups[0].Tasks[0].ConsulServices[1].Name
+	service2Name := j.TaskGroups[0].Tasks[0].Services[1].Name
 	if service2Name != "jmx" {
 		t.Fatalf("Expected Service Name: %s, Actual: %s", "jmx", service2Name)
 	}

@@ -27,7 +27,7 @@ var (
 		Interval: 30 * time.Second,
 		Timeout:  5 * time.Second,
 	}
-	service1 = structs.ConsulService{
+	service1 = structs.Service{
 		Name:      "foo-1",
 		Tags:      []string{"tag1", "tag2"},
 		PortLabel: "port1",
@@ -36,7 +36,7 @@ var (
 		},
 	}
 
-	service2 = structs.ConsulService{
+	service2 = structs.Service{
 		Name:      "foo-2",
 		Tags:      []string{"tag1", "tag2"},
 		PortLabel: "port2",
@@ -61,9 +61,9 @@ func TestConsulServiceRegisterServices(t *testing.T) {
 	}
 	defer cs.Shutdown()
 
-	service1 := &structs.ConsulService{Name: task.Name}
-	service2 := &structs.ConsulService{Name: task.Name}
-	services := []*structs.ConsulService{service1, service2}
+	service1 := &structs.Service{Name: task.Name}
+	service2 := &structs.Service{Name: task.Name}
+	services := []*structs.Service{service1, service2}
 	service1.ServiceID = fmt.Sprintf("%s-%s:%s/%s", cs.GenerateServiceID(serviceGroupName, service1), task.Name, allocID)
 	service2.ServiceID = fmt.Sprintf("%s-%s:%s/%s", cs.GenerateServiceID(serviceGroupName, service2), task.Name, allocID)
 
@@ -98,14 +98,14 @@ func TestConsulServiceUpdateService(t *testing.T) {
 
 	//Update Service defn 1
 	newTags := []string{"tag3"}
-	task.ConsulServices[0].Tags = newTags
+	task.Services[0].Tags = newTags
 	if err := cs.SyncServices(); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	// Make sure all the services and checks are still present
-	service1 := &structs.ConsulService{Name: task.Name}
-	service2 := &structs.ConsulService{Name: task.Name}
-	services := []*structs.ConsulService{service1, service2}
+	service1 := &structs.Service{Name: task.Name}
+	service2 := &structs.Service{Name: task.Name}
+	services := []*structs.Service{service1, service2}
 	service1.ServiceID = fmt.Sprintf("%s-%s:%s/%s", cs.GenerateServiceID(serviceGroupName, service1), task.Name, allocID)
 	service2.ServiceID = fmt.Sprintf("%s-%s:%s/%s", cs.GenerateServiceID(serviceGroupName, service2), task.Name, allocID)
 	if err := servicesPresent(t, services, cs); err != nil {
@@ -127,7 +127,7 @@ func TestConsulServiceUpdateService(t *testing.T) {
 	}
 }
 
-func servicesPresent(t *testing.T, configuredServices []*structs.ConsulService, syncer *Syncer) error {
+func servicesPresent(t *testing.T, configuredServices []*structs.Service, syncer *Syncer) error {
 	var mErr multierror.Error
 	services, err := syncer.client.Agent().Services()
 	if err != nil {
@@ -159,8 +159,8 @@ func checksPresent(t *testing.T, checkIDs []string, syncer *Syncer) error {
 
 func mockTask() *structs.Task {
 	task := structs.Task{
-		Name:           "foo",
-		ConsulServices: []*structs.ConsulService{&service1, &service2},
+		Name:     "foo",
+		Services: []*structs.Service{&service1, &service2},
 		Resources: &structs.Resources{
 			Networks: []*structs.NetworkResource{
 				&structs.NetworkResource{
