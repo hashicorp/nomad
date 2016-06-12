@@ -256,6 +256,10 @@ func TestDockerDriver_Start_Wait(t *testing.T) {
 }
 
 func TestDockerDriver_Start_LoadImage(t *testing.T) {
+	t.Parallel()
+	if !testutil.DockerIsConnected(t) {
+		t.SkipNow()
+	}
 	task := &structs.Task{
 		Name: "busybox-demo",
 		Config: map[string]interface{}{
