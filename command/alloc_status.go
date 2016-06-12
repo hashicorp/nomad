@@ -154,21 +154,16 @@ func (c *AllocStatusCommand) Run(args []string) int {
 	}
 	c.Ui.Output(formatKV(basic))
 
-	if !short {
-		c.taskResources(alloc, stats, displayStats)
-	}
-
-	// Print the state of each task.
 	if short {
 		c.shortTaskStatus(alloc)
 	} else {
-		c.taskStatus(alloc)
+		c.outputTaskDetails(alloc, stats, displayStats)
 	}
 
 	// Format the detailed status
-	if verbose || alloc.DesiredStatus == "failed" {
-		c.Ui.Output(c.Colorize().Color("\n[bold]Status[reset]"))
-		dumpAllocStatus(c.Ui, alloc, length)
+	if verbose {
+		c.Ui.Output(c.Colorize().Color("\n[bold]Placement Metrics[reset]"))
+		c.Ui.Output(formatAllocMetrics(alloc.Metrics, true, "  "))
 	}
 
 	if statsErr != nil {
@@ -179,216 +174,149 @@ func (c *AllocStatusCommand) Run(args []string) int {
 	return 0
 }
 
-// shortTaskStatus prints out the current state of each task.
-func (c *AllocStatusCommand) shortTaskStatus(alloc *api.Allocation) {
-	tasks := make([]string, 0, len(alloc.TaskStates)+1)
-	tasks = append(tasks, "Name|State|Last Event|Time")
+// outputTaskDetails prints task details for each task in the allocation,
+// optionally printing verbose statistics if displayStats is set
+func (c *AllocStatusCommand) outputTaskDetails(alloc *api.Allocation, stats *api.AllocResourceUsage, displayStats bool) {
 	for task := range c.sortedTaskStateIterator(alloc.TaskStates) {
 		state := alloc.TaskStates[task]
-		lastState := state.State
-		var lastEvent, lastTime string
-
-		l := len(state.Events)
-		if l != 0 {
-			last := state.Events[l-1]
-			lastEvent = last.Type
-			lastTime = c.formatUnixNanoTime(last.Time)
-		}
-
-		tasks = append(tasks, fmt.Sprintf("%s|%s|%s|%s",
-			task, lastState, lastEvent, lastTime))
+		c.Ui.Output(c.Colorize().Color(fmt.Sprintf("\n[bold]Task %q is %q[reset]", task, state.State)))
+		c.outputTaskResources(alloc, task, stats, displayStats)
+		c.Ui.Output("")
+		c.outputTaskStatus(state)
 	}
-
-	c.Ui.Output(c.Colorize().Color("\n[bold]Tasks[reset]"))
-	c.Ui.Output(formatList(tasks))
 }
 
-// taskStatus prints out the most recent events for each task.
-func (c *AllocStatusCommand) taskStatus(alloc *api.Allocation) {
-	for task := range c.sortedTaskStateIterator(alloc.TaskStates) {
-		state := alloc.TaskStates[task]
-		events := make([]string, len(state.Events)+1)
-		events[0] = "Time|Type|Description"
+// outputTaskStatus prints out a list of the most recent events for the given
+// task state.
+func (c *AllocStatusCommand) outputTaskStatus(state *api.TaskState) {
+	c.Ui.Output("Recent Events:")
+	events := make([]string, len(state.Events)+1)
+	events[0] = "Time|Type|Description"
 
-		size := len(state.Events)
-		for i, event := range state.Events {
-			formatedTime := c.formatUnixNanoTime(event.Time)
+	size := len(state.Events)
+	for i, event := range state.Events {
+		formatedTime := c.formatUnixNanoTime(event.Time)
 
-			// Build up the description based on the event type.
-			var desc string
-			switch event.Type {
-			case api.TaskStarted:
-				desc = "Task started by client"
-			case api.TaskReceived:
-				desc = "Task received by client"
-			case api.TaskFailedValidation:
-				if event.ValidationError != "" {
-					desc = event.ValidationError
-				} else {
-					desc = "Validation of task failed"
-				}
-			case api.TaskDriverFailure:
-				if event.DriverError != "" {
-					desc = event.DriverError
-				} else {
-					desc = "Failed to start task"
-				}
-			case api.TaskDownloadingArtifacts:
-				desc = "Client is downloading artifacts"
-			case api.TaskArtifactDownloadFailed:
-				if event.DownloadError != "" {
-					desc = event.DownloadError
-				} else {
-					desc = "Failed to download artifacts"
-				}
-			case api.TaskKilled:
-				if event.KillError != "" {
-					desc = event.KillError
-				} else {
-					desc = "Task successfully killed"
-				}
-			case api.TaskTerminated:
-				var parts []string
-				parts = append(parts, fmt.Sprintf("Exit Code: %d", event.ExitCode))
+		// Build up the description based on the event type.
+		var desc string
+		switch event.Type {
+		case api.TaskStarted:
+			desc = "Task started by client"
+		case api.TaskReceived:
+			desc = "Task received by client"
+		case api.TaskFailedValidation:
+			if event.ValidationError != "" {
+				desc = event.ValidationError
+			} else {
+				desc = "Validation of task failed"
+			}
+		case api.TaskDriverFailure:
+			if event.DriverError != "" {
+				desc = event.DriverError
+			} else {
+				desc = "Failed to start task"
+			}
+		case api.TaskDownloadingArtifacts:
+			desc = "Client is downloading artifacts"
+		case api.TaskArtifactDownloadFailed:
+			if event.DownloadError != "" {
+				desc = event.DownloadError
+			} else {
+				desc = "Failed to download artifacts"
+			}
+		case api.TaskKilled:
+			if event.KillError != "" {
+				desc = event.KillError
+			} else {
+				desc = "Task successfully killed"
+			}
+		case api.TaskTerminated:
+			var parts []string
+			parts = append(parts, fmt.Sprintf("Exit Code: %d", event.ExitCode))
 
-				if event.Signal != 0 {
-					parts = append(parts, fmt.Sprintf("Signal: %d", event.Signal))
-				}
-
-				if event.Message != "" {
-					parts = append(parts, fmt.Sprintf("Exit Message: %q", event.Message))
-				}
-				desc = strings.Join(parts, ", ")
-			case api.TaskRestarting:
-				in := fmt.Sprintf("Task restarting in %v", time.Duration(event.StartDelay))
-				if event.RestartReason != "" && event.RestartReason != client.ReasonWithinPolicy {
-					desc = fmt.Sprintf("%s - %s", event.RestartReason, in)
-				} else {
-					desc = in
-				}
-			case api.TaskNotRestarting:
-				if event.RestartReason != "" {
-					desc = event.RestartReason
-				} else {
-					desc = "Task exceeded restart policy"
-				}
+			if event.Signal != 0 {
+				parts = append(parts, fmt.Sprintf("Signal: %d", event.Signal))
 			}
 
-			// Reverse order so we are sorted by time
-			events[size-i] = fmt.Sprintf("%s|%s|%s", formatedTime, event.Type, desc)
+			if event.Message != "" {
+				parts = append(parts, fmt.Sprintf("Exit Message: %q", event.Message))
+			}
+			desc = strings.Join(parts, ", ")
+		case api.TaskRestarting:
+			in := fmt.Sprintf("Task restarting in %v", time.Duration(event.StartDelay))
+			if event.RestartReason != "" && event.RestartReason != client.ReasonWithinPolicy {
+				desc = fmt.Sprintf("%s - %s", event.RestartReason, in)
+			} else {
+				desc = in
+			}
+		case api.TaskNotRestarting:
+			if event.RestartReason != "" {
+				desc = event.RestartReason
+			} else {
+				desc = "Task exceeded restart policy"
+			}
 		}
 
-		c.Ui.Output(c.Colorize().Color(fmt.Sprintf("\n[bold]Task %q is %q[reset]\nRecent Events:", task, state.State)))
-		c.Ui.Output(formatList(events))
+		// Reverse order so we are sorted by time
+		events[size-i] = fmt.Sprintf("%s|%s|%s", formatedTime, event.Type, desc)
 	}
+	c.Ui.Output(formatList(events))
 }
 
-// formatUnixNanoTime is a helper for formating time for output.
-func (c *AllocStatusCommand) formatUnixNanoTime(nano int64) string {
-	t := time.Unix(0, nano)
-	return formatTime(t)
-}
-
-// sortedTaskStateIterator is a helper that takes the task state map and returns a
-// channel that returns the keys in a sorted order.
-func (c *AllocStatusCommand) sortedTaskStateIterator(m map[string]*api.TaskState) <-chan string {
-	output := make(chan string, len(m))
-	keys := make([]string, len(m))
-	i := 0
-	for k := range m {
-		keys[i] = k
-		i++
-	}
-	sort.Strings(keys)
-
-	for _, key := range keys {
-		output <- key
-	}
-
-	close(output)
-	return output
-}
-
-// allocResources prints out the allocation current resource usage
-func (c *AllocStatusCommand) allocResources(alloc *api.Allocation) {
-	resources := make([]string, 2)
-	resources[0] = "CPU|Memory MB|Disk MB|IOPS"
-	resources[1] = fmt.Sprintf("%v|%v|%v|%v",
-		alloc.Resources.CPU,
-		alloc.Resources.MemoryMB,
-		alloc.Resources.DiskMB,
-		alloc.Resources.IOPS)
-	c.Ui.Output(formatList(resources))
-}
-
-// taskResources prints out the tasks current resource usage
-func (c *AllocStatusCommand) taskResources(alloc *api.Allocation, stats *api.AllocResourceUsage, displayStats bool) {
-	if len(alloc.TaskResources) == 0 {
+// outputTaskResources prints the task resources for the passed task and if
+// displayStats is set, verbose resource usage statistics
+func (c *AllocStatusCommand) outputTaskResources(alloc *api.Allocation, task string, stats *api.AllocResourceUsage, displayStats bool) {
+	resource, ok := alloc.TaskResources[task]
+	if !ok {
 		return
 	}
 
-	// Sort the tasks.
-	tasks := make([]string, 0, len(alloc.TaskResources))
-	for task := range alloc.TaskResources {
-		tasks = append(tasks, task)
+	c.Ui.Output("Task Resources")
+	var addr []string
+	for _, nw := range resource.Networks {
+		ports := append(nw.DynamicPorts, nw.ReservedPorts...)
+		for _, port := range ports {
+			addr = append(addr, fmt.Sprintf("%v: %v:%v\n", port.Label, nw.IP, port.Value))
+		}
 	}
-	sort.Strings(tasks)
+	var resourcesOutput []string
+	resourcesOutput = append(resourcesOutput, "CPU|Memory|Disk|IOPS|Addresses")
+	firstAddr := ""
+	if len(addr) > 0 {
+		firstAddr = addr[0]
+	}
 
-	c.Ui.Output(c.Colorize().Color("\n[bold]Task Resources[reset]"))
-	firstLine := true
-	for _, task := range tasks {
-		resource := alloc.TaskResources[task]
+	// Display the rolled up stats. If possible prefer the live stastics
+	cpuUsage := strconv.Itoa(resource.CPU)
+	memUsage := strconv.Itoa(resource.MemoryMB)
+	if ru, ok := stats.Tasks[task]; ok && ru != nil && ru.ResourceUsage != nil {
+		if cs := ru.ResourceUsage.CpuStats; cs != nil {
+			cpuUsage = fmt.Sprintf("%v/%v", math.Floor(cs.TotalTicks), resource.CPU)
+		}
+		if ms := ru.ResourceUsage.MemoryStats; ms != nil {
+			memUsage = fmt.Sprintf("%v/%v", humanize.Bytes(ms.RSS), resource.MemoryMB)
+		}
+	}
+	resourcesOutput = append(resourcesOutput, fmt.Sprintf("%v|%v MB|%v MB|%v|%v",
+		cpuUsage,
+		memUsage,
+		resource.DiskMB,
+		resource.IOPS,
+		firstAddr))
+	for i := 1; i < len(addr); i++ {
+		resourcesOutput = append(resourcesOutput, fmt.Sprintf("||||%v", addr[i]))
+	}
+	c.Ui.Output(formatListWithSpaces(resourcesOutput))
 
-		header := fmt.Sprintf("\n[bold]Task: %q[reset]", task)
-		if firstLine {
-			header = fmt.Sprintf("[bold]Task: %q[reset]", task)
-			firstLine = false
-		}
-		c.Ui.Output(c.Colorize().Color(header))
-		var addr []string
-		for _, nw := range resource.Networks {
-			ports := append(nw.DynamicPorts, nw.ReservedPorts...)
-			for _, port := range ports {
-				addr = append(addr, fmt.Sprintf("%v: %v:%v\n", port.Label, nw.IP, port.Value))
-			}
-		}
-		var resourcesOutput []string
-		resourcesOutput = append(resourcesOutput, "CPU|Memory|Disk|IOPS|Addresses")
-		firstAddr := ""
-		if len(addr) > 0 {
-			firstAddr = addr[0]
-		}
-
-		// Display the rolled up stats. If possible prefer the live stastics
-		cpuUsage := strconv.Itoa(resource.CPU)
-		memUsage := strconv.Itoa(resource.MemoryMB)
-		if ru, ok := stats.Tasks[task]; ok && ru != nil && ru.ResourceUsage != nil {
-			if cs := ru.ResourceUsage.CpuStats; cs != nil {
-				cpuUsage = fmt.Sprintf("%v/%v", math.Floor(cs.TotalTicks), resource.CPU)
-			}
-			if ms := ru.ResourceUsage.MemoryStats; ms != nil {
-				memUsage = fmt.Sprintf("%v/%v", humanize.Bytes(ms.RSS), resource.MemoryMB)
-			}
-		}
-		resourcesOutput = append(resourcesOutput, fmt.Sprintf("%v|%v MB|%v MB|%v|%v",
-			cpuUsage,
-			memUsage,
-			resource.DiskMB,
-			resource.IOPS,
-			firstAddr))
-		for i := 1; i < len(addr); i++ {
-			resourcesOutput = append(resourcesOutput, fmt.Sprintf("||||%v", addr[i]))
-		}
-		c.Ui.Output(formatListWithSpaces(resourcesOutput))
-
-		if ru, ok := stats.Tasks[task]; ok && ru != nil && displayStats && ru.ResourceUsage != nil {
-			c.Ui.Output("")
-			c.printTaskResourceUsage(task, ru.ResourceUsage)
-		}
+	if ru, ok := stats.Tasks[task]; ok && ru != nil && displayStats && ru.ResourceUsage != nil {
+		c.Ui.Output("")
+		c.outputVerboseResourceUsage(task, ru.ResourceUsage)
 	}
 }
 
-func (c *AllocStatusCommand) printTaskResourceUsage(task string, resourceUsage *api.ResourceUsage) {
+// outputVerboseResourceUsage outputs the verbose resource usage for the passed
+// task
+func (c *AllocStatusCommand) outputVerboseResourceUsage(task string, resourceUsage *api.ResourceUsage) {
 	memoryStats := resourceUsage.MemoryStats
 	cpuStats := resourceUsage.CpuStats
 	if memoryStats != nil && len(memoryStats.Measured) > 0 {
@@ -452,4 +380,54 @@ func (c *AllocStatusCommand) printTaskResourceUsage(task string, resourceUsage *
 		out[1] = strings.Join(measuredStats, "|")
 		c.Ui.Output(formatList(out))
 	}
+}
+
+// shortTaskStatus prints out the current state of each task.
+func (c *AllocStatusCommand) shortTaskStatus(alloc *api.Allocation) {
+	tasks := make([]string, 0, len(alloc.TaskStates)+1)
+	tasks = append(tasks, "Name|State|Last Event|Time")
+	for task := range c.sortedTaskStateIterator(alloc.TaskStates) {
+		state := alloc.TaskStates[task]
+		lastState := state.State
+		var lastEvent, lastTime string
+
+		l := len(state.Events)
+		if l != 0 {
+			last := state.Events[l-1]
+			lastEvent = last.Type
+			lastTime = c.formatUnixNanoTime(last.Time)
+		}
+
+		tasks = append(tasks, fmt.Sprintf("%s|%s|%s|%s",
+			task, lastState, lastEvent, lastTime))
+	}
+
+	c.Ui.Output(c.Colorize().Color("\n[bold]Tasks[reset]"))
+	c.Ui.Output(formatList(tasks))
+}
+
+// sortedTaskStateIterator is a helper that takes the task state map and returns a
+// channel that returns the keys in a sorted order.
+func (c *AllocStatusCommand) sortedTaskStateIterator(m map[string]*api.TaskState) <-chan string {
+	output := make(chan string, len(m))
+	keys := make([]string, len(m))
+	i := 0
+	for k := range m {
+		keys[i] = k
+		i++
+	}
+	sort.Strings(keys)
+
+	for _, key := range keys {
+		output <- key
+	}
+
+	close(output)
+	return output
+}
+
+// formatUnixNanoTime is a helper for formating time for output.
+func (c *AllocStatusCommand) formatUnixNanoTime(nano int64) string {
+	t := time.Unix(0, nano)
+	return formatTime(t)
 }
