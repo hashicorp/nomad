@@ -1342,35 +1342,37 @@ func (c *Client) setupConsulSyncer() error {
 	}
 	c.consulSyncer.AddPeriodicHandler("Nomad Client Fallback Server Handler", bootstrapFn)
 
-	consulServicesSyncFn := func() error {
-		const estInitialConsulServices = 8
-		const serviceGroupName = "executor"
-		services := make([]*structs.Service, 0, estInitialConsulServices)
-		for allocID, ar := range c.getAllocRunners() {
-			ar.taskStatusLock.RLock()
-			taskStates := copyTaskStates(ar.taskStates)
-			ar.taskStatusLock.RUnlock()
-			for taskName, taskState := range taskStates {
-				if taskState.State == structs.TaskStateRunning {
-					if tr, ok := ar.tasks[taskName]; ok {
-						for _, service := range tr.task.Services {
-							if service.Name == "" {
-								service.Name = fmt.Sprintf("%s-%s", tr.task.Name, allocID)
-							}
-							if service.ServiceID == "" {
-								service.ServiceID = fmt.Sprintf("%s-%s:%s/%s", c.consulSyncer.GenerateServiceID(serviceGroupName, service), tr.task.Name, allocID)
-							}
-							services = append(services, service)
-						}
-					}
-				}
-			}
-		}
+	// TODO this should only deregister things that the executors do not know
+	// about
+	//consulServicesSyncFn := func() error {
+	//const estInitialConsulServices = 8
+	//const serviceGroupName = "executor"
+	//services := make([]*structs.Service, 0, estInitialConsulServices)
+	//for allocID, ar := range c.getAllocRunners() {
+	//ar.taskStatusLock.RLock()
+	//taskStates := copyTaskStates(ar.taskStates)
+	//ar.taskStatusLock.RUnlock()
+	//for taskName, taskState := range taskStates {
+	//if taskState.State == structs.TaskStateRunning {
+	//if tr, ok := ar.tasks[taskName]; ok {
+	//for _, service := range tr.task.Services {
+	//if service.Name == "" {
+	//service.Name = fmt.Sprintf("%s-%s", tr.task.Name, allocID)
+	//}
+	//if service.ServiceID == "" {
+	//service.ServiceID = fmt.Sprintf("%s-%s:%s/%s", c.consulSyncer.GenerateServiceID(serviceGroupName, service), tr.task.Name, allocID)
+	//}
+	//services = append(services, service)
+	//}
+	//}
+	//}
+	//}
+	//}
 
-		c.consulSyncer.SetServices(serviceGroupName, services)
-		return nil
-	}
-	c.consulSyncer.AddPeriodicHandler("Nomad Client Services Sync Handler", consulServicesSyncFn)
+	//c.consulSyncer.SetServices(serviceGroupName, services)
+	//return nil
+	//}
+	//c.consulSyncer.AddPeriodicHandler("Nomad Client Services Sync Handler", consulServicesSyncFn)
 
 	return nil
 }

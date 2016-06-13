@@ -366,6 +366,7 @@ func (e *UniversalExecutor) UpdateTask(task *structs.Task) error {
 	if e.consulSyncer != nil {
 		e.interpolateServices(e.ctx.Task)
 		e.consulSyncer.SetServices(e.ctx.AllocID, task.Services)
+		e.consulSyncer.SyncNow()
 	}
 	return nil
 }
@@ -487,22 +488,16 @@ func (e *UniversalExecutor) SyncServices(ctx *ConsulContext) error {
 		if err != nil {
 			return err
 		}
-		cs.SetDelegatedChecks(e.createCheckMap(), e.createCheck)
-		cs.SetServiceRegPrefix(serviceRegPrefix)
-		cs.SetAddrFinder(e.ctx.Task.FindHostAndPortFor)
 		e.consulSyncer = cs
 		go e.consulSyncer.Run()
 	}
-	if e.ctx != nil {
-		syncerFn := func() error {
-			e.interpolateServices(e.ctx.Task)
-			e.consulSyncer.SetServices(e.ctx.AllocID, e.ctx.Task.Services)
-			return nil
-		}
-		e.consulSyncer.AddPeriodicHandler(e.ctx.AllocID, syncerFn)
-	}
-	err := e.consulSyncer.SyncServices() // Attempt to register immediately
-	return err
+	e.interpolateServices(e.ctx.Task)
+	e.consulSyncer.SetDelegatedChecks(e.createCheckMap(), e.createCheck)
+	e.consulSyncer.SetServiceRegPrefix(serviceRegPrefix)
+	e.consulSyncer.SetAddrFinder(e.ctx.Task.FindHostAndPortFor)
+	e.consulSyncer.SetServices(e.ctx.AllocID, e.ctx.Task.Services)
+	e.consulSyncer.SyncNow() // Attempt to register immediately
+	return nil
 }
 
 // DeregisterServices removes the services of the task that the executor is

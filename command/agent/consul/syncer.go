@@ -445,7 +445,12 @@ func compareConsulCheck(localCheck *consul.AgentCheckRegistration, consulCheck *
 // 4) a slice of checks that exist only in the Consul Agent (consulChecks)
 // and should be removed because the Consul Agent has drifted from the
 // Syncer.
-func (c *Syncer) calcChecksDiff(consulChecks map[string]*consul.AgentCheck) (missingChecks []*consul.AgentCheckRegistration, equalChecks []*consul.AgentCheckRegistration, changedChecks []*consul.AgentCheckRegistration, staleChecks []*consul.AgentCheckRegistration) {
+func (c *Syncer) calcChecksDiff(consulChecks map[string]*consul.AgentCheck) (
+	missingChecks []*consul.AgentCheckRegistration,
+	equalChecks []*consul.AgentCheckRegistration,
+	changedChecks []*consul.AgentCheckRegistration,
+	staleChecks []*consul.AgentCheckRegistration) {
+
 	type mergedCheck struct {
 		check *consul.AgentCheckRegistration
 		// 'l' == Nomad local only
@@ -516,7 +521,6 @@ func compareConsulService(localService *consul.AgentServiceRegistration, consulS
 	if consulService.ID != localService.ID ||
 		consulService.Service != localService.Name ||
 		consulService.Port != localService.Port ||
-		consulService.Address != localService.Address ||
 		consulService.Address != localService.Address ||
 		consulService.EnableTagOverride != localService.EnableTagOverride {
 		return false
