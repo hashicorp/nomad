@@ -361,24 +361,26 @@ func (a *Agent) setupServer() error {
 
 	// Create the Nomad Server services for Consul
 	if a.config.Consul.AutoRegister && a.config.Consul.ServerServiceName != "" {
-		const serviceGroupName = "server"
-		a.consulSyncer.SetServices(serviceGroupName, []*structs.Service{
-			&structs.Service{
-				Name:      a.config.Consul.ServerServiceName,
-				PortLabel: a.serverHTTPAddr,
-				Tags:      []string{consul.ServiceTagHTTP},
-			},
-			&structs.Service{
-				Name:      a.config.Consul.ServerServiceName,
-				PortLabel: a.serverRPCAddr,
-				Tags:      []string{consul.ServiceTagRPC},
-			},
-			&structs.Service{
-				PortLabel: a.serverSerfAddr,
-				Name:      a.config.Consul.ServerServiceName,
-				Tags:      []string{consul.ServiceTagSerf},
-			},
-		}, "agent")
+		httpServ := &structs.Service{
+			Name:      a.config.Consul.ServerServiceName,
+			PortLabel: a.serverHTTPAddr,
+			Tags:      []string{consul.ServiceTagHTTP},
+		}
+		rpcServ := &structs.Service{
+			Name:      a.config.Consul.ServerServiceName,
+			PortLabel: a.serverRPCAddr,
+			Tags:      []string{consul.ServiceTagRPC},
+		}
+		serfServ := &structs.Service{
+			PortLabel: a.serverSerfAddr,
+			Name:      a.config.Consul.ServerServiceName,
+			Tags:      []string{consul.ServiceTagSerf},
+		}
+		a.consulSyncer.SetServices(consul.ServerDomain, map[consul.ServiceKey]*structs.Service{
+			consul.GenerateServiceKey(httpServ): httpServ,
+			consul.GenerateServiceKey(rpcServ):  rpcServ,
+			consul.GenerateServiceKey(serfServ): serfServ,
+		})
 	}
 
 	return nil
@@ -412,19 +414,20 @@ func (a *Agent) setupClient() error {
 
 	// Create the Nomad Server services for Consul
 	if a.config.Consul.AutoRegister && a.config.Consul.ClientServiceName != "" {
-		const serviceGroupName = "client"
-		a.consulSyncer.SetServices(serviceGroupName, []*structs.Service{
-			&structs.Service{
-				Name:      a.config.Consul.ClientServiceName,
-				PortLabel: a.clientHTTPAddr,
-				Tags:      []string{consul.ServiceTagHTTP},
-			},
-			&structs.Service{
-				Name:      a.config.Consul.ClientServiceName,
-				PortLabel: a.clientRPCAddr,
-				Tags:      []string{consul.ServiceTagRPC},
-			},
-		}, "agent")
+		httpServ := &structs.Service{
+			Name:      a.config.Consul.ClientServiceName,
+			PortLabel: a.clientHTTPAddr,
+			Tags:      []string{consul.ServiceTagHTTP},
+		}
+		rpcServ := &structs.Service{
+			Name:      a.config.Consul.ClientServiceName,
+			PortLabel: a.clientRPCAddr,
+			Tags:      []string{consul.ServiceTagRPC},
+		}
+		a.consulSyncer.SetServices(consul.ClientDomain, map[consul.ServiceKey]*structs.Service{
+			consul.GenerateServiceKey(httpServ): httpServ,
+			consul.GenerateServiceKey(rpcServ):  rpcServ,
+		})
 	}
 
 	return nil

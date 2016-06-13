@@ -37,9 +37,6 @@ const (
 	// tree for finding out the pids that the executor and it's child processes
 	// have forked
 	pidScanInterval = 5 * time.Second
-
-	// serviceRegPrefix is the prefix the entire Executor should use
-	executorServiceRegPrefix = "executor"
 )
 
 var (
@@ -365,9 +362,23 @@ func (e *UniversalExecutor) UpdateTask(task *structs.Task) error {
 	// Re-syncing task with Consul agent
 	if e.consulSyncer != nil {
 		e.interpolateServices(e.ctx.Task)
-		e.consulSyncer.SetServices(e.ctx.AllocID, task.Services, executorServiceRegPrefix)
+		domain := consul.NewExecutorDomain(e.ctx.AllocID, task.Name)
+		serviceMap := servicesToServiceMap(e.ctx.AllocID, task.Services)
+		e.consulSyncer.SetServices(domain, serviceMap)
 	}
 	return nil
+}
+
+// servicesToServiceMap takes a list of interpolated services and returns a map
+// of ServiceKeys to services where the service key is appropriate for the
+// executor.
+func servicesToServiceMap(allocID string, services []*structs.Service) map[consul.ServiceKey]*structs.Service {
+	keys := make(map[consul.ServiceKey]*structs.Service, len(services))
+	for _, service := range services {
+		key := consul.GenerateServiceKey(service)
+		keys[key] = service
+	}
+	return keys
 }
 
 func (e *UniversalExecutor) wait() {
@@ -493,7 +504,9 @@ func (e *UniversalExecutor) SyncServices(ctx *ConsulContext) error {
 	e.interpolateServices(e.ctx.Task)
 	e.consulSyncer.SetDelegatedChecks(e.createCheckMap(), e.createCheck)
 	e.consulSyncer.SetAddrFinder(e.ctx.Task.FindHostAndPortFor)
-	e.consulSyncer.SetServices(e.ctx.AllocID, e.ctx.Task.Services, executorServiceRegPrefix)
+	domain := consul.NewExecutorDomain(e.ctx.AllocID, e.ctx.Task.Name)
+	serviceMap := servicesToServiceMap(e.ctx.AllocID, e.ctx.Task.Services)
+	e.consulSyncer.SetServices(domain, serviceMap)
 	return nil
 }
 

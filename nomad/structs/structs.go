@@ -1555,10 +1555,6 @@ func (sc *ServiceCheck) Hash(serviceID string) string {
 
 // Service represents a Consul service definition in Nomad
 type Service struct {
-	// ServiceID is the calculated Consul ServiceID used for a service.
-	// This value is not available to be set via configuration.
-	ServiceID string `mapstructure:"-"`
-
 	// Name of the service registered with Consul. Consul defaults the
 	// Name to ServiceID if not specified.  The Name if specified is used
 	// as one of the seed values when generating a Consul ServiceID.

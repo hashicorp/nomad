@@ -1342,32 +1342,30 @@ func (c *Client) setupConsulSyncer() error {
 	}
 	c.consulSyncer.AddPeriodicHandler("Nomad Client Fallback Server Handler", bootstrapFn)
 
-	// TODO this should only deregister things that the executors do not know
-	// about
-	consulServicesSyncFn := func() error {
-		const estInitialConsulServices = 8
-		const serviceGroupName = "executor"
-		servicesInRunningAllocs := make(map[string][]*structs.Service)
+	consulServicesReaperFn := func() error {
+		const estInitialExecutorDomains = 8
+
+		// Create the domains to keep and add the server and client
+		domains := make([]consul.ServiceDomain, 2, estInitialExecutorDomains)
+		domains[0] = consul.ServerDomain
+		domains[1] = consul.ClientDomain
+
 		for allocID, ar := range c.getAllocRunners() {
-			services := make([]*structs.Service, 0, estInitialConsulServices)
-			ar.taskStatusLock.RLock()
-			taskStates := copyTaskStates(ar.taskStates)
-			ar.taskStatusLock.RUnlock()
-			for taskName, taskState := range taskStates {
-				if taskState.State == structs.TaskStateRunning {
-					if tr, ok := ar.tasks[taskName]; ok {
-						for _, service := range tr.task.Services {
-							services = append(services, service)
-						}
-					}
-				}
+			if ar.Alloc().TerminalStatus() {
+				// Ignore non-running allocations
+				continue
 			}
-			servicesInRunningAllocs[allocID] = services
+			ar.taskLock.RLock()
+			for task := range ar.tasks {
+				d := consul.NewExecutorDomain(allocID, task)
+				domains = append(domains, d)
+			}
+			ar.taskLock.RUnlock()
 		}
-		c.consulSyncer.KeepServices(serviceGroupName, servicesInRunningAllocs)
-		return nil
+
+		return c.consulSyncer.KeepDomains(domains)
 	}
-	c.consulSyncer.AddPeriodicHandler("Nomad Client Services Sync Handler", consulServicesSyncFn)
+	c.consulSyncer.AddPeriodicHandler("Nomad Client Services Sync Handler", consulServicesReaperFn)
 
 	return nil
 }
