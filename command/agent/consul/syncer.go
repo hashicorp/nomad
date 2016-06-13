@@ -224,7 +224,6 @@ func (c *Syncer) GenerateServiceID(groupName string, service *structs.Service, s
 // group name.
 func (c *Syncer) SetServices(groupName string, services []*structs.Service, serviceRegPrefix string) error {
 	c.groupName = groupName
-	c.serviceRegPrefix = serviceRegPrefix
 	var mErr multierror.Error
 	numServ := len(services)
 	registeredServices := make([]*consul.AgentServiceRegistration, 0, numServ)
@@ -911,6 +910,7 @@ func (c *Syncer) runCheck(check Check) {
 	}
 }
 
+// KeepServices prunes all services besides the ones specified by the user
 func (c *Syncer) KeepServices(serviceRegPrefix string, servicesInRunningAllocs map[string][]*structs.Service) {
 	servicesToKeep := make(map[string]struct{})
 	for allocID, services := range servicesInRunningAllocs {
