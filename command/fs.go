@@ -192,7 +192,7 @@ nomad alloc-status %s`, allocID, allocID)
 		}
 		// Display the file information in a tabular format
 		out := make([]string, len(files)+1)
-		out[0] = "Mode|Size|Modfied Time|Name"
+		out[0] = "Mode|Size|Modified Time|Name"
 		for i, file := range files {
 			fn := file.Name
 			if file.IsDir {

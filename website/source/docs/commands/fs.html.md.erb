@@ -15,7 +15,7 @@ client. The following functionalities are available - `cat`, `ls` and `stat`
 `ls`: If the target path is a directory, Nomad displays the name of a file and directories and their associated information.
 `stat`: If the `-stat` flag is used, Nomad will Display information about a file.
 
-## Usage 
+## Usage
 
 ```
 nomad fs <alloc-id> <path>
@@ -28,14 +28,14 @@ The path is optional and it defaults to `/` of the allocation directory
 ## Examples
 
 $ nomad fs eb17e557
-Mode        Size  Modfied Time         Name
+Mode        Size  Modified Time        Name
 drwxrwxr-x  4096  28 Jan 16 05:39 UTC  alloc/
 drwxrwxr-x  4096  28 Jan 16 05:39 UTC  redis/
 -rw-rw-r--  0     28 Jan 16 05:39 UTC  redis_exit_status
 
 
 $ nomad fs redis/local
-Mode        Size  Modfied Time         Name
+Mode        Size  Modified Time        Name
 -rw-rw-rw-  0     28 Jan 16 05:39 UTC  redis.stderr
 -rw-rw-rw-  17    28 Jan 16 05:39 UTC  redis.stdout
 
@@ -45,7 +45,7 @@ Mode        Size  Modified Time        Name
 -rw-rw-rw-  17    28 Jan 16 05:39 UTC  redis.stdout
 
 
-$ nomad fs redis/local/redis.stdout 
+$ nomad fs redis/local/redis.stdout
 6710:C 27 Jan 22:04:03.794 # Warning: no config file specified, using the default config. In order to specify a config file use redis-server /path/to/redis.conf
 6710:M 27 Jan 22:04:03.795 * Increased maximum number of open files to 10032 (it was originally set to 256).
 
