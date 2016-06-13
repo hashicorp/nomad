@@ -120,7 +120,7 @@ command](/docs/commands/fs.html):
 
 ```
 $ nomad fs ls 8ba85cef alloc/logs
-Mode        Size    Modfied Time           Name
+Mode        Size    Modified Time          Name
 -rw-rw-r--  0 B     15/03/16 15:40:56 PDT  redis.stderr.0
 -rw-rw-r--  2.3 kB  15/03/16 15:40:57 PDT  redis.stdout.0
 
