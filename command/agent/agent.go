@@ -378,7 +378,7 @@ func (a *Agent) setupServer() error {
 				Name:      a.config.Consul.ServerServiceName,
 				Tags:      []string{consul.ServiceTagSerf},
 			},
-		})
+		}, "agent")
 	}
 
 	return nil
@@ -424,7 +424,7 @@ func (a *Agent) setupClient() error {
 				PortLabel: a.clientRPCAddr,
 				Tags:      []string{consul.ServiceTagRPC},
 			},
-		})
+		}, "agent")
 	}
 
 	return nil
@@ -593,7 +593,6 @@ func (a *Agent) setupConsulSyncer(shutdownCh chan struct{}) error {
 	if err != nil {
 		return err
 	}
-	a.consulSyncer.SetServiceRegPrefix("agent")
 
 	a.consulSyncer.SetAddrFinder(func(portLabel string) (string, int) {
 		host, port, err := net.SplitHostPort(portLabel)
