@@ -74,19 +74,13 @@ func NewAgent(config *Config, logOutput io.Writer) (*Agent, error) {
 		return nil, fmt.Errorf("must have at least client or server mode enabled")
 	}
 
-	// The Nomad Agent runs the consul.Syncer regardless of whether or
-	// not the Agent is running in Client or Server mode (or both), and
-	// regardless of the consul.auto_register parameter.  The Client and
-	// Server both reuse the same consul.Syncer instance.  This Syncer
-	// task periodically executes callbacks that update Consul.  The
-	// reason the Syncer is always running is because one of the
-	// callbacks is attempts to self-bootstrap Nomad using information
-	// found in Consul.  The Syncer's handlers automatically deactivate
-	// when the Consul Fingerprinter has detected the local Consul Agent
-	// is missing.
-	if err := a.consulSyncer.SyncServices(); err != nil {
-		a.logger.Printf("[WARN] agent.consul: Initial sync of Consul failed: %v", err)
-	}
+	// The Nomad Agent runs the consul.Syncer regardless of whether or not the
+	// Agent is running in Client or Server mode (or both), and regardless of
+	// the consul.auto_register parameter. The Client and Server both reuse the
+	// same consul.Syncer instance. This Syncer task periodically executes
+	// callbacks that update Consul. The reason the Syncer is always running is
+	// because one of the callbacks is attempts to self-bootstrap Nomad using
+	// information found in Consul.
 	go a.consulSyncer.Run()
 
 	return a, nil

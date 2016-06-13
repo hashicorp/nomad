@@ -366,7 +366,6 @@ func (e *UniversalExecutor) UpdateTask(task *structs.Task) error {
 	if e.consulSyncer != nil {
 		e.interpolateServices(e.ctx.Task)
 		e.consulSyncer.SetServices(e.ctx.AllocID, task.Services)
-		e.consulSyncer.SyncNow()
 	}
 	return nil
 }
@@ -496,7 +495,6 @@ func (e *UniversalExecutor) SyncServices(ctx *ConsulContext) error {
 	e.consulSyncer.SetServiceRegPrefix(serviceRegPrefix)
 	e.consulSyncer.SetAddrFinder(e.ctx.Task.FindHostAndPortFor)
 	e.consulSyncer.SetServices(e.ctx.AllocID, e.ctx.Task.Services)
-	e.consulSyncer.SyncNow() // Attempt to register immediately
 	return nil
 }
 
