@@ -2486,12 +2486,6 @@ func TestTaskDiff(t *testing.T) {
 								Old:  "foo",
 								New:  "bar",
 							},
-							{
-								Type: DiffTypeNone,
-								Name: "ServiceID",
-								Old:  "",
-								New:  "",
-							},
 						},
 					},
 				},
@@ -2754,12 +2748,6 @@ func TestTaskDiff(t *testing.T) {
 							{
 								Type: DiffTypeNone,
 								Name: "PortLabel",
-								Old:  "",
-								New:  "",
-							},
-							{
-								Type: DiffTypeNone,
-								Name: "ServiceID",
 								Old:  "",
 								New:  "",
 							},

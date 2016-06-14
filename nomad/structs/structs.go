@@ -1482,10 +1482,19 @@ func (tg *TaskGroup) GoString() string {
 }
 
 const (
+	// TODO add Consul TTL check
 	ServiceCheckHTTP   = "http"
 	ServiceCheckTCP    = "tcp"
-	ServiceCheckDocker = "docker"
 	ServiceCheckScript = "script"
+
+	// minCheckInterval is the minimum check interval permitted.  Consul
+	// currently has its MinInterval set to 1s.  Mirror that here for
+	// consistency.
+	minCheckInterval = 1 * time.Second
+
+	// minCheckTimeout is the minimum check timeout permitted for Consul
+	// script TTL checks.
+	minCheckTimeout = 1 * time.Second
 )
 
 // The ServiceCheck data model represents the consul health check that
@@ -1510,22 +1519,36 @@ func (sc *ServiceCheck) Copy() *ServiceCheck {
 	return nsc
 }
 
-func (sc *ServiceCheck) Validate() error {
-	t := strings.ToLower(sc.Type)
-	if t != ServiceCheckTCP && t != ServiceCheckHTTP && t != ServiceCheckScript {
-		return fmt.Errorf("service check must be either http, tcp or script type")
-	}
-	if sc.Type == ServiceCheckHTTP && sc.Path == "" {
-		return fmt.Errorf("service checks of http type must have a valid http path")
+// validate a Service's ServiceCheck
+func (sc *ServiceCheck) validate() error {
+	switch strings.ToLower(sc.Type) {
+	case ServiceCheckTCP:
+		if sc.Timeout > 0 && sc.Timeout <= minCheckTimeout {
+			return fmt.Errorf("timeout %v is lower than required minimum timeout %v", sc.Timeout, minCheckInterval)
+		}
+	case ServiceCheckHTTP:
+		if sc.Path == "" {
+			return fmt.Errorf("http type must have a valid http path")
+		}
+
+		if sc.Timeout > 0 && sc.Timeout <= minCheckTimeout {
+			return fmt.Errorf("timeout %v is lower than required minimum timeout %v", sc.Timeout, minCheckInterval)
+		}
+	case ServiceCheckScript:
+		if sc.Command == "" {
+			return fmt.Errorf("script type must have a valid script path")
+		}
+
+		// TODO: enforce timeout on the Client side and reenable
+		// validation.
+	default:
+		return fmt.Errorf(`invalid type (%+q), must be one of "http", "tcp", or "script" type`, sc.Type)
 	}
 
-	if sc.Type == ServiceCheckScript && sc.Command == "" {
-		return fmt.Errorf("service checks of script type must have a valid script path")
+	if sc.Interval > 0 && sc.Interval <= minCheckInterval {
+		return fmt.Errorf("interval (%v) can not be lower than %v", sc.Interval, minCheckInterval)
 	}
 
-	if sc.Interval <= 0 {
-		return fmt.Errorf("service checks must have positive time intervals")
-	}
 	return nil
 }
 
@@ -1620,11 +1643,12 @@ func (s *Service) Validate() error {
 
 	for _, c := range s.Checks {
 		if s.PortLabel == "" && c.RequiresPort() {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("check %q is not valid since service %q doesn't have port", c.Name, s.Name))
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("check %s invalid: check requires a port but the service %+q has no port", c.Name))
 			continue
 		}
-		if err := c.Validate(); err != nil {
-			mErr.Errors = append(mErr.Errors, err)
+
+		if err := c.validate(); err != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("check %s invalid: %v", c.Name, err))
 		}
 	}
 	return mErr.ErrorOrNil()
@@ -1858,7 +1882,7 @@ func validateServices(t *Task) error {
 	knownServices := make(map[string]struct{})
 	for i, service := range t.Services {
 		if err := service.Validate(); err != nil {
-			outer := fmt.Errorf("service %d validation failed: %s", i, err)
+			outer := fmt.Errorf("service[%d] %+q validation failed: %s", i, service.Name, err)
 			mErr.Errors = append(mErr.Errors, outer)
 		}
 		if _, ok := knownServices[service.Name]; ok {

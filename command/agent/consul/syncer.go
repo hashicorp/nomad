@@ -158,7 +158,7 @@ func NewSyncer(consulConfig *config.ConsulConfig, shutdownCh chan struct{}, logg
 
 	cfg := consul.DefaultConfig()
 
-	// If a nil config was provided, fall back to the default config
+	// If a nil consulConfig was provided, fall back to the default config
 	if consulConfig == nil {
 		consulConfig = cconfig.DefaultConfig().ConsulConfig
 	}
