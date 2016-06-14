@@ -4,6 +4,7 @@
 # Vagrantfile API/syntax version. Don't touch unless you know what you're doing!
 VAGRANTFILE_API_VERSION = "2"
 
+DEFAULT_CPU_COUNT = 2
 $script = <<SCRIPT
 GO_VERSION="1.6.2"
 CONSUL_VERSION="0.6.4"
@@ -73,7 +74,10 @@ bash scripts/install_rkt.sh
 grep "cd /opt/gopath/src/github.com/hashicorp/nomad" ~/.profile || echo "cd /opt/gopath/src/github.com/hashicorp/nomad" >> ~/.profile
 SCRIPT
 
-def configureVM(vmCfg)
+def configureVM(vmCfg, vmParams={
+                  numCPUs: DEFAULT_CPU_COUNT,
+                }
+               )
   vmCfg.vm.box = "cbednarski/ubuntu-1404"
 
   vmCfg.vm.provision "shell", inline: $script, privileged: false
@@ -82,7 +86,7 @@ def configureVM(vmCfg)
   # We're going to compile go and run a concurrent system, so give ourselves
   # some extra resources. Nomad will have trouble working correctly with <2
   # CPUs so we should use at least that many.
-  cpus = 2
+  cpus = vmParams.fetch(:numCPUs, DEFAULT_CPU_COUNT)
   memory = 2048
 
   vmCfg.vm.provider "parallels" do |p, o|
@@ -109,9 +113,17 @@ end
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   1.upto(3) do |n|
     vmName = "nomad-server%02d" % [n]
-    config.vm.define vmName, autostart: (n == 1 ? true : false), primary: (n == 1 ? true : false) do |vmCfg|
+    isFirstBox = (n == 1)
+
+    numCPUs = DEFAULT_CPU_COUNT
+    if isFirstBox and Object::RUBY_PLATFORM =~ /darwin/i
+      # Override the max CPUs for the first VM
+      numCPUs = [numCPUs, (`/usr/sbin/sysctl -n hw.ncpu`.to_i - 1)].max
+    end
+
+    config.vm.define vmName, autostart: isFirstBox, primary: isFirstBox do |vmCfg|
       vmCfg.vm.hostname = vmName
-      vmCfg = configureVM(vmCfg)
+      vmCfg = configureVM(vmCfg, {:numCPUs => numCPUs})
     end
   end
 
