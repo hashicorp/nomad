@@ -10,6 +10,7 @@ import (
 
 	"github.com/hashicorp/memberlist"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/scheduler"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
@@ -176,6 +177,9 @@ type Config struct {
 	// a new leader is elected, since we no longer know the status
 	// of all the heartbeats.
 	FailoverHeartbeatTTL time.Duration
+
+	// ConsulConfig is this Agent's Consul configuration
+	ConsulConfig *config.ConsulConfig
 }
 
 // CheckVersion is used to check if the ProtocolVersion is valid

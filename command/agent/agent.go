@@ -235,7 +235,7 @@ func (a *Agent) serverConfig() (*nomad.Config, error) {
 		return nil, fmt.Errorf("server_service_name must be set when auto_advertise is enabled")
 	}
 
-	// conf.ConsulConfig = a.config.Consul
+	conf.ConsulConfig = a.config.Consul
 
 	return conf, nil
 }
@@ -379,7 +379,7 @@ func (a *Agent) setupServer() error {
 	}
 
 	// Create the server
-	server, err := nomad.NewServer(conf)
+	server, err := nomad.NewServer(conf, a.consulSyncer)
 	if err != nil {
 		return fmt.Errorf("server setup failed: %v", err)
 	}
