@@ -4,7 +4,7 @@ set -e
 # Get the version from the command line
 VERSION=$1
 if [ -z $VERSION ]; then
-    echo "Please specify a version."
+    echo "Please specify a version. (format: 0.4.0-rc1)"
     exit 1
 fi
 
