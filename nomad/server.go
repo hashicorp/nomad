@@ -469,7 +469,9 @@ func (s *Server) setupConsulSyncer() error {
 
 		return nil
 	}
-	s.consulSyncer.AddPeriodicHandler("Nomad Server Fallback Server Handler", bootstrapFn)
+	if s.config.ConsulConfig.ServerAutoJoin {
+		s.consulSyncer.AddPeriodicHandler("Nomad Server Fallback Server Handler", bootstrapFn)
+	}
 
 	return nil
 }
