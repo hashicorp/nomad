@@ -415,8 +415,8 @@ func (s *Server) setupConsulSyncer() error {
 			// form a quorum.
 			nearestDC := dcs[0]
 			otherDCs := make([]string, 0, len(dcs))
-			otherDCs = dcs[1:lib.MinInt(len(dcs), s.config.BootstrapExpect*datacenterQueryFactor)]
 			shuffleStrings(otherDCs)
+			otherDCs = dcs[1:lib.MinInt(len(dcs), s.config.BootstrapExpect*datacenterQueryFactor)]
 
 			dcs = append([]string{nearestDC}, otherDCs...)
 		}

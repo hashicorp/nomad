@@ -1255,8 +1255,8 @@ func (c *Client) setupConsulSyncer() error {
 			// a new set of servers so it's okay.
 			nearestDC := dcs[0]
 			otherDCs := make([]string, 0, len(dcs))
-			otherDCs = dcs[1:lib.MinInt(len(dcs), datacenterQueryLimit)]
 			shuffleStrings(otherDCs)
+			otherDCs = dcs[1:lib.MinInt(len(dcs), datacenterQueryLimit)]
 
 			dcs = append([]string{nearestDC}, otherDCs...)
 		}
