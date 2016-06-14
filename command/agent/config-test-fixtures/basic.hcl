@@ -96,6 +96,7 @@ consul {
     ca_file = "/path/to/ca/file"
     cert_file = "/path/to/cert/file"
     key_file = "/path/to/key/file"
-    server_auto_join = true
-    client_auto_join = true
+    server_auto_join = false
+    client_auto_join = false
+    auto_advertise = false
 }
