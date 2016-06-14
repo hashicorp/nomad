@@ -24,9 +24,10 @@ type ConsulConfig struct {
 	// clients with Consul
 	ClientServiceName string `mapstructure:"client_service_name"`
 
-	// AutoRegister determines if Nomad will register the Nomad client and
-	// server agents with Consul
-	AutoRegister bool `mapstructure:"auto_register"`
+	// AutoAdvertise determines if this Nomad Agent will advertise its
+	// services via Consul.  When true, Nomad Agent will register
+	// services with Consul.
+	AutoAdvertise bool `mapstructure:"auto_advertise"`
 
 	// Addr is the address of the local Consul agent
 	Addr string `mapstructure:"address"`
@@ -76,8 +77,8 @@ func (a *ConsulConfig) Merge(b *ConsulConfig) *ConsulConfig {
 	if b.ClientServiceName != "" {
 		result.ClientServiceName = b.ClientServiceName
 	}
-	if b.AutoRegister {
-		result.AutoRegister = true
+	if b.AutoAdvertise {
+		result.AutoAdvertise = true
 	}
 	if b.Addr != "" {
 		result.Addr = b.Addr
