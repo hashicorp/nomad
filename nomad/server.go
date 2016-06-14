@@ -386,9 +386,16 @@ func (s *Server) setupConsulSyncer() error {
 	// in the same region and automatically reform a quorum (assuming the
 	// correct number of servers required for quorum are present).
 	bootstrapFn := func() error {
-		// If the the number of Members in Serf is more than the
-		// bootstrap quorum, do nothing.
-		if len(s.Members()) < s.config.BootstrapExpect {
+		// If there is a raft leader, do nothing
+		if s.raft.Leader() != "" {
+			return nil
+		}
+
+		// If the the number of Raft peers or Members in Serf is more
+		// than the min quorum, do nothing.
+		raftPeers, err := s.raftPeers.Peers()
+		minQuorum := (s.config.BootstrapExpect / 2) + 1
+		if err == nil && (len(raftPeers) >= minQuorum || len(s.Members()) >= minQuorum) {
 			return nil
 		}
 
@@ -426,6 +433,7 @@ func (s *Server) setupConsulSyncer() error {
 			}
 			consulServices, _, err := consulCatalog.Service(nomadServerServiceName, consul.ServiceTagSerf, opts)
 			if err != nil {
+				s.logger.Printf("[TRACE] server.consul: failed to query dc %+q's service %+q: %v", dc, nomadServerServiceName, err)
 				mErr.Errors = append(mErr.Errors, fmt.Errorf("unable to query service %+q from Consul datacenter %+q: %v", nomadServerServiceName, dc, err))
 				continue
 			}
@@ -440,13 +448,18 @@ func (s *Server) setupConsulSyncer() error {
 				nomadServerServices = append(nomadServerServices, serverAddr)
 			}
 		}
+
 		if len(nomadServerServices) == 0 {
 			if len(mErr.Errors) > 0 {
 				return mErr.ErrorOrNil()
 			}
 
-			return fmt.Errorf("no Nomad Servers advertising service %+q in Consul datacenters: %+q", nomadServerServiceName, dcs)
+			// Log the error and return nil so future handlers
+			// can attempt to register the `nomad` service.
+			s.logger.Printf("[TRACE] server.consul: no Nomad Servers advertising service %+q in Consul datacenters: %+q", nomadServerServiceName, dcs)
+			return nil
 		}
+
 		numServersContacted, err := s.Join(nomadServerServices)
 		if err != nil {
 			return fmt.Errorf("contacted %d Nomad Servers: %v", numServersContacted, err)
