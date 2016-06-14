@@ -1351,19 +1351,19 @@ func (c *Client) setupConsulSyncer() error {
 		domains[1] = consul.ClientDomain
 
 		for allocID, ar := range c.getAllocRunners() {
-			if ar.Alloc().TerminalStatus() {
-				// Ignore non-running allocations
-				continue
+			ar.taskStatusLock.RLock()
+			taskStates := copyTaskStates(ar.taskStates)
+			ar.taskStatusLock.RUnlock()
+			for taskName, taskState := range taskStates {
+				// Only keep running tasks
+				if taskState.State == structs.TaskStateRunning {
+					d := consul.NewExecutorDomain(allocID, taskName)
+					domains = append(domains, d)
+				}
 			}
-			ar.taskLock.RLock()
-			for task := range ar.tasks {
-				d := consul.NewExecutorDomain(allocID, task)
-				domains = append(domains, d)
-			}
-			ar.taskLock.RUnlock()
 		}
 
-		return c.consulSyncer.KeepDomains(domains)
+		return c.consulSyncer.ReapUnmatched(domains)
 	}
 	c.consulSyncer.AddPeriodicHandler("Nomad Client Services Sync Handler", consulServicesReaperFn)
 

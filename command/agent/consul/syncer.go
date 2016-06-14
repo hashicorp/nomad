@@ -54,7 +54,7 @@ const (
 
 	// nomadServicePrefix is the first prefix that scopes all Nomad registered
 	// services
-	nomadServicePrefix = "nomad-registered-service"
+	nomadServicePrefix = "_nomad"
 
 	// The periodic time interval for syncing services and checks with Consul
 	syncInterval = 5 * time.Second
@@ -953,8 +953,8 @@ func (c *Syncer) runCheck(check Check) {
 	}
 }
 
-// KeepDomains prunes all services that do not exist in the passed domains
-func (c *Syncer) KeepDomains(domains []ServiceDomain) error {
+// ReapUnmatched prunes all services that do not exist in the passed domains
+func (c *Syncer) ReapUnmatched(domains []ServiceDomain) error {
 	servicesInConsul, err := c.ConsulClient().Agent().Services()
 	if err != nil {
 		return err

@@ -363,16 +363,15 @@ func (e *UniversalExecutor) UpdateTask(task *structs.Task) error {
 	if e.consulSyncer != nil {
 		e.interpolateServices(e.ctx.Task)
 		domain := consul.NewExecutorDomain(e.ctx.AllocID, task.Name)
-		serviceMap := servicesToServiceMap(e.ctx.AllocID, task.Services)
+		serviceMap := generateServiceKeys(e.ctx.AllocID, task.Services)
 		e.consulSyncer.SetServices(domain, serviceMap)
 	}
 	return nil
 }
 
-// servicesToServiceMap takes a list of interpolated services and returns a map
-// of ServiceKeys to services where the service key is appropriate for the
-// executor.
-func servicesToServiceMap(allocID string, services []*structs.Service) map[consul.ServiceKey]*structs.Service {
+// generateServiceKeys takes a list of interpolated Nomad Services and returns a map
+// of ServiceKeys to Nomad Services.
+func generateServiceKeys(allocID string, services []*structs.Service) map[consul.ServiceKey]*structs.Service {
 	keys := make(map[consul.ServiceKey]*structs.Service, len(services))
 	for _, service := range services {
 		key := consul.GenerateServiceKey(service)
@@ -505,7 +504,7 @@ func (e *UniversalExecutor) SyncServices(ctx *ConsulContext) error {
 	e.consulSyncer.SetDelegatedChecks(e.createCheckMap(), e.createCheck)
 	e.consulSyncer.SetAddrFinder(e.ctx.Task.FindHostAndPortFor)
 	domain := consul.NewExecutorDomain(e.ctx.AllocID, e.ctx.Task.Name)
-	serviceMap := servicesToServiceMap(e.ctx.AllocID, e.ctx.Task.Services)
+	serviceMap := generateServiceKeys(e.ctx.AllocID, e.ctx.Task.Services)
 	e.consulSyncer.SetServices(domain, serviceMap)
 	return nil
 }

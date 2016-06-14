@@ -412,7 +412,7 @@ func (a *Agent) setupClient() error {
 	}
 	a.client = client
 
-	// Create the Nomad Server services for Consul
+	// Create the Nomad Client  services for Consul
 	if a.config.Consul.AutoRegister && a.config.Consul.ClientServiceName != "" {
 		httpServ := &structs.Service{
 			Name:      a.config.Consul.ClientServiceName,
