@@ -231,8 +231,8 @@ integration and are entirely optional.
   following keys:
   <br>
   * `address`: The address to the local Consul agent given in the format of
-    `host:port`. The default is the same as the Consul default HTTP address,
-     `127.0.0.1:8500`.
+    `host:port`. Defaults to `127.0.0.1:8500`, which is the same as the Consul
+    default HTTP address.
 
   * `token`: Token is used to provide a per-request ACL token. This options
     overrides the Consul Agent's default token.
@@ -241,11 +241,10 @@ integration and are entirely optional.
     given as `username:password`.
 
   * `ssl`: This boolean option sets the transport scheme to talk to the Consul
-    Agent as `https`. This option is unset by default and so the default transport
-    scheme for the Consul API client is `http`.
+    Agent as `https`. Defaults to `false`.
 
   * `verify_ssl`: This option enables SSL verification when the transport
-    scheme for the Consul API client is `https`. This is set to true by default.
+    scheme for the Consul API client is `https`. Defaults to `true`.
 
   * `ca_file`: Optional path to the CA certificate used for Consul
     communication, defaults to the system bundle if not specified.
@@ -262,23 +261,27 @@ integration and are entirely optional.
   * `client_service_name`: The name of the service that Nomad registers clients
     with. Defaults to `nomad-client`.
 
-  * `auto_advertise`: Defaults to `true` and when enabled Nomad advertises
-    services with Consul. The services are named according to
-    `server_service_name` and `client_service_name` and appropriate tags are set
-    for the `http`, `rpc` and `serf` addresses.
+  * `auto_advertise`: When enabled Nomad advertises its services to Consul. The
+    services are named according to `server_service_name` and
+    `client_service_name`. Nomad Servers and Clients advertise their respective
+    services, each tagged appropriately with either `http` or `rpc` tag. Nomad
+    Servers also advertise a `serf` tagged service.  Defaults to `true`.  
 
-  * `server_auto_join`: Defaults to `true` and when enabled, the Server will
-    discover other Servers in its region using Consul by searching for Servers
-    registered with `server_service_name`. The search occurs if the Server does
-    not have a leader or know about `bootstrap_expect` amount of Servers in its
-    region.
+  * `server_auto_join`: Servers will automatically discover and join other
+    Nomad Servers by searching for the Consul service name defined in the
+    `server_service_name` option. This search only happens if the Server does
+    not have a leader. Defaults to `true`.
 
-  * `client_auto_join`: Defaults to `true` and when enabled, the Client will
-    discover Servers in its region using Consul by searching for Servers
-    registered with `server_service_name`. The search occurs if the Client is
-    not registered with any Servers or it is unable to heartbeat to the leader
-    of the region, in which case it may be partitioned and searches for other
-    Servers.
+  * `client_auto_join`:  Client will automatically discover Servers in the
+    Client's region by searching for the Consul service name defined in the
+    `server_service_name` option. The search occurs if the Client is not
+    registered with any Servers or it is unable to heartbeat to the leader of
+    the region, in which case it may be partitioned and searches for other
+    Servers. Defaults to `true`
+
+When `server_auto_join`, `client_auto_join` and `auto_advertise` are all
+enabled, which is by default, and Consul is available, the Nomad cluster will
+self-bootstrap.
 
 ## <a id="atlas_options"></a>Atlas Options
 
