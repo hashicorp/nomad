@@ -1484,7 +1484,6 @@ func (tg *TaskGroup) GoString() string {
 const (
 	ServiceCheckHTTP   = "http"
 	ServiceCheckTCP    = "tcp"
-	ServiceCheckDocker = "docker"
 	ServiceCheckScript = "script"
 )
 
