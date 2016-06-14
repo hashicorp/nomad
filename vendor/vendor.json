@@ -479,8 +479,10 @@
 			"revision": "a0d98a5f288019575c6d1f4bb1573fef2d1fcdc4"
 		},
 		{
+			"checksumSHA1": "5LrCq/ydlbL6pq1cdmuxiw7QV98=",
 			"path": "github.com/hashicorp/hcl",
-			"revision": "1c284ec98f4b398443cbabb0d9197f7f4cc0077c"
+			"revision": "d7400db7143f8e869812e50a53acd6c8d92af3b8",
+			"revisionTime": "2016-06-07T00:19:40Z"
 		},
 		{
 			"path": "github.com/hashicorp/hcl/hcl/ast",
