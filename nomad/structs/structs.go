@@ -1509,7 +1509,8 @@ func (sc *ServiceCheck) Copy() *ServiceCheck {
 	return nsc
 }
 
-func (sc *ServiceCheck) Validate() error {
+// validate a Service's ServiceCheck
+func (sc *ServiceCheck) validate() error {
 	t := strings.ToLower(sc.Type)
 	if t != ServiceCheckTCP && t != ServiceCheckHTTP && t != ServiceCheckScript {
 		return fmt.Errorf("service check must be either http, tcp or script type")
@@ -1622,7 +1623,7 @@ func (s *Service) Validate() error {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("check %q is not valid since service %q doesn't have port", c.Name, s.Name))
 			continue
 		}
-		if err := c.Validate(); err != nil {
+		if err := c.validate(); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 		}
 	}
