@@ -392,11 +392,11 @@ func (s *Server) setupConsulSyncer() error {
 			return nil
 		}
 
-		// If the the number of Raft peers or Members in Serf is more
-		// than the min quorum, do nothing.
+		// If the the number of Raft peers is more than the min
+		// quorum, do nothing.
 		raftPeers, err := s.raftPeers.Peers()
 		minQuorum := (s.config.BootstrapExpect / 2) + 1
-		if err == nil && (len(raftPeers) >= minQuorum || len(s.Members()) >= minQuorum) {
+		if err == nil && len(raftPeers) >= minQuorum {
 			return nil
 		}
 
