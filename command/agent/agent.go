@@ -76,7 +76,7 @@ func NewAgent(config *Config, logOutput io.Writer) (*Agent, error) {
 
 	// The Nomad Agent runs the consul.Syncer regardless of whether or not the
 	// Agent is running in Client or Server mode (or both), and regardless of
-	// the consul.auto_register parameter. The Client and Server both reuse the
+	// the consul.auto_advertise parameter. The Client and Server both reuse the
 	// same consul.Syncer instance. This Syncer task periodically executes
 	// callbacks that update Consul. The reason the Syncer is always running is
 	// because one of the callbacks is attempts to self-bootstrap Nomad using
@@ -230,6 +230,12 @@ func (a *Agent) serverConfig() (*nomad.Config, error) {
 		conf.HeartbeatGrace = dur
 	}
 
+	if a.config.Consul.AutoAdvertise && a.config.Consul.ServerServiceName == "" {
+		return nil, fmt.Errorf("server_service_name must be set when auto_advertise is enabled")
+	}
+
+	// conf.ConsulConfig = a.config.Consul
+
 	return conf, nil
 }
 
@@ -333,6 +339,10 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	conf.Version = fmt.Sprintf("%s%s", a.config.Version, a.config.VersionPrerelease)
 	conf.Revision = a.config.Revision
 
+	if a.config.Consul.AutoAdvertise && a.config.Consul.ClientServiceName == "" {
+		return nil, fmt.Errorf("client_service_name must be set when auto_advertise is enabled")
+	}
+
 	conf.ConsulConfig = a.config.Consul
 
 	conf.StatsCollectionInterval = a.config.Client.StatsConfig.collectionInterval
@@ -360,7 +370,7 @@ func (a *Agent) setupServer() error {
 	a.server = server
 
 	// Create the Nomad Server services for Consul
-	if a.config.Consul.AutoRegister && a.config.Consul.ServerServiceName != "" {
+	if a.config.Consul.AutoAdvertise {
 		httpServ := &structs.Service{
 			Name:      a.config.Consul.ServerServiceName,
 			PortLabel: a.serverHTTPAddr,
@@ -413,7 +423,7 @@ func (a *Agent) setupClient() error {
 	a.client = client
 
 	// Create the Nomad Client  services for Consul
-	if a.config.Consul.AutoRegister && a.config.Consul.ClientServiceName != "" {
+	if a.config.Consul.AutoAdvertise {
 		httpServ := &structs.Service{
 			Name:      a.config.Consul.ClientServiceName,
 			PortLabel: a.clientHTTPAddr,

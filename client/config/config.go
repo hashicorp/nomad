@@ -134,7 +134,7 @@ func DefaultConfig() *Config {
 		ConsulConfig: &config.ConsulConfig{
 			ServerServiceName: "nomad",
 			ClientServiceName: "nomad-client",
-			AutoRegister:      true,
+			AutoAdvertise:     true,
 			Timeout:           5 * time.Second,
 		},
 		LogOutput:               os.Stderr,

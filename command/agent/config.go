@@ -362,7 +362,7 @@ func DevConfig() *Config {
 	conf.DevMode = true
 	conf.EnableDebug = true
 	conf.DisableAnonymousSignature = true
-	conf.Consul.AutoRegister = true
+	conf.Consul.AutoAdvertise = true
 	if runtime.GOOS == "darwin" {
 		conf.Client.NetworkInterface = "lo0"
 	} else if runtime.GOOS == "linux" {
@@ -393,7 +393,7 @@ func DefaultConfig() *Config {
 		Consul: &config.ConsulConfig{
 			ServerServiceName: "nomad",
 			ClientServiceName: "nomad-client",
-			AutoRegister:      true,
+			AutoAdvertise:     true,
 			Timeout:           5 * time.Second,
 		},
 		Client: &ClientConfig{

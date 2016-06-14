@@ -600,7 +600,7 @@ func parseConsulConfig(result **config.ConsulConfig, list *ast.ObjectList) error
 	valid := []string{
 		"address",
 		"auth",
-		"auto_register",
+		"auto_advertise",
 		"ca_file",
 		"cert_file",
 		"client_auto_join",
