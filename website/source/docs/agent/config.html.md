@@ -69,11 +69,7 @@ client {
 
 consul {
     # Consul's HTTP Address
-    address = "127.0.0.1:8500"
-
-    # Auto-registered Consul Service names
-    server_service_name = "nomad"
-    client_service_name = "nomad-client"
+    address = "1.2.3.4:8500"
 }
 
 atlas {
@@ -179,10 +175,10 @@ nodes, unless otherwise specified:
     reachable from all server nodes. It is not required that clients can reach
     this address.
 
-* `consul`: The `consul` configuration allows setting both how Nomad accesses
-  Consul and allows configuration of automatic advertisement of Nomad and
-  cluster bootstrapping via Consul. For more details see the [`consul`
-  section](#consul_options)
+* `consul`: The `consul` configuration block changes how Nomad interacts with
+  Consul. Nomad can automatically advertise Nomad services via Consul, and can
+  automatically bootstrap itself using Consul. For more details see the [`consul`
+  section](#consul_options).
 
 * `telemetry`: Used to control how the Nomad agent exposes telemetry data to
   external metrics collection servers. This is a key/value mapping and supports
