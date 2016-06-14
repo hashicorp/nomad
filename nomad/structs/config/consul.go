@@ -35,7 +35,7 @@ type ConsulConfig struct {
 	// Timeout is used by Consul HTTP Client
 	Timeout time.Duration `mapstructure:"timeout"`
 
-	// Token is used to provide a per-request ACL token.This options overrides
+	// Token is used to provide a per-request ACL token. This options overrides
 	// the agent's default token
 	Token string `mapstructure:"token"`
 

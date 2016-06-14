@@ -67,6 +67,11 @@ client {
   }
 }
 
+consul {
+    # Consul's HTTP Address
+    address = "1.2.3.4:8500"
+}
+
 atlas {
   infrastructure = "hashicorp/mars"
   token = "atlas.v1.AFE84330943"
@@ -170,6 +175,11 @@ nodes, unless otherwise specified:
     reachable from all server nodes. It is not required that clients can reach
     this address.
 
+* `consul`: The `consul` configuration block changes how Nomad interacts with
+  Consul. Nomad can automatically advertise Nomad services via Consul, and can
+  automatically bootstrap itself using Consul. For more details see the [`consul`
+  section](#consul_options).
+
 * `telemetry`: Used to control how the Nomad agent exposes telemetry data to
   external metrics collection servers. This is a key/value mapping and supports
   the following keys:
@@ -208,6 +218,97 @@ nodes, unless otherwise specified:
       Access-Control-Allow-Origin = "*"
   }
   ```
+
+* `atlas`: See the [`atlas` options](#atlas_options) for more details.
+
+## <a id="consul_options"></a>Consul Options
+
+The following options are used to configure [Consul](https://www.consul.io)
+integration and are entirely optional.
+
+* `consul`: The top-level config key used to contain all Consul-related
+  configuration options. The value is a key/value map which supports the
+  following keys:
+  <br>
+  * `address`: The address to the local Consul agent given in the format of
+    `host:port`. Defaults to `127.0.0.1:8500`, which is the same as the Consul
+    default HTTP address.
+
+  * `token`: Token is used to provide a per-request ACL token. This options
+    overrides the Consul Agent's default token.
+
+  * `auth`: The auth information to use for http access to the Consul Agent
+    given as `username:password`.
+
+  * `ssl`: This boolean option sets the transport scheme to talk to the Consul
+    Agent as `https`. Defaults to `false`.
+
+  * `verify_ssl`: This option enables SSL verification when the transport
+    scheme for the Consul API client is `https`. Defaults to `true`.
+
+  * `ca_file`: Optional path to the CA certificate used for Consul
+    communication, defaults to the system bundle if not specified.
+
+  * `cert_file`: The path to the certificate used for Consul communication. If
+    this is set then you need to also set `key_file`.
+
+  * `key_file`: The path to the private key used for Consul communication. If
+    this is set then you need to also set `cert_file`.
+
+  * `server_service_name`: The name of the service that Nomad registers servers
+    with. Defaults to `nomad`.
+
+  * `client_service_name`: The name of the service that Nomad registers clients
+    with. Defaults to `nomad-client`.
+
+  * `auto_advertise`: When enabled Nomad advertises its services to Consul. The
+    services are named according to `server_service_name` and
+    `client_service_name`. Nomad Servers and Clients advertise their respective
+    services, each tagged appropriately with either `http` or `rpc` tag. Nomad
+    Servers also advertise a `serf` tagged service.  Defaults to `true`.  
+
+  * `server_auto_join`: Servers will automatically discover and join other
+    Nomad Servers by searching for the Consul service name defined in the
+    `server_service_name` option. This search only happens if the Server does
+    not have a leader. Defaults to `true`.
+
+  * `client_auto_join`:  Client will automatically discover Servers in the
+    Client's region by searching for the Consul service name defined in the
+    `server_service_name` option. The search occurs if the Client is not
+    registered with any Servers or it is unable to heartbeat to the leader of
+    the region, in which case it may be partitioned and searches for other
+    Servers. Defaults to `true`
+
+When `server_auto_join`, `client_auto_join` and `auto_advertise` are all
+enabled, which is by default, and Consul is available, the Nomad cluster will
+self-bootstrap.
+
+## <a id="atlas_options"></a>Atlas Options
+
+**NOTE**: Nomad integration with Atlas is awaiting release of Atlas features
+for Nomad support.  Nomad currently only validates configuration options for
+Atlas but does not use them.
+See [#183](https://github.com/hashicorp/nomad/issues/183) for more details.
+
+The following options are used to configure [Atlas](https://atlas.hashicorp.com)
+integration and are entirely optional.
+
+* `atlas`: The top-level config key used to contain all Atlas-related
+  configuration options. The value is a key/value map which supports the
+  following keys:
+  <br>
+  * <a id="infrastructure">`infrastructure`</a>: The Atlas infrastructure name to
+    connect this agent to. This value should be of the form
+    `<org>/<infrastructure>`, and requires a valid [token](#token) authorized on
+    the infrastructure.
+  * <a id="token">`token`</a>: The Atlas token to use for authentication. This
+    token should have access to the provided [infrastructure](#infrastructure).
+  * <a id="join">`join`</a>: A boolean indicating if the auto-join feature of
+    Atlas should be enabled. Defaults to `false`.
+  * `endpoint`: The address of the Atlas instance to connect to. Defaults to the
+    public Atlas endpoint and is only used if both
+    [infrastructure](#infrastructure) and [token](#token) are provided.
+
 
 ## Server-specific Options
 
@@ -328,29 +429,12 @@ configured on server nodes.
       to reserve on all fingerprinted network devices. Ranges can be
       specified by using a hyphen separated the two inclusive ends.
 
-### Client Options Map <a id="options_map"></a>
+### <a id="options_map"></a>Client Options Map 
 
 The following is not an exhaustive list of options that can be passed to the
 Client, but rather the set of options that configure the Client and not the
 drivers. To find the options supported by an individual driver, see the drivers
 documentation [here](/docs/drivers/index.html)
-
-* `consul.address`: The address to the local Consul agent given in the format of
-  `host:port`. The default is the same as the Consul default address,
-  `127.0.0.1:8500`.
-
-* `consul.token`: Token is used to provide a per-request ACL token.This options
-  overrides the agent's default token
-
-* `consul.auth`: The auth information to use for http access to the Consul
-  Agent.
-
-* `consul.ssl`: This boolean option sets the transport scheme to talk to the Consul
-  Agent as `https`. This option is unset by default and so the default transport
-  scheme for the consul api client is `http`.
-
-* `consul.verifyssl`: This option enables SSL verification when the transport
- scheme for the Consul API client is `https`. This is set to true by default.
 
 * `driver.whitelist`: A comma separated list of whitelisted drivers (e.g.
   "docker,qemu"). If specified, drivers not in the whitelist will be disabled.
@@ -387,33 +471,7 @@ documentation [here](/docs/drivers/index.html)
   If specified, fingerprinters not in the whitelist will be disabled. If the
   whitelist is empty, all fingerprinters are used.
 
-## Atlas Options
-
-**NOTE**: Nomad integration with Atlas is awaiting release of Atlas features
-for Nomad support.  Nomad currently only validates configuration options for
-Atlas but does not use them.
-See [#183](https://github.com/hashicorp/nomad/issues/183) for more details.
-
-The following options are used to configure [Atlas](https://atlas.hashicorp.com)
-integration and are entirely optional.
-
-* `atlas`: The top-level config key used to contain all Atlas-related
-  configuration options. The value is a key/value map which supports the
-  following keys:
-  <br>
-  * <a id="infrastructure">`infrastructure`</a>: The Atlas infrastructure name to
-    connect this agent to. This value should be of the form
-    `<org>/<infrastructure>`, and requires a valid [token](#token) authorized on
-    the infrastructure.
-  * <a id="token">`token`</a>: The Atlas token to use for authentication. This
-    token should have access to the provided [infrastructure](#infrastructure).
-  * <a id="join">`join`</a>: A boolean indicating if the auto-join feature of
-    Atlas should be enabled. Defaults to `false`.
-  * `endpoint`: The address of the Atlas instance to connect to. Defaults to the
-    public Atlas endpoint and is only used if both
-    [infrastructure](#infrastructure) and [token](#token) are provided.
-
-## Command-line Options <a id="cli"></a>
+## <a id="cli"></a>Command-line Options 
 
 A subset of the available Nomad agent configuration can optionally be passed in
 via CLI arguments. The `agent` command accepts the following arguments:

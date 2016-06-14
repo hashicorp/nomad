@@ -113,8 +113,9 @@ func TestConfig_Parse(t *testing.T) {
 					CAFile:            "/path/to/ca/file",
 					CertFile:          "/path/to/cert/file",
 					KeyFile:           "/path/to/key/file",
-					ServerAutoJoin:    true,
-					ClientAutoJoin:    true,
+					ServerAutoJoin:    false,
+					ClientAutoJoin:    false,
+					AutoAdvertise:     false,
 				},
 				HTTPAPIResponseHeaders: map[string]string{
 					"Access-Control-Allow-Origin": "*",

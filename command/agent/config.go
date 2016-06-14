@@ -394,6 +394,8 @@ func DefaultConfig() *Config {
 			ServerServiceName: "nomad",
 			ClientServiceName: "nomad-client",
 			AutoAdvertise:     true,
+			ServerAutoJoin:    true,
+			ClientAutoJoin:    true,
 			Timeout:           5 * time.Second,
 		},
 		Client: &ClientConfig{
