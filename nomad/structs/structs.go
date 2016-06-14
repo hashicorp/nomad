@@ -1530,10 +1530,6 @@ func (sc *ServiceCheck) validate() error {
 		if sc.Command == "" {
 			return fmt.Errorf("script type must have a valid script path")
 		}
-
-		if sc.Timeout <= minCheckTimeout {
-			return fmt.Errorf("timeout %v is lower than required minimum timeout %v", sc.Timeout, minCheckInterval)
-		}
 	default:
 		return fmt.Errorf(`invalid type (%+q), must be one of "http", "tcp", or "script" type`, sc.Type)
 	}
@@ -1541,6 +1537,11 @@ func (sc *ServiceCheck) validate() error {
 	if sc.Interval <= minCheckInterval {
 		return fmt.Errorf("interval (%v) can not be lower than %v", sc.Interval, minCheckInterval)
 	}
+
+	if sc.Timeout <= minCheckTimeout {
+		return fmt.Errorf("timeout %v is lower than required minimum timeout %v", sc.Timeout, minCheckInterval)
+	}
+
 	return nil
 }
 
