@@ -465,7 +465,7 @@ func (s *Server) setupConsulSyncer() error {
 		if err != nil {
 			return fmt.Errorf("contacted %d Nomad Servers: %v", numServersContacted, err)
 		}
-		s.logger.Printf("[INFO] successfully contacted %d Nomad Servers", numServersContacted)
+		s.logger.Printf("[INFO] server.consul: successfully contacted %d Nomad Servers", numServersContacted)
 
 		return nil
 	}
