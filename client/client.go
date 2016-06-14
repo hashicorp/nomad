@@ -39,7 +39,7 @@ const (
 
 	// datacenterQueryLimit searches through up to this many adjacent
 	// datacenters looking for the Nomad server service.
-	datacenterQueryLimit = 5
+	datacenterQueryLimit = 9
 
 	// registerRetryIntv is minimum interval on which we retry
 	// registration. We pick a value between this and 2x this.

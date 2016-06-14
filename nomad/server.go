@@ -31,9 +31,10 @@ import (
 const (
 	// datacenterQueryFactor sets the max number of DCs that a Nomad
 	// Server will query to find bootstrap_expect servers.  If
-	// bootstrap_expect is 3, then the Nomad Server bootstrapFn handler
-	// will search through up to 9 Consul DCs to find its quorum.
-	datacenterQueryFactor = 3
+	// bootstrap_expect is 5, then the Nomad Server bootstrapFn handler
+	// will search through up to 15 Consul DCs to find possible Serf
+	// peers.
+	datacenterQueryFactor = 5
 
 	raftState         = "raft/"
 	serfSnapshot      = "serf/snapshot"
