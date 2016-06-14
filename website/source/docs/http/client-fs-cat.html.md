@@ -3,7 +3,7 @@ layout: "http"
 page_title: "HTTP API: /v1/client/fs/cat"
 sidebar_current: "docs-http-client-fs-cat"
 description: |-
-  The '/1/client/fs/cat` endpoint is used to read the contents of a file in an
+  The '/v1/client/fs/cat` endpoint is used to read the contents of a file in an
   allocation directory.
 ---
 
