@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/jobspec"
@@ -189,8 +190,9 @@ func formatDryRun(resp *api.JobPlanResponse) string {
 		out += fmt.Sprintf("[green]- Rolling update, next evaluation will be in %s.\n", rolling.Wait)
 	}
 
-	if !resp.NextPeriodicLaunch.IsZero() {
-		out += fmt.Sprintf("[green]- If submitted now, next periodic launch would be at %s.\n", formatTime(resp.NextPeriodicLaunch))
+	if next := resp.NextPeriodicLaunch; !next.IsZero() {
+		out += fmt.Sprintf("[green]- If submitted now, next periodic launch would be at %s (%s from now).\n",
+			formatTime(next), formatTimeDifference(time.Now().UTC(), next, time.Second))
 	}
 
 	out = strings.TrimSuffix(out, "\n")

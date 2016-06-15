@@ -49,6 +49,13 @@ func formatTime(t time.Time) string {
 	return t.Format("01/02/06 15:04:05 MST")
 }
 
+// formatTimeDifference takes two times and determines their duration difference
+// truncating to a passed unit.
+// E.g. formatTimeDifference(first=1m22s33ms, second=1m28s55ms, time.Second) -> 6s
+func formatTimeDifference(first, second time.Time, d time.Duration) string {
+	return second.Truncate(d).Sub(first.Truncate(d)).String()
+}
+
 // getLocalNodeID returns the node ID of the local Nomad Client and an error if
 // it couldn't be determined or the Agent is not running in Client mode.
 func getLocalNodeID(client *api.Client) (string, error) {
