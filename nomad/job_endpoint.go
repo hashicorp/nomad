@@ -511,6 +511,11 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 	}
 	updatedEval := planner.Evals[0]
 
+	// If it is a periodic job calculate the next launch
+	if args.Job.IsPeriodic() && args.Job.Periodic.Enabled {
+		reply.NextPeriodicLaunch = args.Job.Periodic.Next(time.Now().UTC())
+	}
+
 	reply.FailedTGAllocs = updatedEval.FailedTGAllocs
 	reply.JobModifyIndex = index
 	reply.Annotations = annotations

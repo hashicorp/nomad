@@ -310,11 +310,12 @@ type JobPlanRequest struct {
 }
 
 type JobPlanResponse struct {
-	JobModifyIndex uint64
-	CreatedEvals   []*Evaluation
-	Diff           *JobDiff
-	Annotations    *PlanAnnotations
-	FailedTGAllocs map[string]*AllocationMetric
+	JobModifyIndex     uint64
+	CreatedEvals       []*Evaluation
+	Diff               *JobDiff
+	Annotations        *PlanAnnotations
+	FailedTGAllocs     map[string]*AllocationMetric
+	NextPeriodicLaunch time.Time
 }
 
 type JobDiff struct {

@@ -164,8 +164,11 @@ func (c *StatusCommand) Run(args []string) int {
 	}
 
 	if periodic {
-		basic = append(basic, fmt.Sprintf("Next Periodic Launch|%v",
-			sJob.Periodic.Next(time.Now().UTC())))
+		now := time.Now().UTC()
+		next := sJob.Periodic.Next(now)
+		basic = append(basic, fmt.Sprintf("Next Periodic Launch|%s",
+			fmt.Sprintf("%s (%s from now)",
+				formatTime(next), formatTimeDifference(now, next, time.Second))))
 	}
 
 	c.Ui.Output(formatKV(basic))
