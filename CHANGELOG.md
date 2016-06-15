@@ -4,6 +4,8 @@ __BACKWARDS INCOMPATIBILITIES:__
   * api: Tasks are no longer allowed to have slashes in their name [GH-1210]
   * cli: Remove the eval-monitor command. Users should switch to `nomad
     eval-status -monitor`.
+  * config: Consul configuration has been moved from client options map to
+    consul block under client configuration
 
 IMPROVEMENTS:
   * core: Scheduler reuses blocked evaluations to avoid unbounded creation of
