@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -270,6 +271,21 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 		conf.NetworkInterface = a.config.Client.NetworkInterface
 	}
 	conf.Options = a.config.Client.Options
+	// Logging deprecation messages about consul related configuration in client
+	// options
+	var invalidConsulKeys []string
+	for key := range conf.Options {
+		if strings.HasPrefix(key, "consul") {
+			invalidConsulKeys = append(invalidConsulKeys, fmt.Sprintf("options.%s", key))
+		}
+	}
+	if len(invalidConsulKeys) > 0 {
+		a.logger.Printf("[WARN] agent: Invalid keys: %v", strings.Join(invalidConsulKeys, ","))
+		a.logger.Printf(`Nomad client ignores consul related configuration in client options. 
+		Please refer to the guide https://www.nomadproject.io/docs/agent/config.html#consul_options 
+		to configure Nomad to work with Consul.`)
+	}
+
 	if a.config.Client.NetworkSpeed != 0 {
 		conf.NetworkSpeed = a.config.Client.NetworkSpeed
 	}
