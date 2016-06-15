@@ -352,6 +352,9 @@ documentation [here](/docs/drivers/index.html)
 * `consul.verifyssl`: This option enables SSL verification when the transport
  scheme for the Consul API client is `https`. This is set to true by default.
 
+* `driver.docker.volumes.selinuxlabel`: Allows the operator to set a SELinux
+  label to the allocation and task local bind-mounts to containers.
+
 * `driver.whitelist`: A comma separated list of whitelisted drivers (e.g.
   "docker,qemu"). If specified, drivers not in the whitelist will be disabled.
   If the whitelist is empty, all drivers are fingerprinted and enabled where
