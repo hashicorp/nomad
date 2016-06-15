@@ -3,7 +3,7 @@ layout: "http"
 page_title: "HTTP API: /v1/client/fs/ls"
 sidebar_current: "docs-http-client-fs-ls"
 description: |-
-  The '/1/client/fs/ls` endpoint is used to list files in an allocation
+  The '/v1/client/fs/ls` endpoint is used to list files in an allocation
   directory.
 ---
 

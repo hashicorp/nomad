@@ -3,7 +3,7 @@ layout: "http"
 page_title: "HTTP API: /v1/client/fs/stat"
 sidebar_current: "docs-http-client-fs-stat"
 description: |-
-  The '/1/client/fs/stat` endpoint is used to stat a file in an allocation
+  The '/v1/client/fs/stat` endpoint is used to stat a file in an allocation
   directory.
 ---
 
