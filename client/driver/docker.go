@@ -316,11 +316,16 @@ func (d *DockerDriver) containerBinds(alloc *allocdir.AllocDir, task *structs.Ta
 		return nil, fmt.Errorf("Failed to find task local directory: %v", task.Name)
 	}
 
+	allocDirBind := fmt.Sprintf("%s:/%s", shared, allocdir.SharedAllocName)
+	taskLocalBind := fmt.Sprintf("%s:/%s", local, allocdir.TaskLocal)
+
+	if selinuxLabel := d.config.Read("docker.volumes.selinuxlabel"); selinuxLabel != "" {
+		allocDirBind = fmt.Sprintf("%s:%s", allocDirBind, selinuxLabel)
+		taskLocalBind = fmt.Sprintf("%s:%s", taskLocalBind, selinuxLabel)
+	}
 	return []string{
-		// "z" and "Z" option is to allocate directory with SELinux label.
-		fmt.Sprintf("%s:/%s:rw,z", shared, allocdir.SharedAllocName),
-		// capital "Z" will label with Multi-Category Security (MCS) labels
-		fmt.Sprintf("%s:/%s:rw,Z", local, allocdir.TaskLocal),
+		allocDirBind,
+		taskLocalBind,
 	}, nil
 }
 
