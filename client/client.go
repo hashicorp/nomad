@@ -1261,18 +1261,26 @@ func (c *Client) setupConsulSyncer() error {
 			dcs = append([]string{nearestDC}, otherDCs...)
 		}
 
+		// Forward RPCs to our region
+		nomadRPCArgs := structs.GenericRequest{
+			QueryOptions: structs.QueryOptions{
+				Region: c.Region(),
+			},
+		}
+
 		nomadServerServiceName := c.config.ConsulConfig.ServerServiceName
 		var mErr multierror.Error
 		const defaultMaxNumNomadServers = 8
 		nomadServerServices := make([]string, 0, defaultMaxNumNomadServers)
+		c.logger.Printf("[DEBUG] client.consul: bootstrap contacting following Consul DCs: %q", dcs)
 		for _, dc := range dcs {
-			opts := &consulapi.QueryOptions{
+			consulOpts := &consulapi.QueryOptions{
 				AllowStale: true,
 				Datacenter: dc,
 				Near:       "_agent",
 				WaitTime:   consul.DefaultQueryWaitDuration,
 			}
-			consulServices, _, err := consulCatalog.Service(nomadServerServiceName, consul.ServiceTagRPC, opts)
+			consulServices, _, err := consulCatalog.Service(nomadServerServiceName, consul.ServiceTagRPC, consulOpts)
 			if err != nil {
 				mErr.Errors = append(mErr.Errors, fmt.Errorf("unable to query service %+q from Consul datacenter %+q: %v", nomadServerServiceName, dc, err))
 				continue
@@ -1290,13 +1298,16 @@ func (c *Client) setupConsulSyncer() error {
 					mErr.Errors = append(mErr.Errors, err)
 					continue
 				}
-				var ok bool
-				if ok, err = c.connPool.PingNomadServer(c.Region(), c.RPCMajorVersion(), serverEndpoint); err != nil {
+				var peers []string
+				if err := c.connPool.RPC(c.Region(), serverEndpoint.Addr, c.RPCMajorVersion(), "Status.Peers", nomadRPCArgs, &peers); err != nil {
 					mErr.Errors = append(mErr.Errors, err)
 					continue
 				}
-				if ok {
-					nomadServerServices = append(nomadServerServices, serverAddr)
+				// Successfully received the Server peers list of the correct
+				// region
+				if len(peers) != 0 {
+					nomadServerServices = append(nomadServerServices, peers...)
+					break
 				}
 			}
 			// Break if at least one Nomad Server was successfully pinged
@@ -1309,11 +1320,11 @@ func (c *Client) setupConsulSyncer() error {
 				return mErr.ErrorOrNil()
 			}
 
-			for i := range dcs {
-				dcs[i] = fmt.Sprintf("%+q", dcs[i])
-			}
-			return fmt.Errorf("no Nomad Servers advertising service %+q in Consul datacenters: %+q", nomadServerServiceName, dcs)
+			return fmt.Errorf("no Nomad Servers advertising service %q in Consul datacenters: %q", nomadServerServiceName, dcs)
 		}
+
+		// Log the servers we are adding
+		c.logger.Printf("[DEBUG] client.consul: bootstrap adding following Servers: %q", nomadServerServices)
 
 		c.heartbeatLock.Lock()
 		if atomic.LoadInt32(&c.lastHeartbeatFromQuorum) == 1 && now.Before(c.consulPullHeartbeatDeadline) {
