@@ -1234,11 +1234,9 @@ func (c *Client) setupConsulSyncer() error {
 		// providing a heartbeat that does contain a leader.
 		if atomic.LoadInt32(&c.lastHeartbeatFromQuorum) == 1 && now.Before(c.consulPullHeartbeatDeadline) {
 			c.heartbeatLock.Unlock()
-			// c.logger.Printf("[TRACE] client.consul: heartbeat received, sleeping until %v", c.consulPullHeartbeatDeadline)
 			return nil
 		}
 		c.heartbeatLock.Unlock()
-		c.logger.Printf("[TRACE] client.consul: lost heartbeat with Nomad quorum, falling back to Consul for server list")
 
 		consulCatalog := c.consulSyncer.ConsulClient().Catalog()
 		dcs, err := consulCatalog.Datacenters()
