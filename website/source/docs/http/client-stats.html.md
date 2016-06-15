@@ -30,7 +30,8 @@ the nomad client whose resource usage metrics are of interest.
 
   <dt>Returns</dt>
   <dd>
-  ```
+
+  ```javascript
    {
      "CPU": [
        {
