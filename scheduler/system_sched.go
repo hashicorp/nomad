@@ -36,6 +36,8 @@ type SystemScheduler struct {
 
 	limitReached bool
 	nextEval     *structs.Evaluation
+
+	failedTGAllocs map[string]*structs.AllocMetric
 }
 
 // NewSystemScheduler is a factory function to instantiate a new system
@@ -60,20 +62,20 @@ func (s *SystemScheduler) Process(eval *structs.Evaluation) error {
 	default:
 		desc := fmt.Sprintf("scheduler cannot handle '%s' evaluation reason",
 			eval.TriggeredBy)
-		return setStatus(s.logger, s.planner, s.eval, s.nextEval, nil, nil, structs.EvalStatusFailed, desc)
+		return setStatus(s.logger, s.planner, s.eval, s.nextEval, nil, s.failedTGAllocs, structs.EvalStatusFailed, desc)
 	}
 
 	// Retry up to the maxSystemScheduleAttempts and reset if progress is made.
 	progress := func() bool { return progressMade(s.planResult) }
 	if err := retryMax(maxSystemScheduleAttempts, s.process, progress); err != nil {
 		if statusErr, ok := err.(*SetStatusError); ok {
-			return setStatus(s.logger, s.planner, s.eval, s.nextEval, nil, nil, statusErr.EvalStatus, err.Error())
+			return setStatus(s.logger, s.planner, s.eval, s.nextEval, nil, s.failedTGAllocs, statusErr.EvalStatus, err.Error())
 		}
 		return err
 	}
 
 	// Update the status to complete
-	return setStatus(s.logger, s.planner, s.eval, s.nextEval, nil, nil, structs.EvalStatusComplete, "")
+	return setStatus(s.logger, s.planner, s.eval, s.nextEval, nil, s.failedTGAllocs, structs.EvalStatusComplete, "")
 }
 
 // process is wrapped in retryMax to iteratively run the handler until we have no
@@ -99,7 +101,7 @@ func (s *SystemScheduler) process() (bool, error) {
 	s.plan = s.eval.MakePlan(s.job)
 
 	// Reset the failed allocations
-	s.eval.FailedTGAllocs = nil
+	s.failedTGAllocs = nil
 
 	// Create an evaluation context
 	s.ctx = NewEvalContext(s.state, s.plan, s.logger)
@@ -239,7 +241,7 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 
 		if option == nil {
 			// Check if this task group has already failed
-			if metric, ok := s.eval.FailedTGAllocs[missing.TaskGroup.Name]; ok {
+			if metric, ok := s.failedTGAllocs[missing.TaskGroup.Name]; ok {
 				metric.CoalescedFailures += 1
 				continue
 			}
@@ -267,11 +269,11 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 			s.plan.AppendAlloc(alloc)
 		} else {
 			// Lazy initialize the failed map
-			if s.eval.FailedTGAllocs == nil {
-				s.eval.FailedTGAllocs = make(map[string]*structs.AllocMetric)
+			if s.failedTGAllocs == nil {
+				s.failedTGAllocs = make(map[string]*structs.AllocMetric)
 			}
 
-			s.eval.FailedTGAllocs[missing.TaskGroup.Name] = s.ctx.Metrics()
+			s.failedTGAllocs[missing.TaskGroup.Name] = s.ctx.Metrics()
 		}
 	}
 
