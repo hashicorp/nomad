@@ -139,7 +139,7 @@ func (c *PlanCommand) Run(args []string) int {
 
 	// Print the scheduler dry-run output
 	c.Ui.Output(c.Colorize().Color("[bold]Scheduler dry-run:[reset]"))
-	c.Ui.Output(c.Colorize().Color(formatDryRun(resp.FailedTGAllocs, resp.CreatedEvals)))
+	c.Ui.Output(c.Colorize().Color(formatDryRun(resp)))
 	c.Ui.Output("")
 
 	// Print the job index info
@@ -156,22 +156,22 @@ func formatJobModifyIndex(jobModifyIndex uint64, jobName string) string {
 }
 
 // formatDryRun produces a string explaining the results of the dry run.
-func formatDryRun(failedTGAllocs map[string]*api.AllocationMetric, evals []*api.Evaluation) string {
+func formatDryRun(resp *api.JobPlanResponse) string {
 	var rolling *api.Evaluation
-	for _, eval := range evals {
+	for _, eval := range resp.CreatedEvals {
 		if eval.TriggeredBy == "rolling-update" {
 			rolling = eval
 		}
 	}
 
 	var out string
-	if len(failedTGAllocs) == 0 {
+	if len(resp.FailedTGAllocs) == 0 {
 		out = "[bold][green]- All tasks successfully allocated.[reset]\n"
 	} else {
 		out = "[bold][yellow]- WARNING: Failed to place all allocations.[reset]\n"
-		sorted := sortedTaskGroupFromMetrics(failedTGAllocs)
+		sorted := sortedTaskGroupFromMetrics(resp.FailedTGAllocs)
 		for _, tg := range sorted {
-			metrics := failedTGAllocs[tg]
+			metrics := resp.FailedTGAllocs[tg]
 
 			noun := "allocation"
 			if metrics.CoalescedFailures > 0 {
@@ -187,6 +187,10 @@ func formatDryRun(failedTGAllocs map[string]*api.AllocationMetric, evals []*api.
 
 	if rolling != nil {
 		out += fmt.Sprintf("[green]- Rolling update, next evaluation will be in %s.\n", rolling.Wait)
+	}
+
+	if !resp.NextPeriodicLaunch.IsZero() {
+		out += fmt.Sprintf("[green]- If submitted now, next periodic launch would be at %s.\n", formatTime(resp.NextPeriodicLaunch))
 	}
 
 	out = strings.TrimSuffix(out, "\n")

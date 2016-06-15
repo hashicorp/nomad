@@ -468,6 +468,10 @@ type JobPlanResponse struct {
 	// causes an in-place update or create/destroy
 	Diff *JobDiff
 
+	// NextPeriodicLaunch is the time duration till the job would be launched if
+	// submitted.
+	NextPeriodicLaunch time.Time
+
 	WriteMeta
 }
 

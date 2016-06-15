@@ -46,7 +46,7 @@ func limit(s string, length int) string {
 
 // formatTime formats the time to string based on RFC822
 func formatTime(t time.Time) string {
-	return t.Format("02/01/06 15:04:05 MST")
+	return t.Format("01/02/06 15:04:05 MST")
 }
 
 // getLocalNodeID returns the node ID of the local Nomad Client and an error if
