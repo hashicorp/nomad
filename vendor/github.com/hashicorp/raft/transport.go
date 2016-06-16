@@ -60,6 +60,30 @@ type Transport interface {
 	SetHeartbeatHandler(cb func(rpc RPC))
 }
 
+// Close() lives in a separate interface as unfortunately it wasn't in the
+// original interface specification.
+type WithClose interface {
+	// Permanently close a transport, stop all go-routines etc
+	Close() error
+}
+
+// Loopback transport is an interface that provides a loopback transport suitable for testing
+// e.g. InmemTransport. It's there so we don't have to rewrite tests.
+type LoopbackTransport interface {
+	Transport // Embedded transport reference
+	WithPeers // Embedded peer management
+	WithClose // with a close routine
+}
+
+// WithPeers is an interface that a transport may provide which allows for connection and
+// disconnection. Unless the transport is a loopback transport, the transport specified to
+// "Connect" is likely to be nil.
+type WithPeers interface {
+	Connect(peer string, t Transport) // Connect a peer
+	Disconnect(peer string)           // Disconnect a given peer
+	DisconnectAll()                   // Disconnect all peers, possibly to reconnect them later
+}
+
 // AppendPipeline is used for pipelining AppendEntries requests. It is used
 // to increase the replication throughput by masking latency and better
 // utilizing bandwidth.

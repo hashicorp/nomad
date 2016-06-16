@@ -147,6 +147,11 @@ type Raft struct {
 	// verifyCh is used to async send verify futures to the main thread
 	// to verify we are still the leader
 	verifyCh chan *verifyFuture
+
+	// List of observers and the mutex that protects them. The observers list
+	// is indexed by an artificial ID which is used for deregistration.
+	observersLock sync.RWMutex
+	observers     map[uint64]*Observer
 }
 
 // NewRaft is used to construct a new Raft node. It takes a configuration, as well
@@ -221,6 +226,7 @@ func NewRaft(conf *Config, fsm FSM, logs LogStore, stable StableStore, snaps Sna
 		stable:        stable,
 		trans:         trans,
 		verifyCh:      make(chan *verifyFuture, 64),
+		observers:     make(map[uint64]*Observer),
 	}
 
 	// Initialize as a follower
@@ -235,8 +241,7 @@ func NewRaft(conf *Config, fsm FSM, logs LogStore, stable StableStore, snaps Sna
 
 	// Restore the current term and the last log
 	r.setCurrentTerm(currentTerm)
-	r.setLastLogIndex(lastLog.Index)
-	r.setLastLogTerm(lastLog.Term)
+	r.setLastLog(lastLog.Index, lastLog.Term)
 
 	// Attempt to restore a snapshot if there are any
 	if err := r.restoreSnapshot(); err != nil {
@@ -268,8 +273,12 @@ func (r *Raft) Leader() string {
 // setLeader is used to modify the current leader of the cluster
 func (r *Raft) setLeader(leader string) {
 	r.leaderLock.Lock()
+	oldLeader := r.leader
 	r.leader = leader
 	r.leaderLock.Unlock()
+	if oldLeader != leader {
+		r.observe(LeaderObservation{leader: leader})
+	}
 }
 
 // Apply is used to apply a command to the FSM in a highly consistent
@@ -412,9 +421,11 @@ func (r *Raft) Shutdown() Future {
 		close(r.shutdownCh)
 		r.shutdown = true
 		r.setState(Shutdown)
+		return &shutdownFuture{r}
 	}
 
-	return &shutdownFuture{r}
+	// avoid closing transport twice
+	return &shutdownFuture{nil}
 }
 
 // Snapshot is used to manually force Raft to take a snapshot.
@@ -463,16 +474,18 @@ func (r *Raft) Stats() map[string]string {
 	toString := func(v uint64) string {
 		return strconv.FormatUint(v, 10)
 	}
+	lastLogIndex, lastLogTerm := r.getLastLog()
+	lastSnapIndex, lastSnapTerm := r.getLastSnapshot()
 	s := map[string]string{
 		"state":               r.getState().String(),
 		"term":                toString(r.getCurrentTerm()),
-		"last_log_index":      toString(r.getLastLogIndex()),
-		"last_log_term":       toString(r.getLastLogTerm()),
+		"last_log_index":      toString(lastLogIndex),
+		"last_log_term":       toString(lastLogTerm),
 		"commit_index":        toString(r.getCommitIndex()),
 		"applied_index":       toString(r.getLastApplied()),
 		"fsm_pending":         toString(uint64(len(r.fsmCommitCh))),
-		"last_snapshot_index": toString(r.getLastSnapshotIndex()),
-		"last_snapshot_term":  toString(r.getLastSnapshotTerm()),
+		"last_snapshot_index": toString(lastSnapIndex),
+		"last_snapshot_term":  toString(lastSnapTerm),
 		"num_peers":           toString(uint64(len(r.peers))),
 	}
 	last := r.LastContact()
@@ -607,7 +620,7 @@ func (r *Raft) run() {
 // runFollower runs the FSM for a follower.
 func (r *Raft) runFollower() {
 	didWarn := false
-	r.logger.Printf("[INFO] raft: %v entering Follower state", r)
+	r.logger.Printf("[INFO] raft: %v entering Follower state (Leader: %q)", r, r.Leader())
 	metrics.IncrCounter([]string{"raft", "state", "follower"}, 1)
 	heartbeatTimer := randomTimeout(r.conf.HeartbeatTimeout)
 	for {
@@ -639,6 +652,7 @@ func (r *Raft) runFollower() {
 			}
 
 			// Heartbeat failed! Transition to the candidate state
+			lastLeader := r.Leader()
 			r.setLeader("")
 			if len(r.peers) == 0 && !r.conf.EnableSingleNode {
 				if !didWarn {
@@ -646,9 +660,9 @@ func (r *Raft) runFollower() {
 					didWarn = true
 				}
 			} else {
-				r.logger.Printf("[WARN] raft: Heartbeat timeout reached, starting election")
+				r.logger.Printf(`[WARN] raft: Heartbeat timeout from %q reached, starting election`, lastLeader)
 
-				metrics.IncrCounter([]string{"raft", "transition", "heartbeat_timout"}, 1)
+				metrics.IncrCounter([]string{"raft", "transition", "heartbeat_timeout"}, 1)
 				r.setState(Candidate)
 				return
 			}
@@ -1125,8 +1139,7 @@ func (r *Raft) dispatchLogs(applyLogs []*logFuture) {
 	r.leaderState.inflight.StartAll(applyLogs)
 
 	// Update the last log since it's on disk now
-	r.setLastLogIndex(lastIndex + uint64(len(applyLogs)))
-	r.setLastLogTerm(term)
+	r.setLastLog(lastIndex+uint64(len(applyLogs)), term)
 
 	// Notify the replicators of the new log
 	for _, f := range r.leaderState.replState {
@@ -1367,7 +1380,7 @@ func (r *Raft) appendEntries(rpc RPC, a *AppendEntriesRequest) {
 		last := a.Entries[n-1]
 
 		// Delete any conflicting entries
-		lastLogIdx := r.getLastLogIndex()
+		lastLogIdx, _ := r.getLastLog()
 		if first.Index <= lastLogIdx {
 			r.logger.Printf("[WARN] raft: Clearing log suffix from %d to %d", first.Index, lastLogIdx)
 			if err := r.logs.DeleteRange(first.Index, lastLogIdx); err != nil {
@@ -1383,8 +1396,7 @@ func (r *Raft) appendEntries(rpc RPC, a *AppendEntriesRequest) {
 		}
 
 		// Update the lastLog
-		r.setLastLogIndex(last.Index)
-		r.setLastLogTerm(last.Term)
+		r.setLastLog(last.Index, last.Term)
 		metrics.MeasureSince([]string{"raft", "rpc", "appendEntries", "storeLogs"}, start)
 	}
 
@@ -1406,6 +1418,8 @@ func (r *Raft) appendEntries(rpc RPC, a *AppendEntriesRequest) {
 // requestVote is invoked when we get an request vote RPC call.
 func (r *Raft) requestVote(rpc RPC, req *RequestVoteRequest) {
 	defer metrics.MeasureSince([]string{"raft", "rpc", "requestVote"}, time.Now())
+	r.observe(*req)
+
 	// Setup a response
 	resp := &RequestVoteResponse{
 		Term:    r.getCurrentTerm(),
@@ -1468,7 +1482,7 @@ func (r *Raft) requestVote(rpc RPC, req *RequestVoteRequest) {
 		return
 	}
 
-	if lastIdx > req.LastLogIndex {
+	if lastTerm == req.LastLogTerm && lastIdx > req.LastLogIndex {
 		r.logger.Printf("[WARN] raft: Rejecting vote request from %v since our last index is greater (%d, %d)",
 			candidate, lastIdx, req.LastLogIndex)
 		return
@@ -1481,6 +1495,7 @@ func (r *Raft) requestVote(rpc RPC, req *RequestVoteRequest) {
 	}
 
 	resp.Granted = true
+	r.setLastContact()
 	return
 }
 
@@ -1569,8 +1584,7 @@ func (r *Raft) installSnapshot(rpc RPC, req *InstallSnapshotRequest) {
 	r.setLastApplied(req.LastLogIndex)
 
 	// Update the last stable snapshot info
-	r.setLastSnapshotIndex(req.LastLogIndex)
-	r.setLastSnapshotTerm(req.LastLogTerm)
+	r.setLastSnapshot(req.LastLogIndex, req.LastLogTerm)
 
 	// Restore the peer set
 	peers := decodePeers(req.Peers, r.trans)
@@ -1694,7 +1708,11 @@ func (r *Raft) setCurrentTerm(t uint64) {
 // that leader should be set only after updating the state.
 func (r *Raft) setState(state RaftState) {
 	r.setLeader("")
+	oldState := r.raftState.getState()
 	r.raftState.setState(state)
+	if oldState != state {
+		r.observe(state)
+	}
 }
 
 // runSnapshots is a long running goroutine used to manage taking
@@ -1732,7 +1750,7 @@ func (r *Raft) runSnapshots() {
 // a new snapshot.
 func (r *Raft) shouldSnapshot() bool {
 	// Check the last snapshot index
-	lastSnap := r.getLastSnapshotIndex()
+	lastSnap, _ := r.getLastSnapshot()
 
 	// Check the last log index
 	lastIdx, err := r.logs.LastIndex()
@@ -1797,8 +1815,7 @@ func (r *Raft) takeSnapshot() error {
 	}
 
 	// Update the last stable snapshot info
-	r.setLastSnapshotIndex(req.index)
-	r.setLastSnapshotTerm(req.term)
+	r.setLastSnapshot(req.index, req.term)
 
 	// Compact the logs
 	if err := r.compactLogs(req.index); err != nil {
@@ -1821,7 +1838,8 @@ func (r *Raft) compactLogs(snapIdx uint64) error {
 	}
 
 	// Check if we have enough logs to truncate
-	if r.getLastLogIndex() <= r.conf.TrailingLogs {
+	lastLogIdx, _ := r.getLastLog()
+	if lastLogIdx <= r.conf.TrailingLogs {
 		return nil
 	}
 
@@ -1829,7 +1847,7 @@ func (r *Raft) compactLogs(snapIdx uint64) error {
 	// back from the head, which ever is further back. This ensures
 	// at least `TrailingLogs` entries, but does not allow logs
 	// after the snapshot to be removed.
-	maxLog := min(snapIdx, r.getLastLogIndex()-r.conf.TrailingLogs)
+	maxLog := min(snapIdx, lastLogIdx-r.conf.TrailingLogs)
 
 	// Log this
 	r.logger.Printf("[INFO] raft: Compacting logs from %d to %d", minLog, maxLog)
@@ -1872,8 +1890,7 @@ func (r *Raft) restoreSnapshot() error {
 		r.setLastApplied(snapshot.Index)
 
 		// Update the last stable snapshot info
-		r.setLastSnapshotIndex(snapshot.Index)
-		r.setLastSnapshotTerm(snapshot.Term)
+		r.setLastSnapshot(snapshot.Index, snapshot.Term)
 
 		// Success!
 		return nil

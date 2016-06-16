@@ -44,9 +44,11 @@ type InmemTransport struct {
 }
 
 // NewInmemTransport is used to initialize a new transport
-// and generates a random local address.
-func NewInmemTransport() (string, *InmemTransport) {
-	addr := NewInmemAddr()
+// and generates a random local address if none is specified
+func NewInmemTransport(addr string) (string, *InmemTransport) {
+	if addr == "" {
+		addr = NewInmemAddr()
+	}
 	trans := &InmemTransport{
 		consumerCh: make(chan RPC, 16),
 		localAddr:  addr,
@@ -170,7 +172,8 @@ func (i *InmemTransport) DecodePeer(buf []byte) string {
 
 // Connect is used to connect this transport to another transport for
 // a given peer name. This allows for local routing.
-func (i *InmemTransport) Connect(peer string, trans *InmemTransport) {
+func (i *InmemTransport) Connect(peer string, t Transport) {
+	trans := t.(*InmemTransport)
 	i.Lock()
 	defer i.Unlock()
 	i.peers[peer] = trans
@@ -206,6 +209,12 @@ func (i *InmemTransport) DisconnectAll() {
 		pipeline.Close()
 	}
 	i.pipelines = nil
+}
+
+// Close is used to permanently disable the transport
+func (i *InmemTransport) Close() error {
+	i.DisconnectAll()
+	return nil
 }
 
 func newInmemPipeline(trans *InmemTransport, peer *InmemTransport, addr string) *inmemPipeline {
