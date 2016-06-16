@@ -69,6 +69,7 @@ telemetry {
 	statsite_address = "127.0.0.1:1234"
 	statsd_address = "127.0.0.1:2345"
 	disable_hostname = true
+    collection_interval = "3s"
 }
 leave_on_interrupt = true
 leave_on_terminate = true

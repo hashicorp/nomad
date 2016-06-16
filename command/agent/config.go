@@ -130,17 +130,6 @@ type AtlasConfig struct {
 	Endpoint string `mapstructure:"endpoint"`
 }
 
-// StatsConfig determines behavior of resource usage stats collections
-type StatsConfig struct {
-
-	// DataPoints is the number of data points Nomad client stores in-memory
-	DataPoints int `mapstructure:"data_points"`
-
-	// CollectionInterval is the interval of resource usage stats collection
-	CollectionInterval string        `mapstructure:"collection_interval"`
-	collectionInterval time.Duration `mapstructure:"_"`
-}
-
 // ClientConfig is configuration specific to the client mode
 type ClientConfig struct {
 	// Enabled controls if we are a client
@@ -188,10 +177,6 @@ type ClientConfig struct {
 	// be used to target a certain utilization or to prevent Nomad from using a
 	// particular set of ports.
 	Reserved *Resources `mapstructure:"reserved"`
-
-	// StatsConfig determines behavior of resource usage stats collection in
-	// Nomad client
-	StatsConfig *StatsConfig `mapstructure:"stats"`
 }
 
 // ServerConfig is configuration specific to the server mode
@@ -255,9 +240,11 @@ type ServerConfig struct {
 
 // Telemetry is the telemetry configuration for the server
 type Telemetry struct {
-	StatsiteAddr    string `mapstructure:"statsite_address"`
-	StatsdAddr      string `mapstructure:"statsd_address"`
-	DisableHostname bool   `mapstructure:"disable_hostname"`
+	StatsiteAddr       string        `mapstructure:"statsite_address"`
+	StatsdAddr         string        `mapstructure:"statsd_address"`
+	DisableHostname    bool          `mapstructure:"disable_hostname"`
+	CollectionInterval string        `mapstructure:"collection_interval"`
+	collectionInterval time.Duration `mapstructure:"-"`
 }
 
 // Ports is used to encapsulate the various ports we bind to for network
@@ -405,11 +392,6 @@ func DefaultConfig() *Config {
 			ClientMinPort:  14000,
 			ClientMaxPort:  14512,
 			Reserved:       &Resources{},
-			StatsConfig: &StatsConfig{
-				DataPoints:         60,
-				CollectionInterval: "1s",
-				collectionInterval: 1 * time.Second,
-			},
 		},
 		Server: &ServerConfig{
 			Enabled:          false,
@@ -419,6 +401,10 @@ func DefaultConfig() *Config {
 			RetryMaxAttempts: 0,
 		},
 		SyslogFacility: "LOCAL0",
+		Telemetry: &Telemetry{
+			CollectionInterval: "1s",
+			collectionInterval: 1 * time.Second,
+		},
 	}
 }
 
@@ -655,9 +641,6 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	if b.Reserved != nil {
 		result.Reserved = result.Reserved.Merge(b.Reserved)
 	}
-	if b.StatsConfig != nil {
-		result.StatsConfig = result.StatsConfig.Merge(b.StatsConfig)
-	}
 
 	// Add the servers
 	result.Servers = append(result.Servers, b.Servers...)
@@ -693,6 +676,12 @@ func (a *Telemetry) Merge(b *Telemetry) *Telemetry {
 	}
 	if b.DisableHostname {
 		result.DisableHostname = true
+	}
+	if b.CollectionInterval != "" {
+		result.CollectionInterval = b.CollectionInterval
+	}
+	if b.collectionInterval != 0 {
+		result.collectionInterval = b.collectionInterval
 	}
 	return &result
 }
@@ -783,18 +772,6 @@ func (r *Resources) Merge(b *Resources) *Resources {
 	}
 	if len(b.ParsedReservedPorts) != 0 {
 		result.ParsedReservedPorts = b.ParsedReservedPorts
-	}
-	return &result
-}
-
-func (s *StatsConfig) Merge(b *StatsConfig) *StatsConfig {
-	result := *s
-	if b.DataPoints != 0 {
-		result.DataPoints = b.DataPoints
-	}
-	if b.CollectionInterval != "" {
-		result.CollectionInterval = b.CollectionInterval
-		result.collectionInterval = b.collectionInterval
 	}
 	return &result
 }
