@@ -26,12 +26,14 @@ IMPROVEMENTS:
   * cli: node-status command displays host resource usage and allocation
     resources [GH-1261]
   * client: If Consul is available, automatically bootstrap Nomad Client
-    using the `nomad` service in Consul. Nomad servers now register
-    themselves with Consul if Consul is available. [GH-1201]
+    using the `_nomad` service in Consul. Nomad Servers now register
+    themselves with Consul to make this possible. [GH-1201]
   * drivers: Qemu and Java can be run without an artifact being download. Useful
     if the artifact exists inside a chrooted directory [GH-1262]
   * driver/docker: Added a client options to set SELinux labels for container
     bind mounts. [GH-788]
+  * server: If Consul is available, automatically bootstrap Nomad Servers
+    using the `_nomad` service in Consul.  [GH-1276]
 
 BUG FIXES:
   * core: Improve garbage collection of allocations and nodes [GH-1256]
