@@ -319,7 +319,7 @@ func (d *DockerDriver) containerBinds(alloc *allocdir.AllocDir, task *structs.Ta
 	allocDirBind := fmt.Sprintf("%s:/%s", shared, allocdir.SharedAllocName)
 	taskLocalBind := fmt.Sprintf("%s:/%s", local, allocdir.TaskLocal)
 
-	if selinuxLabel := d.config.Read("driver.docker.volumes.selinuxlabel"); selinuxLabel != "" {
+	if selinuxLabel := d.config.Read("docker.volumes.selinuxlabel"); selinuxLabel != "" {
 		allocDirBind = fmt.Sprintf("%s:%s", allocDirBind, selinuxLabel)
 		taskLocalBind = fmt.Sprintf("%s:%s", taskLocalBind, selinuxLabel)
 	}
