@@ -1,6 +1,10 @@
 package nomad
 
-import "github.com/hashicorp/serf/serf"
+import (
+	"sync/atomic"
+
+	"github.com/hashicorp/serf/serf"
+)
 
 const (
 	// StatusReap is used to update the status of a node if we
@@ -66,7 +70,7 @@ func (s *Server) nodeJoin(me serf.MemberEvent) {
 		s.peerLock.Unlock()
 
 		// If we still expecting to bootstrap, may need to handle this
-		if s.config.BootstrapExpect != 0 {
+		if atomic.LoadInt32(&s.config.BootstrapExpect) != 0 {
 			s.maybeBootstrap()
 		}
 	}
@@ -91,7 +95,7 @@ func (s *Server) maybeBootstrap() {
 	// Bootstrap can only be done if there are no committed logs,
 	// remove our expectations of bootstrapping
 	if index != 0 {
-		s.config.BootstrapExpect = 0
+		atomic.StoreInt32(&s.config.BootstrapExpect, 0)
 		return
 	}
 
@@ -106,7 +110,7 @@ func (s *Server) maybeBootstrap() {
 		if p.Region != s.config.Region {
 			continue
 		}
-		if p.Expect != 0 && p.Expect != s.config.BootstrapExpect {
+		if p.Expect != 0 && p.Expect != int(atomic.LoadInt32(&s.config.BootstrapExpect)) {
 			s.logger.Printf("[ERR] nomad: peer %v has a conflicting expect value. All nodes should expect the same number.", member)
 			return
 		}
@@ -118,7 +122,7 @@ func (s *Server) maybeBootstrap() {
 	}
 
 	// Skip if we haven't met the minimum expect count
-	if len(addrs) < s.config.BootstrapExpect {
+	if len(addrs) < int(atomic.LoadInt32(&s.config.BootstrapExpect)) {
 		return
 	}
 
@@ -128,8 +132,8 @@ func (s *Server) maybeBootstrap() {
 		s.logger.Printf("[ERR] nomad: failed to bootstrap peers: %v", err)
 	}
 
-	// Bootstrapping comlete, don't enter this again
-	s.config.BootstrapExpect = 0
+	// Bootstrapping complete, don't enter this again
+	atomic.StoreInt32(&s.config.BootstrapExpect, 0)
 }
 
 // nodeFailed is used to handle fail events on the serf cluster

@@ -3,11 +3,13 @@ package nomad
 import (
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/testutil"
 )
 
@@ -63,8 +65,14 @@ func testServer(t *testing.T, cb func(*Config)) *Server {
 	// Enable raft as leader if we have bootstrap on
 	config.RaftConfig.StartAsLeader = !config.DevDisableBootstrap
 
+	shutdownCh := make(chan struct{})
+	consulSyncer, err := consul.NewSyncer(config.ConsulConfig, shutdownCh, log.New(config.LogOutput, "", log.LstdFlags))
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
 	// Create server
-	server, err := NewServer(config)
+	server, err := NewServer(config, consulSyncer)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

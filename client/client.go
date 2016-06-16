@@ -39,7 +39,7 @@ const (
 
 	// datacenterQueryLimit searches through up to this many adjacent
 	// datacenters looking for the Nomad server service.
-	datacenterQueryLimit = 5
+	datacenterQueryLimit = 9
 
 	// registerRetryIntv is minimum interval on which we retry
 	// registration. We pick a value between this and 2x this.
@@ -1253,8 +1253,8 @@ func (c *Client) setupConsulSyncer() error {
 			// a new set of servers so it's okay.
 			nearestDC := dcs[0]
 			otherDCs := make([]string, 0, len(dcs))
-			otherDCs = dcs[1:lib.MinInt(len(dcs), datacenterQueryLimit)]
 			shuffleStrings(otherDCs)
+			otherDCs = dcs[1:lib.MinInt(len(dcs), datacenterQueryLimit)]
 
 			dcs = append([]string{nearestDC}, otherDCs...)
 		}
@@ -1270,7 +1270,7 @@ func (c *Client) setupConsulSyncer() error {
 		var mErr multierror.Error
 		const defaultMaxNumNomadServers = 8
 		nomadServerServices := make([]string, 0, defaultMaxNumNomadServers)
-		c.logger.Printf("[DEBUG] client.consul: bootstrap contacting following Consul DCs: %q", dcs)
+		c.logger.Printf("[DEBUG] client.consul: bootstrap contacting following Consul DCs: %+q", dcs)
 		for _, dc := range dcs {
 			consulOpts := &consulapi.QueryOptions{
 				AllowStale: true,

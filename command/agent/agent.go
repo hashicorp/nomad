@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/hashicorp/nomad/client"
@@ -110,7 +111,7 @@ func (a *Agent) serverConfig() (*nomad.Config, error) {
 		if a.config.Server.BootstrapExpect == 1 {
 			conf.Bootstrap = true
 		} else {
-			conf.BootstrapExpect = a.config.Server.BootstrapExpect
+			atomic.StoreInt32(&conf.BootstrapExpect, int32(a.config.Server.BootstrapExpect))
 		}
 	}
 	if a.config.DataDir != "" {
@@ -235,7 +236,7 @@ func (a *Agent) serverConfig() (*nomad.Config, error) {
 		return nil, fmt.Errorf("server_service_name must be set when auto_advertise is enabled")
 	}
 
-	// conf.ConsulConfig = a.config.Consul
+	conf.ConsulConfig = a.config.Consul
 
 	return conf, nil
 }
@@ -377,7 +378,7 @@ func (a *Agent) setupServer() error {
 	}
 
 	// Create the server
-	server, err := nomad.NewServer(conf)
+	server, err := nomad.NewServer(conf, a.consulSyncer)
 	if err != nil {
 		return fmt.Errorf("server setup failed: %v", err)
 	}

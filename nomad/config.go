@@ -10,6 +10,7 @@ import (
 
 	"github.com/hashicorp/memberlist"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/scheduler"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
@@ -51,8 +52,9 @@ type Config struct {
 
 	// BootstrapExpect mode is used to automatically bring up a
 	// collection of Nomad servers. This can be used to automatically
-	// bring up a collection of nodes.
-	BootstrapExpect int
+	// bring up a collection of nodes.  All operations on BootstrapExpect
+	// must be handled via `atomic.*Int32()` calls.
+	BootstrapExpect int32
 
 	// DataDir is the directory to store our state in
 	DataDir string
@@ -176,6 +178,9 @@ type Config struct {
 	// a new leader is elected, since we no longer know the status
 	// of all the heartbeats.
 	FailoverHeartbeatTTL time.Duration
+
+	// ConsulConfig is this Agent's Consul configuration
+	ConsulConfig *config.ConsulConfig
 }
 
 // CheckVersion is used to check if the ProtocolVersion is valid
