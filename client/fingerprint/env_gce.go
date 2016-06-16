@@ -262,7 +262,7 @@ func (f *EnvGCEFingerprint) isGCE() bool {
 	}
 
 	match, err := regexp.MatchString("projects/.+/machineTypes/.+", machineType)
-	if !match {
+	if err != nil || !match {
 		return false
 	}
 

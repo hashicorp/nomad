@@ -209,7 +209,7 @@ func (f *EnvAWSFingerprint) isAWS() bool {
 	}
 
 	match, err := regexp.MatchString("ami-*", string(instanceID))
-	if !match {
+	if err != nil || !match {
 		return false
 	}
 

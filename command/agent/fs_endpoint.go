@@ -123,6 +123,9 @@ func (s *HTTPServer) FileCatRequest(resp http.ResponseWriter, req *http.Request)
 	}
 
 	r, err := fs.ReadAt(path, int64(0), fileInfo.Size)
+	if err != nil {
+		return nil, err
+	}
 	io.Copy(resp, r)
 	return nil, nil
 }
