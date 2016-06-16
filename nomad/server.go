@@ -500,8 +500,9 @@ func (s *Server) setupBootstrapHandler() error {
 			}
 			consulServices, _, err := consulCatalog.Service(nomadServerServiceName, consul.ServiceTagSerf, consulOpts)
 			if err != nil {
-				s.logger.Printf("[WARN] server.consul: failed to query service %+q in Consul datacenter %+q: %v", nomadServerServiceName, dc, err)
-				mErr.Errors = append(mErr.Errors, fmt.Errorf("unable to query service %q from Consul datacenter %q: %v", nomadServerServiceName, dc, err))
+				err := fmt.Errorf("failed to query service %q in Consul datacenter %q: %v", nomadServerServiceName, dc, err)
+				s.logger.Printf("[WARN] server.consul: %v", err)
+				mErr.Errors = append(mErr.Errors, err)
 				continue
 			}
 
@@ -552,14 +553,13 @@ func (s *Server) setupBootstrapHandler() error {
 // setupConsulSyncer creates Server-mode consul.Syncer which periodically
 // executes callbacks on a fixed interval.
 func (s *Server) setupConsulSyncer() error {
-	var mErr multierror.Error
 	if s.config.ConsulConfig.ServerAutoJoin {
 		if err := s.setupBootstrapHandler(); err != nil {
-			mErr.Errors = append(mErr.Errors, err)
+			return err
 		}
 	}
 
-	return mErr.ErrorOrNil()
+	return nil
 }
 
 // setupRPC is used to setup the RPC listener
