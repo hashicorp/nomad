@@ -39,8 +39,8 @@ func testServer(t *testing.T, cb func(*Config)) *Server {
 		IP:   []byte{127, 0, 0, 1},
 		Port: getPort(),
 	}
-	nodeNumber = atomic.AddUint32(&nodeNumber, 1)
-	config.NodeName = fmt.Sprintf("nomad-%03d", nodeNumber)
+	nodeNum := atomic.AddUint32(&nodeNumber, 1)
+	config.NodeName = fmt.Sprintf("nomad-%03d", nodeNum)
 
 	// Tighten the Serf timing
 	config.SerfConfig.MemberlistConfig.BindAddr = "127.0.0.1"
