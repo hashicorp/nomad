@@ -1272,7 +1272,7 @@ func (c *Client) setupConsulSyncer() error {
 		var mErr multierror.Error
 		const defaultMaxNumNomadServers = 8
 		nomadServerServices := make([]string, 0, defaultMaxNumNomadServers)
-		c.logger.Printf("[DEBUG] client.consul: bootstrap contacting following Consul DCs: %q", dcs)
+		c.logger.Printf("[DEBUG] client.consul: bootstrap contacting following Consul DCs: %+q", dcs)
 		for _, dc := range dcs {
 			consulOpts := &consulapi.QueryOptions{
 				AllowStale: true,
