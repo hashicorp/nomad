@@ -1349,7 +1349,9 @@ func (c *Client) setupConsulSyncer() error {
 
 		return nil
 	}
-	c.consulSyncer.AddPeriodicHandler("Nomad Client Fallback Server Handler", bootstrapFn)
+	if c.config.ConsulConfig.ClientAutoJoin {
+		c.consulSyncer.AddPeriodicHandler("Nomad Client Fallback Server Handler", bootstrapFn)
+	}
 
 	consulServicesReaperFn := func() error {
 		const estInitialExecutorDomains = 8
