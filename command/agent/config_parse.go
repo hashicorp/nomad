@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/hcl"
@@ -376,52 +377,7 @@ func parseClient(result **ClientConfig, list *ast.ObjectList) error {
 		}
 	}
 
-	// Parse stats config
-	if o := listVal.Filter("stats"); len(o.Items) > 0 {
-		if err := parseStats(&config.StatsConfig, o); err != nil {
-			return multierror.Prefix(err, "stats ->")
-		}
-	}
-
 	*result = &config
-	return nil
-}
-
-func parseStats(result **StatsConfig, list *ast.ObjectList) error {
-	list = list.Elem()
-	if len(list.Items) > 1 {
-		return fmt.Errorf("only one 'stats' block allowed")
-	}
-
-	// Get our stats object
-	obj := list.Items[0]
-
-	var listVal *ast.ObjectList
-	if ot, ok := obj.Val.(*ast.ObjectType); ok {
-		listVal = ot.List
-	} else {
-		return fmt.Errorf("client value: should be an object")
-	}
-
-	// check for invalid keys
-	valid := []string{
-		"data_points",
-		"collection_interval",
-	}
-	if err := checkHCLKeys(listVal, valid); err != nil {
-		return err
-	}
-
-	var m map[string]interface{}
-	if err := hcl.DecodeObject(&m, listVal); err != nil {
-		return err
-	}
-	var stats StatsConfig
-	if err := mapstructure.WeakDecode(m, &stats); err != nil {
-		return err
-	}
-	*result = &stats
-
 	return nil
 }
 
@@ -536,6 +492,7 @@ func parseTelemetry(result **Telemetry, list *ast.ObjectList) error {
 		"statsite_address",
 		"statsd_address",
 		"disable_hostname",
+		"collection_interval",
 	}
 	if err := checkHCLKeys(listVal, valid); err != nil {
 		return err
@@ -549,6 +506,13 @@ func parseTelemetry(result **Telemetry, list *ast.ObjectList) error {
 	var telemetry Telemetry
 	if err := mapstructure.WeakDecode(m, &telemetry); err != nil {
 		return err
+	}
+	if telemetry.CollectionInterval != "" {
+		if dur, err := time.ParseDuration(telemetry.CollectionInterval); err != nil {
+			return fmt.Errorf("error parsing value of %q: %v", "collection_interval", err)
+		} else {
+			telemetry.collectionInterval = dur
+		}
 	}
 	*result = &telemetry
 	return nil

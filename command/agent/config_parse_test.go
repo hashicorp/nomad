@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs/config"
 )
@@ -65,10 +66,6 @@ func TestConfig_Parse(t *testing.T) {
 						ReservedPorts:       "1,100,10-12",
 						ParsedReservedPorts: []int{1, 10, 11, 12, 100},
 					},
-					StatsConfig: &StatsConfig{
-						DataPoints:         35,
-						CollectionInterval: "5s",
-					},
 				},
 				Server: &ServerConfig{
 					Enabled:           true,
@@ -86,9 +83,11 @@ func TestConfig_Parse(t *testing.T) {
 					RetryMaxAttempts:  3,
 				},
 				Telemetry: &Telemetry{
-					StatsiteAddr:    "127.0.0.1:1234",
-					StatsdAddr:      "127.0.0.1:2345",
-					DisableHostname: true,
+					StatsiteAddr:       "127.0.0.1:1234",
+					StatsdAddr:         "127.0.0.1:2345",
+					DisableHostname:    true,
+					CollectionInterval: "3s",
+					collectionInterval: 3 * time.Second,
 				},
 				LeaveOnInt:                true,
 				LeaveOnTerm:               true,

@@ -360,9 +360,7 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	}
 
 	conf.ConsulConfig = a.config.Consul
-
-	conf.StatsCollectionInterval = a.config.Client.StatsConfig.collectionInterval
-
+	conf.StatsCollectionInterval = a.config.Telemetry.collectionInterval
 	return conf, nil
 }
 
