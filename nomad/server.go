@@ -400,6 +400,10 @@ func (s *Server) setupBootstrapHandler() error {
 	// drift because time.Timer is implemented as a monotonic clock.
 	var peersTimeout *time.Timer = time.NewTimer(0)
 
+	// consulQueryCount is the number of times the bootstrapFn has been
+	// called, regardless of success.
+	var consulQueryCount uint64
+
 	// leadershipTimedOut is a helper method that returns true if the
 	// peersTimeout timer has expired.
 	leadershipTimedOut := func() bool {
@@ -430,12 +434,16 @@ func (s *Server) setupBootstrapHandler() error {
 		bootstrapExpect := atomic.LoadInt32(&s.config.BootstrapExpect)
 		if bootstrapExpect == 0 {
 			// This Nomad Server has been bootstrapped.  Rely on
-			// timeouts to determine health.
-
+			// the peersTimeout firing as a guard to prevent
+			// aggressive querying of Consul.
 			if !leadershipTimedOut() {
 				return nil
 			}
 		} else {
+			if consulQueryCount > 0 && !leadershipTimedOut() {
+				return nil
+			}
+
 			// This Nomad Server has not been bootstrapped, reach
 			// out to Consul if our peer list is less than
 			// `bootstrap_expect`.
@@ -454,6 +462,7 @@ func (s *Server) setupBootstrapHandler() error {
 				return nil
 			}
 		}
+		consulQueryCount++
 
 		s.logger.Printf("[DEBUG] server.consul: lost contact with Nomad quorum, falling back to Consul for server list")
 
@@ -481,6 +490,7 @@ func (s *Server) setupBootstrapHandler() error {
 		var mErr multierror.Error
 		const defaultMaxNumNomadServers = 8
 		nomadServerServices := make([]string, 0, defaultMaxNumNomadServers)
+		localNode := s.serf.Memberlist().LocalNode()
 		for _, dc := range dcs {
 			consulOpts := &consulapi.QueryOptions{
 				AllowStale: true,
@@ -501,6 +511,9 @@ func (s *Server) setupBootstrapHandler() error {
 				if addr == "" {
 					addr = cs.Address
 				}
+				if localNode.Addr.String() == addr && int(localNode.Port) == cs.ServicePort {
+					continue
+				}
 				serverAddr := net.JoinHostPort(addr, port)
 				nomadServerServices = append(nomadServerServices, serverAddr)
 			}
@@ -514,8 +527,9 @@ func (s *Server) setupBootstrapHandler() error {
 
 			// Log the error and return nil so future handlers
 			// can attempt to register the `nomad` service.
-			s.logger.Printf("[TRACE] server.consul: no Nomad Servers advertising service %+q in Consul datacenters %+q", nomadServerServiceName, dcs)
-			peersTimeout.Reset(peersPollInterval + lib.RandomStagger(peersPollInterval/peersPollJitterFactor))
+			pollInterval := peersPollInterval + lib.RandomStagger(peersPollInterval/peersPollJitterFactor)
+			s.logger.Printf("[TRACE] server.consul: no Nomad Servers advertising service %+q in Consul datacenters %+q, sleeping for %v", nomadServerServiceName, dcs, pollInterval)
+			peersTimeout.Reset(pollInterval)
 			return nil
 		}
 
