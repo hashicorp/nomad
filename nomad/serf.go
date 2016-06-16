@@ -72,7 +72,7 @@ func (s *Server) nodeJoin(me serf.MemberEvent) {
 	}
 }
 
-// maybeBootsrap is used to handle bootstrapping when a new consul server joins
+// maybeBootsrap is used to handle bootstrapping when a new server joins
 func (s *Server) maybeBootstrap() {
 	var index uint64
 	var err error
