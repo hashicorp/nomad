@@ -575,10 +575,10 @@
 			"revisionTime": "2016-06-09T00:18:40Z"
 		},
 		{
-			"checksumSHA1": "xvxetwF2G1XHScrmo8EM3yisjBc=",
+			"checksumSHA1": "VMaF3Q7RIrRzvbnPbqxuSLryOvc=",
 			"path": "github.com/hashicorp/yamux",
-			"revision": "172cde3b6ca5c154ff4e6e2ef96b7451332a9946",
-			"revisionTime": "2016-05-19T16:00:42Z"
+			"revision": "badf81fca035b8ebac61b5ab83330b72541056f4",
+			"revisionTime": "2016-06-09T13:59:02Z"
 		},
 		{
 			"comment": "0.2.2-2-gc01cf91",
