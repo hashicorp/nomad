@@ -43,9 +43,11 @@ type Memberlist struct {
 	tcpListener *net.TCPListener
 	handoff     chan msgHandoff
 
-	nodeLock sync.RWMutex
-	nodes    []*nodeState          // Known nodes
-	nodeMap  map[string]*nodeState // Maps Addr.String() -> NodeState
+	nodeLock   sync.RWMutex
+	nodes      []*nodeState          // Known nodes
+	nodeMap    map[string]*nodeState // Maps Addr.String() -> NodeState
+	nodeTimers map[string]*suspicion // Maps Addr.String() -> suspicion timer
+	awareness  *awareness
 
 	tickerLock sync.Mutex
 	tickers    []*time.Ticker
@@ -61,7 +63,7 @@ type Memberlist struct {
 }
 
 // newMemberlist creates the network listeners.
-// Does not schedule execution of background maintenence.
+// Does not schedule execution of background maintenance.
 func newMemberlist(conf *Config) (*Memberlist, error) {
 	if conf.ProtocolVersion < ProtocolVersionMin {
 		return nil, fmt.Errorf("Protocol version '%d' too low. Must be in range: [%d, %d]",
@@ -129,6 +131,8 @@ func newMemberlist(conf *Config) (*Memberlist, error) {
 		tcpListener:    tcpLn,
 		handoff:        make(chan msgHandoff, 1024),
 		nodeMap:        make(map[string]*nodeState),
+		nodeTimers:     make(map[string]*suspicion),
+		awareness:      newAwareness(conf.AwarenessMaxMultiplier),
 		ackHandlers:    make(map[uint32]*ackHandler),
 		broadcasts:     &TransmitLimitedQueue{RetransmitMult: conf.RetransmitMult},
 		logger:         logger,
@@ -623,6 +627,13 @@ func (m *Memberlist) anyAlive() bool {
 		}
 	}
 	return false
+}
+
+// GetHealthScore gives this instance's idea of how well it is meeting the soft
+// real-time requirements of the protocol. Lower numbers are better, and zero
+// means "totally healthy".
+func (m *Memberlist) GetHealthScore() int {
+	return m.awareness.GetHealthScore()
 }
 
 // ProtocolVersion returns the protocol version currently in use by
