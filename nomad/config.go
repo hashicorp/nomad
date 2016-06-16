@@ -52,8 +52,9 @@ type Config struct {
 
 	// BootstrapExpect mode is used to automatically bring up a
 	// collection of Nomad servers. This can be used to automatically
-	// bring up a collection of nodes.
-	BootstrapExpect int
+	// bring up a collection of nodes.  All operations on BootstrapExpect
+	// must be handled via `atomic.*Int32()` calls.
+	BootstrapExpect int32
 
 	// DataDir is the directory to store our state in
 	DataDir string

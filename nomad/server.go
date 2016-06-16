@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	consulapi "github.com/hashicorp/consul/api"
@@ -651,8 +652,9 @@ func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string) (
 	if s.config.Bootstrap || (s.config.DevMode && !s.config.DevDisableBootstrap) {
 		conf.Tags["bootstrap"] = "1"
 	}
-	if s.config.BootstrapExpect != 0 {
-		conf.Tags["expect"] = fmt.Sprintf("%d", s.config.BootstrapExpect)
+	bootstrapExpect := atomic.LoadInt32(&s.config.BootstrapExpect)
+	if bootstrapExpect != 0 {
+		conf.Tags["expect"] = fmt.Sprintf("%d", bootstrapExpect)
 	}
 	conf.MemberlistConfig.LogOutput = s.config.LogOutput
 	conf.LogOutput = s.config.LogOutput
