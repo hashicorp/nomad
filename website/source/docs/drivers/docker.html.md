@@ -294,6 +294,9 @@ options](/docs/agent/config.html#options):
 * `docker.cleanup.image` Defaults to `true`. Changing this to `false` will
   prevent Nomad from removing images from stopped tasks.
 
+* `docker.volumes.selinuxlabel`: Allows the operator to set a SELinux
+  label to the allocation and task local bind-mounts to containers.
+
 * `docker.privileged.enabled` Defaults to `false`. Changing this to `true` will
   allow containers to use `privileged` mode, which gives the containers full
   access to the host's devices. Note that you must set a similar setting on the

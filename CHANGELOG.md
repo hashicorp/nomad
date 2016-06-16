@@ -29,7 +29,9 @@ IMPROVEMENTS:
     using the `nomad` service in Consul. Nomad servers now register
     themselves with Consul if Consul is available. [GH-1201]
   * drivers: Qemu and Java can be run without an artifact being download. Useful
-    if the artifact exists inside a chrooted directory {GH-1262]
+    if the artifact exists inside a chrooted directory [GH-1262]
+  * driver/docker: Added a client options to set SELinux labels for container
+    bind mounts. [GH-788]
 
 BUG FIXES:
   * core: Improve garbage collection of allocations and nodes [GH-1256]
