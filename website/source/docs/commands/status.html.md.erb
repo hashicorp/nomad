@@ -30,8 +30,11 @@ the most useful status fields for each.
 
 ## Status Options
 
+* `-evals`: Display the evaluations associated with the job.
+
 * `-short`: Display short output. Used only when a single node is being queried.
   Drops verbose node allocation data from the output.
+
 * `-verbose`: Show full information.
 
 ## Examples
@@ -57,24 +60,83 @@ Type        = service
 Priority    = 3
 Datacenters = dc1,dc2,dc3
 Status      = pending
+Periodic    = false
 ```
 
 Full status information of a job:
 
 ```
-$ nomad status job1
-ID          = job1
-Name        = Test Job
+$ nomad status example
+ID          = example
+Name        = example
 Type        = service
-Priority    = 3
-Datacenters = dc1,dc2,dc3
-Status      = pending
+Priority    = 50
+Datacenters = dc1
+Status      = running
+Periodic    = false
 
-### Evaluations
-ID        Priority  Type     TriggeredBy   NodeID  Status
-193229c4  3         service  job-register  node2   complete
+Allocations
+ID        Eval ID   Node ID   Task Group  Desired  Status
+24cfd201  81efc2fa  8d0331e9  cache       run      running
+```
 
-### Allocations
-ID        EvalID    NodeID  TaskGroup  DesiredStatus  ClientStatus
-678c51dc  193229c4  node2   grp8       failed         failed
+Full status information of a job with placement failures:
+
+```
+$ nomad status example
+ID          = example
+Name        = example
+Type        = service
+Priority    = 50
+Datacenters = dc1
+Status      = running
+Periodic    = false
+
+Placement Failure
+Task Group "cache":
+  * Resources exhausted on 1 nodes
+  * Dimension "cpu exhausted" exhausted on 1 nodes
+
+Allocations
+ID        Eval ID   Node ID   Task Group  Desired  Status
+0b8b9e37  8bf94335  8d0331e9  cache       run      running
+b206088c  8bf94335  8d0331e9  cache       run      running
+b82f58b6  8bf94335  8d0331e9  cache       run      running
+ed3665f5  8bf94335  8d0331e9  cache       run      running
+24cfd201  8bf94335  8d0331e9  cache       run      running
+```
+
+Full status information showing evaluations with a placement failure. The in
+progress evaluation denotes that Nomad is blocked waiting for resources to
+become availables so that it can place the remaining allocations.
+
+```
+$ nomad status -evals example
+ID          = example
+Name        = example
+Type        = service
+Priority    = 50
+Datacenters = dc1
+Status      = running
+Periodic    = false
+
+Evaluations
+ID        Priority  Triggered By  Status    Placement Failures
+69f34a37  50        job-register  blocked   N/A - In Progress
+8bf94335  50        job-register  complete  true
+df79bec7  50        job-register  complete  false
+81efc2fa  50        job-register  complete  false
+
+Placement Failure
+Task Group "cache":
+  * Resources exhausted on 1 nodes
+  * Dimension "cpu exhausted" exhausted on 1 nodes
+
+Allocations
+ID        Eval ID   Node ID   Task Group  Desired  Status
+0b8b9e37  8bf94335  8d0331e9  cache       run      running
+b206088c  8bf94335  8d0331e9  cache       run      running
+b82f58b6  8bf94335  8d0331e9  cache       run      running
+ed3665f5  8bf94335  8d0331e9  cache       run      running
+24cfd201  8bf94335  8d0331e9  cache       run      running
 ```
