@@ -373,7 +373,7 @@ OUTER:
 
 		// If there are any non-terminal allocations, skip the node. If the node
 		// is terminal and the allocations are not, the scheduler may not have
-		// run yet to transistion the allocs on the node to terminal. We delay
+		// run yet to transition the allocs on the node to terminal. We delay
 		// GC'ing until this happens.
 		for _, alloc := range allocs {
 			if !alloc.TerminalStatus() {

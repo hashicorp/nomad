@@ -206,7 +206,7 @@ func formatJobDiff(job *api.JobDiff, verbose bool) string {
 	out := fmt.Sprintf("%s[bold]Job: %q\n", marker, job.ID)
 
 	// Determine the longest markers and fields so that the output can be
-	// properly alligned.
+	// properly aligned.
 	longestField, longestMarker := getLongestPrefixes(job.Fields, job.Objects)
 	for _, tg := range job.TaskGroups {
 		if _, l := getDiffString(tg.Type); l > longestMarker {
@@ -275,7 +275,7 @@ func formatTaskGroupDiff(tg *api.TaskGroupDiff, tgPrefix int, verbose bool) stri
 	}
 
 	// Determine the longest field and markers so the output is properly
-	// alligned
+	// aligned
 	longestField, longestMarker := getLongestPrefixes(tg.Fields, tg.Objects)
 	for _, task := range tg.Tasks {
 		if _, l := getDiffString(task.Type); l > longestMarker {
@@ -307,7 +307,7 @@ func formatTaskGroupDiff(tg *api.TaskGroupDiff, tgPrefix int, verbose bool) stri
 // formatTaskDiff produces an annotated diff of a task. If the verbose field is
 // set, the tasks fields and objects are expanded even if the full object is an
 // addition or removal. startPrefix is the number of spaces to prefix the output of
-// the task and taskPrefix is the number of spaces to put betwen the marker and
+// the task and taskPrefix is the number of spaces to put between the marker and
 // task name output.
 func formatTaskDiff(task *api.TaskDiff, startPrefix, taskPrefix int, verbose bool) string {
 	marker, _ := getDiffString(task.Type)
@@ -334,7 +334,7 @@ func formatTaskDiff(task *api.TaskDiff, startPrefix, taskPrefix int, verbose boo
 
 // formatObjectDiff produces an annotated diff of an object. startPrefix is the
 // number of spaces to prefix the output of the object and keyPrefix is the number
-// of spaces to put betwen the marker and object name output.
+// of spaces to put between the marker and object name output.
 func formatObjectDiff(diff *api.ObjectDiff, startPrefix, keyPrefix int) string {
 	start := strings.Repeat(" ", startPrefix)
 	marker, _ := getDiffString(diff.Type)
@@ -350,7 +350,7 @@ func formatObjectDiff(diff *api.ObjectDiff, startPrefix, keyPrefix int) string {
 
 // formatFieldDiff produces an annotated diff of a field. startPrefix is the
 // number of spaces to prefix the output of the field, keyPrefix is the number
-// of spaces to put betwen the marker and field name output and valuePrefix is
+// of spaces to put between the marker and field name output and valuePrefix is
 // the number of spaces to put infront of the value for aligning values.
 func formatFieldDiff(diff *api.FieldDiff, startPrefix, keyPrefix, valuePrefix int) string {
 	marker, _ := getDiffString(diff.Type)

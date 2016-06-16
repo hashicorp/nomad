@@ -84,9 +84,9 @@ func diffAllocs(job *structs.Job, taintedNodes map[string]bool,
 		// If we are on a tainted node, we must migrate if we are a service or
 		// if the batch allocation did not finish
 		if taintedNodes[exist.NodeID] {
-			// If the job is batch and finished succesfully, the fact that the
+			// If the job is batch and finished successfully, the fact that the
 			// node is tainted does not mean it should be migrated as the work
-			// was already succesfully finished. However for service/system
+			// was already successfully finished. However for service/system
 			// jobs, tasks should never complete. The check of batch type,
 			// defends against client bugs.
 			if exist.Job.Type == structs.JobTypeBatch && exist.RanSuccessfully() {
