@@ -146,7 +146,13 @@ func (r *TaskRunner) RestoreState() error {
 	}
 
 	// Restore fields
-	r.task = snap.Task
+	if snap.Task == nil {
+		err := fmt.Errorf("task runner snapshot include nil Task")
+		r.logger.Printf("[ERR] client: %v", err)
+		return err
+	} else {
+		r.task = snap.Task
+	}
 	r.artifactsDownloaded = snap.ArtifactDownloaded
 
 	if err := r.setTaskEnv(); err != nil {
