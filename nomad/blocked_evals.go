@@ -128,7 +128,7 @@ func (b *BlockedEvals) Block(eval *structs.Evaluation) {
 
 // Reblock tracks the passed evaluation and enqueues it into the eval broker when
 // a suitable node calls unblock. Reblock should be used over Block when the
-// blocking is occuring by an outstanding evaluation. The token is the
+// blocking is occurring by an outstanding evaluation. The token is the
 // evaluation's token.
 func (b *BlockedEvals) Reblock(eval *structs.Evaluation, token string) {
 	b.processBlock(eval, token)
@@ -245,7 +245,7 @@ func (b *BlockedEvals) Unblock(computedClass string, index uint64) {
 
 	// Store the index in which the unblock happened. We use this on subsequent
 	// block calls in case the evaluation was in the scheduler when a trigger
-	// occured.
+	// occurred.
 	b.unblockIndexes[computedClass] = index
 	b.l.Unlock()
 

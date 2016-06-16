@@ -291,7 +291,7 @@ func TestBlockedEvals_Block_ImmediateUnblock_Escaped(t *testing.T) {
 }
 
 // Test the block case in which the eval should be immediately unblocked since
-// there is an unblock on an unseen class that occured while it was in the
+// there is an unblock on an unseen class that occurred while it was in the
 // scheduler
 func TestBlockedEvals_Block_ImmediateUnblock_UnseenClass_After(t *testing.T) {
 	blocked, broker := testBlockedEvals(t)
@@ -327,7 +327,7 @@ func TestBlockedEvals_Block_ImmediateUnblock_UnseenClass_After(t *testing.T) {
 }
 
 // Test the block case in which the eval should not immediately unblock since
-// there is an unblock on an unseen class that occured before it was in the
+// there is an unblock on an unseen class that occurred before it was in the
 // scheduler
 func TestBlockedEvals_Block_ImmediateUnblock_UnseenClass_Before(t *testing.T) {
 	blocked, _ := testBlockedEvals(t)
