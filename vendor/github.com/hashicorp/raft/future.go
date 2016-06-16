@@ -97,8 +97,14 @@ type shutdownFuture struct {
 }
 
 func (s *shutdownFuture) Error() error {
+	if s.raft == nil {
+		return nil
+	}
 	for s.raft.getRoutines() > 0 {
 		time.Sleep(5 * time.Millisecond)
+	}
+	if closeable, ok := s.raft.trans.(WithClose); ok {
+		closeable.Close()
 	}
 	return nil
 }

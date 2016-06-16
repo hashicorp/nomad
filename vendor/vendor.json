@@ -30,8 +30,10 @@
 			"revision": "06b60999766278efd6d2b5d8418a58c3d5b99e87"
 		},
 		{
+			"checksumSHA1": "gNO0JNpLzYOdInGeq7HqMZUzx9M=",
 			"path": "github.com/armon/go-radix",
-			"revision": "4239b77079c7b5d1243b7b4736304ce8ddb6f0f2"
+			"revision": "4239b77079c7b5d1243b7b4736304ce8ddb6f0f2",
+			"revisionTime": "2016-01-15T23:47:25Z"
 		},
 		{
 			"comment": "v1.0.6-2-g80dd495",
@@ -445,12 +447,16 @@
 			"revision": "3142ddc1d627a166970ddd301bc09cb510c74edc"
 		},
 		{
+			"checksumSHA1": "qmE9mO0WW6ALLpUU81rXDyspP5M=",
 			"path": "github.com/hashicorp/go-immutable-radix",
-			"revision": "8e8ed81f8f0bf1bdd829593fdd5c29922c1ea990"
+			"revision": "afc5a0dbb18abdf82c277a7bc01533e81fa1d6b8",
+			"revisionTime": "2016-06-09T02:05:29Z"
 		},
 		{
+			"checksumSHA1": "/V57CyN7x2NUlHoOzVL5GgGXX84=",
 			"path": "github.com/hashicorp/go-memdb",
-			"revision": "2cc5518f24b906e7cccfc808817ba479f5489821"
+			"revision": "98f52f52d7a476958fa9da671354d270c50661a7",
+			"revisionTime": "2016-03-01T23:01:42Z"
 		},
 		{
 			"path": "github.com/hashicorp/go-msgpack/codec",
@@ -521,24 +527,26 @@
 			"revision": "0dc08b1671f34c4250ce212759ebd880f743d883"
 		},
 		{
+			"checksumSHA1": "pWIsEUE53NffjS1goRml43Cvleg=",
 			"path": "github.com/hashicorp/memberlist",
-			"revision": "88ac4de0d1a0ca6def284b571342db3b777a4c37"
+			"revision": "215aec831f03c9b7c61ac183d3e28fff3c7d3a37",
+			"revisionTime": "2016-06-04T06:22:06Z"
 		},
 		{
 			"path": "github.com/hashicorp/net-rpc-msgpackrpc",
 			"revision": "a14192a58a694c123d8fe5481d4a4727d6ae82f3"
 		},
 		{
+			"checksumSHA1": "lXd9Jdzl1JmphijD/sAaw169/0Q=",
 			"path": "github.com/hashicorp/raft",
-			"revision": "057b893fd996696719e98b6c44649ea14968c811"
+			"revision": "4bcac2adb06930200744feb591fee8a0790f9c98",
+			"revisionTime": "2016-06-03T20:22:43Z"
 		},
 		{
+			"checksumSHA1": "QAxukkv54/iIvLfsUP6IK4R0m/A=",
 			"path": "github.com/hashicorp/raft-boltdb",
-			"revision": "057b893fd996696719e98b6c44649ea14968c811"
-		},
-		{
-			"path": "github.com/hashicorp/raft/bench",
-			"revision": "057b893fd996696719e98b6c44649ea14968c811"
+			"revision": "d1e82c1ec3f15ee991f7cc7ffd5b67ff6f5bbaee",
+			"revisionTime": "2015-02-01T20:08:39Z"
 		},
 		{
 			"checksumSHA1": "u9qHbpIgMZ7/fjO0gFfds2m/1ck=",
@@ -553,20 +561,24 @@
 			"revisionTime": "2016-06-01T22:40:23Z"
 		},
 		{
+			"checksumSHA1": "E3Xcanc9ouQwL+CZGOUyA/+giLg=",
 			"comment": "v0.7.0-18-gc4c55f1",
 			"path": "github.com/hashicorp/serf/coordinate",
-			"revision": "c4c55f16bae1aed9b355ad655d3ebf0215734461"
+			"revision": "6c4672d66fc6312ddde18399262943e21175d831",
+			"revisionTime": "2016-06-09T00:18:40Z"
 		},
 		{
+			"checksumSHA1": "jgQHuXL6QZLht/1dIYfSytPKWr4=",
 			"comment": "v0.7.0-18-gc4c55f1",
 			"path": "github.com/hashicorp/serf/serf",
-			"revision": "c4c55f16bae1aed9b355ad655d3ebf0215734461"
+			"revision": "6c4672d66fc6312ddde18399262943e21175d831",
+			"revisionTime": "2016-06-09T00:18:40Z"
 		},
 		{
-			"checksumSHA1": "xvxetwF2G1XHScrmo8EM3yisjBc=",
+			"checksumSHA1": "VMaF3Q7RIrRzvbnPbqxuSLryOvc=",
 			"path": "github.com/hashicorp/yamux",
-			"revision": "172cde3b6ca5c154ff4e6e2ef96b7451332a9946",
-			"revisionTime": "2016-05-19T16:00:42Z"
+			"revision": "badf81fca035b8ebac61b5ab83330b72541056f4",
+			"revisionTime": "2016-06-09T13:59:02Z"
 		},
 		{
 			"comment": "0.2.2-2-gc01cf91",
