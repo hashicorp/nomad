@@ -559,14 +559,18 @@
 			"revisionTime": "2016-06-01T22:40:23Z"
 		},
 		{
+			"checksumSHA1": "E3Xcanc9ouQwL+CZGOUyA/+giLg=",
 			"comment": "v0.7.0-18-gc4c55f1",
 			"path": "github.com/hashicorp/serf/coordinate",
-			"revision": "c4c55f16bae1aed9b355ad655d3ebf0215734461"
+			"revision": "6c4672d66fc6312ddde18399262943e21175d831",
+			"revisionTime": "2016-06-09T00:18:40Z"
 		},
 		{
+			"checksumSHA1": "jgQHuXL6QZLht/1dIYfSytPKWr4=",
 			"comment": "v0.7.0-18-gc4c55f1",
 			"path": "github.com/hashicorp/serf/serf",
-			"revision": "c4c55f16bae1aed9b355ad655d3ebf0215734461"
+			"revision": "6c4672d66fc6312ddde18399262943e21175d831",
+			"revisionTime": "2016-06-09T00:18:40Z"
 		},
 		{
 			"checksumSHA1": "xvxetwF2G1XHScrmo8EM3yisjBc=",
