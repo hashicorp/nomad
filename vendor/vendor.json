@@ -541,10 +541,6 @@
 			"revisionTime": "2015-02-01T20:08:39Z"
 		},
 		{
-			"path": "github.com/hashicorp/raft/bench",
-			"revision": "057b893fd996696719e98b6c44649ea14968c811"
-		},
-		{
 			"checksumSHA1": "u9qHbpIgMZ7/fjO0gFfds2m/1ck=",
 			"path": "github.com/hashicorp/scada-client",
 			"revision": "6e896784f66f82cdc6f17e00052db91699dc277d",
