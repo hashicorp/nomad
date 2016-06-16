@@ -209,7 +209,12 @@ If you prefer to use the traditional port-mapping method, you can specify the
 task "redis" {
     driver = "docker"
 
-    port "redis" {}
+    resources {
+        network {
+            mbits = 20
+            port "redis" {}
+        }
+    }
 
     config {
       image = "redis"
