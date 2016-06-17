@@ -25,10 +25,8 @@
 package consul
 
 import (
-	"crypto/tls"
 	"fmt"
 	"log"
-	"net/http"
 	"net/url"
 	"strings"
 	"sync"
@@ -152,66 +150,19 @@ type Syncer struct {
 
 // NewSyncer returns a new consul.Syncer
 func NewSyncer(consulConfig *config.ConsulConfig, shutdownCh chan struct{}, logger *log.Logger) (*Syncer, error) {
+	var consulClientConfig *consul.Config
 	var err error
-	var c *consul.Client
-
-	cfg := consul.DefaultConfig()
-
-	// If a nil consulConfig was provided, fall back to the default config
-	if consulConfig == nil {
-		consulConfig = config.DefaultConsulConfig()
+	consulClientConfig, err = consulConfig.ApiConfig()
+	if err != nil {
+		return nil, err
 	}
 
-	if consulConfig.Addr != "" {
-		cfg.Address = consulConfig.Addr
-	}
-	if consulConfig.Token != "" {
-		cfg.Token = consulConfig.Token
-	}
-	if consulConfig.Auth != "" {
-		var username, password string
-		if strings.Contains(consulConfig.Auth, ":") {
-			split := strings.SplitN(consulConfig.Auth, ":", 2)
-			username = split[0]
-			password = split[1]
-		} else {
-			username = consulConfig.Auth
-		}
-
-		cfg.HttpAuth = &consul.HttpBasicAuth{
-			Username: username,
-			Password: password,
-		}
-	}
-	if consulConfig.EnableSSL {
-		cfg.Scheme = "https"
-		tlsCfg := consul.TLSConfig{
-			Address:            cfg.Address,
-			CAFile:             consulConfig.CAFile,
-			CertFile:           consulConfig.CertFile,
-			KeyFile:            consulConfig.KeyFile,
-			InsecureSkipVerify: !consulConfig.VerifySSL,
-		}
-		tlsClientCfg, err := consul.SetupTLSConfig(&tlsCfg)
-		if err != nil {
-			return nil, fmt.Errorf("error creating tls client config for consul: %v", err)
-		}
-		cfg.HttpClient.Transport = &http.Transport{
-			TLSClientConfig: tlsClientCfg,
-		}
-	}
-	if consulConfig.EnableSSL && !consulConfig.VerifySSL {
-		cfg.HttpClient.Transport = &http.Transport{
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true,
-			},
-		}
-	}
-	if c, err = consul.NewClient(cfg); err != nil {
+	var consulClient *consul.Client
+	if consulClient, err = consul.NewClient(consulClientConfig); err != nil {
 		return nil, err
 	}
 	consulSyncer := Syncer{
-		client:            c,
+		client:            consulClient,
 		logger:            logger,
 		consulAvailable:   true,
 		shutdownCh:        shutdownCh,

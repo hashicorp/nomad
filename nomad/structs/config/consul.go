@@ -1,6 +1,10 @@
 package config
 
 import (
+	"crypto/tls"
+	"fmt"
+	"net/http"
+	"strings"
 	"time"
 
 	consul "github.com/hashicorp/consul/api"
@@ -139,9 +143,47 @@ func (c *ConsulConfig) ApiConfig() (*consul.Config, error) {
 	if c.Token != "" {
 		config.Token = c.Token
 	}
-
 	if c.Timeout != 0 {
 		config.HttpClient.Timeout = c.Timeout
+	}
+	if c.Auth != "" {
+		var username, password string
+		if strings.Contains(c.Auth, ":") {
+			split := strings.SplitN(c.Auth, ":", 2)
+			username = split[0]
+			password = split[1]
+		} else {
+			username = c.Auth
+		}
+
+		config.HttpAuth = &consul.HttpBasicAuth{
+			Username: username,
+			Password: password,
+		}
+	}
+	if c.EnableSSL {
+		config.Scheme = "https"
+		tlsConfig := consul.TLSConfig{
+			Address:            config.Address,
+			CAFile:             c.CAFile,
+			CertFile:           c.CertFile,
+			KeyFile:            c.KeyFile,
+			InsecureSkipVerify: !c.VerifySSL,
+		}
+		tlsClientCfg, err := consul.SetupTLSConfig(&tlsConfig)
+		if err != nil {
+			return nil, fmt.Errorf("error creating tls client config for consul: %v", err)
+		}
+		config.HttpClient.Transport = &http.Transport{
+			TLSClientConfig: tlsClientCfg,
+		}
+	}
+	if c.EnableSSL && !c.VerifySSL {
+		config.HttpClient.Transport = &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
+			},
+		}
 	}
 
 	return config, nil
