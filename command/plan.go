@@ -55,10 +55,8 @@ General Options:
 Plan Options:
 
   -diff
-    Defaults to true, but can be toggled off to omit diff output.
-
-  -no-color
-    Disable colored output.
+	Determines whether the diff between the remote job and planned job is shown.
+	Defaults to true.
 
   -verbose
     Increase diff verbosity.
