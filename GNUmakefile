@@ -71,6 +71,9 @@ bootstrap:
     go get $$tool; \
 	done
 
+install: bin/nomad
+	install -o root -g wheel -m 0755 ./bin/nomad /usr/local/bin/nomad
+
 travis:
 	@sudo apt-get install -y qemu
 	@sh -c "'$(PWD)/scripts/update_docker.sh'"
