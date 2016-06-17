@@ -116,6 +116,17 @@ func (r *AllocRunner) RestoreState() error {
 	r.allocClientDescription = snap.AllocClientDescription
 	r.taskStates = snap.TaskStates
 
+	var snapshotErrors multierror.Error
+	if r.alloc == nil {
+		snapshotErrors.Errors = append(snapshotErrors.Errors, fmt.Errorf("alloc_runner snapshot includes a nil allocation"))
+	}
+	if r.ctx == nil {
+		snapshotErrors.Errors = append(snapshotErrors.Errors, fmt.Errorf("alloc_runner snapshot includes a nil context"))
+	}
+	if e := snapshotErrors.ErrorOrNil(); e != nil {
+		return e
+	}
+
 	// Restore the task runners
 	var mErr multierror.Error
 	for name, state := range r.taskStates {
