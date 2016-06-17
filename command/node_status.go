@@ -40,9 +40,9 @@ Usage: nomad node-status [options] <node>
   returned includes only nodes which jobs may be scheduled to, and
   includes status and other high-level information.
 
-  If a node ID is passed, information for that specific node will
-  be displayed. If no node ID's are passed, then a short-hand
-  list of all nodes will be displayed. The -self flag is useful to
+  If a node ID is passed, information for that specific node will be displayed,
+  including resource usage statistics. If no node ID's are passed, then a
+  short-hand list of all nodes will be displayed. The -self flag is useful to
   quickly access the status of the local node.
 
 General Options:
@@ -51,21 +51,21 @@ General Options:
 
 Node Status Options:
 
+  -self
+    Query the status of the local node.
+
+  -stats 
+    Display detailed resource usage statistics.
+
+  -allocs
+    Display a count of running allocations for each node.
+
   -short
     Display short output. Used only when a single node is being
     queried, and drops verbose output about node allocations.
 
   -verbose
     Display full information.
-
-  -stats 
-    Display detailed resource usage statistics
-
-  -self
-    Query the status of the local node.
-
-  -allocs
-    Display a count of running allocations for each node.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -225,7 +225,7 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 
 	// Format the header output
 	basic := []string{
-		fmt.Sprintf("Node ID|%s", limit(node.ID, c.length)),
+		fmt.Sprintf("ID|%s", limit(node.ID, c.length)),
 		fmt.Sprintf("Name|%s", node.Name),
 		fmt.Sprintf("Class|%s", node.NodeClass),
 		fmt.Sprintf("DC|%s", node.Datacenter),
