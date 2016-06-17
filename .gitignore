@@ -2,6 +2,8 @@
 *.o
 *.a
 *.so
+*.log
+/*.hcl
 .DS_Store
 Thumbs.db
 
