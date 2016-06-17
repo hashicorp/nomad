@@ -856,6 +856,7 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 	exec, pluginClient, err := createExecutor(pluginConfig, d.config.LogOutput, d.config)
 	if err != nil {
 		d.logger.Printf("[INFO] driver.docker: couldn't re-attach to the plugin process: %v", err)
+		d.logger.Printf("[DEBUG] driver.docker: stopping container %q", pid.ContainerID)
 		if e := client.StopContainer(pid.ContainerID, uint(pid.KillTimeout*time.Second)); e != nil {
 			d.logger.Printf("[DEBUG] driver.docker: couldn't stop container: %v", e)
 		}
