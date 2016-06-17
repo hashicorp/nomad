@@ -25,6 +25,8 @@ IMPROVEMENTS:
     determine its effects [GH-1181]
   * cli: node-status command displays host resource usage and allocation
     resources [GH-1261]
+  * cli: Region flag and environment variable introduced to set region
+    forwarding. Automatic region forwarding for run and plan [GH-1237]
   * client: If Consul is available, automatically bootstrap Nomad Client
     using the `_nomad` service in Consul. Nomad Servers now register
     themselves with Consul to make this possible. [GH-1201]
