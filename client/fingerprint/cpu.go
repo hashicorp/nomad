@@ -28,14 +28,13 @@ func (f *CPUFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bo
 		return false, err
 	}
 
-	var numCores int32
 	var mhz float64
 	var modelName string
 
-	// Assume all CPUs found have same Model. Log if not.
-	// If CPUInfo() returns nil above, this loop is still safe
+	// Assume all CPUs found have same Model. Log if not. If cpu.Info()
+	// returns nil above, this loop is still safe.  Don't assume all
+	// platforms return one entry in cpuInfo per core.
 	for _, c := range cpuInfo {
-		numCores += c.Cores
 		mhz += c.Mhz
 
 		if modelName != "" && modelName != c.ModelName {
@@ -51,10 +50,10 @@ func (f *CPUFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bo
 		f.logger.Printf("[DEBUG] fingerprint.cpu: frequency: %02.1fMHz", mhz)
 	}
 
-	if numCores <= 0 {
-		const defaultCPUCoreCount = 1
-		f.logger.Printf("[DEBUG] fingerprint.cpu: unable to find core count, defaulting to %d", defaultCPUCoreCount)
-		numCores = defaultCPUCoreCount
+	var numCores int
+	if numCores, err = cpu.Counts(true); err != nil {
+		numCores = 1
+		f.logger.Println("[WARN] Unable to obtain the number of CPUs, defaulting to %d CPU", numCores)
 	}
 
 	if numCores > 0 {
