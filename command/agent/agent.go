@@ -388,7 +388,7 @@ func (a *Agent) setupServer() error {
 	}
 
 	// Create the server
-	server, err := nomad.NewServer(conf, a.consulSyncer)
+	server, err := nomad.NewServer(conf, a.consulSyncer, a.logger)
 	if err != nil {
 		return fmt.Errorf("server setup failed: %v", err)
 	}
@@ -467,7 +467,7 @@ func (a *Agent) setupClient() error {
 	}
 
 	// Create the client
-	client, err := client.NewClient(conf, a.consulSyncer)
+	client, err := client.NewClient(conf, a.consulSyncer, a.logger)
 	if err != nil {
 		return fmt.Errorf("client setup failed: %v", err)
 	}

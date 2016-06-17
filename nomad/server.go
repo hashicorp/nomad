@@ -164,7 +164,7 @@ type endpoints struct {
 
 // NewServer is used to construct a new Nomad server from the
 // configuration, potentially returning an error
-func NewServer(config *Config, consulSyncer *consul.Syncer) (*Server, error) {
+func NewServer(config *Config, consulSyncer *consul.Syncer, logger *log.Logger) (*Server, error) {
 	// Check the protocol version
 	if err := config.CheckVersion(); err != nil {
 		return nil, err
@@ -174,9 +174,6 @@ func NewServer(config *Config, consulSyncer *consul.Syncer) (*Server, error) {
 	if config.LogOutput == nil {
 		config.LogOutput = os.Stderr
 	}
-
-	// Create a logger
-	logger := log.New(config.LogOutput, "", log.LstdFlags)
 
 	// Create an eval broker
 	evalBroker, err := NewEvalBroker(config.EvalNackTimeout, config.EvalDeliveryLimit)

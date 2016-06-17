@@ -144,10 +144,7 @@ type Client struct {
 }
 
 // NewClient is used to create a new client from the given configuration
-func NewClient(cfg *config.Config, consulSyncer *consul.Syncer) (*Client, error) {
-	// Create a logger
-	logger := log.New(cfg.LogOutput, "", log.LstdFlags)
-
+func NewClient(cfg *config.Config, consulSyncer *consul.Syncer, logger *log.Logger) (*Client, error) {
 	// Create the client
 	c := &Client{
 		config:             cfg,
