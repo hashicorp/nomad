@@ -25,6 +25,8 @@ client {
     }
 }
 
+bind_addr = "10.211.55.24"
+
 # Modify our port to avoid a collision with server1
 ports {
     http = 5656

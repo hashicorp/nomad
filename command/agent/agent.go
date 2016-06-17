@@ -46,7 +46,6 @@ type Agent struct {
 
 	client         *client.Client
 	clientHTTPAddr string
-	clientRPCAddr  string
 
 	server         *nomad.Server
 	serverHTTPAddr string
@@ -328,22 +327,6 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	httpAddr := fmt.Sprintf("%s:%d", addr.IP.String(), addr.Port)
 	conf.Node.HTTPAddr = httpAddr
 	a.clientHTTPAddr = httpAddr
-
-	// Resolve the Client's RPC address
-	if a.config.AdvertiseAddrs.RPC != "" {
-		a.clientRPCAddr = a.config.AdvertiseAddrs.RPC
-	} else if a.config.Addresses.RPC != "" {
-		a.clientRPCAddr = fmt.Sprintf("%v:%v", a.config.Addresses.RPC, a.config.Ports.RPC)
-	} else if a.config.BindAddr != "" {
-		a.clientRPCAddr = fmt.Sprintf("%v:%v", a.config.BindAddr, a.config.Ports.RPC)
-	} else {
-		a.clientRPCAddr = fmt.Sprintf("%v:%v", "127.0.0.1", a.config.Ports.RPC)
-	}
-	addr, err = net.ResolveTCPAddr("tcp", a.clientRPCAddr)
-	if err != nil {
-		return nil, fmt.Errorf("error resolving RPC addr %+q: %v", a.clientRPCAddr, err)
-	}
-	a.clientRPCAddr = fmt.Sprintf("%s:%d", addr.IP.String(), addr.Port)
 
 	// Reserve resources on the node.
 	r := conf.Node.Reserved
