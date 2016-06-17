@@ -50,7 +50,7 @@ func (f *CPUFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bo
 		f.logger.Println("[WARN] fingerprint.cpu: Unable to obtain the CPU Mhz")
 	} else {
 		node.Attributes["cpu.frequency"] = fmt.Sprintf("%.6f", mhz)
-		f.logger.Printf("[DEBUG] fingerprint.cpu: frequency: %02.1fMHz", mhz)
+		f.logger.Printf("[DEBUG] fingerprint.cpu: frequency: %02.1f MHz", mhz)
 	}
 
 	var numCores int
