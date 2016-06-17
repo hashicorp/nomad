@@ -36,7 +36,6 @@ echo "==> Building..."
 gox \
     -os="${XC_OS}" \
     -os="!dragonfly" \
-    -os="!freebsd" \
     -os="!netbsd" \
     -os="!openbsd" \
     -os="!solaris" \
