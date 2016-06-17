@@ -21,6 +21,19 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+const (
+	clientHttpCheckInterval = 10 * time.Second
+	clientHttpCheckTimeout  = 3 * time.Second
+	clientRpcCheckInterval  = 10 * time.Second
+	clientRpcCheckTimeout   = 3 * time.Second
+	serverHttpCheckInterval = 10 * time.Second
+	serverHttpCheckTimeout  = 3 * time.Second
+	serverRpcCheckInterval  = 10 * time.Second
+	serverRpcCheckTimeout   = 3 * time.Second
+	serverSerfCheckInterval = 10 * time.Second
+	serverSerfCheckTimeout  = 3 * time.Second
+)
+
 // Agent is a long running daemon that is used to run both
 // clients and servers. Servers are responsible for managing
 // state and making scheduling decisions. Clients can be
@@ -390,16 +403,42 @@ func (a *Agent) setupServer() error {
 			Name:      a.config.Consul.ServerServiceName,
 			PortLabel: a.serverHTTPAddr,
 			Tags:      []string{consul.ServiceTagHTTP},
+			Checks: []*structs.ServiceCheck{
+				&structs.ServiceCheck{
+					Name:     "Nomad Server HTTP Check",
+					Type:     "http",
+					Path:     "/v1/status/peers",
+					Protocol: "http", // TODO TLS
+					Interval: serverHttpCheckInterval,
+					Timeout:  serverHttpCheckTimeout,
+				},
+			},
 		}
 		rpcServ := &structs.Service{
 			Name:      a.config.Consul.ServerServiceName,
 			PortLabel: a.serverRPCAddr,
 			Tags:      []string{consul.ServiceTagRPC},
+			Checks: []*structs.ServiceCheck{
+				&structs.ServiceCheck{
+					Name:     "Nomad Server RPC Check",
+					Type:     "tcp",
+					Interval: serverRpcCheckInterval,
+					Timeout:  serverRpcCheckTimeout,
+				},
+			},
 		}
 		serfServ := &structs.Service{
 			PortLabel: a.serverSerfAddr,
 			Name:      a.config.Consul.ServerServiceName,
 			Tags:      []string{consul.ServiceTagSerf},
+			Checks: []*structs.ServiceCheck{
+				&structs.ServiceCheck{
+					Name:     "Nomad Server Serf Check",
+					Type:     "tcp",
+					Interval: serverSerfCheckInterval,
+					Timeout:  serverSerfCheckTimeout,
+				},
+			},
 		}
 		a.consulSyncer.SetServices(consul.ServerDomain, map[consul.ServiceKey]*structs.Service{
 			consul.GenerateServiceKey(httpServ): httpServ,
@@ -443,11 +482,29 @@ func (a *Agent) setupClient() error {
 			Name:      a.config.Consul.ClientServiceName,
 			PortLabel: a.clientHTTPAddr,
 			Tags:      []string{consul.ServiceTagHTTP},
+			Checks: []*structs.ServiceCheck{
+				&structs.ServiceCheck{
+					Name:     "Nomad Client HTTP Check",
+					Type:     "http",
+					Path:     "/v1/agent/servers",
+					Protocol: "http", // TODO TLS
+					Interval: clientHttpCheckInterval,
+					Timeout:  clientHttpCheckTimeout,
+				},
+			},
 		}
 		rpcServ := &structs.Service{
 			Name:      a.config.Consul.ClientServiceName,
 			PortLabel: a.clientRPCAddr,
 			Tags:      []string{consul.ServiceTagRPC},
+			Checks: []*structs.ServiceCheck{
+				&structs.ServiceCheck{
+					Name:     "Nomad Client RPC Check",
+					Type:     "tcp",
+					Interval: clientRpcCheckInterval,
+					Timeout:  clientRpcCheckTimeout,
+				},
+			},
 		}
 		a.consulSyncer.SetServices(consul.ClientDomain, map[consul.ServiceKey]*structs.Service{
 			consul.GenerateServiceKey(httpServ): httpServ,
