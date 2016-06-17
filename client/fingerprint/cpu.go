@@ -45,7 +45,10 @@ func (f *CPUFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bo
 	// Get average CPU frequency
 	mhz /= float64(len(cpuInfo))
 
-	if mhz > 0 {
+	// Allow for a little precision slop
+	if mhz < 1.0 {
+		f.logger.Println("[WARN] fingerprint.cpu: Unable to obtain the CPU Mhz")
+	} else {
 		node.Attributes["cpu.frequency"] = fmt.Sprintf("%.6f", mhz)
 		f.logger.Printf("[DEBUG] fingerprint.cpu: frequency: %02.1fMHz", mhz)
 	}
