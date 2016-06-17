@@ -28,22 +28,15 @@ func (f *CPUFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bo
 		return false, err
 	}
 
+	// Assume all CPUs found have same Model and MHz. If cpu.Info()
+	// returns nil above, this loop is still safe.
 	var mhz float64
 	var modelName string
-
-	// Assume all CPUs found have same Model. Log if not. If cpu.Info()
-	// returns nil above, this loop is still safe.  Don't assume all
-	// platforms return one entry in cpuInfo per core.
 	for _, c := range cpuInfo {
-		mhz += c.Mhz
-
-		if modelName != "" && modelName != c.ModelName {
-			f.logger.Println("[WARN] Found different model names in the same CPU information. Recording last found")
-		}
+		mhz = c.Mhz
 		modelName = c.ModelName
+		break
 	}
-	// Get average CPU frequency
-	mhz /= float64(len(cpuInfo))
 
 	// Allow for a little precision slop
 	if mhz < 1.0 {
