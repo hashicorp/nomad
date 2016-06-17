@@ -5,7 +5,6 @@ import (
 	"io"
 	"log"
 	"net"
-	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -61,11 +60,6 @@ type Agent struct {
 
 // NewAgent is used to create a new agent with the given configuration
 func NewAgent(config *Config, logOutput io.Writer) (*Agent, error) {
-	// Ensure we have a log sink
-	if logOutput == nil {
-		logOutput = os.Stderr
-	}
-
 	a := &Agent{
 		config:     config,
 		logger:     log.New(logOutput, "", log.LstdFlags),

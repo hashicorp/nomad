@@ -477,7 +477,7 @@ func TestClient_SaveRestoreState(t *testing.T) {
 
 	// Create a new client
 	shutdownCh := make(chan struct{})
-	logger := log.New(config.LogOutput, "", log.LstdFlags)
+	logger := log.New(c1.config.LogOutput, "", log.LstdFlags)
 	consulSyncer, err := consul.NewSyncer(c1.config.ConsulConfig, shutdownCh, logger)
 	if err != nil {
 		t.Fatalf("err: %v", err)

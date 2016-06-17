@@ -209,6 +209,7 @@ func DefaultConfig() *Config {
 		ProtocolVersion:        ProtocolVersionMax,
 		RaftConfig:             raft.DefaultConfig(),
 		RaftTimeout:            10 * time.Second,
+		LogOutput:              os.Stderr,
 		RPCAddr:                DefaultRPCAddr,
 		SerfConfig:             serf.DefaultConfig(),
 		NumSchedulers:          1,

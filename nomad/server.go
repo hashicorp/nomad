@@ -7,7 +7,6 @@ import (
 	"log"
 	"net"
 	"net/rpc"
-	"os"
 	"path/filepath"
 	"reflect"
 	"sort"
@@ -170,11 +169,6 @@ func NewServer(config *Config, consulSyncer *consul.Syncer, logger *log.Logger) 
 		return nil, err
 	}
 
-	// Ensure we have a log output
-	if config.LogOutput == nil {
-		config.LogOutput = os.Stderr
-	}
-
 	// Create an eval broker
 	evalBroker, err := NewEvalBroker(config.EvalNackTimeout, config.EvalDeliveryLimit)
 	if err != nil {
@@ -214,14 +208,14 @@ func NewServer(config *Config, consulSyncer *consul.Syncer, logger *log.Logger) 
 	// TODO: TLS...
 	if err := s.setupRPC(nil); err != nil {
 		s.Shutdown()
-		logger.Printf("[ERR] nomad: failed to start RPC layer: %s", err)
+		s.logger.Printf("[ERR] nomad: failed to start RPC layer: %s", err)
 		return nil, fmt.Errorf("Failed to start RPC layer: %v", err)
 	}
 
 	// Initialize the Raft server
 	if err := s.setupRaft(); err != nil {
 		s.Shutdown()
-		logger.Printf("[ERR] nomad: failed to start Raft: %s", err)
+		s.logger.Printf("[ERR] nomad: failed to start Raft: %s", err)
 		return nil, fmt.Errorf("Failed to start Raft: %v", err)
 	}
 
@@ -229,14 +223,14 @@ func NewServer(config *Config, consulSyncer *consul.Syncer, logger *log.Logger) 
 	s.serf, err = s.setupSerf(config.SerfConfig, s.eventCh, serfSnapshot)
 	if err != nil {
 		s.Shutdown()
-		logger.Printf("[ERR] nomad: failed to start serf WAN: %s", err)
+		s.logger.Printf("[ERR] nomad: failed to start serf WAN: %s", err)
 		return nil, fmt.Errorf("Failed to start serf: %v", err)
 	}
 
 	// Initialize the scheduling workers
 	if err := s.setupWorkers(); err != nil {
 		s.Shutdown()
-		logger.Printf("[ERR] nomad: failed to start workers: %s", err)
+		s.logger.Printf("[ERR] nomad: failed to start workers: %s", err)
 		return nil, fmt.Errorf("Failed to start workers: %v", err)
 	}
 
