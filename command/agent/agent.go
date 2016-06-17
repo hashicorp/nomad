@@ -24,8 +24,6 @@ import (
 const (
 	clientHttpCheckInterval = 10 * time.Second
 	clientHttpCheckTimeout  = 3 * time.Second
-	clientRpcCheckInterval  = 10 * time.Second
-	clientRpcCheckTimeout   = 3 * time.Second
 	serverHttpCheckInterval = 10 * time.Second
 	serverHttpCheckTimeout  = 3 * time.Second
 	serverRpcCheckInterval  = 10 * time.Second
@@ -493,22 +491,8 @@ func (a *Agent) setupClient() error {
 				},
 			},
 		}
-		rpcServ := &structs.Service{
-			Name:      a.config.Consul.ClientServiceName,
-			PortLabel: a.clientRPCAddr,
-			Tags:      []string{consul.ServiceTagRPC},
-			Checks: []*structs.ServiceCheck{
-				&structs.ServiceCheck{
-					Name:     "Nomad Client RPC Check",
-					Type:     "tcp",
-					Interval: clientRpcCheckInterval,
-					Timeout:  clientRpcCheckTimeout,
-				},
-			},
-		}
 		a.consulSyncer.SetServices(consul.ClientDomain, map[consul.ServiceKey]*structs.Service{
 			consul.GenerateServiceKey(httpServ): httpServ,
-			consul.GenerateServiceKey(rpcServ):  rpcServ,
 		})
 	}
 
