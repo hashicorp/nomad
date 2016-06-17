@@ -135,7 +135,7 @@ func (c *AllocStatusCommand) Run(args []string) int {
 	stats, statsErr = client.Allocations().Stats(alloc, nil)
 	if statsErr != nil {
 		c.Ui.Output("")
-		c.Ui.Error(fmt.Sprintf("couldn't retreive stats: %v", statsErr))
+		c.Ui.Error(fmt.Sprintf("couldn't retrieve stats (HINT: ensure Client.Advertise.HTTP is set): %v", statsErr))
 	}
 
 	// Format the allocation data
