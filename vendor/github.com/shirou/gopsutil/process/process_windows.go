@@ -23,6 +23,11 @@ const (
 	MaxPathLength = 260
 )
 
+var (
+	modpsapi                 = syscall.NewLazyDLL("psapi.dll")
+	procGetProcessMemoryInfo = modpsapi.NewProc("GetProcessMemoryInfo")
+)
+
 type SystemProcessInformation struct {
 	NextEntryOffset   uint64
 	NumberOfThreads   uint64
@@ -46,13 +51,18 @@ type MemoryMapsStat struct {
 }
 
 type Win32_Process struct {
-	Name           string
-	ExecutablePath *string
-	CommandLine    *string
-	Priority       uint32
-	CreationDate   *time.Time
-	ProcessID      uint32
-	ThreadCount    uint32
+	Name                string
+	ExecutablePath      *string
+	CommandLine         *string
+	Priority            uint32
+	CreationDate        *time.Time
+	ProcessID           uint32
+	ThreadCount         uint32
+	Status              *string
+	ReadOperationCount  uint64
+	ReadTransferCount   uint64
+	WriteOperationCount uint64
+	WriteTransferCount  uint64
 
 	/*
 		CSCreationClassName   string
@@ -76,14 +86,9 @@ type Win32_Process struct {
 		PeakVirtualSize       uint64
 		PeakWorkingSetSize    uint32
 		PrivatePageCount      uint64
-		ReadOperationCount    uint64
-		ReadTransferCount     uint64
-		Status                *string
 		TerminationDate       *time.Time
 		UserModeTime          uint64
 		WorkingSetSize        uint64
-		WriteOperationCount   uint64
-		WriteTransferCount    uint64
 	*/
 }
 
@@ -158,12 +163,12 @@ func (p *Process) CmdlineSlice() ([]string, error) {
 }
 
 func (p *Process) CreateTime() (int64, error) {
-	dst, err := GetWin32Proc(p.Pid)
+	ru, err := getRusage(p.Pid)
 	if err != nil {
 		return 0, fmt.Errorf("could not get CreationDate: %s", err)
 	}
-	date := *dst[0].CreationDate
-	return date.Unix(), nil
+
+	return ru.CreationTime.Nanoseconds() / 1000000, nil
 }
 
 func (p *Process) Cwd() (string, error) {
@@ -207,8 +212,20 @@ func (p *Process) Rlimit() ([]RlimitStat, error) {
 
 	return rlimit, common.ErrNotImplementedError
 }
+
 func (p *Process) IOCounters() (*IOCountersStat, error) {
-	return nil, common.ErrNotImplementedError
+	dst, err := GetWin32Proc(p.Pid)
+	if err != nil || len(dst) == 0 {
+		return nil, fmt.Errorf("could not get Win32Proc: %s", err)
+	}
+	ret := &IOCountersStat{
+		ReadCount:  uint64(dst[0].ReadOperationCount),
+		ReadBytes:  uint64(dst[0].ReadTransferCount),
+		WriteCount: uint64(dst[0].WriteOperationCount),
+		WriteBytes: uint64(dst[0].WriteTransferCount),
+	}
+
+	return ret, nil
 }
 func (p *Process) NumCtxSwitches() (*NumCtxSwitchesStat, error) {
 	return nil, common.ErrNotImplementedError
@@ -234,7 +251,17 @@ func (p *Process) CPUAffinity() ([]int32, error) {
 	return nil, common.ErrNotImplementedError
 }
 func (p *Process) MemoryInfo() (*MemoryInfoStat, error) {
-	return nil, common.ErrNotImplementedError
+	mem, err := getMemoryInfo(p.Pid)
+	if err != nil {
+		return nil, err
+	}
+
+	ret := &MemoryInfoStat{
+		RSS: mem.WorkingSetSize,
+		VMS: mem.PagefileUsage,
+	}
+
+	return ret, nil
 }
 func (p *Process) MemoryInfoEx() (*MemoryInfoExStat, error) {
 	return nil, common.ErrNotImplementedError
@@ -354,4 +381,46 @@ func getProcInfo(pid int32) (*SystemProcessInformation, error) {
 	}
 
 	return &sysProcInfo, nil
+}
+
+func getRusage(pid int32) (*syscall.Rusage, error) {
+	var CPU syscall.Rusage
+
+	c, err := syscall.OpenProcess(syscall.PROCESS_QUERY_INFORMATION, false, uint32(pid))
+	if err != nil {
+		return nil, err
+	}
+	defer syscall.CloseHandle(c)
+
+	if err := syscall.GetProcessTimes(c, &CPU.CreationTime, &CPU.ExitTime, &CPU.KernelTime, &CPU.UserTime); err != nil {
+		return nil, err
+	}
+
+	return &CPU, nil
+}
+
+func getMemoryInfo(pid int32) (PROCESS_MEMORY_COUNTERS, error) {
+	var mem PROCESS_MEMORY_COUNTERS
+	c, err := syscall.OpenProcess(syscall.PROCESS_QUERY_INFORMATION, false, uint32(pid))
+	if err != nil {
+		return mem, err
+	}
+	defer syscall.CloseHandle(c)
+	if err := getProcessMemoryInfo(c, &mem); err != nil {
+		return mem, err
+	}
+
+	return mem, err
+}
+
+func getProcessMemoryInfo(h syscall.Handle, mem *PROCESS_MEMORY_COUNTERS) (err error) {
+	r1, _, e1 := syscall.Syscall(procGetProcessMemoryInfo.Addr(), 3, uintptr(h), uintptr(unsafe.Pointer(mem)), uintptr(unsafe.Sizeof(*mem)))
+	if r1 == 0 {
+		if e1 != 0 {
+			err = error(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
 }

@@ -136,12 +136,12 @@ func PlatformInformation() (string, string, string, error) {
 		return "", "", "", err
 	}
 
-	out, err := exec.Command(uname, "-s").Output()
+	out, err := invoke.Command(uname, "-s")
 	if err == nil {
 		platform = strings.ToLower(strings.TrimSpace(string(out)))
 	}
 
-	out, err = exec.Command(uname, "-r").Output()
+	out, err = invoke.Command(uname, "-r")
 	if err == nil {
 		version = strings.ToLower(strings.TrimSpace(string(out)))
 	}

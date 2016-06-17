@@ -133,6 +133,10 @@ func (c *AllocStatusCommand) Run(args []string) int {
 	var statsErr error
 	var stats *api.AllocResourceUsage
 	stats, statsErr = client.Allocations().Stats(alloc, nil)
+	if statsErr != nil {
+		c.Ui.Output("")
+		c.Ui.Error(fmt.Sprintf("couldn't retrieve stats (HINT: ensure Client.Advertise.HTTP is set): %v", statsErr))
+	}
 
 	// Format the allocation data
 	basic := []string{
@@ -164,11 +168,6 @@ func (c *AllocStatusCommand) Run(args []string) int {
 	if verbose {
 		c.Ui.Output(c.Colorize().Color("\n[bold]Placement Metrics[reset]"))
 		c.Ui.Output(formatAllocMetrics(alloc.Metrics, true, "  "))
-	}
-
-	if statsErr != nil {
-		c.Ui.Output("")
-		c.Ui.Error(fmt.Sprintf("couldn't retreive stats: %v", statsErr))
 	}
 
 	return 0

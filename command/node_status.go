@@ -222,6 +222,10 @@ func (c *NodeStatusCommand) Run(args []string) int {
 func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 	// Get the host stats
 	hostStats, nodeStatsErr := client.Nodes().Stats(node.ID, nil)
+	if nodeStatsErr != nil {
+		c.Ui.Output("")
+		c.Ui.Error(fmt.Sprintf("error fetching node stats (HINT: ensure Client.Advertise.HTTP is set): %v", nodeStatsErr))
+	}
 
 	// Format the header output
 	basic := []string{
@@ -257,6 +261,10 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 		}
 
 		hostResources, err := getHostResources(hostStats, node)
+		if err != nil {
+			c.Ui.Output("")
+			c.Ui.Error(fmt.Sprintf("error fetching node stats (HINT: ensure Client.Advertise.HTTP is set): %v", err))
+		}
 		if err == nil {
 			c.Ui.Output(c.Colorize().Color("\n[bold]Host Resource Utilization[reset]"))
 			c.Ui.Output(formatList(hostResources))
@@ -285,10 +293,6 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 
 	if c.verbose {
 		c.formatAttributes(node)
-	}
-	if nodeStatsErr != nil {
-		c.Ui.Output("")
-		c.Ui.Error(fmt.Sprintf("error fetching node stats: %v", nodeStatsErr))
 	}
 	return 0
 

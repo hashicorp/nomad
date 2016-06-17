@@ -8,8 +8,10 @@ package common
 //  - windows (amd64)
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"io/ioutil"
+	"log"
 	"net/url"
 	"os"
 	"os/exec"
@@ -19,6 +21,12 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
+)
+
+var (
+	Timeout    = 3 * time.Second
+	TimeoutErr = errors.New("Command timed out.")
 )
 
 type Invoker interface {
@@ -28,7 +36,8 @@ type Invoker interface {
 type Invoke struct{}
 
 func (i Invoke) Command(name string, arg ...string) ([]byte, error) {
-	return exec.Command(name, arg...).Output()
+	cmd := exec.Command(name, arg...)
+	return CombinedOutputTimeout(cmd, Timeout)
 }
 
 type FakeInvoke struct {
@@ -118,20 +127,20 @@ func IntToString(orig []int8) string {
 }
 
 func UintToString(orig []uint8) string {
-        ret := make([]byte, len(orig))
-        size := -1
-        for i, o := range orig {
-                if o == 0 {
-                        size = i
-                        break
-                }
-                ret[i] = byte(o)
-        }
-        if size == -1 {
-                size = len(orig)
-        }
+	ret := make([]byte, len(orig))
+	size := -1
+	for i, o := range orig {
+		if o == 0 {
+			size = i
+			break
+		}
+		ret[i] = byte(o)
+	}
+	if size == -1 {
+		size = len(orig)
+	}
 
-        return string(ret[0:size])
+	return string(ret[0:size])
 }
 
 func ByteToString(orig []byte) string {
@@ -293,4 +302,42 @@ func HostSys(combineWith ...string) string {
 
 func HostEtc(combineWith ...string) string {
 	return GetEnv("HOST_ETC", "/etc", combineWith...)
+}
+
+// CombinedOutputTimeout runs the given command with the given timeout and
+// returns the combined output of stdout and stderr.
+// If the command times out, it attempts to kill the process.
+// copied from https://github.com/influxdata/telegraf
+func CombinedOutputTimeout(c *exec.Cmd, timeout time.Duration) ([]byte, error) {
+	var b bytes.Buffer
+	c.Stdout = &b
+	c.Stderr = &b
+	if err := c.Start(); err != nil {
+		return nil, err
+	}
+	err := WaitTimeout(c, timeout)
+	return b.Bytes(), err
+}
+
+// WaitTimeout waits for the given command to finish with a timeout.
+// It assumes the command has already been started.
+// If the command times out, it attempts to kill the process.
+// copied from https://github.com/influxdata/telegraf
+func WaitTimeout(c *exec.Cmd, timeout time.Duration) error {
+	timer := time.NewTimer(timeout)
+	done := make(chan error)
+	go func() { done <- c.Wait() }()
+	select {
+	case err := <-done:
+		timer.Stop()
+		return err
+	case <-timer.C:
+		if err := c.Process.Kill(); err != nil {
+			log.Printf("FATAL error killing process: %s", err)
+			return err
+		}
+		// wait for the command to return after killing it
+		<-done
+		return TimeoutErr
+	}
 }

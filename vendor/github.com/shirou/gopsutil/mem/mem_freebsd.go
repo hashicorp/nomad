@@ -93,7 +93,7 @@ func SwapMemory() (*SwapMemoryStat, error) {
 		return nil, err
 	}
 
-	out, err := exec.Command(swapinfo).Output()
+	out, err := invoke.Command(swapinfo)
 	if err != nil {
 		return nil, err
 	}
