@@ -283,6 +283,10 @@ func IOCounters() (map[string]IOCountersStat, error) {
 
 	for _, line := range lines {
 		fields := strings.Fields(line)
+		if len(fields) < 14 {
+			// malformed line in /proc/diskstats, avoid panic by ignoring.
+			continue
+		}
 		name := fields[2]
 		reads, err := strconv.ParseUint((fields[3]), 10, 64)
 		if err != nil {
@@ -332,6 +336,8 @@ func IOCounters() (map[string]IOCountersStat, error) {
 	return ret, nil
 }
 
+// GetDiskSerialNumber returns Serial Number of given device or empty string
+// on error. Name of device is expected, eg. /dev/sda
 func GetDiskSerialNumber(name string) string {
 	n := fmt.Sprintf("--name=%s", name)
 	udevadm, err := exec.LookPath("/sbin/udevadm")

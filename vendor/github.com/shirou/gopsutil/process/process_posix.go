@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+
+	"github.com/shirou/gopsutil/internal/common"
 )
 
 // POSIX
@@ -72,7 +74,10 @@ func (p *Process) SendSignal(sig syscall.Signal) error {
 	}
 	cmd := exec.Command(kill, "-s", sigAsStr, strconv.Itoa(int(p.Pid)))
 	cmd.Stderr = os.Stderr
-	err = cmd.Run()
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	err = common.WaitTimeout(cmd, common.Timeout)
 	if err != nil {
 		return err
 	}
