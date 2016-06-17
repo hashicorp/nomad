@@ -61,7 +61,7 @@ func testServer(t *testing.T, cb func(*nomad.Config)) (*nomad.Server, string) {
 	}
 
 	shutdownCh := make(chan struct{})
-	consulSyncer, err := consul.NewSyncer(conf.ConsulConfig, shutdownCh, log.New(os.Stderr, "", log.LstdFlags))
+	consulSyncer, err := consul.NewSyncer(config.ConsulConfig, shutdownCh, log.New(os.Stderr, "", log.LstdFlags))
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
