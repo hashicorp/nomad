@@ -67,6 +67,19 @@ type ConsulConfig struct {
 	ClientAutoJoin bool `mapstructure:"client_auto_join"`
 }
 
+// DefaultConsulConfig() returns the canonical defaults for the Nomad
+// `consul` configuration.
+func DefaultConsulConfig() *ConsulConfig {
+	return &ConsulConfig{
+		ServerServiceName: "nomad",
+		ClientServiceName: "nomad-client",
+		AutoAdvertise:     true,
+		ServerAutoJoin:    true,
+		ClientAutoJoin:    true,
+		Timeout:           5 * time.Second,
+	}
+}
+
 // Merge merges two Consul Configurations together.
 func (a *ConsulConfig) Merge(b *ConsulConfig) *ConsulConfig {
 	result := *a

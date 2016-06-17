@@ -38,7 +38,6 @@ import (
 	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/go-multierror"
 
-	cconfig "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/nomad/types"
@@ -160,7 +159,7 @@ func NewSyncer(consulConfig *config.ConsulConfig, shutdownCh chan struct{}, logg
 
 	// If a nil consulConfig was provided, fall back to the default config
 	if consulConfig == nil {
-		consulConfig = cconfig.DefaultConfig().ConsulConfig
+		consulConfig = config.DefaultConsulConfig()
 	}
 
 	if consulConfig.Addr != "" {

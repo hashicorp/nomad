@@ -46,7 +46,7 @@ func TestConsulServiceRegisterServices(t *testing.T) {
 	t.Skip()
 
 	shutdownCh := make(chan struct{})
-	cs, err := NewSyncer(&config.ConsulConfig{}, shutdownCh, logger)
+	cs, err := NewSyncer(&config.DefaultConsulConfig(), shutdownCh, logger)
 	if err != nil {
 		t.Fatalf("Err: %v", err)
 	}
@@ -82,7 +82,7 @@ func TestConsulServiceUpdateService(t *testing.T) {
 	t.Skip()
 
 	shutdownCh := make(chan struct{})
-	cs, err := NewSyncer(&config.ConsulConfig{}, shutdownCh, logger)
+	cs, err := NewSyncer(&config.DefaultConsulConfig(), shutdownCh, logger)
 	if err != nil {
 		t.Fatalf("Err: %v", err)
 	}
