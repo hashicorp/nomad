@@ -486,7 +486,7 @@ func (a *Agent) setupClient() error {
 				&structs.ServiceCheck{
 					Name:     "Nomad Client HTTP Check",
 					Type:     "http",
-					Path:     "/v1/agent/self",
+					Path:     "/v1/agent/servers",
 					Protocol: "http", // TODO TLS
 					Interval: clientHttpCheckInterval,
 					Timeout:  clientHttpCheckTimeout,
