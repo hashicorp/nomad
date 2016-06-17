@@ -69,7 +69,7 @@ func testLogger() *log.Logger {
 }
 
 func testConfig() *config.Config {
-	conf := &config.Config{}
+	conf := config.DefaultConfig()
 	conf.StateDir = os.TempDir()
 	conf.AllocDir = os.TempDir()
 	conf.MaxKillTimeout = 10 * time.Second
