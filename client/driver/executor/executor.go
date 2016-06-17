@@ -25,6 +25,7 @@ import (
 	"github.com/hashicorp/nomad/client/driver/logging"
 	"github.com/hashicorp/nomad/client/stats"
 	"github.com/hashicorp/nomad/command/agent/consul"
+	shelpers "github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 
@@ -205,6 +206,11 @@ type UniversalExecutor struct {
 
 // NewExecutor returns an Executor
 func NewExecutor(logger *log.Logger) Executor {
+	if err := shelpers.Init(); err != nil {
+		logger.Printf("[FATAL] executor: unable to initialize stats: %v", err)
+		return nil
+	}
+
 	exec := &UniversalExecutor{
 		logger:         logger,
 		processExited:  make(chan interface{}),
