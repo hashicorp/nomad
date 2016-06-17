@@ -7,7 +7,6 @@ import (
 	"log"
 	"net"
 	"net/rpc"
-	"os"
 	"path/filepath"
 	"reflect"
 	"sort"
@@ -164,19 +163,11 @@ type endpoints struct {
 
 // NewServer is used to construct a new Nomad server from the
 // configuration, potentially returning an error
-func NewServer(config *Config, consulSyncer *consul.Syncer) (*Server, error) {
+func NewServer(config *Config, consulSyncer *consul.Syncer, logger *log.Logger) (*Server, error) {
 	// Check the protocol version
 	if err := config.CheckVersion(); err != nil {
 		return nil, err
 	}
-
-	// Ensure we have a log output
-	if config.LogOutput == nil {
-		config.LogOutput = os.Stderr
-	}
-
-	// Create a logger
-	logger := log.New(config.LogOutput, "", log.LstdFlags)
 
 	// Create an eval broker
 	evalBroker, err := NewEvalBroker(config.EvalNackTimeout, config.EvalDeliveryLimit)
@@ -217,14 +208,14 @@ func NewServer(config *Config, consulSyncer *consul.Syncer) (*Server, error) {
 	// TODO: TLS...
 	if err := s.setupRPC(nil); err != nil {
 		s.Shutdown()
-		logger.Printf("[ERR] nomad: failed to start RPC layer: %s", err)
+		s.logger.Printf("[ERR] nomad: failed to start RPC layer: %s", err)
 		return nil, fmt.Errorf("Failed to start RPC layer: %v", err)
 	}
 
 	// Initialize the Raft server
 	if err := s.setupRaft(); err != nil {
 		s.Shutdown()
-		logger.Printf("[ERR] nomad: failed to start Raft: %s", err)
+		s.logger.Printf("[ERR] nomad: failed to start Raft: %s", err)
 		return nil, fmt.Errorf("Failed to start Raft: %v", err)
 	}
 
@@ -232,14 +223,14 @@ func NewServer(config *Config, consulSyncer *consul.Syncer) (*Server, error) {
 	s.serf, err = s.setupSerf(config.SerfConfig, s.eventCh, serfSnapshot)
 	if err != nil {
 		s.Shutdown()
-		logger.Printf("[ERR] nomad: failed to start serf WAN: %s", err)
+		s.logger.Printf("[ERR] nomad: failed to start serf WAN: %s", err)
 		return nil, fmt.Errorf("Failed to start serf: %v", err)
 	}
 
 	// Initialize the scheduling workers
 	if err := s.setupWorkers(); err != nil {
 		s.Shutdown()
-		logger.Printf("[ERR] nomad: failed to start workers: %s", err)
+		s.logger.Printf("[ERR] nomad: failed to start workers: %s", err)
 		return nil, fmt.Errorf("Failed to start workers: %v", err)
 	}
 

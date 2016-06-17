@@ -66,13 +66,14 @@ func testServer(t *testing.T, cb func(*Config)) *Server {
 	config.RaftConfig.StartAsLeader = !config.DevDisableBootstrap
 
 	shutdownCh := make(chan struct{})
-	consulSyncer, err := consul.NewSyncer(config.ConsulConfig, shutdownCh, log.New(config.LogOutput, "", log.LstdFlags))
+	logger := log.New(config.LogOutput, "", log.LstdFlags)
+	consulSyncer, err := consul.NewSyncer(config.ConsulConfig, shutdownCh, logger)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	// Create server
-	server, err := NewServer(config, consulSyncer)
+	server, err := NewServer(config, consulSyncer, logger)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

@@ -5,7 +5,6 @@ import (
 	"io"
 	"log"
 	"net"
-	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -61,20 +60,14 @@ type Agent struct {
 
 // NewAgent is used to create a new agent with the given configuration
 func NewAgent(config *Config, logOutput io.Writer) (*Agent, error) {
-	// Ensure we have a log sink
-	if logOutput == nil {
-		logOutput = os.Stderr
-	}
-
-	shutdownCh := make(chan struct{})
 	a := &Agent{
 		config:     config,
 		logger:     log.New(logOutput, "", log.LstdFlags),
 		logOutput:  logOutput,
-		shutdownCh: shutdownCh,
+		shutdownCh: make(chan struct{}),
 	}
 
-	if err := a.setupConsulSyncer(shutdownCh); err != nil {
+	if err := a.setupConsulSyncer(); err != nil {
 		return nil, fmt.Errorf("Failed to initialize Consul syncer task: %v", err)
 	}
 	if err := a.setupServer(); err != nil {
@@ -389,7 +382,7 @@ func (a *Agent) setupServer() error {
 	}
 
 	// Create the server
-	server, err := nomad.NewServer(conf, a.consulSyncer)
+	server, err := nomad.NewServer(conf, a.consulSyncer, a.logger)
 	if err != nil {
 		return fmt.Errorf("server setup failed: %v", err)
 	}
@@ -468,7 +461,7 @@ func (a *Agent) setupClient() error {
 	}
 
 	// Create the client
-	client, err := client.NewClient(conf, a.consulSyncer)
+	client, err := client.NewClient(conf, a.consulSyncer, a.logger)
 	if err != nil {
 		return fmt.Errorf("client setup failed: %v", err)
 	}
@@ -656,9 +649,9 @@ func (a *Agent) Stats() map[string]map[string]string {
 
 // setupConsulSyncer creates the Consul tasks used by this Nomad Agent
 // (either Client or Server mode).
-func (a *Agent) setupConsulSyncer(shutdownCh chan struct{}) error {
+func (a *Agent) setupConsulSyncer() error {
 	var err error
-	a.consulSyncer, err = consul.NewSyncer(a.config.Consul, shutdownCh, a.logger)
+	a.consulSyncer, err = consul.NewSyncer(a.config.Consul, a.shutdownCh, a.logger)
 	if err != nil {
 		return err
 	}
