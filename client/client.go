@@ -1376,7 +1376,9 @@ func (c *Client) setupConsulSyncer() error {
 
 		return c.consulSyncer.ReapUnmatched(domains)
 	}
-	c.consulSyncer.AddPeriodicHandler("Nomad Client Services Sync Handler", consulServicesReaperFn)
+	if c.config.ConsulConfig.AutoAdvertise {
+		c.consulSyncer.AddPeriodicHandler("Nomad Client Services Sync Handler", consulServicesReaperFn)
+	}
 
 	return nil
 }
