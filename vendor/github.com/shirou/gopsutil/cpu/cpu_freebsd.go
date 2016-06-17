@@ -1,5 +1,3 @@
-// +build freebsd
-
 package cpu
 
 import (
@@ -99,29 +97,46 @@ func Times(percpu bool) ([]TimesStat, error) {
 	return ret, nil
 }
 
-// Returns only one CPUInfoStat on FreeBSD
+// Returns only one InfoStat on FreeBSD.  The information regarding core
+// count, however is accurate and it is assumed that all InfoStat attributes
+// are the same across CPUs.
 func Info() ([]InfoStat, error) {
-	filename := "/var/run/dmesg.boot"
-	lines, _ := common.ReadLines(filename)
-
-	var ret []InfoStat
+	const dmesgBoot = "/var/run/dmesg.boot"
+	lines, _ := common.ReadLines(dmesgBoot)
 
 	c := InfoStat{}
+	var vals []string
+	var err error
+	if vals, err = common.DoSysctrl("hw.clockrate"); err != nil {
+		return nil, err
+	}
+	if c.Mhz, err = strconv.ParseFloat(vals[0], 64); err != nil {
+		return nil, fmt.Errorf("Unable to parse FreeBSD CPU clock rate: %v", err)
+	}
+	c.CPU = int32(c.Mhz)
+
+	if vals, err = common.DoSysctrl("hw.ncpu"); err != nil {
+		return nil, err
+	}
+	var i64 int64
+	if i64, err = strconv.ParseInt(vals[0], 10, 32); err != nil {
+		return nil, fmt.Errorf("Unable to parse FreeBSD cores: %v", err)
+	}
+	c.Cores = int32(i64)
+
+	if vals, err = common.DoSysctrl("hw.model"); err != nil {
+		return nil, err
+	}
+	c.ModelName = strings.Join(vals, " ")
+
 	for _, line := range lines {
-		if matches := regexp.MustCompile(`CPU:\s+(.+) \(([\d.]+).+\)`).FindStringSubmatch(line); matches != nil {
-			c.ModelName = matches[1]
-			t, err := strconv.ParseFloat(matches[2], 64)
-			if err != nil {
-				return ret, nil
-			}
-			c.Mhz = t
-		} else if matches := regexp.MustCompile(`Origin = "(.+)"  Id = (.+)  Family = (.+)  Model = (.+)  Stepping = (.+)`).FindStringSubmatch(line); matches != nil {
+		if matches := regexp.MustCompile(`Origin\s*=\s*"(.+)"\s+Id\s*=\s*(.+)\s+Family\s*=\s*(.+)\s+Model\s*=\s*(.+)\s+Stepping\s*=\s*(.+)`).FindStringSubmatch(line); matches != nil {
 			c.VendorID = matches[1]
 			c.Family = matches[3]
 			c.Model = matches[4]
 			t, err := strconv.ParseInt(matches[5], 10, 32)
 			if err != nil {
-				return ret, nil
+				return nil, fmt.Errorf("Unable to parse FreeBSD CPU stepping information from %q: %v", line, err)
 			}
 			c.Stepping = int32(t)
 		} else if matches := regexp.MustCompile(`Features=.+<(.+)>`).FindStringSubmatch(line); matches != nil {
@@ -132,16 +147,8 @@ func Info() ([]InfoStat, error) {
 			for _, v := range strings.Split(matches[1], ",") {
 				c.Flags = append(c.Flags, strings.ToLower(v))
 			}
-		} else if matches := regexp.MustCompile(`Logical CPUs per core: (\d+)`).FindStringSubmatch(line); matches != nil {
-			// FIXME: no this line?
-			t, err := strconv.ParseInt(matches[1], 10, 32)
-			if err != nil {
-				return ret, nil
-			}
-			c.Cores = int32(t)
 		}
-
 	}
 
-	return append(ret, c), nil
+	return []InfoStat{c}, nil
 }
