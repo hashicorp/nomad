@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/nomad"
+	sconfig "github.com/hashicorp/nomad/nomad/structs/config"
 )
 
 var nextPort uint32 = 17000
@@ -42,7 +43,7 @@ func makeAgent(t testing.TB, cb func(*Config)) (string, *Agent) {
 		Serf: getPort(),
 	}
 	conf.NodeName = fmt.Sprintf("Node %d", conf.Ports.RPC)
-	conf.Consul = config.DefaultConsulConfig()
+	conf.Consul = sconfig.DefaultConsulConfig()
 
 	// Tighten the Serf timing
 	config.SerfConfig.MemberlistConfig.SuspicionMult = 2
