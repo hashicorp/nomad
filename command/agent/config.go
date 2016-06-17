@@ -377,14 +377,7 @@ func DefaultConfig() *Config {
 		Addresses:      &Addresses{},
 		AdvertiseAddrs: &AdvertiseAddrs{},
 		Atlas:          &AtlasConfig{},
-		Consul: &config.ConsulConfig{
-			ServerServiceName: "nomad",
-			ClientServiceName: "nomad-client",
-			AutoAdvertise:     true,
-			ServerAutoJoin:    true,
-			ClientAutoJoin:    true,
-			Timeout:           5 * time.Second,
-		},
+		Consul:         config.DefaultConsulConfig(),
 		Client: &ClientConfig{
 			Enabled:        false,
 			NetworkSpeed:   100,

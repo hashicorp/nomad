@@ -225,6 +225,7 @@ func DefaultConfig() *Config {
 		MaxHeartbeatsPerSecond: 50.0,
 		HeartbeatGrace:         10 * time.Second,
 		FailoverHeartbeatTTL:   300 * time.Second,
+		ConsulConfig:           config.DefaultConsulConfig(),
 	}
 
 	// Enable all known schedulers by default

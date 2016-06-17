@@ -131,12 +131,7 @@ func (c *Config) Copy() *Config {
 // DefaultConfig returns the default configuration
 func DefaultConfig() *Config {
 	return &Config{
-		ConsulConfig: &config.ConsulConfig{
-			ServerServiceName: "nomad",
-			ClientServiceName: "nomad-client",
-			AutoAdvertise:     true,
-			Timeout:           5 * time.Second,
-		},
+		ConsulConfig:            config.DefaultConsulConfig(),
 		LogOutput:               os.Stderr,
 		Region:                  "global",
 		StatsCollectionInterval: 1 * time.Second,

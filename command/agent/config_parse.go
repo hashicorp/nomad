@@ -557,7 +557,7 @@ func parseConsulConfig(result **config.ConsulConfig, list *ast.ObjectList) error
 		return fmt.Errorf("only one 'consul' block allowed")
 	}
 
-	// Get our consul object
+	// Get our Consul object
 	listVal := list.Items[0].Val
 
 	// Check for invalid keys
@@ -587,7 +587,7 @@ func parseConsulConfig(result **config.ConsulConfig, list *ast.ObjectList) error
 		return err
 	}
 
-	var consulConfig config.ConsulConfig
+	consulConfig := config.DefaultConsulConfig()
 	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
 		DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
 		WeaklyTypedInput: true,
@@ -600,7 +600,7 @@ func parseConsulConfig(result **config.ConsulConfig, list *ast.ObjectList) error
 		return err
 	}
 
-	*result = &consulConfig
+	*result = consulConfig
 	return nil
 }
 

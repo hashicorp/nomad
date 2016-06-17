@@ -61,7 +61,7 @@ func (c *Command) readConfig() *Config {
 	// Make a new, empty config.
 	cmdConfig := &Config{
 		Atlas:  &AtlasConfig{},
-		Consul: &config.ConsulConfig{},
+		Consul: config.DefaultConsulConfig(),
 		Client: &ClientConfig{},
 		Ports:  &Ports{},
 		Server: &ServerConfig{},
