@@ -7,9 +7,18 @@ import (
 	"fmt"
 	"os"
 	"os/user"
+	"path/filepath"
 	"strconv"
 
 	"golang.org/x/sys/unix"
+)
+
+var (
+	//Path inside container for mounted directory shared across tasks in a task group.
+	SharedAllocContainerPath = filepath.Join("/", SharedAllocName)
+
+	//Path inside container for mounted directory for local storage.
+	TaskLocalContainerPath = filepath.Join("/", TaskLocal)
 )
 
 func (d *AllocDir) linkOrCopy(src, dst string, perm os.FileMode) error {
