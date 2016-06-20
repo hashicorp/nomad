@@ -52,9 +52,15 @@ func NewDockerLogParser(logger *log.Logger) *DockerLogParser {
 func (d *DockerLogParser) Parse(line []byte) *SyslogMessage {
 	pri, _, _ := d.parsePriority(line)
 	msgIdx := d.logContentIndex(line)
+
+	// Create a copy of the line so that subsequent Scans do not override the
+	// message
+	lineCopy := make([]byte, len(line[msgIdx:]))
+	copy(lineCopy, line[msgIdx:])
+
 	return &SyslogMessage{
 		Severity: pri.Severity,
-		Message:  line[msgIdx:],
+		Message:  lineCopy,
 	}
 }
 
