@@ -497,16 +497,15 @@ func (r *AllocRunner) StatsReporter() AllocStatsReporter {
 // LatestAllocStats returns the latest allocation stats. If the optional taskFilter is set
 // the allocation stats will only include the given task.
 func (r *AllocRunner) LatestAllocStats(taskFilter string) (*cstructs.AllocResourceUsage, error) {
-	r.taskLock.RLock()
-	defer r.taskLock.RUnlock()
-
 	astat := &cstructs.AllocResourceUsage{
 		Tasks: make(map[string]*cstructs.TaskResourceUsage),
 	}
 
 	var flat []*cstructs.TaskResourceUsage
 	if taskFilter != "" {
+		r.taskLock.RLock()
 		tr, ok := r.tasks[taskFilter]
+		r.taskLock.RUnlock()
 		if !ok {
 			return nil, fmt.Errorf("allocation %q has no task %q", r.alloc.ID, taskFilter)
 		}
@@ -517,10 +516,18 @@ func (r *AllocRunner) LatestAllocStats(taskFilter string) (*cstructs.AllocResour
 			astat.Timestamp = l.Timestamp
 		}
 	} else {
-		for task, tr := range r.tasks {
+		// Get the task runners
+		r.taskLock.RLock()
+		runners := make([]*TaskRunner, 0, len(r.tasks))
+		for _, tr := range r.tasks {
+			runners = append(runners, tr)
+		}
+		r.taskLock.RUnlock()
+
+		for _, tr := range runners {
 			l := tr.LatestResourceUsage()
 			if l != nil {
-				astat.Tasks[task] = l
+				astat.Tasks[tr.task.Name] = l
 				flat = append(flat, l)
 				if l.Timestamp > astat.Timestamp {
 					astat.Timestamp = l.Timestamp
