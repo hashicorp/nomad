@@ -54,6 +54,7 @@ BUG FIXES:
   * driver/docker: Ensure docker client doesn't time out after a minute.
     [GH-1184]
   * driver/java: Fix issue in which Java on darwin attempted to chroot [GH-1262]
+  * driver/docker: Fix issue in which logs could be spliced [GH-1322]
 
 ## 0.3.2 (April 22, 2016)
 
