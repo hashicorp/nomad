@@ -52,9 +52,11 @@ func NewDockerLogParser(logger *log.Logger) *DockerLogParser {
 func (d *DockerLogParser) Parse(line []byte) *SyslogMessage {
 	pri, _, _ := d.parsePriority(line)
 	msgIdx := d.logContentIndex(line)
+	msg := make([]byte, len(line) - msgIdx)
+	copy(msg, line[msgIdx:])
 	return &SyslogMessage{
 		Severity: pri.Severity,
-		Message:  line[msgIdx:],
+		Message:  msg,
 	}
 }
 
