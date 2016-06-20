@@ -1,6 +1,7 @@
 package stats
 
 import (
+	"math"
 	"runtime"
 	"time"
 
@@ -116,6 +117,12 @@ func (h *HostStatsCollector) Collect() (*HostStats, error) {
 					Available:         usage.Free,
 					UsedPercent:       usage.UsedPercent,
 					InodesUsedPercent: usage.InodesUsedPercent,
+				}
+				if math.IsNaN(ds.UsedPercent) {
+					ds.UsedPercent = 0.0
+				}
+				if math.IsNaN(ds.InodesUsedPercent) {
+					ds.InodesUsedPercent = 0.0
 				}
 				diskStats = append(diskStats, &ds)
 			}
