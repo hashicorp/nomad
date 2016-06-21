@@ -120,7 +120,7 @@ func (c *RunCommand) Run(args []string) int {
 		file, err := os.Open(path)
 		defer file.Close()
 		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error opening file: %s", err))
+			c.Ui.Error(fmt.Sprintf("Error opening file %q: %v", path, err))
 			return 1
 		}
 		f = file
@@ -130,7 +130,7 @@ func (c *RunCommand) Run(args []string) int {
 	job, err := jobspec.Parse(f)
 	if err != nil {
 		if path == "-" {
-			c.Ui.Error(fmt.Sprintf("Error parsing job from STDIN: %s", err))
+			c.Ui.Error(fmt.Sprintf("Error parsing job from STDIN: %v", err))
 		} else {
 			c.Ui.Error(fmt.Sprintf("Error parsing job file %s: %s", f, err))
 		}
