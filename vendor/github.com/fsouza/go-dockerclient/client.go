@@ -144,6 +144,9 @@ type Client struct {
 	serverAPIVersion    APIVersion
 	expectedAPIVersion  APIVersion
 	unixHTTPClient      *http.Client
+
+	// A timeout to use when using both the unixHTTPClient and HTTPClient
+	timeout time.Duration
 }
 
 // NewClient returns a Client instance ready for communication with the given
@@ -316,6 +319,12 @@ func NewVersionedTLSClientFromBytes(endpoint string, certPEMBlock, keyPEMBlock, 
 	}, nil
 }
 
+// SetTimeout takes a timeout and applies it to subsequent requests to the
+// docker engine
+func (c *Client) SetTimeout(t time.Duration) {
+	c.timeout = t
+}
+
 func (c *Client) checkAPIVersion() error {
 	serverAPIVersionString, err := c.getServerAPIVersionString()
 	if err != nil {
@@ -405,6 +414,12 @@ func (c *Client) do(method, path string, doOptions doOptions) (*http.Response, e
 	} else {
 		u = c.getURL(path)
 	}
+
+	// If the user has provided a timeout, apply it.
+	if c.timeout != 0 {
+		httpClient.Timeout = c.timeout
+	}
+
 	req, err := http.NewRequest(method, u, params)
 	if err != nil {
 		return nil, err

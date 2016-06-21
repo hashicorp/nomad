@@ -546,6 +546,8 @@ type KeyValuePair struct {
 //   - always: the docker daemon will always restart the container
 //   - on-failure: the docker daemon will restart the container on failures, at
 //                 most MaximumRetryCount times
+//   - unless-stopped: the docker daemon will always restart the container except
+//                 when user has manually stopped the container
 //   - no: the docker daemon will not restart the container automatically
 type RestartPolicy struct {
 	Name              string `json:"Name,omitempty" yaml:"Name,omitempty"`
@@ -562,6 +564,12 @@ func AlwaysRestart() RestartPolicy {
 // restart the container on failures, trying at most maxRetry times.
 func RestartOnFailure(maxRetry int) RestartPolicy {
 	return RestartPolicy{Name: "on-failure", MaximumRetryCount: maxRetry}
+}
+
+// RestartUnlessStopped returns a restart policy that tells the Docker daemon to
+// always restart the container except when user has manually stopped the container.
+func RestartUnlessStopped() RestartPolicy {
+	return RestartPolicy{Name: "unless-stopped"}
 }
 
 // NeverRestart returns a restart policy that tells the Docker daemon to never
@@ -627,6 +635,7 @@ type HostConfig struct {
 	CgroupParent         string                 `json:"CgroupParent,omitempty" yaml:"CgroupParent,omitempty"`
 	Memory               int64                  `json:"Memory,omitempty" yaml:"Memory,omitempty"`
 	MemoryReservation    int64                  `json:"MemoryReservation,omitempty" yaml:"MemoryReservation,omitempty"`
+	KernelMemory         int64                  `json:"KernelMemory,omitempty" yaml:"KernelMemory,omitempty"`
 	MemorySwap           int64                  `json:"MemorySwap,omitempty" yaml:"MemorySwap,omitempty"`
 	MemorySwappiness     int64                  `json:"MemorySwappiness,omitempty" yaml:"MemorySwappiness,omitempty"`
 	OOMKillDisable       bool                   `json:"OomKillDisable,omitempty" yaml:"OomKillDisable"`
@@ -647,6 +656,7 @@ type HostConfig struct {
 	OomScoreAdj          int                    `json:"OomScoreAdj,omitempty" yaml:"OomScoreAdj,omitempty"`
 	PidsLimit            int64                  `json:"PidsLimit,omitempty" yaml:"PidsLimit,omitempty"`
 	ShmSize              int64                  `json:"ShmSize,omitempty" yaml:"ShmSize,omitempty"`
+	Tmpfs                map[string]string      `json:"Tmpfs,omitempty" yaml:"Tmpfs,omitempty"`
 }
 
 // NetworkingConfig represents the container's networking configuration for each of its interfaces

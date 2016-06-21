@@ -53,10 +53,12 @@ type APIActor struct {
 }
 
 type eventMonitoringState struct {
+	// `sync/atomic` expects the first word in an allocated struct to be 64-bit
+	// aligned on both ARM and x86-32. See https://goo.gl/zW7dgq for more details.
+	lastSeen int64
 	sync.RWMutex
 	sync.WaitGroup
 	enabled   bool
-	lastSeen  int64
 	C         chan *APIEvents
 	errC      chan error
 	listeners []chan<- *APIEvents
