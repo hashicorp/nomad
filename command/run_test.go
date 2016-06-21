@@ -1,7 +1,6 @@
 package command
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -181,7 +180,6 @@ job "job1" {
 	cmd := &RunCommand{Meta: Meta{Ui: ui}}
 
 	if code := cmd.Run([]string{"-"}); code != 0 {
-		os.Stdout.Write([]byte(fmt.Sprintf("####OUTPUT\n%s\n\n", ui.OutputWriter.String())))
 		t.Fatalf("expected exit code 0, got: %d", code)
 	}
 }
