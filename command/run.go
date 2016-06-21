@@ -132,7 +132,7 @@ func (c *RunCommand) Run(args []string) int {
 		if path == "-" {
 			c.Ui.Error(fmt.Sprintf("Error parsing job from STDIN: %v", err))
 		} else {
-			c.Ui.Error(fmt.Sprintf("Error parsing job file %s: %s", f, err))
+			c.Ui.Error(fmt.Sprintf("Error parsing job file %q: %v", path, err))
 		}
 		return 1
 	}
