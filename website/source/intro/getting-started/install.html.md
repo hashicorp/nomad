@@ -15,6 +15,8 @@ Create a new directory, and download [this `Vagrantfile`](https://raw.githubuser
 
 ## Vagrant Setup
 
+Note: To use the Vagrant Setup first install Vagrant following these instructions: https://www.vagrantup.com/docs/installation/
+
 Once you have created a new directory and downloaded the `Vagrantfile`
 you must create the virtual machine:
 
