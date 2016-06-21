@@ -98,15 +98,7 @@ type DockerDriverConfig struct {
 	ShmSize          int64               `mapstructure:"shm_size"`           // Size of /dev/shm of the container in bytes
 }
 
-func (c *DockerDriverConfig) Init() error {
-	if strings.Contains(c.ImageName, "https://") {
-		c.SSL = true
-		c.ImageName = strings.Replace(c.ImageName, "https://", "", 1)
-	}
-
-	return nil
-}
-
+// Validate validates a docker driver config
 func (c *DockerDriverConfig) Validate() error {
 	if c.ImageName == "" {
 		return fmt.Errorf("Docker Driver needs an image name")
@@ -116,6 +108,24 @@ func (c *DockerDriverConfig) Validate() error {
 	c.Labels = mapMergeStrStr(c.LabelsRaw...)
 
 	return nil
+}
+
+// NewDockerDriverConfig returns a docker driver config by parsing the HCL
+// config
+func NewDockerDriverConfig(task *structs.Task) (*DockerDriverConfig, error) {
+	var driverConfig DockerDriverConfig
+	driverConfig.SSL = true
+	if err := mapstructure.WeakDecode(task.Config, &driverConfig); err != nil {
+		return nil, err
+	}
+	if strings.Contains(driverConfig.ImageName, "https://") {
+		driverConfig.ImageName = strings.Replace(driverConfig.ImageName, "https://", "", 1)
+	}
+
+	if err := driverConfig.Validate(); err != nil {
+		return nil, err
+	}
+	return &driverConfig, nil
 }
 
 type dockerPID struct {
@@ -657,16 +667,8 @@ func (d *DockerDriver) loadImage(driverConfig *DockerDriverConfig, client *docke
 }
 
 func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
-	var driverConfig DockerDriverConfig
-	if err := mapstructure.WeakDecode(task.Config, &driverConfig); err != nil {
-		return nil, err
-	}
-
-	if err := driverConfig.Init(); err != nil {
-		return nil, err
-	}
-
-	if err := driverConfig.Validate(); err != nil {
+	driverConfig, err := NewDockerDriverConfig(task)
+	if err != nil {
 		return nil, err
 	}
 
@@ -683,7 +685,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 		return nil, fmt.Errorf("Failed to connect to docker daemon: %s", err)
 	}
 
-	if err := d.createImage(&driverConfig, client, taskDir); err != nil {
+	if err := d.createImage(driverConfig, client, taskDir); err != nil {
 		return nil, fmt.Errorf("failed to create image: %v", err)
 	}
 
@@ -723,7 +725,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 		return nil, fmt.Errorf("failed to start syslog collector: %v", err)
 	}
 
-	config, err := d.createContainer(ctx, task, &driverConfig, ss.Addr)
+	config, err := d.createContainer(ctx, task, driverConfig, ss.Addr)
 	if err != nil {
 		d.logger.Printf("[ERR] driver.docker: failed to create container configuration for image %s: %s", image, err)
 		pluginClient.Kill()
