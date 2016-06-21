@@ -1249,10 +1249,9 @@ func (c *Client) setupConsulSyncer() error {
 			// datacenterQueryLimit, the next heartbeat will pick
 			// a new set of servers so it's okay.
 			nearestDC := dcs[0]
-			otherDCs := make([]string, 0, len(dcs))
-			shuffleStrings(otherDCs)
-			otherDCs = dcs[1:lib.MinInt(len(dcs), datacenterQueryLimit)]
-
+			dcs = dcs[1:]
+			shuffleStrings(dcs)
+			otherDCs := dcs[0:lib.MinInt(len(dcs), datacenterQueryLimit)]
 			dcs = append([]string{nearestDC}, otherDCs...)
 		}
 

@@ -470,10 +470,9 @@ func (s *Server) setupBootstrapHandler() error {
 			// walk all datacenter until it finds enough hosts to
 			// form a quorum.
 			nearestDC := dcs[0]
-			otherDCs := make([]string, 0, len(dcs))
-			shuffleStrings(otherDCs)
-			otherDCs = dcs[1:lib.MinInt(len(dcs), datacenterQueryLimit)]
-
+			dcs = dcs[1:]
+			shuffleStrings(dcs)
+			otherDCs := dcs[0:lib.MinInt(len(dcs), datacenterQueryLimit)]
 			dcs = append([]string{nearestDC}, otherDCs...)
 		}
 
