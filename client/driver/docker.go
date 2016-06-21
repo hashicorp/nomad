@@ -254,11 +254,25 @@ func (d *DockerDriver) dockerClients() (*docker.Client, *docker.Client, error) {
 			if cert+key+ca != "" {
 				d.logger.Printf("[DEBUG] driver.docker: using TLS client connection to %s", dockerEndpoint)
 				client, err = docker.NewTLSClient(dockerEndpoint, cert, key, ca)
+				if err != nil {
+					merr.Errors = append(merr.Errors, err)
+				}
+				waitClient, err = docker.NewTLSClient(dockerEndpoint, cert, key, ca)
+				if err != nil {
+					merr.Errors = append(merr.Errors, err)
+				}
 			} else {
 				d.logger.Printf("[DEBUG] driver.docker: using standard client connection to %s", dockerEndpoint)
 				client, err = docker.NewClient(dockerEndpoint)
+				if err != nil {
+					merr.Errors = append(merr.Errors, err)
+				}
+				waitClient, err = docker.NewClient(dockerEndpoint)
+				if err != nil {
+					merr.Errors = append(merr.Errors, err)
+				}
 			}
-			client.HTTPClient.Timeout = dockerTimeout
+			client.SetTimeout(dockerTimeout)
 			return
 		}
 
@@ -267,7 +281,7 @@ func (d *DockerDriver) dockerClients() (*docker.Client, *docker.Client, error) {
 		if err != nil {
 			merr.Errors = append(merr.Errors, err)
 		}
-		client.HTTPClient.Timeout = dockerTimeout
+		client.SetTimeout(dockerTimeout)
 
 		waitClient, err = docker.NewClientFromEnv()
 		if err != nil {
