@@ -15,12 +15,15 @@ format.
 ## Usage
 
 ```
-nomad run [options] <file>
+nomad run [options] <path>
 ```
 
 The run command requires a single argument, specifying the path to a file
 containing a valid [job specification](/docs/jobspec/index.html). This file
 will be read and the job will be submitted to Nomad for scheduling.
+
+If the supplied path is "-", the jobfile is read from STDIN. Otherwise it is
+read from the file at the supplied path.
 
 By default, on successful job submission the run command will enter an
 interactive monitor and display log information detailing the scheduling
@@ -107,4 +110,15 @@ $ nomad run failing.nomad
       * Class "foo" filtered 1 nodes
       * Constraint "${attr.kernel.name} = linux" filtered 1 nodes
     Evaluation "67493a64" waiting for additional capacity to place remainder
+```
+
+Schedule a job from STDIN:
+
+```
+$ cat job1.nomad | nomad run -
+==> Monitoring evaluation "52dee78a"
+    Allocation "5e0b39f0" created: node "3e84d3d2", group "group1"
+    Allocation "5e0b39f0" status changed: "pending" -> "running"
+    Evaluation status changed: "pending" -> "complete"
+==> Evaluation "52dee78a" finished with status "complete"
 ```

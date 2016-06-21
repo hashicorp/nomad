@@ -118,18 +118,22 @@ func (c *RunCommand) Run(args []string) int {
 	var f io.Reader = os.Stdin
 	if path != "-" {
 		file, err := os.Open(path)
+		defer file.Close()
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error opening file: %s", err))
 			return 1
 		}
-		defer file.Close()
 		f = file
 	}
 
 	// Parse the JobFile
 	job, err := jobspec.Parse(f)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error parsing job file %s: %s", f, err))
+		if path == "-" {
+			c.Ui.Error(fmt.Sprintf("Error parsing job from STDIN: %s", err))
+		} else {
+			c.Ui.Error(fmt.Sprintf("Error parsing job file %s: %s", f, err))
+		}
 		return 1
 	}
 

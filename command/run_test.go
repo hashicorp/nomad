@@ -1,6 +1,7 @@
 package command
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -146,4 +147,41 @@ job "job1" {
 	}
 	ui.ErrorWriter.Reset()
 
+}
+
+func TestRunCommand_From_STDIN(t *testing.T) {
+	fromStdin, toFile, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	defer os.Remove(toFile.Name())
+	_, err = toFile.WriteString(`
+job "job1" {
+	type = "service"
+	datacenters = [ "dc1" ]
+	group "group1" {
+		count = 1
+		task "task1" {
+			driver = "exec"
+			resources = {
+				cpu = 1000
+				disk = 150
+				memory = 512
+			}
+		}
+	}
+}`)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	ui := new(cli.MockUi)
+	ui.InputReader = fromStdin
+	cmd := &RunCommand{Meta: Meta{Ui: ui}}
+
+	if code := cmd.Run([]string{"-"}); code != 0 {
+		os.Stdout.Write([]byte(fmt.Sprintf("####OUTPUT\n%s\n\n", ui.OutputWriter.String())))
+		t.Fatalf("expected exit code 0, got: %d", code)
+	}
 }
