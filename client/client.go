@@ -1248,12 +1248,8 @@ func (c *Client) setupConsulSyncer() error {
 			// Nomad servers are available within
 			// datacenterQueryLimit, the next heartbeat will pick
 			// a new set of servers so it's okay.
-			nearestDC := dcs[0]
-			otherDCs := make([]string, 0, len(dcs))
-			shuffleStrings(otherDCs)
-			otherDCs = dcs[1:lib.MinInt(len(dcs), datacenterQueryLimit)]
-
-			dcs = append([]string{nearestDC}, otherDCs...)
+			shuffleStrings(dcs[1:])
+			dcs = dcs[0:lib.MinInt(len(dcs), datacenterQueryLimit)]
 		}
 
 		// Forward RPCs to our region
