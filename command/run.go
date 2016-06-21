@@ -5,6 +5,8 @@ import (
 	"encoding/gob"
 	"encoding/json"
 	"fmt"
+	"io"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -26,11 +28,14 @@ type RunCommand struct {
 
 func (c *RunCommand) Help() string {
 	helpText := `
-Usage: nomad run [options] <file>
+Usage: nomad run [options] <path>
 
   Starts running a new job or updates an existing job using
-  the specification located at <file>. This is the main command
+  the specification located at <path>. This is the main command
   used to interact with Nomad.
+
+  If the supplied path is "-", the jobfile is read from stdin. Otherwise
+  it is read from the file at the supplied path.
 
   Upon successful job submission, this command will immediately
   enter an interactive monitor. This is useful to watch Nomad's
@@ -107,12 +112,24 @@ func (c *RunCommand) Run(args []string) int {
 		c.Ui.Error(c.Help())
 		return 1
 	}
-	file := args[0]
 
-	// Parse the job file
-	job, err := jobspec.ParseFile(file)
+	// Read the Jobfile
+	path := args[0]
+	var f io.Reader = os.Stdin
+	if path != "-" {
+		file, err := os.Open(path)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error opening file: %s", err))
+			return 1
+		}
+		defer file.Close()
+		f = file
+	}
+
+	// Parse the JobFile
+	job, err := jobspec.Parse(f)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error parsing job file %s: %s", file, err))
+		c.Ui.Error(fmt.Sprintf("Error parsing job file %s: %s", f, err))
 		return 1
 	}
 
