@@ -454,10 +454,46 @@ func TestServiceSched_JobRegister_FeasibleAndInfeasibleTG(t *testing.T) {
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
 
-func TestServiceSched_EvaluateBlockedEval(t *testing.T) {
+// This test just ensures the scheduler handles the eval type to avoid
+// regressions.
+func TestServiceSched_EvaluateMaxPlanEval(t *testing.T) {
 	h := NewHarness(t)
 
 	// Create a job and set the task group count to zero.
+	job := mock.Job()
+	job.TaskGroups[0].Count = 0
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	// Create a mock blocked evaluation
+	eval := &structs.Evaluation{
+		ID:          structs.GenerateUUID(),
+		Status:      structs.EvalStatusBlocked,
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerMaxPlans,
+		JobID:       job.ID,
+	}
+
+	// Insert it into the state store
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+
+	// Process the evaluation
+	err := h.Process(NewServiceScheduler, eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure there was no plan
+	if len(h.Plans) != 0 {
+		t.Fatalf("bad: %#v", h.Plans)
+	}
+
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+}
+
+func TestServiceSched_EvaluateBlockedEval(t *testing.T) {
+	h := NewHarness(t)
+
+	// Create a job
 	job := mock.Job()
 	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
 
