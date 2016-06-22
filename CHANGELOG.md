@@ -6,6 +6,8 @@ __BACKWARDS INCOMPATIBILITIES:__
     eval-status -monitor`.
   * config: Consul configuration has been moved from client options map to
     consul block under client configuration
+  * driver/docker: Enabled SSL by default for pulling images from docker
+    registries. [GH-1336]
 
 IMPROVEMENTS:
   * core: Scheduler reuses blocked evaluations to avoid unbounded creation of
@@ -34,6 +36,8 @@ IMPROVEMENTS:
     if the artifact exists inside a chrooted directory [GH-1262]
   * driver/docker: Added a client options to set SELinux labels for container
     bind mounts. [GH-788]
+  * driver/docker: Enabled SSL by default for pulling images from docker
+    registries. [GH-1336]
   * server: If Consul is available, automatically bootstrap Nomad Servers
     using the `_nomad` service in Consul.  [GH-1276]
 

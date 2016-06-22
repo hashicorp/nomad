@@ -94,7 +94,7 @@ The following options are available for use in the job specification.
   to use.
 
 * `SSL` - (Optional) If this is set to true, Nomad uses SSL to talk to the
-  repository. The default value is `false`.
+  repository. The default value is `true`.
 
 * `port_map` - (Optional) A key/value map of port labels (see below).
 
