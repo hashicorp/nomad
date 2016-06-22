@@ -328,7 +328,7 @@ SUBMIT:
 	var state scheduler.State
 	if result.RefreshIndex != 0 {
 		// Wait for the the raft log to catchup to the evaluation
-		w.logger.Printf("[DEBUG] worker: refreshing state to index %d", result.RefreshIndex)
+		w.logger.Printf("[DEBUG] worker: refreshing state to index %d for %q", result.RefreshIndex, plan.EvalID)
 		if err := w.waitForIndex(result.RefreshIndex, raftSyncLimit); err != nil {
 			return nil, nil, err
 		}
