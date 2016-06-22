@@ -262,7 +262,7 @@ func TestCoreScheduler_EvalGC_Batch_Allocs_WithRunningJob(t *testing.T) {
 	}
 }
 
-func TestCoreScheduler_EvalGC_Batch_Allocs_WithJobInTerminalJob(t *testing.T) {
+func TestCoreScheduler_EvalGC_Batch_Allocs_WithTerminalJob(t *testing.T) {
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
@@ -314,7 +314,7 @@ func TestCoreScheduler_EvalGC_Batch_Allocs_WithJobInTerminalJob(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	// Shouldn't be gone because there are associated allocs.
+	// The job and it's associated alloc and eval should be gone
 	out, err := state.EvalByID(eval.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
