@@ -231,9 +231,8 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64) 
 			return false, nil, err
 		}
 
-		// If the job has been deregistered, we want to garbage collect the
-		// allocations and evaluations.
-		if job != nil {
+		// We don't want to gc anything related to a job which is not dead
+		if job != nil && job.Status != structs.JobStatusDead {
 			return false, nil, nil
 		}
 	}
