@@ -254,17 +254,9 @@ func (s *Server) schedulePeriodic(stopCh chan struct{}) {
 	// getLatest grabs the latest index from the state store. It returns true if
 	// the index was retrieved successfully.
 	getLatest := func() (uint64, bool) {
-		// Snapshot the current state
-		snap, err := s.fsm.State().Snapshot()
+		snapshotIndex, err := s.fsm.State().LatestIndex()
 		if err != nil {
-			s.logger.Printf("[ERR] nomad: failed to snapshot state for periodic GC: %v", err)
-			return 0, false
-		}
-
-		// Store the snapshot's index
-		snapshotIndex, err := snap.LatestIndex()
-		if err != nil {
-			s.logger.Printf("[ERR] nomad: failed to determine snapshot's index for periodic GC: %v", err)
+			s.logger.Printf("[ERR] nomad: failed to determine state store's index: %v", err)
 			return 0, false
 		}
 
