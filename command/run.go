@@ -24,6 +24,9 @@ var (
 
 type RunCommand struct {
 	Meta
+
+	// The fields below can be overwritten for tests
+	testStdin io.Reader
 }
 
 func (c *RunCommand) Help() string {
@@ -115,8 +118,16 @@ func (c *RunCommand) Run(args []string) int {
 
 	// Read the Jobfile
 	path := args[0]
-	var f io.Reader = os.Stdin
-	if path != "-" {
+
+	var f io.Reader
+	switch path {
+	case "-":
+		if c.testStdin != nil {
+			f = c.testStdin
+		} else {
+			f = os.Stdin
+		}
+	default:
 		file, err := os.Open(path)
 		defer file.Close()
 		if err != nil {
@@ -129,11 +140,7 @@ func (c *RunCommand) Run(args []string) int {
 	// Parse the JobFile
 	job, err := jobspec.Parse(f)
 	if err != nil {
-		if path == "-" {
-			c.Ui.Error(fmt.Sprintf("Error parsing job from STDIN: %v", err))
-		} else {
-			c.Ui.Error(fmt.Sprintf("Error parsing job file %q: %v", path, err))
-		}
+		c.Ui.Error(fmt.Sprintf("Error parsing job file %s: %v", f, err))
 		return 1
 	}
 
@@ -142,7 +149,7 @@ func (c *RunCommand) Run(args []string) int {
 
 	// Check that the job is valid
 	if err := job.Validate(); err != nil {
-		c.Ui.Error(fmt.Sprintf("Error validating job: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error validating job: %v", err))
 		return 1
 	}
 

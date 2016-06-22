@@ -149,17 +149,23 @@ job "job1" {
 }
 
 func TestRunCommand_From_STDIN(t *testing.T) {
-	fromStdin, toFile, err := os.Pipe()
+	stdinR, stdinW, err := os.Pipe()
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
-	defer os.Remove(toFile.Name())
-	_, err = toFile.WriteString(`
+	ui := new(cli.MockUi)
+	cmd := &RunCommand{
+		Meta:      Meta{Ui: ui},
+		testStdin: stdinR,
+	}
+
+	go func() {
+		stdinW.WriteString(`
 job "job1" {
-	type = "service"
-	datacenters = [ "dc1" ]
-	group "group1" {
+  type = "service"
+  datacenters = [ "dc1" ]
+  group "group1" {
 		count = 1
 		task "task1" {
 			driver = "exec"
@@ -171,15 +177,11 @@ job "job1" {
 		}
 	}
 }`)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+		stdinW.Close()
+	}()
 
-	ui := new(cli.MockUi)
-	ui.InputReader = fromStdin
-	cmd := &RunCommand{Meta: Meta{Ui: ui}}
-
-	if code := cmd.Run([]string{"-"}); code != 0 {
-		t.Fatalf("expected exit code 0, got: %d", code)
+	args := []string{"-"}
+	if code := cmd.Run(args); code != 0 {
+		t.Fatalf("expected exit code 0, got %d: %q", code, ui.ErrorWriter.String())
 	}
 }
