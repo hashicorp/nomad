@@ -257,8 +257,8 @@ func (p *Process) MemoryInfo() (*MemoryInfoStat, error) {
 	}
 
 	ret := &MemoryInfoStat{
-		RSS: mem.WorkingSetSize,
-		VMS: mem.PagefileUsage,
+		RSS: uint64(mem.WorkingSetSize),
+		VMS: uint64(mem.PagefileUsage),
 	}
 
 	return ret, nil
