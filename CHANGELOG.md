@@ -47,6 +47,8 @@ BUG FIXES:
     retried [GH-1231]
   * core: Do not restart successful batch jobs when the node is removed/drained
     [GH-1205]
+  * core: Fix an issue in which the scheduler could be invoked with insufficient
+    state [GH-1339]
   * core: Updated User, Meta or Resources in a task cause create/destroy updates
     [GH-1128, GH-1153]
   * core: Fix blocked evaluations being run without properly accounting for
