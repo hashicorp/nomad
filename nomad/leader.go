@@ -252,13 +252,27 @@ func (s *Server) schedulePeriodic(stopCh chan struct{}) {
 	defer jobGC.Stop()
 
 	for {
+		// Snapshot the current state
+		snap, err := s.fsm.State().Snapshot()
+		if err != nil {
+			s.logger.Printf("[ERR] nomad: failed to snapshot state for periodic GC: %v", err)
+			continue
+		}
+
+		// Store the snapshot's index
+		snapshotIndex, err := snap.LatestIndex()
+		if err != nil {
+			s.logger.Printf("[ERR] nomad: failed to determine snapshot's index for periodic GC: %v", err)
+			continue
+		}
+
 		select {
 		case <-evalGC.C:
-			s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobEvalGC))
+			s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobEvalGC, snapshotIndex))
 		case <-nodeGC.C:
-			s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobNodeGC))
+			s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobNodeGC, snapshotIndex))
 		case <-jobGC.C:
-			s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobJobGC))
+			s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobJobGC, snapshotIndex))
 		case <-stopCh:
 			return
 		}
@@ -266,7 +280,7 @@ func (s *Server) schedulePeriodic(stopCh chan struct{}) {
 }
 
 // coreJobEval returns an evaluation for a core job
-func (s *Server) coreJobEval(job string) *structs.Evaluation {
+func (s *Server) coreJobEval(job string, modifyIndex uint64) *structs.Evaluation {
 	return &structs.Evaluation{
 		ID:          structs.GenerateUUID(),
 		Priority:    structs.CoreJobPriority,
@@ -274,7 +288,7 @@ func (s *Server) coreJobEval(job string) *structs.Evaluation {
 		TriggeredBy: structs.EvalTriggerScheduled,
 		JobID:       job,
 		Status:      structs.EvalStatusPending,
-		ModifyIndex: s.raft.AppliedIndex(),
+		ModifyIndex: modifyIndex,
 	}
 }
 

@@ -11,9 +11,6 @@ import (
 )
 
 func TestSystemEndpoint_GarbageCollect(t *testing.T) {
-	//s1 := testServer(t, func(c *Config) {
-	//c.NumSchedulers = 0 // Prevent automatic dequeue
-	//})
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
@@ -23,7 +20,7 @@ func TestSystemEndpoint_GarbageCollect(t *testing.T) {
 	state := s1.fsm.State()
 	job := mock.Job()
 	job.Type = structs.JobTypeBatch
-	if err := state.UpsertJob(0, job); err != nil {
+	if err := state.UpsertJob(1000, job); err != nil {
 		t.Fatalf("UpsertAllocs() failed: %v", err)
 	}
 

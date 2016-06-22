@@ -215,9 +215,20 @@ func (w *Worker) waitForIndex(index uint64, timeout time.Duration) error {
 	start := time.Now()
 	defer metrics.MeasureSince([]string{"nomad", "worker", "wait_for_index"}, start)
 CHECK:
+	// Snapshot the current state
+	snap, err := w.srv.fsm.State().Snapshot()
+	if err != nil {
+		return fmt.Errorf("failed to snapshot state: %v", err)
+	}
+
+	// Store the snapshot's index
+	snapshotIndex, err := snap.LatestIndex()
+	if err != nil {
+		return fmt.Errorf("failed to determine snapshot's index: %v", err)
+	}
+
 	// We only need the FSM state to be as recent as the given index
-	appliedIndex := w.srv.raft.AppliedIndex()
-	if index <= appliedIndex {
+	if index <= snapshotIndex {
 		w.backoffReset()
 		return nil
 	}

@@ -44,8 +44,7 @@ func TestCoreScheduler_EvalGC(t *testing.T) {
 	core := NewCoreScheduler(s1, snap)
 
 	// Attempt the GC
-	gc := s1.coreJobEval(structs.CoreJobEvalGC)
-	gc.ModifyIndex = 2000
+	gc := s1.coreJobEval(structs.CoreJobEvalGC, 2000)
 	err = core.Process(gc)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -112,8 +111,7 @@ func TestCoreScheduler_EvalGC_Partial(t *testing.T) {
 	core := NewCoreScheduler(s1, snap)
 
 	// Attempt the GC
-	gc := s1.coreJobEval(structs.CoreJobEvalGC)
-	gc.ModifyIndex = 2000
+	gc := s1.coreJobEval(structs.CoreJobEvalGC, 2000)
 	err = core.Process(gc)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -173,8 +171,7 @@ func TestCoreScheduler_EvalGC_Batch_NoAllocs(t *testing.T) {
 	core := NewCoreScheduler(s1, snap)
 
 	// Attempt the GC
-	gc := s1.coreJobEval(structs.CoreJobEvalGC)
-	gc.ModifyIndex = 2000
+	gc := s1.coreJobEval(structs.CoreJobEvalGC, 2000)
 	err = core.Process(gc)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -235,8 +232,7 @@ func TestCoreScheduler_EvalGC_Batch_Allocs_WithJob(t *testing.T) {
 	core := NewCoreScheduler(s1, snap)
 
 	// Attempt the GC
-	gc := s1.coreJobEval(structs.CoreJobEvalGC)
-	gc.ModifyIndex = 2000
+	gc := s1.coreJobEval(structs.CoreJobEvalGC, 2000)
 	err = core.Process(gc)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -296,8 +292,7 @@ func TestCoreScheduler_EvalGC_Batch_Allocs_NoJob(t *testing.T) {
 	core := NewCoreScheduler(s1, snap)
 
 	// Attempt the GC
-	gc := s1.coreJobEval(structs.CoreJobEvalGC)
-	gc.ModifyIndex = 2000
+	gc := s1.coreJobEval(structs.CoreJobEvalGC, 2000)
 	err = core.Process(gc)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -344,7 +339,7 @@ func TestCoreScheduler_EvalGC_Force(t *testing.T) {
 	core := NewCoreScheduler(s1, snap)
 
 	// Attempt the GC
-	gc := s1.coreJobEval(structs.CoreJobForceGC)
+	gc := s1.coreJobEval(structs.CoreJobForceGC, 1001)
 	err = core.Process(gc)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -394,8 +389,7 @@ func TestCoreScheduler_NodeGC(t *testing.T) {
 	core := NewCoreScheduler(s1, snap)
 
 	// Attempt the GC
-	gc := s1.coreJobEval(structs.CoreJobNodeGC)
-	gc.ModifyIndex = 2000
+	gc := s1.coreJobEval(structs.CoreJobNodeGC, 2000)
 	err = core.Process(gc)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -444,8 +438,7 @@ func TestCoreScheduler_NodeGC_TerminalAllocs(t *testing.T) {
 	core := NewCoreScheduler(s1, snap)
 
 	// Attempt the GC
-	gc := s1.coreJobEval(structs.CoreJobNodeGC)
-	gc.ModifyIndex = 2000
+	gc := s1.coreJobEval(structs.CoreJobNodeGC, 2000)
 	err = core.Process(gc)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -496,8 +489,7 @@ func TestCoreScheduler_NodeGC_RunningAllocs(t *testing.T) {
 	core := NewCoreScheduler(s1, snap)
 
 	// Attempt the GC
-	gc := s1.coreJobEval(structs.CoreJobNodeGC)
-	gc.ModifyIndex = 2000
+	gc := s1.coreJobEval(structs.CoreJobNodeGC, 2000)
 	err = core.Process(gc)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -535,7 +527,7 @@ func TestCoreScheduler_NodeGC_Force(t *testing.T) {
 	core := NewCoreScheduler(s1, snap)
 
 	// Attempt the GC
-	gc := s1.coreJobEval(structs.CoreJobForceGC)
+	gc := s1.coreJobEval(structs.CoreJobForceGC, 1000)
 	err = core.Process(gc)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -621,8 +613,7 @@ func TestCoreScheduler_JobGC(t *testing.T) {
 		core := NewCoreScheduler(s1, snap)
 
 		// Attempt the GC
-		gc := s1.coreJobEval(structs.CoreJobJobGC)
-		gc.ModifyIndex = 2000
+		gc := s1.coreJobEval(structs.CoreJobJobGC, 2000)
 		err = core.Process(gc)
 		if err != nil {
 			t.Fatalf("test(%s) err: %v", test.test, err)
@@ -721,7 +712,7 @@ func TestCoreScheduler_JobGC_Force(t *testing.T) {
 		core := NewCoreScheduler(s1, snap)
 
 		// Attempt the GC
-		gc := s1.coreJobEval(structs.CoreJobForceGC)
+		gc := s1.coreJobEval(structs.CoreJobForceGC, 1002)
 		err = core.Process(gc)
 		if err != nil {
 			t.Fatalf("test(%s) err: %v", test.test, err)
