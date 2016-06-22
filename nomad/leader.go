@@ -251,28 +251,41 @@ func (s *Server) schedulePeriodic(stopCh chan struct{}) {
 	jobGC := time.NewTicker(s.config.JobGCInterval)
 	defer jobGC.Stop()
 
-	for {
+	// getLatest grabs the latest index from the state store. It returns true if
+	// the index was retrieved successfully.
+	getLatest := func() (uint64, bool) {
 		// Snapshot the current state
 		snap, err := s.fsm.State().Snapshot()
 		if err != nil {
 			s.logger.Printf("[ERR] nomad: failed to snapshot state for periodic GC: %v", err)
-			continue
+			return 0, false
 		}
 
 		// Store the snapshot's index
 		snapshotIndex, err := snap.LatestIndex()
 		if err != nil {
 			s.logger.Printf("[ERR] nomad: failed to determine snapshot's index for periodic GC: %v", err)
-			continue
+			return 0, false
 		}
+
+		return snapshotIndex, true
+	}
+
+	for {
 
 		select {
 		case <-evalGC.C:
-			s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobEvalGC, snapshotIndex))
+			if index, ok := getLatest(); ok {
+				s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobEvalGC, index))
+			}
 		case <-nodeGC.C:
-			s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobNodeGC, snapshotIndex))
+			if index, ok := getLatest(); ok {
+				s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobNodeGC, index))
+			}
 		case <-jobGC.C:
-			s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobJobGC, snapshotIndex))
+			if index, ok := getLatest(); ok {
+				s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobJobGC, index))
+			}
 		case <-stopCh:
 			return
 		}
