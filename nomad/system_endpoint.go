@@ -1,6 +1,8 @@
 package nomad
 
 import (
+	"fmt"
+
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -16,6 +18,12 @@ func (s *System) GarbageCollect(args *structs.GenericRequest, reply *structs.Gen
 		return err
 	}
 
-	s.srv.evalBroker.Enqueue(s.srv.coreJobEval(structs.CoreJobForceGC))
+	// Get the states current index
+	snapshotIndex, err := s.srv.fsm.State().LatestIndex()
+	if err != nil {
+		return fmt.Errorf("failed to determine state store's index: %v", err)
+	}
+
+	s.srv.evalBroker.Enqueue(s.srv.coreJobEval(structs.CoreJobForceGC, snapshotIndex))
 	return nil
 }

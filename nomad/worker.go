@@ -212,12 +212,21 @@ func (w *Worker) sendAck(evalID, token string, ack bool) {
 // state (attempt to allocate to a failed/dead node), we may need
 // to sync our state again and do the planning with more recent data.
 func (w *Worker) waitForIndex(index uint64, timeout time.Duration) error {
+	// XXX: Potential optimization is to set up a watch on the state stores
+	// index table and only unblock via a trigger rather than timing out and
+	// checking.
+
 	start := time.Now()
 	defer metrics.MeasureSince([]string{"nomad", "worker", "wait_for_index"}, start)
 CHECK:
+	// Get the states current index
+	snapshotIndex, err := w.srv.fsm.State().LatestIndex()
+	if err != nil {
+		return fmt.Errorf("failed to determine state store's index: %v", err)
+	}
+
 	// We only need the FSM state to be as recent as the given index
-	appliedIndex := w.srv.raft.AppliedIndex()
-	if index <= appliedIndex {
+	if index <= snapshotIndex {
 		w.backoffReset()
 		return nil
 	}

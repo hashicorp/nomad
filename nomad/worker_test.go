@@ -203,7 +203,10 @@ func TestWorker_waitForIndex(t *testing.T) {
 	// Cause an increment
 	go func() {
 		time.Sleep(10 * time.Millisecond)
-		s1.raft.Barrier(0)
+		n := mock.Node()
+		if err := s1.fsm.state.UpsertNode(index+1, n); err != nil {
+			t.Fatalf("failed to upsert node: %v", err)
+		}
 	}()
 
 	// Wait for a future index
