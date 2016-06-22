@@ -5,6 +5,8 @@ import (
 	"encoding/gob"
 	"encoding/json"
 	"fmt"
+	"io"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -22,15 +24,21 @@ var (
 
 type RunCommand struct {
 	Meta
+
+	// The fields below can be overwritten for tests
+	testStdin io.Reader
 }
 
 func (c *RunCommand) Help() string {
 	helpText := `
-Usage: nomad run [options] <file>
+Usage: nomad run [options] <path>
 
   Starts running a new job or updates an existing job using
-  the specification located at <file>. This is the main command
+  the specification located at <path>. This is the main command
   used to interact with Nomad.
+
+  If the supplied path is "-", the jobfile is read from stdin. Otherwise
+  it is read from the file at the supplied path.
 
   Upon successful job submission, this command will immediately
   enter an interactive monitor. This is useful to watch Nomad's
@@ -107,12 +115,32 @@ func (c *RunCommand) Run(args []string) int {
 		c.Ui.Error(c.Help())
 		return 1
 	}
-	file := args[0]
 
-	// Parse the job file
-	job, err := jobspec.ParseFile(file)
+	// Read the Jobfile
+	path := args[0]
+
+	var f io.Reader
+	switch path {
+	case "-":
+		if c.testStdin != nil {
+			f = c.testStdin
+		} else {
+			f = os.Stdin
+		}
+	default:
+		file, err := os.Open(path)
+		defer file.Close()
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error opening file %q: %v", path, err))
+			return 1
+		}
+		f = file
+	}
+
+	// Parse the JobFile
+	job, err := jobspec.Parse(f)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error parsing job file %s: %s", file, err))
+		c.Ui.Error(fmt.Sprintf("Error parsing job file %s: %v", f, err))
 		return 1
 	}
 
@@ -121,7 +149,7 @@ func (c *RunCommand) Run(args []string) int {
 
 	// Check that the job is valid
 	if err := job.Validate(); err != nil {
-		c.Ui.Error(fmt.Sprintf("Error validating job: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error validating job: %v", err))
 		return 1
 	}
 

@@ -147,3 +147,41 @@ job "job1" {
 	ui.ErrorWriter.Reset()
 
 }
+
+func TestRunCommand_From_STDIN(t *testing.T) {
+	stdinR, stdinW, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	ui := new(cli.MockUi)
+	cmd := &RunCommand{
+		Meta:      Meta{Ui: ui},
+		testStdin: stdinR,
+	}
+
+	go func() {
+		stdinW.WriteString(`
+job "job1" {
+  type = "service"
+  datacenters = [ "dc1" ]
+  group "group1" {
+		count = 1
+		task "task1" {
+			driver = "exec"
+			resources = {
+				cpu = 1000
+				disk = 150
+				memory = 512
+			}
+		}
+	}
+}`)
+		stdinW.Close()
+	}()
+
+	args := []string{"-"}
+	if code := cmd.Run(args); code != 0 {
+		t.Fatalf("expected exit code 0, got %d: %q", code, ui.ErrorWriter.String())
+	}
+}

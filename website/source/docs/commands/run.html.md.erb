@@ -15,12 +15,14 @@ format.
 ## Usage
 
 ```
-nomad run [options] <file>
+nomad run [options] <jobfile>
 ```
 
 The run command requires a single argument, specifying the path to a file
 containing a valid [job specification](/docs/jobspec/index.html). This file
-will be read and the job will be submitted to Nomad for scheduling.
+will be read and the job will be submitted to Nomad for scheduling. If the
+supplied path is "-", the jobfile is read from STDIN. Otherwise it is read
+from the file at the supplied path.
 
 By default, on successful job submission the run command will enter an
 interactive monitor and display log information detailing the scheduling
