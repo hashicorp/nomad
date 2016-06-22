@@ -45,7 +45,7 @@ func (f *HostFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (b
 		node.Attributes["kernel.version"] = strings.Trim(string(out), "\n")
 	}
 
-	node.Attributes["hostname"] = hostInfo.Hostname
+	node.Attributes["unique.hostname"] = hostInfo.Hostname
 
 	return true, nil
 }

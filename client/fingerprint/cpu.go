@@ -33,15 +33,15 @@ func (f *CPUFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bo
 	}
 
 	mhz := stats.CPUMHzPerCore()
-	node.Attributes["cpu.frequency"] = fmt.Sprintf("%.6f", mhz)
-	f.logger.Printf("[DEBUG] fingerprint.cpu: frequency: %02.1f MHz", mhz)
+	node.Attributes["cpu.frequency"] = fmt.Sprintf("%.0f", mhz)
+	f.logger.Printf("[DEBUG] fingerprint.cpu: frequency: %.0f MHz", mhz)
 
 	numCores := stats.CPUNumCores()
 	node.Attributes["cpu.numcores"] = fmt.Sprintf("%d", numCores)
 	f.logger.Printf("[DEBUG] fingerprint.cpu: core count: %d", numCores)
 
 	tt := stats.TotalTicksAvailable()
-	node.Attributes["cpu.totalcompute"] = fmt.Sprintf("%.6f", tt)
+	node.Attributes["cpu.totalcompute"] = fmt.Sprintf("%.0f", tt)
 
 	if node.Resources == nil {
 		node.Resources = &structs.Resources{}

@@ -2,6 +2,7 @@ package stats
 
 import (
 	"fmt"
+	"math"
 	"sync"
 
 	"github.com/shirou/gopsutil/cpu"
@@ -35,7 +36,11 @@ func Init() error {
 			cpuMhzPerCore = cpu.Mhz
 			break
 		}
-		cpuTotalTicks = float64(cpuNumCores) * cpuMhzPerCore
+
+		// Floor all of the values such that small difference don't cause the
+		// node to fall into a unique computed node class
+		cpuMhzPerCore = math.Floor(cpuMhzPerCore)
+		cpuTotalTicks = math.Floor(float64(cpuNumCores) * cpuMhzPerCore)
 	})
 	return err
 }
