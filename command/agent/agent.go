@@ -61,7 +61,7 @@ type Agent struct {
 func NewAgent(config *Config, logOutput io.Writer) (*Agent, error) {
 	a := &Agent{
 		config:     config,
-		logger:     log.New(logOutput, "", log.LstdFlags),
+		logger:     log.New(logOutput, "", log.LstdFlags|log.Lmicroseconds),
 		logOutput:  logOutput,
 		shutdownCh: make(chan struct{}),
 	}
