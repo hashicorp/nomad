@@ -404,6 +404,12 @@ func TestBlockedEvals_UnblockFailed(t *testing.T) {
 	// Trigger an unblock fail
 	blocked.UnblockFailed()
 
+	// Verify UnblockFailed caused the eval to be immediately unblocked
+	blockedStats := blocked.Stats()
+	if blockedStats.TotalBlocked != 0 && blockedStats.TotalEscaped != 0 {
+		t.Fatalf("bad: %#v", blockedStats)
+	}
+
 	testutil.WaitForResult(func() (bool, error) {
 		// Verify Unblock caused an enqueue
 		brokerStats := broker.Stats()
