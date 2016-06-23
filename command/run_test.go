@@ -66,7 +66,7 @@ func TestRunCommand_Fails(t *testing.T) {
 	if code := cmd.Run([]string{"/unicorns/leprechauns"}); code != 1 {
 		t.Fatalf("expect exit 1, got: %d", code)
 	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error parsing") {
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error opening") {
 		t.Fatalf("expect parsing error, got: %s", out)
 	}
 	ui.ErrorWriter.Reset()
@@ -181,7 +181,12 @@ job "job1" {
 	}()
 
 	args := []string{"-"}
-	if code := cmd.Run(args); code != 0 {
-		t.Fatalf("expected exit code 0, got %d: %q", code, ui.ErrorWriter.String())
+	if code := cmd.Run(args); code != 1 {
+		t.Fatalf("expected exit code 1, got %d: %q", code, ui.ErrorWriter.String())
 	}
+
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, "connection refused") {
+		t.Fatalf("expected runtime error, got: %s", out)
+	}
+	ui.ErrorWriter.Reset()
 }
