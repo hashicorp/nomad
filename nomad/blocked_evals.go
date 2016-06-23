@@ -336,6 +336,7 @@ func (b *BlockedEvals) UnblockFailed() {
 		if eval.TriggeredBy == structs.EvalTriggerMaxPlans {
 			unblock = append(unblock, eval)
 			delete(b.captured, id)
+			delete(b.jobs, eval.JobID)
 		}
 	}
 
@@ -343,10 +344,15 @@ func (b *BlockedEvals) UnblockFailed() {
 		if eval.TriggeredBy == structs.EvalTriggerMaxPlans {
 			unblock = append(unblock, eval)
 			delete(b.escaped, id)
+			delete(b.jobs, eval.JobID)
+			b.stats.TotalEscaped -= 1
 		}
 	}
 
-	b.evalBroker.EnqueueAll(unblock)
+	if l := len(unblock); l > 0 {
+		b.stats.TotalBlocked -= l
+		b.evalBroker.EnqueueAll(unblock)
+	}
 }
 
 // GetDuplicates returns all the duplicate evaluations and blocks until the
