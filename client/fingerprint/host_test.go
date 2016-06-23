@@ -21,7 +21,7 @@ func TestHostFingerprint(t *testing.T) {
 	}
 
 	// Host info
-	for _, key := range []string{"os.name", "os.version", "hostname", "kernel.name"} {
+	for _, key := range []string{"os.name", "os.version", "unique.hostname", "kernel.name"} {
 		assertNodeAttributeContains(t, node, key)
 	}
 }
