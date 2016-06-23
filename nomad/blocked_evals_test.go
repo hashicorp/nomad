@@ -420,4 +420,11 @@ func TestBlockedEvals_UnblockFailed(t *testing.T) {
 	}, func(err error) {
 		t.Fatalf("err: %s", err)
 	})
+
+	// Reblock an eval for the same job and check that it gets tracked.
+	blocked.Block(e)
+	blockedStats = blocked.Stats()
+	if blockedStats.TotalBlocked != 1 && blockedStats.TotalEscaped != 1 {
+		t.Fatalf("bad: %#v", blockedStats)
+	}
 }
