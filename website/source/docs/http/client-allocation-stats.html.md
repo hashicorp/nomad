@@ -9,7 +9,7 @@ description: |-
 
 # /v1/client/allocation/allocation-id/stats
 
-The `/allocation/<allocation-id>/stats` endpoint is used to query the actual resources consumed by an allocation.
+The `/allocation/<ID>/stats` endpoint is used to query the actual resources consumed by an allocation.
 The API endpoint is hosted by the Nomad client and requests have to be made to
 the nomad client whose resource usage metrics are of interest.
 
@@ -26,7 +26,7 @@ the nomad client whose resource usage metrics are of interest.
   <dd>GET</dd>
 
   <dt>URL</dt>
-  <dd>`/v1/client/allocation/<allocation-id>/stats`</dd>
+  <dd>`/v1/client/allocation/<ID>/stats`</dd>
 
   <dt>Returns</dt>
   <dd>

@@ -98,7 +98,7 @@ be specified using the `?region=` query parameter.
   <dd>GET</dd>
 
   <dt>URL</dt>
-  <dd>`/v1/node/<id>/allocations`</dd>
+  <dd>`/v1/node/<ID>/allocations`</dd>
 
   <dt>Parameters</dt>
   <dd>

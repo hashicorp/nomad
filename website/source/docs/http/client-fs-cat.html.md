@@ -25,7 +25,7 @@ be made to the Nomad client where the particular allocation was placed.
   <dd>GET</dd>
 
   <dt>URL</dt>
-  <dd>`/v1/client/fs/cat/<ALLOCATION-ID>`</dd>
+  <dd>`/v1/client/fs/cat/<Allocation-ID>`</dd>
 
   <dt>Parameters</dt>
   <dd>
