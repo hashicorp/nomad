@@ -255,6 +255,62 @@ func TestBlockedEvals_UnblockUnknown(t *testing.T) {
 	})
 }
 
+func TestBlockedEvals_Reblock(t *testing.T) {
+	blocked, broker := testBlockedEvals(t)
+
+	// Create an evaluation, Enqueue/Dequeue it to get a token
+	e := mock.Eval()
+	e.SnapshotIndex = 500
+	e.Status = structs.EvalStatusBlocked
+	e.ClassEligibility = map[string]bool{"v1:123": true, "v1:456": false}
+	broker.Enqueue(e)
+
+	_, token, err := broker.Dequeue([]string{e.Type}, time.Second)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Reblock the evaluation
+	blocked.Reblock(e, token)
+
+	// Verify block caused the eval to be tracked
+	blockedStats := blocked.Stats()
+	if blockedStats.TotalBlocked != 1 && blockedStats.TotalEscaped != 0 {
+		t.Fatalf("bad: %#v", blockedStats)
+	}
+
+	// Should unblock because the eval
+	blocked.Unblock("v1:123", 1000)
+
+	brokerStats := broker.Stats()
+	if brokerStats.TotalReady != 0 && brokerStats.TotalUnacked != 1 {
+		t.Fatalf("bad: %#v", brokerStats)
+	}
+
+	// Ack the evaluation which should cause the reblocked eval to transistion
+	// to ready
+	if err := broker.Ack(e.ID, token); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	testutil.WaitForResult(func() (bool, error) {
+		// Verify Unblock causes an enqueue
+		brokerStats := broker.Stats()
+		if brokerStats.TotalReady != 1 {
+			return false, fmt.Errorf("bad: %#v", brokerStats)
+		}
+
+		// Verify Unblock updates the stats
+		bStats := blocked.Stats()
+		if bStats.TotalBlocked != 0 || bStats.TotalEscaped != 0 {
+			return false, fmt.Errorf("bad: %#v", bStats)
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %s", err)
+	})
+}
+
 // Test the block case in which the eval should be immediately unblocked since
 // it is escaped and old
 func TestBlockedEvals_Block_ImmediateUnblock_Escaped(t *testing.T) {
