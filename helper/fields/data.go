@@ -39,7 +39,7 @@ func (d *FieldData) Validate() error {
 		}
 
 		switch schema.Type {
-		case TypeBool, TypeInt, TypeMap, TypeArray, TypeString:
+		case TypeBool, TypeInt, TypeMap, TypeArray, TypeString, TypeFloat:
 			val, _, err := d.getPrimitive(field, schema)
 			if err != nil {
 				result = multierror.Append(result, fmt.Errorf(
@@ -109,7 +109,7 @@ func (d *FieldData) GetOkErr(k string) (interface{}, bool, error) {
 	}
 
 	switch schema.Type {
-	case TypeBool, TypeInt, TypeMap, TypeArray, TypeString:
+	case TypeBool, TypeInt, TypeMap, TypeArray, TypeString, TypeFloat:
 		return d.getPrimitive(k, schema)
 	default:
 		return nil, false,
@@ -158,6 +158,13 @@ func (d *FieldData) getPrimitive(
 
 	case TypeArray:
 		var result []interface{}
+		if err := mapstructure.Decode(raw, &result); err != nil {
+			return nil, true, err
+		}
+		return result, true, nil
+
+	case TypeFloat:
+		var result float64
 		if err := mapstructure.Decode(raw, &result); err != nil {
 			return nil, true, err
 		}

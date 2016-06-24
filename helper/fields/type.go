@@ -10,6 +10,7 @@ const (
 	TypeBool
 	TypeMap
 	TypeArray
+	TypeFloat
 )
 
 func (t FieldType) String() string {
@@ -24,6 +25,8 @@ func (t FieldType) String() string {
 		return "map"
 	case TypeArray:
 		return "array"
+	case TypeFloat:
+		return "float"
 	default:
 		return "unknown type"
 	}
@@ -41,6 +44,8 @@ func (t FieldType) Zero() interface{} {
 		return map[string]interface{}{}
 	case TypeArray:
 		return []interface{}{}
+	case TypeFloat:
+		return 0.0
 	default:
 		panic("unknown type: " + t.String())
 	}

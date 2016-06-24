@@ -23,6 +23,10 @@ func TestFieldTypeString(t *testing.T) {
 		t.Fatalf("bad: expected 'array' got: %v", s)
 	}
 
+	if s := TypeFloat.String(); s != "float" {
+		t.Fatalf("bad: expected 'float' got: %v", s)
+	}
+
 	if s := TypeInvalid.String(); s != "unknown type" {
 		t.Fatalf("bad: expected 'unkown type' got: %v", s)
 	}
@@ -49,6 +53,10 @@ func TestFieldTypeZero(t *testing.T) {
 	z = TypeArray.Zero()
 	if _, ok := z.([]interface{}); !ok {
 		t.Fatalf("bad: expected []interface{} got: %v", z)
+	}
+
+	if z := TypeFloat.Zero(); z != 0.0 {
+		t.Fatalf("bad: expected 0.0 got: %v", z)
 	}
 
 	defer func() {

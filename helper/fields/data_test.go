@@ -23,17 +23,6 @@ func TestFieldDataGet(t *testing.T) {
 			"bar",
 		},
 
-		"string type, int value": {
-			map[string]*FieldSchema{
-				"foo": &FieldSchema{Type: TypeInt},
-			},
-			map[string]interface{}{
-				"foo": 42,
-			},
-			"foo",
-			42,
-		},
-
 		"string type, unset value": {
 			map[string]*FieldSchema{
 				"foo": &FieldSchema{Type: TypeString},
@@ -101,6 +90,17 @@ func TestFieldDataGet(t *testing.T) {
 			},
 			"foo",
 			[]interface{}{},
+		},
+
+		"float type, float value": {
+			map[string]*FieldSchema{
+				"foo": &FieldSchema{Type: TypeFloat},
+			},
+			map[string]interface{}{
+				"foo": 42.36,
+			},
+			"foo",
+			42.36,
 		},
 	}
 
