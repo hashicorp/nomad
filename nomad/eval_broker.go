@@ -135,15 +135,16 @@ func (b *EvalBroker) SetEnabled(enabled bool) {
 	}
 }
 
-// EnqueueAll is used to enqueue many evaluations.
-func (b *EvalBroker) EnqueueAll(evals []*structs.Evaluation) {
+// EnqueueAll is used to enqueue many evaluations. The map allows evaluations
+// that are being re-enqueued to include their token.
+func (b *EvalBroker) EnqueueAll(evals map[*structs.Evaluation]string) {
 	// The lock needs to be held until all evaluations are enqueued. This is so
 	// that when Dequeue operations are unblocked they will pick the highest
 	// priority evaluations.
 	b.l.Lock()
 	defer b.l.Unlock()
-	for _, eval := range evals {
-		b.processEnqueue(eval, "")
+	for eval, token := range evals {
+		b.processEnqueue(eval, token)
 	}
 }
 
