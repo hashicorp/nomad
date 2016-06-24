@@ -107,8 +107,8 @@ func (b *BlockedEvals) Enabled() bool {
 	return b.enabled
 }
 
-// SetEnabled is used to control if the broker is enabled. The broker
-// should only be enabled on the active leader.
+// SetEnabled is used to control if the blocked eval tracker is enabled. The
+// tracker should only be enabled on the active leader.
 func (b *BlockedEvals) SetEnabled(enabled bool) {
 	b.l.Lock()
 	if b.enabled == enabled {
@@ -177,7 +177,7 @@ func (b *BlockedEvals) processBlock(eval *structs.Evaluation, token string) {
 		// Just re-enqueue the eval immediately. We pass the token so that the
 		// eval_broker can properly handle the case in which the evaluation is
 		// still outstanding.
-		b.evalBroker.Requeue(eval, token)
+		b.evalBroker.EnqueueAll(map[*structs.Evaluation]string{eval: token})
 		return
 	}
 
@@ -185,6 +185,7 @@ func (b *BlockedEvals) processBlock(eval *structs.Evaluation, token string) {
 	b.stats.TotalBlocked++
 	b.jobs[eval.JobID] = struct{}{}
 
+	// Wrap the evaluation, capturing its token.
 	wrapped := wrappedEval{
 		eval:  eval,
 		token: token,

@@ -865,12 +865,12 @@ func TestEvalBroker_EnqueueAll_Dequeue_Fair(t *testing.T) {
 	time.Sleep(5 * time.Millisecond)
 
 	// Enqueue
-	evals := make([]*structs.Evaluation, 0, 8)
+	evals := make(map[*structs.Evaluation]string, 8)
 	expectedPriority := 90
 	for i := 10; i <= expectedPriority; i += 10 {
 		eval := mock.Eval()
 		eval.Priority = i
-		evals = append(evals, eval)
+		evals[eval] = ""
 
 	}
 	b.EnqueueAll(evals)
@@ -886,7 +886,7 @@ func TestEvalBroker_EnqueueAll_Dequeue_Fair(t *testing.T) {
 	}
 }
 
-func TestEvalBroker_Reenqueue_Ack(t *testing.T) {
+func TestEvalBroker_EnqueueAll_Requeue_Ack(t *testing.T) {
 	b := testBroker(t, 0)
 	b.SetEnabled(true)
 
@@ -903,7 +903,7 @@ func TestEvalBroker_Reenqueue_Ack(t *testing.T) {
 	}
 
 	// Requeue the same evaluation.
-	b.Requeue(eval, token)
+	b.EnqueueAll(map[*structs.Evaluation]string{eval: token})
 
 	// The stats should show one unacked
 	stats := b.Stats()
@@ -942,7 +942,7 @@ func TestEvalBroker_Reenqueue_Ack(t *testing.T) {
 	}
 }
 
-func TestEvalBroker_Reenqueue_Nack(t *testing.T) {
+func TestEvalBroker_EnqueueAll_Requeue_Nack(t *testing.T) {
 	b := testBroker(t, 0)
 	b.SetEnabled(true)
 
@@ -959,7 +959,7 @@ func TestEvalBroker_Reenqueue_Nack(t *testing.T) {
 	}
 
 	// Requeue the same evaluation.
-	b.Requeue(eval, token)
+	b.EnqueueAll(map[*structs.Evaluation]string{eval: token})
 
 	// The stats should show one unacked
 	stats := b.Stats()

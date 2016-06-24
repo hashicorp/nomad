@@ -135,8 +135,23 @@ func (b *EvalBroker) SetEnabled(enabled bool) {
 	}
 }
 
+// Enqueue is used to enqueue a new evaluation
+func (b *EvalBroker) Enqueue(eval *structs.Evaluation) {
+	b.l.Lock()
+	defer b.l.Unlock()
+	b.processEnqueue(eval, "")
+}
+
 // EnqueueAll is used to enqueue many evaluations. The map allows evaluations
 // that are being re-enqueued to include their token.
+//
+// When requeueing an evaluation that potentially may be already
+// enqueued. The evaluation is handled in one of the following ways:
+// * Evaluation not outstanding: Process as a normal Enqueue
+// * Evaluation outstanding: Do not allow the evaluation to be dequeued til:
+//    * Ack received:  Unblock the evaluation allowing it to be dequeued
+//    * Nack received: Drop the evaluation as it was created as a result of a
+//    scheduler run that was Nack'd
 func (b *EvalBroker) EnqueueAll(evals map[*structs.Evaluation]string) {
 	// The lock needs to be held until all evaluations are enqueued. This is so
 	// that when Dequeue operations are unblocked they will pick the highest
@@ -181,26 +196,6 @@ func (b *EvalBroker) processEnqueue(eval *structs.Evaluation, token string) {
 	}
 
 	b.enqueueLocked(eval, eval.Type)
-}
-
-// Enqueue is used to enqueue an evaluation
-func (b *EvalBroker) Enqueue(eval *structs.Evaluation) {
-	b.l.Lock()
-	defer b.l.Unlock()
-	b.processEnqueue(eval, "")
-}
-
-// Requeue is used to requeue an evaluation that potentially may be already
-// enqueued. The evaluation is handled in one of the following ways:
-// * Evaluation not outstanding: Process as a normal Enqueue
-// * Evaluation outstanding: Do not allow the evaluation to be dequeued til:
-//    * Ack received:  Unblock the evaluation allowing it to be dequeued
-//    * Nack received: Drop the evaluation as it was created as a result of a
-//    scheduler run that was Nack'd
-func (b *EvalBroker) Requeue(eval *structs.Evaluation, token string) {
-	b.l.Lock()
-	defer b.l.Unlock()
-	b.processEnqueue(eval, token)
 }
 
 // enqueueWaiting is used to enqueue a waiting evaluation
