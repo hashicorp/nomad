@@ -70,62 +70,69 @@ Datacenters = dc1
 Status      = running
 Periodic    = false
 
-==> Evaluations
-ID        Priority  Triggered By  Status
-26cfc69e  50        job-register  complete
-
-==> Allocations
+Allocations
 ID        Eval ID   Node ID   Task Group  Desired  Status
-8ba85cef  26cfc69e  171a583b  cache       run      running
+dadcdb81  61b0b423  72687b1a  cache       run      running
 ```
 
-Here we can see that our evaluation that was created has completed, and that
-it resulted in the creation of an allocation that is now running on the local node.
+Here we can see that the result of our evaluation was the creation of an
+allocation that is now running on the local node.
 
 An allocation represents an instance of Task Group placed on a node. To inspect
 an Allocation we use the [`alloc-status` command](/docs/commands/alloc-status.html):
 
 ```
-$ nomad alloc-status 8ba85cef
-ID              = 8ba85cef
-Eval ID         = 26cfc69e
-Name            = example.cache[0]
-Node ID         = 58d69d9d
-Job ID          = example
-Client Status   = running
-Evaluated Nodes = 1
-Filtered Nodes  = 0
-Exhausted Nodes = 0
-Allocation Time = 27.704µs
-Failures        = 0
+$ nomad alloc-status dadcdb81
+ID            = dadcdb81
+Eval ID       = 61b0b423
+Name          = example.cache[0]
+Node ID       = 72687b1a
+Job ID        = example
+Client Status = running
 
-==> Task "redis" is "running"
+Task "redis" is "running"
+Task Resources
+CPU    Memory           Disk     IOPS  Addresses
+2/500  6.3 MiB/256 MiB  300 MiB  0     db: 127.0.0.1:30329
+
 Recent Events:
 Time                   Type      Description
-15/03/16 15:40:57 PDT  Started   Task started by client
-15/03/16 15:40:00 PDT  Received  Task received by client
-
-==> Status
-Allocation "4b5f832c" status "running" (0/1 nodes filtered)
-  * Score "58d69d9d-0015-2c69-e9ba-cc9ee476bb6d.binpack" = 1.580850
-
-==> Task Resources
-Task: "redis"
-CPU  Memory MB  Disk MB  IOPS  Addresses
-500  256        300      0     db: 127.0.0.1:52004
+06/23/16 01:41:16 UTC  Started   Task started by client
+06/23/16 01:41:13 UTC  Received  Task received by client
 ```
+
+We can see that Nomad reports the state of the allocation as well as its
+current resource usage. By supplying the `-stats` flag, more detailed resource
+usage statistics will be reported.
 
 To inspect the file system of a running allocation, we can use the [`fs`
 command](/docs/commands/fs.html):
 
 ```
-$ nomad fs ls 8ba85cef alloc/logs
+$ nomad fs 8ba85cef alloc/logs
 Mode        Size    Modified Time          Name
 -rw-rw-r--  0 B     15/03/16 15:40:56 PDT  redis.stderr.0
 -rw-rw-r--  2.3 kB  15/03/16 15:40:57 PDT  redis.stdout.0
 
-$ nomad fs cat 8ba85cef alloc/logs/redis.stdout.0
- 1:C 15 Mar 22:40:57.188 # Warning: no config file specified, using the default config. In order to specify a config file use redis-server /path/to/redis.conf
+$ nomad fs 8ba85cef alloc/logs/redis.stdout.0
+                 _._
+            _.-``__ ''-._
+       _.-``    `.  `_.  ''-._           Redis 3.2.1 (00000000/0) 64 bit
+   .-`` .-```.  ```\/    _.,_ ''-._
+  (    '      ,       .-`  | `,    )     Running in standalone mode
+  |`-._`-...-` __...-.``-._|'` _.-'|     Port: 6379
+  |    `-._   `._    /     _.-'    |     PID: 1
+   `-._    `-._  `-./  _.-'    _.-'
+  |`-._`-._    `-.__.-'    _.-'_.-'|
+  |    `-._`-._        _.-'_.-'    |           http://redis.io
+   `-._    `-._`-.__.-'_.-'    _.-'
+  |`-._`-._    `-.__.-'    _.-'_.-'|
+  |    `-._`-._        _.-'_.-'    |
+   `-._    `-._`-.__.-'_.-'    _.-'
+       `-._    `-.__.-'    _.-'
+           `-._        _.-'
+               `-.__.-'
+...
 ```
 
 ## Modifying a Job
@@ -142,11 +149,44 @@ For now, edit the `example.nomad` file to uncomment the count and set it to 3:
 count = 3
 ```
 
-Once you have finished modifying the job specification, use `nomad run` to
-push the updated version of the job:
+Once you have finished modifying the job specification, use [`plan`
+command](/docs/commands/plan.html) to invoke a dry-run of the scheduler to see
+what would happen if your ran the updated job:
 
 ```
-$ nomad run example.nomad
+$ nomad plan example.nomad
++/- Job: "example"
++/- Task Group: "cache" (2 create, 1 in-place update)
+  +/- Count: "1" => "3" (forces create)
+      Task: "redis"
+
+Scheduler dry-run:
+- All tasks successfully allocated.
+
+Job Modify Index: 6
+To submit the job with version verification run:
+
+nomad run -check-index 6 example.nomad
+
+When running the job with the check-index flag, the job will only be run if the
+server side version matches the the job modify index returned. If the index has
+changed, another user has modified the job and the plan's results are
+potentially invalid.
+```
+
+We can see that the scheduler detected the change in count and informs us that
+it will cause 2 new instances to be created. The in-place update that will
+occur is to push the update job specification to the existing allocation and
+will not cause any service interuption. We can then run the job with the
+run command the `plan` emitted.
+
+By running with the `-check-index` flag, Nomad checks that the job has not
+been modified since the plan was run. This is useful if multiple people are
+interacting with the job at the same time to ensure the job hasn't changed
+before you apply your modifications.
+
+```
+$ nomad run -check-index 6 example.nomad
 ==> Monitoring evaluation "127a49d0"
     Evaluation triggered by job "example"
     Allocation "8ab24eef" created: node "171a583b", group "cache"
@@ -171,11 +211,40 @@ config {
 }
 ```
 
-This time we have not changed the number of task groups we want running,
-but we've changed the task itself. This requires stopping the old tasks
-and starting new tasks. Our example job is configured to do a rolling update via
-the `stagger` attribute, doing a single update every 10 seconds. Use `run` to push the updated
-specification now:
+We can run `plan` again to see what will happen if we submit this change:
+
+```
+$ nomad plan example.nomad
++/- Job: "example"
++/- Task Group: "cache" (3 create/destroy update)
+  +/- Task: "redis" (forces create/destroy update)
+    +/- Config {
+      +/- image:           "redis:latest" => "redis:2.8"
+          port_map[0][db]: "6379"
+    }
+
+Scheduler dry-run:
+- All tasks successfully allocated.
+- Rolling update, next evaluation will be in 10s.
+
+Job Modify Index: 42
+To submit the job with version verification run:
+
+nomad run -check-index 42 example.nomad
+
+When running the job with the check-index flag, the job will only be run if the
+server side version matches the the job modify index returned. If the index has
+changed, another user has modified the job and the plan's results are
+potentially invalid.
+```
+
+Here we can see the `plan` reports it will do three create/destroy updates
+which stops the old tasks and starts the new tasks because we have changed the
+version of redis to run. We also see that the update will happen with a rolling
+update. This is because our example job is configured to do a rolling update
+via the `stagger` attribute, doing a single update every 10 seconds. 
+
+Once ready, use `run` to push the updated specification now:
 
 ```
 $ nomad run example.nomad
