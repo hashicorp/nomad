@@ -9,7 +9,7 @@ description: |-
 
 # /v1/client/fs
 
-The `fs` endpoints are used to read the contents of files and
+The client `fs` endpoints are used to read the contents of files and
 directories inside an allocation directory. The API endpoints are hosted by the
 Nomad client and requests have to be made to the Client where the particular
 allocation was placed.
