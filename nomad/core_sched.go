@@ -106,24 +106,27 @@ OUTER:
 		}
 
 		allEvalsGC := true
+		var jobAlloc, jobEval []string
 		for _, eval := range evals {
-			gc, allocs, err := c.gcEval(eval, oldThreshold)
+			gc, allocs, err := c.gcEval(eval, oldThreshold, true)
 			if err != nil {
 				continue OUTER
 			}
 
-			// Update whether all evals GC'd so we know whether to GC the job.
-			allEvalsGC = allEvalsGC && gc
-
 			if gc {
-				gcEval = append(gcEval, eval.ID)
+				jobEval = append(jobEval, eval.ID)
+				jobAlloc = append(jobAlloc, allocs...)
+			} else {
+				allEvalsGC = false
+				break
 			}
-			gcAlloc = append(gcAlloc, allocs...)
 		}
 
 		// Job is eligible for garbage collection
 		if allEvalsGC {
 			gcJob = append(gcJob, job.ID)
+			gcAlloc = append(gcAlloc, jobAlloc...)
+			gcEval = append(gcEval, jobEval...)
 		}
 	}
 
@@ -187,7 +190,9 @@ func (c *CoreScheduler) evalGC(eval *structs.Evaluation) error {
 	for raw := iter.Next(); raw != nil; raw = iter.Next() {
 		eval := raw.(*structs.Evaluation)
 
-		gc, allocs, err := c.gcEval(eval, oldThreshold)
+		// The Evaluation GC should not handle batch jobs since those need to be
+		// garbage collected in one shot
+		gc, allocs, err := c.gcEval(eval, oldThreshold, false)
 		if err != nil {
 			return err
 		}
@@ -213,7 +218,7 @@ func (c *CoreScheduler) evalGC(eval *structs.Evaluation) error {
 // allocs are not older than the threshold. If the eval should be garbage
 // collected, the associated alloc ids that should also be removed are also
 // returned
-func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64) (
+func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, allowBatch bool) (
 	bool, []string, error) {
 	// Ignore non-terminal and new evaluations
 	if !eval.TerminalStatus() || eval.ModifyIndex > thresholdIndex {
@@ -225,6 +230,10 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64) 
 	// terminal allocations get GC'd the scheduler would re-run the
 	// allocations.
 	if eval.Type == structs.JobTypeBatch {
+		if !allowBatch {
+			return false, nil, nil
+		}
+
 		// Check if the job is running
 		job, err := c.snap.JobByID(eval.JobID)
 		if err != nil {
