@@ -85,8 +85,12 @@ func persistState(path string, data interface{}) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		return fmt.Errorf("failed to make dirs for %s: %v", path, err)
 	}
-	if err := ioutil.WriteFile(path, buf, 0600); err != nil {
-		return fmt.Errorf("failed to save state: %v", err)
+	tmpPath := path + ".tmp"
+	if err := ioutil.WriteFile(tmpPath, buf, 0600); err != nil {
+		return fmt.Errorf("failed to save state to tmp: %v", err)
+	}
+	if err := os.Rename(tmpPath, path); err != nil {
+		return fmt.Errorf("failed to rename tmp to path: %v", err)
 	}
 	return nil
 }
