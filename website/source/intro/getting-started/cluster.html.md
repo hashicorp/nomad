@@ -184,16 +184,11 @@ Datacenters = dc1
 Status      = running
 Periodic    = false
 
-==> Evaluations
-ID        Priority  Triggered By  Status
-54dd2ae3  50        job-register  complete
-
-==> Allocations
+Allocations
 ID        Eval ID   Node ID   Task Group  Desired  Status
-102225ab  54dd2ae3  56b590e6  cache       run      running
-f327d2b1  54dd2ae3  e4235508  cache       run      running
-f91137f8  54dd2ae3  56b590e6  cache       run      running
-
+501154ac  8e0a7cf9  c887deef  cache       run      running
+7e2b3900  8e0a7cf9  fca62612  cache       run      running
+9c66fcaf  8e0a7cf9  c887deef  cache       run      running
 ```
 
 We can see that all our tasks have been allocated and are running.
