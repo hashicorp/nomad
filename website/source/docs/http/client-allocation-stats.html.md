@@ -3,16 +3,16 @@ layout: "http"
 page_title: "HTTP API: /v1/client/allocation/stats"
 sidebar_current: "docs-http-client-allocation-stats"
 description: |-
-  The '/v1/client/allocation/<allocation-id>/stats` endpoint is used to query the actual resources consumed
-  by an allocation.
+  The '/v1/client/allocation/` endpoint is used to query the actual resources
+  consumed by an allocation.
 ---
 
-# /v1/client/allocation/allocation-id/stats
+# /v1/client/allocation
 
-The `/allocation/<ID>/stats` endpoint is used to query the actual resources consumed by an allocation.
-The API endpoint is hosted by the Nomad client and requests have to be made to
-the nomad client whose resource usage metrics are of interest.
-
+The client `allocation` endpoint is used to query the actual resources consumed
+by an allocation.  The API endpoint is hosted by the Nomad client and requests
+have to be made to the nomad client whose resource usage metrics are of
+interest.
 
 ## GET
 

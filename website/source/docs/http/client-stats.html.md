@@ -9,10 +9,9 @@ description: |-
 
 # /v1/client/stats
 
-The `/stats` endpoint is used to query the actual resources consumed on a node.
+The client `stats` endpoint is used to query the actual resources consumed on a node.
 The API endpoint is hosted by the Nomad client and requests have to be made to
 the nomad client whose resource usage metrics are of interest.
-
 
 ## GET
 
