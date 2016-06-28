@@ -1,6 +1,6 @@
 ---
 layout: "docs"
-page_title: "Creating a cluster"
+page_title: "Creating a Nomad Cluster"
 sidebar_current: "docs-cluster-bootstrap"
 description: |-
   Learn how to bootstrap a Nomad cluster.
@@ -8,14 +8,15 @@ description: |-
 
 # Creating a cluster
 
-Nomad clusters in production comprises of a few Nomad servers, clients and
-optionally Consul servers and clients.Before we start discussing the specifics
+Nomad clusters in production comprises of a few Nomad servers (an odd number,
+preferrably 3 or 5, but never an even number to prevent split-brain), clients and
+optionally Consul servers and clients. Before we start discussing the specifics
 around bootstrapping clusters we should discuss the network topology. Nomad
-models infrastructure as regions and datacenters. Regions may contain multiple
-datacenters. Servers are assigned to a single region and hence a region is a
-single scheduling domain in Nomad. Multiple regions can be connected together
-and users can target a different region when they query the Nomad APIs or submit
-a job to servers in a specific region. 
+models infrastructure as Regions and Datacenters. Nomad Regions may contain multiple
+datacenters. Nomad Servers are assigned to the same region and hence a region is a
+single scheduling domain in Nomad. Each cluster of Nomad Servers support
+only one region, however multiple Regions can be stitched together to allow a
+globally coherent view of an organization's resources.
 
 
 ## Nomad Servers
@@ -93,7 +94,7 @@ via the client configuration.
 ```
 client {
     ...
-    servers = ["10.10.11.2:4646", "10.10.11.3:4646", "10.10.11.4:4646"]
+    servers = ["10.10.11.2:4648", "10.10.11.3:4648", "10.10.11.4:4648"]
     ...
 }
 ```
@@ -129,4 +130,18 @@ the agents with Consul automatically too.
 Please refer to the documentation for the complete set of configuration options.
 
 
+### Fedarating a cluster
 
+Nomad clusters across multiple regions can be fedarated and once they are
+connected users can target the Nomad Servers in various regions from any other
+region while submitting a job or querying any Nomad API.
+
+Fedarating multiple Nomad clusters is as simple as joining a server to any other
+remote server.
+
+```
+nomad server-join 10.10.11.8:4648
+```
+
+Servers across regions discover other servers in the cluster via the gossip
+protocol and hence it enough to join one known server.
