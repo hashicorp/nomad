@@ -661,9 +661,11 @@
 			"revision": "89ab7f2ccc1e45ddf6485eaa802c35dcf321dfc8"
 		},
 		{
+			"checksumSHA1": "1SC2ACq72a+yfN6CYp5s5woKsR4=",
 			"comment": "v2.0.1-8-g983d3a5",
 			"path": "github.com/ryanuber/columnize",
-			"revision": "983d3a5fab1bf04d1b412465d2d9f8430e2e917e"
+			"revision": "50b9b539927dfe231b8be1caf81b2c81d5940276",
+			"revisionTime": "2016-06-28T05:25:20Z"
 		},
 		{
 			"checksumSHA1": "G1oy2AGv5pCnNL0hRfg+mlX4Uq4=",
