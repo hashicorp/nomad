@@ -1,4 +1,4 @@
-## 0.4.0 (UNRELEASED)
+## 0.4.0
 
 __BACKWARDS INCOMPATIBILITIES:__
   * api: Tasks are no longer allowed to have slashes in their name [GH-1210]
