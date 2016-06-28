@@ -180,6 +180,10 @@ func (r *TaskRunner) RestoreState() error {
 		r.handleLock.Lock()
 		r.handle = handle
 		r.handleLock.Unlock()
+
+		r.runningLock.Lock()
+		r.running = true
+		r.runningLock.Unlock()
 	}
 	return nil
 }
