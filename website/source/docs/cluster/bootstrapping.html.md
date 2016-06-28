@@ -19,32 +19,58 @@ only one region, however multiple Regions can be stitched together to allow a
 globally coherent view of an organization's resources.
 
 
+## Consul Cluster
+
+Bootstrapping a Nomad cluster becomes significantly easier if operators use
+Consul. Network topology of a Consul cluster is slightly different than Nomad.
+Consul models infrastructures as Data Centers, and each Consul Data Center can
+have up to ~10,000 nodes and multiple Consul datacentres can be connected over
+the WAN so that clients can discover nodes in other Data Centres. We recommend
+running a Consul Cluster in every Nomad datacenter and connecting them over the
+WAN. Please refer to the Consul
+(documentation)[https://www.consul.io/docs/commands/join.html] to learn more
+about bootstrapping Consul and connecting multiple Consul clusters over the WAN.
+
+Also, Nomad clusters can be significantly larger than Consul clusters, so
+sharding the Consul clusters per ~10,000 nodes organized in individual DCs helps
+scale Consul as the Nomad clusters scale.
+
+
 ## Nomad Servers
 
-Nomad servers are expected to have network latencies no more than 10
-milliseconds between them. Nomad servers could be spread across multiple
-datacenters, if they have low latency connections between them, to achieve high
-availability. For example, on AWS every region comprises of multiple zones which
-have very low latency links between them, so every zone can be modeled as a
-Nomad Data Center and every Zone can have a single Nomad server which could be
-connected to form a quorum and form a Region. Nomad servers uses raft for
-replicating state between them and raft being highly consistent needs a quorum
-of servers to function, therefore we recommend running an odd number of Nomad
-servers in a region. Usually running 3-5 servers in a region is recommended. The
-cluster can withstand a failure of one server in a cluster of three
-servers and two failures in a cluster of five servers. Adding more servers to
-the quorum adds more time to replicate state and hence throughput decreases so
-we don't recommend having more than seven servers in a region.
+Nomad servers are expected to have sub 10 millisecond network latencies between
+them. Nomad servers could be spread across multiple datacenters, if they have
+low latency connections between them, to achieve high availability. For example,
+on AWS every region comprises of multiple zones which have very low latency
+links between them, so every zone can be modeled as a Nomad datacenter and
+every Zone can have a single Nomad server which could be connected to form a
+quorum and form a Region. Nomad servers uses Raft for replicating state between
+them and raft being highly consistent needs a quorum of servers to function,
+therefore we recommend running an odd number of Nomad servers in a region.
+Usually running 3-5 servers in a region is recommended. The cluster can
+withstand a failure of one server in a cluster of three servers and two failures
+in a cluster of five servers. Adding more servers to the quorum adds more time
+to replicate state and hence throughput decreases so we don't recommend having
+more than seven servers in a region.
 
 During the bootstrapping phase Nomad servers need to know the addresses of other
-servers, which can be achieved by using the `-reconnect-join` cli command or by
-pointing Nomad servers to a Consul Service.
+servers.  Nomad will automatically bootstrap itself when the Consul service is
+present, or can be manually joined by using the
+[`-retry-join`](https://www.nomadproject.io/docs/agent/config.html#_retry_join)
+CLI command or the Server
+[`retry_join`](https://www.nomadproject.io/docs/agent/config.html#retry_join)
+option.
+
 
 
 ## Nomad Clients
 
-Nomad clients are organized in DCs and they have to be seeded by the list of
-servers that they will have to connect.
+Nomad clients are organized in datacenters and need to be made aware of the
+Nomad Servers to communicate with.  If Consul is present, Nomad will
+automatically self-bootstrap, otherwise they will need to be provided with a
+static list of
+[`servers`](https://www.nomadproject.io/docs/agent/config.html#servers) to find
+the list of Nomad Servers.
 
 Operators can either place the addresses of the Nomad servers in the client
 configuration or point Nomad client to the Nomad server service in Consul. Once
@@ -52,22 +78,6 @@ a client establishes connection with a Nomad servers, if new servers are added
 to the cluster the addresses are propagated down to the clients along with
 heartbeat.
 
-
-## Consul Cluster
-
-Bootstrapping a Nomad cluster becomes significantly easier if operators use
-Consul and registers Nomad servers with Consul. Network topology of a Consul
-cluster is slightly different than Nomad. Consul models infrastructures as Data
-Centers, and each Consul Data Center can have up to ~10,000 nodes and multiple
-Consul Data Centres can be connected over the WAN so that clients can discover
-nodes in other Data Centres. We recommend running a Consul Cluster in every
-Nomad Data Center and connecting them over the WAN. Please refer to the Consul
-documentation to learn more about bootstrapping Consul and connecting multiple
-Consul clusters over the WAN.
-
-Also, Nomad clusters can be significantly larger than Consul clusters, so
-sharding the Consul clusters per ~10,000 nodes organized in individual DCs helps
-scale Consul as the Nomad clusters scale.
 
 ### Bootstrapping a Nomad cluster without Consul
 
@@ -113,9 +123,8 @@ the addresses of the other Nomad server addresses and join with them
 automatically.
 
 ```
-
 {
-    "server_service_name": "nomad-server",
+    "server_service_name": "nomad",
     "server_auto_join": true,
     "client_service_name": "nomad-client",
     "client_auto_join": true
@@ -123,11 +132,14 @@ automatically.
 ```
 
 With the above configuration Nomad agent is going to look up Consul for
-addresses of agents in the `nomad-server` service and join them automatically.
-In addition, if the `auto-advertise` option is set Nomad is going to register
-the agents with Consul automatically too.
+addresses of agents in the `nomad` service and join them automatically.  In
+addition, if the `auto-advertise` option is set Nomad is going to register the
+agents with Consul automatically too. By default, Nomad will automatically
+register the server and the client agents with Consul and try to auto-discover
+the servers if it can talk to a local Consul agent on the same server.
 
-Please refer to the documentation for the complete set of configuration options.
+Please refer to the (documentation)[/jobspec/servicediscovery.html] for the
+complete set of configuration options.
 
 
 ### Fedarating a cluster
