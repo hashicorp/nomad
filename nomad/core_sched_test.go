@@ -84,7 +84,7 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	// Insert "dead" eval
+	// Insert "complete" eval
 	eval := mock.Eval()
 	eval.Status = structs.EvalStatusComplete
 	eval.Type = structs.JobTypeBatch
@@ -94,7 +94,7 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	// Insert "dead" alloc
+	// Insert "failed" alloc
 	alloc := mock.Alloc()
 	alloc.JobID = job.ID
 	alloc.EvalID = eval.ID
