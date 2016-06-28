@@ -668,6 +668,12 @@
 			"revisionTime": "2016-06-28T05:25:20Z"
 		},
 		{
+			"checksumSHA1": "UkExAUfzi5jJ08QYurU223nLThM=",
+			"path": "github.com/shirou/gopsutil",
+			"revision": "2728d81cdef579d6ed88d2fd5c71e85aa83eaba8",
+			"revisionTime": "2016-06-25T09:45:55Z"
+		},
+		{
 			"checksumSHA1": "G1oy2AGv5pCnNL0hRfg+mlX4Uq4=",
 			"comment": "1.0.0-230-gf58654f",
 			"path": "github.com/shirou/gopsutil/cpu",
