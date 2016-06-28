@@ -210,7 +210,7 @@ The `Job` object supports the following keys:
 *   `Periodic` - `Periodic` allows the job to be scheduled at fixed times, dates
     or intervals. The periodic expression is always evaluated in the UTC
     timezone to ensure consistent evaluation when Nomad Servers span multiple
-    time zones. The `Periodic` object supports the following attributes:
+    time zones. The `Periodic` object is optional and supports the following attributes:
 
     * `Enabled` - `Enabled` determines whether the periodic job will spawn child
     jobs.
