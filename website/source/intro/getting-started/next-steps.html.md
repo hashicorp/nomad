@@ -17,3 +17,6 @@ We recommend reading the following as next steps.
 
   * [Documentation](/docs/index.html) - The documentation is an in-depth
     reference guide to all the features of Nomad.
+
+  * [Creating a Cluster](/docs/cluster/bootstrapping.html) - Additional details on
+    creating a production worthy Nomad Cluster.

@@ -12,10 +12,10 @@ Nomad clusters in production comprises of a few Nomad servers (an odd number,
 preferrably 3 or 5, but never an even number to prevent split-brain), clients and
 optionally Consul servers and clients. Before we start discussing the specifics
 around bootstrapping clusters we should discuss the network topology. Nomad
-models infrastructure as Regions and Datacenters. Nomad Regions may contain multiple
-datacenters. Nomad Servers are assigned to the same region and hence a region is a
-single scheduling domain in Nomad. Each cluster of Nomad Servers support
-only one region, however multiple Regions can be stitched together to allow a
+models infrastructure as regions and datacenters. Nomad regions may contain multiple
+datacenters. Nomad servers are assigned to the same region and hence a region is a
+single scheduling domain in Nomad. Each cluster of Nomad servers support
+only one region, however multiple regions can be stitched together to allow a
 globally coherent view of an organization's resources.
 
 
@@ -23,17 +23,12 @@ globally coherent view of an organization's resources.
 
 Bootstrapping a Nomad cluster becomes significantly easier if operators use
 Consul. Network topology of a Consul cluster is slightly different than Nomad.
-Consul models infrastructures as Data Centers, and each Consul Data Center can
-have up to ~10,000 nodes and multiple Consul datacentres can be connected over
-the WAN so that clients can discover nodes in other Data Centres. We recommend
-running a Consul Cluster in every Nomad datacenter and connecting them over the
-WAN. Please refer to the Consul
-(documentation)[https://www.consul.io/docs/commands/join.html] to learn more
+Consul models infrastructures as datacenters and multiple Consul datacenters can
+be connected over the WAN so that clients can discover nodes in other
+datacenters. We recommend running a Consul Cluster in every Nomad datacenter and
+connecting them over the WAN. Please refer to the Consul
+[documentation](https://www.consul.io/docs/commands/join.html) to learn more
 about bootstrapping Consul and connecting multiple Consul clusters over the WAN.
-
-Also, Nomad clusters can be significantly larger than Consul clusters, so
-sharding the Consul clusters per ~10,000 nodes organized in individual DCs helps
-scale Consul as the Nomad clusters scale.
 
 
 ## Nomad Servers
@@ -44,8 +39,8 @@ low latency connections between them, to achieve high availability. For example,
 on AWS every region comprises of multiple zones which have very low latency
 links between them, so every zone can be modeled as a Nomad datacenter and
 every Zone can have a single Nomad server which could be connected to form a
-quorum and form a Region. Nomad servers uses Raft for replicating state between
-them and raft being highly consistent needs a quorum of servers to function,
+quorum and form a region. Nomad servers uses Raft for replicating state between
+them and Raft being highly consistent needs a quorum of servers to function,
 therefore we recommend running an odd number of Nomad servers in a region.
 Usually running 3-5 servers in a region is recommended. The cluster can
 withstand a failure of one server in a cluster of three servers and two failures
@@ -66,11 +61,11 @@ option.
 ## Nomad Clients
 
 Nomad clients are organized in datacenters and need to be made aware of the
-Nomad Servers to communicate with.  If Consul is present, Nomad will
+Nomad servers to communicate with.  If Consul is present, Nomad will
 automatically self-bootstrap, otherwise they will need to be provided with a
 static list of
 [`servers`](https://www.nomadproject.io/docs/agent/config.html#servers) to find
-the list of Nomad Servers.
+the list of Nomad servers.
 
 Operators can either place the addresses of the Nomad servers in the client
 configuration or point Nomad client to the Nomad server service in Consul. Once
@@ -83,7 +78,7 @@ heartbeat.
 
 At least one Nomad server's address (also known as the seed node) needs to be
 known ahead of time and a running agent can be joined to a cluster by running
-the `server-join` cli command. 
+the [`server-join` command](/docs/commands/server-join.html). 
 
 For example, once a Nomad agent starts in the server mode it can be joined to an
 existing cluster with a server whose IP is known. Once the agent joins the other
@@ -138,18 +133,18 @@ agents with Consul automatically too. By default, Nomad will automatically
 register the server and the client agents with Consul and try to auto-discover
 the servers if it can talk to a local Consul agent on the same server.
 
-Please refer to the (documentation)[/jobspec/servicediscovery.html] for the
-complete set of configuration options.
+Please refer to the [documentation](/docs/agent/config.html#consul_options)
+for the complete set of configuration options.
 
 
-### Fedarating a cluster
+### Federating a cluster
 
-Nomad clusters across multiple regions can be fedarated and once they are
-connected users can target the Nomad Servers in various regions from any other
-region while submitting a job or querying any Nomad API.
+Nomad clusters across multiple regions can be federated allowing users to submit
+jobs or interact with the HTTP API targeting any region, from any server.
 
-Fedarating multiple Nomad clusters is as simple as joining a server to any other
-remote server.
+Federating multiple Nomad clusters is as simple as joing servers. From any
+server in one region, simply issue a join command to a server in the remote
+region:
 
 ```
 nomad server-join 10.10.11.8:4648
