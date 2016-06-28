@@ -21,6 +21,7 @@ IMPROVEMENTS:
     modified from a known state [GH-1243]
   * api/client: Add resource usage APIs for retrieving tasks/allocations/host
     resource usage [GH-1189]
+  * cli: Faster when displaying large amounts ouptuts [GH-1362]
   * cli: Deprecate `eval-monitor` and introduce `eval-status` [GH-1206]
   * cli: Unify the `fs` family of commands to be a single command [GH-1150]
   * cli: Introduce `nomad plan` to dry-run a job through the scheduler and
