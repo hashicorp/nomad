@@ -22,6 +22,9 @@ getting a better view of what Nomad is doing.
 Telemetry information can be streamed to both [statsite](https://github.com/armon/statsite)
 as well as statsd based on providing the appropriate configuration options.
 
+To configure the telemetry output please see the [agent
+configuration](/docs/agent/config.html#telemetry_config).
+
 Below is sample output of a telemetry dump:
 
 ```text
