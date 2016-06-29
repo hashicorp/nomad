@@ -126,7 +126,7 @@ defaults
     timeout server  10000
 
 listen http-in
-    bind {{service "my-web-lb"}} {{range service "my-web"}}
+    bind {{env "NOMAD_ADDR_inbound"}} {{range service "my-web"}}
     server {{.Node}} {{.Address}}:{{.Port}}{{end}}
 ```
 
