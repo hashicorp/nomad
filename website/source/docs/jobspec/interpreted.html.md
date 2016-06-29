@@ -177,7 +177,7 @@ a particular node and as such can not be used in constraints.
   </tr>
   <tr>
     <td>${NOMAD_MEMORY_LIMIT}</td>
-    <td>The memory limit in MBits for the task</td>
+    <td>The memory limit in MBytes for the task</td>
   </tr>
   <tr>
     <td>${NOMAD_CPU_LIMIT}</td>
