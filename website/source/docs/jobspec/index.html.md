@@ -415,9 +415,9 @@ In the above example we have asked Nomad to retain 3 rotated files for both
 `stderr` and `stdout` and size of each file is 10MB. The minimum disk space that
 would be required for the task would be 60MB.
 
-### Artifact
-
 <a id="artifact_doc"></a>
+
+### Artifact
 
 Nomad downloads artifacts using
 [`go-getter`](https://github.com/hashicorp/go-getter). The `go-getter` library
