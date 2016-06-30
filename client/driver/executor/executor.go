@@ -294,6 +294,7 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext
 	e.cmd.Path = path
 	e.cmd.Args = append([]string{e.cmd.Path}, ctx.TaskEnv.ParseAndReplace(command.Args)...)
 	e.cmd.Env = ctx.TaskEnv.EnvList()
+	setSysProcAttributes(&e.cmd)
 
 	// Start the process
 	if err := e.cmd.Start(); err != nil {
@@ -481,16 +482,7 @@ func (e *UniversalExecutor) ShutDown() error {
 	if err != nil {
 		return fmt.Errorf("executor.shutdown failed to find process: %v", err)
 	}
-	if runtime.GOOS == "windows" {
-		if err := proc.Kill(); err != nil && err.Error() != finishedErr {
-			return err
-		}
-		return nil
-	}
-	if err = proc.Signal(os.Interrupt); err != nil && err.Error() != finishedErr {
-		return fmt.Errorf("executor.shutdown error: %v", err)
-	}
-	return nil
+	return e.sendShutdownTask(proc)
 }
 
 // SyncServices syncs the services of the task that the executor is running with
