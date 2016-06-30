@@ -2,8 +2,6 @@ package command
 
 import (
 	"fmt"
-	"log"
-	"os"
 	"strconv"
 	"strings"
 	"syscall"
@@ -25,13 +23,6 @@ func (e *ShutdownTaskCommand) Synopsis() string {
 }
 
 func (e *ShutdownTaskCommand) Run(args []string) int {
-
-	f, err := os.OpenFile("testlogfile.txt", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-	if err != nil {
-		panic(fmt.Errorf("error opening file: %v", err))
-	}
-	defer f.Close()
-	log.SetOutput(f)
 
 	if len(args) == 0 {
 		e.Ui.Error("task pid is not provided")
@@ -57,22 +48,18 @@ func sendCtrlC(pid int) error {
 	var generateConsoleCtrlEvent = kernel32.NewProc("GenerateConsoleCtrlEvent")
 	// Close current console
 	if r, _, err := freeConsole.Call(); r == 0 {
-		log.Printf("FreeConsole Returned values %v err = %v", r, err)
 		return fmt.Errorf("Can't FreeConsole. Error code %v", err)
 	}
 	// Stach to job console
 	if r, _, err := attachConsole.Call(uintptr(pid)); r == 0 {
-		log.Printf("AttachConsole Returned values %v err = %v", r, err)
 		return fmt.Errorf("Can't AttachConsole. Error code %v", err)
 	}
 	// Disable Ctrl+C handling for our own program, so we don't "kill" ourselves
 	if r, _, err := setConsoleCtrlHandler.Call(0, 1); r == 0 {
-		log.Printf("setConsoleCtrlHandler Returned values %v err = %v", r, err)
 		return fmt.Errorf("Can't SetConsoleCtrlHandler. Error code %v", err)
 	}
 
 	if r, _, err := generateConsoleCtrlEvent.Call(uintptr(syscall.CTRL_C_EVENT), 0); r == 0 {
-		log.Printf("generateConsoleCtrlEvent Returned values %v err = %v", r, err)
 		return fmt.Errorf("Can't GenerateConsoleCtrlEvent. Error code %v", err)
 	}
 	return nil
