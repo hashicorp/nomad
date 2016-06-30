@@ -150,6 +150,8 @@ The `job` object supports the following keys:
   and defaults to `service`. To learn more about each scheduler type visit
   [here](/docs/jobspec/schedulers.html)
 
+<a id="update"></a>
+
 *   `update` - Specifies the task's update strategy. When omitted, rolling
     updates are disabled. The `update` block supports the following keys:
 
@@ -266,9 +268,13 @@ The `task` object supports the following keys:
 
 * `meta` - Annotates the task group with opaque metadata.
 
+<a id="kill_timeout"></a>
+
 * `kill_timeout` - `kill_timeout` is a time duration that can be specified using
   the `s`, `m`, and `h` suffixes, such as `30s`. It can be used to configure the
-  time between signaling a task it will be killed and actually killing it.
+  time between signaling a task it will be killed and actually killing it. Nomad
+  sends an `os.Interrupt` which on Unix systems is defined as `SIGINT`. After
+  the timeout a kill signal is sent (on Unix `SIGKILL`).
 
 * `logs` - Logs allows configuring log rotation for the `stdout` and `stderr`
   buffers of a Task. See the log rotation reference below for more details.
