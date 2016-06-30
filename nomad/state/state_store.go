@@ -344,6 +344,11 @@ func (s *StateStore) UpsertJob(index uint64, job *structs.Job) error {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
+	// Update the job summary
+	if err := s.updateSummaryWithJob(job, txn); err != nil {
+		return fmt.Errorf("job summary update failed: %v", err)
+	}
+
 	txn.Defer(func() { s.watch.notify(watcher) })
 	txn.Commit()
 	return nil
@@ -453,6 +458,21 @@ func (s *StateStore) JobsByGC(gc bool) (memdb.ResultIterator, error) {
 		return nil, err
 	}
 	return iter, nil
+}
+
+// JobSummary returns an iterator over al the jobs which matches a specific id.
+func (s *StateStore) JobSummary(jobID string) (*structs.JobSummary, error) {
+	txn := s.db.Txn(false)
+
+	existing, err := txn.First("jobsummary", "id", jobID)
+	if err != nil {
+		return nil, err
+	}
+	if existing != nil {
+		return existing.(*structs.JobSummary), nil
+	}
+
+	return nil, nil
 }
 
 // UpsertPeriodicLaunch is used to register a launch or update it.
@@ -839,6 +859,11 @@ func (s *StateStore) UpsertAllocs(index uint64, allocs []*structs.Allocation) er
 			return fmt.Errorf("alloc insert failed: %v", err)
 		}
 
+		existingAlloc, _ := existing.(*structs.Allocation)
+		if err := s.updateSummaryWithAlloc(alloc, existingAlloc, txn); err != nil {
+			return fmt.Errorf("updating job summary failed: %v", err)
+		}
+
 		// If the allocation is running, force the job to running status.
 		forceStatus := ""
 		if !alloc.TerminalStatus() {
@@ -1153,6 +1178,47 @@ func (s *StateStore) getJobStatus(txn *memdb.Txn, job *structs.Job, evalDelete b
 		return structs.JobStatusRunning, nil
 	}
 	return structs.JobStatusPending, nil
+}
+
+func (s *StateStore) updateSummaryWithJob(job *structs.Job, txn *memdb.Txn) error {
+	existing, err := s.JobSummary(job.ID)
+	if err != nil {
+		return fmt.Errorf("unable to retrieve summary for job: %v", err)
+	}
+	if existing == nil {
+		existing = &structs.JobSummary{
+			JobID:   job.ID,
+			Summary: make(map[string]structs.TaskGroupSummary),
+		}
+	}
+	for _, tg := range job.TaskGroups {
+		if summary, ok := existing.Summary[tg.Name]; !ok {
+			newSummary := structs.TaskGroupSummary{
+				Name:     tg.Name,
+				Queued:   tg.Count,
+				Complete: 0,
+				Failed:   0,
+				Running:  0,
+				Starting: 0,
+			}
+			existing.Summary[tg.Name] = newSummary
+		} else {
+			if summary.Queued > tg.Count {
+				summary.Queued = tg.Count
+			}
+			existing.Summary[tg.Name] = summary
+		}
+	}
+
+	if err := txn.Insert("jobsummary", existing); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *StateStore) updateSummaryWithAlloc(newAlloc *structs.Allocation,
+	existingAlloc *structs.Allocation, txn *memdb.Txn) error {
+	return nil
 }
 
 // StateSnapshot is used to provide a point-in-time snapshot

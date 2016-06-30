@@ -937,6 +937,20 @@ const (
 	CoreJobPriority = JobMaxPriority * 2
 )
 
+type JobSummary struct {
+	JobID   string
+	Summary map[string]TaskGroupSummary
+}
+
+type TaskGroupSummary struct {
+	Name     string
+	Queued   int
+	Complete int
+	Failed   int
+	Running  int
+	Starting int
+}
+
 // Job is the scope of a scheduling request to Nomad. It is the largest
 // scoped object, and is a named collection of task groups. Each task group
 // is further composed of tasks. A task group (TG) is the unit of scheduling
