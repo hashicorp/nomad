@@ -65,7 +65,7 @@ potentially invalid.
 Here we can see that Nomad will destroy the 3 existing tasks and create 3
 replacements but it will occur with a rolling update with a stagger of `10s`.
 For more details on the update block, see
-[here](/docs/jobspec/index.html#update).
+the [Jobspec documentation](/docs/jobspec/index.html#update).
 
 ## Blue-green and Canaries
 
@@ -171,4 +171,4 @@ connections and conduct any other cleanup that is necessary. Certain
 applications take longer to drain than others and as such Nomad lets the job
 file specify how long to wait inbetween signaling the application to exit and
 forcefully killing it. This is configurable via the `kill_timeout`. More details
-can be seen [here](/docs/jobspec/index.html#kill_timeout).
+can be seen in the [Jobspec documentation](/docs/jobspec/index.html#kill_timeout).

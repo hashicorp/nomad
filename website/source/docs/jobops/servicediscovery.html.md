@@ -13,4 +13,4 @@ each other. As such, Nomad has built in support for registering services and
 health checks with [Consul](http://consul.io).
 
 For more details on using service discovery with your application, see
-[here](/docs/jobspec/servicediscovery.html).
+the [Service Discovery documentation](/docs/jobspec/servicediscovery.html).

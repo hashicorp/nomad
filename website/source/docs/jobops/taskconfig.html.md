@@ -21,7 +21,7 @@ configuration via command-line arguments that will not change.
 Nomad has many [drivers](/docs/drivers/index.html) and most support passing
 arguments to their tasks via the `args` parameter. To configure these simply
 provide the appropriate arguments. Below is an example using the [`docker`
-driver](/docs/drivers/docker.html) to launch memcached and set its thread count
+driver](/docs/drivers/docker.html) to launch `memcached(8)` and set its thread count
 to 4, increase log verbosity, as well as assign the correct port and address
 bindings using interpolation:
 

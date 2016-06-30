@@ -277,7 +277,7 @@ The `task` object supports the following keys:
   the timeout a kill signal is sent (on Unix `SIGKILL`).
 
 * `logs` - Logs allows configuring log rotation for the `stdout` and `stderr`
-  buffers of a Task. See the log rotation reference below for more details.
+  buffers of a Task. See the [log rotation section](#log_rotation) for more details.
 
 * `artifact` - Defines an artifact to be downloaded before the task is run. This
   can be provided multiple times to define additional artifacts to download. See
@@ -394,6 +394,8 @@ The `constraint` object supports the following keys:
     Placing the constraint at both the job level and at the task group level is
     redundant since when placed at the job level, the constraint will be applied
     to all task groups.
+
+<a id="log_rotation"></a>
 
 ### Log Rotation
 

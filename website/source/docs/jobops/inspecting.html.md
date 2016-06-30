@@ -9,7 +9,7 @@ description: |-
 # Inspecting state
 
 Once a job is submitted, the next step is to ensure it is running. This section
-will assume we have submitted a job with the name "example".
+will assume we have submitted a job with the name _example_.
 
 To get a high-level over view of our job we can use the [`nomad status`
 command](/docs/commands/status.html). This command will display the list of
@@ -54,8 +54,9 @@ progress. When Nomad can not place all the desired allocations, it creates a
 blocked evaluation that waits for more resources to become available. We can use
 the [`eval-status` command](/docs/commands/eval-status.html) to examine any
 evaluation in more detail. For the most part this should never be necessary but
-can be useful to see why everything was not placed. For example if we run it on
-the evaluation that had placement failures we see:
+can be useful to see why all of a job's allocations were not placed. For
+example if we run it on the _example_ job, which had a placement failure
+according to the above output, we see:
 
 ```
 nomad eval-status 8e38e6cf
@@ -104,7 +105,7 @@ Time                   Type        Description
 06/28/16 15:37:44 UTC  Received    Task received by client
 ```
 
-In the above example we forced killed the docker container so that we could see
+In the above example we forced killed the Docker container so that we could see
 in the event history that Nomad detected the failure and restarted the
 allocation.
 
@@ -141,7 +142,8 @@ Time                   Type            Description
 Not all failures are this easily debuggable. If the `alloc-status` command shows
 many restarts occuring as in the example below, it is a good hint that the error
 is occuring at the application level during start up. These failres can be
-debugged by looking at logs which is covered [here](/docs/jobops/logs.html).
+debugged by looking at logs which is covered in the [Nomad Job Logging
+documentation](/docs/jobops/logs.html).
 
 ```
 $ nomad alloc-status e6b6
