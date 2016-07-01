@@ -237,14 +237,14 @@ is 1 second but it can be changed by the changing the value of the
   </tr>
   <tr>
     <td>`nomad.client.host.memmory.<HostID>.available`</td>
-    <td>Total amount of memory available to programs which includes free and
+    <td>Total amount of memory available to processes which includes free and
     cached memory</td>
     <td>Bytes</td>
     <td>Gauge</td>
   </tr>
   <tr>
     <td>`nomad.client.host.memmory.<HostID>.used`</td>
-    <td>Amount of memory used by programs</td>
+    <td>Amount of memory used by processes</td>
     <td>Bytes</td>
     <td>Gauge</td>
   </tr>
