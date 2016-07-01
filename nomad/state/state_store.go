@@ -380,6 +380,17 @@ func (s *StateStore) DeleteJob(index uint64, jobID string) error {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
+	// Delete the job summary
+	summary, err := s.JobSummary(jobID)
+	if err != nil {
+		return err
+	}
+	if summary != nil {
+		if err := txn.Delete("jobsummary", summary); err != nil {
+			return fmt.Errorf("deleing job summary failed: %v", err)
+		}
+	}
+
 	txn.Defer(func() { s.watch.notify(watcher) })
 	txn.Commit()
 	return nil
@@ -790,6 +801,11 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *memdb.Txn, watcher watch.I
 		return nil
 	}
 	exist := existing.(*structs.Allocation)
+
+	// Update the job summary
+	if err := s.updateSummaryWithAlloc(alloc, exist, txn); err != nil {
+		return fmt.Errorf("unable to update job summary: %v", err)
+	}
 
 	// Trigger the watcher
 	watcher.Add(watch.Item{Alloc: alloc.ID})
@@ -1218,6 +1234,68 @@ func (s *StateStore) updateSummaryWithJob(job *structs.Job, txn *memdb.Txn) erro
 
 func (s *StateStore) updateSummaryWithAlloc(newAlloc *structs.Allocation,
 	existingAlloc *structs.Allocation, txn *memdb.Txn) error {
+
+	existing, err := s.JobSummary(newAlloc.JobID)
+	if err != nil {
+		return fmt.Errorf("lookup of job summary failed: %v", err)
+	}
+
+	// If we can't find an existing job summary entry then we are not going to create a
+	// new job summary entry for an allocation with that job id since we don't
+	// know the task group counts for that jobA
+	// TODO May be we can query the job and scan all the allocations for that
+	// job and create the summary before applying the change of summary state
+	// that this allocation would cause.
+	if existing == nil {
+		return nil
+	}
+
+	tgSummary, ok := existing.Summary[newAlloc.TaskGroup]
+	if !ok {
+		return nil
+	}
+	if existingAlloc == nil {
+		switch newAlloc.DesiredStatus {
+		case structs.AllocDesiredStatusFailed:
+			tgSummary.Failed += 1
+		case structs.AllocDesiredStatusStop:
+			tgSummary.Complete += 1
+		}
+		switch newAlloc.ClientStatus {
+		case structs.AllocClientStatusPending:
+			tgSummary.Starting += 1
+		case structs.AllocClientStatusRunning:
+			tgSummary.Running += 1
+		}
+		tgSummary.Queued -= 1
+	} else if existingAlloc.ClientStatus != newAlloc.ClientStatus {
+		switch newAlloc.ClientStatus {
+		case structs.AllocClientStatusRunning:
+			tgSummary.Running += 1
+		case structs.AllocClientStatusFailed:
+			tgSummary.Failed += 1
+		case structs.AllocClientStatusPending:
+			tgSummary.Starting += 1
+		case structs.AllocClientStatusComplete:
+			tgSummary.Complete += 1
+		}
+
+		switch existingAlloc.ClientStatus {
+		case structs.AllocClientStatusRunning:
+			tgSummary.Running -= 1
+		case structs.AllocClientStatusFailed:
+			tgSummary.Failed -= 1
+		case structs.AllocClientStatusPending:
+			tgSummary.Starting -= 1
+		case structs.AllocClientStatusComplete:
+			tgSummary.Complete -= 1
+		}
+	}
+
+	existing.Summary[newAlloc.TaskGroup] = tgSummary
+	if err := txn.Insert("jobsummary", existing); err != nil {
+		return fmt.Errorf("inserting job summary failed: %v", err)
+	}
 	return nil
 }
 
