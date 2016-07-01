@@ -15,8 +15,8 @@ func (c *ValidateCommand) Help() string {
 	helpText := `
 Usage: nomad validate [options] <file>
 
-  Checks if a given job file has a valid specification. This can be used to check
-  for any syntax errors or validation problems with a job.
+  Checks if a given HCL job file has a valid specification. This can be used to
+  check for any syntax errors or validation problems with a job.
 
 `
 	return strings.TrimSpace(helpText)
