@@ -243,13 +243,13 @@ is 1 second but it can be changed by the changing the value of the
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.host.memmory.<HostID>.used`</td>
+    <td>`nomad.client.host.memory.<HostID>.used`</td>
     <td>Amount of memory used by processes</td>
     <td>Bytes</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.host.memmory.<HostID>.free`</td>
+    <td>`nomad.client.host.memory.<HostID>.free`</td>
     <td>Amount of memory which is free</td>
     <td>Bytes</td>
     <td>Gauge</td>
