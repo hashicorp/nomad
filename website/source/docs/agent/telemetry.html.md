@@ -289,25 +289,25 @@ node whose `ID` is `b55916ec-2cf9-5db4-8121-956eeb93f5cb` -
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.host.disk.b55916ec-2cf9-5db4-8121-956eeb93f5cb.dev-sda1.size`</td>
+    <td>`nomad.client.host.disk.b55916ec-2cf9-5db4-8121-956eeb93f5cb.dev-sda1.used`</td>
     <td>Amount of space which has been used</td>
     <td>Bytes</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.host.disk.b55916ec-2cf9-5db4-8121-956eeb93f5cb.dev-sda1.size`</td>
+    <td>`nomad.client.host.disk.b55916ec-2cf9-5db4-8121-956eeb93f5cb.dev-sda1.available`</td>
     <td>Amount of space which is available</td>
     <td>Bytes</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.host.disk.b55916ec-2cf9-5db4-8121-956eeb93f5cb.dev-sda1.size`</td>
+    <td>`nomad.client.host.disk.b55916ec-2cf9-5db4-8121-956eeb93f5cb.dev-sda1.used_percent`</td>
     <td>Percentage of disk space used</td>
     <td>Percentage</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.host.disk.b55916ec-2cf9-5db4-8121-956eeb93f5cb.dev-sda1.size`</td>
+    <td>`nomad.client.host.disk.b55916ec-2cf9-5db4-8121-956eeb93f5cb.dev-sda1.inodes_percent`</td>
     <td>Disk space consumed by the inodes</td>
     <td>Percent</td>
     <td>Gauge</td>
