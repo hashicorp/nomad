@@ -258,55 +258,55 @@ is 1 second but it can be changed by the changing the value of the
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.host.cpu.<HostID>.cpu0.total`</td>
+    <td>`nomad.client.host.cpu.<HostID>.<CPU-Core>.total`</td>
     <td>Total CPU utilization</td>
     <td>Percentage</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.host.cpu.<HostID>.cpu0.user`</td>
+    <td>`nomad.client.host.cpu.<HostID>.<CPU-Core>.user`</td>
     <td>CPU utilization in the user space</td>
     <td>Percentage</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.host.cpu.<HostID>.cpu0.system`</td>
+    <td>`nomad.client.host.cpu.<HostID>.<CPU-Core>.system`</td>
     <td>CPU utilization in the system space</td>
     <td>Percentage</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.host.cpu.<HostID>.cpu0.idle`</td>
+    <td>`nomad.client.host.cpu.<HostID>.<CPU-Core>.idle`</td>
     <td>Idle time spent by the CPU</td>
     <td>Percentage</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.host.disk.<HostID>.dev-sda1.size`</td>
+    <td>`nomad.client.host.disk.<HostID>.<Device-Name>.size`</td>
     <td>Total size of the device</td>
     <td>Bytes</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.host.disk.<HostID>.dev-sda1.used`</td>
+    <td>`nomad.client.host.disk.<HostID>.<Device-Name>.used`</td>
     <td>Amount of space which has been used</td>
     <td>Bytes</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.host.disk.<HostID>.dev-sda1.available`</td>
+    <td>`nomad.client.host.disk.<HostID>.<Device-Name>.available`</td>
     <td>Amount of space which is available</td>
     <td>Bytes</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.host.disk.<HostID>.dev-sda1.used_percent`</td>
+    <td>`nomad.client.host.disk.<HostID>.<Device-Name>.used_percent`</td>
     <td>Percentage of disk space used</td>
     <td>Percentage</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.host.disk.<HostID>.dev-sda1.inodes_percent`</td>
+    <td>`nomad.client.host.disk.<HostID>.<Device-Name>.inodes_percent`</td>
     <td>Disk space consumed by the inodes</td>
     <td>Percent</td>
     <td>Gauge</td>
