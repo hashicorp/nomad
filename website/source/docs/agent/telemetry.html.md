@@ -326,67 +326,67 @@ is 1 second but it can be changed by the changing the value of the
     <th>Type</th>
   </tr>
   <tr>
-    <td>`nomad.client.allocs.<Job>.<AllocID>.<TaskGroup>.memory.rss`</td>
+    <td>`nomad.client.allocs.<Job>.<TaskGroup>.<AllocID>.<Task>.memory.rss`</td>
     <td>Amount of RSS memory consumed by the task</td>
     <td>Bytes</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.allocs.<Job>.<AllocID>.<TaskGroup>.memory.cache`</td>
+    <td>`nomad.client.allocs.<Job>.<TaskGroup>.<AllocID>.<Task>.memory.cache`</td>
     <td>Amount of memory cached by the task</td>
     <td>Bytes</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.allocs.<Job>.<AllocID>.<TaskGroup>.memory.swap`</td>
+    <td>`nomad.client.allocs.<Job>.<TaskGroup>.<AllocID>.<Task>.memory.swap`</td>
     <td>Amount of memory swapped by the task</td>
     <td>Bytes</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.allocs.<Job>.<AllocID>.<TaskGroup>.memory.max_usage`</td>
+    <td>`nomad.client.allocs.<Job>.<TaskGroup>.<AllocID>.<Task>.memory.max_usage`</td>
     <td>Maximum amount of memory ever used by the task</td>
     <td>Bytes</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.allocs.<Job>.<AllocID>.<TaskGroup>.memory.kernel_usage`</td>
+    <td>`nomad.client.allocs.<Job>.<TaskGroup>.<AllocID>.<Task>.memory.kernel_usage`</td>
     <td>Amount of memory used by the kernel for this task</td>
     <td>Bytes</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.allocs.<Job>.<AllocID>.<TaskGroup>.memory.kernel_max_usage`</td>
+    <td>`nomad.client.allocs.<Job>.<TaskGroup>.<AllocID>.<Task>.memory.kernel_max_usage`</td>
     <td>Maximum amount of memory ever used by the kernel for this task</td>
     <td>Bytes</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.allocs.<Job>.<AllocID>.<TaskGroup>.cpu.total_percent`</td>
+    <td>`nomad.client.allocs.<Job>.<TaskGroup>.<AllocID>.<Task>.cpu.total_percent`</td>
     <td>Total CPU resources consumed by the task across all cores</td>
     <td>Percentage</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.allocs.<Job>.<AllocID>.<TaskGroup>.cpu.system`</td>
+    <td>`nomad.client.allocs.<Job>.<TaskGroup>.<AllocID>.<Task>.cpu.system`</td>
     <td>Total CPU resources consumed by the task in the system space</td>
     <td>Percentage</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.allocs.<Job>.<AllocID>.<TaskGroup>.cpu.user`</td>
+    <td>`nomad.client.allocs.<Job>.TaskGroup>.<AllocID>.<Task>.cpu.user`</td>
     <td>Total CPU resources consumed by the task in the user space</td>
     <td>Percentage</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.allocs.<Job>.<AllocID>.<TaskGroup>.cpu.throttled_time`</td>
+    <td>`nomad.client.allocs.<Job>.<TaskGroup>.<AllocID>.<Task>.cpu.throttled_time`</td>
     <td>Total time that the task was throttled</td>
     <td>Nanoseconds</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.allocs.<Job>.<AllocID>.<TaskGroup>.cpu.total_ticks`</td>
+    <td>`nomad.client.allocs.<Job>.<TaskGroup>.<AllocID>.<Task>.cpu.total_ticks`</td>
     <td>CPU ticks consumed by the process in the last collection interval</td>
     <td>Integer</td>
     <td>Gauge</td>
