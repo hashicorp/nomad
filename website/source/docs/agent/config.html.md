@@ -180,6 +180,8 @@ nodes, unless otherwise specified:
   automatically bootstrap itself using Consul. For more details see the [`consul`
   section](#consul_options).
 
+<a id="telemetry_config"></a>
+
 * `telemetry`: Used to control how the Nomad agent exposes telemetry data to
   external metrics collection servers. This is a key/value mapping and supports
   the following keys:

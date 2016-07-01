@@ -150,6 +150,8 @@ The `job` object supports the following keys:
   and defaults to `service`. To learn more about each scheduler type visit
   [here](/docs/jobspec/schedulers.html)
 
+<a id="update"></a>
+
 *   `update` - Specifies the task's update strategy. When omitted, rolling
     updates are disabled. The `update` block supports the following keys:
 
@@ -266,12 +268,16 @@ The `task` object supports the following keys:
 
 * `meta` - Annotates the task group with opaque metadata.
 
+<a id="kill_timeout"></a>
+
 * `kill_timeout` - `kill_timeout` is a time duration that can be specified using
   the `s`, `m`, and `h` suffixes, such as `30s`. It can be used to configure the
-  time between signaling a task it will be killed and actually killing it.
+  time between signaling a task it will be killed and actually killing it. Nomad
+  sends an `os.Interrupt` which on Unix systems is defined as `SIGINT`. After
+  the timeout a kill signal is sent (on Unix `SIGKILL`).
 
 * `logs` - Logs allows configuring log rotation for the `stdout` and `stderr`
-  buffers of a Task. See the log rotation reference below for more details.
+  buffers of a Task. See the [log rotation section](#log_rotation) for more details.
 
 * `artifact` - Defines an artifact to be downloaded before the task is run. This
   can be provided multiple times to define additional artifacts to download. See
@@ -389,6 +395,8 @@ The `constraint` object supports the following keys:
     redundant since when placed at the job level, the constraint will be applied
     to all task groups.
 
+<a id="log_rotation"></a>
+
 ### Log Rotation
 
 The `logs` object configures the log rotation policy for a task's `stdout` and
@@ -415,9 +423,9 @@ In the above example we have asked Nomad to retain 3 rotated files for both
 `stderr` and `stdout` and size of each file is 10MB. The minimum disk space that
 would be required for the task would be 60MB.
 
-### Artifact
-
 <a id="artifact_doc"></a>
+
+### Artifact
 
 Nomad downloads artifacts using
 [`go-getter`](https://github.com/hashicorp/go-getter). The `go-getter` library
