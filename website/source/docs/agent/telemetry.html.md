@@ -213,6 +213,186 @@ when retrieving metrics using the above described signals.
   </tr>
 </table>
 
+# Client Metrics
+
+The Nomad client emits metrics related to the resource usage of the allocations
+and tasks running on it and the node itself. By default the collection interval
+is 1 second but it can be changed by the changing the value of the
+`collection_interval` key in the `telemetry` configuration block.
+
+## Host Metrics
+
+<table class="table table-bordered table-striped">
+  <tr>
+    <th>Metric</th>
+    <th>Description</th>
+    <th>Unit</th>
+    <th>Type</th>
+  </tr>
+  <tr>
+    <td>`nomad.client.host.memmory.<HostID>.total`</td>
+    <td>Total amount of physical memory on the node</td>
+    <td>Bytes</td>
+    <td>Gauge</td>
+  </tr>
+  <tr>
+    <td>`nomad.client.host.memmory.<HostID>.available`</td>
+    <td>Total amount of memory available to programs which includes free and
+    cached memory</td>
+    <td>Bytes</td>
+    <td>Gauge</td>
+  </tr>
+  <tr>
+    <td>`nomad.client.host.memmory.<HostID>.used`</td>
+    <td>Amount of memory used by programs</td>
+    <td>Bytes</td>
+    <td>Gauge</td>
+  </tr>
+  <tr>
+    <td>`nomad.client.host.memmory.<HostID>.free`</td>
+    <td>Amount of memory which is free</td>
+    <td>Bytes</td>
+    <td>Gauge</td>
+  </tr>
+  <tr>
+    <td>`nomad.client.uptime.<HostID>`</td>
+    <td>Uptime of the host running the Nomad client</td>
+    <td>Seconds</td>
+    <td>Gauge</td>
+  </tr>
+  <tr>
+    <td>`nomad.client.host.cpu.<HostID>.<CPU-Core>.total`</td>
+    <td>Total CPU utilization</td>
+    <td>Percentage</td>
+    <td>Gauge</td>
+  </tr>
+  <tr>
+    <td>`nomad.client.host.cpu.<HostID>.<CPU-Core>.user`</td>
+    <td>CPU utilization in the user space</td>
+    <td>Percentage</td>
+    <td>Gauge</td>
+  </tr>
+  <tr>
+    <td>`nomad.client.host.cpu.<HostID>.<CPU-Core>.system`</td>
+    <td>CPU utilization in the system space</td>
+    <td>Percentage</td>
+    <td>Gauge</td>
+  </tr>
+  <tr>
+    <td>`nomad.client.host.cpu.<HostID>.<CPU-Core>.idle`</td>
+    <td>Idle time spent by the CPU</td>
+    <td>Percentage</td>
+    <td>Gauge</td>
+  </tr>
+  <tr>
+    <td>`nomad.client.host.disk.<HostID>.<Device-Name>.size`</td>
+    <td>Total size of the device</td>
+    <td>Bytes</td>
+    <td>Gauge</td>
+  </tr>
+  <tr>
+    <td>`nomad.client.host.disk.<HostID>.<Device-Name>.used`</td>
+    <td>Amount of space which has been used</td>
+    <td>Bytes</td>
+    <td>Gauge</td>
+  </tr>
+  <tr>
+    <td>`nomad.client.host.disk.<HostID>.<Device-Name>.available`</td>
+    <td>Amount of space which is available</td>
+    <td>Bytes</td>
+    <td>Gauge</td>
+  </tr>
+  <tr>
+    <td>`nomad.client.host.disk.<HostID>.<Device-Name>.used_percent`</td>
+    <td>Percentage of disk space used</td>
+    <td>Percentage</td>
+    <td>Gauge</td>
+  </tr>
+  <tr>
+    <td>`nomad.client.host.disk.<HostID>.<Device-Name>.inodes_percent`</td>
+    <td>Disk space consumed by the inodes</td>
+    <td>Percent</td>
+    <td>Gauge</td>
+  </tr>
+</table>
+
+## Allocation Metrics 
+
+<table class="table table-bordered table-striped">
+  <tr>
+    <th>Metric</th>
+    <th>Description</th>
+    <th>Unit</th>
+    <th>Type</th>
+  </tr>
+  <tr>
+    <td>`nomad.client.allocs.<Job>.<AllocID>.<TaskGroup>.memory.rss`</td>
+    <td>Amount of RSS memory consumed by the task</td>
+    <td>Bytes</td>
+    <td>Gauge</td>
+  </tr>
+  <tr>
+    <td>`nomad.client.allocs.<Job>.<AllocID>.<TaskGroup>.memory.cache`</td>
+    <td>Amount of memory cached by the task</td>
+    <td>Bytes</td>
+    <td>Gauge</td>
+  </tr>
+  <tr>
+    <td>`nomad.client.allocs.<Job>.<AllocID>.<TaskGroup>.memory.swap`</td>
+    <td>Amount of memory swapped by the task</td>
+    <td>Bytes</td>
+    <td>Gauge</td>
+  </tr>
+  <tr>
+    <td>`nomad.client.allocs.<Job>.<AllocID>.<TaskGroup>.memory.max_usage`</td>
+    <td>Maximum amount of memory ever used by the task</td>
+    <td>Bytes</td>
+    <td>Gauge</td>
+  </tr>
+  <tr>
+    <td>`nomad.client.allocs.<Job>.<AllocID>.<TaskGroup>.memory.kernel_usage`</td>
+    <td>Amount of memory used by the kernel for this task</td>
+    <td>Bytes</td>
+    <td>Gauge</td>
+  </tr>
+  <tr>
+    <td>`nomad.client.allocs.<Job>.<AllocID>.<TaskGroup>.memory.kernel_max_usage`</td>
+    <td>Maximum amount of memory ever used by the kernel for this task</td>
+    <td>Bytes</td>
+    <td>Gauge</td>
+  </tr>
+  <tr>
+    <td>`nomad.client.allocs.<Job>.<AllocID>.<TaskGroup>.cpu.total_percent`</td>
+    <td>Total CPU resources consumed by the task across all cores</td>
+    <td>Percentage</td>
+    <td>Gauge</td>
+  </tr>
+  <tr>
+    <td>`nomad.client.allocs.<Job>.<AllocID>.<TaskGroup>.cpu.system`</td>
+    <td>Total CPU resources consumed by the task in the system space</td>
+    <td>Percentage</td>
+    <td>Gauge</td>
+  </tr>
+  <tr>
+    <td>`nomad.client.allocs.<Job>.<AllocID>.<TaskGroup>.cpu.user`</td>
+    <td>Total CPU resources consumed by the task in the user space</td>
+    <td>Percentage</td>
+    <td>Gauge</td>
+  </tr>
+  <tr>
+    <td>`nomad.client.allocs.<Job>.<AllocID>.<TaskGroup>.cpu.throttled_time`</td>
+    <td>Total time that the task was throttled</td>
+    <td>Nanoseconds</td>
+    <td>Gauge</td>
+  </tr>
+  <tr>
+    <td>`nomad.client.allocs.<Job>.<AllocID>.<TaskGroup>.cpu.total_ticks`</td>
+    <td>CPU ticks consumed by the process in the last collection interval</td>
+    <td>Integer</td>
+    <td>Gauge</td>
+  </tr>
+</table>
+
 # Metric Types
 
 <table class="table table-bordered table-striped">
