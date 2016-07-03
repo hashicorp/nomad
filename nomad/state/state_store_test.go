@@ -458,6 +458,26 @@ func TestStateStore_UpdateUpsertJob_Job(t *testing.T) {
 		t.Fatalf("bad: %d", index)
 	}
 
+	// Test that the job summary remains the same if the job is updated but
+	// count remains same
+	summary, err := state.JobSummary(job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if summary == nil {
+		t.Fatalf("nil summary")
+	}
+	if summary.JobID != job.ID {
+		t.Fatalf("bad summary id: %v", summary.JobID)
+	}
+	webTgSummary, ok := summary.Summary["web"]
+	if !ok {
+		t.Fatalf("nil summary for task group")
+	}
+	if webTgSummary.Queued != 10 {
+		t.Fatalf("wrong summary: %#v", webTgSummary)
+	}
+
 	notify.verify(t)
 }
 
@@ -495,6 +515,14 @@ func TestStateStore_DeleteJob_Job(t *testing.T) {
 	}
 	if index != 1001 {
 		t.Fatalf("bad: %d", index)
+	}
+
+	summary, err := state.JobSummary(job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if summary != nil {
+		t.Fatalf("expected summary to be nil, but got: %v", summary)
 	}
 
 	notify.verify(t)
