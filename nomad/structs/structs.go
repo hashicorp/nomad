@@ -345,6 +345,10 @@ type PeriodicForceRequest struct {
 	WriteRequest
 }
 
+type ServerMembersRequest struct {
+	QueryOptions
+}
+
 // GenericRequest is used to request where no
 // specific information is needed.
 type GenericRequest struct {
@@ -937,13 +941,15 @@ const (
 	CoreJobPriority = JobMaxPriority * 2
 )
 
+// JobSummary summarizes the state of the allocations of a job
 type JobSummary struct {
 	JobID   string
 	Summary map[string]TaskGroupSummary
 }
 
+// TaskGroup summarizes the state of all the allocations of a particular
+// TaskGroup
 type TaskGroupSummary struct {
-	Name     string
 	Queued   int
 	Complete int
 	Failed   int

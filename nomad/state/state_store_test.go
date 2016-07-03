@@ -1,7 +1,6 @@
 package state
 
 import (
-	//	"fmt"
 	"os"
 	"reflect"
 	"sort"
@@ -1515,6 +1514,13 @@ func TestStateStore_UpdateAllocsFromClient(t *testing.T) {
 		watch.Item{AllocJob: alloc2.JobID},
 		watch.Item{AllocNode: alloc2.NodeID})
 
+	if err := state.UpsertJob(999, alloc.Job); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if err := state.UpsertJob(999, alloc2.Job); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
 	err := state.UpsertAllocs(1000, []*structs.Allocation{alloc, alloc2})
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -1526,11 +1532,15 @@ func TestStateStore_UpdateAllocsFromClient(t *testing.T) {
 		ID:           alloc.ID,
 		ClientStatus: structs.AllocClientStatusFailed,
 		TaskStates:   ts,
+		JobID:        alloc.JobID,
+		TaskGroup:    alloc.TaskGroup,
 	}
 	update2 := &structs.Allocation{
 		ID:           alloc2.ID,
 		ClientStatus: structs.AllocClientStatusRunning,
 		TaskStates:   ts,
+		JobID:        alloc2.JobID,
+		TaskGroup:    alloc2.TaskGroup,
 	}
 
 	err = state.UpdateAllocsFromClient(1001, []*structs.Allocation{update, update2})
@@ -1572,6 +1582,31 @@ func TestStateStore_UpdateAllocsFromClient(t *testing.T) {
 		t.Fatalf("bad: %d", index)
 	}
 
+	// Ensure summaries have been updated
+	summary, err := state.JobSummary(alloc.JobID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	tgSummary := summary.Summary["web"]
+	if tgSummary.Failed != 1 {
+		t.Fatalf("expected failed: %v, actual: %v, summary: %#v", 1, tgSummary.Failed, tgSummary)
+	}
+	if tgSummary.Queued != 9 {
+		t.Fatalf("expected queued: %v, actual: %v", 9, tgSummary.Running)
+	}
+
+	summary2, err := state.JobSummary(alloc2.JobID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	tgSummary2 := summary2.Summary["web"]
+	if tgSummary2.Running != 1 {
+		t.Fatalf("expected running: %v, actual: %v", 1, tgSummary2.Failed)
+	}
+	if tgSummary2.Queued != 9 {
+		t.Fatalf("expected queued: %v, actual: %v", 9, tgSummary2.Running)
+	}
+
 	notify.verify(t)
 }
 
@@ -1586,6 +1621,10 @@ func TestStateStore_UpsertAlloc_Alloc(t *testing.T) {
 		watch.Item{AllocEval: alloc.EvalID},
 		watch.Item{AllocJob: alloc.JobID},
 		watch.Item{AllocNode: alloc.NodeID})
+
+	if err := state.UpsertJob(999, alloc.Job); err != nil {
+		t.Fatalf("err: %v", err)
+	}
 
 	err := state.UpsertAllocs(1000, []*structs.Allocation{alloc})
 	if err != nil {
@@ -1609,6 +1648,22 @@ func TestStateStore_UpsertAlloc_Alloc(t *testing.T) {
 		t.Fatalf("bad: %d", index)
 	}
 
+	summary, err := state.JobSummary(alloc.JobID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	tgSummary, ok := summary.Summary["web"]
+	if !ok {
+		t.Fatalf("no summary for task group web")
+	}
+	if tgSummary.Queued != 9 {
+		t.Fatalf("expected queued: %v, actual: %v", 9, tgSummary.Queued)
+	}
+	if tgSummary.Starting != 1 {
+		t.Fatalf("expected queued: %v, actual: %v", 1, tgSummary.Starting)
+	}
+
 	notify.verify(t)
 }
 
@@ -1616,9 +1671,25 @@ func TestStateStore_UpdateAlloc_Alloc(t *testing.T) {
 	state := testStateStore(t)
 	alloc := mock.Alloc()
 
+	if err := state.UpsertJob(999, alloc.Job); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
 	err := state.UpsertAllocs(1000, []*structs.Allocation{alloc})
 	if err != nil {
 		t.Fatalf("err: %v", err)
+	}
+
+	summary, err := state.JobSummary(alloc.JobID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	tgSummary := summary.Summary["web"]
+	if tgSummary.Starting != 1 {
+		t.Fatalf("expected starting: %v, actual: %v", 1, tgSummary.Starting)
+	}
+	if tgSummary.Queued != 9 {
+		t.Fatalf("expected starting: %v, actual: %v", 9, tgSummary.Queued)
 	}
 
 	alloc2 := mock.Alloc()
@@ -1660,6 +1731,19 @@ func TestStateStore_UpdateAlloc_Alloc(t *testing.T) {
 	}
 	if index != 1001 {
 		t.Fatalf("bad: %d", index)
+	}
+
+	// Ensure that summary hasb't changed
+	summary, err = state.JobSummary(alloc.JobID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	tgSummary = summary.Summary["web"]
+	if tgSummary.Starting != 1 {
+		t.Fatalf("expected starting: %v, actual: %v", 1, tgSummary.Starting)
+	}
+	if tgSummary.Queued != 9 {
+		t.Fatalf("expected starting: %v, actual: %v", 9, tgSummary.Queued)
 	}
 
 	notify.verify(t)

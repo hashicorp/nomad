@@ -381,14 +381,8 @@ func (s *StateStore) DeleteJob(index uint64, jobID string) error {
 	}
 
 	// Delete the job summary
-	summary, err := s.JobSummary(jobID)
-	if err != nil {
-		return err
-	}
-	if summary != nil {
-		if err := txn.Delete("jobsummary", summary); err != nil {
-			return fmt.Errorf("deleing job summary failed: %v", err)
-		}
+	if _, err = txn.DeleteAll("jobsummary", "id", jobID); err != nil {
+		return fmt.Errorf("deleing job summary failed: %v", err)
 	}
 
 	txn.Defer(func() { s.watch.notify(watcher) })
@@ -471,7 +465,7 @@ func (s *StateStore) JobsByGC(gc bool) (memdb.ResultIterator, error) {
 	return iter, nil
 }
 
-// JobSummary returns an iterator over al the jobs which matches a specific id.
+// JobSummary returns a job summary object which matches a specific id.
 func (s *StateStore) JobSummary(jobID string) (*structs.JobSummary, error) {
 	txn := s.db.Txn(false)
 
@@ -859,12 +853,12 @@ func (s *StateStore) UpsertAllocs(index uint64, allocs []*structs.Allocation) er
 			return fmt.Errorf("alloc lookup failed: %v", err)
 		}
 
-		if existing == nil {
+		exist, _ := existing.(*structs.Allocation)
+		if exist == nil {
 			alloc.CreateIndex = index
 			alloc.ModifyIndex = index
 			alloc.AllocModifyIndex = index
 		} else {
-			exist := existing.(*structs.Allocation)
 			alloc.CreateIndex = exist.CreateIndex
 			alloc.ModifyIndex = index
 			alloc.AllocModifyIndex = index
@@ -875,8 +869,7 @@ func (s *StateStore) UpsertAllocs(index uint64, allocs []*structs.Allocation) er
 			return fmt.Errorf("alloc insert failed: %v", err)
 		}
 
-		existingAlloc, _ := existing.(*structs.Allocation)
-		if err := s.updateSummaryWithAlloc(alloc, existingAlloc, txn); err != nil {
+		if err := s.updateSummaryWithAlloc(alloc, exist, txn); err != nil {
 			return fmt.Errorf("updating job summary failed: %v", err)
 		}
 
@@ -1196,6 +1189,8 @@ func (s *StateStore) getJobStatus(txn *memdb.Txn, job *structs.Job, evalDelete b
 	return structs.JobStatusPending, nil
 }
 
+// updateSummaryWithJob creates or updates job summaries when new jobs are
+// upserted or existing ones are updated
 func (s *StateStore) updateSummaryWithJob(job *structs.Job, txn *memdb.Txn) error {
 	existing, err := s.JobSummary(job.ID)
 	if err != nil {
@@ -1232,6 +1227,8 @@ func (s *StateStore) updateSummaryWithJob(job *structs.Job, txn *memdb.Txn) erro
 	return nil
 }
 
+// updateSummaryWithAlloc updates the job summary when allocations are updated
+// or inserted
 func (s *StateStore) updateSummaryWithAlloc(newAlloc *structs.Allocation,
 	existingAlloc *structs.Allocation, txn *memdb.Txn) error {
 
@@ -1242,7 +1239,7 @@ func (s *StateStore) updateSummaryWithAlloc(newAlloc *structs.Allocation,
 
 	// If we can't find an existing job summary entry then we are not going to create a
 	// new job summary entry for an allocation with that job id since we don't
-	// know the task group counts for that jobA
+	// know the task group counts for that job
 	// TODO May be we can query the job and scan all the allocations for that
 	// job and create the summary before applying the change of summary state
 	// that this allocation would cause.
@@ -1269,6 +1266,7 @@ func (s *StateStore) updateSummaryWithAlloc(newAlloc *structs.Allocation,
 		}
 		tgSummary.Queued -= 1
 	} else if existingAlloc.ClientStatus != newAlloc.ClientStatus {
+		// Incrementing the clint of the bin of the current state
 		switch newAlloc.ClientStatus {
 		case structs.AllocClientStatusRunning:
 			tgSummary.Running += 1
@@ -1280,6 +1278,7 @@ func (s *StateStore) updateSummaryWithAlloc(newAlloc *structs.Allocation,
 			tgSummary.Complete += 1
 		}
 
+		// Decrementing the count of the bin of the last state
 		switch existingAlloc.ClientStatus {
 		case structs.AllocClientStatusRunning:
 			tgSummary.Running -= 1
