@@ -466,7 +466,7 @@ func (s *StateStore) JobsByGC(gc bool) (memdb.ResultIterator, error) {
 }
 
 // JobSummary returns a job summary object which matches a specific id.
-func (s *StateStore) JobSummary(jobID string) (*structs.JobSummary, error) {
+func (s *StateStore) JobSummaryByID(jobID string) (*structs.JobSummary, error) {
 	txn := s.db.Txn(false)
 
 	existing, err := txn.First("jobsummary", "id", jobID)
@@ -478,6 +478,18 @@ func (s *StateStore) JobSummary(jobID string) (*structs.JobSummary, error) {
 	}
 
 	return nil, nil
+}
+
+// JobSummaries walks the entire job summary table and retuns all the job
+// summary objects
+func (s *StateStore) JobSummaries() (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	iter, err := txn.Get("jobsummary", "id")
+	if err != nil {
+		return nil, err
+	}
+	return iter, nil
 }
 
 // UpsertPeriodicLaunch is used to register a launch or update it.
@@ -1192,7 +1204,7 @@ func (s *StateStore) getJobStatus(txn *memdb.Txn, job *structs.Job, evalDelete b
 // updateSummaryWithJob creates or updates job summaries when new jobs are
 // upserted or existing ones are updated
 func (s *StateStore) updateSummaryWithJob(job *structs.Job, txn *memdb.Txn) error {
-	existing, err := s.JobSummary(job.ID)
+	existing, err := s.JobSummaryByID(job.ID)
 	if err != nil {
 		return fmt.Errorf("unable to retrieve summary for job: %v", err)
 	}
@@ -1233,7 +1245,7 @@ func (s *StateStore) updateSummaryWithJob(job *structs.Job, txn *memdb.Txn) erro
 func (s *StateStore) updateSummaryWithAlloc(newAlloc *structs.Allocation,
 	existingAlloc *structs.Allocation, txn *memdb.Txn) error {
 
-	existing, err := s.JobSummary(newAlloc.JobID)
+	existing, err := s.JobSummaryByID(newAlloc.JobID)
 	if err != nil {
 		return fmt.Errorf("lookup of job summary failed: %v", err)
 	}
@@ -1381,6 +1393,14 @@ func (r *StateRestore) PeriodicLaunchRestore(launch *structs.PeriodicLaunch) err
 	r.items.Add(watch.Item{Job: launch.ID})
 	if err := r.txn.Insert("periodic_launch", launch); err != nil {
 		return fmt.Errorf("periodic launch insert failed: %v", err)
+	}
+	return nil
+}
+
+// JobSummaryRestore is used to restore a job summary
+func (r *StateRestore) JobSummaryRestore(jobSummary *structs.JobSummary) error {
+	if err := r.txn.Insert("jobsummary", jobSummary); err != nil {
+		return fmt.Errorf("job summary insert failed: %v", err)
 	}
 	return nil
 }

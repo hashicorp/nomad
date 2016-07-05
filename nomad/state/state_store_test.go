@@ -392,7 +392,7 @@ func TestStateStore_UpsertJob_Job(t *testing.T) {
 		t.Fatalf("bad: %d", index)
 	}
 
-	summary, err := state.JobSummary(job.ID)
+	summary, err := state.JobSummaryByID(job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -459,7 +459,7 @@ func TestStateStore_UpdateUpsertJob_Job(t *testing.T) {
 
 	// Test that the job summary remains the same if the job is updated but
 	// count remains same
-	summary, err := state.JobSummary(job.ID)
+	summary, err := state.JobSummaryByID(job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -516,7 +516,7 @@ func TestStateStore_DeleteJob_Job(t *testing.T) {
 		t.Fatalf("bad: %d", index)
 	}
 
-	summary, err := state.JobSummary(job.ID)
+	summary, err := state.JobSummaryByID(job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1583,7 +1583,7 @@ func TestStateStore_UpdateAllocsFromClient(t *testing.T) {
 	}
 
 	// Ensure summaries have been updated
-	summary, err := state.JobSummary(alloc.JobID)
+	summary, err := state.JobSummaryByID(alloc.JobID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1595,7 +1595,7 @@ func TestStateStore_UpdateAllocsFromClient(t *testing.T) {
 		t.Fatalf("expected queued: %v, actual: %v", 9, tgSummary.Running)
 	}
 
-	summary2, err := state.JobSummary(alloc2.JobID)
+	summary2, err := state.JobSummaryByID(alloc2.JobID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1648,7 +1648,7 @@ func TestStateStore_UpsertAlloc_Alloc(t *testing.T) {
 		t.Fatalf("bad: %d", index)
 	}
 
-	summary, err := state.JobSummary(alloc.JobID)
+	summary, err := state.JobSummaryByID(alloc.JobID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1680,7 +1680,7 @@ func TestStateStore_UpdateAlloc_Alloc(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	summary, err := state.JobSummary(alloc.JobID)
+	summary, err := state.JobSummaryByID(alloc.JobID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1734,7 +1734,7 @@ func TestStateStore_UpdateAlloc_Alloc(t *testing.T) {
 	}
 
 	// Ensure that summary hasb't changed
-	summary, err = state.JobSummary(alloc.JobID)
+	summary, err = state.JobSummaryByID(alloc.JobID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
