@@ -1076,6 +1076,38 @@ func TestStateStore_RestorePeriodicLaunch(t *testing.T) {
 	notify.verify(t)
 }
 
+func TestStateStore_RestoreJobSummary(t *testing.T) {
+	state := testStateStore(t)
+	job := mock.Job()
+	jobSummary := &structs.JobSummary{
+		JobID: job.ID,
+		Summary: map[string]structs.TaskGroupSummary{
+			"web": structs.TaskGroupSummary{
+				Queued: 10,
+			},
+		},
+	}
+	restore, err := state.Restore()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	err = restore.JobSummaryRestore(jobSummary)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	restore.Commit()
+
+	out, err := state.JobSummaryByID(job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !reflect.DeepEqual(out, jobSummary) {
+		t.Fatalf("Bad: %#v %#v", out, jobSummary)
+	}
+}
+
 func TestStateStore_Indexes(t *testing.T) {
 	state := testStateStore(t)
 	node := mock.Node()
