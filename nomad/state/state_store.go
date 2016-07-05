@@ -1205,7 +1205,6 @@ func (s *StateStore) updateSummaryWithJob(job *structs.Job, txn *memdb.Txn) erro
 	for _, tg := range job.TaskGroups {
 		if summary, ok := existing.Summary[tg.Name]; !ok {
 			newSummary := structs.TaskGroupSummary{
-				Name:     tg.Name,
 				Queued:   tg.Count,
 				Complete: 0,
 				Failed:   0,
@@ -1216,6 +1215,8 @@ func (s *StateStore) updateSummaryWithJob(job *structs.Job, txn *memdb.Txn) erro
 		} else {
 			if summary.Queued > tg.Count {
 				summary.Queued = tg.Count
+			} else {
+				summary.Queued += tg.Count - (summary.Total())
 			}
 			existing.Summary[tg.Name] = summary
 		}

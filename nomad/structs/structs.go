@@ -957,6 +957,11 @@ type TaskGroupSummary struct {
 	Starting int
 }
 
+// Total returns the total number of allocations for the task group.
+func (s *TaskGroupSummary) Total() int {
+	return s.Queued + s.Complete + s.Failed + s.Running + s.Starting
+}
+
 // Job is the scope of a scheduling request to Nomad. It is the largest
 // scoped object, and is a named collection of task groups. Each task group
 // is further composed of tasks. A task group (TG) is the unit of scheduling
