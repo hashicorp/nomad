@@ -11,6 +11,7 @@ import (
 
 	"gopkg.in/tomb.v1"
 
+	"github.com/docker/docker/pkg/ioutils"
 	"github.com/ugorji/go/codec"
 )
 
@@ -23,7 +24,7 @@ var (
 
 const (
 	// frameSize is the maximum number of bytes to send in a single frame
-	frameSize = 64 * 1024 * 1024
+	frameSize = 64 * 1024
 
 	// streamHeartbeatRate is the rate at which a heartbeat will occur to detect
 	// a closed connection without sending any additional data
@@ -210,8 +211,11 @@ func (s *HTTPServer) Stream(resp http.ResponseWriter, req *http.Request) (interf
 
 	}
 
+	// Create an output that gets flushed on every write
+	output := ioutils.NewWriteFlusher(resp)
+
 	// Create a JSON encoder
-	enc := codec.NewEncoder(resp, jsonHandle)
+	enc := codec.NewEncoder(output, jsonHandle)
 
 	// Get the reader
 	f, err := fs.ReadAt(path, offset)
@@ -285,8 +289,6 @@ OUTER:
 			case <-changes.Modified:
 				continue OUTER
 			case <-changes.Deleted:
-				s.logger.Println("ALEX: FILE DELTED")
-
 				// Send a heartbeat frame with the delete
 				hFrame := StreamFrame{
 					Offset:    offset,
@@ -329,7 +331,6 @@ OUTER:
 
 				if err := enc.Encode(&hFrame); err != nil {
 					// The defer on the tomb will stop the watch
-					s.logger.Println("ALEX: FRAME FAILED TO ENCODE")
 					return nil, err
 				}
 

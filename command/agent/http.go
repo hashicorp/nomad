@@ -66,8 +66,7 @@ func NewHTTPServer(agent *Agent, config *Config, logOutput io.Writer) (*HTTPServ
 	srv.registerHandlers(config.EnableDebug)
 
 	// Start the server
-	//go http.Serve(ln, gziphandler.GzipHandler(mux))
-	go http.Serve(ln, mux)
+	go http.Serve(ln, gziphandler.GzipHandler(mux))
 	return srv, nil
 }
 
