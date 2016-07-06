@@ -2324,6 +2324,74 @@ func TestStateWatch_stopWatch(t *testing.T) {
 	}
 }
 
+func TestStateJobSummary_UpdateJobCount(t *testing.T) {
+	state := testStateStore(t)
+	alloc := mock.Alloc()
+	job := alloc.Job
+	job.TaskGroups[0].Count = 3
+	err := state.UpsertJob(1000, job)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if err := state.UpsertAllocs(1001, []*structs.Allocation{alloc}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	summary, _ := state.JobSummaryByID(job.ID)
+	if summary.Summary["web"].Queued != 2 && summary.Summary["web"].Starting != 1 {
+		t.Fatalf("bad job summary: %v", summary)
+	}
+
+	alloc2 := mock.Alloc()
+	alloc2.Job = job
+	alloc2.JobID = job.ID
+
+	alloc3 := mock.Alloc()
+	alloc3.Job = job
+	alloc3.JobID = job.ID
+
+	if err := state.UpsertAllocs(1002, []*structs.Allocation{alloc2, alloc3}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	job.TaskGroups[0].Count = 1
+	err = state.UpsertJob(1003, job)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	summary, _ = state.JobSummaryByID(job.ID)
+	if summary.Summary["web"].Queued != 0 || summary.Summary["web"].Starting != 3 {
+		t.Fatalf("bad job summary: %v", summary)
+	}
+
+	alloc4 := mock.Alloc()
+	alloc4.ID = alloc2.ID
+	alloc4.Job = alloc2.Job
+	alloc4.JobID = alloc2.JobID
+	alloc4.DesiredStatus = structs.AllocDesiredStatusStop
+
+	alloc5 := mock.Alloc()
+	alloc5.ID = alloc3.ID
+	alloc5.Job = alloc3.Job
+	alloc5.JobID = alloc3.JobID
+	alloc5.DesiredStatus = structs.AllocDesiredStatusStop
+
+	if err := state.UpsertAllocs(1004, []*structs.Allocation{alloc4, alloc5}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	summary, _ = state.JobSummaryByID(job.ID)
+	if summary.Summary["web"].Queued != 0 || summary.Summary["web"].Starting != 1 || summary.Summary["web"].Complete != 2 {
+		t.Fatalf("bad job summary: %v", summary)
+	}
+
+	job.TaskGroups[0].Count = 1
+	err = state.UpsertJob(1005, job)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+}
+
 // setupNotifyTest takes a state store and a set of watch items, then creates
 // and subscribes a notification channel for each item.
 func setupNotifyTest(state *StateStore, items ...watch.Item) notifyTest {
