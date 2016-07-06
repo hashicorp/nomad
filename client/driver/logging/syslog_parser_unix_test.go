@@ -3,6 +3,7 @@
 package logging
 
 import (
+	"bytes"
 	"log"
 	"log/syslog"
 	"os"
@@ -21,7 +22,7 @@ func TestLogParser_Priority(t *testing.T) {
 	}
 
 	idx := d.logContentIndex(line)
-	expected := 68
+	expected := bytes.Index(line, []byte("1:C 10 Feb 18:16:43.391"))
 	if idx != expected {
 		t.Fatalf("expected idx: %v, got: %v", expected, idx)
 	}
@@ -39,7 +40,7 @@ func TestLogParser_Priority_UnixFormatter(t *testing.T) {
 	}
 
 	idx := d.logContentIndex(line)
-	expected := 48
+	expected := bytes.Index(line, []byte("1:C 10 Feb 18:16:43.391"))
 	if idx != expected {
 		t.Fatalf("expected idx: %v, got: %v", expected, idx)
 	}
