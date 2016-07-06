@@ -6,10 +6,14 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"time"
+
+	"gopkg.in/tomb.v1"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hpcloud/tail/watch"
 )
 
 var (
@@ -56,7 +60,10 @@ type AllocFileInfo struct {
 type AllocDirFS interface {
 	List(path string) ([]*AllocFileInfo, error)
 	Stat(path string) (*AllocFileInfo, error)
-	ReadAt(path string, offset int64, limit int64) (io.ReadCloser, error)
+	ReadAt(path string, offset int64) (io.ReadCloser, error)
+	LimitReadAt(path string, offset int64, limit int64) (io.ReadCloser, error)
+	BlockUntilExists(path string, t *tomb.Tomb) error
+	ChangeEvents(path string, curOffset int64, t *tomb.Tomb) (*watch.FileChanges, error)
 }
 
 func NewAllocDir(allocDir string) *AllocDir {
@@ -322,9 +329,8 @@ func (d *AllocDir) Stat(path string) (*AllocFileInfo, error) {
 	}, nil
 }
 
-// ReadAt returns a reader  for a file at the path relative to the alloc dir
-// which will read a chunk of bytes at a particular offset
-func (d *AllocDir) ReadAt(path string, offset int64, limit int64) (io.ReadCloser, error) {
+// ReadAt returns a reader for a file at the path relative to the alloc dir
+func (d *AllocDir) ReadAt(path string, offset int64) (io.ReadCloser, error) {
 	p := filepath.Join(d.AllocDir, path)
 	f, err := os.Open(p)
 	if err != nil {
@@ -333,6 +339,17 @@ func (d *AllocDir) ReadAt(path string, offset int64, limit int64) (io.ReadCloser
 	if _, err := f.Seek(offset, 0); err != nil {
 		return nil, fmt.Errorf("can't seek to offset %q: %v", offset, err)
 	}
+	return f, nil
+}
+
+// LimitReadAt returns a reader  for a file at the path relative to the alloc dir
+// which will read from a particular offset until EOF or limit is hit
+func (d *AllocDir) LimitReadAt(path string, offset int64, limit int64) (io.ReadCloser, error) {
+	f, err := d.ReadAt(path, offset)
+	if err != nil {
+		return nil, err
+	}
+
 	return &ReadCloserWrapper{Reader: io.LimitReader(f, limit), Closer: f}, nil
 }
 
@@ -341,6 +358,38 @@ func (d *AllocDir) ReadAt(path string, offset int64, limit int64) (io.ReadCloser
 type ReadCloserWrapper struct {
 	io.Reader
 	io.Closer
+}
+
+func (d *AllocDir) BlockUntilExists(path string, t *tomb.Tomb) error {
+	// Get the path relative to the alloc directory
+	p := filepath.Join(d.AllocDir, path)
+
+	var watcher watch.FileWatcher
+	if runtime.GOOS == "windows" {
+		// There are some deadlock issues with the inotify implementation on
+		// windows. Use polling watcher for now.
+		watcher = watch.NewPollingFileWatcher(p)
+	} else {
+		watcher = watch.NewInotifyFileWatcher(p)
+	}
+
+	return watcher.BlockUntilExists(t)
+}
+
+func (d *AllocDir) ChangeEvents(path string, curOffset int64, t *tomb.Tomb) (*watch.FileChanges, error) {
+	// Get the path relative to the alloc directory
+	p := filepath.Join(d.AllocDir, path)
+
+	var watcher watch.FileWatcher
+	if runtime.GOOS == "windows" {
+		// There are some deadlock issues with the inotify implementation on
+		// windows. Use polling watcher for now.
+		watcher = watch.NewPollingFileWatcher(p)
+	} else {
+		watcher = watch.NewInotifyFileWatcher(p)
+	}
+
+	return watcher.ChangeEvents(t, curOffset)
 }
 
 func fileCopy(src, dst string, perm os.FileMode) error {

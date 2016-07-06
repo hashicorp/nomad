@@ -1,17 +1,36 @@
 package agent
 
 import (
+	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
+
+	"gopkg.in/tomb.v1"
+
+	"github.com/ugorji/go/codec"
 )
 
 var (
 	allocIDNotPresentErr  = fmt.Errorf("must provide a valid alloc id")
 	fileNameNotPresentErr = fmt.Errorf("must provide a file name")
 	clientNotRunning      = fmt.Errorf("node is not running a Nomad Client")
+	invalidOrigin         = fmt.Errorf("origin must be start or end")
+)
+
+const (
+	// frameSize is the maximum number of bytes to send in a single frame
+	frameSize = 64 * 1024 * 1024
+
+	// streamHeartbeatRate is the rate at which a heartbeat will occur to detect
+	// a closed connection without sending any additional data
+	streamHeartbeatRate = 10 * time.Second
+
+	deleteEvent   = "file deleted"
+	truncateEvent = "file truncated"
 )
 
 func (s *HTTPServer) FsRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
@@ -29,6 +48,8 @@ func (s *HTTPServer) FsRequest(resp http.ResponseWriter, req *http.Request) (int
 		return s.FileReadAtRequest(resp, req)
 	case strings.HasPrefix(path, "cat/"):
 		return s.FileCatRequest(resp, req)
+	case strings.HasPrefix(path, "stream/"):
+		return s.Stream(resp, req)
 	default:
 		return nil, CodedError(404, ErrInvalidMethod)
 	}
@@ -89,7 +110,7 @@ func (s *HTTPServer) FileReadAtRequest(resp http.ResponseWriter, req *http.Reque
 	if err != nil {
 		return nil, err
 	}
-	r, err := fs.ReadAt(path, offset, limit)
+	r, err := fs.LimitReadAt(path, offset, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -122,10 +143,200 @@ func (s *HTTPServer) FileCatRequest(resp http.ResponseWriter, req *http.Request)
 		return nil, fmt.Errorf("file %q is a directory", path)
 	}
 
-	r, err := fs.ReadAt(path, int64(0), fileInfo.Size)
+	r, err := fs.ReadAt(path, int64(0))
 	if err != nil {
 		return nil, err
 	}
 	io.Copy(resp, r)
+	return nil, nil
+}
+
+type StreamFrame struct {
+	Offset int64
+	// Base64 byte encoding
+	Data      string
+	File      string
+	FileEvent string
+}
+
+func (s *HTTPServer) Stream(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	var allocID, path string
+	var err error
+
+	q := req.URL.Query()
+
+	if allocID = strings.TrimPrefix(req.URL.Path, "/v1/client/fs/stream/"); allocID == "" {
+		return nil, allocIDNotPresentErr
+	}
+
+	if path = q.Get("path"); path == "" {
+		return nil, fileNameNotPresentErr
+	}
+
+	var offset int64
+	offsetString := q.Get("offset")
+	if offsetString != "" {
+		var err error
+		if offset, err = strconv.ParseInt(offsetString, 10, 64); err != nil {
+			return nil, fmt.Errorf("error parsing offset: %v", err)
+		}
+	}
+
+	origin := q.Get("origin")
+	switch origin {
+	case "start", "end":
+	case "":
+		origin = "start"
+	default:
+		return nil, invalidOrigin
+	}
+
+	fs, err := s.agent.client.GetAllocFS(allocID)
+	if err != nil {
+		return nil, err
+	}
+
+	fileInfo, err := fs.Stat(path)
+	if err != nil {
+		return nil, err
+	}
+	if fileInfo.IsDir {
+		return nil, fmt.Errorf("file %q is a directory", path)
+	}
+
+	// If offsetting from the end subtract from the size
+	if origin == "end" {
+		offset = fileInfo.Size - offset
+
+	}
+
+	// Create a JSON encoder
+	enc := codec.NewEncoder(resp, jsonHandle)
+
+	// Get the reader
+	f, err := fs.ReadAt(path, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	// Create a tomb to cancel watch events
+	t := tomb.Tomb{}
+	defer t.Done()
+
+	// Create the heartbeat timer
+	ticker := time.NewTimer(streamHeartbeatRate)
+	defer ticker.Stop()
+
+	// Create a variable to allow setting the last event
+	var lastEvent string
+
+	// Start streaming the data
+OUTER:
+	for {
+		// Create a frame
+		frame := StreamFrame{
+			Offset: offset,
+			File:   path,
+		}
+		data := make([]byte, frameSize)
+
+		if lastEvent != "" {
+			frame.FileEvent = lastEvent
+			lastEvent = ""
+		}
+
+		// Read up to the max frame size
+		n, err := f.Read(data)
+
+		// Update the offset
+		offset += int64(n)
+
+		// Convert the data to Base64
+		frame.Data = base64.StdEncoding.EncodeToString(data[:n])
+
+		// Return non-EOF errors
+		if err != nil && err != io.EOF {
+			return nil, err
+		}
+
+		// Send the frame
+		if err := enc.Encode(&frame); err != nil {
+			return nil, err
+		}
+
+		// Just keep reading
+		if err == nil {
+			continue
+		}
+
+		// If EOF is hit, wait for a change to the file but periodically
+		// heartbeat to ensure the socket is not closed
+		changes, err := fs.ChangeEvents(path, offset, &t)
+		if err != nil {
+			return nil, err
+		}
+
+		// Reset the heartbeat timer as we just started waiting
+		ticker.Reset(streamHeartbeatRate)
+
+		for {
+			select {
+			case <-changes.Modified:
+				continue OUTER
+			case <-changes.Deleted:
+				s.logger.Println("ALEX: FILE DELTED")
+
+				// Send a heartbeat frame with the delete
+				hFrame := StreamFrame{
+					Offset:    offset,
+					File:      path,
+					FileEvent: deleteEvent,
+				}
+
+				if err := enc.Encode(&hFrame); err != nil {
+					// The defer on the tomb will stop the watch
+					return nil, err
+				}
+
+				return nil, nil
+			case <-changes.Truncated:
+				// Close the current reader
+				if err := f.Close(); err != nil {
+					return nil, err
+				}
+
+				// Get a new reader at offset zero
+				offset = 0
+				var err error
+				f, err = fs.ReadAt(path, offset)
+				if err != nil {
+					return nil, err
+				}
+				defer f.Close()
+
+				// Store the last event
+				lastEvent = truncateEvent
+				continue OUTER
+			case <-t.Dying():
+				return nil, nil
+			case <-ticker.C:
+				// Send a heartbeat frame
+				hFrame := StreamFrame{
+					Offset: offset,
+					File:   path,
+				}
+
+				if err := enc.Encode(&hFrame); err != nil {
+					// The defer on the tomb will stop the watch
+					s.logger.Println("ALEX: FRAME FAILED TO ENCODE")
+					return nil, err
+				}
+
+				ticker.Reset(streamHeartbeatRate)
+			}
+		}
+	}
+
 	return nil, nil
 }
