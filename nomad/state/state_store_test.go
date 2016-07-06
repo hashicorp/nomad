@@ -2383,13 +2383,72 @@ func TestStateJobSummary_UpdateJobCount(t *testing.T) {
 	if summary.Summary["web"].Queued != 0 || summary.Summary["web"].Starting != 1 || summary.Summary["web"].Complete != 2 {
 		t.Fatalf("bad job summary: %v", summary)
 	}
+}
 
-	job.TaskGroups[0].Count = 1
-	err = state.UpsertJob(1005, job)
+func TestJobSummary_UpdateClientStatus(t *testing.T) {
+	state := testStateStore(t)
+	alloc := mock.Alloc()
+	job := alloc.Job
+	job.TaskGroups[0].Count = 3
+
+	alloc2 := mock.Alloc()
+	alloc2.Job = job
+	alloc2.JobID = job.ID
+
+	alloc3 := mock.Alloc()
+	alloc3.Job = job
+	alloc3.JobID = job.ID
+
+	err := state.UpsertJob(1000, job)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
+	if err := state.UpsertAllocs(1001, []*structs.Allocation{alloc, alloc2, alloc3}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	summary, _ := state.JobSummaryByID(job.ID)
+	if summary.Summary["web"].Queued != 0 || summary.Summary["web"].Starting != 3 {
+		t.Fatalf("bad job summary: %v", summary)
+	}
+
+	alloc4 := mock.Alloc()
+	alloc4.ID = alloc2.ID
+	alloc4.Job = alloc2.Job
+	alloc4.JobID = alloc2.JobID
+	alloc4.ClientStatus = structs.AllocClientStatusComplete
+
+	alloc5 := mock.Alloc()
+	alloc5.ID = alloc3.ID
+	alloc5.Job = alloc3.Job
+	alloc5.JobID = alloc3.JobID
+	alloc5.ClientStatus = structs.AllocClientStatusFailed
+
+	alloc6 := mock.Alloc()
+	alloc6.ID = alloc.ID
+	alloc6.Job = alloc.Job
+	alloc6.JobID = alloc.JobID
+	alloc6.ClientStatus = structs.AllocClientStatusRunning
+
+	if err := state.UpdateAllocsFromClient(1002, []*structs.Allocation{alloc4, alloc5, alloc6}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	summary, _ = state.JobSummaryByID(job.ID)
+	if summary.Summary["web"].Queued != 0 || summary.Summary["web"].Running != 1 || summary.Summary["web"].Failed != 1 || summary.Summary["web"].Complete != 1 {
+		t.Fatalf("bad job summary: %v", summary)
+	}
+
+	alloc7 := mock.Alloc()
+	alloc7.Job = alloc.Job
+	alloc7.JobID = alloc.JobID
+
+	if err := state.UpsertAllocs(1003, []*structs.Allocation{alloc7}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	summary, _ = state.JobSummaryByID(job.ID)
+	if summary.Summary["web"].Queued != 0 || summary.Summary["web"].Starting != 1 || summary.Summary["web"].Running != 1 || summary.Summary["web"].Failed != 1 || summary.Summary["web"].Complete != 1 {
+		t.Fatalf("bad job summary: %v", summary)
+	}
 }
 
 // setupNotifyTest takes a state store and a set of watch items, then creates

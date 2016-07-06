@@ -764,7 +764,8 @@ func (s *StateStore) Evals() (memdb.ResultIterator, error) {
 	return iter, nil
 }
 
-// UpdateAllocFromClient is used to update an allocation based on input
+// UStarting pdateAllocFromClient is used to update an allocation based on input
+
 // from a client. While the schedulers are the authority on the allocation for
 // most things, some updates are authoritative from the client. Specifically,
 // the desired state comes from the schedulers, while the actual state comes
@@ -1272,7 +1273,9 @@ func (s *StateStore) updateSummaryWithAlloc(newAlloc *structs.Allocation,
 		case structs.AllocClientStatusRunning:
 			tgSummary.Running += 1
 		}
-		tgSummary.Queued -= 1
+		if tgSummary.Queued > 0 {
+			tgSummary.Queued -= 1
+		}
 	} else if existingAlloc.ClientStatus != newAlloc.ClientStatus {
 		// Incrementing the clint of the bin of the current state
 		switch newAlloc.ClientStatus {
