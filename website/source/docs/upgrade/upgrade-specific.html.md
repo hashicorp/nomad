@@ -15,6 +15,16 @@ details provided for their upgrades as a result of new features or changed
 behavior. This page is used to document those details separately from the
 standard upgrade flow.
 
+## Nomad 0.4.0
+
+Nomad 0.4.0 has backward incompatible changes in the logic which removes
+services which are no longer referenced by any running task on clients. An
+in-place upgrade of the Nomad client is going to result in some stray services
+on the client. 
+
+We recommend draining a node before upgrading to 0.4.0 and then re-enabling the
+node once the upgrade is complete.
+
 ## Nomad 0.3.1
 
 Nomad 0.3.1 removes artifact downloading from driver configs and places them as
