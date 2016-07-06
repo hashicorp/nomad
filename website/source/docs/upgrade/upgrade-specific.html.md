@@ -17,13 +17,17 @@ standard upgrade flow.
 
 ## Nomad 0.4.0
 
-Nomad 0.4.0 has backward incompatible changes in the logic which removes
-services which are no longer referenced by any running task on clients. An
-in-place upgrade of the Nomad client is going to result in some stray services
-on the client. 
+Nomad 0.4.0 has backward incompatible changes in the logic for Consul
+deregistration.  When a Task which was started by Nomad 0.3.X is uncleanly shut
+down, the Nomad 0.4 Client will no longer clean up any stale services.  If an
+in-place upgrade of the Nomad client to 0.4 prevents the Task from gracefully
+shutting down and deregistering its Consul-registered services, the Nomad Client
+will not clean up the remaining Consul services registered with the 0.3
+Executor.
 
 We recommend draining a node before upgrading to 0.4.0 and then re-enabling the
 node once the upgrade is complete.
+
 
 ## Nomad 0.3.1
 
