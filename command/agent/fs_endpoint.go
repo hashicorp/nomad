@@ -13,6 +13,7 @@ import (
 
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hpcloud/tail/watch"
 	"github.com/ugorji/go/codec"
 )
 
@@ -105,18 +106,32 @@ func (s *HTTPServer) FileReadAtRequest(resp http.ResponseWriter, req *http.Reque
 	if offset, err = strconv.ParseInt(q.Get("offset"), 10, 64); err != nil {
 		return nil, fmt.Errorf("error parsing offset: %v", err)
 	}
-	if limit, err = strconv.ParseInt(q.Get("limit"), 10, 64); err != nil {
-		return nil, fmt.Errorf("error parsing limit: %v", err)
+
+	// Parse the limit
+	if limitStr := q.Get("limit"); limitStr != "" {
+		if limit, err = strconv.ParseInt(limitStr, 10, 64); err != nil {
+			return nil, fmt.Errorf("error parsing limit: %v", err)
+		}
 	}
+
 	fs, err := s.agent.client.GetAllocFS(allocID)
 	if err != nil {
 		return nil, err
 	}
-	r, err := fs.LimitReadAt(path, offset, limit)
+
+	var rc io.ReadCloser
+	if limit > 0 {
+		rc, err = fs.LimitReadAt(path, offset, limit)
+	} else {
+		rc, err = fs.ReadAt(path, offset)
+	}
+
 	if err != nil {
 		return nil, err
 	}
-	io.Copy(resp, r)
+
+	defer rc.Close()
+	io.Copy(resp, rc)
 	return nil, nil
 }
 
@@ -254,6 +269,10 @@ func (s *HTTPServer) stream(offset int64, path string, fs allocdir.AllocDirFS, o
 	// Create a variable to allow setting the last event
 	var lastEvent string
 
+	// Only create the file change watcher once. But we need to do it after we
+	// read and reach EOF.
+	var changes *watch.FileChanges
+
 	// Start streaming the data
 OUTER:
 	for {
@@ -295,9 +314,11 @@ OUTER:
 
 		// If EOF is hit, wait for a change to the file but periodically
 		// heartbeat to ensure the socket is not closed
-		changes, err := fs.ChangeEvents(path, offset, &t)
-		if err != nil {
-			return err
+		if changes == nil {
+			changes, err = fs.ChangeEvents(path, offset, &t)
+			if err != nil {
+				return err
+			}
 		}
 
 		// Reset the heartbeat timer as we just started waiting

@@ -253,10 +253,6 @@ nomad alloc-status %s`, allocID, allocID)
 		}
 		io.Copy(os.Stdout, r)
 	} else {
-
-		// Whether to trim the first line
-		trimFirst := true
-
 		// Parse the offset
 		var offset int64 = int64(10) * bytesToLines
 
@@ -267,18 +263,25 @@ nomad alloc-status %s`, allocID, allocID)
 			offset = numLines * bytesToLines
 		} else if nBytes {
 			offset = numBytes
-			trimFirst = false
 		}
 
-		if file.Size < offset {
-			offset = 0
+		if offset > file.Size {
+			offset = file.Size
 		}
 
 		var err error
 		if follow {
-			err = f.followFile(client, alloc, path, offset, trimFirst)
+			err = f.followFile(client, alloc, path, offset)
 		} else {
-			// TODO Implement non-follow tail
+			// This offset needs to be relative from the front versus the follow
+			// is relative to the end
+			offset = file.Size - offset
+			r, _, err := client.AllocFS().ReadAt(alloc, path, offset, -1, nil)
+			if err != nil {
+				f.Ui.Error(fmt.Sprintf("Error reading file: %s", err))
+				return 1
+			}
+			io.Copy(os.Stdout, r)
 		}
 
 		if err != nil {
@@ -294,7 +297,7 @@ nomad alloc-status %s`, allocID, allocID)
 // the file. If numLines and numBytes are both less than zero, the default
 // output is defaulted to 10 lines.
 func (f *FSCommand) followFile(client *api.Client, alloc *api.Allocation,
-	path string, offset int64, trimFirst bool) error {
+	path string, offset int64) error {
 
 	cancel := make(chan struct{})
 	frames, _, err := client.AllocFS().Stream(alloc, path, api.OriginEnd, offset, cancel, nil)
@@ -305,7 +308,6 @@ func (f *FSCommand) followFile(client *api.Client, alloc *api.Allocation,
 	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
 
 	var frame *api.StreamFrame
-	first := true
 	var ok bool
 	for {
 		select {
@@ -329,7 +331,6 @@ func (f *FSCommand) followFile(client *api.Client, alloc *api.Allocation,
 				panic("received nil frame; please report as a bug")
 			}
 
-			//f.Ui.Output("got frame")
 			if frame.IsHeartbeat() {
 				continue
 			}
@@ -341,22 +342,13 @@ func (f *FSCommand) followFile(client *api.Client, alloc *api.Allocation,
 
 			data := frame.Data
 			if data != "" {
-
 				// Base64 decode
 				decoded, err := base64.StdEncoding.DecodeString(data)
 				if err != nil {
 					return err
 				}
 
-				data = string(decoded)
-
-				if first && trimFirst {
-					i := strings.Index(data, "\n")
-					data = data[i+1:]
-				}
-
-				fmt.Print(data)
-				first = false
+				fmt.Print(string(decoded))
 			}
 		}
 	}
