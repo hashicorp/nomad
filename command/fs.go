@@ -1,15 +1,23 @@
 package command
 
 import (
+	"encoding/base64"
 	"fmt"
 	"io"
 	"math/rand"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	humanize "github.com/dustin/go-humanize"
 	"github.com/hashicorp/nomad/api"
+)
+
+const (
+	// bytesToLines is an estimation of how many bytes are in each log line.
+	bytesToLines int64 = 120
 )
 
 type FSCommand struct {
@@ -42,6 +50,21 @@ FS Specific Options:
   -stat
     Show file stat information instead of displaying the file, or listing the directory.
 
+  -tail 
+	Show the files contents with offsets relative to the end of the file. If no
+	offset is given, -n is defaulted to 10.
+
+  -n
+	Sets the tail location in best-efforted number of lines relative to the end
+	of the file.
+
+  -c
+	Sets the tail location in number of bytes relative to the end of the file.
+
+  -f
+	Causes the output to not stop when the end of the file is reached, but
+	rather to wait for additional output. 
+
 `
 	return strings.TrimSpace(helpText)
 }
@@ -51,13 +74,19 @@ func (f *FSCommand) Synopsis() string {
 }
 
 func (f *FSCommand) Run(args []string) int {
-	var verbose, machine, job, stat bool
+	var verbose, machine, job, stat, tail, follow bool
+	var numLines, numBytes int64
+
 	flags := f.Meta.FlagSet("fs-list", FlagSetClient)
 	flags.Usage = func() { f.Ui.Output(f.Help()) }
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.BoolVar(&machine, "H", false, "")
 	flags.BoolVar(&job, "job", false, "")
 	flags.BoolVar(&stat, "stat", false, "")
+	flags.BoolVar(&follow, "f", false, "")
+	flags.BoolVar(&tail, "tail", false, "")
+	flags.Int64Var(&numLines, "n", -1, "")
+	flags.Int64Var(&numBytes, "c", -1, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -212,17 +241,127 @@ nomad alloc-status %s`, allocID, allocID)
 			)
 		}
 		f.Ui.Output(formatList(out))
-	} else {
-		// We have a file, cat it.
+		return 0
+	}
+
+	// We have a file, output it.
+	if !tail {
 		r, _, err := client.AllocFS().Cat(alloc, path, nil)
 		if err != nil {
 			f.Ui.Error(fmt.Sprintf("Error reading file: %s", err))
 			return 1
 		}
 		io.Copy(os.Stdout, r)
+	} else {
+
+		// Whether to trim the first line
+		trimFirst := true
+
+		// Parse the offset
+		var offset int64 = int64(10) * bytesToLines
+
+		if nLines, nBytes := numLines != -1, numBytes != -1; nLines && nBytes {
+			f.Ui.Error("Both -n and -c set")
+			return 1
+		} else if nLines {
+			offset = numLines * bytesToLines
+		} else if nBytes {
+			offset = numBytes
+			trimFirst = false
+		}
+
+		if file.Size < offset {
+			offset = 0
+		}
+
+		var err error
+		if follow {
+			err = f.followFile(client, alloc, path, offset, trimFirst)
+		} else {
+			// TODO Implement non-follow tail
+		}
+
+		if err != nil {
+			f.Ui.Error(fmt.Sprintf("Error tailing file: %v", err))
+			return 1
+		}
 	}
 
 	return 0
+}
+
+// followFile outputs the contents of the file to stdout relative to the end of
+// the file. If numLines and numBytes are both less than zero, the default
+// output is defaulted to 10 lines.
+func (f *FSCommand) followFile(client *api.Client, alloc *api.Allocation,
+	path string, offset int64, trimFirst bool) error {
+
+	cancel := make(chan struct{})
+	frames, _, err := client.AllocFS().Stream(alloc, path, api.OriginEnd, offset, cancel, nil)
+	if err != nil {
+		return err
+	}
+	signalCh := make(chan os.Signal, 3)
+	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
+
+	var frame *api.StreamFrame
+	first := true
+	var ok bool
+	for {
+		select {
+		case <-signalCh:
+			// End the streaming
+			close(cancel)
+
+			// Output the last offset
+			if frame != nil && frame.Offset > 0 {
+				f.Ui.Output(fmt.Sprintf("Last outputted offset (bytes): %d", frame.Offset))
+			}
+
+			return nil
+		case frame, ok = <-frames:
+			if !ok {
+				// Connection has been killed
+				return nil
+			}
+
+			if frame == nil {
+				panic("received nil frame; please report as a bug")
+			}
+
+			//f.Ui.Output("got frame")
+			if frame.IsHeartbeat() {
+				continue
+			}
+
+			// Print the file event
+			if frame.FileEvent != "" {
+				f.Ui.Output(fmt.Sprintf("nomad: FileEvent %q", frame.FileEvent))
+			}
+
+			data := frame.Data
+			if data != "" {
+
+				// Base64 decode
+				decoded, err := base64.StdEncoding.DecodeString(data)
+				if err != nil {
+					return err
+				}
+
+				data = string(decoded)
+
+				if first && trimFirst {
+					i := strings.Index(data, "\n")
+					data = data[i+1:]
+				}
+
+				fmt.Print(data)
+				first = false
+			}
+		}
+	}
+
+	return nil
 }
 
 // Get Random Allocation ID from a known jobID. Prefer to use a running allocation,
