@@ -84,3 +84,8 @@ func TestAllocDirFS_ReadAt_MissingParams(t *testing.T) {
 		}
 	})
 }
+
+func TestHTTP_FsStream_EOF_Modify(t *testing.T) {
+	httpTest(t, nil, func(s *TestServer) {
+	})
+}

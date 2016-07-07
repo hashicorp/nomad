@@ -12,6 +12,7 @@ import (
 	"gopkg.in/tomb.v1"
 
 	"github.com/docker/docker/pkg/ioutils"
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/ugorji/go/codec"
 )
 
@@ -152,14 +153,28 @@ func (s *HTTPServer) FileCatRequest(resp http.ResponseWriter, req *http.Request)
 	return nil, nil
 }
 
+// StreamFrame is used to frame data of a file when streaming
 type StreamFrame struct {
+	// Offset is the offset the data was read from
 	Offset int64
-	// Base64 byte encoding
-	Data      string
-	File      string
+
+	// Data is the read data with Base64 byte encoding
+	Data string
+
+	// File is the file that the data was read from
+	File string
+
+	// FileEvent is the last file event that occured that could cause the
+	// streams position to change or end
 	FileEvent string
 }
 
+// Stream streams the content of a file blocking on EOF.
+// The parameters are:
+// * path: path to file to stream.
+// * offset: The offset to start streaming data at, defaults to zero.
+// * origin: Either "start" or "end" and defines from where the offset is
+//           applied. Defaults to "start".
 func (s *HTTPServer) Stream(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	var allocID, path string
 	var err error
@@ -214,13 +229,17 @@ func (s *HTTPServer) Stream(resp http.ResponseWriter, req *http.Request) (interf
 	// Create an output that gets flushed on every write
 	output := ioutils.NewWriteFlusher(resp)
 
+	return nil, s.stream(offset, path, fs, output)
+}
+
+func (s *HTTPServer) stream(offset int64, path string, fs allocdir.AllocDirFS, output io.WriteCloser) error {
 	// Create a JSON encoder
 	enc := codec.NewEncoder(output, jsonHandle)
 
 	// Get the reader
 	f, err := fs.ReadAt(path, offset)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer f.Close()
 
@@ -261,12 +280,12 @@ OUTER:
 
 		// Return non-EOF errors
 		if err != nil && err != io.EOF {
-			return nil, err
+			return err
 		}
 
 		// Send the frame
 		if err := enc.Encode(&frame); err != nil {
-			return nil, err
+			return err
 		}
 
 		// Just keep reading
@@ -278,7 +297,7 @@ OUTER:
 		// heartbeat to ensure the socket is not closed
 		changes, err := fs.ChangeEvents(path, offset, &t)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		// Reset the heartbeat timer as we just started waiting
@@ -298,14 +317,14 @@ OUTER:
 
 				if err := enc.Encode(&hFrame); err != nil {
 					// The defer on the tomb will stop the watch
-					return nil, err
+					return err
 				}
 
-				return nil, nil
+				return nil
 			case <-changes.Truncated:
 				// Close the current reader
 				if err := f.Close(); err != nil {
-					return nil, err
+					return err
 				}
 
 				// Get a new reader at offset zero
@@ -313,7 +332,7 @@ OUTER:
 				var err error
 				f, err = fs.ReadAt(path, offset)
 				if err != nil {
-					return nil, err
+					return err
 				}
 				defer f.Close()
 
@@ -321,7 +340,7 @@ OUTER:
 				lastEvent = truncateEvent
 				continue OUTER
 			case <-t.Dying():
-				return nil, nil
+				return nil
 			case <-ticker.C:
 				// Send a heartbeat frame
 				hFrame := StreamFrame{
@@ -331,7 +350,7 @@ OUTER:
 
 				if err := enc.Encode(&hFrame); err != nil {
 					// The defer on the tomb will stop the watch
-					return nil, err
+					return err
 				}
 
 				ticker.Reset(streamHeartbeatRate)
@@ -339,5 +358,5 @@ OUTER:
 		}
 	}
 
-	return nil, nil
+	return nil
 }
