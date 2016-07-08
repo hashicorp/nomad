@@ -104,10 +104,11 @@ func TestParse(t *testing.T) {
 										PortLabel: "http",
 										Checks: []*structs.ServiceCheck{
 											{
-												Name:     "check-name",
-												Type:     "tcp",
-												Interval: 10 * time.Second,
-												Timeout:  2 * time.Second,
+												Name:      "check-name",
+												Type:      "tcp",
+												PortLabel: "admin",
+												Interval:  10 * time.Second,
+												Timeout:   2 * time.Second,
 											},
 										},
 									},
