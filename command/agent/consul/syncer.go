@@ -27,7 +27,9 @@ package consul
 import (
 	"fmt"
 	"log"
+	"net"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -703,12 +705,12 @@ func (c *Syncer) createCheckReg(check *structs.ServiceCheck, serviceReg *consul.
 		}
 		url := url.URL{
 			Scheme: check.Protocol,
-			Host:   fmt.Sprintf("%s:%d", host, port),
+			Host:   net.JoinHostPort(host, strconv.Itoa(port)),
 			Path:   check.Path,
 		}
 		chkReg.HTTP = url.String()
 	case structs.ServiceCheckTCP:
-		chkReg.TCP = fmt.Sprintf("%s:%d", host, port)
+		chkReg.TCP = net.JoinHostPort(host, strconv.Itoa(port))
 	case structs.ServiceCheckScript:
 		chkReg.TTL = (check.Interval + ttlCheckBuffer).String()
 	default:
