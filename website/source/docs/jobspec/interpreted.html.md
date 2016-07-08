@@ -123,7 +123,7 @@ Below is a table documenting common node attributes:
     <td>See the [task drivers](/docs/drivers/index.html) for attribute documentation</td>
   </tr>
   <tr>
-    <td>hostname</td>
+    <td>unique.hostname</td>
     <td>Hostname of the client</td>
   </tr>
   <tr>
