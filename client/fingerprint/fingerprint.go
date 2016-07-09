@@ -14,18 +14,12 @@ const EmptyDuration = time.Duration(0)
 
 // BuiltinFingerprints is a slice containing the key names of all registered
 // fingerprints available, to provided an ordered iteration
-var BuiltinFingerprints = []string{
-	"arch",
-	"cgroup",
-	"consul",
-	"cpu",
-	"env_aws",
-	"env_gce",
-	"host",
-	"memory",
-	"network",
-	"nomad",
-	"storage",
+func BuiltinFingerprints() []string {
+	fingerprints := make([]string, 0, len(builtinFingerprintMap))
+	for k := range builtinFingerprintMap {
+		fingerprints = append(fingerprints, k)
+	}
+	return fingerprints
 }
 
 // builtinFingerprintMap contains the built in registered fingerprints
