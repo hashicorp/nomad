@@ -3,6 +3,7 @@ package fingerprint
 import (
 	"fmt"
 	"log"
+	"sort"
 	"time"
 
 	"github.com/hashicorp/nomad/client/config"
@@ -10,7 +11,19 @@ import (
 )
 
 // EmptyDuration is to be used by fingerprinters that are not periodic.
-const EmptyDuration = time.Duration(0)
+const (
+	EmptyDuration = time.Duration(0)
+)
+
+func init() {
+	// Initialize the list of available fingerprinters per platform.  Each
+	// platform defines its own list of available fingerprinters.
+	initFingerprints(builtinFingerprintMap)
+}
+
+// builtinFingerprintMap contains the built in registered fingerprints which are
+// available for a given platform.
+var builtinFingerprintMap = make(map[string]Factory, 16)
 
 // BuiltinFingerprints is a slice containing the key names of all registered
 // fingerprints available, to provided an ordered iteration
@@ -19,23 +32,8 @@ func BuiltinFingerprints() []string {
 	for k := range builtinFingerprintMap {
 		fingerprints = append(fingerprints, k)
 	}
+	sort.Strings(fingerprints)
 	return fingerprints
-}
-
-// builtinFingerprintMap contains the built in registered fingerprints
-// which are available, corresponding to a key found in BuiltinFingerprints
-var builtinFingerprintMap = map[string]Factory{
-	"arch":    NewArchFingerprint,
-	"cgroup":  NewCGroupFingerprint,
-	"consul":  NewConsulFingerprint,
-	"cpu":     NewCPUFingerprint,
-	"env_aws": NewEnvAWSFingerprint,
-	"env_gce": NewEnvGCEFingerprint,
-	"host":    NewHostFingerprint,
-	"memory":  NewMemoryFingerprint,
-	"network": NewNetworkFingerprint,
-	"nomad":   NewNomadFingerprint,
-	"storage": NewStorageFingerprint,
 }
 
 // NewFingerprint is used to instantiate and return a new fingerprint
