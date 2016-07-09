@@ -136,11 +136,13 @@ func (t *TaskEnvironment) Build() *TaskEnvironment {
 		for label, value := range network.MapLabelToValues(nil) {
 			t.TaskEnv[fmt.Sprintf("%s%s", IpPrefix, label)] = network.IP
 			t.TaskEnv[fmt.Sprintf("%s%s", HostPortPrefix, label)] = strconv.Itoa(value)
-			if value, ok := t.PortMap[label]; ok {
-				t.TaskEnv[fmt.Sprintf("%s%s", PortPrefix, label)] = fmt.Sprintf("%d", value)
-				IPPort := fmt.Sprintf("%s:%d", network.IP, value)
-				t.TaskEnv[fmt.Sprintf("%s%s", AddrPrefix, label)] = IPPort
+			if forwardedPort, ok := t.PortMap[label]; ok {
+				value = forwardedPort
 			}
+			t.TaskEnv[fmt.Sprintf("%s%s", PortPrefix, label)] = fmt.Sprintf("%d", value)
+			IPPort := fmt.Sprintf("%s:%d", network.IP, value)
+			t.TaskEnv[fmt.Sprintf("%s%s", AddrPrefix, label)] = IPPort
+
 		}
 	}
 
