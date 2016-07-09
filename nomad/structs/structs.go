@@ -1528,7 +1528,7 @@ func (sc *ServiceCheck) validate() error {
 	switch strings.ToLower(sc.Type) {
 	case ServiceCheckTCP:
 		if sc.Timeout < minCheckTimeout {
-			return fmt.Errorf("timeout %v is lower than required minimum timeout %v", sc.Timeout, minCheckInterval)
+			return fmt.Errorf("timeout (%v) is lower than required minimum timeout %v", sc.Timeout, minCheckInterval)
 		}
 	case ServiceCheckHTTP:
 		if sc.Path == "" {
@@ -1536,7 +1536,7 @@ func (sc *ServiceCheck) validate() error {
 		}
 
 		if sc.Timeout < minCheckTimeout {
-			return fmt.Errorf("timeout %v is lower than required minimum timeout %v", sc.Timeout, minCheckInterval)
+			return fmt.Errorf("timeout (%v) is lower than required minimum timeout %v", sc.Timeout, minCheckInterval)
 		}
 	case ServiceCheckScript:
 		if sc.Command == "" {
