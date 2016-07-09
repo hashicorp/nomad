@@ -1504,14 +1504,15 @@ const (
 // The ServiceCheck data model represents the consul health check that
 // Nomad registers for a Task
 type ServiceCheck struct {
-	Name     string        // Name of the check, defaults to id
-	Type     string        // Type of the check - tcp, http, docker and script
-	Command  string        // Command is the command to run for script checks
-	Args     []string      // Args is a list of argumes for script checks
-	Path     string        // path of the health check url for http type check
-	Protocol string        // Protocol to use if check is http, defaults to http
-	Interval time.Duration // Interval of the check
-	Timeout  time.Duration // Timeout of the response from the check before consul fails the check
+	Name      string        // Name of the check, defaults to id
+	Type      string        // Type of the check - tcp, http, docker and script
+	Command   string        // Command is the command to run for script checks
+	Args      []string      // Args is a list of argumes for script checks
+	Path      string        // path of the health check url for http type check
+	Protocol  string        // Protocol to use if check is http, defaults to http
+	PortLabel string        `mapstructure:"port"` // The port to use for tcp/http checks
+	Interval  time.Duration // Interval of the check
+	Timeout   time.Duration // Timeout of the response from the check before consul fails the check
 }
 
 func (sc *ServiceCheck) Copy() *ServiceCheck {
@@ -1575,6 +1576,7 @@ func (sc *ServiceCheck) Hash(serviceID string) string {
 	io.WriteString(h, strings.Join(sc.Args, ""))
 	io.WriteString(h, sc.Path)
 	io.WriteString(h, sc.Protocol)
+	io.WriteString(h, sc.PortLabel)
 	io.WriteString(h, sc.Interval.String())
 	io.WriteString(h, sc.Timeout.String())
 	return fmt.Sprintf("%x", h.Sum(nil))
