@@ -35,9 +35,10 @@ var (
 
 const (
 	// minRktVersion is the earliest supported version of rkt. rkt added support
-	// for CPU and memory isolators in 0.14.0. We cannot support an earlier
-	// version to maintain an uniform interface across all drivers
-	minRktVersion = "0.14.0"
+	// for features like CPU and memory isolators, setting hostname etc. recently.
+	// We cannot support an earlier version to maintain an uniform interface across
+	// all drivers
+	minRktVersion = "1.2.0"
 
 	// bytesToMB is the conversion from bytes to megabytes.
 	bytesToMB = 1024 * 1024
@@ -60,6 +61,7 @@ type RktDriverConfig struct {
 	Args             []string `mapstructure:"args"`
 	DNSServers       []string `mapstructure:"dns_servers"`        // DNS Server for containers
 	DNSSearchDomains []string `mapstructure:"dns_search_domains"` // DNS Search domains for containers
+	Hostname         string   `mapstructure:"hostname"`           // Hostname for containers
 }
 
 // rktHandle is returned from Start/Open as a handle to the PID
@@ -153,7 +155,7 @@ func (d *RktDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, e
 	minVersion, _ := version.NewVersion(minRktVersion)
 	currentVersion, _ := version.NewVersion(node.Attributes["driver.rkt.version"])
 	if currentVersion.LessThan(minVersion) {
-		// Do not allow rkt < 0.14.0
+		// Do not allow rkt < 1.2.0
 		d.logger.Printf("[WARN] driver.rkt: please upgrade rkt to a version >= %s", minVersion)
 		node.Attributes[rktDriverAttr] = "0"
 	}
@@ -246,6 +248,9 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	for _, domain := range driverConfig.DNSSearchDomains {
 		cmdArgs = append(cmdArgs, fmt.Sprintf("--dns-search=%s", domain))
 	}
+
+	// Add hostname
+	cmdArgs = append(cmdArgs, fmt.Sprintf("--hostname=%s", driverConfig.Hostname))
 
 	// Add user passed arguments.
 	if len(driverConfig.Args) != 0 {
