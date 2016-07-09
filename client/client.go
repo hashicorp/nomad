@@ -608,7 +608,7 @@ func (c *Client) fingerprint() error {
 
 	var applied []string
 	var skipped []string
-	for _, name := range fingerprint.BuiltinFingerprints {
+	for _, name := range fingerprint.BuiltinFingerprints() {
 		// Skip modules that are not in the whitelist if it is enabled.
 		if _, ok := whitelist[name]; whitelistEnabled && !ok {
 			skipped = append(skipped, name)
