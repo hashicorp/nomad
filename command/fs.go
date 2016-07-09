@@ -317,7 +317,7 @@ func (f *FSCommand) followFile(client *api.Client, alloc *api.Allocation,
 
 			// Output the last offset
 			if frame != nil && frame.Offset > 0 {
-				f.Ui.Output(fmt.Sprintf("Last outputted offset (bytes): %d", frame.Offset))
+				f.Ui.Output(fmt.Sprintf("\nLast outputted offset (bytes): %d", frame.Offset))
 			}
 
 			return nil

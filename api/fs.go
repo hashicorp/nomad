@@ -37,7 +37,7 @@ type StreamFrame struct {
 }
 
 func (s *StreamFrame) IsHeartbeat() bool {
-	return s.Data == "" && s.FileEvent == ""
+	return s.Data == "" && s.FileEvent == "" && s.File == "" && s.Offset == 0
 }
 
 // AllocFS is used to introspect an allocation directory on a Nomad client
@@ -127,7 +127,7 @@ func (a *AllocFS) Stat(alloc *Allocation, path string, q *QueryOptions) (*AllocF
 }
 
 // ReadAt is used to read bytes at a given offset until limit at the given path
-// in an allocation directory
+// in an allocation directory. If limit is <= 0, there is no limit.
 func (a *AllocFS) ReadAt(alloc *Allocation, path string, offset int64, limit int64, q *QueryOptions) (io.Reader, *QueryMeta, error) {
 	node, _, err := a.client.Nodes().Info(alloc.NodeID, &QueryOptions{})
 	if err != nil {
