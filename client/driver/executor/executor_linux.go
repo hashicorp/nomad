@@ -255,8 +255,8 @@ func (e *UniversalExecutor) configureChroot() error {
 // should be called when tearing down the task.
 func (e *UniversalExecutor) removeChrootMounts() error {
 	// Prevent a race between Wait/ForceStop
-	e.cgLock.Lock()
-	defer e.cgLock.Unlock()
+	e.resCon.cgLock.Lock()
+	defer e.resCon.cgLock.Unlock()
 	return e.ctx.AllocDir.UnmountAll()
 }
 

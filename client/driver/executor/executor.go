@@ -247,14 +247,15 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext
 	}
 
 	e.ctx.TaskEnv.Build()
-	// configuring the chroot, cgroup and enter the plugin process in the
-	// chroot
+	// configuring the chroot, resource container, and start the plugin
+	// process in the chroot.
 	if err := e.configureIsolation(); err != nil {
 		return nil, err
 	}
-	// Apply ourselves into the cgroup. The executor MUST be in the cgroup
-	// before the user task is started, otherwise we are subject to a fork
-	// attack in which a process escapes isolation by immediately forking.
+	// Apply ourselves into the resource container. The executor MUST be in
+	// the resource container before the user task is started, otherwise we
+	// are subject to a fork attack in which a process escapes isolation by
+	// immediately forking.
 	if err := e.applyLimits(os.Getpid()); err != nil {
 		return nil, err
 	}
@@ -428,8 +429,8 @@ func ClientCleanup(ic *dstructs.IsolationConfig, pid int) error {
 	return clientCleanup(ic, pid)
 }
 
-// Exit cleans up the alloc directory, destroys cgroups and kills the user
-// process
+// Exit cleans up the alloc directory, destroys resource container and kills the
+// user process
 func (e *UniversalExecutor) Exit() error {
 	var merr multierror.Error
 	if e.syslogServer != nil {
@@ -447,7 +448,7 @@ func (e *UniversalExecutor) Exit() error {
 		return nil
 	}
 
-	// Prefer killing the process via cgroups.
+	// Prefer killing the process via the resource container.
 	if e.cmd.Process != nil && !e.command.ResourceLimits {
 		proc, err := os.FindProcess(e.cmd.Process.Pid)
 		if err != nil {
