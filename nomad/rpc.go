@@ -39,7 +39,8 @@ const (
 
 	// jitterFraction is a the limit to the amount of jitter we apply
 	// to a user specified MaxQueryTime. We divide the specified time by
-	// the fraction. So 16 == 6.25% limit of jitter
+	// the fraction. So 16 == 6.25% limit of jitter. This jitter is also
+	// applied to RPCHoldTimeout.
 	jitterFraction = 16
 
 	// Warn if the Raft command is larger than this.
@@ -175,6 +176,8 @@ func (s *Server) handleNomadConn(conn net.Conn) {
 // forward is used to forward to a remote region or to forward to the local leader
 // Returns a bool of if forwarding was performed, as well as any error
 func (s *Server) forward(method string, info structs.RPCInfo, args interface{}, reply interface{}) (bool, error) {
+	var firstCheck time.Time
+
 	region := info.RequestRegion()
 	if region == "" {
 		return true, fmt.Errorf("missing target RPC")
@@ -191,20 +194,51 @@ func (s *Server) forward(method string, info structs.RPCInfo, args interface{}, 
 		return false, nil
 	}
 
-	// Handle leader forwarding
-	if !s.IsLeader() {
-		err := s.forwardLeader(method, args, reply)
+CHECK_LEADER:
+	// Find the leader
+	isLeader, remoteServer := s.getLeader()
+
+	// Handle the case we are the leader
+	if isLeader {
+		return false, nil
+	}
+
+	// Handle the case of a known leader
+	if remoteServer != nil {
+		err := s.forwardLeader(remoteServer, method, args, reply)
 		return true, err
 	}
-	return false, nil
+
+	// Gate the request until there is a leader
+	if firstCheck.IsZero() {
+		firstCheck = time.Now()
+	}
+	if time.Now().Sub(firstCheck) < s.config.RPCHoldTimeout {
+		jitter := lib.RandomStagger(s.config.RPCHoldTimeout / jitterFraction)
+		select {
+		case <-time.After(jitter):
+			goto CHECK_LEADER
+		case <-s.shutdownCh:
+		}
+	}
+
+	// No leader found and hold time exceeded
+	return true, structs.ErrNoLeader
 }
 
-// forwardLeader is used to forward an RPC call to the leader, or fail if no leader
-func (s *Server) forwardLeader(method string, args interface{}, reply interface{}) error {
+// getLeader returns if the current node is the leader, and if not
+// then it returns the leader which is potentially nil if the cluster
+// has not yet elected a leader.
+func (s *Server) getLeader() (bool, *serverParts) {
+	// Check if we are the leader
+	if s.IsLeader() {
+		return true, nil
+	}
+
 	// Get the leader
 	leader := s.raft.Leader()
 	if leader == "" {
-		return structs.ErrNoLeader
+		return false, nil
 	}
 
 	// Lookup the server
@@ -212,6 +246,12 @@ func (s *Server) forwardLeader(method string, args interface{}, reply interface{
 	server := s.localPeers[leader]
 	s.peerLock.RUnlock()
 
+	// Server could be nil
+	return false, server
+}
+
+// forwardLeader is used to forward an RPC call to the leader, or fail if no leader
+func (s *Server) forwardLeader(server *serverParts, method string, args interface{}, reply interface{}) error {
 	// Handle a missing server
 	if server == nil {
 		return structs.ErrNoLeader
