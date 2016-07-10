@@ -17,7 +17,6 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/mitchellh/go-ps"
-	cgroupConfig "github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/shirou/gopsutil/process"
 
 	"github.com/hashicorp/nomad/client/allocdir"
@@ -192,9 +191,7 @@ type UniversalExecutor struct {
 	syslogServer *logging.SyslogServer
 	syslogChan   chan *logging.SyslogMessage
 
-	groups  *cgroupConfig.Cgroup
-	cgPaths map[string]string
-	cgLock  sync.Mutex
+	resCon resourceContainer
 
 	consulSyncer   *consul.Syncer
 	consulCtx      *ConsulContext
@@ -250,7 +247,7 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext
 	}
 
 	e.ctx.TaskEnv.Build()
-	// configuring the chroot, cgroup and enters the plugin process in the
+	// configuring the chroot, cgroup and enter the plugin process in the
 	// chroot
 	if err := e.configureIsolation(); err != nil {
 		return nil, err
@@ -301,7 +298,7 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext
 	}
 	go e.collectPids()
 	go e.wait()
-	ic := &dstructs.IsolationConfig{Cgroup: e.groups, CgroupPaths: e.cgPaths}
+	ic := e.resCon.getIsolationConfig()
 	return &ProcessState{Pid: e.cmd.Process.Pid, ExitCode: -1, IsolationConfig: ic, Time: time.Now()}, nil
 }
 
@@ -389,7 +386,7 @@ func generateServiceKeys(allocID string, services []*structs.Service) map[consul
 func (e *UniversalExecutor) wait() {
 	defer close(e.processExited)
 	err := e.cmd.Wait()
-	ic := &dstructs.IsolationConfig{Cgroup: e.groups, CgroupPaths: e.cgPaths}
+	ic := e.resCon.getIsolationConfig()
 	if err == nil {
 		e.exitState = &ProcessState{Pid: 0, ExitCode: 0, IsolationConfig: ic, Time: time.Now()}
 		return
@@ -457,11 +454,9 @@ func (e *UniversalExecutor) Exit() error {
 	}
 
 	if e.command.ResourceLimits {
-		e.cgLock.Lock()
-		if err := DestroyCgroup(e.groups, e.cgPaths, os.Getpid()); err != nil {
+		if err := e.resCon.cleanup(); err != nil {
 			merr.Errors = append(merr.Errors, err)
 		}
-		e.cgLock.Unlock()
 	}
 
 	if e.command.FSIsolation {
