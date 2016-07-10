@@ -422,6 +422,12 @@ var (
 	finishedErr = "os: process already finished"
 )
 
+// ClientCleanup is the cleanup routine that a Nomad Client uses to remove the
+// reminants of a child UniversalExecutor.
+func ClientCleanup(ic *dstructs.IsolationConfig, pid int) error {
+	return clientCleanup(ic, pid)
+}
+
 // Exit cleans up the alloc directory, destroys cgroups and kills the user
 // process
 func (e *UniversalExecutor) Exit() error {

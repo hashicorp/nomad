@@ -14,6 +14,14 @@ type resourceContainer struct {
 	cgLock  sync.Mutex
 }
 
+// clientCleanup remoevs this host's Cgroup from the Nomad Client's context
+func clientCleanup(ic *dstructs.IsolationConfig, pid int) error {
+	if err := DestroyCgroup(ic.Cgroup, ic.CgroupPaths, pid); err != nil {
+		return err
+	}
+	return nil
+}
+
 // cleanup removes this host's Cgroup from within an Executor's context
 func (rc *resourceContainer) executorCleanup() error {
 	rc.cgLock.Lock()

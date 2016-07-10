@@ -9,6 +9,10 @@ import (
 type resourceContainer struct {
 }
 
+func clientCleanup(ic *dstructs.IsolationConfig, pid int) error {
+	return nil
+}
+
 func (rc *resourceContainer) executorCleanup() error {
 	return nil
 }
