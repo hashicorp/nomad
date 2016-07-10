@@ -2,7 +2,6 @@ package agent
 
 import (
 	"bytes"
-	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
@@ -177,22 +176,22 @@ func (s *HTTPServer) FileCatRequest(resp http.ResponseWriter, req *http.Request)
 // StreamFrame is used to frame data of a file when streaming
 type StreamFrame struct {
 	// Offset is the offset the data was read from
-	Offset int64
+	Offset int64 `json:",omitempty"`
 
-	// Data is the read data with Base64 byte encoding
-	Data string
+	// Data is the read data
+	Data []byte `json:",omitempty"`
 
 	// File is the file that the data was read from
-	File string
+	File string `json:",omitempty"`
 
 	// FileEvent is the last file event that occured that could cause the
 	// streams position to change or end
-	FileEvent string
+	FileEvent string `json:",omitempty"`
 }
 
 // IsHeartbeat returns if the frame is a heartbeat frame
 func (s *StreamFrame) IsHeartbeat() bool {
-	return s.Offset == 0 && s.Data == "" && s.File == "" && s.FileEvent == ""
+	return s.Offset == 0 && len(s.Data) == 0 && s.File == "" && s.FileEvent == ""
 }
 
 // StreamFramer is used to buffer and send frames as well as heartbeat.
@@ -237,7 +236,7 @@ func NewStreamFramer(out io.WriteCloser, heartbeatRate, batchWindow time.Duratio
 		heartbeat: heartbeat,
 		flusher:   flusher,
 		outbound:  make(chan *StreamFrame),
-		data:      bytes.NewBuffer(make([]byte, 2*frameSize)),
+		data:      bytes.NewBuffer(make([]byte, 0, 2*frameSize)),
 		shutdown:  make(chan struct{}),
 		exitCh:    make(chan struct{}),
 	}
@@ -266,6 +265,10 @@ func (s *StreamFramer) Destroy() {
 // heartbeating
 func (s *StreamFramer) Run() {
 	s.l.Lock()
+	if s.running {
+		return
+	}
+
 	s.running = true
 	s.l.Unlock()
 
@@ -330,15 +333,19 @@ func (s *StreamFramer) run() {
 	}
 }
 
-// readData reads the buffered data and returns a base64 encoded version of it.
-// Must be called with the lock held.
-func (s *StreamFramer) readData() string {
+// readData is a helper which reads the buffered data returning up to the frame
+// size of data. Must be called with the lock held. The returned value is
+// invalid on the next read or write into the StreamFramer buffer
+func (s *StreamFramer) readData() []byte {
 	// Compute the amount to read from the buffer
 	size := s.data.Len()
 	if size > s.frameSize {
 		size = s.frameSize
 	}
-	return base64.StdEncoding.EncodeToString(s.data.Next(size))
+	if size == 0 {
+		return nil
+	}
+	return s.data.Next(size)
 }
 
 // Send creates and sends a StreamFrame based on the passed parameters. An error

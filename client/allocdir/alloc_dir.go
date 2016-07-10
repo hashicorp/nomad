@@ -360,36 +360,33 @@ type ReadCloserWrapper struct {
 	io.Closer
 }
 
+// BlockUntilExists blocks until the passed file relative the allocation
+// directory exists. The block can be cancelled with the passed tomb.
 func (d *AllocDir) BlockUntilExists(path string, t *tomb.Tomb) error {
 	// Get the path relative to the alloc directory
 	p := filepath.Join(d.AllocDir, path)
-
-	var watcher watch.FileWatcher
-	if runtime.GOOS == "windows" {
-		// There are some deadlock issues with the inotify implementation on
-		// windows. Use polling watcher for now.
-		watcher = watch.NewPollingFileWatcher(p)
-	} else {
-		watcher = watch.NewInotifyFileWatcher(p)
-	}
-
+	watcher := getFileWatcher(p)
 	return watcher.BlockUntilExists(t)
 }
 
+// ChangeEvents watches for changes to the passed path relative to the
+// allocation directory. The offset should be the last read offset. The tomb is
+// used to clean up the watch.
 func (d *AllocDir) ChangeEvents(path string, curOffset int64, t *tomb.Tomb) (*watch.FileChanges, error) {
 	// Get the path relative to the alloc directory
 	p := filepath.Join(d.AllocDir, path)
+	watcher := getFileWatcher(p)
+	return watcher.ChangeEvents(t, curOffset)
+}
 
-	var watcher watch.FileWatcher
+// getFileWatcher returns a FileWatcher for the given path.
+func getFileWatcher(path string) watch.FileWatcher {
 	if runtime.GOOS == "windows" {
 		// There are some deadlock issues with the inotify implementation on
 		// windows. Use polling watcher for now.
-		watcher = watch.NewPollingFileWatcher(p)
-	} else {
-		watcher = watch.NewInotifyFileWatcher(p)
+		return watch.NewPollingFileWatcher(path)
 	}
-
-	return watcher.ChangeEvents(t, curOffset)
+	return watch.NewInotifyFileWatcher(path)
 }
 
 func fileCopy(src, dst string, perm os.FileMode) error {

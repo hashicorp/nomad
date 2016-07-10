@@ -1,10 +1,10 @@
 package agent
 
 import (
-	"encoding/base64"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 	"time"
 
@@ -116,7 +116,6 @@ func TestStreamFramer_Flush(t *testing.T) {
 	f := "foo"
 	fe := "bar"
 	d := []byte{0xa}
-	expected := base64.StdEncoding.EncodeToString(d)
 	o := int64(10)
 
 	// Start the reader
@@ -132,10 +131,11 @@ func TestStreamFramer_Flush(t *testing.T) {
 				continue
 			}
 
-			if frame.Data == expected && frame.Offset == o && frame.File == f && frame.FileEvent == fe {
+			if reflect.DeepEqual(frame.Data, d) && frame.Offset == o && frame.File == f && frame.FileEvent == fe {
 				resultCh <- struct{}{}
 				return
 			}
+
 		}
 	}()
 
@@ -184,7 +184,6 @@ func TestStreamFramer_Batch(t *testing.T) {
 	f := "foo"
 	fe := "bar"
 	d := []byte{0xa, 0xb, 0xc}
-	expected := base64.StdEncoding.EncodeToString(d)
 	o := int64(10)
 
 	// Start the reader
@@ -200,7 +199,7 @@ func TestStreamFramer_Batch(t *testing.T) {
 				continue
 			}
 
-			if frame.Data == expected && frame.Offset == o && frame.File == f && frame.FileEvent == fe {
+			if reflect.DeepEqual(frame.Data, d) && frame.Offset == o && frame.File == f && frame.FileEvent == fe {
 				resultCh <- struct{}{}
 				return
 			}

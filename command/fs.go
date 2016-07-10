@@ -1,7 +1,6 @@
 package command
 
 import (
-	"encoding/base64"
 	"fmt"
 	"io"
 	"math/rand"
@@ -340,16 +339,7 @@ func (f *FSCommand) followFile(client *api.Client, alloc *api.Allocation,
 				f.Ui.Output(fmt.Sprintf("nomad: FileEvent %q", frame.FileEvent))
 			}
 
-			data := frame.Data
-			if data != "" {
-				// Base64 decode
-				decoded, err := base64.StdEncoding.DecodeString(data)
-				if err != nil {
-					return err
-				}
-
-				fmt.Print(string(decoded))
-			}
+			fmt.Print(string(frame.Data))
 		}
 	}
 

@@ -30,14 +30,15 @@ type AllocFileInfo struct {
 
 // StreamFrame is used to frame data of a file when streaming
 type StreamFrame struct {
-	Offset    int64
-	Data      string
-	File      string
-	FileEvent string
+	Offset    int64  `json:",omitempty"`
+	Data      []byte `json:",omitempty"`
+	File      string `json:",omitempty"`
+	FileEvent string `json:",omitempty"`
 }
 
+// IsHeartbeat returns if the frame is a heartbeat frame
 func (s *StreamFrame) IsHeartbeat() bool {
-	return s.Data == "" && s.FileEvent == "" && s.File == "" && s.Offset == 0
+	return len(s.Data) == 0 && s.FileEvent == "" && s.File == "" && s.Offset == 0
 }
 
 // AllocFS is used to introspect an allocation directory on a Nomad client
@@ -198,6 +199,14 @@ func (a *AllocFS) getErrorMsg(resp *http.Response) error {
 	}
 }
 
+// Stream streams the content of a file blocking on EOF.
+// The parameters are:
+// * path: path to file to stream.
+// * offset: The offset to start streaming data at.
+// * origin: Either "start" or "end" and defines from where the offset is applied.
+// * cancel: A channel which when closed will stop streaming.
+//
+// The return value is a channel that will emit StreamFrames as they are read.
 func (a *AllocFS) Stream(alloc *Allocation, path, origin string, offset int64,
 	cancel <-chan struct{}, q *QueryOptions) (<-chan *StreamFrame, *QueryMeta, error) {
 
