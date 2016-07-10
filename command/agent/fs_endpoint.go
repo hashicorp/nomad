@@ -27,8 +27,8 @@ var (
 )
 
 const (
-	// frameSize is the maximum number of bytes to send in a single frame
-	frameSize = 64 * 1024
+	// streamFrameSize is the maximum number of bytes to send in a single frame
+	streamFrameSize = 64 * 1024
 
 	// streamHeartbeatRate is the rate at which a heartbeat will occur to detect
 	// a closed connection without sending any additional data
@@ -190,10 +190,16 @@ type StreamFrame struct {
 	FileEvent string
 }
 
+// IsHeartbeat returns if the frame is a heartbeat frame
+func (s *StreamFrame) IsHeartbeat() bool {
+	return s.Offset == 0 && s.Data == "" && s.File == "" && s.FileEvent == ""
+}
+
 // StreamFramer is used to buffer and send frames as well as heartbeat.
 type StreamFramer struct {
 	out       io.WriteCloser
 	enc       *codec.Encoder
+	frameSize int
 	heartbeat *time.Ticker
 	flusher   *time.Ticker
 	shutdown  chan struct{}
@@ -216,17 +222,18 @@ type StreamFramer struct {
 
 // NewStreamFramer creates a new stream framer that will output StreamFrames to
 // the passed output.
-func NewStreamFramer(out io.WriteCloser) *StreamFramer {
+func NewStreamFramer(out io.WriteCloser, heartbeatRate, batchWindow time.Duration, frameSize int) *StreamFramer {
 	// Create a JSON encoder
 	enc := codec.NewEncoder(out, jsonHandle)
 
 	// Create the heartbeat and flush ticker
-	heartbeat := time.NewTicker(streamHeartbeatRate)
-	flusher := time.NewTicker(streamBatchWindow)
+	heartbeat := time.NewTicker(heartbeatRate)
+	flusher := time.NewTicker(batchWindow)
 
 	return &StreamFramer{
 		out:       out,
 		enc:       enc,
+		frameSize: frameSize,
 		heartbeat: heartbeat,
 		flusher:   flusher,
 		outbound:  make(chan *StreamFrame),
@@ -328,8 +335,8 @@ func (s *StreamFramer) run() {
 func (s *StreamFramer) readData() string {
 	// Compute the amount to read from the buffer
 	size := s.data.Len()
-	if size > frameSize {
-		size = frameSize
+	if size > s.frameSize {
+		size = s.frameSize
 	}
 	return base64.StdEncoding.EncodeToString(s.data.Next(size))
 }
@@ -375,7 +382,7 @@ func (s *StreamFramer) Send(file, fileEvent string, data []byte, offset int64) e
 	s.data.Write(data)
 
 	// Flush till we are under the max frame size
-	for s.data.Len() >= frameSize {
+	for s.data.Len() >= s.frameSize {
 		// Create a new frame to send it
 		s.outbound <- &StreamFrame{
 			Offset:    s.f.Offset,
@@ -471,7 +478,7 @@ func (s *HTTPServer) stream(offset int64, path string, fs allocdir.AllocDirFS, o
 	}()
 
 	// Create the framer
-	framer := NewStreamFramer(output)
+	framer := NewStreamFramer(output, streamHeartbeatRate, streamBatchWindow, streamFrameSize)
 	framer.Run()
 	defer framer.Destroy()
 
@@ -483,7 +490,7 @@ func (s *HTTPServer) stream(offset int64, path string, fs allocdir.AllocDirFS, o
 	var changes *watch.FileChanges
 
 	// Start streaming the data
-	data := make([]byte, frameSize)
+	data := make([]byte, streamFrameSize)
 OUTER:
 	for {
 		// Read up to the max frame size
