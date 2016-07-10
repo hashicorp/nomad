@@ -454,7 +454,7 @@ func (e *UniversalExecutor) Exit() error {
 	}
 
 	if e.command.ResourceLimits {
-		if err := e.resCon.cleanup(); err != nil {
+		if err := e.resCon.executorCleanup(); err != nil {
 			merr.Errors = append(merr.Errors, err)
 		}
 	}

@@ -14,8 +14,8 @@ type resourceContainer struct {
 	cgLock  sync.Mutex
 }
 
-// cleanup removes this host's Cgroup
-func (rc *resourceContainer) cleanup() error {
+// cleanup removes this host's Cgroup from within an Executor's context
+func (rc *resourceContainer) executorCleanup() error {
 	rc.cgLock.Lock()
 	defer rc.cgLock.Unlock()
 	if err := DestroyCgroup(rc.groups, rc.cgPaths, os.Getpid()); err != nil {

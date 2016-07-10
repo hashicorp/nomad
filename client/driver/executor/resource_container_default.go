@@ -9,7 +9,7 @@ import (
 type resourceContainer struct {
 }
 
-func (rc *resourceContainer) cleanup() error {
+func (rc *resourceContainer) executorCleanup() error {
 	return nil
 }
 
