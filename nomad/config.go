@@ -181,6 +181,13 @@ type Config struct {
 
 	// ConsulConfig is this Agent's Consul configuration
 	ConsulConfig *config.ConsulConfig
+
+	// RPCHoldTimeout is how long an RPC can be "held" before it is errored.
+	// This is used to paper over a loss of leadership by instead holding RPCs,
+	// so that the caller experiences a slow response rather than an error.
+	// This period is meant to be long enough for a leader election to take
+	// place, and a small jitter is applied to avoid a thundering herd.
+	RPCHoldTimeout time.Duration
 }
 
 // CheckVersion is used to check if the ProtocolVersion is valid
@@ -227,6 +234,7 @@ func DefaultConfig() *Config {
 		HeartbeatGrace:         10 * time.Second,
 		FailoverHeartbeatTTL:   300 * time.Second,
 		ConsulConfig:           config.DefaultConsulConfig(),
+		RPCHoldTimeout:         5 * time.Second,
 	}
 
 	// Enable all known schedulers by default
