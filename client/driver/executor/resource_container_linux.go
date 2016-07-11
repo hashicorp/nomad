@@ -8,7 +8,9 @@ import (
 	cgroupConfig "github.com/opencontainers/runc/libcontainer/configs"
 )
 
-type resourceContainer struct {
+// resourceContainerContext is a platform-specific struct for managing a
+// resource container.  In the case of Linux, this is used to control Cgroups.
+type resourceContainerContext struct {
 	groups  *cgroupConfig.Cgroup
 	cgPaths map[string]string
 	cgLock  sync.Mutex
@@ -23,7 +25,7 @@ func clientCleanup(ic *dstructs.IsolationConfig, pid int) error {
 }
 
 // cleanup removes this host's Cgroup from within an Executor's context
-func (rc *resourceContainer) executorCleanup() error {
+func (rc *resourceContainerContext) executorCleanup() error {
 	rc.cgLock.Lock()
 	defer rc.cgLock.Unlock()
 	if err := DestroyCgroup(rc.groups, rc.cgPaths, os.Getpid()); err != nil {
@@ -32,7 +34,7 @@ func (rc *resourceContainer) executorCleanup() error {
 	return nil
 }
 
-func (rc *resourceContainer) getIsolationConfig() *dstructs.IsolationConfig {
+func (rc *resourceContainerContext) getIsolationConfig() *dstructs.IsolationConfig {
 	return &dstructs.IsolationConfig{
 		Cgroup:      rc.groups,
 		CgroupPaths: rc.cgPaths,
