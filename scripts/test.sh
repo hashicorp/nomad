@@ -10,4 +10,9 @@ go build -o $TEMPDIR/nomad || exit 1
 
 # Run the tests
 echo "--> Running tests"
-go list ./... | grep -v '/vendor/' | sudo -E PATH=$TEMPDIR:$PATH go test ${GOTEST_FLAGS:--cover -timeout=900s -v}
+printf "go(1) path: %s\n" "`which go`"
+go list ./... | grep -v '/vendor/' | \
+    sudo \
+        -E PATH=$TEMPDIR:$PATH \
+        -E GOPATH=$GOPATH \
+        go test ${GOTEST_FLAGS:--cover -timeout=900s -v}
