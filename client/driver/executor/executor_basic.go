@@ -1,4 +1,4 @@
-// +build !linux
+// +build darwin dragonfly freebsd netbsd openbsd solaris windows
 
 package executor
 
@@ -7,15 +7,9 @@ import (
 
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/mitchellh/go-ps"
-
-	cgroupConfig "github.com/opencontainers/runc/libcontainer/configs"
 )
 
 func (e *UniversalExecutor) configureChroot() error {
-	return nil
-}
-
-func DestroyCgroup(groups *cgroupConfig.Cgroup, paths map[string]string, executorPid int) error {
 	return nil
 }
 
