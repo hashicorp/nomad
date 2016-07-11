@@ -18,6 +18,8 @@ import (
 )
 
 func TestRktVersionRegex(t *testing.T) {
+	t.Skip("skipping rkt tests")
+
 	input_rkt := "rkt version 0.8.1"
 	input_appc := "appc version 1.2.0"
 	expected_rkt := "0.8.1"
@@ -34,6 +36,8 @@ func TestRktVersionRegex(t *testing.T) {
 
 // The fingerprinter test should always pass, even if rkt is not installed.
 func TestRktDriver_Fingerprint(t *testing.T) {
+	t.Skip("skipping rkt tests")
+
 	ctestutils.RktCompatible(t)
 	driverCtx, _ := testDriverContexts(&structs.Task{Name: "foo"})
 	d := NewRktDriver(driverCtx)
@@ -59,6 +63,8 @@ func TestRktDriver_Fingerprint(t *testing.T) {
 }
 
 func TestRktDriver_Start_DNS(t *testing.T) {
+	t.Skip("skipping rkt tests")
+
 	ctestutils.RktCompatible(t)
 	// TODO: use test server to load from a fixture
 	task := &structs.Task{
@@ -105,6 +111,8 @@ func TestRktDriver_Start_DNS(t *testing.T) {
 }
 
 func TestRktDriver_Start_Wait(t *testing.T) {
+	t.Skip("skipping rkt tests")
+
 	ctestutils.RktCompatible(t)
 	task := &structs.Task{
 		Name: "etcd",
@@ -154,6 +162,8 @@ func TestRktDriver_Start_Wait(t *testing.T) {
 }
 
 func TestRktDriver_Start_Wait_Skip_Trust(t *testing.T) {
+	t.Skip("skipping rkt tests")
+
 	ctestutils.RktCompatible(t)
 	task := &structs.Task{
 		Name: "etcd",
@@ -202,6 +212,8 @@ func TestRktDriver_Start_Wait_Skip_Trust(t *testing.T) {
 }
 
 func TestRktDriver_Start_Wait_AllocDir(t *testing.T) {
+	t.Skip("skipping rkt tests")
+
 	ctestutils.RktCompatible(t)
 
 	exp := []byte{'w', 'i', 'n'}
@@ -262,6 +274,8 @@ func TestRktDriver_Start_Wait_AllocDir(t *testing.T) {
 }
 
 func TestRktDriverUser(t *testing.T) {
+	t.Skip("skipping rkt tests")
+
 	ctestutils.RktCompatible(t)
 	task := &structs.Task{
 		Name: "etcd",
