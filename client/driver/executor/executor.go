@@ -191,7 +191,7 @@ type UniversalExecutor struct {
 	syslogServer *logging.SyslogServer
 	syslogChan   chan *logging.SyslogMessage
 
-	resCon resourceContainer
+	resConCtx resourceContainerContext
 
 	consulSyncer   *consul.Syncer
 	consulCtx      *ConsulContext
@@ -299,7 +299,7 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext
 	}
 	go e.collectPids()
 	go e.wait()
-	ic := e.resCon.getIsolationConfig()
+	ic := e.resConCtx.getIsolationConfig()
 	return &ProcessState{Pid: e.cmd.Process.Pid, ExitCode: -1, IsolationConfig: ic, Time: time.Now()}, nil
 }
 
@@ -387,7 +387,7 @@ func generateServiceKeys(allocID string, services []*structs.Service) map[consul
 func (e *UniversalExecutor) wait() {
 	defer close(e.processExited)
 	err := e.cmd.Wait()
-	ic := e.resCon.getIsolationConfig()
+	ic := e.resConCtx.getIsolationConfig()
 	if err == nil {
 		e.exitState = &ProcessState{Pid: 0, ExitCode: 0, IsolationConfig: ic, Time: time.Now()}
 		return
@@ -461,7 +461,7 @@ func (e *UniversalExecutor) Exit() error {
 	}
 
 	if e.command.ResourceLimits {
-		if err := e.resCon.executorCleanup(); err != nil {
+		if err := e.resConCtx.executorCleanup(); err != nil {
 			merr.Errors = append(merr.Errors, err)
 		}
 	}

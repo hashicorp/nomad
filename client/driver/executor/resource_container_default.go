@@ -6,17 +6,19 @@ import (
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 )
 
-type resourceContainer struct {
+// resourceContainerContext is a platform-specific struct for managing a
+// resource container.
+type resourceContainerContext struct {
 }
 
 func clientCleanup(ic *dstructs.IsolationConfig, pid int) error {
 	return nil
 }
 
-func (rc *resourceContainer) executorCleanup() error {
+func (rc *resourceContainerContext) executorCleanup() error {
 	return nil
 }
 
-func (rc *resourceContainer) getIsolationConfig() *dstructs.IsolationConfig {
+func (rc *resourceContainerContext) getIsolationConfig() *dstructs.IsolationConfig {
 	return nil
 }
