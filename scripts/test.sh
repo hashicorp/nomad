@@ -15,4 +15,4 @@ go list ./... | grep -v '/vendor/' | \
     sudo \
         -E PATH=$TEMPDIR:$PATH \
         -E GOPATH=$GOPATH \
-        $GOBIN test ${GOTEST_FLAGS:--cover -timeout=900s -v}
+        xargs $GOBIN test ${GOTEST_FLAGS:--cover -timeout=900s}
