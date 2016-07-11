@@ -288,12 +288,14 @@ func TestTask_Validate_Services(t *testing.T) {
 		PortLabel: "bar",
 		Checks: []*ServiceCheck{
 			{
-				Name: "check-name",
-				Type: ServiceCheckTCP,
+				Name:     "check-name",
+				Type:     ServiceCheckTCP,
+				Interval: 0 * time.Second,
 			},
 			{
-				Name: "check-name",
-				Type: ServiceCheckTCP,
+				Name:    "check-name",
+				Type:    ServiceCheckTCP,
+				Timeout: 2 * time.Second,
 			},
 		},
 	}
@@ -327,6 +329,10 @@ func TestTask_Validate_Services(t *testing.T) {
 
 	if !strings.Contains(err.Error(), "check \"check-name\" is duplicate") {
 		t.Fatalf("err: %v", err)
+	}
+
+	if !strings.Contains(err.Error(), "interval (0) can not be lower") {
+		t.Fatal("err: %v", err)
 	}
 }
 
