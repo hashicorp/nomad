@@ -77,6 +77,5 @@ install: bin/nomad
 travis:
 	@sudo apt-get install -y qemu
 	@sh -c "'$(PWD)/scripts/update_docker.sh'"
-	@sh -c "'$(PWD)/scripts/install_rkt.sh'"
 
 .PHONY: all bin cov integ test vet web web-push test-nodep
