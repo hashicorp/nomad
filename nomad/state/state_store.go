@@ -492,6 +492,18 @@ func (s *StateStore) JobSummaries() (memdb.ResultIterator, error) {
 	return iter, nil
 }
 
+// JobSummaryByPrefix is used to look up Job Summary by id prefix
+func (s *StateStore) JobSummaryByPrefix(id string) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	iter, err := txn.Get("jobsummary", "id_prefix", id)
+	if err != nil {
+		return nil, fmt.Errorf("eval lookup failed: %v", err)
+	}
+
+	return iter, nil
+}
+
 // UpsertPeriodicLaunch is used to register a launch or update it.
 func (s *StateStore) UpsertPeriodicLaunch(index uint64, launch *structs.PeriodicLaunch) error {
 	txn := s.db.Txn(true)
