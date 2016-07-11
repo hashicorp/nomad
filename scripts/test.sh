@@ -10,4 +10,4 @@ go build -o $TEMPDIR/nomad || exit 1
 
 # Run the tests
 echo "--> Running tests"
-go list ./... | grep -v '/vendor/' | sudo -E PATH=$TEMPDIR:$PATH xargs -n1 go test ${GOTEST_FLAGS:--cover -timeout=900s}
+go list ./... | grep -v '/vendor/' | sudo -E PATH=$TEMPDIR:$PATH go test ${GOTEST_FLAGS:--cover -timeout=900s -v}
