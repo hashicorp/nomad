@@ -3,6 +3,7 @@ package driver
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -18,7 +19,9 @@ import (
 )
 
 func TestRktVersionRegex(t *testing.T) {
-	t.Skip("skipping rkt tests")
+	if os.Getenv("NOMAD_TEST_RKT") == "" {
+		t.Skip("skipping rkt tests")
+	}
 
 	input_rkt := "rkt version 0.8.1"
 	input_appc := "appc version 1.2.0"
@@ -36,7 +39,9 @@ func TestRktVersionRegex(t *testing.T) {
 
 // The fingerprinter test should always pass, even if rkt is not installed.
 func TestRktDriver_Fingerprint(t *testing.T) {
-	t.Skip("skipping rkt tests")
+	if os.Getenv("NOMAD_TEST_RKT") == "" {
+		t.Skip("skipping rkt tests")
+	}
 
 	ctestutils.RktCompatible(t)
 	driverCtx, _ := testDriverContexts(&structs.Task{Name: "foo"})
@@ -63,7 +68,9 @@ func TestRktDriver_Fingerprint(t *testing.T) {
 }
 
 func TestRktDriver_Start_DNS(t *testing.T) {
-	t.Skip("skipping rkt tests")
+	if os.Getenv("NOMAD_TEST_RKT") == "" {
+		t.Skip("skipping rkt tests")
+	}
 
 	ctestutils.RktCompatible(t)
 	// TODO: use test server to load from a fixture
@@ -111,7 +118,9 @@ func TestRktDriver_Start_DNS(t *testing.T) {
 }
 
 func TestRktDriver_Start_Wait(t *testing.T) {
-	t.Skip("skipping rkt tests")
+	if os.Getenv("NOMAD_TEST_RKT") == "" {
+		t.Skip("skipping rkt tests")
+	}
 
 	ctestutils.RktCompatible(t)
 	task := &structs.Task{
@@ -162,7 +171,9 @@ func TestRktDriver_Start_Wait(t *testing.T) {
 }
 
 func TestRktDriver_Start_Wait_Skip_Trust(t *testing.T) {
-	t.Skip("skipping rkt tests")
+	if os.Getenv("NOMAD_TEST_RKT") == "" {
+		t.Skip("skipping rkt tests")
+	}
 
 	ctestutils.RktCompatible(t)
 	task := &structs.Task{
@@ -212,7 +223,9 @@ func TestRktDriver_Start_Wait_Skip_Trust(t *testing.T) {
 }
 
 func TestRktDriver_Start_Wait_AllocDir(t *testing.T) {
-	t.Skip("skipping rkt tests")
+	if os.Getenv("NOMAD_TEST_RKT") == "" {
+		t.Skip("skipping rkt tests")
+	}
 
 	ctestutils.RktCompatible(t)
 
@@ -274,7 +287,9 @@ func TestRktDriver_Start_Wait_AllocDir(t *testing.T) {
 }
 
 func TestRktDriverUser(t *testing.T) {
-	t.Skip("skipping rkt tests")
+	if os.Getenv("NOMAD_TEST_RKT") == "" {
+		t.Skip("skipping rkt tests")
+	}
 
 	ctestutils.RktCompatible(t)
 	task := &structs.Task{
