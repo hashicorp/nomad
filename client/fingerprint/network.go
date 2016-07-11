@@ -55,12 +55,11 @@ func (f *NetworkFingerprint) Fingerprint(cfg *config.Config, node *structs.Node)
 	var ip string
 
 	intf, err := f.findInterface(cfg.NetworkInterface)
-	if err != nil {
+	switch {
+	case err != nil:
 		return false, fmt.Errorf("Error while detecting network interface during fingerprinting: %v", err)
-	}
-
-	// No interface could be found
-	if intf == nil {
+	case intf == nil:
+		// No interface could be found
 		return false, nil
 	}
 
