@@ -14,7 +14,8 @@ import (
 
 var (
 	osMountSharedDirSupport = map[string]bool{
-		"linux": true,
+		"darwin": true,
+		"linux":  true,
 	}
 
 	t1 = &structs.Task{
