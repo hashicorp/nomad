@@ -1,4 +1,4 @@
-// +build darwin dragonfly freebsd netbsd openbsd solaris
+// +build windows darwin dragonfly freebsd netbsd openbsd solaris
 
 package fingerprint
 
