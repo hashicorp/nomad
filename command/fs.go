@@ -16,7 +16,13 @@ import (
 
 const (
 	// bytesToLines is an estimation of how many bytes are in each log line.
+	// This is used to set the offset to read from when a user specifies how
+	// many lines to tail from.
 	bytesToLines int64 = 120
+
+	// defaultTailLines is the number of lines to tail by default if the value
+	// is not overriden.
+	defaultTailLines int64 = 10
 )
 
 type FSCommand struct {
@@ -253,7 +259,7 @@ nomad alloc-status %s`, allocID, allocID)
 		io.Copy(os.Stdout, r)
 	} else {
 		// Parse the offset
-		var offset int64 = int64(10) * bytesToLines
+		var offset int64 = defaultTailLines * bytesToLines
 
 		if nLines, nBytes := numLines != -1, numBytes != -1; nLines && nBytes {
 			f.Ui.Error("Both -n and -c set")
@@ -303,7 +309,7 @@ func (f *FSCommand) followFile(client *api.Client, alloc *api.Allocation,
 	if err != nil {
 		return err
 	}
-	signalCh := make(chan os.Signal, 3)
+	signalCh := make(chan os.Signal, 1)
 	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
 
 	var frame *api.StreamFrame

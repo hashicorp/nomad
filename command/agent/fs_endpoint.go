@@ -196,13 +196,13 @@ func (s *StreamFrame) IsHeartbeat() bool {
 
 // StreamFramer is used to buffer and send frames as well as heartbeat.
 type StreamFramer struct {
-	out       io.WriteCloser
-	enc       *codec.Encoder
-	frameSize int
-	heartbeat *time.Ticker
-	flusher   *time.Ticker
-	shutdown  chan struct{}
-	exitCh    chan struct{}
+	out        io.WriteCloser
+	enc        *codec.Encoder
+	frameSize  int
+	heartbeat  *time.Ticker
+	flusher    *time.Ticker
+	shutdownCh chan struct{}
+	exitCh     chan struct{}
 
 	outbound chan *StreamFrame
 
@@ -230,15 +230,15 @@ func NewStreamFramer(out io.WriteCloser, heartbeatRate, batchWindow time.Duratio
 	flusher := time.NewTicker(batchWindow)
 
 	return &StreamFramer{
-		out:       out,
-		enc:       enc,
-		frameSize: frameSize,
-		heartbeat: heartbeat,
-		flusher:   flusher,
-		outbound:  make(chan *StreamFrame),
-		data:      bytes.NewBuffer(make([]byte, 0, 2*frameSize)),
-		shutdown:  make(chan struct{}),
-		exitCh:    make(chan struct{}),
+		out:        out,
+		enc:        enc,
+		frameSize:  frameSize,
+		heartbeat:  heartbeat,
+		flusher:    flusher,
+		outbound:   make(chan *StreamFrame),
+		data:       bytes.NewBuffer(make([]byte, 0, 2*frameSize)),
+		shutdownCh: make(chan struct{}),
+		exitCh:     make(chan struct{}),
 	}
 }
 
@@ -248,7 +248,7 @@ func (s *StreamFramer) Destroy() {
 	wasRunning := s.running
 	s.running = false
 	s.f = nil
-	close(s.shutdown)
+	close(s.shutdownCh)
 	s.heartbeat.Stop()
 	s.flusher.Stop()
 	s.l.Unlock()
@@ -296,7 +296,7 @@ func (s *StreamFramer) run() {
 	go func() {
 		for {
 			select {
-			case <-s.shutdown:
+			case <-s.shutdownCh:
 				return
 			case <-s.flusher.C:
 				// Skip if there is nothing to flush
@@ -322,7 +322,7 @@ func (s *StreamFramer) run() {
 OUTER:
 	for {
 		select {
-		case <-s.shutdown:
+		case <-s.shutdownCh:
 			break OUTER
 		case o := <-s.outbound:
 			// Send the frame and then clear the current working frame
