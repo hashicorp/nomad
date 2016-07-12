@@ -1299,6 +1299,8 @@ func (s *StateStore) updateSummaryWithAlloc(newAlloc *structs.Allocation,
 			tgSummary.Starting += 1
 		case structs.AllocClientStatusComplete:
 			tgSummary.Complete += 1
+		case structs.AllocClientStatusLost:
+			tgSummary.Lost += 1
 		}
 
 		// Decrementing the count of the bin of the last state
@@ -1311,21 +1313,8 @@ func (s *StateStore) updateSummaryWithAlloc(newAlloc *structs.Allocation,
 			tgSummary.Starting -= 1
 		case structs.AllocClientStatusComplete:
 			tgSummary.Complete -= 1
-		}
-	} else if existingAlloc.DesiredStatus != newAlloc.DesiredStatus {
-		shouldDecrementStarting := false
-		switch newAlloc.DesiredStatus {
-		case structs.AllocDesiredStatusFailed:
-			tgSummary.Failed += 1
-			shouldDecrementStarting = true
-		case structs.AllocDesiredStatusStop:
-			tgSummary.Complete += 1
-			shouldDecrementStarting = true
-		}
-		if shouldDecrementStarting {
-			if newAlloc.ClientStatus == structs.AllocClientStatusPending {
-				tgSummary.Starting -= 1
-			}
+		case structs.AllocClientStatusLost:
+			tgSummary.Lost -= 1
 		}
 	}
 

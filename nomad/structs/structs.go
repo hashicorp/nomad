@@ -955,6 +955,7 @@ type TaskGroupSummary struct {
 	Failed   int
 	Running  int
 	Starting int
+	Lost     int
 }
 
 // Total returns the total number of allocations for the task group.

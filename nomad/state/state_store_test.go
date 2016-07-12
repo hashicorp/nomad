@@ -2369,12 +2369,14 @@ func TestStateJobSummary_UpdateJobCount(t *testing.T) {
 	alloc4.Job = alloc2.Job
 	alloc4.JobID = alloc2.JobID
 	alloc4.DesiredStatus = structs.AllocDesiredStatusStop
+	alloc4.ClientStatus = structs.AllocClientStatusComplete
 
 	alloc5 := mock.Alloc()
 	alloc5.ID = alloc3.ID
 	alloc5.Job = alloc3.Job
 	alloc5.JobID = alloc3.JobID
 	alloc5.DesiredStatus = structs.AllocDesiredStatusStop
+	alloc5.ClientStatus = structs.AllocClientStatusComplete
 
 	if err := state.UpsertAllocs(1004, []*structs.Allocation{alloc4, alloc5}); err != nil {
 		t.Fatalf("err: %v", err)
