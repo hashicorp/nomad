@@ -275,6 +275,7 @@ func TestTaskRunner_Download_List(t *testing.T) {
 	select {
 	case <-tr.WaitCh():
 	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
+		panic("timeout")
 		t.Fatalf("timeout")
 	}
 
