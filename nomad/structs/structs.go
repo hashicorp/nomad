@@ -634,6 +634,10 @@ type Node struct {
 	// StatusDescription is meant to provide more human useful information
 	StatusDescription string
 
+	// StatusUpdatedAt is the time stamp at which the state of the node was
+	// updated
+	StatusUpdatedAt int64
+
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64

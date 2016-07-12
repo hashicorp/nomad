@@ -66,6 +66,9 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 		return fmt.Errorf("invalid status for node")
 	}
 
+	// Set the timestamp when the node is registered
+	args.Node.StatusUpdatedAt = time.Now().Unix()
+
 	// Compute the node class
 	if err := args.Node.ComputeClass(); err != nil {
 		return fmt.Errorf("failed to computed node class: %v", err)
@@ -218,6 +221,9 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 		return fmt.Errorf("node not found")
 	}
 
+	// Update the timestamp of when the node status was updated
+	node.StatusUpdatedAt = time.Now().Unix()
+
 	// Commit this update via Raft
 	var index uint64
 	if node.Status != args.Status {
@@ -290,6 +296,9 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 	if node == nil {
 		return fmt.Errorf("node not found")
 	}
+
+	// Update the timestamp to
+	node.StatusUpdatedAt = time.Now().Unix()
 
 	// Commit this update via Raft
 	var index uint64

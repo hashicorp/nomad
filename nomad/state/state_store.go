@@ -201,7 +201,8 @@ func (s *StateStore) UpdateNodeStatus(index uint64, nodeID, status string) error
 		for _, alloc := range allocs {
 			copyAlloc := new(structs.Allocation)
 			*copyAlloc = *alloc
-			if alloc.ClientStatus == structs.AllocClientStatusRunning {
+			if alloc.ClientStatus == structs.AllocClientStatusPending ||
+				alloc.ClientStatus == structs.AllocClientStatusRunning {
 				copyAlloc.ClientStatus = structs.AllocClientStatusLost
 				if err := txn.Insert("allocs", copyAlloc); err != nil {
 					return fmt.Errorf("alloc insert failed: %v", err)
