@@ -2360,8 +2360,16 @@ func TestStateJobSummary_UpdateJobCount(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 	summary, _ = state.JobSummaryByID(job.ID)
-	if summary.Summary["web"].Queued != 0 || summary.Summary["web"].Starting != 3 {
-		t.Fatalf("bad job summary: %v", summary)
+	expectedSummary := structs.JobSummary{
+		JobID: job.ID,
+		Summary: map[string]structs.TaskGroupSummary{
+			"web": {
+				Starting: 3,
+			},
+		},
+	}
+	if !reflect.DeepEqual(summary, &expectedSummary) {
+		t.Fatalf("expected summary: %v, actual: %v", expectedSummary, summary)
 	}
 
 	alloc4 := mock.Alloc()
@@ -2382,8 +2390,17 @@ func TestStateJobSummary_UpdateJobCount(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 	summary, _ = state.JobSummaryByID(job.ID)
-	if summary.Summary["web"].Queued != 0 || summary.Summary["web"].Starting != 1 || summary.Summary["web"].Complete != 2 {
-		t.Fatalf("bad job summary: %v", summary)
+	expectedSummary = structs.JobSummary{
+		JobID: job.ID,
+		Summary: map[string]structs.TaskGroupSummary{
+			"web": {
+				Complete: 2,
+				Starting: 1,
+			},
+		},
+	}
+	if !reflect.DeepEqual(summary, &expectedSummary) {
+		t.Fatalf("expected: %v, actual: %v", expectedSummary, summary)
 	}
 }
 
