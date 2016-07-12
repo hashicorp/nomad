@@ -192,6 +192,25 @@ func (s *StateStore) UpdateNodeStatus(index uint64, nodeID, status string) error
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
+	// Update the state of the allocations which are in running state to lost
+	if status == structs.NodeStatusDown {
+		allocs, err := s.AllocsByNode(nodeID)
+		if err != nil {
+			return fmt.Errorf("error retrieving any allocations for the node: %v", nodeID)
+		}
+		for _, alloc := range allocs {
+			copyAlloc := new(structs.Allocation)
+			*copyAlloc = *alloc
+			if alloc.ClientStatus == structs.AllocClientStatusPending ||
+				alloc.ClientStatus == structs.AllocClientStatusRunning {
+				copyAlloc.ClientStatus = structs.AllocClientStatusLost
+				if err := txn.Insert("allocs", copyAlloc); err != nil {
+					return fmt.Errorf("alloc insert failed: %v", err)
+				}
+			}
+		}
+	}
+
 	txn.Defer(func() { s.watch.notify(watcher) })
 	txn.Commit()
 	return nil

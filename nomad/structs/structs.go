@@ -634,6 +634,10 @@ type Node struct {
 	// StatusDescription is meant to provide more human useful information
 	StatusDescription string
 
+	// StatusUpdatedAt is the time stamp at which the state of the node was
+	// updated
+	StatusUpdatedAt int64
+
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
@@ -2304,6 +2308,7 @@ const (
 	AllocClientStatusRunning  = "running"
 	AllocClientStatusComplete = "complete"
 	AllocClientStatusFailed   = "failed"
+	AllocClientStatusLost     = "lost"
 )
 
 // Allocation is used to allocate the placement of a task group to a node.
@@ -2410,7 +2415,7 @@ func (a *Allocation) TerminalStatus() bool {
 	}
 
 	switch a.ClientStatus {
-	case AllocClientStatusComplete, AllocClientStatusFailed:
+	case AllocClientStatusComplete, AllocClientStatusFailed, AllocClientStatusLost:
 		return true
 	default:
 		return false

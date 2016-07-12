@@ -136,6 +136,47 @@ func TestStateStore_UpdateNodeStatus_Node(t *testing.T) {
 		t.Fatalf("bad: %d", index)
 	}
 
+	alloc := mock.Alloc()
+	alloc1 := mock.Alloc()
+	alloc2 := mock.Alloc()
+	alloc.NodeID = node.ID
+	alloc1.NodeID = node.ID
+	alloc2.NodeID = node.ID
+	alloc.ClientStatus = structs.AllocClientStatusRunning
+	alloc1.ClientStatus = structs.AllocClientStatusFailed
+	alloc2.ClientStatus = structs.AllocClientStatusPending
+
+	if err = state.UpsertAllocs(1002, []*structs.Allocation{alloc, alloc1, alloc2}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if err = state.UpdateNodeStatus(1003, node.ID, structs.NodeStatusDown); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	allocOut, err := state.AllocByID(alloc.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if allocOut.ClientStatus != structs.AllocClientStatusLost {
+		t.Fatalf("expected alloc status: %v, actual: %v", structs.AllocClientStatusLost, allocOut.ClientStatus)
+	}
+
+	alloc1Out, err := state.AllocByID(alloc1.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if alloc1Out.ClientStatus != structs.AllocClientStatusFailed {
+		t.Fatalf("expected alloc status: %v, actual: %v", structs.AllocClientStatusFailed, alloc1Out.ClientStatus)
+	}
+
+	alloc2Out, err := state.AllocByID(alloc2.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if alloc2Out.ClientStatus != structs.AllocClientStatusLost {
+		t.Fatalf("expected alloc status: %v, actual: %v", structs.AllocClientStatusLost, alloc2Out.ClientStatus)
+	}
+
 	notify.verify(t)
 }
 
