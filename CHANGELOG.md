@@ -1,3 +1,8 @@
+## 0.4.1 (UNRELEASED)
+
+BUG FIXES:
+  * client: Task start errors adhere to restart policy mode [GH-1405]
+
 ## 0.4.0
 
 __BACKWARDS INCOMPATIBILITIES:__
