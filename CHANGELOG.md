@@ -1,5 +1,8 @@
 ## 0.4.1 (UNRELEASED)
 
+IMPROVEMENTS:
+  * core: Gracefully handle short lived outages by holding RPC calls [GH-1403]
+
 BUG FIXES:
   * client: Task start errors adhere to restart policy mode [GH-1405]
 
