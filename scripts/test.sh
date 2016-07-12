@@ -11,7 +11,7 @@ go build -o $TEMPDIR/nomad || exit 1
 # Run the tests
 echo "--> Running tests"
 GOBIN="`which go`"
-go list ./... | grep -v '/vendor/' | \
+go list ./... | grep -v '^github.com/hashicorp/nomad/vendor/' | \
     sudo \
         -E PATH=$TEMPDIR:$PATH \
         -E GOPATH=$GOPATH \
