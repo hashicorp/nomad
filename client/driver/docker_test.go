@@ -521,7 +521,7 @@ func TestDocker_StartNVersions(t *testing.T) {
 	t.Log("Test complete!")
 }
 
-func TestDockerHostNet(t *testing.T) {
+func TestDocker_NetworkMode_Host(t *testing.T) {
 	t.Parallel()
 	expected := "host"
 
@@ -544,15 +544,22 @@ func TestDockerHostNet(t *testing.T) {
 	client, handle, cleanup := dockerSetup(t, task)
 	defer cleanup()
 
-	container, err := client.InspectContainer(handle.(*DockerHandle).ContainerID())
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	actual := ""
+	tu.WaitForResult(func() (bool, error) {
+		container, err := client.InspectContainer(handle.(*DockerHandle).ContainerID())
+		if err != nil {
+			return false, err
+		}
 
-	actual := container.HostConfig.NetworkMode
-	if actual != expected {
-		t.Errorf("DNS Network mode doesn't match.\nExpected:\n%s\nGot:\n%s\n", expected, actual)
-	}
+		actual = container.HostConfig.NetworkMode
+		return actual == expected, nil
+	}, func(err error) {
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		t.Fatalf("Got network mode %q; want %q", expected, actual)
+	})
+
 }
 
 func TestDockerLabels(t *testing.T) {
