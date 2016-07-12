@@ -372,7 +372,7 @@ func (s *Server) reapDupBlockedEvaluations(stopCh chan struct{}) {
 
 // periodicUnblockFailedEvals periodically unblocks failed, blocked evaluations.
 func (s *Server) periodicUnblockFailedEvals(stopCh chan struct{}) {
-	ticker := time.NewTimer(failedEvalUnblockInterval)
+	ticker := time.NewTicker(failedEvalUnblockInterval)
 	defer ticker.Stop()
 	for {
 		select {

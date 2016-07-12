@@ -11,6 +11,14 @@ import (
 	"time"
 )
 
+const (
+	// OriginStart and OriginEnd are the available parameters for the origin
+	// argument when streaming a file. They respectively offset from the start
+	// and end of a file.
+	OriginStart = "start"
+	OriginEnd   = "end"
+)
+
 // AllocFileInfo holds information about a file inside the AllocDir
 type AllocFileInfo struct {
 	Name     string
@@ -18,6 +26,19 @@ type AllocFileInfo struct {
 	Size     int64
 	FileMode string
 	ModTime  time.Time
+}
+
+// StreamFrame is used to frame data of a file when streaming
+type StreamFrame struct {
+	Offset    int64  `json:",omitempty"`
+	Data      []byte `json:",omitempty"`
+	File      string `json:",omitempty"`
+	FileEvent string `json:",omitempty"`
+}
+
+// IsHeartbeat returns if the frame is a heartbeat frame
+func (s *StreamFrame) IsHeartbeat() bool {
+	return len(s.Data) == 0 && s.FileEvent == "" && s.File == "" && s.Offset == 0
 }
 
 // AllocFS is used to introspect an allocation directory on a Nomad client
@@ -107,7 +128,7 @@ func (a *AllocFS) Stat(alloc *Allocation, path string, q *QueryOptions) (*AllocF
 }
 
 // ReadAt is used to read bytes at a given offset until limit at the given path
-// in an allocation directory
+// in an allocation directory. If limit is <= 0, there is no limit.
 func (a *AllocFS) ReadAt(alloc *Allocation, path string, offset int64, limit int64, q *QueryOptions) (io.Reader, *QueryMeta, error) {
 	node, _, err := a.client.Nodes().Info(alloc.NodeID, &QueryOptions{})
 	if err != nil {
@@ -176,4 +197,81 @@ func (a *AllocFS) getErrorMsg(resp *http.Response) error {
 	} else {
 		return err
 	}
+}
+
+// Stream streams the content of a file blocking on EOF.
+// The parameters are:
+// * path: path to file to stream.
+// * offset: The offset to start streaming data at.
+// * origin: Either "start" or "end" and defines from where the offset is applied.
+// * cancel: A channel which when closed will stop streaming.
+//
+// The return value is a channel that will emit StreamFrames as they are read.
+func (a *AllocFS) Stream(alloc *Allocation, path, origin string, offset int64,
+	cancel <-chan struct{}, q *QueryOptions) (<-chan *StreamFrame, *QueryMeta, error) {
+
+	node, _, err := a.client.Nodes().Info(alloc.NodeID, q)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if node.HTTPAddr == "" {
+		return nil, nil, fmt.Errorf("http addr of the node where alloc %q is running is not advertised", alloc.ID)
+	}
+	u := &url.URL{
+		Scheme: "http",
+		Host:   node.HTTPAddr,
+		Path:   fmt.Sprintf("/v1/client/fs/stream/%s", alloc.ID),
+	}
+	v := url.Values{}
+	v.Set("path", path)
+	v.Set("origin", origin)
+	v.Set("offset", strconv.FormatInt(offset, 10))
+	u.RawQuery = v.Encode()
+	req := &http.Request{
+		Method: "GET",
+		URL:    u,
+		Cancel: cancel,
+	}
+	c := http.Client{}
+	resp, err := c.Do(req)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Create the output channel
+	frames := make(chan *StreamFrame, 10)
+
+	go func() {
+		// Close the body
+		defer resp.Body.Close()
+
+		// Create a decoder
+		dec := json.NewDecoder(resp.Body)
+
+		for {
+			// Check if we have been cancelled
+			select {
+			case <-cancel:
+				return
+			default:
+			}
+
+			// Decode the next frame
+			var frame StreamFrame
+			if err := dec.Decode(&frame); err != nil {
+				close(frames)
+				return
+			}
+
+			// Discard heartbeat frames
+			if frame.IsHeartbeat() {
+				continue
+			}
+
+			frames <- &frame
+		}
+	}()
+
+	return frames, nil, nil
 }
