@@ -381,7 +381,7 @@ func (s *StateStore) DeleteJob(index uint64, jobID string) error {
 	}
 
 	// Delete the job summary
-	if _, err = txn.DeleteAll("jobsummary", "id", jobID); err != nil {
+	if _, err = txn.DeleteAll("job_summary", "id", jobID); err != nil {
 		return fmt.Errorf("deleing job summary failed: %v", err)
 	}
 
@@ -469,7 +469,7 @@ func (s *StateStore) JobsByGC(gc bool) (memdb.ResultIterator, error) {
 func (s *StateStore) JobSummaryByID(jobID string) (*structs.JobSummary, error) {
 	txn := s.db.Txn(false)
 
-	existing, err := txn.First("jobsummary", "id", jobID)
+	existing, err := txn.First("job_summary", "id", jobID)
 	if err != nil {
 		return nil, err
 	}
@@ -485,7 +485,7 @@ func (s *StateStore) JobSummaryByID(jobID string) (*structs.JobSummary, error) {
 func (s *StateStore) JobSummaries() (memdb.ResultIterator, error) {
 	txn := s.db.Txn(false)
 
-	iter, err := txn.Get("jobsummary", "id")
+	iter, err := txn.Get("job_summary", "id")
 	if err != nil {
 		return nil, err
 	}
@@ -496,7 +496,7 @@ func (s *StateStore) JobSummaries() (memdb.ResultIterator, error) {
 func (s *StateStore) JobSummaryByPrefix(id string) (memdb.ResultIterator, error) {
 	txn := s.db.Txn(false)
 
-	iter, err := txn.Get("jobsummary", "id_prefix", id)
+	iter, err := txn.Get("job_summary", "id_prefix", id)
 	if err != nil {
 		return nil, fmt.Errorf("eval lookup failed: %v", err)
 	}
@@ -1242,7 +1242,7 @@ func (s *StateStore) updateSummaryWithJob(job *structs.Job, txn *memdb.Txn) erro
 		}
 	}
 
-	if err := txn.Insert("jobsummary", existing); err != nil {
+	if err := txn.Insert("job_summary", existing); err != nil {
 		return err
 	}
 	return nil
@@ -1319,7 +1319,7 @@ func (s *StateStore) updateSummaryWithAlloc(newAlloc *structs.Allocation,
 	}
 
 	existing.Summary[newAlloc.TaskGroup] = tgSummary
-	if err := txn.Insert("jobsummary", existing); err != nil {
+	if err := txn.Insert("job_summary", existing); err != nil {
 		return fmt.Errorf("inserting job summary failed: %v", err)
 	}
 	return nil
@@ -1413,7 +1413,7 @@ func (r *StateRestore) PeriodicLaunchRestore(launch *structs.PeriodicLaunch) err
 
 // JobSummaryRestore is used to restore a job summary
 func (r *StateRestore) JobSummaryRestore(jobSummary *structs.JobSummary) error {
-	if err := r.txn.Insert("jobsummary", jobSummary); err != nil {
+	if err := r.txn.Insert("job_summary", jobSummary); err != nil {
 		return fmt.Errorf("job summary insert failed: %v", err)
 	}
 	return nil

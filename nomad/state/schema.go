@@ -125,7 +125,7 @@ func jobTableSchema() *memdb.TableSchema {
 // jobSummarySchema returns the memdb schema for the job summary table
 func jobSummarySchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
-		Name: "jobsummary",
+		Name: "job_summary",
 		Indexes: map[string]*memdb.IndexSchema{
 			"id": &memdb.IndexSchema{
 				Name:         "id",
