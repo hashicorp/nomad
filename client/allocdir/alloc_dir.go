@@ -61,7 +61,6 @@ type AllocDirFS interface {
 	List(path string) ([]*AllocFileInfo, error)
 	Stat(path string) (*AllocFileInfo, error)
 	ReadAt(path string, offset int64) (io.ReadCloser, error)
-	LimitReadAt(path string, offset int64, limit int64) (io.ReadCloser, error)
 	BlockUntilExists(path string, t *tomb.Tomb) error
 	ChangeEvents(path string, curOffset int64, t *tomb.Tomb) (*watch.FileChanges, error)
 }
@@ -340,24 +339,6 @@ func (d *AllocDir) ReadAt(path string, offset int64) (io.ReadCloser, error) {
 		return nil, fmt.Errorf("can't seek to offset %q: %v", offset, err)
 	}
 	return f, nil
-}
-
-// LimitReadAt returns a reader  for a file at the path relative to the alloc dir
-// which will read from a particular offset until EOF or limit is hit
-func (d *AllocDir) LimitReadAt(path string, offset int64, limit int64) (io.ReadCloser, error) {
-	f, err := d.ReadAt(path, offset)
-	if err != nil {
-		return nil, err
-	}
-
-	return &ReadCloserWrapper{Reader: io.LimitReader(f, limit), Closer: f}, nil
-}
-
-// ReadCloserWrapper wraps a LimitReader so that a file is closed once it has been
-// read
-type ReadCloserWrapper struct {
-	io.Reader
-	io.Closer
 }
 
 // BlockUntilExists blocks until the passed file relative the allocation

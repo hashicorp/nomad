@@ -124,20 +124,27 @@ func (s *HTTPServer) FileReadAtRequest(resp http.ResponseWriter, req *http.Reque
 		return nil, err
 	}
 
-	var rc io.ReadCloser
+	rc, err := fs.ReadAt(path, offset)
 	if limit > 0 {
-		rc, err = fs.LimitReadAt(path, offset, limit)
-	} else {
-		rc, err = fs.ReadAt(path, offset)
+		rc = &ReadCloserWrapper{
+			Reader: io.LimitReader(rc, limit),
+			Closer: rc,
+		}
 	}
 
 	if err != nil {
 		return nil, err
 	}
 
-	defer rc.Close()
 	io.Copy(resp, rc)
-	return nil, nil
+	return nil, rc.Close()
+}
+
+// ReadCloserWrapper wraps a LimitReader so that a file is closed once it has been
+// read
+type ReadCloserWrapper struct {
+	io.Reader
+	io.Closer
 }
 
 func (s *HTTPServer) FileCatRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
@@ -170,7 +177,7 @@ func (s *HTTPServer) FileCatRequest(resp http.ResponseWriter, req *http.Request)
 		return nil, err
 	}
 	io.Copy(resp, r)
-	return nil, nil
+	return nil, r.Close()
 }
 
 // StreamFrame is used to frame data of a file when streaming
@@ -288,6 +295,7 @@ func (s *StreamFramer) run() {
 		s.err = err
 		s.out.Close()
 		close(s.exitCh)
+		close(s.outbound)
 		s.l.Unlock()
 	}()
 
