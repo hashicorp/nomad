@@ -312,43 +312,20 @@ func (f *FSCommand) followFile(client *api.Client, alloc *api.Allocation,
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
 
-	var frame *api.StreamFrame
-	var ok bool
-	for {
-		select {
-		case <-signalCh:
-			// End the streaming
-			close(cancel)
+	// Create a reader
+	r := api.NewFrameReader(frames, cancel)
 
-			// Output the last offset
-			if frame != nil && frame.Offset > 0 {
-				f.Ui.Output(fmt.Sprintf("\nLast outputted offset (bytes): %d", frame.Offset))
-			}
+	go func() {
+		<-signalCh
 
-			return nil
-		case frame, ok = <-frames:
-			if !ok {
-				// Connection has been killed
-				return nil
-			}
+		// End the streaming
+		r.Close()
 
-			if frame == nil {
-				panic("received nil frame; please report as a bug")
-			}
+		// Output the last offset
+		f.Ui.Output(fmt.Sprintf("\nLast outputted offset (bytes): %d", r.Offset()))
+	}()
 
-			if frame.IsHeartbeat() {
-				continue
-			}
-
-			// Print the file event
-			if frame.FileEvent != "" {
-				f.Ui.Output(fmt.Sprintf("nomad: FileEvent %q", frame.FileEvent))
-			}
-
-			fmt.Print(string(frame.Data))
-		}
-	}
-
+	io.Copy(os.Stdout, r)
 	return nil
 }
 
