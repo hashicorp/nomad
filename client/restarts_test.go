@@ -94,9 +94,9 @@ func TestClient_RestartTracker_ZeroAttempts(t *testing.T) {
 	}
 }
 
-func TestClient_RestartTracker_StartError_Recoverable(t *testing.T) {
+func TestClient_RestartTracker_StartError_Recoverable_Fail(t *testing.T) {
 	t.Parallel()
-	p := testPolicy(true, structs.RestartPolicyModeDelay)
+	p := testPolicy(true, structs.RestartPolicyModeFail)
 	rt := newRestartTracker(p, structs.JobTypeSystem)
 	recErr := cstructs.NewRecoverableError(fmt.Errorf("foo"), true)
 	for i := 0; i < p.Attempts; i++ {
@@ -113,4 +113,29 @@ func TestClient_RestartTracker_StartError_Recoverable(t *testing.T) {
 	if state, _ := rt.SetStartError(recErr).GetState(); state != structs.TaskNotRestarting {
 		t.Fatalf("NextRestart() returned %v; want %v", state, structs.TaskNotRestarting)
 	}
+}
+
+func TestClient_RestartTracker_StartError_Recoverable_Delay(t *testing.T) {
+        t.Parallel()
+        p := testPolicy(true, structs.RestartPolicyModeDelay)
+        rt := newRestartTracker(p, structs.JobTypeSystem)
+        recErr := cstructs.NewRecoverableError(fmt.Errorf("foo"), true)
+        for i := 0; i < p.Attempts; i++ {
+                state, when := rt.SetStartError(recErr).GetState()
+                if state != structs.TaskRestarting {
+                        t.Fatalf("NextRestart() returned %v, want %v", state, structs.TaskRestarting)
+                }
+                if !withinJitter(p.Delay, when) {
+                        t.Fatalf("NextRestart() returned %v; want %v+jitter", when, p.Delay)
+                }
+        }
+
+        // Next restart should cause delay
+        state, when := rt.SetStartError(recErr).GetState()
+        if state != structs.TaskRestarting {
+                t.Fatalf("NextRestart() returned %v; want %v", state, structs.TaskRestarting)
+        }
+        if !(when > p.Delay && when <= p.Interval) {
+                t.Fatalf("NextRestart() returned %v; want > %v and <= %v", when, p.Delay, p.Interval)
+        }
 }
