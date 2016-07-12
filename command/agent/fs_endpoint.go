@@ -245,20 +245,18 @@ func NewStreamFramer(out io.WriteCloser, heartbeatRate, batchWindow time.Duratio
 // Destroy is used to cleanup the StreamFramer and flush any pending frames
 func (s *StreamFramer) Destroy() {
 	s.l.Lock()
-	defer s.l.Unlock()
-
-	// Flush any existing frames
-	if s.f != nil {
-		s.f.Data = s.readData()
-		s.enc.Encode(s.f)
-	}
-
-	s.f = nil
+	wasRunning := s.running
 	s.running = false
+	s.f = nil
 	close(s.shutdown)
-	s.out.Close()
 	s.heartbeat.Stop()
 	s.flusher.Stop()
+	s.l.Unlock()
+
+	// Ensure things were flushed
+	if wasRunning {
+		<-s.exitCh
+	}
 }
 
 // Run starts a long lived goroutine that handles sending data as well as
@@ -288,6 +286,7 @@ func (s *StreamFramer) run() {
 	defer func() {
 		s.l.Lock()
 		s.err = err
+		s.out.Close()
 		close(s.exitCh)
 		s.l.Unlock()
 	}()
@@ -320,16 +319,34 @@ func (s *StreamFramer) run() {
 		}
 	}()
 
+OUTER:
 	for {
 		select {
 		case <-s.shutdown:
-			return
+			break OUTER
 		case o := <-s.outbound:
 			// Send the frame and then clear the current working frame
 			if err = s.enc.Encode(o); err != nil {
 				return
 			}
 		}
+	}
+
+	// Flush any existing frames
+	s.l.Lock()
+	defer s.l.Unlock()
+	select {
+	case o := <-s.outbound:
+		// Send the frame and then clear the current working frame
+		if err = s.enc.Encode(o); err != nil {
+			return
+		}
+	default:
+	}
+
+	if s.f != nil {
+		s.f.Data = s.readData()
+		s.enc.Encode(s.f)
 	}
 }
 
@@ -387,6 +404,15 @@ func (s *StreamFramer) Send(file, fileEvent string, data []byte, offset int64) e
 
 	// Write the data to the buffer
 	s.data.Write(data)
+
+	// Handle the delete case in which there is no data
+	if s.data.Len() == 0 && s.f.FileEvent != "" {
+		s.outbound <- &StreamFrame{
+			Offset:    s.f.Offset,
+			File:      s.f.File,
+			FileEvent: s.f.FileEvent,
+		}
+	}
 
 	// Flush till we are under the max frame size
 	for s.data.Len() >= s.frameSize {
