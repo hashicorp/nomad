@@ -402,12 +402,9 @@ func TestStateStore_UpsertJob_Job(t *testing.T) {
 	if summary.JobID != job.ID {
 		t.Fatalf("bad summary id: %v", summary.JobID)
 	}
-	webTgSummary, ok := summary.Summary["web"]
+	_, ok := summary.Summary["web"]
 	if !ok {
 		t.Fatalf("nil summary for task group")
-	}
-	if webTgSummary.Queued != 10 {
-		t.Fatalf("wrong summary: %#v", webTgSummary)
 	}
 	notify.verify(t)
 }
@@ -469,12 +466,9 @@ func TestStateStore_UpdateUpsertJob_Job(t *testing.T) {
 	if summary.JobID != job.ID {
 		t.Fatalf("bad summary id: %v", summary.JobID)
 	}
-	webTgSummary, ok := summary.Summary["web"]
+	_, ok := summary.Summary["web"]
 	if !ok {
 		t.Fatalf("nil summary for task group")
-	}
-	if webTgSummary.Queued != 10 {
-		t.Fatalf("wrong summary: %#v", webTgSummary)
 	}
 
 	notify.verify(t)
@@ -1083,7 +1077,7 @@ func TestStateStore_RestoreJobSummary(t *testing.T) {
 		JobID: job.ID,
 		Summary: map[string]structs.TaskGroupSummary{
 			"web": structs.TaskGroupSummary{
-				Queued: 10,
+				Starting: 10,
 			},
 		},
 	}
@@ -1623,9 +1617,6 @@ func TestStateStore_UpdateAllocsFromClient(t *testing.T) {
 	if tgSummary.Failed != 1 {
 		t.Fatalf("expected failed: %v, actual: %v, summary: %#v", 1, tgSummary.Failed, tgSummary)
 	}
-	if tgSummary.Queued != 9 {
-		t.Fatalf("expected queued: %v, actual: %v", 9, tgSummary.Running)
-	}
 
 	summary2, err := state.JobSummaryByID(alloc2.JobID)
 	if err != nil {
@@ -1634,9 +1625,6 @@ func TestStateStore_UpdateAllocsFromClient(t *testing.T) {
 	tgSummary2 := summary2.Summary["web"]
 	if tgSummary2.Running != 1 {
 		t.Fatalf("expected running: %v, actual: %v", 1, tgSummary2.Failed)
-	}
-	if tgSummary2.Queued != 9 {
-		t.Fatalf("expected queued: %v, actual: %v", 9, tgSummary2.Running)
 	}
 
 	notify.verify(t)
@@ -1689,9 +1677,6 @@ func TestStateStore_UpsertAlloc_Alloc(t *testing.T) {
 	if !ok {
 		t.Fatalf("no summary for task group web")
 	}
-	if tgSummary.Queued != 9 {
-		t.Fatalf("expected queued: %v, actual: %v", 9, tgSummary.Queued)
-	}
 	if tgSummary.Starting != 1 {
 		t.Fatalf("expected queued: %v, actual: %v", 1, tgSummary.Starting)
 	}
@@ -1719,9 +1704,6 @@ func TestStateStore_UpdateAlloc_Alloc(t *testing.T) {
 	tgSummary := summary.Summary["web"]
 	if tgSummary.Starting != 1 {
 		t.Fatalf("expected starting: %v, actual: %v", 1, tgSummary.Starting)
-	}
-	if tgSummary.Queued != 9 {
-		t.Fatalf("expected starting: %v, actual: %v", 9, tgSummary.Queued)
 	}
 
 	alloc2 := mock.Alloc()
@@ -1773,9 +1755,6 @@ func TestStateStore_UpdateAlloc_Alloc(t *testing.T) {
 	tgSummary = summary.Summary["web"]
 	if tgSummary.Starting != 1 {
 		t.Fatalf("expected starting: %v, actual: %v", 1, tgSummary.Starting)
-	}
-	if tgSummary.Queued != 9 {
-		t.Fatalf("expected starting: %v, actual: %v", 9, tgSummary.Queued)
 	}
 
 	notify.verify(t)
@@ -2338,7 +2317,7 @@ func TestStateJobSummary_UpdateJobCount(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 	summary, _ := state.JobSummaryByID(job.ID)
-	if summary.Summary["web"].Queued != 2 && summary.Summary["web"].Starting != 1 {
+	if summary.Summary["web"].Starting != 1 {
 		t.Fatalf("bad job summary: %v", summary)
 	}
 
@@ -2427,7 +2406,7 @@ func TestJobSummary_UpdateClientStatus(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 	summary, _ := state.JobSummaryByID(job.ID)
-	if summary.Summary["web"].Queued != 0 || summary.Summary["web"].Starting != 3 {
+	if summary.Summary["web"].Starting != 3 {
 		t.Fatalf("bad job summary: %v", summary)
 	}
 
@@ -2453,7 +2432,7 @@ func TestJobSummary_UpdateClientStatus(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 	summary, _ = state.JobSummaryByID(job.ID)
-	if summary.Summary["web"].Queued != 0 || summary.Summary["web"].Running != 1 || summary.Summary["web"].Failed != 1 || summary.Summary["web"].Complete != 1 {
+	if summary.Summary["web"].Running != 1 || summary.Summary["web"].Failed != 1 || summary.Summary["web"].Complete != 1 {
 		t.Fatalf("bad job summary: %v", summary)
 	}
 
@@ -2465,7 +2444,7 @@ func TestJobSummary_UpdateClientStatus(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 	summary, _ = state.JobSummaryByID(job.ID)
-	if summary.Summary["web"].Queued != 0 || summary.Summary["web"].Starting != 1 || summary.Summary["web"].Running != 1 || summary.Summary["web"].Failed != 1 || summary.Summary["web"].Complete != 1 {
+	if summary.Summary["web"].Starting != 1 || summary.Summary["web"].Running != 1 || summary.Summary["web"].Failed != 1 || summary.Summary["web"].Complete != 1 {
 		t.Fatalf("bad job summary: %v", summary)
 	}
 }

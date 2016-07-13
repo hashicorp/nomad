@@ -304,7 +304,7 @@ func TestSystemSched_JobModify(t *testing.T) {
 		alloc.JobID = job.ID
 		alloc.NodeID = nodes[i].ID
 		alloc.Name = "my-job.web[0]"
-		alloc.DesiredStatus = structs.AllocDesiredStatusFailed
+		alloc.DesiredStatus = structs.AllocDesiredStatusStop
 		terminal = append(terminal, alloc)
 	}
 	noErr(t, h.State.UpsertAllocs(h.NextIndex(), terminal))

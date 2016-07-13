@@ -115,23 +115,6 @@ func (m *monitor) update(update *evalState) {
 	for allocID, alloc := range update.allocs {
 		if existing, ok := existing.allocs[allocID]; !ok {
 			switch {
-			case alloc.desired == structs.AllocDesiredStatusFailed:
-				// New allocs with desired state failed indicate
-				// scheduling failure.
-				m.ui.Output(fmt.Sprintf("Scheduling error for group %q (%s)",
-					alloc.group, alloc.desiredDesc))
-
-				// Log the client status, if any provided
-				if alloc.clientDesc != "" {
-					m.ui.Output("Client reported status: " + alloc.clientDesc)
-				}
-
-				// Generate a more descriptive error for why the allocation
-				// failed and dump it to the screen
-				if alloc.full != nil {
-					dumpAllocStatus(m.ui, alloc.full, m.length)
-				}
-
 			case alloc.index < update.index:
 				// New alloc with create index lower than the eval
 				// create index indicates modification
@@ -274,18 +257,6 @@ func (m *monitor) monitor(evalID string, allowPrefix bool) int {
 				client:      alloc.ClientStatus,
 				clientDesc:  alloc.ClientDescription,
 				index:       alloc.CreateIndex,
-			}
-
-			// If we have a scheduling error, query the full allocation
-			// to get the details.
-			if alloc.DesiredStatus == structs.AllocDesiredStatusFailed {
-				schedFailure = true
-				failed, _, err := m.client.Allocations().Info(alloc.ID, nil)
-				if err != nil {
-					m.ui.Error(fmt.Sprintf("Error querying allocation: %s", err))
-					return 1
-				}
-				state.allocs[alloc.ID].full = failed
 			}
 		}
 

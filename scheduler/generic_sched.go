@@ -273,7 +273,7 @@ func (s *GenericScheduler) filterCompleteAllocs(allocs []*structs.Allocation) []
 			// status is failed so that they will be replaced. If they are
 			// complete but not failed, they shouldn't be replaced.
 			switch a.DesiredStatus {
-			case structs.AllocDesiredStatusStop, structs.AllocDesiredStatusEvict, structs.AllocDesiredStatusFailed:
+			case structs.AllocDesiredStatusStop, structs.AllocDesiredStatusEvict:
 				return !a.RanSuccessfully()
 			default:
 			}

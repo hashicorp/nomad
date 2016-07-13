@@ -950,17 +950,11 @@ type JobSummary struct {
 // TaskGroup summarizes the state of all the allocations of a particular
 // TaskGroup
 type TaskGroupSummary struct {
-	Queued   int
 	Complete int
 	Failed   int
 	Running  int
 	Starting int
 	Lost     int
-}
-
-// Total returns the total number of allocations for the task group.
-func (s *TaskGroupSummary) Total() int {
-	return s.Queued + s.Complete + s.Failed + s.Running + s.Starting
 }
 
 // Job is the scope of a scheduling request to Nomad. It is the largest
@@ -2323,10 +2317,9 @@ func (c *Constraint) Validate() error {
 }
 
 const (
-	AllocDesiredStatusRun    = "run"    // Allocation should run
-	AllocDesiredStatusStop   = "stop"   // Allocation should stop
-	AllocDesiredStatusEvict  = "evict"  // Allocation should stop, and was evicted
-	AllocDesiredStatusFailed = "failed" // Allocation failed to be done
+	AllocDesiredStatusRun   = "run"   // Allocation should run
+	AllocDesiredStatusStop  = "stop"  // Allocation should stop
+	AllocDesiredStatusEvict = "evict" // Allocation should stop, and was evicted
 )
 
 const (
@@ -2435,7 +2428,7 @@ func (a *Allocation) TerminalStatus() bool {
 	// First check the desired state and if that isn't terminal, check client
 	// state.
 	switch a.DesiredStatus {
-	case AllocDesiredStatusStop, AllocDesiredStatusEvict, AllocDesiredStatusFailed:
+	case AllocDesiredStatusStop, AllocDesiredStatusEvict:
 		return true
 	default:
 	}

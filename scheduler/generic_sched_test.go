@@ -644,7 +644,7 @@ func TestServiceSched_JobModify(t *testing.T) {
 		alloc.JobID = job.ID
 		alloc.NodeID = nodes[i].ID
 		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
-		alloc.DesiredStatus = structs.AllocDesiredStatusFailed
+		alloc.DesiredStatus = structs.AllocDesiredStatusStop
 		terminal = append(terminal, alloc)
 	}
 	noErr(t, h.State.UpsertAllocs(h.NextIndex(), terminal))
@@ -833,7 +833,7 @@ func TestServiceSched_JobModify_CountZero(t *testing.T) {
 		alloc.JobID = job.ID
 		alloc.NodeID = nodes[i].ID
 		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
-		alloc.DesiredStatus = structs.AllocDesiredStatusFailed
+		alloc.DesiredStatus = structs.AllocDesiredStatusStop
 		terminal = append(terminal, alloc)
 	}
 	noErr(t, h.State.UpsertAllocs(h.NextIndex(), terminal))

@@ -1227,18 +1227,14 @@ func (s *StateStore) updateSummaryWithJob(job *structs.Job, txn *memdb.Txn) erro
 		}
 	}
 	for _, tg := range job.TaskGroups {
-		if summary, ok := existing.Summary[tg.Name]; !ok {
+		if _, ok := existing.Summary[tg.Name]; !ok {
 			newSummary := structs.TaskGroupSummary{
-				Queued:   tg.Count,
 				Complete: 0,
 				Failed:   0,
 				Running:  0,
 				Starting: 0,
 			}
 			existing.Summary[tg.Name] = newSummary
-		} else if summary.Queued > tg.Count {
-			summary.Queued = tg.Count
-			existing.Summary[tg.Name] = summary
 		}
 	}
 
@@ -1274,19 +1270,14 @@ func (s *StateStore) updateSummaryWithAlloc(newAlloc *structs.Allocation,
 	}
 	if existingAlloc == nil {
 		switch newAlloc.DesiredStatus {
-		case structs.AllocDesiredStatusFailed:
-			tgSummary.Failed += 1
-		case structs.AllocDesiredStatusStop:
-			tgSummary.Complete += 1
+		case structs.AllocDesiredStatusStop, structs.AllocDesiredStatusEvict:
+			s.logger.Printf("[WARN]: new allocation inserted into state store with id: %v and state: %v", newAlloc.DesiredStatus)
 		}
 		switch newAlloc.ClientStatus {
 		case structs.AllocClientStatusPending:
 			tgSummary.Starting += 1
-		case structs.AllocClientStatusRunning:
-			tgSummary.Running += 1
-		}
-		if tgSummary.Queued > 0 {
-			tgSummary.Queued -= 1
+		case structs.AllocClientStatusRunning, structs.AllocClientStatusFailed, structs.AllocClientStatusComplete:
+			s.logger.Printf("[WARN]: new allocation inserted into state store with id: %v and state: %v", newAlloc.ClientStatus)
 		}
 	} else if existingAlloc.ClientStatus != newAlloc.ClientStatus {
 		// Incrementing the clint of the bin of the current state
