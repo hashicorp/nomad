@@ -480,7 +480,7 @@ func (s *StateStore) JobSummaryByID(jobID string) (*structs.JobSummary, error) {
 	return nil, nil
 }
 
-// JobSummaries walks the entire job summary table and retuns all the job
+// JobSummaries walks the entire job summary table and returns all the job
 // summary objects
 func (s *StateStore) JobSummaries() (memdb.ResultIterator, error) {
 	txn := s.db.Txn(false)
@@ -776,7 +776,7 @@ func (s *StateStore) Evals() (memdb.ResultIterator, error) {
 	return iter, nil
 }
 
-// UStarting pdateAllocFromClient is used to update an allocation based on input
+// UpdateAllocsFromClient is used to update an allocation based on input
 
 // from a client. While the schedulers are the authority on the allocation for
 // most things, some updates are authoritative from the client. Specifically,
@@ -1280,7 +1280,7 @@ func (s *StateStore) updateSummaryWithAlloc(newAlloc *structs.Allocation,
 			s.logger.Printf("[WARN]: new allocation inserted into state store with id: %v and state: %v", newAlloc.ClientStatus)
 		}
 	} else if existingAlloc.ClientStatus != newAlloc.ClientStatus {
-		// Incrementing the clint of the bin of the current state
+		// Incrementing the client of the bin of the current state
 		switch newAlloc.ClientStatus {
 		case structs.AllocClientStatusRunning:
 			tgSummary.Running += 1

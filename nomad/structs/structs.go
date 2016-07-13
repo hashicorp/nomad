@@ -345,10 +345,6 @@ type PeriodicForceRequest struct {
 	WriteRequest
 }
 
-type ServerMembersRequest struct {
-	QueryOptions
-}
-
 // GenericRequest is used to request where no
 // specific information is needed.
 type GenericRequest struct {
