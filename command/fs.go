@@ -268,6 +268,8 @@ nomad alloc-status %s`, allocID, allocID)
 			offset = numLines * bytesToLines
 		} else if nBytes {
 			offset = numBytes
+		} else {
+			numLines = defaultTailLines
 		}
 
 		if offset > file.Size {
@@ -276,7 +278,7 @@ nomad alloc-status %s`, allocID, allocID)
 
 		var err error
 		if follow {
-			err = f.followFile(client, alloc, path, offset)
+			err = f.followFile(client, alloc, path, offset, numLines)
 		} else {
 			// This offset needs to be relative from the front versus the follow
 			// is relative to the end
@@ -286,7 +288,14 @@ nomad alloc-status %s`, allocID, allocID)
 				f.Ui.Error(fmt.Sprintf("Error reading file: %s", err))
 				return 1
 			}
+
+			// If numLines is set, wrap the reader
+			if numLines != -1 {
+				r = NewLineLimitReader(r, int(numLines), int(numLines*bytesToLines))
+			}
+
 			io.Copy(os.Stdout, r)
+			r.Close()
 		}
 
 		if err != nil {
@@ -299,10 +308,9 @@ nomad alloc-status %s`, allocID, allocID)
 }
 
 // followFile outputs the contents of the file to stdout relative to the end of
-// the file. If numLines and numBytes are both less than zero, the default
-// output is defaulted to 10 lines.
+// the file. If numLines does not equal -1, then tail -n behavior is used.
 func (f *FSCommand) followFile(client *api.Client, alloc *api.Allocation,
-	path string, offset int64) error {
+	path string, offset, numLines int64) error {
 
 	cancel := make(chan struct{})
 	frames, _, err := client.AllocFS().Stream(alloc, path, api.OriginEnd, offset, cancel, nil)
@@ -313,7 +321,14 @@ func (f *FSCommand) followFile(client *api.Client, alloc *api.Allocation,
 	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
 
 	// Create a reader
-	r := api.NewFrameReader(frames, cancel)
+	var r io.ReadCloser
+	frameReader := api.NewFrameReader(frames, cancel)
+	r = frameReader
+
+	// If numLines is set, wrap the reader
+	if numLines != -1 {
+		r = NewLineLimitReader(r, int(numLines), int(numLines*bytesToLines))
+	}
 
 	go func() {
 		<-signalCh
@@ -322,7 +337,7 @@ func (f *FSCommand) followFile(client *api.Client, alloc *api.Allocation,
 		r.Close()
 
 		// Output the last offset
-		f.Ui.Output(fmt.Sprintf("\nLast outputted offset (bytes): %d", r.Offset()))
+		f.Ui.Output(fmt.Sprintf("\nLast outputted offset (bytes): %d", frameReader.Offset()))
 	}()
 
 	io.Copy(os.Stdout, r)
