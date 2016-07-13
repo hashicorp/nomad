@@ -1080,9 +1080,9 @@ func (j *Job) Validate() error {
 			taskGroups[tg.Name] = idx
 		}
 
-		if j.Type == "system" && tg.Count != 1 {
+		if j.Type == "system" && tg.Count > 1 {
 			mErr.Errors = append(mErr.Errors,
-				fmt.Errorf("Job task group %d has count %d. Only count of 1 is supported with system scheduler",
+				fmt.Errorf("Job task group %d has count %d. Count cannot exceed 1 with system scheduler",
 					idx+1, tg.Count))
 		}
 	}
@@ -1096,7 +1096,7 @@ func (j *Job) Validate() error {
 	}
 
 	// Validate periodic is only used with batch jobs.
-	if j.IsPeriodic() {
+	if j.IsPeriodic() && j.Periodic.Enabled {
 		if j.Type != JobTypeBatch {
 			mErr.Errors = append(mErr.Errors,
 				fmt.Errorf("Periodic can only be used with %q scheduler", JobTypeBatch))
