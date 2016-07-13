@@ -162,7 +162,7 @@ func (a *AllocFS) ReadAt(alloc *Allocation, path string, offset int64, limit int
 
 // Cat is used to read contents of a file at the given path in an allocation
 // directory
-func (a *AllocFS) Cat(alloc *Allocation, path string, q *QueryOptions) (io.Reader, *QueryMeta, error) {
+func (a *AllocFS) Cat(alloc *Allocation, path string, q *QueryOptions) (io.ReadCloser, *QueryMeta, error) {
 	node, _, err := a.client.Nodes().Info(alloc.NodeID, &QueryOptions{})
 	if err != nil {
 		return nil, nil, err
@@ -279,6 +279,7 @@ func (a *AllocFS) Stream(alloc *Allocation, path, origin string, offset int64,
 type FrameReader struct {
 	frames   <-chan *StreamFrame
 	cancelCh chan struct{}
+	closed   bool
 
 	frame       *StreamFrame
 	frameOffset int
@@ -313,6 +314,9 @@ func (f *FrameReader) Read(p []byte) (n int, err error) {
 			return 0, io.EOF
 		}
 		f.frame = frame
+
+		// Store the total offset into the file
+		f.byteOffset = int(f.frame.Offset)
 	}
 
 	if f.frame.FileEvent != "" && len(f.fileEvent) == 0 {
@@ -336,9 +340,6 @@ func (f *FrameReader) Read(p []byte) (n int, err error) {
 	n = copy(p, f.frame.Data[f.frameOffset:])
 	f.frameOffset += n
 
-	// Store the total offset into the file
-	f.byteOffset = int(f.frame.Offset) + f.frameOffset
-
 	// Clear the frame and its offset once we have read everything
 	if len(f.frame.Data) == f.frameOffset {
 		f.frame = nil
@@ -350,6 +351,11 @@ func (f *FrameReader) Read(p []byte) (n int, err error) {
 
 // Close cancels the stream of frames
 func (f *FrameReader) Close() error {
+	if f.closed {
+		return nil
+	}
+
 	close(f.cancelCh)
+	f.closed = true
 	return nil
 }

@@ -16,17 +16,17 @@ func TestFS_FrameReader(t *testing.T) {
 	// Create some frames and send them
 	f1 := &StreamFrame{
 		File:   "foo",
-		Offset: 0,
+		Offset: 5,
 		Data:   []byte("hello"),
 	}
 	f2 := &StreamFrame{
 		File:   "foo",
-		Offset: 5,
+		Offset: 10,
 		Data:   []byte(", wor"),
 	}
 	f3 := &StreamFrame{
 		File:   "foo",
-		Offset: 10,
+		Offset: 12,
 		Data:   []byte("ld"),
 	}
 	framesCh <- f1
