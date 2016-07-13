@@ -433,8 +433,8 @@ The `Constraint` object supports the following keys:
   This can be a literal value, another attribute or a regular expression if
   the `Operator` is in "regexp" mode.
 
-*   `Operator` - `Operator` if omitted defaults to `==` and an take on the
-    following values:
+* `Operand` - Specifies the test to be performed on the two targets. It takes on the
+  following values:
   
   * `regexp` - Allows the `RTarget` to be a regular expression to be matched.
 
