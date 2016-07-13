@@ -26,7 +26,7 @@ func TestCoreScheduler_EvalGC(t *testing.T) {
 	// Insert "dead" alloc
 	alloc := mock.Alloc()
 	alloc.EvalID = eval.ID
-	alloc.DesiredStatus = structs.AllocDesiredStatusFailed
+	alloc.DesiredStatus = structs.AllocDesiredStatusStop
 	err = state.UpsertAllocs(1001, []*structs.Allocation{alloc})
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -98,7 +98,7 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	alloc := mock.Alloc()
 	alloc.JobID = job.ID
 	alloc.EvalID = eval.ID
-	alloc.DesiredStatus = structs.AllocDesiredStatusFailed
+	alloc.DesiredStatus = structs.AllocDesiredStatusStop
 	err = state.UpsertAllocs(1002, []*structs.Allocation{alloc})
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -165,7 +165,7 @@ func TestCoreScheduler_EvalGC_Partial(t *testing.T) {
 	// Insert "dead" alloc
 	alloc := mock.Alloc()
 	alloc.EvalID = eval.ID
-	alloc.DesiredStatus = structs.AllocDesiredStatusFailed
+	alloc.DesiredStatus = structs.AllocDesiredStatusStop
 	err = state.UpsertAllocs(1001, []*structs.Allocation{alloc})
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -241,7 +241,7 @@ func TestCoreScheduler_EvalGC_Force(t *testing.T) {
 	// Insert "dead" alloc
 	alloc := mock.Alloc()
 	alloc.EvalID = eval.ID
-	alloc.DesiredStatus = structs.AllocDesiredStatusFailed
+	alloc.DesiredStatus = structs.AllocDesiredStatusStop
 	err = state.UpsertAllocs(1001, []*structs.Allocation{alloc})
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -467,19 +467,19 @@ func TestCoreScheduler_JobGC(t *testing.T) {
 		{
 			test:        "Terminal",
 			evalStatus:  structs.EvalStatusFailed,
-			allocStatus: structs.AllocDesiredStatusFailed,
+			allocStatus: structs.AllocDesiredStatusStop,
 			shouldExist: false,
 		},
 		{
 			test:        "Has Alloc",
 			evalStatus:  structs.EvalStatusFailed,
-			allocStatus: structs.AllocDesiredStatusRun,
+			allocStatus: structs.AllocDesiredStatusStop,
 			shouldExist: true,
 		},
 		{
 			test:        "Has Eval",
 			evalStatus:  structs.EvalStatusPending,
-			allocStatus: structs.AllocDesiredStatusFailed,
+			allocStatus: structs.AllocDesiredStatusStop,
 			shouldExist: true,
 		},
 	}
@@ -678,7 +678,7 @@ func TestCoreScheduler_JobGC_Force(t *testing.T) {
 		{
 			test:        "Terminal",
 			evalStatus:  structs.EvalStatusFailed,
-			allocStatus: structs.AllocDesiredStatusFailed,
+			allocStatus: structs.AllocDesiredStatusStop,
 			shouldExist: false,
 		},
 		{
@@ -690,7 +690,7 @@ func TestCoreScheduler_JobGC_Force(t *testing.T) {
 		{
 			test:        "Has Eval",
 			evalStatus:  structs.EvalStatusPending,
-			allocStatus: structs.AllocDesiredStatusFailed,
+			allocStatus: structs.AllocDesiredStatusStop,
 			shouldExist: true,
 		},
 	}
