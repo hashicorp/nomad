@@ -3,7 +3,7 @@
 IMPROVEMENTS:
   * core: Allow count 0 on system jobs [GH-1421]
   * core: Gracefully handle short lived outages by holding RPC calls [GH-1403]
-  * api/cli: Support for tailing/streaming files [GH-1404]
+  * api/cli: Support for tailing/streaming files [GH-1404, GH-1420]
 
 BUG FIXES:
   * client: Task start errors adhere to restart policy mode [GH-1405]
