@@ -270,13 +270,12 @@ func (s *StreamFramer) Destroy() {
 // heartbeating
 func (s *StreamFramer) Run() {
 	s.l.Lock()
+	defer s.l.Unlock()
 	if s.running {
 		return
 	}
 
 	s.running = true
-	s.l.Unlock()
-
 	go s.run()
 }
 

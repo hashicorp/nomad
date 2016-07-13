@@ -250,13 +250,18 @@ nomad alloc-status %s`, allocID, allocID)
 	}
 
 	// We have a file, output it.
+	var r io.ReadCloser
+	var readErr error
 	if !tail {
-		r, _, err := client.AllocFS().Cat(alloc, path, nil)
-		if err != nil {
-			f.Ui.Error(fmt.Sprintf("Error reading file: %s", err))
-			return 1
+		if follow {
+			r, readErr = f.followFile(client, alloc, path, api.OriginStart, 0, -1)
+		} else {
+			r, _, readErr = client.AllocFS().Cat(alloc, path, nil)
 		}
-		io.Copy(os.Stdout, r)
+
+		if readErr != nil {
+			readErr = fmt.Errorf("Error reading file: %v", readErr)
+		}
 	} else {
 		// Parse the offset
 		var offset int64 = defaultTailLines * bytesToLines
@@ -268,88 +273,77 @@ nomad alloc-status %s`, allocID, allocID)
 			offset = numLines * bytesToLines
 		} else if nBytes {
 			offset = numBytes
+		} else {
+			numLines = defaultTailLines
 		}
 
 		if offset > file.Size {
 			offset = file.Size
 		}
 
-		var err error
 		if follow {
-			err = f.followFile(client, alloc, path, offset)
+			r, readErr = f.followFile(client, alloc, path, api.OriginEnd, offset, numLines)
 		} else {
 			// This offset needs to be relative from the front versus the follow
 			// is relative to the end
 			offset = file.Size - offset
-			r, _, err := client.AllocFS().ReadAt(alloc, path, offset, -1, nil)
-			if err != nil {
-				f.Ui.Error(fmt.Sprintf("Error reading file: %s", err))
-				return 1
+			r, _, readErr = client.AllocFS().ReadAt(alloc, path, offset, -1, nil)
+
+			// If numLines is set, wrap the reader
+			if numLines != -1 {
+				r = NewLineLimitReader(r, int(numLines), int(numLines*bytesToLines))
 			}
-			io.Copy(os.Stdout, r)
 		}
 
-		if err != nil {
-			f.Ui.Error(fmt.Sprintf("Error tailing file: %v", err))
-			return 1
+		if readErr != nil {
+			readErr = fmt.Errorf("Error tailing file: %v", readErr)
 		}
 	}
 
+	defer r.Close()
+	if readErr != nil {
+		f.Ui.Error(readErr.Error())
+		return 1
+	}
+
+	io.Copy(os.Stdout, r)
 	return 0
 }
 
 // followFile outputs the contents of the file to stdout relative to the end of
-// the file. If numLines and numBytes are both less than zero, the default
-// output is defaulted to 10 lines.
+// the file. If numLines does not equal -1, then tail -n behavior is used.
 func (f *FSCommand) followFile(client *api.Client, alloc *api.Allocation,
-	path string, offset int64) error {
+	path, origin string, offset, numLines int64) (io.ReadCloser, error) {
 
 	cancel := make(chan struct{})
-	frames, _, err := client.AllocFS().Stream(alloc, path, api.OriginEnd, offset, cancel, nil)
+	frames, _, err := client.AllocFS().Stream(alloc, path, origin, offset, cancel, nil)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
 
-	var frame *api.StreamFrame
-	var ok bool
-	for {
-		select {
-		case <-signalCh:
-			// End the streaming
-			close(cancel)
+	// Create a reader
+	var r io.ReadCloser
+	frameReader := api.NewFrameReader(frames, cancel)
+	r = frameReader
 
-			// Output the last offset
-			if frame != nil && frame.Offset > 0 {
-				f.Ui.Output(fmt.Sprintf("\nLast outputted offset (bytes): %d", frame.Offset))
-			}
-
-			return nil
-		case frame, ok = <-frames:
-			if !ok {
-				// Connection has been killed
-				return nil
-			}
-
-			if frame == nil {
-				panic("received nil frame; please report as a bug")
-			}
-
-			if frame.IsHeartbeat() {
-				continue
-			}
-
-			// Print the file event
-			if frame.FileEvent != "" {
-				f.Ui.Output(fmt.Sprintf("nomad: FileEvent %q", frame.FileEvent))
-			}
-
-			fmt.Print(string(frame.Data))
-		}
+	// If numLines is set, wrap the reader
+	if numLines != -1 {
+		r = NewLineLimitReader(r, int(numLines), int(numLines*bytesToLines))
 	}
 
-	return nil
+	go func() {
+		<-signalCh
+
+		// End the streaming
+		r.Close()
+
+		// Output the last offset
+		f.Ui.Output(fmt.Sprintf("\nLast outputted offset (bytes): %d", frameReader.Offset()))
+	}()
+
+	return r, nil
 }
 
 // Get Random Allocation ID from a known jobID. Prefer to use a running allocation,

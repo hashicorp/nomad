@@ -129,7 +129,7 @@ func (a *AllocFS) Stat(alloc *Allocation, path string, q *QueryOptions) (*AllocF
 
 // ReadAt is used to read bytes at a given offset until limit at the given path
 // in an allocation directory. If limit is <= 0, there is no limit.
-func (a *AllocFS) ReadAt(alloc *Allocation, path string, offset int64, limit int64, q *QueryOptions) (io.Reader, *QueryMeta, error) {
+func (a *AllocFS) ReadAt(alloc *Allocation, path string, offset int64, limit int64, q *QueryOptions) (io.ReadCloser, *QueryMeta, error) {
 	node, _, err := a.client.Nodes().Info(alloc.NodeID, &QueryOptions{})
 	if err != nil {
 		return nil, nil, err
@@ -162,7 +162,7 @@ func (a *AllocFS) ReadAt(alloc *Allocation, path string, offset int64, limit int
 
 // Cat is used to read contents of a file at the given path in an allocation
 // directory
-func (a *AllocFS) Cat(alloc *Allocation, path string, q *QueryOptions) (io.Reader, *QueryMeta, error) {
+func (a *AllocFS) Cat(alloc *Allocation, path string, q *QueryOptions) (io.ReadCloser, *QueryMeta, error) {
 	node, _, err := a.client.Nodes().Info(alloc.NodeID, &QueryOptions{})
 	if err != nil {
 		return nil, nil, err
@@ -204,7 +204,6 @@ func (a *AllocFS) getErrorMsg(resp *http.Response) error {
 // * path: path to file to stream.
 // * offset: The offset to start streaming data at.
 // * origin: Either "start" or "end" and defines from where the offset is applied.
-// * cancel: A channel which when closed will stop streaming.
 //
 // The return value is a channel that will emit StreamFrames as they are read.
 func (a *AllocFS) Stream(alloc *Allocation, path, origin string, offset int64,
@@ -274,4 +273,89 @@ func (a *AllocFS) Stream(alloc *Allocation, path, origin string, offset int64,
 	}()
 
 	return frames, nil, nil
+}
+
+// FrameReader is used to convert a stream of frames into a read closer.
+type FrameReader struct {
+	frames   <-chan *StreamFrame
+	cancelCh chan struct{}
+	closed   bool
+
+	frame       *StreamFrame
+	frameOffset int
+
+	// To handle printing the file events
+	fileEventOffset int
+	fileEvent       []byte
+
+	byteOffset int
+}
+
+// NewFrameReader takes a channel of frames and returns a FrameReader which
+// implements io.ReadCloser
+func NewFrameReader(frames <-chan *StreamFrame, cancelCh chan struct{}) *FrameReader {
+	return &FrameReader{
+		frames:   frames,
+		cancelCh: cancelCh,
+	}
+}
+
+// Offset returns the offset into the stream.
+func (f *FrameReader) Offset() int {
+	return f.byteOffset
+}
+
+// Read reads the data of the incoming frames into the bytes buffer. Returns EOF
+// when there are no more frames.
+func (f *FrameReader) Read(p []byte) (n int, err error) {
+	if f.frame == nil {
+		frame, ok := <-f.frames
+		if !ok {
+			return 0, io.EOF
+		}
+		f.frame = frame
+
+		// Store the total offset into the file
+		f.byteOffset = int(f.frame.Offset)
+	}
+
+	if f.frame.FileEvent != "" && len(f.fileEvent) == 0 {
+		f.fileEvent = []byte(fmt.Sprintf("\nnomad: %q\n", f.frame.FileEvent))
+		f.fileEventOffset = 0
+	}
+
+	// If there is a file event we inject it into the read stream
+	if l := len(f.fileEvent); l != 0 && l != f.fileEventOffset {
+		n = copy(p, f.fileEvent[f.fileEventOffset:])
+		f.fileEventOffset += n
+		return n, nil
+	}
+
+	if len(f.fileEvent) == f.fileEventOffset {
+		f.fileEvent = nil
+		f.fileEventOffset = 0
+	}
+
+	// Copy the data out of the frame and update our offset
+	n = copy(p, f.frame.Data[f.frameOffset:])
+	f.frameOffset += n
+
+	// Clear the frame and its offset once we have read everything
+	if len(f.frame.Data) == f.frameOffset {
+		f.frame = nil
+		f.frameOffset = 0
+	}
+
+	return n, nil
+}
+
+// Close cancels the stream of frames
+func (f *FrameReader) Close() error {
+	if f.closed {
+		return nil
+	}
+
+	close(f.cancelCh)
+	f.closed = true
+	return nil
 }
