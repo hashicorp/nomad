@@ -61,7 +61,7 @@ type AllocDirFS interface {
 	List(path string) ([]*AllocFileInfo, error)
 	Stat(path string) (*AllocFileInfo, error)
 	ReadAt(path string, offset int64) (io.ReadCloser, error)
-	BlockUntilExists(path string, t *tomb.Tomb) error
+	BlockUntilExists(path string, t *tomb.Tomb) chan error
 	ChangeEvents(path string, curOffset int64, t *tomb.Tomb) (*watch.FileChanges, error)
 }
 
@@ -343,11 +343,16 @@ func (d *AllocDir) ReadAt(path string, offset int64) (io.ReadCloser, error) {
 
 // BlockUntilExists blocks until the passed file relative the allocation
 // directory exists. The block can be cancelled with the passed tomb.
-func (d *AllocDir) BlockUntilExists(path string, t *tomb.Tomb) error {
+func (d *AllocDir) BlockUntilExists(path string, t *tomb.Tomb) chan error {
 	// Get the path relative to the alloc directory
 	p := filepath.Join(d.AllocDir, path)
 	watcher := getFileWatcher(p)
-	return watcher.BlockUntilExists(t)
+	returnCh := make(chan error, 1)
+	go func() {
+		returnCh <- watcher.BlockUntilExists(t)
+		close(returnCh)
+	}()
+	return returnCh
 }
 
 // ChangeEvents watches for changes to the passed path relative to the
