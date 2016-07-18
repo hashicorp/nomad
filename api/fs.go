@@ -204,6 +204,7 @@ func (a *AllocFS) getErrorMsg(resp *http.Response) error {
 // * path: path to file to stream.
 // * offset: The offset to start streaming data at.
 // * origin: Either "start" or "end" and defines from where the offset is applied.
+// * cancel: A channel that when closed, streaming will end.
 //
 // The return value is a channel that will emit StreamFrames as they are read.
 func (a *AllocFS) Stream(alloc *Allocation, path, origin string, offset int64,
@@ -224,6 +225,86 @@ func (a *AllocFS) Stream(alloc *Allocation, path, origin string, offset int64,
 	}
 	v := url.Values{}
 	v.Set("path", path)
+	v.Set("origin", origin)
+	v.Set("offset", strconv.FormatInt(offset, 10))
+	u.RawQuery = v.Encode()
+	req := &http.Request{
+		Method: "GET",
+		URL:    u,
+		Cancel: cancel,
+	}
+	c := http.Client{}
+	resp, err := c.Do(req)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Create the output channel
+	frames := make(chan *StreamFrame, 10)
+
+	go func() {
+		// Close the body
+		defer resp.Body.Close()
+
+		// Create a decoder
+		dec := json.NewDecoder(resp.Body)
+
+		for {
+			// Check if we have been cancelled
+			select {
+			case <-cancel:
+				return
+			default:
+			}
+
+			// Decode the next frame
+			var frame StreamFrame
+			if err := dec.Decode(&frame); err != nil {
+				close(frames)
+				return
+			}
+
+			// Discard heartbeat frames
+			if frame.IsHeartbeat() {
+				continue
+			}
+
+			frames <- &frame
+		}
+	}()
+
+	return frames, nil, nil
+}
+
+// Logs streams the content of a tasks logs blocking on EOF.
+// The parameters are:
+// * allocation: the allocation to stream from.
+// * task: the tasks name to stream logs for.
+// * logType: Either "stdout" or "stderr"
+// * offset: The offset to start streaming data at.
+// * origin: Either "start" or "end" and defines from where the offset is applied.
+// * cancel: A channel that when closed, streaming will end.
+//
+// The return value is a channel that will emit StreamFrames as they are read.
+func (a *AllocFS) Logs(alloc *Allocation, task, logType, origin string, offset int64,
+	cancel <-chan struct{}, q *QueryOptions) (<-chan *StreamFrame, *QueryMeta, error) {
+
+	node, _, err := a.client.Nodes().Info(alloc.NodeID, q)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if node.HTTPAddr == "" {
+		return nil, nil, fmt.Errorf("http addr of the node where alloc %q is running is not advertised", alloc.ID)
+	}
+	u := &url.URL{
+		Scheme: "http",
+		Host:   node.HTTPAddr,
+		Path:   fmt.Sprintf("/v1/client/fs/logs/%s", alloc.ID),
+	}
+	v := url.Values{}
+	v.Set("task", task)
+	v.Set("type", logType)
 	v.Set("origin", origin)
 	v.Set("offset", strconv.FormatInt(offset, 10))
 	u.RawQuery = v.Encode()

@@ -81,7 +81,7 @@ func (f *FSCommand) Run(args []string) int {
 	var verbose, machine, job, stat, tail, follow bool
 	var numLines, numBytes int64
 
-	flags := f.Meta.FlagSet("fs-list", FlagSetClient)
+	flags := f.Meta.FlagSet("fs", FlagSetClient)
 	flags.Usage = func() { f.Ui.Output(f.Help()) }
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.BoolVar(&machine, "H", false, "")
@@ -175,14 +175,6 @@ func (f *FSCommand) Run(args []string) int {
 	if err != nil {
 		f.Ui.Error(fmt.Sprintf("Error querying allocation: %s", err))
 		return 1
-	}
-
-	if alloc.DesiredStatus == "failed" {
-		allocID := limit(alloc.ID, length)
-		msg := fmt.Sprintf(`The allocation %q failed to be placed. To see the cause, run:
-nomad alloc-status %s`, allocID, allocID)
-		f.Ui.Error(msg)
-		return 0
 	}
 
 	// Get file stat info

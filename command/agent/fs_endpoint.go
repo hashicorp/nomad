@@ -741,7 +741,7 @@ func (s *HTTPServer) logs(offset int64, origin, task, logType string, fs allocdi
 
 		//Since we successfully streamed, update the overall offset/idx.
 		offset = int64(0)
-		idx++
+		nextIdx++
 	}
 
 	return nil
