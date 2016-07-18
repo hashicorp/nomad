@@ -177,7 +177,7 @@ potentially invalid.
 We can see that the scheduler detected the change in count and informs us that
 it will cause 2 new instances to be created. The in-place update that will
 occur is to push the update job specification to the existing allocation and
-will not cause any service interuption. We can then run the job with the
+will not cause any service interruption. We can then run the job with the
 run command the `plan` emitted.
 
 By running with the `-check-index` flag, Nomad checks that the job has not

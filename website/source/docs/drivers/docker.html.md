@@ -130,7 +130,7 @@ The `auth` object supports the following keys:
 
 * `email` - (Optional) The account email.
 
-* `server_address` - (Optional) The server domain/ip without the protocol.
+* `server_address` - (Optional) The server domain/IP without the protocol.
   Docker Hub is used by default.
 
 Example:
@@ -256,7 +256,7 @@ socket. Nomad will need to be able to read/write to this socket. If you do not
 run Nomad as root, make sure you add the Nomad user to the Docker group so
 Nomad can communicate with the Docker daemon.
 
-For example, on ubuntu you can use the `usermod` command to add the `vagrant`
+For example, on Ubuntu you can use the `usermod` command to add the `vagrant`
 user to the `docker` group so you can run Nomad without root:
 
     sudo usermod -G docker -a vagrant
@@ -312,7 +312,7 @@ options](/docs/agent/config.html#options):
 Note: When testing or using the `-dev` flag you can use `DOCKER_HOST`,
 `DOCKER_TLS_VERIFY`, and `DOCKER_CERT_PATH` to customize Nomad's behavior. If
 `docker.endpoint` is set Nomad will **only** read client configuration from the
-config filie.
+config file.
 
 An example is given below: 
 

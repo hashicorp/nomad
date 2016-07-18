@@ -69,9 +69,9 @@ the [Jobspec documentation](/docs/jobspec/index.html#update).
 
 ## Blue-green and Canaries
 
-Blue-green deploys have serveral names, Red/Black, A/B, Blue/Green, but the
+Blue-green deploys have several names, Red/Black, A/B, Blue/Green, but the
 concept is the same. The idea is to have two sets of applications with only one
-of them being live at a given time, except while transistion from one set to
+of them being live at a given time, except while transitioning from one set to
 another.  What the term "live" means is that the live set of applications are
 the set receiving traffic.
 
@@ -81,7 +81,7 @@ been tested in a QA environment and is now ready to start accepting production
 traffic.
 
 In this case we would consider version 1 to be the live set and we want to
-transistion to version 2. We can model this workflow with the below job:
+transition to version 2. We can model this workflow with the below job:
 
 ```
 job "my-api" {
@@ -114,7 +114,7 @@ job "my-api" {
 ```
 
 Here we can see the live group is "api-green" since it has a non-zero count. To
-transistion to v2, we up the count of "api-blue" and down the count of
+transition to v2, we up the count of "api-blue" and down the count of
 "api-green". We can now see how the canary process is a special case of
 blue-green. If we set "api-blue" to `count = 1` and "api-green" to `count = 9`,
 there will still be the original 10 instances but we will be testing only one
@@ -124,7 +124,7 @@ If at any time we notice that the new version is behaving incorrectly and we
 want to roll back, all that we have to do is drop the count of the new group to
 0 and restore the original version back to 10. This fine control lets job
 operators be confident that deployments will not cause down time. If the deploy
-is successful and we fully transistion from v1 to v2 the job file will look like
+is successful and we fully transition from v1 to v2 the job file will look like
 this:
 
 ```
@@ -160,7 +160,7 @@ job "my-api" {
 Now "api-blue" is the live group and when we are ready to update the api to v3,
 we would modify "api-green" and repeat this process. The rate at which the count
 of groups are incremented and decremented is totally up to the user. It is
-usually good practice to start by transistion one at a time until a certain
+usually good practice to start by transition one at a time until a certain
 confidence threshold is met based on application specific logs and metrics.
 
 ## Handling Drain Signals
@@ -169,6 +169,6 @@ On operating systems that support signals, Nomad will signal the application
 before killing it. This gives the application time to gracefully drain
 connections and conduct any other cleanup that is necessary. Certain
 applications take longer to drain than others and as such Nomad lets the job
-file specify how long to wait inbetween signaling the application to exit and
+file specify how long to wait in-between signaling the application to exit and
 forcefully killing it. This is configurable via the `kill_timeout`. More details
 can be seen in the [Jobspec documentation](/docs/jobspec/index.html#kill_timeout).

@@ -483,7 +483,7 @@ Nomad downloads artifacts using
 [`go-getter`](https://github.com/hashicorp/go-getter). The `go-getter` library
 allows downloading of artifacts from various sources using a URL as the input
 source. The key/value pairs given in the `options` block map directly to
-parameters appended to the supplied `source` url. These are then used by
+parameters appended to the supplied `source` URL. These are then used by
 `go-getter` to appropriately download the artifact. `go-getter` also has a CLI
 tool to validate its URL and can be used to check if the Nomad `artifact` is
 valid.
@@ -547,7 +547,7 @@ Path based style:
 ]
 ```
 
-or to override automatic detection in the url, use the s3 specific syntax
+or to override automatic detection in the URL, use the S3-specific syntax
 ```
 "Artifacts": [
   {

@@ -74,7 +74,7 @@ Replacing `stdout` for `stderr` would display the respective `stderr` output.
 While this works well for quickly accessing logs, we recommend running a
 log-shipper for long term storage of logs. In many cases this will not be needed
 and the above will suffice but for use cases in which log retention is needed
-Nomad can accomodate.
+Nomad can accommodate.
 
 Since we place application logs inside the `alloc/` directory, all tasks within
 the same task group have access to each others logs. Thus we can have a task
