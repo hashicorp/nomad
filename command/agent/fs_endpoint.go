@@ -191,7 +191,7 @@ type StreamFrame struct {
 	// File is the file that the data was read from
 	File string `json:",omitempty"`
 
-	// FileEvent is the last file event that occured that could cause the
+	// FileEvent is the last file event that occurred that could cause the
 	// streams position to change or end
 	FileEvent string `json:",omitempty"`
 }
@@ -220,7 +220,7 @@ type StreamFramer struct {
 	f    *StreamFrame
 	data *bytes.Buffer
 
-	// Captures whether the framer is running and any error that occured to
+	// Captures whether the framer is running and any error that occurred to
 	// cause it to stop.
 	running bool
 	err     error
