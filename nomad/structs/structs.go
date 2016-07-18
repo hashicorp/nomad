@@ -736,6 +736,18 @@ func (r *Resources) Merge(other *Resources) {
 	}
 }
 
+func (r *Resources) InitFields() {
+	// Ensure that an empty and nil slices are treated the same to avoid scheduling
+	// problems since we use reflect DeepEquals.
+	if len(r.Networks) == 0 {
+		r.Networks = nil
+	}
+
+	for _, n := range r.Networks {
+		n.InitFields()
+	}
+}
+
 // MeetsMinResources returns an error if the resources specified are less than
 // the minimum allowed.
 func (r *Resources) MeetsMinResources() error {
@@ -848,6 +860,17 @@ type NetworkResource struct {
 	MBits         int    // Throughput
 	ReservedPorts []Port // Reserved ports
 	DynamicPorts  []Port // Dynamically assigned ports
+}
+
+func (n *NetworkResource) InitFields() {
+	// Ensure that an empty and nil slices are treated the same to avoid scheduling
+	// problems since we use reflect DeepEquals.
+	if len(n.ReservedPorts) == 0 {
+		n.ReservedPorts = nil
+	}
+	if len(n.DynamicPorts) == 0 {
+		n.DynamicPorts = nil
+	}
 }
 
 // MeetsMinResources returns an error if the resources specified are less than
@@ -1023,6 +1046,12 @@ type Job struct {
 // InitFields is used to initialize fields in the Job. This should be called
 // when registering a Job.
 func (j *Job) InitFields() {
+	// Ensure that an empty and nil map are treated the same to avoid scheduling
+	// problems since we use reflect DeepEquals.
+	if len(j.Meta) == 0 {
+		j.Meta = nil
+	}
+
 	for _, tg := range j.TaskGroups {
 		tg.InitFields(j)
 	}
@@ -1432,6 +1461,12 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 
 // InitFields is used to initialize fields in the TaskGroup.
 func (tg *TaskGroup) InitFields(job *Job) {
+	// Ensure that an empty and nil map are treated the same to avoid scheduling
+	// problems since we use reflect DeepEquals.
+	if len(tg.Meta) == 0 {
+		tg.Meta = nil
+	}
+
 	// Set the default restart policy.
 	if tg.RestartPolicy == nil {
 		tg.RestartPolicy = NewRestartPolicy(job.Type)
@@ -1544,6 +1579,18 @@ func (sc *ServiceCheck) Copy() *ServiceCheck {
 	return nsc
 }
 
+func (sc *ServiceCheck) InitFields(serviceName string) {
+	// Ensure empty slices are treated as null to avoid scheduling issues when
+	// using DeepEquals.
+	if len(sc.Args) == 0 {
+		sc.Args = nil
+	}
+
+	if sc.Name == "" {
+		sc.Name = fmt.Sprintf("service: %q check", serviceName)
+	}
+}
+
 // validate a Service's ServiceCheck
 func (sc *ServiceCheck) validate() error {
 	switch strings.ToLower(sc.Type) {
@@ -1639,6 +1686,15 @@ func (s *Service) Copy() *Service {
 // InitFields interpolates values of Job, Task Group and Task in the Service
 // Name. This also generates check names, service id and check ids.
 func (s *Service) InitFields(job string, taskGroup string, task string) {
+	// Ensure empty lists are treated as null to avoid scheduler issues when
+	// using DeepEquals
+	if len(s.Tags) == 0 {
+		s.Tags = nil
+	}
+	if len(s.Checks) == 0 {
+		s.Checks = nil
+	}
+
 	s.Name = args.ReplaceEnv(s.Name, map[string]string{
 		"JOB":       job,
 		"TASKGROUP": taskGroup,
@@ -1648,9 +1704,7 @@ func (s *Service) InitFields(job string, taskGroup string, task string) {
 	)
 
 	for _, check := range s.Checks {
-		if check.Name == "" {
-			check.Name = fmt.Sprintf("service: %q check", s.Name)
-		}
+		check.InitFields(s.Name)
 	}
 }
 
@@ -1805,7 +1859,20 @@ func (t *Task) Copy() *Task {
 
 // InitFields initializes fields in the task.
 func (t *Task) InitFields(job *Job, tg *TaskGroup) {
+	// Ensure that an empty and nil map are treated the same to avoid scheduling
+	// problems since we use reflect DeepEquals.
+	if len(t.Meta) == 0 {
+		t.Meta = nil
+	}
+	if len(t.Config) == 0 {
+		t.Config = nil
+	}
+	if len(t.Env) == 0 {
+		t.Env = nil
+	}
+
 	t.InitServiceFields(job.Name, tg.Name)
+	t.Resources.InitFields()
 
 	// Set the default timeout if it is not specified.
 	if t.KillTimeout == 0 {
