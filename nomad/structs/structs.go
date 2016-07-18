@@ -258,6 +258,12 @@ type JobPlanRequest struct {
 	WriteRequest
 }
 
+// JobSummaryRequest is used when we just need to get a specific job summary
+type JobSummaryRequest struct {
+	JobID string
+	QueryOptions
+}
+
 // NodeListRequest is used to parameterize a list request
 type NodeListRequest struct {
 	QueryOptions
@@ -438,6 +444,12 @@ type NodeListResponse struct {
 // SingleJobResponse is used to return a single job
 type SingleJobResponse struct {
 	Job *Job
+	QueryMeta
+}
+
+// SingleJobSummary is used to return a single job summary
+type SingleJobSummaryResponse struct {
+	JobSummary *JobSummary
 	QueryMeta
 }
 
@@ -964,6 +976,10 @@ const (
 type JobSummary struct {
 	JobID   string
 	Summary map[string]TaskGroupSummary
+
+	// Raft Indexes
+	CreateIndex uint64
+	ModifyIndex uint64
 }
 
 // TaskGroup summarizes the state of all the allocations of a particular
