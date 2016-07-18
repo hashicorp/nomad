@@ -200,6 +200,13 @@ func (r *request) toHTTP() (*http.Request, error) {
 		return nil, err
 	}
 
+	// Optionally configure HTTP basic authentication
+	if r.url.User != nil {
+		username := r.url.User.Username()
+		password, _ := r.url.User.Password()
+		req.SetBasicAuth(username, password)
+	}
+
 	req.Header.Add("Accept-Encoding", "gzip")
 	req.URL.Host = r.url.Host
 	req.URL.Scheme = r.url.Scheme
@@ -216,6 +223,7 @@ func (c *Client) newRequest(method, path string) *request {
 		method: method,
 		url: &url.URL{
 			Scheme: base.Scheme,
+			User:   base.User,
 			Host:   base.Host,
 			Path:   u.Path,
 		},
