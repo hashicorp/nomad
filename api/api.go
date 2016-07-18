@@ -86,6 +86,10 @@ type Config struct {
 	// WaitTime limits how long a Watch will block. If not provided,
 	// the agent default values will be used.
 	WaitTime time.Duration
+
+	// basic authentication user and password
+	bauser string
+	bapass string
 }
 
 // DefaultConfig returns a default configuration for the client
@@ -96,6 +100,12 @@ func DefaultConfig() *Config {
 	}
 	if addr := os.Getenv("NOMAD_ADDR"); addr != "" {
 		config.Address = addr
+	}
+	if bauser := os.Getenv("NOMAD_BASIC_USER"); bauser != "" {
+		config.bauser = bauser
+	}
+	if bapass := os.Getenv("NOMAD_BASIC_PASS"); bapass != "" {
+		config.bapass = bapass
 	}
 	return config
 }
@@ -133,12 +143,15 @@ func (c *Client) SetRegion(region string) {
 
 // request is used to help build up a request
 type request struct {
-	config *Config
-	method string
-	url    *url.URL
-	params url.Values
-	body   io.Reader
-	obj    interface{}
+	config   *Config
+	method   string
+	url      *url.URL
+	params   url.Values
+	body     io.Reader
+	obj      interface{}
+	Userinfo *url.Userinfo
+	bauser   string
+	bapass   string
 }
 
 // setQueryOptions is used to annotate the request with
@@ -200,6 +213,15 @@ func (r *request) toHTTP() (*http.Request, error) {
 		return nil, err
 	}
 
+	if r.bauser != "" && r.bapass != "" {
+		req.SetBasicAuth(r.bauser, r.bapass)
+	}
+
+	if r.Userinfo != nil {
+		pwd, _ := r.Userinfo.Password()
+		req.SetBasicAuth(r.Userinfo.Username(), pwd)
+	}
+
 	req.Header.Add("Accept-Encoding", "gzip")
 	req.URL.Host = r.url.Host
 	req.URL.Scheme = r.url.Scheme
@@ -219,7 +241,10 @@ func (c *Client) newRequest(method, path string) *request {
 			Host:   base.Host,
 			Path:   u.Path,
 		},
-		params: make(map[string][]string),
+		Userinfo: base.User,
+		params:   make(map[string][]string),
+		bauser:   c.config.bauser,
+		bapass:   c.config.bapass,
 	}
 	if c.config.Region != "" {
 		r.params.Set("region", c.config.Region)
