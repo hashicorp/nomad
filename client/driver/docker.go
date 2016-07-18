@@ -345,8 +345,8 @@ func (d *DockerDriver) containerBinds(alloc *allocdir.AllocDir, task *structs.Ta
 		return nil, fmt.Errorf("Failed to find task local directory: %v", task.Name)
 	}
 
-	allocDirBind := fmt.Sprintf("%s:/%s", shared, allocdir.SharedAllocName)
-	taskLocalBind := fmt.Sprintf("%s:/%s", local, allocdir.TaskLocal)
+	allocDirBind := fmt.Sprintf("%s:%s", shared, allocdir.SharedAllocContainerPath)
+	taskLocalBind := fmt.Sprintf("%s:%s", local, allocdir.TaskLocalContainerPath)
 
 	if selinuxLabel := d.config.Read("docker.volumes.selinuxlabel"); selinuxLabel != "" {
 		allocDirBind = fmt.Sprintf("%s:%s", allocDirBind, selinuxLabel)
@@ -375,8 +375,8 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task,
 	}
 
 	// Set environment variables.
-	d.taskEnv.SetAllocDir(filepath.Join("/", allocdir.SharedAllocName))
-	d.taskEnv.SetTaskLocalDir(filepath.Join("/", allocdir.TaskLocal))
+	d.taskEnv.SetAllocDir(allocdir.SharedAllocContainerPath)
+	d.taskEnv.SetTaskLocalDir(allocdir.TaskLocalContainerPath)
 
 	config := &docker.Config{
 		Image:     driverConfig.ImageName,
