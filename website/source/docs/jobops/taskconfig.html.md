@@ -8,7 +8,7 @@ description: |-
 
 # Task Configurations
 
-Most tasks need to be paramaterized in some way. The simplest is via
+Most tasks need to be parameterized in some way. The simplest is via
 command-line arguments but often times tasks consume complex configurations via
 config files.  Here we explore how to configure Nomad jobs to support many
 common configuration use cases.

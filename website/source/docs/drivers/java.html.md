@@ -24,7 +24,7 @@ The `java` driver supports the following configuration in the job spec:
   (`subdir/from_archive/my.jar`).
 
 *   `args` - (Optional) A list of arguments to the optional `command`.
-    References to environment variables or any [intepretable Nomad
+    References to environment variables or any [interpretable Nomad
     variables](/docs/jobspec/interpreted.html) will be interpreted
     before launching the task. For example:
 

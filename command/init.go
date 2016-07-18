@@ -100,7 +100,7 @@ job "example" {
 	# Create a 'cache' group. Each task in the group will be
 	# scheduled onto the same machine.
 	group "cache" {
-		# Control the number of instances of this groups.
+		# Control the number of instances of this group.
 		# Defaults to 1
 		# count = 1
 

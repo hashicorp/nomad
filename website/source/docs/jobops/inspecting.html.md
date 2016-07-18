@@ -79,7 +79,7 @@ Evaluation "5744eb15" waiting for additional capacity to place remainder
 
 More interesting though is the [`alloc-status`
 command](/docs/commands/alloc-status.html). This command gives us the most
-recent events that occured for a task, its resource usage, port allocations and
+recent events that occurred for a task, its resource usage, port allocations and
 more:
 
 ```
@@ -140,8 +140,8 @@ Time                   Type            Description
 ```
 
 Not all failures are this easily debuggable. If the `alloc-status` command shows
-many restarts occuring as in the example below, it is a good hint that the error
-is occuring at the application level during start up. These failres can be
+many restarts occurring as in the example below, it is a good hint that the error
+is occurring at the application level during start up. These failures can be
 debugged by looking at logs which is covered in the [Nomad Job Logging
 documentation](/docs/jobops/logs.html).
 
