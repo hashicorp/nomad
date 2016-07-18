@@ -272,6 +272,11 @@ func TestServiceSched_JobRegister_AllocFail(t *testing.T) {
 		t.Fatalf("bad: %#v", metrics)
 	}
 
+	// Check queued allocations
+	queued := outEval.QueuedAllocations["web"]
+	if queued != 10 {
+		t.Fatalf("expected queued: %v, actual: %v", 10, queued)
+	}
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
 
@@ -608,6 +613,12 @@ func TestServiceSched_EvaluateBlockedEval_Finished(t *testing.T) {
 	}
 
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+
+	// Ensure queued allocations is zero
+	queued := h.Evals[0].QueuedAllocations["web"]
+	if queued != 0 {
+		t.Fatalf("expected queued: %v, actual: %v", 0, queued)
+	}
 }
 
 func TestServiceSched_JobModify(t *testing.T) {

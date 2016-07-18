@@ -969,6 +969,7 @@ type JobSummary struct {
 // TaskGroup summarizes the state of all the allocations of a particular
 // TaskGroup
 type TaskGroupSummary struct {
+	Queued   int
 	Complete int
 	Failed   int
 	Running  int
@@ -2813,6 +2814,10 @@ type Evaluation struct {
 	// scheduler.
 	SnapshotIndex uint64
 
+	// QueuedAllocations is the number of unplaced allocations at the time the
+	// evaluation was processed.
+	QueuedAllocations map[string]int
+
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
@@ -2856,6 +2861,15 @@ func (e *Evaluation) Copy() *Evaluation {
 			failedTGs[tg] = metric.Copy()
 		}
 		ne.FailedTGAllocs = failedTGs
+	}
+
+	// Copy queued allocations
+	if e.QueuedAllocations != nil {
+		queuedAllocations := make(map[string]int, len(e.QueuedAllocations))
+		for tg, num := range e.QueuedAllocations {
+			queuedAllocations[tg] = num
+		}
+		ne.QueuedAllocations = queuedAllocations
 	}
 
 	return ne

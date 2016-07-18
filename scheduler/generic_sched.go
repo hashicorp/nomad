@@ -72,15 +72,17 @@ type GenericScheduler struct {
 
 	blocked        *structs.Evaluation
 	failedTGAllocs map[string]*structs.AllocMetric
+	queuedAllocs   map[string]int
 }
 
 // NewServiceScheduler is a factory function to instantiate a new service scheduler
 func NewServiceScheduler(logger *log.Logger, state State, planner Planner) Scheduler {
 	s := &GenericScheduler{
-		logger:  logger,
-		state:   state,
-		planner: planner,
-		batch:   false,
+		logger:       logger,
+		state:        state,
+		planner:      planner,
+		batch:        false,
+		queuedAllocs: make(map[string]int),
 	}
 	return s
 }
@@ -88,10 +90,11 @@ func NewServiceScheduler(logger *log.Logger, state State, planner Planner) Sched
 // NewBatchScheduler is a factory function to instantiate a new batch scheduler
 func NewBatchScheduler(logger *log.Logger, state State, planner Planner) Scheduler {
 	s := &GenericScheduler{
-		logger:  logger,
-		state:   state,
-		planner: planner,
-		batch:   true,
+		logger:       logger,
+		state:        state,
+		planner:      planner,
+		batch:        true,
+		queuedAllocs: make(map[string]int),
 	}
 	return s
 }
@@ -110,7 +113,7 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 		desc := fmt.Sprintf("scheduler cannot handle '%s' evaluation reason",
 			eval.TriggeredBy)
 		return setStatus(s.logger, s.planner, s.eval, s.nextEval, s.blocked,
-			s.failedTGAllocs, structs.EvalStatusFailed, desc)
+			s.failedTGAllocs, structs.EvalStatusFailed, desc, s.queuedAllocs)
 	}
 
 	// Retry up to the maxScheduleAttempts and reset if progress is made.
@@ -128,7 +131,8 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 				mErr.Errors = append(mErr.Errors, err)
 			}
 			if err := setStatus(s.logger, s.planner, s.eval, s.nextEval, s.blocked,
-				s.failedTGAllocs, statusErr.EvalStatus, err.Error()); err != nil {
+				s.failedTGAllocs, statusErr.EvalStatus, err.Error(),
+				s.queuedAllocs); err != nil {
 				mErr.Errors = append(mErr.Errors, err)
 			}
 			return mErr.ErrorOrNil()
@@ -148,7 +152,7 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 
 	// Update the status to complete
 	return setStatus(s.logger, s.planner, s.eval, s.nextEval, s.blocked,
-		s.failedTGAllocs, structs.EvalStatusComplete, "")
+		s.failedTGAllocs, structs.EvalStatusComplete, "", s.queuedAllocs)
 }
 
 // createBlockedEval creates a blocked eval and submits it to the planner. If
@@ -239,6 +243,17 @@ func (s *GenericScheduler) process() (bool, error) {
 	s.planResult = result
 	if err != nil {
 		return false, err
+	}
+	if result != nil {
+		for _, allocations := range result.NodeAllocation {
+			for _, allocation := range allocations {
+				if _, ok := s.queuedAllocs[allocation.TaskGroup]; ok {
+					s.queuedAllocs[allocation.TaskGroup] -= 1
+				} else {
+					s.logger.Printf("[ERR] sched: allocation %q placed but not in list of unplaced allocations", allocation.TaskGroup)
+				}
+			}
+		}
 	}
 
 	// If we got a state refresh, try again since we have stale data
@@ -382,6 +397,14 @@ func (s *GenericScheduler) computeJobAllocs() error {
 	// Nothing remaining to do if placement is not required
 	if len(diff.place) == 0 {
 		return nil
+	}
+
+	for _, allocTuple := range diff.place {
+		if _, ok := s.queuedAllocs[allocTuple.TaskGroup.Name]; ok {
+			s.queuedAllocs[allocTuple.TaskGroup.Name] += 1
+		} else {
+			s.queuedAllocs[allocTuple.TaskGroup.Name] = 1
+		}
 	}
 
 	// Compute the placements

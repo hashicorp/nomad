@@ -368,7 +368,8 @@ func networkPortMap(n *structs.NetworkResource) map[string]int {
 // setStatus is used to update the status of the evaluation
 func setStatus(logger *log.Logger, planner Planner,
 	eval, nextEval, spawnedBlocked *structs.Evaluation,
-	tgMetrics map[string]*structs.AllocMetric, status, desc string) error {
+	tgMetrics map[string]*structs.AllocMetric, status, desc string,
+	queuedAllocs map[string]int) error {
 
 	logger.Printf("[DEBUG] sched: %#v: setting status to %s", eval, status)
 	newEval := eval.Copy()
@@ -381,6 +382,10 @@ func setStatus(logger *log.Logger, planner Planner,
 	if spawnedBlocked != nil {
 		newEval.BlockedEval = spawnedBlocked.ID
 	}
+	if queuedAllocs != nil {
+		newEval.QueuedAllocations = queuedAllocs
+	}
+
 	return planner.UpdateEval(newEval)
 }
 

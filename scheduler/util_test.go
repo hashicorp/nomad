@@ -488,7 +488,7 @@ func TestSetStatus(t *testing.T) {
 	eval := mock.Eval()
 	status := "a"
 	desc := "b"
-	if err := setStatus(logger, h, eval, nil, nil, nil, status, desc); err != nil {
+	if err := setStatus(logger, h, eval, nil, nil, nil, status, desc, nil); err != nil {
 		t.Fatalf("setStatus() failed: %v", err)
 	}
 
@@ -504,7 +504,7 @@ func TestSetStatus(t *testing.T) {
 	// Test next evals
 	h = NewHarness(t)
 	next := mock.Eval()
-	if err := setStatus(logger, h, eval, next, nil, nil, status, desc); err != nil {
+	if err := setStatus(logger, h, eval, next, nil, nil, status, desc, nil); err != nil {
 		t.Fatalf("setStatus() failed: %v", err)
 	}
 
@@ -520,7 +520,7 @@ func TestSetStatus(t *testing.T) {
 	// Test blocked evals
 	h = NewHarness(t)
 	blocked := mock.Eval()
-	if err := setStatus(logger, h, eval, nil, blocked, nil, status, desc); err != nil {
+	if err := setStatus(logger, h, eval, nil, blocked, nil, status, desc, nil); err != nil {
 		t.Fatalf("setStatus() failed: %v", err)
 	}
 
@@ -536,7 +536,7 @@ func TestSetStatus(t *testing.T) {
 	// Test metrics
 	h = NewHarness(t)
 	metrics := map[string]*structs.AllocMetric{"foo": nil}
-	if err := setStatus(logger, h, eval, nil, nil, metrics, status, desc); err != nil {
+	if err := setStatus(logger, h, eval, nil, nil, metrics, status, desc, nil); err != nil {
 		t.Fatalf("setStatus() failed: %v", err)
 	}
 
@@ -546,6 +546,23 @@ func TestSetStatus(t *testing.T) {
 
 	newEval = h.Evals[0]
 	if !reflect.DeepEqual(newEval.FailedTGAllocs, metrics) {
+		t.Fatalf("setStatus() didn't set failed task group metrics correctly: %v", newEval)
+	}
+
+	// Test queued allocations
+	h = NewHarness(t)
+	queuedAllocs := map[string]int{"web": 1}
+
+	if err := setStatus(logger, h, eval, nil, nil, metrics, status, desc, queuedAllocs); err != nil {
+		t.Fatalf("setStatus() failed: %v", err)
+	}
+
+	if len(h.Evals) != 1 {
+		t.Fatalf("setStatus() didn't update plan: %v", h.Evals)
+	}
+
+	newEval = h.Evals[0]
+	if !reflect.DeepEqual(newEval.QueuedAllocations, queuedAllocs) {
 		t.Fatalf("setStatus() didn't set failed task group metrics correctly: %v", newEval)
 	}
 }

@@ -646,6 +646,22 @@ func (s *StateStore) nestedUpsertEval(txn *memdb.Txn, index uint64, eval *struct
 		eval.ModifyIndex = index
 	}
 
+	// Update the job summary
+	summaryRaw, err := txn.First("job_summary", "id", eval.JobID)
+	if err != nil {
+		return fmt.Errorf("job summary lookup failed: %v", err)
+	}
+	if summaryRaw != nil {
+		js := summaryRaw.(*structs.JobSummary)
+		for tg, num := range eval.QueuedAllocations {
+			if summary, ok := js.Summary[tg]; ok {
+				summary.Queued = num
+			} else {
+				s.logger.Printf("[ERR] state_store: unable to update queued for job %q and task group %q", eval.JobID, tg)
+			}
+		}
+	}
+
 	// Insert the eval
 	if err := txn.Insert("evals", eval); err != nil {
 		return fmt.Errorf("eval insert failed: %v", err)
