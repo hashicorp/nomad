@@ -305,10 +305,6 @@ options](/docs/agent/config.html#options):
   set to `host`, which gives access to the hosts ipc, pid and UTS namespaces
   respectively.  
 
-    cert := d.config.Read("docker.tls.cert")
-    key := d.config.Read("docker.tls.key")
-    ca := d.config.Read("docker.tls.ca")
-
 Note: When testing or using the `-dev` flag you can use `DOCKER_HOST`,
 `DOCKER_TLS_VERIFY`, and `DOCKER_CERT_PATH` to customize Nomad's behavior. If
 `docker.endpoint` is set Nomad will **only** read client configuration from the
