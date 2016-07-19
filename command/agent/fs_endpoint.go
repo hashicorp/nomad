@@ -261,7 +261,6 @@ func (s *StreamFramer) Destroy() {
 	s.l.Lock()
 	wasRunning := s.running
 	s.running = false
-	s.f = nil
 	close(s.shutdownCh)
 	s.heartbeat.Stop()
 	s.flusher.Stop()
@@ -271,6 +270,7 @@ func (s *StreamFramer) Destroy() {
 	if wasRunning {
 		<-s.exitCh
 	}
+	s.out.Close()
 }
 
 // Run starts a long lived goroutine that handles sending data as well as
@@ -299,7 +299,6 @@ func (s *StreamFramer) run() {
 	defer func() {
 		s.l.Lock()
 		s.err = err
-		s.out.Close()
 		close(s.exitCh)
 		close(s.outbound)
 		s.l.Unlock()
@@ -322,8 +321,11 @@ func (s *StreamFramer) run() {
 
 				// Read the data for the frame, and send it
 				s.f.Data = s.readData()
-				s.outbound <- s.f
-				s.f = nil
+				select {
+				case s.outbound <- s.f:
+					s.f = nil
+				default:
+				}
 
 				s.l.Unlock()
 			case <-s.heartbeat.C:
@@ -339,7 +341,7 @@ OUTER:
 		case <-s.shutdownCh:
 			break OUTER
 		case o := <-s.outbound:
-			// Send the frame and then clear the current working frame
+			// Send the frame
 			if err = s.enc.Encode(o); err != nil {
 				return
 			}
