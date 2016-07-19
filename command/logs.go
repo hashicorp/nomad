@@ -159,7 +159,7 @@ func (l *LogsCommand) Run(args []string) int {
 	var r io.ReadCloser
 	var readErr error
 	if !tail {
-		r, readErr = l.followFile(client, alloc, task, logType, api.OriginStart, 0, -1)
+		r, readErr = l.followFile(client, alloc, task, logType, api.OriginStart, 0)
 		if readErr != nil {
 			readErr = fmt.Errorf("Error reading file: %v", readErr)
 		}
@@ -178,7 +178,7 @@ func (l *LogsCommand) Run(args []string) int {
 			numLines = defaultTailLines
 		}
 
-		r, readErr = l.followFile(client, alloc, task, logType, api.OriginEnd, offset, numLines)
+		r, readErr = l.followFile(client, alloc, task, logType, api.OriginEnd, offset)
 
 		// If numLines is set, wrap the reader
 		if numLines != -1 {
@@ -201,9 +201,9 @@ func (l *LogsCommand) Run(args []string) int {
 }
 
 // followFile outputs the contents of the file to stdout relative to the end of
-// the file. If numLines does not equal -1, then tail -n behavior is used.
+// the file.
 func (l *LogsCommand) followFile(client *api.Client, alloc *api.Allocation,
-	task, logType, origin string, offset, numLines int64) (io.ReadCloser, error) {
+	task, logType, origin string, offset int64) (io.ReadCloser, error) {
 
 	cancel := make(chan struct{})
 	frames, _, err := client.AllocFS().Logs(alloc, task, logType, origin, offset, cancel, nil)
@@ -217,11 +217,6 @@ func (l *LogsCommand) followFile(client *api.Client, alloc *api.Allocation,
 	var r io.ReadCloser
 	frameReader := api.NewFrameReader(frames, cancel)
 	r = frameReader
-
-	// If numLines is set, wrap the reader
-	if numLines != -1 {
-		r = NewLineLimitReader(r, int(numLines), int(numLines*bytesToLines))
-	}
 
 	go func() {
 		<-signalCh

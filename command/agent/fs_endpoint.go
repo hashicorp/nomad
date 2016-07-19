@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -726,19 +727,9 @@ func (s *HTTPServer) logs(offset int64, origin, task, logType string, fs allocdi
 			return fmt.Errorf("failed to list entries: %v", err)
 		}
 
-		logEntry, idx, err := findClosest(entries, nextIdx, task, logType)
+		logEntry, idx, openOffset, err := findClosest(entries, nextIdx, offset, task, logType)
 		if err != nil {
 			return err
-		}
-
-		// Apply the offset we should open at. Handling the negative case is
-		// only for the first time.
-		openOffset := offset
-		if openOffset < 0 {
-			openOffset = logEntry.Size + openOffset
-			if openOffset < 0 {
-				openOffset = 0
-			}
 		}
 
 		p := filepath.Join(logPath, logEntry.Name)
@@ -763,26 +754,36 @@ func (s *HTTPServer) logs(offset int64, origin, task, logType string, fs allocdi
 	return nil
 }
 
-func findClosest(entries []*allocdir.AllocFileInfo, desiredIdx int64,
-	task, logType string) (*allocdir.AllocFileInfo, int64, error) {
+// indexTuple and indexTupleArray are used to find the correct log entry to
+// start streaming logs from
+type indexTuple struct {
+	idx   int64
+	entry *allocdir.AllocFileInfo
+}
 
-	if len(entries) == 0 {
-		return nil, 0, fmt.Errorf("no file entries found")
-	}
+type indexTupleArray []indexTuple
 
+func (a indexTupleArray) Len() int           { return len(a) }
+func (a indexTupleArray) Less(i, j int) bool { return a[i].idx < a[j].idx }
+func (a indexTupleArray) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+
+// findClosest takes a list of entries, the desired log index and desired log
+// offset (which can be negative, treated as offset from end), task name and log
+// type and returns the log entry, the log index, the offset to read from and a
+// potential error.
+func findClosest(entries []*allocdir.AllocFileInfo, desiredIdx, desiredOffset int64,
+	task, logType string) (*allocdir.AllocFileInfo, int64, int64, error) {
+
+	// Build the matching indexes
+	var indexes []indexTuple
 	prefix := fmt.Sprintf("%s.%s.", task, logType)
-
-	var closest *allocdir.AllocFileInfo
-	closestIdx := int64(math.MaxInt64)
-	closestDist := int64(math.MaxInt64)
 	for _, entry := range entries {
 		if entry.IsDir {
 			continue
 		}
 
-		idxStr := strings.TrimPrefix(entry.Name, prefix)
-
 		// If nothing was trimmed, then it is not a match
+		idxStr := strings.TrimPrefix(entry.Name, prefix)
 		if idxStr == entry.Name {
 			continue
 		}
@@ -790,25 +791,68 @@ func findClosest(entries []*allocdir.AllocFileInfo, desiredIdx int64,
 		// Convert to an int
 		idx, err := strconv.Atoi(idxStr)
 		if err != nil {
-			return nil, 0, fmt.Errorf("failed to convert %q to a log index: %v", idxStr, err)
+			return nil, 0, 0, fmt.Errorf("failed to convert %q to a log index: %v", idxStr, err)
 		}
 
-		// Determine distance to desired
-		d := desiredIdx - int64(idx)
-		if d < 0 {
-			d *= -1
-		}
+		indexes = append(indexes, indexTuple{idx: int64(idx), entry: entry})
+	}
 
-		if d <= closestDist && (int64(idx) < closestIdx || int64(idx) == desiredIdx) {
-			closestDist = d
-			closest = entry
-			closestIdx = int64(idx)
+	if len(indexes) == 0 {
+		return nil, 0, 0, fmt.Errorf("log entry for task %q and log type %q not found", task, logType)
+	}
+
+	// Binary search the indexes to get the desiredIdx
+	sort.Sort(indexTupleArray(indexes))
+	i := sort.Search(len(indexes), func(i int) bool { return indexes[i].idx >= desiredIdx })
+	l := len(indexes)
+	if i == l {
+		// Use the last index if the number is bigger than all of them.
+		i = l - 1
+	}
+
+	// Get to the correct offset
+	offset := desiredOffset
+	idx := int64(i)
+	for {
+		s := indexes[idx].entry.Size
+
+		// Base case
+		if offset == 0 {
+			break
+		} else if offset < 0 {
+			// Going backwards
+			if newOffset := s + offset; newOffset >= 0 {
+				// Current file works
+				offset = newOffset
+				break
+			} else if idx == 0 {
+				// Already at the end
+				offset = 0
+				break
+			} else {
+				// Try the file before
+				offset = newOffset
+				idx -= 1
+				continue
+			}
+		} else {
+			// Going forward
+			if offset <= s {
+				// Current file works
+				break
+			} else if idx == int64(l-1) {
+				// Already at the end
+				offset = s
+				break
+			} else {
+				// Try the next file
+				offset = offset - s
+				idx += 1
+				continue
+			}
+
 		}
 	}
 
-	if closest == nil {
-		return nil, 0, fmt.Errorf("log entry for task %q and log type %q not found", task, logType)
-	}
-
-	return closest, closestIdx, nil
+	return indexes[idx].entry, indexes[idx].idx, offset, nil
 }
