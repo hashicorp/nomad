@@ -458,8 +458,6 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 		newAlloc.Resources = nil // Computed in Plan Apply
 		newAlloc.TaskResources = option.TaskResources
 		newAlloc.Metrics = ctx.Metrics()
-		newAlloc.DesiredStatus = structs.AllocDesiredStatusRun
-		newAlloc.ClientStatus = structs.AllocClientStatusPending
 		ctx.Plan().AppendAlloc(newAlloc)
 
 		// Remove this allocation from the slice
