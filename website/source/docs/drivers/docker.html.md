@@ -43,15 +43,14 @@ The following options are available for use in the job specification.
 
 * `command` - (Optional) The command to run when starting the container.
 
-*   `args` - (Optional) A list of arguments to the optional `command`. If no
-    `command` is present, `args` are ignored. References to environment variables
-    or any [interpretable Nomad
-    variables](/docs/jobspec/interpreted.html) will be interpreted
-    before launching the task. For example:
+* `args` - (Optional) A list of arguments to the optional `command`. If no
+  `command` is present, `args` are ignored. References to environment variables
+  or any [interpretable Nomad variables](/docs/jobspec/interpreted.html) will be
+  interpreted before launching the task. For example:
 
-    ```
-        args = ["${nomad.datacenter}", "${MY_ENV}", "${meta.foo}"]
-    ```
+  ```
+  args = ["${nomad.datacenter}", "${MY_ENV}", "${meta.foo}"]
+  ```
 
 * `labels` - (Optional) A key/value map of labels to set to the containers on
   start.
