@@ -36,7 +36,7 @@ const (
 
 	// streamHeartbeatRate is the rate at which a heartbeat will occur to detect
 	// a closed connection without sending any additional data
-	streamHeartbeatRate = 10 * time.Second
+	streamHeartbeatRate = 1 * time.Second
 
 	// streamBatchWindow is the window in which file content is batched before
 	// being flushed if the frame size has not been hit.
@@ -230,7 +230,7 @@ type StreamFramer struct {
 	// Captures whether the framer is running and any error that occurred to
 	// cause it to stop.
 	running bool
-	err     error
+	Err     error
 }
 
 // NewStreamFramer creates a new stream framer that will output StreamFrames to
@@ -259,15 +259,13 @@ func NewStreamFramer(out io.WriteCloser, heartbeatRate, batchWindow time.Duratio
 // Destroy is used to cleanup the StreamFramer and flush any pending frames
 func (s *StreamFramer) Destroy() {
 	s.l.Lock()
-	wasRunning := s.running
-	s.running = false
 	close(s.shutdownCh)
 	s.heartbeat.Stop()
 	s.flusher.Stop()
 	s.l.Unlock()
 
 	// Ensure things were flushed
-	if wasRunning {
+	if s.running {
 		<-s.exitCh
 	}
 	s.out.Close()
@@ -298,9 +296,10 @@ func (s *StreamFramer) run() {
 	var err error
 	defer func() {
 		s.l.Lock()
-		s.err = err
+		s.Err = err
 		close(s.exitCh)
 		close(s.outbound)
+		s.running = false
 		s.l.Unlock()
 	}()
 
@@ -309,6 +308,8 @@ func (s *StreamFramer) run() {
 	go func() {
 		for {
 			select {
+			case <-s.exitCh:
+				return
 			case <-s.shutdownCh:
 				return
 			case <-s.flusher.C:
@@ -321,16 +322,15 @@ func (s *StreamFramer) run() {
 
 				// Read the data for the frame, and send it
 				s.f.Data = s.readData()
-				select {
-				case s.outbound <- s.f:
-					s.f = nil
-				default:
-				}
-
+				s.outbound <- s.f
+				s.f = nil
 				s.l.Unlock()
 			case <-s.heartbeat.C:
 				// Send a heartbeat frame
-				s.outbound <- &StreamFrame{}
+				select {
+				case s.outbound <- &StreamFrame{}:
+				default:
+				}
 			}
 		}
 	}()
@@ -350,11 +350,11 @@ OUTER:
 
 	// Flush any existing frames
 	s.l.Lock()
-	defer s.l.Unlock()
 	select {
 	case o := <-s.outbound:
 		// Send the frame and then clear the current working frame
 		if err = s.enc.Encode(o); err != nil {
+			s.l.Unlock()
 			return
 		}
 	default:
@@ -364,6 +364,7 @@ OUTER:
 		s.f.Data = s.readData()
 		s.enc.Encode(s.f)
 	}
+	s.l.Unlock()
 }
 
 // readData is a helper which reads the buffered data returning up to the frame
@@ -378,7 +379,10 @@ func (s *StreamFramer) readData() []byte {
 	if size == 0 {
 		return nil
 	}
-	return s.data.Next(size)
+	d := s.data.Next(size)
+	b := make([]byte, size)
+	copy(b, d)
+	return b
 }
 
 // Send creates and sends a StreamFrame based on the passed parameters. An error
@@ -391,8 +395,8 @@ func (s *StreamFramer) Send(file, fileEvent string, data []byte, offset int64) e
 	// If we are not running, return the error that caused us to not run or
 	// indicated that it was never started.
 	if !s.running {
-		if s.err != nil {
-			return s.err
+		if s.Err != nil {
+			return s.Err
 		}
 		return fmt.Errorf("StreamFramer not running")
 	}
@@ -400,13 +404,14 @@ func (s *StreamFramer) Send(file, fileEvent string, data []byte, offset int64) e
 	// Check if not mergeable
 	if s.f != nil && (s.f.File != file || s.f.FileEvent != fileEvent) {
 		// Flush the old frame
-		s.outbound <- &StreamFrame{
-			Offset:    s.f.Offset,
-			File:      s.f.File,
-			FileEvent: s.f.FileEvent,
-			Data:      s.readData(),
+		f := *s.f
+		f.Data = s.readData()
+		select {
+		case <-s.exitCh:
+			return nil
+		case s.outbound <- &f:
+			s.f = nil
 		}
-		s.f = nil
 	}
 
 	// Store the new data as the current frame.
@@ -423,21 +428,30 @@ func (s *StreamFramer) Send(file, fileEvent string, data []byte, offset int64) e
 
 	// Handle the delete case in which there is no data
 	if s.data.Len() == 0 && s.f.FileEvent != "" {
-		s.outbound <- &StreamFrame{
+		select {
+		case <-s.exitCh:
+			return nil
+		case s.outbound <- &StreamFrame{
 			Offset:    s.f.Offset,
 			File:      s.f.File,
 			FileEvent: s.f.FileEvent,
+		}:
 		}
 	}
 
 	// Flush till we are under the max frame size
 	for s.data.Len() >= s.frameSize {
 		// Create a new frame to send it
-		s.outbound <- &StreamFrame{
+		d := s.readData()
+		select {
+		case <-s.exitCh:
+			return nil
+		case s.outbound <- &StreamFrame{
 			Offset:    s.f.Offset,
 			File:      s.f.File,
 			FileEvent: s.f.FileEvent,
-			Data:      s.readData(),
+			Data:      d,
+		}:
 		}
 	}
 
@@ -743,7 +757,7 @@ func (s *HTTPServer) logs(offset int64, origin, task, logType string, fs allocdi
 
 		//Since we successfully streamed, update the overall offset/idx.
 		offset = int64(0)
-		nextIdx++
+		nextIdx = idx + 1
 	}
 
 	return nil
@@ -759,7 +773,7 @@ func findClosest(entries []*allocdir.AllocFileInfo, desiredIdx int64,
 	prefix := fmt.Sprintf("%s.%s.", task, logType)
 
 	var closest *allocdir.AllocFileInfo
-	var closestIdx int64
+	closestIdx := int64(math.MaxInt64)
 	closestDist := int64(math.MaxInt64)
 	for _, entry := range entries {
 		if entry.IsDir {
@@ -785,7 +799,7 @@ func findClosest(entries []*allocdir.AllocFileInfo, desiredIdx int64,
 			d *= -1
 		}
 
-		if d < closestDist {
+		if d <= closestDist && (int64(idx) < closestIdx || int64(idx) == desiredIdx) {
 			closestDist = d
 			closest = entry
 			closestIdx = int64(idx)

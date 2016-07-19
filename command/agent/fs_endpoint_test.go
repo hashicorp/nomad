@@ -10,11 +10,13 @@ import (
 	"path/filepath"
 	"reflect"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/pmezard/go-difflib/difflib"
 	"github.com/ugorji/go/codec"
 )
 
@@ -310,26 +312,25 @@ func TestStreamFramer_Order(t *testing.T) {
 	r, w := io.Pipe()
 	wrappedW := &WriteCloseChecker{WriteCloser: w}
 	// Ensure the batch window doesn't get hit
-	hRate, bWindow := 100*time.Millisecond, 100*time.Millisecond
-	sf := NewStreamFramer(wrappedW, hRate, bWindow, 100)
+	hRate, bWindow := 100*time.Millisecond, 10*time.Millisecond
+	sf := NewStreamFramer(wrappedW, hRate, bWindow, 10)
 	sf.Run()
 
 	// Create a decoder
 	dec := codec.NewDecoder(r, jsonHandle)
 
-	//files := []string{"1", "2", "3", "4", "5"}
-	files := []string{"1"}
-	input := bytes.NewBuffer(make([]byte, 100000))
-	for i := 0; i <= 2000; i++ {
-		str := strconv.Itoa(i) + "\n"
+	files := []string{"1", "2", "3", "4", "5"}
+	input := bytes.NewBuffer(make([]byte, 0, 100000))
+	for i := 0; i <= 1000; i++ {
+		str := strconv.Itoa(i) + ","
 		input.WriteString(str)
 	}
 
-	expected := bytes.NewBuffer(make([]byte, 100000))
+	expected := bytes.NewBuffer(make([]byte, 0, 100000))
 	for _, _ = range files {
 		expected.Write(input.Bytes())
 	}
-	receivedBuf := bytes.NewBuffer(make([]byte, 100000))
+	receivedBuf := bytes.NewBuffer(make([]byte, 0, 100000))
 
 	// Start the reader
 	resultCh := make(chan struct{})
@@ -373,10 +374,19 @@ func TestStreamFramer_Order(t *testing.T) {
 	// Ensure we get data
 	select {
 	case <-resultCh:
-	case <-time.After(4 * bWindow):
+	case <-time.After(10 * bWindow):
 		got := receivedBuf.String()
 		want := expected.String()
-		t.Fatalf("Did not receive data in sorted order\nGot:%v\nWant:%v\n", got, want)
+		diff := difflib.ContextDiff{
+			A:        difflib.SplitLines(strings.Replace(got, ",", "\n", -1)),
+			B:        difflib.SplitLines(strings.Replace(want, ",", "\n", -1)),
+			FromFile: "Got",
+			ToFile:   "Want",
+			Context:  3,
+			Eol:      "\n",
+		}
+		result, _ := difflib.GetContextDiffString(diff)
+		t.Fatalf(strings.Replace(result, "\t", " ", -1))
 	}
 
 	// Close the reader and wait. This should cause the runner to exit
