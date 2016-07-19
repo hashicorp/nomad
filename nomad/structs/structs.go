@@ -707,7 +707,7 @@ type Resources struct {
 	Networks []*NetworkResource
 }
 
-// DefaultResources returns the minimum resources a task can use and be valid.
+// DefaultResources returns the default resources for a task.
 func DefaultResources() *Resources {
 	return &Resources{
 		CPU:      100,
@@ -1702,6 +1702,7 @@ type LogConfig struct {
 	MaxFileSizeMB int `mapstructure:"max_file_size"`
 }
 
+// DefaultLogConfig returns the default LogConfig values.
 func DefaultLogConfig() *LogConfig {
 	return &LogConfig{
 		MaxFiles:      10,
