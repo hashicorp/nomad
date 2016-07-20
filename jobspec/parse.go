@@ -767,6 +767,7 @@ func parseChecks(service *structs.Service, checkObjs *ast.ObjectList) error {
 			"timeout",
 			"path",
 			"protocol",
+			"port",
 			"command",
 			"args",
 		}

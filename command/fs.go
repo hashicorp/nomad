@@ -5,11 +5,24 @@ import (
 	"io"
 	"math/rand"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	humanize "github.com/dustin/go-humanize"
 	"github.com/hashicorp/nomad/api"
+)
+
+const (
+	// bytesToLines is an estimation of how many bytes are in each log line.
+	// This is used to set the offset to read from when a user specifies how
+	// many lines to tail from.
+	bytesToLines int64 = 120
+
+	// defaultTailLines is the number of lines to tail by default if the value
+	// is not overriden.
+	defaultTailLines int64 = 10
 )
 
 type FSCommand struct {
@@ -42,6 +55,21 @@ FS Specific Options:
   -stat
     Show file stat information instead of displaying the file, or listing the directory.
 
+  -tail 
+	Show the files contents with offsets relative to the end of the file. If no
+	offset is given, -n is defaulted to 10.
+
+  -n
+	Sets the tail location in best-efforted number of lines relative to the end
+	of the file.
+
+  -c
+	Sets the tail location in number of bytes relative to the end of the file.
+
+  -f
+	Causes the output to not stop when the end of the file is reached, but
+	rather to wait for additional output. 
+
 `
 	return strings.TrimSpace(helpText)
 }
@@ -51,13 +79,19 @@ func (f *FSCommand) Synopsis() string {
 }
 
 func (f *FSCommand) Run(args []string) int {
-	var verbose, machine, job, stat bool
+	var verbose, machine, job, stat, tail, follow bool
+	var numLines, numBytes int64
+
 	flags := f.Meta.FlagSet("fs-list", FlagSetClient)
 	flags.Usage = func() { f.Ui.Output(f.Help()) }
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.BoolVar(&machine, "H", false, "")
 	flags.BoolVar(&job, "job", false, "")
 	flags.BoolVar(&stat, "stat", false, "")
+	flags.BoolVar(&follow, "f", false, "")
+	flags.BoolVar(&tail, "tail", false, "")
+	flags.Int64Var(&numLines, "n", -1, "")
+	flags.Int64Var(&numBytes, "c", -1, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -212,17 +246,104 @@ nomad alloc-status %s`, allocID, allocID)
 			)
 		}
 		f.Ui.Output(formatList(out))
-	} else {
-		// We have a file, cat it.
-		r, _, err := client.AllocFS().Cat(alloc, path, nil)
-		if err != nil {
-			f.Ui.Error(fmt.Sprintf("Error reading file: %s", err))
-			return 1
-		}
-		io.Copy(os.Stdout, r)
+		return 0
 	}
 
+	// We have a file, output it.
+	var r io.ReadCloser
+	var readErr error
+	if !tail {
+		if follow {
+			r, readErr = f.followFile(client, alloc, path, api.OriginStart, 0, -1)
+		} else {
+			r, _, readErr = client.AllocFS().Cat(alloc, path, nil)
+		}
+
+		if readErr != nil {
+			readErr = fmt.Errorf("Error reading file: %v", readErr)
+		}
+	} else {
+		// Parse the offset
+		var offset int64 = defaultTailLines * bytesToLines
+
+		if nLines, nBytes := numLines != -1, numBytes != -1; nLines && nBytes {
+			f.Ui.Error("Both -n and -c set")
+			return 1
+		} else if nLines {
+			offset = numLines * bytesToLines
+		} else if nBytes {
+			offset = numBytes
+		} else {
+			numLines = defaultTailLines
+		}
+
+		if offset > file.Size {
+			offset = file.Size
+		}
+
+		if follow {
+			r, readErr = f.followFile(client, alloc, path, api.OriginEnd, offset, numLines)
+		} else {
+			// This offset needs to be relative from the front versus the follow
+			// is relative to the end
+			offset = file.Size - offset
+			r, _, readErr = client.AllocFS().ReadAt(alloc, path, offset, -1, nil)
+
+			// If numLines is set, wrap the reader
+			if numLines != -1 {
+				r = NewLineLimitReader(r, int(numLines), int(numLines*bytesToLines))
+			}
+		}
+
+		if readErr != nil {
+			readErr = fmt.Errorf("Error tailing file: %v", readErr)
+		}
+	}
+
+	defer r.Close()
+	if readErr != nil {
+		f.Ui.Error(readErr.Error())
+		return 1
+	}
+
+	io.Copy(os.Stdout, r)
 	return 0
+}
+
+// followFile outputs the contents of the file to stdout relative to the end of
+// the file. If numLines does not equal -1, then tail -n behavior is used.
+func (f *FSCommand) followFile(client *api.Client, alloc *api.Allocation,
+	path, origin string, offset, numLines int64) (io.ReadCloser, error) {
+
+	cancel := make(chan struct{})
+	frames, _, err := client.AllocFS().Stream(alloc, path, origin, offset, cancel, nil)
+	if err != nil {
+		return nil, err
+	}
+	signalCh := make(chan os.Signal, 1)
+	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
+
+	// Create a reader
+	var r io.ReadCloser
+	frameReader := api.NewFrameReader(frames, cancel)
+	r = frameReader
+
+	// If numLines is set, wrap the reader
+	if numLines != -1 {
+		r = NewLineLimitReader(r, int(numLines), int(numLines*bytesToLines))
+	}
+
+	go func() {
+		<-signalCh
+
+		// End the streaming
+		r.Close()
+
+		// Output the last offset
+		f.Ui.Output(fmt.Sprintf("\nLast outputted offset (bytes): %d", frameReader.Offset()))
+	}()
+
+	return r, nil
 }
 
 // Get Random Allocation ID from a known jobID. Prefer to use a running allocation,

@@ -3,6 +3,7 @@ package fingerprint
 import (
 	"fmt"
 	"log"
+	"sort"
 	"time"
 
 	"github.com/hashicorp/nomad/client/config"
@@ -10,38 +11,39 @@ import (
 )
 
 // EmptyDuration is to be used by fingerprinters that are not periodic.
-const EmptyDuration = time.Duration(0)
+const (
+	EmptyDuration = time.Duration(0)
+)
+
+func init() {
+	builtinFingerprintMap["arch"] = NewArchFingerprint
+	builtinFingerprintMap["cpu"] = NewCPUFingerprint
+	builtinFingerprintMap["env_aws"] = NewEnvAWSFingerprint
+	builtinFingerprintMap["env_gce"] = NewEnvGCEFingerprint
+	builtinFingerprintMap["host"] = NewHostFingerprint
+	builtinFingerprintMap["memory"] = NewMemoryFingerprint
+	builtinFingerprintMap["network"] = NewNetworkFingerprint
+	builtinFingerprintMap["nomad"] = NewNomadFingerprint
+	builtinFingerprintMap["storage"] = NewStorageFingerprint
+
+	// Initialize the list of available fingerprinters per platform.  Each
+	// platform defines its own list of available fingerprinters.
+	initPlatformFingerprints(builtinFingerprintMap)
+}
+
+// builtinFingerprintMap contains the built in registered fingerprints which are
+// available for a given platform.
+var builtinFingerprintMap = make(map[string]Factory, 16)
 
 // BuiltinFingerprints is a slice containing the key names of all registered
 // fingerprints available, to provided an ordered iteration
-var BuiltinFingerprints = []string{
-	"arch",
-	"cgroup",
-	"consul",
-	"cpu",
-	"env_aws",
-	"env_gce",
-	"host",
-	"memory",
-	"network",
-	"nomad",
-	"storage",
-}
-
-// builtinFingerprintMap contains the built in registered fingerprints
-// which are available, corresponding to a key found in BuiltinFingerprints
-var builtinFingerprintMap = map[string]Factory{
-	"arch":    NewArchFingerprint,
-	"cgroup":  NewCGroupFingerprint,
-	"consul":  NewConsulFingerprint,
-	"cpu":     NewCPUFingerprint,
-	"env_aws": NewEnvAWSFingerprint,
-	"env_gce": NewEnvGCEFingerprint,
-	"host":    NewHostFingerprint,
-	"memory":  NewMemoryFingerprint,
-	"network": NewNetworkFingerprint,
-	"nomad":   NewNomadFingerprint,
-	"storage": NewStorageFingerprint,
+func BuiltinFingerprints() []string {
+	fingerprints := make([]string, 0, len(builtinFingerprintMap))
+	for k := range builtinFingerprintMap {
+		fingerprints = append(fingerprints, k)
+	}
+	sort.Strings(fingerprints)
+	return fingerprints
 }
 
 // NewFingerprint is used to instantiate and return a new fingerprint

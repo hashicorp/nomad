@@ -9,7 +9,7 @@ description: |-
 # Creating a cluster
 
 Nomad clusters in production comprises of a few Nomad servers (an odd number,
-preferrably 3 or 5, but never an even number to prevent split-brain), clients and
+preferably 3 or 5, but never an even number to prevent split-brain), clients and
 optionally Consul servers and clients. Before we start discussing the specifics
 around bootstrapping clusters we should discuss the network topology. Nomad
 models infrastructure as regions and datacenters. Nomad regions may contain multiple
@@ -142,7 +142,7 @@ for the complete set of configuration options.
 Nomad clusters across multiple regions can be federated allowing users to submit
 jobs or interact with the HTTP API targeting any region, from any server.
 
-Federating multiple Nomad clusters is as simple as joing servers. From any
+Federating multiple Nomad clusters is as simple as joining servers. From any
 server in one region, simply issue a join command to a server in the remote
 region:
 

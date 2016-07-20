@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime/debug"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -709,7 +710,7 @@ func TestDockerPortsMapping(t *testing.T) {
 	expectedEnvironment := map[string]string{
 		"NOMAD_ADDR_main":      "127.0.0.1:8080",
 		"NOMAD_ADDR_REDIS":     "127.0.0.1:6379",
-		"NOMAD_HOST_PORT_main": "8080",
+		"NOMAD_HOST_PORT_main": strconv.Itoa(docker_reserved),
 	}
 
 	for key, val := range expectedEnvironment {

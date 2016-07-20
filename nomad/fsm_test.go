@@ -938,3 +938,29 @@ func TestFSM_SnapshotRestore_PeriodicLaunches(t *testing.T) {
 		t.Fatalf("bad: \n%#v\n%#v", out2, job2)
 	}
 }
+
+func TestFSM_SnapshotRestore_JobSummary(t *testing.T) {
+	// Add some state
+	fsm := testFSM(t)
+	state := fsm.State()
+
+	job1 := mock.Job()
+	state.UpsertJob(1000, job1)
+	js1, _ := state.JobSummaryByID(job1.ID)
+
+	job2 := mock.Job()
+	state.UpsertJob(1001, job2)
+	js2, _ := state.JobSummaryByID(job2.ID)
+
+	// Verify the contents
+	fsm2 := testSnapshotRestore(t, fsm)
+	state2 := fsm2.State()
+	out1, _ := state2.JobSummaryByID(job1.ID)
+	out2, _ := state2.JobSummaryByID(job2.ID)
+	if !reflect.DeepEqual(js1, out1) {
+		t.Fatalf("bad: \n%#v\n%#v", js1, job1)
+	}
+	if !reflect.DeepEqual(js2, out2) {
+		t.Fatalf("bad: \n%#v\n%#v", js2, job2)
+	}
+}

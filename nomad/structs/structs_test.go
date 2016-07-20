@@ -117,6 +117,7 @@ func testJob() *Job {
 				Name:  "web",
 				Count: 10,
 				RestartPolicy: &RestartPolicy{
+					Mode:     RestartPolicyModeFail,
 					Attempts: 3,
 					Interval: 10 * time.Minute,
 					Delay:    1 * time.Minute,
@@ -145,12 +146,17 @@ func testJob() *Job {
 						Resources: &Resources{
 							CPU:      500,
 							MemoryMB: 256,
+							DiskMB:   20,
 							Networks: []*NetworkResource{
 								&NetworkResource{
 									MBits:        50,
 									DynamicPorts: []Port{{Label: "http"}},
 								},
 							},
+						},
+						LogConfig: &LogConfig{
+							MaxFiles:      10,
+							MaxFileSizeMB: 1,
 						},
 					},
 				},
@@ -191,6 +197,27 @@ func TestJob_IsPeriodic(t *testing.T) {
 	}
 	if j.IsPeriodic() {
 		t.Fatalf("IsPeriodic() returned true on non-periodic job")
+	}
+}
+
+func TestJob_SystemJob_Validate(t *testing.T) {
+	j := testJob()
+	j.Type = JobTypeSystem
+	j.InitFields()
+
+	err := j.Validate()
+	if err == nil || !strings.Contains(err.Error(), "exceed") {
+		t.Fatalf("expect error due to count")
+	}
+
+	j.TaskGroups[0].Count = 0
+	if err := j.Validate(); err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+
+	j.TaskGroups[0].Count = 1
+	if err := j.Validate(); err != nil {
+		t.Fatalf("unexpected err: %v", err)
 	}
 }
 
@@ -288,12 +315,14 @@ func TestTask_Validate_Services(t *testing.T) {
 		PortLabel: "bar",
 		Checks: []*ServiceCheck{
 			{
-				Name: "check-name",
-				Type: ServiceCheckTCP,
+				Name:     "check-name",
+				Type:     ServiceCheckTCP,
+				Interval: 0 * time.Second,
 			},
 			{
-				Name: "check-name",
-				Type: ServiceCheckTCP,
+				Name:    "check-name",
+				Type:    ServiceCheckTCP,
+				Timeout: 2 * time.Second,
 			},
 		},
 	}
@@ -327,6 +356,10 @@ func TestTask_Validate_Services(t *testing.T) {
 
 	if !strings.Contains(err.Error(), "check \"check-name\" is duplicate") {
 		t.Fatalf("err: %v", err)
+	}
+
+	if !strings.Contains(err.Error(), "interval (0) can not be lower") {
+		t.Fatal("err: %v", err)
 	}
 }
 

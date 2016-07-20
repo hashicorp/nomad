@@ -26,12 +26,19 @@ var (
 		Interval: 30 * time.Second,
 		Timeout:  5 * time.Second,
 	}
+	check2 = structs.ServiceCheck{
+		Name:      "check1",
+		Type:      "tcp",
+		PortLabel: "port2",
+		Interval:  3 * time.Second,
+		Timeout:   1 * time.Second,
+	}
 	service1 = structs.Service{
 		Name:      "foo-1",
 		Tags:      []string{"tag1", "tag2"},
 		PortLabel: "port1",
 		Checks: []*structs.ServiceCheck{
-			&check1,
+			&check1, &check2,
 		},
 	}
 
@@ -41,6 +48,30 @@ var (
 		PortLabel: "port2",
 	}
 )
+
+func TestCheckRegistration(t *testing.T) {
+	cs, err := NewSyncer(config.DefaultConsulConfig(), make(chan struct{}), logger)
+	if err != nil {
+		t.Fatalf("Err: %v", err)
+	}
+
+	task := mockTask()
+	cs.SetAddrFinder(task.FindHostAndPortFor)
+
+	srvReg, _ := cs.createService(&service1, "domain", "key")
+	check1Reg, _ := cs.createCheckReg(&check1, srvReg)
+	check2Reg, _ := cs.createCheckReg(&check2, srvReg)
+
+	expected := "10.10.11.5:20002"
+	if check1Reg.TCP != expected {
+		t.Fatalf("expected: %v, actual: %v", expected, check1Reg.TCP)
+	}
+
+	expected = "10.10.11.5:20003"
+	if check2Reg.TCP != expected {
+		t.Fatalf("expected: %v, actual: %v", expected, check1Reg.TCP)
+	}
+}
 
 func TestConsulServiceRegisterServices(t *testing.T) {
 	t.Skip()

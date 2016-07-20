@@ -72,6 +72,7 @@ job "binstore-storagelocker" {
           type     = "tcp"
           interval = "10s"
           timeout  = "2s"
+          port     = "admin"
         }
       }
 

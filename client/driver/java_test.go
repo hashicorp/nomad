@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -13,6 +14,12 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 
 	ctestutils "github.com/hashicorp/nomad/client/testutil"
+)
+
+var (
+	osJavaDriverSupport = map[string]bool{
+		"linux": true,
+	}
 )
 
 // javaLocated checks whether java is installed so we can run java stuff.
@@ -40,7 +47,11 @@ func TestJavaDriver_Fingerprint(t *testing.T) {
 		t.Fatalf("Fingerprinter should detect Java when it is installed")
 	}
 	if node.Attributes["driver.java"] != "1" {
-		t.Fatalf("missing driver")
+		if v, ok := osJavaDriverSupport[runtime.GOOS]; v && ok {
+			t.Fatalf("missing java driver")
+		} else {
+			t.Skipf("missing java driver, no OS support")
+		}
 	}
 	for _, key := range []string{"driver.java.version", "driver.java.runtime", "driver.java.vm"} {
 		if node.Attributes[key] == "" {

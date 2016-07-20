@@ -33,15 +33,30 @@ func TestRPC_forwardLeader(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 	testutil.WaitForLeader(t, s2.RPC)
 
-	var out struct{}
-	err := s1.forwardLeader("Status.Ping", struct{}{}, &out)
-	if err != nil {
-		t.Fatalf("err: %v", err)
+	isLeader, remote := s1.getLeader()
+	if !isLeader && remote == nil {
+		t.Fatalf("missing leader")
 	}
 
-	err = s2.forwardLeader("Status.Ping", struct{}{}, &out)
-	if err != nil {
-		t.Fatalf("err: %v", err)
+	if remote != nil {
+		var out struct{}
+		err := s1.forwardLeader(remote, "Status.Ping", struct{}{}, &out)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	}
+
+	isLeader, remote = s2.getLeader()
+	if !isLeader && remote == nil {
+		t.Fatalf("missing leader")
+	}
+
+	if remote != nil {
+		var out struct{}
+		err := s2.forwardLeader(remote, "Status.Ping", struct{}{}, &out)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
 	}
 }
 

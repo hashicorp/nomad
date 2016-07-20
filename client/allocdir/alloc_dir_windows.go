@@ -3,6 +3,15 @@ package allocdir
 import (
 	"errors"
 	"os"
+	"path/filepath"
+)
+
+var (
+	//Path inside container for mounted directory that is shared across tasks in a task group.
+	SharedAllocContainerPath = filepath.Join("c:\\", SharedAllocName)
+
+	//Path inside container for mounted directory for local storage.
+	TaskLocalContainerPath = filepath.Join("c:\\", TaskLocal)
 )
 
 func (d *AllocDir) linkOrCopy(src, dst string, perm os.FileMode) error {

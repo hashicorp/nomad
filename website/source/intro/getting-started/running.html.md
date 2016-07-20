@@ -144,4 +144,4 @@ be used to force the server from a _failed_ to a _left_ state.
 
 ## Next Steps
 
-The development Nomad agent is up and running. Let's try to [run a job](jobs.html)!
+If you shut down the development Nomad agent as instructed above, ensure that it is back up and running again and let's try to [run a job](jobs.html)!

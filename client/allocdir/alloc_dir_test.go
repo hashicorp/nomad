@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"testing"
 
 	"github.com/hashicorp/nomad/client/testutil"
@@ -12,6 +13,11 @@ import (
 )
 
 var (
+	osMountSharedDirSupport = map[string]bool{
+		"darwin": true,
+		"linux":  true,
+	}
+
 	t1 = &structs.Task{
 		Name:   "web",
 		Driver: "exec",
@@ -193,7 +199,11 @@ func TestAllocDir_MountSharedAlloc(t *testing.T) {
 	for _, task := range tasks {
 		// Mount and then check that the file exists in the task directory.
 		if err := d.MountSharedDir(task.Name); err != nil {
-			t.Fatalf("MountSharedDir(%v) failed: %v", task.Name, err)
+			if v, ok := osMountSharedDirSupport[runtime.GOOS]; v && ok {
+				t.Fatalf("MountSharedDir(%v) failed: %v", task.Name, err)
+			} else {
+				t.Skipf("MountShareDir(%v) failed, no OS support")
+			}
 		}
 
 		taskDir, ok := d.TaskDirs[task.Name]

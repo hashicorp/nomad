@@ -506,7 +506,7 @@ region is used; another region can be specified using the `?region=` query param
       </li>
       <li>
         <span class="param">FailedTGAllocs</span>
-        A set of metrics to understand any allocation failures that occured for
+        A set of metrics to understand any allocation failures that occurred for
         the Task Group.
       </li>
       <li>

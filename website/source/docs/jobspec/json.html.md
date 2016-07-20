@@ -433,8 +433,8 @@ The `Constraint` object supports the following keys:
   This can be a literal value, another attribute or a regular expression if
   the `Operator` is in "regexp" mode.
 
-*   `Operator` - `Operator` if omitted defaults to `==` and an take on the
-    following values:
+* `Operand` - Specifies the test to be performed on the two targets. It takes on the
+  following values:
   
   * `regexp` - Allows the `RTarget` to be a regular expression to be matched.
 
@@ -483,7 +483,7 @@ Nomad downloads artifacts using
 [`go-getter`](https://github.com/hashicorp/go-getter). The `go-getter` library
 allows downloading of artifacts from various sources using a URL as the input
 source. The key/value pairs given in the `options` block map directly to
-parameters appended to the supplied `source` url. These are then used by
+parameters appended to the supplied `source` URL. These are then used by
 `go-getter` to appropriately download the artifact. `go-getter` also has a CLI
 tool to validate its URL and can be used to check if the Nomad `artifact` is
 valid.
@@ -547,7 +547,7 @@ Path based style:
 ]
 ```
 
-or to override automatic detection in the url, use the s3 specific syntax
+or to override automatic detection in the URL, use the S3-specific syntax
 ```
 "Artifacts": [
   {

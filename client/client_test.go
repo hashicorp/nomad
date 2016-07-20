@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -22,7 +23,13 @@ import (
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
 )
 
-var nextPort uint32 = 16000
+var (
+	nextPort uint32 = 16000
+
+	osExecDriverSupport = map[string]bool{
+		"linux": true,
+	}
+)
 
 func getPort() int {
 	return int(atomic.AddUint32(&nextPort, 1))
@@ -225,7 +232,11 @@ func TestClient_Drivers(t *testing.T) {
 
 	node := c.Node()
 	if node.Attributes["driver.exec"] == "" {
-		t.Fatalf("missing exec driver")
+		if v, ok := osExecDriverSupport[runtime.GOOS]; v && ok {
+			t.Fatalf("missing exec driver")
+		} else {
+			t.Skipf("missing exec driver, no OS support")
+		}
 	}
 }
 
@@ -242,7 +253,11 @@ func TestClient_Drivers_InWhitelist(t *testing.T) {
 
 	node := c.Node()
 	if node.Attributes["driver.exec"] == "" {
-		t.Fatalf("missing exec driver")
+		if v, ok := osExecDriverSupport[runtime.GOOS]; v && ok {
+			t.Fatalf("missing exec driver")
+		} else {
+			t.Skipf("missing exec driver, no OS support")
+		}
 	}
 }
 

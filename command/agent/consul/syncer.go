@@ -27,7 +27,9 @@ package consul
 import (
 	"fmt"
 	"log"
+	"net"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -684,14 +686,18 @@ func (c *Syncer) registerCheck(chkReg *consul.AgentCheckRegistration) error {
 
 // createCheckReg creates a Check that can be registered with Nomad. It also
 // creates a Nomad check for the check types that it can handle.
-func (c *Syncer) createCheckReg(check *structs.ServiceCheck, service *consul.AgentServiceRegistration) (*consul.AgentCheckRegistration, error) {
+func (c *Syncer) createCheckReg(check *structs.ServiceCheck, serviceReg *consul.AgentServiceRegistration) (*consul.AgentCheckRegistration, error) {
 	chkReg := consul.AgentCheckRegistration{
-		ID:        check.Hash(service.ID),
+		ID:        check.Hash(serviceReg.ID),
 		Name:      check.Name,
-		ServiceID: service.ID,
+		ServiceID: serviceReg.ID,
 	}
 	chkReg.Timeout = check.Timeout.String()
 	chkReg.Interval = check.Interval.String()
+	host, port := serviceReg.Address, serviceReg.Port
+	if check.PortLabel != "" {
+		host, port = c.addrFinder(check.PortLabel)
+	}
 	switch check.Type {
 	case structs.ServiceCheckHTTP:
 		if check.Protocol == "" {
@@ -699,12 +705,12 @@ func (c *Syncer) createCheckReg(check *structs.ServiceCheck, service *consul.Age
 		}
 		url := url.URL{
 			Scheme: check.Protocol,
-			Host:   fmt.Sprintf("%s:%d", service.Address, service.Port),
+			Host:   net.JoinHostPort(host, strconv.Itoa(port)),
 			Path:   check.Path,
 		}
 		chkReg.HTTP = url.String()
 	case structs.ServiceCheckTCP:
-		chkReg.TCP = fmt.Sprintf("%s:%d", service.Address, service.Port)
+		chkReg.TCP = net.JoinHostPort(host, strconv.Itoa(port))
 	case structs.ServiceCheckScript:
 		chkReg.TTL = (check.Interval + ttlCheckBuffer).String()
 	default:

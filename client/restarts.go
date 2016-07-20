@@ -132,9 +132,15 @@ func (r *RestartTracker) handleStartError() (string, time.Duration) {
 	}
 
 	if r.count > r.policy.Attempts {
-		r.reason = fmt.Sprintf("Exceeded allowed attempts %d in interval %v",
-			r.policy.Attempts, r.policy.Interval)
-		return structs.TaskNotRestarting, 0
+		if r.policy.Mode == structs.RestartPolicyModeFail {
+			r.reason = fmt.Sprintf(
+				`Exceeded allowed atttempts %d in interval %v and mode is "fail"`,
+				r.policy.Attempts, r.policy.Interval)
+			return structs.TaskNotRestarting, 0
+		} else {
+			r.reason = ReasonDelay
+			return structs.TaskRestarting, r.getDelay()
+		}
 	}
 
 	r.reason = ReasonWithinPolicy

@@ -634,6 +634,10 @@ type Node struct {
 	// StatusDescription is meant to provide more human useful information
 	StatusDescription string
 
+	// StatusUpdatedAt is the time stamp at which the state of the node was
+	// updated
+	StatusUpdatedAt int64
+
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
@@ -933,6 +937,22 @@ const (
 	CoreJobPriority = JobMaxPriority * 2
 )
 
+// JobSummary summarizes the state of the allocations of a job
+type JobSummary struct {
+	JobID   string
+	Summary map[string]TaskGroupSummary
+}
+
+// TaskGroup summarizes the state of all the allocations of a particular
+// TaskGroup
+type TaskGroupSummary struct {
+	Complete int
+	Failed   int
+	Running  int
+	Starting int
+	Lost     int
+}
+
 // Job is the scope of a scheduling request to Nomad. It is the largest
 // scoped object, and is a named collection of task groups. Each task group
 // is further composed of tasks. A task group (TG) is the unit of scheduling
@@ -1076,9 +1096,9 @@ func (j *Job) Validate() error {
 			taskGroups[tg.Name] = idx
 		}
 
-		if j.Type == "system" && tg.Count != 1 {
+		if j.Type == "system" && tg.Count > 1 {
 			mErr.Errors = append(mErr.Errors,
-				fmt.Errorf("Job task group %d has count %d. Only count of 1 is supported with system scheduler",
+				fmt.Errorf("Job task group %d has count %d. Count cannot exceed 1 with system scheduler",
 					idx+1, tg.Count))
 		}
 	}
@@ -1092,7 +1112,7 @@ func (j *Job) Validate() error {
 	}
 
 	// Validate periodic is only used with batch jobs.
-	if j.IsPeriodic() {
+	if j.IsPeriodic() && j.Periodic.Enabled {
 		if j.Type != JobTypeBatch {
 			mErr.Errors = append(mErr.Errors,
 				fmt.Errorf("Periodic can only be used with %q scheduler", JobTypeBatch))
@@ -1504,14 +1524,15 @@ const (
 // The ServiceCheck data model represents the consul health check that
 // Nomad registers for a Task
 type ServiceCheck struct {
-	Name     string        // Name of the check, defaults to id
-	Type     string        // Type of the check - tcp, http, docker and script
-	Command  string        // Command is the command to run for script checks
-	Args     []string      // Args is a list of argumes for script checks
-	Path     string        // path of the health check url for http type check
-	Protocol string        // Protocol to use if check is http, defaults to http
-	Interval time.Duration // Interval of the check
-	Timeout  time.Duration // Timeout of the response from the check before consul fails the check
+	Name      string        // Name of the check, defaults to id
+	Type      string        // Type of the check - tcp, http, docker and script
+	Command   string        // Command is the command to run for script checks
+	Args      []string      // Args is a list of argumes for script checks
+	Path      string        // path of the health check url for http type check
+	Protocol  string        // Protocol to use if check is http, defaults to http
+	PortLabel string        `mapstructure:"port"` // The port to use for tcp/http checks
+	Interval  time.Duration // Interval of the check
+	Timeout   time.Duration // Timeout of the response from the check before consul fails the check
 }
 
 func (sc *ServiceCheck) Copy() *ServiceCheck {
@@ -1527,16 +1548,16 @@ func (sc *ServiceCheck) Copy() *ServiceCheck {
 func (sc *ServiceCheck) validate() error {
 	switch strings.ToLower(sc.Type) {
 	case ServiceCheckTCP:
-		if sc.Timeout > 0 && sc.Timeout <= minCheckTimeout {
-			return fmt.Errorf("timeout %v is lower than required minimum timeout %v", sc.Timeout, minCheckInterval)
+		if sc.Timeout < minCheckTimeout {
+			return fmt.Errorf("timeout (%v) is lower than required minimum timeout %v", sc.Timeout, minCheckInterval)
 		}
 	case ServiceCheckHTTP:
 		if sc.Path == "" {
 			return fmt.Errorf("http type must have a valid http path")
 		}
 
-		if sc.Timeout > 0 && sc.Timeout <= minCheckTimeout {
-			return fmt.Errorf("timeout %v is lower than required minimum timeout %v", sc.Timeout, minCheckInterval)
+		if sc.Timeout < minCheckTimeout {
+			return fmt.Errorf("timeout (%v) is lower than required minimum timeout %v", sc.Timeout, minCheckInterval)
 		}
 	case ServiceCheckScript:
 		if sc.Command == "" {
@@ -1549,7 +1570,7 @@ func (sc *ServiceCheck) validate() error {
 		return fmt.Errorf(`invalid type (%+q), must be one of "http", "tcp", or "script" type`, sc.Type)
 	}
 
-	if sc.Interval > 0 && sc.Interval <= minCheckInterval {
+	if sc.Interval < minCheckInterval {
 		return fmt.Errorf("interval (%v) can not be lower than %v", sc.Interval, minCheckInterval)
 	}
 
@@ -1575,6 +1596,7 @@ func (sc *ServiceCheck) Hash(serviceID string) string {
 	io.WriteString(h, strings.Join(sc.Args, ""))
 	io.WriteString(h, sc.Path)
 	io.WriteString(h, sc.Protocol)
+	io.WriteString(h, sc.PortLabel)
 	io.WriteString(h, sc.Interval.String())
 	io.WriteString(h, sc.Timeout.String())
 	return fmt.Sprintf("%x", h.Sum(nil))
@@ -2291,10 +2313,9 @@ func (c *Constraint) Validate() error {
 }
 
 const (
-	AllocDesiredStatusRun    = "run"    // Allocation should run
-	AllocDesiredStatusStop   = "stop"   // Allocation should stop
-	AllocDesiredStatusEvict  = "evict"  // Allocation should stop, and was evicted
-	AllocDesiredStatusFailed = "failed" // Allocation failed to be done
+	AllocDesiredStatusRun   = "run"   // Allocation should run
+	AllocDesiredStatusStop  = "stop"  // Allocation should stop
+	AllocDesiredStatusEvict = "evict" // Allocation should stop, and was evicted
 )
 
 const (
@@ -2302,6 +2323,7 @@ const (
 	AllocClientStatusRunning  = "running"
 	AllocClientStatusComplete = "complete"
 	AllocClientStatusFailed   = "failed"
+	AllocClientStatusLost     = "lost"
 )
 
 // Allocation is used to allocate the placement of a task group to a node.
@@ -2402,13 +2424,13 @@ func (a *Allocation) TerminalStatus() bool {
 	// First check the desired state and if that isn't terminal, check client
 	// state.
 	switch a.DesiredStatus {
-	case AllocDesiredStatusStop, AllocDesiredStatusEvict, AllocDesiredStatusFailed:
+	case AllocDesiredStatusStop, AllocDesiredStatusEvict:
 		return true
 	default:
 	}
 
 	switch a.ClientStatus {
-	case AllocClientStatusComplete, AllocClientStatusFailed:
+	case AllocClientStatusComplete, AllocClientStatusFailed, AllocClientStatusLost:
 		return true
 	default:
 		return false

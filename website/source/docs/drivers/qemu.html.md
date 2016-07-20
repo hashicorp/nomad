@@ -36,9 +36,9 @@ The `Qemu` driver supports the following configuration in the job spec:
   `kvm` for the `accelerator`. Default is `tcg`
 
 * `port_map` - (Optional) A `map[string]int` that maps port labels to ports
-  on the guest. This forwards the host port to the guest vm. For example,
+  on the guest. This forwards the host port to the guest VM. For example,
   `port_map { db = 6539 }` would forward the host port with label `db` to the
-  guest vm's port 6539.
+  guest VM's port 6539.
 
 ## Examples
 

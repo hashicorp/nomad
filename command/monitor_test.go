@@ -133,68 +133,6 @@ func TestMonitor_Update_Allocs(t *testing.T) {
 	}
 }
 
-func TestMonitor_Update_SchedulingFailure(t *testing.T) {
-	ui := new(cli.MockUi)
-	mon := newMonitor(ui, nil, shortId)
-
-	// New allocs with desired status failed warns
-	state := &evalState{
-		allocs: map[string]*allocState{
-			"alloc2": &allocState{
-				id:          "87654321-dcba-efab-cdef-123456789abc",
-				group:       "group2",
-				desired:     structs.AllocDesiredStatusFailed,
-				desiredDesc: "something failed",
-				client:      structs.AllocClientStatusFailed,
-				clientDesc:  "client failed",
-				index:       1,
-
-				// Attach the full failed allocation
-				full: &api.Allocation{
-					ID:            "87654321-dcba-efab-cdef-123456789abc",
-					TaskGroup:     "group2",
-					ClientStatus:  structs.AllocClientStatusFailed,
-					DesiredStatus: structs.AllocDesiredStatusFailed,
-					Metrics: &api.AllocationMetric{
-						NodesEvaluated: 3,
-						NodesFiltered:  3,
-						ConstraintFiltered: map[string]int{
-							"$attr.kernel.name = linux": 3,
-						},
-					},
-				},
-			},
-		},
-	}
-	mon.update(state)
-
-	// Scheduling failure was logged
-	out := ui.OutputWriter.String()
-	if !strings.Contains(out, "group2") {
-		t.Fatalf("missing group\n\n%s", out)
-	}
-	if !strings.Contains(out, "Scheduling error") {
-		t.Fatalf("missing failure\n\n%s", out)
-	}
-	if !strings.Contains(out, "something failed") {
-		t.Fatalf("missing desired desc\n\n%s", out)
-	}
-	if !strings.Contains(out, "client failed") {
-		t.Fatalf("missing client desc\n\n%s", out)
-	}
-
-	// Check that the allocation details were dumped
-	if !strings.Contains(out, "3/3") {
-		t.Fatalf("missing filter stats\n\n%s", out)
-	}
-	if !strings.Contains(out, structs.AllocDesiredStatusFailed) {
-		t.Fatalf("missing alloc status\n\n%s", out)
-	}
-	if !strings.Contains(out, "$attr.kernel.name = linux") {
-		t.Fatalf("missing constraint\n\n%s", out)
-	}
-}
-
 func TestMonitor_Update_AllocModification(t *testing.T) {
 	ui := new(cli.MockUi)
 	mon := newMonitor(ui, nil, fullId)
