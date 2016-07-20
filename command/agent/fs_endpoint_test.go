@@ -13,7 +13,6 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
-	"syscall"
 	"testing"
 	"time"
 
@@ -901,7 +900,7 @@ func TestHTTP_Logs_Follow(t *testing.T) {
 
 		// Start streaming logs
 		go func() {
-			if err := s.Server.logs(true, 0, OriginStart, task, logType, ad, wrappedW); err != nil && err != syscall.EPIPE {
+			if err := s.Server.logs(true, 0, OriginStart, task, logType, ad, wrappedW); err != nil {
 				t.Fatalf("logs() failed: %v", err)
 			}
 		}()
@@ -912,9 +911,11 @@ func TestHTTP_Logs_Follow(t *testing.T) {
 			t.Fatalf("did not receive data: got %q", string(received))
 		}
 
-		// We got the first chunk of data, write out the rest to the file to
-		// check that it is following
-		writeToFile(initialWrites, expected[initialWrites:])
+		// We got the first chunk of data, write out the rest to the next file
+		// at an index much ahead to check that it is following and detecting
+		// skips
+		skipTo := initialWrites + 10
+		writeToFile(skipTo, expected[initialWrites:])
 
 		select {
 		case <-fullResultCh:
@@ -930,7 +931,6 @@ func TestHTTP_Logs_Follow(t *testing.T) {
 		}, func(err error) {
 			t.Fatalf("connection not closed")
 		})
-
 	})
 }
 
