@@ -49,7 +49,7 @@ task "memcached" {
 	}
 
 	resources {
-		cpu = 500 # 500 Mhz
+		cpu = 500 # 500 MHz
 		memory = 256 # 256MB
 		network {
 			mbits = 10
