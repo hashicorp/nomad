@@ -37,7 +37,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	}
 
 	// Initialize the job fields (sets defaults and any necessary init work).
-	args.Job.InitFields()
+	args.Job.Canonicalize()
 
 	// Validate the job.
 	if err := validateJob(args.Job); err != nil {
@@ -431,7 +431,7 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 	}
 
 	// Initialize the job fields (sets defaults and any necessary init work).
-	args.Job.InitFields()
+	args.Job.Canonicalize()
 
 	// Validate the job.
 	if err := validateJob(args.Job); err != nil {

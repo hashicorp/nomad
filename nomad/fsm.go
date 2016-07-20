@@ -232,7 +232,7 @@ func (n *nomadFSM) applyUpsertJob(buf []byte, index uint64) interface{} {
 	// un-intended destructive updates in scheduler since we use
 	// reflect.DeepEqual. Starting Nomad 0.4.1, job submission sanatizes
 	// the incoming job.
-	job.InitFields()
+	req.Job.Canonicalize()
 
 	if err := n.state.UpsertJob(index, req.Job); err != nil {
 		n.logger.Printf("[ERR] nomad.fsm: UpsertJob failed: %v", err)
@@ -513,7 +513,7 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 			// un-intended destructive updates in scheduler since we use
 			// reflect.DeepEqual. Starting Nomad 0.4.1, job submission sanatizes
 			// the incoming job.
-			job.InitFields()
+			job.Canonicalize()
 
 			if err := restore.JobRestore(job); err != nil {
 				return err

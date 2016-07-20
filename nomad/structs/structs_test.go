@@ -203,7 +203,7 @@ func TestJob_IsPeriodic(t *testing.T) {
 func TestJob_SystemJob_Validate(t *testing.T) {
 	j := testJob()
 	j.Type = JobTypeSystem
-	j.InitFields()
+	j.Canonicalize()
 
 	err := j.Validate()
 	if err == nil || !strings.Contains(err.Error(), "exceed") {
@@ -712,7 +712,7 @@ func TestDistinctCheckID(t *testing.T) {
 
 }
 
-func TestService_InitFields(t *testing.T) {
+func TestService_Canonicalize(t *testing.T) {
 	job := "example"
 	taskGroup := "cache"
 	task := "redis"
@@ -721,25 +721,25 @@ func TestService_InitFields(t *testing.T) {
 		Name: "${TASK}-db",
 	}
 
-	s.InitFields(job, taskGroup, task)
+	s.Canonicalize(job, taskGroup, task)
 	if s.Name != "redis-db" {
 		t.Fatalf("Expected name: %v, Actual: %v", "redis-db", s.Name)
 	}
 
 	s.Name = "db"
-	s.InitFields(job, taskGroup, task)
+	s.Canonicalize(job, taskGroup, task)
 	if s.Name != "db" {
 		t.Fatalf("Expected name: %v, Actual: %v", "redis-db", s.Name)
 	}
 
 	s.Name = "${JOB}-${TASKGROUP}-${TASK}-db"
-	s.InitFields(job, taskGroup, task)
+	s.Canonicalize(job, taskGroup, task)
 	if s.Name != "example-cache-redis-db" {
 		t.Fatalf("Expected name: %v, Actual: %v", "expample-cache-redis-db", s.Name)
 	}
 
 	s.Name = "${BASE}-db"
-	s.InitFields(job, taskGroup, task)
+	s.Canonicalize(job, taskGroup, task)
 	if s.Name != "example-cache-redis-db" {
 		t.Fatalf("Expected name: %v, Actual: %v", "expample-cache-redis-db", s.Name)
 	}
@@ -777,7 +777,7 @@ func TestJob_ExpandServiceNames(t *testing.T) {
 		},
 	}
 
-	j.InitFields()
+	j.Canonicalize()
 
 	service1Name := j.TaskGroups[0].Tasks[0].Services[0].Name
 	if service1Name != "my-job-web-frontend-default" {

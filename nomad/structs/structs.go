@@ -736,7 +736,7 @@ func (r *Resources) Merge(other *Resources) {
 	}
 }
 
-func (r *Resources) InitFields() {
+func (r *Resources) Canonicalize() {
 	// Ensure that an empty and nil slices are treated the same to avoid scheduling
 	// problems since we use reflect DeepEquals.
 	if len(r.Networks) == 0 {
@@ -744,7 +744,7 @@ func (r *Resources) InitFields() {
 	}
 
 	for _, n := range r.Networks {
-		n.InitFields()
+		n.Canonicalize()
 	}
 }
 
@@ -862,7 +862,7 @@ type NetworkResource struct {
 	DynamicPorts  []Port // Dynamically assigned ports
 }
 
-func (n *NetworkResource) InitFields() {
+func (n *NetworkResource) Canonicalize() {
 	// Ensure that an empty and nil slices are treated the same to avoid scheduling
 	// problems since we use reflect DeepEquals.
 	if len(n.ReservedPorts) == 0 {
@@ -1043,9 +1043,9 @@ type Job struct {
 	JobModifyIndex uint64
 }
 
-// InitFields is used to initialize fields in the Job. This should be called
+// Canonicalize is used to canonicalize fields in the Job. This should be called
 // when registering a Job.
-func (j *Job) InitFields() {
+func (j *Job) Canonicalize() {
 	// Ensure that an empty and nil map are treated the same to avoid scheduling
 	// problems since we use reflect DeepEquals.
 	if len(j.Meta) == 0 {
@@ -1053,7 +1053,7 @@ func (j *Job) InitFields() {
 	}
 
 	for _, tg := range j.TaskGroups {
-		tg.InitFields(j)
+		tg.Canonicalize(j)
 	}
 }
 
@@ -1459,8 +1459,8 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 	return ntg
 }
 
-// InitFields is used to initialize fields in the TaskGroup.
-func (tg *TaskGroup) InitFields(job *Job) {
+// Canonicalize is used to canonicalize fields in the TaskGroup.
+func (tg *TaskGroup) Canonicalize(job *Job) {
 	// Ensure that an empty and nil map are treated the same to avoid scheduling
 	// problems since we use reflect DeepEquals.
 	if len(tg.Meta) == 0 {
@@ -1473,7 +1473,7 @@ func (tg *TaskGroup) InitFields(job *Job) {
 	}
 
 	for _, task := range tg.Tasks {
-		task.InitFields(job, tg)
+		task.Canonicalize(job, tg)
 	}
 }
 
@@ -1579,7 +1579,7 @@ func (sc *ServiceCheck) Copy() *ServiceCheck {
 	return nsc
 }
 
-func (sc *ServiceCheck) InitFields(serviceName string) {
+func (sc *ServiceCheck) Canonicalize(serviceName string) {
 	// Ensure empty slices are treated as null to avoid scheduling issues when
 	// using DeepEquals.
 	if len(sc.Args) == 0 {
@@ -1683,9 +1683,9 @@ func (s *Service) Copy() *Service {
 	return ns
 }
 
-// InitFields interpolates values of Job, Task Group and Task in the Service
+// Canonicalize interpolates values of Job, Task Group and Task in the Service
 // Name. This also generates check names, service id and check ids.
-func (s *Service) InitFields(job string, taskGroup string, task string) {
+func (s *Service) Canonicalize(job string, taskGroup string, task string) {
 	// Ensure empty lists are treated as null to avoid scheduler issues when
 	// using DeepEquals
 	if len(s.Tags) == 0 {
@@ -1704,7 +1704,7 @@ func (s *Service) InitFields(job string, taskGroup string, task string) {
 	)
 
 	for _, check := range s.Checks {
-		check.InitFields(s.Name)
+		check.Canonicalize(s.Name)
 	}
 }
 
@@ -1857,8 +1857,8 @@ func (t *Task) Copy() *Task {
 	return nt
 }
 
-// InitFields initializes fields in the task.
-func (t *Task) InitFields(job *Job, tg *TaskGroup) {
+// Canonicalize canonicalizes fields in the task.
+func (t *Task) Canonicalize(job *Job, tg *TaskGroup) {
 	// Ensure that an empty and nil map are treated the same to avoid scheduling
 	// problems since we use reflect DeepEquals.
 	if len(t.Meta) == 0 {
@@ -1871,21 +1871,15 @@ func (t *Task) InitFields(job *Job, tg *TaskGroup) {
 		t.Env = nil
 	}
 
-	t.InitServiceFields(job.Name, tg.Name)
-	t.Resources.InitFields()
+	for _, service := range t.Services {
+		service.Canonicalize(job.Name, tg.Name, t.Name)
+	}
+
+	t.Resources.Canonicalize()
 
 	// Set the default timeout if it is not specified.
 	if t.KillTimeout == 0 {
 		t.KillTimeout = DefaultKillTimeout
-	}
-}
-
-// InitServiceFields interpolates values of Job, Task Group
-// and Tasks in all the service Names of a Task. This also generates the service
-// id, check id and check names.
-func (t *Task) InitServiceFields(job string, taskGroup string) {
-	for _, service := range t.Services {
-		service.InitFields(job, taskGroup, t.Name)
 	}
 }
 

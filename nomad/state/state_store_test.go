@@ -2184,7 +2184,7 @@ func TestStateStore_GetJobStatus_DeadEvalsAndAllocs(t *testing.T) {
 	// Create a mock alloc that is dead.
 	alloc := mock.Alloc()
 	alloc.JobID = job.ID
-	alloc.DesiredStatus = structs.AllocDesiredStatusFailed
+	alloc.DesiredStatus = structs.AllocDesiredStatusStop
 	if err := state.UpsertAllocs(1000, []*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
