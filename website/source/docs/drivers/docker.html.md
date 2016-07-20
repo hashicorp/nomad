@@ -171,8 +171,12 @@ You can allocate ports to your task using the port syntax described on the
 task "webservice" {
     driver = "docker"
 
-    port "http" {}
-    port "https" {}
+    resources {
+        network {
+            port "http" {}
+            port "https" {}
+        }
+    }
 }
 ```
 
