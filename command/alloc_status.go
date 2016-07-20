@@ -296,7 +296,7 @@ func (c *AllocStatusCommand) outputTaskResources(alloc *api.Allocation, task str
 			memUsage = fmt.Sprintf("%v/%v", humanize.IBytes(ms.RSS), memUsage)
 		}
 	}
-	resourcesOutput = append(resourcesOutput, fmt.Sprintf("%v|%v|%v|%v|%v",
+	resourcesOutput = append(resourcesOutput, fmt.Sprintf("%v MHz|%v|%v|%v|%v",
 		cpuUsage,
 		memUsage,
 		humanize.IBytes(uint64(resource.DiskMB*bytesPerMegabyte)),
