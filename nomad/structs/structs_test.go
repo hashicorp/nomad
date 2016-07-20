@@ -88,7 +88,7 @@ func TestJob_Validate(t *testing.T) {
 	if !strings.Contains(mErr.Errors[1].Error(), "group 3 missing name") {
 		t.Fatalf("err: %s", err)
 	}
-	if !strings.Contains(mErr.Errors[2].Error(), "Task group 1 validation failed") {
+	if !strings.Contains(mErr.Errors[2].Error(), "Task group web validation failed") {
 		t.Fatalf("err: %s", err)
 	}
 }
@@ -258,6 +258,7 @@ func TestTaskGroup_Validate(t *testing.T) {
 			Mode:     RestartPolicyModeDelay,
 		},
 	}
+
 	err = tg.Validate()
 	mErr = err.(*multierror.Error)
 	if !strings.Contains(mErr.Errors[0].Error(), "2 redefines 'web' from task 1") {
@@ -266,7 +267,7 @@ func TestTaskGroup_Validate(t *testing.T) {
 	if !strings.Contains(mErr.Errors[1].Error(), "Task 3 missing name") {
 		t.Fatalf("err: %s", err)
 	}
-	if !strings.Contains(mErr.Errors[2].Error(), "Task 1 validation failed") {
+	if !strings.Contains(mErr.Errors[2].Error(), "Task web validation failed") {
 		t.Fatalf("err: %s", err)
 	}
 }

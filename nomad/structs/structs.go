@@ -1875,7 +1875,9 @@ func (t *Task) Canonicalize(job *Job, tg *TaskGroup) {
 		service.Canonicalize(job.Name, tg.Name, t.Name)
 	}
 
-	t.Resources.Canonicalize()
+	if t.Resources != nil {
+		t.Resources.Canonicalize()
+	}
 
 	// Set the default timeout if it is not specified.
 	if t.KillTimeout == 0 {
