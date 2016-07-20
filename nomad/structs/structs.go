@@ -1098,15 +1098,15 @@ func (j *Job) Validate() error {
 
 		if j.Type == "system" && tg.Count > 1 {
 			mErr.Errors = append(mErr.Errors,
-				fmt.Errorf("Job task group %d has count %d. Count cannot exceed 1 with system scheduler",
-					idx+1, tg.Count))
+				fmt.Errorf("Job task group %s has count %d. Count cannot exceed 1 with system scheduler",
+					tg.Name, tg.Count))
 		}
 	}
 
 	// Validate the task group
-	for idx, tg := range j.TaskGroups {
+	for _, tg := range j.TaskGroups {
 		if err := tg.Validate(); err != nil {
-			outer := fmt.Errorf("Task group %d validation failed: %s", idx+1, err)
+			outer := fmt.Errorf("Task group %s validation failed: %s", tg.Name, err)
 			mErr.Errors = append(mErr.Errors, outer)
 		}
 	}
@@ -1482,9 +1482,9 @@ func (tg *TaskGroup) Validate() error {
 	}
 
 	// Validate the tasks
-	for idx, task := range tg.Tasks {
+	for _, task := range tg.Tasks {
 		if err := task.Validate(); err != nil {
-			outer := fmt.Errorf("Task %d validation failed: %s", idx+1, err)
+			outer := fmt.Errorf("Task %s validation failed: %s", task.Name, err)
 			mErr.Errors = append(mErr.Errors, outer)
 		}
 	}
