@@ -150,7 +150,7 @@ job "example" {
 			# this task to ensure it runs on a machine with
 			# enough capacity.
 			resources {
-				cpu = 500 # 500 Mhz
+				cpu = 500 # 500 MHz
 				memory = 256 # 256MB
 				network {
 					mbits = 10
@@ -172,7 +172,7 @@ job "example" {
 			# Specify configuration related to log rotation
 			# logs {
 			#     max_files = 10
-			#	  max_file_size = 15
+			#     max_file_size = 15
 			# }
 			 
 			# Controls the timeout between signalling a task it will be killed
