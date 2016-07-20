@@ -60,12 +60,12 @@ FS Specific Options:
 	rather to wait for additional output. 
 
   -tail 
-	Show the files contents with offsets relative to the end of the file. If no
-	offset is given, -n is defaulted to 10.
+    Show the files contents with offsets relative to the end of the file. If no
+    offset is given, -n is defaulted to 10.
 
   -n
-	Sets the tail location in best-efforted number of lines relative to the end
-	of the file.
+    Sets the tail location in best-efforted number of lines relative to the end
+    of the file.
 
   -c
 	Sets the tail location in number of bytes relative to the end of the file.

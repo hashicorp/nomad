@@ -20,11 +20,11 @@ func (l *LogsCommand) Help() string {
 	helpText := `
 Usage: nomad logs [options] <alloc-id> <task>
 
-TODO
+  Streams the stdout/stderr of the given allocation and task.
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+	` + generalOptionsUsage() + `
 
 Logs Specific Options:
 
@@ -35,21 +35,21 @@ Logs Specific Options:
     Use a random allocation from a specified job-id.
 
   -tail
-	Show the files contents with offsets relative to the end of the file. If no
-	offset is given, -n is defaulted to 10.
+    Show the files contents with offsets relative to the end of the file. If no
+    offset is given, -n is defaulted to 10.
 
   -n
-	Sets the tail location in best-efforted number of lines relative to the end
-	of the file.
+    Sets the tail location in best-efforted number of lines relative to the end
+    of the file.
 
   -c
-	Sets the tail location in number of bytes relative to the end of the file.
-`
+    Sets the tail location in number of bytes relative to the end of the file.
+	`
 	return strings.TrimSpace(helpText)
 }
 
 func (l *LogsCommand) Synopsis() string {
-	return "Inspect the contents of an allocation directory"
+	return "Streams the logs of a task."
 }
 
 func (l *LogsCommand) Run(args []string) int {

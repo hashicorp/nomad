@@ -63,8 +63,8 @@ General Options:
 Plan Options:
 
   -diff
-	Determines whether the diff between the remote job and planned job is shown.
-	Defaults to true.
+    Determines whether the diff between the remote job and planned job is shown.
+    Defaults to true.
 
   -verbose
     Increase diff verbosity.
