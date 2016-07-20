@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"gopkg.in/tomb.v1"
@@ -43,8 +44,16 @@ const (
 	// being flushed if the frame size has not been hit.
 	streamBatchWindow = 200 * time.Millisecond
 
+	// deleteEvent and truncateEvent are the file events that can be sent in a
+	// StreamFrame
 	deleteEvent   = "file deleted"
 	truncateEvent = "file truncated"
+
+	// OriginStart and OriginEnd are the available parameters for the origin
+	// argument when streaming a file. They respectively offset from the start
+	// and end of a file.
+	OriginStart = "start"
+	OriginEnd   = "end"
 )
 
 func (s *HTTPServer) FsRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
@@ -573,6 +582,12 @@ OUTER:
 		// Send the frame
 		if n != 0 {
 			if err := framer.Send(path, lastEvent, data[:n], offset); err != nil {
+
+				// Check if the connection has been closed
+				if err == io.ErrClosedPipe || strings.Contains(err.Error(), syscall.EPIPE.Error()) {
+					return syscall.EPIPE
+				}
+
 				return err
 			}
 		}
@@ -773,13 +788,19 @@ func (s *HTTPServer) logs(follow bool, offset int64,
 		p := filepath.Join(logPath, logEntry.Name)
 		err = s.stream(openOffset, p, fs, framer, eofCancelCh)
 
-		// Check if there was an error where the file does not exist. That means
-		// it got rotated out from under us.
 		if err != nil {
+			// Check if there was an error where the file does not exist. That means
+			// it got rotated out from under us.
 			if os.IsNotExist(err) {
 				continue
 			}
-			return err
+
+			// Check if the connection was closed
+			if err == syscall.EPIPE {
+				return nil
+			}
+
+			return fmt.Errorf("failed to stream %q: %v", p, err)
 		}
 
 		if exitAfter {

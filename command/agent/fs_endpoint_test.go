@@ -2,6 +2,7 @@ package agent
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"math"
@@ -12,6 +13,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -452,6 +454,10 @@ func tempAllocDir(t *testing.T) *allocdir.AllocDir {
 		t.Fatalf("TempDir() failed: %v", err)
 	}
 
+	if err := os.Chmod(dir, 0777); err != nil {
+		t.Fatalf("failed to chmod dir: %v", err)
+	}
+
 	return allocdir.NewAllocDir(dir)
 }
 
@@ -736,6 +742,189 @@ func TestHTTP_Stream_Delete(t *testing.T) {
 		}
 
 		framer.Destroy()
+		testutil.WaitForResult(func() (bool, error) {
+			return wrappedW.Closed, nil
+		}, func(err error) {
+			t.Fatalf("connection not closed")
+		})
+
+	})
+}
+
+func TestHTTP_Logs_NoFollow(t *testing.T) {
+	httpTest(t, nil, func(s *TestServer) {
+		// Get a temp alloc dir and create the log dir
+		ad := tempAllocDir(t)
+		defer os.RemoveAll(ad.AllocDir)
+
+		logDir := filepath.Join(ad.SharedDir, allocdir.LogDirName)
+		if err := os.MkdirAll(logDir, 0777); err != nil {
+			t.Fatalf("Failed to make log dir: %v", err)
+		}
+
+		// Create a series of log files in the temp dir
+		task := "foo"
+		logType := "stdout"
+		expected := []byte("012")
+		for i := 0; i < 3; i++ {
+			logFile := fmt.Sprintf("%s.%s.%d", task, logType, i)
+			logFilePath := filepath.Join(logDir, logFile)
+			err := ioutil.WriteFile(logFilePath, expected[i:i+1], 777)
+			if err != nil {
+				t.Fatalf("Failed to create file: %v", err)
+			}
+		}
+
+		// Create a decoder
+		r, w := io.Pipe()
+		wrappedW := &WriteCloseChecker{WriteCloser: w}
+		defer r.Close()
+		defer w.Close()
+		dec := codec.NewDecoder(r, jsonHandle)
+
+		var received []byte
+
+		// Start the reader
+		resultCh := make(chan struct{})
+		go func() {
+			for {
+				var frame StreamFrame
+				if err := dec.Decode(&frame); err != nil {
+					if err == io.EOF {
+						t.Logf("EOF")
+						return
+					}
+
+					t.Fatalf("failed to decode: %v", err)
+				}
+
+				if frame.IsHeartbeat() {
+					continue
+				}
+
+				received = append(received, frame.Data...)
+				if reflect.DeepEqual(received, expected) {
+					close(resultCh)
+					return
+				}
+			}
+		}()
+
+		// Start streaming logs
+		go func() {
+			if err := s.Server.logs(false, 0, OriginStart, task, logType, ad, wrappedW); err != nil {
+				t.Fatalf("logs() failed: %v", err)
+			}
+		}()
+
+		select {
+		case <-resultCh:
+		case <-time.After(4 * streamBatchWindow):
+			t.Fatalf("did not receive data: got %q", string(received))
+		}
+
+		testutil.WaitForResult(func() (bool, error) {
+			return wrappedW.Closed, nil
+		}, func(err error) {
+			t.Fatalf("connection not closed")
+		})
+
+	})
+}
+
+func TestHTTP_Logs_Follow(t *testing.T) {
+	httpTest(t, nil, func(s *TestServer) {
+		// Get a temp alloc dir and create the log dir
+		ad := tempAllocDir(t)
+		defer os.RemoveAll(ad.AllocDir)
+
+		logDir := filepath.Join(ad.SharedDir, allocdir.LogDirName)
+		if err := os.MkdirAll(logDir, 0777); err != nil {
+			t.Fatalf("Failed to make log dir: %v", err)
+		}
+
+		// Create a series of log files in the temp dir
+		task := "foo"
+		logType := "stdout"
+		expected := []byte("012345")
+		initialWrites := 3
+
+		writeToFile := func(index int, data []byte) {
+			logFile := fmt.Sprintf("%s.%s.%d", task, logType, index)
+			logFilePath := filepath.Join(logDir, logFile)
+			err := ioutil.WriteFile(logFilePath, data, 777)
+			if err != nil {
+				t.Fatalf("Failed to create file: %v", err)
+			}
+		}
+		for i := 0; i < initialWrites; i++ {
+			writeToFile(i, expected[i:i+1])
+		}
+
+		// Create a decoder
+		r, w := io.Pipe()
+		wrappedW := &WriteCloseChecker{WriteCloser: w}
+		defer r.Close()
+		defer w.Close()
+		dec := codec.NewDecoder(r, jsonHandle)
+
+		var received []byte
+
+		// Start the reader
+		firstResultCh := make(chan struct{})
+		fullResultCh := make(chan struct{})
+		go func() {
+			for {
+				var frame StreamFrame
+				if err := dec.Decode(&frame); err != nil {
+					if err == io.EOF {
+						t.Logf("EOF")
+						return
+					}
+
+					t.Fatalf("failed to decode: %v", err)
+				}
+
+				if frame.IsHeartbeat() {
+					continue
+				}
+
+				received = append(received, frame.Data...)
+				if reflect.DeepEqual(received, expected[:initialWrites]) {
+					close(firstResultCh)
+				} else if reflect.DeepEqual(received, expected) {
+					close(fullResultCh)
+					return
+				}
+			}
+		}()
+
+		// Start streaming logs
+		go func() {
+			if err := s.Server.logs(true, 0, OriginStart, task, logType, ad, wrappedW); err != nil && err != syscall.EPIPE {
+				t.Fatalf("logs() failed: %v", err)
+			}
+		}()
+
+		select {
+		case <-firstResultCh:
+		case <-time.After(4 * streamBatchWindow):
+			t.Fatalf("did not receive data: got %q", string(received))
+		}
+
+		// We got the first chunk of data, write out the rest to the file to
+		// check that it is following
+		writeToFile(initialWrites, expected[initialWrites:])
+
+		select {
+		case <-fullResultCh:
+		case <-time.After(4 * streamBatchWindow):
+			t.Fatalf("did not receive data: got %q", string(received))
+		}
+
+		// Close the reader
+		r.Close()
+
 		testutil.WaitForResult(func() (bool, error) {
 			return wrappedW.Closed, nil
 		}, func(err error) {
