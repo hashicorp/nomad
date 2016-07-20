@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/hashicorp/nomad/api"
 )
@@ -33,7 +34,7 @@ Logs Specific Options:
   -job <job-id>
     Use a random allocation from a specified job-id.
 
-  -tail 
+  -tail
 	Show the files contents with offsets relative to the end of the file. If no
 	offset is given, -n is defaulted to 10.
 
@@ -182,7 +183,7 @@ func (l *LogsCommand) Run(args []string) int {
 
 		// If numLines is set, wrap the reader
 		if numLines != -1 {
-			r = NewLineLimitReader(r, int(numLines), int(numLines*bytesToLines))
+			r = NewLineLimitReader(r, int(numLines), int(numLines*bytesToLines), 1*time.Second)
 		}
 
 		if readErr != nil {
@@ -216,6 +217,7 @@ func (l *LogsCommand) followFile(client *api.Client, alloc *api.Allocation,
 	// Create a reader
 	var r io.ReadCloser
 	frameReader := api.NewFrameReader(frames, cancel)
+	frameReader.SetUnblockTime(500 * time.Millisecond)
 	r = frameReader
 
 	go func() {

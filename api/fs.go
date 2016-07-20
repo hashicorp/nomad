@@ -362,6 +362,8 @@ type FrameReader struct {
 	cancelCh chan struct{}
 	closed   bool
 
+	unblockTime time.Duration
+
 	frame       *StreamFrame
 	frameOffset int
 
@@ -381,6 +383,12 @@ func NewFrameReader(frames <-chan *StreamFrame, cancelCh chan struct{}) *FrameRe
 	}
 }
 
+// SetUnblockTime sets the time to unblock and return zero bytes read. If the
+// duration is unset or is zero or less, the read will block til data is read.
+func (f *FrameReader) SetUnblockTime(d time.Duration) {
+	f.unblockTime = d
+}
+
 // Offset returns the offset into the stream.
 func (f *FrameReader) Offset() int {
 	return f.byteOffset
@@ -390,14 +398,23 @@ func (f *FrameReader) Offset() int {
 // when there are no more frames.
 func (f *FrameReader) Read(p []byte) (n int, err error) {
 	if f.frame == nil {
-		frame, ok := <-f.frames
-		if !ok {
-			return 0, io.EOF
+		var unblock <-chan time.Time
+		if f.unblockTime.Nanoseconds() > 0 {
+			unblock = time.After(f.unblockTime)
 		}
-		f.frame = frame
 
-		// Store the total offset into the file
-		f.byteOffset = int(f.frame.Offset)
+		select {
+		case frame, ok := <-f.frames:
+			if !ok {
+				return 0, io.EOF
+			}
+			f.frame = frame
+
+			// Store the total offset into the file
+			f.byteOffset = int(f.frame.Offset)
+		case <-unblock:
+			return 0, nil
+		}
 	}
 
 	if f.frame.FileEvent != "" && len(f.fileEvent) == 0 {

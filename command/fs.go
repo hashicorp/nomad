@@ -282,7 +282,7 @@ func (f *FSCommand) Run(args []string) int {
 
 			// If numLines is set, wrap the reader
 			if numLines != -1 {
-				r = NewLineLimitReader(r, int(numLines), int(numLines*bytesToLines))
+				r = NewLineLimitReader(r, int(numLines), int(numLines*bytesToLines), 0)
 			}
 		}
 
@@ -321,7 +321,7 @@ func (f *FSCommand) followFile(client *api.Client, alloc *api.Allocation,
 
 	// If numLines is set, wrap the reader
 	if numLines != -1 {
-		r = NewLineLimitReader(r, int(numLines), int(numLines*bytesToLines))
+		r = NewLineLimitReader(r, int(numLines), int(numLines*bytesToLines), 0)
 	}
 
 	go func() {
