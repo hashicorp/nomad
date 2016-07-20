@@ -70,19 +70,13 @@ func (l *LogsCommand) Run(args []string) int {
 	}
 	args = flags.Args()
 
-	if len(args) < 2 {
+	if len(args) < 1 {
 		if job {
-			l.Ui.Error("job ID and task name required")
+			l.Ui.Error("Job ID required")
 		} else {
-			l.Ui.Error("allocation ID and task name required")
+			l.Ui.Error("Allocation ID required")
 		}
 
-		return 1
-	}
-
-	task := args[1]
-	if task == "" {
-		l.Ui.Error("task name required")
 		return 1
 	}
 
@@ -151,6 +145,39 @@ func (l *LogsCommand) Run(args []string) int {
 		return 1
 	}
 
+	var task string
+	if len(args) >= 2 {
+		task = args[1]
+		if task == "" {
+			l.Ui.Error("Task name required")
+			return 1
+		}
+
+	} else {
+		// Try to determine the tasks name from the allocation
+		var tasks []*api.Task
+		for _, tg := range alloc.Job.TaskGroups {
+			if tg.Name == alloc.TaskGroup {
+				if len(tg.Tasks) == 1 {
+					task = tg.Tasks[0].Name
+					break
+				}
+
+				tasks = tg.Tasks
+				break
+			}
+		}
+
+		if task == "" {
+			l.Ui.Error(fmt.Sprintf("Allocation %q is running the following tasks:", limit(alloc.ID, length)))
+			for _, t := range tasks {
+				l.Ui.Error(fmt.Sprintf("  * %s", t.Name))
+			}
+			l.Ui.Error("\nPlease specify the task.")
+			return 1
+		}
+	}
+
 	logType := "stdout"
 	if stderr {
 		logType = "stderr"
@@ -209,6 +236,7 @@ func (l *LogsCommand) followFile(client *api.Client, alloc *api.Allocation,
 	cancel := make(chan struct{})
 	frames, _, err := client.AllocFS().Logs(alloc, task, logType, origin, offset, cancel, nil)
 	if err != nil {
+		panic(err.Error())
 		return nil, err
 	}
 	signalCh := make(chan os.Signal, 1)
