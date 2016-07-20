@@ -1669,7 +1669,7 @@ func (s *Service) Validate() error {
 
 	for _, c := range s.Checks {
 		if s.PortLabel == "" && c.RequiresPort() {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("check %s invalid: check requires a port but the service %+q has no port", c.Name))
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("check %s invalid: check requires a port but the service %+q has no port", c.Name, s.Name))
 			continue
 		}
 
