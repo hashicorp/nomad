@@ -34,6 +34,10 @@ Logs Specific Options:
   -job <job-id>
     Use a random allocation from a specified job-id.
 
+  -f
+    Causes the output to not stop when the end of the logs are reached, but
+    rather to wait for additional output.
+
   -tail
     Show the files contents with offsets relative to the end of the file. If no
     offset is given, -n is defaulted to 10.
@@ -53,7 +57,7 @@ func (l *LogsCommand) Synopsis() string {
 }
 
 func (l *LogsCommand) Run(args []string) int {
-	var verbose, job, tail, stderr bool
+	var verbose, job, tail, stderr, follow bool
 	var numLines, numBytes int64
 
 	flags := l.Meta.FlagSet("logs-list", FlagSetClient)
@@ -61,6 +65,7 @@ func (l *LogsCommand) Run(args []string) int {
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.BoolVar(&job, "job", false, "")
 	flags.BoolVar(&tail, "tail", false, "")
+	flags.BoolVar(&follow, "f", false, "")
 	flags.BoolVar(&stderr, "stderr", false, "")
 	flags.Int64Var(&numLines, "n", -1, "")
 	flags.Int64Var(&numBytes, "c", -1, "")
@@ -187,7 +192,7 @@ func (l *LogsCommand) Run(args []string) int {
 	var r io.ReadCloser
 	var readErr error
 	if !tail {
-		r, readErr = l.followFile(client, alloc, task, logType, api.OriginStart, 0)
+		r, readErr = l.followFile(client, alloc, follow, task, logType, api.OriginStart, 0)
 		if readErr != nil {
 			readErr = fmt.Errorf("Error reading file: %v", readErr)
 		}
@@ -206,7 +211,7 @@ func (l *LogsCommand) Run(args []string) int {
 			numLines = defaultTailLines
 		}
 
-		r, readErr = l.followFile(client, alloc, task, logType, api.OriginEnd, offset)
+		r, readErr = l.followFile(client, alloc, follow, task, logType, api.OriginEnd, offset)
 
 		// If numLines is set, wrap the reader
 		if numLines != -1 {
@@ -231,10 +236,10 @@ func (l *LogsCommand) Run(args []string) int {
 // followFile outputs the contents of the file to stdout relative to the end of
 // the file.
 func (l *LogsCommand) followFile(client *api.Client, alloc *api.Allocation,
-	task, logType, origin string, offset int64) (io.ReadCloser, error) {
+	follow bool, task, logType, origin string, offset int64) (io.ReadCloser, error) {
 
 	cancel := make(chan struct{})
-	frames, _, err := client.AllocFS().Logs(alloc, task, logType, origin, offset, cancel, nil)
+	frames, _, err := client.AllocFS().Logs(alloc, follow, task, logType, origin, offset, cancel, nil)
 	if err != nil {
 		panic(err.Error())
 		return nil, err

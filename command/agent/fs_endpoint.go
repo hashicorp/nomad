@@ -350,17 +350,16 @@ OUTER:
 	}
 
 	// Flush any existing frames
-	s.l.Lock()
 	select {
 	case o := <-s.outbound:
 		// Send the frame and then clear the current working frame
 		if err = s.enc.Encode(o); err != nil {
-			s.l.Unlock()
 			return
 		}
 	default:
 	}
 
+	s.l.Lock()
 	if s.f != nil {
 		s.f.Data = s.readData()
 		s.enc.Encode(s.f)
@@ -622,7 +621,11 @@ OUTER:
 				continue OUTER
 			case <-framer.ExitCh():
 				return nil
-			case err := <-eofCancelCh:
+			case err, ok := <-eofCancelCh:
+				if !ok {
+					return nil
+				}
+
 				return err
 			}
 		}
@@ -634,11 +637,13 @@ OUTER:
 // Logs streams the content of a log blocking on EOF. The parameters are:
 // * task: task name to stream logs for.
 // * type: stdout/stderr to stream.
+// * follow: A boolean of whether to follow the logs.
 // * offset: The offset to start streaming data at, defaults to zero.
 // * origin: Either "start" or "end" and defines from where the offset is
 //           applied. Defaults to "start".
 func (s *HTTPServer) Logs(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	var allocID, task, logType string
+	var follow bool
 	var err error
 
 	q := req.URL.Query()
@@ -649,6 +654,10 @@ func (s *HTTPServer) Logs(resp http.ResponseWriter, req *http.Request) (interfac
 
 	if task = q.Get("task"); task == "" {
 		return nil, taskNotPresentErr
+	}
+
+	if follow, err = strconv.ParseBool(q.Get("follow")); err != nil {
+		return nil, fmt.Errorf("Failed to parse follow field to boolean: %v", err)
 	}
 
 	logType = q.Get("type")
@@ -684,10 +693,13 @@ func (s *HTTPServer) Logs(resp http.ResponseWriter, req *http.Request) (interfac
 	// Create an output that gets flushed on every write
 	output := ioutils.NewWriteFlusher(resp)
 
-	return nil, s.logs(offset, origin, task, logType, fs, output)
+	return nil, s.logs(follow, offset, origin, task, logType, fs, output)
 }
 
-func (s *HTTPServer) logs(offset int64, origin, task, logType string, fs allocdir.AllocDirFS, output io.WriteCloser) error {
+func (s *HTTPServer) logs(follow bool, offset int64,
+	origin, task, logType string,
+	fs allocdir.AllocDirFS, output io.WriteCloser) error {
+
 	// Create the framer
 	framer := NewStreamFramer(output, streamHeartbeatRate, streamBatchWindow, streamFrameSize)
 	framer.Run()
@@ -727,15 +739,39 @@ func (s *HTTPServer) logs(offset int64, origin, task, logType string, fs allocdi
 			return fmt.Errorf("failed to list entries: %v", err)
 		}
 
+		// If we are not following logs, determine the max index for the logs we are
+		// interested in so we can stop there.
+		maxIndex := int64(math.MaxInt64)
+		if !follow {
+			_, idx, _, err := findClosest(entries, maxIndex, 0, task, logType)
+			if err != nil {
+				return err
+			}
+			maxIndex = idx
+		}
+
 		logEntry, idx, openOffset, err := findClosest(entries, nextIdx, offset, task, logType)
 		if err != nil {
 			return err
 		}
 
+		var eofCancelCh chan error
+		exitAfter := false
+		if !follow && idx > maxIndex {
+			// Exceeded what was there initially so return
+			return nil
+		} else if !follow && idx == maxIndex {
+			// At the end
+			eofCancelCh = make(chan error)
+			close(eofCancelCh)
+			exitAfter = true
+		} else {
+			nextPath := filepath.Join(logPath, fmt.Sprintf("%s.%s.%d", task, logType, idx+1))
+			eofCancelCh = fs.BlockUntilExists(nextPath, &t)
+		}
+
 		p := filepath.Join(logPath, logEntry.Name)
-		nextPath := filepath.Join(logPath, fmt.Sprintf("%s.%s.%d", task, logType, idx+1))
-		nextExists := fs.BlockUntilExists(nextPath, &t)
-		err = s.stream(openOffset, p, fs, framer, nextExists)
+		err = s.stream(openOffset, p, fs, framer, eofCancelCh)
 
 		// Check if there was an error where the file does not exist. That means
 		// it got rotated out from under us.
@@ -744,6 +780,10 @@ func (s *HTTPServer) logs(offset int64, origin, task, logType string, fs allocdi
 				continue
 			}
 			return err
+		}
+
+		if exitAfter {
+			return nil
 		}
 
 		//Since we successfully streamed, update the overall offset/idx.

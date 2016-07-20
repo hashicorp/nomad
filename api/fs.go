@@ -279,15 +279,16 @@ func (a *AllocFS) Stream(alloc *Allocation, path, origin string, offset int64,
 // Logs streams the content of a tasks logs blocking on EOF.
 // The parameters are:
 // * allocation: the allocation to stream from.
+// * follow: Whether the logs should be followed.
 // * task: the tasks name to stream logs for.
 // * logType: Either "stdout" or "stderr"
-// * offset: The offset to start streaming data at.
 // * origin: Either "start" or "end" and defines from where the offset is applied.
+// * offset: The offset to start streaming data at.
 // * cancel: A channel that when closed, streaming will end.
 //
 // The return value is a channel that will emit StreamFrames as they are read.
-func (a *AllocFS) Logs(alloc *Allocation, task, logType, origin string, offset int64,
-	cancel <-chan struct{}, q *QueryOptions) (<-chan *StreamFrame, *QueryMeta, error) {
+func (a *AllocFS) Logs(alloc *Allocation, follow bool, task, logType, origin string,
+	offset int64, cancel <-chan struct{}, q *QueryOptions) (<-chan *StreamFrame, *QueryMeta, error) {
 
 	node, _, err := a.client.Nodes().Info(alloc.NodeID, q)
 	if err != nil {
@@ -303,6 +304,7 @@ func (a *AllocFS) Logs(alloc *Allocation, task, logType, origin string, offset i
 		Path:   fmt.Sprintf("/v1/client/fs/logs/%s", alloc.ID),
 	}
 	v := url.Values{}
+	v.Set("follow", strconv.FormatBool(follow))
 	v.Set("task", task)
 	v.Set("type", logType)
 	v.Set("origin", origin)
