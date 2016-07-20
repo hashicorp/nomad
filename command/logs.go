@@ -24,7 +24,7 @@ Usage: nomad logs [options] <alloc-id> <task>
 
 General Options:
 
-	` + generalOptionsUsage() + `
+  ` + generalOptionsUsage() + `
 
 Logs Specific Options:
 
@@ -32,7 +32,7 @@ Logs Specific Options:
     Show full information.
 
   -job <job-id>
-    Use a random allocation from a specified job-id.
+    Use a random allocation from the specified job ID.
 
   -f
     Causes the output to not stop when the end of the logs are reached, but
@@ -60,7 +60,7 @@ func (l *LogsCommand) Run(args []string) int {
 	var verbose, job, tail, stderr, follow bool
 	var numLines, numBytes int64
 
-	flags := l.Meta.FlagSet("logs-list", FlagSetClient)
+	flags := l.Meta.FlagSet("logs", FlagSetClient)
 	flags.Usage = func() { l.Ui.Output(l.Help()) }
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.BoolVar(&job, "job", false, "")
@@ -75,13 +75,17 @@ func (l *LogsCommand) Run(args []string) int {
 	}
 	args = flags.Args()
 
-	if len(args) < 1 {
+	if numArgs := len(args); numArgs < 1 {
 		if job {
-			l.Ui.Error("Job ID required")
+			l.Ui.Error("Job ID required. See help:\n")
 		} else {
-			l.Ui.Error("Allocation ID required")
+			l.Ui.Error("Allocation ID required. See help:\n")
 		}
 
+		l.Ui.Error(l.Help())
+		return 1
+	} else if numArgs > 2 {
+		l.Ui.Error(l.Help())
 		return 1
 	}
 

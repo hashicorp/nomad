@@ -311,10 +311,11 @@ func (s *StreamFramer) run() {
 	// Store any error and mark it as not running
 	var err error
 	defer func() {
-		s.l.Lock()
-		s.Err = err
 		close(s.exitCh)
 		close(s.outbound)
+
+		s.l.Lock()
+		s.Err = err
 		s.running = false
 		s.l.Unlock()
 	}()
@@ -338,8 +339,11 @@ func (s *StreamFramer) run() {
 
 				// Read the data for the frame, and send it
 				s.f.Data = s.readData()
-				s.outbound <- s.f
-				s.f = nil
+				select {
+				case s.outbound <- s.f:
+					s.f = nil
+				default:
+				}
 				s.l.Unlock()
 			case <-s.heartbeat.C:
 				// Send a heartbeat frame

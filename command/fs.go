@@ -50,7 +50,7 @@ FS Specific Options:
     Show full information.
 
   -job <job-id>
-    Use a random allocation from a specified job-id.
+    Use a random allocation from the specified job ID.
 
   -stat
     Show file stat information instead of displaying the file, or listing the directory.
