@@ -329,9 +329,6 @@ func (f *FSCommand) followFile(client *api.Client, alloc *api.Allocation,
 
 		// End the streaming
 		r.Close()
-
-		// Output the last offset
-		f.Ui.Output(fmt.Sprintf("\nLast outputted offset (bytes): %d", frameReader.Offset()))
 	}()
 
 	return r, nil

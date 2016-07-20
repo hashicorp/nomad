@@ -367,10 +367,6 @@ type FrameReader struct {
 	frame       *StreamFrame
 	frameOffset int
 
-	// To handle printing the file events
-	fileEventOffset int
-	fileEvent       []byte
-
 	byteOffset int
 }
 
@@ -415,23 +411,6 @@ func (f *FrameReader) Read(p []byte) (n int, err error) {
 		case <-unblock:
 			return 0, nil
 		}
-	}
-
-	if f.frame.FileEvent != "" && len(f.fileEvent) == 0 {
-		f.fileEvent = []byte(fmt.Sprintf("\nnomad: %q\n", f.frame.FileEvent))
-		f.fileEventOffset = 0
-	}
-
-	// If there is a file event we inject it into the read stream
-	if l := len(f.fileEvent); l != 0 && l != f.fileEventOffset {
-		n = copy(p, f.fileEvent[f.fileEventOffset:])
-		f.fileEventOffset += n
-		return n, nil
-	}
-
-	if len(f.fileEvent) == f.fileEventOffset {
-		f.fileEvent = nil
-		f.fileEventOffset = 0
 	}
 
 	// Copy the data out of the frame and update our offset
