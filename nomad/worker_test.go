@@ -463,9 +463,19 @@ func TestWorker_ReblockEval(t *testing.T) {
 	// Create the blocked eval
 	eval1 := mock.Eval()
 	eval1.Status = structs.EvalStatusBlocked
+	eval1.QueuedAllocations = map[string]int{"cache": 100}
 
 	// Insert it into the state store
 	if err := s1.fsm.State().UpsertEvals(1000, []*structs.Evaluation{eval1}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create the job summary
+	js := mock.JobSummary(eval1.JobID)
+	tg := js.Summary["cache"]
+	tg.Queued = 100
+	js.Summary["cache"] = tg
+	if err := s1.fsm.State().UpsertJobSummary(1001, js); err != nil {
 		t.Fatal(err)
 	}
 
@@ -480,6 +490,7 @@ func TestWorker_ReblockEval(t *testing.T) {
 	}
 
 	eval2 := evalOut.Copy()
+	eval2.QueuedAllocations = map[string]int{"cache": 50}
 
 	// Attempt to reblock eval
 	w := &Worker{srv: s1, logger: s1.logger, evalToken: token}
@@ -495,6 +506,15 @@ func TestWorker_ReblockEval(t *testing.T) {
 	bStats := s1.blockedEvals.Stats()
 	if bStats.TotalBlocked+bStats.TotalEscaped != 1 {
 		t.Fatalf("ReblockEval didn't insert eval into the blocked eval tracker: %#v", bStats)
+	}
+
+	// Check that the eval was updated
+	eval, err := s1.fsm.State().EvalByID(eval2.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(eval.QueuedAllocations, eval2.QueuedAllocations) {
+		t.Fatalf("expected: %#v, actual: %#v", eval2.QueuedAllocations, eval.QueuedAllocations)
 	}
 
 	// Check that the snapshot index was set properly by unblocking the eval and

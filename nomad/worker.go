@@ -430,6 +430,26 @@ func (w *Worker) ReblockEval(eval *structs.Evaluation) error {
 	}
 	defer metrics.MeasureSince([]string{"nomad", "worker", "reblock_eval"}, time.Now())
 
+	// Update the evaluation if the queued jobs is not same as what is
+	// recorded in the job summary
+	summary, err := w.srv.fsm.state.JobSummaryByID(eval.JobID)
+	if err != nil {
+		return fmt.Errorf("coultn't retreive job summary: %v", err)
+	}
+	if summary != nil {
+		var hasChanged bool
+		for tg, summary := range summary.Summary {
+			if queued, ok := eval.QueuedAllocations[tg]; ok {
+				hasChanged = (queued != summary.Queued)
+			}
+		}
+		if hasChanged {
+			if err := w.UpdateEval(eval); err != nil {
+				return err
+			}
+		}
+	}
+
 	// Store the snapshot index in the eval
 	eval.SnapshotIndex = w.snapshotIndex
 

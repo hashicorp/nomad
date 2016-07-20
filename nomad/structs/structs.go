@@ -982,6 +982,18 @@ type JobSummary struct {
 	ModifyIndex uint64
 }
 
+// Copy returns a new copy of JobSummary
+func (js *JobSummary) Copy() *JobSummary {
+	newJobSummary := new(JobSummary)
+	*newJobSummary = *js
+	newTGSummary := make(map[string]TaskGroupSummary, len(js.Summary))
+	for k, v := range js.Summary {
+		newTGSummary[k] = v
+	}
+	newJobSummary.Summary = newTGSummary
+	return newJobSummary
+}
+
 // TaskGroup summarizes the state of all the allocations of a particular
 // TaskGroup
 type TaskGroupSummary struct {
