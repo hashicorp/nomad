@@ -254,6 +254,7 @@ be specified using the `?region=` query parameter.
     * `Started` - The task was started; either for the first time or due to a
       restart.
     * `Terminated` - The task was started and exited.
+    * `Killing` - The task has been sent the kill signal.
     * `Killed` - The task was killed by an user.
     * `Received` - The task has been pulled by the client at the given timestamp.
     * `Failed Validation` - The task was invalid and as such it didn't run.

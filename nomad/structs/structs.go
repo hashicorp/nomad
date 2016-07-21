@@ -2100,6 +2100,9 @@ const (
 	// TaskTerminated indicates that the task was started and exited.
 	TaskTerminated = "Terminated"
 
+	// TaskKilling indicates a kill signal has been sent to the task.
+	TaskKilling = "Killing"
+
 	// TaskKilled indicates a user has killed the task.
 	TaskKilled = "Killed"
 
@@ -2135,6 +2138,9 @@ type TaskEvent struct {
 	ExitCode int    // The exit code of the task.
 	Signal   int    // The signal that terminated the task.
 	Message  string // A possible message explaining the termination of the task.
+
+	// Killing fields
+	KillTimeout time.Duration
 
 	// Task Killed Fields.
 	KillError string // Error killing the task.
@@ -2221,6 +2227,11 @@ func (e *TaskEvent) SetValidationError(err error) *TaskEvent {
 	if err != nil {
 		e.ValidationError = err.Error()
 	}
+	return e
+}
+
+func (e *TaskEvent) SetKillTimeout(timeout time.Duration) *TaskEvent {
+	e.KillTimeout = timeout
 	return e
 }
 
