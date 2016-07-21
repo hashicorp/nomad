@@ -246,6 +246,28 @@ func (c *StatusCommand) outputJobInfo(client *api.Client, job *api.Job) error {
 		return fmt.Errorf("Error querying job evaluations: %s", err)
 	}
 
+	// Query the summary
+	summary, _, err := client.Jobs().Summary(job.ID, nil)
+	if err != nil {
+		return fmt.Errorf("Error querying job summary: %s", err)
+	}
+
+	// Format the summary
+	c.Ui.Output(c.Colorize().Color("\n[bold]Summary[reset]"))
+	if summary != nil {
+		summaries := make([]string, len(summary.Summary)+1)
+		summaries[0] = "Task Group|Queued|Starting|Running|Failed|Complete|Lost"
+		idx := 1
+		for tg, tgs := range summary.Summary {
+			summaries[idx] = fmt.Sprintf("%s|%d|%d|%d|%d|%d|%d",
+				tg, tgs.Queued, tgs.Starting,
+				tgs.Running, tgs.Failed,
+				tgs.Complete, tgs.Lost,
+			)
+		}
+		c.Ui.Output(formatList(summaries))
+	}
+
 	// Determine latest evaluation with failures whose follow up hasn't
 	// completed, this is done while formatting
 	var latestFailedPlacement *api.Evaluation
