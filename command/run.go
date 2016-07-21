@@ -109,7 +109,7 @@ func (c *RunCommand) Run(args []string) int {
 		length = fullId
 	}
 
-	// Check that we got exactly one node
+	// Check that we got exactly one argument
 	args = flags.Args()
 	if len(args) != 1 {
 		c.Ui.Error(c.Help())
@@ -140,7 +140,7 @@ func (c *RunCommand) Run(args []string) int {
 	// Parse the JobFile
 	job, err := jobspec.Parse(f)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error parsing job file %s: %v", f, err))
+		c.Ui.Error(fmt.Sprintf("Error parsing job file %s: %v", path, err))
 		return 1
 	}
 
