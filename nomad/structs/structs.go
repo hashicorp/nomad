@@ -1195,7 +1195,7 @@ func (j *Job) LookupTaskGroup(name string) *TaskGroup {
 }
 
 // Stub is used to return a summary of the job
-func (j *Job) Stub() *JobListStub {
+func (j *Job) Stub(summary *JobSummary) *JobListStub {
 	return &JobListStub{
 		ID:                j.ID,
 		ParentID:          j.ParentID,
@@ -1207,6 +1207,7 @@ func (j *Job) Stub() *JobListStub {
 		CreateIndex:       j.CreateIndex,
 		ModifyIndex:       j.ModifyIndex,
 		JobModifyIndex:    j.JobModifyIndex,
+		JobSummary:        summary,
 	}
 }
 
@@ -1228,6 +1229,7 @@ type JobListStub struct {
 	CreateIndex       uint64
 	ModifyIndex       uint64
 	JobModifyIndex    uint64
+	JobSummary        *JobSummary
 }
 
 // UpdateStrategy is used to modify how updates are done

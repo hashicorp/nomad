@@ -368,7 +368,8 @@ func (j *Job) List(args *structs.JobListRequest,
 					break
 				}
 				job := raw.(*structs.Job)
-				jobs = append(jobs, job.Stub())
+				summary, _ := snap.JobSummaryByID(job.ID)
+				jobs = append(jobs, job.Stub(summary))
 			}
 			reply.Jobs = jobs
 
