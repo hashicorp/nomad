@@ -1339,7 +1339,7 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, allocs []*structs.Allo
 		if existing == nil {
 			switch alloc.DesiredStatus {
 			case structs.AllocDesiredStatusStop, structs.AllocDesiredStatusEvict:
-				s.logger.Printf("[WARN]: new allocation inserted into state store with id: %v and state: %v", alloc.DesiredStatus)
+				s.logger.Printf("[ERR] state_store: new allocation inserted into state store with id: %v and state: %v", alloc.DesiredStatus)
 			}
 			switch alloc.ClientStatus {
 			case structs.AllocClientStatusPending:
@@ -1348,8 +1348,10 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, allocs []*structs.Allo
 					tgSummary.Queued -= 1
 				}
 				jobSummary.ModifyIndex = index
-			case structs.AllocClientStatusRunning, structs.AllocClientStatusFailed, structs.AllocClientStatusComplete:
-				s.logger.Printf("[WARN]: new allocation inserted into state store with id: %v and state: %v", alloc.ClientStatus)
+			case structs.AllocClientStatusRunning, structs.AllocClientStatusFailed,
+				structs.AllocClientStatusComplete:
+				s.logger.Printf("[ERR] state_store: new allocation inserted into state store with id: %v and state: %v",
+					alloc.ID, alloc.ClientStatus)
 			}
 		} else if existing.ClientStatus != alloc.ClientStatus {
 			// Incrementing the client of the bin of the current state
@@ -1370,14 +1372,13 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, allocs []*structs.Allo
 			switch existing.ClientStatus {
 			case structs.AllocClientStatusRunning:
 				tgSummary.Running -= 1
-			case structs.AllocClientStatusFailed:
-				tgSummary.Failed -= 1
 			case structs.AllocClientStatusPending:
 				tgSummary.Starting -= 1
-			case structs.AllocClientStatusComplete:
-				tgSummary.Complete -= 1
 			case structs.AllocClientStatusLost:
 				tgSummary.Lost -= 1
+			case structs.AllocClientStatusFailed, structs.AllocClientStatusComplete:
+				s.logger.Printf("[ERR] state_store: invalid old state of allocation with id:%v, and state: %v",
+					existing.ID, existing.ClientStatus)
 			}
 			jobSummary.ModifyIndex = index
 		}
