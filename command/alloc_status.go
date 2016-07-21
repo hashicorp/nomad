@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dustin/go-humanize"
 	"github.com/mitchellh/colorstring"
 
 	"github.com/hashicorp/nomad/api"
@@ -37,7 +38,7 @@ Alloc Status Options:
   -short
     Display short output. Shows only the most recent task event.
 
-  -stats 
+  -stats
     Display detailed resource usage statistics
 
   -verbose
