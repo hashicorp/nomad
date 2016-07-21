@@ -101,4 +101,4 @@ The chroot is populated with data in the following folders from the host
 machine:
 
 `["/bin", "/etc", "/lib", "/lib32", "/lib64", "/run/resolvconf", "/sbin",
-"/usr/bin", "/usr/lib", "/usr/sbin", "/usr/share"]`
+"/usr"]`
