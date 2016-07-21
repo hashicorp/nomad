@@ -16,13 +16,8 @@ matrix:
 branches:
   only:
     - master
-    - f-client-enforce-resources
 
 install:
-  - cd $HOME/gopath/src/github.com
-  - git clone https://github.com/iverberk/nomad.git hashicorp/nomad
-  - cd hashicorp/nomad
-  - git checkout -qf $TRAVIS_COMMIT
   - make travis
   - make bootstrap
 
