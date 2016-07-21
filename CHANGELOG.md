@@ -6,6 +6,8 @@ IMPROVEMENTS:
   * api/cli: Support for tailing/streaming files [GH-1404, GH-1420]
 
 BUG FIXES:
+  * core: Sanitize empty slices/maps in jobs to avoid incorrect create/destroy
+    updates [GH-1434]
   * client: Task start errors adhere to restart policy mode [GH-1405]
 
 ## 0.4.0
