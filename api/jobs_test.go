@@ -488,6 +488,48 @@ func TestJobs_Plan(t *testing.T) {
 	}
 }
 
+func TestJobs_JobSummary(t *testing.T) {
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	jobs := c.Jobs()
+
+	// Trying to retrieve a job summary before the job exists
+	// returns an error
+	_, _, err := jobs.Summary("job1", nil)
+	if err == nil || !strings.Contains(err.Error(), "not found") {
+		t.Fatalf("expected not found error, got: %#v", err)
+	}
+
+	// Register the job
+	job := testJob()
+	_, wm, err := jobs.Register(job, nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	assertWriteMeta(t, wm)
+
+	// Query the job again and ensure it exists
+	result, qm, err := jobs.Summary("job1", nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	assertQueryMeta(t, qm)
+
+	expectedJobSummary := JobSummary{
+		JobID: job.ID,
+		Summary: map[string]TaskGroupSummary{
+			job.TaskGroups[0].Name: {},
+		},
+		CreateIndex: result.CreateIndex,
+		ModifyIndex: result.ModifyIndex,
+	}
+
+	// Check that the result is what we expect
+	if !reflect.DeepEqual(&expectedJobSummary, result) {
+		t.Fatalf("expect: %#v, got: %#v", expectedJobSummary, result)
+	}
+}
+
 func TestJobs_NewBatchJob(t *testing.T) {
 	job := NewBatchJob("job1", "myjob", "region1", 5)
 	expect := &Job{

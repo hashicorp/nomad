@@ -1226,10 +1226,10 @@ type JobListStub struct {
 	Priority          int
 	Status            string
 	StatusDescription string
+	JobSummary        *JobSummary
 	CreateIndex       uint64
 	ModifyIndex       uint64
 	JobModifyIndex    uint64
-	JobSummary        *JobSummary
 }
 
 // UpdateStrategy is used to modify how updates are done
