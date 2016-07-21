@@ -127,6 +127,7 @@ func (c *RunCommand) Run(args []string) int {
 		} else {
 			f = os.Stdin
 		}
+		path = "stdin"
 	default:
 		file, err := os.Open(path)
 		defer file.Close()
@@ -140,7 +141,7 @@ func (c *RunCommand) Run(args []string) int {
 	// Parse the JobFile
 	job, err := jobspec.Parse(f)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error parsing job file %s: %v", path, err))
+		c.Ui.Error(fmt.Sprintf("Error parsing job file from %s: %v", path, err))
 		return 1
 	}
 
