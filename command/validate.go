@@ -49,7 +49,7 @@ func (c *ValidateCommand) Run(args []string) int {
 	}
 
 	// Initialize any fields that need to be.
-	job.InitFields()
+	job.Canonicalize()
 
 	// Check that the job is valid
 	if err := job.Validate(); err != nil {

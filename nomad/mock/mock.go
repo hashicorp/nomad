@@ -147,7 +147,7 @@ func Job() *structs.Job {
 		ModifyIndex:    99,
 		JobModifyIndex: 99,
 	}
-	job.InitFields()
+	job.Canonicalize()
 	return job
 }
 
