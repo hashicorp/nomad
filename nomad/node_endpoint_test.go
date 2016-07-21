@@ -153,6 +153,67 @@ func TestClientEndpoint_UpdateStatus(t *testing.T) {
 	}
 }
 
+func TestClientEndpoint_Register_GetEvals(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Register a system job.
+	job := mock.SystemJob()
+	state := s1.fsm.State()
+	if err := state.UpsertJob(1, job); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Create the register request going directly to ready
+	node := mock.Node()
+	node.Status = structs.NodeStatusReady
+	reg := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.NodeUpdateResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Check for heartbeat interval
+	ttl := resp.HeartbeatTTL
+	if ttl < s1.config.MinHeartbeatTTL || ttl > 2*s1.config.MinHeartbeatTTL {
+		t.Fatalf("bad: %#v", ttl)
+	}
+
+	// Check for an eval caused by the system job.
+	if len(resp.EvalIDs) != 1 {
+		t.Fatalf("expected one eval; got %#v", resp.EvalIDs)
+	}
+
+	evalID := resp.EvalIDs[0]
+	eval, err := state.EvalByID(evalID)
+	if err != nil {
+		t.Fatalf("could not get eval %v", evalID)
+	}
+
+	if eval.Type != "system" {
+		t.Fatalf("unexpected eval type; got %v; want %q", eval.Type, "system")
+	}
+
+	// Check for the node in the FSM
+	out, err := state.NodeByID(node.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out == nil {
+		t.Fatalf("expected node")
+	}
+	if out.ModifyIndex != resp.Index {
+		t.Fatalf("index mis-match")
+	}
+}
+
 func TestClientEndpoint_UpdateStatus_GetEvals(t *testing.T) {
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
