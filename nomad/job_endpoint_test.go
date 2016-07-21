@@ -713,6 +713,56 @@ func TestJobEndpoint_GetJob(t *testing.T) {
 	}
 }
 
+func TestJobEndpoint_GetJobSummary(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	job := mock.Job()
+	reg := &structs.JobRegisterRequest{
+		Job:          job,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", reg, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	job.CreateIndex = resp.JobModifyIndex
+	job.ModifyIndex = resp.JobModifyIndex
+	job.JobModifyIndex = resp.JobModifyIndex
+
+	// Lookup the job
+	get := &structs.JobSummaryRequest{
+		JobID:        job.ID,
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+	var resp2 structs.SingleJobSummaryResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.GetSummary", get, &resp2); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp2.Index != resp.JobModifyIndex {
+		t.Fatalf("Bad index: %d %d", resp2.Index, resp.Index)
+	}
+
+	expectedJobSummary := structs.JobSummary{
+		JobID: job.ID,
+		Summary: map[string]structs.TaskGroupSummary{
+			"web": structs.TaskGroupSummary{},
+		},
+		CreateIndex: job.CreateIndex,
+		ModifyIndex: job.CreateIndex,
+	}
+
+	if !reflect.DeepEqual(resp2.JobSummary, &expectedJobSummary) {
+		t.Fatalf("exptected: %v, actual: %v", expectedJobSummary, resp2.JobSummary)
+	}
+
+}
+
 func TestJobEndpoint_GetJob_Blocking(t *testing.T) {
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
