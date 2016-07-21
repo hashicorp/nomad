@@ -85,13 +85,8 @@ existing cluster with a server whose IP is known. Once the agent joins the other
 node in the cluster, it can discover the other nodes via the gossip protocol.
 
 ```
-nomad server-join -retry-join 10.0.0.1
+nomad server-join 10.0.0.1
 ```
-
-The `-retry-join` parameter indicates that the agent should keep trying to join
-the server even if the first attempt fails. This is essential when the other
-address is going to be eventually available after some time as nodes might take
-a variable amount of time to boot up in a cluster.
 
 On the client side, the addresses of the servers are expected to be specified
 via the client configuration.
