@@ -489,6 +489,7 @@ func TestFSM_UpsertAllocs(t *testing.T) {
 	fsm := testFSM(t)
 
 	alloc := mock.Alloc()
+	fsm.State().UpsertJobSummary(1, mock.JobSummary(alloc.JobID))
 	req := structs.AllocUpdateRequest{
 		Alloc: []*structs.Allocation{alloc},
 	}
@@ -544,6 +545,7 @@ func TestFSM_UpsertAllocs_SharedJob(t *testing.T) {
 	fsm := testFSM(t)
 
 	alloc := mock.Alloc()
+	fsm.State().UpsertJobSummary(1, mock.JobSummary(alloc.JobID))
 	job := alloc.Job
 	alloc.Job = nil
 	req := structs.AllocUpdateRequest{
@@ -611,6 +613,7 @@ func TestFSM_UpsertAllocs_StrippedResources(t *testing.T) {
 	fsm := testFSM(t)
 
 	alloc := mock.Alloc()
+	fsm.State().UpsertJobSummary(1, mock.JobSummary(alloc.JobID))
 	job := alloc.Job
 	resources := alloc.Resources
 	alloc.Resources = nil
@@ -667,7 +670,9 @@ func TestFSM_UpdateAllocFromClient_Unblock(t *testing.T) {
 	alloc.NodeID = node.ID
 	alloc2 := mock.Alloc()
 	alloc2.NodeID = node.ID
-	state.UpsertAllocs(1, []*structs.Allocation{alloc, alloc2})
+	state.UpsertJobSummary(8, mock.JobSummary(alloc.JobID))
+	state.UpsertJobSummary(9, mock.JobSummary(alloc2.JobID))
+	state.UpsertAllocs(10, []*structs.Allocation{alloc, alloc2})
 
 	clientAlloc := new(structs.Allocation)
 	*clientAlloc = *alloc
@@ -730,7 +735,8 @@ func TestFSM_UpdateAllocFromClient(t *testing.T) {
 	state := fsm.State()
 
 	alloc := mock.Alloc()
-	state.UpsertAllocs(1, []*structs.Allocation{alloc})
+	state.UpsertJobSummary(9, mock.JobSummary(alloc.JobID))
+	state.UpsertAllocs(10, []*structs.Allocation{alloc})
 
 	clientAlloc := new(structs.Allocation)
 	*clientAlloc = *alloc
@@ -757,7 +763,7 @@ func TestFSM_UpdateAllocFromClient(t *testing.T) {
 	clientAlloc.CreateIndex = out.CreateIndex
 	clientAlloc.ModifyIndex = out.ModifyIndex
 	if !reflect.DeepEqual(clientAlloc, out) {
-		t.Fatalf("bad: %#v %#v", clientAlloc, out)
+		t.Fatalf("err: %#v,%#v", clientAlloc, out)
 	}
 }
 
@@ -857,8 +863,10 @@ func TestFSM_SnapshotRestore_Allocs(t *testing.T) {
 	fsm := testFSM(t)
 	state := fsm.State()
 	alloc1 := mock.Alloc()
-	state.UpsertAllocs(1000, []*structs.Allocation{alloc1})
 	alloc2 := mock.Alloc()
+	state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID))
+	state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID))
+	state.UpsertAllocs(1000, []*structs.Allocation{alloc1})
 	state.UpsertAllocs(1001, []*structs.Allocation{alloc2})
 
 	// Verify the contents

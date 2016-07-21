@@ -235,9 +235,9 @@ func JobSummary(jobID string) *structs.JobSummary {
 	js := &structs.JobSummary{
 		JobID: jobID,
 		Summary: map[string]structs.TaskGroupSummary{
-			"cache": {
-				Queued:   5,
-				Starting: 1,
+			"web": {
+				Queued:   0,
+				Starting: 0,
 			},
 		},
 	}

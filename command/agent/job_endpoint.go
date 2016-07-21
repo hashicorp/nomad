@@ -253,7 +253,7 @@ func (s *HTTPServer) jobSummaryRequest(resp http.ResponseWriter, req *http.Reque
 		return nil, nil
 	}
 
-	var out structs.SingleJobSummaryResponse
+	var out structs.JobSummaryResponse
 	if err := s.agent.RPC("Job.GetSummary", &args, &out); err != nil {
 		return nil, err
 	}

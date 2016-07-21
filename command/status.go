@@ -264,6 +264,7 @@ func (c *StatusCommand) outputJobInfo(client *api.Client, job *api.Job) error {
 				tgs.Running, tgs.Failed,
 				tgs.Complete, tgs.Lost,
 			)
+			idx += 1
 		}
 		c.Ui.Output(formatList(summaries))
 	}

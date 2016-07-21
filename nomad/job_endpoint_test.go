@@ -735,12 +735,12 @@ func TestJobEndpoint_GetJobSummary(t *testing.T) {
 	job.ModifyIndex = resp.JobModifyIndex
 	job.JobModifyIndex = resp.JobModifyIndex
 
-	// Lookup the job
+	// Lookup the job summary
 	get := &structs.JobSummaryRequest{
 		JobID:        job.ID,
 		QueryOptions: structs.QueryOptions{Region: "global"},
 	}
-	var resp2 structs.SingleJobSummaryResponse
+	var resp2 structs.JobSummaryResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Job.GetSummary", get, &resp2); err != nil {
 		t.Fatalf("err: %v", err)
 	}

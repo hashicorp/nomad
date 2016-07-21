@@ -149,6 +149,10 @@ func (s *SystemScheduler) process() (bool, error) {
 	if result != nil {
 		for _, allocations := range result.NodeAllocation {
 			for _, allocation := range allocations {
+				if allocation.CreateIndex != result.AllocIndex {
+					continue
+				}
+
 				if _, ok := s.queuedAllocs[allocation.TaskGroup]; ok {
 					s.queuedAllocs[allocation.TaskGroup] -= 1
 				} else {

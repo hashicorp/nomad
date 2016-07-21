@@ -448,7 +448,7 @@ type SingleJobResponse struct {
 }
 
 // SingleJobSummary is used to return a single job summary
-type SingleJobSummaryResponse struct {
+type JobSummaryResponse struct {
 	JobSummary *JobSummary
 	QueryMeta
 }

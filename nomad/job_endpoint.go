@@ -115,7 +115,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 
 // GetSummary retreives the summary of a job
 func (j *Job) GetSummary(args *structs.JobSummaryRequest,
-	reply *structs.SingleJobSummaryResponse) error {
+	reply *structs.JobSummaryResponse) error {
 	if done, err := j.srv.forward("Job.GetSummary", args, args, reply); done {
 		return err
 	}
@@ -126,12 +126,12 @@ func (j *Job) GetSummary(args *structs.JobSummaryRequest,
 		queryMeta: &reply.QueryMeta,
 		watch:     watch.NewItems(watch.Item{JobSummary: args.JobID}),
 		run: func() error {
-
-			// Look for the job
 			snap, err := j.srv.fsm.State().Snapshot()
 			if err != nil {
 				return err
 			}
+
+			// Look for job summary
 			out, err := snap.JobSummaryByID(args.JobID)
 			if err != nil {
 				return err
@@ -155,8 +155,6 @@ func (j *Job) GetSummary(args *structs.JobSummaryRequest,
 			return nil
 		}}
 	return j.srv.blockingRPC(&opts)
-
-	return nil
 }
 
 // Evaluate is used to force a job for re-evaluation

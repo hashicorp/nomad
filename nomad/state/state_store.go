@@ -1314,6 +1314,9 @@ func (s *StateStore) updateSummaryWithJob(index uint64, job *structs.Job,
 // or inserted
 func (s *StateStore) updateSummaryWithAlloc(index uint64, allocs []*structs.Allocation,
 	watcher watch.Items, txn *memdb.Txn) error {
+	if len(allocs) == 0 {
+		return nil
+	}
 
 	jobID := allocs[0].JobID
 	jobSummary, err := s.JobSummaryByID(jobID)
@@ -1339,7 +1342,8 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, allocs []*structs.Allo
 		if existing == nil {
 			switch alloc.DesiredStatus {
 			case structs.AllocDesiredStatusStop, structs.AllocDesiredStatusEvict:
-				s.logger.Printf("[ERR] state_store: new allocation inserted into state store with id: %v and state: %v", alloc.DesiredStatus)
+				s.logger.Printf("[ERR] state_store: new allocation inserted into state store with id: %v and state: %v",
+					alloc.ID, alloc.DesiredStatus)
 			}
 			switch alloc.ClientStatus {
 			case structs.AllocClientStatusPending:

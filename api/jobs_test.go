@@ -508,7 +508,7 @@ func TestJobs_JobSummary(t *testing.T) {
 	}
 	assertWriteMeta(t, wm)
 
-	// Query the job again and ensure it exists
+	// Query the job summary again and ensure it exists
 	result, qm, err := jobs.Summary("job1", nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)

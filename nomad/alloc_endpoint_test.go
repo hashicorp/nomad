@@ -19,9 +19,13 @@ func TestAllocEndpoint_List(t *testing.T) {
 
 	// Create the register request
 	alloc := mock.Alloc()
+	summary := mock.JobSummary(alloc.JobID)
 	state := s1.fsm.State()
-	err := state.UpsertAllocs(1000, []*structs.Allocation{alloc})
-	if err != nil {
+
+	if err := state.UpsertJobSummary(999, summary); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if err := state.UpsertAllocs(1000, []*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -75,6 +79,10 @@ func TestAllocEndpoint_List_Blocking(t *testing.T) {
 	// Create the alloc
 	alloc := mock.Alloc()
 
+	summary := mock.JobSummary(alloc.JobID)
+	if err := state.UpsertJobSummary(1, summary); err != nil {
+		t.Fatalf("err: %v", err)
+	}
 	// Upsert alloc triggers watches
 	time.AfterFunc(100*time.Millisecond, func() {
 		if err := state.UpsertAllocs(2, []*structs.Allocation{alloc}); err != nil {

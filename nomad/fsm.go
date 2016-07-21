@@ -410,6 +410,7 @@ func (n *nomadFSM) applyAllocClientUpdate(buf []byte, index uint64) interface{} 
 		return nil
 	}
 
+	// Updating the allocs with the job id and task group name
 	for _, alloc := range req.Alloc {
 		if existing, _ := n.state.AllocByID(alloc.ID); existing != nil {
 			alloc.JobID = existing.JobID
@@ -808,7 +809,7 @@ func (s *nomadSnapshot) persistJobSummaries(sink raft.SnapshotSink,
 			break
 		}
 
-		jobSummary := raw.(*structs.JobSummary)
+		jobSummary := raw.(structs.JobSummary)
 
 		sink.Write([]byte{byte(JobSummarySnapshot)})
 		if err := encoder.Encode(jobSummary); err != nil {

@@ -472,9 +472,9 @@ func TestWorker_ReblockEval(t *testing.T) {
 
 	// Create the job summary
 	js := mock.JobSummary(eval1.JobID)
-	tg := js.Summary["cache"]
+	tg := js.Summary["web"]
 	tg.Queued = 100
-	js.Summary["cache"] = tg
+	js.Summary["web"] = tg
 	if err := s1.fsm.State().UpsertJobSummary(1001, js); err != nil {
 		t.Fatal(err)
 	}
@@ -490,7 +490,7 @@ func TestWorker_ReblockEval(t *testing.T) {
 	}
 
 	eval2 := evalOut.Copy()
-	eval2.QueuedAllocations = map[string]int{"cache": 50}
+	eval2.QueuedAllocations = map[string]int{"web": 50}
 
 	// Attempt to reblock eval
 	w := &Worker{srv: s1, logger: s1.logger, evalToken: token}

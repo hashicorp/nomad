@@ -58,13 +58,21 @@ func TestHTTP_AllocsPrefixList(t *testing.T) {
 	httpTest(t, nil, func(s *TestServer) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
+
 		alloc1 := mock.Alloc()
 		alloc1.ID = "aaaaaaaa-e8f7-fd38-c855-ab94ceb89706"
 		alloc2 := mock.Alloc()
 		alloc2.ID = "aaabbbbb-e8f7-fd38-c855-ab94ceb89706"
-		err := state.UpsertAllocs(1000,
-			[]*structs.Allocation{alloc1, alloc2})
-		if err != nil {
+		summary1 := mock.JobSummary(alloc1.JobID)
+		summary2 := mock.JobSummary(alloc2.JobID)
+		if err := state.UpsertJobSummary(998, summary1); err != nil {
+			t.Fatal(err)
+		}
+		if err := state.UpsertJobSummary(999, summary2); err != nil {
+			t.Fatal(err)
+		}
+		if err := state.UpsertAllocs(1000,
+			[]*structs.Allocation{alloc1, alloc2}); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 
@@ -110,6 +118,9 @@ func TestHTTP_AllocQuery(t *testing.T) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
 		alloc := mock.Alloc()
+		if err := state.UpsertJobSummary(999, mock.JobSummary(alloc.JobID)); err != nil {
+			t.Fatal(err)
+		}
 		err := state.UpsertAllocs(1000,
 			[]*structs.Allocation{alloc})
 		if err != nil {
