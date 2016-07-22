@@ -45,9 +45,10 @@ type SystemScheduler struct {
 // scheduler.
 func NewSystemScheduler(logger *log.Logger, state State, planner Planner) Scheduler {
 	return &SystemScheduler{
-		logger:  logger,
-		state:   state,
-		planner: planner,
+		logger:       logger,
+		state:        state,
+		planner:      planner,
+		queuedAllocs: make(map[string]int),
 	}
 }
 
@@ -146,9 +147,12 @@ func (s *SystemScheduler) process() (bool, error) {
 		return false, err
 	}
 
+	// Decrement the number of allocations pending per task group based on the
+	// number of allocations successfully placed
 	if result != nil {
 		for _, allocations := range result.NodeAllocation {
 			for _, allocation := range allocations {
+				// Ensure that the allocation is newly created
 				if allocation.CreateIndex != result.AllocIndex {
 					continue
 				}
@@ -234,12 +238,9 @@ func (s *SystemScheduler) computeJobAllocs() error {
 		return nil
 	}
 
+	// Record the number of allocations that needs to be placed per Task Group
 	for _, allocTuple := range diff.place {
-		if _, ok := s.queuedAllocs[allocTuple.TaskGroup.Name]; ok {
-			s.queuedAllocs[allocTuple.TaskGroup.Name] += 1
-		} else {
-			s.queuedAllocs[allocTuple.TaskGroup.Name] = 1
-		}
+		s.queuedAllocs[allocTuple.TaskGroup.Name] += 1
 	}
 
 	// Compute the placements

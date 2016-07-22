@@ -760,7 +760,6 @@ func TestJobEndpoint_GetJobSummary(t *testing.T) {
 	if !reflect.DeepEqual(resp2.JobSummary, &expectedJobSummary) {
 		t.Fatalf("exptected: %v, actual: %v", expectedJobSummary, resp2.JobSummary)
 	}
-
 }
 
 func TestJobEndpoint_GetJob_Blocking(t *testing.T) {
@@ -965,6 +964,8 @@ func TestJobEndpoint_Allocations(t *testing.T) {
 	alloc2 := mock.Alloc()
 	alloc2.JobID = alloc1.JobID
 	state := s1.fsm.State()
+	state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID))
+	state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID))
 	err := state.UpsertAllocs(1000,
 		[]*structs.Allocation{alloc1, alloc2})
 	if err != nil {

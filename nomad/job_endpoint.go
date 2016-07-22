@@ -142,7 +142,7 @@ func (j *Job) GetSummary(args *structs.JobSummaryRequest,
 			if out != nil {
 				reply.Index = out.ModifyIndex
 			} else {
-				// Use the last index that affected the nodes table
+				// Use the last index that affected the job_summary table
 				index, err := snap.Index("job_summary")
 				if err != nil {
 					return err
@@ -366,7 +366,10 @@ func (j *Job) List(args *structs.JobListRequest,
 					break
 				}
 				job := raw.(*structs.Job)
-				summary, _ := snap.JobSummaryByID(job.ID)
+				summary, err := snap.JobSummaryByID(job.ID)
+				if err != nil {
+					return fmt.Errorf("unable to look up summary for job: %v", job.ID)
+				}
 				jobs = append(jobs, job.Stub(summary))
 			}
 			reply.Jobs = jobs

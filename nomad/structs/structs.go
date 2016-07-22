@@ -447,7 +447,7 @@ type SingleJobResponse struct {
 	QueryMeta
 }
 
-// SingleJobSummary is used to return a single job summary
+// JobSummaryResponse is used to return a single job summary
 type JobSummaryResponse struct {
 	JobSummary *JobSummary
 	QueryMeta
@@ -2845,7 +2845,7 @@ type Evaluation struct {
 	SnapshotIndex uint64
 
 	// QueuedAllocations is the number of unplaced allocations at the time the
-	// evaluation was processed.
+	// evaluation was processed. The map is keyed by Task Group names.
 	QueuedAllocations map[string]int
 
 	// Raft Indexes

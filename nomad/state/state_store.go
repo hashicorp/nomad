@@ -671,7 +671,7 @@ func (s *StateStore) nestedUpsertEval(txn *memdb.Txn, index uint64, eval *struct
 		js := summaryRaw.(structs.JobSummary)
 		var hasSummaryChanged bool
 		for tg, num := range eval.QueuedAllocations {
-			if summary, ok := js.Summary[tg]; ok {
+			if summary, ok := js.Summary[tg]; ok && summary.Queued != num {
 				summary.Queued = num
 				js.Summary[tg] = summary
 				hasSummaryChanged = true
@@ -1301,10 +1301,9 @@ func (s *StateStore) updateSummaryWithJob(index uint64, job *structs.Job,
 		if err := txn.Insert("index", &IndexEntry{"job_summary", index}); err != nil {
 			return fmt.Errorf("index update failed: %v", err)
 		}
-	}
-
-	if err := txn.Insert("job_summary", *existing); err != nil {
-		return err
+		if err := txn.Insert("job_summary", *existing); err != nil {
+			return err
+		}
 	}
 
 	return nil

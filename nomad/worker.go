@@ -434,13 +434,16 @@ func (w *Worker) ReblockEval(eval *structs.Evaluation) error {
 	// recorded in the job summary
 	summary, err := w.srv.fsm.state.JobSummaryByID(eval.JobID)
 	if err != nil {
-		return fmt.Errorf("coultn't retreive job summary: %v", err)
+		return fmt.Errorf("couldn't retreive job summary: %v", err)
 	}
 	if summary != nil {
 		var hasChanged bool
 		for tg, summary := range summary.Summary {
 			if queued, ok := eval.QueuedAllocations[tg]; ok {
-				hasChanged = (queued != summary.Queued)
+				if queued != summary.Queued {
+					hasChanged = true
+					break
+				}
 			}
 		}
 		if hasChanged {
