@@ -2,6 +2,8 @@ package command
 
 import (
 	"fmt"
+	"io"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -26,6 +28,9 @@ potentially invalid.`
 type PlanCommand struct {
 	Meta
 	color *colorstring.Colorize
+
+	// The fields below can be overwritten for tests
+	testStdin io.Reader
 }
 
 func (c *PlanCommand) Help() string {
@@ -36,6 +41,9 @@ Usage: nomad plan [options] <file>
   either a new or updated version of a job. The plan will not result in any
   changes to the cluster but gives insight into whether the job could be run
   successfully and how it would affect existing allocations.
+
+  If the supplied path is "-", the jobfile is read from stdin. Otherwise
+  it is read from the file at the supplied path.
 
   A job modify index is returned with the plan. This value can be used when
   submitting the job using "nomad run -check-index", which will check that the job
@@ -86,12 +94,33 @@ func (c *PlanCommand) Run(args []string) int {
 		c.Ui.Error(c.Help())
 		return 1
 	}
-	file := args[0]
 
-	// Parse the job file
-	job, err := jobspec.ParseFile(file)
+	// Read the Jobfile
+	path := args[0]
+
+	var f io.Reader
+	switch path {
+	case "-":
+		if c.testStdin != nil {
+			f = c.testStdin
+		} else {
+			f = os.Stdin
+		}
+		path = "stdin"
+	default:
+		file, err := os.Open(path)
+		defer file.Close()
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error opening file %q: %v", path, err))
+			return 1
+		}
+		f = file
+	}
+
+	// Parse the JobFile
+	job, err := jobspec.Parse(f)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error parsing job file %s: %s", file, err))
+		c.Ui.Error(fmt.Sprintf("Error parsing job file %s: %v", path, err))
 		return 1
 	}
 
@@ -142,7 +171,7 @@ func (c *PlanCommand) Run(args []string) int {
 	c.Ui.Output("")
 
 	// Print the job index info
-	c.Ui.Output(c.Colorize().Color(formatJobModifyIndex(resp.JobModifyIndex, file)))
+	c.Ui.Output(c.Colorize().Color(formatJobModifyIndex(resp.JobModifyIndex, path)))
 	return 0
 }
 
