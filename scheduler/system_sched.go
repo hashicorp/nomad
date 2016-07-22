@@ -45,10 +45,9 @@ type SystemScheduler struct {
 // scheduler.
 func NewSystemScheduler(logger *log.Logger, state State, planner Planner) Scheduler {
 	return &SystemScheduler{
-		logger:       logger,
-		state:        state,
-		planner:      planner,
-		queuedAllocs: make(map[string]int),
+		logger:  logger,
+		state:   state,
+		planner: planner,
 	}
 }
 
@@ -86,6 +85,7 @@ func (s *SystemScheduler) Process(eval *structs.Evaluation) error {
 // process is wrapped in retryMax to iteratively run the handler until we have no
 // further work or we've made the maximum number of attempts.
 func (s *SystemScheduler) process() (bool, error) {
+	s.queuedAllocs = make(map[string]int)
 	// Lookup the Job by ID
 	var err error
 	s.job, err = s.state.JobByID(s.eval.JobID)

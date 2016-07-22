@@ -78,11 +78,10 @@ type GenericScheduler struct {
 // NewServiceScheduler is a factory function to instantiate a new service scheduler
 func NewServiceScheduler(logger *log.Logger, state State, planner Planner) Scheduler {
 	s := &GenericScheduler{
-		logger:       logger,
-		state:        state,
-		planner:      planner,
-		batch:        false,
-		queuedAllocs: make(map[string]int),
+		logger:  logger,
+		state:   state,
+		planner: planner,
+		batch:   false,
 	}
 	return s
 }
@@ -90,11 +89,10 @@ func NewServiceScheduler(logger *log.Logger, state State, planner Planner) Sched
 // NewBatchScheduler is a factory function to instantiate a new batch scheduler
 func NewBatchScheduler(logger *log.Logger, state State, planner Planner) Scheduler {
 	s := &GenericScheduler{
-		logger:       logger,
-		state:        state,
-		planner:      planner,
-		batch:        true,
-		queuedAllocs: make(map[string]int),
+		logger:  logger,
+		state:   state,
+		planner: planner,
+		batch:   true,
 	}
 	return s
 }
@@ -181,6 +179,7 @@ func (s *GenericScheduler) createBlockedEval(planFailure bool) error {
 // process is wrapped in retryMax to iteratively run the handler until we have no
 // further work or we've made the maximum number of attempts.
 func (s *GenericScheduler) process() (bool, error) {
+	s.queuedAllocs = make(map[string]int)
 	// Lookup the Job by ID
 	var err error
 	s.job, err = s.state.JobByID(s.eval.JobID)
