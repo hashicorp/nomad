@@ -2058,7 +2058,7 @@ func (ts *TaskState) Copy() *TaskState {
 	return copy
 }
 
-// Failed returns if the task has has failed.
+// Failed returns true if the task has failed.
 func (ts *TaskState) Failed() bool {
 	l := len(ts.Events)
 	if ts.State != TaskStateDead || l == 0 {
@@ -2128,7 +2128,7 @@ const (
 
 	// TaskDiskExceeded indicates that one of the tasks in a taskgroup has
 	// exceeded the requested disk resources.
-	TaskDiskExceeded = "Disk Exceeded"
+	TaskDiskExceeded = "Disk Resources Exceeded"
 )
 
 // TaskEvent is an event that effects the state of a task and contains meta-data

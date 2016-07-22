@@ -64,8 +64,8 @@ type AllocDir struct {
 	// Size is the total consumed disk size in bytes
 	Size int64
 
-	// DirCache keeps information on all directories within the shared alloc dir
-	DirCache map[string]*dirInfo
+	// dirCache keeps information on all directories within the shared alloc dir
+	dirCache map[string]*dirInfo
 
 	// watcher monitors the alloc dir and its subdirectories for filesystem
 	// events
@@ -101,7 +101,7 @@ func NewAllocDir(allocDir string) *AllocDir {
 	d := &AllocDir{
 		AllocDir: allocDir,
 		TaskDirs: make(map[string]string),
-		DirCache: make(map[string]*dirInfo),
+		dirCache: make(map[string]*dirInfo),
 		stopCh:   make(chan struct{}),
 	}
 	d.SharedDir = filepath.Join(d.AllocDir, SharedAllocName)
@@ -474,29 +474,25 @@ func (d *AllocDir) sharedDirWatcher() {
 	}
 	defer d.watcher.Close()
 
-	// Check if we have to initialize based on restored state
-	if len(d.DirCache) != 0 {
+	// stop channel could be uninitialized if we are restoring state
+	if d.stopCh == nil {
 		d.stopCh = make(chan struct{})
-		// Mark every directory dirty to force recalculation of disk size
-		for path := range d.DirCache {
-			d.DirCache[path].Dirty = true
-		}
-	} else {
-		// Find all directories in the shared alloc directory and add them
-		// to the directory cache and start watching them for filesystem events.
-		filepath.Walk(d.SharedDir,
-			func(path string, info os.FileInfo, err error) error {
-				name := strings.TrimPrefix(path, d.AllocDir+string(os.PathSeparator))
-				if _, ok := d.DirCache[name]; !ok && info.IsDir() {
-					d.DirCache[name] = &dirInfo{Dirty: true}
-					if err := d.watcher.Add(path); err != nil {
-						log.Printf("[WARN] client: failed to add watch: %v", err)
-						return err
-					}
-				}
-				return nil
-			})
 	}
+
+	// Find all directories in the shared alloc directory and add them
+	// to the directory cache and start watching them for filesystem events.
+	filepath.Walk(d.SharedDir,
+		func(path string, info os.FileInfo, err error) error {
+			name := strings.TrimPrefix(path, d.AllocDir+string(os.PathSeparator))
+			if _, ok := d.dirCache[name]; !ok && info.IsDir() {
+				d.dirCache[name] = &dirInfo{Dirty: true}
+				if err := d.watcher.Add(path); err != nil {
+					log.Printf("[WARN] client: failed to add watch: %v", err)
+					return err
+				}
+			}
+			return nil
+		})
 
 	// Do the initial disk usage sync
 	d.syncDiskUsage()
@@ -512,12 +508,12 @@ OUTER:
 				continue
 			}
 
-			// Trim shared alloc directory path
+			// Trim shared alloc directory path to get relative path
 			path := strings.TrimPrefix(event.Name, d.AllocDir+string(os.PathSeparator))
 			parent := filepath.Dir(path)
 
 			if event.Op&fsnotify.Remove == fsnotify.Remove {
-				delete(d.DirCache, path)
+				delete(d.dirCache, path)
 			}
 
 			if event.Op&fsnotify.Create == fsnotify.Create {
@@ -529,7 +525,7 @@ OUTER:
 
 				// Start watching the directory for filesystem events
 				if info.IsDir {
-					d.DirCache[path] = &dirInfo{
+					d.dirCache[path] = &dirInfo{
 						Size:  info.Size,
 						Dirty: true,
 					}
@@ -541,8 +537,8 @@ OUTER:
 
 			// If there was a write, create or remove event we mark the parent
 			// Dirty to recalculate the total consumed disk space
-			if _, ok := d.DirCache[parent]; ok {
-				d.DirCache[parent].Dirty = true
+			if _, ok := d.dirCache[parent]; ok {
+				d.dirCache[parent].Dirty = true
 			}
 
 		case err := <-d.watcher.Errors:
@@ -564,7 +560,7 @@ OUTER:
 // marked dirty, thereby reducing overall filesystem i/o.
 func (d *AllocDir) syncDiskUsage() error {
 	d.Size = 0
-	for path, info := range d.DirCache {
+	for path, info := range d.dirCache {
 		if info.Dirty {
 			files, err := d.List(path)
 			if err != nil {

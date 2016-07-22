@@ -58,8 +58,8 @@ type AllocRunner struct {
 	restored   map[string]struct{}
 	taskLock   sync.RWMutex
 
-	taskStatusLock   sync.RWMutex
-	taskDestroyEvent string
+	taskStatusLock    sync.RWMutex
+	taskDestroyReason string
 
 	updateCh chan *structs.Allocation
 
@@ -83,18 +83,18 @@ type allocRunnerState struct {
 func NewAllocRunner(logger *log.Logger, config *config.Config, updater AllocStateUpdater,
 	alloc *structs.Allocation) *AllocRunner {
 	ar := &AllocRunner{
-		config:           config,
-		updater:          updater,
-		logger:           logger,
-		alloc:            alloc,
-		dirtyCh:          make(chan struct{}, 1),
-		tasks:            make(map[string]*TaskRunner),
-		taskStates:       copyTaskStates(alloc.TaskStates),
-		taskDestroyEvent: structs.TaskKilled,
-		restored:         make(map[string]struct{}),
-		updateCh:         make(chan *structs.Allocation, 64),
-		destroyCh:        make(chan struct{}),
-		waitCh:           make(chan struct{}),
+		config:            config,
+		updater:           updater,
+		logger:            logger,
+		alloc:             alloc,
+		dirtyCh:           make(chan struct{}, 1),
+		tasks:             make(map[string]*TaskRunner),
+		taskStates:        copyTaskStates(alloc.TaskStates),
+		taskDestroyReason: structs.TaskKilled,
+		restored:          make(map[string]struct{}),
+		updateCh:          make(chan *structs.Allocation, 64),
+		destroyCh:         make(chan struct{}),
+		waitCh:            make(chan struct{}),
 	}
 	return ar
 }
@@ -249,6 +249,12 @@ func (r *AllocRunner) Alloc() *structs.Allocation {
 		alloc.ClientStatus = r.allocClientStatus
 		alloc.ClientDescription = r.allocClientDescription
 		r.allocLock.Unlock()
+
+		// Copy over the task states so we don't lose them
+		r.taskStatusLock.RLock()
+		alloc.TaskStates = copyTaskStates(r.taskStates)
+		r.taskStatusLock.RUnlock()
+
 		return alloc
 	}
 	r.allocLock.Unlock()
@@ -339,8 +345,7 @@ func (r *AllocRunner) setTaskState(taskName, state string, event *structs.TaskEv
 		for task, tr := range r.tasks {
 			if task != taskName {
 				destroyingTasks = append(destroyingTasks, task)
-				tr.SetDestroyEvent(r.taskDestroyEvent)
-				tr.Destroy()
+				tr.Destroy(r.taskDestroyReason)
 			}
 		}
 		if len(destroyingTasks) > 0 {
@@ -452,17 +457,19 @@ OUTER:
 			}
 			r.taskLock.RUnlock()
 		case <-watchdog.C:
-			r.checkResources()
+			if exceeded, description := r.checkResources(); exceeded {
+				r.setStatus(structs.AllocClientStatusFailed, description)
+				r.taskDestroyReason = description
+				break OUTER
+			}
 		case <-r.destroyCh:
 			break OUTER
 		}
 	}
-
 	// Destroy each sub-task
 	r.taskLock.Lock()
 	for _, tr := range r.tasks {
-		tr.SetDestroyEvent(r.taskDestroyEvent)
-		tr.Destroy()
+		tr.Destroy(r.taskDestroyReason)
 	}
 
 	// Wait for termination of the task runners
@@ -480,12 +487,11 @@ OUTER:
 }
 
 // checkResources monitors and enforces alloc resource usage
-func (r *AllocRunner) checkResources() {
+func (r *AllocRunner) checkResources() (bool, string) {
 	if r.ctx.AllocDir.Size >= r.Alloc().Resources.DiskInBytes() {
-		r.setStatus(structs.AllocClientStatusFailed, "Disk Resources Exceeded")
-		r.taskDestroyEvent = structs.TaskDiskExceeded
-		r.Destroy()
+		return true, structs.TaskDiskExceeded
 	}
+	return false, ""
 }
 
 // handleDestroy blocks till the AllocRunner should be destroyed and does the
