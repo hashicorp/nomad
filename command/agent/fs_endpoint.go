@@ -546,9 +546,17 @@ func (s *HTTPServer) Stream(resp http.ResponseWriter, req *http.Request) (interf
 	framer.Run()
 	defer framer.Destroy()
 
-	return nil, s.stream(offset, path, fs, framer, nil)
+	err := s.stream(offset, path, fs, framer, nil)
+	if err != nil && err != syscall.EPIPE {
+		return nil, err
+	}
+
+	return nil, nil
 }
 
+// stream is the internal method to stream the content of a file. eofCancelCh is
+// used to cancel the stream if triggered while at EOF. If the connection is
+// broken an EPIPE error is returned
 func (s *HTTPServer) stream(offset int64, path string,
 	fs allocdir.AllocDirFS, framer *StreamFramer,
 	eofCancelCh chan error) error {
@@ -805,7 +813,7 @@ func (s *HTTPServer) logs(follow bool, offset int64,
 			}
 
 			// Check if the connection was closed
-			if err == syscall.EPIPE {
+			if strings.Contains(err.Error(), syscall.EPIPE.Error()) {
 				return nil
 			}
 
