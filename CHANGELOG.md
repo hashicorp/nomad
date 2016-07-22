@@ -4,6 +4,7 @@ IMPROVEMENTS:
   * core: Allow count 0 on system jobs [GH-1421]
   * core: Gracefully handle short lived outages by holding RPC calls [GH-1403]
   * api/cli: Support for tailing/streaming files [GH-1404, GH-1420]
+  * client: Fingerprint network speed on Windows [GH-1443]
   * telemetry: Circonus integration for telemetry metrics [GH-1459]
 
 BUG FIXES:
