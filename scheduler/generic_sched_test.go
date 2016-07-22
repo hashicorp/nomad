@@ -1567,7 +1567,57 @@ func TestBatchSched_Run_FailedAlloc(t *testing.T) {
 		t.Fatalf("bad: %#v", out)
 	}
 
+	// Ensure that the scheduler is recording the correct number of queued
+	// allocations
+	queued := h.Evals[0].QueuedAllocations["web"]
+	if queued != 0 {
+		t.Fatalf("expected: %v, actual: %v", 1, queued)
+	}
+
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+}
+
+func TestBatchSched_Run_FailedAllocQueuedAllocations(t *testing.T) {
+	h := NewHarness(t)
+
+	node := mock.Node()
+	node.Drain = true
+	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+
+	// Create a job
+	job := mock.Job()
+	job.TaskGroups[0].Count = 1
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	// Create a failed alloc
+	alloc := mock.Alloc()
+	alloc.Job = job
+	alloc.JobID = job.ID
+	alloc.NodeID = node.ID
+	alloc.Name = "my-job.web[0]"
+	alloc.ClientStatus = structs.AllocClientStatusFailed
+	noErr(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
+
+	// Create a mock evaluation to register the job
+	eval := &structs.Evaluation{
+		ID:          structs.GenerateUUID(),
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+	}
+
+	// Process the evaluation
+	err := h.Process(NewBatchScheduler, eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure that the scheduler is recording the correct number of queued
+	// allocations
+	queued := h.Evals[0].QueuedAllocations["web"]
+	if queued != 1 {
+		t.Fatalf("expected: %v, actual: %v", 1, queued)
+	}
 }
 
 func TestBatchSched_ReRun_SuccessfullyFinishedAlloc(t *testing.T) {
