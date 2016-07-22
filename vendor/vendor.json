@@ -30,6 +30,12 @@
 			"revision": "06b60999766278efd6d2b5d8418a58c3d5b99e87"
 		},
 		{
+			"checksumSHA1": "OmqT9Y1mAHvlAKeJh0jBHC9SH78=",
+			"path": "github.com/armon/go-metrics/circonus",
+			"revision": "3df31a1ada83e310c2e24b267c8e8b68836547b4",
+			"revisionTime": "2016-07-17T04:34:58Z"
+		},
+		{
 			"checksumSHA1": "gNO0JNpLzYOdInGeq7HqMZUzx9M=",
 			"path": "github.com/armon/go-radix",
 			"revision": "4239b77079c7b5d1243b7b4736304ce8ddb6f0f2",
@@ -164,6 +170,30 @@
 			"revision": "c6ba97b89e0454fec9aa92e1d33a4e2c5fc1f631"
 		},
 		{
+			"checksumSHA1": "qNHg4l2+bg50XQUR094857jPOoQ=",
+			"path": "github.com/circonus-labs/circonus-gometrics",
+			"revision": "4d03e5666abdf78da571fcb930201f06b0c46662",
+			"revisionTime": "2016-07-21T19:08:58Z"
+		},
+		{
+			"checksumSHA1": "IFiYTxu8jshL4A8BCttUaDhp1m4=",
+			"path": "github.com/circonus-labs/circonus-gometrics/api",
+			"revision": "4d03e5666abdf78da571fcb930201f06b0c46662",
+			"revisionTime": "2016-07-21T19:08:58Z"
+		},
+		{
+			"checksumSHA1": "+9vcRzlTdvEjH/Uf8fKC5MXdjNw=",
+			"path": "github.com/circonus-labs/circonus-gometrics/checkmgr",
+			"revision": "4d03e5666abdf78da571fcb930201f06b0c46662",
+			"revisionTime": "2016-07-21T19:08:58Z"
+		},
+		{
+			"checksumSHA1": "C4Z7+l5GOpOCW5DcvNYzheGvQRE=",
+			"path": "github.com/circonus-labs/circonusllhist",
+			"revision": "d724266ae5270ae8b87a5d2e8081f04e307c3c18",
+			"revisionTime": "2016-05-26T04:38:13Z"
+		},
+		{
 			"path": "github.com/davecgh/go-spew/spew",
 			"revision": "5215b55f46b2b919f50a1df0eaa5886afe4e3b3d"
 		},
@@ -228,14 +258,14 @@
 		{
 			"checksumSHA1": "rArZ5mYIe9I1L5PRQOJu8BwafFw=",
 			"path": "github.com/docker/docker/pkg/pools",
-			"revision": "da39e9a4f920a15683dd0f23923c302d4db6eed5",
-			"revisionTime": "2016-05-28T08:11:04Z"
+			"revision": "52debcd58ac91bf68503ce60561536911b74ff05",
+			"revisionTime": "2016-05-20T15:17:10Z"
 		},
 		{
 			"checksumSHA1": "rArZ5mYIe9I1L5PRQOJu8BwafFw=",
 			"path": "github.com/docker/docker/pkg/pools",
-			"revision": "52debcd58ac91bf68503ce60561536911b74ff05",
-			"revisionTime": "2016-05-20T15:17:10Z"
+			"revision": "da39e9a4f920a15683dd0f23923c302d4db6eed5",
+			"revisionTime": "2016-05-28T08:11:04Z"
 		},
 		{
 			"checksumSHA1": "txf3EORYff4hO6PEvwBm2lyh1MU=",
@@ -256,16 +286,16 @@
 			"revisionTime": "2016-05-28T08:11:04Z"
 		},
 		{
-			"checksumSHA1": "Eh3iu/9RzHzNY4vHHPKaZISAgBo=",
-			"path": "github.com/docker/docker/pkg/system",
-			"revision": "02caa73df411debed164f520a6a1304778f8b88c",
-			"revisionTime": "2016-05-28T10:48:36Z"
-		},
-		{
 			"checksumSHA1": "QcztYNLTWLhamq8fPdk63hqIOMc=",
 			"path": "github.com/docker/docker/pkg/system",
 			"revision": "52debcd58ac91bf68503ce60561536911b74ff05",
 			"revisionTime": "2016-05-20T15:17:10Z"
+		},
+		{
+			"checksumSHA1": "Eh3iu/9RzHzNY4vHHPKaZISAgBo=",
+			"path": "github.com/docker/docker/pkg/system",
+			"revision": "02caa73df411debed164f520a6a1304778f8b88c",
+			"revisionTime": "2016-05-28T10:48:36Z"
 		},
 		{
 			"comment": "v0.1.0-23-g5d2041e",
@@ -471,6 +501,12 @@
 			"path": "github.com/hashicorp/go-plugin",
 			"revision": "8cf118f7a2f0c7ef1c82f66d4f6ac77c7e27dc12",
 			"revisionTime": "2016-06-08T02:21:58Z"
+		},
+		{
+			"checksumSHA1": "bfVGm7xZ2VFpddJp3KEPUZ8Y9Po=",
+			"path": "github.com/hashicorp/go-retryablehttp",
+			"revision": "886ce0458bc81ccca0fb7044c1be0e9ab590bed7",
+			"revisionTime": "2016-07-18T23:34:41Z"
 		},
 		{
 			"path": "github.com/hashicorp/go-syslog",
