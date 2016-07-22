@@ -644,6 +644,9 @@ func TestSystemSched_JobDeregister(t *testing.T) {
 		alloc.Name = "my-job.web[0]"
 		allocs = append(allocs, alloc)
 	}
+	for _, alloc := range allocs {
+		noErr(t, h.State.UpsertJobSummary(h.NextIndex(), mock.JobSummary(alloc.JobID)))
+	}
 	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
 
 	// Create a mock evaluation to deregister the job

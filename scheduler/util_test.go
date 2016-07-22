@@ -573,7 +573,7 @@ func TestInplaceUpdate_ChangedTaskGroup(t *testing.T) {
 	job := mock.Job()
 
 	node := mock.Node()
-	noErr(t, state.UpsertNode(1000, node))
+	noErr(t, state.UpsertNode(900, node))
 
 	// Register an alloc
 	alloc := &structs.Allocation{
@@ -587,8 +587,10 @@ func TestInplaceUpdate_ChangedTaskGroup(t *testing.T) {
 			MemoryMB: 2048,
 		},
 		DesiredStatus: structs.AllocDesiredStatusRun,
+		TaskGroup:     "web",
 	}
 	alloc.TaskResources = map[string]*structs.Resources{"web": alloc.Resources}
+	noErr(t, state.UpsertJobSummary(1000, mock.JobSummary(alloc.JobID)))
 	noErr(t, state.UpsertAllocs(1001, []*structs.Allocation{alloc}))
 
 	// Create a new task group that prevents in-place updates.
@@ -619,7 +621,7 @@ func TestInplaceUpdate_NoMatch(t *testing.T) {
 	job := mock.Job()
 
 	node := mock.Node()
-	noErr(t, state.UpsertNode(1000, node))
+	noErr(t, state.UpsertNode(900, node))
 
 	// Register an alloc
 	alloc := &structs.Allocation{
@@ -633,8 +635,10 @@ func TestInplaceUpdate_NoMatch(t *testing.T) {
 			MemoryMB: 2048,
 		},
 		DesiredStatus: structs.AllocDesiredStatusRun,
+		TaskGroup:     "web",
 	}
 	alloc.TaskResources = map[string]*structs.Resources{"web": alloc.Resources}
+	noErr(t, state.UpsertJobSummary(1000, mock.JobSummary(alloc.JobID)))
 	noErr(t, state.UpsertAllocs(1001, []*structs.Allocation{alloc}))
 
 	// Create a new task group that requires too much resources.
@@ -664,7 +668,7 @@ func TestInplaceUpdate_Success(t *testing.T) {
 	job := mock.Job()
 
 	node := mock.Node()
-	noErr(t, state.UpsertNode(1000, node))
+	noErr(t, state.UpsertNode(900, node))
 
 	// Register an alloc
 	alloc := &structs.Allocation{
@@ -681,6 +685,7 @@ func TestInplaceUpdate_Success(t *testing.T) {
 		DesiredStatus: structs.AllocDesiredStatusRun,
 	}
 	alloc.TaskResources = map[string]*structs.Resources{"web": alloc.Resources}
+	noErr(t, state.UpsertJobSummary(999, mock.JobSummary(alloc.JobID)))
 	noErr(t, state.UpsertAllocs(1001, []*structs.Allocation{alloc}))
 
 	// Create a new task group that updates the resources.

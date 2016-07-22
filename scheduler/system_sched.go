@@ -149,22 +149,7 @@ func (s *SystemScheduler) process() (bool, error) {
 
 	// Decrement the number of allocations pending per task group based on the
 	// number of allocations successfully placed
-	if result != nil {
-		for _, allocations := range result.NodeAllocation {
-			for _, allocation := range allocations {
-				// Ensure that the allocation is newly created
-				if allocation.CreateIndex != result.AllocIndex {
-					continue
-				}
-
-				if _, ok := s.queuedAllocs[allocation.TaskGroup]; ok {
-					s.queuedAllocs[allocation.TaskGroup] -= 1
-				} else {
-					s.logger.Printf("[ERR] sched: allocation %q placed but not in list of unplaced allocations", allocation.TaskGroup)
-				}
-			}
-		}
-	}
+	adjustQueuedAllocations(s.logger, result, s.queuedAllocs)
 
 	// If we got a state refresh, try again since we have stale data
 	if newState != nil {

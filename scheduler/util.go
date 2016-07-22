@@ -596,3 +596,24 @@ func desiredUpdates(diff *diffResult, inplaceUpdates,
 
 	return desiredTgs
 }
+
+// adjustQueuedAllocations decrements the number of allocations pending per task
+// group based on the number of allocations successfully placed
+func adjustQueuedAllocations(logger *log.Logger, result *structs.PlanResult, queuedAllocs map[string]int) {
+	if result != nil {
+		for _, allocations := range result.NodeAllocation {
+			for _, allocation := range allocations {
+				// Ensure that the allocation is newly created
+				if allocation.CreateIndex != result.AllocIndex {
+					continue
+				}
+
+				if _, ok := queuedAllocs[allocation.TaskGroup]; ok {
+					queuedAllocs[allocation.TaskGroup] -= 1
+				} else {
+					logger.Printf("[ERR] sched: allocation %q placed but not in list of unplaced allocations", allocation.TaskGroup)
+				}
+			}
+		}
+	}
+}
