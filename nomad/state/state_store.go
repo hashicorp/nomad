@@ -1499,6 +1499,72 @@ func (r *StateRestore) JobSummaryRestore(jobSummary *structs.JobSummary) error {
 	return nil
 }
 
+// CreateJobSummaries computes the job summaries for all the jobs
+func (r *StateRestore) CreateJobSummaries() error {
+	// Get all the jobs
+	var jobs []*structs.Job
+	iter, err := r.txn.Get("jobs", "id")
+	if err != nil {
+		return fmt.Errorf("couldn't retrieve jobs: %v", err)
+	}
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		jobs = append(jobs, raw.(*structs.Job))
+	}
+
+	for _, job := range jobs {
+
+		// Get all the allocations for the job
+		iter, err = r.txn.Get("allocs", "job", job.ID)
+		if err != nil {
+			return fmt.Errorf("couldn't retrieve allocations for job %v: %v", job.ID, err)
+		}
+		var allocs []*structs.Allocation
+		for {
+			raw := iter.Next()
+			if raw == nil {
+				break
+			}
+			allocs = append(allocs, raw.(*structs.Allocation))
+		}
+
+		// Create a job summary for the job
+		summary := structs.JobSummary{
+			JobID:   job.ID,
+			Summary: make(map[string]structs.TaskGroupSummary),
+		}
+		// Calculate the summary for the job
+		for _, alloc := range allocs {
+			if _, ok := summary.Summary[alloc.TaskGroup]; !ok {
+				summary.Summary[alloc.TaskGroup] = structs.TaskGroupSummary{}
+			}
+			tg := summary.Summary[alloc.TaskGroup]
+			switch alloc.ClientStatus {
+			case structs.AllocClientStatusFailed:
+				tg.Failed += 1
+			case structs.AllocClientStatusLost:
+				tg.Lost += 1
+			case structs.AllocClientStatusComplete:
+				tg.Complete += 1
+			case structs.AllocClientStatusRunning:
+				tg.Running += 1
+			case structs.AllocClientStatusPending:
+				tg.Starting += 1
+			}
+			summary.Summary[alloc.TaskGroup] = tg
+		}
+		// Insert the job summary
+		if err := r.txn.Insert("job_summary", summary); err != nil {
+			return fmt.Errorf("error inserting job summary: %v", err)
+		}
+	}
+
+	return nil
+}
+
 // stateWatch holds shared state for watching updates. This is
 // outside of StateStore so it can be shared with snapshots.
 type stateWatch struct {

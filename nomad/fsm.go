@@ -577,6 +577,12 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 		}
 	}
 
+	// Create Job Summaries
+	// COMPAT 0.4 -> 0.4.1
+	if err := restore.CreateJobSummaries(); err != nil {
+		return fmt.Errorf("error creating job summaries: %v", err)
+	}
+
 	// Commit the state restore
 	restore.Commit()
 	return nil

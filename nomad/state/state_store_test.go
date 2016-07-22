@@ -1111,6 +1111,50 @@ func TestStateStore_RestoreJobSummary(t *testing.T) {
 	}
 }
 
+func TestStateStore_CreateJobSummaries(t *testing.T) {
+	state := testStateStore(t)
+	restore, err := state.Restore()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	// Restore a job
+	job := mock.Job()
+	if err := restore.JobRestore(job); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Restore an allocation
+	alloc := mock.Alloc()
+	alloc.JobID = job.ID
+	alloc.Job = job
+	if err := restore.AllocRestore(alloc); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Create the job summaries
+	if err := restore.CreateJobSummaries(); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	restore.Commit()
+
+	summary, err := state.JobSummaryByID(job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	expected := structs.JobSummary{
+		JobID: job.ID,
+		Summary: map[string]structs.TaskGroupSummary{
+			"web": {
+				Starting: 1,
+			},
+		},
+	}
+
+	if !reflect.DeepEqual(summary, &expected) {
+		t.Fatalf("Bad: %#v %#v", summary, expected)
+	}
+}
+
 func TestStateStore_Indexes(t *testing.T) {
 	state := testStateStore(t)
 	node := mock.Node()
