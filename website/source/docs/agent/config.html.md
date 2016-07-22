@@ -193,6 +193,28 @@ nodes, unless otherwise specified:
     server to forward metrics to.
   * `disable_hostname`: A boolean indicating if gauge values should not be
     prefixed with the local hostname.
+  * `circonus_api_token`
+    A valid [Circonus](http://circonus.com/) API Token used to create/manage check. If provided, metric management is enabled.
+  * `circonus_api_app`
+    A valid app name associated with the API token. By default, this is set to "consul".
+  * `circonus_api_url`
+    The base URL to use for contacting the Circonus API. By default, this is set to "https://api.circonus.com/v2".
+  * `circonus_submission_interval`
+    The interval at which metrics are submitted to Circonus. By default, this is set to "10s" (ten seconds).
+  * `circonus_submission_url`
+    The `check.config.submission_url` field, of a Check API object, from a previously created HTTPTRAP check.
+  * `circonus_check_id`
+    The Check ID (not **check bundle**) from a previously created HTTPTRAP check. The numeric portion of the `check._cid` field in the Check API object.
+  * `circonus_check_force_metric_activation`
+    Force activation of metrics which already exist and are not currently active. If check management is enabled, the default behavior is to add new metrics as they are encountered. If the metric already exists in the check, it will **not** be activated. This setting overrides that behavior. By default, this is set to "false".
+  * `circonus_check_instance_id`
+    Serves to uniquely identify the metrics coming from this *instance*.  It can be used to maintain metric continuity with transient or ephemeral instances as they move around within an infrastructure. By default, this is set to hostname:application name (e.g. "host123:consul").
+  * `circonus_check_search_tag`
+    A special tag which, when coupled with the instance id, helps to narrow down the search results when neither a Submission URL or Check ID is provided. By default, this is set to service:app (e.g. "service:consul").
+  * `circonus_broker_id`
+    The ID of a specific Circonus Broker to use when creating a new check. The numeric portion of `broker._cid` field in a Broker API object. If metric management is enabled and neither a Submission URL nor Check ID is provided, an attempt will be made to search for an existing check using Instance ID and Search Tag. If one is not found, a new HTTPTRAP check will be created. By default, this is not used and a random Enterprise Broker is selected, or, the default Circonus Public Broker.
+  * `circonus_broker_search_tag`
+    A special tag which will be used to select a Circonus Broker when a Broker ID is not provided. The best use of this is to as a hint for which broker should be used based on *where* this particular instance is running (e.g. a specific geo location or datacenter, dc:sfo). By default, this is not used.
 
 * `leave_on_interrupt`: Enables gracefully leaving when receiving the
   interrupt signal. By default, the agent will exit forcefully on any signal.
@@ -353,7 +375,7 @@ configured on client nodes.
     cluster.
   * <a id="retry_join">`retry_join`</a> Similar to [`start_join`](#start_join) but allows retrying a join
     if the first attempt fails. This is useful for cases where we know the
-    address will become available eventually. Use `retry_join` with an array as a replacement for 
+    address will become available eventually. Use `retry_join` with an array as a replacement for
     `start_join`, do not use both options.
   * <a id="retry_interval">`retry_interval`</a> The time to wait between join attempts. Defaults to 30s.
   * <a id="retry_max">`retry_max`</a> The maximum number of join attempts to be made before exiting
@@ -431,7 +453,7 @@ configured on server nodes.
       to reserve on all fingerprinted network devices. Ranges can be
       specified by using a hyphen separated the two inclusive ends.
 
-### <a id="options_map"></a>Client Options Map 
+### <a id="options_map"></a>Client Options Map
 
 The following is not an exhaustive list of options that can be passed to the
 Client, but rather the set of options that configure the Client and not the
@@ -447,7 +469,7 @@ documentation [here](/docs/drivers/index.html)
     `raw_exec` and `java` tasks. `env.blacklist` is a comma separated list of
     environment variable keys not to pass to these tasks. If specified, the
     defaults are overridden. The following are the default:
-    
+
     * `CONSUL_TOKEN`
     * `VAULT_TOKEN`
     * `ATLAS_TOKEN`
@@ -457,14 +479,14 @@ documentation [here](/docs/drivers/index.html)
 *   `user.blacklist`: An operator specifiable blacklist of users which a task is
     not allowed to run as when using a driver in `user.checked_drivers`.
     Defaults to:
-    
+
     * `root`
     * `Administrator`
 
 *   `user.checked_drivers`: An operator specifiable list of drivers to enforce
     the the `user.blacklist`. For drivers using containers, this enforcement often
     doesn't make sense and as such the default is set to:
-    
+
     * `exec`
     * `qemu`
     * `java`
@@ -473,7 +495,7 @@ documentation [here](/docs/drivers/index.html)
   If specified, fingerprinters not in the whitelist will be disabled. If the
   whitelist is empty, all fingerprinters are used.
 
-## <a id="cli"></a>Command-line Options 
+## <a id="cli"></a>Command-line Options
 
 A subset of the available Nomad agent configuration can optionally be passed in
 via CLI arguments. The `agent` command accepts the following arguments:

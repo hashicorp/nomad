@@ -493,6 +493,17 @@ func parseTelemetry(result **Telemetry, list *ast.ObjectList) error {
 		"statsd_address",
 		"disable_hostname",
 		"collection_interval",
+		"circonus_api_token",
+		"circonus_api_app",
+		"circonus_api_url",
+		"circonus_submission_interval",
+		"circonus_submission_url",
+		"circonus_check_id",
+		"circonus_check_force_metric_activation",
+		"circonus_check_instance_id",
+		"circonus_check_search_tag",
+		"circonus_broker_id",
+		"circonus_broker_search_tag",
 	}
 	if err := checkHCLKeys(listVal, valid); err != nil {
 		return err
