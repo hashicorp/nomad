@@ -1004,6 +1004,7 @@ func TestJobEndpoint_Allocations_Blocking(t *testing.T) {
 
 	// First upsert an unrelated alloc
 	time.AfterFunc(100*time.Millisecond, func() {
+		state.UpsertJobSummary(99, mock.JobSummary(alloc1.JobID))
 		err := state.UpsertAllocs(100, []*structs.Allocation{alloc1})
 		if err != nil {
 			t.Fatalf("err: %v", err)
@@ -1012,6 +1013,7 @@ func TestJobEndpoint_Allocations_Blocking(t *testing.T) {
 
 	// Upsert an alloc for the job we are interested in later
 	time.AfterFunc(200*time.Millisecond, func() {
+		state.UpsertJobSummary(199, mock.JobSummary(alloc2.JobID))
 		err := state.UpsertAllocs(200, []*structs.Allocation{alloc2})
 		if err != nil {
 			t.Fatalf("err: %v", err)

@@ -1242,6 +1242,53 @@ func TestServiceSched_NodeDrain(t *testing.T) {
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
 
+func TestServiceSched_NodeDrain_Queued_Allocations(t *testing.T) {
+	h := NewHarness(t)
+
+	// Register a draining node
+	node := mock.Node()
+	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+
+	// Generate a fake job with allocations and an update policy.
+	job := mock.Job()
+	job.TaskGroups[0].Count = 2
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	var allocs []*structs.Allocation
+	for i := 0; i < 2; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = node.ID
+		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
+		allocs = append(allocs, alloc)
+	}
+	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+
+	node.Drain = true
+	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+
+	// Create a mock evaluation to deal with drain
+	eval := &structs.Evaluation{
+		ID:          structs.GenerateUUID(),
+		Priority:    50,
+		TriggeredBy: structs.EvalTriggerNodeUpdate,
+		JobID:       job.ID,
+		NodeID:      node.ID,
+	}
+
+	// Process the evaluation
+	err := h.Process(NewServiceScheduler, eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	queued := h.Evals[0].QueuedAllocations["web"]
+	if queued != 2 {
+		t.Fatalf("expected: %v, actual: %v", 2, queued)
+	}
+}
+
 func TestServiceSched_NodeDrain_UpdateStrategy(t *testing.T) {
 	h := NewHarness(t)
 
