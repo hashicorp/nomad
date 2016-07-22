@@ -546,7 +546,7 @@ func (s *HTTPServer) Stream(resp http.ResponseWriter, req *http.Request) (interf
 	framer.Run()
 	defer framer.Destroy()
 
-	err := s.stream(offset, path, fs, framer, nil)
+	err = s.stream(offset, path, fs, framer, nil)
 	if err != nil && err != syscall.EPIPE {
 		return nil, err
 	}

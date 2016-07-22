@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -362,7 +363,9 @@ func (a *AllocFS) Logs(alloc *Allocation, follow bool, task, logType, origin str
 type FrameReader struct {
 	frames   <-chan *StreamFrame
 	cancelCh chan struct{}
-	closed   bool
+
+	closedLock sync.Mutex
+	closed     bool
 
 	unblockTime time.Duration
 
@@ -395,6 +398,13 @@ func (f *FrameReader) Offset() int {
 // Read reads the data of the incoming frames into the bytes buffer. Returns EOF
 // when there are no more frames.
 func (f *FrameReader) Read(p []byte) (n int, err error) {
+	f.closedLock.Lock()
+	closed := f.closed
+	f.closedLock.Unlock()
+	if closed {
+		return 0, io.EOF
+	}
+
 	if f.frame == nil {
 		var unblock <-chan time.Time
 		if f.unblockTime.Nanoseconds() > 0 {
@@ -412,6 +422,8 @@ func (f *FrameReader) Read(p []byte) (n int, err error) {
 			f.byteOffset = int(f.frame.Offset)
 		case <-unblock:
 			return 0, nil
+		case <-f.cancelCh:
+			return 0, io.EOF
 		}
 	}
 
@@ -430,6 +442,8 @@ func (f *FrameReader) Read(p []byte) (n int, err error) {
 
 // Close cancels the stream of frames
 func (f *FrameReader) Close() error {
+	f.closedLock.Lock()
+	defer f.closedLock.Unlock()
 	if f.closed {
 		return nil
 	}
