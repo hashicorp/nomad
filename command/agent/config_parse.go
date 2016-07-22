@@ -503,7 +503,7 @@ func parseTelemetry(result **Telemetry, list *ast.ObjectList) error {
 		"circonus_check_instance_id",
 		"circonus_check_search_tag",
 		"circonus_broker_id",
-		"circonus_broker_search_tag",
+		"circonus_broker_select_tag",
 	}
 	if err := checkHCLKeys(listVal, valid); err != nil {
 		return err

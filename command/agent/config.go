@@ -308,7 +308,7 @@ type Telemetry struct {
 	// should be used based on *where* this particular instance is running.
 	// (e.g. a specific geo location or datacenter, dc:sfo)
 	// Default: none
-	CirconusBrokerSelectTag string `mapstructure:"circonus_broker_search_tag"`
+	CirconusBrokerSelectTag string `mapstructure:"circonus_broker_select_tag"`
 }
 
 // Ports is used to encapsulate the various ports we bind to for network
