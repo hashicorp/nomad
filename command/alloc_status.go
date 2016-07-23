@@ -223,6 +223,12 @@ func (c *AllocStatusCommand) outputTaskStatus(state *api.TaskState) {
 			} else {
 				desc = "Failed to download artifacts"
 			}
+		case api.TaskKilling:
+			if event.KillTimeout != 0 {
+				desc = fmt.Sprintf("Sent interupt. Waiting %v before force killing", event.KillTimeout)
+			} else {
+				desc = "Sent interupt"
+			}
 		case api.TaskKilled:
 			if event.KillError != "" {
 				desc = event.KillError

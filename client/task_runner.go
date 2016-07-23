@@ -392,6 +392,11 @@ func (r *TaskRunner) run() {
 					r.logger.Printf("[ERR] client: update to task %q failed: %v", r.task.Name, err)
 				}
 			case <-r.destroyCh:
+				// Mark that we received the kill event
+				timeout := driver.GetKillTimeout(r.task.KillTimeout, r.config.MaxKillTimeout)
+				r.setState(structs.TaskStateRunning,
+					structs.NewTaskEvent(structs.TaskKilling).SetKillTimeout(timeout))
+
 				// Kill the task using an exponential backoff in-case of failures.
 				destroySuccess, err := r.handleDestroy()
 				if !destroySuccess {
@@ -404,6 +409,11 @@ func (r *TaskRunner) run() {
 
 				// Store that the task has been destroyed and any associated error.
 				r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskKilled).SetKillError(err))
+
+				r.runningLock.Lock()
+				r.running = false
+				r.runningLock.Unlock()
+
 				return
 			}
 		}
