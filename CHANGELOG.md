@@ -12,6 +12,8 @@ BUG FIXES:
   * core: Sanitize empty slices/maps in jobs to avoid incorrect create/destroy
     updates [GH-1434]
   * client: Task start errors adhere to restart policy mode [GH-1405]
+  * client: Killing an allocation doesn't cause allocation stats to block
+    [GH-1454]
 
 ## 0.4.0
 
