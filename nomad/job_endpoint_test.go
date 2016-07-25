@@ -741,7 +741,7 @@ func TestJobEndpoint_GetJobSummary(t *testing.T) {
 		QueryOptions: structs.QueryOptions{Region: "global"},
 	}
 	var resp2 structs.JobSummaryResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Job.GetSummary", get, &resp2); err != nil {
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Summary", get, &resp2); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if resp2.Index != resp.JobModifyIndex {
@@ -787,7 +787,7 @@ func TestJobEndpoint_GetJobSummary_Blocking(t *testing.T) {
 	}
 	var resp structs.JobSummaryResponse
 	start := time.Now()
-	if err := msgpackrpc.CallWithCodec(codec, "Job.GetSummary", req, &resp); err != nil {
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Summary", req, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if elapsed := time.Since(start); elapsed < 200*time.Millisecond {
@@ -813,7 +813,7 @@ func TestJobEndpoint_GetJobSummary_Blocking(t *testing.T) {
 	start = time.Now()
 	var resp1 structs.JobSummaryResponse
 	start = time.Now()
-	if err := msgpackrpc.CallWithCodec(codec, "Job.GetSummary", req, &resp1); err != nil {
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Summary", req, &resp1); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -838,7 +838,7 @@ func TestJobEndpoint_GetJobSummary_Blocking(t *testing.T) {
 	start = time.Now()
 
 	var resp2 structs.SingleJobResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Job.GetSummary", req, &resp2); err != nil {
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Summary", req, &resp2); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 

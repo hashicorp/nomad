@@ -113,10 +113,10 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	return nil
 }
 
-// GetSummary retreives the summary of a job
-func (j *Job) GetSummary(args *structs.JobSummaryRequest,
+// Summary retreives the summary of a job
+func (j *Job) Summary(args *structs.JobSummaryRequest,
 	reply *structs.JobSummaryResponse) error {
-	if done, err := j.srv.forward("Job.GetSummary", args, args, reply); done {
+	if done, err := j.srv.forward("Job.Summary", args, args, reply); done {
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "job_summary", "get_job_summary"}, time.Now())
