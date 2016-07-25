@@ -17,6 +17,8 @@ BUG FIXES:
     updates [GH-1434]
   * core: Fix race in which a Node registers and doesn't receive system jobs
     [GH-1456]
+  * agent: Fix advertise address when using IPv6 [GH-1465]
+  * cli: Fix node-status when using IPv6 advertise address [GH-1465]
   * client: Task start errors adhere to restart policy mode [GH-1405]
   * client: Killing an allocation doesn't cause allocation stats to block
     [GH-1454]
