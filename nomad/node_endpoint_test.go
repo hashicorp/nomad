@@ -212,6 +212,37 @@ func TestClientEndpoint_Register_GetEvals(t *testing.T) {
 	if out.ModifyIndex != resp.Index {
 		t.Fatalf("index mis-match")
 	}
+
+	// Transistion it to down and then ready
+	node.Status = structs.NodeStatusDown
+	reg = &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if len(resp.EvalIDs) != 1 {
+		t.Fatalf("expected one eval; got %#v", resp.EvalIDs)
+	}
+
+	node.Status = structs.NodeStatusReady
+	reg = &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if len(resp.EvalIDs) != 1 {
+		t.Fatalf("expected one eval; got %#v", resp.EvalIDs)
+	}
 }
 
 func TestClientEndpoint_UpdateStatus_GetEvals(t *testing.T) {
