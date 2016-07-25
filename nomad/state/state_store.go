@@ -349,7 +349,9 @@ func (s *StateStore) UpsertJob(index uint64, job *structs.Job) error {
 		}
 	}
 
-	s.updateSummaryWithJob(index, job, watcher, txn)
+	if err := s.updateSummaryWithJob(index, job, watcher, txn); err != nil {
+		return fmt.Errorf("unable to create job summary: %v", err)
+	}
 
 	// Insert the job
 	if err := txn.Insert("jobs", job); err != nil {
@@ -1512,7 +1514,18 @@ func (r *StateRestore) CreateJobSummaries() error {
 		if raw == nil {
 			break
 		}
-		jobs = append(jobs, raw.(*structs.Job))
+
+		// Filter the jobs which have summaries
+		job := raw.(*structs.Job)
+		jobSummary, err := r.txn.Get("job_summary", "id", job.ID)
+		if err != nil {
+			return fmt.Errorf("unable to get job summary: %v", err)
+		}
+		if jobSummary != nil {
+			continue
+		}
+
+		jobs = append(jobs, job)
 	}
 
 	for _, job := range jobs {

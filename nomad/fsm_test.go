@@ -966,9 +966,9 @@ func TestFSM_SnapshotRestore_JobSummary(t *testing.T) {
 	out1, _ := state2.JobSummaryByID(job1.ID)
 	out2, _ := state2.JobSummaryByID(job2.ID)
 	if !reflect.DeepEqual(js1, out1) {
-		t.Fatalf("bad: \n%#v\n%#v", js1, job1)
+		t.Fatalf("bad: \n%#v\n%#v", js1, out1)
 	}
 	if !reflect.DeepEqual(js2, out2) {
-		t.Fatalf("bad: \n%#v\n%#v", js2, job2)
+		t.Fatalf("bad: \n%#v\n%#v", js2, out2)
 	}
 }

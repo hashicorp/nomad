@@ -40,6 +40,23 @@ func testRegisterNode(t *testing.T, s *Server, n *structs.Node) {
 	}
 }
 
+func testRegisterJob(t *testing.T, s *Server, j *structs.Job) {
+	// Create the register request
+	req := &structs.JobRegisterRequest{
+		Job:          j,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	if err := s.RPC("Job.Register", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp.Index == 0 {
+		t.Fatalf("bad index: %d", resp.Index)
+	}
+}
+
 func TestPlanApply_applyPlan(t *testing.T) {
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
@@ -51,6 +68,7 @@ func TestPlanApply_applyPlan(t *testing.T) {
 
 	// Register alloc
 	alloc := mock.Alloc()
+	s1.State().UpsertJobSummary(1000, mock.JobSummary(alloc.JobID))
 	plan := &structs.PlanResult{
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: []*structs.Allocation{alloc},
@@ -362,12 +380,15 @@ func TestPlanApply_EvalNodePlan_NodeFull(t *testing.T) {
 	alloc.NodeID = node.ID
 	node.Resources = alloc.Resources
 	node.Reserved = nil
+	state.UpsertJobSummary(999, mock.JobSummary(alloc.JobID))
 	state.UpsertNode(1000, node)
 	state.UpsertAllocs(1001, []*structs.Allocation{alloc})
-	snap, _ := state.Snapshot()
 
 	alloc2 := mock.Alloc()
 	alloc2.NodeID = node.ID
+	state.UpsertJobSummary(1200, mock.JobSummary(alloc2.JobID))
+
+	snap, _ := state.Snapshot()
 	plan := &structs.Plan{
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: []*structs.Allocation{alloc2},

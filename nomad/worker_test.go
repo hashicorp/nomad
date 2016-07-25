@@ -252,8 +252,10 @@ func TestWorker_SubmitPlan(t *testing.T) {
 	node := mock.Node()
 	testRegisterNode(t, s1, node)
 
-	// Create the register request
 	eval1 := mock.Eval()
+	s1.fsm.State().UpsertJobSummary(1000, mock.JobSummary(eval1.JobID))
+
+	// Create the register request
 	s1.evalBroker.Enqueue(eval1)
 
 	evalOut, token, err := s1.evalBroker.Dequeue([]string{eval1.Type}, time.Second)
@@ -266,6 +268,7 @@ func TestWorker_SubmitPlan(t *testing.T) {
 
 	// Create an allocation plan
 	alloc := mock.Alloc()
+	s1.fsm.State().UpsertJobSummary(1200, mock.JobSummary(alloc.JobID))
 	plan := &structs.Plan{
 		EvalID: eval1.ID,
 		NodeAllocation: map[string][]*structs.Allocation{
