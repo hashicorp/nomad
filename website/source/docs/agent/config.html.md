@@ -431,6 +431,7 @@ configured on server nodes.
     task specifies a `kill_timeout` greater than `max_kill_timeout`,
     `max_kill_timeout` is used. This is to prevent a user being able to set an
     unreasonable timeout. If unset, a default is used.
+<a id="reserved"></a>
   * `reserved`: `reserved` is used to reserve a portion of the nodes resources
     from being used by Nomad when placing tasks.  It can be used to target
     a certain capacity usage for the node. For example, 20% of the nodes CPU
