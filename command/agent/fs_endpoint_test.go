@@ -12,13 +12,11 @@ import (
 	"path/filepath"
 	"reflect"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/pmezard/go-difflib/difflib"
 	"github.com/ugorji/go/codec"
 )
 
@@ -379,16 +377,7 @@ func TestStreamFramer_Order(t *testing.T) {
 	case <-time.After(10 * bWindow):
 		got := receivedBuf.String()
 		want := expected.String()
-		diff := difflib.ContextDiff{
-			A:        difflib.SplitLines(strings.Replace(got, ",", "\n", -1)),
-			B:        difflib.SplitLines(strings.Replace(want, ",", "\n", -1)),
-			FromFile: "Got",
-			ToFile:   "Want",
-			Context:  3,
-			Eol:      "\n",
-		}
-		result, _ := difflib.GetContextDiffString(diff)
-		t.Fatalf(strings.Replace(result, "\t", " ", -1))
+		t.Fatalf("Got %v; want %v", got, want)
 	}
 
 	// Close the reader and wait. This should cause the runner to exit
