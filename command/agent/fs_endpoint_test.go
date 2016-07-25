@@ -1,18 +1,24 @@
 package agent
 
 import (
+	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/pmezard/go-difflib/difflib"
 	"github.com/ugorji/go/codec"
 )
 
@@ -302,6 +308,106 @@ func TestStreamFramer_Heartbeat(t *testing.T) {
 	}
 }
 
+// This test checks that frames are received in order
+func TestStreamFramer_Order(t *testing.T) {
+	// Create the stream framer
+	r, w := io.Pipe()
+	wrappedW := &WriteCloseChecker{WriteCloser: w}
+	// Ensure the batch window doesn't get hit
+	hRate, bWindow := 100*time.Millisecond, 10*time.Millisecond
+	sf := NewStreamFramer(wrappedW, hRate, bWindow, 10)
+	sf.Run()
+
+	// Create a decoder
+	dec := codec.NewDecoder(r, jsonHandle)
+
+	files := []string{"1", "2", "3", "4", "5"}
+	input := bytes.NewBuffer(make([]byte, 0, 100000))
+	for i := 0; i <= 1000; i++ {
+		str := strconv.Itoa(i) + ","
+		input.WriteString(str)
+	}
+
+	expected := bytes.NewBuffer(make([]byte, 0, 100000))
+	for _, _ = range files {
+		expected.Write(input.Bytes())
+	}
+	receivedBuf := bytes.NewBuffer(make([]byte, 0, 100000))
+
+	// Start the reader
+	resultCh := make(chan struct{})
+	go func() {
+		for {
+			var frame StreamFrame
+			if err := dec.Decode(&frame); err != nil {
+				t.Fatalf("failed to decode")
+			}
+
+			if frame.IsHeartbeat() {
+				continue
+			}
+
+			receivedBuf.Write(frame.Data)
+
+			if reflect.DeepEqual(expected, receivedBuf) {
+				resultCh <- struct{}{}
+				return
+			}
+		}
+	}()
+
+	// Send the data
+	b := input.Bytes()
+	shards := 10
+	each := len(b) / shards
+	for _, f := range files {
+		for i := 0; i < shards; i++ {
+			l, r := each*i, each*(i+1)
+			if i == shards-1 {
+				r = len(b)
+			}
+
+			if err := sf.Send(f, "", b[l:r], 0); err != nil {
+				t.Fatalf("Send() failed %v", err)
+			}
+		}
+	}
+
+	// Ensure we get data
+	select {
+	case <-resultCh:
+	case <-time.After(10 * bWindow):
+		got := receivedBuf.String()
+		want := expected.String()
+		diff := difflib.ContextDiff{
+			A:        difflib.SplitLines(strings.Replace(got, ",", "\n", -1)),
+			B:        difflib.SplitLines(strings.Replace(want, ",", "\n", -1)),
+			FromFile: "Got",
+			ToFile:   "Want",
+			Context:  3,
+			Eol:      "\n",
+		}
+		result, _ := difflib.GetContextDiffString(diff)
+		t.Fatalf(strings.Replace(result, "\t", " ", -1))
+	}
+
+	// Close the reader and wait. This should cause the runner to exit
+	if err := r.Close(); err != nil {
+		t.Fatalf("failed to close reader")
+	}
+
+	select {
+	case <-sf.ExitCh():
+	case <-time.After(2 * hRate):
+		t.Fatalf("exit channel should close")
+	}
+
+	sf.Destroy()
+	if !wrappedW.Closed {
+		t.Fatalf("writer not closed")
+	}
+}
+
 func TestHTTP_Stream_MissingParams(t *testing.T) {
 	httpTest(t, nil, func(s *TestServer) {
 		req, err := http.NewRequest("GET", "/v1/client/fs/stream/", nil)
@@ -347,6 +453,10 @@ func tempAllocDir(t *testing.T) *allocdir.AllocDir {
 		t.Fatalf("TempDir() failed: %v", err)
 	}
 
+	if err := os.Chmod(dir, 0777); err != nil {
+		t.Fatalf("failed to chmod dir: %v", err)
+	}
+
 	return allocdir.NewAllocDir(dir)
 }
 
@@ -364,7 +474,11 @@ func TestHTTP_Stream_NoFile(t *testing.T) {
 		ad := tempAllocDir(t)
 		defer os.RemoveAll(ad.AllocDir)
 
-		if err := s.Server.stream(0, "foo", ad, nopWriteCloser{ioutil.Discard}); err == nil {
+		framer := NewStreamFramer(nopWriteCloser{ioutil.Discard}, streamHeartbeatRate, streamBatchWindow, streamFrameSize)
+		framer.Run()
+		defer framer.Destroy()
+
+		if err := s.Server.stream(0, "foo", ad, framer, nil); err == nil {
 			t.Fatalf("expected an error when streaming unknown file")
 		}
 	})
@@ -419,9 +533,13 @@ func TestHTTP_Stream_Modify(t *testing.T) {
 			t.Fatalf("write failed: %v", err)
 		}
 
+		framer := NewStreamFramer(w, streamHeartbeatRate, streamBatchWindow, streamFrameSize)
+		framer.Run()
+		defer framer.Destroy()
+
 		// Start streaming
 		go func() {
-			if err := s.Server.stream(0, streamFile, ad, w); err != nil {
+			if err := s.Server.stream(0, streamFile, ad, framer, nil); err != nil {
 				t.Fatalf("stream() failed: %v", err)
 			}
 		}()
@@ -496,9 +614,13 @@ func TestHTTP_Stream_Truncate(t *testing.T) {
 			t.Fatalf("write failed: %v", err)
 		}
 
+		framer := NewStreamFramer(w, streamHeartbeatRate, streamBatchWindow, streamFrameSize)
+		framer.Run()
+		defer framer.Destroy()
+
 		// Start streaming
 		go func() {
-			if err := s.Server.stream(0, streamFile, ad, w); err != nil {
+			if err := s.Server.stream(0, streamFile, ad, framer, nil); err != nil {
 				t.Fatalf("stream() failed: %v", err)
 			}
 		}()
@@ -595,9 +717,12 @@ func TestHTTP_Stream_Delete(t *testing.T) {
 			t.Fatalf("write failed: %v", err)
 		}
 
+		framer := NewStreamFramer(wrappedW, streamHeartbeatRate, streamBatchWindow, streamFrameSize)
+		framer.Run()
+
 		// Start streaming
 		go func() {
-			if err := s.Server.stream(0, streamFile, ad, wrappedW); err != nil {
+			if err := s.Server.stream(0, streamFile, ad, framer, nil); err != nil {
 				t.Fatalf("stream() failed: %v", err)
 			}
 		}()
@@ -615,6 +740,7 @@ func TestHTTP_Stream_Delete(t *testing.T) {
 			t.Fatalf("did not receive delete")
 		}
 
+		framer.Destroy()
 		testutil.WaitForResult(func() (bool, error) {
 			return wrappedW.Closed, nil
 		}, func(err error) {
@@ -622,4 +748,393 @@ func TestHTTP_Stream_Delete(t *testing.T) {
 		})
 
 	})
+}
+
+func TestHTTP_Logs_NoFollow(t *testing.T) {
+	httpTest(t, nil, func(s *TestServer) {
+		// Get a temp alloc dir and create the log dir
+		ad := tempAllocDir(t)
+		defer os.RemoveAll(ad.AllocDir)
+
+		logDir := filepath.Join(ad.SharedDir, allocdir.LogDirName)
+		if err := os.MkdirAll(logDir, 0777); err != nil {
+			t.Fatalf("Failed to make log dir: %v", err)
+		}
+
+		// Create a series of log files in the temp dir
+		task := "foo"
+		logType := "stdout"
+		expected := []byte("012")
+		for i := 0; i < 3; i++ {
+			logFile := fmt.Sprintf("%s.%s.%d", task, logType, i)
+			logFilePath := filepath.Join(logDir, logFile)
+			err := ioutil.WriteFile(logFilePath, expected[i:i+1], 777)
+			if err != nil {
+				t.Fatalf("Failed to create file: %v", err)
+			}
+		}
+
+		// Create a decoder
+		r, w := io.Pipe()
+		wrappedW := &WriteCloseChecker{WriteCloser: w}
+		defer r.Close()
+		defer w.Close()
+		dec := codec.NewDecoder(r, jsonHandle)
+
+		var received []byte
+
+		// Start the reader
+		resultCh := make(chan struct{})
+		go func() {
+			for {
+				var frame StreamFrame
+				if err := dec.Decode(&frame); err != nil {
+					if err == io.EOF {
+						t.Logf("EOF")
+						return
+					}
+
+					t.Fatalf("failed to decode: %v", err)
+				}
+
+				if frame.IsHeartbeat() {
+					continue
+				}
+
+				received = append(received, frame.Data...)
+				if reflect.DeepEqual(received, expected) {
+					close(resultCh)
+					return
+				}
+			}
+		}()
+
+		// Start streaming logs
+		go func() {
+			if err := s.Server.logs(false, 0, OriginStart, task, logType, ad, wrappedW); err != nil {
+				t.Fatalf("logs() failed: %v", err)
+			}
+		}()
+
+		select {
+		case <-resultCh:
+		case <-time.After(4 * streamBatchWindow):
+			t.Fatalf("did not receive data: got %q", string(received))
+		}
+
+		testutil.WaitForResult(func() (bool, error) {
+			return wrappedW.Closed, nil
+		}, func(err error) {
+			t.Fatalf("connection not closed")
+		})
+
+	})
+}
+
+func TestHTTP_Logs_Follow(t *testing.T) {
+	httpTest(t, nil, func(s *TestServer) {
+		// Get a temp alloc dir and create the log dir
+		ad := tempAllocDir(t)
+		defer os.RemoveAll(ad.AllocDir)
+
+		logDir := filepath.Join(ad.SharedDir, allocdir.LogDirName)
+		if err := os.MkdirAll(logDir, 0777); err != nil {
+			t.Fatalf("Failed to make log dir: %v", err)
+		}
+
+		// Create a series of log files in the temp dir
+		task := "foo"
+		logType := "stdout"
+		expected := []byte("012345")
+		initialWrites := 3
+
+		writeToFile := func(index int, data []byte) {
+			logFile := fmt.Sprintf("%s.%s.%d", task, logType, index)
+			logFilePath := filepath.Join(logDir, logFile)
+			err := ioutil.WriteFile(logFilePath, data, 777)
+			if err != nil {
+				t.Fatalf("Failed to create file: %v", err)
+			}
+		}
+		for i := 0; i < initialWrites; i++ {
+			writeToFile(i, expected[i:i+1])
+		}
+
+		// Create a decoder
+		r, w := io.Pipe()
+		wrappedW := &WriteCloseChecker{WriteCloser: w}
+		defer r.Close()
+		defer w.Close()
+		dec := codec.NewDecoder(r, jsonHandle)
+
+		var received []byte
+
+		// Start the reader
+		firstResultCh := make(chan struct{})
+		fullResultCh := make(chan struct{})
+		go func() {
+			for {
+				var frame StreamFrame
+				if err := dec.Decode(&frame); err != nil {
+					if err == io.EOF {
+						t.Logf("EOF")
+						return
+					}
+
+					t.Fatalf("failed to decode: %v", err)
+				}
+
+				if frame.IsHeartbeat() {
+					continue
+				}
+
+				received = append(received, frame.Data...)
+				if reflect.DeepEqual(received, expected[:initialWrites]) {
+					close(firstResultCh)
+				} else if reflect.DeepEqual(received, expected) {
+					close(fullResultCh)
+					return
+				}
+			}
+		}()
+
+		// Start streaming logs
+		go func() {
+			if err := s.Server.logs(true, 0, OriginStart, task, logType, ad, wrappedW); err != nil {
+				t.Fatalf("logs() failed: %v", err)
+			}
+		}()
+
+		select {
+		case <-firstResultCh:
+		case <-time.After(4 * streamBatchWindow):
+			t.Fatalf("did not receive data: got %q", string(received))
+		}
+
+		// We got the first chunk of data, write out the rest to the next file
+		// at an index much ahead to check that it is following and detecting
+		// skips
+		skipTo := initialWrites + 10
+		writeToFile(skipTo, expected[initialWrites:])
+
+		select {
+		case <-fullResultCh:
+		case <-time.After(4 * streamBatchWindow):
+			t.Fatalf("did not receive data: got %q", string(received))
+		}
+
+		// Close the reader
+		r.Close()
+
+		testutil.WaitForResult(func() (bool, error) {
+			return wrappedW.Closed, nil
+		}, func(err error) {
+			t.Fatalf("connection not closed")
+		})
+	})
+}
+
+func TestLogs_findClosest(t *testing.T) {
+	task := "foo"
+	entries := []*allocdir.AllocFileInfo{
+		{
+			Name: "foo.stdout.0",
+			Size: 100,
+		},
+		{
+			Name: "foo.stdout.1",
+			Size: 100,
+		},
+		{
+			Name: "foo.stdout.2",
+			Size: 100,
+		},
+		{
+			Name: "foo.stdout.3",
+			Size: 100,
+		},
+		{
+			Name: "foo.stderr.0",
+			Size: 100,
+		},
+		{
+			Name: "foo.stderr.1",
+			Size: 100,
+		},
+		{
+			Name: "foo.stderr.2",
+			Size: 100,
+		},
+	}
+
+	cases := []struct {
+		Entries        []*allocdir.AllocFileInfo
+		DesiredIdx     int64
+		DesiredOffset  int64
+		Task           string
+		LogType        string
+		ExpectedFile   string
+		ExpectedIdx    int64
+		ExpectedOffset int64
+		Error          bool
+	}{
+		// Test error cases
+		{
+			Entries:    nil,
+			DesiredIdx: 0,
+			Task:       task,
+			LogType:    "stdout",
+			Error:      true,
+		},
+		{
+			Entries:    entries[0:3],
+			DesiredIdx: 0,
+			Task:       task,
+			LogType:    "stderr",
+			Error:      true,
+		},
+
+		// Test begining cases
+		{
+			Entries:      entries,
+			DesiredIdx:   0,
+			Task:         task,
+			LogType:      "stdout",
+			ExpectedFile: entries[0].Name,
+			ExpectedIdx:  0,
+		},
+		{
+			// Desired offset should be ignored at edges
+			Entries:        entries,
+			DesiredIdx:     0,
+			DesiredOffset:  -100,
+			Task:           task,
+			LogType:        "stdout",
+			ExpectedFile:   entries[0].Name,
+			ExpectedIdx:    0,
+			ExpectedOffset: 0,
+		},
+		{
+			// Desired offset should be ignored at edges
+			Entries:        entries,
+			DesiredIdx:     1,
+			DesiredOffset:  -1000,
+			Task:           task,
+			LogType:        "stdout",
+			ExpectedFile:   entries[0].Name,
+			ExpectedIdx:    0,
+			ExpectedOffset: 0,
+		},
+		{
+			Entries:      entries,
+			DesiredIdx:   0,
+			Task:         task,
+			LogType:      "stderr",
+			ExpectedFile: entries[4].Name,
+			ExpectedIdx:  0,
+		},
+		{
+			Entries:      entries,
+			DesiredIdx:   0,
+			Task:         task,
+			LogType:      "stdout",
+			ExpectedFile: entries[0].Name,
+			ExpectedIdx:  0,
+		},
+
+		// Test middle cases
+		{
+			Entries:      entries,
+			DesiredIdx:   1,
+			Task:         task,
+			LogType:      "stdout",
+			ExpectedFile: entries[1].Name,
+			ExpectedIdx:  1,
+		},
+		{
+			Entries:        entries,
+			DesiredIdx:     1,
+			DesiredOffset:  10,
+			Task:           task,
+			LogType:        "stdout",
+			ExpectedFile:   entries[1].Name,
+			ExpectedIdx:    1,
+			ExpectedOffset: 10,
+		},
+		{
+			Entries:        entries,
+			DesiredIdx:     1,
+			DesiredOffset:  110,
+			Task:           task,
+			LogType:        "stdout",
+			ExpectedFile:   entries[2].Name,
+			ExpectedIdx:    2,
+			ExpectedOffset: 10,
+		},
+		{
+			Entries:      entries,
+			DesiredIdx:   1,
+			Task:         task,
+			LogType:      "stderr",
+			ExpectedFile: entries[5].Name,
+			ExpectedIdx:  1,
+		},
+		// Test end cases
+		{
+			Entries:      entries,
+			DesiredIdx:   math.MaxInt64,
+			Task:         task,
+			LogType:      "stdout",
+			ExpectedFile: entries[3].Name,
+			ExpectedIdx:  3,
+		},
+		{
+			Entries:        entries,
+			DesiredIdx:     math.MaxInt64,
+			DesiredOffset:  math.MaxInt64,
+			Task:           task,
+			LogType:        "stdout",
+			ExpectedFile:   entries[3].Name,
+			ExpectedIdx:    3,
+			ExpectedOffset: 100,
+		},
+		{
+			Entries:        entries,
+			DesiredIdx:     math.MaxInt64,
+			DesiredOffset:  -10,
+			Task:           task,
+			LogType:        "stdout",
+			ExpectedFile:   entries[3].Name,
+			ExpectedIdx:    3,
+			ExpectedOffset: 90,
+		},
+		{
+			Entries:      entries,
+			DesiredIdx:   math.MaxInt64,
+			Task:         task,
+			LogType:      "stderr",
+			ExpectedFile: entries[6].Name,
+			ExpectedIdx:  2,
+		},
+	}
+
+	for i, c := range cases {
+		entry, idx, offset, err := findClosest(c.Entries, c.DesiredIdx, c.DesiredOffset, c.Task, c.LogType)
+		if err != nil {
+			if !c.Error {
+				t.Fatalf("case %d: Unexpected error: %v", i, err)
+			}
+			continue
+		}
+
+		if entry.Name != c.ExpectedFile {
+			t.Fatalf("case %d: Got file %q; want %q", i, entry.Name, c.ExpectedFile)
+		}
+		if idx != c.ExpectedIdx {
+			t.Fatalf("case %d: Got index %d; want %d", i, idx, c.ExpectedIdx)
+		}
+		if offset != c.ExpectedOffset {
+			t.Fatalf("case %d: Got offset %d; want %d", i, offset, c.ExpectedOffset)
+		}
+	}
 }

@@ -62,17 +62,17 @@ General Options:
 Run Options:
 
   -check-index
-	If set, the job is only registered or updated if the the passed
-	job modify index matches the server side version. If a check-index value of
-	zero is passed, the job is only registered if it does not yet exist. If a
-	non-zero value is passed, it ensures that the job is being updated from a
-	known state. The use of this flag is most common in conjunction with plan
-	command.
+    If set, the job is only registered or updated if the the passed
+    job modify index matches the server side version. If a check-index value of
+    zero is passed, the job is only registered if it does not yet exist. If a
+    non-zero value is passed, it ensures that the job is being updated from a
+    known state. The use of this flag is most common in conjunction with plan
+    command.
 
   -detach
-	Return immediately instead of entering monitor mode. After job submission,
-	the evaluation ID will be printed to the screen, which can be used to
-	examine the evaluation using the eval-status command.
+    Return immediately instead of entering monitor mode. After job submission,
+    the evaluation ID will be printed to the screen, which can be used to
+    examine the evaluation using the eval-status command.
 
   -verbose
     Display full information.

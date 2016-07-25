@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -204,6 +205,7 @@ func (a *AllocFS) getErrorMsg(resp *http.Response) error {
 // * path: path to file to stream.
 // * offset: The offset to start streaming data at.
 // * origin: Either "start" or "end" and defines from where the offset is applied.
+// * cancel: A channel that when closed, streaming will end.
 //
 // The return value is a channel that will emit StreamFrames as they are read.
 func (a *AllocFS) Stream(alloc *Allocation, path, origin string, offset int64,
@@ -275,18 +277,100 @@ func (a *AllocFS) Stream(alloc *Allocation, path, origin string, offset int64,
 	return frames, nil, nil
 }
 
+// Logs streams the content of a tasks logs blocking on EOF.
+// The parameters are:
+// * allocation: the allocation to stream from.
+// * follow: Whether the logs should be followed.
+// * task: the tasks name to stream logs for.
+// * logType: Either "stdout" or "stderr"
+// * origin: Either "start" or "end" and defines from where the offset is applied.
+// * offset: The offset to start streaming data at.
+// * cancel: A channel that when closed, streaming will end.
+//
+// The return value is a channel that will emit StreamFrames as they are read.
+func (a *AllocFS) Logs(alloc *Allocation, follow bool, task, logType, origin string,
+	offset int64, cancel <-chan struct{}, q *QueryOptions) (<-chan *StreamFrame, *QueryMeta, error) {
+
+	node, _, err := a.client.Nodes().Info(alloc.NodeID, q)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if node.HTTPAddr == "" {
+		return nil, nil, fmt.Errorf("http addr of the node where alloc %q is running is not advertised", alloc.ID)
+	}
+	u := &url.URL{
+		Scheme: "http",
+		Host:   node.HTTPAddr,
+		Path:   fmt.Sprintf("/v1/client/fs/logs/%s", alloc.ID),
+	}
+	v := url.Values{}
+	v.Set("follow", strconv.FormatBool(follow))
+	v.Set("task", task)
+	v.Set("type", logType)
+	v.Set("origin", origin)
+	v.Set("offset", strconv.FormatInt(offset, 10))
+	u.RawQuery = v.Encode()
+	req := &http.Request{
+		Method: "GET",
+		URL:    u,
+		Cancel: cancel,
+	}
+	c := http.Client{}
+	resp, err := c.Do(req)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Create the output channel
+	frames := make(chan *StreamFrame, 10)
+
+	go func() {
+		// Close the body
+		defer resp.Body.Close()
+
+		// Create a decoder
+		dec := json.NewDecoder(resp.Body)
+
+		for {
+			// Check if we have been cancelled
+			select {
+			case <-cancel:
+				return
+			default:
+			}
+
+			// Decode the next frame
+			var frame StreamFrame
+			if err := dec.Decode(&frame); err != nil {
+				close(frames)
+				return
+			}
+
+			// Discard heartbeat frames
+			if frame.IsHeartbeat() {
+				continue
+			}
+
+			frames <- &frame
+		}
+	}()
+
+	return frames, nil, nil
+}
+
 // FrameReader is used to convert a stream of frames into a read closer.
 type FrameReader struct {
 	frames   <-chan *StreamFrame
 	cancelCh chan struct{}
-	closed   bool
+
+	closedLock sync.Mutex
+	closed     bool
+
+	unblockTime time.Duration
 
 	frame       *StreamFrame
 	frameOffset int
-
-	// To handle printing the file events
-	fileEventOffset int
-	fileEvent       []byte
 
 	byteOffset int
 }
@@ -300,6 +384,12 @@ func NewFrameReader(frames <-chan *StreamFrame, cancelCh chan struct{}) *FrameRe
 	}
 }
 
+// SetUnblockTime sets the time to unblock and return zero bytes read. If the
+// duration is unset or is zero or less, the read will block til data is read.
+func (f *FrameReader) SetUnblockTime(d time.Duration) {
+	f.unblockTime = d
+}
+
 // Offset returns the offset into the stream.
 func (f *FrameReader) Offset() int {
 	return f.byteOffset
@@ -308,32 +398,33 @@ func (f *FrameReader) Offset() int {
 // Read reads the data of the incoming frames into the bytes buffer. Returns EOF
 // when there are no more frames.
 func (f *FrameReader) Read(p []byte) (n int, err error) {
+	f.closedLock.Lock()
+	closed := f.closed
+	f.closedLock.Unlock()
+	if closed {
+		return 0, io.EOF
+	}
+
 	if f.frame == nil {
-		frame, ok := <-f.frames
-		if !ok {
+		var unblock <-chan time.Time
+		if f.unblockTime.Nanoseconds() > 0 {
+			unblock = time.After(f.unblockTime)
+		}
+
+		select {
+		case frame, ok := <-f.frames:
+			if !ok {
+				return 0, io.EOF
+			}
+			f.frame = frame
+
+			// Store the total offset into the file
+			f.byteOffset = int(f.frame.Offset)
+		case <-unblock:
+			return 0, nil
+		case <-f.cancelCh:
 			return 0, io.EOF
 		}
-		f.frame = frame
-
-		// Store the total offset into the file
-		f.byteOffset = int(f.frame.Offset)
-	}
-
-	if f.frame.FileEvent != "" && len(f.fileEvent) == 0 {
-		f.fileEvent = []byte(fmt.Sprintf("\nnomad: %q\n", f.frame.FileEvent))
-		f.fileEventOffset = 0
-	}
-
-	// If there is a file event we inject it into the read stream
-	if l := len(f.fileEvent); l != 0 && l != f.fileEventOffset {
-		n = copy(p, f.fileEvent[f.fileEventOffset:])
-		f.fileEventOffset += n
-		return n, nil
-	}
-
-	if len(f.fileEvent) == f.fileEventOffset {
-		f.fileEvent = nil
-		f.fileEventOffset = 0
 	}
 
 	// Copy the data out of the frame and update our offset
@@ -351,6 +442,8 @@ func (f *FrameReader) Read(p []byte) (n int, err error) {
 
 // Close cancels the stream of frames
 func (f *FrameReader) Close() error {
+	f.closedLock.Lock()
+	defer f.closedLock.Unlock()
 	if f.closed {
 		return nil
 	}
