@@ -502,7 +502,8 @@ func TestServiceSched_Plan_Partial_Progress(t *testing.T) {
 	node := mock.Node()
 	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
 
-	// Create a job
+	// Create a job with a high resource ask so that all the allocations can't
+	// be placed on a single node.
 	job := mock.Job()
 	job.TaskGroups[0].Count = 3
 	job.TaskGroups[0].Tasks[0].Resources.CPU = 3600

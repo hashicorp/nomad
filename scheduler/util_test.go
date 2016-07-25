@@ -913,3 +913,37 @@ func TestDesiredUpdates(t *testing.T) {
 		t.Fatalf("desiredUpdates() returned %#v; want %#v", desired, expected)
 	}
 }
+
+func TestUtil_AdjustQueuedAllocations(t *testing.T) {
+	logger := log.New(os.Stderr, "", log.LstdFlags)
+	alloc1 := mock.Alloc()
+	alloc2 := mock.Alloc()
+	alloc2.CreateIndex = 4
+	alloc3 := mock.Alloc()
+	alloc3.CreateIndex = 3
+	alloc4 := mock.Alloc()
+	alloc4.CreateIndex = 6
+
+	planResult := structs.PlanResult{
+		NodeUpdate: map[string][]*structs.Allocation{
+			"node-1": []*structs.Allocation{alloc1},
+		},
+		NodeAllocation: map[string][]*structs.Allocation{
+			"node-1": []*structs.Allocation{
+				alloc2,
+			},
+			"node-2": []*structs.Allocation{
+				alloc3, alloc4,
+			},
+		},
+		RefreshIndex: 3,
+		AllocIndex:   4,
+	}
+
+	queuedAllocs := map[string]int{"web": 2}
+	adjustQueuedAllocations(logger, &planResult, queuedAllocs)
+
+	if queuedAllocs["web"] != 1 {
+		t.Fatalf("expected: %v, actual: %v", 1, queuedAllocs["web"])
+	}
+}
