@@ -44,23 +44,3 @@ func ipOfDevice(name string) (net.IP, error) {
 	}
 	return nil, fmt.Errorf("no ips were detected on the interface: %v", name)
 }
-
-// isIPV6 checks if the IP address is an IPv6 address
-func isIPV6(ip string) bool {
-	addr := net.ParseIP(ip)
-	if addr != nil {
-		// ipv6
-		if addr.To4() == nil {
-			return true
-		}
-	}
-	return false
-}
-
-// joinIPPort joins ip and port correctly for IPv4 (ip:port) or IPv6 ([ip]:port)
-func joinIPPort(ip string, port int) string {
-	if isIPV6(ip) {
-		return fmt.Sprintf("[%s]:%d", ip, port)
-	}
-	return fmt.Sprintf("%s:%d", ip, port)
-}
