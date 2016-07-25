@@ -28,6 +28,9 @@ General Options:
 
 Logs Specific Options:
 
+  -stderr:
+    Display stderr logs.
+
   -verbose
     Show full information.
 
@@ -39,15 +42,15 @@ Logs Specific Options:
     rather to wait for additional output.
 
   -tail
-    Show the files contents with offsets relative to the end of the file. If no
+    Show the logs contents with offsets relative to the end of the logs. If no
     offset is given, -n is defaulted to 10.
 
   -n
     Sets the tail location in best-efforted number of lines relative to the end
-    of the file.
+    of the logs.
 
   -c
-    Sets the tail location in number of bytes relative to the end of the file.
+    Sets the tail location in number of bytes relative to the end of the logs.
 	`
 	return strings.TrimSpace(helpText)
 }
