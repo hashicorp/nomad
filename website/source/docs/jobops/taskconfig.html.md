@@ -88,12 +88,12 @@ task "example" {
 
     # Download the binary to run
 	artifact {
-		source = "http://domain.com/example/my-app"
+		source = "http://example.com/example/my-app"
     }
 
 	# Download the config file
 	artifact {
-		source = "http://domain.com/example/config.cfg"
+		source = "http://example.com/example/config.cfg"
     }
 }
 ```
