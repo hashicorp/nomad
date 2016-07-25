@@ -3,7 +3,9 @@
 IMPROVEMENTS:
   * core: Allow count 0 on system jobs [GH-1421]
   * core: Gracefully handle short lived outages by holding RPC calls [GH-1403]
+  * api: client Logs endpoint for streaming task logs [GH-1444]
   * api/cli: Support for tailing/streaming files [GH-1404, GH-1420]
+  * cli: `nomad logs` command for streaming task logs [GH-1444]
   * cli: Validate and plan command supports reading from stdin [GH-1460,
     GH-1458]
   * client: Add killing event to task state [GH-1457]
