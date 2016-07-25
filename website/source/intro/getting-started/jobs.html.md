@@ -105,16 +105,10 @@ We can see that Nomad reports the state of the allocation as well as its
 current resource usage. By supplying the `-stats` flag, more detailed resource
 usage statistics will be reported.
 
-To inspect the file system of a running allocation, we can use the [`fs`
-command](/docs/commands/fs.html):
+To see the logs of a task, we can use the [logs command](/docs/commands/logs.html):
 
 ```
-$ nomad fs 8ba85cef alloc/logs
-Mode        Size    Modified Time          Name
--rw-rw-r--  0 B     15/03/16 15:40:56 PDT  redis.stderr.0
--rw-rw-r--  2.3 kB  15/03/16 15:40:57 PDT  redis.stdout.0
-
-$ nomad fs 8ba85cef alloc/logs/redis.stdout.0
+$ nomad logs 8ba85cef redis
                  _._
             _.-``__ ''-._
        _.-``    `.  `_.  ''-._           Redis 3.2.1 (00000000/0) 64 bit

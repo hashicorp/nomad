@@ -10,8 +10,10 @@ description: |-
 
 Accessing applications logs is critical when debugging issues, performance
 problems or even for verifying the application is starting correctly. To make
-this as simple as possible, Nomad provides both a CLI tool and an API for
-accessing application logs and data files.
+this as simple as possible, Nomad provides [log
+rotation](/docs/jobspec/index.html#log_rotation) in the jobspec, provides a [CLI
+command](/docs/commands/logs.html) and an [API](/docs/http/client-fs.html#logs)
+for accessing application logs and data files.
 
 To see this in action we can just run the example job which created using `nomad
 init`:
@@ -32,18 +34,15 @@ $ nomad run example.nomad
 ==> Evaluation "7a3b78c0" finished with status "complete"
 ```
 
-We can grab the allocation ID from above and use the [`nomad fs`
-command](/docs/commands/fs.html) to access the applications logs. Logs are
-stored under the following directory structure:
-`alloc/logs/<task-name>.<stdout/stderr>.<index>`. Nomad has built in log
-rotation, documented in the [Jobspec](/docs/jobspec/index.html#log_rotation).
-The index is a monotonically increasing number starting at zero and incremented
-each time the log is rotated.
+We can grab the allocation ID from above and use the [`nomad logs`
+command](/docs/commands/logs.html) to access the applications logs. The `logs`
+command supports both displaying the logs as well as following logs, blocking
+for more output. 
 
 Thus to access the `stdout` we can issue the below command:
 
 ```
-$ nomad fs c3c58508 alloc/logs/redis.stdout.0
+$ nomad logs c3c58508 redis
                  _._
             _.-``__ ''-._
        _.-``    `.  `_.  ''-._           Redis 3.2.1 (00000000/0) 64 bit
@@ -69,7 +68,11 @@ $ nomad fs c3c58508 alloc/logs/redis.stdout.0
  1:M 28 Jun 19:49:30.505 * The server is now ready to accept connections on port 6379
 ```
 
-Replacing `stdout` for `stderr` would display the respective `stderr` output.
+To display the `stderr` for the task we would run the following: 
+
+```
+$ nomad logs -stderr c3c58508 redis
+```
 
 While this works well for quickly accessing logs, we recommend running a
 log-shipper for long term storage of logs. In many cases this will not be needed

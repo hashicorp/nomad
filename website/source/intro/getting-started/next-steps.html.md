@@ -20,3 +20,7 @@ We recommend reading the following as next steps.
 
   * [Creating a Cluster](/docs/cluster/bootstrapping.html) - Additional details on
     creating a production worthy Nomad Cluster.
+
+  * [Operating a Job](/docs/jobops/index.html) - Additional details on how to
+    run a job in production.
+
