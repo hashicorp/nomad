@@ -85,7 +85,6 @@ func (s *SystemScheduler) Process(eval *structs.Evaluation) error {
 // process is wrapped in retryMax to iteratively run the handler until we have no
 // further work or we've made the maximum number of attempts.
 func (s *SystemScheduler) process() (bool, error) {
-	s.queuedAllocs = make(map[string]int)
 	// Lookup the Job by ID
 	var err error
 	s.job, err = s.state.JobByID(s.eval.JobID)
@@ -93,6 +92,11 @@ func (s *SystemScheduler) process() (bool, error) {
 		return false, fmt.Errorf("failed to get job '%s': %v",
 			s.eval.JobID, err)
 	}
+	numTaskGroups := 0
+	if s.job != nil {
+		numTaskGroups = len(s.job.TaskGroups)
+	}
+	s.queuedAllocs = make(map[string]int, numTaskGroups)
 
 	// Get the ready nodes in the required datacenters
 	if s.job != nil {

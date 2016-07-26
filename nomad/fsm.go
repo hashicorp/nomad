@@ -589,6 +589,8 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 	}
 
 	restore.Commit()
+
+	// Reconciling the queued allocations
 	return n.reconcileSummaries(jobs)
 }
 
@@ -633,6 +635,9 @@ func (n *nomadFSM) reconcileSummaries(jobs []*structs.Job) error {
 		summary, err := snap.JobSummaryByID(job.ID)
 		if err != nil {
 			return err
+		}
+		if l := len(planner.Evals); l != 1 {
+			return fmt.Errorf("unexpected number of evals during restore %d. Please file an issue including the logs", l)
 		}
 		for tg, queued := range planner.Evals[0].QueuedAllocations {
 			tgSummary, ok := summary.Summary[tg]
