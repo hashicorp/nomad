@@ -984,6 +984,7 @@ func TestFSM_SnapshotRestore_AddMissingSummary(t *testing.T) {
 
 	fsm2 := testSnapshotRestore(t, fsm)
 	state2 := fsm2.State()
+	latestIndex, _ := state.LatestIndex()
 	out1, _ := state2.JobSummaryByID(job1.ID)
 	expected := structs.JobSummary{
 		JobID: job1.ID,
@@ -992,9 +993,11 @@ func TestFSM_SnapshotRestore_AddMissingSummary(t *testing.T) {
 				Queued: 10,
 			},
 		},
+		CreateIndex: latestIndex,
+		ModifyIndex: latestIndex,
 	}
 
 	if !reflect.DeepEqual(&expected, out1) {
-		t.Fatalf("expected: %#v, actual: %#v", expected, out1)
+		t.Fatalf("expected: %#v, actual: %#v", &expected, out1)
 	}
 }
