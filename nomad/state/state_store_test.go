@@ -1132,7 +1132,7 @@ func TestStateStore_CreateJobSummaries(t *testing.T) {
 	}
 
 	// Create the job summaries
-	if err := restore.CreateJobSummaries(); err != nil {
+	if err := restore.CreateJobSummaries([]*structs.Job{job}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	restore.Commit()
@@ -1152,6 +1152,30 @@ func TestStateStore_CreateJobSummaries(t *testing.T) {
 
 	if !reflect.DeepEqual(summary, &expected) {
 		t.Fatalf("Bad: %#v %#v", summary, expected)
+	}
+}
+
+func TestStateRestore_JobsWithoutSummaries(t *testing.T) {
+	state := testStateStore(t)
+	restore, err := state.Restore()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	// Restore a job
+	job := mock.Job()
+	if err := restore.JobRestore(job); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	jobs, err := restore.JobsWithoutSummary()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if len(jobs) != 1 {
+		t.Fatalf("expected: %v, actual: %v", 1, len(jobs))
+	}
+	if !reflect.DeepEqual(job, jobs[0]) {
+		t.Fatalf("Bad: %#v %#v", job, jobs[0])
 	}
 }
 

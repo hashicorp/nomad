@@ -972,3 +972,29 @@ func TestFSM_SnapshotRestore_JobSummary(t *testing.T) {
 		t.Fatalf("bad: \n%#v\n%#v", js2, out2)
 	}
 }
+
+func TestFSM_SnapshotRestore_AddMissingSummary(t *testing.T) {
+	// Add some state
+	fsm := testFSM(t)
+	state := fsm.State()
+
+	job1 := mock.Job()
+	state.UpsertJob(1000, job1)
+	state.DeleteJobSummary(1010, job1.ID)
+
+	fsm2 := testSnapshotRestore(t, fsm)
+	state2 := fsm2.State()
+	out1, _ := state2.JobSummaryByID(job1.ID)
+	expected := structs.JobSummary{
+		JobID: job1.ID,
+		Summary: map[string]structs.TaskGroupSummary{
+			"web": structs.TaskGroupSummary{
+				Queued: 10,
+			},
+		},
+	}
+
+	if !reflect.DeepEqual(&expected, out1) {
+		t.Fatalf("expected: %#v, actual: %#v", expected, out1)
+	}
+}

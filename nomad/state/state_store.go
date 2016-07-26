@@ -98,6 +98,20 @@ func (s *StateStore) UpsertJobSummary(index uint64, jobSummary *structs.JobSumma
 	return nil
 }
 
+// DeleteJobSummary deletes the job summary with the given ID. This is for
+// testing purposes only.
+func (s *StateStore) DeleteJobSummary(index uint64, id string) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	// Delete the job summary
+	if _, err := txn.DeleteAll("job_summary", "id", id); err != nil {
+		return fmt.Errorf("deleting job summary failed: %v", err)
+	}
+	txn.Commit()
+	return nil
+}
+
 // UpsertNode is used to register a node or update a node definition
 // This is assumed to be triggered by the client, so we retain the value
 // of drain which is set by the scheduler.
@@ -1501,13 +1515,13 @@ func (r *StateRestore) JobSummaryRestore(jobSummary *structs.JobSummary) error {
 	return nil
 }
 
-// CreateJobSummaries computes the job summaries for all the jobs
-func (r *StateRestore) CreateJobSummaries() error {
+// JobsWithoutSummary returns the list of jobs which don't have any summary
+func (r *StateRestore) JobsWithoutSummary() ([]*structs.Job, error) {
 	// Get all the jobs
 	var jobs []*structs.Job
 	iter, err := r.txn.Get("jobs", "id")
 	if err != nil {
-		return fmt.Errorf("couldn't retrieve jobs: %v", err)
+		return nil, fmt.Errorf("couldn't retrieve jobs: %v", err)
 	}
 	for {
 		raw := iter.Next()
@@ -1517,9 +1531,9 @@ func (r *StateRestore) CreateJobSummaries() error {
 
 		// Filter the jobs which have summaries
 		job := raw.(*structs.Job)
-		jobSummary, err := r.txn.Get("job_summary", "id", job.ID)
+		jobSummary, err := r.txn.First("job_summary", "id", job.ID)
 		if err != nil {
-			return fmt.Errorf("unable to get job summary: %v", err)
+			return nil, fmt.Errorf("unable to get job summary: %v", err)
 		}
 		if jobSummary != nil {
 			continue
@@ -1527,11 +1541,14 @@ func (r *StateRestore) CreateJobSummaries() error {
 
 		jobs = append(jobs, job)
 	}
+	return jobs, nil
+}
 
+// CreateJobSummaries computes the job summaries for all the jobs
+func (r *StateRestore) CreateJobSummaries(jobs []*structs.Job) error {
 	for _, job := range jobs {
-
 		// Get all the allocations for the job
-		iter, err = r.txn.Get("allocs", "job", job.ID)
+		iter, err := r.txn.Get("allocs", "job", job.ID)
 		if err != nil {
 			return fmt.Errorf("couldn't retrieve allocations for job %v: %v", job.ID, err)
 		}
@@ -1548,6 +1565,9 @@ func (r *StateRestore) CreateJobSummaries() error {
 		summary := structs.JobSummary{
 			JobID:   job.ID,
 			Summary: make(map[string]structs.TaskGroupSummary),
+		}
+		for _, tg := range job.TaskGroups {
+			summary.Summary[tg.Name] = structs.TaskGroupSummary{}
 		}
 		// Calculate the summary for the job
 		for _, alloc := range allocs {
@@ -1570,6 +1590,7 @@ func (r *StateRestore) CreateJobSummaries() error {
 			summary.Summary[alloc.TaskGroup] = tg
 		}
 		// Insert the job summary
+
 		if err := r.txn.Insert("job_summary", summary); err != nil {
 			return fmt.Errorf("error inserting job summary: %v", err)
 		}
