@@ -142,8 +142,9 @@ func TestStateStore_UpdateNodeStatus_Node(t *testing.T) {
 	alloc.NodeID = node.ID
 	alloc1.NodeID = node.ID
 	alloc2.NodeID = node.ID
-	alloc.ClientStatus = structs.AllocClientStatusRunning
-	alloc1.ClientStatus = structs.AllocClientStatusFailed
+	alloc.ClientStatus = structs.AllocClientStatusPending
+	alloc1.ClientStatus = structs.AllocClientStatusPending
+	alloc2.ClientStatus = structs.AllocClientStatusPending
 	if err := state.UpsertJobSummary(990, mock.JobSummary(alloc.JobID)); err != nil {
 		t.Fatal(err)
 	}
@@ -153,12 +154,22 @@ func TestStateStore_UpdateNodeStatus_Node(t *testing.T) {
 	if err := state.UpsertJobSummary(990, mock.JobSummary(alloc2.JobID)); err != nil {
 		t.Fatal(err)
 	}
-	alloc2.ClientStatus = structs.AllocClientStatusPending
-
 	if err = state.UpsertAllocs(1002, []*structs.Allocation{alloc, alloc1, alloc2}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if err = state.UpdateNodeStatus(1003, node.ID, structs.NodeStatusDown); err != nil {
+
+	// Change the state of the allocs to running and failed
+	newAlloc := new(structs.Allocation)
+	*newAlloc = *alloc
+	newAlloc.ClientStatus = structs.AllocClientStatusRunning
+	newAlloc1 := new(structs.Allocation)
+	*newAlloc1 = *alloc1
+	newAlloc1.ClientStatus = structs.AllocClientStatusFailed
+	if err = state.UpdateAllocsFromClient(1003, []*structs.Allocation{newAlloc, newAlloc1}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if err = state.UpdateNodeStatus(1004, node.ID, structs.NodeStatusDown); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -184,6 +195,20 @@ func TestStateStore_UpdateNodeStatus_Node(t *testing.T) {
 	}
 	if alloc2Out.ClientStatus != structs.AllocClientStatusLost {
 		t.Fatalf("expected alloc status: %v, actual: %v", structs.AllocClientStatusLost, alloc2Out.ClientStatus)
+	}
+
+	js1, _ := state.JobSummaryByID(alloc.JobID)
+	js2, _ := state.JobSummaryByID(alloc1.JobID)
+	js3, _ := state.JobSummaryByID(alloc2.JobID)
+
+	if js1.Summary["web"].Lost != 1 {
+		t.Fatalf("expected: %v, got: %v", 1, js1.Summary["web"].Lost)
+	}
+	if js2.Summary["web"].Failed != 1 {
+		t.Fatalf("expected: %v, got: %v", 1, js2.Summary["web"].Failed)
+	}
+	if js3.Summary["web"].Lost != 1 {
+		t.Fatalf("expected: %v, got: %v", 1, js3.Summary["web"].Lost)
 	}
 
 	notify.verify(t)
@@ -1718,8 +1743,8 @@ func TestStateStore_UpdateAllocsFromClient(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 	tgSummary2 := summary2.Summary["web"]
-	if tgSummary2.Running != 0 {
-		t.Fatalf("expected running: %v, actual: %v", 0, tgSummary2.Failed)
+	if tgSummary2.Running != 1 {
+		t.Fatalf("expected running: %v, actual: %v", 1, tgSummary2.Running)
 	}
 
 	notify.verify(t)

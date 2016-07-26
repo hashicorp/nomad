@@ -118,6 +118,7 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	allocEvict.Job = nil
 	alloc2 := mock.Alloc()
 	alloc2.Job = nil
+	s1.State().UpsertJobSummary(1500, mock.JobSummary(alloc2.JobID))
 	plan = &structs.PlanResult{
 		NodeUpdate: map[string][]*structs.Allocation{
 			node.ID: []*structs.Allocation{allocEvict},
