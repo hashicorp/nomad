@@ -68,22 +68,22 @@ drwxrwxr-x  4096  28 Jan 16 05:39 UTC  redis/
 -rw-rw-r--  0     28 Jan 16 05:39 UTC  redis_exit_status
 
 
-$ nomad fs redis/local
+$ nomad fs eb17e557 redis/local
 Mode        Size  Modified Time        Name
 -rw-rw-rw-  0     28 Jan 16 05:39 UTC  redis.stderr
 -rw-rw-rw-  17    28 Jan 16 05:39 UTC  redis.stdout
 
 
-$ nomad fs -stat redis/local/redis.stdout
+$ nomad fs -stat eb17e557 redis/local/redis.stdout
 Mode        Size  Modified Time        Name
 -rw-rw-rw-  17    28 Jan 16 05:39 UTC  redis.stdout
 
 
-$ nomad fs redis/local/redis.stdout
+$ nomad fs eb17e557 redis/local/redis.stdout
 foobar
 baz
 
-$ nomad fs -tail -f -n 3 redis/local/redis.stdout
+$ nomad fs -tail -f -n 3 eb17e557 redis/local/redis.stdout
 foobar
 baz
 bam
@@ -92,15 +92,15 @@ bam
 
 ## Using Job ID instead of Allocation ID
 
-Passing `-job` into one of the `fs` commands will allow the `fs` command to
-randomly select an allocation ID from the specified job.
+Setting the `-job` flag causes a random allocation of the specified job to be
+selected. Nomad will prefer to select a running allocation ID for the job, but
+if no running allocations for the job are found, Nomad will use a dead
+allocation.
 
 ```
 nomad fs -job <job-id> <path>
 ```
 
-Nomad will prefer to select a running allocation ID for the job, but if no
-running allocations for the job are found, Nomad will use a dead allocation.
 
 This can be useful for debugging a job that has multiple allocations, and it's
 not really required to use a specific allocation ID.
