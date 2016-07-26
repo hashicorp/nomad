@@ -113,6 +113,50 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	return nil
 }
 
+// Summary retreives the summary of a job
+func (j *Job) Summary(args *structs.JobSummaryRequest,
+	reply *structs.JobSummaryResponse) error {
+	if done, err := j.srv.forward("Job.Summary", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "job_summary", "get_job_summary"}, time.Now())
+	// Setup the blocking query
+	opts := blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		watch:     watch.NewItems(watch.Item{JobSummary: args.JobID}),
+		run: func() error {
+			snap, err := j.srv.fsm.State().Snapshot()
+			if err != nil {
+				return err
+			}
+
+			// Look for job summary
+			out, err := snap.JobSummaryByID(args.JobID)
+			if err != nil {
+				return err
+			}
+
+			// Setup the output
+			reply.JobSummary = out
+			if out != nil {
+				reply.Index = out.ModifyIndex
+			} else {
+				// Use the last index that affected the job_summary table
+				index, err := snap.Index("job_summary")
+				if err != nil {
+					return err
+				}
+				reply.Index = index
+			}
+
+			// Set the query response
+			j.srv.setQueryMeta(&reply.QueryMeta)
+			return nil
+		}}
+	return j.srv.blockingRPC(&opts)
+}
+
 // Evaluate is used to force a job for re-evaluation
 func (j *Job) Evaluate(args *structs.JobEvaluateRequest, reply *structs.JobRegisterResponse) error {
 	if done, err := j.srv.forward("Job.Evaluate", args, args, reply); done {
@@ -322,7 +366,11 @@ func (j *Job) List(args *structs.JobListRequest,
 					break
 				}
 				job := raw.(*structs.Job)
-				jobs = append(jobs, job.Stub())
+				summary, err := snap.JobSummaryByID(job.ID)
+				if err != nil {
+					return fmt.Errorf("unable to look up summary for job: %v", job.ID)
+				}
+				jobs = append(jobs, job.Stub(summary))
 			}
 			reply.Jobs = jobs
 

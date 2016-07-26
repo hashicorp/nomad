@@ -70,7 +70,64 @@ func TestSystemSched_JobRegister(t *testing.T) {
 		t.Fatalf("bad: %#v", out[0].Metrics)
 	}
 
+	// Ensure no allocations are queued
+	queued := h.Evals[0].QueuedAllocations["web"]
+	if queued != 0 {
+		t.Fatalf("expected queued allocations: %v, actual: %v", 0, queued)
+	}
+
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+}
+
+func TestSystemSched_ExhaustResources(t *testing.T) {
+	h := NewHarness(t)
+
+	// Create a nodes
+	node := mock.Node()
+	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+
+	// Create a service job which consumes most of the system resources
+	svcJob := mock.Job()
+	svcJob.TaskGroups[0].Count = 1
+	svcJob.TaskGroups[0].Tasks[0].Resources.CPU = 3600
+	noErr(t, h.State.UpsertJob(h.NextIndex(), svcJob))
+
+	// Create a mock evaluation to register the job
+	eval := &structs.Evaluation{
+		ID:          structs.GenerateUUID(),
+		Priority:    svcJob.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       svcJob.ID,
+	}
+
+	// Process the evaluation
+	err := h.Process(NewServiceScheduler, eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Create a system job
+	job := mock.SystemJob()
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	// Create a mock evaluation to register the job
+	eval1 := &structs.Evaluation{
+		ID:          structs.GenerateUUID(),
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+	}
+
+	// Process the evaluation
+	if err := h.Process(NewSystemScheduler, eval1); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure that we have one allocation queued from the system job eval
+	queued := h.Evals[1].QueuedAllocations["web"]
+	if queued != 1 {
+		t.Fatalf("expected: %v, actual: %v", 1, queued)
+	}
 }
 
 func TestSystemSched_JobRegister_Annotate(t *testing.T) {
@@ -586,6 +643,9 @@ func TestSystemSched_JobDeregister(t *testing.T) {
 		alloc.NodeID = node.ID
 		alloc.Name = "my-job.web[0]"
 		allocs = append(allocs, alloc)
+	}
+	for _, alloc := range allocs {
+		noErr(t, h.State.UpsertJobSummary(h.NextIndex(), mock.JobSummary(alloc.JobID)))
 	}
 	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
 

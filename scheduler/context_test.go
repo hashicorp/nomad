@@ -64,6 +64,7 @@ func TestEvalContext_ProposedAlloc(t *testing.T) {
 		},
 		DesiredStatus: structs.AllocDesiredStatusRun,
 		ClientStatus:  structs.AllocClientStatusPending,
+		TaskGroup:     "web",
 	}
 	alloc2 := &structs.Allocation{
 		ID:     structs.GenerateUUID(),
@@ -76,7 +77,10 @@ func TestEvalContext_ProposedAlloc(t *testing.T) {
 		},
 		DesiredStatus: structs.AllocDesiredStatusRun,
 		ClientStatus:  structs.AllocClientStatusPending,
+		TaskGroup:     "web",
 	}
+	noErr(t, state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID)))
+	noErr(t, state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID)))
 	noErr(t, state.UpsertAllocs(1000, []*structs.Allocation{alloc1, alloc2}))
 
 	// Add a planned eviction to alloc1

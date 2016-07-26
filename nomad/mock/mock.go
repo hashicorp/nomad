@@ -231,6 +231,19 @@ func Eval() *structs.Evaluation {
 	return eval
 }
 
+func JobSummary(jobID string) *structs.JobSummary {
+	js := &structs.JobSummary{
+		JobID: jobID,
+		Summary: map[string]structs.TaskGroupSummary{
+			"web": {
+				Queued:   0,
+				Starting: 0,
+			},
+		},
+	}
+	return js
+}
+
 func Alloc() *structs.Allocation {
 	alloc := &structs.Allocation{
 		ID:        structs.GenerateUUID(),

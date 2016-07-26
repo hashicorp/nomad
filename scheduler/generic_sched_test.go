@@ -272,6 +272,11 @@ func TestServiceSched_JobRegister_AllocFail(t *testing.T) {
 		t.Fatalf("bad: %#v", metrics)
 	}
 
+	// Check queued allocations
+	queued := outEval.QueuedAllocations["web"]
+	if queued != 10 {
+		t.Fatalf("expected queued: %v, actual: %v", 10, queued)
+	}
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
 
@@ -490,6 +495,71 @@ func TestServiceSched_EvaluateMaxPlanEval(t *testing.T) {
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
 
+func TestServiceSched_Plan_Partial_Progress(t *testing.T) {
+	h := NewHarness(t)
+
+	// Create a node
+	node := mock.Node()
+	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+
+	// Create a job with a high resource ask so that all the allocations can't
+	// be placed on a single node.
+	job := mock.Job()
+	job.TaskGroups[0].Count = 3
+	job.TaskGroups[0].Tasks[0].Resources.CPU = 3600
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	// Create a mock evaluation to register the job
+	eval := &structs.Evaluation{
+		ID:          structs.GenerateUUID(),
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+	}
+
+	// Process the evaluation
+	err := h.Process(NewServiceScheduler, eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure a single plan
+	if len(h.Plans) != 1 {
+		t.Fatalf("bad: %#v", h.Plans)
+	}
+	plan := h.Plans[0]
+
+	// Ensure the plan doesn't have annotations.
+	if plan.Annotations != nil {
+		t.Fatalf("expected no annotations")
+	}
+
+	// Ensure the plan allocated
+	var planned []*structs.Allocation
+	for _, allocList := range plan.NodeAllocation {
+		planned = append(planned, allocList...)
+	}
+	if len(planned) != 1 {
+		t.Fatalf("bad: %#v", plan)
+	}
+
+	// Lookup the allocations by JobID
+	out, err := h.State.AllocsByJob(job.ID)
+	noErr(t, err)
+
+	// Ensure only one allocations placed
+	if len(out) != 1 {
+		t.Fatalf("bad: %#v", out)
+	}
+
+	queued := h.Evals[0].QueuedAllocations["web"]
+	if queued != 2 {
+		t.Fatalf("expected: %v, actual: %v", 2, queued)
+	}
+
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+}
+
 func TestServiceSched_EvaluateBlockedEval(t *testing.T) {
 	h := NewHarness(t)
 
@@ -608,6 +678,12 @@ func TestServiceSched_EvaluateBlockedEval_Finished(t *testing.T) {
 	}
 
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+
+	// Ensure queued allocations is zero
+	queued := h.Evals[0].QueuedAllocations["web"]
+	if queued != 0 {
+		t.Fatalf("expected queued: %v, actual: %v", 0, queued)
+	}
 }
 
 func TestServiceSched_JobModify(t *testing.T) {
@@ -1107,6 +1183,9 @@ func TestServiceSched_JobDeregister(t *testing.T) {
 		alloc.JobID = job.ID
 		allocs = append(allocs, alloc)
 	}
+	for _, alloc := range allocs {
+		h.State.UpsertJobSummary(h.NextIndex(), mock.JobSummary(alloc.JobID))
+	}
 	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
 
 	// Create a mock evaluation to deregister the job
@@ -1229,6 +1308,53 @@ func TestServiceSched_NodeDrain(t *testing.T) {
 	}
 
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+}
+
+func TestServiceSched_NodeDrain_Queued_Allocations(t *testing.T) {
+	h := NewHarness(t)
+
+	// Register a draining node
+	node := mock.Node()
+	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+
+	// Generate a fake job with allocations and an update policy.
+	job := mock.Job()
+	job.TaskGroups[0].Count = 2
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	var allocs []*structs.Allocation
+	for i := 0; i < 2; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = node.ID
+		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
+		allocs = append(allocs, alloc)
+	}
+	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+
+	node.Drain = true
+	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+
+	// Create a mock evaluation to deal with drain
+	eval := &structs.Evaluation{
+		ID:          structs.GenerateUUID(),
+		Priority:    50,
+		TriggeredBy: structs.EvalTriggerNodeUpdate,
+		JobID:       job.ID,
+		NodeID:      node.ID,
+	}
+
+	// Process the evaluation
+	err := h.Process(NewServiceScheduler, eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	queued := h.Evals[0].QueuedAllocations["web"]
+	if queued != 2 {
+		t.Fatalf("expected: %v, actual: %v", 2, queued)
+	}
 }
 
 func TestServiceSched_NodeDrain_UpdateStrategy(t *testing.T) {
@@ -1509,7 +1635,57 @@ func TestBatchSched_Run_FailedAlloc(t *testing.T) {
 		t.Fatalf("bad: %#v", out)
 	}
 
+	// Ensure that the scheduler is recording the correct number of queued
+	// allocations
+	queued := h.Evals[0].QueuedAllocations["web"]
+	if queued != 0 {
+		t.Fatalf("expected: %v, actual: %v", 1, queued)
+	}
+
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+}
+
+func TestBatchSched_Run_FailedAllocQueuedAllocations(t *testing.T) {
+	h := NewHarness(t)
+
+	node := mock.Node()
+	node.Drain = true
+	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+
+	// Create a job
+	job := mock.Job()
+	job.TaskGroups[0].Count = 1
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	// Create a failed alloc
+	alloc := mock.Alloc()
+	alloc.Job = job
+	alloc.JobID = job.ID
+	alloc.NodeID = node.ID
+	alloc.Name = "my-job.web[0]"
+	alloc.ClientStatus = structs.AllocClientStatusFailed
+	noErr(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
+
+	// Create a mock evaluation to register the job
+	eval := &structs.Evaluation{
+		ID:          structs.GenerateUUID(),
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+	}
+
+	// Process the evaluation
+	err := h.Process(NewBatchScheduler, eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure that the scheduler is recording the correct number of queued
+	// allocations
+	queued := h.Evals[0].QueuedAllocations["web"]
+	if queued != 1 {
+		t.Fatalf("expected: %v, actual: %v", 1, queued)
+	}
 }
 
 func TestBatchSched_ReRun_SuccessfullyFinishedAlloc(t *testing.T) {

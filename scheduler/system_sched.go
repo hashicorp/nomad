@@ -38,6 +38,7 @@ type SystemScheduler struct {
 	nextEval     *structs.Evaluation
 
 	failedTGAllocs map[string]*structs.AllocMetric
+	queuedAllocs   map[string]int
 }
 
 // NewSystemScheduler is a factory function to instantiate a new system
@@ -62,20 +63,23 @@ func (s *SystemScheduler) Process(eval *structs.Evaluation) error {
 	default:
 		desc := fmt.Sprintf("scheduler cannot handle '%s' evaluation reason",
 			eval.TriggeredBy)
-		return setStatus(s.logger, s.planner, s.eval, s.nextEval, nil, s.failedTGAllocs, structs.EvalStatusFailed, desc)
+		return setStatus(s.logger, s.planner, s.eval, s.nextEval, nil, s.failedTGAllocs, structs.EvalStatusFailed, desc,
+			s.queuedAllocs)
 	}
 
 	// Retry up to the maxSystemScheduleAttempts and reset if progress is made.
 	progress := func() bool { return progressMade(s.planResult) }
 	if err := retryMax(maxSystemScheduleAttempts, s.process, progress); err != nil {
 		if statusErr, ok := err.(*SetStatusError); ok {
-			return setStatus(s.logger, s.planner, s.eval, s.nextEval, nil, s.failedTGAllocs, statusErr.EvalStatus, err.Error())
+			return setStatus(s.logger, s.planner, s.eval, s.nextEval, nil, s.failedTGAllocs, statusErr.EvalStatus, err.Error(),
+				s.queuedAllocs)
 		}
 		return err
 	}
 
 	// Update the status to complete
-	return setStatus(s.logger, s.planner, s.eval, s.nextEval, nil, s.failedTGAllocs, structs.EvalStatusComplete, "")
+	return setStatus(s.logger, s.planner, s.eval, s.nextEval, nil, s.failedTGAllocs, structs.EvalStatusComplete, "",
+		s.queuedAllocs)
 }
 
 // process is wrapped in retryMax to iteratively run the handler until we have no
@@ -88,6 +92,11 @@ func (s *SystemScheduler) process() (bool, error) {
 		return false, fmt.Errorf("failed to get job '%s': %v",
 			s.eval.JobID, err)
 	}
+	numTaskGroups := 0
+	if s.job != nil {
+		numTaskGroups = len(s.job.TaskGroups)
+	}
+	s.queuedAllocs = make(map[string]int, numTaskGroups)
 
 	// Get the ready nodes in the required datacenters
 	if s.job != nil {
@@ -141,6 +150,10 @@ func (s *SystemScheduler) process() (bool, error) {
 	if err != nil {
 		return false, err
 	}
+
+	// Decrement the number of allocations pending per task group based on the
+	// number of allocations successfully placed
+	adjustQueuedAllocations(s.logger, result, s.queuedAllocs)
 
 	// If we got a state refresh, try again since we have stale data
 	if newState != nil {
@@ -212,6 +225,11 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	// Nothing remaining to do if placement is not required
 	if len(diff.place) == 0 {
 		return nil
+	}
+
+	// Record the number of allocations that needs to be placed per Task Group
+	for _, allocTuple := range diff.place {
+		s.queuedAllocs[allocTuple.TaskGroup.Name] += 1
 	}
 
 	// Compute the placements

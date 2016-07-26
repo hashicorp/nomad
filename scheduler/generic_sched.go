@@ -72,6 +72,7 @@ type GenericScheduler struct {
 
 	blocked        *structs.Evaluation
 	failedTGAllocs map[string]*structs.AllocMetric
+	queuedAllocs   map[string]int
 }
 
 // NewServiceScheduler is a factory function to instantiate a new service scheduler
@@ -110,7 +111,7 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 		desc := fmt.Sprintf("scheduler cannot handle '%s' evaluation reason",
 			eval.TriggeredBy)
 		return setStatus(s.logger, s.planner, s.eval, s.nextEval, s.blocked,
-			s.failedTGAllocs, structs.EvalStatusFailed, desc)
+			s.failedTGAllocs, structs.EvalStatusFailed, desc, s.queuedAllocs)
 	}
 
 	// Retry up to the maxScheduleAttempts and reset if progress is made.
@@ -128,7 +129,8 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 				mErr.Errors = append(mErr.Errors, err)
 			}
 			if err := setStatus(s.logger, s.planner, s.eval, s.nextEval, s.blocked,
-				s.failedTGAllocs, statusErr.EvalStatus, err.Error()); err != nil {
+				s.failedTGAllocs, statusErr.EvalStatus, err.Error(),
+				s.queuedAllocs); err != nil {
 				mErr.Errors = append(mErr.Errors, err)
 			}
 			return mErr.ErrorOrNil()
@@ -148,7 +150,7 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 
 	// Update the status to complete
 	return setStatus(s.logger, s.planner, s.eval, s.nextEval, s.blocked,
-		s.failedTGAllocs, structs.EvalStatusComplete, "")
+		s.failedTGAllocs, structs.EvalStatusComplete, "", s.queuedAllocs)
 }
 
 // createBlockedEval creates a blocked eval and submits it to the planner. If
@@ -184,6 +186,11 @@ func (s *GenericScheduler) process() (bool, error) {
 		return false, fmt.Errorf("failed to get job '%s': %v",
 			s.eval.JobID, err)
 	}
+	numTaskGroups := 0
+	if s.job != nil {
+		numTaskGroups = len(s.job.TaskGroups)
+	}
+	s.queuedAllocs = make(map[string]int, numTaskGroups)
 
 	// Create a plan
 	s.plan = s.eval.MakePlan(s.job)
@@ -240,6 +247,10 @@ func (s *GenericScheduler) process() (bool, error) {
 	if err != nil {
 		return false, err
 	}
+
+	// Decrement the number of allocations pending per task group based on the
+	// number of allocations successfully placed
+	adjustQueuedAllocations(s.logger, result, s.queuedAllocs)
 
 	// If we got a state refresh, try again since we have stale data
 	if newState != nil {
@@ -382,6 +393,11 @@ func (s *GenericScheduler) computeJobAllocs() error {
 	// Nothing remaining to do if placement is not required
 	if len(diff.place) == 0 {
 		return nil
+	}
+
+	// Record the number of allocations that needs to be placed per Task Group
+	for _, allocTuple := range diff.place {
+		s.queuedAllocs[allocTuple.TaskGroup.Name] += 1
 	}
 
 	// Compute the placements

@@ -258,6 +258,12 @@ type JobPlanRequest struct {
 	WriteRequest
 }
 
+// JobSummaryRequest is used when we just need to get a specific job summary
+type JobSummaryRequest struct {
+	JobID string
+	QueryOptions
+}
+
 // NodeListRequest is used to parameterize a list request
 type NodeListRequest struct {
 	QueryOptions
@@ -438,6 +444,12 @@ type NodeListResponse struct {
 // SingleJobResponse is used to return a single job
 type SingleJobResponse struct {
 	Job *Job
+	QueryMeta
+}
+
+// JobSummaryResponse is used to return a single job summary
+type JobSummaryResponse struct {
+	JobSummary *JobSummary
 	QueryMeta
 }
 
@@ -964,11 +976,28 @@ const (
 type JobSummary struct {
 	JobID   string
 	Summary map[string]TaskGroupSummary
+
+	// Raft Indexes
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+// Copy returns a new copy of JobSummary
+func (js *JobSummary) Copy() *JobSummary {
+	newJobSummary := new(JobSummary)
+	*newJobSummary = *js
+	newTGSummary := make(map[string]TaskGroupSummary, len(js.Summary))
+	for k, v := range js.Summary {
+		newTGSummary[k] = v
+	}
+	newJobSummary.Summary = newTGSummary
+	return newJobSummary
 }
 
 // TaskGroup summarizes the state of all the allocations of a particular
 // TaskGroup
 type TaskGroupSummary struct {
+	Queued   int
 	Complete int
 	Failed   int
 	Running  int
@@ -1166,7 +1195,7 @@ func (j *Job) LookupTaskGroup(name string) *TaskGroup {
 }
 
 // Stub is used to return a summary of the job
-func (j *Job) Stub() *JobListStub {
+func (j *Job) Stub(summary *JobSummary) *JobListStub {
 	return &JobListStub{
 		ID:                j.ID,
 		ParentID:          j.ParentID,
@@ -1178,6 +1207,7 @@ func (j *Job) Stub() *JobListStub {
 		CreateIndex:       j.CreateIndex,
 		ModifyIndex:       j.ModifyIndex,
 		JobModifyIndex:    j.JobModifyIndex,
+		JobSummary:        summary,
 	}
 }
 
@@ -1196,6 +1226,7 @@ type JobListStub struct {
 	Priority          int
 	Status            string
 	StatusDescription string
+	JobSummary        *JobSummary
 	CreateIndex       uint64
 	ModifyIndex       uint64
 	JobModifyIndex    uint64
@@ -2813,6 +2844,10 @@ type Evaluation struct {
 	// scheduler.
 	SnapshotIndex uint64
 
+	// QueuedAllocations is the number of unplaced allocations at the time the
+	// evaluation was processed. The map is keyed by Task Group names.
+	QueuedAllocations map[string]int
+
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
@@ -2856,6 +2891,15 @@ func (e *Evaluation) Copy() *Evaluation {
 			failedTGs[tg] = metric.Copy()
 		}
 		ne.FailedTGAllocs = failedTGs
+	}
+
+	// Copy queued allocations
+	if e.QueuedAllocations != nil {
+		queuedAllocations := make(map[string]int, len(e.QueuedAllocations))
+		for tg, num := range e.QueuedAllocations {
+			queuedAllocations[tg] = num
+		}
+		ne.QueuedAllocations = queuedAllocations
 	}
 
 	return ne

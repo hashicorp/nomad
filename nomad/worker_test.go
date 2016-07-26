@@ -252,8 +252,10 @@ func TestWorker_SubmitPlan(t *testing.T) {
 	node := mock.Node()
 	testRegisterNode(t, s1, node)
 
-	// Create the register request
 	eval1 := mock.Eval()
+	s1.fsm.State().UpsertJobSummary(1000, mock.JobSummary(eval1.JobID))
+
+	// Create the register request
 	s1.evalBroker.Enqueue(eval1)
 
 	evalOut, token, err := s1.evalBroker.Dequeue([]string{eval1.Type}, time.Second)
@@ -266,6 +268,7 @@ func TestWorker_SubmitPlan(t *testing.T) {
 
 	// Create an allocation plan
 	alloc := mock.Alloc()
+	s1.fsm.State().UpsertJobSummary(1200, mock.JobSummary(alloc.JobID))
 	plan := &structs.Plan{
 		EvalID: eval1.ID,
 		NodeAllocation: map[string][]*structs.Allocation{
@@ -463,9 +466,19 @@ func TestWorker_ReblockEval(t *testing.T) {
 	// Create the blocked eval
 	eval1 := mock.Eval()
 	eval1.Status = structs.EvalStatusBlocked
+	eval1.QueuedAllocations = map[string]int{"cache": 100}
 
 	// Insert it into the state store
 	if err := s1.fsm.State().UpsertEvals(1000, []*structs.Evaluation{eval1}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create the job summary
+	js := mock.JobSummary(eval1.JobID)
+	tg := js.Summary["web"]
+	tg.Queued = 100
+	js.Summary["web"] = tg
+	if err := s1.fsm.State().UpsertJobSummary(1001, js); err != nil {
 		t.Fatal(err)
 	}
 
@@ -480,6 +493,7 @@ func TestWorker_ReblockEval(t *testing.T) {
 	}
 
 	eval2 := evalOut.Copy()
+	eval2.QueuedAllocations = map[string]int{"web": 50}
 
 	// Attempt to reblock eval
 	w := &Worker{srv: s1, logger: s1.logger, evalToken: token}
@@ -495,6 +509,15 @@ func TestWorker_ReblockEval(t *testing.T) {
 	bStats := s1.blockedEvals.Stats()
 	if bStats.TotalBlocked+bStats.TotalEscaped != 1 {
 		t.Fatalf("ReblockEval didn't insert eval into the blocked eval tracker: %#v", bStats)
+	}
+
+	// Check that the eval was updated
+	eval, err := s1.fsm.State().EvalByID(eval2.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(eval.QueuedAllocations, eval2.QueuedAllocations) {
+		t.Fatalf("expected: %#v, actual: %#v", eval2.QueuedAllocations, eval.QueuedAllocations)
 	}
 
 	// Check that the snapshot index was set properly by unblocking the eval and

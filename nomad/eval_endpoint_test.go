@@ -500,6 +500,8 @@ func TestEvalEndpoint_Allocations(t *testing.T) {
 	alloc2 := mock.Alloc()
 	alloc2.EvalID = alloc1.EvalID
 	state := s1.fsm.State()
+	state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID))
+	state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID))
 	err := state.UpsertAllocs(1000,
 		[]*structs.Allocation{alloc1, alloc2})
 	if err != nil {
@@ -537,6 +539,7 @@ func TestEvalEndpoint_Allocations_Blocking(t *testing.T) {
 
 	// Upsert an unrelated alloc first
 	time.AfterFunc(100*time.Millisecond, func() {
+		state.UpsertJobSummary(99, mock.JobSummary(alloc1.JobID))
 		err := state.UpsertAllocs(100, []*structs.Allocation{alloc1})
 		if err != nil {
 			t.Fatalf("err: %v", err)
@@ -545,6 +548,7 @@ func TestEvalEndpoint_Allocations_Blocking(t *testing.T) {
 
 	// Upsert an alloc which will trigger the watch later
 	time.AfterFunc(200*time.Millisecond, func() {
+		state.UpsertJobSummary(199, mock.JobSummary(alloc2.JobID))
 		err := state.UpsertAllocs(200, []*structs.Allocation{alloc2})
 		if err != nil {
 			t.Fatalf("err: %v", err)

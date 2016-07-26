@@ -368,7 +368,8 @@ func networkPortMap(n *structs.NetworkResource) map[string]int {
 // setStatus is used to update the status of the evaluation
 func setStatus(logger *log.Logger, planner Planner,
 	eval, nextEval, spawnedBlocked *structs.Evaluation,
-	tgMetrics map[string]*structs.AllocMetric, status, desc string) error {
+	tgMetrics map[string]*structs.AllocMetric, status, desc string,
+	queuedAllocs map[string]int) error {
 
 	logger.Printf("[DEBUG] sched: %#v: setting status to %s", eval, status)
 	newEval := eval.Copy()
@@ -381,6 +382,10 @@ func setStatus(logger *log.Logger, planner Planner,
 	if spawnedBlocked != nil {
 		newEval.BlockedEval = spawnedBlocked.ID
 	}
+	if queuedAllocs != nil {
+		newEval.QueuedAllocations = queuedAllocs
+	}
+
 	return planner.UpdateEval(newEval)
 }
 
@@ -453,8 +458,6 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 		newAlloc.Resources = nil // Computed in Plan Apply
 		newAlloc.TaskResources = option.TaskResources
 		newAlloc.Metrics = ctx.Metrics()
-		newAlloc.DesiredStatus = structs.AllocDesiredStatusRun
-		newAlloc.ClientStatus = structs.AllocClientStatusPending
 		ctx.Plan().AppendAlloc(newAlloc)
 
 		// Remove this allocation from the slice
@@ -592,4 +595,25 @@ func desiredUpdates(diff *diffResult, inplaceUpdates,
 	}
 
 	return desiredTgs
+}
+
+// adjustQueuedAllocations decrements the number of allocations pending per task
+// group based on the number of allocations successfully placed
+func adjustQueuedAllocations(logger *log.Logger, result *structs.PlanResult, queuedAllocs map[string]int) {
+	if result != nil {
+		for _, allocations := range result.NodeAllocation {
+			for _, allocation := range allocations {
+				// Ensure that the allocation is newly created
+				if allocation.CreateIndex != result.AllocIndex {
+					continue
+				}
+
+				if _, ok := queuedAllocs[allocation.TaskGroup]; ok {
+					queuedAllocs[allocation.TaskGroup] -= 1
+				} else {
+					logger.Printf("[ERR] sched: allocation %q placed but not in list of unplaced allocations", allocation.TaskGroup)
+				}
+			}
+		}
+	}
 }
