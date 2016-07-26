@@ -1430,9 +1430,10 @@ type StateSnapshot struct {
 // restoring state by only using a single large transaction
 // instead of thousands of sub transactions
 type StateRestore struct {
-	txn   *memdb.Txn
-	watch *stateWatch
-	items watch.Items
+	txn         *memdb.Txn
+	watch       *stateWatch
+	items       watch.Items
+	latestIndex uint64
 }
 
 // Abort is used to abort the restore operation
@@ -1493,6 +1494,10 @@ func (r *StateRestore) AllocRestore(alloc *structs.Allocation) error {
 func (r *StateRestore) IndexRestore(idx *IndexEntry) error {
 	if err := r.txn.Insert("index", idx); err != nil {
 		return fmt.Errorf("index insert failed: %v", err)
+	}
+
+	if idx.Value > r.latestIndex {
+		r.latestIndex = idx.Value
 	}
 	return nil
 }
@@ -1591,6 +1596,8 @@ func (r *StateRestore) CreateJobSummaries(jobs []*structs.Job) error {
 		}
 		// Insert the job summary
 
+		summary.CreateIndex = r.latestIndex
+		summary.ModifyIndex = r.latestIndex
 		if err := r.txn.Insert("job_summary", summary); err != nil {
 			return fmt.Errorf("error inserting job summary: %v", err)
 		}

@@ -1123,6 +1123,16 @@ func TestStateStore_CreateJobSummaries(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
+	// Restore an Index
+	index := IndexEntry{
+		Key:   "Foo",
+		Value: 100,
+	}
+
+	if err := restore.IndexRestore(&index); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
 	// Restore an allocation
 	alloc := mock.Alloc()
 	alloc.JobID = job.ID
@@ -1148,6 +1158,8 @@ func TestStateStore_CreateJobSummaries(t *testing.T) {
 				Starting: 1,
 			},
 		},
+		CreateIndex: 100,
+		ModifyIndex: 100,
 	}
 
 	if !reflect.DeepEqual(summary, &expected) {
