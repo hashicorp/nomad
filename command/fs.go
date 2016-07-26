@@ -103,7 +103,11 @@ func (f *FSCommand) Run(args []string) int {
 		} else {
 			f.Ui.Error("allocation ID is required")
 		}
+		return 1
+	}
 
+	if len(args) > 2 {
+		f.Ui.Error(f.Help())
 		return 1
 	}
 
