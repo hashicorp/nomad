@@ -579,6 +579,9 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 	}
 
 	// Create Job Summaries
+	// The entire snapshot has to be restored first before we create the missing
+	// job summaries so that the indexes are updated and we know the highest
+	// index
 	// COMPAT 0.4 -> 0.4.1
 	jobs, err := restore.JobsWithoutSummary()
 	if err != nil {
