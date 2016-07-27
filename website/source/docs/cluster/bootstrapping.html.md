@@ -65,7 +65,7 @@ bind_addr = "0.0.0.0"
 # and clients. The IPs can be materialized by Terraform or be replaced by an
 # init script.
 advertise {
-    http = "${self.ipv4_address}:4648"
+    http = "${self.ipv4_address}:4646"
     rpc = "${self.ipv4_address}:4647"
     serf = "${self.ipv4_address}:4648"
 }
