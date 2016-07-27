@@ -676,6 +676,10 @@ func (d *DockerDriver) loadImage(driverConfig *DockerDriverConfig, client *docke
 			errors.Errors = append(errors.Errors, err)
 		}
 		f.Close()
+		// Cleanup archive after loading it into the docker daemon. If there is
+		// an error we're going to ignore it for now and assume the alloc GC
+		// will clean it up later.
+		os.Remove(archive)
 	}
 	return errors.ErrorOrNil()
 }
