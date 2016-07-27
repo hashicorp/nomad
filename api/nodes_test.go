@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/testutil"
 )
@@ -79,6 +80,7 @@ func TestNodes_PrefixList(t *testing.T) {
 }
 
 func TestNodes_Info(t *testing.T) {
+	startTime := time.Now().Unix()
 	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
 		c.DevMode = true
 	})
@@ -120,6 +122,11 @@ func TestNodes_Info(t *testing.T) {
 		t.Fatalf("expected %s (%s), got: %s (%s)",
 			nodeID, dc,
 			result.ID, result.Datacenter)
+	}
+
+	// Check that the StatusUpdatedAt field is being populated correctly
+	if result.StatusUpdatedAt < startTime {
+		t.Fatalf("start time: %v, status updated: %v", startTime, result.StatusUpdatedAt)
 	}
 }
 
