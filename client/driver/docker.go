@@ -490,8 +490,8 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task,
 			hostPortStr := strconv.Itoa(port.Value)
 			containerPort := docker.Port(strconv.Itoa(containerPortInt))
 
-			publishedPorts[containerPort+"/tcp"] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: hostPortStr}}
-			publishedPorts[containerPort+"/udp"] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: hostPortStr}}
+			publishedPorts[containerPort+"/tcp"] = getPortBinding(network.IP, hostPortStr)
+			publishedPorts[containerPort+"/udp"] = getPortBinding(network.IP, hostPortStr)
 			d.logger.Printf("[DEBUG] driver.docker: allocated port %s:%d -> %d (static)", network.IP, port.Value, port.Value)
 
 			exposedPorts[containerPort+"/tcp"] = struct{}{}
@@ -511,8 +511,8 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task,
 			hostPortStr := strconv.Itoa(port.Value)
 			containerPort := docker.Port(strconv.Itoa(containerPortInt))
 
-			publishedPorts[containerPort+"/tcp"] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: hostPortStr}}
-			publishedPorts[containerPort+"/udp"] = []docker.PortBinding{docker.PortBinding{HostIP: network.IP, HostPort: hostPortStr}}
+			publishedPorts[containerPort+"/tcp"] = getPortBinding(network.IP, hostPortStr)
+			publishedPorts[containerPort+"/udp"] = getPortBinding(network.IP, hostPortStr)
 			d.logger.Printf("[DEBUG] driver.docker: allocated port %s:%d -> %d (mapped)", network.IP, port.Value, containerPortInt)
 
 			exposedPorts[containerPort+"/tcp"] = struct{}{}
