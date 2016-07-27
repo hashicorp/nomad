@@ -4,6 +4,7 @@ import (
 	"io"
 	"reflect"
 	"testing"
+	"time"
 )
 
 func TestFS_FrameReader(t *testing.T) {
@@ -71,5 +72,41 @@ func TestFS_FrameReader(t *testing.T) {
 	}
 	if len(expected) != r.Offset() {
 		t.Fatalf("offset %d, wanted %d", r.Offset(), len(expected))
+	}
+}
+
+func TestFS_FrameReader_Unblock(t *testing.T) {
+	// Create a channel of the frames and a cancel channel
+	framesCh := make(chan *StreamFrame, 3)
+	cancelCh := make(chan struct{})
+
+	r := NewFrameReader(framesCh, cancelCh)
+	r.SetUnblockTime(10 * time.Millisecond)
+
+	// Read a little
+	p := make([]byte, 12)
+
+	n, err := r.Read(p)
+	if err != nil {
+		t.Fatalf("Read failed: %v", err)
+	}
+
+	if n != 0 {
+		t.Fatalf("should have unblocked")
+	}
+
+	// Unset the unblock
+	r.SetUnblockTime(0)
+
+	resultCh := make(chan struct{})
+	go func() {
+		r.Read(p)
+		close(resultCh)
+	}()
+
+	select {
+	case <-resultCh:
+		t.Fatalf("shouldn't have unblocked")
+	case <-time.After(300 * time.Millisecond):
 	}
 }

@@ -175,49 +175,49 @@ func (a *Agent) serverConfig() (*nomad.Config, error) {
 	if a.config.AdvertiseAddrs.HTTP != "" {
 		a.serverHTTPAddr = a.config.AdvertiseAddrs.HTTP
 	} else if a.config.Addresses.HTTP != "" {
-		a.serverHTTPAddr = fmt.Sprintf("%v:%v", a.config.Addresses.HTTP, a.config.Ports.HTTP)
+		a.serverHTTPAddr = net.JoinHostPort(a.config.Addresses.HTTP, strconv.Itoa(a.config.Ports.HTTP))
 	} else if a.config.BindAddr != "" {
-		a.serverHTTPAddr = fmt.Sprintf("%v:%v", a.config.BindAddr, a.config.Ports.HTTP)
+		a.serverHTTPAddr = net.JoinHostPort(a.config.BindAddr, strconv.Itoa(a.config.Ports.HTTP))
 	} else {
-		a.serverHTTPAddr = fmt.Sprintf("%v:%v", "127.0.0.1", a.config.Ports.HTTP)
+		a.serverHTTPAddr = net.JoinHostPort("127.0.0.1", strconv.Itoa(a.config.Ports.HTTP))
 	}
 	addr, err := net.ResolveTCPAddr("tcp", a.serverHTTPAddr)
 	if err != nil {
 		return nil, fmt.Errorf("error resolving HTTP addr %+q: %v", a.serverHTTPAddr, err)
 	}
-	a.serverHTTPAddr = fmt.Sprintf("%s:%d", addr.IP.String(), addr.Port)
+	a.serverHTTPAddr = net.JoinHostPort(addr.IP.String(), strconv.Itoa(addr.Port))
 
 	// Resolve the Server's RPC Address
 	if a.config.AdvertiseAddrs.RPC != "" {
 		a.serverRPCAddr = a.config.AdvertiseAddrs.RPC
 	} else if a.config.Addresses.RPC != "" {
-		a.serverRPCAddr = fmt.Sprintf("%v:%v", a.config.Addresses.RPC, a.config.Ports.RPC)
+		a.serverRPCAddr = net.JoinHostPort(a.config.Addresses.RPC, strconv.Itoa(a.config.Ports.RPC))
 	} else if a.config.BindAddr != "" {
-		a.serverRPCAddr = fmt.Sprintf("%v:%v", a.config.BindAddr, a.config.Ports.RPC)
+		a.serverRPCAddr = net.JoinHostPort(a.config.BindAddr, strconv.Itoa(a.config.Ports.RPC))
 	} else {
-		a.serverRPCAddr = fmt.Sprintf("%v:%v", "127.0.0.1", a.config.Ports.RPC)
+		a.serverRPCAddr = net.JoinHostPort("127.0.0.1", strconv.Itoa(a.config.Ports.RPC))
 	}
 	addr, err = net.ResolveTCPAddr("tcp", a.serverRPCAddr)
 	if err != nil {
 		return nil, fmt.Errorf("error resolving RPC addr %+q: %v", a.serverRPCAddr, err)
 	}
-	a.serverRPCAddr = fmt.Sprintf("%s:%d", addr.IP.String(), addr.Port)
+	a.serverRPCAddr = net.JoinHostPort(addr.IP.String(), strconv.Itoa(addr.Port))
 
 	// Resolve the Server's Serf Address
 	if a.config.AdvertiseAddrs.Serf != "" {
 		a.serverSerfAddr = a.config.AdvertiseAddrs.Serf
 	} else if a.config.Addresses.Serf != "" {
-		a.serverSerfAddr = fmt.Sprintf("%v:%v", a.config.Addresses.Serf, a.config.Ports.Serf)
+		a.serverSerfAddr = net.JoinHostPort(a.config.Addresses.Serf, strconv.Itoa(a.config.Ports.Serf))
 	} else if a.config.BindAddr != "" {
-		a.serverSerfAddr = fmt.Sprintf("%v:%v", a.config.BindAddr, a.config.Ports.Serf)
+		a.serverSerfAddr = net.JoinHostPort(a.config.BindAddr, strconv.Itoa(a.config.Ports.Serf))
 	} else {
-		a.serverSerfAddr = fmt.Sprintf("%v:%v", "127.0.0.1", a.config.Ports.Serf)
+		a.serverSerfAddr = net.JoinHostPort("127.0.0.1", strconv.Itoa(a.config.Ports.Serf))
 	}
 	addr, err = net.ResolveTCPAddr("tcp", a.serverSerfAddr)
 	if err != nil {
 		return nil, fmt.Errorf("error resolving Serf addr %+q: %v", a.serverSerfAddr, err)
 	}
-	a.serverSerfAddr = fmt.Sprintf("%s:%d", addr.IP.String(), addr.Port)
+	a.serverSerfAddr = net.JoinHostPort(addr.IP.String(), strconv.Itoa(addr.Port))
 
 	if gcThreshold := a.config.Server.NodeGCThreshold; gcThreshold != "" {
 		dur, err := time.ParseDuration(gcThreshold)
@@ -314,17 +314,18 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	if a.config.AdvertiseAddrs.HTTP != "" {
 		a.clientHTTPAddr = a.config.AdvertiseAddrs.HTTP
 	} else if a.config.Addresses.HTTP != "" {
-		a.clientHTTPAddr = fmt.Sprintf("%v:%v", a.config.Addresses.HTTP, a.config.Ports.HTTP)
+		a.clientHTTPAddr = net.JoinHostPort(a.config.Addresses.HTTP, strconv.Itoa(a.config.Ports.HTTP))
 	} else if a.config.BindAddr != "" {
-		a.clientHTTPAddr = fmt.Sprintf("%v:%v", a.config.BindAddr, a.config.Ports.HTTP)
+		a.clientHTTPAddr = net.JoinHostPort(a.config.BindAddr, strconv.Itoa(a.config.Ports.HTTP))
 	} else {
-		a.clientHTTPAddr = fmt.Sprintf("%v:%v", "127.0.0.1", a.config.Ports.HTTP)
+		a.clientHTTPAddr = net.JoinHostPort("127.0.0.1", strconv.Itoa(a.config.Ports.HTTP))
 	}
 	addr, err := net.ResolveTCPAddr("tcp", a.clientHTTPAddr)
 	if err != nil {
 		return nil, fmt.Errorf("error resolving HTTP addr %+q: %v", a.clientHTTPAddr, err)
 	}
-	httpAddr := fmt.Sprintf("%s:%d", addr.IP.String(), addr.Port)
+	httpAddr := net.JoinHostPort(addr.IP.String(), strconv.Itoa(addr.Port))
+
 	conf.Node.HTTPAddr = httpAddr
 	a.clientHTTPAddr = httpAddr
 

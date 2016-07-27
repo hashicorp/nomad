@@ -223,6 +223,12 @@ func (c *AllocStatusCommand) outputTaskStatus(state *api.TaskState) {
 			} else {
 				desc = "Failed to download artifacts"
 			}
+		case api.TaskKilling:
+			if event.KillTimeout != 0 {
+				desc = fmt.Sprintf("Sent interupt. Waiting %v before force killing", event.KillTimeout)
+			} else {
+				desc = "Sent interupt"
+			}
 		case api.TaskKilled:
 			if event.KillError != "" {
 				desc = event.KillError
@@ -296,7 +302,7 @@ func (c *AllocStatusCommand) outputTaskResources(alloc *api.Allocation, task str
 			memUsage = fmt.Sprintf("%v/%v", humanize.IBytes(ms.RSS), memUsage)
 		}
 	}
-	resourcesOutput = append(resourcesOutput, fmt.Sprintf("%v|%v|%v|%v|%v",
+	resourcesOutput = append(resourcesOutput, fmt.Sprintf("%v MHz|%v|%v|%v|%v",
 		cpuUsage,
 		memUsage,
 		humanize.IBytes(uint64(resource.DiskMB*bytesPerMegabyte)),

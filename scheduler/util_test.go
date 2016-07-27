@@ -488,7 +488,7 @@ func TestSetStatus(t *testing.T) {
 	eval := mock.Eval()
 	status := "a"
 	desc := "b"
-	if err := setStatus(logger, h, eval, nil, nil, nil, status, desc); err != nil {
+	if err := setStatus(logger, h, eval, nil, nil, nil, status, desc, nil); err != nil {
 		t.Fatalf("setStatus() failed: %v", err)
 	}
 
@@ -504,7 +504,7 @@ func TestSetStatus(t *testing.T) {
 	// Test next evals
 	h = NewHarness(t)
 	next := mock.Eval()
-	if err := setStatus(logger, h, eval, next, nil, nil, status, desc); err != nil {
+	if err := setStatus(logger, h, eval, next, nil, nil, status, desc, nil); err != nil {
 		t.Fatalf("setStatus() failed: %v", err)
 	}
 
@@ -520,7 +520,7 @@ func TestSetStatus(t *testing.T) {
 	// Test blocked evals
 	h = NewHarness(t)
 	blocked := mock.Eval()
-	if err := setStatus(logger, h, eval, nil, blocked, nil, status, desc); err != nil {
+	if err := setStatus(logger, h, eval, nil, blocked, nil, status, desc, nil); err != nil {
 		t.Fatalf("setStatus() failed: %v", err)
 	}
 
@@ -536,7 +536,7 @@ func TestSetStatus(t *testing.T) {
 	// Test metrics
 	h = NewHarness(t)
 	metrics := map[string]*structs.AllocMetric{"foo": nil}
-	if err := setStatus(logger, h, eval, nil, nil, metrics, status, desc); err != nil {
+	if err := setStatus(logger, h, eval, nil, nil, metrics, status, desc, nil); err != nil {
 		t.Fatalf("setStatus() failed: %v", err)
 	}
 
@@ -548,6 +548,23 @@ func TestSetStatus(t *testing.T) {
 	if !reflect.DeepEqual(newEval.FailedTGAllocs, metrics) {
 		t.Fatalf("setStatus() didn't set failed task group metrics correctly: %v", newEval)
 	}
+
+	// Test queued allocations
+	h = NewHarness(t)
+	queuedAllocs := map[string]int{"web": 1}
+
+	if err := setStatus(logger, h, eval, nil, nil, metrics, status, desc, queuedAllocs); err != nil {
+		t.Fatalf("setStatus() failed: %v", err)
+	}
+
+	if len(h.Evals) != 1 {
+		t.Fatalf("setStatus() didn't update plan: %v", h.Evals)
+	}
+
+	newEval = h.Evals[0]
+	if !reflect.DeepEqual(newEval.QueuedAllocations, queuedAllocs) {
+		t.Fatalf("setStatus() didn't set failed task group metrics correctly: %v", newEval)
+	}
 }
 
 func TestInplaceUpdate_ChangedTaskGroup(t *testing.T) {
@@ -556,7 +573,7 @@ func TestInplaceUpdate_ChangedTaskGroup(t *testing.T) {
 	job := mock.Job()
 
 	node := mock.Node()
-	noErr(t, state.UpsertNode(1000, node))
+	noErr(t, state.UpsertNode(900, node))
 
 	// Register an alloc
 	alloc := &structs.Allocation{
@@ -570,8 +587,10 @@ func TestInplaceUpdate_ChangedTaskGroup(t *testing.T) {
 			MemoryMB: 2048,
 		},
 		DesiredStatus: structs.AllocDesiredStatusRun,
+		TaskGroup:     "web",
 	}
 	alloc.TaskResources = map[string]*structs.Resources{"web": alloc.Resources}
+	noErr(t, state.UpsertJobSummary(1000, mock.JobSummary(alloc.JobID)))
 	noErr(t, state.UpsertAllocs(1001, []*structs.Allocation{alloc}))
 
 	// Create a new task group that prevents in-place updates.
@@ -602,7 +621,7 @@ func TestInplaceUpdate_NoMatch(t *testing.T) {
 	job := mock.Job()
 
 	node := mock.Node()
-	noErr(t, state.UpsertNode(1000, node))
+	noErr(t, state.UpsertNode(900, node))
 
 	// Register an alloc
 	alloc := &structs.Allocation{
@@ -616,8 +635,10 @@ func TestInplaceUpdate_NoMatch(t *testing.T) {
 			MemoryMB: 2048,
 		},
 		DesiredStatus: structs.AllocDesiredStatusRun,
+		TaskGroup:     "web",
 	}
 	alloc.TaskResources = map[string]*structs.Resources{"web": alloc.Resources}
+	noErr(t, state.UpsertJobSummary(1000, mock.JobSummary(alloc.JobID)))
 	noErr(t, state.UpsertAllocs(1001, []*structs.Allocation{alloc}))
 
 	// Create a new task group that requires too much resources.
@@ -647,7 +668,7 @@ func TestInplaceUpdate_Success(t *testing.T) {
 	job := mock.Job()
 
 	node := mock.Node()
-	noErr(t, state.UpsertNode(1000, node))
+	noErr(t, state.UpsertNode(900, node))
 
 	// Register an alloc
 	alloc := &structs.Allocation{
@@ -664,6 +685,7 @@ func TestInplaceUpdate_Success(t *testing.T) {
 		DesiredStatus: structs.AllocDesiredStatusRun,
 	}
 	alloc.TaskResources = map[string]*structs.Resources{"web": alloc.Resources}
+	noErr(t, state.UpsertJobSummary(999, mock.JobSummary(alloc.JobID)))
 	noErr(t, state.UpsertAllocs(1001, []*structs.Allocation{alloc}))
 
 	// Create a new task group that updates the resources.
@@ -889,5 +911,39 @@ func TestDesiredUpdates(t *testing.T) {
 	desired := desiredUpdates(diff, inplace, destructive)
 	if !reflect.DeepEqual(desired, expected) {
 		t.Fatalf("desiredUpdates() returned %#v; want %#v", desired, expected)
+	}
+}
+
+func TestUtil_AdjustQueuedAllocations(t *testing.T) {
+	logger := log.New(os.Stderr, "", log.LstdFlags)
+	alloc1 := mock.Alloc()
+	alloc2 := mock.Alloc()
+	alloc2.CreateIndex = 4
+	alloc3 := mock.Alloc()
+	alloc3.CreateIndex = 3
+	alloc4 := mock.Alloc()
+	alloc4.CreateIndex = 6
+
+	planResult := structs.PlanResult{
+		NodeUpdate: map[string][]*structs.Allocation{
+			"node-1": []*structs.Allocation{alloc1},
+		},
+		NodeAllocation: map[string][]*structs.Allocation{
+			"node-1": []*structs.Allocation{
+				alloc2,
+			},
+			"node-2": []*structs.Allocation{
+				alloc3, alloc4,
+			},
+		},
+		RefreshIndex: 3,
+		AllocIndex:   4,
+	}
+
+	queuedAllocs := map[string]int{"web": 2}
+	adjustQueuedAllocations(logger, &planResult, queuedAllocs)
+
+	if queuedAllocs["web"] != 1 {
+		t.Fatalf("expected: %v, actual: %v", 1, queuedAllocs["web"])
 	}
 }

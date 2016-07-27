@@ -4,10 +4,16 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"math"
+	"net"
 	"net/http"
+	"os"
+	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"gopkg.in/tomb.v1"
@@ -21,6 +27,8 @@ import (
 var (
 	allocIDNotPresentErr  = fmt.Errorf("must provide a valid alloc id")
 	fileNameNotPresentErr = fmt.Errorf("must provide a file name")
+	taskNotPresentErr     = fmt.Errorf("must provide task name")
+	logTypeNotPresentErr  = fmt.Errorf("must provide log type (stdout/stderr)")
 	clientNotRunning      = fmt.Errorf("node is not running a Nomad Client")
 	invalidOrigin         = fmt.Errorf("origin must be start or end")
 )
@@ -31,14 +39,28 @@ const (
 
 	// streamHeartbeatRate is the rate at which a heartbeat will occur to detect
 	// a closed connection without sending any additional data
-	streamHeartbeatRate = 10 * time.Second
+	streamHeartbeatRate = 1 * time.Second
 
 	// streamBatchWindow is the window in which file content is batched before
 	// being flushed if the frame size has not been hit.
 	streamBatchWindow = 200 * time.Millisecond
 
+	// nextLogCheckRate is the rate at which we check for a log entry greater
+	// than what we are watching for. This is to handle the case in which logs
+	// rotate faster than we can detect and we have to rely on a normal
+	// directory listing.
+	nextLogCheckRate = 100 * time.Millisecond
+
+	// deleteEvent and truncateEvent are the file events that can be sent in a
+	// StreamFrame
 	deleteEvent   = "file deleted"
 	truncateEvent = "file truncated"
+
+	// OriginStart and OriginEnd are the available parameters for the origin
+	// argument when streaming a file. They respectively offset from the start
+	// and end of a file.
+	OriginStart = "start"
+	OriginEnd   = "end"
 )
 
 func (s *HTTPServer) FsRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
@@ -58,6 +80,8 @@ func (s *HTTPServer) FsRequest(resp http.ResponseWriter, req *http.Request) (int
 		return s.FileCatRequest(resp, req)
 	case strings.HasPrefix(path, "stream/"):
 		return s.Stream(resp, req)
+	case strings.HasPrefix(path, "logs/"):
+		return s.Logs(resp, req)
 	default:
 		return nil, CodedError(404, ErrInvalidMethod)
 	}
@@ -223,7 +247,7 @@ type StreamFramer struct {
 	// Captures whether the framer is running and any error that occurred to
 	// cause it to stop.
 	running bool
-	err     error
+	Err     error
 }
 
 // NewStreamFramer creates a new stream framer that will output StreamFrames to
@@ -252,18 +276,16 @@ func NewStreamFramer(out io.WriteCloser, heartbeatRate, batchWindow time.Duratio
 // Destroy is used to cleanup the StreamFramer and flush any pending frames
 func (s *StreamFramer) Destroy() {
 	s.l.Lock()
-	wasRunning := s.running
-	s.running = false
-	s.f = nil
 	close(s.shutdownCh)
 	s.heartbeat.Stop()
 	s.flusher.Stop()
 	s.l.Unlock()
 
 	// Ensure things were flushed
-	if wasRunning {
+	if s.running {
 		<-s.exitCh
 	}
+	s.out.Close()
 }
 
 // Run starts a long lived goroutine that handles sending data as well as
@@ -290,11 +312,12 @@ func (s *StreamFramer) run() {
 	// Store any error and mark it as not running
 	var err error
 	defer func() {
-		s.l.Lock()
-		s.err = err
-		s.out.Close()
 		close(s.exitCh)
+
+		s.l.Lock()
 		close(s.outbound)
+		s.Err = err
+		s.running = false
 		s.l.Unlock()
 	}()
 
@@ -303,6 +326,8 @@ func (s *StreamFramer) run() {
 	go func() {
 		for {
 			select {
+			case <-s.exitCh:
+				return
 			case <-s.shutdownCh:
 				return
 			case <-s.flusher.C:
@@ -315,13 +340,18 @@ func (s *StreamFramer) run() {
 
 				// Read the data for the frame, and send it
 				s.f.Data = s.readData()
-				s.outbound <- s.f
-				s.f = nil
-
+				select {
+				case s.outbound <- s.f:
+					s.f = nil
+				case <-s.exitCh:
+				}
 				s.l.Unlock()
 			case <-s.heartbeat.C:
 				// Send a heartbeat frame
-				s.outbound <- &StreamFrame{}
+				select {
+				case s.outbound <- &StreamFrame{}:
+				default:
+				}
 			}
 		}
 	}()
@@ -332,7 +362,7 @@ OUTER:
 		case <-s.shutdownCh:
 			break OUTER
 		case o := <-s.outbound:
-			// Send the frame and then clear the current working frame
+			// Send the frame
 			if err = s.enc.Encode(o); err != nil {
 				return
 			}
@@ -340,21 +370,25 @@ OUTER:
 	}
 
 	// Flush any existing frames
-	s.l.Lock()
-	defer s.l.Unlock()
-	select {
-	case o := <-s.outbound:
-		// Send the frame and then clear the current working frame
-		if err = s.enc.Encode(o); err != nil {
-			return
+FLUSH:
+	for {
+		select {
+		case o := <-s.outbound:
+			// Send the frame and then clear the current working frame
+			if err = s.enc.Encode(o); err != nil {
+				return
+			}
+		default:
+			break FLUSH
 		}
-	default:
 	}
 
+	s.l.Lock()
 	if s.f != nil {
 		s.f.Data = s.readData()
 		s.enc.Encode(s.f)
 	}
+	s.l.Unlock()
 }
 
 // readData is a helper which reads the buffered data returning up to the frame
@@ -369,7 +403,10 @@ func (s *StreamFramer) readData() []byte {
 	if size == 0 {
 		return nil
 	}
-	return s.data.Next(size)
+	d := s.data.Next(size)
+	b := make([]byte, size)
+	copy(b, d)
+	return b
 }
 
 // Send creates and sends a StreamFrame based on the passed parameters. An error
@@ -382,8 +419,8 @@ func (s *StreamFramer) Send(file, fileEvent string, data []byte, offset int64) e
 	// If we are not running, return the error that caused us to not run or
 	// indicated that it was never started.
 	if !s.running {
-		if s.err != nil {
-			return s.err
+		if s.Err != nil {
+			return s.Err
 		}
 		return fmt.Errorf("StreamFramer not running")
 	}
@@ -391,13 +428,14 @@ func (s *StreamFramer) Send(file, fileEvent string, data []byte, offset int64) e
 	// Check if not mergeable
 	if s.f != nil && (s.f.File != file || s.f.FileEvent != fileEvent) {
 		// Flush the old frame
-		s.outbound <- &StreamFrame{
-			Offset:    s.f.Offset,
-			File:      s.f.File,
-			FileEvent: s.f.FileEvent,
-			Data:      s.readData(),
+		f := *s.f
+		f.Data = s.readData()
+		select {
+		case <-s.exitCh:
+			return nil
+		case s.outbound <- &f:
+			s.f = nil
 		}
-		s.f = nil
 	}
 
 	// Store the new data as the current frame.
@@ -414,21 +452,30 @@ func (s *StreamFramer) Send(file, fileEvent string, data []byte, offset int64) e
 
 	// Handle the delete case in which there is no data
 	if s.data.Len() == 0 && s.f.FileEvent != "" {
-		s.outbound <- &StreamFrame{
+		select {
+		case <-s.exitCh:
+			return nil
+		case s.outbound <- &StreamFrame{
 			Offset:    s.f.Offset,
 			File:      s.f.File,
 			FileEvent: s.f.FileEvent,
+		}:
 		}
 	}
 
 	// Flush till we are under the max frame size
 	for s.data.Len() >= s.frameSize {
 		// Create a new frame to send it
-		s.outbound <- &StreamFrame{
+		d := s.readData()
+		select {
+		case <-s.exitCh:
+			return nil
+		case s.outbound <- &StreamFrame{
 			Offset:    s.f.Offset,
 			File:      s.f.File,
 			FileEvent: s.f.FileEvent,
-			Data:      s.readData(),
+			Data:      d,
+		}:
 		}
 	}
 
@@ -499,10 +546,26 @@ func (s *HTTPServer) Stream(resp http.ResponseWriter, req *http.Request) (interf
 	// Create an output that gets flushed on every write
 	output := ioutils.NewWriteFlusher(resp)
 
-	return nil, s.stream(offset, path, fs, output)
+	// Create the framer
+	framer := NewStreamFramer(output, streamHeartbeatRate, streamBatchWindow, streamFrameSize)
+	framer.Run()
+	defer framer.Destroy()
+
+	err = s.stream(offset, path, fs, framer, nil)
+	if err != nil && err != syscall.EPIPE {
+		return nil, err
+	}
+
+	return nil, nil
 }
 
-func (s *HTTPServer) stream(offset int64, path string, fs allocdir.AllocDirFS, output io.WriteCloser) error {
+// stream is the internal method to stream the content of a file. eofCancelCh is
+// used to cancel the stream if triggered while at EOF. If the connection is
+// broken an EPIPE error is returned
+func (s *HTTPServer) stream(offset int64, path string,
+	fs allocdir.AllocDirFS, framer *StreamFramer,
+	eofCancelCh chan error) error {
+
 	// Get the reader
 	f, err := fs.ReadAt(path, offset)
 	if err != nil {
@@ -516,11 +579,6 @@ func (s *HTTPServer) stream(offset int64, path string, fs allocdir.AllocDirFS, o
 		t.Kill(nil)
 		t.Done()
 	}()
-
-	// Create the framer
-	framer := NewStreamFramer(output, streamHeartbeatRate, streamBatchWindow, streamFrameSize)
-	framer.Run()
-	defer framer.Destroy()
 
 	// Create a variable to allow setting the last event
 	var lastEvent string
@@ -547,6 +605,22 @@ OUTER:
 		// Send the frame
 		if n != 0 {
 			if err := framer.Send(path, lastEvent, data[:n], offset); err != nil {
+
+				// Check if the connection has been closed
+				if err == io.ErrClosedPipe {
+					// The pipe check is for tests
+					return syscall.EPIPE
+				}
+
+				operr, ok := err.(*net.OpError)
+				if ok {
+					// The connection was closed by our peer
+					e := operr.Err.Error()
+					if strings.Contains(e, syscall.EPIPE.Error()) || strings.Contains(e, syscall.ECONNRESET.Error()) {
+						return syscall.EPIPE
+					}
+				}
+
 				return err
 			}
 		}
@@ -595,9 +669,340 @@ OUTER:
 				continue OUTER
 			case <-framer.ExitCh():
 				return nil
+			case err, ok := <-eofCancelCh:
+				if !ok {
+					return nil
+				}
+
+				return err
 			}
 		}
 	}
 
 	return nil
+}
+
+// Logs streams the content of a log blocking on EOF. The parameters are:
+// * task: task name to stream logs for.
+// * type: stdout/stderr to stream.
+// * follow: A boolean of whether to follow the logs.
+// * offset: The offset to start streaming data at, defaults to zero.
+// * origin: Either "start" or "end" and defines from where the offset is
+//           applied. Defaults to "start".
+func (s *HTTPServer) Logs(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	var allocID, task, logType string
+	var follow bool
+	var err error
+
+	q := req.URL.Query()
+
+	if allocID = strings.TrimPrefix(req.URL.Path, "/v1/client/fs/logs/"); allocID == "" {
+		return nil, allocIDNotPresentErr
+	}
+
+	if task = q.Get("task"); task == "" {
+		return nil, taskNotPresentErr
+	}
+
+	if follow, err = strconv.ParseBool(q.Get("follow")); err != nil {
+		return nil, fmt.Errorf("Failed to parse follow field to boolean: %v", err)
+	}
+
+	logType = q.Get("type")
+	switch logType {
+	case "stdout", "stderr":
+	default:
+		return nil, logTypeNotPresentErr
+	}
+
+	var offset int64
+	offsetString := q.Get("offset")
+	if offsetString != "" {
+		var err error
+		if offset, err = strconv.ParseInt(offsetString, 10, 64); err != nil {
+			return nil, fmt.Errorf("error parsing offset: %v", err)
+		}
+	}
+
+	origin := q.Get("origin")
+	switch origin {
+	case "start", "end":
+	case "":
+		origin = "start"
+	default:
+		return nil, invalidOrigin
+	}
+
+	fs, err := s.agent.client.GetAllocFS(allocID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create an output that gets flushed on every write
+	output := ioutils.NewWriteFlusher(resp)
+
+	return nil, s.logs(follow, offset, origin, task, logType, fs, output)
+}
+
+func (s *HTTPServer) logs(follow bool, offset int64,
+	origin, task, logType string,
+	fs allocdir.AllocDirFS, output io.WriteCloser) error {
+
+	// Create the framer
+	framer := NewStreamFramer(output, streamHeartbeatRate, streamBatchWindow, streamFrameSize)
+	framer.Run()
+	defer framer.Destroy()
+
+	// Path to the logs
+	logPath := filepath.Join(allocdir.SharedAllocName, allocdir.LogDirName)
+
+	// nextIdx is the next index to read logs from
+	var nextIdx int64
+	switch origin {
+	case "start":
+		nextIdx = 0
+	case "end":
+		nextIdx = math.MaxInt64
+		offset *= -1
+	default:
+		return invalidOrigin
+	}
+
+	// Create a tomb to cancel watch events
+	t := tomb.Tomb{}
+	defer func() {
+		t.Kill(nil)
+		t.Done()
+	}()
+
+	for {
+		// Logic for picking next file is:
+		// 1) List log files
+		// 2) Pick log file closest to desired index
+		// 3) Open log file at correct offset
+		// 3a) No error, read contents
+		// 3b) If file doesn't exist, goto 1 as it may have been rotated out
+		entries, err := fs.List(logPath)
+		if err != nil {
+			return fmt.Errorf("failed to list entries: %v", err)
+		}
+
+		// If we are not following logs, determine the max index for the logs we are
+		// interested in so we can stop there.
+		maxIndex := int64(math.MaxInt64)
+		if !follow {
+			_, idx, _, err := findClosest(entries, maxIndex, 0, task, logType)
+			if err != nil {
+				return err
+			}
+			maxIndex = idx
+		}
+
+		logEntry, idx, openOffset, err := findClosest(entries, nextIdx, offset, task, logType)
+		if err != nil {
+			return err
+		}
+
+		var eofCancelCh chan error
+		exitAfter := false
+		if !follow && idx > maxIndex {
+			// Exceeded what was there initially so return
+			return nil
+		} else if !follow && idx == maxIndex {
+			// At the end
+			eofCancelCh = make(chan error)
+			close(eofCancelCh)
+			exitAfter = true
+		} else {
+			eofCancelCh = blockUntilNextLog(fs, &t, logPath, task, logType, idx+1)
+		}
+
+		p := filepath.Join(logPath, logEntry.Name)
+		err = s.stream(openOffset, p, fs, framer, eofCancelCh)
+
+		if err != nil {
+			// Check if there was an error where the file does not exist. That means
+			// it got rotated out from under us.
+			if os.IsNotExist(err) {
+				continue
+			}
+
+			// Check if the connection was closed
+			if err == syscall.EPIPE {
+				return nil
+			}
+
+			return fmt.Errorf("failed to stream %q: %v", p, err)
+		}
+
+		if exitAfter {
+			return nil
+		}
+
+		//Since we successfully streamed, update the overall offset/idx.
+		offset = int64(0)
+		nextIdx = idx + 1
+	}
+
+	return nil
+}
+
+// blockUntilNextLog returns a channel that will have data sent when the next
+// log index or anything greater is created.
+func blockUntilNextLog(fs allocdir.AllocDirFS, t *tomb.Tomb, logPath, task, logType string, nextIndex int64) chan error {
+	nextPath := filepath.Join(logPath, fmt.Sprintf("%s.%s.%d", task, logType, nextIndex))
+	next := make(chan error, 1)
+
+	go func() {
+		eofCancelCh := fs.BlockUntilExists(nextPath, t)
+		scanCh := time.Tick(nextLogCheckRate)
+		for {
+			select {
+			case err := <-eofCancelCh:
+				next <- err
+				close(next)
+				return
+			case <-scanCh:
+				entries, err := fs.List(logPath)
+				if err != nil {
+					next <- fmt.Errorf("failed to list entries: %v", err)
+					close(next)
+					return
+				}
+
+				indexes, err := logIndexes(entries, task, logType)
+				if err != nil {
+					next <- err
+					close(next)
+					return
+				}
+
+				// Scan and see if there are any entries larger than what we are
+				// waiting for.
+				for _, entry := range indexes {
+					if entry.idx >= nextIndex {
+						next <- nil
+						close(next)
+						return
+					}
+				}
+			}
+		}
+	}()
+
+	return next
+}
+
+// indexTuple and indexTupleArray are used to find the correct log entry to
+// start streaming logs from
+type indexTuple struct {
+	idx   int64
+	entry *allocdir.AllocFileInfo
+}
+
+type indexTupleArray []indexTuple
+
+func (a indexTupleArray) Len() int           { return len(a) }
+func (a indexTupleArray) Less(i, j int) bool { return a[i].idx < a[j].idx }
+func (a indexTupleArray) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+
+// logIndexes takes a set of entries and returns a indexTupleArray of
+// the desired log file entries. If the indexes could not be determined, an
+// error is returned.
+func logIndexes(entries []*allocdir.AllocFileInfo, task, logType string) (indexTupleArray, error) {
+	var indexes []indexTuple
+	prefix := fmt.Sprintf("%s.%s.", task, logType)
+	for _, entry := range entries {
+		if entry.IsDir {
+			continue
+		}
+
+		// If nothing was trimmed, then it is not a match
+		idxStr := strings.TrimPrefix(entry.Name, prefix)
+		if idxStr == entry.Name {
+			continue
+		}
+
+		// Convert to an int
+		idx, err := strconv.Atoi(idxStr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert %q to a log index: %v", idxStr, err)
+		}
+
+		indexes = append(indexes, indexTuple{idx: int64(idx), entry: entry})
+	}
+
+	return indexTupleArray(indexes), nil
+}
+
+// findClosest takes a list of entries, the desired log index and desired log
+// offset (which can be negative, treated as offset from end), task name and log
+// type and returns the log entry, the log index, the offset to read from and a
+// potential error.
+func findClosest(entries []*allocdir.AllocFileInfo, desiredIdx, desiredOffset int64,
+	task, logType string) (*allocdir.AllocFileInfo, int64, int64, error) {
+
+	// Build the matching indexes
+	indexes, err := logIndexes(entries, task, logType)
+	if err != nil {
+		return nil, 0, 0, err
+	}
+	if len(indexes) == 0 {
+		return nil, 0, 0, fmt.Errorf("log entry for task %q and log type %q not found", task, logType)
+	}
+
+	// Binary search the indexes to get the desiredIdx
+	sort.Sort(indexTupleArray(indexes))
+	i := sort.Search(len(indexes), func(i int) bool { return indexes[i].idx >= desiredIdx })
+	l := len(indexes)
+	if i == l {
+		// Use the last index if the number is bigger than all of them.
+		i = l - 1
+	}
+
+	// Get to the correct offset
+	offset := desiredOffset
+	idx := int64(i)
+	for {
+		s := indexes[idx].entry.Size
+
+		// Base case
+		if offset == 0 {
+			break
+		} else if offset < 0 {
+			// Going backwards
+			if newOffset := s + offset; newOffset >= 0 {
+				// Current file works
+				offset = newOffset
+				break
+			} else if idx == 0 {
+				// Already at the end
+				offset = 0
+				break
+			} else {
+				// Try the file before
+				offset = newOffset
+				idx -= 1
+				continue
+			}
+		} else {
+			// Going forward
+			if offset <= s {
+				// Current file works
+				break
+			} else if idx == int64(l-1) {
+				// Already at the end
+				offset = s
+				break
+			} else {
+				// Try the next file
+				offset = offset - s
+				idx += 1
+				continue
+			}
+
+		}
+	}
+
+	return indexes[idx].entry, indexes[idx].idx, offset, nil
 }

@@ -3,10 +3,25 @@
 IMPROVEMENTS:
   * core: Allow count 0 on system jobs [GH-1421]
   * core: Gracefully handle short lived outages by holding RPC calls [GH-1403]
+  * api: client Logs endpoint for streaming task logs [GH-1444]
   * api/cli: Support for tailing/streaming files [GH-1404, GH-1420]
+  * cli: `nomad logs` command for streaming task logs [GH-1444]
+  * cli: Validate and plan command supports reading from stdin [GH-1460,
+    GH-1458]
+  * client: Add killing event to task state [GH-1457]
+  * client: Fingerprint network speed on Windows [GH-1443]
+  * telemetry: Circonus integration for telemetry metrics [GH-1459]
 
 BUG FIXES:
+  * core: Sanitize empty slices/maps in jobs to avoid incorrect create/destroy
+    updates [GH-1434]
+  * core: Fix race in which a Node registers and doesn't receive system jobs
+    [GH-1456]
+  * agent: Fix advertise address when using IPv6 [GH-1465]
+  * cli: Fix node-status when using IPv6 advertise address [GH-1465]
   * client: Task start errors adhere to restart policy mode [GH-1405]
+  * client: Killing an allocation doesn't cause allocation stats to block
+    [GH-1454]
 
 ## 0.4.0
 

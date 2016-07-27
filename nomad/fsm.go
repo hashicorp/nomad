@@ -9,6 +9,7 @@ import (
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/scheduler"
 	"github.com/hashicorp/raft"
 	"github.com/ugorji/go/codec"
 )
@@ -227,6 +228,13 @@ func (n *nomadFSM) applyUpsertJob(buf []byte, index uint64) interface{} {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
+	// COMPAT: Remove in 0.5
+	// Empty maps and slices should be treated as nil to avoid
+	// un-intended destructive updates in scheduler since we use
+	// reflect.DeepEqual. Starting Nomad 0.4.1, job submission sanatizes
+	// the incoming job.
+	req.Job.Canonicalize()
+
 	if err := n.state.UpsertJob(index, req.Job); err != nil {
 		n.logger.Printf("[ERR] nomad.fsm: UpsertJob failed: %v", err)
 		return err
@@ -403,6 +411,14 @@ func (n *nomadFSM) applyAllocClientUpdate(buf []byte, index uint64) interface{} 
 		return nil
 	}
 
+	// Updating the allocs with the job id and task group name
+	for _, alloc := range req.Alloc {
+		if existing, _ := n.state.AllocByID(alloc.ID); existing != nil {
+			alloc.JobID = existing.JobID
+			alloc.TaskGroup = existing.TaskGroup
+		}
+	}
+
 	// Update all the client allocations
 	if err := n.state.UpdateAllocsFromClient(index, req.Alloc); err != nil {
 		n.logger.Printf("[ERR] nomad.fsm: UpdateAllocFromClient failed: %v", err)
@@ -500,6 +516,14 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 			if err := dec.Decode(job); err != nil {
 				return err
 			}
+
+			// COMPAT: Remove in 0.5
+			// Empty maps and slices should be treated as nil to avoid
+			// un-intended destructive updates in scheduler since we use
+			// reflect.DeepEqual. Starting Nomad 0.4.1, job submission sanatizes
+			// the incoming job.
+			job.Canonicalize()
+
 			if err := restore.JobRestore(job); err != nil {
 				return err
 			}
@@ -554,7 +578,83 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 		}
 	}
 
-	// Commit the state restore
+	// Create Job Summaries
+	// The entire snapshot has to be restored first before we create the missing
+	// job summaries so that the indexes are updated and we know the highest
+	// index
+	// COMPAT 0.4 -> 0.4.1
+	jobs, err := restore.JobsWithoutSummary()
+	if err != nil {
+		fmt.Errorf("error retreiving jobs during restore: %v", err)
+	}
+	if err := restore.CreateJobSummaries(jobs); err != nil {
+		return fmt.Errorf("error creating job summaries: %v", err)
+	}
+
+	restore.Commit()
+
+	// Reconciling the queued allocations
+	return n.reconcileSummaries(jobs)
+}
+
+// reconcileSummaries re-calculates the queued allocations for every job that we
+// created a Job Summary during the snap shot restore
+func (n *nomadFSM) reconcileSummaries(jobs []*structs.Job) error {
+	// Start the state restore
+	restore, err := n.state.Restore()
+	if err != nil {
+		return err
+	}
+	defer restore.Abort()
+	snap, err := n.state.Snapshot()
+	if err != nil {
+		return fmt.Errorf("unable to create snapshot: %v", err)
+	}
+	for _, job := range jobs {
+		planner := &scheduler.Harness{
+			State: &snap.StateStore,
+		}
+		// Create an eval and mark it as requiring annotations and insert that as well
+		eval := &structs.Evaluation{
+			ID:             structs.GenerateUUID(),
+			Priority:       job.Priority,
+			Type:           job.Type,
+			TriggeredBy:    structs.EvalTriggerJobRegister,
+			JobID:          job.ID,
+			JobModifyIndex: job.JobModifyIndex + 1,
+			Status:         structs.EvalStatusPending,
+			AnnotatePlan:   true,
+		}
+
+		// Create the scheduler and run it
+		sched, err := scheduler.NewScheduler(eval.Type, n.logger, snap, planner)
+		if err != nil {
+			return err
+		}
+
+		if err := sched.Process(eval); err != nil {
+			return err
+		}
+		summary, err := snap.JobSummaryByID(job.ID)
+		if err != nil {
+			return err
+		}
+		if l := len(planner.Evals); l != 1 {
+			return fmt.Errorf("unexpected number of evals during restore %d. Please file an issue including the logs", l)
+		}
+		for tg, queued := range planner.Evals[0].QueuedAllocations {
+			tgSummary, ok := summary.Summary[tg]
+			if !ok {
+				return fmt.Errorf("task group %q not found while updating queued count", tg)
+			}
+			tgSummary.Queued = queued
+			summary.Summary[tg] = tgSummary
+		}
+
+		if err := restore.JobSummaryRestore(summary); err != nil {
+			return err
+		}
+	}
 	restore.Commit()
 	return nil
 }
@@ -786,7 +886,7 @@ func (s *nomadSnapshot) persistJobSummaries(sink raft.SnapshotSink,
 			break
 		}
 
-		jobSummary := raw.(*structs.JobSummary)
+		jobSummary := raw.(structs.JobSummary)
 
 		sink.Write([]byte{byte(JobSummarySnapshot)})
 		if err := encoder.Encode(jobSummary); err != nil {

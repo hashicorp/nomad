@@ -55,6 +55,7 @@ Available commands are:
     fs                    Inspect the contents of an allocation directory
     init                  Create an example job file
     inspect               Inspect a submitted job
+    logs                  Streams the logs of a task.
     node-drain            Toggle drain mode on a given node
     node-status           Display status information about nodes
     plan                  Dry-run a job update to determine its effects

@@ -258,6 +258,12 @@ type JobPlanRequest struct {
 	WriteRequest
 }
 
+// JobSummaryRequest is used when we just need to get a specific job summary
+type JobSummaryRequest struct {
+	JobID string
+	QueryOptions
+}
+
 // NodeListRequest is used to parameterize a list request
 type NodeListRequest struct {
 	QueryOptions
@@ -438,6 +444,12 @@ type NodeListResponse struct {
 // SingleJobResponse is used to return a single job
 type SingleJobResponse struct {
 	Job *Job
+	QueryMeta
+}
+
+// JobSummaryResponse is used to return a single job summary
+type JobSummaryResponse struct {
+	JobSummary *JobSummary
 	QueryMeta
 }
 
@@ -707,7 +719,7 @@ type Resources struct {
 	Networks []*NetworkResource
 }
 
-// DefaultResources returns the minimum resources a task can use and be valid.
+// DefaultResources returns the default resources for a task.
 func DefaultResources() *Resources {
 	return &Resources{
 		CPU:      100,
@@ -733,6 +745,18 @@ func (r *Resources) Merge(other *Resources) {
 	}
 	if len(other.Networks) != 0 {
 		r.Networks = other.Networks
+	}
+}
+
+func (r *Resources) Canonicalize() {
+	// Ensure that an empty and nil slices are treated the same to avoid scheduling
+	// problems since we use reflect DeepEquals.
+	if len(r.Networks) == 0 {
+		r.Networks = nil
+	}
+
+	for _, n := range r.Networks {
+		n.Canonicalize()
 	}
 }
 
@@ -850,6 +874,17 @@ type NetworkResource struct {
 	DynamicPorts  []Port // Dynamically assigned ports
 }
 
+func (n *NetworkResource) Canonicalize() {
+	// Ensure that an empty and nil slices are treated the same to avoid scheduling
+	// problems since we use reflect DeepEquals.
+	if len(n.ReservedPorts) == 0 {
+		n.ReservedPorts = nil
+	}
+	if len(n.DynamicPorts) == 0 {
+		n.DynamicPorts = nil
+	}
+}
+
 // MeetsMinResources returns an error if the resources specified are less than
 // the minimum allowed.
 func (n *NetworkResource) MeetsMinResources() error {
@@ -941,11 +976,28 @@ const (
 type JobSummary struct {
 	JobID   string
 	Summary map[string]TaskGroupSummary
+
+	// Raft Indexes
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+// Copy returns a new copy of JobSummary
+func (js *JobSummary) Copy() *JobSummary {
+	newJobSummary := new(JobSummary)
+	*newJobSummary = *js
+	newTGSummary := make(map[string]TaskGroupSummary, len(js.Summary))
+	for k, v := range js.Summary {
+		newTGSummary[k] = v
+	}
+	newJobSummary.Summary = newTGSummary
+	return newJobSummary
 }
 
 // TaskGroup summarizes the state of all the allocations of a particular
 // TaskGroup
 type TaskGroupSummary struct {
+	Queued   int
 	Complete int
 	Failed   int
 	Running  int
@@ -1020,11 +1072,17 @@ type Job struct {
 	JobModifyIndex uint64
 }
 
-// InitFields is used to initialize fields in the Job. This should be called
+// Canonicalize is used to canonicalize fields in the Job. This should be called
 // when registering a Job.
-func (j *Job) InitFields() {
+func (j *Job) Canonicalize() {
+	// Ensure that an empty and nil map are treated the same to avoid scheduling
+	// problems since we use reflect DeepEquals.
+	if len(j.Meta) == 0 {
+		j.Meta = nil
+	}
+
 	for _, tg := range j.TaskGroups {
-		tg.InitFields(j)
+		tg.Canonicalize(j)
 	}
 }
 
@@ -1098,15 +1156,15 @@ func (j *Job) Validate() error {
 
 		if j.Type == "system" && tg.Count > 1 {
 			mErr.Errors = append(mErr.Errors,
-				fmt.Errorf("Job task group %d has count %d. Count cannot exceed 1 with system scheduler",
-					idx+1, tg.Count))
+				fmt.Errorf("Job task group %s has count %d. Count cannot exceed 1 with system scheduler",
+					tg.Name, tg.Count))
 		}
 	}
 
 	// Validate the task group
-	for idx, tg := range j.TaskGroups {
+	for _, tg := range j.TaskGroups {
 		if err := tg.Validate(); err != nil {
-			outer := fmt.Errorf("Task group %d validation failed: %s", idx+1, err)
+			outer := fmt.Errorf("Task group %s validation failed: %s", tg.Name, err)
 			mErr.Errors = append(mErr.Errors, outer)
 		}
 	}
@@ -1137,7 +1195,7 @@ func (j *Job) LookupTaskGroup(name string) *TaskGroup {
 }
 
 // Stub is used to return a summary of the job
-func (j *Job) Stub() *JobListStub {
+func (j *Job) Stub(summary *JobSummary) *JobListStub {
 	return &JobListStub{
 		ID:                j.ID,
 		ParentID:          j.ParentID,
@@ -1149,6 +1207,7 @@ func (j *Job) Stub() *JobListStub {
 		CreateIndex:       j.CreateIndex,
 		ModifyIndex:       j.ModifyIndex,
 		JobModifyIndex:    j.JobModifyIndex,
+		JobSummary:        summary,
 	}
 }
 
@@ -1167,6 +1226,7 @@ type JobListStub struct {
 	Priority          int
 	Status            string
 	StatusDescription string
+	JobSummary        *JobSummary
 	CreateIndex       uint64
 	ModifyIndex       uint64
 	JobModifyIndex    uint64
@@ -1430,15 +1490,21 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 	return ntg
 }
 
-// InitFields is used to initialize fields in the TaskGroup.
-func (tg *TaskGroup) InitFields(job *Job) {
+// Canonicalize is used to canonicalize fields in the TaskGroup.
+func (tg *TaskGroup) Canonicalize(job *Job) {
+	// Ensure that an empty and nil map are treated the same to avoid scheduling
+	// problems since we use reflect DeepEquals.
+	if len(tg.Meta) == 0 {
+		tg.Meta = nil
+	}
+
 	// Set the default restart policy.
 	if tg.RestartPolicy == nil {
 		tg.RestartPolicy = NewRestartPolicy(job.Type)
 	}
 
 	for _, task := range tg.Tasks {
-		task.InitFields(job, tg)
+		task.Canonicalize(job, tg)
 	}
 }
 
@@ -1482,9 +1548,9 @@ func (tg *TaskGroup) Validate() error {
 	}
 
 	// Validate the tasks
-	for idx, task := range tg.Tasks {
+	for _, task := range tg.Tasks {
 		if err := task.Validate(); err != nil {
-			outer := fmt.Errorf("Task %d validation failed: %s", idx+1, err)
+			outer := fmt.Errorf("Task %s validation failed: %s", task.Name, err)
 			mErr.Errors = append(mErr.Errors, outer)
 		}
 	}
@@ -1542,6 +1608,18 @@ func (sc *ServiceCheck) Copy() *ServiceCheck {
 	nsc := new(ServiceCheck)
 	*nsc = *sc
 	return nsc
+}
+
+func (sc *ServiceCheck) Canonicalize(serviceName string) {
+	// Ensure empty slices are treated as null to avoid scheduling issues when
+	// using DeepEquals.
+	if len(sc.Args) == 0 {
+		sc.Args = nil
+	}
+
+	if sc.Name == "" {
+		sc.Name = fmt.Sprintf("service: %q check", serviceName)
+	}
 }
 
 // validate a Service's ServiceCheck
@@ -1636,9 +1714,18 @@ func (s *Service) Copy() *Service {
 	return ns
 }
 
-// InitFields interpolates values of Job, Task Group and Task in the Service
+// Canonicalize interpolates values of Job, Task Group and Task in the Service
 // Name. This also generates check names, service id and check ids.
-func (s *Service) InitFields(job string, taskGroup string, task string) {
+func (s *Service) Canonicalize(job string, taskGroup string, task string) {
+	// Ensure empty lists are treated as null to avoid scheduler issues when
+	// using DeepEquals
+	if len(s.Tags) == 0 {
+		s.Tags = nil
+	}
+	if len(s.Checks) == 0 {
+		s.Checks = nil
+	}
+
 	s.Name = args.ReplaceEnv(s.Name, map[string]string{
 		"JOB":       job,
 		"TASKGROUP": taskGroup,
@@ -1648,9 +1735,7 @@ func (s *Service) InitFields(job string, taskGroup string, task string) {
 	)
 
 	for _, check := range s.Checks {
-		if check.Name == "" {
-			check.Name = fmt.Sprintf("service: %q check", s.Name)
-		}
+		check.Canonicalize(s.Name)
 	}
 }
 
@@ -1669,7 +1754,7 @@ func (s *Service) Validate() error {
 
 	for _, c := range s.Checks {
 		if s.PortLabel == "" && c.RequiresPort() {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("check %s invalid: check requires a port but the service %+q has no port", c.Name))
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("check %s invalid: check requires a port but the service %+q has no port", c.Name, s.Name))
 			continue
 		}
 
@@ -1702,6 +1787,7 @@ type LogConfig struct {
 	MaxFileSizeMB int `mapstructure:"max_file_size"`
 }
 
+// DefaultLogConfig returns the default LogConfig values.
 func DefaultLogConfig() *LogConfig {
 	return &LogConfig{
 		MaxFiles:      10,
@@ -1802,22 +1888,31 @@ func (t *Task) Copy() *Task {
 	return nt
 }
 
-// InitFields initializes fields in the task.
-func (t *Task) InitFields(job *Job, tg *TaskGroup) {
-	t.InitServiceFields(job.Name, tg.Name)
+// Canonicalize canonicalizes fields in the task.
+func (t *Task) Canonicalize(job *Job, tg *TaskGroup) {
+	// Ensure that an empty and nil map are treated the same to avoid scheduling
+	// problems since we use reflect DeepEquals.
+	if len(t.Meta) == 0 {
+		t.Meta = nil
+	}
+	if len(t.Config) == 0 {
+		t.Config = nil
+	}
+	if len(t.Env) == 0 {
+		t.Env = nil
+	}
+
+	for _, service := range t.Services {
+		service.Canonicalize(job.Name, tg.Name, t.Name)
+	}
+
+	if t.Resources != nil {
+		t.Resources.Canonicalize()
+	}
 
 	// Set the default timeout if it is not specified.
 	if t.KillTimeout == 0 {
 		t.KillTimeout = DefaultKillTimeout
-	}
-}
-
-// InitServiceFields interpolates values of Job, Task Group
-// and Tasks in all the service Names of a Task. This also generates the service
-// id, check id and check names.
-func (t *Task) InitServiceFields(job string, taskGroup string) {
-	for _, service := range t.Services {
-		service.InitFields(job, taskGroup, t.Name)
 	}
 }
 
@@ -2036,6 +2131,9 @@ const (
 	// TaskTerminated indicates that the task was started and exited.
 	TaskTerminated = "Terminated"
 
+	// TaskKilling indicates a kill signal has been sent to the task.
+	TaskKilling = "Killing"
+
 	// TaskKilled indicates a user has killed the task.
 	TaskKilled = "Killed"
 
@@ -2071,6 +2169,9 @@ type TaskEvent struct {
 	ExitCode int    // The exit code of the task.
 	Signal   int    // The signal that terminated the task.
 	Message  string // A possible message explaining the termination of the task.
+
+	// Killing fields
+	KillTimeout time.Duration
 
 	// Task Killed Fields.
 	KillError string // Error killing the task.
@@ -2157,6 +2258,11 @@ func (e *TaskEvent) SetValidationError(err error) *TaskEvent {
 	if err != nil {
 		e.ValidationError = err.Error()
 	}
+	return e
+}
+
+func (e *TaskEvent) SetKillTimeout(timeout time.Duration) *TaskEvent {
+	e.KillTimeout = timeout
 	return e
 }
 
@@ -2738,6 +2844,10 @@ type Evaluation struct {
 	// scheduler.
 	SnapshotIndex uint64
 
+	// QueuedAllocations is the number of unplaced allocations at the time the
+	// evaluation was processed. The map is keyed by Task Group names.
+	QueuedAllocations map[string]int
+
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
@@ -2781,6 +2891,15 @@ func (e *Evaluation) Copy() *Evaluation {
 			failedTGs[tg] = metric.Copy()
 		}
 		ne.FailedTGAllocs = failedTGs
+	}
+
+	// Copy queued allocations
+	if e.QueuedAllocations != nil {
+		queuedAllocations := make(map[string]int, len(e.QueuedAllocations))
+		for tg, num := range e.QueuedAllocations {
+			queuedAllocations[tg] = num
+		}
+		ne.QueuedAllocations = queuedAllocations
 	}
 
 	return ne

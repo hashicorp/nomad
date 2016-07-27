@@ -111,6 +111,8 @@ func TestHTTP_EvalAllocations(t *testing.T) {
 		alloc1 := mock.Alloc()
 		alloc2 := mock.Alloc()
 		alloc2.EvalID = alloc1.EvalID
+		state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID))
+		state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID))
 		err := state.UpsertAllocs(1000,
 			[]*structs.Allocation{alloc1, alloc2})
 		if err != nil {

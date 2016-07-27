@@ -60,7 +60,7 @@ func NewHTTPServer(agent *Agent, config *Config, logOutput io.Writer) (*HTTPServ
 		agent:    agent,
 		mux:      mux,
 		listener: ln,
-		logger:   log.New(logOutput, "", log.LstdFlags),
+		logger:   agent.logger,
 		addr:     ln.Addr().String(),
 	}
 	srv.registerHandlers(config.EnableDebug)

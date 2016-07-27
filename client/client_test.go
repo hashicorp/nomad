@@ -357,6 +357,9 @@ func TestClient_UpdateAllocStatus(t *testing.T) {
 	alloc.ClientStatus = originalStatus
 
 	state := s1.State()
+	if err := state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID)); err != nil {
+		t.Fatal(err)
+	}
 	state.UpsertAllocs(100, []*structs.Allocation{alloc})
 
 	testutil.WaitForResult(func() (bool, error) {
@@ -394,6 +397,12 @@ func TestClient_WatchAllocs(t *testing.T) {
 	alloc2.NodeID = c1.Node().ID
 
 	state := s1.State()
+	if err := state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID)); err != nil {
+		t.Fatal(err)
+	}
+	if err := state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID)); err != nil {
+		t.Fatal(err)
+	}
 	err := state.UpsertAllocs(100,
 		[]*structs.Allocation{alloc1, alloc2})
 	if err != nil {
@@ -469,8 +478,10 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	task.Config["args"] = []string{"10"}
 
 	state := s1.State()
-	err := state.UpsertAllocs(100, []*structs.Allocation{alloc1})
-	if err != nil {
+	if err := state.UpsertJobSummary(99, mock.JobSummary(alloc1.JobID)); err != nil {
+		t.Fatal(err)
+	}
+	if err := state.UpsertAllocs(100, []*structs.Allocation{alloc1}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -485,8 +496,7 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	})
 
 	// Shutdown the client, saves state
-	err = c1.Shutdown()
-	if err != nil {
+	if err := c1.Shutdown(); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 

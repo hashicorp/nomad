@@ -28,8 +28,8 @@ job "my-service" {
     # Spread tasks between us-west-1 and us-east-1
     datacenters = ["us-west-1", "us-east-1"]
 
-    # run this job globally
-    type = "system"
+    # run this with service scheduler
+    type = "service"
 
     # Rolling updates should be sequential
     update {

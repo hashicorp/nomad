@@ -62,17 +62,17 @@ General Options:
 Run Options:
 
   -check-index
-	If set, the job is only registered or updated if the the passed
-	job modify index matches the server side version. If a check-index value of
-	zero is passed, the job is only registered if it does not yet exist. If a
-	non-zero value is passed, it ensures that the job is being updated from a
-	known state. The use of this flag is most common in conjunction with plan
-	command.
+    If set, the job is only registered or updated if the the passed
+    job modify index matches the server side version. If a check-index value of
+    zero is passed, the job is only registered if it does not yet exist. If a
+    non-zero value is passed, it ensures that the job is being updated from a
+    known state. The use of this flag is most common in conjunction with plan
+    command.
 
   -detach
-	Return immediately instead of entering monitor mode. After job submission,
-	the evaluation ID will be printed to the screen, which can be used to
-	examine the evaluation using the eval-status command.
+    Return immediately instead of entering monitor mode. After job submission,
+    the evaluation ID will be printed to the screen, which can be used to
+    examine the evaluation using the eval-status command.
 
   -verbose
     Display full information.
@@ -109,7 +109,7 @@ func (c *RunCommand) Run(args []string) int {
 		length = fullId
 	}
 
-	// Check that we got exactly one node
+	// Check that we got exactly one argument
 	args = flags.Args()
 	if len(args) != 1 {
 		c.Ui.Error(c.Help())
@@ -127,6 +127,7 @@ func (c *RunCommand) Run(args []string) int {
 		} else {
 			f = os.Stdin
 		}
+		path = "stdin"
 	default:
 		file, err := os.Open(path)
 		defer file.Close()
@@ -140,12 +141,12 @@ func (c *RunCommand) Run(args []string) int {
 	// Parse the JobFile
 	job, err := jobspec.Parse(f)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error parsing job file %s: %v", f, err))
+		c.Ui.Error(fmt.Sprintf("Error parsing job file from %s: %v", path, err))
 		return 1
 	}
 
 	// Initialize any fields that need to be.
-	job.InitFields()
+	job.Canonicalize()
 
 	// Check that the job is valid
 	if err := job.Validate(); err != nil {

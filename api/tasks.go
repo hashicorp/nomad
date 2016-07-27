@@ -207,6 +207,7 @@ const (
 	TaskFailedValidation       = "Failed Validation"
 	TaskStarted                = "Started"
 	TaskTerminated             = "Terminated"
+	TaskKilling                = "Killing"
 	TaskKilled                 = "Killed"
 	TaskRestarting             = "Restarting"
 	TaskNotRestarting          = "Not Restarting"
@@ -224,6 +225,7 @@ type TaskEvent struct {
 	ExitCode        int
 	Signal          int
 	Message         string
+	KillTimeout     time.Duration
 	KillError       string
 	StartDelay      int64
 	DownloadError   string

@@ -45,7 +45,7 @@ task "web" {
 
   config {
     jar_path = "local/hello.jar"
-    jvm_options = "-Xmx2048m -Xms256m"
+    jvm_options = ["-Xmx2048m", "-Xms256m"]
   }
 
   # Specifying an artifact is required with the "java"

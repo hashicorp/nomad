@@ -1100,7 +1100,9 @@ func (c *Client) watchAllocations(updates chan *allocUpdates) {
 // watchNodeUpdates periodically checks for changes to the node attributes or meta map
 func (c *Client) watchNodeUpdates() {
 	c.logger.Printf("[DEBUG] client: periodically checking for node changes at duration %v", nodeUpdateRetryIntv)
-	var attrHash, metaHash uint64
+
+	// Initialize the hashes
+	_, attrHash, metaHash := c.hasNodeChanged(0, 0)
 	var changed bool
 	for {
 		select {

@@ -9,14 +9,15 @@ package watch
 // multiple fields does not place a watch on multiple items. Each Item
 // describes exactly one scoped watch.
 type Item struct {
-	Alloc     string
-	AllocEval string
-	AllocJob  string
-	AllocNode string
-	Eval      string
-	Job       string
-	Node      string
-	Table     string
+	Alloc      string
+	AllocEval  string
+	AllocJob   string
+	AllocNode  string
+	Eval       string
+	Job        string
+	JobSummary string
+	Node       string
+	Table      string
 }
 
 // Items is a helper used to construct a set of watchItems. It deduplicates

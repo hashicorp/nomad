@@ -57,6 +57,174 @@ allocation was placed.
 <dl>
   <dt>Description</dt>
   <dd>
+     Stream contents of a file in an allocation directory.
+  </dd>
+
+  <dt>Method</dt>
+  <dd>GET</dd>
+
+  <dt>URL</dt>
+  <dd>`/v1/client/fs/stream/<Allocation-ID>`</dd>
+
+  <dt>Parameters</dt>
+  <dd>
+    <ul>
+      <li>
+        <span class="param">path</span>
+        <span class="param-flags">required</span>
+         The path relative to the root of the allocation directory. It 
+         defaults to `/`
+      </li>
+      <li>
+        <span class="param">offset</span>
+         The offset to start streaming from. Defaults to 0.
+      </li>
+      <li>
+        <span class="param">origin</span>
+        Origin can be either "start" or "end" and applies the offset relative to
+        either the start or end of the file respectively. Defaults to "start".
+      </li>
+    </ul>
+  </dd>
+
+  <dt>Returns</dt>
+  <dd>
+
+    ```
+...
+    {
+        "File":"alloc/logs/redis.stdout.0",
+        "Offset":3604480
+        "Data": "NTMxOTMyCjUzMTkzMwo1MzE5MzQKNTMx..."
+    }
+    {
+        "File":"alloc/logs/redis.stdout.0",
+        "FileEvent": "file deleted"
+    }
+    ```
+
+  </dd>
+
+
+  <dt>Field Reference</dt>
+  <dd>
+    The return value is a stream of frames. These frames contain the following
+    fields:
+
+    <ul>
+      <li>
+        <span class="param">Data</span>
+        A base64 encoding of the bytes being streamed.
+      </li>
+      <li>
+        <span class="param">FileEvent</span>
+        An event that could cause a change in the streams position. The possible
+        values are "file deleted" and "file truncated".
+      </li>
+      <li>
+        <span class="param">Offset</span>
+        Offset is the offset into the stream.
+      </li>
+      <li>
+        <span class="param">File</span>
+        The name of the file being streamed.
+      </li>
+    </ul>
+  </dd>
+</dl>
+
+<a id="logs"></a>
+
+<dl>
+  <dt>Description</dt>
+  <dd>
+     Stream a tasks stdout/stderr logs.
+  </dd>
+
+  <dt>Method</dt>
+  <dd>GET</dd>
+
+  <dt>URL</dt>
+  <dd>`/v1/client/fs/logs/<Allocation-ID>`</dd>
+
+  <dt>Parameters</dt>
+  <dd>
+    <ul>
+      <li>
+        <span class="param">task</span>
+        <span class="param-flags">required</span>
+        The name of the task inside the allocation to stream logs from.
+      </li>
+      <li>
+        <span class="param">follow</span>
+        <span class="param-flags">required</span>
+         A boolean of whether to follow logs.
+      </li>
+      <li>
+        <span class="param">type</span>
+         Either, "stdout" or "stderr", defaults to "stdout" if omitted.
+      </li>
+      <li>
+        <span class="param">offset</span>
+         The offset to start streaming from. Defaults to 0.
+      </li>
+      <li>
+        <span class="param">origin</span>
+        Origin can be either "start" or "end" and applies the offset relative to
+        either the start or end of the logs respectively. Defaults to "start".
+      </li>
+    </ul>
+  </dd>
+
+  <dt>Returns</dt>
+  <dd>
+
+    ```
+...
+    {
+        "File":"alloc/logs/redis.stdout.0",
+        "Offset":3604480
+        "Data": "NTMxOTMyCjUzMTkzMwo1MzE5MzQKNTMx..."
+    }
+    {
+        "File":"alloc/logs/redis.stdout.0",
+        "FileEvent": "file deleted"
+    }
+    ```
+
+  </dd>
+
+
+  <dt>Field Reference</dt>
+  <dd>
+    The return value is a stream of frames. These frames contain the following
+    fields:
+
+    <ul>
+      <li>
+        <span class="param">Data</span>
+        A base64 encoding of the bytes being streamed.
+      </li>
+      <li>
+        <span class="param">FileEvent</span>
+        An event that could cause a change in the streams position. The possible
+        values are "file deleted" and "file truncated".
+      </li>
+      <li>
+        <span class="param">Offset</span>
+        Offset is the offset into the stream.
+      </li>
+      <li>
+        <span class="param">File</span>
+        The name of the file being streamed.
+      </li>
+    </ul>
+  </dd>
+</dl>
+
+<dl>
+  <dt>Description</dt>
+  <dd>
      List files in an allocation directory.
   </dd>
 

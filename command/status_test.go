@@ -63,6 +63,9 @@ func TestStatusCommand_Run(t *testing.T) {
 	if !strings.Contains(out, "Allocations") {
 		t.Fatalf("should dump allocations")
 	}
+	if !strings.Contains(out, "Summary") {
+		t.Fatalf("should dump summary")
+	}
 	ui.OutputWriter.Reset()
 
 	// Query a single job showing evals

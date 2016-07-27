@@ -147,7 +147,7 @@ func Job() *structs.Job {
 		ModifyIndex:    99,
 		JobModifyIndex: 99,
 	}
-	job.InitFields()
+	job.Canonicalize()
 	return job
 }
 
@@ -229,6 +229,19 @@ func Eval() *structs.Evaluation {
 		Status:   structs.EvalStatusPending,
 	}
 	return eval
+}
+
+func JobSummary(jobID string) *structs.JobSummary {
+	js := &structs.JobSummary{
+		JobID: jobID,
+		Summary: map[string]structs.TaskGroupSummary{
+			"web": {
+				Queued:   0,
+				Starting: 0,
+			},
+		},
+	}
+	return js
 }
 
 func Alloc() *structs.Allocation {
