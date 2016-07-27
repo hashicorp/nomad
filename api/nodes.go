@@ -111,6 +111,7 @@ type Node struct {
 	Drain             bool
 	Status            string
 	StatusDescription string
+	StatusUpdatedAt   int64
 	CreateIndex       uint64
 	ModifyIndex       uint64
 }
