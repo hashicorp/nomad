@@ -756,6 +756,47 @@ func TestSystemSched_NodeDrain(t *testing.T) {
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
 
+func TestSystemSched_NodeUpdate(t *testing.T) {
+	h := NewHarness(t)
+
+	// Register a node
+	node := mock.Node()
+	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+
+	// Generate a fake job allocated on that node.
+	job := mock.SystemJob()
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	alloc := mock.Alloc()
+	alloc.Job = job
+	alloc.JobID = job.ID
+	alloc.NodeID = node.ID
+	alloc.Name = "my-job.web[0]"
+	noErr(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
+
+	// Create a mock evaluation to deal
+	eval := &structs.Evaluation{
+		ID:          structs.GenerateUUID(),
+		Priority:    50,
+		TriggeredBy: structs.EvalTriggerNodeUpdate,
+		JobID:       job.ID,
+		NodeID:      node.ID,
+	}
+
+	// Process the evaluation
+	err := h.Process(NewSystemScheduler, eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure that queued allocations is zero
+	if val, ok := h.Evals[0].QueuedAllocations["web"]; !ok || val != 0 {
+		t.Fatalf("bad queued allocations: %#v", h.Evals[0].QueuedAllocations)
+	}
+
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+}
+
 func TestSystemSched_RetryLimit(t *testing.T) {
 	h := NewHarness(t)
 	h.Planner = &RejectPlan{h}

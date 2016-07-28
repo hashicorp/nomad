@@ -224,6 +224,11 @@ func (s *SystemScheduler) computeJobAllocs() error {
 
 	// Nothing remaining to do if placement is not required
 	if len(diff.place) == 0 {
+		if s.job != nil {
+			for _, tg := range s.job.TaskGroups {
+				s.queuedAllocs[tg.Name] = 0
+			}
+		}
 		return nil
 	}
 

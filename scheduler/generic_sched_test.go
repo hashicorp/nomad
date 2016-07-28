@@ -1337,7 +1337,7 @@ func TestServiceSched_NodeUpdate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if h.Evals[0].QueuedAllocations["web"] != 0 {
+	if val, ok := h.Evals[0].QueuedAllocations["web"]; !ok || val != 0 {
 		t.Fatalf("bad queued allocations: %v", h.Evals[0].QueuedAllocations)
 	}
 
