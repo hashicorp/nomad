@@ -690,10 +690,12 @@ func (s *StateStore) nestedUpsertEval(txn *memdb.Txn, index uint64, eval *struct
 		js := summaryRaw.(structs.JobSummary)
 		var hasSummaryChanged bool
 		for tg, num := range eval.QueuedAllocations {
-			if summary, ok := js.Summary[tg]; ok && summary.Queued != num {
-				summary.Queued = num
-				js.Summary[tg] = summary
-				hasSummaryChanged = true
+			if summary, ok := js.Summary[tg]; ok {
+				if summary.Queued != num {
+					summary.Queued = num
+					js.Summary[tg] = summary
+					hasSummaryChanged = true
+				}
 			} else {
 				s.logger.Printf("[ERR] state_store: unable to update queued for job %q and task group %q", eval.JobID, tg)
 			}
