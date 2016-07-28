@@ -1294,6 +1294,56 @@ func TestServiceSched_NodeDown(t *testing.T) {
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
 
+func TestServiceSched_NodeUpdate(t *testing.T) {
+	h := NewHarness(t)
+
+	// Register a node
+	node := mock.Node()
+	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+
+	// Generate a fake job with allocations and an update policy.
+	job := mock.Job()
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	var allocs []*structs.Allocation
+	for i := 0; i < 10; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = node.ID
+		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
+		allocs = append(allocs, alloc)
+	}
+	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+
+	// Mark some allocs as running
+	for i := 0; i < 4; i++ {
+		out, _ := h.State.AllocByID(allocs[i].ID)
+		out.ClientStatus = structs.AllocClientStatusRunning
+		noErr(t, h.State.UpdateAllocsFromClient(h.NextIndex(), []*structs.Allocation{out}))
+	}
+
+	// Create a mock evaluation which won't trigger any new placements
+	eval := &structs.Evaluation{
+		ID:          structs.GenerateUUID(),
+		Priority:    50,
+		TriggeredBy: structs.EvalTriggerNodeUpdate,
+		JobID:       job.ID,
+		NodeID:      node.ID,
+	}
+
+	// Process the evaluation
+	err := h.Process(NewServiceScheduler, eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if h.Evals[0].QueuedAllocations["web"] != 0 {
+		t.Fatalf("bad queued allocations: %v", h.Evals[0].QueuedAllocations)
+	}
+
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+}
+
 func TestServiceSched_NodeDrain(t *testing.T) {
 	h := NewHarness(t)
 
