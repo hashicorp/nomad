@@ -1233,6 +1233,67 @@ func TestServiceSched_JobDeregister(t *testing.T) {
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
 
+func TestServiceSched_NodeDown(t *testing.T) {
+	h := NewHarness(t)
+
+	// Register a node
+	node := mock.Node()
+	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+
+	// Generate a fake job with allocations and an update policy.
+	job := mock.Job()
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	var allocs []*structs.Allocation
+	for i := 0; i < 10; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = node.ID
+		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
+		allocs = append(allocs, alloc)
+	}
+	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+
+	// Mark some allocs as running
+	for i := 0; i < 4; i++ {
+		out, _ := h.State.AllocByID(allocs[i].ID)
+		out.ClientStatus = structs.AllocClientStatusRunning
+		noErr(t, h.State.UpdateAllocsFromClient(h.NextIndex(), []*structs.Allocation{out}))
+	}
+
+	// Mark the node as down
+	noErr(t, h.State.UpdateNodeStatus(h.NextIndex(), node.ID, structs.NodeStatusDown))
+
+	// Create a mock evaluation to deal with drain
+	eval := &structs.Evaluation{
+		ID:          structs.GenerateUUID(),
+		Priority:    50,
+		TriggeredBy: structs.EvalTriggerNodeUpdate,
+		JobID:       job.ID,
+		NodeID:      node.ID,
+	}
+
+	// Process the evaluation
+	err := h.Process(NewServiceScheduler, eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Test the corretness of the old allocation states
+	for _, alloc := range allocs {
+		out, err := h.State.AllocByID(alloc.ID)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		if out.ClientStatus != structs.AllocClientStatusLost || out.DesiredStatus != structs.AllocDesiredStatusStop {
+			t.Fatalf("bad alloc: %#v", out)
+		}
+	}
+
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+}
+
 func TestServiceSched_NodeDrain(t *testing.T) {
 	h := NewHarness(t)
 
