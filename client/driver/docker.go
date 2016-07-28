@@ -386,10 +386,11 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task,
 		OpenStdin: driverConfig.Interactive,
 	}
 
+	memLimit := int64(task.Resources.MemoryMB) * 1024 * 1024
 	hostConfig := &docker.HostConfig{
 		// Convert MB to bytes. This is an absolute value.
-		Memory:     int64(task.Resources.MemoryMB) * 1024 * 1024,
-		MemorySwap: -1,
+		Memory:     memLimit,
+		MemorySwap: memLimit, // MemorySwap is memory + swap.
 		// Convert Mhz to shares. This is a relative value.
 		CPUShares: int64(task.Resources.CPU),
 
