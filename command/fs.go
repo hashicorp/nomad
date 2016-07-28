@@ -251,7 +251,7 @@ func (f *FSCommand) Run(args []string) int {
 		if follow {
 			r, readErr = f.followFile(client, alloc, path, api.OriginStart, 0, -1)
 		} else {
-			r, _, readErr = client.AllocFS().Cat(alloc, path, nil)
+			r, readErr = client.AllocFS().Cat(alloc, path, nil)
 		}
 
 		if readErr != nil {
@@ -282,7 +282,7 @@ func (f *FSCommand) Run(args []string) int {
 			// This offset needs to be relative from the front versus the follow
 			// is relative to the end
 			offset = file.Size - offset
-			r, _, readErr = client.AllocFS().ReadAt(alloc, path, offset, -1, nil)
+			r, readErr = client.AllocFS().ReadAt(alloc, path, offset, -1, nil)
 
 			// If numLines is set, wrap the reader
 			if numLines != -1 {
@@ -311,7 +311,7 @@ func (f *FSCommand) followFile(client *api.Client, alloc *api.Allocation,
 	path, origin string, offset, numLines int64) (io.ReadCloser, error) {
 
 	cancel := make(chan struct{})
-	frames, _, err := client.AllocFS().Stream(alloc, path, origin, offset, cancel, nil)
+	frames, err := client.AllocFS().Stream(alloc, path, origin, offset, cancel, nil)
 	if err != nil {
 		return nil, err
 	}
