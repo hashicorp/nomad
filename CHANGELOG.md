@@ -17,6 +17,8 @@ BUG FIXES:
     updates [GH-1434]
   * core: Fix race in which a Node registers and doesn't receive system jobs
     [GH-1456]
+  * core: Fix a condition in which old batch allocations could get updated even
+    after terminal. In a rare case this could cause a server panic [GH-1471]
   * agent: Fix advertise address when using IPv6 [GH-1465]
   * cli: Fix node-status when using IPv6 advertise address [GH-1465]
   * client: Task start errors adhere to restart policy mode [GH-1405]
