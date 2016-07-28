@@ -315,9 +315,9 @@ func (s *GenericScheduler) filterCompleteAllocs(allocs []*structs.Allocation) []
 	if s.batch {
 		byTG := make(map[string]*structs.Allocation)
 		for _, alloc := range filtered {
-			existing := byTG[alloc.TaskGroup]
+			existing := byTG[alloc.Name]
 			if existing == nil || existing.CreateIndex < alloc.CreateIndex {
-				byTG[alloc.TaskGroup] = alloc
+				byTG[alloc.Name] = alloc
 			}
 		}
 
