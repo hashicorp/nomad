@@ -859,8 +859,14 @@ func (s *StateStore) UpdateAllocsFromClient(index uint64, allocs []*structs.Allo
 
 	// Handle each of the updated allocations
 	for _, alloc := range allocs {
-		if err := s.updateSummaryWithAlloc(index, alloc, watcher, txn); err != nil {
-			return fmt.Errorf("error updating job summary: %v", err)
+		rawJob, err := txn.First("jobs", "id", alloc.JobID)
+		if err != nil {
+			return fmt.Errorf("unable to query job: %v", err)
+		}
+		if rawJob != nil {
+			if err := s.updateSummaryWithAlloc(index, alloc, watcher, txn); err != nil {
+				return fmt.Errorf("error updating job summary: %v", err)
+			}
 		}
 		if err := s.nestedUpdateAllocFromClient(txn, watcher, index, alloc); err != nil {
 			return err
@@ -938,8 +944,14 @@ func (s *StateStore) UpsertAllocs(index uint64, allocs []*structs.Allocation) er
 	// Handle the allocations
 	jobs := make(map[string]string, 1)
 	for _, alloc := range allocs {
-		if err := s.updateSummaryWithAlloc(index, alloc, watcher, txn); err != nil {
-			return fmt.Errorf("error updating job summary: %v", err)
+		rawJob, err := txn.First("jobs", "id", alloc.JobID)
+		if err != nil {
+			return fmt.Errorf("unable to query job: %v", err)
+		}
+		if rawJob != nil {
+			if err := s.updateSummaryWithAlloc(index, alloc, watcher, txn); err != nil {
+				return fmt.Errorf("error updating job summary: %v", err)
+			}
 		}
 		existing, err := txn.First("allocs", "id", alloc.ID)
 		if err != nil {
@@ -1395,7 +1407,7 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 		case structs.AllocClientStatusLost:
 			tgSummary.Lost -= 1
 		case structs.AllocClientStatusFailed, structs.AllocClientStatusComplete:
-			s.logger.Printf("[ERR] state_store: invalid old state of allocation with id:%v, and state: %v",
+			s.logger.Printf("[ERR] state_store: invalid old state of allocation with id: %v, and state: %v",
 				existing.ID, existing.ClientStatus)
 		}
 		summaryChanged = true
@@ -1575,9 +1587,6 @@ func (r *StateRestore) CreateJobSummaries(jobs []*structs.Job) error {
 		}
 		// Calculate the summary for the job
 		for _, alloc := range allocs {
-			if _, ok := summary.Summary[alloc.TaskGroup]; !ok {
-				summary.Summary[alloc.TaskGroup] = structs.TaskGroupSummary{}
-			}
 			tg := summary.Summary[alloc.TaskGroup]
 			switch alloc.ClientStatus {
 			case structs.AllocClientStatusFailed:
@@ -1593,8 +1602,8 @@ func (r *StateRestore) CreateJobSummaries(jobs []*structs.Job) error {
 			}
 			summary.Summary[alloc.TaskGroup] = tg
 		}
-		// Insert the job summary
 
+		// Insert the job summary
 		summary.CreateIndex = r.latestIndex
 		summary.ModifyIndex = r.latestIndex
 		if err := r.txn.Insert("job_summary", summary); err != nil {

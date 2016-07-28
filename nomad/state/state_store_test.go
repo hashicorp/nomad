@@ -1882,6 +1882,50 @@ func TestStateStore_UpdateAlloc_Alloc(t *testing.T) {
 	notify.verify(t)
 }
 
+// This test ensures an allocation can be updated when there is no job
+// associated with it. This will happen when a job is stopped by an user which
+// has non-terminal allocations on clients
+func TestStateStore_UpdateAlloc_NoJob(t *testing.T) {
+	state := testStateStore(t)
+	alloc := mock.Alloc()
+
+	// Upsert a job
+	state.UpsertJobSummary(998, mock.JobSummary(alloc.JobID))
+	if err := state.UpsertJob(999, alloc.Job); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	err := state.UpsertAllocs(1000, []*structs.Allocation{alloc})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if err := state.DeleteJob(1001, alloc.JobID); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Update the desired state of the allocation to stop
+	allocCopy := alloc.Copy()
+	allocCopy.DesiredStatus = structs.AllocDesiredStatusStop
+	if err := state.UpsertAllocs(1002, []*structs.Allocation{allocCopy}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Update the client state of the allocation to complete
+	allocCopy1 := allocCopy.Copy()
+	allocCopy1.ClientStatus = structs.AllocClientStatusComplete
+	if err := state.UpdateAllocsFromClient(1003, []*structs.Allocation{allocCopy1}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	out, _ := state.AllocByID(alloc.ID)
+	// Update the modify index of the alloc before comparing
+	allocCopy1.ModifyIndex = 1003
+	if !reflect.DeepEqual(out, allocCopy1) {
+		t.Fatalf("expected: %#v \n actual: %#v", allocCopy1, out)
+	}
+}
+
 func TestStateStore_EvictAlloc_Alloc(t *testing.T) {
 	state := testStateStore(t)
 	alloc := mock.Alloc()
