@@ -690,10 +690,12 @@ func (s *StateStore) nestedUpsertEval(txn *memdb.Txn, index uint64, eval *struct
 		js := summaryRaw.(structs.JobSummary)
 		var hasSummaryChanged bool
 		for tg, num := range eval.QueuedAllocations {
-			if summary, ok := js.Summary[tg]; ok && summary.Queued != num {
-				summary.Queued = num
-				js.Summary[tg] = summary
-				hasSummaryChanged = true
+			if summary, ok := js.Summary[tg]; ok {
+				if summary.Queued != num {
+					summary.Queued = num
+					js.Summary[tg] = summary
+					hasSummaryChanged = true
+				}
 			} else {
 				s.logger.Printf("[ERR] state_store: unable to update queued for job %q and task group %q", eval.JobID, tg)
 			}
@@ -1334,12 +1336,12 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 	if err != nil {
 		return fmt.Errorf("unable to lookup job summary for job id %q: %v", err)
 	}
-	jobSummary, ok := summaryRaw.(structs.JobSummary)
+	summary, ok := summaryRaw.(structs.JobSummary)
 	if !ok {
 		return fmt.Errorf("job summary for job %q is not present", alloc.JobID)
 	}
+	jobSummary := summary.Copy()
 
-	currentJSModifyIndex := jobSummary.ModifyIndex
 	// Look for existing alloc
 	existing, err := s.AllocByID(alloc.ID)
 	if err != nil {
@@ -1350,6 +1352,7 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 	if !ok {
 		return fmt.Errorf("unable to find task group in the job summary: %v", alloc.TaskGroup)
 	}
+	var summaryChanged bool
 	if existing == nil {
 		switch alloc.DesiredStatus {
 		case structs.AllocDesiredStatusStop, structs.AllocDesiredStatusEvict:
@@ -1362,7 +1365,7 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 			if tgSummary.Queued > 0 {
 				tgSummary.Queued -= 1
 			}
-			jobSummary.ModifyIndex = index
+			summaryChanged = true
 		case structs.AllocClientStatusRunning, structs.AllocClientStatusFailed,
 			structs.AllocClientStatusComplete:
 			s.logger.Printf("[ERR] state_store: new allocation inserted into state store with id: %v and state: %v",
@@ -1395,11 +1398,12 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 			s.logger.Printf("[ERR] state_store: invalid old state of allocation with id:%v, and state: %v",
 				existing.ID, existing.ClientStatus)
 		}
-		jobSummary.ModifyIndex = index
+		summaryChanged = true
 	}
 	jobSummary.Summary[alloc.TaskGroup] = tgSummary
 
-	if currentJSModifyIndex < jobSummary.ModifyIndex {
+	if summaryChanged {
+		jobSummary.ModifyIndex = index
 		watcher.Add(watch.Item{Table: "job_summary"})
 		watcher.Add(watch.Item{JobSummary: alloc.JobID})
 
@@ -1408,7 +1412,7 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 			return fmt.Errorf("index update failed: %v", err)
 		}
 
-		if err := txn.Insert("job_summary", jobSummary); err != nil {
+		if err := txn.Insert("job_summary", *jobSummary); err != nil {
 			return fmt.Errorf("updating job summary failed: %v", err)
 		}
 	}
