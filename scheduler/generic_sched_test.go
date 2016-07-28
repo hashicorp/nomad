@@ -1323,7 +1323,7 @@ func TestServiceSched_NodeUpdate(t *testing.T) {
 		noErr(t, h.State.UpdateAllocsFromClient(h.NextIndex(), []*structs.Allocation{out}))
 	}
 
-	// Create a mock evaluation to deal with drain
+	// Create a mock evaluation which won't trigger any new placements
 	eval := &structs.Evaluation{
 		ID:          structs.GenerateUUID(),
 		Priority:    50,
