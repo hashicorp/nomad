@@ -1866,3 +1866,77 @@ func TestBatchSched_ReRun_SuccessfullyFinishedAlloc(t *testing.T) {
 
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
+
+func TestGenericSched_FilterCompleteAllocs(t *testing.T) {
+	running := mock.Alloc()
+	desiredStop := mock.Alloc()
+	desiredStop.DesiredStatus = structs.AllocDesiredStatusStop
+
+	new := mock.Alloc()
+	new.CreateIndex = 10000
+
+	oldSuccessful := mock.Alloc()
+	oldSuccessful.CreateIndex = 30
+	oldSuccessful.DesiredStatus = structs.AllocDesiredStatusStop
+	oldSuccessful.ClientStatus = structs.AllocClientStatusComplete
+	oldSuccessful.TaskStates = make(map[string]*structs.TaskState, 1)
+	oldSuccessful.TaskStates["foo"] = &structs.TaskState{
+		State:  structs.TaskStateDead,
+		Events: []*structs.TaskEvent{{Type: structs.TaskTerminated, ExitCode: 0}},
+	}
+
+	unsuccessful := mock.Alloc()
+	unsuccessful.DesiredStatus = structs.AllocDesiredStatusRun
+	unsuccessful.ClientStatus = structs.AllocClientStatusFailed
+	unsuccessful.TaskStates = make(map[string]*structs.TaskState, 1)
+	unsuccessful.TaskStates["foo"] = &structs.TaskState{
+		State:  structs.TaskStateDead,
+		Events: []*structs.TaskEvent{{Type: structs.TaskTerminated, ExitCode: 1}},
+	}
+
+	cases := []struct {
+		Batch         bool
+		Input, Output []*structs.Allocation
+	}{
+		{
+			Input:  []*structs.Allocation{running},
+			Output: []*structs.Allocation{running},
+		},
+		{
+			Input:  []*structs.Allocation{running, desiredStop},
+			Output: []*structs.Allocation{running},
+		},
+		{
+			Batch:  true,
+			Input:  []*structs.Allocation{running},
+			Output: []*structs.Allocation{running},
+		},
+		{
+			Batch:  true,
+			Input:  []*structs.Allocation{new, oldSuccessful},
+			Output: []*structs.Allocation{new},
+		},
+		{
+			Batch:  true,
+			Input:  []*structs.Allocation{unsuccessful},
+			Output: []*structs.Allocation{},
+		},
+	}
+
+	for i, c := range cases {
+		g := &GenericScheduler{batch: c.Batch}
+		out := g.filterCompleteAllocs(c.Input)
+
+		if !reflect.DeepEqual(out, c.Output) {
+			t.Log("Got:")
+			for i, a := range out {
+				t.Logf("%d: %#v", i, a)
+			}
+			t.Log("Want:")
+			for i, a := range c.Output {
+				t.Logf("%d: %#v", i, a)
+			}
+			t.Fatalf("Case %d failed", i+1)
+		}
+	}
+}
