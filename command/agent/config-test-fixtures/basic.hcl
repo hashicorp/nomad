@@ -52,6 +52,7 @@ client {
 }
 server {
 	enabled = true
+	encrypt = "Sy50b1S1PJ+0xEhSvQM5Lw=="
 	bootstrap_expect = 5
 	data_dir = "/tmp/data"
 	protocol_version = 3

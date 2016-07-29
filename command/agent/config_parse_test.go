@@ -69,6 +69,7 @@ func TestConfig_Parse(t *testing.T) {
 				},
 				Server: &ServerConfig{
 					Enabled:           true,
+					EncryptKey:				 "Sy50b1S1PJ+0xEhSvQM5Lw==",
 					BootstrapExpect:   5,
 					DataDir:           "/tmp/data",
 					ProtocolVersion:   3,

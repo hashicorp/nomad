@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"encoding/base64"
 	"fmt"
 	"io"
 	"net"
@@ -190,6 +191,9 @@ type ServerConfig struct {
 
 	// DataDir is the directory to store our state in
 	DataDir string `mapstructure:"data_dir"`
+
+	// Encryption key to use for the Serf communication
+	EncryptKey string `mapstructure:"encrypt" json:"-"`
 
 	// ProtocolVersion is the protocol version to speak. This must be between
 	// ProtocolVersionMin and ProtocolVersionMax.
@@ -387,6 +391,7 @@ func DefaultConfig() *Config {
 			Reserved:       &Resources{},
 		},
 		Server: &ServerConfig{
+			EncryptKey:       "",
 			Enabled:          false,
 			StartJoin:        []string{},
 			RetryJoin:        []string{},
@@ -560,6 +565,9 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	}
 	if b.DataDir != "" {
 		result.DataDir = b.DataDir
+	}
+	if b.EncryptKey != "" {
+		result.EncryptKey = b.EncryptKey
 	}
 	if b.ProtocolVersion != 0 {
 		result.ProtocolVersion = b.ProtocolVersion
@@ -873,4 +881,9 @@ func isTemporaryFile(name string) bool {
 	return strings.HasSuffix(name, "~") || // vim
 		strings.HasPrefix(name, ".#") || // emacs
 		(strings.HasPrefix(name, "#") && strings.HasSuffix(name, "#")) // emacs
+}
+
+// EncryptBytes returns the encryption key configured.
+func (c *Config) EncryptBytes() ([]byte, error) {
+	return base64.StdEncoding.DecodeString(c.Server.EncryptKey)
 }

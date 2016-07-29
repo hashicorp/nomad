@@ -80,6 +80,7 @@ func (c *Command) readConfig() *Config {
 	flags.Var((*sliceflag.StringFlag)(&cmdConfig.Server.RetryJoin), "retry-join", "")
 	flags.IntVar(&cmdConfig.Server.RetryMaxAttempts, "retry-max", 0, "")
 	flags.StringVar(&cmdConfig.Server.RetryInterval, "retry-interval", "", "")
+	flags.StringVar(&cmdConfig.Server.EncryptKey, "encrypt", "", "gossip encryption key")
 
 	// Client-only options
 	flags.StringVar(&cmdConfig.Client.StateDir, "state-dir", "", "")
@@ -207,6 +208,13 @@ func (c *Command) readConfig() *Config {
 
 		if !filepath.IsAbs(dir) {
 			c.Ui.Error(fmt.Sprintf("%s must be given as an absolute path: got %v", k, dir))
+			return nil
+		}
+	}
+
+	if config.Server.Enabled && config.Server.EncryptKey != "" {
+		if _, err := config.EncryptBytes(); err != nil {
+			c.Ui.Error(fmt.Sprintf("Invalid encryption key: %s", err))
 			return nil
 		}
 	}
