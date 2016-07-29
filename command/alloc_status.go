@@ -67,11 +67,10 @@ func (c *AllocStatusCommand) Run(args []string) int {
 
 	// Check that we got exactly one allocation ID
 	args = flags.Args()
-	if len(args) != 1 {
+	if len(args) > 1 {
 		c.Ui.Error(c.Help())
 		return 1
 	}
-	allocID := args[0]
 
 	// Get the HTTP client
 	client, err := c.Meta.Client()
@@ -85,6 +84,36 @@ func (c *AllocStatusCommand) Run(args []string) int {
 	if verbose {
 		length = fullId
 	}
+
+	if len(args) == 0 {
+		allocs, _, err := client.Allocations().List(nil)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error querying allocations: %s", err))
+			return 1
+		}
+		// No output if we have no jobs
+		if len(allocs) == 0 {
+			c.Ui.Output("No allocations exist")
+			return 0
+		}
+
+		out := make([]string, len(allocs)+1)
+		out[0] = "ID|Eval ID|Name|Node ID|Job ID|Desired Status|Client Status"
+		for i, alloc := range allocs {
+			out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%s|%s|%s",
+				limit(alloc.ID, length),
+				limit(alloc.EvalID, length),
+				alloc.Name,
+				limit(alloc.NodeID, length),
+				alloc.JobID,
+				alloc.DesiredStatus,
+				alloc.ClientStatus)
+		}
+		c.Ui.Output(formatList(out))
+		return 0
+	}
+
+	allocID := args[0]
 
 	// Query the allocation info
 	if len(allocID) == 1 {
