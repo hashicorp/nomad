@@ -20,8 +20,9 @@ const (
 
 type StatusCommand struct {
 	Meta
-	length             int
-	showEvals, verbose bool
+	length  int
+	evals   bool
+	verbose bool
 }
 
 func (c *StatusCommand) Help() string {
@@ -60,7 +61,7 @@ func (c *StatusCommand) Run(args []string) int {
 	flags := c.Meta.FlagSet("status", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&short, "short", false, "")
-	flags.BoolVar(&c.showEvals, "evals", false, "")
+	flags.BoolVar(&c.evals, "evals", false, "")
 	flags.BoolVar(&c.verbose, "verbose", false, "")
 
 	if err := flags.Parse(args); err != nil {
@@ -95,22 +96,12 @@ func (c *StatusCommand) Run(args []string) int {
 			return 1
 		}
 
-		// No output if we have no jobs
 		if len(jobs) == 0 {
+			// No output if we have no jobs
 			c.Ui.Output("No running jobs")
-			return 0
+		} else {
+			c.Ui.Output(createStatusListOutput(jobs))
 		}
-
-		out := make([]string, len(jobs)+1)
-		out[0] = "ID|Type|Priority|Status"
-		for i, job := range jobs {
-			out[i+1] = fmt.Sprintf("%s|%s|%d|%s",
-				job.ID,
-				job.Type,
-				job.Priority,
-				job.Status)
-		}
-		c.Ui.Output(formatList(out))
 		return 0
 	}
 
@@ -126,16 +117,7 @@ func (c *StatusCommand) Run(args []string) int {
 		return 1
 	}
 	if len(jobs) > 1 && strings.TrimSpace(jobID) != jobs[0].ID {
-		out := make([]string, len(jobs)+1)
-		out[0] = "ID|Type|Priority|Status"
-		for i, job := range jobs {
-			out[i+1] = fmt.Sprintf("%s|%s|%d|%s",
-				job.ID,
-				job.Type,
-				job.Priority,
-				job.Status)
-		}
-		c.Ui.Output(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", formatList(out)))
+		c.Ui.Output(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs)))
 		return 0
 	}
 	// Prefix lookup matched a single job
@@ -306,7 +288,7 @@ func (c *StatusCommand) outputJobInfo(client *api.Client, job *api.Job) error {
 		}
 	}
 
-	if c.verbose || c.showEvals {
+	if c.verbose || c.evals {
 		c.Ui.Output(c.Colorize().Color("\n[bold]Evaluations[reset]"))
 		c.Ui.Output(formatList(evals))
 	}
@@ -378,4 +360,18 @@ func convertApiJob(in *api.Job) (*structs.Job, error) {
 		return nil, err
 	}
 	return structJob, nil
+}
+
+// list general information about a list of jobs
+func createStatusListOutput(jobs []*structs.JobListStub) ([]string) {
+	out := make([]string, len(jobs)+1)
+	out[0] = "ID|Type|Priority|Status"
+	for i, job := range jobs {
+		out[i+1] = fmt.Sprintf("%s|%s|%d|%s",
+			job.ID,
+			job.Type,
+			job.Priority,
+			job.Status)
+	}
+	return formatList(out)
 }

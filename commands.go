@@ -94,13 +94,11 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
-
 		"plan": func() (cli.Command, error) {
 			return &command.PlanCommand{
 				Meta: meta,
 			}, nil
 		},
-
 		"run": func() (cli.Command, error) {
 			return &command.RunCommand{
 				Meta: meta,
