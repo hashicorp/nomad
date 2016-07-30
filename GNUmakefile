@@ -27,6 +27,11 @@ cov:
 	open /tmp/coverage.html
 
 test: generate
+	@echo "--> Running go fmt" ;
+	@if [ -n "`go fmt ${PACKAGES}`" ]; then \
+		echo "[ERR] go fmt updated formatting. Please commit formatted code first."; \
+		exit 1; \
+	fi
 	@sh -c "'$(PWD)/scripts/test.sh'"
 	@$(MAKE) vet
 
