@@ -38,11 +38,17 @@ Alloc Status Options:
   -short
     Display short output. Shows only the most recent task event.
 
-  -stats 
-    Display detailed resource usage statistics
+  -stats
+    Display detailed resource usage statistics.
 
   -verbose
     Show full information.
+
+  -format
+    Display specified format, "json" or "template".
+
+  -t
+    Sets the template with golang templates format.
 `
 
 	return strings.TrimSpace(helpText)
@@ -54,12 +60,15 @@ func (c *AllocStatusCommand) Synopsis() string {
 
 func (c *AllocStatusCommand) Run(args []string) int {
 	var short, displayStats, verbose bool
+	var format, tmpl string
 
 	flags := c.Meta.FlagSet("alloc-status", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&short, "short", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.BoolVar(&displayStats, "stats", false, "")
+	flags.StringVar(&format, "format", "default", "")
+	flags.StringVar(&tmpl, "t", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -128,6 +137,23 @@ func (c *AllocStatusCommand) Run(args []string) int {
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error querying allocation: %s", err))
 		return 1
+	}
+
+	// If output format is specified, format and output the data
+	if format != "default" {
+		f, err := DataFormat(format, tmpl)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error getting formatter: %s", err))
+			return 1
+		}
+
+		out, err := f.TransformData(alloc)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error transform the data: %s", err))
+			return 1
+		}
+		c.Ui.Output(out)
+		return 0
 	}
 
 	var statsErr error

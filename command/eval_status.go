@@ -31,6 +31,12 @@ Eval Status Options:
 
   -verbose
     Show full information.
+
+  -format
+    Display specified format, "json" or "template".
+
+  -t
+    Sets the template with golang templates format.
 `
 
 	return strings.TrimSpace(helpText)
@@ -42,11 +48,14 @@ func (c *EvalStatusCommand) Synopsis() string {
 
 func (c *EvalStatusCommand) Run(args []string) int {
 	var monitor, verbose bool
+	var format, tmpl string
 
 	flags := c.Meta.FlagSet("eval-status", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&monitor, "monitor", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
+	flags.StringVar(&format, "format", "default", "")
+	flags.StringVar(&tmpl, "t", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -122,6 +131,23 @@ func (c *EvalStatusCommand) Run(args []string) int {
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error querying evaluation: %s", err))
 		return 1
+	}
+
+	// If output format is specified, format and output the data
+	if format != "default" {
+		f, err := DataFormat(format, tmpl)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error getting formatter: %s", err))
+			return 1
+		}
+
+		out, err := f.TransformData(eval)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error transform the data: %s", err))
+			return 1
+		}
+		c.Ui.Output(out)
+		return 0
 	}
 
 	failureString, failures := evalFailureStatus(eval)
