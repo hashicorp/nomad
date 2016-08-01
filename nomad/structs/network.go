@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"net"
 	"sync"
+	"sort"
 )
 
 const (
@@ -217,17 +218,16 @@ func (idx *NetworkIndex) AssignNetwork(ask *NetworkResource) (out *NetworkResour
 				err = fmt.Errorf("dynamic port selection failed")
 				return
 			}
-
-			randPort := MinDynamicPort + rand.Intn(MaxDynamicPort-MinDynamicPort)
+			ports := append(offer.ReservedPorts, offer.DynamicPorts...)
+			sort.Ints(ports)
+			// find a gap in the set of used+reserved ports
+			j := sort.Search(len(ports) - 1, func(j int) bool {
+				return ports[j] >= MinDynamicPort && ports[j + 1] <= MaxDynamicPort && ports[j + 1] > (ports[j] + 1)
+			})
+			randPort := ports[j] + rand.Intn(ports[j + 1] - ports[j])
 			used := idx.UsedPorts[ipStr]
 			if used != nil && used.Check(uint(randPort)) {
 				goto PICK
-			}
-
-			for _, ports := range [][]Port{offer.ReservedPorts, offer.DynamicPorts} {
-				if isPortReserved(ports, randPort) {
-					goto PICK
-				}
 			}
 			offer.DynamicPorts[i].Value = randPort
 		}
@@ -238,14 +238,4 @@ func (idx *NetworkIndex) AssignNetwork(ask *NetworkResource) (out *NetworkResour
 		return true
 	})
 	return
-}
-
-// IntContains scans an integer slice for a value
-func isPortReserved(haystack []Port, needle int) bool {
-	for _, item := range haystack {
-		if item.Value == needle {
-			return true
-		}
-	}
-	return false
 }
