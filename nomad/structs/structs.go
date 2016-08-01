@@ -835,6 +835,21 @@ type Port struct {
 	Value int `mapstructure:"static"`
 }
 
+type Ports [] Port
+
+func (slice Ports) Len() int {
+	return len(slice)
+}
+
+func (slice Ports) Less(i, j int) bool {
+	return slice[i].Value < slice[j].Value;
+}
+
+func (slice Ports) Swap(i, j int) {
+	slice[i], slice[j] = slice[j], slice[i]
+}
+
+
 // NetworkResource is used to represent available network
 // resources
 type NetworkResource struct {

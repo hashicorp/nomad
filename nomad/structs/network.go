@@ -225,7 +225,7 @@ func (idx *NetworkIndex) AssignNetwork(ask *NetworkResource) (out *NetworkResour
 			}
 			ports := append(offer.ReservedPorts, offer.DynamicPorts...)
 			ports = append(ports, maxPort...)
-			sort.Ints(ports)
+			sort.Sort(ports)
 			// find a gap in the set of used+reserved ports
 			j := sort.Search(len(ports) - 1, func(j int) bool {
 				return ports[j].Value >= MinDynamicPort && ports[j + 1].Value <= MaxDynamicPort && ports[j + 1].Value > (ports[j].Value + 1)
