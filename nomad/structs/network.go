@@ -217,7 +217,7 @@ func (idx *NetworkIndex) AssignNetwork(ask *NetworkResource) (out *NetworkResour
 		// Check if we need to generate any ports
 		for i := 0; i < len(ask.DynamicPorts); i++ {
 			attempts := 0
-			PICK:
+		PICK:
 			attempts++
 			if attempts > maxRandPortAttempts {
 				err = fmt.Errorf("dynamic port selection failed - maximum selection attempts exceeded")
