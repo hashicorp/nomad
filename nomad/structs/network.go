@@ -168,21 +168,6 @@ func (idx *NetworkIndex) yieldIP(cb func(net *NetworkResource, ip net.IP) bool) 
 	}
 }
 
-// implement sort interface for Ports
-type Ports []Port
-
-func (slice Ports) Len() int {
-	return len(slice)
-}
-
-func (slice Ports) Less(i, j int) bool {
-	return slice[i].Value < slice[j].Value;
-}
-
-func (slice Ports) Swap(i, j int) {
-	slice[i], slice[j] = slice[j], slice[i]
-}
-
 // AssignNetwork is used to assign network resources given an ask.
 // If the ask cannot be satisfied, returns nil
 func (idx *NetworkIndex) AssignNetwork(ask *NetworkResource) (out *NetworkResource, err error) {
@@ -239,7 +224,7 @@ func (idx *NetworkIndex) AssignNetwork(ask *NetworkResource) (out *NetworkResour
 				return
 			}
 			ports := append(offer.ReservedPorts, offer.DynamicPorts...)
-			ports = append(ports, maxPort...)
+			ports = append(ports, maxPort)
 			sort.Sort(ports)
 			// find a gap in the set of used+reserved ports
 			j := sort.Search(len(ports) - 1, func(j int) bool {

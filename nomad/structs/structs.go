@@ -835,6 +835,21 @@ type Port struct {
 	Value int `mapstructure:"static"`
 }
 
+// implement sort interface for Ports
+type Ports []Port
+
+func (slice Ports) Len() int {
+	return len(slice)
+}
+
+func (slice Ports) Less(i, j int) bool {
+	return slice[i].Value < slice[j].Value;
+}
+
+func (slice Ports) Swap(i, j int) {
+	slice[i], slice[j] = slice[j], slice[i]
+}
+
 // NetworkResource is used to represent available network
 // resources
 type NetworkResource struct {
@@ -842,8 +857,8 @@ type NetworkResource struct {
 	CIDR          string // CIDR block of addresses
 	IP            string // IP address
 	MBits         int    // Throughput
-	ReservedPorts []Port // Reserved ports
-	DynamicPorts  []Port // Dynamically assigned ports
+	ReservedPorts Ports // Reserved ports
+	DynamicPorts  Ports // Dynamically assigned ports
 }
 
 // MeetsMinResources returns an error if the resources specified are less than
