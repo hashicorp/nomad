@@ -217,19 +217,23 @@ func (idx *NetworkIndex) AssignNetwork(ask *NetworkResource) (out *NetworkResour
 		// Check if we need to generate any ports
 		for i := 0; i < len(ask.DynamicPorts); i++ {
 			attempts := 0
-		PICK:
+			PICK:
 			attempts++
 			if attempts > maxRandPortAttempts {
-				err = fmt.Errorf("dynamic port selection failed")
+				err = fmt.Errorf("dynamic port selection failed - maximum selection attempts exceeded")
 				return
 			}
 			ports := append(offer.ReservedPorts, offer.DynamicPorts...)
 			ports = append(ports, maxPort)
 			sort.Sort(ports)
 			// find a gap in the set of used+reserved ports
-			j := sort.Search(len(ports) - 1, func(j int) bool {
+			j := sort.Search(len(ports) - 2, func(j int) bool {
 				return ports[j].Value >= MinDynamicPort && ports[j + 1].Value <= MaxDynamicPort && ports[j + 1].Value > (ports[j].Value + 1)
 			})
+			if j < 0 {
+				err = fmt.Errorf("dynamic port selection failed - no open range found")
+				return
+			}
 			randPort := ports[j].Value + rand.Intn(ports[j + 1].Value - ports[j].Value)
 			used := idx.UsedPorts[ipStr]
 			if used != nil && used.Check(uint(randPort)) {
