@@ -57,7 +57,9 @@ type RktDriver struct {
 
 type RktDriverConfig struct {
 	ImageName        string   `mapstructure:"image"`
+	Command          string   `mapstructure:"command"`
 	Args             []string `mapstructure:"args"`
+	TrustPrefix      string   `mapstructure:"trust_prefix"`
 	DNSServers       []string `mapstructure:"dns_servers"`        // DNS Server for containers
 	DNSSearchDomains []string `mapstructure:"dns_search_domains"` // DNS Search domains for containers
 }
@@ -99,8 +101,14 @@ func (d *RktDriver) Validate(config map[string]interface{}) error {
 				Type:     fields.TypeString,
 				Required: true,
 			},
+			"command": &fields.FieldSchema{
+				Type: fields.TypeString,
+			},
 			"args": &fields.FieldSchema{
 				Type: fields.TypeArray,
+			},
+			"trust_prefix": &fields.FieldSchema{
+				Type: fields.TypeString,
 			},
 			"dns_servers": &fields.FieldSchema{
 				Type: fields.TypeArray,
