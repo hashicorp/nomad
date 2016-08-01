@@ -835,7 +835,7 @@ type Port struct {
 	Value int `mapstructure:"static"`
 }
 
-type Ports [] Port
+type Ports []Port
 
 func (slice Ports) Len() int {
 	return len(slice)
