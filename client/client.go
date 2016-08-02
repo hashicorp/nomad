@@ -1397,7 +1397,11 @@ func (c *Client) collectHostStats() {
 			c.resourceUsageLock.Lock()
 			c.resourceUsage = ru
 			c.resourceUsageLock.Unlock()
-			c.emitStats(ru)
+
+			// Publish Node metrics if operator has opted in
+			if c.config.PublishNodeMetrics {
+				c.emitStats(ru)
+			}
 		case <-c.shutdownCh:
 			return
 		}

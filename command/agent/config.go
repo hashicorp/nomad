@@ -240,11 +240,13 @@ type ServerConfig struct {
 
 // Telemetry is the telemetry configuration for the server
 type Telemetry struct {
-	StatsiteAddr       string        `mapstructure:"statsite_address"`
-	StatsdAddr         string        `mapstructure:"statsd_address"`
-	DisableHostname    bool          `mapstructure:"disable_hostname"`
-	CollectionInterval string        `mapstructure:"collection_interval"`
-	collectionInterval time.Duration `mapstructure:"-"`
+	StatsiteAddr             string        `mapstructure:"statsite_address"`
+	StatsdAddr               string        `mapstructure:"statsd_address"`
+	DisableHostname          bool          `mapstructure:"disable_hostname"`
+	CollectionInterval       string        `mapstructure:"collection_interval"`
+	collectionInterval       time.Duration `mapstructure:"-"`
+	PublishAllocationMetrics bool          `mapstructure:"publish_allocation_metrics"`
+	PublishNodeMetrics       bool          `mapstructure:"publish_node_metrics"`
 
 	// Circonus: see https://github.com/circonus-labs/circonus-gometrics
 	// for more details on the various configuration options.
