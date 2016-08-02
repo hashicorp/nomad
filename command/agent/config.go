@@ -156,6 +156,10 @@ type ClientConfig struct {
 	// Metadata associated with the node
 	Meta map[string]string `mapstructure:"meta"`
 
+	// A mapping of directories on the host OS to attempt to embed inside each
+	// task's chroot.
+	ChrootEnv map[string]string `mapstructure:"chroot_env"`
+
 	// Interface to use for network fingerprinting
 	NetworkInterface string `mapstructure:"network_interface"`
 
@@ -716,6 +720,14 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	}
 	for k, v := range b.Meta {
 		result.Meta[k] = v
+	}
+
+	// Add the chroot_env map values
+	if result.ChrootEnv == nil {
+		result.ChrootEnv = make(map[string]string)
+	}
+	for k, v := range b.ChrootEnv {
+		result.ChrootEnv[k] = v
 	}
 
 	return &result

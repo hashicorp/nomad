@@ -126,6 +126,10 @@ type ExecCommand struct {
 	// FSIsolation determines whether the command would be run in a chroot.
 	FSIsolation bool
 
+	// A mapping of directories on the host OS to attempt to embed inside each
+	// task's chroot.
+	ChrootEnv map[string]string
+
 	// User is the user which the executor uses to run the command.
 	User string
 
