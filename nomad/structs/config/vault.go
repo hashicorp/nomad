@@ -1,6 +1,6 @@
 package config
 
-import vault "github.com/hashicorp/nomad/api"
+import vault "github.com/hashicorp/vault/api"
 
 // VaultConfig contains the configuration information necessary to
 // communicate with Vault in order to:
@@ -105,7 +105,27 @@ func (a *VaultConfig) Merge(b *VaultConfig) *VaultConfig {
 }
 
 // ApiConfig() returns a usable Vault config that can be passed directly to
-// hashicorp/vault/api.
-func (c *VaultConfig) ApiConfig() (*vault.Config, error) {
-	return nil, nil
+// hashicorp/vault/api. If readEnv is true, the environment is read for
+// appropriate Vault variables.
+func (c *VaultConfig) ApiConfig(readEnv bool) (*vault.Config, error) {
+	conf := vault.DefaultConfig()
+	if readEnv {
+		if err := conf.ReadEnvironment(); err != nil {
+			return nil, err
+		}
+	}
+
+	tlsConf := &vault.TLSConfig{
+		CACert:        c.CACert,
+		CAPath:        c.CAPath,
+		ClientCert:    c.CertFile,
+		ClientKey:     c.KeyFile,
+		TLSServerName: c.TLSServerName,
+		Insecure:      !c.VerifySSL,
+	}
+	if err := conf.ConfigureTLS(tlsConf); err != nil {
+		return nil, err
+	}
+
+	return conf, nil
 }
