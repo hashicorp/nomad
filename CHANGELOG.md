@@ -25,6 +25,7 @@ BUG FIXES:
   * client: Killing an allocation doesn't cause allocation stats to block
     [GH-1454]
   * driver/docker: Disable swap on docker driver [GH-1480]
+  * driver/docker: Fix improper gating on priviledged mode [GH-1506]
 
 ## 0.4.0
 
