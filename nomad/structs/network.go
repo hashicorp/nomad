@@ -249,3 +249,12 @@ func (idx *NetworkIndex) AssignNetwork(ask *NetworkResource) (out *NetworkResour
 	})
 	return
 }
+
+func isPortReserved(haystack []Port, needle int) bool {
+	for _, item := range haystack {
+		if item.Value == needle {
+			return true
+		}
+	}
+	return false
+}
