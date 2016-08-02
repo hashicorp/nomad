@@ -611,6 +611,12 @@
 			"revisionTime": "2016-06-09T00:18:40Z"
 		},
 		{
+			"checksumSHA1": "gf0Pps//ni93XtQfwHKKi2rBL9M=",
+			"path": "github.com/hashicorp/vault/api",
+			"revision": "bcf98fa8d61d1870c3af689f1b090b29a9c12d8c",
+			"revisionTime": "2016-08-02T20:35:37Z"
+		},
+		{
 			"checksumSHA1": "VMaF3Q7RIrRzvbnPbqxuSLryOvc=",
 			"path": "github.com/hashicorp/yamux",
 			"revision": "badf81fca035b8ebac61b5ab83330b72541056f4",
