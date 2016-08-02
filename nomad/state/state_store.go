@@ -1404,6 +1404,7 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 		case structs.AllocClientStatusLost:
 			tgSummary.Lost -= 1
 		case structs.AllocClientStatusFailed, structs.AllocClientStatusComplete:
+		default:
 			s.logger.Printf("[ERR] state_store: invalid old state of allocation with id: %v, and state: %v",
 				existingAlloc.ID, existingAlloc.ClientStatus)
 		}
