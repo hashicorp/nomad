@@ -436,28 +436,8 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task,
 		hostConfig.DNSSearch = append(hostConfig.DNSSearch, domain)
 	}
 
-	if driverConfig.IpcMode != "" {
-		if !hostPrivileged {
-			return c, fmt.Errorf(`Docker privileged mode is disabled on this Nomad agent, setting ipc mode not allowed`)
-		}
-		d.logger.Printf("[DEBUG] driver.docker: setting ipc mode to %s", driverConfig.IpcMode)
-	}
 	hostConfig.IpcMode = driverConfig.IpcMode
-
-	if driverConfig.PidMode != "" {
-		if !hostPrivileged {
-			return c, fmt.Errorf(`Docker privileged mode is disabled on this Nomad agent, setting pid mode not allowed`)
-		}
-		d.logger.Printf("[DEBUG] driver.docker: setting pid mode to %s", driverConfig.PidMode)
-	}
 	hostConfig.PidMode = driverConfig.PidMode
-
-	if driverConfig.UTSMode != "" {
-		if !hostPrivileged {
-			return c, fmt.Errorf(`Docker privileged mode is disabled on this Nomad agent, setting UTS mode not allowed`)
-		}
-		d.logger.Printf("[DEBUG] driver.docker: setting UTS mode to %s", driverConfig.UTSMode)
-	}
 	hostConfig.UTSMode = driverConfig.UTSMode
 
 	hostConfig.NetworkMode = driverConfig.NetworkMode

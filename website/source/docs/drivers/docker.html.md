@@ -304,9 +304,6 @@ options](/docs/agent/config.html#options):
   allow containers to use `privileged` mode, which gives the containers full
   access to the host's devices. Note that you must set a similar setting on the
   Docker daemon for this to work.
-  `true` will also allow containers to run with ipc_mode, pid_mode and uts_mode
-  set to `host`, which gives access to the hosts ipc, pid and UTS namespaces
-  respectively.  
 
 Note: When testing or using the `-dev` flag you can use `DOCKER_HOST`,
 `DOCKER_TLS_VERIFY`, and `DOCKER_CERT_PATH` to customize Nomad's behavior. If
