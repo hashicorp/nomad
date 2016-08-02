@@ -947,10 +947,6 @@ func (s *StateStore) UpsertAllocs(index uint64, allocs []*structs.Allocation) er
 		}
 		exist, _ := existing.(*structs.Allocation)
 
-		if err := s.updateSummaryWithAlloc(index, alloc, exist, watcher, txn); err != nil {
-			return fmt.Errorf("error updating job summary: %v", err)
-		}
-
 		if exist == nil {
 			alloc.CreateIndex = index
 			alloc.ModifyIndex = index
@@ -962,6 +958,11 @@ func (s *StateStore) UpsertAllocs(index uint64, allocs []*structs.Allocation) er
 			alloc.ClientStatus = exist.ClientStatus
 			alloc.ClientDescription = exist.ClientDescription
 		}
+
+		if err := s.updateSummaryWithAlloc(index, alloc, exist, watcher, txn); err != nil {
+			return fmt.Errorf("error updating job summary: %v", err)
+		}
+
 		if err := txn.Insert("allocs", alloc); err != nil {
 			return fmt.Errorf("alloc insert failed: %v", err)
 		}
