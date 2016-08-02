@@ -2026,6 +2026,59 @@ func TestStateStore_UpdateAlloc_NoJob(t *testing.T) {
 	}
 }
 
+func TestStateStore_JobSummary(t *testing.T) {
+	state := testStateStore(t)
+
+	// Add a job
+	job := mock.Job()
+	state.UpsertJob(900, job)
+
+	// Upser an allocation
+	alloc := mock.Alloc()
+	alloc.JobID = job.ID
+	alloc.Job = job
+	state.UpsertAllocs(910, []*structs.Allocation{alloc})
+
+	// Update the alloc from client
+	alloc1 := alloc.Copy()
+	alloc1.ClientStatus = structs.AllocClientStatusPending
+	alloc1.DesiredStatus = ""
+	state.UpdateAllocsFromClient(920, []*structs.Allocation{alloc})
+
+	alloc3 := alloc.Copy()
+	alloc3.ClientStatus = structs.AllocClientStatusRunning
+	alloc3.DesiredStatus = ""
+	state.UpdateAllocsFromClient(930, []*structs.Allocation{alloc3})
+
+	// Upsert the alloc
+	alloc4 := alloc.Copy()
+	alloc4.ClientStatus = structs.AllocClientStatusPending
+	alloc4.DesiredStatus = structs.AllocDesiredStatusRun
+	state.UpsertAllocs(950, []*structs.Allocation{alloc4})
+
+	// Again upsert the alloc
+	alloc5 := alloc.Copy()
+	alloc5.ClientStatus = structs.AllocClientStatusPending
+	alloc5.DesiredStatus = structs.AllocDesiredStatusRun
+	state.UpsertAllocs(970, []*structs.Allocation{alloc5})
+
+	expectedSummary := structs.JobSummary{
+		JobID: job.ID,
+		Summary: map[string]structs.TaskGroupSummary{
+			"web": structs.TaskGroupSummary{
+				Running: 1,
+			},
+		},
+		CreateIndex: 900,
+		ModifyIndex: 930,
+	}
+
+	summary, _ := state.JobSummaryByID(job.ID)
+	if !reflect.DeepEqual(&expectedSummary, summary) {
+		t.Fatalf("expected: %#v, actual: %v", expectedSummary, summary)
+	}
+}
+
 func TestStateStore_EvictAlloc_Alloc(t *testing.T) {
 	state := testStateStore(t)
 	alloc := mock.Alloc()

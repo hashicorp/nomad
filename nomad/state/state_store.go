@@ -889,11 +889,6 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *memdb.Txn, watcher watch.I
 		return nil
 	}
 	exist := existing.(*structs.Allocation)
-
-	if err := s.updateSummaryWithAlloc(index, alloc, exist, watcher, txn); err != nil {
-		return fmt.Errorf("error updating job summary: %v", err)
-	}
-
 	// Trigger the watcher
 	watcher.Add(watch.Item{Alloc: alloc.ID})
 	watcher.Add(watch.Item{AllocEval: exist.EvalID})
@@ -911,6 +906,10 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *memdb.Txn, watcher watch.I
 
 	// Update the modify index
 	copyAlloc.ModifyIndex = index
+
+	if err := s.updateSummaryWithAlloc(index, copyAlloc, exist, watcher, txn); err != nil {
+		return fmt.Errorf("error updating job summary: %v", err)
+	}
 
 	// Update the allocation
 	if err := txn.Insert("allocs", copyAlloc); err != nil {
@@ -947,10 +946,6 @@ func (s *StateStore) UpsertAllocs(index uint64, allocs []*structs.Allocation) er
 		}
 		exist, _ := existing.(*structs.Allocation)
 
-		if err := s.updateSummaryWithAlloc(index, alloc, exist, watcher, txn); err != nil {
-			return fmt.Errorf("error updating job summary: %v", err)
-		}
-
 		if exist == nil {
 			alloc.CreateIndex = index
 			alloc.ModifyIndex = index
@@ -962,6 +957,11 @@ func (s *StateStore) UpsertAllocs(index uint64, allocs []*structs.Allocation) er
 			alloc.ClientStatus = exist.ClientStatus
 			alloc.ClientDescription = exist.ClientDescription
 		}
+
+		if err := s.updateSummaryWithAlloc(index, alloc, exist, watcher, txn); err != nil {
+			return fmt.Errorf("error updating job summary: %v", err)
+		}
+
 		if err := txn.Insert("allocs", alloc); err != nil {
 			return fmt.Errorf("alloc insert failed: %v", err)
 		}
@@ -1404,6 +1404,7 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 		case structs.AllocClientStatusLost:
 			tgSummary.Lost -= 1
 		case structs.AllocClientStatusFailed, structs.AllocClientStatusComplete:
+		default:
 			s.logger.Printf("[ERR] state_store: invalid old state of allocation with id: %v, and state: %v",
 				existingAlloc.ID, existingAlloc.ClientStatus)
 		}
