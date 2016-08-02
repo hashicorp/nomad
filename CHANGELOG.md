@@ -1,5 +1,9 @@
 ## 0.4.1 (UNRELEASED)
 
+__BACKWARDS INCOMPATIBILITIES:__
+  * telemetry: Operators will have to explicitly opt-in for Nomad client to
+    publish allocation and node metrics
+
 IMPROVEMENTS:
   * core: Allow count 0 on system jobs [GH-1421]
   * core: Gracefully handle short lived outages by holding RPC calls [GH-1403]
@@ -11,6 +15,7 @@ IMPROVEMENTS:
   * client: Add killing event to task state [GH-1457]
   * client: Fingerprint network speed on Windows [GH-1443]
   * telemetry: Circonus integration for telemetry metrics [GH-1459]
+  * telemetry: Allow operators to opt-in for publishing metrics [GH-1501]
 
 BUG FIXES:
   * core: Sanitize empty slices/maps in jobs to avoid incorrect create/destroy
