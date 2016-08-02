@@ -230,6 +230,9 @@ func (s *StateStore) UpdateNodeStatus(index uint64, nodeID, status string) error
 			if alloc.ClientStatus == structs.AllocClientStatusPending ||
 				alloc.ClientStatus == structs.AllocClientStatusRunning {
 				copyAlloc.ClientStatus = structs.AllocClientStatusLost
+
+				// Updating the summary since we are changing the state of the
+				// allocation to lost
 				if err := s.updateSummaryWithAlloc(index, copyAlloc, alloc, watcher, txn); err != nil {
 					return fmt.Errorf("error updating job summary: %v", err)
 				}
@@ -887,15 +890,8 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *memdb.Txn, watcher watch.I
 	}
 	exist := existing.(*structs.Allocation)
 
-	// Update the job summary before updating the allocation
-	rawJob, err := txn.First("jobs", "id", alloc.JobID)
-	if err != nil {
-		return fmt.Errorf("unable to query job: %v", err)
-	}
-	if rawJob != nil {
-		if err := s.updateSummaryWithAlloc(index, alloc, exist, watcher, txn); err != nil {
-			return fmt.Errorf("error updating job summary: %v", err)
-		}
+	if err := s.updateSummaryWithAlloc(index, alloc, exist, watcher, txn); err != nil {
+		return fmt.Errorf("error updating job summary: %v", err)
 	}
 
 	// Trigger the watcher
@@ -951,15 +947,8 @@ func (s *StateStore) UpsertAllocs(index uint64, allocs []*structs.Allocation) er
 		}
 		exist, _ := existing.(*structs.Allocation)
 
-		// Update the job summary before persisting the allocation
-		rawJob, err := txn.First("jobs", "id", alloc.JobID)
-		if err != nil {
-			return fmt.Errorf("unable to query job: %v", err)
-		}
-		if rawJob != nil {
-			if err := s.updateSummaryWithAlloc(index, alloc, exist, watcher, txn); err != nil {
-				return fmt.Errorf("error updating job summary: %v", err)
-			}
+		if err := s.updateSummaryWithAlloc(index, alloc, exist, watcher, txn); err != nil {
+			return fmt.Errorf("error updating job summary: %v", err)
 		}
 
 		if exist == nil {
@@ -1347,6 +1336,16 @@ func (s *StateStore) updateSummaryWithJob(index uint64, job *structs.Job,
 // or inserted
 func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocation,
 	existingAlloc *structs.Allocation, watcher watch.Items, txn *memdb.Txn) error {
+
+	rawJob, err := txn.First("jobs", "id", alloc.JobID)
+	if err != nil {
+		return fmt.Errorf("unable to query job: %v", err)
+	}
+
+	// We don't have to update the summary if the job is missing
+	if rawJob == nil {
+		return nil
+	}
 
 	summaryRaw, err := txn.First("job_summary", "id", alloc.JobID)
 	if err != nil {
