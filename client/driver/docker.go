@@ -415,7 +415,7 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task,
 	if driverConfig.Privileged && !hostPrivileged {
 		return c, fmt.Errorf(`Docker privileged mode is disabled on this Nomad agent`)
 	}
-	hostConfig.Privileged = hostPrivileged
+	hostConfig.Privileged = driverConfig.Privileged
 
 	// set SHM size
 	if driverConfig.ShmSize != 0 {
