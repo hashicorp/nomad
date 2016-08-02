@@ -56,8 +56,8 @@ FS Specific Options:
     Show file stat information instead of displaying the file, or listing the directory.
 
   -f
-	Causes the output to not stop when the end of the file is reached, but
-	rather to wait for additional output. 
+    Causes the output to not stop when the end of the file is reached, but rather to
+    wait for additional output.
 
   -tail 
     Show the files contents with offsets relative to the end of the file. If no
@@ -68,7 +68,7 @@ FS Specific Options:
     of the file.
 
   -c
-	Sets the tail location in number of bytes relative to the end of the file.
+    Sets the tail location in number of bytes relative to the end of the file.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -262,7 +262,10 @@ func (f *FSCommand) Run(args []string) int {
 		var offset int64 = defaultTailLines * bytesToLines
 
 		if nLines, nBytes := numLines != -1, numBytes != -1; nLines && nBytes {
-			f.Ui.Error("Both -n and -c set")
+			f.Ui.Error("Both -n and -c are not allowed")
+			return 1
+		} else if numLines < -1 || numBytes < -1 {
+			f.Ui.Error("Invalid size is specified")
 			return 1
 		} else if nLines {
 			offset = numLines * bytesToLines
