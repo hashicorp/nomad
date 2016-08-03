@@ -374,7 +374,7 @@ func (n *nomadFSM) applyAllocUpdate(buf []byte, index uint64) interface{} {
 	// prior to being inserted into MemDB.
 	if j := req.Job; j != nil {
 		for _, alloc := range req.Alloc {
-			if alloc.Job == nil {
+			if alloc.Job == nil && !alloc.TerminalStatus() {
 				alloc.Job = j
 			}
 		}

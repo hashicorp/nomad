@@ -577,9 +577,12 @@ func TestFSM_UpsertAllocs_SharedJob(t *testing.T) {
 		t.Fatalf("bad: %#v %#v", alloc, out)
 	}
 
+	// Ensure that the original job is used
 	evictAlloc := new(structs.Allocation)
 	*evictAlloc = *alloc
-	job = evictAlloc.Job
+	job = mock.Job()
+	job.Priority = 123
+
 	evictAlloc.Job = nil
 	evictAlloc.DesiredStatus = structs.AllocDesiredStatusEvict
 	req2 := structs.AllocUpdateRequest{
@@ -604,8 +607,8 @@ func TestFSM_UpsertAllocs_SharedJob(t *testing.T) {
 	if out.DesiredStatus != structs.AllocDesiredStatusEvict {
 		t.Fatalf("alloc found!")
 	}
-	if out.Job == nil {
-		t.Fatalf("missing job")
+	if out.Job == nil || out.Job.Priority == 123 {
+		t.Fatalf("bad job")
 	}
 }
 

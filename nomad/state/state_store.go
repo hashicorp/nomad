@@ -961,6 +961,11 @@ func (s *StateStore) UpsertAllocs(index uint64, allocs []*structs.Allocation) er
 			alloc.AllocModifyIndex = index
 			alloc.ClientStatus = exist.ClientStatus
 			alloc.ClientDescription = exist.ClientDescription
+
+			// The job has been denormalized so re-attach the original job
+			if alloc.Job == nil {
+				alloc.Job = exist.Job
+			}
 		}
 		if err := txn.Insert("allocs", alloc); err != nil {
 			return fmt.Errorf("alloc insert failed: %v", err)
