@@ -10,6 +10,7 @@ IMPROVEMENTS:
     GH-1458]
   * client: Add killing event to task state [GH-1457]
   * client: Fingerprint network speed on Windows [GH-1443]
+  * driver/docker: Allow working directory to be configured [GH-1513]
   * telemetry: Circonus integration for telemetry metrics [GH-1459]
 
 BUG FIXES:
