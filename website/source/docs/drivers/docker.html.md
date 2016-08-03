@@ -107,6 +107,8 @@ The following options are available for use in the job specification.
   
 * `shm_size` - (Optional) The size (bytes) of /dev/shm for the container.
 
+* `work_dir` - (Optional) The working directory inside the container.
+
 ### Container Name
 
 Nomad creates a container after pulling an image. Containers are named

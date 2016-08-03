@@ -96,6 +96,7 @@ type DockerDriverConfig struct {
 	TTY              bool                `mapstructure:"tty"`                // Allocate a Pseudo-TTY
 	Interactive      bool                `mapstructure:"interactive"`        // Keep STDIN open even if not attached
 	ShmSize          int64               `mapstructure:"shm_size"`           // Size of /dev/shm of the container in bytes
+	WorkDir          string              `mapstructure:"work_dir"`           // Working directory inside the container
 }
 
 // Validate validates a docker driver config
@@ -222,6 +223,9 @@ func (d *DockerDriver) Validate(config map[string]interface{}) error {
 			},
 			"shm_size": &fields.FieldSchema{
 				Type: fields.TypeInt,
+			},
+			"work_dir": &fields.FieldSchema{
+				Type: fields.TypeString,
 			},
 		},
 	}
@@ -384,6 +388,10 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task,
 		User:      task.User,
 		Tty:       driverConfig.TTY,
 		OpenStdin: driverConfig.Interactive,
+	}
+
+	if driverConfig.WorkDir != "" {
+		config.WorkingDir = driverConfig.WorkDir
 	}
 
 	memLimit := int64(task.Resources.MemoryMB) * 1024 * 1024
