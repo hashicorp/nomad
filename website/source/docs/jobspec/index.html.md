@@ -217,7 +217,7 @@ The `group` object supports the following keys:
 
 * `restart` - Specifies the restart policy to be applied to tasks in this group.
   If omitted, a default policy for batch and non-batch jobs is used based on the
-  job type. See the restart policy reference for more details.
+  job type. See the [restart policy reference](#restart_policy) for more details.
 
 * `task` - This can be specified multiple times, to add a task as
   part of the group.
@@ -310,6 +310,8 @@ The `network` object supports the following keys:
         static = 6539
     }
     ```
+
+<a id="restart_policy"></a>
 
 ### Restart Policy
 

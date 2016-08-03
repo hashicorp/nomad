@@ -256,7 +256,7 @@ attributes:
 
 * `RestartPolicy` - Specifies the restart policy to be applied to tasks in this group.
   If omitted, a default policy for batch and non-batch jobs is used based on the
-  job type. See the restart policy reference for more details.
+  job type. See the [restart policy reference](#restart_policy) for more details.
 
 * `Tasks` - A list of `Task` object that are part of the task group.
 
@@ -398,6 +398,8 @@ ports. A network object allows the user to specify a list of `DynamicPorts` and
   attribute is ignored.
 * `Label` - The label to annotate a port so that it can be referred in the
   service discovery block or environment variables.
+
+<a id="restart_policy"></a>
 
 ### Restart Policy
 
