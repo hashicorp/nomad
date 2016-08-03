@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/gob"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -266,6 +267,7 @@ func (c *StatusCommand) outputJobInfo(client *api.Client, job *api.Job) error {
 			)
 			idx += 1
 		}
+		sort.Sort(JobSummaryOutputSort(summaries[1:]))
 		c.Ui.Output(formatList(summaries))
 	}
 
@@ -373,4 +375,20 @@ func convertApiJob(in *api.Job) (*structs.Job, error) {
 		return nil, err
 	}
 	return structJob, nil
+}
+
+type JobSummaryOutputSort []string
+
+func (j JobSummaryOutputSort) Len() int {
+	return len(j)
+}
+
+func (j JobSummaryOutputSort) Less(a, b int) bool {
+	taskGroupA := j[a][:strings.Index(j[a], "|")]
+	taskGroupB := j[b][:strings.Index(j[b], "|")]
+	return taskGroupA < taskGroupB
+}
+
+func (j JobSummaryOutputSort) Swap(a, b int) {
+	j[a], j[b] = j[b], j[a]
 }
