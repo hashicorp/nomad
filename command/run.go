@@ -2,10 +2,12 @@ package command
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/gob"
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"regexp"
 	"strconv"
@@ -80,6 +82,10 @@ Run Options:
   -output
     Output the JSON that would be submitted to the HTTP API without submitting
     the job.
+
+  -k
+    Allow insecure SSL connections to access jobfile.
+
 `
 	return strings.TrimSpace(helpText)
 }
@@ -89,7 +95,7 @@ func (c *RunCommand) Synopsis() string {
 }
 
 func (c *RunCommand) Run(args []string) int {
-	var detach, verbose, output bool
+	var detach, verbose, output, insecure bool
 	var checkIndexStr string
 
 	flags := c.Meta.FlagSet("run", FlagSetClient)
@@ -97,6 +103,7 @@ func (c *RunCommand) Run(args []string) int {
 	flags.BoolVar(&detach, "detach", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.BoolVar(&output, "output", false, "")
+	flags.BoolVar(&insecure, "k", false, "")
 	flags.StringVar(&checkIndexStr, "check-index", "", "")
 
 	if err := flags.Parse(args); err != nil {
@@ -116,8 +123,15 @@ func (c *RunCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Read the Jobfile
-	path := args[0]
+	var path, url string
+	// If prefix has http(s)://, read the Jobfile from the URL
+	if strings.Index(args[0], "http://") == 0 || strings.Index(args[0], "https://") == 0 {
+		path = "_url"
+		url = args[0]
+	} else {
+		// Read the Jobfile
+		path = args[0]
+	}
 
 	var f io.Reader
 	switch path {
@@ -128,6 +142,32 @@ func (c *RunCommand) Run(args []string) int {
 			f = os.Stdin
 		}
 		path = "stdin"
+	case "_url":
+		if len(url) == 0 {
+			c.Ui.Error(fmt.Sprintf("Error invalid Jobfile name"))
+		}
+		var resp *http.Response
+		var err error
+		if insecure == true {
+			tr := &http.Transport{
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			}
+			client := &http.Client{Transport: tr}
+			resp, err = client.Get(url)
+		} else {
+			resp, err = http.Get(url)
+		}
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error accessing URL %s: %v", url, err))
+			return 1
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != 200 {
+			c.Ui.Error(fmt.Sprintf("Error reading URL (%d) : %s", resp.StatusCode, resp.Status))
+			return 1
+		}
+		f = resp.Body
+		path = url
 	default:
 		file, err := os.Open(path)
 		defer file.Close()
