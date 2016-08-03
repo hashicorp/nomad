@@ -6,6 +6,7 @@ IMPROVEMENTS:
   * api: client Logs endpoint for streaming task logs [GH-1444]
   * api/cli: Support for tailing/streaming files [GH-1404, GH-1420]
   * cli: `nomad logs` command for streaming task logs [GH-1444]
+  * cli: `nomad plan` exit code indicates if changes will occur [GH-1502]
   * cli: Validate and plan command supports reading from stdin [GH-1460,
     GH-1458]
   * client: Add killing event to task state [GH-1457]
