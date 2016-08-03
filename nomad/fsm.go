@@ -135,6 +135,8 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyAllocUpdate(buf[1:], log.Index)
 	case structs.AllocClientUpdateRequestType:
 		return n.applyAllocClientUpdate(buf[1:], log.Index)
+	case structs.ReconcileJobSummariesRequestType:
+		return n.applyReconcileSummaries(buf[1:], log.Index)
 	default:
 		if ignoreUnknown {
 			n.logger.Printf("[WARN] nomad.fsm: ignoring unknown message type (%d), upgrade to newer version", msgType)
@@ -444,6 +446,14 @@ func (n *nomadFSM) applyAllocClientUpdate(buf []byte, index uint64) interface{} 
 	return nil
 }
 
+// applyReconcileSummaries reconciles summaries for all the job
+func (n *nomadFSM) applyReconcileSummaries(buf []byte, index uint64) interface{} {
+	if err := n.state.ReconcileJobSummaries(index); err != nil {
+		return err
+	}
+	return n.reconcileQueuedAllocations(index)
+}
+
 func (n *nomadFSM) Snapshot() (raft.FSMSnapshot, error) {
 	// Create a new snapshot
 	snap, err := n.state.Snapshot()
@@ -586,11 +596,19 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 	if err != nil {
 		return fmt.Errorf("couldn't fetch index of job summary table: %v", err)
 	}
+
+	// If the index is 0 that means there is no job summary in the snapshot so
+	// we will have to create them
 	if index == 0 {
-		if err := n.state.ReconcileJobSummaries(); err != nil {
+		// query the latest index
+		latestIndex, err := n.state.LatestIndex()
+		if err != nil {
+			return fmt.Errorf("unable to query latest index: %v", index)
+		}
+		if err := n.state.ReconcileJobSummaries(latestIndex); err != nil {
 			return fmt.Errorf("error reconciling summaries: %v", err)
 		}
-		if err := n.reconcileQueuedAllocations(); err != nil {
+		if err := n.reconcileQueuedAllocations(latestIndex); err != nil {
 			return fmt.Errorf("error re-computing the number of queued allocations:; %v", err)
 		}
 	}
@@ -600,7 +618,7 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 
 // reconcileSummaries re-calculates the queued allocations for every job that we
 // created a Job Summary during the snap shot restore
-func (n *nomadFSM) reconcileQueuedAllocations() error {
+func (n *nomadFSM) reconcileQueuedAllocations(index uint64) error {
 	// Get all the jobs
 	iter, err := n.state.Jobs()
 	if err != nil {
@@ -615,12 +633,6 @@ func (n *nomadFSM) reconcileQueuedAllocations() error {
 		jobs = append(jobs, rawJob.(*structs.Job))
 	}
 
-	// Start a restore session
-	restore, err := n.state.Restore()
-	if err != nil {
-		return err
-	}
-	defer restore.Abort()
 	snap, err := n.state.Snapshot()
 	if err != nil {
 		return fmt.Errorf("unable to create snapshot: %v", err)
@@ -650,10 +662,32 @@ func (n *nomadFSM) reconcileQueuedAllocations() error {
 		if err := sched.Process(eval); err != nil {
 			return err
 		}
-		summary, err := snap.JobSummaryByID(job.ID)
+
+		// Get the job summary from the fsm state store
+		summary, err := n.state.JobSummaryByID(job.ID)
 		if err != nil {
 			return err
 		}
+
+		// Add the allocations scheduler has made to queued since these
+		// allocations are never getting placed until the scheduler is invoked
+		// with a real planner
+		if l := len(planner.Plans); l != 1 {
+			return fmt.Errorf("unexpected number of plans during restore %d. Please file an issue including the logs", l)
+		}
+		for _, allocations := range planner.Plans[0].NodeAllocation {
+			for _, allocation := range allocations {
+				tgSummary, ok := summary.Summary[allocation.TaskGroup]
+				if !ok {
+					return fmt.Errorf("task group %q not found while updating queued count", allocation.TaskGroup)
+				}
+				tgSummary.Queued += 1
+				summary.Summary[allocation.TaskGroup] = tgSummary
+			}
+		}
+
+		// Add the queued allocations attached to the evaluation to the queued
+		// counter of the job summary
 		if l := len(planner.Evals); l != 1 {
 			return fmt.Errorf("unexpected number of evals during restore %d. Please file an issue including the logs", l)
 		}
@@ -662,15 +696,14 @@ func (n *nomadFSM) reconcileQueuedAllocations() error {
 			if !ok {
 				return fmt.Errorf("task group %q not found while updating queued count", tg)
 			}
-			tgSummary.Queued = queued
+			tgSummary.Queued += queued
 			summary.Summary[tg] = tgSummary
 		}
 
-		if err := restore.JobSummaryRestore(summary); err != nil {
+		if err := n.state.UpsertJobSummary(index, summary); err != nil {
 			return err
 		}
 	}
-	restore.Commit()
 	return nil
 }
 

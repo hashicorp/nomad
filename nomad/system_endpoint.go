@@ -27,3 +27,19 @@ func (s *System) GarbageCollect(args *structs.GenericRequest, reply *structs.Gen
 	s.srv.evalBroker.Enqueue(s.srv.coreJobEval(structs.CoreJobForceGC, snapshotIndex))
 	return nil
 }
+
+// ReconcileSummaries reconciles the summaries of all the jobs in the state
+// store
+func (s *System) ReconcileJobSummaries(args *structs.GenericRequest, reply *structs.GenericResponse) error {
+	if done, err := s.srv.forward("System.ReconcileJobSummaries", args, args, reply); done {
+		return err
+	}
+
+	_, index, err := s.srv.raftApply(structs.ReconcileJobSummariesRequestType, args)
+	if err != nil {
+		s.srv.logger.Printf("[ERR] nomad.client: Reconcile failed: %v", err)
+		return err
+	}
+	reply.Index = index
+	return nil
+}

@@ -990,14 +990,13 @@ func TestFSM_SnapshotRestore_AddMissingSummary(t *testing.T) {
 	job1.TaskGroups[0].Tasks[0].Resources.CPU = 5000
 	state.UpsertJob(1000, job1)
 
-	// make an allocation and a job which can make partial progress
-	alloc := mock.Alloc()
-	state.UpsertJob(1010, alloc.Job)
-	state.UpsertAllocs(1020, []*structs.Allocation{alloc})
+	// make a job which can make partial progress
+	job2 := mock.Job()
+	state.UpsertJob(1010, job2)
 
 	// Delete the summaries
 	state.DeleteJobSummary(1030, job1.ID)
-	state.DeleteJobSummary(1040, alloc.Job.ID)
+	state.DeleteJobSummary(1040, job2.ID)
 
 	// Delete the index
 	if err := state.RemoveIndex("job_summary"); err != nil {
@@ -1023,13 +1022,13 @@ func TestFSM_SnapshotRestore_AddMissingSummary(t *testing.T) {
 		t.Fatalf("expected: %#v, actual: %#v", &expected, out1)
 	}
 
-	out2, _ := state2.JobSummaryByID(alloc.Job.ID)
+	out2, _ := state2.JobSummaryByID(job2.ID)
 	expected = structs.JobSummary{
-		JobID: alloc.Job.ID,
+		JobID: job2.ID,
 		Summary: map[string]structs.TaskGroupSummary{
 			"web": structs.TaskGroupSummary{
-				Queued:   3,
-				Starting: 1,
+				Queued:   10,
+				Starting: 0,
 			},
 		},
 		CreateIndex: latestIndex,

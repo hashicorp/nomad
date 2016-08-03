@@ -85,15 +85,21 @@ func (s *StateStore) StopWatch(items watch.Items, notify chan struct{}) {
 	s.watch.stopWatch(items, notify)
 }
 
-// UpsertJobSummary upserts a job summary into the state store. This is for
-// testing purposes
+// UpsertJobSummary upserts a job summary into the state store.
 func (s *StateStore) UpsertJobSummary(index uint64, jobSummary *structs.JobSummary) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
+	// Update the index
 	if err := txn.Insert("job_summary", *jobSummary); err != nil {
 		return err
 	}
+
+	// Update the indexes table for job summary
+	if err := txn.Insert("index", &IndexEntry{"job_summary", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
 	txn.Commit()
 	return nil
 }
@@ -107,6 +113,9 @@ func (s *StateStore) DeleteJobSummary(index uint64, id string) error {
 	// Delete the job summary
 	if _, err := txn.DeleteAll("job_summary", "id", id); err != nil {
 		return fmt.Errorf("deleting job summary failed: %v", err)
+	}
+	if err := txn.Insert("index", &IndexEntry{"job_summary", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
 	}
 	txn.Commit()
 	return nil
@@ -1191,15 +1200,9 @@ func (s *StateStore) Indexes() (memdb.ResultIterator, error) {
 
 // ReconcileJobSummaries re-creates summaries for all jobs present in the state
 // store
-func (s *StateStore) ReconcileJobSummaries() error {
+func (s *StateStore) ReconcileJobSummaries(index uint64) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
-
-	// Find the latest index
-	latestIndex, err := s.LatestIndex()
-	if err != nil {
-		return err
-	}
 
 	// Get all the jobs
 	iter, err := txn.Get("jobs", "id")
@@ -1259,15 +1262,15 @@ func (s *StateStore) ReconcileJobSummaries() error {
 		}
 
 		// Insert the job summary
-		summary.CreateIndex = latestIndex
-		summary.ModifyIndex = latestIndex
+		summary.CreateIndex = index
+		summary.ModifyIndex = index
 		if err := txn.Insert("job_summary", summary); err != nil {
 			return fmt.Errorf("error inserting job summary: %v", err)
 		}
 	}
 
 	// Update the indexes table for job summary
-	if err := txn.Insert("index", &IndexEntry{"job_summary", latestIndex}); err != nil {
+	if err := txn.Insert("index", &IndexEntry{"job_summary", index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 	txn.Commit()
