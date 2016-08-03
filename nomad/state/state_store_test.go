@@ -1169,86 +1169,6 @@ func TestStateStore_RestoreJobSummary(t *testing.T) {
 	}
 }
 
-func TestStateStore_CreateJobSummaries(t *testing.T) {
-	state := testStateStore(t)
-	restore, err := state.Restore()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	// Restore a job
-	job := mock.Job()
-	if err := restore.JobRestore(job); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Restore an Index
-	index := IndexEntry{
-		Key:   "Foo",
-		Value: 100,
-	}
-
-	if err := restore.IndexRestore(&index); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Restore an allocation
-	alloc := mock.Alloc()
-	alloc.JobID = job.ID
-	alloc.Job = job
-	if err := restore.AllocRestore(alloc); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Create the job summaries
-	if err := restore.CreateJobSummaries([]*structs.Job{job}); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	restore.Commit()
-
-	summary, err := state.JobSummaryByID(job.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	expected := structs.JobSummary{
-		JobID: job.ID,
-		Summary: map[string]structs.TaskGroupSummary{
-			"web": {
-				Starting: 1,
-			},
-		},
-		CreateIndex: 100,
-		ModifyIndex: 100,
-	}
-
-	if !reflect.DeepEqual(summary, &expected) {
-		t.Fatalf("Bad: %#v %#v", summary, expected)
-	}
-}
-
-func TestStateRestore_JobsWithoutSummaries(t *testing.T) {
-	state := testStateStore(t)
-	restore, err := state.Restore()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	// Restore a job
-	job := mock.Job()
-	if err := restore.JobRestore(job); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	jobs, err := restore.JobsWithoutSummary()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if len(jobs) != 1 {
-		t.Fatalf("expected: %v, actual: %v", 1, len(jobs))
-	}
-	if !reflect.DeepEqual(job, jobs[0]) {
-		t.Fatalf("Bad: %#v %#v", job, jobs[0])
-	}
-}
-
 func TestStateStore_Indexes(t *testing.T) {
 	state := testStateStore(t)
 	node := mock.Node()
@@ -2132,6 +2052,43 @@ func TestStateStore_JobSummary(t *testing.T) {
 	summary, _ = state.JobSummaryByID(job1.ID)
 	if !reflect.DeepEqual(&expectedSummary, summary) {
 		t.Fatalf("expected: %#v, actual: %#v", expectedSummary, summary)
+	}
+}
+
+func TestStateStore_ReconcileJobSummary(t *testing.T) {
+	state := testStateStore(t)
+
+	alloc := mock.Alloc()
+	state.UpsertJob(100, alloc.Job)
+
+	alloc1 := mock.Alloc()
+	alloc1.JobID = alloc.Job.ID
+	alloc1.Job = alloc.Job
+	state.UpsertAllocs(110, []*structs.Allocation{alloc, alloc1})
+
+	alloc2 := alloc1.Copy()
+	alloc2.ClientStatus = structs.AllocClientStatusRunning
+	state.UpdateAllocsFromClient(120, []*structs.Allocation{alloc2})
+
+	// DeleteJobSummary is a helper method and doesn't modify the indexes table
+	state.DeleteJobSummary(130, alloc.Job.ID)
+
+	state.ReconcileJobSummaries()
+
+	summary, _ := state.JobSummaryByID(alloc.Job.ID)
+	expectedSummary := structs.JobSummary{
+		JobID: alloc.Job.ID,
+		Summary: map[string]structs.TaskGroupSummary{
+			"web": structs.TaskGroupSummary{
+				Starting: 1,
+				Running:  1,
+			},
+		},
+		CreateIndex: 120,
+		ModifyIndex: 120,
+	}
+	if !reflect.DeepEqual(&expectedSummary, summary) {
+		t.Fatalf("expected: %v, actual: %v", expectedSummary, summary)
 	}
 }
 

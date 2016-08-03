@@ -578,29 +578,44 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 		}
 	}
 
-	// Create Job Summaries
-	// The entire snapshot has to be restored first before we create the missing
-	// job summaries so that the indexes are updated and we know the highest
-	// index
-	// COMPAT 0.4 -> 0.4.1
-	jobs, err := restore.JobsWithoutSummary()
-	if err != nil {
-		fmt.Errorf("error retreiving jobs during restore: %v", err)
-	}
-	if err := restore.CreateJobSummaries(jobs); err != nil {
-		return fmt.Errorf("error creating job summaries: %v", err)
-	}
-
 	restore.Commit()
 
-	// Reconciling the queued allocations
-	return n.reconcileSummaries(jobs)
+	// Create Job Summaries
+	// COMPAT 0.4 -> 0.4.1
+	index, err := n.state.Index("job_summary")
+	if err != nil {
+		return fmt.Errorf("couldn't fetch index of job summary table: %v", err)
+	}
+	if index == 0 {
+		if err := n.state.ReconcileJobSummaries(); err != nil {
+			return fmt.Errorf("error reconciling summaries: %v", err)
+		}
+		if err := n.reconcileQueuedAllocations(); err != nil {
+			return fmt.Errorf("error re-computing the number of queued allocations:; %v", err)
+		}
+	}
+
+	return nil
 }
 
 // reconcileSummaries re-calculates the queued allocations for every job that we
 // created a Job Summary during the snap shot restore
-func (n *nomadFSM) reconcileSummaries(jobs []*structs.Job) error {
-	// Start the state restore
+func (n *nomadFSM) reconcileQueuedAllocations() error {
+	// Get all the jobs
+	iter, err := n.state.Jobs()
+	if err != nil {
+		return err
+	}
+	var jobs []*structs.Job
+	for {
+		rawJob := iter.Next()
+		if rawJob == nil {
+			break
+		}
+		jobs = append(jobs, rawJob.(*structs.Job))
+	}
+
+	// Start a restore session
 	restore, err := n.state.Restore()
 	if err != nil {
 		return err
