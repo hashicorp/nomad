@@ -1870,6 +1870,39 @@ func TestStateStore_UpdateAlloc_Alloc(t *testing.T) {
 	notify.verify(t)
 }
 
+// This test ensures that the state store will mark the clients status as lost
+// when set rather than preferring the existing status.
+func TestStateStore_UpdateAlloc_Lost(t *testing.T) {
+	state := testStateStore(t)
+	alloc := mock.Alloc()
+	alloc.ClientStatus = "foo"
+
+	if err := state.UpsertJob(999, alloc.Job); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	err := state.UpsertAllocs(1000, []*structs.Allocation{alloc})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	alloc2 := new(structs.Allocation)
+	*alloc2 = *alloc
+	alloc2.ClientStatus = structs.AllocClientStatusLost
+	if err := state.UpsertAllocs(1001, []*structs.Allocation{alloc2}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	out, err := state.AllocByID(alloc2.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if out.ClientStatus != structs.AllocClientStatusLost {
+		t.Fatalf("bad: %#v", out)
+	}
+}
+
 // This test ensures an allocation can be updated when there is no job
 // associated with it. This will happen when a job is stopped by an user which
 // has non-terminal allocations on clients

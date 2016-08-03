@@ -1280,13 +1280,19 @@ func TestServiceSched_NodeDown(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	// Test the corretness of the old allocation states
-	for _, alloc := range allocs {
-		out, err := h.State.AllocByID(alloc.ID)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
-		if out.ClientStatus != structs.AllocClientStatusLost || out.DesiredStatus != structs.AllocDesiredStatusStop {
+	// Ensure a single plan
+	if len(h.Plans) != 1 {
+		t.Fatalf("bad: %#v", h.Plans)
+	}
+	plan := h.Plans[0]
+
+	// Test the scheduler marked all allocations as lost.
+	if len(plan.NodeUpdate[node.ID]) != len(allocs) {
+		t.Fatalf("bad: %#v", plan)
+	}
+
+	for _, out := range plan.NodeUpdate[node.ID] {
+		if out.ClientStatus != structs.AllocClientStatusLost && out.DesiredStatus != structs.AllocDesiredStatusStop {
 			t.Fatalf("bad alloc: %#v", out)
 		}
 	}

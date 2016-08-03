@@ -930,8 +930,13 @@ func (s *StateStore) UpsertAllocs(index uint64, allocs []*structs.Allocation) er
 			alloc.CreateIndex = exist.CreateIndex
 			alloc.ModifyIndex = index
 			alloc.AllocModifyIndex = index
-			alloc.ClientStatus = exist.ClientStatus
-			alloc.ClientDescription = exist.ClientDescription
+
+			// If the scheduler is marking this allocation as lost we do not
+			// want to reuse the status of the existing allocation.
+			if alloc.ClientStatus != structs.AllocClientStatusLost {
+				alloc.ClientStatus = exist.ClientStatus
+				alloc.ClientDescription = exist.ClientDescription
+			}
 
 			// The job has been denormalized so re-attach the original job
 			if alloc.Job == nil {
