@@ -1453,6 +1453,16 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 		return fmt.Errorf("unable to lookup job summary for job id %q: %v", err)
 	}
 	if summaryRaw == nil {
+		// Check if the job is de-registered
+		rawJob, err := txn.First("jobs", "id", alloc.JobID)
+		if err != nil {
+			return fmt.Errorf("unable to query job: %v", err)
+		}
+
+		// If the job is de-registered then we skip updating it's summary
+		if rawJob == nil {
+			return nil
+		}
 		return fmt.Errorf("job summary for job %q is not present", alloc.JobID)
 	}
 	summary := summaryRaw.(structs.JobSummary)

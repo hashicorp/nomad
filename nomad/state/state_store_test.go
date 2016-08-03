@@ -2073,7 +2073,7 @@ func TestStateStore_ReconcileJobSummary(t *testing.T) {
 	// DeleteJobSummary is a helper method and doesn't modify the indexes table
 	state.DeleteJobSummary(130, alloc.Job.ID)
 
-	state.ReconcileJobSummaries()
+	state.ReconcileJobSummaries(120)
 
 	summary, _ := state.JobSummaryByID(alloc.Job.ID)
 	expectedSummary := structs.JobSummary{
@@ -2087,6 +2087,51 @@ func TestStateStore_ReconcileJobSummary(t *testing.T) {
 		CreateIndex: 120,
 		ModifyIndex: 120,
 	}
+	if !reflect.DeepEqual(&expectedSummary, summary) {
+		t.Fatalf("expected: %v, actual: %v", expectedSummary, summary)
+	}
+}
+
+func TestStateStore_UpdateAlloc_JobNotPresent(t *testing.T) {
+	state := testStateStore(t)
+
+	alloc := mock.Alloc()
+	state.UpsertJob(100, alloc.Job)
+	state.UpsertAllocs(200, []*structs.Allocation{alloc})
+
+	// Delete the job
+	state.DeleteJob(300, alloc.Job.ID)
+
+	// Update the alloc
+	alloc1 := alloc.Copy()
+	alloc1.ClientStatus = structs.AllocClientStatusRunning
+
+	// Updating allocation should not throw any error
+	if err := state.UpdateAllocsFromClient(400, []*structs.Allocation{alloc1}); err != nil {
+		t.Fatalf("expect err: %v", err)
+	}
+
+	// Re-Register the job
+	state.UpsertJob(500, alloc.Job)
+
+	// Update the alloc again
+	alloc2 := alloc.Copy()
+	alloc2.ClientStatus = structs.AllocClientStatusComplete
+	if err := state.UpdateAllocsFromClient(400, []*structs.Allocation{alloc1}); err != nil {
+		t.Fatalf("expect err: %v", err)
+	}
+
+	// Job Summary of the newly registered job shouldn't account for the
+	// allocation update for the older job
+	expectedSummary := structs.JobSummary{
+		JobID: alloc1.JobID,
+		Summary: map[string]structs.TaskGroupSummary{
+			"web": structs.TaskGroupSummary{},
+		},
+		CreateIndex: 500,
+		ModifyIndex: 500,
+	}
+	summary, _ := state.JobSummaryByID(alloc.Job.ID)
 	if !reflect.DeepEqual(&expectedSummary, summary) {
 		t.Fatalf("expected: %v, actual: %v", expectedSummary, summary)
 	}
