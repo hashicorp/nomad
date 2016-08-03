@@ -605,6 +605,24 @@ func TestDockerDNS(t *testing.T) {
 	}
 }
 
+func TestDockerWorkDir(t *testing.T) {
+	t.Parallel()
+	task, _, _ := dockerTask()
+	task.Config["work_dir"] = "/some/path"
+
+	client, handle, cleanup := dockerSetup(t, task)
+	defer cleanup()
+
+	container, err := client.InspectContainer(handle.(*DockerHandle).ContainerID())
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if want, got := "/some/path", container.Config.WorkingDir; want != got {
+		t.Errorf("Wrong working directory for docker job. Expect: %d, got: %d", want, got)
+	}
+}
+
 func inSlice(needle string, haystack []string) bool {
 	for _, h := range haystack {
 		if h == needle {
