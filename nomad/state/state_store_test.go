@@ -1691,8 +1691,6 @@ func TestStateStore_UpdateAllocsFromClient(t *testing.T) {
 		watch.Item{AllocJob: alloc2.JobID},
 		watch.Item{AllocNode: alloc2.NodeID})
 
-	state.UpsertJobSummary(900, mock.JobSummary(alloc.JobID))
-	state.UpsertJobSummary(901, mock.JobSummary(alloc2.JobID))
 	if err := state.UpsertJob(999, alloc.Job); err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1787,11 +1785,9 @@ func TestStateStore_UpdateMultipleAllocsFromClient(t *testing.T) {
 	state := testStateStore(t)
 	alloc := mock.Alloc()
 
-	state.UpsertJobSummary(900, mock.JobSummary(alloc.JobID))
 	if err := state.UpsertJob(999, alloc.Job); err != nil {
 		t.Fatalf("err: %v", err)
 	}
-
 	err := state.UpsertAllocs(1000, []*structs.Allocation{alloc})
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -1840,6 +1836,7 @@ func TestStateStore_UpdateMultipleAllocsFromClient(t *testing.T) {
 				Starting: 1,
 			},
 		},
+		CreateIndex: 999,
 		ModifyIndex: 1001,
 	}
 	if err != nil {
@@ -1907,7 +1904,6 @@ func TestStateStore_UpsertAlloc_Alloc(t *testing.T) {
 func TestStateStore_UpdateAlloc_Alloc(t *testing.T) {
 	state := testStateStore(t)
 	alloc := mock.Alloc()
-	state.UpsertJobSummary(998, mock.JobSummary(alloc.JobID))
 
 	if err := state.UpsertJob(999, alloc.Job); err != nil {
 		t.Fatalf("err: %v", err)
@@ -2033,6 +2029,16 @@ func TestStateStore_JobSummary(t *testing.T) {
 	job := mock.Job()
 	state.UpsertJob(900, job)
 
+	// Get the job back
+	outJob, _ := state.JobByID(job.ID)
+	if outJob.CreateIndex != 900 {
+		t.Fatalf("bad create index: %v", outJob.CreateIndex)
+	}
+	summary, _ := state.JobSummaryByID(job.ID)
+	if summary.CreateIndex != 900 {
+		t.Fatalf("bad create index: %v", summary.CreateIndex)
+	}
+
 	// Upser an allocation
 	alloc := mock.Alloc()
 	alloc.JobID = job.ID
@@ -2073,9 +2079,59 @@ func TestStateStore_JobSummary(t *testing.T) {
 		ModifyIndex: 930,
 	}
 
-	summary, _ := state.JobSummaryByID(job.ID)
+	summary, _ = state.JobSummaryByID(job.ID)
 	if !reflect.DeepEqual(&expectedSummary, summary) {
 		t.Fatalf("expected: %#v, actual: %v", expectedSummary, summary)
+	}
+
+	// De-register the job.
+	state.DeleteJob(980, job.ID)
+
+	// Shouldn't have any effect on the summary
+	alloc6 := alloc.Copy()
+	alloc6.ClientStatus = structs.AllocClientStatusRunning
+	alloc6.DesiredStatus = ""
+	state.UpdateAllocsFromClient(990, []*structs.Allocation{alloc6})
+
+	// We shouldn't have any summary at this point
+	summary, _ = state.JobSummaryByID(job.ID)
+	if summary != nil {
+		t.Fatalf("expected nil, actual: %#v", summary)
+	}
+
+	// Re-register the same job
+	job1 := mock.Job()
+	job1.ID = job.ID
+	state.UpsertJob(1000, job1)
+	outJob2, _ := state.JobByID(job1.ID)
+	if outJob2.CreateIndex != 1000 {
+		t.Fatalf("bad create index: %v", outJob2.CreateIndex)
+	}
+	summary, _ = state.JobSummaryByID(job1.ID)
+	if summary.CreateIndex != 1000 {
+		t.Fatalf("bad create index: %v", summary.CreateIndex)
+	}
+
+	// Upsert an allocation
+	alloc7 := alloc.Copy()
+	alloc7.JobID = outJob.ID
+	alloc7.Job = outJob
+	alloc7.ClientStatus = structs.AllocClientStatusComplete
+	alloc7.DesiredStatus = structs.AllocDesiredStatusRun
+	state.UpdateAllocsFromClient(1020, []*structs.Allocation{alloc7})
+
+	expectedSummary = structs.JobSummary{
+		JobID: job.ID,
+		Summary: map[string]structs.TaskGroupSummary{
+			"web": structs.TaskGroupSummary{},
+		},
+		CreateIndex: 1000,
+		ModifyIndex: 1000,
+	}
+
+	summary, _ = state.JobSummaryByID(job1.ID)
+	if !reflect.DeepEqual(&expectedSummary, summary) {
+		t.Fatalf("expected: %#v, actual: %#v", expectedSummary, summary)
 	}
 }
 
@@ -2658,8 +2714,18 @@ func TestStateJobSummary_UpdateJobCount(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 	summary, _ := state.JobSummaryByID(job.ID)
-	if summary.Summary["web"].Starting != 1 {
-		t.Fatalf("bad job summary: %v", summary)
+	expectedSummary := structs.JobSummary{
+		JobID: job.ID,
+		Summary: map[string]structs.TaskGroupSummary{
+			"web": {
+				Starting: 1,
+			},
+		},
+		CreateIndex: 1000,
+		ModifyIndex: 1001,
+	}
+	if !reflect.DeepEqual(summary, &expectedSummary) {
+		t.Fatalf("expected: %v, actual: %v", expectedSummary, summary)
 	}
 
 	alloc2 := mock.Alloc()
@@ -2677,7 +2743,7 @@ func TestStateJobSummary_UpdateJobCount(t *testing.T) {
 	outA, _ := state.AllocByID(alloc3.ID)
 
 	summary, _ = state.JobSummaryByID(job.ID)
-	expectedSummary := structs.JobSummary{
+	expectedSummary = structs.JobSummary{
 		JobID: job.ID,
 		Summary: map[string]structs.TaskGroupSummary{
 			"web": {
@@ -2695,17 +2761,15 @@ func TestStateJobSummary_UpdateJobCount(t *testing.T) {
 	alloc4.ID = alloc2.ID
 	alloc4.Job = alloc2.Job
 	alloc4.JobID = alloc2.JobID
-	alloc4.DesiredStatus = structs.AllocDesiredStatusStop
 	alloc4.ClientStatus = structs.AllocClientStatusComplete
 
 	alloc5 := mock.Alloc()
 	alloc5.ID = alloc3.ID
 	alloc5.Job = alloc3.Job
 	alloc5.JobID = alloc3.JobID
-	alloc5.DesiredStatus = structs.AllocDesiredStatusStop
 	alloc5.ClientStatus = structs.AllocClientStatusComplete
 
-	if err := state.UpsertAllocs(1004, []*structs.Allocation{alloc4, alloc5}); err != nil {
+	if err := state.UpdateAllocsFromClient(1004, []*structs.Allocation{alloc4, alloc5}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	outA, _ = state.AllocByID(alloc5.ID)

@@ -1342,13 +1342,8 @@ func (s *StateStore) updateSummaryWithJob(index uint64, job *structs.Job,
 func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocation,
 	existingAlloc *structs.Allocation, watcher watch.Items, txn *memdb.Txn) error {
 
-	rawJob, err := txn.First("jobs", "id", alloc.JobID)
-	if err != nil {
-		return fmt.Errorf("unable to query job: %v", err)
-	}
-
 	// We don't have to update the summary if the job is missing
-	if rawJob == nil {
+	if alloc.Job == nil {
 		return nil
 	}
 
@@ -1356,11 +1351,17 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 	if err != nil {
 		return fmt.Errorf("unable to lookup job summary for job id %q: %v", err)
 	}
-	summary, ok := summaryRaw.(structs.JobSummary)
-	if !ok {
+	if summaryRaw == nil {
 		return fmt.Errorf("job summary for job %q is not present", alloc.JobID)
 	}
+	summary := summaryRaw.(structs.JobSummary)
 	jobSummary := summary.Copy()
+
+	// Not updating the job summary because the allocation doesn't belong to the
+	// currently registered job
+	if jobSummary.CreateIndex != alloc.Job.CreateIndex {
+		return nil
+	}
 
 	tgSummary, ok := jobSummary.Summary[alloc.TaskGroup]
 	if !ok {
