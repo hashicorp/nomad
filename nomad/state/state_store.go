@@ -1342,13 +1342,8 @@ func (s *StateStore) updateSummaryWithJob(index uint64, job *structs.Job,
 func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocation,
 	existingAlloc *structs.Allocation, watcher watch.Items, txn *memdb.Txn) error {
 
-	rawJob, err := txn.First("jobs", "id", alloc.JobID)
-	if err != nil {
-		return fmt.Errorf("unable to query job: %v", err)
-	}
-
 	// We don't have to update the summary if the job is missing
-	if rawJob == nil {
+	if alloc.Job == nil {
 		return nil
 	}
 
