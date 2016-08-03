@@ -56,6 +56,11 @@ Usage: nomad plan [options] <file>
   If the job has specified the region, the -region flag and NOMAD_REGION
   environment variable are overridden and the the job's region is used.
 
+  Plan will return one of the following exit codes:
+    * 0: No allocations created or destroyed.
+    * 1: Allocations created or destroyed.
+    * 255: Error determining plan results.
+
 General Options:
 
   ` + generalOptionsUsage() + `
@@ -85,14 +90,14 @@ func (c *PlanCommand) Run(args []string) int {
 	flags.BoolVar(&verbose, "verbose", false, "")
 
 	if err := flags.Parse(args); err != nil {
-		return 1
+		return 255
 	}
 
 	// Check that we got exactly one job
 	args = flags.Args()
 	if len(args) != 1 {
 		c.Ui.Error(c.Help())
-		return 1
+		return 255
 	}
 
 	// Read the Jobfile
@@ -112,7 +117,7 @@ func (c *PlanCommand) Run(args []string) int {
 		defer file.Close()
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error opening file %q: %v", path, err))
-			return 1
+			return 255
 		}
 		f = file
 	}
@@ -121,7 +126,7 @@ func (c *PlanCommand) Run(args []string) int {
 	job, err := jobspec.Parse(f)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing job file %s: %v", path, err))
-		return 1
+		return 255
 	}
 
 	// Initialize any fields that need to be.
@@ -130,21 +135,21 @@ func (c *PlanCommand) Run(args []string) int {
 	// Check that the job is valid
 	if err := job.Validate(); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error validating job: %s", err))
-		return 1
+		return 255
 	}
 
 	// Convert it to something we can use
 	apiJob, err := convertStructJob(job)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error converting job: %s", err))
-		return 1
+		return 255
 	}
 
 	// Get the HTTP client
 	client, err := c.Meta.Client()
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
-		return 1
+		return 255
 	}
 
 	// Force the region to be that of the job.
@@ -156,7 +161,7 @@ func (c *PlanCommand) Run(args []string) int {
 	resp, _, err := client.Jobs().Plan(apiJob, diff, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error during plan: %s", err))
-		return 1
+		return 255
 	}
 
 	// Print the diff if not disabled
@@ -172,6 +177,20 @@ func (c *PlanCommand) Run(args []string) int {
 
 	// Print the job index info
 	c.Ui.Output(c.Colorize().Color(formatJobModifyIndex(resp.JobModifyIndex, path)))
+	return getExitCode(resp)
+}
+
+// getExitCode returns 0:
+// * 0: No allocations created or destroyed.
+// * 1: Allocations created or destroyed.
+func getExitCode(resp *api.JobPlanResponse) int {
+	// Check for changes
+	for _, d := range resp.Annotations.DesiredTGUpdates {
+		if d.Stop+d.Place+d.Migrate+d.DestructiveUpdate > 0 {
+			return 1
+		}
+	}
+
 	return 0
 }
 

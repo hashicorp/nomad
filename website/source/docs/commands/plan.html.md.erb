@@ -36,6 +36,12 @@ give insight into what the scheduler will attempt to do and why.
 If the job has specified the region, the `-region` flag and `NOMAD_REGION`
 environment variable are overridden and the the job's region is used.
 
+Plan will return one of the following exit codes:
+
+  * 0: No allocations created or destroyed.
+  * 1: Allocations created or destroyed.
+  * 255: Error determining plan results.
+
 ## General Options
 
 <%= general_options_usage %>
