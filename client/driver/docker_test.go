@@ -285,10 +285,10 @@ func TestDockerDriver_Start_LoadImage(t *testing.T) {
 	defer execCtx.AllocDir.Destroy()
 	d := NewDockerDriver(driverCtx)
 
-	// Copy the test jar into the task's directory
+	// Copy the test tar into the task's directory
 	taskDir, _ := execCtx.AllocDir.TaskDirs[task.Name]
 	dst := filepath.Join(taskDir, allocdir.TaskLocal, "busybox.tar")
-	copyFile("./test-resources/docker/busybox.tar", dst, t)
+	copyFile(filepath.Join("test-resources", "docker", "busybox.tar"), dst, t)
 
 	handle, err := d.Start(execCtx, task)
 	if err != nil {
@@ -312,7 +312,11 @@ func TestDockerDriver_Start_LoadImage(t *testing.T) {
 	outputFile := filepath.Join(execCtx.AllocDir.LogDir(), "busybox-demo.stdout.0")
 	act, err := ioutil.ReadFile(outputFile)
 	if err != nil {
-		t.Fatalf("Couldn't read expected output: %v", err)
+		t.Errorf("Couldn't read expected output: %v", err)
+	}
+	// Check that the artifact tarball was removed after loading
+	if _, err := os.Stat(dst); !os.IsNotExist(err) {
+		t.Errorf("Expected not to find artifact tarball %s", dst)
 	}
 
 	exp := "hello"
