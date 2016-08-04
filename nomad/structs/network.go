@@ -219,7 +219,7 @@ func (idx *NetworkIndex) AssignNetwork(ask *NetworkResource) (out *NetworkResour
 			return
 		}
 
-		for i:=0; i<len(offer.DynamicPorts); i++ {
+		for i := 0; i < len(offer.DynamicPorts); i++ {
 			offer.DynamicPorts[i].Value = availablePorts[i].Value
 		}
 

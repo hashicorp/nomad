@@ -6,11 +6,11 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/sha512"
-	"math/rand"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
+	"math/rand"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -844,7 +844,7 @@ func (slice Ports) Len() int {
 }
 
 func (slice Ports) Less(i, j int) bool {
-	return slice[i].Value < slice[j].Value;
+	return slice[i].Value < slice[j].Value
 }
 
 func (slice Ports) Swap(i, j int) {
@@ -886,8 +886,8 @@ func (minuend Ports) Difference(subtrahend Ports) Ports {
 
 func PortsFromRange(i, j int) Ports {
 	dest := make(Ports, j-i)
-	for k:=0; k < j-i; k++ {
-		dest[k] = Port{Label: string(i+k), Value: i+k}
+	for k := 0; k < j-i; k++ {
+		dest[k] = Port{Label: string(i + k), Value: i + k}
 	}
 	return dest
 }
@@ -895,7 +895,7 @@ func PortsFromRange(i, j int) Ports {
 func PortsFromBitmap(portmap Bitmap, i, j int) Ports {
 	var results Ports
 
-	for k:=i; k<=j; k++ {
+	for k := i; k <= j; k++ {
 		if portmap.Check(uint(k)) {
 			newPort := Port{
 				Label: string(k),
@@ -915,8 +915,8 @@ type NetworkResource struct {
 	CIDR          string // CIDR block of addresses
 	IP            string // IP address
 	MBits         int    // Throughput
-	ReservedPorts Ports // Reserved ports
-	DynamicPorts  Ports // Dynamically assigned ports
+	ReservedPorts Ports  // Reserved ports
+	DynamicPorts  Ports  // Dynamically assigned ports
 }
 
 // MeetsMinResources returns an error if the resources specified are less than
