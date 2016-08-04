@@ -29,7 +29,14 @@ func TestCoreScheduler_EvalGC(t *testing.T) {
 	alloc.EvalID = eval.ID
 	alloc.DesiredStatus = structs.AllocDesiredStatusStop
 	alloc.JobID = eval.JobID
-	err = state.UpsertAllocs(1001, []*structs.Allocation{alloc})
+
+	// Insert "lost" alloc
+	alloc2 := mock.Alloc()
+	alloc2.EvalID = eval.ID
+	alloc2.DesiredStatus = structs.AllocDesiredStatusRun
+	alloc2.ClientStatus = structs.AllocClientStatusLost
+	alloc2.JobID = eval.JobID
+	err = state.UpsertAllocs(1001, []*structs.Allocation{alloc, alloc2})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -68,6 +75,14 @@ func TestCoreScheduler_EvalGC(t *testing.T) {
 	if outA != nil {
 		t.Fatalf("bad: %v", outA)
 	}
+
+	outA2, err := state.AllocByID(alloc2.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if outA2 != nil {
+		t.Fatalf("bad: %v", outA2)
+	}
 }
 
 // An EvalGC should never reap a batch job
@@ -101,7 +116,15 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	alloc.JobID = job.ID
 	alloc.EvalID = eval.ID
 	alloc.DesiredStatus = structs.AllocDesiredStatusStop
-	err = state.UpsertAllocs(1002, []*structs.Allocation{alloc})
+
+	// Insert "lost" alloc
+	alloc2 := mock.Alloc()
+	alloc2.JobID = job.ID
+	alloc2.EvalID = eval.ID
+	alloc2.DesiredStatus = structs.AllocDesiredStatusRun
+	alloc2.ClientStatus = structs.AllocClientStatusLost
+
+	err = state.UpsertAllocs(1002, []*structs.Allocation{alloc, alloc2})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -141,6 +164,14 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 		t.Fatalf("bad: %v", outA)
 	}
 
+	outA2, err := state.AllocByID(alloc2.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if outA2 == nil {
+		t.Fatalf("bad: %v", outA2)
+	}
+
 	outB, err := state.JobByID(job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -170,16 +201,24 @@ func TestCoreScheduler_EvalGC_Partial(t *testing.T) {
 	alloc.EvalID = eval.ID
 	alloc.DesiredStatus = structs.AllocDesiredStatusStop
 	state.UpsertJobSummary(1001, mock.JobSummary(alloc.JobID))
-	err = state.UpsertAllocs(1002, []*structs.Allocation{alloc})
+
+	// Insert "lost" alloc
+	alloc2 := mock.Alloc()
+	alloc2.JobID = alloc.JobID
+	alloc2.EvalID = eval.ID
+	alloc2.DesiredStatus = structs.AllocDesiredStatusRun
+	alloc2.ClientStatus = structs.AllocClientStatusLost
+
+	err = state.UpsertAllocs(1002, []*structs.Allocation{alloc, alloc2})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	// Insert "running" alloc
-	alloc2 := mock.Alloc()
-	alloc2.EvalID = eval.ID
-	state.UpsertJobSummary(1003, mock.JobSummary(alloc2.JobID))
-	err = state.UpsertAllocs(1004, []*structs.Allocation{alloc2})
+	alloc3 := mock.Alloc()
+	alloc3.EvalID = eval.ID
+	state.UpsertJobSummary(1003, mock.JobSummary(alloc3.JobID))
+	err = state.UpsertAllocs(1004, []*structs.Allocation{alloc3})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -211,7 +250,7 @@ func TestCoreScheduler_EvalGC_Partial(t *testing.T) {
 		t.Fatalf("bad: %v", out)
 	}
 
-	outA, err := state.AllocByID(alloc2.ID)
+	outA, err := state.AllocByID(alloc3.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -226,6 +265,14 @@ func TestCoreScheduler_EvalGC_Partial(t *testing.T) {
 	}
 	if outB != nil {
 		t.Fatalf("bad: %v", outB)
+	}
+
+	outC, err := state.AllocByID(alloc2.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if outC != nil {
+		t.Fatalf("bad: %v", outC)
 	}
 }
 
