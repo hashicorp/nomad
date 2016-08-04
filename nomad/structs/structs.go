@@ -6,6 +6,7 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/sha512"
+	"math/rand"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -848,6 +849,63 @@ func (slice Ports) Less(i, j int) bool {
 
 func (slice Ports) Swap(i, j int) {
 	slice[i], slice[j] = slice[j], slice[i]
+}
+
+func (slice Ports) ShufflePorts() Ports {
+	dest := make(Ports, len(slice))
+	perm := rand.Perm(len(slice))
+	for i, v := range perm {
+		dest[v] = slice[i]
+	}
+	return dest
+}
+
+func (minuend Ports) Difference(subtrahend Ports) Ports {
+	makeSet := func(ports Ports) map[int]Port {
+		portMap := make(map[int]Port, len(ports))
+		for _, port := range ports {
+			portMap[port.Value] = port
+		}
+
+		return portMap
+	}
+
+	var results Ports
+
+	minuendSet := makeSet(minuend)
+	subtrahendSet := makeSet(subtrahend)
+
+	for value, port := range minuendSet {
+		if _, ok := subtrahendSet[value]; !ok {
+			results = append(results, port)
+		}
+	}
+
+	return results
+}
+
+func PortsFromRange(i, j int) Ports {
+	dest := make(Ports, j-i)
+	for k:=0; k < j-i; k++ {
+		dest[k] = Port{Label: string(i+k), Value: i+k}
+	}
+	return dest
+}
+
+func PortsFromBitmap(portmap Bitmap, i, j int) Ports {
+	var results Ports
+
+	for k:=i; k<=j; k++ {
+		if portmap.Check(uint(k)) {
+			newPort := Port{
+				Label: string(k),
+				Value: k,
+			}
+			results = append(results, newPort)
+		}
+	}
+
+	return results
 }
 
 // NetworkResource is used to represent available network
