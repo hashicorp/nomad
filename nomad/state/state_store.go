@@ -85,15 +85,21 @@ func (s *StateStore) StopWatch(items watch.Items, notify chan struct{}) {
 	s.watch.stopWatch(items, notify)
 }
 
-// UpsertJobSummary upserts a job summary into the state store. This is for
-// testing purposes
+// UpsertJobSummary upserts a job summary into the state store.
 func (s *StateStore) UpsertJobSummary(index uint64, jobSummary *structs.JobSummary) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
+	// Update the index
 	if err := txn.Insert("job_summary", *jobSummary); err != nil {
 		return err
 	}
+
+	// Update the indexes table for job summary
+	if err := txn.Insert("index", &IndexEntry{"job_summary", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
 	txn.Commit()
 	return nil
 }
@@ -107,6 +113,9 @@ func (s *StateStore) DeleteJobSummary(index uint64, id string) error {
 	// Delete the job summary
 	if _, err := txn.DeleteAll("job_summary", "id", id); err != nil {
 		return fmt.Errorf("deleting job summary failed: %v", err)
+	}
+	if err := txn.Insert("index", &IndexEntry{"job_summary", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
 	}
 	txn.Commit()
 	return nil
@@ -1164,6 +1173,19 @@ func (s *StateStore) Index(name string) (uint64, error) {
 	return out.(*IndexEntry).Value, nil
 }
 
+// RemoveIndex is a helper method to remove an index for testing purposes
+func (s *StateStore) RemoveIndex(name string) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	if _, err := txn.DeleteAll("index", "id", name); err != nil {
+		return err
+	}
+
+	txn.Commit()
+	return nil
+}
+
 // Indexes returns an iterator over all the indexes
 func (s *StateStore) Indexes() (memdb.ResultIterator, error) {
 	txn := s.db.Txn(false)
@@ -1174,6 +1196,80 @@ func (s *StateStore) Indexes() (memdb.ResultIterator, error) {
 		return nil, err
 	}
 	return iter, nil
+}
+
+// ReconcileJobSummaries re-creates summaries for all jobs present in the state
+// store
+func (s *StateStore) ReconcileJobSummaries(index uint64) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	// Get all the jobs
+	iter, err := txn.Get("jobs", "id")
+	if err != nil {
+		return err
+	}
+	for {
+		rawJob := iter.Next()
+		if rawJob == nil {
+			break
+		}
+		job := rawJob.(*structs.Job)
+
+		// Create a job summary for the job
+		summary := structs.JobSummary{
+			JobID:   job.ID,
+			Summary: make(map[string]structs.TaskGroupSummary),
+		}
+		for _, tg := range job.TaskGroups {
+			summary.Summary[tg.Name] = structs.TaskGroupSummary{}
+		}
+
+		// Find all the allocations for the jobs
+		iterAllocs, err := txn.Get("allocs", "job", job.ID)
+		if err != nil {
+			return err
+		}
+
+		// Calculate the summary for the job
+		for {
+			rawAlloc := iterAllocs.Next()
+			if rawAlloc == nil {
+				break
+			}
+			alloc := rawAlloc.(*structs.Allocation)
+			tg := summary.Summary[alloc.TaskGroup]
+			switch alloc.ClientStatus {
+			case structs.AllocClientStatusFailed:
+				tg.Failed += 1
+			case structs.AllocClientStatusLost:
+				tg.Lost += 1
+			case structs.AllocClientStatusComplete:
+				tg.Complete += 1
+			case structs.AllocClientStatusRunning:
+				tg.Running += 1
+			case structs.AllocClientStatusPending:
+				tg.Starting += 1
+			default:
+				s.logger.Printf("[ERR] state_store: invalid client status: %v in allocation %q", alloc.ClientStatus, alloc.ID)
+			}
+			summary.Summary[alloc.TaskGroup] = tg
+		}
+
+		// Insert the job summary
+		summary.CreateIndex = index
+		summary.ModifyIndex = index
+		if err := txn.Insert("job_summary", summary); err != nil {
+			return fmt.Errorf("error inserting job summary: %v", err)
+		}
+	}
+
+	// Update the indexes table for job summary
+	if err := txn.Insert("index", &IndexEntry{"job_summary", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+	txn.Commit()
+	return nil
 }
 
 // setJobStatuses is a helper for calling setJobStatus on multiple jobs by ID.
@@ -1352,6 +1448,16 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 		return fmt.Errorf("unable to lookup job summary for job id %q: %v", err)
 	}
 	if summaryRaw == nil {
+		// Check if the job is de-registered
+		rawJob, err := txn.First("jobs", "id", alloc.JobID)
+		if err != nil {
+			return fmt.Errorf("unable to query job: %v", err)
+		}
+
+		// If the job is de-registered then we skip updating it's summary
+		if rawJob == nil {
+			return nil
+		}
 		return fmt.Errorf("job summary for job %q is not present", alloc.JobID)
 	}
 	summary := summaryRaw.(structs.JobSummary)
@@ -1445,10 +1551,9 @@ type StateSnapshot struct {
 // restoring state by only using a single large transaction
 // instead of thousands of sub transactions
 type StateRestore struct {
-	txn         *memdb.Txn
-	watch       *stateWatch
-	items       watch.Items
-	latestIndex uint64
+	txn   *memdb.Txn
+	watch *stateWatch
+	items watch.Items
 }
 
 // Abort is used to abort the restore operation
@@ -1510,10 +1615,6 @@ func (r *StateRestore) IndexRestore(idx *IndexEntry) error {
 	if err := r.txn.Insert("index", idx); err != nil {
 		return fmt.Errorf("index insert failed: %v", err)
 	}
-
-	if idx.Value > r.latestIndex {
-		r.latestIndex = idx.Value
-	}
 	return nil
 }
 
@@ -1532,89 +1633,6 @@ func (r *StateRestore) JobSummaryRestore(jobSummary *structs.JobSummary) error {
 	if err := r.txn.Insert("job_summary", *jobSummary); err != nil {
 		return fmt.Errorf("job summary insert failed: %v", err)
 	}
-	return nil
-}
-
-// JobsWithoutSummary returns the list of jobs which don't have any summary
-func (r *StateRestore) JobsWithoutSummary() ([]*structs.Job, error) {
-	// Get all the jobs
-	var jobs []*structs.Job
-	iter, err := r.txn.Get("jobs", "id")
-	if err != nil {
-		return nil, fmt.Errorf("couldn't retrieve jobs: %v", err)
-	}
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-
-		// Filter the jobs which have summaries
-		job := raw.(*structs.Job)
-		jobSummary, err := r.txn.First("job_summary", "id", job.ID)
-		if err != nil {
-			return nil, fmt.Errorf("unable to get job summary: %v", err)
-		}
-		if jobSummary != nil {
-			continue
-		}
-
-		jobs = append(jobs, job)
-	}
-	return jobs, nil
-}
-
-// CreateJobSummaries computes the job summaries for all the jobs
-func (r *StateRestore) CreateJobSummaries(jobs []*structs.Job) error {
-	for _, job := range jobs {
-		// Get all the allocations for the job
-		iter, err := r.txn.Get("allocs", "job", job.ID)
-		if err != nil {
-			return fmt.Errorf("couldn't retrieve allocations for job %v: %v", job.ID, err)
-		}
-		var allocs []*structs.Allocation
-		for {
-			raw := iter.Next()
-			if raw == nil {
-				break
-			}
-			allocs = append(allocs, raw.(*structs.Allocation))
-		}
-
-		// Create a job summary for the job
-		summary := structs.JobSummary{
-			JobID:   job.ID,
-			Summary: make(map[string]structs.TaskGroupSummary),
-		}
-		for _, tg := range job.TaskGroups {
-			summary.Summary[tg.Name] = structs.TaskGroupSummary{}
-		}
-		// Calculate the summary for the job
-		for _, alloc := range allocs {
-			tg := summary.Summary[alloc.TaskGroup]
-			switch alloc.ClientStatus {
-			case structs.AllocClientStatusFailed:
-				tg.Failed += 1
-			case structs.AllocClientStatusLost:
-				tg.Lost += 1
-			case structs.AllocClientStatusComplete:
-				tg.Complete += 1
-			case structs.AllocClientStatusRunning:
-				tg.Running += 1
-			case structs.AllocClientStatusPending:
-				tg.Starting += 1
-			}
-			summary.Summary[alloc.TaskGroup] = tg
-		}
-
-		// Insert the job summary
-		summary.CreateIndex = r.latestIndex
-		summary.ModifyIndex = r.latestIndex
-		if err := r.txn.Insert("job_summary", summary); err != nil {
-			return fmt.Errorf("error inserting job summary: %v", err)
-		}
-	}
-
 	return nil
 }
 

@@ -135,6 +135,8 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyAllocUpdate(buf[1:], log.Index)
 	case structs.AllocClientUpdateRequestType:
 		return n.applyAllocClientUpdate(buf[1:], log.Index)
+	case structs.ReconcileJobSummariesRequestType:
+		return n.applyReconcileSummaries(buf[1:], log.Index)
 	default:
 		if ignoreUnknown {
 			n.logger.Printf("[WARN] nomad.fsm: ignoring unknown message type (%d), upgrade to newer version", msgType)
@@ -444,6 +446,14 @@ func (n *nomadFSM) applyAllocClientUpdate(buf []byte, index uint64) interface{} 
 	return nil
 }
 
+// applyReconcileSummaries reconciles summaries for all the jobs
+func (n *nomadFSM) applyReconcileSummaries(buf []byte, index uint64) interface{} {
+	if err := n.state.ReconcileJobSummaries(index); err != nil {
+		return err
+	}
+	return n.reconcileQueuedAllocations(index)
+}
+
 func (n *nomadFSM) Snapshot() (raft.FSMSnapshot, error) {
 	// Create a new snapshot
 	snap, err := n.state.Snapshot()
@@ -578,39 +588,60 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 		}
 	}
 
-	// Create Job Summaries
-	// The entire snapshot has to be restored first before we create the missing
-	// job summaries so that the indexes are updated and we know the highest
-	// index
-	// COMPAT 0.4 -> 0.4.1
-	jobs, err := restore.JobsWithoutSummary()
-	if err != nil {
-		fmt.Errorf("error retreiving jobs during restore: %v", err)
-	}
-	if err := restore.CreateJobSummaries(jobs); err != nil {
-		return fmt.Errorf("error creating job summaries: %v", err)
-	}
-
 	restore.Commit()
 
-	// Reconciling the queued allocations
-	return n.reconcileSummaries(jobs)
+	// Create Job Summaries
+	// COMPAT 0.4 -> 0.4.1
+	// We can remove this in 0.5. This exists so that the server creates job
+	// summaries if they were not present previously. When users upgrade to 0.5
+	// from 0.4.1, the snapshot will contain job summaries so it will be safe to
+	// remove this block.
+	index, err := n.state.Index("job_summary")
+	if err != nil {
+		return fmt.Errorf("couldn't fetch index of job summary table: %v", err)
+	}
+
+	// If the index is 0 that means there is no job summary in the snapshot so
+	// we will have to create them
+	if index == 0 {
+		// query the latest index
+		latestIndex, err := n.state.LatestIndex()
+		if err != nil {
+			return fmt.Errorf("unable to query latest index: %v", index)
+		}
+		if err := n.state.ReconcileJobSummaries(latestIndex); err != nil {
+			return fmt.Errorf("error reconciling summaries: %v", err)
+		}
+		if err := n.reconcileQueuedAllocations(latestIndex); err != nil {
+			return fmt.Errorf("error re-computing the number of queued allocations:; %v", err)
+		}
+	}
+
+	return nil
 }
 
 // reconcileSummaries re-calculates the queued allocations for every job that we
 // created a Job Summary during the snap shot restore
-func (n *nomadFSM) reconcileSummaries(jobs []*structs.Job) error {
-	// Start the state restore
-	restore, err := n.state.Restore()
+func (n *nomadFSM) reconcileQueuedAllocations(index uint64) error {
+	// Get all the jobs
+	iter, err := n.state.Jobs()
 	if err != nil {
 		return err
 	}
-	defer restore.Abort()
+
 	snap, err := n.state.Snapshot()
 	if err != nil {
 		return fmt.Errorf("unable to create snapshot: %v", err)
 	}
-	for _, job := range jobs {
+
+	// Invoking the scheduler for every job so that we can populate the number
+	// of queued allocations for every job
+	for {
+		rawJob := iter.Next()
+		if rawJob == nil {
+			break
+		}
+		job := rawJob.(*structs.Job)
 		planner := &scheduler.Harness{
 			State: &snap.StateStore,
 		}
@@ -635,10 +666,32 @@ func (n *nomadFSM) reconcileSummaries(jobs []*structs.Job) error {
 		if err := sched.Process(eval); err != nil {
 			return err
 		}
-		summary, err := snap.JobSummaryByID(job.ID)
+
+		// Get the job summary from the fsm state store
+		summary, err := n.state.JobSummaryByID(job.ID)
 		if err != nil {
 			return err
 		}
+
+		// Add the allocations scheduler has made to queued since these
+		// allocations are never getting placed until the scheduler is invoked
+		// with a real planner
+		if l := len(planner.Plans); l != 1 {
+			return fmt.Errorf("unexpected number of plans during restore %d. Please file an issue including the logs", l)
+		}
+		for _, allocations := range planner.Plans[0].NodeAllocation {
+			for _, allocation := range allocations {
+				tgSummary, ok := summary.Summary[allocation.TaskGroup]
+				if !ok {
+					return fmt.Errorf("task group %q not found while updating queued count", allocation.TaskGroup)
+				}
+				tgSummary.Queued += 1
+				summary.Summary[allocation.TaskGroup] = tgSummary
+			}
+		}
+
+		// Add the queued allocations attached to the evaluation to the queued
+		// counter of the job summary
 		if l := len(planner.Evals); l != 1 {
 			return fmt.Errorf("unexpected number of evals during restore %d. Please file an issue including the logs", l)
 		}
@@ -647,15 +700,14 @@ func (n *nomadFSM) reconcileSummaries(jobs []*structs.Job) error {
 			if !ok {
 				return fmt.Errorf("task group %q not found while updating queued count", tg)
 			}
-			tgSummary.Queued = queued
+			tgSummary.Queued += queued
 			summary.Summary[tg] = tgSummary
 		}
 
-		if err := restore.JobSummaryRestore(summary); err != nil {
+		if err := n.state.UpsertJobSummary(index, summary); err != nil {
 			return err
 		}
 	}
-	restore.Commit()
 	return nil
 }
 
