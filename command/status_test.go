@@ -1,6 +1,8 @@
 package command
 
 import (
+	"reflect"
+	"sort"
 	"strings"
 	"testing"
 
@@ -168,5 +170,14 @@ func TestStatusCommand_Fails(t *testing.T) {
 	}
 	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error querying jobs") {
 		t.Fatalf("expected failed query error, got: %s", out)
+	}
+}
+
+func TestStatusCommand_SortTG(t *testing.T) {
+	summary := []string{"TGD|3|5|6|7", "TGA|3|5|6|7", "TGC|3|5|6|7"}
+	sort.Sort(JobSummaryOutputSort(summary))
+	expected := []string{"TGA|3|5|6|7", "TGC|3|5|6|7", "TGD|3|5|6|7"}
+	if !reflect.DeepEqual(expected, summary) {
+		t.Fatalf("expected: %v, actual: %v", expected, summary)
 	}
 }
