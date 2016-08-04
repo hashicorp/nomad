@@ -2058,17 +2058,61 @@ func TestStateStore_JobSummary(t *testing.T) {
 func TestStateStore_ReconcileJobSummary(t *testing.T) {
 	state := testStateStore(t)
 
+	// Create an alloc
 	alloc := mock.Alloc()
+
+	// Add another task group to the job
+	tg2 := alloc.Job.TaskGroups[0].Copy()
+	tg2.Name = "db"
+	alloc.Job.TaskGroups = append(alloc.Job.TaskGroups, tg2)
 	state.UpsertJob(100, alloc.Job)
 
-	alloc1 := mock.Alloc()
-	alloc1.JobID = alloc.Job.ID
-	alloc1.Job = alloc.Job
-	state.UpsertAllocs(110, []*structs.Allocation{alloc, alloc1})
+	// Create one more alloc for the db task group
+	alloc2 := mock.Alloc()
+	alloc2.TaskGroup = "db"
+	alloc2.JobID = alloc.JobID
+	alloc2.Job = alloc.Job
 
-	alloc2 := alloc1.Copy()
-	alloc2.ClientStatus = structs.AllocClientStatusRunning
-	state.UpdateAllocsFromClient(120, []*structs.Allocation{alloc2})
+	// Upserts the alloc
+	state.UpsertAllocs(110, []*structs.Allocation{alloc, alloc2})
+
+	// Change the state of the first alloc to running
+	alloc3 := alloc.Copy()
+	alloc3.ClientStatus = structs.AllocClientStatusRunning
+	state.UpdateAllocsFromClient(120, []*structs.Allocation{alloc3})
+
+	//Add some more allocs to the second tg
+	alloc4 := mock.Alloc()
+	alloc4.JobID = alloc.JobID
+	alloc4.Job = alloc.Job
+	alloc4.TaskGroup = "db"
+	alloc5 := alloc4.Copy()
+	alloc5.ClientStatus = structs.AllocClientStatusRunning
+
+	alloc6 := mock.Alloc()
+	alloc6.JobID = alloc.JobID
+	alloc6.Job = alloc.Job
+	alloc6.TaskGroup = "db"
+	alloc7 := alloc6.Copy()
+	alloc7.ClientStatus = structs.AllocClientStatusComplete
+
+	alloc8 := mock.Alloc()
+	alloc8.JobID = alloc.JobID
+	alloc8.Job = alloc.Job
+	alloc8.TaskGroup = "db"
+	alloc9 := alloc8.Copy()
+	alloc9.ClientStatus = structs.AllocClientStatusFailed
+
+	alloc10 := mock.Alloc()
+	alloc10.JobID = alloc.JobID
+	alloc10.Job = alloc.Job
+	alloc10.TaskGroup = "db"
+	alloc11 := alloc10.Copy()
+	alloc11.ClientStatus = structs.AllocClientStatusLost
+
+	state.UpsertAllocs(130, []*structs.Allocation{alloc4, alloc6, alloc8, alloc10})
+
+	state.UpdateAllocsFromClient(150, []*structs.Allocation{alloc5, alloc7, alloc9, alloc11})
 
 	// DeleteJobSummary is a helper method and doesn't modify the indexes table
 	state.DeleteJobSummary(130, alloc.Job.ID)
@@ -2080,8 +2124,14 @@ func TestStateStore_ReconcileJobSummary(t *testing.T) {
 		JobID: alloc.Job.ID,
 		Summary: map[string]structs.TaskGroupSummary{
 			"web": structs.TaskGroupSummary{
+				Running: 1,
+			},
+			"db": structs.TaskGroupSummary{
 				Starting: 1,
 				Running:  1,
+				Failed:   1,
+				Complete: 1,
+				Lost:     1,
 			},
 		},
 		CreateIndex: 120,

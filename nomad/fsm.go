@@ -446,7 +446,7 @@ func (n *nomadFSM) applyAllocClientUpdate(buf []byte, index uint64) interface{} 
 	return nil
 }
 
-// applyReconcileSummaries reconciles summaries for all the job
+// applyReconcileSummaries reconciles summaries for all the jobs
 func (n *nomadFSM) applyReconcileSummaries(buf []byte, index uint64) interface{} {
 	if err := n.state.ReconcileJobSummaries(index); err != nil {
 		return err
@@ -592,6 +592,10 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 
 	// Create Job Summaries
 	// COMPAT 0.4 -> 0.4.1
+	// We can remove this in 0.5. This exists so that the server creates job
+	// summaries if they were not present previously. When users upgrade to 0.5
+	// from 0.4.1, the snapshot will contain job summaries so it will be safe to
+	// remove this block.
 	index, err := n.state.Index("job_summary")
 	if err != nil {
 		return fmt.Errorf("couldn't fetch index of job summary table: %v", err)
@@ -624,20 +628,20 @@ func (n *nomadFSM) reconcileQueuedAllocations(index uint64) error {
 	if err != nil {
 		return err
 	}
-	var jobs []*structs.Job
-	for {
-		rawJob := iter.Next()
-		if rawJob == nil {
-			break
-		}
-		jobs = append(jobs, rawJob.(*structs.Job))
-	}
 
 	snap, err := n.state.Snapshot()
 	if err != nil {
 		return fmt.Errorf("unable to create snapshot: %v", err)
 	}
-	for _, job := range jobs {
+
+	// Invoking the scheduler for every job so that we can populate the number
+	// of queued allocations for every job
+	for {
+		rawJob := iter.Next()
+		if rawJob == nil {
+			break
+		}
+		job := rawJob.(*structs.Job)
 		planner := &scheduler.Harness{
 			State: &snap.StateStore,
 		}

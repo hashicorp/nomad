@@ -25,7 +25,7 @@ func TestHTTP_SystemGarbageCollect(t *testing.T) {
 func TestHTTP_ReconcileJobSummaries(t *testing.T) {
 	httpTest(t, nil, func(s *TestServer) {
 		// Make the HTTP request
-		req, err := http.NewRequest("PUT", "/v1/system/reconcilesummaries", nil)
+		req, err := http.NewRequest("PUT", "/v1/system/reconcile/summaries", nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -35,7 +35,6 @@ func TestHTTP_ReconcileJobSummaries(t *testing.T) {
 		if _, err := s.Server.ReconcileJobSummaries(respW, req); err != nil {
 			t.Fatalf("err: %v", err)
 		}
-		t.Fatalf("code %v", respW.Code)
 
 		if respW.Code != 200 {
 			t.Fatalf("expected: %v, actual: %v", 200, respW.Code)

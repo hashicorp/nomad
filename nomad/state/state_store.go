@@ -1209,29 +1209,12 @@ func (s *StateStore) ReconcileJobSummaries(index uint64) error {
 	if err != nil {
 		return err
 	}
-	var jobs []*structs.Job
 	for {
 		rawJob := iter.Next()
 		if rawJob == nil {
 			break
 		}
-		jobs = append(jobs, rawJob.(*structs.Job))
-	}
-	for _, job := range jobs {
-
-		// Find all the allocations for the jobs
-		var allocs []*structs.Allocation
-		iter, err = txn.Get("allocs", "job", job.ID)
-		if err != nil {
-			return err
-		}
-		for {
-			rawAlloc := iter.Next()
-			if rawAlloc == nil {
-				break
-			}
-			allocs = append(allocs, rawAlloc.(*structs.Allocation))
-		}
+		job := rawJob.(*structs.Job)
 
 		// Create a job summary for the job
 		summary := structs.JobSummary{
@@ -1241,8 +1224,20 @@ func (s *StateStore) ReconcileJobSummaries(index uint64) error {
 		for _, tg := range job.TaskGroups {
 			summary.Summary[tg.Name] = structs.TaskGroupSummary{}
 		}
+
+		// Find all the allocations for the jobs
+		iterAllocs, err := txn.Get("allocs", "job", job.ID)
+		if err != nil {
+			return err
+		}
+
 		// Calculate the summary for the job
-		for _, alloc := range allocs {
+		for {
+			rawAlloc := iterAllocs.Next()
+			if rawAlloc == nil {
+				break
+			}
+			alloc := rawAlloc.(*structs.Allocation)
 			tg := summary.Summary[alloc.TaskGroup]
 			switch alloc.ClientStatus {
 			case structs.AllocClientStatusFailed:
