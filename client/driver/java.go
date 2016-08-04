@@ -203,11 +203,12 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		return nil, err
 	}
 	executorCtx := &executor.ExecutorContext{
-		TaskEnv:  d.taskEnv,
-		Driver:   "java",
-		AllocDir: ctx.AllocDir,
-		AllocID:  ctx.AllocID,
-		Task:     task,
+		TaskEnv:   d.taskEnv,
+		Driver:    "java",
+		AllocDir:  ctx.AllocDir,
+		AllocID:   ctx.AllocID,
+		ChrootEnv: d.config.ChrootEnv,
+		Task:      task,
 	}
 
 	absPath, err := GetAbsolutePath("java")
@@ -219,7 +220,6 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		Cmd:            absPath,
 		Args:           args,
 		FSIsolation:    true,
-		ChrootEnv:      d.config.ChrootEnv,
 		ResourceLimits: true,
 		User:           getExecutorUser(task),
 	}, executorCtx)

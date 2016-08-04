@@ -33,6 +33,10 @@ client {
 		foo = "bar"
 		baz = "zip"
 	}
+	chroot_env {
+		"/opt/myapp/etc" = "/etc"
+		"/opt/myapp/bin" = "/bin"
+	}
 	network_interface = "eth0"
 	network_speed = 100
 	reserved {

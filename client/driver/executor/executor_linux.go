@@ -228,8 +228,8 @@ func (e *UniversalExecutor) configureChroot() error {
 	}
 
 	chroot := chrootEnv
-	if e.command.ChrootEnv != nil && len(e.command.ChrootEnv) > 0 {
-		chroot = e.command.ChrootEnv
+	if len(e.ctx.ChrootEnv) > 0 {
+		chroot = e.ctx.ChrootEnv
 	}
 
 	if err := allocDir.Embed(e.ctx.Task.Name, chroot); err != nil {
