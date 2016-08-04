@@ -136,114 +136,6 @@ func TestStateStore_UpdateNodeStatus_Node(t *testing.T) {
 		t.Fatalf("bad: %d", index)
 	}
 
-	alloc := mock.Alloc()
-	alloc1 := mock.Alloc()
-	alloc2 := mock.Alloc()
-	alloc.NodeID = node.ID
-	alloc1.NodeID = node.ID
-	alloc2.NodeID = node.ID
-	alloc.ClientStatus = structs.AllocClientStatusPending
-	alloc1.ClientStatus = structs.AllocClientStatusPending
-	alloc2.ClientStatus = structs.AllocClientStatusPending
-
-	if err := state.UpsertJob(850, alloc.Job); err != nil {
-		t.Fatal(err)
-	}
-	if err := state.UpsertJob(851, alloc1.Job); err != nil {
-		t.Fatal(err)
-	}
-	if err := state.UpsertJob(852, alloc2.Job); err != nil {
-		t.Fatal(err)
-	}
-	if err = state.UpsertAllocs(1002, []*structs.Allocation{alloc, alloc1, alloc2}); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Change the state of the allocs to running and failed
-	newAlloc := alloc.Copy()
-	newAlloc.ClientStatus = structs.AllocClientStatusRunning
-
-	newAlloc1 := alloc1.Copy()
-	newAlloc1.ClientStatus = structs.AllocClientStatusFailed
-
-	if err = state.UpdateAllocsFromClient(1003, []*structs.Allocation{newAlloc, newAlloc1}); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Change the state of the node to down
-	if err = state.UpdateNodeStatus(1004, node.ID, structs.NodeStatusDown); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	allocOut, err := state.AllocByID(alloc.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if allocOut.ClientStatus != structs.AllocClientStatusLost {
-		t.Fatalf("expected alloc status: %v, actual: %v", structs.AllocClientStatusLost, allocOut.ClientStatus)
-	}
-
-	alloc1Out, err := state.AllocByID(alloc1.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if alloc1Out.ClientStatus != structs.AllocClientStatusFailed {
-		t.Fatalf("expected alloc status: %v, actual: %v", structs.AllocClientStatusFailed, alloc1Out.ClientStatus)
-	}
-
-	alloc2Out, err := state.AllocByID(alloc2.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if alloc2Out.ClientStatus != structs.AllocClientStatusLost {
-		t.Fatalf("expected alloc status: %v, actual: %v", structs.AllocClientStatusLost, alloc2Out.ClientStatus)
-	}
-
-	js1, _ := state.JobSummaryByID(alloc.JobID)
-	js2, _ := state.JobSummaryByID(alloc1.JobID)
-	js3, _ := state.JobSummaryByID(alloc2.JobID)
-
-	expectedSummary1 := structs.JobSummary{
-		JobID: alloc.JobID,
-		Summary: map[string]structs.TaskGroupSummary{
-			"web": structs.TaskGroupSummary{
-				Lost: 1,
-			},
-		},
-		CreateIndex: 850,
-		ModifyIndex: 1004,
-	}
-	expectedSummary2 := structs.JobSummary{
-		JobID: alloc1.JobID,
-		Summary: map[string]structs.TaskGroupSummary{
-			"web": structs.TaskGroupSummary{
-				Failed: 1,
-			},
-		},
-		CreateIndex: 851,
-		ModifyIndex: 1003,
-	}
-	expectedSummary3 := structs.JobSummary{
-		JobID: alloc2.JobID,
-		Summary: map[string]structs.TaskGroupSummary{
-			"web": structs.TaskGroupSummary{
-				Lost: 1,
-			},
-		},
-		CreateIndex: 852,
-		ModifyIndex: 1004,
-	}
-
-	if !reflect.DeepEqual(js1, &expectedSummary1) {
-		t.Fatalf("expected: %v, got: %v", expectedSummary1, js1)
-	}
-	if !reflect.DeepEqual(js2, &expectedSummary2) {
-		t.Fatalf("expected: %v, got: %#v", expectedSummary2, js2)
-	}
-	if !reflect.DeepEqual(js3, &expectedSummary3) {
-		t.Fatalf("expected: %v, got: %v", expectedSummary3, js3)
-	}
-
 	notify.verify(t)
 }
 
@@ -1896,6 +1788,39 @@ func TestStateStore_UpdateAlloc_Alloc(t *testing.T) {
 	}
 
 	notify.verify(t)
+}
+
+// This test ensures that the state store will mark the clients status as lost
+// when set rather than preferring the existing status.
+func TestStateStore_UpdateAlloc_Lost(t *testing.T) {
+	state := testStateStore(t)
+	alloc := mock.Alloc()
+	alloc.ClientStatus = "foo"
+
+	if err := state.UpsertJob(999, alloc.Job); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	err := state.UpsertAllocs(1000, []*structs.Allocation{alloc})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	alloc2 := new(structs.Allocation)
+	*alloc2 = *alloc
+	alloc2.ClientStatus = structs.AllocClientStatusLost
+	if err := state.UpsertAllocs(1001, []*structs.Allocation{alloc2}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	out, err := state.AllocByID(alloc2.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if out.ClientStatus != structs.AllocClientStatusLost {
+		t.Fatalf("bad: %#v", out)
+	}
 }
 
 // This test ensures an allocation can be updated when there is no job

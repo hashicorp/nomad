@@ -35,12 +35,12 @@ func materializeTaskGroups(job *structs.Job) map[string]*structs.TaskGroup {
 
 // diffResult is used to return the sets that result from the diff
 type diffResult struct {
-	place, update, migrate, stop, ignore []allocTuple
+	place, update, migrate, stop, ignore, lost []allocTuple
 }
 
 func (d *diffResult) GoString() string {
-	return fmt.Sprintf("allocs: (place %d) (update %d) (migrate %d) (stop %d) (ignore %d)",
-		len(d.place), len(d.update), len(d.migrate), len(d.stop), len(d.ignore))
+	return fmt.Sprintf("allocs: (place %d) (update %d) (migrate %d) (stop %d) (ignore %d) (lost %d)",
+		len(d.place), len(d.update), len(d.migrate), len(d.stop), len(d.ignore), len(d.lost))
 }
 
 func (d *diffResult) Append(other *diffResult) {
@@ -49,15 +49,17 @@ func (d *diffResult) Append(other *diffResult) {
 	d.migrate = append(d.migrate, other.migrate...)
 	d.stop = append(d.stop, other.stop...)
 	d.ignore = append(d.ignore, other.ignore...)
+	d.lost = append(d.lost, other.lost...)
 }
 
 // diffAllocs is used to do a set difference between the target allocations
-// and the existing allocations. This returns 5 sets of results, the list of
+// and the existing allocations. This returns 6 sets of results, the list of
 // named task groups that need to be placed (no existing allocation), the
 // allocations that need to be updated (job definition is newer), allocs that
 // need to be migrated (node is draining), the allocs that need to be evicted
-// (no longer required), and those that should be ignored.
-func diffAllocs(job *structs.Job, taintedNodes map[string]bool,
+// (no longer required), those that should be ignored and those that are lost
+// that need to be replaced (running on a lost node).
+func diffAllocs(job *structs.Job, taintedNodes map[string]*structs.Node,
 	required map[string]*structs.TaskGroup, allocs []*structs.Allocation) *diffResult {
 	result := &diffResult{}
 
@@ -83,20 +85,30 @@ func diffAllocs(job *structs.Job, taintedNodes map[string]bool,
 
 		// If we are on a tainted node, we must migrate if we are a service or
 		// if the batch allocation did not finish
-		if taintedNodes[exist.NodeID] {
+		if node, ok := taintedNodes[exist.NodeID]; ok {
 			// If the job is batch and finished successfully, the fact that the
-			// node is tainted does not mean it should be migrated as the work
-			// was already successfully finished. However for service/system
-			// jobs, tasks should never complete. The check of batch type,
-			// defends against client bugs.
+			// node is tainted does not mean it should be migrated or marked as
+			// lost as the work was already successfully finished. However for
+			// service/system jobs, tasks should never complete. The check of
+			// batch type, defends against client bugs.
 			if exist.Job.Type == structs.JobTypeBatch && exist.RanSuccessfully() {
 				goto IGNORE
 			}
-			result.migrate = append(result.migrate, allocTuple{
-				Name:      name,
-				TaskGroup: tg,
-				Alloc:     exist,
-			})
+
+			if node == nil || node.TerminalStatus() {
+				result.lost = append(result.lost, allocTuple{
+					Name:      name,
+					TaskGroup: tg,
+					Alloc:     exist,
+				})
+			} else {
+				// This is the drain case
+				result.migrate = append(result.migrate, allocTuple{
+					Name:      name,
+					TaskGroup: tg,
+					Alloc:     exist,
+				})
+			}
 			continue
 		}
 
@@ -139,7 +151,7 @@ func diffAllocs(job *structs.Job, taintedNodes map[string]bool,
 
 // diffSystemAllocs is like diffAllocs however, the allocations in the
 // diffResult contain the specific nodeID they should be allocated on.
-func diffSystemAllocs(job *structs.Job, nodes []*structs.Node, taintedNodes map[string]bool,
+func diffSystemAllocs(job *structs.Job, nodes []*structs.Node, taintedNodes map[string]*structs.Node,
 	allocs []*structs.Allocation) *diffResult {
 
 	// Build a mapping of nodes to all their allocs.
@@ -254,8 +266,9 @@ func progressMade(result *structs.PlanResult) bool {
 
 // taintedNodes is used to scan the allocations and then check if the
 // underlying nodes are tainted, and should force a migration of the allocation.
-func taintedNodes(state State, allocs []*structs.Allocation) (map[string]bool, error) {
-	out := make(map[string]bool)
+// All the nodes returned in the map are tainted.
+func taintedNodes(state State, allocs []*structs.Allocation) (map[string]*structs.Node, error) {
+	out := make(map[string]*structs.Node)
 	for _, alloc := range allocs {
 		if _, ok := out[alloc.NodeID]; ok {
 			continue
@@ -268,11 +281,12 @@ func taintedNodes(state State, allocs []*structs.Allocation) (map[string]bool, e
 
 		// If the node does not exist, we should migrate
 		if node == nil {
-			out[alloc.NodeID] = true
+			out[alloc.NodeID] = nil
 			continue
 		}
-
-		out[alloc.NodeID] = structs.ShouldDrainNode(node.Status) || node.Drain
+		if structs.ShouldDrainNode(node.Status) || node.Drain {
+			out[alloc.NodeID] = node
+		}
 	}
 	return out, nil
 }
@@ -426,7 +440,7 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 		// Otherwise we would be trying to fit the tasks current resources and
 		// updated resources. After select is called we can remove the evict.
 		ctx.Plan().AppendUpdate(update.Alloc, structs.AllocDesiredStatusStop,
-			allocInPlace)
+			allocInPlace, "")
 
 		// Attempt to match the task group
 		option, _ := stack.Select(update.TaskGroup)
@@ -479,7 +493,25 @@ func evictAndPlace(ctx Context, diff *diffResult, allocs []allocTuple, desc stri
 	n := len(allocs)
 	for i := 0; i < n && i < *limit; i++ {
 		a := allocs[i]
-		ctx.Plan().AppendUpdate(a.Alloc, structs.AllocDesiredStatusStop, desc)
+		ctx.Plan().AppendUpdate(a.Alloc, structs.AllocDesiredStatusStop, desc, "")
+		diff.place = append(diff.place, a)
+	}
+	if n <= *limit {
+		*limit -= n
+		return false
+	}
+	*limit = 0
+	return true
+}
+
+// markLostAndPlace is used to mark allocations as lost and add them to the
+// placement queue. evictAndPlace modifies both the the diffResult and the
+// limit. It returns true if the limit has been reached.
+func markLostAndPlace(ctx Context, diff *diffResult, allocs []allocTuple, desc string, limit *int) bool {
+	n := len(allocs)
+	for i := 0; i < n && i < *limit; i++ {
+		a := allocs[i]
+		ctx.Plan().AppendUpdate(a.Alloc, structs.AllocDesiredStatusStop, desc, structs.AllocClientStatusLost)
 		diff.place = append(diff.place, a)
 	}
 	if n <= *limit {

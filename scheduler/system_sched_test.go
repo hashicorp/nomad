@@ -689,6 +689,69 @@ func TestSystemSched_JobDeregister(t *testing.T) {
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
 
+func TestSystemSched_NodeDown(t *testing.T) {
+	h := NewHarness(t)
+
+	// Register a down node
+	node := mock.Node()
+	node.Status = structs.NodeStatusDown
+	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+
+	// Generate a fake job allocated on that node.
+	job := mock.SystemJob()
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	alloc := mock.Alloc()
+	alloc.Job = job
+	alloc.JobID = job.ID
+	alloc.NodeID = node.ID
+	alloc.Name = "my-job.web[0]"
+	noErr(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
+
+	// Create a mock evaluation to deal with drain
+	eval := &structs.Evaluation{
+		ID:          structs.GenerateUUID(),
+		Priority:    50,
+		TriggeredBy: structs.EvalTriggerNodeUpdate,
+		JobID:       job.ID,
+		NodeID:      node.ID,
+	}
+
+	// Process the evaluation
+	err := h.Process(NewSystemScheduler, eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure a single plan
+	if len(h.Plans) != 1 {
+		t.Fatalf("bad: %#v", h.Plans)
+	}
+	plan := h.Plans[0]
+
+	// Ensure the plan evicted all allocs
+	if len(plan.NodeUpdate[node.ID]) != 1 {
+		t.Fatalf("bad: %#v", plan)
+	}
+
+	// Ensure the plan updated the allocation.
+	var planned []*structs.Allocation
+	for _, allocList := range plan.NodeUpdate {
+		planned = append(planned, allocList...)
+	}
+	if len(planned) != 1 {
+		t.Fatalf("bad: %#v", plan)
+	}
+
+	// Ensure the allocations is stopped
+	if p := planned[0]; p.DesiredStatus != structs.AllocDesiredStatusStop &&
+		p.ClientStatus != structs.AllocClientStatusLost {
+		t.Fatalf("bad: %#v", planned[0])
+	}
+
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+}
+
 func TestSystemSched_NodeDrain(t *testing.T) {
 	h := NewHarness(t)
 
@@ -744,13 +807,9 @@ func TestSystemSched_NodeDrain(t *testing.T) {
 		t.Fatalf("bad: %#v", plan)
 	}
 
-	// Lookup the allocations by JobID
-	out, err := h.State.AllocsByJob(job.ID)
-	noErr(t, err)
-
 	// Ensure the allocations is stopped
 	if planned[0].DesiredStatus != structs.AllocDesiredStatusStop {
-		t.Fatalf("bad: %#v", out)
+		t.Fatalf("bad: %#v", planned[0])
 	}
 
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)

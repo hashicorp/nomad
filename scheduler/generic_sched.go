@@ -26,6 +26,9 @@ const (
 	// allocUpdating is the status used when a job requires an update
 	allocUpdating = "alloc is being updated due to job update"
 
+	// allocLost is the status used when an allocation is lost
+	allocLost = "alloc is lost since its node is down"
+
 	// allocInPlace is the status used when speculating on an in-place update
 	allocInPlace = "alloc updating in-place"
 
@@ -362,7 +365,7 @@ func (s *GenericScheduler) computeJobAllocs() error {
 
 	// Add all the allocs to stop
 	for _, e := range diff.stop {
-		s.plan.AppendUpdate(e.Alloc, structs.AllocDesiredStatusStop, allocNotNeeded)
+		s.plan.AppendUpdate(e.Alloc, structs.AllocDesiredStatusStop, allocNotNeeded, "")
 	}
 
 	// Attempt to do the upgrades in place
@@ -376,7 +379,7 @@ func (s *GenericScheduler) computeJobAllocs() error {
 	}
 
 	// Check if a rolling upgrade strategy is being used
-	limit := len(diff.update) + len(diff.migrate)
+	limit := len(diff.update) + len(diff.migrate) + len(diff.lost)
 	if s.job != nil && s.job.Update.Rolling() {
 		limit = s.job.Update.MaxParallel
 	}
@@ -386,6 +389,10 @@ func (s *GenericScheduler) computeJobAllocs() error {
 
 	// Treat non in-place updates as an eviction and new placement.
 	s.limitReached = s.limitReached || evictAndPlace(s.ctx, diff, diff.update, allocUpdating, &limit)
+
+	// Lost allocations should be transistioned to desired status stop and client
+	// status lost and a new placement should be made
+	s.limitReached = s.limitReached || markLostAndPlace(s.ctx, diff, diff.lost, allocLost, &limit)
 
 	// Nothing remaining to do if placement is not required
 	if len(diff.place) == 0 {

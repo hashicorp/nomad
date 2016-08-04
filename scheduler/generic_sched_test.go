@@ -1253,6 +1253,15 @@ func TestServiceSched_NodeDown(t *testing.T) {
 		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
 		allocs = append(allocs, alloc)
 	}
+
+	// Cover each terminal case and ensure it doesn't change to lost
+	allocs[7].DesiredStatus = structs.AllocDesiredStatusRun
+	allocs[7].ClientStatus = structs.AllocClientStatusLost
+	allocs[8].DesiredStatus = structs.AllocDesiredStatusRun
+	allocs[8].ClientStatus = structs.AllocClientStatusFailed
+	allocs[9].DesiredStatus = structs.AllocDesiredStatusRun
+	allocs[9].ClientStatus = structs.AllocClientStatusComplete
+
 	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
 
 	// Mark some allocs as running
@@ -1280,13 +1289,19 @@ func TestServiceSched_NodeDown(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	// Test the corretness of the old allocation states
-	for _, alloc := range allocs {
-		out, err := h.State.AllocByID(alloc.ID)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
-		if out.ClientStatus != structs.AllocClientStatusLost || out.DesiredStatus != structs.AllocDesiredStatusStop {
+	// Ensure a single plan
+	if len(h.Plans) != 1 {
+		t.Fatalf("bad: %#v", h.Plans)
+	}
+	plan := h.Plans[0]
+
+	// Test the scheduler marked all non-terminal allocations as lost
+	if len(plan.NodeUpdate[node.ID]) != 7 {
+		t.Fatalf("bad: %#v", plan)
+	}
+
+	for _, out := range plan.NodeUpdate[node.ID] {
+		if out.ClientStatus != structs.AllocClientStatusLost && out.DesiredStatus != structs.AllocDesiredStatusStop {
 			t.Fatalf("bad alloc: %#v", out)
 		}
 	}

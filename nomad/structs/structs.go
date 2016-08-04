@@ -2537,7 +2537,7 @@ func (a *Allocation) TerminalStatus() bool {
 	}
 
 	switch a.ClientStatus {
-	case AllocClientStatusComplete, AllocClientStatusFailed:
+	case AllocClientStatusComplete, AllocClientStatusFailed, AllocClientStatusLost:
 		return true
 	default:
 		return false
@@ -3022,7 +3022,9 @@ type Plan struct {
 	Annotations *PlanAnnotations
 }
 
-func (p *Plan) AppendUpdate(alloc *Allocation, status, desc string) {
+// AppendUpdate marks the allocation for eviction. The clientStatus of the
+// allocation may be optionally set by passing in a non-empty value.
+func (p *Plan) AppendUpdate(alloc *Allocation, desiredStatus, desiredDesc, clientStatus string) {
 	newAlloc := new(Allocation)
 	*newAlloc = *alloc
 
@@ -3038,8 +3040,13 @@ func (p *Plan) AppendUpdate(alloc *Allocation, status, desc string) {
 	// Strip the resources as it can be rebuilt.
 	newAlloc.Resources = nil
 
-	newAlloc.DesiredStatus = status
-	newAlloc.DesiredDescription = desc
+	newAlloc.DesiredStatus = desiredStatus
+	newAlloc.DesiredDescription = desiredDesc
+
+	if clientStatus != "" {
+		newAlloc.ClientStatus = clientStatus
+	}
+
 	node := alloc.NodeID
 	existing := p.NodeUpdate[node]
 	p.NodeUpdate[node] = append(existing, newAlloc)
