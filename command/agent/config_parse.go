@@ -493,6 +493,8 @@ func parseTelemetry(result **Telemetry, list *ast.ObjectList) error {
 		"statsd_address",
 		"disable_hostname",
 		"collection_interval",
+		"publish_allocation_metrics",
+		"publish_node_metrics",
 		"circonus_api_token",
 		"circonus_api_app",
 		"circonus_api_url",
