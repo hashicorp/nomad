@@ -325,3 +325,41 @@ func TestRktDriverUser(t *testing.T) {
 		t.Fatalf("Expecting '%v' in '%v'", msg, err)
 	}
 }
+
+func TestRktTrustPrefix(t *testing.T) {
+	if os.Getenv("NOMAD_TEST_RKT") == "" {
+		t.Skip("skipping rkt tests")
+	}
+	ctestutils.RktCompatible(t)
+	task := &structs.Task{
+		Name: "etcd",
+		Config: map[string]interface{}{
+			"trust_prefix": "example.com/invalid",
+			"image":        "coreos.com/etcd:v2.0.4",
+			"command":      "/etcd",
+			"args":         []string{"--version"},
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
+		Resources: &structs.Resources{
+			MemoryMB: 128,
+			CPU:      100,
+		},
+	}
+	driverCtx, execCtx := testDriverContexts(task)
+	defer execCtx.AllocDir.Destroy()
+
+	d := NewRktDriver(driverCtx)
+
+	handle, err := d.Start(execCtx, task)
+	if err == nil {
+		handle.Kill()
+		t.Fatalf("Should've failed")
+	}
+	msg := "Error running rkt trust"
+	if !strings.Contains(err.Error(), msg) {
+		t.Fatalf("Expecting '%v' in '%v'", msg, err)
+	}
+}
