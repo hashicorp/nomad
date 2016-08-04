@@ -363,3 +363,25 @@ func TestRktTrustPrefix(t *testing.T) {
 		t.Fatalf("Expecting '%v' in '%v'", msg, err)
 	}
 }
+
+func TestRktTaskValidate(t *testing.T) {
+	ctestutils.RktCompatible(t)
+	task := &structs.Task{
+		Name: "etcd",
+		Config: map[string]interface{}{
+			"trust_prefix":       "coreos.com/etcd",
+			"image":              "coreos.com/etcd:v2.0.4",
+			"command":            "/etcd",
+			"args":               []string{"--version"},
+			"dns_servers":        []string{"8.8.8.8", "8.8.4.4"},
+			"dns_search_domains": []string{"example.com", "example.org", "example.net"},
+		},
+	}
+	driverCtx, execCtx := testDriverContexts(task)
+	defer execCtx.AllocDir.Destroy()
+
+	d := NewRktDriver(driverCtx)
+	if err := d.Validate(task.Config); err != nil {
+		t.Fatalf("Validation error in TaskConfig : '%v'", err)
+	}
+}
