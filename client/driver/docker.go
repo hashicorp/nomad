@@ -1015,7 +1015,7 @@ func (h *DockerHandle) run() {
 	}
 
 	// Remove the container
-	if err := h.client.RemoveContainer(docker.RemoveContainerOptions{ID: h.containerID, Force: true}); err != nil {
+	if err := h.client.RemoveContainer(docker.RemoveContainerOptions{ID: h.containerID, RemoveVolumes: true, Force: true}); err != nil {
 		h.logger.Printf("[ERR] driver.docker: error removing container: %v", err)
 	}
 
