@@ -18,6 +18,9 @@ type DataFormatter interface {
 func DataFormat(format, tmpl string) (DataFormatter, error) {
 	switch format {
 	case "json":
+		if len(tmpl) > 0 {
+			return nil, fmt.Errorf("json format does not support template option.")
+		}
 		return &JSONFormat{}, nil
 	case "template":
 		return &TemplateFormat{tmpl}, nil

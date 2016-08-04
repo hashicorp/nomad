@@ -44,11 +44,11 @@ Alloc Status Options:
   -verbose
     Show full information.
 
-  -format
-    Display specified format, "json" or "template".
+  -json
+    Display information with json format.
 
   -t
-    Sets the template with golang templates format.
+    Set golang templates format and display information with it.
 `
 
 	return strings.TrimSpace(helpText)
@@ -59,15 +59,15 @@ func (c *AllocStatusCommand) Synopsis() string {
 }
 
 func (c *AllocStatusCommand) Run(args []string) int {
-	var short, displayStats, verbose bool
-	var format, tmpl string
+	var short, displayStats, verbose, json bool
+	var tmpl string
 
 	flags := c.Meta.FlagSet("alloc-status", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&short, "short", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.BoolVar(&displayStats, "stats", false, "")
-	flags.StringVar(&format, "format", "default", "")
+	flags.BoolVar(&json, "json", false, "")
 	flags.StringVar(&tmpl, "t", "", "")
 
 	if err := flags.Parse(args); err != nil {
@@ -140,7 +140,13 @@ func (c *AllocStatusCommand) Run(args []string) int {
 	}
 
 	// If output format is specified, format and output the data
-	if format != "default" {
+	var format string
+	if json {
+		format = "json"
+	} else if len(tmpl) > 0 {
+		format = "template"
+	}
+	if len(format) > 0 {
 		f, err := DataFormat(format, tmpl)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error getting formatter: %s", err))

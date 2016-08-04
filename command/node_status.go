@@ -30,7 +30,7 @@ type NodeStatusCommand struct {
 	list_allocs bool
 	self        bool
 	stats       bool
-	format      string
+	json        bool
 	tmpl        string
 }
 
@@ -69,11 +69,11 @@ Node Status Options:
   -verbose
     Display full information.
 
-  -format
-    Display specified format, "json" or "template".
+  -json
+    Display information with json format.
 
   -t
-    Sets the template with golang templates format.
+    Set golang templates format and display information with it.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -91,7 +91,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 	flags.BoolVar(&c.list_allocs, "allocs", false, "")
 	flags.BoolVar(&c.self, "self", false, "")
 	flags.BoolVar(&c.stats, "stats", false, "")
-	flags.StringVar(&c.format, "format", "default", "")
+	flags.BoolVar(&c.json, "json", false, "")
 	flags.StringVar(&c.tmpl, "t", "", "")
 
 	if err := flags.Parse(args); err != nil {
@@ -227,8 +227,14 @@ func (c *NodeStatusCommand) Run(args []string) int {
 	}
 
 	// If output format is specified, format and output the data
-	if c.format != "default" {
-		f, err := DataFormat(c.format, c.tmpl)
+	var format string
+	if c.json {
+		format = "json"
+	} else if len(c.tmpl) > 0 {
+		format = "template"
+	}
+	if len(format) > 0 {
+		f, err := DataFormat(format, c.tmpl)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error getting formatter: %s", err))
 			return 1

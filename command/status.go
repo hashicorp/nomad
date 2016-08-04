@@ -46,12 +46,6 @@ Status Options:
 
   -verbose
     Display full information.
-
-  -format
-    Display specified format, "json" or "template".
-
-  -t
-    Sets the template with golang templates format.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -62,15 +56,12 @@ func (c *StatusCommand) Synopsis() string {
 
 func (c *StatusCommand) Run(args []string) int {
 	var short bool
-	var format, tmpl string
 
 	flags := c.Meta.FlagSet("status", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&short, "short", false, "")
 	flags.BoolVar(&c.showEvals, "evals", false, "")
 	flags.BoolVar(&c.verbose, "verbose", false, "")
-	flags.StringVar(&format, "format", "default", "")
-	flags.StringVar(&tmpl, "t", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -152,23 +143,6 @@ func (c *StatusCommand) Run(args []string) int {
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error querying job: %s", err))
 		return 1
-	}
-
-	// If output format is specified, format and output the data
-	if format != "default" {
-		f, err := DataFormat(format, tmpl)
-		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error getting formatter: %s", err))
-			return 1
-		}
-
-		out, err := f.TransformData(job)
-		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error transform the data: %s", err))
-			return 1
-		}
-		c.Ui.Output(out)
-		return 0
 	}
 
 	// Check if it is periodic
