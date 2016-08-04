@@ -219,6 +219,7 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		Cmd:            absPath,
 		Args:           args,
 		FSIsolation:    true,
+		ChrootEnv:      d.config.ChrootEnv,
 		ResourceLimits: true,
 		User:           getExecutorUser(task),
 	}, executorCtx)
