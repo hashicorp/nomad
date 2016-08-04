@@ -174,10 +174,10 @@ func TestStatusCommand_Fails(t *testing.T) {
 }
 
 func TestStatusCommand_SortTG(t *testing.T) {
-	summary := []string{"TGD|3|5|6|7", "TGA|3|5|6|7", "TGC|3|5|6|7"}
-	sort.Sort(JobSummaryOutputSort(summary))
-	expected := []string{"TGA|3|5|6|7", "TGC|3|5|6|7", "TGD|3|5|6|7"}
-	if !reflect.DeepEqual(expected, summary) {
-		t.Fatalf("expected: %v, actual: %v", expected, summary)
+	taskGroups := []string{"D", "A", "C"}
+	sort.Sort(TaskGroupSort(taskGroups))
+	expected := []string{"A", "C", "D"}
+	if !reflect.DeepEqual(expected, taskGroups) {
+		t.Fatalf("expected: %v, actual: %v", expected, taskGroups)
 	}
 }

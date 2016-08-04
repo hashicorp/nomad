@@ -258,16 +258,21 @@ func (c *StatusCommand) outputJobInfo(client *api.Client, job *api.Job) error {
 	if summary != nil {
 		summaries := make([]string, len(summary.Summary)+1)
 		summaries[0] = "Task Group|Queued|Starting|Running|Failed|Complete|Lost"
-		idx := 1
-		for tg, tgs := range summary.Summary {
-			summaries[idx] = fmt.Sprintf("%s|%d|%d|%d|%d|%d|%d",
-				tg, tgs.Queued, tgs.Starting,
+		i := 0
+		taskGroups := make([]string, len(summary.Summary))
+		for taskGroup := range summary.Summary {
+			taskGroups[i] = taskGroup
+			i += 1
+		}
+		sort.Sort(TaskGroupSort(taskGroups))
+		for idx, taskGroup := range taskGroups {
+			tgs := summary.Summary[taskGroup]
+			summaries[idx+1] = fmt.Sprintf("%s|%d|%d|%d|%d|%d|%d",
+				taskGroup, tgs.Queued, tgs.Starting,
 				tgs.Running, tgs.Failed,
 				tgs.Complete, tgs.Lost,
 			)
-			idx += 1
 		}
-		sort.Sort(JobSummaryOutputSort(summaries[1:]))
 		c.Ui.Output(formatList(summaries))
 	}
 
@@ -377,20 +382,18 @@ func convertApiJob(in *api.Job) (*structs.Job, error) {
 	return structJob, nil
 }
 
-// JobSummaryOutputSort implements the sort interface and sorts an array of job
-// summary output
-type JobSummaryOutputSort []string
+// TaskGroupSort implements the sort interface and sorts an array of task group
+// names
+type TaskGroupSort []string
 
-func (j JobSummaryOutputSort) Len() int {
+func (j TaskGroupSort) Len() int {
 	return len(j)
 }
 
-func (j JobSummaryOutputSort) Less(a, b int) bool {
-	taskGroupA := j[a][:strings.Index(j[a], "|")]
-	taskGroupB := j[b][:strings.Index(j[b], "|")]
-	return taskGroupA < taskGroupB
+func (j TaskGroupSort) Less(a, b int) bool {
+	return j[a] < j[b]
 }
 
-func (j JobSummaryOutputSort) Swap(a, b int) {
+func (j TaskGroupSort) Swap(a, b int) {
 	j[a], j[b] = j[b], j[a]
 }
