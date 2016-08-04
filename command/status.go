@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/gob"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -257,14 +258,18 @@ func (c *StatusCommand) outputJobInfo(client *api.Client, job *api.Job) error {
 	if summary != nil {
 		summaries := make([]string, len(summary.Summary)+1)
 		summaries[0] = "Task Group|Queued|Starting|Running|Failed|Complete|Lost"
-		idx := 1
-		for tg, tgs := range summary.Summary {
-			summaries[idx] = fmt.Sprintf("%s|%d|%d|%d|%d|%d|%d",
-				tg, tgs.Queued, tgs.Starting,
+		taskGroups := make([]string, 0, len(summary.Summary))
+		for taskGroup := range summary.Summary {
+			taskGroups = append(taskGroups, taskGroup)
+		}
+		sort.Strings(taskGroups)
+		for idx, taskGroup := range taskGroups {
+			tgs := summary.Summary[taskGroup]
+			summaries[idx+1] = fmt.Sprintf("%s|%d|%d|%d|%d|%d|%d",
+				taskGroup, tgs.Queued, tgs.Starting,
 				tgs.Running, tgs.Failed,
 				tgs.Complete, tgs.Lost,
 			)
-			idx += 1
 		}
 		c.Ui.Output(formatList(summaries))
 	}
