@@ -1219,6 +1219,13 @@ func (s *StateStore) ReconcileJobSummaries(index uint64) error {
 				break
 			}
 			alloc := rawAlloc.(*structs.Allocation)
+
+			// Ignore the allocation if it doesn't belong to the currently
+			// registered job
+			if alloc.Job.CreateIndex != job.CreateIndex {
+				continue
+			}
+
 			tg := summary.Summary[alloc.TaskGroup]
 			switch alloc.ClientStatus {
 			case structs.AllocClientStatusFailed:
@@ -1237,9 +1244,12 @@ func (s *StateStore) ReconcileJobSummaries(index uint64) error {
 			summary.Summary[alloc.TaskGroup] = tg
 		}
 
-		// Insert the job summary
-		summary.CreateIndex = index
+		// Set the create index of the summary same as the job's create index
+		// and the modify index to the current index
+		summary.CreateIndex = job.CreateIndex
 		summary.ModifyIndex = index
+
+		// Insert the job summary
 		if err := txn.Insert("job_summary", summary); err != nil {
 			return fmt.Errorf("error inserting job summary: %v", err)
 		}

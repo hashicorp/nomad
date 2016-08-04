@@ -1017,7 +1017,7 @@ func TestFSM_SnapshotRestore_AddMissingSummary(t *testing.T) {
 				Queued: 10,
 			},
 		},
-		CreateIndex: latestIndex,
+		CreateIndex: 1000,
 		ModifyIndex: latestIndex,
 	}
 	if !reflect.DeepEqual(&expected, out1) {
@@ -1036,7 +1036,7 @@ func TestFSM_SnapshotRestore_AddMissingSummary(t *testing.T) {
 				Starting: 1,
 			},
 		},
-		CreateIndex: latestIndex,
+		CreateIndex: 1010,
 		ModifyIndex: latestIndex,
 	}
 	if !reflect.DeepEqual(&expected, out2) {

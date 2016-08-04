@@ -2059,7 +2059,7 @@ func TestStateStore_ReconcileJobSummary(t *testing.T) {
 				Lost:     1,
 			},
 		},
-		CreateIndex: 120,
+		CreateIndex: 100,
 		ModifyIndex: 120,
 	}
 	if !reflect.DeepEqual(&expectedSummary, summary) {
