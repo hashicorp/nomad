@@ -49,8 +49,12 @@ func (p *TemplateFormat) TransformData(data interface{}) (string, error) {
 		return "", fmt.Errorf("template needs to be specified the golang templates.")
 	}
 
-	t := template.Must(template.New("format").Parse(p.tmpl))
-	err := t.Execute(out, data)
+	t, err := template.New("format").Parse(p.tmpl)
+	if err != nil {
+		return "", err
+	}
+
+	err = t.Execute(out, data)
 	if err != nil {
 		return "", err
 	}
