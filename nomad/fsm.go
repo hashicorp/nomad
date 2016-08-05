@@ -612,9 +612,6 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 		if err := n.state.ReconcileJobSummaries(latestIndex); err != nil {
 			return fmt.Errorf("error reconciling summaries: %v", err)
 		}
-		if err := n.reconcileQueuedAllocations(latestIndex); err != nil {
-			return fmt.Errorf("error re-computing the number of queued allocations:; %v", err)
-		}
 	}
 
 	return nil

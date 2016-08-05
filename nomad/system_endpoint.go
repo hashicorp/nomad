@@ -37,8 +37,7 @@ func (s *System) ReconcileJobSummaries(args *structs.GenericRequest, reply *stru
 
 	_, index, err := s.srv.raftApply(structs.ReconcileJobSummariesRequestType, args)
 	if err != nil {
-		s.srv.logger.Printf("[ERR] nomad.client: Reconcile failed: %v", err)
-		return err
+		return fmt.Errorf("reconciliation of job summaries failed: %v", err)
 	}
 	reply.Index = index
 	return nil

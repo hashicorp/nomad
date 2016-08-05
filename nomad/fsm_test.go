@@ -981,6 +981,44 @@ func TestFSM_SnapshotRestore_AddMissingSummary(t *testing.T) {
 	fsm := testFSM(t)
 	state := fsm.State()
 
+	// make an allocation
+	alloc := mock.Alloc()
+	state.UpsertJob(1010, alloc.Job)
+	state.UpsertAllocs(1011, []*structs.Allocation{alloc})
+
+	// Delete the summary
+	state.DeleteJobSummary(1040, alloc.Job.ID)
+
+	// Delete the index
+	if err := state.RemoveIndex("job_summary"); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	fsm2 := testSnapshotRestore(t, fsm)
+	state2 := fsm2.State()
+	latestIndex, _ := state.LatestIndex()
+
+	out, _ := state2.JobSummaryByID(alloc.Job.ID)
+	expected := structs.JobSummary{
+		JobID: alloc.Job.ID,
+		Summary: map[string]structs.TaskGroupSummary{
+			"web": structs.TaskGroupSummary{
+				Starting: 1,
+			},
+		},
+		CreateIndex: 1010,
+		ModifyIndex: latestIndex,
+	}
+	if !reflect.DeepEqual(&expected, out) {
+		t.Fatalf("expected: %#v, actual: %#v", &expected, out)
+	}
+}
+
+func TestFSM_ReconcileSummaries(t *testing.T) {
+	// Add some state
+	fsm := testFSM(t)
+	state := fsm.State()
+
 	// Add a node
 	node := mock.Node()
 	state.UpsertNode(800, node)
@@ -1000,16 +1038,18 @@ func TestFSM_SnapshotRestore_AddMissingSummary(t *testing.T) {
 	state.DeleteJobSummary(1030, job1.ID)
 	state.DeleteJobSummary(1040, alloc.Job.ID)
 
-	// Delete the index
-	if err := state.RemoveIndex("job_summary"); err != nil {
+	req := structs.GenericRequest{}
+	buf, err := structs.Encode(structs.ReconcileJobSummariesRequestType, req)
+	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	fsm2 := testSnapshotRestore(t, fsm)
-	state2 := fsm2.State()
-	latestIndex, _ := state.LatestIndex()
+	resp := fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
 
-	out1, _ := state2.JobSummaryByID(job1.ID)
+	out1, _ := state.JobSummaryByID(job1.ID)
 	expected := structs.JobSummary{
 		JobID: job1.ID,
 		Summary: map[string]structs.TaskGroupSummary{
@@ -1018,7 +1058,7 @@ func TestFSM_SnapshotRestore_AddMissingSummary(t *testing.T) {
 			},
 		},
 		CreateIndex: 1000,
-		ModifyIndex: latestIndex,
+		ModifyIndex: out1.ModifyIndex,
 	}
 	if !reflect.DeepEqual(&expected, out1) {
 		t.Fatalf("expected: %#v, actual: %#v", &expected, out1)
@@ -1027,7 +1067,7 @@ func TestFSM_SnapshotRestore_AddMissingSummary(t *testing.T) {
 	// This exercises the code path which adds the allocations made by the
 	// planner and the number of unplaced allocations in the reconcile summaries
 	// codepath
-	out2, _ := state2.JobSummaryByID(alloc.Job.ID)
+	out2, _ := state.JobSummaryByID(alloc.Job.ID)
 	expected = structs.JobSummary{
 		JobID: alloc.Job.ID,
 		Summary: map[string]structs.TaskGroupSummary{
@@ -1037,7 +1077,7 @@ func TestFSM_SnapshotRestore_AddMissingSummary(t *testing.T) {
 			},
 		},
 		CreateIndex: 1010,
-		ModifyIndex: latestIndex,
+		ModifyIndex: out2.ModifyIndex,
 	}
 	if !reflect.DeepEqual(&expected, out2) {
 		t.Fatalf("expected: %#v, actual: %#v", &expected, out2)
