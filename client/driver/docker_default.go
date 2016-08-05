@@ -5,7 +5,7 @@ package driver
 import docker "github.com/fsouza/go-dockerclient"
 
 const (
-	//Setting default network mode for non-windows OS as bridge
+	// Setting default network mode for non-windows OS as bridge
 	defaultNetworkMode = "bridge"
 )
 

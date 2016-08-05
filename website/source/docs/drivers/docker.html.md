@@ -77,10 +77,11 @@ The following options are available for use in the job specification.
 
 * `network_mode` - (Optional) The network mode to be used for the container. In
   order to support userspace networking plugins in Docker 1.9 this accepts any
-  value. The default is `bridge`. Other networking modes may not work without
-  additional configuration on the host (which is outside the scope of Nomad).
-  Valid values pre-docker 1.9 are `default`, `bridge`, `host`, `none`, or
-  `container:name`. See below for more details.
+  value. The default is `bridge` for all operating systems but Windows, which
+  defaults to `nat`. Other networking modes may not work without additional
+  configuration on the host (which is outside the scope of Nomad).  Valid values
+  pre-docker 1.9 are `default`, `bridge`, `host`, `none`, or `container:name`.
+  See below for more details.
 
 * `hostname` - (Optional) The hostname to assign to the container. When
   launching more than one of a task (using `count`) with this option set, every

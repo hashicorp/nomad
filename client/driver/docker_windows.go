@@ -3,7 +3,7 @@ package driver
 import docker "github.com/fsouza/go-dockerclient"
 
 const (
-	//Default network mode for windows containers is nat
+	// Default network mode for windows containers is nat
 	defaultNetworkMode = "nat"
 )
 
