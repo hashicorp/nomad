@@ -183,6 +183,8 @@ func (idx *NetworkIndex) AssignNetwork(ask *NetworkResource) (out *NetworkResour
 			return
 		}
 
+		used := idx.UsedPorts[ipStr]
+
 		// Check if any of the reserved ports are in use
 		for _, port := range ask.ReservedPorts {
 			// Guard against invalid port
@@ -192,7 +194,6 @@ func (idx *NetworkIndex) AssignNetwork(ask *NetworkResource) (out *NetworkResour
 			}
 
 			// Check if in use
-			used := idx.UsedPorts[ipStr]
 			if used != nil && used.Check(uint(port.Value)) {
 				err = fmt.Errorf("reserved port collision")
 				return
@@ -208,28 +209,40 @@ func (idx *NetworkIndex) AssignNetwork(ask *NetworkResource) (out *NetworkResour
 			DynamicPorts:  ask.DynamicPorts,
 		}
 
-		// Check if we need to generate any ports
-		for i := 0; i < len(ask.DynamicPorts); i++ {
-			attempts := 0
-		PICK:
-			attempts++
-			if attempts > maxRandPortAttempts {
-				err = fmt.Errorf("dynamic port selection failed")
+		// Create a copy of the used ports and apply the new reserves
+		var usedSet Bitmap
+		if used != nil {
+			var lErr error
+			usedSet, lErr = used.Copy()
+			if lErr != nil {
+				err = lErr
 				return
 			}
-
-			randPort := MinDynamicPort + rand.Intn(MaxDynamicPort-MinDynamicPort)
-			used := idx.UsedPorts[ipStr]
-			if used != nil && used.Check(uint(randPort)) {
-				goto PICK
+		} else {
+			var lErr error
+			usedSet, lErr = NewBitmap(maxValidPort)
+			if lErr != nil {
+				err = lErr
+				return
 			}
+		}
 
-			for _, ports := range [][]Port{offer.ReservedPorts, offer.DynamicPorts} {
-				if isPortReserved(ports, randPort) {
-					goto PICK
-				}
-			}
-			offer.DynamicPorts[i].Value = randPort
+		for _, port := range ask.ReservedPorts {
+			usedSet.Set(uint(port.Value))
+		}
+
+		// Get the indexes of the unset
+		availablePorts := usedSet.IndexesFrom(false, MinDynamicPort)
+
+		// Randomize the amount we need
+		numDyn := len(offer.DynamicPorts)
+		for i := 0; i < numDyn; i++ {
+			j := rand.Intn(numDyn)
+			availablePorts[i], availablePorts[j] = availablePorts[j], availablePorts[i]
+		}
+
+		for i := 0; i < numDyn; i++ {
+			offer.DynamicPorts[i].Value = int(availablePorts[i])
 		}
 
 		// Stop, we have an offer!
