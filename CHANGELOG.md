@@ -39,6 +39,7 @@ BUG FIXES:
   * driver/docker: Fix improper gating on priviledged mode [GH-1506]
   * driver/docker: Default network type is "nat" on Windows [GH-1521]
   * driver/docker: Cleanup created volume when destroying container [GH-1519]
+  * driver/rkt: Validate the command and trust_prefix configs [GH-1493]
 
 ## 0.4.0
 

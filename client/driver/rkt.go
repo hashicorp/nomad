@@ -191,9 +191,9 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	var cmdArgs []string
 
 	// Add the given trust prefix
-	trustPrefix, trustCmd := task.Config["trust_prefix"]
+	trustPrefix := driverConfig.TrustPrefix
 	insecure := false
-	if trustCmd {
+	if trustPrefix != "" {
 		var outBuf, errBuf bytes.Buffer
 		cmd := exec.Command("rkt", "trust", "--skip-fingerprint-review=true", fmt.Sprintf("--prefix=%s", trustPrefix))
 		cmd.Stdout = &outBuf
@@ -222,8 +222,8 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	}
 
 	// Check if the user has overridden the exec command.
-	if execCmd, ok := task.Config["command"]; ok {
-		cmdArgs = append(cmdArgs, fmt.Sprintf("--exec=%v", execCmd))
+	if driverConfig.Command != "" {
+		cmdArgs = append(cmdArgs, fmt.Sprintf("--exec=%v", driverConfig.Command))
 	}
 
 	if task.Resources.MemoryMB == 0 {
