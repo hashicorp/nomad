@@ -421,6 +421,9 @@ configured on server nodes.
   * <a id="options">`options`</a>: This is a key/value mapping of internal
     configuration for clients, such as for driver configuration. Please see
     [here](#options_map) for a description of available options.
+  * <a id="chroot_env">`chroot_env`</a>: This is a key/value mapping that
+    defines the chroot environment for jobs using the Exec and Java drivers.
+    Please see [here](#chroot_env_map) for an example and further information.
   * <a id="network_interface">`network_interface`</a>: This is a string to force
     network fingerprinting to use a specific network interface
   * <a id="network_speed">`network_speed`</a>: This is an int that sets the
@@ -495,6 +498,31 @@ documentation [here](/docs/drivers/index.html)
 * `fingerprint.whitelist`: A comma separated list of whitelisted fingerprinters.
   If specified, fingerprinters not in the whitelist will be disabled. If the
   whitelist is empty, all fingerprinters are used.
+
+### <a id="chroot_env_map"></a>Client ChrootEnv Map
+
+Drivers based on [Isolated Fork/Exec](/docs/drivers/exec.html) implement file
+system isolation using chroot on Linux.  The `chroot_env` map allows the chroot
+environment to be configured using source paths on the host operating system.
+The mapping format is: `source_path -> dest_path`.
+
+The following example specifies a chroot which contains just enough to run the
+`ls` utility, and not much else:
+
+```
+chroot_env {
+    "/bin/ls" = "/bin/ls"
+    "/etc/ld.so.cache" = "/etc/ld.so.cache"
+    "/etc/ld.so.conf" = "/etc/ld.so.conf"
+    "/etc/ld.so.conf.d" = "/etc/ld.so.conf.d"
+    "/lib" = "/lib"
+    "/lib64" = "/lib64"
+}
+```
+
+When `chroot_env` is unspecified, the `exec` driver will use a default chroot
+environment with the most commonly used parts of the operating system. See
+`exec` documentation for the full list [here](/docs/drivers/exec.html#chroot).
 
 ## <a id="cli"></a>Command-line Options
 
