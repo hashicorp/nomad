@@ -23,6 +23,7 @@ type StatusCommand struct {
 	length  int
 	evals   bool
 	verbose bool
+	time    bool
 }
 
 func (c *StatusCommand) Help() string {
@@ -45,6 +46,9 @@ Status Options:
   -evals
     Display the evaluations associated with the job.
 
+  -time
+    Display allocation creation time.
+
   -verbose
     Display full information.
 `
@@ -63,6 +67,7 @@ func (c *StatusCommand) Run(args []string) int {
 	flags.BoolVar(&short, "short", false, "")
 	flags.BoolVar(&c.evals, "evals", false, "")
 	flags.BoolVar(&c.verbose, "verbose", false, "")
+	flags.BoolVar(&c.time, "time", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -302,6 +307,9 @@ func (c *StatusCommand) outputJobInfo(client *api.Client, job *api.Job) error {
 	if len(jobAllocs) > 0 {
 		allocs = make([]string, len(jobAllocs)+1)
 		allocs[0] = "ID|Eval ID|Node ID|Task Group|Desired|Status"
+		if c.time {
+			allocs[0] += "|Created"
+		}
 		for i, alloc := range jobAllocs {
 			allocs[i+1] = fmt.Sprintf("%s|%s|%s|%s|%s|%s",
 				limit(alloc.ID, c.length),
@@ -310,6 +318,10 @@ func (c *StatusCommand) outputJobInfo(client *api.Client, job *api.Job) error {
 				alloc.TaskGroup,
 				alloc.DesiredStatus,
 				alloc.ClientStatus)
+			if c.time {
+				allocs[i+1] += fmt.Sprintf("|%s",
+					c.formatUnixNanoTime(alloc.CreateTime))
+			}
 		}
 
 		c.Ui.Output(formatList(allocs))
@@ -346,6 +358,12 @@ func (c *StatusCommand) outputFailedPlacements(failedEval *api.Evaluation) {
 	}
 }
 
+// formatUnixNanoTime is a helper for formatting time for output.
+func (c *StatusCommand) formatUnixNanoTime(nano int64) string {
+	t := time.Unix(0, nano)
+	return formatTime(t)
+}
+
 // convertApiJob is used to take a *api.Job and convert it to an *struct.Job.
 // This function is just a hammer and probably needs to be revisited.
 func convertApiJob(in *api.Job) (*structs.Job, error) {
@@ -363,7 +381,7 @@ func convertApiJob(in *api.Job) (*structs.Job, error) {
 }
 
 // list general information about a list of jobs
-func createStatusListOutput(jobs []*structs.JobListStub) ([]string) {
+func createStatusListOutput(jobs []*api.JobListStub) string {
 	out := make([]string, len(jobs)+1)
 	out[0] = "ID|Type|Priority|Status"
 	for i, job := range jobs {
