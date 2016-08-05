@@ -451,8 +451,8 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task,
 	hostConfig.NetworkMode = driverConfig.NetworkMode
 	if hostConfig.NetworkMode == "" {
 		// docker default
-		d.logger.Println("[DEBUG] driver.docker: networking mode not specified; defaulting to bridge")
-		hostConfig.NetworkMode = "bridge"
+		d.logger.Printf("[DEBUG] driver.docker: networking mode not specified; defaulting to %s", defaultNetworkMode)
+		hostConfig.NetworkMode = defaultNetworkMode
 	}
 
 	// Setup port mapping and exposed ports
