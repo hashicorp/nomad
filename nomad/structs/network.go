@@ -2,7 +2,6 @@ package structs
 
 import (
 	"fmt"
-	"math/rand"
 	"net"
 	"sync"
 )
@@ -183,6 +182,8 @@ func (idx *NetworkIndex) AssignNetwork(ask *NetworkResource) (out *NetworkResour
 			return
 		}
 
+		used := idx.UsedPorts[ipStr]
+
 		// Check if any of the reserved ports are in use
 		for _, port := range ask.ReservedPorts {
 			// Guard against invalid port
@@ -192,7 +193,6 @@ func (idx *NetworkIndex) AssignNetwork(ask *NetworkResource) (out *NetworkResour
 			}
 
 			// Check if in use
-			used := idx.UsedPorts[ipStr]
 			if used != nil && used.Check(uint(port.Value)) {
 				err = fmt.Errorf("reserved port collision")
 				return
@@ -208,28 +208,19 @@ func (idx *NetworkIndex) AssignNetwork(ask *NetworkResource) (out *NetworkResour
 			DynamicPorts:  ask.DynamicPorts,
 		}
 
-		// Check if we need to generate any ports
-		for i := 0; i < len(ask.DynamicPorts); i++ {
-			attempts := 0
-		PICK:
-			attempts++
-			if attempts > maxRandPortAttempts {
-				err = fmt.Errorf("dynamic port selection failed")
-				return
-			}
+		portRange := PortsFromRange(MinDynamicPort, MaxDynamicPort)
+		usedPorts := PortsFromBitmap(used, 0, maxValidPort-1)
+		availablePorts := portRange.Difference(usedPorts)
+		availablePorts = availablePorts.Difference(ask.ReservedPorts)
+		availablePorts = availablePorts.ShufflePorts()
 
-			randPort := MinDynamicPort + rand.Intn(MaxDynamicPort-MinDynamicPort)
-			used := idx.UsedPorts[ipStr]
-			if used != nil && used.Check(uint(randPort)) {
-				goto PICK
-			}
+		if len(availablePorts) < len(offer.DynamicPorts) {
+			err = fmt.Errorf("dynamic port selection failed - insufficient available ports")
+			return
+		}
 
-			for _, ports := range [][]Port{offer.ReservedPorts, offer.DynamicPorts} {
-				if isPortReserved(ports, randPort) {
-					goto PICK
-				}
-			}
-			offer.DynamicPorts[i].Value = randPort
+		for i := 0; i < len(offer.DynamicPorts); i++ {
+			offer.DynamicPorts[i].Value = availablePorts[i].Value
 		}
 
 		// Stop, we have an offer!
@@ -240,7 +231,6 @@ func (idx *NetworkIndex) AssignNetwork(ask *NetworkResource) (out *NetworkResour
 	return
 }
 
-// IntContains scans an integer slice for a value
 func isPortReserved(haystack []Port, needle int) bool {
 	for _, item := range haystack {
 		if item.Value == needle {

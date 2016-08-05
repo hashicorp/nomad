@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/rand"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -864,6 +865,78 @@ type Port struct {
 	Value int `mapstructure:"static"`
 }
 
+// implement sort interface for Ports
+type Ports []Port
+
+func (slice Ports) Len() int {
+	return len(slice)
+}
+
+func (slice Ports) Less(i, j int) bool {
+	return slice[i].Value < slice[j].Value
+}
+
+func (slice Ports) Swap(i, j int) {
+	slice[i], slice[j] = slice[j], slice[i]
+}
+
+func (slice Ports) ShufflePorts() Ports {
+	dest := make(Ports, len(slice))
+	perm := rand.Perm(len(slice))
+	for i, v := range perm {
+		dest[v] = slice[i]
+	}
+	return dest
+}
+
+func (minuend Ports) Difference(subtrahend Ports) Ports {
+	makeSet := func(ports Ports) map[int]Port {
+		portMap := make(map[int]Port, len(ports))
+		for _, port := range ports {
+			portMap[port.Value] = port
+		}
+
+		return portMap
+	}
+
+	var results Ports
+
+	minuendSet := makeSet(minuend)
+	subtrahendSet := makeSet(subtrahend)
+
+	for value, port := range minuendSet {
+		if _, ok := subtrahendSet[value]; !ok {
+			results = append(results, port)
+		}
+	}
+
+	return results
+}
+
+func PortsFromRange(i, j int) Ports {
+	dest := make(Ports, j-i)
+	for k := 0; k < j-i; k++ {
+		dest[k] = Port{Label: string(i + k), Value: i + k}
+	}
+	return dest
+}
+
+func PortsFromBitmap(portmap Bitmap, i, j int) Ports {
+	var results Ports
+
+	for k := i; k <= j; k++ {
+		if portmap.Check(uint(k)) {
+			newPort := Port{
+				Label: string(k),
+				Value: k,
+			}
+			results = append(results, newPort)
+		}
+	}
+
+	return results
+}
+
 // NetworkResource is used to represent available network
 // resources
 type NetworkResource struct {
@@ -871,8 +944,8 @@ type NetworkResource struct {
 	CIDR          string // CIDR block of addresses
 	IP            string // IP address
 	MBits         int    // Throughput
-	ReservedPorts []Port // Reserved ports
-	DynamicPorts  []Port // Dynamically assigned ports
+	ReservedPorts Ports  // Reserved ports
+	DynamicPorts  Ports  // Dynamically assigned ports
 }
 
 func (n *NetworkResource) Canonicalize() {
