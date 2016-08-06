@@ -120,6 +120,17 @@ func (c *NodeStatusCommand) Run(args []string) int {
 
 	// Use list mode if no node name was provided
 	if len(args) == 0 && !c.self {
+		// If output format is specified, format and output the node data list
+		var format string
+		if c.json && len(c.tmpl) > 0 {
+			c.Ui.Error("Both -json and -t are not allowed")
+			return 1
+		} else if c.json {
+			format = "json"
+		} else if len(c.tmpl) > 0 {
+			format = "template"
+		}
+
 		// Query the node info
 		nodes, _, err := client.Nodes().List(nil)
 		if err != nil {
@@ -132,13 +143,6 @@ func (c *NodeStatusCommand) Run(args []string) int {
 			return 0
 		}
 
-		// If output format is specified, format and output the node data list
-		var format string
-		if c.json {
-			format = "json"
-		} else if len(c.tmpl) > 0 {
-			format = "template"
-		}
 		if len(format) > 0 {
 			f, err := DataFormat(format, c.tmpl)
 			if err != nil {
@@ -252,7 +256,10 @@ func (c *NodeStatusCommand) Run(args []string) int {
 
 	// If output format is specified, format and output the data
 	var format string
-	if c.json {
+	if c.json && len(c.tmpl) > 0 {
+		c.Ui.Error("Both -json and -t are not allowed")
+		return 1
+	} else if c.json {
 		format = "json"
 	} else if len(c.tmpl) > 0 {
 		format = "template"

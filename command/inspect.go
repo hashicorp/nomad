@@ -53,7 +53,10 @@ func (c *InspectCommand) Run(args []string) int {
 	// If args not specified but output format is specified, format and output the jobs data list
 	if len(args) == 0 {
 		var format string
-		if ojson {
+		if ojson && len(tmpl) > 0 {
+			c.Ui.Error("Both -json and -t are not allowed")
+			return 1
+		} else if ojson {
 			format = "json"
 		} else if len(tmpl) > 0 {
 			format = "template"

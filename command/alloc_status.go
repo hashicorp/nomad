@@ -87,7 +87,10 @@ func (c *AllocStatusCommand) Run(args []string) int {
 	// If args not specified but output format is specified, format and output the allocations data list
 	if len(args) == 0 {
 		var format string
-		if json {
+		if json && len(tmpl) > 0 {
+			c.Ui.Error("Both -json and -t are not allowed")
+			return 1
+		} else if json {
 			format = "json"
 		} else if len(tmpl) > 0 {
 			format = "template"
@@ -177,7 +180,10 @@ func (c *AllocStatusCommand) Run(args []string) int {
 
 	// If output format is specified, format and output the data
 	var format string
-	if json {
+	if json && len(tmpl) > 0 {
+		c.Ui.Error("Both -json and -t are not allowed")
+		return 1
+	} else if json {
 		format = "json"
 	} else if len(tmpl) > 0 {
 		format = "template"
