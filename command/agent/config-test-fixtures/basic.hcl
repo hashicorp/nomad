@@ -103,3 +103,16 @@ consul {
     client_auto_join = false
     auto_advertise = false
 }
+vault {
+    address = "127.0.0.1:9500"
+    allow_unauthenticated = true
+    ca_cert = "/path/to/ca/file"
+    ca_path = "/path/to/ca"
+    cert_file = "/path/to/cert/file"
+    child_token_ttl = "1s"
+    key_file = "/path/to/key/file"
+    role_name = "roleFoo"
+    role_token = "12345"
+    tls_server_name = "foobar"
+    verify_ssl = true
+}
