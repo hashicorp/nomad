@@ -141,3 +141,19 @@ job "job1" {
 	}
 	ui.ErrorWriter.Reset()
 }
+
+func TestValidateCommand_From_URL(t *testing.T) {
+	ui := new(cli.MockUi)
+	cmd := &RunCommand{
+		Meta: Meta{Ui: ui},
+	}
+
+	args := []string{"https://example.com/foo/bar"}
+	if code := cmd.Run(args); code != 1 {
+		t.Fatalf("expected exit code 1, got %d: %q", code, ui.ErrorWriter.String())
+	}
+
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error reading URL") {
+		t.Fatalf("expected runtime error, got: %s", out)
+	}
+}
