@@ -45,10 +45,10 @@ Alloc Status Options:
     Show full information.
 
   -json
-    Display information with json format.
+    Output the allocation in its JSON format.
 
   -t
-    Set golang templates format and display information with it.
+    Format and display allocation using a Go template.
 `
 
 	return strings.TrimSpace(helpText)
@@ -155,7 +155,7 @@ func (c *AllocStatusCommand) Run(args []string) int {
 
 		out, err := f.TransformData(alloc)
 		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error transform the data: %s", err))
+			c.Ui.Error(fmt.Sprintf("Error formatting the data: %s", err))
 			return 1
 		}
 		c.Ui.Output(out)

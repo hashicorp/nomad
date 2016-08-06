@@ -70,10 +70,10 @@ Node Status Options:
     Display full information.
 
   -json
-    Display information with json format.
+    Output the node in its JSON format.
 
   -t
-    Set golang templates format and display information with it.
+    Format and display node using a Go template.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -242,7 +242,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 
 		out, err := f.TransformData(node)
 		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error transform the data: %s", err))
+			c.Ui.Error(fmt.Sprintf("Error formatting the data: %s", err))
 			return 1
 		}
 		c.Ui.Output(out)
