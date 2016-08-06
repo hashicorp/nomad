@@ -30,20 +30,18 @@ func (c *InspectCommand) Synopsis() string {
 }
 
 func (c *InspectCommand) Run(args []string) int {
+	var ojson bool
+	var tmpl string
+
 	flags := c.Meta.FlagSet("inspect", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
+	flags.BoolVar(&ojson, "json", false, "")
+	flags.StringVar(&tmpl, "t", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
-
-	// Check that we got exactly one job
 	args = flags.Args()
-	if len(args) != 1 {
-		c.Ui.Error(c.Help())
-		return 1
-	}
-	jobID := args[0]
 
 	// Get the HTTP client
 	client, err := c.Meta.Client()
@@ -51,6 +49,47 @@ func (c *InspectCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
 		return 1
 	}
+
+	// If args not specified but output format is specified, format and output the jobs data list
+	if len(args) == 0 {
+		var format string
+		if ojson {
+			format = "json"
+		} else if len(tmpl) > 0 {
+			format = "template"
+		}
+		if len(format) > 0 {
+			jobs, _, err := client.Jobs().List(nil)
+			if err != nil {
+				c.Ui.Error(fmt.Sprintf("Error querying jobs: %v", err))
+				return 1
+			}
+			f, err := DataFormat(format, tmpl)
+			if err != nil {
+				c.Ui.Error(fmt.Sprintf("Error getting formatter: %s", err))
+				return 1
+			}
+			// Return nothing if no jobs found
+			if len(jobs) == 0 {
+				return 0
+			}
+
+			out, err := f.TransformData(jobs)
+			if err != nil {
+				c.Ui.Error(fmt.Sprintf("Error formatting the data: %s", err))
+				return 1
+			}
+			c.Ui.Output(out)
+			return 0
+		}
+	}
+
+	// Check that we got exactly one job
+	if len(args) != 1 {
+		c.Ui.Error(c.Help())
+		return 1
+	}
+	jobID := args[0]
 
 	// Check if the job exists
 	jobs, _, err := client.Jobs().PrefixList(jobID)

@@ -76,11 +76,6 @@ func (c *AllocStatusCommand) Run(args []string) int {
 
 	// Check that we got exactly one allocation ID
 	args = flags.Args()
-	if len(args) != 1 {
-		c.Ui.Error(c.Help())
-		return 1
-	}
-	allocID := args[0]
 
 	// Get the HTTP client
 	client, err := c.Meta.Client()
@@ -88,6 +83,47 @@ func (c *AllocStatusCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
 		return 1
 	}
+
+	// If args not specified but output format is specified, format and output the allocations data list
+	if len(args) == 0 {
+		var format string
+		if json {
+			format = "json"
+		} else if len(tmpl) > 0 {
+			format = "template"
+		}
+		if len(format) > 0 {
+			allocs, _, err := client.Allocations().List(nil)
+			if err != nil {
+				c.Ui.Error(fmt.Sprintf("Error querying allocations: %v", err))
+				return 1
+			}
+			// Return nothing if no allocations found
+			if len(allocs) == 0 {
+				return 0
+			}
+
+			f, err := DataFormat(format, tmpl)
+			if err != nil {
+				c.Ui.Error(fmt.Sprintf("Error getting formatter: %s", err))
+				return 1
+			}
+
+			out, err := f.TransformData(allocs)
+			if err != nil {
+				c.Ui.Error(fmt.Sprintf("Error formatting the data: %s", err))
+				return 1
+			}
+			c.Ui.Output(out)
+			return 0
+		}
+	}
+
+	if len(args) != 1 {
+		c.Ui.Error(c.Help())
+		return 1
+	}
+	allocID := args[0]
 
 	// Truncate the id unless full length is requested
 	length := shortId
