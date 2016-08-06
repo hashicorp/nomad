@@ -3,7 +3,6 @@ package nomad
 import (
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/armon/go-metrics"
@@ -173,10 +172,8 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	// only if the server is 0.4.1 since summaries are not present in 0.4 they
 	// might be incorrect after upgrading to 0.4.1 the summaries might not be
 	// correct
-	if strings.HasPrefix(s.config.Build, "0.4.1") {
-		if err := s.reconcileJobSummaries(); err != nil {
-			return fmt.Errorf("unable to reconcile job summaries: %v", err)
-		}
+	if err := s.reconcileJobSummaries(); err != nil {
+		return fmt.Errorf("unable to reconcile job summaries: %v", err)
 	}
 	return nil
 }
