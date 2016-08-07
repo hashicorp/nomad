@@ -147,19 +147,15 @@ func (r *TaskRunner) RestoreState() error {
 
 	// Restore fields
 	if snap.Task == nil {
-		err := fmt.Errorf("task runner snapshot include nil Task")
-		r.logger.Printf("[ERR] client: %v", err)
-		return err
+		return fmt.Errorf("client: task runner snapshot include nil Task")
 	} else {
 		r.task = snap.Task
 	}
 	r.artifactsDownloaded = snap.ArtifactDownloaded
 
 	if err := r.setTaskEnv(); err != nil {
-		err := fmt.Errorf("failed to create task environment for task %q in allocation %q: %v",
+		return fmt.Errorf("client: failed to create task environment for task %q in allocation %q: %v",
 			r.task.Name, r.alloc.ID, err)
-		r.logger.Printf("[ERR] client: %s", err)
-		return err
 	}
 
 	// Restore the driver
@@ -233,17 +229,14 @@ func (r *TaskRunner) setTaskEnv() error {
 // createDriver makes a driver for the task
 func (r *TaskRunner) createDriver() (driver.Driver, error) {
 	if r.taskEnv == nil {
-		err := fmt.Errorf("task environment not made for task %q in allocation %q", r.task.Name, r.alloc.ID)
-		return nil, err
+		return nil, fmt.Errorf("task environment not made for task %q in allocation %q", r.task.Name, r.alloc.ID)
 	}
 
 	driverCtx := driver.NewDriverContext(r.task.Name, r.config, r.config.Node, r.logger, r.taskEnv)
 	driver, err := driver.NewDriver(r.task.Driver, driverCtx)
 	if err != nil {
-		err = fmt.Errorf("failed to create driver '%s' for alloc %s: %v",
+		return nil, fmt.Errorf("client: failed to create driver '%s' for alloc %s: %v",
 			r.task.Driver, r.alloc.ID, err)
-		r.logger.Printf("[ERR] client: %s", err)
-		return nil, err
 	}
 	return driver, err
 }
@@ -471,17 +464,15 @@ func (r *TaskRunner) startTask() error {
 	// Create a driver
 	driver, err := r.createDriver()
 	if err != nil {
-		r.logger.Printf("[ERR] client: failed to create driver of task '%s' for alloc '%s': %v",
+		return fmt.Errorf("client: failed to create driver of task '%s' for alloc '%s': %v",
 			r.task.Name, r.alloc.ID, err)
-		return err
 	}
 
 	// Start the job
 	handle, err := driver.Start(r.ctx, r.task)
 	if err != nil {
-		r.logger.Printf("[ERR] client: failed to start task '%s' for alloc '%s': %v",
+		return fmt.Errorf("client: failed to start task '%s' for alloc '%s': %v",
 			r.task.Name, r.alloc.ID, err)
-		return err
 	}
 
 	r.handleLock.Lock()

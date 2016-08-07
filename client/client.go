@@ -344,8 +344,7 @@ func (c *Client) RPC(method string, args interface{}, reply interface{}) error {
 	// Make the RPC request
 	if err := c.connPool.RPC(c.Region(), server.Addr, c.RPCMajorVersion(), method, args, reply); err != nil {
 		c.rpcProxy.NotifyFailedServer(server)
-		c.logger.Printf("[ERR] client: RPC failed to server %s: %v", server.Addr, err)
-		return err
+		return fmt.Errorf("client: RPC failed to server %s: %v", server.Addr, err)
 	}
 	return nil
 }
@@ -837,7 +836,7 @@ func (c *Client) registerNode() error {
 	err := c.RPC("Node.Register", &req, &resp)
 	if err != nil {
 		if time.Since(c.start) > registerErrGrace {
-			c.logger.Printf("[ERR] client: failed to register node: %v", err)
+			return fmt.Errorf("client: failed to register node: %v", err)
 		}
 		return err
 	}
@@ -870,8 +869,7 @@ func (c *Client) updateNodeStatus() error {
 	var resp structs.NodeUpdateResponse
 	err := c.RPC("Node.UpdateStatus", &req, &resp)
 	if err != nil {
-		c.logger.Printf("[ERR] client: failed to update status: %v", err)
-		return err
+		return fmt.Errorf("client: failed to update status: %v", err)
 	}
 	if len(resp.EvalIDs) != 0 {
 		c.logger.Printf("[DEBUG] client: %d evaluations triggered by node update", len(resp.EvalIDs))
