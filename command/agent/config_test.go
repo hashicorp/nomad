@@ -139,7 +139,7 @@ func TestConfig_Merge(t *testing.T) {
 				"foo": "bar",
 				"baz": "zip",
 			},
-			ChrootEnv: map[string]string{},
+			ChrootEnv:      map[string]string{},
 			ClientMaxPort:  20000,
 			ClientMinPort:  22000,
 			NetworkSpeed:   105,
