@@ -410,7 +410,7 @@ func getAllocatedResources(client *api.Client, runningAllocs []*api.Allocation, 
 
 	resources := make([]string, 2)
 	resources[0] = "CPU|Memory|Disk|IOPS"
-	resources[1] = fmt.Sprintf("%v/%v|%v/%v|%v/%v|%v/%v",
+	resources[1] = fmt.Sprintf("%v/%v MHz|%v/%v|%v/%v|%v/%v",
 		cpu,
 		total.CPU,
 		humanize.IBytes(uint64(mem*bytesPerMegabyte)),
@@ -461,7 +461,7 @@ func getActualResources(client *api.Client, runningAllocs []*api.Allocation, nod
 
 	resources := make([]string, 2)
 	resources[0] = "CPU|Memory"
-	resources[1] = fmt.Sprintf("%v/%v|%v/%v",
+	resources[1] = fmt.Sprintf("%v/%v MHz|%v/%v",
 		math.Floor(cpu),
 		total.CPU,
 		humanize.IBytes(mem),
@@ -489,7 +489,7 @@ func getHostResources(hostStats *api.HostStats, node *api.Node) ([]string, error
 
 	resources = make([]string, 2)
 	resources[0] = "CPU|Memory|Disk"
-	resources[1] = fmt.Sprintf("%v/%v|%v/%v|%v/%v",
+	resources[1] = fmt.Sprintf("%v/%v MHz|%v/%v|%v/%v",
 		math.Floor(hostStats.CPUTicksConsumed),
 		node.Resources.CPU,
 		humanize.IBytes(hostStats.Memory.Used),
