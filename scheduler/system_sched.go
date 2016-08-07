@@ -200,7 +200,13 @@ func (s *SystemScheduler) computeJobAllocs() error {
 
 	// Add all the allocs to stop
 	for _, e := range diff.stop {
-		s.plan.AppendUpdate(e.Alloc, structs.AllocDesiredStatusStop, allocNotNeeded)
+		s.plan.AppendUpdate(e.Alloc, structs.AllocDesiredStatusStop, allocNotNeeded, "")
+	}
+
+	// Lost allocations should be transistioned to desired status stop and client
+	// status lost.
+	for _, e := range diff.lost {
+		s.plan.AppendUpdate(e.Alloc, structs.AllocDesiredStatusStop, allocLost, structs.AllocClientStatusLost)
 	}
 
 	// Attempt to do the upgrades in place
@@ -224,6 +230,11 @@ func (s *SystemScheduler) computeJobAllocs() error {
 
 	// Nothing remaining to do if placement is not required
 	if len(diff.place) == 0 {
+		if s.job != nil {
+			for _, tg := range s.job.TaskGroups {
+				s.queuedAllocs[tg.Name] = 0
+			}
+		}
 		return nil
 	}
 

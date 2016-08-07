@@ -70,6 +70,8 @@ telemetry {
 	statsd_address = "127.0.0.1:2345"
 	disable_hostname = true
     collection_interval = "3s"
+    publish_allocation_metrics = true
+    publish_node_metrics = true
 }
 leave_on_interrupt = true
 leave_on_terminate = true

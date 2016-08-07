@@ -321,8 +321,8 @@ func (j *Job) AddPeriodicConfig(cfg *PeriodicConfig) *Job {
 // RegisterJobRequest is used to serialize a job registration
 type RegisterJobRequest struct {
 	Job            *Job
-	EnforceIndex   bool
-	JobModifyIndex uint64
+	EnforceIndex   bool   `json:",omitempty"`
+	JobModifyIndex uint64 `json:",omitempty"`
 }
 
 // registerJobResponse is used to deserialize a job response

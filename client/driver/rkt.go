@@ -57,7 +57,9 @@ type RktDriver struct {
 
 type RktDriverConfig struct {
 	ImageName        string   `mapstructure:"image"`
+	Command          string   `mapstructure:"command"`
 	Args             []string `mapstructure:"args"`
+	TrustPrefix      string   `mapstructure:"trust_prefix"`
 	DNSServers       []string `mapstructure:"dns_servers"`        // DNS Server for containers
 	DNSSearchDomains []string `mapstructure:"dns_search_domains"` // DNS Search domains for containers
 }
@@ -99,8 +101,14 @@ func (d *RktDriver) Validate(config map[string]interface{}) error {
 				Type:     fields.TypeString,
 				Required: true,
 			},
+			"command": &fields.FieldSchema{
+				Type: fields.TypeString,
+			},
 			"args": &fields.FieldSchema{
 				Type: fields.TypeArray,
+			},
+			"trust_prefix": &fields.FieldSchema{
+				Type: fields.TypeString,
 			},
 			"dns_servers": &fields.FieldSchema{
 				Type: fields.TypeArray,
@@ -183,9 +191,9 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	var cmdArgs []string
 
 	// Add the given trust prefix
-	trustPrefix, trustCmd := task.Config["trust_prefix"]
+	trustPrefix := driverConfig.TrustPrefix
 	insecure := false
-	if trustCmd {
+	if trustPrefix != "" {
 		var outBuf, errBuf bytes.Buffer
 		cmd := exec.Command("rkt", "trust", "--skip-fingerprint-review=true", fmt.Sprintf("--prefix=%s", trustPrefix))
 		cmd.Stdout = &outBuf
@@ -214,8 +222,8 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	}
 
 	// Check if the user has overridden the exec command.
-	if execCmd, ok := task.Config["command"]; ok {
-		cmdArgs = append(cmdArgs, fmt.Sprintf("--exec=%v", execCmd))
+	if driverConfig.Command != "" {
+		cmdArgs = append(cmdArgs, fmt.Sprintf("--exec=%v", driverConfig.Command))
 	}
 
 	if task.Resources.MemoryMB == 0 {

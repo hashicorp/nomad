@@ -230,12 +230,12 @@ func (l *LogsCommand) Run(args []string) int {
 		}
 	}
 
-	defer r.Close()
 	if readErr != nil {
 		l.Ui.Error(readErr.Error())
 		return 1
 	}
 
+	defer r.Close()
 	io.Copy(os.Stdout, r)
 	return 0
 }
@@ -246,9 +246,8 @@ func (l *LogsCommand) followFile(client *api.Client, alloc *api.Allocation,
 	follow bool, task, logType, origin string, offset int64) (io.ReadCloser, error) {
 
 	cancel := make(chan struct{})
-	frames, _, err := client.AllocFS().Logs(alloc, follow, task, logType, origin, offset, cancel, nil)
+	frames, err := client.AllocFS().Logs(alloc, follow, task, logType, origin, offset, cancel, nil)
 	if err != nil {
-		panic(err.Error())
 		return nil, err
 	}
 	signalCh := make(chan os.Signal, 1)

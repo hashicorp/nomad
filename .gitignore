@@ -42,6 +42,7 @@ ui/static/application.min.js
 ui/dist/
 
 *.swp
+*.iml
 
 website/.bundle
 website/vendor

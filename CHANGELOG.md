@@ -1,27 +1,45 @@
 ## 0.4.1 (UNRELEASED)
 
+__BACKWARDS INCOMPATIBILITIES:__
+  * telemetry: Operators will have to explicitly opt-in for Nomad client to
+    publish allocation and node metrics
+
 IMPROVEMENTS:
   * core: Allow count 0 on system jobs [GH-1421]
   * core: Gracefully handle short lived outages by holding RPC calls [GH-1403]
+  * core: Introduce a lost state for allocations that were on Nodes that died
+    [GH-1516]
   * api: client Logs endpoint for streaming task logs [GH-1444]
   * api/cli: Support for tailing/streaming files [GH-1404, GH-1420]
   * cli: `nomad logs` command for streaming task logs [GH-1444]
+  * cli: `nomad plan` exit code indicates if changes will occur [GH-1502]
   * cli: Validate and plan command supports reading from stdin [GH-1460,
     GH-1458]
   * client: Add killing event to task state [GH-1457]
   * client: Fingerprint network speed on Windows [GH-1443]
+  * driver/docker: Allow working directory to be configured [GH-1513]
   * telemetry: Circonus integration for telemetry metrics [GH-1459]
+  * telemetry: Allow operators to opt-in for publishing metrics [GH-1501]
 
 BUG FIXES:
   * core: Sanitize empty slices/maps in jobs to avoid incorrect create/destroy
     updates [GH-1434]
   * core: Fix race in which a Node registers and doesn't receive system jobs
     [GH-1456]
+  * core: Fix a condition in which old batch allocations could get updated even
+    after terminal. In a rare case this could cause a server panic [GH-1471]
+  * core: Do not update the Job attached to Allocations that have been marked
+    terminal [GH-1508]
   * agent: Fix advertise address when using IPv6 [GH-1465]
   * cli: Fix node-status when using IPv6 advertise address [GH-1465]
   * client: Task start errors adhere to restart policy mode [GH-1405]
   * client: Killing an allocation doesn't cause allocation stats to block
     [GH-1454]
+  * driver/docker: Disable swap on docker driver [GH-1480]
+  * driver/docker: Fix improper gating on priviledged mode [GH-1506]
+  * driver/docker: Default network type is "nat" on Windows [GH-1521]
+  * driver/docker: Cleanup created volume when destroying container [GH-1519]
+  * driver/rkt: Validate the command and trust_prefix configs [GH-1493]
 
 ## 0.4.0
 

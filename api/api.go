@@ -35,6 +35,9 @@ type QueryOptions struct {
 
 	// If set, used as prefix for resource list searches
 	Prefix string
+
+	// Set HTTP parameters on the query.
+	Params map[string]string
 }
 
 // WriteOptions are used to parameterize a write
@@ -161,6 +164,9 @@ func (r *request) setQueryOptions(q *QueryOptions) {
 	}
 	if q.Prefix != "" {
 		r.params.Set("prefix", q.Prefix)
+	}
+	for k, v := range q.Params {
+		r.params.Set(k, v)
 	}
 }
 
@@ -299,6 +305,19 @@ func (c *Client) doRequest(r *request) (time.Duration, *http.Response, error) {
 	}
 
 	return diff, resp, err
+}
+
+// rawQuery makes a GET request to the specified endpoint but returns just the
+// response body.
+func (c *Client) rawQuery(endpoint string, q *QueryOptions) (io.ReadCloser, error) {
+	r := c.newRequest("GET", endpoint)
+	r.setQueryOptions(q)
+	_, resp, err := requireOK(c.doRequest(r))
+	if err != nil {
+		return nil, err
+	}
+
+	return resp.Body, nil
 }
 
 // Query is used to do a GET request against an endpoint

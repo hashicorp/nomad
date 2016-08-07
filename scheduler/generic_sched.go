@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -26,6 +25,9 @@ const (
 
 	// allocUpdating is the status used when a job requires an update
 	allocUpdating = "alloc is being updated due to job update"
+
+	// allocLost is the status used when an allocation is lost
+	allocLost = "alloc is lost since its node is down"
 
 	// allocInPlace is the status used when speculating on an in-place update
 	allocInPlace = "alloc updating in-place"
@@ -309,7 +311,26 @@ func (s *GenericScheduler) filterCompleteAllocs(allocs []*structs.Allocation) []
 			n--
 		}
 	}
-	return allocs[:n]
+
+	// If the job is batch, we want to filter allocations that have been
+	// replaced by a newer version for the same task group.
+	filtered := allocs[:n]
+	if s.batch {
+		byTG := make(map[string]*structs.Allocation)
+		for _, alloc := range filtered {
+			existing := byTG[alloc.Name]
+			if existing == nil || existing.CreateIndex < alloc.CreateIndex {
+				byTG[alloc.Name] = alloc
+			}
+		}
+
+		filtered = make([]*structs.Allocation, 0, len(byTG))
+		for _, alloc := range byTG {
+			filtered = append(filtered, alloc)
+		}
+	}
+
+	return filtered
 }
 
 // computeJobAllocs is used to reconcile differences between the job,
@@ -342,30 +363,9 @@ func (s *GenericScheduler) computeJobAllocs() error {
 	diff := diffAllocs(s.job, tainted, groups, allocs)
 	s.logger.Printf("[DEBUG] sched: %#v: %#v", s.eval, diff)
 
-	// XXX: For debugging purposes only. An issue was observed where a job had a
-	// task group with count > 0 that produced a diff where no action would be
-	// taken (every slice was empty). Below we dump debug information if this
-	// condition is hit.
-	diffSum := len(diff.stop) + len(diff.place) + len(diff.ignore) +
-		len(diff.update) + len(diff.migrate)
-	if diffSum == 0 && len(groups) != 0 {
-		s.logger.Printf("[ERR] sched: %d tasks to schedule but scheduler believes there is no work", len(groups))
-
-		// Get the original set of allocations for the job.
-		jobAllocs, err := s.state.AllocsByJob(s.eval.JobID)
-		if err != nil {
-			return fmt.Errorf("failed to get allocs for job '%s': %v", s.eval.JobID, err)
-		}
-		s.logger.Printf("[DEBUG] sched: job: %s", spew.Sdump(s.job))
-		s.logger.Printf("[DEBUG] sched: materializeTaskGroups() returned: %s", spew.Sdump(groups))
-		s.logger.Printf("[DEBUG] sched: AllocsByJob(%q) returned: %s", s.eval.JobID, spew.Sdump(jobAllocs))
-		s.logger.Printf("[DEBUG] sched: filterCompleteAllocs(): %s", spew.Sdump(allocs))
-		s.logger.Printf("[DEBUG] sched: taintedNodes(): %s", spew.Sdump(tainted))
-	}
-
 	// Add all the allocs to stop
 	for _, e := range diff.stop {
-		s.plan.AppendUpdate(e.Alloc, structs.AllocDesiredStatusStop, allocNotNeeded)
+		s.plan.AppendUpdate(e.Alloc, structs.AllocDesiredStatusStop, allocNotNeeded, "")
 	}
 
 	// Attempt to do the upgrades in place
@@ -379,7 +379,7 @@ func (s *GenericScheduler) computeJobAllocs() error {
 	}
 
 	// Check if a rolling upgrade strategy is being used
-	limit := len(diff.update) + len(diff.migrate)
+	limit := len(diff.update) + len(diff.migrate) + len(diff.lost)
 	if s.job != nil && s.job.Update.Rolling() {
 		limit = s.job.Update.MaxParallel
 	}
@@ -390,8 +390,17 @@ func (s *GenericScheduler) computeJobAllocs() error {
 	// Treat non in-place updates as an eviction and new placement.
 	s.limitReached = s.limitReached || evictAndPlace(s.ctx, diff, diff.update, allocUpdating, &limit)
 
+	// Lost allocations should be transistioned to desired status stop and client
+	// status lost and a new placement should be made
+	s.limitReached = s.limitReached || markLostAndPlace(s.ctx, diff, diff.lost, allocLost, &limit)
+
 	// Nothing remaining to do if placement is not required
 	if len(diff.place) == 0 {
+		if s.job != nil {
+			for _, tg := range s.job.TaskGroups {
+				s.queuedAllocs[tg.Name] = 0
+			}
+		}
 		return nil
 	}
 

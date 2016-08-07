@@ -347,6 +347,21 @@ func TestAnnotateTask(t *testing.T) {
 			Parent:  &structs.TaskGroupDiff{Type: structs.DiffTypeEdited},
 			Desired: AnnotationForcesInplaceUpdate,
 		},
+		{
+			Diff: &structs.TaskDiff{
+				Type: structs.DiffTypeEdited,
+				Fields: []*structs.FieldDiff{
+					{
+						Type: structs.DiffTypeEdited,
+						Name: "KillTimeout",
+						Old:  "200",
+						New:  "2000000",
+					},
+				},
+			},
+			Parent:  &structs.TaskGroupDiff{Type: structs.DiffTypeEdited},
+			Desired: AnnotationForcesInplaceUpdate,
+		},
 		// Task deleted new parent
 		{
 			Diff: &structs.TaskDiff{

@@ -129,6 +129,7 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/status/peers", s.wrap(s.StatusPeersRequest))
 
 	s.mux.HandleFunc("/v1/system/gc", s.wrap(s.GarbageCollectRequest))
+	s.mux.HandleFunc("/v1/system/reconcile/summaries", s.wrap(s.ReconcileJobSummaries))
 
 	if enableDebug {
 		s.mux.HandleFunc("/debug/pprof/", pprof.Index)

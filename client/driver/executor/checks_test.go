@@ -133,5 +133,5 @@ func TestDockerScriptCheck(t *testing.T) {
 // removeContainer kills and removes a container
 func removeContainer(client *docker.Client, containerID string) {
 	client.KillContainer(docker.KillContainerOptions{ID: containerID})
-	client.RemoveContainer(docker.RemoveContainerOptions{ID: containerID, Force: true})
+	client.RemoveContainer(docker.RemoveContainerOptions{ID: containerID, RemoveVolumes: true, Force: true})
 }

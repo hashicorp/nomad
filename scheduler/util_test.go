@@ -47,9 +47,15 @@ func TestDiffAllocs(t *testing.T) {
 	*oldJob = *job
 	oldJob.JobModifyIndex -= 1
 
-	tainted := map[string]bool{
-		"dead": true,
-		"zip":  false,
+	drainNode := mock.Node()
+	drainNode.Drain = true
+
+	deadNode := mock.Node()
+	deadNode.Status = structs.NodeStatusDown
+
+	tainted := map[string]*structs.Node{
+		"dead":      deadNode,
+		"drainNode": drainNode,
 	}
 
 	allocs := []*structs.Allocation{
@@ -80,8 +86,15 @@ func TestDiffAllocs(t *testing.T) {
 		// Migrate the 3rd
 		&structs.Allocation{
 			ID:     structs.GenerateUUID(),
-			NodeID: "dead",
+			NodeID: "drainNode",
 			Name:   "my-job.web[2]",
+			Job:    oldJob,
+		},
+		// Mark the 4th lost
+		&structs.Allocation{
+			ID:     structs.GenerateUUID(),
+			NodeID: "dead",
+			Name:   "my-job.web[3]",
 			Job:    oldJob,
 		},
 	}
@@ -92,6 +105,7 @@ func TestDiffAllocs(t *testing.T) {
 	migrate := diff.migrate
 	stop := diff.stop
 	ignore := diff.ignore
+	lost := diff.lost
 
 	// We should update the first alloc
 	if len(update) != 1 || update[0].Alloc != allocs[0] {
@@ -113,8 +127,13 @@ func TestDiffAllocs(t *testing.T) {
 		t.Fatalf("bad: %#v", migrate)
 	}
 
-	// We should place 7
-	if len(place) != 7 {
+	// We should mark the 5th alloc as lost
+	if len(lost) != 1 || lost[0].Alloc != allocs[4] {
+		t.Fatalf("bad: %#v", migrate)
+	}
+
+	// We should place 6
+	if len(place) != 6 {
 		t.Fatalf("bad: %#v", place)
 	}
 }
@@ -130,9 +149,15 @@ func TestDiffSystemAllocs(t *testing.T) {
 	*oldJob = *job
 	oldJob.JobModifyIndex -= 1
 
-	tainted := map[string]bool{
-		"dead": true,
-		"baz":  false,
+	drainNode := mock.Node()
+	drainNode.Drain = true
+
+	deadNode := mock.Node()
+	deadNode.Status = structs.NodeStatusDown
+
+	tainted := map[string]*structs.Node{
+		"dead":      deadNode,
+		"drainNode": drainNode,
 	}
 
 	allocs := []*structs.Allocation{
@@ -152,7 +177,14 @@ func TestDiffSystemAllocs(t *testing.T) {
 			Job:    job,
 		},
 
-		// Stop allocation on dead.
+		// Stop allocation on draining node.
+		&structs.Allocation{
+			ID:     structs.GenerateUUID(),
+			NodeID: "drainNode",
+			Name:   "my-job.web[0]",
+			Job:    oldJob,
+		},
+		// Mark as lost on a dead node
 		&structs.Allocation{
 			ID:     structs.GenerateUUID(),
 			NodeID: "dead",
@@ -167,6 +199,7 @@ func TestDiffSystemAllocs(t *testing.T) {
 	migrate := diff.migrate
 	stop := diff.stop
 	ignore := diff.ignore
+	lost := diff.lost
 
 	// We should update the first alloc
 	if len(update) != 1 || update[0].Alloc != allocs[0] {
@@ -185,6 +218,11 @@ func TestDiffSystemAllocs(t *testing.T) {
 
 	// There should be no migrates.
 	if len(migrate) != 0 {
+		t.Fatalf("bad: %#v", migrate)
+	}
+
+	// We should mark the 5th alloc as lost
+	if len(lost) != 1 || lost[0].Alloc != allocs[3] {
 		t.Fatalf("bad: %#v", migrate)
 	}
 
@@ -309,13 +347,26 @@ func TestTaintedNodes(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if len(tainted) != 5 {
+	if len(tainted) != 3 {
 		t.Fatalf("bad: %v", tainted)
 	}
-	if tainted[node1.ID] || tainted[node2.ID] {
+
+	if _, ok := tainted[node1.ID]; ok {
 		t.Fatalf("Bad: %v", tainted)
 	}
-	if !tainted[node3.ID] || !tainted[node4.ID] || !tainted["12345678-abcd-efab-cdef-123456789abc"] {
+	if _, ok := tainted[node2.ID]; ok {
+		t.Fatalf("Bad: %v", tainted)
+	}
+
+	if node, ok := tainted[node3.ID]; !ok || node == nil {
+		t.Fatalf("Bad: %v", tainted)
+	}
+
+	if node, ok := tainted[node4.ID]; !ok || node == nil {
+		t.Fatalf("Bad: %v", tainted)
+	}
+
+	if node, ok := tainted["12345678-abcd-efab-cdef-123456789abc"]; !ok || node != nil {
 		t.Fatalf("Bad: %v", tainted)
 	}
 }

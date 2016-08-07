@@ -577,9 +577,12 @@ func TestFSM_UpsertAllocs_SharedJob(t *testing.T) {
 		t.Fatalf("bad: %#v %#v", alloc, out)
 	}
 
+	// Ensure that the original job is used
 	evictAlloc := new(structs.Allocation)
 	*evictAlloc = *alloc
-	job = evictAlloc.Job
+	job = mock.Job()
+	job.Priority = 123
+
 	evictAlloc.Job = nil
 	evictAlloc.DesiredStatus = structs.AllocDesiredStatusEvict
 	req2 := structs.AllocUpdateRequest{
@@ -604,8 +607,8 @@ func TestFSM_UpsertAllocs_SharedJob(t *testing.T) {
 	if out.DesiredStatus != structs.AllocDesiredStatusEvict {
 		t.Fatalf("alloc found!")
 	}
-	if out.Job == nil {
-		t.Fatalf("missing job")
+	if out.Job == nil || out.Job.Priority == 123 {
+		t.Fatalf("bad job")
 	}
 }
 
@@ -978,14 +981,75 @@ func TestFSM_SnapshotRestore_AddMissingSummary(t *testing.T) {
 	fsm := testFSM(t)
 	state := fsm.State()
 
-	job1 := mock.Job()
-	state.UpsertJob(1000, job1)
-	state.DeleteJobSummary(1010, job1.ID)
+	// make an allocation
+	alloc := mock.Alloc()
+	state.UpsertJob(1010, alloc.Job)
+	state.UpsertAllocs(1011, []*structs.Allocation{alloc})
+
+	// Delete the summary
+	state.DeleteJobSummary(1040, alloc.Job.ID)
+
+	// Delete the index
+	if err := state.RemoveIndex("job_summary"); err != nil {
+		t.Fatalf("err: %v", err)
+	}
 
 	fsm2 := testSnapshotRestore(t, fsm)
 	state2 := fsm2.State()
 	latestIndex, _ := state.LatestIndex()
-	out1, _ := state2.JobSummaryByID(job1.ID)
+
+	out, _ := state2.JobSummaryByID(alloc.Job.ID)
+	expected := structs.JobSummary{
+		JobID: alloc.Job.ID,
+		Summary: map[string]structs.TaskGroupSummary{
+			"web": structs.TaskGroupSummary{
+				Starting: 1,
+			},
+		},
+		CreateIndex: 1010,
+		ModifyIndex: latestIndex,
+	}
+	if !reflect.DeepEqual(&expected, out) {
+		t.Fatalf("expected: %#v, actual: %#v", &expected, out)
+	}
+}
+
+func TestFSM_ReconcileSummaries(t *testing.T) {
+	// Add some state
+	fsm := testFSM(t)
+	state := fsm.State()
+
+	// Add a node
+	node := mock.Node()
+	state.UpsertNode(800, node)
+
+	// Make a job so that none of the tasks can be placed
+	job1 := mock.Job()
+	job1.TaskGroups[0].Tasks[0].Resources.CPU = 5000
+	state.UpsertJob(1000, job1)
+
+	// make a job which can make partial progress
+	alloc := mock.Alloc()
+	alloc.NodeID = node.ID
+	state.UpsertJob(1010, alloc.Job)
+	state.UpsertAllocs(1011, []*structs.Allocation{alloc})
+
+	// Delete the summaries
+	state.DeleteJobSummary(1030, job1.ID)
+	state.DeleteJobSummary(1040, alloc.Job.ID)
+
+	req := structs.GenericRequest{}
+	buf, err := structs.Encode(structs.ReconcileJobSummariesRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp := fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	out1, _ := state.JobSummaryByID(job1.ID)
 	expected := structs.JobSummary{
 		JobID: job1.ID,
 		Summary: map[string]structs.TaskGroupSummary{
@@ -993,11 +1057,29 @@ func TestFSM_SnapshotRestore_AddMissingSummary(t *testing.T) {
 				Queued: 10,
 			},
 		},
-		CreateIndex: latestIndex,
-		ModifyIndex: latestIndex,
+		CreateIndex: 1000,
+		ModifyIndex: out1.ModifyIndex,
 	}
-
 	if !reflect.DeepEqual(&expected, out1) {
 		t.Fatalf("expected: %#v, actual: %#v", &expected, out1)
+	}
+
+	// This exercises the code path which adds the allocations made by the
+	// planner and the number of unplaced allocations in the reconcile summaries
+	// codepath
+	out2, _ := state.JobSummaryByID(alloc.Job.ID)
+	expected = structs.JobSummary{
+		JobID: alloc.Job.ID,
+		Summary: map[string]structs.TaskGroupSummary{
+			"web": structs.TaskGroupSummary{
+				Queued:   10,
+				Starting: 1,
+			},
+		},
+		CreateIndex: 1010,
+		ModifyIndex: out2.ModifyIndex,
+	}
+	if !reflect.DeepEqual(&expected, out2) {
+		t.Fatalf("expected: %#v, actual: %#v", &expected, out2)
 	}
 }

@@ -106,12 +106,12 @@ func TestStateStore_UpdateNodeStatus_Node(t *testing.T) {
 		watch.Item{Table: "nodes"},
 		watch.Item{Node: node.ID})
 
-	err := state.UpsertNode(1000, node)
+	err := state.UpsertNode(800, node)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	err = state.UpdateNodeStatus(1001, node.ID, structs.NodeStatusReady)
+	err = state.UpdateNodeStatus(801, node.ID, structs.NodeStatusReady)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -124,7 +124,7 @@ func TestStateStore_UpdateNodeStatus_Node(t *testing.T) {
 	if out.Status != structs.NodeStatusReady {
 		t.Fatalf("bad: %#v", out)
 	}
-	if out.ModifyIndex != 1001 {
+	if out.ModifyIndex != 801 {
 		t.Fatalf("bad: %#v", out)
 	}
 
@@ -132,83 +132,8 @@ func TestStateStore_UpdateNodeStatus_Node(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if index != 1001 {
+	if index != 801 {
 		t.Fatalf("bad: %d", index)
-	}
-
-	alloc := mock.Alloc()
-	alloc1 := mock.Alloc()
-	alloc2 := mock.Alloc()
-	alloc.NodeID = node.ID
-	alloc1.NodeID = node.ID
-	alloc2.NodeID = node.ID
-	alloc.ClientStatus = structs.AllocClientStatusPending
-	alloc1.ClientStatus = structs.AllocClientStatusPending
-	alloc2.ClientStatus = structs.AllocClientStatusPending
-	if err := state.UpsertJobSummary(990, mock.JobSummary(alloc.JobID)); err != nil {
-		t.Fatal(err)
-	}
-	if err := state.UpsertJobSummary(990, mock.JobSummary(alloc1.JobID)); err != nil {
-		t.Fatal(err)
-	}
-	if err := state.UpsertJobSummary(990, mock.JobSummary(alloc2.JobID)); err != nil {
-		t.Fatal(err)
-	}
-	if err = state.UpsertAllocs(1002, []*structs.Allocation{alloc, alloc1, alloc2}); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Change the state of the allocs to running and failed
-	newAlloc := new(structs.Allocation)
-	*newAlloc = *alloc
-	newAlloc.ClientStatus = structs.AllocClientStatusRunning
-	newAlloc1 := new(structs.Allocation)
-	*newAlloc1 = *alloc1
-	newAlloc1.ClientStatus = structs.AllocClientStatusFailed
-	if err = state.UpdateAllocsFromClient(1003, []*structs.Allocation{newAlloc, newAlloc1}); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if err = state.UpdateNodeStatus(1004, node.ID, structs.NodeStatusDown); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	allocOut, err := state.AllocByID(alloc.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if allocOut.ClientStatus != structs.AllocClientStatusLost {
-		t.Fatalf("expected alloc status: %v, actual: %v", structs.AllocClientStatusLost, allocOut.ClientStatus)
-	}
-
-	alloc1Out, err := state.AllocByID(alloc1.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if alloc1Out.ClientStatus != structs.AllocClientStatusFailed {
-		t.Fatalf("expected alloc status: %v, actual: %v", structs.AllocClientStatusFailed, alloc1Out.ClientStatus)
-	}
-
-	alloc2Out, err := state.AllocByID(alloc2.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if alloc2Out.ClientStatus != structs.AllocClientStatusLost {
-		t.Fatalf("expected alloc status: %v, actual: %v", structs.AllocClientStatusLost, alloc2Out.ClientStatus)
-	}
-
-	js1, _ := state.JobSummaryByID(alloc.JobID)
-	js2, _ := state.JobSummaryByID(alloc1.JobID)
-	js3, _ := state.JobSummaryByID(alloc2.JobID)
-
-	if js1.Summary["web"].Lost != 1 {
-		t.Fatalf("expected: %v, got: %v", 1, js1.Summary["web"].Lost)
-	}
-	if js2.Summary["web"].Failed != 1 {
-		t.Fatalf("expected: %v, got: %v", 1, js2.Summary["web"].Failed)
-	}
-	if js3.Summary["web"].Lost != 1 {
-		t.Fatalf("expected: %v, got: %v", 1, js3.Summary["web"].Lost)
 	}
 
 	notify.verify(t)
@@ -1136,86 +1061,6 @@ func TestStateStore_RestoreJobSummary(t *testing.T) {
 	}
 }
 
-func TestStateStore_CreateJobSummaries(t *testing.T) {
-	state := testStateStore(t)
-	restore, err := state.Restore()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	// Restore a job
-	job := mock.Job()
-	if err := restore.JobRestore(job); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Restore an Index
-	index := IndexEntry{
-		Key:   "Foo",
-		Value: 100,
-	}
-
-	if err := restore.IndexRestore(&index); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Restore an allocation
-	alloc := mock.Alloc()
-	alloc.JobID = job.ID
-	alloc.Job = job
-	if err := restore.AllocRestore(alloc); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Create the job summaries
-	if err := restore.CreateJobSummaries([]*structs.Job{job}); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	restore.Commit()
-
-	summary, err := state.JobSummaryByID(job.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	expected := structs.JobSummary{
-		JobID: job.ID,
-		Summary: map[string]structs.TaskGroupSummary{
-			"web": {
-				Starting: 1,
-			},
-		},
-		CreateIndex: 100,
-		ModifyIndex: 100,
-	}
-
-	if !reflect.DeepEqual(summary, &expected) {
-		t.Fatalf("Bad: %#v %#v", summary, expected)
-	}
-}
-
-func TestStateRestore_JobsWithoutSummaries(t *testing.T) {
-	state := testStateStore(t)
-	restore, err := state.Restore()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	// Restore a job
-	job := mock.Job()
-	if err := restore.JobRestore(job); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	jobs, err := restore.JobsWithoutSummary()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if len(jobs) != 1 {
-		t.Fatalf("expected: %v, actual: %v", 1, len(jobs))
-	}
-	if !reflect.DeepEqual(job, jobs[0]) {
-		t.Fatalf("Bad: %#v %#v", job, jobs[0])
-	}
-}
-
 func TestStateStore_Indexes(t *testing.T) {
 	state := testStateStore(t)
 	node := mock.Node()
@@ -1658,8 +1503,6 @@ func TestStateStore_UpdateAllocsFromClient(t *testing.T) {
 		watch.Item{AllocJob: alloc2.JobID},
 		watch.Item{AllocNode: alloc2.NodeID})
 
-	state.UpsertJobSummary(900, mock.JobSummary(alloc.JobID))
-	state.UpsertJobSummary(901, mock.JobSummary(alloc2.JobID))
 	if err := state.UpsertJob(999, alloc.Job); err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1750,6 +1593,72 @@ func TestStateStore_UpdateAllocsFromClient(t *testing.T) {
 	notify.verify(t)
 }
 
+func TestStateStore_UpdateMultipleAllocsFromClient(t *testing.T) {
+	state := testStateStore(t)
+	alloc := mock.Alloc()
+
+	if err := state.UpsertJob(999, alloc.Job); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	err := state.UpsertAllocs(1000, []*structs.Allocation{alloc})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Create the delta updates
+	ts := map[string]*structs.TaskState{"web": &structs.TaskState{State: structs.TaskStatePending}}
+	update := &structs.Allocation{
+		ID:           alloc.ID,
+		ClientStatus: structs.AllocClientStatusRunning,
+		TaskStates:   ts,
+		JobID:        alloc.JobID,
+		TaskGroup:    alloc.TaskGroup,
+	}
+	update2 := &structs.Allocation{
+		ID:           alloc.ID,
+		ClientStatus: structs.AllocClientStatusPending,
+		TaskStates:   ts,
+		JobID:        alloc.JobID,
+		TaskGroup:    alloc.TaskGroup,
+	}
+
+	err = state.UpdateAllocsFromClient(1001, []*structs.Allocation{update, update2})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	out, err := state.AllocByID(alloc.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	alloc.CreateIndex = 1000
+	alloc.ModifyIndex = 1001
+	alloc.TaskStates = ts
+	alloc.ClientStatus = structs.AllocClientStatusPending
+	if !reflect.DeepEqual(alloc, out) {
+		t.Fatalf("bad: %#v , actual:%#v", alloc, out)
+	}
+
+	summary, err := state.JobSummaryByID(alloc.JobID)
+	expectedSummary := &structs.JobSummary{
+		JobID: alloc.JobID,
+		Summary: map[string]structs.TaskGroupSummary{
+			"web": structs.TaskGroupSummary{
+				Starting: 1,
+			},
+		},
+		CreateIndex: 999,
+		ModifyIndex: 1001,
+	}
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if !reflect.DeepEqual(summary, expectedSummary) {
+		t.Fatalf("expected: %#v, actual: %#v", expectedSummary, summary)
+	}
+}
+
 func TestStateStore_UpsertAlloc_Alloc(t *testing.T) {
 	state := testStateStore(t)
 	alloc := mock.Alloc()
@@ -1807,7 +1716,6 @@ func TestStateStore_UpsertAlloc_Alloc(t *testing.T) {
 func TestStateStore_UpdateAlloc_Alloc(t *testing.T) {
 	state := testStateStore(t)
 	alloc := mock.Alloc()
-	state.UpsertJobSummary(998, mock.JobSummary(alloc.JobID))
 
 	if err := state.UpsertJob(999, alloc.Job); err != nil {
 		t.Fatalf("err: %v", err)
@@ -1880,6 +1788,328 @@ func TestStateStore_UpdateAlloc_Alloc(t *testing.T) {
 	}
 
 	notify.verify(t)
+}
+
+// This test ensures that the state store will mark the clients status as lost
+// when set rather than preferring the existing status.
+func TestStateStore_UpdateAlloc_Lost(t *testing.T) {
+	state := testStateStore(t)
+	alloc := mock.Alloc()
+	alloc.ClientStatus = "foo"
+
+	if err := state.UpsertJob(999, alloc.Job); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	err := state.UpsertAllocs(1000, []*structs.Allocation{alloc})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	alloc2 := new(structs.Allocation)
+	*alloc2 = *alloc
+	alloc2.ClientStatus = structs.AllocClientStatusLost
+	if err := state.UpsertAllocs(1001, []*structs.Allocation{alloc2}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	out, err := state.AllocByID(alloc2.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if out.ClientStatus != structs.AllocClientStatusLost {
+		t.Fatalf("bad: %#v", out)
+	}
+}
+
+// This test ensures an allocation can be updated when there is no job
+// associated with it. This will happen when a job is stopped by an user which
+// has non-terminal allocations on clients
+func TestStateStore_UpdateAlloc_NoJob(t *testing.T) {
+	state := testStateStore(t)
+	alloc := mock.Alloc()
+
+	// Upsert a job
+	state.UpsertJobSummary(998, mock.JobSummary(alloc.JobID))
+	if err := state.UpsertJob(999, alloc.Job); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	err := state.UpsertAllocs(1000, []*structs.Allocation{alloc})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if err := state.DeleteJob(1001, alloc.JobID); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Update the desired state of the allocation to stop
+	allocCopy := alloc.Copy()
+	allocCopy.DesiredStatus = structs.AllocDesiredStatusStop
+	if err := state.UpsertAllocs(1002, []*structs.Allocation{allocCopy}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Update the client state of the allocation to complete
+	allocCopy1 := allocCopy.Copy()
+	allocCopy1.ClientStatus = structs.AllocClientStatusComplete
+	if err := state.UpdateAllocsFromClient(1003, []*structs.Allocation{allocCopy1}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	out, _ := state.AllocByID(alloc.ID)
+	// Update the modify index of the alloc before comparing
+	allocCopy1.ModifyIndex = 1003
+	if !reflect.DeepEqual(out, allocCopy1) {
+		t.Fatalf("expected: %#v \n actual: %#v", allocCopy1, out)
+	}
+}
+
+func TestStateStore_JobSummary(t *testing.T) {
+	state := testStateStore(t)
+
+	// Add a job
+	job := mock.Job()
+	state.UpsertJob(900, job)
+
+	// Get the job back
+	outJob, _ := state.JobByID(job.ID)
+	if outJob.CreateIndex != 900 {
+		t.Fatalf("bad create index: %v", outJob.CreateIndex)
+	}
+	summary, _ := state.JobSummaryByID(job.ID)
+	if summary.CreateIndex != 900 {
+		t.Fatalf("bad create index: %v", summary.CreateIndex)
+	}
+
+	// Upser an allocation
+	alloc := mock.Alloc()
+	alloc.JobID = job.ID
+	alloc.Job = job
+	state.UpsertAllocs(910, []*structs.Allocation{alloc})
+
+	// Update the alloc from client
+	alloc1 := alloc.Copy()
+	alloc1.ClientStatus = structs.AllocClientStatusPending
+	alloc1.DesiredStatus = ""
+	state.UpdateAllocsFromClient(920, []*structs.Allocation{alloc})
+
+	alloc3 := alloc.Copy()
+	alloc3.ClientStatus = structs.AllocClientStatusRunning
+	alloc3.DesiredStatus = ""
+	state.UpdateAllocsFromClient(930, []*structs.Allocation{alloc3})
+
+	// Upsert the alloc
+	alloc4 := alloc.Copy()
+	alloc4.ClientStatus = structs.AllocClientStatusPending
+	alloc4.DesiredStatus = structs.AllocDesiredStatusRun
+	state.UpsertAllocs(950, []*structs.Allocation{alloc4})
+
+	// Again upsert the alloc
+	alloc5 := alloc.Copy()
+	alloc5.ClientStatus = structs.AllocClientStatusPending
+	alloc5.DesiredStatus = structs.AllocDesiredStatusRun
+	state.UpsertAllocs(970, []*structs.Allocation{alloc5})
+
+	expectedSummary := structs.JobSummary{
+		JobID: job.ID,
+		Summary: map[string]structs.TaskGroupSummary{
+			"web": structs.TaskGroupSummary{
+				Running: 1,
+			},
+		},
+		CreateIndex: 900,
+		ModifyIndex: 930,
+	}
+
+	summary, _ = state.JobSummaryByID(job.ID)
+	if !reflect.DeepEqual(&expectedSummary, summary) {
+		t.Fatalf("expected: %#v, actual: %v", expectedSummary, summary)
+	}
+
+	// De-register the job.
+	state.DeleteJob(980, job.ID)
+
+	// Shouldn't have any effect on the summary
+	alloc6 := alloc.Copy()
+	alloc6.ClientStatus = structs.AllocClientStatusRunning
+	alloc6.DesiredStatus = ""
+	state.UpdateAllocsFromClient(990, []*structs.Allocation{alloc6})
+
+	// We shouldn't have any summary at this point
+	summary, _ = state.JobSummaryByID(job.ID)
+	if summary != nil {
+		t.Fatalf("expected nil, actual: %#v", summary)
+	}
+
+	// Re-register the same job
+	job1 := mock.Job()
+	job1.ID = job.ID
+	state.UpsertJob(1000, job1)
+	outJob2, _ := state.JobByID(job1.ID)
+	if outJob2.CreateIndex != 1000 {
+		t.Fatalf("bad create index: %v", outJob2.CreateIndex)
+	}
+	summary, _ = state.JobSummaryByID(job1.ID)
+	if summary.CreateIndex != 1000 {
+		t.Fatalf("bad create index: %v", summary.CreateIndex)
+	}
+
+	// Upsert an allocation
+	alloc7 := alloc.Copy()
+	alloc7.JobID = outJob.ID
+	alloc7.Job = outJob
+	alloc7.ClientStatus = structs.AllocClientStatusComplete
+	alloc7.DesiredStatus = structs.AllocDesiredStatusRun
+	state.UpdateAllocsFromClient(1020, []*structs.Allocation{alloc7})
+
+	expectedSummary = structs.JobSummary{
+		JobID: job.ID,
+		Summary: map[string]structs.TaskGroupSummary{
+			"web": structs.TaskGroupSummary{},
+		},
+		CreateIndex: 1000,
+		ModifyIndex: 1000,
+	}
+
+	summary, _ = state.JobSummaryByID(job1.ID)
+	if !reflect.DeepEqual(&expectedSummary, summary) {
+		t.Fatalf("expected: %#v, actual: %#v", expectedSummary, summary)
+	}
+}
+
+func TestStateStore_ReconcileJobSummary(t *testing.T) {
+	state := testStateStore(t)
+
+	// Create an alloc
+	alloc := mock.Alloc()
+
+	// Add another task group to the job
+	tg2 := alloc.Job.TaskGroups[0].Copy()
+	tg2.Name = "db"
+	alloc.Job.TaskGroups = append(alloc.Job.TaskGroups, tg2)
+	state.UpsertJob(100, alloc.Job)
+
+	// Create one more alloc for the db task group
+	alloc2 := mock.Alloc()
+	alloc2.TaskGroup = "db"
+	alloc2.JobID = alloc.JobID
+	alloc2.Job = alloc.Job
+
+	// Upserts the alloc
+	state.UpsertAllocs(110, []*structs.Allocation{alloc, alloc2})
+
+	// Change the state of the first alloc to running
+	alloc3 := alloc.Copy()
+	alloc3.ClientStatus = structs.AllocClientStatusRunning
+	state.UpdateAllocsFromClient(120, []*structs.Allocation{alloc3})
+
+	//Add some more allocs to the second tg
+	alloc4 := mock.Alloc()
+	alloc4.JobID = alloc.JobID
+	alloc4.Job = alloc.Job
+	alloc4.TaskGroup = "db"
+	alloc5 := alloc4.Copy()
+	alloc5.ClientStatus = structs.AllocClientStatusRunning
+
+	alloc6 := mock.Alloc()
+	alloc6.JobID = alloc.JobID
+	alloc6.Job = alloc.Job
+	alloc6.TaskGroup = "db"
+	alloc7 := alloc6.Copy()
+	alloc7.ClientStatus = structs.AllocClientStatusComplete
+
+	alloc8 := mock.Alloc()
+	alloc8.JobID = alloc.JobID
+	alloc8.Job = alloc.Job
+	alloc8.TaskGroup = "db"
+	alloc9 := alloc8.Copy()
+	alloc9.ClientStatus = structs.AllocClientStatusFailed
+
+	alloc10 := mock.Alloc()
+	alloc10.JobID = alloc.JobID
+	alloc10.Job = alloc.Job
+	alloc10.TaskGroup = "db"
+	alloc11 := alloc10.Copy()
+	alloc11.ClientStatus = structs.AllocClientStatusLost
+
+	state.UpsertAllocs(130, []*structs.Allocation{alloc4, alloc6, alloc8, alloc10})
+
+	state.UpdateAllocsFromClient(150, []*structs.Allocation{alloc5, alloc7, alloc9, alloc11})
+
+	// DeleteJobSummary is a helper method and doesn't modify the indexes table
+	state.DeleteJobSummary(130, alloc.Job.ID)
+
+	state.ReconcileJobSummaries(120)
+
+	summary, _ := state.JobSummaryByID(alloc.Job.ID)
+	expectedSummary := structs.JobSummary{
+		JobID: alloc.Job.ID,
+		Summary: map[string]structs.TaskGroupSummary{
+			"web": structs.TaskGroupSummary{
+				Running: 1,
+			},
+			"db": structs.TaskGroupSummary{
+				Starting: 1,
+				Running:  1,
+				Failed:   1,
+				Complete: 1,
+				Lost:     1,
+			},
+		},
+		CreateIndex: 100,
+		ModifyIndex: 120,
+	}
+	if !reflect.DeepEqual(&expectedSummary, summary) {
+		t.Fatalf("expected: %v, actual: %v", expectedSummary, summary)
+	}
+}
+
+func TestStateStore_UpdateAlloc_JobNotPresent(t *testing.T) {
+	state := testStateStore(t)
+
+	alloc := mock.Alloc()
+	state.UpsertJob(100, alloc.Job)
+	state.UpsertAllocs(200, []*structs.Allocation{alloc})
+
+	// Delete the job
+	state.DeleteJob(300, alloc.Job.ID)
+
+	// Update the alloc
+	alloc1 := alloc.Copy()
+	alloc1.ClientStatus = structs.AllocClientStatusRunning
+
+	// Updating allocation should not throw any error
+	if err := state.UpdateAllocsFromClient(400, []*structs.Allocation{alloc1}); err != nil {
+		t.Fatalf("expect err: %v", err)
+	}
+
+	// Re-Register the job
+	state.UpsertJob(500, alloc.Job)
+
+	// Update the alloc again
+	alloc2 := alloc.Copy()
+	alloc2.ClientStatus = structs.AllocClientStatusComplete
+	if err := state.UpdateAllocsFromClient(400, []*structs.Allocation{alloc1}); err != nil {
+		t.Fatalf("expect err: %v", err)
+	}
+
+	// Job Summary of the newly registered job shouldn't account for the
+	// allocation update for the older job
+	expectedSummary := structs.JobSummary{
+		JobID: alloc1.JobID,
+		Summary: map[string]structs.TaskGroupSummary{
+			"web": structs.TaskGroupSummary{},
+		},
+		CreateIndex: 500,
+		ModifyIndex: 500,
+	}
+	summary, _ := state.JobSummaryByID(alloc.Job.ID)
+	if !reflect.DeepEqual(&expectedSummary, summary) {
+		t.Fatalf("expected: %v, actual: %v", expectedSummary, summary)
+	}
 }
 
 func TestStateStore_EvictAlloc_Alloc(t *testing.T) {
@@ -2461,8 +2691,18 @@ func TestStateJobSummary_UpdateJobCount(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 	summary, _ := state.JobSummaryByID(job.ID)
-	if summary.Summary["web"].Starting != 1 {
-		t.Fatalf("bad job summary: %v", summary)
+	expectedSummary := structs.JobSummary{
+		JobID: job.ID,
+		Summary: map[string]structs.TaskGroupSummary{
+			"web": {
+				Starting: 1,
+			},
+		},
+		CreateIndex: 1000,
+		ModifyIndex: 1001,
+	}
+	if !reflect.DeepEqual(summary, &expectedSummary) {
+		t.Fatalf("expected: %v, actual: %v", expectedSummary, summary)
 	}
 
 	alloc2 := mock.Alloc()
@@ -2480,7 +2720,7 @@ func TestStateJobSummary_UpdateJobCount(t *testing.T) {
 	outA, _ := state.AllocByID(alloc3.ID)
 
 	summary, _ = state.JobSummaryByID(job.ID)
-	expectedSummary := structs.JobSummary{
+	expectedSummary = structs.JobSummary{
 		JobID: job.ID,
 		Summary: map[string]structs.TaskGroupSummary{
 			"web": {
@@ -2498,17 +2738,15 @@ func TestStateJobSummary_UpdateJobCount(t *testing.T) {
 	alloc4.ID = alloc2.ID
 	alloc4.Job = alloc2.Job
 	alloc4.JobID = alloc2.JobID
-	alloc4.DesiredStatus = structs.AllocDesiredStatusStop
 	alloc4.ClientStatus = structs.AllocClientStatusComplete
 
 	alloc5 := mock.Alloc()
 	alloc5.ID = alloc3.ID
 	alloc5.Job = alloc3.Job
 	alloc5.JobID = alloc3.JobID
-	alloc5.DesiredStatus = structs.AllocDesiredStatusStop
 	alloc5.ClientStatus = structs.AllocClientStatusComplete
 
-	if err := state.UpsertAllocs(1004, []*structs.Allocation{alloc4, alloc5}); err != nil {
+	if err := state.UpdateAllocsFromClient(1004, []*structs.Allocation{alloc4, alloc5}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	outA, _ = state.AllocByID(alloc5.ID)

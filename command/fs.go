@@ -56,8 +56,8 @@ FS Specific Options:
     Show file stat information instead of displaying the file, or listing the directory.
 
   -f
-	Causes the output to not stop when the end of the file is reached, but
-	rather to wait for additional output. 
+    Causes the output to not stop when the end of the file is reached, but rather to
+    wait for additional output.
 
   -tail 
     Show the files contents with offsets relative to the end of the file. If no
@@ -68,7 +68,7 @@ FS Specific Options:
     of the file.
 
   -c
-	Sets the tail location in number of bytes relative to the end of the file.
+    Sets the tail location in number of bytes relative to the end of the file.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -251,7 +251,7 @@ func (f *FSCommand) Run(args []string) int {
 		if follow {
 			r, readErr = f.followFile(client, alloc, path, api.OriginStart, 0, -1)
 		} else {
-			r, _, readErr = client.AllocFS().Cat(alloc, path, nil)
+			r, readErr = client.AllocFS().Cat(alloc, path, nil)
 		}
 
 		if readErr != nil {
@@ -262,7 +262,10 @@ func (f *FSCommand) Run(args []string) int {
 		var offset int64 = defaultTailLines * bytesToLines
 
 		if nLines, nBytes := numLines != -1, numBytes != -1; nLines && nBytes {
-			f.Ui.Error("Both -n and -c set")
+			f.Ui.Error("Both -n and -c are not allowed")
+			return 1
+		} else if numLines < -1 || numBytes < -1 {
+			f.Ui.Error("Invalid size is specified")
 			return 1
 		} else if nLines {
 			offset = numLines * bytesToLines
@@ -282,7 +285,7 @@ func (f *FSCommand) Run(args []string) int {
 			// This offset needs to be relative from the front versus the follow
 			// is relative to the end
 			offset = file.Size - offset
-			r, _, readErr = client.AllocFS().ReadAt(alloc, path, offset, -1, nil)
+			r, readErr = client.AllocFS().ReadAt(alloc, path, offset, -1, nil)
 
 			// If numLines is set, wrap the reader
 			if numLines != -1 {
@@ -311,7 +314,7 @@ func (f *FSCommand) followFile(client *api.Client, alloc *api.Allocation,
 	path, origin string, offset, numLines int64) (io.ReadCloser, error) {
 
 	cancel := make(chan struct{})
-	frames, _, err := client.AllocFS().Stream(alloc, path, origin, offset, cancel, nil)
+	frames, err := client.AllocFS().Stream(alloc, path, origin, offset, cancel, nil)
 	if err != nil {
 		return nil, err
 	}

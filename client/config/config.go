@@ -117,6 +117,14 @@ type Config struct {
 	// StatsCollectionInterval is the interval at which the Nomad client
 	// collects resource usage stats
 	StatsCollectionInterval time.Duration
+
+	// PublishNodeMetrics determines whether nomad is going to publish node
+	// level metrics to remote Telemetry sinks
+	PublishNodeMetrics bool
+
+	// PublishAllocationMetrics determines whether nomad is going to publish
+	// allocation metrics to remote Telemetry sinks
+	PublishAllocationMetrics bool
 }
 
 func (c *Config) Copy() *Config {

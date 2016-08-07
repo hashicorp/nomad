@@ -85,15 +85,21 @@ func (s *StateStore) StopWatch(items watch.Items, notify chan struct{}) {
 	s.watch.stopWatch(items, notify)
 }
 
-// UpsertJobSummary upserts a job summary into the state store. This is for
-// testing purposes
+// UpsertJobSummary upserts a job summary into the state store.
 func (s *StateStore) UpsertJobSummary(index uint64, jobSummary *structs.JobSummary) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
+	// Update the index
 	if err := txn.Insert("job_summary", *jobSummary); err != nil {
 		return err
 	}
+
+	// Update the indexes table for job summary
+	if err := txn.Insert("index", &IndexEntry{"job_summary", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
 	txn.Commit()
 	return nil
 }
@@ -107,6 +113,9 @@ func (s *StateStore) DeleteJobSummary(index uint64, id string) error {
 	// Delete the job summary
 	if _, err := txn.DeleteAll("job_summary", "id", id); err != nil {
 		return fmt.Errorf("deleting job summary failed: %v", err)
+	}
+	if err := txn.Insert("index", &IndexEntry{"job_summary", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
 	}
 	txn.Commit()
 	return nil
@@ -217,28 +226,6 @@ func (s *StateStore) UpdateNodeStatus(index uint64, nodeID, status string) error
 	}
 	if err := txn.Insert("index", &IndexEntry{"nodes", index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
-	}
-
-	// Update the state of the allocations which are in running state to lost
-	if status == structs.NodeStatusDown {
-		allocs, err := s.AllocsByNode(nodeID)
-		if err != nil {
-			return fmt.Errorf("error retrieving any allocations for the node: %v", nodeID)
-		}
-		for _, alloc := range allocs {
-			copyAlloc := new(structs.Allocation)
-			*copyAlloc = *alloc
-			if alloc.ClientStatus == structs.AllocClientStatusPending ||
-				alloc.ClientStatus == structs.AllocClientStatusRunning {
-				copyAlloc.ClientStatus = structs.AllocClientStatusLost
-				if err := s.updateSummaryWithAlloc(index, copyAlloc, watcher, txn); err != nil {
-					return fmt.Errorf("error updating job summary: %v", err)
-				}
-				if err := txn.Insert("allocs", copyAlloc); err != nil {
-					return fmt.Errorf("alloc insert failed: %v", err)
-				}
-			}
-		}
 	}
 
 	txn.Defer(func() { s.watch.notify(watcher) })
@@ -859,9 +846,6 @@ func (s *StateStore) UpdateAllocsFromClient(index uint64, allocs []*structs.Allo
 
 	// Handle each of the updated allocations
 	for _, alloc := range allocs {
-		if err := s.updateSummaryWithAlloc(index, alloc, watcher, txn); err != nil {
-			return fmt.Errorf("error updating job summary: %v", err)
-		}
 		if err := s.nestedUpdateAllocFromClient(txn, watcher, index, alloc); err != nil {
 			return err
 		}
@@ -890,7 +874,6 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *memdb.Txn, watcher watch.I
 		return nil
 	}
 	exist := existing.(*structs.Allocation)
-
 	// Trigger the watcher
 	watcher.Add(watch.Item{Alloc: alloc.ID})
 	watcher.Add(watch.Item{AllocEval: exist.EvalID})
@@ -908,6 +891,10 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *memdb.Txn, watcher watch.I
 
 	// Update the modify index
 	copyAlloc.ModifyIndex = index
+
+	if err := s.updateSummaryWithAlloc(index, copyAlloc, exist, watcher, txn); err != nil {
+		return fmt.Errorf("error updating job summary: %v", err)
+	}
 
 	// Update the allocation
 	if err := txn.Insert("allocs", copyAlloc); err != nil {
@@ -938,15 +925,12 @@ func (s *StateStore) UpsertAllocs(index uint64, allocs []*structs.Allocation) er
 	// Handle the allocations
 	jobs := make(map[string]string, 1)
 	for _, alloc := range allocs {
-		if err := s.updateSummaryWithAlloc(index, alloc, watcher, txn); err != nil {
-			return fmt.Errorf("error updating job summary: %v", err)
-		}
 		existing, err := txn.First("allocs", "id", alloc.ID)
 		if err != nil {
 			return fmt.Errorf("alloc lookup failed: %v", err)
 		}
-
 		exist, _ := existing.(*structs.Allocation)
+
 		if exist == nil {
 			alloc.CreateIndex = index
 			alloc.ModifyIndex = index
@@ -955,9 +939,24 @@ func (s *StateStore) UpsertAllocs(index uint64, allocs []*structs.Allocation) er
 			alloc.CreateIndex = exist.CreateIndex
 			alloc.ModifyIndex = index
 			alloc.AllocModifyIndex = index
-			alloc.ClientStatus = exist.ClientStatus
-			alloc.ClientDescription = exist.ClientDescription
+
+			// If the scheduler is marking this allocation as lost we do not
+			// want to reuse the status of the existing allocation.
+			if alloc.ClientStatus != structs.AllocClientStatusLost {
+				alloc.ClientStatus = exist.ClientStatus
+				alloc.ClientDescription = exist.ClientDescription
+			}
+
+			// The job has been denormalized so re-attach the original job
+			if alloc.Job == nil {
+				alloc.Job = exist.Job
+			}
 		}
+
+		if err := s.updateSummaryWithAlloc(index, alloc, exist, watcher, txn); err != nil {
+			return fmt.Errorf("error updating job summary: %v", err)
+		}
+
 		if err := txn.Insert("allocs", alloc); err != nil {
 			return fmt.Errorf("alloc insert failed: %v", err)
 		}
@@ -1155,6 +1154,19 @@ func (s *StateStore) Index(name string) (uint64, error) {
 	return out.(*IndexEntry).Value, nil
 }
 
+// RemoveIndex is a helper method to remove an index for testing purposes
+func (s *StateStore) RemoveIndex(name string) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	if _, err := txn.DeleteAll("index", "id", name); err != nil {
+		return err
+	}
+
+	txn.Commit()
+	return nil
+}
+
 // Indexes returns an iterator over all the indexes
 func (s *StateStore) Indexes() (memdb.ResultIterator, error) {
 	txn := s.db.Txn(false)
@@ -1165,6 +1177,90 @@ func (s *StateStore) Indexes() (memdb.ResultIterator, error) {
 		return nil, err
 	}
 	return iter, nil
+}
+
+// ReconcileJobSummaries re-creates summaries for all jobs present in the state
+// store
+func (s *StateStore) ReconcileJobSummaries(index uint64) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	// Get all the jobs
+	iter, err := txn.Get("jobs", "id")
+	if err != nil {
+		return err
+	}
+	for {
+		rawJob := iter.Next()
+		if rawJob == nil {
+			break
+		}
+		job := rawJob.(*structs.Job)
+
+		// Create a job summary for the job
+		summary := structs.JobSummary{
+			JobID:   job.ID,
+			Summary: make(map[string]structs.TaskGroupSummary),
+		}
+		for _, tg := range job.TaskGroups {
+			summary.Summary[tg.Name] = structs.TaskGroupSummary{}
+		}
+
+		// Find all the allocations for the jobs
+		iterAllocs, err := txn.Get("allocs", "job", job.ID)
+		if err != nil {
+			return err
+		}
+
+		// Calculate the summary for the job
+		for {
+			rawAlloc := iterAllocs.Next()
+			if rawAlloc == nil {
+				break
+			}
+			alloc := rawAlloc.(*structs.Allocation)
+
+			// Ignore the allocation if it doesn't belong to the currently
+			// registered job
+			if alloc.Job.CreateIndex != job.CreateIndex {
+				continue
+			}
+
+			tg := summary.Summary[alloc.TaskGroup]
+			switch alloc.ClientStatus {
+			case structs.AllocClientStatusFailed:
+				tg.Failed += 1
+			case structs.AllocClientStatusLost:
+				tg.Lost += 1
+			case structs.AllocClientStatusComplete:
+				tg.Complete += 1
+			case structs.AllocClientStatusRunning:
+				tg.Running += 1
+			case structs.AllocClientStatusPending:
+				tg.Starting += 1
+			default:
+				s.logger.Printf("[ERR] state_store: invalid client status: %v in allocation %q", alloc.ClientStatus, alloc.ID)
+			}
+			summary.Summary[alloc.TaskGroup] = tg
+		}
+
+		// Set the create index of the summary same as the job's create index
+		// and the modify index to the current index
+		summary.CreateIndex = job.CreateIndex
+		summary.ModifyIndex = index
+
+		// Insert the job summary
+		if err := txn.Insert("job_summary", summary); err != nil {
+			return fmt.Errorf("error inserting job summary: %v", err)
+		}
+	}
+
+	// Update the indexes table for job summary
+	if err := txn.Insert("index", &IndexEntry{"job_summary", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+	txn.Commit()
+	return nil
 }
 
 // setJobStatuses is a helper for calling setJobStatus on multiple jobs by ID.
@@ -1331,21 +1427,37 @@ func (s *StateStore) updateSummaryWithJob(index uint64, job *structs.Job,
 // updateSummaryWithAlloc updates the job summary when allocations are updated
 // or inserted
 func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocation,
-	watcher watch.Items, txn *memdb.Txn) error {
+	existingAlloc *structs.Allocation, watcher watch.Items, txn *memdb.Txn) error {
+
+	// We don't have to update the summary if the job is missing
+	if alloc.Job == nil {
+		return nil
+	}
+
 	summaryRaw, err := txn.First("job_summary", "id", alloc.JobID)
 	if err != nil {
 		return fmt.Errorf("unable to lookup job summary for job id %q: %v", err)
 	}
-	summary, ok := summaryRaw.(structs.JobSummary)
-	if !ok {
+	if summaryRaw == nil {
+		// Check if the job is de-registered
+		rawJob, err := txn.First("jobs", "id", alloc.JobID)
+		if err != nil {
+			return fmt.Errorf("unable to query job: %v", err)
+		}
+
+		// If the job is de-registered then we skip updating it's summary
+		if rawJob == nil {
+			return nil
+		}
 		return fmt.Errorf("job summary for job %q is not present", alloc.JobID)
 	}
+	summary := summaryRaw.(structs.JobSummary)
 	jobSummary := summary.Copy()
 
-	// Look for existing alloc
-	existing, err := s.AllocByID(alloc.ID)
-	if err != nil {
-		return fmt.Errorf("alloc lookup failed: %v", err)
+	// Not updating the job summary because the allocation doesn't belong to the
+	// currently registered job
+	if jobSummary.CreateIndex != alloc.Job.CreateIndex {
+		return nil
 	}
 
 	tgSummary, ok := jobSummary.Summary[alloc.TaskGroup]
@@ -1353,7 +1465,7 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 		return fmt.Errorf("unable to find task group in the job summary: %v", alloc.TaskGroup)
 	}
 	var summaryChanged bool
-	if existing == nil {
+	if existingAlloc == nil {
 		switch alloc.DesiredStatus {
 		case structs.AllocDesiredStatusStop, structs.AllocDesiredStatusEvict:
 			s.logger.Printf("[ERR] state_store: new allocation inserted into state store with id: %v and state: %v",
@@ -1371,7 +1483,7 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 			s.logger.Printf("[ERR] state_store: new allocation inserted into state store with id: %v and state: %v",
 				alloc.ID, alloc.ClientStatus)
 		}
-	} else if existing.ClientStatus != alloc.ClientStatus {
+	} else if existingAlloc.ClientStatus != alloc.ClientStatus {
 		// Incrementing the client of the bin of the current state
 		switch alloc.ClientStatus {
 		case structs.AllocClientStatusRunning:
@@ -1387,7 +1499,7 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 		}
 
 		// Decrementing the count of the bin of the last state
-		switch existing.ClientStatus {
+		switch existingAlloc.ClientStatus {
 		case structs.AllocClientStatusRunning:
 			tgSummary.Running -= 1
 		case structs.AllocClientStatusPending:
@@ -1395,8 +1507,9 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 		case structs.AllocClientStatusLost:
 			tgSummary.Lost -= 1
 		case structs.AllocClientStatusFailed, structs.AllocClientStatusComplete:
-			s.logger.Printf("[ERR] state_store: invalid old state of allocation with id:%v, and state: %v",
-				existing.ID, existing.ClientStatus)
+		default:
+			s.logger.Printf("[ERR] state_store: invalid old state of allocation with id: %v, and state: %v",
+				existingAlloc.ID, existingAlloc.ClientStatus)
 		}
 		summaryChanged = true
 	}
@@ -1429,10 +1542,9 @@ type StateSnapshot struct {
 // restoring state by only using a single large transaction
 // instead of thousands of sub transactions
 type StateRestore struct {
-	txn         *memdb.Txn
-	watch       *stateWatch
-	items       watch.Items
-	latestIndex uint64
+	txn   *memdb.Txn
+	watch *stateWatch
+	items watch.Items
 }
 
 // Abort is used to abort the restore operation
@@ -1494,10 +1606,6 @@ func (r *StateRestore) IndexRestore(idx *IndexEntry) error {
 	if err := r.txn.Insert("index", idx); err != nil {
 		return fmt.Errorf("index insert failed: %v", err)
 	}
-
-	if idx.Value > r.latestIndex {
-		r.latestIndex = idx.Value
-	}
 	return nil
 }
 
@@ -1516,92 +1624,6 @@ func (r *StateRestore) JobSummaryRestore(jobSummary *structs.JobSummary) error {
 	if err := r.txn.Insert("job_summary", *jobSummary); err != nil {
 		return fmt.Errorf("job summary insert failed: %v", err)
 	}
-	return nil
-}
-
-// JobsWithoutSummary returns the list of jobs which don't have any summary
-func (r *StateRestore) JobsWithoutSummary() ([]*structs.Job, error) {
-	// Get all the jobs
-	var jobs []*structs.Job
-	iter, err := r.txn.Get("jobs", "id")
-	if err != nil {
-		return nil, fmt.Errorf("couldn't retrieve jobs: %v", err)
-	}
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-
-		// Filter the jobs which have summaries
-		job := raw.(*structs.Job)
-		jobSummary, err := r.txn.First("job_summary", "id", job.ID)
-		if err != nil {
-			return nil, fmt.Errorf("unable to get job summary: %v", err)
-		}
-		if jobSummary != nil {
-			continue
-		}
-
-		jobs = append(jobs, job)
-	}
-	return jobs, nil
-}
-
-// CreateJobSummaries computes the job summaries for all the jobs
-func (r *StateRestore) CreateJobSummaries(jobs []*structs.Job) error {
-	for _, job := range jobs {
-		// Get all the allocations for the job
-		iter, err := r.txn.Get("allocs", "job", job.ID)
-		if err != nil {
-			return fmt.Errorf("couldn't retrieve allocations for job %v: %v", job.ID, err)
-		}
-		var allocs []*structs.Allocation
-		for {
-			raw := iter.Next()
-			if raw == nil {
-				break
-			}
-			allocs = append(allocs, raw.(*structs.Allocation))
-		}
-
-		// Create a job summary for the job
-		summary := structs.JobSummary{
-			JobID:   job.ID,
-			Summary: make(map[string]structs.TaskGroupSummary),
-		}
-		for _, tg := range job.TaskGroups {
-			summary.Summary[tg.Name] = structs.TaskGroupSummary{}
-		}
-		// Calculate the summary for the job
-		for _, alloc := range allocs {
-			if _, ok := summary.Summary[alloc.TaskGroup]; !ok {
-				summary.Summary[alloc.TaskGroup] = structs.TaskGroupSummary{}
-			}
-			tg := summary.Summary[alloc.TaskGroup]
-			switch alloc.ClientStatus {
-			case structs.AllocClientStatusFailed:
-				tg.Failed += 1
-			case structs.AllocClientStatusLost:
-				tg.Lost += 1
-			case structs.AllocClientStatusComplete:
-				tg.Complete += 1
-			case structs.AllocClientStatusRunning:
-				tg.Running += 1
-			case structs.AllocClientStatusPending:
-				tg.Starting += 1
-			}
-			summary.Summary[alloc.TaskGroup] = tg
-		}
-		// Insert the job summary
-
-		summary.CreateIndex = r.latestIndex
-		summary.ModifyIndex = r.latestIndex
-		if err := r.txn.Insert("job_summary", summary); err != nil {
-			return fmt.Errorf("error inserting job summary: %v", err)
-		}
-	}
-
 	return nil
 }
 

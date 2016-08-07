@@ -203,7 +203,7 @@ func NewClient(cfg *config.Config, consulSyncer *consul.Syncer, logger *log.Logg
 
 	// Setup the Consul syncer
 	if err := c.setupConsulSyncer(); err != nil {
-		return nil, fmt.Errorf("failed to create client Consul syncer: %v")
+		return nil, fmt.Errorf("failed to create client Consul syncer: %v", err)
 	}
 
 	// Register and then start heartbeating to the servers.
@@ -1397,7 +1397,11 @@ func (c *Client) collectHostStats() {
 			c.resourceUsageLock.Lock()
 			c.resourceUsage = ru
 			c.resourceUsageLock.Unlock()
-			c.emitStats(ru)
+
+			// Publish Node metrics if operator has opted in
+			if c.config.PublishNodeMetrics {
+				c.emitStats(ru)
+			}
 		case <-c.shutdownCh:
 			return
 		}

@@ -1253,6 +1253,15 @@ func TestServiceSched_NodeDown(t *testing.T) {
 		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
 		allocs = append(allocs, alloc)
 	}
+
+	// Cover each terminal case and ensure it doesn't change to lost
+	allocs[7].DesiredStatus = structs.AllocDesiredStatusRun
+	allocs[7].ClientStatus = structs.AllocClientStatusLost
+	allocs[8].DesiredStatus = structs.AllocDesiredStatusRun
+	allocs[8].ClientStatus = structs.AllocClientStatusFailed
+	allocs[9].DesiredStatus = structs.AllocDesiredStatusRun
+	allocs[9].ClientStatus = structs.AllocClientStatusComplete
+
 	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
 
 	// Mark some allocs as running
@@ -1280,15 +1289,71 @@ func TestServiceSched_NodeDown(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	// Test the corretness of the old allocation states
-	for _, alloc := range allocs {
-		out, err := h.State.AllocByID(alloc.ID)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
-		if out.ClientStatus != structs.AllocClientStatusLost || out.DesiredStatus != structs.AllocDesiredStatusStop {
+	// Ensure a single plan
+	if len(h.Plans) != 1 {
+		t.Fatalf("bad: %#v", h.Plans)
+	}
+	plan := h.Plans[0]
+
+	// Test the scheduler marked all non-terminal allocations as lost
+	if len(plan.NodeUpdate[node.ID]) != 7 {
+		t.Fatalf("bad: %#v", plan)
+	}
+
+	for _, out := range plan.NodeUpdate[node.ID] {
+		if out.ClientStatus != structs.AllocClientStatusLost && out.DesiredStatus != structs.AllocDesiredStatusStop {
 			t.Fatalf("bad alloc: %#v", out)
 		}
+	}
+
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+}
+
+func TestServiceSched_NodeUpdate(t *testing.T) {
+	h := NewHarness(t)
+
+	// Register a node
+	node := mock.Node()
+	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+
+	// Generate a fake job with allocations and an update policy.
+	job := mock.Job()
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	var allocs []*structs.Allocation
+	for i := 0; i < 10; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = node.ID
+		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
+		allocs = append(allocs, alloc)
+	}
+	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+
+	// Mark some allocs as running
+	for i := 0; i < 4; i++ {
+		out, _ := h.State.AllocByID(allocs[i].ID)
+		out.ClientStatus = structs.AllocClientStatusRunning
+		noErr(t, h.State.UpdateAllocsFromClient(h.NextIndex(), []*structs.Allocation{out}))
+	}
+
+	// Create a mock evaluation which won't trigger any new placements
+	eval := &structs.Evaluation{
+		ID:          structs.GenerateUUID(),
+		Priority:    50,
+		TriggeredBy: structs.EvalTriggerNodeUpdate,
+		JobID:       job.ID,
+		NodeID:      node.ID,
+	}
+
+	// Process the evaluation
+	err := h.Process(NewServiceScheduler, eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if val, ok := h.Evals[0].QueuedAllocations["web"]; !ok || val != 0 {
+		t.Fatalf("bad queued allocations: %v", h.Evals[0].QueuedAllocations)
 	}
 
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
@@ -1815,4 +1880,78 @@ func TestBatchSched_ReRun_SuccessfullyFinishedAlloc(t *testing.T) {
 	}
 
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+}
+
+func TestGenericSched_FilterCompleteAllocs(t *testing.T) {
+	running := mock.Alloc()
+	desiredStop := mock.Alloc()
+	desiredStop.DesiredStatus = structs.AllocDesiredStatusStop
+
+	new := mock.Alloc()
+	new.CreateIndex = 10000
+
+	oldSuccessful := mock.Alloc()
+	oldSuccessful.CreateIndex = 30
+	oldSuccessful.DesiredStatus = structs.AllocDesiredStatusStop
+	oldSuccessful.ClientStatus = structs.AllocClientStatusComplete
+	oldSuccessful.TaskStates = make(map[string]*structs.TaskState, 1)
+	oldSuccessful.TaskStates["foo"] = &structs.TaskState{
+		State:  structs.TaskStateDead,
+		Events: []*structs.TaskEvent{{Type: structs.TaskTerminated, ExitCode: 0}},
+	}
+
+	unsuccessful := mock.Alloc()
+	unsuccessful.DesiredStatus = structs.AllocDesiredStatusRun
+	unsuccessful.ClientStatus = structs.AllocClientStatusFailed
+	unsuccessful.TaskStates = make(map[string]*structs.TaskState, 1)
+	unsuccessful.TaskStates["foo"] = &structs.TaskState{
+		State:  structs.TaskStateDead,
+		Events: []*structs.TaskEvent{{Type: structs.TaskTerminated, ExitCode: 1}},
+	}
+
+	cases := []struct {
+		Batch         bool
+		Input, Output []*structs.Allocation
+	}{
+		{
+			Input:  []*structs.Allocation{running},
+			Output: []*structs.Allocation{running},
+		},
+		{
+			Input:  []*structs.Allocation{running, desiredStop},
+			Output: []*structs.Allocation{running},
+		},
+		{
+			Batch:  true,
+			Input:  []*structs.Allocation{running},
+			Output: []*structs.Allocation{running},
+		},
+		{
+			Batch:  true,
+			Input:  []*structs.Allocation{new, oldSuccessful},
+			Output: []*structs.Allocation{new},
+		},
+		{
+			Batch:  true,
+			Input:  []*structs.Allocation{unsuccessful},
+			Output: []*structs.Allocation{},
+		},
+	}
+
+	for i, c := range cases {
+		g := &GenericScheduler{batch: c.Batch}
+		out := g.filterCompleteAllocs(c.Input)
+
+		if !reflect.DeepEqual(out, c.Output) {
+			t.Log("Got:")
+			for i, a := range out {
+				t.Logf("%d: %#v", i, a)
+			}
+			t.Log("Want:")
+			for i, a := range c.Output {
+				t.Logf("%d: %#v", i, a)
+			}
+			t.Fatalf("Case %d failed", i+1)
+		}
+	}
 }
