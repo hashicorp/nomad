@@ -480,22 +480,36 @@ func getHostResources(hostStats *api.HostStats, node *api.Node) ([]string, error
 	// calculate disk usage
 	storageDevice := node.Attributes["unique.storage.volume"]
 	var diskUsed, diskSize uint64
+	var physical bool
 	for _, disk := range hostStats.DiskStats {
 		if disk.Device == storageDevice {
 			diskUsed = disk.Used
 			diskSize = disk.Size
+			physical = true
 		}
 	}
 
 	resources = make([]string, 2)
 	resources[0] = "CPU|Memory|Disk"
-	resources[1] = fmt.Sprintf("%v/%v MHz|%v/%v|%v/%v",
-		math.Floor(hostStats.CPUTicksConsumed),
-		node.Resources.CPU,
-		humanize.IBytes(hostStats.Memory.Used),
-		humanize.IBytes(hostStats.Memory.Total),
-		humanize.IBytes(diskUsed),
-		humanize.IBytes(diskSize),
-	)
+	if physical {
+		resources[1] = fmt.Sprintf("%v/%v MHz|%v/%v|%v/%v",
+			math.Floor(hostStats.CPUTicksConsumed),
+			node.Resources.CPU,
+			humanize.IBytes(hostStats.Memory.Used),
+			humanize.IBytes(hostStats.Memory.Total),
+			humanize.IBytes(diskUsed),
+			humanize.IBytes(diskSize),
+		)
+	} else {
+		// If non-physical device are used, output device name only,
+		// since nomad doesn't collect the stats data.
+		resources[1] = fmt.Sprintf("%v/%v MHz|%v/%v|(%s)",
+			math.Floor(hostStats.CPUTicksConsumed),
+			node.Resources.CPU,
+			humanize.IBytes(hostStats.Memory.Used),
+			humanize.IBytes(hostStats.Memory.Total),
+			storageDevice,
+		)
+	}
 	return resources, nil
 }
