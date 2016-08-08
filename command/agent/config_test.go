@@ -96,8 +96,8 @@ func TestConfig_Merge(t *testing.T) {
 			"Access-Control-Allow-Origin": "*",
 		},
 		Vault: &config.VaultConfig{
-			RoleName:             "1",
-			RoleToken:            "1",
+			TokenRoleName:        "1",
+			PeriodicToken:        "1",
 			AllowUnauthenticated: false,
 			ChildTokenTTL:        "1",
 			Addr:                 "1",
@@ -222,8 +222,8 @@ func TestConfig_Merge(t *testing.T) {
 			"Access-Control-Allow-Methods": "GET, POST, OPTIONS",
 		},
 		Vault: &config.VaultConfig{
-			RoleName:             "2",
-			RoleToken:            "2",
+			TokenRoleName:        "2",
+			PeriodicToken:        "2",
 			AllowUnauthenticated: true,
 			ChildTokenTTL:        "2",
 			Addr:                 "2",

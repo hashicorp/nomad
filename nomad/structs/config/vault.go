@@ -12,14 +12,14 @@ import vault "github.com/hashicorp/vault/api"
 // - Create child tokens with policy subsets of the Server's token.
 type VaultConfig struct {
 
-	// RoleName is the Vault role in which Nomad will derive child tokens using
-	// /auth/token/create/[role_name]
-	RoleName string `mapstructure:"role_name"`
+	// TokenRoleName is the Vault role in which Nomad will derive child tokens using
+	// /auth/token/create/[token_role_name]
+	TokenRoleName string `mapstructure:"token_role_name"`
 
-	// RoleToken is the periodic Vault token given to Nomad such that it can
-	// derive child tokens. The RoleToken should be created from the passed
-	// RoleName. Nomad will renew this token at half its lease lifetime.
-	RoleToken string `mapstructure:"role_token"`
+	// PeriodicToken is the periodic Vault token given to Nomad such that it can
+	// derive child tokens. The PeriodicToken should be created from the passed
+	// TokenRoleName. Nomad will renew this token at half its lease lifetime.
+	PeriodicToken string `mapstructure:"periodic_token"`
 
 	// AllowUnauthenticated allows users to submit jobs requiring Vault tokens
 	// without providing a Vault token proving they have access to these
@@ -68,11 +68,11 @@ func DefaultVaultConfig() *VaultConfig {
 func (a *VaultConfig) Merge(b *VaultConfig) *VaultConfig {
 	result := *a
 
-	if b.RoleName != "" {
-		result.RoleName = b.RoleName
+	if b.TokenRoleName != "" {
+		result.TokenRoleName = b.TokenRoleName
 	}
-	if b.RoleToken != "" {
-		result.RoleToken = b.RoleToken
+	if b.PeriodicToken != "" {
+		result.PeriodicToken = b.PeriodicToken
 	}
 	if b.AllowUnauthenticated {
 		result.AllowUnauthenticated = b.AllowUnauthenticated
