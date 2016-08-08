@@ -74,9 +74,6 @@ func (a *VaultConfig) Merge(b *VaultConfig) *VaultConfig {
 	if b.PeriodicToken != "" {
 		result.PeriodicToken = b.PeriodicToken
 	}
-	if b.AllowUnauthenticated {
-		result.AllowUnauthenticated = b.AllowUnauthenticated
-	}
 	if b.ChildTokenTTL != "" {
 		result.ChildTokenTTL = b.ChildTokenTTL
 	}
@@ -95,12 +92,12 @@ func (a *VaultConfig) Merge(b *VaultConfig) *VaultConfig {
 	if b.TLSKeyFile != "" {
 		result.TLSKeyFile = b.TLSKeyFile
 	}
-	if b.TLSSkipVerify {
-		result.TLSSkipVerify = b.TLSSkipVerify
-	}
 	if b.TLSServerName != "" {
 		result.TLSServerName = b.TLSServerName
 	}
+
+	result.AllowUnauthenticated = b.AllowUnauthenticated
+	result.TLSSkipVerify = b.TLSSkipVerify
 	return &result
 }
 
@@ -121,7 +118,7 @@ func (c *VaultConfig) ApiConfig(readEnv bool) (*vault.Config, error) {
 		ClientCert:    c.TLSCertFile,
 		ClientKey:     c.TLSKeyFile,
 		TLSServerName: c.TLSServerName,
-		Insecure:      !c.TLSSkipVerify,
+		Insecure:      c.TLSSkipVerify,
 	}
 	if err := conf.ConfigureTLS(tlsConf); err != nil {
 		return nil, err
