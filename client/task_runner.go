@@ -323,7 +323,7 @@ func (r *TaskRunner) run() {
 			}
 
 			for _, artifact := range r.task.Artifacts {
-				if err := getter.GetArtifact(r.taskEnv, artifact, taskDir, r.logger); err != nil {
+				if err := getter.GetArtifact(r.taskEnv, artifact, taskDir); err != nil {
 					r.setState(structs.TaskStateDead,
 						structs.NewTaskEvent(structs.TaskArtifactDownloadFailed).SetDownloadError(err))
 					r.restartTracker.SetStartError(dstructs.NewRecoverableError(err, true))

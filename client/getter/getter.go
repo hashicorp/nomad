@@ -2,7 +2,6 @@ package getter
 
 import (
 	"fmt"
-	"log"
 	"net/url"
 	"path/filepath"
 	"sync"
@@ -63,9 +62,7 @@ func getGetterUrl(taskEnv *env.TaskEnvironment, artifact *structs.TaskArtifact) 
 }
 
 // GetArtifact downloads an artifact into the specified task directory.
-func GetArtifact(taskEnv *env.TaskEnvironment, artifact *structs.TaskArtifact,
-	taskDir string, logger *log.Logger) error {
-
+func GetArtifact(taskEnv *env.TaskEnvironment, artifact *structs.TaskArtifact, taskDir string) error {
 	url, err := getGetterUrl(taskEnv, artifact)
 	if err != nil {
 		return err
