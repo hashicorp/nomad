@@ -105,7 +105,7 @@ func (h *HostStatsCollector) Collect() (*HostStats, error) {
 		hs.CPUTicksConsumed = ticksConsumed
 	}
 
-	if partitions, err := disk.Partitions(false); err == nil {
+	if partitions, err := disk.Partitions(true); err == nil {
 		var diskStats []*DiskStats
 		for _, partition := range partitions {
 			if usage, err := disk.Usage(partition.Mountpoint); err == nil {
