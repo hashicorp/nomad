@@ -517,7 +517,7 @@ func TestJobs_JobSummary(t *testing.T) {
 	assertQueryMeta(t, qm)
 
 	// Check that the result is what we expect
-	if (job.ID != result.JobID) {
+	if job.ID != result.JobID {
 		t.Fatalf("err: expected job id of %s saw %s", job.ID, result.JobID)
 	}
 	if _, ok := result.Summary[taskName]; !ok {
