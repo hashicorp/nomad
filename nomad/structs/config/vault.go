@@ -34,22 +34,22 @@ type VaultConfig struct {
 	// Addr is the address of the local Vault agent
 	Addr string `mapstructure:"address"`
 
-	// CACert is the path to a PEM-encoded CA cert file to use to verify the
+	// TLSCaFile is the path to a PEM-encoded CA cert file to use to verify the
 	// Vault server SSL certificate.
-	CACert string `mapstructure:"ca_cert"`
+	TLSCaFile string `mapstructure:"tls_ca_file"`
 
-	// CAPath is the path to a directory of PEM-encoded CA cert files to verify
-	// the Vault server SSL certificate.
-	CAPath string `mapstructure:"ca_path"`
+	// TLSCaFile is the path to a directory of PEM-encoded CA cert files to
+	// verify the Vault server SSL certificate.
+	TLSCaPath string `mapstructure:"tls_ca_path"`
 
-	// CertFile is the path to the certificate for Vault communication
-	CertFile string `mapstructure:"cert_file"`
+	// TLSCertFile is the path to the certificate for Vault communication
+	TLSCertFile string `mapstructure:"tls_cert_file"`
 
-	// KeyFile is the path to the private key for Vault communication
-	KeyFile string `mapstructure:"key_file"`
+	// TLSKeyFile is the path to the private key for Vault communication
+	TLSKeyFile string `mapstructure:"tls_key_file"`
 
-	// VerifySSL enables or disables SSL verification
-	VerifySSL bool `mapstructure:"verify_ssl"`
+	// TLSSkipVerify enables or disables SSL verification
+	TLSSkipVerify bool `mapstructure:"tls_skip_verify"`
 
 	// TLSServerName, if set, is used to set the SNI host when connecting via TLS.
 	TLSServerName string `mapstructure:"tls_server_name"`
@@ -75,7 +75,7 @@ func (a *VaultConfig) Merge(b *VaultConfig) *VaultConfig {
 		result.RoleToken = b.RoleToken
 	}
 	if b.AllowUnauthenticated {
-		result.AllowUnauthenticated = true
+		result.AllowUnauthenticated = b.AllowUnauthenticated
 	}
 	if b.ChildTokenTTL != "" {
 		result.ChildTokenTTL = b.ChildTokenTTL
@@ -83,20 +83,20 @@ func (a *VaultConfig) Merge(b *VaultConfig) *VaultConfig {
 	if b.Addr != "" {
 		result.Addr = b.Addr
 	}
-	if b.CACert != "" {
-		result.CACert = b.CACert
+	if b.TLSCaFile != "" {
+		result.TLSCaFile = b.TLSCaFile
 	}
-	if b.CAPath != "" {
-		result.CAPath = b.CAPath
+	if b.TLSCaPath != "" {
+		result.TLSCaPath = b.TLSCaPath
 	}
-	if b.CertFile != "" {
-		result.CertFile = b.CertFile
+	if b.TLSCertFile != "" {
+		result.TLSCertFile = b.TLSCertFile
 	}
-	if b.KeyFile != "" {
-		result.KeyFile = b.KeyFile
+	if b.TLSKeyFile != "" {
+		result.TLSKeyFile = b.TLSKeyFile
 	}
-	if b.VerifySSL {
-		result.VerifySSL = true
+	if b.TLSSkipVerify {
+		result.TLSSkipVerify = b.TLSSkipVerify
 	}
 	if b.TLSServerName != "" {
 		result.TLSServerName = b.TLSServerName
@@ -116,12 +116,12 @@ func (c *VaultConfig) ApiConfig(readEnv bool) (*vault.Config, error) {
 	}
 
 	tlsConf := &vault.TLSConfig{
-		CACert:        c.CACert,
-		CAPath:        c.CAPath,
-		ClientCert:    c.CertFile,
-		ClientKey:     c.KeyFile,
+		CACert:        c.TLSCaFile,
+		CAPath:        c.TLSCaPath,
+		ClientCert:    c.TLSCertFile,
+		ClientKey:     c.TLSKeyFile,
 		TLSServerName: c.TLSServerName,
-		Insecure:      !c.VerifySSL,
+		Insecure:      !c.TLSSkipVerify,
 	}
 	if err := conf.ConfigureTLS(tlsConf); err != nil {
 		return nil, err
