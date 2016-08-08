@@ -281,9 +281,11 @@ func TestJobs_Evaluations(t *testing.T) {
 	}
 	assertQueryMeta(t, qm)
 
-	// Check that we got the evals back
-	if n := len(evals); n == 0 || evals[0].ID != evalID {
-		t.Fatalf("expected 1 eval (%s), got: %#v", evalID, evals)
+	// Check that we got the evals back, evals are in order most recent to least recent
+	// so the last eval is the original registered eval
+	idx := len(evals) - 1
+	if n := len(evals); n == 0 || evals[idx].ID != evalID {
+		t.Fatalf("expected >= 1 eval (%s), got: %#v", evalID, evals[idx])
 	}
 }
 
