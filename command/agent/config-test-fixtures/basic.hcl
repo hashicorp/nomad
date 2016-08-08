@@ -106,13 +106,13 @@ consul {
 vault {
     address = "127.0.0.1:9500"
     allow_unauthenticated = true
-    ca_cert = "/path/to/ca/file"
-    ca_path = "/path/to/ca"
-    cert_file = "/path/to/cert/file"
     child_token_ttl = "1s"
-    key_file = "/path/to/key/file"
     role_name = "roleFoo"
     role_token = "12345"
+    tls_ca_file = "/path/to/ca/file"
+    tls_ca_path = "/path/to/ca"
+    tls_cert_file = "/path/to/cert/file"
+    tls_key_file = "/path/to/key/file"
     tls_server_name = "foobar"
-    verify_ssl = true
+    tls_skip_verify = true
 }
