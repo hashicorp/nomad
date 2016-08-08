@@ -39,7 +39,7 @@ func testExecutorContextWithChroot(t *testing.T) *ExecutorContext {
 func TestExecutor_IsolationAndConstraints(t *testing.T) {
 	testutil.ExecCompatible(t)
 
-	execCmd := ExecCommand{Cmd: "/bin/ls", Args: []string{"-F", "/"}}
+	execCmd := ExecCommand{Cmd: "/bin/ls", Args: []string{"-F", "/", "/etc/"}}
 	ctx := testExecutorContextWithChroot(t)
 	defer ctx.AllocDir.Destroy()
 
@@ -81,7 +81,7 @@ func TestExecutor_IsolationAndConstraints(t *testing.T) {
 		t.Fatalf("file %v hasn't been removed", memLimits)
 	}
 
-	expected := "bin/\netc/\nlib/\nlib64/\nusr/"
+	expected := "/:\nalloc/\nbin/\ndev/\netc/\nlib/\nlib64/\nlocal/\nproc/\ntmp/\nusr/\n\n/etc/:\nld.so.cache\nld.so.conf\nld.so.conf.d/"
 	file := filepath.Join(ctx.AllocDir.LogDir(), "web.stdout.0")
 	output, err := ioutil.ReadFile(file)
 	if err != nil {
