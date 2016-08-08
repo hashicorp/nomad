@@ -648,22 +648,22 @@ func parseVaultConfig(result **config.VaultConfig, list *ast.ObjectList) error {
 		return fmt.Errorf("only one 'vault' block allowed")
 	}
 
-	// Get our Consul object
+	// Get our Vault object
 	listVal := list.Items[0].Val
 
 	// Check for invalid keys
 	valid := []string{
 		"address",
 		"allow_unauthenticated",
-		"ca_cert",
-		"ca_path",
-		"cert_file",
+		"tls_ca_file",
+		"tls_ca_path",
+		"tls_cert_file",
 		"child_token_ttl",
-		"key_file",
+		"tls_key_file",
 		"role_name",
 		"role_token",
 		"tls_server_name",
-		"verify_ssl",
+		"tls_skip_verify",
 	}
 
 	if err := checkHCLKeys(listVal, valid); err != nil {
