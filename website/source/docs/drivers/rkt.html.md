@@ -42,6 +42,8 @@ The `rkt` driver supports the following configuration in the job spec:
 * `dns_search_domains` - (Optional) A list of DNS search domains to be used in
    the containers
 
+* `debug` - (Optional) Enable rkt command debug option
+
 ## Task Directories
 
 The `rkt` driver currently does not support mounting of the `alloc/` and `local/` directory. 
