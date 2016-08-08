@@ -11,6 +11,7 @@ IMPROVEMENTS:
     [GH-1516]
   * api: client Logs endpoint for streaming task logs [GH-1444]
   * api/cli: Support for tailing/streaming files [GH-1404, GH-1420]
+  * api/server: Support for querying job summaries [GH-1455]
   * cli: `nomad logs` command for streaming task logs [GH-1444]
   * cli: `nomad plan` exit code indicates if changes will occur [GH-1502]
   * cli: Validate and plan command supports reading from stdin [GH-1460,
@@ -18,6 +19,7 @@ IMPROVEMENTS:
   * client: Add killing event to task state [GH-1457]
   * client: Fingerprint network speed on Windows [GH-1443]
   * driver/docker: Allow working directory to be configured [GH-1513]
+  * server: Summarize the current status of registered jobs. [GH-1383, GH-1517]
   * telemetry: Circonus integration for telemetry metrics [GH-1459]
   * telemetry: Allow operators to opt-in for publishing metrics [GH-1501]
 
