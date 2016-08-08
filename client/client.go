@@ -833,8 +833,7 @@ func (c *Client) registerNode() error {
 		WriteRequest: structs.WriteRequest{Region: c.Region()},
 	}
 	var resp structs.NodeUpdateResponse
-	err := c.RPC("Node.Register", &req, &resp)
-	if err != nil {
+	if err := c.RPC("Node.Register", &req, &resp); err != nil {
 		if time.Since(c.start) > registerErrGrace {
 			return fmt.Errorf("client: failed to register node: %v", err)
 		}
@@ -867,8 +866,7 @@ func (c *Client) updateNodeStatus() error {
 		WriteRequest: structs.WriteRequest{Region: c.Region()},
 	}
 	var resp structs.NodeUpdateResponse
-	err := c.RPC("Node.UpdateStatus", &req, &resp)
-	if err != nil {
+	if err := c.RPC("Node.UpdateStatus", &req, &resp); err != nil {
 		return fmt.Errorf("client: failed to update status: %v", err)
 	}
 	if len(resp.EvalIDs) != 0 {
