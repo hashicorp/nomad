@@ -10,10 +10,10 @@ description: |-
 # Gossip Protocol
 
 Nomad uses a [gossip protocol](https://en.wikipedia.org/wiki/Gossip_protocol)
-to manage membership. This is provided through the use of the [Serf library](https://www.serfdom.io/).
+to manage membership. This is provided through the use of the [Serf library](https://www.serf.io/).
 The gossip protocol used by Serf is based on
 ["SWIM: Scalable Weakly-consistent Infection-style Process Group Membership Protocol"](https://www.cs.cornell.edu/~asdas/research/dsn02-swim.pdf),
-with a few minor adaptations. There are more details about [Serf's protocol here](https://www.serfdom.io/docs/internals/gossip.html).
+with a few minor adaptations. There are more details about [Serf's protocol here](https://www.serf.io/docs/internals/gossip.html).
 
 ~> **Advanced Topic!** This page covers technical details of
 the internals of Nomad. You do not need to know these details to effectively
@@ -29,7 +29,7 @@ losing connectivity, or just a single server in a remote region. The gossip prot
 is also used to detect servers in the same region to perform automatic clustering
 via the [consensus protocol](/docs/internals/consensus.html).
 
-All of these features are provided by leveraging [Serf](https://www.serfdom.io/). It
+All of these features are provided by leveraging [Serf](https://www.serf.io/). It
 is used as an embedded library to provide these features. From a user perspective,
 this is not important, since the abstraction should be masked by Nomad. It can be useful
 however as a developer to understand how this library is leveraged.
