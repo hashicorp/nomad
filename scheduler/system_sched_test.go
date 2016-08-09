@@ -752,6 +752,65 @@ func TestSystemSched_NodeDown(t *testing.T) {
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
 
+func TestSystemSched_NodeDrain_Down(t *testing.T) {
+	h := NewHarness(t)
+
+	// Register a draining node
+	node := mock.Node()
+	node.Drain = true
+	node.Status = structs.NodeStatusDown
+	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+
+	// Generate a fake job allocated on that node.
+	job := mock.SystemJob()
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	alloc := mock.Alloc()
+	alloc.Job = job
+	alloc.JobID = job.ID
+	alloc.NodeID = node.ID
+	alloc.Name = "my-job.web[0]"
+	noErr(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
+
+	// Create a mock evaluation to deal with the node update
+	eval := &structs.Evaluation{
+		ID:          structs.GenerateUUID(),
+		Priority:    50,
+		TriggeredBy: structs.EvalTriggerNodeUpdate,
+		JobID:       job.ID,
+		NodeID:      node.ID,
+	}
+
+	// Process the evaluation
+	err := h.Process(NewServiceScheduler, eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure a single plan
+	if len(h.Plans) != 1 {
+		t.Fatalf("bad: %#v", h.Plans)
+	}
+	plan := h.Plans[0]
+
+	// Ensure the plan evicted non terminal allocs
+	if len(plan.NodeUpdate[node.ID]) != 1 {
+		t.Fatalf("bad: %#v", plan)
+	}
+
+	// Ensure that the allocation is marked as lost
+	var lostAllocs []string
+	for _, alloc := range plan.NodeUpdate[node.ID] {
+		lostAllocs = append(lostAllocs, alloc.ID)
+	}
+	expected := []string{alloc.ID}
+
+	if !reflect.DeepEqual(lostAllocs, expected) {
+		t.Fatalf("expected: %v, actual: %v", expected, lostAllocs)
+	}
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+}
+
 func TestSystemSched_NodeDrain(t *testing.T) {
 	h := NewHarness(t)
 

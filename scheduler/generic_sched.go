@@ -356,13 +356,12 @@ func (s *GenericScheduler) computeJobAllocs() error {
 			s.eval.JobID, err)
 	}
 
-	// Update the allocations which are in pending/running state on tainted node
-	// to lost
+	// Update the allocations which are in pending/running state on tainted
+	// nodes to lost
 	updateNonTerminalAllocsToLost(s.plan, tainted, allocs)
 
 	// Filter out the allocations in a terminal state
 	allocs = s.filterCompleteAllocs(allocs)
-	s.logger.Printf("len of allocs: %v", len(allocs))
 
 	// Diff the required and existing allocations
 	diff := diffAllocs(s.job, tainted, groups, allocs)

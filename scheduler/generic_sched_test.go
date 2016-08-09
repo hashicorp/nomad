@@ -3,6 +3,7 @@ package scheduler
 import (
 	"fmt"
 	"reflect"
+	"sort"
 	"testing"
 	"time"
 
@@ -1431,6 +1432,104 @@ func TestServiceSched_NodeDrain(t *testing.T) {
 	out = structs.FilterTerminalAllocs(out)
 	if len(out) != 10 {
 		t.Fatalf("bad: %#v", out)
+	}
+
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+}
+
+func TestServiceSched_NodeDrain_Down(t *testing.T) {
+	h := NewHarness(t)
+
+	// Register a draining node
+	node := mock.Node()
+	node.Drain = true
+	node.Status = structs.NodeStatusDown
+	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+
+	// Generate a fake job with allocations
+	job := mock.Job()
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	var allocs []*structs.Allocation
+	for i := 0; i < 10; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = node.ID
+		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
+		allocs = append(allocs, alloc)
+	}
+	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+
+	// Set the desired state of the allocs to stop
+	var stop []*structs.Allocation
+	for i := 0; i < 10; i++ {
+		newAlloc := allocs[i].Copy()
+		newAlloc.ClientStatus = structs.AllocDesiredStatusStop
+		stop = append(stop, newAlloc)
+	}
+	noErr(t, h.State.UpsertAllocs(h.NextIndex(), stop))
+
+	// Mark some of the allocations as running
+	var running []*structs.Allocation
+	for i := 4; i < 6; i++ {
+		newAlloc := stop[i].Copy()
+		newAlloc.ClientStatus = structs.AllocClientStatusRunning
+		running = append(running, newAlloc)
+	}
+	noErr(t, h.State.UpdateAllocsFromClient(h.NextIndex(), running))
+
+	// Mark some of the allocations as complete
+	var complete []*structs.Allocation
+	for i := 6; i < 10; i++ {
+		newAlloc := stop[i].Copy()
+		newAlloc.ClientStatus = structs.AllocClientStatusComplete
+		complete = append(complete, newAlloc)
+	}
+	noErr(t, h.State.UpdateAllocsFromClient(h.NextIndex(), complete))
+
+	// Create a mock evaluation to deal with the node update
+	eval := &structs.Evaluation{
+		ID:          structs.GenerateUUID(),
+		Priority:    50,
+		TriggeredBy: structs.EvalTriggerNodeUpdate,
+		JobID:       job.ID,
+		NodeID:      node.ID,
+	}
+
+	// Process the evaluation
+	err := h.Process(NewServiceScheduler, eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure a single plan
+	if len(h.Plans) != 1 {
+		t.Fatalf("bad: %#v", h.Plans)
+	}
+	plan := h.Plans[0]
+
+	// Ensure the plan evicted non terminal allocs
+	if len(plan.NodeUpdate[node.ID]) != 6 {
+		t.Fatalf("bad: %#v", plan)
+	}
+
+	// Ensure that all the allocations which were in running or pending state
+	// has been marked as lost
+	var lostAllocs []string
+	for _, alloc := range plan.NodeUpdate[node.ID] {
+		lostAllocs = append(lostAllocs, alloc.ID)
+	}
+	sort.Strings(lostAllocs)
+
+	var expectedLostAllocs []string
+	for i := 0; i < 6; i++ {
+		expectedLostAllocs = append(expectedLostAllocs, allocs[i].ID)
+	}
+	sort.Strings(expectedLostAllocs)
+
+	if !reflect.DeepEqual(expectedLostAllocs, lostAllocs) {
+		t.Fatalf("expected: %v, actual: %v", expectedLostAllocs, lostAllocs)
 	}
 
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
