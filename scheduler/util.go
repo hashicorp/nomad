@@ -649,3 +649,16 @@ func adjustQueuedAllocations(logger *log.Logger, result *structs.PlanResult, que
 		}
 	}
 }
+
+// updateNonTerminalAllocsToLost updates the allocations which are in pending/running state on tainted node
+// to lost
+func updateNonTerminalAllocsToLost(plan *structs.Plan, tainted map[string]*structs.Node, allocs []*structs.Allocation) {
+	for _, alloc := range allocs {
+		if _, ok := tainted[alloc.NodeID]; ok &&
+			alloc.DesiredStatus == structs.AllocDesiredStatusStop &&
+			(alloc.ClientStatus == structs.AllocClientStatusRunning ||
+				alloc.ClientStatus == structs.AllocClientStatusPending) {
+			plan.AppendUpdate(alloc, structs.AllocDesiredStatusStop, allocLost, structs.AllocClientStatusLost)
+		}
+	}
+}

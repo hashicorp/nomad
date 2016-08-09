@@ -184,15 +184,19 @@ func (s *SystemScheduler) computeJobAllocs() error {
 			s.eval.JobID, err)
 	}
 
-	// Filter out the allocations in a terminal state
-	allocs = structs.FilterTerminalAllocs(allocs)
-
 	// Determine the tainted nodes containing job allocs
 	tainted, err := taintedNodes(s.state, allocs)
 	if err != nil {
 		return fmt.Errorf("failed to get tainted nodes for job '%s': %v",
 			s.eval.JobID, err)
 	}
+
+	// Update the allocations which are in pending/running state on tainted
+	// nodes to lost
+	updateNonTerminalAllocsToLost(s.plan, tainted, allocs)
+
+	// Filter out the allocations in a terminal state
+	allocs = structs.FilterTerminalAllocs(allocs)
 
 	// Diff the required and existing allocations
 	diff := diffSystemAllocs(s.job, s.nodes, tainted, allocs)

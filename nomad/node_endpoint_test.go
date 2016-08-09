@@ -444,6 +444,131 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 	}
 }
 
+// This test ensures that Nomad marks client state of allocations which are in
+// pending/running state to lost when a node is marked as down.
+func TestClientEndpoint_Drain_Down(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Register a node
+	node := mock.Node()
+	reg := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	// Fetch the response
+	var resp structs.NodeUpdateResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Register a service job
+	var jobResp structs.JobRegisterResponse
+	job := mock.Job()
+	job.TaskGroups[0].Count = 1
+	jobReq := &structs.JobRegisterRequest{
+		Job:          job,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", jobReq, &jobResp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Register a system job
+	var jobResp1 structs.JobRegisterResponse
+	job1 := mock.Job()
+	job1.TaskGroups[0].Count = 1
+	job1.Type = structs.JobTypeSystem
+	jobReq1 := &structs.JobRegisterRequest{
+		Job:          job1,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", jobReq1, &jobResp1); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Wait for the scheduler to create an allocation
+	testutil.WaitForResult(func() (bool, error) {
+		allocs, err := s1.fsm.state.AllocsByJob(job.ID)
+		if err != nil {
+			return false, err
+		}
+		allocs1, err := s1.fsm.state.AllocsByJob(job1.ID)
+		if err != nil {
+			return false, err
+		}
+		return len(allocs) > 0 && len(allocs1) > 0, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	// Drain the node
+	dereg := &structs.NodeUpdateDrainRequest{
+		NodeID:       node.ID,
+		Drain:        true,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var resp2 structs.NodeDrainUpdateResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp2); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Mark the node as down
+	node.Status = structs.NodeStatusDown
+	reg = &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure that the allocation has transitioned to lost
+	testutil.WaitForResult(func() (bool, error) {
+		summary, err := s1.fsm.state.JobSummaryByID(job.ID)
+		if err != nil {
+			return false, err
+		}
+		expectedSummary := &structs.JobSummary{
+			JobID: job.ID,
+			Summary: map[string]structs.TaskGroupSummary{
+				"web": structs.TaskGroupSummary{
+					Queued: 1,
+					Lost:   1,
+				},
+			},
+			CreateIndex: jobResp.JobModifyIndex,
+			ModifyIndex: summary.ModifyIndex,
+		}
+		if !reflect.DeepEqual(summary, expectedSummary) {
+			return false, fmt.Errorf("expected: %#v, actual: %#v", expectedSummary, summary)
+		}
+
+		summary1, err := s1.fsm.state.JobSummaryByID(job1.ID)
+		if err != nil {
+			return false, err
+		}
+		expectedSummary1 := &structs.JobSummary{
+			JobID: job1.ID,
+			Summary: map[string]structs.TaskGroupSummary{
+				"web": structs.TaskGroupSummary{
+					Lost: 1,
+				},
+			},
+			CreateIndex: jobResp1.JobModifyIndex,
+			ModifyIndex: summary1.ModifyIndex,
+		}
+		if !reflect.DeepEqual(summary1, expectedSummary1) {
+			return false, fmt.Errorf("expected: %#v, actual: %#v", expectedSummary1, summary1)
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+}
+
 func TestClientEndpoint_GetNode(t *testing.T) {
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()

@@ -998,3 +998,42 @@ func TestUtil_AdjustQueuedAllocations(t *testing.T) {
 		t.Fatalf("expected: %v, actual: %v", 1, queuedAllocs["web"])
 	}
 }
+
+func TestUtil_UpdateNonTerminalAllocsToLost(t *testing.T) {
+	node := mock.Node()
+	alloc1 := mock.Alloc()
+	alloc1.NodeID = node.ID
+	alloc1.DesiredStatus = structs.AllocDesiredStatusStop
+
+	alloc2 := mock.Alloc()
+	alloc2.NodeID = node.ID
+	alloc2.DesiredStatus = structs.AllocDesiredStatusStop
+	alloc2.ClientStatus = structs.AllocClientStatusRunning
+
+	alloc3 := mock.Alloc()
+	alloc3.NodeID = node.ID
+	alloc3.DesiredStatus = structs.AllocDesiredStatusStop
+	alloc3.ClientStatus = structs.AllocClientStatusComplete
+
+	alloc4 := mock.Alloc()
+	alloc4.NodeID = node.ID
+	alloc4.DesiredStatus = structs.AllocDesiredStatusStop
+	alloc4.ClientStatus = structs.AllocClientStatusFailed
+
+	allocs := []*structs.Allocation{alloc1, alloc2, alloc3, alloc4}
+	plan := structs.Plan{
+		NodeUpdate: make(map[string][]*structs.Allocation),
+	}
+	tainted := map[string]*structs.Node{node.ID: node}
+
+	updateNonTerminalAllocsToLost(&plan, tainted, allocs)
+
+	allocsLost := make([]string, 0, 2)
+	for _, alloc := range plan.NodeUpdate[node.ID] {
+		allocsLost = append(allocsLost, alloc.ID)
+	}
+	expected := []string{alloc1.ID, alloc2.ID}
+	if !reflect.DeepEqual(allocsLost, expected) {
+		t.Fatalf("actual: %v, expected: %v", allocsLost, expected)
+	}
+}
