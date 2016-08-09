@@ -62,6 +62,7 @@ type RktDriverConfig struct {
 	TrustPrefix      string   `mapstructure:"trust_prefix"`
 	DNSServers       []string `mapstructure:"dns_servers"`        // DNS Server for containers
 	DNSSearchDomains []string `mapstructure:"dns_search_domains"` // DNS Search domains for containers
+	Debug            bool     `mapstructure:"debug"`              // Enable debug option for rkt command
 }
 
 // rktHandle is returned from Start/Open as a handle to the PID
@@ -115,6 +116,9 @@ func (d *RktDriver) Validate(config map[string]interface{}) error {
 			},
 			"dns_search_domains": &fields.FieldSchema{
 				Type: fields.TypeArray,
+			},
+			"debug": &fields.FieldSchema{
+				Type: fields.TypeBool,
 			},
 		},
 	}
@@ -190,12 +194,15 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	// Build the command.
 	var cmdArgs []string
 
+	// Add debug option to rkt command.
+	debug := driverConfig.Debug
+
 	// Add the given trust prefix
 	trustPrefix := driverConfig.TrustPrefix
 	insecure := false
 	if trustPrefix != "" {
 		var outBuf, errBuf bytes.Buffer
-		cmd := exec.Command("rkt", "trust", "--skip-fingerprint-review=true", fmt.Sprintf("--prefix=%s", trustPrefix))
+		cmd := exec.Command("rkt", "trust", "--skip-fingerprint-review=true", fmt.Sprintf("--prefix=%s", trustPrefix), fmt.Sprintf("--debug=%t", debug))
 		cmd.Stdout = &outBuf
 		cmd.Stderr = &errBuf
 		if err := cmd.Run(); err != nil {
@@ -207,7 +214,6 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		// Disble signature verification if the trust command was not run.
 		insecure = true
 	}
-
 	cmdArgs = append(cmdArgs, "run")
 	cmdArgs = append(cmdArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s", task.Name, ctx.AllocDir.SharedDir))
 	cmdArgs = append(cmdArgs, fmt.Sprintf("--mount=volume=%s,target=%s", task.Name, ctx.AllocDir.SharedDir))
@@ -215,6 +221,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	if insecure == true {
 		cmdArgs = append(cmdArgs, "--insecure-options=all")
 	}
+	cmdArgs = append(cmdArgs, fmt.Sprintf("--debug=%t", debug))
 
 	// Inject environment variables
 	for k, v := range d.taskEnv.EnvMap() {
