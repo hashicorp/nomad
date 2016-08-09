@@ -151,6 +151,10 @@ func TestParse(t *testing.T) {
 										},
 									},
 								},
+								Vault: &structs.Vault{
+									Policies: []string{"foo", "bar"},
+									Token:    "baz",
+								},
 							},
 							&structs.Task{
 								Name:   "storagelocker",
@@ -189,6 +193,12 @@ func TestParse(t *testing.T) {
 
 		{
 			"multi-resource.hcl",
+			nil,
+			true,
+		},
+
+		{
+			"multi-vault.hcl",
 			nil,
 			true,
 		},
