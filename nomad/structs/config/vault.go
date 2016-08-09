@@ -131,3 +131,14 @@ func (c *VaultConfig) ApiConfig(readEnv bool) (*vault.Config, error) {
 
 	return conf, nil
 }
+
+// Copy returns a copy of this Vault config.
+func (c *VaultConfig) Copy() *VaultConfig {
+	if c == nil {
+		return nil
+	}
+
+	nc := new(VaultConfig)
+	*nc = *c
+	return nc
+}
