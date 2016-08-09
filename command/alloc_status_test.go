@@ -61,5 +61,13 @@ func TestAllocStatusCommand_Fails(t *testing.T) {
 	if out := ui.ErrorWriter.String(); !strings.Contains(out, "No allocation(s) with prefix or id") {
 		t.Fatalf("expected not found error, got: %s", out)
 	}
+	ui.ErrorWriter.Reset()
 
+	// Failed on both -json and -t options are specified
+	if code := cmd.Run([]string{"-address=" + url, "-json", "-t", "{{.ID}}"}); code != 1 {
+		t.Fatalf("expected exit 1, got: %d", code)
+	}
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Both -json and -t are not allowed") {
+		t.Fatalf("expected getting formatter error, got: %s", out)
+	}
 }
