@@ -1843,6 +1843,10 @@ type Task struct {
 	// List of service definitions exposed by the Task
 	Services []*Service
 
+	// Vault is used to define the set of Vault policies that this task should
+	// have access to.
+	Vault *Vault
+
 	// Constraints can be specified at a task level and apply only to
 	// the particular task.
 	Constraints []*Constraint
@@ -1884,6 +1888,7 @@ func (t *Task) Copy() *Task {
 
 	nt.Constraints = CopySliceConstraints(nt.Constraints)
 
+	nt.Vault = nt.Vault.Copy()
 	nt.Resources = nt.Resources.Copy()
 	nt.Meta = CopyMapStringString(nt.Meta)
 
@@ -2000,6 +2005,12 @@ func (t *Task) Validate() error {
 		if err := artifact.Validate(); err != nil {
 			outer := fmt.Errorf("Artifact %d validation failed: %v", idx+1, err)
 			mErr.Errors = append(mErr.Errors, outer)
+		}
+	}
+
+	if t.Vault != nil {
+		if err := t.Vault.Validate(); err != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Vault validation failed: %v", err))
 		}
 	}
 
@@ -2430,6 +2441,41 @@ func (c *Constraint) Validate() error {
 		}
 	}
 	return mErr.ErrorOrNil()
+}
+
+// Vault stores the set of premissions a task needs access to from Vault.
+type Vault struct {
+	// Policies is the set of policies that the task needs access to
+	Policies []string
+
+	// Token is the Vault token that proves the submitter of the job has access
+	// to the above policies. This field is only used to transfer the token and
+	// is not stored after Job submission.
+	Token string
+}
+
+// Copy returns a copy of this Vault block.
+func (v *Vault) Copy() *Vault {
+	if v == nil {
+		return nil
+	}
+
+	nv := new(Vault)
+	*nv = *v
+	return nv
+}
+
+// Validate returns if the Vault block is valid.
+func (v *Vault) Validate() error {
+	if v == nil {
+		return nil
+	}
+
+	if len(v.Policies) == 0 {
+		return fmt.Errorf("Policy list can not be empty")
+	}
+
+	return nil
 }
 
 const (
