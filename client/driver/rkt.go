@@ -62,7 +62,7 @@ type RktDriverConfig struct {
 	TrustPrefix      string   `mapstructure:"trust_prefix"`
 	DNSServers       []string `mapstructure:"dns_servers"`        // DNS Server for containers
 	DNSSearchDomains []string `mapstructure:"dns_search_domains"` // DNS Search domains for containers
-	debug            string   `mapstructure:"debug"`
+	Debug            bool     `mapstructure:"debug"`              // Enable debug option for rkt command
 }
 
 // rktHandle is returned from Start/Open as a handle to the PID
@@ -118,7 +118,7 @@ func (d *RktDriver) Validate(config map[string]interface{}) error {
 				Type: fields.TypeArray,
 			},
 			"debug": &fields.FieldSchema{
-				Type: fields.TypeString,
+				Type: fields.TypeBool,
 			},
 		},
 	}
@@ -195,15 +195,14 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	var cmdArgs []string
 
 	// Add debug option to rkt command.
-	debug := "false"
-	debug, _ = task.Config["debug"].(string)
+	debug := driverConfig.Debug
 
 	// Add the given trust prefix
 	trustPrefix := driverConfig.TrustPrefix
 	insecure := false
 	if trustPrefix != "" {
 		var outBuf, errBuf bytes.Buffer
-		cmd := exec.Command("rkt", "trust", "--skip-fingerprint-review=true", fmt.Sprintf("--prefix=%s", trustPrefix), fmt.Sprintf("--debug=%s", debug))
+		cmd := exec.Command("rkt", "trust", "--skip-fingerprint-review=true", fmt.Sprintf("--prefix=%s", trustPrefix), fmt.Sprintf("--debug=%t", debug))
 		cmd.Stdout = &outBuf
 		cmd.Stderr = &errBuf
 		if err := cmd.Run(); err != nil {
@@ -222,7 +221,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	if insecure == true {
 		cmdArgs = append(cmdArgs, "--insecure-options=all")
 	}
-	cmdArgs = append(cmdArgs, fmt.Sprintf("--debug=%s", debug))
+	cmdArgs = append(cmdArgs, fmt.Sprintf("--debug=%t", debug))
 
 	// Inject environment variables
 	for k, v := range d.taskEnv.EnvMap() {
