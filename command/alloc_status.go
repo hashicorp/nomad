@@ -194,7 +194,7 @@ func (c *AllocStatusCommand) outputTaskStatus(state *api.TaskState) {
 
 	size := len(state.Events)
 	for i, event := range state.Events {
-		formatedTime := c.formatUnixNanoTime(event.Time)
+		formatedTime := formatUnixNanoTime(event.Time)
 
 		// Build up the description based on the event type.
 		var desc string
@@ -400,7 +400,7 @@ func (c *AllocStatusCommand) shortTaskStatus(alloc *api.Allocation) {
 		if l != 0 {
 			last := state.Events[l-1]
 			lastEvent = last.Type
-			lastTime = c.formatUnixNanoTime(last.Time)
+			lastTime = formatUnixNanoTime(last.Time)
 		}
 
 		tasks = append(tasks, fmt.Sprintf("%s|%s|%s|%s",
@@ -429,10 +429,4 @@ func (c *AllocStatusCommand) sortedTaskStateIterator(m map[string]*api.TaskState
 
 	close(output)
 	return output
-}
-
-// formatUnixNanoTime is a helper for formating time for output.
-func (c *AllocStatusCommand) formatUnixNanoTime(nano int64) string {
-	t := time.Unix(0, nano)
-	return formatTime(t)
 }

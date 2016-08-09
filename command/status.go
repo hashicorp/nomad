@@ -310,7 +310,7 @@ func (c *StatusCommand) outputJobInfo(client *api.Client, job *api.Job) error {
 				alloc.TaskGroup,
 				alloc.DesiredStatus,
 				alloc.ClientStatus,
-				c.formatUnixNanoTime(alloc.CreateTime))
+				formatUnixNanoTime(alloc.CreateTime))
 		}
 
 		c.Ui.Output(formatList(allocs))
@@ -345,12 +345,6 @@ func (c *StatusCommand) outputFailedPlacements(failedEval *api.Evaluation) {
 		trunc := fmt.Sprintf("\nPlacement failures truncated. To see remainder run:\nnomad eval-status %s", failedEval.ID)
 		c.Ui.Output(trunc)
 	}
-}
-
-// formatUnixNanoTime is a helper for formatting time for output.
-func (c *StatusCommand) formatUnixNanoTime(nano int64) string {
-	t := time.Unix(0, nano)
-	return formatTime(t)
 }
 
 // convertApiJob is used to take a *api.Job and convert it to an *struct.Job.
