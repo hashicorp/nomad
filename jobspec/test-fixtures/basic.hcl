@@ -123,6 +123,11 @@ job "binstore-storagelocker" {
           checksum = "md5:ff1cc0d3432dad54d607c1505fb7245c"
         }
       }
+
+      vault {
+        policies = ["foo", "bar"]
+        token = "baz"
+      }
     }
 
     task "storagelocker" {
