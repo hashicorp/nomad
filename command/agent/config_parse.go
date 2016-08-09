@@ -656,6 +656,7 @@ func parseVaultConfig(result **config.VaultConfig, list *ast.ObjectList) error {
 		"address",
 		"allow_unauthenticated",
 		"child_token_ttl",
+		"enabled",
 		"periodic_token",
 		"tls_ca_file",
 		"tls_ca_path",
