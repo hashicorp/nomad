@@ -352,6 +352,7 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	}
 
 	conf.ConsulConfig = a.config.Consul
+	conf.VaultConfig = a.config.Vault
 	conf.StatsCollectionInterval = a.config.Telemetry.collectionInterval
 	conf.PublishNodeMetrics = a.config.Telemetry.PublishNodeMetrics
 	conf.PublishAllocationMetrics = a.config.Telemetry.PublishAllocationMetrics

@@ -188,3 +188,14 @@ func (c *ConsulConfig) ApiConfig() (*consul.Config, error) {
 
 	return config, nil
 }
+
+// Copy returns a copy of this Consul config.
+func (c *ConsulConfig) Copy() *ConsulConfig {
+	if c == nil {
+		return nil
+	}
+
+	nc := new(ConsulConfig)
+	*nc = *c
+	return nc
+}

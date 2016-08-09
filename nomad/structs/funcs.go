@@ -204,6 +204,19 @@ func CopySliceString(s []string) []string {
 	return c
 }
 
+func CopySliceInt(s []int) []int {
+	l := len(s)
+	if l == 0 {
+		return nil
+	}
+
+	c := make([]int, l)
+	for i, v := range s {
+		c[i] = v
+	}
+	return c
+}
+
 func CopySliceConstraints(s []*Constraint) []*Constraint {
 	l := len(s)
 	if l == 0 {
