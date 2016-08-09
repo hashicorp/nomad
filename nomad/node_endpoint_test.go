@@ -444,6 +444,103 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 	}
 }
 
+func TestClientEndpoint_Drain_Down(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	node := mock.Node()
+	reg := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.NodeUpdateResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Register a Job
+	var jobResp structs.JobRegisterResponse
+	job := mock.Job()
+	jobReq := &structs.JobRegisterRequest{
+		Job:          job,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", jobReq, &jobResp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	testutil.WaitForResult(func() (bool, error) {
+		allocs, err := s1.fsm.state.AllocsByJob(job.ID)
+		if err != nil {
+			return false, err
+		}
+		return len(allocs) > 0, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	// Update the status
+	dereg := &structs.NodeUpdateDrainRequest{
+		NodeID:       node.ID,
+		Drain:        true,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var resp2 structs.NodeDrainUpdateResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp2); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp2.Index == 0 {
+		t.Fatalf("bad index: %d", resp2.Index)
+	}
+
+	// Check for the node in the FSM
+	state := s1.fsm.State()
+	out, err := state.NodeByID(node.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if !out.Drain {
+		t.Fatalf("bad: %#v", out)
+	}
+
+	// Mark the node as down and fetch the response
+	node.Status = structs.NodeStatusDown
+	reg = &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure that the allocation has transitioned to lost
+	testutil.WaitForResult(func() (bool, error) {
+		summary, err := s1.fsm.state.JobSummaryByID(job.ID)
+		if err != nil {
+			return false, err
+		}
+		expectedSummary := structs.JobSummary{
+			JobID: job.ID,
+			Summary: map[string]structs.TaskGroupSummary{
+				"web": structs.TaskGroupSummary{
+					Lost: 1,
+				},
+			},
+		}
+		if !reflect.DeepEqual(summary, expectedSummary) {
+			return false, fmt.Errorf("expected: %v, actual: %v", expectedSummary, summary)
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+}
+
 func TestClientEndpoint_GetNode(t *testing.T) {
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
