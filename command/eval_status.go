@@ -143,34 +143,6 @@ func (c *EvalStatusCommand) Run(args []string) int {
 		return 1
 	}
 
-	if len(args) == 0 {
-		// If output format is specified, format and output the data
-		var format string
-		if json && len(tmpl) > 0 {
-			c.Ui.Error("Both -json and -t are not allowed")
-			return 1
-		} else if json {
-			format = "json"
-		} else if len(tmpl) > 0 {
-			format = "template"
-		}
-		if len(format) > 0 {
-			f, err := DataFormat(format, tmpl)
-			if err != nil {
-				c.Ui.Error(fmt.Sprintf("Error getting formatter: %s", err))
-				return 1
-			}
-
-			out, err := f.TransformData(evals)
-			if err != nil {
-				c.Ui.Error(fmt.Sprintf("Error formatting the data: %s", err))
-				return 1
-			}
-			c.Ui.Output(out)
-			return 0
-		}
-	}
-
 	if len(evals) > 1 {
 		// Format the evals
 		out := make([]string, len(evals)+1)

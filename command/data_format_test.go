@@ -1,6 +1,7 @@
 package command
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -37,5 +38,27 @@ func TestDataFormat(t *testing.T) {
 		if result != expectOutput[k] {
 			t.Fatalf("expected output: %s, actual: %s", expectOutput[k], result)
 		}
+	}
+}
+
+func TestInvalidJSONTemplate(t *testing.T) {
+	// Invalid template {{.foo}}
+	fm, err := DataFormat("template", "{{.foo}}")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	_, err = fm.TransformData(tData)
+	if !strings.Contains(err.Error(), "foo is not a field of struct type command.testData") {
+		t.Fatalf("expected invalid template error, got: %s", err.Error())
+	}
+
+	// No template is specified
+	fm, err = DataFormat("template", "")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	_, err = fm.TransformData(tData)
+	if !strings.Contains(err.Error(), "template needs to be specified the golang templates.") {
+		t.Fatalf("expected not specified template error, got: %s", err.Error())
 	}
 }

@@ -20,8 +20,16 @@ Usage: nomad inspect [options] <job>
 
 General Options:
 
-  ` + generalOptionsUsage()
+  ` + generalOptionsUsage() + `
 
+Inspect Options:
+
+  -json
+    Output the evaluation in its JSON format.
+
+  -t
+    Format and display evaluation using a Go template.
+`
 	return strings.TrimSpace(helpText)
 }
 
@@ -123,6 +131,29 @@ func (c *InspectCommand) Run(args []string) int {
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error inspecting job: %s", err))
 		return 1
+	}
+
+	// If output format is specified, format and output the data
+	var format string
+	if ojson {
+		format = "json"
+	} else if len(tmpl) > 0 {
+		format = "template"
+	}
+	if len(format) > 0 {
+		f, err := DataFormat(format, tmpl)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error getting formatter: %s", err))
+			return 1
+		}
+
+		out, err := f.TransformData(job)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error formatting the data: %s", err))
+			return 1
+		}
+		c.Ui.Output(out)
+		return 0
 	}
 
 	// Print the contents of the job
