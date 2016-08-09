@@ -6,6 +6,7 @@ __BACKWARDS INCOMPATIBILITIES:__
 
 IMPROVEMENTS:
   * core: Allow count 0 on system jobs [GH-1421]
+  * core: Summarize the current status of registered jobs. [GH-1383, GH-1517]
   * core: Gracefully handle short lived outages by holding RPC calls [GH-1403]
   * core: Introduce a lost state for allocations that were on Nodes that died
     [GH-1516]
@@ -14,12 +15,12 @@ IMPROVEMENTS:
   * api/server: Support for querying job summaries [GH-1455]
   * cli: `nomad logs` command for streaming task logs [GH-1444]
   * cli: `nomad plan` exit code indicates if changes will occur [GH-1502]
+  * cli: status commands support JSON output and go template formating [GH-1503]
   * cli: Validate and plan command supports reading from stdin [GH-1460,
     GH-1458]
   * client: Add killing event to task state [GH-1457]
   * client: Fingerprint network speed on Windows [GH-1443]
   * driver/docker: Allow working directory to be configured [GH-1513]
-  * server: Summarize the current status of registered jobs. [GH-1383, GH-1517]
   * telemetry: Circonus integration for telemetry metrics [GH-1459]
   * telemetry: Allow operators to opt-in for publishing metrics [GH-1501]
 
