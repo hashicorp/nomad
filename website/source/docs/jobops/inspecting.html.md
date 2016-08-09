@@ -39,14 +39,14 @@ Task Group "cache":
   * Dimension "cpu exhausted" exhausted on 1 nodes
 
 Allocations
-ID        Eval ID   Node ID   Task Group  Desired  Status
-12681940  8e38e6cf  4beef22f  cache       run      running
-395c5882  8e38e6cf  4beef22f  cache       run      running
-4d7c6f84  8e38e6cf  4beef22f  cache       run      running
-843b07b8  8e38e6cf  4beef22f  cache       run      running
-a8bc6d3e  8e38e6cf  4beef22f  cache       run      running
-b0beb907  8e38e6cf  4beef22f  cache       run      running
-da21c1fd  8e38e6cf  4beef22f  cache       run      running
+ID        Eval ID   Node ID   Task Group  Desired  Status   Created
+12681940  8e38e6cf  4beef22f  cache       run      running  08/08/16 21:03:19 CDT
+395c5882  8e38e6cf  4beef22f  cache       run      running  08/08/16 21:03:19 CDT
+4d7c6f84  8e38e6cf  4beef22f  cache       run      running  08/08/16 21:03:19 CDT
+843b07b8  8e38e6cf  4beef22f  cache       run      running  08/08/16 21:03:19 CDT
+a8bc6d3e  8e38e6cf  4beef22f  cache       run      running  08/08/16 21:03:19 CDT
+b0beb907  8e38e6cf  4beef22f  cache       run      running  08/08/16 21:03:19 CDT
+da21c1fd  8e38e6cf  4beef22f  cache       run      running  08/08/16 21:03:19 CDT
 ```
 
 In the above example we see that the job has a "blocked" evaluation that is in

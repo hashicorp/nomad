@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mitchellh/cli"
-	"github.com/hashicorp/nomad/testutil"
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/testutil"
+	"github.com/mitchellh/cli"
 )
 
 func TestStatusCommand_Implements(t *testing.T) {
@@ -46,7 +46,7 @@ func TestStatusCommand_Run(t *testing.T) {
 	}
 
 	job2 := testJob("job2_sfx")
-	evalId2, _, err := client.Jobs().Register(job2, nil);
+	evalId2, _, err := client.Jobs().Register(job2, nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -109,22 +109,6 @@ func TestStatusCommand_Run(t *testing.T) {
 	}
 	if !strings.Contains(out, "Allocations") {
 		t.Fatalf("should dump allocations")
-	}
-	if strings.Contains(out, "Created") {
-		t.Fatal("should not have created header")
-	}
-	ui.OutputWriter.Reset()
-
-	// Query a single job in time mode
-	if code := cmd.Run([]string{"-address=" + url, "-time", "job1_sfx"}); code != 0 {
-		t.Fatalf("expected exit 0, got: %d", code)
-	}
-	out = ui.OutputWriter.String()
-	if strings.Contains(out, "job2_sfx") || !strings.Contains(out, "job1_sfx") {
-		t.Fatalf("expected only job1_sfx, got: %s", out)
-	}
-	if !strings.Contains(out, "Allocations") {
-		t.Fatal("should dump allocations")
 	}
 	if !strings.Contains(out, "Created") {
 		t.Fatal("should have created header")

@@ -71,8 +71,8 @@ Status      = running
 Periodic    = false
 
 Allocations
-ID        Eval ID   Node ID   Task Group  Desired  Status
-dadcdb81  61b0b423  72687b1a  cache       run      running
+ID        Eval ID   Node ID   Task Group  Desired  Status   Created
+dadcdb81  61b0b423  72687b1a  cache       run      running  06/23/16 01:41:13 UTC
 ```
 
 Here we can see that the result of our evaluation was the creation of an

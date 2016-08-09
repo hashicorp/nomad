@@ -185,10 +185,10 @@ Status      = running
 Periodic    = false
 
 Allocations
-ID        Eval ID   Node ID   Task Group  Desired  Status
-501154ac  8e0a7cf9  c887deef  cache       run      running
-7e2b3900  8e0a7cf9  fca62612  cache       run      running
-9c66fcaf  8e0a7cf9  c887deef  cache       run      running
+ID        Eval ID   Node ID   Task Group  Desired  Status   Created
+501154ac  8e0a7cf9  c887deef  cache       run      running  08/08/16 21:03:19 CDT
+7e2b3900  8e0a7cf9  fca62612  cache       run      running  08/08/16 21:03:19 CDT
+9c66fcaf  8e0a7cf9  c887deef  cache       run      running  08/08/16 21:03:19 CDT
 ```
 
 We can see that all our tasks have been allocated and are running.

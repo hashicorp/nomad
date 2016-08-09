@@ -23,7 +23,6 @@ type StatusCommand struct {
 	length  int
 	evals   bool
 	verbose bool
-	time    bool
 }
 
 func (c *StatusCommand) Help() string {
@@ -46,9 +45,6 @@ Status Options:
   -evals
     Display the evaluations associated with the job.
 
-  -time
-    Display allocation creation time.
-
   -verbose
     Display full information.
 `
@@ -67,7 +63,6 @@ func (c *StatusCommand) Run(args []string) int {
 	flags.BoolVar(&short, "short", false, "")
 	flags.BoolVar(&c.evals, "evals", false, "")
 	flags.BoolVar(&c.verbose, "verbose", false, "")
-	flags.BoolVar(&c.time, "time", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -306,22 +301,16 @@ func (c *StatusCommand) outputJobInfo(client *api.Client, job *api.Job) error {
 	c.Ui.Output(c.Colorize().Color("\n[bold]Allocations[reset]"))
 	if len(jobAllocs) > 0 {
 		allocs = make([]string, len(jobAllocs)+1)
-		allocs[0] = "ID|Eval ID|Node ID|Task Group|Desired|Status"
-		if c.time {
-			allocs[0] += "|Created"
-		}
+		allocs[0] = "ID|Eval ID|Node ID|Task Group|Desired|Status|Created"
 		for i, alloc := range jobAllocs {
-			allocs[i+1] = fmt.Sprintf("%s|%s|%s|%s|%s|%s",
+			allocs[i+1] = fmt.Sprintf("%s|%s|%s|%s|%s|%s|%s",
 				limit(alloc.ID, c.length),
 				limit(alloc.EvalID, c.length),
 				limit(alloc.NodeID, c.length),
 				alloc.TaskGroup,
 				alloc.DesiredStatus,
-				alloc.ClientStatus)
-			if c.time {
-				allocs[i+1] += fmt.Sprintf("|%s",
-					c.formatUnixNanoTime(alloc.CreateTime))
-			}
+				alloc.ClientStatus,
+				c.formatUnixNanoTime(alloc.CreateTime))
 		}
 
 		c.Ui.Output(formatList(allocs))
