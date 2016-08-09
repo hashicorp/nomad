@@ -826,17 +826,17 @@ func (c *Syncer) RunHandlers() error {
 
 // SyncServices sync the services with the Consul Agent
 func (c *Syncer) SyncServices() error {
+	var mErr multierror.Error
+	if err := c.syncServices(); err != nil {
+		mErr.Errors = append(mErr.Errors, err)
+	}
+	if err := c.syncChecks(); err != nil {
+		mErr.Errors = append(mErr.Errors, err)
+	}
 	if err := c.RunHandlers(); err != nil {
 		return err
 	}
-	if err := c.syncServices(); err != nil {
-		return err
-	}
-	if err := c.syncChecks(); err != nil {
-		return err
-	}
-
-	return nil
+	return mErr.ErrorOrNil()
 }
 
 // filterConsulServices prunes out all the service who were not registered with
