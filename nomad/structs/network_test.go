@@ -398,7 +398,7 @@ func TestNetworkIndex_AssignNetwork_Dynamic_Contention(t *testing.T) {
 }
 
 func TestIntContains(t *testing.T) {
-	l := []Port{{"one", 1}, {"two", 2}, {"ten", 10}, {"twenty", 20}}
+	l := []int{1, 2, 10, 20}
 	if isPortReserved(l, 50) {
 		t.Fatalf("bad")
 	}
