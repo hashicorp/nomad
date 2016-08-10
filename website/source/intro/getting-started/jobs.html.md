@@ -70,6 +70,10 @@ Datacenters = dc1
 Status      = running
 Periodic    = false
 
+Summary
+Task Group  Queued  Starting  Running  Failed  Complete  Lost
+cache       0       0         1        0       0         0
+
 Allocations
 ID        Eval ID   Node ID   Task Group  Desired  Status
 dadcdb81  61b0b423  72687b1a  cache       run      running

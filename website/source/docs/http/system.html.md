@@ -36,3 +36,27 @@ region can be specified using the `?region=` query parameter.
     None
   </dd>
 </dl>
+
+
+<dl>
+  <dt>Description</dt>
+  <dd>
+    Reconcile the summaries of all the registered jobs based.
+  </dd>
+
+  <dt>Method</dt>
+  <dd>PUT</dd>
+
+  <dt>URL</dt>
+  <dd>`/v1/system/reconcile/summaries`</dd>
+
+  <dt>Parameters</dt>
+  <dd>
+    None
+  </dd>
+
+  <dt>Returns</dt>
+  <dd>
+    None
+  </dd>
+</dl>

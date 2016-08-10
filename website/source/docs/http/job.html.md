@@ -240,6 +240,53 @@ region is used; another region can be specified using the `?region=` query param
   </dd>
 </dl>
 
+<dl>
+  <dt>Description</dt>
+  <dd>
+    Query the summary of a job.
+  </dd>
+
+  <dt>Method</dt>
+  <dd>GET</dd>
+
+  <dt>URL</dt>
+  <dd>`/v1/job/<ID>/summary`</dd>
+
+  <dt>Parameters</dt>
+  <dd>
+    None
+  </dd>
+
+  <dt>Blocking Queries</dt>
+  <dd>
+    [Supported](/docs/http/index.html#blocking-queries)
+  </dd>
+
+  <dt>Returns</dt>
+  <dd>
+
+    ```javascript
+    {
+      "JobID": "example",
+      "Summary": {
+        "cache": {
+          "Queued": 0,
+          "Complete": 0,
+          "Failed": 0,
+          "Running": 1,
+          "Starting": 0,
+          "Lost": 0
+        }
+      },
+      "CreateIndex": 6,
+      "ModifyIndex": 10
+    }
+    ```
+
+  </dd>
+</dl>
+
+
 ## PUT / POST
 
 <dl>
