@@ -259,6 +259,10 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 	}
 
 	nodes := make([]*structs.Node, 1)
+
+	// nodesFiltered holds the number of nodes filtered by the stack due to
+	// constrain mismatches while we are trying to place allocations on node
+	var nodesFiltered int
 	for _, missing := range place {
 		node, ok := nodeByID[missing.Alloc.NodeID]
 		if !ok {
@@ -273,6 +277,15 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 		option, _ := s.stack.Select(missing.TaskGroup)
 
 		if option == nil {
+			// if nodes were filtered because of constain mismatches and we
+			// couldn't create an allocation then decrementing queued for that
+			// task group
+			if s.ctx.metrics.NodesFiltered > nodesFiltered {
+				s.queuedAllocs[missing.TaskGroup.Name] -= 1
+			}
+			// record the current number of nodes filtered in this iteration
+			nodesFiltered = s.ctx.metrics.NodesFiltered
+
 			// Check if this task group has already failed
 			if metric, ok := s.failedTGAllocs[missing.TaskGroup.Name]; ok {
 				metric.CoalescedFailures += 1
