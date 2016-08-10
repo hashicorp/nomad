@@ -1062,6 +1062,11 @@ type Job struct {
 	// job. This is opaque to Nomad.
 	Meta map[string]string
 
+	// VaultToken is the Vault token that proves the submitter of the job has
+	// access to the specified Vault policies. This field is only used to
+	// transfer the token and is not stored after Job submission.
+	VaultToken string
+
 	// Job status
 	Status string
 
@@ -2447,11 +2452,6 @@ func (c *Constraint) Validate() error {
 type Vault struct {
 	// Policies is the set of policies that the task needs access to
 	Policies []string
-
-	// Token is the Vault token that proves the submitter of the job has access
-	// to the above policies. This field is only used to transfer the token and
-	// is not stored after Job submission.
-	Token string
 }
 
 // Copy returns a copy of this Vault block.
