@@ -147,7 +147,7 @@ func (r *TaskRunner) RestoreState() error {
 
 	// Restore fields
 	if snap.Task == nil {
-		return fmt.Errorf("client: task runner snapshot include nil Task")
+		return fmt.Errorf("task runner snapshot include nil Task")
 	} else {
 		r.task = snap.Task
 	}
@@ -235,7 +235,7 @@ func (r *TaskRunner) createDriver() (driver.Driver, error) {
 	driverCtx := driver.NewDriverContext(r.task.Name, r.config, r.config.Node, r.logger, r.taskEnv)
 	driver, err := driver.NewDriver(r.task.Driver, driverCtx)
 	if err != nil {
-		return nil, fmt.Errorf("client: failed to create driver '%s' for alloc %s: %v",
+		return nil, fmt.Errorf("failed to create driver '%s' for alloc %s: %v",
 			r.task.Driver, r.alloc.ID, err)
 	}
 	return driver, err
@@ -464,14 +464,14 @@ func (r *TaskRunner) startTask() error {
 	// Create a driver
 	driver, err := r.createDriver()
 	if err != nil {
-		return fmt.Errorf("client: failed to create driver of task '%s' for alloc '%s': %v",
+		return fmt.Errorf("failed to create driver of task '%s' for alloc '%s': %v",
 			r.task.Name, r.alloc.ID, err)
 	}
 
 	// Start the job
 	handle, err := driver.Start(r.ctx, r.task)
 	if err != nil {
-		return fmt.Errorf("client: failed to start task '%s' for alloc '%s': %v",
+		return fmt.Errorf("failed to start task '%s' for alloc '%s': %v",
 			r.task.Name, r.alloc.ID, err)
 	}
 

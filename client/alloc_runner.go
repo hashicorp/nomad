@@ -203,7 +203,7 @@ func (r *AllocRunner) saveAllocRunnerState() error {
 
 func (r *AllocRunner) saveTaskRunnerState(tr *TaskRunner) error {
 	if err := tr.SaveState(); err != nil {
-		return fmt.Errorf("client: failed to save state for alloc %s task '%s': %v",
+		return fmt.Errorf("failed to save state for alloc %s task '%s': %v",
 			r.alloc.ID, tr.task.Name, err)
 	}
 	return nil
