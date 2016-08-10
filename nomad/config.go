@@ -182,6 +182,9 @@ type Config struct {
 	// ConsulConfig is this Agent's Consul configuration
 	ConsulConfig *config.ConsulConfig
 
+	// VaultConfig is this Agent's Vault configuration
+	VaultConfig *config.VaultConfig
+
 	// RPCHoldTimeout is how long an RPC can be "held" before it is errored.
 	// This is used to paper over a loss of leadership by instead holding RPCs,
 	// so that the caller experiences a slow response rather than an error.
@@ -234,6 +237,7 @@ func DefaultConfig() *Config {
 		HeartbeatGrace:         10 * time.Second,
 		FailoverHeartbeatTTL:   300 * time.Second,
 		ConsulConfig:           config.DefaultConsulConfig(),
+		VaultConfig:            config.DefaultVaultConfig(),
 		RPCHoldTimeout:         5 * time.Second,
 	}
 

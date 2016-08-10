@@ -12,6 +12,9 @@ import vault "github.com/hashicorp/vault/api"
 // - Create child tokens with policy subsets of the Server's token.
 type VaultConfig struct {
 
+	// Enabled enables or disables Vault support.
+	Enabled bool `mapstructure:"enabled"`
+
 	// TokenRoleName is the Vault role in which Nomad will derive child tokens using
 	// /auth/token/create/[token_role_name]
 	TokenRoleName string `mapstructure:"token_role_name"`
@@ -59,6 +62,7 @@ type VaultConfig struct {
 // `vault` configuration.
 func DefaultVaultConfig() *VaultConfig {
 	return &VaultConfig{
+		Enabled:              true,
 		AllowUnauthenticated: false,
 		Addr:                 "vault.service.consul:8200",
 	}
@@ -98,6 +102,7 @@ func (a *VaultConfig) Merge(b *VaultConfig) *VaultConfig {
 
 	result.AllowUnauthenticated = b.AllowUnauthenticated
 	result.TLSSkipVerify = b.TLSSkipVerify
+	result.Enabled = b.Enabled
 	return &result
 }
 
@@ -125,4 +130,15 @@ func (c *VaultConfig) ApiConfig(readEnv bool) (*vault.Config, error) {
 	}
 
 	return conf, nil
+}
+
+// Copy returns a copy of this Vault config.
+func (c *VaultConfig) Copy() *VaultConfig {
+	if c == nil {
+		return nil
+	}
+
+	nc := new(VaultConfig)
+	*nc = *c
+	return nc
 }
