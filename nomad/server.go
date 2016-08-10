@@ -26,7 +26,6 @@ import (
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/raft-boltdb"
 	"github.com/hashicorp/serf/serf"
-	vaultapi "github.com/hashicorp/vault/api"
 )
 
 const (
@@ -141,7 +140,7 @@ type Server struct {
 	consulSyncer *consul.Syncer
 
 	// vault is the client for communicating with Vault.
-	vault *vaultapi.Client
+	vault VaultClient
 
 	// Worker used for processing
 	workers []*Worker
@@ -205,29 +204,15 @@ func NewServer(config *Config, consulSyncer *consul.Syncer, logger *log.Logger) 
 		shutdownCh:   make(chan struct{}),
 	}
 
-	// Get the Vault API configuration
-	c, err := config.VaultConfig.ApiConfig(true)
-	if err != nil {
-		s.logger.Printf("[ERR] nomad: failed to create Vault API config: %v", err)
-		return nil, fmt.Errorf("Failed to create Vault API config: %v", err)
-	}
-
-	// Create the Vault API client
-	v, err := vaultapi.NewClient(c)
-	if err != nil {
-		s.logger.Printf("[ERR] nomad: failed to create Vault API client: %v", err)
-		return nil, fmt.Errorf("Failed to create Vault API client: %v", err)
-	}
-
-	// Set the wrapping function such that token creation is wrapped
-	v.SetWrappingLookupFunc(config.VaultConfig.GetWrappingFn())
-
-	// Set the token and store the client
-	v.SetToken(config.VaultConfig.PeriodicToken)
-	s.vault = v
-
 	// Create the periodic dispatcher for launching periodic jobs.
 	s.periodicDispatcher = NewPeriodicDispatch(s.logger, s)
+
+	// Setup Vault
+	if err := s.setupVaultClient(); err != nil {
+		s.Shutdown()
+		s.logger.Printf("[ERR] nomad: failed to setup Vault client: %v", err)
+		return nil, fmt.Errorf("Failed to setup Vault client: %v", err)
+	}
 
 	// Initialize the RPC layer
 	// TODO: TLS...
@@ -330,6 +315,10 @@ func (s *Server) Shutdown() error {
 	if s.fsm != nil {
 		s.fsm.Close()
 	}
+
+	// Stop Vault token renewal
+	s.vault.Stop()
+
 	return nil
 }
 
@@ -571,6 +560,16 @@ func (s *Server) setupConsulSyncer() error {
 		}
 	}
 
+	return nil
+}
+
+// setupVaultClient is used to set up the Vault API client.
+func (s *Server) setupVaultClient() error {
+	v, err := NewVaultClient(s.config.VaultConfig, s.logger)
+	if err != nil {
+		return err
+	}
+	s.vault = v
 	return nil
 }
 
