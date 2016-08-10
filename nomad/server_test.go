@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/command/agent/consul"
+	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
 )
 
@@ -131,4 +132,40 @@ func TestServer_Regions(t *testing.T) {
 	}, func(err error) {
 		t.Fatalf("err: %v", err)
 	})
+}
+
+func TestServer_VaultAPIClient(t *testing.T) {
+	// Create a server with a Vault Config
+	token := "123"
+	role := "foo"
+	s1 := testServer(t, func(c *Config) {
+		c.VaultConfig.TokenRoleName = role
+		c.VaultConfig.PeriodicToken = token
+	})
+	defer s1.Shutdown()
+
+	if s1.vault == nil {
+		t.Fatalf("expected a Vault API client")
+	}
+
+	if act := s1.vault.Token(); act != token {
+		t.Fatalf("Vault client not set up correctly; got %v; want %v for token", act, token)
+	}
+
+	createPath := "/v1/auth/token/create/" + role
+	wReq := s1.vault.NewRequest("POST", createPath)
+	if wReq.WrapTTL != config.VaultTokenCreateTTL {
+		t.Fatalf("Bad WrapTTL; got %q; want %q", wReq.WrapTTL, config.VaultTokenCreateTTL)
+	}
+
+	wReq = s1.vault.NewRequest("GET", createPath)
+	if wReq.WrapTTL != "" {
+		t.Fatalf("Bad WrapTTL; got %q; want %q", wReq.WrapTTL, "")
+	}
+
+	badPath := "/v1/auth/token/lookup-self"
+	wReq = s1.vault.NewRequest("PUT", badPath)
+	if wReq.WrapTTL != "" {
+		t.Fatalf("Bad WrapTTL; got %q; want %q", wReq.WrapTTL, "")
+	}
 }

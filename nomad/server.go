@@ -26,6 +26,7 @@ import (
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/raft-boltdb"
 	"github.com/hashicorp/serf/serf"
+	vaultapi "github.com/hashicorp/vault/api"
 )
 
 const (
@@ -139,6 +140,9 @@ type Server struct {
 	// consulSyncer advertises this Nomad Agent with Consul
 	consulSyncer *consul.Syncer
 
+	// vault is the client for communicating with Vault.
+	vault *vaultapi.Client
+
 	// Worker used for processing
 	workers []*Worker
 
@@ -200,6 +204,27 @@ func NewServer(config *Config, consulSyncer *consul.Syncer, logger *log.Logger) 
 		planQueue:    planQueue,
 		shutdownCh:   make(chan struct{}),
 	}
+
+	// Get the Vault API configuration
+	c, err := config.VaultConfig.ApiConfig(true)
+	if err != nil {
+		s.logger.Printf("[ERR] nomad: failed to create Vault API config: %v", err)
+		return nil, fmt.Errorf("Failed to create Vault API config: %v", err)
+	}
+
+	// Create the Vault API client
+	v, err := vaultapi.NewClient(c)
+	if err != nil {
+		s.logger.Printf("[ERR] nomad: failed to create Vault API client: %v", err)
+		return nil, fmt.Errorf("Failed to create Vault API client: %v", err)
+	}
+
+	// Set the wrapping function such that token creation is wrapped
+	v.SetWrappingLookupFunc(config.VaultConfig.GetWrappingFn())
+
+	// Set the token and store the client
+	v.SetToken(config.VaultConfig.PeriodicToken)
+	s.vault = v
 
 	// Create the periodic dispatcher for launching periodic jobs.
 	s.periodicDispatcher = NewPeriodicDispatch(s.logger, s)
