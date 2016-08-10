@@ -110,8 +110,8 @@ func TestPlanCommand_From_STDIN(t *testing.T) {
 
 	ui := new(cli.MockUi)
 	cmd := &PlanCommand{
-		Meta:      Meta{Ui: ui},
-		testStdin: stdinR,
+		Meta:   Meta{Ui: ui},
+		Helper: Helper{testStdin: stdinR},
 	}
 
 	go func() {

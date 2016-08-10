@@ -1,17 +1,12 @@
 package command
 
 import (
-	"crypto/tls"
 	"fmt"
-	"io"
-	"net/http"
-	"os"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/jobspec"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
 	"github.com/mitchellh/colorstring"
@@ -30,10 +25,8 @@ potentially invalid.`
 
 type PlanCommand struct {
 	Meta
+	Helper
 	color *colorstring.Colorize
-
-	// The fields below can be overwritten for tests
-	testStdin io.Reader
 }
 
 func (c *PlanCommand) Help() string {
@@ -76,9 +69,6 @@ Plan Options:
 
   -verbose
     Increase diff verbosity.
-
-  -k
-    Allow insecure SSL connections to access jobfile.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -88,13 +78,12 @@ func (c *PlanCommand) Synopsis() string {
 }
 
 func (c *PlanCommand) Run(args []string) int {
-	var diff, verbose, insecure bool
+	var diff, verbose bool
 
 	flags := c.Meta.FlagSet("plan", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&diff, "diff", true, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
-	flags.BoolVar(&insecure, "k", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 255
@@ -107,66 +96,12 @@ func (c *PlanCommand) Run(args []string) int {
 		return 255
 	}
 
-	var path, url string
-	// If prefix has http(s)://, read the Jobfile from the URL
-	if strings.Index(args[0], "http://") == 0 || strings.Index(args[0], "https://") == 0 {
-		path = "_url"
-		url = args[0]
-	} else {
-		// Read the Jobfile
-		path = args[0]
-	}
-
-	var f io.Reader
-	switch path {
-	case "-":
-		if c.testStdin != nil {
-			f = c.testStdin
-		} else {
-			f = os.Stdin
-		}
-		path = "stdin"
-	case "_url":
-		if len(url) == 0 {
-			c.Ui.Error(fmt.Sprintf("Error invalid Jobfile name"))
-		}
-		var resp *http.Response
-		var err error
-		if insecure == true {
-			tr := &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-			}
-			client := &http.Client{Transport: tr}
-			resp, err = client.Get(url)
-		} else {
-			resp, err = http.Get(url)
-		}
-		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error accessing URL %s: %v", url, err))
-			return 1
-		}
-		defer resp.Body.Close()
-		if resp.StatusCode != 200 {
-			c.Ui.Error(fmt.Sprintf("Error reading URL (%d) : %s", resp.StatusCode, resp.Status))
-			return 1
-		}
-		f = resp.Body
-		path = url
-	default:
-		file, err := os.Open(path)
-		defer file.Close()
-		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error opening file %q: %v", path, err))
-			return 255
-		}
-		f = file
-	}
-
-	// Parse the JobFile
-	job, err := jobspec.Parse(f)
+	path := args[0]
+	// Get Job struct from Jobfile
+	job, err := c.Helper.StructJob(args[0])
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error parsing job file %s: %v", path, err))
-		return 255
+		c.Ui.Error(fmt.Sprintf("Error getting job struct: %s", err))
+		return 1
 	}
 
 	// Initialize any fields that need to be.

@@ -3,6 +3,7 @@ package command
 import (
 	"io"
 	"io/ioutil"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -184,4 +185,43 @@ func TestHelpers_LineLimitReader_TimeLimit(t *testing.T) {
 	case <-time.After(1 * time.Second):
 		t.Fatalf("did not exit by time limit")
 	}
+}
+
+func TestStructJob(t *testing.T) {
+	fh, err := ioutil.TempFile("", "nomad")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	defer os.Remove(fh.Name())
+	_, err = fh.WriteString(`
+job "job1" {
+        type = "service"
+        datacenters = [ "dc1" ]
+        group "group1" {
+                count = 1
+                task "task1" {
+                        driver = "exec"
+                        resources = {}
+                }
+		restart{
+                        attempts = 10
+			mode = "delay"
+		}
+        }
+}`)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	h := &Helper{}
+	sj, err := h.StructJob(fh.Name())
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	err = sj.Validate()
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
 }
