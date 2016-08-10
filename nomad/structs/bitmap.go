@@ -23,19 +23,9 @@ func (b Bitmap) Copy() (Bitmap, error) {
 		return nil, fmt.Errorf("can't copy nil Bitmap")
 	}
 
-	nb, err := NewBitmap(b.Size())
-	if err != nil {
-		return nil, err
-	}
-
-	s := b.Size()
-	for i := uint(0); i < s; i++ {
-		if b.Check(i) {
-			nb.Set(i)
-		}
-	}
-
-	return nb, nil
+	raw := make([]byte, len(b))
+	copy(raw, b)
+	return Bitmap(raw), nil
 }
 
 // Size returns the size of the bitmap
@@ -64,12 +54,11 @@ func (b Bitmap) Clear() {
 	}
 }
 
-// IndexesFrom returns the indexes in which the values are either set or unset based
-// on the passed parameter starting from the passed index
-func (b Bitmap) IndexesFrom(set bool, from uint) []int {
+// IndexesInRange returns the indexes in which the values are either set or unset based
+// on the passed parameter in the passed range
+func (b Bitmap) IndexesInRange(set bool, from, to uint) []int {
 	var indexes []int
-	s := b.Size()
-	for i := from; i < s; i++ {
+	for i := from; i < to; i++ {
 		c := b.Check(i)
 		if c && set || !c && !set {
 			indexes = append(indexes, int(i))

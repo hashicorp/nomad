@@ -214,13 +214,13 @@ func (idx *NetworkIndex) AssignNetwork(ask *NetworkResource) (out *NetworkResour
 		var dynPorts []int
 		var dynErr error
 		dynPorts, dynErr = getDynamicPortsStochastic(used, ask)
-		if err != nil {
+		if err == nil {
 			goto BUILD_OFFER
 		}
 
 		// Fall back to the precise method if the random sampling failed.
 		dynPorts, dynErr = getDynamicPortsPrecise(used, ask)
-		if err != nil {
+		if dynErr != nil {
 			err = dynErr
 			return
 		}
@@ -263,7 +263,7 @@ func getDynamicPortsPrecise(nodeUsed Bitmap, ask *NetworkResource) ([]int, error
 	}
 
 	// Get the indexes of the unset
-	availablePorts := usedSet.IndexesFrom(false, MinDynamicPort)
+	availablePorts := usedSet.IndexesInRange(false, MinDynamicPort, MaxDynamicPort)
 
 	// Randomize the amount we need
 	numDyn := len(ask.DynamicPorts)
