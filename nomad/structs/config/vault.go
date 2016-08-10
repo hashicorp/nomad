@@ -1,6 +1,16 @@
 package config
 
-import vault "github.com/hashicorp/vault/api"
+import (
+	"fmt"
+
+	vault "github.com/hashicorp/vault/api"
+)
+
+const (
+	// VaultTokenCreateTTL is the duration the wrapped token for the client is
+	// valid for. The units are in seconds.
+	VaultTokenCreateTTL = "60s"
+)
 
 // VaultConfig contains the configuration information necessary to
 // communicate with Vault in order to:
@@ -134,4 +144,17 @@ func (c *VaultConfig) Copy() *VaultConfig {
 	nc := new(VaultConfig)
 	*nc = *c
 	return nc
+}
+
+// GetWrappingFn returns an appropriate wrapping function for Nomad
+func (c *VaultConfig) GetWrappingFn() func(operation, path string) string {
+	createPath := fmt.Sprintf("auth/token/create/%s", c.TokenRoleName)
+	return func(operation, path string) string {
+		// Only wrap the token create operation
+		if operation != "POST" || path != createPath {
+			return ""
+		}
+
+		return VaultTokenCreateTTL
+	}
 }
