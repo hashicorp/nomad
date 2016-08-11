@@ -214,7 +214,7 @@ func (idx *NetworkIndex) AssignNetwork(ask *NetworkResource) (out *NetworkResour
 		var dynPorts []int
 		var dynErr error
 		dynPorts, dynErr = getDynamicPortsStochastic(used, ask)
-		if err == nil {
+		if dynErr == nil {
 			goto BUILD_OFFER
 		}
 
@@ -271,8 +271,9 @@ func getDynamicPortsPrecise(nodeUsed Bitmap, ask *NetworkResource) ([]int, error
 		return nil, fmt.Errorf("dynamic port selection failed")
 	}
 
+	numAvailable := len(availablePorts)
 	for i := 0; i < numDyn; i++ {
-		j := rand.Intn(numDyn)
+		j := rand.Intn(numAvailable)
 		availablePorts[i], availablePorts[j] = availablePorts[j], availablePorts[i]
 	}
 
