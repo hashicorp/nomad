@@ -99,6 +99,10 @@ type Config struct {
 	// devices and IPs.
 	GloballyReservedPorts []int
 
+	// A mapping of directories on the host OS to attempt to embed inside each
+	// task's chroot.
+	ChrootEnv map[string]string
+
 	// Options provides arbitrary key-value configuration for nomad internals,
 	// like fingerprinters and drivers. The format is:
 	//

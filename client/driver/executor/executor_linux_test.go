@@ -9,15 +9,38 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/client/driver/env"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/client/testutil"
+	"github.com/hashicorp/nomad/nomad/mock"
 )
+
+func testExecutorContextWithChroot(t *testing.T) *ExecutorContext {
+	taskEnv := env.NewTaskEnvironment(mock.Node())
+	task, allocDir := mockAllocDir(t)
+	ctx := &ExecutorContext{
+		TaskEnv:  taskEnv,
+		Task:     task,
+		AllocDir: allocDir,
+		ChrootEnv: map[string]string{
+			"/etc/ld.so.cache":  "/etc/ld.so.cache",
+			"/etc/ld.so.conf":   "/etc/ld.so.conf",
+			"/etc/ld.so.conf.d": "/etc/ld.so.conf.d",
+			"/lib":              "/lib",
+			"/lib64":            "/lib64",
+			"/usr/lib":          "/usr/lib",
+			"/bin/ls":           "/bin/ls",
+			"/foobar":           "/does/not/exist",
+		},
+	}
+	return ctx
+}
 
 func TestExecutor_IsolationAndConstraints(t *testing.T) {
 	testutil.ExecCompatible(t)
 
-	execCmd := ExecCommand{Cmd: "/bin/echo", Args: []string{"hello world"}}
-	ctx := testExecutorContext(t)
+	execCmd := ExecCommand{Cmd: "/bin/ls", Args: []string{"-F", "/", "/etc/"}}
+	ctx := testExecutorContextWithChroot(t)
 	defer ctx.AllocDir.Destroy()
 
 	execCmd.FSIsolation = true
@@ -58,7 +81,7 @@ func TestExecutor_IsolationAndConstraints(t *testing.T) {
 		t.Fatalf("file %v hasn't been removed", memLimits)
 	}
 
-	expected := "hello world"
+	expected := "/:\nalloc/\nbin/\ndev/\netc/\nlib/\nlib64/\nlocal/\nproc/\ntmp/\nusr/\n\n/etc/:\nld.so.cache\nld.so.conf\nld.so.conf.d/"
 	file := filepath.Join(ctx.AllocDir.LogDir(), "web.stdout.0")
 	output, err := ioutil.ReadFile(file)
 	if err != nil {

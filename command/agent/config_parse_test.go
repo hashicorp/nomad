@@ -53,6 +53,10 @@ func TestConfig_Parse(t *testing.T) {
 						"foo": "bar",
 						"baz": "zip",
 					},
+					ChrootEnv: map[string]string{
+						"/opt/myapp/etc": "/etc",
+						"/opt/myapp/bin": "/bin",
+					},
 					NetworkInterface: "eth0",
 					NetworkSpeed:     100,
 					MaxKillTimeout:   "10s",

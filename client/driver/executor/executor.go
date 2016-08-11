@@ -102,6 +102,10 @@ type ExecutorContext struct {
 	// AllocID is the allocation id to which the task belongs
 	AllocID string
 
+	// A mapping of directories on the host OS to attempt to embed inside each
+	// task's chroot.
+	ChrootEnv map[string]string
+
 	// Driver is the name of the driver that invoked the executor
 	Driver string
 

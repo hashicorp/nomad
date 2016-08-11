@@ -121,11 +121,12 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		return nil, err
 	}
 	executorCtx := &executor.ExecutorContext{
-		TaskEnv:  d.taskEnv,
-		Driver:   "exec",
-		AllocDir: ctx.AllocDir,
-		AllocID:  ctx.AllocID,
-		Task:     task,
+		TaskEnv:   d.taskEnv,
+		Driver:    "exec",
+		AllocDir:  ctx.AllocDir,
+		AllocID:   ctx.AllocID,
+		ChrootEnv: d.config.ChrootEnv,
+		Task:      task,
 	}
 
 	ps, err := exec.LaunchCmd(&executor.ExecCommand{
