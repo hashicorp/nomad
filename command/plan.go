@@ -39,7 +39,8 @@ Usage: nomad plan [options] <file>
   successfully and how it would affect existing allocations.
 
   If the supplied path is "-", the jobfile is read from stdin. Otherwise
-  it is read from the file at the supplied path.
+  it is read from the file at the supplied path or downloaded and
+  read from URL specified.
 
   A job modify index is returned with the plan. This value can be used when
   submitting the job using "nomad run -check-index", which will check that the job

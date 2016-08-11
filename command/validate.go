@@ -18,7 +18,8 @@ Usage: nomad validate [options] <file>
   check for any syntax errors or validation problems with a job.
 
   If the supplied path is "-", the jobfile is read from stdin. Otherwise
-  it is read from the file at the supplied path.
+  it is read from the file at the supplied path or downloaded and
+  read from URL specified.
 `
 	return strings.TrimSpace(helpText)
 }

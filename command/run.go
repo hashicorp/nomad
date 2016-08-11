@@ -33,7 +33,8 @@ Usage: nomad run [options] <path>
   used to interact with Nomad.
 
   If the supplied path is "-", the jobfile is read from stdin. Otherwise
-  it is read from the file at the supplied path.
+  it is read from the file at the supplied path or downloaded and
+  read from URL specified.
 
   Upon successful job submission, this command will immediately
   enter an interactive monitor. This is useful to watch Nomad's
