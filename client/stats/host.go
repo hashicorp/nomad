@@ -72,67 +72,77 @@ func NewHostStatsCollector() *HostStatsCollector {
 // Collect collects stats related to resource usage of a host
 func (h *HostStatsCollector) Collect() (*HostStats, error) {
 	hs := &HostStats{Timestamp: time.Now().UTC().UnixNano()}
-	if memStats, err := mem.VirtualMemory(); err == nil {
-		ms := &MemoryStats{
-			Total:     memStats.Total,
-			Available: memStats.Available,
-			Used:      memStats.Used,
-			Free:      memStats.Free,
-		}
-		hs.Memory = ms
+	memStats, err := mem.VirtualMemory()
+	if err != nil {
+		return nil, err
+	}
+	hs.Memory = &MemoryStats{
+		Total:     memStats.Total,
+		Available: memStats.Available,
+		Used:      memStats.Used,
+		Free:      memStats.Free,
 	}
 
 	ticksConsumed := 0.0
-	if cpuStats, err := cpu.Times(true); err == nil {
-		cs := make([]*CPUStats, len(cpuStats))
-		for idx, cpuStat := range cpuStats {
-			percentCalculator, ok := h.statsCalculator[cpuStat.CPU]
-			if !ok {
-				percentCalculator = NewHostCpuStatsCalculator()
-				h.statsCalculator[cpuStat.CPU] = percentCalculator
-			}
-			idle, user, system, total := percentCalculator.Calculate(cpuStat)
-			cs[idx] = &CPUStats{
-				CPU:    cpuStat.CPU,
-				User:   user,
-				System: system,
-				Idle:   idle,
-				Total:  total,
-			}
-			ticksConsumed += (total / 100) * (shelpers.TotalTicksAvailable() / float64(len(cpuStats)))
+	cpuStats, err := cpu.Times(true)
+	if err != nil {
+		return nil, err
+	}
+	cs := make([]*CPUStats, len(cpuStats))
+	for idx, cpuStat := range cpuStats {
+		percentCalculator, ok := h.statsCalculator[cpuStat.CPU]
+		if !ok {
+			percentCalculator = NewHostCpuStatsCalculator()
+			h.statsCalculator[cpuStat.CPU] = percentCalculator
 		}
-		hs.CPU = cs
-		hs.CPUTicksConsumed = ticksConsumed
-	}
-
-	if partitions, err := disk.Partitions(false); err == nil {
-		var diskStats []*DiskStats
-		for _, partition := range partitions {
-			if usage, err := disk.Usage(partition.Mountpoint); err == nil {
-				ds := DiskStats{
-					Device:            partition.Device,
-					Mountpoint:        partition.Mountpoint,
-					Size:              usage.Total,
-					Used:              usage.Used,
-					Available:         usage.Free,
-					UsedPercent:       usage.UsedPercent,
-					InodesUsedPercent: usage.InodesUsedPercent,
-				}
-				if math.IsNaN(ds.UsedPercent) {
-					ds.UsedPercent = 0.0
-				}
-				if math.IsNaN(ds.InodesUsedPercent) {
-					ds.InodesUsedPercent = 0.0
-				}
-				diskStats = append(diskStats, &ds)
-			}
+		idle, user, system, total := percentCalculator.Calculate(cpuStat)
+		cs[idx] = &CPUStats{
+			CPU:    cpuStat.CPU,
+			User:   user,
+			System: system,
+			Idle:   idle,
+			Total:  total,
 		}
-		hs.DiskStats = diskStats
+		ticksConsumed += (total / 100) * (shelpers.TotalTicksAvailable() / float64(len(cpuStats)))
 	}
+	hs.CPU = cs
+	hs.CPUTicksConsumed = ticksConsumed
 
-	if uptime, err := host.Uptime(); err == nil {
-		hs.Uptime = uptime
+	partitions, err := disk.Partitions(false)
+	if err != nil {
+		return nil, err
 	}
+	var diskStats []*DiskStats
+	for _, partition := range partitions {
+		usage, err := disk.Usage(partition.Mountpoint)
+		if err != nil {
+			return nil, err
+		}
+		ds := DiskStats{
+			Device:            partition.Device,
+			Mountpoint:        partition.Mountpoint,
+			Size:              usage.Total,
+			Used:              usage.Used,
+			Available:         usage.Free,
+			UsedPercent:       usage.UsedPercent,
+			InodesUsedPercent: usage.InodesUsedPercent,
+		}
+		if math.IsNaN(ds.UsedPercent) {
+			ds.UsedPercent = 0.0
+		}
+		if math.IsNaN(ds.InodesUsedPercent) {
+			ds.InodesUsedPercent = 0.0
+		}
+		diskStats = append(diskStats, &ds)
+	}
+	hs.DiskStats = diskStats
+
+	uptime, err := host.Uptime()
+	if err != nil {
+		return nil, err
+	}
+	hs.Uptime = uptime
+
 	return hs, nil
 }
 
