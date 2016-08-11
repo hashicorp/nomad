@@ -136,11 +136,23 @@ func TestSystemSched_JobRegister_Annotate(t *testing.T) {
 	// Create some nodes
 	for i := 0; i < 10; i++ {
 		node := mock.Node()
+		if i < 9 {
+			node.NodeClass = "foo"
+		} else {
+			node.NodeClass = "bar"
+		}
+		node.ComputeClass()
 		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
 	}
 
-	// Create a job
+	// Create a job constraining on node class
 	job := mock.SystemJob()
+	fooConstraint := &structs.Constraint{
+		LTarget: "${node.class}",
+		RTarget: "foo",
+		Operand: "==",
+	}
+	job.Constraints = append(job.Constraints, fooConstraint)
 	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	// Create a mock evaluation to deregister the job
@@ -169,8 +181,8 @@ func TestSystemSched_JobRegister_Annotate(t *testing.T) {
 	for _, allocList := range plan.NodeAllocation {
 		planned = append(planned, allocList...)
 	}
-	if len(planned) != 10 {
-		t.Fatalf("bad: %#v", plan)
+	if len(planned) != 9 {
+		t.Fatalf("bad: %#v %d", planned, len(planned))
 	}
 
 	// Lookup the allocations by JobID
@@ -178,7 +190,7 @@ func TestSystemSched_JobRegister_Annotate(t *testing.T) {
 	noErr(t, err)
 
 	// Ensure all allocations placed
-	if len(out) != 10 {
+	if len(out) != 9 {
 		t.Fatalf("bad: %#v", out)
 	}
 
@@ -204,7 +216,7 @@ func TestSystemSched_JobRegister_Annotate(t *testing.T) {
 		t.Fatalf("expected task group web to have desired changes")
 	}
 
-	expected := &structs.DesiredUpdates{Place: 10}
+	expected := &structs.DesiredUpdates{Place: 9}
 	if !reflect.DeepEqual(desiredChanges, expected) {
 		t.Fatalf("Unexpected desired updates; got %#v; want %#v", desiredChanges, expected)
 	}
