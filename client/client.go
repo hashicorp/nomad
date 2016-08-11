@@ -32,6 +32,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	vaultapi "github.com/hashicorp/vault/api"
 	"github.com/mitchellh/hashstructure"
+	"github.com/shirou/gopsutil/host"
 )
 
 const (
@@ -629,12 +630,23 @@ func (c *Client) getAllocRunners() map[string]*AllocRunner {
 	return runners
 }
 
-// nodeIDs restores the nodes persistent unique ID and SecretID or generates new
-// ones
-func (c *Client) nodeID() (id string, secret string, err error) {
+// nodeID restores, or generates if necessary, a unique node ID and SecretID.
+// The node ID is, if available, a persistent unique ID.  The secret ID is a
+// high-entropy random UUID.
+func (c *Client) nodeID() (id, secret string, err error) {
+	var hostID string
+	hostInfo, err := host.Info()
+	if err == nil && hostInfo.HostID != "" {
+		hostID = hostInfo.HostID
+	} else {
+		// Generate a random hostID if no constant ID is available on
+		// this platform.
+		hostID = structs.GenerateUUID()
+	}
+
 	// Do not persist in dev mode
 	if c.config.DevMode {
-		return structs.GenerateUUID(), structs.GenerateUUID(), nil
+		return hostID, nil
 	}
 
 	// Attempt to read existing ID
@@ -655,8 +667,7 @@ func (c *Client) nodeID() (id string, secret string, err error) {
 	if len(idBuf) != 0 {
 		id = string(idBuf)
 	} else {
-		// Generate new ID
-		id = structs.GenerateUUID()
+		id = hostID
 
 		// Persist the ID
 		if err := ioutil.WriteFile(idPath, []byte(id), 0700); err != nil {
@@ -686,7 +697,7 @@ func (c *Client) setupNode() error {
 		node = &structs.Node{}
 		c.config.Node = node
 	}
-	// Generate an iD for the node
+	// Generate an ID and secret for the node
 	id, secretID, err := c.nodeID()
 	if err != nil {
 		return fmt.Errorf("node ID setup failed: %v", err)
