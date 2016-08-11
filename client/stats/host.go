@@ -76,13 +76,12 @@ func (h *HostStatsCollector) Collect() (*HostStats, error) {
 	if err != nil {
 		return nil, err
 	}
-	ms := &MemoryStats{
+	hs.Memory = &MemoryStats{
 		Total:     memStats.Total,
 		Available: memStats.Available,
 		Used:      memStats.Used,
 		Free:      memStats.Free,
 	}
-	hs.Memory = ms
 
 	ticksConsumed := 0.0
 	cpuStats, err := cpu.Times(true)
