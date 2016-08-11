@@ -33,6 +33,14 @@ var (
 		Interval:  3 * time.Second,
 		Timeout:   1 * time.Second,
 	}
+	check3 = structs.ServiceCheck{
+		Name:      "check3",
+		Type:      "http",
+		PortLabel: "port3",
+		Path:      "/health?p1=1&p2=2",
+		Interval:  3 * time.Second,
+		Timeout:   1 * time.Second,
+	}
 	service1 = structs.Service{
 		Name:      "foo-1",
 		Tags:      []string{"tag1", "tag2"},
@@ -61,6 +69,7 @@ func TestCheckRegistration(t *testing.T) {
 	srvReg, _ := cs.createService(&service1, "domain", "key")
 	check1Reg, _ := cs.createCheckReg(&check1, srvReg)
 	check2Reg, _ := cs.createCheckReg(&check2, srvReg)
+	check3Reg, _ := cs.createCheckReg(&check3, srvReg)
 
 	expected := "10.10.11.5:20002"
 	if check1Reg.TCP != expected {
@@ -69,8 +78,14 @@ func TestCheckRegistration(t *testing.T) {
 
 	expected = "10.10.11.5:20003"
 	if check2Reg.TCP != expected {
-		t.Fatalf("expected: %v, actual: %v", expected, check1Reg.TCP)
+		t.Fatalf("expected: %v, actual: %v", expected, check2Reg.TCP)
 	}
+
+	expected = "http://10.10.11.5:20004/health?p1=1&p2=2"
+	if check3Reg.HTTP != expected {
+		t.Fatalf("expected: %v, actual: %v", expected, check3Reg.HTTP)
+	}
+
 }
 
 func TestConsulServiceRegisterServices(t *testing.T) {
@@ -207,6 +222,10 @@ func mockTask() *structs.Task {
 						structs.Port{
 							Label: "port2",
 							Value: 20003,
+						},
+						structs.Port{
+							Label: "port3",
+							Value: 20004,
 						},
 					},
 				},
