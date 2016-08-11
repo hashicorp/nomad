@@ -139,6 +139,7 @@ func parseJob(result *structs.Job, list *ast.ObjectList) error {
 		"meta",
 		"task",
 		"group",
+		"vault_token",
 	}
 	if err := checkHCLKeys(listVal, valid); err != nil {
 		return multierror.Prefix(err, "job:")
@@ -1047,7 +1048,6 @@ func parseVault(result *structs.Vault, list *ast.ObjectList) error {
 	// Check for invalid keys
 	valid := []string{
 		"policies",
-		"token",
 	}
 	if err := checkHCLKeys(listVal, valid); err != nil {
 		return multierror.Prefix(err, "vault ->")

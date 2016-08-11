@@ -155,7 +155,6 @@ func TestParse(t *testing.T) {
 								},
 								Vault: &structs.Vault{
 									Policies: []string{"foo", "bar"},
-									Token:    "baz",
 								},
 							},
 							&structs.Task{

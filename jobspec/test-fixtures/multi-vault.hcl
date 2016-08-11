@@ -17,11 +17,9 @@ job "binstore-storagelocker" {
 
       vault {
         policies = ["foo", "bar"]
-        token = "baz"
       }
       vault {
         policies = ["1", "2"]
-        token = "3"
       }
     }
 }
