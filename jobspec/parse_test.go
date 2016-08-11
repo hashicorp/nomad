@@ -26,6 +26,7 @@ func TestParse(t *testing.T) {
 				AllAtOnce:   true,
 				Datacenters: []string{"us2", "eu1"},
 				Region:      "global",
+				VaultToken:  "foo",
 
 				Meta: map[string]string{
 					"foo": "bar",
