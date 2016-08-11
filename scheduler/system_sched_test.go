@@ -960,3 +960,39 @@ func TestSystemSched_RetryLimit(t *testing.T) {
 	// Should hit the retry limit
 	h.AssertEvalStatus(t, structs.EvalStatusFailed)
 }
+
+// This test ensures that the scheduler doesn't increment the queued allocation
+// count for a task group when allocations can't be created on currently
+// availabe nodes because of constrain mismatches.
+func TestSystemSched_Queued_With_Constraints(t *testing.T) {
+	h := NewHarness(t)
+
+	// Register a node
+	node := mock.Node()
+	node.Attributes["kernel.name"] = "darwin"
+	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+
+	// Generate a system job which can't be placed on the node
+	job := mock.SystemJob()
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	// Create a mock evaluation to deal
+	eval := &structs.Evaluation{
+		ID:          structs.GenerateUUID(),
+		Priority:    50,
+		TriggeredBy: structs.EvalTriggerNodeUpdate,
+		JobID:       job.ID,
+		NodeID:      node.ID,
+	}
+
+	// Process the evaluation
+	err := h.Process(NewSystemScheduler, eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure that queued allocations is zero
+	if val, ok := h.Evals[0].QueuedAllocations["web"]; !ok || val != 0 {
+		t.Fatalf("bad queued allocations: %#v", h.Evals[0].QueuedAllocations)
+	}
+}
