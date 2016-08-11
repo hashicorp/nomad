@@ -707,7 +707,11 @@ func (c *Syncer) createCheckReg(check *structs.ServiceCheck, serviceReg *consul.
 			Scheme: check.Protocol,
 			Host:   net.JoinHostPort(host, strconv.Itoa(port)),
 		}
-		url := base.ResolveReference(url.Parse(check.Path))
+		relative, err := url.Parse(check.Path)
+		if err != nil {
+			return nil, err
+		}
+		url := base.ResolveReference(relative)
 		chkReg.HTTP = url.String()
 	case structs.ServiceCheckTCP:
 		chkReg.TCP = net.JoinHostPort(host, strconv.Itoa(port))
