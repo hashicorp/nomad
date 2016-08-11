@@ -58,7 +58,7 @@ type VaultConfig struct {
 // `vault` configuration.
 func DefaultVaultConfig() *VaultConfig {
 	return &VaultConfig{
-		Enabled:              true,
+		Enabled:              false,
 		AllowUnauthenticated: false,
 		Addr:                 "vault.service.consul:8200",
 	}

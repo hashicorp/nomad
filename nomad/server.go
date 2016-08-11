@@ -317,7 +317,9 @@ func (s *Server) Shutdown() error {
 	}
 
 	// Stop Vault token renewal
-	s.vault.Stop()
+	if s.vault != nil {
+		s.vault.Stop()
+	}
 
 	return nil
 }
