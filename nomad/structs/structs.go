@@ -1065,7 +1065,7 @@ type Job struct {
 	// VaultToken is the Vault token that proves the submitter of the job has
 	// access to the specified Vault policies. This field is only used to
 	// transfer the token and is not stored after Job submission.
-	VaultToken string
+	VaultToken string `mapstructure:"vault_token"`
 
 	// Job status
 	Status string
