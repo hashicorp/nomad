@@ -289,7 +289,7 @@ func (f *FSCommand) Run(args []string) int {
 
 			// If numLines is set, wrap the reader
 			if numLines != -1 {
-				r = NewLineLimitReader(r, int(numLines), int(numLines*bytesToLines), 0)
+				r = NewLineLimitReader(r, int(numLines), int(numLines*bytesToLines), 1*time.Second)
 			}
 		}
 
@@ -324,11 +324,12 @@ func (f *FSCommand) followFile(client *api.Client, alloc *api.Allocation,
 	// Create a reader
 	var r io.ReadCloser
 	frameReader := api.NewFrameReader(frames, cancel)
+	frameReader.SetUnblockTime(500 * time.Millisecond)
 	r = frameReader
 
 	// If numLines is set, wrap the reader
 	if numLines != -1 {
-		r = NewLineLimitReader(r, int(numLines), int(numLines*bytesToLines), 0)
+		r = NewLineLimitReader(r, int(numLines), int(numLines*bytesToLines), 1*time.Second)
 	}
 
 	go func() {
