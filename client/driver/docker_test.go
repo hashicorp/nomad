@@ -760,17 +760,7 @@ func TestDockerDriver_User(t *testing.T) {
 		t.Fatalf("Should've failed")
 	}
 
-	msgs := []string{
-		"linux spec user",
-	}
-	var found bool
-	for _, msg := range msgs {
-		if strings.Contains(err.Error(), msg) {
-			found = true
-			break
-		}
-	}
-	if !found {
+	if !strings.Contains(err.Error(), "alice") {
 		t.Fatalf("Expected failure string not found, found %q instead", err.Error())
 	}
 }
