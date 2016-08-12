@@ -15,4 +15,4 @@ go list ./... | grep -v '^github.com/hashicorp/nomad/vendor/' | \
     sudo \
         -E PATH=$TEMPDIR:$PATH \
         -E GOPATH=$GOPATH \
-        xargs $GOBIN test -v ${GOTEST_FLAGS:--cover -timeout=900s}
+        xargs $GOBIN test ${GOTEST_FLAGS:--cover -timeout=900s}
