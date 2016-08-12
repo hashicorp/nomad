@@ -277,13 +277,22 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 		option, _ := s.stack.Select(missing.TaskGroup)
 
 		if option == nil {
-			// if nodes were filtered because of constain mismatches and we
+			// If nodes were filtered because of constain mismatches and we
 			// couldn't create an allocation then decrementing queued for that
 			// task group
 			if s.ctx.metrics.NodesFiltered > nodesFiltered {
 				s.queuedAllocs[missing.TaskGroup.Name] -= 1
+
+				// If we are annotating the plan, then decrement the desired
+				// placements based on whether the node meets the constraints
+				if s.eval.AnnotatePlan && s.plan.Annotations != nil &&
+					s.plan.Annotations.DesiredTGUpdates != nil {
+					desired := s.plan.Annotations.DesiredTGUpdates[missing.TaskGroup.Name]
+					desired.Place -= 1
+				}
 			}
-			// record the current number of nodes filtered in this iteration
+
+			// Record the current number of nodes filtered in this iteration
 			nodesFiltered = s.ctx.metrics.NodesFiltered
 
 			// Check if this task group has already failed

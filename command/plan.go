@@ -10,6 +10,7 @@ import (
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/jobspec"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
 	"github.com/mitchellh/colorstring"
 )
@@ -172,7 +173,7 @@ func (c *PlanCommand) Run(args []string) int {
 
 	// Print the scheduler dry-run output
 	c.Ui.Output(c.Colorize().Color("[bold]Scheduler dry-run:[reset]"))
-	c.Ui.Output(c.Colorize().Color(formatDryRun(resp)))
+	c.Ui.Output(c.Colorize().Color(formatDryRun(resp, job)))
 	c.Ui.Output("")
 
 	// Print the job index info
@@ -203,7 +204,7 @@ func formatJobModifyIndex(jobModifyIndex uint64, jobName string) string {
 }
 
 // formatDryRun produces a string explaining the results of the dry run.
-func formatDryRun(resp *api.JobPlanResponse) string {
+func formatDryRun(resp *api.JobPlanResponse, job *structs.Job) string {
 	var rolling *api.Evaluation
 	for _, eval := range resp.CreatedEvals {
 		if eval.TriggeredBy == "rolling-update" {
@@ -215,7 +216,12 @@ func formatDryRun(resp *api.JobPlanResponse) string {
 	if len(resp.FailedTGAllocs) == 0 {
 		out = "[bold][green]- All tasks successfully allocated.[reset]\n"
 	} else {
-		out = "[bold][yellow]- WARNING: Failed to place all allocations.[reset]\n"
+		// Change the output depending on if we are a system job or not
+		if job.Type == "system" {
+			out = "[bold][yellow]- WARNING: Failed to place allocations on all nodes.[reset]\n"
+		} else {
+			out = "[bold][yellow]- WARNING: Failed to place all allocations.[reset]\n"
+		}
 		sorted := sortedTaskGroupFromMetrics(resp.FailedTGAllocs)
 		for _, tg := range sorted {
 			metrics := resp.FailedTGAllocs[tg]
