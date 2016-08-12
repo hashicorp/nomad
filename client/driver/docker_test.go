@@ -95,7 +95,7 @@ func dockerSetup(t *testing.T, task *structs.Task) (*docker.Client, DriverHandle
 
 	driverCtx, execCtx := testDriverContexts(task)
 	driver := NewDockerDriver(driverCtx)
-	copyImage(execCtx, task, t)
+	copyImage(execCtx, task, "busybox.tar", t)
 
 	handle, err := driver.Start(execCtx, task)
 	if err != nil {
@@ -158,7 +158,7 @@ func TestDockerDriver_StartOpen_Wait(t *testing.T) {
 	driverCtx, execCtx := testDriverContexts(task)
 	defer execCtx.AllocDir.Destroy()
 	d := NewDockerDriver(driverCtx)
-	copyImage(execCtx, task, t)
+	copyImage(execCtx, task, "busybox.tar", t)
 
 	handle, err := d.Start(execCtx, task)
 	if err != nil {
@@ -317,7 +317,7 @@ func TestDockerDriver_Start_Wait_AllocDir(t *testing.T) {
 	driverCtx, execCtx := testDriverContexts(task)
 	defer execCtx.AllocDir.Destroy()
 	d := NewDockerDriver(driverCtx)
-	copyImage(execCtx, task, t)
+	copyImage(execCtx, task, "busybox.tar", t)
 
 	handle, err := d.Start(execCtx, task)
 	if err != nil {
@@ -406,7 +406,7 @@ func TestDockerDriver_StartN(t *testing.T) {
 		driverCtx, execCtx := testDriverContexts(task)
 		defer execCtx.AllocDir.Destroy()
 		d := NewDockerDriver(driverCtx)
-		copyImage(execCtx, task, t)
+		copyImage(execCtx, task, "busybox.tar", t)
 
 		handles[idx], err = d.Start(execCtx, task)
 		if err != nil {
@@ -460,7 +460,9 @@ func TestDockerDriver_StartNVersions(t *testing.T) {
 		driverCtx, execCtx := testDriverContexts(task)
 		defer execCtx.AllocDir.Destroy()
 		d := NewDockerDriver(driverCtx)
-		copyImage(execCtx, task, t)
+		copyImage(execCtx, task, "busybox.tar", t)
+		copyImage(execCtx, task, "busybox_musl.tar", t)
+		copyImage(execCtx, task, "busybox_glibc.tar", t)
 
 		handles[idx], err = d.Start(execCtx, task)
 		if err != nil {
@@ -750,7 +752,7 @@ func TestDockerDriver_User(t *testing.T) {
 	driverCtx, execCtx := testDriverContexts(task)
 	driver := NewDockerDriver(driverCtx)
 	defer execCtx.AllocDir.Destroy()
-	copyImage(execCtx, task, t)
+	copyImage(execCtx, task, "busybox.tar", t)
 
 	// It should fail because the user "alice" does not exist on the given
 	// image.
@@ -860,8 +862,8 @@ func TestDockerDriver_Stats(t *testing.T) {
 
 }
 
-func copyImage(execCtx *ExecContext, task *structs.Task, t *testing.T) {
+func copyImage(execCtx *ExecContext, task *structs.Task, image string, t *testing.T) {
 	taskDir, _ := execCtx.AllocDir.TaskDirs[task.Name]
-	dst := filepath.Join(taskDir, allocdir.TaskLocal, "busybox.tar")
-	copyFile("./test-resources/docker/busybox.tar", dst, t)
+	dst := filepath.Join(taskDir, allocdir.TaskLocal, image)
+	copyFile(filepath.Join("./test-resources/docker", image), dst, t)
 }
