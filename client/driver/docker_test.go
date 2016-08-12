@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/rand"
-	"os"
-	"os/exec"
 	"path/filepath"
 	"reflect"
 	"runtime/debug"
@@ -15,13 +13,10 @@ import (
 	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
-	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/env"
-	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/client/testutil"
-	"github.com/hashicorp/nomad/helper/discover"
 	"github.com/hashicorp/nomad/nomad/structs"
 	tu "github.com/hashicorp/nomad/testutil"
 )
@@ -114,46 +109,6 @@ func dockerSetup(t *testing.T, task *structs.Task) (*docker.Client, DriverHandle
 	}
 
 	return client, handle, cleanup
-}
-
-func TestDockerDriver_Handle(t *testing.T) {
-	t.Parallel()
-
-	bin, err := discover.NomadExecutable()
-	if err != nil {
-		t.Fatalf("got an err: %v", err)
-	}
-
-	f, _ := ioutil.TempFile(os.TempDir(), "")
-	defer f.Close()
-	defer os.Remove(f.Name())
-	pluginConfig := &plugin.ClientConfig{
-		Cmd: exec.Command(bin, "syslog", f.Name()),
-	}
-	exec, pluginClient, err := createExecutor(pluginConfig, os.Stdout, &config.Config{})
-	if err != nil {
-		t.Fatalf("got an err: %v", err)
-	}
-	defer pluginClient.Kill()
-
-	h := &DockerHandle{
-		version:        "version",
-		imageID:        "imageid",
-		executor:       exec,
-		pluginClient:   pluginClient,
-		containerID:    "containerid",
-		killTimeout:    5 * time.Nanosecond,
-		maxKillTimeout: 15 * time.Nanosecond,
-		doneCh:         make(chan bool),
-		waitCh:         make(chan *cstructs.WaitResult, 1),
-	}
-
-	actual := h.ID()
-	expected := fmt.Sprintf("DOCKER:{\"Version\":\"version\",\"ImageID\":\"imageid\",\"ContainerID\":\"containerid\",\"KillTimeout\":5,\"MaxKillTimeout\":15,\"PluginConfig\":{\"Pid\":%d,\"AddrNet\":\"unix\",\"AddrName\":\"%s\"}}",
-		pluginClient.ReattachConfig().Pid, pluginClient.ReattachConfig().Addr.String())
-	if actual != expected {
-		t.Errorf("Expected `%s`, found `%s`", expected, actual)
-	}
 }
 
 // This test should always pass, even if docker daemon is not available
@@ -425,7 +380,7 @@ func TestDockerDriver_Start_Kill_Wait(t *testing.T) {
 	}
 }
 
-func TestDocker_StartN(t *testing.T) {
+func TestDockerDriver_StartN(t *testing.T) {
 	t.Parallel()
 	if !testutil.DockerIsConnected(t) {
 		t.SkipNow()
@@ -470,7 +425,7 @@ func TestDocker_StartN(t *testing.T) {
 	t.Log("Test complete!")
 }
 
-func TestDocker_StartNVersions(t *testing.T) {
+func TestDockerDriver_StartNVersions(t *testing.T) {
 	t.Parallel()
 	if !testutil.DockerIsConnected(t) {
 		t.SkipNow()
@@ -521,7 +476,22 @@ func TestDocker_StartNVersions(t *testing.T) {
 	t.Log("Test complete!")
 }
 
-func TestDockerHostNet(t *testing.T) {
+func waitForExist(t *testing.T, client *docker.Client, handle *DockerHandle) {
+	tu.WaitForResult(func() (bool, error) {
+		container, err := client.InspectContainer(handle.ContainerID())
+		if err != nil {
+			if _, ok := err.(*docker.NoSuchContainer); !ok {
+				return false, err
+			}
+		}
+
+		return container != nil, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+}
+
+func TestDockerDriver_NetworkMode_Host(t *testing.T) {
 	t.Parallel()
 	expected := "host"
 
@@ -544,6 +514,8 @@ func TestDockerHostNet(t *testing.T) {
 	client, handle, cleanup := dockerSetup(t, task)
 	defer cleanup()
 
+	waitForExist(t, client, handle.(*DockerHandle))
+
 	container, err := client.InspectContainer(handle.(*DockerHandle).ContainerID())
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -551,11 +523,11 @@ func TestDockerHostNet(t *testing.T) {
 
 	actual := container.HostConfig.NetworkMode
 	if actual != expected {
-		t.Errorf("DNS Network mode doesn't match.\nExpected:\n%s\nGot:\n%s\n", expected, actual)
+		t.Fatalf("Got network mode %q; want %q", expected, actual)
 	}
 }
 
-func TestDockerLabels(t *testing.T) {
+func TestDockerDriver_Labels(t *testing.T) {
 	t.Parallel()
 	task, _, _ := dockerTask()
 	task.Config["labels"] = []map[string]string{
@@ -567,6 +539,8 @@ func TestDockerLabels(t *testing.T) {
 
 	client, handle, cleanup := dockerSetup(t, task)
 	defer cleanup()
+
+	waitForExist(t, client, handle.(*DockerHandle))
 
 	container, err := client.InspectContainer(handle.(*DockerHandle).ContainerID())
 	if err != nil {
@@ -582,7 +556,7 @@ func TestDockerLabels(t *testing.T) {
 	}
 }
 
-func TestDockerDNS(t *testing.T) {
+func TestDockerDriver_DNS(t *testing.T) {
 	t.Parallel()
 	task, _, _ := dockerTask()
 	task.Config["dns_servers"] = []string{"8.8.8.8", "8.8.4.4"}
@@ -590,6 +564,8 @@ func TestDockerDNS(t *testing.T) {
 
 	client, handle, cleanup := dockerSetup(t, task)
 	defer cleanup()
+
+	waitForExist(t, client, handle.(*DockerHandle))
 
 	container, err := client.InspectContainer(handle.(*DockerHandle).ContainerID())
 	if err != nil {
@@ -632,12 +608,14 @@ func inSlice(needle string, haystack []string) bool {
 	return false
 }
 
-func TestDockerPortsNoMap(t *testing.T) {
+func TestDockerDriver_PortsNoMap(t *testing.T) {
 	t.Parallel()
 	task, res, dyn := dockerTask()
 
 	client, handle, cleanup := dockerSetup(t, task)
 	defer cleanup()
+
+	waitForExist(t, client, handle.(*DockerHandle))
 
 	container, err := client.InspectContainer(handle.(*DockerHandle).ContainerID())
 	if err != nil {
@@ -683,7 +661,7 @@ func TestDockerPortsNoMap(t *testing.T) {
 	}
 }
 
-func TestDockerPortsMapping(t *testing.T) {
+func TestDockerDriver_PortsMapping(t *testing.T) {
 	t.Parallel()
 	task, res, dyn := dockerTask()
 	task.Config["port_map"] = []map[string]string{
@@ -695,6 +673,8 @@ func TestDockerPortsMapping(t *testing.T) {
 
 	client, handle, cleanup := dockerSetup(t, task)
 	defer cleanup()
+
+	waitForExist(t, client, handle.(*DockerHandle))
 
 	container, err := client.InspectContainer(handle.(*DockerHandle).ContainerID())
 	if err != nil {
@@ -739,7 +719,7 @@ func TestDockerPortsMapping(t *testing.T) {
 	}
 }
 
-func TestDockerUser(t *testing.T) {
+func TestDockerDriver_User(t *testing.T) {
 	t.Parallel()
 
 	task := &structs.Task{
@@ -858,6 +838,8 @@ func TestDockerDriver_Stats(t *testing.T) {
 
 	_, handle, cleanup := dockerSetup(t, task)
 	defer cleanup()
+
+	waitForExist(t, client, handle.(*DockerHandle))
 
 	go func() {
 		time.Sleep(3 * time.Second)
