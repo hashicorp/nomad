@@ -155,7 +155,7 @@ func TestStreamFramer_Flush(t *testing.T) {
 
 	select {
 	case <-resultCh:
-	case <-time.After(2 * time.Duration(testutil.TestMultiplier()) * bWindow):
+	case <-time.After(10 * time.Duration(testutil.TestMultiplier()) * bWindow):
 		t.Fatalf("failed to flush")
 	}
 
@@ -166,7 +166,7 @@ func TestStreamFramer_Flush(t *testing.T) {
 
 	select {
 	case <-sf.ExitCh():
-	case <-time.After(2 * time.Duration(testutil.TestMultiplier()) * hRate):
+	case <-time.After(10 * time.Duration(testutil.TestMultiplier()) * hRate):
 		t.Fatalf("exit channel should close")
 	}
 
@@ -224,7 +224,7 @@ func TestStreamFramer_Batch(t *testing.T) {
 	select {
 	case <-resultCh:
 		t.Fatalf("Got data before frame size reached")
-	case <-time.After(bWindow * time.Duration(testutil.TestMultiplier()) / 2):
+	case <-time.After(bWindow / 2):
 	}
 
 	// Write the rest so we hit the frame size
@@ -235,7 +235,7 @@ func TestStreamFramer_Batch(t *testing.T) {
 	// Ensure we get data
 	select {
 	case <-resultCh:
-	case <-time.After(2 * time.Duration(testutil.TestMultiplier()) * bWindow):
+	case <-time.After(10 * time.Duration(testutil.TestMultiplier()) * bWindow):
 		t.Fatalf("Did not receive data after batch size reached")
 	}
 
@@ -246,7 +246,7 @@ func TestStreamFramer_Batch(t *testing.T) {
 
 	select {
 	case <-sf.ExitCh():
-	case <-time.After(2 * time.Duration(testutil.TestMultiplier()) * hRate):
+	case <-time.After(10 * time.Duration(testutil.TestMultiplier()) * hRate):
 		t.Fatalf("exit channel should close")
 	}
 
@@ -285,7 +285,7 @@ func TestStreamFramer_Heartbeat(t *testing.T) {
 
 	select {
 	case <-resultCh:
-	case <-time.After(2 * time.Duration(testutil.TestMultiplier()) * hRate):
+	case <-time.After(10 * time.Duration(testutil.TestMultiplier()) * hRate):
 		t.Fatalf("failed to heartbeat")
 	}
 
@@ -296,7 +296,7 @@ func TestStreamFramer_Heartbeat(t *testing.T) {
 
 	select {
 	case <-sf.ExitCh():
-	case <-time.After(2 * time.Duration(testutil.TestMultiplier()) * hRate):
+	case <-time.After(10 * time.Duration(testutil.TestMultiplier()) * hRate):
 		t.Fatalf("exit channel should close")
 	}
 
@@ -387,7 +387,7 @@ func TestStreamFramer_Order(t *testing.T) {
 
 	select {
 	case <-sf.ExitCh():
-	case <-time.After(2 * time.Duration(testutil.TestMultiplier()) * hRate):
+	case <-time.After(10 * time.Duration(testutil.TestMultiplier()) * hRate):
 		t.Fatalf("exit channel should close")
 	}
 
@@ -542,7 +542,7 @@ func TestHTTP_Stream_Modify(t *testing.T) {
 
 		select {
 		case <-resultCh:
-		case <-time.After(2 * time.Duration(testutil.TestMultiplier()) * streamBatchWindow):
+		case <-time.After(10 * time.Duration(testutil.TestMultiplier()) * streamBatchWindow):
 			t.Fatalf("failed to send new data")
 		}
 	})
@@ -638,7 +638,7 @@ func TestHTTP_Stream_Truncate(t *testing.T) {
 
 		select {
 		case <-truncateCh:
-		case <-time.After(2 * time.Duration(testutil.TestMultiplier()) * streamBatchWindow):
+		case <-time.After(10 * time.Duration(testutil.TestMultiplier()) * streamBatchWindow):
 			t.Fatalf("did not receive truncate")
 		}
 
@@ -651,7 +651,7 @@ func TestHTTP_Stream_Truncate(t *testing.T) {
 
 		select {
 		case <-dataPostTruncCh:
-		case <-time.After(2 * time.Duration(testutil.TestMultiplier()) * streamBatchWindow):
+		case <-time.After(10 * time.Duration(testutil.TestMultiplier()) * streamBatchWindow):
 			t.Fatalf("did not receive post truncate data")
 		}
 	})
@@ -725,7 +725,7 @@ func TestHTTP_Stream_Delete(t *testing.T) {
 
 		select {
 		case <-deleteCh:
-		case <-time.After(4 * time.Duration(testutil.TestMultiplier()) * streamBatchWindow):
+		case <-time.After(10 * time.Duration(testutil.TestMultiplier()) * streamBatchWindow):
 			t.Fatalf("did not receive delete")
 		}
 
@@ -807,7 +807,7 @@ func TestHTTP_Logs_NoFollow(t *testing.T) {
 
 		select {
 		case <-resultCh:
-		case <-time.After(4 * time.Duration(testutil.TestMultiplier()) * streamBatchWindow):
+		case <-time.After(10 * time.Duration(testutil.TestMultiplier()) * streamBatchWindow):
 			t.Fatalf("did not receive data: got %q", string(received))
 		}
 
@@ -896,7 +896,7 @@ func TestHTTP_Logs_Follow(t *testing.T) {
 
 		select {
 		case <-firstResultCh:
-		case <-time.After(4 * time.Duration(testutil.TestMultiplier()) * streamBatchWindow):
+		case <-time.After(10 * time.Duration(testutil.TestMultiplier()) * streamBatchWindow):
 			t.Fatalf("did not receive data: got %q", string(received))
 		}
 
@@ -908,7 +908,7 @@ func TestHTTP_Logs_Follow(t *testing.T) {
 
 		select {
 		case <-fullResultCh:
-		case <-time.After(4 * time.Duration(testutil.TestMultiplier()) * streamBatchWindow):
+		case <-time.After(10 * time.Duration(testutil.TestMultiplier()) * streamBatchWindow):
 			t.Fatalf("did not receive data: got %q", string(received))
 		}
 
