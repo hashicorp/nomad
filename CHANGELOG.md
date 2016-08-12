@@ -22,6 +22,7 @@ IMPROVEMENTS:
     of showing 0B used [GH-1538]
   * client: Add killing event to task state [GH-1457]
   * client: Fingerprint network speed on Windows [GH-1443]
+  * discovery: Support for initial check status [GH-1562]
   * driver/docker: Allow working directory to be configured [GH-1513]
   * driver/docker: Remove docker volumes when removing container [GH-1519]
   * driver/docker: Set windows containers network mode to nat by default
