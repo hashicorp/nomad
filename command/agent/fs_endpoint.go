@@ -348,10 +348,12 @@ func (s *StreamFramer) run() {
 				s.l.Unlock()
 			case <-s.heartbeat.C:
 				// Send a heartbeat frame
+				s.l.Lock()
 				select {
 				case s.outbound <- &StreamFrame{}:
 				default:
 				}
+				s.l.Unlock()
 			}
 		}
 	}()
