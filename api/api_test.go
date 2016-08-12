@@ -22,13 +22,6 @@ func init() {
 
 func makeClient(t *testing.T, cb1 configCallback,
 	cb2 testutil.ServerConfigCallback) (*Client, *testutil.TestServer) {
-	// Always run these tests in parallel. Check if we have already
-	// marked the current test, as more than 1 call causes panics.
-	if _, ok := seen[t]; !ok {
-		seen[t] = struct{}{}
-		t.Parallel()
-	}
-
 	// Make client config
 	conf := DefaultConfig()
 	if cb1 != nil {
@@ -49,7 +42,6 @@ func makeClient(t *testing.T, cb1 configCallback,
 }
 
 func TestRequestTime(t *testing.T) {
-	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(100 * time.Millisecond)
 		d, err := json.Marshal(struct{ Done bool }{true})
@@ -97,7 +89,6 @@ func TestRequestTime(t *testing.T) {
 }
 
 func TestDefaultConfig_env(t *testing.T) {
-	t.Parallel()
 	url := "http://1.2.3.4:5678"
 
 	os.Setenv("NOMAD_ADDR", url)
@@ -175,7 +166,6 @@ func TestRequestToHTTP(t *testing.T) {
 }
 
 func TestParseQueryMeta(t *testing.T) {
-	t.Parallel()
 	resp := &http.Response{
 		Header: make(map[string][]string),
 	}
@@ -200,7 +190,6 @@ func TestParseQueryMeta(t *testing.T) {
 }
 
 func TestParseWriteMeta(t *testing.T) {
-	t.Parallel()
 	resp := &http.Response{
 		Header: make(map[string][]string),
 	}

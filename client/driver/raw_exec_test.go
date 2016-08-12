@@ -17,7 +17,6 @@ import (
 )
 
 func TestRawExecDriver_Fingerprint(t *testing.T) {
-	t.Parallel()
 	driverCtx, _ := testDriverContexts(&structs.Task{Name: "foo"})
 	d := NewRawExecDriver(driverCtx)
 	node := &structs.Node{
@@ -53,7 +52,6 @@ func TestRawExecDriver_Fingerprint(t *testing.T) {
 }
 
 func TestRawExecDriver_StartOpen_Wait(t *testing.T) {
-	t.Parallel()
 	task := &structs.Task{
 		Name: "sleep",
 		Config: map[string]interface{}{
@@ -99,7 +97,6 @@ func TestRawExecDriver_StartOpen_Wait(t *testing.T) {
 }
 
 func TestRawExecDriver_Start_Wait(t *testing.T) {
-	t.Parallel()
 	task := &structs.Task{
 		Name: "sleep",
 		Config: map[string]interface{}{
@@ -143,7 +140,6 @@ func TestRawExecDriver_Start_Wait(t *testing.T) {
 }
 
 func TestRawExecDriver_Start_Wait_AllocDir(t *testing.T) {
-	t.Parallel()
 	exp := []byte{'w', 'i', 'n'}
 	file := "output.txt"
 	outPath := fmt.Sprintf(`${%s}/%s`, env.AllocDir, file)
@@ -199,7 +195,6 @@ func TestRawExecDriver_Start_Wait_AllocDir(t *testing.T) {
 }
 
 func TestRawExecDriver_Start_Kill_Wait(t *testing.T) {
-	t.Parallel()
 	task := &structs.Task{
 		Name: "sleep",
 		Config: map[string]interface{}{
@@ -248,7 +243,6 @@ func TestRawExecDriver_Start_Kill_Wait(t *testing.T) {
 }
 
 func TestRawExecDriverUser(t *testing.T) {
-	t.Parallel()
 	task := &structs.Task{
 		Name: "sleep",
 		User: "alice",
