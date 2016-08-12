@@ -93,7 +93,6 @@ func testDriverContexts(task *structs.Task) (*DriverContext, *ExecContext) {
 }
 
 func TestDriver_GetTaskEnv(t *testing.T) {
-	t.Parallel()
 	task := &structs.Task{
 		Name: "Foo",
 		Env: map[string]string{
@@ -162,7 +161,6 @@ func TestDriver_GetTaskEnv(t *testing.T) {
 }
 
 func TestMapMergeStrInt(t *testing.T) {
-	t.Parallel()
 	a := map[string]int{
 		"cakes":   5,
 		"cookies": 3,
@@ -187,7 +185,6 @@ func TestMapMergeStrInt(t *testing.T) {
 }
 
 func TestMapMergeStrStr(t *testing.T) {
-	t.Parallel()
 	a := map[string]string{
 		"cake":   "chocolate",
 		"cookie": "caramel",
