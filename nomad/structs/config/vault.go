@@ -15,24 +15,20 @@ type VaultConfig struct {
 	// Enabled enables or disables Vault support.
 	Enabled bool `mapstructure:"enabled"`
 
-	// TokenRoleName is the Vault role in which Nomad will derive child tokens using
-	// /auth/token/create/[token_role_name]
-	TokenRoleName string `mapstructure:"token_role_name"`
-
-	// PeriodicToken is the periodic Vault token given to Nomad such that it can
-	// derive child tokens. The PeriodicToken should be created from the passed
-	// TokenRoleName. Nomad will renew this token at half its lease lifetime.
-	PeriodicToken string `mapstructure:"periodic_token"`
+	// Token is the Vault token given to Nomad such that it can
+	// derive child tokens. Nomad will renew this token at half its lease
+	// lifetime.
+	Token string `mapstructure:"token"`
 
 	// AllowUnauthenticated allows users to submit jobs requiring Vault tokens
 	// without providing a Vault token proving they have access to these
 	// policies.
 	AllowUnauthenticated bool `mapstructure:"allow_unauthenticated"`
 
-	// ChildTokenTTL is the TTL of the tokens created by Nomad Servers and used
+	// TaskTokenTTL is the TTL of the tokens created by Nomad Servers and used
 	// by the client.  There should be a minimum time value such that the client
 	// does not have to renew with Vault at a very high frequency
-	ChildTokenTTL string `mapstructure:"child_token_ttl"`
+	TaskTokenTTL string `mapstructure:"task_token_ttl"`
 
 	// Addr is the address of the local Vault agent
 	Addr string `mapstructure:"address"`
@@ -72,14 +68,11 @@ func DefaultVaultConfig() *VaultConfig {
 func (a *VaultConfig) Merge(b *VaultConfig) *VaultConfig {
 	result := *a
 
-	if b.TokenRoleName != "" {
-		result.TokenRoleName = b.TokenRoleName
+	if b.Token != "" {
+		result.Token = b.Token
 	}
-	if b.PeriodicToken != "" {
-		result.PeriodicToken = b.PeriodicToken
-	}
-	if b.ChildTokenTTL != "" {
-		result.ChildTokenTTL = b.ChildTokenTTL
+	if b.TaskTokenTTL != "" {
+		result.TaskTokenTTL = b.TaskTokenTTL
 	}
 	if b.Addr != "" {
 		result.Addr = b.Addr

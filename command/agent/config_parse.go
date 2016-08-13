@@ -639,16 +639,15 @@ func parseVaultConfig(result **config.VaultConfig, list *ast.ObjectList) error {
 	valid := []string{
 		"address",
 		"allow_unauthenticated",
-		"child_token_ttl",
 		"enabled",
-		"periodic_token",
+		"task_token_ttl",
 		"tls_ca_file",
 		"tls_ca_path",
 		"tls_cert_file",
 		"tls_key_file",
 		"tls_server_name",
 		"tls_skip_verify",
-		"token_role_name",
+		"token",
 	}
 
 	if err := checkHCLKeys(listVal, valid); err != nil {
