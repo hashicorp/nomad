@@ -125,16 +125,15 @@ func TestConfig_Parse(t *testing.T) {
 				Vault: &config.VaultConfig{
 					Addr:                 "127.0.0.1:9500",
 					AllowUnauthenticated: true,
-					ChildTokenTTL:        "1s",
 					Enabled:              false,
-					PeriodicToken:        "12345",
 					TLSCaFile:            "/path/to/ca/file",
 					TLSCaPath:            "/path/to/ca",
 					TLSCertFile:          "/path/to/cert/file",
 					TLSKeyFile:           "/path/to/key/file",
 					TLSServerName:        "foobar",
 					TLSSkipVerify:        true,
-					TokenRoleName:        "roleFoo",
+					TaskTokenTTL:         "1s",
+					Token:                "12345",
 				},
 				HTTPAPIResponseHeaders: map[string]string{
 					"Access-Control-Allow-Origin": "*",
