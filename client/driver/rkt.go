@@ -276,6 +276,10 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		}
 	}
 
+	// Set the host environment variables.
+	filter := strings.Split(d.config.ReadDefault("env.blacklist", config.DefaultEnvBlacklist), ",")
+	d.taskEnv.AppendHostEnvvars(filter)
+
 	bin, err := discover.NomadExecutable()
 	if err != nil {
 		return nil, fmt.Errorf("unable to find the nomad binary: %v", err)
