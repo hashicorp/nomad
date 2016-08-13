@@ -40,6 +40,7 @@ gox \
     -os="!openbsd" \
     -os="!solaris" \
     -arch="${XC_ARCH}" \
+    -cgo \
     -osarch="!darwin/386" \
     -ldflags "-X main.GitCommit='${GIT_COMMIT}${GIT_DIRTY}'" \
     -output "pkg/{{.OS}}_{{.Arch}}/nomad" \
