@@ -375,9 +375,11 @@ func TestStreamFramer_Order(t *testing.T) {
 	select {
 	case <-resultCh:
 	case <-time.After(10 * time.Duration(testutil.TestMultiplier()) * bWindow):
-		got := receivedBuf.String()
-		want := expected.String()
-		t.Fatalf("Got %v; want %v", got, want)
+		if reflect.DeepEqual(expected, receivedBuf) {
+			got := receivedBuf.String()
+			want := expected.String()
+			t.Fatalf("Got %v; want %v", got, want)
+		}
 	}
 
 	// Close the reader and wait. This should cause the runner to exit
