@@ -2,7 +2,6 @@ package api
 
 import (
 	"crypto/tls"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -26,10 +25,6 @@ const EnvVaultInsecure = "VAULT_SKIP_VERIFY"
 const EnvVaultTLSServerName = "VAULT_TLS_SERVER_NAME"
 const EnvVaultWrapTTL = "VAULT_WRAP_TTL"
 const EnvVaultMaxRetries = "VAULT_MAX_RETRIES"
-
-var (
-	errRedirect = errors.New("redirect")
-)
 
 // WrappingLookupFunc is a function that, given an HTTP verb and a path,
 // returns an optional string duration to be used for response wrapping (e.g.
@@ -238,6 +233,13 @@ type Client struct {
 // automatically added to the client. Otherwise, you must manually call
 // `SetToken()`.
 func NewClient(c *Config) (*Client, error) {
+	if c == nil {
+		c = DefaultConfig()
+		if err := c.ReadEnvironment(); err != nil {
+			return nil, fmt.Errorf("error reading environment: %v", err)
+		}
+	}
+
 	u, err := url.Parse(c.Address)
 	if err != nil {
 		return nil, err
@@ -253,7 +255,11 @@ func NewClient(c *Config) (*Client, error) {
 		// redirect handling logic (and thus also for command/meta),
 		// but in e.g. http_test actual redirect handling is necessary
 		c.HttpClient.CheckRedirect = func(req *http.Request, via []*http.Request) error {
-			return errRedirect
+			// Returning this value causes the Go net library to not close the
+			// response body and nil out the error. Otherwise pester tries
+			// three times on every redirect because it sees an error from this
+			// function being passed through.
+			return http.ErrUseLastResponse
 		}
 	}
 
@@ -269,6 +275,18 @@ func NewClient(c *Config) (*Client, error) {
 	}
 
 	return client, nil
+}
+
+// Sets the address of Vault in the client. The format of address should be
+// "<Scheme>://<Host>:<Port>". Setting this on a client will override the
+// value of VAULT_ADDR environment variable.
+func (c *Client) SetAddress(addr string) error {
+	var err error
+	if c.addr, err = url.Parse(addr); err != nil {
+		return fmt.Errorf("failed to set address: %v", err)
+	}
+
+	return nil
 }
 
 // SetWrappingLookupFunc sets a lookup function that returns desired wrap TTLs
@@ -346,9 +364,7 @@ START:
 		result = &Response{Response: resp}
 	}
 	if err != nil {
-		if urlErr, ok := err.(*url.Error); ok && urlErr.Err == errRedirect {
-			err = nil
-		} else if strings.Contains(err.Error(), "tls: oversized") {
+		if strings.Contains(err.Error(), "tls: oversized") {
 			err = fmt.Errorf(
 				"%s\n\n"+
 					"This error usually means that the server is running with TLS disabled\n"+
@@ -361,8 +377,6 @@ START:
 					"where <address> is replaced by the actual address to the server.",
 				err)
 		}
-	}
-	if err != nil {
 		return result, err
 	}
 
