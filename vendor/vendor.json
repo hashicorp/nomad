@@ -623,10 +623,10 @@
 			"revisionTime": "2016-06-09T00:18:40Z"
 		},
 		{
-			"checksumSHA1": "gf0Pps//ni93XtQfwHKKi2rBL9M=",
+			"checksumSHA1": "0rkVtm9F1/pW9EGhHYJpCnY99O8=",
 			"path": "github.com/hashicorp/vault/api",
-			"revision": "bcf98fa8d61d1870c3af689f1b090b29a9c12d8c",
-			"revisionTime": "2016-08-02T20:35:37Z"
+			"revision": "fbecd94926e289d3b81d8dae6136452a6c4c93f6",
+			"revisionTime": "2016-08-13T15:54:01Z"
 		},
 		{
 			"checksumSHA1": "5lR6EdY0ARRdKAq3hZcL38STD8Q=",
