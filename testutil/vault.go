@@ -59,7 +59,7 @@ func NewTestVault(t *testing.T) *TestVault {
 	if err != nil {
 		t.Fatalf("failed to build Vault API client: %v", err)
 	}
-	client.SetToken(root)
+	client.SetToken(token)
 
 	tv := &TestVault{
 		cmd:       cmd,
@@ -91,6 +91,10 @@ func (tv *TestVault) Start() *TestVault {
 
 // Stop stops the test Vault server
 func (tv *TestVault) Stop() {
+	if tv.cmd.Process == nil {
+		return
+	}
+
 	if err := tv.cmd.Process.Kill(); err != nil {
 		tv.t.Errorf("err: %s", err)
 	}
