@@ -434,6 +434,16 @@ func (a *Agent) setupServer() error {
 				},
 			},
 		}
+		// Resolve ServiceCheck addresses
+		if a.config.Addresses.HTTP != "" && a.config.Addresses.HTTP != "0.0.0.0" {
+			httpServ.Checks[0].PortLabel = net.JoinHostPort(a.config.Addresses.HTTP, strconv.Itoa(a.config.Ports.HTTP))
+		}
+		if a.config.Addresses.RPC != "" && a.config.Addresses.RPC != "0.0.0.0" {
+			rpcServ.Checks[0].PortLabel = net.JoinHostPort(a.config.Addresses.RPC, strconv.Itoa(a.config.Ports.RPC))
+		}
+		if a.config.Addresses.Serf != "" && a.config.Addresses.Serf != "0.0.0.0" {
+			serfServ.Checks[0].PortLabel = net.JoinHostPort(a.config.Addresses.Serf, strconv.Itoa(a.config.Ports.Serf))
+		}
 		a.consulSyncer.SetServices(consul.ServerDomain, map[consul.ServiceKey]*structs.Service{
 			consul.GenerateServiceKey(httpServ): httpServ,
 			consul.GenerateServiceKey(rpcServ):  rpcServ,
