@@ -323,7 +323,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		doneCh:         make(chan struct{}),
 		waitCh:         make(chan *dstructs.WaitResult, 1),
 	}
-	if h.executor.SyncServices(consulContext(d.config, "")); err != nil {
+	if err := h.executor.SyncServices(consulContext(d.config, "")); err != nil {
 		h.logger.Printf("[ERR] driver.rkt: error registering services for task: %q: %v", task.Name, err)
 	}
 	go h.run()
@@ -364,7 +364,7 @@ func (d *RktDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error
 		doneCh:         make(chan struct{}),
 		waitCh:         make(chan *dstructs.WaitResult, 1),
 	}
-	if h.executor.SyncServices(consulContext(d.config, "")); err != nil {
+	if err := h.executor.SyncServices(consulContext(d.config, "")); err != nil {
 		h.logger.Printf("[ERR] driver.rkt: error registering services: %v", err)
 	}
 	go h.run()
