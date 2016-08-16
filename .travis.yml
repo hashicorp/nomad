@@ -22,4 +22,4 @@ install:
   - make bootstrap
 
 script:
-  - make test
+  - travis_wait make test
