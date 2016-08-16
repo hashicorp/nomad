@@ -418,6 +418,31 @@ func (v *vaultClient) CreateToken(a *structs.Allocation, task string) (*vapi.Sec
 	return nil, nil
 }
 
+// LookupToken takes a Vault token and does a lookup against Vault
 func (v *vaultClient) LookupToken(token string) (*vapi.Secret, error) {
-	return nil, nil
+	// Nothing to do
+	if !v.enabled {
+		return nil, fmt.Errorf("Vault integration disabled")
+	}
+
+	// Check if we have established a connection with Vault
+	if !v.ConnectionEstablished() {
+		return nil, fmt.Errorf("Connection to Vault has not been established. Retry")
+	}
+
+	// Lookup the token
+	return v.auth.Lookup(token)
+}
+
+// PoliciesFrom parses the set of policies returned by a token lookup.
+func PoliciesFrom(s *vapi.Secret) ([]string, error) {
+	if s == nil {
+		return nil, fmt.Errorf("cannot parse nil Vault secret")
+	}
+	var data tokenData
+	if err := mapstructure.WeakDecode(s.Data, &data); err != nil {
+		return nil, fmt.Errorf("failed to parse Vault token's data block: %v", err)
+	}
+
+	return data.Policies, nil
 }
