@@ -521,6 +521,9 @@ func (a *Agent) setupClient() error {
 				},
 			},
 		}
+		if a.config.Addresses.HTTP != "" && a.config.Addresses.HTTP != "0.0.0.0" {
+			httpServ.Checks[0].PortLabel = net.JoinHostPort(a.config.Addresses.HTTP, strconv.Itoa(a.config.Ports.HTTP))
+		}
 		a.consulSyncer.SetServices(consul.ClientDomain, map[consul.ServiceKey]*structs.Service{
 			consul.GenerateServiceKey(httpServ): httpServ,
 		})
