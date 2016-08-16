@@ -175,11 +175,9 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	if err := mapstructure.WeakDecode(task.Config, &driverConfig); err != nil {
 		return nil, err
 	}
-	// Validate that the config is valid.
+
+	// ACI image
 	img := driverConfig.ImageName
-	if img == "" {
-		return nil, fmt.Errorf("Missing ACI image for rkt")
-	}
 
 	// Get the tasks local directory.
 	taskName := d.DriverContext.taskName
@@ -228,13 +226,6 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	// Check if the user has overridden the exec command.
 	if driverConfig.Command != "" {
 		cmdArgs = append(cmdArgs, fmt.Sprintf("--exec=%v", driverConfig.Command))
-	}
-
-	if task.Resources.MemoryMB == 0 {
-		return nil, fmt.Errorf("Memory limit cannot be zero")
-	}
-	if task.Resources.CPU == 0 {
-		return nil, fmt.Errorf("CPU limit cannot be zero")
 	}
 
 	// Add memory isolator
