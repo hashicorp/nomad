@@ -66,6 +66,15 @@ func NewHarness(t *testing.T) *Harness {
 	return h
 }
 
+// NewHarnessWithState creates a new harness with the given state for testing
+// purposes.
+func NewHarnessWithState(t *testing.T, state *state.StateStore) *Harness {
+	return &Harness{
+		State:     state,
+		nextIndex: 1,
+	}
+}
+
 // SubmitPlan is used to handle plan submission
 func (h *Harness) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State, error) {
 	// Ensure sequential plan application
