@@ -47,6 +47,7 @@ BUG FIXES:
   * agent: Fix advertise address when using IPv6 [GH-1465]
   * cli: Fix node-status when using IPv6 advertise address [GH-1465]
   * client: Task start errors adhere to restart policy mode [GH-1405]
+  * client: Reregister with servers if node is unregistered [GH-1593]
   * client: Killing an allocation doesn't cause allocation stats to block
     [GH-1454]
   * driver/docker: Disable swap on docker driver [GH-1480]
