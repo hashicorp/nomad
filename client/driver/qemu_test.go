@@ -46,6 +46,7 @@ func TestQemuDriver_StartOpen_Wait(t *testing.T) {
 				"main": 22,
 				"web":  8080,
 			}},
+			"args": []string{"-nodefconfig", "-nodefaults"},
 		},
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
@@ -105,6 +106,7 @@ func TestQemuDriverUser(t *testing.T) {
 				"main": 22,
 				"web":  8080,
 			}},
+			"args": []string{"-nodefconfig", "-nodefaults"},
 		},
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
