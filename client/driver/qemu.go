@@ -46,7 +46,7 @@ type QemuDriverConfig struct {
 	ImagePath   string           `mapstructure:"image_path"`
 	Accelerator string           `mapstructure:"accelerator"`
 	PortMap     []map[string]int `mapstructure:"port_map"` // A map of host port labels and to guest ports.
-	Args    []string `mapstructure:"args"` // extra arguments to qemu executable
+	Args        []string         `mapstructure:"args"`     // extra arguments to qemu executable
 }
 
 // qemuHandle is returned from Start/Open as a handle to the PID
