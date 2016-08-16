@@ -744,21 +744,14 @@ func TestJobEndpoint_GetJobSummary(t *testing.T) {
 	if err := msgpackrpc.CallWithCodec(codec, "Job.Summary", get, &resp2); err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if resp2.Index != resp.JobModifyIndex {
-		t.Fatalf("Bad index: %d %d", resp2.Index, resp.Index)
+	if job.ID != resp2.JobSummary.JobID {
+		t.Fatalf("expected: %v, actual: %v", job.ID, resp2.JobSummary.JobID)
 	}
-
-	expectedJobSummary := structs.JobSummary{
-		JobID: job.ID,
-		Summary: map[string]structs.TaskGroupSummary{
-			"web": structs.TaskGroupSummary{},
-		},
-		CreateIndex: job.CreateIndex,
-		ModifyIndex: job.CreateIndex,
+	if job.CreateIndex != resp2.JobSummary.CreateIndex {
+		t.Fatalf("expected: %v, actual: %v", job.CreateIndex, resp2.JobSummary.CreateIndex)
 	}
-
-	if !reflect.DeepEqual(resp2.JobSummary, &expectedJobSummary) {
-		t.Fatalf("exptected: %v, actual: %v", expectedJobSummary, resp2.JobSummary)
+	if _, ok := resp2.JobSummary.Summary["web"]; !ok {
+		t.Fatal("expected job summary to exist for 'web'");
 	}
 }
 
