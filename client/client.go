@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -737,7 +738,17 @@ func (c *Client) registerAndHeartbeat() {
 		select {
 		case <-heartbeat:
 			if err := c.updateNodeStatus(); err != nil {
-				heartbeat = time.After(c.retryIntv(registerRetryIntv))
+				// The servers have changed such that this node has not been
+				// registered before
+				if strings.Contains(err.Error(), "node not found") {
+					// Re-register the node
+					c.logger.Printf("[INFO] client: re-registering node")
+					c.retryRegisterNode()
+					heartbeat = time.After(lib.RandomStagger(initialHeartbeatStagger))
+				} else {
+					c.logger.Printf("[ERR] client: heartbeating failed: %v", err)
+					heartbeat = time.After(c.retryIntv(registerRetryIntv))
+				}
 			} else {
 				c.heartbeatLock.Lock()
 				heartbeat = time.After(c.heartbeatTTL)
