@@ -20,6 +20,7 @@ IMPROVEMENTS:
     GH-1458]
   * cli: `nomad node-status` shows volume name for non-physical volumes instead
     of showing 0B used [GH-1538]
+  * cli: `nomad status` shows the create time of allocations [GH-1540]
   * client: Add killing event to task state [GH-1457]
   * client: Fingerprint network speed on Windows [GH-1443]
   * discovery: Support for initial check status [GH-1562]
