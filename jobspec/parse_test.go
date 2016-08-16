@@ -384,6 +384,45 @@ func TestParse(t *testing.T) {
 			},
 			false,
 		},
+		{
+			"service-check-initial-status.hcl",
+			&structs.Job{
+				ID:       "check_initial_status",
+				Name:     "check_initial_status",
+				Type:     "service",
+				Priority: 50,
+				Region:   "global",
+				TaskGroups: []*structs.TaskGroup{
+					&structs.TaskGroup{
+						Name:  "group",
+						Count: 1,
+						Tasks: []*structs.Task{
+							&structs.Task{
+								Name: "task",
+								Services: []*structs.Service{
+									{
+										Name:      "check_initial_status-group-task",
+										Tags:      []string{"foo", "bar"},
+										PortLabel: "http",
+										Checks: []*structs.ServiceCheck{
+											{
+												Name:          "check-name",
+												Type:          "http",
+												Interval:      10 * time.Second,
+												Timeout:       2 * time.Second,
+												InitialStatus: "passing",
+											},
+										},
+									},
+								},
+								LogConfig: structs.DefaultLogConfig(),
+							},
+						},
+					},
+				},
+			},
+			false,
+		},
 	}
 
 	for _, tc := range cases {

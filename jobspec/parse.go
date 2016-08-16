@@ -770,6 +770,7 @@ func parseChecks(service *structs.Service, checkObjs *ast.ObjectList) error {
 			"port",
 			"command",
 			"args",
+			"initial_status",
 		}
 		if err := checkHCLKeys(co.Val, valid); err != nil {
 			return multierror.Prefix(err, "check ->")

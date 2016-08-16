@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-multierror"
 )
 
@@ -360,6 +361,49 @@ func TestTask_Validate_Services(t *testing.T) {
 	}
 
 	if !strings.Contains(err.Error(), "interval (0) can not be lower") {
+		t.Fatalf("err: %v", err)
+	}
+}
+
+func TestTask_Validate_Service_Check(t *testing.T) {
+
+	check1 := ServiceCheck{
+		Name:     "check-name",
+		Type:     ServiceCheckTCP,
+		Interval: 10 * time.Second,
+		Timeout:  2 * time.Second,
+	}
+
+	err := check1.validate()
+	if err != nil {
+		t.Fatal("err: %v", err)
+	}
+
+	check1.InitialStatus = "foo"
+	err = check1.validate()
+	if err == nil {
+		t.Fatal("Expected an error")
+	}
+
+	if !strings.Contains(err.Error(), "invalid initial check state (foo)") {
+		t.Fatalf("err: %v", err)
+	}
+
+	check1.InitialStatus = api.HealthCritical
+	err = check1.validate()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	check1.InitialStatus = api.HealthPassing
+	err = check1.validate()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	check1.InitialStatus = ""
+	err = check1.validate()
+	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 }
