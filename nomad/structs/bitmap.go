@@ -58,7 +58,7 @@ func (b Bitmap) Clear() {
 // on the passed parameter in the passed range
 func (b Bitmap) IndexesInRange(set bool, from, to uint) []int {
 	var indexes []int
-	for i := from; i <= to; i++ {
+	for i := from; i <= to && i < b.Size(); i++ {
 		c := b.Check(i)
 		if c && set || !c && !set {
 			indexes = append(indexes, int(i))
