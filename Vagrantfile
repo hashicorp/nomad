@@ -8,6 +8,7 @@ DEFAULT_CPU_COUNT = 2
 $script = <<SCRIPT
 GO_VERSION="1.7"
 CONSUL_VERSION="0.6.4"
+VAULT_VERSION="0.6.0"
 
 # Install Prereq Packages
 sudo apt-get update
@@ -51,6 +52,14 @@ echo Installing Consul...
 unzip consul.zip
 sudo chmod +x consul
 sudo mv consul /usr/bin/consul
+
+echo Fetching Vault...
+cd /tmp/
+wget https://releases.hashicorp.com/vault/${VAULT_VERSION}/vault${VAULT_VERSION}_linux_amd64.zip -O vault.zip
+echo Installing Vault...
+unzip vault.zip
+sudo chmod +x consul
+sudo mv vault /usr/bin/vault
 
 # Install Docker
 echo deb https://apt.dockerproject.org/repo ubuntu-`lsb_release -c | awk '{print $2}'` main | sudo tee /etc/apt/sources.list.d/docker.list
