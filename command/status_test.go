@@ -110,7 +110,7 @@ func TestStatusCommand_Run(t *testing.T) {
 	if !strings.Contains(out, "Allocations") {
 		t.Fatalf("should dump allocations")
 	}
-	if !strings.Contains(out, "Created") {
+	if !strings.Contains(out, "Created At") {
 		t.Fatal("should have created header")
 	}
 	ui.OutputWriter.Reset()

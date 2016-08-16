@@ -301,7 +301,7 @@ func (c *StatusCommand) outputJobInfo(client *api.Client, job *api.Job) error {
 	c.Ui.Output(c.Colorize().Color("\n[bold]Allocations[reset]"))
 	if len(jobAllocs) > 0 {
 		allocs = make([]string, len(jobAllocs)+1)
-		allocs[0] = "ID|Eval ID|Node ID|Task Group|Desired|Status|Created"
+		allocs[0] = "ID|Eval ID|Node ID|Task Group|Desired|Status|Created At"
 		for i, alloc := range jobAllocs {
 			allocs[i+1] = fmt.Sprintf("%s|%s|%s|%s|%s|%s|%s",
 				limit(alloc.ID, c.length),

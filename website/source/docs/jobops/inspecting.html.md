@@ -39,7 +39,7 @@ Task Group "cache":
   * Dimension "cpu exhausted" exhausted on 1 nodes
 
 Allocations
-ID        Eval ID   Node ID   Task Group  Desired  Status   Created
+ID        Eval ID   Node ID   Task Group  Desired  Status   Created At
 12681940  8e38e6cf  4beef22f  cache       run      running  08/08/16 21:03:19 CDT
 395c5882  8e38e6cf  4beef22f  cache       run      running  08/08/16 21:03:19 CDT
 4d7c6f84  8e38e6cf  4beef22f  cache       run      running  08/08/16 21:03:19 CDT
