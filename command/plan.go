@@ -25,7 +25,7 @@ potentially invalid.`
 
 type PlanCommand struct {
 	Meta
-	Helper
+	JobGetter
 	color *colorstring.Colorize
 }
 
@@ -99,7 +99,7 @@ func (c *PlanCommand) Run(args []string) int {
 
 	path := args[0]
 	// Get Job struct from Jobfile
-	job, err := c.Helper.StructJob(args[0])
+	job, err := c.JobGetter.StructJob(args[0])
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error getting job struct: %s", err))
 		return 1

@@ -111,8 +111,8 @@ func TestValidateCommand_From_STDIN(t *testing.T) {
 
 	ui := new(cli.MockUi)
 	cmd := &ValidateCommand{
-		Meta:   Meta{Ui: ui},
-		Helper: Helper{testStdin: stdinR},
+		Meta:      Meta{Ui: ui},
+		JobGetter: JobGetter{testStdin: stdinR},
 	}
 
 	go func() {

@@ -229,18 +229,18 @@ READ:
 	return l.ReadCloser.Read(p)
 }
 
-type Helper struct {
+type JobGetter struct {
 	// The fields below can be overwritten for tests
 	testStdin io.Reader
 }
 
 // StructJob returns the Job struct from jobfile.
-func (h *Helper) StructJob(jpath string) (*structs.Job, error) {
+func (j *JobGetter) StructJob(jpath string) (*structs.Job, error) {
 	var jobfile io.Reader
 	switch jpath {
 	case "-":
-		if h.testStdin != nil {
-			jobfile = h.testStdin
+		if j.testStdin != nil {
+			jobfile = j.testStdin
 		} else {
 			jobfile = os.Stdin
 		}

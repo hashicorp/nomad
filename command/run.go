@@ -21,7 +21,7 @@ var (
 
 type RunCommand struct {
 	Meta
-	Helper
+	JobGetter
 }
 
 func (c *RunCommand) Help() string {
@@ -120,7 +120,7 @@ func (c *RunCommand) Run(args []string) int {
 	}
 
 	// Get Job struct from Jobfile
-	job, err := c.Helper.StructJob(args[0])
+	job, err := c.JobGetter.StructJob(args[0])
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error getting job struct: %s", err))
 		return 1

@@ -213,8 +213,8 @@ job "job1" {
 		t.Fatalf("err: %s", err)
 	}
 
-	h := &Helper{}
-	sj, err := h.StructJob(fh.Name())
+	j := &JobGetter{}
+	sj, err := j.StructJob(fh.Name())
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
