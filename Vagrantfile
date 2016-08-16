@@ -7,8 +7,6 @@ VAGRANTFILE_API_VERSION = "2"
 DEFAULT_CPU_COUNT = 2
 $script = <<SCRIPT
 GO_VERSION="1.7"
-CONSUL_VERSION="0.6.4"
-VAULT_VERSION="0.6.0"
 
 # Install Prereq Packages
 sudo apt-get update
@@ -45,22 +43,6 @@ sudo mv /tmp/gopath.sh /etc/profile.d/gopath.sh
 sudo chmod 0755 /etc/profile.d/gopath.sh
 source /etc/profile.d/gopath.sh
 
-echo Fetching Consul...
-cd /tmp/
-wget https://releases.hashicorp.com/consul/${CONSUL_VERSION}/consul_${CONSUL_VERSION}_linux_amd64.zip -O consul.zip
-echo Installing Consul...
-unzip consul.zip
-sudo chmod +x consul
-sudo mv consul /usr/bin/consul
-
-echo Fetching Vault...
-cd /tmp/
-wget https://releases.hashicorp.com/vault/${VAULT_VERSION}/vault${VAULT_VERSION}_linux_amd64.zip -O vault.zip
-echo Installing Vault...
-unzip vault.zip
-sudo chmod +x consul
-sudo mv vault /usr/bin/vault
-
 # Install Docker
 echo deb https://apt.dockerproject.org/repo ubuntu-`lsb_release -c | awk '{print $2}'` main | sudo tee /etc/apt/sources.list.d/docker.list
 sudo apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D
@@ -76,8 +58,10 @@ sudo usermod -aG docker vagrant
 # Setup Nomad for development
 cd /opt/gopath/src/github.com/hashicorp/nomad && make bootstrap
 
-# Install rkt
+# Install rkt, consul and vault
 bash scripts/install_rkt.sh
+bash scripts/install_consul.sh
+bash scripts/install_vault.sh
 
 # CD into the nomad working directory when we login to the VM
 grep "cd /opt/gopath/src/github.com/hashicorp/nomad" ~/.profile || echo "cd /opt/gopath/src/github.com/hashicorp/nomad" >> ~/.profile
