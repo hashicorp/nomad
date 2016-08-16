@@ -51,6 +51,12 @@ func formatTime(t time.Time) string {
 	return t.Format("01/02/06 15:04:05 MST")
 }
 
+// formatUnixNanoTime is a helper for formatting time for output.
+func formatUnixNanoTime(nano int64) string {
+	t := time.Unix(0, nano)
+	return formatTime(t)
+}
+
 // formatTimeDifference takes two times and determines their duration difference
 // truncating to a passed unit.
 // E.g. formatTimeDifference(first=1m22s33ms, second=1m28s55ms, time.Second) -> 6s
