@@ -525,3 +525,17 @@ func TestIncorrectKey(t *testing.T) {
 		t.Fatalf("Expected collision error; got %v", err)
 	}
 }
+
+func TestServiceCheckInitialStatus(t *testing.T) {
+
+	path, err := filepath.Abs(filepath.Join("./test-fixtures", "service-check-initial-status.hcl"))
+	if err != nil {
+		t.Fatalf("Can't get absolute path for file: %s", err)
+	}
+
+	_, err = ParseFile(path)
+
+	if err != nil {
+		t.Fatalf("Expected no error; got %v", err)
+	}
+}

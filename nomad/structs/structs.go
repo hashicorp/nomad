@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/gorhill/cronexpr"
+	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/helper/args"
@@ -1591,15 +1592,16 @@ const (
 // The ServiceCheck data model represents the consul health check that
 // Nomad registers for a Task
 type ServiceCheck struct {
-	Name      string        // Name of the check, defaults to id
-	Type      string        // Type of the check - tcp, http, docker and script
-	Command   string        // Command is the command to run for script checks
-	Args      []string      // Args is a list of argumes for script checks
-	Path      string        // path of the health check url for http type check
-	Protocol  string        // Protocol to use if check is http, defaults to http
-	PortLabel string        `mapstructure:"port"` // The port to use for tcp/http checks
-	Interval  time.Duration // Interval of the check
-	Timeout   time.Duration // Timeout of the response from the check before consul fails the check
+	Name          string        // Name of the check, defaults to id
+	Type          string        // Type of the check - tcp, http, docker and script
+	Command       string        // Command is the command to run for script checks
+	Args          []string      // Args is a list of argumes for script checks
+	Path          string        // path of the health check url for http type check
+	Protocol      string        // Protocol to use if check is http, defaults to http
+	PortLabel     string        `mapstructure:"port"` // The port to use for tcp/http checks
+	Interval      time.Duration // Interval of the check
+	Timeout       time.Duration // Timeout of the response from the check before consul fails the check
+	InitialStatus string        // Initial status of the check
 }
 
 func (sc *ServiceCheck) Copy() *ServiceCheck {
@@ -1651,6 +1653,17 @@ func (sc *ServiceCheck) validate() error {
 
 	if sc.Interval < minCheckInterval {
 		return fmt.Errorf("interval (%v) can not be lower than %v", sc.Interval, minCheckInterval)
+	}
+
+	switch sc.InitialStatus {
+	case "":
+	case api.HealthUnknown:
+	case api.HealthPassing:
+	case api.HealthWarning:
+	case api.HealthCritical:
+	default:
+		return fmt.Errorf(`invalid initial check state (%s), must be one of "%s", "%s", "%s", or "%s"`, sc.InitialStatus, api.HealthUnknown, api.HealthPassing, api.HealthWarning, api.HealthCritical)
+
 	}
 
 	return nil

@@ -720,6 +720,7 @@ func (c *Syncer) createCheckReg(check *structs.ServiceCheck, serviceReg *consul.
 	default:
 		return nil, fmt.Errorf("check type %+q not valid", check.Type)
 	}
+	chkReg.Status = check.InitialStatus
 	return &chkReg, nil
 }
 

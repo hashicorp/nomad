@@ -21,10 +21,11 @@ const (
 var (
 	logger = log.New(os.Stdout, "", log.LstdFlags)
 	check1 = structs.ServiceCheck{
-		Name:     "check-foo-1",
-		Type:     structs.ServiceCheckTCP,
-		Interval: 30 * time.Second,
-		Timeout:  5 * time.Second,
+		Name:          "check-foo-1",
+		Type:          structs.ServiceCheckTCP,
+		Interval:      30 * time.Second,
+		Timeout:       5 * time.Second,
+		InitialStatus: "passing",
 	}
 	check2 = structs.ServiceCheck{
 		Name:      "check1",
@@ -86,6 +87,10 @@ func TestCheckRegistration(t *testing.T) {
 		t.Fatalf("expected: %v, actual: %v", expected, check3Reg.HTTP)
 	}
 
+	expected = "passing"
+	if check1Reg.Status != expected {
+		t.Fatalf("expected: %v, actual: %v", expected, check1Reg.Status)
+	}
 }
 
 func TestConsulServiceRegisterServices(t *testing.T) {
