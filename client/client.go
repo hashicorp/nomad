@@ -486,33 +486,45 @@ func (c *Client) getAllocRunners() map[string]*AllocRunner {
 	return runners
 }
 
-// nodeID restores a persistent unique ID or generates a new one
-func (c *Client) nodeID() (string, error) {
+// nodeIDs restores the nodes persistent unique ID and SecretID or generates new
+// ones
+func (c *Client) nodeID() (id string, secret string, err error) {
 	// Do not persist in dev mode
 	if c.config.DevMode {
-		return structs.GenerateUUID(), nil
+		return structs.GenerateUUID(), structs.GenerateUUID(), nil
 	}
 
 	// Attempt to read existing ID
-	path := filepath.Join(c.config.StateDir, "client-id")
-	buf, err := ioutil.ReadFile(path)
+	idPath := filepath.Join(c.config.StateDir, "client-id")
+	idBuf, err := ioutil.ReadFile(idPath)
 	if err != nil && !os.IsNotExist(err) {
-		return "", err
+		return "", "", err
+	}
+
+	// Attempt to read existing secret ID
+	secretPath := filepath.Join(c.config.StateDir, "secret-id")
+	secretBuf, err := ioutil.ReadFile(secretPath)
+	if err != nil && !os.IsNotExist(err) {
+		return "", "", err
 	}
 
 	// Use existing ID if any
-	if len(buf) != 0 {
-		return string(buf), nil
+	if len(idBuf) != 0 && len(secretBuf) != 0 {
+		return string(idBuf), string(secretBuf), nil
 	}
 
 	// Generate new ID
-	id := structs.GenerateUUID()
+	id = structs.GenerateUUID()
+	secret = structs.GenerateUUID()
 
-	// Persist the ID
-	if err := ioutil.WriteFile(path, []byte(id), 0700); err != nil {
-		return "", err
+	// Persist the IDs
+	if err := ioutil.WriteFile(idPath, []byte(id), 0700); err != nil {
+		return "", "", err
 	}
-	return id, nil
+	if err := ioutil.WriteFile(secretPath, []byte(secret), 0700); err != nil {
+		return "", "", err
+	}
+	return id, secret, nil
 }
 
 // setupNode is used to setup the initial node
@@ -523,11 +535,13 @@ func (c *Client) setupNode() error {
 		c.config.Node = node
 	}
 	// Generate an iD for the node
-	var err error
-	node.ID, err = c.nodeID()
+	id, secretID, err := c.nodeID()
 	if err != nil {
 		return fmt.Errorf("node ID setup failed: %v", err)
 	}
+
+	node.ID = id
+	node.SecretID = secretID
 	if node.Attributes == nil {
 		node.Attributes = make(map[string]string)
 	}
@@ -827,6 +841,8 @@ func (c *Client) retryRegisterNode() {
 	for {
 		if err := c.registerNode(); err == nil {
 			break
+		} else {
+			c.logger.Printf("[ERR] client: %v", err)
 		}
 		select {
 		case <-time.After(c.retryIntv(registerRetryIntv)):
@@ -992,8 +1008,10 @@ func (c *Client) watchAllocations(updates chan *allocUpdates) {
 	// The request and response for getting the map of allocations that should
 	// be running on the Node to their AllocModifyIndex which is incremented
 	// when the allocation is updated by the servers.
+	n := c.Node()
 	req := structs.NodeSpecificRequest{
-		NodeID: c.Node().ID,
+		NodeID:   n.ID,
+		SecretID: n.SecretID,
 		QueryOptions: structs.QueryOptions{
 			Region:     c.Region(),
 			AllowStale: true,
@@ -1417,10 +1435,7 @@ func (c *Client) collectHostStats() {
 
 // emitStats pushes host resource usage stats to remote metrics collection sinks
 func (c *Client) emitStats(hStats *stats.HostStats) {
-	nodeID, err := c.nodeID()
-	if err != nil {
-		return
-	}
+	nodeID := c.Node().ID
 	metrics.SetGauge([]string{"client", "host", "memory", nodeID, "total"}, float32(hStats.Memory.Total))
 	metrics.SetGauge([]string{"client", "host", "memory", nodeID, "available"}, float32(hStats.Memory.Available))
 	metrics.SetGauge([]string{"client", "host", "memory", nodeID, "used"}, float32(hStats.Memory.Used))
