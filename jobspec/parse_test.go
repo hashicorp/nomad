@@ -384,6 +384,45 @@ func TestParse(t *testing.T) {
 			},
 			false,
 		},
+		{
+			"service-check-initial-status.hcl",
+			&structs.Job{
+				ID:       "check_initial_status",
+				Name:     "check_initial_status",
+				Type:     "service",
+				Priority: 50,
+				Region:   "global",
+				TaskGroups: []*structs.TaskGroup{
+					&structs.TaskGroup{
+						Name:  "group",
+						Count: 1,
+						Tasks: []*structs.Task{
+							&structs.Task{
+								Name: "task",
+								Services: []*structs.Service{
+									{
+										Name:      "check_initial_status-group-task",
+										Tags:      []string{"foo", "bar"},
+										PortLabel: "http",
+										Checks: []*structs.ServiceCheck{
+											{
+												Name:          "check-name",
+												Type:          "http",
+												Interval:      10 * time.Second,
+												Timeout:       2 * time.Second,
+												InitialStatus: "passing",
+											},
+										},
+									},
+								},
+								LogConfig: structs.DefaultLogConfig(),
+							},
+						},
+					},
+				},
+			},
+			false,
+		},
 	}
 
 	for _, tc := range cases {
@@ -523,19 +562,5 @@ func TestIncorrectKey(t *testing.T) {
 
 	if !strings.Contains(err.Error(), "* group: 'binsl', task: 'binstore', service: 'binstore-storagelocker-binsl-binstore', check -> invalid key: nterval") {
 		t.Fatalf("Expected collision error; got %v", err)
-	}
-}
-
-func TestServiceCheckInitialStatus(t *testing.T) {
-
-	path, err := filepath.Abs(filepath.Join("./test-fixtures", "service-check-initial-status.hcl"))
-	if err != nil {
-		t.Fatalf("Can't get absolute path for file: %s", err)
-	}
-
-	_, err = ParseFile(path)
-
-	if err != nil {
-		t.Fatalf("Expected no error; got %v", err)
 	}
 }

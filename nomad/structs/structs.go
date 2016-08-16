@@ -1601,7 +1601,7 @@ type ServiceCheck struct {
 	PortLabel     string        `mapstructure:"port"` // The port to use for tcp/http checks
 	Interval      time.Duration // Interval of the check
 	Timeout       time.Duration // Timeout of the response from the check before consul fails the check
-	InitialStatus string        // Initial status of the check
+	InitialStatus string        `mapstructure:"initial_status"` // Initial status of the check
 }
 
 func (sc *ServiceCheck) Copy() *ServiceCheck {
@@ -1662,7 +1662,7 @@ func (sc *ServiceCheck) validate() error {
 	case api.HealthWarning:
 	case api.HealthCritical:
 	default:
-		return fmt.Errorf(`invalid initial check state (%s), must be one of "%s", "%s", "%s", or "%s"`, sc.InitialStatus, api.HealthUnknown, api.HealthPassing, api.HealthWarning, api.HealthCritical)
+		return fmt.Errorf(`invalid initial check state (%s), must be one of %q, %q, %q, %q or empty`, sc.InitialStatus, api.HealthUnknown, api.HealthPassing, api.HealthWarning, api.HealthCritical)
 
 	}
 
