@@ -11,8 +11,6 @@ go build -o $TEMPDIR/nomad || exit 1
 # Run the tests
 echo "--> Running tests"
 GOBIN="`which go`"
-go list ./... | grep -v '^github.com/hashicorp/nomad/vendor/' | \
-    sudo \
-        -E PATH=$TEMPDIR:$PATH \
-        -E GOPATH=$GOPATH \
-        xargs $GOBIN test -v ${GOTEST_FLAGS:--cover -timeout=900s}
+sudo -E PATH=$TEMPDIR:$PATH  -E GOPATH=$GOPATH \
+    $GOBIN test -v ${GOTEST_FLAGS:--cover -timeout=900s} $($GOBIN list ./... | grep -v /vendor/)
+
