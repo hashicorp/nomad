@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
+
+	"github.com/hashicorp/consul/api"
 )
 
 func TestParse(t *testing.T) {
@@ -410,7 +412,7 @@ func TestParse(t *testing.T) {
 												Type:          "http",
 												Interval:      10 * time.Second,
 												Timeout:       2 * time.Second,
-												InitialStatus: "passing",
+												InitialStatus: api.HealthPassing,
 											},
 										},
 									},

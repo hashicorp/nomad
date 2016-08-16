@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -25,7 +26,7 @@ var (
 		Type:          structs.ServiceCheckTCP,
 		Interval:      30 * time.Second,
 		Timeout:       5 * time.Second,
-		InitialStatus: "passing",
+		InitialStatus: api.HealthPassing,
 	}
 	check2 = structs.ServiceCheck{
 		Name:      "check1",
@@ -87,7 +88,7 @@ func TestCheckRegistration(t *testing.T) {
 		t.Fatalf("expected: %v, actual: %v", expected, check3Reg.HTTP)
 	}
 
-	expected = "passing"
+	expected = api.HealthPassing
 	if check1Reg.Status != expected {
 		t.Fatalf("expected: %v, actual: %v", expected, check1Reg.Status)
 	}
