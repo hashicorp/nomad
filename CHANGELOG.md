@@ -23,12 +23,14 @@ IMPROVEMENTS:
   * cli: `nomad status` shows the create time of allocations [GH-1540]
   * client: Add killing event to task state [GH-1457]
   * client: Fingerprint network speed on Windows [GH-1443]
-  * discovery: Support for initial check status [GH-1562]
+  * discovery: Support for initial check status [GH-1599]
+  * discovery: Support for query params in health check urls [GH-1562]
   * driver/docker: Allow working directory to be configured [GH-1513]
   * driver/docker: Remove docker volumes when removing container [GH-1519]
   * driver/docker: Set windows containers network mode to nat by default
     [GH-1521]
   * driver/exec: Allow chroot environment to be configurable [GH-1518]
+  * driver/qemu: Allows users to pass extra args to the qemu driver [GH-1596]
   * telemetry: Circonus integration for telemetry metrics [GH-1459]
   * telemetry: Allow operators to opt-in for publishing metrics [GH-1501]
 
