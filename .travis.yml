@@ -16,6 +16,7 @@ matrix:
 branches:
   only:
     - master
+    - /^f-.*$/
 
 before_install:  
     - sudo apt-get update
