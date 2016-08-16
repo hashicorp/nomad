@@ -40,6 +40,9 @@ The `Qemu` driver supports the following configuration in the job spec:
   `port_map { db = 6539 }` would forward the host port with label `db` to the
   guest VM's port 6539.
 
+* `args` - (Optional) A `[]string` that is passed to qemu as command line options.
+  For example, `args = [ "-nodefconfig", "-nodefaults" ]
+
 ## Examples
 
 A simple config block to run a `Qemu` image:
@@ -51,6 +54,7 @@ task "virtual" {
   config {
     image_path = "local/linux.img"
     accelerator = "kvm"
+    args = [ "-nodefaults", "-nodefconfig" ]
   }
 
   # Specifying an artifact is required with the "qemu"
