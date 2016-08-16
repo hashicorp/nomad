@@ -16,6 +16,7 @@ matrix:
 branches:
   only:
     - master
+    - /^f-.*$/
 
 install:
   - make travis
