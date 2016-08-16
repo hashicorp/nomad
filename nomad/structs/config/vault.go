@@ -1,6 +1,16 @@
 package config
 
-import vault "github.com/hashicorp/vault/api"
+import (
+	"time"
+
+	vault "github.com/hashicorp/vault/api"
+)
+
+const (
+	// DefaultVaultConnectRetryIntv is the retry interval between trying to
+	// connect to Vault
+	DefaultVaultConnectRetryIntv = 30 * time.Second
+)
 
 // VaultConfig contains the configuration information necessary to
 // communicate with Vault in order to:
@@ -30,8 +40,13 @@ type VaultConfig struct {
 	// does not have to renew with Vault at a very high frequency
 	TaskTokenTTL string `mapstructure:"task_token_ttl"`
 
-	// Addr is the address of the local Vault agent
+	// Addr is the address of the local Vault agent. This should be a complete
+	// URL such as "http://vault.example.com"
 	Addr string `mapstructure:"address"`
+
+	// ConnectionRetryIntv is the interval to wait before re-attempting to
+	// connect to Vault.
+	ConnectionRetryIntv time.Duration
 
 	// TLSCaFile is the path to a PEM-encoded CA cert file to use to verify the
 	// Vault server SSL certificate.
@@ -60,7 +75,8 @@ func DefaultVaultConfig() *VaultConfig {
 	return &VaultConfig{
 		Enabled:              true,
 		AllowUnauthenticated: false,
-		Addr:                 "vault.service.consul:8200",
+		Addr:                 "https://vault.service.consul:8200",
+		ConnectionRetryIntv:  DefaultVaultConnectRetryIntv,
 	}
 }
 
@@ -76,6 +92,9 @@ func (a *VaultConfig) Merge(b *VaultConfig) *VaultConfig {
 	}
 	if b.Addr != "" {
 		result.Addr = b.Addr
+	}
+	if b.ConnectionRetryIntv.Nanoseconds() != 0 {
+		result.ConnectionRetryIntv = b.ConnectionRetryIntv
 	}
 	if b.TLSCaFile != "" {
 		result.TLSCaFile = b.TLSCaFile
@@ -100,16 +119,9 @@ func (a *VaultConfig) Merge(b *VaultConfig) *VaultConfig {
 }
 
 // ApiConfig() returns a usable Vault config that can be passed directly to
-// hashicorp/vault/api. If readEnv is true, the environment is read for
-// appropriate Vault variables.
-func (c *VaultConfig) ApiConfig(readEnv bool) (*vault.Config, error) {
+// hashicorp/vault/api.
+func (c *VaultConfig) ApiConfig() (*vault.Config, error) {
 	conf := vault.DefaultConfig()
-	if readEnv {
-		if err := conf.ReadEnvironment(); err != nil {
-			return nil, err
-		}
-	}
-
 	tlsConf := &vault.TLSConfig{
 		CACert:        c.TLSCaFile,
 		CAPath:        c.TLSCaPath,
@@ -122,6 +134,7 @@ func (c *VaultConfig) ApiConfig(readEnv bool) (*vault.Config, error) {
 		return nil, err
 	}
 
+	conf.Address = c.Addr
 	return conf, nil
 }
 
