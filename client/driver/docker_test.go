@@ -245,10 +245,8 @@ func TestDockerDriver_Start_LoadImage(t *testing.T) {
 	defer execCtx.AllocDir.Destroy()
 	d := NewDockerDriver(driverCtx)
 
-	// Copy the test jar into the task's directory
-	taskDir, _ := execCtx.AllocDir.TaskDirs[task.Name]
-	dst := filepath.Join(taskDir, allocdir.TaskLocal, "busybox.tar")
-	copyFile("./test-resources/docker/busybox.tar", dst, t)
+	// Copy the image into the task's directory
+	copyImage(execCtx, task, "busybox.tar", t)
 
 	handle, err := d.Start(execCtx, task)
 	if err != nil {
