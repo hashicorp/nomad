@@ -139,6 +139,7 @@ func parseJob(result *structs.Job, list *ast.ObjectList) error {
 		"meta",
 		"task",
 		"group",
+		"vault_token",
 	}
 	if err := checkHCLKeys(listVal, valid); err != nil {
 		return multierror.Prefix(err, "job:")
@@ -460,17 +461,18 @@ func parseTasks(jobName string, taskGroupName string, result *[]*structs.Task, l
 
 		// Check for invalid keys
 		valid := []string{
-			"driver",
-			"user",
-			"env",
-			"service",
+			"artifact",
 			"config",
 			"constraint",
+			"driver",
+			"env",
+			"kill_timeout",
+			"logs",
 			"meta",
 			"resources",
-			"logs",
-			"kill_timeout",
-			"artifact",
+			"service",
+			"user",
+			"vault",
 		}
 		if err := checkHCLKeys(listVal, valid); err != nil {
 			return multierror.Prefix(err, fmt.Sprintf("'%s' ->", n))
@@ -480,14 +482,15 @@ func parseTasks(jobName string, taskGroupName string, result *[]*structs.Task, l
 		if err := hcl.DecodeObject(&m, item.Val); err != nil {
 			return err
 		}
+		delete(m, "artifact")
 		delete(m, "config")
-		delete(m, "env")
 		delete(m, "constraint")
-		delete(m, "service")
+		delete(m, "env")
+		delete(m, "logs")
 		delete(m, "meta")
 		delete(m, "resources")
-		delete(m, "logs")
-		delete(m, "artifact")
+		delete(m, "service")
+		delete(m, "vault")
 
 		// Build the task
 		var t structs.Task
@@ -621,6 +624,16 @@ func parseTasks(jobName string, taskGroupName string, result *[]*structs.Task, l
 			if err := parseArtifacts(&t.Artifacts, o); err != nil {
 				return multierror.Prefix(err, fmt.Sprintf("'%s', artifact ->", n))
 			}
+		}
+
+		// If we have a vault block, then parse that
+		if o := listVal.Filter("vault"); len(o.Items) > 0 {
+			var v structs.Vault
+			if err := parseVault(&v, o); err != nil {
+				return multierror.Prefix(err, fmt.Sprintf("'%s', vault ->", n))
+			}
+
+			t.Vault = &v
 		}
 
 		*result = append(*result, &t)
@@ -1009,6 +1022,46 @@ func parsePeriodic(result **structs.PeriodicConfig, list *ast.ObjectList) error 
 		return err
 	}
 	*result = &p
+	return nil
+}
+
+func parseVault(result *structs.Vault, list *ast.ObjectList) error {
+	list = list.Elem()
+	if len(list.Items) == 0 {
+		return nil
+	}
+	if len(list.Items) > 1 {
+		return fmt.Errorf("only one 'vault' block allowed per task")
+	}
+
+	// Get our resource object
+	o := list.Items[0]
+
+	// We need this later
+	var listVal *ast.ObjectList
+	if ot, ok := o.Val.(*ast.ObjectType); ok {
+		listVal = ot.List
+	} else {
+		return fmt.Errorf("vault: should be an object")
+	}
+
+	// Check for invalid keys
+	valid := []string{
+		"policies",
+	}
+	if err := checkHCLKeys(listVal, valid); err != nil {
+		return multierror.Prefix(err, "vault ->")
+	}
+
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, o.Val); err != nil {
+		return err
+	}
+
+	if err := mapstructure.WeakDecode(m, result); err != nil {
+		return err
+	}
+
 	return nil
 }
 

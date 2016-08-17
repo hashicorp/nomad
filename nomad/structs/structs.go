@@ -1062,6 +1062,11 @@ type Job struct {
 	// job. This is opaque to Nomad.
 	Meta map[string]string
 
+	// VaultToken is the Vault token that proves the submitter of the job has
+	// access to the specified Vault policies. This field is only used to
+	// transfer the token and is not stored after Job submission.
+	VaultToken string `mapstructure:"vault_token"`
+
 	// Job status
 	Status string
 
@@ -1216,6 +1221,26 @@ func (j *Job) Stub(summary *JobSummary) *JobListStub {
 // IsPeriodic returns whether a job is periodic.
 func (j *Job) IsPeriodic() bool {
 	return j.Periodic != nil
+}
+
+// VaultPolicies returns the set of Vault policies per task group, per task
+func (j *Job) VaultPolicies() map[string]map[string][]string {
+	policies := make(map[string]map[string][]string, len(j.TaskGroups))
+
+	for _, tg := range j.TaskGroups {
+		tgPolicies := make(map[string][]string, len(tg.Tasks))
+		policies[tg.Name] = tgPolicies
+
+		for _, task := range tg.Tasks {
+			if task.Vault == nil {
+				continue
+			}
+
+			tgPolicies[task.Name] = task.Vault.Policies
+		}
+	}
+
+	return policies
 }
 
 // JobListStub is used to return a subset of job information
@@ -1843,6 +1868,10 @@ type Task struct {
 	// List of service definitions exposed by the Task
 	Services []*Service
 
+	// Vault is used to define the set of Vault policies that this task should
+	// have access to.
+	Vault *Vault
+
 	// Constraints can be specified at a task level and apply only to
 	// the particular task.
 	Constraints []*Constraint
@@ -1884,6 +1913,7 @@ func (t *Task) Copy() *Task {
 
 	nt.Constraints = CopySliceConstraints(nt.Constraints)
 
+	nt.Vault = nt.Vault.Copy()
 	nt.Resources = nt.Resources.Copy()
 	nt.Meta = CopyMapStringString(nt.Meta)
 
@@ -2000,6 +2030,12 @@ func (t *Task) Validate() error {
 		if err := artifact.Validate(); err != nil {
 			outer := fmt.Errorf("Artifact %d validation failed: %v", idx+1, err)
 			mErr.Errors = append(mErr.Errors, outer)
+		}
+	}
+
+	if t.Vault != nil {
+		if err := t.Vault.Validate(); err != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Vault validation failed: %v", err))
 		}
 	}
 
@@ -2430,6 +2466,36 @@ func (c *Constraint) Validate() error {
 		}
 	}
 	return mErr.ErrorOrNil()
+}
+
+// Vault stores the set of premissions a task needs access to from Vault.
+type Vault struct {
+	// Policies is the set of policies that the task needs access to
+	Policies []string
+}
+
+// Copy returns a copy of this Vault block.
+func (v *Vault) Copy() *Vault {
+	if v == nil {
+		return nil
+	}
+
+	nv := new(Vault)
+	*nv = *v
+	return nv
+}
+
+// Validate returns if the Vault block is valid.
+func (v *Vault) Validate() error {
+	if v == nil {
+		return nil
+	}
+
+	if len(v.Policies) == 0 {
+		return fmt.Errorf("Policy list can not be empty")
+	}
+
+	return nil
 }
 
 const (

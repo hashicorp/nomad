@@ -139,6 +139,9 @@ type Server struct {
 	// consulSyncer advertises this Nomad Agent with Consul
 	consulSyncer *consul.Syncer
 
+	// vault is the client for communicating with Vault.
+	vault VaultClient
+
 	// Worker used for processing
 	workers []*Worker
 
@@ -203,6 +206,13 @@ func NewServer(config *Config, consulSyncer *consul.Syncer, logger *log.Logger) 
 
 	// Create the periodic dispatcher for launching periodic jobs.
 	s.periodicDispatcher = NewPeriodicDispatch(s.logger, s)
+
+	// Setup Vault
+	if err := s.setupVaultClient(); err != nil {
+		s.Shutdown()
+		s.logger.Printf("[ERR] nomad: failed to setup Vault client: %v", err)
+		return nil, fmt.Errorf("Failed to setup Vault client: %v", err)
+	}
 
 	// Initialize the RPC layer
 	// TODO: TLS...
@@ -305,6 +315,12 @@ func (s *Server) Shutdown() error {
 	if s.fsm != nil {
 		s.fsm.Close()
 	}
+
+	// Stop Vault token renewal
+	if s.vault != nil {
+		s.vault.Stop()
+	}
+
 	return nil
 }
 
@@ -546,6 +562,16 @@ func (s *Server) setupConsulSyncer() error {
 		}
 	}
 
+	return nil
+}
+
+// setupVaultClient is used to set up the Vault API client.
+func (s *Server) setupVaultClient() error {
+	v, err := NewVaultClient(s.config.VaultConfig, s.logger)
+	if err != nil {
+		return err
+	}
+	s.vault = v
 	return nil
 }
 

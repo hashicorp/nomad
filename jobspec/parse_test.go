@@ -28,6 +28,7 @@ func TestParse(t *testing.T) {
 				AllAtOnce:   true,
 				Datacenters: []string{"us2", "eu1"},
 				Region:      "global",
+				VaultToken:  "foo",
 
 				Meta: map[string]string{
 					"foo": "bar",
@@ -153,6 +154,9 @@ func TestParse(t *testing.T) {
 										},
 									},
 								},
+								Vault: &structs.Vault{
+									Policies: []string{"foo", "bar"},
+								},
 							},
 							&structs.Task{
 								Name:   "storagelocker",
@@ -191,6 +195,12 @@ func TestParse(t *testing.T) {
 
 		{
 			"multi-resource.hcl",
+			nil,
+			true,
+		},
+
+		{
+			"multi-vault.hcl",
 			nil,
 			true,
 		},

@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -357,6 +358,189 @@ func TestJobEndpoint_Register_EnforceIndex(t *testing.T) {
 	}
 	if out.Priority != job.Priority {
 		t.Fatalf("priority mis-match")
+	}
+}
+
+func TestJobEndpoint_Register_Vault_Disabled(t *testing.T) {
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+		c.VaultConfig.Enabled = false
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request with a job asking for a vault policy
+	job := mock.Job()
+	job.TaskGroups[0].Tasks[0].Vault = &structs.Vault{Policies: []string{"foo"}}
+	req := &structs.JobRegisterRequest{
+		Job:          job,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
+	if err == nil || !strings.Contains(err.Error(), "Vault not enabled") {
+		t.Fatalf("expected Vault not enabled error: %v", err)
+	}
+}
+
+func TestJobEndpoint_Register_Vault_AllowUnauthenticated(t *testing.T) {
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Enable vault and allow authenticated
+	s1.config.VaultConfig.Enabled = true
+	s1.config.VaultConfig.AllowUnauthenticated = true
+
+	// Replace the Vault Client on the server
+	s1.vault = &TestVaultClient{}
+
+	// Create the register request with a job asking for a vault policy
+	job := mock.Job()
+	job.TaskGroups[0].Tasks[0].Vault = &structs.Vault{Policies: []string{"foo"}}
+	req := &structs.JobRegisterRequest{
+		Job:          job,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Check for the job in the FSM
+	state := s1.fsm.State()
+	out, err := state.JobByID(job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out == nil {
+		t.Fatalf("expected job")
+	}
+	if out.CreateIndex != resp.JobModifyIndex {
+		t.Fatalf("index mis-match")
+	}
+}
+
+func TestJobEndpoint_Register_Vault_NoToken(t *testing.T) {
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Enable vault
+	s1.config.VaultConfig.Enabled = true
+	s1.config.VaultConfig.AllowUnauthenticated = false
+
+	// Replace the Vault Client on the server
+	s1.vault = &TestVaultClient{}
+
+	// Create the register request with a job asking for a vault policy but
+	// don't send a Vault token
+	job := mock.Job()
+	job.TaskGroups[0].Tasks[0].Vault = &structs.Vault{Policies: []string{"foo"}}
+	req := &structs.JobRegisterRequest{
+		Job:          job,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
+	if err == nil || !strings.Contains(err.Error(), "missing Vault Token") {
+		t.Fatalf("expected Vault not enabled error: %v", err)
+	}
+}
+
+func TestJobEndpoint_Register_Vault_Policies(t *testing.T) {
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Enable vault
+	s1.config.VaultConfig.Enabled = true
+	s1.config.VaultConfig.AllowUnauthenticated = false
+
+	// Replace the Vault Client on the server
+	tvc := &TestVaultClient{}
+	s1.vault = tvc
+
+	// Add three tokens: one that allows the requesting policy, one that does
+	// not and one that returns an error
+	policy := "foo"
+
+	badToken := structs.GenerateUUID()
+	badPolicies := []string{"a", "b", "c"}
+	tvc.SetLookupTokenAllowedPolicies(badToken, badPolicies)
+
+	goodToken := structs.GenerateUUID()
+	goodPolicies := []string{"foo", "bar", "baz"}
+	tvc.SetLookupTokenAllowedPolicies(goodToken, goodPolicies)
+
+	errToken := structs.GenerateUUID()
+	expectedErr := fmt.Errorf("return errors from vault")
+	tvc.SetLookupTokenError(errToken, expectedErr)
+
+	// Create the register request with a job asking for a vault policy but
+	// send the bad Vault token
+	job := mock.Job()
+	job.VaultToken = badToken
+	job.TaskGroups[0].Tasks[0].Vault = &structs.Vault{Policies: []string{policy}}
+	req := &structs.JobRegisterRequest{
+		Job:          job,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
+	if err == nil || !strings.Contains(err.Error(),
+		"doesn't allow access to the following policies: "+policy) {
+		t.Fatalf("expected permission denied error: %v", err)
+	}
+
+	// Use the err token
+	job.VaultToken = errToken
+	err = msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
+	if err == nil || !strings.Contains(err.Error(), expectedErr.Error()) {
+		t.Fatalf("expected permission denied error: %v", err)
+	}
+
+	// Use the good token
+	job.VaultToken = goodToken
+
+	// Fetch the response
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Check for the job in the FSM
+	state := s1.fsm.State()
+	out, err := state.JobByID(job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out == nil {
+		t.Fatalf("expected job")
+	}
+	if out.CreateIndex != resp.JobModifyIndex {
+		t.Fatalf("index mis-match")
+	}
+	if out.VaultToken != "" {
+		t.Fatalf("vault token not cleared")
 	}
 }
 

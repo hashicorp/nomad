@@ -239,7 +239,9 @@ func (a *Agent) serverConfig() (*nomad.Config, error) {
 		return nil, fmt.Errorf("server_service_name must be set when auto_advertise is enabled")
 	}
 
+	// Add the Consul and Vault configs
 	conf.ConsulConfig = a.config.Consul
+	conf.VaultConfig = a.config.Vault
 
 	return conf, nil
 }
@@ -350,6 +352,7 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	}
 
 	conf.ConsulConfig = a.config.Consul
+	conf.VaultConfig = a.config.Vault
 	conf.StatsCollectionInterval = a.config.Telemetry.collectionInterval
 	conf.PublishNodeMetrics = a.config.Telemetry.PublishNodeMetrics
 	conf.PublishAllocationMetrics = a.config.Telemetry.PublishAllocationMetrics

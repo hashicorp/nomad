@@ -204,6 +204,19 @@ func CopySliceString(s []string) []string {
 	return c
 }
 
+func CopySliceInt(s []int) []int {
+	l := len(s)
+	if l == 0 {
+		return nil
+	}
+
+	c := make([]int, l)
+	for i, v := range s {
+		c[i] = v
+	}
+	return c
+}
+
 func CopySliceConstraints(s []*Constraint) []*Constraint {
 	l := len(s)
 	if l == 0 {
@@ -215,4 +228,45 @@ func CopySliceConstraints(s []*Constraint) []*Constraint {
 		c[i] = v.Copy()
 	}
 	return c
+}
+
+// SliceStringIsSubset returns whether the smaller set of strings is a subset of
+// the larger. If the smaller slice is not a subset, the offending elements are
+// returned.
+func SliceStringIsSubset(larger, smaller []string) (bool, []string) {
+	largerSet := make(map[string]struct{}, len(larger))
+	for _, l := range larger {
+		largerSet[l] = struct{}{}
+	}
+
+	subset := true
+	var offending []string
+	for _, s := range smaller {
+		if _, ok := largerSet[s]; !ok {
+			subset = false
+			offending = append(offending, s)
+		}
+	}
+
+	return subset, offending
+}
+
+// VaultPoliciesSet takes the structure returned by VaultPolicies and returns
+// the set of required policies
+func VaultPoliciesSet(policies map[string]map[string][]string) []string {
+	set := make(map[string]struct{})
+
+	for _, tgp := range policies {
+		for _, tp := range tgp {
+			for _, p := range tp {
+				set[p] = struct{}{}
+			}
+		}
+	}
+
+	flattened := make([]string, 0, len(set))
+	for p := range set {
+		flattened = append(flattened, p)
+	}
+	return flattened
 }

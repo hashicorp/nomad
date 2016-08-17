@@ -4,6 +4,7 @@ job "binstore-storagelocker" {
   priority    = 50
   all_at_once = true
   datacenters = ["us2", "eu1"]
+  vault_token = "foo"
 
   meta {
     foo = "bar"
@@ -122,6 +123,10 @@ job "binstore-storagelocker" {
         options {
           checksum = "md5:ff1cc0d3432dad54d607c1505fb7245c"
         }
+      }
+
+      vault {
+        policies = ["foo", "bar"]
       }
     }
 
