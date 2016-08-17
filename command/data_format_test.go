@@ -48,7 +48,7 @@ func TestInvalidJSONTemplate(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 	_, err = fm.TransformData(tData)
-	if !strings.Contains(err.Error(), "foo is not a field of struct type command.testData") {
+	if !strings.Contains(err.Error(), "can't evaluate field foo") {
 		t.Fatalf("expected invalid template error, got: %s", err.Error())
 	}
 
