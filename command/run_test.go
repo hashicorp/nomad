@@ -202,7 +202,7 @@ func TestRunCommand_From_URL(t *testing.T) {
 		t.Fatalf("expected exit code 1, got %d: %q", code, ui.ErrorWriter.String())
 	}
 
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error reading URL") {
-		t.Fatalf("expected runtime error, got: %s", out)
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error getting jobfile") {
+		t.Fatalf("expected error getting jobfile, got: %s", out)
 	}
 }
