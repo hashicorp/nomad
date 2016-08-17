@@ -140,6 +140,7 @@ type Task struct {
 	KillTimeout time.Duration
 	LogConfig   *LogConfig
 	Artifacts   []*TaskArtifact
+	Vault       *Vault
 }
 
 // TaskArtifact is used to download artifacts before running a task.
@@ -147,6 +148,10 @@ type TaskArtifact struct {
 	GetterSource  string
 	GetterOptions map[string]string
 	RelativeDest  string
+}
+
+type Vault struct {
+	Policies []string
 }
 
 // NewTask creates and initializes a new Task.
