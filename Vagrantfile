@@ -6,7 +6,7 @@ VAGRANTFILE_API_VERSION = "2"
 
 DEFAULT_CPU_COUNT = 2
 $script = <<SCRIPT
-GO_VERSION="1.7.0"
+GO_VERSION="1.7"
 CONSUL_VERSION="0.6.4"
 
 # Install Prereq Packages
