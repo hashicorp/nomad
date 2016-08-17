@@ -3,9 +3,9 @@ package agent
 import (
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"strings"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -13,10 +13,18 @@ import (
 	sconfig "github.com/hashicorp/nomad/nomad/structs/config"
 )
 
-var nextPort uint32 = 17000
-
 func getPort() int {
-	return int(atomic.AddUint32(&nextPort, 1))
+	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
+	if err != nil {
+		panic(err)
+	}
+
+	l, err := net.ListenTCP("tcp", addr)
+	if err != nil {
+		panic(err)
+	}
+	defer l.Close()
+	return l.Addr().(*net.TCPAddr).Port
 }
 
 func tmpDir(t testing.TB) string {
