@@ -360,7 +360,7 @@ func TestTask_Validate_Services(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if !strings.Contains(err.Error(), "interval (0) can not be lower") {
+	if !strings.Contains(err.Error(), "interval (0s) can not be lower") {
 		t.Fatalf("err: %v", err)
 	}
 }
