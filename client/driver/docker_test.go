@@ -52,7 +52,7 @@ func dockerTask() (*structs.Task, int, int) {
 			"image":   "busybox",
 			"load":    []string{"busybox.tar"},
 			"command": "/bin/nc",
-			"args":    []string{"-l", "127.0.0.1", "0"},
+			"args":    []string{"-l", "127.0.0.1", "-p", "0"},
 		},
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
@@ -146,7 +146,7 @@ func TestDockerDriver_StartOpen_Wait(t *testing.T) {
 			"load":    []string{"busybox.tar"},
 			"image":   "busybox",
 			"command": "/bin/nc",
-			"args":    []string{"-l", "127.0.0.1", "0"},
+			"args":    []string{"-l", "127.0.0.1", "-p", "0"},
 		},
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
@@ -511,7 +511,7 @@ func TestDockerDriver_NetworkMode_Host(t *testing.T) {
 			"image":        "busybox",
 			"load":         []string{"busybox.tar"},
 			"command":      "/bin/nc",
-			"args":         []string{"-l", "127.0.0.1", "0"},
+			"args":         []string{"-l", "127.0.0.1", "-p", "0"},
 			"network_mode": expected,
 		},
 		Resources: &structs.Resources{
