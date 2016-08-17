@@ -19,6 +19,8 @@ IMPROVEMENTS:
   * cli: status commands support JSON output and go template formating [GH-1503]
   * cli: Validate and plan command supports reading from stdin [GH-1460,
     GH-1458]
+  * cli: Allow basic authentication through address and environment variable
+    [GH-1610]
   * cli: `nomad node-status` shows volume name for non-physical volumes instead
     of showing 0B used [GH-1538]
   * cli: Support retrieving job files using go-getter in the `run`, `plan` and
