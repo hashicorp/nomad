@@ -2,6 +2,7 @@ package nomad
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/armon/go-metrics"
@@ -66,6 +67,42 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 			return fmt.Errorf("%s %d: job does not exist", RegisterEnforceIndexErrPrefix, jmi)
 		}
 	}
+
+	// Ensure that the job has permissions for the requested Vault tokens
+	desiredPolicies := structs.VaultPoliciesSet(args.Job.VaultPolicies())
+	if len(desiredPolicies) != 0 {
+		vconf := j.srv.config.VaultConfig
+		if !vconf.Enabled {
+			return fmt.Errorf("Vault not enabled and Vault policies requested")
+		}
+
+		// Have to check if the user has permissions
+		if !vconf.AllowUnauthenticated {
+			if args.Job.VaultToken == "" {
+				return fmt.Errorf("Vault policies requested but missing Vault Token")
+			}
+
+			vault := j.srv.vault
+			s, err := vault.LookupToken(args.Job.VaultToken)
+			if err != nil {
+				return err
+			}
+
+			allowedPolicies, err := PoliciesFrom(s)
+			if err != nil {
+				return err
+			}
+
+			subset, offending := structs.SliceStringIsSubset(allowedPolicies, desiredPolicies)
+			if !subset {
+				return fmt.Errorf("Passed Vault Token doesn't allow access to the following policies: %s",
+					strings.Join(offending, ", "))
+			}
+		}
+	}
+
+	// Clear the Vault token
+	args.Job.VaultToken = ""
 
 	// Commit this update via Raft
 	_, index, err := j.srv.raftApply(structs.JobRegisterRequestType, args)
