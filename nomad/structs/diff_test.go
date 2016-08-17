@@ -849,7 +849,7 @@ func TestJobDiff(t *testing.T) {
 	for i, c := range cases {
 		actual, err := c.Old.Diff(c.New, c.Contextual)
 		if c.Error && err == nil {
-			t.Fatalf("case %d: expected errored")
+			t.Fatalf("case %d: expected errored", i+1)
 		} else if err != nil {
 			if !c.Error {
 				t.Fatalf("case %d: errored %#v", i+1, err)
@@ -2817,7 +2817,7 @@ func TestTaskDiff(t *testing.T) {
 	for i, c := range cases {
 		actual, err := c.Old.Diff(c.New, c.Contextual)
 		if c.Error && err == nil {
-			t.Fatalf("case %d: expected errored")
+			t.Fatalf("case %d: expected errored", i+1)
 		} else if err != nil {
 			if !c.Error {
 				t.Fatalf("case %d: errored %#v", i+1, err)
