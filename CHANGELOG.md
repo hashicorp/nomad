@@ -14,13 +14,15 @@ IMPROVEMENTS:
   * api/cli: Support for tailing/streaming files [GH-1404, GH-1420]
   * api/server: Support for querying job summaries [GH-1455]
   * cli: `nomad logs` command for streaming task logs [GH-1444]
+  * cli: `nomad status` shows the create time of allocations [GH-1540]
   * cli: `nomad plan` exit code indicates if changes will occur [GH-1502]
   * cli: status commands support JSON output and go template formating [GH-1503]
   * cli: Validate and plan command supports reading from stdin [GH-1460,
     GH-1458]
   * cli: `nomad node-status` shows volume name for non-physical volumes instead
     of showing 0B used [GH-1538]
-  * cli: `nomad status` shows the create time of allocations [GH-1540]
+  * cli: Support retrieving job files using go-getter in the `run`, `plan` and
+    `validate` command [GH-1511]
   * client: Add killing event to task state [GH-1457]
   * client: Fingerprint network speed on Windows [GH-1443]
   * discovery: Support for initial check status [GH-1599]
