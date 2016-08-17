@@ -376,7 +376,7 @@ func TestHTTP_JobEvaluations(t *testing.T) {
 		evals := obj.([]*structs.Evaluation)
 		// Can be multiple evals, use the last one, since they are in order
 		idx := len(evals) - 1
-		if len(evals) > 0 || evals[idx].ID != resp.EvalID {
+		if len(evals) < 0 || evals[idx].ID != resp.EvalID {
 			t.Fatalf("bad: %v", evals)
 		}
 
