@@ -55,6 +55,10 @@ Usage: nomad run [options] <path>
   If the job has specified the region, the -region flag and NOMAD_REGION
   environment variable are overridden and the the job's region is used.
 
+  The run command will set the vault_token of the job based on the following
+  precedence, going from highest to lowest: the -vault-token flag, the
+  $VAULT_TOKEN environment variable and finally the value in the job file.
+
 General Options:
 
   ` + generalOptionsUsage() + `
@@ -77,6 +81,12 @@ Run Options:
   -verbose
     Display full information.
 
+  -vault-token
+    If set, the passed Vault token is stored in the job before sending to the
+    Nomad servers. This allows passing the Vault token without storing it in
+    the job file. This overrides the token found in $VAULT_TOKEN environment
+    variable and that found in the job.
+
   -output
     Output the JSON that would be submitted to the HTTP API without submitting
     the job.
@@ -90,7 +100,7 @@ func (c *RunCommand) Synopsis() string {
 
 func (c *RunCommand) Run(args []string) int {
 	var detach, verbose, output bool
-	var checkIndexStr string
+	var checkIndexStr, vaultToken string
 
 	flags := c.Meta.FlagSet("run", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
@@ -98,6 +108,7 @@ func (c *RunCommand) Run(args []string) int {
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.BoolVar(&output, "output", false, "")
 	flags.StringVar(&checkIndexStr, "check-index", "", "")
+	flags.StringVar(&vaultToken, "vault-token", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -156,6 +167,16 @@ func (c *RunCommand) Run(args []string) int {
 
 	// Check if the job is periodic.
 	periodic := job.IsPeriodic()
+
+	// Parse the Vault token
+	if vaultToken == "" {
+		// Check the environment variable
+		vaultToken = os.Getenv("VAULT_TOKEN")
+	}
+
+	if vaultToken != "" {
+		job.VaultToken = vaultToken
+	}
 
 	// Convert it to something we can use
 	apiJob, err := convertStructJob(job)
