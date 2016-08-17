@@ -52,7 +52,7 @@ func dockerTask() (*structs.Task, int, int) {
 			"image":   "busybox",
 			"load":    []string{"busybox.tar"},
 			"command": "/bin/nc",
-			"args":    []string{"-l", "127.0.0.1", "0"},
+			"args":    []string{"-l", "127.0.0.1", "-p", "0"},
 		},
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
@@ -146,7 +146,7 @@ func TestDockerDriver_StartOpen_Wait(t *testing.T) {
 			"load":    []string{"busybox.tar"},
 			"image":   "busybox",
 			"command": "/bin/nc",
-			"args":    []string{"-l", "127.0.0.1", "0"},
+			"args":    []string{"-l", "127.0.0.1", "-p", "0"},
 		},
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
@@ -245,10 +245,8 @@ func TestDockerDriver_Start_LoadImage(t *testing.T) {
 	defer execCtx.AllocDir.Destroy()
 	d := NewDockerDriver(driverCtx)
 
-	// Copy the test jar into the task's directory
-	taskDir, _ := execCtx.AllocDir.TaskDirs[task.Name]
-	dst := filepath.Join(taskDir, allocdir.TaskLocal, "busybox.tar")
-	copyFile("./test-resources/docker/busybox.tar", dst, t)
+	// Copy the image into the task's directory
+	copyImage(execCtx, task, "busybox.tar", t)
 
 	handle, err := d.Start(execCtx, task)
 	if err != nil {
@@ -511,7 +509,7 @@ func TestDockerDriver_NetworkMode_Host(t *testing.T) {
 			"image":        "busybox",
 			"load":         []string{"busybox.tar"},
 			"command":      "/bin/nc",
-			"args":         []string{"-l", "127.0.0.1", "0"},
+			"args":         []string{"-l", "127.0.0.1", "-p", "0"},
 			"network_mode": expected,
 		},
 		Resources: &structs.Resources{
