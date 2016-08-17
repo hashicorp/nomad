@@ -861,7 +861,7 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 		}
 	}
 	if !found {
-		return nil, fmt.Errorf("Failed to find container %s: %v", pid.ContainerID, err)
+		return nil, fmt.Errorf("Failed to find container %s", pid.ContainerID)
 	}
 	exec, pluginClient, err := createExecutor(pluginConfig, d.config.LogOutput, d.config)
 	if err != nil {
