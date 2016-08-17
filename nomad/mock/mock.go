@@ -184,6 +184,7 @@ func SystemJob() *structs.Job {
 						Config: map[string]interface{}{
 							"command": "/bin/date",
 						},
+						Env: map[string]string{},
 						Resources: &structs.Resources{
 							CPU:      500,
 							MemoryMB: 256,

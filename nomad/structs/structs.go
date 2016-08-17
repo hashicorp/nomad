@@ -2482,6 +2482,9 @@ type Allocation struct {
 	// TaskStates stores the state of each task,
 	TaskStates map[string]*TaskState
 
+	// PreviousAllocation is the allocation that this allocation is replacing
+	PreviousAllocation string
+
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
