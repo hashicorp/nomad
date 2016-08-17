@@ -1,4 +1,4 @@
-## 0.4.1 (UNRELEASED)
+## 0.4.1
 
 __BACKWARDS INCOMPATIBILITIES:__
   * telemetry: Operators will have to explicitly opt-in for Nomad client to
