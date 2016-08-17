@@ -221,6 +221,86 @@ func TestJob_SystemJob_Validate(t *testing.T) {
 	}
 }
 
+func TestJob_VaultPolicies(t *testing.T) {
+	j0 := &Job{}
+	e0 := make(map[string]map[string][]string, 0)
+
+	j1 := &Job{
+		TaskGroups: []*TaskGroup{
+			&TaskGroup{
+				Name: "foo",
+				Tasks: []*Task{
+					&Task{
+						Name: "t1",
+					},
+					&Task{
+						Name: "t2",
+						Vault: &Vault{
+							Policies: []string{
+								"p1",
+								"p2",
+							},
+						},
+					},
+				},
+			},
+			&TaskGroup{
+				Name: "bar",
+				Tasks: []*Task{
+					&Task{
+						Name: "t3",
+						Vault: &Vault{
+							Policies: []string{
+								"p3",
+								"p4",
+							},
+						},
+					},
+					&Task{
+						Name: "t4",
+						Vault: &Vault{
+							Policies: []string{
+								"p5",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	e1 := map[string]map[string][]string{
+		"foo": map[string][]string{
+			"t2": []string{"p1", "p2"},
+		},
+		"bar": map[string][]string{
+			"t3": []string{"p3", "p4"},
+			"t4": []string{"p5"},
+		},
+	}
+
+	cases := []struct {
+		Job      *Job
+		Expected map[string]map[string][]string
+	}{
+		{
+			Job:      j0,
+			Expected: e0,
+		},
+		{
+			Job:      j1,
+			Expected: e1,
+		},
+	}
+
+	for i, c := range cases {
+		got := c.Job.VaultPolicies()
+		if !reflect.DeepEqual(got, c.Expected) {
+			t.Fatalf("case %d: got %#v; want %#v", i+1, got, c.Expected)
+		}
+	}
+}
+
 func TestTaskGroup_Validate(t *testing.T) {
 	tg := &TaskGroup{
 		Count: -1,
