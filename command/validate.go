@@ -2,18 +2,12 @@ package command
 
 import (
 	"fmt"
-	"io"
-	"os"
 	"strings"
-
-	"github.com/hashicorp/nomad/jobspec"
 )
 
 type ValidateCommand struct {
 	Meta
-
-	// The fields below can be overwritten for tests
-	testStdin io.Reader
+	JobGetter
 }
 
 func (c *ValidateCommand) Help() string {
@@ -24,8 +18,8 @@ Usage: nomad validate [options] <file>
   check for any syntax errors or validation problems with a job.
 
   If the supplied path is "-", the jobfile is read from stdin. Otherwise
-  it is read from the file at the supplied path.
-
+  it is read from the file at the supplied path or downloaded and
+  read from URL specified.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -48,32 +42,10 @@ func (c *ValidateCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Read the Jobfile
-	path := args[0]
-
-	var f io.Reader
-	switch path {
-	case "-":
-		if c.testStdin != nil {
-			f = c.testStdin
-		} else {
-			f = os.Stdin
-		}
-		path = "stdin"
-	default:
-		file, err := os.Open(path)
-		defer file.Close()
-		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error opening file %q: %v", path, err))
-			return 1
-		}
-		f = file
-	}
-
-	// Parse the JobFile
-	job, err := jobspec.Parse(f)
+	// Get Job struct from Jobfile
+	job, err := c.JobGetter.StructJob(args[0])
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error parsing job file from %s: %v", path, err))
+		c.Ui.Error(fmt.Sprintf("Error getting job struct: %s", err))
 		return 1
 	}
 

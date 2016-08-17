@@ -1,8 +1,11 @@
 package command
 
 import (
+	"fmt"
 	"io"
 	"io/ioutil"
+	"net/http"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -183,5 +186,69 @@ func TestHelpers_LineLimitReader_TimeLimit(t *testing.T) {
 	case <-resultCh:
 	case <-time.After(1 * time.Second):
 		t.Fatalf("did not exit by time limit")
+	}
+}
+
+const (
+	job = `job "job1" {
+        type = "service"
+        datacenters = [ "dc1" ]
+        group "group1" {
+                count = 1
+                task "task1" {
+                        driver = "exec"
+                        resources = {}
+                }
+                restart{
+                        attempts = 10
+                        mode = "delay"
+                }
+        }
+}`
+)
+
+// Test StructJob with local jobfile
+func TestStructJobWithLocal(t *testing.T) {
+	fh, err := ioutil.TempFile("", "nomad")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	defer os.Remove(fh.Name())
+	_, err = fh.WriteString(job)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	j := &JobGetter{}
+	sj, err := j.StructJob(fh.Name())
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	err = sj.Validate()
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+}
+
+// Test StructJob with jobfile from HTTP Server
+func TestStructJobWithHTTPServer(t *testing.T) {
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, job)
+	})
+	go http.ListenAndServe("127.0.0.1:12345", nil)
+
+	// Wait until HTTP Server starts certainly
+	time.Sleep(100 * time.Millisecond)
+
+	j := &JobGetter{}
+	sj, err := j.StructJob("http://127.0.0.1:12345/")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	err = sj.Validate()
+	if err != nil {
+		t.Fatalf("err: %s", err)
 	}
 }

@@ -4,10 +4,16 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
+	"os"
 	"strconv"
 	"time"
 
+	gg "github.com/hashicorp/go-getter"
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/jobspec"
+	"github.com/hashicorp/nomad/nomad/structs"
+
 	"github.com/ryanuber/columnize"
 )
 
@@ -221,4 +227,64 @@ READ:
 
 	// Just stream from the underlying reader now
 	return l.ReadCloser.Read(p)
+}
+
+type JobGetter struct {
+	// The fields below can be overwritten for tests
+	testStdin io.Reader
+}
+
+// StructJob returns the Job struct from jobfile.
+func (j *JobGetter) StructJob(jpath string) (*structs.Job, error) {
+	var jobfile io.Reader
+	switch jpath {
+	case "-":
+		if j.testStdin != nil {
+			jobfile = j.testStdin
+		} else {
+			jobfile = os.Stdin
+		}
+	default:
+		if len(jpath) == 0 {
+			return nil, fmt.Errorf("Error jobfile path has to be specified.")
+		}
+
+		job, err := ioutil.TempFile("", "jobfile")
+		if err != nil {
+			return nil, err
+		}
+		defer os.Remove(job.Name())
+
+		// Get the pwd
+		pwd, err := os.Getwd()
+		if err != nil {
+			return nil, err
+		}
+
+		client := &gg.Client{
+			Src: jpath,
+			Pwd: pwd,
+			Dst: job.Name(),
+		}
+
+		if err := client.Get(); err != nil {
+			return nil, fmt.Errorf("Error getting jobfile from %q: %v", jpath, err)
+		} else {
+			file, err := os.Open(job.Name())
+			defer file.Close()
+			if err != nil {
+				return nil, fmt.Errorf("Error opening file %q: %v", jpath, err)
+			}
+			jobfile = file
+		}
+	}
+
+	// Parse the JobFile
+	jobStruct, err := jobspec.Parse(jobfile)
+	if err != nil {
+		fmt.Errorf("Error parsing job file from %s: %v", jpath, err)
+		return nil, err
+	}
+
+	return jobStruct, nil
 }

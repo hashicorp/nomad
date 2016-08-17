@@ -5,15 +5,12 @@ import (
 	"encoding/gob"
 	"encoding/json"
 	"fmt"
-	"io"
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/jobspec"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -24,9 +21,7 @@ var (
 
 type RunCommand struct {
 	Meta
-
-	// The fields below can be overwritten for tests
-	testStdin io.Reader
+	JobGetter
 }
 
 func (c *RunCommand) Help() string {
@@ -38,7 +33,8 @@ Usage: nomad run [options] <path>
   used to interact with Nomad.
 
   If the supplied path is "-", the jobfile is read from stdin. Otherwise
-  it is read from the file at the supplied path.
+  it is read from the file at the supplied path or downloaded and
+  read from URL specified.
 
   Upon successful job submission, this command will immediately
   enter an interactive monitor. This is useful to watch Nomad's
@@ -116,32 +112,17 @@ func (c *RunCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Read the Jobfile
-	path := args[0]
-
-	var f io.Reader
-	switch path {
-	case "-":
-		if c.testStdin != nil {
-			f = c.testStdin
-		} else {
-			f = os.Stdin
-		}
-		path = "stdin"
-	default:
-		file, err := os.Open(path)
-		defer file.Close()
-		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error opening file %q: %v", path, err))
-			return 1
-		}
-		f = file
+	// Check that we got exactly one node
+	args = flags.Args()
+	if len(args) != 1 {
+		c.Ui.Error(c.Help())
+		return 1
 	}
 
-	// Parse the JobFile
-	job, err := jobspec.Parse(f)
+	// Get Job struct from Jobfile
+	job, err := c.JobGetter.StructJob(args[0])
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error parsing job file from %s: %v", path, err))
+		c.Ui.Error(fmt.Sprintf("Error getting job struct: %s", err))
 		return 1
 	}
 
