@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"log"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
 	vapi "github.com/hashicorp/vault/api"
@@ -64,11 +66,7 @@ func TestVaultClient_EstablishConnection(t *testing.T) {
 	// Start Vault
 	v.Start()
 
-	testutil.WaitForResult(func() (bool, error) {
-		return client.ConnectionEstablished(), nil
-	}, func(err error) {
-		t.Fatalf("Connection not established")
-	})
+	waitForConnection(client, t)
 
 	// Ensure that since we are using a root token that we haven started the
 	// renewal loop.
@@ -150,4 +148,102 @@ func parseTTLFromLookup(s *vapi.Secret, t *testing.T) int64 {
 	}
 
 	return ttl
+}
+
+func TestVaultClient_LookupToken_Invalid(t *testing.T) {
+	conf := &config.VaultConfig{
+		Enabled: false,
+	}
+
+	logger := log.New(os.Stderr, "", log.LstdFlags)
+	client, err := NewVaultClient(conf, logger)
+	if err != nil {
+		t.Fatalf("failed to build vault client: %v", err)
+	}
+
+	_, err = client.LookupToken("foo")
+	if err == nil || !strings.Contains(err.Error(), "disabled") {
+		t.Fatalf("Expected error because Vault is disabled: %v", err)
+	}
+
+	// Enable vault but use a bad address so it never establishes a conn
+	conf.Enabled = true
+	conf.Addr = "http://foobar:12345"
+	conf.Token = structs.GenerateUUID()
+	client, err = NewVaultClient(conf, logger)
+	if err != nil {
+		t.Fatalf("failed to build vault client: %v", err)
+	}
+
+	_, err = client.LookupToken("foo")
+	if err == nil || !strings.Contains(err.Error(), "established") {
+		t.Fatalf("Expected error because connection to Vault hasn't been made: %v", err)
+	}
+}
+
+func waitForConnection(v *vaultClient, t *testing.T) {
+	testutil.WaitForResult(func() (bool, error) {
+		return v.ConnectionEstablished(), nil
+	}, func(err error) {
+		t.Fatalf("Connection not established")
+	})
+}
+
+func TestVaultClient_LookupToken(t *testing.T) {
+	v := testutil.NewTestVault(t).Start()
+	defer v.Stop()
+
+	logger := log.New(os.Stderr, "", log.LstdFlags)
+	client, err := NewVaultClient(v.Config, logger)
+	if err != nil {
+		t.Fatalf("failed to build vault client: %v", err)
+	}
+
+	waitForConnection(client, t)
+
+	// Lookup ourselves
+	s, err := client.LookupToken(v.Config.Token)
+	if err != nil {
+		t.Fatalf("self lookup failed: %v", err)
+	}
+
+	policies, err := PoliciesFrom(s)
+	if err != nil {
+		t.Fatalf("failed to parse policies: %v", err)
+	}
+
+	expected := []string{"root"}
+	if !reflect.DeepEqual(policies, expected) {
+		t.Fatalf("Unexpected policies; got %v; want %v", policies, expected)
+	}
+
+	// Create a token with a different set of policies
+	expected = []string{"default"}
+	req := vapi.TokenCreateRequest{
+		Policies: expected,
+	}
+	s, err = v.Client.Auth().Token().Create(&req)
+	if err != nil {
+		t.Fatalf("failed to create child token: %v", err)
+	}
+
+	// Get the client token
+	if s == nil || s.Auth == nil {
+		t.Fatalf("bad secret response: %+v", s)
+	}
+
+	// Lookup new child
+	s, err = client.LookupToken(s.Auth.ClientToken)
+	if err != nil {
+		t.Fatalf("self lookup failed: %v", err)
+	}
+
+	policies, err = PoliciesFrom(s)
+	if err != nil {
+		t.Fatalf("failed to parse policies: %v", err)
+	}
+
+	if !reflect.DeepEqual(policies, expected) {
+		t.Fatalf("Unexpected policies; got %v; want %v", policies, expected)
+	}
 }

@@ -1222,6 +1222,26 @@ func (j *Job) IsPeriodic() bool {
 	return j.Periodic != nil
 }
 
+// VaultPolicies returns the set of Vault policies per task group, per task
+func (j *Job) VaultPolicies() map[string]map[string][]string {
+	policies := make(map[string]map[string][]string, len(j.TaskGroups))
+
+	for _, tg := range j.TaskGroups {
+		tgPolicies := make(map[string][]string, len(tg.Tasks))
+		policies[tg.Name] = tgPolicies
+
+		for _, task := range tg.Tasks {
+			if task.Vault == nil {
+				continue
+			}
+
+			tgPolicies[task.Name] = task.Vault.Policies
+		}
+	}
+
+	return policies
+}
+
 // JobListStub is used to return a subset of job information
 // for the job list
 type JobListStub struct {
