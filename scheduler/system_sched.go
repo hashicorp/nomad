@@ -321,6 +321,12 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 				ClientStatus:  structs.AllocClientStatusPending,
 			}
 
+			// If the new allocation is replacing an older allocation then we
+			// set the record the older allocation id so that they are chained
+			if missing.Alloc != nil {
+				alloc.PreviousAllocation = missing.Alloc.ID
+			}
+
 			s.plan.AppendAlloc(alloc)
 		} else {
 			// Lazy initialize the failed map
