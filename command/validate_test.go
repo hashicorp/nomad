@@ -63,8 +63,8 @@ func TestValidateCommand_Fails(t *testing.T) {
 	if code := cmd.Run([]string{"/unicorns/leprechauns"}); code != 1 {
 		t.Fatalf("expect exit 1, got: %d", code)
 	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error opening") {
-		t.Fatalf("expect parsing error, got: %s", out)
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error getting job struct") {
+		t.Fatalf("expect getting job struct error, got: %s", out)
 	}
 	ui.ErrorWriter.Reset()
 
@@ -80,8 +80,8 @@ func TestValidateCommand_Fails(t *testing.T) {
 	if code := cmd.Run([]string{fh1.Name()}); code != 1 {
 		t.Fatalf("expect exit 1, got: %d", code)
 	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error parsing") {
-		t.Fatalf("expect parsing error, got: %s", err)
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error getting job struct") {
+		t.Fatalf("expect parsing error, got: %s", out)
 	}
 	ui.ErrorWriter.Reset()
 

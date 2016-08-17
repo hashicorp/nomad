@@ -102,7 +102,7 @@ func (c *PlanCommand) Run(args []string) int {
 	job, err := c.JobGetter.StructJob(args[0])
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error getting job struct: %s", err))
-		return 1
+		return 255
 	}
 
 	// Initialize any fields that need to be.

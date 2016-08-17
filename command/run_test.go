@@ -66,8 +66,8 @@ func TestRunCommand_Fails(t *testing.T) {
 	if code := cmd.Run([]string{"/unicorns/leprechauns"}); code != 1 {
 		t.Fatalf("expect exit 1, got: %d", code)
 	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error opening") {
-		t.Fatalf("expect parsing error, got: %s", out)
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error getting job struct") {
+		t.Fatalf("expect getting job struct error, got: %s", out)
 	}
 	ui.ErrorWriter.Reset()
 
@@ -83,8 +83,8 @@ func TestRunCommand_Fails(t *testing.T) {
 	if code := cmd.Run([]string{fh1.Name()}); code != 1 {
 		t.Fatalf("expect exit 1, got: %d", code)
 	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error parsing") {
-		t.Fatalf("expect parsing error, got: %s", err)
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error getting job struct") {
+		t.Fatalf("expect parsing error, got: %s", out)
 	}
 	ui.ErrorWriter.Reset()
 
@@ -186,7 +186,7 @@ job "job1" {
 	}
 
 	if out := ui.ErrorWriter.String(); !strings.Contains(out, "connection refused") {
-		t.Fatalf("expected runtime error, got: %s", out)
+		t.Fatalf("expected connection refused error, got: %s", out)
 	}
 	ui.ErrorWriter.Reset()
 }
